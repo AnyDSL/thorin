@@ -1,6 +1,6 @@
 #include "thorin/lambda.h"
 #include "thorin/world.h"
-#include "thorin/analyses/top_level_scopes.h"
+#include "thorin/analyses/scope.h"
 #include "thorin/analyses/verify.h"
 
 namespace thorin {

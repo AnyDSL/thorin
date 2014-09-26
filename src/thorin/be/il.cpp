@@ -5,7 +5,6 @@
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/schedule.h"
-#include "thorin/analyses/top_level_scopes.h"
 #include "thorin/util/hash.h"
 #include "thorin/util/printer.h"
 

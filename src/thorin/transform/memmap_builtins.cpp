@@ -1,6 +1,6 @@
 #include "thorin/world.h"
 #include "thorin/primop.h"
-#include "thorin/analyses/top_level_scopes.h"
+#include "thorin/analyses/scope.h"
 #include "thorin/transform/mangle.h"
 
 namespace thorin {

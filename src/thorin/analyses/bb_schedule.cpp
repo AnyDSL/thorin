@@ -11,7 +11,7 @@ static int count_children(const DomNode* n, LambdaMap<int>& lambda2num) {
 }
 
 static void bb_schedule(const Scope& scope, const DomNode* n, std::vector<Lambda*>& bbs, const LambdaMap<int>& lambda2num) {
-    auto& looptree = scope.looptree();
+    auto looptree = scope.looptree();
     auto lambda = n->lambda();
     bbs.push_back(lambda);
     auto children = n->children();
@@ -20,8 +20,8 @@ static void bb_schedule(const Scope& scope, const DomNode* n, std::vector<Lambda
         auto l2 = n2->lambda();
 
         // handle loops first
-        auto depth1 = looptree.depth(l1);
-        auto depth2 = looptree.depth(l2);
+        auto depth1 = looptree->depth(l1);
+        auto depth2 = looptree->depth(l2);
         if (depth1 > depth2) return true;
         if (depth1 < depth2) return false;
 
@@ -47,12 +47,11 @@ static void bb_schedule(const Scope& scope, const DomNode* n, std::vector<Lambda
 }
 
 std::vector<Lambda*> bb_schedule(const Scope& scope) {
-    auto& domtree = scope.domtree();
-    auto& looptree = scope.looptree();
+    auto domtree = scope.domtree();
     LambdaMap<int> lambda2num;
-    count_children(domtree.root(), lambda2num);
+    count_children(domtree->root(), lambda2num);
     std::vector<Lambda*> bbs;
-    bb_schedule(scope, domtree.root(), bbs, lambda2num);
+    bb_schedule(scope, domtree->root(), bbs, lambda2num);
     assert(bbs.size() == scope.size());
     return bbs;
 }

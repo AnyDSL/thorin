@@ -29,8 +29,8 @@ public:
     World& world() { return scope.world(); }
 
     Scope& scope;
-    const DomTree& domtree;
-    const DomTree& postdomtree;
+    const DomTree* domtree;
+    const DomTree* postdomtree;
     Def2Def mapped;
     const size_t length;
 };
@@ -95,8 +95,8 @@ Lambda* Vectorizer::vectorize() {
 void Vectorizer::infer_condition(Lambda* lambda) {
     const DefNode*& cond = mapped[lambda];
 
-    Lambda* dom = domtree.idom(lambda);
-    if (postdomtree.idom(dom) == lambda)
+    Lambda* dom = domtree->idom(lambda);
+    if (postdomtree->idom(dom) == lambda)
         cond = mapped[dom];
     else {
         cond = world().false_mask(length);

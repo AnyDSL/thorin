@@ -65,7 +65,7 @@ static Def2Lambda schedule_early(const Scope& scope) {
 static Schedule schedule_late(const Scope& scope, const Def2Lambda& def2early) {
     Def2Lambda def2late;
     DefMap<int> def2num;
-    auto& domtree = scope.domtree();
+    auto domtree = scope.domtree();
     std::queue<Def> queue;
     Schedule schedule;
 
@@ -104,7 +104,7 @@ static Schedule schedule_late(const Scope& scope, const Def2Lambda& def2early) {
         if (!scope.contains(def) || def->isa_lambda() || def->isa<Param>())
             return;
         auto& late = def2late[def];
-        late = late ? domtree.lca(late, lambda) : lambda;
+        late = late ? domtree->lca(late, lambda) : lambda;
         assert(def2num[def] != 0);
         if (--def2num[def] == 0) {
             queue.push(def);
@@ -154,13 +154,13 @@ static Schedule schedule_late(const Scope& scope, const Def2Lambda& def2early) {
 
 static void verify(const Scope& scope, Schedule& schedule) {
 #ifndef NDEBUG
-    auto& domtree = scope.domtree();
+    auto domtree = scope.domtree();
     LambdaMap<Def> lambda2mem;
 
     for (auto lambda : scope) {
         Def mem = lambda->mem_param();
         if (!mem)
-            mem = lambda2mem[domtree.idom(lambda)];
+            mem = lambda2mem[domtree->idom(lambda)];
         for (auto primop : schedule[lambda]) {
             if (auto memop = primop->isa<MemOp>()) {
                 if (memop->mem() != mem) {
@@ -188,8 +188,8 @@ Schedule schedule_late(const Scope& scope) {
 
 Schedule schedule_smart(const Scope& scope) {
     Schedule smart;
-    auto& domtree = scope.domtree();
-    auto& looptree = scope.looptree();
+    auto domtree = scope.domtree();
+    auto looptree = scope.looptree();
     auto def2early = schedule_early(scope);
     auto late = schedule_late(scope, def2early);
 
@@ -199,10 +199,10 @@ Schedule schedule_smart(const Scope& scope) {
             auto lambda_early = def2early[primop];
             assert(lambda_early != nullptr);
             auto lambda_best = lambda;
-            int depth = looptree.depth(lambda_best);
+            int depth = looptree->depth(lambda_best);
             for (auto i = lambda_best; i != lambda_early;) {
-                i = domtree.idom(i);
-                int cur_depth = looptree.depth(i);
+                i = domtree->idom(i);
+                int cur_depth = looptree->depth(i);
                 if (cur_depth < depth) {
                     lambda_best = i;
                     depth = cur_depth;

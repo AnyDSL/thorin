@@ -2,11 +2,10 @@
 #include "thorin/primop.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
-#include "thorin/analyses/domtree.h"
-#include "thorin/analyses/scope.h"
 #include "thorin/analyses/bb_schedule.h"
+#include "thorin/analyses/domtree.h"
 #include "thorin/analyses/schedule.h"
-#include "thorin/analyses/top_level_scopes.h"
+#include "thorin/analyses/scope.h"
 #include "thorin/util/printer.h"
 
 namespace thorin {
@@ -215,11 +214,11 @@ std::ostream& CodeGen::emit_jump(const Lambda* lambda) {
 
 void emit_thorin(const Scope& scope, bool fancy, bool nocolor) {
     CodeGen cg(fancy, nocolor);
-    auto& domtree = scope.domtree();
+    auto domtree = scope.domtree();
     Schedule schedule = schedule_smart(scope);
     auto bbs = bb_schedule(scope);
     for (auto lambda : bbs) {
-        int depth = fancy ? domtree.depth(lambda) : 0;
+        int depth = fancy ? domtree->depth(lambda) : 0;
         cg.indent += depth;
         cg.newline();
         cg.emit_head(lambda);

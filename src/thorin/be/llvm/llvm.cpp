@@ -32,7 +32,6 @@
 #include "thorin/analyses/bb_schedule.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/analyses/top_level_scopes.h"
 #include "thorin/be/llvm/cuda.h"
 #include "thorin/be/llvm/cpu.h"
 #include "thorin/be/llvm/nvvm.h"

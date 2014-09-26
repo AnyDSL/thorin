@@ -265,8 +265,48 @@ void Scope::build_in_scope() {
     }
 }
 
-const DomTree& Scope::domtree() const     { return *(domtree_     ? domtree_      : domtree_     = new DomTree(*this)); }
-const DomTree& Scope::postdomtree() const { return *(postdomtree_ ? postdomtree_  : postdomtree_ = new DomTree(*this, false)); }
-const LoopTree& Scope::looptree() const   { return *(looptree_    ? looptree_     : looptree_    = new LoopTree(*this)); }
+//------------------------------------------------------------------------------
+
+const DomTree* Scope::domtree() const     { return domtree_     ? domtree_      : domtree_     = new DomTree(*this); }
+const DomTree* Scope::postdomtree() const { return postdomtree_ ? postdomtree_  : postdomtree_ = new DomTree(*this, false); }
+const LoopTree* Scope::looptree() const   { return looptree_    ? looptree_     : looptree_    = new LoopTree(*this); }
+
+//------------------------------------------------------------------------------
+
+template<bool elide_empty>
+void top_level_scopes(World& world, std::function<void(const Scope&)> f) {
+    LambdaSet done;
+    std::queue<Lambda*> queue;
+
+    for (auto lambda : world.externals()) {
+        assert(!lambda->empty() && "external must not be empty");
+        done.insert(lambda);
+        queue.push(lambda);
+    }
+
+    while (!queue.empty()) {
+        auto lambda = pop(queue);
+        if (elide_empty && lambda->empty())
+            continue;
+        Scope scope(lambda);
+        f(scope);
+        for (auto lambda : scope)
+            done.insert(lambda);
+
+        for (auto lambda : scope) {
+            for (auto succ : lambda->succs()) {
+                if (!done.contains(succ)) {
+                    done.insert(succ);
+                    queue.push(succ);
+                }
+            }
+        }
+    }
+}
+
+template void top_level_scopes<true> (World&, std::function<void(const Scope&)>);
+template void top_level_scopes<false>(World&, std::function<void(const Scope&)>);
+
+//------------------------------------------------------------------------------
 
 }

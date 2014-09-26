@@ -2,7 +2,6 @@
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/domtree.h"
-#include "thorin/analyses/top_level_scopes.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/util/hash.h"
 #include "thorin/util/queue.h"
@@ -67,7 +66,7 @@ public:
 
 private:
     Scope scope_;
-    const DomTree& postdomtree_;
+    const DomTree* postdomtree_;
     Lambda2Lambda new2old_;
     Lambda2Lambda old2new_;
     LambdaSet done_;
@@ -121,7 +120,7 @@ void PartialEvaluator::eval(const Run* cur_run, Lambda* cur) {
         }
 
         if (dst == nullptr) {               // skip to immediate post-dominator
-            cur = old2new_[postdomtree_.idom(new2old_[cur])];
+            cur = old2new_[postdomtree_->idom(new2old_[cur])];
         } else if (dst->empty()) {
             if (!cur->args().empty()) {
                 if (auto lambda = cur->args().back()->isa_lambda()) {

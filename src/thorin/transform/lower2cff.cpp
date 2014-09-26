@@ -2,7 +2,6 @@
 #include "thorin/world.h"
 #include "thorin/type.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/analyses/top_level_scopes.h"
 #include "thorin/analyses/verify.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/transform/merge_lambdas.h"

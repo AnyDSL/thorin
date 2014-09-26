@@ -3,7 +3,6 @@
 #include "thorin/world.h"
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/analyses/top_level_scopes.h"
 #include "thorin/analyses/verify.h"
 
 namespace thorin {
@@ -14,7 +13,7 @@ public:
         : scope(scope)
         , domtree(scope.domtree())
     {
-        merge(domtree.lookup(scope.entry()));
+        merge(domtree->lookup(scope.entry()));
     }
 
     void merge(const DomNode* n);
@@ -22,7 +21,7 @@ public:
     World& world() { return scope.world(); }
 
     const Scope& scope;
-    const DomTree& domtree;
+    const DomTree* domtree;
 };
 
 const DomNode* Merger::dom_succ(const DomNode* n) {

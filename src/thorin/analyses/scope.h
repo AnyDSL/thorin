@@ -49,9 +49,9 @@ public:
     size_t size() const { return rpo_.size(); }
     World& world() const { return world_; }
 
-    const DomTree& domtree() const;
-    const DomTree& postdomtree() const;
-    const LoopTree& looptree() const;
+    const DomTree* domtree() const;
+    const DomTree* postdomtree() const;
+    const LoopTree* looptree() const;
 
     typedef ArrayRef<Lambda*>::const_iterator const_iterator;
     const_iterator begin() const { return rpo().begin(); }
@@ -136,6 +136,11 @@ private:
 
     friend class Scope;
 };
+
+//------------------------------------------------------------------------------
+
+template<bool elide_empty = true>
+void top_level_scopes(World&, std::function<void(const Scope&)>);
 
 //------------------------------------------------------------------------------
 

@@ -158,7 +158,7 @@ void CodeGen::emit(int opt) {
         auto oldStartBB = fct->begin();
         auto startBB = llvm::BasicBlock::Create(context_, fct->getName() + "_start", fct, oldStartBB);
         builder_.SetInsertPoint(startBB);
-        emit_function_start(startBB, fct, entry_);
+        emit_function_start(startBB, entry_);
         builder_.CreateBr(oldStartBB);
 
         Schedule schedule = schedule_smart(scope);

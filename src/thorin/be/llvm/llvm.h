@@ -32,7 +32,7 @@ protected:
     llvm::Function* emit_function_decl(Lambda*);
     virtual void emit_function_decl_hook(Lambda*, llvm::Function*) {}
     virtual llvm::Value* map_param(llvm::Function*, llvm::Argument* a, const Param*) { return a; }
-    virtual void emit_function_start(llvm::BasicBlock*, llvm::Function*, Lambda*) {}
+    virtual void emit_function_start(llvm::BasicBlock*, Lambda*) {}
     virtual llvm::FunctionType* convert_fn_type(Lambda*);
 
     virtual llvm::Value* emit_load(Def);

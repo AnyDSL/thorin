@@ -33,8 +33,8 @@ public:
     ArrayRef<Lambda*> rpo() const { return rpo_; }
     /// All lambdas within this scope in reverse rpo (this is \em no post-order).
     ArrayRef<Lambda*> rev_rpo() const { return rev_rpo_; }
-    Lambda* rev_rpo(size_t i) const { return rev_rpo_[i]; }
     Lambda* rpo(size_t i) const { return rpo_[i]; }
+    Lambda* rev_rpo(size_t i) const { return rev_rpo_[i]; }
     Lambda* entry() const { return rpo().front(); }
     Lambda* exit()  const { return rev_rpo_.front(); }
     /// Like \p rpo() but without \p entry()
@@ -45,8 +45,8 @@ public:
     ArrayRef<Lambda*> succs(Lambda* lambda) const { return succs_[rpo_id(lambda)]; }
     size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
     size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
-    size_t rev_rpo_id(Lambda* lambda) const { return lambda->find(this)->rev_rpo_id; }
-    size_t rpo_id(Lambda* lambda) const { return lambda->find(this)->rpo_id; }
+    size_t rpo_id(Lambda* lambda) const { return lambda->find_scope(this)->rpo_id; }
+    size_t rev_rpo_id(Lambda* lambda) const { return lambda->find_scope(this)->rev_rpo_id; }
     uint32_t sid() const { return sid_; }
     size_t size() const { return rpo_.size(); }
     World& world() const { return world_; }

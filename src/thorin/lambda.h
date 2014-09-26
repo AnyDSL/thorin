@@ -203,8 +203,9 @@ private:
     };
 
     std::list<ScopeInfo>::iterator list_iter(const Scope*);
-    ScopeInfo* find(const Scope*);
-    void unregister(const Scope* scope) { scopes_.erase(list_iter(scope)); }
+    ScopeInfo* find_scope(const Scope*);
+    ScopeInfo* register_scope(const Scope* scope) { scopes_.emplace_front(scope); return &scopes_.front(); }
+    void unregister_scope(const Scope* scope) { scopes_.erase(list_iter(scope)); }
 
     std::vector<const Param*> params_;
     /**

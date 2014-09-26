@@ -40,7 +40,7 @@ Scope::Scope(World& world, ArrayRef<Lambda*> entries)
 
 Scope::~Scope() {
     for (auto lambda : rpo())
-        lambda->unregister(this);
+        lambda->unregister_scope(this);
 
     if (!entry()->empty() && entry()->to()->isa<Bottom>())
         entry()->destroy_body();
@@ -94,7 +94,7 @@ void Scope::number(ArrayRef<Lambda*> entries) {
         n = number(entries.front(), n);
     else {
         for (auto entry : entries) {
-            if (!entry->find(this)) // if not visited
+            if (!entry->find_scope(this)) // if not visited
                 n = number(entry, n);
         }
         n = number(entry(), n);
@@ -102,8 +102,8 @@ void Scope::number(ArrayRef<Lambda*> entries) {
 
     // sort in reverse post-order
     std::sort(rpo_.begin(), rpo_.end(), [&](Lambda* l1, Lambda* l2) {
-        auto info1 = l1->find(this);
-        auto info2 = l2->find(this);
+        auto info1 = l1->find_scope(this);
+        auto info2 = l2->find_scope(this);
         if (info1 && info2) return info1->rpo_id > info2->rpo_id;
         if (info1) return true;
         if (info2) return false;
@@ -112,7 +112,7 @@ void Scope::number(ArrayRef<Lambda*> entries) {
 
     // remove unreachable lambdas and their params from candidate set
     for (auto lambda : rpo().slice_from_begin(n)) {
-        assert(lambda->find(this) == nullptr);
+        assert(lambda->find_scope(this) == nullptr);
         for (auto param : lambda->params()) {
             if (!param->is_proxy())
                 unset_candidate(param);
@@ -125,25 +125,24 @@ void Scope::number(ArrayRef<Lambda*> entries) {
 
     // convert post-order numbers to reverse post-order numbers
     for (auto lambda : rpo()) {
-        auto info = lambda->find(this);
+        auto info = lambda->find_scope(this);
         info->rpo_id = n-1 - info->rpo_id;
     }
 }
 
 size_t Scope::number(Lambda* cur, size_t i) {
-    cur->scopes_.emplace_front(this);
+    auto info = cur->register_scope(this);
 
     for (auto succ : cur->succs()) {
         if (is_candidate(succ)) {
-            if (!succ->find(this)) // if not visited
+            if (!succ->find_scope(this)) // if not visited
                 i = number(succ, i);
         }
     }
 
     assert(cur->scopes_.front().scope == this && "front item does not point to this scope");
     assert(cur->scopes_.front().rpo_id == size_t(-1) && "already set");
-    cur->scopes_.front().rpo_id = i;
-    return i+1;
+    return (info->rpo_id = i) + 1;
 }
 
 void Scope::build_cfg(ArrayRef<Lambda*> entries) {
@@ -151,7 +150,7 @@ void Scope::build_cfg(ArrayRef<Lambda*> entries) {
     preds_.resize(size() + 1);
     for (auto lambda : rpo()) {
         for (auto succ : lambda->succs()) {
-            if (succ->find(this))
+            if (succ->find_scope(this))
                 link(lambda, succ);
         }
     }
@@ -185,10 +184,9 @@ next:
     if (exits.size() != 1) {
         auto exit = world().meta_lambda();
         set_candidate(exit);
-        exit->scopes_.emplace_front(this);
-        exit->scopes_.front().rpo_id = size();
+        exit->register_scope(this)->rpo_id = size();
         rpo_.push_back(exit);
-        for (auto e : exits)                                // link meta lambda to exits
+        for (auto e : exits)                            // link meta lambda to exits
             link(e, exit);
     }
 
@@ -197,11 +195,11 @@ next:
 
     size_t n = size();
     if (exits.size() == 1) {
-        std::swap(rev_rpo_.front(), rev_rpo_[found]);       // put exit to front
+        std::swap(rev_rpo_.front(), rev_rpo_[found]);   // put exit to front
         n = rev_number(exits.front(), n);
     } else {
         for (auto exit : exits) {
-            if (exit->find(this)->rev_rpo_id == size_t(-1)) // if not visited
+            if (rev_rpo_id(exit) == size_t(-1))         // if not visited
                 n = rev_number(exit, n);
         }
         n = rev_number(exit(), n);
@@ -209,16 +207,14 @@ next:
     assert(n == 0);
 
     // sort in reverse post-order
-    std::sort(rev_rpo_.begin(), rev_rpo_.end(), [&] (Lambda* l1, Lambda* l2) {
-        return l1->find(this)->rev_rpo_id < l2->find(this)->rev_rpo_id;
-    });
+    std::sort(rev_rpo_.begin(), rev_rpo_.end(), [&] (Lambda* l1, Lambda* l2) { return rev_rpo_id(l1) < rev_rpo_id(l2); });
 }
 
 size_t Scope::rev_number(Lambda* cur, size_t i) {
-    auto info = cur->find(this);
-    info->rev_rpo_id = size_t(-2);                          // mark as visisted
+    auto info = cur->find_scope(this);
+    info->rev_rpo_id = size_t(-2);                      // mark as visisted
     for (auto pred : preds(cur)) {
-        if (pred->find(this)->rev_rpo_id == size_t(-1))     // if not visited
+        if (rev_rpo_id(pred) == size_t(-1))             // if not visited
             i = rev_number(pred, i);
     }
 

@@ -271,7 +271,7 @@ std::list<Lambda::ScopeInfo>::iterator Lambda::list_iter(const Scope* scope) {
     });
 }
 
-Lambda::ScopeInfo* Lambda::find(const Scope* scope) {
+Lambda::ScopeInfo* Lambda::find_scope(const Scope* scope) {
     auto i = list_iter(scope);
     if (i != scopes_.end()) {
         // heuristic: swap found node to front so current scope will be found as first element in list

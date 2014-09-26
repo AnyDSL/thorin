@@ -17,6 +17,14 @@ int DomNode::depth() const {
     return result;
 };
 
+void DomNode::dump() const {
+    for (int i = 0, e = depth(); i != e; ++i)
+        std::cout << '\t';
+    std::cout << lambda()->unique_name() << std::endl;
+    for (auto child : children())
+        child->dump();
+}
+
 //------------------------------------------------------------------------------
 
 template<bool forward>
@@ -93,13 +101,5 @@ template class DomTreeBase<true>;
 template class DomTreeBase<false>;
 
 //------------------------------------------------------------------------------
-
-void DomNode::dump() const {
-    for (int i = 0, e = depth(); i != e; ++i)
-        std::cout << '\t';
-    std::cout << lambda()->unique_name() << std::endl;
-    for (auto child : children())
-        child->dump();
-}
 
 }

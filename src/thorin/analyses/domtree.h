@@ -11,7 +11,6 @@ class DomNode {
 public:
     explicit DomNode(Lambda* lambda)
         : lambda_(lambda)
-        , idom_(nullptr)
     {}
 
     Lambda* lambda() const { return lambda_; }
@@ -24,7 +23,7 @@ public:
 
 private:
     Lambda* lambda_;
-    DomNode* idom_;
+    DomNode* idom_ = nullptr;
     AutoVector<const DomNode*> children_;
 
     template<bool> friend class DomTreeBase;

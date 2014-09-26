@@ -49,8 +49,10 @@ protected:
     llvm::Value* emit_shared_munmap(Def def);
 
 private:
-    Lambda* emit_intrinsic(llvm::Function*, Lambda*);
-    Lambda* emit_vectorize(llvm::Function*, Lambda*);
+    Lambda* emit_intrinsic(Lambda*);
+    Lambda* emit_vectorize_continuation(Lambda*);
+    void emit_vectorize(Lambda*);
+    llvm::Function* get_vectorize_tid();
 
 protected:
     World& world_;
@@ -65,14 +67,14 @@ protected:
     HashMap<const PrimOp*, llvm::Value*> primops_;
     HashMap<Lambda*, llvm::Function*> fcts_;
     TypeMap<llvm::Type*> types_;
-    HashSet<llvm::Function*> fcts_to_remove_;
+    std::vector<Lambda*> wfv_todo_;
 
     AutoPtr<GenericRuntime> runtime_;
     AutoPtr<KernelRuntime> cuda_runtime_;
     AutoPtr<KernelRuntime> nvvm_runtime_;
     AutoPtr<KernelRuntime> spir_runtime_;
     AutoPtr<KernelRuntime> opencl_runtime_;
-    Lambda* current_entry_;
+    Lambda* entry_;
 
     friend class GenericRuntime;
     friend class KernelRuntime;

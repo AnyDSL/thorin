@@ -13,12 +13,18 @@
 
 namespace thorin {
 
-static llvm::Function* get_vectorize_tid(llvm::Module* module) {
+llvm::Function* CodeGen::get_vectorize_tid() {
     const char* vectorize_intrinsic_name = "wfv_get_tid";
-    return module->getFunction(vectorize_intrinsic_name);
+    return module_->getFunction(vectorize_intrinsic_name);
 }
 
-Lambda* CodeGen::emit_vectorize(llvm::Function* current, Lambda* lambda) {
+Lambda* CodeGen::emit_vectorize_continuation(Lambda* lambda) {
+    assert(lambda->num_args() > 5 && "required arguments are missing");
+    wfv_todo_.push_back(lambda);
+    return lambda->arg(4)->as_lambda();
+}
+
+void CodeGen::emit_vectorize(Lambda* lambda) {
     Lambda* target = lambda->to()->as_lambda();
     assert(target->intrinsic() == Intrinsic::Vectorize);
     assert(lambda->num_args() > 5 && "required arguments are missing");
@@ -30,7 +36,6 @@ Lambda* CodeGen::emit_vectorize(llvm::Function* current, Lambda* lambda) {
 
     auto kernel = lambda->arg(3)->as<Global>()->init()->as_lambda();
     auto kernel_func = fcts_[kernel];
-    auto ret = lambda->arg(4)->as_lambda();
 
     const size_t arg_index = 5;
     const size_t num_args = lambda->num_args() - arg_index;
@@ -46,9 +51,10 @@ Lambda* CodeGen::emit_vectorize(llvm::Function* current, Lambda* lambda) {
     llvm::Function* kernel_simd_func = (llvm::Function*)module_->getOrInsertFunction(kernel->unique_name() + "_vectorize", simd_type);
 
     // build iteration loop and wire the calls
-    llvm::BasicBlock* header = llvm::BasicBlock::Create(context_, "vec_header", current);
-    llvm::BasicBlock* body = llvm::BasicBlock::Create(context_, "vec_body", current);
-    llvm::BasicBlock* exit = llvm::BasicBlock::Create(context_, "vec_exit", current);
+    auto llvm_entry = emit_function_decl(entry_);
+    llvm::BasicBlock* header = llvm::BasicBlock::Create(context_, "vec_header", llvm_entry);
+    llvm::BasicBlock* body = llvm::BasicBlock::Create(context_, "vec_body", llvm_entry);
+    llvm::BasicBlock* exit = llvm::BasicBlock::Create(context_, "vec_exit", llvm_entry);
     // create loop phi and connect init value
     llvm::PHINode* loop_counter = llvm::PHINode::Create(builder_.getInt32Ty(), 2U, "vector_loop_phi", header);
     llvm::Value* i = builder_.getInt32(0);
@@ -85,7 +91,7 @@ Lambda* CodeGen::emit_vectorize(llvm::Function* current, Lambda* lambda) {
     pm.run(*kernel_func);
 
     // vectorize function
-    auto vector_tid_getter = get_vectorize_tid(module_);
+    auto vector_tid_getter = get_vectorize_tid();
     WFVInterface::WFVInterface wfv(module_, &context_, kernel_func, kernel_simd_func, vector_length);
     if (vector_tid_getter) {
         bool b_simd = wfv.addSIMDSemantics(*vector_tid_getter, false, true, false, false, false, true, false, true, false, true);
@@ -104,7 +110,7 @@ Lambda* CodeGen::emit_vectorize(llvm::Function* current, Lambda* lambda) {
         for (auto it = vector_tid_getter->use_begin(), e = vector_tid_getter->use_end(); it != e; ++it) {
             if (auto call = llvm::dyn_cast<llvm::CallInst>(*it))
                 if (const Function* func = call->getParent()->getParent())
-                    if (func == current)
+                    if (func == llvm_entry)
                         calls.push_back(call);
         }
         for (auto it = calls.rbegin(), e = calls.rend(); it != e; ++it) {
@@ -113,12 +119,11 @@ Lambda* CodeGen::emit_vectorize(llvm::Function* current, Lambda* lambda) {
         }
     }
 
-    // remember to remove functions
-    fcts_to_remove_.insert(kernel_func);
-    fcts_to_remove_.insert(kernel_simd_func);
-    if (vector_tid_getter) fcts_to_remove_.insert(vector_tid_getter);
-
-    return ret;
+    // remove functions
+    kernel_func->removeFromParent();
+    kernel_func->deleteBody();
+    kernel_simd_func->removeFromParent();
+    kernel_simd_func->deleteBody();
 }
 
 }

@@ -54,7 +54,7 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention
     , function_calling_convention_(function_calling_convention)
     , device_calling_convention_(device_calling_convention)
     , kernel_calling_convention_(kernel_calling_convention)
-    , current_entry_(nullptr)
+    , entry_(nullptr)
 {
     runtime_ = new GenericRuntime(context_, module_, builder_);
     cuda_runtime_ = new CUDARuntime(context_, module_, builder_);
@@ -63,7 +63,7 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention
     opencl_runtime_ = new OpenCLRuntime(context_, module_, builder_);
 }
 
-Lambda* CodeGen::emit_intrinsic(llvm::Function* current, Lambda* lambda) {
+Lambda* CodeGen::emit_intrinsic(Lambda* lambda) {
     Lambda* to = lambda->to()->as_lambda();
     switch (to->intrinsic()) {
         case Intrinsic::CUDA:      return cuda_runtime_->emit_host_code(*this, lambda);
@@ -72,7 +72,7 @@ Lambda* CodeGen::emit_intrinsic(llvm::Function* current, Lambda* lambda) {
         case Intrinsic::OpenCL:    return opencl_runtime_->emit_host_code(*this, lambda);
         case Intrinsic::Parallel:  return runtime_->emit_parallel_start_code(*this, lambda);
 #ifdef WFV2_SUPPORT
-        case Intrinsic::Vectorize: return emit_vectorize(current, lambda);
+        case Intrinsic::Vectorize: return emit_vectorize_continuation(lambda);
 #endif
         default: THORIN_UNREACHABLE;
     }
@@ -111,14 +111,14 @@ llvm::Function* CodeGen::emit_function_decl(Lambda* lambda) {
 
 void CodeGen::emit(int opt) {
     top_level_scopes(world_, [&] (const Scope& scope) {
-        auto entry = current_entry_ = scope.entry();
-        assert(entry->is_returning());
-        llvm::Function* fct = emit_function_decl(entry);
+        entry_ = scope.entry();
+        assert(entry_->is_returning());
+        llvm::Function* fct = emit_function_decl(entry_);
 
         // map params
         const Param* ret_param = nullptr;
         auto arg = fct->arg_begin();
-        for (auto param : entry->params()) {
+        for (auto param : entry_->params()) {
             if (param->type().isa<MemType>())
                 continue;
             if (param->order() == 0) {
@@ -148,7 +148,7 @@ void CodeGen::emit(int opt) {
             auto bb = bb2lambda[bb_lambda] = llvm::BasicBlock::Create(context_, bb_lambda->name, fct);
 
             // create phi node stubs (for all non-cascading lambdas different from entry)
-            if (!bb_lambda->is_cascading() && entry != bb_lambda) {
+            if (!bb_lambda->is_cascading() && entry_ != bb_lambda) {
                 for (auto param : bb_lambda->params())
                     if (!param->type().isa<MemType>())
                         phis_[param] = llvm::PHINode::Create(convert(param->type()), (unsigned) param->peek().size(), param->name, bb);
@@ -158,7 +158,7 @@ void CodeGen::emit(int opt) {
         auto oldStartBB = fct->begin();
         auto startBB = llvm::BasicBlock::Create(context_, fct->getName() + "_start", fct, oldStartBB);
         builder_.SetInsertPoint(startBB);
-        emit_function_start(startBB, fct, entry);
+        emit_function_start(startBB, fct, entry_);
         builder_.CreateBr(oldStartBB);
 
         Schedule schedule = schedule_smart(scope);
@@ -167,7 +167,7 @@ void CodeGen::emit(int opt) {
         for (auto bb_lambda : bbs) {
             if (bb_lambda->empty())
                 continue;
-            assert(bb_lambda == entry || bb_lambda->is_basicblock());
+            assert(bb_lambda == entry_ || bb_lambda->is_basicblock());
             builder_.SetInsertPoint(bb2lambda[bb_lambda]);
 
             for (auto primop : schedule[bb_lambda]) {
@@ -235,7 +235,7 @@ void CodeGen::emit(int opt) {
                     builder_.CreateBr(bb2lambda[to_lambda]);
                 else {
                     if (to_lambda->is_intrinsic()) {
-                        Lambda* ret_lambda = emit_intrinsic(fct, bb_lambda);
+                        Lambda* ret_lambda = emit_intrinsic(bb_lambda);
                         builder_.CreateBr(bb2lambda[ret_lambda]);
                     } else {
                         // put all first-order args into an array
@@ -296,10 +296,14 @@ void CodeGen::emit(int opt) {
         primops_.clear();
     });
 
-    // remove marked functions
-    for (llvm::Function* rem : fcts_to_remove_) {
-        rem->removeFromParent();
-        rem->deleteBody();
+    // emit vectorized code
+    for (auto lambda : wfv_todo_)
+        emit_vectorize(lambda);
+    wfv_todo_.clear();
+    // remove function for tid-getter
+    if (auto tid = get_vectorize_tid()) {
+        tid->removeFromParent();
+        tid->deleteBody();
     }
 
 #ifndef NDEBUG
@@ -756,14 +760,14 @@ llvm::Value* CodeGen::emit_munmap(Def def) {
 
 llvm::Value* CodeGen::emit_shared_mmap(Def def, bool prefix) {
     auto mmap = def->as<Map>();
-    assert(current_entry_ && "shared memory can only be mapped inside kernel");
+    assert(entry_ && "shared memory can only be mapped inside kernel");
     assert(mmap->addr_space() == AddressSpace::Shared && "wrong address space for shared memory");
     auto num_elems = mmap->mem_size()->as<PrimLit>()->ps32_value();
 
     // construct array type
     auto elem_type = mmap->ptr_type()->referenced_type().as<ArrayType>()->elem_type();
     auto type = this->convert(mmap->world().definite_array_type(elem_type, num_elems));
-    auto global = emit_global_memory(type, (prefix ? current_entry_->name + "." : "") + mmap->unique_name(), 3);
+    auto global = emit_global_memory(type, (prefix ? entry_->name + "." : "") + mmap->unique_name(), 3);
     return global;
 }
 

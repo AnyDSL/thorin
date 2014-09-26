@@ -30,7 +30,7 @@ public:
 
     Scope& scope;
     const DomTree* domtree;
-    const DomTree* postdomtree;
+    const PostDomTree* postdomtree;
     Def2Def mapped;
     const size_t length;
 };

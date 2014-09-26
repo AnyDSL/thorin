@@ -19,13 +19,15 @@ int DomNode::depth() const {
 
 //------------------------------------------------------------------------------
 
-DomTree::DomTree(const Scope& scope, bool is_forward)
-    : scope_view_(scope, is_forward)
+template<bool forward>
+DomTreeBase<forward>::DomTreeBase(const Scope& scope)
+    : scope_view_(scope)
 {
     create();
 }
 
-void DomTree::create() {
+template<bool forward>
+void DomTreeBase<forward>::create() {
     for (auto lambda : scope_view())
         map_[lambda] = new DomNode(lambda);
 
@@ -74,7 +76,8 @@ outer_loop:;
     }
 }
 
-DomNode* DomTree::lca(DomNode* i, DomNode* j) {
+template<bool forward>
+DomNode* DomTreeBase<forward>::lca(DomNode* i, DomNode* j) {
     assert(i && j);
     auto rpo_id = [&] (DomNode* n) { return scope_view().rpo_id(n->lambda()); };
 
@@ -85,6 +88,9 @@ DomNode* DomTree::lca(DomNode* i, DomNode* j) {
 
     return i;
 }
+
+template class DomTreeBase<true>;
+template class DomTreeBase<false>;
 
 //------------------------------------------------------------------------------
 

@@ -32,20 +32,21 @@ private:
     DomNode* idom_;
     AutoVector<const DomNode*> children_;
 
-    friend class DomTree;
+    template<bool> friend class DomTreeBase;
 };
 
-class DomTree {
+template<bool forward>
+class DomTreeBase {
 public:
-    explicit DomTree(const Scope& scope, bool is_forward = true);
+    explicit DomTreeBase(const Scope& scope);
 
-    const ScopeView& scope_view() const { return scope_view_; }
+    const ScopeView<forward>& scope_view() const { return scope_view_; }
     const DomNode* root() const { return root_; }
     int depth(Lambda* lambda) const { return lookup(lambda)->depth(); }
     /// Returns the least common ancestor of \p i and \p j.
     Lambda* lca(Lambda* i, Lambda* j) const { return lca(lookup(i), lookup(j))->lambda(); }
     const DomNode* lca(const DomNode* i, const DomNode* j) const {
-        return const_cast<DomTree*>(this)->lca(const_cast<DomNode*>(i), const_cast<DomNode*>(j));
+        return const_cast<DomTreeBase*>(this)->lca(const_cast<DomNode*>(i), const_cast<DomNode*>(j));
     }
     Lambda* idom(Lambda* lambda) const { return lookup(lambda)->idom()->lambda(); }
     const DomNode* lookup(Lambda* lambda) const { return find(map_, lambda); }
@@ -56,7 +57,7 @@ private:
     void create();
     DomNode* lca(DomNode* i, DomNode* j);
 
-    ScopeView scope_view_;
+    ScopeView<forward> scope_view_;
     AutoPtr<DomNode> root_;
     LambdaMap<DomNode*> map_;
 };

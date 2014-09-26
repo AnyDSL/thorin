@@ -66,7 +66,7 @@ public:
 
 private:
     Scope scope_;
-    const DomTree* postdomtree_;
+    const PostDomTree* postdomtree_;
     Lambda2Lambda new2old_;
     Lambda2Lambda old2new_;
     LambdaSet done_;

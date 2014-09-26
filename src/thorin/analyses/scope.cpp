@@ -267,9 +267,9 @@ void Scope::build_in_scope() {
 
 //------------------------------------------------------------------------------
 
-const DomTree* Scope::domtree() const     { return domtree_     ? domtree_      : domtree_     = new DomTree(*this); }
-const DomTree* Scope::postdomtree() const { return postdomtree_ ? postdomtree_  : postdomtree_ = new DomTree(*this, false); }
-const LoopTree* Scope::looptree() const   { return looptree_    ? looptree_     : looptree_    = new LoopTree(*this); }
+const DomTree* Scope::domtree() const { return lazy(domtree_); }
+const PostDomTree* Scope::postdomtree() const { return lazy(postdomtree_); }
+const LoopTree* Scope::looptree() const { return lazy(looptree_); }
 
 //------------------------------------------------------------------------------
 

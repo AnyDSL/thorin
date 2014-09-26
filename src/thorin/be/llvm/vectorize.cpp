@@ -19,23 +19,14 @@ llvm::Function* CodeGen::get_vectorize_tid() {
 }
 
 Lambda* CodeGen::emit_vectorize_continuation(Lambda* lambda) {
+    auto target = lambda->to()->as_lambda();
     assert(lambda->num_args() > 5 && "required arguments are missing");
-    wfv_todo_.push_back(lambda);
-    return lambda->arg(4)->as_lambda();
-}
-
-void CodeGen::emit_vectorize(Lambda* lambda) {
-    Lambda* target = lambda->to()->as_lambda();
     assert(target->intrinsic() == Intrinsic::Vectorize);
-    assert(lambda->num_args() > 5 && "required arguments are missing");
 
     // vector length
     auto count = lookup(lambda->arg(1));
     u32 vector_length = lambda->arg(2)->as<PrimLit>()->qu32_value();
-    assert(vector_length >= 4 && "vector_length >= 4");
-
     auto kernel = lambda->arg(3)->as<Global>()->init()->as_lambda();
-    auto kernel_func = fcts_[kernel];
 
     const size_t arg_index = 5;
     const size_t num_args = lambda->num_args() - arg_index;
@@ -47,23 +38,23 @@ void CodeGen::emit_vectorize(Lambda* lambda) {
         simd_args[i] = convert(type);
     }
 
-    llvm::FunctionType* simd_type = llvm::FunctionType::get(builder_.getVoidTy(), llvm_ref(simd_args), false);
-    llvm::Function* kernel_simd_func = (llvm::Function*)module_->getOrInsertFunction(kernel->unique_name() + "_vectorize", simd_type);
+    auto simd_type = llvm::FunctionType::get(builder_.getVoidTy(), llvm_ref(simd_args), false);
+    auto kernel_simd_func = (llvm::Function*)module_->getOrInsertFunction(kernel->unique_name() + "_vectorize", simd_type);
 
     // build iteration loop and wire the calls
     auto llvm_entry = emit_function_decl(entry_);
-    llvm::BasicBlock* header = llvm::BasicBlock::Create(context_, "vec_header", llvm_entry);
-    llvm::BasicBlock* body = llvm::BasicBlock::Create(context_, "vec_body", llvm_entry);
-    llvm::BasicBlock* exit = llvm::BasicBlock::Create(context_, "vec_exit", llvm_entry);
+    auto head = llvm::BasicBlock::Create(context_, "vec_head", llvm_entry);
+    auto body = llvm::BasicBlock::Create(context_, "vec_body", llvm_entry);
+    auto exit = llvm::BasicBlock::Create(context_, "vec_exit", llvm_entry);
     // create loop phi and connect init value
-    llvm::PHINode* loop_counter = llvm::PHINode::Create(builder_.getInt32Ty(), 2U, "vector_loop_phi", header);
-    llvm::Value* i = builder_.getInt32(0);
+    auto loop_counter = llvm::PHINode::Create(builder_.getInt32Ty(), 2U, "vector_loop_phi", head);
+    auto i = builder_.getInt32(0);
     loop_counter->addIncoming(i, builder_.GetInsertBlock());
-    // connect header
-    builder_.CreateBr(header);
-    builder_.SetInsertPoint(header);
+    // connect head
+    builder_.CreateBr(head);
+    builder_.SetInsertPoint(head);
     // create conditional branch
-    llvm::Value* cond = builder_.CreateICmpSLT(loop_counter, count);
+    auto cond = builder_.CreateICmpSLT(loop_counter, count);
     builder_.CreateCondBr(cond, body, exit);
     // set body
     builder_.SetInsertPoint(body);
@@ -71,19 +62,25 @@ void CodeGen::emit_vectorize(Lambda* lambda) {
     for (size_t i = 0; i < num_args; ++i) {
         // check target type
         Def arg = lambda->arg(i + arg_index);
-        llvm::Value* llvm_arg = lookup(arg);
+        auto llvm_arg = lookup(arg);
         if (arg->type().isa<PtrType>())
             llvm_arg = builder_.CreateBitCast(llvm_arg, simd_args[i]);
         args[i] = llvm_arg;
     }
     // call new function
-    llvm::CallInst* kernel_call = builder_.CreateCall(kernel_simd_func, llvm_ref(args));
+    auto simd_kernel_call = builder_.CreateCall(kernel_simd_func, llvm_ref(args));
     // inc loop counter
     loop_counter->addIncoming(builder_.CreateAdd(loop_counter, builder_.getInt32(vector_length)), body);
-    builder_.CreateBr(header);
-    // create branch to return
+    builder_.CreateBr(head);
     builder_.SetInsertPoint(exit);
 
+    wfv_todo_.emplace_back(vector_length, loop_counter, emit_function_decl(kernel), simd_kernel_call);
+    return lambda->arg(4)->as_lambda();
+}
+
+void CodeGen::emit_vectorize(u32 vector_length, llvm::Value* loop_counter, llvm::Function* kernel_func, llvm::CallInst* simd_kernel_call) {
+    auto cur_func = simd_kernel_call->getParent()->getParent();
+    auto kernel_simd_func = simd_kernel_call->getCalledFunction();
     // ensure proper loop forms
     FunctionPassManager pm(module_);
     pm.add(llvm::createLICMPass());
@@ -102,16 +99,15 @@ void CodeGen::emit_vectorize(Lambda* lambda) {
 
     // inline kernel
     llvm::InlineFunctionInfo info;
-    llvm::InlineFunction(kernel_call, info);
+    llvm::InlineFunction(simd_kernel_call, info);
 
     // wire loop counter
     if (vector_tid_getter) {
         std::vector<llvm::CallInst*> calls;
         for (auto it = vector_tid_getter->use_begin(), e = vector_tid_getter->use_end(); it != e; ++it) {
             if (auto call = llvm::dyn_cast<llvm::CallInst>(*it))
-                if (const Function* func = call->getParent()->getParent())
-                    if (func == llvm_entry)
-                        calls.push_back(call);
+                if (call->getParent()->getParent() == cur_func)
+                    calls.push_back(call);
         }
         for (auto it = calls.rbegin(), e = calls.rend(); it != e; ++it) {
             BasicBlock::iterator ii(*it);

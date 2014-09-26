@@ -51,7 +51,7 @@ protected:
 private:
     Lambda* emit_intrinsic(Lambda*);
     Lambda* emit_vectorize_continuation(Lambda*);
-    void emit_vectorize(Lambda*);
+    void emit_vectorize(u32, llvm::Value*, llvm::Function*, llvm::CallInst*);
     llvm::Function* get_vectorize_tid();
 
 protected:
@@ -67,14 +67,14 @@ protected:
     HashMap<const PrimOp*, llvm::Value*> primops_;
     HashMap<Lambda*, llvm::Function*> fcts_;
     TypeMap<llvm::Type*> types_;
-    std::vector<Lambda*> wfv_todo_;
+    std::vector<std::tuple<u32, llvm::Value*, llvm::Function*, llvm::CallInst*>> wfv_todo_;
 
     AutoPtr<GenericRuntime> runtime_;
     AutoPtr<KernelRuntime> cuda_runtime_;
     AutoPtr<KernelRuntime> nvvm_runtime_;
     AutoPtr<KernelRuntime> spir_runtime_;
     AutoPtr<KernelRuntime> opencl_runtime_;
-    Lambda* entry_;
+    Lambda* entry_ = nullptr;
 
     friend class GenericRuntime;
     friend class KernelRuntime;

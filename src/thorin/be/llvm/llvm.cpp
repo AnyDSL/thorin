@@ -54,7 +54,6 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention
     , function_calling_convention_(function_calling_convention)
     , device_calling_convention_(device_calling_convention)
     , kernel_calling_convention_(kernel_calling_convention)
-    , entry_(nullptr)
 {
     runtime_ = new GenericRuntime(context_, module_, builder_);
     cuda_runtime_ = new CUDARuntime(context_, module_, builder_);
@@ -297,8 +296,8 @@ void CodeGen::emit(int opt) {
     });
 
     // emit vectorized code
-    for (auto lambda : wfv_todo_)
-        emit_vectorize(lambda);
+    for (const auto& tuple : wfv_todo_)
+        emit_vectorize(std::get<0>(tuple), std::get<1>(tuple), std::get<2>(tuple), std::get<3>(tuple));
     wfv_todo_.clear();
     // remove function for tid-getter
     if (auto tid = get_vectorize_tid()) {

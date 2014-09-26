@@ -207,7 +207,6 @@ private:
     ScopeInfo* register_scope(const Scope* scope) { scopes_.emplace_front(scope); return &scopes_.front(); }
     void unregister_scope(const Scope* scope) { scopes_.erase(list_iter(scope)); }
 
-    std::vector<const Param*> params_;
     /**
      * There exist three cases to distinguish here.
      * - \p parent_ == this: This \p Lambda is considered as a basic block, i.e.,
@@ -219,6 +218,8 @@ private:
      *              Any \p get_value which arrives here without finding a definition will recursively try to find one in \p parent_.
      */
     Lambda* parent_;
+    std::vector<const Param*> params_;
+    std::list<ScopeInfo> scopes_;
     std::vector<Def> values_;
     std::vector<Todo> todos_;
     CC cc_;
@@ -226,8 +227,6 @@ private:
     mutable uint32_t reachable_ = 0;
     bool is_sealed_  : 1;
     bool is_visited_ : 1;
-
-    std::list<ScopeInfo> scopes_;
 
     friend class Cleaner;
     friend class Scope;

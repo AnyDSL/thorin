@@ -275,7 +275,8 @@ Lambda::ScopeInfo* Lambda::find_scope(const Scope* scope) {
     auto i = list_iter(scope);
     if (i != scopes_.end()) {
         // heuristic: swap found node to front so current scope will be found as first element in list
-        scopes_.splice(scopes_.begin(), scopes_, i);
+        if (i != scopes_.begin())
+            scopes_.splice(scopes_.begin(), scopes_, i);
         return &scopes_.front();
     } else
         return nullptr;

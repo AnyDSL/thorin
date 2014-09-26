@@ -1,13 +1,11 @@
 #include "thorin/analyses/scope.h"
 
 #include <algorithm>
-#include <iostream>
-#include <stack>
 
 #include "thorin/lambda.h"
-#include "thorin/primop.h"
 #include "thorin/world.h"
-#include "thorin/be/thorin.h"
+#include "thorin/analyses/domtree.h"
+#include "thorin/analyses/looptree.h"
 #include "thorin/util/queue.h"
 
 namespace thorin {
@@ -51,6 +49,10 @@ Scope::~Scope() {
         entry()->destroy_body();
     if (exit() != entry() && !exit()->empty() && exit()->to()->isa<Bottom>())
         exit()->destroy_body();
+
+    delete domtree_;
+    delete postdomtree_;
+    delete looptree_;
 }
 
 void Scope::identify_scope(ArrayRef<Lambda*> entries) {
@@ -262,5 +264,9 @@ void Scope::build_in_scope() {
         }
     }
 }
+
+const DomTree& Scope::domtree() const     { return *(domtree_     ? domtree_      : domtree_     = new DomTree(*this)); }
+const DomTree& Scope::postdomtree() const { return *(postdomtree_ ? postdomtree_  : postdomtree_ = new DomTree(*this, false)); }
+const LoopTree& Scope::looptree() const   { return *(looptree_    ? looptree_     : looptree_    = new LoopTree(*this)); }
 
 }

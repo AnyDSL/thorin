@@ -65,7 +65,7 @@ static Def2Lambda schedule_early(const Scope& scope) {
 static Schedule schedule_late(const Scope& scope, const Def2Lambda& def2early) {
     Def2Lambda def2late;
     DefMap<int> def2num;
-    const DomTree domtree(scope);
+    auto& domtree = scope.domtree();
     std::queue<Def> queue;
     Schedule schedule;
 
@@ -154,7 +154,7 @@ static Schedule schedule_late(const Scope& scope, const Def2Lambda& def2early) {
 
 static void verify(const Scope& scope, Schedule& schedule) {
 #ifndef NDEBUG
-    const DomTree domtree(scope);
+    auto& domtree = scope.domtree();
     LambdaMap<Def> lambda2mem;
 
     for (auto lambda : scope) {
@@ -188,8 +188,8 @@ Schedule schedule_late(const Scope& scope) {
 
 Schedule schedule_smart(const Scope& scope) {
     Schedule smart;
-    const DomTree domtree(scope); // TODO cache domtree across schedule_late
-    const LoopTree looptree(scope);
+    auto& domtree = scope.domtree();
+    auto& looptree = scope.looptree();
     auto def2early = schedule_early(scope);
     auto late = schedule_late(scope, def2early);
 

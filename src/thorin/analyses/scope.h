@@ -9,6 +9,9 @@
 
 namespace thorin {
 
+class DomTree;
+class LoopTree;
+
 //------------------------------------------------------------------------------
 
 class Scope {
@@ -46,6 +49,10 @@ public:
     size_t size() const { return rpo_.size(); }
     World& world() const { return world_; }
 
+    const DomTree& domtree() const;
+    const DomTree& postdomtree() const;
+    const LoopTree& looptree() const;
+
     typedef ArrayRef<Lambda*>::const_iterator const_iterator;
     const_iterator begin() const { return rpo().begin(); }
     const_iterator end() const { return rpo().end(); }
@@ -81,6 +88,9 @@ private:
     std::vector<Lambda*>rev_rpo_;
     std::vector<std::vector<Lambda*>> preds_;
     std::vector<std::vector<Lambda*>> succs_;
+    mutable const DomTree* domtree_ = 0;
+    mutable const DomTree* postdomtree_ = 0;
+    mutable const LoopTree* looptree_ = 0;
 
     static uint32_t candidate_counter_;
     static uint32_t sid_counter_;

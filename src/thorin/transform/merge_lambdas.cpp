@@ -12,7 +12,7 @@ class Merger {
 public:
     Merger(const Scope& scope)
         : scope(scope)
-        , domtree(scope)
+        , domtree(scope.domtree())
     {
         merge(domtree.lookup(scope.entry()));
     }
@@ -22,7 +22,7 @@ public:
     World& world() { return scope.world(); }
 
     const Scope& scope;
-    const DomTree domtree;
+    const DomTree& domtree;
 };
 
 const DomNode* Merger::dom_succ(const DomNode* n) {

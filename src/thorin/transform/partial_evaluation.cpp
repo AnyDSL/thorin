@@ -50,7 +50,7 @@ class PartialEvaluator {
 public:
     PartialEvaluator(World& world)
         : scope_(world, top_level_lambdas(world))
-        , postdomtree_(scope_, false)
+        , postdomtree_(scope_.postdomtree())
     {
         for (auto lambda : world.lambdas()) {
             new2old_[lambda] = lambda;
@@ -67,7 +67,7 @@ public:
 
 private:
     Scope scope_;
-    const DomTree postdomtree_;
+    const DomTree& postdomtree_;
     Lambda2Lambda new2old_;
     Lambda2Lambda old2new_;
     LambdaSet done_;

@@ -14,8 +14,8 @@ class Vectorizer {
 public:
     Vectorizer(Scope& scope, size_t length)
         : scope(scope)
-        , domtree(scope, true)
-        , postdomtree(scope, false)
+        , domtree(scope.domtree())
+        , postdomtree(scope.postdomtree())
         , length(length)
     {}
 
@@ -29,8 +29,8 @@ public:
     World& world() { return scope.world(); }
 
     Scope& scope;
-    const DomTree domtree;
-    const DomTree postdomtree;
+    const DomTree& domtree;
+    const DomTree& postdomtree;
     Def2Def mapped;
     const size_t length;
 };

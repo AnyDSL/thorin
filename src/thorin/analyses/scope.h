@@ -111,18 +111,14 @@ public:
     ArrayRef<Lambda*> succs(Lambda* lambda) const { return is_forward() ? scope().succs(lambda) : scope().preds(lambda); }
     size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
     size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
-    size_t rev_rpo_id(Lambda* lambda) const { return is_forward() ? scope().rev_rpo_id(lambda) : scope().rpo_id(lambda); }
     size_t rpo_id(Lambda* lambda) const { return is_forward() ? scope().rpo_id(lambda) : scope().rev_rpo_id(lambda); }
+    size_t rev_rpo_id(Lambda* lambda) const { return is_forward() ? scope().rev_rpo_id(lambda) : scope().rpo_id(lambda); }
     size_t size() const { return scope().size(); }
     World& world() const { return scope().world(); }
 
     typedef ArrayRef<Lambda*>::const_iterator const_iterator;
     const_iterator begin() const { return rpo().begin(); }
     const_iterator end() const { return rpo().end(); }
-
-    typedef ArrayRef<Lambda*>::const_reverse_iterator const_reverse_iterator;
-    const_reverse_iterator rbegin() const { return rpo().rbegin(); }
-    const_reverse_iterator rend() const { return rpo().rend(); }
 
 private:
     const Scope& scope_;

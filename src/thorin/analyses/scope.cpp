@@ -49,8 +49,8 @@ Scope::~Scope() {
 
     if (!entry()->empty() && entry()->to()->isa<Bottom>())
         entry()->destroy_body();
-    //if (exit() != entry() && !exit()->empty() && exit()->to()->isa<Bottom>())
-        //exit()->destroy_body();
+    if (exit() != entry() && !exit()->empty() && exit()->to()->isa<Bottom>())
+        exit()->destroy_body();
 }
 
 void Scope::identify_scope(ArrayRef<Lambda*> entries) {
@@ -193,13 +193,12 @@ next:
         exit->scopes_.emplace_front(this);
         exit->scopes_.front().rpo_id = size();
         rpo_.push_back(exit);
-        rev_rpo_.push_back(exit);
         for (auto e : exits)                                // link meta lambda to exits
             link(e, exit);
     }
 
-    for (auto lambda : rpo())
-        rev_rpo_.push_back(lambda);                         // copy over
+    rev_rpo_.resize(size());
+    std::reverse_copy(rpo_.begin(), rpo_.end(), rev_rpo_.begin());
 
     if (exits.size() == 1)
         std::swap(rev_rpo_.front(), rev_rpo_[found]);       // put exit to front
@@ -213,11 +212,12 @@ void Scope::rev_number(ArrayRef<Lambda*> exits) {
         n = rev_number(exits.front(), n);
     else {
         for (auto exit : exits) {
-            if (!exit->find(this)->rev_rpo_id == size_t(-1)) // if not visited
+            if (exit->find(this)->rev_rpo_id == size_t(-1)) // if not visited
                 n = rev_number(exit, n);
         }
         n = rev_number(exit(), n);
     }
+    assert(n == 0);
 
     // sort in reverse post-order
     std::sort(rev_rpo_.begin(), rev_rpo_.end(), [&](Lambda* l1, Lambda* l2) {
@@ -229,13 +229,12 @@ size_t Scope::rev_number(Lambda* cur, size_t i) {
     auto info = cur->find(this);
     info->rev_rpo_id = size_t(-2);                          // mark as visisted
     for (auto pred : preds(cur)) {
-        if (!pred->find(this)->rev_rpo_id == size_t(-1))    // if not visited
-            i = number(pred, i);
+        if (pred->find(this)->rev_rpo_id == size_t(-1))     // if not visited
+            i = rev_number(pred, i);
     }
 
     assert(cur->scopes_.front().scope == this && "front item does not point to this scope");
-    info->rev_rpo_id = i-1;
-    return i-1;
+    return info->rev_rpo_id = i-1;
 }
 
 void Scope::build_in_scope() {

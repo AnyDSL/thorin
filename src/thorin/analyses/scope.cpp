@@ -35,8 +35,7 @@ Scope::Scope(World& world, ArrayRef<Lambda*> entries)
     identify_scope(entries);
     number(entries);
     build_cfg(entries);
-    auto exits = find_exits(entries);
-    rev_number(exits);
+    build_rev_rpo(entries);
     build_in_scope();
     ++candidate_counter_;
 }
@@ -49,10 +48,6 @@ Scope::~Scope() {
         entry()->destroy_body();
     if (exit() != entry() && !exit()->empty() && exit()->to()->isa<Bottom>())
         exit()->destroy_body();
-
-    delete domtree_;
-    delete postdomtree_;
-    delete looptree_;
 }
 
 void Scope::identify_scope(ArrayRef<Lambda*> entries) {
@@ -168,10 +163,10 @@ void Scope::build_cfg(ArrayRef<Lambda*> entries) {
         for (auto e : entries)
             link(entry(), e);
     }
-
 }
 
-std::vector<Lambda*> Scope::find_exits(Array<Lambda*> entries) {
+void Scope::build_rev_rpo(Array<Lambda*> entries) {
+    // find exits
     std::vector<Lambda*> exits;
     auto cmp = [] (Lambda* l1, Lambda* l2) { return l1->gid() < l2->gid(); };
     std::sort(entries.begin(), entries.end(), cmp);
@@ -202,17 +197,11 @@ next:
     rev_rpo_.resize(size());
     std::reverse_copy(rpo_.begin(), rpo_.end(), rev_rpo_.begin());
 
-    if (exits.size() == 1)
-        std::swap(rev_rpo_.front(), rev_rpo_[found]);       // put exit to front
-
-    return exits;
-}
-
-void Scope::rev_number(ArrayRef<Lambda*> exits) {
     size_t n = size();
-    if (exits.size() == 1)
+    if (exits.size() == 1) {
+        std::swap(rev_rpo_.front(), rev_rpo_[found]);       // put exit to front
         n = rev_number(exits.front(), n);
-    else {
+    } else {
         for (auto exit : exits) {
             if (exit->find(this)->rev_rpo_id == size_t(-1)) // if not visited
                 n = rev_number(exit, n);
@@ -222,7 +211,7 @@ void Scope::rev_number(ArrayRef<Lambda*> exits) {
     assert(n == 0);
 
     // sort in reverse post-order
-    std::sort(rev_rpo_.begin(), rev_rpo_.end(), [&](Lambda* l1, Lambda* l2) {
+    std::sort(rev_rpo_.begin(), rev_rpo_.end(), [&] (Lambda* l1, Lambda* l2) {
         return l1->find(this)->rev_rpo_id < l2->find(this)->rev_rpo_id;
     });
 }

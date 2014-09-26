@@ -12,7 +12,6 @@ namespace thorin {
 template<bool> class DomTreeBase;
 typedef DomTreeBase<true>  DomTree;
 typedef DomTreeBase<false> PostDomTree;
-
 class LoopTree;
 
 //------------------------------------------------------------------------------
@@ -73,7 +72,7 @@ private:
     void number(ArrayRef<Lambda*> entries);
     size_t number(Lambda* lambda, size_t i);
     void build_cfg(ArrayRef<Lambda*> entries);
-    std::vector<Lambda*> find_exits(Array<Lambda*> entries);
+    void build_rev_rpo(Array<Lambda*> entries);
     void rev_number(ArrayRef<Lambda*> exits);
     size_t rev_number(Lambda* lambda, size_t i);
 
@@ -84,7 +83,7 @@ private:
         preds_[rpo_id(dst)].push_back(src);
     }
 
-    template<class T> T* lazy(T*& ptr) const { return ptr ? ptr : ptr = new T(*this); }
+    template<class T> T* lazy(AutoPtr<T>& ptr) const { return ptr ? ptr : ptr = new T(*this); }
 
     World& world_;
     DefSet in_scope_;
@@ -93,9 +92,9 @@ private:
     std::vector<Lambda*>rev_rpo_;
     std::vector<std::vector<Lambda*>> preds_;
     std::vector<std::vector<Lambda*>> succs_;
-    mutable const DomTree* domtree_ = 0;
-    mutable const PostDomTree* postdomtree_ = 0;
-    mutable const LoopTree* looptree_ = 0;
+    mutable AutoPtr<const DomTree> domtree_;
+    mutable AutoPtr<const PostDomTree> postdomtree_;
+    mutable AutoPtr<const LoopTree> looptree_;
 
     static uint32_t candidate_counter_;
     static uint32_t sid_counter_;

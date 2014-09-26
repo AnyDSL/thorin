@@ -7,11 +7,6 @@
 
 namespace thorin {
 
-class Def;
-class Lambda;
-class Scope;
-class World;
-
 class DomNode {
 public:
     explicit DomNode(Lambda* lambda)

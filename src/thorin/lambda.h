@@ -159,7 +159,7 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     void seal();
     bool is_sealed() const { return is_sealed_; }
     void unseal() { is_sealed_ = false; }
-    void clear() { values_.clear(); }
+    void clear_value_numbering_table() { values_.clear(); }
     bool is_cleared() { return values_.empty(); }
 
 private:

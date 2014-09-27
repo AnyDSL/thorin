@@ -36,7 +36,6 @@ uint32_t Cleaner::counter_ = 1;
 void Cleaner::eliminate_params() {
     for (auto olambda : world().copy_lambdas()) {
         if (!olambda->empty()) {
-            olambda->clear();
             std::vector<size_t> proxy_idx;
             std::vector<size_t> param_idx;
             size_t i = 0;

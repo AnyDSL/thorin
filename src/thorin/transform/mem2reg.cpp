@@ -17,7 +17,7 @@ void mem2reg(const Scope& scope) {
     auto is_address_taken = [&] (const Slot* slot) { return addresses[slot] == size_t(-1); };
 
     for (auto lambda : scope)
-        lambda->clear();        // clean up value numbering table
+        lambda->clear_value_numbering_table();
 
     // unseal all lambdas ...
     for (auto lambda : scope) {

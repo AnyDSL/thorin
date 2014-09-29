@@ -901,13 +901,13 @@ void emit_llvm(World& world, int opt) {
     Scope::for_each(world, [&] (const Scope& scope) {
         auto lambda = scope.entry();
         Lambda* imported = nullptr;
-        if (lambda->is_connected_to_intrinsic(Intrinsic::CUDA))
+        if (lambda->is_passed_to_intrinsic(Intrinsic::CUDA))
             imported = import(cuda, lambda)->as_lambda();
-        else if (lambda->is_connected_to_intrinsic(Intrinsic::NVVM))
+        else if (lambda->is_passed_to_intrinsic(Intrinsic::NVVM))
             imported = import(nvvm, lambda)->as_lambda();
-        else if (lambda->is_connected_to_intrinsic(Intrinsic::SPIR))
+        else if (lambda->is_passed_to_intrinsic(Intrinsic::SPIR))
             imported = import(spir, lambda)->as_lambda();
-        else if (lambda->is_connected_to_intrinsic(Intrinsic::OpenCL))
+        else if (lambda->is_passed_to_intrinsic(Intrinsic::OpenCL))
             imported = import(opencl, lambda)->as_lambda();
         else
             return;

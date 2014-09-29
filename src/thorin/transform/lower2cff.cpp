@@ -72,15 +72,14 @@ size_t CFFLowering::process() {
         Scope scope(top);
         for (auto i = scope.rbegin(), e = scope.rend(); i != e; ++i) {
             auto lambda = *i;
-            // skip intrinsic and functions connected to intrinsics
-            if (lambda->is_intrinsic() || lambda->is_connected_to_intrinsic())
-                continue;
-            if (lambda->num_params() != 0                           // is there sth to drop?
-                && (lambda->type()->is_polymorphic()                // drop polymorphic functions
-                    || (!lambda->is_basicblock()                    // don't drop basic blocks
-                        && (!lambda->is_returning()                 // drop non-returning lambdas
-                            || top_.find(lambda) == top_.end()))))  // lift/drop returning non top-level lambdas
-                todo.push_back(lambda);
+            if (!lambda->is_intrinsic() && !lambda->is_passed_to_accelerator()) {
+                if (lambda->num_params() != 0                           // is there sth to drop?
+                    && (lambda->type()->is_polymorphic()                // drop polymorphic functions
+                        || (!lambda->is_basicblock()                    // don't drop basic blocks
+                            && (!lambda->is_returning()                 // drop non-returning lambdas
+                                || top_.find(lambda) == top_.end()))))  // lift/drop returning non top-level lambdas
+                    todo.push_back(lambda);
+            }
         }
     }
 

@@ -44,11 +44,13 @@ static void critical_edge_elimination(const Scope& scope) {
     // find critical edges
     std::vector<std::pair<Lambda*, Lambda*>> edges;
     for (auto lambda : scope) {
-        const auto& preds = scope.preds(lambda);
-        if (preds.size() > 1) {
-            for (auto pred : preds) {
-                if (scope.num_succs(pred) != 1)
-                    edges.emplace_back(pred, lambda);
+        if (!lambda->to()->isa<Bottom>()) {
+            const auto& preds = scope.preds(lambda);
+            if (preds.size() > 1) {
+                for (auto pred : preds) {
+                    if (scope.num_succs(pred) != 1)
+                        edges.emplace_back(pred, lambda);
+                }
             }
         }
     }

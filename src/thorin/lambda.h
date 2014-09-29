@@ -57,15 +57,17 @@ private:
 //------------------------------------------------------------------------------
 
 enum class Intrinsic : uint8_t {
-    None,       ///< Not an intrinsic.
-    CUDA,       ///< Internal CUDA-Backend.
-    NVVM,       ///< Internal NNVM-Backend.
-    SPIR,       ///< Internal SPIR-Backend.
-    OpenCL,     ///< Internal OpenCL-Backend.
-    Parallel,   ///< Internal Parallel-CPU-Backend.
-    Vectorize,  ///< External vectorizer.
-    Mmap,       ///< Intrinsic memory-mapping function.
-    Munmap,     ///< Intrinsic memory-unmapping function.
+    None,                       ///< Not an intrinsic.
+    _Accelerator_Begin,
+    CUDA = _Accelerator_Begin,  ///< Internal CUDA-Backend.
+    NVVM,                       ///< Internal NNVM-Backend.
+    SPIR,                       ///< Internal SPIR-Backend.
+    OpenCL,                     ///< Internal OpenCL-Backend.
+    Parallel,                   ///< Internal Parallel-CPU-Backend.
+    Vectorize,                  ///< External vectorizer.
+    _Accelerator_End,
+    Mmap = _Accelerator_End,    ///< Intrinsic memory-mapping function.
+    Munmap,                     ///< Intrinsic memory-unmapping function.
 };
 
 enum class CC : uint8_t {
@@ -132,10 +134,13 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     bool is_basicblock() const;
     bool is_returning() const;
     bool is_intrinsic() const;
-    bool visit_connected_intrinsics(std::function<bool(Lambda*)> func) const;
-    bool is_connected_to_intrinsic() const { return visit_connected_intrinsics([&] (Lambda*) { return true; }); }
-    bool is_connected_to_intrinsic(Intrinsic intrinsic) const {
-        return visit_connected_intrinsics([&] (Lambda* lambda) { return lambda->intrinsic() == intrinsic; });
+    bool is_accelerator() const;
+    bool visit_capturing_intrinsics(std::function<bool(Lambda*)> func) const;
+    bool is_passed_to_accelerator() const {
+        return visit_capturing_intrinsics([&] (Lambda* lambda) { return lambda->is_accelerator(); });
+    }
+    bool is_passed_to_intrinsic(Intrinsic intrinsic) const {
+        return visit_capturing_intrinsics([&] (Lambda* lambda) { return lambda->intrinsic() == intrinsic; });
     }
     void dump_head() const;
     void dump_jump() const;

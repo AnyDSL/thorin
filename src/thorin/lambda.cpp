@@ -170,6 +170,7 @@ void Lambda::make_external() { return world().add_external(this); }
 void Lambda::make_internal() { return world().remove_external(this); }
 bool Lambda::is_external() const { return world().is_external(this); }
 bool Lambda::is_intrinsic() const { return intrinsic_ != Intrinsic::None; }
+bool Lambda::is_accelerator() const { return Intrinsic::_Accelerator_Begin <= intrinsic_ && intrinsic_ < Intrinsic::_Accelerator_End; }
 void Lambda::set_intrinsic() {
     if      (name == "cuda")      intrinsic_ = Intrinsic::CUDA;
     else if (name == "nvvm")      intrinsic_ = Intrinsic::NVVM;
@@ -182,7 +183,7 @@ void Lambda::set_intrinsic() {
     else assert(false && "unsupported thorin intrinsic");
 }
 
-bool Lambda::visit_connected_intrinsics(std::function<bool(Lambda*)> func) const {
+bool Lambda::visit_capturing_intrinsics(std::function<bool(Lambda*)> func) const {
     if (!is_intrinsic()) {
         for (auto use : uses()) {
             if (auto lambda = (use->isa<Global>() ? use->uses().front() : use)->isa<Lambda>()) // TODO make more robust

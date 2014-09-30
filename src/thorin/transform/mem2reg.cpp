@@ -31,7 +31,7 @@ void mem2reg(const Scope& scope) {
     scope.entry()->seal();
 
     for (Lambda* lambda : scope) {
-        // Search for slots/loads/stores from top to bottom and use set_value/get_value to install parameters.
+        // search for slots/loads/stores from top to bottom and use set_value/get_value to install parameters.
         for (auto primop : schedule[lambda]) {
             auto def = Def(primop);
             if (auto slot = def->isa<Slot>()) {

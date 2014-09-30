@@ -159,8 +159,7 @@ static void verify(const Scope& scope, Schedule& schedule) {
 
     for (auto lambda : scope) {
         Def mem = lambda->mem_param();
-        if (!mem)
-            mem = lambda2mem[domtree->idom(lambda)];
+        mem = mem ? mem : lambda2mem[domtree->idom(lambda)];
         for (auto primop : schedule[lambda]) {
             if (auto memop = primop->isa<MemOp>()) {
                 if (memop->mem() != mem) {

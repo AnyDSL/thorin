@@ -36,6 +36,8 @@ extern "device" {
     fn "_Z5floord"  floor(f64) -> f64;
     fn "_Z3fmaddd"  fma(f64, f64, f64) -> f64;
     fn "_Z3madddd"  mad(f64, f64, f64) -> f64;
+    fn "_Z10atomic_addPVU3AS1ii" atomic_add_global(&i32, i32) -> i32;
+    fn "_Z10atomic_addPVU3AS3ii" atomic_add_local(&i32, i32) -> i32;
 }
 
 fn work_dim() -> int               { _Z12get_work_dimv()}

@@ -29,7 +29,6 @@ llvm::Value* GenericRuntime::munmap(llvm::Value* mem) {
 
 llvm::Value* GenericRuntime::parallel_create(llvm::Value* num_threads, llvm::Value* closure_ptr,
                                              uint64_t closure_size, llvm::Value* fun_ptr) {
-
     llvm::Value* parallel_args[] = {
         num_threads,
         builder_.CreateBitCast(closure_ptr, builder_.getInt8PtrTy()),

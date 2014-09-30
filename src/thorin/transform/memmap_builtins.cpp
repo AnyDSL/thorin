@@ -25,10 +25,10 @@ static bool map_param(World& world, Lambda* lambda, ToDo& todo) {
     Scope cont_scope(cont);
     Lambda* ncont;
     if (is_map) {
-        auto map = world.map(ulambda->arg(0),  // memory
-                             ulambda->arg(1),  // source ptr
-                             ulambda->arg(2),  // target device (-1 for host device)
+        auto map = world.map(ulambda->arg(2),  // target device (-1 for host device)
                              ulambda->arg(3),  // address space
+                             ulambda->arg(0),  // memory
+                             ulambda->arg(1),  // source ptr
                              ulambda->arg(4),  // offset to memory
                              ulambda->arg(5)); // size of memory
         ncont = drop(cont_scope, { map->extract_mem(), map->extract_mapped_ptr() });

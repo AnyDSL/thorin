@@ -583,9 +583,10 @@ Def World::extract(Def agg, Def index, const std::string& name, Def mem) {
     if (agg->isa<Bottom>())
         return bottom(Extract::type(agg, index));
 
-    if (mem) {
-        if (auto load = agg->isa<Load>())
-            return this->load(mem, lea(load->ptr(), index, load->name), name);
+    if (auto load = agg->isa<Load>()) {
+        // TODO is this really safe?
+        mem = mem ? mem : load->mem();
+        return this->load(mem, lea(load->ptr(), index, load->name), name);
     }
 
     if (auto aggregate = agg->isa<Aggregate>()) {

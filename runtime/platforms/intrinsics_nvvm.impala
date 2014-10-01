@@ -293,7 +293,7 @@ fn acc_dev() -> int     { 0 }
 
 fn atomic_dec(a: &i32) -> i32 { nvvm_atomic_dec(a, -2147483648) };
 fn atomic_inc(a: &i32) -> i32 { nvvm_atomic_inc(a, +2147483647) };
-fn atomic_add(a: &i32, b: i32) -> i32 {
+fn atomic_add(a: &i32, mut b: i32) -> i32 {
     let ret = atomic_inc(a);
     while --b > 0 { atomic_inc(a); }
     ret

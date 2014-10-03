@@ -37,6 +37,8 @@ extern "device" {
     fn "mad"        mad(f64, f64, f64) -> f64;
     fn "atomic_add" atomic_add_global(&i32, i32) -> i32;
     fn "atomic_add" atomic_add_local(&i32, i32) -> i32;
+    fn "atomic_min" atomic_min_global(&i32, i32) -> i32;
+    fn "atomic_min" atomic_min_local(&i32, i32) -> i32;
 }
 
 fn work_dim() -> int               { get_work_dim() as int }

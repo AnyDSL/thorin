@@ -38,6 +38,8 @@ extern "device" {
     fn "_Z3madddd"  mad(f64, f64, f64) -> f64;
     fn "_Z10atomic_addPVU3AS1ii" atomic_add_global(&i32, i32) -> i32;
     fn "_Z10atomic_addPVU3AS3ii" atomic_add_local(&i32, i32) -> i32;
+    fn "_Z10atomic_minPVU3AS1ii" atomic_min_global(&i32, i32) -> i32;
+    fn "_Z10atomic_minPVU3AS3ii" atomic_min_local(&i32, i32) -> i32;
 }
 
 fn work_dim() -> int               { _Z12get_work_dimv()}

@@ -28,8 +28,7 @@ long long thorin_get_micro_time() {
     long long time = now.tv_sec*1000000LL + now.tv_nsec / 1000LL;
     return time;
 }
-void thorin_print_micro_time(long long time)
-{
+void thorin_print_micro_time(long long time) {
     std::cerr << "   timing: " << time * 1.0e-3f << "(ms)" << std::endl;
 }
 void thorin_print_gflops(float f) { printf("GFLOPS: %f\n", f); }

@@ -21,6 +21,13 @@ extern "C" {
     fn floor(f64) -> f64;
 }
 
+// kind: Xchg Add Sub And Nand Or Xor Max Min
+fn atomic_xchg(a: &i32, b: i32) -> i32 { atomic(0u, a, b) }
+fn atomic_add(a: &i32, b: i32) -> i32 { atomic(1u, a, b) }
+fn atomic_sub(a: &i32, b: i32) -> i32 { atomic(2u, a, b) }
+fn atomic_min(a: &i32, b: i32) -> i32 { atomic(7u, a, b) }
+fn atomic_max(a: &i32, b: i32) -> i32 { atomic(8u, a, b) }
+
 extern "device" {
     fn "llvm.fma.f32" fmaf(f32, f32, f32) -> f32;
     fn "llvm.fmuladd.f32" madf(f32, f32, f32) -> f32;

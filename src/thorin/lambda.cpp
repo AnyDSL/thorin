@@ -180,6 +180,7 @@ void Lambda::set_intrinsic() {
     else if (name == "vectorize") intrinsic_ = Intrinsic::Vectorize;
     else if (name == "mmap")      intrinsic_ = Intrinsic::Mmap;
     else if (name == "munmap")    intrinsic_ = Intrinsic::Munmap;
+    else if (name == "atomic")    intrinsic_ = Intrinsic::Atomic;
     else assert(false && "unsupported thorin intrinsic");
 }
 

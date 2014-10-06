@@ -12,8 +12,6 @@ extern "device" {
     fn "llvm.nvvm.read.ptx.sreg.tid.y" nvvm_read_ptx_sreg_tid_y() -> i32;
     fn "llvm.nvvm.read.ptx.sreg.tid.z" nvvm_read_ptx_sreg_tid_z() -> i32;
     fn "llvm.nvvm.read.ptx.sreg.warpsize" nvvm_read_ptx_sreg_warpsize() -> i32;
-    fn "llvm.nvvm.atomic.load.inc.32.p0i32" nvvm_atomic_inc(&i32, i32) -> i32;
-    fn "llvm.nvvm.atomic.load.dec.32.p0i32" nvvm_atomic_dec(&i32, i32) -> i32;
     fn "llvm.nvvm.barrier0" nvvm_barrier0() -> ();
 
     fn "llvm.nvvm.abs.i" nvvm_abs_i(i32) -> i32;
@@ -291,13 +289,13 @@ fn acc_spm() -> int     { 3 }
 fn acc_cst() -> int     { 4 }
 fn acc_dev() -> int     { 0 }
 
-fn atomic_dec(a: &i32) -> i32 { nvvm_atomic_dec(a, -2147483648) };
-fn atomic_inc(a: &i32) -> i32 { nvvm_atomic_inc(a, +2147483647) };
-fn atomic_add(a: &i32, mut b: i32) -> i32 {
-    let ret = atomic_inc(a);
-    while --b > 0 { atomic_inc(a); }
-    ret
-}
+// kind: Xchg Add Sub And Nand Or Xor Max Min
+fn atomic_xchg(a: &i32, b: i32) -> i32 { atomic(0u, a, b) }
+fn atomic_add(a: &i32, b: i32) -> i32 { atomic(1u, a, b) }
+fn atomic_sub(a: &i32, b: i32) -> i32 { atomic(2u, a, b) }
+fn atomic_min(a: &i32, b: i32) -> i32 { atomic(7u, a, b) }
+fn atomic_max(a: &i32, b: i32) -> i32 { atomic(8u, a, b) }
+
 fn atomic_add_global(a: &i32, b: i32) -> i32 { atomic_add(a, b) }
 fn atomic_add_local(a: &i32, b: i32) -> i32 { atomic_add(a, b) }
 

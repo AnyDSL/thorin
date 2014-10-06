@@ -68,6 +68,7 @@ enum class Intrinsic : uint8_t {
     _Accelerator_End,
     Mmap = _Accelerator_End,    ///< Intrinsic memory-mapping function.
     Munmap,                     ///< Intrinsic memory-unmapping function.
+    Atomic,                     ///< Intrinsic atomic function
 };
 
 enum class CC : uint8_t {

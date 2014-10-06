@@ -1,6 +1,7 @@
 extern "thorin" {
     fn mmap(&[f32], int, int, int, int) -> &[f32];
     fn munmap(&[f32]) -> ();
+    fn atomic(u32, &i32, i32) -> i32;
 
     fn cuda(int, (int, int, int), (int, int, int), fn() -> ()) -> ();
     fn nvvm(int, (int, int, int), (int, int, int), fn() -> ()) -> ();

@@ -51,6 +51,7 @@ protected:
 private:
     Lambda* emit_intrinsic(Lambda*);
     Lambda* emit_vectorize_continuation(Lambda*);
+    Lambda* emit_atomic(Lambda*);
     void emit_vectorize(u32, llvm::Value*, llvm::Function*, llvm::CallInst*);
     llvm::Function* get_vectorize_tid();
 

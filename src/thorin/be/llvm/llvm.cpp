@@ -65,6 +65,7 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention
 Lambda* CodeGen::emit_intrinsic(Lambda* lambda) {
     Lambda* to = lambda->to()->as_lambda();
     switch (to->intrinsic()) {
+        case Intrinsic::Atomic:    return emit_atomic(lambda);
         case Intrinsic::CUDA:      return cuda_runtime_->emit_host_code(*this, lambda);
         case Intrinsic::NVVM:      return nvvm_runtime_->emit_host_code(*this, lambda);
         case Intrinsic::SPIR:      return spir_runtime_->emit_host_code(*this, lambda);
@@ -75,6 +76,18 @@ Lambda* CodeGen::emit_intrinsic(Lambda* lambda) {
 #endif
         default: THORIN_UNREACHABLE;
     }
+}
+
+Lambda* CodeGen::emit_atomic(Lambda* lambda) {
+    assert(lambda->num_args() == 5 && "required arguments are missing");
+    // atomic kind: Xchg Add Sub And Nand Or Xor Max Min
+    u32 kind = lambda->arg(1)->as<PrimLit>()->qu32_value();
+    auto ptr = lookup(lambda->arg(2));
+    auto val = lookup(lambda->arg(3));
+    assert(kind >= llvm::AtomicRMWInst::BinOp::Xchg && kind <= llvm::AtomicRMWInst::BinOp::UMin && "unsupported atomic");
+    llvm::AtomicRMWInst::BinOp binop = (llvm::AtomicRMWInst::BinOp)kind;
+    builder_.CreateAtomicRMW(binop, ptr, val, llvm::AtomicOrdering::SequentiallyConsistent, llvm::SynchronizationScope::CrossThread);
+    return lambda->arg(4)->as_lambda();
 }
 
 llvm::FunctionType* CodeGen::convert_fn_type(Lambda* lambda) {

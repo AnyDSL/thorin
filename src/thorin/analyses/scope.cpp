@@ -181,6 +181,8 @@ next:
         ++i;
     }
 
+    assert(!exits.empty() && "TODO: the scope contains an endless loop");
+
     if (exits.size() != 1) {
         auto exit = world().meta_lambda();
         set_candidate(exit);

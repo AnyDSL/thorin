@@ -339,6 +339,13 @@ public:
 
     PtrType ptr_type() const; ///< Returns the ptr type from \p ptr().
     Type referenced_type() const; ///< Returns the type referenced by \p ptr().
+    bool points_to_global() const { return points_to_global_; }
+    Def outer_load() const;
+    Def load() const;
+    void store(Def val) const;
+
+private:
+    bool points_to_global_ = false;
 
     friend class World;
 };
@@ -553,6 +560,26 @@ private:
 
     virtual bool has_mem_out() const override { return true; }
     virtual Def mem_out() const override { return this; }
+
+    friend class World;
+};
+
+class MemBlob : public MemOp {
+private:
+    MemBlob(Def mem, const std::string& name)
+        : MemOp(Node_MemBlob, mem->type(), {mem}, name)
+    {}
+
+public:
+    virtual bool has_mem_out() const { return true; }
+    virtual Def mem_out() const { return this; }
+
+    friend class World;
+};
+
+class FrameBlob : public Literal {
+private:
+    FrameBlob(World& world, const std::string& name);
 
     friend class World;
 };

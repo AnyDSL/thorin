@@ -15,18 +15,6 @@
 
 namespace thorin {
 
-class Any;
-class Bottom;
-class DefNode;
-class Enter;
-class LEA;
-class Lambda;
-class Map;
-class PrimOp;
-class Slot;
-class Store;
-class Unmap;
-
 /**
  * The World represents the whole program and manages creation and destruction of AIR nodes.
  * In particular, the following things are done by this class:
@@ -209,23 +197,21 @@ public:
 
     Def load(Def mem, Def ptr, const std::string& name = "");
     Def store(Def mem, Def ptr, Def val, const std::string& name = "");
-    const Enter* enter(Def mem, const std::string& name = "") { return cse(new Enter(mem, name)); }
-    const Slot* slot(Type type, Def frame, size_t index, const std::string& name = "") {
-        return cse(new Slot(type, frame, index, name));
-    }
-    Def alloc(Type type, Def mem, Def extra, const std::string& name = "") { return cse(new Alloc(type, mem, extra, name)); }
+    Def enter(Def mem, const std::string& name = "");
+    Def slot(Type type, Def frame, size_t index, const std::string& name = "");
+    Def alloc(Type type, Def mem, Def extra, const std::string& name = "");
     Def alloc(Type type, Def mem, const std::string& name = "") { return alloc(type, mem, literal_qu64(0), name); }
-    const Global* global(Def init, bool is_mutable = true, const std::string& name = "") {
-        return cse(new Global(init, is_mutable, name));
-    }
-    const Global* global_immutable_string(const std::string& str, const std::string& name = "");
-    const LEA* lea(Def ptr, Def index, const std::string& name = "") { return cse(new LEA(ptr, index, name)); }
+    Def global(Def init, bool is_mutable = true, const std::string& name = "");
+    Def global_immutable_string(const std::string& str, const std::string& name = "");
+    Def lea(Def ptr, Def index, const std::string& name = "") { return cse(new LEA(ptr, index, name)); }
     const Map* map(Def device, Def addr_space, Def mem, Def ptr, Def mem_offset, Def mem_size, const std::string& name = "");
     const Map* map(uint32_t device, AddressSpace addr_space, Def mem, Def ptr, Def mem_offset,
                    Def mem_size, const std::string& name = "") {
         return cse(new Map(device, addr_space, mem, ptr, mem_offset, mem_size, name));
     }
     const Unmap* unmap(Def mem, Def ptr, const std::string& name = "") { return cse(new Unmap(mem, ptr, name)); }
+    Def mem_blob(Def mem, const std::string& name = "") { return cse(new MemBlob(mem, name)) ; }
+    Def frame_blob(const std::string& name = "") { return cse(new FrameBlob(*this, name)); }
 
     // guided partial evaluation
 

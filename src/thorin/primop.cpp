@@ -60,8 +60,8 @@ Vector::Vector(World& world, ArrayRef<Def> args, const std::string& name)
     }
 }
 
-LEA::LEA(Def def, Def index, const std::string& name)
-    : PrimOp(Node_LEA, Type(), {def, index}, name)
+LEA::LEA(Def ptr, Def index, const std::string& name)
+    : PrimOp(Node_LEA, Type(), {ptr, index}, name)
 {
     auto& world = index->world();
     auto type = ptr_type();
@@ -73,6 +73,18 @@ LEA::LEA(Def def, Def index, const std::string& name)
         set_type(world.ptr_type(struct_app->elem(index)));
     } else {
         THORIN_UNREACHABLE;
+    }
+
+    while (true) {
+        if (auto bitcast = ptr->isa<Bitcast>())
+            ptr = bitcast->from();
+        else {
+            if (ptr->isa<Global>())
+                points_to_global_ = true;
+            else if (auto lea = ptr->isa<LEA>())
+                points_to_global_ = lea->points_to_global();
+            break;
+        }
     }
 }
 
@@ -102,6 +114,10 @@ Map::Map(int32_t device, AddressSpace addr_space, Def mem, Def ptr, Def mem_offs
                             w.ptr_type(ptr->type().as<PtrType>()->referenced_type(),
                             ptr->type().as<PtrType>()->length(), device, addr_space)}));
 }
+
+FrameBlob::FrameBlob(World& world, const std::string& name)
+    : Literal(Node_FrameBlob, world.frame_type(), name)
+{}
 
 //------------------------------------------------------------------------------
 
@@ -187,6 +203,43 @@ Type Extract::type(Def agg, Def index) {
         return struct_app->elem(index);
 
     assert(false && "TODO");
+}
+
+Def LEA::load() const {
+    return world().extract(outer_load(), index());
+}
+
+Def LEA::outer_load() const {
+    if (auto global = ptr()->isa<Global>()) {
+        return global->init();
+    } else if (auto lea = ptr()->isa<LEA>()) {
+        return lea->load();
+    } else if (auto bitcast = ptr()->isa<Bitcast>()) {
+        if (auto global = bitcast->from()->isa<Global>()) {
+            return global->init();
+        } else if (auto lea = bitcast->from()->isa<LEA>()) {
+            return lea->load();
+        }
+    THORIN_UNREACHABLE;
+    }
+    THORIN_UNREACHABLE;
+}
+
+void LEA::store(Def val) const {
+    auto agg = world().insert(outer_load(), this->index(), val);
+
+    if (auto global = ptr()->isa<Global>()) {
+        global->replace(world().global(agg));
+    } else if (auto lea = ptr()->isa<LEA>()) {
+        lea->store(agg);
+    } else if (auto bitcast = ptr()->isa<Bitcast>()) {
+        if (auto global = bitcast->from()->isa<Global>()) {
+            global->replace(world().global(agg));
+        } else if (auto lea = bitcast->from()->isa<LEA>()) {
+            lea->store(agg);
+        }
+    } else
+        THORIN_UNREACHABLE;
 }
 
 //------------------------------------------------------------------------------

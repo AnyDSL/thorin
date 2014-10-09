@@ -571,6 +571,15 @@ Def World::cast(Type to, Def cond, Def from, const std::string& name) {
 }
 
 Def World::bitcast(Type to, Def cond, Def from, const std::string& name) {
+    if (auto other = from->isa<Bitcast>()) {
+        if (to == other->type()) {
+            if (cond == other->cond())
+                return other;
+            else
+                assert(false && "TODO");
+        }
+    }
+
     if (cond->isa<Bottom>() || from->isa<Bottom>())
         return bottom(to);
 
@@ -621,8 +630,16 @@ Def World::extract(Def agg, Def index, const std::string& name, Def mem) {
 }
 
 Def World::insert(Def agg, Def index, Def value, const std::string& name) {
-    if (agg->isa<Bottom>() || value->isa<Bottom>())
-        return bottom(agg->type());
+    if (agg->isa<Bottom>()) {
+        if (value->isa<Bottom>())
+            return bottom(agg->type());
+        // build aggregate container and fill with bottom
+        if (auto def_array = agg->type().isa<DefiniteArrayType>()) {
+            Array<Def> args(def_array->dim());
+            std::fill(args.begin(), args.end(), bottom(def_array->elem_type()));
+            agg = definite_array(args, agg->name);
+        }
+    }
 
     if (auto aggregate = agg->isa<Aggregate>()) {
         if (auto literal = index->isa<PrimLit>()) {
@@ -676,8 +693,15 @@ Def World::load(Def mem, Def ptr, const std::string& name) {
     }
 
     if (auto global = ptr->isa<Global>()) {
-        if (!global->is_mutable())
+        if (!global->is_mutable() || mem->isa<MemBlob>())
             return global->init();
+    }
+
+    if (mem->isa<MemBlob>()) {
+        if (auto lea = ptr->isa<LEA>()) {
+            if (lea->points_to_global())
+                return lea->load();
+        }
     }
 
     return cse(new Load(mem, ptr, name));
@@ -688,11 +712,56 @@ Def World::store(Def mem, Def ptr, Def value, const std::string& name) {
         return mem;
     if (auto insert = value->isa<Insert>())
         return store(mem, lea(ptr, insert->index(), insert->name), value, name);
+    if (mem->isa<MemBlob>()) {
+        if (value->isa<IndefiniteArray>())
+            return mem;
+        if (auto global = ptr->isa<Global>()) {
+            assert(global->is_mutable());
+            global->replace(this->global(value));
+            return mem;
+        }
+        if (auto lea = ptr->isa<LEA>()) {
+            if (lea->points_to_global()) {
+                lea->store(value);
+                return mem;
+            }
+        }
+    }
 
     return cse(new Store(mem, ptr, value, name));
 }
 
-const Global* World::global_immutable_string(const std::string& str, const std::string& name) {
+Def World::enter(Def mem, const std::string& name) {
+    if (mem->isa<MemBlob>())
+        return frame_blob(name);
+    return cse(new Enter(mem, name));
+}
+
+Def World::slot(Type type, Def frame, size_t index, const std::string& name) {
+    if (frame->isa<FrameBlob>())
+        return global(bottom(type));
+    return cse(new Slot(type, frame, index, name));
+}
+
+Def World::alloc(Type type, Def mem, Def extra, const std::string& name) {
+    if (mem->isa<MemBlob>()) {
+        if (auto indef_array = type.isa<IndefiniteArrayType>()) {
+            auto def_array = definite_array_type(indef_array->elem_type(), extra->primlit_value<u64>());
+            return bitcast(ptr_type(indef_array), global(bottom(def_array)));
+        }
+
+        assert(extra->is_zero());
+        return global(bottom(type));
+    }
+
+    return cse(new Alloc(type, mem, extra, name));
+}
+
+Def World::global(Def init, bool is_mutable, const std::string& name) {
+    return cse(new Global(init, is_mutable, name));
+}
+
+Def World::global_immutable_string(const std::string& str, const std::string& name) {
     size_t size = str.size() + 1;
 
     Array<Def> str_array(size);
@@ -799,6 +868,7 @@ Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, Type type) {
         case Node_Insert:   assert(ops.size() == 3); return to.insert(  ops[0], ops[1], ops[2], name);
         case Node_LEA:      assert(ops.size() == 2); return to.lea(     ops[0], ops[1], name);
         case Node_Load:     assert(ops.size() == 2); return to.load(    ops[0], ops[1], name);
+        case Node_MemBlob:  assert(ops.size() == 1); return to.mem_blob(ops[0], name);
         case Node_Map:      assert(ops.size() == 4); return to.map(     in->as<Map>()->device(), in->as<Map>()->addr_space(),
                                                                         ops[0], ops[1], ops[2], ops[3], name);
         case Node_Unmap:    assert(ops.size() == 2); return to.unmap(   ops[0], ops[1], name);

@@ -57,12 +57,7 @@ protected:
     {}
 };
 
-/**
- * @brief The novalue-value.
- *
- * This literal represents literally 'no value'.
- * Extremely useful for data flow analysis.
- */
+/// This literal represents 'no value'.
 class Bottom : public Literal {
 private:
     Bottom(Type type, const std::string& name)

@@ -181,7 +181,8 @@ next:
         ++i;
     }
 
-    assert(!exits.empty() && "TODO: the scope contains an endless loop");
+    if (exits.empty())
+        exits.push_back(rpo_.back());                   // HACK: simply choose the last one in rpo
 
     if (exits.size() != 1) {
         auto exit = world().meta_lambda();

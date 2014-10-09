@@ -173,8 +173,6 @@ Def Vectorizer::vectorize(Def def, size_t length) {
         return world().literal(primlit->primtype_kind(), primlit->value(), length);
     if (def->isa<Bottom>())
         return world().bottom(def->type(), length);
-    if (def->isa<Any>())
-        return world().any(def->type(), length);
 
     const PrimOp* primop = def->as<PrimOp>();
     Array<Def> vops(primop->size());

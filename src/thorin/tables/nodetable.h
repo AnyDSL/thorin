@@ -6,10 +6,10 @@
     THORIN_AIR_NODE(Lambda, lambda)
     // PrimOp
         // Literal
-            THORIN_AIR_NODE(Any, any)
             THORIN_AIR_NODE(Bottom, bottom)
             THORIN_AIR_NODE(MemBlob, mem_blob)
             THORIN_AIR_NODE(FrameBlob, frame_blob)
+            THORIN_AIR_NODE(DataBlob, data_blob)
         // MemOp
             THORIN_AIR_NODE(Alloc, alloc)
             // Access

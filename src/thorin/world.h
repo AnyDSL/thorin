@@ -102,8 +102,6 @@ public:
     Def one(Type type, size_t length = 1) { return one(type.as<PrimType>()->primtype_kind(), length); }
     Def allset(PrimTypeKind kind, size_t length = 1) { return literal(kind, -1, length); }
     Def allset(Type type, size_t length = 1) { return allset(type.as<PrimType>()->primtype_kind(), length); }
-    Def any(Type type, size_t length = 1) { return vector(cse(new Any(type, "")), length); }
-    Def any(PrimTypeKind kind, size_t length = 1) { return any(type(kind), length); }
     Def bottom(Type type, size_t length = 1) { return vector(cse(new Bottom(type, "")), length); }
     Def bottom(PrimTypeKind kind, size_t length = 1) { return bottom(type(kind), length); }
     /// Creates a vector of all true while the length is derived from @p def.

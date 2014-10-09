@@ -25,25 +25,13 @@ public:
     bool up_to_date() const { return up_to_date_; }
     virtual Def rebuild() const override;
     virtual const char* op_name() const;
-    size_t hash() const {
-        if (hash_ == 0)
-            hash_ = vhash();
-        return hash_;
-    }
-    virtual size_t vhash() const {
-        size_t seed = hash_combine(hash_combine(hash_begin((int) kind()), size()), type().unify()->gid());
-        for (auto op : ops_)
-            seed = hash_combine(seed, op.node()->gid());
-        return seed;
-    }
-    virtual bool equal(const PrimOp* other) const {
-        bool result = this->kind() == other->kind() && this->size() == other->size() && this->type() == other->type();
-        for (size_t i = 0, e = size(); result && i != e; ++i)
-            result &= this->ops_[i].node() == other->ops_[i].node();
-        return result;
-    }
+
+protected:
+    virtual size_t vhash() const;
+    virtual bool equal(const PrimOp* other) const;
 
 private:
+    size_t hash() const { return hash_ == 0 ? hash_ = vhash() : hash_; }
     void set_gid(size_t gid) const { const_cast<size_t&>(const_cast<PrimOp*>(this)->gid_) = gid; }
 
     mutable size_t hash_ = 0;
@@ -69,40 +57,16 @@ protected:
     {}
 };
 
-/// Base class for \p Any and \p Bottom.
-class Undef : public Literal {
-protected:
-    Undef(NodeKind kind, Type type, const std::string& name)
-        : Literal(kind, type, name)
-    {}
-};
-
-/**
- * @brief The wish-you-a-value value.
- *
- * This literal represents an arbitrary value.
- * When ever an operation takes an \p Undef value as argument,
- * you may literally wish your favorite value instead.
- */
-class Any : public Undef {
-private:
-    Any(Type type, const std::string& name)
-        : Undef(Node_Any, type, name)
-    {}
-
-    friend class World;
-};
-
 /**
  * @brief The novalue-value.
  *
  * This literal represents literally 'no value'.
  * Extremely useful for data flow analysis.
  */
-class Bottom : public Undef {
+class Bottom : public Literal {
 private:
     Bottom(Type type, const std::string& name)
-        : Undef(Node_Bottom, type, name)
+        : Literal(Node_Bottom, type, name)
     {}
 
     friend class World;
@@ -271,7 +235,6 @@ private:
         for (size_t i = 0, e = args.size(); i != e; ++i)
             assert(struct_app_type->elem(i) == args[i]->type());
 #endif
-
         set_type(struct_app_type);
     }
 
@@ -339,13 +302,6 @@ public:
 
     PtrType ptr_type() const; ///< Returns the ptr type from \p ptr().
     Type referenced_type() const; ///< Returns the type referenced by \p ptr().
-    bool points_to_global() const { return points_to_global_; }
-    Def outer_load() const;
-    Def load() const;
-    void store(Def val) const;
-
-private:
-    bool points_to_global_ = false;
 
     friend class World;
 };
@@ -562,6 +518,13 @@ private:
     virtual Def mem_out() const override { return this; }
 
     friend class World;
+};
+
+class DataBlob : public Literal {
+private:
+    DataBlob(Type type);
+
+    std::vector<uint8_t> buffer_;
 };
 
 class MemBlob : public MemOp {

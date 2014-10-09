@@ -693,15 +693,12 @@ Def World::load(Def mem, Def ptr, const std::string& name) {
     }
 
     if (auto global = ptr->isa<Global>()) {
-        if (!global->is_mutable() || mem->isa<MemBlob>())
+        if (!global->is_mutable())
             return global->init();
     }
 
     if (mem->isa<MemBlob>()) {
-        if (auto lea = ptr->isa<LEA>()) {
-            if (lea->points_to_global())
-                return lea->load();
-        }
+        // TODO
     }
 
     return cse(new Load(mem, ptr, name));
@@ -710,22 +707,12 @@ Def World::load(Def mem, Def ptr, const std::string& name) {
 Def World::store(Def mem, Def ptr, Def value, const std::string& name) {
     if (value->isa<Bottom>())
         return mem;
+
     if (auto insert = value->isa<Insert>())
         return store(mem, lea(ptr, insert->index(), insert->name), value, name);
+
     if (mem->isa<MemBlob>()) {
-        if (value->isa<IndefiniteArray>())
-            return mem;
-        if (auto global = ptr->isa<Global>()) {
-            assert(global->is_mutable());
-            global->replace(this->global(value));
-            return mem;
-        }
-        if (auto lea = ptr->isa<LEA>()) {
-            if (lea->points_to_global()) {
-                lea->store(value);
-                return mem;
-            }
-        }
+        // TODO
     }
 
     return cse(new Store(mem, ptr, value, name));
@@ -855,7 +842,6 @@ Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, Type type) {
     switch (kind) {
         case Node_Alloc:    assert(ops.size() == 2); return to.alloc(   type.as<PtrType>()->referenced_type(),
                                                                         ops[0], ops[1], name);
-        case Node_Any:      assert(ops.size() == 0); return to.any(type);
         case Node_Bottom:   assert(ops.size() == 0); return to.bottom(type);
         case Node_Bitcast:  assert(ops.size() == 2); return to.bitcast( type, ops[0], ops[1], name);
         case Node_Cast:     assert(ops.size() == 2); return to.cast(    type, ops[0], ops[1], name);

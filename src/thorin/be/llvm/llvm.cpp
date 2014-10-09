@@ -659,8 +659,8 @@ llvm::Value* CodeGen::emit(Def def) {
         }
     }
 
-    if (auto undef = def->isa<Undef>()) // bottom and any
-        return llvm::UndefValue::get(convert(undef->type()));
+    if (auto bottom = def->isa<Bottom>())
+        return llvm::UndefValue::get(convert(bottom->type()));
 
     if (auto alloc = def->isa<Alloc>()) { // TODO factor this code
         auto llvm_malloc = module_->getOrInsertFunction(get_alloc_name(), builder_.getInt8PtrTy(), builder_.getInt64Ty(), nullptr);

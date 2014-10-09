@@ -680,9 +680,8 @@ std::ostream& CCodeGen::emit(Def def) {
         return stream();
     }
 
-    if (def->isa<Undef>()) {   // bottom and any
-        return stream() << "42 /* undef: bottom and any */";
-    }
+    if (def->isa<Bottom>())
+        return stream() << "42 /* bottom */";
 
     if (auto load = def->isa<Load>()) {
         emit_type(load->type()) << " " << load->unique_name() << ";";

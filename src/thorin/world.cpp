@@ -76,7 +76,7 @@ Def World::literal(PrimTypeKind kind, int64_t value, size_t length) {
 }
 
 /*
- * create
+ * arithops
  */
 
 Def World::binop(int kind, Def cond, Def lhs, Def rhs, const std::string& name) {
@@ -395,6 +395,10 @@ Def World::arithop_minus(Def cond, Def def) {
     }
 }
 
+/*
+ * compares
+ */
+
 Def World::cmp(CmpKind kind, Def cond, Def a, Def b, const std::string& name) {
     if (cond->isa<Bottom>() || a->isa<Bottom>() || b->isa<Bottom>())
         return bottom(type_bool());
@@ -465,6 +469,10 @@ Def World::cmp(CmpKind kind, Def cond, Def a, Def b, const std::string& name) {
 
     return cse(new Cmp(kind, cond, a, b, name));
 }
+
+/*
+ * casts
+ */
 
 Def World::convert(Type to, Def from, const std::string& name) {
     if (from->type().isa<PtrType>() && to.isa<PtrType>())
@@ -579,6 +587,10 @@ Def World::bitcast(Type to, Def cond, Def from, const std::string& name) {
     return cse(new Bitcast(to, cond, from, name));
 }
 
+/*
+ * aggregate operations
+ */
+
 Def World::extract(Def agg, Def index, const std::string& name, Def mem) {
     if (agg->isa<Bottom>())
         return bottom(Extract::type(agg, index));
@@ -653,10 +665,9 @@ Def World::select(Def cond, Def a, Def b, const std::string& name) {
     return cse(new Select(cond, a, b, name));
 }
 
-const Map* World::map(Def device, Def addr_space, Def mem, Def ptr, Def mem_offset, Def mem_size, const std::string& name) {
-    return map(device->as<PrimLit>()->ps32_value().data(), (AddressSpace)addr_space->as<PrimLit>()->ps32_value().data(),
-               mem, ptr, mem_offset, mem_size, name);
-}
+/*
+ * memory stuff
+ */
 
 Def World::load(Def mem, Def ptr, const std::string& name) {
     if (auto store = mem->isa<Store>())
@@ -692,6 +703,15 @@ const Global* World::global_immutable_string(const std::string& str, const std::
     return global(definite_array(str_array), false, name);
 }
 
+const Map* World::map(Def device, Def addr_space, Def mem, Def ptr, Def mem_offset, Def mem_size, const std::string& name) {
+    return map(device->as<PrimLit>()->ps32_value().data(), (AddressSpace)addr_space->as<PrimLit>()->ps32_value().data(),
+               mem, ptr, mem_offset, mem_size, name);
+}
+
+/*
+ * guided partial evaluation
+ */
+
 Def World::run(Def def, const std::string& name) {
     if (auto run = def->isa<Run>()) return run;
     if (auto hlt = def->isa<Hlt>()) return hlt;
@@ -703,6 +723,10 @@ Def World::hlt(Def def, const std::string& name) {
     if (auto run = def->isa<Run>()) def = run->def();
     return cse(new Hlt(def, name));
 }
+
+/*
+ * lambdas
+ */
 
 Lambda* World::lambda(FnType fn, CC cc, Intrinsic intrinsic, const std::string& name) {
     THORIN_CHECK_BREAK(gid_)
@@ -737,6 +761,10 @@ Lambda* World::basicblock(const std::string& name) {
     bb->set_mem(mem);
     return bb;
 }
+
+/*
+ * rebuild
+ */
 
 Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, Type type) {
     NodeKind kind = in->kind();

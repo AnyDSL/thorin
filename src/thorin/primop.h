@@ -78,12 +78,11 @@ public:
 
     PrimType primtype() const { return type().as<PrimType>(); }
     PrimTypeKind primtype_kind() const { return primtype()->primtype_kind(); }
-    virtual size_t vhash() const override { return hash_combine(Literal::vhash(), bcast<uint64_t, Box>(value())); }
-    virtual bool equal(const PrimOp* other) const override {
-        return Literal::equal(other) ? this->value() == other->as<PrimLit>()->value() : false;
-    }
 
 private:
+    virtual size_t vhash() const override;
+    virtual bool equal(const PrimOp* other) const override;
+
     Box box_;
 
     friend class World;
@@ -377,12 +376,10 @@ public:
     size_t index() const { return index_; }
     PtrType ptr_type() const;
 
-    virtual size_t vhash() const override { return hash_combine(PrimOp::vhash(), index()); }
-    virtual bool equal(const PrimOp* other) const override {
-        return PrimOp::equal(other) ? this->index() == other->as<Slot>()->index() : false;
-    }
-
 private:
+    virtual size_t vhash() const override;
+    virtual bool equal(const PrimOp* other) const override;
+
     size_t index_;
 
     friend class World;
@@ -399,12 +396,12 @@ public:
     Def init() const { return op(0); }
     bool is_mutable() const { return is_mutable_; }
     Type referenced_type() const; ///< Returns the type referenced by this \p Global's pointer type.
-
     virtual const char* op_name() const override;
+
+private:
     virtual size_t vhash() const override { return hash_value(gid()); }
     virtual bool equal(const PrimOp* other) const override { return this == other; }
 
-private:
     bool is_mutable_;
 
     friend class World;
@@ -513,13 +510,6 @@ private:
     virtual Def mem_out() const override { return this; }
 
     friend class World;
-};
-
-class DataBlob : public Literal {
-private:
-    DataBlob(Type type);
-
-    std::vector<uint8_t> buffer_;
 };
 
 class MemBlob : public MemOp {

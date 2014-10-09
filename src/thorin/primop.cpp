@@ -120,6 +120,9 @@ size_t PrimOp::vhash() const {
     return seed;
 }
 
+size_t PrimLit::vhash() const { return hash_combine(Literal::vhash(), bcast<uint64_t, Box>(value())); }
+size_t Slot::vhash() const { return hash_combine(PrimOp::vhash(), index()); }
+
 //------------------------------------------------------------------------------
 
 /*
@@ -131,6 +134,14 @@ bool PrimOp::equal(const PrimOp* other) const {
     for (size_t i = 0, e = size(); result && i != e; ++i)
         result &= this->ops_[i].node() == other->ops_[i].node();
     return result;
+}
+
+bool PrimLit::equal(const PrimOp* other) const {
+    return Literal::equal(other) ? this->value() == other->as<PrimLit>()->value() : false;
+}
+
+bool Slot::equal(const PrimOp* other) const {
+    return PrimOp::equal(other) ? this->index() == other->as<Slot>()->index() : false;
 }
 
 //------------------------------------------------------------------------------

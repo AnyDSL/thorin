@@ -8,7 +8,7 @@
         // Literal
             THORIN_AIR_NODE(Bottom, bottom)
             THORIN_AIR_NODE(MemBlob, mem_blob)
-            THORIN_AIR_NODE(FrameBlob, frame_blob)
+            THORIN_AIR_NODE(BlobPtr, mem_blob)
         // MemOp
             THORIN_AIR_NODE(Alloc, alloc)
             // Access

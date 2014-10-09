@@ -103,8 +103,9 @@ Map::Map(int32_t device, AddressSpace addr_space, Def mem, Def ptr, Def mem_offs
                             ptr->type().as<PtrType>()->length(), device, addr_space)}));
 }
 
-FrameBlob::FrameBlob(World& world, const std::string& name)
-    : Literal(Node_FrameBlob, world.frame_type(), name)
+BlobPtr::BlobPtr(Type type, Def mem_blob, Def extra, size_t index, const std::string& name)
+    : PrimOp(Node_BlobPtr, type->world().ptr_type(type), {mem_blob, extra}, name)
+    , index_(index)
 {}
 
 //------------------------------------------------------------------------------
@@ -122,6 +123,8 @@ size_t PrimOp::vhash() const {
 
 size_t PrimLit::vhash() const { return hash_combine(Literal::vhash(), bcast<uint64_t, Box>(value())); }
 size_t Slot::vhash() const { return hash_combine(PrimOp::vhash(), index()); }
+size_t BlobPtr::vhash() const { return hash_combine(PrimOp::vhash(), index()); }
+size_t MemBlob::vhash() const { return gid(); }
 
 //------------------------------------------------------------------------------
 
@@ -143,6 +146,8 @@ bool PrimLit::equal(const PrimOp* other) const {
 bool Slot::equal(const PrimOp* other) const {
     return PrimOp::equal(other) ? this->index() == other->as<Slot>()->index() : false;
 }
+
+bool MemBlob::equal(const PrimOp* other) const { return gid() == other->gid(); }
 
 //------------------------------------------------------------------------------
 

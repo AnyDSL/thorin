@@ -719,27 +719,16 @@ Def World::store(Def mem, Def ptr, Def value, const std::string& name) {
 }
 
 Def World::enter(Def mem, const std::string& name) {
-    if (mem->isa<MemBlob>())
-        return frame_blob(name);
     return cse(new Enter(mem, name));
 }
 
 Def World::slot(Type type, Def frame, size_t index, const std::string& name) {
-    if (frame->isa<FrameBlob>())
-        return global(bottom(type));
     return cse(new Slot(type, frame, index, name));
 }
 
 Def World::alloc(Type type, Def mem, Def extra, const std::string& name) {
-    if (mem->isa<MemBlob>()) {
-        if (auto indef_array = type.isa<IndefiniteArrayType>()) {
-            auto def_array = definite_array_type(indef_array->elem_type(), extra->primlit_value<u64>());
-            return bitcast(ptr_type(indef_array), global(bottom(def_array)));
-        }
-
-        assert(extra->is_zero());
-        return global(bottom(type));
-    }
+    //if (auto blob = mem->isa<MemBlob>()) {
+    //}
 
     return cse(new Alloc(type, mem, extra, name));
 }

@@ -7,6 +7,8 @@
 
 namespace thorin {
 
+class BlobPtr;
+
 //------------------------------------------------------------------------------
 
 class PrimOp : public DefNode {
@@ -522,12 +524,29 @@ public:
     virtual bool has_mem_out() const { return true; }
     virtual Def mem_out() const { return this; }
 
+private:
+    virtual size_t vhash() const override;
+    virtual bool equal(const PrimOp* other) const override;
+
+    std::vector<const BlobPtr*> blobptrs_;
+
     friend class World;
+    friend class BlobPtr;
 };
 
-class FrameBlob : public Literal {
+class BlobPtr : public PrimOp {
 private:
-    FrameBlob(World& world, const std::string& name);
+    BlobPtr(Type type, Def mem_blob, Def extra, size_t index, const std::string& name);
+
+public:
+    const MemBlob* mem_blob() const { return op(0)->as<MemBlob>(); }
+    size_t index() const { return index_; }
+
+private:
+    virtual size_t vhash() const override;
+    virtual bool equal(const PrimOp* other) const override;
+
+    size_t index_;
 
     friend class World;
 };

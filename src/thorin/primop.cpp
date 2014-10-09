@@ -147,6 +147,7 @@ bool Slot::equal(const PrimOp* other) const {
     return PrimOp::equal(other) ? this->index() == other->as<Slot>()->index() : false;
 }
 
+bool BlobPtr::equal(const PrimOp* other) const { /*TODO*/ return gid() == other->gid(); }
 bool MemBlob::equal(const PrimOp* other) const { return gid() == other->gid(); }
 
 //------------------------------------------------------------------------------

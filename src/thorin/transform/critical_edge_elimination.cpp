@@ -67,7 +67,7 @@ void critical_edge_elimination(World& world) {
     // first we need to care about that this situation does not occur:
     //  a:                      b:
     //      A(..., c)               B(..., c)
-    // such edges are not necessarily critical but we remove them here anyway as such situtions may cause trouble in some passes
+    // such edges are not really critical but we remove them here anyway as such situtions may cause trouble in some passes
 
     std::vector<Lambda*> todo;
     for (auto lambda : world.lambdas()) {

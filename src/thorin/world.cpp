@@ -81,10 +81,10 @@ Def World::literal(PrimTypeKind kind, int64_t value, size_t length) {
 
 Def World::binop(int kind, Def cond, Def lhs, Def rhs, const std::string& name) {
     if (is_arithop(kind))
-        return arithop((ArithOpKind) kind, cond, lhs, rhs);
+        return arithop((ArithOpKind) kind, cond, lhs, rhs, name);
 
     assert(is_cmp(kind) && "must be a Cmp");
-    return cmp((CmpKind) kind, cond, lhs, rhs);
+    return cmp((CmpKind) kind, cond, lhs, rhs, name);
 }
 
 Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& name) {

@@ -298,6 +298,8 @@ fn atomic_max(a: &i32, b: i32) -> i32 { atomic(8u, a, b) }
 
 fn atomic_add_global(a: &i32, b: i32) -> i32 { atomic_add(a, b) }
 fn atomic_add_local(a: &i32, b: i32) -> i32 { atomic_add(a, b) }
+fn atomic_min_global(a: &i32, b: i32) -> i32 { atomic_min(a, b) }
+fn atomic_min_local(a: &i32, b: i32) -> i32 { atomic_min(a, b) }
 
 extern "C" {
     // libdevice intrinsics: http://docs.nvidia.com/cuda/libdevice-users-guide

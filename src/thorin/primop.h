@@ -451,7 +451,7 @@ private:
     Load(Def mem, Def ptr, const std::string& name);
 
 public:
-    Def extract_mapped_ptr() const;
+    Def out_ptr() const;
 
     friend class World;
 };
@@ -488,14 +488,12 @@ private:
     Map(int32_t device, AddressSpace addr_space, Def mem, Def ptr, Def offset, Def size, const std::string& name);
 
 public:
-    Def extract_mem() const;
-    Def extract_mapped_ptr() const;
+    Def out_ptr() const;
     Def mem_offset() const { return op(2); }
     Def mem_size() const { return op(3); }
     PtrType ptr_type() const { return type().as<TupleType>()->arg(1).as<PtrType>(); }
     AddressSpace addr_space() const { return ptr_type()->addr_space(); }
     int32_t device() const { return ptr_type()->device(); }
-    virtual Def out_mem() const override;
 
     friend class World;
 };
@@ -506,6 +504,7 @@ private:
         : MapOp(Node_Unmap, mem->type(), {mem, ptr}, name)
     {}
 
+public:
     virtual Def out_mem() const override { return this; }
 
     friend class World;

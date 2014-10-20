@@ -89,29 +89,8 @@ static Schedule schedule_late(const Scope& scope, const Def2Lambda& def2early) {
         assert(def2num[def] != 0);
         if (--def2num[def] == 0) {
             queue.push(def);
-            if (auto primop = def->isa<PrimOp>()) {
+            if (auto primop = def->isa<PrimOp>())
                 schedule[late].push_back(primop);
-                // now repair the artificially increased counter
-                if (auto memop = primop->isa<MemOp>()) {
-                    if (memop->has_mem_out()) {
-                        auto mem = memop->mem();
-                        assert(scope.contains(mem));
-                        for (auto use : mem->uses()) {
-                            if (scope.contains(use)) {
-                                if (auto umemop = use->isa<MemOp>()) {
-                                    if (!umemop->has_mem_out()) {
-                                        assert(def2num[umemop] != 0);
-                                        if (--def2num[umemop] == 0) {
-                                            queue.push(umemop);
-                                            schedule[late].push_back(umemop);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
         }
     };
 
@@ -150,8 +129,7 @@ static void verify(const Scope& scope, Schedule& schedule) {
                     mem->dump();
                 }
 
-                if (auto out = memop->mem_out())
-                    mem = out;
+                mem = memop->out_mem();
             }
         }
         lambda2mem[lambda] = mem;

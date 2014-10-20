@@ -159,28 +159,30 @@ PtrType LEA::ptr_type() const { return ptr()->type().as<PtrType>(); }
 Type LEA::referenced_type() const { return ptr_type()->referenced_type(); }
 PtrType Slot::ptr_type() const { return type().as<PtrType>(); }
 Type Global::referenced_type() const { return type().as<PtrType>()->referenced_type(); }
-Def Map::extract_mapped_ptr() const { return world().extract(this, 1); }
 
 Def MemOp::out_mem() const {
     auto uses = this->uses();
-    assert(uses.size() <= 2);
     switch (uses.size()) {
-        case 0: goto extract;
+        case 0: 
+            return world().extract(this, 0);
         case 1:
             if (uses.front()->type().isa<MemType>())
                 return uses.front();
-            goto extract;
-        case 2:
+            return world().extract(this, 0);
+        case 2: {
             size_t i = uses[0]->type().isa<MemType>() ? 0 : 1;
-            assert(uses[i]->type()->isa<MemType>());
+            assert(uses[i]->type().isa<MemType>());
             assert(uses[i]->isa<Extract>());
             assert(uses[i]->num_uses() == 1);
             return uses[i];
+        }
         default:
             THORIN_UNREACHABLE;
-extract:
-    return world().extract(this, 0); }
+    }
+    return world().extract(this, 0);
 }
+
+Def Map::out_ptr() const { return world().extract(this, 1); }
 
 //------------------------------------------------------------------------------
 

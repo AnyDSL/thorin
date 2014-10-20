@@ -20,19 +20,13 @@ static void find_enters(Lambda* lambda, std::vector<const Enter*>& enters) {
             if (auto enter = find_enter(cur))
                 enters.push_back(enter);
 
-            if (auto memop = cur->isa<MemOp>()) {
-                if (auto mem_out = memop->mem_out()) {
-                    assert(mem_out);
-                    cur = mem_out;
-                }
-            }
+            if (auto memop = cur->isa<MemOp>())
+                cur = memop->out_mem();
 
             for (auto use : cur->uses()) {
                 cur = nullptr;
-                if (auto memop = use->isa<MemOp>()) {
-                    if (memop->has_mem_out())
-                        cur = memop;
-                }
+                if (auto memop = use->isa<MemOp>())
+                    cur = memop;
             }
         }
     }

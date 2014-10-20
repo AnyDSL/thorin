@@ -78,25 +78,6 @@ static Schedule schedule_late(const Scope& scope, const Def2Lambda& def2early) {
             }
             assert(num != 0 && "primop dead");
             def2num[def] += num;
-
-            auto memop = primop->isa<MemOp>();
-            // schedule Slots and MemOps without memory out always early
-            if (primop->isa<Slot>() || (memop && !memop->has_mem_out()))
-                def2late[primop] = def2early.find(primop)->second;
-
-            // artificially increase the use counter of all non-memory-out uses of the mem's operand of a memory-out-primop
-            if (memop && memop->has_mem_out()) {
-                auto mem = memop->mem();
-                assert(scope.contains(mem));
-                for (auto use : mem->uses()) {
-                    if (scope.contains(use)) {
-                        if (auto umemop = use->isa<MemOp>()) {
-                            if (!umemop->has_mem_out())
-                                ++def2num[umemop];
-                        }
-                    }
-                }
-            }
         }
     }
 

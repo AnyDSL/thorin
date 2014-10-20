@@ -84,11 +84,20 @@ Slot::Slot(Type type, Def frame, size_t index, const std::string& name)
 Global::Global(Def init, bool is_mutable, const std::string& name)
     : PrimOp(Node_Global, init->type()->world().ptr_type(init->type()), {init}, name)
     , is_mutable_(is_mutable)
-{ /* TODO assert that init does not depend on some param */ }
+{ 
+    assert(init->is_const());
+}
 
 Alloc::Alloc(Type type, Def mem, Def extra, const std::string& name)
     : MemOp(Node_Alloc, mem->world().ptr_type(type), {mem, extra}, name)
 {}
+
+Load::Load(Def mem, Def ptr, const std::string& name)
+    : Access(Node_Load, nullptr, {mem, ptr}, name)
+{
+    World& w = mem->world();
+    set_type(w.tuple_type({w.mem_type(), ptr->type().as<PtrType>()->referenced_type()}));
+}
 
 Enter::Enter(Def mem, const std::string& name)
     : MemOp(Node_Enter, mem->world().frame_type(), {mem}, name)
@@ -102,11 +111,6 @@ Map::Map(int32_t device, AddressSpace addr_space, Def mem, Def ptr, Def mem_offs
                             w.ptr_type(ptr->type().as<PtrType>()->referenced_type(),
                             ptr->type().as<PtrType>()->length(), device, addr_space)}));
 }
-
-BlobPtr::BlobPtr(Type type, Def mem_blob, Def extra, size_t index, const std::string& name)
-    : PrimOp(Node_BlobPtr, type->world().ptr_type(type), {mem_blob, extra}, name)
-    , index_(index)
-{}
 
 //------------------------------------------------------------------------------
 
@@ -123,8 +127,6 @@ size_t PrimOp::vhash() const {
 
 size_t PrimLit::vhash() const { return hash_combine(Literal::vhash(), bcast<uint64_t, Box>(value())); }
 size_t Slot::vhash() const { return hash_combine(PrimOp::vhash(), index()); }
-size_t BlobPtr::vhash() const { return hash_combine(PrimOp::vhash(), index()); }
-size_t MemBlob::vhash() const { return gid(); }
 
 //------------------------------------------------------------------------------
 
@@ -147,9 +149,6 @@ bool Slot::equal(const PrimOp* other) const {
     return PrimOp::equal(other) ? this->index() == other->as<Slot>()->index() : false;
 }
 
-bool BlobPtr::equal(const PrimOp* other) const { /*TODO*/ return gid() == other->gid(); }
-bool MemBlob::equal(const PrimOp* other) const { return gid() == other->gid(); }
-
 //------------------------------------------------------------------------------
 
 /*
@@ -160,16 +159,27 @@ PtrType LEA::ptr_type() const { return ptr()->type().as<PtrType>(); }
 Type LEA::referenced_type() const { return ptr_type()->referenced_type(); }
 PtrType Slot::ptr_type() const { return type().as<PtrType>(); }
 Type Global::referenced_type() const { return type().as<PtrType>()->referenced_type(); }
-Def Map::extract_mem() const { return world().extract(this, 0); }
 Def Map::extract_mapped_ptr() const { return world().extract(this, 1); }
 
-Def Map::mem_out() const {
+Def MemOp::out_mem() const {
     auto uses = this->uses();
-    assert(1 <= uses.size() && uses.size() <= 2);
-    size_t i = uses[0]->type().isa<MemType>() ? 0 : 1;
-    assert(uses[i]->isa<Extract>());
-    assert(uses[i]->num_uses() == 1);
-    return uses[i];
+    assert(uses.size() <= 2);
+    switch (uses.size()) {
+        case 0: goto extract;
+        case 1:
+            if (uses.front()->type().isa<MemType>())
+                return uses.front();
+            goto extract;
+        case 2:
+            size_t i = uses[0]->type().isa<MemType>() ? 0 : 1;
+            assert(uses[i]->type()->isa<MemType>());
+            assert(uses[i]->isa<Extract>());
+            assert(uses[i]->num_uses() == 1);
+            return uses[i];
+        default:
+            THORIN_UNREACHABLE;
+extract:
+    return world().extract(this, 0); }
 }
 
 //------------------------------------------------------------------------------

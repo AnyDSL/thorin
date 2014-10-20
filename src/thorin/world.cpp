@@ -697,10 +697,6 @@ Def World::load(Def mem, Def ptr, const std::string& name) {
             return global->init();
     }
 
-    if (mem->isa<MemBlob>()) {
-        // TODO
-    }
-
     return cse(new Load(mem, ptr, name));
 }
 
@@ -710,10 +706,6 @@ Def World::store(Def mem, Def ptr, Def value, const std::string& name) {
 
     if (auto insert = value->isa<Insert>())
         return store(mem, lea(ptr, insert->index(), insert->name), value, name);
-
-    if (mem->isa<MemBlob>()) {
-        // TODO
-    }
 
     return cse(new Store(mem, ptr, value, name));
 }
@@ -727,9 +719,6 @@ Def World::slot(Type type, Def frame, size_t index, const std::string& name) {
 }
 
 Def World::alloc(Type type, Def mem, Def extra, const std::string& name) {
-    //if (auto blob = mem->isa<MemBlob>()) {
-    //}
-
     return cse(new Alloc(type, mem, extra, name));
 }
 
@@ -843,7 +832,6 @@ Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, Type type) {
         case Node_Insert:   assert(ops.size() == 3); return to.insert(  ops[0], ops[1], ops[2], name);
         case Node_LEA:      assert(ops.size() == 2); return to.lea(     ops[0], ops[1], name);
         case Node_Load:     assert(ops.size() == 2); return to.load(    ops[0], ops[1], name);
-        case Node_MemBlob:  assert(ops.size() == 1); return to.mem_blob(ops[0], name);
         case Node_Map:      assert(ops.size() == 4); return to.map(     in->as<Map>()->device(), in->as<Map>()->addr_space(),
                                                                         ops[0], ops[1], ops[2], ops[3], name);
         case Node_Unmap:    assert(ops.size() == 2); return to.unmap(   ops[0], ops[1], name);

@@ -420,8 +420,7 @@ protected:
 
 public:
     Def mem() const { return op(0); }
-    virtual bool has_mem_out() const { return false; }
-    virtual Def mem_out() const { return Def(); }
+    virtual Def out_mem() const;
 };
 
 class Alloc : public MemOp {
@@ -449,9 +448,10 @@ public:
 
 class Load : public Access {
 private:
-    Load(Def mem, Def ptr, const std::string& name)
-        : Access(Node_Load, ptr->type().as<PtrType>()->referenced_type(), {mem, ptr}, name)
-    {}
+    Load(Def mem, Def ptr, const std::string& name);
+
+public:
+    Def extract_mapped_ptr() const;
 
     friend class World;
 };
@@ -464,8 +464,7 @@ private:
 
 public:
     Def val() const { return op(2); }
-    virtual bool has_mem_out() const override { return true; }
-    virtual Def mem_out() const override { return this; }
+    virtual Def out_mem() const override { return this; }
 
     friend class World;
 };
@@ -496,8 +495,7 @@ public:
     PtrType ptr_type() const { return type().as<TupleType>()->arg(1).as<PtrType>(); }
     AddressSpace addr_space() const { return ptr_type()->addr_space(); }
     int32_t device() const { return ptr_type()->device(); }
-    virtual bool has_mem_out() const override { return true; }
-    virtual Def mem_out() const override;
+    virtual Def out_mem() const override;
 
     friend class World;
 };
@@ -508,45 +506,7 @@ private:
         : MapOp(Node_Unmap, mem->type(), {mem, ptr}, name)
     {}
 
-    virtual bool has_mem_out() const override { return true; }
-    virtual Def mem_out() const override { return this; }
-
-    friend class World;
-};
-
-class MemBlob : public MemOp {
-private:
-    MemBlob(Def mem, const std::string& name)
-        : MemOp(Node_MemBlob, mem->type(), {mem}, name)
-    {}
-
-public:
-    virtual bool has_mem_out() const { return true; }
-    virtual Def mem_out() const { return this; }
-
-private:
-    virtual size_t vhash() const override;
-    virtual bool equal(const PrimOp* other) const override;
-
-    std::vector<const BlobPtr*> blobptrs_;
-
-    friend class World;
-    friend class BlobPtr;
-};
-
-class BlobPtr : public PrimOp {
-private:
-    BlobPtr(Type type, Def mem_blob, Def extra, size_t index, const std::string& name);
-
-public:
-    const MemBlob* mem_blob() const { return op(0)->as<MemBlob>(); }
-    size_t index() const { return index_; }
-
-private:
-    virtual size_t vhash() const override;
-    virtual bool equal(const PrimOp* other) const override;
-
-    size_t index_;
+    virtual Def out_mem() const override { return this; }
 
     friend class World;
 };

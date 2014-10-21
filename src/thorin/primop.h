@@ -420,7 +420,7 @@ protected:
 
 public:
     Def mem() const { return op(0); }
-    virtual Def out_mem() const;
+    virtual Def out_mem() const = 0;
 };
 
 class Alloc : public MemOp {
@@ -430,6 +430,9 @@ private:
 public:
     Def extra() const { return op(1); }
     Type alloced_type() const { return type().as<PtrType>()->referenced_type(); }
+    Def extract_mem() const;
+    Def extract_ptr() const;
+    virtual Def out_mem() const override { return extract_mem(); }
 
     friend class World;
 };
@@ -451,7 +454,9 @@ private:
     Load(Def mem, Def ptr, const std::string& name);
 
 public:
-    Def out_val() const;
+    Def extract_mem() const;
+    Def extract_val() const;
+    virtual Def out_mem() const override { return extract_mem(); }
 
     friend class World;
 };
@@ -473,6 +478,11 @@ class Enter : public MemOp {
 private:
     Enter(Def mem, const std::string& name);
 
+public:
+    Def extract_mem() const;
+    Def extract_frame() const;
+    virtual Def out_mem() const override { return extract_mem(); }
+
     friend class World;
 };
 
@@ -488,7 +498,9 @@ private:
     Map(int32_t device, AddressSpace addr_space, Def mem, Def ptr, Def offset, Def size, const std::string& name);
 
 public:
-    Def out_ptr() const;
+    Def extract_mem() const;
+    Def extract_ptr() const;
+    virtual Def out_mem() const override { return extract_mem(); }
     Def mem_offset() const { return op(2); }
     Def mem_size() const { return op(3); }
     PtrType ptr_type() const { return type().as<TupleType>()->arg(1).as<PtrType>(); }

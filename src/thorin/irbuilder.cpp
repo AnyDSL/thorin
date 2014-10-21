@@ -48,10 +48,19 @@ Var Var::create_agg(Var var, Def offset) {
 
 Def Var::load() const {
     switch (kind()) {
-        case ImmutableValRef:   return def_;
-        case MutableValRef:     return builder_->cur_bb->get_value(handle_, Type(type_), name_);
-        case PtrRef:            return world().load(builder_->get_mem(), def_);
-        case AggRef:            return world().extract(var_->load(), def_, "", builder()->get_mem());
+        case ImmutableValRef:
+            return def_;
+        case MutableValRef:
+            return builder_->cur_bb->get_value(handle_, Type(type_), name_);
+        case PtrRef: {
+            auto load = world().load(builder_->get_mem(), def_)->as<Load>();
+            builder_->set_mem(load->out_mem());
+            return load->extract_val();
+        }
+        case AggRef: {
+            // TODO convert to LEA
+            return world().extract(var_->load(), def_, "", builder()->get_mem());
+        }
         default: THORIN_UNREACHABLE;
     }
 }
@@ -112,6 +121,12 @@ Lambda* JumpTarget::enter_unsealed(World& world) {
 }
 
 //------------------------------------------------------------------------------
+
+Def IRBuilder::create_frame() {
+    auto enter = world().enter(get_mem())->as<Enter>();
+    set_mem(enter->extract_mem());
+    return enter->extract_frame();
+}
 
 void IRBuilder::jump(JumpTarget& jt) {
     if (is_reachable()) {

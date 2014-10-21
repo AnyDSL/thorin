@@ -164,9 +164,14 @@ PtrType LEA::ptr_type() const { return ptr()->type().as<PtrType>(); }
 Type    LEA::referenced_type() const { return ptr_type()->referenced_type(); }
 PtrType Slot::ptr_type() const { return type().as<PtrType>(); }
 Type    Global::referenced_type() const { return type().as<PtrType>()->referenced_type(); }
-Def     MemOp::out_mem() const { return world().extract(this, 0); }
-Def     Load::out_val() const { return world().extract(this, 1); }
-Def     Map::out_ptr() const { return world().extract(this, 0); }
+Def     Alloc::extract_mem()   const { return world().extract(this, 0); }
+Def     Alloc::extract_ptr()   const { return world().extract(this, 1); }
+Def     Load ::extract_mem()   const { return world().extract(this, 0); }
+Def     Load ::extract_val()   const { return world().extract(this, 1); }
+Def     Enter::extract_mem()   const { return world().extract(this, 0); }
+Def     Enter::extract_frame() const { return world().extract(this, 1); }
+Def     Map  ::extract_mem()   const { return world().extract(this, 0); }
+Def     Map  ::extract_ptr()   const { return world().extract(this, 1); }
 
 //------------------------------------------------------------------------------
 

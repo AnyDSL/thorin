@@ -129,6 +129,7 @@ public:
     World& world() const { return world_; }
     bool is_reachable() const { return cur_bb != nullptr; }
     void set_unreachable() { cur_bb = nullptr; }
+    Def create_frame();
     Lambda* enter(JumpTarget& jt) { return cur_bb = jt.enter(); }
     Lambda* enter_unsealed(JumpTarget& jt) { return cur_bb = jt.enter_unsealed(world_); }
     void jump(JumpTarget& jt);

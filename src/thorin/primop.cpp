@@ -79,7 +79,9 @@ LEA::LEA(Def ptr, Def index, const std::string& name)
 Slot::Slot(Type type, Def frame, size_t index, const std::string& name)
     : PrimOp(Node_Slot, type->world().ptr_type(type), {frame}, name)
     , index_(index)
-{}
+{
+    assert(frame->type().isa<FrameType>());
+}
 
 Global::Global(Def init, bool is_mutable, const std::string& name)
     : PrimOp(Node_Global, init->type()->world().ptr_type(init->type()), {init}, name)

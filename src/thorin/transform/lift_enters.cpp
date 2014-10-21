@@ -25,8 +25,10 @@ static void find_enters(Lambda* lambda, std::vector<const Enter*>& enters) {
 
             for (auto use : cur->uses()) {
                 cur = nullptr;
-                if (auto memop = use->isa<MemOp>())
+                if (auto memop = use->isa<MemOp>()) {
                     cur = memop;
+                    break;
+                }
             }
         }
     }
@@ -42,24 +44,23 @@ static void lift_enters(const Scope& scope) {
     auto enter = find_enter(scope.entry());
     if (enter == nullptr)
         enter = world.enter(scope.entry()->mem_param())->as<Enter>();
+    auto frame = enter->extract_frame();
 
-    // find max slot index
-    size_t index = 0;
-    for (auto use : enter->uses()) {
-        if (auto slot = use->isa<Slot>())
-            index = std::max(index, slot->index());
-    }
+    size_t index = 0; // find max slot index
+    for (auto use : frame->uses())
+        index = std::max(index, use->as<Slot>()->index());
 
     for (auto old_enter : enters) {
-        for (auto use : old_enter->uses()) {
-            if (auto slot = use->isa<Slot>())
-                slot->replace(world.slot(slot->ptr_type()->referenced_type(), enter, index++, slot->name));
+        for (auto use : old_enter->extract_frame()->uses()) {
+            auto slot = use->as<Slot>();
+            slot->replace(world.slot(slot->ptr_type()->referenced_type(), frame, index++, slot->name));
         }
+        old_enter->extract_mem()->replace(old_enter->mem());
     }
 
 #ifndef NDEBUG
     for (auto old_enter : enters)
-        assert(old_enter->num_uses() == 0);
+        assert(old_enter->extract_frame()->num_uses() == 0);
 #endif
 }
 

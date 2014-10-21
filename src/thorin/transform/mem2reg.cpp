@@ -60,7 +60,8 @@ void mem2reg(const Scope& scope) {
                 if (auto slot = load->ptr()->isa<Slot>()) {
                     if (!is_address_taken(slot)) {
                         auto type = slot->type().as<PtrType>()->referenced_type();
-                        load->replace(lambda->get_value(addresses[slot], type, slot->name.c_str()));
+                        load->extract_val()->replace(lambda->get_value(addresses[slot], type, slot->name.c_str()));
+                        load->extract_mem()->replace(load->mem());
                     }
                 }
             }

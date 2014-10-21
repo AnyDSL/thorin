@@ -222,143 +222,83 @@ class Memory {
 };
 Memory mem_manager;
 
-std::string getOpenCLErrorCodeStr(int errorCode) {
-    switch (errorCode) {
-        case CL_SUCCESS:
-            return "CL_SUCCESS";
-        case CL_DEVICE_NOT_FOUND:
-            return "CL_DEVICE_NOT_FOUND";
-        case CL_DEVICE_NOT_AVAILABLE:
-            return "CL_DEVICE_NOT_AVAILABLE";
-        case CL_COMPILER_NOT_AVAILABLE:
-            return "CL_COMPILER_NOT_AVAILABLE";
-        case CL_MEM_OBJECT_ALLOCATION_FAILURE:
-            return "CL_MEM_OBJECT_ALLOCATION_FAILURE";
-        case CL_OUT_OF_RESOURCES:
-            return "CL_OUT_OF_RESOURCES";
-        case CL_OUT_OF_HOST_MEMORY:
-            return "CL_OUT_OF_HOST_MEMORY";
-        case CL_PROFILING_INFO_NOT_AVAILABLE:
-            return "CL_PROFILING_INFO_NOT_AVAILABLE";
-        case CL_MEM_COPY_OVERLAP:
-            return "CL_MEM_COPY_OVERLAP";
-        case CL_IMAGE_FORMAT_MISMATCH:
-            return "CL_IMAGE_FORMAT_MISMATCH";
-        case CL_IMAGE_FORMAT_NOT_SUPPORTED:
-            return "CL_IMAGE_FORMAT_NOT_SUPPORTED";
-        case CL_BUILD_PROGRAM_FAILURE:
-            return "CL_BUILD_PROGRAM_FAILURE";
-        case CL_MAP_FAILURE:
-            return "CL_MAP_FAILURE";
+std::string get_opencl_error_code_str(int error) {
+    #define CL_ERROR_CODE(CODE) case CODE: return #CODE;
+    switch (error) {
+        CL_ERROR_CODE(CL_SUCCESS)
+        CL_ERROR_CODE(CL_DEVICE_NOT_FOUND)
+        CL_ERROR_CODE(CL_DEVICE_NOT_AVAILABLE)
+        CL_ERROR_CODE(CL_COMPILER_NOT_AVAILABLE)
+        CL_ERROR_CODE(CL_MEM_OBJECT_ALLOCATION_FAILURE)
+        CL_ERROR_CODE(CL_OUT_OF_RESOURCES)
+        CL_ERROR_CODE(CL_OUT_OF_HOST_MEMORY)
+        CL_ERROR_CODE(CL_PROFILING_INFO_NOT_AVAILABLE)
+        CL_ERROR_CODE(CL_MEM_COPY_OVERLAP)
+        CL_ERROR_CODE(CL_IMAGE_FORMAT_MISMATCH)
+        CL_ERROR_CODE(CL_IMAGE_FORMAT_NOT_SUPPORTED)
+        CL_ERROR_CODE(CL_BUILD_PROGRAM_FAILURE)
+        CL_ERROR_CODE(CL_MAP_FAILURE)
         #ifdef CL_VERSION_1_1
-        case CL_MISALIGNED_SUB_BUFFER_OFFSET:
-            return "CL_MISALIGNED_SUB_BUFFER_OFFSET";
-        case CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST:
-            return "CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST";
+        CL_ERROR_CODE(CL_MISALIGNED_SUB_BUFFER_OFFSET)
+        CL_ERROR_CODE(CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST)
         #endif
         #ifdef CL_VERSION_1_2
-        case CL_COMPILE_PROGRAM_FAILURE:
-            return "CL_COMPILE_PROGRAM_FAILURE";
-        case CL_LINKER_NOT_AVAILABLE:
-            return "CL_LINKER_NOT_AVAILABLE";
-        case CL_LINK_PROGRAM_FAILURE:
-            return "CL_LINK_PROGRAM_FAILURE";
-        case CL_DEVICE_PARTITION_FAILED:
-            return "CL_DEVICE_PARTITION_FAILED";
-        case CL_KERNEL_ARG_INFO_NOT_AVAILABLE:
-            return "CL_KERNEL_ARG_INFO_NOT_AVAILABLE";
+        CL_ERROR_CODE(CL_COMPILE_PROGRAM_FAILURE)
+        CL_ERROR_CODE(CL_LINKER_NOT_AVAILABLE)
+        CL_ERROR_CODE(CL_LINK_PROGRAM_FAILURE)
+        CL_ERROR_CODE(CL_DEVICE_PARTITION_FAILED)
+        CL_ERROR_CODE(CL_KERNEL_ARG_INFO_NOT_AVAILABLE)
         #endif
-        case CL_INVALID_VALUE:
-            return "CL_INVALID_VALUE";
-        case CL_INVALID_DEVICE_TYPE:
-            return "CL_INVALID_DEVICE_TYPE";
-        case CL_INVALID_PLATFORM:
-            return "CL_INVALID_PLATFORM";
-        case CL_INVALID_DEVICE:
-            return "CL_INVALID_DEVICE";
-        case CL_INVALID_CONTEXT:
-            return "CL_INVALID_CONTEXT";
-        case CL_INVALID_QUEUE_PROPERTIES:
-            return "CL_INVALID_QUEUE_PROPERTIES";
-        case CL_INVALID_COMMAND_QUEUE:
-            return "CL_INVALID_COMMAND_QUEUE";
-        case CL_INVALID_HOST_PTR:
-            return "CL_INVALID_HOST_PTR";
-        case CL_INVALID_MEM_OBJECT:
-            return "CL_INVALID_MEM_OBJECT";
-        case CL_INVALID_IMAGE_FORMAT_DESCRIPTOR:
-            return "CL_INVALID_IMAGE_FORMAT_DESCRIPTOR";
-        case CL_INVALID_IMAGE_SIZE:
-            return "CL_INVALID_IMAGE_SIZE";
-        case CL_INVALID_SAMPLER:
-            return "CL_INVALID_SAMPLER";
-        case CL_INVALID_BINARY:
-            return "CL_INVALID_BINARY";
-        case CL_INVALID_BUILD_OPTIONS:
-            return "CL_INVALID_BUILD_OPTIONS";
-        case CL_INVALID_PROGRAM:
-            return "CL_INVALID_PROGRAM";
-        case CL_INVALID_PROGRAM_EXECUTABLE:
-            return "CL_INVALID_PROGRAM_EXECUTABLE";
-        case CL_INVALID_KERNEL_NAME:
-            return "CL_INVALID_KERNEL_NAME";
-        case CL_INVALID_KERNEL_DEFINITION:
-            return "CL_INVALID_KERNEL_DEFINITION";
-        case CL_INVALID_KERNEL:
-            return "CL_INVALID_KERNEL";
-        case CL_INVALID_ARG_INDEX:
-            return "CL_INVALID_ARG_INDEX";
-        case CL_INVALID_ARG_VALUE:
-            return "CL_INVALID_ARG_VALUE";
-        case CL_INVALID_ARG_SIZE:
-            return "CL_INVALID_ARG_SIZE";
-        case CL_INVALID_KERNEL_ARGS:
-            return "CL_INVALID_KERNEL_ARGS";
-        case CL_INVALID_WORK_DIMENSION:
-            return "CL_INVALID_WORK_DIMENSION";
-        case CL_INVALID_WORK_GROUP_SIZE:
-            return "CL_INVALID_WORK_GROUP_SIZE";
-        case CL_INVALID_WORK_ITEM_SIZE:
-            return "CL_INVALID_WORK_ITEM_SIZE";
-        case CL_INVALID_GLOBAL_OFFSET:
-            return "CL_INVALID_GLOBAL_OFFSET";
-        case CL_INVALID_EVENT_WAIT_LIST:
-            return "CL_INVALID_EVENT_WAIT_LIST";
-        case CL_INVALID_EVENT:
-            return "CL_INVALID_EVENT";
-        case CL_INVALID_OPERATION:
-            return "CL_INVALID_OPERATION";
-        case CL_INVALID_GL_OBJECT:
-            return "CL_INVALID_GL_OBJECT";
-        case CL_INVALID_BUFFER_SIZE:
-            return "CL_INVALID_BUFFER_SIZE";
-        case CL_INVALID_MIP_LEVEL:
-            return "CL_INVALID_MIP_LEVEL";
-        case CL_INVALID_GLOBAL_WORK_SIZE:
-            return "CL_INVALID_GLOBAL_WORK_SIZE";
+        CL_ERROR_CODE(CL_INVALID_VALUE)
+        CL_ERROR_CODE(CL_INVALID_DEVICE_TYPE)
+        CL_ERROR_CODE(CL_INVALID_PLATFORM)
+        CL_ERROR_CODE(CL_INVALID_DEVICE)
+        CL_ERROR_CODE(CL_INVALID_CONTEXT)
+        CL_ERROR_CODE(CL_INVALID_QUEUE_PROPERTIES)
+        CL_ERROR_CODE(CL_INVALID_COMMAND_QUEUE)
+        CL_ERROR_CODE(CL_INVALID_HOST_PTR)
+        CL_ERROR_CODE(CL_INVALID_MEM_OBJECT)
+        CL_ERROR_CODE(CL_INVALID_IMAGE_FORMAT_DESCRIPTOR)
+        CL_ERROR_CODE(CL_INVALID_IMAGE_SIZE)
+        CL_ERROR_CODE(CL_INVALID_SAMPLER)
+        CL_ERROR_CODE(CL_INVALID_BINARY)
+        CL_ERROR_CODE(CL_INVALID_BUILD_OPTIONS)
+        CL_ERROR_CODE(CL_INVALID_PROGRAM)
+        CL_ERROR_CODE(CL_INVALID_PROGRAM_EXECUTABLE)
+        CL_ERROR_CODE(CL_INVALID_KERNEL_NAME)
+        CL_ERROR_CODE(CL_INVALID_KERNEL_DEFINITION)
+        CL_ERROR_CODE(CL_INVALID_KERNEL)
+        CL_ERROR_CODE(CL_INVALID_ARG_INDEX)
+        CL_ERROR_CODE(CL_INVALID_ARG_VALUE)
+        CL_ERROR_CODE(CL_INVALID_ARG_SIZE)
+        CL_ERROR_CODE(CL_INVALID_KERNEL_ARGS)
+        CL_ERROR_CODE(CL_INVALID_WORK_DIMENSION)
+        CL_ERROR_CODE(CL_INVALID_WORK_GROUP_SIZE)
+        CL_ERROR_CODE(CL_INVALID_WORK_ITEM_SIZE)
+        CL_ERROR_CODE(CL_INVALID_GLOBAL_OFFSET)
+        CL_ERROR_CODE(CL_INVALID_EVENT_WAIT_LIST)
+        CL_ERROR_CODE(CL_INVALID_EVENT)
+        CL_ERROR_CODE(CL_INVALID_OPERATION)
+        CL_ERROR_CODE(CL_INVALID_GL_OBJECT)
+        CL_ERROR_CODE(CL_INVALID_BUFFER_SIZE)
+        CL_ERROR_CODE(CL_INVALID_MIP_LEVEL)
+        CL_ERROR_CODE(CL_INVALID_GLOBAL_WORK_SIZE)
         #ifdef CL_VERSION_1_1
-        case CL_INVALID_PROPERTY:
-            return "CL_INVALID_PROPERTY";
+        CL_ERROR_CODE(CL_INVALID_PROPERTY)
         #endif
         #ifdef CL_VERSION_1_2
-        case CL_INVALID_IMAGE_DESCRIPTOR:
-            return "CL_INVALID_IMAGE_DESCRIPTOR";
-        case CL_INVALID_COMPILER_OPTIONS:
-            return "CL_INVALID_COMPILER_OPTIONS";
-        case CL_INVALID_LINKER_OPTIONS:
-            return "CL_INVALID_LINKER_OPTIONS";
-        case CL_INVALID_DEVICE_PARTITION_COUNT:
-            return "CL_INVALID_DEVICE_PARTITION_COUNT";
+        CL_ERROR_CODE(CL_INVALID_IMAGE_DESCRIPTOR)
+        CL_ERROR_CODE(CL_INVALID_COMPILER_OPTIONS)
+        CL_ERROR_CODE(CL_INVALID_LINKER_OPTIONS)
+        CL_ERROR_CODE(CL_INVALID_DEVICE_PARTITION_COUNT)
         #endif
         #ifdef CL_VERSION_2_0
-        case CL_INVALID_PIPE_SIZE:
-            return "CL_INVALID_PIPE_SIZE";
-        case CL_INVALID_DEVICE_QUEUE:
-            return "CL_INVALID_DEVICE_QUEUE";
+        CL_ERROR_CODE(CL_INVALID_PIPE_SIZE)
+        CL_ERROR_CODE(CL_INVALID_DEVICE_QUEUE)
         #endif
-        default:
-            return "unknown error code";
+        default: return "unknown error code";
     }
+    #undef CL_ERROR_CODE
 }
 
 #define check_dev(dev) __check_device(dev)
@@ -366,8 +306,9 @@ std::string getOpenCLErrorCodeStr(int errorCode) {
 
 inline void __checkOpenCLErrors(cl_int err, std::string name, std::string file, const int line) {
     if (err != CL_SUCCESS) {
-        std::cerr << "ERROR: " << name << " (" << err << ")" << " [file " << file << ", line " << line << "]: " << std::endl;
-        std::cerr << getOpenCLErrorCodeStr(err) << std::endl;
+        std::cerr << "ERROR: " << name << " (" << err << ")"
+                  << " [file " << file << ", line " << line << "]: "
+                  << get_opencl_error_code_str(err) << std::endl;
         exit(EXIT_FAILURE);
     }
 }

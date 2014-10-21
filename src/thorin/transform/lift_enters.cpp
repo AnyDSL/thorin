@@ -41,10 +41,12 @@ static void lift_enters(const Scope& scope) {
     for (size_t i = scope.size(); i-- != 1;)
         find_enters(scope.rpo(i), enters);
 
-    auto enter = find_enter(scope.entry()->mem_param());
+    auto mem_param = scope.entry()->mem_param();
+    assert(mem_param->num_uses() == 1);
+    auto enter = find_enter(mem_param);
     if (enter == nullptr) {
         assert(false && "TODO");
-        //enter = world.enter(scope.entry()->mem_param())->as<Enter>();
+        //enter = world.enter(mem_param)->as<Enter>();
     }
     auto frame = enter->extract_frame();
 

@@ -41,9 +41,11 @@ static void lift_enters(const Scope& scope) {
     for (size_t i = scope.size(); i-- != 1;)
         find_enters(scope.rpo(i), enters);
 
-    auto enter = find_enter(scope.entry());
-    if (enter == nullptr)
-        enter = world.enter(scope.entry()->mem_param())->as<Enter>();
+    auto enter = find_enter(scope.entry()->mem_param());
+    if (enter == nullptr) {
+        assert(false && "TODO");
+        //enter = world.enter(scope.entry()->mem_param())->as<Enter>();
+    }
     auto frame = enter->extract_frame();
 
     size_t index = 0; // find max slot index

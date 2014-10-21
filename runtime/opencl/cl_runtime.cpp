@@ -350,6 +350,12 @@ std::string getOpenCLErrorCodeStr(int errorCode) {
         case CL_INVALID_DEVICE_PARTITION_COUNT:
             return "CL_INVALID_DEVICE_PARTITION_COUNT";
         #endif
+        #ifdef CL_VERSION_2_0
+        case CL_INVALID_PIPE_SIZE:
+            return "CL_INVALID_PIPE_SIZE";
+        case CL_INVALID_DEVICE_QUEUE:
+            return "CL_INVALID_DEVICE_QUEUE";
+        #endif
         default:
             return "unknown error code";
     }
@@ -393,8 +399,14 @@ void create_context_command_queue(cl_platform_id platform, std::vector<cl_device
         contexts_[i] = context;
         mem_manager.associate_device(device_ids.front(), i);
         // create command queue
+        #ifdef CL_VERSION_2_0
+        cl_queue_properties cprops[3] = { CL_QUEUE_PROPERTIES, CL_QUEUE_PROFILING_ENABLE, 0 };
+        command_queues_[i] = clCreateCommandQueueWithProperties(context, devices_[i], cprops, &err);
+        checkErr(err, "clCreateCommandQueueWithProperties()");
+        #else
         command_queues_[i] = clCreateCommandQueue(context, devices_[i], CL_QUEUE_PROFILING_ENABLE, &err);
         checkErr(err, "clCreateCommandQueue()");
+        #endif
     }
 }
 

@@ -7,7 +7,7 @@
 
 namespace thorin {
 
-class BlobPtr;
+template<int i, class T> const T* is_out(Def def);
 
 //------------------------------------------------------------------------------
 
@@ -432,6 +432,8 @@ public:
     Type alloced_type() const { return type().as<PtrType>()->referenced_type(); }
     Def extract_mem() const;
     Def extract_ptr() const;
+    static const Alloc* is_mem(Def def) { return is_out<0, Alloc>(def); }
+    static const Alloc* is_ptr(Def def) { return is_out<1, Alloc>(def); }
     virtual Def out_mem() const override { return extract_mem(); }
 
     friend class World;
@@ -456,6 +458,8 @@ private:
 public:
     Def extract_mem() const;
     Def extract_val() const;
+    static const Load* is_mem(Def def) { return is_out<0, Load>(def); }
+    static const Load* is_val(Def def) { return is_out<1, Load>(def); }
     virtual Def out_mem() const override { return extract_mem(); }
 
     friend class World;
@@ -481,6 +485,8 @@ private:
 public:
     Def extract_mem() const;
     Def extract_frame() const;
+    static const Enter* is_mem(Def def) { return is_out<0, Enter>(def); }
+    static const Enter* is_ptr(Def def) { return is_out<1, Enter>(def); }
     virtual Def out_mem() const override { return extract_mem(); }
 
     friend class World;
@@ -498,14 +504,16 @@ private:
     Map(int32_t device, AddressSpace addr_space, Def mem, Def ptr, Def offset, Def size, const std::string& name);
 
 public:
-    Def extract_mem() const;
-    Def extract_ptr() const;
-    virtual Def out_mem() const override { return extract_mem(); }
     Def mem_offset() const { return op(2); }
     Def mem_size() const { return op(3); }
     PtrType ptr_type() const { return type().as<TupleType>()->arg(1).as<PtrType>(); }
     AddressSpace addr_space() const { return ptr_type()->addr_space(); }
     int32_t device() const { return ptr_type()->device(); }
+    Def extract_mem() const;
+    Def extract_ptr() const;
+    static const Map* is_mem(Def def) { return is_out<0, Map>(def); }
+    static const Map* is_ptr(Def def) { return is_out<1, Map>(def); }
+    virtual Def out_mem() const override { return extract_mem(); }
 
     friend class World;
 };
@@ -532,6 +540,18 @@ T DefNode::primlit_value() const {
 #include "thorin/tables/primtypetable.h"
         default: THORIN_UNREACHABLE;
     }
+}
+
+/// Is \p def the \p i^th result of a \p T \p PrimOp?
+template<int i, class T>
+const T* is_out(Def def) {
+    if (auto extract = def->isa<Extract>()) {
+        if (extract->index()->is_primlit(i)) {
+            if (auto res = extract->agg()->isa<T>())
+                return res;
+        }
+    }
+    return nullptr;
 }
 
 //------------------------------------------------------------------------------

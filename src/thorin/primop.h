@@ -451,7 +451,7 @@ private:
     Load(Def mem, Def ptr, const std::string& name);
 
 public:
-    Def out_ptr() const;
+    Def out_val() const;
 
     friend class World;
 };

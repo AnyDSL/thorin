@@ -604,10 +604,10 @@ Def World::extract(Def agg, Def index, const std::string& name, Def mem) {
     if (agg->isa<Bottom>())
         return bottom(Extract::type(agg, index));
 
-    if (auto load = agg->isa<Load>()) {
+    if (auto ld = agg->isa<Load>()) {
         // TODO is this really safe?
-        mem = mem ? mem : load->mem();
-        return this->load(mem, lea(load->ptr(), index, load->name), name);
+        mem = mem ? mem : ld->mem();
+        return extract(this->load(mem, lea(ld->ptr(), index, ld->name), name), 1);
     }
 
     if (auto aggregate = agg->isa<Aggregate>()) {
@@ -689,7 +689,7 @@ Def World::select(Def cond, Def a, Def b, const std::string& name) {
 Def World::load(Def mem, Def ptr, const std::string& name) {
     if (auto store = mem->isa<Store>())
         if (store->ptr() == ptr) {
-            return store->val();
+            return tuple({mem, store->val()});
     }
 
     if (auto global = ptr->isa<Global>()) {

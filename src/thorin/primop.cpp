@@ -89,8 +89,11 @@ Global::Global(Def init, bool is_mutable, const std::string& name)
 }
 
 Alloc::Alloc(Type type, Def mem, Def extra, const std::string& name)
-    : MemOp(Node_Alloc, mem->world().ptr_type(type), {mem, extra}, name)
-{}
+    : MemOp(Node_Alloc, nullptr, {mem, extra}, name)
+{
+    World& w = mem->world();
+    set_type(w.tuple_type({w.mem_type(), w.ptr_type(type)}));
+}
 
 Load::Load(Def mem, Def ptr, const std::string& name)
     : Access(Node_Load, nullptr, {mem, ptr}, name)
@@ -100,16 +103,18 @@ Load::Load(Def mem, Def ptr, const std::string& name)
 }
 
 Enter::Enter(Def mem, const std::string& name)
-    : MemOp(Node_Enter, mem->world().frame_type(), {mem}, name)
-{}
+    : MemOp(Node_Enter, nullptr, {mem}, name)
+{
+    World& w = mem->world();
+    set_type(w.tuple_type({w.mem_type(), w.frame_type()}));
+}
 
 Map::Map(int32_t device, AddressSpace addr_space, Def mem, Def ptr, Def mem_offset, Def mem_size, const std::string &name)
     : MapOp(Node_Map, Type(), {mem, ptr, mem_offset, mem_size}, name)
 {
     World& w = mem->world();
-    set_type(w.tuple_type({ mem->type(),
-                            w.ptr_type(ptr->type().as<PtrType>()->referenced_type(),
-                            ptr->type().as<PtrType>()->length(), device, addr_space)}));
+    auto ptr_type = ptr->type().as<PtrType>();
+    set_type(w.tuple_type({ w.mem_type(), w.ptr_type(ptr_type->referenced_type(), ptr_type->length(), device, addr_space)}));
 }
 
 //------------------------------------------------------------------------------
@@ -156,33 +161,12 @@ bool Slot::equal(const PrimOp* other) const {
  */
 
 PtrType LEA::ptr_type() const { return ptr()->type().as<PtrType>(); }
-Type LEA::referenced_type() const { return ptr_type()->referenced_type(); }
+Type    LEA::referenced_type() const { return ptr_type()->referenced_type(); }
 PtrType Slot::ptr_type() const { return type().as<PtrType>(); }
-Type Global::referenced_type() const { return type().as<PtrType>()->referenced_type(); }
-
-Def MemOp::out_mem() const {
-    auto uses = this->uses();
-    switch (uses.size()) {
-        case 0: 
-            return world().extract(this, 0);
-        case 1:
-            if (uses.front()->type().isa<MemType>())
-                return uses.front();
-            return world().extract(this, 0);
-        case 2: {
-            size_t i = uses[0]->type().isa<MemType>() ? 0 : 1;
-            assert(uses[i]->type().isa<MemType>());
-            assert(uses[i]->isa<Extract>());
-            assert(uses[i]->num_uses() == 1);
-            return uses[i];
-        }
-        default:
-            THORIN_UNREACHABLE;
-    }
-    return world().extract(this, 0);
-}
-
-Def Map::out_ptr() const { return world().extract(this, 1); }
+Type    Global::referenced_type() const { return type().as<PtrType>()->referenced_type(); }
+Def     MemOp::out_mem() const { return world().extract(this, 0); }
+Def     Load::out_val() const { return world().extract(this, 1); }
+Def     Map::out_ptr() const { return world().extract(this, 0); }
 
 //------------------------------------------------------------------------------
 

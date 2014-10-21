@@ -611,11 +611,10 @@ Def World::extract(Def agg, Def index, const std::string& name, Def mem) {
         }
     }
 
-    // TODO
-    //if (auto ld = agg->isa<Load>()) {
-        //mem = mem ? mem : ld->mem(); // TODO is this really safe?
-        //return extract(this->load(mem, lea(ld->ptr(), index, ld->name), name), 1);
-    //}
+    if (auto ld = Load::is_val(agg)) {
+        mem = mem ? mem : ld->mem(); // TODO is this really safe?
+        return extract(load(mem, lea(ld->ptr(), index, ld->name), name), 1);
+    }
 
     if (auto insert = agg->isa<Insert>()) {
         if (index == insert->index())

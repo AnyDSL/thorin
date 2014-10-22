@@ -65,11 +65,11 @@ LEA::LEA(Def ptr, Def index, const std::string& name)
 {
     auto& world = index->world();
     auto type = ptr_type();
-    if (auto tuple = referenced_type().isa<TupleType>()) {
+    if (auto tuple = ptr_referenced_type().isa<TupleType>()) {
         set_type(world.ptr_type(tuple->elem(index), type->length(), type->device(), type->addr_space()));
-    } else if (auto array = referenced_type().isa<ArrayType>()) {
+    } else if (auto array = ptr_referenced_type().isa<ArrayType>()) {
         set_type(world.ptr_type(array->elem_type(), type->length(), type->device(), type->addr_space()));
-    } else if (auto struct_app = referenced_type().isa<StructAppType>()) {
+    } else if (auto struct_app = ptr_referenced_type().isa<StructAppType>()) {
         set_type(world.ptr_type(struct_app->elem(index)));
     } else {
         THORIN_UNREACHABLE;
@@ -209,14 +209,6 @@ Def IndefiniteArray::vrebuild(World& to, ArrayRef<Def> ops, Type) const {
  */
 
 Type    Global::referenced_type() const { return type().as<PtrType>()->referenced_type(); }
-Def     Alloc::extract_mem()   const { return world().extract(this, 0); }
-Def     Alloc::extract_ptr()   const { return world().extract(this, 1); }
-Def     Load ::extract_mem()   const { return world().extract(this, 0); }
-Def     Load ::extract_val()   const { return world().extract(this, 1); }
-Def     Enter::extract_mem()   const { return world().extract(this, 0); }
-Def     Enter::extract_frame() const { return world().extract(this, 1); }
-Def     Map  ::extract_mem()   const { return world().extract(this, 0); }
-Def     Map  ::extract_ptr()   const { return world().extract(this, 1); }
 
 //------------------------------------------------------------------------------
 
@@ -256,6 +248,11 @@ const char* Cmp::op_name() const {
  * misc
  */
 
+Def PrimOp::extract(int i) const {
+    assert(type().isa<TupleType>());
+    return world().extract(this, i); 
+}
+
 Def PrimOp::rebuild() const {
     if (is_outdated()) {
         Array<Def> ops(size());
@@ -279,7 +276,7 @@ Type Extract::determine_type(Def agg, Def index) {
     else if (auto struct_app = agg->type().isa<StructAppType>())
         return struct_app->elem(index);
 
-    assert(false && "TODO");
+    THORIN_UNREACHABLE;
 }
 
 //------------------------------------------------------------------------------

@@ -48,23 +48,23 @@ static void lift_enters(const Scope& scope) {
         assert(false && "TODO");
         //enter = world.enter(mem_param)->as<Enter>();
     }
-    auto frame = enter->extract_frame();
+    auto frame = enter->out_frame();
 
     size_t index = 0; // find max slot index
     for (auto use : frame->uses())
         index = std::max(index, use->as<Slot>()->index());
 
     for (auto old_enter : enters) {
-        for (auto use : old_enter->extract_frame()->uses()) {
+        for (auto use : old_enter->out_frame()->uses()) {
             auto slot = use->as<Slot>();
             slot->replace(world.slot(slot->alloced_type(), frame, index++, slot->name));
         }
-        old_enter->extract_mem()->replace(old_enter->mem());
+        old_enter->out_mem()->replace(old_enter->mem());
     }
 
 #ifndef NDEBUG
     for (auto old_enter : enters)
-        assert(old_enter->extract_frame()->num_uses() == 0);
+        assert(old_enter->out_frame()->num_uses() == 0);
 #endif
 }
 

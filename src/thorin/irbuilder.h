@@ -132,6 +132,8 @@ public:
     Def create_frame();
     Def alloc(Type type, Def extra, const std::string& name = "");
     Def load(Def ptr, const std::string& name = "");
+    Def extract(Def agg, Def index, const std::string& name = "");
+    Def extract(Def agg, u32 index, const std::string& name = "");
     void store(Def ptr, Def val, const std::string& name = "");
     Lambda* enter(JumpTarget& jt) { return cur_bb = jt.enter(); }
     Lambda* enter_unsealed(JumpTarget& jt) { return cur_bb = jt.enter_unsealed(world_); }

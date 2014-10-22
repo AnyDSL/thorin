@@ -600,7 +600,7 @@ Def World::bitcast(Type to, Def cond, Def from, const std::string& name) {
  * aggregate operations
  */
 
-Def World::extract(Def agg, Def index, const std::string& name, Def mem) {
+Def World::extract(Def agg, Def index, const std::string& name) {
     if (agg->isa<Bottom>())
         return bottom(Extract::determine_type(agg, index));
 
@@ -611,17 +611,15 @@ Def World::extract(Def agg, Def index, const std::string& name, Def mem) {
         }
     }
 
-    if (auto ld = Load::is_val(agg)) {
-        mem = mem ? mem : ld->mem(); // TODO is this really safe?
-        return extract(load(mem, lea(ld->ptr(), index, ld->name), name), 1);
-    }
+    if (auto ld = Load::is_val(agg))
+        return extract(load(ld->mem(), lea(ld->ptr(), index, ld->name), name), 1);
 
     if (auto insert = agg->isa<Insert>()) {
         if (index == insert->index())
             return insert->value();
         else if (index->isa<PrimLit>()) {
             if (insert->index()->isa<PrimLit>())
-                return extract(insert->agg(), index, name, mem);
+                return extract(insert->agg(), index, name);
         }
     }
 

@@ -182,10 +182,8 @@ public:
     }
     /// Splats \p arg to create a \p Vector with \p length.
     Def vector(Def arg, size_t length = 1, const std::string& name = "");
-    Def extract(Def tuple, Def index, const std::string& name = "", Def mem = Def());
-    Def extract(Def tuple, u32 index, const std::string& name = "", Def mem = Def()) {
-        return extract(tuple, literal_qu32(index), name, mem);
-    }
+    Def extract(Def tuple, Def index, const std::string& name = "");
+    Def extract(Def tuple, u32 index, const std::string& name = "") { return extract(tuple, literal_qu32(index), name); }
     Def insert(Def tuple, Def index, Def value, const std::string& name = "");
     Def insert(Def tuple, u32 index, Def value, const std::string& name = "") {
         return insert(tuple, literal_qu32(index), value, name);

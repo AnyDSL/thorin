@@ -51,10 +51,7 @@ Def Var::load() const {
         case ImmutableValRef: return def_;
         case MutableValRef:   return builder_->cur_bb->get_value(handle_, Type(type_), name_);
         case PtrRef:          return builder_->load(def_);
-        case AggRef: {
-            // TODO convert to LEA
-            return world().extract(var_->load(), def_, "", builder()->get_mem());
-        }
+        case AggRef:          return builder_->extract(var_->load(), def_);
         default: THORIN_UNREACHABLE;
     }
 }
@@ -138,6 +135,16 @@ Def IRBuilder::load(Def ptr, const std::string& name) {
 
 void IRBuilder::store(Def ptr, Def val, const std::string& name) {
     set_mem(world().store(get_mem(), ptr, val, name));
+}
+
+Def IRBuilder::extract(Def agg, u32 index, const std::string& name) {
+    return extract(agg, world().literal_qu32(index), name);
+}
+
+Def IRBuilder::extract(Def agg, Def index, const std::string& name) {
+    if (auto ld = Load::is_val(agg))
+        return load(world().lea(ld->ptr(), index, ld->name));
+    return world().extract(agg, index, name);
 }
 
 void IRBuilder::jump(JumpTarget& jt) {

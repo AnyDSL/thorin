@@ -57,7 +57,7 @@ static void lift_enters(const Scope& scope) {
     for (auto old_enter : enters) {
         for (auto use : old_enter->extract_frame()->uses()) {
             auto slot = use->as<Slot>();
-            slot->replace(world.slot(slot->ptr_type()->referenced_type(), frame, index++, slot->name));
+            slot->replace(world.slot(slot->alloced_type(), frame, index++, slot->name));
         }
         old_enter->extract_mem()->replace(old_enter->mem());
     }

@@ -182,12 +182,8 @@ void CodeGen::emit(int opt) {
             assert(bb_lambda == entry_ || bb_lambda->is_basicblock());
             builder_.SetInsertPoint(bb2lambda[bb_lambda]);
 
-            for (auto primop : schedule[bb_lambda]) {
-                // skip higher-order primops, stuff dealing with frames and all memory related stuff except stores
-                if (!primop->type().isa<FnType>() && !primop->type().isa<FrameType>()
-                        && (!primop->type().isa<MemType>() || primop->isa<Store>()))
+            for (auto primop : schedule[bb_lambda])
                     primops_[primop] = emit(primop);
-            }
 
             // terminate bb
             if (bb_lambda->to() == ret_param) { // return
@@ -555,6 +551,9 @@ llvm::Value* CodeGen::emit(Def def) {
     }
 
     if (auto select = def->isa<Select>()) {
+        if (def->type().isa<FnType>())
+            return nullptr;
+
         llvm::Value* cond = lookup(select->cond());
         llvm::Value* tval = lookup(select->tval());
         llvm::Value* fval = lookup(select->fval());
@@ -603,8 +602,14 @@ llvm::Value* CodeGen::emit(Def def) {
             unsigned i = aggop->index()->primlit_value<unsigned>();
 
             if (auto extract = aggop->isa<Extract>()) {
+                if (extract->type().isa<MemType>() || extract->type().isa<FrameType>())
+                    return nullptr;
                 auto agg_type = extract->agg()->type();
                 if (auto agg_tuple = agg_type.isa<TupleType>()) {
+                    if (auto load = extract->agg()->isa<Load>()) {
+                        assert(extract->index()->is_primlit(1));
+                        return lookup(load);
+                    }
                     // check for a memory-mapped extract
                     // TODO: integrate memory-mappings in a nicer way :)
                     if (agg_tuple->num_args() == 2 &&
@@ -664,10 +669,10 @@ llvm::Value* CodeGen::emit(Def def) {
 
     if (auto alloc = def->isa<Alloc>()) { // TODO factor this code
         auto llvm_malloc = module_->getOrInsertFunction(get_alloc_name(), builder_.getInt8PtrTy(), builder_.getInt64Ty(), nullptr);
-        auto alloced_type = convert(alloc->alloced_type());
+        auto alloced_type = convert(alloc->alloced_referenced_type());
         llvm::CallInst* void_ptr;
         auto layout = llvm::DataLayout(module_->getDataLayout());
-        if (auto array = alloc->alloced_type()->is_indefinite()) {
+        if (auto array = alloc->alloced_referenced_type()->is_indefinite()) {
             auto size = builder_.CreateAdd(
                     builder_.getInt64(layout.getTypeAllocSize(alloced_type)),
                     builder_.CreateMul(builder_.CreateIntCast(lookup(alloc->extra()), builder_.getInt64Ty(), false),
@@ -676,27 +681,18 @@ llvm::Value* CodeGen::emit(Def def) {
         } else
             void_ptr = builder_.CreateCall(llvm_malloc, builder_.getInt64(layout.getTypeAllocSize(alloced_type)));
 
-        auto ptr = builder_.CreatePointerCast(void_ptr, convert(alloc->type()));
-        return ptr;
+        return builder_.CreatePointerCast(void_ptr, convert(alloc->alloced_ptr_type()));
     }
 
-    if (auto load = def->isa<Load>())
-        return emit_load(load);
-
-    if (auto store = def->isa<Store>())
-        return emit_store(store);
+    if (auto load = def->isa<Load>())    return emit_load(load);
+    if (auto store = def->isa<Store>())  return emit_store(store);
+    if (auto mmap = def->isa<Map>())     return emit_mmap(mmap);
+    if (auto munmap = def->isa<Unmap>()) return emit_munmap(munmap);
+    if (auto lea = def->isa<LEA>())      return emit_lea(lea);
+    if (def->isa<Enter>())               return nullptr;
 
     if (auto slot = def->isa<Slot>())
         return builder_.CreateAlloca(convert(slot->type().as<PtrType>()->referenced_type()), 0, slot->unique_name());
-
-    if (auto mmap = def->isa<Map>())
-        return emit_mmap(mmap);
-
-    if (auto munmap = def->isa<Unmap>())
-        return emit_munmap(munmap);
-
-    if (def->isa<Enter>())
-        return nullptr;
 
     if (auto vector = def->isa<Vector>()) {
         llvm::Value* vec = llvm::UndefValue::get(convert(vector->type()));
@@ -705,10 +701,6 @@ llvm::Value* CodeGen::emit(Def def) {
 
         return vec;
     }
-
-    if (auto lea = def->isa<LEA>())
-        return emit_lea(lea);
-
 
     if (auto global = def->isa<Global>()) {
         llvm::Value* val;
@@ -730,8 +722,7 @@ llvm::Value* CodeGen::emit(Def def) {
 }
 
 llvm::Value* CodeGen::emit_load(Def def) {
-    auto load = def->as<Load>();
-    return builder_.CreateLoad(lookup(load->ptr()));
+    return builder_.CreateLoad(lookup(def->as<Load>()->ptr()));
 }
 
 llvm::Value* CodeGen::emit_store(Def def) {
@@ -785,7 +776,7 @@ llvm::Value* CodeGen::emit_shared_mmap(Def def, bool prefix) {
     return global;
 }
 
-llvm::Value* CodeGen::emit_shared_munmap(Def def) {
+llvm::Value* CodeGen::emit_shared_munmap(Def) {
     // TODO
     return nullptr;
 }

@@ -602,7 +602,7 @@ Def World::bitcast(Type to, Def cond, Def from, const std::string& name) {
 
 Def World::extract(Def agg, Def index, const std::string& name, Def mem) {
     if (agg->isa<Bottom>())
-        return bottom(Extract::type(agg, index));
+        return bottom(Extract::determine_type(agg, index));
 
     if (auto aggregate = agg->isa<Aggregate>()) {
         if (auto lit = index->isa<PrimLit>()) {
@@ -817,7 +817,7 @@ Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, Type type) {
     }
 
     switch (kind) {
-        case Node_Alloc:    assert(ops.size() == 2); return to.alloc(   type.as<PtrType>()->referenced_type(),
+        case Node_Alloc:    assert(ops.size() == 2); return to.alloc(   in->as<Alloc>()->alloced_referenced_type(),
                                                                         ops[0], ops[1], name);
         case Node_Bottom:   assert(ops.size() == 0); return to.bottom(type);
         case Node_Bitcast:  assert(ops.size() == 2); return to.bitcast( type, ops[0], ops[1], name);

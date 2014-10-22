@@ -705,9 +705,9 @@ std::ostream& CCodeGen::emit(Def def) {
     }
 
     if (auto slot = def->isa<Slot>()) {
-        emit_type(slot->ptr_type()->referenced_type()) << " " << slot->unique_name() << "_slot;";
+        emit_type(slot->alloced_type()) << " " << slot->unique_name() << "_slot;";
         newline();
-        emit_type(slot->ptr_type()->referenced_type()) << "* " << slot->unique_name() << ";";
+        emit_type(slot->alloced_type()) << "* " << slot->unique_name() << ";";
         newline() << slot->unique_name() << " = &" << slot->unique_name() << "_slot;";
         insert(def->gid(), def->unique_name());
         return stream();

@@ -262,11 +262,11 @@ public:
 class Extract : public AggOp {
 private:
     Extract(Def agg, Def index, const std::string& name)
-        : AggOp(Node_Extract, type(agg, index), {agg, index}, name)
+        : AggOp(Node_Extract, determine_type(agg, index), {agg, index}, name)
     {}
 
 public:
-    static Type type(Def agg, Def index);
+    static Type determine_type(Def agg, Def index);
 
     friend class World;
 };
@@ -295,9 +295,10 @@ private:
 public:
     Def ptr() const { return op(0); }
     Def index() const { return op(1); }
-
-    PtrType ptr_type() const; ///< Returns the ptr type from \p ptr().
-    Type referenced_type() const; ///< Returns the type referenced by \p ptr().
+    /// Returns the PtrType from \p ptr().
+    PtrType ptr_type() const { return ptr()->type().as<PtrType>(); }
+    /// Returns the type referenced by \p ptr().
+    Type referenced_type() const { return ptr_type()->referenced_type(); }
 
     friend class World;
 };
@@ -376,7 +377,8 @@ private:
 public:
     Def frame() const { return op(0); }
     size_t index() const { return index_; }
-    PtrType ptr_type() const;
+    PtrType type() const { return PrimOp::type().as<PtrType>(); }
+    Type alloced_type() const { return type()->referenced_type(); }
 
 private:
     virtual size_t vhash() const override;
@@ -429,7 +431,8 @@ private:
 
 public:
     Def extra() const { return op(1); }
-    Type alloced_type() const { return type().as<PtrType>()->referenced_type(); }
+    PtrType alloced_ptr_type() const { return type().as<TupleType>()->arg(1).as<PtrType>(); }
+    Type alloced_referenced_type() const { return alloced_ptr_type()->referenced_type(); }
     Def extract_mem() const;
     Def extract_ptr() const;
     static const Alloc* is_mem(Def def) { return is_out<0, Alloc>(def); }

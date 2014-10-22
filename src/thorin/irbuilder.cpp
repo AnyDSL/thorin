@@ -48,19 +48,19 @@ Var Var::create_agg(Var var, Def offset) {
 
 Def Var::load() const {
     switch (kind()) {
-        case ImmutableValRef:   return def_;
-        case MutableValRef:     return builder_->cur_bb->get_value(handle_, Type(type_), name_);
-        case PtrRef:            return world().load(builder_->get_mem(), def_);
-        case AggRef:            return world().extract(var_->load(), def_, "", builder()->get_mem());
+        case ImmutableValRef: return def_;
+        case MutableValRef:   return builder_->cur_bb->get_value(handle_, Type(type_), name_);
+        case PtrRef:          return builder_->load(def_);
+        case AggRef:          return builder_->extract(var_->load(), def_);
         default: THORIN_UNREACHABLE;
     }
 }
 
-void Var::store(Def def) const {
+void Var::store(Def val) const {
     switch (kind()) {
-        case MutableValRef: builder_->cur_bb->set_value(handle_, def); return;
-        case PtrRef:        builder_->set_mem(world().store(builder_->get_mem(), def_, def)); return;
-        case AggRef:        var_->store(world().insert(var_->load(), def_, def)); return;
+        case MutableValRef: builder_->cur_bb->set_value(handle_, val); return;
+        case PtrRef:        builder_->store(def_, val); return;
+        case AggRef:        var_->store(world().insert(var_->load(), def_, val)); return;
         default: THORIN_UNREACHABLE;
     }
 }
@@ -112,6 +112,40 @@ Lambda* JumpTarget::enter_unsealed(World& world) {
 }
 
 //------------------------------------------------------------------------------
+
+Def IRBuilder::create_frame() {
+    auto enter = world().enter(get_mem());
+    set_mem(world().extract(enter, 0));
+    return world().extract(enter, 1);
+}
+
+Def IRBuilder::alloc(Type type, Def extra, const std::string& name) {
+    if (!extra)
+        extra = world().literal_qu64(0);
+    auto alloc = world().alloc(type, get_mem(), extra, name);
+    set_mem(world().extract(alloc, 0));
+    return world().extract(alloc, 1);
+}
+
+Def IRBuilder::load(Def ptr, const std::string& name) {
+    auto load = world().load(get_mem(), ptr, name);
+    set_mem(world().extract(load, 0));
+    return world().extract(load, 1);
+}
+
+void IRBuilder::store(Def ptr, Def val, const std::string& name) {
+    set_mem(world().store(get_mem(), ptr, val, name));
+}
+
+Def IRBuilder::extract(Def agg, u32 index, const std::string& name) {
+    return extract(agg, world().literal_qu32(index), name);
+}
+
+Def IRBuilder::extract(Def agg, Def index, const std::string& name) {
+    if (auto ld = Load::is_out_val(agg))
+        return load(world().lea(ld->ptr(), index, ld->name));
+    return world().extract(agg, index, name);
+}
 
 void IRBuilder::jump(JumpTarget& jt) {
     if (is_reachable()) {

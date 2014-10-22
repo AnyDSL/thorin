@@ -64,6 +64,37 @@ ArrayRef<Type> StructAppTypeNode::elems() const {
 //------------------------------------------------------------------------------
 
 /*
+ * vrebuild
+ */
+
+Type DefiniteArrayTypeNode  ::vrebuild(World& to, ArrayRef<Type> args) const { return to.definite_array_type(args[0], dim()); }
+Type FnTypeNode             ::vrebuild(World& to, ArrayRef<Type> args) const { return to.fn_type(args); }
+Type FrameTypeNode          ::vrebuild(World& to, ArrayRef<Type>     ) const { return to.frame_type(); }
+Type IndefiniteArrayTypeNode::vrebuild(World& to, ArrayRef<Type> args) const { return to.indefinite_array_type(args[0]); }
+Type MemTypeNode            ::vrebuild(World& to, ArrayRef<Type>     ) const { return to.mem_type(); }
+Type PrimTypeNode           ::vrebuild(World& to, ArrayRef<Type>     ) const { return to.type(primtype_kind(), length()); }
+Type TupleTypeNode          ::vrebuild(World& to, ArrayRef<Type> args) const { return to.tuple_type(args); }
+Type TypeVarNode            ::vrebuild(World& to, ArrayRef<Type>     ) const { return to.type_var(); }
+
+Type PtrTypeNode::vrebuild(World& to, ArrayRef<Type> args) const { 
+    return to.ptr_type(args.front(), length(), device(), addr_space());
+}
+
+Type StructAbsTypeNode::vrebuild(World& to, ArrayRef<Type> args) const { 
+    // TODO how do we handle recursive types?
+    auto ntype = to.struct_abs_type(args.size());
+    for (size_t i = 0, e = args.size(); i != e; ++i)
+        ntype->set(i, args[i]);
+    return ntype;
+}
+
+Type StructAppTypeNode::vrebuild(World& to, ArrayRef<Type> args) const { 
+    return to.struct_app_type(args[0].as<StructAbsType>(), args.slice_from_begin(1));
+}
+
+//------------------------------------------------------------------------------
+
+/*
  * recursive properties
  */
 

@@ -183,7 +183,7 @@ llvm::Value* NVVMCodeGen::emit_lea(Def def) {
             // sample for i32:
             // %tex_fetch = call { i32, i32, i32, i32 } asm sideeffect "tex.1d.v4.s32.s32 {$0,$1,$2,$3}, [$4, {$5,$6,$7,$8}];",
             // "=r,=r,=r,=r,l,r,r,r,r" (i64 %tex_ref, i32 %add, i32 0, i32 0, i32 0)
-            auto ptr_ty = lea->type().as<PtrType>();
+            auto ptr_ty = lea->type();
             auto llvm_ptr_ty = convert(ptr_ty->referenced_type());
             llvm::Type* struct_types[] = { llvm_ptr_ty, llvm_ptr_ty, llvm_ptr_ty, llvm_ptr_ty };
             auto ret_type = llvm::StructType::create(struct_types);

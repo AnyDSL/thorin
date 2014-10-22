@@ -1,7 +1,6 @@
 #include "thorin/world.h"
 #include "thorin/analyses/verify.h"
 #include "thorin/util/queue.h"
-#include "thorin/be/thorin.h"
 
 namespace thorin {
 
@@ -159,7 +158,7 @@ void Cleaner::cleanup() {
 
 #ifndef NDEBUG
     for (auto primop : world().primops())
-        assert(primop->up_to_date_);
+        assert(!primop->is_outdated());
 #endif
 
     debug_verify(world());

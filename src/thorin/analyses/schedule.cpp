@@ -78,25 +78,6 @@ static Schedule schedule_late(const Scope& scope, const Def2Lambda& def2early) {
             }
             assert(num != 0 && "primop dead");
             def2num[def] += num;
-
-            auto memop = primop->isa<MemOp>();
-            // schedule Slots and MemOps without memory out always early
-            if (primop->isa<Slot>() || (memop && !memop->has_mem_out()))
-                def2late[primop] = def2early.find(primop)->second;
-
-            // artificially increase the use counter of all non-memory-out uses of the mem's operand of a memory-out-primop
-            if (memop && memop->has_mem_out()) {
-                auto mem = memop->mem();
-                assert(scope.contains(mem));
-                for (auto use : mem->uses()) {
-                    if (scope.contains(use)) {
-                        if (auto umemop = use->isa<MemOp>()) {
-                            if (!umemop->has_mem_out())
-                                ++def2num[umemop];
-                        }
-                    }
-                }
-            }
         }
     }
 
@@ -108,29 +89,8 @@ static Schedule schedule_late(const Scope& scope, const Def2Lambda& def2early) {
         assert(def2num[def] != 0);
         if (--def2num[def] == 0) {
             queue.push(def);
-            if (auto primop = def->isa<PrimOp>()) {
+            if (auto primop = def->isa<PrimOp>())
                 schedule[late].push_back(primop);
-                // now repair the artificially increased counter
-                if (auto memop = primop->isa<MemOp>()) {
-                    if (memop->has_mem_out()) {
-                        auto mem = memop->mem();
-                        assert(scope.contains(mem));
-                        for (auto use : mem->uses()) {
-                            if (scope.contains(use)) {
-                                if (auto umemop = use->isa<MemOp>()) {
-                                    if (!umemop->has_mem_out()) {
-                                        assert(def2num[umemop] != 0);
-                                        if (--def2num[umemop] == 0) {
-                                            queue.push(umemop);
-                                            schedule[late].push_back(umemop);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
         }
     };
 
@@ -169,8 +129,7 @@ static void verify(const Scope& scope, Schedule& schedule) {
                     mem->dump();
                 }
 
-                if (auto out = memop->mem_out())
-                    mem = out;
+                mem = memop->out_mem();
             }
         }
         lambda2mem[lambda] = mem;

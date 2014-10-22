@@ -57,7 +57,7 @@ public:
     Var static create_ptr(IRBuilder&, Def ptr);
     Var static create_agg(Var var, Def offset);
 
-    const Kind kind() const { return kind_; }
+    Kind kind() const { return kind_; }
     IRBuilder* builder() const { return builder_; }
     World& world() const;
     Def load() const;
@@ -129,6 +129,12 @@ public:
     World& world() const { return world_; }
     bool is_reachable() const { return cur_bb != nullptr; }
     void set_unreachable() { cur_bb = nullptr; }
+    Def create_frame();
+    Def alloc(Type type, Def extra, const std::string& name = "");
+    Def load(Def ptr, const std::string& name = "");
+    Def extract(Def agg, Def index, const std::string& name = "");
+    Def extract(Def agg, u32 index, const std::string& name = "");
+    void store(Def ptr, Def val, const std::string& name = "");
     Lambda* enter(JumpTarget& jt) { return cur_bb = jt.enter(); }
     Lambda* enter_unsealed(JumpTarget& jt) { return cur_bb = jt.enter_unsealed(world_); }
     void jump(JumpTarget& jt);

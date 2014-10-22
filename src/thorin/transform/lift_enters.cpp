@@ -17,21 +17,17 @@ static const Enter* find_enter(Def def) {
 static void find_enters(Lambda* lambda, std::vector<const Enter*>& enters) {
     if (auto param = lambda->mem_param()) {
         for (Def cur = param; cur;) {
+            if (auto memop = cur->isa<MemOp>())
+                cur = memop->out_mem();
+
             if (auto enter = find_enter(cur))
                 enters.push_back(enter);
-
-            if (auto memop = cur->isa<MemOp>()) {
-                if (auto mem_out = memop->mem_out()) {
-                    assert(mem_out);
-                    cur = mem_out;
-                }
-            }
 
             for (auto use : cur->uses()) {
                 cur = nullptr;
                 if (auto memop = use->isa<MemOp>()) {
-                    if (memop->has_mem_out())
-                        cur = memop;
+                    cur = memop;
+                    break;
                 }
             }
         }
@@ -45,27 +41,31 @@ static void lift_enters(const Scope& scope) {
     for (size_t i = scope.size(); i-- != 1;)
         find_enters(scope.rpo(i), enters);
 
-    auto enter = find_enter(scope.entry());
-    if (enter == nullptr)
-        enter = world.enter(scope.entry()->mem_param())->as<Enter>();
-
-    // find max slot index
-    size_t index = 0;
-    for (auto use : enter->uses()) {
-        if (auto slot = use->isa<Slot>())
-            index = std::max(index, slot->index());
+    auto mem_param = scope.entry()->mem_param();
+    assert(mem_param->num_uses() == 1);
+    auto enter = find_enter(mem_param);
+    if (enter == nullptr) {
+        assert(false && "TODO");
+        //enter = world.enter(mem_param)->as<Enter>();
     }
+    auto frame = enter->out_frame();
+
+    size_t index = 0; // find max slot index
+    for (auto use : frame->uses())
+        index = std::max(index, use->as<Slot>()->index());
 
     for (auto old_enter : enters) {
-        for (auto use : old_enter->uses()) {
-            if (auto slot = use->isa<Slot>())
-                slot->replace(world.slot(slot->ptr_type()->referenced_type(), enter, index++, slot->name));
+        for (auto use : old_enter->out_frame()->uses()) {
+            auto slot = use->as<Slot>();
+            slot->replace(world.slot(slot->alloced_type(), frame, index++, slot->name));
         }
+        assert(!old_enter->is_proxy());
+        old_enter->out_mem()->replace(old_enter->mem());
     }
 
 #ifndef NDEBUG
     for (auto old_enter : enters)
-        assert(old_enter->num_uses() == 0);
+        assert(old_enter->out_frame()->num_uses() == 0);
 #endif
 }
 

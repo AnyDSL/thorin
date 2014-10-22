@@ -27,7 +27,7 @@ void clone_bodies(World& world) {
                     Array<Def> nops(primop->size());
                     std::copy(primop->ops().begin(), primop->ops().end(), nops.begin());
                     nops[use.index()] = nlambda;
-                    primop->replace(world.rebuild(primop, nops));
+                    primop->replace(primop->rebuild(nops));
                 }
             }
         }

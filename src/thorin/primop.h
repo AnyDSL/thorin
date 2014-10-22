@@ -7,30 +7,38 @@
 
 namespace thorin {
 
-class BlobPtr;
-
 //------------------------------------------------------------------------------
 
 class PrimOp : public DefNode {
 protected:
     PrimOp(NodeKind kind, Type type, ArrayRef<Def> args, const std::string& name)
         : DefNode(-1, kind, type ? type.unify() : nullptr, args.size(), name)
-        , up_to_date_(true)
+        , is_outdated_(false)
     {
         for (size_t i = 0, e = size(); i != e; ++i)
             set_op(i, args[i]);
     }
 
     void set_type(Type type) { type_ = type.unify(); }
+    Def out(int i) const;
 
 public:
-    bool up_to_date() const { return up_to_date_; }
+    bool is_outdated() const { return is_outdated_; }
     virtual Def rebuild() const override;
+    Def rebuild(World& to, ArrayRef<Def> ops, Type type) const {
+        assert(this->size() == ops.size());
+        return vrebuild(to, ops, type);
+    }
+    Def rebuild(ArrayRef<Def> ops) const { return rebuild(world(), ops, type()); }
+    Def rebuild(ArrayRef<Def> ops, Type type) const { return rebuild(world(), ops, type); }
     virtual const char* op_name() const;
 
 protected:
     virtual size_t vhash() const;
     virtual bool equal(const PrimOp* other) const;
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const = 0;
+    /// Is \p def the \p i^th result of a \p T \p PrimOp?
+    template<int i, class T> inline static const T* is_out(Def def);
 
 private:
     size_t hash() const { return hash_ == 0 ? hash_ = vhash() : hash_; }
@@ -38,7 +46,7 @@ private:
 
     mutable size_t hash_ = 0;
     mutable uint32_t live_ = 0;
-    mutable bool up_to_date_ : 1;
+    mutable bool is_outdated_ : 1;
 
     friend struct PrimOpHash;
     friend struct PrimOpEqual;
@@ -66,6 +74,8 @@ private:
         : Literal(Node_Bottom, type, name)
     {}
 
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
+
     friend class World;
 };
 
@@ -78,12 +88,13 @@ public:
 #define THORIN_ALL_TYPE(T, M) T T##_value() const { return value().get_##T(); }
 #include "thorin/tables/primtypetable.h"
 
-    PrimType primtype() const { return type().as<PrimType>(); }
-    PrimTypeKind primtype_kind() const { return primtype()->primtype_kind(); }
+    PrimType type() const { return Literal::type().as<PrimType>(); }
+    PrimTypeKind primtype_kind() const { return type()->primtype_kind(); }
 
 private:
     virtual size_t vhash() const override;
     virtual bool equal(const PrimOp* other) const override;
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
     Box box_;
 
@@ -109,6 +120,8 @@ private:
     {
         assert(tval->type() == fval->type() && "types of both values must be equal");
     }
+
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
 public:
     Def tval() const { return op(1); }
@@ -136,7 +149,10 @@ private:
         : BinOp((NodeKind) kind, lhs->type(), cond, lhs, rhs, name)
     {}
 
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
+
 public:
+    PrimType type() const { return BinOp::type().as<PrimType>(); }
     ArithOpKind arithop_kind() const { return (ArithOpKind) kind(); }
     virtual const char* op_name() const override;
 
@@ -147,7 +163,10 @@ class Cmp : public BinOp {
 private:
     Cmp(CmpKind kind, Def cond, Def lhs, Def rhs, const std::string& name);
 
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
+
 public:
+    PrimType type() const { return BinOp::type().as<PrimType>(); }
     CmpKind cmp_kind() const { return (CmpKind) kind(); }
     virtual const char* op_name() const override;
 
@@ -170,6 +189,8 @@ private:
         : ConvOp(Node_Cast, cond, from, to, name)
     {}
 
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
+
     friend class World;
 };
 
@@ -178,6 +199,8 @@ private:
     Bitcast(Type to, Def cond, Def from, const std::string& name)
         : ConvOp(Node_Bitcast, cond, from, to, name)
     {}
+
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
     friend class World;
 };
@@ -193,6 +216,8 @@ class DefiniteArray : public Aggregate {
 private:
     DefiniteArray(World& world, Type elem, ArrayRef<Def> args, const std::string& name);
 
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
+
 public:
     DefiniteArrayType type() const { return Aggregate::type().as<DefiniteArrayType>(); }
     Type elem_type() const { return type()->elem_type(); }
@@ -203,6 +228,8 @@ public:
 class IndefiniteArray : public Aggregate {
 private:
     IndefiniteArray(World& world, Type elem, Def dim, const std::string& name);
+
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
 public:
     IndefiniteArrayType type() const { return Aggregate::type().as<IndefiniteArrayType>(); }
@@ -215,8 +242,10 @@ class Tuple : public Aggregate {
 private:
     Tuple(World& world, ArrayRef<Def> args, const std::string& name);
 
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
+
 public:
-    TupleType tuple_type() const { return Aggregate::type().as<TupleType>(); }
+    TupleType type() const { return Aggregate::type().as<TupleType>(); }
 
     friend class World;
 };
@@ -234,8 +263,10 @@ private:
         set_type(struct_app_type);
     }
 
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
+
 public:
-    StructAppType struct_app_type() const { return Aggregate::type().as<StructAppType>(); }
+    StructAppType type() const { return Aggregate::type().as<StructAppType>(); }
 
     friend class World;
 };
@@ -243,6 +274,9 @@ public:
 class Vector : public Aggregate {
 private:
     Vector(World& world, ArrayRef<Def> args, const std::string& name);
+
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
+
     friend class World;
 };
 
@@ -262,11 +296,13 @@ public:
 class Extract : public AggOp {
 private:
     Extract(Def agg, Def index, const std::string& name)
-        : AggOp(Node_Extract, type(agg, index), {agg, index}, name)
+        : AggOp(Node_Extract, determine_type(agg, index), {agg, index}, name)
     {}
 
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
+
 public:
-    static Type type(Def agg, Def index);
+    static Type determine_type(Def agg, Def index);
 
     friend class World;
 };
@@ -276,6 +312,8 @@ private:
     Insert(Def agg, Def index, Def value, const std::string& name)
         : AggOp(Node_Insert, agg->type(), {agg, index, value}, name)
     {}
+
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
 public:
     Def value() const { return op(2); }
@@ -292,12 +330,14 @@ class LEA : public PrimOp {
 private:
     LEA(Def ptr, Def index, const std::string& name);
 
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
+
 public:
     Def ptr() const { return op(0); }
     Def index() const { return op(1); }
-
-    PtrType ptr_type() const; ///< Returns the ptr type from \p ptr().
-    Type referenced_type() const; ///< Returns the type referenced by \p ptr().
+    PtrType type() const { return PrimOp::type().as<PtrType>(); }
+    PtrType ptr_type() const { return ptr()->type().as<PtrType>(); }            ///< Returns the PtrType from \p ptr().
+    Type ptr_referenced_type() const { return ptr_type()->referenced_type(); }  ///< Returns the type referenced by \p ptr().
 
     friend class World;
 };
@@ -318,6 +358,8 @@ private:
         : EvalOp(Node_Run, def, name)
     {}
 
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
+
     friend class World;
 };
 
@@ -326,6 +368,8 @@ private:
     Hlt(Def def, const std::string& name)
         : EvalOp(Node_Hlt, def, name)
     {}
+
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
     friend class World;
 };
@@ -347,6 +391,8 @@ private:
         : EndEvalOp(Node_EndRun, def, run, name)
     {}
 
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
+
 public:
     Def run() const { return op(1); }
 
@@ -359,16 +405,16 @@ private:
         : EndEvalOp(Node_EndHlt, def, hlt, name)
     {}
 
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
+
 public:
     Def hlt() const { return op(1); }
 
     friend class World;
 };
 
-/**
- * This represents a slot in a stack frame opend via \p Enter.
- * Loads from this address yield \p Bottom if the frame has already been closed via \p Leave.
- */
+/// This represents a slot in a stack frame opend via \p Enter.
+/// Loads from this address yield \p Bottom if the frame has already been closed via \p Leave.
 class Slot : public PrimOp {
 private:
     Slot(Type type, Def frame, size_t index, const std::string& name);
@@ -376,20 +422,20 @@ private:
 public:
     Def frame() const { return op(0); }
     size_t index() const { return index_; }
-    PtrType ptr_type() const;
+    PtrType type() const { return PrimOp::type().as<PtrType>(); }
+    Type alloced_type() const { return type()->referenced_type(); }
 
 private:
     virtual size_t vhash() const override;
     virtual bool equal(const PrimOp* other) const override;
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
     size_t index_;
 
     friend class World;
 };
 
-/**
- * This represents a global variable in the data segment.
- */
+/// This represents a global variable in the data segment.
 class Global : public PrimOp {
 private:
     Global(Def init, bool is_mutable, const std::string& name);
@@ -397,12 +443,14 @@ private:
 public:
     Def init() const { return op(0); }
     bool is_mutable() const { return is_mutable_; }
-    Type referenced_type() const; ///< Returns the type referenced by this \p Global's pointer type.
+    PtrType type() const { return PrimOp::type().as<PtrType>(); }
+    Type alloced_type() const { return type()->referenced_type(); }
     virtual const char* op_name() const override;
 
 private:
     virtual size_t vhash() const override { return hash_value(gid()); }
     virtual bool equal(const PrimOp* other) const override { return this == other; }
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
     bool is_mutable_;
 
@@ -420,8 +468,7 @@ protected:
 
 public:
     Def mem() const { return op(0); }
-    virtual bool has_mem_out() const { return false; }
-    virtual Def mem_out() const { return Def(); }
+    virtual Def out_mem() const = 0;
 };
 
 class Alloc : public MemOp {
@@ -430,7 +477,16 @@ private:
 
 public:
     Def extra() const { return op(1); }
-    Type alloced_type() const { return type().as<PtrType>()->referenced_type(); }
+    virtual Def out_mem() const { return out(0); }
+    Def out_ptr() const { return out(1); }
+    TupleType type() const { return MemOp::type().as<TupleType>(); }
+    PtrType out_ptr_type() const { return type()->arg(1).as<PtrType>(); }
+    Type alloced_type() const { return out_ptr_type()->referenced_type(); }
+    static const Alloc* is_out_mem(Def def) { return is_out<0, Alloc>(def); }
+    static const Alloc* is_out_ptr(Def def) { return is_out<1, Alloc>(def); }
+
+private:
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
     friend class World;
 };
@@ -449,9 +505,18 @@ public:
 
 class Load : public Access {
 private:
-    Load(Def mem, Def ptr, const std::string& name)
-        : Access(Node_Load, ptr->type().as<PtrType>()->referenced_type(), {mem, ptr}, name)
-    {}
+    Load(Def mem, Def ptr, const std::string& name);
+
+public:
+    virtual Def out_mem() const { return out(0); }
+    Def out_val() const { return out(1); }
+    TupleType type() const { return MemOp::type().as<TupleType>(); }
+    Type out_val_type() const { return type()->arg(1); }
+    static const Load* is_out_mem(Def def) { return is_out<0, Load>(def); }
+    static const Load* is_out_val(Def def) { return is_out<1, Load>(def); }
+
+private:
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
     friend class World;
 };
@@ -462,10 +527,12 @@ private:
         : Access(Node_Store, mem->type(), {mem, ptr, value}, name)
     {}
 
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
+
 public:
     Def val() const { return op(2); }
-    virtual bool has_mem_out() const override { return true; }
-    virtual Def mem_out() const override { return this; }
+    virtual Def out_mem() const override { return this; }
+    MemType type() const { return type().as<MemType>(); }
 
     friend class World;
 };
@@ -473,6 +540,15 @@ public:
 class Enter : public MemOp {
 private:
     Enter(Def mem, const std::string& name);
+
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
+
+public:
+    TupleType type() const { return MemOp::type().as<TupleType>(); }
+    virtual Def out_mem() const { return out(0); }
+    Def out_frame() const { return out(1); }
+    static const Enter* is_out_mem(Def def) { return is_out<0, Enter>(def); }
+    static const Enter* is_out_ptr(Def def) { return is_out<1, Enter>(def); }
 
     friend class World;
 };
@@ -488,16 +564,19 @@ class Map : public MapOp {
 private:
     Map(int32_t device, AddressSpace addr_space, Def mem, Def ptr, Def offset, Def size, const std::string& name);
 
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
+
 public:
-    Def extract_mem() const;
-    Def extract_mapped_ptr() const;
     Def mem_offset() const { return op(2); }
     Def mem_size() const { return op(3); }
-    PtrType ptr_type() const { return type().as<TupleType>()->arg(1).as<PtrType>(); }
-    AddressSpace addr_space() const { return ptr_type()->addr_space(); }
-    int32_t device() const { return ptr_type()->device(); }
-    virtual bool has_mem_out() const override { return true; }
-    virtual Def mem_out() const override;
+    virtual Def out_mem() const { return out(0); }
+    Def out_ptr() const { return out(1); }
+    TupleType type() const { return MapOp::type().as<TupleType>(); }
+    PtrType out_ptr_type() const { return type()->arg(1).as<PtrType>(); }
+    AddressSpace addr_space() const { return out_ptr_type()->addr_space(); }
+    int32_t device() const { return out_ptr_type()->device(); }
+    static const Map* is_out_mem(Def def) { return is_out<0, Map>(def); }
+    static const Map* is_out_ptr(Def def) { return is_out<1, Map>(def); }
 
     friend class World;
 };
@@ -508,45 +587,11 @@ private:
         : MapOp(Node_Unmap, mem->type(), {mem, ptr}, name)
     {}
 
-    virtual bool has_mem_out() const override { return true; }
-    virtual Def mem_out() const override { return this; }
-
-    friend class World;
-};
-
-class MemBlob : public MemOp {
-private:
-    MemBlob(Def mem, const std::string& name)
-        : MemOp(Node_MemBlob, mem->type(), {mem}, name)
-    {}
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
 public:
-    virtual bool has_mem_out() const { return true; }
-    virtual Def mem_out() const { return this; }
-
-private:
-    virtual size_t vhash() const override;
-    virtual bool equal(const PrimOp* other) const override;
-
-    std::vector<const BlobPtr*> blobptrs_;
-
-    friend class World;
-    friend class BlobPtr;
-};
-
-class BlobPtr : public PrimOp {
-private:
-    BlobPtr(Type type, Def mem_blob, Def extra, size_t index, const std::string& name);
-
-public:
-    const MemBlob* mem_blob() const { return op(0)->as<MemBlob>(); }
-    size_t index() const { return index_; }
-
-private:
-    virtual size_t vhash() const override;
-    virtual bool equal(const PrimOp* other) const override;
-
-    size_t index_;
+    virtual Def out_mem() const override { return this; }
+    MemType type() const { return MapOp::type().as<MemType>(); }
 
     friend class World;
 };
@@ -561,6 +606,17 @@ T DefNode::primlit_value() const {
 #include "thorin/tables/primtypetable.h"
         default: THORIN_UNREACHABLE;
     }
+}
+
+template<int i, class T>
+const T* PrimOp::is_out(Def def) {
+    if (auto extract = def->isa<Extract>()) {
+        if (extract->index()->is_primlit(i)) {
+            if (auto res = extract->agg()->isa<T>())
+                return res;
+        }
+    }
+    return nullptr;
 }
 
 //------------------------------------------------------------------------------

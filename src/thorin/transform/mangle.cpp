@@ -147,7 +147,7 @@ Def Mangler::mangle(Def odef) {
 
     for (size_t i = 0, e = oprimop->size(); i != e; ++i)
         nops[i] = mangle(oprimop->op(i));
-    nprimop = world.rebuild(oprimop, nops);
+    nprimop = oprimop->rebuild(nops);
     return old2new[oprimop] = nprimop;
 }
 

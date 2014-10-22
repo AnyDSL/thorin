@@ -65,11 +65,11 @@ LEA::LEA(Def ptr, Def index, const std::string& name)
 {
     auto& world = index->world();
     auto type = ptr_type();
-    if (auto tuple = referenced_type().isa<TupleType>()) {
+    if (auto tuple = ptr_referenced_type().isa<TupleType>()) {
         set_type(world.ptr_type(tuple->elem(index), type->length(), type->device(), type->addr_space()));
-    } else if (auto array = referenced_type().isa<ArrayType>()) {
+    } else if (auto array = ptr_referenced_type().isa<ArrayType>()) {
         set_type(world.ptr_type(array->elem_type(), type->length(), type->device(), type->addr_space()));
-    } else if (auto struct_app = referenced_type().isa<StructAppType>()) {
+    } else if (auto struct_app = ptr_referenced_type().isa<StructAppType>()) {
         set_type(world.ptr_type(struct_app->elem(index)));
     } else {
         THORIN_UNREACHABLE;
@@ -79,34 +79,45 @@ LEA::LEA(Def ptr, Def index, const std::string& name)
 Slot::Slot(Type type, Def frame, size_t index, const std::string& name)
     : PrimOp(Node_Slot, type->world().ptr_type(type), {frame}, name)
     , index_(index)
-{}
+{
+    assert(frame->type().isa<FrameType>());
+}
 
 Global::Global(Def init, bool is_mutable, const std::string& name)
     : PrimOp(Node_Global, init->type()->world().ptr_type(init->type()), {init}, name)
     , is_mutable_(is_mutable)
-{ /* TODO assert that init does not depend on some param */ }
+{ 
+    assert(init->is_const());
+}
 
 Alloc::Alloc(Type type, Def mem, Def extra, const std::string& name)
-    : MemOp(Node_Alloc, mem->world().ptr_type(type), {mem, extra}, name)
-{}
+    : MemOp(Node_Alloc, nullptr, {mem, extra}, name)
+{
+    World& w = mem->world();
+    set_type(w.tuple_type({w.mem_type(), w.ptr_type(type)}));
+}
+
+Load::Load(Def mem, Def ptr, const std::string& name)
+    : Access(Node_Load, nullptr, {mem, ptr}, name)
+{
+    World& w = mem->world();
+    set_type(w.tuple_type({w.mem_type(), ptr->type().as<PtrType>()->referenced_type()}));
+}
 
 Enter::Enter(Def mem, const std::string& name)
-    : MemOp(Node_Enter, mem->world().frame_type(), {mem}, name)
-{}
+    : MemOp(Node_Enter, nullptr, {mem}, name)
+{
+    World& w = mem->world();
+    set_type(w.tuple_type({w.mem_type(), w.frame_type()}));
+}
 
 Map::Map(int32_t device, AddressSpace addr_space, Def mem, Def ptr, Def mem_offset, Def mem_size, const std::string &name)
     : MapOp(Node_Map, Type(), {mem, ptr, mem_offset, mem_size}, name)
 {
     World& w = mem->world();
-    set_type(w.tuple_type({ mem->type(),
-                            w.ptr_type(ptr->type().as<PtrType>()->referenced_type(),
-                            ptr->type().as<PtrType>()->length(), device, addr_space)}));
+    auto ptr_type = ptr->type().as<PtrType>();
+    set_type(w.tuple_type({ w.mem_type(), w.ptr_type(ptr_type->referenced_type(), ptr_type->length(), device, addr_space)}));
 }
-
-BlobPtr::BlobPtr(Type type, Def mem_blob, Def extra, size_t index, const std::string& name)
-    : PrimOp(Node_BlobPtr, type->world().ptr_type(type), {mem_blob, extra}, name)
-    , index_(index)
-{}
 
 //------------------------------------------------------------------------------
 
@@ -123,8 +134,6 @@ size_t PrimOp::vhash() const {
 
 size_t PrimLit::vhash() const { return hash_combine(Literal::vhash(), bcast<uint64_t, Box>(value())); }
 size_t Slot::vhash() const { return hash_combine(PrimOp::vhash(), index()); }
-size_t BlobPtr::vhash() const { return hash_combine(PrimOp::vhash(), index()); }
-size_t MemBlob::vhash() const { return gid(); }
 
 //------------------------------------------------------------------------------
 
@@ -147,29 +156,58 @@ bool Slot::equal(const PrimOp* other) const {
     return PrimOp::equal(other) ? this->index() == other->as<Slot>()->index() : false;
 }
 
-bool BlobPtr::equal(const PrimOp* other) const { /*TODO*/ return gid() == other->gid(); }
-bool MemBlob::equal(const PrimOp* other) const { return gid() == other->gid(); }
-
 //------------------------------------------------------------------------------
 
 /*
- * getters
+ * vrebuild
  */
 
-PtrType LEA::ptr_type() const { return ptr()->type().as<PtrType>(); }
-Type LEA::referenced_type() const { return ptr_type()->referenced_type(); }
-PtrType Slot::ptr_type() const { return type().as<PtrType>(); }
-Type Global::referenced_type() const { return type().as<PtrType>()->referenced_type(); }
-Def Map::extract_mem() const { return world().extract(this, 0); }
-Def Map::extract_mapped_ptr() const { return world().extract(this, 1); }
+// do not use any of PrimOp's type getters - during import we need to derive types from 't' in the new world 'to'
 
-Def Map::mem_out() const {
-    auto uses = this->uses();
-    assert(1 <= uses.size() && uses.size() <= 2);
-    size_t i = uses[0]->type().isa<MemType>() ? 0 : 1;
-    assert(uses[i]->isa<Extract>());
-    assert(uses[i]->num_uses() == 1);
-    return uses[i];
+Def ArithOp::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.arithop(arithop_kind(), ops[0], ops[1], ops[2], name); }
+Def Bitcast::vrebuild(World& to, ArrayRef<Def> ops, Type t) const { return to.bitcast(t, ops[0], ops[1], name); }
+Def Bottom ::vrebuild(World& to, ArrayRef<Def>,     Type t) const { return to.bottom(t); }
+Def Cast   ::vrebuild(World& to, ArrayRef<Def> ops, Type t) const { return to.cast(t, ops[0], ops[1], name); }
+Def Cmp    ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.cmp(cmp_kind(), ops[0], ops[1], ops[2], name); }
+Def EndHlt ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.end_hlt(ops[0], ops[1], name); }
+Def EndRun ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.end_run(ops[0], ops[1], name); }
+Def Enter  ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.enter(ops[0], name); }
+Def Extract::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.extract(ops[0], ops[1], name); }
+Def Global ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.global(ops[0], is_mutable(), name); }
+Def Hlt    ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.hlt(ops[0], name); }
+Def Insert ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.insert(ops[0], ops[1], ops[2], name); }
+Def LEA    ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.lea(ops[0], ops[1], name); }
+Def Load   ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.load(ops[0], ops[1], name); }
+Def PrimLit::vrebuild(World& to, ArrayRef<Def>,     Type  ) const { return to.literal(primtype_kind(), value()); }
+Def Run    ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.run(ops[0], name); }
+Def Select ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.select(ops[0], ops[1], ops[2], name); }
+Def Store  ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.store(ops[0], ops[1], ops[2], name); }
+Def Tuple  ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.tuple(ops, name); }
+Def Unmap  ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.unmap(ops[0], ops[1], name); }
+Def Vector ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.vector(ops, name); }
+
+Def Alloc::vrebuild(World& to, ArrayRef<Def> ops, Type t) const { 
+    return to.alloc(t.as<TupleType>()->arg(1).as<PtrType>()->referenced_type(), ops[0], ops[1], name); 
+}
+
+Def Slot::vrebuild(World& to, ArrayRef<Def> ops, Type t) const { 
+    return to.slot(t.as<PtrType>()->referenced_type(), ops[0], index(), name); 
+}
+
+Def Map::vrebuild(World& to, ArrayRef<Def> ops, Type) const { 
+    return to.map(device(), addr_space(), ops[0], ops[1], ops[2], ops[3], name); 
+}
+
+Def DefiniteArray::vrebuild(World& to, ArrayRef<Def> ops, Type) const { 
+    return to.definite_array(type()->elem_type(), ops, name); 
+}
+
+Def StructAgg::vrebuild(World& to, ArrayRef<Def> ops, Type type) const { 
+    return to.struct_agg(type.as<StructAppType>(), ops, name); 
+}
+
+Def IndefiniteArray::vrebuild(World& to, ArrayRef<Def> ops, Type) const { 
+    return to.indefinite_array(type()->elem_type(), ops[0], name); 
 }
 
 //------------------------------------------------------------------------------
@@ -210,20 +248,25 @@ const char* Cmp::op_name() const {
  * misc
  */
 
+Def PrimOp::out(int i) const {
+    assert(type().isa<TupleType>());
+    return world().extract(this, i); 
+}
+
 Def PrimOp::rebuild() const {
-    if (!up_to_date_) {
+    if (is_outdated()) {
         Array<Def> ops(size());
         for (size_t i = 0, e = size(); i != e; ++i)
             ops[i] = op(i)->rebuild();
 
-        auto def = world().rebuild(this, ops);
+        auto def = rebuild(ops);
         this->replace(def);
         return def;
     } else
         return this;
 }
 
-Type Extract::type(Def agg, Def index) {
+Type Extract::determine_type(Def agg, Def index) {
     if (auto tuple = agg->type().isa<TupleType>())
         return tuple->elem(index);
     else if (auto array = agg->type().isa<ArrayType>())
@@ -233,7 +276,7 @@ Type Extract::type(Def agg, Def index) {
     else if (auto struct_app = agg->type().isa<StructAppType>())
         return struct_app->elem(index);
 
-    assert(false && "TODO");
+    THORIN_UNREACHABLE;
 }
 
 //------------------------------------------------------------------------------

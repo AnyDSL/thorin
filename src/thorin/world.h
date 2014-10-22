@@ -182,10 +182,8 @@ public:
     }
     /// Splats \p arg to create a \p Vector with \p length.
     Def vector(Def arg, size_t length = 1, const std::string& name = "");
-    Def extract(Def tuple, Def index, const std::string& name = "", Def mem = Def());
-    Def extract(Def tuple, u32 index, const std::string& name = "", Def mem = Def()) {
-        return extract(tuple, literal_qu32(index), name, mem);
-    }
+    Def extract(Def tuple, Def index, const std::string& name = "");
+    Def extract(Def tuple, u32 index, const std::string& name = "") { return extract(tuple, literal_qu32(index), name); }
     Def insert(Def tuple, Def index, Def value, const std::string& name = "");
     Def insert(Def tuple, u32 index, Def value, const std::string& name = "") {
         return insert(tuple, literal_qu32(index), value, name);
@@ -208,7 +206,6 @@ public:
         return cse(new Map(device, addr_space, mem, ptr, mem_offset, mem_size, name));
     }
     const Unmap* unmap(Def mem, Def ptr, const std::string& name = "") { return cse(new Unmap(mem, ptr, name)); }
-    Def mem_blob(Def mem, const std::string& name = "") { return cse(new MemBlob(mem, name)) ; }
 
     // guided partial evaluation
 
@@ -227,17 +224,6 @@ public:
     Lambda* lambda(const std::string& name) { return lambda(fn_type(), CC::C, Intrinsic::None, name); }
     Lambda* basicblock(const std::string& name = "");
     Lambda* meta_lambda();
-
-    /// Generic \p PrimOp constructor; inherits name from \p in.
-    static Def rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, Type type);
-    /// Generic \p PrimOp constructor; inherits type and name name from \p in.
-    static Def rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops) { return rebuild(to, in, ops, in->type()); }
-    /// Generic \p Type constructor.
-    static Type rebuild(World& to, Type in, ArrayRef<Type> args);
-
-    Def rebuild(const PrimOp* in, ArrayRef<Def> ops, Type type) { return rebuild(*this, in, ops, type); }
-    Def rebuild(const PrimOp* in, ArrayRef<Def> ops) { return rebuild(in, ops, in->type()); }
-    Type rebuild(Type in, ArrayRef<Type> args) { return rebuild(*this, in, args); }
 
     /// Performs dead code, unreachable code and unused type elimination.
     void cleanup();

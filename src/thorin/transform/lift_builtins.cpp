@@ -3,8 +3,6 @@
 #include "thorin/analyses/scope.h"
 #include "thorin/transform/mangle.h"
 
-#include <iostream>
-
 namespace thorin {
 
 void lift_builtins(World& world) {

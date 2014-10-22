@@ -31,7 +31,7 @@ static bool map_param(World& world, Lambda* lambda, ToDo& todo) {
                              ulambda->arg(1),  // source ptr
                              ulambda->arg(4),  // offset to memory
                              ulambda->arg(5)); // size of memory
-        ncont = drop(cont_scope, { map->extract_mem(), map->extract_mapped_ptr() });
+        ncont = drop(cont_scope, { map->out_mem(), map->out_ptr() });
         mapped = map;
     } else {
         mapped = world.unmap(ulambda->arg(0),  // memory
@@ -43,8 +43,8 @@ static bool map_param(World& world, Lambda* lambda, ToDo& todo) {
     cont->destroy_body();
     if (is_map) {
         auto map = mapped->as<Map>();
-        for (auto use : map->extract_mapped_ptr()->uses())
-            todo.emplace_back(map->ptr_type(), use);
+        for (auto use : map->out_ptr()->uses())
+            todo.emplace_back(map->out_ptr_type(), use);
     }
     return true;
 }

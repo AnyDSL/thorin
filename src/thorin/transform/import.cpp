@@ -13,7 +13,7 @@ Type import(Type2Type& old2new, World& to, Type otype) {
     for (size_t i = 0; i != size; ++i)
         nargs[i] = import(old2new, to, otype->arg(i));
 
-    auto ntype = old2new[*otype] = *World::rebuild(to, otype, nargs);
+    auto ntype = old2new[*otype] = *otype->rebuild(to, nargs);
     assert(&ntype->world() == &to);
     return Type(ntype);
 }
@@ -53,7 +53,7 @@ Def import(Type2Type& type_old2new, Def2Def& def_old2new, World& to, Def odef) {
     }
 
     if (auto oprimop = odef->isa<PrimOp>())
-        return def_old2new[oprimop] = World::rebuild(to, oprimop, nops, ntype);
+        return def_old2new[oprimop] = oprimop->rebuild(to, nops, ntype);
 
     assert(nlambda && &nlambda->world() == &to);
     if (size > 0)

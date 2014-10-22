@@ -14,6 +14,7 @@
 #include "thorin/transform/memmap_builtins.h"
 #include "thorin/transform/merge_lambdas.h"
 #include "thorin/transform/partial_evaluation.h"
+#include "thorin/transform/dead_load_opt.h"
 #include "thorin/util/array.h"
 
 #if (defined(__clang__) || defined(__GNUC__)) && (defined(__x86_64__) || defined(__i386__))
@@ -600,15 +601,9 @@ Def World::bitcast(Type to, Def cond, Def from, const std::string& name) {
  * aggregate operations
  */
 
-Def World::extract(Def agg, Def index, const std::string& name, Def mem) {
+Def World::extract(Def agg, Def index, const std::string& name) {
     if (agg->isa<Bottom>())
-        return bottom(Extract::type(agg, index));
-
-    if (auto load = agg->isa<Load>()) {
-        // TODO is this really safe?
-        mem = mem ? mem : load->mem();
-        return this->load(mem, lea(load->ptr(), index, load->name), name);
-    }
+        return bottom(Extract::determine_type(agg, index));
 
     if (auto aggregate = agg->isa<Aggregate>()) {
         if (auto lit = index->isa<PrimLit>()) {
@@ -617,12 +612,16 @@ Def World::extract(Def agg, Def index, const std::string& name, Def mem) {
         }
     }
 
+    // TODO
+    //if (auto ld = Load::is_out_val(agg))
+        //return extract(load(ld->mem(), lea(ld->ptr(), index, ld->name), name), 1);
+
     if (auto insert = agg->isa<Insert>()) {
         if (index == insert->index())
             return insert->value();
         else if (index->isa<PrimLit>()) {
             if (insert->index()->isa<PrimLit>())
-                return extract(insert->agg(), index, name, mem);
+                return extract(insert->agg(), index, name);
         }
     }
 
@@ -641,13 +640,14 @@ Def World::insert(Def agg, Def index, Def value, const std::string& name) {
         }
     }
 
+    // TODO double-check
     if (auto aggregate = agg->isa<Aggregate>()) {
         if (auto literal = index->isa<PrimLit>()) {
             if (!agg->isa<IndefiniteArray>()) {
                 Array<Def> args(agg->size());
                 std::copy(agg->ops().begin(), agg->ops().end(), args.begin());
                 args[literal->primlit_value<u64>()] = value;
-                return rebuild(aggregate, args);
+                return aggregate->rebuild(args);
             }
         }
     }
@@ -689,16 +689,12 @@ Def World::select(Def cond, Def a, Def b, const std::string& name) {
 Def World::load(Def mem, Def ptr, const std::string& name) {
     if (auto store = mem->isa<Store>())
         if (store->ptr() == ptr) {
-            return store->val();
+            return tuple({mem, store->val()});
     }
 
     if (auto global = ptr->isa<Global>()) {
         if (!global->is_mutable())
             return global->init();
-    }
-
-    if (mem->isa<MemBlob>()) {
-        // TODO
     }
 
     return cse(new Load(mem, ptr, name));
@@ -710,10 +706,6 @@ Def World::store(Def mem, Def ptr, Def value, const std::string& name) {
 
     if (auto insert = value->isa<Insert>())
         return store(mem, lea(ptr, insert->index(), insert->name), value, name);
-
-    if (mem->isa<MemBlob>()) {
-        // TODO
-    }
 
     return cse(new Store(mem, ptr, value, name));
 }
@@ -727,9 +719,6 @@ Def World::slot(Type type, Def frame, size_t index, const std::string& name) {
 }
 
 Def World::alloc(Type type, Def mem, Def extra, const std::string& name) {
-    //if (auto blob = mem->isa<MemBlob>()) {
-    //}
-
     return cse(new Alloc(type, mem, extra, name));
 }
 
@@ -807,103 +796,6 @@ Lambda* World::basicblock(const std::string& name) {
     return bb;
 }
 
-/*
- * rebuild
- */
-
-Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, Type type) {
-    NodeKind kind = in->kind();
-    const std::string& name = in->name;
-    assert(&type->world() == &to);
-#ifndef NDEBUG
-    for (auto op : ops)
-        assert(&op->world() == &to);
-#endif
-
-    if (is_arithop (kind))  { assert(ops.size() == 3); return to.arithop((ArithOpKind) kind, ops[0], ops[1], ops[2], name); }
-    if (is_cmp     (kind))  { assert(ops.size() == 3); return to.cmp(    (CmpKind)     kind, ops[0], ops[1], ops[2], name); }
-    if (is_primtype(kind)) {
-        assert(ops.size() == 0);
-        auto primlit = in->as<PrimLit>();
-        return to.literal(primlit->primtype_kind(), primlit->value());
-    }
-
-    switch (kind) {
-        case Node_Alloc:    assert(ops.size() == 2); return to.alloc(   type.as<PtrType>()->referenced_type(),
-                                                                        ops[0], ops[1], name);
-        case Node_Bottom:   assert(ops.size() == 0); return to.bottom(type);
-        case Node_Bitcast:  assert(ops.size() == 2); return to.bitcast( type, ops[0], ops[1], name);
-        case Node_Cast:     assert(ops.size() == 2); return to.cast(    type, ops[0], ops[1], name);
-        case Node_Enter:    assert(ops.size() == 1); return to.enter(   ops[0], name);
-        case Node_Extract:  assert(ops.size() == 2); return to.extract( ops[0], ops[1], name);
-        case Node_Global:   assert(ops.size() == 1); return to.global(  ops[0], in->as<Global>()->is_mutable(), name);
-        case Node_Hlt:      assert(ops.size() == 1); return to.hlt(     ops[0], name);
-        case Node_EndHlt:   assert(ops.size() == 2); return to.end_hlt( ops[0], ops[1], name);
-        case Node_EndRun:   assert(ops.size() == 2); return to.end_run( ops[0], ops[1], name);
-        case Node_Insert:   assert(ops.size() == 3); return to.insert(  ops[0], ops[1], ops[2], name);
-        case Node_LEA:      assert(ops.size() == 2); return to.lea(     ops[0], ops[1], name);
-        case Node_Load:     assert(ops.size() == 2); return to.load(    ops[0], ops[1], name);
-        case Node_MemBlob:  assert(ops.size() == 1); return to.mem_blob(ops[0], name);
-        case Node_Map:      assert(ops.size() == 4); return to.map(     in->as<Map>()->device(), in->as<Map>()->addr_space(),
-                                                                        ops[0], ops[1], ops[2], ops[3], name);
-        case Node_Unmap:    assert(ops.size() == 2); return to.unmap(   ops[0], ops[1], name);
-        case Node_Run:      assert(ops.size() == 1); return to.run(     ops[0], name);
-        case Node_Select:   assert(ops.size() == 3); return to.select(  ops[0], ops[1], ops[2], name);
-        case Node_Store:    assert(ops.size() == 3); return to.store(   ops[0], ops[1], ops[2], name);
-        case Node_StructAgg:                         return to.struct_agg(type.as<StructAppType>(), ops, name);
-        case Node_Tuple:                             return to.tuple(ops, name);
-        case Node_Vector:                            return to.vector(ops, name);
-        case Node_DefiniteArray:
-            return to.definite_array(type.as<DefiniteArrayType>()->elem_type(), ops, name);
-        case Node_IndefiniteArray: assert(ops.size() == 1);
-            return to.indefinite_array(type.as<IndefiniteArrayType>()->elem_type(), ops[0], name);
-        case Node_Slot:    assert(ops.size() == 1);
-            return to.slot(type.as<PtrType>()->referenced_type(), ops[0], in->as<Slot>()->index(), name);
-        default: THORIN_UNREACHABLE;
-    }
-}
-
-Type World::rebuild(World& to, Type type, ArrayRef<Type> args) {
-    if (args.empty() && &type->world() == &to)
-        return type;
-
-    if (is_primtype(type->kind())) {
-        assert(args.size() == 0);
-        auto primtype = type.as<PrimType>();
-        return to.type(primtype->primtype_kind(), primtype->length());
-    }
-
-    switch (type->kind()) {
-        case Node_DefiniteArrayType: {
-            assert(args.size() == 1);
-            return to.definite_array_type(args.front(), type.as<DefiniteArrayType>()->dim());
-        }
-        case Node_TypeVar:              assert(args.size() == 0); return to.type_var();
-        case Node_IndefiniteArrayType:  assert(args.size() == 1); return to.indefinite_array_type(args.front());
-        case Node_MemType:              assert(args.size() == 0); return to.mem_type();
-        case Node_FrameType:            assert(args.size() == 0); return to.frame_type();
-        case Node_PtrType: {
-            assert(args.size() == 1);
-            auto p = type.as<PtrType>();
-            return to.ptr_type(args.front(), p->length(), p->device(), p->addr_space());
-        }
-        case Node_StructAbsType: {
-            // TODO how do we handle recursive types?
-            auto ntype = to.struct_abs_type(args.size());
-            for (size_t i = 0, e = args.size(); i != e; ++i)
-                ntype->set(i, args[i]);
-            return ntype;
-        }
-        case Node_StructAppType: {
-            assert(args.size() >= 1);
-            return to.struct_app_type(args[0].as<StructAbsType>(), args.slice_from_begin(1));
-        }
-        case Node_TupleType:        return to.tuple_type(args);
-        case Node_FnType:           return to.fn_type(args);
-        default: THORIN_UNREACHABLE;
-    }
-}
-
 const Param* World::param(Type type, Lambda* lambda, size_t index, const std::string& name) {
     THORIN_CHECK_BREAK(gid_)
     return new Param(gid_++, type, lambda, index, name);
@@ -974,6 +866,7 @@ void World::opt() {
     inliner(*this);
     merge_lambdas(*this);
     lift_enters(*this);
+    dead_load_opt(*this);
     cleanup();
 }
 

@@ -53,7 +53,7 @@ Def import(Type2Type& type_old2new, Def2Def& def_old2new, World& to, Def odef) {
     }
 
     if (auto oprimop = odef->isa<PrimOp>())
-        return def_old2new[oprimop] = World::rebuild(to, oprimop, nops, ntype);
+        return def_old2new[oprimop] = oprimop->rebuild(to, nops, ntype);
 
     assert(nlambda && &nlambda->world() == &to);
     if (size > 0)

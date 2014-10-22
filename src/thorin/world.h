@@ -227,15 +227,7 @@ public:
     Lambda* basicblock(const std::string& name = "");
     Lambda* meta_lambda();
 
-    /// Generic \p PrimOp constructor; inherits name from \p in.
-    static Def rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, Type type);
-    /// Generic \p PrimOp constructor; inherits type and name name from \p in.
-    static Def rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops) { return rebuild(to, in, ops, in->type()); }
-    /// Generic \p Type constructor.
     static Type rebuild(World& to, Type in, ArrayRef<Type> args);
-
-    Def rebuild(const PrimOp* in, ArrayRef<Def> ops, Type type) { return rebuild(*this, in, ops, type); }
-    Def rebuild(const PrimOp* in, ArrayRef<Def> ops) { return rebuild(in, ops, in->type()); }
     Type rebuild(Type in, ArrayRef<Type> args) { return rebuild(*this, in, args); }
 
     /// Performs dead code, unreachable code and unused type elimination.

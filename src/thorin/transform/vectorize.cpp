@@ -163,7 +163,7 @@ void Vectorizer::vectorize_primop(Def cond, const PrimOp* primop) {
     for (; i != size; ++i)
         vops[i] = vectorize(primop->op(i), is_vector_op ? length : 1);
 
-    mapped[primop] = world().rebuild(primop, vops, vectorize_type(primop->type(), is_vector_op ? length : 1));
+    mapped[primop] = primop->rebuild(vops, vectorize_type(primop->type(), is_vector_op ? length : 1));
 }
 
 Def Vectorizer::vectorize(Def def, size_t length) {
@@ -179,7 +179,7 @@ Def Vectorizer::vectorize(Def def, size_t length) {
     for (size_t i = 0, e = primop->size(); i != e; ++i)
         vops[i] = vectorize(primop->op(i), length);
 
-    return world().rebuild(primop, vops, vectorize_type(primop->type(), length));
+    return primop->rebuild(vops, vectorize_type(primop->type(), length));
 }
 
 Lambda* vectorize(Scope& scope, size_t length) { return Vectorizer(scope, length).vectorize(); }

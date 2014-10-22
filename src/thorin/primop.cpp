@@ -159,6 +159,120 @@ bool Slot::equal(const PrimOp* other) const {
 //------------------------------------------------------------------------------
 
 /*
+ * rebuild
+ */
+
+Def Bottom::rebuild(World& to, ArrayRef<Def> ops, Type type) const {
+    assert(ops.size() == 0); return to.bottom(type); 
+}
+
+Def Bitcast::rebuild(World& to, ArrayRef<Def> ops, Type type) const {
+    assert(ops.size() == 2); return to.bitcast(type, ops[0], ops[1], name);
+}
+
+Def Cast::rebuild(World& to, ArrayRef<Def> ops, Type type) const {
+    assert(ops.size() == 2); return to.cast(type, ops[0], ops[1], name);
+}
+
+Def Enter::rebuild(World& to, ArrayRef<Def> ops, Type) const {
+    assert(ops.size() == 1); return to.enter(ops[0], name);
+}
+
+Def Extract::rebuild(World& to, ArrayRef<Def> ops, Type) const {
+    assert(ops.size() == 2); return to.extract(ops[0], ops[1], name);
+}
+
+Def Global::rebuild(World& to, ArrayRef<Def> ops, Type) const {
+    assert(ops.size() == 1); return to.global(ops[0], is_mutable(), name);
+}
+
+Def Hlt::rebuild(World& to, ArrayRef<Def> ops, Type) const {
+    assert(ops.size() == 1); return to.hlt(ops[0], name); 
+}
+
+Def EndHlt::rebuild(World& to, ArrayRef<Def> ops, Type) const {
+    assert(ops.size() == 2); return to.end_hlt(ops[0], ops[1], name);
+}
+
+Def EndRun::rebuild(World& to, ArrayRef<Def> ops, Type) const {
+    assert(ops.size() == 2); return to.end_run(ops[0], ops[1], name);
+}
+
+Def Insert::rebuild(World& to, ArrayRef<Def> ops, Type) const {
+    assert(ops.size() == 3); return to.insert(ops[0], ops[1], ops[2], name);
+}
+
+Def LEA::rebuild(World& to, ArrayRef<Def> ops, Type) const {
+    assert(ops.size() == 2); return to.lea(ops[0], ops[1], name);
+}
+
+Def Load::rebuild(World& to, ArrayRef<Def> ops, Type) const {
+    assert(ops.size() == 2); return to.load(ops[0], ops[1], name);
+}
+
+Def Unmap::rebuild(World& to, ArrayRef<Def> ops, Type) const {
+    assert(ops.size() == 2); return to.unmap(ops[0], ops[1], name);
+}
+
+Def Run::rebuild(World& to, ArrayRef<Def> ops, Type) const {
+    assert(ops.size() == 1); return to.run(ops[0], name);
+}
+
+Def Select::rebuild(World& to, ArrayRef<Def> ops, Type) const {
+    assert(ops.size() == 3); return to.select(ops[0], ops[1], ops[2], name);
+}
+
+Def Store::rebuild(World& to, ArrayRef<Def> ops, Type) const {
+    assert(ops.size() == 3); return to.store(ops[0], ops[1], ops[2], name);
+}
+
+Def StructAgg::rebuild(World& to, ArrayRef<Def> ops, Type type) const {
+    return to.struct_agg(type.as<StructAppType>(), ops, name);
+}
+
+Def Tuple::rebuild(World& to, ArrayRef<Def> ops, Type) const {
+    return to.tuple(ops, name);
+}
+
+Def Vector::rebuild(World& to, ArrayRef<Def> ops, Type) const {
+    return to.vector(ops, name);
+}
+
+Def Alloc::rebuild(World& to, ArrayRef<Def> ops, Type) const {
+    assert(ops.size() == 2); return to.alloc(alloced_referenced_type(), ops[0], ops[1], name);
+}
+
+Def Map::rebuild(World& to, ArrayRef<Def> ops, Type) const {
+    assert(ops.size() == 4); return to.map(device(), addr_space(), ops[0], ops[1], ops[2], ops[3], name);
+}
+
+Def DefiniteArray::rebuild(World& to, ArrayRef<Def> ops, Type) const {
+    return to.definite_array(type()->elem_type(), ops, name);
+}
+
+Def IndefiniteArray::rebuild(World& to, ArrayRef<Def> ops, Type) const {
+    assert(ops.size() == 1); return to.indefinite_array(type()->elem_type(), ops[0], name);
+}
+
+Def Slot::rebuild(World& to, ArrayRef<Def> ops, Type) const {
+    assert(ops.size() == 1); return to.slot(alloced_type(), ops[0], index(), name);
+}
+
+Def Cmp::rebuild(World& to, ArrayRef<Def> ops, Type) const {
+    assert(ops.size() == 3); return to.cmp(cmp_kind(), ops[0], ops[1], ops[2], name);
+}
+
+Def PrimLit::rebuild(World& to, ArrayRef<Def> ops, Type) const {
+    assert(ops.size() == 0); return to.literal(primtype_kind(), value());
+}
+
+Def ArithOp::rebuild(World& to, ArrayRef<Def> ops, Type) const {
+    assert(ops.size() == 3); return to.arithop(arithop_kind(), ops[0], ops[1], ops[2], name);
+}
+
+//------------------------------------------------------------------------------
+
+/*
  * getters
  */
 
@@ -216,7 +330,7 @@ Def PrimOp::rebuild() const {
         for (size_t i = 0, e = size(); i != e; ++i)
             ops[i] = op(i)->rebuild();
 
-        auto def = world().rebuild(this, ops);
+        auto def = rebuild(ops);
         this->replace(def);
         return def;
     } else

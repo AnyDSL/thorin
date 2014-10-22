@@ -26,6 +26,9 @@ protected:
 public:
     bool up_to_date() const { return up_to_date_; }
     virtual Def rebuild() const override;
+    virtual Def rebuild(World& to, ArrayRef<Def> ops, Type type) const = 0;
+    Def rebuild(ArrayRef<Def> ops) const { return rebuild(world(), ops, type()); }
+    Def rebuild(ArrayRef<Def> ops, Type type) const { return rebuild(world(), ops, type); }
     virtual const char* op_name() const;
 
 protected:
@@ -66,6 +69,9 @@ private:
         : Literal(Node_Bottom, type, name)
     {}
 
+public:
+    virtual Def rebuild(World& to, ArrayRef<Def> ops, Type type) const override;
+
     friend class World;
 };
 
@@ -80,6 +86,7 @@ public:
 
     PrimType primtype() const { return type().as<PrimType>(); }
     PrimTypeKind primtype_kind() const { return primtype()->primtype_kind(); }
+    virtual Def rebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
 private:
     virtual size_t vhash() const override;
@@ -113,6 +120,7 @@ private:
 public:
     Def tval() const { return op(1); }
     Def fval() const { return op(2); }
+    virtual Def rebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
     friend class World;
 };
@@ -138,6 +146,7 @@ private:
 
 public:
     ArithOpKind arithop_kind() const { return (ArithOpKind) kind(); }
+    virtual Def rebuild(World& to, ArrayRef<Def> ops, Type type) const override;
     virtual const char* op_name() const override;
 
     friend class World;
@@ -149,6 +158,7 @@ private:
 
 public:
     CmpKind cmp_kind() const { return (CmpKind) kind(); }
+    virtual Def rebuild(World& to, ArrayRef<Def> ops, Type type) const override;
     virtual const char* op_name() const override;
 
     friend class World;
@@ -170,6 +180,9 @@ private:
         : ConvOp(Node_Cast, cond, from, to, name)
     {}
 
+public:
+    virtual Def rebuild(World& to, ArrayRef<Def> ops, Type type) const override;
+
     friend class World;
 };
 
@@ -178,6 +191,9 @@ private:
     Bitcast(Type to, Def cond, Def from, const std::string& name)
         : ConvOp(Node_Bitcast, cond, from, to, name)
     {}
+
+public:
+    virtual Def rebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
     friend class World;
 };
@@ -196,6 +212,7 @@ private:
 public:
     DefiniteArrayType type() const { return Aggregate::type().as<DefiniteArrayType>(); }
     Type elem_type() const { return type()->elem_type(); }
+    virtual Def rebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
     friend class World;
 };
@@ -207,6 +224,7 @@ private:
 public:
     IndefiniteArrayType type() const { return Aggregate::type().as<IndefiniteArrayType>(); }
     Type elem_type() const { return type()->elem_type(); }
+    virtual Def rebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
     friend class World;
 };
@@ -217,6 +235,7 @@ private:
 
 public:
     TupleType tuple_type() const { return Aggregate::type().as<TupleType>(); }
+    virtual Def rebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
     friend class World;
 };
@@ -236,6 +255,7 @@ private:
 
 public:
     StructAppType struct_app_type() const { return Aggregate::type().as<StructAppType>(); }
+    virtual Def rebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
     friend class World;
 };
@@ -243,6 +263,10 @@ public:
 class Vector : public Aggregate {
 private:
     Vector(World& world, ArrayRef<Def> args, const std::string& name);
+
+public:
+    virtual Def rebuild(World& to, ArrayRef<Def> ops, Type type) const override;
+
     friend class World;
 };
 
@@ -266,6 +290,7 @@ private:
     {}
 
 public:
+    virtual Def rebuild(World& to, ArrayRef<Def> ops, Type type) const override;
     static Type determine_type(Def agg, Def index);
 
     friend class World;
@@ -279,6 +304,7 @@ private:
 
 public:
     Def value() const { return op(2); }
+    virtual Def rebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
     friend class World;
 };
@@ -299,6 +325,7 @@ public:
     PtrType ptr_type() const { return ptr()->type().as<PtrType>(); }
     /// Returns the type referenced by \p ptr().
     Type referenced_type() const { return ptr_type()->referenced_type(); }
+    virtual Def rebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
     friend class World;
 };
@@ -319,6 +346,9 @@ private:
         : EvalOp(Node_Run, def, name)
     {}
 
+public:
+    virtual Def rebuild(World& to, ArrayRef<Def> ops, Type type) const override;
+
     friend class World;
 };
 
@@ -327,6 +357,9 @@ private:
     Hlt(Def def, const std::string& name)
         : EvalOp(Node_Hlt, def, name)
     {}
+
+public:
+    virtual Def rebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
     friend class World;
 };
@@ -350,6 +383,7 @@ private:
 
 public:
     Def run() const { return op(1); }
+    virtual Def rebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
     friend class World;
 };
@@ -362,6 +396,7 @@ private:
 
 public:
     Def hlt() const { return op(1); }
+    virtual Def rebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
     friend class World;
 };
@@ -379,6 +414,7 @@ public:
     size_t index() const { return index_; }
     PtrType type() const { return PrimOp::type().as<PtrType>(); }
     Type alloced_type() const { return type()->referenced_type(); }
+    virtual Def rebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
 private:
     virtual size_t vhash() const override;
@@ -400,6 +436,7 @@ public:
     Def init() const { return op(0); }
     bool is_mutable() const { return is_mutable_; }
     Type referenced_type() const; ///< Returns the type referenced by this \p Global's pointer type.
+    virtual Def rebuild(World& to, ArrayRef<Def> ops, Type type) const override;
     virtual const char* op_name() const override;
 
 private:
@@ -438,6 +475,7 @@ public:
     static const Alloc* is_mem(Def def) { return is_out<0, Alloc>(def); }
     static const Alloc* is_ptr(Def def) { return is_out<1, Alloc>(def); }
     virtual Def out_mem() const override { return extract_mem(); }
+    virtual Def rebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
     friend class World;
 };
@@ -464,6 +502,7 @@ public:
     static const Load* is_mem(Def def) { return is_out<0, Load>(def); }
     static const Load* is_val(Def def) { return is_out<1, Load>(def); }
     virtual Def out_mem() const override { return extract_mem(); }
+    virtual Def rebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
     friend class World;
 };
@@ -477,6 +516,7 @@ private:
 public:
     Def val() const { return op(2); }
     virtual Def out_mem() const override { return this; }
+    virtual Def rebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
     friend class World;
 };
@@ -491,6 +531,7 @@ public:
     static const Enter* is_mem(Def def) { return is_out<0, Enter>(def); }
     static const Enter* is_ptr(Def def) { return is_out<1, Enter>(def); }
     virtual Def out_mem() const override { return extract_mem(); }
+    virtual Def rebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
     friend class World;
 };
@@ -517,6 +558,7 @@ public:
     static const Map* is_mem(Def def) { return is_out<0, Map>(def); }
     static const Map* is_ptr(Def def) { return is_out<1, Map>(def); }
     virtual Def out_mem() const override { return extract_mem(); }
+    virtual Def rebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
     friend class World;
 };
@@ -529,6 +571,7 @@ private:
 
 public:
     virtual Def out_mem() const override { return this; }
+    virtual Def rebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
     friend class World;
 };

@@ -13,7 +13,7 @@ Type import(Type2Type& old2new, World& to, Type otype) {
     for (size_t i = 0; i != size; ++i)
         nargs[i] = import(old2new, to, otype->arg(i));
 
-    auto ntype = old2new[*otype] = *World::rebuild(to, otype, nargs);
+    auto ntype = old2new[*otype] = *otype->rebuild(to, nargs);
     assert(&ntype->world() == &to);
     return Type(ntype);
 }

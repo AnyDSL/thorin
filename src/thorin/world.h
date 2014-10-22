@@ -227,9 +227,6 @@ public:
     Lambda* basicblock(const std::string& name = "");
     Lambda* meta_lambda();
 
-    static Type rebuild(World& to, Type in, ArrayRef<Type> args);
-    Type rebuild(Type in, ArrayRef<Type> args) { return rebuild(*this, in, args); }
-
     /// Performs dead code, unreachable code and unused type elimination.
     void cleanup();
     void opt();

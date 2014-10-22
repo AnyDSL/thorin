@@ -159,115 +159,47 @@ bool Slot::equal(const PrimOp* other) const {
 //------------------------------------------------------------------------------
 
 /*
- * rebuild
+ * vrebuild
  */
 
-Def Bottom::rebuild(World& to, ArrayRef<Def> ops, Type type) const {
-    assert(ops.size() == 0); return to.bottom(type); 
+Def Alloc  ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.alloc(alloced_referenced_type(), ops[0], ops[1], name); }
+Def ArithOp::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.arithop(arithop_kind(), ops[0], ops[1], ops[2], name); }
+Def Bitcast::vrebuild(World& to, ArrayRef<Def> ops, Type t) const { return to.bitcast(t, ops[0], ops[1], name); }
+Def Bottom ::vrebuild(World& to, ArrayRef<Def>,     Type t) const { return to.bottom(t); }
+Def Cast   ::vrebuild(World& to, ArrayRef<Def> ops, Type t) const { return to.cast(t, ops[0], ops[1], name); }
+Def Cmp    ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.cmp(cmp_kind(), ops[0], ops[1], ops[2], name); }
+Def EndHlt ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.end_hlt(ops[0], ops[1], name); }
+Def EndRun ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.end_run(ops[0], ops[1], name); }
+Def Enter  ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.enter(ops[0], name); }
+Def Extract::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.extract(ops[0], ops[1], name); }
+Def Global ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.global(ops[0], is_mutable(), name); }
+Def Hlt    ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.hlt(ops[0], name); }
+Def Insert ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.insert(ops[0], ops[1], ops[2], name); }
+Def LEA    ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.lea(ops[0], ops[1], name); }
+Def Load   ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.load(ops[0], ops[1], name); }
+Def PrimLit::vrebuild(World& to, ArrayRef<Def>,     Type  ) const { return to.literal(primtype_kind(), value()); }
+Def Run    ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.run(ops[0], name); }
+Def Select ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.select(ops[0], ops[1], ops[2], name); }
+Def Slot   ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.slot(alloced_type(), ops[0], index(), name); }
+Def Store  ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.store(ops[0], ops[1], ops[2], name); }
+Def Tuple  ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.tuple(ops, name); }
+Def Unmap  ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.unmap(ops[0], ops[1], name); }
+Def Vector ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.vector(ops, name); }
+
+Def Map::vrebuild(World& to, ArrayRef<Def> ops, Type) const { 
+    return to.map(device(), addr_space(), ops[0], ops[1], ops[2], ops[3], name); 
 }
 
-Def Bitcast::rebuild(World& to, ArrayRef<Def> ops, Type type) const {
-    assert(ops.size() == 2); return to.bitcast(type, ops[0], ops[1], name);
+Def DefiniteArray::vrebuild(World& to, ArrayRef<Def> ops, Type) const { 
+    return to.definite_array(type()->elem_type(), ops, name); 
 }
 
-Def Cast::rebuild(World& to, ArrayRef<Def> ops, Type type) const {
-    assert(ops.size() == 2); return to.cast(type, ops[0], ops[1], name);
+Def StructAgg::vrebuild(World& to, ArrayRef<Def> ops, Type type) const { 
+    return to.struct_agg(type.as<StructAppType>(), ops, name); 
 }
 
-Def Enter::rebuild(World& to, ArrayRef<Def> ops, Type) const {
-    assert(ops.size() == 1); return to.enter(ops[0], name);
-}
-
-Def Extract::rebuild(World& to, ArrayRef<Def> ops, Type) const {
-    assert(ops.size() == 2); return to.extract(ops[0], ops[1], name);
-}
-
-Def Global::rebuild(World& to, ArrayRef<Def> ops, Type) const {
-    assert(ops.size() == 1); return to.global(ops[0], is_mutable(), name);
-}
-
-Def Hlt::rebuild(World& to, ArrayRef<Def> ops, Type) const {
-    assert(ops.size() == 1); return to.hlt(ops[0], name); 
-}
-
-Def EndHlt::rebuild(World& to, ArrayRef<Def> ops, Type) const {
-    assert(ops.size() == 2); return to.end_hlt(ops[0], ops[1], name);
-}
-
-Def EndRun::rebuild(World& to, ArrayRef<Def> ops, Type) const {
-    assert(ops.size() == 2); return to.end_run(ops[0], ops[1], name);
-}
-
-Def Insert::rebuild(World& to, ArrayRef<Def> ops, Type) const {
-    assert(ops.size() == 3); return to.insert(ops[0], ops[1], ops[2], name);
-}
-
-Def LEA::rebuild(World& to, ArrayRef<Def> ops, Type) const {
-    assert(ops.size() == 2); return to.lea(ops[0], ops[1], name);
-}
-
-Def Load::rebuild(World& to, ArrayRef<Def> ops, Type) const {
-    assert(ops.size() == 2); return to.load(ops[0], ops[1], name);
-}
-
-Def Unmap::rebuild(World& to, ArrayRef<Def> ops, Type) const {
-    assert(ops.size() == 2); return to.unmap(ops[0], ops[1], name);
-}
-
-Def Run::rebuild(World& to, ArrayRef<Def> ops, Type) const {
-    assert(ops.size() == 1); return to.run(ops[0], name);
-}
-
-Def Select::rebuild(World& to, ArrayRef<Def> ops, Type) const {
-    assert(ops.size() == 3); return to.select(ops[0], ops[1], ops[2], name);
-}
-
-Def Store::rebuild(World& to, ArrayRef<Def> ops, Type) const {
-    assert(ops.size() == 3); return to.store(ops[0], ops[1], ops[2], name);
-}
-
-Def StructAgg::rebuild(World& to, ArrayRef<Def> ops, Type type) const {
-    return to.struct_agg(type.as<StructAppType>(), ops, name);
-}
-
-Def Tuple::rebuild(World& to, ArrayRef<Def> ops, Type) const {
-    return to.tuple(ops, name);
-}
-
-Def Vector::rebuild(World& to, ArrayRef<Def> ops, Type) const {
-    return to.vector(ops, name);
-}
-
-Def Alloc::rebuild(World& to, ArrayRef<Def> ops, Type) const {
-    assert(ops.size() == 2); return to.alloc(alloced_referenced_type(), ops[0], ops[1], name);
-}
-
-Def Map::rebuild(World& to, ArrayRef<Def> ops, Type) const {
-    assert(ops.size() == 4); return to.map(device(), addr_space(), ops[0], ops[1], ops[2], ops[3], name);
-}
-
-Def DefiniteArray::rebuild(World& to, ArrayRef<Def> ops, Type) const {
-    return to.definite_array(type()->elem_type(), ops, name);
-}
-
-Def IndefiniteArray::rebuild(World& to, ArrayRef<Def> ops, Type) const {
-    assert(ops.size() == 1); return to.indefinite_array(type()->elem_type(), ops[0], name);
-}
-
-Def Slot::rebuild(World& to, ArrayRef<Def> ops, Type) const {
-    assert(ops.size() == 1); return to.slot(alloced_type(), ops[0], index(), name);
-}
-
-Def Cmp::rebuild(World& to, ArrayRef<Def> ops, Type) const {
-    assert(ops.size() == 3); return to.cmp(cmp_kind(), ops[0], ops[1], ops[2], name);
-}
-
-Def PrimLit::rebuild(World& to, ArrayRef<Def> ops, Type) const {
-    assert(ops.size() == 0); return to.literal(primtype_kind(), value());
-}
-
-Def ArithOp::rebuild(World& to, ArrayRef<Def> ops, Type) const {
-    assert(ops.size() == 3); return to.arithop(arithop_kind(), ops[0], ops[1], ops[2], name);
+Def IndefiniteArray::vrebuild(World& to, ArrayRef<Def> ops, Type) const { 
+    return to.indefinite_array(type()->elem_type(), ops[0], name); 
 }
 
 //------------------------------------------------------------------------------

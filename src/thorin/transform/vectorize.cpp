@@ -49,7 +49,7 @@ Type Vectorizer::vectorize_type(Type type, size_t length) {
     for (size_t i = 0, e = type->num_args(); i != e; ++i)
         new_args[i] = vectorize_type(type->arg(i), length);
 
-    return world.rebuild(type, new_args);
+    return type->rebuild(new_args);
 }
 
 Lambda* Vectorizer::vectorize() {

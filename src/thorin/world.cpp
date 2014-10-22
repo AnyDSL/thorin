@@ -796,51 +796,6 @@ Lambda* World::basicblock(const std::string& name) {
     return bb;
 }
 
-/*
- * rebuild
- */
-
-Type World::rebuild(World& to, Type type, ArrayRef<Type> args) {
-    if (args.empty() && &type->world() == &to)
-        return type;
-
-    if (is_primtype(type->kind())) {
-        assert(args.size() == 0);
-        auto primtype = type.as<PrimType>();
-        return to.type(primtype->primtype_kind(), primtype->length());
-    }
-
-    switch (type->kind()) {
-        case Node_DefiniteArrayType: {
-            assert(args.size() == 1);
-            return to.definite_array_type(args.front(), type.as<DefiniteArrayType>()->dim());
-        }
-        case Node_TypeVar:              assert(args.size() == 0); return to.type_var();
-        case Node_IndefiniteArrayType:  assert(args.size() == 1); return to.indefinite_array_type(args.front());
-        case Node_MemType:              assert(args.size() == 0); return to.mem_type();
-        case Node_FrameType:            assert(args.size() == 0); return to.frame_type();
-        case Node_PtrType: {
-            assert(args.size() == 1);
-            auto p = type.as<PtrType>();
-            return to.ptr_type(args.front(), p->length(), p->device(), p->addr_space());
-        }
-        case Node_StructAbsType: {
-            // TODO how do we handle recursive types?
-            auto ntype = to.struct_abs_type(args.size());
-            for (size_t i = 0, e = args.size(); i != e; ++i)
-                ntype->set(i, args[i]);
-            return ntype;
-        }
-        case Node_StructAppType: {
-            assert(args.size() >= 1);
-            return to.struct_app_type(args[0].as<StructAbsType>(), args.slice_from_begin(1));
-        }
-        case Node_TupleType:        return to.tuple_type(args);
-        case Node_FnType:           return to.fn_type(args);
-        default: THORIN_UNREACHABLE;
-    }
-}
-
 const Param* World::param(Type type, Lambda* lambda, size_t index, const std::string& name) {
     THORIN_CHECK_BREAK(gid_)
     return new Param(gid_++, type, lambda, index, name);

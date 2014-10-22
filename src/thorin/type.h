@@ -159,6 +159,13 @@ public:
     Type instantiate(Type2Type&) const;
     Type specialize(Type2Type&) const;
     Type elem(const Def& def) const;
+    Type rebuild(World& to, ArrayRef<Type> args) const {
+        assert(num_args() == args.size());
+        if (args.empty() && &world() == &to)
+            return this;
+        return vrebuild(to, args);
+    }
+    Type rebuild(ArrayRef<Type> args) const { return rebuild(world(), args); }
     virtual Type elem(size_t i) const { return arg(i); }
 
     bool is_primtype() const { return thorin::is_primtype(kind()); }
@@ -185,6 +192,7 @@ protected:
     Array<Type> specialize_args(Type2Type&) const;
 
 private:
+    virtual Type vrebuild(World& to, ArrayRef<Type> args) const = 0;
     virtual Type vinstantiate(Type2Type&) const = 0;
 
     mutable const TypeNode* representative_;
@@ -204,6 +212,7 @@ private:
         : TypeNode(world, Node_MemType, {})
     {}
 
+    virtual Type vrebuild(World& to, ArrayRef<Type> args) const override;
     virtual Type vinstantiate(Type2Type&) const override;
 
     friend class World;
@@ -216,6 +225,7 @@ private:
         : TypeNode(world, Node_FrameType, {})
     {}
 
+    virtual Type vrebuild(World& to, ArrayRef<Type> args) const override;
     virtual Type vinstantiate(Type2Type&) const override;
 
     friend class World;
@@ -255,6 +265,7 @@ public:
     PrimTypeKind primtype_kind() const { return (PrimTypeKind) kind(); }
 
 private:
+    virtual Type vrebuild(World& to, ArrayRef<Type> args) const override;
     virtual Type vinstantiate(Type2Type&) const override;
 
     friend class World;
@@ -286,6 +297,7 @@ public:
     virtual bool equal(const TypeNode* other) const override;
 
 private:
+    virtual Type vrebuild(World& to, ArrayRef<Type> args) const override;
     virtual Type vinstantiate(Type2Type&) const override;
 
     AddressSpace addr_space_;
@@ -309,6 +321,7 @@ public:
     virtual Type instantiate(ArrayRef<Type> args) const override;
 
 private:
+    virtual Type vrebuild(World& to, ArrayRef<Type> args) const override;
     virtual Type vinstantiate(Type2Type&) const override { THORIN_UNREACHABLE; }
 
     std::string name_;
@@ -339,6 +352,7 @@ public:
     size_t num_elems() const { return struct_abs_type()->num_args(); }
 
 private:
+    virtual Type vrebuild(World& to, ArrayRef<Type> args) const override;
     virtual Type vinstantiate(Type2Type&) const override;
 
     StructAbsType struct_abs_type_;
@@ -354,6 +368,7 @@ private:
     {}
 
     virtual Type vinstantiate(Type2Type&) const override;
+    virtual Type vrebuild(World& to, ArrayRef<Type> args) const override;
 
     friend class World;
 };
@@ -369,6 +384,7 @@ public:
     bool is_returning() const;
 
 private:
+    virtual Type vrebuild(World& to, ArrayRef<Type> args) const override;
     virtual Type vinstantiate(Type2Type&) const override;
 
     friend class World;
@@ -393,6 +409,7 @@ public:
     virtual IndefiniteArrayType is_indefinite() const;
 
 private:
+    virtual Type vrebuild(World& to, ArrayRef<Type> args) const override;
     virtual Type vinstantiate(Type2Type&) const override;
 
     friend class World;
@@ -412,6 +429,7 @@ public:
     }
 
 private:
+    virtual Type vrebuild(World& to, ArrayRef<Type> args) const override;
     virtual Type vinstantiate(Type2Type&) const override;
 
     u64 dim_;
@@ -432,6 +450,7 @@ public:
     virtual bool is_closed() const override { return bound_at_ != nullptr; }
 
 private:
+    virtual Type vrebuild(World& to, ArrayRef<Type> args) const override;
     virtual Type vinstantiate(Type2Type&) const override;
 
     mutable const TypeNode* bound_at_;

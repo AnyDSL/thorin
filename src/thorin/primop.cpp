@@ -162,7 +162,8 @@ bool Slot::equal(const PrimOp* other) const {
  * vrebuild
  */
 
-Def Alloc  ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.alloc(alloced_type(), ops[0], ops[1], name); }
+// do not use any of PrimOp's type getters - during import we need to derive types from 't' in the new world 'to'
+
 Def ArithOp::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.arithop(arithop_kind(), ops[0], ops[1], ops[2], name); }
 Def Bitcast::vrebuild(World& to, ArrayRef<Def> ops, Type t) const { return to.bitcast(t, ops[0], ops[1], name); }
 Def Bottom ::vrebuild(World& to, ArrayRef<Def>,     Type t) const { return to.bottom(t); }
@@ -180,11 +181,18 @@ Def Load   ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.lo
 Def PrimLit::vrebuild(World& to, ArrayRef<Def>,     Type  ) const { return to.literal(primtype_kind(), value()); }
 Def Run    ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.run(ops[0], name); }
 Def Select ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.select(ops[0], ops[1], ops[2], name); }
-Def Slot   ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.slot(alloced_type(), ops[0], index(), name); }
 Def Store  ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.store(ops[0], ops[1], ops[2], name); }
 Def Tuple  ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.tuple(ops, name); }
 Def Unmap  ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.unmap(ops[0], ops[1], name); }
 Def Vector ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.vector(ops, name); }
+
+Def Alloc::vrebuild(World& to, ArrayRef<Def> ops, Type t) const { 
+    return to.alloc(t.as<TupleType>()->arg(1).as<PtrType>()->referenced_type(), ops[0], ops[1], name); 
+}
+
+Def Slot::vrebuild(World& to, ArrayRef<Def> ops, Type t) const { 
+    return to.slot(t.as<PtrType>()->referenced_type(), ops[0], index(), name); 
+}
 
 Def Map::vrebuild(World& to, ArrayRef<Def> ops, Type) const { 
     return to.map(device(), addr_space(), ops[0], ops[1], ops[2], ops[3], name); 

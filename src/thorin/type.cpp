@@ -64,7 +64,7 @@ ArrayRef<Type> StructAppTypeNode::elems() const {
 //------------------------------------------------------------------------------
 
 /*
- * rebuild
+ * vrebuild
  */
 
 Type DefiniteArrayTypeNode  ::vrebuild(World& to, ArrayRef<Type> args) const { return to.definite_array_type(args[0], dim()); }

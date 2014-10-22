@@ -611,8 +611,8 @@ Def World::extract(Def agg, Def index, const std::string& name) {
         }
     }
 
-    if (auto ld = Load::is_val(agg))
-        return extract(load(ld->mem(), lea(ld->ptr(), index, ld->name), name), 1);
+    //if (auto ld = Load::is_val(agg))
+        //return extract(load(ld->mem(), lea(ld->ptr(), index, ld->name), name), 1);
 
     if (auto insert = agg->isa<Insert>()) {
         if (index == insert->index())

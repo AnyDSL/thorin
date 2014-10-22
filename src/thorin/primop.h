@@ -413,10 +413,8 @@ public:
     friend class World;
 };
 
-/**
- * This represents a slot in a stack frame opend via \p Enter.
- * Loads from this address yield \p Bottom if the frame has already been closed via \p Leave.
- */
+/// This represents a slot in a stack frame opend via \p Enter.
+/// Loads from this address yield \p Bottom if the frame has already been closed via \p Leave.
 class Slot : public PrimOp {
 private:
     Slot(Type type, Def frame, size_t index, const std::string& name);
@@ -437,9 +435,7 @@ private:
     friend class World;
 };
 
-/**
- * This represents a global variable in the data segment.
- */
+/// This represents a global variable in the data segment.
 class Global : public PrimOp {
 private:
     Global(Def init, bool is_mutable, const std::string& name);

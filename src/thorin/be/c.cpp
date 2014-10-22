@@ -752,7 +752,7 @@ std::ostream& CCodeGen::emit(Def def) {
         assert(!global->init()->isa_lambda() && "no global init lambda supported");
         if (lang_==CUDA) stream() << "__device__ ";
         if (lang_==OPENCL) stream() << "__constant ";
-        emit_type(global->referenced_type()) << " " << global->unique_name() << "_slot";
+        emit_type(global->alloced_type()) << " " << global->unique_name() << "_slot";
         if (global->init()->isa<Bottom>()) {
             stream() << ";";
         } else {
@@ -763,7 +763,7 @@ std::ostream& CCodeGen::emit(Def def) {
 
         if (lang_==CUDA) stream() << "__device__ ";
         if (lang_==OPENCL) stream() << "__constant ";
-        emit_type(global->referenced_type()) << " *" << global->unique_name() << " = &" << global->unique_name() << "_slot;";
+        emit_type(global->alloced_type()) << " *" << global->unique_name() << " = &" << global->unique_name() << "_slot;";
 
         insert(def->gid(), def->unique_name());
         return stream();
@@ -785,7 +785,7 @@ std::ostream& CCodeGen::emit(Def def) {
                 case AddressSpace::Shared: stream() << "__local ";  break;
             }
         }
-        emit_type(map->ptr_type()->referenced_type()) << " " << map->unique_name() << "[";
+        emit_type(map->out_ptr_type()->referenced_type()) << " " << map->unique_name() << "[";
         emit(map->mem_size()) << "];";
 
         insert(def->gid(), def->unique_name());

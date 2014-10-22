@@ -162,7 +162,7 @@ bool Slot::equal(const PrimOp* other) const {
  * vrebuild
  */
 
-Def Alloc  ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.alloc(alloced_referenced_type(), ops[0], ops[1], name); }
+Def Alloc  ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.alloc(alloced_type(), ops[0], ops[1], name); }
 Def ArithOp::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.arithop(arithop_kind(), ops[0], ops[1], ops[2], name); }
 Def Bitcast::vrebuild(World& to, ArrayRef<Def> ops, Type t) const { return to.bitcast(t, ops[0], ops[1], name); }
 Def Bottom ::vrebuild(World& to, ArrayRef<Def>,     Type t) const { return to.bottom(t); }
@@ -201,14 +201,6 @@ Def StructAgg::vrebuild(World& to, ArrayRef<Def> ops, Type type) const {
 Def IndefiniteArray::vrebuild(World& to, ArrayRef<Def> ops, Type) const { 
     return to.indefinite_array(type()->elem_type(), ops[0], name); 
 }
-
-//------------------------------------------------------------------------------
-
-/*
- * getters
- */
-
-Type    Global::referenced_type() const { return type().as<PtrType>()->referenced_type(); }
 
 //------------------------------------------------------------------------------
 

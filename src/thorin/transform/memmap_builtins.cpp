@@ -44,7 +44,7 @@ static bool map_param(World& world, Lambda* lambda, ToDo& todo) {
     if (is_map) {
         auto map = mapped->as<Map>();
         for (auto use : map->out_ptr()->uses())
-            todo.emplace_back(map->ptr_type(), use);
+            todo.emplace_back(map->out_ptr_type(), use);
     }
     return true;
 }

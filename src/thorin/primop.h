@@ -121,12 +121,11 @@ private:
         assert(tval->type() == fval->type() && "types of both values must be equal");
     }
 
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
+
 public:
     Def tval() const { return op(1); }
     Def fval() const { return op(2); }
-
-private:
-    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
     friend class World;
 };
@@ -150,13 +149,12 @@ private:
         : BinOp((NodeKind) kind, lhs->type(), cond, lhs, rhs, name)
     {}
 
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
+
 public:
     PrimType type() const { return BinOp::type().as<PrimType>(); }
     ArithOpKind arithop_kind() const { return (ArithOpKind) kind(); }
     virtual const char* op_name() const override;
-
-private:
-    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
     friend class World;
 };
@@ -165,13 +163,12 @@ class Cmp : public BinOp {
 private:
     Cmp(CmpKind kind, Def cond, Def lhs, Def rhs, const std::string& name);
 
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
+
 public:
     PrimType type() const { return BinOp::type().as<PrimType>(); }
     CmpKind cmp_kind() const { return (CmpKind) kind(); }
     virtual const char* op_name() const override;
-
-private:
-    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
     friend class World;
 };
@@ -219,12 +216,11 @@ class DefiniteArray : public Aggregate {
 private:
     DefiniteArray(World& world, Type elem, ArrayRef<Def> args, const std::string& name);
 
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
+
 public:
     DefiniteArrayType type() const { return Aggregate::type().as<DefiniteArrayType>(); }
     Type elem_type() const { return type()->elem_type(); }
-
-private:
-    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
     friend class World;
 };
@@ -233,12 +229,11 @@ class IndefiniteArray : public Aggregate {
 private:
     IndefiniteArray(World& world, Type elem, Def dim, const std::string& name);
 
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
+
 public:
     IndefiniteArrayType type() const { return Aggregate::type().as<IndefiniteArrayType>(); }
     Type elem_type() const { return type()->elem_type(); }
-
-private:
-    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
     friend class World;
 };
@@ -247,11 +242,10 @@ class Tuple : public Aggregate {
 private:
     Tuple(World& world, ArrayRef<Def> args, const std::string& name);
 
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
+
 public:
     TupleType type() const { return Aggregate::type().as<TupleType>(); }
-
-private:
-    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
     friend class World;
 };
@@ -269,11 +263,10 @@ private:
         set_type(struct_app_type);
     }
 
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
+
 public:
     StructAppType type() const { return Aggregate::type().as<StructAppType>(); }
-
-private:
-    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
     friend class World;
 };
@@ -306,11 +299,10 @@ private:
         : AggOp(Node_Extract, determine_type(agg, index), {agg, index}, name)
     {}
 
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
+
 public:
     static Type determine_type(Def agg, Def index);
-
-private:
-    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
     friend class World;
 };
@@ -321,11 +313,10 @@ private:
         : AggOp(Node_Insert, agg->type(), {agg, index, value}, name)
     {}
 
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
+
 public:
     Def value() const { return op(2); }
-
-private:
-    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
     friend class World;
 };
@@ -456,7 +447,8 @@ private:
 public:
     Def init() const { return op(0); }
     bool is_mutable() const { return is_mutable_; }
-    Type referenced_type() const; ///< Returns the type referenced by this \p Global's pointer type.
+    PtrType type() const { return PrimOp::type().as<PtrType>(); }
+    Type alloced_type() const { return type()->referenced_type(); }
     virtual const char* op_name() const override;
 
 private:
@@ -489,11 +481,11 @@ private:
 
 public:
     Def extra() const { return op(1); }
-    TupleType type() const { return MemOp::type().as<TupleType>(); }
-    PtrType alloced_ptr_type() const { return type()->arg(1).as<PtrType>(); }
-    Type alloced_referenced_type() const { return alloced_ptr_type()->referenced_type(); }
     virtual Def out_mem() const { return extract(0); }
     Def out_ptr() const { return extract(1); }
+    TupleType type() const { return MemOp::type().as<TupleType>(); }
+    PtrType out_ptr_type() const { return type()->arg(1).as<PtrType>(); }
+    Type alloced_type() const { return out_ptr_type()->referenced_type(); }
     static const Alloc* is_mem(Def def) { return is_out<0, Alloc>(def); }
     static const Alloc* is_ptr(Def def) { return is_out<1, Alloc>(def); }
 
@@ -522,6 +514,8 @@ private:
 public:
     virtual Def out_mem() const { return extract(0); }
     Def out_val() const { return extract(1); }
+    TupleType type() const { return MemOp::type().as<TupleType>(); }
+    Type out_val_type() const { return type()->arg(1); }
     static const Load* is_mem(Def def) { return is_out<0, Load>(def); }
     static const Load* is_val(Def def) { return is_out<1, Load>(def); }
 
@@ -537,12 +531,12 @@ private:
         : Access(Node_Store, mem->type(), {mem, ptr, value}, name)
     {}
 
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
+
 public:
     Def val() const { return op(2); }
     virtual Def out_mem() const override { return this; }
-
-private:
-    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
+    MemType type() const { return type().as<MemType>(); }
 
     friend class World;
 };
@@ -551,14 +545,14 @@ class Enter : public MemOp {
 private:
     Enter(Def mem, const std::string& name);
 
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
+
 public:
+    TupleType type() const { return MemOp::type().as<TupleType>(); }
     virtual Def out_mem() const { return extract(0); }
     Def out_frame() const { return extract(1); }
     static const Enter* is_mem(Def def) { return is_out<0, Enter>(def); }
     static const Enter* is_ptr(Def def) { return is_out<1, Enter>(def); }
-
-private:
-    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
     friend class World;
 };
@@ -574,19 +568,19 @@ class Map : public MapOp {
 private:
     Map(int32_t device, AddressSpace addr_space, Def mem, Def ptr, Def offset, Def size, const std::string& name);
 
+    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
+
 public:
     Def mem_offset() const { return op(2); }
     Def mem_size() const { return op(3); }
-    PtrType ptr_type() const { return type().as<TupleType>()->arg(1).as<PtrType>(); }
-    AddressSpace addr_space() const { return ptr_type()->addr_space(); }
-    int32_t device() const { return ptr_type()->device(); }
     virtual Def out_mem() const { return extract(0); }
     Def out_ptr() const { return extract(1); }
+    TupleType type() const { return MapOp::type().as<TupleType>(); }
+    PtrType out_ptr_type() const { return type()->arg(1).as<PtrType>(); }
+    AddressSpace addr_space() const { return out_ptr_type()->addr_space(); }
+    int32_t device() const { return out_ptr_type()->device(); }
     static const Map* is_mem(Def def) { return is_out<0, Map>(def); }
     static const Map* is_ptr(Def def) { return is_out<1, Map>(def); }
-
-private:
-    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
     friend class World;
 };
@@ -601,6 +595,7 @@ private:
 
 public:
     virtual Def out_mem() const override { return this; }
+    MemType type() const { return MapOp::type().as<MemType>(); }
 
     friend class World;
 };

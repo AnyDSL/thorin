@@ -669,10 +669,10 @@ llvm::Value* CodeGen::emit(Def def) {
 
     if (auto alloc = def->isa<Alloc>()) { // TODO factor this code
         auto llvm_malloc = module_->getOrInsertFunction(get_alloc_name(), builder_.getInt8PtrTy(), builder_.getInt64Ty(), nullptr);
-        auto alloced_type = convert(alloc->alloced_referenced_type());
+        auto alloced_type = convert(alloc->alloced_type());
         llvm::CallInst* void_ptr;
         auto layout = llvm::DataLayout(module_->getDataLayout());
-        if (auto array = alloc->alloced_referenced_type()->is_indefinite()) {
+        if (auto array = alloc->alloced_type()->is_indefinite()) {
             auto size = builder_.CreateAdd(
                     builder_.getInt64(layout.getTypeAllocSize(alloced_type)),
                     builder_.CreateMul(builder_.CreateIntCast(lookup(alloc->extra()), builder_.getInt64Ty(), false),
@@ -681,7 +681,7 @@ llvm::Value* CodeGen::emit(Def def) {
         } else
             void_ptr = builder_.CreateCall(llvm_malloc, builder_.getInt64(layout.getTypeAllocSize(alloced_type)));
 
-        return builder_.CreatePointerCast(void_ptr, convert(alloc->alloced_ptr_type()));
+        return builder_.CreatePointerCast(void_ptr, convert(alloc->out_ptr_type()));
     }
 
     if (auto load = def->isa<Load>())    return emit_load(load);
@@ -707,7 +707,7 @@ llvm::Value* CodeGen::emit(Def def) {
         if (auto lambda = global->init()->isa_lambda())
             val = fcts_[lambda];
         else {
-            auto llvm_type = convert(global->referenced_type());
+            auto llvm_type = convert(global->alloced_type());
             auto var = llvm::cast<llvm::GlobalVariable>(module_->getOrInsertGlobal(global->name, llvm_type));
             if (global->init()->isa<Bottom>())
                 var->setInitializer(llvm::Constant::getNullValue(llvm_type)); // HACK
@@ -743,12 +743,12 @@ llvm::Value* CodeGen::emit_lea(Def def) {
 llvm::Value* CodeGen::emit_mmap(Def def) {
     auto mmap = def->as<Map>();
     // emit proper runtime call
-    auto ref_ty = mmap->ptr_type()->referenced_type();
+    auto ref_ty = mmap->out_ptr_type()->referenced_type();
     Type type;
     if (auto array = ref_ty->is_indefinite())
         type = array->elem_type();
     else
-        type = mmap->ptr_type()->referenced_type();
+        type = mmap->out_ptr_type()->referenced_type();
     auto layout = llvm::DataLayout(module_->getDataLayout());
     auto size = builder_.getInt32(layout.getTypeAllocSize(convert(type)));
     return runtime_->mmap(mmap->device(), (uint32_t)mmap->addr_space(), lookup(mmap->ptr()),
@@ -770,7 +770,7 @@ llvm::Value* CodeGen::emit_shared_mmap(Def def, bool prefix) {
     auto num_elems = mmap->mem_size()->as<PrimLit>()->ps32_value();
 
     // construct array type
-    auto elem_type = mmap->ptr_type()->referenced_type().as<ArrayType>()->elem_type();
+    auto elem_type = mmap->out_ptr_type()->referenced_type().as<ArrayType>()->elem_type();
     auto type = this->convert(mmap->world().definite_array_type(elem_type, num_elems));
     auto global = emit_global_memory(type, (prefix ? entry_->name + "." : "") + mmap->unique_name(), 3);
     return global;

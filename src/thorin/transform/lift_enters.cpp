@@ -17,11 +17,11 @@ static const Enter* find_enter(Def def) {
 static void find_enters(Lambda* lambda, std::vector<const Enter*>& enters) {
     if (auto param = lambda->mem_param()) {
         for (Def cur = param; cur;) {
-            if (auto enter = find_enter(cur))
-                enters.push_back(enter);
-
             if (auto memop = cur->isa<MemOp>())
                 cur = memop->out_mem();
+
+            if (auto enter = find_enter(cur))
+                enters.push_back(enter);
 
             for (auto use : cur->uses()) {
                 cur = nullptr;
@@ -59,6 +59,7 @@ static void lift_enters(const Scope& scope) {
             auto slot = use->as<Slot>();
             slot->replace(world.slot(slot->alloced_type(), frame, index++, slot->name));
         }
+        assert(!old_enter->is_proxy());
         old_enter->out_mem()->replace(old_enter->mem());
     }
 

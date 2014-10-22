@@ -40,9 +40,16 @@ fn rsqrtf(a: f32) -> f32 { 1.0f / sqrtf(a) }
 fn rsqrt(a: f64) -> f64 { 1.0 / sqrt(a) }
 
 fn get_vector_length() -> int { 8 }
-fn inner_loop(a : int, b : int, yield : fn(int, fn())) -> () {
-    for vectorize(b-a, @get_vector_length()) {
-        let x = wfv_get_tid() + a;
+fn inner_loop(lower: int, upper: int, yield: fn(int, fn())) -> () {
+    // TODO: make sure lower and upper are a multiple of vector length
+    for vectorize(@get_vector_length(), lower, upper) {
+        yield(wfv_get_tid());
+    }
+}
+fn inner_loop_step(lower: int, upper: int, step: int, yield: fn(int, fn())) -> () {
+    // TODO: make sure lower and upper are a multiple of vector length
+    for vectorize(@get_vector_length(), 0, (upper-lower)/step) {
+        let x = wfv_get_tid() * step + lower;
         yield(x);
     }
 }

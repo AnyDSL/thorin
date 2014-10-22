@@ -18,23 +18,33 @@ llvm::Function* CodeGen::get_vectorize_tid() {
     return module_->getFunction(vectorize_intrinsic_name);
 }
 
+enum {
+    ARG_MEM,
+    ARG_LENGTH,
+    ARG_LOWER,
+    ARG_UPPER,
+    ARG_BODY,
+    ARG_RETURN,
+    NUM_ARGS
+};
+
 Lambda* CodeGen::emit_vectorize_continuation(Lambda* lambda) {
     auto target = lambda->to()->as_lambda();
-    assert(lambda->num_args() > 5 && "required arguments are missing");
+    assert(lambda->num_args() > NUM_ARGS && "required arguments are missing");
     assert(target->intrinsic() == Intrinsic::Vectorize);
 
     // vector length
-    auto count = lookup(lambda->arg(1));
-    u32 vector_length = lambda->arg(2)->as<PrimLit>()->qu32_value();
-    auto kernel = lambda->arg(3)->as<Global>()->init()->as_lambda();
+    u32 vector_length = lambda->arg(ARG_LENGTH)->as<PrimLit>()->qu32_value();
+    auto lower = lookup(lambda->arg(ARG_LOWER));
+    auto upper = lookup(lambda->arg(ARG_UPPER));
+    auto kernel = lambda->arg(ARG_BODY)->as<Global>()->init()->as_lambda();
 
-    const size_t arg_index = 5;
-    const size_t num_args = lambda->num_args() - arg_index;
+    const size_t num_kernel_args = lambda->num_args() - NUM_ARGS;
 
     // build simd-function signature
-    Array<llvm::Type*> simd_args(num_args);
-    for (size_t i = 0; i < num_args; ++i) {
-        Type type = lambda->arg(i + arg_index)->type();
+    Array<llvm::Type*> simd_args(num_kernel_args);
+    for (size_t i = 0; i < num_kernel_args; ++i) {
+        Type type = lambda->arg(i + NUM_ARGS)->type();
         simd_args[i] = convert(type);
     }
 
@@ -48,20 +58,19 @@ Lambda* CodeGen::emit_vectorize_continuation(Lambda* lambda) {
     auto exit = llvm::BasicBlock::Create(context_, "vec_exit", llvm_entry);
     // create loop phi and connect init value
     auto loop_counter = llvm::PHINode::Create(builder_.getInt32Ty(), 2U, "vector_loop_phi", head);
-    auto i = builder_.getInt32(0);
-    loop_counter->addIncoming(i, builder_.GetInsertBlock());
+    loop_counter->addIncoming(lower, builder_.GetInsertBlock());
     // connect head
     builder_.CreateBr(head);
     builder_.SetInsertPoint(head);
     // create conditional branch
-    auto cond = builder_.CreateICmpSLT(loop_counter, count);
+    auto cond = builder_.CreateICmpSLT(loop_counter, upper);
     builder_.CreateCondBr(cond, body, exit);
     // set body
     builder_.SetInsertPoint(body);
-    Array<llvm::Value*> args(num_args);
-    for (size_t i = 0; i < num_args; ++i) {
+    Array<llvm::Value*> args(num_kernel_args);
+    for (size_t i = 0; i < num_kernel_args; ++i) {
         // check target type
-        Def arg = lambda->arg(i + arg_index);
+        Def arg = lambda->arg(i + NUM_ARGS);
         auto llvm_arg = lookup(arg);
         if (arg->type().isa<PtrType>())
             llvm_arg = builder_.CreateBitCast(llvm_arg, simd_args[i]);
@@ -75,7 +84,7 @@ Lambda* CodeGen::emit_vectorize_continuation(Lambda* lambda) {
     builder_.SetInsertPoint(exit);
 
     wfv_todo_.emplace_back(vector_length, loop_counter, emit_function_decl(kernel), simd_kernel_call);
-    return lambda->arg(4)->as_lambda();
+    return lambda->arg(ARG_RETURN)->as_lambda();
 }
 
 void CodeGen::emit_vectorize(u32 vector_length, llvm::Value* loop_counter, llvm::Function* kernel_func, llvm::CallInst* simd_kernel_call) {

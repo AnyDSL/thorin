@@ -7,8 +7,6 @@
 
 namespace thorin {
 
-template<int i, class T> const T* is_out(Def def);
-
 //------------------------------------------------------------------------------
 
 class PrimOp : public DefNode {
@@ -22,7 +20,7 @@ protected:
     }
 
     void set_type(Type type) { type_ = type.unify(); }
-    Def extract(int i) const;
+    Def out(int i) const;
 
 public:
     bool is_outdated() const { return is_outdated_; }
@@ -39,6 +37,8 @@ protected:
     virtual size_t vhash() const;
     virtual bool equal(const PrimOp* other) const;
     virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const = 0;
+    /// Is \p def the \p i^th result of a \p T \p PrimOp?
+    template<int i, class T> inline static const T* is_out(Def def);
 
 private:
     size_t hash() const { return hash_ == 0 ? hash_ = vhash() : hash_; }
@@ -477,13 +477,13 @@ private:
 
 public:
     Def extra() const { return op(1); }
-    virtual Def out_mem() const { return extract(0); }
-    Def out_ptr() const { return extract(1); }
+    virtual Def out_mem() const { return out(0); }
+    Def out_ptr() const { return out(1); }
     TupleType type() const { return MemOp::type().as<TupleType>(); }
     PtrType out_ptr_type() const { return type()->arg(1).as<PtrType>(); }
     Type alloced_type() const { return out_ptr_type()->referenced_type(); }
-    static const Alloc* is_mem(Def def) { return is_out<0, Alloc>(def); }
-    static const Alloc* is_ptr(Def def) { return is_out<1, Alloc>(def); }
+    static const Alloc* is_out_mem(Def def) { return is_out<0, Alloc>(def); }
+    static const Alloc* is_out_ptr(Def def) { return is_out<1, Alloc>(def); }
 
 private:
     virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
@@ -508,12 +508,12 @@ private:
     Load(Def mem, Def ptr, const std::string& name);
 
 public:
-    virtual Def out_mem() const { return extract(0); }
-    Def out_val() const { return extract(1); }
+    virtual Def out_mem() const { return out(0); }
+    Def out_val() const { return out(1); }
     TupleType type() const { return MemOp::type().as<TupleType>(); }
     Type out_val_type() const { return type()->arg(1); }
-    static const Load* is_mem(Def def) { return is_out<0, Load>(def); }
-    static const Load* is_val(Def def) { return is_out<1, Load>(def); }
+    static const Load* is_out_mem(Def def) { return is_out<0, Load>(def); }
+    static const Load* is_out_val(Def def) { return is_out<1, Load>(def); }
 
 private:
     virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
@@ -545,10 +545,10 @@ private:
 
 public:
     TupleType type() const { return MemOp::type().as<TupleType>(); }
-    virtual Def out_mem() const { return extract(0); }
-    Def out_frame() const { return extract(1); }
-    static const Enter* is_mem(Def def) { return is_out<0, Enter>(def); }
-    static const Enter* is_ptr(Def def) { return is_out<1, Enter>(def); }
+    virtual Def out_mem() const { return out(0); }
+    Def out_frame() const { return out(1); }
+    static const Enter* is_out_mem(Def def) { return is_out<0, Enter>(def); }
+    static const Enter* is_out_ptr(Def def) { return is_out<1, Enter>(def); }
 
     friend class World;
 };
@@ -569,14 +569,14 @@ private:
 public:
     Def mem_offset() const { return op(2); }
     Def mem_size() const { return op(3); }
-    virtual Def out_mem() const { return extract(0); }
-    Def out_ptr() const { return extract(1); }
+    virtual Def out_mem() const { return out(0); }
+    Def out_ptr() const { return out(1); }
     TupleType type() const { return MapOp::type().as<TupleType>(); }
     PtrType out_ptr_type() const { return type()->arg(1).as<PtrType>(); }
     AddressSpace addr_space() const { return out_ptr_type()->addr_space(); }
     int32_t device() const { return out_ptr_type()->device(); }
-    static const Map* is_mem(Def def) { return is_out<0, Map>(def); }
-    static const Map* is_ptr(Def def) { return is_out<1, Map>(def); }
+    static const Map* is_out_mem(Def def) { return is_out<0, Map>(def); }
+    static const Map* is_out_ptr(Def def) { return is_out<1, Map>(def); }
 
     friend class World;
 };
@@ -608,9 +608,8 @@ T DefNode::primlit_value() const {
     }
 }
 
-/// Is \p def the \p i^th result of a \p T \p PrimOp?
 template<int i, class T>
-const T* is_out(Def def) {
+const T* PrimOp::is_out(Def def) {
     if (auto extract = def->isa<Extract>()) {
         if (extract->index()->is_primlit(i)) {
             if (auto res = extract->agg()->isa<T>())

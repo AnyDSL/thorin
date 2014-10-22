@@ -142,7 +142,7 @@ Def IRBuilder::extract(Def agg, u32 index, const std::string& name) {
 }
 
 Def IRBuilder::extract(Def agg, Def index, const std::string& name) {
-    if (auto ld = Load::is_val(agg))
+    if (auto ld = Load::is_out_val(agg))
         return load(world().lea(ld->ptr(), index, ld->name));
     return world().extract(agg, index, name);
 }

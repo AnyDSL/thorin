@@ -1,7 +1,6 @@
 #include "thorin/world.h"
 #include "thorin/analyses/verify.h"
 #include "thorin/util/queue.h"
-#include "thorin/be/thorin.h"
 
 namespace thorin {
 

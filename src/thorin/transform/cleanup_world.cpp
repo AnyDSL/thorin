@@ -159,7 +159,7 @@ void Cleaner::cleanup() {
 
 #ifndef NDEBUG
     for (auto primop : world().primops())
-        assert(primop->up_to_date_);
+        assert(!primop->is_outdated());
 #endif
 
     debug_verify(world());

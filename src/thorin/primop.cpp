@@ -257,7 +257,7 @@ const char* Cmp::op_name() const {
  */
 
 Def PrimOp::rebuild() const {
-    if (!up_to_date_) {
+    if (is_outdated()) {
         Array<Def> ops(size());
         for (size_t i = 0, e = size(); i != e; ++i)
             ops[i] = op(i)->rebuild();

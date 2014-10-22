@@ -161,8 +161,8 @@ void DefNode::replace(Def with) const {
             auto def = pop(queue);
             for (auto use : def->uses_) {
                 if (auto uprimop = use.def().node()->isa<PrimOp>()) {
-                    if (uprimop->up_to_date_) {
-                        uprimop->up_to_date_ = false;
+                    if (!uprimop->is_outdated()) {
+                        uprimop->is_outdated_ = true;
                         queue.push(uprimop);
                     }
                 }

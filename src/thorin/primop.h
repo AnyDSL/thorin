@@ -15,7 +15,7 @@ class PrimOp : public DefNode {
 protected:
     PrimOp(NodeKind kind, Type type, ArrayRef<Def> args, const std::string& name)
         : DefNode(-1, kind, type ? type.unify() : nullptr, args.size(), name)
-        , up_to_date_(true)
+        , is_outdated_(false)
     {
         for (size_t i = 0, e = size(); i != e; ++i)
             set_op(i, args[i]);
@@ -24,7 +24,7 @@ protected:
     void set_type(Type type) { type_ = type.unify(); }
 
 public:
-    bool up_to_date() const { return up_to_date_; }
+    bool is_outdated() const { return is_outdated_; }
     virtual Def rebuild() const override;
     Def rebuild(World& to, ArrayRef<Def> ops, Type type) const {
         assert(this->size() == ops.size());
@@ -45,7 +45,7 @@ private:
 
     mutable size_t hash_ = 0;
     mutable uint32_t live_ = 0;
-    mutable bool up_to_date_ : 1;
+    mutable bool is_outdated_ : 1;
 
     friend struct PrimOpHash;
     friend struct PrimOpEqual;

@@ -32,7 +32,7 @@ private:
     std::ostream& emit_type(Type);
     std::ostream& emit(Def def);
     bool lookup(size_t gid);
-    void insert(size_t gid, std::string str);
+    std::ostream& insert(size_t gid, std::string str);
     std::string &get_name(size_t gid);
     bool is_texture_type(Type type);
     bool process_kernel_ = false;
@@ -158,6 +158,7 @@ std::ostream& CCodeGen::emit_aggop_defs(Def def) {
 
 std::ostream& CCodeGen::emit_aggop_decl(Type type) {
     type.unify(); // make sure that we get the same id if types are equal
+
     if (lookup(type->gid())) return stream();
 
     if (auto ptr = type.isa<PtrType>()) {
@@ -178,7 +179,7 @@ std::ostream& CCodeGen::emit_aggop_decl(Type type) {
         emit_aggop_decl(array->elem_type());
         emit_type(array);
         insert(type->gid(), "array_" + std::to_string(type->gid()));
-        newline();
+        return newline();
     }
 
     // recurse into (multi-dimensional) tuple
@@ -186,7 +187,7 @@ std::ostream& CCodeGen::emit_aggop_decl(Type type) {
         for (auto arg : tuple->args()) emit_aggop_decl(arg);
         emit_type(tuple);
         insert(type->gid(), "tuple_" + std::to_string(type->gid()));
-        newline();
+        return newline();
     }
 
     // recurse into (multi-dimensional) struct
@@ -194,7 +195,7 @@ std::ostream& CCodeGen::emit_aggop_decl(Type type) {
         for (auto elem : struct_app->elems()) emit_aggop_decl(elem);
         emit_type(struct_app);
         insert(type->gid(), "struct_" + std::to_string(type->gid()));
-        newline();
+        return newline();
     }
 
     return stream();
@@ -233,13 +234,13 @@ void CCodeGen::emit() {
             }
 
             for (auto primop : schedule[lambda]) {
-                if (primop->isa<MemOp>() ||
-                    primop->type().isa<MemType>() || primop->type().isa<FrameType>()) continue;
-                emit_aggop_decl(primop->type());
-                // search for inlined tuples/arrays
-                if (auto aggop = primop->isa<AggOp>()) {
-                    if (aggop->agg()->isa<MemOp>()) continue;
-                    emit_aggop_decl(aggop->agg()->type());
+                if (!primop->isa<MemOp>()) {
+                    emit_aggop_decl(primop->type());
+                    // search for inlined tuples/arrays
+                    if (auto aggop = primop->isa<AggOp>()) {
+                        if (!aggop->agg()->isa<MemOp>())
+                            emit_aggop_decl(aggop->agg()->type());
+                    }
                 }
             }
         }
@@ -569,8 +570,7 @@ std::ostream& CCodeGen::emit(Def def) {
         }
         emit(bin->rhs());
         stream() << ";";
-        insert(def->gid(), def->unique_name());
-        return stream();
+        return insert(def->gid(), def->unique_name());
     }
 
     if (auto conv = def->isa<ConvOp>()) {
@@ -578,8 +578,7 @@ std::ostream& CCodeGen::emit(Def def) {
         newline() << conv->unique_name() << " = (";
         emit_type(conv->type()) << ")";
         emit(conv->from()) << ";";
-        insert(def->gid(), def->unique_name());
-        return stream();
+        return insert(def->gid(), def->unique_name());
     }
 
     if (auto array = def->isa<DefiniteArray>()) { // DefArray is mapped to a struct
@@ -591,8 +590,7 @@ std::ostream& CCodeGen::emit(Def def) {
             newline() << array->unique_name() << ".e[" << i << "] = ";
             emit(array->op(i)) << ";";
         }
-        insert(def->gid(), def->unique_name());
-        return stream();
+        return insert(def->gid(), def->unique_name());
     }
 
     if (auto agg = def->isa<Aggregate>()) {
@@ -605,10 +603,41 @@ std::ostream& CCodeGen::emit(Def def) {
             newline() << agg->unique_name() << ".e" << i << " = ";
             emit(agg->op(i)) << ";";
         }
-        insert(def->gid(), def->unique_name());
-        return stream();
+        return insert(def->gid(), def->unique_name());
     }
 
+    if (auto aggop = def->isa<AggOp>()) {
+        auto emit_access = [&] () {
+            if (aggop->agg()->type().isa<ArrayType>()) {
+                emit(aggop->agg()) << ".e[";
+                emit(aggop->index()) << "];";
+            } else if (aggop->agg()->type().isa<TupleType>() || aggop->agg()->type().isa<StructAppType>()) {
+                emit(aggop->agg()) << ".e";
+                emit(aggop->index()) << ";";
+            } else {
+                THORIN_UNREACHABLE;
+            }
+        };
+
+        if (auto extract = aggop->isa<Extract>()) {
+            if (extract->type().isa<MemType>() || extract->type().isa<FrameType>())
+                return stream();
+            if (auto memop = extract->agg()->isa<MemOp>())
+                emit(memop) << ";";
+
+            emit_type(aggop->type()) << " " << aggop->unique_name() << ";";
+            newline() << aggop->unique_name() << " = ";
+            emit_access();
+            return insert(def->gid(), def->unique_name());
+        }
+
+        auto ins = def->as<Insert>();
+        emit(ins->index()) << ";";
+        emit_access();
+        return insert(def->gid(), ins->agg()->unique_name());
+    }
+
+#if 0
     if (auto aggop = def->isa<AggOp>()) {
         // emit definitions of inlined elements
         emit_aggop_defs(aggop->agg());
@@ -650,6 +679,7 @@ std::ostream& CCodeGen::emit(Def def) {
 
         return stream();
     }
+#endif
 
     if (auto primlit = def->isa<PrimLit>()) {
         auto kind = primlit->primtype_kind();
@@ -683,8 +713,7 @@ std::ostream& CCodeGen::emit(Def def) {
         if (!is_texture_type(load->ptr()->type())) stream() << "*";
         emit(load->ptr()) << ";";
 
-        insert(def->gid(), def->unique_name());
-        return stream();
+        return insert(def->gid(), def->unique_name());
     }
 
     if (auto store = def->isa<Store>()) {
@@ -693,8 +722,7 @@ std::ostream& CCodeGen::emit(Def def) {
         emit(store->ptr()) << " = ";
         emit(store->val()) << ";";
 
-        insert(def->gid(), def->unique_name());
-        return stream();
+        return insert(def->gid(), def->unique_name());
     }
 
     if (auto slot = def->isa<Slot>()) {
@@ -702,8 +730,7 @@ std::ostream& CCodeGen::emit(Def def) {
         newline();
         emit_type(slot->alloced_type()) << "* " << slot->unique_name() << ";";
         newline() << slot->unique_name() << " = &" << slot->unique_name() << "_slot;";
-        insert(def->gid(), def->unique_name());
-        return stream();
+        return insert(def->gid(), def->unique_name());
     }
 
     if (def->isa<Enter>())
@@ -737,8 +764,7 @@ std::ostream& CCodeGen::emit(Def def) {
             }
         }
 
-        insert(def->gid(), def->unique_name());
-        return stream();
+        return insert(def->gid(), def->unique_name());
     }
 
     if (auto global = def->isa<Global>()) {
@@ -758,8 +784,7 @@ std::ostream& CCodeGen::emit(Def def) {
         if (lang_==OPENCL) stream() << "__constant ";
         emit_type(global->alloced_type()) << " *" << global->unique_name() << " = &" << global->unique_name() << "_slot;";
 
-        insert(def->gid(), def->unique_name());
-        return stream();
+        return insert(def->gid(), def->unique_name());
     }
 
     if (auto map = def->isa<Map>()) {
@@ -781,8 +806,7 @@ std::ostream& CCodeGen::emit(Def def) {
         emit_type(map->out_ptr_type()->referenced_type()) << " " << map->unique_name() << "[";
         emit(map->mem_size()) << "];";
 
-        insert(def->gid(), def->unique_name());
-        return stream();
+        return insert(def->gid(), def->unique_name());
     }
 
     THORIN_UNREACHABLE;
@@ -793,15 +817,21 @@ bool CCodeGen::lookup(size_t gid) {
     if (primops_.count(gid)) return true;
     return false;
 }
+
 std::string &CCodeGen::get_name(size_t gid) {
     if (globals_.count(gid)) return globals_[gid];
     if (primops_.count(gid)) return primops_[gid];
     assert(false && "couldn't find def");
 }
-void CCodeGen::insert(size_t gid, std::string str) {
-    if (process_kernel_) primops_[gid] = str;
-    else globals_[gid] = str;
+
+std::ostream& CCodeGen::insert(size_t gid, std::string str) {
+    if (process_kernel_) 
+        primops_[gid] = str;
+    else 
+        globals_[gid] = str;
+    return stream();
 }
+
 bool CCodeGen::is_texture_type(Type type) {
     if (auto ptr = type.isa<PtrType>()) {
         if (ptr->addr_space()==AddressSpace::Texture) {
@@ -811,7 +841,6 @@ bool CCodeGen::is_texture_type(Type type) {
     }
     return false;
 }
-
 
 //------------------------------------------------------------------------------
 

@@ -54,13 +54,12 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention
     , function_calling_convention_(function_calling_convention)
     , device_calling_convention_(device_calling_convention)
     , kernel_calling_convention_(kernel_calling_convention)
-{
-    runtime_ = new GenericRuntime(context_, module_, builder_);
-    cuda_runtime_ = new CUDARuntime(context_, module_, builder_);
-    nvvm_runtime_ = new NVVMRuntime(context_, module_, builder_);
-    spir_runtime_ = new SPIRRuntime(context_, module_, builder_);
-    opencl_runtime_ = new OpenCLRuntime(context_, module_, builder_);
-}
+    , runtime_(new GenericRuntime(context_, module_, builder_))
+    , cuda_runtime_(new CUDARuntime(context_, module_, builder_))
+    , nvvm_runtime_(new NVVMRuntime(context_, module_, builder_))
+    , spir_runtime_(new SPIRRuntime(context_, module_, builder_))
+    , opencl_runtime_(new OpenCLRuntime(context_, module_, builder_))
+{}
 
 Lambda* CodeGen::emit_intrinsic(Lambda* lambda) {
     Lambda* to = lambda->to()->as_lambda();
@@ -605,7 +604,7 @@ llvm::Value* CodeGen::emit(Def def) {
                 if (extract->type().isa<MemType>() || extract->type().isa<FrameType>())
                     return nullptr;
                 auto agg_type = extract->agg()->type();
-                if (auto agg_tuple = agg_type.isa<TupleType>()) {
+                if (agg_type.isa<TupleType>()) {
                     if (auto memop = extract->agg()->isa<MemOp>()) {
                         assert(extract->index()->is_primlit(1));
                         return lookup(memop);

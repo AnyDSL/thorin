@@ -623,13 +623,13 @@ std::ostream& CCodeGen::emit(Def def) {
                 if (aggop->agg()->type().isa<TupleType>() ||
                     aggop->agg()->type().isa<StructAppType>()) {
                     emit(aggop->agg()) << ".e";
+                    emit(aggop->index()) << ";";
                 } else if (aggop->agg()->type().isa<ArrayType>()) {
                     emit(aggop->agg()) << ".e[";
                     emit(aggop->index()) << "];";
                 } else {
                     THORIN_UNREACHABLE;
                 }
-                emit(aggop->index()) << ";";
             }
             insert(def->gid(), def->unique_name());
         } else {
@@ -637,13 +637,13 @@ std::ostream& CCodeGen::emit(Def def) {
             if (aggop->agg()->type().isa<TupleType>() ||
                 aggop->agg()->type().isa<StructAppType>()) {
                 emit(aggop->agg()) << ".e";
+                emit(aggop->index()) << " = ";
             } else if (aggop->agg()->type().isa<ArrayType>()) {
                 emit(aggop->agg()) << ".e[";
-                emit(aggop->index()) << "];";
+                emit(aggop->index()) << "] = ";
             } else {
                 THORIN_UNREACHABLE;
             }
-            emit(aggop->index()) << " = ";
             emit(aggop->as<Insert>()->value()) << ";";
             insert(def->gid(), aggop->agg()->unique_name());
         }

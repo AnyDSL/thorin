@@ -622,12 +622,12 @@ std::ostream& CCodeGen::emit(Def def) {
         if (auto extract = aggop->isa<Extract>()) {
             if (extract->type().isa<MemType>() || extract->type().isa<FrameType>())
                 return stream();
-            if (auto memop = extract->agg()->isa<MemOp>())
-                emit(memop) << ";";
-
             emit_type(aggop->type()) << " " << aggop->unique_name() << ";";
             newline() << aggop->unique_name() << " = ";
-            emit_access();
+            if (auto memop = extract->agg()->isa<MemOp>())
+                emit(memop) << ";";
+            else
+                emit_access();
             return insert(def->gid(), def->unique_name());
         }
 
@@ -636,50 +636,6 @@ std::ostream& CCodeGen::emit(Def def) {
         emit_access();
         return insert(def->gid(), ins->agg()->unique_name());
     }
-
-#if 0
-    if (auto aggop = def->isa<AggOp>()) {
-        // emit definitions of inlined elements
-        emit_aggop_defs(aggop->agg());
-        if (auto extract = aggop->isa<Extract>()) {
-            if (extract->type().isa<MemType>() || extract->type().isa<FrameType>())
-                return stream();
-            emit_type(aggop->type()) << " " << aggop->unique_name() << ";";
-            newline() << aggop->unique_name() << " = ";
-            if (aggop->agg()->isa<MemOp>()) {
-                emit(aggop->agg()) << ";";
-            } else {
-                if (aggop->agg()->type().isa<TupleType>() ||
-                    aggop->agg()->type().isa<StructAppType>()) {
-                    emit(aggop->agg()) << ".e";
-                    emit(aggop->index()) << ";";
-                } else if (aggop->agg()->type().isa<ArrayType>()) {
-                    emit(aggop->agg()) << ".e[";
-                    emit(aggop->index()) << "];";
-                } else {
-                    THORIN_UNREACHABLE;
-                }
-            }
-            insert(def->gid(), def->unique_name());
-        } else {
-            emit(aggop->index()) << ";";
-            if (aggop->agg()->type().isa<TupleType>() ||
-                aggop->agg()->type().isa<StructAppType>()) {
-                emit(aggop->agg()) << ".e";
-                emit(aggop->index()) << " = ";
-            } else if (aggop->agg()->type().isa<ArrayType>()) {
-                emit(aggop->agg()) << ".e[";
-                emit(aggop->index()) << "] = ";
-            } else {
-                THORIN_UNREACHABLE;
-            }
-            emit(aggop->as<Insert>()->value()) << ";";
-            insert(def->gid(), aggop->agg()->unique_name());
-        }
-
-        return stream();
-    }
-#endif
 
     if (auto primlit = def->isa<PrimLit>()) {
         auto kind = primlit->primtype_kind();
@@ -825,9 +781,9 @@ std::string &CCodeGen::get_name(size_t gid) {
 }
 
 std::ostream& CCodeGen::insert(size_t gid, std::string str) {
-    if (process_kernel_) 
+    if (process_kernel_)
         primops_[gid] = str;
-    else 
+    else
         globals_[gid] = str;
     return stream();
 }

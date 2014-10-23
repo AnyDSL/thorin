@@ -615,7 +615,7 @@ llvm::Value* CodeGen::emit(Def def) {
 
             if (extract->agg()->type().isa<VectorType>())
                 return builder_.CreateExtractElement(llvm_agg, llvm_idx);
-
+            // tuple/struct
             return builder_.CreateExtractValue(llvm_agg, {aggop->index()->primlit_value<unsigned>()});
         }
 
@@ -629,7 +629,7 @@ llvm::Value* CodeGen::emit(Def def) {
         }
         if (insert->agg()->type().isa<VectorType>())
             return builder_.CreateInsertElement(llvm_agg, lookup(aggop->as<Insert>()->value()), llvm_idx);
-
+        // tuple/struct
         return builder_.CreateInsertValue(llvm_agg, value, {aggop->index()->primlit_value<unsigned>()});
     }
 

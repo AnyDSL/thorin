@@ -248,8 +248,8 @@ const char* Cmp::op_name() const {
  * misc
  */
 
-Def PrimOp::out(int i) const {
-    assert(type().isa<TupleType>());
+Def PrimOp::out(size_t i) const {
+    assert(i < type().as<TupleType>()->num_args());
     return world().extract(this, i); 
 }
 

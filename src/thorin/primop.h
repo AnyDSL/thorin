@@ -20,9 +20,9 @@ protected:
     }
 
     void set_type(Type type) { type_ = type.unify(); }
-    Def out(int i) const;
 
 public:
+    Def out(size_t i) const;
     bool is_outdated() const { return is_outdated_; }
     virtual Def rebuild() const override;
     Def rebuild(World& to, ArrayRef<Def> ops, Type type) const {

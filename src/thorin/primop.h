@@ -31,6 +31,7 @@ public:
     }
     Def rebuild(ArrayRef<Def> ops) const { return rebuild(world(), ops, type()); }
     Def rebuild(ArrayRef<Def> ops, Type type) const { return rebuild(world(), ops, type); }
+    virtual bool has_multiple_outs() const { return false; }
     virtual const char* op_name() const;
 
 protected:
@@ -468,7 +469,7 @@ protected:
 
 public:
     Def mem() const { return op(0); }
-    virtual Def out_mem() const = 0;
+    Def out_mem() const { return has_multiple_outs() ? out(0) : this; }
 };
 
 class Alloc : public MemOp {
@@ -477,7 +478,7 @@ private:
 
 public:
     Def extra() const { return op(1); }
-    virtual Def out_mem() const { return out(0); }
+    virtual bool has_multiple_outs() const { return true; }
     Def out_ptr() const { return out(1); }
     TupleType type() const { return MemOp::type().as<TupleType>(); }
     PtrType out_ptr_type() const { return type()->arg(1).as<PtrType>(); }
@@ -508,7 +509,7 @@ private:
     Load(Def mem, Def ptr, const std::string& name);
 
 public:
-    virtual Def out_mem() const { return out(0); }
+    virtual bool has_multiple_outs() const { return true; }
     Def out_val() const { return out(1); }
     TupleType type() const { return MemOp::type().as<TupleType>(); }
     Type out_val_type() const { return type()->arg(1); }
@@ -531,7 +532,6 @@ private:
 
 public:
     Def val() const { return op(2); }
-    virtual Def out_mem() const override { return this; }
     MemType type() const { return type().as<MemType>(); }
 
     friend class World;
@@ -545,7 +545,7 @@ private:
 
 public:
     TupleType type() const { return MemOp::type().as<TupleType>(); }
-    virtual Def out_mem() const { return out(0); }
+    virtual bool has_multiple_outs() const { return true; }
     Def out_frame() const { return out(1); }
     static const Enter* is_out_mem(Def def) { return is_out<0, Enter>(def); }
     static const Enter* is_out_ptr(Def def) { return is_out<1, Enter>(def); }
@@ -569,7 +569,7 @@ private:
 public:
     Def mem_offset() const { return op(2); }
     Def mem_size() const { return op(3); }
-    virtual Def out_mem() const { return out(0); }
+    virtual bool has_multiple_outs() const { return true; }
     Def out_ptr() const { return out(1); }
     TupleType type() const { return MapOp::type().as<TupleType>(); }
     PtrType out_ptr_type() const { return type()->arg(1).as<PtrType>(); }
@@ -590,7 +590,6 @@ private:
     virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
 public:
-    virtual Def out_mem() const override { return this; }
     MemType type() const { return MapOp::type().as<MemType>(); }
 
     friend class World;

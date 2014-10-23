@@ -594,52 +594,47 @@ llvm::Value* CodeGen::emit(Def def) {
     }
 
     if (auto aggop = def->isa<AggOp>()) {
-        auto agg = lookup(aggop->agg());
-        auto idx = lookup(aggop->index());
-
-        if (aggop->agg()->type().isa<TupleType>() || aggop->agg()->type().isa<StructAppType>()) {
-            unsigned i = aggop->index()->primlit_value<unsigned>();
-
-            if (auto extract = aggop->isa<Extract>()) {
-                if (extract->type().isa<MemType>() || extract->type().isa<FrameType>())
-                    return nullptr;
-                auto agg_type = extract->agg()->type();
-                if (agg_type.isa<TupleType>()) {
-                    if (auto memop = extract->agg()->isa<MemOp>()) {
-                        assert(extract->index()->is_primlit(1));
-                        return lookup(memop);
-                    }
-                }
-                return builder_.CreateExtractValue(agg, { i });
-            }
-
-            auto insert = def->as<Insert>();
-            auto value = lookup(insert->value());
-
-            return builder_.CreateInsertValue(agg, value, { i });
-        } else if (aggop->agg()->type().isa<ArrayType>()) {
-            // TODO use llvm::ConstantArray if applicable
+        auto llvm_agg = lookup(aggop->agg());
+        auto llvm_idx = lookup(aggop->index());
+        auto copy_to_alloca = [&] () {
             std::cout << "warning: slow" << std::endl;
-            auto alloca = emit_alloca(agg->getType(), aggop->name);
-            builder_.CreateStore(agg, alloca);
+            auto alloca = emit_alloca(llvm_agg->getType(), aggop->name);
+            builder_.CreateStore(llvm_agg, alloca);
 
-            llvm::Value* args[2] = { builder_.getInt64(0), idx };
+            llvm::Value* args[2] = { builder_.getInt64(0), llvm_idx };
             auto gep = builder_.CreateInBoundsGEP(alloca, args);
+            return std::make_pair(alloca, gep);
+        };
 
-            if (aggop->isa<Extract>())
-                return builder_.CreateLoad(gep);
+        if (auto extract = aggop->isa<Extract>()) {
+            if (auto memop = extract->agg()->isa<MemOp>())
+                return lookup(memop);
 
-            builder_.CreateStore(lookup(aggop->as<Insert>()->value()), gep);
-            return builder_.CreateLoad(alloca);
-        } else {
-            if (aggop->isa<Extract>())
-                return builder_.CreateExtractElement(agg, idx);
-            return builder_.CreateInsertElement(agg, lookup(aggop->as<Insert>()->value()), idx);
+            if (aggop->agg()->type().isa<ArrayType>())
+                return builder_.CreateLoad(copy_to_alloca().second);
+
+            if (extract->agg()->type().isa<VectorType>())
+                return builder_.CreateExtractElement(llvm_agg, llvm_idx);
+
+            return builder_.CreateExtractValue(llvm_agg, {aggop->index()->primlit_value<unsigned>()});
         }
+
+        auto insert = def->as<Insert>();
+        auto value = lookup(insert->value());
+
+        if (insert->agg()->type().isa<ArrayType>()) {
+            auto p = copy_to_alloca();
+            builder_.CreateStore(lookup(aggop->as<Insert>()->value()), p.second);
+            return builder_.CreateLoad(p.first);
+        }
+        if (insert->agg()->type().isa<VectorType>())
+            return builder_.CreateInsertElement(llvm_agg, lookup(aggop->as<Insert>()->value()), llvm_idx);
+
+        return builder_.CreateInsertValue(llvm_agg, value, {aggop->index()->primlit_value<unsigned>()});
     }
 
     if (auto primlit = def->isa<PrimLit>()) {
-        llvm::Type* type = convert(primlit->type());
+        llvm::Type* llvm_type = convert(primlit->type());
         Box box = primlit->value();
 
         switch (primlit->primtype_kind()) {
@@ -652,8 +647,8 @@ llvm::Value* CodeGen::emit(Def def) {
             case PrimType_pu32: case PrimType_qu32: return builder_.getInt32(box.get_u32());
             case PrimType_ps64: case PrimType_qs64: return builder_.getInt64(box.get_s64());
             case PrimType_pu64: case PrimType_qu64: return builder_.getInt64(box.get_u64());
-            case PrimType_pf32: case PrimType_qf32: return llvm::ConstantFP::get(type, box.get_f32());
-            case PrimType_pf64: case PrimType_qf64: return llvm::ConstantFP::get(type, box.get_f64());
+            case PrimType_pf32: case PrimType_qf32: return llvm::ConstantFP::get(llvm_type, box.get_f32());
+            case PrimType_pf64: case PrimType_qf64: return llvm::ConstantFP::get(llvm_type, box.get_f64());
         }
     }
 

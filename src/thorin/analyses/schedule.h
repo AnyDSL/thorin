@@ -11,7 +11,8 @@ class PrimOp;
 
 typedef LambdaMap<std::vector<const PrimOp*>> Schedule;
 
-Schedule schedule_late(const Scope& scope);
+Schedule schedule_early(const Scope&);
+Schedule schedule_late(const Scope&);
 Schedule schedule_smart(const Scope&);
 
 }

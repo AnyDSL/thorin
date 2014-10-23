@@ -14,6 +14,33 @@ namespace thorin {
 typedef LambdaMap<std::vector<const PrimOp*>> Schedule;
 typedef DefMap<Lambda*> Def2Lambda;
 
+#ifndef NDEBUG
+static void verify(const Scope&, Schedule& ) {}
+#else
+static void verify(const Scope& scope, Schedule& schedule) {
+    auto domtree = scope.domtree();
+    LambdaMap<Def> lambda2mem;
+
+    for (auto lambda : scope) {
+        Def mem = lambda->mem_param();
+        mem = mem ? mem : lambda2mem[domtree->idom(lambda)];
+        for (auto primop : schedule[lambda]) {
+            if (auto memop = primop->isa<MemOp>()) {
+                if (memop->mem() != mem) {
+                    std::cout << "incorrect schedule:" << std::endl;
+                    memop->dump();
+                    std::cout << "current mem:" << std::endl;
+                    mem->dump();
+                }
+
+                mem = memop->out_mem();
+            }
+        }
+        lambda2mem[lambda] = mem;
+    }
+}
+#endif
+
 static Def2Lambda schedule_early(const Scope& scope) {
     Def2Lambda def2early;
     DefMap<int> def2num;
@@ -23,46 +50,45 @@ static Def2Lambda schedule_early(const Scope& scope) {
         if (auto primop = def->isa<PrimOp>()) {
             int num = 0;
             for (auto op : primop->ops()) {
-                if (scope.contains(op) && !op->isa_lambda() && def2early.find(op) == def2early.end())
+                if (scope.contains(op))
                     ++num;
             }
-            if (num == 0) // in scope but no operands
-                def2early[def] = scope.entry();
-            else
-                def2num[def] = num;
+            def2num[def] = num;
         }
     }
 
-    auto enqueue = [&] (Def def) {
-        queue.push(def);
+    auto enqueue_uses = [&] (Def def) {
+        for (auto use : def->uses()) {
+            if (auto primop = use->isa<PrimOp>()) {
+                if (scope.contains(primop)) {
+                    if (--def2num[primop] == 0)
+                        queue.push(primop);
+                }
+            }
+        }
     };
+
+    for (auto lambda : scope)
+        enqueue_uses(lambda);
 
     for (auto lambda : scope) {
         for (auto param : lambda->params()) {
             if (!param->is_proxy())
-                enqueue(param);
+                queue.push(param);
         }
 
         while (!queue.empty()) {
             auto def = pop(queue);
             if (auto primop = def->isa<PrimOp>())
                 def2early[primop] = lambda;
-
-            for (auto use : def->uses()) {
-                if (auto primop = use->isa<PrimOp>()) {
-                    if (scope.contains(primop)) {
-                        if (--def2num[primop] == 0)
-                            enqueue(primop);
-                    }
-                }
-            }
+            enqueue_uses(def);
         }
     }
 
     return def2early;
 }
 
-static Schedule schedule_late(const Scope& scope, const Def2Lambda& def2early) {
+Schedule schedule_late(const Scope& scope) {
     Def2Lambda def2late;
     DefMap<int> def2num;
     auto domtree = scope.domtree();
@@ -109,37 +135,6 @@ static Schedule schedule_late(const Scope& scope, const Def2Lambda& def2early) {
     for (auto& primops : schedule)
         std::reverse(primops.second.begin(), primops.second.end());
 
-    return schedule;
-}
-
-static void verify(const Scope& scope, Schedule& schedule) {
-#ifndef NDEBUG
-    auto domtree = scope.domtree();
-    LambdaMap<Def> lambda2mem;
-
-    for (auto lambda : scope) {
-        Def mem = lambda->mem_param();
-        mem = mem ? mem : lambda2mem[domtree->idom(lambda)];
-        for (auto primop : schedule[lambda]) {
-            if (auto memop = primop->isa<MemOp>()) {
-                if (memop->mem() != mem) {
-                    std::cout << "incorrect schedule:" << std::endl;
-                    memop->dump();
-                    std::cout << "current mem:" << std::endl;
-                    mem->dump();
-                }
-
-                mem = memop->out_mem();
-            }
-        }
-        lambda2mem[lambda] = mem;
-    }
-#endif
-}
-
-Schedule schedule_late(const Scope& scope) {
-    auto def2early = schedule_early(scope);
-    auto schedule = schedule_late(scope, def2early);
     verify(scope, schedule);
     return schedule;
 }
@@ -149,7 +144,7 @@ Schedule schedule_smart(const Scope& scope) {
     auto domtree = scope.domtree();
     auto looptree = scope.looptree();
     auto def2early = schedule_early(scope);
-    auto late = schedule_late(scope, def2early);
+    auto late = schedule_late(scope);
 
     for (auto lambda : scope) {
         for (auto primop : late[lambda]) {

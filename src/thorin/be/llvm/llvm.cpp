@@ -606,16 +606,10 @@ llvm::Value* CodeGen::emit(Def def) {
                     return nullptr;
                 auto agg_type = extract->agg()->type();
                 if (auto agg_tuple = agg_type.isa<TupleType>()) {
-                    if (auto load = extract->agg()->isa<Load>()) {
+                    if (auto memop = extract->agg()->isa<MemOp>()) {
                         assert(extract->index()->is_primlit(1));
-                        return lookup(load);
+                        return lookup(memop);
                     }
-                    // check for a memory-mapped extract
-                    // TODO: integrate memory-mappings in a nicer way :)
-                    if (agg_tuple->num_args() == 2 &&
-                        agg_tuple->arg(0).isa<MemType>() &&
-                        agg_tuple->arg(1).isa<PtrType>())
-                        return lookup(extract->agg());
                 }
                 return builder_.CreateExtractValue(agg, { i });
             }

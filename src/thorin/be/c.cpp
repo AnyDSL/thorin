@@ -183,12 +183,6 @@ std::ostream& CCodeGen::emit_aggop_decl(Type type) {
 
     // recurse into (multi-dimensional) tuple
     if (auto tuple = type.isa<TupleType>()) {
-        // check for a memory-mapped extract: map() -> (mem, [type]*[dev][mem])
-        if (tuple->num_args() == 2 &&
-            tuple->arg(0).isa<MemType>() && tuple->arg(1).isa<PtrType>()) {
-            insert(type->gid(), "");
-            return stream();
-        }
         for (auto arg : tuple->args()) emit_aggop_decl(arg);
         emit_type(tuple);
         insert(type->gid(), "tuple_" + std::to_string(type->gid()));
@@ -239,9 +233,12 @@ void CCodeGen::emit() {
             }
 
             for (auto primop : schedule[lambda]) {
+                if (primop->isa<MemOp>() ||
+                    primop->type().isa<MemType>() || primop->type().isa<FrameType>()) continue;
                 emit_aggop_decl(primop->type());
                 // search for inlined tuples/arrays
                 if (auto aggop = primop->isa<AggOp>()) {
+                    if (aggop->agg()->isa<MemOp>()) continue;
                     emit_aggop_decl(aggop->agg()->type());
                 }
             }
@@ -615,44 +612,40 @@ std::ostream& CCodeGen::emit(Def def) {
     if (auto aggop = def->isa<AggOp>()) {
         // emit definitions of inlined elements
         emit_aggop_defs(aggop->agg());
-        if (aggop->agg()->type().isa<TupleType>() ||
-            aggop->agg()->type().isa<StructAppType>()) {
-            if (auto extract = aggop->isa<Extract>()) {
-                emit_type(aggop->type()) << " " << aggop->unique_name() << ";";
-                newline() << aggop->unique_name() << " = ";
-                auto agg_type = extract->agg()->type();
-                auto agg_tuple = agg_type.isa<TupleType>();
-                // check for a memory-mapped extract: map() -> (mem, [type]*[dev][mem])
-                if (agg_tuple && agg_tuple->num_args() == 2 &&
-                    agg_tuple->arg(0).isa<MemType>() &&
-                    agg_tuple->arg(1).isa<PtrType>()) {
-                    emit(aggop->agg()) << ";";
-                } else {
-                    emit(aggop->agg()) << ".e";
-                    emit(aggop->index()) << ";";
-                }
-                insert(def->gid(), def->unique_name());
+        if (auto extract = aggop->isa<Extract>()) {
+            if (extract->type().isa<MemType>() || extract->type().isa<FrameType>())
+                return stream();
+            emit_type(aggop->type()) << " " << aggop->unique_name() << ";";
+            newline() << aggop->unique_name() << " = ";
+            if (aggop->agg()->isa<MemOp>()) {
+                emit(aggop->agg()) << ";";
             } else {
-                emit(aggop->agg()) << ".e";
-                emit(aggop->index()) << " = ";
-                emit(aggop->as<Insert>()->value()) << ";";
-                insert(def->gid(), aggop->agg()->unique_name());
+                if (aggop->agg()->type().isa<TupleType>() ||
+                    aggop->agg()->type().isa<StructAppType>()) {
+                    emit(aggop->agg()) << ".e";
+                } else if (aggop->agg()->type().isa<ArrayType>()) {
+                    emit(aggop->agg()) << ".e[";
+                    emit(aggop->index()) << "];";
+                } else {
+                    THORIN_UNREACHABLE;
+                }
+                emit(aggop->index()) << ";";
             }
-        } else if (aggop->agg()->type().isa<ArrayType>()) {
-            if (aggop->isa<Extract>()) {
-                emit_type(aggop->type()) << " " << aggop->unique_name() << ";";
-                newline() << aggop->unique_name() << " = ";
+            insert(def->gid(), def->unique_name());
+        } else {
+            emit(aggop->index()) << ";";
+            if (aggop->agg()->type().isa<TupleType>() ||
+                aggop->agg()->type().isa<StructAppType>()) {
+                emit(aggop->agg()) << ".e";
+            } else if (aggop->agg()->type().isa<ArrayType>()) {
                 emit(aggop->agg()) << ".e[";
                 emit(aggop->index()) << "];";
-                insert(def->gid(), def->unique_name());
             } else {
-                emit(aggop->agg()) << ".e[";
-                emit(aggop->index()) << "] = ";
-                emit(aggop->as<Insert>()->value()) << ";";
-                insert(def->gid(), aggop->agg()->unique_name());
+                THORIN_UNREACHABLE;
             }
-        } else {
-            THORIN_UNREACHABLE;
+            emit(aggop->index()) << " = ";
+            emit(aggop->as<Insert>()->value()) << ";";
+            insert(def->gid(), aggop->agg()->unique_name());
         }
 
         return stream();
@@ -684,7 +677,7 @@ std::ostream& CCodeGen::emit(Def def) {
         return stream() << "42 /* bottom */";
 
     if (auto load = def->isa<Load>()) {
-        emit_type(load->type()) << " " << load->unique_name() << ";";
+        emit_type(load->out_val()->type()) << " " << load->unique_name() << ";";
         newline() << load->unique_name() << " = ";
         // handle texture fetches
         if (!is_texture_type(load->ptr()->type())) stream() << "*";

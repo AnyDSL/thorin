@@ -99,6 +99,7 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Value* loop_counter, llvm:
     // vectorize function
     auto vector_tid_getter = get_vectorize_tid();
     WFVInterface::WFVInterface wfv(module_, &context_, kernel_func, kernel_simd_func, vector_length);
+    wfv.addCommonMappings(true, true, true, true, false);
     if (vector_tid_getter) {
         bool b_simd = wfv.addSIMDSemantics(*vector_tid_getter, false, true, false, false, false, true, false, true, false, true);
         assert(b_simd && "simd semantics for vectorization failed");

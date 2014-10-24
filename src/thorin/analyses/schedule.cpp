@@ -1,5 +1,4 @@
-#include <algorithm>
-#include <iostream>
+#include "thorin/analyses/schedule.h"
 
 #include "thorin/lambda.h"
 #include "thorin/primop.h"
@@ -9,15 +8,16 @@
 #include "thorin/analyses/scope.h"
 #include "thorin/util/queue.h"
 
+#include <algorithm>
+
 namespace thorin {
 
-typedef LambdaMap<std::vector<const PrimOp*>> Schedule;
 typedef DefMap<Lambda*> Def2Lambda;
 
 #ifndef NDEBUG
-static void verify(const Scope&, Schedule& ) {}
+static void verify(const Scope&, const Schedule&) {}
 #else
-static void verify(const Scope& scope, Schedule& schedule) {
+static void verify(const Scope& scope, const Schedule& schedule) {
     auto domtree = scope.domtree();
     LambdaMap<Def> lambda2mem;
 
@@ -88,12 +88,12 @@ static Def2Lambda schedule_early(const Scope& scope) {
     return def2early;
 }
 
-Schedule schedule_late(const Scope& scope) {
+const Schedule schedule_late(const Scope& scope) {
     Def2Lambda def2late;
     DefMap<int> def2num;
     auto domtree = scope.domtree();
     std::queue<Def> queue;
-    Schedule schedule;
+    Schedule schedule(scope);
 
     for (auto def : scope.in_scope()) {
         if (auto primop = def->isa<PrimOp>()) {
@@ -116,7 +116,7 @@ Schedule schedule_late(const Scope& scope) {
         if (--def2num[def] == 0) {
             queue.push(def);
             if (auto primop = def->isa<PrimOp>())
-                schedule[late].push_back(primop);
+                schedule.lookup(late).push_back(primop);
         }
     };
 
@@ -132,15 +132,15 @@ Schedule schedule_late(const Scope& scope) {
             enqueue(lambda, op);
     }
 
-    for (auto& primops : schedule)
-        std::reverse(primops.second.begin(), primops.second.end());
+    for (auto& block : schedule.blocks_)
+        std::reverse(block.begin(), block.end());
 
     verify(scope, schedule);
     return schedule;
 }
 
-Schedule schedule_smart(const Scope& scope) {
-    Schedule smart;
+const Schedule schedule_smart(const Scope& scope) {
+    Schedule smart(scope);
     auto domtree = scope.domtree();
     auto looptree = scope.looptree();
     auto def2early = schedule_early(scope);
@@ -161,7 +161,7 @@ Schedule schedule_smart(const Scope& scope) {
                     depth = cur_depth;
                 }
             }
-            smart[lambda_best].push_back(primop);
+            smart.lookup(lambda_best).push_back(primop);
         }
     }
 

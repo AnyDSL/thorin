@@ -20,7 +20,7 @@ void free_vars(const DomTree& domtree, Schedule& schedule, Lambda* lambda, Vars&
         if (op->isa<PrimOp>() && !op->is_const())
             vars.insert(op);
     }
-    std::vector<const PrimOp*>& ops = schedule[lambda];
+    auto& ops = schedule[lambda];
     for (auto i = ops.rbegin(); i != ops.rend(); ++i) {
         vars.erase(*i);
         for (auto op : (*i)->ops()) {
@@ -31,7 +31,7 @@ void free_vars(const DomTree& domtree, Schedule& schedule, Lambda* lambda, Vars&
 }
 
 void defined_vars(const DomTree& domtree, Schedule& schedule, Lambda* lambda, Vars& vars) {
-    std::vector<const PrimOp*>& ops = schedule[lambda];
+    auto& ops = schedule[lambda];
     for (auto i = ops.rbegin(); i != ops.rend(); ++i) {
         vars.erase(*i);
     }

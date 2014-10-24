@@ -215,7 +215,7 @@ std::ostream& CodeGen::emit_jump(const Lambda* lambda) {
 void emit_thorin(const Scope& scope, bool fancy, bool nocolor) {
     CodeGen cg(fancy, nocolor);
     auto domtree = scope.domtree();
-    Schedule schedule = schedule_smart(scope);
+    auto schedule = schedule_smart(scope);
     auto bbs = bb_schedule(scope);
     for (auto lambda : bbs) {
         int depth = fancy ? domtree->depth(lambda) : 0;

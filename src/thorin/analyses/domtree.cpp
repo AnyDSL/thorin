@@ -10,13 +10,6 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-int DomNode::depth() const {
-    int result = 0;
-    for (const DomNode* i = this; !i->entry(); i = i->idom())
-        ++result;
-    return result;
-};
-
 void DomNode::dump() const {
     for (int i = 0, e = depth(); i != e; ++i)
         std::cout << '\t';
@@ -30,6 +23,7 @@ void DomNode::dump() const {
 template<bool forward>
 DomTreeBase<forward>::DomTreeBase(const Scope& scope)
     : scope_view_(scope)
+    , domnodes_(scope.size())
 {
     create();
 }
@@ -37,7 +31,7 @@ DomTreeBase<forward>::DomTreeBase(const Scope& scope)
 template<bool forward>
 void DomTreeBase<forward>::create() {
     for (auto lambda : scope_view())
-        map_[lambda] = new DomNode(lambda);
+        lookup(lambda) = new DomNode(lambda);
 
     // map entry's initial idom to itself
     root_ = lookup(scope_view().entry());
@@ -79,21 +73,30 @@ outer_loop:;
     }
 
     for (auto lambda : scope_view().body()) {
-        const DomNode* n = lookup(lambda);
+        auto n = lookup(lambda);
         n->idom_->children_.push_back(n);
     }
+
+    auto n = postprocess(root_, 0);
+    assert(n = scope_view().size());
+}
+
+template<bool forward>
+size_t DomTreeBase<forward>::postprocess(DomNode* n, int depth) {
+    n->depth_ = depth;
+    n->max_rpo_id_ = 0;
+    for (auto child : n->children())
+        n->max_rpo_id_ = std::max(n->max_rpo_id_, postprocess(const_cast<DomNode*>(child), depth+1));
+    return n->max_rpo_id_;
 }
 
 template<bool forward>
 DomNode* DomTreeBase<forward>::lca(DomNode* i, DomNode* j) {
     assert(i && j);
-    auto rpo_id = [&] (DomNode* n) { return scope_view().rpo_id(n->lambda()); };
-
     while (rpo_id(i) != rpo_id(j)) {
         while (rpo_id(i) < rpo_id(j)) j = j->idom_;
         while (rpo_id(j) < rpo_id(i)) i = i->idom_;
     }
-
     return i;
 }
 

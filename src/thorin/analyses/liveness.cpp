@@ -1,3 +1,4 @@
+#include "thorin/primop.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
 
@@ -27,11 +28,13 @@ public:
         }
     }
     void reduced_visit(std::vector<Color>& colors, Lambda* prev, Lambda* cur);
+    bool is_live_in(Def def, Lambda* lambda);
 
 private:
     const Schedule& schedule_;
     const Scope& scope_;
     const DomTree& domtree_;
+    DefMap<Lambda*> def2lambda_;
     std::vector<std::vector<Lambda*>> reduced_preds_;
     std::vector<std::vector<Lambda*>> reduced_succs_;
     //std::vector<
@@ -44,11 +47,21 @@ Liveness::Liveness(const Schedule& schedule)
     , reduced_preds_(size())
     , reduced_succs_(size())
 {
+    // compute for each definition its defining lambda block
+    for (auto lambda : scope()) {
+        for (auto param : lambda->params())
+            def2lambda_[param] = lambda;
+        for (auto primop : schedule[lambda])
+            def2lambda_[primop] = lambda;
+    }
+
     // compute reduced CFG
     std::vector<Color> colors(size(), Color::White);
     reduced_visit(colors, nullptr, scope().entry());
 
     // compute reduced reachable set
+    for (auto lambda : scope()) {
+    }
 }
 
 void Liveness::reduced_visit(std::vector<Color>& colors, Lambda* prev, Lambda* cur) {
@@ -59,11 +72,17 @@ void Liveness::reduced_visit(std::vector<Color>& colors, Lambda* prev, Lambda* c
             for (auto succ : scope_.succs(cur))
                 reduced_visit(colors, cur, succ);
             col = Color::Black;         // mark black: done
-            break;
+            break;                      // link
         case Color::Gray: return;       // back edge: do nothing
         case Color::Black: break;       // cross or forward edge: link
     }
     reduced_link(prev, cur);
+}
+
+bool Liveness::is_live_in(Def def, Lambda* lambda) {
+    size_t d_rpo = rpo_id(def2lambda_[def]);
+    size_t l_rpo = rpo_id(lambda);
+    //if (l_rpo < 
 }
 
 }

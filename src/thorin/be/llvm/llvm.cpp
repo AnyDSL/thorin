@@ -171,8 +171,7 @@ void CodeGen::emit(int opt) {
         builder_.SetInsertPoint(startBB);
         emit_function_start(startBB, entry_);
         builder_.CreateBr(oldStartBB);
-
-        Schedule schedule = schedule_smart(scope);
+        auto schedule = schedule_smart(scope);
 
         // emit body for each bb
         for (auto bb_lambda : bbs) {

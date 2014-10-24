@@ -18,13 +18,16 @@ public:
     const std::vector<const DomNode*>& children() const { return children_; }
     size_t num_children() const { return children_.size(); }
     bool entry() const { return idom_ == this; }
-    int depth() const;
+    int depth() const { return depth_; }
+    size_t max_rpo_id() const;
     void dump() const;
 
 private:
     Lambda* lambda_;
     DomNode* idom_ = nullptr;
     AutoVector<const DomNode*> children_;
+    int depth_;
+    size_t max_rpo_id_;
 
     template<bool> friend class DomTreeBase;
 };
@@ -35,6 +38,8 @@ public:
     explicit DomTreeBase(const Scope& scope);
 
     const ScopeView<forward>& scope_view() const { return scope_view_; }
+    size_t rpo_id(Lambda* lambda) const { return scope_view().rpo_id(lambda); };
+    size_t rpo_id(DomNode* n) const { return rpo_id(n->lambda()); }
     const DomNode* root() const { return root_; }
     int depth(Lambda* lambda) const { return lookup(lambda)->depth(); }
     /// Returns the least common ancestor of \p i and \p j.
@@ -43,17 +48,18 @@ public:
         return const_cast<DomTreeBase*>(this)->lca(const_cast<DomNode*>(i), const_cast<DomNode*>(j));
     }
     Lambda* idom(Lambda* lambda) const { return lookup(lambda)->idom()->lambda(); }
-    const DomNode* lookup(Lambda* lambda) const { return find(map_, lambda); }
+    const DomNode* lookup(Lambda* lambda) const { return domnodes_[rpo_id(lambda)]; }
     void dump() const { root()->dump(); }
 
 private:
-    DomNode* lookup(Lambda* lambda) { return map_[lambda]; }
+    DomNode*& lookup(Lambda* lambda) { return domnodes_[rpo_id(lambda)]; }
     void create();
-    DomNode* lca(DomNode* i, DomNode* j);
+    size_t postprocess(DomNode* n, int depth);
+    DomNode* lca(DomNode*, DomNode*);
 
     ScopeView<forward> scope_view_;
     AutoPtr<DomNode> root_;
-    LambdaMap<DomNode*> map_;
+    std::vector<DomNode*> domnodes_;
 };
 
 }

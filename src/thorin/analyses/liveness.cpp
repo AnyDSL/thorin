@@ -1,4 +1,5 @@
 #include "thorin/primop.h"
+#include "thorin/analyses/domtree.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
 
@@ -60,8 +61,8 @@ Liveness::Liveness(const Schedule& schedule)
     reduced_visit(colors, nullptr, scope().entry());
 
     // compute reduced reachable set
-    for (auto lambda : scope()) {
-    }
+    //for (auto lambda : scope()) {
+    //}
 }
 
 void Liveness::reduced_visit(std::vector<Color>& colors, Lambda* prev, Lambda* cur) {
@@ -82,7 +83,19 @@ void Liveness::reduced_visit(std::vector<Color>& colors, Lambda* prev, Lambda* c
 bool Liveness::is_live_in(Def def, Lambda* lambda) {
     size_t d_rpo = rpo_id(def2lambda_[def]);
     size_t l_rpo = rpo_id(lambda);
-    //if (l_rpo < 
+    size_t max_rpo = domtree().lookup(d_rpo)->max_rpo_id();
+
+    if (d_rpo < l_rpo && l_rpo <= max_rpo) {
+        for (size_t i = 0; /*bitset_next(T[q], d_rpo+1)*/ i <= max_rpo;) {
+            for (auto use : def->uses()) {
+                if (/*bitset_is_set*/ true)
+                    return true;
+            }
+            i = domtree().lookup(i)->max_rpo_id();
+            // i = bitset_next(T[q], i
+        }
+    }
+    return false;
 }
 
 }

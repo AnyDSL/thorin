@@ -48,7 +48,8 @@ public:
         return const_cast<DomTreeBase*>(this)->lca(const_cast<DomNode*>(i), const_cast<DomNode*>(j));
     }
     Lambda* idom(Lambda* lambda) const { return lookup(lambda)->idom()->lambda(); }
-    const DomNode* lookup(Lambda* lambda) const { return domnodes_[rpo_id(lambda)]; }
+    const DomNode* lookup(Lambda* lambda) const { return lookup(rpo_id(lambda)); }
+    const DomNode* lookup(size_t rpo_id) const { return domnodes_[rpo_id]; }
     void dump() const { root()->dump(); }
 
 private:

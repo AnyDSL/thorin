@@ -9,19 +9,15 @@
 namespace thorin {
 
 class Liveness {
-public:
-    Liveness(const Schedule& schedule)
-        : schedule_(schedule)
-        , scope_(schedule.scope())
-        , domtree_(*scope_.domtree())
-        , reduced_preds_(scope_.size())
-        , reduced_succs_(scope_.size())
-    {}
+private:
+    enum class Color : uint8_t { White, Gray, Black };
 
-    void compute_reduced_cfg(Lambda* prev, Lambda* cur);
+public:
+    Liveness(const Schedule& schedule);
 
     const Schedule& schedule() const { return schedule_; }
     const Scope& scope() const { return scope_; }
+    size_t size() const { return scope_.size(); }
     const DomTree& domtree() const { return domtree_; }
     size_t rpo_id(Lambda* lambda) const { return scope_.rpo_id(lambda); }
     void reduced_link(Lambda* src, Lambda* dst) {
@@ -30,47 +26,44 @@ public:
             reduced_preds_[rpo_id(dst)].push_back(src);
         }
     }
+    void reduced_visit(std::vector<Color>& colors, Lambda* prev, Lambda* cur);
 
 private:
-    class ReducedCFGBuilder {
-    public:
-        enum class Color : uint8_t { White, Gray, Black };
-
-        ReducedCFGBuilder(Liveness& liveness)
-            : liveness_(liveness)
-            , colors_(liveness.scope().size(), Color::White)
-        {
-            visit(nullptr, liveness_.scope().entry());
-        }
-
-        void visit(Lambda* prev, Lambda* cur);
-        Color& color(Lambda* lambda) { return colors_[liveness_.rpo_id(lambda)]; }
-
-    private:
-        Liveness& liveness_;
-        std::vector<Color> colors_;
-    };
-
     const Schedule& schedule_;
     const Scope& scope_;
     const DomTree& domtree_;
     std::vector<std::vector<Lambda*>> reduced_preds_;
     std::vector<std::vector<Lambda*>> reduced_succs_;
+    //std::vector<
 };
 
-void Liveness::ReducedCFGBuilder::visit(Lambda* prev, Lambda* cur) {
-    auto& col = color(cur);
+Liveness::Liveness(const Schedule& schedule)
+    : schedule_(schedule)
+    , scope_(schedule.scope())
+    , domtree_(*scope().domtree())
+    , reduced_preds_(size())
+    , reduced_succs_(size())
+{
+    // compute reduced CFG
+    std::vector<Color> colors(size(), Color::White);
+    reduced_visit(colors, nullptr, scope().entry());
+
+    // compute reduced reachable set
+}
+
+void Liveness::reduced_visit(std::vector<Color>& colors, Lambda* prev, Lambda* cur) {
+    auto& col = colors[rpo_id(cur)];
     switch (col) {
         case Color::White:              // white: not yet visited
             col = Color::Gray;          // mark gray: is on recursion stack
-            for (auto succ : liveness_.scope_.succs(cur))
-                visit(cur, succ);
+            for (auto succ : scope_.succs(cur))
+                reduced_visit(colors, cur, succ);
             col = Color::Black;         // mark black: done
             break;
         case Color::Gray: return;       // back edge: do nothing
         case Color::Black: break;       // cross or forward edge: link
     }
-    liveness_.reduced_link(prev, cur);
+    reduced_link(prev, cur);
 }
 
 }

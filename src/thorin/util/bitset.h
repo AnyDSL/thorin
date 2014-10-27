@@ -20,8 +20,10 @@ public:
         {}
 
         reference operator=(bool b) {
-            if (b) word_ |= 1 << pos_;
-            else   word_ &= ~(1 << pos_);
+            if (b) 
+                word_ |= 1 << pos_;
+            else   
+                word_ &= ~(1 << pos_);
             return *this;
         }
         operator bool() const { return word_ & ( 1 << pos_); }
@@ -33,7 +35,7 @@ public:
 
     BitSet(size_t size = 0)
         : size_(size)
-        , bits_(size / 64u + 1u)
+        , bits_((size+63u) / 64u)
     {}
     BitSet(BitSet&& other)
         : BitSet()

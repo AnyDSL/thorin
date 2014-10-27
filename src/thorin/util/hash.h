@@ -198,20 +198,9 @@ public:
 #endif
     {}
     HashTable(HashTable&& other)
-        : capacity_     (std::move(other.capacity_))
-        , load_         (std::move(other.load_))
-        , size_         (std::move(other.size_))
-        , nodes_        (std::move(other.nodes_))
-        , hash_function_(std::move(other.hash_function_))
-        , key_eq_       (std::move(other.key_eq_))
-#ifndef NDEBUG
-        , id_           (std::move(other.id_))
-#endif
+        : HashTable()
     {
-        other.capacity_ = 0;
-        other.load_ = 0;
-        other.size_ = 0;
-        other.nodes_ = nullptr;
+        swap(*this, other);
     }
     HashTable(const HashTable& other)
         : capacity_(other.capacity_)

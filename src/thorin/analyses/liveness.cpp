@@ -39,8 +39,8 @@ private:
     DefMap<Lambda*> def2lambda_;
     std::vector<std::vector<Lambda*>> reduced_preds_;
     std::vector<std::vector<Lambda*>> reduced_succs_;
-    BitSet reduced_reachable_;
-    BitSet targets_;
+    std::vector<BitSet> reduced_reachable_;
+    std::vector<BitSet> targets_;
 };
 
 Liveness::Liveness(const Schedule& schedule)
@@ -49,8 +49,8 @@ Liveness::Liveness(const Schedule& schedule)
     , domtree_(*scope().domtree())
     , reduced_preds_(size())
     , reduced_succs_(size())
-    , reduced_reachable_(size())
-    , targets_(size())
+    , reduced_reachable_(size(), BitSet(size()))
+    , targets_(size(), BitSet(size()))
 {
     // compute for each definition its defining lambda block
     for (auto lambda : scope()) {
@@ -65,8 +65,10 @@ Liveness::Liveness(const Schedule& schedule)
     reduced_visit(colors, nullptr, scope().entry());
 
     // compute reduced reachable set
-    for (auto lambda : scope()) {
-        reduced_reachable_[rpo_id(lambda)] = true;
+    for (size_t i = scope().size(); i-- != 0;) {
+        reduced_reachable_[i] = i;
+        for (auto succ : reduced_succs_[i])
+            reduced_reachable_[i] |= reduced_reachable_[rpo_id(succ)];
     }
 }
 
@@ -86,6 +88,7 @@ void Liveness::reduced_visit(std::vector<Color>& colors, Lambda* prev, Lambda* c
 }
 
 bool Liveness::is_live_in(Def def, Lambda* lambda) {
+#if 0
     size_t d_rpo = rpo_id(def2lambda_[def]);
     size_t l_rpo = rpo_id(lambda);
     size_t max_rpo = domtree().lookup(d_rpo)->max_rpo_id();
@@ -98,6 +101,7 @@ bool Liveness::is_live_in(Def def, Lambda* lambda) {
             }
         }
     }
+#endif
     return false;
 }
 

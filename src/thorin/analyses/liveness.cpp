@@ -70,6 +70,8 @@ Liveness::Liveness(const Schedule& schedule)
         for (auto succ : reduced_succs_[i])
             reduced_reachable_[i] |= reduced_reachable_[rpo_id(succ)];
     }
+
+    // compute back edge targets
 }
 
 void Liveness::reduced_visit(std::vector<Color>& colors, Lambda* prev, Lambda* cur) {

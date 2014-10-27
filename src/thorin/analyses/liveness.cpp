@@ -2,6 +2,7 @@
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
+#include "thorin/util/bitset.h"
 
 /*
  * see "Fast liveness checking for ssa-form programs"
@@ -38,7 +39,8 @@ private:
     DefMap<Lambda*> def2lambda_;
     std::vector<std::vector<Lambda*>> reduced_preds_;
     std::vector<std::vector<Lambda*>> reduced_succs_;
-    //std::vector<
+    BitSet reduced_reachable_;
+    BitSet targets_;
 };
 
 Liveness::Liveness(const Schedule& schedule)
@@ -47,6 +49,8 @@ Liveness::Liveness(const Schedule& schedule)
     , domtree_(*scope().domtree())
     , reduced_preds_(size())
     , reduced_succs_(size())
+    , reduced_reachable_(size())
+    , targets_(size())
 {
     // compute for each definition its defining lambda block
     for (auto lambda : scope()) {
@@ -61,8 +65,9 @@ Liveness::Liveness(const Schedule& schedule)
     reduced_visit(colors, nullptr, scope().entry());
 
     // compute reduced reachable set
-    //for (auto lambda : scope()) {
-    //}
+    for (auto lambda : scope()) {
+        reduced_reachable_[rpo_id(lambda)] = true;
+    }
 }
 
 void Liveness::reduced_visit(std::vector<Color>& colors, Lambda* prev, Lambda* cur) {
@@ -86,13 +91,11 @@ bool Liveness::is_live_in(Def def, Lambda* lambda) {
     size_t max_rpo = domtree().lookup(d_rpo)->max_rpo_id();
 
     if (d_rpo < l_rpo && l_rpo <= max_rpo) {
-        for (size_t i = 0; /*bitset_next(T[q], d_rpo+1)*/ i <= max_rpo;) {
+        for (size_t i = targets_.next(d_rpo+1); i <= max_rpo; i = targets_.next(domtree().lookup(i)->max_rpo_id() + 1)) {
             for (auto use : def->uses()) {
-                if (/*bitset_is_set*/ true)
+                if (reduced_reachable_[rpo_id(def2lambda_[use])])
                     return true;
             }
-            i = domtree().lookup(i)->max_rpo_id();
-            // i = bitset_next(T[q], i
         }
     }
     return false;

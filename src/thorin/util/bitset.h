@@ -10,6 +10,8 @@ namespace thorin {
 
 class BitSet {
 public:
+    static const size_t npos = -1;
+
     class reference {
     public:
         reference(uint64_t& word, size_t pos)
@@ -34,9 +36,17 @@ public:
         , bits_(size / 64u + 1u)
     {}
 
+    size_t size() const { return size_; }
     reference operator[] (size_t i) {
         assert(i < size_ && "out of bounds access");
         return reference(bits_[i / 64u], i % 64u);
+    }
+    size_t next(size_t pos = 0) {
+        for (size_t i = pos, e = size(); i != e; ++i) {
+            if (bits_[i])
+                return i;
+        }
+        return pos;
     }
 
 private:

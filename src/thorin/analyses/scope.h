@@ -50,6 +50,7 @@ public:
     uint32_t sid() const { return sid_; }
     size_t size() const { return rpo_.size(); }
     World& world() const { return world_; }
+    void dump() const;
 
     const DomTree* domtree() const;
     const PostDomTree* postdomtree() const;

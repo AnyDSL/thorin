@@ -232,7 +232,7 @@ void emit_thorin(const Scope& scope, bool fancy, bool nocolor) {
     cg.newline();
 }
 
-void emit_thorin(World& world, bool fancy, bool nocolor) {
+void emit_thorin(const World& world, bool fancy, bool nocolor) {
     CodeGen cg(fancy, nocolor);
     cg.stream() << "module '" << world.name() << "'\n\n";
 

@@ -17,7 +17,6 @@
             THORIN_AIR_NODE(Enter, enter)
             THORIN_AIR_NODE(Leave, leave)
             THORIN_AIR_NODE(Map, map)
-            THORIN_AIR_NODE(Unmap, unmap)
         THORIN_AIR_NODE(Select, select)
         THORIN_AIR_NODE(Global, global)
         THORIN_AIR_NODE(Slot, slot)

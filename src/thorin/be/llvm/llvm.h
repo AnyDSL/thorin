@@ -39,14 +39,12 @@ protected:
     virtual llvm::Value* emit_store(Def);
     virtual llvm::Value* emit_lea(Def);
     virtual llvm::Value* emit_mmap(Def);
-    virtual llvm::Value* emit_munmap(Def);
 
     virtual std::string get_alloc_name() const = 0;
     virtual std::string get_output_name(const std::string& name) const = 0;
     virtual std::string get_binary_output_name(const std::string& name) const = 0;
     llvm::GlobalVariable* emit_global_memory(llvm::Type*, const std::string&, unsigned);
     llvm::Value* emit_shared_mmap(Def def, bool prefix=false);
-    llvm::Value* emit_shared_munmap(Def def);
 
 private:
     Lambda* emit_intrinsic(Lambda*);

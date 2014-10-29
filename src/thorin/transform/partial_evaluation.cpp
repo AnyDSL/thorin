@@ -117,6 +117,9 @@ void PartialEvaluator::eval(const Run* cur_run, Lambda* cur) {
             dst = cur->to()->isa_lambda();
         }
 
+        if (dst == world().branch())
+            dst = nullptr;
+
         if (dst == nullptr) {               // skip to immediate post-dominator
             cur = old2new_[postdomtree_->idom(new2old_[cur])];
         } else if (dst->empty()) {

@@ -12,24 +12,16 @@ static Lambda* resolve(Lambda* dst, const char* suffix) {
 }
 
 static void update_src(Lambda* src, Lambda* resolver, Lambda* dst) {
-    World& world = src->world();
-    Def nto;
-
-    if (auto to = src->to()->isa_lambda()) {
-        if (to == dst)
-            nto = resolver;
-    } else if (auto select = src->to()->isa<Select>()) {
-        if (select->tval() == dst)
-            nto = world.select(select->cond(), resolver, select->fval());
+    if (src->to() == dst)
+        src->update_to(resolver);
+    else if (src->to() == src->world().branch()) {
+        if (src->arg(1) == dst)
+            src->branch(src->arg(0), resolver, src->arg(2));
         else {
-            assert(select->fval() == dst);
-            nto = world.select(select->cond(), select->tval(), resolver);
+            assert(src->arg(2) == dst);
+            src->branch(src->arg(0), src->arg(1), resolver);
         }
-    }
-
-    if (nto)
-        src->update_to(nto);
-    else {
+    } else {
         for (size_t i = 0, e = src->num_args(); i != e; ++i) {
             if (src->arg(i) == dst) {
                 src->update_arg(i, resolver);

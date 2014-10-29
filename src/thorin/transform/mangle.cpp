@@ -98,12 +98,12 @@ void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
             return nlambda->jump(mangle(lit->value().get_bool() ? olambda->arg(1) : olambda->arg(2)), {});
     }
 
-    Array<Def> ops(olambda->ops().size());
-    for (size_t i = 0, e = ops.size(); i != e; ++i)
-        ops[i] = mangle(olambda->op(i));
+    Array<Def> nops(olambda->ops().size());
+    for (size_t i = 0, e = nops.size(); i != e; ++i)
+        nops[i] = mangle(olambda->op(i));
 
-    ArrayRef<Def> nargs(ops.slice_from_begin(1));   // new args of nlambda
-    Def ntarget = ops.front();                      // new target of nlambda
+    ArrayRef<Def> nargs(nops.slice_from_begin(1));  // new args of nlambda
+    Def ntarget = nops.front();                     // new target of nlambda
 
     // check whether we can optimize tail recursion
     if (ntarget == oentry) {

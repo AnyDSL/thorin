@@ -121,11 +121,10 @@ std::ostream& CodeGen::emit_name(Def def) {
     if (is_fancy()) // elide white = 0 and black = 7
         color(def->gid() % 6 + 30 + 1);
 
-    stream() << def->unique_name();
+    stream() << (def->isa<Lambda>() && def->as<Lambda>()->is_intrinsic() ? def->name : def->unique_name());
 
     if (is_fancy())
         reset_color();
-
     return stream();
 }
 

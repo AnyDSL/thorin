@@ -58,7 +58,11 @@ private:
 
 enum class Intrinsic : uint8_t {
     None,                       ///< Not an intrinsic.
-    _Accelerator_Begin,
+    _CF_Begin,
+    Branch = _CF_Begin,         ///< branch(cond, T, F).
+    Branch_Converge,            ///< branch_converge(cond, T, F C).
+    _CF_End,
+    _Accelerator_Begin = _CF_End,
     CUDA = _Accelerator_Begin,  ///< Internal CUDA-Backend.
     NVVM,                       ///< Internal NNVM-Backend.
     SPIR,                       ///< Internal SPIR-Backend.
@@ -136,6 +140,7 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     bool is_returning() const;
     bool is_intrinsic() const;
     bool is_accelerator() const;
+    bool is_controlflow() const;
     bool visit_capturing_intrinsics(std::function<bool(Lambda*)> func) const;
     bool is_passed_to_accelerator() const {
         return visit_capturing_intrinsics([&] (Lambda* lambda) { return lambda->is_accelerator(); });
@@ -151,7 +156,7 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     // terminate
 
     void jump(Def to, ArrayRef<Def> args);
-    void branch(Def cond, Def tto, Def fto, ArrayRef<Def> args = ArrayRef<Def>(nullptr, 0));
+    void branch(Def cond, Def t, Def f, ArrayRef<Def> args = ArrayRef<Def>(nullptr, 0));
     std::pair<Lambda*, Def> call(Def to, ArrayRef<Def> args, Type ret_type);
 
     // value numbering

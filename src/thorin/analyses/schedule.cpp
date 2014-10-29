@@ -152,13 +152,18 @@ const Schedule schedule_smart(const Scope& scope) {
             auto lambda_early = def2early[primop];
             assert(lambda_early != nullptr);
             auto lambda_best = lambda;
-            int depth = looptree->depth(lambda_best);
-            for (auto i = lambda_best; i != lambda_early;) {
-                i = domtree->idom(i);
-                int cur_depth = looptree->depth(i);
-                if (cur_depth < depth) {
-                    lambda_best = i;
-                    depth = cur_depth;
+
+            if (primop->isa<Enter>() || primop->isa<Slot>() || Enter::is_out_mem(primop) || Enter::is_out_frame(primop))
+                lambda_best = lambda_early;
+            else {
+                int depth = looptree->depth(lambda_best);
+                for (auto i = lambda_best; i != lambda_early;) {
+                    i = domtree->idom(i);
+                    int cur_depth = looptree->depth(i);
+                    if (cur_depth < depth) {
+                        lambda_best = i;
+                        depth = cur_depth;
+                    }
                 }
             }
             smart.lookup(lambda_best).push_back(primop);

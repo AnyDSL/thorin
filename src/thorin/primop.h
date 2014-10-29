@@ -120,6 +120,7 @@ private:
         : VectorOp(Node_Select, tval->type(), {cond, tval, fval}, name)
     {
         assert(tval->type() == fval->type() && "types of both values must be equal");
+        assert(!tval->type().isa<FnType>() && "must not be a function");
     }
 
     virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
@@ -470,6 +471,10 @@ protected:
 public:
     Def mem() const { return op(0); }
     Def out_mem() const { return has_multiple_outs() ? out(0) : this; }
+
+private:
+    virtual size_t vhash() const override { return hash_value(gid()); }
+    virtual bool equal(const PrimOp* other) const override { return this == other; }
 };
 
 class Alloc : public MemOp {
@@ -548,7 +553,7 @@ public:
     virtual bool has_multiple_outs() const { return true; }
     Def out_frame() const { return out(1); }
     static const Enter* is_out_mem(Def def) { return is_out<0, Enter>(def); }
-    static const Enter* is_out_ptr(Def def) { return is_out<1, Enter>(def); }
+    static const Enter* is_out_frame(Def def) { return is_out<1, Enter>(def); }
 
     friend class World;
 };

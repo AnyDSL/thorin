@@ -21,12 +21,9 @@ public:
     {}
 
     void emit();
-private:
-    World& world_;
-    LangType lang_;
-    HashMap<size_t, std::string> globals_;
-    HashMap<size_t, std::string> primops_;
+    World& world() const { return world_; }
 
+private:
     std::ostream& emit_aggop_defs(Def def);
     std::ostream& emit_aggop_decl(Type);
     std::ostream& emit_type(Type);
@@ -35,6 +32,11 @@ private:
     std::ostream& insert(size_t gid, std::string str);
     std::string &get_name(size_t gid);
     bool is_texture_type(Type type);
+
+    World& world_;
+    LangType lang_;
+    HashMap<size_t, std::string> globals_;
+    HashMap<size_t, std::string> primops_;
     bool process_kernel_ = false;
 };
 
@@ -223,7 +225,7 @@ void CCodeGen::emit() {
     }
 
     // emit declarations
-    Scope::for_each<false>(world_, [&] (const Scope& scope) {
+    Scope::for_each<false>(world(), [&] (const Scope& scope) {
         Schedule schedule = schedule_smart(scope);
 
         // tuple declarations
@@ -298,7 +300,7 @@ void CCodeGen::emit() {
     newline();
 
     // emit all globals
-    for (auto primop : world_.primops()) {
+    for (auto primop : world().primops()) {
         if (auto global = primop->isa<Global>()) {
             emit_aggop_decl(global->type());
             emit(global);
@@ -309,7 +311,7 @@ void CCodeGen::emit() {
     // emit connected functions first
     process_kernel_ = true;
 
-    Scope::for_each(world_, [&] (const Scope& scope) {
+    Scope::for_each(world(), [&] (const Scope& scope) {
         auto lambda = scope.entry();
         if (lambda->is_intrinsic())
             return;
@@ -432,13 +434,13 @@ void CCodeGen::emit() {
                         THORIN_UNREACHABLE;
                 }
                 stream() << ";";
-            } else if (auto select = lambda->to()->isa<Select>()) { // conditional branch
+            } else if (lambda->to() == world().branch()) { // conditional branch
                 stream() << "if (";
-                emit(select->cond());
+                emit(lambda->arg(0));
                 stream() << ") {";
-                up(); emit(select->tval()); down();
+                up(); emit(lambda->arg(1)); down();
                 stream() << "} else {";
-                up(); emit(select->fval()); down();
+                up(); emit(lambda->arg(2)); down();
                 stream() << "}";
             } else if (lambda->to()->isa<Bottom>()) {
                 stream() << "return ; // bottom: unreachable";

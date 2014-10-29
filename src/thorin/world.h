@@ -224,6 +224,7 @@ public:
     Lambda* lambda(const std::string& name) { return lambda(fn_type(), CC::C, Intrinsic::None, name); }
     Lambda* basicblock(const std::string& name = "");
     Lambda* meta_lambda();
+    Lambda* branch() const { return branch_; }
 
     /// Performs dead code, unreachable code and unused type elimination.
     void cleanup();
@@ -295,6 +296,9 @@ private:
 
         const TypeNode* keep_[Num_PrimTypes + 4];
     };
+    Lambda* branch_;
+    Lambda* branch_converge_;
+
 
     friend class Cleaner;
     friend class Lambda;

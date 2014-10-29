@@ -81,7 +81,7 @@ Lambda* JumpTarget::untangle() {
         return lambda_;
     assert(lambda_);
     auto bb = world().basicblock(name_);
-    lambda_->jump(bb, {lambda_->get_mem()});
+    lambda_->jump(bb, {});
     first_ = false;
     return lambda_ = bb;
 }
@@ -91,7 +91,7 @@ void JumpTarget::jump_from(Lambda* bb) {
         lambda_ = bb;
         first_ = true;
     } else
-        bb->jump(untangle(), {bb->get_mem()});
+        bb->jump(untangle(), {});
 }
 
 Lambda* JumpTarget::branch_to(World& world) {
@@ -163,7 +163,8 @@ void IRBuilder::branch(Def cond, JumpTarget& t, JumpTarget& f) {
         } else {
             auto tl = t.branch_to(world_);
             auto fl = f.branch_to(world_);
-            cur_bb->branch(cond, tl, fl, {get_mem()});
+            //cur_bb->branch(cond, tl, fl, {get_mem()});
+            cur_bb->branch(cond, tl, fl, {});
             set_unreachable();
         }
     }

@@ -45,7 +45,9 @@ World::World(std::string name)
     , frame_  (*unify(*join(new FrameTypeNode(*this))))
 #define THORIN_ALL_TYPE(T, M) ,T##_(*unify(*join(new PrimTypeNode(*this, PrimType_##T, 1))))
 #include "thorin/tables/primtypetable.h"
-{}
+{
+    branch_ = lambda(fn_type({type_bool(), fn_type(), fn_type()}), CC::C, Intrinsic::Branch, "br");
+}
 
 World::~World() {
     for (auto primop : primops_) delete primop;
@@ -788,11 +790,8 @@ Lambda* World::meta_lambda() {
 
 Lambda* World::basicblock(const std::string& name) {
     THORIN_CHECK_BREAK(gid_)
-    auto bb = new Lambda(gid_++, fn_type({mem_type()}), CC::C, Intrinsic::None, false, name);
+    auto bb = new Lambda(gid_++, fn_type(), CC::C, Intrinsic::None, false, name);
     lambdas_.insert(bb);
-    auto mem = param(mem_type(), bb, 0, "mem");
-    bb->params_.push_back(mem);
-    bb->set_mem(mem);
     return bb;
 }
 

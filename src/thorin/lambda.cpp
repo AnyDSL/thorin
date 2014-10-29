@@ -171,6 +171,7 @@ void Lambda::make_internal() { return world().remove_external(this); }
 bool Lambda::is_external() const { return world().is_external(this); }
 bool Lambda::is_intrinsic() const { return intrinsic_ != Intrinsic::None; }
 bool Lambda::is_accelerator() const { return Intrinsic::_Accelerator_Begin <= intrinsic_ && intrinsic_ < Intrinsic::_Accelerator_End; }
+bool Lambda::is_controlflow() const { return Intrinsic::_CF_Begin <= intrinsic_ && intrinsic_ < Intrinsic::_CF_End; }
 void Lambda::set_intrinsic() {
     if      (name == "cuda")      intrinsic_ = Intrinsic::CUDA;
     else if (name == "nvvm")      intrinsic_ = Intrinsic::NVVM;
@@ -223,8 +224,17 @@ void Lambda::jump(Def to, ArrayRef<Def> args) {
         set_op(x++, arg);
 }
 
-void Lambda::branch(Def cond, Def tto, Def fto, ArrayRef<Def> args) {
-    return jump(world().select(cond, tto, fto), args);
+void Lambda::branch(Def cond, Def t, Def f, ArrayRef<Def> args) {
+    if (auto lit = cond->isa<PrimLit>())
+        jump(lit->value().get_bool() ? t : f, args);
+    Array<Def> all_args(args.size() + 3);
+    size_t i = 0;
+    all_args[i++] = cond;
+    all_args[i++] = t;
+    all_args[i++] = f;
+    for (auto arg : args)
+        all_args[i++] = arg;
+    return jump(world().branch(), all_args);
 }
 
 std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Def> args, Type ret_type) {

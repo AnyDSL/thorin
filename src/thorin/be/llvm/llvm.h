@@ -21,6 +21,7 @@ protected:
 
 public:
     void emit(int opt);
+    World& world() const { return world_; }
 
 protected:
     void optimize(int opt);

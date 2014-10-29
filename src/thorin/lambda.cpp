@@ -224,17 +224,14 @@ void Lambda::jump(Def to, ArrayRef<Def> args) {
         set_op(x++, arg);
 }
 
-void Lambda::branch(Def cond, Def t, Def f, ArrayRef<Def> args) {
+void Lambda::branch(Def cond, Def t, Def f) {
     if (auto lit = cond->isa<PrimLit>())
-        jump(lit->value().get_bool() ? t : f, args);
-    Array<Def> all_args(args.size() + 3);
-    size_t i = 0;
-    all_args[i++] = cond;
-    all_args[i++] = t;
-    all_args[i++] = f;
-    for (auto arg : args)
-        all_args[i++] = arg;
-    return jump(world().branch(), all_args);
+        return jump(lit->value().get_bool() ? t : f, {});
+    if (t == f)
+        return jump(t, {});
+    if (cond->is_not())
+        return branch(cond->as<ArithOp>()->rhs(), f, t);
+    return jump(world().branch(), {cond, t, f});
 }
 
 std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Def> args, Type ret_type) {

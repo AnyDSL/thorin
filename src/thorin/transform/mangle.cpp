@@ -92,22 +92,18 @@ Lambda* Mangler::mangle_head(Lambda* olambda) {
 
 void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
     assert(!olambda->empty());
+    
+    if (olambda->to() == world.branch()) {          // fold branch if possible
+        if (auto lit = mangle(olambda->arg(0))->isa<PrimLit>())
+            return nlambda->jump(mangle(lit->value().get_bool() ? olambda->arg(1) : olambda->arg(2)), {});
+    }
+
     Array<Def> ops(olambda->ops().size());
-    for (size_t i = 1, e = ops.size(); i != e; ++i)
+    for (size_t i = 0, e = ops.size(); i != e; ++i)
         ops[i] = mangle(olambda->op(i));
 
-    // fold branch if possible
-    if (auto select = olambda->to()->isa<Select>()) {
-        Def cond = mangle(select->cond());
-        if (auto lit = cond->isa<PrimLit>())
-            ops[0] = mangle(lit->value().get_bool() ? select->tval() : select->fval());
-        else
-            ops[0] = mangle(select); //world.select(cond, mangle(select->tval()), mangle(select->fval()));
-    } else
-        ops[0] = mangle(olambda->to());
-
-    ArrayRef<Def> nargs(ops.slice_from_begin(1)); // new args of nlambda
-    Def ntarget = ops.front();                    // new target of nlambda
+    ArrayRef<Def> nargs(ops.slice_from_begin(1));   // new args of nlambda
+    Def ntarget = ops.front();                      // new target of nlambda
 
     // check whether we can optimize tail recursion
     if (ntarget == oentry) {

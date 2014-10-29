@@ -163,8 +163,7 @@ void IRBuilder::branch(Def cond, JumpTarget& t, JumpTarget& f) {
         } else {
             auto tl = t.branch_to(world_);
             auto fl = f.branch_to(world_);
-            //cur_bb->branch(cond, tl, fl, {get_mem()});
-            cur_bb->branch(cond, tl, fl, {});
+            cur_bb->branch(cond, tl, fl);
             set_unreachable();
         }
     }

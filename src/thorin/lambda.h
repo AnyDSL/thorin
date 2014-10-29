@@ -156,7 +156,7 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     // terminate
 
     void jump(Def to, ArrayRef<Def> args);
-    void branch(Def cond, Def t, Def f, ArrayRef<Def> args = ArrayRef<Def>(nullptr, 0));
+    void branch(Def cond, Def t, Def f);
     std::pair<Lambda*, Def> call(Def to, ArrayRef<Def> args, Type ret_type);
 
     // value numbering

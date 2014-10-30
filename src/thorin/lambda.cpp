@@ -234,6 +234,16 @@ void Lambda::branch(Def cond, Def t, Def f) {
     return jump(world().branch(), {cond, t, f});
 }
 
+void Lambda::branch_join(Def cond, Def t, Def f, Def x) {
+    if (auto lit = cond->isa<PrimLit>())
+        return jump(lit->value().get_bool() ? t : f, {});
+    if (t == f)
+        return jump(t, {});
+    if (cond->is_not())
+        return branch_join(cond->as<ArithOp>()->rhs(), f, t, x);
+    return jump(world().branch_join(), {cond, t, f, x});
+}
+
 std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Def> args, Type ret_type) {
     if (ret_type.empty()) {
         jump(to, args);

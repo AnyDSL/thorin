@@ -60,7 +60,7 @@ enum class Intrinsic : uint8_t {
     None,                       ///< Not an intrinsic.
     _CF_Begin,
     Branch = _CF_Begin,         ///< branch(cond, T, F).
-    Branch_Converge,            ///< branch_converge(cond, T, F C).
+    Branch_Join,                ///< branch_join(cond, T, F, J).
     _CF_End,
     _Accelerator_Begin = _CF_End,
     CUDA = _Accelerator_Begin,  ///< Internal CUDA-Backend.
@@ -157,6 +157,7 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
 
     void jump(Def to, ArrayRef<Def> args);
     void branch(Def cond, Def t, Def f);
+    void branch_join(Def cond, Def t, Def f, Def x);
     std::pair<Lambda*, Def> call(Def to, ArrayRef<Def> args, Type ret_type);
 
     // value numbering

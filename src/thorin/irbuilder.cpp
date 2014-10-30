@@ -169,6 +169,22 @@ void IRBuilder::branch(Def cond, JumpTarget& t, JumpTarget& f) {
     }
 }
 
+void IRBuilder::branch(Def cond, JumpTarget& t, JumpTarget& f, JumpTarget& x) {
+    if (is_reachable()) {
+        if (auto lit = cond->isa<PrimLit>()) {
+            jump(lit->value().get_bool() ? t : f);
+        } else if (&t == &f) {
+            jump(t);
+        } else {
+            auto tl = t.branch_to(world_);
+            auto fl = f.branch_to(world_);
+            auto xl = x.branch_to(world_);
+            cur_bb->branch_join(cond, tl, fl, xl);
+            set_unreachable();
+        }
+    }
+}
+
 Def IRBuilder::call(Def to, ArrayRef<Def> args, Type ret_type) {
     if (is_reachable()) {
         auto p = cur_bb->call(to, args, ret_type);

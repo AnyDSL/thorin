@@ -1,6 +1,5 @@
 #include "thorin/irbuilder.h"
 
-#include "thorin/lambda.h"
 #include "thorin/primop.h"
 #include "thorin/world.h"
 
@@ -86,17 +85,17 @@ Lambda* JumpTarget::untangle() {
     return lambda_ = bb;
 }
 
-void JumpTarget::jump_from(Lambda* bb) {
-    if (!lambda_) {
-        lambda_ = bb;
-        first_ = true;
+void Lambda::jump(JumpTarget& jt) {
+    if (!jt.lambda_) {
+        jt.lambda_ = this;
+        jt.first_ = true;
     } else
-        bb->jump(untangle(), {});
+        this->jump(jt.untangle(), {});
 }
 
 Lambda* JumpTarget::branch_to(World& world) {
     auto bb = world.basicblock(lambda_ ? name_ + std::string(".crit") : name_);
-    jump_from(bb);
+    bb->jump(*this);
     bb->seal();
     return bb;
 }
@@ -147,42 +146,50 @@ Def IRBuilder::extract(Def agg, Def index, const std::string& name) {
     return world().extract(agg, index, name);
 }
 
-void IRBuilder::jump(JumpTarget& jt) {
+Lambda* IRBuilder::jump(JumpTarget& jt) {
     if (is_reachable()) {
-        jt.jump_from(cur_bb);
+        cur_bb->jump(jt);
+        auto res = cur_bb;
         set_unreachable();
+        return res;
     }
+    return nullptr;
 }
 
-void IRBuilder::branch(Def cond, JumpTarget& t, JumpTarget& f) {
+Lambda* IRBuilder::branch(Def cond, JumpTarget& t, JumpTarget& f) {
     if (is_reachable()) {
         if (auto lit = cond->isa<PrimLit>()) {
-            jump(lit->value().get_bool() ? t : f);
+            return jump(lit->value().get_bool() ? t : f);
         } else if (&t == &f) {
-            jump(t);
+            return jump(t);
         } else {
             auto tl = t.branch_to(world_);
             auto fl = f.branch_to(world_);
+            auto res = cur_bb;
             cur_bb->branch(cond, tl, fl);
             set_unreachable();
+            return res;
         }
     }
+    return nullptr;
 }
 
-void IRBuilder::branch(Def cond, JumpTarget& t, JumpTarget& f, JumpTarget& x) {
+Lambda* IRBuilder::branch_join(Def cond, JumpTarget& t, JumpTarget& f) {
     if (is_reachable()) {
         if (auto lit = cond->isa<PrimLit>()) {
-            jump(lit->value().get_bool() ? t : f);
+            return jump(lit->value().get_bool() ? t : f);
         } else if (&t == &f) {
-            jump(t);
+            return jump(t);
         } else {
             auto tl = t.branch_to(world_);
             auto fl = f.branch_to(world_);
-            auto xl = x.branch_to(world_);
-            cur_bb->branch_join(cond, tl, fl, xl);
+            auto res = cur_bb;
+            cur_bb->branch_join(cond, tl, fl, world().bottom(world().fn_type()));
             set_unreachable();
+            return res;
         }
     }
+    return nullptr;
 }
 
 Def IRBuilder::call(Def to, ArrayRef<Def> args, Type ret_type) {

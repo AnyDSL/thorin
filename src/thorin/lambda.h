@@ -10,6 +10,7 @@
 
 namespace thorin {
 
+class JumpTarget;
 class Lambda;
 class Scope;
 
@@ -156,6 +157,7 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     // terminate
 
     void jump(Def to, ArrayRef<Def> args);
+    void jump(JumpTarget&);
     void branch(Def cond, Def t, Def f);
     void branch_join(Def cond, Def t, Def f, Def x);
     std::pair<Lambda*, Def> call(Def to, ArrayRef<Def> args, Type ret_type);

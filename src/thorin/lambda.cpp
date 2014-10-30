@@ -112,8 +112,15 @@ static Lambdas preds(const Lambda* lambda) {
     while (!queue.empty()) {
         auto use = pop(queue);
         if (auto lambda = use->isa_lambda()) {
-            if ((use.index() == 0 && direct) || (use.index() != 0 && indirect))
+            if ((use.index() == 0 && direct) || (use.index() != 0 && indirect)) {
+                if (use.index() == 4) {
+                    if (auto ulambda = use->isa<Lambda>()) {
+                        if (ulambda->to() == lambda->world().branch_join())
+                            continue;
+                    }
+                }
                 preds.push_back(lambda);
+            }
             continue;
         }
 
@@ -140,8 +147,13 @@ static Lambdas succs(const Lambda* lambda) {
     if (direct && !lambda->empty())
         enqueue(lambda->to());
     if (indirect) {
-        for (auto arg : lambda->args())
-            enqueue(arg);
+        if (!lambda->empty() && lambda->to() == lambda->world().branch_join()) {
+            for (auto arg : lambda->args().slice_num_from_end(1))
+                enqueue(arg);
+        } else {
+            for (auto arg : lambda->args())
+                enqueue(arg);
+        }
     }
 
     while (!queue.empty()) {

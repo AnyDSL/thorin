@@ -348,7 +348,6 @@ void create_module(size_t dev, const void *ptx, std::string file_name, CUjit_tar
     // load ptx source
     if (print_progress) std::cerr << "Compiling(" << dev << ") '" << file_name << "' .";
     err = cuModuleLoadDataEx(&modules_[dev], ptx, num_options, options, optionValues);
-    std::cerr << "create module: " << modules_[dev] << std::endl;
     module_cache_[dev][file_name] = modules_[dev];
 
     if (err != CUDA_SUCCESS) {

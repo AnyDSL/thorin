@@ -205,7 +205,6 @@ public:
                    Def mem_size, const std::string& name = "") {
         return cse(new Map(device, addr_space, mem, ptr, mem_offset, mem_size, name));
     }
-    const Unmap* unmap(Def mem, Def ptr, const std::string& name = "") { return cse(new Unmap(mem, ptr, name)); }
 
     // guided partial evaluation
 

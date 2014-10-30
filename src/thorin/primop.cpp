@@ -112,7 +112,7 @@ Enter::Enter(Def mem, const std::string& name)
 }
 
 Map::Map(int32_t device, AddressSpace addr_space, Def mem, Def ptr, Def mem_offset, Def mem_size, const std::string &name)
-    : MapOp(Node_Map, Type(), {mem, ptr, mem_offset, mem_size}, name)
+    : Access(Node_Map, Type(), {mem, ptr, mem_offset, mem_size}, name)
 {
     World& w = mem->world();
     auto ptr_type = ptr->type().as<PtrType>();
@@ -183,7 +183,6 @@ Def Run    ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.ru
 Def Select ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.select(ops[0], ops[1], ops[2], name); }
 Def Store  ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.store(ops[0], ops[1], ops[2], name); }
 Def Tuple  ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.tuple(ops, name); }
-Def Unmap  ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.unmap(ops[0], ops[1], name); }
 Def Vector ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.vector(ops, name); }
 
 Def Alloc::vrebuild(World& to, ArrayRef<Def> ops, Type t) const { 

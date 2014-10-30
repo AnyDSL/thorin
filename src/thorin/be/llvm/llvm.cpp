@@ -65,6 +65,8 @@ Lambda* CodeGen::emit_intrinsic(Lambda* lambda) {
     Lambda* to = lambda->to()->as_lambda();
     switch (to->intrinsic()) {
         case Intrinsic::Atomic:    return emit_atomic(lambda);
+        case Intrinsic::Munmap:    runtime_->munmap(lookup(lambda->arg(1)));
+                                   return lambda->args().back()->as_lambda();
         case Intrinsic::CUDA:      return cuda_runtime_->emit_host_code(*this, lambda);
         case Intrinsic::NVVM:      return nvvm_runtime_->emit_host_code(*this, lambda);
         case Intrinsic::SPIR:      return spir_runtime_->emit_host_code(*this, lambda);
@@ -677,7 +679,6 @@ llvm::Value* CodeGen::emit(Def def) {
     if (auto load = def->isa<Load>())    return emit_load(load);
     if (auto store = def->isa<Store>())  return emit_store(store);
     if (auto mmap = def->isa<Map>())     return emit_mmap(mmap);
-    if (auto munmap = def->isa<Unmap>()) return emit_munmap(munmap);
     if (auto lea = def->isa<LEA>())      return emit_lea(lea);
     if (def->isa<Enter>())               return nullptr;
 
@@ -745,14 +746,6 @@ llvm::Value* CodeGen::emit_mmap(Def def) {
                           lookup(mmap->mem_offset()), lookup(mmap->mem_size()), size);
 }
 
-llvm::Value* CodeGen::emit_munmap(Def def) {
-    auto munmap = def->as<Unmap>();
-    // emit proper runtime call
-    return runtime_->munmap(lookup(munmap->ptr()));
-}
-
-// TODO factor emit_shared_map/emit_shared_unmap with the help of its base class MapOp
-
 llvm::Value* CodeGen::emit_shared_mmap(Def def, bool prefix) {
     auto mmap = def->as<Map>();
     assert(entry_ && "shared memory can only be mapped inside kernel");
@@ -764,11 +757,6 @@ llvm::Value* CodeGen::emit_shared_mmap(Def def, bool prefix) {
     auto type = this->convert(mmap->world().definite_array_type(elem_type, num_elems));
     auto global = emit_global_memory(type, (prefix ? entry_->name + "." : "") + mmap->unique_name(), 3);
     return global;
-}
-
-llvm::Value* CodeGen::emit_shared_munmap(Def) {
-    // TODO
-    return nullptr;
 }
 
 llvm::Type* CodeGen::convert(Type type) {

@@ -106,6 +106,5 @@ void SPIRCodeGen::emit_function_decl_hook(Lambda* lambda, llvm::Function* f) {
 }
 
 llvm::Value* SPIRCodeGen::emit_mmap(Def def) { return emit_shared_mmap(def, true /* add kernel prefix */); }
-llvm::Value* SPIRCodeGen::emit_munmap(Def def) { return emit_shared_munmap(def); }
 
 }

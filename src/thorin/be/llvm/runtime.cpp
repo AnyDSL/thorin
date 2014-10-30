@@ -60,7 +60,6 @@ Lambda* KernelRuntime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
     // fetch values and create external calls for initialization
     // check for source devices of all pointers
     DefMap<llvm::Value*> device_ptrs;
-    DefMap<llvm::Value*> mapped_ptrs;
     for (size_t i = 6, e = lambda->num_args(); i < e; ++i) {
         Def target_arg = lambda->arg(i);
         const auto target_val = code_gen.lookup(target_arg);
@@ -87,7 +86,6 @@ Lambda* KernelRuntime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
 
             if (ptr->device() == target_device) {
                 // data is already on this device
-                mapped_ptrs[target_arg] = target_val;
                 if (ptr->addr_space() == AddressSpace::Texture) {
                     // skip memory and return continuation of given kernel
                     auto target_param = kernel->param(i - 6 + 1 + 1);
@@ -128,9 +126,6 @@ Lambda* KernelRuntime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
     // emit copy-back operations
     for (auto entry : device_ptrs)
         read(target_device_val, entry.second, code_gen.lookup(entry.first));
-    // emit unmap operations
-    for (auto entry : mapped_ptrs)
-        code_gen.runtime_->munmap(entry.second);
     // emit free operations
     for (auto entry : device_ptrs)
         free(target_device_val, entry.second);

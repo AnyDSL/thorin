@@ -8,11 +8,7 @@ namespace thorin {
 typedef std::vector<std::pair<Type, Use>> ToDo;
 
 static bool map_param(World& world, Lambda* lambda, ToDo& todo) {
-    bool is_map   = lambda->intrinsic() == Intrinsic::Mmap;
-    bool is_unmap = lambda->intrinsic() == Intrinsic::Munmap;
-    assert(is_map ^ is_unmap  && "invalid map function");
-    assert((is_unmap || lambda->num_params() == 7) && "invalid signature");
-    assert((is_map   || lambda->num_params() == 3) && "invalid signature");
+    assert(lambda->intrinsic() == Intrinsic::Mmap && "invalid mmap function");
     assert(lambda->param(1)->type().isa<PtrType>() && "invalid pointer type");
 
     auto uses = lambda->uses();
@@ -20,32 +16,22 @@ static bool map_param(World& world, Lambda* lambda, ToDo& todo) {
         return false;
     auto ulambda = uses.begin()->def()->as_lambda();
 
-    const MapOp* mapped;
-    auto cont = ulambda->arg(is_map ? 6 : 2)->as_lambda(); // continuation
+    auto cont = ulambda->arg(6)->as_lambda(); // continuation
     Scope cont_scope(cont);
     Lambda* ncont;
-    if (is_map) {
-        auto map = world.map(ulambda->arg(2),  // target device (-1 for host device)
-                             ulambda->arg(3),  // address space
-                             ulambda->arg(0),  // memory
-                             ulambda->arg(1),  // source ptr
-                             ulambda->arg(4),  // offset to memory
-                             ulambda->arg(5)); // size of memory
-        ncont = drop(cont_scope, { map->out_mem(), map->out_ptr() });
-        mapped = map;
-    } else {
-        mapped = world.unmap(ulambda->arg(0),  // memory
-                             ulambda->arg(1)); // source ptr
-        ncont = drop(cont_scope, { mapped });
-    }
+
+    auto map = world.map(ulambda->arg(2),  // target device (-1 for host device)
+                         ulambda->arg(3),  // address space
+                         ulambda->arg(0),  // memory
+                         ulambda->arg(1),  // source ptr
+                         ulambda->arg(4),  // offset to memory
+                         ulambda->arg(5)); // size of memory
+    ncont = drop(cont_scope, { map->out_mem(), map->out_ptr() });
 
     ulambda->jump(ncont, {});
     cont->destroy_body();
-    if (is_map) {
-        auto map = mapped->as<Map>();
-        for (auto use : map->out_ptr()->uses())
-            todo.emplace_back(map->out_ptr_type(), use);
-    }
+    for (auto use : map->out_ptr()->uses())
+        todo.emplace_back(map->out_ptr_type(), use);
     return true;
 }
 
@@ -100,7 +86,7 @@ void memmap_builtins(World& world) {
         // 1) look for "mapped" lambdas
         has_work = false;
         for (auto lambda : world.copy_lambdas()) {
-            if ((lambda->intrinsic() == Intrinsic::Mmap || lambda->intrinsic() == Intrinsic::Munmap) && map_param(world, lambda, todo))
+            if (lambda->intrinsic() == Intrinsic::Mmap && map_param(world, lambda, todo))
                 has_work = true;
         }
         // 2) adapt mapped address spaces on users

@@ -213,11 +213,11 @@ std::ostream& CodeGen::emit_jump(const Lambda* lambda) {
 
 void emit_thorin(const Scope& scope, bool fancy, bool nocolor) {
     CodeGen cg(fancy, nocolor);
-    auto domtree = scope.domtree();
+    auto& domtree = *scope.domtree();
     auto schedule = schedule_smart(scope);
     auto bbs = bb_schedule(scope);
     for (auto lambda : bbs) {
-        int depth = fancy ? domtree->depth(lambda) : 0;
+        int depth = fancy ? domtree.depth(lambda) : (lambda == scope.entry() ? 0 : 1);
         cg.indent += depth;
         cg.newline();
         cg.emit_head(lambda);
@@ -231,7 +231,7 @@ void emit_thorin(const Scope& scope, bool fancy, bool nocolor) {
     cg.newline();
 }
 
-void emit_thorin(World& world, bool fancy, bool nocolor) {
+void emit_thorin(const World& world, bool fancy, bool nocolor) {
     CodeGen cg(fancy, nocolor);
     cg.stream() << "module '" << world.name() << "'\n\n";
 
@@ -248,6 +248,11 @@ void emit_def(Def def)                     { CodeGen(false).emit_def(def);      
 void emit_head(const Lambda* lambda)       { CodeGen(false).emit_head(lambda);       }
 void emit_jump(const Lambda* lambda)       { CodeGen(false).emit_jump(lambda);       }
 void emit_assignment(const PrimOp* primop) { CodeGen(false).emit_assignment(primop); }
+
+//------------------------------------------------------------------------------
+
+void Scope::dump() const { emit_thorin(*this, false, false); }
+void World::dump() const { emit_thorin(*this, false, false); }
 
 //------------------------------------------------------------------------------
 

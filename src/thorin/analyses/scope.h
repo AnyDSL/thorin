@@ -50,6 +50,7 @@ public:
     uint32_t sid() const { return sid_; }
     size_t size() const { return rpo_.size(); }
     World& world() const { return world_; }
+    void dump() const;
 
     const DomTree* domtree() const;
     const PostDomTree* postdomtree() const;
@@ -64,7 +65,7 @@ public:
     const_reverse_iterator rend() const { return rpo().rend(); }
 
     template<bool elide_empty = true>
-    static void for_each(World&, std::function<void(const Scope&)>);
+    static void for_each(const World&, std::function<void(const Scope&)>);
 
 private:
     static bool is_candidate(Def def) { return def->candidate_ == candidate_counter_; }

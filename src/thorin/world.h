@@ -252,6 +252,7 @@ public:
 #endif
     const TypeNode* unify_base(const TypeNode*);
     template<class T> Proxy<T> unify(const T* type) { return Proxy<T>(unify_base(type)->template as<T>()); }
+    void dump() const;
 
 private:
     const TypeNode* register_base(const TypeNode* type) {

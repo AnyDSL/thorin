@@ -717,6 +717,8 @@ Def World::store(Def mem, Def ptr, Def value, const std::string& name) {
 }
 
 Def World::enter(Def mem, const std::string& name) {
+    if (auto e = Enter::is_out_mem(mem))
+        return e;
     return cse(new Enter(mem, name));
 }
 

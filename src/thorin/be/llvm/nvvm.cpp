@@ -44,8 +44,6 @@ llvm::FunctionType* NVVMCodeGen::convert_fn_type(Lambda* lambda) {
 }
 
 void NVVMCodeGen::emit_function_decl_hook(Lambda* lambda, llvm::Function* f) {
-    f->setAttributes(llvm::AttributeSet());
-
     // append required metadata
     auto annotation = module_->getOrInsertNamedMetadata("nvvm.annotations");
 

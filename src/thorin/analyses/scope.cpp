@@ -256,7 +256,7 @@ const PostDomTree* Scope::postdomtree() const { return lazy(postdomtree_); }
 const LoopTree* Scope::looptree() const { return lazy(looptree_); }
 
 template<bool elide_empty>
-void Scope::for_each(World& world, std::function<void(const Scope&)> f) {
+void Scope::for_each(const World& world, std::function<void(const Scope&)> f) {
     LambdaSet done;
     std::queue<Lambda*> queue;
 
@@ -286,7 +286,7 @@ void Scope::for_each(World& world, std::function<void(const Scope&)> f) {
     }
 }
 
-template void Scope::for_each<true> (World&, std::function<void(const Scope&)>);
-template void Scope::for_each<false>(World&, std::function<void(const Scope&)>);
+template void Scope::for_each<true> (const World&, std::function<void(const Scope&)>);
+template void Scope::for_each<false>(const World&, std::function<void(const Scope&)>);
 
 }

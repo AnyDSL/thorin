@@ -26,13 +26,13 @@ if rttype in ("nvvm", "spir"):
                     result.append('  ret {0} %name\n'.format(ty1))
                     result.append('}\n')
                 # get rid of attributes
-                elif 'attributes #0' in line:
+                elif 'attributes #' in line:
                     print("Removing attribute declarations")
                     # ignore this line
                     pass
                 # it's a normal line, keep it but apply substitutions
                 else:
-                    line = line.replace('#0', '')
+                    line = re.sub('#[0-9]+', '', line)
                     result.append(line)
         # we have the patched thing, write it
         with open(filename, "w") as f:

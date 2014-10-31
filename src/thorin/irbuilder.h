@@ -44,14 +44,10 @@ public:
         , var_    (var.var_ == nullptr ? nullptr : new Var(*var.var_))
     {}
     Var(Var&& var)
-        : kind_   (std::move(var.kind()))
-        , builder_(std::move(var.builder_))
-        , handle_ (std::move(var.handle_))
-        , type_   (std::move(var.type_))
-        , name_   (std::move(var.name_))
-        , def_    (std::move(var.def_))
-        , var_    (std::move(var.var_))
-    {}
+        : Var()
+    {
+        swap(*this, var);
+    }
 
     Var static create_val(IRBuilder&, Def val);
     Var static create_mut(IRBuilder&, size_t handle, Type type, const char* name);

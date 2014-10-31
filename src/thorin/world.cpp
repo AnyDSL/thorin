@@ -703,12 +703,22 @@ Def World::load(Def mem, Def ptr, const std::string& name) {
             return global->init();
     }
 
+    if (auto ld = Load::is_out_mem(mem)) {
+        if (ptr == ld->ptr())
+            return ld;
+    }
+
     return cse(new Load(mem, ptr, name));
 }
 
 Def World::store(Def mem, Def ptr, Def value, const std::string& name) {
     if (value->isa<Bottom>())
         return mem;
+
+    if (auto st = mem->isa<Store>()) {
+        if (ptr == st->ptr() && value == st->val())
+            return st;
+    }
 
     if (auto insert = value->isa<Insert>())
         return store(mem, lea(ptr, insert->index(), insert->name), value, name);

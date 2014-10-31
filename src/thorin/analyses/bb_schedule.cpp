@@ -25,11 +25,11 @@ static void bb_schedule(const Scope& scope, const DomNode* n, std::vector<Lambda
         if (depth1 > depth2) return true;
         if (depth1 < depth2) return false;
 
-        // if this fails - use the one with less children in the domtree
+        // if this fails - use the one with more children in the domtree
         auto num1 = lambda2num.find(l1)->second;
         auto num2 = lambda2num.find(l2)->second;
-        if (num1 < num2) return true;
-        if (num1 > num2) return false;
+        if (num1 > num2) return true;
+        if (num1 < num2) return false;
 
         // if this fails use the one which is a direct succ of lambda
         const auto& succs = scope.succs(lambda);

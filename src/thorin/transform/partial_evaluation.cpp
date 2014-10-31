@@ -1,18 +1,10 @@
 #include "thorin/primop.h"
 #include "thorin/world.h"
-#include "thorin/analyses/scope.h"
-#include "thorin/analyses/domtree.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/util/hash.h"
 #include "thorin/util/queue.h"
 
 namespace thorin {
-
-static std::vector<Lambda*> top_level_lambdas(World& world) {
-    std::vector<Lambda*> result;
-    Scope::for_each<false>(world, [&] (const Scope& scope) { result.push_back(scope.entry()); });
-    return result;
-}
 
 //------------------------------------------------------------------------------
 
@@ -46,27 +38,16 @@ struct CallHash {
 class PartialEvaluator {
 public:
     PartialEvaluator(World& world)
-        : scope_(world, top_level_lambdas(world))
-        , postdomtree_(scope_.postdomtree())
-    {
-        for (auto lambda : world.lambdas()) {
-            new2old_[lambda] = lambda;
-            old2new_[lambda] = lambda;
-        }
-    }
+        : world_(world)
+    {}
 
-    World& world() { return scope().world(); }
-    const Scope& scope() const { return scope_; }
+    World& world() { return world_; }
     void seek();
     void eval(const Run* cur_run, Lambda* cur);
     void rewrite_jump(Lambda* src, Lambda* dst, const Call&);
-    void update_new2old(const Def2Def& map);
 
 private:
-    Scope scope_;
-    const PostDomTree* postdomtree_;
-    Lambda2Lambda new2old_;
-    Lambda2Lambda old2new_;
+    World& world_;
     LambdaSet done_;
     HashMap<Call, Lambda*, CallHash> cache_;
 };
@@ -117,11 +98,21 @@ void PartialEvaluator::eval(const Run* cur_run, Lambda* cur) {
             dst = cur->to()->isa_lambda();
         }
 
-        if (dst == world().branch())
-            dst = nullptr;
+        if (dst == world().branch_join()) {
+            cur = cur->arg(3)->as_lambda();
+            continue;
+        }
+
+        if (dst && dst->empty()) {
+            if (auto last = cur->args().back()->isa_lambda()) {
+                cur = last;
+                continue;
+            }
+            return;
+        }
 
         if (dst == nullptr) {               // skip to immediate post-dominator
-            cur = old2new_[postdomtree_->idom(new2old_[cur])];
+            return; // TODO
         } else if (dst->empty()) {
             if (!cur->args().empty()) {
                 if (auto lambda = cur->args().back()->isa_lambda()) {
@@ -161,13 +152,10 @@ void PartialEvaluator::eval(const Run* cur_run, Lambda* cur) {
                 return;
             } else {                                // no cached version found... create a new one
                 Scope scope(dst);
-                Def2Def old2new;
                 Type2Type type2type;
                 bool res = dst->type()->infer_with(type2type, cur->arg_fn_type());
                 assert(res);
-                auto dropped = drop(scope, old2new, call.args(), type2type);
-                old2new[dst] = dropped;
-                update_new2old(old2new);
+                auto dropped = drop(scope, call.args(), type2type);
                 rewrite_jump(cur, dropped, call);
                 cur = dropped;
             }
@@ -185,20 +173,6 @@ void PartialEvaluator::rewrite_jump(Lambda* src, Lambda* dst, const Call& call) 
 
     src->jump(dst, nargs);
     cache_[call] = dst;
-}
-
-void PartialEvaluator::update_new2old(const Def2Def& old2new) {
-    for (auto p : old2new) {
-        if (auto olambda = p.first->isa_lambda()) {
-            auto nlambda = p.second->as_lambda();
-            if (!nlambda->empty() && nlambda->to()->isa<Bottom>())
-                continue;
-            assert(new2old_.contains(olambda));
-            auto orig = new2old_[olambda];
-            new2old_[nlambda] = orig;
-            old2new_[orig] = nlambda;
-        }
-    }
 }
 
 //------------------------------------------------------------------------------

@@ -146,56 +146,36 @@ Def IRBuilder::extract(Def agg, Def index, const std::string& name) {
     return world().extract(agg, index, name);
 }
 
-Lambda* IRBuilder::jump(JumpTarget& jt) {
+void IRBuilder::jump(JumpTarget& jt) {
     if (is_reachable()) {
         cur_bb->jump(jt);
-        auto res = cur_bb;
         set_unreachable();
-        return res;
     }
-    return nullptr;
 }
 
-Lambda* IRBuilder::branch(Def cond, JumpTarget& t, JumpTarget& f) {
+void IRBuilder::branch(Def cond, JumpTarget& t, JumpTarget& f, JumpTarget* x) {
     if (is_reachable()) {
         if (auto lit = cond->isa<PrimLit>()) {
-            return jump(lit->value().get_bool() ? t : f);
+            jump(lit->value().get_bool() ? t : f);
         } else if (&t == &f) {
-            return jump(t);
+            jump(t);
         } else {
             auto tl = t.branch_to(world_);
             auto fl = f.branch_to(world_);
-            auto res = cur_bb;
             cur_bb->branch(cond, tl, fl);
+            if (x) {
+                assert(x->lambda_ == nullptr || !x->first_);
+                if (!x->lambda_) {
+                    x->lambda_ = world().basicblock(x->name_);
+                    x->first_ = false;
+                }
+                auto xl = x->lambda_;
+                cur_bb->branch_join(cond, tl, fl, xl);
+            } else
+                cur_bb->branch(cond, tl, fl);
             set_unreachable();
-            return res;
         }
     }
-    return nullptr;
-}
-
-Lambda* IRBuilder::branch(Def cond, JumpTarget& t, JumpTarget& f, JumpTarget& x) {
-    if (is_reachable()) {
-        if (auto lit = cond->isa<PrimLit>()) {
-            return jump(lit->value().get_bool() ? t : f);
-        } else if (&t == &f) {
-            return jump(t);
-        } else {
-            auto tl = t.branch_to(world_);
-            auto fl = f.branch_to(world_);
-            assert(x.lambda_ == nullptr || !x.first_);
-            if (!x.lambda_) {
-                x.lambda_ = world().basicblock(x.name_);
-                x.first_ = false;
-            }
-            auto xl = x.lambda_;
-            auto res = cur_bb;
-            cur_bb->branch_join(cond, tl, fl, xl);
-            set_unreachable();
-            return res;
-        }
-    }
-    return nullptr;
 }
 
 Def IRBuilder::call(Def to, ArrayRef<Def> args, Type ret_type) {

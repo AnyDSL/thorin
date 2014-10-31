@@ -134,9 +134,9 @@ public:
     void store(Def ptr, Def val, const std::string& name = "");
     Lambda* enter(JumpTarget& jt) { return cur_bb = jt.enter(); }
     Lambda* enter_unsealed(JumpTarget& jt) { return cur_bb = jt.enter_unsealed(world_); }
-    Lambda* jump(JumpTarget& jt);
-    Lambda* branch(Def cond, JumpTarget& t, JumpTarget& f);
-    Lambda* branch(Def cond, JumpTarget& t, JumpTarget& f, JumpTarget& x);
+    void jump(JumpTarget& jt);
+    void branch(Def cond, JumpTarget& t, JumpTarget& f, JumpTarget* x = nullptr);
+    void branch(Def cond, JumpTarget& t, JumpTarget& f, JumpTarget& x) { branch(cond, t, f, &x); }
     Def call(Def to, ArrayRef<Def> args, Type ret_type);
     Def get_mem();
     void set_mem(Def def);

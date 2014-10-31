@@ -69,11 +69,10 @@ World& Var::world() const { return builder_->world(); }
 //------------------------------------------------------------------------------
 
 #ifndef NDEBUG
-JumpTarget::~JumpTarget() { assert((!lambda_ || first_ || lambda_->is_sealed()) && "JumpTarget not sealed"); }
+JumpTarget::~JumpTarget() { 
+    assert((!lambda_ || first_ || lambda_->is_sealed()) && "JumpTarget not sealed"); 
+}
 #endif
-
-World& JumpTarget::world() const { assert(lambda_); return lambda_->world(); }
-void JumpTarget::seal() { assert(lambda_); lambda_->seal(); }
 
 Lambda* JumpTarget::untangle() {
     if (!first_)
@@ -112,6 +111,50 @@ Lambda* JumpTarget::enter_unsealed(World& world) {
 
 //------------------------------------------------------------------------------
 
+void IRBuilder::jump(JumpTarget& jt) {
+    if (is_reachable()) {
+        cur_bb->jump(jt);
+        set_unreachable();
+    }
+}
+
+void IRBuilder::branch(Def cond, JumpTarget& t, JumpTarget& f, JumpTarget* x) {
+    if (is_reachable()) {
+        if (auto lit = cond->isa<PrimLit>()) {
+            jump(lit->value().get_bool() ? t : f);
+        } else if (&t == &f) {
+            jump(t);
+        } else {
+            auto tl = t.branch_to(world_);
+            auto fl = f.branch_to(world_);
+            cur_bb->branch(cond, tl, fl);
+            if (x) {
+                if (x->lambda_ == nullptr) {
+                    x->lambda_ = world().basicblock(x->name_);
+                    x->first_ = false;
+                }
+                // TODO what if x->first_ == true? is it really correct to do nothing?
+                auto xl = x->lambda_;
+                cur_bb->branch_join(cond, tl, fl, xl);
+            } else
+                cur_bb->branch(cond, tl, fl);
+            set_unreachable();
+        }
+    }
+}
+
+Def IRBuilder::call(Def to, ArrayRef<Def> args, Type ret_type) {
+    if (is_reachable()) {
+        auto p = cur_bb->call(to, args, ret_type);
+        cur_bb = p.first;
+        return p.second;
+    }
+    return Def();
+}
+
+Def IRBuilder::get_mem() { return cur_bb->get_mem(); }
+void IRBuilder::set_mem(Def mem) { if (is_reachable()) cur_bb->set_mem(mem); }
+
 Def IRBuilder::create_frame() {
     auto enter = world().enter(get_mem());
     set_mem(world().extract(enter, 0));
@@ -146,49 +189,6 @@ Def IRBuilder::extract(Def agg, Def index, const std::string& name) {
     return world().extract(agg, index, name);
 }
 
-void IRBuilder::jump(JumpTarget& jt) {
-    if (is_reachable()) {
-        cur_bb->jump(jt);
-        set_unreachable();
-    }
-}
-
-void IRBuilder::branch(Def cond, JumpTarget& t, JumpTarget& f, JumpTarget* x) {
-    if (is_reachable()) {
-        if (auto lit = cond->isa<PrimLit>()) {
-            jump(lit->value().get_bool() ? t : f);
-        } else if (&t == &f) {
-            jump(t);
-        } else {
-            auto tl = t.branch_to(world_);
-            auto fl = f.branch_to(world_);
-            cur_bb->branch(cond, tl, fl);
-            if (x) {
-                assert(x->lambda_ == nullptr || !x->first_);
-                if (!x->lambda_) {
-                    x->lambda_ = world().basicblock(x->name_);
-                    x->first_ = false;
-                }
-                auto xl = x->lambda_;
-                cur_bb->branch_join(cond, tl, fl, xl);
-            } else
-                cur_bb->branch(cond, tl, fl);
-            set_unreachable();
-        }
-    }
-}
-
-Def IRBuilder::call(Def to, ArrayRef<Def> args, Type ret_type) {
-    if (is_reachable()) {
-        auto p = cur_bb->call(to, args, ret_type);
-        cur_bb = p.first;
-        return p.second;
-    }
-    return Def();
-}
-
-Def IRBuilder::get_mem() { return cur_bb->get_mem(); }
-void IRBuilder::set_mem(Def mem) { if (is_reachable()) cur_bb->set_mem(mem); }
 
 //------------------------------------------------------------------------------
 

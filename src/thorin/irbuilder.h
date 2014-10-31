@@ -97,8 +97,8 @@ public:
     ~JumpTarget();
 #endif
 
-    World& world() const;
-    void seal();
+    World& world() const { assert(lambda_); return lambda_->world(); }
+    void seal() { assert(lambda_); lambda_->seal(); }
 
 private:
     Lambda* branch_to(World& world);

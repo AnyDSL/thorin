@@ -58,8 +58,8 @@ public:
     virtual llvm::Value* set_kernel_arg_struct(llvm::Value* device, llvm::Value* ptr, llvm::Type* type) = 0;
     // void set_texture(i32 dev, i64 mem, i8* name, i32 type);
     virtual llvm::Value* set_texture(llvm::Value* device, llvm::Value* ptr, llvm::Value* name, PrimTypeKind type) = 0;
-    // void load_kernel(i32 dev, char* module, char* name);
-    virtual llvm::Value* load_kernel(llvm::Value* device, llvm::Value* module, llvm::Value* name) = 0;
+    // void load_kernel(i32 dev, char* file, char* kernel);
+    virtual llvm::Value* load_kernel(llvm::Value* device, llvm::Value* file, llvm::Value* kernel) = 0;
     // void launch_kernel(i32 dev, char* name);
     virtual llvm::Value* launch_kernel(llvm::Value* device, llvm::Value* name) = 0;
 

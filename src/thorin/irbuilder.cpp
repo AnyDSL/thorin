@@ -174,7 +174,7 @@ Lambda* IRBuilder::branch(Def cond, JumpTarget& t, JumpTarget& f) {
     return nullptr;
 }
 
-Lambda* IRBuilder::branch_join(Def cond, JumpTarget& t, JumpTarget& f) {
+Lambda* IRBuilder::branch(Def cond, JumpTarget& t, JumpTarget& f, JumpTarget& x) {
     if (is_reachable()) {
         if (auto lit = cond->isa<PrimLit>()) {
             return jump(lit->value().get_bool() ? t : f);
@@ -183,8 +183,14 @@ Lambda* IRBuilder::branch_join(Def cond, JumpTarget& t, JumpTarget& f) {
         } else {
             auto tl = t.branch_to(world_);
             auto fl = f.branch_to(world_);
+            assert(x.lambda_ == nullptr || !x.first_);
+            if (!x.lambda_) {
+                x.lambda_ = world().basicblock(x.name_);
+                x.first_ = false;
+            }
+            auto xl = x.lambda_;
             auto res = cur_bb;
-            cur_bb->branch_join(cond, tl, fl, world().bottom(world().fn_type()));
+            cur_bb->branch_join(cond, tl, fl, xl);
             set_unreachable();
             return res;
         }

@@ -138,15 +138,12 @@ void CodeGen::emit(int opt) {
                 auto argv = &*arg;
                 auto value = map_param(fct, argv, param);
                 if (value == argv) {
-                    // use param
-                    arg->setName(param->unique_name());
+                    arg->setName(param->unique_name()); // use param
                     params_[param] = arg++;
-                } else {
-                    // use provided value
-                    params_[param] = value;
+                } else { 
+                    params_[param] = value;             // use provided value
                 }
-            }
-            else {
+            } else {
                 assert(!ret_param);
                 ret_param = param;
             }

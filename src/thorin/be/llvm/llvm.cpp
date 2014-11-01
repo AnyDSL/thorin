@@ -227,7 +227,7 @@ void CodeGen::emit(int opt) {
                         break;
                     }
                 }
-            } else if (bb_lambda->to() == bb_lambda->world().branch() || bb_lambda->to() == bb_lambda->world().branch_join()) { // conditional branch
+            } else if (bb_lambda->to() == world().branch() || bb_lambda->to() == world().branch_join()) { // conditional branch
                 llvm::Value* cond = lookup(bb_lambda->arg(0));
                 llvm::BasicBlock* tbb = bb2lambda[bb_lambda->arg(1)->as_lambda()];
                 llvm::BasicBlock* fbb = bb2lambda[bb_lambda->arg(2)->as_lambda()];

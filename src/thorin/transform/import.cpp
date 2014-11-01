@@ -35,6 +35,11 @@ Def import(Type2Type& type_old2new, Def2Def& def_old2new, World& to, Def odef) {
 
     Lambda* nlambda = nullptr;
     if (auto olambda = odef->isa_lambda()) { // create stub in new world
+        // TODO maybe we want to deal with intrinsics in a more streamlined way
+        if (olambda == olambda->world().branch())
+            return def_old2new[olambda] = to.branch();
+        if (olambda == olambda->world().branch_join())
+            return def_old2new[olambda] = to.branch_join();
         auto npi = import(type_old2new, to, olambda->type()).as<FnType>();
         nlambda = to.lambda(npi, olambda->cc(), olambda->intrinsic(), olambda->name);
         for (size_t i = 0, e = olambda->num_params(); i != e; ++i) {

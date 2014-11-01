@@ -10,6 +10,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -67,7 +68,7 @@ std::vector<CUcontext> contexts_;
 std::vector<CUmodule> modules_;
 std::vector<CUfunction> functions_;
 std::vector<std::unordered_map<std::string, CUmodule>> module_cache_;
-std::vector<std::unordered_map<std::string, CUfunction>> function_cache_;
+std::unordered_map<CUmodule, std::unordered_map<std::string, CUfunction>> function_cache_;
 std::vector<CUtexref> textures_;
 void **cuArgs;
 int cuArgIdx, cuArgIdxMax;
@@ -308,7 +309,6 @@ void init_cuda() {
     modules_.resize(device_count);
     functions_.resize(device_count);
     module_cache_.resize(device_count);
-    function_cache_.resize(device_count);
     textures_.resize(device_count);
 
     for (int i=0; i<device_count; ++i) {
@@ -372,7 +372,7 @@ void create_kernel(size_t dev, std::string kernel_name) {
     // get function entry point
     CUresult err = cuModuleGetFunction(&functions_[dev], modules_[dev], kernel_name.c_str());
     checkErrDrv(err, "cuModuleGetFunction()");
-    function_cache_[dev][kernel_name] = functions_[dev];
+    function_cache_[modules_[dev]][kernel_name] = functions_[dev];
 }
 
 
@@ -536,36 +536,47 @@ void compile_cuda(size_t dev, std::string file_name, CUjit_target target_cc) {
 }
 
 
+// create module
+void load_module(size_t dev, std::string file_name, bool is_nvvm) {
+    int major, minor;
+    CUresult err = CUDA_SUCCESS;
+    err = cuDeviceGetAttribute(&major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, devices_[dev]);
+    checkErrDrv(err, "cuDeviceGetAttribute()");
+    err = cuDeviceGetAttribute(&minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, devices_[dev]);
+    checkErrDrv(err, "cuDeviceGetAttribute()");
+    CUjit_target target_cc = (CUjit_target)(major*10 + minor);
+
+    if (is_nvvm) {
+        compile_nvvm(dev, file_name, target_cc);
+    } else {
+        compile_cuda(dev, file_name, target_cc);
+    }
+}
+
+
 // load CUDA/NVVM source and compile kernel
 void load_kernel(size_t dev, std::string file_name, std::string kernel_name, bool is_nvvm) {
-    // get module and function from cache
-    if (function_cache_[dev].count(kernel_name)) {
-        functions_[dev] = function_cache_[dev][kernel_name];
-        modules_[dev] = module_cache_[dev][file_name];
-        std::cerr << "Compiling(" << dev << ") '" << kernel_name << "' ... returning old copy!" << std::endl;
-        return;
-    }
-
-    cuCtxPushCurrent(contexts_[dev]);
+    // get module from cache
     if (module_cache_[dev].count(file_name)) {
-        modules_[dev] = module_cache_[dev][file_name];
-    } else {
-        int major, minor;
-        CUresult err = CUDA_SUCCESS;
-        err = cuDeviceGetAttribute(&major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, devices_[dev]);
-        checkErrDrv(err, "cuDeviceGetAttribute()");
-        err = cuDeviceGetAttribute(&minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, devices_[dev]);
-        checkErrDrv(err, "cuDeviceGetAttribute()");
-        CUjit_target target_cc = (CUjit_target)(major*10 + minor);
-
-        if (is_nvvm) {
-            compile_nvvm(dev, file_name, target_cc);
+        auto module = modules_[dev] = module_cache_[dev][file_name];
+        // get function from cache
+        if (function_cache_[module].count(kernel_name)) {
+            functions_[dev] = function_cache_[module][kernel_name];
+            std::cerr << "Compiling(" << dev << ") '" << kernel_name << "' ... returning old copy!" << std::endl;
+            return;
         } else {
-            compile_cuda(dev, file_name, target_cc);
+            // no function
+            cuCtxPushCurrent(contexts_[dev]);
+            create_kernel(dev, kernel_name);
+            cuCtxPopCurrent(NULL);
         }
+    } else {
+        // no module; no function
+        cuCtxPushCurrent(contexts_[dev]);
+        load_module(dev, file_name, is_nvvm);
+        create_kernel(dev, kernel_name);
+        cuCtxPopCurrent(NULL);
     }
-    create_kernel(dev, kernel_name);
-    cuCtxPopCurrent(NULL);
 }
 
 

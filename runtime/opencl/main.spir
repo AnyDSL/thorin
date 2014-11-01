@@ -13,7 +13,7 @@ target triple = "spir64-unknown-unknown"
 ;    out[tid] = ave(tid, tid);
 ; }
 ;
-; __kernel void simple(__global int *out, __constant int *cmem) {
+; __kernel void simple_cmem(__global int *out, __constant int *cmem) {
 ;    int tid = get_global_id(0);
 ;    out[tid] = cmem[get_local_id(0)];
 ; }
@@ -53,10 +53,10 @@ declare spir_func i64 @_Z12get_local_idj(i32) nounwind readnone
 !opencl.kernels = !{!0, !6}
 !opencl.enable.FP_CONTRACT = !{}
 !opencl.spir.version = !{!12}
-!opencl.ocl.version = !{!13}
-!opencl.used.extensions = !{!14}
-!opencl.used.optional.core.features = !{!14}
-!opencl.compiler.options = !{!14}
+!opencl.ocl.version = !{!12}
+!opencl.used.extensions = !{!13}
+!opencl.used.optional.core.features = !{!13}
+!opencl.compiler.options = !{!13}
 
 !0 = metadata !{void (i32 addrspace(1)*)* @simple, metadata !1, metadata !2, metadata !3, metadata !4, metadata !5}
 !1 = metadata !{metadata !"kernel_arg_addr_space", i32 1}
@@ -71,6 +71,5 @@ declare spir_func i64 @_Z12get_local_idj(i32) nounwind readnone
 !10 = metadata !{metadata !"kernel_arg_type_qual", metadata !"", metadata !""}
 !11 = metadata !{metadata !"kernel_arg_name", metadata !"out", metadata !"cmem"}
 !12 = metadata !{i32 1, i32 2}
-!13 = metadata !{i32 1, i32 2}
-!14 = metadata !{}
+!13 = metadata !{}
 

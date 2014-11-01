@@ -6,8 +6,8 @@ CUDARuntime::CUDARuntime(llvm::LLVMContext& context, llvm::Module* target, llvm:
     : NVVMRuntime(context, target, builder)
 {}
 
-llvm::Value* CUDARuntime::load_kernel(llvm::Value* device, llvm::Value* module, llvm::Value* data) {
-    llvm::Value* load_args[] = { device, module, data };
+llvm::Value* CUDARuntime::load_kernel(llvm::Value* device, llvm::Value* file, llvm::Value* kernel) {
+    llvm::Value* load_args[] = { device, file, kernel };
     return builder_.CreateCall(get("nvvm_load_cuda_kernel"), load_args);
 }
 

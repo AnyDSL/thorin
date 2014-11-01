@@ -74,6 +74,7 @@ class Memory {
         std::vector<std::unordered_map<mem_id, mapping_>> mmap;
         std::vector<std::unordered_map<mem_id, void*>> idtomem;
         std::vector<std::unordered_map<void*, mem_id>> memtoid;
+        std::vector<std::unordered_map<mem_id, size_t>> mcount;
         std::unordered_map<size_t, size_t> ummap;
         std::unordered_map<void*, size_t> hostmem;
 
@@ -110,6 +111,7 @@ class Memory {
         mmap.resize(mmap.size() + num);
         idtomem.resize(idtomem.size() + num);
         memtoid.resize(memtoid.size() + num);
+        mcount.resize(mcount.size() + num);
     }
     void associate_device(size_t host_dev, size_t assoc_dev) {
         ummap[assoc_dev] = host_dev;
@@ -158,6 +160,7 @@ class Memory {
 
         if (id) {
             std::cerr << " * malloc buffer(" << dev << "): returning old copy " << id << " for " << host << std::endl;
+            mcount[dev][id]++;
             return id;
         }
 
@@ -174,6 +177,7 @@ class Memory {
             id = map_memory(dev, host, mem, Global, offset, size);
             std::cerr << " * malloc buffer(" << dev << "):  " << mem << " (" << id << ") <-> host: " << host << std::endl;
         }
+        mcount[dev][id] = 1;
         return id;
     }
     mem_id malloc(size_t dev, void *host) {
@@ -182,10 +186,15 @@ class Memory {
     }
 
     void free(size_t dev, mem_id mem) {
-        std::cerr << " * free buffer(" << dev << "):    " << mem << std::endl;
-        cl_mem dev_mem = get_dev_mem(dev, mem);
-        free_buffer(dev, dev_mem);
-        remove(dev, mem);
+        auto ref_count = --mcount[dev][mem];
+        if (ref_count) {
+            std::cerr << " * free buffer(" << dev << "):   " << mem << " update ref count to " << ref_count << std::endl;
+        } else {
+            std::cerr << " * free buffer(" << dev << "):    " << mem << std::endl;
+            cl_mem dev_mem = get_dev_mem(dev, mem);
+            free_buffer(dev, dev_mem);
+            remove(dev, mem);
+        }
     }
 
     void read(size_t dev, mem_id id) {
@@ -827,8 +836,8 @@ mem_id map_memory(size_t dev, size_t type_, void *from, int offset, int size) {
 
     mem_id mem = mem_manager.get_id(dev, from);
     if (mem) {
-        std::cerr << " * map memory(" << dev << "):     returning old copy " << mem << " for " << from << std::endl;
-        return mem;
+        std::cerr << " * map memory(" << dev << ") -> malloc buffer:" << std::endl;
+        return mem_manager.malloc(dev, from, offset, size);
     }
 
     if (type==Global || type==Texture) {
@@ -836,7 +845,7 @@ mem_id map_memory(size_t dev, size_t type_, void *from, int offset, int size) {
             // mapping the whole memory
             mem = mem_manager.malloc(dev, from);
             mem_manager.write(dev, mem, from);
-            std::cerr << " * map memory(" << dev << "):     " << from << " -> " << mem << std::endl;
+            std::cerr << " * map memory(" << dev << "):    " << from << " -> " << mem << std::endl;
 
             #if 0
             cl_event event;
@@ -862,7 +871,7 @@ mem_id map_memory(size_t dev, size_t type_, void *from, int offset, int size) {
             // mapping and slicing of a region
             mem = mem_manager.malloc(dev, from, offset, size);
             mem_manager.write(dev, mem, from);
-            std::cerr << " * map memory(" << dev << "):     " << from << " [" << offset << ":" << size << "] -> " << mem << std::endl;
+            std::cerr << " * map memory(" << dev << "):    " << from << " [" << offset << ":" << size << "] -> " << mem << std::endl;
 
             #if 0
             cl_mem_flags mem_flags = CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR;

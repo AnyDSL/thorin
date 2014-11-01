@@ -15,6 +15,21 @@ SPIRCodeGen::SPIRCodeGen(World& world)
 {
     module_->setDataLayout("e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v16:16:16-v24:32:32-v32:32:32-v48:64:64-v64:64:64-v96:128:128-v128:128:128-v192:256:256-v256:256:256-v512:512:512-v1024:1024:1024");
     module_->setTargetTriple("spir64-unknown-unknown");
+    // opencl.enable.FP_CONTRACT
+    module_->getOrInsertNamedMetadata("opencl.enable.FP_CONTRACT");
+    // opencl.spir.version
+    auto spir_version_md = module_->getOrInsertNamedMetadata("opencl.spir.version");
+    llvm::Value* annotation_values_12[] = { builder_.getInt32(1), builder_.getInt32(2) };
+    spir_version_md->addOperand(llvm::MDNode::get(context_, annotation_values_12));
+    // opencl.ocl.version
+    auto ocl_version_md = module_->getOrInsertNamedMetadata("opencl.ocl.version");
+    ocl_version_md->addOperand(llvm::MDNode::get(context_, annotation_values_12));
+    // opencl.used.extensions
+    module_->getOrInsertNamedMetadata("opencl.used.extensions");
+    // opencl.used.optional.core.features
+    module_->getOrInsertNamedMetadata("opencl.used.optional.core.features");
+    // opencl.compiler.options
+    module_->getOrInsertNamedMetadata("opencl.compiler.options");
 }
 
 //------------------------------------------------------------------------------
@@ -48,7 +63,6 @@ llvm::FunctionType* SPIRCodeGen::convert_fn_type(Lambda* lambda) {
 
 void SPIRCodeGen::emit_function_decl_hook(Lambda* lambda, llvm::Function* f) {
     // append required metadata
-    llvm::Value* annotation_values_12[] = { builder_.getInt32(1), builder_.getInt32(2) };
     size_t num_params = f->arg_size() + 1;
     Array<llvm::Value*> annotation_values_addr_space(num_params);
     Array<llvm::Value*> annotation_values_access_qual(num_params);
@@ -89,20 +103,6 @@ void SPIRCodeGen::emit_function_decl_hook(Lambda* lambda, llvm::Function* f) {
     // opencl.kernels
     auto kernels_md = module_->getOrInsertNamedMetadata("opencl.kernels");
     kernels_md->addOperand(llvm::MDNode::get(context_, annotation_values_kernel));
-    // opencl.enable.FP_CONTRACT
-    module_->getOrInsertNamedMetadata("opencl.enable.FP_CONTRACT");
-    // opencl.spir.version
-    auto spir_version_md = module_->getOrInsertNamedMetadata("opencl.spir.version");
-    spir_version_md->addOperand(llvm::MDNode::get(context_, annotation_values_12));
-    // opencl.ocl.version
-    auto ocl_version_md = module_->getOrInsertNamedMetadata("opencl.ocl.version");
-    ocl_version_md->addOperand(llvm::MDNode::get(context_, annotation_values_12));
-    // opencl.used.extensions
-    module_->getOrInsertNamedMetadata("opencl.used.extensions");
-    // opencl.used.optional.core.features
-    module_->getOrInsertNamedMetadata("opencl.used.optional.core.features");
-    // opencl.compiler.options
-    module_->getOrInsertNamedMetadata("opencl.compiler.options");
 }
 
 llvm::Value* SPIRCodeGen::emit_mmap(Def def) { return emit_shared_mmap(def, true /* add kernel prefix */); }

@@ -67,8 +67,8 @@ llvm::Value* SPIRRuntime::set_texture(llvm::Value* device, llvm::Value* mem, llv
     return builder_.CreateCall(get("spir_set_kernel_arg_tex"), tex_args);
 }
 
-llvm::Value* SPIRRuntime::load_kernel(llvm::Value* device, llvm::Value* module, llvm::Value* data) {
-    llvm::Value* load_args[] = { device, module, data };
+llvm::Value* SPIRRuntime::load_kernel(llvm::Value* device, llvm::Value* file, llvm::Value* kernel) {
+    llvm::Value* load_args[] = { device, file, kernel };
     return builder_.CreateCall(get("spir_build_program_and_kernel_from_binary"), load_args);
 }
 

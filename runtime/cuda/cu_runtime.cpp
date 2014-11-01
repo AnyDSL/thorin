@@ -283,12 +283,11 @@ inline void __check_device(size_t dev) {
 
 // initialize CUDA device
 void init_cuda() {
-    CUresult err = CUDA_SUCCESS;
     int device_count, driver_version = 0, nvvm_major = 0, nvvm_minor = 0;
 
     setenv("CUDA_CACHE_DISABLE", "1", 1);
 
-    err = cuInit(0);
+    CUresult err = cuInit(0);
     checkErrDrv(err, "cuInit()");
 
     err = cuDeviceGetCount(&device_count);
@@ -473,29 +472,27 @@ void compile_nvvm(size_t dev, std::string file_name, CUjit_target target_cc) {
     if (err != NVVM_SUCCESS) {
         size_t log_size;
         nvvmGetProgramLogSize(program, &log_size);
-        char *error_log = (char*)malloc(log_size);
+        char *error_log = new char[log_size];
         nvvmGetProgramLog(program, error_log);
         std::cerr << "Error log: " << error_log << std::endl;
-        free(error_log);
+        delete[] error_log;
     }
     checkErrNvvm(err, "nvvmAddModuleToProgram()");
 
-    size_t PTXSize;
-    err = nvvmGetCompiledResultSize(program, &PTXSize);
+    size_t ptx_size;
+    err = nvvmGetCompiledResultSize(program, &ptx_size);
     checkErrNvvm(err, "nvvmGetCompiledResultSize()");
 
-    char *PTX = (char*)malloc(PTXSize);
-    err = nvvmGetCompiledResult(program, PTX);
-    if (err != NVVM_SUCCESS) free(PTX);
+    char *ptx = new char[ptx_size];
+    err = nvvmGetCompiledResult(program, ptx);
     checkErrNvvm(err, "nvvmGetCompiledResult()");
 
     err = nvvmDestroyProgram(&program);
-    if (err != NVVM_SUCCESS) free(PTX);
     checkErrNvvm(err, "nvvmDestroyProgram()");
 
     // compile ptx
-    create_module(dev, PTX, file_name, target_cc);
-    free(PTX);
+    create_module(dev, ptx, file_name, target_cc);
+    delete[] ptx;
 }
 
 
@@ -519,10 +516,8 @@ void compile_cuda(size_t dev, std::string file_name, CUjit_target target_cc) {
     }
     pclose(fpipe);
 
-    std::string ptx_filename = file_name;
-    ptx_filename += ".ptx";
-
-    std::ifstream srcFile(ptx_filename.c_str());
+    std::string ptx_filename = file_name + ".ptx";
+    std::ifstream srcFile(ptx_filename);
     if (!srcFile.is_open()) {
         std::cerr << "ERROR: Can't open PTX source file '" << ptx_filename << "'!" << std::endl;
         exit(EXIT_FAILURE);
@@ -539,10 +534,8 @@ void compile_cuda(size_t dev, std::string file_name, CUjit_target target_cc) {
 // create module
 void load_module(size_t dev, std::string file_name, bool is_nvvm) {
     int major, minor;
-    CUresult err = CUDA_SUCCESS;
-    err = cuDeviceGetAttribute(&major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, devices_[dev]);
-    checkErrDrv(err, "cuDeviceGetAttribute()");
-    err = cuDeviceGetAttribute(&minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, devices_[dev]);
+    CUresult err = cuDeviceGetAttribute(&major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, devices_[dev]);
+            err |= cuDeviceGetAttribute(&minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, devices_[dev]);
     checkErrDrv(err, "cuDeviceGetAttribute()");
     CUjit_target target_cc = (CUjit_target)(major*10 + minor);
 
@@ -700,13 +693,9 @@ void set_kernel_arg_const(size_t dev, void *param, std::string name, size_t size
 
 void launch_kernel(size_t dev, std::string kernel_name) {
     cuCtxPushCurrent(contexts_[dev]);
-    CUresult err = CUDA_SUCCESS;
     CUevent start, end;
     unsigned int event_flags = CU_EVENT_DEFAULT;
     float time;
-    std::string error_string = "cuLaunchKernel(";
-    error_string += kernel_name;
-    error_string += ")";
 
     // compute launch configuration
     dim3 grid;
@@ -723,10 +712,9 @@ void launch_kernel(size_t dev, std::string kernel_name) {
     for (size_t iter=0; iter<7; ++iter) {
     #endif
     cuEventRecord(start, 0);
-    err = cuLaunchKernel(functions_[dev], grid.x, grid.y, grid.z, cuDimBlock.x, cuDimBlock.y, cuDimBlock.z, 0, NULL, cuArgs, NULL);
-    checkErrDrv(err, error_string.c_str());
-    err = cuCtxSynchronize();
-    checkErrDrv(err, error_string.c_str());
+    CUresult err = cuLaunchKernel(functions_[dev], grid.x, grid.y, grid.z, cuDimBlock.x, cuDimBlock.y, cuDimBlock.z, 0, NULL, cuArgs, NULL);
+    err |= cuCtxSynchronize();
+    checkErrDrv(err, "cuLaunchKernel(" + kernel_name + ")");
 
     cuEventRecord(end, 0);
     cuEventSynchronize(end);

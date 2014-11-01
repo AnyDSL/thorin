@@ -365,11 +365,9 @@ void create_context_command_queue(cl_platform_id platform, std::vector<cl_device
 void init_opencl() {
     char pnBuffer[1024], pvBuffer[1024], pv2Buffer[1024], pdBuffer[1024], pd2Buffer[1024], pd3Buffer[1024];
     cl_uint num_platforms, num_devices;
-    cl_int err = CL_SUCCESS;
-
 
     // get OpenCL platform count
-    err = clGetPlatformIDs(0, NULL, &num_platforms);
+    cl_int err = clGetPlatformIDs(0, NULL, &num_platforms);
     checkErr(err, "clGetPlatformIDs()");
 
     std::cerr << "Number of available Platforms: " << num_platforms << std::endl;
@@ -476,11 +474,9 @@ void init_opencl() {
 
 // get binary from OpenCL program and dump it to stderr
 void dump_program_binary(cl_program program, cl_device_id device) {
-    cl_int err = CL_SUCCESS;
-    cl_uint num_devices;
-
     // get the number of devices associated with the program
-    err = clGetProgramInfo(program, CL_PROGRAM_NUM_DEVICES, sizeof(cl_uint), &num_devices, NULL);
+    cl_uint num_devices;
+    cl_int err = clGetProgramInfo(program, CL_PROGRAM_NUM_DEVICES, sizeof(cl_uint), &num_devices, NULL);
 
     // get the associated device ids
     std::vector<cl_device_id> devices(num_devices);
@@ -631,12 +627,11 @@ void free_buffer(size_t dev, cl_mem mem) {
 
 
 void write_buffer(size_t dev, cl_mem mem, void *host, size_t size) {
-    cl_int err = CL_SUCCESS;
     cl_event event;
     cl_ulong end, start;
 
     auto time = thorin_get_micro_time();
-    err = clEnqueueWriteBuffer(command_queues_[dev], mem, CL_FALSE, 0, size, host, 0, NULL, &event);
+    cl_int err = clEnqueueWriteBuffer(command_queues_[dev], mem, CL_FALSE, 0, size, host, 0, NULL, &event);
     err |= clFinish(command_queues_[dev]);
     checkErr(err, "clEnqueueWriteBuffer()");
     thorin_print_micro_time(thorin_get_micro_time() - time);
@@ -654,12 +649,11 @@ void write_buffer(size_t dev, cl_mem mem, void *host, size_t size) {
 
 
 void read_buffer(size_t dev, cl_mem mem, void *host, size_t size) {
-    cl_int err = CL_SUCCESS;
     cl_event event;
     cl_ulong end, start;
 
     auto time = thorin_get_micro_time();
-    err = clEnqueueReadBuffer(command_queues_[dev], mem, CL_FALSE, 0, size, host, 0, NULL, &event);
+    cl_int err = clEnqueueReadBuffer(command_queues_[dev], mem, CL_FALSE, 0, size, host, 0, NULL, &event);
     err |= clFinish(command_queues_[dev]);
     checkErr(err, "clEnqueueReadBuffer()");
     thorin_print_micro_time(thorin_get_micro_time() - time);

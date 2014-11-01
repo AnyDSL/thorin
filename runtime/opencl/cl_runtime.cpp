@@ -518,10 +518,11 @@ void dump_program_binary(cl_program program, cl_device_id device) {
 // load OpenCL source file, build program, and create kernel
 void build_program_and_kernel(size_t dev, std::string file_name, std::string kernel_name, bool is_binary) {
     bool print_progress = true;
+    std::string cache_name = file_name + ":" + kernel_name;
 
     // get module and function from cache
-    if (kernel_cache_[dev].count(kernel_name)) {
-        kernels_[dev] = kernel_cache_[dev][kernel_name];
+    if (kernel_cache_[dev].count(cache_name)) {
+        kernels_[dev] = kernel_cache_[dev][cache_name];
         if (print_progress) std::cerr << "Compiling(" << dev << ") '" << kernel_name << "' ... returning old copy!" << std::endl;
         return;
     }
@@ -593,7 +594,7 @@ void build_program_and_kernel(size_t dev, std::string file_name, std::string ker
     if (dump_binary) dump_program_binary(program, devices_[dev]);
 
     kernels_[dev] = clCreateKernel(program, kernel_name.c_str(), &err);
-    kernel_cache_[dev][kernel_name] = kernels_[dev];
+    kernel_cache_[dev][cache_name] = kernels_[dev];
     checkErr(err, "clCreateKernel()");
     if (print_progress) std::cerr << ". done" << std::endl;
 

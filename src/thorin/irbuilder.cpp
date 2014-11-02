@@ -125,18 +125,16 @@ void IRBuilder::branch(Def cond, JumpTarget& t, JumpTarget& f, JumpTarget* x) {
         } else if (&t == &f) {
             jump(t);
         } else {
+            if (x) {
+                assert(x->lambda_ == nullptr);
+                x->lambda_ = world().basicblock(x->name_);
+                x->first_ = false;
+            }
             auto tl = t.branch_to(world_);
             auto fl = f.branch_to(world_);
-            cur_bb->branch(cond, tl, fl);
-            if (x) {
-                if (x->lambda_ == nullptr) {
-                    x->lambda_ = world().basicblock(x->name_);
-                    x->first_ = false;
-                }
-                // TODO what if x->first_ == true? is it really correct to do nothing?
-                auto xl = x->lambda_;
-                cur_bb->branch_join(cond, tl, fl, xl);
-            } else
+            if (x)
+                cur_bb->branch_join(cond, tl, fl, x->lambda_);
+            else
                 cur_bb->branch(cond, tl, fl);
             set_unreachable();
         }

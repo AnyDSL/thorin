@@ -22,21 +22,21 @@ public:
     Scope& operator= (Scope) = delete;
 
     /// Builds a unique meta \p Lambda as dummy entry if necessary.
-    explicit Scope(World& world, ArrayRef<Lambda*> entries);
+    explicit Scope(World& world, ArrayRef<Lambda*> entries, bool unique_exit = false);
     /// Does not build a meta \p Lambda
-    explicit Scope(Lambda* entry)
-        : Scope(entry->world(), {entry})
+    explicit Scope(Lambda* entry, bool unique_exit = false)
+        : Scope(entry->world(), {entry}, unique_exit)
     {}
     ~Scope();
 
     /// All lambdas within this scope in reverse post-order.
     ArrayRef<Lambda*> rpo() const { return rpo_; }
     /// All lambdas within this scope in reverse rpo (this is \em no post-order).
-    ArrayRef<Lambda*> rev_rpo() const { return rev_rpo_; }
+    ArrayRef<Lambda*> backwards_rpo() const { assert(has_unique_exit()); return backwards_rpo_; }
     Lambda* rpo(size_t i) const { return rpo_[i]; }
-    Lambda* rev_rpo(size_t i) const { return rev_rpo_[i]; }
+    Lambda* backwards_rpo(size_t i) const { assert(has_unique_exit()); return backwards_rpo_[i]; }
     Lambda* entry() const { return rpo().front(); }
-    Lambda* exit()  const { return rev_rpo_.front(); }
+    Lambda* exit()  const { assert(has_unique_exit()); return backwards_rpo_.front(); }
     /// Like \p rpo() but without \p entry()
     ArrayRef<Lambda*> body() const { return rpo().slice_from_begin(1); }
     const DefSet& in_scope() const { return in_scope_; }
@@ -46,11 +46,12 @@ public:
     size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
     size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
     size_t rpo_id(Lambda* lambda) const { return lambda->find_scope(this)->rpo_id; }
-    size_t rev_rpo_id(Lambda* lambda) const { return lambda->find_scope(this)->rev_rpo_id; }
+    size_t backwards_rpo_id(Lambda* lambda) const { assert(has_unique_exit()); return lambda->find_scope(this)->backwards_rpo_id; }
     uint32_t sid() const { return sid_; }
     size_t size() const { return rpo_.size(); }
     World& world() const { return world_; }
     void dump() const;
+    bool has_unique_exit() const { return unique_exit_; }
 
     const DomTree* domtree() const;
     const PostDomTree* postdomtree() const;
@@ -76,9 +77,9 @@ private:
     void number(ArrayRef<Lambda*> entries);
     size_t number(Lambda* lambda, size_t i);
     void build_cfg(ArrayRef<Lambda*> entries);
-    void build_rev_rpo(Array<Lambda*> entries);
-    void rev_number(ArrayRef<Lambda*> exits);
-    size_t rev_number(Lambda* lambda, size_t i);
+    void build_backwards_rpo(Array<Lambda*> entries);
+    void backwards_number(ArrayRef<Lambda*> exits);
+    size_t backwards_number(Lambda* lambda, size_t i);
 
     void build_in_scope();
     void link(Lambda* src, Lambda* dst) {
@@ -93,9 +94,10 @@ private:
     DefSet in_scope_;
     uint32_t sid_;
     std::vector<Lambda*> rpo_;
-    std::vector<Lambda*>rev_rpo_;
+    std::vector<Lambda*>backwards_rpo_;
     std::vector<std::vector<Lambda*>> preds_;
     std::vector<std::vector<Lambda*>> succs_;
+    bool unique_exit_;
     mutable AutoPtr<const DomTree> domtree_;
     mutable AutoPtr<const PostDomTree> postdomtree_;
     mutable AutoPtr<const LoopTree> looptree_;
@@ -116,10 +118,10 @@ public:
     {}
 
     const Scope& scope() const { return scope_; }
-    /// All lambdas within this scope in reverserev_rpost-order.
-    ArrayRef<Lambda*> rpo() const { return forward ? scope().rpo_ : scope().rev_rpo_; }
+    /// All lambdas within this scope in reverse post-order.
+    ArrayRef<Lambda*> rpo() const { return forward ? scope().rpo_ : scope().backwards_rpo_; }
     Lambda* entry() const { return rpo().front(); }
-    Lambda* exit()  const { return (forward ? scope().rev_rpo_ : scope().rpo_).front(); }
+    Lambda* exit()  const { return (forward ? scope().backwards_rpo_ : scope().rpo_).front(); }
     /// Like \p rpo() but without \p entry()
     ArrayRef<Lambda*> body() const { return rpo().slice_from_begin(1); }
     const DefSet& in_scope() const { return scope().in_scope_; }
@@ -128,8 +130,8 @@ public:
     ArrayRef<Lambda*> succs(Lambda* lambda) const { return forward ? scope().succs(lambda) : scope().preds(lambda); }
     size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
     size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
-    size_t rpo_id(Lambda* lambda) const { return forward ? scope().rpo_id(lambda) : scope().rev_rpo_id(lambda); }
-    size_t rev_rpo_id(Lambda* lambda) const { return forward ? scope().rev_rpo_id(lambda) : scope().rpo_id(lambda); }
+    size_t rpo_id(Lambda* lambda) const { return forward ? scope().rpo_id(lambda) : scope().backwards_rpo_id(lambda); }
+    size_t backwards_rpo_id(Lambda* lambda) const { return forward ? scope().backwards_rpo_id(lambda) : scope().rpo_id(lambda); }
     size_t size() const { return scope().size(); }
     World& world() const { return scope().world(); }
 

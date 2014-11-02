@@ -126,9 +126,11 @@ void IRBuilder::branch(Def cond, JumpTarget& t, JumpTarget& f, JumpTarget* x) {
             jump(t);
         } else {
             if (x) {
-                assert(x->lambda_ == nullptr);
-                x->lambda_ = world().basicblock(x->name_);
-                x->first_ = false;
+                if (x->lambda_ == nullptr) {
+                    x->lambda_ = world().basicblock(x->name_);
+                    x->first_ = false;
+                } else
+                    assert(!x->first_);
             }
             auto tl = t.branch_to(world_);
             auto fl = f.branch_to(world_);

@@ -6,8 +6,8 @@ OpenCLRuntime::OpenCLRuntime(llvm::LLVMContext& context, llvm::Module* target, l
     : SPIRRuntime(context, target, builder)
 {}
 
-llvm::Value* OpenCLRuntime::load_kernel(llvm::Value* device, llvm::Value* module, llvm::Value* data) {
-    llvm::Value* load_args[] = { device, module, data };
+llvm::Value* OpenCLRuntime::load_kernel(llvm::Value* device, llvm::Value* file, llvm::Value* kernel) {
+    llvm::Value* load_args[] = { device, file, kernel };
     return builder_.CreateCall(get("spir_build_program_and_kernel_from_source"), load_args);
 }
 

@@ -74,6 +74,7 @@ class Memory {
         std::vector<std::unordered_map<mem_id, mapping_>> mmap;
         std::vector<std::unordered_map<mem_id, void*>> idtomem;
         std::vector<std::unordered_map<void*, mem_id>> memtoid;
+        std::vector<std::unordered_map<mem_id, size_t>> mcount;
         std::unordered_map<size_t, size_t> ummap;
         std::unordered_map<void*, size_t> hostmem;
 
@@ -110,6 +111,7 @@ class Memory {
         mmap.resize(mmap.size() + num);
         idtomem.resize(idtomem.size() + num);
         memtoid.resize(memtoid.size() + num);
+        mcount.resize(mcount.size() + num);
     }
     void associate_device(size_t host_dev, size_t assoc_dev) {
         ummap[assoc_dev] = host_dev;
@@ -158,6 +160,7 @@ class Memory {
 
         if (id) {
             std::cerr << " * malloc buffer(" << dev << "): returning old copy " << id << " for " << host << std::endl;
+            mcount[dev][id]++;
             return id;
         }
 
@@ -174,6 +177,7 @@ class Memory {
             id = map_memory(dev, host, mem, Global, offset, size);
             std::cerr << " * malloc buffer(" << dev << "):  " << mem << " (" << id << ") <-> host: " << host << std::endl;
         }
+        mcount[dev][id] = 1;
         return id;
     }
     mem_id malloc(size_t dev, void *host) {
@@ -182,10 +186,15 @@ class Memory {
     }
 
     void free(size_t dev, mem_id mem) {
-        std::cerr << " * free buffer(" << dev << "):    " << mem << std::endl;
-        cl_mem dev_mem = get_dev_mem(dev, mem);
-        free_buffer(dev, dev_mem);
-        remove(dev, mem);
+        auto ref_count = --mcount[dev][mem];
+        if (ref_count) {
+            std::cerr << " * free buffer(" << dev << "):   " << mem << " update ref count to " << ref_count << std::endl;
+        } else {
+            std::cerr << " * free buffer(" << dev << "):    " << mem << std::endl;
+            cl_mem dev_mem = get_dev_mem(dev, mem);
+            free_buffer(dev, dev_mem);
+            remove(dev, mem);
+        }
     }
 
     void read(size_t dev, mem_id id) {
@@ -356,11 +365,9 @@ void create_context_command_queue(cl_platform_id platform, std::vector<cl_device
 void init_opencl() {
     char pnBuffer[1024], pvBuffer[1024], pv2Buffer[1024], pdBuffer[1024], pd2Buffer[1024], pd3Buffer[1024];
     cl_uint num_platforms, num_devices;
-    cl_int err = CL_SUCCESS;
-
 
     // get OpenCL platform count
-    err = clGetPlatformIDs(0, NULL, &num_platforms);
+    cl_int err = clGetPlatformIDs(0, NULL, &num_platforms);
     checkErr(err, "clGetPlatformIDs()");
 
     std::cerr << "Number of available Platforms: " << num_platforms << std::endl;
@@ -467,11 +474,9 @@ void init_opencl() {
 
 // get binary from OpenCL program and dump it to stderr
 void dump_program_binary(cl_program program, cl_device_id device) {
-    cl_int err = CL_SUCCESS;
-    cl_uint num_devices;
-
     // get the number of devices associated with the program
-    err = clGetProgramInfo(program, CL_PROGRAM_NUM_DEVICES, sizeof(cl_uint), &num_devices, NULL);
+    cl_uint num_devices;
+    cl_int err = clGetProgramInfo(program, CL_PROGRAM_NUM_DEVICES, sizeof(cl_uint), &num_devices, NULL);
 
     // get the associated device ids
     std::vector<cl_device_id> devices(num_devices);
@@ -509,10 +514,11 @@ void dump_program_binary(cl_program program, cl_device_id device) {
 // load OpenCL source file, build program, and create kernel
 void build_program_and_kernel(size_t dev, std::string file_name, std::string kernel_name, bool is_binary) {
     bool print_progress = true;
+    std::string cache_name = file_name + ":" + kernel_name;
 
     // get module and function from cache
-    if (kernel_cache_[dev].count(kernel_name)) {
-        kernels_[dev] = kernel_cache_[dev][kernel_name];
+    if (kernel_cache_[dev].count(cache_name)) {
+        kernels_[dev] = kernel_cache_[dev][cache_name];
         if (print_progress) std::cerr << "Compiling(" << dev << ") '" << kernel_name << "' ... returning old copy!" << std::endl;
         return;
     }
@@ -584,7 +590,7 @@ void build_program_and_kernel(size_t dev, std::string file_name, std::string ker
     if (dump_binary) dump_program_binary(program, devices_[dev]);
 
     kernels_[dev] = clCreateKernel(program, kernel_name.c_str(), &err);
-    kernel_cache_[dev][kernel_name] = kernels_[dev];
+    kernel_cache_[dev][cache_name] = kernels_[dev];
     checkErr(err, "clCreateKernel()");
     if (print_progress) std::cerr << ". done" << std::endl;
 
@@ -621,12 +627,11 @@ void free_buffer(size_t dev, cl_mem mem) {
 
 
 void write_buffer(size_t dev, cl_mem mem, void *host, size_t size) {
-    cl_int err = CL_SUCCESS;
     cl_event event;
     cl_ulong end, start;
 
     auto time = thorin_get_micro_time();
-    err = clEnqueueWriteBuffer(command_queues_[dev], mem, CL_FALSE, 0, size, host, 0, NULL, &event);
+    cl_int err = clEnqueueWriteBuffer(command_queues_[dev], mem, CL_FALSE, 0, size, host, 0, NULL, &event);
     err |= clFinish(command_queues_[dev]);
     checkErr(err, "clEnqueueWriteBuffer()");
     thorin_print_micro_time(thorin_get_micro_time() - time);
@@ -644,12 +649,11 @@ void write_buffer(size_t dev, cl_mem mem, void *host, size_t size) {
 
 
 void read_buffer(size_t dev, cl_mem mem, void *host, size_t size) {
-    cl_int err = CL_SUCCESS;
     cl_event event;
     cl_ulong end, start;
 
     auto time = thorin_get_micro_time();
-    err = clEnqueueReadBuffer(command_queues_[dev], mem, CL_FALSE, 0, size, host, 0, NULL, &event);
+    cl_int err = clEnqueueReadBuffer(command_queues_[dev], mem, CL_FALSE, 0, size, host, 0, NULL, &event);
     err |= clFinish(command_queues_[dev]);
     checkErr(err, "clEnqueueReadBuffer()");
     thorin_print_micro_time(thorin_get_micro_time() - time);
@@ -827,8 +831,8 @@ mem_id map_memory(size_t dev, size_t type_, void *from, int offset, int size) {
 
     mem_id mem = mem_manager.get_id(dev, from);
     if (mem) {
-        std::cerr << " * map memory(" << dev << "):     returning old copy " << mem << " for " << from << std::endl;
-        return mem;
+        std::cerr << " * map memory(" << dev << ") -> malloc buffer:" << std::endl;
+        return mem_manager.malloc(dev, from, offset, size);
     }
 
     if (type==Global || type==Texture) {
@@ -836,7 +840,7 @@ mem_id map_memory(size_t dev, size_t type_, void *from, int offset, int size) {
             // mapping the whole memory
             mem = mem_manager.malloc(dev, from);
             mem_manager.write(dev, mem, from);
-            std::cerr << " * map memory(" << dev << "):     " << from << " -> " << mem << std::endl;
+            std::cerr << " * map memory(" << dev << "):    " << from << " -> " << mem << std::endl;
 
             #if 0
             cl_event event;
@@ -862,7 +866,7 @@ mem_id map_memory(size_t dev, size_t type_, void *from, int offset, int size) {
             // mapping and slicing of a region
             mem = mem_manager.malloc(dev, from, offset, size);
             mem_manager.write(dev, mem, from);
-            std::cerr << " * map memory(" << dev << "):     " << from << " [" << offset << ":" << size << "] -> " << mem << std::endl;
+            std::cerr << " * map memory(" << dev << "):    " << from << " [" << offset << ":" << size << "] -> " << mem << std::endl;
 
             #if 0
             cl_mem_flags mem_flags = CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR;

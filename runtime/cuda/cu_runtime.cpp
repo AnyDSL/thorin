@@ -525,17 +525,19 @@ void compile_cuda(size_t dev, std::string file_name, CUjit_target target_cc) {
 
     std::string srcString = std::string(std::istreambuf_iterator<char>(srcFile),
             (std::istreambuf_iterator<char>()));
-    const char *PTX = (const char *)srcString.c_str();
+    const char *ptx = (const char *)srcString.c_str();
     // compile ptx
-    create_module(dev, PTX, file_name, target_cc);
+    create_module(dev, ptx, file_name, target_cc);
 }
 
 
 // create module
 void load_module(size_t dev, std::string file_name, bool is_nvvm) {
     int major, minor;
-    CUresult err = cuDeviceGetAttribute(&major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, devices_[dev]);
-            err |= cuDeviceGetAttribute(&minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, devices_[dev]);
+    CUresult err = CUDA_SUCCESS;
+    err = cuDeviceGetAttribute(&major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, devices_[dev]);
+    checkErrDrv(err, "cuDeviceGetAttribute()");
+    err = cuDeviceGetAttribute(&minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, devices_[dev]);
     checkErrDrv(err, "cuDeviceGetAttribute()");
     CUjit_target target_cc = (CUjit_target)(major*10 + minor);
 
@@ -713,7 +715,8 @@ void launch_kernel(size_t dev, std::string kernel_name) {
     #endif
     cuEventRecord(start, 0);
     CUresult err = cuLaunchKernel(functions_[dev], grid.x, grid.y, grid.z, cuDimBlock.x, cuDimBlock.y, cuDimBlock.z, 0, NULL, cuArgs, NULL);
-    err |= cuCtxSynchronize();
+    checkErrDrv(err, "cuLaunchKernel(" + kernel_name + ")");
+    err = cuCtxSynchronize();
     checkErrDrv(err, "cuLaunchKernel(" + kernel_name + ")");
 
     cuEventRecord(end, 0);

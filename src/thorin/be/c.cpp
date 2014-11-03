@@ -226,6 +226,7 @@ void CCodeGen::emit() {
 
     // emit declarations
     Scope::for_each<false>(world(), [&] (const Scope& scope) {
+        if (scope.entry() == world().branch() || scope.entry() == world().branch_join()) return;
         Schedule schedule = schedule_smart(scope);
 
         // tuple declarations
@@ -434,7 +435,8 @@ void CCodeGen::emit() {
                         THORIN_UNREACHABLE;
                 }
                 stream() << ";";
-            } else if (lambda->to() == world().branch()) { // conditional branch
+            } else if (lambda->to() == world().branch() || lambda->to() == world().branch_join()) { // conditional branch
+                // TODO: refactor branch() & branch_join()
                 stream() << "if (";
                 emit(lambda->arg(0));
                 stream() << ") {";

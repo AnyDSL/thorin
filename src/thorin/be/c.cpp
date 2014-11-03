@@ -645,8 +645,7 @@ std::ostream& CCodeGen::emit(Def def) {
         else if (kind == PrimType_qu8) stream() << (unsigned) primlit->qu8_value();
         else if (kind == PrimType_pu8) stream() << (unsigned) primlit->pu8_value();
         else if (kind == PrimType_pf32 || kind==PrimType_qf32) {
-            stream() << std::fixed << primlit->pf32_value();
-            if ((lang_==C99 || lang_==CUDA)) stream() << 'f';
+            stream() << std::fixed << primlit->pf32_value() << 'f';
         } else if (kind == PrimType_pf64 || kind==PrimType_qf64) {
             stream() << std::fixed << primlit->pf64_value();
         } else {

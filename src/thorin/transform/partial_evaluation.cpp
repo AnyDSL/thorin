@@ -4,6 +4,8 @@
 #include "thorin/util/hash.h"
 #include "thorin/util/queue.h"
 
+#include <iostream>
+
 namespace thorin {
 
 //------------------------------------------------------------------------------
@@ -45,105 +47,101 @@ public:
     void seek();
     void eval(const Run* cur_run, Lambda* cur);
     void rewrite_jump(Lambda* src, Lambda* dst, const Call&);
+    void enqueue(Lambda* lambda) { 
+        if (!visit(visited_, lambda))
+            queue_.push(lambda); 
+    }
 
 private:
     World& world_;
     LambdaSet done_;
+    std::queue<Lambda*> queue_;
+    LambdaSet visited_;
     HashMap<Call, Lambda*, CallHash> cache_;
 };
 
 void PartialEvaluator::seek() {
-    LambdaSet visited;
-    std::queue<Lambda*> queue;
-    for (auto lambda : world().externals()) {
-        queue.push(lambda);
-        visited.insert(lambda);
-    }
+    for (auto lambda : world().externals())
+        enqueue(lambda);
 
-    while (!queue.empty()) {
-        auto lambda = pop(queue);
+    while (!queue_.empty()) {
+        auto lambda = pop(queue_);
         if (!lambda->empty()) {
             if (auto run = lambda->to()->isa<Run>())
                 eval(run, lambda);
         }
-        for (auto succ : lambda->succs()) {
-            if (!visited.contains(succ)) {
-                queue.push(succ);
-                visited.insert(succ);
-            }
-        }
+
+        for (auto succ : lambda->succs())
+            enqueue(succ);
     }
 }
 
 void PartialEvaluator::eval(const Run* cur_run, Lambda* cur) {
     while (!done_.contains(cur)) {
-        done_.insert(cur);
-        if (cur->empty())
+        if (cur->empty()) {
+            std::cout << "bailing out: " << cur->unique_name() << std::endl;
             return;
+        }
 
         Lambda* dst = nullptr;
-        if (auto hlt = cur->to()->isa<Hlt>()) {
-            cur = nullptr;
-            for (auto use : hlt->uses()) {  // TODO assert that there is only one EndHlt user
-                if (auto end = use->isa<EndHlt>()) {
-                    if (auto lambda = end->def()->isa_lambda())
-                        lambda->update_to(world().run(lambda->to()));
-                    //break; // TODO there may be multiple versions of that due to updates
-                }
-            }
-            return;
-        } else if (auto run = cur->to()->isa<Run>()) {
+        if (auto run = cur->to()->isa<Run>()) {
             dst = run->def()->isa_lambda();
+        } else if (auto endrun = cur->to()->isa<EndRun>()) {
+            if (endrun->run() == cur_run)
+                return;
+            dst = endrun->def()->isa_lambda();
+        } else if (auto hlt = cur->to()->isa<Hlt>()) {
+            auto uses = hlt->uses();
+            //assert(1 <= uses.size() && uses.size() <= 2);
+            std::cout << "---" << std::endl;
+            hlt->dump();
+            for (auto use : uses) {
+                std::cout << use->gid() << std::endl;
+                use->dump();
+            }
+            std::cout << "---" << std::endl;
+            for (auto use : uses) {
+                if (auto endhlt = use->isa<EndHlt>()) {
+                    //enqueue(endhlt);
+                    cur = endhlt->def()->as_lambda();
+                    goto next_lambda;
+                }
+                std::cout << "Hlt without EndHlt" << std::endl;
+                return;
+            }
+        } else if (auto endhlt = cur->to()->isa<EndHlt>()) {
+            dst = endhlt->def()->isa_lambda();
         } else {
             dst = cur->to()->isa_lambda();
         }
 
-        if (dst == world().branch_join()) {
-            cur = cur->arg(3)->as_lambda();
-            continue;
-        }
+        done_.insert(cur);
 
-        if (dst && dst->empty()) {
-            if (auto last = cur->args().back()->isa_lambda()) {
-                cur = last;
-                continue;
-            }
-            return;
-        }
-
-        if (dst == nullptr) {               // skip to immediate post-dominator
-            return; // TODO
-        } else if (dst->empty()) {
-            if (!cur->args().empty()) {
-                if (auto lambda = cur->args().back()->isa_lambda()) {
-                    cur = lambda;
+        if (dst) {
+            if (dst->empty() && cur->num_args() != 0) {
+                if (auto last = cur->args().back()->isa_lambda()) {
+                    cur = last;
                     continue;
-                } else if (dst->is_intrinsic()) {
-                    for (size_t i = cur->num_args(); i-- != 0;) {
-                        if (auto lambda = cur->arg(i)->isa_lambda()) {
-                            cur = lambda;
-                            goto next_lambda;
-                        }
-                    }
                 }
+                return;
             }
-            return;
-        } else {
+
             Call call(dst);
             for (size_t i = 0; i != cur->num_args(); ++i) {
                 call.arg(i) = nullptr;
                 if (cur->arg(i)->isa<Hlt>()) {
                     continue;
-                } else if (auto end = cur->arg(i)->isa<EndRun>()) {
-                    if (end->run() == cur_run) {
-                        end->replace(end->def()); // TODO factor
-                        continue;
-                    } else {
-                        end->replace(end->def()); // TODO factor
-                        call.arg(i) = end->def();
-                        continue;
-                    }
-                }
+                } 
+                //else if (auto end = cur->arg(i)->isa<EndRun>()) {
+                    //if (end->run() == cur_run) {
+                        //end->replace(end->def()); // TODO factor
+                        //continue;
+                    //} else {
+                        //end->replace(end->def()); // TODO factor
+                        //call.arg(i) = end->def();
+                        //continue;
+                    //}
+                //}
                 call.arg(i) = cur->arg(i);
             }
 

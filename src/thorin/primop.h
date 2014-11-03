@@ -352,6 +352,10 @@ protected:
 
 public:
     Def def() const { return op(0); }
+
+private:
+    virtual size_t vhash() const override { return hash_value(gid()); }
+    virtual bool equal(const PrimOp* other) const override { return this == other; }
 };
 
 class Run : public EvalOp {
@@ -385,6 +389,10 @@ protected:
 public:
     Def def() const { return op(0); }
     Def eval() const { return op(1); }
+
+private:
+    virtual size_t vhash() const override { return hash_value(gid()); }
+    virtual bool equal(const PrimOp* other) const override { return this == other; }
 };
 
 class EndRun : public EndEvalOp {

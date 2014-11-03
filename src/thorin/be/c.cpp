@@ -207,18 +207,18 @@ std::ostream& CCodeGen::emit_aggop_decl(Type type) {
 void CCodeGen::emit() {
     if (lang_==CUDA) {
         stream() << "extern \"C\" {\n";
-        stream() << "__device__ int threadIdx_x() { return threadIdx.x; }\n";
-        stream() << "__device__ int threadIdx_y() { return threadIdx.y; }\n";
-        stream() << "__device__ int threadIdx_z() { return threadIdx.z; }\n";
-        stream() << "__device__ int blockIdx_x() { return blockIdx.x; }\n";
-        stream() << "__device__ int blockIdx_y() { return blockIdx.y; }\n";
-        stream() << "__device__ int blockIdx_z() { return blockIdx.z; }\n";
-        stream() << "__device__ int blockDim_x() { return blockDim.x; }\n";
-        stream() << "__device__ int blockDim_y() { return blockDim.y; }\n";
-        stream() << "__device__ int blockDim_z() { return blockDim.z; }\n";
-        stream() << "__device__ int gridDim_x() { return gridDim.x; }\n";
-        stream() << "__device__ int gridDim_y() { return gridDim.y; }\n";
-        stream() << "__device__ int gridDim_z() { return gridDim.z; }\n";
+        stream() << "__device__ inline int threadIdx_x() { return threadIdx.x; }\n";
+        stream() << "__device__ inline int threadIdx_y() { return threadIdx.y; }\n";
+        stream() << "__device__ inline int threadIdx_z() { return threadIdx.z; }\n";
+        stream() << "__device__ inline int blockIdx_x() { return blockIdx.x; }\n";
+        stream() << "__device__ inline int blockIdx_y() { return blockIdx.y; }\n";
+        stream() << "__device__ inline int blockIdx_z() { return blockIdx.z; }\n";
+        stream() << "__device__ inline int blockDim_x() { return blockDim.x; }\n";
+        stream() << "__device__ inline int blockDim_y() { return blockDim.y; }\n";
+        stream() << "__device__ inline int blockDim_z() { return blockDim.z; }\n";
+        stream() << "__device__ inline int gridDim_x() { return gridDim.x; }\n";
+        stream() << "__device__ inline int gridDim_y() { return gridDim.y; }\n";
+        stream() << "__device__ inline int gridDim_z() { return gridDim.z; }\n";
     }
     if (lang_==OPENCL) {
         stream() << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n";

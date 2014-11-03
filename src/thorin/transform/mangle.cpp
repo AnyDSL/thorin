@@ -8,9 +8,8 @@ namespace thorin {
 
 class Mangler {
 public:
-    Mangler(const Scope& scope, Def2Def& old2new, ArrayRef<Def> drop, ArrayRef<Def> lift, const Type2Type& type2type)
+    Mangler(const Scope& scope, ArrayRef<Def> drop, ArrayRef<Def> lift, const Type2Type& type2type)
         : scope(scope)
-        , old2new(old2new)
         , drop(drop)
         , lift(lift)
         , type2type(type2type)
@@ -43,7 +42,7 @@ public:
     }
 
     const Scope& scope;
-    Def2Def& old2new;
+    Def2Def old2new;
     ArrayRef<Def> drop;
     ArrayRef<Def> lift;
     Type2Type type2type;
@@ -149,8 +148,8 @@ Def Mangler::mangle(Def odef) {
 
 //------------------------------------------------------------------------------
 
-Lambda* mangle(const Scope& scope, Def2Def& old2new, ArrayRef<Def> drop, ArrayRef<Def> lift, const Type2Type& type2type) {
-    return Mangler(scope, old2new, drop, lift, type2type).mangle();
+Lambda* mangle(const Scope& scope, ArrayRef<Def> drop, ArrayRef<Def> lift, const Type2Type& type2type) {
+    return Mangler(scope, drop, lift, type2type).mangle();
 }
 
 //------------------------------------------------------------------------------

@@ -13,9 +13,10 @@ namespace thorin {
 uint32_t Scope::sid_counter_ = 1;
 uint32_t Scope::candidate_counter_ = 1;
 
-Scope::Scope(World& world, ArrayRef<Lambda*> entries)
+Scope::Scope(World& world, ArrayRef<Lambda*> entries, bool unique_exit)
     : world_(world)
     , sid_(sid_counter_++)
+    , unique_exit_(unique_exit)
 {
 #ifndef NDEBUG
     assert(!entries.empty());
@@ -33,7 +34,8 @@ Scope::Scope(World& world, ArrayRef<Lambda*> entries)
     identify_scope(entries);
     number(entries);
     build_cfg(entries);
-    build_rev_rpo(entries);
+    if (unique_exit)
+        build_backwards_rpo(entries);
     build_in_scope();
     ++candidate_counter_;
 }
@@ -44,7 +46,7 @@ Scope::~Scope() {
 
     if (!entry()->empty() && entry()->to()->isa<Bottom>())
         entry()->destroy_body();
-    if (exit() != entry() && !exit()->empty() && exit()->to()->isa<Bottom>())
+    if (has_unique_exit() && exit() != entry() && !exit()->empty() && exit()->to()->isa<Bottom>())
         exit()->destroy_body();
 }
 
@@ -162,7 +164,7 @@ void Scope::build_cfg(ArrayRef<Lambda*> entries) {
     }
 }
 
-void Scope::build_rev_rpo(Array<Lambda*> entries) {
+void Scope::build_backwards_rpo(Array<Lambda*> entries) {
     // find exits
     std::vector<Lambda*> exits;
     auto cmp = [] (Lambda* l1, Lambda* l2) { return l1->gid() < l2->gid(); };
@@ -193,36 +195,38 @@ next:
             link(e, exit);
     }
 
-    rev_rpo_.resize(size());
-    std::reverse_copy(rpo_.begin(), rpo_.end(), rev_rpo_.begin());
+    backwards_rpo_.resize(size());
+    std::reverse_copy(rpo_.begin(), rpo_.end(), backwards_rpo_.begin());
 
     size_t n = size();
     if (exits.size() == 1) {
-        std::swap(rev_rpo_.front(), rev_rpo_[found]);   // put exit to front
-        n = rev_number(exits.front(), n);
+        std::swap(backwards_rpo_.front(), backwards_rpo_[found]);   // put exit to front
+        n = backwards_number(exits.front(), n);
     } else {
         for (auto exit : exits) {
-            if (rev_rpo_id(exit) == size_t(-1))         // if not visited
-                n = rev_number(exit, n);
+            if (backwards_rpo_id(exit) == size_t(-1))         // if not visited
+                n = backwards_number(exit, n);
         }
-        n = rev_number(exit(), n);
+        n = backwards_number(exit(), n);
     }
     assert(n == 0);
 
     // sort in reverse post-order
-    std::sort(rev_rpo_.begin(), rev_rpo_.end(), [&] (Lambda* l1, Lambda* l2) { return rev_rpo_id(l1) < rev_rpo_id(l2); });
+    std::sort(backwards_rpo_.begin(), backwards_rpo_.end(), [&] (Lambda* l1, Lambda* l2) { 
+        return backwards_rpo_id(l1) < backwards_rpo_id(l2); 
+    });
 }
 
-size_t Scope::rev_number(Lambda* cur, size_t i) {
+size_t Scope::backwards_number(Lambda* cur, size_t i) {
     auto info = cur->find_scope(this);
-    info->rev_rpo_id = size_t(-2);                      // mark as visisted
+    info->backwards_rpo_id = size_t(-2);                      // mark as visisted
     for (auto pred : preds(cur)) {
-        if (rev_rpo_id(pred) == size_t(-1))             // if not visited
-            i = rev_number(pred, i);
+        if (backwards_rpo_id(pred) == size_t(-1))             // if not visited
+            i = backwards_number(pred, i);
     }
 
     assert(cur->scopes_.front().scope == this && "front item does not point to this scope");
-    return info->rev_rpo_id = i-1;
+    return info->backwards_rpo_id = i-1;
 }
 
 void Scope::build_in_scope() {

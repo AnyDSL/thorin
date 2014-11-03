@@ -208,12 +208,12 @@ private:
         ScopeInfo(const Scope* scope)
             : scope(scope)
             , rpo_id(-1)
-            , rev_rpo_id(-1)
+            , backwards_rpo_id(-1)
         {}
 
         const Scope* scope;
         size_t rpo_id;
-        size_t rev_rpo_id;
+        size_t backwards_rpo_id;
     };
 
     std::list<ScopeInfo>::iterator list_iter(const Scope*);

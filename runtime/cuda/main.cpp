@@ -101,7 +101,6 @@ int test_kernelfile(const char *file) {
         }
     }
     std::cout << "Constant test passed!" << std::endl;
-    std::cout << std::endl;
 
     thorin_free(cmem);
     thorin_free(host);

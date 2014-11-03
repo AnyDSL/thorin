@@ -1,13 +1,12 @@
-#include <stdio.h>
-#include <stdint.h>
-#include <stdlib.h>
+#include <cstring>
+#include <iostream>
 
 #include "cl_runtime.h"
 
 static int num = 1024;
 
 int test_kernelfile(const char *file) {
-    printf("Test file: %s\n", file);
+    std::cout << "Test file: " << file << std::endl;
 
     size_t dev = 0;
     int *cmem = (int *)thorin_malloc(sizeof(int) * 32);
@@ -30,11 +29,12 @@ int test_kernelfile(const char *file) {
     // check result
     for (size_t i=0; i<num; ++i) {
         if (host[i] != i) {
-            printf("Test failed!\n");
+            std::cout << "Test failed!" << std::endl;
             return EXIT_FAILURE;
         }
     }
-    printf("Test passed!\n");
+    std::cout << "Test passed!" << std::endl;
+    std::cout << std::endl;
 
 
     // CODE TO BE GENERATED: BEGIN
@@ -56,11 +56,11 @@ int test_kernelfile(const char *file) {
     // check result
     for (size_t i=0; i<num; ++i) {
         if (host[i] != i%32) {
-            printf("Constant test failed!\n");
+            std::cout << "Constant test failed!" << std::endl;
             return EXIT_FAILURE;
         }
     }
-    printf("Constant test passed!\n");
+    std::cout << "Constant test passed!" << std::endl;
 
     thorin_free(cmem);
     thorin_free(host);

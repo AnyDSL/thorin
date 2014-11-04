@@ -352,10 +352,6 @@ protected:
 
 public:
     Def def() const { return op(0); }
-
-private:
-    virtual size_t vhash() const override { return hash_value(gid()); }
-    virtual bool equal(const PrimOp* other) const override { return this == other; }
 };
 
 class Run : public EvalOp {
@@ -376,49 +372,6 @@ private:
     {}
 
     virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
-
-    friend class World;
-};
-
-class EndEvalOp : public PrimOp {
-protected:
-    EndEvalOp(NodeKind kind, Def def, Def eval, const std::string& name)
-        : PrimOp(kind, def->type(), {def, eval}, name)
-    {}
-
-public:
-    Def def() const { return op(0); }
-    Def eval() const { return op(1); }
-
-private:
-    virtual size_t vhash() const override { return hash_value(gid()); }
-    virtual bool equal(const PrimOp* other) const override { return this == other; }
-};
-
-class EndRun : public EndEvalOp {
-private:
-    EndRun(Def def, Def run, const std::string& name)
-        : EndEvalOp(Node_EndRun, def, run, name)
-    {}
-
-    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
-
-public:
-    Def run() const { return op(1); }
-
-    friend class World;
-};
-
-class EndHlt : public EndEvalOp {
-private:
-    EndHlt(Def def, Def hlt, const std::string& name)
-        : EndEvalOp(Node_EndHlt, def, hlt, name)
-    {}
-
-    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
-
-public:
-    Def hlt() const { return op(1); }
 
     friend class World;
 };

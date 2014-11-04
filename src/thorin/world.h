@@ -210,8 +210,6 @@ public:
 
     Def run(Def def, const std::string& name = "");
     Def hlt(Def def, const std::string& name = "");
-    Def end_run(Def def, Def run, const std::string& name = "") { return cse(new EndRun(def, run, name)); }
-    Def end_hlt(Def def, Def hlt, const std::string& name = "") { return cse(new EndHlt(def, hlt, name)); }
 
     /// Select is higher-order. You can build branches with a \p Select primop.
     Def select(Def cond, Def t, Def f, const std::string& name = "");

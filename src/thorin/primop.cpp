@@ -169,8 +169,6 @@ Def Bitcast::vrebuild(World& to, ArrayRef<Def> ops, Type t) const { return to.bi
 Def Bottom ::vrebuild(World& to, ArrayRef<Def>,     Type t) const { return to.bottom(t); }
 Def Cast   ::vrebuild(World& to, ArrayRef<Def> ops, Type t) const { return to.cast(t, ops[0], ops[1], name); }
 Def Cmp    ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.cmp(cmp_kind(), ops[0], ops[1], ops[2], name); }
-Def EndHlt ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.end_hlt(ops[0], ops[1], name); }
-Def EndRun ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.end_run(ops[0], ops[1], name); }
 Def Enter  ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.enter(ops[0], name); }
 Def Extract::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.extract(ops[0], ops[1], name); }
 Def Global ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.global(ops[0], is_mutable(), name); }

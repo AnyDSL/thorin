@@ -45,7 +45,7 @@ public:
 
     World& world() { return world_; }
     void seek();
-    void eval(const Run* cur_run, Lambda* cur);
+    void eval(Lambda* cur, Lambda* end);
     void rewrite_jump(Lambda* src, Lambda* dst, const Call&);
     void enqueue(Lambda* lambda) { 
         if (!visit(visited_, lambda))
@@ -60,6 +60,10 @@ private:
     HashMap<Call, Lambda*, CallHash> cache_;
 };
 
+static Lambda* continuation(Lambda* lambda) {
+    return lambda->num_args() != 0 ? lambda->args().back()->isa_lambda() : (Lambda*) nullptr;
+}
+
 void PartialEvaluator::seek() {
     for (auto lambda : world().externals())
         enqueue(lambda);
@@ -67,8 +71,8 @@ void PartialEvaluator::seek() {
     while (!queue_.empty()) {
         auto lambda = pop(queue_);
         if (!lambda->empty()) {
-            if (auto run = lambda->to()->isa<Run>())
-                eval(run, lambda);
+            if (lambda->to()->isa<Run>())
+                eval(lambda, continuation(lambda));
         }
 
         for (auto succ : lambda->succs())
@@ -76,89 +80,59 @@ void PartialEvaluator::seek() {
     }
 }
 
-void PartialEvaluator::eval(const Run* cur_run, Lambda* cur) {
-    while (!done_.contains(cur)) {
+void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
+    if (end == nullptr)
+        std::cout << "no matching end: " << cur->unique_name() << std::endl;
+
+    while (cur && !done_.contains(cur) && cur != end) {
         if (cur->empty()) {
             std::cout << "bailing out: " << cur->unique_name() << std::endl;
             return;
         }
 
+        cur->dump_head();
+
         Lambda* dst = nullptr;
         if (auto run = cur->to()->isa<Run>()) {
             dst = run->def()->isa_lambda();
-        } else if (auto endrun = cur->to()->isa<EndRun>()) {
-            if (endrun->run() == cur_run)
-                return;
-            dst = endrun->def()->isa_lambda();
-        } else if (auto hlt = cur->to()->isa<Hlt>()) {
-            auto uses = hlt->uses();
-            //assert(1 <= uses.size() && uses.size() <= 2);
-            std::cout << "---" << std::endl;
-            hlt->dump();
-            for (auto use : uses) {
-                std::cout << use->gid() << std::endl;
-                use->dump();
-            }
-            std::cout << "---" << std::endl;
-            for (auto use : uses) {
-                if (auto endhlt = use->isa<EndHlt>()) {
-                    //enqueue(endhlt);
-                    cur = endhlt->def()->as_lambda();
-                    goto next_lambda;
-                }
-                std::cout << "Hlt without EndHlt" << std::endl;
-                return;
-            }
-        } else if (auto endhlt = cur->to()->isa<EndHlt>()) {
-            dst = endhlt->def()->isa_lambda();
+        } else if (cur->to()->isa<Hlt>()) {
+            for (auto succ : cur->succs())
+                enqueue(succ);
+            cur = continuation(cur);
+            continue;
         } else {
             dst = cur->to()->isa_lambda();
         }
 
         done_.insert(cur);
-
-        if (dst) {
-            if (dst->empty() && cur->num_args() != 0) {
-                if (auto last = cur->args().back()->isa_lambda()) {
-                    cur = last;
-                    continue;
-                }
-                return;
-            }
-
-            Call call(dst);
-            for (size_t i = 0; i != cur->num_args(); ++i) {
-                call.arg(i) = nullptr;
-                if (cur->arg(i)->isa<Hlt>()) {
-                    continue;
-                } 
-                //else if (auto end = cur->arg(i)->isa<EndRun>()) {
-                    //if (end->run() == cur_run) {
-                        //end->replace(end->def()); // TODO factor
-                        //continue;
-                    //} else {
-                        //end->replace(end->def()); // TODO factor
-                        //call.arg(i) = end->def();
-                        //continue;
-                    //}
-                //}
-                call.arg(i) = cur->arg(i);
-            }
-
-            if (auto cached = find(cache_, call)) { // check for cached version
-                rewrite_jump(cur, cached, call);
-                return;
-            } else {                                // no cached version found... create a new one
-                Scope scope(dst);
-                Type2Type type2type;
-                bool res = dst->type()->infer_with(type2type, cur->arg_fn_type());
-                assert(res);
-                auto dropped = drop(scope, call.args(), type2type);
-                rewrite_jump(cur, dropped, call);
-                cur = dropped;
-            }
+        if (dst == nullptr) {
+            std::cout << "bailing out: " << cur->unique_name() << std::endl;
+            return;
         }
-next_lambda:;
+
+        if (dst->empty()) {
+            cur = continuation(cur);
+            continue;
+        }
+
+        Call call(dst);
+        for (size_t i = 0; i != cur->num_args(); ++i) {
+            if (!cur->arg(i)->isa<Hlt>())
+                call.arg(i) = cur->arg(i);
+        }
+
+        if (auto cached = find(cache_, call)) { // check for cached version
+            rewrite_jump(cur, cached, call);
+            return;
+        } else {                                // no cached version found... create a new one
+            Scope scope(dst);
+            Type2Type type2type;
+            bool res = dst->type()->infer_with(type2type, cur->arg_fn_type());
+            assert(res);
+            auto dropped = drop(scope, call.args(), type2type);
+            rewrite_jump(cur, dropped, call);
+            cur = dropped;
+        }
     }
 }
 
@@ -181,9 +155,6 @@ void partial_evaluation(World& world) {
     for (auto primop : world.primops()) {
         if (auto evalop = Def(primop)->isa<EvalOp>())
             evalop->replace(evalop->def());
-        else if (auto end = Def(primop)->isa<EndEvalOp>())
-            end->replace(end->def());
-
     }
 }
 

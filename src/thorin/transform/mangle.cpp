@@ -14,7 +14,7 @@ public:
         , lift(lift)
         , type2type(type2type)
         , world(scope.world())
-        , set(scope.in_scope()) // copy constructor
+        , in_scope(scope.in_scope()) // copy constructor
         , oentry(scope.entry())
         , nentry(oentry->world().lambda(oentry->name))
     {
@@ -26,7 +26,7 @@ public:
 
         while (!queue.empty()) {
             for (auto use : pop(queue)->uses()) {
-                if (!use->isa_lambda() && !visit(set, use))
+                if (!use->isa_lambda() && !visit(in_scope, use))
                     queue.push(use);
             }
         }
@@ -47,7 +47,7 @@ public:
     ArrayRef<Def> lift;
     Type2Type type2type;
     World& world;
-    DefSet set;
+    DefSet in_scope;
     Lambda* oentry;
     Lambda* nentry;
 };
@@ -123,7 +123,7 @@ void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
 }
 
 Def Mangler::mangle(Def odef) {
-    if (!set.contains(odef) && !old2new.contains(odef))
+    if (!in_scope.contains(odef) && !old2new.contains(odef))
         return odef;
     if (old2new.contains(odef))
         return lookup(odef);

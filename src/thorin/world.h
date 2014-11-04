@@ -222,7 +222,6 @@ public:
     Lambda* basicblock(const std::string& name = "");
     Lambda* meta_lambda();
     Lambda* branch() const { return branch_; }
-    Lambda* branch_join() const { return branch_join_; }
 
     /// Performs dead code, unreachable code and unused type elimination.
     void cleanup();
@@ -276,7 +275,6 @@ private:
 #endif
     size_t gid_;
     Lambda* branch_;
-    Lambda* branch_join_;
 
     union {
         struct {

@@ -50,7 +50,6 @@ World::World(std::string name)
     auto v = type_var();
     auto f = fn_type({type_bool(), fn_type(), fn_type(), v});
     f->bind(v);
-    branch_join_ = lambda(f, CC::C, Intrinsic::Branch, "brj");
 }
 
 World::~World() {

@@ -118,26 +118,16 @@ void IRBuilder::jump(JumpTarget& jt) {
     }
 }
 
-void IRBuilder::branch(Def cond, JumpTarget& t, JumpTarget& f, JumpTarget* x) {
+void IRBuilder::branch(Def cond, JumpTarget& t, JumpTarget& f) {
     if (is_reachable()) {
         if (auto lit = cond->isa<PrimLit>()) {
             jump(lit->value().get_bool() ? t : f);
         } else if (&t == &f) {
             jump(t);
         } else {
-            if (x) {
-                if (x->lambda_ == nullptr) {
-                    x->lambda_ = world().basicblock(x->name_);
-                    x->first_ = false;
-                } else
-                    assert(!x->first_);
-            }
             auto tl = t.branch_to(world_);
             auto fl = f.branch_to(world_);
-            if (x)
-                cur_bb->branch_join(cond, tl, fl, x->lambda_);
-            else
-                cur_bb->branch(cond, tl, fl);
+            cur_bb->branch(cond, tl, fl);
             set_unreachable();
         }
     }

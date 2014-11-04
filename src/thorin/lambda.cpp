@@ -112,15 +112,8 @@ static Lambdas preds(const Lambda* lambda) {
     while (!queue.empty()) {
         auto use = pop(queue);
         if (auto lambda = use->isa_lambda()) {
-            if ((use.index() == 0 && direct) || (use.index() != 0 && indirect)) {
-                if (use.index() == 4) {
-                    if (auto ulambda = use->isa<Lambda>()) {
-                        if (ulambda->to() == lambda->world().branch_join())
-                            continue;
-                    }
-                }
+            if ((use.index() == 0 && direct) || (use.index() != 0 && indirect))
                 preds.push_back(lambda);
-            }
             continue;
         }
 
@@ -147,13 +140,8 @@ static Lambdas succs(const Lambda* lambda) {
     if (direct && !lambda->empty())
         enqueue(lambda->to());
     if (indirect) {
-        if (!lambda->empty() && lambda->to() == lambda->world().branch_join()) {
-            for (auto arg : lambda->args().slice_num_from_end(1))
-                enqueue(arg);
-        } else {
-            for (auto arg : lambda->args())
-                enqueue(arg);
-        }
+        for (auto arg : lambda->args())
+            enqueue(arg);
     }
 
     while (!queue.empty()) {
@@ -244,16 +232,6 @@ void Lambda::branch(Def cond, Def t, Def f) {
     if (cond->is_not())
         return branch(cond->as<ArithOp>()->rhs(), f, t);
     return jump(world().branch(), {cond, t, f});
-}
-
-void Lambda::branch_join(Def cond, Def t, Def f, Def x) {
-    if (auto lit = cond->isa<PrimLit>())
-        return jump(lit->value().get_bool() ? t : f, {});
-    if (t == f)
-        return jump(t, {});
-    if (cond->is_not())
-        return branch_join(cond->as<ArithOp>()->rhs(), f, t, x);
-    return jump(world().branch_join(), {cond, t, f, x});
 }
 
 std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Def> args, Type ret_type) {

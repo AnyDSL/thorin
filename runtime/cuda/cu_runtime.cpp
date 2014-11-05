@@ -477,7 +477,7 @@ void compile_nvvm(size_t dev, std::string file_name, CUjit_target target_cc) {
         std::cerr << "Error log: " << error_log << std::endl;
         delete[] error_log;
     }
-    checkErrNvvm(err, "nvvmAddModuleToProgram()");
+    checkErrNvvm(err, "nvvmCompileProgram()");
 
     size_t ptx_size;
     err = nvvmGetCompiledResultSize(program, &ptx_size);

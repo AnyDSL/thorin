@@ -36,7 +36,7 @@ uint32_t Cleaner::counter_ = 1;
 void Cleaner::merge_lambdas() {
     for (auto src : world().lambdas()) {
         if (auto dst = src->to()->isa_lambda()) {
-            if (!dst->empty() && !world().is_external(dst)) {
+            if (src != dst && !dst->empty() && !world().is_external(dst)) {
                 if (dst->num_uses() == 1) {
                     for (size_t i = 0, e = src->num_args(); i != e; ++i)
                         dst->param(i)->replace(src->arg(i));

@@ -13,29 +13,17 @@ namespace thorin {
 uint32_t Scope::sid_counter_ = 1;
 uint32_t Scope::candidate_counter_ = 1;
 
-Scope::Scope(World& world, ArrayRef<Lambda*> entries, bool unique_exit)
-    : world_(world)
+Scope::Scope(Lambda* entry, bool unique_exit)
+    : world_(entry->world())
     , sid_(sid_counter_++)
     , unique_exit_(unique_exit)
 {
-#ifndef NDEBUG
-    assert(!entries.empty());
-    for (auto entry : entries) assert(!entry->is_proxy());
-#endif
-
-    Lambda* entry;
-    if (entries.size() == 1)
-        entry = entries.front();
-    else {
-        entry = world.meta_lambda();
-        rpo_.push_back(entry);
-        set_candidate(entry);
-    }
-    identify_scope(entries);
-    number(entries);
-    build_cfg(entries);
+    assert(!entry->is_proxy());
+    identify_scope(entry);
+    number();
+    build_cfg();
     if (unique_exit)
-        build_backwards_rpo(entries);
+        build_backwards_rpo();
     build_in_scope();
     ++candidate_counter_;
 }
@@ -50,36 +38,34 @@ Scope::~Scope() {
         exit()->destroy_body();
 }
 
-void Scope::identify_scope(ArrayRef<Lambda*> entries) {
+void Scope::identify_scope(Lambda* entry) {
     std::queue<Def> queue;
-    for (auto entry : entries) {
-        if (!is_candidate(entry)) {
-            auto insert_lambda = [&] (Lambda* lambda) {
-                assert(!lambda->is_proxy());
-                for (auto param : lambda->params()) {
-                    if (!param->is_proxy()) {
-                        set_candidate(param);
-                        queue.push(param);
-                    }
-                }
+    assert(!is_candidate(entry));
 
-                assert(std::find(rpo_.begin(), rpo_.end(), lambda) == rpo_.end());
-                rpo_.push_back(lambda);
-            };
+    auto insert_lambda = [&] (Lambda* lambda) {
+        assert(!lambda->is_proxy());
+        for (auto param : lambda->params()) {
+            if (!param->is_proxy()) {
+                set_candidate(param);
+                queue.push(param);
+            }
+        }
 
-            insert_lambda(entry);
-            set_candidate(entry);
+        assert(std::find(rpo_.begin(), rpo_.end(), lambda) == rpo_.end());
+        rpo_.push_back(lambda);
+    };
 
-            while (!queue.empty()) {
-                auto def = pop(queue);
-                for (auto use : def->uses()) {
-                    if (!is_candidate(use)) {
-                        if (auto ulambda = use->isa_lambda())
-                            insert_lambda(ulambda);
-                        set_candidate(use);
-                        queue.push(use);
-                    }
-                }
+    insert_lambda(entry);
+    set_candidate(entry);
+
+    while (!queue.empty()) {
+        auto def = pop(queue);
+        for (auto use : def->uses()) {
+            if (!is_candidate(use)) {
+                if (auto ulambda = use->isa_lambda())
+                    insert_lambda(ulambda);
+                set_candidate(use);
+                queue.push(use);
             }
         }
     }
@@ -88,19 +74,11 @@ void Scope::identify_scope(ArrayRef<Lambda*> entries) {
     for (auto lambda : rpo())
         assert(is_candidate(lambda));
 #endif
+    assert(rpo().front() == entry);
 }
 
-void Scope::number(ArrayRef<Lambda*> entries) {
-    size_t n = 0;
-    if (entries.size() == 1)
-        n = number(entries.front(), n);
-    else {
-        for (auto entry : entries) {
-            if (!entry->find_scope(this)) // if not visited
-                n = number(entry, n);
-        }
-        n = number(entry(), n);
-    }
+void Scope::number() {
+    size_t n = number(entry(), 0);
 
     // sort in reverse post-order
     std::sort(rpo_.begin(), rpo_.end(), [&](Lambda* l1, Lambda* l2) {
@@ -147,7 +125,7 @@ size_t Scope::number(Lambda* cur, size_t i) {
     return (info->rpo_id = i) + 1;
 }
 
-void Scope::build_cfg(ArrayRef<Lambda*> entries) {
+void Scope::build_cfg() {
     succs_.resize(size() + 1); // maybe we need one extra alloc for fake exit
     preds_.resize(size() + 1);
     for (auto lambda : rpo()) {
@@ -156,25 +134,16 @@ void Scope::build_cfg(ArrayRef<Lambda*> entries) {
                 link(lambda, succ);
         }
     }
-
-    // link meta lambda to real entries
-    if (entries.size() != 1) {
-        for (auto e : entries)
-            link(entry(), e);
-    }
 }
 
-void Scope::build_backwards_rpo(Array<Lambda*> entries) {
+void Scope::build_backwards_rpo() {
     // find exits
     std::vector<Lambda*> exits;
-    auto cmp = [] (Lambda* l1, Lambda* l2) { return l1->gid() < l2->gid(); };
-    std::sort(entries.begin(), entries.end(), cmp);
-    auto is_entry = [&] (Lambda* lambda) { return std::binary_search(entries.begin(), entries.end(), lambda, cmp); };
 
     size_t i = 0, found = 0;
     for (auto lambda : rpo()) {
         for (auto succ : succs(lambda)) {
-            if (!is_entry(succ))
+            if (succ != entry())
                 goto next;
         }
         exits.push_back(lambda);

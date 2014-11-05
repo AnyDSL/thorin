@@ -21,12 +21,7 @@ public:
     Scope(const Scope&) = delete;
     Scope& operator= (Scope) = delete;
 
-    /// Builds a unique meta \p Lambda as dummy entry if necessary.
-    explicit Scope(World& world, ArrayRef<Lambda*> entries, bool unique_exit = false);
-    /// Does not build a meta \p Lambda
-    explicit Scope(Lambda* entry, bool unique_exit = false)
-        : Scope(entry->world(), {entry}, unique_exit)
-    {}
+    explicit Scope(Lambda* entry, bool unique_exit = false);
     ~Scope();
 
     /// All lambdas within this scope in reverse post-order.
@@ -77,11 +72,11 @@ private:
     static void set_candidate(Def def) { def->candidate_ = candidate_counter_; }
     static void unset_candidate(Def def) { assert(is_candidate(def)); --def->candidate_; }
 
-    void identify_scope(ArrayRef<Lambda*> entries);
-    void number(ArrayRef<Lambda*> entries);
+    void identify_scope(Lambda* entry);
+    void number();
     size_t number(Lambda* lambda, size_t i);
-    void build_cfg(ArrayRef<Lambda*> entries);
-    void build_backwards_rpo(Array<Lambda*> entries);
+    void build_cfg();
+    void build_backwards_rpo();
     void backwards_number(ArrayRef<Lambda*> exits);
     size_t backwards_number(Lambda* lambda, size_t i);
 

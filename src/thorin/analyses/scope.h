@@ -46,7 +46,7 @@ public:
         auto info = lambda->find_scope(this);
         return info->backwards_rpo_id; 
     }
-    uint32_t sid() const { return sid_; }
+    uint32_t id() const { return id_; }
     size_t size() const { return rpo_.size(); }
     World& world() const { return world_; }
     void dump() const;
@@ -91,7 +91,7 @@ private:
 
     World& world_;
     DefSet in_scope_;
-    uint32_t sid_;
+    uint32_t id_;
     std::vector<Lambda*> rpo_;
     std::vector<Lambda*>backwards_rpo_;
     std::vector<std::vector<Lambda*>> preds_;
@@ -102,7 +102,7 @@ private:
     mutable AutoPtr<const LoopTree> looptree_;
 
     static uint32_t candidate_counter_;
-    static uint32_t sid_counter_;
+    static uint32_t id_counter_;
 
     template<bool> friend class ScopeView;
 };

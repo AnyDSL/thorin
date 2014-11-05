@@ -280,7 +280,7 @@ std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Def> args, Type ret_type) 
 
 std::list<Lambda::ScopeInfo>::iterator Lambda::list_iter(const Scope* scope) {
     return std::find_if(scopes_.begin(), scopes_.end(), [&] (const ScopeInfo& info) {
-        return info.scope->sid() == scope->sid();
+        return info.scope->id() == scope->id();
     });
 }
 

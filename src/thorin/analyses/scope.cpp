@@ -10,12 +10,12 @@
 
 namespace thorin {
 
-uint32_t Scope::sid_counter_ = 1;
+uint32_t Scope::id_counter_ = 1;
 uint32_t Scope::candidate_counter_ = 1;
 
 Scope::Scope(Lambda* entry, bool unique_exit)
     : world_(entry->world())
-    , sid_(sid_counter_++)
+    , id_(id_counter_++)
     , unique_exit_(unique_exit)
 {
     assert(!entry->is_proxy());

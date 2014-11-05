@@ -49,18 +49,18 @@ public:
     }
     Lambda* idom(Lambda* lambda) const { return lookup(lambda)->idom()->lambda(); }
     const DomNode* lookup(Lambda* lambda) const { return lookup(rpo_id(lambda)); }
-    const DomNode* lookup(size_t rpo_id) const { return domnodes_[rpo_id]; }
+    const DomNode* lookup(size_t rpo_id) const { return nodes_[rpo_id]; }
     void dump() const { root()->dump(); }
 
 private:
-    DomNode*& lookup(Lambda* lambda) { return domnodes_[rpo_id(lambda)]; }
+    DomNode*& lookup(Lambda* lambda) { return nodes_[rpo_id(lambda)]; }
     void create();
     size_t postprocess(DomNode* n, int depth);
     DomNode* lca(DomNode*, DomNode*);
 
     ScopeView<forward> scope_view_;
     AutoPtr<DomNode> root_;
-    std::vector<DomNode*> domnodes_;
+    std::vector<DomNode*> nodes_;
 };
 
 }

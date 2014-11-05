@@ -23,7 +23,7 @@ void DomNode::dump() const {
 template<bool forward>
 DomTreeBase<forward>::DomTreeBase(const Scope& scope)
     : scope_view_(scope)
-    , domnodes_(scope.size())
+    , nodes_(scope.size())
 {
     create();
 }

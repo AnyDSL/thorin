@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "thorin/util/array.h"
+#include "thorin/util/autoptr.h"
 
 namespace thorin {
 
@@ -17,11 +18,15 @@ public:
     {}
 
     Lambda* lambda() const { return lambda_; }
+    bool is_entry() const { return preds_.empty(); }
+    bool is_exit() const { return succs_.empty(); }
+    const std::vector<CFGNode*> preds() const { return preds_; }
+    const std::vector<CFGNode*> succs() const { return succs_; }
 
 private:
     Lambda* lambda_;
     std::vector<CFGNode*> preds_;
-    std::vector<CFGNode*> sucss_;
+    std::vector<CFGNode*> succs_;
 };
 
 class CFG {
@@ -29,11 +34,15 @@ public:
     CFG(const Scope& scope);
 
     const Scope& scope() const { return scope_; }
-    void cfa();
+    size_t size() const { return nodes_.size(); }
+    bool empty() const { return size() == 0; }
+    ArrayRef<const CFGNode*> nodes() const { return ArrayRef<const CFGNode*>(nodes_.data(), nodes_.size()); }
 
 private:
+    void cfa();
+
     const Scope& scope_;
-    Array<Lambda*> lambdas_;
+    AutoVector<CFGNode*> nodes_;
 };
 
 }

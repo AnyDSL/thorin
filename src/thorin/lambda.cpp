@@ -33,6 +33,10 @@ std::vector<Param::Peek> Param::peek() const {
 
 //------------------------------------------------------------------------------
 
+Def Lambda::to() const { 
+    return empty() ? world().bottom(world().fn_type()) : op(0);
+}
+
 Lambda* Lambda::stub(Type2Type& type2type, const std::string& name) const {
     auto result = world().lambda(type()->specialize(type2type).as<FnType>(), cc(), intrinsic(), name);
     for (size_t i = 0, e = num_params(); i != e; ++i)

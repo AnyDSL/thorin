@@ -10,6 +10,20 @@ namespace thorin {
 class Lambda;
 class Scope;
 
+class CFGNode {
+public:
+    CFGNode(Lambda* lambda)
+        : lambda_(lambda)
+    {}
+
+    Lambda* lambda() const { return lambda_; }
+
+private:
+    Lambda* lambda_;
+    std::vector<CFGNode*> preds_;
+    std::vector<CFGNode*> sucss_;
+};
+
 class CFG {
 public:
     CFG(const Scope& scope);

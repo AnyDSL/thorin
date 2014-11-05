@@ -28,7 +28,7 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
     IF("${TRW_RTTYPE}" STREQUAL "nvvm" OR "${TRW_RTTYPE}" STREQUAL "cuda")
         Find_Package(CUDA REQUIRED)
         set(CUDA_RUNTIME_DEFINES "'-DLIBDEVICE_DIR=\"${CUDA_TOOLKIT_ROOT_DIR}/nvvm/libdevice/\"' '-DNVCC_BIN=\"${CUDA_TOOLKIT_ROOT_DIR}/bin/nvcc\"' '-DKERNEL_DIR=\"${CMAKE_CURRENT_BINARY_DIR}/\"'")
-        set(CUDA_RUNTIME_INCLUDES "-I${CUDA_TOOLKIT_ROOT_DIR}/include -I${CUDA_TOOLKIT_ROOT_DIR}/nvvm/include -I${CUDA_TOOLKIT_ROOT_DIR}/nvvm/libnvvm-samples/common/include")
+        set(CUDA_RUNTIME_INCLUDES "-I${CUDA_TOOLKIT_ROOT_DIR}/include -I${CUDA_TOOLKIT_ROOT_DIR}/nvvm/include")
         # set variables expected below
         set(${outfiles} ${${outfiles}} ${THORIN_RUNTIME_DIR}/cuda/cu_runtime.cpp)
         if(APPLE)

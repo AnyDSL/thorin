@@ -46,7 +46,11 @@ public:
     size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
     size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
     size_t rpo_id(Lambda* lambda) const { return lambda->find_scope(this)->rpo_id; }
-    size_t backwards_rpo_id(Lambda* lambda) const { assert(has_unique_exit()); return lambda->find_scope(this)->backwards_rpo_id; }
+    size_t backwards_rpo_id(Lambda* lambda) const { 
+        assert(has_unique_exit()); 
+        auto info = lambda->find_scope(this);
+        return info->backwards_rpo_id; 
+    }
     uint32_t sid() const { return sid_; }
     size_t size() const { return rpo_.size(); }
     World& world() const { return world_; }

@@ -1,5 +1,6 @@
 #include "thorin/primop.h"
 #include "thorin/world.h"
+#include "thorin/analyses/cfg.h"
 #include "thorin/analyses/domtree.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/util/hash.h"
@@ -91,7 +92,7 @@ void PartialEvaluator::eval(Lambda* begin, Lambda* cur, Lambda* end) {
             return;
         }
 
-        cur->dump_head();
+        //cur->dump_head();
 
         Lambda* dst = nullptr;
         if (auto run = cur->to()->isa<Run>()) {
@@ -113,10 +114,13 @@ void PartialEvaluator::eval(Lambda* begin, Lambda* cur, Lambda* end) {
 
         if (dst->empty()) {
             if (dst == world().branch()) {
-                Scope scope(begin, true);
-                scope.dump();
-                scope.postdomtree()->dump();
-                begin = cur = scope.postdomtree()->idom(cur);
+                //Scope scope(begin, true);
+                //scope.dump();
+                //CFG cfg(scope);
+                //scope.postdomtree()->dump();
+                //begin = cur = scope.postdomtree()->idom(cur);
+                std::cout << "bailing out: " << cur->unique_name() << std::endl;
+                return;
             } else
                 begin = cur = continuation(cur);
             continue;

@@ -32,8 +32,6 @@ Scope::~Scope() {
     for (auto lambda : rpo())
         lambda->unregister_scope(this);
 
-    if (!entry()->empty() && entry()->to()->isa<Bottom>())
-        entry()->destroy_body();
     if (has_unique_exit() && exit() != entry() && !exit()->empty() && exit()->to()->isa<Bottom>())
         exit()->destroy_body();
 }

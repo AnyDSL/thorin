@@ -1,5 +1,6 @@
 #include "thorin/primop.h"
 #include "thorin/world.h"
+#include "thorin/analyses/domtree.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/util/hash.h"
 #include "thorin/util/queue.h"
@@ -45,7 +46,7 @@ public:
 
     World& world() { return world_; }
     void seek();
-    void eval(Lambda* cur, Lambda* end);
+    void eval(Lambda* begin, Lambda* cur, Lambda* end);
     void rewrite_jump(Lambda* src, Lambda* dst, const Call&);
     void enqueue(Lambda* lambda) { 
         if (!visit(visited_, lambda))
@@ -72,7 +73,7 @@ void PartialEvaluator::seek() {
         auto lambda = pop(queue_);
         if (!lambda->empty()) {
             if (lambda->to()->isa<Run>())
-                eval(lambda, continuation(lambda));
+                eval(lambda, lambda, continuation(lambda));
         }
 
         for (auto succ : lambda->succs())
@@ -80,7 +81,7 @@ void PartialEvaluator::seek() {
     }
 }
 
-void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
+void PartialEvaluator::eval(Lambda* begin, Lambda* cur, Lambda* end) {
     if (end == nullptr)
         std::cout << "no matching end: " << cur->unique_name() << std::endl;
 
@@ -98,7 +99,7 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
         } else if (cur->to()->isa<Hlt>()) {
             for (auto succ : cur->succs())
                 enqueue(succ);
-            cur = continuation(cur);
+            begin = cur = continuation(cur);
             continue;
         } else {
             dst = cur->to()->isa_lambda();
@@ -111,7 +112,13 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
         }
 
         if (dst->empty()) {
-            cur = continuation(cur);
+            if (dst == world().branch()) {
+                Scope scope(begin, true);
+                scope.dump();
+                scope.postdomtree()->dump();
+                begin = cur = scope.postdomtree()->idom(cur);
+            } else
+                begin = cur = continuation(cur);
             continue;
         }
 

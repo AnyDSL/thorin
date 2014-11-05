@@ -66,14 +66,6 @@ Lambda* Mangler::mangle() {
         old2new[def] = nentry->append_param(def->type()->specialize(type2type));
 
     mangle_body(oentry, nentry);
-
-    for (auto cur : scope.rpo().slice_from_begin(1)) {
-        if (old2new.contains(cur))
-            mangle_body(cur, lookup(cur)->as_lambda());
-        else
-            old2new[cur] = cur;
-    }
-
     return nentry;
 }
 
@@ -129,8 +121,9 @@ Def Mangler::mangle(Def odef) {
         return lookup(odef);
 
     if (auto olambda = odef->isa_lambda()) {
-        assert(scope.contains(olambda));
-        return mangle_head(olambda);
+        auto nlambda = mangle_head(olambda);
+        mangle_body(olambda, nlambda);
+        return nlambda;
     } else if (auto param = odef->isa<Param>()) {
         assert(scope.contains(param->lambda()));
         return old2new[odef] = odef;

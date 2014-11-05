@@ -370,7 +370,7 @@ void create_module(size_t dev, const void *ptx, std::string file_name, CUjit_tar
 void create_kernel(size_t dev, std::string kernel_name) {
     // get function entry point
     CUresult err = cuModuleGetFunction(&functions_[dev], modules_[dev], kernel_name.c_str());
-    checkErrDrv(err, "cuModuleGetFunction()");
+    checkErrDrv(err, "cuModuleGetFunction('" + kernel_name + "')");
     function_cache_[modules_[dev]][kernel_name] = functions_[dev];
 }
 
@@ -587,7 +587,7 @@ void unload_module(size_t dev, CUmodule module) {
 void get_tex_ref(size_t dev, std::string name) {
     cuCtxPushCurrent(contexts_[dev]);
     CUresult err = cuModuleGetTexRef(&textures_[dev], modules_[dev], name.c_str());
-    checkErrDrv(err, "cuModuleGetTexRef()");
+    checkErrDrv(err, "cuModuleGetTexRef('" + name + "')");
     cuCtxPopCurrent(NULL);
 }
 
@@ -688,7 +688,7 @@ void set_kernel_arg_const(size_t dev, void *param, std::string name, size_t size
     CUdeviceptr const_mem;
     std::cerr << " * set arg const(" << dev << "): " << param << std::endl;
     CUresult err = cuModuleGetGlobal(&const_mem, &bytes, modules_[dev], name.c_str());
-    checkErrDrv(err, "cuModuleGetGlobal()");
+    checkErrDrv(err, "cuModuleGetGlobal('" + name + "')");
     write_memory(dev, const_mem, param, size);
 }
 

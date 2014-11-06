@@ -133,6 +133,9 @@ private:
  */
 class LoopTree {
 public:
+    LoopTree(const LoopTree&) = delete;
+    LoopTree& operator= (LoopTree) = delete;
+
     explicit LoopTree(const CFGView<true>& cfg);
 
     const CFGView<true>& cfg() const { return cfg_; }

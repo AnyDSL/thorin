@@ -39,6 +39,9 @@ private:
 template<bool forward>
 class DomTreeBase {
 public:
+    DomTreeBase(const DomTreeBase&) = delete;
+    DomTreeBase& operator= (DomTreeBase) = delete;
+
     explicit DomTreeBase(const CFGView<forward>&);
 
     const CFGView<forward>& cfg() const { return cfg_; }

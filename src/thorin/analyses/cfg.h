@@ -42,6 +42,9 @@ private:
 
 class CFG {
 public:
+    CFG(const CFG&) = delete;
+    CFG& operator= (CFG) = delete;
+
     explicit CFG(const Scope& scope);
 
     const Scope& scope() const { return scope_; }
@@ -79,6 +82,9 @@ private:
 template<bool forward = true>
 class CFGView {
 public:
+    CFGView(const CFGView&) = delete;
+    CFGView& operator= (CFGView) = delete;
+
     explicit CFGView(const CFG& cfg);
 
     const CFG& cfg() const { return cfg_; }

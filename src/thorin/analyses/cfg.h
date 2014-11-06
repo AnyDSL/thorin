@@ -91,6 +91,7 @@ public:
     const CFGNode* rpo(size_t i) const { return rpo_[i]; }
     /// Like \p rpo() but without \p entry()
     ArrayRef<const CFGNode*> body() const { return rpo().slice_from_begin(1); }
+    const CFGNode* lookup(Lambda* lambda) const { return rpo(rpo_id(lambda)); }
 
     typedef ArrayRef<const CFGNode*>::const_iterator const_iterator;
     const_iterator begin() const { return rpo().begin(); }

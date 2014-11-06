@@ -28,7 +28,14 @@ CFG::CFG(const Scope& scope)
 }
 
 size_t CFG::sid(Lambda* lambda) const { 
-    return lambda == nullptr ? nodes_.size()-1 : lambda->find_scope(&scope())->sid; 
+    //return lambda == nullptr ? nodes_.size()-1 : lambda->find_scope(&scope())->sid; 
+    if (lambda == nullptr) {
+        return nodes_.size() - 1;
+    } else {
+        auto info = lambda->find_scope(&scope());
+        assert(info);
+        return info->sid;
+    }
 }
 
 struct FlowVal {

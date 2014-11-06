@@ -61,10 +61,11 @@ void Scope::identify_scope(Lambda* entry) {
         }
     }
 
-#ifndef NDEBUG
-    for (auto lambda : lambdas())
+    for (size_t i = 0, e = size(); i != e; ++i) {
+        auto lambda = lambdas_[i];
+        lambda->register_scope(this)->sid = i;
         assert(is_candidate(lambda));
-#endif
+    }
     assert(lambdas().front() == entry);
 }
 

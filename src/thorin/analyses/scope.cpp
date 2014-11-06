@@ -74,7 +74,7 @@ void Scope::number() {
     size_t n = number(entry(), 0);
 
     // sort in reverse post-order
-    std::sort(rpo_.begin(), rpo_.end(), [&](Lambda* l1, Lambda* l2) {
+    std::sort(rpo_.begin(), rpo_.end(), [&] (Lambda* l1, Lambda* l2) {
         auto info1 = l1->find_scope(this);
         auto info2 = l2->find_scope(this);
         if (info1 && info2) return info1->sid > info2->sid;

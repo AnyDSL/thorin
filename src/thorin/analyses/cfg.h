@@ -79,9 +79,7 @@ private:
 template<bool forward = true>
 class CFGView {
 public:
-    explicit CFGView(const CFG& cfg)
-        : cfg_(cfg)
-    {}
+    explicit CFGView(const CFG& cfg);
 
     const CFG& cfg() const { return cfg_; }
     size_t size() const { return rpo_.size(); }
@@ -89,8 +87,8 @@ public:
     ArrayRef<const CFGNode*> succs(const CFGNode* n) const { return forward ? cfg().succs(n->lambda()) : cfg().preds(n->lambda()); }
     size_t num_preds(const CFGNode* n) const { return preds(n).size(); }
     size_t num_succs(const CFGNode* n) const { return succs(n).size(); }
-    const CFGNode* entry() const { return rpo().front(); }
-    const CFGNode* exit()  const { return rpo().end(); }
+    const CFGNode* entry() const { return forward ? cfg().entry() : cfg().exit();  }
+    const CFGNode* exit()  const { return forward ? cfg().exit()  : cfg().entry(); }
     size_t rpo_id(const CFGNode* n) const { return rpo_ids_[cfg().sid(n->lambda())]; }
     /// All lambdas within this scope in reverse post-order.
     ArrayRef<const CFGNode*> rpo() const { return rpo_; }
@@ -105,6 +103,9 @@ public:
     const_iterator end() const { return rpo().end(); }
 
 private:
+    size_t& _rpo_id(const CFGNode* n) { return rpo_ids_[cfg().sid(n->lambda())]; }
+    size_t number(const CFGNode*, size_t);
+
     const CFG& cfg_;
     Array<size_t> rpo_ids_;     // sorted in sid
     Array<const CFGNode*> rpo_; // sorted in rpo_id

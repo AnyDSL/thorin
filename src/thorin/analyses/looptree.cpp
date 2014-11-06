@@ -1,12 +1,11 @@
 #include "thorin/analyses/looptree.h"
 
-#include "thorin/lambda.h"
-#include "thorin/world.h"
-#include "thorin/analyses/scope.h"
-
 #include <algorithm>
 #include <iostream>
 #include <stack>
+
+#include "thorin/lambda.h"
+#include "thorin/analyses/cfg.h"
 
 /*
  * The implementation is based on Steensgard's algorithm to find loops in irreducible CFGs.
@@ -32,7 +31,7 @@ public:
         : looptree(looptree)
         , dfs_id(0)
     {
-        stack.reserve(looptree.scope().size());
+        stack.reserve(looptree.cfg().size());
         build();
         propagate_bounds(looptree.root_);
         analyse_loops(looptree.root_);
@@ -56,18 +55,18 @@ private:
     void build();
     static std::pair<size_t, size_t> propagate_bounds(LoopNode* header);
     void analyse_loops(LoopHeader* header);
-    const Scope& scope() const { return looptree.scope(); }
-    Number& number(Lambda* lambda) { return numbers[lambda]; }
-    size_t& lowlink(Lambda* lambda) { return number(lambda).low; }
-    size_t& dfs(Lambda* lambda) { return number(lambda).dfs; }
-    bool on_stack(Lambda* lambda) { assert(set.contains(lambda)); return (states[lambda] & OnStack) != 0; }
-    bool in_scc(Lambda* lambda) { return states[lambda] & InSCC; }
-    bool is_header(Lambda* lambda) { return states[lambda] & IsHeader; }
+    const CFGView<true>& cfg() const { return looptree.cfg(); }
+    Number& number(const CFGNode* cfg_node) { return numbers[cfg_node]; }
+    size_t& lowlink(const CFGNode* cfg_node) { return number(cfg_node).low; }
+    size_t& dfs(const CFGNode* cfg_node) { return number(cfg_node).dfs; }
+    bool on_stack(const CFGNode* cfg_node) { assert(set.contains(cfg_node)); return (states[cfg_node] & OnStack) != 0; }
+    bool in_scc(const CFGNode* cfg_node) { return states[cfg_node] & InSCC; }
+    bool is_header(const CFGNode* cfg_node) { return states[cfg_node] & IsHeader; }
 
-    bool is_leaf(Lambda* lambda, size_t num) {
+    bool is_leaf(const CFGNode* cfg_node, size_t num) {
         if (num == 1) {
-            for (auto succ : scope().succs(lambda)) {
-                if (!is_header(succ) && lambda == succ)
+            for (auto succ : cfg().succs(cfg_node)) {
+                if (!is_header(succ) && cfg_node == succ)
                     return false;
             }
             return true;
@@ -75,38 +74,38 @@ private:
         return false;
     }
 
-    void push(Lambda* lambda) {
-        assert(set.contains(lambda) && (states[lambda] & OnStack) == 0);
-        stack.push_back(lambda);
-        states[lambda] |= OnStack;
+    void push(const CFGNode* cfg_node) {
+        assert(set.contains(cfg_node) && (states[cfg_node] & OnStack) == 0);
+        stack.push_back(cfg_node);
+        states[cfg_node] |= OnStack;
     }
 
-    int visit(Lambda* lambda, int counter) {
-        visit_first(set, lambda);
-        numbers[lambda] = Number(counter++);
-        push(lambda);
+    int visit(const CFGNode* cfg_node, int counter) {
+        visit_first(set, cfg_node);
+        numbers[cfg_node] = Number(counter++);
+        push(cfg_node);
         return counter;
     }
 
-    void recurse(LoopHeader* parent, ArrayRef<Lambda*> headers, int depth);
-    int walk_scc(Lambda* cur, LoopHeader* parent, int depth, int scc_counter);
+    void recurse(LoopHeader* parent, ArrayRef<const CFGNode*> headers, int depth);
+    int walk_scc(const CFGNode* cur, LoopHeader* parent, int depth, int scc_counter);
 
     LoopTree& looptree;
-    LambdaMap<Number> numbers;
-    LambdaMap<uint8_t> states;
-    LambdaSet set;
+    CFGNodeMap<Number> numbers;
+    CFGNodeMap<uint8_t> states;
+    CFGNodeSet set;
     size_t dfs_id;
-    std::vector<Lambda*> stack;
+    std::vector<const CFGNode*> stack;
 };
 
 void LoopTreeBuilder::build() {
-    for (auto lambda : scope()) // clear all flags
-        states[lambda] = 0;
+    for (auto cfg_node : cfg()) // clear all flags
+        states[cfg_node] = 0;
 
-    recurse(looptree.root_ = new LoopHeader(nullptr, 0, std::vector<Lambda*>(0)), {scope().entry()}, 1);
+    recurse(looptree.root_ = new LoopHeader(nullptr, 0, std::vector<const CFGNode*>(0)), {cfg().entry()}, 1);
 }
 
-void LoopTreeBuilder::recurse(LoopHeader* parent, ArrayRef<Lambda*> headers, int depth) {
+void LoopTreeBuilder::recurse(LoopHeader* parent, ArrayRef<const CFGNode*> headers, int depth) {
     size_t cur_new_child = 0;
     for (auto header : headers) {
         set.clear();
@@ -114,21 +113,21 @@ void LoopTreeBuilder::recurse(LoopHeader* parent, ArrayRef<Lambda*> headers, int
 
         // now mark all newly found headers globally as header
         for (size_t e = parent->num_children(); cur_new_child != e; ++cur_new_child) {
-            for (auto header : parent->child(cur_new_child)->lambdas())
+            for (auto header : parent->child(cur_new_child)->cfg_nodes())
                 states[header] |= IsHeader;
         }
     }
 
     for (auto node : parent->children()) {
         if (auto new_parent = node->isa<LoopHeader>())
-            recurse(new_parent, new_parent->lambdas(), depth + 1);
+            recurse(new_parent, new_parent->cfg_nodes(), depth + 1);
     }
 }
 
-int LoopTreeBuilder::walk_scc(Lambda* cur, LoopHeader* parent, int depth, int scc_counter) {
+int LoopTreeBuilder::walk_scc(const CFGNode* cur, LoopHeader* parent, int depth, int scc_counter) {
     scc_counter = visit(cur, scc_counter);
 
-    for (auto succ : scope().succs(cur)) {
+    for (auto succ : cfg().succs(cur)) {
         if (is_header(succ))
             continue; // this is a backedge
         if (!set.contains(succ)) {
@@ -140,27 +139,27 @@ int LoopTreeBuilder::walk_scc(Lambda* cur, LoopHeader* parent, int depth, int sc
 
     // root of SCC
     if (lowlink(cur) == dfs(cur)) {
-        std::vector<Lambda*> headers;
+        std::vector<const CFGNode*> headers;
 
-        // mark all lambdas in current SCC (all lambdas from back to cur on the stack) as 'InSCC'
+        // mark all cfg_nodes in current SCC (all cfg_nodes from back to cur on the stack) as 'InSCC'
         size_t num = 0, e = stack.size(), b = e - 1;
         do {
             states[stack[b]] |= InSCC;
             ++num;
         } while (stack[b--] != cur);
 
-        // for all lambdas in current SCC
+        // for all cfg_nodes in current SCC
         for (size_t i = ++b; i != e; ++i) {
-            Lambda* lambda = stack[i];
+            const CFGNode* cfg_node = stack[i];
 
-            if (scope().entry() == lambda)
-                headers.push_back(lambda); // entries are axiomatically headers
+            if (cfg().entry() == cfg_node)
+                headers.push_back(cfg_node); // entries are axiomatically headers
             else {
-                for (auto pred : scope().preds(lambda)) {
+                for (auto pred : cfg().preds(cfg_node)) {
                     // all backedges are also inducing headers
                     // but do not yet mark them globally as header -- we are still running through the SCC
                     if (!in_scc(pred)) {
-                        headers.push_back(lambda);
+                        headers.push_back(cfg_node);
                         break;
                     }
                 }
@@ -204,25 +203,25 @@ std::pair<size_t, size_t> LoopTreeBuilder::propagate_bounds(LoopNode* n) {
 }
 
 void LoopTreeBuilder::analyse_loops(LoopHeader* header) {
-    header->headers_.insert(header->lambdas().begin(), header->lambdas().end());
+    header->headers_.insert(header->cfg_nodes().begin(), header->cfg_nodes().end());
 
-    for (auto lambda : header->lambdas()) {
-        for (auto pred : lambda->preds()) {
+    for (auto cfg_node : header->cfg_nodes()) {
+        for (auto pred : cfg().preds(cfg_node)) {
             if (looptree.contains(header, pred)) {
-                header->back_edges_.emplace_back(pred, lambda, 0);
+                header->back_edges_.emplace_back(pred, cfg_node, 0);
                 header->latches_.insert(pred);
             } else {
-                header->entry_edges_.emplace_back(pred, lambda, 1);
+                header->entry_edges_.emplace_back(pred, cfg_node, 1);
                 header->preheaders_.insert(pred);
             }
         }
     }
 
-    for (auto lambda : looptree.loop_lambdas(header)) {
-        for (auto succ : lambda->succs()) {
+    for (auto cfg_node : looptree.loop_cfg_nodes(header)) {
+        for (auto succ : cfg().succs(cfg_node)) {
             if (!looptree.contains(header, succ)) {
-                header->exit_edges_.emplace_back(lambda, succ, looptree.lambda2header(succ)->depth() - header->depth());
-                header->exitings_.insert(lambda);
+                header->exit_edges_.emplace_back(cfg_node, succ, looptree.cfg_node2header(succ)->depth() - header->depth());
+                header->exitings_.insert(cfg_node);
                 header->exits_.insert(succ);
             }
         }
@@ -235,10 +234,10 @@ void LoopTreeBuilder::analyse_loops(LoopHeader* header) {
 
 //------------------------------------------------------------------------------
 
-LoopNode::LoopNode(LoopHeader* parent, int depth, const std::vector<Lambda*>& lambdas)
+LoopNode::LoopNode(LoopHeader* parent, int depth, const std::vector<const CFGNode*>& cfg_nodes)
     : parent_(parent)
     , depth_(depth)
-    , lambdas_(lambdas)
+    , cfg_nodes_(cfg_nodes)
 {
     if (parent_)
         parent_->children_.push_back(this);
@@ -251,18 +250,18 @@ std::ostream& LoopNode::indent() const {
 }
 
 void LoopLeaf::dump() const {
-    indent() << '<' << lambda()->unique_name() << '>' << std::endl;
+    indent() << '<' << cfg_node()->lambda()->unique_name() << '>' << std::endl;
     indent() << "+ dfs: " << dfs_id() << std::endl;
 }
 
 void LoopHeader::Edge::dump() {
-    std::cout << src_->unique_name() << " ->(" << levels_ << ") " << dst_->unique_name() << "   ";
+    std::cout << src_->lambda()->unique_name() << " ->(" << levels_ << ") " << dst_->lambda()->unique_name() << "   ";
 }
 
 #define DUMP_SET(set) \
     indent() << "+ " #set ": "; \
-    for (auto lambda : set()) \
-        std::cout << lambda->unique_name() << " "; \
+    for (auto cfg_node : set()) \
+        std::cout << cfg_node->lambda()->unique_name() << " "; \
     std::cout << std::endl;
 
 #define DUMP_EDGES(edges) \
@@ -273,8 +272,8 @@ void LoopHeader::Edge::dump() {
 
 void LoopHeader::dump() const {
     indent() << "( ";
-    for (auto header : lambdas())
-        std::cout << header->unique_name() << " ";
+    for (auto header : cfg_nodes())
+        std::cout << header->lambda()->unique_name() << " ";
     std::cout << ") " << std::endl;
     indent() << "+ dfs: " << dfs_begin() << " .. " << dfs_end() << std::endl;
 
@@ -291,43 +290,43 @@ void LoopHeader::dump() const {
 
 //------------------------------------------------------------------------------
 
-LoopTree::LoopTree(const Scope& scope)
-    : scope_(scope)
-    , dfs_leaves_(scope.size())
+LoopTree::LoopTree(const CFGView<true>& cfg)
+    : cfg_(cfg)
+    , dfs_leaves_(cfg.size())
 {
     LoopTreeBuilder(*this);
 }
 
-bool LoopTree::contains(const LoopHeader* header, Lambda* lambda) const {
-    if (!scope().contains(lambda)) return false;
-    size_t dfs = lambda2dfs(lambda);
+bool LoopTree::contains(const LoopHeader* header, const CFGNode* cfg_node) const {
+    //if (!cfg().contains(cfg_node)) return false; // TODO
+    size_t dfs = cfg_node2dfs(cfg_node);
     return header->dfs_begin() <= dfs && dfs < header->dfs_end();
 }
 
-const LoopHeader* LoopTree::lambda2header(Lambda* lambda) const {
-    auto leaf = lambda2leaf(lambda);
+const LoopHeader* LoopTree::cfg_node2header(const CFGNode* cfg_node) const {
+    auto leaf = cfg_node2leaf(cfg_node);
     if (leaf == nullptr)
         return root();
     auto header = leaf->parent();
     for (; !header->is_root(); header = header->parent()) {
-        if (contains(header, lambda))
+        if (contains(header, cfg_node))
             break;
     }
     return header;
 }
 
-Array<Lambda*> LoopTree::loop_lambdas(const LoopHeader* header) {
+Array<const CFGNode*> LoopTree::loop_cfg_nodes(const LoopHeader* header) {
     auto leaves = loop(header);
-    Array<Lambda*> result(leaves.size());
+    Array<const CFGNode*> result(leaves.size());
     for (size_t i = 0, e = leaves.size(); i != e; ++i)
-        result[i] = leaves[i]->lambda();
+        result[i] = leaves[i]->cfg_node();
     return result;
 }
 
-Array<Lambda*> LoopTree::loop_lambdas_in_rpo(const LoopHeader* header) {
-    auto result = loop_lambdas(header);
-    std::stable_sort(result.begin(), result.end(), [&](Lambda* l1, Lambda* l2) {
-        return scope_.sid(l1) < scope_.sid(l2);
+Array<const CFGNode*> LoopTree::loop_cfg_nodes_in_rpo(const LoopHeader* header) {
+    auto result = loop_cfg_nodes(header);
+    std::stable_sort(result.begin(), result.end(), [&](const CFGNode* l1, const CFGNode* l2) {
+        return cfg_.rpo_id(l1) < cfg_.rpo_id(l2);
     });
     return result;
 }

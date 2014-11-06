@@ -23,12 +23,11 @@ public:
     {}
 
     Lambda* lambda() const { return lambda_; }
-    ArrayRef<const CFGNode*> preds() const { return ArrayRef<const CFGNode*>(preds_.data(), preds_.size()); }
-    ArrayRef<const CFGNode*> succs() const { return ArrayRef<const CFGNode*>(succs_.data(), succs_.size()); }
-    bool is_entry() const { return preds_.empty(); }
-    bool is_exit() const { return succs_.empty(); }
 
 private:
+    ArrayRef<const CFGNode*> preds() const { return ArrayRef<const CFGNode*>(preds_.data(), preds_.size()); }
+    ArrayRef<const CFGNode*> succs() const { return ArrayRef<const CFGNode*>(succs_.data(), succs_.size()); }
+
     Lambda* lambda_;
     std::vector<CFGNode*> preds_;
     std::vector<CFGNode*> succs_;
@@ -99,8 +98,8 @@ public:
 
 private:
     const CFG& cfg_;
-    Array<size_t> rpo_ids_;
-    Array<const CFGNode*> rpo_;
+    Array<size_t> rpo_ids_;     // sorted in sid
+    Array<const CFGNode*> rpo_; // sorted in rpo_id
 };
 
 }

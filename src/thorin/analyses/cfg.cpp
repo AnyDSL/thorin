@@ -1,5 +1,7 @@
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/scope.h"
+#include "thorin/analyses/domtree.h"
+#include "thorin/analyses/looptree.h"
 
 #include <iostream>
 
@@ -70,5 +72,5 @@ void CFG::cfa() {
 
 const DomTree* CFG::domtree() const { return lazy(domtree_); }
 const PostDomTree* CFG::postdomtree() const { return lazy(postdomtree_); }
-const LoopTree* Scope::CFG() const { return lazy(looptree_); }
+const LoopTree* CFG::looptree() const { return lazy(looptree_); }
 }

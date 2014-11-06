@@ -8,6 +8,8 @@
 #include "thorin/util/hash.h"
 #include "thorin/util/printer.h"
 
+#if 0
+
 namespace thorin {
 
 typedef HashSet<const DefNode*> Vars;
@@ -243,3 +245,4 @@ void emit_il(World& world, bool fancy) {
 //------------------------------------------------------------------------------
 
 }
+#endif

@@ -88,43 +88,6 @@ private:
 
 //------------------------------------------------------------------------------
 
-template<bool forward = true>
-class ScopeView {
-public:
-    explicit ScopeView(const Scope& scope)
-        : scope_(scope)
-    {}
-
-    const Scope& scope() const { return scope_; }
-    /// All lambdas within this scope in reverse post-order.
-    ArrayRef<Lambda*> rpo() const { assert(forward); return scope().rpo_; }
-    Lambda* entry() const { return rpo().front(); }
-    Lambda* exit()  const { return (forward ? scope().backwards_rpo_ : scope().rpo_).front(); }
-    /// Like \p rpo() but without \p entry()
-    ArrayRef<Lambda*> body() const { return rpo().slice_from_begin(1); }
-    const DefSet& in_scope() const { return scope().in_scope_; }
-    bool contains(Lambda* lambda) const { return scope().contains(lambda); }
-    bool contains(const Param* param) const { return scope().contains(param); }
-    ArrayRef<Lambda*> preds(Lambda* lambda) const { assert(forward); return scope().preds(lambda); }
-    ArrayRef<Lambda*> succs(Lambda* lambda) const { assert(forward); return scope().succs(lambda); }
-    size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
-    size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
-    size_t sid(Lambda* lambda) const { assert(forward); return scope().sid(lambda); }
-    size_t size() const { return scope().size(); }
-    World& world() const { return scope().world(); }
-
-    typedef ArrayRef<Lambda*>::const_iterator const_iterator;
-    const_iterator begin() const { return rpo().begin(); }
-    const_iterator end() const { return rpo().end(); }
-
-private:
-    const Scope& scope_;
-
-    friend class Scope;
-};
-
-//------------------------------------------------------------------------------
-
 }
 
 #endif

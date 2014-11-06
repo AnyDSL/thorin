@@ -48,7 +48,7 @@ entry:
 }
 
 
-@tex = internal addrspace(1) global i64 0, align 8
+@tex = addrspace(1) global i64 0, align 8
 
 define void @simple_tex(i32* %data) {
 entry:
@@ -70,7 +70,7 @@ entry:
 }
 
 
-@cmem = internal addrspace(4) global [32 x i32] zeroinitializer
+@cmem = addrspace(4) global [32 x i32] zeroinitializer
 
 define void @simple_cmem(i32* %data) {
 entry:

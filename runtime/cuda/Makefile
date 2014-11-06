@@ -1,7 +1,6 @@
 CUDA_DIR  ?= $(shell dirname $(shell dirname `which nvcc`))
 INC_DIRS   = -I $(CUDA_DIR)/include \
              -I $(CUDA_DIR)/nvvm/include \
-             -I $(CUDA_DIR)/nvvm/libnvvm-samples/common/include \
              -I .
 CXX_FLAGS := -std=c++11 -Wall -Wunused
 OPT_FLAGS := -O3
@@ -28,8 +27,7 @@ all: $(MAIN).out
 	@echo "Running $(MAIN) ..."
 	@# remove attribute from asm
 	@if [ -f $(MAIN).nvvm ]; then \
-		sed -i $(SED_EXT) '/attributes #0/d' $(MAIN).nvvm; \
-		sed -i $(SED_EXT) 's/#0//' $(MAIN).nvvm; \
+		../post-patcher nvvm $(MAIN) \
 	fi
 	@CUDA_VISIBLE_DEVICES=0 ./$(MAIN).out
 	@CUDA_VISIBLE_DEVICES=1 ./$(MAIN).out

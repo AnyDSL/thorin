@@ -11,6 +11,7 @@ namespace thorin {
 class Lambda;
 class Scope;
 
+template<bool> class CFGView;
 template<bool> class DomTreeBase;
 typedef DomTreeBase<true>  DomTree;
 typedef DomTreeBase<false> PostDomTree;
@@ -37,7 +38,7 @@ private:
 
 class CFG {
 public:
-    CFG(const Scope& scope);
+    explicit CFG(const Scope& scope);
 
     const Scope& scope() const { return scope_; }
     size_t size() const { return nodes_.size(); }
@@ -50,13 +51,13 @@ public:
     size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
     const CFGNode* entry() const { return nodes_.front(); }
     const CFGNode* exit() const { return nodes_.back(); }
+    const CFGView<true>* forwards() const;
+    const CFGView<false>* backwards() const;
     const DomTree* domtree() const;
     const PostDomTree* postdomtree() const;
     const LoopTree* looptree() const;
 
 private:
-    template<class T> T* lazy(AutoPtr<T>& ptr) const { return ptr ? ptr : ptr = new T(*this); }
-
     void link(CFGNode* src, CFGNode* dst) {
         src->succs_.push_back(dst);
         dst->preds_.push_back(src);
@@ -65,15 +66,15 @@ private:
 
     const Scope& scope_;
     Array<CFGNode*> nodes_;
-    mutable AutoPtr<const DomTree> domtree_;
-    mutable AutoPtr<const PostDomTree> postdomtree_;
+    mutable AutoPtr<const CFGView<true> > forwards_;
+    mutable AutoPtr<const CFGView<false>> backwards_;
     mutable AutoPtr<const LoopTree> looptree_;
 };
 
 template<bool forward = true>
 class CFGView {
 public:
-    CFGView(const CFG& cfg)
+    explicit CFGView(const CFG& cfg)
         : cfg_(cfg)
     {}
 
@@ -92,6 +93,7 @@ public:
     /// Like \p rpo() but without \p entry()
     ArrayRef<const CFGNode*> body() const { return rpo().slice_from_begin(1); }
     const CFGNode* lookup(Lambda* lambda) const { return rpo(rpo_id(lambda)); }
+    const DomTreeBase<forward>* domtree() const;
 
     typedef ArrayRef<const CFGNode*>::const_iterator const_iterator;
     const_iterator begin() const { return rpo().begin(); }
@@ -101,6 +103,7 @@ private:
     const CFG& cfg_;
     Array<size_t> rpo_ids_;     // sorted in sid
     Array<const CFGNode*> rpo_; // sorted in rpo_id
+    mutable AutoPtr<const DomTreeBase<forward>> domtree_;
 };
 
 }

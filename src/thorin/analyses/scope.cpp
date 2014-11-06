@@ -220,7 +220,7 @@ void Scope::build_in_scope() {
     }
 }
 
-const CFG* Scope::cfg() const { return cfg_ ? cfg_ : cfg_ = new CFG(*this); }
+const CFG* Scope::cfg() const { return lazy_init(this, cfg_); }
 
 template<bool elide_empty>
 void Scope::for_each(const World& world, std::function<void(const Scope&)> f) {

@@ -64,7 +64,7 @@ outer_loop:;
             for (auto pred : cfg_view().preds(lambda)) {
                 auto pred_node = _lookup(pred);
                 assert(pred_node);
-                new_idom = new_idom ? lca(new_idom, pred_node) : pred_node;
+                new_idom = new_idom ? _lca(new_idom, pred_node) : pred_node;
             }
             assert(new_idom);
             if (lambda_node->idom() != new_idom) {
@@ -93,7 +93,7 @@ size_t DomTreeBase<forward>::postprocess(DomNode* n, int depth) {
 }
 
 template<bool forward>
-DomNode* DomTreeBase<forward>::lca(DomNode* i, DomNode* j) {
+DomNode* DomTreeBase<forward>::_lca(DomNode* i, DomNode* j) {
     assert(i && j);
     while (rpo_id(i) != rpo_id(j)) {
         while (rpo_id(i) < rpo_id(j)) j = j->idom_;

@@ -150,7 +150,7 @@ public:
     const LoopHeader* cfg_node2header(const CFGNode* cfg_node) const;
 
 private:
-    LoopLeaf* cfg_node2leaf(const CFGNode* cfg_node) { return map_[cfg_node]; }
+    //LoopLeaf* _cfg_node2leaf(const CFGNode* cfg_node) { return map_[cfg_node]; }
 
     const CFGView<true>& cfg_;
     CFGNodeMap<LoopLeaf*> map_;

@@ -13,6 +13,11 @@ class CFG;
 
 //------------------------------------------------------------------------------
 
+template<class This, class T> 
+inline T* lazy_init(const This* self, AutoPtr<T>& ptr) { 
+    return ptr ? ptr : ptr = new T(*self); 
+}
+
 class Scope {
 public:
     Scope(const Scope&) = delete;
@@ -69,8 +74,6 @@ private:
         succs_[sid(src)].push_back(dst);
         preds_[sid(dst)].push_back(src);
     }
-
-    template<class T> T* lazy(AutoPtr<T>& ptr) const { return ptr ? ptr : ptr = new T(*this); }
 
     World& world_;
     DefSet in_scope_;

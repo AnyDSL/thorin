@@ -1,9 +1,9 @@
+#include "thorin/analyses/cfg.h"
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/looptree.h"
 
 namespace thorin {
 
-#if 0
 
 static int count_children(const DomNode* n, LambdaMap<int>& lambda2num) {
     int num = 0;
@@ -12,6 +12,7 @@ static int count_children(const DomNode* n, LambdaMap<int>& lambda2num) {
     return (lambda2num[n->lambda()] = num) + 1;
 }
 
+#if 0
 static void bb_schedule(const Scope& scope, const DomNode* n, std::vector<Lambda*>& bbs, const LambdaMap<int>& lambda2num) {
     auto looptree = scope.looptree();
     auto lambda = n->lambda();

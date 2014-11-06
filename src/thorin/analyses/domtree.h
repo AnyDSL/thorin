@@ -49,7 +49,7 @@ public:
     /// Returns the least common ancestor of \p i and \p j.
     //const CFGNode* lca(const CFGNode* i, const CFGNode* j) const { return lca(lookup(i), lookup(j))->cfg_node(); }
     const DomNode* lca(const DomNode* i, const DomNode* j) const {
-        return const_cast<DomTreeBase*>(this)->lca(const_cast<DomNode*>(i), const_cast<DomNode*>(j));
+        return const_cast<DomTreeBase*>(this)->_lca(const_cast<DomNode*>(i), const_cast<DomNode*>(j));
     }
     //const CFGNode* idom(const CFGNode* n) const { return lookup(n)->idom()->cfg_node(); }
     const DomNode* lookup(const CFGNode* n) const { return nodes_[cfg_view().rpo_id(n)]; }
@@ -59,7 +59,7 @@ public:
 private:
     void create();
     size_t postprocess(DomNode* n, int depth);
-    DomNode* lca(DomNode*, DomNode*);
+    DomNode* _lca(DomNode*, DomNode*);
     DomNode*& _lookup(const CFGNode* n) { return nodes_[cfg_view().rpo_id(n)]; }
 
     const CFGView<forward>& cfg_view_;

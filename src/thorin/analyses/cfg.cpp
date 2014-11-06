@@ -3,8 +3,6 @@
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/looptree.h"
 
-#include <iostream>
-
 namespace thorin {
 
 CFG::CFG(const Scope& scope) 
@@ -70,7 +68,13 @@ void CFG::cfa() {
     } while (todo);
 }
 
-const DomTree* CFG::domtree() const { return lazy(domtree_); }
-const PostDomTree* CFG::postdomtree() const { return lazy(postdomtree_); }
-const LoopTree* CFG::looptree() const { return lazy(looptree_); }
+const CFGView<true>*  CFG::forwards()  const { return lazy_init(this, forwards_); }
+const CFGView<false>* CFG::backwards() const { return lazy_init(this, backwards_); }
+const DomTree* CFG::domtree() const { return forwards()->domtree(); }
+const PostDomTree* CFG::postdomtree() const { return backwards()->domtree(); }
+const LoopTree* CFG::looptree() const { return looptree_ ? looptree_ : looptree_ = new LoopTree(*forwards()); }
+
+template<bool forward>
+const DomTreeBase<forward>* CFGView<forward>::domtree() const { return lazy_init(this, domtree_); }
+
 }

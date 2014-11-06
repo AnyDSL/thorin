@@ -13,8 +13,8 @@ static int count_children(const DomNode* n, LambdaMap<int>& lambda2num) {
 }
 
 #if 0
-static void bb_schedule(const Scope& scope, const DomNode* n, std::vector<Lambda*>& bbs, const LambdaMap<int>& lambda2num) {
-    auto looptree = scope.looptree();
+static void bb_schedule(const CFG& cfg, const DomNode* n, std::vector<Lambda*>& bbs, const LambdaMap<int>& lambda2num) {
+    auto looptree = cfg.looptree();
     auto lambda = n->lambda();
     bbs.push_back(lambda);
     auto children = n->children();
@@ -35,7 +35,7 @@ static void bb_schedule(const Scope& scope, const DomNode* n, std::vector<Lambda
         if (num1 < num2) return false;
 
         // if this fails use the one which is a direct succ of lambda
-        const auto& succs = scope.succs(lambda);
+        const auto& succs = cfg.succs(lambda);
         auto is_succ1 = std::find(succs.begin(), succs.end(), l1) != succs.end();
         auto is_succ2 = std::find(succs.begin(), succs.end(), l2) != succs.end();
         if ( is_succ1 && !is_succ2) return true;
@@ -46,18 +46,18 @@ static void bb_schedule(const Scope& scope, const DomNode* n, std::vector<Lambda
     });
 
     for (auto child : children)
-        bb_schedule(scope, child, bbs, lambda2num);
+        bb_schedule(cfg, child, bbs, lambda2num);
 }
 
 std::vector<Lambda*> bb_schedule(const Scope& scope) {
-    auto domtree = scope.domtree();
+    auto domtree = scope.cfg()->domtree();
     LambdaMap<int> lambda2num;
     count_children(domtree->root(), lambda2num);
     std::vector<Lambda*> bbs;
-    bb_schedule(scope, domtree->root(), bbs, lambda2num);
+    bb_schedule(*scope.cfg(), domtree->root(), bbs, lambda2num);
     assert(bbs.size() == scope.size());
     return bbs;
 }
-#endif
 
+#endif
 }

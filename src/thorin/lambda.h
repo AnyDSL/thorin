@@ -205,13 +205,11 @@ private:
     struct ScopeInfo {
         ScopeInfo(const Scope* scope)
             : scope(scope)
-            , rpo_id(-1)
-            , backwards_rpo_id(-1)
+            , sid(-1)
         {}
 
         const Scope* scope;
-        size_t rpo_id;
-        size_t backwards_rpo_id;
+        size_t sid;
     };
 
     std::list<ScopeInfo>::iterator list_iter(const Scope*);

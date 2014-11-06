@@ -83,7 +83,9 @@ Lambda* Vectorizer::vectorize() {
         }
     }
 
-    auto exit = scope.exit();
+    // TODO
+    //auto exit = scope.exit();
+    auto exit = scope.rpo().back();
     Array<Def> vops(exit->size());
     for (size_t i = 0, e = exit->size(); i != e; ++i)
         vops[i] = vectorize(exit->op(i), length);

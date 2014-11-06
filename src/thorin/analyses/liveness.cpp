@@ -22,11 +22,11 @@ public:
     const Scope& scope() const { return scope_; }
     size_t size() const { return scope_.size(); }
     const DomTree& domtree() const { return domtree_; }
-    size_t rpo_id(Lambda* lambda) const { return scope_.rpo_id(lambda); }
+    size_t sid(Lambda* lambda) const { return scope_.sid(lambda); }
     void reduced_link(Lambda* src, Lambda* dst) {
         if (src) {
-            reduced_succs_[rpo_id(src)].push_back(dst);
-            reduced_preds_[rpo_id(dst)].push_back(src);
+            reduced_succs_[sid(src)].push_back(dst);
+            reduced_preds_[sid(dst)].push_back(src);
         }
     }
     void reduced_visit(std::vector<Color>& colors, Lambda* prev, Lambda* cur);
@@ -68,14 +68,14 @@ Liveness::Liveness(const Schedule& schedule)
     for (size_t i = scope().size(); i-- != 0;) {
         reduced_reachable_[i] = i;
         for (auto succ : reduced_succs_[i])
-            reduced_reachable_[i] |= reduced_reachable_[rpo_id(succ)];
+            reduced_reachable_[i] |= reduced_reachable_[sid(succ)];
     }
 
     // compute back edge targets
 }
 
 void Liveness::reduced_visit(std::vector<Color>& colors, Lambda* prev, Lambda* cur) {
-    auto& col = colors[rpo_id(cur)];
+    auto& col = colors[sid(cur)];
     switch (col) {
         case Color::White:              // white: not yet visited
             col = Color::Gray;          // mark gray: is on recursion stack
@@ -91,7 +91,7 @@ void Liveness::reduced_visit(std::vector<Color>& colors, Lambda* prev, Lambda* c
 
 bool Liveness::is_live_in(Def def, Lambda* lambda) {
 #if 0
-    size_t d_rpo = rpo_id(def2lambda_[def]);
+    size_t d_rpo = sid(def2lambda_[def]);
     size_t l_rpo = rpo_id(lambda);
     size_t max_rpo = domtree().lookup(d_rpo)->max_rpo_id();
 

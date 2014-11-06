@@ -13,17 +13,14 @@ namespace thorin {
 uint32_t Scope::id_counter_ = 1;
 uint32_t Scope::candidate_counter_ = 1;
 
-Scope::Scope(Lambda* entry, bool unique_exit)
+Scope::Scope(Lambda* entry)
     : world_(entry->world())
     , id_(id_counter_++)
-    , unique_exit_(unique_exit)
 {
     assert(!entry->is_proxy());
     identify_scope(entry);
     number();
     build_cfg();
-    if (unique_exit)
-        build_backwards_rpo();
     build_in_scope();
     ++candidate_counter_;
 }
@@ -31,9 +28,6 @@ Scope::Scope(Lambda* entry, bool unique_exit)
 Scope::~Scope() {
     for (auto lambda : rpo())
         lambda->unregister_scope(this);
-
-    if (has_unique_exit() && exit() != entry() && !exit()->empty() && exit()->to()->isa<Bottom>())
-        exit()->destroy_body();
 }
 
 void Scope::identify_scope(Lambda* entry) {
@@ -82,7 +76,7 @@ void Scope::number() {
     std::sort(rpo_.begin(), rpo_.end(), [&](Lambda* l1, Lambda* l2) {
         auto info1 = l1->find_scope(this);
         auto info2 = l2->find_scope(this);
-        if (info1 && info2) return info1->rpo_id > info2->rpo_id;
+        if (info1 && info2) return info1->sid > info2->sid;
         if (info1) return true;
         if (info2) return false;
         return l1->gid_ < l2->gid_;
@@ -104,7 +98,7 @@ void Scope::number() {
     // convert post-order numbers to reverse post-order numbers
     for (auto lambda : rpo()) {
         auto info = lambda->find_scope(this);
-        info->rpo_id = n-1 - info->rpo_id;
+        info->sid = n-1 - info->sid;
     }
 }
 
@@ -119,8 +113,8 @@ size_t Scope::number(Lambda* cur, size_t i) {
     }
 
     assert(cur->scopes_.front().scope == this && "front item does not point to this scope");
-    assert(cur->scopes_.front().rpo_id == size_t(-1) && "already set");
-    return (info->rpo_id = i) + 1;
+    assert(cur->scopes_.front().sid == size_t(-1) && "already set");
+    return (info->sid = i) + 1;
 }
 
 void Scope::build_cfg() {
@@ -134,6 +128,7 @@ void Scope::build_cfg() {
     }
 }
 
+#if 0
 void Scope::build_backwards_rpo() {
     // find exits
     std::vector<Lambda*> exits;
@@ -195,6 +190,8 @@ size_t Scope::backwards_number(Lambda* cur, size_t i) {
     assert(cur->scopes_.front().scope == this && "front item does not point to this scope");
     return info->backwards_rpo_id = i-1;
 }
+
+#endif
 
 void Scope::build_in_scope() {
     std::queue<Def> queue;

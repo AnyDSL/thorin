@@ -41,7 +41,7 @@ void DomTreeBase<forward>::create() {
     for (auto lambda : scope_view().body()) {
         for (auto pred : scope_view().preds(lambda)) {
             assert(scope_view().contains(pred));
-            if (scope_view().rpo_id(pred) < scope_view().rpo_id(lambda)) {
+            if (scope_view().sid(pred) < scope_view().sid(lambda)) {
                 auto n = lookup(pred);
                 assert(n);
                 lookup(lambda)->idom_ = n;
@@ -84,18 +84,18 @@ outer_loop:;
 template<bool forward>
 size_t DomTreeBase<forward>::postprocess(DomNode* n, int depth) {
     n->depth_ = depth;
-    n->max_rpo_id_ = 0;
+    n->max_sid_ = 0;
     for (auto child : n->children())
-        n->max_rpo_id_ = std::max(n->max_rpo_id_, postprocess(const_cast<DomNode*>(child), depth+1));
-    return n->max_rpo_id_;
+        n->max_sid_ = std::max(n->max_sid_, postprocess(const_cast<DomNode*>(child), depth+1));
+    return n->max_sid_;
 }
 
 template<bool forward>
 DomNode* DomTreeBase<forward>::lca(DomNode* i, DomNode* j) {
     assert(i && j);
-    while (rpo_id(i) != rpo_id(j)) {
-        while (rpo_id(i) < rpo_id(j)) j = j->idom_;
-        while (rpo_id(j) < rpo_id(i)) i = i->idom_;
+    while (sid(i) != sid(j)) {
+        while (sid(i) < sid(j)) j = j->idom_;
+        while (sid(j) < sid(i)) i = i->idom_;
     }
     return i;
 }

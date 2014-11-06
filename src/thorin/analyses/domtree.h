@@ -45,15 +45,11 @@ public:
     size_t size() const { return nodes_.size(); }
     size_t rpo_id(const DomNode* n) const { return cfg_view().rpo_id(n->cfg_node()); }
     const DomNode* root() const { return root_; }
-    //int depth(const CFGNode* n) const { return lookup(n)->depth(); }
     /// Returns the least common ancestor of \p i and \p j.
-    //const CFGNode* lca(const CFGNode* i, const CFGNode* j) const { return lca(lookup(i), lookup(j))->cfg_node(); }
     const DomNode* lca(const DomNode* i, const DomNode* j) const {
         return const_cast<DomTreeBase*>(this)->_lca(const_cast<DomNode*>(i), const_cast<DomNode*>(j));
     }
-    //const CFGNode* idom(const CFGNode* n) const { return lookup(n)->idom()->cfg_node(); }
     const DomNode* lookup(const CFGNode* n) const { return nodes_[cfg_view().rpo_id(n)]; }
-    //const DomNode* lookup(size_t rpo_id) const { return nodes_[rpo_id]; }
     void dump() const { root()->dump(); }
 
 private:

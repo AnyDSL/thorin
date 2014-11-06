@@ -3,14 +3,13 @@
 #include "thorin/lambda.h"
 #include "thorin/primop.h"
 #include "thorin/world.h"
+#include "thorin/analyses/cfg.h"
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/looptree.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/util/queue.h"
 
 #include <algorithm>
-
-#if 0
 
 namespace thorin {
 
@@ -93,7 +92,8 @@ static Def2Lambda schedule_early(const Scope& scope) {
 const Schedule schedule_late(const Scope& scope) {
     Def2Lambda def2late;
     DefMap<int> def2num;
-    auto domtree = scope.domtree();
+    auto cfg = scope.cfg()->f_cfg();
+    auto domtree = scope.cfg()->domtree();
     std::queue<Def> queue;
     Schedule schedule(scope);
 
@@ -113,7 +113,9 @@ const Schedule schedule_late(const Scope& scope) {
         if (!scope._contains(def) || def->isa_lambda() || def->isa<Param>())
             return;
         auto& late = def2late[def];
-        late = late ? domtree->lca(late, lambda) : lambda;
+        late = late ? domtree->lca(
+                domtree->lookup(cfg->lookup(late)), 
+                domtree->lookup(cfg->lookup(lambda)))->lambda() : lambda;
         assert(def2num[def] != 0);
         if (--def2num[def] == 0) {
             queue.push(def);
@@ -143,8 +145,9 @@ const Schedule schedule_late(const Scope& scope) {
 
 const Schedule schedule_smart(const Scope& scope) {
     Schedule smart(scope);
-    auto domtree = scope.domtree();
-    auto looptree = scope.looptree();
+    auto cfg = scope.cfg()->f_cfg();
+    auto domtree = scope.cfg()->domtree();
+    auto looptree = scope.cfg()->looptree();
     auto def2early = schedule_early(scope);
     auto late = schedule_late(scope);
 
@@ -158,10 +161,10 @@ const Schedule schedule_smart(const Scope& scope) {
             if (primop->isa<Enter>() || primop->isa<Slot>() || Enter::is_out_mem(primop) || Enter::is_out_frame(primop))
                 lambda_best = lambda_early;
             else {
-                int depth = looptree->depth(lambda_best);
+                int depth = looptree->depth(cfg->lookup(lambda_best));
                 for (auto i = lambda_best; i != lambda_early;) {
-                    i = domtree->idom(i);
-                    int cur_depth = looptree->depth(i);
+                    i = domtree->lookup(cfg->lookup(i))->idom()->lambda();
+                    int cur_depth = looptree->cfg_node2leaf(cfg->lookup(i))->depth();
                     if (cur_depth < depth) {
                         lambda_best = i;
                         depth = cur_depth;
@@ -177,4 +180,3 @@ const Schedule schedule_smart(const Scope& scope) {
 }
 
 }
-#endif

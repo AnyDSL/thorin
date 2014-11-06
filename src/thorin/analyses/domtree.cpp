@@ -24,26 +24,26 @@ Lambda* DomNode::lambda() const { return cfg_node()->lambda(); }
 //------------------------------------------------------------------------------
 
 template<bool forward>
-DomTreeBase<forward>::DomTreeBase(const CFGView<forward>& cfg_view)
-    : cfg_view_(cfg_view)
-    , nodes_(cfg_view.size())
+DomTreeBase<forward>::DomTreeBase(const CFGView<forward>& cfg)
+    : cfg_(cfg)
+    , nodes_(cfg.size())
 {
     create();
 }
 
 template<bool forward>
 void DomTreeBase<forward>::create() {
-    for (auto n : cfg_view())
+    for (auto n : cfg())
         _lookup(n) = new DomNode(n);
 
     // map entry's initial idom to itself
-    root_ = _lookup(cfg_view().entry());
+    root_ = _lookup(cfg().entry());
     root_->idom_ = root_;
 
     // all others' idom are set to their first found dominating pred
-    for (auto lambda : cfg_view().body()) {
-        for (auto pred : cfg_view().preds(lambda)) {
-            if (cfg_view().rpo_id(pred) < cfg_view().rpo_id(lambda)) {
+    for (auto lambda : cfg().body()) {
+        for (auto pred : cfg().preds(lambda)) {
+            if (cfg().rpo_id(pred) < cfg().rpo_id(lambda)) {
                 auto dom = _lookup(pred);
                 assert(dom);
                 _lookup(lambda)->idom_ = dom;
@@ -57,11 +57,11 @@ outer_loop:;
     for (bool changed = true; changed;) {
         changed = false;
 
-        for (auto lambda : cfg_view().body()) {
+        for (auto lambda : cfg().body()) {
             auto lambda_node = _lookup(lambda);
 
             DomNode* new_idom = nullptr;
-            for (auto pred : cfg_view().preds(lambda)) {
+            for (auto pred : cfg().preds(lambda)) {
                 auto pred_node = _lookup(pred);
                 assert(pred_node);
                 new_idom = new_idom ? _lca(new_idom, pred_node) : pred_node;
@@ -74,13 +74,13 @@ outer_loop:;
         }
     }
 
-    for (auto lambda : cfg_view().body()) {
+    for (auto lambda : cfg().body()) {
         auto dom = _lookup(lambda);
         dom->idom_->children_.push_back(dom);
     }
 
     auto num = postprocess(root_, 0);
-    assert(num = cfg_view().size());
+    assert(num = cfg().size());
 }
 
 template<bool forward>

@@ -3,6 +3,8 @@
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/looptree.h"
 
+#include <iostream>
+
 namespace thorin {
 
 //------------------------------------------------------------------------------
@@ -85,13 +87,11 @@ CFGView<forward>::CFGView(const CFG& cfg)
     , rpo_(cfg.nodes()) // copy over - sort later
 {
     std::fill(rpo_ids_.begin(), rpo_ids_.end(), -1); // mark as not visited
-    auto num = number(entry(), 0);
-    assert(num == size());
+    auto num = number(entry(), size());
+    assert(num == 0);
 
     // sort in reverse post-order
-    std::sort(rpo_.begin(), rpo_.end(), [&] (const CFGNode* n1, const CFGNode* n2) {
-        return rpo_id(n1) < rpo_id(n2);
-    });
+    std::sort(rpo_.begin(), rpo_.end(), [&] (const CFGNode* n1, const CFGNode* n2) { return rpo_id(n1) < rpo_id(n2); });
 }
 
 template<bool forward>
@@ -104,7 +104,7 @@ size_t CFGView<forward>::number(const CFGNode* n, size_t i) {
             i = number(succ, i);
     }
 
-    return (n_rpo_id = i) + 1;
+    return n_rpo_id = i-1;
 }
 
 template<bool forward>

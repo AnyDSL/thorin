@@ -50,7 +50,7 @@ static Def2Lambda schedule_early(const Scope& scope) {
         if (auto primop = def->isa<PrimOp>()) {
             int num = 0;
             for (auto op : primop->ops()) {
-                if (scope.contains(op))
+                if (scope._contains(op))
                     ++num;
             }
             def2num[def] = num;
@@ -60,7 +60,7 @@ static Def2Lambda schedule_early(const Scope& scope) {
     auto enqueue_uses = [&] (Def def) {
         for (auto use : def->uses()) {
             if (auto primop = use->isa<PrimOp>()) {
-                if (scope.contains(primop)) {
+                if (scope._contains(primop)) {
                     if (--def2num[primop] == 0)
                         queue.push(primop);
                 }
@@ -99,7 +99,7 @@ const Schedule schedule_late(const Scope& scope) {
         if (auto primop = def->isa<PrimOp>()) {
             int num = 0;
             for (auto use : primop->uses()) {
-                if (scope.contains(use))
+                if (scope._contains(use))
                     ++num;
             }
             assert(num != 0 && "primop dead");
@@ -108,7 +108,7 @@ const Schedule schedule_late(const Scope& scope) {
     }
 
     auto enqueue = [&] (Lambda* lambda, Def def) {
-        if (!scope.contains(def) || def->isa_lambda() || def->isa<Param>())
+        if (!scope._contains(def) || def->isa_lambda() || def->isa<Param>())
             return;
         auto& late = def2late[def];
         late = late ? domtree->lca(late, lambda) : lambda;
@@ -148,7 +148,7 @@ const Schedule schedule_smart(const Scope& scope) {
 
     for (auto lambda : scope) {
         for (auto primop : late[lambda]) {
-            assert(scope.contains(primop));
+            assert(scope._contains(primop));
             auto lambda_early = def2early[primop];
             assert(lambda_early != nullptr);
             auto lambda_best = lambda;

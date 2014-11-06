@@ -240,6 +240,7 @@ private:
 
     friend class Cleaner;
     friend class Scope;
+    friend class CFG;
     friend class World;
 };
 

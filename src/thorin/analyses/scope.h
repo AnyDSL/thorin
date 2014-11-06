@@ -13,6 +13,7 @@ template<bool> class DomTreeBase;
 typedef DomTreeBase<true>  DomTree;
 typedef DomTreeBase<false> PostDomTree;
 class LoopTree;
+class CFG;
 
 //------------------------------------------------------------------------------
 
@@ -31,7 +32,9 @@ public:
     /// Like \p rpo() but without \p entry()
     ArrayRef<Lambda*> body() const { return rpo().slice_from_begin(1); }
     const DefSet& in_scope() const { return in_scope_; }
-    bool contains(Def def) const { return in_scope_.contains(def); }
+    bool _contains(Def def) const { return in_scope_.contains(def); }
+    bool contains(Lambda* lambda) const { return lambda->find_scope(this) != nullptr; }
+    bool contains(const Param* param) const { return param->lambda()->find_scope(this) != nullptr; }
     ArrayRef<Lambda*> preds(Lambda* lambda) const { return preds_[sid(lambda)]; }
     ArrayRef<Lambda*> succs(Lambda* lambda) const { return succs_[sid(lambda)]; }
     size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
@@ -45,6 +48,7 @@ public:
     const DomTree* domtree() const;
     const PostDomTree* postdomtree() const;
     const LoopTree* looptree() const;
+    const CFG* cfg() const;
 
     typedef ArrayRef<Lambda*>::const_iterator const_iterator;
     const_iterator begin() const { return rpo().begin(); }
@@ -85,6 +89,7 @@ private:
     mutable AutoPtr<const DomTree> domtree_;
     mutable AutoPtr<const PostDomTree> postdomtree_;
     mutable AutoPtr<const LoopTree> looptree_;
+    mutable AutoPtr<const CFG> cfg_;
 
     static uint32_t candidate_counter_;
     static uint32_t id_counter_;
@@ -109,7 +114,8 @@ public:
     /// Like \p rpo() but without \p entry()
     ArrayRef<Lambda*> body() const { return rpo().slice_from_begin(1); }
     const DefSet& in_scope() const { return scope().in_scope_; }
-    bool contains(Def def) const { return scope().in_scope_.contains(def); }
+    bool contains(Lambda* lambda) const { return scope().contains(lambda); }
+    bool contains(const Param* param) const { return scope().contains(param); }
     ArrayRef<Lambda*> preds(Lambda* lambda) const { assert(forward); return scope().preds(lambda); }
     ArrayRef<Lambda*> succs(Lambda* lambda) const { assert(forward); return scope().succs(lambda); }
     size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }

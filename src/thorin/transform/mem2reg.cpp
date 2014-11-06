@@ -1,5 +1,6 @@
 #include "thorin/primop.h"
 #include "thorin/world.h"
+#include "thorin/analyses/cfg.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/verify.h"
@@ -8,13 +9,14 @@
 namespace thorin {
 
 void mem2reg(const Scope& scope) {
+    auto& cfg = *scope.cfg()->f_cfg();
     auto schedule = schedule_late(scope);
-    DefMap<size_t> addresses;
-    LambdaSet set;
+    DefMap<size_t> slot2handle;
+    LambdaMap<size_t> lambda2num;
     size_t cur_handle = 0;
 
-    auto take_address = [&] (const Slot* slot) { addresses[slot] = size_t(-1); };
-    auto is_address_taken = [&] (const Slot* slot) { return addresses[slot] == size_t(-1); };
+    auto take_address = [&] (const Slot* slot) { slot2handle[slot] = size_t(-1); };
+    auto is_address_taken = [&] (const Slot* slot) { return slot2handle[slot] == size_t(-1); };
 
     for (auto lambda : scope)
         lambda->clear_value_numbering_table();
@@ -30,17 +32,12 @@ void mem2reg(const Scope& scope) {
     scope.entry()->set_parent(0);
     scope.entry()->seal();
 
-    for (Lambda* lambda : scope) {
+    for (auto n : cfg) {
+        auto lambda = n->lambda();
         // search for slots/loads/stores from top to bottom and use set_value/get_value to install parameters.
         for (auto primop : schedule[lambda]) {
             auto def = Def(primop);
             if (auto slot = def->isa<Slot>()) {
-                // evil HACK
-                if (slot->name == "sum_xxx") {
-                    take_address(slot);
-                    goto next_primop;
-                }
-
                 // are all users loads and store?
                 for (auto use : slot->uses()) {
                     if (!use->isa<Load>() && !use->isa<Store>()) {
@@ -48,11 +45,11 @@ void mem2reg(const Scope& scope) {
                         goto next_primop;
                     }
                 }
-                addresses[slot] = cur_handle++;
+                slot2handle[slot] = cur_handle++;
             } else if (auto store = def->isa<Store>()) {
                 if (auto slot = store->ptr()->isa<Slot>()) {
                     if (!is_address_taken(slot)) {
-                        lambda->set_value(addresses[slot], store->val());
+                        lambda->set_value(slot2handle[slot], store->val());
                         store->replace(store->mem());
                     }
                 }
@@ -60,7 +57,7 @@ void mem2reg(const Scope& scope) {
                 if (auto slot = load->ptr()->isa<Slot>()) {
                     if (!is_address_taken(slot)) {
                         auto type = slot->type().as<PtrType>()->referenced_type();
-                        load->out_val()->replace(lambda->get_value(addresses[slot], type, slot->name.c_str()));
+                        load->out_val()->replace(lambda->get_value(slot2handle[slot], type, slot->name.c_str()));
                         load->out_mem()->replace(load->mem());
                     }
                 }
@@ -69,14 +66,14 @@ next_primop:;
         }
 
         // seal successors of last lambda if applicable
-        for (auto succ : scope.succs(lambda)) {
-            if (succ->parent() != 0) {
-                if (!visit(set, succ)) {
-                    assert(addresses.find(succ) == addresses.end());
-                    addresses[succ] = succ->preds().size();
-                }
-                if (--addresses[succ] == 0)
-                    succ->seal();
+        for (auto succ : cfg.succs(cfg.lookup(lambda))) {
+            auto lsucc = succ->lambda();
+            if (lsucc->parent() != nullptr) {
+                auto i = lambda2num.find(lsucc);
+                if (i == lambda2num.end())
+                    i = lambda2num.insert(std::make_pair(lsucc, cfg.num_preds(succ))).first;
+                if (--i->second == 0)
+                    lsucc->seal();
             }
         }
     }

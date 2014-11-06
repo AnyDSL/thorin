@@ -58,6 +58,27 @@ private:
     Array<CFGNode*> nodes_;
 };
 
+template<bool forward = true>
+class CFGView {
+public:
+    CFGView(const CFG& cfg)
+        : cfg_(cfg)
+    {}
+
+    const CFG& cfg() const { return cfg_; }
+    ArrayRef<const CFGNode*> preds(Lambda* lambda) const { return forward ? cfg().preds(lambda) : cfg().succs(lambda); }
+    ArrayRef<const CFGNode*> succs(Lambda* lambda) const { return forward ? cfg().succs(lambda) : cfg().succs(lambda); }
+    size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
+    size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
+    const CFGNode* entry() const { return forward ? cfg().entry() : cfg().exit();  }
+    const CFGNode* exit()  const { return forward ? cfg().exit()  : cfg().entry(); }
+
+private:
+    const CFG& cfg_;
+    Array<size_t> rpo_ids_;
+    Array<const CFGNode*> rpo_;
+};
+
 }
 
 #endif

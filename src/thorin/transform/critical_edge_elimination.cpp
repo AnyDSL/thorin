@@ -1,5 +1,6 @@
 #include "thorin/lambda.h"
 #include "thorin/world.h"
+#include "thorin/analyses/cfg.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/verify.h"
 
@@ -33,14 +34,15 @@ static void update_src(Lambda* src, Lambda* resolver, Lambda* dst) {
 }
 
 static void critical_edge_elimination(const Scope& scope) {
+    auto& cfg = *scope.cfg()->f_cfg();
     // find critical edges
     std::vector<std::pair<Lambda*, Lambda*>> edges;
     for (auto lambda : scope) {
         if (!lambda->to()->isa<Bottom>()) {
-            const auto& preds = scope.preds(lambda);
+            const auto& preds = cfg.preds(lambda);
             if (preds.size() > 1) {
                 for (auto pred : preds) {
-                    if (scope.num_succs(pred) != 1)
+                    if (cfg.num_succs(pred) != 1)
                         edges.emplace_back(pred, lambda);
                 }
             }

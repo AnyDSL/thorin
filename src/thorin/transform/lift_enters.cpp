@@ -1,5 +1,6 @@
 #include "thorin/primop.h"
 #include "thorin/world.h"
+#include "thorin/analyses/cfg.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/verify.h"
 #include "thorin/util/queue.h"
@@ -37,9 +38,10 @@ static void find_enters(Lambda* lambda, std::vector<const Enter*>& enters) {
 static void lift_enters(const Scope& scope) {
     World& world = scope.world();
     std::vector<const Enter*> enters;
+    auto& cfg = *scope.cfg()->f_cfg();
 
     for (size_t i = scope.size(); i-- != 1;)
-        find_enters(scope.rpo(i), enters);
+        find_enters(cfg.rpo(i)->lambda(), enters);
 
     auto mem_param = scope.entry()->mem_param();
     assert(mem_param->num_uses() == 1);

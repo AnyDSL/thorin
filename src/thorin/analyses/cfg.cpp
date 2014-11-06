@@ -7,13 +7,15 @@ namespace thorin {
 
 CFG::CFG(const Scope& scope) 
     : scope_(scope)
-    , nodes_(scope.size() + 1)                      // one extra alloc for virtual exit
+    //, nodes_(scope.size() + 1)                      // one extra alloc for virtual exit
+    , nodes_(scope.size())
 {
     for (size_t i = 0, e = size(); i != e; ++i)
         nodes_[i] = new CFGNode(scope.rpo(i));
-    nodes_.back() = new CFGNode(nullptr);           // virtual exit
+    //nodes_.back() = new CFGNode(nullptr);           // virtual exit
 
-    for (auto n : nodes_.slice_num_from_end(1)) {  // skip virtual exit
+    //for (auto n : nodes_.slice_num_from_end(1)) {  // skip virtual exit
+    for (auto n : nodes_) {
         for (auto succ : n->lambda()->succs()) {
             if (scope.contains(succ))
                 link(n, nodes_[sid(succ)]);

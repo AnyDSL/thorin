@@ -8,6 +8,8 @@
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/schedule.h"
 
+#if 0
+
 namespace thorin {
 
 class Vectorizer {
@@ -187,3 +189,4 @@ Def Vectorizer::vectorize(Def def, size_t length) {
 Lambda* vectorize(Scope& scope, size_t length) { return Vectorizer(scope, length).vectorize(); }
 
 }
+#endif

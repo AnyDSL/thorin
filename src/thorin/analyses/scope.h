@@ -9,10 +9,6 @@
 
 namespace thorin {
 
-template<bool> class DomTreeBase;
-typedef DomTreeBase<true>  DomTree;
-typedef DomTreeBase<false> PostDomTree;
-class LoopTree;
 class CFG;
 
 //------------------------------------------------------------------------------
@@ -44,10 +40,6 @@ public:
     size_t size() const { return rpo_.size(); }
     World& world() const { return world_; }
     void dump() const;
-
-    const DomTree* domtree() const;
-    const PostDomTree* postdomtree() const;
-    const LoopTree* looptree() const;
     const CFG* cfg() const;
 
     typedef ArrayRef<Lambda*>::const_iterator const_iterator;
@@ -86,9 +78,6 @@ private:
     std::vector<Lambda*> rpo_;
     std::vector<std::vector<Lambda*>> preds_;
     std::vector<std::vector<Lambda*>> succs_;
-    mutable AutoPtr<const DomTree> domtree_;
-    mutable AutoPtr<const PostDomTree> postdomtree_;
-    mutable AutoPtr<const LoopTree> looptree_;
     mutable AutoPtr<const CFG> cfg_;
 
     static uint32_t candidate_counter_;

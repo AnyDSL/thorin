@@ -23,7 +23,9 @@ CFG::CFG(const Scope& scope)
     }
 }
 
-size_t CFG::sid(Lambda* lambda) const { return lambda->find_scope(&scope())->sid; }
+size_t CFG::sid(Lambda* lambda) const { 
+    return lambda == nullptr ? nodes_.size()-1 : lambda->find_scope(&scope())->sid; 
+}
 
 struct FlowVal {
     LambdaSet lambdas;
@@ -66,4 +68,7 @@ void CFG::cfa() {
     } while (todo);
 }
 
+const DomTree* CFG::domtree() const { return lazy(domtree_); }
+const PostDomTree* CFG::postdomtree() const { return lazy(postdomtree_); }
+const LoopTree* Scope::CFG() const { return lazy(looptree_); }
 }

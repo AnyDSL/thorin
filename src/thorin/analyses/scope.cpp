@@ -220,10 +220,7 @@ void Scope::build_in_scope() {
     }
 }
 
-const DomTree* Scope::domtree() const { return lazy(domtree_); }
-const PostDomTree* Scope::postdomtree() const { return lazy(postdomtree_); }
-const LoopTree* Scope::looptree() const { return lazy(looptree_); }
-const CFG* Scope::cfg() const { return lazy(cfg_); }
+const CFG* Scope::cfg() const { return cfg_ ? cfg_ : cfg_ = new CFG(*this); }
 
 template<bool elide_empty>
 void Scope::for_each(const World& world, std::function<void(const Scope&)> f) {

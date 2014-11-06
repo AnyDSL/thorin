@@ -11,6 +11,11 @@ namespace thorin {
 class Lambda;
 class Scope;
 
+template<bool> class DomTreeBase;
+typedef DomTreeBase<true>  DomTree;
+typedef DomTreeBase<false> PostDomTree;
+class LoopTree;
+
 class CFGNode {
 public:
     CFGNode(Lambda* lambda)
@@ -46,8 +51,13 @@ public:
     size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
     const CFGNode* entry() const { return nodes_.front(); }
     const CFGNode* exit() const { return nodes_.back(); }
+    const DomTree* domtree() const;
+    const PostDomTree* postdomtree() const;
+    const LoopTree* looptree() const;
 
 private:
+    template<class T> T* lazy(AutoPtr<T>& ptr) const { return ptr ? ptr : ptr = new T(*this); }
+
     void link(CFGNode* src, CFGNode* dst) {
         src->succs_.push_back(dst);
         dst->preds_.push_back(src);
@@ -56,6 +66,9 @@ private:
 
     const Scope& scope_;
     Array<CFGNode*> nodes_;
+    mutable AutoPtr<const DomTree> domtree_;
+    mutable AutoPtr<const PostDomTree> postdomtree_;
+    mutable AutoPtr<const LoopTree> looptree_;
 };
 
 template<bool forward = true>
@@ -66,12 +79,23 @@ public:
     {}
 
     const CFG& cfg() const { return cfg_; }
-    ArrayRef<const CFGNode*> preds(Lambda* lambda) const { return forward ? cfg().preds(lambda) : cfg().succs(lambda); }
-    ArrayRef<const CFGNode*> succs(Lambda* lambda) const { return forward ? cfg().succs(lambda) : cfg().succs(lambda); }
-    size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
-    size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
-    const CFGNode* entry() const { return forward ? cfg().entry() : cfg().exit();  }
-    const CFGNode* exit()  const { return forward ? cfg().exit()  : cfg().entry(); }
+    size_t size() const { return rpo_.size(); }
+    ArrayRef<const CFGNode*> preds(const CFGNode* n) const { return forward ? cfg().preds(n->lambda()) : cfg().succs(n->lambda()); }
+    ArrayRef<const CFGNode*> succs(const CFGNode* n) const { return forward ? cfg().succs(n->lambda()) : cfg().preds(n->lambda()); }
+    size_t num_preds(const CFGNode* n) const { return preds(n).size(); }
+    size_t num_succs(const CFGNode* n) const { return succs(n).size(); }
+    const CFGNode* entry() const { return rpo().front(); }
+    const CFGNode* exit()  const { return rpo().end(); }
+    size_t rpo_id(const CFGNode* n) const { return rpo_ids_[cfg().sid(n->lambda())]; }
+    /// All lambdas within this scope in reverse post-order.
+    ArrayRef<const CFGNode*> rpo() const { return rpo_; }
+    const CFGNode* rpo(size_t i) const { return rpo_[i]; }
+    /// Like \p rpo() but without \p entry()
+    ArrayRef<const CFGNode*> body() const { return rpo().slice_from_begin(1); }
+
+    typedef ArrayRef<const CFGNode*>::const_iterator const_iterator;
+    const_iterator begin() const { return rpo().begin(); }
+    const_iterator end() const { return rpo().end(); }
 
 private:
     const CFG& cfg_;

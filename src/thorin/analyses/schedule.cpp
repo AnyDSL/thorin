@@ -10,6 +10,8 @@
 
 #include <algorithm>
 
+#if 0
+
 namespace thorin {
 
 typedef DefMap<Lambda*> Def2Lambda;
@@ -175,3 +177,4 @@ const Schedule schedule_smart(const Scope& scope) {
 }
 
 }
+#endif

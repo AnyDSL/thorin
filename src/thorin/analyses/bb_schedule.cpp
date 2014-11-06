@@ -3,6 +3,8 @@
 
 namespace thorin {
 
+#if 0
+
 static int count_children(const DomNode* n, LambdaMap<int>& lambda2num) {
     int num = 0;
     for (auto child : n->children())
@@ -55,5 +57,6 @@ std::vector<Lambda*> bb_schedule(const Scope& scope) {
     assert(bbs.size() == scope.size());
     return bbs;
 }
+#endif
 
 }

@@ -1,3 +1,5 @@
+#if 0
+
 #include "thorin/primop.h"
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/schedule.h"
@@ -108,3 +110,4 @@ bool Liveness::is_live_in(Def def, Lambda* lambda) {
 }
 
 }
+#endif

@@ -12,9 +12,13 @@ class Lambda;
 class Scope;
 
 template<bool> class CFGView;
+typedef CFGView<true>  F_CFG;
+typedef CFGView<false> B_CFG;
+
 template<bool> class DomTreeBase;
 typedef DomTreeBase<true>  DomTree;
 typedef DomTreeBase<false> PostDomTree;
+
 class LoopTree;
 
 class CFGNode {
@@ -51,11 +55,12 @@ public:
     size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
     const CFGNode* entry() const { return nodes_.front(); }
     const CFGNode* exit() const { return nodes_.back(); }
-    const CFGView<true>* forwards() const;
-    const CFGView<false>* backwards() const;
+    const F_CFG* f_cfg() const;
+    const B_CFG* b_cfg() const;
     const DomTree* domtree() const;
     const PostDomTree* postdomtree() const;
     const LoopTree* looptree() const;
+    const CFGNode* lookup(Lambda* lambda) const { return nodes_[sid(lambda)]; }
 
 private:
     void link(CFGNode* src, CFGNode* dst) {
@@ -65,9 +70,9 @@ private:
     void cfa();
 
     const Scope& scope_;
-    Array<CFGNode*> nodes_;
-    mutable AutoPtr<const CFGView<true> > forwards_;
-    mutable AutoPtr<const CFGView<false>> backwards_;
+    Array<CFGNode*> nodes_;     // sorted in sid
+    mutable AutoPtr<const F_CFG> f_cfg_;
+    mutable AutoPtr<const B_CFG> b_cfg_;
     mutable AutoPtr<const LoopTree> looptree_;
 };
 
@@ -92,7 +97,7 @@ public:
     const CFGNode* rpo(size_t i) const { return rpo_[i]; }
     /// Like \p rpo() but without \p entry()
     ArrayRef<const CFGNode*> body() const { return rpo().slice_from_begin(1); }
-    const CFGNode* lookup(Lambda* lambda) const { return rpo(rpo_id(lambda)); }
+    const CFGNode* lookup(Lambda* lambda) const { return cfg().lookup(lambda); }
     const DomTreeBase<forward>* domtree() const;
 
     typedef ArrayRef<const CFGNode*>::const_iterator const_iterator;

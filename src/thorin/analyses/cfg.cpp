@@ -68,11 +68,11 @@ void CFG::cfa() {
     } while (todo);
 }
 
-const CFGView<true>*  CFG::forwards()  const { return lazy_init(this, forwards_); }
-const CFGView<false>* CFG::backwards() const { return lazy_init(this, backwards_); }
-const DomTree* CFG::domtree() const { return forwards()->domtree(); }
-const PostDomTree* CFG::postdomtree() const { return backwards()->domtree(); }
-const LoopTree* CFG::looptree() const { return looptree_ ? looptree_ : looptree_ = new LoopTree(*forwards()); }
+const F_CFG* CFG::f_cfg() const { return lazy_init(this, f_cfg_); }
+const B_CFG* CFG::b_cfg() const { return lazy_init(this, b_cfg_); }
+const DomTree* CFG::domtree() const { return f_cfg()->domtree(); }
+const PostDomTree* CFG::postdomtree() const { return b_cfg()->domtree(); }
+const LoopTree* CFG::looptree() const { return looptree_ ? looptree_ : looptree_ = new LoopTree(*f_cfg()); }
 
 template<bool forward>
 const DomTreeBase<forward>* CFGView<forward>::domtree() const { return lazy_init(this, domtree_); }

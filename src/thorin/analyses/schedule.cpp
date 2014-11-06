@@ -72,7 +72,8 @@ static Def2Lambda schedule_early(const Scope& scope) {
     for (auto lambda : scope)
         enqueue_uses(lambda);
 
-    for (auto lambda : scope) {
+    for (auto n : *scope.cfg()->f_cfg()) {
+        auto lambda = n->lambda();
         for (auto param : lambda->params()) {
             if (!param->is_proxy())
                 queue.push(param);

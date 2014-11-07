@@ -155,13 +155,15 @@ void CodeGen::emit(int opt) {
 
         for (auto bb_lambda : bbs) {
             // map all bb-like lambdas to llvm bb stubs
-            auto bb = bb2lambda[bb_lambda] = llvm::BasicBlock::Create(context_, bb_lambda->name, fct);
+            if (bb_lambda->intrinsic() != Intrinsic::Exit) {
+                auto bb = bb2lambda[bb_lambda] = llvm::BasicBlock::Create(context_, bb_lambda->name, fct);
 
-            // create phi node stubs (for all non-cascading lambdas different from entry)
-            if (!bb_lambda->is_cascading() && entry_ != bb_lambda) {
-                for (auto param : bb_lambda->params())
-                    if (!param->type().isa<MemType>())
-                        phis_[param] = llvm::PHINode::Create(convert(param->type()), (unsigned) param->peek().size(), param->name, bb);
+                // create phi node stubs (for all non-cascading lambdas different from entry)
+                if (!bb_lambda->is_cascading() && entry_ != bb_lambda) {
+                    for (auto param : bb_lambda->params())
+                        if (!param->type().isa<MemType>())
+                            phis_[param] = llvm::PHINode::Create(convert(param->type()), (unsigned) param->peek().size(), param->name, bb);
+                }
             }
         }
 
@@ -174,7 +176,7 @@ void CodeGen::emit(int opt) {
 
         // emit body for each bb
         for (auto bb_lambda : bbs) {
-            if (bb_lambda->empty())
+            if (bb_lambda->intrinsic() == Intrinsic::Exit)
                 continue;
             assert(bb_lambda == entry_ || bb_lambda->is_basicblock());
             builder_.SetInsertPoint(bb2lambda[bb_lambda]);

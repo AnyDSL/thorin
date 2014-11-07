@@ -11,24 +11,18 @@ namespace thorin {
 
 CFG::CFG(const Scope& scope) 
     : scope_(scope)
-    , nodes_(scope.size() + 1)                      // one extra alloc for virtual exit
+    , nodes_(scope.size())
 {
     for (size_t i = 0, e = size(); i != e; ++i)
         nodes_[i] = new CFGNode(scope[i]);
-    nodes_.back() = new CFGNode(nullptr);           // virtual exit
 
     cfa();
 }
 
 size_t CFG::sid(Lambda* lambda) const { 
-    //return lambda == nullptr ? nodes_.size()-1 : lambda->find_scope(&scope())->sid; 
-    if (lambda == nullptr) {
-        return nodes_.size() - 1;
-    } else {
-        auto info = lambda->find_scope(&scope());
-        assert(info);
-        return info->sid;
-    }
+    auto info = lambda->find_scope(&scope());
+    assert(info);
+    return info->sid;
 }
 
 struct FlowVal {

@@ -59,10 +59,7 @@ private:
 
 enum class Intrinsic : uint8_t {
     None,                       ///< Not an intrinsic.
-    _CF_Begin,
-    Branch = _CF_Begin,         ///< branch(cond, T, F).
-    _CF_End,
-    _Accelerator_Begin = _CF_End,
+    _Accelerator_Begin = None,
     CUDA = _Accelerator_Begin,  ///< Internal CUDA-Backend.
     NVVM,                       ///< Internal NNVM-Backend.
     SPIR,                       ///< Internal SPIR-Backend.
@@ -73,6 +70,8 @@ enum class Intrinsic : uint8_t {
     Mmap = _Accelerator_End,    ///< Intrinsic memory-mapping function.
     Munmap,                     ///< Intrinsic memory-unmapping function.
     Atomic,                     ///< Intrinsic atomic function
+    Branch,                     ///< branch(cond, T, F).
+    Exit,                       ///< dummy function used as virtual exit in CFGs.
 };
 
 enum class CC : uint8_t {
@@ -140,7 +139,6 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     bool is_returning() const;
     bool is_intrinsic() const;
     bool is_accelerator() const;
-    bool is_controlflow() const;
     bool visit_capturing_intrinsics(std::function<bool(Lambda*)> func) const;
     bool is_passed_to_accelerator() const {
         return visit_capturing_intrinsics([&] (Lambda* lambda) { return lambda->is_accelerator(); });

@@ -175,7 +175,6 @@ void Lambda::make_internal() { return world().remove_external(this); }
 bool Lambda::is_external() const { return world().is_external(this); }
 bool Lambda::is_intrinsic() const { return intrinsic_ != Intrinsic::None; }
 bool Lambda::is_accelerator() const { return Intrinsic::_Accelerator_Begin <= intrinsic_ && intrinsic_ < Intrinsic::_Accelerator_End; }
-bool Lambda::is_controlflow() const { return Intrinsic::_CF_Begin <= intrinsic_ && intrinsic_ < Intrinsic::_CF_End; }
 void Lambda::set_intrinsic() {
     if      (name == "cuda")      intrinsic_ = Intrinsic::CUDA;
     else if (name == "nvvm")      intrinsic_ = Intrinsic::NVVM;

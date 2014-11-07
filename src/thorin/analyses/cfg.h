@@ -53,7 +53,6 @@ public:
 
     const Scope& scope() const { return scope_; }
     size_t size() const { return nodes_.size(); }
-    bool empty() const { return size() == 0; }
     size_t sid(Lambda* lambda) const;
     size_t sid(const CFGNode* n) const { return sid(n->lambda()); }
     ArrayRef<const CFGNode*> nodes() const { return ArrayRef<const CFGNode*>(nodes_.data(), nodes_.size()); }

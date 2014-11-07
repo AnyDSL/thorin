@@ -71,21 +71,26 @@ void CFG::cfa() {
     } while (todo);
 #endif
 
-    for (auto n : nodes_.slice_num_from_end(1)) {   // skip virtual exit
-        for (auto succ : n->lambda()->succs()) {
-            if (scope().contains(succ))
-                link(n, nodes_[sid(succ)]);
-        }
-    }
-
-    // compute reduced CFG
+    // compute reduced CFG and mark reachable nodes
     std::vector<Color> colors(size(), Color::White);
     reduced_visit(colors, nullptr, nodes_.front());
 
+    // link CFG
+    for (auto n : nodes_.slice_num_from_end(1)) {       // skip virtual exit
+        if (colors[sid(n)] == Color::Black) {           // if reachable
+            for (auto succ : n->lambda()->succs()) {    // for each succ in scope (must be rechable)
+                if (scope().contains(succ)) {
+                    assert(colors[sid(succ)] == Color::Black);
+                    link(n, nodes_[sid(succ)]);
+                }
+            }
+        }
+    }
+
     // link with virtual exit
-    for (auto n : nodes_.slice_num_from_end(1)) {   // skip virtual exit
-        if (colors[sid(n)] == Color::Black && n->reduced_succs_.empty()) {
-            link(n, nodes_.back());                 // link reachable reduced exits with virtual exit
+    for (auto n : nodes_.slice_num_from_end(1)) {                           // skip virtual exit
+        if (colors[sid(n)] == Color::Black && n->reduced_succs_.empty()) {  // only consider reachable nodes
+            link(n, nodes_.back()); 
             reduced_link(n, nodes_.back());
         }
     }
@@ -96,8 +101,10 @@ void CFG::reduced_visit(std::vector<Color>& colors, CFGNode* prev, CFGNode* cur)
     switch (col) {
         case Color::White:              // white: not yet visited
             col = Color::Gray;          // mark gray: is on recursion stack
-            for (auto succ : cur->succs_)
-                reduced_visit(colors, cur, succ);
+            for (auto succ : cur->lambda()->succs()) {
+                if (scope().contains(succ))
+                    reduced_visit(colors, cur, _lookup(succ));
+            }
             col = Color::Black;         // mark black: done
             break;                      // link
         case Color::Gray: return;       // back edge: do nothing

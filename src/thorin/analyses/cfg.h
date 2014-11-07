@@ -71,6 +71,7 @@ public:
     const CFGNode* lookup(Lambda* lambda) const { return nodes_[sid(lambda)]; }
 
 private:
+    CFGNode* _lookup(Lambda* lambda) const { return nodes_[sid(lambda)]; }
     void cfa();
     void reduced_visit(std::vector<Color>& colors, CFGNode* prev, CFGNode* cur);
     void link(CFGNode* src, CFGNode* dst) {

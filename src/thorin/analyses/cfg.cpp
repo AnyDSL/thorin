@@ -11,12 +11,11 @@ namespace thorin {
 
 CFG::CFG(const Scope& scope) 
     : scope_(scope)
-    //, nodes_(scope.size() + 1)                      // one extra alloc for virtual exit
-    , nodes_(scope.size())
+    , nodes_(scope.size() + 1)                      // one extra alloc for virtual exit
 {
     for (size_t i = 0, e = size(); i != e; ++i)
         nodes_[i] = new CFGNode(scope[i]);
-    //nodes_.back() = new CFGNode(nullptr);           // virtual exit
+    nodes_.back() = new CFGNode(nullptr);           // virtual exit
 
     cfa();
 }
@@ -80,13 +79,39 @@ void CFG::cfa() {
     } while (todo);
 #endif
 
-    //for (auto n : nodes_.slice_num_from_end(1)) {  // skip virtual exit
-    for (auto n : nodes_) {
+    for (auto n : nodes_.slice_num_from_end(1)) {  // skip virtual exit
         for (auto succ : n->lambda()->succs()) {
             if (scope().contains(succ))
                 link(n, nodes_[sid(succ)]);
         }
     }
+
+    // compute reduced CFG
+    std::vector<Color> colors(size(), Color::White);
+    reduced_visit(colors, nullptr, nodes_.front());
+
+    // link with virtual exit
+    for (auto n : nodes_.slice_num_from_end(1)) {  // skip virtual exit
+        if (n->reduced_succs_.empty()) {
+            link(n, nodes_.back());
+            reduced_link(n, nodes_.back());
+        }
+    }
+}
+
+void CFG::reduced_visit(std::vector<Color>& colors, CFGNode* prev, CFGNode* cur) {
+    auto& col = colors[sid(cur)];
+    switch (col) {
+        case Color::White:              // white: not yet visited
+            col = Color::Gray;          // mark gray: is on recursion stack
+            for (auto succ : cur->succs_)
+                reduced_visit(colors, cur, succ);
+            col = Color::Black;         // mark black: done
+            break;                      // link
+        case Color::Gray: return;       // back edge: do nothing
+        case Color::Black: break;       // cross or forward edge: link
+    }
+    reduced_link(prev, cur);
 }
 
 const F_CFG* CFG::f_cfg() const { return lazy_init(this, f_cfg_); }

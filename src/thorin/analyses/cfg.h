@@ -36,12 +36,16 @@ private:
     Lambda* lambda_;
     std::vector<CFGNode*> preds_;
     std::vector<CFGNode*> succs_;
+    std::vector<CFGNode*> reduced_preds_;
+    std::vector<CFGNode*> reduced_succs_;
 
     friend class CFG;
 };
 
 class CFG {
 public:
+    enum class Color : uint8_t { White, Gray, Black };
+
     CFG(const CFG&) = delete;
     CFG& operator= (CFG) = delete;
 
@@ -51,6 +55,7 @@ public:
     size_t size() const { return nodes_.size(); }
     bool empty() const { return size() == 0; }
     size_t sid(Lambda* lambda) const;
+    size_t sid(const CFGNode* n) const { return sid(n->lambda()); }
     ArrayRef<const CFGNode*> nodes() const { return ArrayRef<const CFGNode*>(nodes_.data(), nodes_.size()); }
     ArrayRef<const CFGNode*> preds(Lambda* lambda) const { return nodes_[sid(lambda)]->preds(); }
     ArrayRef<const CFGNode*> succs(Lambda* lambda) const { return nodes_[sid(lambda)]->succs(); }
@@ -70,7 +75,14 @@ private:
         src->succs_.push_back(dst);
         dst->preds_.push_back(src);
     }
+    void reduced_link(CFGNode* src, CFGNode* dst) {
+        if (src) {
+            src->reduced_succs_.push_back(dst);
+            dst->reduced_preds_.push_back(src);
+        }
+    }
     void cfa();
+    void reduced_visit(std::vector<Color>& colors, CFGNode* prev, CFGNode* cur);
 
     const Scope& scope_;
     Array<CFGNode*> nodes_;     // sorted in sid

@@ -62,9 +62,9 @@ outer_loop:;
 
             DomNode* new_idom = nullptr;
             for (auto pred : cfg().preds(n)) {
-                auto pred_node = _lookup(pred);
-                assert(pred_node);
-                new_idom = new_idom ? _lca(new_idom, pred_node) : pred_node;
+                auto pred_dom = _lookup(pred);
+                assert(pred_dom);
+                new_idom = new_idom ? _lca(new_idom, pred_dom) : pred_dom;
             }
             assert(new_idom);
             if (dom->idom() != new_idom) {

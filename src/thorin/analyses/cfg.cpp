@@ -20,9 +20,9 @@ CFG::CFG(const Scope& scope)
 }
 
 size_t CFG::sid(Lambda* lambda) const { 
-    auto info = lambda->find_scope(&scope());
-    assert(info);
-    return info->sid;
+    if (auto info = lambda->find_scope(&scope()))
+        return info->sid;
+    return size_t(-1);
 }
 
 struct FlowVal {

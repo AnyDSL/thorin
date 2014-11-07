@@ -70,19 +70,21 @@ void PartialEvaluator::seek() {
     for (auto lambda : world().externals())
         enqueue(lambda);
 
+    Lambda* top = nullptr;
     while (!queue_.empty()) {
         auto lambda = pop(queue_);
-        if (!lambda->empty()) {
-            if (lambda->to()->isa<Run>())
-                eval(lambda, lambda, continuation(lambda));
-        }
+        if (world().is_external(lambda))
+            top = lambda;
+
+        if (lambda->to()->isa<Run>())
+            eval(top, lambda, continuation(lambda));
 
         for (auto succ : lambda->succs())
             enqueue(succ);
     }
 }
 
-void PartialEvaluator::eval(Lambda* begin, Lambda* cur, Lambda* end) {
+void PartialEvaluator::eval(Lambda* top, Lambda* cur, Lambda* end) {
     if (end == nullptr)
         std::cout << "no matching end: " << cur->unique_name() << std::endl;
 
@@ -100,7 +102,7 @@ void PartialEvaluator::eval(Lambda* begin, Lambda* cur, Lambda* end) {
         } else if (cur->to()->isa<Hlt>()) {
             for (auto succ : cur->succs())
                 enqueue(succ);
-            begin = cur = continuation(cur);
+            cur = continuation(cur);
             continue;
         } else {
             dst = cur->to()->isa_lambda();
@@ -114,17 +116,15 @@ void PartialEvaluator::eval(Lambda* begin, Lambda* cur, Lambda* end) {
 
         if (dst->empty()) {
             if (dst == world().branch()) {
-                std::cout << "-----------------------------------------" << std::endl;
-                world().cleanup();
-                world().dump();
-                std::cout << "-----------------------------------------" << std::endl;
-                Scope scope(begin);
+                Scope scope(top);
                 auto& postdomtree = *scope.cfg()->postdomtree();
-                //begin = cur = postdomtree.lookup(scope.cfg()->lookup(cur))->idom()->lambda();
-                cur = postdomtree.lookup(scope.cfg()->lookup(cur))->idom()->lambda();
-                continue;
+                if (auto n = scope.cfg()->lookup(cur)) {
+                    cur = postdomtree.lookup(n)->idom()->lambda();
+                    continue;
+                }
+                std::cout << "bailing out: " << cur->unique_name() << std::endl;
+                return;
             } else
-                //begin = cur = continuation(cur);
                 cur = continuation(cur);
             continue;
         }

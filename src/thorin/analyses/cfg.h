@@ -68,7 +68,7 @@ public:
     const DomTree* domtree() const;
     const PostDomTree* postdomtree() const;
     const LoopTree* looptree() const;
-    const CFGNode* lookup(Lambda* lambda) const { return nodes_[sid(lambda)]; }
+    const CFGNode* lookup(Lambda* lambda) const { auto i = sid(lambda); return i == size_t(-1) ? nullptr : nodes_[i]; }
 
 private:
     CFGNode* _lookup(Lambda* lambda) const { return nodes_[sid(lambda)]; }

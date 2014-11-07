@@ -18,13 +18,7 @@ CFG::CFG(const Scope& scope)
         nodes_[i] = new CFGNode(scope[i]);
     //nodes_.back() = new CFGNode(nullptr);           // virtual exit
 
-    //for (auto n : nodes_.slice_num_from_end(1)) {  // skip virtual exit
-    for (auto n : nodes_) {
-        for (auto succ : n->lambda()->succs()) {
-            if (scope.contains(succ))
-                link(n, nodes_[sid(succ)]);
-        }
-    }
+    cfa();
 }
 
 size_t CFG::sid(Lambda* lambda) const { 
@@ -40,8 +34,9 @@ size_t CFG::sid(Lambda* lambda) const {
 
 struct FlowVal {
     LambdaSet lambdas;
-    bool top = false;
+    bool top = true;
     bool join(const FlowVal& other) {
+        top |= other.top;
         bool result = false;
         for (auto l : other.lambdas)
             result |= this->lambdas.insert(l).second;
@@ -50,7 +45,13 @@ struct FlowVal {
 };
 
 void CFG::cfa() {
+#if 0
     DefMap<FlowVal> param2fv;
+
+    for (auto lambda : scope().body()) {
+        for (auto param : lambda->params())
+            param2fv[param].top = false;
+    }
 
     // init
     for (auto lambda : scope()) {
@@ -77,6 +78,15 @@ void CFG::cfa() {
             }
         }
     } while (todo);
+#endif
+
+    //for (auto n : nodes_.slice_num_from_end(1)) {  // skip virtual exit
+    for (auto n : nodes_) {
+        for (auto succ : n->lambda()->succs()) {
+            if (scope().contains(succ))
+                link(n, nodes_[sid(succ)]);
+        }
+    }
 }
 
 const F_CFG* CFG::f_cfg() const { return lazy_init(this, f_cfg_); }

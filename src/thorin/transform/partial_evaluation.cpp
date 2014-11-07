@@ -114,15 +114,18 @@ void PartialEvaluator::eval(Lambda* begin, Lambda* cur, Lambda* end) {
 
         if (dst->empty()) {
             if (dst == world().branch()) {
-                //Scope scope(begin, true);
-                //scope.dump();
-                //CFG cfg(scope);
-                //scope.postdomtree()->dump();
-                //begin = cur = scope.postdomtree()->idom(cur);
-                std::cout << "bailing out: " << cur->unique_name() << std::endl;
-                return;
+                std::cout << "-----------------------------------------" << std::endl;
+                world().cleanup();
+                world().dump();
+                std::cout << "-----------------------------------------" << std::endl;
+                Scope scope(begin);
+                auto& postdomtree = *scope.cfg()->postdomtree();
+                //begin = cur = postdomtree.lookup(scope.cfg()->lookup(cur))->idom()->lambda();
+                cur = postdomtree.lookup(scope.cfg()->lookup(cur))->idom()->lambda();
+                continue;
             } else
-                begin = cur = continuation(cur);
+                //begin = cur = continuation(cur);
+                cur = continuation(cur);
             continue;
         }
 
@@ -162,6 +165,7 @@ void PartialEvaluator::rewrite_jump(Lambda* src, Lambda* dst, const Call& call) 
 
 void partial_evaluation(World& world) {
     PartialEvaluator(world).seek();
+    std::cout << "PE done" << std::endl;
 
     for (auto primop : world.primops()) {
         if (auto evalop = Def(primop)->isa<EvalOp>())

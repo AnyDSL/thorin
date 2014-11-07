@@ -3,6 +3,7 @@
 
 #include <vector>
 
+#include "thorin/lambda.h"
 #include "thorin/util/array.h"
 #include "thorin/util/autoptr.h"
 
@@ -70,18 +71,20 @@ public:
     const CFGNode* lookup(Lambda* lambda) const { return nodes_[sid(lambda)]; }
 
 private:
+    void cfa();
+    void reduced_visit(std::vector<Color>& colors, CFGNode* prev, CFGNode* cur);
     void link(CFGNode* src, CFGNode* dst) {
+        assert(src->lambda()->intrinsic() != Intrinsic::Exit);
         src->succs_.push_back(dst);
         dst->preds_.push_back(src);
     }
     void reduced_link(CFGNode* src, CFGNode* dst) {
         if (src) {
+            assert(src->lambda()->intrinsic() != Intrinsic::Exit);
             src->reduced_succs_.push_back(dst);
             dst->reduced_preds_.push_back(src);
         }
     }
-    void cfa();
-    void reduced_visit(std::vector<Color>& colors, CFGNode* prev, CFGNode* cur);
 
     const Scope& scope_;
     Array<CFGNode*> nodes_;     // sorted in sid

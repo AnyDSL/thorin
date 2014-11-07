@@ -71,7 +71,7 @@ void CFG::cfa() {
     } while (todo);
 #endif
 
-    for (auto n : nodes_.slice_num_from_end(1)) {  // skip virtual exit
+    for (auto n : nodes_.slice_num_from_end(1)) {   // skip virtual exit
         for (auto succ : n->lambda()->succs()) {
             if (scope().contains(succ))
                 link(n, nodes_[sid(succ)]);
@@ -83,9 +83,9 @@ void CFG::cfa() {
     reduced_visit(colors, nullptr, nodes_.front());
 
     // link with virtual exit
-    for (auto n : nodes_.slice_num_from_end(1)) {  // skip virtual exit
-        if (n->reduced_succs_.empty()) {
-            link(n, nodes_.back());
+    for (auto n : nodes_.slice_num_from_end(1)) {   // skip virtual exit
+        if (colors[sid(n)] == Color::Black && n->reduced_succs_.empty()) {
+            link(n, nodes_.back());                 // link reachable reduced exits with virtual exit
             reduced_link(n, nodes_.back());
         }
     }
@@ -120,12 +120,18 @@ CFGView<forward>::CFGView(const CFG& cfg)
     , rpo_ids_(cfg.size())
     , rpo_(cfg.nodes()) // copy over - sort later
 {
-    std::fill(rpo_ids_.begin(), rpo_ids_.end(), -1); // mark as not visited
-    auto num = number(entry(), size());
-    assert(num == 0);
+    std::fill(rpo_ids_.begin(), rpo_ids_.end(), -1);    // mark as not visited
+    auto num = number(entry(), 0);                      // number in post-order
+    
+    for (size_t i = 0, e = size(); i != e; ++i) {       // convert to reverse post-order
+        auto& rpo_id = rpo_ids_[i];
+        if (rpo_id != size_t(-1))
+            rpo_id = num-1 - rpo_id;
+    }
 
     // sort in reverse post-order
     std::sort(rpo_.begin(), rpo_.end(), [&] (const CFGNode* n1, const CFGNode* n2) { return rpo_id(n1) < rpo_id(n2); });
+    rpo_.shrink(num);                                   // remove unreachable stuff
 }
 
 template<bool forward>
@@ -138,7 +144,7 @@ size_t CFGView<forward>::number(const CFGNode* n, size_t i) {
             i = number(succ, i);
     }
 
-    return n_rpo_id = i-1;
+    return (n_rpo_id = i) + 1;
 }
 
 template<bool forward>

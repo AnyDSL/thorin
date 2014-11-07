@@ -22,7 +22,8 @@ static void verify(const Scope& scope, const Schedule& schedule) {
     auto domtree = scope.domtree();
     LambdaMap<Def> lambda2mem;
 
-    for (auto lambda : scope) {
+    for (auto n : *scope.cfg()->f_cfg()) {
+        auto lambda = n->lambda();
         Def mem = lambda->mem_param();
         mem = mem ? mem : lambda2mem[domtree->idom(lambda)];
         for (auto primop : schedule[lambda]) {
@@ -69,8 +70,8 @@ static Def2Lambda schedule_early(const Scope& scope) {
         }
     };
 
-    for (auto lambda : scope)
-        enqueue_uses(lambda);
+    for (auto n : *scope.cfg()->f_cfg())
+        enqueue_uses(n->lambda());
 
     for (auto n : *scope.cfg()->f_cfg()) {
         auto lambda = n->lambda();
@@ -125,7 +126,8 @@ const Schedule schedule_late(const Scope& scope) {
         }
     };
 
-    for (auto lambda : scope) {
+    for (auto n : *scope.cfg()->f_cfg()) {
+        auto lambda = n->lambda();
         for (auto op : lambda->ops())
             enqueue(lambda, op);
     }
@@ -152,7 +154,8 @@ const Schedule schedule_smart(const Scope& scope) {
     auto def2early = schedule_early(scope);
     auto late = schedule_late(scope);
 
-    for (auto lambda : scope) {
+    for (auto n : *scope.cfg()->f_cfg()) {
+        auto lambda = n->lambda();
         for (auto primop : late[lambda]) {
             assert(scope._contains(primop));
             auto lambda_early = def2early[primop];

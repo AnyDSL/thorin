@@ -54,7 +54,7 @@ std::vector<Lambda*> bb_schedule(const Scope& scope) {
     count_children(domtree->root(), lambda2num);
     std::vector<Lambda*> bbs;
     bb_schedule(*scope.cfg()->f_cfg(), domtree->root(), *scope.cfg()->looptree(), bbs, lambda2num);
-    assert(bbs.size() == scope.size());
+    assert(bbs.size() == scope.cfg()->f_cfg()->size());
     return bbs;
 }
 

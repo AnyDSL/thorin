@@ -41,12 +41,12 @@ void DomTreeBase<forward>::create() {
     root_->idom_ = root_;
 
     // all others' idom are set to their first found dominating pred
-    for (auto lambda : cfg().body()) {
-        for (auto pred : cfg().preds(lambda)) {
-            if (cfg().rpo_id(pred) < cfg().rpo_id(lambda)) {
+    for (auto n : cfg().body()) {
+        for (auto pred : cfg().preds(n)) {
+            if (cfg().rpo_id(pred) < cfg().rpo_id(n)) {
                 auto dom = _lookup(pred);
                 assert(dom);
-                _lookup(lambda)->idom_ = dom;
+                _lookup(n)->idom_ = dom;
                 goto outer_loop;
             }
         }
@@ -57,25 +57,25 @@ outer_loop:;
     for (bool changed = true; changed;) {
         changed = false;
 
-        for (auto lambda : cfg().body()) {
-            auto lambda_node = _lookup(lambda);
+        for (auto n : cfg().body()) {
+            auto dom = _lookup(n);
 
             DomNode* new_idom = nullptr;
-            for (auto pred : cfg().preds(lambda)) {
+            for (auto pred : cfg().preds(n)) {
                 auto pred_node = _lookup(pred);
                 assert(pred_node);
                 new_idom = new_idom ? _lca(new_idom, pred_node) : pred_node;
             }
             assert(new_idom);
-            if (lambda_node->idom() != new_idom) {
-                lambda_node->idom_ = new_idom;
+            if (dom->idom() != new_idom) {
+                dom->idom_ = new_idom;
                 changed = true;
             }
         }
     }
 
-    for (auto lambda : cfg().body()) {
-        auto dom = _lookup(lambda);
+    for (auto n : cfg().body()) {
+        auto dom = _lookup(n);
         dom->idom_->children_.push_back(dom);
     }
 

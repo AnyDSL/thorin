@@ -36,7 +36,7 @@ uint32_t Cleaner::counter_ = 1;
 void Cleaner::merge_lambdas() {
     for (auto src : world().lambdas()) {
         if (auto dst = src->to()->isa_lambda()) {
-            if (src != dst && !dst->empty() && !world().is_external(dst) && dst->num_uses() == 1) {
+            if (src != dst && !world().is_external(dst) && dst->num_uses() == 1) {
                 for (size_t i = 0, e = src->num_args(); i != e; ++i)
                     dst->param(i)->replace(src->arg(i));
 
@@ -49,34 +49,32 @@ void Cleaner::merge_lambdas() {
 
 void Cleaner::eliminate_params() {
     for (auto olambda : world().copy_lambdas()) {
-        if (!olambda->empty()) {
-            std::vector<size_t> proxy_idx;
-            std::vector<size_t> param_idx;
-            size_t i = 0;
-            for (auto param : olambda->params()) {
-                if (param->is_proxy())
-                    proxy_idx.push_back(i++);
-                else
-                    param_idx.push_back(i++);
+        std::vector<size_t> proxy_idx;
+        std::vector<size_t> param_idx;
+        size_t i = 0;
+        for (auto param : olambda->params()) {
+            if (param->is_proxy())
+                proxy_idx.push_back(i++);
+            else
+                param_idx.push_back(i++);
+        }
+
+        if (!proxy_idx.empty()) {
+            auto nlambda = world().lambda(world().fn_type(olambda->type()->args().cut(proxy_idx)),
+                                            olambda->cc(), olambda->intrinsic(), olambda->name);
+            size_t j = 0;
+            for (auto i : param_idx) {
+                olambda->param(i)->replace(nlambda->param(j));
+                nlambda->param(j++)->name = olambda->param(i)->name;
             }
 
-            if (!proxy_idx.empty()) {
-                auto nlambda = world().lambda(world().fn_type(olambda->type()->args().cut(proxy_idx)),
-                                              olambda->cc(), olambda->intrinsic(), olambda->name);
-                size_t j = 0;
-                for (auto i : param_idx) {
-                    olambda->param(i)->replace(nlambda->param(j));
-                    nlambda->param(j++)->name = olambda->param(i)->name;
-                }
+            nlambda->jump(olambda->to(), olambda->args());
+            olambda->destroy_body();
 
-                nlambda->jump(olambda->to(), olambda->args());
-                olambda->destroy_body();
-
-                for (auto use : olambda->uses()) {
-                    auto ulambda = use->as_lambda();
-                    assert(use.index() == 0 && "deleted param of lambda used as argument");
-                    ulambda->jump(nlambda, ulambda->args().cut(proxy_idx));
-                }
+            for (auto use : olambda->uses()) {
+                auto ulambda = use->as_lambda();
+                assert(use.index() == 0 && "deleted param of lambda used as argument");
+                ulambda->jump(nlambda, ulambda->args().cut(proxy_idx));
             }
         }
     }

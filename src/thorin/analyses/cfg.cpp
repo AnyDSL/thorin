@@ -48,12 +48,10 @@ void CFG::cfa() {
 
     // init
     for (auto lambda : scope()) {
-        if (!lambda->empty()) {
-            if (auto to = lambda->to()->isa_lambda()) {
-                for (size_t i = 0, e = lambda->num_args(); i != e; ++i) {
-                    if (auto arg = lambda->arg(i)->isa_lambda())
-                        param2fv[to->param(i)].lambdas.insert(arg);
-                }
+        if (auto to = lambda->to()->isa_lambda()) {
+            for (size_t i = 0, e = lambda->num_args(); i != e; ++i) {
+                if (auto arg = lambda->arg(i)->isa_lambda())
+                    param2fv[to->param(i)].lambdas.insert(arg);
             }
         }
     }

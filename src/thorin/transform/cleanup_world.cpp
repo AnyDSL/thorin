@@ -21,7 +21,6 @@ public:
     void within(const DefNode*);
     void set_live(const PrimOp* primop) { nprimops_.insert(primop); primop->live_ = counter_; }
     void set_reachable(Lambda* lambda)  { nlambdas_.insert(lambda); lambda->reachable_ = counter_; }
-
     static bool is_live(const PrimOp* primop) { return primop->live_ == counter_; }
     static bool is_reachable(Lambda* lambda) { return lambda->reachable_ == counter_; }
 
@@ -185,7 +184,9 @@ void Cleaner::cleanup() {
 
     swap(world().primops_, nprimops_);
     swap(world().lambdas_, nlambdas_);
+#ifndef NDEBUG
     verify();
+#endif
 
     // delete dead primops
     for (auto primop : world().primops()) {

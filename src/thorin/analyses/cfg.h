@@ -104,6 +104,12 @@ public:
     size_t size() const { return rpo_.size(); }
     ArrayRef<const CFGNode*> preds(const CFGNode* n) const { return forward ? cfg().preds(n->lambda()) : cfg().succs(n->lambda()); }
     ArrayRef<const CFGNode*> succs(const CFGNode* n) const { return forward ? cfg().succs(n->lambda()) : cfg().preds(n->lambda()); }
+    ArrayRef<const CFGNode*> reduced_preds(const CFGNode* n) const { 
+        return forward ? cfg().reduced_preds(n->lambda()) : cfg().reduced_succs(n->lambda()); 
+    }
+    ArrayRef<const CFGNode*> reduced_succs(const CFGNode* n) const { 
+        return forward ? cfg().reduced_succs(n->lambda()) : cfg().reduced_preds(n->lambda()); 
+    }
     size_t num_preds(const CFGNode* n) const { return preds(n).size(); }
     size_t num_succs(const CFGNode* n) const { return succs(n).size(); }
     const CFGNode* entry() const { return forward ? cfg().entry() : cfg().exit();  }

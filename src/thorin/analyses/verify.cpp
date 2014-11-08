@@ -1,37 +1,10 @@
-#include <iostream>
-
 #include "thorin/primop.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
 
 namespace thorin {
 
-#if 0
-void verify_cyclefree(World& world) {
-    DefSet done;
-    PrimOpSet primops;
-    LambdaSet lambdas;
-    std::queue<Def> queue;
-
-    for (auto cur : world.lambdas()) {
-        for (auto op : cur->ops()) {
-            if (!done.contains(op)) {
-                if (auto primop = op->isa<PrimOp>()) {
-                    queue.push(primop);
-                } else if (auto lambda = op->isa_lambda()) {
-                } else {
-                    auto param = op->as<Param>();
-                }
-            }
-        }
-    }
-
-    while (!queue.empty())
-        pop(queue.front());
-}
-#endif
-
-void verify_calls(World& world) {
+static void verify_calls(World& world) {
     for (auto lambda : world.lambdas()) {
         if (!lambda->empty()) {
             assert(lambda->to_fn_type()->num_args() == lambda->arg_fn_type()->num_args() && "argument/parameter mismatch");
@@ -55,13 +28,8 @@ void verify_calls(World& world) {
     }
 }
 
-//------------------------------------------------------------------------------
-
 void verify(World& world) {
     verify_calls(world);
-    //verify_cyclefree(world);
 }
 
-//------------------------------------------------------------------------------
-
-} // namespace thorin
+}

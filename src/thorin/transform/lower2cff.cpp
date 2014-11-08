@@ -96,7 +96,8 @@ void lower2cff(World& world) {
         debug_verify(world);
         world.cleanup();
     } while (todo);
-    verify_calls(world);
+
+    debug_verify(world);
 }
 
 }

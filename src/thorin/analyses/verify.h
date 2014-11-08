@@ -8,8 +8,6 @@ namespace thorin {
 class World;
 
 void verify(World& world);
-/// \attention { You may only invoke this on a consistent world where all ops of all primops are \em not proxies. }
-void verify_closedness(World& world);
 void verify_calls(World& world);
 
 #ifndef NDEBUG

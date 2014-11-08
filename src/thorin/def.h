@@ -178,7 +178,6 @@ public:
     friend class Scope;
     friend class World;
     friend class Cleaner;
-    friend void verify_closedness(World& world);
 };
 
 //------------------------------------------------------------------------------

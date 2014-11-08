@@ -17,7 +17,8 @@ public:
     void eliminate_params();
     void unreachable_code_elimination();
     void dead_code_elimination();
-
+    void verify();
+    void within(const DefNode*);
     void set_live(const PrimOp* primop) { nprimops_.insert(primop); primop->live_ = counter_; }
     void set_reachable(Lambda* lambda)  { nlambdas_.insert(lambda); lambda->reachable_ = counter_; }
 
@@ -130,6 +131,35 @@ void Cleaner::dead_code_elimination() {
     }
 }
 
+void Cleaner::verify() {
+    auto check = [&](const DefNode* def) {
+        within(def->representative_);
+        for (auto op : def->ops())
+            within(op.node());
+        for (auto use : def->uses_)
+            within(use.def().node());
+        for (auto r : def->representatives_of_)
+            within(r); };
+
+    for (auto primop : world().primops())
+        check(primop);
+    for (auto lambda : world().lambdas()) {
+        check(lambda);
+        for (auto param : lambda->params())
+            check(param);
+    }
+}
+
+void Cleaner::within(const DefNode* def) {
+    //assert(world.types().find(*def->type()) != world.types().end());
+    if (auto primop = def->isa<PrimOp>()) {
+        assert(world().primops().find(primop) != world().primops().end());
+    } else if (auto lambda = def->isa_lambda())
+        assert(world().lambdas().find(lambda) != world().lambdas().end());
+    else
+        within(def->as<Param>()->lambda());
+}
+
 void Cleaner::cleanup() {
     merge_lambdas();
     eliminate_params();
@@ -155,8 +185,7 @@ void Cleaner::cleanup() {
 
     swap(world().primops_, nprimops_);
     swap(world().lambdas_, nlambdas_);
-
-    verify_closedness(world());
+    verify();
 
     // delete dead primops
     for (auto primop : world().primops()) {

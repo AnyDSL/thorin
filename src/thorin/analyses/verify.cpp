@@ -6,36 +6,6 @@
 
 namespace thorin {
 
-static void within(World& world, const DefNode* def) {
-    //assert(world.types().find(*def->type()) != world.types().end());
-    if (auto primop = def->isa<PrimOp>()) {
-        assert(world.primops().find(primop) != world.primops().end());
-    } else if (auto lambda = def->isa_lambda())
-        assert(world.lambdas().find(lambda) != world.lambdas().end());
-    else
-        within(world, def->as<Param>()->lambda());
-}
-
-void verify_closedness(World& world) {
-    auto check = [&](const DefNode* def) {
-        within(world, def->representative_);
-        for (auto op : def->ops())
-            within(world, op.node());
-        for (auto use : def->uses_)
-            within(world, use.def().node());
-        for (auto r : def->representatives_of_)
-            within(world, r);
-    };
-
-    for (auto primop : world.primops())
-        check(primop);
-    for (auto lambda : world.lambdas()) {
-        check(lambda);
-        for (auto param : lambda->params())
-            check(param);
-    }
-}
-
 #if 0
 void verify_cyclefree(World& world) {
     DefSet done;
@@ -88,7 +58,6 @@ void verify_calls(World& world) {
 //------------------------------------------------------------------------------
 
 void verify(World& world) {
-    verify_closedness(world);
     verify_calls(world);
     //verify_cyclefree(world);
 }

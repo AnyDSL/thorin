@@ -61,8 +61,8 @@ void Scope::identify_scope(Lambda* entry) {
         }
     }
 
-    lambdas_.push_back(world().exit());
-    set_candidate(world().exit());
+    lambdas_.push_back(world().end_scope());
+    set_candidate(world().end_scope());
 
     for (size_t i = 0, e = size(); i != e; ++i) {
         auto lambda = lambdas_[i];

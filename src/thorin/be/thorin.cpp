@@ -215,7 +215,7 @@ void emit_thorin(const Scope& scope, bool fancy, bool nocolor) {
     auto schedule = schedule_smart(scope);
     auto bbs = bb_schedule(scope);
     for (auto lambda : bbs) {
-        if (lambda->intrinsic() != Intrinsic::Exit) {
+        if (lambda->intrinsic() != Intrinsic::EndScope) {
             int depth = lambda == scope.entry() ? 0 : 1;
             cg.indent += depth;
             cg.newline();

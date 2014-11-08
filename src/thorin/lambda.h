@@ -71,7 +71,7 @@ enum class Intrinsic : uint8_t {
     Munmap,                     ///< Intrinsic memory-unmapping function.
     Atomic,                     ///< Intrinsic atomic function
     Branch,                     ///< branch(cond, T, F).
-    Exit,                       ///< dummy function used as virtual exit in CFGs.
+    EndScope,                   ///< Dummy function which marks the end of a \p Scope.
 };
 
 enum class CC : uint8_t {

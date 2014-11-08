@@ -46,7 +46,7 @@ World::World(std::string name)
 #include "thorin/tables/primtypetable.h"
 {
     branch_ = lambda(fn_type({type_bool(), fn_type(), fn_type()}), CC::C, Intrinsic::Branch, "br");
-    exit_ = lambda(fn_type(), CC::C, Intrinsic::Exit, "exit");
+    end_scope_ = lambda(fn_type(), CC::C, Intrinsic::EndScope, "end_scope");
     auto v = type_var();
     auto f = fn_type({type_bool(), fn_type(), fn_type(), v});
     f->bind(v);

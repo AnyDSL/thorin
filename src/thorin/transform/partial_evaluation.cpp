@@ -146,6 +146,8 @@ void PartialEvaluator::eval(Lambda* top, Lambda* cur, Lambda* end) {
             auto dropped = drop(scope, call.args(), type2type);
             rewrite_jump(cur, dropped, call);
             cur = dropped;
+            //cur->jump(dropped->to(), dropped->args());
+            //done_.erase(cur);
         }
     }
 }

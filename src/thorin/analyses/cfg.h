@@ -75,16 +75,14 @@ private:
     void cfa();
     void reduced_visit(std::vector<Color>& colors, CFGNode* prev, CFGNode* cur);
     void link(CFGNode* src, CFGNode* dst) {
-        assert(src->lambda()->intrinsic() != Intrinsic::Exit);
+        assert(src->lambda()->intrinsic() != Intrinsic::EndScope);
         src->succs_.push_back(dst);
         dst->preds_.push_back(src);
     }
     void reduced_link(CFGNode* src, CFGNode* dst) {
-        if (src) {
-            assert(src->lambda()->intrinsic() != Intrinsic::Exit);
-            src->reduced_succs_.push_back(dst);
-            dst->reduced_preds_.push_back(src);
-        }
+        assert(src->lambda()->intrinsic() != Intrinsic::EndScope);
+        src->reduced_succs_.push_back(dst);
+        dst->reduced_preds_.push_back(src);
     }
 
     const Scope& scope_;

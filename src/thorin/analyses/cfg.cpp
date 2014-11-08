@@ -108,7 +108,8 @@ void CFG::reduced_visit(std::vector<Color>& colors, CFGNode* prev, CFGNode* cur)
         case Color::Gray: return;       // back edge: do nothing
         case Color::Black: break;       // cross or forward edge: link
     }
-    reduced_link(prev, cur);
+    if (prev)
+        reduced_link(prev, cur);
 }
 
 const F_CFG* CFG::f_cfg() const { return lazy_init(this, f_cfg_); }

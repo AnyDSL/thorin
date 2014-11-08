@@ -36,10 +36,6 @@ public:
     void mangle_body(Lambda* olambda, Lambda* nlambda);
     Lambda* mangle_head(Lambda* olambda);
     Def mangle(Def odef);
-    Def lookup(Def def) {
-        assert(old2new.contains(def));
-        return old2new[def];
-    }
 
     const Scope& scope;
     Def2Def old2new;
@@ -115,28 +111,26 @@ void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
 }
 
 Def Mangler::mangle(Def odef) {
-    if (!in_scope.contains(odef) && !old2new.contains(odef))
+    auto i = old2new.find(odef);
+    if (i != old2new.end())
+        return i->second;
+
+    if (!in_scope.contains(odef))
         return odef;
-    if (old2new.contains(odef))
-        return lookup(odef);
 
     if (auto olambda = odef->isa_lambda()) {
         auto nlambda = mangle_head(olambda);
         mangle_body(olambda, nlambda);
         return nlambda;
-    } else if (auto param = odef->isa<Param>()) {
-        assert(scope.contains(param->lambda()));
-        return old2new[odef] = odef;
+    } else {
+        auto oprimop = odef->as<PrimOp>();
+        Array<Def> nops(oprimop->size());
+        Def nprimop;
+
+        for (size_t i = 0, e = oprimop->size(); i != e; ++i)
+            nops[i] = mangle(oprimop->op(i));
+        return old2new[oprimop] = oprimop->rebuild(nops);
     }
-
-    auto oprimop = odef->as<PrimOp>();
-    Array<Def> nops(oprimop->size());
-    Def nprimop;
-
-    for (size_t i = 0, e = oprimop->size(); i != e; ++i)
-        nops[i] = mangle(oprimop->op(i));
-    nprimop = oprimop->rebuild(nops);
-    return old2new[oprimop] = nprimop;
 }
 
 //------------------------------------------------------------------------------

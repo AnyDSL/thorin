@@ -3,8 +3,6 @@
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/looptree.h"
 
-#include <iostream>
-
 namespace thorin {
 
 //------------------------------------------------------------------------------

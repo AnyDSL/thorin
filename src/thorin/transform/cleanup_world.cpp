@@ -17,7 +17,7 @@ public:
     void eliminate_params();
     void unreachable_code_elimination();
     void dead_code_elimination();
-    void verify();
+    void verify_closedness();
     void within(const DefNode*);
     void set_live(const PrimOp* primop) { nprimops_.insert(primop); primop->live_ = counter_; }
     void set_reachable(Lambda* lambda)  { nlambdas_.insert(lambda); lambda->reachable_ = counter_; }
@@ -130,7 +130,7 @@ void Cleaner::dead_code_elimination() {
     }
 }
 
-void Cleaner::verify() {
+void Cleaner::verify_closedness() {
     auto check = [&](const DefNode* def) {
         within(def->representative_);
         for (auto op : def->ops())
@@ -185,7 +185,7 @@ void Cleaner::cleanup() {
     swap(world().primops_, nprimops_);
     swap(world().lambdas_, nlambdas_);
 #ifndef NDEBUG
-    verify();
+    verify_closedness();
 #endif
 
     // delete dead primops

@@ -130,13 +130,19 @@ void PartialEvaluator::eval(Lambda* top, Lambda* cur, Lambda* end) {
         }
 
         Call call(dst);
+        bool all = true;
         for (size_t i = 0; i != cur->num_args(); ++i) {
             if (!cur->arg(i)->isa<Hlt>())
                 call.arg(i) = cur->arg(i);
+            else
+                all = false;
         }
 
         if (auto cached = find(cache_, call)) { // check for cached version
             rewrite_jump(cur, cached, call);
+            std::cout << "using cached call: " << std::endl;
+            cur->dump_head();
+            cur->dump_jump();
             return;
         } else {                                // no cached version found... create a new one
             Scope scope(dst);
@@ -145,9 +151,11 @@ void PartialEvaluator::eval(Lambda* top, Lambda* cur, Lambda* end) {
             assert(res);
             auto dropped = drop(scope, call.args(), type2type);
             rewrite_jump(cur, dropped, call);
-            cur = dropped;
-            //cur->jump(dropped->to(), dropped->args());
-            //done_.erase(cur);
+            if (all) {
+                cur->jump(dropped->to(), dropped->args());
+                done_.erase(cur);
+            } else
+                cur = dropped;
         }
     }
 }

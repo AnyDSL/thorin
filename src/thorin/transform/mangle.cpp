@@ -13,7 +13,6 @@ public:
         , drop(drop)
         , lift(lift)
         , type2type(type2type)
-        , world(scope.world())
         , in_scope(scope.in_scope()) // copy constructor
         , oentry(scope.entry())
         , nentry(oentry->world().lambda(oentry->name))
@@ -32,6 +31,7 @@ public:
         }
     }
 
+    World& world() const { return scope.world(); }
     Lambda* mangle();
     void mangle_body(Lambda* olambda, Lambda* nlambda);
     Lambda* mangle_head(Lambda* olambda);
@@ -42,7 +42,6 @@ public:
     ArrayRef<Def> drop;
     ArrayRef<Def> lift;
     Type2Type type2type;
-    World& world;
     DefSet in_scope;
     Lambda* oentry;
     Lambda* nentry;
@@ -80,7 +79,7 @@ Lambda* Mangler::mangle_head(Lambda* olambda) {
 void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
     assert(!olambda->empty());
     
-    if (olambda->to() == world.branch()) {          // fold branch if possible
+    if (olambda->to() == world().branch()) {        // fold branch if possible
         if (auto lit = mangle(olambda->arg(0))->isa<PrimLit>())
             return nlambda->jump(mangle(lit->value().get_bool() ? olambda->arg(1) : olambda->arg(2)), {});
     }
@@ -125,8 +124,6 @@ Def Mangler::mangle(Def odef) {
     } else {
         auto oprimop = odef->as<PrimOp>();
         Array<Def> nops(oprimop->size());
-        Def nprimop;
-
         for (size_t i = 0, e = oprimop->size(); i != e; ++i)
             nops[i] = mangle(oprimop->op(i));
         return old2new[oprimop] = oprimop->rebuild(nops);

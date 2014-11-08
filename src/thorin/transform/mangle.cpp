@@ -121,6 +121,11 @@ Def Mangler::mangle(Def odef) {
         auto nlambda = mangle_head(olambda);
         mangle_body(olambda, nlambda);
         return nlambda;
+    } else if (auto param = odef->isa<Param>()) {
+        assert(in_scope.contains(param->lambda()));
+        mangle(param->lambda());
+        assert(old2new.contains(param));
+        return old2new[param];
     } else {
         auto oprimop = odef->as<PrimOp>();
         Array<Def> nops(oprimop->size());

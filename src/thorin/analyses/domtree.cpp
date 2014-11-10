@@ -54,8 +54,8 @@ void DomTreeBase<forward>::create() {
 outer_loop:;
     }
 
-    for (bool changed = true; changed;) {
-        changed = false;
+    for (bool todo = true; todo;) {
+        todo = false;
 
         for (auto n : cfg().body()) {
             auto dom = _lookup(n);
@@ -69,7 +69,7 @@ outer_loop:;
             assert(new_idom);
             if (dom->idom() != new_idom) {
                 dom->idom_ = new_idom;
-                changed = true;
+                todo = true;
             }
         }
     }

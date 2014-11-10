@@ -43,22 +43,12 @@ void CFG::cfa() {
             param2fv[param].top = false;
     }
 
-    // compute reduced CFG and mark reachable nodes
-    std::vector<Color> colors(size(), Color::White);
-    reduced_visit(colors, nullptr, nodes_.front());
-
-    auto is_reachable = [&] (Lambda* lambda) { return colors[sid(lambda)] == Color::Black; };
-
     // init
     for (auto lambda : scope()) {
-        if (is_reachable(lambda)) {
-            if (auto to = lambda->to()->isa_lambda()) {
-                if (is_reachable(to)) {
-                    for (size_t i = 0, e = lambda->num_args(); i != e; ++i) {
-                        if (auto arg = lambda->arg(i)->isa_lambda())
-                            param2fv[to->param(i)].lambdas.insert(arg);
-                    }
-                }
+        if (auto to = lambda->to()->isa_lambda()) {
+            for (size_t i = 0, e = lambda->num_args(); i != e; ++i) {
+                if (auto arg = lambda->arg(i)->isa_lambda())
+                    param2fv[to->param(i)].lambdas.insert(arg);
             }
         }
     }
@@ -67,18 +57,20 @@ void CFG::cfa() {
     for (bool todo = true; todo;) {
         todo = false;
         for (auto lambda : scope()) {
-            if (is_reachable(lambda)) {
-                if (auto to = lambda->to()->isa_lambda()) {
-                    if (is_reachable(to)) {
-                        for (size_t i = 0, e = lambda->num_args(); i != e; ++i) {
-                            if (auto arg = lambda->arg(i)->isa<Param>())
-                                todo |= param2fv[to->param(i)].join(param2fv[arg]);
-                        }
-                    }
+            if (auto to = lambda->to()->isa_lambda()) {
+                for (size_t i = 0, e = lambda->num_args(); i != e; ++i) {
+                    if (auto arg = lambda->arg(i)->isa<Param>())
+                        todo |= param2fv[to->param(i)].join(param2fv[arg]);
                 }
             }
         }
     }
+
+    // compute reduced CFG and mark reachable nodes
+    std::vector<Color> colors(size(), Color::White);
+    reduced_visit(colors, nullptr, nodes_.front());
+
+    auto is_reachable = [&] (Lambda* lambda) { return colors[sid(lambda)] == Color::Black; };
 
     // link CFG
     for (auto n : nodes_.slice_num_from_end(1)) {       // skip virtual exit

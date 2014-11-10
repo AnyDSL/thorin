@@ -40,7 +40,7 @@ static void lift_enters(const Scope& scope) {
     std::vector<const Enter*> enters;
     auto& cfg = *scope.cfg()->f_cfg();
 
-    for (size_t i = scope.size(); i-- != 1;)
+    for (size_t i = cfg.rpo().size(); i-- != 1;)
         find_enters(cfg.rpo(i)->lambda(), enters);
 
     auto mem_param = scope.entry()->mem_param();

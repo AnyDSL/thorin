@@ -87,14 +87,22 @@ void PartialEvaluator::seek() {
 void PartialEvaluator::eval(Lambda* top, Lambda* cur, Lambda* end) {
     if (end == nullptr)
         std::cout << "no matching end: " << cur->unique_name() << std::endl;
+    else 
+        std::cout << cur->unique_name() << " -> " << end->unique_name() << std::endl;
 
-    while (cur && !done_.contains(cur) && cur != end) {
-        if (cur->empty()) {
-            std::cout << "bailing out: " << cur->unique_name() << std::endl;
+    while (true) {
+        if (cur == nullptr) {
+            std::cout << "cur is nullptr: " << std::endl;
             return;
         }
-
-        //cur->dump_head();
+        if (done_.contains(cur)) {
+            std::cout << "already done: " << cur->unique_name() << std::endl;
+            return;
+        }
+        if (cur->empty()) {
+            std::cout << "empty: " << cur->unique_name() << std::endl;
+            return;
+        }
 
         Lambda* dst = nullptr;
         if (auto run = cur->to()->isa<Run>()) {
@@ -108,11 +116,17 @@ void PartialEvaluator::eval(Lambda* top, Lambda* cur, Lambda* end) {
             dst = cur->to()->isa_lambda();
         }
 
-        done_.insert(cur);
         if (dst == nullptr) {
-            std::cout << "bailing out: " << cur->unique_name() << std::endl;
+            std::cout << "dst is nullptr: " << cur->unique_name() << std::endl;
             return;
         }
+
+        if (dst == end) {
+            std::cout << "end: " << end->unique_name() << std::endl;
+            return;
+        }
+
+        done_.insert(cur);
 
         if (dst->empty()) {
             if (dst == world().branch()) {
@@ -122,7 +136,7 @@ void PartialEvaluator::eval(Lambda* top, Lambda* cur, Lambda* end) {
                     cur = postdomtree.lookup(n)->idom()->lambda();
                     continue;
                 }
-                std::cout << "bailing out: " << cur->unique_name() << std::endl;
+                std::cout << "no postdom found: " << cur->unique_name() << std::endl;
                 return;
             } else
                 cur = continuation(cur);

@@ -1,7 +1,6 @@
 #ifndef THORIN_ANALYSES_CFG_H
 #define THORIN_ANALYSES_CFG_H
 
-#include <iostream>
 #include <vector>
 
 #include "thorin/lambda.h"
@@ -39,7 +38,6 @@ private:
         assert(this->lambda()->intrinsic() != Intrinsic::EndScope);
         this->succs_.push_back(other);
         other->preds_.push_back(this);
-        std::cout << this->lambda()->unique_name() << " -> " << other->lambda()->unique_name() << std::endl;
     }
 
     Lambda* lambda_;

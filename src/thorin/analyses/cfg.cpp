@@ -62,7 +62,6 @@ public:
             lambda2param2lambdas_[sid].resize(lambda->num_params());    // make room for params
         }
 
-        std::cout << "-----" << std::endl;
         run();
     }
 
@@ -116,13 +115,18 @@ void CFA::run() {
     for (bool todo = true; todo;) { // keep iterating to collect param flow infos until things are stable
         todo = false;
         for (auto lambda : scope()) {
-            for (auto to : flow_val(lambda->to()).lambdas()) {
-                for (size_t i = 0, e = lambda->num_args(); i != e; ++i) {
-                    auto arg = lambda->arg(i);
-                    if (arg->order() >= 1)
-                        todo |= flow_val(to->param(i)).join(flow_val(arg));
+            search(lambda->to(), [&] (Def def) {
+                for (auto to : flow_val(def).lambdas()) {
+                    for (size_t i = 0, e = lambda->num_args(); i != e; ++i) {
+                        auto arg = lambda->arg(i);
+                        if (arg->order() >= 1) {
+                            search(arg, [&] (Def def) {
+                                todo |= flow_val(to->param(i)).join(flow_val(def));
+                            });
+                        }
+                    }
                 }
-            }
+            });
         }
     }
 

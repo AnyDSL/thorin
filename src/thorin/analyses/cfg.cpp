@@ -260,6 +260,9 @@ size_t CFGView<forward>::number(const CFGNode* n, size_t i) {
 template<bool forward>
 const DomTreeBase<forward>* CFGView<forward>::domtree() const { return lazy_init(this, domtree_); }
 
+template class CFGView<true>;
+template class CFGView<false>;
+
 //------------------------------------------------------------------------------
 
 }

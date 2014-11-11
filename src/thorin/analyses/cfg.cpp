@@ -1,7 +1,9 @@
+#include "thorin/primop.h"
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/looptree.h"
+#include "thorin/util/queue.h"
 
 namespace thorin {
 
@@ -42,13 +44,17 @@ bool FlowVal::join(const FlowVal& other) {
 
 class CFA {
 public:
-    enum class Color : uint8_t { White, Gray, Black };
+    enum { 
+        Unreachable       = 1 << 0, 
+        ForwardReachable  = 1 << 1,
+        BackwardReachable = 1 << 2,
+    };
 
     CFA(CFG& cfg)
         : cfg_(cfg)
         , lambda2lambdas_(cfg.size())
         , lambda2param2lambdas_(cfg.size(), std::vector<LambdaSet>(0))
-        , colors_(cfg.size(), Color::White)
+        , reachable_(cfg.size(), Unreachable)
     {
         for (size_t sid = 0, e = cfg.size(); sid != e; ++sid) {
             auto lambda = scope()[sid];
@@ -64,11 +70,13 @@ public:
     const CFG& cfg() const { return cfg_; }
     const Scope& scope() const { return cfg_.scope(); }
     void run();
-    bool is_reachable(Lambda* lambda) { return colors_[cfg_.sid(lambda)] == Color::Black; }
+    bool is_forward_reachable(Lambda* lambda) { return reachable_[cfg_.sid(lambda)] & ForwardReachable; }
+    bool is_backward_reachable (Lambda* lambda) { return reachable_[cfg_.sid(lambda)] & BackwardReachable; }
     bool contains(Lambda* lambda) { return scope().contains(lambda); };
     bool contains(const Param* param) { return scope().entry() != param->lambda() && contains(param->lambda()); }
     FlowVal flow_val(Def);
-    void visit(CFGNode* prev, CFGNode* cur);
+    void forward_visit(CFGNode* cur);
+    void backward_visit(CFGNode* cur);
 
 private:
     CFGNode* _lookup(Lambda* lambda) const { return cfg_._lookup(lambda); }
@@ -76,7 +84,7 @@ private:
     CFG& cfg_;
     std::vector<LambdaSet> lambda2lambdas_;
     std::vector<std::vector<LambdaSet>> lambda2param2lambdas_;
-    std::vector<Color> colors_;
+    std::vector<uint8_t> reachable_;
 };
 
 FlowVal CFA::flow_val(Def def) {
@@ -88,6 +96,20 @@ FlowVal CFA::flow_val(Def def) {
             return FlowVal(lambda2param2lambdas_[sid(param->lambda())][param->index()]);
     }
     return FlowVal();
+}
+
+void search(Def def, std::function<void(Def)> f) {
+    std::queue<Def> queue;
+    queue.push(def);
+    while (!queue.empty()) {
+        auto def = pop(queue);
+        if (def->isa<Param>() || def->isa<Lambda>())
+            f(def);
+        else {
+            for (auto op : def->as<PrimOp>()->ops())
+                queue.push(op);
+        }
+    }
 }
 
 void CFA::run() {
@@ -105,57 +127,58 @@ void CFA::run() {
     }
 
     // build CFG
-    visit(nullptr, cfg().nodes_.front());
+    forward_visit(cfg().nodes_.front());
+    F_CFG f_cfg(cfg());
 
     // link with virtual exit
-    for (auto n : cfg().nodes_.slice_num_from_end(1)) {                 // skip virtual exit
-        if (is_reachable(n->lambda()) && n->reduced_succs_.empty()) {   // only consider reachable nodes
+    for (auto n : cfg().nodes_.slice_num_from_end(1)) { // skip virtual exit
+        if (is_forward_reachable(n->lambda()) && n->succs_.empty())
             n->link(cfg().nodes_.back()); 
-            n->reduced_link(cfg().nodes_.back());
-        }
     }
+
+    //// keep linking nodes not reachable from exit
+    //for (bool todo = true; todo;) {
+        //for (size_t i = f_cfg.size(); i-- != 0;) {
+
+        //}
+    //}
 }
 
-void CFA::visit(CFGNode* prev, CFGNode* cur) {
-    auto& col = colors_[sid(cur->lambda())];
+void CFA::forward_visit(CFGNode* cur) {
+    assert(!is_forward_reachable(cur->lambda()));
+    auto& reachable = reachable_[sid(cur->lambda())];
+    auto link_and_visit = [&] (CFGNode* succ) {
+        assert(contains(succ->lambda()));
+        cur->link(succ);
+        if (!is_forward_reachable(succ->lambda()))
+            forward_visit(succ);
+    };
 
     auto visit_args = [&] {
         for (auto arg : cur->lambda()->args()) {
-            if (auto succ = arg->isa_lambda()) {
-                if (contains(succ))
-                    visit(cur, _lookup(succ));
-            }
+            search(arg, [&] (Def def) {
+                for (auto succ : flow_val(def).lambdas())
+                    link_and_visit(_lookup(succ));
+            });
         }
     };
 
-    switch (col) {
-        case Color::White:              // white: not yet visited
-            col = Color::Gray;          // mark gray: is on recursion stack
-            if (auto to_lambda = cur->lambda()->to()->isa_lambda()) {
-                if (contains(to_lambda))
-                    visit(cur, _lookup(to_lambda));
-                else
-                    visit_args();
-            } else if (auto param = cur->lambda()->to()->isa<Param>()) {
-                if (contains(param)) {
-                    for (auto succ : flow_val(param).lambdas())
-                        visit(cur, _lookup(succ));
-                } else
-                    visit_args();
-            }
-            col = Color::Black;         // mark black: done
-            break;                      // link
-        case Color::Gray:               // back edge:
-            prev->link(cur);            // only link full CFG
-            return;
-        case Color::Black:              // cross or forward edge: 
-            break;                      // link
-    }
-
-    if (prev) {
-        prev->link(cur);
-        prev->reduced_link(cur);
-    }
+    reachable = ForwardReachable;
+    search(cur->lambda()->to(), [&] (Def def) {
+        if (auto to_lambda = def->isa_lambda()) {
+            if (contains(to_lambda))
+                link_and_visit(_lookup(to_lambda));
+            else
+                visit_args();
+        } else if (auto param = def->isa<Param>()) {
+            if (contains(param)) {
+                for (auto succ : flow_val(param).lambdas())
+                    link_and_visit(_lookup(succ));
+            } else
+                visit_args();
+        }
+    });
+    reachable = ForwardReachable;
 }
 
 //------------------------------------------------------------------------------

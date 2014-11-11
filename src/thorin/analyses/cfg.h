@@ -41,17 +41,10 @@ private:
         other->preds_.push_back(this);
         std::cout << this->lambda()->unique_name() << " -> " << other->lambda()->unique_name() << std::endl;
     }
-    void reduced_link(CFGNode* other) {
-        assert(this->lambda()->intrinsic() != Intrinsic::EndScope);
-        this->reduced_succs_.push_back(other);
-        other->reduced_preds_.push_back(this);
-    }
 
     Lambda* lambda_;
     std::vector<CFGNode*> preds_;
     std::vector<CFGNode*> succs_;
-    std::vector<CFGNode*> reduced_preds_;
-    std::vector<CFGNode*> reduced_succs_;
 
     friend class CFA;
     friend class CFG;
@@ -106,12 +99,6 @@ public:
     size_t size() const { return rpo_.size(); }
     ArrayRef<const CFGNode*> preds(const CFGNode* n) const { return forward ? cfg().preds(n->lambda()) : cfg().succs(n->lambda()); }
     ArrayRef<const CFGNode*> succs(const CFGNode* n) const { return forward ? cfg().succs(n->lambda()) : cfg().preds(n->lambda()); }
-    ArrayRef<const CFGNode*> reduced_preds(const CFGNode* n) const { 
-        return forward ? cfg().reduced_preds(n->lambda()) : cfg().reduced_succs(n->lambda()); 
-    }
-    ArrayRef<const CFGNode*> reduced_succs(const CFGNode* n) const { 
-        return forward ? cfg().reduced_succs(n->lambda()) : cfg().reduced_preds(n->lambda()); 
-    }
     size_t num_preds(const CFGNode* n) const { return preds(n).size(); }
     size_t num_succs(const CFGNode* n) const { return succs(n).size(); }
     const CFGNode* entry() const { return forward ? cfg().entry() : cfg().exit();  }

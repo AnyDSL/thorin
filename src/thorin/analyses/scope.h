@@ -30,6 +30,7 @@ public:
     ArrayRef<Lambda*> lambdas() const { return lambdas_; }
     Lambda* operator [] (size_t i) const { return lambdas_[i]; }
     Lambda* entry() const { return lambdas().front(); }
+    Lambda* exit() const { return lambdas().back(); }
     /// Like \p lambdas() but without \p entry()
     ArrayRef<Lambda*> body() const { return lambdas().slice_from_begin(1); }
     const DefSet& in_scope() const { return in_scope_; }

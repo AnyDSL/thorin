@@ -1,6 +1,7 @@
 #ifndef THORIN_ANALYSES_CFG_H
 #define THORIN_ANALYSES_CFG_H
 
+#include <iostream>
 #include <vector>
 
 #include "thorin/lambda.h"
@@ -9,6 +10,7 @@
 
 namespace thorin {
 
+class CFA;
 class Lambda;
 class Scope;
 
@@ -33,6 +35,17 @@ public:
 private:
     ArrayRef<const CFGNode*> preds() const { return ArrayRef<const CFGNode*>(preds_.data(), preds_.size()); }
     ArrayRef<const CFGNode*> succs() const { return ArrayRef<const CFGNode*>(succs_.data(), succs_.size()); }
+    void link(CFGNode* other) {
+        assert(this->lambda()->intrinsic() != Intrinsic::EndScope);
+        this->succs_.push_back(other);
+        other->preds_.push_back(this);
+        std::cout << this->lambda()->unique_name() << " -> " << other->lambda()->unique_name() << std::endl;
+    }
+    void reduced_link(CFGNode* other) {
+        assert(this->lambda()->intrinsic() != Intrinsic::EndScope);
+        this->reduced_succs_.push_back(other);
+        other->reduced_preds_.push_back(this);
+    }
 
     Lambda* lambda_;
     std::vector<CFGNode*> preds_;
@@ -40,13 +53,12 @@ private:
     std::vector<CFGNode*> reduced_preds_;
     std::vector<CFGNode*> reduced_succs_;
 
+    friend class CFA;
     friend class CFG;
 };
 
 class CFG {
 public:
-    enum class Color : uint8_t { White, Gray, Black };
-
     CFG(const CFG&) = delete;
     CFG& operator= (CFG) = delete;
 
@@ -73,23 +85,13 @@ public:
 private:
     CFGNode* _lookup(Lambda* lambda) const { return nodes_[sid(lambda)]; }
     void cfa();
-    void reduced_visit(std::vector<Color>& colors, CFGNode* prev, CFGNode* cur);
-    void link(CFGNode* src, CFGNode* dst) {
-        assert(src->lambda()->intrinsic() != Intrinsic::EndScope);
-        src->succs_.push_back(dst);
-        dst->preds_.push_back(src);
-    }
-    void reduced_link(CFGNode* src, CFGNode* dst) {
-        assert(src->lambda()->intrinsic() != Intrinsic::EndScope);
-        src->reduced_succs_.push_back(dst);
-        dst->reduced_preds_.push_back(src);
-    }
-
     const Scope& scope_;
     Array<CFGNode*> nodes_;     // sorted in sid
     mutable AutoPtr<const F_CFG> f_cfg_;
     mutable AutoPtr<const B_CFG> b_cfg_;
     mutable AutoPtr<const LoopTree> looptree_;
+
+    friend class CFA;
 };
 
 template<bool forward = true>

@@ -7,6 +7,162 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
+class FlowVal {
+public:
+    explicit FlowVal()
+        : lambdas_(nullptr)
+    {}
+    explicit FlowVal(LambdaSet& lambdas)
+        : lambdas_(&lambdas)
+    {}
+
+    const LambdaSet& lambdas() const { return lambdas_ ? *lambdas_ : none_; }
+    bool is_valid() const { return lambdas_ != nullptr; }
+    bool join(const FlowVal& other);
+
+private:
+    static LambdaSet none_;
+    LambdaSet* lambdas_;
+
+    friend class CFA;
+};
+
+LambdaSet FlowVal::none_;
+
+bool FlowVal::join(const FlowVal& other) {
+    bool todo = false;
+    if (this->is_valid() && other.is_valid() && this->lambdas_ != other.lambdas_) {
+        for (auto lambda : other.lambdas())
+            todo |= lambdas_->insert(lambda).second;
+    }
+    return todo;
+}
+
+//------------------------------------------------------------------------------
+
+class CFA {
+public:
+    enum class Color : uint8_t { White, Gray, Black };
+
+    CFA(CFG& cfg)
+        : cfg_(cfg)
+        , lambda2lambdas_(cfg.size())
+        , lambda2param2lambdas_(cfg.size(), std::vector<LambdaSet>(0))
+        , colors_(cfg.size(), Color::White)
+    {
+        for (size_t sid = 0, e = cfg.size(); sid != e; ++sid) {
+            auto lambda = scope()[sid];
+            lambda2lambdas_[sid].insert(lambda);                        // only add current lamba to set and that's it
+            lambda2param2lambdas_[sid].resize(lambda->num_params());    // make room for params
+        }
+
+        std::cout << "-----" << std::endl;
+        run();
+    }
+
+    size_t sid(Lambda* lambda) const { return cfg().sid(lambda); }
+    const CFG& cfg() const { return cfg_; }
+    const Scope& scope() const { return cfg_.scope(); }
+    FlowVal exit() const { return exit_; }
+    void run();
+    bool is_reachable(Lambda* lambda) { return colors_[cfg_.sid(lambda)] == Color::Black; }
+    bool contains(Lambda* lambda) { return scope().contains(lambda); };
+    bool contains(const Param* param) { return scope().entry() != param->lambda() && contains(param->lambda()); }
+    FlowVal flow_val(Def);
+    void visit(CFGNode* prev, CFGNode* cur);
+
+private:
+    CFGNode* _lookup(Lambda* lambda) const { return cfg_._lookup(lambda); }
+
+    CFG& cfg_;
+    std::vector<LambdaSet> lambda2lambdas_;
+    std::vector<std::vector<LambdaSet>> lambda2param2lambdas_;
+    std::vector<Color> colors_;
+    FlowVal exit_;
+    FlowVal none_;
+};
+
+FlowVal CFA::flow_val(Def def) {
+    if (auto lambda = def->isa_lambda()) {
+        if (contains(lambda))
+            return FlowVal(lambda2lambdas_[sid(lambda)]);
+    } else if (auto param = def->isa<Param>()) {
+        if (contains(param))
+            return FlowVal(lambda2param2lambdas_[sid(param->lambda())][param->index()]);
+    }
+    return FlowVal();
+}
+
+void CFA::run() {
+    for (bool todo = true; todo;) { // keep iterating to collect param flow infos until things are stable
+        todo = false;
+        for (auto lambda : scope()) {
+            for (auto to : flow_val(lambda->to()).lambdas()) {
+                for (size_t i = 0, e = lambda->num_args(); i != e; ++i) {
+                    auto arg = lambda->arg(i);
+                    if (arg->order() >= 1)
+                        todo |= flow_val(to->param(i)).join(flow_val(arg));
+                }
+            }
+        }
+    }
+
+    // build CFG
+    visit(nullptr, cfg().nodes_.front());
+
+    // link with virtual exit
+    for (auto n : cfg().nodes_.slice_num_from_end(1)) {                 // skip virtual exit
+        if (is_reachable(n->lambda()) && n->reduced_succs_.empty()) {   // only consider reachable nodes
+            n->link(cfg().nodes_.back()); 
+            n->reduced_link(cfg().nodes_.back());
+        }
+    }
+}
+
+void CFA::visit(CFGNode* prev, CFGNode* cur) {
+    auto& col = colors_[sid(cur->lambda())];
+
+    auto visit_args = [&] {
+        for (auto arg : cur->lambda()->args()) {
+            if (auto succ = arg->isa_lambda()) {
+                if (contains(succ))
+                    visit(cur, _lookup(succ));
+            }
+        }
+    };
+
+    switch (col) {
+        case Color::White:              // white: not yet visited
+            col = Color::Gray;          // mark gray: is on recursion stack
+            if (auto to_lambda = cur->lambda()->to()->isa_lambda()) {
+                if (contains(to_lambda))
+                    visit(cur, _lookup(to_lambda));
+                else
+                    visit_args();
+            } else if (auto param = cur->lambda()->to()->isa<Param>()) {
+                if (contains(param)) {
+                    for (auto succ : flow_val(param).lambdas())
+                        visit(cur, _lookup(succ));
+                } else
+                    visit_args();
+            }
+            col = Color::Black;         // mark black: done
+            break;                      // link
+        case Color::Gray:               // back edge:
+            prev->link(cur);            // only link full CFG
+            return;
+        case Color::Black:              // cross or forward edge: 
+            break;                      // link
+    }
+
+    if (prev) {
+        prev->link(cur);
+        prev->reduced_link(cur);
+    }
+}
+
+//------------------------------------------------------------------------------
+
 CFG::CFG(const Scope& scope) 
     : scope_(scope)
     , nodes_(scope.size())
@@ -14,7 +170,7 @@ CFG::CFG(const Scope& scope)
     for (size_t i = 0, e = size(); i != e; ++i)
         nodes_[i] = new CFGNode(scope[i]);
 
-    cfa();
+    CFA cfa(*this);
 }
 
 size_t CFG::sid(Lambda* lambda) const { 
@@ -23,100 +179,7 @@ size_t CFG::sid(Lambda* lambda) const {
     return size_t(-1);
 }
 
-struct FlowVal {
-    LambdaSet lambdas;
-    bool top = true;
-    bool join(const FlowVal& other) {
-        top |= other.top;
-        bool result = false;
-        for (auto l : other.lambdas)
-            result |= this->lambdas.insert(l).second;
-        return result;
-    }
-};
-
 void CFG::cfa() {
-    DefMap<FlowVal> param2fv;
-
-    for (auto lambda : scope().body()) {
-        for (auto param : lambda->params())
-            param2fv[param].top = false;
-    }
-
-    // init
-    for (auto lambda : scope()) {
-        if (auto to = lambda->to()->isa_lambda()) {
-            for (size_t i = 0, e = lambda->num_args(); i != e; ++i) {
-                if (auto arg = lambda->arg(i)->isa_lambda())
-                    param2fv[to->param(i)].lambdas.insert(arg);
-            }
-        }
-    }
-
-    // keep iterating to collect param flow infos until things are stable
-    for (bool todo = true; todo;) {
-        todo = false;
-        for (auto lambda : scope()) {
-            if (auto to = lambda->to()->isa_lambda()) {
-                for (size_t i = 0, e = lambda->num_args(); i != e; ++i) {
-                    if (auto arg = lambda->arg(i)->isa<Param>())
-                        todo |= param2fv[to->param(i)].join(param2fv[arg]);
-                }
-            }
-        }
-    }
-
-    // compute reduced CFG and mark reachable nodes
-    std::vector<Color> colors(size(), Color::White);
-    reduced_visit(colors, nullptr, nodes_.front());
-
-    auto is_reachable = [&] (Lambda* lambda) { return colors[sid(lambda)] == Color::Black; };
-
-    // link CFG
-    for (auto n : nodes_.slice_num_from_end(1)) {       // skip virtual exit
-        if (is_reachable(n->lambda())) {
-            for (auto succ : n->lambda()->succs()) {    // for each succ in scope (must be rechable)
-                if (scope().contains(succ)) {
-                    assert(is_reachable(succ));
-                    link(n, nodes_[sid(succ)]);
-                }
-            }
-            if (auto param = n->lambda()->to()->isa<Param>()) {
-                for (auto lambda : param2fv[param].lambdas) {
-                    if (scope().contains(lambda) && is_reachable(lambda)) {
-                        link(n, _lookup(lambda));
-                        reduced_link(n, _lookup(lambda));
-                    }
-                }
-            }
-        }
-    }
-
-    // link with virtual exit
-    for (auto n : nodes_.slice_num_from_end(1)) {                       // skip virtual exit
-        if (is_reachable(n->lambda()) && n->reduced_succs_.empty()) {   // only consider reachable nodes
-            link(n, nodes_.back()); 
-            reduced_link(n, nodes_.back());
-        }
-    }
-}
-
-void CFG::reduced_visit(std::vector<Color>& colors, CFGNode* prev, CFGNode* cur) {
-    auto& col = colors[sid(cur)];
-    switch (col) {
-        case Color::White:              // white: not yet visited
-            col = Color::Gray;          // mark gray: is on recursion stack
-            for (auto succ : cur->lambda()->succs()) {
-                if (scope().contains(succ))
-                    reduced_visit(colors, cur, _lookup(succ));
-            }
-            col = Color::Black;         // mark black: done
-            break;                      // link
-        case Color::Gray: return;       // back edge: do nothing
-        case Color::Black: break;       // cross or forward edge: link
-    }
-    if (prev)
-        reduced_link(prev, cur);
 }
 
 const F_CFG* CFG::f_cfg() const { return lazy_init(this, f_cfg_); }

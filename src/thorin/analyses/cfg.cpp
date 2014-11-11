@@ -63,7 +63,6 @@ public:
     size_t sid(Lambda* lambda) const { return cfg().sid(lambda); }
     const CFG& cfg() const { return cfg_; }
     const Scope& scope() const { return cfg_.scope(); }
-    FlowVal exit() const { return exit_; }
     void run();
     bool is_reachable(Lambda* lambda) { return colors_[cfg_.sid(lambda)] == Color::Black; }
     bool contains(Lambda* lambda) { return scope().contains(lambda); };
@@ -78,8 +77,6 @@ private:
     std::vector<LambdaSet> lambda2lambdas_;
     std::vector<std::vector<LambdaSet>> lambda2param2lambdas_;
     std::vector<Color> colors_;
-    FlowVal exit_;
-    FlowVal none_;
 };
 
 FlowVal CFA::flow_val(Def def) {

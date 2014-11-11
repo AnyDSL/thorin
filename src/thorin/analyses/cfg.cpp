@@ -99,15 +99,24 @@ FlowVal CFA::flow_val(Def def) {
 }
 
 void search(Def def, std::function<void(Def)> f) {
+    DefSet done;
     std::queue<Def> queue;
-    queue.push(def);
+
+    auto enqueue = [&] (Def def) {
+        if (!done.contains(def)) {
+            queue.push(def);
+            done.insert(def);
+        }
+    };
+
+    enqueue(def);
     while (!queue.empty()) {
         auto def = pop(queue);
         if (def->isa<Param>() || def->isa<Lambda>())
             f(def);
         else {
             for (auto op : def->as<PrimOp>()->ops())
-                queue.push(op);
+                enqueue(op);
         }
     }
 }

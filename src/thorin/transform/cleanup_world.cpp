@@ -1,4 +1,7 @@
 #include "thorin/world.h"
+#include "thorin/analyses/cfg.h"
+#include "thorin/analyses/scope.h"
+#include "thorin/analyses/domtree.h"
 #include "thorin/analyses/verify.h"
 #include "thorin/util/queue.h"
 
@@ -33,18 +36,53 @@ private:
 
 uint32_t Cleaner::counter_ = 1;
 
-void Cleaner::merge_lambdas() {
-    for (auto src : world().lambdas()) {
-        if (auto dst = src->to()->isa_lambda()) {
-            if (src != dst && !dst->empty() && !world().is_external(dst) && dst->num_uses() == 1) {
-                for (size_t i = 0, e = src->num_args(); i != e; ++i)
-                    dst->param(i)->replace(src->arg(i));
-
-                src->jump(dst->to(), dst->args());
-                dst->destroy_body();
-            }
-        }
+class Merger {
+public:
+    Merger(const Scope& scope)
+        : scope(scope)
+        , cfg(*scope.cfg()->f_cfg())
+        , domtree(*cfg.domtree())
+    {
+        merge(domtree.lookup(cfg.entry()));
     }
+
+    void merge(const DomNode* n);
+    const DomNode* dom_succ(const DomNode* n);
+    World& world() { return scope.world(); }
+
+    const Scope& scope;
+    const F_CFG& cfg;
+    const DomTree& domtree;
+};
+
+const DomNode* Merger::dom_succ(const DomNode* n) {
+    const auto& succs = cfg.succs(n->cfg_node());
+    const auto& children = n->children();
+    return succs.size() == 1 && children.size() == 1
+        && succs.front() == children.front()->cfg_node()
+        && succs.front()->lambda()->num_uses() == 1
+        && succs.front()->lambda() == n->lambda()->to()
+        ? children.front() : nullptr;
+}
+
+void Merger::merge(const DomNode* n) {
+    const DomNode* cur = n;
+    for (const DomNode* next = dom_succ(cur); next != nullptr; cur = next, next = dom_succ(next)) {
+        assert(cur->lambda()->num_args() == next->lambda()->num_params());
+        for (size_t i = 0, e = cur->lambda()->num_args(); i != e; ++i)
+            next->lambda()->param(i)->replace(cur->lambda()->arg(i));
+        cur->lambda()->destroy_body();
+    }
+
+    if (cur != n)
+        n->lambda()->jump(cur->lambda()->to(), cur->lambda()->args());
+
+    for (auto child : cur->children())
+        merge(child);
+}
+
+void Cleaner::merge_lambdas() {
+    Scope::for_each(world(), [] (const Scope& scope) { Merger merger(scope); });
 }
 
 void Cleaner::eliminate_params() {

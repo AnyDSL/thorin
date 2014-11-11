@@ -13,7 +13,6 @@ public:
         , drop(drop)
         , lift(lift)
         , type2type(type2type)
-        , world(scope.world())
         , in_scope(scope.in_scope()) // copy constructor
         , oentry(scope.entry())
         , nentry(oentry->world().lambda(oentry->name))
@@ -32,21 +31,17 @@ public:
         }
     }
 
+    World& world() const { return scope.world(); }
     Lambda* mangle();
     void mangle_body(Lambda* olambda, Lambda* nlambda);
     Lambda* mangle_head(Lambda* olambda);
     Def mangle(Def odef);
-    Def lookup(Def def) {
-        assert(old2new.contains(def));
-        return old2new[def];
-    }
 
     const Scope& scope;
     Def2Def old2new;
     ArrayRef<Def> drop;
     ArrayRef<Def> lift;
     Type2Type type2type;
-    World& world;
     DefSet in_scope;
     Lambda* oentry;
     Lambda* nentry;
@@ -66,14 +61,6 @@ Lambda* Mangler::mangle() {
         old2new[def] = nentry->append_param(def->type()->specialize(type2type));
 
     mangle_body(oentry, nentry);
-
-    for (auto cur : scope.rpo().slice_from_begin(1)) {
-        if (old2new.contains(cur))
-            mangle_body(cur, lookup(cur)->as_lambda());
-        else
-            old2new[cur] = cur;
-    }
-
     return nentry;
 }
 
@@ -92,7 +79,7 @@ Lambda* Mangler::mangle_head(Lambda* olambda) {
 void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
     assert(!olambda->empty());
     
-    if (olambda->to() == world.branch()) {          // fold branch if possible
+    if (olambda->to() == world().branch()) {        // fold branch if possible
         if (auto lit = mangle(olambda->arg(0))->isa<PrimLit>())
             return nlambda->jump(mangle(lit->value().get_bool() ? olambda->arg(1) : olambda->arg(2)), {});
     }
@@ -123,27 +110,29 @@ void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
 }
 
 Def Mangler::mangle(Def odef) {
-    if (!in_scope.contains(odef) && !old2new.contains(odef))
+    auto i = old2new.find(odef);
+    if (i != old2new.end())
+        return i->second;
+
+    if (!in_scope.contains(odef))
         return odef;
-    if (old2new.contains(odef))
-        return lookup(odef);
 
     if (auto olambda = odef->isa_lambda()) {
-        assert(scope.contains(olambda));
-        return mangle_head(olambda);
+        auto nlambda = mangle_head(olambda);
+        mangle_body(olambda, nlambda);
+        return nlambda;
     } else if (auto param = odef->isa<Param>()) {
-        assert(scope.contains(param->lambda()));
-        return old2new[odef] = odef;
+        assert(in_scope.contains(param->lambda()));
+        mangle(param->lambda());
+        assert(old2new.contains(param));
+        return old2new[param];
+    } else {
+        auto oprimop = odef->as<PrimOp>();
+        Array<Def> nops(oprimop->size());
+        for (size_t i = 0, e = oprimop->size(); i != e; ++i)
+            nops[i] = mangle(oprimop->op(i));
+        return old2new[oprimop] = oprimop->rebuild(nops);
     }
-
-    auto oprimop = odef->as<PrimOp>();
-    Array<Def> nops(oprimop->size());
-    Def nprimop;
-
-    for (size_t i = 0, e = oprimop->size(); i != e; ++i)
-        nops[i] = mangle(oprimop->op(i));
-    nprimop = oprimop->rebuild(nops);
-    return old2new[oprimop] = nprimop;
 }
 
 //------------------------------------------------------------------------------

@@ -8,6 +8,8 @@
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/schedule.h"
 
+#if 0
+
 namespace thorin {
 
 class Vectorizer {
@@ -83,7 +85,9 @@ Lambda* Vectorizer::vectorize() {
         }
     }
 
-    auto exit = scope.exit();
+    // TODO
+    //auto exit = scope.exit();
+    auto exit = scope.rpo().back();
     Array<Def> vops(exit->size());
     for (size_t i = 0, e = exit->size(); i != e; ++i)
         vops[i] = vectorize(exit->op(i), length);
@@ -185,3 +189,4 @@ Def Vectorizer::vectorize(Def def, size_t length) {
 Lambda* vectorize(Scope& scope, size_t length) { return Vectorizer(scope, length).vectorize(); }
 
 }
+#endif

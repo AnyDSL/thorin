@@ -7,13 +7,17 @@
 
 namespace thorin {
 
+class CFGNode;
+template<bool> class CFGView;
+
 class DomNode {
 public:
-    explicit DomNode(Lambda* lambda)
-        : lambda_(lambda)
+    explicit DomNode(const CFGNode* cfg_node)
+        : cfg_node_(cfg_node)
     {}
 
-    Lambda* lambda() const { return lambda_; }
+    const CFGNode* cfg_node() const { return cfg_node_; }
+    Lambda* lambda() const;
     const DomNode* idom() const { return idom_; }
     const std::vector<const DomNode*>& children() const { return children_; }
     size_t num_children() const { return children_.size(); }
@@ -23,7 +27,7 @@ public:
     void dump() const;
 
 private:
-    Lambda* lambda_;
+    const CFGNode* cfg_node_;
     DomNode* idom_ = nullptr;
     AutoVector<const DomNode*> children_;
     int depth_;
@@ -35,32 +39,31 @@ private:
 template<bool forward>
 class DomTreeBase {
 public:
-    explicit DomTreeBase(const Scope& scope);
+    DomTreeBase(const DomTreeBase&) = delete;
+    DomTreeBase& operator= (DomTreeBase) = delete;
 
-    const ScopeView<forward>& scope_view() const { return scope_view_; }
-    size_t rpo_id(Lambda* lambda) const { return scope_view().rpo_id(lambda); };
-    size_t rpo_id(DomNode* n) const { return rpo_id(n->lambda()); }
+    explicit DomTreeBase(const CFGView<forward>&);
+
+    const CFGView<forward>& cfg() const { return cfg_; }
+    size_t size() const { return nodes_.size(); }
+    size_t rpo_id(const DomNode* n) const { return cfg().rpo_id(n->cfg_node()); }
     const DomNode* root() const { return root_; }
-    int depth(Lambda* lambda) const { return lookup(lambda)->depth(); }
     /// Returns the least common ancestor of \p i and \p j.
-    Lambda* lca(Lambda* i, Lambda* j) const { return lca(lookup(i), lookup(j))->lambda(); }
     const DomNode* lca(const DomNode* i, const DomNode* j) const {
-        return const_cast<DomTreeBase*>(this)->lca(const_cast<DomNode*>(i), const_cast<DomNode*>(j));
+        return const_cast<DomTreeBase*>(this)->_lca(const_cast<DomNode*>(i), const_cast<DomNode*>(j));
     }
-    Lambda* idom(Lambda* lambda) const { return lookup(lambda)->idom()->lambda(); }
-    const DomNode* lookup(Lambda* lambda) const { return lookup(rpo_id(lambda)); }
-    const DomNode* lookup(size_t rpo_id) const { return domnodes_[rpo_id]; }
+    const DomNode* lookup(const CFGNode* n) const { return nodes_[cfg().rpo_id(n)]; }
     void dump() const { root()->dump(); }
 
 private:
-    DomNode*& lookup(Lambda* lambda) { return domnodes_[rpo_id(lambda)]; }
     void create();
     size_t postprocess(DomNode* n, int depth);
-    DomNode* lca(DomNode*, DomNode*);
+    DomNode* _lca(DomNode*, DomNode*);
+    DomNode*& _lookup(const CFGNode* n) { return nodes_[cfg().rpo_id(n)]; }
 
-    ScopeView<forward> scope_view_;
+    const CFGView<forward>& cfg_;
     AutoPtr<DomNode> root_;
-    std::vector<DomNode*> domnodes_;
+    std::vector<DomNode*> nodes_;
 };
 
 }

@@ -33,6 +33,10 @@ std::vector<Param::Peek> Param::peek() const {
 
 //------------------------------------------------------------------------------
 
+Def Lambda::to() const { 
+    return empty() ? world().bottom(world().fn_type()) : op(0);
+}
+
 Lambda* Lambda::stub(Type2Type& type2type, const std::string& name) const {
     auto result = world().lambda(type()->specialize(type2type).as<FnType>(), cc(), intrinsic(), name);
     for (size_t i = 0, e = num_params(); i != e; ++i)
@@ -171,7 +175,6 @@ void Lambda::make_internal() { return world().remove_external(this); }
 bool Lambda::is_external() const { return world().is_external(this); }
 bool Lambda::is_intrinsic() const { return intrinsic_ != Intrinsic::None; }
 bool Lambda::is_accelerator() const { return Intrinsic::_Accelerator_Begin <= intrinsic_ && intrinsic_ < Intrinsic::_Accelerator_End; }
-bool Lambda::is_controlflow() const { return Intrinsic::_CF_Begin <= intrinsic_ && intrinsic_ < Intrinsic::_CF_End; }
 void Lambda::set_intrinsic() {
     if      (name == "cuda")      intrinsic_ = Intrinsic::CUDA;
     else if (name == "nvvm")      intrinsic_ = Intrinsic::NVVM;
@@ -276,7 +279,7 @@ std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Def> args, Type ret_type) 
 
 std::list<Lambda::ScopeInfo>::iterator Lambda::list_iter(const Scope* scope) {
     return std::find_if(scopes_.begin(), scopes_.end(), [&] (const ScopeInfo& info) {
-        return info.scope->sid() == scope->sid();
+        return info.scope->id() == scope->id();
     });
 }
 

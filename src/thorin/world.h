@@ -222,6 +222,7 @@ public:
     Lambda* basicblock(const std::string& name = "");
     Lambda* meta_lambda();
     Lambda* branch() const { return branch_; }
+    Lambda* end_scope() const { return end_scope_; }
 
     /// Performs dead code, unreachable code and unused type elimination.
     void cleanup();
@@ -275,6 +276,7 @@ private:
 #endif
     size_t gid_;
     Lambda* branch_;
+    Lambda* end_scope_;
 
     union {
         struct {

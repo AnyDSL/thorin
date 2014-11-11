@@ -12,7 +12,6 @@
 #include "thorin/transform/lower2cff.h"
 #include "thorin/transform/mem2reg.h"
 #include "thorin/transform/memmap_builtins.h"
-#include "thorin/transform/merge_lambdas.h"
 #include "thorin/transform/partial_evaluation.h"
 #include "thorin/transform/dead_load_opt.h"
 #include "thorin/util/array.h"
@@ -47,6 +46,7 @@ World::World(std::string name)
 #include "thorin/tables/primtypetable.h"
 {
     branch_ = lambda(fn_type({type_bool(), fn_type(), fn_type()}), CC::C, Intrinsic::Branch, "br");
+    end_scope_ = lambda(fn_type(), CC::C, Intrinsic::EndScope, "end_scope");
     auto v = type_var();
     auto f = fn_type({type_bool(), fn_type(), fn_type(), v});
     f->bind(v);
@@ -870,7 +870,6 @@ void World::cleanup() { cleanup_world(*this); }
 void World::opt() {
     cleanup();
     partial_evaluation(*this);
-    merge_lambdas(*this);
     cleanup();
     lower2cff(*this);
     clone_bodies(*this);
@@ -878,7 +877,6 @@ void World::opt() {
     memmap_builtins(*this);
     lift_builtins(*this);
     inliner(*this);
-    merge_lambdas(*this);
     lift_enters(*this);
     dead_load_opt(*this);
     cleanup();

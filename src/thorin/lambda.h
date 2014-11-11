@@ -59,10 +59,7 @@ private:
 
 enum class Intrinsic : uint8_t {
     None,                       ///< Not an intrinsic.
-    _CF_Begin,
-    Branch = _CF_Begin,         ///< branch(cond, T, F).
-    _CF_End,
-    _Accelerator_Begin = _CF_End,
+    _Accelerator_Begin = None,
     CUDA = _Accelerator_Begin,  ///< Internal CUDA-Backend.
     NVVM,                       ///< Internal NNVM-Backend.
     SPIR,                       ///< Internal SPIR-Backend.
@@ -73,6 +70,8 @@ enum class Intrinsic : uint8_t {
     Mmap = _Accelerator_End,    ///< Intrinsic memory-mapping function.
     Munmap,                     ///< Intrinsic memory-unmapping function.
     Atomic,                     ///< Intrinsic atomic function
+    Branch,                     ///< branch(cond, T, F).
+    EndScope,                   ///< Dummy function which marks the end of a \p Scope.
 };
 
 enum class CC : uint8_t {
@@ -113,7 +112,7 @@ public:
     Array<Def> params_as_defs() const;
     const Param* param(size_t i) const { assert(i < num_params()); return params_[i]; }
     const Param* mem_param() const;
-    Def to() const { return op(0); };
+    Def to() const;
     ArrayRef<Def> args() const { return empty() ? ArrayRef<Def>(0, 0) : ops().slice_from_begin(1); }
     Def arg(size_t i) const { return args()[i]; }
     FnType type() const { return DefNode::type().as<FnType>(); }
@@ -140,7 +139,6 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     bool is_returning() const;
     bool is_intrinsic() const;
     bool is_accelerator() const;
-    bool is_controlflow() const;
     bool visit_capturing_intrinsics(std::function<bool(Lambda*)> func) const;
     bool is_passed_to_accelerator() const {
         return visit_capturing_intrinsics([&] (Lambda* lambda) { return lambda->is_accelerator(); });
@@ -205,13 +203,11 @@ private:
     struct ScopeInfo {
         ScopeInfo(const Scope* scope)
             : scope(scope)
-            , rpo_id(-1)
-            , backwards_rpo_id(-1)
+            , sid(-1)
         {}
 
         const Scope* scope;
-        size_t rpo_id;
-        size_t backwards_rpo_id;
+        size_t sid;
     };
 
     std::list<ScopeInfo>::iterator list_iter(const Scope*);
@@ -242,6 +238,7 @@ private:
 
     friend class Cleaner;
     friend class Scope;
+    friend class CFG;
     friend class World;
 };
 

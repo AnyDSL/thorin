@@ -5,6 +5,7 @@
 #include <queue>
 
 #include "thorin/lambda.h"
+#include "thorin/analyses/cfg.h"
 
 namespace thorin {
 
@@ -13,38 +14,39 @@ namespace thorin {
 void DomNode::dump() const {
     for (int i = 0, e = depth(); i != e; ++i)
         std::cout << '\t';
-    std::cout << lambda()->unique_name() << std::endl;
+    std::cout << cfg_node()->lambda()->unique_name() << std::endl;
     for (auto child : children())
         child->dump();
 }
 
+Lambda* DomNode::lambda() const { return cfg_node()->lambda(); }
+
 //------------------------------------------------------------------------------
 
 template<bool forward>
-DomTreeBase<forward>::DomTreeBase(const Scope& scope)
-    : scope_view_(scope)
-    , domnodes_(scope.size())
+DomTreeBase<forward>::DomTreeBase(const CFGView<forward>& cfg)
+    : cfg_(cfg)
+    , nodes_(cfg.size())
 {
     create();
 }
 
 template<bool forward>
 void DomTreeBase<forward>::create() {
-    for (auto lambda : scope_view())
-        lookup(lambda) = new DomNode(lambda);
+    for (auto n : cfg())
+        _lookup(n) = new DomNode(n);
 
     // map entry's initial idom to itself
-    root_ = lookup(scope_view().entry());
+    root_ = _lookup(cfg().entry());
     root_->idom_ = root_;
 
     // all others' idom are set to their first found dominating pred
-    for (auto lambda : scope_view().body()) {
-        for (auto pred : scope_view().preds(lambda)) {
-            assert(scope_view().contains(pred));
-            if (scope_view().rpo_id(pred) < scope_view().rpo_id(lambda)) {
-                auto n = lookup(pred);
-                assert(n);
-                lookup(lambda)->idom_ = n;
+    for (auto n : cfg().body()) {
+        for (auto pred : cfg().preds(n)) {
+            if (cfg().rpo_id(pred) < cfg().rpo_id(n)) {
+                auto dom = _lookup(pred);
+                assert(dom);
+                _lookup(n)->idom_ = dom;
                 goto outer_loop;
             }
         }
@@ -52,33 +54,33 @@ void DomTreeBase<forward>::create() {
 outer_loop:;
     }
 
-    for (bool changed = true; changed;) {
-        changed = false;
+    for (bool todo = true; todo;) {
+        todo = false;
 
-        for (auto lambda : scope_view().body()) {
-            DomNode* lambda_node = lookup(lambda);
+        for (auto n : cfg().body()) {
+            auto dom = _lookup(n);
 
             DomNode* new_idom = nullptr;
-            for (auto pred : scope_view().preds(lambda)) {
-                DomNode* pred_node = lookup(pred);
-                assert(pred_node);
-                new_idom = new_idom ? lca(new_idom, pred_node) : pred_node;
+            for (auto pred : cfg().preds(n)) {
+                auto pred_dom = _lookup(pred);
+                assert(pred_dom);
+                new_idom = new_idom ? _lca(new_idom, pred_dom) : pred_dom;
             }
             assert(new_idom);
-            if (lambda_node->idom() != new_idom) {
-                lambda_node->idom_ = new_idom;
-                changed = true;
+            if (dom->idom() != new_idom) {
+                dom->idom_ = new_idom;
+                todo = true;
             }
         }
     }
 
-    for (auto lambda : scope_view().body()) {
-        auto n = lookup(lambda);
-        n->idom_->children_.push_back(n);
+    for (auto n : cfg().body()) {
+        auto dom = _lookup(n);
+        dom->idom_->children_.push_back(dom);
     }
 
-    auto n = postprocess(root_, 0);
-    assert(n = scope_view().size());
+    auto num = postprocess(root_, 0);
+    assert(num = cfg().size());
 }
 
 template<bool forward>
@@ -91,7 +93,7 @@ size_t DomTreeBase<forward>::postprocess(DomNode* n, int depth) {
 }
 
 template<bool forward>
-DomNode* DomTreeBase<forward>::lca(DomNode* i, DomNode* j) {
+DomNode* DomTreeBase<forward>::_lca(DomNode* i, DomNode* j) {
     assert(i && j);
     while (rpo_id(i) != rpo_id(j)) {
         while (rpo_id(i) < rpo_id(j)) j = j->idom_;

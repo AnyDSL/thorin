@@ -131,6 +131,7 @@ public:
     bool empty() const { return size_ == 0; }
     ArrayRef<T> slice(size_t begin, size_t end) const { return ArrayRef<T>(ptr_ + begin, end - begin); }
     ArrayRef<T> slice_to_end(size_t end) const { return ArrayRef<T>(ptr_, end); }
+    ArrayRef<T> slice_num_from_end(size_t num) const { return ArrayRef<T>(ptr_, size_ - num); }
     ArrayRef<T> slice_from_begin(size_t begin) const { return ArrayRef<T>(ptr_ + begin, size_ - begin); }
     Array<T> cut(ArrayRef<size_t> indices, size_t reserve = 0) const { return ArrayRef<T>(*this).cut(indices, reserve); }
     bool operator == (const Array<T>& other) const { return ArrayRef<T>(*this) == ArrayRef<T>(other); }

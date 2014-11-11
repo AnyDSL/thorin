@@ -1,11 +1,13 @@
 #include "thorin/primop.h"
+#include "thorin/analyses/cfg.h"
 #include "thorin/analyses/scope.h"
 
 namespace thorin {
 
 static void dead_load_opt(const Scope& scope) {
-    for (size_t i = scope.size(); i-- != 0;) {
-        auto lambda = scope.rpo(i);
+    auto& cfg = *scope.cfg()->f_cfg();
+    for (size_t i = cfg.size(); i-- != 0;) {
+        auto lambda = cfg.rpo(i)->lambda();
         Def mem;
         for (auto arg : lambda->args()) {
             if (arg->type().isa<MemType>()) {

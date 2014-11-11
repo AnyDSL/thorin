@@ -3,6 +3,7 @@
 #include "thorin/type.h"
 #include "thorin/world.h"
 #include "thorin/analyses/bb_schedule.h"
+#include "thorin/analyses/cfg.h"
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
@@ -374,14 +375,16 @@ void CCodeGen::emit() {
             }
         }
 
-        for (auto lambda : scope.rpo()) {
+        for (auto n : *scope.cfg()->f_cfg()) {
+            auto lambda = n->lambda();
             // dump declarations for variables set in gotos
-            if (!lambda->is_cascading() && scope.entry() != lambda)
+            if (!lambda->is_cascading() && scope.entry() != lambda) {
                 for (auto param : lambda->params())
                     if (!param->type().isa<MemType>()) {
                         newline();
                         emit_type(param->type()) << " " << param->unique_name() << ";";
                     }
+            }
         }
 
         // never use early schedule here - this may break memory operations

@@ -215,16 +215,18 @@ void emit_thorin(const Scope& scope, bool fancy, bool nocolor) {
     auto schedule = schedule_smart(scope);
     auto bbs = bb_schedule(scope);
     for (auto lambda : bbs) {
-        int depth = lambda == scope.entry() ? 0 : 1;
-        cg.indent += depth;
-        cg.newline();
-        cg.emit_head(lambda);
+        if (lambda->intrinsic() != Intrinsic::EndScope) {
+            int depth = lambda == scope.entry() ? 0 : 1;
+            cg.indent += depth;
+            cg.newline();
+            cg.emit_head(lambda);
 
-        for (auto op : schedule[lambda])
-            cg.emit_assignment(op);
+            for (auto op : schedule[lambda])
+                cg.emit_assignment(op);
 
-        cg.emit_jump(lambda);
-        cg.indent -= depth;
+            cg.emit_jump(lambda);
+            cg.indent -= depth;
+        }
     }
     cg.newline();
 }

@@ -4,7 +4,6 @@
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/verify.h"
 #include "thorin/transform/mangle.h"
-#include "thorin/transform/merge_lambdas.h"
 
 namespace thorin {
 
@@ -95,10 +94,10 @@ void lower2cff(World& world) {
         CFFLowering lowering(world);
         todo = lowering.process();
         debug_verify(world);
-        merge_lambdas(world);
         world.cleanup();
     } while (todo);
-    verify_calls(world);
+
+    debug_verify(world);
 }
 
 }

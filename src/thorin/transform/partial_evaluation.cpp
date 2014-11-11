@@ -70,29 +70,39 @@ void PartialEvaluator::seek() {
     for (auto lambda : world().externals())
         enqueue(lambda);
 
+    Lambda* top = nullptr;
     while (!queue_.empty()) {
         auto lambda = pop(queue_);
-        if (!lambda->empty()) {
-            if (lambda->to()->isa<Run>())
-                eval(lambda, lambda, continuation(lambda));
-        }
+        if (world().is_external(lambda))
+            top = lambda;
+
+        if (lambda->to()->isa<Run>())
+            eval(top, lambda, continuation(lambda));
 
         for (auto succ : lambda->succs())
             enqueue(succ);
     }
 }
 
-void PartialEvaluator::eval(Lambda* begin, Lambda* cur, Lambda* end) {
+void PartialEvaluator::eval(Lambda* top, Lambda* cur, Lambda* end) {
     if (end == nullptr)
         std::cout << "no matching end: " << cur->unique_name() << std::endl;
+    else 
+        std::cout << cur->unique_name() << " -> " << end->unique_name() << std::endl;
 
-    while (cur && !done_.contains(cur) && cur != end) {
-        if (cur->empty()) {
-            std::cout << "bailing out: " << cur->unique_name() << std::endl;
+    while (true) {
+        if (cur == nullptr) {
+            std::cout << "cur is nullptr: " << std::endl;
             return;
         }
-
-        //cur->dump_head();
+        if (done_.contains(cur)) {
+            std::cout << "already done: " << cur->unique_name() << std::endl;
+            return;
+        }
+        if (cur->empty()) {
+            std::cout << "empty: " << cur->unique_name() << std::endl;
+            return;
+        }
 
         Lambda* dst = nullptr;
         if (auto run = cur->to()->isa<Run>()) {
@@ -100,40 +110,53 @@ void PartialEvaluator::eval(Lambda* begin, Lambda* cur, Lambda* end) {
         } else if (cur->to()->isa<Hlt>()) {
             for (auto succ : cur->succs())
                 enqueue(succ);
-            begin = cur = continuation(cur);
+            cur = continuation(cur);
             continue;
         } else {
             dst = cur->to()->isa_lambda();
         }
 
-        done_.insert(cur);
         if (dst == nullptr) {
-            std::cout << "bailing out: " << cur->unique_name() << std::endl;
+            std::cout << "dst is nullptr: " << cur->unique_name() << std::endl;
             return;
         }
 
+        if (dst == end) {
+            std::cout << "end: " << end->unique_name() << std::endl;
+            return;
+        }
+
+        done_.insert(cur);
+
         if (dst->empty()) {
             if (dst == world().branch()) {
-                //Scope scope(begin, true);
-                //scope.dump();
-                //CFG cfg(scope);
-                //scope.postdomtree()->dump();
-                //begin = cur = scope.postdomtree()->idom(cur);
-                std::cout << "bailing out: " << cur->unique_name() << std::endl;
+                Scope scope(top);
+                auto& postdomtree = *scope.cfg()->postdomtree();
+                if (auto n = scope.cfg()->lookup(cur)) {
+                    cur = postdomtree.lookup(n)->idom()->lambda();
+                    continue;
+                }
+                std::cout << "no postdom found: " << cur->unique_name() << std::endl;
                 return;
             } else
-                begin = cur = continuation(cur);
+                cur = continuation(cur);
             continue;
         }
 
         Call call(dst);
+        bool all = true;
         for (size_t i = 0; i != cur->num_args(); ++i) {
             if (!cur->arg(i)->isa<Hlt>())
                 call.arg(i) = cur->arg(i);
+            else
+                all = false;
         }
 
         if (auto cached = find(cache_, call)) { // check for cached version
             rewrite_jump(cur, cached, call);
+            std::cout << "using cached call: " << std::endl;
+            cur->dump_head();
+            cur->dump_jump();
             return;
         } else {                                // no cached version found... create a new one
             Scope scope(dst);
@@ -142,7 +165,11 @@ void PartialEvaluator::eval(Lambda* begin, Lambda* cur, Lambda* end) {
             assert(res);
             auto dropped = drop(scope, call.args(), type2type);
             rewrite_jump(cur, dropped, call);
-            cur = dropped;
+            if (all) {
+                cur->jump(dropped->to(), dropped->args());
+                done_.erase(cur);
+            } else
+                cur = dropped;
         }
     }
 }
@@ -162,6 +189,7 @@ void PartialEvaluator::rewrite_jump(Lambda* src, Lambda* dst, const Call& call) 
 
 void partial_evaluation(World& world) {
     PartialEvaluator(world).seek();
+    std::cout << "PE done" << std::endl;
 
     for (auto primop : world.primops()) {
         if (auto evalop = Def(primop)->isa<EvalOp>())

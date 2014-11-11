@@ -94,6 +94,7 @@ public:
         , name_(name)
     {}
 #ifndef NDEBUG
+#else
     ~JumpTarget();
 #endif
 

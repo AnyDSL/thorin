@@ -9,23 +9,19 @@
 #include "thorin/analyses/scope.h"
 #include "thorin/util/queue.h"
 
-#include <algorithm>
-
 namespace thorin {
 
 typedef DefMap<Lambda*> Def2Lambda;
 
 #ifndef NDEBUG
-static void verify(const Scope&, const Schedule&) {}
-#else
 static void verify(const Scope& scope, const Schedule& schedule) {
-    auto domtree = scope.domtree();
+    auto& domtree = *scope.cfg()->domtree();
     LambdaMap<Def> lambda2mem;
 
     for (auto n : *scope.cfg()->f_cfg()) {
         auto lambda = n->lambda();
         Def mem = lambda->mem_param();
-        mem = mem ? mem : lambda2mem[domtree->idom(lambda)];
+        mem = mem ? mem : lambda2mem[domtree.lookup(scope.cfg()->lookup(lambda))->idom()->lambda()];
         for (auto primop : schedule[lambda]) {
             if (auto memop = primop->isa<MemOp>()) {
                 if (memop->mem() != mem) {
@@ -41,6 +37,8 @@ static void verify(const Scope& scope, const Schedule& schedule) {
         lambda2mem[lambda] = mem;
     }
 }
+#else
+static void verify(const Scope&, const Schedule&) {}
 #endif
 
 static Def2Lambda schedule_early(const Scope& scope) {

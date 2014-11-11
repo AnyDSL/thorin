@@ -1,5 +1,7 @@
 #include "thorin/analyses/schedule.h"
 
+#include <iostream>
+
 #include "thorin/lambda.h"
 #include "thorin/primop.h"
 #include "thorin/world.h"

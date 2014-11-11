@@ -70,7 +70,7 @@ void Merger::merge(const DomNode* n) {
     for (const DomNode* next = dom_succ(cur); next != nullptr; cur = next, next = dom_succ(next)) {
         assert(cur->lambda()->num_args() == next->lambda()->num_params());
         for (size_t i = 0, e = cur->lambda()->num_args(); i != e; ++i)
-            next->lambda()->param(i)->replace(cur->lambda()->arg(i));
+            Def(next->lambda()->param(i))->replace(cur->lambda()->arg(i));
         cur->lambda()->destroy_body();
     }
 

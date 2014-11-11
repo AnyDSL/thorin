@@ -71,7 +71,8 @@ public:
     void run();
     bool is_forward_reachable(Lambda* lambda) { return reachable_[cfg_.sid(lambda)] & ForwardReachable; }
     bool is_backward_reachable (Lambda* lambda) { return reachable_[cfg_.sid(lambda)] & BackwardReachable; }
-    bool contains(Lambda* lambda) { return scope().contains(lambda); };
+    //bool contains(Lambda* lambda) { return scope().contains(lambda); };
+    bool contains(Lambda* lambda) { return scope().entry() != lambda && scope().contains(lambda); };
     bool contains(const Param* param) { return scope().entry() != param->lambda() && contains(param->lambda()); }
     FlowVal flow_val(Def);
     void forward_visit(CFGNode* cur);

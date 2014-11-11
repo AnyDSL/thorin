@@ -155,7 +155,7 @@ void CodeGen::emit(int opt) {
 
         for (auto bb_lambda : bbs) {
             // map all bb-like lambdas to llvm bb stubs
-            if (bb_lambda->intrinsic() != Intrinsic::Exit) {
+            if (bb_lambda->intrinsic() != Intrinsic::EndScope) {
                 auto bb = bb2lambda[bb_lambda] = llvm::BasicBlock::Create(context_, bb_lambda->name, fct);
 
                 // create phi node stubs (for all non-cascading lambdas different from entry)
@@ -176,7 +176,7 @@ void CodeGen::emit(int opt) {
 
         // emit body for each bb
         for (auto bb_lambda : bbs) {
-            if (bb_lambda->intrinsic() == Intrinsic::Exit)
+            if (bb_lambda->intrinsic() == Intrinsic::EndScope)
                 continue;
             assert(bb_lambda == entry_ || bb_lambda->is_basicblock());
             builder_.SetInsertPoint(bb2lambda[bb_lambda]);

@@ -116,19 +116,17 @@ void NVVMCodeGen::emit_function_start(llvm::BasicBlock* bb, Lambda* lambda) {
     }
 }
 
-llvm::Value* NVVMCodeGen::emit_load(Def def) {
-    auto load = def->as<Load>();
+llvm::Value* NVVMCodeGen::emit_load(const Load* load) {
     switch (resolve_addr_space(load->ptr())) {
         case AddressSpace::Texture:
             return builder_.CreateExtractValue(lookup(load->ptr()), { unsigned(0) });
         default:
             // shared address space uses the same load functionality
-            return CodeGen::emit_load(def);
+            return CodeGen::emit_load(load);
     }
 }
 
-llvm::Value* NVVMCodeGen::emit_store(Def def) {
-    auto store = def->as<Store>();
+llvm::Value* NVVMCodeGen::emit_store(const Store* store) {
     assert(resolve_addr_space(store->ptr()) != AddressSpace::Texture &&
             "Writes to textures are currently not supported");
     return CodeGen::emit_store(store);
@@ -179,8 +177,7 @@ static std::string get_texture_fetch_constraint(Type type) {
     return constraint_str.str();
 }
 
-llvm::Value* NVVMCodeGen::emit_lea(Def def) {
-    auto lea = def->as<LEA>();
+llvm::Value* NVVMCodeGen::emit_lea(const LEA* lea) {
     switch (resolve_addr_space(lea->ptr())) {
         case AddressSpace::Texture: {
             // sample for i32:
@@ -203,11 +200,11 @@ llvm::Value* NVVMCodeGen::emit_lea(Def def) {
             return builder_.CreateCall(get_call, values);
         }
         default:
-            return CodeGen::emit_lea(def);
+            return CodeGen::emit_lea(lea);
     }
 }
 
-llvm::Value* NVVMCodeGen::emit_mmap(Def def) { return emit_shared_mmap(def); }
+llvm::Value* NVVMCodeGen::emit_mmap(const Map* mmap) { return emit_shared_mmap(mmap); }
 
 llvm::GlobalVariable* NVVMCodeGen::resolve_global_variable(const Param* param) {
     if (resolve_addr_space(param) != AddressSpace::Global)

@@ -36,10 +36,10 @@ protected:
     virtual void emit_function_start(llvm::BasicBlock*, Lambda*) {}
     virtual llvm::FunctionType* convert_fn_type(Lambda*);
 
-    virtual llvm::Value* emit_load(Def);
-    virtual llvm::Value* emit_store(Def);
-    virtual llvm::Value* emit_lea(Def);
-    virtual llvm::Value* emit_mmap(Def);
+    virtual llvm::Value* emit_load(const Load*);
+    virtual llvm::Value* emit_store(const Store*);
+    virtual llvm::Value* emit_lea(const LEA*);
+    virtual llvm::Value* emit_mmap(const Map*);
 
     virtual std::string get_alloc_name() const = 0;
     virtual std::string get_output_name(const std::string& name) const = 0;

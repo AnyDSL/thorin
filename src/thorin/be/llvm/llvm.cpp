@@ -711,17 +711,15 @@ llvm::Value* CodeGen::emit(Def def) {
     THORIN_UNREACHABLE;
 }
 
-llvm::Value* CodeGen::emit_load(Def def) {
-    return builder_.CreateLoad(lookup(def->as<Load>()->ptr()));
+llvm::Value* CodeGen::emit_load(const Load* load) {
+    return builder_.CreateLoad(lookup(load->ptr()));
 }
 
-llvm::Value* CodeGen::emit_store(Def def) {
-    auto store = def->as<Store>();
+llvm::Value* CodeGen::emit_store(const Store* store) {
     return builder_.CreateStore(lookup(store->val()), lookup(store->ptr()));
 }
 
-llvm::Value* CodeGen::emit_lea(Def def) {
-    auto lea = def->as<LEA>();
+llvm::Value* CodeGen::emit_lea(const LEA* lea) {
     if (lea->ptr_referenced_type().isa<TupleType>() || lea->ptr_referenced_type().isa<StructAppType>())
         return builder_.CreateStructGEP(lookup(lea->ptr()), lea->index()->primlit_value<u32>());
 
@@ -730,8 +728,7 @@ llvm::Value* CodeGen::emit_lea(Def def) {
     return builder_.CreateInBoundsGEP(lookup(lea->ptr()), args);
 }
 
-llvm::Value* CodeGen::emit_mmap(Def def) {
-    auto mmap = def->as<Map>();
+llvm::Value* CodeGen::emit_mmap(const Map* mmap) {
     // emit proper runtime call
     auto ref_ty = mmap->out_ptr_type()->referenced_type();
     Type type;

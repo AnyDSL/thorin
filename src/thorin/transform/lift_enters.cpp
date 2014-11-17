@@ -38,7 +38,7 @@ static void find_enters(Lambda* lambda, std::vector<const Enter*>& enters) {
 static void lift_enters(const Scope& scope) {
     World& world = scope.world();
     std::vector<const Enter*> enters;
-    auto& cfg = *scope.cfg()->f_cfg();
+    auto& cfg = *scope.cfa()->f_cfg();
 
     for (size_t i = cfg.rpo().size(); i-- != 1;)
         find_enters(cfg.rpo(i)->lambda(), enters);

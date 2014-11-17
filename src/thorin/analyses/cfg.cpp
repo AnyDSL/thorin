@@ -26,7 +26,7 @@ private:
     static LambdaSet none_;
     LambdaSet* lambdas_;
 
-    friend class CFA;
+    friend class CFABuilder;
 };
 
 LambdaSet FlowVal::none_;
@@ -42,7 +42,7 @@ bool FlowVal::join(const FlowVal& other) {
 
 //------------------------------------------------------------------------------
 
-class CFA {
+class CFABuilder {
 public:
     enum { 
         Unreachable       = 1 << 0, 
@@ -50,7 +50,7 @@ public:
         BackwardReachable = 1 << 2,
     };
 
-    CFA(CFG& cfg)
+    CFABuilder(CFA& cfg)
         : cfg_(cfg)
         , lambda2lambdas_(cfg.size())
         , lambda2param2lambdas_(cfg.size(), std::vector<LambdaSet>(0))
@@ -66,7 +66,7 @@ public:
     }
 
     size_t sid(Lambda* lambda) const { return cfg().sid(lambda); }
-    const CFG& cfg() const { return cfg_; }
+    const CFA& cfg() const { return cfg_; }
     const Scope& scope() const { return cfg_.scope(); }
     void run();
     bool is_forward_reachable(Lambda* lambda) { return reachable_[cfg_.sid(lambda)] & ForwardReachable; }
@@ -75,19 +75,19 @@ public:
     bool contains(Lambda* lambda) { return scope().entry() != lambda && scope().contains(lambda); };
     bool contains(const Param* param) { return scope().entry() != param->lambda() && contains(param->lambda()); }
     FlowVal flow_val(Def);
-    void forward_visit(CFGNode* cur);
-    void backward_visit(CFGNode* cur);
+    void forward_visit(CFNode* cur);
+    void backward_visit(CFNode* cur);
 
 private:
-    CFGNode* _lookup(Lambda* lambda) const { return cfg_._lookup(lambda); }
+    CFNode* _lookup(Lambda* lambda) const { return cfg_._lookup(lambda); }
 
-    CFG& cfg_;
+    CFA& cfg_;
     std::vector<LambdaSet> lambda2lambdas_;
     std::vector<std::vector<LambdaSet>> lambda2param2lambdas_;
     std::vector<uint8_t> reachable_;
 };
 
-FlowVal CFA::flow_val(Def def) {
+FlowVal CFABuilder::flow_val(Def def) {
     if (auto lambda = def->isa_lambda()) {
         if (contains(lambda))
             return FlowVal(lambda2lambdas_[sid(lambda)]);
@@ -121,7 +121,7 @@ void search(Def def, std::function<void(Def)> f) {
     }
 }
 
-void CFA::run() {
+void CFABuilder::run() {
     for (bool todo = true; todo;) { // keep iterating to collect param flow infos until things are stable
         todo = false;
         for (auto lambda : scope()) {
@@ -158,10 +158,10 @@ void CFA::run() {
     //}
 }
 
-void CFA::forward_visit(CFGNode* cur) {
+void CFABuilder::forward_visit(CFNode* cur) {
     assert(!is_forward_reachable(cur->lambda()));
     auto& reachable = reachable_[sid(cur->lambda())];
-    auto link_and_visit = [&] (CFGNode* succ) {
+    auto link_and_visit = [&] (CFNode* succ) {
         assert(contains(succ->lambda()));
         cur->link(succ);
         if (!is_forward_reachable(succ->lambda()))
@@ -197,38 +197,35 @@ void CFA::forward_visit(CFGNode* cur) {
 
 //------------------------------------------------------------------------------
 
-CFG::CFG(const Scope& scope) 
+CFA::CFA(const Scope& scope) 
     : scope_(scope)
     , nodes_(scope.size())
 {
     for (size_t i = 0, e = size(); i != e; ++i)
-        nodes_[i] = new CFGNode(scope[i]);
+        nodes_[i] = new CFNode(scope[i]);
 
-    CFA cfa(*this);
+    CFABuilder cfa(*this);
 }
 
-size_t CFG::sid(Lambda* lambda) const { 
+size_t CFA::sid(Lambda* lambda) const { 
     if (auto info = lambda->find_scope(&scope()))
         return info->sid;
     return size_t(-1);
 }
 
-void CFG::cfa() {
-}
-
-const F_CFG* CFG::f_cfg() const { return lazy_init(this, f_cfg_); }
-const B_CFG* CFG::b_cfg() const { return lazy_init(this, b_cfg_); }
-const DomTree* CFG::domtree() const { return f_cfg()->domtree(); }
-const PostDomTree* CFG::postdomtree() const { return b_cfg()->domtree(); }
-const LoopTree* CFG::looptree() const { return looptree_ ? looptree_ : looptree_ = new LoopTree(*f_cfg()); }
+const F_CFG* CFA::f_cfg() const { return lazy_init(this, f_cfg_); }
+const B_CFG* CFA::b_cfg() const { return lazy_init(this, b_cfg_); }
+const DomTree* CFA::domtree() const { return f_cfg()->domtree(); }
+const PostDomTree* CFA::postdomtree() const { return b_cfg()->domtree(); }
+const LoopTree* CFA::looptree() const { return looptree_ ? looptree_ : looptree_ = new LoopTree(*f_cfg()); }
 
 //------------------------------------------------------------------------------
 
 template<bool forward>
-CFGView<forward>::CFGView(const CFG& cfg)
-    : cfg_(cfg)
-    , rpo_ids_(cfg.size())
-    , rpo_(cfg.nodes()) // copy over - sort later
+CFG<forward>::CFG(const CFA& cfa)
+    : cfa_(cfa)
+    , rpo_ids_(cfa.size())
+    , rpo_(cfa.nodes()) // copy over - sort later
 {
     std::fill(rpo_ids_.begin(), rpo_ids_.end(), -1);    // mark as not visited
     auto num = number(entry(), 0);                      // number in post-order
@@ -240,12 +237,12 @@ CFGView<forward>::CFGView(const CFG& cfg)
     }
 
     // sort in reverse post-order
-    std::sort(rpo_.begin(), rpo_.end(), [&] (const CFGNode* n1, const CFGNode* n2) { return rpo_id(n1) < rpo_id(n2); });
+    std::sort(rpo_.begin(), rpo_.end(), [&] (const CFNode* n1, const CFNode* n2) { return rpo_id(n1) < rpo_id(n2); });
     rpo_.shrink(num);                                   // remove unreachable stuff
 }
 
 template<bool forward>
-size_t CFGView<forward>::number(const CFGNode* n, size_t i) {
+size_t CFG<forward>::number(const CFNode* n, size_t i) {
     auto& n_rpo_id = _rpo_id(n);
     n_rpo_id = -2; // mark as visited
 
@@ -258,10 +255,10 @@ size_t CFGView<forward>::number(const CFGNode* n, size_t i) {
 }
 
 template<bool forward>
-const DomTreeBase<forward>* CFGView<forward>::domtree() const { return lazy_init(this, domtree_); }
+const DomTreeBase<forward>* CFG<forward>::domtree() const { return lazy_init(this, domtree_); }
 
-template class CFGView<true>;
-template class CFGView<false>;
+template class CFG<true>;
+template class CFG<false>;
 
 //------------------------------------------------------------------------------
 

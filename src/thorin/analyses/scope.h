@@ -9,7 +9,7 @@
 
 namespace thorin {
 
-class CFG;
+class CFA;
 
 //------------------------------------------------------------------------------
 
@@ -42,7 +42,7 @@ public:
     size_t size() const { return lambdas_.size(); }
     World& world() const { return world_; }
     void dump() const;
-    const CFG* cfg() const;
+    const CFA* cfa() const;
 
     typedef ArrayRef<Lambda*>::const_iterator const_iterator;
     const_iterator begin() const { return lambdas().begin(); }
@@ -67,7 +67,7 @@ private:
     DefSet in_scope_;
     uint32_t id_;
     std::vector<Lambda*> lambdas_;
-    mutable AutoPtr<const CFG> cfg_;
+    mutable AutoPtr<const CFA> cfa_;
 
     static uint32_t candidate_counter_;
     static uint32_t id_counter_;

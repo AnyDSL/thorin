@@ -17,13 +17,13 @@ typedef DefMap<Lambda*> Def2Lambda;
 
 #ifndef NDEBUG
 static void verify(const Scope& scope, const Schedule& schedule) {
-    auto& domtree = *scope.cfg()->domtree();
+    auto& domtree = *scope.cfa()->domtree();
     LambdaMap<Def> lambda2mem;
 
-    for (auto n : *scope.cfg()->f_cfg()) {
+    for (auto n : *scope.cfa()->f_cfg()) {
         auto lambda = n->lambda();
         Def mem = lambda->mem_param();
-        mem = mem ? mem : lambda2mem[domtree.lookup(scope.cfg()->lookup(lambda))->idom()->lambda()];
+        mem = mem ? mem : lambda2mem[domtree.lookup(scope.cfa()->lookup(lambda))->idom()->lambda()];
         for (auto primop : schedule[lambda]) {
             if (auto memop = primop->isa<MemOp>()) {
                 if (memop->mem() != mem) {
@@ -70,10 +70,10 @@ static Def2Lambda schedule_early(const Scope& scope) {
         }
     };
 
-    for (auto n : *scope.cfg()->f_cfg())
+    for (auto n : *scope.cfa()->f_cfg())
         enqueue_uses(n->lambda());
 
-    for (auto n : *scope.cfg()->f_cfg()) {
+    for (auto n : *scope.cfa()->f_cfg()) {
         auto lambda = n->lambda();
         for (auto param : lambda->params()) {
             if (!param->is_proxy())
@@ -94,8 +94,8 @@ static Def2Lambda schedule_early(const Scope& scope) {
 const Schedule schedule_late(const Scope& scope) {
     Def2Lambda def2late;
     DefMap<int> def2num;
-    auto cfg = scope.cfg()->f_cfg();
-    auto domtree = scope.cfg()->domtree();
+    auto cfg = scope.cfa()->f_cfg();
+    auto domtree = scope.cfa()->domtree();
     std::queue<Def> queue;
     Schedule schedule(scope);
 
@@ -126,7 +126,7 @@ const Schedule schedule_late(const Scope& scope) {
         }
     };
 
-    for (auto n : *scope.cfg()->f_cfg()) {
+    for (auto n : *scope.cfa()->f_cfg()) {
         auto lambda = n->lambda();
         for (auto op : lambda->ops())
             enqueue(lambda, op);
@@ -148,13 +148,13 @@ const Schedule schedule_late(const Scope& scope) {
 
 const Schedule schedule_smart(const Scope& scope) {
     Schedule smart(scope);
-    auto cfg = scope.cfg()->f_cfg();
-    auto domtree = scope.cfg()->domtree();
-    auto looptree = scope.cfg()->looptree();
+    auto& cfg = *scope.cfa()->f_cfg();
+    auto domtree = cfg.domtree();
+    auto looptree = scope.cfa()->looptree(); // TODO
     auto def2early = schedule_early(scope);
     auto late = schedule_late(scope);
 
-    for (auto n : *scope.cfg()->f_cfg()) {
+    for (auto n : *scope.cfa()->f_cfg()) {
         auto lambda = n->lambda();
         for (auto primop : late[lambda]) {
             assert(scope._contains(primop));
@@ -165,10 +165,10 @@ const Schedule schedule_smart(const Scope& scope) {
             if (primop->isa<Enter>() || primop->isa<Slot>() || Enter::is_out_mem(primop) || Enter::is_out_frame(primop))
                 lambda_best = lambda_early;
             else {
-                int depth = looptree->depth(cfg->lookup(lambda_best));
+                int depth = looptree->depth(cfg.lookup(lambda_best));
                 for (auto i = lambda_best; i != lambda_early;) {
-                    i = domtree->lookup(cfg->lookup(i))->idom()->lambda();
-                    int cur_depth = looptree->cfg_node2leaf(cfg->lookup(i))->depth();
+                    i = domtree->lookup(cfg.lookup(i))->idom()->lambda();
+                    int cur_depth = looptree->cfg_node2leaf(cfg.lookup(i))->depth();
                     if (cur_depth < depth) {
                         lambda_best = i;
                         depth = cur_depth;

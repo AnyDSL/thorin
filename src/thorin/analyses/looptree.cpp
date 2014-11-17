@@ -55,15 +55,15 @@ private:
     void build();
     static std::pair<size_t, size_t> propagate_bounds(LoopNode* header);
     void analyse_loops(LoopHeader* header);
-    const CFGView<true>& cfg() const { return looptree.cfg(); }
-    Number& number(const CFGNode* cfg_node) { return numbers[cfg_node]; }
-    size_t& lowlink(const CFGNode* cfg_node) { return number(cfg_node).low; }
-    size_t& dfs(const CFGNode* cfg_node) { return number(cfg_node).dfs; }
-    bool on_stack(const CFGNode* cfg_node) { assert(set.contains(cfg_node)); return (states[cfg_node] & OnStack) != 0; }
-    bool in_scc(const CFGNode* cfg_node) { return states[cfg_node] & InSCC; }
-    bool is_header(const CFGNode* cfg_node) { return states[cfg_node] & IsHeader; }
+    const CFG<true>& cfg() const { return looptree.cfg(); }
+    Number& number(const CFNode* cfg_node) { return numbers[cfg_node]; }
+    size_t& lowlink(const CFNode* cfg_node) { return number(cfg_node).low; }
+    size_t& dfs(const CFNode* cfg_node) { return number(cfg_node).dfs; }
+    bool on_stack(const CFNode* cfg_node) { assert(set.contains(cfg_node)); return (states[cfg_node] & OnStack) != 0; }
+    bool in_scc(const CFNode* cfg_node) { return states[cfg_node] & InSCC; }
+    bool is_header(const CFNode* cfg_node) { return states[cfg_node] & IsHeader; }
 
-    bool is_leaf(const CFGNode* cfg_node, size_t num) {
+    bool is_leaf(const CFNode* cfg_node, size_t num) {
         if (num == 1) {
             for (auto succ : cfg().succs(cfg_node)) {
                 if (!is_header(succ) && cfg_node == succ)
@@ -74,38 +74,38 @@ private:
         return false;
     }
 
-    void push(const CFGNode* cfg_node) {
+    void push(const CFNode* cfg_node) {
         assert(set.contains(cfg_node) && (states[cfg_node] & OnStack) == 0);
         stack.push_back(cfg_node);
         states[cfg_node] |= OnStack;
     }
 
-    int visit(const CFGNode* cfg_node, int counter) {
+    int visit(const CFNode* cfg_node, int counter) {
         visit_first(set, cfg_node);
         numbers[cfg_node] = Number(counter++);
         push(cfg_node);
         return counter;
     }
 
-    void recurse(LoopHeader* parent, ArrayRef<const CFGNode*> headers, int depth);
-    int walk_scc(const CFGNode* cur, LoopHeader* parent, int depth, int scc_counter);
+    void recurse(LoopHeader* parent, ArrayRef<const CFNode*> headers, int depth);
+    int walk_scc(const CFNode* cur, LoopHeader* parent, int depth, int scc_counter);
 
     LoopTree& looptree;
-    CFGNodeMap<Number> numbers;
-    CFGNodeMap<uint8_t> states;
-    CFGNodeSet set;
+    CFNodeMap<Number> numbers;
+    CFNodeMap<uint8_t> states;
+    CFNodeSet set;
     size_t dfs_id;
-    std::vector<const CFGNode*> stack;
+    std::vector<const CFNode*> stack;
 };
 
 void LoopTreeBuilder::build() {
     for (auto cfg_node : cfg()) // clear all flags
         states[cfg_node] = 0;
 
-    recurse(looptree.root_ = new LoopHeader(nullptr, 0, std::vector<const CFGNode*>(0)), {cfg().entry()}, 1);
+    recurse(looptree.root_ = new LoopHeader(nullptr, 0, std::vector<const CFNode*>(0)), {cfg().entry()}, 1);
 }
 
-void LoopTreeBuilder::recurse(LoopHeader* parent, ArrayRef<const CFGNode*> headers, int depth) {
+void LoopTreeBuilder::recurse(LoopHeader* parent, ArrayRef<const CFNode*> headers, int depth) {
     size_t cur_new_child = 0;
     for (auto header : headers) {
         set.clear();
@@ -124,7 +124,7 @@ void LoopTreeBuilder::recurse(LoopHeader* parent, ArrayRef<const CFGNode*> heade
     }
 }
 
-int LoopTreeBuilder::walk_scc(const CFGNode* cur, LoopHeader* parent, int depth, int scc_counter) {
+int LoopTreeBuilder::walk_scc(const CFNode* cur, LoopHeader* parent, int depth, int scc_counter) {
     scc_counter = visit(cur, scc_counter);
 
     for (auto succ : cfg().succs(cur)) {
@@ -139,7 +139,7 @@ int LoopTreeBuilder::walk_scc(const CFGNode* cur, LoopHeader* parent, int depth,
 
     // root of SCC
     if (lowlink(cur) == dfs(cur)) {
-        std::vector<const CFGNode*> headers;
+        std::vector<const CFNode*> headers;
 
         // mark all cfg_nodes in current SCC (all cfg_nodes from back to cur on the stack) as 'InSCC'
         size_t num = 0, e = stack.size(), b = e - 1;
@@ -150,7 +150,7 @@ int LoopTreeBuilder::walk_scc(const CFGNode* cur, LoopHeader* parent, int depth,
 
         // for all cfg_nodes in current SCC
         for (size_t i = ++b; i != e; ++i) {
-            const CFGNode* cfg_node = stack[i];
+            const CFNode* cfg_node = stack[i];
 
             if (cfg().entry() == cfg_node)
                 headers.push_back(cfg_node); // entries are axiomatically headers
@@ -234,7 +234,7 @@ void LoopTreeBuilder::analyse_loops(LoopHeader* header) {
 
 //------------------------------------------------------------------------------
 
-LoopNode::LoopNode(LoopHeader* parent, int depth, const std::vector<const CFGNode*>& cfg_nodes)
+LoopNode::LoopNode(LoopHeader* parent, int depth, const std::vector<const CFNode*>& cfg_nodes)
     : parent_(parent)
     , depth_(depth)
     , cfg_nodes_(cfg_nodes)
@@ -290,20 +290,20 @@ void LoopHeader::dump() const {
 
 //------------------------------------------------------------------------------
 
-LoopTree::LoopTree(const CFGView<true>& cfg)
+LoopTree::LoopTree(const CFG<true>& cfg)
     : cfg_(cfg)
     , dfs_leaves_(cfg.size())
 {
     LoopTreeBuilder(*this);
 }
 
-bool LoopTree::contains(const LoopHeader* header, const CFGNode* cfg_node) const {
+bool LoopTree::contains(const LoopHeader* header, const CFNode* cfg_node) const {
     //if (!cfg().contains(cfg_node)) return false; // TODO
     size_t dfs = cfg_node2dfs(cfg_node);
     return header->dfs_begin() <= dfs && dfs < header->dfs_end();
 }
 
-const LoopHeader* LoopTree::cfg_node2header(const CFGNode* cfg_node) const {
+const LoopHeader* LoopTree::cfg_node2header(const CFNode* cfg_node) const {
     auto leaf = cfg_node2leaf(cfg_node);
     if (leaf == nullptr)
         return root();
@@ -315,17 +315,17 @@ const LoopHeader* LoopTree::cfg_node2header(const CFGNode* cfg_node) const {
     return header;
 }
 
-Array<const CFGNode*> LoopTree::loop_cfg_nodes(const LoopHeader* header) {
+Array<const CFNode*> LoopTree::loop_cfg_nodes(const LoopHeader* header) {
     auto leaves = loop(header);
-    Array<const CFGNode*> result(leaves.size());
+    Array<const CFNode*> result(leaves.size());
     for (size_t i = 0, e = leaves.size(); i != e; ++i)
         result[i] = leaves[i]->cfg_node();
     return result;
 }
 
-Array<const CFGNode*> LoopTree::loop_cfg_nodes_in_rpo(const LoopHeader* header) {
+Array<const CFNode*> LoopTree::loop_cfg_nodes_in_rpo(const LoopHeader* header) {
     auto result = loop_cfg_nodes(header);
-    std::stable_sort(result.begin(), result.end(), [&](const CFGNode* l1, const CFGNode* l2) {
+    std::stable_sort(result.begin(), result.end(), [&](const CFNode* l1, const CFNode* l2) {
         return cfg_.rpo_id(l1) < cfg_.rpo_id(l2);
     });
     return result;

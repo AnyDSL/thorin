@@ -238,7 +238,7 @@ private:
 
     friend class Cleaner;
     friend class Scope;
-    friend class CFG;
+    friend class CFA;
     friend class World;
 };
 

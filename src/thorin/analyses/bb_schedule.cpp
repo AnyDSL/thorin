@@ -49,12 +49,12 @@ static void bb_schedule(const F_CFG& cfg, const DomNode* n, const LoopTree& loop
 }
 
 std::vector<Lambda*> bb_schedule(const Scope& scope) {
-    auto domtree = scope.cfg()->domtree();
+    auto domtree = scope.cfa()->domtree();
     LambdaMap<int> lambda2num;
     count_children(domtree->root(), lambda2num);
     std::vector<Lambda*> bbs;
-    bb_schedule(*scope.cfg()->f_cfg(), domtree->root(), *scope.cfg()->looptree(), bbs, lambda2num);
-    assert(bbs.size() == scope.cfg()->f_cfg()->size());
+    bb_schedule(*scope.cfa()->f_cfg(), domtree->root(), *scope.cfa()->looptree(), bbs, lambda2num);
+    assert(bbs.size() == scope.cfa()->f_cfg()->size());
     return bbs;
 }
 

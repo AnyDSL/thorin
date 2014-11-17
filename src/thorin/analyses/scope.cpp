@@ -98,7 +98,7 @@ void Scope::build_in_scope() {
     }
 }
 
-const CFG* Scope::cfg() const { return lazy_init(this, cfg_); }
+const CFA* Scope::cfa() const { return lazy_init(this, cfa_); }
 
 template<bool elide_empty>
 void Scope::for_each(const World& world, std::function<void(const Scope&)> f) {

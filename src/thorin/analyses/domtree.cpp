@@ -24,7 +24,7 @@ Lambda* DomNode::lambda() const { return cfg_node()->lambda(); }
 //------------------------------------------------------------------------------
 
 template<bool forward>
-DomTreeBase<forward>::DomTreeBase(const CFGView<forward>& cfg)
+DomTreeBase<forward>::DomTreeBase(const CFG<forward>& cfg)
     : cfg_(cfg)
     , nodes_(cfg.size())
 {

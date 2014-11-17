@@ -13,9 +13,9 @@ class CFA;
 class Lambda;
 class Scope;
 
-template<bool> class CFGView;
-typedef CFGView<true>  F_CFG;
-typedef CFGView<false> B_CFG;
+template<bool> class CFG;
+typedef CFG<true>  F_CFG;
+typedef CFG<false> B_CFG;
 
 template<bool> class DomTreeBase;
 typedef DomTreeBase<true>  DomTree;
@@ -23,104 +23,103 @@ typedef DomTreeBase<false> PostDomTree;
 
 class LoopTree;
 
-class CFGNode {
+class CFNode {
 public:
-    CFGNode(Lambda* lambda)
+    CFNode(Lambda* lambda)
         : lambda_(lambda)
     {}
 
     Lambda* lambda() const { return lambda_; }
 
 private:
-    ArrayRef<const CFGNode*> preds() const { return ArrayRef<const CFGNode*>(preds_.data(), preds_.size()); }
-    ArrayRef<const CFGNode*> succs() const { return ArrayRef<const CFGNode*>(succs_.data(), succs_.size()); }
-    void link(CFGNode* other) {
+    ArrayRef<const CFNode*> preds() const { return ArrayRef<const CFNode*>(preds_.data(), preds_.size()); }
+    ArrayRef<const CFNode*> succs() const { return ArrayRef<const CFNode*>(succs_.data(), succs_.size()); }
+    void link(CFNode* other) {
         assert(this->lambda()->intrinsic() != Intrinsic::EndScope);
         this->succs_.push_back(other);
         other->preds_.push_back(this);
     }
 
     Lambda* lambda_;
-    std::vector<CFGNode*> preds_;
-    std::vector<CFGNode*> succs_;
+    std::vector<CFNode*> preds_;
+    std::vector<CFNode*> succs_;
 
+    friend class CFABuilder;
     friend class CFA;
-    friend class CFG;
 };
 
-class CFG {
+class CFA {
 public:
-    CFG(const CFG&) = delete;
-    CFG& operator= (CFG) = delete;
+    CFA(const CFA&) = delete;
+    CFA& operator= (CFA) = delete;
 
-    explicit CFG(const Scope& scope);
+    explicit CFA(const Scope& scope);
 
     const Scope& scope() const { return scope_; }
     size_t size() const { return nodes_.size(); }
     size_t sid(Lambda* lambda) const;
-    size_t sid(const CFGNode* n) const { return sid(n->lambda()); }
-    ArrayRef<const CFGNode*> nodes() const { return ArrayRef<const CFGNode*>(nodes_.data(), nodes_.size()); }
-    ArrayRef<const CFGNode*> preds(Lambda* lambda) const { return nodes_[sid(lambda)]->preds(); }
-    ArrayRef<const CFGNode*> succs(Lambda* lambda) const { return nodes_[sid(lambda)]->succs(); }
+    size_t sid(const CFNode* n) const { return sid(n->lambda()); }
+    ArrayRef<const CFNode*> nodes() const { return ArrayRef<const CFNode*>(nodes_.data(), nodes_.size()); }
+    ArrayRef<const CFNode*> preds(Lambda* lambda) const { return nodes_[sid(lambda)]->preds(); }
+    ArrayRef<const CFNode*> succs(Lambda* lambda) const { return nodes_[sid(lambda)]->succs(); }
     size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
     size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
-    const CFGNode* entry() const { return nodes_.front(); }
-    const CFGNode* exit() const { return nodes_.back(); }
+    const CFNode* entry() const { return nodes_.front(); }
+    const CFNode* exit() const { return nodes_.back(); }
     const F_CFG* f_cfg() const;
     const B_CFG* b_cfg() const;
     const DomTree* domtree() const;
     const PostDomTree* postdomtree() const;
     const LoopTree* looptree() const;
-    const CFGNode* lookup(Lambda* lambda) const { auto i = sid(lambda); return i == size_t(-1) ? nullptr : nodes_[i]; }
+    const CFNode* lookup(Lambda* lambda) const { auto i = sid(lambda); return i == size_t(-1) ? nullptr : nodes_[i]; }
 
 private:
-    CFGNode* _lookup(Lambda* lambda) const { return nodes_[sid(lambda)]; }
-    void cfa();
+    CFNode* _lookup(Lambda* lambda) const { return nodes_[sid(lambda)]; }
     const Scope& scope_;
-    Array<CFGNode*> nodes_;     // sorted in sid
+    Array<CFNode*> nodes_;     // sorted in sid
     mutable AutoPtr<const F_CFG> f_cfg_;
     mutable AutoPtr<const B_CFG> b_cfg_;
     mutable AutoPtr<const LoopTree> looptree_;
 
-    friend class CFA;
+    friend class CFABuilder;
 };
 
 template<bool forward = true>
-class CFGView {
+class CFG {
 public:
-    CFGView(const CFGView&) = delete;
-    CFGView& operator= (CFGView) = delete;
+    CFG(const CFG&) = delete;
+    CFG& operator= (CFG) = delete;
 
-    explicit CFGView(const CFG& cfg);
+    explicit CFG(const CFA&);
 
-    const CFG& cfg() const { return cfg_; }
+    const CFA& cfa() const { return cfa_; }
     size_t size() const { return rpo_.size(); }
-    ArrayRef<const CFGNode*> preds(const CFGNode* n) const { return forward ? cfg().preds(n->lambda()) : cfg().succs(n->lambda()); }
-    ArrayRef<const CFGNode*> succs(const CFGNode* n) const { return forward ? cfg().succs(n->lambda()) : cfg().preds(n->lambda()); }
-    size_t num_preds(const CFGNode* n) const { return preds(n).size(); }
-    size_t num_succs(const CFGNode* n) const { return succs(n).size(); }
-    const CFGNode* entry() const { return forward ? cfg().entry() : cfg().exit();  }
-    const CFGNode* exit()  const { return forward ? cfg().exit()  : cfg().entry(); }
-    size_t rpo_id(const CFGNode* n) const { return rpo_ids_[cfg().sid(n->lambda())]; }
+    ArrayRef<const CFNode*> preds(const CFNode* n) const { return forward ? cfa().preds(n->lambda()) : cfa().succs(n->lambda()); }
+    ArrayRef<const CFNode*> succs(const CFNode* n) const { return forward ? cfa().succs(n->lambda()) : cfa().preds(n->lambda()); }
+    size_t num_preds(const CFNode* n) const { return preds(n).size(); }
+    size_t num_succs(const CFNode* n) const { return succs(n).size(); }
+    const CFNode* entry() const { return forward ? cfa().entry() : cfa().exit();  }
+    const CFNode* exit()  const { return forward ? cfa().exit()  : cfa().entry(); }
+    size_t rpo_id(const CFNode* n) const { return rpo_ids_[cfa().sid(n->lambda())]; }
     /// All lambdas within this scope in reverse post-order.
-    ArrayRef<const CFGNode*> rpo() const { return rpo_; }
-    const CFGNode* rpo(size_t i) const { return rpo_[i]; }
+    ArrayRef<const CFNode*> rpo() const { return rpo_; }
+    const CFNode* rpo(size_t i) const { return rpo_[i]; }
     /// Like \p rpo() but without \p entry()
-    ArrayRef<const CFGNode*> body() const { return rpo().slice_from_begin(1); }
-    const CFGNode* lookup(Lambda* lambda) const { return cfg().lookup(lambda); }
+    ArrayRef<const CFNode*> body() const { return rpo().slice_from_begin(1); }
+    const CFNode* lookup(Lambda* lambda) const { return cfa().lookup(lambda); }
     const DomTreeBase<forward>* domtree() const;
 
-    typedef ArrayRef<const CFGNode*>::const_iterator const_iterator;
+    typedef ArrayRef<const CFNode*>::const_iterator const_iterator;
     const_iterator begin() const { return rpo().begin(); }
     const_iterator end() const { return rpo().end(); }
 
 private:
-    size_t& _rpo_id(const CFGNode* n) { return rpo_ids_[cfg().sid(n->lambda())]; }
-    size_t number(const CFGNode*, size_t);
+    size_t& _rpo_id(const CFNode* n) { return rpo_ids_[cfa().sid(n->lambda())]; }
+    size_t number(const CFNode*, size_t);
 
-    const CFG& cfg_;
+    const CFA& cfa_;
     Array<size_t> rpo_ids_;     // sorted in sid
-    Array<const CFGNode*> rpo_; // sorted in rpo_id
+    Array<const CFNode*> rpo_; // sorted in rpo_id
     mutable AutoPtr<const DomTreeBase<forward>> domtree_;
 };
 

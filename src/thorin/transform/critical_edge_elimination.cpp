@@ -34,7 +34,7 @@ static void update_src(Lambda* src, Lambda* resolver, Lambda* dst) {
 }
 
 static void critical_edge_elimination(const Scope& scope) {
-    auto& cfg = *scope.cfg()->f_cfg();
+    auto& cfg = *scope.cfa()->f_cfg();
     // find critical edges
     std::vector<std::pair<Lambda*, Lambda*>> edges;
     for (auto lambda : scope) {

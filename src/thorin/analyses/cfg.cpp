@@ -50,13 +50,13 @@ public:
         BackwardReachable = 1 << 2,
     };
 
-    CFABuilder(CFA& cfg)
-        : cfg_(cfg)
-        , lambda2lambdas_(cfg.size())
-        , lambda2param2lambdas_(cfg.size(), std::vector<LambdaSet>(0))
-        , reachable_(cfg.size(), Unreachable)
+    CFABuilder(CFA& cfa)
+        : cfa_(cfa)
+        , lambda2lambdas_(cfa.size())
+        , lambda2param2lambdas_(cfa.size(), std::vector<LambdaSet>(0))
+        , reachable_(cfa.size(), Unreachable)
     {
-        for (size_t sid = 0, e = cfg.size(); sid != e; ++sid) {
+        for (size_t sid = 0, e = cfa.size(); sid != e; ++sid) {
             auto lambda = scope()[sid];
             lambda2lambdas_[sid].insert(lambda);                        // only add current lamba to set and that's it
             lambda2param2lambdas_[sid].resize(lambda->num_params());    // make room for params
@@ -65,12 +65,12 @@ public:
         run();
     }
 
-    size_t sid(Lambda* lambda) const { return cfg().sid(lambda); }
-    const CFA& cfg() const { return cfg_; }
-    const Scope& scope() const { return cfg_.scope(); }
+    size_t sid(Lambda* lambda) const { return cfa().sid(lambda); }
+    const CFA& cfa() const { return cfa_; }
+    const Scope& scope() const { return cfa_.scope(); }
     void run();
-    bool is_forward_reachable(Lambda* lambda) { return reachable_[cfg_.sid(lambda)] & ForwardReachable; }
-    bool is_backward_reachable (Lambda* lambda) { return reachable_[cfg_.sid(lambda)] & BackwardReachable; }
+    bool is_forward_reachable(Lambda* lambda) { return reachable_[cfa_.sid(lambda)] & ForwardReachable; }
+    bool is_backward_reachable (Lambda* lambda) { return reachable_[cfa_.sid(lambda)] & BackwardReachable; }
     //bool contains(Lambda* lambda) { return scope().contains(lambda); };
     bool contains(Lambda* lambda) { return scope().entry() != lambda && scope().contains(lambda); };
     bool contains(const Param* param) { return scope().entry() != param->lambda() && contains(param->lambda()); }
@@ -79,9 +79,9 @@ public:
     void backward_visit(CFNode* cur);
 
 private:
-    CFNode* _lookup(Lambda* lambda) const { return cfg_._lookup(lambda); }
+    CFNode* _lookup(Lambda* lambda) const { return cfa_._lookup(lambda); }
 
-    CFA& cfg_;
+    CFA& cfa_;
     std::vector<LambdaSet> lambda2lambdas_;
     std::vector<std::vector<LambdaSet>> lambda2param2lambdas_;
     std::vector<uint8_t> reachable_;
@@ -141,13 +141,13 @@ void CFABuilder::run() {
     }
 
     // build CFG
-    forward_visit(cfg().nodes_.front());
-    F_CFG f_cfg(cfg());
+    forward_visit(cfa().nodes_.front());
+    F_CFG f_cfg(cfa());
 
     // link with virtual exit
-    for (auto n : cfg().nodes_.slice_num_from_end(1)) { // skip virtual exit
+    for (auto n : cfa().nodes_.slice_num_from_end(1)) { // skip virtual exit
         if (is_forward_reachable(n->lambda()) && n->succs_.empty())
-            n->link(cfg().nodes_.back()); 
+            n->link(cfa().nodes_.back()); 
     }
 
     //// keep linking nodes not reachable from exit

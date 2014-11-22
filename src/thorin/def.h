@@ -1,7 +1,6 @@
 #ifndef THORIN_DEF_H
 #define THORIN_DEF_H
 
-#include <map>
 #include <set>
 #include <string>
 #include <vector>

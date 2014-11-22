@@ -20,6 +20,33 @@ inline T* lazy_init(const This* self, AutoPtr<T>& ptr) {
 
 class Scope {
 public:
+    template<class To>
+    class SIDMap {
+    public:
+        SIDMap(const Scope& scope)
+            : scope_(scope)
+            , map_(scope.size())
+        {}
+        SIDMap(const SIDMap<To>& other)
+            : scope_(other.scope())
+            , map_(other.map_)
+        {}
+
+        const Scope& scope() const { return scope_; }
+        size_t size() const { return map_.size(); }
+        To& operator[] (Lambda* lambda) { return map_[scope().sid(lambda)]; }
+        const To& operator[] (Lambda* lambda) const { return map_[scope().sid(lambda)]; }
+        const To& entry() const { return map_.front(); }
+        const To& exit() const { return map_.back(); }
+        ArrayRef<To> data() const { return map_.ref(); }
+
+    private:
+        const Scope& scope_;
+        Array<To> map_;
+
+        template<class T> friend T* find(Scope::SIDMap<T*>&, Lambda*);
+    };
+
     Scope(const Scope&) = delete;
     Scope& operator= (Scope) = delete;
 
@@ -74,6 +101,17 @@ private:
 
     template<bool> friend class ScopeView;
 };
+
+template<class To>
+To* find(Scope::SIDMap<To*>& map, Lambda* lambda) {
+    auto i = lambda->sid(map.scope());
+    return i != size_t(-1) ? map.map_[i] : nullptr;
+}
+
+template<class To>
+const To* find(const Scope::SIDMap<To*>& map, Lambda* lambda) { 
+    return find(const_cast<Scope::SIDMap<To*>&>(map), lambda); 
+}
 
 //------------------------------------------------------------------------------
 

@@ -141,13 +141,13 @@ void CFABuilder::run() {
     }
 
     // build CFG
-    forward_visit(cfa().nodes_.front());
+    forward_visit(cfa().nodes_.entry());
     F_CFG f_cfg(cfa());
 
     // link with virtual exit
-    for (auto n : cfa().nodes_.slice_num_from_end(1)) { // skip virtual exit
+    for (auto n : cfa().nodes_.data().slice_num_from_end(1)) { // skip virtual exit
         if (is_forward_reachable(n->lambda()) && n->succs_.empty())
-            n->link(cfa().nodes_.back()); 
+            n->link(cfa().nodes_.exit()); 
     }
 
     //// keep linking nodes not reachable from exit
@@ -199,10 +199,10 @@ void CFABuilder::forward_visit(CFNode* cur) {
 
 CFA::CFA(const Scope& scope) 
     : scope_(scope)
-    , nodes_(scope.size())
+    , nodes_(scope)
 {
     for (size_t i = 0, e = size(); i != e; ++i)
-        nodes_[i] = new CFNode(scope[i]);
+        nodes_[scope[i]] = new CFNode(scope[i]);
 
     CFABuilder cfa(*this);
 }
@@ -225,8 +225,12 @@ template<bool forward>
 CFG<forward>::CFG(const CFA& cfa)
     : cfa_(cfa)
     , rpo_ids_(cfa.size())
-    , rpo_(cfa.nodes()) // copy over - sort later
+    , rpo_(cfa.size()) // copy over - sort later
 {
+    // TODO
+    for (size_t i = 0, e = size(); i != e; ++i)
+        rpo_[i] = cfa.nodes().data()[i];
+
     std::fill(rpo_ids_.begin(), rpo_ids_.end(), -1);    // mark as not visited
     auto num = number(entry(), 0);                      // number in post-order
     

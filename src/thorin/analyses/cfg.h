@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "thorin/lambda.h"
+#include "thorin/analyses/scope.h"
 #include "thorin/util/array.h"
 #include "thorin/util/autoptr.h"
 
@@ -11,7 +12,6 @@ namespace thorin {
 
 class CFA;
 class Lambda;
-class Scope;
 
 template<bool> class CFG;
 typedef CFG<true>  F_CFG;
@@ -59,24 +59,24 @@ public:
     size_t size() const { return nodes_.size(); }
     size_t sid(Lambda* lambda) const;
     size_t sid(const CFNode* n) const { return sid(n->lambda()); }
-    ArrayRef<const CFNode*> nodes() const { return ArrayRef<const CFNode*>(nodes_.data(), nodes_.size()); }
-    ArrayRef<const CFNode*> preds(Lambda* lambda) const { return nodes_[sid(lambda)]->preds(); }
-    ArrayRef<const CFNode*> succs(Lambda* lambda) const { return nodes_[sid(lambda)]->succs(); }
+    const Scope::SIDMap<CFNode*>& nodes() const { return nodes_; }
+    ArrayRef<const CFNode*> preds(Lambda* lambda) const { return nodes_[lambda]->preds(); }
+    ArrayRef<const CFNode*> succs(Lambda* lambda) const { return nodes_[lambda]->succs(); }
     size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
     size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
-    const CFNode* entry() const { return nodes_.front(); }
-    const CFNode* exit() const { return nodes_.back(); }
+    const CFNode* entry() const { return nodes_.entry(); }
+    const CFNode* exit() const { return nodes_.exit(); }
     const F_CFG* f_cfg() const;
     const B_CFG* b_cfg() const;
     const DomTree* domtree() const;
     const PostDomTree* postdomtree() const;
     const LoopTree* looptree() const;
-    const CFNode* lookup(Lambda* lambda) const { auto i = sid(lambda); return i == size_t(-1) ? nullptr : nodes_[i]; }
+    const CFNode* lookup(Lambda* lambda) const { return find(nodes_, lambda); }
 
 private:
-    CFNode* _lookup(Lambda* lambda) const { return nodes_[sid(lambda)]; }
+    CFNode* _lookup(Lambda* lambda) const { return nodes_[lambda]; }
     const Scope& scope_;
-    Array<CFNode*> nodes_;     // sorted in sid
+    Scope::SIDMap<CFNode*> nodes_;
     mutable AutoPtr<const F_CFG> f_cfg_;
     mutable AutoPtr<const B_CFG> b_cfg_;
     mutable AutoPtr<const LoopTree> looptree_;

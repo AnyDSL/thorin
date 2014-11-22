@@ -150,6 +150,11 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     void dump_jump() const;
     void destroy_body();
     void refresh();
+    size_t sid(const Scope& scope) {
+        if (auto info = find_scope(&scope))
+            return info->sid;
+        return size_t(-1);
+    }
 
     // terminate
 

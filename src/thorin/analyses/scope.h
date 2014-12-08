@@ -34,8 +34,8 @@ public:
 
         const Scope& scope() const { return scope_; }
         size_t size() const { return map_.size(); }
-        To& operator[] (Lambda* lambda) { return map_[scope().sid(lambda)]; }
-        const To& operator[] (Lambda* lambda) const { return map_[scope().sid(lambda)]; }
+        To& operator[] (Lambda* lambda) { auto i = scope().sid(lambda); assert(i != size_t(-1)); return map_[i]; }
+        const To& operator[] (Lambda* lambda) const { return const_cast<SIDMap*>(this)->operator[](lambda); }
         const To& entry() const { return map_.front(); }
         const To& exit() const { return map_.back(); }
         ArrayRef<To> data() const { return map_.ref(); }

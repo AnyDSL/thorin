@@ -150,6 +150,7 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     void dump_jump() const;
     void destroy_body();
     void refresh();
+    /// Return the scope id \p sid for the given \p scope or size_t(-1) if this \p Lambda is not contained in \p scope.
     size_t sid(const Scope& scope) {
         if (auto info = find_scope(&scope))
             return info->sid;

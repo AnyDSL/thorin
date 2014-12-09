@@ -225,11 +225,11 @@ template<bool forward>
 CFG<forward>::CFG(const CFA& cfa)
     : cfa_(cfa)
     , rpo_ids_(cfa.scope())
-    , rpo_(cfa.size()) // copy over - sort later
+    , rpo_(*this) // copy over - sort later
 {
     // TODO copy over
     for (size_t i = 0, e = size(); i != e; ++i)
-        rpo_[i] = cfa.nodes().array()[i];
+        rpo_.array()[i] = cfa.nodes().array()[i];
 
     std::fill(rpo_ids_.array().begin(), rpo_ids_.array().end(), -1);  // mark as not visited
     auto num = number(entry(), 0);                      // number in post-order
@@ -241,8 +241,10 @@ CFG<forward>::CFG(const CFA& cfa)
     }
 
     // sort in reverse post-order
-    std::sort(rpo_.begin(), rpo_.end(), [&] (const CFNode* n1, const CFNode* n2) { return rpo_id(n1) < rpo_id(n2); });
-    rpo_.shrink(num);                                   // remove unreachable stuff
+    std::sort(rpo_.array().begin(), rpo_.array().end(), [&] (const CFNode* n1, const CFNode* n2) { 
+        return rpo_id(n1) < rpo_id(n2); 
+    });
+    rpo_.array().shrink(num);                                   // remove unreachable stuff
 }
 
 template<bool forward>

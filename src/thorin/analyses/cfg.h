@@ -87,13 +87,45 @@ private:
 template<bool forward = true>
 class CFG {
 public:
+    template<class To>
+    class RPOMap {
+    public:
+        RPOMap(const CFG& cfg)
+            : cfg_(cfg)
+            , array_(cfg.size())
+        {}
+        RPOMap(const RPOMap<To>& other)
+            : cfg_(other.cfg())
+            , array_(other.array_)
+        {}
+
+        const CFG& cfg() const { return cfg_; }
+        size_t size() const { return array_.size(); }
+        To& operator[] (Lambda* lambda) { auto i = cfg().rpo_id(lambda); assert(i != size_t(-1)); return array_[i]; }
+        const To& operator[] (Lambda* lambda) const { return const_cast<RPOMap*>(this)->operator[](lambda); }
+        const To& entry() const { return array_.front(); }
+        const To& exit() const { return array_.back(); }
+        Array<To>& array() { return array_; }
+        const Array<To>& array() const { return array_; }
+
+        typedef typename Array<To>::const_iterator const_iterator;
+        const_iterator begin() const { return array_.begin(); }
+        const_iterator end() const { return array_.end(); }
+
+    private:
+        const CFG& cfg_;
+        Array<To> array_;
+
+        template<class T> friend T* find(CFG::RPOMap<T*>&, const CFNode*);
+    };
+
     CFG(const CFG&) = delete;
     CFG& operator= (CFG) = delete;
 
     explicit CFG(const CFA&);
 
     const CFA& cfa() const { return cfa_; }
-    size_t size() const { return rpo_.size(); }
+    size_t size() const { return rpo_ids_.size(); }
     ArrayRef<const CFNode*> preds(const CFNode* n) const { return forward ? cfa().preds(n->lambda()) : cfa().succs(n->lambda()); }
     ArrayRef<const CFNode*> succs(const CFNode* n) const { return forward ? cfa().succs(n->lambda()) : cfa().preds(n->lambda()); }
     size_t num_preds(const CFNode* n) const { return preds(n).size(); }
@@ -102,8 +134,8 @@ public:
     const CFNode* exit()  const { return forward ? cfa().exit()  : cfa().entry(); }
     size_t rpo_id(const CFNode* n) const { return rpo_ids_[n->lambda()]; }
     /// All lambdas within this scope in reverse post-order.
-    ArrayRef<const CFNode*> rpo() const { return rpo_; }
-    const CFNode* rpo(size_t i) const { return rpo_[i]; }
+    ArrayRef<const CFNode*> rpo() const { return rpo_.array(); }
+    const CFNode* rpo(size_t i) const { return rpo_.array()[i]; }
     /// Like \p rpo() but without \p entry()
     ArrayRef<const CFNode*> body() const { return rpo().slice_from_begin(1); }
     const CFNode* lookup(Lambda* lambda) const { return cfa().lookup(lambda); }
@@ -119,9 +151,20 @@ private:
 
     const CFA& cfa_;
     Scope::SIDMap<size_t> rpo_ids_;
-    Array<const CFNode*> rpo_; // sorted in rpo_id
+    RPOMap<const CFNode*> rpo_;
     mutable AutoPtr<const DomTreeBase<forward>> domtree_;
 };
+
+template<bool forward, class To>
+To* find(typename CFG<forward>::template RPOMap<To*>& map, const CFNode* n) {
+    auto i = map->sid(map.scope());
+    return i != size_t(-1) ? map.array_[i] : nullptr;
+}
+
+template<bool forward, class To>
+const To* find(const typename CFG<forward>::template RPOMap<To*>& map, const CFNode* n) {
+    return find(const_cast<typename CFG<forward>::template RPOMap<To*>&>(map), n); 
+}
 
 }
 

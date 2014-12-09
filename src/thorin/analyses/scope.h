@@ -27,10 +27,6 @@ public:
             : scope_(scope)
             , array_(scope.size())
         {}
-        SIDMap(const SIDMap<To>& other)
-            : scope_(other.scope())
-            , array_(other.array_)
-        {}
 
         const Scope& scope() const { return scope_; }
         size_t size() const { return array_.size(); }

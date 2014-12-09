@@ -38,7 +38,12 @@ public:
         const To& operator[] (Lambda* lambda) const { return const_cast<SIDMap*>(this)->operator[](lambda); }
         const To& entry() const { return map_.front(); }
         const To& exit() const { return map_.back(); }
-        ArrayRef<To> data() const { return map_.ref(); }
+        Array<To>& array() { return map_; }
+        const Array<To>& array() const { return map_; }
+
+        typedef typename Array<To>::const_iterator const_iterator;
+        const_iterator begin() const { return map_.begin(); }
+        const_iterator end() const { return map_.end(); }
 
     private:
         const Scope& scope_;

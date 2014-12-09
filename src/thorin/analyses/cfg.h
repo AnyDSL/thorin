@@ -100,7 +100,7 @@ public:
     size_t num_succs(const CFNode* n) const { return succs(n).size(); }
     const CFNode* entry() const { return forward ? cfa().entry() : cfa().exit();  }
     const CFNode* exit()  const { return forward ? cfa().exit()  : cfa().entry(); }
-    size_t rpo_id(const CFNode* n) const { return rpo_ids_[cfa().sid(n->lambda())]; }
+    size_t rpo_id(const CFNode* n) const { return rpo_ids_[n->lambda()]; }
     /// All lambdas within this scope in reverse post-order.
     ArrayRef<const CFNode*> rpo() const { return rpo_; }
     const CFNode* rpo(size_t i) const { return rpo_[i]; }
@@ -114,11 +114,11 @@ public:
     const_iterator end() const { return rpo().end(); }
 
 private:
-    size_t& _rpo_id(const CFNode* n) { return rpo_ids_[cfa().sid(n->lambda())]; }
+    size_t& _rpo_id(const CFNode* n) { return rpo_ids_[n->lambda()]; }
     size_t number(const CFNode*, size_t);
 
     const CFA& cfa_;
-    Array<size_t> rpo_ids_;     // sorted in sid
+    Scope::SIDMap<size_t> rpo_ids_;
     Array<const CFNode*> rpo_; // sorted in rpo_id
     mutable AutoPtr<const DomTreeBase<forward>> domtree_;
 };

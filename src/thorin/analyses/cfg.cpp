@@ -145,7 +145,7 @@ void CFABuilder::run() {
     F_CFG f_cfg(cfa());
 
     // link with virtual exit
-    for (auto n : cfa().nodes_.data().slice_num_from_end(1)) { // skip virtual exit
+    for (auto n : cfa().nodes_.array().slice_num_from_end(1)) { // skip virtual exit
         if (is_forward_reachable(n->lambda()) && n->succs_.empty())
             n->link(cfa().nodes_.exit()); 
     }
@@ -224,18 +224,18 @@ const LoopTree* CFA::looptree() const { return looptree_ ? looptree_ : looptree_
 template<bool forward>
 CFG<forward>::CFG(const CFA& cfa)
     : cfa_(cfa)
-    , rpo_ids_(cfa.size())
+    , rpo_ids_(cfa.scope())
     , rpo_(cfa.size()) // copy over - sort later
 {
-    // TODO
+    // TODO copy over
     for (size_t i = 0, e = size(); i != e; ++i)
-        rpo_[i] = cfa.nodes().data()[i];
+        rpo_[i] = cfa.nodes().array()[i];
 
-    std::fill(rpo_ids_.begin(), rpo_ids_.end(), -1);    // mark as not visited
+    std::fill(rpo_ids_.array().begin(), rpo_ids_.array().end(), -1);  // mark as not visited
     auto num = number(entry(), 0);                      // number in post-order
     
     for (size_t i = 0, e = size(); i != e; ++i) {       // convert to reverse post-order
-        auto& rpo_id = rpo_ids_[i];
+        auto& rpo_id = rpo_ids_.array()[i];
         if (rpo_id != size_t(-1))
             rpo_id = num-1 - rpo_id;
     }

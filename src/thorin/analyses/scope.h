@@ -25,29 +25,29 @@ public:
     public:
         SIDMap(const Scope& scope)
             : scope_(scope)
-            , map_(scope.size())
+            , array_(scope.size())
         {}
         SIDMap(const SIDMap<To>& other)
             : scope_(other.scope())
-            , map_(other.map_)
+            , array_(other.array_)
         {}
 
         const Scope& scope() const { return scope_; }
-        size_t size() const { return map_.size(); }
-        To& operator[] (Lambda* lambda) { auto i = scope().sid(lambda); assert(i != size_t(-1)); return map_[i]; }
+        size_t size() const { return array_.size(); }
+        To& operator[] (Lambda* lambda) { auto i = scope().sid(lambda); assert(i != size_t(-1)); return array_[i]; }
         const To& operator[] (Lambda* lambda) const { return const_cast<SIDMap*>(this)->operator[](lambda); }
-        const To& entry() const { return map_.front(); }
-        const To& exit() const { return map_.back(); }
-        Array<To>& array() { return map_; }
-        const Array<To>& array() const { return map_; }
+        const To& entry() const { return array_.front(); }
+        const To& exit() const { return array_.back(); }
+        Array<To>& array() { return array_; }
+        const Array<To>& array() const { return array_; }
 
         typedef typename Array<To>::const_iterator const_iterator;
-        const_iterator begin() const { return map_.begin(); }
-        const_iterator end() const { return map_.end(); }
+        const_iterator begin() const { return array_.begin(); }
+        const_iterator end() const { return array_.end(); }
 
     private:
         const Scope& scope_;
-        Array<To> map_;
+        Array<To> array_;
 
         template<class T> friend T* find(Scope::SIDMap<T*>&, Lambda*);
     };
@@ -110,7 +110,7 @@ private:
 template<class To>
 To* find(Scope::SIDMap<To*>& map, Lambda* lambda) {
     auto i = lambda->sid(map.scope());
-    return i != size_t(-1) ? map.map_[i] : nullptr;
+    return i != size_t(-1) ? map.array_[i] : nullptr;
 }
 
 template<class To>

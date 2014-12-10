@@ -326,7 +326,7 @@ Array<const CFNode*> LoopTree::loop_cfg_nodes(const LoopHeader* header) {
 Array<const CFNode*> LoopTree::loop_cfg_nodes_in_rpo(const LoopHeader* header) {
     auto result = loop_cfg_nodes(header);
     std::stable_sort(result.begin(), result.end(), [&](const CFNode* l1, const CFNode* l2) {
-        return cfg_.rpo_id(l1) < cfg_.rpo_id(l2);
+        return cfg_.index(l1) < cfg_.index(l2);
     });
     return result;
 }

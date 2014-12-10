@@ -224,40 +224,40 @@ const LoopTree* CFA::looptree() const { return looptree_ ? looptree_ : looptree_
 template<bool forward>
 CFG<forward>::CFG(const CFA& cfa)
     : cfa_(cfa)
-    , rpo_ids_(cfa.scope())
+    , indices_(cfa.scope())
     , rpo_(*this) // copy over - sort later
 {
     // TODO copy over
     for (size_t i = 0, e = size(); i != e; ++i)
         rpo_.array()[i] = cfa.nodes().array()[i];
 
-    std::fill(rpo_ids_.array().begin(), rpo_ids_.array().end(), -1);  // mark as not visited
+    std::fill(indices_.array().begin(), indices_.array().end(), -1);  // mark as not visited
     auto num = number(entry(), 0);                      // number in post-order
     
     for (size_t i = 0, e = size(); i != e; ++i) {       // convert to reverse post-order
-        auto& rpo_id = rpo_ids_.array()[i];
-        if (rpo_id != size_t(-1))
-            rpo_id = num-1 - rpo_id;
+        auto& index = indices_.array()[i];
+        if (index != size_t(-1))
+            index = num-1 - index;
     }
 
     // sort in reverse post-order
     std::sort(rpo_.array().begin(), rpo_.array().end(), [&] (const CFNode* n1, const CFNode* n2) { 
-        return rpo_id(n1) < rpo_id(n2); 
+        return index(n1) < index(n2); 
     });
     rpo_.array().shrink(num);                                   // remove unreachable stuff
 }
 
 template<bool forward>
 size_t CFG<forward>::number(const CFNode* n, size_t i) {
-    auto& n_rpo_id = _rpo_id(n);
-    n_rpo_id = -2; // mark as visited
+    auto& n_index = _index(n);
+    n_index = -2; // mark as visited
 
     for (auto succ : succs(n)) {
-        if (rpo_id(succ) == size_t(-1)) // if not visited
+        if (index(succ) == size_t(-1)) // if not visited
             i = number(succ, i);
     }
 
-    return (n_rpo_id = i) + 1;
+    return (n_index = i) + 1;
 }
 
 template<bool forward>

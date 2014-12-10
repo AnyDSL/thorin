@@ -97,7 +97,7 @@ public:
 
         const CFG& cfg() const { return cfg_; }
         size_t size() const { return array_.size(); }
-        To& operator[] (Lambda* lambda) { auto i = cfg().rpo_id(lambda); assert(i != size_t(-1)); return array_[i]; }
+        To& operator[] (Lambda* lambda) { auto i = cfg().index(lambda); assert(i != size_t(-1)); return array_[i]; }
         const To& operator[] (Lambda* lambda) const { return const_cast<RPOMap*>(this)->operator[](lambda); }
         const To& entry() const { return array_.front(); }
         const To& exit() const { return array_.back(); }
@@ -121,14 +121,14 @@ public:
     explicit CFG(const CFA&);
 
     const CFA& cfa() const { return cfa_; }
-    size_t size() const { return rpo_ids_.size(); }
+    size_t size() const { return indices_.size(); }
     ArrayRef<const CFNode*> preds(const CFNode* n) const { return forward ? cfa().preds(n->lambda()) : cfa().succs(n->lambda()); }
     ArrayRef<const CFNode*> succs(const CFNode* n) const { return forward ? cfa().succs(n->lambda()) : cfa().preds(n->lambda()); }
     size_t num_preds(const CFNode* n) const { return preds(n).size(); }
     size_t num_succs(const CFNode* n) const { return succs(n).size(); }
     const CFNode* entry() const { return forward ? cfa().entry() : cfa().exit();  }
     const CFNode* exit()  const { return forward ? cfa().exit()  : cfa().entry(); }
-    size_t rpo_id(const CFNode* n) const { return rpo_ids_[n->lambda()]; }
+    size_t index(const CFNode* n) const { return indices_[n->lambda()]; }
     /// All lambdas within this scope in reverse post-order.
     ArrayRef<const CFNode*> rpo() const { return rpo_.array(); }
     const CFNode* rpo(size_t i) const { return rpo_.array()[i]; }
@@ -142,11 +142,11 @@ public:
     const_iterator end() const { return rpo().end(); }
 
 private:
-    size_t& _rpo_id(const CFNode* n) { return rpo_ids_[n->lambda()]; }
+    size_t& _index(const CFNode* n) { return indices_[n->lambda()]; }
     size_t number(const CFNode*, size_t);
 
     const CFA& cfa_;
-    Scope::SIDMap<size_t> rpo_ids_;
+    Scope::SIDMap<size_t> indices_;
     RPOMap<const CFNode*> rpo_;
     mutable AutoPtr<const DomTreeBase<forward>> domtree_;
 };

@@ -43,7 +43,7 @@ void DomTreeBase<forward>::create() {
     // all others' idom are set to their first found dominating pred
     for (auto n : cfg().body()) {
         for (auto pred : cfg().preds(n)) {
-            if (cfg().rpo_id(pred) < cfg().rpo_id(n)) {
+            if (cfg().index(pred) < cfg().index(n)) {
                 auto dom = _lookup(pred);
                 assert(dom);
                 _lookup(n)->idom_ = dom;
@@ -86,18 +86,18 @@ outer_loop:;
 template<bool forward>
 size_t DomTreeBase<forward>::postprocess(DomNode* n, int depth) {
     n->depth_ = depth;
-    n->max_rpo_id_ = 0;
+    n->max_index_ = 0;
     for (auto child : n->children())
-        n->max_rpo_id_ = std::max(n->max_rpo_id_, postprocess(const_cast<DomNode*>(child), depth+1));
-    return n->max_rpo_id_;
+        n->max_index_ = std::max(n->max_index_, postprocess(const_cast<DomNode*>(child), depth+1));
+    return n->max_index_;
 }
 
 template<bool forward>
 DomNode* DomTreeBase<forward>::_lca(DomNode* i, DomNode* j) {
     assert(i && j);
-    while (rpo_id(i) != rpo_id(j)) {
-        while (rpo_id(i) < rpo_id(j)) j = j->idom_;
-        while (rpo_id(j) < rpo_id(i)) i = i->idom_;
+    while (index(i) != index(j)) {
+        while (index(i) < index(j)) j = j->idom_;
+        while (index(j) < index(i)) i = i->idom_;
     }
     return i;
 }

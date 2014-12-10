@@ -150,10 +150,10 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     void dump_jump() const;
     void destroy_body();
     void refresh();
-    /// Return the scope id \p sid for the given \p scope or size_t(-1) if this \p Lambda is not contained in \p scope.
-    size_t sid(const Scope& scope) {
+    /// Return the scope id \p index for the given \p scope or size_t(-1) if this \p Lambda is not contained in \p scope.
+    size_t index(const Scope& scope) {
         if (auto info = find_scope(&scope))
-            return info->sid;
+            return info->index;
         return size_t(-1);
     }
 
@@ -209,11 +209,11 @@ private:
     struct ScopeInfo {
         ScopeInfo(const Scope* scope)
             : scope(scope)
-            , sid(-1)
+            , index(-1)
         {}
 
         const Scope* scope;
-        size_t sid;
+        size_t index;
     };
 
     std::list<ScopeInfo>::iterator list_iter(const Scope*);

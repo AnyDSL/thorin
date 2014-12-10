@@ -66,7 +66,7 @@ void Scope::identify_scope(Lambda* entry) {
 
     for (size_t i = 0, e = size(); i != e; ++i) {
         auto lambda = lambdas_[i];
-        lambda->register_scope(this)->sid = i;
+        lambda->register_scope(this)->index = i;
         assert(is_candidate(lambda));
     }
     assert(lambdas().front() == entry);

@@ -30,7 +30,7 @@ public:
 
         const Scope& scope() const { return scope_; }
         size_t size() const { return array_.size(); }
-        To& operator[] (Lambda* lambda) { auto i = scope().sid(lambda); assert(i != size_t(-1)); return array_[i]; }
+        To& operator[] (Lambda* lambda) { auto i = scope().index(lambda); assert(i != size_t(-1)); return array_[i]; }
         const To& operator[] (Lambda* lambda) const { return const_cast<SIDMap*>(this)->operator[](lambda); }
         const To& entry() const { return array_.front(); }
         const To& exit() const { return array_.back(); }
@@ -65,7 +65,7 @@ public:
     bool _contains(Def def) const { return in_scope_.contains(def); }
     bool contains(Lambda* lambda) const { return lambda->find_scope(this) != nullptr; }
     bool contains(const Param* param) const { return param->lambda()->find_scope(this) != nullptr; }
-    size_t sid(Lambda* lambda) const { return lambda->find_scope(this)->sid; }
+    size_t index(Lambda* lambda) const { return lambda->find_scope(this)->index; }
     uint32_t id() const { return id_; }
     size_t size() const { return lambdas_.size(); }
     World& world() const { return world_; }
@@ -105,7 +105,7 @@ private:
 
 template<class To>
 To* find(Scope::SIDMap<To*>& map, Lambda* lambda) {
-    auto i = lambda->sid(map.scope());
+    auto i = lambda->index(map.scope());
     return i != size_t(-1) ? map.array_[i] : nullptr;
 }
 

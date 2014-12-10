@@ -209,7 +209,7 @@ CFA::CFA(const Scope& scope)
 
 size_t CFA::sid(Lambda* lambda) const { 
     if (auto info = lambda->find_scope(&scope()))
-        return info->sid;
+        return info->index;
     return size_t(-1);
 }
 

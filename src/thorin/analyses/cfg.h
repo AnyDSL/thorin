@@ -94,10 +94,6 @@ public:
             : cfg_(cfg)
             , array_(cfg.size())
         {}
-        RPOMap(const RPOMap<To>& other)
-            : cfg_(other.cfg())
-            , array_(other.array_)
-        {}
 
         const CFG& cfg() const { return cfg_; }
         size_t size() const { return array_.size(); }

@@ -6,12 +6,15 @@
 #include "thorin/lambda.h"
 #include "thorin/util/array.h"
 #include "thorin/util/autoptr.h"
+#include "thorin/util/indexmap.h"
 
 namespace thorin {
 
 class CFA;
+class Scope;
 
-//------------------------------------------------------------------------------
+template<class Value>
+using SIDMap = IndexMap<Scope, Lambda*, Value>;
 
 template<class This, class T> 
 inline T* lazy_init(const This* self, AutoPtr<T>& ptr) { 
@@ -20,34 +23,6 @@ inline T* lazy_init(const This* self, AutoPtr<T>& ptr) {
 
 class Scope {
 public:
-    template<class To>
-    class SIDMap {
-    public:
-        SIDMap(const Scope& scope)
-            : scope_(scope)
-            , array_(scope.size())
-        {}
-
-        const Scope& scope() const { return scope_; }
-        size_t size() const { return array_.size(); }
-        To& operator[] (Lambda* lambda) { auto i = scope().index(lambda); assert(i != size_t(-1)); return array_[i]; }
-        const To& operator[] (Lambda* lambda) const { return const_cast<SIDMap*>(this)->operator[](lambda); }
-        const To& entry() const { return array_.front(); }
-        const To& exit() const { return array_.back(); }
-        Array<To>& array() { return array_; }
-        const Array<To>& array() const { return array_; }
-
-        typedef typename Array<To>::const_iterator const_iterator;
-        const_iterator begin() const { return array_.begin(); }
-        const_iterator end() const { return array_.end(); }
-
-    private:
-        const Scope& scope_;
-        Array<To> array_;
-
-        template<class T> friend T* find(Scope::SIDMap<T*>&, Lambda*);
-    };
-
     Scope(const Scope&) = delete;
     Scope& operator= (Scope) = delete;
 
@@ -65,7 +40,11 @@ public:
     bool _contains(Def def) const { return in_scope_.contains(def); }
     bool contains(Lambda* lambda) const { return lambda->find_scope(this) != nullptr; }
     bool contains(const Param* param) const { return param->lambda()->find_scope(this) != nullptr; }
-    size_t index(Lambda* lambda) const { return lambda->find_scope(this)->index; }
+    size_t index(Lambda* lambda) const { 
+        if (auto info = lambda->find_scope(this))
+            return info->index; 
+        return size_t(-1);  
+    }
     uint32_t id() const { return id_; }
     size_t size() const { return lambdas_.size(); }
     World& world() const { return world_; }
@@ -102,19 +81,6 @@ private:
 
     template<bool> friend class ScopeView;
 };
-
-template<class To>
-To* find(Scope::SIDMap<To*>& map, Lambda* lambda) {
-    auto i = lambda->index(map.scope());
-    return i != size_t(-1) ? map.array_[i] : nullptr;
-}
-
-template<class To>
-const To* find(const Scope::SIDMap<To*>& map, Lambda* lambda) { 
-    return find(const_cast<Scope::SIDMap<To*>&>(map), lambda); 
-}
-
-//------------------------------------------------------------------------------
 
 }
 

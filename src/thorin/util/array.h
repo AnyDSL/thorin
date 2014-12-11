@@ -78,10 +78,12 @@ public:
         : ptr_(nullptr)
         , size_(0)
     {}
-    explicit Array(size_t size)
-        : ptr_(new T[size]())
+    explicit Array(size_t size, const T& val = T())
+        : ptr_(new T[size])
         , size_(size)
-    {}
+    {
+        std::fill(begin(), end(), val);
+    }
     Array(ArrayRef<T> ref)
         : ptr_(new T[ref.size()])
         , size_(ref.size())
@@ -102,12 +104,6 @@ public:
         std::copy(array.begin(), array.end(), begin());
     }
     ~Array() { delete[] ptr_; }
-
-    void alloc(size_t size) {
-        assert(ptr_ == nullptr && size_ == 0);
-        ptr_ = new T[size]();
-        size_ = size;
-    };
 
     typedef T* iterator;
     typedef const T* const_iterator;

@@ -8,9 +8,9 @@ namespace thorin {
 template<class Indexer, class Key, class Value>
 class IndexMap {
 public:
-    IndexMap(const Indexer& indexer)
+    IndexMap(const Indexer& indexer, const Value& value = Value())
         : indexer_(indexer)
-        , array_(indexer.size())
+        , array_(indexer.size(), value)
     {}
 
     const Indexer& indexer() const { return indexer_; }

@@ -13,9 +13,6 @@ namespace thorin {
 class CFA;
 class Scope;
 
-template<class Value>
-using SIDMap = IndexMap<Scope, Lambda*, Value>;
-
 template<class This, class T> 
 inline T* lazy_init(const This* self, AutoPtr<T>& ptr) { 
     return ptr ? ptr : ptr = new T(*self); 
@@ -23,6 +20,9 @@ inline T* lazy_init(const This* self, AutoPtr<T>& ptr) {
 
 class Scope {
 public:
+    template<class Value>
+    using Map = IndexMap<Scope, Lambda*, Value>;
+
     Scope(const Scope&) = delete;
     Scope& operator= (Scope) = delete;
 

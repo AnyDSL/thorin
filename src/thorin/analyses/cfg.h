@@ -55,9 +55,7 @@ public:
 
     const Scope& scope() const { return scope_; }
     size_t size() const { return nodes_.size(); }
-    size_t sid(Lambda* lambda) const;
-    size_t sid(const CFNode* n) const { return sid(n->lambda()); }
-    const SIDMap<CFNode*>& nodes() const { return nodes_; }
+    const Scope::Map<CFNode*>& nodes() const { return nodes_; }
     ArrayRef<const CFNode*> preds(Lambda* lambda) const { return nodes_[lambda]->preds(); }
     ArrayRef<const CFNode*> succs(Lambda* lambda) const { return nodes_[lambda]->succs(); }
     size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
@@ -74,7 +72,7 @@ public:
 private:
     CFNode* _lookup(Lambda* lambda) const { return nodes_[lambda]; }
     const Scope& scope_;
-    SIDMap<CFNode*> nodes_;
+    Scope::Map<CFNode*> nodes_;
     mutable AutoPtr<const F_CFG> f_cfg_;
     mutable AutoPtr<const B_CFG> b_cfg_;
     mutable AutoPtr<const LoopTree> looptree_;
@@ -86,7 +84,7 @@ template<bool forward = true>
 class CFG {
 public:
     template<class Value>
-    using RPOMap = IndexMap<CFG<forward>, const CFNode*, Value>;
+    using Map = IndexMap<CFG<forward>, const CFNode*, Value>;
 
     CFG(const CFG&) = delete;
     CFG& operator= (CFG) = delete;
@@ -119,8 +117,8 @@ private:
     size_t number(const CFNode*, size_t);
 
     const CFA& cfa_;
-    SIDMap<size_t> indices_;
-    RPOMap<const CFNode*> rpo_;
+    Scope::Map<size_t> indices_;
+    Map<const CFNode*> rpo_;
     mutable AutoPtr<const DomTreeBase<forward>> domtree_;
 };
 

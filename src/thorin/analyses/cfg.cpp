@@ -52,25 +52,23 @@ public:
 
     CFABuilder(CFA& cfa)
         : cfa_(cfa)
-        , lambda2lambdas_(cfa.size())
-        , lambda2param2lambdas_(cfa.size(), std::vector<LambdaSet>(0))
-        , reachable_(cfa.size(), Unreachable)
+        , lambda2lambdas_(cfa.scope())
+        , lambda2param2lambdas_(cfa.scope(), std::vector<LambdaSet>(0))
+        , reachable_(cfa.scope(), Unreachable)
     {
-        for (size_t sid = 0, e = cfa.size(); sid != e; ++sid) {
-            auto lambda = scope()[sid];
-            lambda2lambdas_[sid].insert(lambda);                        // only add current lamba to set and that's it
-            lambda2param2lambdas_[sid].resize(lambda->num_params());    // make room for params
+        for (auto lambda : scope()) { 
+            lambda2lambdas_[lambda].insert(lambda);                     // only add current lamba to set and that's it
+            lambda2param2lambdas_[lambda].resize(lambda->num_params()); // make room for params
         }
 
         run();
     }
 
-    size_t sid(Lambda* lambda) const { return cfa().sid(lambda); }
     const CFA& cfa() const { return cfa_; }
     const Scope& scope() const { return cfa_.scope(); }
     void run();
-    bool is_forward_reachable(Lambda* lambda) { return reachable_[cfa_.sid(lambda)] & ForwardReachable; }
-    bool is_backward_reachable (Lambda* lambda) { return reachable_[cfa_.sid(lambda)] & BackwardReachable; }
+    bool is_forward_reachable(Lambda* lambda) { return reachable_[lambda] & ForwardReachable; }
+    bool is_backward_reachable (Lambda* lambda) { return reachable_[lambda] & BackwardReachable; }
     //bool contains(Lambda* lambda) { return scope().contains(lambda); };
     bool contains(Lambda* lambda) { return scope().entry() != lambda && scope().contains(lambda); };
     bool contains(const Param* param) { return scope().entry() != param->lambda() && contains(param->lambda()); }
@@ -82,18 +80,18 @@ private:
     CFNode* _lookup(Lambda* lambda) const { return cfa_._lookup(lambda); }
 
     CFA& cfa_;
-    std::vector<LambdaSet> lambda2lambdas_;
-    std::vector<std::vector<LambdaSet>> lambda2param2lambdas_;
-    std::vector<uint8_t> reachable_;
+    Scope::Map<LambdaSet> lambda2lambdas_;
+    Scope::Map<std::vector<LambdaSet>> lambda2param2lambdas_;
+    Scope::Map<uint8_t> reachable_;
 };
 
 FlowVal CFABuilder::flow_val(Def def) {
     if (auto lambda = def->isa_lambda()) {
         if (contains(lambda))
-            return FlowVal(lambda2lambdas_[sid(lambda)]);
+            return FlowVal(lambda2lambdas_[lambda]);
     } else if (auto param = def->isa<Param>()) {
         if (contains(param))
-            return FlowVal(lambda2param2lambdas_[sid(param->lambda())][param->index()]);
+            return FlowVal(lambda2param2lambdas_[param->lambda()][param->index()]);
     }
     return FlowVal();
 }
@@ -160,7 +158,7 @@ void CFABuilder::run() {
 
 void CFABuilder::forward_visit(CFNode* cur) {
     assert(!is_forward_reachable(cur->lambda()));
-    auto& reachable = reachable_[sid(cur->lambda())];
+    auto& reachable = reachable_[cur->lambda()];
     auto link_and_visit = [&] (CFNode* succ) {
         assert(contains(succ->lambda()));
         cur->link(succ);
@@ -205,12 +203,6 @@ CFA::CFA(const Scope& scope)
         nodes_[scope[i]] = new CFNode(scope[i]);
 
     CFABuilder cfa(*this);
-}
-
-size_t CFA::sid(Lambda* lambda) const { 
-    if (auto info = lambda->find_scope(&scope()))
-        return info->index;
-    return size_t(-1);
 }
 
 const F_CFG* CFA::f_cfg() const { return lazy_init(this, f_cfg_); }

@@ -80,19 +80,16 @@ public:
     void toggle(Key key) { bool old = (*this)[key]; (*this)[key] = !old; }
     bool contains(Key key) const { return (*this)[key]; }
     void clear() { std::fill(bits_.begin(), bits_.end(), 0ull); }
-
-#define THORIN_INDEXSET_OP(op) \
-    IndexSet& operator op (const IndexSet& other) { \
-        assert(this->size() == other.size()); \
-        for (size_t i = 0, e = size(); i != e; ++i) \
-            this->bits_[i] op other.bits_[i]; \
-        return *this; \
+    template<class Op>
+    IndexSet& transform(const IndexSet& other, Op op) {
+        assert(this->size() == other.size());
+        for (size_t i = 0, e = size(); i != e; ++i)
+            this->bits_[i] = op(this->bits_[i], other.bits_[i]);
+        return *this;
     }
-    THORIN_INDEXSET_OP(|=)
-    THORIN_INDEXSET_OP(&=)
-    THORIN_INDEXSET_OP(^=)
-#undef THORIN_INDEXSET_OP
-
+    IndexSet& operator |= (const IndexSet& other) { return transform(other, [&] (uint64_t u1, uint64_t u2) { return u1 | u2; }); }
+    IndexSet& operator &= (const IndexSet& other) { return transform(other, [&] (uint64_t u1, uint64_t u2) { return u1 & u2; }); }
+    IndexSet& operator ^= (const IndexSet& other) { return transform(other, [&] (uint64_t u1, uint64_t u2) { return u1 ^ u2; }); }
     IndexSet& operator = (IndexSet other) { swap(*this, other); return *this; }
     friend void swap(IndexSet& set1, IndexSet& set2) {
         using std::swap;

@@ -85,6 +85,7 @@ class CFG {
 public:
     template<class Value>
     using Map = IndexMap<CFG<forward>, const CFNode*, Value>;
+    using Set = IndexSet<CFG<forward>, const CFNode*>;
 
     CFG(const CFG&) = delete;
     CFG& operator= (CFG) = delete;

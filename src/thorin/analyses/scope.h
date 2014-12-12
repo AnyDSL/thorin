@@ -7,6 +7,7 @@
 #include "thorin/util/array.h"
 #include "thorin/util/autoptr.h"
 #include "thorin/util/indexmap.h"
+#include "thorin/util/indexset.h"
 
 namespace thorin {
 
@@ -22,6 +23,7 @@ class Scope {
 public:
     template<class Value>
     using Map = IndexMap<Scope, Lambda*, Value>;
+    using Set = IndexSet<Scope, Lambda*>;
 
     Scope(const Scope&) = delete;
     Scope& operator= (Scope) = delete;

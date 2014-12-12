@@ -1,0 +1,121 @@
+#ifndef THORIN_UTIL_INDEXSET_H
+#define THORIN_UTIL_INDEXSET_H
+
+#include "thorin/util/array.h"
+
+namespace thorin {
+
+template<class Indexer, class Key>
+class IndexSet {
+public:
+    static const size_t npos = -1;
+
+    class reference {
+    private:
+        reference(uint64_t& word, size_t pos)
+            : word_(word)
+            , pos_(pos)
+        {}
+
+    public:
+        reference operator=(bool b) {
+            if (b) 
+                word_ |= 1 << pos_;
+            else   
+                word_ &= ~(1 << pos_);
+            return *this;
+        }
+        operator bool() const { return word_ & ( 1 << pos_); }
+
+    private:
+        uint64_t& word_;
+        size_t pos_;
+
+        friend class IndexSet;
+    };
+
+    IndexSet(const Indexer& indexer)
+        : indexer_(indexer)
+        , bits_((size()+63u) / 64u)
+    {}
+    IndexSet(IndexSet&& other)
+        : IndexSet(indexer)
+    {
+        swap(*this, other);
+    }
+    IndexSet(const IndexSet& other)
+        : indexer_(other.indexer())
+        , bits_(other.bits_)
+    {}
+
+    const Indexer& indexer() const { return indexer_; }
+    size_t size() const { return indexer().size(); }
+    size_t next(size_t pos = 0) {
+        for (size_t i = pos, e = size(); i != e; ++i) {
+            if (bits_[i])
+                return i;
+        }
+        return pos;
+    }
+    reference operator[] (Key key) {
+        auto i = indexer().index(key); 
+        assert(i != size_t(-1)); 
+        return reference(bits_[i / 64u], i % 64u);
+    }
+    bool operator[] (Key key) const { return (*const_cast<IndexSet<Indexer, Key>*>(this))[key]; }
+    /// Inserts \p key and returns true if successful.
+    bool insert(Key key) { 
+        if (contains(key))
+            return false;
+        set(key);
+        return true;
+    }
+    template<class Iter>
+    void insert(Iter begin, Iter end) {
+        for (auto i = begin; i != end; ++i)
+            set(*i);
+    }
+    void set(Key key) { (*this)[key] = true; }
+    void unset(Key key) { (*this)[key] = false; }
+    void toggle(Key key) { bool old = (*this)[key]; (*this)[key] = !old; }
+    bool contains(Key key) const { return (*this)[key]; }
+    void clear() { std::fill(bits_.begin(), bits_.end(), 0ull); }
+
+#define THORIN_INDEXSET_OP(op) \
+    IndexSet& operator op (const IndexSet& other) { \
+        assert(this->size() == other.size()); \
+        for (size_t i = 0, e = size(); i != e; ++i) \
+            this->bits_[i] op other.bits_[i]; \
+        return *this; \
+    }
+    THORIN_INDEXSET_OP(|=)
+    THORIN_INDEXSET_OP(&=)
+    THORIN_INDEXSET_OP(^=)
+#undef THORIN_INDEXSET_OP
+
+    IndexSet& operator = (IndexSet other) { swap(*this, other); return *this; }
+    friend void swap(IndexSet& set1, IndexSet& set2) {
+        using std::swap;
+        assert(&set1.indexer() == set2.indexer());
+        swap(set1.bits_, set2.bits_);
+    }
+
+private:
+    const Indexer& indexer_;
+    Array<uint64_t> bits_;
+};
+
+template<class Indexer, class Key>
+bool visit(IndexSet<Indexer, Key>& set, const Key& key) {
+    return !set.insert(key);
+}
+
+template<class Indexer, class Key>
+void visit_first(IndexSet<Indexer, Key>& set, const Key& key) {
+    assert(!set.contains(key));
+    visit(set, key);
+}
+
+}
+
+#endif

@@ -29,6 +29,9 @@ class LoopTreeBuilder {
 public:
     LoopTreeBuilder(LoopTree& looptree)
         : looptree(looptree)
+        , numbers(cfg())
+        , states(cfg())
+        , set(cfg())
         , dfs_id(0)
     {
         stack.reserve(looptree.cfg().size());
@@ -55,7 +58,7 @@ private:
     void build();
     static std::pair<size_t, size_t> propagate_bounds(LoopNode* header);
     void analyse_loops(LoopHeader* header);
-    const CFG<true>& cfg() const { return looptree.cfg(); }
+    const F_CFG& cfg() const { return looptree.cfg(); }
     Number& number(const CFNode* cfg_node) { return numbers[cfg_node]; }
     size_t& lowlink(const CFNode* cfg_node) { return number(cfg_node).low; }
     size_t& dfs(const CFNode* cfg_node) { return number(cfg_node).dfs; }
@@ -91,9 +94,9 @@ private:
     int walk_scc(const CFNode* cur, LoopHeader* parent, int depth, int scc_counter);
 
     LoopTree& looptree;
-    CFNodeMap<Number> numbers;
-    CFNodeMap<uint8_t> states;
-    CFNodeSet set;
+    F_CFG::Map<Number> numbers;
+    F_CFG::Map<uint8_t> states;
+    F_CFG::Set set;
     size_t dfs_id;
     std::vector<const CFNode*> stack;
 };
@@ -102,7 +105,7 @@ void LoopTreeBuilder::build() {
     for (auto cfg_node : cfg()) // clear all flags
         states[cfg_node] = 0;
 
-    recurse(looptree.root_ = new LoopHeader(nullptr, 0, std::vector<const CFNode*>(0)), {cfg().entry()}, 1);
+    recurse(looptree.root_ = new LoopHeader(cfg(), nullptr, 0, std::vector<const CFNode*>(0)), {cfg().entry()}, 1);
 }
 
 void LoopTreeBuilder::recurse(LoopHeader* parent, ArrayRef<const CFNode*> headers, int depth) {
@@ -171,7 +174,7 @@ int LoopTreeBuilder::walk_scc(const CFNode* cur, LoopHeader* parent, int depth, 
             LoopLeaf* leaf = new LoopLeaf(dfs_id++, parent, depth, headers);
             looptree.map_[headers.front()] = looptree.dfs_leaves_[leaf->dfs_id()] = leaf;
         } else
-            new LoopHeader(parent, depth, headers);
+            new LoopHeader(cfg(), parent, depth, headers);
 
         // reset InSCC and OnStack flags
         for (size_t i = b; i != e; ++i)
@@ -260,8 +263,10 @@ void LoopHeader::Edge::dump() {
 
 #define DUMP_SET(set) \
     indent() << "+ " #set ": "; \
-    for (auto cfg_node : set()) \
-        std::cout << cfg_node->lambda()->unique_name() << " "; \
+    for (auto n : set().indexer()) { \
+        if (set().contains(n)) \
+            std::cout << n->lambda()->unique_name() << " "; \
+    } \
     std::cout << std::endl;
 
 #define DUMP_EDGES(edges) \
@@ -290,8 +295,9 @@ void LoopHeader::dump() const {
 
 //------------------------------------------------------------------------------
 
-LoopTree::LoopTree(const CFG<true>& cfg)
+LoopTree::LoopTree(const F_CFG& cfg)
     : cfg_(cfg)
+    , map_(cfg)
     , dfs_leaves_(cfg.size())
 {
     LoopTreeBuilder(*this);

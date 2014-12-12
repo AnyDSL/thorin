@@ -28,10 +28,10 @@ public:
 
 private:
     const CFNode* cfg_node_;
-    DomNode* idom_ = nullptr;
-    AutoVector<const DomNode*> children_;
-    int depth_;
-    size_t max_index_;
+    mutable const DomNode* idom_ = nullptr;
+    mutable AutoVector<const DomNode*> children_;
+    mutable int depth_;
+    mutable size_t max_index_;
 
     template<bool> friend class DomTreeBase;
 };
@@ -49,21 +49,17 @@ public:
     size_t index(const DomNode* n) const { return cfg().index(n->cfg_node()); }
     const DomNode* root() const { return root_; }
     /// Returns the least common ancestor of \p i and \p j.
-    const DomNode* lca(const DomNode* i, const DomNode* j) const {
-        return const_cast<DomTreeBase*>(this)->_lca(const_cast<DomNode*>(i), const_cast<DomNode*>(j));
-    }
-    const DomNode* lookup(const CFNode* n) const { return nodes_[cfg().index(n)]; }
+    const DomNode* lca(const DomNode* i, const DomNode* j) const;
+    const DomNode* lookup(const CFNode* n) const { return nodes_[n]; }
     void dump() const { root()->dump(); }
 
 private:
     void create();
-    size_t postprocess(DomNode* n, int depth);
-    DomNode* _lca(DomNode*, DomNode*);
-    DomNode*& _lookup(const CFNode* n) { return nodes_[cfg().index(n)]; }
+    size_t postprocess(const DomNode* n, int depth);
 
     const CFG<forward>& cfg_;
-    AutoPtr<DomNode> root_;
-    std::vector<DomNode*> nodes_;
+    AutoPtr<const DomNode> root_;
+    typename CFG<forward>::template Map<const DomNode*> nodes_;
 };
 
 }

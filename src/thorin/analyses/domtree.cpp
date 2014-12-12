@@ -26,7 +26,7 @@ Lambda* DomNode::lambda() const { return cfg_node()->lambda(); }
 template<bool forward>
 DomTreeBase<forward>::DomTreeBase(const CFG<forward>& cfg)
     : cfg_(cfg)
-    , nodes_(cfg.size())
+    , nodes_(cfg)
 {
     create();
 }
@@ -34,19 +34,19 @@ DomTreeBase<forward>::DomTreeBase(const CFG<forward>& cfg)
 template<bool forward>
 void DomTreeBase<forward>::create() {
     for (auto n : cfg())
-        _lookup(n) = new DomNode(n);
+        nodes_[n] = new DomNode(n);
 
     // map entry's initial idom to itself
-    root_ = _lookup(cfg().entry());
+    root_ = nodes_[cfg().entry()];
     root_->idom_ = root_;
 
     // all others' idom are set to their first found dominating pred
     for (auto n : cfg().body()) {
         for (auto pred : cfg().preds(n)) {
             if (cfg().index(pred) < cfg().index(n)) {
-                auto dom = _lookup(pred);
+                auto dom = nodes_[pred];
                 assert(dom);
-                _lookup(n)->idom_ = dom;
+                nodes_[n]->idom_ = dom;
                 goto outer_loop;
             }
         }
@@ -58,13 +58,13 @@ outer_loop:;
         todo = false;
 
         for (auto n : cfg().body()) {
-            auto dom = _lookup(n);
+            auto dom = nodes_[n];
 
-            DomNode* new_idom = nullptr;
+            const DomNode* new_idom = nullptr;
             for (auto pred : cfg().preds(n)) {
-                auto pred_dom = _lookup(pred);
+                auto pred_dom = nodes_[pred];
                 assert(pred_dom);
-                new_idom = new_idom ? _lca(new_idom, pred_dom) : pred_dom;
+                new_idom = new_idom ? lca(new_idom, pred_dom) : pred_dom;
             }
             assert(new_idom);
             if (dom->idom() != new_idom) {
@@ -75,7 +75,7 @@ outer_loop:;
     }
 
     for (auto n : cfg().body()) {
-        auto dom = _lookup(n);
+        auto dom = nodes_[n];
         dom->idom_->children_.push_back(dom);
     }
 
@@ -84,16 +84,16 @@ outer_loop:;
 }
 
 template<bool forward>
-size_t DomTreeBase<forward>::postprocess(DomNode* n, int depth) {
+size_t DomTreeBase<forward>::postprocess(const DomNode* n, int depth) {
     n->depth_ = depth;
     n->max_index_ = 0;
     for (auto child : n->children())
-        n->max_index_ = std::max(n->max_index_, postprocess(const_cast<DomNode*>(child), depth+1));
+        n->max_index_ = std::max(n->max_index_, postprocess(child, depth+1));
     return n->max_index_;
 }
 
 template<bool forward>
-DomNode* DomTreeBase<forward>::_lca(DomNode* i, DomNode* j) {
+const DomNode* DomTreeBase<forward>::lca(const DomNode* i, const DomNode* j) const {
     assert(i && j);
     while (index(i) != index(j)) {
         while (index(i) < index(j)) j = j->idom_;

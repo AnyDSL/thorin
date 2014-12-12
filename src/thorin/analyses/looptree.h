@@ -3,17 +3,13 @@
 
 #include <vector>
 
+#include "thorin/analyses/cfg.h"
 #include "thorin/util/array.h"
 #include "thorin/util/autoptr.h"
 #include "thorin/util/cast.h"
 
 namespace thorin {
 
-class CFNode;
-template<bool> class CFG;
-typedef HashSet<const CFNode*> CFNodeSet;
-template<class To>
-using CFNodeMap = HashMap<const CFNode*, To>;
 class LoopHeader;
 
 /**
@@ -65,10 +61,15 @@ public:
         int levels_;
     };
 
-    explicit LoopHeader(LoopHeader* parent, int depth, const std::vector<const CFNode*>& cfg_nodes)
+    explicit LoopHeader(const F_CFG& cfg, LoopHeader* parent, int depth, const std::vector<const CFNode*>& cfg_nodes)
         : LoopNode(parent, depth, cfg_nodes)
         , dfs_begin_(0)
         , dfs_end_(-1)
+        , headers_(cfg)
+        , preheaders_(cfg)
+        , latches_(cfg)
+        , exits_(cfg)
+        , exitings_(cfg)
     {}
 
     ArrayRef<LoopNode*> children() const { return children_; }
@@ -77,16 +78,16 @@ public:
     const std::vector<Edge>& entry_edges() const { return entry_edges_; }
     const std::vector<Edge>& exit_edges() const { return exit_edges_; }
     const std::vector<Edge>& back_edges() const { return back_edges_; }
-    /// Set of cfg_nodes not dominated by any other cfg_node within the loop. Same as \p cfg_nodes() as \p CFNodeSet.
-    const CFNodeSet& headers() const { return headers_; }
-    /// Set of cfg_nodes dominating the loop. They are not within the loop.
-    const CFNodeSet& preheaders() const { return preheaders_; }
+    /// Set of cfg_nodes not dominated by any other \p CFNode within the loop.
+    const F_CFG::Set& headers() const { return headers_; }
+    /// Set of \p CFNode dominating the loop. They are not within the loop.
+    const F_CFG::Set& preheaders() const { return preheaders_; }
     /// Set of cfg_nodes which jump to one of the headers.
-    const CFNodeSet& latches() const { return latches_; }
+    const F_CFG::Set& latches() const { return latches_; }
     /// Set of cfg_nodes which jump out of the loop.
-    const CFNodeSet& exitings() const { return exitings_; }
+    const F_CFG::Set& exitings() const { return exitings_; }
     /// Set of cfg_nodes jumped to via exiting cfg_nodes.
-    const CFNodeSet& exits() const { return exits_; }
+    const F_CFG::Set& exits() const { return exits_; }
     bool is_root() const { return parent_ == 0; }
     size_t dfs_begin() const { return dfs_begin_; };
     size_t dfs_end() const { return dfs_end_; }
@@ -99,11 +100,11 @@ private:
     std::vector<Edge> entry_edges_;
     std::vector<Edge> exit_edges_;
     std::vector<Edge> back_edges_;
-    CFNodeSet headers_;
-    CFNodeSet preheaders_;
-    CFNodeSet latches_;
-    CFNodeSet exits_;
-    CFNodeSet exitings_;
+    F_CFG::Set headers_;
+    F_CFG::Set preheaders_;
+    F_CFG::Set latches_;
+    F_CFG::Set exits_;
+    F_CFG::Set exitings_;
 
     friend class LoopNode;
     friend class LoopTreeBuilder;
@@ -136,9 +137,9 @@ public:
     LoopTree(const LoopTree&) = delete;
     LoopTree& operator= (LoopTree) = delete;
 
-    explicit LoopTree(const CFG<true>& cfg);
+    explicit LoopTree(const F_CFG& cfg);
 
-    const CFG<true>& cfg() const { return cfg_; }
+    const F_CFG& cfg() const { return cfg_; }
     const LoopHeader* root() const { return root_; }
     int depth(const CFNode* cfg_node) const { return cfg_node2leaf(cfg_node)->depth(); }
     size_t cfg_node2dfs(const CFNode* cfg_node) const { return cfg_node2leaf(cfg_node)->dfs_id(); }
@@ -153,8 +154,8 @@ public:
     const LoopHeader* cfg_node2header(const CFNode* cfg_node) const;
 
 private:
-    const CFG<true>& cfg_;
-    CFNodeMap<LoopLeaf*> map_;
+    const F_CFG& cfg_;
+    F_CFG::Map<LoopLeaf*> map_;
     Array<LoopLeaf*> dfs_leaves_;
     AutoPtr<LoopHeader> root_;
 

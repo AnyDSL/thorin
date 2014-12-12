@@ -30,17 +30,17 @@ public:
     Lambda* lambda() const { return lambda_; }
 
 private:
-    ArrayRef<const CFNode*> preds() const { return ArrayRef<const CFNode*>(preds_.data(), preds_.size()); }
-    ArrayRef<const CFNode*> succs() const { return ArrayRef<const CFNode*>(succs_.data(), succs_.size()); }
-    void link(CFNode* other) {
+    ArrayRef<const CFNode*> preds() const { return preds_; }
+    ArrayRef<const CFNode*> succs() const { return succs_; }
+    void link(const CFNode* other) const {
         assert(this->lambda()->intrinsic() != Intrinsic::EndScope);
         this->succs_.push_back(other);
         other->preds_.push_back(this);
     }
 
     Lambda* lambda_;
-    std::vector<CFNode*> preds_;
-    std::vector<CFNode*> succs_;
+    mutable std::vector<const CFNode*> preds_;
+    mutable std::vector<const CFNode*> succs_;
 
     friend class CFABuilder;
     friend class CFA;
@@ -55,7 +55,7 @@ public:
 
     const Scope& scope() const { return scope_; }
     size_t size() const { return nodes_.size(); }
-    const Scope::Map<CFNode*>& nodes() const { return nodes_; }
+    const Scope::Map<const CFNode*>& nodes() const { return nodes_; }
     ArrayRef<const CFNode*> preds(Lambda* lambda) const { return nodes_[lambda]->preds(); }
     ArrayRef<const CFNode*> succs(Lambda* lambda) const { return nodes_[lambda]->succs(); }
     size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
@@ -70,9 +70,9 @@ public:
     const CFNode* lookup(Lambda* lambda) const { return find(nodes_, lambda); }
 
 private:
-    CFNode* _lookup(Lambda* lambda) const { return nodes_[lambda]; }
+    const CFNode* _lookup(Lambda* lambda) const { return nodes_[lambda]; }
     const Scope& scope_;
-    Scope::Map<CFNode*> nodes_;
+    Scope::Map<const CFNode*> nodes_;
     mutable AutoPtr<const F_CFG> f_cfg_;
     mutable AutoPtr<const B_CFG> b_cfg_;
     mutable AutoPtr<const LoopTree> looptree_;
@@ -114,7 +114,7 @@ public:
 
 private:
     size_t& _index(const CFNode* n) { return indices_[n->lambda()]; }
-    size_t number(const CFNode*, size_t);
+    size_t post_order_number(const CFNode*, size_t);
 
     const CFA& cfa_;
     Scope::Map<size_t> indices_;

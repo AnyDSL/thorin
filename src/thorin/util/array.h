@@ -23,28 +23,28 @@ public:
     typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
 
     ArrayRef()
-        : ptr_(nullptr)
-        , size_(0)
+        : size_(0)
+        , ptr_(nullptr)
     {}
     ArrayRef(const ArrayRef<T>& ref)
-        : ptr_(ref.ptr_)
-        , size_(ref.size_)
+        : size_(ref.size_)
+        , ptr_(ref.ptr_)
     {}
     ArrayRef(const std::vector<T>& vector)
-       : ptr_(vector.data())
-       , size_(vector.size())
+       : size_(vector.size())
+       , ptr_(vector.data())
     {}
     ArrayRef(const T* ptr, size_t size)
-        : ptr_(ptr)
-        , size_(size)
+        : size_(size)
+        , ptr_(ptr)
     {}
     ArrayRef(const Array<T>& array)
-        : ptr_(array.begin())
-        , size_(array.size())
+        : size_(array.size())
+        , ptr_(array.begin())
     {}
     ArrayRef(std::initializer_list<T> list)
-        : ptr_(list.begin())
-        , size_(std::distance(list.begin(), list.end()))
+        : size_(std::distance(list.begin(), list.end()))
+        , ptr_(list.begin())
     {}
 
     const_iterator begin() const { return ptr_; }
@@ -65,8 +65,8 @@ public:
     bool operator == (const Other& other) const { return this->size() == other.size() && std::equal(begin(), end(), other.begin()); }
 
 private:
-    const T* ptr_;
     size_t size_;
+    const T* ptr_;
 };
 
 //------------------------------------------------------------------------------
@@ -75,31 +75,31 @@ template<class T>
 class Array {
 public:
     Array()
-        : ptr_(nullptr)
-        , size_(0)
+        : size_(0)
+        , ptr_(nullptr)
     {}
     explicit Array(size_t size, const T& val = T())
-        : ptr_(new T[size])
-        , size_(size)
+        : size_(size)
+        , ptr_(new T[size])
     {
         std::fill(begin(), end(), val);
     }
     Array(ArrayRef<T> ref)
-        : ptr_(new T[ref.size()])
-        , size_(ref.size())
+        : size_(ref.size())
+        , ptr_(new T[ref.size()])
     {
         std::copy(ref.begin(), ref.end(), begin());
     }
     Array(Array&& array)
-        : ptr_(std::move(array.ptr_))
-        , size_(std::move(array.size_))
+        : size_(std::move(array.size_))
+        , ptr_(std::move(array.ptr_))
     {
         array.ptr_ = nullptr;
         array.size_ = 0;
     }
     Array(const Array& array)
-        : ptr_(new T[array.size()])
-        , size_(array.size())
+        : size_(array.size())
+        , ptr_(new T[array.size()])
     {
         std::copy(array.begin(), array.end(), begin());
     }
@@ -144,8 +144,8 @@ public:
     Array<T>& operator= (Array<T> other) { swap(*this, other); return *this; }
 
 private:
-    T* ptr_;
     size_t size_;
+    T* ptr_;
 };
 
 template<class T>

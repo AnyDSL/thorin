@@ -73,11 +73,11 @@ public:
     bool contains(Lambda* lambda) { return scope().entry() != lambda && scope().contains(lambda); };
     bool contains(const Param* param) { return scope().entry() != param->lambda() && contains(param->lambda()); }
     FlowVal flow_val(Def);
-    void forward_visit(CFNode* cur);
-    void backward_visit(CFNode* cur);
+    void forward_visit(const CFNode* cur);
+    void backward_visit(const CFNode* cur);
 
 private:
-    CFNode* _lookup(Lambda* lambda) const { return cfa_._lookup(lambda); }
+    const CFNode* _lookup(Lambda* lambda) const { return cfa_._lookup(lambda); }
 
     CFA& cfa_;
     Scope::Map<LambdaSet> lambda2lambdas_;
@@ -156,10 +156,10 @@ void CFABuilder::run() {
     //}
 }
 
-void CFABuilder::forward_visit(CFNode* cur) {
+void CFABuilder::forward_visit(const CFNode* cur) {
     assert(!is_forward_reachable(cur->lambda()));
     auto& reachable = reachable_[cur->lambda()];
-    auto link_and_visit = [&] (CFNode* succ) {
+    auto link_and_visit = [&] (const CFNode* succ) {
         assert(contains(succ->lambda()));
         cur->link(succ);
         if (!is_forward_reachable(succ->lambda()))
@@ -216,17 +216,11 @@ const LoopTree* CFA::looptree() const { return looptree_ ? looptree_ : looptree_
 template<bool forward>
 CFG<forward>::CFG(const CFA& cfa)
     : cfa_(cfa)
-    , indices_(cfa.scope())
-    , rpo_(*this) // copy over - sort later
+    , indices_(cfa.scope(), -1 /*mark as not visited*/)
+    , rpo_(*this, cfa.nodes().array()) // copy over - sort later
 {
-    // TODO copy over
-    for (size_t i = 0, e = size(); i != e; ++i)
-        rpo_.array()[i] = cfa.nodes().array()[i];
-
-    std::fill(indices_.array().begin(), indices_.array().end(), -1);  // mark as not visited
-    auto num = number(entry(), 0);                      // number in post-order
-    
-    for (size_t i = 0, e = size(); i != e; ++i) {       // convert to reverse post-order
+    auto num = post_order_number(entry(), 0);
+    for (size_t i = 0, e = size(); i != e; ++i) {   // convert to reverse post-order
         auto& index = indices_.array()[i];
         if (index != size_t(-1))
             index = num-1 - index;
@@ -236,17 +230,17 @@ CFG<forward>::CFG(const CFA& cfa)
     std::sort(rpo_.array().begin(), rpo_.array().end(), [&] (const CFNode* n1, const CFNode* n2) { 
         return index(n1) < index(n2); 
     });
-    rpo_.array().shrink(num);                                   // remove unreachable stuff
+    rpo_.array().shrink(num);                       // remove unreachable stuff
 }
 
 template<bool forward>
-size_t CFG<forward>::number(const CFNode* n, size_t i) {
+size_t CFG<forward>::post_order_number(const CFNode* n, size_t i) {
     auto& n_index = _index(n);
     n_index = -2; // mark as visited
 
     for (auto succ : succs(n)) {
         if (index(succ) == size_t(-1)) // if not visited
-            i = number(succ, i);
+            i = post_order_number(succ, i);
     }
 
     return (n_index = i) + 1;

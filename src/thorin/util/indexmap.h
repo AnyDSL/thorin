@@ -12,6 +12,10 @@ public:
         : indexer_(indexer)
         , array_(indexer.size(), value)
     {}
+    IndexMap(const Indexer& indexer, ArrayRef<Value> array)
+        : indexer_(indexer)
+        , array_(array)
+    {}
 
     const Indexer& indexer() const { return indexer_; }
     size_t size() const { return array_.size(); }

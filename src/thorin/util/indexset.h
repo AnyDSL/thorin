@@ -87,9 +87,9 @@ public:
             this->bits_[i] = op(this->bits_[i], other.bits_[i]);
         return *this;
     }
-    IndexSet& operator |= (const IndexSet& other) { return transform(other, [&] (uint64_t u1, uint64_t u2) { return u1 | u2; }); }
-    IndexSet& operator &= (const IndexSet& other) { return transform(other, [&] (uint64_t u1, uint64_t u2) { return u1 & u2; }); }
-    IndexSet& operator ^= (const IndexSet& other) { return transform(other, [&] (uint64_t u1, uint64_t u2) { return u1 ^ u2; }); }
+    IndexSet& operator &= (const IndexSet& other) { return transform(other, std::bit_and<uint64_t>()); }
+    IndexSet& operator |= (const IndexSet& other) { return transform(other, std::bit_or <uint64_t>()); }
+    IndexSet& operator ^= (const IndexSet& other) { return transform(other, std::bit_xor<uint64_t>()); }
     IndexSet& operator = (IndexSet other) { swap(*this, other); return *this; }
     friend void swap(IndexSet& set1, IndexSet& set2) {
         using std::swap;

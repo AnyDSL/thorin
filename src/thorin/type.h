@@ -98,7 +98,7 @@ public:
     Proxy<T>& operator= (Proxy<T> other) { swap(*this, other); return *this; }
     friend void swap(Proxy<T>& p1, Proxy<T>& p2) {
         assert(p1.node_ == nullptr);
-        auto tmp = p2.node();
+        auto tmp = p2.node_;
         p2.node_ = p1.node_;
         p1.node_ = tmp;
     }

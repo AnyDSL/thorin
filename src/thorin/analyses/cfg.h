@@ -11,20 +11,30 @@
 
 namespace thorin {
 
+//------------------------------------------------------------------------------
+
 class LoopTree;
 
 template<bool> class DomTreeBase;
 typedef DomTreeBase<true>  DomTree;
 typedef DomTreeBase<false> PostDomTree;
+
 template<bool> class CFG;
 typedef CFG<true>  F_CFG;
 typedef CFG<false> B_CFG;
 
+//------------------------------------------------------------------------------
+
+/**
+ * A Control-Flow Node.
+ * Managed by \p CFA.
+ */
 class CFNode {
 public:
     CFNode(Lambda* lambda)
         : lambda_(lambda)
     {}
+    virtual ~CFNode() = 0;
 
     Lambda* lambda() const { return lambda_; }
 
@@ -45,6 +55,30 @@ private:
     friend class CFA;
 };
 
+/// This node represents a \p CFNode within its underlying \p Scope.
+class InCFNode : public CFNode {
+public:
+    InCFNode(Lambda* lambda)
+        : CFNode(lambda)
+    {}
+    virtual ~InCFNode() {}
+};
+
+/// Any jumps outside of the \p CFA's underlying \p Scope are represented with this node.
+class OutCFNode : public CFNode {
+public:
+    OutCFNode(Lambda* lambda)
+        : CFNode(lambda)
+    {}
+    virtual ~OutCFNode() {}
+};
+
+//------------------------------------------------------------------------------
+
+/**
+ * Control Flow Analysis.
+ * This class maintains information run by a 0-CFA on a \p Scope.
+ */
 class CFA {
 public:
     CFA(const CFA&) = delete;
@@ -79,6 +113,17 @@ private:
     friend class CFABuilder;
 };
 
+//------------------------------------------------------------------------------
+
+/** 
+ * A Control-Flow Graph.
+ * A small wrapper for the information obtained by a \p CFA.
+ * The template parameter \p forward determines the direction of the edges.
+ * \c true means a conventional \p CFG.
+ * \c false means that all edges in this \p CFG are reverted.
+ * Thus, a dominance analysis, for example, becomes a post-dominance analysis.
+ * \see DomTreeBase
+ */
 template<bool forward>
 class CFG {
 public:
@@ -121,6 +166,8 @@ private:
     Map<const CFNode*> rpo_;
     mutable AutoPtr<const DomTreeBase<forward>> domtree_;
 };
+
+//------------------------------------------------------------------------------
 
 }
 

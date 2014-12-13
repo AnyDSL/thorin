@@ -200,7 +200,7 @@ CFA::CFA(const Scope& scope)
     , nodes_(scope)
 {
     for (size_t i = 0, e = size(); i != e; ++i)
-        nodes_[scope[i]] = new CFNode(scope[i]);
+        nodes_[scope[i]] = new InCFNode(scope[i]);
 
     CFABuilder cfa(*this);
 }

@@ -103,7 +103,6 @@ public:
     const CFNode* lookup(Lambda* lambda) const { return find(nodes_, lambda); }
 
 private:
-    const CFNode* _lookup(Lambda* lambda) const { return nodes_[lambda]; }
     const Scope& scope_;
     Scope::Map<const CFNode*> nodes_;
     mutable AutoPtr<const F_CFG> f_cfg_;
@@ -158,7 +157,6 @@ public:
     const_iterator end() const { return rpo().end(); }
 
 private:
-    size_t& _index(const CFNode* n) { return indices_[n->lambda()]; }
     size_t post_order_number(const CFNode*, size_t);
 
     const CFA& cfa_;

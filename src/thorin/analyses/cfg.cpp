@@ -75,10 +75,9 @@ public:
     FlowVal flow_val(Def);
     void forward_visit(const CFNode* cur);
     void backward_visit(const CFNode* cur);
+    const CFNode* lookup(Lambda* lambda) const { return cfa_.nodes_[lambda]; }
 
 private:
-    const CFNode* _lookup(Lambda* lambda) const { return cfa_._lookup(lambda); }
-
     CFA& cfa_;
     Scope::Map<LambdaSet> lambda2lambdas_;
     Scope::Map<std::vector<LambdaSet>> lambda2param2lambdas_;
@@ -170,7 +169,7 @@ void CFABuilder::forward_visit(const CFNode* cur) {
         for (auto arg : cur->lambda()->args()) {
             search(arg, [&] (Def def) {
                 for (auto succ : flow_val(def).lambdas())
-                    link_and_visit(_lookup(succ));
+                    link_and_visit(lookup(succ));
             });
         }
     };
@@ -179,13 +178,13 @@ void CFABuilder::forward_visit(const CFNode* cur) {
     search(cur->lambda()->to(), [&] (Def def) {
         if (auto to_lambda = def->isa_lambda()) {
             if (contains(to_lambda))
-                link_and_visit(_lookup(to_lambda));
+                link_and_visit(lookup(to_lambda));
             else
                 visit_args();
         } else if (auto param = def->isa<Param>()) {
             if (contains(param)) {
                 for (auto succ : flow_val(param).lambdas())
-                    link_and_visit(_lookup(succ));
+                    link_and_visit(lookup(succ));
             } else
                 visit_args();
         }
@@ -235,7 +234,7 @@ CFG<forward>::CFG(const CFA& cfa)
 
 template<bool forward>
 size_t CFG<forward>::post_order_number(const CFNode* n, size_t i) {
-    auto& n_index = _index(n);
+    auto& n_index = indices_[n->lambda()];
     n_index = -2; // mark as visited
 
     for (auto succ : succs(n)) {

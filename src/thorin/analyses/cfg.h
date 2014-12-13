@@ -13,13 +13,12 @@ namespace thorin {
 
 class LoopTree;
 
-template<bool> class CFG;
-typedef CFG<true>  F_CFG;
-typedef CFG<false> B_CFG;
-
 template<bool> class DomTreeBase;
 typedef DomTreeBase<true>  DomTree;
 typedef DomTreeBase<false> PostDomTree;
+template<bool> class CFG;
+typedef CFG<true>  F_CFG;
+typedef CFG<false> B_CFG;
 
 class CFNode {
 public:
@@ -80,7 +79,7 @@ private:
     friend class CFABuilder;
 };
 
-template<bool forward = true>
+template<bool forward>
 class CFG {
 public:
     template<class Value>

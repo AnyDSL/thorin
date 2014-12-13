@@ -56,10 +56,10 @@ public:
 };
 
 const DomNode* Merger::dom_succ(const DomNode* n) {
-    const auto& succs = cfg.succs(n->cfg_node());
+    const auto& succs = cfg.succs(n->cf_node());
     const auto& children = n->children();
     return succs.size() == 1 && children.size() == 1
-        && succs.front() == children.front()->cfg_node()
+        && succs.front() == children.front()->cf_node()
         && succs.front()->lambda()->num_uses() == 1
         && succs.front()->lambda() == n->lambda()->to()
         ? children.front() : nullptr;

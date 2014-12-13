@@ -11,30 +11,24 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-void DomNode::dump() const {
+template<bool forward>
+void DomTreeBase<forward>::Node::dump() const {
     for (int i = 0, e = depth(); i != e; ++i)
         std::cout << '\t';
-    std::cout << cfg_node()->lambda()->unique_name() << std::endl;
+    std::cout << cf_node()->lambda()->unique_name() << std::endl;
     for (auto child : children())
         child->dump();
 }
 
-Lambda* DomNode::lambda() const { return cfg_node()->lambda(); }
+template<bool forward>
+Lambda* DomTreeBase<forward>::Node::lambda() const { return cf_node()->lambda(); }
 
 //------------------------------------------------------------------------------
 
 template<bool forward>
-DomTreeBase<forward>::DomTreeBase(const CFG<forward>& cfg)
-    : cfg_(cfg)
-    , nodes_(cfg)
-{
-    create();
-}
-
-template<bool forward>
 void DomTreeBase<forward>::create() {
     for (auto n : cfg())
-        nodes_[n] = new DomNode(n);
+        nodes_[n] = new Node(n);
 
     // map entry's initial idom to itself
     root_ = nodes_[cfg().entry()];
@@ -60,7 +54,7 @@ outer_loop:;
         for (auto n : cfg().body()) {
             auto dom = nodes_[n];
 
-            const DomNode* new_idom = nullptr;
+            const Node* new_idom = nullptr;
             for (auto pred : cfg().preds(n)) {
                 auto pred_dom = nodes_[pred];
                 assert(pred_dom);
@@ -84,7 +78,7 @@ outer_loop:;
 }
 
 template<bool forward>
-size_t DomTreeBase<forward>::postprocess(const DomNode* n, int depth) {
+size_t DomTreeBase<forward>::postprocess(const Node* n, int depth) {
     n->depth_ = depth;
     n->max_index_ = 0;
     for (auto child : n->children())
@@ -93,7 +87,7 @@ size_t DomTreeBase<forward>::postprocess(const DomNode* n, int depth) {
 }
 
 template<bool forward>
-const DomNode* DomTreeBase<forward>::lca(const DomNode* i, const DomNode* j) const {
+const typename DomTreeBase<forward>::Node* DomTreeBase<forward>::lca(const Node* i, const Node* j) const {
     assert(i && j);
     while (index(i) != index(j)) {
         while (index(i) < index(j)) j = j->idom_;

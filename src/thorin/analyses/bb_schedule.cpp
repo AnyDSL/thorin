@@ -4,7 +4,6 @@
 
 namespace thorin {
 
-
 static int count_children(const DomNode* n, LambdaMap<int>& lambda2num) {
     int num = 0;
     for (auto child : n->children())

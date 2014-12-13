@@ -14,11 +14,6 @@ namespace thorin {
 class CFA;
 class Scope;
 
-template<class This, class T> 
-inline T* lazy_init(const This* self, AutoPtr<T>& ptr) { 
-    return ptr ? ptr : ptr = new T(*self); 
-}
-
 class Scope {
 public:
     template<class Value>

@@ -5,7 +5,7 @@
 
 namespace thorin {
 
-/// Similar to std::unique_ptr<T> but some more convenience like cast operators and non-explicit constructors.
+/// Similar to \c std::unique_ptr<T> but some more convenience like cast operators and non-explicit constructors.
 template<class T>
 class AutoPtr {
 public:
@@ -34,8 +34,7 @@ private:
     AutoPtr(const AutoPtr<T>& aptr); // forbid copy constructor
 };
 
-/// A simple wrapper around a usual pointer but initialized with nullptr
-/// and checked via assert if valid prior to dereferencing.
+/// A simple wrapper around a usual pointer but initialized with nullptr and checked via assert if valid prior to dereferencing.
 template<class T>
 class SafePtr {
 public:
@@ -62,6 +61,7 @@ private:
     T* ptr_;
 };
 
+/// Like \c std::vector<T*> but \p AutoVector deletes its managed objects.
 template<class T>
 class AutoVector : public std::vector<T> {
 public:
@@ -73,6 +73,12 @@ public:
     {}
     ~AutoVector() { for (auto p : *this) delete p; }
 };
+
+/// Use to initialize an \p AutoPtr in a lazy way.
+template<class This, class T> 
+inline T* lazy_init(const This* self, AutoPtr<T>& ptr) { 
+    return ptr ? ptr : ptr = new T(*self); 
+}
 
 }
 

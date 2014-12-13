@@ -261,20 +261,6 @@ void LoopHeader::Edge::dump() {
     std::cout << src_->lambda()->unique_name() << " ->(" << levels_ << ") " << dst_->lambda()->unique_name() << "   ";
 }
 
-#define DUMP_SET(set) \
-    indent() << "+ " #set ": "; \
-    for (auto n : set().indexer()) { \
-        if (set().contains(n)) \
-            std::cout << n->lambda()->unique_name() << " "; \
-    } \
-    std::cout << std::endl;
-
-#define DUMP_EDGES(edges) \
-    indent() << "+ " #edges ": "; \
-    for (auto edge : edges()) \
-        edge.dump(); \
-    std::cout << std::endl;
-
 void LoopHeader::dump() const {
     indent() << "( ";
     for (auto header : cfg_nodes())
@@ -282,12 +268,29 @@ void LoopHeader::dump() const {
     std::cout << ") " << std::endl;
     indent() << "+ dfs: " << dfs_begin() << " .. " << dfs_end() << std::endl;
 
-    DUMP_SET(preheaders)
-    DUMP_SET(latches)
-    DUMP_SET(exitings)
-    DUMP_EDGES(entry_edges)
-    DUMP_EDGES(back_edges)
-    DUMP_EDGES(exit_edges)
+    auto dump_set = [&] (const F_CFG::Set& set, const char* name) {
+        indent() << "+ " << name << ": ";
+        for (auto n : set.indexer()) {
+            if (set.contains(n))
+                std::cout << n->lambda()->unique_name() << " ";
+        }
+    };
+
+    std::cout << std::endl;
+    dump_set(preheaders(), "preheaders");
+    dump_set(latches(), "latches");
+    dump_set(exitings(), "exitings");
+
+    auto dump_edges = [&] (const std::vector<Edge>& edges, const char* name) {
+        indent() << "+ " << name << ": ";
+        for (auto edge : edges)
+            edge.dump();
+        std::cout << std::endl;
+    };
+
+    dump_edges(entry_edges(), "entry_edges");
+    dump_edges(back_edges(),  "back_edges");
+    dump_edges(exit_edges(),  "exit_edges");
 
     for (auto child : children())
         child->dump();

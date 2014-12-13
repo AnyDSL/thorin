@@ -289,8 +289,8 @@ void LoopHeader::dump() const {
     };
 
     dump_edges(entry_edges(), "entry_edges");
-    dump_edges(back_edges(),  "back_edges");
-    dump_edges(exit_edges(),  "exit_edges");
+    dump_edges(back_edges(), "back_edges");
+    dump_edges(exit_edges(), "exit_edges");
 
     for (auto child : children())
         child->dump();

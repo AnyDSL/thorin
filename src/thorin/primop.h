@@ -9,6 +9,7 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
+/// Base class for all \p PrimOp%s.
 class PrimOp : public DefNode {
 protected:
     PrimOp(NodeKind kind, Type type, ArrayRef<Def> args, const std::string& name)
@@ -61,6 +62,7 @@ struct PrimOpEqual { bool operator () (const PrimOp* o1, const PrimOp* o2) const
 
 //------------------------------------------------------------------------------
 
+/// Base class for all \p PrimOp%s without operands.
 class Literal : public PrimOp {
 protected:
     Literal(NodeKind kind, Type type, const std::string& name)

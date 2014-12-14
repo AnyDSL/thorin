@@ -18,6 +18,10 @@ typedef std::vector<Lambda*> Lambdas;
 
 //------------------------------------------------------------------------------
 
+/**
+ * @brief A parameter of a \p Lambda function.
+ * A \p Param knows its \p lambda() it belongs to.
+ */
 class Param : public DefNode {
 private:
     Param(size_t gid, Type type, Lambda* lambda, size_t index, const std::string& name)
@@ -79,6 +83,12 @@ enum class CC : uint8_t {
     Device,     ///< Device calling convention. These are special functions only available on a particular device.
 };
 
+
+/** 
+ * @brief A function abstraction.
+ * A \p Lambda is always of function type \p FnTypeNode.
+ * Each element of this function type is associated a properly typed \p Param - retrieved via \p params().
+ */
 class Lambda : public DefNode {
 private:
     Lambda(size_t gid, FnType fn, CC cc, Intrinsic intrinsic, bool is_sealed, const std::string& name)
@@ -150,12 +160,6 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     void dump_jump() const;
     void destroy_body();
     void refresh();
-    ///// Return the scope id \p index for the given \p scope or size_t(-1) if this \p Lambda is not contained in \p scope.
-    //size_t index(const Scope& scope) {
-        //if (auto info = find_scope(&scope))
-            //return info->index;
-        //return size_t(-1);
-    //}
 
     // terminate
 

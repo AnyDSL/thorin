@@ -26,7 +26,7 @@ typedef CFG<false> B_CFG;
 //------------------------------------------------------------------------------
 
 /**
- * A Control-Flow Node.
+ * @brief A Control-Flow Node.
  * Managed by \p CFA.
  */
 class CFNode {
@@ -76,7 +76,7 @@ public:
 //------------------------------------------------------------------------------
 
 /**
- * Control Flow Analysis.
+ * @brief Control Flow Analysis.
  * This class maintains information run by a 0-CFA on a \p Scope.
  */
 class CFA {
@@ -115,7 +115,7 @@ private:
 //------------------------------------------------------------------------------
 
 /** 
- * A Control-Flow Graph.
+ * @brief A Control-Flow Graph.
  * A small wrapper for the information obtained by a \p CFA.
  * The template parameter \p forward determines the direction of the edges.
  * \c true means a conventional \p CFG.

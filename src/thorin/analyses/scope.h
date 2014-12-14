@@ -14,6 +14,10 @@ namespace thorin {
 class CFA;
 class Scope;
 
+/**
+ * A \p Scope represents a region of \p Lambda%s which are live from the view of an \p entry \p Lambda.
+ * Transetively, all user's of the \p entry's parameters are pooled into this \p Scope.
+ */
 class Scope {
 public:
     template<class Value>

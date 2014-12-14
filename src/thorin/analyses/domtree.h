@@ -12,6 +12,7 @@ template<bool> class CFG;
 
 /**
  * @brief A Dominance Tree.
+ *
  * The template parameter \p forward determines 
  * whether a regular dominance tree (\c true) or a post-dominance tree (\c false) should be constructed.
  * This template parameter is associated with \p CFG's \c forward parameter.

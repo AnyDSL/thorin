@@ -6,8 +6,8 @@ namespace thorin {
 class World;
 
 /**
- * Tries to remove \p Load%s, \p Store%s, and \p Slot%s in favor of \p Param%s and arguments of function calls.
- * \attention { Currently, this transformation only works when in CFF. }
+ * Tries to remove @p Load%s, @p Store%s, and @p Slot%s in favor of @p Param%s and arguments of function calls.
+ * @attention { Currently, this transformation only works when in CFF. }
  */
 void mem2reg(World&);
 

@@ -51,6 +51,18 @@ Type2Type type2type(Proxy<T> type, ArrayRef<Type> args) { return type2type(*type
 
 //------------------------------------------------------------------------------
 
+/** 
+ * @brief A @p Proxy is a small wrapper for @p TypeNode%s.
+ * 
+ * Due to polymorphism types may only be unified very late.
+ * For this reason, types are usually unified as late as possible - as soon as <tt>operator ==</tt> is invoked.
+ * A @p TypeNode has a representative which points to the common unified type.
+ * The @p Proxy hides any dereferencing of a @p TypeNode's representative behind <tt>operator -></tt>.
+ * For each @p TypeNode there is an appropriate @c typedef without @c "Node" for its according @p Proxy wrapper.
+ * For example, @p FnType is a \c typedef for \c Proxy<FnTypeNode>.
+ * Use @p Proxy's \p as and \p isa for a static/dynamic cast of its underlying type as \p Proxy.
+ * For example: <tt> FnType fntype = type.as<FnType>()</tt>.
+ */
 template<class T>
 class Proxy {
 public:
@@ -111,8 +123,8 @@ private:
 
 class TypeNode : public MagicCast<TypeNode> {
 private:
-    TypeNode& operator = (const TypeNode&); ///< Do not copy-assign a \p TypeNode instance.
-    TypeNode(const TypeNode&);              ///< Do not copy-construct a \p TypeNode.
+    TypeNode& operator = (const TypeNode&); ///< Do not copy-assign a @p TypeNode instance.
+    TypeNode(const TypeNode&);              ///< Do not copy-construct a @p TypeNode.
 
 protected:
     TypeNode(World& world, NodeKind kind, ArrayRef<Type> args)
@@ -153,7 +165,7 @@ public:
     TypeVarSet free_type_vars() const;
     size_t gid() const { return gid_; }
     int order() const;
-    /// Returns the vector length. Raises an assertion if this type is not a \p VectorType.
+    /// Returns the vector length. Raises an assertion if this type is not a @p VectorType.
     size_t length() const;
     virtual Type instantiate(ArrayRef<Type>) const;
     Type instantiate(Type2Type&) const;

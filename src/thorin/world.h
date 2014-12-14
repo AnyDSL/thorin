@@ -16,13 +16,14 @@
 namespace thorin {
 
 /**
- * The World represents the whole program and manages creation and destruction of AIR nodes.
+ * @brief The World represents the whole program and manages creation and destruction of AIR nodes.
+ * 
  * In particular, the following things are done by this class:
  *
- *  - \p Type unification: \n
- *      There exists only one unique \p Type.
- *      These \p Type%s are hashed into an internal map for fast access.
- *      The getters just calculate a hash and lookup the \p Type, if it is already present, or create a new one otherwise.
+ *  - @p Type unification: \n
+ *      There exists only one unique @p Type.
+ *      These @p Type%s are hashed into an internal map for fast access.
+ *      The getters just calculate a hash and lookup the @p Type, if it is already present, or create a new one otherwise.
  *  - Value unification: \n
  *      This is a built-in mechanism for the following things:
  *      - constant pooling
@@ -31,10 +32,10 @@ namespace thorin {
  *      - canonicalization of expressions
  *      - several local optimizations
  *
- *  \p PrimOp%s do not explicitly belong to a Lambda.
+ *  @p PrimOp%s do not explicitly belong to a Lambda.
  *  Instead they either implicitly belong to a Lambda--when
  *  they (possibly via multiple levels of indirection) depend on a Lambda's Param--or they are dead.
- *  Use \p cleanup to remove dead code and unreachable code.
+ *  Use @p cleanup to remove dead code and unreachable code.
  *
  *  You can create several worlds.
  *  All worlds are completely independent from each other.
@@ -42,8 +43,8 @@ namespace thorin {
  */
 class World {
 private:
-    World& operator = (const World&); ///< Do not copy-assign a \p World instance.
-    World(const World&);              ///< Do not copy-construct a \p World.
+    World& operator = (const World&); ///< Do not copy-assign a @p World instance.
+    World(const World&);              ///< Do not copy-construct a @p World.
 
     struct TypeHash { size_t operator () (const TypeNode* t) const { return t->hash(); } };
     struct TypeEqual { bool operator () (const TypeNode* t1, const TypeNode* t2) const { return t1->equal(t2); } };
@@ -73,7 +74,7 @@ public:
     PtrType     ptr_type(Type referenced_type, size_t length = 1, int32_t device = -1, AddressSpace adr_space = AddressSpace::Generic) {
         return join(new PtrTypeNode(*this, referenced_type, length, device, adr_space));
     }
-    TupleType           tuple_type() { return tuple0_; } ///< Returns unit, i.e., an empty \p TupleType.
+    TupleType           tuple_type() { return tuple0_; } ///< Returns unit, i.e., an empty @p TupleType.
     TupleType           tuple_type(ArrayRef<Type> args) { return join(new TupleTypeNode(*this, args)); }
     StructAbsType       struct_abs_type(size_t size, const std::string& name = "") {
         return join(new StructAbsTypeNode(*this, size, name));
@@ -81,7 +82,7 @@ public:
     StructAppType       struct_app_type(StructAbsType struct_abs_type, ArrayRef<Type> args) {
         return join(new StructAppTypeNode(struct_abs_type, args));
     }
-    FnType              fn_type() { return fn0_; }       ///< Returns an empty \p FnType.
+    FnType              fn_type() { return fn0_; }       ///< Returns an empty @p FnType.
     FnType              fn_type(ArrayRef<Type> args) { return join(new FnTypeNode(*this, args)); }
     TypeVar             type_var() { return join(new TypeVarNode(*this)); }
     DefiniteArrayType   definite_array_type(Type elem, u64 dim) { return join(new DefiniteArrayTypeNode(*this, elem, dim)); }
@@ -112,7 +113,7 @@ public:
 
     // arithops
 
-    /// Creates an \p ArithOp or a \p Cmp.
+    /// Creates an @p ArithOp or a @p Cmp.
     Def binop(int kind, Def cond, Def lhs, Def rhs, const std::string& name = "");
     Def binop(int kind, Def lhs, Def rhs, const std::string& name = "") {
         return binop(kind, true_mask(lhs), lhs, rhs, name);
@@ -180,7 +181,7 @@ public:
         if (args.size() == 1) return args[0];
         return cse(new Vector(*this, args, name));
     }
-    /// Splats \p arg to create a \p Vector with \p length.
+    /// Splats @p arg to create a @p Vector with @p length.
     Def vector(Def arg, size_t length = 1, const std::string& name = "");
     Def extract(Def tuple, Def index, const std::string& name = "");
     Def extract(Def tuple, u32 index, const std::string& name = "") { return extract(tuple, literal_qu32(index), name); }
@@ -188,6 +189,8 @@ public:
     Def insert(Def tuple, u32 index, Def value, const std::string& name = "") {
         return insert(tuple, literal_qu32(index), value, name);
     }
+
+    Def select(Def cond, Def t, Def f, const std::string& name = "");
 
     // memory stuff
 
@@ -210,9 +213,6 @@ public:
 
     Def run(Def def, const std::string& name = "");
     Def hlt(Def def, const std::string& name = "");
-
-    /// Select is higher-order. You can build branches with a \p Select primop.
-    Def select(Def cond, Def t, Def f, const std::string& name = "");
 
     // lambdas
 

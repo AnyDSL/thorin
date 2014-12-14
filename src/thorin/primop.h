@@ -9,7 +9,7 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-/// Base class for all \p PrimOp%s.
+/// Base class for all @p PrimOp%s.
 class PrimOp : public DefNode {
 protected:
     PrimOp(NodeKind kind, Type type, ArrayRef<Def> args, const std::string& name)
@@ -39,7 +39,7 @@ protected:
     virtual size_t vhash() const;
     virtual bool equal(const PrimOp* other) const;
     virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const = 0;
-    /// Is \p def the \p i^th result of a \p T \p PrimOp?
+    /// Is @p def the @p i^th result of a @p T @p PrimOp?
     template<int i, class T> inline static const T* is_out(Def def);
 
 private:
@@ -62,7 +62,7 @@ struct PrimOpEqual { bool operator () (const PrimOp* o1, const PrimOp* o2) const
 
 //------------------------------------------------------------------------------
 
-/// Base class for all \p PrimOp%s without operands.
+/// Base class for all @p PrimOp%s without operands.
 class Literal : public PrimOp {
 protected:
     Literal(NodeKind kind, Type type, const std::string& name)
@@ -116,6 +116,7 @@ public:
     Def cond() const { return op(0); }
 };
 
+/// Akin to <tt>cond ? tval : fval</tt>.
 class Select : public VectorOp {
 private:
     Select(Def cond, Def tval, Def fval, const std::string& name)
@@ -147,6 +148,7 @@ public:
     Def rhs() const { return op(2); }
 };
 
+/// One of \p ArithOpKind arithmetic operation.
 class ArithOp : public BinOp {
 private:
     ArithOp(ArithOpKind kind, Def cond, Def lhs, Def rhs, const std::string& name)
@@ -163,6 +165,7 @@ public:
     friend class World;
 };
 
+/// One of \p CmpKind compare.
 class Cmp : public BinOp {
 private:
     Cmp(CmpKind kind, Def cond, Def lhs, Def rhs, const std::string& name);
@@ -209,6 +212,7 @@ private:
     friend class World;
 };
 
+/// Base class for all aggregate data constructers.
 class Aggregate : public PrimOp {
 protected:
     Aggregate(NodeKind kind, ArrayRef<Def> args, const std::string& name)
@@ -216,6 +220,7 @@ protected:
     {}
 };
 
+/// Data constructor for a \p DefiniteArrayTypeNode.
 class DefiniteArray : public Aggregate {
 private:
     DefiniteArray(World& world, Type elem, ArrayRef<Def> args, const std::string& name);
@@ -229,6 +234,7 @@ public:
     friend class World;
 };
 
+/// Data constructor for an \p IndefiniteArrayTypeNode.
 class IndefiniteArray : public Aggregate {
 private:
     IndefiniteArray(World& world, Type elem, Def dim, const std::string& name);
@@ -242,6 +248,7 @@ public:
     friend class World;
 };
 
+/// Data contructor for a @p TupleTypeNode.
 class Tuple : public Aggregate {
 private:
     Tuple(World& world, ArrayRef<Def> args, const std::string& name);
@@ -327,8 +334,8 @@ public:
 
 /**
  * Load Effective Address.
- * Takes a pointer \p ptr to an aggregate as input.
- * Then, the address to the \p index'th element is computed.
+ * Takes a pointer @p ptr to an aggregate as input.
+ * Then, the address to the @p index'th element is computed.
  */
 class LEA : public PrimOp {
 private:
@@ -340,8 +347,8 @@ public:
     Def ptr() const { return op(0); }
     Def index() const { return op(1); }
     PtrType type() const { return PrimOp::type().as<PtrType>(); }
-    PtrType ptr_type() const { return ptr()->type().as<PtrType>(); }            ///< Returns the PtrType from \p ptr().
-    Type ptr_referenced_type() const { return ptr_type()->referenced_type(); }  ///< Returns the type referenced by \p ptr().
+    PtrType ptr_type() const { return ptr()->type().as<PtrType>(); }            ///< Returns the PtrType from @p ptr().
+    Type ptr_referenced_type() const { return ptr_type()->referenced_type(); }  ///< Returns the type referenced by @p ptr().
 
     friend class World;
 };
@@ -378,8 +385,8 @@ private:
     friend class World;
 };
 
-/// This represents a slot in a stack frame opend via \p Enter.
-/// Loads from this address yield \p Bottom if the frame has already been closed via \p Leave.
+/// This represents a slot in a stack frame opend via @p Enter.
+/// Loads from this address yield @p Bottom if the frame has already been closed via @p Leave.
 class Slot : public PrimOp {
 private:
     Slot(Type type, Def frame, size_t index, const std::string& name);

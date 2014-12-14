@@ -13,7 +13,8 @@ namespace thorin {
 class LoopHeader;
 
 /**
- * Represents a node of a loop nesting forest.
+ * @brief Represents a node of a loop nesting forest.
+ *
  * Please refer to G. Ramalingam, "On Loops, Dominators, and Dominance Frontiers", 1999
  * for an introduction to loop nesting forests.
  * A \p LoopNode consists of a set of header \p CFNode%s.
@@ -128,7 +129,8 @@ private:
 };
 
 /**
- * Calculates a loop nesting forest rooted at \p root_.
+ * @brief Calculates a loop nesting forest rooted at \p root_.
+ * 
  * The implementation uses Steensgard's algorithm.
  * Check out G. Ramalingam, "On Loops, Dominators, and Dominance Frontiers", 1999, for more information.
  */

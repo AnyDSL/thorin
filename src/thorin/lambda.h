@@ -19,8 +19,9 @@ typedef std::vector<Lambda*> Lambdas;
 //------------------------------------------------------------------------------
 
 /**
- * @brief A parameter of a \p Lambda function.
- * A \p Param knows its \p lambda() it belongs to.
+ * @brief A parameter of a @p Lambda function.
+ *
+ * A @p Param knows its @p lambda() it belongs to.
  */
 class Param : public DefNode {
 private:
@@ -75,7 +76,7 @@ enum class Intrinsic : uint8_t {
     Munmap,                     ///< Intrinsic memory-unmapping function.
     Atomic,                     ///< Intrinsic atomic function
     Branch,                     ///< branch(cond, T, F).
-    EndScope,                   ///< Dummy function which marks the end of a \p Scope.
+    EndScope,                   ///< Dummy function which marks the end of a @p Scope.
 };
 
 enum class CC : uint8_t {
@@ -86,8 +87,9 @@ enum class CC : uint8_t {
 
 /** 
  * @brief A function abstraction.
- * A \p Lambda is always of function type \p FnTypeNode.
- * Each element of this function type is associated a properly typed \p Param - retrieved via \p params().
+ *
+ * A @p Lambda is always of function type @p FnTypeNode.
+ * Each element of this function type is associated a properly typed @p Param - retrieved via @p params().
  */
 class Lambda : public DefNode {
 private:
@@ -134,7 +136,7 @@ public:
     Intrinsic intrinsic() const { return intrinsic_; }
     CC& cc() { return cc_; }
     CC cc() const { return cc_; }
-    void set_intrinsic(); ///< Sets \p intrinsic_ derived on this \p Lambda's \p name.
+    void set_intrinsic(); ///< Sets @p intrinsic_ derived on this @p Lambda's @p name.
     bool is_external() const;
     void make_external();
     void make_internal();
@@ -174,8 +176,8 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     Def get_value(size_t handle, Type type, const char* name = "");
     Def set_mem(Def def);
     Def get_mem();
-    Lambda* parent() const { return parent_; }            ///< See \p parent_ for more information.
-    void set_parent(Lambda* parent) { parent_ = parent; } ///< See \p parent_ for more information.
+    Lambda* parent() const { return parent_; }            ///< See @p parent_ for more information.
+    void set_parent(Lambda* parent) { parent_ = parent; } ///< See @p parent_ for more information.
     void seal();
     bool is_sealed() const { return is_sealed_; }
     void unseal() { is_sealed_ = false; }
@@ -227,13 +229,13 @@ private:
 
     /**
      * There exist three cases to distinguish here.
-     * - \p parent_ == this: This \p Lambda is considered as a basic block, i.e.,
-     *                       SSA construction will propagate value through this \p Lambda's predecessors.
-     * - \p parent_ == nullptr: This \p Lambda is considered as top level function, i.e.,
+     * - @p parent_ == this: This @p Lambda is considered as a basic block, i.e.,
+     *                       SSA construction will propagate value through this @p Lambda's predecessors.
+     * - @p parent_ == nullptr: This @p Lambda is considered as top level function, i.e.,
      *                          SSA construction will stop propagate values here.
-     *                          Any \p get_value which arrives here without finding a definition will return \p bottom.
-     * - otherwise: This \p Lambda is considered as function head nested in \p parent_.
-     *              Any \p get_value which arrives here without finding a definition will recursively try to find one in \p parent_.
+     *                          Any @p get_value which arrives here without finding a definition will return @p bottom.
+     * - otherwise: This @p Lambda is considered as function head nested in @p parent_.
+     *              Any @p get_value which arrives here without finding a definition will recursively try to find one in @p parent_.
      */
     Lambda* parent_;
     std::vector<const Param*> params_;

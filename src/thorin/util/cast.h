@@ -22,7 +22,7 @@ namespace thorin {
  * NOTE: inline hint seems to be necessary -- at least on my current version of gcc
  */
 
-/// \c static_cast checked in debug version
+/// @c static_cast checked in debug version
 template<class L, class R>
 inline L* scast(R* r) {
     static_assert(std::is_base_of<R, L>::value, "R is not a base type of L");
@@ -30,18 +30,18 @@ inline L* scast(R* r) {
     return static_cast<L*>(r);
 }
 
-/// \c static_cast checked in debug version -- \c const version
+/// @c static_cast checked in debug version -- @c const version
 template<class L, class R>
 inline const L* scast(const R* r) { return const_cast<const L*>(scast<L, R>(const_cast<R*>(r))); }
 
-/// shorthand for \c dynamic_cast
+/// shorthand for @c dynamic_cast
 template<class L, class R>
 inline L* dcast(R* u) { 
     static_assert(std::is_base_of<R, L>::value, "R is not a base type of L");
     return dynamic_cast<L*>(u); 
 }
 
-/// shorthand for \c dynamic_cast -- \c const version
+/// shorthand for @c dynamic_cast -- @c const version
 template<class L, class R>
 inline const L* dcast(const R* r) { return const_cast<const L*>(dcast<L, R>(const_cast<R*>(r))); }
 
@@ -60,7 +60,7 @@ inline L bcast(const R& from) {
 }
 
 /** 
- * @brief Provides handy \p as and \p isa methods.
+ * @brief Provides handy @p as and @p isa methods.
  *
  * Inherit from this class in order to use 
  * @code
@@ -80,13 +80,13 @@ public:
 
     /**
      * Acts as static cast -- checked for correctness in the debug version.
-     * Use if you \em know that \p this is of type \p To.
+     * Use if you @em know that @p this is of type @p To.
      * It is a program error (an assertion is raised) if this does not hold.
      */
     template<class To> To* as()  { return thorin::scast<To>(this); }
     /** 
      * @brief Acts as dynamic cast.
-     * @return \p this cast to \p To if \p this is a \p To, 0 otherwise.
+     * @return @p this cast to @p To if @p this is a @p To, 0 otherwise.
      */
     template<class To> To* isa() { return thorin::dcast<To>(this); }
     /// const version of @see MagicCast#as

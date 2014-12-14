@@ -121,6 +121,7 @@ private:
 
 //------------------------------------------------------------------------------
 
+/// Base class for all \p TypeNode%s.
 class TypeNode : public MagicCast<TypeNode> {
 private:
     TypeNode& operator = (const TypeNode&); ///< Do not copy-assign a @p TypeNode instance.
@@ -243,6 +244,7 @@ private:
     friend class World;
 };
 
+/// Base class for all SIMD types.
 class VectorTypeNode : public TypeNode {
 protected:
     VectorTypeNode(World& world, NodeKind kind, ArrayRef<Type> args, size_t length)
@@ -266,7 +268,7 @@ private:
     size_t length_;
 };
 
-/// Primitive types -- also known as atomic or scalar types.
+/// Primitive type.
 class PrimTypeNode : public VectorTypeNode {
 private:
     PrimTypeNode(World& world, PrimTypeKind kind, size_t length)
@@ -291,6 +293,7 @@ enum class AddressSpace : uint32_t {
     Constant = 4,
 };
 
+/// Pointer type.
 class PtrTypeNode : public VectorTypeNode {
 private:
     PtrTypeNode(World& world, Type referenced_type, size_t length, int32_t device, AddressSpace addr_space)
@@ -318,6 +321,14 @@ private:
     friend class World;
 };
 
+/**
+ * @brief A struct abstraction.
+ *
+ * Structs may be recursive via a pointer indirection (like in C or Java).
+ * But unlike C, structs may be polymorphic.
+ * A concrete instantiation of a struct abstraction is a struct application.
+ * @see StructAppTypeNode
+ */
 class StructAbsTypeNode : public TypeNode {
 private:
     StructAbsTypeNode(World& world, size_t size, const std::string& name)
@@ -341,6 +352,12 @@ private:
     friend class World;
 };
 
+/** 
+ * @brief A struct application.
+ * 
+ * A concrete instantiation of a struct abstraction is a struct application.
+ * @see StructAbsTypeNode.
+ */
 class StructAppTypeNode : public TypeNode {
 private:
     StructAppTypeNode(StructAbsType struct_abs_type, ArrayRef<Type> args)

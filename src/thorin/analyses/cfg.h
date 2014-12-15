@@ -65,7 +65,7 @@ public:
     virtual ~InCFNode() {}
 };
 
-/// Any jumps outside of the @p CFA's underlying @p Scope target this node.
+/// Any jumps targetting a \p Lambda outside the @p CFA's underlying @p Scope target this node.
 class OutCFNode : public CFNode {
 public:
     OutCFNode(Lambda* lambda)

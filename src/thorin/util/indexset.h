@@ -95,7 +95,7 @@ public:
     IndexSet& operator = (IndexSet other) { swap(*this, other); return *this; }
     friend void swap(IndexSet& set1, IndexSet& set2) {
         using std::swap;
-        assert(&set1.indexer() == set2.indexer());
+        assert(&set1.indexer() == &set2.indexer());
         swap(set1.bits_, set2.bits_);
     }
 

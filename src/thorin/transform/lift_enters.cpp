@@ -23,8 +23,9 @@ static void find_enters(Lambda* lambda, std::vector<const Enter*>& enters) {
             if (auto enter = find_enter(cur))
                 enters.push_back(enter);
 
-            for (auto use : cur->uses()) {
-                cur = nullptr;
+            auto uses = cur->uses();
+            cur = nullptr;
+            for (auto use : uses) {
                 if (auto memop = use->isa<MemOp>()) {
                     cur = memop;
                     break;

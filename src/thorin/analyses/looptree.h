@@ -143,8 +143,8 @@ public:
 
     const F_CFG& cfg() const { return cfg_; }
     const LoopHeader* root() const { return root_; }
-    int depth(const CFNode* n) const { return cf_node2leaf(n)->depth(); }
-    size_t cf_node2dfs(const CFNode* cf_node) const { return cf_node2leaf(cf_node)->dfs_id(); }
+    int depth(const CFNode* n) const { return cf2leaf(n)->depth(); }
+    size_t cf2dfs(const CFNode* cf_node) const { return cf2leaf(cf_node)->dfs_id(); }
     bool contains(const LoopHeader* header, const CFNode*) const;
     ArrayRef<const LoopLeaf*> loop(const LoopHeader* header) {
         return ArrayRef<const LoopLeaf*>(dfs_leaves_.data() + header->dfs_begin(), header->dfs_end() - header->dfs_begin());
@@ -152,12 +152,12 @@ public:
     Array<const CFNode*> loop_cf_nodes(const LoopHeader* header);
     Array<const CFNode*> loop_cf_nodes_in_rpo(const LoopHeader* header);
     void dump() const { root()->dump(); }
-    const LoopLeaf* cf_node2leaf(const CFNode* n) const { return find(map_, n); }
-    const LoopHeader* cf_node2header(const CFNode*) const;
+    const LoopLeaf* cf2leaf(const CFNode* n) const { return find(cf2leaf_, n); }
+    const LoopHeader* cf2header(const CFNode*) const;
 
 private:
     const F_CFG& cfg_;
-    F_CFG::Map<LoopLeaf*> map_;
+    F_CFG::Map<LoopLeaf*> cf2leaf_;
     Array<LoopLeaf*> dfs_leaves_;
     AutoPtr<LoopHeader> root_;
 

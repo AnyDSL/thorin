@@ -172,7 +172,7 @@ int LoopTreeBuilder::walk_scc(const CFNode* cur, LoopHeader* parent, int depth, 
         if (is_leaf(cur, num)) {
             assert(headers.size() == 1);
             LoopLeaf* leaf = new LoopLeaf(dfs_id++, parent, depth, headers);
-            looptree.map_[headers.front()] = looptree.dfs_leaves_[leaf->dfs_id()] = leaf;
+            looptree.cf2leaf_[headers.front()] = looptree.dfs_leaves_[leaf->dfs_id()] = leaf;
         } else
             new LoopHeader(cfg(), parent, depth, headers);
 
@@ -223,7 +223,7 @@ void LoopTreeBuilder::analyse_loops(LoopHeader* header) {
     for (auto n : looptree.loop_cf_nodes(header)) {
         for (auto succ : cfg().succs(n)) {
             if (!looptree.contains(header, succ)) {
-                header->exit_edges_.emplace_back(n, succ, looptree.cf_node2header(succ)->depth() - header->depth());
+                header->exit_edges_.emplace_back(n, succ, looptree.cf2header(succ)->depth() - header->depth());
                 header->exitings_.insert(n);
                 header->exits_.insert(succ);
             }
@@ -300,25 +300,25 @@ void LoopHeader::dump() const {
 
 LoopTree::LoopTree(const F_CFG& cfg)
     : cfg_(cfg)
-    , map_(cfg)
+    , cf2leaf_(cfg)
     , dfs_leaves_(cfg.size())
 {
     LoopTreeBuilder(*this);
 }
 
-bool LoopTree::contains(const LoopHeader* header, const CFNode* cf_node) const {
-    //if (!cfg().contains(cf_node)) return false; // TODO
-    size_t dfs = cf_node2dfs(cf_node);
+bool LoopTree::contains(const LoopHeader* header, const CFNode* n) const {
+    //if (!cfg().contains(n)) return false; // TODO
+    size_t dfs = cf2dfs(n);
     return header->dfs_begin() <= dfs && dfs < header->dfs_end();
 }
 
-const LoopHeader* LoopTree::cf_node2header(const CFNode* cf_node) const {
-    auto leaf = cf_node2leaf(cf_node);
+const LoopHeader* LoopTree::cf2header(const CFNode* n) const {
+    auto leaf = cf2leaf(n);
     if (leaf == nullptr)
         return root();
     auto header = leaf->parent();
     for (; !header->is_root(); header = header->parent()) {
-        if (contains(header, cf_node))
+        if (contains(header, n))
             break;
     }
     return header;

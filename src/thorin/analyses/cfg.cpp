@@ -61,7 +61,7 @@ public:
         , reachable_(cfa.scope(), Unreachable)
     {
         for (auto lambda : scope()) { 
-            lambda2lambdas_[lambda].insert(lambda);                     // only add current lamba to set and that's it
+            lambda2lambdas_[lambda].insert(lambda);                     // only add current lambda to set and that's it
             lambda2param2lambdas_[lambda].resize(lambda->num_params()); // make room for params
         }
 
@@ -99,7 +99,7 @@ FlowVal CFABuilder::flow_val(Def def) {
     return FlowVal();
 }
 
-void search(Def def, std::function<void(Def)> f) {
+static void search(Def def, std::function<void(Def)> f) {
     DefSet done;
     std::queue<Def> queue;
 

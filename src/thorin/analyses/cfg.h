@@ -65,7 +65,7 @@ public:
     virtual ~InCFNode() {}
 };
 
-/// Any jumps outside of the @p CFA's underlying @p Scope are represented with this node.
+/// Any jumps outside of the @p CFA's underlying @p Scope target this node.
 class OutCFNode : public CFNode {
 public:
     OutCFNode(Lambda* lambda)
@@ -79,7 +79,7 @@ public:
 /**
  * @brief Control Flow Analysis.
  *
- * This class maintains information run by a 0-CFA on a @p Scope.
+ * This class maintains information obtained by a 0-CFA run on a @p Scope.
  */
 class CFA {
 public:

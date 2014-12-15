@@ -168,7 +168,7 @@ const Schedule schedule_smart(const Scope& scope) {
                 int depth = looptree->depth(cfg.lookup(lambda_best));
                 for (auto i = lambda_best; i != lambda_early;) {
                     i = domtree->lookup(cfg.lookup(i))->idom()->lambda();
-                    int cur_depth = looptree->cfg_node2leaf(cfg.lookup(i))->depth();
+                    int cur_depth = looptree->cf_node2leaf(cfg.lookup(i))->depth();
                     if (cur_depth < depth) {
                         lambda_best = i;
                         depth = cur_depth;

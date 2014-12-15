@@ -28,7 +28,7 @@ typedef CFG<false> B_CFG;
 /**
  * @brief A Control-Flow Node.
  *
- * Managed by \p CFA.
+ * Managed by @p CFA.
  */
 class CFNode {
 public:
@@ -56,7 +56,7 @@ private:
     friend class CFA;
 };
 
-/// This node represents a \p CFNode within its underlying \p Scope.
+/// This node represents a @p CFNode within its underlying @p Scope.
 class InCFNode : public CFNode {
 public:
     InCFNode(Lambda* lambda)
@@ -65,7 +65,7 @@ public:
     virtual ~InCFNode() {}
 };
 
-/// Any jumps outside of the \p CFA's underlying \p Scope are represented with this node.
+/// Any jumps outside of the @p CFA's underlying @p Scope are represented with this node.
 class OutCFNode : public CFNode {
 public:
     OutCFNode(Lambda* lambda)
@@ -79,7 +79,7 @@ public:
 /**
  * @brief Control Flow Analysis.
  *
- * This class maintains information run by a 0-CFA on a \p Scope.
+ * This class maintains information run by a 0-CFA on a @p Scope.
  */
 class CFA {
 public:
@@ -119,12 +119,12 @@ private:
 /** 
  * @brief A Control-Flow Graph.
  *
- * A small wrapper for the information obtained by a \p CFA.
- * The template parameter \p forward determines the direction of the edges.
- * \c true means a conventional \p CFG.
- * \c false means that all edges in this \p CFG are reverted.
+ * A small wrapper for the information obtained by a @p CFA.
+ * The template parameter @p forward determines the direction of the edges.
+ * @c true means a conventional @p CFG.
+ * @c false means that all edges in this @p CFG are reverted.
  * Thus, a dominance analysis, for example, becomes a post-dominance analysis.
- * \see DomTreeBase
+ * @see DomTreeBase
  */
 template<bool forward>
 class CFG {
@@ -150,7 +150,7 @@ public:
     /// All lambdas within this scope in reverse post-order.
     ArrayRef<const CFNode*> rpo() const { return rpo_.array(); }
     const CFNode* rpo(size_t i) const { return rpo_.array()[i]; }
-    /// Like \p rpo() but without \p entry()
+    /// Like @p rpo() but without @p entry()
     ArrayRef<const CFNode*> body() const { return rpo().slice_from_begin(1); }
     const CFNode* lookup(Lambda* lambda) const { return cfa().lookup(lambda); }
     const DomTreeBase<forward>* domtree() const;

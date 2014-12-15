@@ -21,8 +21,8 @@ static void bb_schedule(const F_CFG& cfg, const DomNode* n, const LoopTree& loop
         auto l2 = n2->lambda();
 
         // handle loops first
-        auto depth1 = looptree.cfg_node2leaf(cfg.lookup(l1))->depth();
-        auto depth2 = looptree.cfg_node2leaf(cfg.lookup(l2))->depth();
+        auto depth1 = looptree.cf_node2leaf(cfg.lookup(l1))->depth();
+        auto depth2 = looptree.cf_node2leaf(cfg.lookup(l2))->depth();
         if (depth1 > depth2) return true;
         if (depth1 < depth2) return false;
 

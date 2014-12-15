@@ -34,6 +34,8 @@ public:
         friend class IndexSet;
     };
 
+    // TODO write iterators
+
     IndexSet(const Indexer& indexer)
         : indexer_(indexer)
         , bits_((size()+63u) / 64u)

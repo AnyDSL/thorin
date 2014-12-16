@@ -18,7 +18,7 @@ inline size_t is_power_of_2(size_t i) { return ((i != 0) && !(i & (i - 1))); }
 
 //------------------------------------------------------------------------------
 
-// magic numbers from http://www.isthe.com/chongo/tech/comp/fnv/index.html#FNV-param
+/// Magic numbers from http://www.isthe.com/chongo/tech/comp/fnv/index.html#FNV-param .
 template<int nu> struct FNV1 {};
 
 template<> struct FNV1<4> {
@@ -34,6 +34,7 @@ template<> struct FNV1<8> {
     static_assert(std::is_signed<T>::value || std::is_unsigned<T>::value, \
             "please provide your own hash function; use hash_combine to create one");
 
+/// Returns a new hash by combinding the hash @p seed with @p val.
 template<class T>
 size_t hash_combine(size_t seed, T val) {
     THORIN_SUPPORTED_HASH_TYPES
@@ -78,6 +79,7 @@ struct Hash<T*> {
 
 //------------------------------------------------------------------------------
 
+/// Used internally for @p HashSet and @p HashMap.
 template<class Key, class T, class Hasher, class KeyEqual>
 class HashTable {
 private:
@@ -411,6 +413,11 @@ private:
 
 //------------------------------------------------------------------------------
 
+/** 
+ * @brief This container is for the most part compatible with <tt>std::unordered_set</tt>.
+ * 
+ * We use our own implementation in order to have a consistent and deterministic behavior across different platforms.
+ */
 template<class Key, class Hasher = Hash<Key>, class KeyEqual = std::equal_to<Key>>
 class HashSet : public HashTable<Key, void, Hasher, KeyEqual> {
 public:
@@ -438,6 +445,11 @@ public:
 
 //------------------------------------------------------------------------------
 
+/** 
+ * @brief This container is for the most part compatible with <tt>std::unordered_map</tt>.
+ * 
+ * We use our own implementation in order to have a consistent and deterministic behavior across different platforms.
+ */
 template<class Key, class T, class Hasher = Hash<Key>, class KeyEqual = std::equal_to<Key>>
 class HashMap : public HashTable<Key, T, Hasher, KeyEqual> {
 public:

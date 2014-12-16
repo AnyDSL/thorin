@@ -82,6 +82,7 @@ private:
     friend class World;
 };
 
+/// Data contructor for a @p PrimTypeNode.
 class PrimLit : public Literal {
 private:
     PrimLit(World& world, PrimTypeKind kind, Box box, const std::string& name);
@@ -104,6 +105,7 @@ private:
     friend class World;
 };
 
+/// This will be removed in the future.
 class VectorOp : public PrimOp {
 protected:
     VectorOp(NodeKind kind, Type type, ArrayRef<Def> args, const std::string& name)
@@ -135,6 +137,7 @@ public:
     friend class World;
 };
 
+/// Base class for all side-effect free binary \p PrimOp%s.
 class BinOp : public VectorOp {
 protected:
     BinOp(NodeKind kind, Type type, Def cond, Def lhs, Def rhs, const std::string& name)
@@ -180,6 +183,7 @@ public:
     friend class World;
 };
 
+/// Base class for @p Bitcast and @p Cast.
 class ConvOp : public VectorOp {
 protected:
     ConvOp(NodeKind kind, Def cond, Def from, Type to, const std::string& name)
@@ -190,6 +194,7 @@ public:
     Def from() const { return op(1); }
 };
 
+/// Converts <tt>from</tt> to type <tt>to</tt>.
 class Cast : public ConvOp {
 private:
     Cast(Type to, Def cond, Def from, const std::string& name)
@@ -201,6 +206,7 @@ private:
     friend class World;
 };
 
+/// Reinterprets the bits of <tt>from</tt> as type <tt>to</tt>.
 class Bitcast : public ConvOp {
 private:
     Bitcast(Type to, Def cond, Def from, const std::string& name)
@@ -261,6 +267,7 @@ public:
     friend class World;
 };
 
+/// Data contructor for a @p StructAppTypeNode.
 class StructAgg : public Aggregate {
 private:
     StructAgg(StructAppType struct_app_type, ArrayRef<Def> args, const std::string& name)
@@ -282,6 +289,7 @@ public:
     friend class World;
 };
 
+/// Data contructor for a vector type.
 class Vector : public Aggregate {
 private:
     Vector(World& world, ArrayRef<Def> args, const std::string& name);
@@ -291,6 +299,7 @@ private:
     friend class World;
 };
 
+/// Base class for functional @p Insert and @p Extract.
 class AggOp : public PrimOp {
 protected:
     AggOp(NodeKind kind, Type type, ArrayRef<Def> args, const std::string& name)
@@ -304,6 +313,7 @@ public:
     friend class World;
 };
 
+/// Extracts from aggregate <tt>agg</tt> the element at position <tt>index</tt>.
 class Extract : public AggOp {
 private:
     Extract(Def agg, Def index, const std::string& name)
@@ -318,6 +328,13 @@ public:
     friend class World;
 };
 
+/** 
+ * @brief Creates a new aggregate by inserting <tt>value</tt> at position <tt>index</tt> into <tt>agg</tt>.
+ * 
+ * @attention { This is a @em functional insert.
+ *              The value <tt>agg</tt> remains untouched.
+ *              The \p Insert itself is a \em new aggregate which contains the newly created <tt>value</tt>. }
+ */
 class Insert : public AggOp {
 private:
     Insert(Def agg, Def index, Def value, const std::string& name)
@@ -333,9 +350,11 @@ public:
 };
 
 /**
- * Load Effective Address.
- * Takes a pointer @p ptr to an aggregate as input.
- * Then, the address to the @p index'th element is computed.
+ * @brief Load effective address.
+ * 
+ * Takes a pointer <tt>ptr</tt> to an aggregate as input.
+ * Then, the address to the <tt>index</tt>'th element is computed.
+ * This yields a pointer to that element.
  */
 class LEA : public PrimOp {
 private:
@@ -353,6 +372,7 @@ public:
     friend class World;
 };
 
+/// Base class for \p Run and \p Hlt.
 class EvalOp : public PrimOp {
 protected:
     EvalOp(NodeKind kind, Def def, const std::string& name)
@@ -363,6 +383,7 @@ public:
     Def def() const { return op(0); }
 };
 
+/// Starts a partial evaluation run.
 class Run : public EvalOp {
 private:
     Run(Def def, const std::string& name)
@@ -374,6 +395,7 @@ private:
     friend class World;
 };
 
+/// Stops a partial evaluation run or hinders partial evaluation from specializing <tt>def</tt>.
 class Hlt : public EvalOp {
 private:
     Hlt(Def def, const std::string& name)
@@ -385,8 +407,12 @@ private:
     friend class World;
 };
 
-/// This represents a slot in a stack frame opend via @p Enter.
-/// Loads from this address yield @p Bottom if the frame has already been closed via @p Leave.
+/**
+ * @brief A slot in a stack frame opend via @p Enter.
+ *
+ * A @p Slot yields a pointer to the given <tt>type</tt>.
+ * Loads from this address yield @p Bottom if the frame has already been closed.
+ */
 class Slot : public PrimOp {
 private:
     Slot(Type type, Def frame, size_t index, const std::string& name);
@@ -407,7 +433,11 @@ private:
     friend class World;
 };
 
-/// This represents a global variable in the data segment.
+/**
+ * @brief A global variable in the data segment.
+ * 
+ * A @p Global may be mutable or immutable.
+ */
 class Global : public PrimOp {
 private:
     Global(Def init, bool is_mutable, const std::string& name);
@@ -429,6 +459,7 @@ private:
     friend class World;
 };
 
+/// Base class for all \p PrimOp%s taking and producing side-effects.
 class MemOp : public PrimOp {
 protected:
     MemOp(NodeKind kind, Type type, ArrayRef<Def> args, const std::string& name)
@@ -447,6 +478,7 @@ private:
     virtual bool equal(const PrimOp* other) const override { return this == other; }
 };
 
+/// Allocates memory on the heap.
 class Alloc : public MemOp {
 private:
     Alloc(Type type, Def mem, Def extra, const std::string& name);
@@ -467,6 +499,7 @@ private:
     friend class World;
 };
 
+/// Base class for @p Load and @p Store.
 class Access : public MemOp {
 protected:
     Access(NodeKind kind, Type type, ArrayRef<Def> args, const std::string& name)
@@ -479,6 +512,7 @@ public:
     Def ptr() const { return op(1); }
 };
 
+/// Loads with current effect <tt>mem</tt> from <tt>ptr</tt> to produce a pair of a new effect and the loaded value.
 class Load : public Access {
 private:
     Load(Def mem, Def ptr, const std::string& name);
@@ -497,6 +531,7 @@ private:
     friend class World;
 };
 
+/// Stores with current effect <tt>mem</tt> <tt>value</tt> into <tt>ptr</tt> while producing a new effect.
 class Store : public Access {
 private:
     Store(Def mem, Def ptr, Def value, const std::string& name)
@@ -512,6 +547,7 @@ public:
     friend class World;
 };
 
+/// Creates a stack \p Frame with current effect <tt>mem</tt>.
 class Enter : public MemOp {
 private:
     Enter(Def mem, const std::string& name);
@@ -528,6 +564,7 @@ public:
     friend class World;
 };
 
+/// This will be removed in the future.
 class Map : public Access {
 private:
     Map(int32_t device, AddressSpace addr_space, Def mem, Def ptr, Def offset, Def size, const std::string& name);

@@ -16,6 +16,16 @@ template<class T> class Array;
 
 //------------------------------------------------------------------------------
 
+/** 
+ * @brief A container-like wrapper for an array.
+ * 
+ * The array may either stem from a C array, a <tt>std::vector</tt>, a <tt>std::initializer_list</tt>, an @p Array or another @p ArrayRef.
+ * @p ArrayRef does <em>not</em> own the data and, thus, does not destroy any data.
+ * Likewise, you must be carefull to not destroy data an @p ArrayRef is pointing to.
+ * Thorin makes use of @p ArrayRef%s in many places.
+ * Note that you can often construct an @p ArrayRef inline with an initializer_list: <code>foo(arg1, {elem1, elem2, elem3}, arg3)</code>.
+ * Useful operations are @p slice%s to create other @p ArrayRef%s.
+ */
 template<class T>
 class ArrayRef {
 public:
@@ -71,6 +81,17 @@ private:
 
 //------------------------------------------------------------------------------
 
+
+/** 
+ * @brief A container for a heap-allocated array.
+ * 
+ * This class is similar to <tt>std::vector</tt> with the following differences:
+ *  - In contrast to std::vector, Array cannot grow dynamically.
+ *    An @p Array may @p shrink, however.
+ *    But once shrunk, there is no way back.
+ *  - Because of this @p Array is slightly more lightweight and usually consumes slightly less memory than <tt>std::vector</tt>.
+ *  - @p Array integrates nicely with the usefull @p ArrayRef container.
+ */
 template<class T>
 class Array {
 public:

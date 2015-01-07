@@ -56,15 +56,6 @@ private:
     friend class CFA;
 };
 
-/// This node represents a @p CFNode within its underlying @p Scope.
-class InCFNode : public CFNode {
-public:
-    InCFNode(Lambda* lambda)
-        : CFNode(lambda)
-    {}
-    virtual ~InCFNode() {}
-};
-
 /// Any jumps targeting a \p Lambda outside the @p CFA's underlying @p Scope target this node.
 class OutCFNode : public CFNode {
 public:
@@ -72,6 +63,18 @@ public:
         : CFNode(lambda)
     {}
     virtual ~OutCFNode() {}
+};
+
+/// This node represents a @p CFNode within its underlying @p Scope.
+class InCFNode : public CFNode {
+public:
+    InCFNode(Lambda* lambda)
+        : CFNode(lambda)
+    {}
+    virtual ~InCFNode() {}
+
+private:
+    AutoVector<const OutCFNode*> out_nodes_;
 };
 
 //------------------------------------------------------------------------------
@@ -89,24 +92,24 @@ public:
     explicit CFA(const Scope& scope);
 
     const Scope& scope() const { return scope_; }
-    size_t size() const { return nodes_.size(); }
-    const Scope::Map<const CFNode*>& nodes() const { return nodes_; }
-    ArrayRef<const CFNode*> preds(Lambda* lambda) const { return nodes_[lambda]->preds(); }
-    ArrayRef<const CFNode*> succs(Lambda* lambda) const { return nodes_[lambda]->succs(); }
+    size_t size() const { return in_nodes_.size(); }
+    const Scope::Map<const InCFNode*>& in_nodes() const { return in_nodes_; }
+    ArrayRef<const CFNode*> preds(Lambda* lambda) const { return in_nodes_[lambda]->preds(); }
+    ArrayRef<const CFNode*> succs(Lambda* lambda) const { return in_nodes_[lambda]->succs(); }
     size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
     size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
-    const CFNode* entry() const { return nodes_.entry(); }
-    const CFNode* exit() const { return nodes_.exit(); }
+    const InCFNode* entry() const { return in_nodes_.entry(); }
+    const InCFNode* exit() const { return in_nodes_.exit(); }
     const F_CFG* f_cfg() const;
     const B_CFG* b_cfg() const;
     const DomTree* domtree() const;
     const PostDomTree* postdomtree() const;
     const LoopTree* looptree() const;
-    const CFNode* lookup(Lambda* lambda) const { return find(nodes_, lambda); }
+    const InCFNode* lookup(Lambda* lambda) const { return find(in_nodes_, lambda); }
 
 private:
     const Scope& scope_;
-    Scope::Map<const CFNode*> nodes_;
+    Scope::Map<const InCFNode*> in_nodes_;
     mutable AutoPtr<const F_CFG> f_cfg_;
     mutable AutoPtr<const B_CFG> b_cfg_;
     mutable AutoPtr<const LoopTree> looptree_;

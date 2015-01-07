@@ -79,7 +79,7 @@ public:
     FlowVal flow_val(Def);
     void forward_visit(const CFNode* cur);
     void backward_visit(const CFNode* cur);
-    const CFNode* lookup(Lambda* lambda) const { return cfa_.nodes_[lambda]; }
+    const CFNode* lookup(Lambda* lambda) const { return cfa_.in_nodes_[lambda]; }
 
 private:
     CFA& cfa_;
@@ -142,13 +142,13 @@ void CFABuilder::run() {
     }
 
     // build CFG
-    forward_visit(cfa().nodes_.entry());
+    forward_visit(cfa().in_nodes_.entry());
     F_CFG f_cfg(cfa());
 
     // link with virtual exit
-    for (auto n : cfa().nodes_.array().slice_num_from_end(1)) { // skip virtual exit
+    for (auto n : cfa().in_nodes_.array().slice_num_from_end(1)) { // skip virtual exit
         if (is_forward_reachable(n->lambda()) && n->succs_.empty())
-            n->link(cfa().nodes_.exit()); 
+            n->link(cfa().in_nodes_.exit()); 
     }
 
     //// keep linking nodes not reachable from exit
@@ -200,10 +200,10 @@ void CFABuilder::forward_visit(const CFNode* cur) {
 
 CFA::CFA(const Scope& scope) 
     : scope_(scope)
-    , nodes_(scope)
+    , in_nodes_(scope)
 {
     for (size_t i = 0, e = size(); i != e; ++i)
-        nodes_[scope[i]] = new InCFNode(scope[i]);
+        in_nodes_[scope[i]] = new InCFNode(scope[i]);
 
     CFABuilder cfa(*this);
 }
@@ -220,10 +220,10 @@ template<bool forward>
 CFG<forward>::CFG(const CFA& cfa)
     : cfa_(cfa)
     , indices_(cfa.scope(), -1 /*mark as not visited*/)
-    , rpo_(*this, cfa.nodes().array()) // copy over - sort later
+    , rpo_(*this, cfa.in_nodes().array().begin(), cfa.in_nodes().array().end()) // copy over - sort later
 {
     auto num = post_order_number(entry(), 0);
-    for (size_t i = 0, e = size(); i != e; ++i) {   // convert to reverse post-order
+    for (size_t i = 0, e = size(); i != e; ++i) { // convert to reverse post-order
         auto& index = indices_.array()[i];
         if (index != size_t(-1))
             index = num-1 - index;
@@ -233,7 +233,7 @@ CFG<forward>::CFG(const CFA& cfa)
     std::sort(rpo_.array().begin(), rpo_.array().end(), [&] (const CFNode* n1, const CFNode* n2) { 
         return index(n1) < index(n2); 
     });
-    rpo_.array().shrink(num);                       // remove unreachable stuff
+    rpo_.array().shrink(num); // remove unreachable stuff
 }
 
 template<bool forward>

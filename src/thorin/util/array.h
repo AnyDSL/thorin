@@ -124,6 +124,13 @@ public:
     {
         std::copy(array.begin(), array.end(), begin());
     }
+    template<class I>
+    Array(const I begin, const I end) 
+        : size_(std::distance(begin, end))
+        , ptr_(new T[size_])
+    {
+        std::copy(begin, end, ptr_);
+    }
     ~Array() { delete[] ptr_; }
 
     typedef T* iterator;

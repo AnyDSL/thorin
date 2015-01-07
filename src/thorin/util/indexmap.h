@@ -16,6 +16,11 @@ public:
         : indexer_(indexer)
         , array_(array)
     {}
+    template<class I>
+    IndexMap(const Indexer& indexer, const I begin, const I end)
+        : indexer_(indexer)
+        , array_(begin, end)
+    {}
 
     const Indexer& indexer() const { return indexer_; }
     size_t size() const { return array_.size(); }

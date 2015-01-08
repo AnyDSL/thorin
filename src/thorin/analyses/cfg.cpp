@@ -54,19 +54,7 @@ public:
         BackwardReachable = 1 << 2,
     };
 
-    CFABuilder(CFA& cfa)
-        : cfa_(cfa)
-        , lambda2lambdas_(cfa.scope())
-        , lambda2param2lambdas_(cfa.scope(), std::vector<LambdaSet>(0))
-        , reachable_(cfa.scope(), Unreachable)
-    {
-        for (auto lambda : scope()) { 
-            lambda2lambdas_[lambda].insert(lambda);                     // only add current lambda to set and that's it
-            lambda2param2lambdas_[lambda].resize(lambda->num_params()); // make room for params
-        }
-
-        run();
-    }
+    CFABuilder(CFA& cfa);
 
     const CFA& cfa() const { return cfa_; }
     const Scope& scope() const { return cfa_.scope(); }
@@ -87,6 +75,20 @@ private:
     Scope::Map<std::vector<LambdaSet>> lambda2param2lambdas_;
     Scope::Map<uint8_t> reachable_;
 };
+
+CFABuilder::CFABuilder(CFA& cfa)
+    : cfa_(cfa)
+    , lambda2lambdas_(cfa.scope())
+    , lambda2param2lambdas_(cfa.scope(), std::vector<LambdaSet>(0))
+    , reachable_(cfa.scope(), Unreachable)
+{
+    for (auto lambda : scope()) { 
+        lambda2lambdas_[lambda].insert(lambda);                     // only add current lambda to set and that's it
+        lambda2param2lambdas_[lambda].resize(lambda->num_params()); // make room for params
+    }
+
+    run();
+}
 
 FlowVal CFABuilder::flow_val(Def def) {
     if (auto lambda = def->isa_lambda()) {

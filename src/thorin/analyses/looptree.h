@@ -158,7 +158,7 @@ public:
 private:
     const F_CFG& cfg_;
     F_CFG::Map<LoopLeaf*> cf2leaf_;
-    Array<LoopLeaf*> dfs_leaves_;
+    Array<LoopLeaf*> dfs_leaves_; // TODO use IndexMap
     AutoPtr<LoopHeader> root_;
 
     friend class LoopTreeBuilder;

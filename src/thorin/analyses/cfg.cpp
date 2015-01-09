@@ -107,6 +107,8 @@ FlowVal CFABuilder::flow_val(Def def) {
     } else if (auto param = def->isa<Param>()) {
         if (contains(param))
             return FlowVal(lambda2param2lambdas_[param->lambda()][param->index()]);
+    } else {
+        THORIN_UNREACHABLE;
     }
     return FlowVal();
 }

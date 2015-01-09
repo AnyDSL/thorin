@@ -90,6 +90,7 @@ public:
     CFA& operator= (CFA) = delete;
 
     explicit CFA(const Scope& scope);
+    ~CFA();
 
     const Scope& scope() const { return scope_; }
     size_t size() const { return in_nodes_.size(); }

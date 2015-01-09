@@ -220,6 +220,11 @@ CFA::CFA(const Scope& scope)
     CFABuilder cfa(*this);
 }
 
+CFA::~CFA() {
+    for (auto n : in_nodes_.array())
+        delete n;
+}
+
 const F_CFG* CFA::f_cfg() const { return lazy_init(this, f_cfg_); }
 const B_CFG* CFA::b_cfg() const { return lazy_init(this, b_cfg_); }
 const DomTree* CFA::domtree() const { return f_cfg()->domtree(); }

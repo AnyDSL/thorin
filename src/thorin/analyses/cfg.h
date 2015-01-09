@@ -111,6 +111,7 @@ public:
 private:
     const Scope& scope_;
     Scope::Map<const InCFNode*> in_nodes_;
+    AutoPtr<const OutCFNode> exit_;
     mutable AutoPtr<const F_CFG> f_cfg_;
     mutable AutoPtr<const B_CFG> b_cfg_;
     mutable AutoPtr<const LoopTree> looptree_;

@@ -219,6 +219,7 @@ void CFABuilder::forward_visit(const CFNode* cur) {
 CFA::CFA(const Scope& scope) 
     : scope_(scope)
     , in_nodes_(scope)
+    , exit_(new OutCFNode(scope.exit()))
 {
     for (size_t i = 0, e = size(); i != e; ++i)
         in_nodes_[scope[i]] = new InCFNode(scope[i]);

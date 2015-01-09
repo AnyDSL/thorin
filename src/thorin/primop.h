@@ -57,8 +57,13 @@ private:
     friend void DefNode::replace(Def) const;
 };
 
-struct PrimOpHash { size_t operator () (const PrimOp* o) const { return o->hash(); } };
-struct PrimOpEqual { bool operator () (const PrimOp* o1, const PrimOp* o2) const { return o1->equal(o2); } };
+struct PrimOpHash { 
+    size_t operator() (const PrimOp* o) const { return o->hash(); } 
+};
+
+struct PrimOpEqual { 
+    bool operator() (const PrimOp* o1, const PrimOp* o2) const { return o1->equal(o2); } 
+};
 
 //------------------------------------------------------------------------------
 

@@ -74,7 +74,8 @@ public:
     //bool contains(Lambda* lambda) { return scope().contains(lambda); };
     bool contains(Lambda* lambda) { return scope().entry() != lambda && scope().contains(lambda); };
     bool contains(const Param* param) { return scope().entry() != param->lambda() && contains(param->lambda()); }
-    FlowVal flow_val(Def);
+    FlowVal flow_val(Lambda* src, Def def) { return flow_val(cfa().in_nodes()[src], def); }
+    FlowVal flow_val(const InCFNode* src, Def);
     void forward_visit(const CFNode* cur);
     void backward_visit(const CFNode* cur);
     const CFNode* lookup(Lambda* lambda) const { return cfa_.in_nodes_[lambda]; }
@@ -100,7 +101,7 @@ CFABuilder::CFABuilder(CFA& cfa)
     run();
 }
 
-FlowVal CFABuilder::flow_val(Def def) {
+FlowVal CFABuilder::flow_val(const InCFNode* src, Def def) {
     if (auto lambda = def->isa_lambda()) {
         if (contains(lambda))
             return FlowVal(lambda2lambdas_[lambda]);
@@ -140,13 +141,14 @@ void CFABuilder::run() {
     for (bool todo = true; todo;) { // keep iterating to collect param flow infos until things are stable
         todo = false;
         for (auto lambda : scope()) {
+            auto src = cfa().in_nodes_[lambda];
             search(lambda->to(), [&] (Def def) {
-                for (auto to : flow_val(def).lambdas()) {
+                for (auto to : flow_val(src, def).lambdas()) {
                     for (size_t i = 0, e = lambda->num_args(); i != e; ++i) {
                         auto arg = lambda->arg(i);
                         if (arg->order() >= 1) {
                             search(arg, [&] (Def def) {
-                                todo |= flow_val(to->param(i)).join(flow_val(def));
+                                todo |= flow_val(src, to->param(i)).join(flow_val(src, def));
                             });
                         }
                     }
@@ -174,8 +176,9 @@ void CFABuilder::run() {
 }
 
 void CFABuilder::forward_visit(const CFNode* cur) {
-    assert(!is_forward_reachable(cur->lambda()));
-    auto& reachable = reachable_[cur->lambda()];
+    auto lambda = cur->lambda();
+    assert(!is_forward_reachable(lambda));
+    auto& reachable = reachable_[lambda];
     auto link_and_visit = [&] (const CFNode* succ) {
         assert(contains(succ->lambda()));
         cur->link(succ);
@@ -184,16 +187,17 @@ void CFABuilder::forward_visit(const CFNode* cur) {
     };
 
     auto visit_args = [&] {
-        for (auto arg : cur->lambda()->args()) {
+        for (auto arg : lambda->args()) {
+            auto src = cfa().in_nodes()[lambda];
             search(arg, [&] (Def def) {
-                for (auto succ : flow_val(def).lambdas())
+                for (auto succ : flow_val(src, def).lambdas())
                     link_and_visit(lookup(succ));
             });
         }
     };
 
     reachable = ForwardReachable;
-    search(cur->lambda()->to(), [&] (Def def) {
+    search(lambda->to(), [&] (Def def) {
         if (auto to_lambda = def->isa_lambda()) {
             if (contains(to_lambda))
                 link_and_visit(lookup(to_lambda));
@@ -201,7 +205,7 @@ void CFABuilder::forward_visit(const CFNode* cur) {
                 visit_args();
         } else if (auto param = def->isa<Param>()) {
             if (contains(param)) {
-                for (auto succ : flow_val(param).lambdas())
+                for (auto succ : flow_val(lambda, param).lambdas())
                     link_and_visit(lookup(succ));
             } else
                 visit_args();

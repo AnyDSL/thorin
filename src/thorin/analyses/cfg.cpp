@@ -13,6 +13,16 @@ CFNode::~CFNode() {}
 
 //------------------------------------------------------------------------------
 
+struct CFNodeHash { // TODO better ack OutCFNodes
+    size_t operator() (const CFNode* n) const { return n->lambda()->gid(); }
+};
+
+struct CFNodeEqual {
+    bool operator() (const CFNode* n1, const CFNode* n2) const { return n1 == n2; }
+};
+
+typedef thorin::HashSet<const CFNode*, CFNodeHash, CFNodeEqual> CFNodeSet;
+
 class FlowVal {
 public:
     explicit FlowVal()

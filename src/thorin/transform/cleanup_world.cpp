@@ -128,6 +128,8 @@ void Cleaner::unreachable_code_elimination() {
 
     for (auto lambda : world().externals())
         enqueue(lambda);
+    enqueue(world().branch());
+    enqueue(world().end_scope());
 
     while (!queue.empty()) {
         auto lambda = pop(queue);
@@ -176,7 +178,8 @@ void Cleaner::verify_closedness() {
         for (auto use : def->uses_)
             within(use.def().node());
         for (auto r : def->representatives_of_)
-            within(r); };
+            within(r); 
+    };
 
     for (auto primop : world().primops())
         check(primop);
@@ -227,13 +230,13 @@ void Cleaner::cleanup() {
 #endif
 
     // delete dead primops
-    for (auto primop : world().primops()) {
+    for (auto primop : nprimops_) {
         if (!is_live(primop))
             delete primop;
     }
 
     // delete unreachable lambdas
-    for (auto lambda : world().lambdas()) {
+    for (auto lambda : nlambdas_) {
         if (!is_reachable(lambda))
             delete lambda;
     }

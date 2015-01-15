@@ -1,10 +1,10 @@
-INC_DIRS   = -I .
+INC_DIRS   = -I ../common -I .
 CXX_FLAGS := -std=c++11 -Wall -Wunused
 OPT_FLAGS := -O3
 DBG_FLAGS :=
-MAIN      ?= gaussian
+MAIN      ?= main
 OS        :=$(shell uname -s)
-CPP        = $(shell echo thorin_*.cpp cl_*.cpp)
+CPP        = cl_runtime.cpp ../common/thorin_runtime.cpp ../common/thorin_utils.cpp
 OBJS       = $(CPP:%.cpp=%.o)
 
 ifeq ($(OS),Linux)
@@ -22,6 +22,7 @@ endif
 all: $(MAIN).out
 	@echo "Running $(MAIN) ..."
 	@if [ -f $(MAIN).spir ]; then llvm-as $(MAIN).spir; fi
+	@if [ -f $(MAIN).spir ]; then ../post-patcher spir $(MAIN); fi
 	@./$(MAIN).out
 
 %.o: %.cpp

@@ -1,34 +1,30 @@
 CUDA_DIR  ?= $(shell dirname $(shell dirname `which nvcc`))
 INC_DIRS   = -I $(CUDA_DIR)/include \
              -I $(CUDA_DIR)/nvvm/include \
-             -I .
+             -I ../common -I .
 CXX_FLAGS := -std=c++11 -Wall -Wunused
 OPT_FLAGS := -O3
 DBG_FLAGS :=
-MAIN      ?= gaussian
+MAIN      ?= main
 RPATH_PRE := -Wl,-rpath,
 OS        := $(shell uname -s)
-CPP        = $(shell echo thorin_*.cpp cu_*.cpp)
+CPP        = cu_runtime.cpp ../common/thorin_runtime.cpp ../common/thorin_utils.cpp
 OBJS       = $(CPP:%.cpp=%.o)
 
 ifeq ($(OS),Linux)
 	LD_FLAGS = -lcuda -lnvvm
 	LIB_DIRS = $(CUDA_DIR)/lib64 $(CUDA_DIR)/nvvm/lib64
-	SED_EXT =
 endif
 ifeq ($(OS),Darwin) # assume Mac OS X
 	LD_FLAGS = -lcuda -lnvvm
 	LIB_DIRS = $(CUDA_DIR)/lib $(CUDA_DIR)/nvvm/lib
-	SED_EXT = ''
 endif
 
 
 all: $(MAIN).out
 	@echo "Running $(MAIN) ..."
 	@# remove attribute from asm
-	@if [ -f $(MAIN).nvvm ]; then \
-		../post-patcher nvvm $(MAIN) \
-	fi
+	@if [ -f $(MAIN).nvvm ]; then ../post-patcher nvvm $(MAIN); fi
 	@CUDA_VISIBLE_DEVICES=0 ./$(MAIN).out
 	@CUDA_VISIBLE_DEVICES=1 ./$(MAIN).out
 

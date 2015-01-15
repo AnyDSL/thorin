@@ -31,11 +31,8 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
         set(CUDA_RUNTIME_INCLUDES "-I${CUDA_INCLUDE_DIRS} -I${CUDA_TOOLKIT_ROOT_DIR}/nvvm/include")
         # set variables expected below
         set(${outfiles} ${${outfiles}} ${THORIN_RUNTIME_DIR}/cuda/cu_runtime.cpp)
-        if(APPLE)
-            set(${outlibs} ${${outlibs}} ${CUDA_CUDA_LIBRARY} ${CUDA_LIBRARIES} ${CUDA_TOOLKIT_ROOT_DIR}/nvvm/lib/libnvvm.dylib)
-        else()
-            set(${outlibs} ${${outlibs}} ${CUDA_CUDA_LIBRARY} ${CUDA_LIBRARIES} ${CUDA_TOOLKIT_ROOT_DIR}/nvvm/lib64/libnvvm.so)
-        endif()
+        Find_Library(CUDA_NVVM_LIBRARY nvvm HINTS ${CUDA_TOOLKIT_ROOT_DIR}/nvvm/lib ${CUDA_TOOLKIT_ROOT_DIR}/nvvm/lib64)
+        set(${outlibs} ${${outlibs}} ${CUDA_CUDA_LIBRARY} ${CUDA_NVVM_LIBRARY})
         set(_impala_platform ${_impala_platform} ${THORIN_RUNTIME_DIR}/platforms/intrinsics_${TRW_RTTYPE}.impala)
         # cu_runtime needs some defines
         # lucky enough, cmake does the right thing here even when we compile impala programs from various folders

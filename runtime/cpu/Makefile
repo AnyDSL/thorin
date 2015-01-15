@@ -1,11 +1,11 @@
-INC_DIRS   = -I .
+INC_DIRS   = -I ../common -I .
 CXX_FLAGS := -std=c++11 -Wall -Wunused
 OPT_FLAGS := -O3
 DBG_FLAGS :=
 MAIN      ?= gaussian
 RPATH_PRE := -Wl,-rpath,
 OS        := $(shell uname -s)
-CPP        = $(shell echo *.cpp)
+CPP        = cpu_runtime.cpp ../common/thorin_runtime.cpp ../common/thorin_utils.cpp
 OBJS       = $(CPP:%.cpp=%.o)
 
 ifeq ($(OS),Linux)

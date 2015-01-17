@@ -1,10 +1,15 @@
 include(CMakeParseArguments)
 
 # find impala
-find_file(IMPALA_BIN impala)
+find_program(IMPALA_BIN impala)
 IF (NOT IMPALA_BIN)
     message(FATAL_ERROR "Could not find impala binary, it has to be in the PATH")
 ENDIF()
+
+# find python for post-patcher.py
+find_package(PythonInterp REQUIRED)
+message(STATUS "Python found: ${PYTHON_VERSION_STRING}")
+set(PYTHON_BIN ${PYTHON_EXECUTABLE})
 
 macro(THORIN_RUNTIME_WRAP outfiles outlibs)
     CMAKE_PARSE_ARGUMENTS("TRW" "MAIN" "RTTYPE" "FILES" ${ARGN})
@@ -31,11 +36,8 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
         set(CUDA_RUNTIME_INCLUDES "-I${CUDA_INCLUDE_DIRS} -I${CUDA_TOOLKIT_ROOT_DIR}/nvvm/include")
         # set variables expected below
         set(${outfiles} ${${outfiles}} ${THORIN_RUNTIME_DIR}/cuda/cu_runtime.cpp)
-        if(APPLE)
-            set(${outlibs} ${${outlibs}} ${CUDA_CUDA_LIBRARY} ${CUDA_LIBRARIES} ${CUDA_TOOLKIT_ROOT_DIR}/nvvm/lib/libnvvm.dylib)
-        else()
-            set(${outlibs} ${${outlibs}} ${CUDA_CUDA_LIBRARY} ${CUDA_LIBRARIES} ${CUDA_TOOLKIT_ROOT_DIR}/nvvm/lib64/libnvvm.so)
-        endif()
+        Find_Library(CUDA_NVVM_LIBRARY nvvm HINTS ${CUDA_TOOLKIT_ROOT_DIR}/nvvm/lib ${CUDA_TOOLKIT_ROOT_DIR}/nvvm/lib64)
+        set(${outlibs} ${${outlibs}} ${CUDA_CUDA_LIBRARY} ${CUDA_NVVM_LIBRARY})
         set(_impala_platform ${_impala_platform} ${THORIN_RUNTIME_DIR}/platforms/intrinsics_${TRW_RTTYPE}.impala)
         # cu_runtime needs some defines
         # lucky enough, cmake does the right thing here even when we compile impala programs from various folders
@@ -84,9 +86,9 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
     # tell cmake what to do
     add_custom_command(OUTPUT ${_llfile}
         COMMAND ${IMPALA_BIN} ${_impala_platform} ${_infiles} -emit-llvm -O3
-        COMMAND ${THORIN_RUNTIME_DIR}/post-patcher ${TRW_RTTYPE} ${CMAKE_CURRENT_BINARY_DIR}/${_basename}
+        COMMAND ${PYTHON_BIN} ${THORIN_RUNTIME_DIR}/post-patcher.py ${TRW_RTTYPE} ${CMAKE_CURRENT_BINARY_DIR}/${_basename}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-        DEPENDS ${IMPALA_BIN} ${THORIN_RUNTIME_DIR}/post-patcher ${_impala_platform} ${_infiles} VERBATIM)
+        DEPENDS ${IMPALA_BIN} ${PYTHON_BIN} ${THORIN_RUNTIME_DIR}/post-patcher.py ${_impala_platform} ${_infiles} VERBATIM)
     IF("${TRW_RTTYPE}" STREQUAL "spir")
         set(_spirfile ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.spir)
         set(_bcfile ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.spir.bc)

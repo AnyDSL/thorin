@@ -9,6 +9,7 @@
 #include "thorin/util/queue.h"
 
 #include <algorithm>
+#include <iostream>
 
 namespace thorin {
 

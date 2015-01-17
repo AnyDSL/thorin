@@ -1,10 +1,15 @@
 include(CMakeParseArguments)
 
 # find impala
-find_file(IMPALA_BIN impala)
+find_program(IMPALA_BIN impala)
 IF (NOT IMPALA_BIN)
     message(FATAL_ERROR "Could not find impala binary, it has to be in the PATH")
 ENDIF()
+
+# find python for post-patcher.py
+find_package(PythonInterp REQUIRED)
+message(STATUS "Python found: ${PYTHON_VERSION_STRING}")
+set(PYTHON_BIN ${PYTHON_EXECUTABLE})
 
 macro(THORIN_RUNTIME_WRAP outfiles outlibs)
     CMAKE_PARSE_ARGUMENTS("TRW" "MAIN" "RTTYPE" "FILES" ${ARGN})
@@ -81,9 +86,9 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
     # tell cmake what to do
     add_custom_command(OUTPUT ${_llfile}
         COMMAND ${IMPALA_BIN} ${_impala_platform} ${_infiles} -emit-llvm -O3
-        COMMAND ${THORIN_RUNTIME_DIR}/post-patcher ${TRW_RTTYPE} ${CMAKE_CURRENT_BINARY_DIR}/${_basename}
+        COMMAND ${PYTHON_BIN} ${THORIN_RUNTIME_DIR}/post-patcher.py ${TRW_RTTYPE} ${CMAKE_CURRENT_BINARY_DIR}/${_basename}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-        DEPENDS ${IMPALA_BIN} ${THORIN_RUNTIME_DIR}/post-patcher ${_impala_platform} ${_infiles} VERBATIM)
+        DEPENDS ${IMPALA_BIN} ${PYTHON_BIN} ${THORIN_RUNTIME_DIR}/post-patcher.py ${_impala_platform} ${_infiles} VERBATIM)
     IF("${TRW_RTTYPE}" STREQUAL "spir")
         set(_spirfile ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.spir)
         set(_bcfile ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.spir.bc)

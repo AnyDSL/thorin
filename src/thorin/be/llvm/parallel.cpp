@@ -2,32 +2,37 @@
 
 namespace thorin {
 
+enum {
+    PAR_ARG_MEM,
+    PAR_ARG_NUMTHREADS,
+    PAR_ARG_BODY,
+    PAR_ARG_RETURN,
+    PAR_NUM_ARGS
+};
+
 Lambda* CodeGen::emit_parallel_continuation(Lambda* lambda) {
-    auto &world = lambda->world();
-    // to-target is the desired parallel-target call
-    // target(mem, num_threads, body, return, free_vars)
     auto target = lambda->to()->as_lambda();
     assert(target->intrinsic() == Intrinsic::Parallel);
-    assert(lambda->num_args() > 3 && "required arguments are missing");
+    assert(lambda->num_args() >= PAR_NUM_ARGS && "required arguments are missing");
 
-    // get input
-    auto num_threads  = lookup(lambda->arg(1));
-    auto func = lambda->arg(2)->as<Global>()->init()->as_lambda();
-    auto ret = lambda->arg(3)->as_lambda();
-    const auto arg_index = 4;
+    // arguments
+    auto num_threads = lookup(lambda->arg(PAR_ARG_NUMTHREADS));
+    auto kernel = lambda->arg(PAR_ARG_BODY)->as<Global>()->init()->as_lambda();
+    auto ret = lambda->arg(PAR_ARG_RETURN)->as_lambda();
+
+    const size_t num_kernel_args = lambda->num_args() - PAR_NUM_ARGS;
 
     // call parallel runtime function
-    auto target_fun = fcts_[func];
+    auto target_fun = fcts_[kernel];
     llvm::Value* handle;
-    if (lambda->num_args() > arg_index) {
+    if (num_kernel_args) {
         // fetch values and create a unified struct which contains all values (closure)
-        auto closure_type = convert(world.tuple_type(lambda->arg_fn_type()->args().slice_from_begin(4)));
+        auto closure_type = convert(world_.tuple_type(lambda->arg_fn_type()->args().slice_from_begin(PAR_NUM_ARGS)));
         llvm::Value* closure = llvm::UndefValue::get(closure_type);
-        for (size_t i = arg_index, e = lambda->num_args(); i != e; ++i)
-            closure = builder_.CreateInsertValue(closure, lookup(lambda->arg(i)), unsigned(i - arg_index));
+        for (size_t i = 0; i < num_kernel_args; ++i)
+            closure = builder_.CreateInsertValue(closure, lookup(lambda->arg(i + PAR_NUM_ARGS)), unsigned(i));
 
         // allocate closure object and write values into it
-        AutoPtr<llvm::DataLayout> dl(new llvm::DataLayout(module_));
         auto ptr = builder_.CreateAlloca(closure_type, nullptr);
         builder_.CreateStore(closure, ptr, false);
 
@@ -36,7 +41,8 @@ Lambda* CodeGen::emit_parallel_continuation(Lambda* lambda) {
         auto wrapper_name = lambda->unique_name() + "_parallel";
         auto wrapper = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, wrapper_name);
 
-        handle = runtime_->parallel_create(num_threads, ptr, dl->getTypeAllocSize(closure_type), wrapper);
+        auto layout = llvm::DataLayout(module_->getDataLayout());
+        handle = runtime_->parallel_create(num_threads, ptr, layout.getTypeAllocSize(closure_type), wrapper);
 
         auto oldBB = builder_.GetInsertBlock();
 
@@ -49,7 +55,7 @@ Lambda* CodeGen::emit_parallel_continuation(Lambda* lambda) {
         auto val = builder_.CreateLoad(load_ptr);
 
         std::vector<llvm::Value*> target_args;
-        for (size_t i = 0, e = lambda->num_args() - arg_index; i != e; ++i)
+        for (size_t i = 0; i < num_kernel_args; ++i)
             target_args.push_back(builder_.CreateExtractValue(val, { unsigned(i) }));
         builder_.CreateCall(target_fun, target_args);
         builder_.CreateRetVoid();
@@ -68,7 +74,7 @@ Lambda* CodeGen::emit_parallel_continuation(Lambda* lambda) {
     return ret;
 }
 
-void CodeGen::emit_parallel(u32, llvm::Function*, llvm::CallInst*) {
+void CodeGen::emit_parallel(llvm::Value*, llvm::Function*, llvm::CallInst*) {
     // TODO
 }
 

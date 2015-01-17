@@ -19,32 +19,32 @@ llvm::Function* CodeGen::get_vectorize_tid() {
 }
 
 enum {
-    ARG_MEM,
-    ARG_LENGTH,
-    ARG_LOWER,
-    ARG_UPPER,
-    ARG_BODY,
-    ARG_RETURN,
-    NUM_ARGS
+    VEC_ARG_MEM,
+    VEC_ARG_LENGTH,
+    VEC_ARG_LOWER,
+    VEC_ARG_UPPER,
+    VEC_ARG_BODY,
+    VEC_ARG_RETURN,
+    VEC_NUM_ARGS
 };
 
 Lambda* CodeGen::emit_vectorize_continuation(Lambda* lambda) {
     auto target = lambda->to()->as_lambda();
-    assert(lambda->num_args() > NUM_ARGS && "required arguments are missing");
     assert(target->intrinsic() == Intrinsic::Vectorize);
+    assert(lambda->num_args() >= VEC_NUM_ARGS && "required arguments are missing");
 
-    // vector length
-    u32 vector_length = lambda->arg(ARG_LENGTH)->as<PrimLit>()->qu32_value();
-    auto lower = lookup(lambda->arg(ARG_LOWER));
-    auto upper = lookup(lambda->arg(ARG_UPPER));
-    auto kernel = lambda->arg(ARG_BODY)->as<Global>()->init()->as_lambda();
+    // arguments
+    u32 vector_length = lambda->arg(VEC_ARG_LENGTH)->as<PrimLit>()->qu32_value();
+    auto lower = lookup(lambda->arg(VEC_ARG_LOWER));
+    auto upper = lookup(lambda->arg(VEC_ARG_UPPER));
+    auto kernel = lambda->arg(VEC_ARG_BODY)->as<Global>()->init()->as_lambda();
 
-    const size_t num_kernel_args = lambda->num_args() - NUM_ARGS;
+    const size_t num_kernel_args = lambda->num_args() - VEC_NUM_ARGS;
 
     // build simd-function signature
     Array<llvm::Type*> simd_args(num_kernel_args);
     for (size_t i = 0; i < num_kernel_args; ++i) {
-        Type type = lambda->arg(i + NUM_ARGS)->type();
+        Type type = lambda->arg(i + VEC_NUM_ARGS)->type();
         simd_args[i] = convert(type);
     }
 
@@ -70,7 +70,7 @@ Lambda* CodeGen::emit_vectorize_continuation(Lambda* lambda) {
     Array<llvm::Value*> args(num_kernel_args);
     for (size_t i = 0; i < num_kernel_args; ++i) {
         // check target type
-        Def arg = lambda->arg(i + NUM_ARGS);
+        Def arg = lambda->arg(i + VEC_NUM_ARGS);
         auto llvm_arg = lookup(arg);
         if (arg->type().isa<PtrType>())
             llvm_arg = builder_.CreateBitCast(llvm_arg, simd_args[i]);
@@ -84,7 +84,7 @@ Lambda* CodeGen::emit_vectorize_continuation(Lambda* lambda) {
     builder_.SetInsertPoint(exit);
 
     wfv_todo_.emplace_back(vector_length, loop_counter, emit_function_decl(kernel), simd_kernel_call);
-    return lambda->arg(ARG_RETURN)->as_lambda();
+    return lambda->arg(VEC_ARG_RETURN)->as_lambda();
 }
 
 void CodeGen::emit_vectorize(u32 vector_length, llvm::Value* loop_counter, llvm::Function* kernel_func, llvm::CallInst* simd_kernel_call) {

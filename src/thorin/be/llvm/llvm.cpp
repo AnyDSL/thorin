@@ -71,7 +71,7 @@ Lambda* CodeGen::emit_intrinsic(Lambda* lambda) {
         case Intrinsic::NVVM:      return nvvm_runtime_->emit_host_code(*this, lambda);
         case Intrinsic::SPIR:      return spir_runtime_->emit_host_code(*this, lambda);
         case Intrinsic::OpenCL:    return opencl_runtime_->emit_host_code(*this, lambda);
-        case Intrinsic::Parallel:  return runtime_->emit_parallel_start_code(*this, lambda);
+        case Intrinsic::Parallel:  return emit_parallel_continuation(lambda);
 #ifdef WFV2_SUPPORT
         case Intrinsic::Vectorize: return emit_vectorize_continuation(lambda);
 #endif
@@ -304,6 +304,10 @@ void CodeGen::emit(int opt) {
         primops_.clear();
     });
 
+    // emit parallelized code
+    for (const auto& tuple : par_todo_)
+        emit_parallel(std::get<0>(tuple), std::get<1>(tuple), std::get<2>(tuple));
+    par_todo_.clear();
 #ifdef WFV2_SUPPORT
     // emit vectorized code
     for (const auto& tuple : wfv_todo_)

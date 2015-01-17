@@ -16,12 +16,6 @@ public:
     virtual llvm::Value* parallel_create(llvm::Value* num_threads, llvm::Value* closure_ptr,
                                          uint64_t closure_size, llvm::Value* fun_ptr);
     virtual llvm::Value* parallel_join(llvm::Value* handle);
-
-    Lambda* emit_parallel_start_code(CodeGen& code_gen, Lambda* lambda);
-    Lambda* emit_parallel_join_code(CodeGen& code_gen, Lambda* lambda);
-
-private:
-    llvm::LLVMContext& context_;
 };
 
 }

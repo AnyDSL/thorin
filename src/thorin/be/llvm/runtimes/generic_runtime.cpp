@@ -41,4 +41,3 @@ llvm::Value* GenericRuntime::parallel_join(llvm::Value* handle) {
 }
 
 }
-

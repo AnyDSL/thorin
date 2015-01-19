@@ -30,12 +30,11 @@ typedef CFG<false> B_CFG;
  *
  * Managed by @p CFA.
  */
-class CFNode {
+class CFNode : public MagicCast<CFNode> {
 public:
     CFNode(Lambda* lambda)
         : lambda_(lambda)
     {}
-    virtual ~CFNode() = 0;
 
     Lambda* lambda() const { return lambda_; }
 
@@ -71,10 +70,12 @@ public:
     InCFNode(Lambda* lambda)
         : CFNode(lambda)
     {}
-    virtual ~InCFNode() {}
+    virtual ~InCFNode();
 
 private:
-    AutoVector<const OutCFNode*> out_nodes_;
+    mutable LambdaMap<const OutCFNode*> out_nodes_;
+
+    friend class CFABuilder;
 };
 
 //------------------------------------------------------------------------------

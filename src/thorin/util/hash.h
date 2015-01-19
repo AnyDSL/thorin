@@ -13,7 +13,7 @@ namespace thorin {
 //------------------------------------------------------------------------------
 
 // currently no better place to fit this
-/// Determines wether \p i is a power of two.
+/// Determines whether \p i is a power of two.
 inline size_t is_power_of_2(size_t i) { return ((i != 0) && !(i & (i - 1))); }
 
 //------------------------------------------------------------------------------
@@ -34,7 +34,7 @@ template<> struct FNV1<8> {
     static_assert(std::is_signed<T>::value || std::is_unsigned<T>::value, \
             "please provide your own hash function; use hash_combine to create one");
 
-/// Returns a new hash by combinding the hash @p seed with @p val.
+/// Returns a new hash by combining the hash @p seed with @p val.
 template<class T>
 size_t hash_combine(size_t seed, T val) {
     THORIN_SUPPORTED_HASH_TYPES

@@ -15,6 +15,7 @@
 #include "thorin/transform/merge_lambdas.h"
 #include "thorin/transform/partial_evaluation.h"
 #include "thorin/transform/dead_load_opt.h"
+#include "thorin/transform/bta.h"
 #include "thorin/util/array.h"
 
 #if (defined(__clang__) || defined(__GNUC__)) && (defined(__x86_64__) || defined(__i386__))
@@ -869,6 +870,7 @@ void World::opt() {
     merge_lambdas(*this);
     lift_enters(*this);
     dead_load_opt(*this);
+    bta(*this);
     cleanup();
 }
 

@@ -22,7 +22,7 @@ endif
 all: $(MAIN).out
 	@echo "Running $(MAIN) ..."
 	@if [ -f $(MAIN).spir ]; then llvm-as $(MAIN).spir; fi
-	@if [ -f $(MAIN).spir ]; then ../post-patcher spir $(MAIN); fi
+	@if [ -f $(MAIN).spir ]; then ../post-patcher.py spir $(MAIN); fi
 	@./$(MAIN).out
 
 %.o: %.cpp

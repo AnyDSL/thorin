@@ -135,7 +135,7 @@ class Memory {
         ummap[assoc_dev] = host_dev;
     }
     mem_id get_id(uint32_t dev, void *mem) { return memtoid[dev][mem]; }
-    mem_id map_memory(uint32_t dev, void *from, CUdeviceptr to, mem_type type, size_t offset, size_t size) {
+    mem_id map_memory(uint32_t dev, void *from, CUdeviceptr to, mem_type type, uint32_t offset, uint32_t size) {
         mem_id id = new_id();
         mapping_ mem_map = { from, to, type, offset, size, id };
         insert(dev, from, id, mem_map);

@@ -23,23 +23,23 @@ float total_timing = 0.0f;
 bool print_timing = true;
 
 // runtime forward declarations
-cl_mem malloc_buffer(size_t dev, void *host, cl_mem_flags flags, size_t size);
-void read_buffer(size_t dev, cl_mem mem, void *host, size_t size);
-void write_buffer(size_t dev, cl_mem mem, void *host, size_t size);
-void free_buffer(size_t dev, cl_mem mem);
+cl_mem malloc_buffer(uint32_t dev, void *host, cl_mem_flags flags, uint32_t size);
+void read_buffer(uint32_t dev, cl_mem mem, void *host, uint32_t size);
+void write_buffer(uint32_t dev, cl_mem mem, void *host, uint32_t size);
+void free_buffer(uint32_t dev, cl_mem mem);
 
-void build_program_and_kernel(size_t dev, std::string file_name, std::string kernel_name, bool);
-void free_kernel(size_t dev, cl_kernel kernel);
+void build_program_and_kernel(uint32_t dev, std::string file_name, std::string kernel_name, bool);
+void free_kernel(uint32_t dev, cl_kernel kernel);
 
-void set_kernel_arg(size_t dev, void *param, size_t size);
-void set_kernel_arg_map(size_t dev, mem_id mem);
-void set_kernel_arg_const(size_t dev, void *param, size_t size);
-void set_kernel_arg_struct(size_t dev, void *param, size_t size);
-void set_problem_size(size_t dev, size_t size_x, size_t size_y, size_t size_z);
-void set_config_size(size_t dev, size_t size_x, size_t size_y, size_t size_z);
+void set_kernel_arg(uint32_t dev, void *param, uint32_t size);
+void set_kernel_arg_map(uint32_t dev, mem_id mem);
+void set_kernel_arg_const(uint32_t dev, void *param, uint32_t size);
+void set_kernel_arg_struct(uint32_t dev, void *param, uint32_t size);
+void set_problem_size(uint32_t dev, uint32_t size_x, uint32_t size_y, uint32_t size_z);
+void set_config_size(uint32_t dev, uint32_t size_x, uint32_t size_y, uint32_t size_z);
 
-void launch_kernel(size_t dev, std::string kernel_name);
-void synchronize(size_t dev);
+void launch_kernel(uint32_t dev, std::string kernel_name);
+void synchronize(uint32_t dev);
 
 
 // global variables ...
@@ -63,28 +63,28 @@ enum mem_type {
 
 class Memory {
     private:
-        size_t count_;
+        uint32_t count_;
         typedef struct mapping_ {
             void *cpu;
             cl_mem gpu;
             mem_type type;
-            size_t offset, size;
+            uint32_t offset, size;
             mem_id id;
         } mapping_;
         std::vector<std::unordered_map<mem_id, mapping_>> mmap;
         std::vector<std::unordered_map<mem_id, void*>> idtomem;
         std::vector<std::unordered_map<void*, mem_id>> memtoid;
-        std::vector<std::unordered_map<mem_id, size_t>> mcount;
-        std::unordered_map<size_t, size_t> ummap;
-        std::unordered_map<void*, size_t> hostmem;
+        std::vector<std::unordered_map<mem_id, uint32_t>> mcount;
+        std::unordered_map<uint32_t, uint32_t> ummap;
+        std::unordered_map<void*, uint32_t> hostmem;
 
         mem_id new_id() { return count_++; }
-        void insert(size_t dev, void *mem, mem_id id, mapping_ mem_map) {
+        void insert(uint32_t dev, void *mem, mem_id id, mapping_ mem_map) {
             idtomem[dev][id] = mem;
             memtoid[dev][mem] = id;
             mmap[dev][id] = mem_map;
         }
-        void remove(size_t dev, mem_id id) {
+        void remove(uint32_t dev, mem_id id) {
             void *mem = idtomem[dev][id];
             idtomem[dev].erase(id);
             memtoid[dev].erase(mem);
@@ -94,7 +94,7 @@ class Memory {
     public:
         Memory() : count_(42) {}
         ~Memory() {
-            size_t dev = 0;
+            uint32_t dev = 0;
             for (auto dmap : mmap) {
                 for (auto it : dmap) free(dev, it.first);
                 dev++;
@@ -107,33 +107,32 @@ class Memory {
             }
         }
 
-    void reserve(size_t num) {
+    void reserve(uint32_t num) {
         mmap.resize(mmap.size() + num);
         idtomem.resize(idtomem.size() + num);
         memtoid.resize(memtoid.size() + num);
         mcount.resize(mcount.size() + num);
     }
-    void associate_device(size_t host_dev, size_t assoc_dev) {
+    void associate_device(uint32_t host_dev, uint32_t assoc_dev) {
         ummap[assoc_dev] = host_dev;
     }
-    mem_id get_id(size_t dev, void *mem) { return memtoid[dev][mem]; }
-    mem_id map_memory(size_t dev, void *from, cl_mem to, mem_type type,
-            size_t offset, size_t size) {
+    mem_id get_id(uint32_t dev, void *mem) { return memtoid[dev][mem]; }
+    mem_id map_memory(uint32_t dev, void *from, cl_mem to, mem_type type, uint32_t offset, uint32_t size) {
         mem_id id = new_id();
         mapping_ mem_map = { from, to, type, offset, size, id };
         insert(dev, from, id, mem_map);
         return id;
     }
-    mem_id map_memory(size_t dev, void *from, cl_mem to, mem_type type) {
+    mem_id map_memory(uint32_t dev, void *from, cl_mem to, mem_type type) {
         assert(hostmem.count(from) && "memory not allocated by thorin");
         return map_memory(dev, from, to, type, 0, hostmem[from]);
     }
 
-    void *get_host_mem(size_t dev, mem_id id) { return mmap[dev][id].cpu; }
-    cl_mem &get_dev_mem(size_t dev, mem_id id) { return mmap[dev][id].gpu; }
+    void *get_host_mem(uint32_t dev, mem_id id) { return mmap[dev][id].cpu; }
+    cl_mem &get_dev_mem(uint32_t dev, mem_id id) { return mmap[dev][id].gpu; }
 
 
-    void *malloc_host(size_t size) {
+    void *malloc_host(uint32_t size) {
         void *mem;
         posix_memalign(&mem, 4096, size);
         std::cerr << " * malloc host(" << size << ") -> " << mem << std::endl;
@@ -154,7 +153,7 @@ class Memory {
         return hostmem[ptr];
     }
 
-    mem_id malloc(size_t dev, void *host, size_t offset, size_t size) {
+    mem_id malloc(uint32_t dev, void *host, uint32_t offset, uint32_t size) {
         assert(hostmem.count(host) && "memory not allocated by thorin");
         mem_id id = get_id(dev, host);
 
@@ -180,12 +179,12 @@ class Memory {
         mcount[dev][id] = 1;
         return id;
     }
-    mem_id malloc(size_t dev, void *host) {
+    mem_id malloc(uint32_t dev, void *host) {
         assert(hostmem.count(host) && "memory not allocated by thorin");
         return malloc(dev, host, 0, hostmem[host]);
     }
 
-    void free(size_t dev, mem_id mem) {
+    void free(uint32_t dev, mem_id mem) {
         auto ref_count = --mcount[dev][mem];
         if (ref_count) {
             std::cerr << " * free buffer(" << dev << "):   " << mem << " update ref count to " << ref_count << std::endl;
@@ -197,7 +196,7 @@ class Memory {
         }
     }
 
-    void read(size_t dev, mem_id id) {
+    void read(uint32_t dev, mem_id id) {
         assert(mmap[dev][id].cpu && "invalid host memory");
         void *host = mmap[dev][id].cpu;
         std::cerr << " * read buffer(" << dev << "):    " << id << " -> " << host
@@ -206,7 +205,7 @@ class Memory {
         void *host_ptr = (char*)host + mmap[dev][id].offset;
         read_buffer(dev, mmap[dev][id].gpu, host_ptr, mmap[dev][id].size);
     }
-    void write(size_t dev, mem_id id, void *host) {
+    void write(uint32_t dev, mem_id id, void *host) {
         assert(host==mmap[dev][id].cpu && "invalid host memory");
         std::cerr << " * write buffer(" << dev << "):   " << id << " <- " << host
                   << " [" << mmap[dev][id].offset << ":" << mmap[dev][id].size
@@ -216,7 +215,7 @@ class Memory {
     }
 
     void munmap(mem_id id) {
-        size_t dev = 0;
+        uint32_t dev = 0;
         for (auto dmap : mmap) {
             if (dmap.count(id)) {
                 std::cerr << " * munmap buffer(" << dev << "):  " << id << std::endl;
@@ -322,7 +321,7 @@ inline void __checkOpenCLErrors(cl_int err, std::string name, std::string file, 
     }
 }
 
-inline void __check_device(size_t dev) {
+inline void __check_device(uint32_t dev) {
     if (dev >= devices_.size()) {
         std::cerr << "ERROR: requested device #" << dev << ", but only " << devices_.size() << " OpenCL devices [0.." << devices_.size()-1 << "] available!" << std::endl;
         exit(EXIT_FAILURE);
@@ -512,7 +511,7 @@ void dump_program_binary(cl_program program, cl_device_id device) {
 
 
 // load OpenCL source file, build program, and create kernel
-void build_program_and_kernel(size_t dev, std::string file_name, std::string kernel_name, bool is_binary) {
+void build_program_and_kernel(uint32_t dev, std::string file_name, std::string kernel_name, bool is_binary) {
     bool print_progress = true;
     std::string cache_name = file_name + ":" + kernel_name;
 
@@ -600,13 +599,13 @@ void build_program_and_kernel(size_t dev, std::string file_name, std::string ker
 }
 
 
-void free_kernel(size_t dev, cl_kernel kernel) {
+void free_kernel(uint32_t dev, cl_kernel kernel) {
     cl_int err = clReleaseKernel(kernel);
     checkErr(err, "clReleaseKernel()");
 }
 
 
-cl_mem malloc_buffer(size_t dev, void *host, cl_mem_flags flags, size_t size) {
+cl_mem malloc_buffer(uint32_t dev, void *host, cl_mem_flags flags, uint32_t size) {
     if (!size) return 0;
 
     cl_int err = CL_SUCCESS;
@@ -620,13 +619,13 @@ cl_mem malloc_buffer(size_t dev, void *host, cl_mem_flags flags, size_t size) {
 }
 
 
-void free_buffer(size_t dev, cl_mem mem) {
+void free_buffer(uint32_t dev, cl_mem mem) {
     cl_int err = clReleaseMemObject(mem);
     checkErr(err, "clReleaseMemObject()");
 }
 
 
-void write_buffer(size_t dev, cl_mem mem, void *host, size_t size) {
+void write_buffer(uint32_t dev, cl_mem mem, void *host, uint32_t size) {
     cl_event event;
     cl_ulong end, start;
 
@@ -648,7 +647,7 @@ void write_buffer(size_t dev, cl_mem mem, void *host, size_t size) {
 }
 
 
-void read_buffer(size_t dev, cl_mem mem, void *host, size_t size) {
+void read_buffer(uint32_t dev, cl_mem mem, void *host, uint32_t size) {
     cl_event event;
     cl_ulong end, start;
 
@@ -670,27 +669,27 @@ void read_buffer(size_t dev, cl_mem mem, void *host, size_t size) {
 }
 
 
-void synchronize(size_t dev) {
+void synchronize(uint32_t dev) {
     cl_int err = clFinish(command_queues_[dev]);
     checkErr(err, "clFinish()");
 }
 
 
-void set_problem_size(size_t dev, size_t size_x, size_t size_y, size_t size_z) {
+void set_problem_size(uint32_t dev, uint32_t size_x, uint32_t size_y, uint32_t size_z) {
     global_work_size[0] = size_x;
     global_work_size[1] = size_y;
     global_work_size[2] = size_z;
 }
 
 
-void set_config_size(size_t dev, size_t size_x, size_t size_y, size_t size_z) {
+void set_config_size(uint32_t dev, uint32_t size_x, uint32_t size_y, uint32_t size_z) {
     local_work_size[0] = size_x;
     local_work_size[1] = size_y;
     local_work_size[2] = size_z;
 }
 
 
-void set_kernel_arg(size_t dev, void *param, size_t size) {
+void set_kernel_arg(uint32_t dev, void *param, uint32_t size) {
     //std::cerr << " * set arg(" << dev << "):        " << param << std::endl;
     #ifdef BENCH
     kernel_args.emplace_back(size, param);
@@ -701,14 +700,14 @@ void set_kernel_arg(size_t dev, void *param, size_t size) {
 }
 
 
-void set_kernel_arg_map(size_t dev, mem_id id) {
+void set_kernel_arg_map(uint32_t dev, mem_id id) {
     cl_mem &mem = mem_manager.get_dev_mem(dev, id);
     std::cerr << " * set arg map(" << dev << "):    " << id << std::endl;
     set_kernel_arg(dev, &mem, sizeof(cl_mem));
 }
 
 
-void set_kernel_arg_const(size_t dev, void *param, size_t size) {
+void set_kernel_arg_const(uint32_t dev, void *param, uint32_t size) {
     cl_mem_flags flags = CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR;
     cl_mem const_buf = malloc_buffer(dev, param, flags, size);
     kernel_structs_.emplace_back(const_buf);
@@ -718,7 +717,7 @@ void set_kernel_arg_const(size_t dev, void *param, size_t size) {
 }
 
 
-void set_kernel_arg_struct(size_t dev, void *param, size_t size) {
+void set_kernel_arg_struct(uint32_t dev, void *param, uint32_t size) {
     cl_mem_flags flags = CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR;
     cl_mem struct_buf = malloc_buffer(dev, param, flags, size);
     kernel_structs_.emplace_back(struct_buf);
@@ -728,7 +727,7 @@ void set_kernel_arg_struct(size_t dev, void *param, size_t size) {
 }
 
 
-void launch_kernel(size_t dev, std::string kernel_name) {
+void launch_kernel(uint32_t dev, std::string kernel_name) {
     cl_int err = CL_SUCCESS;
     cl_event event;
     cl_ulong end, start;
@@ -794,35 +793,35 @@ void launch_kernel(size_t dev, std::string kernel_name) {
 
 
 // SPIR wrappers
-mem_id spir_malloc_buffer(size_t dev, void *host) { check_dev(dev); return mem_manager.malloc(dev, host); }
-void spir_free_buffer(size_t dev, mem_id mem) { check_dev(dev); mem_manager.free(dev, mem); }
+mem_id spir_malloc_buffer(uint32_t dev, void *host) { check_dev(dev); return mem_manager.malloc(dev, host); }
+void spir_free_buffer(uint32_t dev, mem_id mem) { check_dev(dev); mem_manager.free(dev, mem); }
 
-void spir_write_buffer(size_t dev, mem_id mem, void *host) { check_dev(dev); mem_manager.write(dev, mem, host); }
-void spir_read_buffer(size_t dev, mem_id mem, void *host) { check_dev(dev); mem_manager.read(dev, mem); }
+void spir_write_buffer(uint32_t dev, mem_id mem, void *host) { check_dev(dev); mem_manager.write(dev, mem, host); }
+void spir_read_buffer(uint32_t dev, mem_id mem, void *host) { check_dev(dev); mem_manager.read(dev, mem); }
 
-void spir_build_program_and_kernel_from_binary(size_t dev, const char *file_name, const char *kernel_name) { check_dev(dev); build_program_and_kernel(dev, file_name, kernel_name, true); }
-void spir_build_program_and_kernel_from_source(size_t dev, const char *file_name, const char *kernel_name) { check_dev(dev); build_program_and_kernel(dev, file_name, kernel_name, false); }
+void spir_build_program_and_kernel_from_binary(uint32_t dev, const char *file_name, const char *kernel_name) { check_dev(dev); build_program_and_kernel(dev, file_name, kernel_name, true); }
+void spir_build_program_and_kernel_from_source(uint32_t dev, const char *file_name, const char *kernel_name) { check_dev(dev); build_program_and_kernel(dev, file_name, kernel_name, false); }
 
-void spir_set_kernel_arg(size_t dev, void *param, size_t size) { check_dev(dev); set_kernel_arg(dev, param, size); }
-void spir_set_kernel_arg_map(size_t dev, mem_id mem) { check_dev(dev); set_kernel_arg_map(dev, mem); }
-void spir_set_kernel_arg_const(size_t dev, void *param, size_t size) { check_dev(dev); set_kernel_arg_const(dev, param, size); }
-void spir_set_kernel_arg_struct(size_t dev, void *param, size_t size) { check_dev(dev); set_kernel_arg_struct(dev, param, size); }
-void spir_set_problem_size(size_t dev, size_t size_x, size_t size_y, size_t size_z) { check_dev(dev); set_problem_size(dev, size_x, size_y, size_z); }
-void spir_set_config_size(size_t dev, size_t size_x, size_t size_y, size_t size_z) { check_dev(dev); set_config_size(dev, size_x, size_y, size_z); }
+void spir_set_kernel_arg(uint32_t dev, void *param, uint32_t size) { check_dev(dev); set_kernel_arg(dev, param, size); }
+void spir_set_kernel_arg_map(uint32_t dev, mem_id mem) { check_dev(dev); set_kernel_arg_map(dev, mem); }
+void spir_set_kernel_arg_const(uint32_t dev, void *param, uint32_t size) { check_dev(dev); set_kernel_arg_const(dev, param, size); }
+void spir_set_kernel_arg_struct(uint32_t dev, void *param, uint32_t size) { check_dev(dev); set_kernel_arg_struct(dev, param, size); }
+void spir_set_problem_size(uint32_t dev, uint32_t size_x, uint32_t size_y, uint32_t size_z) { check_dev(dev); set_problem_size(dev, size_x, size_y, size_z); }
+void spir_set_config_size(uint32_t dev, uint32_t size_x, uint32_t size_y, uint32_t size_z) { check_dev(dev); set_config_size(dev, size_x, size_y, size_z); }
 
-void spir_launch_kernel(size_t dev, const char *kernel_name) { check_dev(dev); launch_kernel(dev, kernel_name); }
-void spir_synchronize(size_t dev) { check_dev(dev); synchronize(dev); }
+void spir_launch_kernel(uint32_t dev, const char *kernel_name) { check_dev(dev); launch_kernel(dev, kernel_name); }
+void spir_synchronize(uint32_t dev) { check_dev(dev); synchronize(dev); }
 
 // helper functions
 void thorin_init() { init_opencl(); }
-void *thorin_malloc(size_t size) { return mem_manager.malloc_host(size); }
+void *thorin_malloc(uint32_t size) { return mem_manager.malloc_host(size); }
 void thorin_free(void *ptr) { mem_manager.free_host(ptr); }
 void thorin_print_total_timing() {
     #ifdef BENCH
     std::cerr << "total accumulated timing: " << total_timing << " (ms)" << std::endl;
     #endif
 }
-mem_id map_memory(size_t dev, size_t type_, void *from, int offset, int size) {
+mem_id map_memory(uint32_t dev, uint32_t type_, void *from, int offset, int size) {
     check_dev(dev);
     mem_type type = (mem_type)type_;
     assert(mem_manager.host_mem_size(from) && "memory not allocated by thorin");

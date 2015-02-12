@@ -8,7 +8,7 @@ static int num = 1024;
 int test_kernelfile(const char *file) {
     std::cout << "Test file: " << file << std::endl;
 
-    size_t dev = 0;
+    uint32_t dev = 0;
     int *cmem = (int *)thorin_malloc(sizeof(int) * 32);
     int *host = (int *)thorin_malloc(sizeof(int) * num);
 

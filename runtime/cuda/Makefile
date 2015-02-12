@@ -24,7 +24,7 @@ endif
 all: $(MAIN).out
 	@echo "Running $(MAIN) ..."
 	@# remove attribute from asm
-	@if [ -f $(MAIN).nvvm ]; then ../post-patcher nvvm $(MAIN); fi
+	@if [ -f $(MAIN).nvvm ]; then ../post-patcher.py nvvm $(MAIN); fi
 	@CUDA_VISIBLE_DEVICES=0 ./$(MAIN).out
 	@CUDA_VISIBLE_DEVICES=1 ./$(MAIN).out
 

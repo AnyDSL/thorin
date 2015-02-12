@@ -41,25 +41,25 @@ typedef struct dim3 dim3;
 // define dim3
 
 // runtime forward declarations
-CUdeviceptr malloc_memory(size_t dev, void *host, size_t size);
-void read_memory(size_t dev, CUdeviceptr mem, void *host, size_t size);
-void write_memory(size_t dev, CUdeviceptr mem, void *host, size_t size);
-void free_memory(size_t dev, CUdeviceptr mem);
+CUdeviceptr malloc_memory(uint32_t dev, void *host, uint32_t size);
+void read_memory(uint32_t dev, CUdeviceptr mem, void *host, uint32_t size);
+void write_memory(uint32_t dev, CUdeviceptr mem, void *host, uint32_t size);
+void free_memory(uint32_t dev, CUdeviceptr mem);
 
-void load_kernel(size_t dev, std::string file_name, std::string kernel_name, bool is_nvvm);
-void unload_module(size_t dev, CUmodule module);
+void load_kernel(uint32_t dev, std::string file_name, std::string kernel_name, bool is_nvvm);
+void unload_module(uint32_t dev, CUmodule module);
 
-void get_tex_ref(size_t dev, std::string name);
-void bind_tex(size_t dev, mem_id mem, CUarray_format format);
+void get_tex_ref(uint32_t dev, std::string name);
+void bind_tex(uint32_t dev, mem_id mem, CUarray_format format);
 
-void set_kernel_arg(size_t dev, void *param);
-void set_kernel_arg_map(size_t dev, mem_id mem);
-void set_kernel_arg_const(size_t dev, void *param, std::string name, size_t size);
-void set_problem_size(size_t dev, size_t size_x, size_t size_y, size_t size_z);
-void set_config_size(size_t dev, size_t size_x, size_t size_y, size_t size_z);
+void set_kernel_arg(uint32_t dev, void *param);
+void set_kernel_arg_map(uint32_t dev, mem_id mem);
+void set_kernel_arg_const(uint32_t dev, void *param, std::string name, uint32_t size);
+void set_problem_size(uint32_t dev, uint32_t size_x, uint32_t size_y, uint32_t size_z);
+void set_config_size(uint32_t dev, uint32_t size_x, uint32_t size_y, uint32_t size_z);
 
-void launch_kernel(size_t dev, std::string kernel_name);
-void synchronize(size_t dev);
+void launch_kernel(uint32_t dev, std::string kernel_name);
+void synchronize(uint32_t dev);
 
 
 // global variables ...
@@ -85,28 +85,28 @@ enum mem_type {
 
 class Memory {
     private:
-        size_t count_;
+        uint32_t count_;
         typedef struct mapping_ {
             void *cpu;
             CUdeviceptr gpu;
             mem_type type;
-            size_t offset, size;
+            uint32_t offset, size;
             mem_id id;
         } mapping_;
         std::vector<std::unordered_map<mem_id, mapping_>> mmap;
         std::vector<std::unordered_map<mem_id, void*>> idtomem;
         std::vector<std::unordered_map<void*, mem_id>> memtoid;
-        std::vector<std::unordered_map<mem_id, size_t>> mcount;
-        std::unordered_map<size_t, size_t> ummap;
-        std::unordered_map<void*, size_t> hostmem;
+        std::vector<std::unordered_map<mem_id, uint32_t>> mcount;
+        std::unordered_map<uint32_t, uint32_t> ummap;
+        std::unordered_map<void*, uint32_t> hostmem;
 
         mem_id new_id() { return count_++; }
-        void insert(size_t dev, void *mem, mem_id id, mapping_ mem_map) {
+        void insert(uint32_t dev, void *mem, mem_id id, mapping_ mem_map) {
             idtomem[dev][id] = mem;
             memtoid[dev][mem] = id;
             mmap[dev][id] = mem_map;
         }
-        void remove(size_t dev, mem_id id) {
+        void remove(uint32_t dev, mem_id id) {
             void *mem = idtomem[dev][id];
             idtomem[dev].erase(id);
             memtoid[dev].erase(mem);
@@ -116,7 +116,7 @@ class Memory {
     public:
         Memory() : count_(42) {}
         ~Memory() {
-            size_t dev = 0;
+            uint32_t dev = 0;
             for (auto dmap : mmap) {
                 for (auto it : dmap) free(dev, it.first);
                 dev++;
@@ -131,27 +131,26 @@ class Memory {
         memtoid.resize(memtoid.size() + num);
         mcount.resize(mcount.size() + num);
     }
-    void associate_device(size_t host_dev, size_t assoc_dev) {
+    void associate_device(uint32_t host_dev, uint32_t assoc_dev) {
         ummap[assoc_dev] = host_dev;
     }
-    mem_id get_id(size_t dev, void *mem) { return memtoid[dev][mem]; }
-    mem_id map_memory(size_t dev, void *from, CUdeviceptr to, mem_type type,
-            size_t offset, size_t size) {
+    mem_id get_id(uint32_t dev, void *mem) { return memtoid[dev][mem]; }
+    mem_id map_memory(uint32_t dev, void *from, CUdeviceptr to, mem_type type, size_t offset, size_t size) {
         mem_id id = new_id();
         mapping_ mem_map = { from, to, type, offset, size, id };
         insert(dev, from, id, mem_map);
         return id;
     }
-    mem_id map_memory(size_t dev, void *from, CUdeviceptr to, mem_type type) {
+    mem_id map_memory(uint32_t dev, void *from, CUdeviceptr to, mem_type type) {
         assert(hostmem.count(from) && "memory not allocated by thorin");
         return map_memory(dev, from, to, type, 0, hostmem[from]);
     }
 
-    void *get_host_mem(size_t dev, mem_id id) { return mmap[dev][id].cpu; }
-    CUdeviceptr &get_dev_mem(size_t dev, mem_id id) { return mmap[dev][id].gpu; }
+    void *get_host_mem(uint32_t dev, mem_id id) { return mmap[dev][id].cpu; }
+    CUdeviceptr &get_dev_mem(uint32_t dev, mem_id id) { return mmap[dev][id].gpu; }
 
 
-    void *malloc_host(size_t size) {
+    void *malloc_host(uint32_t size) {
         void *mem;
         posix_memalign(&mem, 64, size);
         std::cerr << " * malloc host(" << size << ") -> " << mem << std::endl;
@@ -172,7 +171,7 @@ class Memory {
         return hostmem[ptr];
     }
 
-    mem_id malloc(size_t dev, void *host, size_t offset, size_t size) {
+    mem_id malloc(uint32_t dev, void *host, uint32_t offset, uint32_t size) {
         assert(hostmem.count(host) && "memory not allocated by thorin");
         mem_id id = get_id(dev, host);
 
@@ -195,12 +194,12 @@ class Memory {
         mcount[dev][id] = 1;
         return id;
     }
-    mem_id malloc(size_t dev, void *host) {
+    mem_id malloc(uint32_t dev, void *host) {
         assert(hostmem.count(host) && "memory not allocated by thorin");
         return malloc(dev, host, 0, hostmem[host]);
     }
 
-    void free(size_t dev, mem_id mem) {
+    void free(uint32_t dev, mem_id mem) {
         auto ref_count = --mcount[dev][mem];
         if (ref_count) {
             std::cerr << " * free memory(" << dev << "):   " << mem << " update ref count to " << ref_count << std::endl;
@@ -212,7 +211,7 @@ class Memory {
         }
     }
 
-    void read(size_t dev, mem_id id) {
+    void read(uint32_t dev, mem_id id) {
         assert(mmap[dev][id].cpu && "invalid host memory");
         void *host = mmap[dev][id].cpu;
         std::cerr << " * read memory(" << dev << "):   " << id << " -> " << host
@@ -221,7 +220,7 @@ class Memory {
         void *host_ptr = (char*)host + mmap[dev][id].offset;
         read_memory(dev, mmap[dev][id].gpu, host_ptr, mmap[dev][id].size);
     }
-    void write(size_t dev, mem_id id, void *host) {
+    void write(uint32_t dev, mem_id id, void *host) {
         assert(host==mmap[dev][id].cpu && "invalid host memory");
         std::cerr << " * write memory(" << dev << "):  " << id << " <- " << host
                   << " [" << mmap[dev][id].offset << ":" << mmap[dev][id].size
@@ -231,7 +230,7 @@ class Memory {
     }
 
     void munmap(mem_id id) {
-        size_t dev = 0;
+        uint32_t dev = 0;
         for (auto dmap : mmap) {
             if (dmap.count(id)) {
                 std::cerr << " * munmap memory(" << dev << "): " << id << std::endl;
@@ -274,7 +273,7 @@ inline void __checkNvvmErrors(nvvmResult err, std::string name, std::string file
     }
 }
 
-inline void __check_device(size_t dev) {
+inline void __check_device(uint32_t dev) {
     if (dev >= devices_.size()) {
         std::cerr << "ERROR: requested device #" << dev << ", but only " << devices_.size() << " CUDA devices [0.." << devices_.size()-1 << "] available!" << std::endl;
         exit(EXIT_FAILURE);
@@ -342,7 +341,7 @@ void init_cuda() {
 
 
 // create module from ptx assembly
-void create_module(size_t dev, const void *ptx, std::string file_name, CUjit_target target_cc) {
+void create_module(uint32_t dev, const void *ptx, std::string file_name, CUjit_target target_cc) {
     CUresult err = CUDA_SUCCESS;
     bool print_progress = true;
 
@@ -367,7 +366,7 @@ void create_module(size_t dev, const void *ptx, std::string file_name, CUjit_tar
 
 
 // get kernel from module
-void create_kernel(size_t dev, std::string kernel_name) {
+void create_kernel(uint32_t dev, std::string kernel_name) {
     // get function entry point
     CUresult err = cuModuleGetFunction(&functions_[dev], modules_[dev], kernel_name.c_str());
     checkErrDrv(err, "cuModuleGetFunction('" + kernel_name + "')");
@@ -376,7 +375,7 @@ void create_kernel(size_t dev, std::string kernel_name) {
 
 
 // computes occupancy for kernel function
-void print_kernel_occupancy(size_t dev, std::string kernel_name) {
+void print_kernel_occupancy(uint32_t dev, std::string kernel_name) {
     #if CUDA_VERSION >= 6050
     CUresult err = CUDA_SUCCESS;
     int warp_size;
@@ -415,7 +414,7 @@ void print_kernel_occupancy(size_t dev, std::string kernel_name) {
 
 
 // load NVVM source and compile kernel
-void compile_nvvm(size_t dev, std::string file_name, CUjit_target target_cc) {
+void compile_nvvm(uint32_t dev, std::string file_name, CUjit_target target_cc) {
     nvvmResult err;
     nvvmProgram program;
 
@@ -497,7 +496,7 @@ void compile_nvvm(size_t dev, std::string file_name, CUjit_target target_cc) {
 
 
 // load CUDA source and compile kernel
-void compile_cuda(size_t dev, std::string file_name, CUjit_target target_cc) {
+void compile_cuda(uint32_t dev, std::string file_name, CUjit_target target_cc) {
     char line[FILENAME_MAX];
     FILE *fpipe;
 
@@ -532,7 +531,7 @@ void compile_cuda(size_t dev, std::string file_name, CUjit_target target_cc) {
 
 
 // create module
-void load_module(size_t dev, std::string file_name, bool is_nvvm) {
+void load_module(uint32_t dev, std::string file_name, bool is_nvvm) {
     int major, minor;
     CUresult err = CUDA_SUCCESS;
     err = cuDeviceGetAttribute(&major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, devices_[dev]);
@@ -550,7 +549,7 @@ void load_module(size_t dev, std::string file_name, bool is_nvvm) {
 
 
 // load CUDA/NVVM source and compile kernel
-void load_kernel(size_t dev, std::string file_name, std::string kernel_name, bool is_nvvm) {
+void load_kernel(uint32_t dev, std::string file_name, std::string kernel_name, bool is_nvvm) {
     // get module from cache
     if (module_cache_[dev].count(file_name)) {
         auto module = modules_[dev] = module_cache_[dev][file_name];
@@ -575,7 +574,7 @@ void load_kernel(size_t dev, std::string file_name, std::string kernel_name, boo
 }
 
 
-void unload_module(size_t dev, CUmodule module) {
+void unload_module(uint32_t dev, CUmodule module) {
     std::cerr << "unload module: " << module << std::endl;
     cuCtxPushCurrent(contexts_[dev]);
     CUresult err = cuModuleUnload(module);
@@ -584,14 +583,14 @@ void unload_module(size_t dev, CUmodule module) {
 }
 
 
-void get_tex_ref(size_t dev, std::string name) {
+void get_tex_ref(uint32_t dev, std::string name) {
     cuCtxPushCurrent(contexts_[dev]);
     CUresult err = cuModuleGetTexRef(&textures_[dev], modules_[dev], name.c_str());
     checkErrDrv(err, "cuModuleGetTexRef('" + name + "')");
     cuCtxPopCurrent(NULL);
 }
 
-void bind_tex(size_t dev, mem_id mem, CUarray_format format) {
+void bind_tex(uint32_t dev, mem_id mem, CUarray_format format) {
     void *host = mem_manager.get_host_mem(dev, mem);
     CUdeviceptr &dev_mem = mem_manager.get_dev_mem(dev, mem);
 
@@ -604,7 +603,7 @@ void bind_tex(size_t dev, mem_id mem, CUarray_format format) {
 }
 
 
-CUdeviceptr malloc_memory(size_t dev, void */*host*/, size_t size) {
+CUdeviceptr malloc_memory(uint32_t dev, void */*host*/, uint32_t size) {
     if (!size) return 0;
 
     cuCtxPushCurrent(contexts_[dev]);
@@ -619,7 +618,7 @@ CUdeviceptr malloc_memory(size_t dev, void */*host*/, size_t size) {
 }
 
 
-void free_memory(size_t dev, CUdeviceptr mem) {
+void free_memory(uint32_t dev, CUdeviceptr mem) {
     cuCtxPushCurrent(contexts_[dev]);
     CUresult err = cuMemFree(mem);
     checkErrDrv(err, "cuMemFree()");
@@ -627,7 +626,7 @@ void free_memory(size_t dev, CUdeviceptr mem) {
 }
 
 
-void write_memory(size_t dev, CUdeviceptr mem, void *host, size_t size) {
+void write_memory(uint32_t dev, CUdeviceptr mem, void *host, uint32_t size) {
     cuCtxPushCurrent(contexts_[dev]);
     CUresult err = cuMemcpyHtoD(mem, host, size);
     checkErrDrv(err, "cuMemcpyHtoD()");
@@ -635,7 +634,7 @@ void write_memory(size_t dev, CUdeviceptr mem, void *host, size_t size) {
 }
 
 
-void read_memory(size_t dev, CUdeviceptr mem, void *host, size_t size) {
+void read_memory(uint32_t dev, CUdeviceptr mem, void *host, uint32_t size) {
     cuCtxPushCurrent(contexts_[dev]);
     CUresult err = cuMemcpyDtoH(host, mem, size);
     checkErrDrv(err, "cuMemcpyDtoH()");
@@ -643,7 +642,7 @@ void read_memory(size_t dev, CUdeviceptr mem, void *host, size_t size) {
 }
 
 
-void synchronize(size_t dev) {
+void synchronize(uint32_t dev) {
     cuCtxPushCurrent(contexts_[dev]);
     CUresult err = cuCtxSynchronize();
     checkErrDrv(err, "cuCtxSynchronize()");
@@ -651,21 +650,21 @@ void synchronize(size_t dev) {
 }
 
 
-void set_problem_size(size_t /*dev*/, size_t size_x, size_t size_y, size_t size_z) {
+void set_problem_size(uint32_t /*dev*/, uint32_t size_x, uint32_t size_y, uint32_t size_z) {
     cuDimProblem.x = size_x;
     cuDimProblem.y = size_y;
     cuDimProblem.z = size_z;
 }
 
 
-void set_config_size(size_t /*dev*/, size_t size_x, size_t size_y, size_t size_z) {
+void set_config_size(uint32_t /*dev*/, uint32_t size_x, uint32_t size_y, uint32_t size_z) {
     cuDimBlock.x = size_x;
     cuDimBlock.y = size_y;
     cuDimBlock.z = size_z;
 }
 
 
-void set_kernel_arg(size_t /*dev*/, void *param) {
+void set_kernel_arg(uint32_t /*dev*/, void *param) {
     cuArgIdx++;
     if (cuArgIdx > cuArgIdxMax) {
         cuArgs = (void **)realloc(cuArgs, sizeof(void *)*cuArgIdx);
@@ -676,14 +675,14 @@ void set_kernel_arg(size_t /*dev*/, void *param) {
 }
 
 
-void set_kernel_arg_map(size_t dev, mem_id mem) {
+void set_kernel_arg_map(uint32_t dev, mem_id mem) {
     CUdeviceptr &dev_mem = mem_manager.get_dev_mem(dev, mem);
     std::cerr << " * set arg map(" << dev << "):   " << mem << std::endl;
     set_kernel_arg(dev, &dev_mem);
 }
 
 
-void set_kernel_arg_const(size_t dev, void *param, std::string name, size_t size) {
+void set_kernel_arg_const(uint32_t dev, void *param, std::string name, uint32_t size) {
     size_t bytes;
     CUdeviceptr const_mem;
     std::cerr << " * set arg const(" << dev << "): " << param << std::endl;
@@ -693,7 +692,7 @@ void set_kernel_arg_const(size_t dev, void *param, std::string name, size_t size
 }
 
 
-void launch_kernel(size_t dev, std::string kernel_name) {
+void launch_kernel(uint32_t dev, std::string kernel_name) {
     cuCtxPushCurrent(contexts_[dev]);
     CUevent start, end;
     unsigned int event_flags = CU_EVENT_DEFAULT;
@@ -742,7 +741,7 @@ void launch_kernel(size_t dev, std::string kernel_name) {
               << time
               #endif
               << "(ms)" << std::endl;
-    print_kernel_occupancy(dev, kernel_name);
+    //print_kernel_occupancy(dev, kernel_name);
 
     cuEventDestroy(start);
     cuEventDestroy(end);
@@ -753,40 +752,40 @@ void launch_kernel(size_t dev, std::string kernel_name) {
 }
 
 // NVVM wrappers
-mem_id nvvm_malloc_memory(size_t dev, void *host) { check_dev(dev); return mem_manager.malloc(dev, host); }
-void nvvm_free_memory(size_t dev, mem_id mem) { check_dev(dev); mem_manager.free(dev, mem); }
+mem_id nvvm_malloc_memory(uint32_t dev, void *host) { check_dev(dev); return mem_manager.malloc(dev, host); }
+void nvvm_free_memory(uint32_t dev, mem_id mem) { check_dev(dev); mem_manager.free(dev, mem); }
 
-void nvvm_write_memory(size_t dev, mem_id mem, void *host) { check_dev(dev); mem_manager.write(dev, mem, host); }
-void nvvm_read_memory(size_t dev, mem_id mem, void */*host*/) { check_dev(dev); mem_manager.read(dev, mem); }
+void nvvm_write_memory(uint32_t dev, mem_id mem, void *host) { check_dev(dev); mem_manager.write(dev, mem, host); }
+void nvvm_read_memory(uint32_t dev, mem_id mem, void */*host*/) { check_dev(dev); mem_manager.read(dev, mem); }
 
-void nvvm_load_nvvm_kernel(size_t dev, const char *file_name, const char *kernel_name) { check_dev(dev); load_kernel(dev, file_name, kernel_name, true); }
-void nvvm_load_cuda_kernel(size_t dev, const char *file_name, const char *kernel_name) { check_dev(dev); load_kernel(dev, file_name, kernel_name, false); }
+void nvvm_load_nvvm_kernel(uint32_t dev, const char *file_name, const char *kernel_name) { check_dev(dev); load_kernel(dev, file_name, kernel_name, true); }
+void nvvm_load_cuda_kernel(uint32_t dev, const char *file_name, const char *kernel_name) { check_dev(dev); load_kernel(dev, file_name, kernel_name, false); }
 
-void nvvm_set_kernel_arg(size_t dev, void *param) { check_dev(dev); set_kernel_arg(dev, param); }
-void nvvm_set_kernel_arg_map(size_t dev, mem_id mem) { check_dev(dev); set_kernel_arg_map(dev, mem); }
-void nvvm_set_kernel_arg_tex(size_t dev, mem_id mem, const char *name, CUarray_format format) {
+void nvvm_set_kernel_arg(uint32_t dev, void *param) { check_dev(dev); set_kernel_arg(dev, param); }
+void nvvm_set_kernel_arg_map(uint32_t dev, mem_id mem) { check_dev(dev); set_kernel_arg_map(dev, mem); }
+void nvvm_set_kernel_arg_tex(uint32_t dev, mem_id mem, const char *name, CUarray_format format) {
     check_dev(dev);
     std::cerr << " * set arg tex(" << dev << "):   " << mem << std::endl;
     get_tex_ref(dev, name);
     bind_tex(dev, mem, format);
 }
-void nvvm_set_kernel_arg_const(size_t dev, void *param, const char *name, size_t size) { check_dev(dev); set_kernel_arg_const(dev, param, name, size); }
-void nvvm_set_problem_size(size_t dev, size_t size_x, size_t size_y, size_t size_z) { check_dev(dev); set_problem_size(dev, size_x, size_y, size_z); }
-void nvvm_set_config_size(size_t dev, size_t size_x, size_t size_y, size_t size_z) { check_dev(dev); set_config_size(dev, size_x, size_y, size_z); }
+void nvvm_set_kernel_arg_const(uint32_t dev, void *param, const char *name, uint32_t size) { check_dev(dev); set_kernel_arg_const(dev, param, name, size); }
+void nvvm_set_problem_size(uint32_t dev, uint32_t size_x, uint32_t size_y, uint32_t size_z) { check_dev(dev); set_problem_size(dev, size_x, size_y, size_z); }
+void nvvm_set_config_size(uint32_t dev, uint32_t size_x, uint32_t size_y, uint32_t size_z) { check_dev(dev); set_config_size(dev, size_x, size_y, size_z); }
 
-void nvvm_launch_kernel(size_t dev, const char *kernel_name) { check_dev(dev); launch_kernel(dev, kernel_name); }
-void nvvm_synchronize(size_t dev) { check_dev(dev); synchronize(dev); }
+void nvvm_launch_kernel(uint32_t dev, const char *kernel_name) { check_dev(dev); launch_kernel(dev, kernel_name); }
+void nvvm_synchronize(uint32_t dev) { check_dev(dev); synchronize(dev); }
 
 // helper functions
 void thorin_init() { init_cuda(); }
-void *thorin_malloc(size_t size) { return mem_manager.malloc_host(size); }
+void *thorin_malloc(uint32_t size) { return mem_manager.malloc_host(size); }
 void thorin_free(void *ptr) { mem_manager.free_host(ptr); }
 void thorin_print_total_timing() {
     #ifdef BENCH
     std::cerr << "total accumulated timing: " << total_timing << " (ms)" << std::endl;
     #endif
 }
-mem_id map_memory(size_t dev, size_t type_, void *from, int offset, int size) {
+mem_id map_memory(uint32_t dev, uint32_t type_, void *from, int offset, int size) {
     check_dev(dev);
     mem_type type = (mem_type)type_;
     assert(mem_manager.host_mem_size(from) && "memory not allocated by thorin");

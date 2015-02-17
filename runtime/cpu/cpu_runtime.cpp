@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <iostream>
 
+#include "cpu_runtime.h"
 #include "thorin_runtime.h"
 
 // helper functions
@@ -15,4 +16,9 @@ void thorin_free(void *ptr) {
     free(ptr);
 }
 void thorin_print_total_timing() { }
+
+// pthreads / TBB runtime
+void parallel_for(int num_threads, int lower, int upper, void *args, uint64_t arg_size, void *fun) {
+    // TODO
+}
 

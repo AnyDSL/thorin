@@ -5,6 +5,8 @@ namespace thorin {
 enum {
     PAR_ARG_MEM,
     PAR_ARG_NUMTHREADS,
+    PAR_ARG_LOWER,
+    PAR_ARG_UPPER,
     PAR_ARG_BODY,
     PAR_ARG_RETURN,
     PAR_NUM_ARGS
@@ -17,6 +19,8 @@ Lambda* CodeGen::emit_parallel_continuation(Lambda* lambda) {
 
     // arguments
     auto num_threads = lookup(lambda->arg(PAR_ARG_NUMTHREADS));
+    auto lower = lookup(lambda->arg(PAR_ARG_LOWER));
+    auto upper = lookup(lambda->arg(PAR_ARG_UPPER));
     auto kernel = lambda->arg(PAR_ARG_BODY)->as<Global>()->init()->as_lambda();
     auto ret = lambda->arg(PAR_ARG_RETURN)->as_lambda();
 
@@ -42,7 +46,7 @@ Lambda* CodeGen::emit_parallel_continuation(Lambda* lambda) {
         auto wrapper = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, wrapper_name);
 
         auto layout = llvm::DataLayout(module_->getDataLayout());
-        handle = runtime_->parallel_create(num_threads, ptr, layout.getTypeAllocSize(closure_type), wrapper);
+        handle = runtime_->parallel_for(num_threads, lower, upper, ptr, layout.getTypeAllocSize(closure_type), wrapper);
 
         auto oldBB = builder_.GetInsertBlock();
 
@@ -64,7 +68,7 @@ Lambda* CodeGen::emit_parallel_continuation(Lambda* lambda) {
         builder_.SetInsertPoint(oldBB);
     } else {
         // no closure required
-        handle = runtime_->parallel_create(num_threads, llvm::ConstantPointerNull::get(builder_.getInt8PtrTy()), 0, target_fun);
+        handle = runtime_->parallel_for(num_threads, lower, upper, llvm::ConstantPointerNull::get(builder_.getInt8PtrTy()), 0, target_fun);
     }
 
     // bind parameter of continuation to received handle

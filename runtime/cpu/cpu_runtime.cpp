@@ -19,7 +19,7 @@ void thorin_free(void *ptr) {
 }
 void thorin_print_total_timing() { }
 
-void parallel_for(int num_threads, int lower, int upper, void *args, uint64_t arg_size, void *fun) {
+void parallel_for(int num_threads, int lower, int upper, void *args, void *fun) {
     // C++11 threads version
     void (*fun_ptr) (void*) = reinterpret_cast<void (*) (void*)>(fun);
     const int count = upper - lower;

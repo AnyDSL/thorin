@@ -48,10 +48,9 @@ protected:
 
 private:
     Lambda* emit_intrinsic(Lambda*);
-    Lambda* emit_parallel_continuation(Lambda*);
+    Lambda* emit_parallel(Lambda*);
     Lambda* emit_vectorize_continuation(Lambda*);
     Lambda* emit_atomic(Lambda*);
-    void emit_parallel(llvm::Value*, llvm::Function*, llvm::CallInst*);
     void emit_vectorize(u32, llvm::Value*, llvm::Function*, llvm::CallInst*);
     llvm::Function* get_vectorize_tid();
 
@@ -68,7 +67,6 @@ protected:
     HashMap<const PrimOp*, llvm::Value*> primops_;
     HashMap<Lambda*, llvm::Function*> fcts_;
     TypeMap<llvm::Type*> types_;
-    std::vector<std::tuple<llvm::Function*, llvm::Function*, llvm::CallInst*>> par_todo_;
     std::vector<std::tuple<u32, llvm::Value*, llvm::Function*, llvm::CallInst*>> wfv_todo_;
 
     AutoPtr<GenericRuntime> runtime_;

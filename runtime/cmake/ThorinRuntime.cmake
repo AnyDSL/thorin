@@ -60,8 +60,11 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
             COMPILE_FLAGS "'-DKERNEL_DIR=\"${CMAKE_CURRENT_BINARY_DIR}/\"'"
         )
     ELSEIF("${TRW_RTTYPE}" STREQUAL "cpu" OR "${TRW_RTTYPE}" STREQUAL "avx")
+        ENABLE_LANGUAGE(C)
+        find_package(Threads REQUIRED)
         # set variables expected below
         set(${outfiles} ${${outfiles}} ${THORIN_RUNTIME_DIR}/cpu/cpu_runtime.cpp)
+        set(${outlibs} ${${outlibs}} ${CMAKE_THREAD_LIBS_INIT})
         set(_impala_platform ${_impala_platform} ${THORIN_RUNTIME_DIR}/platforms/intrinsics_${TRW_RTTYPE}.impala)
     ELSEIF("${TRW_RTTYPE}" STREQUAL "none")
         # don't add any runtime, but provide CPU intrinsics

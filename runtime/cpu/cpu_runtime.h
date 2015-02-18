@@ -9,7 +9,7 @@
 
 extern "C" {
     // parallel runtime functions
-    void parallel_for(int num_threads, int lower, int upper, void *args, uint64_t arg_size, void *fun);
+    void parallel_for(int num_threads, int lower, int upper, void *args, void *fun);
 }
 
 #endif

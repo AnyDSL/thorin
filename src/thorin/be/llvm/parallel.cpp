@@ -76,7 +76,7 @@ Lambda* CodeGen::emit_parallel(Lambda* lambda) {
             Def arg = lambda->arg(i + PAR_NUM_ARGS);
             auto llvm_arg = lookup(arg);
             if (arg->type().isa<PtrType>())
-                llvm_arg = builder_.CreateBitCast(llvm_arg, par_args[i]);
+                llvm_arg = builder_.CreateBitCast(llvm_arg, par_args[i + 1]);
             args[i + 1] = llvm_arg;
         }
 

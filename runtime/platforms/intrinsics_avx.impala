@@ -40,6 +40,12 @@ fn rsqrtf(a: f32) -> f32 { 1.0f / sqrtf(a) }
 fn rsqrt(a: f64) -> f64 { 1.0 / sqrt(a) }
 
 fn get_vector_length() -> int { 8 }
+fn get_thread_number() -> int { 4 }
+fn outer_loop(a: int, b: int, yield: fn(int, fn())) -> () {
+    for i in parallel(@get_thread_number(), a, b) {
+        yield(i);
+    }
+}
 fn inner_loop(lower: int, upper: int, yield: fn(int, fn())) -> () {
     // TODO: make sure lower and upper are a multiple of vector length
     for vectorize(@get_vector_length(), lower, upper) {

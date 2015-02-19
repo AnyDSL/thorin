@@ -40,14 +40,14 @@ fn rsqrt(a: f64) -> f64 { 1.0 / sqrt(a) }
 
 fn get_vector_length() -> int { 1 }
 fn get_thread_number() -> int { 4 }
-fn outer_loop(a: int, b: int, yield: fn(int, fn())) -> () {
-    for i in parallel(@get_thread_number(), a, b) {
-        yield(i);
+fn outer_loop(lower: int, upper: int, body: fn(int, fn())) -> () {
+    for i in parallel(@get_thread_number(), lower, upper) {
+        body(i);
     }
 }
-fn inner_loop(a: int, b: int, yield: fn(int, fn())) -> () {
-    if a < b {
-        yield(a);
-        inner_loop(a+1, b, yield, return)
+fn inner_loop(lower: int, upper: int, body: fn(int, fn())) -> () {
+    if lower < upper {
+        body(lower);
+        inner_loop(lower+1, upper, body, return)
     }
 }

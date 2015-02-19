@@ -41,21 +41,21 @@ fn rsqrt(a: f64) -> f64 { 1.0 / sqrt(a) }
 
 fn get_vector_length() -> int { 8 }
 fn get_thread_number() -> int { 4 }
-fn outer_loop(a: int, b: int, yield: fn(int, fn())) -> () {
-    for i in parallel(@get_thread_number(), a, b) {
-        yield(i);
+fn outer_loop(lower: int, upper: int, body: fn(int, fn())) -> () {
+    for i in parallel(@get_thread_number(), lower, upper) {
+        body(i);
     }
 }
-fn inner_loop(lower: int, upper: int, yield: fn(int, fn())) -> () {
+fn inner_loop(lower: int, upper: int, body: fn(int, fn())) -> () {
     // TODO: make sure lower and upper are a multiple of vector length
     for vectorize(@get_vector_length(), lower, upper) {
-        yield(wfv_get_tid());
+        body(wfv_get_tid());
     }
 }
-fn inner_loop_step(lower: int, upper: int, step: int, yield: fn(int, fn())) -> () {
+fn inner_loop_step(lower: int, upper: int, step: int, body: fn(int, fn())) -> () {
     // TODO: make sure lower and upper are a multiple of vector length
     for vectorize(@get_vector_length(), 0, (upper-lower)/step) {
         let x = wfv_get_tid() * step + lower;
-        yield(x);
+        body(x);
     }
 }

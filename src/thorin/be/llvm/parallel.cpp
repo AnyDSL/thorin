@@ -45,7 +45,8 @@ Lambda* CodeGen::emit_parallel(Lambda* lambda) {
 
     // create wrapper function and call the runtime
     // wrapper(void* closure, int lower, int upper)
-    auto wrapper_ft = llvm::FunctionType::get(builder_.getVoidTy(), { builder_.getInt8PtrTy(0), builder_.getInt32Ty(), builder_.getInt32Ty() }, false);
+    llvm::Type* wrapper_arg_types[] = { builder_.getInt8PtrTy(0), builder_.getInt32Ty(), builder_.getInt32Ty() };
+    auto wrapper_ft = llvm::FunctionType::get(builder_.getVoidTy(), wrapper_arg_types, false);
     auto wrapper_name = kernel->unique_name() + "_parallel";
     auto wrapper = (llvm::Function*)module_->getOrInsertFunction(wrapper_name, wrapper_ft);
     runtime_->parallel_for(num_threads, lower, upper, ptr, wrapper);

@@ -871,6 +871,31 @@ llvm::GlobalVariable* CodeGen::emit_global_memory(llvm::Type* type, const std::s
             nullptr, llvm::GlobalVariable::NotThreadLocal, addr_space);
 }
 
+llvm::Value* CodeGen::create_loop(llvm::Value* lower, llvm::Value* upper, llvm::Value* increment, llvm::Function* entry, std::function<void(llvm::Value*)> fun) {
+    auto head = llvm::BasicBlock::Create(context_, "head", entry);
+    auto body = llvm::BasicBlock::Create(context_, "body", entry);
+    auto exit = llvm::BasicBlock::Create(context_, "exit", entry);
+    // create loop phi and connect init value
+    auto loop_counter = llvm::PHINode::Create(builder_.getInt32Ty(), 2U, "parallel_loop_phi", head);
+    loop_counter->addIncoming(lower, builder_.GetInsertBlock());
+    // connect head
+    builder_.CreateBr(head);
+    builder_.SetInsertPoint(head);
+    auto cond = builder_.CreateICmpSLT(loop_counter, upper);
+    builder_.CreateCondBr(cond, body, exit);
+    builder_.SetInsertPoint(body);
+
+    // add instructions to the loop body
+    fun(loop_counter);
+
+    // inc loop counter
+    loop_counter->addIncoming(builder_.CreateAdd(loop_counter, increment), body);
+    builder_.CreateBr(head);
+    builder_.SetInsertPoint(exit);
+
+    return loop_counter;
+}
+
 //------------------------------------------------------------------------------
 
 void emit_llvm(World& world, int opt) {

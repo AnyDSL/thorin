@@ -55,6 +55,8 @@ private:
     llvm::Function* get_vectorize_tid();
 
 protected:
+    llvm::Value* create_loop(llvm::Value*, llvm::Value*, llvm::Value*, llvm::Function*, std::function<void(llvm::Value*)>);
+
     World& world_;
     llvm::LLVMContext context_;
     AutoPtr<llvm::Module> module_;

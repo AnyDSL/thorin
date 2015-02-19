@@ -7,6 +7,6 @@ extern "thorin" {
     fn nvvm(int, (int, int, int), (int, int, int), fn() -> ()) -> ();
     fn spir(int, (int, int, int), (int, int, int), fn() -> ()) -> ();
     fn opencl(int, (int, int, int), (int, int, int), fn() -> ()) -> ();
-    fn parallel(num_threads: int, lower: int, upper: int, body: fn() -> ()) -> ();
+    fn parallel(num_threads: int, lower: int, upper: int, body: fn(i32) -> ()) -> ();
     fn vectorize(vector_length: int, lower: int, upper: int, body: fn() -> ()) -> ();
 }

@@ -6,6 +6,10 @@
 
 namespace thorin {
 
+LV LV::join(LV other) const {
+    return LV(Type(type | other.type));
+}
+
 void bta(World& world) {
 }
 

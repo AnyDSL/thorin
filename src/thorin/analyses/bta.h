@@ -3,6 +3,9 @@
 
 namespace thorin {
 
+/* Forward declarations */
+struct World;
+
 void bta(World&);
 
 }

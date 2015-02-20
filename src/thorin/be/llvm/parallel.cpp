@@ -58,10 +58,11 @@ Lambda* CodeGen::emit_parallel(Lambda* lambda) {
 
     // extract all arguments from the closure
     auto wrapper_args = wrapper->arg_begin();
-    auto load_ptr =  builder_.CreateBitCast(&*wrapper_args, llvm::PointerType::get(closure_type, 0));
+    auto load_ptr = builder_.CreateBitCast(&*wrapper_args, llvm::PointerType::get(closure_type, 0));
     auto val = builder_.CreateLoad(load_ptr);
+    std::vector<llvm::Value*> target_args(num_kernel_args + 1);
     for (size_t i = 0; i < num_kernel_args; ++i)
-        builder_.CreateExtractValue(val, { unsigned(i) });
+        target_args[i + 1] = builder_.CreateExtractValue(val, { unsigned(i) });
 
     // create loop iterating over range:
     // for (int i=lower; i<upper; ++i)
@@ -69,21 +70,11 @@ Lambda* CodeGen::emit_parallel(Lambda* lambda) {
     auto wrapper_lower = &*(++wrapper_args);
     auto wrapper_upper = &*(++wrapper_args);
     create_loop(wrapper_lower, wrapper_upper, builder_.getInt32(1), wrapper, [&](llvm::Value* counter) {
-        std::vector<llvm::Value*> args(num_kernel_args + 1);
-        args[0] = counter; // loop index
-        for (size_t i = 0; i < num_kernel_args; ++i) {
-            // check target type
-            Def arg = lambda->arg(i + PAR_NUM_ARGS);
-            auto llvm_arg = lookup(arg);
-            if (arg->type().isa<PtrType>())
-                llvm_arg = builder_.CreateBitCast(llvm_arg, par_args[i + 1]);
-            args[i + 1] = llvm_arg;
-        }
-
         // call kernel body
+        target_args[0] = counter; // loop index
         auto par_type = llvm::FunctionType::get(builder_.getVoidTy(), llvm_ref(par_args), false);
         auto kernel_par_func = (llvm::Function*)module_->getOrInsertFunction(kernel->unique_name(), par_type);
-        builder_.CreateCall(kernel_par_func, args);
+        builder_.CreateCall(kernel_par_func, target_args);
     });
     builder_.CreateRetVoid();
 

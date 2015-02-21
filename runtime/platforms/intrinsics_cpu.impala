@@ -45,9 +45,20 @@ fn outer_loop(lower: int, upper: int, body: fn(int, fn())) -> () {
         body(i);
     }
 }
+fn outer_loop_step(lower: int, upper: int, step: int, body: fn(int, fn())) -> () {
+    for i in parallel(@get_thread_number(), 0, (upper-lower)/step) {
+        body(i * step + lower);
+    }
+}
 fn inner_loop(lower: int, upper: int, body: fn(int, fn())) -> () {
     if lower < upper {
         body(lower);
         inner_loop(lower+1, upper, body, return)
+    }
+}
+fn inner_loop_step(lower: int, upper: int, step: int, body: fn(int, fn())) -> () {
+    if lower < upper {
+        body(lower);
+        inner_loop_step(lower+step, upper, step, body, return)
     }
 }

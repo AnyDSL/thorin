@@ -46,6 +46,11 @@ fn outer_loop(lower: int, upper: int, body: fn(int, fn())) -> () {
         body(i);
     }
 }
+fn outer_loop_step(lower: int, upper: int, step: int, body: fn(int, fn())) -> () {
+    for i in parallel(@get_thread_number(), 0, (upper-lower)/step) {
+        body(i * step + lower);
+    }
+}
 fn inner_loop(lower: int, upper: int, body: fn(int, fn())) -> () {
     // TODO: make sure lower and upper are a multiple of vector length
     for vectorize(@get_vector_length(), lower, upper) {

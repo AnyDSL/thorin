@@ -47,11 +47,11 @@ void parallel_for(int num_threads, int lower, int upper, void *args, void *fun) 
         pool[i].join();
 }
 #else
-void parallel_for(int num_threads, int lower, int upper, void *args, uint64_t arg_size, void *fun) {
+void parallel_for(int num_threads, int lower, int upper, void *args, void *fun) {
     // TBB version
     void (*fun_ptr) (void*, int, int) = reinterpret_cast<void (*) (void*, int, int)>(fun);
 
-    tbb::parallel_for(lower, upper, [] (const blocked_range<int>& range) {
+    tbb::parallel_for(tbb::blocked_range<int>(lower, upper), [=] (const tbb::blocked_range<int>& range) {
         fun_ptr(args, range.begin(), range.end());
     });
 }

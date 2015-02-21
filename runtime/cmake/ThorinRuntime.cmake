@@ -11,8 +11,14 @@ find_package(PythonInterp REQUIRED)
 message(STATUS "Python found: ${PYTHON_VERSION_STRING}")
 set(PYTHON_BIN ${PYTHON_EXECUTABLE})
 
+IF(NOT BACKEND)
+    SET(BACKEND cpu CACHE STRING "select the backend from the following: CPU, AVX, NVVM, CUDA, OPENCL, SPIR" FORCE)
+ENDIF()
+STRING(TOLOWER "${BACKEND}" BACKEND)
+MESSAGE(STATUS "Selected backend: ${BACKEND}")
+
 macro(THORIN_RUNTIME_WRAP outfiles outlibs)
-    CMAKE_PARSE_ARGUMENTS("TRW" "MAIN" "RTTYPE" "FILES" ${ARGN})
+    CMAKE_PARSE_ARGUMENTS("TRW" "MAIN" "BACKEND" "FILES" ${ARGN})
     IF(NOT "${TRW_UNPARSED_ARGUMENTS}" STREQUAL "")
         message(FATAL_ERROR "Unparsed arguments ${TRW_UNPARSED_ARGUMENTS}")
     ENDIF()
@@ -30,7 +36,7 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
         )
     ENDIF()
     # add specific runtime
-    IF("${TRW_RTTYPE}" STREQUAL "nvvm" OR "${TRW_RTTYPE}" STREQUAL "cuda")
+    IF("${TRW_BACKEND}" STREQUAL "nvvm" OR "${TRW_BACKEND}" STREQUAL "cuda")
         Find_Package(CUDA REQUIRED)
         set(CUDA_RUNTIME_DEFINES "'-DLIBDEVICE_DIR=\"${CUDA_TOOLKIT_ROOT_DIR}/nvvm/libdevice/\"' '-DNVCC_BIN=\"${CUDA_TOOLKIT_ROOT_DIR}/bin/nvcc\"' '-DKERNEL_DIR=\"${CMAKE_CURRENT_BINARY_DIR}/\"'")
         set(CUDA_RUNTIME_INCLUDES "-I${CUDA_INCLUDE_DIRS} -I${CUDA_TOOLKIT_ROOT_DIR}/nvvm/include")
@@ -38,7 +44,7 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
         set(${outfiles} ${${outfiles}} ${THORIN_RUNTIME_DIR}/cuda/cu_runtime.cpp)
         Find_Library(CUDA_NVVM_LIBRARY nvvm HINTS ${CUDA_TOOLKIT_ROOT_DIR}/nvvm/lib ${CUDA_TOOLKIT_ROOT_DIR}/nvvm/lib64)
         set(${outlibs} ${${outlibs}} ${CUDA_CUDA_LIBRARY} ${CUDA_NVVM_LIBRARY})
-        set(_impala_platform ${_impala_platform} ${THORIN_RUNTIME_DIR}/platforms/intrinsics_${TRW_RTTYPE}.impala)
+        set(_impala_platform ${_impala_platform} ${THORIN_RUNTIME_DIR}/platforms/intrinsics_${TRW_BACKEND}.impala)
         # cu_runtime needs some defines
         # lucky enough, cmake does the right thing here even when we compile impala programs from various folders
         SET_SOURCE_FILES_PROPERTIES(
@@ -46,12 +52,12 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
             PROPERTIES
             COMPILE_FLAGS "${CUDA_RUNTIME_DEFINES} ${CUDA_RUNTIME_INCLUDES}"
         )
-    ELSEIF("${TRW_RTTYPE}" STREQUAL "spir" OR "${TRW_RTTYPE}" STREQUAL "opencl")
+    ELSEIF("${TRW_BACKEND}" STREQUAL "spir" OR "${TRW_BACKEND}" STREQUAL "opencl")
         FIND_LIBRARY(CL_LIB OpenCL ENV CL_LIB)
         # set variables expected below
         set(${outfiles} ${${outfiles}} ${THORIN_RUNTIME_DIR}/opencl/cl_runtime.cpp)
         set(${outlibs} ${${outlibs}} ${CL_LIB})
-        set(_impala_platform ${_impala_platform} ${THORIN_RUNTIME_DIR}/platforms/intrinsics_${TRW_RTTYPE}.impala)
+        set(_impala_platform ${_impala_platform} ${THORIN_RUNTIME_DIR}/platforms/intrinsics_${TRW_BACKEND}.impala)
         # cl_runtime needs some defines
         # lucky enough, cmake does the right thing here even when we compile impala programs from various folders
         SET_SOURCE_FILES_PROPERTIES(
@@ -59,7 +65,7 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
             PROPERTIES
             COMPILE_FLAGS "'-DKERNEL_DIR=\"${CMAKE_CURRENT_BINARY_DIR}/\"'"
         )
-    ELSEIF("${TRW_RTTYPE}" STREQUAL "cpu" OR "${TRW_RTTYPE}" STREQUAL "avx")
+    ELSEIF("${TRW_BACKEND}" STREQUAL "cpu" OR "${TRW_BACKEND}" STREQUAL "avx")
         ENABLE_LANGUAGE(C)
         find_package(Threads REQUIRED)
         # find tbb package
@@ -75,12 +81,9 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
             set(${outlibs} ${${outlibs}} ${TBB_LIBRARY})
             ADD_DEFINITIONS(-DUSE_TBB)
         ENDIF()
-        set(_impala_platform ${_impala_platform} ${THORIN_RUNTIME_DIR}/platforms/intrinsics_${TRW_RTTYPE}.impala)
-    ELSEIF("${TRW_RTTYPE}" STREQUAL "none")
-        # don't add any runtime, but provide CPU intrinsics
-        set(_impala_platform ${_impala_platform} ${THORIN_RUNTIME_DIR}/platforms/intrinsics_cpu.impala)
+        set(_impala_platform ${_impala_platform} ${THORIN_RUNTIME_DIR}/platforms/intrinsics_${TRW_BACKEND}.impala)
     ELSE()
-        message(FATAL_ERROR "Unknown runtime type ${TRW_RTTYPE}")
+        message(FATAL_ERROR "Unknown backend: ${TRW_BACKEND}")
     ENDIF()
 
     ## generate files
@@ -99,10 +102,10 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
     # tell cmake what to do
     add_custom_command(OUTPUT ${_llfile}
         COMMAND ${IMPALA_BIN} ${_impala_platform} ${_infiles} -emit-llvm -O3
-        COMMAND ${PYTHON_BIN} ${THORIN_RUNTIME_DIR}/post-patcher.py ${TRW_RTTYPE} ${CMAKE_CURRENT_BINARY_DIR}/${_basename}
+        COMMAND ${PYTHON_BIN} ${THORIN_RUNTIME_DIR}/post-patcher.py ${TRW_BACKEND} ${CMAKE_CURRENT_BINARY_DIR}/${_basename}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         DEPENDS ${IMPALA_BIN} ${PYTHON_BIN} ${THORIN_RUNTIME_DIR}/post-patcher.py ${_impala_platform} ${_infiles} VERBATIM)
-    IF("${TRW_RTTYPE}" STREQUAL "spir")
+    IF("${TRW_BACKEND}" STREQUAL "spir")
         set(_spirfile ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.spir)
         set(_bcfile ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.spir.bc)
         add_custom_command(OUTPUT ${_bcfile}

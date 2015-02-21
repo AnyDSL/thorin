@@ -5,77 +5,83 @@ namespace thorin {
 enum {
     PAR_ARG_MEM,
     PAR_ARG_NUMTHREADS,
+    PAR_ARG_LOWER,
+    PAR_ARG_UPPER,
     PAR_ARG_BODY,
     PAR_ARG_RETURN,
     PAR_NUM_ARGS
 };
 
-Lambda* CodeGen::emit_parallel_continuation(Lambda* lambda) {
+Lambda* CodeGen::emit_parallel(Lambda* lambda) {
     auto target = lambda->to()->as_lambda();
     assert(target->intrinsic() == Intrinsic::Parallel);
     assert(lambda->num_args() >= PAR_NUM_ARGS && "required arguments are missing");
 
     // arguments
     auto num_threads = lookup(lambda->arg(PAR_ARG_NUMTHREADS));
+    auto lower = lookup(lambda->arg(PAR_ARG_LOWER));
+    auto upper = lookup(lambda->arg(PAR_ARG_UPPER));
     auto kernel = lambda->arg(PAR_ARG_BODY)->as<Global>()->init()->as_lambda();
-    auto ret = lambda->arg(PAR_ARG_RETURN)->as_lambda();
 
     const size_t num_kernel_args = lambda->num_args() - PAR_NUM_ARGS;
 
-    // call parallel runtime function
-    auto target_fun = fcts_[kernel];
-    llvm::Value* handle;
-    if (num_kernel_args) {
-        // fetch values and create a unified struct which contains all values (closure)
-        auto closure_type = convert(world_.tuple_type(lambda->arg_fn_type()->args().slice_from_begin(PAR_NUM_ARGS)));
-        llvm::Value* closure = llvm::UndefValue::get(closure_type);
-        for (size_t i = 0; i < num_kernel_args; ++i)
-            closure = builder_.CreateInsertValue(closure, lookup(lambda->arg(i + PAR_NUM_ARGS)), unsigned(i));
-
-        // allocate closure object and write values into it
-        auto ptr = builder_.CreateAlloca(closure_type, nullptr);
-        builder_.CreateStore(closure, ptr, false);
-
-        // create wrapper function that extracts all arguments from the closure
-        auto ft = llvm::FunctionType::get(builder_.getVoidTy(), { builder_.getInt8PtrTy(0) }, false);
-        auto wrapper_name = lambda->unique_name() + "_parallel";
-        auto wrapper = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, wrapper_name);
-
-        auto layout = llvm::DataLayout(module_->getDataLayout());
-        handle = runtime_->parallel_create(num_threads, ptr, layout.getTypeAllocSize(closure_type), wrapper);
-
-        auto oldBB = builder_.GetInsertBlock();
-
-        // emit wrapper function
-        auto bb = llvm::BasicBlock::Create(context_, wrapper_name, wrapper);
-        builder_.SetInsertPoint(bb);
-
-        // load value in different thread and extract data from the closure
-        auto load_ptr =  builder_.CreateBitCast(&*wrapper->arg_begin(), llvm::PointerType::get(closure_type, 0));
-        auto val = builder_.CreateLoad(load_ptr);
-
-        std::vector<llvm::Value*> target_args;
-        for (size_t i = 0; i < num_kernel_args; ++i)
-            target_args.push_back(builder_.CreateExtractValue(val, { unsigned(i) }));
-        builder_.CreateCall(target_fun, target_args);
-        builder_.CreateRetVoid();
-
-        // restore old insert point
-        builder_.SetInsertPoint(oldBB);
-    } else {
-        // no closure required
-        handle = runtime_->parallel_create(num_threads, llvm::ConstantPointerNull::get(builder_.getInt8PtrTy()), 0, target_fun);
+    // build parallel-function signature
+    Array<llvm::Type*> par_args(num_kernel_args + 1);
+    par_args[0] = builder_.getInt32Ty(); // loop index
+    for (size_t i = 0; i < num_kernel_args; ++i) {
+        Type type = lambda->arg(i + PAR_NUM_ARGS)->type();
+        par_args[i + 1] = convert(type);
     }
 
-    // bind parameter of continuation to received handle
-    if (ret->num_params() == 1)
-        params_[ret->param(0)] = handle;
+    // fetch values and create a unified struct which contains all values (closure)
+    auto closure_type = convert(world_.tuple_type(lambda->arg_fn_type()->args().slice_from_begin(PAR_NUM_ARGS)));
+    llvm::Value* closure = llvm::UndefValue::get(closure_type);
+    for (size_t i = 0; i < num_kernel_args; ++i)
+        closure = builder_.CreateInsertValue(closure, lookup(lambda->arg(i + PAR_NUM_ARGS)), unsigned(i));
 
-    return ret;
-}
+    // allocate closure object and write values into it
+    auto ptr = builder_.CreateAlloca(closure_type, nullptr);
+    builder_.CreateStore(closure, ptr, false);
 
-void CodeGen::emit_parallel(llvm::Value*, llvm::Function*, llvm::CallInst*) {
-    // TODO
+    // create wrapper function and call the runtime
+    // wrapper(void* closure, int lower, int upper)
+    llvm::Type* wrapper_arg_types[] = { builder_.getInt8PtrTy(0), builder_.getInt32Ty(), builder_.getInt32Ty() };
+    auto wrapper_ft = llvm::FunctionType::get(builder_.getVoidTy(), wrapper_arg_types, false);
+    auto wrapper_name = kernel->unique_name() + "_parallel";
+    auto wrapper = (llvm::Function*)module_->getOrInsertFunction(wrapper_name, wrapper_ft);
+    runtime_->parallel_for(num_threads, lower, upper, ptr, wrapper);
+
+    // set insert point to the wrapper function
+    auto oldBB = builder_.GetInsertBlock();
+    auto bb = llvm::BasicBlock::Create(context_, wrapper_name, wrapper);
+    builder_.SetInsertPoint(bb);
+
+    // extract all arguments from the closure
+    auto wrapper_args = wrapper->arg_begin();
+    auto load_ptr = builder_.CreateBitCast(&*wrapper_args, llvm::PointerType::get(closure_type, 0));
+    auto val = builder_.CreateLoad(load_ptr);
+    std::vector<llvm::Value*> target_args(num_kernel_args + 1);
+    for (size_t i = 0; i < num_kernel_args; ++i)
+        target_args[i + 1] = builder_.CreateExtractValue(val, { unsigned(i) });
+
+    // create loop iterating over range:
+    // for (int i=lower; i<upper; ++i)
+    //   body(i, <closure_elems>);
+    auto wrapper_lower = &*(++wrapper_args);
+    auto wrapper_upper = &*(++wrapper_args);
+    create_loop(wrapper_lower, wrapper_upper, builder_.getInt32(1), wrapper, [&](llvm::Value* counter) {
+        // call kernel body
+        target_args[0] = counter; // loop index
+        auto par_type = llvm::FunctionType::get(builder_.getVoidTy(), llvm_ref(par_args), false);
+        auto kernel_par_func = (llvm::Function*)module_->getOrInsertFunction(kernel->unique_name(), par_type);
+        builder_.CreateCall(kernel_par_func, target_args);
+    });
+    builder_.CreateRetVoid();
+
+    // restore old insert point
+    builder_.SetInsertPoint(oldBB);
+
+    return lambda->arg(PAR_ARG_RETURN)->as_lambda();
 }
 
 }

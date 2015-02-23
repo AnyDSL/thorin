@@ -64,6 +64,8 @@ enum class Intrinsic : uint8_t {
     SPIR,                       ///< Internal SPIR-Backend.
     OpenCL,                     ///< Internal OpenCL-Backend.
     Parallel,                   ///< Internal Parallel-CPU-Backend.
+    Spawn,                      ///< Internal Parallel-CPU-Backend.
+    Sync,                       ///< Internal Parallel-CPU-Backend.
     Vectorize,                  ///< External vectorizer.
     _Accelerator_End,
     Mmap = _Accelerator_End,    ///< Intrinsic memory-mapping function.

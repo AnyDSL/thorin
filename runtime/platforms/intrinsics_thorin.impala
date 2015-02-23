@@ -8,5 +8,7 @@ extern "thorin" {
     fn spir(int, (int, int, int), (int, int, int), fn() -> ()) -> ();
     fn opencl(int, (int, int, int), (int, int, int), fn() -> ()) -> ();
     fn parallel(num_threads: int, lower: int, upper: int, body: fn(i32) -> ()) -> ();
+    fn spawn(body: fn() -> ()) -> int;
+    fn sync(id: int) -> ();
     fn vectorize(vector_length: int, lower: int, upper: int, body: fn() -> ()) -> ();
 }

@@ -27,12 +27,24 @@ llvm::Value* GenericRuntime::munmap(llvm::Value* mem) {
 
 llvm::Value* GenericRuntime::parallel_for(llvm::Value* num_threads, llvm::Value* lower, llvm::Value* upper,
                                           llvm::Value* closure_ptr, llvm::Value* fun_ptr) {
-    llvm::Value* parallel_args[] = {
+    llvm::Value* parallel_for_args[] = {
         num_threads, lower, upper,
         builder_.CreateBitCast(closure_ptr, builder_.getInt8PtrTy()),
         builder_.CreateBitCast(fun_ptr, builder_.getInt8PtrTy())
     };
-    return builder_.CreateCall(get("parallel_for"), parallel_args);
+    return builder_.CreateCall(get("parallel_for"), parallel_for_args);
+}
+
+llvm::Value* GenericRuntime::parallel_spawn(llvm::Value* closure_ptr, llvm::Value* fun_ptr) {
+    llvm::Value* parallel_spawn_args[] = {
+        builder_.CreateBitCast(closure_ptr, builder_.getInt8PtrTy()),
+        builder_.CreateBitCast(fun_ptr, builder_.getInt8PtrTy())
+    };
+    return builder_.CreateCall(get("parallel_spawn"), parallel_spawn_args);
+}
+
+llvm::Value* GenericRuntime::parallel_sync(llvm::Value* id) {
+    return builder_.CreateCall(get("parallel_sync"), id);
 }
 
 }

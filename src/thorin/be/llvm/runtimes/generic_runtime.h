@@ -15,6 +15,8 @@ public:
     virtual llvm::Value* munmap(llvm::Value* mem);
     virtual llvm::Value* parallel_for(llvm::Value* num_threads, llvm::Value* lower, llvm::Value* upper,
                                      llvm::Value* closure_ptr, llvm::Value* fun_ptr);
+    virtual llvm::Value* parallel_spawn(llvm::Value* closure_ptr, llvm::Value* fun_ptr);
+    virtual llvm::Value* parallel_sync(llvm::Value* id);
 };
 
 }

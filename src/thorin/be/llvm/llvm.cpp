@@ -72,6 +72,8 @@ Lambda* CodeGen::emit_intrinsic(Lambda* lambda) {
         case Intrinsic::SPIR:      return spir_runtime_->emit_host_code(*this, lambda);
         case Intrinsic::OpenCL:    return opencl_runtime_->emit_host_code(*this, lambda);
         case Intrinsic::Parallel:  return emit_parallel(lambda);
+        case Intrinsic::Spawn:     return emit_spawn(lambda);
+        case Intrinsic::Sync:      return emit_sync(lambda);
 #ifdef WFV2_SUPPORT
         case Intrinsic::Vectorize: return emit_vectorize_continuation(lambda);
 #endif

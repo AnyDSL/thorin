@@ -8,6 +8,7 @@
 
 #ifdef USE_TBB
 #include "tbb/parallel_for.h"
+#include "tbb/task_scheduler_init.h"
 #endif
 
 // helper functions
@@ -24,8 +25,15 @@ void thorin_free(void *ptr) {
 void thorin_print_total_timing() { }
 
 #ifndef USE_TBB
+// C++11 threads version
 void parallel_for(int num_threads, int lower, int upper, void *args, void *fun) {
-    // C++11 threads version
+    // Get number of available hardware threads
+    if (num_threads == 0) {
+        num_threads = std::thread::hardware_concurrency();
+        // hardware_concurrency is implementation defined, may return 0
+        num_threads = (num_threads == 0) ? 1 : num_threads;
+    }
+
     void (*fun_ptr) (void*, int, int) = reinterpret_cast<void (*) (void*, int, int)>(fun);
     const int linear = (upper - lower) / num_threads;
 
@@ -47,8 +55,9 @@ void parallel_for(int num_threads, int lower, int upper, void *args, void *fun) 
         pool[i].join();
 }
 #else
+// TBB version
 void parallel_for(int num_threads, int lower, int upper, void *args, void *fun) {
-    // TBB version
+    tbb::task_scheduler_init init((num_threads == 0) ? tbb::task_scheduler_init::automatic : num_threads);
     void (*fun_ptr) (void*, int, int) = reinterpret_cast<void (*) (void*, int, int)>(fun);
 
     tbb::parallel_for(tbb::blocked_range<int>(lower, upper), [=] (const tbb::blocked_range<int>& range) {

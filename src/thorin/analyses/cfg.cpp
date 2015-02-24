@@ -16,11 +16,136 @@ InCFNode::~InCFNode() {
 
 //------------------------------------------------------------------------------
 
-struct CFNodeHash { // TODO better ack OutCFNodes
-    size_t operator() (const CFNode* n) const { return n->lambda()->gid(); }
+struct CFNodeHash {
+    size_t operator() (const CFNode* n) const { 
+        if (auto in = n->isa<InCFNode>())
+            return hash_value(in->lambda()->gid());
+        auto out = n->as<OutCFNode>();
+        return hash_combine(hash_value(out->def()->gid()), out->parent()->lambda()->gid());
+    }
 };
 
 typedef thorin::HashSet<const CFNode*, CFNodeHash> CFNodeSet;
+
+//------------------------------------------------------------------------------
+
+static void leaves(Def def, std::function<void(Def)> f) {
+    DefSet done;
+    std::queue<Def> queue;
+
+    auto enqueue = [&] (Def def) {
+        if (!done.contains(def)) {
+            queue.push(def);
+            done.insert(def);
+        }
+    };
+
+    enqueue(def);
+    while (!queue.empty()) {
+        auto def = pop(queue);
+        if (def->isa<Param>() || def->isa<Lambda>())
+            f(def);
+        else {
+            for (auto op : def->as<PrimOp>()->ops())
+                enqueue(op);
+        }
+    }
+}
+
+class CFABuilder {
+public:
+    CFABuilder(CFA& cfa);
+
+    const CFA& cfa() const { return cfa_; }
+    const Scope& scope() const { return cfa_.scope(); }
+    void run();
+    //bool contains(Lambda* lambda) { return scope().contains(lambda); };
+    bool contains(Lambda* lambda) { return scope().entry() != lambda && scope().contains(lambda); };
+    bool contains(const Param* param) { return scope().entry() != param->lambda() && contains(param->lambda()); }
+    const CFNode* lookup(Lambda* lambda) const { return cfa_.in_nodes_[lambda]; }
+    const OutCFNode* out_node(const InCFNode* in, Lambda* lambda) {
+        if (auto out = find(in->out_nodes_, lambda))
+            return out;
+        return in->out_nodes_[lambda] = new OutCFNode(in, lambda);
+    }
+    const InCFNode* exit() const { return cfa().exit(); }
+
+private:
+    CFA& cfa_;
+    Scope::Map<const InCFNode*> lambda2in_node_;            ///< Maps lambda in scope to InCFNode. 
+    Scope::Map<std::vector<CFNodeSet>> lambda2param2nodes_; ///< Maps param in scope to CFNodeSet.
+};
+
+CFABuilder::CFABuilder(CFA& cfa)
+    : cfa_(cfa)
+    , lambda2in_node_(cfa.scope())
+    , lambda2param2nodes_(cfa.scope(), std::vector<CFNodeSet>(0))
+{
+    for (auto lambda : scope()) {
+        lambda2in_node_[lambda] = new InCFNode(lambda);
+        lambda2param2nodes_[lambda].resize(lambda->num_params()); // make room for params
+    }
+
+    run();
+}
+
+void CFABuilder::run() {
+    for (bool todo = true; todo;) {
+        todo = false;
+
+        for (auto lambda : scope()) {
+            auto in = lambda2in_node_[lambda];
+            size_t num = lambda->size();
+
+            // compute for each of lambda's op the current set of CFNodes
+            Array<CFNodeSet> info(num);
+            for (size_t i = 0; i != num; ++i) {
+                leaves(lambda->op(i), [&] (Def def) {
+                    if (auto op_lambda = def->isa_lambda()) {
+                        const CFNode* n;
+                        if (contains(op_lambda))
+                            n = lambda2in_node_[op_lambda];
+                        else
+                            n = out_node(in, op_lambda);
+                        info[i].insert(n);
+                    } else {
+                        auto param = def->as<Param>();
+                        if (contains(param)) {
+                            const auto& set = lambda2param2nodes_[param->lambda()][param->index()];
+                            info[i].insert(set.begin(), set.end());
+                        } else
+                            info[i].insert(exit());
+                    }
+                });
+            }
+
+            for (auto n : info[0]) {
+                if (auto in = n->isa<InCFNode>()) {
+                    for (size_t i = 1; i != num; ++i) {
+                        const auto& set = info[i];
+                        todo |= lambda2param2nodes_[in->lambda()][i-1].insert(set.begin(), set.end());
+                    }
+                } else {
+                    //auto out = n->as<OutCFNode>();
+                    for (size_t i = 1; i != num; ++i) {
+                        const auto& set = info[i];
+                        for (auto n : set) {
+                            if (auto info_in = n->isa<InCFNode>()) {
+                                for (size_t p = 0; p != info_in->lambda()->num_params(); ++p) {
+                                    todo |= lambda2param2nodes_[info_in->lambda()][i-1].insert(set.begin(), set.end());
+                                }
+                            } else {
+                                //auto info_out = n->as<OutCFNode>();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#if 0
 
 //------------------------------------------------------------------------------
 
@@ -31,6 +156,7 @@ struct OutCFNodeHash {
 typedef thorin::HashMap<const CFNode*, CFNodeSet*, CFNodeHash> OutCFNode2Set;
 
 //------------------------------------------------------------------------------
+
 
 class FlowVal {
 public:
@@ -67,6 +193,9 @@ public:
     };
 
     CFABuilder(CFA& cfa);
+#ifndef NDEBUG
+    ~CFABuilder() { assert(exit_.size() == 1); }
+#endif
 
     const CFA& cfa() const { return cfa_; }
     const Scope& scope() const { return cfa_.scope(); }
@@ -84,7 +213,7 @@ public:
 
 private:
     CFA& cfa_;
-    Scope::Map<CFNodeSet> lambda2nodes_;                            ///< Maps lambda in scope to InCFNode.
+    Scope::Map<CFNodeSet> lambda2nodes_;                            ///< Maps lambda in scope to CFNodeSet containing InCFNode. 
     Scope::Map<std::vector<CFNodeSet>> lambda2param2nodes_;         ///< Maps param in scope to CFNodeSet.
     OutCFNode2Set out_node2set_;
     CFNodeSet exit_;
@@ -130,40 +259,66 @@ FlowVal CFABuilder::flow_val(const InCFNode* src, Def def) {
         THORIN_UNREACHABLE;
 }
 
-static void search(Def def, std::function<void(Def)> f) {
-    DefSet done;
-    std::queue<Def> queue;
-
-    auto enqueue = [&] (Def def) {
-        if (!done.contains(def)) {
-            queue.push(def);
-            done.insert(def);
+void CFABuilder::run() {
+    auto init = [&] (Lambda* lambda) {
+        auto in = find(cfa().in_nodes(), lambda);
+        if (in == nullptr) {
+            in = new InCFNode(lambda);
+            cfa_.in_nodes_[lambda] = in;
+            lambda2nodes_[lambda].insert(in);
+            lambda2param2nodes_[lambda].resize(lambda->num_params());   // make room for params
         }
     };
 
-    enqueue(def);
-    while (!queue.empty()) {
-        auto def = pop(queue);
-        if (def->isa<Param>() || def->isa<Lambda>())
-            f(def);
-        else {
-            for (auto op : def->as<PrimOp>()->ops())
-                enqueue(op);
+    init(scope().entry());
+
+    for (bool todo = true; todo;) { // keep iterating to collect param flow infos until things are stable
+        todo = false;
+        for (auto lambda : scope()) {
+            if (auto in = find(cfa().in_nodes(), lambda)) {
+                leaves(lambda->to(), [&] (Def def) {
+                    //for (auto to : flow_val(src, def).nodes()) {
+                        //for (size_t i = 0, e = lambda->num_args(); i != e; ++i) {
+                            //auto arg = lambda->arg(i);
+                            //if (arg->order() >= 1) {
+                                //leaves(arg, [&] (Def def) {
+                                    //todo |= flow_val(src, to->param(i)).join(flow_val(src, def));
+                                //});
+                            //}
+                        //}
+                    //}
+                    auto val = flow_val(src, def);
+                    for (size_t i = 0, e = lambda->num_args(); i != e; ++i) {
+                        auto arg = lambda->arg(i);
+                        if (arg->order() >= 1) {
+                            leaves(arg, [&] (Def def) {
+                                todo |= val.join(flow_val(src, def));
+                            });
+                        }
+                    }
+                //}
+            }
         }
     }
+
+
+            //});
+        //}
+    //}
 }
 
+#if 0
 void CFABuilder::run() {
     for (bool todo = true; todo;) { // keep iterating to collect param flow infos until things are stable
         todo = false;
         for (auto lambda : scope()) {
             auto src = cfa().in_nodes_[lambda];
-            search(lambda->to(), [&] (Def def) {
+            leaves(lambda->to(), [&] (Def def) {
                 //for (auto to : flow_val(src, def).nodes()) {
                     //for (size_t i = 0, e = lambda->num_args(); i != e; ++i) {
                         //auto arg = lambda->arg(i);
                         //if (arg->order() >= 1) {
-                            //search(arg, [&] (Def def) {
+                            //leaves(arg, [&] (Def def) {
                                 //todo |= flow_val(src, to->param(i)).join(flow_val(src, def));
                             //});
                         //}
@@ -173,7 +328,7 @@ void CFABuilder::run() {
                 for (size_t i = 0, e = lambda->num_args(); i != e; ++i) {
                     auto arg = lambda->arg(i);
                     if (arg->order() >= 1) {
-                        search(arg, [&] (Def def) {
+                        leaves(arg, [&] (Def def) {
                             todo |= val.join(flow_val(src, def));
                         });
                     }
@@ -201,6 +356,7 @@ void CFABuilder::run() {
         //}
     //}
 }
+#endif
 
 void CFABuilder::forward_visit(const CFNode* cur) {
     auto lambda = cur->lambda();
@@ -216,7 +372,7 @@ void CFABuilder::forward_visit(const CFNode* cur) {
     auto visit_args = [&] {
         for (auto arg : lambda->args()) {
             auto src = cfa().in_nodes()[lambda];
-            search(arg, [&] (Def def) {
+            leaves(arg, [&] (Def def) {
                 for (auto succ : flow_val(src, def).nodes())
                     link_and_visit(succ);
             });
@@ -224,7 +380,7 @@ void CFABuilder::forward_visit(const CFNode* cur) {
     };
 
     reachable = ForwardReachable;
-    search(lambda->to(), [&] (Def def) {
+    leaves(lambda->to(), [&] (Def def) {
         if (auto to_lambda = def->isa_lambda()) {
             if (contains(to_lambda))
                 link_and_visit(lookup(to_lambda));
@@ -304,6 +460,9 @@ const DomTreeBase<forward>* CFG<forward>::domtree() const { return lazy_init(thi
 
 template class CFG<true>;
 template class CFG<false>;
+
+
+#endif
 
 //------------------------------------------------------------------------------
 

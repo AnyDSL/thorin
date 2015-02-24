@@ -144,7 +144,7 @@ public:
     const F_CFG& cfg() const { return cfg_; }
     const LoopHeader* root() const { return root_; }
     int depth(const CFNode* n) const { return cf2leaf(n)->depth(); }
-    size_t cf2dfs(const CFNode* cf_node) const { return cf2leaf(cf_node)->dfs_id(); }
+    size_t cf2dfs(const CFNode* n) const { return cf2leaf(n)->dfs_id(); }
     bool contains(const LoopHeader* header, const CFNode*) const;
     ArrayRef<const LoopLeaf*> loop(const LoopHeader* header) {
         return ArrayRef<const LoopLeaf*>(dfs_leaves_.data() + header->dfs_begin(), header->dfs_end() - header->dfs_begin());

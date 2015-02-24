@@ -23,6 +23,9 @@ template<bool> class CFG;
 typedef CFG<true>  F_CFG;
 typedef CFG<false> B_CFG;
 
+class InCFNode;
+class OutCFNode;
+
 //------------------------------------------------------------------------------
 
 /**
@@ -31,37 +34,32 @@ typedef CFG<false> B_CFG;
  * Managed by @p CFA.
  */
 class CFNode : public MagicCast<CFNode> {
-public:
-    CFNode(Lambda* lambda)
-        : lambda_(lambda)
+protected:
+    CFNode(Def def)
+        : def_(def)
     {}
 
-    Lambda* lambda() const { return lambda_; }
+public:
+    Def def() const { return def_; }
+    virtual const InCFNode* in_node() const = 0;
 
 private:
     ArrayRef<const CFNode*> preds() const { return preds_; }
     ArrayRef<const CFNode*> succs() const { return succs_; }
     void link(const CFNode* other) const {
-        assert(this->lambda()->intrinsic() != Intrinsic::EndScope);
         this->succs_.push_back(other);
         other->preds_.push_back(this);
     }
 
-    Lambda* lambda_;
+    Def def_;
+    size_t f_index_ = -1; ///< RPO index in a forward @p CFG.
+    size_t b_index_ = -1; ///< RPO index in a backwards @p CFG.
     mutable std::vector<const CFNode*> preds_;
     mutable std::vector<const CFNode*> succs_;
 
     friend class CFABuilder;
     friend class CFA;
-};
-
-/// Any jumps targeting a \p Lambda outside the @p CFA's underlying @p Scope target this node.
-class OutCFNode : public CFNode {
-public:
-    OutCFNode(Lambda* lambda)
-        : CFNode(lambda)
-    {}
-    virtual ~OutCFNode() {}
+    template<bool> friend class CFG;
 };
 
 /// This node represents a @p CFNode within its underlying @p Scope.
@@ -72,10 +70,33 @@ public:
     {}
     virtual ~InCFNode();
 
+    Lambda* lambda() const { return def()->as_lambda(); }
+    const LambdaMap<const OutCFNode*>& out_nodes() const { return out_nodes_; }
+    virtual const InCFNode* in_node() const override { return this; }
+
 private:
+    Lambda* lambda_;
     mutable LambdaMap<const OutCFNode*> out_nodes_;
 
     friend class CFABuilder;
+};
+
+/// Any jumps targeting a @p Lambda or @p Param outside the @p CFA's underlying @p Scope target this node.
+class OutCFNode : public CFNode {
+public:
+    OutCFNode(const InCFNode* parent, Def def)
+        : CFNode(def)
+        , parent_(parent)
+    {
+        assert(def->isa<Param>() || def->isa<Lambda>());
+    }
+    virtual ~OutCFNode() {}
+
+    const InCFNode* parent() const { return parent_; }
+    virtual const InCFNode* in_node() const override { return parent_; }
+
+private:
+    const InCFNode* parent_;
 };
 
 //------------------------------------------------------------------------------
@@ -112,7 +133,6 @@ public:
 private:
     const Scope& scope_;
     Scope::Map<const InCFNode*> in_nodes_;
-    AutoPtr<const OutCFNode> exit_;
     mutable AutoPtr<const F_CFG> f_cfg_;
     mutable AutoPtr<const B_CFG> b_cfg_;
     mutable AutoPtr<const LoopTree> looptree_;
@@ -145,21 +165,22 @@ public:
     explicit CFG(const CFA&);
 
     const CFA& cfa() const { return cfa_; }
-    size_t size() const { return indices_.size(); }
-    ArrayRef<const CFNode*> preds(const CFNode* n) const { return forward ? cfa().preds(n->lambda()) : cfa().succs(n->lambda()); }
-    ArrayRef<const CFNode*> succs(const CFNode* n) const { return forward ? cfa().succs(n->lambda()) : cfa().preds(n->lambda()); }
+    size_t size() const { return rpo_.size(); }
+    ArrayRef<const CFNode*> preds(const CFNode* n) const { return forward ? n->preds() : n->succs(); }
+    ArrayRef<const CFNode*> succs(const CFNode* n) const { return forward ? n->succs() : n->preds(); }
     size_t num_preds(const CFNode* n) const { return preds(n).size(); }
     size_t num_succs(const CFNode* n) const { return succs(n).size(); }
-    const CFNode* entry() const { return forward ? cfa().entry() : cfa().exit();  }
-    const CFNode* exit()  const { return forward ? cfa().exit()  : cfa().entry(); }
-    size_t index(const CFNode* n) const { return indices_[n->lambda()]; }
+    const InCFNode* entry() const { return forward ? cfa().entry() : cfa().exit();  }
+    const InCFNode* exit()  const { return forward ? cfa().exit()  : cfa().entry(); }
     /// All lambdas within this scope in reverse post-order.
     ArrayRef<const CFNode*> rpo() const { return rpo_.array(); }
-    const CFNode* rpo(size_t i) const { return rpo_.array()[i]; }
+    const InCFNode* rpo(size_t i) const { return rpo_.array()[i]; }
     /// Like @p rpo() but without @p entry()
     ArrayRef<const CFNode*> body() const { return rpo().slice_from_begin(1); }
-    const CFNode* lookup(Lambda* lambda) const { return cfa().lookup(lambda); }
+    const InCFNode* lookup(Lambda* lambda) const { return cfa().lookup(lambda); }
     const DomTreeBase<forward>* domtree() const;
+
+    static size_t index(const CFNode* n) { return forward ? n->f_index_ : n->b_index_; }
 
     typedef ArrayRef<const CFNode*>::const_iterator const_iterator;
     const_iterator begin() const { return rpo().begin(); }
@@ -169,7 +190,6 @@ private:
     size_t post_order_number(const CFNode*, size_t);
 
     const CFA& cfa_;
-    Scope::Map<size_t> indices_;
     Map<const CFNode*> rpo_;
     mutable AutoPtr<const DomTreeBase<forward>> domtree_;
 };

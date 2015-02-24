@@ -13,9 +13,9 @@ template<bool> class CFG;
 /**
  * @brief A Dominance Tree.
  *
- * The template parameter \p forward determines 
- * whether a regular dominance tree (\c true) or a post-dominance tree (\c false) should be constructed.
- * This template parameter is associated with \p CFG's \c forward parameter.
+ * The template parameter @p forward determines 
+ * whether a regular dominance tree (@c true) or a post-dominance tree (@c false) should be constructed.
+ * This template parameter is associated with @p CFG's @c forward parameter.
  */
 template<bool forward>
 class DomTreeBase {
@@ -60,7 +60,7 @@ public:
     size_t size() const { return nodes_.size(); }
     size_t index(const Node* n) const { return cfg().index(n->cf_node()); }
     const Node* root() const { return root_; }
-    /// Returns the least common ancestor of \p i and \p j.
+    /// Returns the least common ancestor of @p i and @p j.
     const Node* lca(const Node* i, const Node* j) const;
     const Node* lookup(const CFNode* n) const { return nodes_[n]; }
     void dump() const { root()->dump(); }

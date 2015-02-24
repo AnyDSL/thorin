@@ -253,18 +253,18 @@ std::ostream& LoopNode::indent() const {
 }
 
 void LoopLeaf::dump() const {
-    indent() << '<' << cf_node()->lambda()->unique_name() << '>' << std::endl;
+    indent() << '<' << cf_node()->def()->unique_name() << '>' << std::endl;
     indent() << "+ dfs: " << dfs_id() << std::endl;
 }
 
 void LoopHeader::Edge::dump() {
-    std::cout << src_->lambda()->unique_name() << " ->(" << levels_ << ") " << dst_->lambda()->unique_name() << "   ";
+    std::cout << src_->def()->unique_name() << " ->(" << levels_ << ") " << dst_->def()->unique_name() << "   ";
 }
 
 void LoopHeader::dump() const {
     indent() << "( ";
     for (auto header : cf_nodes())
-        std::cout << header->lambda()->unique_name() << " ";
+        std::cout << header->def()->unique_name() << " ";
     std::cout << ") " << std::endl;
     indent() << "+ dfs: " << dfs_begin() << " .. " << dfs_end() << std::endl;
 
@@ -272,7 +272,7 @@ void LoopHeader::dump() const {
         indent() << "+ " << name << ": ";
         for (auto n : set.indexer()) {
             if (set.contains(n))
-                std::cout << n->lambda()->unique_name() << " ";
+                std::cout << n->def()->unique_name() << " ";
         }
     };
 

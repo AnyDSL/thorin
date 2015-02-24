@@ -15,13 +15,13 @@ template<bool forward>
 void DomTreeBase<forward>::Node::dump() const {
     for (int i = 0, e = depth(); i != e; ++i)
         std::cout << '\t';
-    std::cout << cf_node()->lambda()->unique_name() << std::endl;
+    std::cout << cf_node()->def()->unique_name() << std::endl;
     for (auto child : children())
         child->dump();
 }
 
 template<bool forward>
-Lambda* DomTreeBase<forward>::Node::lambda() const { return cf_node()->lambda(); }
+Lambda* DomTreeBase<forward>::Node::lambda() const { return cf_node()->in_node()->lambda(); }
 
 //------------------------------------------------------------------------------
 

@@ -589,7 +589,7 @@ llvm::Value* CodeGen::emit(Def def) {
         return llvm::UndefValue::get(convert(array->type()));
 
     if (auto agg = def->isa<Aggregate>()) {
-        assert(def->isa<Tuple>() || def->isa<StructAgg>());
+        assert(def->isa<Tuple>() || def->isa<StructAgg>() || def->isa<Vector>());
         llvm::Value* llvm_agg = llvm::UndefValue::get(convert(agg->type()));
         for (size_t i = 0, e = agg->ops().size(); i != e; ++i)
             llvm_agg = builder_.CreateInsertValue(llvm_agg, lookup(agg->op(i)), { unsigned(i) });

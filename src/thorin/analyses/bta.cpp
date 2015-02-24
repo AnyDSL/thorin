@@ -72,7 +72,10 @@ void BTA::visit(PrimOp const *primOp) {
     LV lv = LV::Bot;
     for (auto op : primOp->ops())
         lv = lv.join(get(op));
-    update(primOp, lv);
+
+    if (update(primOp, lv)) {
+        /* TODO something changed, add dependent DefNodes to worklist */
+    }
 }
 
 LV BTA::get(DefNode const *def) {

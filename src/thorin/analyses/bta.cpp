@@ -41,12 +41,16 @@ void BTA::run(World &world) {
 }
 
 void BTA::visit(DefNode const *def) {
+    if (get(def).isTop())
+        return;
+
     if (auto lambda = def->isa<Lambda>())
         return visit(lambda);
     if (auto param = def->isa<Param>())
         return visit(param);
     if (auto primOp = def->isa<PrimOp>())
         return visit(primOp);
+
     THORIN_UNREACHABLE;
 }
 

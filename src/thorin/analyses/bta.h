@@ -2,11 +2,16 @@
 #define THORIN_ANALYSES_BTA_H
 
 #include <iostream>
+#include <vector>
+#include "thorin/def.h"
 
 namespace thorin {
 
 /* Forward declarations */
 struct World;
+struct Lambda;
+struct Param;
+struct PrimOp;
 
 /// \brief Represents a value in the abstract domain.
 ///
@@ -32,6 +37,22 @@ struct LV {
     bool operator==(LV const other) const { return type == other.type; }
     bool operator!=(LV const other) const { return not (*this == other); }
     bool operator< (LV const other) const { return type <  other.type; }
+};
+
+struct BTA {
+    void run(World &world);
+    LV   get(DefNode const *def);
+
+    private:
+    void visit(DefNode const *def);
+    void visit(Lambda  const *def);
+    void visit(Param   const *def);
+    void visit(PrimOp  const *def);
+
+    bool update(DefNode const *def, LV const lv);
+
+    std::vector<DefNode const *> worklist;
+    DefMap<LV> LatticeValues;
 };
 
 void bta(World&);

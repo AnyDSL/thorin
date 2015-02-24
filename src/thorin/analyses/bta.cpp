@@ -15,7 +15,7 @@ LV LV_DYNAMIC = LV(LV::Dynamic);
 }
 
 /** Computes the join of this lattice value with another. */
-LV LV::join(LV other) const {
+LV LV::join(LV const other) const {
     return LV(Type(type | other.type));
 }
 
@@ -27,16 +27,10 @@ std::string to_string(LV const lv) {
     }
 }
 
-std::ostream & operator<<(std::ostream &os, LV const lv) {
-    return os << to_string(lv);
 }
 
-void LV::dump(std::ostream &os) const {
-    os << *this << std::endl;
 }
 
-void LV::dump() const {
-    dump(std::cerr);
 }
 
 void bta(World& world) {

@@ -22,12 +22,16 @@ struct LV {
     LV() : type(Static) { }
     LV(Type const t) : type(t) { }
 
-    LV join(LV other) const;
+    LV join(LV const other) const;
 
     friend std::string to_string(LV const lv);
-    friend std::ostream & operator<<(std::ostream &os, LV const lv);
-    void dump(std::ostream &os) const;
-    void dump() const;
+    friend std::ostream & operator<<(std::ostream &os, LV const lv) { return os << to_string(lv); }
+    void dump(std::ostream &os) const { os << *this << std::endl; }
+    void dump() const { dump(std::cerr); }
+
+    bool operator==(LV const other) const { return type == other.type; }
+    bool operator!=(LV const other) const { return not (*this == other); }
+    bool operator< (LV const other) const { return type <  other.type; }
 };
 
 void bta(World&);

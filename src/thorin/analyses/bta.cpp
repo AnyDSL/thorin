@@ -63,7 +63,16 @@ void BTA::visit(Param const *param) {
 }
 
 void BTA::visit(PrimOp const *primOp) {
-    // TODO implement
+    /* Soundly overapproximate memory operations. */
+    if (primOp->isa<MemOp>()) {
+        update(primOp, LV::Top);
+    }
+
+    /* Join all operands. */
+    LV lv = LV::Bot;
+    for (auto op : primOp->ops())
+        lv = lv.join(get(op));
+    update(primOp, lv);
 }
 
 LV BTA::get(DefNode const *def) {

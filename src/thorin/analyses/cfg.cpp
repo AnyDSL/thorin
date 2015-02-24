@@ -58,17 +58,24 @@ public:
 
     const CFA& cfa() const { return cfa_; }
     const Scope& scope() const { return cfa_.scope(); }
-    void run();
     //bool contains(Lambda* lambda) { return scope().contains(lambda); };
     bool contains(Lambda* lambda) { return scope().entry() != lambda && scope().contains(lambda); };
     bool contains(const Param* param) { return scope().entry() != param->lambda() && contains(param->lambda()); }
     const CFNode* lookup(Lambda* lambda) const { return cfa_.in_nodes_[lambda]; }
-    const OutCFNode* out_node(const InCFNode* in, Lambda* lambda) {
-        if (auto out = find(in->out_nodes_, lambda))
+    const InCFNode* in_node(Lambda* lambda) {
+        if (auto in = find(lambda2in_node_, lambda))
+            return in;
+        auto in = lambda2in_node_[lambda] = new InCFNode(lambda);
+        lambda2param2nodes_[lambda].resize(lambda->num_params()); // make room for params
+        return in;
+    }
+    const OutCFNode* out_node(const InCFNode* in, Def def) {
+        if (auto out = find(in->out_nodes_, def))
             return out;
-        return in->out_nodes_[lambda] = new OutCFNode(in, lambda);
+        return in->out_nodes_[def] = new OutCFNode(in, def);
     }
     const InCFNode* exit() const { return cfa().exit(); }
+    Array<CFNodeSet> cf_nodes_per_op(Lambda* lambda);
 
 private:
     CFA& cfa_;
@@ -81,68 +88,67 @@ CFABuilder::CFABuilder(CFA& cfa)
     , lambda2in_node_(cfa.scope())
     , lambda2param2nodes_(cfa.scope(), std::vector<CFNodeSet>(0))
 {
-    for (auto lambda : scope()) {
-        lambda2in_node_[lambda] = new InCFNode(lambda);
-        lambda2param2nodes_[lambda].resize(lambda->num_params()); // make room for params
-    }
+    std::queue<Lambda*> queue;
+    queue.push(scope().entry());
 
-    run();
-}
+    while (!queue.empty()) {
+        auto lambda = pop(queue);
+        size_t num = lambda->size();
 
-void CFABuilder::run() {
-    for (bool todo = true; todo;) {
-        todo = false;
-
-        for (auto lambda : scope()) {
-            auto in = lambda2in_node_[lambda];
-            size_t num = lambda->size();
-
-            // compute for each of lambda's op the current set of CFNodes
-            Array<CFNodeSet> info(num);
-            for (size_t i = 0; i != num; ++i) {
-                leaves(lambda->op(i), [&] (Def def) {
-                    if (auto op_lambda = def->isa_lambda()) {
-                        const CFNode* n;
-                        if (contains(op_lambda))
-                            n = lambda2in_node_[op_lambda];
-                        else
-                            n = out_node(in, op_lambda);
-                        info[i].insert(n);
-                    } else {
-                        auto param = def->as<Param>();
-                        if (contains(param)) {
-                            const auto& set = lambda2param2nodes_[param->lambda()][param->index()];
-                            info[i].insert(set.begin(), set.end());
-                        } else
-                            info[i].insert(exit());
-                    }
-                });
-            }
-
-            for (auto n : info[0]) {
-                if (auto in = n->isa<InCFNode>()) {
-                    for (size_t i = 1; i != num; ++i) {
-                        const auto& set = info[i];
-                        todo |= lambda2param2nodes_[in->lambda()][i-1].insert(set.begin(), set.end());
-                    }
-                } else {
-                    //auto out = n->as<OutCFNode>();
-                    for (size_t i = 1; i != num; ++i) {
-                        const auto& set = info[i];
-                        for (auto n : set) {
-                            if (auto info_in = n->isa<InCFNode>()) {
-                                for (size_t p = 0; p != info_in->lambda()->num_params(); ++p) {
-                                    todo |= lambda2param2nodes_[info_in->lambda()][i-1].insert(set.begin(), set.end());
-                                }
-                            } else {
-                                //auto info_out = n->as<OutCFNode>();
-                            }
+        auto info = cf_nodes_per_op(lambda);
+        for (auto to : info[0]) {
+            if (auto in = to->isa<InCFNode>()) {
+                bool todo = false;
+                for (size_t i = 1; i != num; ++i) {
+                    const auto& set = info[i];
+                    todo |= lambda2param2nodes_[in->lambda()][i-1].insert(set.begin(), set.end());
+                }
+                if (todo)
+                    queue.push(in->lambda());
+            } else {
+                auto out = to->as<OutCFNode>();
+                for (size_t i = 1; i != num; ++i) {
+                    for (auto n : info[i]) {
+                        if (auto info_in = n->isa<InCFNode>()) {
+                            auto in_lambda = info_in->lambda();
+                            bool todo = false;
+                            for (size_t p = 0; p != in_lambda->num_params(); ++p)
+                                if (in_lambda->param(p)->order() >= 1)
+                                    todo |= lambda2param2nodes_[in_lambda][p].insert(out).second;
+                            if (todo)
+                                queue.push(in_lambda);
                         }
                     }
                 }
             }
         }
     }
+}
+
+Array<CFNodeSet> CFABuilder::cf_nodes_per_op(Lambda* lambda) {
+    auto in = in_node(lambda);
+    size_t num = lambda->size();
+
+    Array<CFNodeSet> result(num);
+    for (size_t i = 0; i != num; ++i) {
+        leaves(lambda->op(i), [&] (Def def) {
+            if (auto op_lambda = def->isa_lambda()) {
+                if (contains(op_lambda))
+                    result[i].insert(lambda2in_node_[op_lambda]);
+                else if (i == 0)
+                    result[i].insert(out_node(in, op_lambda));
+            } else {
+                auto param = def->as<Param>();
+                if (contains(param)) {
+                    const auto& set = lambda2param2nodes_[param->lambda()][param->index()];
+                    result[i].insert(set.begin(), set.end());
+                } else if (i == 0)
+                    result[i].insert(out_node(in, param));
+            }
+        });
+    }
+
+    return result;
 }
 
 #if 0

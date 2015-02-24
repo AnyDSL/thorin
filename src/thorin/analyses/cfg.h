@@ -71,12 +71,12 @@ public:
     virtual ~InCFNode();
 
     Lambda* lambda() const { return def()->as_lambda(); }
-    const LambdaMap<const OutCFNode*>& out_nodes() const { return out_nodes_; }
+    const DefMap<const OutCFNode*>& out_nodes() const { return out_nodes_; }
     virtual const InCFNode* in_node() const override { return this; }
 
 private:
     Lambda* lambda_;
-    mutable LambdaMap<const OutCFNode*> out_nodes_;
+    mutable DefMap<const OutCFNode*> out_nodes_;
 
     friend class CFABuilder;
 };

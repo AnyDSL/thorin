@@ -28,6 +28,8 @@ struct LV {
     LV(Type const t) : type(t) { }
 
     LV join(LV const other) const;
+    bool isTop() const { return Top.type == type; }
+    bool isBot() const { return Bot.type == type; }
 
     friend std::string to_string(LV const lv);
     friend std::ostream & operator<<(std::ostream &os, LV const lv) { return os << to_string(lv); }
@@ -37,6 +39,9 @@ struct LV {
     bool operator==(LV const other) const { return type == other.type; }
     bool operator!=(LV const other) const { return not (*this == other); }
     bool operator< (LV const other) const { return type <  other.type; }
+
+    static LV const Top;
+    static LV const Bot;
 };
 
 struct BTA {

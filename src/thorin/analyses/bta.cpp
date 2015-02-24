@@ -9,10 +9,8 @@
 
 namespace thorin {
 
-namespace {
-LV LV_STATIC  = LV(LV::Static);
-LV LV_DYNAMIC = LV(LV::Dynamic);
-}
+LV const LV::Top(LV::Dynamic);
+LV const LV::Bot(LV::Static);
 
 /** Computes the join of this lattice value with another. */
 LV LV::join(LV const other) const {

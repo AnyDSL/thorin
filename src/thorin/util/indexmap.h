@@ -43,7 +43,7 @@ public:
     Array<Value>& array() { return array_; }
     const Array<Value>& array() const { return array_; }
 
-    typedef filter_iterator<typename Array<Value>::const_iterator, decltype(NonNullPred<Value>::non_null)*> const_iterator;
+    typedef filter_iterator<typename Array<Value>::const_iterator, bool (*)(Value)> const_iterator;
     const_iterator begin() const { return make_filter(array_.begin(), array_.end(), NonNullPred<Value>::non_null); }
     const_iterator end() const { return make_filter(array_.end(), array_.end(), NonNullPred<Value>::non_null); }
 

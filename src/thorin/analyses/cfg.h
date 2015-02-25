@@ -52,8 +52,8 @@ private:
     }
 
     Def def_;
-    size_t f_index_ = -1; ///< RPO index in a forward @p CFG.
-    size_t b_index_ = -1; ///< RPO index in a backwards @p CFG.
+    mutable size_t f_index_ = -1; ///< RPO index in a forward @p CFG.
+    mutable size_t b_index_ = -1; ///< RPO index in a backwards @p CFG.
     mutable std::vector<const CFNode*> preds_;
     mutable std::vector<const CFNode*> succs_;
 
@@ -115,7 +115,7 @@ public:
     ~CFA();
 
     const Scope& scope() const { return scope_; }
-    size_t size() const { return in_nodes_.size(); }
+    size_t num_cf_nodes() const { return num_cf_nodes_; }
     const Scope::Map<const InCFNode*>& in_nodes() const { return in_nodes_; }
     ArrayRef<const CFNode*> preds(Lambda* lambda) const { return in_nodes_[lambda]->preds(); }
     ArrayRef<const CFNode*> succs(Lambda* lambda) const { return in_nodes_[lambda]->succs(); }
@@ -132,10 +132,11 @@ public:
 
 private:
     const Scope& scope_;
-    Scope::Map<const InCFNode*> in_nodes_;
+    Scope::Map<const InCFNode*> in_nodes_; ///< Maps lambda in scope to InCFNode. 
     mutable AutoPtr<const F_CFG> f_cfg_;
     mutable AutoPtr<const B_CFG> b_cfg_;
     mutable AutoPtr<const LoopTree> looptree_;
+    size_t num_cf_nodes_ = 0;
 
     friend class CFABuilder;
 };
@@ -174,7 +175,7 @@ public:
     const InCFNode* exit()  const { return forward ? cfa().exit()  : cfa().entry(); }
     /// All lambdas within this scope in reverse post-order.
     ArrayRef<const CFNode*> rpo() const { return rpo_.array(); }
-    const InCFNode* rpo(size_t i) const { return rpo_.array()[i]; }
+    const CFNode* rpo(size_t i) const { return rpo_.array()[i]; }
     /// Like @p rpo() but without @p entry()
     ArrayRef<const CFNode*> body() const { return rpo().slice_from_begin(1); }
     const InCFNode* lookup(Lambda* lambda) const { return cfa().lookup(lambda); }
@@ -187,7 +188,7 @@ public:
     const_iterator end() const { return rpo().end(); }
 
 private:
-    size_t post_order_number(const CFNode*, size_t);
+    size_t post_order_visit(const CFNode* n, size_t i) const;
 
     const CFA& cfa_;
     Map<const CFNode*> rpo_;

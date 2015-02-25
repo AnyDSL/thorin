@@ -1,9 +1,21 @@
 #ifndef THORIN_UTIL_INDEXMAP_H
 #define THORIN_UTIL_INDEXMAP_H
 
+#include <type_traits>
+
 #include "thorin/util/array.h"
+#include "thorin/util/filter.h"
 
 namespace thorin {
+
+template<class T>
+struct NonNullPred {
+    static bool non_null(T value) { return true; }
+};
+
+template<class T> struct NonNullPred<T*> {
+    static bool non_null(T* value) { return value != nullptr; }
+};
 
 template<class Indexer, class Key, class Value>
 class IndexMap {
@@ -31,9 +43,9 @@ public:
     Array<Value>& array() { return array_; }
     const Array<Value>& array() const { return array_; }
 
-    typedef typename Array<Value>::const_iterator const_iterator;
-    const_iterator begin() const { return array_.begin(); }
-    const_iterator end() const { return array_.end(); }
+    typedef filter_iterator<typename Array<Value>::const_iterator, decltype(NonNullPred<Value>::non_null)*> const_iterator;
+    const_iterator begin() const { return make_filter(array_.begin(), array_.end(), NonNullPred<Value>::non_null); }
+    const_iterator end() const { return make_filter(array_.end(), array_.end(), NonNullPred<Value>::non_null); }
 
 private:
     const Indexer& indexer_;

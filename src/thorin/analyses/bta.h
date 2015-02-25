@@ -12,6 +12,7 @@ struct World;
 struct Lambda;
 struct Param;
 struct PrimOp;
+struct Select;
 
 /// \brief Represents a value in the abstract domain.
 ///
@@ -49,12 +50,14 @@ struct BTA {
     LV   get(DefNode const *def);
 
     private:
-    void visit(DefNode const *def);
-    void visit(Lambda  const *def);
-    void visit(Param   const *def);
-    void visit(PrimOp  const *def);
+    void visit(DefNode const *);
+    void visit(Lambda  const *);
+    void visit(Param   const *);
+    void visit(PrimOp  const *);
+    void visit(Select  const *);
 
-    bool update(DefNode const *def, LV const lv);
+    bool update   (DefNode const *def, LV const lv);
+    void propagate(DefNode const *def, LV const lv);
 
     std::vector<DefNode const *> worklist;
     DefMap<LV> LatticeValues;

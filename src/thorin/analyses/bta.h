@@ -50,14 +50,8 @@ struct BTA {
     LV   get(DefNode const *def);
 
     private:
-    void visit(DefNode const *);
-    void visit(Lambda  const *);
-    void visit(Param   const *);
-    void visit(PrimOp  const *);
-    void visit(Select  const *);
-
     bool update   (DefNode const *def, LV const lv);
-    void propagate(DefNode const *def, LV const lv);
+    void visit    (DefNode const *def);
 
     std::vector<DefNode const *> worklist;
     DefMap<LV> LatticeValues;

@@ -31,8 +31,26 @@ void BTA::run(World &world) {
     LatticeValues.clear();
     worklist.clear();
 
-    // TODO Map the Memory Def to TOP.  This transitively covers all MemOps
-    // TODO initialize worklist
+    Scope::for_each(world, [&](Scope const & s){
+            worklist.push_back(s.entry());
+    });
+
+    /* all global variables are dynamic by default */
+    for (auto primop : world.primops()) {
+        if (auto global = primop->isa<Global>()) {
+            update(global, LV::Top);
+            worklist.push_back(global);
+        }
+    }
+
+    /* functions and arguments called from outside are dynamic */
+    for(auto lambda : world.lambdas()) {
+        if(lambda->is_external() || lambda->cc() == CC::Device)
+            for(auto param : lambda->params()) {
+                update(param, LV::Top);
+                worklist.push_back(param);
+            }
+    }
 
     while (not worklist.empty()) {
         auto const def = worklist.back();
@@ -42,83 +60,64 @@ void BTA::run(World &world) {
 }
 
 LV BTA::get(DefNode const *def) {
-    /* implicitly invokes the default constructor if no entry is present */
-    return LatticeValues[def];
+    auto it = LatticeValues.find(def);
+    if (LatticeValues.end() == it)
+        return LV::Bot;
+    return it->second;
 }
 
 /// Updates the analysis information by joining the value of key `def` with `lv`.
+/// If the information changed, adds `def` to the worklist.
 /// \return true if the information changed
 bool BTA::update(DefNode const *def, LV const lv) {
     auto it = LatticeValues.find(def);
     if (LatticeValues.end() == it) {
         LatticeValues.emplace(def, lv);
+        worklist.push_back(def);
         return true;
     }
 
     LV const Old = it->second;
     LV const New = Old.join(lv);
-    LatticeValues[def] = New;
-    return New != Old;
-}
 
-void BTA::propagate(DefNode const *def, LV const lv) {
-    if (not update(def, lv))
-        return; // nothing changed
-    for (auto use : def->uses())
-        worklist.push_back(use);
+    if (New != Old) {
+        LatticeValues[def] = New;
+        worklist.push_back(def);
+        return true;
+    }
+
+    return false;
 }
 
 void BTA::visit(DefNode const *def) {
-    if (get(def).isTop())
-        return;
+    std::cout << "Visiting DefNode " << def->unique_name() << "\n";
+    LV const lv = get(def);
+    for (auto const use : def->uses()) {
+        if (auto select = use->isa<Select>()) {
+            if (use.index() == 0)
+                update(select, lv);
+        } else if (auto primOp = use->isa<PrimOp>()) {
+            update(primOp, lv);
+        } else if (auto lambda = use->isa<Lambda>()) {
+            /* Add unvisited immediate successors to the worklist. */
+            for (auto const succ : lambda->direct_succs())
+                update(succ, LV::Bot);
 
-    if (auto select = def->isa<Select>())
-        return visit(select);
-    if (auto primOp = def->isa<PrimOp>())
-        return visit(primOp);
-    if (auto param = def->isa<Param>())
-        return visit(param);
-    if (auto lambda = def->isa<Lambda>())
-        return visit(lambda);
-
-    THORIN_UNREACHABLE;
-}
-
-void BTA::visit(Lambda const *lambda) {
-    /* The Binding Type of a lambda is defined by the binding type of its TO. */
-    auto const to = lambda->to();
-    return propagate(lambda, get(to));
-}
-
-void BTA::visit(Param const *param) {
-    LV lv;
-    for (auto arg : param->peek())
-        lv = lv.join(get(arg.def()));
-    propagate(param, lv);
-}
-
-void BTA::visit(PrimOp const *primOp) {
-    LV lv;
-    for (auto op : primOp->ops())
-        lv = lv.join(get(op));
-    propagate(primOp, lv);
-}
-
-void BTA::visit(Select const *select) {
-    auto const ops  = select->ops();
-    auto const cond = ops[0];
-    auto const lhs  = ops[1];
-    auto const rhs  = ops[2];
-
-    if (not update(select, get(cond)))
-        return; // nothing changed
-
-    /* Add all uses of the select.  This includes the lambda "owning" the select. */
-    for (auto use : select->uses())
-        worklist.push_back(use);
-    /* Add the successors of this lambda. */
-    worklist.push_back(lhs);
-    worklist.push_back(rhs);
+            if (use.index() == 0) { // Def is the TO of the using lambda
+                if (update(lambda, lv)) { // A lambda is as least as dynamic as its TO
+                    if (get(lambda).isTop()) { // If a lambda is dynamic, so are its parameters
+                        for (auto const param : lambda->params())
+                            update(param, LV::Top);
+                    }
+                }
+            } else { // Def is an arg
+                for (auto const succ : lambda->direct_succs()) {
+                    auto const param = succ->params()[use.index() - 1];
+                    update(param, lv);
+                }
+            }
+        }
+    }
 }
 
 //------------------------------------------------------------------------------

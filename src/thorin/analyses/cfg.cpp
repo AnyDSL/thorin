@@ -135,7 +135,9 @@ void CFABuilder::run_cfa() {
             if (!reachable_.contains(lambda))
                 continue;
 
+            size_t old = cfa().num_cf_nodes();
             auto info = cf_nodes_per_op(lambda);
+            todo |= old != cfa().num_cf_nodes();
             size_t num = lambda->size();
 
             for (auto to : info[0]) {

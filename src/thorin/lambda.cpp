@@ -181,6 +181,8 @@ void Lambda::set_intrinsic() {
     else if (name == "spir")      intrinsic_ = Intrinsic::SPIR;
     else if (name == "opencl")    intrinsic_ = Intrinsic::OpenCL;
     else if (name == "parallel")  intrinsic_ = Intrinsic::Parallel;
+    else if (name == "spawn")     intrinsic_ = Intrinsic::Spawn;
+    else if (name == "sync")      intrinsic_ = Intrinsic::Sync;
     else if (name == "vectorize") intrinsic_ = Intrinsic::Vectorize;
     else if (name == "mmap")      intrinsic_ = Intrinsic::Mmap;
     else if (name == "munmap")    intrinsic_ = Intrinsic::Munmap;

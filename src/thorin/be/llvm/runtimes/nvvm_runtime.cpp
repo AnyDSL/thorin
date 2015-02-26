@@ -75,7 +75,7 @@ llvm::Value* NVVMRuntime::set_texture(llvm::Value* device, llvm::Value* ptr, llv
         default:
             THORIN_UNREACHABLE;
     }
-    auto loaded_device_ptr = builder_.CreatePtrToInt(ptr, builder_.getInt64Ty());
+    auto loaded_device_ptr = builder_.CreatePtrToInt(ptr, builder_.getInt32Ty());
     llvm::Value* formatVal = builder_.getInt32(format);
     llvm::Value* tex_args[] = { device, loaded_device_ptr, name, formatVal };
     return builder_.CreateCall(get("nvvm_set_kernel_arg_tex"), tex_args);

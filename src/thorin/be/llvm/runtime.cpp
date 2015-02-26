@@ -113,11 +113,11 @@ Lambda* KernelRuntime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
             set_kernel_arg(target_device_val, void_ptr, target_val->getType());
         }
     }
-    const auto get_u64 = [&](Def def) { return builder_.CreateSExt(code_gen.lookup(def), builder_.getInt64Ty()); };
+    const auto get_u32 = [&](Def def) { return builder_.CreateSExt(code_gen.lookup(def), builder_.getInt32Ty()); };
 
     // setup configuration and launch
-    set_problem_size(target_device_val, get_u64(it_space->op(0)), get_u64(it_space->op(1)), get_u64(it_space->op(2)));
-    set_config_size(target_device_val, get_u64(it_config->op(0)), get_u64(it_config->op(1)), get_u64(it_config->op(2)));
+    set_problem_size(target_device_val, get_u32(it_space->op(0)), get_u32(it_space->op(1)), get_u32(it_space->op(2)));
+    set_config_size(target_device_val, get_u32(it_config->op(0)), get_u32(it_config->op(1)), get_u32(it_config->op(2)));
     launch_kernel(target_device_val, kernel_name);
 
     // synchronize

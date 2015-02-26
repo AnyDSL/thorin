@@ -57,7 +57,10 @@ public:
     CFABuilder(CFA& cfa)
         : cfa_(cfa)
         , lambda2param2nodes_(cfa.scope(), std::vector<CFNodeSet>(0))
+        , reachable_(scope())
     {
+        in_node(scope().entry());
+        in_node(scope().exit());
         run_cfa();
         build_cfg();
     }
@@ -70,11 +73,11 @@ public:
     //bool contains(Lambda* lambda) { return scope().contains(lambda); };
     bool contains(Lambda* lambda) { return scope().entry() != lambda && scope().contains(lambda); };
     bool contains(const Param* param) { return scope().entry() != param->lambda() && contains(param->lambda()); }
-    const CFNode* lookup(Lambda* lambda) const { return cfa().in_nodes_[lambda]; }
     const InCFNode* in_node(Lambda* lambda) {
         if (auto in = find(cfa().in_nodes(), lambda))
             return in;
         ++cfa_.num_cf_nodes_;
+        reachable_.insert(lambda);
         auto in = cfa_.in_nodes_[lambda] = new InCFNode(lambda);
         lambda2param2nodes_[lambda].resize(lambda->num_params()); // make room for params
         return in;
@@ -85,12 +88,12 @@ public:
         ++cfa_.num_cf_nodes_;
         return in->out_nodes_[def] = new OutCFNode(in, def);
     }
-    const InCFNode* exit() const { return cfa().exit(); }
     Array<CFNodeSet> cf_nodes_per_op(Lambda* lambda);
 
 private:
     CFA& cfa_;
     Scope::Map<std::vector<CFNodeSet>> lambda2param2nodes_; ///< Maps param in scope to CFNodeSet.
+    Scope::Set reachable_;
 };
 
 Array<CFNodeSet> CFABuilder::cf_nodes_per_op(Lambda* lambda) {
@@ -125,35 +128,32 @@ Array<CFNodeSet> CFABuilder::cf_nodes_per_op(Lambda* lambda) {
 }
 
 void CFABuilder::run_cfa() {
-    std::queue<Lambda*> queue;
-    queue.push(scope().entry());
+    for (bool todo = true; todo;) {
+        todo = false;
 
-    while (!queue.empty()) {
-        auto lambda = pop(queue);
-        size_t num = lambda->size();
+        for (auto lambda : scope()) {
+            if (!reachable_.contains(lambda))
+                continue;
 
-        auto info = cf_nodes_per_op(lambda);
-        for (auto to : info[0]) {
-            if (auto in = to->isa<InCFNode>()) {
-                bool todo = false;
-                for (size_t i = 1; i != num; ++i) {
-                    const auto& set = info[i];
-                    todo |= lambda2param2nodes_[in->lambda()][i-1].insert(set.begin(), set.end());
-                }
-                if (todo)
-                    queue.push(in->lambda());
-            } else {
-                auto out = to->as<OutCFNode>();
-                for (size_t i = 1; i != num; ++i) {
-                    for (auto n : info[i]) {
-                        if (auto info_in = n->isa<InCFNode>()) {
-                            auto in_lambda = info_in->lambda();
-                            bool todo = false;
-                            for (size_t p = 0; p != in_lambda->num_params(); ++p)
-                                if (in_lambda->param(p)->order() >= 1)
-                                    todo |= lambda2param2nodes_[in_lambda][p].insert(out).second;
-                            if (todo)
-                                queue.push(in_lambda);
+            auto info = cf_nodes_per_op(lambda);
+            size_t num = lambda->size();
+
+            for (auto to : info[0]) {
+                if (auto in = to->isa<InCFNode>()) {
+                    for (size_t i = 1; i != num; ++i) {
+                        const auto& set = info[i];
+                        todo |= lambda2param2nodes_[in->lambda()][i-1].insert(set.begin(), set.end());
+                    }
+                } else {
+                    auto out = to->as<OutCFNode>();
+                    for (size_t i = 1; i != num; ++i) {
+                        for (auto n : info[i]) {
+                            if (auto info_in = n->isa<InCFNode>()) {
+                                auto in_lambda = info_in->lambda();
+                                for (size_t p = 0; p != in_lambda->num_params(); ++p)
+                                    if (in_lambda->param(p)->order() >= 1)
+                                        todo |= lambda2param2nodes_[in_lambda][p].insert(out).second;
+                            }
                         }
                     }
                 }
@@ -172,6 +172,9 @@ void CFABuilder::build_cfg() {
         for (auto pair : in->out_nodes()) {
             auto out = pair.second;
 
+            if (out->def()->isa<Param>())
+                out->link(cfa().exit());
+
             for (const auto& arg : info.slice_from_begin(1)) {
                 for (auto n : arg) {
                     out->link(n);
@@ -180,6 +183,11 @@ void CFABuilder::build_cfg() {
             }
         }
     }
+
+    // TODO link CFNodes not reachable from exit
+    // HACK
+    if (scope().entry()->empty())
+        cfa().entry()->link(cfa().exit());
 }
 
 //------------------------------------------------------------------------------

@@ -5,9 +5,8 @@
 namespace thorin {
 
 static void dead_load_opt(const Scope& scope) {
-    auto& cfg = *scope.cfa()->f_cfg();
-    for (size_t i = cfg.size(); i-- != 0;) {
-        auto lambda = cfg.rpo(i)->lambda();
+    for (auto n : scope.cfa()->f_cfg()->reverse_in_rpo()) {
+        auto lambda = n->lambda();
         Def mem;
         for (auto arg : lambda->args()) {
             if (arg->type().isa<MemType>()) {

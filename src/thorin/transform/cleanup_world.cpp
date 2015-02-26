@@ -56,26 +56,34 @@ public:
 };
 
 const DomNode* Merger::dom_succ(const DomNode* n) {
+    assert(n->cf_node()->isa<InCFNode>());
+
     const auto& succs = cfg.succs(n->cf_node());
     const auto& children = n->children();
-    return succs.size() == 1 && children.size() == 1
-        && succs.front() == children.front()->cf_node()
-        && succs.front()->lambda()->num_uses() == 1
-        && succs.front()->lambda() == n->lambda()->to()
-        ? children.front() : nullptr;
+    if (succs.size() == 1 && children.size() == 1 && succs.front() == children.front()->cf_node()) {
+        if (auto in = succs.front()->isa<InCFNode>()) {
+            auto lambda = in->lambda();
+            if (lambda->num_uses() == 1 && lambda == n->lambda()->to())
+                return children.front();
+        }
+    }
+    return nullptr;
 }
 
 void Merger::merge(const DomNode* n) {
     const DomNode* cur = n;
-    for (const DomNode* next = dom_succ(cur); next != nullptr; cur = next, next = dom_succ(next)) {
-        assert(cur->lambda()->num_args() == next->lambda()->num_params());
-        for (size_t i = 0, e = cur->lambda()->num_args(); i != e; ++i)
-            Def(next->lambda()->param(i))->replace(cur->lambda()->arg(i));
-        cur->lambda()->destroy_body();
-    }
+    if (n->cf_node()->isa<InCFNode>()) {
+        for (const DomNode* next = dom_succ(cur); next != nullptr; cur = next, next = dom_succ(next)) {
+            assert(cur->lambda()->num_args() == next->lambda()->num_params());
+            for (size_t i = 0, e = cur->lambda()->num_args(); i != e; ++i)
+                Def(next->lambda()->param(i))->replace(cur->lambda()->arg(i));
+            cur->lambda()->destroy_body();
+        }
 
-    if (cur != n)
-        n->lambda()->jump(cur->lambda()->to(), cur->lambda()->args());
+        if (cur != n)
+            n->lambda()->jump(cur->lambda()->to(), cur->lambda()->args());
+
+    }
 
     for (auto child : cur->children())
         merge(child);

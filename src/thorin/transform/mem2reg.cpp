@@ -29,51 +29,55 @@ void mem2reg(const Scope& scope) {
     }
 
     // ... except top-level lambdas
-    scope.entry()->set_parent(0);
+    scope.entry()->set_parent(nullptr);
     scope.entry()->seal();
 
-    for (auto n : cfg) {
-        auto lambda = n->lambda();
-        // search for slots/loads/stores from top to bottom and use set_value/get_value to install parameters.
-        for (auto primop : schedule[lambda]) {
-            auto def = Def(primop);
-            if (auto slot = def->isa<Slot>()) {
-                // are all users loads and store?
-                for (auto use : slot->uses()) {
-                    if (!use->isa<Load>() && !use->isa<Store>()) {
-                        take_address(slot);
-                        goto next_primop;
+    for (auto n : cfg.rpo()) {
+        if (auto in = n->isa<InCFNode>()) {
+            auto lambda = in->lambda();
+            // search for slots/loads/stores from top to bottom and use set_value/get_value to install parameters.
+            for (auto primop : schedule[lambda]) {
+                auto def = Def(primop);
+                if (auto slot = def->isa<Slot>()) {
+                    // are all users loads and store?
+                    for (auto use : slot->uses()) {
+                        if (!use->isa<Load>() && !use->isa<Store>()) {
+                            take_address(slot);
+                            goto next_primop;
+                        }
+                    }
+                    slot2handle[slot] = cur_handle++;
+                } else if (auto store = def->isa<Store>()) {
+                    if (auto slot = store->ptr()->isa<Slot>()) {
+                        if (!is_address_taken(slot)) {
+                            lambda->set_value(slot2handle[slot], store->val());
+                            store->replace(store->mem());
+                        }
+                    }
+                } else if (auto load = def->isa<Load>()) {
+                    if (auto slot = load->ptr()->isa<Slot>()) {
+                        if (!is_address_taken(slot)) {
+                            auto type = slot->type().as<PtrType>()->referenced_type();
+                            load->out_val()->replace(lambda->get_value(slot2handle[slot], type, slot->name.c_str()));
+                            load->out_mem()->replace(load->mem());
+                        }
                     }
                 }
-                slot2handle[slot] = cur_handle++;
-            } else if (auto store = def->isa<Store>()) {
-                if (auto slot = store->ptr()->isa<Slot>()) {
-                    if (!is_address_taken(slot)) {
-                        lambda->set_value(slot2handle[slot], store->val());
-                        store->replace(store->mem());
-                    }
-                }
-            } else if (auto load = def->isa<Load>()) {
-                if (auto slot = load->ptr()->isa<Slot>()) {
-                    if (!is_address_taken(slot)) {
-                        auto type = slot->type().as<PtrType>()->referenced_type();
-                        load->out_val()->replace(lambda->get_value(slot2handle[slot], type, slot->name.c_str()));
-                        load->out_mem()->replace(load->mem());
-                    }
-                }
-            }
 next_primop:;
+            }
         }
 
         // seal successors of last lambda if applicable
-        for (auto succ : cfg.succs(cfg.lookup(lambda))) {
-            auto lsucc = succ->lambda();
-            if (lsucc->parent() != nullptr) {
-                auto i = lambda2num.find(lsucc);
-                if (i == lambda2num.end())
-                    i = lambda2num.insert(std::make_pair(lsucc, cfg.num_preds(succ))).first;
-                if (--i->second == 0)
-                    lsucc->seal();
+        for (auto succ : cfg.succs(n)) {
+            if (auto in = succ->isa<InCFNode>()) {
+                auto lsucc = in->lambda();
+                if (lsucc->parent() != nullptr) {
+                    auto i = lambda2num.find(lsucc);
+                    if (i == lambda2num.end())
+                        i = lambda2num.insert(std::make_pair(lsucc, cfg.num_preds(succ))).first;
+                    if (--i->second == 0)
+                        lsucc->seal();
+                }
             }
         }
     }

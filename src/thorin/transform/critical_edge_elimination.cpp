@@ -42,9 +42,11 @@ static void critical_edge_elimination(const Scope& scope) {
             const auto& preds = cfg.preds(cfg.lookup(lambda));
             if (preds.size() > 1) {
                 for (auto pred : preds) {
-                    auto lpred = pred->lambda();
-                    if (cfg.num_succs(pred) != 1)
-                        edges.emplace_back(lpred, lambda);
+                    if (auto in  = pred->in_node()) {
+                        auto lpred = in->lambda();
+                        if (cfg.num_succs(in) != 1)
+                            edges.emplace_back(lpred, lambda);
+                    }
                 }
             }
         }

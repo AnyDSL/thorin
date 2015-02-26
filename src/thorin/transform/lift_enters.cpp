@@ -39,10 +39,9 @@ static void find_enters(Lambda* lambda, std::vector<const Enter*>& enters) {
 static void lift_enters(const Scope& scope) {
     World& world = scope.world();
     std::vector<const Enter*> enters;
-    auto& cfg = *scope.cfa()->f_cfg();
 
-    for (size_t i = cfg.rpo().size(); i-- != 1;)
-        find_enters(cfg.rpo(i)->lambda(), enters);
+    for (auto n : scope.cfa()->f_cfg()->reverse_in_rpo())
+        find_enters(n->lambda(), enters);
 
     auto mem_param = scope.entry()->mem_param();
     assert(mem_param->num_uses() == 1);

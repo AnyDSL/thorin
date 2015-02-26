@@ -95,9 +95,14 @@ private:
 
 Array<CFNodeSet> CFABuilder::cf_nodes_per_op(Lambda* lambda) {
     auto in = in_node(lambda);
-    size_t num = lambda->size();
 
+    // create dummy empty set entry for lambdas without body
+    if (lambda->empty()) 
+        return Array<CFNodeSet>(1);
+
+    size_t num = lambda->size();
     Array<CFNodeSet> result(num);
+
     for (size_t i = 0; i != num; ++i) {
         leaves(lambda->op(i), [&] (Def def) {
             if (auto op_lambda = def->isa_lambda()) {

@@ -166,7 +166,7 @@ public:
     explicit CFG(const CFA&);
 
     const CFA& cfa() const { return cfa_; }
-    size_t size() const { return rpo_.size(); }
+    size_t size() const { return cfa_.num_cf_nodes(); }
     ArrayRef<const CFNode*> preds(const CFNode* n) const { return forward ? n->preds() : n->succs(); }
     ArrayRef<const CFNode*> succs(const CFNode* n) const { return forward ? n->succs() : n->preds(); }
     size_t num_preds(const CFNode* n) const { return preds(n).size(); }
@@ -193,7 +193,7 @@ public:
     static bool is_in_node(const CFNode* n) { return n->isa<InCFNode>(); }
 
 private:
-    size_t post_order_visit(const CFNode* n, size_t i) const;
+    size_t post_order_visit(const CFNode* n, size_t i);
 
     const CFA& cfa_;
     Map<const CFNode*> rpo_;

@@ -9,12 +9,13 @@
 namespace thorin {
 
 template<class T>
-struct NonNullPred {
-    static bool non_null(T value) { return true; }
+struct IsValidPred {
+    static bool is_valid(T value) { return true; }
 };
 
-template<class T> struct NonNullPred<T*> {
-    static bool non_null(T* value) { return value != nullptr; }
+template<class T> 
+struct IsValidPred<T*> {
+    static bool is_valid(T* value) { return value != nullptr; }
 };
 
 template<class Indexer, class Key, class Value>
@@ -44,8 +45,8 @@ public:
     const Array<Value>& array() const { return array_; }
 
     typedef filter_iterator<typename Array<Value>::const_iterator, bool (*)(Value)> const_iterator;
-    const_iterator begin() const { return make_filter(array_.begin(), array_.end(), NonNullPred<Value>::non_null); }
-    const_iterator end() const { return make_filter(array_.end(), array_.end(), NonNullPred<Value>::non_null); }
+    const_iterator begin() const { return make_filter(array_.begin(), array_.end(), IsValidPred<Value>::is_valid); }
+    const_iterator end() const { return make_filter(array_.end(), array_.end(), IsValidPred<Value>::is_valid); }
 
 private:
     const Indexer& indexer_;

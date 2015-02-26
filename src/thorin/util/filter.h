@@ -19,17 +19,23 @@ public:
         : iterator_(iterator)
         , end_(end)
         , predicate_(predicate)
-    {}
+    {
+        skip();
+    }
     filter_iterator(const filter_iterator& other)
         : iterator_(other.iterator())
         , end_(other.end())
         , predicate_(other.predicate())
-    {}
+    {
+        skip();
+    }
     filter_iterator(filter_iterator&& other) 
         : iterator_(std::move(other.iterator_))
         , end_(std::move(other.end_))
         , predicate_(std::move(other.predicate_))
-    {}
+    {
+        skip();
+    }
 
     I iterator() const { return iterator_; }
     I end() const { return end_; }
@@ -37,9 +43,9 @@ public:
 
     filter_iterator& operator= (filter_iterator other) { swap(*this, other); return *this; }
     filter_iterator& operator++ () { 
-        do {
-            ++iterator_;
-        } while (predicate_(*iterator_) && iterator_ != end());
+        assert(iterator_ != end_);
+        ++iterator_;
+        skip(); 
         return *this; 
     }
     filter_iterator operator++ (int) { filter_iterator res = *this; ++(*this); return res; }
@@ -53,6 +59,11 @@ public:
     }
 
 private:
+    void skip() {
+        while (iterator_ != end() && !predicate_(*iterator_))
+            ++iterator_;
+    }
+
     I iterator_;
     I end_;
     P predicate_;

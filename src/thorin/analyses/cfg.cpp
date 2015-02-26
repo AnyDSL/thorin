@@ -102,7 +102,7 @@ Array<CFNodeSet> CFABuilder::cf_nodes_per_op(Lambda* lambda) {
         leaves(lambda->op(i), [&] (Def def) {
             if (auto op_lambda = def->isa_lambda()) {
                 if (contains(op_lambda))
-                    result[i].insert(cfa().in_nodes()[op_lambda]);
+                    result[i].insert(in_node(op_lambda));
                 else if (i == 0)
                     result[i].insert(out_node(in, op_lambda));
             } else {
@@ -203,12 +203,12 @@ CFG<forward>::CFG(const CFA& cfa)
     : cfa_(cfa)
     , rpo_(*this)
 {
-    size_t result = post_order_visit(entry(), forward ? size() : 0);
-    assert(result == (forward ? 0 : size()));
+    size_t result = post_order_visit(entry(), size());
+    assert(result == 0);
 }
 
 template<bool forward>
-size_t CFG<forward>::post_order_visit(const CFNode* n, size_t i) const {
+size_t CFG<forward>::post_order_visit(const CFNode* n, size_t i) {
     auto& n_index = forward ? n->f_index_ : n->b_index_;
     assert(n_index == size_t(-1));
     n_index = size_t(-2);
@@ -218,7 +218,9 @@ size_t CFG<forward>::post_order_visit(const CFNode* n, size_t i) const {
             i = post_order_visit(succ, i);
     }
 
-    return forward ? (n_index = i-1) : ((n_index = i) + 1);
+    n_index = i-1;
+    rpo_[n] = n;
+    return n_index;
 }
 
 template<bool forward>

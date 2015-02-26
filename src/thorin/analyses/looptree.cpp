@@ -102,7 +102,7 @@ private:
 };
 
 void LoopTreeBuilder::build() {
-    for (auto n : cfg()) // clear all flags
+    for (auto n : cfg().rpo()) // clear all flags
         states[n] = 0;
 
     recurse(looptree.root_ = new LoopHeader(cfg(), nullptr, 0, std::vector<const CFNode*>(0)), {cfg().entry()}, 1);
@@ -270,7 +270,7 @@ void LoopHeader::dump() const {
 
     auto dump_set = [&] (const F_CFG::Set& set, const char* name) {
         indent() << "+ " << name << ": ";
-        for (auto n : set.indexer()) {
+        for (auto n : set.indexer().rpo()) {
             if (set.contains(n))
                 std::cout << n->def()->unique_name() << " ";
         }

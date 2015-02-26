@@ -27,7 +27,7 @@ Lambda* DomTreeBase<forward>::Node::lambda() const { return cf_node()->in_node()
 
 template<bool forward>
 void DomTreeBase<forward>::create() {
-    for (auto n : cfg())
+    for (auto n : cfg().rpo())
         nodes_[n] = new Node(n);
 
     // map entry's initial idom to itself

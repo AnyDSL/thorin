@@ -6,13 +6,13 @@
 
 namespace thorin {
 
-template<class I, class P>
+template<class I, class P, class V = typename std::iterator_traits<I>::value_type>
 class filter_iterator {
 public:
     typedef typename std::iterator_traits<I>::difference_type difference_type;
-    typedef typename std::iterator_traits<I>::value_type value_type;
-    typedef typename std::iterator_traits<I>::reference reference;
-    typedef typename std::iterator_traits<I>::pointer pointer;
+    typedef V value_type;
+    typedef V& reference;
+    typedef V* pointer;
     typedef typename std::iterator_traits<I>::iterator_category iterator_category;
 
     filter_iterator(I iterator, I end, P predicate)
@@ -43,8 +43,8 @@ public:
         return *this; 
     }
     filter_iterator operator++ (int) { filter_iterator res = *this; ++(*this); return res; }
-    reference operator* () const { return *iterator_; }
-    pointer operator-> () const { return &*iterator_; }
+    reference operator* () const { return (reference) *iterator_; }
+    pointer operator-> () const { return (pointer) &*iterator_; }
     bool operator== (const filter_iterator& other) { return this->iterator_ == other.iterator_; }
     bool operator!= (const filter_iterator& other) { return this->iterator_ != other.iterator_; }
     friend void swap(filter_iterator& i1, filter_iterator& i2) {
@@ -77,8 +77,14 @@ private:
 };
 
 template<class I, class P>
-Range<filter_iterator<I, P>> range(I begin, I end, P predicate) { 
+Range<filter_iterator<I, P>> range(I begin, I end, P predicate) {
     typedef filter_iterator<I, P> Filter;
+    return Range<Filter>(Filter(begin, end, predicate), Filter(end, end, predicate));
+}
+
+template<class V, class I, class P>
+Range<filter_iterator<I, P, V>> range(I begin, I end, P predicate) {
+    typedef filter_iterator<I, P, V> Filter;
     return Range<Filter>(Filter(begin, end, predicate), Filter(end, end, predicate));
 }
 

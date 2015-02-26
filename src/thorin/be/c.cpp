@@ -375,7 +375,7 @@ void CCodeGen::emit() {
             }
         }
 
-        for (auto n : *scope.cfa()->f_cfg()) {
+        for (auto n : scope.cfa()->f_cfg()->in_rpo()) {
             auto lambda = n->lambda();
             // dump declarations for variables set in gotos
             if (!lambda->is_cascading() && scope.entry() != lambda) {

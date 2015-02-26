@@ -20,25 +20,23 @@ static void verify(const Scope& scope, const Schedule& schedule) {
     auto& domtree = *scope.cfa()->domtree();
     LambdaMap<Def> lambda2mem;
 
-    for (auto n : *scope.cfa()->f_cfg()) {
-        if (auto in = n->isa<InCFNode>()) {
-            auto lambda = in->lambda();
-            Def mem = lambda->mem_param();
-            mem = mem ? mem : lambda2mem[domtree.lookup(in)->idom()->lambda()];
-            for (auto primop : schedule[lambda]) {
-                if (auto memop = primop->isa<MemOp>()) {
-                    if (memop->mem() != mem) {
-                        std::cout << "incorrect schedule:" << std::endl;
-                        memop->dump();
-                        std::cout << "current mem:" << std::endl;
-                        mem->dump();
-                    }
-
-                    mem = memop->out_mem();
+    for (auto n : scope.cfa()->f_cfg()->in_rpo()) {
+        auto lambda = n->lambda();
+        Def mem = lambda->mem_param();
+        mem = mem ? mem : lambda2mem[domtree.lookup(n)->idom()->lambda()];
+        for (auto primop : schedule[lambda]) {
+            if (auto memop = primop->isa<MemOp>()) {
+                if (memop->mem() != mem) {
+                    std::cout << "incorrect schedule:" << std::endl;
+                    memop->dump();
+                    std::cout << "current mem:" << std::endl;
+                    mem->dump();
                 }
+
+                mem = memop->out_mem();
             }
-            lambda2mem[lambda] = mem;
         }
+        lambda2mem[lambda] = mem;
     }
 }
 #else
@@ -72,25 +70,21 @@ static Def2Lambda schedule_early(const Scope& scope) {
         }
     };
 
-    for (auto n : *scope.cfa()->f_cfg()) {
-        if (auto in = n->isa<InCFNode>())
-            enqueue_uses(in->lambda());
-    }
+    for (auto n : scope.cfa()->f_cfg()->in_rpo())
+        enqueue_uses(n->lambda());
 
-    for (auto n : *scope.cfa()->f_cfg()) {
-        if (auto in = n->isa<InCFNode>()) {
-            auto lambda = in->lambda();
-            for (auto param : lambda->params()) {
-                if (!param->is_proxy())
-                    queue.push(param);
-            }
+    for (auto n : scope.cfa()->f_cfg()->in_rpo()) {
+        auto lambda = n->lambda();
+        for (auto param : lambda->params()) {
+            if (!param->is_proxy())
+                queue.push(param);
+        }
 
-            while (!queue.empty()) {
-                auto def = pop(queue);
-                if (auto primop = def->isa<PrimOp>())
-                    def2early[primop] = lambda;
-                enqueue_uses(def);
-            }
+        while (!queue.empty()) {
+            auto def = pop(queue);
+            if (auto primop = def->isa<PrimOp>())
+                def2early[primop] = lambda;
+            enqueue_uses(def);
         }
     }
 
@@ -132,12 +126,10 @@ const Schedule schedule_late(const Scope& scope) {
         }
     };
 
-    for (auto n : *scope.cfa()->f_cfg()) {
-        if (auto in = n->isa<InCFNode>()) {
-            auto lambda = in->lambda();
-            for (auto op : lambda->ops())
-                enqueue(lambda, op);
-        }
+    for (auto n : scope.cfa()->f_cfg()->in_rpo()) {
+        auto lambda = n->lambda();
+        for (auto op : lambda->ops())
+            enqueue(lambda, op);
     }
 
     while (!queue.empty()) {
@@ -162,30 +154,28 @@ const Schedule schedule_smart(const Scope& scope) {
     auto def2early = schedule_early(scope);
     auto late = schedule_late(scope);
 
-    for (auto n : *scope.cfa()->f_cfg()) {
-        if (auto in = n->isa<InCFNode>()) {
-            auto lambda = in->lambda();
-            for (auto primop : late[lambda]) {
-                assert(scope._contains(primop));
-                auto lambda_early = def2early[primop];
-                assert(lambda_early != nullptr);
-                auto lambda_best = lambda;
+    for (auto n : scope.cfa()->f_cfg()->in_rpo()) {
+        auto lambda = n->lambda();
+        for (auto primop : late[lambda]) {
+            assert(scope._contains(primop));
+            auto lambda_early = def2early[primop];
+            assert(lambda_early != nullptr);
+            auto lambda_best = lambda;
 
-                if (primop->isa<Enter>() || primop->isa<Slot>() || Enter::is_out_mem(primop) || Enter::is_out_frame(primop))
-                    lambda_best = lambda_early;
-                else {
-                    int depth = looptree->depth(cfg.lookup(lambda_best));
-                    for (auto i = lambda_best; i != lambda_early;) {
-                        i = domtree->lookup(cfg.lookup(i))->idom()->lambda();
-                        int cur_depth = looptree->cf2leaf(cfg.lookup(i))->depth();
-                        if (cur_depth < depth) {
-                            lambda_best = i;
-                            depth = cur_depth;
-                        }
+            if (primop->isa<Enter>() || primop->isa<Slot>() || Enter::is_out_mem(primop) || Enter::is_out_frame(primop))
+                lambda_best = lambda_early;
+            else {
+                int depth = looptree->depth(cfg.lookup(lambda_best));
+                for (auto i = lambda_best; i != lambda_early;) {
+                    i = domtree->lookup(cfg.lookup(i))->idom()->lambda();
+                    int cur_depth = looptree->cf2leaf(cfg.lookup(i))->depth();
+                    if (cur_depth < depth) {
+                        lambda_best = i;
+                        depth = cur_depth;
                     }
                 }
-                smart.lookup(lambda_best).push_back(primop);
             }
+            smart.lookup(lambda_best).push_back(primop);
         }
     }
 

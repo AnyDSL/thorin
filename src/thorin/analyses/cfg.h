@@ -176,16 +176,17 @@ public:
     /// All lambdas within this scope in reverse post-order.
     ArrayRef<const CFNode*> rpo() const { return rpo_.array(); }
     const CFNode* rpo(size_t i) const { return rpo_.array()[i]; }
+    /// Range of @p InCFNode%s, i.e., all @p OutCFNode%s will be skipped during iteration.
+    Range<filter_iterator<ArrayRef<const CFNode*>::const_iterator, bool (*)(const CFNode*), const InCFNode*>> in_rpo() const { 
+        return range<const InCFNode*>(rpo().begin(), rpo().end(), is_in_node);
+    }
     /// Like @p rpo() but without @p entry()
     ArrayRef<const CFNode*> body() const { return rpo().slice_from_begin(1); }
     const InCFNode* lookup(Lambda* lambda) const { return cfa().lookup(lambda); }
     const DomTreeBase<forward>* domtree() const;
 
     static size_t index(const CFNode* n) { return forward ? n->f_index_ : n->b_index_; }
-
-    typedef ArrayRef<const CFNode*>::const_iterator const_iterator;
-    const_iterator begin() const { return rpo().begin(); }
-    const_iterator end() const { return rpo().end(); }
+    static bool is_in_node(const CFNode* n) { return n->isa<InCFNode>(); }
 
 private:
     size_t post_order_visit(const CFNode* n, size_t i) const;

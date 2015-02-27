@@ -72,6 +72,8 @@ Lambda* CodeGen::emit_intrinsic(Lambda* lambda) {
         case Intrinsic::SPIR:      return spir_runtime_->emit_host_code(*this, lambda);
         case Intrinsic::OpenCL:    return opencl_runtime_->emit_host_code(*this, lambda);
         case Intrinsic::Parallel:  return emit_parallel(lambda);
+        case Intrinsic::Spawn:     return emit_spawn(lambda);
+        case Intrinsic::Sync:      return emit_sync(lambda);
 #ifdef WFV2_SUPPORT
         case Intrinsic::Vectorize: return emit_vectorize_continuation(lambda);
 #endif
@@ -306,13 +308,8 @@ void CodeGen::emit(int opt) {
 #ifdef WFV2_SUPPORT
     // emit vectorized code
     for (const auto& tuple : wfv_todo_)
-        emit_vectorize(std::get<0>(tuple), std::get<1>(tuple), std::get<2>(tuple), std::get<3>(tuple));
+        emit_vectorize(std::get<0>(tuple), std::get<1>(tuple), std::get<2>(tuple));
     wfv_todo_.clear();
-    // remove function for tid-getter
-    if (auto tid = get_vectorize_tid()) {
-        tid->removeFromParent();
-        tid->deleteBody();
-    }
 #endif
 
 #ifndef NDEBUG
@@ -586,7 +583,7 @@ llvm::Value* CodeGen::emit(Def def) {
         return llvm::UndefValue::get(convert(array->type()));
 
     if (auto agg = def->isa<Aggregate>()) {
-        assert(def->isa<Tuple>() || def->isa<StructAgg>());
+        assert(def->isa<Tuple>() || def->isa<StructAgg>() || def->isa<Vector>());
         llvm::Value* llvm_agg = llvm::UndefValue::get(convert(agg->type()));
         for (size_t i = 0, e = agg->ops().size(); i != e; ++i)
             llvm_agg = builder_.CreateInsertValue(llvm_agg, lookup(agg->op(i)), { unsigned(i) });
@@ -867,7 +864,7 @@ llvm::GlobalVariable* CodeGen::emit_global_memory(llvm::Type* type, const std::s
             nullptr, llvm::GlobalVariable::NotThreadLocal, addr_space);
 }
 
-llvm::Value* CodeGen::create_loop(llvm::Value* lower, llvm::Value* upper, llvm::Value* increment, llvm::Function* entry, std::function<void(llvm::Value*)> fun) {
+void CodeGen::create_loop(llvm::Value* lower, llvm::Value* upper, llvm::Value* increment, llvm::Function* entry, std::function<void(llvm::Value*)> fun) {
     auto head = llvm::BasicBlock::Create(context_, "head", entry);
     auto body = llvm::BasicBlock::Create(context_, "body", entry);
     auto exit = llvm::BasicBlock::Create(context_, "exit", entry);
@@ -888,8 +885,6 @@ llvm::Value* CodeGen::create_loop(llvm::Value* lower, llvm::Value* upper, llvm::
     loop_counter->addIncoming(builder_.CreateAdd(loop_counter, increment), body);
     builder_.CreateBr(head);
     builder_.SetInsertPoint(exit);
-
-    return loop_counter;
 }
 
 //------------------------------------------------------------------------------

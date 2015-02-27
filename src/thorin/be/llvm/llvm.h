@@ -50,13 +50,14 @@ protected:
 private:
     Lambda* emit_intrinsic(Lambda*);
     Lambda* emit_parallel(Lambda*);
+    Lambda* emit_spawn(Lambda*);
+    Lambda* emit_sync(Lambda*);
     Lambda* emit_vectorize_continuation(Lambda*);
     Lambda* emit_atomic(Lambda*);
-    void emit_vectorize(u32, llvm::Value*, llvm::Function*, llvm::CallInst*);
-    llvm::Function* get_vectorize_tid();
+    void emit_vectorize(u32, llvm::Function*, llvm::CallInst*);
 
 protected:
-    llvm::Value* create_loop(llvm::Value*, llvm::Value*, llvm::Value*, llvm::Function*, std::function<void(llvm::Value*)>);
+    void create_loop(llvm::Value*, llvm::Value*, llvm::Value*, llvm::Function*, std::function<void(llvm::Value*)>);
 
     World& world_;
     llvm::LLVMContext context_;
@@ -70,7 +71,7 @@ protected:
     HashMap<const PrimOp*, llvm::Value*> primops_;
     HashMap<Lambda*, llvm::Function*> fcts_;
     TypeMap<llvm::Type*> types_;
-    std::vector<std::tuple<u32, llvm::Value*, llvm::Function*, llvm::CallInst*>> wfv_todo_;
+    std::vector<std::tuple<u32, llvm::Function*, llvm::CallInst*>> wfv_todo_;
 
     AutoPtr<GenericRuntime> runtime_;
     AutoPtr<KernelRuntime> cuda_runtime_;

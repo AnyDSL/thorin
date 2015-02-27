@@ -64,7 +64,9 @@ std::vector<Lambda*> bb_schedule(const Scope& scope) {
 #endif
 
 std::vector<Lambda*> bb_schedule(const Scope& scope) {
-    std::vector<Lambda*> result(scope.begin(), scope.end());
+    std::vector<Lambda*> result;
+    for (auto n : scope.cfa()->f_cfg()->in_rpo())
+        result.push_back(n->lambda());
     return result;
 }
 

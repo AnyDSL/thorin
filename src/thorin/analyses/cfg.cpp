@@ -5,6 +5,8 @@
 #include "thorin/analyses/looptree.h"
 #include "thorin/util/queue.h"
 
+#include <iostream>
+
 namespace thorin {
 
 //------------------------------------------------------------------------------
@@ -236,6 +238,13 @@ size_t CFG<forward>::post_order_visit(const CFNode* n, size_t i) {
     n_index = i-1;
     rpo_[n] = n;
     return n_index;
+}
+
+template<bool forward>
+void CFG<forward>::dump() const {
+    for (auto n : rpo())
+        for (auto succ : n->succs())
+            std::cout << n->def()->unique_name() << " -> " << succ->def()->unique_name() << std::endl;
 }
 
 template<bool forward>

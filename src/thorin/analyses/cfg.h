@@ -188,6 +188,7 @@ public:
     ArrayRef<const CFNode*> body() const { return rpo().slice_from_begin(1); }
     const InCFNode* lookup(Lambda* lambda) const { return cfa().lookup(lambda); }
     const DomTreeBase<forward>* domtree() const;
+    void dump() const;
 
     static size_t index(const CFNode* n) { return forward ? n->f_index_ : n->b_index_; }
     static bool is_in_node(const CFNode* n) { return n->isa<InCFNode>(); }

@@ -1,5 +1,4 @@
 extern "C" {
-    fn wfv_get_tid() -> int;
     fn tanf(f32) -> f32;
     fn atan2f(f32, f32) -> f32;
     fn erff(f32) -> f32;
@@ -53,14 +52,13 @@ fn outer_loop_step(lower: int, upper: int, step: int, body: fn(int, fn())) -> ()
 }
 fn inner_loop(lower: int, upper: int, body: fn(int, fn())) -> () {
     // TODO: make sure lower and upper are a multiple of vector length
-    for vectorize(@get_vector_length(), lower, upper) {
-        body(wfv_get_tid());
+    for i in vectorize(@get_vector_length(), lower, upper) {
+        body(i);
     }
 }
 fn inner_loop_step(lower: int, upper: int, step: int, body: fn(int, fn())) -> () {
     // TODO: make sure lower and upper are a multiple of vector length
-    for vectorize(@get_vector_length(), 0, (upper-lower)/step) {
-        let x = wfv_get_tid() * step + lower;
-        body(x);
+    for i in vectorize(@get_vector_length(), 0, (upper-lower)/step) {
+        body(i * step + lower);
     }
 }

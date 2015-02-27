@@ -308,13 +308,8 @@ void CodeGen::emit(int opt) {
 #ifdef WFV2_SUPPORT
     // emit vectorized code
     for (const auto& tuple : wfv_todo_)
-        emit_vectorize(std::get<0>(tuple), std::get<1>(tuple), std::get<2>(tuple), std::get<3>(tuple));
+        emit_vectorize(std::get<0>(tuple), std::get<1>(tuple), std::get<2>(tuple));
     wfv_todo_.clear();
-    // remove function for tid-getter
-    if (auto tid = get_vectorize_tid()) {
-        tid->removeFromParent();
-        tid->deleteBody();
-    }
 #endif
 
 #ifndef NDEBUG
@@ -869,7 +864,7 @@ llvm::GlobalVariable* CodeGen::emit_global_memory(llvm::Type* type, const std::s
             nullptr, llvm::GlobalVariable::NotThreadLocal, addr_space);
 }
 
-llvm::Value* CodeGen::create_loop(llvm::Value* lower, llvm::Value* upper, llvm::Value* increment, llvm::Function* entry, std::function<void(llvm::Value*)> fun) {
+void CodeGen::create_loop(llvm::Value* lower, llvm::Value* upper, llvm::Value* increment, llvm::Function* entry, std::function<void(llvm::Value*)> fun) {
     auto head = llvm::BasicBlock::Create(context_, "head", entry);
     auto body = llvm::BasicBlock::Create(context_, "body", entry);
     auto exit = llvm::BasicBlock::Create(context_, "exit", entry);
@@ -890,8 +885,6 @@ llvm::Value* CodeGen::create_loop(llvm::Value* lower, llvm::Value* upper, llvm::
     loop_counter->addIncoming(builder_.CreateAdd(loop_counter, increment), body);
     builder_.CreateBr(head);
     builder_.SetInsertPoint(exit);
-
-    return loop_counter;
 }
 
 //------------------------------------------------------------------------------

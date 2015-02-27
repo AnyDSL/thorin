@@ -10,5 +10,5 @@ extern "thorin" {
     fn parallel(num_threads: int, lower: int, upper: int, body: fn(i32) -> ()) -> ();
     fn spawn(body: fn() -> ()) -> int;
     fn sync(id: int) -> ();
-    fn vectorize(vector_length: int, lower: int, upper: int, body: fn() -> ()) -> ();
+    fn vectorize(vector_length: int, lower: int, upper: int, body: fn(i32) -> ()) -> ();
 }

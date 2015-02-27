@@ -87,16 +87,21 @@ private:
     I end_;
 };
 
+template<class I>
+Range<I> range(I begin, I end) {
+    return Range<I>(begin, end);
+}
+
 template<class I, class P>
 Range<filter_iterator<I, P>> range(I begin, I end, P predicate) {
     typedef filter_iterator<I, P> Filter;
-    return Range<Filter>(Filter(begin, end, predicate), Filter(end, end, predicate));
+    return range(Filter(begin, end, predicate), Filter(end, end, predicate));
 }
 
 template<class V, class I, class P>
 Range<filter_iterator<I, P, V>> range(I begin, I end, P predicate) {
     typedef filter_iterator<I, P, V> Filter;
-    return Range<Filter>(Filter(begin, end, predicate), Filter(end, end, predicate));
+    return range(Filter(begin, end, predicate), Filter(end, end, predicate));
 }
 
 }

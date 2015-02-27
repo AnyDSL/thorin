@@ -131,6 +131,12 @@ public:
     {
         std::copy(begin, end, ptr_);
     }
+    Array(std::initializer_list<T> list)
+        : size_(std::distance(list.begin(), list.end()))
+        , ptr_(new T[size_])
+    {
+        std::copy(list.begin(), list.end(), ptr_);
+    }
     ~Array() { delete[] ptr_; }
 
     typedef T* iterator;
@@ -140,8 +146,8 @@ public:
 
     iterator begin() { return ptr_; }
     iterator end() { return ptr_ + size_; }
-    reverse_iterator rbegin() { return const_reverse_iterator(end()); }
-    reverse_iterator rend() { return const_reverse_iterator(begin()); }
+    reverse_iterator rbegin() { return reverse_iterator(end()); }
+    reverse_iterator rend() { return reverse_iterator(begin()); }
     const_iterator begin() const { return ptr_; }
     const_iterator end() const { return ptr_ + size_; }
     const_reverse_iterator rbegin() const { return const_reverse_iterator(end()); }

@@ -209,7 +209,7 @@ void Cleaner::within(const DefNode* def) {
 }
 
 void Cleaner::cleanup() {
-    merge_lambdas();
+    //merge_lambdas();
     eliminate_params();
     unreachable_code_elimination();
     dead_code_elimination();

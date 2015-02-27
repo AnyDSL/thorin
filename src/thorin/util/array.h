@@ -172,8 +172,8 @@ public:
 
     friend void swap(Array& a, Array& b) {
         using std::swap;
-        swap(a.ptr_,  b.ptr_);
         swap(a.size_, b.size_);
+        swap(a.ptr_,  b.ptr_);
     }
     Array<T>& operator= (Array<T> other) { swap(*this, other); return *this; }
 

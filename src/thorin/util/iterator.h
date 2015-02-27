@@ -1,10 +1,12 @@
-#ifndef THORIN_UTIL_FILTER_H
-#define THORIN_UTIL_FILTER_H
+#ifndef THORIN_UTIL_ITERATOR_H
+#define THORIN_UTIL_ITERATOR_H
 
 #include <iterator>
 #include <functional>
 
 namespace thorin {
+
+//------------------------------------------------------------------------------
 
 template<class I, class P, class V = typename std::iterator_traits<I>::value_type>
 class filter_iterator {
@@ -69,8 +71,12 @@ private:
     P predicate_;
 };
 
+//------------------------------------------------------------------------------
+
 template<class I, class P>
 filter_iterator<I, P> make_filter(I begin, I end, P pred) { return filter_iterator<I, P>(begin, end, pred); }
+
+//------------------------------------------------------------------------------
 
 template<class I>
 struct Range {
@@ -86,6 +92,8 @@ private:
     I begin_;
     I end_;
 };
+
+//------------------------------------------------------------------------------
 
 template<class I>
 Range<I> range(I begin, I end) {
@@ -103,6 +111,8 @@ Range<filter_iterator<I, P, V>> range(I begin, I end, P predicate) {
     typedef filter_iterator<I, P, V> Filter;
     return range(Filter(begin, end, predicate), Filter(end, end, predicate));
 }
+
+//------------------------------------------------------------------------------
 
 }
 

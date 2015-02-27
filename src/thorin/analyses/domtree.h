@@ -57,7 +57,6 @@ public:
     }
 
     const CFG<forward>& cfg() const { return cfg_; }
-    size_t size() const { return nodes_.size(); }
     size_t index(const Node* n) const { return cfg().index(n->cf_node()); }
     const Node* root() const { return root_; }
     /// Returns the least common ancestor of @p i and @p j.

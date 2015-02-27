@@ -35,10 +35,11 @@ public:
     };
 
     // TODO write iterators
+    // TODO add size
 
     IndexSet(const Indexer& indexer)
         : indexer_(indexer)
-        , bits_((size()+63u) / 64u)
+        , bits_((capacity()+63u) / 64u)
     {}
     IndexSet(IndexSet&& other)
         : IndexSet(indexer)
@@ -51,9 +52,9 @@ public:
     {}
 
     const Indexer& indexer() const { return indexer_; }
-    size_t size() const { return indexer().size(); }
+    size_t capacity() const { return indexer().size(); }
     size_t next(size_t pos = 0) {
-        for (size_t i = pos, e = size(); i != e; ++i) {
+        for (size_t i = pos, e = capacity(); i != e; ++i) {
             if (bits_[i])
                 return i;
         }
@@ -85,7 +86,7 @@ public:
     template<class Op>
     IndexSet& transform(const IndexSet& other, Op op) {
         assert(this->size() == other.size());
-        for (size_t i = 0, e = size(); i != e; ++i)
+        for (size_t i = 0, e = capacity(); i != e; ++i)
             this->bits_[i] = op(this->bits_[i], other.bits_[i]);
         return *this;
     }

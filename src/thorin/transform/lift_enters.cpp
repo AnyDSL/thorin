@@ -40,8 +40,10 @@ static void lift_enters(const Scope& scope) {
     World& world = scope.world();
     std::vector<const Enter*> enters;
 
-    for (auto n : scope.cfa()->f_cfg()->reverse_in_rpo())
-        find_enters(n->lambda(), enters);
+    for (auto n : scope.cfa()->f_cfg()->reverse_in_rpo()) {
+        if (n != scope.cfa()->entry())
+            find_enters(n->lambda(), enters);
+    }
 
     auto mem_param = scope.entry()->mem_param();
     assert(mem_param->num_uses() == 1);

@@ -96,9 +96,7 @@ private:
 //------------------------------------------------------------------------------
 
 template<class I>
-Range<I> range(I begin, I end) {
-    return Range<I>(begin, end);
-}
+Range<I> range(I begin, I end) { return Range<I>(begin, end); }
 
 template<class I, class P>
 Range<filter_iterator<I, P>> range(I begin, I end, P predicate) {

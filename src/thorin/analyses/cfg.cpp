@@ -218,7 +218,7 @@ CFG<forward>::CFG(const CFA& cfa)
     : cfa_(cfa)
     , rpo_(*this)
 {
-    size_t result = post_order_visit(entry(), size());
+    size_t result = post_order_visit(entry(), cfa.num_cf_nodes());
     assert(result == 0);
 }
 

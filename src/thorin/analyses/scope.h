@@ -39,9 +39,12 @@ public:
     /// Like \p lambdas() but without \p entry()
     ArrayRef<Lambda*> body() const { return lambdas().slice_from_begin(1); }
     const DefSet& in_scope() const { return in_scope_; }
+    /// deprecated.
     bool _contains(Def def) const { return in_scope_.contains(def); }
-    bool contains(Lambda* lambda) const { return lambda->find_scope(this) != nullptr; }
-    bool contains(const Param* param) const { return param->lambda()->find_scope(this) != nullptr; }
+    bool outer_contains(Lambda* lambda) const { return lambda->find_scope(this) != nullptr; }
+    bool outer_contains(const Param* param) const { return outer_contains(param->lambda()); }
+    bool inner_contains(Lambda* lambda) const { return lambda != entry() && outer_contains(lambda); }
+    bool inner_contains(const Param* param) const { return inner_contains(param->lambda()); }
     size_t index(Lambda* lambda) const { 
         if (auto info = lambda->find_scope(this))
             return info->index; 

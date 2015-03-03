@@ -72,12 +72,10 @@ public:
 
     const CFA& cfa() const { return cfa_; }
     const Scope& scope() const { return cfa_.scope(); }
-    bool contains(Lambda* lambda) { return scope().entry() != lambda && scope().contains(lambda); };
-    bool contains(const Param* param) { return scope().entry() != param->lambda() && contains(param->lambda()); }
     Array<CFNodeSet> cf_nodes_per_op(Lambda* lambda);
 
     const InCFNode* in_node(Lambda* lambda) {
-        assert(scope().contains(lambda));
+        assert(scope().outer_contains(lambda));
         if (auto in = find(cfa().in_nodes(), lambda))
             return in;
         ++cfa_.num_cf_nodes_;
@@ -118,13 +116,13 @@ Array<CFNodeSet> CFABuilder::cf_nodes_per_op(Lambda* lambda) {
     for (size_t i = 0; i != num; ++i) {
         leaves(lambda->op(i), [&] (Def def) {
             if (auto op_lambda = def->isa_lambda()) {
-                if (contains(op_lambda))
+                if (scope().inner_contains(op_lambda))
                     result[i].insert(in_node(op_lambda));
                 else if (i == 0)
                     result[i].insert(out_node(in, op_lambda));
             } else {
                 auto param = def->as<Param>();
-                if (contains(param)) {
+                if (scope().inner_contains(param)) {
                     const auto& set = param2nodes(param);
                     result[i].insert(set.begin(), set.end());
                 } else if (i == 0)

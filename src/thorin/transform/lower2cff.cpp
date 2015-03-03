@@ -27,7 +27,7 @@ void CFFLowering::transform(Lambda* lambda) {
     for (auto use : lambda->uses()) {
         if (use.index() == 0) {
             if (auto ulambda = use->isa_lambda()) {
-                if (!scope.contains(ulambda)) {
+                if (!scope.outer_contains(ulambda)) {
                     Type2Type map;
                     bool res = lambda->type()->infer_with(map, ulambda->arg_fn_type());
                     assert(res);

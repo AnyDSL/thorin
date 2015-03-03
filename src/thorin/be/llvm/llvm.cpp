@@ -89,8 +89,10 @@ Lambda* CodeGen::emit_atomic(Lambda* lambda) {
     auto val = lookup(lambda->arg(3));
     assert(kind >= llvm::AtomicRMWInst::BinOp::Xchg && kind <= llvm::AtomicRMWInst::BinOp::UMin && "unsupported atomic");
     llvm::AtomicRMWInst::BinOp binop = (llvm::AtomicRMWInst::BinOp)kind;
-    builder_.CreateAtomicRMW(binop, ptr, val, llvm::AtomicOrdering::SequentiallyConsistent, llvm::SynchronizationScope::CrossThread);
-    return lambda->arg(4)->as_lambda();
+
+    auto cont = lambda->arg(4)->as_lambda();
+    params_[cont->param(1)] = builder_.CreateAtomicRMW(binop, ptr, val, llvm::AtomicOrdering::SequentiallyConsistent, llvm::SynchronizationScope::CrossThread);
+    return cont;
 }
 
 llvm::FunctionType* CodeGen::convert_fn_type(Lambda* lambda) {

@@ -5,10 +5,13 @@
 #include <cassert>
 #include <cstdint>
 #include <functional>
-#include <limits>
 #include <type_traits>
 
+// TODO use uint64_t as hash type in order to make 32-bit and 64-bit stuff deterministic
+
 namespace thorin {
+
+typedef size_t hash_t;
 
 //------------------------------------------------------------------------------
 

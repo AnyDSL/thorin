@@ -1,8 +1,6 @@
 #ifndef THORIN_UTIL_INDEXMAP_H
 #define THORIN_UTIL_INDEXMAP_H
 
-#include <type_traits>
-
 #include "thorin/util/array.h"
 #include "thorin/util/iterator.h"
 

@@ -74,7 +74,7 @@ next_primop:;
                 if (lsucc->parent() != nullptr) {
                     auto i = lambda2num.find(lsucc);
                     if (i == lambda2num.end())
-                        i = lambda2num.insert(std::make_pair(lsucc, cfg.num_preds(succ))).first;
+                        i = lambda2num.emplace(lsucc, cfg.num_preds(succ)).first;
                     if (--i->second == 0)
                         lsucc->seal();
                 }

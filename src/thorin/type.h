@@ -123,11 +123,10 @@ private:
 
 /// Base class for all \p TypeNode%s.
 class TypeNode : public MagicCast<TypeNode> {
-private:
+protected:
     TypeNode& operator = (const TypeNode&); ///< Do not copy-assign a @p TypeNode instance.
     TypeNode(const TypeNode&);              ///< Do not copy-construct a @p TypeNode.
 
-protected:
     TypeNode(World& world, NodeKind kind, ArrayRef<Type> args)
         : representative_(nullptr)
         , world_(world)

@@ -96,11 +96,10 @@ using Def2Def = DefMap<const DefNode*>;
  * - \p Lambda%s.
  */
 class DefNode : public MagicCast<DefNode> {
-private:
+protected:
     DefNode& operator = (const DefNode&); ///< Do not copy-assign a \p DefNode instance.
     DefNode(const DefNode&);              ///< Do not copy-construct a \p DefNode.
 
-protected:
     DefNode(size_t gid, NodeKind kind, Type type, size_t size, const std::string& name)
         : kind_(kind)
         , ops_(size)

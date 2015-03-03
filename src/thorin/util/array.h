@@ -217,6 +217,8 @@ struct Hash<thorin::Array<T>> {
     size_t operator () (const thorin::Array<T>& array) const { return hash_value(array.ref()); }
 };
 
+//------------------------------------------------------------------------------
+
 }
 
 #endif

@@ -71,6 +71,12 @@ enum class Intrinsic : uint8_t {
     Mmap = _Accelerator_End,    ///< Intrinsic memory-mapping function.
     Munmap,                     ///< Intrinsic memory-unmapping function.
     Atomic,                     ///< Intrinsic atomic function
+    Select4,                    ///< Intrinsic vector select function (4 components)
+    Select8,                    ///< Intrinsic vector select function (8 components)
+    Select16,                   ///< Intrinsic vector select function (16 components)
+    Shuffle4,                   ///< Intrinsic vector shuffle function (4 components)
+    Shuffle8,                   ///< Intrinsic vector shuffle function (8 components)
+    Shuffle16,                  ///< Intrinsic vector shuffle function (16 components)
 };
 
 enum class CC : uint8_t {

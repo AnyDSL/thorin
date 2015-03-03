@@ -65,6 +65,12 @@ Lambda* CodeGen::emit_intrinsic(Lambda* lambda) {
     Lambda* to = lambda->to()->as_lambda();
     switch (to->intrinsic()) {
         case Intrinsic::Atomic:    return emit_atomic(lambda);
+        case Intrinsic::Select4:
+        case Intrinsic::Select8:
+        case Intrinsic::Select16:  return emit_select(lambda);
+        case Intrinsic::Shuffle4:
+        case Intrinsic::Shuffle8:
+        case Intrinsic::Shuffle16: return emit_shuffle(lambda);
         case Intrinsic::Munmap:    runtime_->munmap(lookup(lambda->arg(1)));
                                    return lambda->args().back()->as_lambda();
         case Intrinsic::CUDA:      return cuda_runtime_->emit_host_code(*this, lambda);
@@ -92,6 +98,28 @@ Lambda* CodeGen::emit_atomic(Lambda* lambda) {
 
     auto cont = lambda->arg(4)->as_lambda();
     params_[cont->param(1)] = builder_.CreateAtomicRMW(binop, ptr, val, llvm::AtomicOrdering::SequentiallyConsistent, llvm::SynchronizationScope::CrossThread);
+    return cont;
+}
+
+Lambda* CodeGen::emit_select(Lambda* lambda) {
+    assert(lambda->num_args() == 5 && "required arguments are missing");
+    auto cond = lookup(lambda->arg(1));
+    auto a = lookup(lambda->arg(2));
+    auto b = lookup(lambda->arg(3));
+
+    auto cont = lambda->arg(4)->as_lambda();
+    params_[cont->param(1)] = builder_.CreateSelect(cond, a, b);
+    return cont;
+}
+
+Lambda* CodeGen::emit_shuffle(Lambda* lambda) {
+    assert(lambda->num_args() == 5 && "required arguments are missing");
+    auto mask = lookup(lambda->arg(3));
+    auto a = lookup(lambda->arg(1));
+    auto b = lookup(lambda->arg(2));
+
+    auto cont = lambda->arg(4)->as_lambda();
+    params_[cont->param(1)] = builder_.CreateShuffleVector(a, b, mask);
     return cont;
 }
 

@@ -15,7 +15,7 @@ public:
 
     Schedule(const Scope& scope)
         : scope_(scope)
-        , blocks_(*scope.cfa()->f_cfg())
+        , blocks_(*scope.f_cfg())
     {}
 
     const Scope& scope() const { return scope_; }
@@ -26,7 +26,7 @@ public:
     const_iterator end() const { return blocks_.end(); }
 
 private:
-    std::vector<const PrimOp*>& lookup(Lambda* lambda) { return blocks_[scope().cfa()->lookup(lambda)]; }
+    std::vector<const PrimOp*>& lookup(Lambda* lambda) { return blocks_[scope()._cfa()->lookup(lambda)]; }
 
     const Scope& scope_;
     Blocks blocks_;

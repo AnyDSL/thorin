@@ -13,16 +13,8 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-class LoopTree;
-
+template<bool> class LoopTree;
 template<bool> class DomTreeBase;
-typedef DomTreeBase<true>  DomTree;
-typedef DomTreeBase<false> PostDomTree;
-
-template<bool> class CFG;
-typedef CFG<true>  F_CFG;
-typedef CFG<false> B_CFG;
-
 class InCFNode;
 class OutCFNode;
 
@@ -117,28 +109,26 @@ public:
     const Scope& scope() const { return scope_; }
     size_t num_cf_nodes() const { return num_cf_nodes_; }
     const Scope::Map<const InCFNode*>& in_nodes() const { return in_nodes_; }
+    const F_CFG* f_cfg() const;
+    const B_CFG* b_cfg() const;
+    const InCFNode* lookup(Lambda* lambda) const { return find(in_nodes_, lambda); }
+
+private:
     ArrayRef<const CFNode*> preds(Lambda* lambda) const { return in_nodes_[lambda]->preds(); }
     ArrayRef<const CFNode*> succs(Lambda* lambda) const { return in_nodes_[lambda]->succs(); }
     size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
     size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
     const InCFNode* entry() const { return in_nodes_.array().front(); }
     const InCFNode* exit() const { return in_nodes_.array().back(); }
-    const F_CFG* f_cfg() const;
-    const B_CFG* b_cfg() const;
-    const DomTree* domtree() const;
-    const PostDomTree* postdomtree() const;
-    const LoopTree* looptree() const;
-    const InCFNode* lookup(Lambda* lambda) const { return find(in_nodes_, lambda); }
-
-private:
     const Scope& scope_;
+
     Scope::Map<const InCFNode*> in_nodes_; ///< Maps lambda in scope to InCFNode. 
     mutable AutoPtr<const F_CFG> f_cfg_;
     mutable AutoPtr<const B_CFG> b_cfg_;
-    mutable AutoPtr<const LoopTree> looptree_;
     size_t num_cf_nodes_ = 0;
 
     friend class CFABuilder;
+    template<bool> friend class CFG;
 };
 
 //------------------------------------------------------------------------------
@@ -188,6 +178,7 @@ public:
     ArrayRef<const CFNode*> body() const { return rpo().slice_from_begin(1); }
     const InCFNode* lookup(Lambda* lambda) const { return cfa().lookup(lambda); }
     const DomTreeBase<forward>* domtree() const;
+    const LoopTree<forward>* looptree() const;
     void dump() const;
 
     static size_t index(const CFNode* n) { return forward ? n->f_index_ : n->b_index_; }
@@ -199,6 +190,7 @@ private:
     const CFA& cfa_;
     Map<const CFNode*> rpo_;
     mutable AutoPtr<const DomTreeBase<forward>> domtree_;
+    mutable AutoPtr<const LoopTree<forward>> looptree_;
 };
 
 //------------------------------------------------------------------------------

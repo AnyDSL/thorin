@@ -40,7 +40,7 @@ class Merger {
 public:
     Merger(const Scope& scope)
         : scope(scope)
-        , cfg(*scope.cfa()->f_cfg())
+        , cfg(*scope.f_cfg())
         , domtree(*cfg.domtree())
     {
         merge(domtree.lookup(cfg.entry()));

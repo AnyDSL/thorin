@@ -17,10 +17,10 @@ typedef DefMap<Lambda*> Def2Lambda;
 
 #ifndef NDEBUG
 static void verify(const Scope& scope, const Schedule& schedule) {
-    auto& domtree = *scope.cfa()->domtree();
+    auto& domtree = *scope.f_cfg()->domtree();
     LambdaMap<Def> lambda2mem;
 
-    for (auto n : scope.cfa()->f_cfg()->in_rpo()) {
+    for (auto n : scope.f_cfg()->in_rpo()) {
         auto lambda = n->lambda();
         Def mem = lambda->mem_param();
         mem = mem ? mem : lambda2mem[domtree.lookup(n)->idom()->lambda()];
@@ -70,10 +70,10 @@ static Def2Lambda schedule_early(const Scope& scope) {
         }
     };
 
-    for (auto n : scope.cfa()->f_cfg()->in_rpo())
+    for (auto n : scope.f_cfg()->in_rpo())
         enqueue_uses(n->lambda());
 
-    for (auto n : scope.cfa()->f_cfg()->in_rpo()) {
+    for (auto n : scope.f_cfg()->in_rpo()) {
         auto lambda = n->lambda();
         for (auto param : lambda->params()) {
             if (!param->is_proxy())
@@ -94,8 +94,8 @@ static Def2Lambda schedule_early(const Scope& scope) {
 const Schedule schedule_late(const Scope& scope) {
     Def2Lambda def2late;
     DefMap<int> def2num;
-    auto cfg = scope.cfa()->f_cfg();
-    auto domtree = scope.cfa()->domtree();
+    auto cfg = scope.f_cfg();
+    auto domtree = scope.f_cfg()->domtree();
     std::queue<Def> queue;
     Schedule schedule(scope);
 
@@ -126,7 +126,7 @@ const Schedule schedule_late(const Scope& scope) {
         }
     };
 
-    for (auto n : scope.cfa()->f_cfg()->in_rpo()) {
+    for (auto n : scope.f_cfg()->in_rpo()) {
         auto lambda = n->lambda();
         for (auto op : lambda->ops())
             enqueue(lambda, op);
@@ -148,13 +148,13 @@ const Schedule schedule_late(const Scope& scope) {
 
 const Schedule schedule_smart(const Scope& scope) {
     Schedule smart(scope);
-    auto& cfg = *scope.cfa()->f_cfg();
+    auto& cfg = *scope.f_cfg();
     auto domtree = cfg.domtree();
-    auto looptree = scope.cfa()->looptree(); // TODO
+    auto looptree = scope.f_cfg()->looptree();
     auto def2early = schedule_early(scope);
     auto late = schedule_late(scope);
 
-    for (auto n : scope.cfa()->f_cfg()->in_rpo()) {
+    for (auto n : scope.f_cfg()->in_rpo()) {
         auto lambda = n->lambda();
         for (auto primop : late[lambda]) {
             assert(scope._contains(primop));

@@ -11,6 +11,10 @@
 
 namespace thorin {
 
+template<bool> class CFG;
+typedef CFG<true>  F_CFG;
+typedef CFG<false> B_CFG;
+
 class CFA;
 class Scope;
 
@@ -54,7 +58,10 @@ public:
     size_t size() const { return lambdas_.size(); }
     World& world() const { return world_; }
     void dump() const;
-    const CFA* cfa() const;
+    const CFA* cfa() const; // TODO
+    const CFA* _cfa() const { return cfa(); } // TODO
+    const F_CFG* f_cfg() const;
+    const B_CFG* b_cfg() const;
 
     typedef ArrayRef<Lambda*>::const_iterator const_iterator;
     const_iterator begin() const { return lambdas().begin(); }

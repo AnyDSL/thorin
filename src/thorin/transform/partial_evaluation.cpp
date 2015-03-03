@@ -131,9 +131,9 @@ void PartialEvaluator::eval(Lambda* top, Lambda* cur, Lambda* end) {
         if (dst->empty()) {
             if (dst == world().branch()) {
                 Scope scope(top);
-                auto& postdomtree = *scope.b_cfg()->domtree();
-                if (auto n = scope.cfa()->lookup(cur)) {
-                    cur = postdomtree.lookup(n)->idom()->lambda();
+                auto& postdomtree = scope.b_cfg().domtree();
+                if (auto n = scope.cfa()[cur]) {
+                    cur = postdomtree[n]->idom()->lambda();
                     continue;
                 }
                 std::cout << "no postdom found: " << cur->unique_name() << std::endl;

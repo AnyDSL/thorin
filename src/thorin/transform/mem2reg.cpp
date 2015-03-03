@@ -9,7 +9,7 @@
 namespace thorin {
 
 void mem2reg(const Scope& scope) {
-    auto& cfg = *scope.f_cfg();
+    const auto& cfg = scope.f_cfg();
     auto schedule = schedule_late(scope);
     DefMap<size_t> slot2handle;
     LambdaMap<size_t> lambda2num;

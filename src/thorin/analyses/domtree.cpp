@@ -75,6 +75,7 @@ outer_loop:;
 
     auto num = postprocess(root_, 0);
     assert(num = cfg().size());
+    assert((*this)[cfg().entry()] == root());
 }
 
 template<bool forward>

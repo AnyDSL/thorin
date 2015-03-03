@@ -110,9 +110,9 @@ public:
     const Scope& scope() const { return scope_; }
     size_t num_cf_nodes() const { return num_cf_nodes_; }
     const Scope::Map<const InCFNode*>& in_nodes() const { return in_nodes_; }
-    const F_CFG* f_cfg() const;
-    const B_CFG* b_cfg() const;
-    const InCFNode* lookup(Lambda* lambda) const { return find(in_nodes_, lambda); }
+    const F_CFG& f_cfg() const;
+    const B_CFG& b_cfg() const;
+    const InCFNode* operator [] (Lambda* lambda) const { return find(in_nodes_, lambda); }
 
 private:
     ArrayRef<const CFNode*> preds(Lambda* lambda) const { return in_nodes_[lambda]->preds(); }
@@ -177,9 +177,9 @@ public:
     }
     /// Like @p rpo() but without @p entry()
     ArrayRef<const CFNode*> body() const { return rpo().slice_from_begin(1); }
-    const InCFNode* lookup(Lambda* lambda) const { return cfa().lookup(lambda); }
-    const DomTreeBase<forward>* domtree() const;
-    const LoopTree<forward>* looptree() const;
+    const InCFNode* operator [] (Lambda* lambda) const { return cfa()[lambda]; }
+    const DomTreeBase<forward>& domtree() const;
+    const LoopTree<forward>& looptree() const;
     void dump() const;
 
     static size_t index(const CFNode* n) { return forward ? n->f_index_ : n->b_index_; }

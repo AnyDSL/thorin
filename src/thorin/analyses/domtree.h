@@ -61,7 +61,7 @@ public:
     const Node* root() const { return root_; }
     /// Returns the least common ancestor of @p i and @p j.
     const Node* lca(const Node* i, const Node* j) const;
-    const Node* lookup(const CFNode* n) const { return nodes_[n]; }
+    const Node* operator [] (const CFNode* n) const { return nodes_[n]; }
     void dump() const { root()->dump(); }
 
 private:

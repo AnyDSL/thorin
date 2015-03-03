@@ -104,7 +104,6 @@ public:
     size_t cf2dfs(const CFNode* n) const { return cf2leaf(n)->index(); }
     void dump() const { root()->dump(); }
     const Leaf* cf2leaf(const CFNode* n) const { return find(cf2leaf_, n); }
-    const Head* cf2header(const CFNode*) const;
 
 private:
     const CFG<forward>& cfg_;

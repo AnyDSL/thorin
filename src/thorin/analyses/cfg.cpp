@@ -210,8 +210,8 @@ CFA::~CFA() {
     for (auto n : in_nodes_.array()) delete n;
 }
 
-const F_CFG* CFA::f_cfg() const { return lazy_init(this, f_cfg_); }
-const B_CFG* CFA::b_cfg() const { return lazy_init(this, b_cfg_); }
+const F_CFG& CFA::f_cfg() const { return lazy_init(this, f_cfg_); }
+const B_CFG& CFA::b_cfg() const { return lazy_init(this, b_cfg_); }
 
 //------------------------------------------------------------------------------
 
@@ -247,8 +247,8 @@ void CFG<forward>::dump() const {
             std::cout << n->def()->unique_name() << " -> " << succ->def()->unique_name() << std::endl;
 }
 
-template<bool forward> const DomTreeBase<forward>* CFG<forward>::domtree() const { return lazy_init(this, domtree_); }
-template<bool forward> const LoopTree<forward>* CFG<forward>::looptree() const { return lazy_init(this, looptree_); }
+template<bool forward> const DomTreeBase<forward>& CFG<forward>::domtree() const { return lazy_init(this, domtree_); }
+template<bool forward> const LoopTree<forward>& CFG<forward>::looptree() const { return lazy_init(this, looptree_); }
 
 template class CFG<true>;
 template class CFG<false>;

@@ -17,13 +17,14 @@ typedef DefMap<Lambda*> Def2Lambda;
 
 #ifndef NDEBUG
 static void verify(const Scope& scope, const Schedule& schedule) {
-    auto& domtree = *scope.f_cfg()->domtree();
+    auto& cfg = scope.f_cfg();
+    auto& domtree = cfg.domtree();
     LambdaMap<Def> lambda2mem;
 
-    for (auto n : scope.f_cfg()->in_rpo()) {
+    for (auto n : cfg.in_rpo()) {
         auto lambda = n->lambda();
         Def mem = lambda->mem_param();
-        mem = mem ? mem : lambda2mem[domtree.lookup(n)->idom()->lambda()];
+        mem = mem ? mem : lambda2mem[domtree[n]->idom()->lambda()];
         for (auto primop : schedule[lambda]) {
             if (auto memop = primop->isa<MemOp>()) {
                 if (memop->mem() != mem) {
@@ -46,6 +47,7 @@ static void verify(const Scope&, const Schedule&) {}
 static Def2Lambda schedule_early(const Scope& scope) {
     Def2Lambda def2early;
     DefMap<int> def2num;
+    auto& cfg = scope.f_cfg();
     std::queue<Def> queue;
 
     for (auto def : scope.in_scope()) {
@@ -70,10 +72,10 @@ static Def2Lambda schedule_early(const Scope& scope) {
         }
     };
 
-    for (auto n : scope.f_cfg()->in_rpo())
+    for (auto n : cfg.in_rpo())
         enqueue_uses(n->lambda());
 
-    for (auto n : scope.f_cfg()->in_rpo()) {
+    for (auto n : cfg.in_rpo()) {
         auto lambda = n->lambda();
         for (auto param : lambda->params()) {
             if (!param->is_proxy())
@@ -94,8 +96,8 @@ static Def2Lambda schedule_early(const Scope& scope) {
 const Schedule schedule_late(const Scope& scope) {
     Def2Lambda def2late;
     DefMap<int> def2num;
-    auto cfg = scope.f_cfg();
-    auto domtree = scope.f_cfg()->domtree();
+    auto& cfg = scope.f_cfg();
+    auto& domtree = cfg.domtree();
     std::queue<Def> queue;
     Schedule schedule(scope);
 
@@ -115,9 +117,9 @@ const Schedule schedule_late(const Scope& scope) {
         if (!scope._contains(def) || def->isa_lambda() || def->isa<Param>())
             return;
         auto& late = def2late[def];
-        late = late ? domtree->lca(
-                domtree->lookup(cfg->lookup(late)), 
-                domtree->lookup(cfg->lookup(lambda)))->lambda() : lambda;
+        late = late 
+             ? domtree.lca(domtree[cfg[late]], domtree[cfg[lambda]])->lambda() 
+             : lambda;
         assert(def2num[def] != 0);
         if (--def2num[def] == 0) {
             queue.push(def);
@@ -126,7 +128,7 @@ const Schedule schedule_late(const Scope& scope) {
         }
     };
 
-    for (auto n : scope.f_cfg()->in_rpo()) {
+    for (auto n : cfg.in_rpo()) {
         auto lambda = n->lambda();
         for (auto op : lambda->ops())
             enqueue(lambda, op);
@@ -148,13 +150,13 @@ const Schedule schedule_late(const Scope& scope) {
 
 const Schedule schedule_smart(const Scope& scope) {
     Schedule smart(scope);
-    auto& cfg = *scope.f_cfg();
-    auto domtree = cfg.domtree();
-    auto looptree = scope.f_cfg()->looptree();
+    auto& cfg = scope.f_cfg();
+    auto& domtree = cfg.domtree();
+    auto& looptree = cfg.looptree();
     auto def2early = schedule_early(scope);
     auto late = schedule_late(scope);
 
-    for (auto n : scope.f_cfg()->in_rpo()) {
+    for (auto n : cfg.in_rpo()) {
         auto lambda = n->lambda();
         for (auto primop : late[lambda]) {
             assert(scope._contains(primop));
@@ -165,10 +167,10 @@ const Schedule schedule_smart(const Scope& scope) {
             if (primop->isa<Enter>() || primop->isa<Slot>() || Enter::is_out_mem(primop) || Enter::is_out_frame(primop))
                 lambda_best = lambda_early;
             else {
-                int depth = looptree->depth(cfg.lookup(lambda_best));
+                int depth = looptree.depth(cfg[lambda_best]);
                 for (auto i = lambda_best; i != lambda_early;) {
-                    i = domtree->lookup(cfg.lookup(i))->idom()->lambda();
-                    int cur_depth = looptree->cf2leaf(cfg.lookup(i))->depth();
+                    i = domtree[cfg[i]]->idom()->lambda();
+                    int cur_depth = looptree.cf2leaf(cfg[i])->depth();
                     if (cur_depth < depth) {
                         lambda_best = i;
                         depth = cur_depth;

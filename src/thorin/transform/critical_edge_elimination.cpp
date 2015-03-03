@@ -34,12 +34,12 @@ static void update_src(Lambda* src, Lambda* resolver, Lambda* dst) {
 }
 
 static void critical_edge_elimination(const Scope& scope) {
-    auto& cfg = *scope.f_cfg();
+    auto& cfg = scope.f_cfg();
     // find critical edges
     std::vector<std::pair<Lambda*, Lambda*>> edges;
     for (auto lambda : scope) {
         if (!lambda->to()->isa<Bottom>()) {
-            const auto& preds = cfg.preds(cfg.lookup(lambda));
+            const auto& preds = cfg.preds(cfg[lambda]);
             if (preds.size() > 1) {
                 for (auto pred : preds) {
                     if (auto in  = pred->in_node()) {

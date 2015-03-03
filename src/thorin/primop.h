@@ -36,17 +36,17 @@ public:
     virtual const char* op_name() const;
 
 protected:
-    virtual size_t vhash() const;
+    virtual uint64_t vhash() const;
     virtual bool equal(const PrimOp* other) const;
     virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const = 0;
     /// Is @p def the @p i^th result of a @p T @p PrimOp?
     template<int i, class T> inline static const T* is_out(Def def);
 
 private:
-    size_t hash() const { return hash_ == 0 ? hash_ = vhash() : hash_; }
+    uint64_t hash() const { return hash_ == 0 ? hash_ = vhash() : hash_; }
     void set_gid(size_t gid) const { const_cast<size_t&>(const_cast<PrimOp*>(this)->gid_) = gid; }
 
-    mutable size_t hash_ = 0;
+    mutable uint64_t hash_ = 0;
     mutable uint32_t live_ = 0;
     mutable bool is_outdated_ : 1;
 
@@ -58,7 +58,7 @@ private:
 };
 
 struct PrimOpHash { 
-    size_t operator() (const PrimOp* o) const { return o->hash(); } 
+    uint64_t operator() (const PrimOp* o) const { return o->hash(); } 
 };
 
 struct PrimOpEqual { 
@@ -101,7 +101,7 @@ public:
     PrimTypeKind primtype_kind() const { return type()->primtype_kind(); }
 
 private:
-    virtual size_t vhash() const override;
+    virtual uint64_t vhash() const override;
     virtual bool equal(const PrimOp* other) const override;
     virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
@@ -429,7 +429,7 @@ public:
     Type alloced_type() const { return type()->referenced_type(); }
 
 private:
-    virtual size_t vhash() const override;
+    virtual uint64_t vhash() const override;
     virtual bool equal(const PrimOp* other) const override;
     virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
@@ -455,7 +455,7 @@ public:
     virtual const char* op_name() const override;
 
 private:
-    virtual size_t vhash() const override { return hash_value(gid()); }
+    virtual uint64_t vhash() const override { return hash_value(gid()); }
     virtual bool equal(const PrimOp* other) const override { return this == other; }
     virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
@@ -479,7 +479,7 @@ public:
     Def out_mem() const { return has_multiple_outs() ? out(0) : this; }
 
 private:
-    virtual size_t vhash() const override { return hash_value(gid()); }
+    virtual uint64_t vhash() const override { return hash_value(gid()); }
     virtual bool equal(const PrimOp* other) const override { return this == other; }
 };
 

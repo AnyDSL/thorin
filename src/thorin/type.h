@@ -31,7 +31,7 @@ class TypeVarNode;              typedef Proxy<TypeVarNode>              TypeVar;
 
 template<class T>
 struct GIDHash {
-    size_t operator () (T n) const { return n->gid(); }
+    uint64_t operator () (T n) const { return n->gid(); }
 };
 
 template<class T>
@@ -195,7 +195,7 @@ public:
     bool is_type_f() const { return thorin::is_type_f(kind()); }
     bool is_bool() const { return kind() == Node_PrimType_bool; }
 
-    virtual size_t hash() const;
+    virtual uint64_t hash() const;
     virtual bool equal(const TypeNode*) const;
     virtual bool is_closed() const;
     virtual IndefiniteArrayType is_indefinite() const;
@@ -251,7 +251,7 @@ protected:
         , length_(length)
     {}
 
-    virtual size_t hash() const override { return hash_combine(TypeNode::hash(), length()); }
+    virtual uint64_t hash() const override { return hash_combine(TypeNode::hash(), length()); }
     virtual bool equal(const TypeNode* other) const override {
         return TypeNode::equal(other) && this->length() == other->as<VectorTypeNode>()->length();
     }
@@ -307,7 +307,7 @@ public:
     int32_t device() const { return device_; }
     bool is_host_device() const { return device_ == -1; }
 
-    virtual size_t hash() const override;
+    virtual uint64_t hash() const override;
     virtual bool equal(const TypeNode* other) const override;
 
 private:
@@ -338,7 +338,7 @@ private:
 public:
     const std::string& name() const { return name_; }
     void set(size_t i, Type type) const { const_cast<StructAbsTypeNode*>(this)->TypeNode::set(i, type); }
-    virtual size_t hash() const override { return hash_value(this->gid()); }
+    virtual uint64_t hash() const override { return hash_value(this->gid()); }
     virtual bool equal(const TypeNode* other) const override { return this == other; }
     virtual Type instantiate(ArrayRef<Type> args) const override;
 
@@ -451,7 +451,7 @@ public:
     {}
 
     u64 dim() const { return dim_; }
-    virtual size_t hash() const override { return hash_combine(TypeNode::hash(), dim()); }
+    virtual uint64_t hash() const override { return hash_combine(TypeNode::hash(), dim()); }
     virtual bool equal(const TypeNode* other) const override {
         return TypeNode::equal(other) && this->dim() == other->as<DefiniteArrayTypeNode>()->dim();
     }

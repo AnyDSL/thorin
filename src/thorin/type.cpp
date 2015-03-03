@@ -149,15 +149,15 @@ void TypeNode::free_type_vars(TypeVarSet& bound, TypeVarSet& free) const {
  * hash
  */
 
-size_t TypeNode::hash() const {
-    size_t seed = hash_combine(hash_combine(hash_begin((int) kind()), num_args()), num_type_vars());
+uint64_t TypeNode::hash() const {
+    uint64_t seed = hash_combine(hash_combine(hash_begin((int) kind()), num_args()), num_type_vars());
     for (auto arg : args_)
         seed = hash_combine(seed, arg->hash());
     return seed;
 }
 
-size_t PtrTypeNode::hash() const {
-    return hash_combine(hash_combine(VectorTypeNode::hash(), (size_t)device()), (size_t)addr_space());
+uint64_t PtrTypeNode::hash() const {
+    return hash_combine(hash_combine(VectorTypeNode::hash(), (uint64_t)device()), (uint64_t)addr_space());
 }
 
 //------------------------------------------------------------------------------

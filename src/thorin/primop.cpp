@@ -125,15 +125,15 @@ Map::Map(int32_t device, AddressSpace addr_space, Def mem, Def ptr, Def mem_offs
  * hash
  */
 
-size_t PrimOp::vhash() const {
-    size_t seed = hash_combine(hash_combine(hash_begin((int) kind()), size()), type().unify()->gid());
+uint64_t PrimOp::vhash() const {
+    uint64_t seed = hash_combine(hash_combine(hash_begin((int) kind()), size()), type().unify()->gid());
     for (auto op : ops_)
         seed = hash_combine(seed, op.node()->gid());
     return seed;
 }
 
-size_t PrimLit::vhash() const { return hash_combine(Literal::vhash(), bcast<uint64_t, Box>(value())); }
-size_t Slot::vhash() const { return hash_combine(PrimOp::vhash(), index()); }
+uint64_t PrimLit::vhash() const { return hash_combine(Literal::vhash(), bcast<uint64_t, Box>(value())); }
+uint64_t Slot::vhash() const { return hash_combine(PrimOp::vhash(), index()); }
 
 //------------------------------------------------------------------------------
 

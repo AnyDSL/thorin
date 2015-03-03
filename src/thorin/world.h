@@ -46,7 +46,7 @@ private:
     World& operator = (const World&); ///< Do not copy-assign a @p World instance.
     World(const World&);              ///< Do not copy-construct a @p World.
 
-    struct TypeHash { size_t operator () (const TypeNode* t) const { return t->hash(); } };
+    struct TypeHash { uint64_t operator () (const TypeNode* t) const { return t->hash(); } };
     struct TypeEqual { bool operator () (const TypeNode* t1, const TypeNode* t2) const { return t1->equal(t2); } };
 
 public:

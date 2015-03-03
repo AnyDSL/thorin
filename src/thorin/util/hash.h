@@ -7,11 +7,7 @@
 #include <functional>
 #include <type_traits>
 
-// TODO use uint64_t as hash type in order to make 32-bit and 64-bit stuff deterministic
-
 namespace thorin {
-
-typedef size_t hash_t;
 
 //------------------------------------------------------------------------------
 
@@ -22,13 +18,7 @@ inline size_t is_power_of_2(size_t i) { return ((i != 0) && !(i & (i - 1))); }
 //------------------------------------------------------------------------------
 
 /// Magic numbers from http://www.isthe.com/chongo/tech/comp/fnv/index.html#FNV-param .
-template<int nu> struct FNV1 {};
-
-template<> struct FNV1<4> {
-    static const uint32_t offset = 2166136261u;
-    static const uint32_t prime  = 16777619u;
-};
-template<> struct FNV1<8> {
+struct FNV1 {
     static const uint64_t offset = 14695981039346656037ull;
     static const uint64_t prime  = 1099511628211ull;
 };
@@ -39,45 +29,45 @@ template<> struct FNV1<8> {
 
 /// Returns a new hash by combining the hash @p seed with @p val.
 template<class T>
-size_t hash_combine(size_t seed, T val) {
+uint64_t hash_combine(uint64_t seed, T val) {
     THORIN_SUPPORTED_HASH_TYPES
     if (std::is_signed<T>::value)
         return hash_combine(seed, typename std::make_unsigned<T>::type(val));
     assert(std::is_unsigned<T>::value);
-    for (size_t i = 0; i < sizeof(T); ++i) {
+    for (uint64_t i = 0; i < sizeof(T); ++i) {
         T octet = val & T(0xff); // extract lower 8 bits
         seed ^= octet;
-        seed *= FNV1<sizeof(size_t)>::prime;
-        val = val >> size_t(8);
+        seed *= FNV1::prime;
+        val = val >> uint64_t(8);
     }
     return seed;
 }
 
 template<class T>
-size_t hash_combine(size_t seed, T* val) { return hash_combine(seed, uintptr_t(val)); }
+uint64_t hash_combine(uint64_t seed, T* val) { return hash_combine(seed, uintptr_t(val)); }
 
 template<class T>
-size_t hash_begin(T val) { return hash_combine(FNV1<sizeof(size_t)>::offset, val); }
+uint64_t hash_begin(T val) { return hash_combine(FNV1::offset, val); }
 
 template<class T>
 struct Hash {
-    size_t operator() (T val) const {
+    uint64_t operator() (T val) const {
         THORIN_SUPPORTED_HASH_TYPES
         if (std::is_signed<T>::value)
             return Hash<typename std::make_unsigned<T>::type>()(val);
         assert(std::is_unsigned<T>::value);
-        if (sizeof(size_t) >= sizeof(T))
+        if (sizeof(uint64_t) >= sizeof(T))
             return val;
         return hash_begin(val);
     }
 };
 
 template<class T>
-size_t hash_value(T val) { return Hash<T>()(val); }
+uint64_t hash_value(T val) { return Hash<T>()(val); }
 
 template<class T>
 struct Hash<T*> {
-    size_t operator() (T* val) const { return Hash<uintptr_t>()(uintptr_t(val)); }
+    uint64_t operator() (T* val) const { return Hash<uintptr_t>()(uintptr_t(val)); }
 };
 
 //------------------------------------------------------------------------------
@@ -266,7 +256,7 @@ public:
 
         Node** insert_pos = nullptr;
         auto& key = n->key();
-        for (size_t i = hash_function_(key), step = 0; true; i += ++step) {
+        for (uint64_t i = hash_function_(key), step = 0; true; i += ++step) {
             size_t x = i & (capacity_-1);
             auto it = nodes_ + x;
             if (*it == nullptr) {
@@ -333,7 +323,7 @@ public:
 #ifndef NDEBUG
         int old_id = id_;
 #endif
-        for (size_t i = hash_function_(key), step = 0; true; i += ++step) {
+        for (uint64_t i = hash_function_(key), step = 0; true; i += ++step) {
             size_t x = i & (capacity_-1);
             auto it = nodes_ + x;
             if (*it == nullptr) {
@@ -359,7 +349,7 @@ public:
         for (size_t i = 0; i != old_capacity; ++i) {
             if (is_valid(nodes_+i)) {
                 Node* old = nodes_[i];
-                for (size_t i = hash_function_(old->key()), step = 0; true; i += ++step) {
+                for (uint64_t i = hash_function_(old->key()), step = 0; true; i += ++step) {
                     size_t x = i & (capacity_-1);
                     if (nodes[x] == nullptr) {
                         nodes[x] = old;

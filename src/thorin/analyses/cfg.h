@@ -34,6 +34,7 @@ protected:
 public:
     Def def() const { return def_; }
     virtual const InCFNode* in_node() const = 0;
+    void dump() const { def()->dump(); }
 
 private:
     ArrayRef<const CFNode*> preds() const { return preds_; }

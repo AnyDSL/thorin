@@ -77,19 +77,20 @@ public:
     public:
         typedef Node Super;
 
-        explicit Leaf(size_t dfs_id, Head* parent, int depth, const std::vector<const CFNode*>& cf_nodes)
+        explicit Leaf(size_t index, Head* parent, int depth, const std::vector<const CFNode*>& cf_nodes)
             : Super(parent, depth, cf_nodes)
-            , dfs_id_(dfs_id)
+            , index_(index)
         {
             assert(Super::num_cf_nodes() == 1);
         }
 
         const CFNode* cf_node() const { return Super::cf_nodes().front(); }
-        size_t dfs_id() const { return dfs_id_; }
+        /// Index of a DFS of the @p LoopTree's @p Leaf%s.
+        size_t index() const { return index_; }
         virtual void dump() const;
 
     private:
-        size_t dfs_id_;
+        size_t index_;
     };
 
     LoopTree(const LoopTree&) = delete;
@@ -100,7 +101,7 @@ public:
     const CFG<forward>& cfg() const { return cfg_; }
     const Head* root() const { return root_; }
     int depth(const CFNode* n) const { return cf2leaf(n)->depth(); }
-    size_t cf2dfs(const CFNode* n) const { return cf2leaf(n)->dfs_id(); }
+    size_t cf2dfs(const CFNode* n) const { return cf2leaf(n)->index(); }
     void dump() const { root()->dump(); }
     const Leaf* cf2leaf(const CFNode* n) const { return find(cf2leaf_, n); }
     const Head* cf2header(const CFNode*) const;

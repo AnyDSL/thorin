@@ -24,7 +24,7 @@ template<class T> class Array;
  * Likewise, you must be carefull to not destroy data an @p ArrayRef is pointing to.
  * Thorin makes use of @p ArrayRef%s in many places.
  * Note that you can often construct an @p ArrayRef inline with an initializer_list: <code>foo(arg1, {elem1, elem2, elem3}, arg3)</code>.
- * Useful operations are @p slice%s to create other @p ArrayRef%s.
+ * Useful operations are @p skip_front and @p skip_back to create other @p ArrayRef%s.
  */
 template<class T>
 class ArrayRef {
@@ -66,10 +66,8 @@ public:
     bool empty() const { return size_ == 0; }
     T const& front() const { assert(!empty()); return ptr_[0]; }
     T const& back()  const { assert(!empty()); return ptr_[size_ - 1]; }
-    ArrayRef<T> slice(size_t begin, size_t end) const { return ArrayRef<T>(ptr_ + begin, end - begin); }
-    ArrayRef<T> slice_to_end(size_t end) const { return ArrayRef<T>(ptr_, end); }
-    ArrayRef<T> slice_num_from_end(size_t num) const { return ArrayRef<T>(ptr_, size_ - num); }
-    ArrayRef<T> slice_from_begin(size_t begin) const { return ArrayRef<T>(ptr_ + begin, size_ - begin); }
+    ArrayRef<T> skip_front(size_t num) const { return ArrayRef<T>(ptr_ + num, size() - num); }
+    ArrayRef<T> skip_back(size_t num) const { return ArrayRef<T>(ptr_, size() - num); }
     Array<T> cut(ArrayRef<size_t> indices, size_t reserve = 0) const;
     template<class Other>
     bool operator == (const Other& other) const { return this->size() == other.size() && std::equal(begin(), end(), other.begin()); }
@@ -159,10 +157,8 @@ public:
     T& back()  const { assert(!empty()); return ptr_[size_ - 1]; }
     size_t size() const { return size_; }
     bool empty() const { return size_ == 0; }
-    ArrayRef<T> slice(size_t begin, size_t end) const { return ArrayRef<T>(ptr_ + begin, end - begin); }
-    ArrayRef<T> slice_to_end(size_t end) const { return ArrayRef<T>(ptr_, end); }
-    ArrayRef<T> slice_num_from_end(size_t num) const { return ArrayRef<T>(ptr_, size_ - num); }
-    ArrayRef<T> slice_from_begin(size_t begin) const { return ArrayRef<T>(ptr_ + begin, size_ - begin); }
+    ArrayRef<T> skip_front(size_t num) const { return ArrayRef<T>(ptr_ + num, size() - num); }
+    ArrayRef<T> skip_back(size_t num) const { return ArrayRef<T>(ptr_, size() - num); }
     Array<T> cut(ArrayRef<size_t> indices, size_t reserve = 0) const { return ArrayRef<T>(*this).cut(indices, reserve); }
     bool operator == (const Array<T>& other) const { return ArrayRef<T>(*this) == ArrayRef<T>(other); }
     void shrink(size_t newsize) { assert(newsize <= size_); size_ = newsize; }

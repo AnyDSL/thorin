@@ -89,7 +89,7 @@ Type StructAbsTypeNode::vrebuild(World& to, ArrayRef<Type> args) const {
 }
 
 Type StructAppTypeNode::vrebuild(World& to, ArrayRef<Type> args) const { 
-    return to.struct_app_type(args[0].as<StructAbsType>(), args.slice_from_begin(1));
+    return to.struct_app_type(args[0].as<StructAbsType>(), args.skip_front(1));
 }
 
 //------------------------------------------------------------------------------

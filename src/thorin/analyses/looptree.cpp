@@ -36,8 +36,6 @@ public:
     {
         stack.reserve(looptree.cfg().size());
         build();
-        propagate_bounds(looptree.root_);
-        analyse_loops(looptree.root_);
     }
 
 private:
@@ -56,8 +54,6 @@ private:
     };
 
     void build();
-    static std::pair<size_t, size_t> propagate_bounds(LoopNode* header);
-    void analyse_loops(LoopHeader* header);
     const F_CFG& cfg() const { return looptree.cfg(); }
     Number& number(const CFNode* n) { return numbers[n]; }
     size_t& lowlink(const CFNode* n) { return number(n).low; }
@@ -105,7 +101,7 @@ void LoopTreeBuilder::build() {
     for (auto n : cfg().rpo()) // clear all flags
         states[n] = 0;
 
-    recurse(looptree.root_ = new LoopHeader(cfg(), nullptr, 0, std::vector<const CFNode*>(0)), {cfg().entry()}, 1);
+    recurse(looptree.root_ = new LoopHeader(nullptr, 0, std::vector<const CFNode*>(0)), {cfg().entry()}, 1);
 }
 
 void LoopTreeBuilder::recurse(LoopHeader* parent, ArrayRef<const CFNode*> headers, int depth) {
@@ -171,10 +167,9 @@ int LoopTreeBuilder::walk_scc(const CFNode* cur, LoopHeader* parent, int depth, 
 
         if (is_leaf(cur, num)) {
             assert(headers.size() == 1);
-            LoopLeaf* leaf = new LoopLeaf(dfs_id++, parent, depth, headers);
-            looptree.cf2leaf_[headers.front()] = looptree.dfs_leaves_[leaf->dfs_id()] = leaf;
+            looptree.cf2leaf_[headers.front()] = new LoopLeaf(dfs_id++, parent, depth, headers);
         } else
-            new LoopHeader(cfg(), parent, depth, headers);
+            new LoopHeader(parent, depth, headers);
 
         // reset InSCC and OnStack flags
         for (size_t i = b; i != e; ++i)
@@ -185,54 +180,6 @@ int LoopTreeBuilder::walk_scc(const CFNode* cur, LoopHeader* parent, int depth, 
     }
 
     return scc_counter;
-}
-
-std::pair<size_t, size_t> LoopTreeBuilder::propagate_bounds(LoopNode* n) {
-    if (auto header = n->isa<LoopHeader>()) {
-        size_t begin = -1, end = 0;
-        for (auto child : header->children()) {
-            auto p = propagate_bounds(child);
-            begin = p.first  < begin ? p.first  : begin;
-            end   = p.second > end   ? p.second : end;
-        }
-
-        header->dfs_begin_ = begin;
-        header->dfs_end_   = end;
-        return std::make_pair(begin, end);
-    } else {
-        LoopLeaf* leaf = n->as<LoopLeaf>();
-        return std::make_pair(leaf->dfs_id(), leaf->dfs_id()+1);
-    }
-}
-
-void LoopTreeBuilder::analyse_loops(LoopHeader* header) {
-    header->headers_.insert(header->cf_nodes().begin(), header->cf_nodes().end());
-
-    for (auto n : header->cf_nodes()) {
-        for (auto pred : cfg().preds(n)) {
-            if (looptree.contains(header, pred)) {
-                header->back_edges_.emplace_back(pred, n, 0);
-                header->latches_.insert(pred);
-            } else {
-                header->entry_edges_.emplace_back(pred, n, 1);
-                header->preheaders_.insert(pred);
-            }
-        }
-    }
-
-    for (auto n : looptree.loop_cf_nodes(header)) {
-        for (auto succ : cfg().succs(n)) {
-            if (!looptree.contains(header, succ)) {
-                header->exit_edges_.emplace_back(n, succ, looptree.cf2header(succ)->depth() - header->depth());
-                header->exitings_.insert(n);
-                header->exits_.insert(succ);
-            }
-        }
-    }
-
-    for (auto child : header->children())
-        if (auto header = child->isa<LoopHeader>())
-            analyse_loops(header);
 }
 
 //------------------------------------------------------------------------------
@@ -257,40 +204,11 @@ void LoopLeaf::dump() const {
     indent() << "+ dfs: " << dfs_id() << std::endl;
 }
 
-void LoopHeader::Edge::dump() {
-    std::cout << src_->def()->unique_name() << " ->(" << levels_ << ") " << dst_->def()->unique_name() << "   ";
-}
-
 void LoopHeader::dump() const {
     indent() << "( ";
     for (auto header : cf_nodes())
         std::cout << header->def()->unique_name() << " ";
     std::cout << ") " << std::endl;
-    indent() << "+ dfs: " << dfs_begin() << " .. " << dfs_end() << std::endl;
-
-    auto dump_set = [&] (const F_CFG::Set& set, const char* name) {
-        indent() << "+ " << name << ": ";
-        for (auto n : set.indexer().rpo()) {
-            if (set.contains(n))
-                std::cout << n->def()->unique_name() << " ";
-        }
-    };
-
-    std::cout << std::endl;
-    dump_set(preheaders(), "preheaders");
-    dump_set(latches(), "latches");
-    dump_set(exitings(), "exitings");
-
-    auto dump_edges = [&] (const std::vector<Edge>& edges, const char* name) {
-        indent() << "+ " << name << ": ";
-        for (auto edge : edges)
-            edge.dump();
-        std::cout << std::endl;
-    };
-
-    dump_edges(entry_edges(), "entry_edges");
-    dump_edges(back_edges(), "back_edges");
-    dump_edges(exit_edges(), "exit_edges");
 
     for (auto child : children())
         child->dump();
@@ -301,43 +219,8 @@ void LoopHeader::dump() const {
 LoopTree::LoopTree(const F_CFG& cfg)
     : cfg_(cfg)
     , cf2leaf_(cfg)
-    , dfs_leaves_(cfg.size())
 {
     LoopTreeBuilder(*this);
-}
-
-bool LoopTree::contains(const LoopHeader* header, const CFNode* n) const {
-    //if (!cfg().contains(n)) return false; // TODO
-    size_t dfs = cf2dfs(n);
-    return header->dfs_begin() <= dfs && dfs < header->dfs_end();
-}
-
-const LoopHeader* LoopTree::cf2header(const CFNode* n) const {
-    auto leaf = cf2leaf(n);
-    if (leaf == nullptr)
-        return root();
-    auto header = leaf->parent();
-    for (; !header->is_root(); header = header->parent()) {
-        if (contains(header, n))
-            break;
-    }
-    return header;
-}
-
-Array<const CFNode*> LoopTree::loop_cf_nodes(const LoopHeader* header) {
-    auto leaves = loop(header);
-    Array<const CFNode*> result(leaves.size());
-    for (size_t i = 0, e = leaves.size(); i != e; ++i)
-        result[i] = leaves[i]->cf_node();
-    return result;
-}
-
-Array<const CFNode*> LoopTree::loop_cf_nodes_in_rpo(const LoopHeader* header) {
-    auto result = loop_cf_nodes(header);
-    std::stable_sort(result.begin(), result.end(), [&](const CFNode* l1, const CFNode* l2) {
-        return cfg_.index(l1) < cfg_.index(l2);
-    });
-    return result;
 }
 
 //------------------------------------------------------------------------------

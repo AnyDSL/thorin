@@ -43,69 +43,18 @@ protected:
 /// A LoopHeader owns further @p LoopNode%s as children.
 class LoopHeader : public LoopNode {
 public:
-    struct Edge {
-        Edge() {}
-        Edge(const CFNode* src, const CFNode* dst, int levels)
-            : src_(src)
-            , dst_(dst)
-            , levels_(levels)
-        {}
-
-        const CFNode* src() const { return src_; }
-        const CFNode* dst() const { return dst_; }
-        int levels() const { return levels_; }
-        void dump();
-
-    private:
-        const CFNode* src_;
-        const CFNode* dst_;
-        int levels_;
-    };
-
-    explicit LoopHeader(const F_CFG& cfg, LoopHeader* parent, int depth, const std::vector<const CFNode*>& cf_nodes)
+    LoopHeader(LoopHeader* parent, int depth, const std::vector<const CFNode*>& cf_nodes)
         : LoopNode(parent, depth, cf_nodes)
-        , dfs_begin_(0)
-        , dfs_end_(-1)
-        , headers_(cfg)
-        , preheaders_(cfg)
-        , latches_(cfg)
-        , exits_(cfg)
-        , exitings_(cfg)
     {}
 
     ArrayRef<LoopNode*> children() const { return children_; }
     const LoopNode* child(size_t i) const { return children_[i]; }
     size_t num_children() const { return children().size(); }
-    const std::vector<Edge>& entry_edges() const { return entry_edges_; }
-    const std::vector<Edge>& exit_edges() const { return exit_edges_; }
-    const std::vector<Edge>& back_edges() const { return back_edges_; }
-    /// Set of @p CFNode%s not dominated by any other @p CFNode within the loop.
-    const F_CFG::Set& headers() const { return headers_; }
-    /// Set of @p CFNode dominating the loop. They are not within the loop.
-    const F_CFG::Set& preheaders() const { return preheaders_; }
-    /// Set of @p CFNode%s which jump to one of the headers.
-    const F_CFG::Set& latches() const { return latches_; }
-    /// Set of @p CFNode%s which jump out of the loop.
-    const F_CFG::Set& exitings() const { return exitings_; }
-    /// Set of @p CFNode%s jumped to via exiting @p CFNode%s.
-    const F_CFG::Set& exits() const { return exits_; }
     bool is_root() const { return parent_ == 0; }
-    size_t dfs_begin() const { return dfs_begin_; };
-    size_t dfs_end() const { return dfs_end_; }
     virtual void dump() const;
 
 private:
-    size_t dfs_begin_;
-    size_t dfs_end_;
     AutoVector<LoopNode*> children_;
-    std::vector<Edge> entry_edges_;
-    std::vector<Edge> exit_edges_;
-    std::vector<Edge> back_edges_;
-    F_CFG::Set headers_;
-    F_CFG::Set preheaders_;
-    F_CFG::Set latches_;
-    F_CFG::Set exits_;
-    F_CFG::Set exitings_;
 
     friend class LoopNode;
     friend class LoopTreeBuilder;
@@ -145,12 +94,6 @@ public:
     const LoopHeader* root() const { return root_; }
     int depth(const CFNode* n) const { return cf2leaf(n)->depth(); }
     size_t cf2dfs(const CFNode* n) const { return cf2leaf(n)->dfs_id(); }
-    bool contains(const LoopHeader* header, const CFNode*) const;
-    ArrayRef<const LoopLeaf*> loop(const LoopHeader* header) {
-        return ArrayRef<const LoopLeaf*>(dfs_leaves_.data() + header->dfs_begin(), header->dfs_end() - header->dfs_begin());
-    }
-    Array<const CFNode*> loop_cf_nodes(const LoopHeader* header);
-    Array<const CFNode*> loop_cf_nodes_in_rpo(const LoopHeader* header);
     void dump() const { root()->dump(); }
     const LoopLeaf* cf2leaf(const CFNode* n) const { return find(cf2leaf_, n); }
     const LoopHeader* cf2header(const CFNode*) const;
@@ -158,7 +101,6 @@ public:
 private:
     const F_CFG& cfg_;
     F_CFG::Map<LoopLeaf*> cf2leaf_;
-    Array<LoopLeaf*> dfs_leaves_; // TODO use IndexMap
     AutoPtr<LoopHeader> root_;
 
     friend class LoopTreeBuilder;

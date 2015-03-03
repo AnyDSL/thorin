@@ -121,8 +121,8 @@ public:
     ArrayRef<const CFNode*> succs(Lambda* lambda) const { return in_nodes_[lambda]->succs(); }
     size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
     size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
-    const InCFNode* entry() const { return in_nodes_.entry(); }
-    const InCFNode* exit() const { return in_nodes_.exit(); }
+    const InCFNode* entry() const { return in_nodes_.array().front(); }
+    const InCFNode* exit() const { return in_nodes_.array().back(); }
     const F_CFG* f_cfg() const;
     const B_CFG* b_cfg() const;
     const DomTree* domtree() const;

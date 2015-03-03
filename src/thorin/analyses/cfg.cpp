@@ -180,10 +180,8 @@ void CFABuilder::build_cfg() {
                 out->link(cfa().exit());
 
             for (const auto& arg : info.slice_from_begin(1)) {
-                for (auto n : arg) {
+                for (auto n : arg)
                     out->link(n);
-                    n->link(out);
-                }
             }
         }
     }

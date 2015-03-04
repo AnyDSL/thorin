@@ -124,7 +124,7 @@ const Schedule schedule_late(const Scope& scope) {
         if (--def2num[def] == 0) {
             queue.push(def);
             if (auto primop = def->isa<PrimOp>())
-                schedule.lookup(late).push_back(primop);
+                schedule.append(late, primop);
         }
     };
 
@@ -177,7 +177,7 @@ const Schedule schedule_smart(const Scope& scope) {
                     }
                 }
             }
-            smart.lookup(lambda_best).push_back(primop);
+            smart.append(lambda_best, primop);
         }
     }
 

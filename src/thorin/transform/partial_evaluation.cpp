@@ -32,7 +32,7 @@ private:
 };
 
 struct CallHash {
-    size_t operator () (const Call& call) const {
+    uint64_t operator () (const Call& call) const {
         return hash_combine(hash_value(call.args()), call.to());
     }
 };

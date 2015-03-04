@@ -19,14 +19,14 @@ public:
     {}
 
     const Scope& scope() const { return scope_; }
-    const std::vector<const PrimOp*>& operator [] (Lambda* lambda) const { return blocks_[scope().f_cfg()[lambda]]; }
+    const std::vector<const PrimOp*>& operator [] (Lambda* lambda) const { return blocks_[scope().cfa(lambda)]; }
 
     typedef Blocks::const_iterator const_iterator;
     const_iterator begin() const { return blocks_.begin(); }
     const_iterator end() const { return blocks_.end(); }
 
 private:
-    void append(Lambda* lambda, const PrimOp* primop) { blocks_[scope().f_cfg()[lambda]].push_back(primop); }
+    void append(Lambda* lambda, const PrimOp* primop) { blocks_[scope().cfa(lambda)].push_back(primop); }
 
     const Scope& scope_;
     Blocks blocks_;

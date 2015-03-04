@@ -132,7 +132,7 @@ void PartialEvaluator::eval(Lambda* top, Lambda* cur, Lambda* end) {
             if (dst == world().branch()) {
                 Scope scope(top);
                 auto& postdomtree = scope.b_cfg().domtree();
-                if (auto n = scope.cfa()[cur]) {
+                if (auto n = scope.cfa(cur)) {
                     cur = postdomtree[n]->idom()->lambda();
                     continue;
                 }

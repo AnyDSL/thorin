@@ -371,7 +371,7 @@ private:
 
 public:
     StructAbsType struct_abs_type() const { return arg(0).as<StructAbsType>(); }
-    ArrayRef<Type> type_args() const { return args().skip_front(1); }
+    ArrayRef<Type> type_args() const { return args().skip_front(); }
     Type type_arg(size_t i) const { return type_args()[i]; }
     size_t num_type_args() const { return type_args().size(); }
     Type elem(const Def& def) const { return TypeNode::elem(def); }

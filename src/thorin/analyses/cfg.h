@@ -176,7 +176,7 @@ public:
         return range<const InCFNode*>(rpo().rbegin(), rpo().rend(), is_in_node);
     }
     /// Like @p rpo() but without @p entry()
-    ArrayRef<const CFNode*> body() const { return rpo().skip_front(1); }
+    ArrayRef<const CFNode*> body() const { return rpo().skip_front(); }
     const InCFNode* operator [] (Lambda* lambda) const { return cfa()[lambda]; }
     const DomTreeBase<forward>& domtree() const;
     const LoopTree<forward>& looptree() const;

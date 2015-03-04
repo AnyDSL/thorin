@@ -88,7 +88,7 @@ void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
     for (size_t i = 0, e = nops.size(); i != e; ++i)
         nops[i] = mangle(olambda->op(i));
 
-    ArrayRef<Def> nargs(nops.skip_front(1));        // new args of nlambda
+    ArrayRef<Def> nargs(nops.skip_front());         // new args of nlambda
     Def ntarget = nops.front();                     // new target of nlambda
 
     // check whether we can optimize tail recursion

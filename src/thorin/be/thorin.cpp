@@ -179,7 +179,7 @@ std::ostream& CodeGen::emit_assignment(const PrimOp* primop) {
             stream() << "@ ";
             emit_name(vectorop->cond()) << " ";
         }
-        ops = ops.skip_front(1);
+        ops = ops.skip_front();
     }
 
     stream() << primop->op_name() << " ";

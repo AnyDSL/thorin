@@ -268,7 +268,7 @@ std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Def> args, Type ret_type) 
     Def ret;
     if (pack) {
         Array<Def> defs(next->num_params()-1);
-        auto p = next->params().skip_front(1);
+        auto p = next->params().skip_front();
         std::copy(p.begin(), p.end(), defs.begin());
         ret = world().tuple(defs);
 

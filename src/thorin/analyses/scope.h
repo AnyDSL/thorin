@@ -41,7 +41,7 @@ public:
     Lambda* entry() const { return lambdas().front(); }
     Lambda* exit() const { return lambdas().back(); }
     /// Like \p lambdas() but without \p entry()
-    ArrayRef<Lambda*> body() const { return lambdas().skip_front(1); }
+    ArrayRef<Lambda*> body() const { return lambdas().skip_front(); }
     const DefSet& in_scope() const { return in_scope_; }
     /// deprecated.
     bool _contains(Def def) const { return in_scope_.contains(def); }

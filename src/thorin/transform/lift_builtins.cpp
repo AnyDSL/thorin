@@ -31,7 +31,7 @@ void lift_builtins(World& world) {
                         assert(oops[use.index()] == cur);
                         nops[use.index()] = world.global(lifted, false, lifted->name);   // update to new lifted lambda
                         std::copy(vars.begin(), vars.end(), nops.begin() + oops.size()); // append former free vars
-                        ulambda->jump(cur, nops.skip_front(1));                          // set new args
+                        ulambda->jump(cur, nops.skip_front());                           // set new args
                         // jump to new top-level dummy function
                         ulambda->update_to(world.lambda(ulambda->arg_fn_type(), to->cc(), to->intrinsic(), to->name));
                     }

@@ -184,7 +184,7 @@ void CFABuilder::build_cfg() {
             if (out->def()->isa<Param>())
                 out->link(cfa().exit());
 
-            for (const auto& arg : info.skip_front(1)) {
+            for (const auto& arg : info.skip_front()) {
                 for (auto n : arg)
                     out->link(n);
             }

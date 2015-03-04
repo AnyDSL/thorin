@@ -1,7 +1,7 @@
 #include "thorin/lambda.h"
 #include "thorin/world.h"
 #include "thorin/type.h"
-#include "thorin/analyses/scope.h"
+#include "thorin/analyses/cfg.h"
 #include "thorin/analyses/verify.h"
 #include "thorin/transform/mangle.h"
 
@@ -69,8 +69,8 @@ size_t CFFLowering::process() {
     std::vector<Lambda*> todo;
     for (auto top : top_) {
         Scope scope(top);
-        for (auto i = scope.rbegin(), e = scope.rend(); i != e; ++i) {
-            auto lambda = *i;
+        for (auto n : scope.f_cfg().reverse_in_rpo()) {
+            auto lambda = n->lambda();
             if (!lambda->is_intrinsic() && !lambda->is_passed_to_accelerator()) {
                 if (lambda->num_params() != 0                           // is there sth to drop?
                     && (lambda->type()->is_polymorphic()                // drop polymorphic functions

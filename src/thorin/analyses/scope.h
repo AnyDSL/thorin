@@ -67,10 +67,6 @@ public:
     const_iterator begin() const { return lambdas().begin(); }
     const_iterator end() const { return lambdas().end(); }
 
-    typedef ArrayRef<Lambda*>::const_reverse_iterator const_reverse_iterator;
-    const_reverse_iterator rbegin() const { return lambdas().rbegin(); }
-    const_reverse_iterator rend() const { return lambdas().rend(); }
-
     template<bool elide_empty = true>
     static void for_each(const World&, std::function<void(const Scope&)>);
 

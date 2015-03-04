@@ -209,12 +209,12 @@ inline size_t hash_combine(size_t seed, thorin::ArrayRef<T> aref) {
 
 template<class T>
 struct Hash<thorin::ArrayRef<T>> {
-    size_t operator () (thorin::ArrayRef<T> aref) const { return hash_combine(0, aref); }
+    uint64_t operator () (thorin::ArrayRef<T> aref) const { return hash_combine(0, aref); }
 };
 
 template<class T>
 struct Hash<thorin::Array<T>> {
-    size_t operator () (const thorin::Array<T>& array) const { return hash_value(array.ref()); }
+    uint64_t operator () (const thorin::Array<T>& array) const { return hash_value(array.ref()); }
 };
 
 //------------------------------------------------------------------------------

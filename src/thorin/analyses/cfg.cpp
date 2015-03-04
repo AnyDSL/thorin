@@ -19,7 +19,7 @@ InCFNode::~InCFNode() {
 //------------------------------------------------------------------------------
 
 struct CFNodeHash {
-    size_t operator() (const CFNode* n) const { 
+    uint64_t operator() (const CFNode* n) const { 
         if (auto in = n->isa<InCFNode>())
             return hash_value(in->lambda()->gid());
         auto out = n->as<OutCFNode>();

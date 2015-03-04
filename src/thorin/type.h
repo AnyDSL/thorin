@@ -36,7 +36,7 @@ struct GIDHash {
 
 template<class T>
 struct GIDEq {
-    size_t operator () (T n1, T n2) const { return n1->gid() == n2->gid(); }
+    bool operator () (T n1, T n2) const { return n1->gid() == n2->gid(); }
 };
 
 template<class To>

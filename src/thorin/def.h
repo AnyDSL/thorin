@@ -192,17 +192,17 @@ bool UseLT::operator () (Use use1, Use use2) const { // <- note that we switch t
 
 template<>
 struct Hash<ArrayRef<Def>> {
-    size_t operator () (ArrayRef<Def> defs) const {
-        size_t seed = hash_begin(defs.size());
+    uint64_t operator () (ArrayRef<Def> defs) const {
+        uint64_t seed = hash_begin(defs.size());
         for (auto def : defs)
-            seed = hash_combine(seed, def.empty() ? size_t(-1) : def->gid());
+            seed = hash_combine(seed, def.empty() ? uint64_t(-1) : def->gid());
         return seed;
     }
 };
 
 template<>
 struct Hash<Array<Def>> {
-    size_t operator () (const Array<Def> defs) const { return Hash<ArrayRef<Def>>()(defs); }
+    uint64_t operator () (const Array<Def> defs) const { return Hash<ArrayRef<Def>>()(defs); }
 };
 
 //------------------------------------------------------------------------------

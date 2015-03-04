@@ -32,15 +32,15 @@ public:
         const std::vector<const Node*>& children() const { return children_; }
         size_t num_children() const { return children_.size(); }
         bool entry() const { return idom_ == this; }
-        int depth() const { return depth_; }
         size_t max_index() const;
-        void dump() const;
+        void dump() const { dump(0); }
 
     private:
+        void dump(const int depth) const;
+
         const CFNode* cf_node_;
         mutable const Node* idom_ = nullptr;
         mutable AutoVector<const Node*> children_;
-        mutable int depth_;
         mutable size_t max_index_;
 
         template<bool> friend class DomTreeBase;
@@ -66,7 +66,6 @@ public:
 
 private:
     void create();
-    size_t postprocess(const Node* n, int depth);
 
     const CFG<forward>& cfg_;
     AutoPtr<const Node> root_;

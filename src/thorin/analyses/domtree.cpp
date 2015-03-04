@@ -12,12 +12,12 @@ namespace thorin {
 //------------------------------------------------------------------------------
 
 template<bool forward>
-void DomTreeBase<forward>::Node::dump() const {
-    for (int i = 0, e = depth(); i != e; ++i)
+void DomTreeBase<forward>::Node::dump(const int depth) const {
+    for (int i = 0, e = depth; i != e; ++i)
         std::cout << '\t';
     std::cout << cf_node()->def()->unique_name() << std::endl;
     for (auto child : children())
-        child->dump();
+        child->dump(depth+1);
 }
 
 template<bool forward>
@@ -73,18 +73,7 @@ outer_loop:;
         dom->idom_->children_.push_back(dom);
     }
 
-    auto num = postprocess(root_, 0);
-    assert(num = cfg().size());
     assert((*this)[cfg().entry()] == root());
-}
-
-template<bool forward>
-size_t DomTreeBase<forward>::postprocess(const Node* n, int depth) {
-    n->depth_ = depth;
-    n->max_index_ = 0;
-    for (auto child : n->children())
-        n->max_index_ = std::max(n->max_index_, postprocess(child, depth+1));
-    return n->max_index_;
 }
 
 template<bool forward>

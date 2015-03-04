@@ -47,8 +47,8 @@ public:
         std::ostream& indent() const;
 
         Head* parent_;
-        int depth_;
         std::vector<const CFNode*> cf_nodes_;
+        int depth_;
     };
 
     /// A Head owns further @p Node%s as children.
@@ -73,6 +73,7 @@ public:
         friend class LoopTreeBuilder<forward>;
     };
 
+    /// A Leaf only holds a single @p CFNode and does not have any children.
     class Leaf : public Node {
     public:
         typedef Node Super;

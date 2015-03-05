@@ -21,11 +21,12 @@ template<bool forward>
 class DomTreeBase {
 public:
     class Node {
-    public:
+    private:
         explicit Node(const CFNode* cf_node)
             : cf_node_(cf_node)
         {}
 
+    public:
         const CFNode* cf_node() const { return cf_node_; }
         Lambda* lambda() const;
         const Node* idom() const { return idom_; }

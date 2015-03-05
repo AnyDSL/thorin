@@ -34,9 +34,10 @@ public:
     * Thus, the forest is pooled into a tree.
     */
     class Node : public MagicCast<Node> {
-    public:
+    protected:
         Node(Head* parent, int depth, const std::vector<const CFNode*>&);
 
+    public:
         int depth() const { return depth_; }
         const Head* parent() const { return parent_; }
         ArrayRef<const CFNode*> cf_nodes() const { return cf_nodes_; }
@@ -53,13 +54,14 @@ public:
 
     /// A Head owns further @p Node%s as children.
     class Head : public Node {
-    public:
+    private:
         typedef Node Super;
 
         Head(Head* parent, int depth, const std::vector<const CFNode*>& cf_nodes)
             : Super(parent, depth, cf_nodes)
         {}
 
+    public:
         ArrayRef<Super*> children() const { return children_; }
         const Super* child(size_t i) const { return children_[i]; }
         size_t num_children() const { return children().size(); }
@@ -75,16 +77,17 @@ public:
 
     /// A Leaf only holds a single @p CFNode and does not have any children.
     class Leaf : public Node {
-    public:
+    private:
         typedef Node Super;
 
-        explicit Leaf(size_t index, Head* parent, int depth, const std::vector<const CFNode*>& cf_nodes)
+        Leaf(size_t index, Head* parent, int depth, const std::vector<const CFNode*>& cf_nodes)
             : Super(parent, depth, cf_nodes)
             , index_(index)
         {
             assert(Super::num_cf_nodes() == 1);
         }
 
+    public:
         const CFNode* cf_node() const { return Super::cf_nodes().front(); }
         /// Index of a DFS of the @p LoopTree's @p Leaf%s.
         size_t index() const { return index_; }
@@ -92,6 +95,8 @@ public:
 
     private:
         size_t index_;
+
+        friend class LoopTreeBuilder<forward>;
     };
 
     LoopTree(const LoopTree&) = delete;

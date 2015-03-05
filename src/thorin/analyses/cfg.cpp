@@ -242,9 +242,10 @@ size_t CFG<forward>::post_order_visit(const CFNode* n, size_t i) {
 
 template<bool forward>
 void CFG<forward>::dump() const {
-    for (auto n : rpo())
+    for (auto n : rpo()) {
         for (auto succ : n->succs())
             std::cout << n->def()->unique_name() << " -> " << succ->def()->unique_name() << std::endl;
+    }
 }
 
 template<bool forward> const DomTreeBase<forward>& CFG<forward>::domtree() const { return lazy_init(this, domtree_); }

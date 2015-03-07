@@ -81,8 +81,9 @@ public:
         : CFNode(def)
         , parent_(parent)
     {
-        assert(def->isa<Param>() || def->isa<Lambda>());
+        //assert(def->isa<Param>() || def->isa<Lambda>());
     }
+
     virtual ~OutCFNode() {}
 
     const InCFNode* parent() const { return parent_; }

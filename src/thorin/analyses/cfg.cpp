@@ -176,29 +176,25 @@ void CFABuilder::build_cfg() {
     for (auto in : cfa().in_nodes()) {
         auto info = cf_nodes_per_op(in->lambda());
 
-        auto link_args = [&] (const CFNode* n) {
-            for (const auto& arg : info.skip_front()) {
-                for (auto n_arg : arg)
-                    n->link(n_arg);
-            }
-        };
-
-        bool has_in = false;
         for (auto to : info[0]) {
-            in->link(to);
-            has_in |= (bool) to->isa<InCFNode>();
+            auto out = to->isa<OutCFNode>();
+            if (out && out->parent() != in) {
+                auto new_out = out_node(in, in->lambda()->to()); // TODO what to use as OutCFNode's def?
+                in->link(new_out);
+                new_out->link(out);
+            } else
+                in->link(to);
         }
 
-        if (!has_in && in->out_nodes().empty())
-            link_args(in);
-        else {
-            for (auto pair : in->out_nodes()) {
-                auto out = pair.second;
+        for (auto pair : in->out_nodes()) {
+            auto out = pair.second;
 
-                if (out->def()->isa<Param>())
-                    out->link(cfa().exit());
+            if (out->def()->isa<Param>())
+                out->link(cfa().exit());
 
-                link_args(out);
+            for (const auto& arg : info.skip_front()) {
+                for (auto n_arg : arg)
+                    out->link(n_arg);
             }
         }
     }

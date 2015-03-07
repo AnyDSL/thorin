@@ -106,8 +106,8 @@ public:
 
     const CFG<forward>& cfg() const { return cfg_; }
     const Head* root() const { return root_; }
-    void dump() const { root()->dump(); }
     const Leaf* operator [] (const CFNode* n) const { return find(leaves_, n); }
+    void dump() const { root()->dump(); }
 
 private:
     const CFG<forward>& cfg_;

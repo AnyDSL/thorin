@@ -106,14 +106,12 @@ public:
 
     const CFG<forward>& cfg() const { return cfg_; }
     const Head* root() const { return root_; }
-    int depth(const CFNode* n) const { return cf2leaf(n)->depth(); }
-    size_t cf2dfs(const CFNode* n) const { return cf2leaf(n)->index(); }
     void dump() const { root()->dump(); }
-    const Leaf* cf2leaf(const CFNode* n) const { return find(cf2leaf_, n); }
+    const Leaf* operator [] (const CFNode* n) const { return find(leaves_, n); }
 
 private:
     const CFG<forward>& cfg_;
-    typename CFG<forward>::template Map<Leaf*> cf2leaf_;
+    typename CFG<forward>::template Map<Leaf*> leaves_;
     AutoPtr<Head> root_;
 
     friend class LoopTreeBuilder<forward>;

@@ -176,7 +176,7 @@ int LoopTreeBuilder<forward>::walk_scc(const CFNode* cur, Head* parent, int dept
 
         if (is_leaf(cur, num)) {
             assert(heads.size() == 1);
-            looptree_.cf2leaf_[heads.front()] = new Leaf(index_++, parent, depth, heads);
+            looptree_.leaves_[heads.front()] = new Leaf(index_++, parent, depth, heads);
         } else
             new Head(parent, depth, heads);
 
@@ -232,7 +232,7 @@ void LoopTree<forward>::Head::dump() const {
 template<bool forward>
 LoopTree<forward>::LoopTree(const CFG<forward>& cfg)
     : cfg_(cfg)
-    , cf2leaf_(cfg)
+    , leaves_(cfg)
 {
     LoopTreeBuilder<forward>(*this);
 }

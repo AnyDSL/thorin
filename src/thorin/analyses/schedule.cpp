@@ -167,10 +167,10 @@ const Schedule schedule_smart(const Scope& scope) {
             if (primop->isa<Enter>() || primop->isa<Slot>() || Enter::is_out_mem(primop) || Enter::is_out_frame(primop))
                 lambda_best = lambda_early;
             else {
-                int depth = looptree.depth(cfg[lambda_best]);
+                int depth = looptree[cfg[lambda_best]]->depth();
                 for (auto i = lambda_best; i != lambda_early;) {
                     i = domtree[cfg[i]]->idom()->lambda();
-                    int cur_depth = looptree.cf2leaf(cfg[i])->depth();
+                    int cur_depth = looptree[cfg[i]]->depth();
                     if (cur_depth < depth) {
                         lambda_best = i;
                         depth = cur_depth;

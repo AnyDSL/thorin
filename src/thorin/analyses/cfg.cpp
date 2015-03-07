@@ -159,9 +159,10 @@ void CFABuilder::run_cfa() {
                         for (auto n : info[i]) {
                             if (auto info_in = n->isa<InCFNode>()) {
                                 auto in_lambda = info_in->lambda();
-                                for (size_t p = 0; p != in_lambda->num_params(); ++p)
+                                for (size_t p = 0; p != in_lambda->num_params(); ++p) {
                                     if (in_lambda->param(p)->order() >= 1)
                                         todo |= lambda2param2nodes_[in_lambda][p].insert(out).second;
+                                }
                             }
                         }
                     }
@@ -175,18 +176,29 @@ void CFABuilder::build_cfg() {
     for (auto in : cfa().in_nodes()) {
         auto info = cf_nodes_per_op(in->lambda());
 
-        for (auto to : info[0])
-            in->link(to);
-
-        for (auto pair : in->out_nodes()) {
-            auto out = pair.second;
-
-            if (out->def()->isa<Param>())
-                out->link(cfa().exit());
-
+        auto link_args = [&] (const CFNode* n) {
             for (const auto& arg : info.skip_front()) {
-                for (auto n : arg)
-                    out->link(n);
+                for (auto n_arg : arg)
+                    n->link(n_arg);
+            }
+        };
+
+        bool has_in = false;
+        for (auto to : info[0]) {
+            in->link(to);
+            has_in |= (bool) to->isa<InCFNode>();
+        }
+
+        if (!has_in && in->out_nodes().empty())
+            link_args(in);
+        else {
+            for (auto pair : in->out_nodes()) {
+                auto out = pair.second;
+
+                if (out->def()->isa<Param>())
+                    out->link(cfa().exit());
+
+                link_args(out);
             }
         }
     }

@@ -1,11 +1,12 @@
-#include "thorin/primop.h"
 #include "thorin/analyses/cfg.h"
+
+#include <iostream>
+
+#include "thorin/primop.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/looptree.h"
 #include "thorin/util/queue.h"
-
-#include <iostream>
 
 namespace thorin {
 

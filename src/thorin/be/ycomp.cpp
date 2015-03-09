@@ -6,6 +6,7 @@
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/util/printer.h"
+#include "thorin/be/thorin.h"
 
 namespace thorin {
 
@@ -18,10 +19,6 @@ private:
 
     static void EMIT_NOOP() { }
 
-    std::ostream& emit_type_vars(Type);
-    std::ostream& emit_type_args(Type);
-    std::ostream& emit_type_elems(Type);
-    std::ostream& emit_type(Type);
     std::ostream& emit_name(Def);
 
     std::ostream& emit_operands(Def def);
@@ -58,86 +55,6 @@ public:
 
 //------------------------------------------------------------------------------
 
-std::ostream& YCompGen::emit_type_vars(Type type) {
-    if (type->num_type_vars() != 0)
-        return dump_list([&](TypeVar type_var) { emit_type(type_var); }, type->type_vars(), "[", "]");
-    return stream();
-}
-
-std::ostream& YCompGen::emit_type_args(Type type) {
-    return dump_list([&](Type type) { emit_type(type); }, type->args(), "(", ")");
-}
-
-std::ostream& YCompGen::emit_type_elems(Type type) {
-    if (auto struct_app = type.isa<StructAppType>())
-        return dump_list([&](Type type) { emit_type(type); }, struct_app->elems(), "{", "}");
-    return emit_type_args(type);
-}
-
-std::ostream& YCompGen::emit_type(Type type) {
-    if (type.empty()) {
-        return stream() << "<NULL>";
-    } else if (type.isa<FrameType>()) {
-        return stream() << "frame";
-    } else if (type.isa<MemType>()) {
-        return stream() << "mem";
-    } else if (auto fn = type.isa<FnType>()) {
-        stream() << "fn";
-        emit_type_vars(fn);
-        return emit_type_args(fn);
-    } else if (auto tuple = type.isa<TupleType>()) {
-        emit_type_vars(tuple);
-        return emit_type_args(tuple);
-    } else if (auto struct_abs = type.isa<StructAbsType>()) {
-        stream() << struct_abs->name();
-        return emit_type_vars(struct_abs);
-        // TODO emit args - but don't do this inline: structs may be recursive
-        //return emit_type_args(struct_abs);
-    } else if (auto struct_app = type.isa<StructAppType>()) {
-        stream() << struct_app->struct_abs_type()->name();
-        return emit_type_elems(struct_app);
-    } else if (auto type_var = type.isa<TypeVar>()) {
-        return stream() << '<' << type_var->gid() << '>';
-    } else if (auto array = type.isa<IndefiniteArrayType>()) {
-        stream() << '[';
-        emit_type(array->elem_type());
-        return stream() << ']';
-    } else if (auto array = type.isa<DefiniteArrayType>()) {
-        stream() << '[' << array->dim() << " x ";
-        emit_type(array->elem_type());
-        return stream() << ']';
-    } else if (auto ptr = type.isa<PtrType>()) {
-        if (ptr->is_vector())
-            stream() << '<' << ptr->length() << " x ";
-        emit_type(ptr->referenced_type());
-        stream() << '*';
-        if (ptr->is_vector())
-            stream() << '>';
-        auto device = ptr->device();
-        if (device != -1)
-            stream() << '[' << device << ']';
-        switch (ptr->addr_space()) {
-            case AddressSpace::Global:   stream() << "[Global]";   break;
-            case AddressSpace::Texture:  stream() << "[Tex]";      break;
-            case AddressSpace::Shared:   stream() << "[Shared]";   break;
-            case AddressSpace::Constant: stream() << "[Constant]"; break;
-            default: /* ignore unknown address space */            break;
-        }
-        return stream();
-    } else if (auto primtype = type.isa<PrimType>()) {
-        if (primtype->is_vector())
-            stream() << "<" << primtype->length() << " x ";
-            switch (primtype->primtype_kind()) {
-#define THORIN_ALL_TYPE(T, M) case Node_PrimType_##T: stream() << #T; break;
-#include "thorin/tables/primtypetable.h"
-                default: THORIN_UNREACHABLE;
-            }
-        if (primtype->is_vector())
-            stream() << ">";
-        return stream();
-    }
-    THORIN_UNREACHABLE;
-}
 
 std::ostream& YCompGen::emit_operands(Def def) {
     int i = 0;
@@ -164,7 +81,7 @@ std::ostream& YCompGen::emit_def(Def def) {
     } else {
         // XXX what is it?
         write_node(def->gid(), std::bind(&YCompGen::emit_name, this, def),
-            std::bind(&YCompGen::emit_type, this, def->type()));
+            std::bind(emit_type, def->type()));
         emit_operands(def);
     }
     emitted_defs.insert(def);
@@ -212,7 +129,8 @@ std::ostream& YCompGen::emit_primop(const PrimOp* primop) {
             } else {
                 stream() << '(';
                 if (primop->isa<PrimLit>()) {
-                    emit_type(primop->type()) << ' ';
+                    emit_type(primop->type());
+                    stream() << ' ';
                 }
                 stream() << primop->op_name() << ')';
             }
@@ -281,7 +199,7 @@ std::ostream& YCompGen::emit_lambda(const Lambda* lambda) {
     emitted_defs.insert(lambda);
     write_node(lambda->gid(),
         [&] { stream() << "λ "; emit_name(lambda); },
-        [&] { emit_type_vars(lambda->type()); });
+        [&] { emit_type(lambda->type()); });
     if (!lambda->empty()) {
         write_edge(lambda->gid(), lambda->to()->gid(), true);
         int i = 0;
@@ -299,8 +217,7 @@ std::ostream& YCompGen::emit_lambda_graph_begin(const Lambda* lambda) {
     emit_name(lambda);
     stream() << "\"";
     newline() << "info1: \"";
-    emit_type_vars(lambda->type());
-    dump_list([&](const Param* param) { emit_type(param->type()); }, lambda->params(), "(", ")");
+    emit_type(lambda->type());
 
     if (lambda->is_external())
         stream() << " extern";

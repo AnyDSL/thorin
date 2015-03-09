@@ -8,11 +8,9 @@ namespace thorin {
 template<class Indexer, class Key>
 class IndexSet {
 public:
-    static const size_t npos = -1;
-
     class reference {
     private:
-        reference(uint64_t& word, size_t pos)
+        reference(uint64_t& word, uint64_t pos)
             : word_(word)
             , pos_(pos)
         {}
@@ -20,16 +18,16 @@ public:
     public:
         reference operator=(bool b) {
             if (b) 
-                word_ |= 1 << pos_;
+                word_ |= uint64_t(1) << pos_;
             else   
-                word_ &= ~(1 << pos_);
+                word_ &= ~(uint64_t(1) << pos_);
             return *this;
         }
-        operator bool() const { return word_ & ( 1 << pos_); }
+        operator bool() const { return word_ & (uint64_t(1) << pos_); }
 
     private:
         uint64_t& word_;
-        size_t pos_;
+        uint64_t pos_;
 
         friend class IndexSet;
     };
@@ -82,7 +80,7 @@ public:
     void unset(Key key) { (*this)[key] = false; }
     void toggle(Key key) { bool old = (*this)[key]; (*this)[key] = !old; }
     bool contains(Key key) const { return (*this)[key]; }
-    void clear() { std::fill(bits_.begin(), bits_.end(), 0ull); }
+    void clear() { std::fill(bits_.begin(), bits_.end(), 0u); }
     template<class Op>
     IndexSet& transform(const IndexSet& other, Op op) {
         assert(this->size() == other.size());

@@ -238,6 +238,7 @@ void emit_thorin(const World& world) {
 
 void emit_type(Type type)                  { CodeGen().emit_type(type);         }
 void emit_def(Def def)                     { CodeGen().emit_def(def);           }
+void emit_name(Def def)                    { CodeGen().emit_name(def);          }
 void emit_head(const Lambda* lambda)       { CodeGen().emit_head(lambda);       }
 void emit_jump(const Lambda* lambda)       { CodeGen().emit_jump(lambda);       }
 void emit_assignment(const PrimOp* primop) { CodeGen().emit_assignment(primop); }

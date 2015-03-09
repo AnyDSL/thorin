@@ -12,6 +12,7 @@ void emit_thorin(const Scope&);
 void emit_thorin(const World&);
 void emit_type(Type);
 void emit_def(Def);
+void emit_name(Def);
 void emit_assignment(const PrimOp*);
 void emit_head(const Lambda*);
 void emit_jump(const Lambda*);

@@ -19,8 +19,6 @@ private:
 
     static void EMIT_NOOP() { }
 
-    std::ostream& emit_name(Def);
-
     std::ostream& emit_operands(Def def);
     std::ostream& emit_lambda_graph_begin(const Lambda*);
     std::ostream& emit_lambda_graph_params(const Lambda*);
@@ -80,16 +78,12 @@ std::ostream& YCompGen::emit_def(Def def) {
         emit_param(param);
     } else {
         // XXX what is it?
-        write_node(def->gid(), std::bind(&YCompGen::emit_name, this, def),
-            std::bind(emit_type, def->type()));
+        write_node(def->gid(), [&] { emit_name(def); },
+            [&] { emit_type(def->type()); });
         emit_operands(def);
     }
     emitted_defs.insert(def);
     return stream();
-}
-
-std::ostream& YCompGen::emit_name(Def def) {
-    return stream() << def->unique_name();
 }
 
 std::ostream& YCompGen::emit_primop(const PrimOp* primop) {
@@ -142,7 +136,8 @@ std::ostream& YCompGen::emit_primop(const PrimOp* primop) {
         if (auto vectorop = primop->isa<VectorOp>()) {
             if (!vectorop->cond()->is_allset()) {
                 stream() << "@ ";
-                emit_name(vectorop->cond()) << " ";
+                emit_name(vectorop->cond());
+                stream() << " ";
             }
             //ops = ops.slice_from_begin(1);
         }

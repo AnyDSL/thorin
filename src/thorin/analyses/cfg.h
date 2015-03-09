@@ -158,6 +158,7 @@ public:
     explicit CFG(const CFA&);
 
     const CFA& cfa() const { return cfa_; }
+    const Scope& scope() const { return cfa().scope(); }
     size_t size() const { return cfa_.num_cf_nodes(); }
     ArrayRef<const CFNode*> preds(const CFNode* n) const { return forward ? n->preds() : n->succs(); }
     ArrayRef<const CFNode*> succs(const CFNode* n) const { return forward ? n->succs() : n->preds(); }

@@ -7,8 +7,6 @@
 #include "thorin/analyses/scope.h"
 #include "thorin/util/printer.h"
 
-using namespace std::placeholders;
-
 namespace thorin {
 
 typedef std::function<void ()> Emitter;
@@ -49,10 +47,9 @@ private:
         Emitter info2 = EMIT_NOOP,
         Emitter info3 = EMIT_NOOP);
 public:
-    YCompGen(bool scheduled, bool fancy, bool colored = false, int indent = 0)
-        : Printer(std::cout, fancy, colored),
+    YCompGen(bool scheduled)
+        : Printer(std::cout),
         scheduled_(scheduled) {
-        this->indent = indent;
     }
 
     void emit_scope(const Scope& scope);
@@ -175,15 +172,7 @@ std::ostream& YCompGen::emit_def(Def def) {
 }
 
 std::ostream& YCompGen::emit_name(Def def) {
-    if (is_fancy()) // elide white = 0 and black = 7
-        color(def->gid() % 6 + 30 + 1);
-
-    std::ostream& s = stream() << def->unique_name();
-
-    if (is_fancy())
-        reset_color();
-
-    return s;
+    return stream() << def->unique_name();
 }
 
 std::ostream& YCompGen::emit_primop(const PrimOp* primop) {
@@ -412,13 +401,13 @@ void YCompGen::emit_world(const World& world) {
 
 //------------------------------------------------------------------------------
 
-void emit_ycomp(const Scope& scope, bool scheduled, int indent, bool fancy, bool colored) {
-    YCompGen cg(scheduled, fancy, colored, indent);
+void emit_ycomp(const Scope& scope, bool scheduled) {
+    YCompGen cg(scheduled);
     cg.emit_scope(scope);
 }
 
-void emit_ycomp(const World& world, bool scheduled, bool fancy, bool colored) {
-    YCompGen cg(scheduled, fancy, colored);
+void emit_ycomp(const World& world, bool scheduled) {
+    YCompGen cg(scheduled);
     cg.emit_world(world);
 }
 

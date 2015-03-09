@@ -8,8 +8,8 @@ namespace thorin {
 
 class Scope;
 
-void emit_thorin(const Scope&, bool fancy = true, bool colored = false);
-void emit_thorin(const World&, bool fancy = true, bool colored = false);
+void emit_thorin(const Scope&);
+void emit_thorin(const World&);
 void emit_type(Type);
 void emit_def(Def);
 void emit_assignment(const PrimOp*);

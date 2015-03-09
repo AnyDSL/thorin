@@ -11,8 +11,8 @@ namespace thorin {
 
 class CodeGen : public Printer {
 public:
-    CodeGen(bool fancy, bool colored = false)
-        : Printer(std::cout, fancy, colored)
+    CodeGen()
+        : Printer(std::cout)
     {}
 
     std::ostream& emit_type_vars(Type);
@@ -117,14 +117,7 @@ std::ostream& CodeGen::emit_def(Def def) {
 }
 
 std::ostream& CodeGen::emit_name(Def def) {
-    if (is_fancy()) // elide white = 0 and black = 7
-        color(def->gid() % 6 + 30 + 1);
-
-    stream() << (def->isa<Lambda>() && def->as<Lambda>()->is_intrinsic() ? def->name : def->unique_name());
-
-    if (is_fancy())
-        reset_color();
-    return stream();
+    return stream() << (def->isa<Lambda>() && def->as<Lambda>()->is_intrinsic() ? def->name : def->unique_name());
 }
 
 std::ostream& CodeGen::emit_primop(const PrimOp* primop) {
@@ -210,8 +203,8 @@ std::ostream& CodeGen::emit_jump(const Lambda* lambda) {
 
 //------------------------------------------------------------------------------
 
-void emit_thorin(const Scope& scope, bool fancy, bool nocolor) {
-    CodeGen cg(fancy, nocolor);
+void emit_thorin(const Scope& scope) {
+    CodeGen cg;
     auto schedule = schedule_smart(scope);
     auto bbs = bb_schedule(scope);
     for (auto lambda : bbs) {
@@ -231,8 +224,8 @@ void emit_thorin(const Scope& scope, bool fancy, bool nocolor) {
     cg.newline();
 }
 
-void emit_thorin(const World& world, bool fancy, bool nocolor) {
-    CodeGen cg(fancy, nocolor);
+void emit_thorin(const World& world) {
+    CodeGen cg;
     cg.stream() << "module '" << world.name() << "'\n\n";
 
     for (auto primop : world.primops()) {
@@ -240,19 +233,19 @@ void emit_thorin(const World& world, bool fancy, bool nocolor) {
             cg.emit_assignment(global);
     }
 
-    Scope::for_each<false>(world, [&] (const Scope& scope) { emit_thorin(scope, fancy, nocolor); });
+    Scope::for_each<false>(world, [&] (const Scope& scope) { emit_thorin(scope); });
 }
 
-void emit_type(Type type)                  { CodeGen(false).emit_type(type);         }
-void emit_def(Def def)                     { CodeGen(false).emit_def(def);           }
-void emit_head(const Lambda* lambda)       { CodeGen(false).emit_head(lambda);       }
-void emit_jump(const Lambda* lambda)       { CodeGen(false).emit_jump(lambda);       }
-void emit_assignment(const PrimOp* primop) { CodeGen(false).emit_assignment(primop); }
+void emit_type(Type type)                  { CodeGen().emit_type(type);         }
+void emit_def(Def def)                     { CodeGen().emit_def(def);           }
+void emit_head(const Lambda* lambda)       { CodeGen().emit_head(lambda);       }
+void emit_jump(const Lambda* lambda)       { CodeGen().emit_jump(lambda);       }
+void emit_assignment(const PrimOp* primop) { CodeGen().emit_assignment(primop); }
 
 //------------------------------------------------------------------------------
 
-void Scope::dump() const { emit_thorin(*this, false, false); }
-void World::dump() const { emit_thorin(*this, false, false); }
+void Scope::dump() const { emit_thorin(*this); }
+void World::dump() const { emit_thorin(*this); }
 
 //------------------------------------------------------------------------------
 

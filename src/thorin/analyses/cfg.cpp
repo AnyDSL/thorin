@@ -60,7 +60,6 @@ public:
     CFABuilder(CFA& cfa)
         : cfa_(cfa)
         , lambda2param2nodes_(cfa.scope(), std::vector<CFNodeSet>(0))
-        , reachable_(scope())
     {
         in_node(scope().entry());
         in_node(scope().exit());
@@ -80,7 +79,6 @@ public:
         if (auto in = find(cfa().in_nodes(), lambda))
             return in;
         ++cfa_.num_cf_nodes_;
-        reachable_.insert(lambda);
         auto in = cfa_.in_nodes_[lambda] = new InCFNode(lambda);
         lambda2param2nodes_[lambda].resize(lambda->num_params()); // make room for params
         return in;
@@ -101,7 +99,6 @@ public:
 private:
     CFA& cfa_;
     Scope::Map<std::vector<CFNodeSet>> lambda2param2nodes_; ///< Maps param in scope to CFNodeSet.
-    Scope::Set reachable_;
 };
 
 Array<CFNodeSet> CFABuilder::cf_nodes_per_op(Lambda* lambda) {
@@ -140,7 +137,7 @@ void CFABuilder::run_cfa() {
         todo = false;
 
         for (auto lambda : scope()) {
-            if (!reachable_.contains(lambda))
+            if (find(cfa().in_nodes(), lambda) == nullptr)
                 continue;
 
             size_t old = cfa().num_cf_nodes();

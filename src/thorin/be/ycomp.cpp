@@ -77,8 +77,9 @@ std::ostream& YCompGen::emit_def(Def def) {
     } else if (auto param = def->isa<Param>()) {
         emit_param(param);
     } else {
-        // XXX what is it?
-        write_node(def->gid(), [&] { emit_name(def); },
+        // default, but should not happen...
+        write_node(def->gid(),
+            [&] { emit_name(def); },
             [&] { emit_type(def->type()); });
         emit_operands(def);
     }
@@ -132,14 +133,12 @@ std::ostream& YCompGen::emit_primop(const PrimOp* primop) {
             stream() << primop->op_name() << " ";
             emit_name(primop);
         }
-        //auto ops = primop->ops();
         if (auto vectorop = primop->isa<VectorOp>()) {
             if (!vectorop->cond()->is_allset()) {
                 stream() << "@ ";
                 emit_name(vectorop->cond());
                 stream() << " ";
             }
-            //ops = ops.slice_from_begin(1);
         }
     };
     write_node(primop->gid(), emit_label,

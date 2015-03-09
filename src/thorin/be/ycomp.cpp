@@ -3,7 +3,6 @@
 #include "thorin/primop.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
-#include "thorin/analyses/bb_schedule.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/util/printer.h"
@@ -17,6 +16,7 @@ typedef std::function<void ()> Emitter;
 class YCompGen : public Printer {
 private:
     DefSet emitted_defs;
+    bool scheduled_;
 
     static void EMIT_NOOP() { }
 
@@ -49,8 +49,9 @@ private:
         Emitter info2 = EMIT_NOOP,
         Emitter info3 = EMIT_NOOP);
 public:
-    YCompGen(bool fancy, bool colored = false, int indent = 0)
-        : Printer(std::cout, fancy, colored) {
+    YCompGen(bool scheduled, bool fancy, bool colored = false, int indent = 0)
+        : Printer(std::cout, fancy, colored),
+        scheduled_(scheduled) {
         this->indent = indent;
     }
 
@@ -367,17 +368,22 @@ std::ostream& YCompGen::emit_lambda_graph(const Lambda* lambda) {
 }
 
 void YCompGen::emit_scope(const Scope& scope) {
-    auto schedule = schedule_smart(scope);
-    // auto bbs = bb_schedule(scope);
     newline() << "graph: {";
     up() << "title: \"scope" << scope.id() << "\"";
     newline() << "label: \"scope " << scope.id() << "\"";
-    for (auto lambda : scope) {
-        emit_lambda_graph(lambda, schedule[lambda]);
+    if (scheduled_) {
+        auto schedule = schedule_smart(scope);
+        for (auto lambda : scope) {
+            emit_lambda_graph(lambda, schedule[lambda]);
+        }
+    } else {
+        for (auto lambda : scope) {
+            emit_lambda_graph(lambda);
+        }
+        for (auto def : scope.in_scope()) {
+           emit_def(def);
+        }
     }
-    //for (auto def : scope.in_scope()) {
-    //    cg.emit_def(def);
-    //}
     down() << "}";
     newline();
 }
@@ -393,8 +399,11 @@ void YCompGen::emit_world(const World& world) {
 
     for (auto primop : world.primops()) {
         emit_def(primop);
-        //if (auto global = primop->isa<Global>())
-//            cg.emit_primop(global);
+        if (!scheduled_) {
+            if (auto global = primop->isa<Global>()) {
+                emit_primop(global);
+            }
+        }
     }
 
     down() << "}";
@@ -403,13 +412,13 @@ void YCompGen::emit_world(const World& world) {
 
 //------------------------------------------------------------------------------
 
-void emit_ycomp(const Scope& scope, int indent = 0, bool fancy = true, bool colored = false) {
-    YCompGen cg(fancy, colored, indent);
+void emit_ycomp(const Scope& scope, bool scheduled, int indent, bool fancy, bool colored) {
+    YCompGen cg(scheduled, fancy, colored, indent);
     cg.emit_scope(scope);
 }
 
-void emit_ycomp(const World& world, bool fancy, bool colored) {
-    YCompGen cg(fancy, colored);
+void emit_ycomp(const World& world, bool scheduled, bool fancy, bool colored) {
+    YCompGen cg(scheduled, fancy, colored);
     cg.emit_world(world);
 }
 

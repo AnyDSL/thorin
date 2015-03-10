@@ -26,6 +26,8 @@ public:
         operator bool() const { return word_ & (uint64_t(1) << pos_); }
 
     private:
+        uint64_t word() const { return word_; }
+
         uint64_t& word_;
         uint64_t pos_;
 
@@ -64,23 +66,20 @@ public:
         return reference(bits_[i / 64u], i % 64u);
     }
     bool operator[] (Key key) const { return (*const_cast<IndexSet<Indexer, Key>*>(this))[key]; }
-    /// Inserts \p key and returns true if successful.
-    bool insert(Key key) { 
-        if (contains(key))
-            return false;
-        set(key);
-        return true;
+
+    /// Depending on @p flag this method either inserts (true) or removes (false) @p key and returns true if successful.
+    template<bool flag>
+    bool set(Key key) { 
+        auto ref = (*this)[key];
+        auto old = ref.word();
+        ref = flag;
+        return old != ref.word();
     }
-    template<class Iter>
-    void insert(Iter begin, Iter end) {
-        for (auto i = begin; i != end; ++i)
-            set(*i);
-    }
-    void set(Key key) { (*this)[key] = true; }
-    void unset(Key key) { (*this)[key] = false; }
-    void toggle(Key key) { bool old = (*this)[key]; (*this)[key] = !old; }
+    bool insert(Key key) { return set<true>(key); } ///< Inserts \p key and returns true if successful.
+    bool erase(Key key) { return set<false>(key); } ///< Erase \p and returns true if successful.
     bool contains(Key key) const { return (*this)[key]; }
     void clear() { std::fill(bits_.begin(), bits_.end(), 0u); }
+
     template<class Op>
     IndexSet& transform(const IndexSet& other, Op op) {
         assert(this->size() == other.size());

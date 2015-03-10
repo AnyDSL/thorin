@@ -1,3 +1,5 @@
+#include "thorin/be/thorin.h"
+
 #include "thorin/lambda.h"
 #include "thorin/primop.h"
 #include "thorin/type.h"
@@ -10,8 +12,8 @@ namespace thorin {
 
 class CodeGen : public Printer {
 public:
-    CodeGen()
-        : Printer(std::cout)
+    CodeGen(std::ostream& ostream)
+        : Printer(ostream)
     {}
 
     std::ostream& emit_type_vars(Type);
@@ -202,8 +204,8 @@ std::ostream& CodeGen::emit_jump(const Lambda* lambda) {
 
 //------------------------------------------------------------------------------
 
-void emit_thorin(const Scope& scope) {
-    CodeGen cg;
+std::ostream& emit_thorin(const Scope& scope, std::ostream& ostream) {
+    CodeGen cg(ostream);
     auto schedule = schedule_smart(scope);
     for (auto& block : schedule) {
         auto lambda = block.lambda();
@@ -220,11 +222,11 @@ void emit_thorin(const Scope& scope) {
             cg.indent -= depth;
         }
     }
-    cg.newline();
+    return cg.newline();
 }
 
-void emit_thorin(const World& world) {
-    CodeGen cg;
+std::ostream& emit_thorin(const World& world, std::ostream& ostream) {
+    CodeGen cg(ostream);
     cg.stream() << "module '" << world.name() << "'\n\n";
 
     for (auto primop : world.primops()) {
@@ -232,15 +234,16 @@ void emit_thorin(const World& world) {
             cg.emit_assignment(global);
     }
 
-    Scope::for_each<false>(world, [&] (const Scope& scope) { emit_thorin(scope); });
+    Scope::for_each<false>(world, [&] (const Scope& scope) { emit_thorin(scope, ostream); });
+    return ostream;
 }
 
-void emit_type(Type type)                  { CodeGen().emit_type(type);         }
-void emit_def(Def def)                     { CodeGen().emit_def(def);           }
-void emit_name(Def def)                    { CodeGen().emit_name(def);          }
-void emit_head(const Lambda* lambda)       { CodeGen().emit_head(lambda);       }
-void emit_jump(const Lambda* lambda)       { CodeGen().emit_jump(lambda);       }
-void emit_assignment(const PrimOp* primop) { CodeGen().emit_assignment(primop); }
+std::ostream& emit_type(Type type, std::ostream& ostream)                  { return CodeGen(ostream).emit_type(type);         }
+std::ostream& emit_def(Def def, std::ostream& ostream)                     { return CodeGen(ostream).emit_def(def);           }
+std::ostream& emit_name(Def def, std::ostream& ostream)                    { return CodeGen(ostream).emit_name(def);          }
+std::ostream& emit_head(const Lambda* lambda, std::ostream& ostream)       { return CodeGen(ostream).emit_head(lambda);       }
+std::ostream& emit_jump(const Lambda* lambda, std::ostream& ostream)       { return CodeGen(ostream).emit_jump(lambda);       }
+std::ostream& emit_assignment(const PrimOp* primop, std::ostream& ostream) { return CodeGen(ostream).emit_assignment(primop); }
 
 //------------------------------------------------------------------------------
 

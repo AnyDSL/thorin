@@ -1,18 +1,26 @@
-#include <sstream>
 #include "thorin/lambda.h"
 #include "thorin/primop.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/util/printer.h"
 #include "thorin/be/thorin.h"
+#include "thorin/util/printer.h"
 
 namespace thorin {
 
-typedef std::function<void ()> Emitter;
+typedef std::function<void()> Emitter;
 
 class YCompGen : public Printer {
+public:
+    YCompGen(bool scheduled, std::ostream& ostream)
+        : Printer(ostream)
+        , scheduled_(scheduled) 
+    {}
+
+    void emit_scope(const Scope& scope);
+    void emit_world(const World& world);
+
 private:
     DefSet emitted_defs;
     bool scheduled_;
@@ -32,6 +40,9 @@ private:
     std::ostream& emit_lambda_graph(const Lambda*);
     std::ostream& emit_block(const Schedule::Block&);
 
+    std::ostream& emit_type(Type type) { return thorin::emit_type(type, stream()); }
+    std::ostream& emit_name(Def def) { return thorin::emit_name(def, stream()); }
+
     template<typename T, typename U>
     std::ostream& write_edge(T source, U target, bool control_flow,
         Emitter label = EMIT_NOOP);
@@ -41,14 +52,6 @@ private:
         Emitter info1 = EMIT_NOOP,
         Emitter info2 = EMIT_NOOP,
         Emitter info3 = EMIT_NOOP);
-public:
-    YCompGen(bool scheduled)
-        : Printer(std::cout),
-        scheduled_(scheduled) {
-    }
-
-    void emit_scope(const Scope& scope);
-    void emit_world(const World& world);
 };
 
 //------------------------------------------------------------------------------
@@ -275,12 +278,10 @@ void YCompGen::emit_scope(const Scope& scope) {
         for (auto& block : schedule)
             emit_block(block);
     } else {
-        for (auto lambda : scope) {
+        for (auto lambda : scope)
             emit_lambda_graph(lambda);
-        }
-        for (auto def : scope.in_scope()) {
+        for (auto def : scope.in_scope())
            emit_def(def);
-        }
     }
     down() << "}";
     newline();
@@ -310,13 +311,13 @@ void YCompGen::emit_world(const World& world) {
 
 //------------------------------------------------------------------------------
 
-void emit_ycomp(const Scope& scope, bool scheduled) {
-    YCompGen cg(scheduled);
+void emit_ycomp(const Scope& scope, bool scheduled, std::ostream& ostream) {
+    YCompGen cg(scheduled, ostream);
     cg.emit_scope(scope);
 }
 
-void emit_ycomp(const World& world, bool scheduled) {
-    YCompGen cg(scheduled);
+void emit_ycomp(const World& world, bool scheduled, std::ostream& ostream) {
+    YCompGen cg(scheduled, ostream);
     cg.emit_world(world);
 }
 

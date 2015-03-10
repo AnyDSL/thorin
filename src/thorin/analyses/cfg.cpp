@@ -1,12 +1,15 @@
 #include "thorin/analyses/cfg.h"
 
 #include <iostream>
+#include <fstream>
 
 #include "thorin/primop.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/looptree.h"
 #include "thorin/util/queue.h"
+
+#include "thorin/be/ycomp.h"
 
 namespace thorin {
 
@@ -227,7 +230,20 @@ CFG<forward>::CFG(const CFA& cfa)
     , rpo_(*this)
 {
     size_t result = post_order_visit(entry(), cfa.num_cf_nodes());
-    assert(result == 0);
+#ifndef NDEBUG
+    if (result != 0) {
+        {
+            std::cout << "missing predecessors:" << std::endl;
+            for (auto in : cfa.in_nodes()) {
+                if (in != entry() && num_preds(in) == 0)
+                    in->dump();
+            }
+            std::ofstream out("out.vcg");
+            emit_ycomp(scope(), false, out);
+        }
+        abort();
+    }
+#endif
 }
 
 template<bool forward>

@@ -29,7 +29,6 @@
 #include "thorin/world.h"
 #include "thorin/util/array.h"
 #include "thorin/util/push.h"
-#include "thorin/analyses/bb_schedule.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/be/llvm/cuda.h"
@@ -153,16 +152,17 @@ void CodeGen::emit(int opt) {
         assert(ret_param);
 
         BBMap bb2lambda;
-        auto bbs = bb_schedule(scope);
+        auto schedule = schedule_smart(scope);
 
-        for (auto bb_lambda : bbs) {
+        for (auto& block : schedule) {
+            auto lambda = block.lambda();
             // map all bb-like lambdas to llvm bb stubs
-            if (bb_lambda->intrinsic() != Intrinsic::EndScope) {
-                auto bb = bb2lambda[bb_lambda] = llvm::BasicBlock::Create(context_, bb_lambda->name, fct);
+            if (lambda->intrinsic() != Intrinsic::EndScope) {
+                auto bb = bb2lambda[lambda] = llvm::BasicBlock::Create(context_, lambda->name, fct);
 
                 // create phi node stubs (for all non-cascading lambdas different from entry)
-                if (!bb_lambda->is_cascading() && entry_ != bb_lambda) {
-                    for (auto param : bb_lambda->params())
+                if (!lambda->is_cascading() && entry_ != lambda) {
+                    for (auto param : lambda->params())
                         if (!param->type().isa<MemType>())
                             phis_[param] = llvm::PHINode::Create(convert(param->type()), (unsigned) param->peek().size(), param->name, bb);
                 }
@@ -174,35 +174,34 @@ void CodeGen::emit(int opt) {
         builder_.SetInsertPoint(startBB);
         emit_function_start(startBB, entry_);
         builder_.CreateBr(oldStartBB);
-        auto schedule = schedule_smart(scope);
 
-        // emit body for each bb
-        for (auto bb_lambda : bbs) {
-            if (bb_lambda->intrinsic() == Intrinsic::EndScope)
+        for (auto& block : schedule) {
+            auto lambda = block.lambda();
+            if (lambda->intrinsic() == Intrinsic::EndScope)
                 continue;
-            assert(bb_lambda == entry_ || bb_lambda->is_basicblock());
-            builder_.SetInsertPoint(bb2lambda[bb_lambda]);
+            assert(lambda == entry_ || lambda->is_basicblock());
+            builder_.SetInsertPoint(bb2lambda[lambda]);
 
-            for (auto primop : schedule[bb_lambda])
-                    primops_[primop] = emit(primop);
+            for (auto primop : block)
+                primops_[primop] = emit(primop);
 
             // terminate bb
-            if (bb_lambda->to() == ret_param) { // return
-                size_t num_args = bb_lambda->num_args();
+            if (lambda->to() == ret_param) { // return
+                size_t num_args = lambda->num_args();
                 switch (num_args) {
                     case 0: builder_.CreateRetVoid(); break;
                     case 1:
-                        if (bb_lambda->arg(0)->type().isa<MemType>())
+                        if (lambda->arg(0)->type().isa<MemType>())
                             builder_.CreateRetVoid();
                         else
-                            builder_.CreateRet(lookup(bb_lambda->arg(0)));
+                            builder_.CreateRet(lookup(lambda->arg(0)));
                         break;
                     case 2:
-                        if (bb_lambda->arg(0)->type().isa<MemType>()) {
-                            builder_.CreateRet(lookup(bb_lambda->arg(1)));
+                        if (lambda->arg(0)->type().isa<MemType>()) {
+                            builder_.CreateRet(lookup(lambda->arg(1)));
                             break;
-                        } else if (bb_lambda->arg(1)->type().isa<MemType>()) {
-                            builder_.CreateRet(lookup(bb_lambda->arg(0)));
+                        } else if (lambda->arg(1)->type().isa<MemType>()) {
+                            builder_.CreateRet(lookup(lambda->arg(0)));
                             break;
                         }
                         // FALLTHROUGH
@@ -212,8 +211,8 @@ void CodeGen::emit(int opt) {
 
                         size_t n = 0;
                         for (size_t a = 0; a < num_args; ++a) {
-                            if (!bb_lambda->arg(n)->type().isa<MemType>()) {
-                                llvm::Value* val = lookup(bb_lambda->arg(a));
+                            if (!lambda->arg(n)->type().isa<MemType>()) {
+                                llvm::Value* val = lookup(lambda->arg(a));
                                 values[n] = val;
                                 args[n++] = val->getType();
                             }
@@ -231,26 +230,26 @@ void CodeGen::emit(int opt) {
                         break;
                     }
                 }
-            } else if (bb_lambda->to() == world().branch()) {   // conditional branch
-                llvm::Value* cond = lookup(bb_lambda->arg(0));
-                llvm::BasicBlock* tbb = bb2lambda[bb_lambda->arg(1)->as_lambda()];
-                llvm::BasicBlock* fbb = bb2lambda[bb_lambda->arg(2)->as_lambda()];
+            } else if (lambda->to() == world().branch()) {   // conditional branch
+                auto cond = lookup(lambda->arg(0));
+                auto tbb = bb2lambda[lambda->arg(1)->as_lambda()];
+                auto fbb = bb2lambda[lambda->arg(2)->as_lambda()];
                 builder_.CreateCondBr(cond, tbb, fbb);
-            } else if (bb_lambda->to()->isa<Bottom>()) {
+            } else if (lambda->to()->isa<Bottom>()) {
                 builder_.CreateUnreachable();
             } else {
-                Lambda* to_lambda = bb_lambda->to()->as_lambda();
+                Lambda* to_lambda = lambda->to()->as_lambda();
                 if (to_lambda->is_basicblock())                 // ordinary jump
                     builder_.CreateBr(bb2lambda[to_lambda]);
                 else {
                     if (to_lambda->is_intrinsic()) {
-                        Lambda* ret_lambda = emit_intrinsic(bb_lambda);
+                        Lambda* ret_lambda = emit_intrinsic(lambda);
                         builder_.CreateBr(bb2lambda[ret_lambda]);
                     } else {
                         // put all first-order args into an array
                         std::vector<llvm::Value*> args;
                         Def ret_arg;
-                        for (auto arg : bb_lambda->args()) {
+                        for (auto arg : lambda->args()) {
                             if (arg->order() == 0) {
                                 if (!arg->type().isa<MemType>())
                                     args.push_back(lookup(arg));

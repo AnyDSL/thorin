@@ -2,7 +2,6 @@
 #include "thorin/primop.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
-#include "thorin/analyses/bb_schedule.h"
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/schedule.h"
@@ -228,16 +227,16 @@ void CCodeGen::emit() {
     // emit declarations
     Scope::for_each<false>(world(), [&] (const Scope& scope) {
         if (scope.entry() == world().branch()) return;
-        Schedule schedule = schedule_smart(scope);
+        auto schedule = schedule_smart(scope);
 
         // tuple declarations
-        for (auto lambda : scope) {
-            for (auto param : lambda->params()) {
+        for (auto& block : schedule) {
+            for (auto param : block.lambda()->params()) {
                 emit_aggop_decl(param->type());
                 insert(param->gid(), param->unique_name());
             }
 
-            for (auto primop : schedule[lambda]) {
+            for (auto primop : block) {
                 if (!primop->isa<MemOp>()) {
                     emit_aggop_decl(primop->type());
                     // search for inlined tuples/arrays
@@ -388,11 +387,10 @@ void CCodeGen::emit() {
         }
 
         // never use early schedule here - this may break memory operations
+        // TODO re-use schedule already calculated above
         Schedule schedule = schedule_smart(scope);
-
-        auto bbs = bb_schedule(scope);
-        // emit body for each bb
-        for (auto lambda : bbs) {
+        for (auto& block : schedule) {
+            auto lambda = block.lambda();
             if (lambda->empty())
                 continue;
             assert(lambda == scope.entry() || lambda->is_basicblock());
@@ -404,7 +402,7 @@ void CCodeGen::emit() {
                 up();
             }
 
-            for (auto primop : schedule[lambda]) {
+            for (auto primop : block) {
                 // skip higher-order primops, stuff dealing with frames and all memory related stuff except stores
                 if (!primop->type().isa<FnType>() && !primop->type().isa<FrameType>()
                         && (!primop->type().isa<MemType>() || primop->isa<Store>())) {

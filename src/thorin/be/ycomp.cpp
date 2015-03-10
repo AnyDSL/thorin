@@ -23,14 +23,14 @@ private:
     std::ostream& emit_lambda_graph_begin(const Lambda*);
     std::ostream& emit_lambda_graph_params(const Lambda*);
     std::ostream& emit_lambda_graph_continuation(const Lambda*);
-    std::ostream& emit_lambda_graph_end(const Lambda*);
+    std::ostream& emit_lambda_graph_end();
 
     std::ostream& emit_def(Def);
     std::ostream& emit_primop(const PrimOp*);
     std::ostream& emit_param(const Param*);
     std::ostream& emit_lambda(const Lambda*);
     std::ostream& emit_lambda_graph(const Lambda*);
-    std::ostream& emit_lambda_graph(const Lambda*, const std::vector<const PrimOp*>& schedule);
+    std::ostream& emit_block(const Schedule::Block&);
 
     template<typename T, typename U>
     std::ostream& write_edge(T source, U target, bool control_flow,
@@ -221,9 +221,8 @@ std::ostream& YCompGen::emit_lambda_graph_begin(const Lambda* lambda) {
 }
 
 std::ostream& YCompGen::emit_lambda_graph_params(const Lambda* lambda) {
-    for (auto param : lambda->params()) {
+    for (auto param : lambda->params())
         emit_param(param);
-    }
     return stream();
 }
 
@@ -246,25 +245,25 @@ std::ostream& YCompGen::emit_lambda_graph_continuation(const Lambda* lambda) {
     return stream();
 }
 
-std::ostream& YCompGen::emit_lambda_graph_end(const Lambda* lambda) {
-    return down() << "}";
-}
-std::ostream& YCompGen::emit_lambda_graph(const Lambda* lambda, const std::vector<const PrimOp*>& schedule) {
+std::ostream& YCompGen::emit_lambda_graph_end() { return down() << "}"; }
+
+std::ostream& YCompGen::emit_block(const Schedule::Block& block) {
+    auto lambda = block.lambda();
     emitted_defs.insert(lambda);
     emit_lambda_graph_begin(lambda);
     emit_lambda_graph_params(lambda);
     emit_lambda_graph_continuation(lambda);
-    for (auto primop : schedule) {
+    for (auto primop : block)
         emit_primop(primop);
-    }
-    return emit_lambda_graph_end(lambda);
+
+    return emit_lambda_graph_end();
 }
 std::ostream& YCompGen::emit_lambda_graph(const Lambda* lambda) {
     emitted_defs.insert(lambda);
     emit_lambda_graph_begin(lambda);
     emit_lambda_graph_params(lambda);
     emit_lambda_graph_continuation(lambda);
-    return emit_lambda_graph_end(lambda);
+    return emit_lambda_graph_end();
 }
 
 void YCompGen::emit_scope(const Scope& scope) {
@@ -273,9 +272,8 @@ void YCompGen::emit_scope(const Scope& scope) {
     newline() << "label: \"scope " << scope.id() << "\"";
     if (scheduled_) {
         auto schedule = schedule_smart(scope);
-        for (auto lambda : scope) {
-            emit_lambda_graph(lambda, schedule[lambda]);
-        }
+        for (auto& block : schedule)
+            emit_block(block);
     } else {
         for (auto lambda : scope) {
             emit_lambda_graph(lambda);

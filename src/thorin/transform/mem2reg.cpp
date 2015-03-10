@@ -10,7 +10,6 @@ namespace thorin {
 
 void mem2reg(const Scope& scope) {
     const auto& cfg = scope.f_cfg();
-    auto schedule = schedule_late(scope);
     DefMap<size_t> slot2handle;
     LambdaMap<size_t> lambda2num;
     size_t cur_handle = 0;
@@ -32,11 +31,13 @@ void mem2reg(const Scope& scope) {
     scope.entry()->set_parent(nullptr);
     scope.entry()->seal();
 
+    auto schedule = schedule_late(scope);
     for (auto n : cfg.rpo()) {
-        if (auto in = n->isa<InCFNode>()) {
-            auto lambda = in->lambda();
+        if (auto in = n->isa<InNode>()) {
+            auto& block = schedule[in];
+            auto lambda = block.lambda();
             // search for slots/loads/stores from top to bottom and use set_value/get_value to install parameters.
-            for (auto primop : schedule[lambda]) {
+            for (auto primop : block) {
                 auto def = Def(primop);
                 if (auto slot = def->isa<Slot>()) {
                     // are all users loads and store?
@@ -69,7 +70,7 @@ next_primop:;
 
         // seal successors of last lambda if applicable
         for (auto succ : cfg.succs(n)) {
-            if (auto in = succ->isa<InCFNode>()) {
+            if (auto in = succ->isa<InNode>()) {
                 auto lsucc = in->lambda();
                 if (lsucc->parent() != nullptr) {
                     auto i = lambda2num.find(lsucc);

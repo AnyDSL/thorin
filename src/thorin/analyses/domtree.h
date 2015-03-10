@@ -28,8 +28,8 @@ public:
 
     public:
         const CFNode* cf_node() const { return cf_node_; }
-        Lambda* lambda() const;
         const Node* idom() const { return idom_; }
+        const InNode* in_idom() const { return idom_->cf_node()->in_node(); }
         const std::vector<const Node*>& children() const { return children_; }
         size_t num_children() const { return children_.size(); }
         bool entry() const { return idom_ == this; }

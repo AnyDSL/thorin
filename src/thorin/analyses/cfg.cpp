@@ -12,7 +12,7 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-InCFNode::~InCFNode() {
+InNode::~InNode() {
     for (auto p : out_nodes_) 
         delete p.second;
 }
@@ -21,9 +21,9 @@ InCFNode::~InCFNode() {
 
 struct CFNodeHash {
     uint64_t operator() (const CFNode* n) const { 
-        if (auto in = n->isa<InCFNode>())
+        if (auto in = n->isa<InNode>())
             return hash_value(in->lambda()->gid());
-        auto out = n->as<OutCFNode>();
+        auto out = n->as<OutNode>();
         return hash_combine(hash_value(out->def()->gid()), out->parent()->lambda()->gid());
     }
 };
@@ -74,25 +74,25 @@ public:
     const Scope& scope() const { return cfa_.scope(); }
     Array<CFNodeSet> cf_nodes_per_op(Lambda* lambda);
 
-    const InCFNode* in_node(Lambda* lambda) {
+    const InNode* in_node(Lambda* lambda) {
         assert(scope().outer_contains(lambda));
         if (auto in = find(cfa().in_nodes(), lambda))
             return in;
-        ++cfa_.num_cf_nodes_;
-        auto in = cfa_.in_nodes_[lambda] = new InCFNode(lambda);
+        ++cfa_.num_in_nodes_;
+        auto in = cfa_.in_nodes_[lambda] = new InNode(lambda);
         lambda2param2nodes_[lambda].resize(lambda->num_params()); // make room for params
         return in;
     }
 
-    const OutCFNode* out_node(const InCFNode* in, Def def) {
+    const OutNode* out_node(const InNode* in, Def def) {
         if (auto out = find(in->out_nodes_, def))
             return out;
-        ++cfa_.num_cf_nodes_;
-        return in->out_nodes_[def] = new OutCFNode(in, def);
+        ++cfa_.num_out_nodes_;
+        return in->out_nodes_[def] = new OutNode(in, def);
     }
 
     CFNodeSet& param2nodes(const Param* param) {
-        in_node(param->lambda()); // alloc InCFNode and make room in lambda2param2nodes_
+        in_node(param->lambda()); // alloc InNode and make room in lambda2param2nodes_
         return lambda2param2nodes_[param->lambda()][param->index()];
     }
 
@@ -146,16 +146,16 @@ void CFABuilder::run_cfa() {
             size_t num = lambda->size();
 
             for (auto to : info[0]) {
-                if (auto in = to->isa<InCFNode>()) {
+                if (auto in = to->isa<InNode>()) {
                     for (size_t i = 1; i != num; ++i) {
                         const auto& set = info[i];
                         todo |= lambda2param2nodes_[in->lambda()][i-1].insert(set.begin(), set.end());
                     }
                 } else {
-                    auto out = to->as<OutCFNode>();
+                    auto out = to->as<OutNode>();
                     for (size_t i = 1; i != num; ++i) {
                         for (auto n : info[i]) {
-                            if (auto info_in = n->isa<InCFNode>()) {
+                            if (auto info_in = n->isa<InNode>()) {
                                 auto in_lambda = info_in->lambda();
                                 for (size_t p = 0; p != in_lambda->num_params(); ++p) {
                                     if (in_lambda->param(p)->order() >= 1)
@@ -175,9 +175,9 @@ void CFABuilder::build_cfg() {
         auto info = cf_nodes_per_op(in->lambda());
 
         for (auto to : info[0]) {
-            auto out = to->isa<OutCFNode>();
+            auto out = to->isa<OutNode>();
             if (out && out->parent() != in) {
-                auto new_out = out_node(in, in->lambda()->to()); // TODO what to use as OutCFNode's def?
+                auto new_out = out_node(in, in->lambda()->to()); // TODO what to use as OutNode's def?
                 in->link(new_out);
                 new_out->link(out);
             } else

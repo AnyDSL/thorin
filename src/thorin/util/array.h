@@ -97,7 +97,11 @@ public:
         : size_(0)
         , ptr_(nullptr)
     {}
-    explicit Array(size_t size, const T& val = T())
+    explicit Array(size_t size)
+        : size_(size)
+        , ptr_(new T[size]())
+    {}
+    Array(size_t size, const T& val)
         : size_(size)
         , ptr_(new T[size])
     {
@@ -107,20 +111,20 @@ public:
         : size_(ref.size())
         , ptr_(new T[ref.size()])
     {
-        std::copy(ref.begin(), ref.end(), begin());
+        std::copy(ref.begin(), ref.end(), this->begin());
     }
-    Array(Array&& array)
-        : size_(std::move(array.size_))
-        , ptr_(std::move(array.ptr_))
+    Array(Array&& other)
+        : size_(std::move(other.size_))
+        , ptr_(std::move(other.ptr_))
     {
-        array.ptr_ = nullptr;
-        array.size_ = 0;
+        other.ptr_ = nullptr;
+        other.size_ = 0;
     }
-    Array(const Array& array)
-        : size_(array.size())
-        , ptr_(new T[array.size()])
+    Array(const Array& other)
+        : size_(other.size())
+        , ptr_(new T[other.size()])
     {
-        std::copy(array.begin(), array.end(), begin());
+        std::copy(other.begin(), other.end(), this->begin());
     }
     template<class I>
     Array(const I begin, const I end) 

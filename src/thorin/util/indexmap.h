@@ -20,6 +20,14 @@ private:
     };
 
 public:
+    IndexMap(IndexMap&& other)
+        : indexer_(std::move(other.indexer_))
+        , array_(std::move(other.array_))
+    {}
+    IndexMap(const IndexMap& other)
+        : indexer_(other.indexer_)
+        , array_(other.array_)
+    {}
     IndexMap(const Indexer& indexer, const Value& value = Value())
         : indexer_(indexer)
         , array_(indexer.size(), value)
@@ -46,6 +54,12 @@ public:
     typedef filter_iterator<typename Array<Value>::const_iterator, bool (*)(Value)> const_iterator;
     const_iterator begin() const { return make_filter(array_.begin(), array_.end(), IsValidPred<Value>::is_valid); }
     const_iterator end() const { return make_filter(array_.end(), array_.end(), IsValidPred<Value>::is_valid); }
+
+    friend void swap(IndexMap& map1, IndexMap& map2) {
+        using std::swap;
+        swap(map1.indexer_, map2.indexer_);
+        swap(map1.array_, map2.array_);
+    }
 
 private:
     const Indexer& indexer_;

@@ -2,7 +2,6 @@
 #include "thorin/primop.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
-#include "thorin/analyses/bb_schedule.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/util/printer.h"
@@ -206,16 +205,16 @@ std::ostream& CodeGen::emit_jump(const Lambda* lambda) {
 void emit_thorin(const Scope& scope) {
     CodeGen cg;
     auto schedule = schedule_smart(scope);
-    auto bbs = bb_schedule(scope);
-    for (auto lambda : bbs) {
+    for (auto& block : schedule) {
+        auto lambda = block.lambda();
         if (lambda->intrinsic() != Intrinsic::EndScope) {
             int depth = lambda == scope.entry() ? 0 : 1;
             cg.indent += depth;
             cg.newline();
             cg.emit_head(lambda);
 
-            for (auto op : schedule[lambda])
-                cg.emit_assignment(op);
+            for (auto primop : block)
+                cg.emit_assignment(primop);
 
             cg.emit_jump(lambda);
             cg.indent -= depth;

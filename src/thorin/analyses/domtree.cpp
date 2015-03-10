@@ -20,9 +20,6 @@ void DomTreeBase<forward>::Node::dump(const int depth) const {
         child->dump(depth+1);
 }
 
-template<bool forward>
-Lambda* DomTreeBase<forward>::Node::lambda() const { return cf_node()->in_node()->lambda(); }
-
 //------------------------------------------------------------------------------
 
 template<bool forward>

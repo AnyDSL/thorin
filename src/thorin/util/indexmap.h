@@ -6,18 +6,19 @@
 
 namespace thorin {
 
-template<class T>
-struct IsValidPred {
-    static bool is_valid(T value) { return true; }
-};
-
-template<class T> 
-struct IsValidPred<T*> {
-    static bool is_valid(T* value) { return value != nullptr; }
-};
-
 template<class Indexer, class Key, class Value>
 class IndexMap {
+private:
+    template<class T>
+    struct IsValidPred {
+        static bool is_valid(T) { return true; }
+    };
+
+    template<class T> 
+    struct IsValidPred<T*> {
+        static bool is_valid(T* value) { return value != nullptr; }
+    };
+
 public:
     IndexMap(const Indexer& indexer, const Value& value = Value())
         : indexer_(indexer)

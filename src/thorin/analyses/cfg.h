@@ -68,7 +68,6 @@ public:
     virtual const InNode* in_node() const override { return this; }
 
 private:
-    Lambda* lambda_;
     mutable DefMap<const OutNode*> out_nodes_;
 
     friend class CFABuilder;

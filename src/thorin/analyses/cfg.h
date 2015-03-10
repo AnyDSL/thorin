@@ -174,7 +174,7 @@ public:
         return range<const InCFNode*>(rpo().begin(), rpo().end(), is_in_node);
     }
     Range<filter_iterator<ArrayRef<const CFNode*>::const_reverse_iterator, 
-          bool (*)(const CFNode*), const InCFNode*>> reverse_in_rpo() const { 
+            bool (*)(const CFNode*), const InCFNode*>> reverse_in_rpo() const { 
         return range<const InCFNode*>(rpo().rbegin(), rpo().rend(), is_in_node);
     }
     /// Like @p rpo() but without @p entry()

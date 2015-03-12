@@ -207,7 +207,6 @@ void CFABuilder::build_cfg() {
 
 #ifndef NDEBUG
     bool error = false;
-    std::cout << "missing predecessors:" << std::endl;
     for (auto in : cfa().in_nodes()) {
         if (in != cfa().entry() && in->preds_.size() == 0) {
             std::cout << "missing predecessors: " << in->lambda()->unique_name() << std::endl;

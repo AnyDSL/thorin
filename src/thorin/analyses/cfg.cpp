@@ -204,6 +204,23 @@ void CFABuilder::build_cfg() {
     // HACK
     if (scope().entry()->empty())
         cfa().entry()->link(cfa().exit());
+
+#ifndef NDEBUG
+    bool error = false;
+    std::cout << "missing predecessors:" << std::endl;
+    for (auto in : cfa().in_nodes()) {
+        if (in != cfa().entry() && in->preds_.size() == 0) {
+            std::cout << "missing predecessors: " << in->lambda()->unique_name() << std::endl;
+            error = true;
+        }
+    }
+    if (error) {
+        std::ofstream out("out.vcg");
+        emit_ycomp(scope(), false, out);
+        out.close();
+        abort();
+    }
+#endif
 }
 
 //------------------------------------------------------------------------------
@@ -230,20 +247,7 @@ CFG<forward>::CFG(const CFA& cfa)
     , rpo_(*this)
 {
     size_t result = post_order_visit(entry(), cfa.num_cf_nodes());
-#ifndef NDEBUG
-    if (result != 0) {
-        {
-            std::cout << "missing predecessors:" << std::endl;
-            for (auto in : cfa.in_nodes()) {
-                if (in != entry() && num_preds(in) == 0)
-                    in->dump();
-            }
-            std::ofstream out("out.vcg");
-            emit_ycomp(scope(), false, out);
-        }
-        abort();
-    }
-#endif
+    assert(result == 0);
 }
 
 template<bool forward>

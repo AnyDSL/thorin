@@ -54,6 +54,8 @@ private:
     Lambda* emit_sync(Lambda*);
     Lambda* emit_vectorize_continuation(Lambda*);
     Lambda* emit_atomic(Lambda*);
+    Lambda* emit_select(Lambda*);
+    Lambda* emit_shuffle(Lambda*);
     void emit_vectorize(u32, llvm::Function*, llvm::CallInst*);
 
 protected:

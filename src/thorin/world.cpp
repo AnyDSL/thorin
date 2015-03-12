@@ -185,14 +185,17 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
         }
     }
 
+    // normalize: swap literal/vector to the left
+    if (is_commutative(kind) && (rlit || rvec)) {
+        std::swap(a, b);
+        std::swap(llit, rlit);
+        std::swap(lvec, rvec);
+    }
+
     if (is_type_i(type)) {
         if (a == b) {
             switch (kind) {
-                case ArithOp_add:
-                    if (is_type_i(type))
-                        return arithop_mul(cond, literal(type, 2), a);
-                    else
-                        break;
+                case ArithOp_add: return arithop_mul(cond, literal(type, 2), a);
 
                 case ArithOp_sub:
                 case ArithOp_xor: return zero(type);
@@ -214,6 +217,38 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
             }
         }
 
+        if (a->is_zero()) {
+            switch (kind) {
+                case ArithOp_mul:
+                case ArithOp_div:
+                case ArithOp_rem:
+                case ArithOp_and:
+                case ArithOp_shl:
+                case ArithOp_shr: return zero(type);
+
+                case ArithOp_add:
+                case ArithOp_or:
+                case ArithOp_xor:  return b;
+
+                default: break;
+            }
+        } 
+
+        if (a->is_one()) {
+            switch (kind) {
+                case ArithOp_mul: return b;
+                default: break;
+            }
+        } 
+
+        if (a->is_allset()) {
+            switch (kind) {
+                case ArithOp_and: return b;
+                case ArithOp_or:  return llit; // allset
+                default: break;
+            }
+        }
+
         if (b->is_zero()) {
             switch (kind) {
                 case ArithOp_div:
@@ -224,7 +259,9 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
 
                 default: break;
             }
-        } else if (b->is_one()) {
+        } 
+
+        if (b->is_one()) {
             switch (kind) {
                 case ArithOp_mul:
                 case ArithOp_div: return a;
@@ -232,7 +269,9 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
 
                 default: break;
             }
-        } else if (rlit && rlit->primlit_value<uint64_t>() >= uint64_t(num_bits(type))) {
+        } 
+
+        if (rlit && rlit->primlit_value<uint64_t>() >= uint64_t(num_bits(type))) {
             switch (kind) {
                 case ArithOp_shl:
                 case ArithOp_shr: return bottom(type);
@@ -320,51 +359,6 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
                     return arithop_and(land->rhs(), rand->rhs());
                 if (land->rhs() == rand->rhs())
                     return arithop_and(land->lhs(), rand->lhs());
-            }
-        }
-    }
-
-    // normalize: a - b = a + -b
-    if (kind == ArithOp_sub && !a->is_minus_zero()) {
-        rlit = (b = arithop_minus(b))->isa<PrimLit>();
-        kind = ArithOp_add;
-    }
-
-    // normalize: swap literal/vector to the left
-    if (is_commutative(kind) && (rlit || rvec)) {
-        std::swap(a, b);
-        std::swap(llit, rlit);
-        std::swap(lvec, rvec);
-    }
-
-    if (is_type_i(kind)) {
-        if (a->is_zero()) {
-            switch (kind) {
-                case ArithOp_mul:
-                case ArithOp_div:
-                case ArithOp_rem:
-                case ArithOp_and:
-                case ArithOp_shl:
-                case ArithOp_shr: return zero(type);
-
-                case ArithOp_add:
-                case ArithOp_or:
-                case ArithOp_xor:  return b;
-
-                default: break;
-            }
-        }
-        if (a->is_one()) {
-            switch (kind) {
-                case ArithOp_mul: return b;
-                default: break;
-            }
-        }
-        if (a->is_allset()) {
-            switch (kind) {
-                case ArithOp_and: return b;
-                case ArithOp_or:  return llit; // allset
-                default: break;
             }
         }
     }

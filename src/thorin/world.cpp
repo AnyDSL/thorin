@@ -226,6 +226,7 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
             }
         } else if (b->is_one()) {
             switch (kind) {
+                case ArithOp_mul:
                 case ArithOp_div: return a;
                 case ArithOp_rem: return zero(type);
 

@@ -8,12 +8,14 @@ namespace thorin {
 struct CoGen {
     void run(World &world);
 
+
+    private:
     /* Emit staged code. */
-    virtual void emit_lambda()    = 0;
-    virtual void emit_select()    = 0;
-    virtual void emit_jump()      = 0;
-    virtual void emit_add()       = 0;
-    virtual void emit_mul()       = 0;
+    void emit_lambda();
+    void emit_select();
+    void emit_jump();
+    void emit_add();
+    void emit_mul();
 };
 
 }

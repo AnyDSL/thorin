@@ -65,13 +65,21 @@ Lambda* CodeGen::emit_intrinsic(Lambda* lambda) {
     Lambda* to = lambda->to()->as_lambda();
     switch (to->intrinsic()) {
         case Intrinsic::Atomic:    return emit_atomic(lambda);
+        case Intrinsic::Select4:
+        case Intrinsic::Select8:
+        case Intrinsic::Select16:  return emit_select(lambda);
+        case Intrinsic::Shuffle4:
+        case Intrinsic::Shuffle8:
+        case Intrinsic::Shuffle16: return emit_shuffle(lambda);
         case Intrinsic::Munmap:    runtime_->munmap(lookup(lambda->arg(1)));
                                    return lambda->args().back()->as_lambda();
         case Intrinsic::CUDA:      return cuda_runtime_->emit_host_code(*this, lambda);
         case Intrinsic::NVVM:      return nvvm_runtime_->emit_host_code(*this, lambda);
         case Intrinsic::SPIR:      return spir_runtime_->emit_host_code(*this, lambda);
         case Intrinsic::OpenCL:    return opencl_runtime_->emit_host_code(*this, lambda);
-        case Intrinsic::Parallel:  return emit_parallel_continuation(lambda);
+        case Intrinsic::Parallel:  return emit_parallel(lambda);
+        case Intrinsic::Spawn:     return emit_spawn(lambda);
+        case Intrinsic::Sync:      return emit_sync(lambda);
 #ifdef WFV2_SUPPORT
         case Intrinsic::Vectorize: return emit_vectorize_continuation(lambda);
 #endif
@@ -87,8 +95,32 @@ Lambda* CodeGen::emit_atomic(Lambda* lambda) {
     auto val = lookup(lambda->arg(3));
     assert(kind >= llvm::AtomicRMWInst::BinOp::Xchg && kind <= llvm::AtomicRMWInst::BinOp::UMin && "unsupported atomic");
     llvm::AtomicRMWInst::BinOp binop = (llvm::AtomicRMWInst::BinOp)kind;
-    builder_.CreateAtomicRMW(binop, ptr, val, llvm::AtomicOrdering::SequentiallyConsistent, llvm::SynchronizationScope::CrossThread);
-    return lambda->arg(4)->as_lambda();
+
+    auto cont = lambda->arg(4)->as_lambda();
+    params_[cont->param(1)] = builder_.CreateAtomicRMW(binop, ptr, val, llvm::AtomicOrdering::SequentiallyConsistent, llvm::SynchronizationScope::CrossThread);
+    return cont;
+}
+
+Lambda* CodeGen::emit_select(Lambda* lambda) {
+    assert(lambda->num_args() == 5 && "required arguments are missing");
+    auto cond = lookup(lambda->arg(1));
+    auto a = lookup(lambda->arg(2));
+    auto b = lookup(lambda->arg(3));
+
+    auto cont = lambda->arg(4)->as_lambda();
+    params_[cont->param(1)] = builder_.CreateSelect(cond, a, b);
+    return cont;
+}
+
+Lambda* CodeGen::emit_shuffle(Lambda* lambda) {
+    assert(lambda->num_args() == 5 && "required arguments are missing");
+    auto mask = lookup(lambda->arg(3));
+    auto a = lookup(lambda->arg(1));
+    auto b = lookup(lambda->arg(2));
+
+    auto cont = lambda->arg(4)->as_lambda();
+    params_[cont->param(1)] = builder_.CreateShuffleVector(a, b, mask);
+    return cont;
 }
 
 llvm::FunctionType* CodeGen::convert_fn_type(Lambda* lambda) {
@@ -304,20 +336,11 @@ void CodeGen::emit(int opt) {
         primops_.clear();
     });
 
-    // emit parallelized code
-    for (const auto& tuple : par_todo_)
-        emit_parallel(std::get<0>(tuple), std::get<1>(tuple), std::get<2>(tuple));
-    par_todo_.clear();
 #ifdef WFV2_SUPPORT
     // emit vectorized code
     for (const auto& tuple : wfv_todo_)
-        emit_vectorize(std::get<0>(tuple), std::get<1>(tuple), std::get<2>(tuple), std::get<3>(tuple));
+        emit_vectorize(std::get<0>(tuple), std::get<1>(tuple), std::get<2>(tuple));
     wfv_todo_.clear();
-    // remove function for tid-getter
-    if (auto tid = get_vectorize_tid()) {
-        tid->removeFromParent();
-        tid->deleteBody();
-    }
 #endif
 
 #ifndef NDEBUG
@@ -591,7 +614,7 @@ llvm::Value* CodeGen::emit(Def def) {
         return llvm::UndefValue::get(convert(array->type()));
 
     if (auto agg = def->isa<Aggregate>()) {
-        assert(def->isa<Tuple>() || def->isa<StructAgg>());
+        assert(def->isa<Tuple>() || def->isa<StructAgg>() || def->isa<Vector>());
         llvm::Value* llvm_agg = llvm::UndefValue::get(convert(agg->type()));
         for (size_t i = 0, e = agg->ops().size(); i != e; ++i)
             llvm_agg = builder_.CreateInsertValue(llvm_agg, lookup(agg->op(i)), { unsigned(i) });
@@ -873,6 +896,29 @@ llvm::GlobalVariable* CodeGen::emit_global_memory(llvm::Type* type, const std::s
     return new llvm::GlobalVariable(*module_, type, false,
             llvm::GlobalValue::InternalLinkage, llvm::Constant::getNullValue(type), name,
             nullptr, llvm::GlobalVariable::NotThreadLocal, addr_space);
+}
+
+void CodeGen::create_loop(llvm::Value* lower, llvm::Value* upper, llvm::Value* increment, llvm::Function* entry, std::function<void(llvm::Value*)> fun) {
+    auto head = llvm::BasicBlock::Create(context_, "head", entry);
+    auto body = llvm::BasicBlock::Create(context_, "body", entry);
+    auto exit = llvm::BasicBlock::Create(context_, "exit", entry);
+    // create loop phi and connect init value
+    auto loop_counter = llvm::PHINode::Create(builder_.getInt32Ty(), 2U, "parallel_loop_phi", head);
+    loop_counter->addIncoming(lower, builder_.GetInsertBlock());
+    // connect head
+    builder_.CreateBr(head);
+    builder_.SetInsertPoint(head);
+    auto cond = builder_.CreateICmpSLT(loop_counter, upper);
+    builder_.CreateCondBr(cond, body, exit);
+    builder_.SetInsertPoint(body);
+
+    // add instructions to the loop body
+    fun(loop_counter);
+
+    // inc loop counter
+    loop_counter->addIncoming(builder_.CreateAdd(loop_counter, increment), body);
+    builder_.CreateBr(head);
+    builder_.SetInsertPoint(exit);
 }
 
 //------------------------------------------------------------------------------

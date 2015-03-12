@@ -177,10 +177,18 @@ void Lambda::set_intrinsic() {
     else if (name == "spir")      intrinsic_ = Intrinsic::SPIR;
     else if (name == "opencl")    intrinsic_ = Intrinsic::OpenCL;
     else if (name == "parallel")  intrinsic_ = Intrinsic::Parallel;
+    else if (name == "spawn")     intrinsic_ = Intrinsic::Spawn;
+    else if (name == "sync")      intrinsic_ = Intrinsic::Sync;
     else if (name == "vectorize") intrinsic_ = Intrinsic::Vectorize;
     else if (name == "mmap")      intrinsic_ = Intrinsic::Mmap;
     else if (name == "munmap")    intrinsic_ = Intrinsic::Munmap;
     else if (name == "atomic")    intrinsic_ = Intrinsic::Atomic;
+    else if (name == "select4")   intrinsic_ = Intrinsic::Select4;
+    else if (name == "select8")   intrinsic_ = Intrinsic::Select8;
+    else if (name == "select16")  intrinsic_ = Intrinsic::Select16;
+    else if (name == "shuffle4")  intrinsic_ = Intrinsic::Shuffle4;
+    else if (name == "shuffle8")  intrinsic_ = Intrinsic::Shuffle8;
+    else if (name == "shuffle16") intrinsic_ = Intrinsic::Shuffle16;
     else assert(false && "unsupported thorin intrinsic");
 }
 

@@ -1,56 +1,44 @@
 #include "thorin/transform/cogen/cogen.h"
 
-#include <string>
 #include "thorin/analyses/scope.h"
-
-namespace {
-
-std::string toCType(thorin::Type t) {
-    // TODO: do something meaningful
-    return "int";
-}
-
-}
 
 namespace thorin {
 
 void CoGen::run(World &world) {
     bta.run(world);
 
-    emit_head(std::cout);
+    emit_preamble();
 
-    Scope::for_each(world, [&](Scope const & s){
-            emit_generator(std::cout, s.entry());
+    /* Emit a generator for every top-level lambda. */
+    Scope::for_each(world, [&](Scope const &s){
+            varCount = 0;
+            labelCount = 0;
+            StMap.clear();
+            DyMap.clear();
+            decls.clear();
+            defs.clear();
+
+            emit_generator(s.entry());
     });
+
+    emit_epilogue();
+
+    std::cout << header.str();
+    std::cout << "\n\n";
+    std::cout << source.str();
+    std::cout << "\n\n";
 }
 
-void CoGen::emit_generator(std::ostream &out, Lambda *lambda) {
-    auto name = lambda->unique_name() + "_gen";
-    std::vector<Param const *> static_params;
-    std::vector<Param const *> dynamic_params;
+//------------------------------------------------------------------------------
 
-    /* Distribute params into static and dynamic. */
-    for (auto param : lambda->params()) {
-        if (bta.get(param).isTop())
-            dynamic_params.push_back(param);
-        else
-            static_params.push_back(param);
-    }
+void CoGen::emit_preamble() {
+    header
+        << "#ifndef GENERATOR_H\n"
+        << "#define GENERATOR_H\n"
+        << "\n"
+        ;
 
-    out << "Lambda * " << name << "(";
-    out << "World &world";
-    for (auto param : static_params) {
-        out << ", " << toCType(param->type()) << " " << param->name;
-    }
-    out << ") {\n";
-
-    // TODO: emit body
-
-    out << "}\n";
-}
-
-void CoGen::emit_head(std::ostream &out) {
-    out
+    source
         << "#include \"thorin/def.h\"\n"
         << "#include \"thorin/world.h\"\n"
         << "#include \"thorin/be/thorin.h\"\n"
@@ -58,6 +46,99 @@ void CoGen::emit_head(std::ostream &out) {
         << "using namespace thorin;\n"
         << "\n"
         ;
+}
+
+void CoGen::emit_epilogue() {
+    header
+        << "\n"
+        << "#endif"
+        ;
+}
+
+void CoGen::emit_generator(Lambda *lambda) {
+    auto name = lambda->unique_name() + "_gen";
+
+    /* Construct the function prototype. */
+    std::ostringstream fn_proto;
+    fn_proto << "Lambda * " << name << "(";
+    fn_proto << "World &world";
+    {   /* Select static params. */
+        auto params = lambda->params();
+        std::string sep = "";
+        for (auto it = params.begin(); params.end() != it; ++it) {
+            if (not bta.get(*it).isTop())
+                continue;
+            auto pname = (*it)->name;
+            StMap.insert(std::make_pair(*it, pname));
+            fn_proto << ", " << toCType((*it)->type()) << " " << pname;
+        }
+    }
+    fn_proto << ")";
+
+    header << fn_proto.str() << ";\n";
+    source << fn_proto.str() << " {\n";
+
+    build_lambda(lambda, lambda->unique_name() + "_spec");
+    for (auto decl : decls)
+        source << decl << ";\n";
+    if (not decls.empty())
+        source << "\n";
+    for (auto def : defs)
+        source << def << ";\n";
+
+    source << "}\n";
+}
+
+//------------------------------------------------------------------------------
+
+std::string CoGen::toCType(Type t) {
+    // TODO: do something meaningful
+    return "int";
+}
+
+std::string CoGen::toThorinType(Type t) {
+    if (t->isa<MemTypeNode>())
+        return "world.mem_type()";
+
+    if (auto fn_t = t->isa<FnTypeNode>()) {
+        std::string s = "world.fn_type({";
+        std::string sep = "";
+        for (auto arg : fn_t->args()) {
+            s += sep + toThorinType(arg);
+            sep = ", ";
+        }
+        s += "})";
+        return s;
+    }
+
+    if (auto prim_t = t->isa<PrimTypeNode>()) {
+        switch (prim_t->primtype_kind()) {
+            case NodeKind::Node_PrimType_qs8:  return "world.type_qs8()";
+            case NodeKind::Node_PrimType_qs16: return "world.type_qs16()";
+            case NodeKind::Node_PrimType_qs32: return "world.type_qs32()";
+            case NodeKind::Node_PrimType_qs64: return "world.type_qs64()";
+            default: THORIN_UNREACHABLE; // not implemented
+        }
+    }
+
+    THORIN_UNREACHABLE; // not implemented
+}
+
+//------------------------------------------------------------------------------
+
+std::string CoGen::build_type(Type type) {
+    auto gen_t = toThorinType(type);
+    auto var_t = get_next_variable("type");
+    decls.push_back(assign(var_t, gen_t));
+    return var_t;
+}
+
+std::string CoGen::build_lambda(Lambda *lambda, std::string name) {
+    auto fn_type = build_type(lambda->type());
+    auto var_l   = get_next_variable("lambda");
+    auto gen_l   = "world.lambda(" + fn_type + ", \"" + name + "\")";
+    decls.push_back(assign(var_l, gen_l));
+    return var_l;
 }
 
 }

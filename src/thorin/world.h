@@ -228,6 +228,9 @@ public:
     void cleanup();
     void opt();
 
+    /// Invokes the CoGen pass
+    void cogen();
+
     // getters
 
     const std::string& name() const { return name_; }

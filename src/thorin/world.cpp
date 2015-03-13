@@ -17,6 +17,7 @@
 #include "thorin/transform/partial_evaluation.h"
 #include "thorin/transform/dead_load_opt.h"
 #include "thorin/util/array.h"
+#include "thorin/transform/cogen/cogen.h"
 
 #if (defined(__clang__) || defined(__GNUC__)) && (defined(__x86_64__) || defined(__i386__))
 #define THORIN_BREAK asm("int3");
@@ -869,6 +870,12 @@ void World::opt() {
     dead_load_opt(*this);
     bta(*this);
     cleanup();
+}
+
+
+void World::cogen() {
+    CoGen cogen;
+    cogen.run(*this);
 }
 
 }

@@ -149,4 +149,22 @@ std::string CoGen::build_lambda(Lambda *lambda, std::string name) {
     return var_l;
 }
 
+std::string CoGen::build_primop(PrimOp *primOp) {
+    if (auto literal = primOp->isa<PrimLit>())
+        return build_literal(literal);
+
+    THORIN_UNREACHABLE;
+}
+
+std::string CoGen::build_literal(PrimLit *literal) {
+    switch (literal->primtype_kind()) {
+        case NodeKind::Node_PrimType_qs8:  return "world.literal_qs8("  + std::to_string(literal->qs8_value())  + ")";
+        case NodeKind::Node_PrimType_qs16: return "world.literal_qs16(" + std::to_string(literal->qs16_value()) + ")";
+        case NodeKind::Node_PrimType_qs32: return "world.literal_qs32(" + std::to_string(literal->qs32_value()) + ")";
+        case NodeKind::Node_PrimType_qs64: return "world.literal_qs64(" + std::to_string(literal->qs64_value()) + ")";
+
+        default: THORIN_UNREACHABLE;
+    }
+}
+
 }

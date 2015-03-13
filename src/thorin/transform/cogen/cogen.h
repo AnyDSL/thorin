@@ -42,6 +42,8 @@ struct CoGen {
     std::string build_fn_type(Lambda *lambda);
     std::string build_lambda(Lambda *lambda) { return build_lambda(lambda, lambda->unique_name()); }
     std::string build_lambda(Lambda *lambda, std::string name);
+    std::string build_primop(PrimOp *primOp);
+    std::string build_literal(PrimLit *literal);
 };
 
 }

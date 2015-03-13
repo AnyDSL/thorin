@@ -25,8 +25,7 @@ struct CoGen {
     std::ostringstream source;
     std::vector<std::string> decls;
     std::vector<std::string> defs;
-    std::map<DefNode const *, std::string> StMap;
-    std::map<DefNode const *, std::string> DyMap;
+    std::map<DefNode const *, std::string> vars;
 
     /* Helper functions. */
     std::string get_next_variable(std::string var   = "v")     { return var   + std::to_string(varCount++); }
@@ -40,7 +39,7 @@ struct CoGen {
     std::string toThorinType(Type t);   // residual
 
     /* Residual */
-    std::string build_type(Type type);
+    std::string build_fn_type(Lambda *lambda);
     std::string build_lambda(Lambda *lambda) { return build_lambda(lambda, lambda->unique_name()); }
     std::string build_lambda(Lambda *lambda, std::string name);
 };

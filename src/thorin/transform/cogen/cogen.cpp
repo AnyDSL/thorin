@@ -13,8 +13,7 @@ void CoGen::run(World &world) {
     Scope::for_each(world, [&](Scope const &s){
             varCount = 0;
             labelCount = 0;
-            StMap.clear();
-            DyMap.clear();
+            vars.clear();
             decls.clear();
             defs.clear();
 
@@ -69,7 +68,7 @@ void CoGen::emit_generator(Lambda *lambda) {
             if (not bta.get(*it).isTop())
                 continue;
             auto pname = (*it)->name;
-            StMap.insert(std::make_pair(*it, pname));
+            vars.insert(std::make_pair(*it, pname));
             fn_proto << ", " << toCType((*it)->type()) << " " << pname;
         }
     }
@@ -80,11 +79,11 @@ void CoGen::emit_generator(Lambda *lambda) {
 
     build_lambda(lambda, lambda->unique_name() + "_spec");
     for (auto decl : decls)
-        source << decl << ";\n";
-    if (not decls.empty())
+        source << "    " << decl << ";\n";
+    if (not decls.empty() && not defs.empty())
         source << "\n";
     for (auto def : defs)
-        source << def << ";\n";
+        source << "    " << def << ";\n";
 
     source << "}\n";
 }
@@ -126,18 +125,27 @@ std::string CoGen::toThorinType(Type t) {
 
 //------------------------------------------------------------------------------
 
-std::string CoGen::build_type(Type type) {
-    auto gen_t = toThorinType(type);
+std::string CoGen::build_fn_type(Lambda *lambda) {
+    std::string gen_fn_t = "world.fn_type({";
+    std::string sep = "";
+    for (auto param : lambda->params()) {
+        if (not bta.get(param).isTop())
+            continue;
+        gen_fn_t += sep + toThorinType(param->type());
+        sep = ", ";
+    }
+    gen_fn_t += "})";
     auto var_t = get_next_variable("type");
-    decls.push_back(assign(var_t, gen_t));
+    decls.push_back(assign(var_t, gen_fn_t));
     return var_t;
 }
 
 std::string CoGen::build_lambda(Lambda *lambda, std::string name) {
-    auto fn_type = build_type(lambda->type());
+    auto fn_type = build_fn_type(lambda);
     auto var_l   = get_next_variable("lambda");
     auto gen_l   = "world.lambda(" + fn_type + ", \"" + name + "\")";
     decls.push_back(assign(var_l, gen_l));
+    vars.insert(std::make_pair(lambda, var_l));
     return var_l;
 }
 

@@ -13,7 +13,8 @@ void CoGen::run(World &world) {
     Scope::for_each(world, [&](Scope const &s){
             varCount = 0;
             labelCount = 0;
-            vars.clear();
+            def_map.clear();
+            type_map.clear();
             decls.clear();
             defs.clear();
 
@@ -68,7 +69,7 @@ void CoGen::emit_generator(Lambda *lambda) {
             if (not bta.get(*it).isTop())
                 continue;
             auto pname = (*it)->name;
-            vars.insert(std::make_pair(*it, pname));
+            def_map.insert(std::make_pair(*it, pname));
             fn_proto << ", " << toCType((*it)->type()) << " " << pname;
         }
     }
@@ -77,7 +78,7 @@ void CoGen::emit_generator(Lambda *lambda) {
     header << fn_proto.str() << ";\n";
     source << fn_proto.str() << " {\n";
 
-    build_lambda(lambda, lambda->unique_name() + "_spec");
+    build(lambda, lambda->unique_name() + "_spec");
     for (auto decl : decls)
         source << "    " << decl << ";\n";
     if (not decls.empty() && not defs.empty())
@@ -125,38 +126,41 @@ std::string CoGen::toThorinType(Type t) {
 
 //------------------------------------------------------------------------------
 
-std::string CoGen::build_fn_type(Lambda *lambda) {
-    std::string gen_fn_t = "world.fn_type({";
-    std::string sep = "";
-    for (auto param : lambda->params()) {
-        if (not bta.get(param).isTop())
-            continue;
-        gen_fn_t += sep + toThorinType(param->type());
-        sep = ", ";
-    }
-    gen_fn_t += "})";
+std::string CoGen::build(Type type) {
+    auto it = type_map.find(type);
+    if (type_map.end() != it)
+        return it->second;
     auto var_t = get_next_variable("type");
-    decls.push_back(assign(var_t, gen_fn_t));
+    auto gen_t = toThorinType(type);
+    decls.push_back(initialize(var_t, gen_t));
+    type_map.insert(std::make_pair(type, var_t));
     return var_t;
 }
 
-std::string CoGen::build_lambda(Lambda *lambda, std::string name) {
-    auto fn_type = build_fn_type(lambda);
+std::string CoGen::build(DefNode const *def) {
+    /* Lookup whether we already built `def'. */
+    auto it = def_map.find(def);
+    if (def_map.end() != it)
+        return it->second;
+
+    if (auto lambda = def->isa<Lambda>())
+        return build(lambda);
+    if (auto literal = def->isa<PrimLit>())
+        return build(literal);
+
+    THORIN_UNREACHABLE; // not implemented
+}
+
+std::string CoGen::build(Lambda const *lambda, std::string name) {
+    auto fn_type = build(lambda->type());
     auto var_l   = get_next_variable("lambda");
     auto gen_l   = "world.lambda(" + fn_type + ", \"" + name + "\")";
-    decls.push_back(assign(var_l, gen_l));
-    vars.insert(std::make_pair(lambda, var_l));
+    decls.push_back(initialize(var_l, gen_l));
+    def_map.insert(std::make_pair(lambda, var_l));
     return var_l;
 }
 
-std::string CoGen::build_primop(PrimOp *primOp) {
-    if (auto literal = primOp->isa<PrimLit>())
-        return build_literal(literal);
-
-    THORIN_UNREACHABLE;
-}
-
-std::string CoGen::build_literal(PrimLit *literal) {
+std::string CoGen::build(PrimLit const *literal) {
     switch (literal->primtype_kind()) {
         case NodeKind::Node_PrimType_qs8:  return "world.literal_qs8("  + std::to_string(literal->qs8_value())  + ")";
         case NodeKind::Node_PrimType_qs16: return "world.literal_qs16(" + std::to_string(literal->qs16_value()) + ")";

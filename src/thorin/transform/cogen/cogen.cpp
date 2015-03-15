@@ -208,7 +208,7 @@ std::string CoGen::residualize(ArithOp const *arithOp) {
         case ArithOpKind::ArithOp_sub: op = "-";  break;
         case ArithOpKind::ArithOp_mul: op = "*";  break;
         case ArithOpKind::ArithOp_div: op = "/";  break;
-        case ArithOpKind::ArithOp_rem: THORIN_UNREACHABLE; // TODO what is this?
+        case ArithOpKind::ArithOp_rem: op = "%";  break;
         case ArithOpKind::ArithOp_and: op = "&";  break;
         case ArithOpKind::ArithOp_or:  op = "|";  break;
         case ArithOpKind::ArithOp_xor: op = "^";  break;

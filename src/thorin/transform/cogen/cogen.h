@@ -15,6 +15,7 @@ struct World;
 struct Lambda;
 struct PrimOp;
 struct PrimLit;
+struct ArithOp;
 
 struct CoGen {
     CoGen(World &world) : world(world) { }
@@ -55,6 +56,7 @@ struct CoGen {
     std::string residualize(Lambda  const *lambda);
     std::string residualize(Lambda  const *lambda, std::string name);
     std::string residualize(PrimLit const *literal);
+    std::string residualize(ArithOp const *arithOp);
 };
 
 }

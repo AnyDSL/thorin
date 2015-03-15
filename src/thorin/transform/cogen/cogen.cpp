@@ -171,6 +171,8 @@ std::string CoGen::residualize(DefNode const *def) {
         return residualize(lambda);
     if (auto literal = def->isa<PrimLit>())
         return residualize(literal);
+    if (auto arithOp = def->isa<ArithOp>())
+        return residualize(arithOp);
 
     THORIN_UNREACHABLE; // not implemented
 }
@@ -194,6 +196,29 @@ std::string CoGen::residualize(PrimLit const *literal) {
         default: THORIN_UNREACHABLE;
     }
     return s + ")";
+}
+
+std::string CoGen::residualize(ArithOp const *arithOp) {
+    auto lhs = get(arithOp->op(0));
+    auto rhs = get(arithOp->op(1));
+
+    std::string op;
+    switch (arithOp->arithop_kind()) {
+        case ArithOpKind::ArithOp_add: op = "+";  break;
+        case ArithOpKind::ArithOp_sub: op = "-";  break;
+        case ArithOpKind::ArithOp_mul: op = "*";  break;
+        case ArithOpKind::ArithOp_div: op = "/";  break;
+        case ArithOpKind::ArithOp_rem: THORIN_UNREACHABLE; // TODO what is this?
+        case ArithOpKind::ArithOp_and: op = "&";  break;
+        case ArithOpKind::ArithOp_or:  op = "|";  break;
+        case ArithOpKind::ArithOp_xor: op = "^";  break;
+        case ArithOpKind::ArithOp_shl: op = "<<"; break;
+        case ArithOpKind::ArithOp_shr: op = ">>"; break;
+
+        default: THORIN_UNREACHABLE;
+    }
+
+    return lhs + " " + op + " " + rhs;
 }
 
 }

@@ -1,6 +1,11 @@
 #include "thorin/transform/cogen/cogen.h"
 
 #include "thorin/analyses/scope.h"
+#include "thorin/world.h"
+#include "thorin/type.h"
+#include "thorin/def.h"
+#include "thorin/lambda.h"
+#include "thorin/primop.h"
 
 namespace thorin {
 
@@ -63,14 +68,13 @@ void CoGen::emit_generator(Lambda *lambda) {
     fn_proto << "Lambda * " << name << "(";
     fn_proto << "World &world";
     {   /* Select static params. */
-        auto params = lambda->params();
         std::string sep = "";
-        for (auto it = params.begin(); params.end() != it; ++it) {
-            if (not bta.get(*it).isTop())
+        for (auto param : lambda->params()) {
+            if (bta.get(param).isTop())
                 continue;
-            auto pname = (*it)->name;
-            def_map.insert(std::make_pair(*it, pname));
-            fn_proto << ", " << toCType((*it)->type()) << " " << pname;
+            auto pname = param->name;
+            def_map.insert(std::make_pair(param, pname));
+            fn_proto << ", " << toCType(param->type()) << " " << pname;
         }
     }
     fn_proto << ")";
@@ -78,7 +82,7 @@ void CoGen::emit_generator(Lambda *lambda) {
     header << fn_proto.str() << ";\n";
     source << fn_proto.str() << " {\n";
 
-    build(lambda, lambda->unique_name() + "_spec");
+    get(lambda);
     for (auto decl : decls)
         source << "    " << decl << ";\n";
     if (not decls.empty() && not defs.empty())
@@ -96,22 +100,60 @@ std::string CoGen::toCType(Type t) {
     return "int";
 }
 
-std::string CoGen::toThorinType(Type t) {
-    if (t->isa<MemTypeNode>())
+//------------------------------------------------------------------------------
+
+std::string CoGen::get(Type type) {
+    /* Lookup whether we already built `type'. */
+    auto it = type_map.find(type);
+    if (type_map.end() != it)
+        return it->second;
+
+    auto var = get_next_variable("type");
+    auto gen = residualize(type);
+    decls.push_back(initialize(var, gen));
+    type_map.insert(std::make_pair(type, var));
+    return var;
+}
+
+std::string CoGen::get(DefNode const *def) {
+    /* Lookup whether we already built `def'. */
+    auto it = def_map.find(def);
+    if (def_map.end() != it)
+        return it->second;
+
+    auto var = get_next_variable("def");
+    auto gen = residualize(def);
+    decls.push_back(initialize(var, gen));
+    def_map.insert(std::make_pair(def, var));
+    return var;
+}
+
+FnType CoGen::extract_residual(Lambda const *lambda) {
+    std::vector<Type> v;
+    for (auto param : lambda->params()) {
+        if (not bta.get(param).isTop())
+            continue;
+        v.push_back(param->type());
+    }
+    return world.fn_type(v);
+}
+
+std::string CoGen::residualize(Type type) {
+    if (type->isa<MemTypeNode>())
         return "world.mem_type()";
 
-    if (auto fn_t = t->isa<FnTypeNode>()) {
+    if (auto fn_t = type->isa<FnTypeNode>()) {
         std::string s = "world.fn_type({";
         std::string sep = "";
         for (auto arg : fn_t->args()) {
-            s += sep + toThorinType(arg);
+            s += sep + residualize(arg);
             sep = ", ";
         }
         s += "})";
         return s;
     }
 
-    if (auto prim_t = t->isa<PrimTypeNode>()) {
+    if (auto prim_t = type->isa<PrimTypeNode>()) {
         switch (prim_t->primtype_kind()) {
             case NodeKind::Node_PrimType_qs8:  return "world.type_qs8()";
             case NodeKind::Node_PrimType_qs16: return "world.type_qs16()";
@@ -124,51 +166,34 @@ std::string CoGen::toThorinType(Type t) {
     THORIN_UNREACHABLE; // not implemented
 }
 
-//------------------------------------------------------------------------------
-
-std::string CoGen::build(Type type) {
-    auto it = type_map.find(type);
-    if (type_map.end() != it)
-        return it->second;
-    auto var_t = get_next_variable("type");
-    auto gen_t = toThorinType(type);
-    decls.push_back(initialize(var_t, gen_t));
-    type_map.insert(std::make_pair(type, var_t));
-    return var_t;
-}
-
-std::string CoGen::build(DefNode const *def) {
-    /* Lookup whether we already built `def'. */
-    auto it = def_map.find(def);
-    if (def_map.end() != it)
-        return it->second;
-
+std::string CoGen::residualize(DefNode const *def) {
     if (auto lambda = def->isa<Lambda>())
-        return build(lambda);
+        return residualize(lambda);
     if (auto literal = def->isa<PrimLit>())
-        return build(literal);
+        return residualize(literal);
 
     THORIN_UNREACHABLE; // not implemented
 }
 
-std::string CoGen::build(Lambda const *lambda, std::string name) {
-    auto fn_type = build(lambda->type());
-    auto var_l   = get_next_variable("lambda");
+std::string CoGen::residualize(Lambda  const *lambda) { return residualize(lambda, lambda->unique_name()); }
+
+std::string CoGen::residualize(Lambda const *lambda, std::string name) {
+    auto fn_type = get(extract_residual(lambda));
     auto gen_l   = "world.lambda(" + fn_type + ", \"" + name + "\")";
-    decls.push_back(initialize(var_l, gen_l));
-    def_map.insert(std::make_pair(lambda, var_l));
-    return var_l;
+    return gen_l;
 }
 
-std::string CoGen::build(PrimLit const *literal) {
+std::string CoGen::residualize(PrimLit const *literal) {
+    std::string s = "world.literal_";
     switch (literal->primtype_kind()) {
-        case NodeKind::Node_PrimType_qs8:  return "world.literal_qs8("  + std::to_string(literal->qs8_value())  + ")";
-        case NodeKind::Node_PrimType_qs16: return "world.literal_qs16(" + std::to_string(literal->qs16_value()) + ")";
-        case NodeKind::Node_PrimType_qs32: return "world.literal_qs32(" + std::to_string(literal->qs32_value()) + ")";
-        case NodeKind::Node_PrimType_qs64: return "world.literal_qs64(" + std::to_string(literal->qs64_value()) + ")";
+        case NodeKind::Node_PrimType_qs8:  s += "qs8("  + std::to_string(literal->qs8_value());  break;
+        case NodeKind::Node_PrimType_qs16: s += "qs16(" + std::to_string(literal->qs16_value()); break;
+        case NodeKind::Node_PrimType_qs32: s += "qs32(" + std::to_string(literal->qs32_value()); break;
+        case NodeKind::Node_PrimType_qs64: s += "qs64(" + std::to_string(literal->qs64_value()); break;
 
         default: THORIN_UNREACHABLE;
     }
+    return s + ")";
 }
 
 }

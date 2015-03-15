@@ -874,7 +874,7 @@ void World::opt() {
 
 
 void World::cogen() {
-    CoGen cogen;
+    CoGen cogen(*this);
     cogen.run(*this);
 }
 

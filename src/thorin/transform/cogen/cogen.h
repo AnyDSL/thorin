@@ -6,18 +6,22 @@
 #include <unordered_map>
 #include <string>
 #include <sstream>
-#include "thorin/def.h"
 #include "thorin/analyses/bta.h"
-#include "thorin/type.h"
-#include "thorin/lambda.h"
-#include "thorin/primop.h"
 
 namespace thorin {
 
+struct DefNode;
+struct World;
+struct Lambda;
+struct PrimOp;
+struct PrimLit;
+
 struct CoGen {
+    CoGen(World &world) : world(world) { }
     void run(World &world);
 
     private:
+    World &world;
     BTA bta;
     size_t varCount;
     size_t labelCount;
@@ -37,15 +41,20 @@ struct CoGen {
     void emit_epilogue();
     void emit_generator(Lambda *lambda);
 
-    std::string toCType     (Type t);   // static
-    std::string toThorinType(Type t);   // residual
+    /* Static */
+    std::string toCType(Type t);
 
     /* Residual */
-    std::string build(Type type);
-    std::string build(DefNode const *def);
-    std::string build(Lambda  const *lambda) { return build(lambda, lambda->unique_name()); }
-    std::string build(Lambda  const *lambda, std::string name);
-    std::string build(PrimLit const *literal);
+    std::string get(Type type);
+    std::string get(DefNode const *def);
+
+    FnType extract_residual(Lambda const *lambda);
+
+    std::string residualize(Type type);
+    std::string residualize(DefNode const *def);
+    std::string residualize(Lambda  const *lambda);
+    std::string residualize(Lambda  const *lambda, std::string name);
+    std::string residualize(PrimLit const *literal);
 };
 
 }

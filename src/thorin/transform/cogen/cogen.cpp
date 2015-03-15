@@ -204,21 +204,21 @@ std::string CoGen::residualize(ArithOp const *arithOp) {
 
     std::string op;
     switch (arithOp->arithop_kind()) {
-        case ArithOpKind::ArithOp_add: op = "+";  break;
-        case ArithOpKind::ArithOp_sub: op = "-";  break;
-        case ArithOpKind::ArithOp_mul: op = "*";  break;
-        case ArithOpKind::ArithOp_div: op = "/";  break;
-        case ArithOpKind::ArithOp_rem: op = "%";  break;
-        case ArithOpKind::ArithOp_and: op = "&";  break;
-        case ArithOpKind::ArithOp_or:  op = "|";  break;
-        case ArithOpKind::ArithOp_xor: op = "^";  break;
-        case ArithOpKind::ArithOp_shl: op = "<<"; break;
-        case ArithOpKind::ArithOp_shr: op = ">>"; break;
+        case ArithOpKind::ArithOp_add: op = "add"; break;
+        case ArithOpKind::ArithOp_sub: op = "sub"; break;
+        case ArithOpKind::ArithOp_mul: op = "mul"; break;
+        case ArithOpKind::ArithOp_div: op = "div"; break;
+        case ArithOpKind::ArithOp_rem: op = "rem"; break;
+        case ArithOpKind::ArithOp_and: op = "and"; break;
+        case ArithOpKind::ArithOp_or:  op = "or";  break;
+        case ArithOpKind::ArithOp_xor: op = "xor"; break;
+        case ArithOpKind::ArithOp_shl: op = "shl"; break;
+        case ArithOpKind::ArithOp_shr: op = "shr"; break;
 
         default: THORIN_UNREACHABLE;
     }
 
-    return lhs + " " + op + " " + rhs;
+    return "world.arithop_" + op + "(" + lhs + ", " + rhs + ")";
 }
 
 }

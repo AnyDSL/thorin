@@ -74,7 +74,7 @@ void CoGen::emit_generator(Lambda *lambda) {
                 continue;
             auto pname = param->name;
             def_map.insert(std::make_pair(param, pname));
-            fn_proto << ", " << toCType(param->type()) << " " << pname;
+            fn_proto << ", " << specialize(param->type()) << " " << pname;
         }
     }
     fn_proto << ")";
@@ -95,9 +95,40 @@ void CoGen::emit_generator(Lambda *lambda) {
 
 //------------------------------------------------------------------------------
 
-std::string CoGen::toCType(Type t) {
+std::string CoGen::specialize(Type type) {
     // TODO: do something meaningful
     return "int";
+}
+
+std::string CoGen::specialize(DefNode const *def) {
+    if (auto lambda = def->isa<Lambda>())
+        return specialize(lambda);
+    else
+        THORIN_UNREACHABLE; // not implemented
+}
+
+std::string CoGen::specialize(Lambda const *lambda) {
+    /* Select static params. */
+    for (auto param : lambda->params()) {
+        if (bta.get(param).isTop())
+            continue;
+        auto var_p = get_next_variable("param");
+        decls.push_back(specialize(param->type() + " " + var_p));
+        def_map.insert(std::make_pair(param, var_p));
+    }
+
+    defs.push_back(lambda->unique_name() + ":");
+
+    for (auto op : lambda->args())
+        specialize(op);
+
+    auto to = lambda->to();
+    if (bta.get(to).isTop()) {
+        /* Emit jump. */
+    } else {
+        defs.push_back("goto " + def_map[to]);
+    }
+
 }
 
 //------------------------------------------------------------------------------

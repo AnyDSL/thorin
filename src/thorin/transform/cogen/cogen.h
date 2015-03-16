@@ -43,7 +43,9 @@ struct CoGen {
     void emit_generator(Lambda *lambda);
 
     /* Static */
-    std::string toCType(Type t);
+    std::string specialize(Type type);
+    std::string specialize(DefNode const *def);
+    std::string specialize(Lambda  const *lambda);
 
     /* Residual */
     std::string get(Type type);

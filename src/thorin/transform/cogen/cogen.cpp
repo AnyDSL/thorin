@@ -155,12 +155,37 @@ std::string CoGen::residualize(Type type) {
 
     if (auto prim_t = type->isa<PrimTypeNode>()) {
         switch (prim_t->primtype_kind()) {
-            case NodeKind::Node_PrimType_qs8:  return "world.type_qs8()";
+            case NodeKind::Node_PrimType_bool: return "world.type_bool()";
+            case NodeKind::Node_PrimType_pf32: return "world.type_pf32()";
+            case NodeKind::Node_PrimType_pf64: return "world.type_pf64()";
+            case NodeKind::Node_PrimType_ps16: return "world.type_ps16()";
+            case NodeKind::Node_PrimType_ps32: return "world.type_ps32()";
+            case NodeKind::Node_PrimType_ps64: return "world.type_ps64()";
+            case NodeKind::Node_PrimType_ps8:  return "world.type_ps8()";
+            case NodeKind::Node_PrimType_pu16: return "world.type_pu16()";
+            case NodeKind::Node_PrimType_pu32: return "world.type_pu32()";
+            case NodeKind::Node_PrimType_pu64: return "world.type_pu64()";
+            case NodeKind::Node_PrimType_pu8:  return "world.type_pu8()";
+            case NodeKind::Node_PrimType_qf32: return "world.type_qf32()";
+            case NodeKind::Node_PrimType_qf64: return "world.type_qf64()";
             case NodeKind::Node_PrimType_qs16: return "world.type_qs16()";
             case NodeKind::Node_PrimType_qs32: return "world.type_qs32()";
             case NodeKind::Node_PrimType_qs64: return "world.type_qs64()";
-            default: THORIN_UNREACHABLE; // not implemented
+            case NodeKind::Node_PrimType_qs8:  return "world.type_qs8()";
+            case NodeKind::Node_PrimType_qu16: return "world.type_qu16()";
+            case NodeKind::Node_PrimType_qu32: return "world.type_qu32()";
+            case NodeKind::Node_PrimType_qu64: return "world.type_qu64()";
+            case NodeKind::Node_PrimType_qu8:  return "world.type_qu8()";
+            default: THORIN_UNREACHABLE;
         }
+    }
+
+    if (auto array_t = type->isa<ArrayTypeNode>()) {
+        auto elem_t = residualize(array_t->elem_type());
+
+        if (array_t->isa<IndefiniteArrayTypeNode>())
+            return "world.indefinite_array_type(" + elem_t + ")";
+        return "world.definite_array_type(" + elem_t + ")";
     }
 
     THORIN_UNREACHABLE; // not implemented

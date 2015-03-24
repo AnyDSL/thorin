@@ -195,16 +195,16 @@ Def Map::vrebuild(World& to, ArrayRef<Def> ops, Type) const {
     return to.map(device(), addr_space(), ops[0], ops[1], ops[2], ops[3], name); 
 }
 
-Def DefiniteArray::vrebuild(World& to, ArrayRef<Def> ops, Type) const { 
-    return to.definite_array(type()->elem_type(), ops, name); 
+Def DefiniteArray::vrebuild(World& to, ArrayRef<Def> ops, Type t) const { 
+    return to.definite_array(t.as<DefiniteArrayType>()->elem_type(), ops, name); 
 }
 
-Def StructAgg::vrebuild(World& to, ArrayRef<Def> ops, Type type) const { 
-    return to.struct_agg(type.as<StructAppType>(), ops, name); 
+Def StructAgg::vrebuild(World& to, ArrayRef<Def> ops, Type t) const { 
+    return to.struct_agg(t.as<StructAppType>(), ops, name); 
 }
 
-Def IndefiniteArray::vrebuild(World& to, ArrayRef<Def> ops, Type) const { 
-    return to.indefinite_array(type()->elem_type(), ops[0], name); 
+Def IndefiniteArray::vrebuild(World& to, ArrayRef<Def> ops, Type t) const { 
+    return to.indefinite_array(t.as<IndefiniteArrayType>()->elem_type(), ops[0], name); 
 }
 
 //------------------------------------------------------------------------------

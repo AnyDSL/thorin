@@ -45,6 +45,7 @@ public:
     const DefSet& in_scope() const { return in_scope_; }
     /// deprecated.
     bool _contains(Def def) const { return in_scope_.contains(def); }
+    // TODO fix this: recursion/parameters
     bool outer_contains(Lambda* lambda) const { return lambda->find_scope(this) != nullptr; }
     bool outer_contains(const Param* param) const { return outer_contains(param->lambda()); }
     bool inner_contains(Lambda* lambda) const { return lambda != entry() && outer_contains(lambda); }

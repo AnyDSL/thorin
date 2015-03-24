@@ -282,7 +282,7 @@ inline void __check_device(uint32_t dev) {
 
 // initialize CUDA device
 void init_cuda() {
-    int device_count, driver_version = 0, nvvm_major = 0, nvvm_minor = 0;
+    int device_count = 0, driver_version = 0, nvvm_major = 0, nvvm_minor = 0;
 
     setenv("CUDA_CACHE_DISABLE", "1", 1);
 
@@ -291,6 +291,7 @@ void init_cuda() {
 
     err = cuDeviceGetCount(&device_count);
     checkErrDrv(err, "cuDeviceGetCount()");
+    assert(device_count && "no CUDA device found");
 
     err = cuDriverGetVersion(&driver_version);
     checkErrDrv(err, "cuDriverGetVersion()");

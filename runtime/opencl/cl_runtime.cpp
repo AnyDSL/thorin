@@ -460,6 +460,8 @@ void init_opencl() {
         delete[] platforms;
     }
 
+    assert(devices_.size() && "no OpenCL device found");
+
     // initialize clArgIdx
     clArgIdx = 0;
     local_work_size[0] = 256;

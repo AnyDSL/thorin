@@ -11,12 +11,14 @@ OS        := $(shell uname -s)
 CPP        = cu_runtime.cpp ../common/thorin_runtime.cpp ../common/thorin_utils.cpp
 OBJS       = $(CPP:%.cpp=%.o)
 
+ifneq (,$(wildcard $(CUDA_DIR)/include/nvrtc.h))
+	NVRTC_LIB := -lnvrtc
+endif
+LD_FLAGS = -lcuda -lnvvm $(NVRTC_LIB)
 ifeq ($(OS),Linux)
-	LD_FLAGS = -lcuda -lnvvm
 	LIB_DIRS = $(CUDA_DIR)/lib64 $(CUDA_DIR)/nvvm/lib64
 endif
 ifeq ($(OS),Darwin) # assume Mac OS X
-	LD_FLAGS = -lcuda -lnvvm
 	LIB_DIRS = $(CUDA_DIR)/lib $(CUDA_DIR)/nvvm/lib
 endif
 

@@ -44,6 +44,10 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
         set(${outfiles} ${${outfiles}} ${THORIN_RUNTIME_DIR}/cuda/cu_runtime.cpp)
         Find_Library(CUDA_NVVM_LIBRARY nvvm HINTS ${CUDA_TOOLKIT_ROOT_DIR}/nvvm/lib ${CUDA_TOOLKIT_ROOT_DIR}/nvvm/lib64)
         set(${outlibs} ${${outlibs}} ${CUDA_CUDA_LIBRARY} ${CUDA_NVVM_LIBRARY})
+        if(NOT (CUDA_VERSION VERSION_GREATER "7.00"))
+            Find_Library(CUDA_NVRTC_LIBRARY nvrtc HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib ${CUDA_TOOLKIT_ROOT_DIR}/lib64)
+            set(${outlibs} ${${outlibs}} ${CUDA_NVRTC_LIBRARY})
+        endif()
         set(_impala_platform ${_impala_platform} ${THORIN_RUNTIME_DIR}/platforms/intrinsics_${TRW_BACKEND}.impala)
         # cu_runtime needs some defines
         # lucky enough, cmake does the right thing here even when we compile impala programs from various folders

@@ -4,6 +4,10 @@
     #error "CUDA 6.0 or higher required!"
 #endif
 
+#if CUDA_VERSION >= 7000
+#include <nvrtc.h>
+#endif
+
 #include <algorithm>
 #include <cassert>
 #include <cstdlib>
@@ -246,8 +250,9 @@ class Memory {
 Memory mem_manager;
 
 #define check_dev(dev) __check_device(dev)
-#define checkErrNvvm(err, name) __checkNvvmErrors (err, name, __FILE__, __LINE__)
-#define checkErrDrv(err, name)  __checkCudaErrors (err, name, __FILE__, __LINE__)
+#define checkErrNvvm(err, name)  __checkNvvmErrors  (err, name, __FILE__, __LINE__)
+#define checkErrNvrtc(err, name) __checkNvrtcErrors (err, name, __FILE__, __LINE__)
+#define checkErrDrv(err, name)   __checkCudaErrors  (err, name, __FILE__, __LINE__)
 
 std::string getCUDAErrorCodeStrDrv(CUresult errorCode) {
     const char *errorName;
@@ -272,6 +277,18 @@ inline void __checkNvvmErrors(nvvmResult err, std::string name, std::string file
         exit(EXIT_FAILURE);
     }
 }
+
+#if CUDA_VERSION >= 7000
+inline void __checkNvrtcErrors(nvrtcResult err, std::string name, std::string file, const int line) {
+    if (NVRTC_SUCCESS != err) {
+        std::cerr << "ERROR (NVRTC API): " << name << " (" << err << ")" << " [file " << file << ", line " << line << "]: " << std::endl;
+        std::cerr << nvrtcGetErrorString(err) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+}
+#else
+#define __checkNvrtcErrors(err, name, file, line)
+#endif
 
 inline void __check_device(uint32_t dev) {
     if (dev >= devices_.size()) {
@@ -300,6 +317,12 @@ void init_cuda() {
     checkErrNvvm(errNvvm, "nvvmVersion()");
 
     std::cerr << "CUDA Driver Version " << driver_version/1000 << "." << (driver_version%100)/10 << std::endl;
+    #if CUDA_VERSION >= 7000
+    int nvrtc_major = 0, nvrtc_minor = 0;
+    nvrtcResult errNvrtc = nvrtcVersion(&nvrtc_major, &nvrtc_minor);
+    checkErrNvrtc(errNvrtc, "nvrtcVersion()");
+    std::cerr << "NVRTC Version " << nvrtc_major << "." << nvrtc_minor << std::endl;
+    #endif
     std::cerr << "NVVM Version " << nvvm_major << "." << nvvm_minor << std::endl;
 
     mem_manager.reserve(device_count);
@@ -422,10 +445,12 @@ void compile_nvvm(uint32_t dev, std::string file_name, CUjit_target target_cc) {
     // select libdevice module according to documentation
     std::string libdevice_file_name;
     switch (target_cc) {
-        #if CUDA_VERSION >= 6050
+        #if CUDA_VERSION == 6050
         case CU_TARGET_COMPUTE_37:
         #endif
+        #if CUDA_VERSION == 6000
         case CU_TARGET_COMPUTE_50:
+        #endif
         default:
             assert(false && "unsupported compute capability");
         case CU_TARGET_COMPUTE_20:
@@ -433,8 +458,17 @@ void compile_nvvm(uint32_t dev, std::string file_name, CUjit_target target_cc) {
         case CU_TARGET_COMPUTE_32:
             libdevice_file_name = "libdevice.compute_20.10.bc"; break;
         case CU_TARGET_COMPUTE_30:
+        #if CUDA_VERSION >= 6050
+        case CU_TARGET_COMPUTE_50:
+        #endif
+        #if CUDA_VERSION >= 7000
+        case CU_TARGET_COMPUTE_52:
+        #endif
             libdevice_file_name = "libdevice.compute_30.10.bc"; break;
         case CU_TARGET_COMPUTE_35:
+        #if CUDA_VERSION >= 7000
+        case CU_TARGET_COMPUTE_37:
+        #endif
             libdevice_file_name = "libdevice.compute_35.10.bc"; break;
     }
     std::ifstream libdeviceFile(std::string(LIBDEVICE_DIR)+libdevice_file_name);
@@ -497,6 +531,56 @@ void compile_nvvm(uint32_t dev, std::string file_name, CUjit_target target_cc) {
 
 
 // load CUDA source and compile kernel
+#if CUDA_VERSION >= 7000
+void compile_cuda(uint32_t dev, std::string file_name, CUjit_target target_cc) {
+    nvrtcResult err;
+    nvrtcProgram program;
+
+    std::ifstream srcFile(std::string(KERNEL_DIR)+file_name);
+    if (!srcFile.is_open()) {
+        std::cerr << "ERROR: Can't open CU source file '" << KERNEL_DIR << file_name << "'!" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    std::string srcString = std::string(std::istreambuf_iterator<char>(srcFile), (std::istreambuf_iterator<char>()));
+
+    err = nvrtcCreateProgram(&program, srcString.c_str(), file_name.c_str(), 0, NULL, NULL);
+    checkErrNvrtc(err, "nvrtcCreateProgram()");
+
+    std::string compute_arch("-arch=compute_" + std::to_string(target_cc));
+    int num_options = 1;
+    const char *options[3];
+    options[0] = compute_arch.c_str();
+    options[1] = "-G";
+    options[2] = "-lineinfo";
+
+    err = nvrtcCompileProgram(program, num_options, options);
+    if (err != NVRTC_SUCCESS) {
+        size_t log_size;
+        nvrtcGetProgramLogSize(program, &log_size);
+        char *error_log = new char[log_size];
+        nvrtcGetProgramLog(program, error_log);
+        std::cerr << "Error log: " << error_log << std::endl;
+        delete[] error_log;
+    }
+    checkErrNvrtc(err, "nvrtcCompileProgram()");
+
+    size_t ptx_size;
+    err = nvrtcGetPTXSize(program, &ptx_size);
+    checkErrNvrtc(err, "nvrtcGetPTXSize()");
+
+    char *ptx = new char[ptx_size];
+    err = nvrtcGetPTX(program, ptx);
+    checkErrNvrtc(err, "nvrtcGetPTX()");
+
+    err = nvrtcDestroyProgram(&program);
+    checkErrNvrtc(err, "nvrtcDestroyProgram()");
+
+    // compile ptx
+    create_module(dev, ptx, file_name, target_cc);
+    delete[] ptx;
+}
+#else
 void compile_cuda(uint32_t dev, std::string file_name, CUjit_target target_cc) {
     char line[FILENAME_MAX];
     FILE *fpipe;
@@ -529,6 +613,7 @@ void compile_cuda(uint32_t dev, std::string file_name, CUjit_target target_cc) {
     // compile ptx
     create_module(dev, ptx, file_name, target_cc);
 }
+#endif
 
 
 // create module

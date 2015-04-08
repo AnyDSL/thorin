@@ -312,6 +312,8 @@ extern "C" {
     fn "__nv_atan2f"    atan2f(f32, f32) -> f32;
     fn "__nv_sinf"      sinf(f32) -> f32;
     fn "__nv_cosf"      cosf(f32) -> f32;
+    fn "__nv_asinf"     asinf(f32) -> f32;
+    fn "__nv_acosf"     acosf(f32) -> f32;
     fn "__nv_erff"      erff(f32) -> f32;
     fn "__nv_floorf"    floorf(f32) -> f32;
     fn "__nv_fmaf"      fmaf(f32, f32, f32) -> f32;

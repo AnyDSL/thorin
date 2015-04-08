@@ -7,6 +7,8 @@ extern "C" {
     fn atan2f(f32, f32) -> f32;
     fn sinf(f32) -> f32;
     fn cosf(f32) -> f32;
+    fn asinf(f32) -> f32;
+    fn acosf(f32) -> f32;
     fn erff(f32) -> f32;
     fn floorf(f32) -> f32;
     fn exp(f64) -> f64;

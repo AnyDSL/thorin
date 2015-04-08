@@ -616,8 +616,18 @@ llvm::Value* CodeGen::emit(Def def) {
     if (auto agg = def->isa<Aggregate>()) {
         assert(def->isa<Tuple>() || def->isa<StructAgg>() || def->isa<Vector>());
         llvm::Value* llvm_agg = llvm::UndefValue::get(convert(agg->type()));
-        for (size_t i = 0, e = agg->ops().size(); i != e; ++i)
-            llvm_agg = builder_.CreateInsertValue(llvm_agg, lookup(agg->op(i)), { unsigned(i) });
+
+        if (def->isa<Vector>()) {
+            // Insert/ExtractValue doesn't work for vectors
+            for (size_t i = 0, e = agg->ops().size(); i != e; ++i) {
+                llvm_agg = builder_.CreateInsertElement(llvm_agg, lookup(agg->op(i)), builder_.getInt32(i));
+            }
+        } else {
+            for (size_t i = 0, e = agg->ops().size(); i != e; ++i) {
+                llvm_agg = builder_.CreateInsertValue(llvm_agg, lookup(agg->op(i)), { unsigned(i) });
+            }
+        }
+
         return llvm_agg;
     }
 

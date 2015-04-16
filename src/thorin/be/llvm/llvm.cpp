@@ -242,9 +242,9 @@ void CodeGen::emit(int opt) {
                         Array<llvm::Type*> args(num_args);
 
                         size_t n = 0;
-                        for (size_t a = 0; a < num_args; ++a) {
-                            if (!bb_lambda->arg(n)->type().isa<MemType>()) {
-                                llvm::Value* val = lookup(bb_lambda->arg(a));
+                        for (size_t i = 0; i < num_args; ++i) {
+                            if (!bb_lambda->arg(i)->type().isa<MemType>()) {
+                                llvm::Value* val = lookup(bb_lambda->arg(i));
                                 values[n] = val;
                                 args[n++] = val->getType();
                             }

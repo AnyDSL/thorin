@@ -19,6 +19,8 @@ extern "device" {
     fn "_Z5atan2ff" atan2f(f32, f32) -> f32;
     fn "_Z3sinf"    sinf(f32) -> f32;
     fn "_Z3cosf"    cosf(f32) -> f32;
+    fn "_Z4asinf"   asinf(f32) -> f32;
+    fn "_Z4acosf"   acosf(f32) -> f32;
     fn "_Z3erff"    erff(f32) -> f32;
     fn "_Z5floorf"  floorf(f32) -> f32;
     fn "_Z3fmafff"  fmaf(f32, f32, f32) -> f32;

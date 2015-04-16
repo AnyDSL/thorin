@@ -240,9 +240,9 @@ void CodeGen::emit(int opt) {
                         Array<llvm::Type*> args(num_args);
 
                         size_t n = 0;
-                        for (size_t a = 0; a < num_args; ++a) {
-                            if (!lambda->arg(n)->type().isa<MemType>()) {
-                                llvm::Value* val = lookup(lambda->arg(a));
+                        for (size_t i = 0; i < num_args; ++i) {
+                            if (!bb_lambda->arg(i)->type().isa<MemType>()) {
+                                auto val = lookup(bb_lambda->arg(i));
                                 values[n] = val;
                                 args[n++] = val->getType();
                             }
@@ -614,8 +614,18 @@ llvm::Value* CodeGen::emit(Def def) {
     if (auto agg = def->isa<Aggregate>()) {
         assert(def->isa<Tuple>() || def->isa<StructAgg>() || def->isa<Vector>());
         llvm::Value* llvm_agg = llvm::UndefValue::get(convert(agg->type()));
-        for (size_t i = 0, e = agg->ops().size(); i != e; ++i)
-            llvm_agg = builder_.CreateInsertValue(llvm_agg, lookup(agg->op(i)), { unsigned(i) });
+
+        if (def->isa<Vector>()) {
+            // Insert/ExtractValue doesn't work for vectors
+            for (size_t i = 0, e = agg->ops().size(); i != e; ++i) {
+                llvm_agg = builder_.CreateInsertElement(llvm_agg, lookup(agg->op(i)), builder_.getInt32(i));
+            }
+        } else {
+            for (size_t i = 0, e = agg->ops().size(); i != e; ++i) {
+                llvm_agg = builder_.CreateInsertValue(llvm_agg, lookup(agg->op(i)), { unsigned(i) });
+            }
+        }
+
         return llvm_agg;
     }
 

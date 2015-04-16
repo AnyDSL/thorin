@@ -1,4 +1,6 @@
 extern "C" {
+    fn asinf(f32) -> f32;
+    fn acosf(f32) -> f32;
     fn tanf(f32) -> f32;
     fn atan2f(f32, f32) -> f32;
     fn erff(f32) -> f32;

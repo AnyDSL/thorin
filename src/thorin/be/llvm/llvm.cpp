@@ -240,7 +240,7 @@ void CodeGen::emit(int opt) {
                         Array<llvm::Type*> args(num_args);
 
                         size_t n = 0;
-                        for (auto arg : bb_lambda->args()) {
+                        for (auto arg : lambda->args()) {
                             if (arg->type().isa<MemType>()) {
                                 auto val = lookup(arg);
                                 values[n] = val;

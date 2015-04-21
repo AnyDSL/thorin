@@ -46,7 +46,7 @@ extern "device" {
     fn gridDim_z() -> int;
 }
 
-fn acc(dev : int, dim : (int, int, int), block : (int, int, int), body : fn() -> ()) -> () { cuda(dev, dim, block, body) }
+fn acc(dev: int, dim: (int, int, int), block: (int, int, int), body: fn() -> ()) -> () { cuda(dev, dim, block, body) }
 fn acc_tidx() -> int    { threadIdx_x() }
 fn acc_tidy() -> int    { threadIdx_y() }
 fn acc_tidz() -> int    { threadIdx_z() }
@@ -70,6 +70,6 @@ fn acc_spm() -> int     { 3 }
 fn acc_cst() -> int     { 4 }
 fn acc_dev() -> int     { 0 }
 
-fn madf(a : f32, b : f32, c : f32) -> f32 { fmaf(a, b, c) }
-fn mad(a : f64, b : f64, c : f64) -> f64 { fma(a, b, c) }
+fn madf(a: f32, b: f32, c: f32) -> f32 { fmaf(a, b, c) }
+fn mad(a: f64, b: f64, c: f64) -> f64 { fma(a, b, c) }
 

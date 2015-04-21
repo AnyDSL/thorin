@@ -265,7 +265,7 @@ extern "device" {
     fn "llvm.nvvm.ull2f.rz" nvvm_ull2f_rz(i64) -> f32;
 }
 
-fn acc(dev : int, dim : (int, int, int), block : (int, int, int), body : fn() -> ()) -> () { nvvm(dev, dim, block, body) }
+fn acc(dev: int, dim: (int, int, int), block: (int, int, int), body: fn() -> ()) -> () { nvvm(dev, dim, block, body) }
 fn acc_tidx() -> int    { nvvm_read_ptx_sreg_tid_x() }
 fn acc_tidy() -> int    { nvvm_read_ptx_sreg_tid_y() }
 fn acc_tidz() -> int    { nvvm_read_ptx_sreg_tid_z() }

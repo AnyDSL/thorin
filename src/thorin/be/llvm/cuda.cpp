@@ -24,7 +24,7 @@ void CUDACodeGen::emit() {
     std::ofstream file(name);
     if (!file.is_open())
         throw std::runtime_error("cannot write '" + name + "': " + strerror(errno));
-    thorin::emit_c(world_, file, CUDA);
+    thorin::emit_c(world_, file, Lang::CUDA);
     file.close();
 }
 

@@ -1,5 +1,8 @@
 #include "cu_runtime.h"
 
+#include "thorin_runtime.h"
+#include "thorin_utils.h"
+
 #if CUDA_VERSION < 6000
     #error "CUDA 6.0 or higher required!"
 #endif

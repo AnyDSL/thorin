@@ -6,8 +6,6 @@
 
 #include <cstdint>
 
-#include "thorin_runtime.h"
-
 extern "C"
 {
 

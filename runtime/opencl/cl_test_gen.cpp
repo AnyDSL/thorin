@@ -3,6 +3,8 @@
 
 #include "cl_runtime.h"
 
+#include "thorin_runtime.h"
+
 static int num = 1024;
 
 int test_kernelfile(const char *file) {

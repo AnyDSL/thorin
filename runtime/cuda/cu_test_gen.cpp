@@ -3,6 +3,8 @@
 
 #include "cu_runtime.h"
 
+#include "thorin_runtime.h"
+
 static void nnvm_load_any_kernel(uint32_t dev, const char *file, const char *kernel) {
     size_t len = strlen(file);
     if (len > 3 && !strcmp(file+len-3, ".cu")) // hack: nvcc checks for .cu extension, so we just do the same here
@@ -110,11 +112,11 @@ int test_kernelfile(const char *file) {
     return EXIT_SUCCESS;
 }
 
-extern "C" { int main_impala(void); }
-int main_impala() {
-    int ret = test_kernelfile("simple-gpu64.cu");
+extern "C"
+int cu_test() {
+    int ret = test_kernelfile("cu_test.cu");
     if (ret == EXIT_SUCCESS)
-        ret = test_kernelfile("simple-gpu64.nvvm");
+        ret = test_kernelfile("cu_test.nvvm");
     return ret;
 }
 

@@ -1,4 +1,6 @@
 #include "cl_runtime.h"
+
+#include "thorin_runtime.h"
 #include "thorin_utils.h"
 
 #include <algorithm>

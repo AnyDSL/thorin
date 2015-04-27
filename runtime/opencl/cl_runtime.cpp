@@ -145,7 +145,7 @@ class Memory {
         std::cerr << " * free host(" << ptr << ")" << std::endl;
         hostmem.erase(ptr);
         // free host memory
-        ::free(ptr);
+        thorin_aligned_free(ptr);
     }
     size_t host_mem_size(void *ptr) {
         assert(hostmem.count(ptr) && "memory not allocated by thorin");

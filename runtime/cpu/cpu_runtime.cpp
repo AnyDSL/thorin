@@ -22,7 +22,7 @@ void* thorin_malloc(uint32_t size) {
     return mem;
 }
 void thorin_free(void* ptr) {
-    free(ptr);
+    thorin_aligned_free(ptr);
 }
 void thorin_print_total_timing() { }
 

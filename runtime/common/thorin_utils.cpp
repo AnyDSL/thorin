@@ -20,16 +20,19 @@
 
 #ifdef _ISOC11_SOURCE
 void* thorin_aligned_malloc(size_t size, size_t alignment) { return ::aligned_alloc(alignment, size); }
+void thorin_aligned_free(void* ptr) { ::free(ptr); }
 #elif (_POSIX_VERSION >= 200112L || _XOPEN_SOURCE >= 600)
 void* thorin_aligned_malloc(size_t size, size_t alignment) {
     void* p;
     posix_memalign(&p, alignment, size);
     return p;
 }
+void thorin_aligned_free(void* ptr) { free(ptr); }
 #elif defined(_WIN32) || defined(__CYGWIN__)
 #include <malloc.h>
 
 void* thorin_aligned_malloc(size_t size, size_t alignment) { return ::_aligned_malloc(size, alignment); }
+void thorin_aligned_free(void* ptr) { ::_aligned_free(ptr); }
 #else
 #error "don't know how to retrieve aligned memory"
 #endif

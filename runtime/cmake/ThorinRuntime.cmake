@@ -2,8 +2,16 @@ include(CMakeParseArguments)
 
 # find impala
 find_program(IMPALA_BIN impala)
-IF (NOT IMPALA_BIN)
+IF(NOT IMPALA_BIN)
     message(FATAL_ERROR "Could not find impala binary, it has to be in the PATH")
+ENDIF()
+find_program(LLVM_AS_BIN llvm-as)
+find_program(CLANGPP_BIN clang++)
+IF(NOT LLVM_AS_BIN)
+    message(FATAL_ERROR "Could not find llvm-as binary, it has to be in the PATH")
+ENDIF()
+IF(NOT CLANGPP_BIN)
+    message(FATAL_ERROR "Could not find clang++ binary, it has to be in the PATH")
 ENDIF()
 
 # find python for post-patcher.py
@@ -113,11 +121,11 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
         set(_spirfile ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.spir)
         set(_bcfile ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.spir.bc)
         add_custom_command(OUTPUT ${_bcfile}
-            COMMAND llvm-as ${_spirfile}
+            COMMAND ${LLVM_AS_BIN} ${_spirfile}
             DEPENDS ${_spirfile} VERBATIM)
     ENDIF()
     add_custom_command(OUTPUT ${_objfile}
-        COMMAND clang++ -O3 -g -c -o ${_objfile} ${_llfile}
+        COMMAND ${CLANGPP_BIN} -O3 -g -c -o ${_objfile} ${_llfile}
         DEPENDS ${_llfile} VERBATIM)
     SET_SOURCE_FILES_PROPERTIES(
         ${_objfile}

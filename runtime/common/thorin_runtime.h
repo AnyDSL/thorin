@@ -12,8 +12,8 @@
 extern "C" {
     // runtime functions, used externally from C++ interface
     void thorin_init();
-    void *thorin_malloc(uint32_t size);
-    void thorin_free(void *ptr);
+    void* thorin_malloc(uint32_t size);
+    void thorin_free(void* ptr);
     void thorin_print_total_timing();
 }
 

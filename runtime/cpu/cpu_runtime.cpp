@@ -21,7 +21,7 @@ void* thorin_malloc(uint32_t size) {
     std::cerr << " * malloc(" << size << ") -> " << mem << std::endl;
     return mem;
 }
-void thorin_free(void *ptr) {
+void thorin_free(void* ptr) {
     free(ptr);
 }
 void thorin_print_total_timing() { }
@@ -31,7 +31,7 @@ static std::unordered_map<int, std::thread> thread_pool;
 static std::vector<int> free_ids;
 
 // C++11 threads version
-void parallel_for(int num_threads, int lower, int upper, void *args, void *fun) {
+void parallel_for(int num_threads, int lower, int upper, void* args, void* fun) {
     // Get number of available hardware threads
     if (num_threads == 0) {
         num_threads = std::thread::hardware_concurrency();
@@ -59,7 +59,7 @@ void parallel_for(int num_threads, int lower, int upper, void *args, void *fun) 
     for (int i = 0; i < num_threads; i++)
         pool[i].join();
 }
-int parallel_spawn(void *args, void *fun) {
+int parallel_spawn(void* args, void* fun) {
     int (*fun_ptr) (void*) = reinterpret_cast<int (*) (void*)>(fun);
 
     int id;
@@ -86,7 +86,7 @@ void parallel_sync(int id) {
 }
 #else
 // TBB version
-void parallel_for(int num_threads, int lower, int upper, void *args, void *fun) {
+void parallel_for(int num_threads, int lower, int upper, void* args, void* fun) {
     tbb::task_scheduler_init init((num_threads == 0) ? tbb::task_scheduler_init::automatic : num_threads);
     void (*fun_ptr) (void*, int, int) = reinterpret_cast<void (*) (void*, int, int)>(fun);
 
@@ -116,7 +116,7 @@ private:
     void* fun_;
 };
 
-int parallel_spawn(void *args, void *fun) {
+int parallel_spawn(void* args, void* fun) {
     int id;
     if (free_ids.size()) {
         id = free_ids.back();

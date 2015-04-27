@@ -3,7 +3,7 @@
 #ifdef PROVIDE_MAIN
 extern "C" int main_impala(void);
 
-int main(int argc, const char **argv) {
+int main(int argc, const char** argv) {
     // initialize AnyDSL runtime
     thorin_init();
     // run main

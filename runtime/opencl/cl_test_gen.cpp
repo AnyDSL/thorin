@@ -68,8 +68,8 @@ int test_kernelfile(const char *file) {
     return EXIT_SUCCESS;
 }
 
-extern "C" { int main_impala(void); }
-int main_impala() {
-    return test_kernelfile("main.spir.bc");
+extern "C"
+int cl_test() {
+    return test_kernelfile("cl_test.spir.bc");
 }
 

@@ -18,6 +18,9 @@ fn atomic_max(a: &i32, b: i32) -> i32 { atomic(8u, a, b) }
 
 extern "device" {
     fn "llvm.exp.f32"     expf(f32) -> f32;
+    fn "llvm.exp2.f32"    exp2f(f32) -> f32;
+    fn "llvm.log.f32"     logf(f32) -> f32;
+    fn "llvm.log2.f32"    log2f(f32) -> f32;
     fn "llvm.pow.f32"     powf(f32, f32) -> f32;
     fn "llvm.sqrt.f32"    sqrtf(f32) -> f32;
     fn "llvm.fabs.f32"    fabsf(f32) -> f32;

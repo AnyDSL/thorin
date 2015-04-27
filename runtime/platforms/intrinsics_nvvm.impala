@@ -304,6 +304,9 @@ fn atomic_min_local(a: &i32, b: i32) -> i32 { atomic_min(a, b) }
 extern "C" {
     // libdevice intrinsics: http://docs.nvidia.com/cuda/libdevice-users-guide
     fn "__nv_expf"      expf(f32) -> f32;
+    fn "__nv_exp2f"     exp2f(f32) -> f32;
+    fn "__nv_logf"      logf(f32) -> f32;
+    fn "__nv_log2f"     log2f(f32) -> f32;
     fn "__nv_powf"      powf(f32, f32) -> f32;
     fn "__nv_rsqrtf"    rsqrtf(f32) -> f32;
     fn "__nv_sqrtf"     sqrtf(f32) -> f32;

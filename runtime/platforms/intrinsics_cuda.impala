@@ -2,6 +2,9 @@ extern "device" {
     // no declarations are emitted for "device" functions
     fn __syncthreads() -> ();
     fn expf(f32) -> f32;
+    fn exp2f(f32) -> f32;
+    fn logf(f32) -> f32;
+    fn log2f(f32) -> f32;
     fn powf(f32, f32) -> f32;
     fn rsqrtf(f32) -> f32;
     fn sqrtf(f32) -> f32;

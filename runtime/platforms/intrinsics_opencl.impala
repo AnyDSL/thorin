@@ -10,6 +10,9 @@ extern "device" {
     fn get_global_offset(u32) -> u64;
     fn barrier(u32) -> ();
     fn "exp"        expf(f32) -> f32;
+    fn "exp2"       exp2f(f32) -> f32;
+    fn "log"        logf(f32) -> f32;
+    fn "log2"       log2f(f32) -> f32;
     fn "pow"        powf(f32, f32) -> f32;
     fn "rsqrt"      rsqrtf(f32) -> f32;
     fn "sqrt"       sqrtf(f32) -> f32;

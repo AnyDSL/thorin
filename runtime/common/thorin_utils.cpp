@@ -14,7 +14,22 @@
 
 #include "thorin_utils.h"
 
-// common implementations of runtime utility functions
+#ifdef _ISOC11_SOURCE
+void* thorin_aligned_malloc(size_t size, size_t alignment) { return ::aligned_alloc(alignment, size); }
+#elif (_POSIX_C_SOURCE >= 200112L || _XOPEN_SOURCE >= 600)
+void* thorin_aligned_malloc(size_t size, size_t alignment) {
+    void* p;
+    posix_memalign(&p, alignment, size);
+    return p;
+}
+#elif defined(_WIN32) || defined(__CYGWIN__)
+#include <malloc.h>
+
+void* thorin_aligned_malloc(size_t size, size_t alignment) { return ::_aligned_malloc(size, alignment); }
+#else
+#error "don't know how to retrieve aligned memory"
+#endif
+
 long long thorin_get_micro_time() {
 #if defined(_WIN32) || defined(__CYGWIN__) // Use QueryPerformanceCounter on Windows
     LARGE_INTEGER counter, freq;
@@ -38,10 +53,13 @@ long long thorin_get_micro_time() {
     return time;
 #endif
 }
+
 void thorin_print_micro_time(long long time) {
     std::cerr << "   timing: " << time / 1000 << "(ms)" << std::endl;
 }
+
 void thorin_print_gflops(float f) { printf("GFLOPS: %f\n", f); }
+
 float thorin_random_val(int max) {
     return ((float)random() / RAND_MAX) * max;
 }

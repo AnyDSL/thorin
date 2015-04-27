@@ -16,9 +16,8 @@
 
 // helper functions
 void thorin_init() { }
-void *thorin_malloc(uint32_t size) {
-    void *mem;
-    posix_memalign(&mem, 64, size);
+void* thorin_malloc(uint32_t size) {
+    void* mem = thorin_aligned_malloc(size, 64);
     std::cerr << " * malloc(" << size << ") -> " << mem << std::endl;
     return mem;
 }

@@ -1,11 +1,11 @@
-#include <stdlib.h>
+#include <cassert>
 #include <iostream>
 #include <thread>
-#include <vector>
 #include <unordered_map>
-#include <cassert>
+#include <vector>
 
 #include "cpu_runtime.h"
+#include "thorin_utils.h"
 #include "thorin_runtime.h"
 
 #ifdef USE_TBB

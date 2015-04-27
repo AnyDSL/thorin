@@ -2,6 +2,10 @@
 #include <ctime>
 #include <iostream>
 
+#if !defined(_WIN32) && (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__)))
+#include <unistd.h>
+#endif
+
 #ifdef __APPLE__
 #include <mach/clock.h>
 #include <mach/mach.h>
@@ -16,7 +20,7 @@
 
 #ifdef _ISOC11_SOURCE
 void* thorin_aligned_malloc(size_t size, size_t alignment) { return ::aligned_alloc(alignment, size); }
-#elif (_POSIX_C_SOURCE >= 200112L || _XOPEN_SOURCE >= 600)
+#elif (_POSIX_VERSION >= 200112L || _XOPEN_SOURCE >= 600)
 void* thorin_aligned_malloc(size_t size, size_t alignment) {
     void* p;
     posix_memalign(&p, alignment, size);

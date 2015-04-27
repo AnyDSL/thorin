@@ -68,5 +68,5 @@ void thorin_print_micro_time(long long time) {
 void thorin_print_gflops(float f) { printf("GFLOPS: %f\n", f); }
 
 float thorin_random_val(int max) {
-    return ((float)random() / RAND_MAX) * max;
+    return ((float)rand() / RAND_MAX) * max;
 }

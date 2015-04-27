@@ -47,10 +47,10 @@ extern "device" {
 }
 
 fn work_dim() -> int               { get_work_dim() as int }
-fn global_size(idx : int) -> int   { get_global_size(idx as uint) as int }
-fn global_offset(idx : int) -> int { get_global_offset(idx as uint) as int }
+fn global_size(idx: int) -> int   { get_global_size(idx as uint) as int }
+fn global_offset(idx: int) -> int { get_global_offset(idx as uint) as int }
 
-fn acc(dev : int, dim : (int, int, int), block : (int, int, int), body : fn() -> ()) -> () { opencl(dev, dim, block, body) }
+fn acc(dev: int, dim: (int, int, int), block: (int, int, int), body: fn() -> ()) -> () { opencl(dev, dim, block, body) }
 fn acc_tidx() -> int    { get_local_id(0u) as int }
 fn acc_tidy() -> int    { get_local_id(1u) as int }
 fn acc_tidz() -> int    { get_local_id(2u) as int }

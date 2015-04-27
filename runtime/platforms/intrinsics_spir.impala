@@ -48,10 +48,10 @@ extern "device" {
 }
 
 fn work_dim() -> int               { _Z12get_work_dimv()}
-fn global_size(idx : int) -> int   { _Z15get_global_sizej(idx) as int }
-fn global_offset(idx : int) -> int { _Z17get_global_offsetj(idx) as int }
+fn global_size(idx: int) -> int   { _Z15get_global_sizej(idx) as int }
+fn global_offset(idx: int) -> int { _Z17get_global_offsetj(idx) as int }
 
-fn acc(dev : int, dim : (int, int, int), block : (int, int, int), body : fn() -> ()) -> () { spir(dev, dim, block, body) }
+fn acc(dev: int, dim: (int, int, int), block: (int, int, int), body: fn() -> ()) -> () { spir(dev, dim, block, body) }
 fn acc_tidx() -> int    { _Z12get_local_idj(0) as int }
 fn acc_tidy() -> int    { _Z12get_local_idj(1) as int }
 fn acc_tidz() -> int    { _Z12get_local_idj(2) as int }

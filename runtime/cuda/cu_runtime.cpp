@@ -155,8 +155,7 @@ class Memory {
 
 
     void *malloc_host(uint32_t size) {
-        void *mem;
-        posix_memalign(&mem, 64, size);
+        void* mem = thorin_aligned_malloc(size, 64);
         std::cerr << " * malloc host(" << size << ") -> " << mem << std::endl;
         hostmem[mem] = size;
         return mem;

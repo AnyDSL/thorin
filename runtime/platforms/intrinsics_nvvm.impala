@@ -265,7 +265,7 @@ extern "device" {
     fn "llvm.nvvm.ull2f.rz" nvvm_ull2f_rz(i64) -> f32;
 }
 
-fn acc(dev : int, dim : (int, int, int), block : (int, int, int), body : fn() -> ()) -> () { nvvm(dev, dim, block, body) }
+fn acc(dev: int, dim: (int, int, int), block: (int, int, int), body: fn() -> ()) -> () { nvvm(dev, dim, block, body) }
 fn acc_tidx() -> int    { nvvm_read_ptx_sreg_tid_x() }
 fn acc_tidy() -> int    { nvvm_read_ptx_sreg_tid_y() }
 fn acc_tidz() -> int    { nvvm_read_ptx_sreg_tid_z() }
@@ -304,6 +304,9 @@ fn atomic_min_local(a: &i32, b: i32) -> i32 { atomic_min(a, b) }
 extern "C" {
     // libdevice intrinsics: http://docs.nvidia.com/cuda/libdevice-users-guide
     fn "__nv_expf"      expf(f32) -> f32;
+    fn "__nv_exp2f"     exp2f(f32) -> f32;
+    fn "__nv_logf"      logf(f32) -> f32;
+    fn "__nv_log2f"     log2f(f32) -> f32;
     fn "__nv_powf"      powf(f32, f32) -> f32;
     fn "__nv_rsqrtf"    rsqrtf(f32) -> f32;
     fn "__nv_sqrtf"     sqrtf(f32) -> f32;

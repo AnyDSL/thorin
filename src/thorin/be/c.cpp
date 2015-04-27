@@ -14,7 +14,7 @@ namespace thorin {
 
 class CCodeGen : public Printer {
 public:
-    CCodeGen(World& world, std::ostream& stream, LangType lang)
+    CCodeGen(World& world, std::ostream& stream, Lang lang)
         : Printer(stream)
         , world_(world)
         , lang_(lang)
@@ -34,7 +34,7 @@ private:
     bool is_texture_type(Type type);
 
     World& world_;
-    LangType lang_;
+    Lang lang_;
     HashMap<size_t, std::string> globals_;
     HashMap<size_t, std::string> primops_;
     bool process_kernel_ = false;
@@ -87,14 +87,14 @@ std::ostream& CCodeGen::emit_type(Type type) {
         stream() << "} array_" << array->gid() << ";";
         return stream();
     } else if (auto ptr = type.isa<PtrType>()) {
-        if (lang_==CUDA) {
+        if (lang_==Lang::CUDA) {
             switch (ptr->addr_space()) {
                 default: break;
                 // only declaration need __shared__
                 case AddressSpace::Shared: stream() << "";  break;
             }
         }
-        if (lang_==OPENCL) {
+        if (lang_==Lang::OPENCL) {
             switch (ptr->addr_space()) {
                 default: break;
                 //case AddressSpace::Generic: // once address spaces are correct, ::Global should be sufficient -> use mmap
@@ -205,7 +205,7 @@ std::ostream& CCodeGen::emit_aggop_decl(Type type) {
 
 
 void CCodeGen::emit() {
-    if (lang_==CUDA) {
+    if (lang_==Lang::CUDA) {
         stream() << "extern \"C\" {\n";
         stream() << "__device__ inline int threadIdx_x() { return threadIdx.x; }\n";
         stream() << "__device__ inline int threadIdx_y() { return threadIdx.y; }\n";
@@ -220,7 +220,7 @@ void CCodeGen::emit() {
         stream() << "__device__ inline int gridDim_y() { return gridDim.y; }\n";
         stream() << "__device__ inline int gridDim_z() { return gridDim.z; }\n";
     }
-    if (lang_==OPENCL) {
+    if (lang_==Lang::OPENCL) {
         stream() << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n";
     }
 
@@ -283,7 +283,7 @@ void CCodeGen::emit() {
         // emit function declaration
         auto ret_fn_type = ret_param->type().as<FnType>();
         auto name = (lambda->is_external() || lambda->empty()) ? lambda->name : lambda->unique_name();
-        if (lang_==CUDA) stream() << "__device__ ";
+        if (lang_==Lang::CUDA) stream() << "__device__ ";
         emit_type(ret_fn_type->args().back()) << " " << name << "(";
         size_t i = 0;
         for (auto param : lambda->params()) {
@@ -332,10 +332,13 @@ void CCodeGen::emit() {
         auto ret_fn_type = ret_param->type().as<FnType>();
         auto name = (lambda->is_external() || lambda->empty()) ? lambda->name : lambda->unique_name();
         if (lambda->is_external()) {
-            if (lang_==CUDA) stream() << "__global__ ";
-            if (lang_==OPENCL) stream() << "__kernel ";
+            switch (lang_) {
+                case Lang::C99:                               break;
+                case Lang::CUDA:   stream() << "__global__ "; break;
+                case Lang::OPENCL: stream() << "__kernel ";   break;
+            }
         } else {
-            if (lang_==CUDA) stream() << "__device__ ";
+            if (lang_==Lang::CUDA) stream() << "__device__ ";
         }
         emit_type(ret_fn_type->args().back()) << " " << name << "(";
         size_t i = 0;
@@ -345,7 +348,7 @@ void CCodeGen::emit() {
                 // skip arrays bound to texture memory
                 if (is_texture_type(param->type())) continue;
                 if (i++ > 0) stream() << ", ";
-                if (lang_==OPENCL && lambda->is_external() &&
+                if (lang_==Lang::OPENCL && lambda->is_external() &&
                     (param->type().isa<DefiniteArrayType>() ||
                      param->type().isa<StructAppType>() ||
                      param->type().isa<TupleType>())) {
@@ -363,7 +366,7 @@ void CCodeGen::emit() {
         // emit and store all first-order params
         for (auto param : lambda->params()) {
             if (param->order() == 0 && !param->type().isa<MemType>()) {
-                if (lang_==OPENCL && lambda->is_external() &&
+                if (lang_==Lang::OPENCL && lambda->is_external() &&
                     (param->type().isa<DefiniteArrayType>() ||
                      param->type().isa<StructAppType>() ||
                      param->type().isa<TupleType>())) {
@@ -530,7 +533,7 @@ void CCodeGen::emit() {
 
     globals_.clear();
     primops_.clear();
-    if (lang_==CUDA) stream() << "}\n"; // extern "C"
+    if (lang_==Lang::CUDA) stream() << "}\n"; // extern "C"
 }
 
 
@@ -729,8 +732,8 @@ std::ostream& CCodeGen::emit(Def def) {
 
     if (auto global = def->isa<Global>()) {
         assert(!global->init()->isa_lambda() && "no global init lambda supported");
-        if (lang_==CUDA) stream() << "__device__ ";
-        if (lang_==OPENCL) stream() << "__constant ";
+        if (lang_==Lang::CUDA) stream() << "__device__ ";
+        if (lang_==Lang::OPENCL) stream() << "__constant ";
         emit_type(global->alloced_type()) << " " << global->unique_name() << "_slot";
         if (global->init()->isa<Bottom>()) {
             stream() << ";";
@@ -740,31 +743,31 @@ std::ostream& CCodeGen::emit(Def def) {
         }
         newline();
 
-        if (lang_==CUDA) stream() << "__device__ ";
-        if (lang_==OPENCL) stream() << "__constant ";
+        if (lang_==Lang::CUDA) stream() << "__device__ ";
+        if (lang_==Lang::OPENCL) stream() << "__constant ";
         emit_type(global->alloced_type()) << " *" << global->unique_name() << " = &" << global->unique_name() << "_slot;";
 
         return insert(def->gid(), def->unique_name());
     }
 
-    if (auto map = def->isa<Map>()) {
-        assert(map->mem_size()->isa<PrimLit>() && "couldn't extract memory size");
+    if (auto mmap = def->isa<Map>()) {
+        assert(mmap->mem_size()->isa<PrimLit>() && "mmap: couldn't extract memory size");
 
-        if (lang_==CUDA) {
-            switch (map->addr_space()) {
+        if (lang_==Lang::CUDA) {
+            switch (mmap->addr_space()) {
                 default: break;
                 case AddressSpace::Shared: stream() << "__shared__ ";  break;
             }
         }
-        if (lang_==OPENCL) {
-            switch (map->addr_space()) {
+        if (lang_==Lang::OPENCL) {
+            switch (mmap->addr_space()) {
                 default: break;
                 case AddressSpace::Global: stream() << "__global "; break;
                 case AddressSpace::Shared: stream() << "__local ";  break;
             }
         }
-        emit_type(map->out_ptr_type()->referenced_type()) << " " << map->unique_name() << "[";
-        emit(map->mem_size()) << "];";
+        emit_type(mmap->out_ptr_type()->referenced_type()) << " " << mmap->unique_name() << "[";
+        emit(mmap->mem_size()) << "];";
 
         return insert(def->gid(), def->unique_name());
     }
@@ -795,7 +798,7 @@ std::ostream& CCodeGen::insert(size_t gid, std::string str) {
 bool CCodeGen::is_texture_type(Type type) {
     if (auto ptr = type.isa<PtrType>()) {
         if (ptr->addr_space()==AddressSpace::Texture) {
-            assert(lang_==CUDA && "Textures currently only supported in CUDA");
+            assert(lang_==Lang::CUDA && "Textures currently only supported in CUDA");
             return true;
         }
     }
@@ -804,7 +807,7 @@ bool CCodeGen::is_texture_type(Type type) {
 
 //------------------------------------------------------------------------------
 
-void emit_c(World& world, std::ostream& stream, LangType lang) { CCodeGen(world, stream, lang).emit(); }
+void emit_c(World& world, std::ostream& stream, Lang lang) { CCodeGen(world, stream, lang).emit(); }
 
 //------------------------------------------------------------------------------
 

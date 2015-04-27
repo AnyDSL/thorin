@@ -241,7 +241,7 @@ void CodeGen::emit(int opt) {
 
                         size_t n = 0;
                         for (auto arg : lambda->args()) {
-                            if (arg->type().isa<MemType>()) {
+                            if (!arg->type().isa<MemType>()) {
                                 auto val = lookup(arg);
                                 values[n] = val;
                                 args[n++] = val->getType();

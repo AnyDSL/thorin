@@ -1,6 +1,7 @@
 #include <cstdlib>
 #include <ctime>
 #include <iostream>
+#include <random>
 
 #if !defined(_WIN32) && (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__)))
 #include <unistd.h>
@@ -18,10 +19,10 @@
 
 #include "thorin_utils.h"
 
-#ifdef _ISOC11_SOURCE
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
 void* thorin_aligned_malloc(size_t size, size_t alignment) { return ::aligned_alloc(alignment, size); }
 void thorin_aligned_free(void* ptr) { ::free(ptr); }
-#elif (_POSIX_VERSION >= 200112L || _XOPEN_SOURCE >= 600)
+#elif _POSIX_VERSION >= 200112L || _XOPEN_SOURCE >= 600
 void* thorin_aligned_malloc(size_t size, size_t alignment) {
     void* p;
     posix_memalign(&p, alignment, size);
@@ -68,5 +69,7 @@ void thorin_print_micro_time(long long time) {
 void thorin_print_gflops(float f) { printf("GFLOPS: %f\n", f); }
 
 float thorin_random_val(int max) {
-    return ((float)rand() / RAND_MAX) * max;
+    static thread_local std::mt19937 std_gen;
+    static std::uniform_real_distribution<float> std_dist(0.0f, 1.0f);
+    return std_dist(std_gen) * max;
 }

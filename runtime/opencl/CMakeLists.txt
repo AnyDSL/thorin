@@ -17,4 +17,5 @@ THORIN_RUNTIME_WRAP(CL_TEST_FILES CL_TEST_LIBS
 add_executable(cl_test cl_test_gen.cpp ${CL_TEST_FILES})
 target_link_libraries(cl_test ${CL_TEST_LIBS})
 add_test("cl_test" cl_test)
+configure_file(cl_test.cl   ${CMAKE_CURRENT_BINARY_DIR}/cl_test.cl   COPYONLY)
 configure_file(cl_test.spir ${CMAKE_CURRENT_BINARY_DIR}/cl_test.spir COPYONLY)

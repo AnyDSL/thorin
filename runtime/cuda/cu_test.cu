@@ -1,4 +1,3 @@
-
 __device__ int ave(int a, int b) {
    return (a+b)/2;
 }
@@ -19,4 +18,3 @@ extern "C" __global__ void simple_cmem(int *data) {
    int tid = blockIdx.x * blockDim.x + threadIdx.x;
    data[tid] = cmem[threadIdx.x];
 }
-

@@ -7,12 +7,12 @@
 
 static int num = 1024;
 
-int test_kernelfile(const char *file) {
+int test_kernelfile(const char* file) {
     std::cout << "Test file: " << file << std::endl;
 
     uint32_t dev = 0;
-    int *cmem = (int *)thorin_malloc(sizeof(int) * 32);
-    int *host = (int *)thorin_malloc(sizeof(int) * num);
+    int* cmem = (int*)thorin_malloc(sizeof(int) * 32);
+    int* host = (int*)thorin_malloc(sizeof(int) * num);
 
     // CODE TO BE GENERATED: BEGIN
     for (size_t i=0; i<num; ++i) host[i] = 0;

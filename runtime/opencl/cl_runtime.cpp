@@ -18,25 +18,25 @@
 
 #define BENCH
 #ifdef BENCH
-std::vector<std::pair<size_t, void *>> kernel_args;
+std::vector<std::pair<size_t, void*>> kernel_args;
 float total_timing = 0.0f;
 #endif
 
 bool print_timing = true;
 
 // runtime forward declarations
-cl_mem malloc_buffer(uint32_t dev, void *host, cl_mem_flags flags, uint32_t size);
-void read_buffer(uint32_t dev, cl_mem mem, void *host, uint32_t size);
-void write_buffer(uint32_t dev, cl_mem mem, void *host, uint32_t size);
+cl_mem malloc_buffer(uint32_t dev, void* host, cl_mem_flags flags, uint32_t size);
+void read_buffer(uint32_t dev, cl_mem mem, void* host, uint32_t size);
+void write_buffer(uint32_t dev, cl_mem mem, void* host, uint32_t size);
 void free_buffer(uint32_t dev, cl_mem mem);
 
 void build_program_and_kernel(uint32_t dev, std::string file_name, std::string kernel_name, bool);
 void free_kernel(uint32_t dev, cl_kernel kernel);
 
-void set_kernel_arg(uint32_t dev, void *param, uint32_t size);
+void set_kernel_arg(uint32_t dev, void* param, uint32_t size);
 void set_kernel_arg_map(uint32_t dev, mem_id mem);
-void set_kernel_arg_const(uint32_t dev, void *param, uint32_t size);
-void set_kernel_arg_struct(uint32_t dev, void *param, uint32_t size);
+void set_kernel_arg_const(uint32_t dev, void* param, uint32_t size);
+void set_kernel_arg_struct(uint32_t dev, void* param, uint32_t size);
 void set_problem_size(uint32_t dev, uint32_t size_x, uint32_t size_y, uint32_t size_z);
 void set_config_size(uint32_t dev, uint32_t size_x, uint32_t size_y, uint32_t size_z);
 
@@ -67,7 +67,7 @@ class Memory {
     private:
         uint32_t count_;
         typedef struct mapping_ {
-            void *cpu;
+            void* cpu;
             cl_mem gpu;
             mem_type type;
             uint32_t offset, size;
@@ -81,13 +81,13 @@ class Memory {
         std::unordered_map<void*, uint32_t> hostmem;
 
         mem_id new_id() { return count_++; }
-        void insert(uint32_t dev, void *mem, mem_id id, mapping_ mem_map) {
+        void insert(uint32_t dev, void* mem, mem_id id, mapping_ mem_map) {
             idtomem[dev][id] = mem;
             memtoid[dev][mem] = id;
             mmap[dev][id] = mem_map;
         }
         void remove(uint32_t dev, mem_id id) {
-            void *mem = idtomem[dev][id];
+            void* mem = idtomem[dev][id];
             idtomem[dev].erase(id);
             memtoid[dev].erase(mem);
             mmap[dev].erase(id);
@@ -118,29 +118,29 @@ class Memory {
     void associate_device(uint32_t host_dev, uint32_t assoc_dev) {
         ummap[assoc_dev] = host_dev;
     }
-    mem_id get_id(uint32_t dev, void *mem) { return memtoid[dev][mem]; }
-    mem_id map_memory(uint32_t dev, void *from, cl_mem to, mem_type type, uint32_t offset, uint32_t size) {
+    mem_id get_id(uint32_t dev, void* mem) { return memtoid[dev][mem]; }
+    mem_id map_memory(uint32_t dev, void* from, cl_mem to, mem_type type, uint32_t offset, uint32_t size) {
         mem_id id = new_id();
         mapping_ mem_map = { from, to, type, offset, size, id };
         insert(dev, from, id, mem_map);
         return id;
     }
-    mem_id map_memory(uint32_t dev, void *from, cl_mem to, mem_type type) {
+    mem_id map_memory(uint32_t dev, void* from, cl_mem to, mem_type type) {
         assert(hostmem.count(from) && "memory not allocated by thorin");
         return map_memory(dev, from, to, type, 0, hostmem[from]);
     }
 
-    void *get_host_mem(uint32_t dev, mem_id id) { return mmap[dev][id].cpu; }
-    cl_mem &get_dev_mem(uint32_t dev, mem_id id) { return mmap[dev][id].gpu; }
+    void* get_host_mem(uint32_t dev, mem_id id) { return mmap[dev][id].cpu; }
+    cl_mem& get_dev_mem(uint32_t dev, mem_id id) { return mmap[dev][id].gpu; }
 
 
-    void *malloc_host(uint32_t size) {
+    void* malloc_host(uint32_t size) {
         void* mem = thorin_aligned_malloc(size, 4096);
         std::cerr << " * malloc host(" << size << ") -> " << mem << std::endl;
         hostmem[mem] = size;
         return mem;
     }
-    void free_host(void *ptr) {
+    void free_host(void* ptr) {
         if (ptr==nullptr) return;
         // TODO: free associated device memory
         assert(hostmem.count(ptr) && "memory not allocated by thorin");
@@ -149,12 +149,12 @@ class Memory {
         // free host memory
         thorin_aligned_free(ptr);
     }
-    size_t host_mem_size(void *ptr) {
+    size_t host_mem_size(void* ptr) {
         assert(hostmem.count(ptr) && "memory not allocated by thorin");
         return hostmem[ptr];
     }
 
-    mem_id malloc(uint32_t dev, void *host, uint32_t offset, uint32_t size) {
+    mem_id malloc(uint32_t dev, void* host, uint32_t offset, uint32_t size) {
         assert(hostmem.count(host) && "memory not allocated by thorin");
         mem_id id = get_id(dev, host);
 
@@ -169,7 +169,7 @@ class Memory {
             std::cerr << " * malloc buffer(" << dev << "): returning old copy " << id << " from associated device " << ummap[dev] << " for " << host << std::endl;
             id = map_memory(dev, host, get_dev_mem(ummap[dev], id), Global, offset, size);
         } else {
-            void *host_ptr = (char*)host + offset;
+            void* host_ptr = (char*)host + offset;
             // CL_MEM_ALLOC_HOST_PTR -> OpenCL allocates memory that can be shared - preferred on AMD hardware ?
             // CL_MEM_USE_HOST_PTR   -> use existing, properly aligned and sized memory
             cl_mem_flags flags = CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR;
@@ -180,7 +180,7 @@ class Memory {
         mcount[dev][id] = 1;
         return id;
     }
-    mem_id malloc(uint32_t dev, void *host) {
+    mem_id malloc(uint32_t dev, void* host) {
         assert(hostmem.count(host) && "memory not allocated by thorin");
         return malloc(dev, host, 0, hostmem[host]);
     }
@@ -199,19 +199,19 @@ class Memory {
 
     void read(uint32_t dev, mem_id id) {
         assert(mmap[dev][id].cpu && "invalid host memory");
-        void *host = mmap[dev][id].cpu;
+        void* host = mmap[dev][id].cpu;
         std::cerr << " * read buffer(" << dev << "):    " << id << " -> " << host
                   << " [" << mmap[dev][id].offset << ":" << mmap[dev][id].size
                   << "]" << std::endl;
-        void *host_ptr = (char*)host + mmap[dev][id].offset;
+        void* host_ptr = (char*)host + mmap[dev][id].offset;
         read_buffer(dev, mmap[dev][id].gpu, host_ptr, mmap[dev][id].size);
     }
-    void write(uint32_t dev, mem_id id, void *host) {
+    void write(uint32_t dev, mem_id id, void* host) {
         assert(host==mmap[dev][id].cpu && "invalid host memory");
         std::cerr << " * write buffer(" << dev << "):   " << id << " <- " << host
                   << " [" << mmap[dev][id].offset << ":" << mmap[dev][id].size
                   << "]" << std::endl;
-        void *host_ptr = (char*)host + mmap[dev][id].offset;
+        void* host_ptr = (char*)host + mmap[dev][id].offset;
         write_buffer(dev, mmap[dev][id].gpu, host_ptr, mmap[dev][id].size);
     }
 
@@ -330,7 +330,7 @@ inline void __check_device(uint32_t dev) {
 }
 
 // create context and command queue(s) for device(s) of a given platform
-void create_context_command_queue(cl_platform_id platform, std::vector<cl_device_id> &&devices,  std::vector<size_t> &&device_ids) {
+void create_context_command_queue(cl_platform_id platform, std::vector<cl_device_id>&& devices,  std::vector<size_t>&& device_ids) {
     if (devices.size() == 0) return;
     contexts_.resize(devices_.size());
     command_queues_.resize(devices_.size());
@@ -374,7 +374,7 @@ void init_opencl() {
     if (num_platforms == 0) {
         exit(EXIT_FAILURE);
     } else {
-        cl_platform_id *platforms = new cl_platform_id[num_platforms];
+        cl_platform_id* platforms = new cl_platform_id[num_platforms];
 
         err = clGetPlatformIDs(num_platforms, platforms, NULL);
         checkErr(err, "clGetPlatformIDs()");
@@ -389,7 +389,7 @@ void init_opencl() {
             err = clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, 0, NULL, &num_devices);
             checkErr(err, "clGetDeviceIDs()");
 
-            cl_device_id *devices = new cl_device_id[num_devices];
+            cl_device_id* devices = new cl_device_id[num_devices];
             err = clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, num_devices, devices, &num_devices);
             checkErr(err, "clGetDeviceIDs()");
 
@@ -489,11 +489,11 @@ void dump_program_binary(cl_program program, cl_device_id device) {
     err |= clGetProgramInfo(program, CL_PROGRAM_BINARY_SIZES, binary_sizes.size() * sizeof(size_t), binary_sizes.data(), NULL);
 
     // get the binaries
-    std::vector<unsigned char *> binaries(num_devices);
+    std::vector<unsigned char*> binaries(num_devices);
     for (size_t i=0; i<binaries.size(); ++i) {
         binaries[i] = new unsigned char[binary_sizes[i]];
     }
-    err |= clGetProgramInfo(program, CL_PROGRAM_BINARIES,  sizeof(unsigned char *)*binaries.size(), binaries.data(), NULL);
+    err |= clGetProgramInfo(program, CL_PROGRAM_BINARIES,  sizeof(unsigned char*)*binaries.size(), binaries.data(), NULL);
     checkErr(err, "clGetProgramInfo()");
 
     for (size_t i=0; i<devices.size(); ++i) {
@@ -542,15 +542,15 @@ void build_program_and_kernel(uint32_t dev, std::string file_name, std::string k
     std::string options = "-cl-single-precision-constant -cl-denorms-are-zero";
 
     const size_t length = clString.length();
-    const char *c_str = clString.c_str();
+    const char* c_str = clString.c_str();
 
     if (print_progress) std::cerr << "Compiling(" << dev << ") '" << kernel_name << "' .";
     if (is_binary) {
         options += " -x spir -spir-std=1.2";
-        program = clCreateProgramWithBinary(contexts_[dev], 1, &devices_[dev], &length, (const unsigned char **)&c_str, NULL, &err);
+        program = clCreateProgramWithBinary(contexts_[dev], 1, &devices_[dev], &length, (const unsigned char**)&c_str, NULL, &err);
         checkErr(err, "clCreateProgramWithBinary()");
     } else {
-        program = clCreateProgramWithSource(contexts_[dev], 1, (const char **)&c_str, &length, &err);
+        program = clCreateProgramWithSource(contexts_[dev], 1, (const char**)&c_str, &length, &err);
         checkErr(err, "clCreateProgramWithSource()");
     }
 
@@ -567,8 +567,8 @@ void build_program_and_kernel(uint32_t dev, std::string file_name, std::string k
         err |= clGetProgramBuildInfo(program, devices_[dev], CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
 
         // allocate memory for the options and log
-        char *program_build_options = new char[options_size];
-        char *program_build_log = new char[log_size];
+        char* program_build_options = new char[options_size];
+        char* program_build_log = new char[log_size];
 
         // get the options and log
         err |= clGetProgramBuildInfo(program, devices_[dev], CL_PROGRAM_BUILD_OPTIONS, options_size, program_build_options, NULL);
@@ -608,11 +608,11 @@ void free_kernel(uint32_t dev, cl_kernel kernel) {
 }
 
 
-cl_mem malloc_buffer(uint32_t dev, void *host, cl_mem_flags flags, uint32_t size) {
+cl_mem malloc_buffer(uint32_t dev, void* host, cl_mem_flags flags, uint32_t size) {
     if (!size) return 0;
 
     cl_int err = CL_SUCCESS;
-    void *host_ptr = nullptr;
+    void* host_ptr = nullptr;
 
     if (flags & CL_MEM_USE_HOST_PTR || flags & CL_MEM_COPY_HOST_PTR) host_ptr = (char*)host;
     cl_mem mem = clCreateBuffer(contexts_[dev], flags, size, host_ptr, &err);
@@ -628,7 +628,7 @@ void free_buffer(uint32_t dev, cl_mem mem) {
 }
 
 
-void write_buffer(uint32_t dev, cl_mem mem, void *host, uint32_t size) {
+void write_buffer(uint32_t dev, cl_mem mem, void* host, uint32_t size) {
     cl_event event;
     cl_ulong end, start;
 
@@ -650,7 +650,7 @@ void write_buffer(uint32_t dev, cl_mem mem, void *host, uint32_t size) {
 }
 
 
-void read_buffer(uint32_t dev, cl_mem mem, void *host, uint32_t size) {
+void read_buffer(uint32_t dev, cl_mem mem, void* host, uint32_t size) {
     cl_event event;
     cl_ulong end, start;
 
@@ -692,7 +692,7 @@ void set_config_size(uint32_t dev, uint32_t size_x, uint32_t size_y, uint32_t si
 }
 
 
-void set_kernel_arg(uint32_t dev, void *param, uint32_t size) {
+void set_kernel_arg(uint32_t dev, void* param, uint32_t size) {
     //std::cerr << " * set arg(" << dev << "):        " << param << std::endl;
     #ifdef BENCH
     kernel_args.emplace_back(size, param);
@@ -704,27 +704,27 @@ void set_kernel_arg(uint32_t dev, void *param, uint32_t size) {
 
 
 void set_kernel_arg_map(uint32_t dev, mem_id id) {
-    cl_mem &mem = mem_manager.get_dev_mem(dev, id);
+    cl_mem& mem = mem_manager.get_dev_mem(dev, id);
     std::cerr << " * set arg map(" << dev << "):    " << id << std::endl;
     set_kernel_arg(dev, &mem, sizeof(cl_mem));
 }
 
 
-void set_kernel_arg_const(uint32_t dev, void *param, uint32_t size) {
+void set_kernel_arg_const(uint32_t dev, void* param, uint32_t size) {
     cl_mem_flags flags = CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR;
     cl_mem const_buf = malloc_buffer(dev, param, flags, size);
     kernel_structs_.emplace_back(const_buf);
-    cl_mem &buf = kernel_structs_.back();
+    cl_mem& buf = kernel_structs_.back();
     std::cerr << " * set arg const(" << dev << "):  " << buf << std::endl;
     set_kernel_arg(dev, &buf, sizeof(cl_mem));
 }
 
 
-void set_kernel_arg_struct(uint32_t dev, void *param, uint32_t size) {
+void set_kernel_arg_struct(uint32_t dev, void* param, uint32_t size) {
     cl_mem_flags flags = CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR;
     cl_mem struct_buf = malloc_buffer(dev, param, flags, size);
     kernel_structs_.emplace_back(struct_buf);
-    cl_mem &buf = kernel_structs_.back();
+    cl_mem& buf = kernel_structs_.back();
     std::cerr << " * set arg struct(" << dev << "): " << buf << std::endl;
     set_kernel_arg(dev, &buf, sizeof(cl_mem));
 }
@@ -796,35 +796,35 @@ void launch_kernel(uint32_t dev, std::string kernel_name) {
 
 
 // SPIR wrappers
-mem_id spir_malloc_buffer(uint32_t dev, void *host) { check_dev(dev); return mem_manager.malloc(dev, host); }
+mem_id spir_malloc_buffer(uint32_t dev, void* host) { check_dev(dev); return mem_manager.malloc(dev, host); }
 void spir_free_buffer(uint32_t dev, mem_id mem) { check_dev(dev); mem_manager.free(dev, mem); }
 
-void spir_write_buffer(uint32_t dev, mem_id mem, void *host) { check_dev(dev); mem_manager.write(dev, mem, host); }
-void spir_read_buffer(uint32_t dev, mem_id mem, void *host) { check_dev(dev); mem_manager.read(dev, mem); }
+void spir_write_buffer(uint32_t dev, mem_id mem, void* host) { check_dev(dev); mem_manager.write(dev, mem, host); }
+void spir_read_buffer(uint32_t dev, mem_id mem, void* host) { check_dev(dev); mem_manager.read(dev, mem); }
 
-void spir_build_program_and_kernel_from_binary(uint32_t dev, const char *file_name, const char *kernel_name) { check_dev(dev); build_program_and_kernel(dev, file_name, kernel_name, true); }
-void spir_build_program_and_kernel_from_source(uint32_t dev, const char *file_name, const char *kernel_name) { check_dev(dev); build_program_and_kernel(dev, file_name, kernel_name, false); }
+void spir_build_program_and_kernel_from_binary(uint32_t dev, const char* file_name, const char* kernel_name) { check_dev(dev); build_program_and_kernel(dev, file_name, kernel_name, true); }
+void spir_build_program_and_kernel_from_source(uint32_t dev, const char* file_name, const char* kernel_name) { check_dev(dev); build_program_and_kernel(dev, file_name, kernel_name, false); }
 
-void spir_set_kernel_arg(uint32_t dev, void *param, uint32_t size) { check_dev(dev); set_kernel_arg(dev, param, size); }
+void spir_set_kernel_arg(uint32_t dev, void* param, uint32_t size) { check_dev(dev); set_kernel_arg(dev, param, size); }
 void spir_set_kernel_arg_map(uint32_t dev, mem_id mem) { check_dev(dev); set_kernel_arg_map(dev, mem); }
-void spir_set_kernel_arg_const(uint32_t dev, void *param, uint32_t size) { check_dev(dev); set_kernel_arg_const(dev, param, size); }
-void spir_set_kernel_arg_struct(uint32_t dev, void *param, uint32_t size) { check_dev(dev); set_kernel_arg_struct(dev, param, size); }
+void spir_set_kernel_arg_const(uint32_t dev, void* param, uint32_t size) { check_dev(dev); set_kernel_arg_const(dev, param, size); }
+void spir_set_kernel_arg_struct(uint32_t dev, void* param, uint32_t size) { check_dev(dev); set_kernel_arg_struct(dev, param, size); }
 void spir_set_problem_size(uint32_t dev, uint32_t size_x, uint32_t size_y, uint32_t size_z) { check_dev(dev); set_problem_size(dev, size_x, size_y, size_z); }
 void spir_set_config_size(uint32_t dev, uint32_t size_x, uint32_t size_y, uint32_t size_z) { check_dev(dev); set_config_size(dev, size_x, size_y, size_z); }
 
-void spir_launch_kernel(uint32_t dev, const char *kernel_name) { check_dev(dev); launch_kernel(dev, kernel_name); }
+void spir_launch_kernel(uint32_t dev, const char* kernel_name) { check_dev(dev); launch_kernel(dev, kernel_name); }
 void spir_synchronize(uint32_t dev) { check_dev(dev); synchronize(dev); }
 
 // helper functions
 void thorin_init() { init_opencl(); }
-void *thorin_malloc(uint32_t size) { return mem_manager.malloc_host(size); }
-void thorin_free(void *ptr) { mem_manager.free_host(ptr); }
+void* thorin_malloc(uint32_t size) { return mem_manager.malloc_host(size); }
+void thorin_free(void* ptr) { mem_manager.free_host(ptr); }
 void thorin_print_total_timing() {
     #ifdef BENCH
     std::cerr << "total accumulated timing: " << total_timing << " (ms)" << std::endl;
     #endif
 }
-mem_id map_memory(uint32_t dev, uint32_t type_, void *from, int offset, int size) {
+mem_id map_memory(uint32_t dev, uint32_t type_, void* from, int offset, int size) {
     check_dev(dev);
     mem_type type = (mem_type)type_;
     assert(mem_manager.host_mem_size(from) && "memory not allocated by thorin");
@@ -852,7 +852,7 @@ mem_id map_memory(uint32_t dev, uint32_t type_, void *from, int offset, int size
             cl_map_flags map_flags = CL_MAP_READ;
             cl_mem dev_mem = mem_manager.get_dev_mem(dev, mem);
             cl_int err = CL_SUCCESS;
-            void *mapped_mem = clEnqueueMapBuffer(command_queues_[dev], dev_mem, blocking_map, map_flags, 0, size, 0, NULL, &event, &err);
+            void* mapped_mem = clEnqueueMapBuffer(command_queues_[dev], dev_mem, blocking_map, map_flags, 0, size, 0, NULL, &event, &err);
             checkErr(err, "clEnqueueMapBuffer()");
             if (print_timing) {
                 err = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, 0);

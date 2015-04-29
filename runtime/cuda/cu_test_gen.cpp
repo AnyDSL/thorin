@@ -5,7 +5,7 @@
 
 #include "thorin_runtime.h"
 
-static void nnvm_load_any_kernel(uint32_t dev, const char *file, const char *kernel) {
+static void nnvm_load_any_kernel(uint32_t dev, const char* file, const char* kernel) {
     size_t len = strlen(file);
     if (len > 3 && !strcmp(file+len-3, ".cu")) // hack: nvcc checks for .cu extension, so we just do the same here
         nvvm_load_cuda_kernel(dev, file, kernel);
@@ -15,13 +15,13 @@ static void nnvm_load_any_kernel(uint32_t dev, const char *file, const char *ker
 
 static int num = 1024;
 
-int test_kernelfile(const char *file) {
+int test_kernelfile(const char* file) {
     std::cout << "Test file: " << file << std::endl;
 
     uint32_t dev = 0;
-    int *cmem = (int *)thorin_malloc(sizeof(int) * 32);
-    int *host = (int *)thorin_malloc(sizeof(int) * num);
-    int *host_out = (int *)thorin_malloc(sizeof(int) * num);
+    int* cmem = (int*)thorin_malloc(sizeof(int) * 32);
+    int* host = (int*)thorin_malloc(sizeof(int) * num);
+    int* host_out = (int*)thorin_malloc(sizeof(int) * num);
 
 
     // CODE TO BE GENERATED: BEGIN

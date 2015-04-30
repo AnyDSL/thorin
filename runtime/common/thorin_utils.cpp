@@ -69,13 +69,11 @@ void thorin_print_micro_time(long long time) {
 void thorin_print_gflops(float f) { printf("GFLOPS: %f\n", f); }
 
 float thorin_random_val(int max) {
-#ifndef __APPLE__
-    static thread_local std::mt19937 std_gen;
+#if defined(__APPLE__) && defined(__clang__)
+#pragma message("Runtime random function is not thread-safe")
+    static std::mt19937 std_gen;
 #else
-    // Somehow thread_local is not supported under MacOS X
-    // TODO : destruction of the object is not guaranteed,
-    // we should use thread_local when it will be available.
-    static __thread std::mt19937 std_gen;
+    static thread_local std::mt19937 std_gen;
 #endif
     static std::uniform_real_distribution<float> std_dist(0.0f, 1.0f);
     return std_dist(std_gen) * max;

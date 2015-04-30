@@ -19,16 +19,16 @@
 
 #include "thorin_utils.h"
 
-#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
-void* thorin_aligned_malloc(size_t size, size_t alignment) { return ::aligned_alloc(alignment, size); }
-void thorin_aligned_free(void* ptr) { ::free(ptr); }
-#elif _POSIX_VERSION >= 200112L || _XOPEN_SOURCE >= 600
+#if _POSIX_VERSION >= 200112L || _XOPEN_SOURCE >= 600
 void* thorin_aligned_malloc(size_t size, size_t alignment) {
     void* p;
     posix_memalign(&p, alignment, size);
     return p;
 }
 void thorin_aligned_free(void* ptr) { free(ptr); }
+#elif _ISOC11_SOURCE
+void* thorin_aligned_malloc(size_t size, size_t alignment) { return ::aligned_alloc(alignment, size); }
+void thorin_aligned_free(void* ptr) { ::free(ptr); }
 #elif defined(_WIN32) || defined(__CYGWIN__)
 #include <malloc.h>
 
@@ -69,7 +69,14 @@ void thorin_print_micro_time(long long time) {
 void thorin_print_gflops(float f) { printf("GFLOPS: %f\n", f); }
 
 float thorin_random_val(int max) {
+#ifndef __APPLE__
     static thread_local std::mt19937 std_gen;
+#else
+    // Somehow thread_local is not supported under MacOS X
+    // TODO : destruction of the object is not guaranteed,
+    // we should use thread_local when it will be available.
+    static __thread std::mt19937 std_gen;
+#endif
     static std::uniform_real_distribution<float> std_dist(0.0f, 1.0f);
     return std_dist(std_gen) * max;
 }

@@ -76,20 +76,20 @@ private:
 /// Any jumps targeting a @p Lambda or @p Param outside the @p CFA's underlying @p Scope target this node.
 class OutNode : public CFNode {
 public:
-    OutNode(const InNode* parent, Def def)
+    OutNode(const InNode* context, Def def)
         : CFNode(def)
-        , parent_(parent)
+        , context_(context)
     {
         //assert(def->isa<Param>() || def->isa<Lambda>());
     }
 
     virtual ~OutNode() {}
 
-    const InNode* parent() const { return parent_; }
-    virtual const InNode* in_node() const override { return parent_; }
+    const InNode* context() const { return context_; }
+    virtual const InNode* in_node() const override { return context_; }
 
 private:
-    const InNode* parent_;
+    const InNode* context_;
 };
 
 //------------------------------------------------------------------------------

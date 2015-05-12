@@ -27,7 +27,7 @@ struct CFNodeHash {
         if (auto in = n->isa<InNode>())
             return hash_value(in->lambda()->gid());
         auto out = n->as<OutNode>();
-        return hash_combine(hash_value(out->def()->gid()), out->parent()->lambda()->gid());
+        return hash_combine(hash_value(out->def()->gid()), out->context()->lambda()->gid());
     }
 };
 
@@ -179,7 +179,7 @@ void CFABuilder::build_cfg() {
 
         for (auto to : info[0]) {
             auto out = to->isa<OutNode>();
-            if (out && out->parent() != in) {
+            if (out && out->context() != in) {
                 auto new_out = out_node(in, in->lambda()->to()); // TODO what to use as OutNode's def?
                 in->link(new_out);
                 new_out->link(out);

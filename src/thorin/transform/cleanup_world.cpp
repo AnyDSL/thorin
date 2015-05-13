@@ -60,8 +60,8 @@ const DomNode* Merger::dom_succ(const DomNode* n) {
 
     const auto& succs = cfg.succs(n->cf_node());
     const auto& children = n->children();
-    if (succs.size() == 1 && children.size() == 1 && succs.front() == children.front()->cf_node()) {
-        if (auto in = succs.front()->isa<InNode>()) {
+    if (succs.size() == 1 && children.size() == 1 && *succs.begin() == (*children.begin())->cf_node()) {
+        if (auto in = (*succs.begin())->isa<InNode>()) {
             auto lambda = in->lambda();
             if (lambda->num_uses() == 1 && lambda == n->cf_node()->in_node()->lambda()->to())
                 return children.front();

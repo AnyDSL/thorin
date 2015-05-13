@@ -15,8 +15,15 @@ namespace thorin {
 
 template<bool> class LoopTree;
 template<bool> class DomTreeBase;
+class CFNode;
 class InNode;
 class OutNode;
+
+struct CFNodeHash {
+    uint64_t operator() (const CFNode* n) const;
+};
+
+typedef thorin::HashSet<const CFNode*, CFNodeHash> CFNodeSet;
 
 //------------------------------------------------------------------------------
 
@@ -37,14 +44,18 @@ public:
     void dump() const { def()->dump(); }
 
 private:
-    ArrayRef<const CFNode*> preds() const { return preds_; }
-    ArrayRef<const CFNode*> succs() const { return succs_; }
+    const CFNodeSet& preds() const { return preds_; }
+    const CFNodeSet& succs() const { return succs_; }
+    void link(const CFNode* other) const {
+        this->succs_.insert(other);
+        other->preds_.insert(this);
+    }
 
     Def def_;
     mutable size_t f_index_ = -1; ///< RPO index in a forward @p CFG.
     mutable size_t b_index_ = -1; ///< RPO index in a backwards @p CFG.
-    mutable std::vector<const CFNode*> preds_;
-    mutable std::vector<const CFNode*> succs_;
+    mutable CFNodeSet preds_;
+    mutable CFNodeSet succs_;
 
     friend class CFABuilder;
     friend class CFA;
@@ -113,8 +124,8 @@ public:
     const InNode* operator [] (Lambda* lambda) const { return find(in_nodes_, lambda); }
 
 private:
-    ArrayRef<const CFNode*> preds(Lambda* lambda) const { return in_nodes_[lambda]->preds(); }
-    ArrayRef<const CFNode*> succs(Lambda* lambda) const { return in_nodes_[lambda]->succs(); }
+    const CFNodeSet& preds(Lambda* lambda) const { return in_nodes_[lambda]->preds(); }
+    const CFNodeSet& succs(Lambda* lambda) const { return in_nodes_[lambda]->succs(); }
     size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
     size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
     const InNode* entry() const { return in_nodes_.array().front(); }
@@ -158,8 +169,8 @@ public:
     const CFA& cfa() const { return cfa_; }
     const Scope& scope() const { return cfa().scope(); }
     size_t size() const { return cfa_.num_cf_nodes(); }
-    ArrayRef<const CFNode*> preds(const CFNode* n) const { return forward ? n->preds() : n->succs(); }
-    ArrayRef<const CFNode*> succs(const CFNode* n) const { return forward ? n->succs() : n->preds(); }
+    const CFNodeSet& preds(const CFNode* n) const { return forward ? n->preds() : n->succs(); }
+    const CFNodeSet& succs(const CFNode* n) const { return forward ? n->succs() : n->preds(); }
     size_t num_preds(const CFNode* n) const { return preds(n).size(); }
     size_t num_succs(const CFNode* n) const { return succs(n).size(); }
     const InNode* entry() const { return forward ? cfa().entry() : cfa().exit();  }

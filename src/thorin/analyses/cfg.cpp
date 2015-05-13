@@ -15,23 +15,12 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-InNode::~InNode() {
-    for (auto p : out_nodes_) 
-        delete p.second;
+uint64_t CFNodeHash::operator() (const CFNode* n) const { 
+    if (auto in = n->isa<InNode>())
+        return hash_value(in->lambda()->gid());
+    auto out = n->as<OutNode>();
+    return hash_combine(hash_value(out->def()->gid()), out->context()->lambda()->gid());
 }
-
-//------------------------------------------------------------------------------
-
-struct CFNodeHash {
-    uint64_t operator() (const CFNode* n) const { 
-        if (auto in = n->isa<InNode>())
-            return hash_value(in->lambda()->gid());
-        auto out = n->as<OutNode>();
-        return hash_combine(hash_value(out->def()->gid()), out->context()->lambda()->gid());
-    }
-};
-
-typedef thorin::HashSet<const CFNode*, CFNodeHash> CFNodeSet;
 
 //------------------------------------------------------------------------------
 
@@ -57,6 +46,15 @@ static void leaves(Def def, std::function<void(Def)> f) {
         }
     }
 }
+
+//------------------------------------------------------------------------------
+
+InNode::~InNode() {
+    for (auto p : out_nodes_) 
+        delete p.second;
+}
+
+//------------------------------------------------------------------------------
 
 class CFABuilder {
 public:
@@ -99,19 +97,6 @@ public:
         return lambda2param2nodes_[param->lambda()][param->index()];
     }
 
-    void link(const CFNode* src, const CFNode* dst) {
-        auto i = links_.find(src);
-        if (i == links_.end())
-            i = links_.emplace(src, CFNodeSet()).first;
-
-        auto& set = i->second;
-        if (!set.contains(dst)) {
-            set.insert(dst);
-            src->succs_.push_back(dst);
-            dst->preds_.push_back(src);
-        }
-    }
-
 private:
     CFA& cfa_;
     Scope::Map<std::vector<CFNodeSet>> lambda2param2nodes_; ///< Maps param in scope to CFNodeSet.
@@ -144,7 +129,7 @@ Array<CFNodeSet> CFABuilder::cf_nodes_per_op(Lambda* lambda) {
                             if (auto out = n->isa<OutNode>()) {
                                 assert(out->context() != in);
                                 auto new_out = out_node(in, out->def());
-                                link(new_out, out);
+                                new_out->link(out);
                                 result[0].insert(new_out);
                             } else
                                 result[0].insert(n);
@@ -204,17 +189,17 @@ void CFABuilder::build_cfg() {
         auto info = cf_nodes_per_op(in->lambda());
 
         for (auto to : info[0])
-            link(in, to);
+            in->link(to);
 
         for (auto pair : in->out_nodes()) {
             auto out = pair.second;
 
             if (out->def()->isa<Param>())
-                link(out, cfa().exit());
+                out->link(cfa().exit());
 
             for (const auto& arg : info.skip_front()) {
                 for (auto n_arg : arg)
-                    link(out, n_arg);
+                    out->link(n_arg);
             }
         }
     }
@@ -222,7 +207,7 @@ void CFABuilder::build_cfg() {
     // TODO link CFNodes not reachable from exit
     // HACK
     if (scope().entry()->empty())
-        link(cfa().entry(), cfa().exit());
+        cfa().entry()->link(cfa().exit());
 
 #ifndef NDEBUG
     bool error = false;

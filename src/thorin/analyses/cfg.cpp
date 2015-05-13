@@ -99,9 +99,23 @@ public:
         return lambda2param2nodes_[param->lambda()][param->index()];
     }
 
+    void link(const CFNode* src, const CFNode* dst) {
+        auto i = links_.find(src);
+        if (i == links_.end())
+            i = links_.emplace(src, CFNodeSet()).first;
+
+        auto& set = i->second;
+        if (!set.contains(dst)) {
+            set.insert(dst);
+            src->succs_.push_back(dst);
+            dst->preds_.push_back(src);
+        }
+    }
+
 private:
     CFA& cfa_;
     Scope::Map<std::vector<CFNodeSet>> lambda2param2nodes_; ///< Maps param in scope to CFNodeSet.
+    HashMap<const CFNode*, CFNodeSet, CFNodeHash> links_;
 };
 
 Array<CFNodeSet> CFABuilder::cf_nodes_per_op(Lambda* lambda) {
@@ -125,9 +139,20 @@ Array<CFNodeSet> CFABuilder::cf_nodes_per_op(Lambda* lambda) {
                 auto param = def->as<Param>();
                 if (scope().inner_contains(param)) {
                     const auto& set = param2nodes(param);
-                    result[i].insert(set.begin(), set.end());
+                    if (i == 0) {
+                        for (auto n : set) {
+                            if (auto out = n->isa<OutNode>()) {
+                                assert(out->context() != in);
+                                auto new_out = out_node(in, out->def());
+                                link(new_out, out);
+                                result[0].insert(new_out);
+                            } else
+                                result[0].insert(n);
+                        }
+                    } else
+                        result[i].insert(set.begin(), set.end());
                 } else if (i == 0)
-                    result[i].insert(out_node(in, param));
+                    result[0].insert(out_node(in, param));
             }
         });
     }
@@ -156,6 +181,7 @@ void CFABuilder::run_cfa() {
                     }
                 } else {
                     auto out = to->as<OutNode>();
+                    assert(in_node(lambda) == out->context() && "OutNode's context does not match");
                     for (size_t i = 1; i != num; ++i) {
                         for (auto n : info[i]) {
                             if (auto info_in = n->isa<InNode>()) {
@@ -177,25 +203,18 @@ void CFABuilder::build_cfg() {
     for (auto in : cfa().in_nodes()) {
         auto info = cf_nodes_per_op(in->lambda());
 
-        for (auto to : info[0]) {
-            auto out = to->isa<OutNode>();
-            if (out && out->context() != in) {
-                auto new_out = out_node(in, in->lambda()->to()); // TODO what to use as OutNode's def?
-                in->link(new_out);
-                new_out->link(out);
-            } else
-                in->link(to);
-        }
+        for (auto to : info[0])
+            link(in, to);
 
         for (auto pair : in->out_nodes()) {
             auto out = pair.second;
 
             if (out->def()->isa<Param>())
-                out->link(cfa().exit());
+                link(out, cfa().exit());
 
             for (const auto& arg : info.skip_front()) {
                 for (auto n_arg : arg)
-                    out->link(n_arg);
+                    link(out, n_arg);
             }
         }
     }
@@ -203,7 +222,7 @@ void CFABuilder::build_cfg() {
     // TODO link CFNodes not reachable from exit
     // HACK
     if (scope().entry()->empty())
-        cfa().entry()->link(cfa().exit());
+        link(cfa().entry(), cfa().exit());
 
 #ifndef NDEBUG
     bool error = false;

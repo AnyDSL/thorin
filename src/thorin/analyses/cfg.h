@@ -39,10 +39,6 @@ public:
 private:
     ArrayRef<const CFNode*> preds() const { return preds_; }
     ArrayRef<const CFNode*> succs() const { return succs_; }
-    void link(const CFNode* other) const {
-        this->succs_.push_back(other);
-        other->preds_.push_back(this);
-    }
 
     Def def_;
     mutable size_t f_index_ = -1; ///< RPO index in a forward @p CFG.
@@ -80,7 +76,7 @@ public:
         : CFNode(def)
         , context_(context)
     {
-        //assert(def->isa<Param>() || def->isa<Lambda>());
+        assert(def->isa<Param>() || def->isa<Lambda>());
     }
 
     virtual ~OutNode() {}

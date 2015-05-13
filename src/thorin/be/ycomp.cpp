@@ -15,9 +15,11 @@ class YCompGen : public Printer {
 public:
     YCompGen(bool scheduled, std::ostream& ostream)
         : Printer(ostream)
-        , scheduled_(scheduled) 
+        , scheduled_(scheduled)
     {}
 
+    void emit_scope_cfg(const Scope& scope);
+    void emit_world_cfg(const World& world);
     void emit_scope(const Scope& scope);
     void emit_world(const World& world);
 
@@ -39,6 +41,10 @@ private:
     std::ostream& emit_lambda(const Lambda*);
     std::ostream& emit_lambda_graph(const Lambda*);
     std::ostream& emit_block(const Schedule::Block&);
+
+    std::string cfnode_title(const Scope&, const CFNode*);
+    template<bool forward>
+    std::ostream& emit_cfnode(const CFG<forward>&, const CFNode*);
 
     std::ostream& emit_type(Type type) { return thorin::emit_type(type, stream()); }
     std::ostream& emit_name(Def def) { return thorin::emit_name(def, stream()); }
@@ -269,6 +275,56 @@ std::ostream& YCompGen::emit_lambda_graph(const Lambda* lambda) {
     return emit_lambda_graph_end();
 }
 
+std::string YCompGen::cfnode_title(const Scope& scope, const CFNode* node) {
+    return std::to_string(scope.id()) + std::to_string(node->def()->gid()) +
+        "_" + std::to_string(node->in_node()->def()->gid());
+}
+
+template<bool forward>
+std::ostream& YCompGen::emit_cfnode(const CFG<forward>& cfg, const CFNode* node) {
+    write_node(cfnode_title(cfg.scope(), node),
+        [&] {
+            if(auto out = node->isa<OutNode>()) {
+                stream() << "(" << out->context()->def()->unique_name() << ") ";
+            }
+            stream() << node->def()->unique_name();
+        }, [&] { stream() << (node->isa<OutNode>() ? "Out" : "In"); });
+
+    for (auto successor : cfg.succs(node)) {
+        write_edge(cfnode_title(cfg.scope(), node), cfnode_title(cfg.scope(), successor), true);
+    }
+
+    return stream();
+}
+
+void YCompGen::emit_scope_cfg(const Scope& scope) {
+    newline() << "graph: {";
+    up() << "title: \"scope" << scope.id() << "\"";
+    newline() << "label: \"scope " << scope.id() << "\"";
+
+    auto& cfg = scope.f_cfg();
+    for (auto node : cfg.rpo()) {
+        emit_cfnode(cfg, node);
+    }
+
+    down() << "}";
+    newline();
+}
+
+void YCompGen::emit_world_cfg(const World& world) {
+    stream() << "graph: {";
+    up() << "layoutalgorithm: mindepth //$ \"Compilergraph\"";
+    newline() << "orientation: top_to_bottom";
+    newline() << "graph: {";
+    up() << "label: \"module " << world.name() << "\"";
+
+    Scope::for_each<false>(world, [&] (const Scope& scope) { emit_scope_cfg(scope); });
+
+    down() << "}";
+    down() << "}";
+}
+
+
 void YCompGen::emit_scope(const Scope& scope) {
     newline() << "graph: {";
     up() << "title: \"scope" << scope.id() << "\"";
@@ -310,6 +366,17 @@ void YCompGen::emit_world(const World& world) {
 }
 
 //------------------------------------------------------------------------------
+
+// TODO option for outputting primops?
+void emit_ycomp_cfg(const Scope& scope, std::ostream& ostream) {
+    YCompGen cg(false, ostream);
+    cg.emit_scope_cfg(scope);
+}
+
+void emit_ycomp_cfg(const World& world, std::ostream& ostream) {
+    YCompGen cg(false, ostream);
+    cg.emit_world_cfg(world);
+}
 
 void emit_ycomp(const Scope& scope, bool scheduled, std::ostream& ostream) {
     YCompGen cg(scheduled, ostream);

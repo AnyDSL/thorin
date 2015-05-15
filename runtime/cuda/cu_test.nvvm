@@ -1,3 +1,6 @@
+target datalayout = "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v16:16:16-v32:32:32-v64:64:64-v128:128:128-n16:32:64"
+target triple = "nvptx64-unknown-cuda"
+
 ; The NVVM IR is equivalent to the following CUDA C code:
 ;
 ; __device__ int ave(int a, int b) {
@@ -21,10 +24,6 @@
 ;    int tid = blockIdx.x * blockDim.x + threadIdx.x;
 ;    data[tid] = cmem[threadIdx.x];
 ; }
-;
-
-target datalayout = "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v16:16:16-v32:32:32-v64:64:64-v128:128:128-n16:32:64"
-target triple = "nvptx64-unknown-cuda"
 
 define i32 @ave(i32 %a, i32 %b) {
 entry:

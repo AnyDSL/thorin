@@ -1,0 +1,7 @@
+extern "C" {
+    fn cl_test() -> int;
+}
+
+fn main() -> int {
+  cl_test()
+}

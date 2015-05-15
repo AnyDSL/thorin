@@ -702,7 +702,7 @@ Def World::store(Def mem, Def ptr, Def value, const std::string& name) {
         return mem;
 
     if (auto insert = value->isa<Insert>())
-        return store(mem, lea(ptr, insert->index(), insert->name), value, name);
+        return store(mem, lea(ptr, insert->index(), insert->name), insert->value(), name);
 
     return cse(new Store(mem, ptr, value, name));
 }

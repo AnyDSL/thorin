@@ -958,14 +958,14 @@ void emit_llvm(World& world, int opt) {
             imported->param(i)->name = lambda->param(i)->unique_name();
     });
 
-    if (!cuda.lambdas().empty() || !nvvm.lambdas().empty() || !spir.lambdas().empty() || !opencl.lambdas().empty())
+    if (!cuda.empty() || !nvvm.empty() || !spir.empty() || !opencl.empty())
         world.cleanup();
 
     CPUCodeGen(world).emit(opt);
-    if (!cuda.  lambdas().empty()) CUDACodeGen(cuda).emit(/*opt*/);
-    if (!nvvm.  lambdas().empty()) NVVMCodeGen(nvvm).emit(opt);
-    if (!spir.  lambdas().empty()) SPIRCodeGen(spir).emit(opt);
-    if (!opencl.lambdas().empty()) OpenCLCodeGen(opencl).emit(/*opt*/);
+    if (!cuda.  empty()) CUDACodeGen(cuda).emit(/*opt*/);
+    if (!nvvm.  empty()) NVVMCodeGen(nvvm).emit(opt);
+    if (!spir.  empty()) SPIRCodeGen(spir).emit(opt);
+    if (!opencl.empty()) OpenCLCodeGen(opencl).emit(/*opt*/);
 }
 
 //------------------------------------------------------------------------------

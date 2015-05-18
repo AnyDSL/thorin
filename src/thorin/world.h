@@ -237,6 +237,7 @@ public:
     const LambdaSet& externals() const { return externals_; }
     const Types& types() const { return types_; }
     size_t gid() const { return gid_; }
+    bool empty() const { return lambdas().size() <= 2; } // TODO rework intrinsic stuff. 2 = branch + end_scope
 
     // other stuff
 

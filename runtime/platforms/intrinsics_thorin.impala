@@ -3,13 +3,21 @@ extern "thorin" {
     fn munmap(&[f32]) -> ();
     fn atomic(u32, &i32, i32) -> i32;
 
-    fn select4(simd[bool * 4], simd[float * 4], simd[float * 4]) -> simd[float * 4];
-    fn select8(simd[bool * 8], simd[float * 8], simd[float * 8]) -> simd[float * 8];
-    fn select16(simd[bool * 16], simd[float * 16], simd[float * 16]) -> simd[float * 16];
+    fn select4i32(simd[bool * 4], simd[int * 4], simd[int * 4]) -> simd[int * 4];
+    fn select8i32(simd[bool * 8], simd[int * 8], simd[int * 8]) -> simd[int * 8];
+    fn select16i32(simd[bool * 16], simd[int * 16], simd[int * 16]) -> simd[int * 16];
 
-    fn shuffle4(simd[float * 4], simd[float * 4], simd[int * 4]) -> simd[float * 4];
-    fn shuffle8(simd[float * 8], simd[float * 8], simd[int * 8]) -> simd[float * 8];
-    fn shuffle16(simd[float * 16], simd[float * 16], simd[int * 16]) -> simd[float * 16];
+    fn select4f32(simd[bool * 4], simd[float * 4], simd[float * 4]) -> simd[float * 4];
+    fn select8f32(simd[bool * 8], simd[float * 8], simd[float * 8]) -> simd[float * 8];
+    fn select16f32(simd[bool * 16], simd[float * 16], simd[float * 16]) -> simd[float * 16];
+
+    fn shuffle4i32(simd[int * 4], simd[int * 4], simd[int * 4]) -> simd[int * 4];
+    fn shuffle8i32(simd[int * 8], simd[int * 8], simd[int * 8]) -> simd[int * 8];
+    fn shuffle16i32(simd[int * 16], simd[int * 16], simd[int * 16]) -> simd[int * 16];
+
+    fn shuffle4f32(simd[float * 4], simd[float * 4], simd[int * 4]) -> simd[float * 4];
+    fn shuffle8f32(simd[float * 8], simd[float * 8], simd[int * 8]) -> simd[float * 8];
+    fn shuffle16f32(simd[float * 16], simd[float * 16], simd[int * 16]) -> simd[float * 16];
 
     fn cuda(int, (int, int, int), (int, int, int), fn() -> ()) -> ();
     fn nvvm(int, (int, int, int), (int, int, int), fn() -> ()) -> ();

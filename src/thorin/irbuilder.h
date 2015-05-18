@@ -64,6 +64,7 @@ public:
     void store(Def val) const;
     Def def() const { return def_; }
     operator bool() { return kind() != Empty; }
+    bool use_lea() const;
 
     Var& operator= (Var other) { swap(*this, other); return *this; }
     friend void swap(Var& v1, Var& v2) {

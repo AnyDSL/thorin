@@ -187,6 +187,7 @@ public:
     virtual bool equal(const TypeNode*) const;
     virtual bool is_closed() const;
     virtual IndefiniteArrayType is_indefinite() const;
+    virtual bool use_lea() const { return false; }
 
 protected:
     Array<Type> specialize_args(Type2Type&) const;
@@ -350,6 +351,7 @@ public:
     virtual Type elem(size_t i) const;
     ArrayRef<Type> elems() const;
     size_t num_elems() const { return struct_abs_type()->num_args(); }
+    virtual bool use_lea() const override { return true; }
 
 private:
     virtual Type vrebuild(World& to, ArrayRef<Type> args) const override;
@@ -398,6 +400,7 @@ protected:
 
 public:
     Type elem_type() const { return arg(0); }
+    virtual bool use_lea() const override { return true; }
 };
 
 class IndefiniteArrayTypeNode : public ArrayTypeNode {

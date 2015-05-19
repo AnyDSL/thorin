@@ -71,6 +71,8 @@ LEA::LEA(Def ptr, Def index, const std::string& name)
         set_type(world.ptr_type(array->elem_type(), type->length(), type->device(), type->addr_space()));
     } else if (auto struct_app = ptr_referenced_type().isa<StructAppType>()) {
         set_type(world.ptr_type(struct_app->elem(index)));
+    } else if (auto vector = ptr_referenced_type().isa<VectorType>()) {
+        set_type(world.ptr_type(vector->scalarize(), type->length(), type->device(), type->addr_space()));
     } else {
         THORIN_UNREACHABLE;
     }

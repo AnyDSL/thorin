@@ -763,7 +763,7 @@ llvm::Value* CodeGen::emit_lea(Def def) {
     if (lea->ptr_referenced_type().isa<TupleType>() || lea->ptr_referenced_type().isa<StructAppType>())
         return builder_.CreateStructGEP(lookup(lea->ptr()), lea->index()->primlit_value<u32>());
 
-    assert(lea->ptr_referenced_type().isa<ArrayType>());
+    assert(lea->ptr_referenced_type().isa<ArrayType>() || lea->ptr_referenced_type().isa<VectorType>());
     llvm::Value* args[2] = { builder_.getInt64(0), lookup(lea->index()) };
     return builder_.CreateInBoundsGEP(lookup(lea->ptr()), args);
 }

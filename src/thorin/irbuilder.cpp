@@ -35,7 +35,7 @@ Var Var::create_ptr(IRBuilder& builder, Def ptr) {
 
 Var Var::create_agg(Var var, Def offset) {
     assert(var.kind() != Empty);
-    if (var.kind() == PtrRef)
+    if (var.use_lea())
         return create_ptr(*var.builder_, var.builder_->world().lea(var.def_, offset));
     Var result;
     result.kind_    = AggRef;
@@ -43,6 +43,12 @@ Var Var::create_agg(Var var, Def offset) {
     result.var_.reset(new Var(var));
     result.def_     = offset;
     return result;
+}
+
+bool Var::use_lea() const {
+    if (kind() == PtrRef)
+        return def()->type().as<PtrType>()->referenced_type()->use_lea();
+    return false;
 }
 
 Def Var::load() const {
@@ -175,8 +181,10 @@ Def IRBuilder::extract(Def agg, u32 index, const std::string& name) {
 }
 
 Def IRBuilder::extract(Def agg, Def index, const std::string& name) {
-    if (auto ld = Load::is_out_val(agg))
-        return load(world().lea(ld->ptr(), index, ld->name));
+    if (auto ld = Load::is_out_val(agg)) {
+        if (ld->out_val_type()->use_lea())
+            return load(world().lea(ld->ptr(), index, ld->name));
+    }
     return world().extract(agg, index, name);
 }
 

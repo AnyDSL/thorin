@@ -69,6 +69,7 @@ public:
     }
 
     void run_cfa();
+    void unreachable_node_elimination();
     void build_cfg();
 
     const CFA& cfa() const { return cfa_; }
@@ -183,6 +184,53 @@ void CFABuilder::run_cfa() {
     }
 }
 
+void CFABuilder::unreachable_node_elimination() {
+    CFNodeSet reachable;
+    std::queue<const CFNode*> queue;
+
+    auto enqueue = [&] (const CFNode* n) {
+        if (reachable.insert(n).second)
+            queue.push(n);
+    };
+
+    enqueue(cfa().entry());
+    while (!queue.empty()) {
+        for (auto succ : pop(queue)->succs())
+            enqueue(succ);
+    }
+
+    enqueue(cfa().exit());
+
+    auto unlink = [&] (const CFNode* n) {
+        for (auto pred : n->preds())
+            pred->succs_.erase(n);
+        for (auto succ : n->succs())
+            succ->preds_.erase(n);
+    };
+
+    for (size_t i = 0, e = cfa().in_nodes().array().size(); i != e; ++i) {
+        if (auto& in = cfa_.in_nodes_.array().data()[i]) {
+#ifndef NDEBUG
+            for (auto p : in->out_nodes()) {
+                auto out = p.second;
+                assert(!(reachable.contains(in) ^ reachable.contains(out)));
+            }
+#endif
+            if (!reachable.contains(in)) {
+                for (auto p : in->out_nodes()) {
+                    auto out = p.second;
+                    unlink(out);
+                    --cfa_.num_out_nodes_;
+                }
+                unlink(in);
+                delete in;
+                in = nullptr;
+                --cfa_.num_in_nodes_;
+            }
+        }
+    }
+}
+
 void CFABuilder::build_cfg() {
     for (auto in : cfa().in_nodes()) {
         auto info = cf_nodes_per_op(in->lambda());
@@ -207,6 +255,8 @@ void CFABuilder::build_cfg() {
     // HACK
     if (scope().entry()->empty())
         cfa().entry()->link(cfa().exit());
+
+    unreachable_node_elimination();
 
 #ifndef NDEBUG
     bool error = false;

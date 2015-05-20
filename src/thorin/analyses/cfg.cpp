@@ -213,7 +213,7 @@ void CFABuilder::unreachable_node_elimination() {
 #ifndef NDEBUG
             for (auto p : in->out_nodes()) {
                 auto out = p.second;
-                assert(!(reachable.contains(in) ^ reachable.contains(out)));
+                assert(!(reachable.contains(in) ^ reachable.contains(out)) && "TODO");
             }
 #endif
             if (!reachable.contains(in)) {

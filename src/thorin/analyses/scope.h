@@ -87,8 +87,6 @@ private:
 
     static uint32_t candidate_counter_;
     static uint32_t id_counter_;
-
-    template<bool> friend class ScopeView;
 };
 
 }

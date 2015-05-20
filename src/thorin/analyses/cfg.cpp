@@ -100,7 +100,6 @@ public:
 private:
     CFA& cfa_;
     Scope::Map<std::vector<CFNodeSet>> lambda2param2nodes_; ///< Maps param in scope to CFNodeSet.
-    HashMap<const CFNode*, CFNodeSet, CFNodeHash> links_;
 };
 
 Array<CFNodeSet> CFABuilder::cf_nodes_per_op(Lambda* lambda) {

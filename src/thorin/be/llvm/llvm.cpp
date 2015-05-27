@@ -81,6 +81,8 @@ Lambda* CodeGen::emit_intrinsic(Lambda* lambda) {
         case Intrinsic::Sync:      return emit_sync(lambda);
 #ifdef WFV2_SUPPORT
         case Intrinsic::Vectorize: return emit_vectorize_continuation(lambda);
+#else
+        case Intrinsic::Vectorize: throw std::runtime_error("rebuild with libWFV support");
 #endif
         default: THORIN_UNREACHABLE;
     }

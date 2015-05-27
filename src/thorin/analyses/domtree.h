@@ -33,7 +33,6 @@ public:
         const std::vector<const Node*>& children() const { return children_; }
         size_t num_children() const { return children_.size(); }
         bool entry() const { return idom_ == this; }
-        size_t max_index() const;
         void dump() const { dump(0); }
 
     private:
@@ -42,7 +41,6 @@ public:
         const CFNode* cf_node_;
         mutable const Node* idom_ = nullptr;
         mutable AutoVector<const Node*> children_;
-        mutable size_t max_index_;
 
         template<bool> friend class DomTreeBase;
     };

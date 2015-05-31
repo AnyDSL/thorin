@@ -7,7 +7,7 @@ IF ( LLVM_FOUND )
 ELSE ()
     FUNCTION ( get_thorin_llvm_dependency_libs OUT_VAR )
     SET ( ${OUT_VAR} PARENT_SCOPE )
-    ENDFUNCTIOn ()
+    ENDFUNCTION ()
 ENDIF ()
 
 IF ( WFV2_FOUND )

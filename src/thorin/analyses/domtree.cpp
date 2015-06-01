@@ -74,15 +74,15 @@ outer_loop:;
     // compute the dominance frontier of each node as described in Cooper et al.
     for (auto n : cfg().body()) {
         const auto& preds = cfg().preds(n);
-        if (preds.size() < 2) return;
-
-        auto idom = (*this)[n]->idom()->cf_node();
-        for (auto pred : preds) {
-            auto runner = pred;
-            while (runner != idom) {
-                auto domrunner = (*this)[runner];
-                domrunner->frontier_.insert(n);
-                runner = domrunner->idom()->cf_node();
+        if (preds.size() > 1) {
+            auto idom = (*this)[n]->idom()->cf_node();
+            for (auto pred : preds) {
+                auto runner = pred;
+                while (runner != idom) {
+                    auto domrunner = (*this)[runner];
+                    domrunner->frontier_.insert(n);
+                    runner = domrunner->idom()->cf_node();
+                }
             }
         }
     }

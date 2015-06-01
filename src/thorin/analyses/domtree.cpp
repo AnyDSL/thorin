@@ -77,13 +77,13 @@ outer_loop:;
         if (preds.size() < 2) return;
 
         auto idom = (*this)[n]->idom()->cf_node();
-        std::vector<const CFNode *> worklist;
-        worklist.insert(worklist.end(), preds.begin(), preds.end());
-        while (not worklist.empty()) {
-            auto runner = worklist.back();
-            worklist.pop_back();
-            if (runner == idom) continue;
-            (*this)[runner]->frontier_.insert(n);
+        for (auto p : preds) {
+            auto runner = p;
+            while (runner != idom) {
+                auto domrunner = (*this)[runner];
+                domrunner->frontier_.insert(n);
+                runner = domrunner->idom()->cf_node();
+            }
         }
     }
 

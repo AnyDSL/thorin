@@ -77,8 +77,8 @@ outer_loop:;
         if (preds.size() < 2) return;
 
         auto idom = (*this)[n]->idom()->cf_node();
-        for (auto p : preds) {
-            auto runner = p;
+        for (auto pred : preds) {
+            auto runner = pred;
             while (runner != idom) {
                 auto domrunner = (*this)[runner];
                 domrunner->frontier_.insert(n);

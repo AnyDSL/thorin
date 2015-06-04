@@ -62,7 +62,7 @@ protected:
 
     World& world_;
     llvm::LLVMContext context_;
-    AutoPtr<llvm::Module> module_;
+    std::unique_ptr<llvm::Module> module_;
     llvm::IRBuilder<> builder_;
     llvm::CallingConv::ID function_calling_convention_;
     llvm::CallingConv::ID device_calling_convention_;

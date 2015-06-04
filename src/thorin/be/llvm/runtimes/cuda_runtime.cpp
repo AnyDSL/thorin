@@ -2,7 +2,7 @@
 
 namespace thorin {
 
-CUDARuntime::CUDARuntime(llvm::LLVMContext& context, llvm::Module* target, llvm::IRBuilder<>& builder)
+CUDARuntime::CUDARuntime(llvm::LLVMContext& context, llvm::Module& target, llvm::IRBuilder<>& builder)
     : NVVMRuntime(context, target, builder)
 {}
 

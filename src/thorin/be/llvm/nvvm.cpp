@@ -31,7 +31,7 @@ NVVMCodeGen::NVVMCodeGen(World& world)
     }
     // nvvmir.version
     auto nvvmir_version_md = module_->getOrInsertNamedMetadata("nvvmir.version");
-    llvm::Value* annotation_values_11[] = { builder_.getInt32(1), builder_.getInt32(1) };
+    llvm::Metadata* annotation_values_11[] = { llvm::ConstantAsMetadata::get(builder_.getInt64(1)), llvm::ConstantAsMetadata::get(builder_.getInt64(1)) };
     nvvmir_version_md->addOperand(llvm::MDNode::get(context_, annotation_values_11));
 }
 
@@ -61,8 +61,8 @@ void NVVMCodeGen::emit_function_decl_hook(Lambda* lambda, llvm::Function* f) {
     // append required metadata
     auto annotation = module_->getOrInsertNamedMetadata("nvvm.annotations");
 
-    const auto append_metadata = [&](llvm::Value* target, const std::string &name) {
-        llvm::Value* annotation_values[] = { target, llvm::MDString::get(context_, name), builder_.getInt64(1) };
+    const auto append_metadata = [&](llvm::Value* target, const std::string& name) {
+        llvm::Metadata* annotation_values[] = { llvm::ValueAsMetadata::get(target), llvm::MDString::get(context_, name), llvm::ConstantAsMetadata::get(builder_.getInt64(1)) };
         llvm::MDNode* result = llvm::MDNode::get(context_, annotation_values);
         annotation->addOperand(result);
         return result;
@@ -119,7 +119,7 @@ void NVVMCodeGen::emit_function_start(llvm::BasicBlock* bb, Lambda* lambda) {
             auto md = metadata_.find(param);
             assert(md != metadata_.end());
             // require specific handle to be mapped to a parameter
-            llvm::Value* args[] = { md->second, var };
+            llvm::Value* args[] = { llvm::MetadataAsValue::get(context_, md->second), var };
             params_[param] = builder_.CreateCall(texture_handle, args);
         }
     }

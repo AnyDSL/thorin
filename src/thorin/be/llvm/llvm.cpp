@@ -4,8 +4,6 @@
 #include <iostream>
 #include <stdexcept>
 
-#include "llvm/PassManager.h"
-#include <llvm/Analysis/Verifier.h>
 #include <llvm/Bitcode/ReaderWriter.h>
 #include <llvm/IR/Constant.h>
 #include <llvm/IR/Constants.h>
@@ -15,8 +13,11 @@
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Type.h>
+#include <llvm/IR/Verifier.h>
+#include <llvm/PassManager.h>
 #include <llvm/Support/raw_ostream.h>
-#include "llvm/Transforms/IPO/PassManagerBuilder.h"
+#include <llvm/Support/FileSystem.h>
+#include <llvm/Transforms/IPO/PassManagerBuilder.h>
 
 #ifdef WFV2_SUPPORT
 #include <wfvInterface.h>
@@ -54,11 +55,11 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention
     , function_calling_convention_(function_calling_convention)
     , device_calling_convention_(device_calling_convention)
     , kernel_calling_convention_(kernel_calling_convention)
-    , runtime_(new GenericRuntime(context_, module_, builder_))
-    , cuda_runtime_(new CUDARuntime(context_, module_, builder_))
-    , nvvm_runtime_(new NVVMRuntime(context_, module_, builder_))
-    , spir_runtime_(new SPIRRuntime(context_, module_, builder_))
-    , opencl_runtime_(new OpenCLRuntime(context_, module_, builder_))
+    , runtime_(new GenericRuntime(context_, *module_, builder_))
+    , cuda_runtime_(new CUDARuntime(context_, *module_, builder_))
+    , nvvm_runtime_(new NVVMRuntime(context_, *module_, builder_))
+    , spir_runtime_(new SPIRRuntime(context_, *module_, builder_))
+    , opencl_runtime_(new OpenCLRuntime(context_, *module_, builder_))
 {}
 
 Lambda* CodeGen::emit_intrinsic(Lambda* lambda) {
@@ -351,21 +352,21 @@ void CodeGen::emit(int opt) {
     optimize(opt);
 
     {
-        std::string error;
+        std::error_code EC;
         auto bc_name = get_binary_output_name(world_.name());
-        llvm::raw_fd_ostream out(bc_name.c_str(), error, llvm::sys::fs::F_Binary);
-        if (!error.empty())
-            throw std::runtime_error("cannot write '" + bc_name + "': " + error);
+        llvm::raw_fd_ostream out(bc_name, EC, llvm::sys::fs::F_None);
+        if (EC)
+            throw std::runtime_error("cannot write '" + bc_name + "': " + EC.message());
 
-        llvm::WriteBitcodeToFile(module_, out);
+        llvm::WriteBitcodeToFile(module_.get(), out);
     }
 
     {
-        std::string error;
+        std::error_code EC;
         auto ll_name = get_output_name(world_.name());
-        llvm::raw_fd_ostream out(ll_name.c_str(), error);
-        if (!error.empty())
-            throw std::runtime_error("cannot write '" + ll_name + "': " + error);
+        llvm::raw_fd_ostream out(ll_name, EC, llvm::sys::fs::F_Text);
+        if (EC)
+            throw std::runtime_error("cannot write '" + ll_name + "': " + EC.message());
 
         module_->print(out, nullptr);
     }
@@ -375,7 +376,7 @@ void CodeGen::optimize(int opt) {
     if (opt != 0) {
         llvm::PassManagerBuilder pmbuilder;
         llvm::PassManager pass_manager;
-        llvm::FunctionPassManager function_pass_manager(module_);
+        llvm::FunctionPassManager function_pass_manager(module_.get());
         if (opt == -1) {
             pmbuilder.OptLevel = 2u;
             pmbuilder.SizeLevel = 1;
@@ -702,15 +703,15 @@ llvm::Value* CodeGen::emit(Def def) {
         llvm_malloc->addAttribute(llvm::AttributeSet::ReturnIndex, llvm::Attribute::NoAlias);
         auto alloced_type = convert(alloc->alloced_type());
         llvm::CallInst* void_ptr;
-        auto layout = llvm::DataLayout(module_->getDataLayout());
+        auto layout = module_->getDataLayout();
         if (auto array = alloc->alloced_type()->is_indefinite()) {
             auto size = builder_.CreateAdd(
-                    builder_.getInt64(layout.getTypeAllocSize(alloced_type)),
+                    builder_.getInt64(layout->getTypeAllocSize(alloced_type)),
                     builder_.CreateMul(builder_.CreateIntCast(lookup(alloc->extra()), builder_.getInt64Ty(), false),
-                        builder_.getInt64(layout.getTypeAllocSize(convert(array->elem_type())))));
+                        builder_.getInt64(layout->getTypeAllocSize(convert(array->elem_type())))));
             void_ptr = builder_.CreateCall(llvm_malloc, size);
         } else
-            void_ptr = builder_.CreateCall(llvm_malloc, builder_.getInt64(layout.getTypeAllocSize(alloced_type)));
+            void_ptr = builder_.CreateCall(llvm_malloc, builder_.getInt64(layout->getTypeAllocSize(alloced_type)));
 
         return builder_.CreatePointerCast(void_ptr, convert(alloc->out_ptr_type()));
     }
@@ -779,8 +780,8 @@ llvm::Value* CodeGen::emit_mmap(Def def) {
         type = array->elem_type();
     else
         type = mmap->out_ptr_type()->referenced_type();
-    auto layout = llvm::DataLayout(module_->getDataLayout());
-    auto size = builder_.getInt32(layout.getTypeAllocSize(convert(type)));
+    auto layout = module_->getDataLayout();
+    auto size = builder_.getInt32(layout->getTypeAllocSize(convert(type)));
     return runtime_->mmap(mmap->device(), (uint32_t)mmap->addr_space(), lookup(mmap->ptr()),
                           lookup(mmap->mem_offset()), lookup(mmap->mem_size()), size);
 }

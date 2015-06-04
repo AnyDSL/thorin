@@ -7,7 +7,7 @@ namespace thorin {
 
 class GenericRuntime : public Runtime {
 public:
-    GenericRuntime(llvm::LLVMContext& context, llvm::Module* target, llvm::IRBuilder<>& builder);
+    GenericRuntime(llvm::LLVMContext& context, llvm::Module& target, llvm::IRBuilder<>& builder);
     virtual ~GenericRuntime() {}
 
     virtual llvm::Value* mmap(uint32_t device, uint32_t addr_space, llvm::Value* ptr,

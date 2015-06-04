@@ -7,7 +7,7 @@ namespace thorin {
 
 class NVVMRuntime : public KernelRuntime {
 public:
-    NVVMRuntime(llvm::LLVMContext& context, llvm::Module* target, llvm::IRBuilder<>& builder);
+    NVVMRuntime(llvm::LLVMContext& context, llvm::Module& target, llvm::IRBuilder<>& builder);
 
     virtual llvm::Value* malloc(llvm::Value* device, llvm::Value* ptr);
     virtual llvm::Value* free(llvm::Value* device, llvm::Value* mem);

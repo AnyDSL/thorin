@@ -2,7 +2,7 @@
 
 namespace thorin {
 
-OpenCLRuntime::OpenCLRuntime(llvm::LLVMContext& context, llvm::Module* target, llvm::IRBuilder<>& builder)
+OpenCLRuntime::OpenCLRuntime(llvm::LLVMContext& context, llvm::Module& target, llvm::IRBuilder<>& builder)
     : SPIRRuntime(context, target, builder)
 {}
 

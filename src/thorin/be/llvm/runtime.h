@@ -13,19 +13,19 @@ class CodeGen;
 
 class Runtime {
 protected:
-    Runtime(llvm::LLVMContext& context, llvm::Module* target, llvm::IRBuilder<>& builder, const char* mod_name);
+    Runtime(llvm::LLVMContext& context, llvm::Module& target, llvm::IRBuilder<>& builder, const char* mod_name);
     virtual ~Runtime() {}
 
     llvm::Function* get(const char* name);
 
-    llvm::Module* target_;
+    llvm::Module& target_;
     llvm::IRBuilder<>& builder_;
-    AutoPtr<llvm::Module> module_;
+    std::unique_ptr<llvm::Module> module_;
 };
 
 class KernelRuntime : public Runtime {
 protected:
-    KernelRuntime(llvm::LLVMContext& context, llvm::Module* target, llvm::IRBuilder<>& builder,
+    KernelRuntime(llvm::LLVMContext& context, llvm::Module& target, llvm::IRBuilder<>& builder,
                   llvm::Type* device_ptr_ty, const char* mod_name);
 
 public:

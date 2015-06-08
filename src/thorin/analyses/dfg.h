@@ -27,7 +27,7 @@ public:
         const CFNode* cf_node() const { return cf_node_; }
         const std::vector<const Node*>& preds() const { return preds_; }
         const std::vector<const Node*>& succs() const { return succs_; }
-        void dump() const { /* TODO */ }
+        void dump() const;
 
     private:
         const CFNode *cf_node_;
@@ -47,9 +47,9 @@ public:
     }
 
     const CFG<forward>& cfg() const { return cfg_; }
-    size_t index(const Node* n) const { return cfg().index(n->cf_node()); }
-    const Node* operator[](const CFNode* n) const { return nodes_[n]; }
-    void dump() const { /* TODO */ }
+    size_t index(const Node *n) const { return cfg().index(n->cf_node()); }
+    const Node* operator[](const CFNode *n) const { return nodes_[n]; }
+    void dump() const;
 
 private:
     void create();
@@ -57,6 +57,8 @@ private:
     const CFG<forward> &cfg_;
     typename CFG<forward>::template Map<const Node*> nodes_;
 };
+
+//------------------------------------------------------------------------------
 
 typedef DFGBase<true>  DFG; /* Dominance Frontier Graph */
 typedef DFGBase<false> CDG; /* Control Dependence Graph */

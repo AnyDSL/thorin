@@ -41,7 +41,6 @@ public:
         const CFNode* cf_node_;
         mutable const Node* idom_ = nullptr;
         mutable AutoVector<const Node*> children_;
-        mutable CFNodeSet frontier_;
 
         template<bool> friend class DomTreeBase;
     };

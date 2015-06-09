@@ -1,17 +1,24 @@
 #include "dfg.h"
 
 #include <iostream>
+#include "thorin/analyses/domtree.h"
 
 namespace thorin {
 
 template<bool forward>
+DFGBase<forward>::~DFGBase() {
+    for (auto node : nodes_)
+        delete node;
+}
+
+template<bool forward>
 void DFGBase<forward>::Node::dump() const {
-    cf_node().dump();
+    std::cout << cf_node()->def()->unique_name();
     std::cout << " -> [";
-    for (auto &pred : preds()) {
-        if (preds().begin() != pred)
+    for (auto succ : succs()) {
+        if (*succs().begin() != succ)
             std::cout << ", ";
-        pred.cf_node().dump();
+        std::cout << succ->cf_node()->def()->unique_name();
     }
     std::cout << "]" << std::endl;
 }
@@ -20,22 +27,24 @@ void DFGBase<forward>::Node::dump() const {
 
 template<bool forward>
 void DFGBase<forward>::create() {
-    auto &domtree = cfg().domtree();
+    const auto& domtree = cfg().domtree();
 
-    for (auto n : cfg().rpo())
-        nodes_.emplace(nodes_.end(), n);
+    for (const auto node : cfg().rpo())
+        nodes_[node] = new Node(node);
 
     // compute the dominance frontier of each node as described in Cooper et al.
-    for (auto n : cfg().body()) {
-        const auto &preds = cfg().preds(n);
+    for (const auto node : cfg().body()) {
+        const auto dfnode = (*this)[node];
+        const auto& preds = cfg().preds(node);
         if (preds.size() > 1) {
-            auto idom = domtree[n]->idom()->cf_node();
-            for (auto pred : preds) {
+            const auto idom = domtree[node]->idom()->cf_node();
+            for (const auto pred : preds) {
                 auto runner = pred;
                 while (runner != idom) {
-                    auto domrunner = domtree[runner];
-                    /* TODO: add DFG edge */
-                    runner = domrunner->idom()->cf_node();
+                    auto dfrunner = (*this)[runner];
+                    dfnode->succs_.push_back(dfrunner);
+                    dfrunner->preds_.push_back(dfnode);
+                    runner = domtree[runner]->idom()->cf_node();
                 }
             }
         }
@@ -44,8 +53,11 @@ void DFGBase<forward>::create() {
 
 template<bool forward>
 void DFGBase<forward>::dump() const {
-    for (auto &node : nodes_)
-        node.dump();
+    for (auto node : nodes_)
+        node->dump();
 }
+
+template class DFGBase<true>;
+template class DFGBase<false>;
 
 }

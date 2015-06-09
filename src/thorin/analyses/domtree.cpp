@@ -3,7 +3,6 @@
 #include <iostream>
 #include <limits>
 #include <queue>
-#include <vector>
 
 #include "thorin/lambda.h"
 #include "thorin/analyses/cfg.h"
@@ -69,22 +68,6 @@ outer_loop:;
     for (auto n : cfg().body()) {
         auto dom = nodes_[n];
         dom->idom_->children_.push_back(dom);
-    }
-
-    // compute the dominance frontier of each node as described in Cooper et al.
-    for (auto n : cfg().body()) {
-        const auto& preds = cfg().preds(n);
-        if (preds.size() > 1) {
-            auto idom = (*this)[n]->idom()->cf_node();
-            for (auto pred : preds) {
-                auto runner = pred;
-                while (runner != idom) {
-                    auto domrunner = (*this)[runner];
-                    domrunner->frontier_.insert(n);
-                    runner = domrunner->idom()->cf_node();
-                }
-            }
-        }
     }
 
     assert((*this)[cfg().entry()] == root());

@@ -3,7 +3,6 @@
 
 #include <vector>
 #include "thorin/analyses/cfg.h"
-#include "thorin/util/autoptr.h"
 
 namespace thorin {
 
@@ -19,7 +18,7 @@ class DFGBase {
 public:
     class Node {
     private:
-        explicit Node(const CFNode *cf_node)
+        explicit Node(const CFNode* cf_node)
             : cf_node_(cf_node)
         {}
 
@@ -30,9 +29,9 @@ public:
         void dump() const;
 
     private:
-        const CFNode *cf_node_;
-        mutable AutoVector<const Node*> preds_;
-        mutable AutoVector<const Node*> succs_;
+        const CFNode* cf_node_;
+        mutable std::vector<const Node*> preds_;
+        mutable std::vector<const Node*> succs_;
 
         friend class DFGBase<forward>;
     };
@@ -42,19 +41,22 @@ public:
 
     explicit DFGBase(const CFG<forward> &cfg)
         : cfg_(cfg)
+        , nodes_(cfg)
     {
         create();
     }
 
+    ~DFGBase();
+
     const CFG<forward>& cfg() const { return cfg_; }
-    size_t index(const Node *n) const { return cfg().index(n->cf_node()); }
-    const Node* operator[](const CFNode *n) const { return nodes_[n]; }
+    size_t index(const Node* n) const { return cfg().index(n->cf_node()); }
+    const Node* operator[](const CFNode* n) const { return nodes_[n]; }
     void dump() const;
 
 private:
     void create();
 
-    const CFG<forward> &cfg_;
+    const CFG<forward>& cfg_;
     typename CFG<forward>::template Map<const Node*> nodes_;
 };
 

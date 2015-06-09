@@ -12,12 +12,12 @@ SET ( PROJ_NAME THORIN )
 FIND_PACKAGE ( LLVM QUIET )
 FIND_PACKAGE ( WFV2 QUIET )
 
-FIND_PATH ( THORIN_ROOT_DIR thorin-config.cmake PATHS ${THORIN_DIR} $ENV{THORIN_DIR} $ENV{AYDSL2_ROOT} )
+FIND_PATH ( THORIN_ROOT_DIR thorin-config.cmake PATHS ${THORIN_DIR} $ENV{THORIN_DIR} )
 SET ( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${THORIN_ROOT_DIR} )
 
-SET ( THORIN_OUTPUT_LIBS thorin.lib thorin.so thorin.dll libthorin libthorin.so libthorin.a libthorin.dll )
+SET ( THORIN_OUTPUT_LIBS thorin.lib thorin.so thorin.a thorin.dll thorin.dylib libthorin libthorin.so libthorin.a libthorin.dll libthorin.dylib )
 
-FIND_PATH ( THORIN_INCLUDE_DIR NAMES thorin/world.h PATHS ${THORIN_ROOT_DIR}/src ${THORIN_ROOT_DIR}/include ${THORIN_ROOT_DIR}/build/include )
+FIND_PATH ( THORIN_INCLUDE_DIR NAMES thorin/world.h PATHS ${THORIN_ROOT_DIR}/src )
 FIND_PATH ( THORIN_LIBS_DIR
     NAMES
         ${THORIN_OUTPUT_LIBS}
@@ -30,7 +30,7 @@ FIND_PATH ( THORIN_LIBS_DIR
 )
 FIND_PATH ( THORIN_RUNTIME_DIR
     NAMES
-        cmake/ThorinRuntime.cmake cuda/cu_runtime.cpp platforms/intrinsics_thor.impala
+        cmake/ThorinRuntime.cmake platforms/intrinsics_thorin.impala
     PATHS
         ${THORIN_ROOT_DIR}/runtime
 )
@@ -41,7 +41,7 @@ FIND_PATH ( THORIN_RUNTIME_INCLUDE_DIR
         ${THORIN_ROOT_DIR}/runtime/common
 )
 
-# include anydsl specific stuff
+# include AnyDSL specific stuff
 INCLUDE ( ${CMAKE_CURRENT_LIST_DIR}/thorin-shared.cmake )
 
 IF ( THORIN_LIBS_DIR )

@@ -20,7 +20,7 @@ protected:
 
     llvm::Module* target_;
     llvm::IRBuilder<>& builder_;
-    AutoPtr<llvm::Module> module_;
+    AutoPtr<llvm::Module> runtime_;
 };
 
 class KernelRuntime : public Runtime {

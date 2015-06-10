@@ -45,7 +45,7 @@ llvm::Value* SPIRRuntime::synchronize(llvm::Value* device) {
 }
 
 llvm::Value* SPIRRuntime::set_kernel_arg(llvm::Value* device, llvm::Value* ptr, llvm::Type* type) {
-    auto layout = module_->getDataLayout();
+    auto layout = target_.getDataLayout();
     llvm::Value* arg_args[] = { device, ptr, builder_.getInt32(layout->getTypeAllocSize(type)) };
     return builder_.CreateCall(get("spir_set_kernel_arg"), arg_args);
 }
@@ -56,7 +56,7 @@ llvm::Value* SPIRRuntime::set_kernel_arg_map(llvm::Value* device, llvm::Value* m
 }
 
 llvm::Value* SPIRRuntime::set_kernel_arg_struct(llvm::Value* device, llvm::Value* ptr, llvm::Type* type) {
-    auto layout = module_->getDataLayout();
+    auto layout = target_.getDataLayout();
     llvm::Value* arg_args[] = { device, ptr, builder_.getInt32(layout->getTypeAllocSize(type)) };
     return builder_.CreateCall(get("spir_set_kernel_arg_struct"), arg_args);
 }

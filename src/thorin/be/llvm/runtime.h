@@ -20,7 +20,7 @@ protected:
 
     llvm::Module& target_;
     llvm::IRBuilder<>& builder_;
-    std::unique_ptr<llvm::Module> module_;
+    std::unique_ptr<llvm::Module> runtime_;
 };
 
 class KernelRuntime : public Runtime {

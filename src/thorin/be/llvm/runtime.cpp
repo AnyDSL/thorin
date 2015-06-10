@@ -20,13 +20,13 @@ Runtime::Runtime(llvm::LLVMContext& context, llvm::Module& target, llvm::IRBuild
     , builder_(builder)
 {
     llvm::SMDiagnostic diag;
-    module_ = llvm::parseIRFile(mod_name, diag, context);
-    if (module_ == nullptr)
+    runtime_ = llvm::parseIRFile(mod_name, diag, context);
+    if (runtime_ == nullptr)
         throw std::logic_error("runtime could not be loaded");
 }
 
 llvm::Function* Runtime::get(const char* name) {
-    auto result = llvm::cast<llvm::Function>(target_.getOrInsertFunction(name, module_->getFunction(name)->getFunctionType()));
+    auto result = llvm::cast<llvm::Function>(target_.getOrInsertFunction(name, runtime_->getFunction(name)->getFunctionType()));
     assert(result != nullptr && "Required runtime function could not be resolved");
     return result;
 }
@@ -37,21 +37,30 @@ KernelRuntime::KernelRuntime(llvm::LLVMContext& context, llvm::Module& target, l
     , device_ptr_ty_(device_ptr_ty)
 {}
 
+enum {
+    ACC_ARG_MEM,
+    ACC_ARG_DEVICE,
+    ACC_ARG_SPACE,
+    ACC_ARG_CONFIG,
+    ACC_ARG_BODY,
+    ACC_ARG_RETURN,
+    ACC_NUM_ARGS
+};
+
 Lambda* KernelRuntime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
     // to-target is the desired kernel call
     // target(mem, device, (dim.x, dim.y, dim.z), (block.x, block.y, block.z), body, return, free_vars)
     auto target = lambda->to()->as_lambda();
     assert(target->is_intrinsic());
-    assert(lambda->num_args() > 5 && "required arguments are missing");
+    assert(lambda->num_args() >= ACC_NUM_ARGS && "required arguments are missing");
 
-    // get input
-    assert(lambda->arg(1)->isa<PrimLit>() && "target device must be hard-coded");
-    auto target_device = int(lambda->arg(1)->as<PrimLit>()->qu32_value().data());
+    // arguments
+    assert(lambda->arg(ACC_ARG_DEVICE)->isa<PrimLit>() && "target device must be hard-coded");
+    auto target_device = int(lambda->arg(ACC_ARG_DEVICE)->as<PrimLit>()->qu32_value().data());
     auto target_device_val = builder_.getInt32(target_device);
-    auto it_space  = lambda->arg(2)->as<Tuple>();
-    auto it_config = lambda->arg(3)->as<Tuple>();
-    auto kernel = lambda->arg(4)->as<Global>()->init()->as<Lambda>();
-    auto ret = lambda->arg(5)->as_lambda();
+    auto it_space  = lambda->arg(ACC_ARG_SPACE)->as<Tuple>();
+    auto it_config = lambda->arg(ACC_ARG_CONFIG)->as<Tuple>();
+    auto kernel = lambda->arg(ACC_ARG_BODY)->as<Global>()->init()->as<Lambda>();
 
     // load kernel
     auto kernel_name = builder_.CreateGlobalStringPtr(kernel->name);
@@ -60,8 +69,9 @@ Lambda* KernelRuntime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
     // fetch values and create external calls for initialization
     // check for source devices of all pointers
     DefMap<llvm::Value*> device_ptrs;
-    for (size_t i = 6, e = lambda->num_args(); i < e; ++i) {
-        Def target_arg = lambda->arg(i);
+    const size_t num_kernel_args = lambda->num_args() - ACC_NUM_ARGS;
+    for (size_t i = 0; i < num_kernel_args; ++i) {
+        Def target_arg = lambda->arg(i + ACC_NUM_ARGS);
         const auto target_val = code_gen.lookup(target_arg);
 
         // check device target
@@ -88,7 +98,7 @@ Lambda* KernelRuntime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
                 // data is already on this device
                 if (ptr->addr_space() == AddressSpace::Texture) {
                     // skip memory and return continuation of given kernel
-                    auto target_param = kernel->param(i - 6 + 1 + 1);
+                    auto target_param = kernel->param(i + 1 + 1);
                     auto target_array_type = target_param->type().as<PtrType>()->referenced_type().as<ArrayType>();
                     auto texture_type = target_array_type->elem_type().as<PrimType>();
                     auto texture_name = builder_.CreateGlobalStringPtr(target_param->unique_name());
@@ -113,9 +123,9 @@ Lambda* KernelRuntime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
             set_kernel_arg(target_device_val, void_ptr, target_val->getType());
         }
     }
-    const auto get_u32 = [&](Def def) { return builder_.CreateSExt(code_gen.lookup(def), builder_.getInt32Ty()); };
 
     // setup configuration and launch
+    const auto get_u32 = [&](Def def) { return builder_.CreateSExt(code_gen.lookup(def), builder_.getInt32Ty()); };
     set_problem_size(target_device_val, get_u32(it_space->op(0)), get_u32(it_space->op(1)), get_u32(it_space->op(2)));
     set_config_size(target_device_val, get_u32(it_config->op(0)), get_u32(it_config->op(1)), get_u32(it_config->op(2)));
     launch_kernel(target_device_val, kernel_name);
@@ -130,7 +140,7 @@ Lambda* KernelRuntime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
     for (auto entry : device_ptrs)
         free(target_device_val, entry.second);
 
-    return ret;
+    return lambda->arg(ACC_ARG_RETURN)->as_lambda();
 }
 
 }

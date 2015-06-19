@@ -38,6 +38,8 @@ extern "device" {
     fn "llvm.fmuladd.f32" madf(f32, f32, f32) -> f32;
     fn "llvm.fma.f64" fma(f64, f64, f64) -> f64;
     fn "llvm.fmuladd.f64" mad(f64, f64, f64) -> f64;
+    fn "llvm.copysign.f32" copysignf(f32, f32) -> f32;
+    fn "llvm.copysign.f64" copysign(f64, f64) -> f64;
 }
 
 fn rsqrtf(a: f32) -> f32 { 1.0f / sqrtf(a) }

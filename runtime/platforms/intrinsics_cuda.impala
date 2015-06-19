@@ -30,6 +30,8 @@ extern "device" {
     fn erf(f64) -> f64;
     fn floor(f64) -> f64;
     fn fma(f64, f64, f64) -> f64;
+    fn copysignf(f32, f32) -> f32;
+    fn copysign(f64, f64) -> f64;
     fn "atomicAdd" atomic_add_global(&i32, i32) -> i32;
     fn "atomicAdd" atomic_add_local(&i32, i32) -> i32;
     fn "atomicMin" atomic_min_global(&i32, i32) -> i32;

@@ -116,7 +116,7 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
         COMMAND ${IMPALA_BIN} ${_impala_platform} ${_infiles} -emit-llvm -O3
         COMMAND ${PYTHON_BIN} ${THORIN_RUNTIME_DIR}/post-patcher.py ${TRW_BACKEND} ${CMAKE_CURRENT_BINARY_DIR}/${_basename}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-        DEPENDS ${IMPALA_BIN} ${PYTHON_BIN} ${THORIN_RUNTIME_DIR}/post-patcher.py ${_impala_platform} ${_infiles} VERBATIM)
+        DEPENDS ${IMPALA_BIN} ${THORIN_LIBRARIES} ${PYTHON_BIN} ${THORIN_RUNTIME_DIR}/post-patcher.py ${_impala_platform} ${_infiles} VERBATIM)
     IF("${TRW_BACKEND}" STREQUAL "spir")
         set(_spirfile ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.spir)
         set(_bcfile ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.spir.bc)

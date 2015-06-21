@@ -334,5 +334,7 @@ extern "C" {
     fn "__nv_floor"     floor(f64) -> f64;
     fn "__nv_fma"       fma(f64, f64, f64) -> f64;
     fn "__nv_fma"       mad(f64, f64, f64) -> f64;
+    fn "__nv_copysignf" copysignf(f32, f32) -> f32;
+    fn "__nv_copysign"  copysign(f64, f64) -> f64;
 }
 

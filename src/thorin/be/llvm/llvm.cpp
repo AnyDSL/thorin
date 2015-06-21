@@ -18,6 +18,8 @@
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
+#include <llvm/Transforms/Scalar.h>
+#include <llvm/Transforms/IPO.h>
 
 #ifdef WFV2_SUPPORT
 #include <wfvInterface.h>
@@ -376,7 +378,6 @@ void CodeGen::optimize(int opt) {
     if (opt != 0) {
         llvm::PassManagerBuilder pmbuilder;
         llvm::PassManager pass_manager;
-        llvm::FunctionPassManager function_pass_manager(module_.get());
         if (opt == -1) {
             pmbuilder.OptLevel = 2u;
             pmbuilder.SizeLevel = 1;
@@ -385,8 +386,12 @@ void CodeGen::optimize(int opt) {
             pmbuilder.SizeLevel = 0U;
         }
         pmbuilder.DisableUnitAtATime = true;
-        pmbuilder.populateFunctionPassManager(function_pass_manager);
+        if (opt == 3) {
+            pass_manager.add(llvm::createFunctionInliningPass());
+            pass_manager.add(llvm::createAggressiveDCEPass());
+        }
         pmbuilder.populateModulePassManager(pass_manager);
+
         pass_manager.run(*module_);
     }
 }

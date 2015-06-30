@@ -58,9 +58,11 @@ void Cleaner::eliminate_params() {
                 olambda->destroy_body();
 
                 for (auto use : olambda->uses()) {
-                    auto ulambda = use->as_lambda();
-                    assert(use.index() == 0 && "deleted param of lambda used as argument");
-                    ulambda->jump(nlambda, ulambda->args().cut(proxy_idx));
+                    if (auto ulambda = use->isa_lambda()) {
+                        assert(use.index() == 0 && "deleted param of lambda used as argument");
+                        ulambda->jump(nlambda, ulambda->args().cut(proxy_idx));
+                    }
+                    // else must be a dead 'select' primop
                 }
             }
         }

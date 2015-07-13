@@ -1,6 +1,7 @@
 #include "dfg.h"
 
 #include <iostream>
+#include "thorin/world.h"
 #include "thorin/analyses/domtree.h"
 
 namespace thorin {
@@ -13,7 +14,9 @@ DFGBase<forward>::~DFGBase() {
 
 template<bool forward>
 void DFGBase<forward>::Node::dump() const {
-    std::cout << cf_node()->def()->unique_name();
+    if (const auto out_node = cf_node_->isa<OutNode>())
+        std::cout << "(" << out_node->context()->def()->unique_name() << ") ";
+    std::cout << cf_node_->def()->unique_name();
     std::cout << " -> [";
     for (auto succ : succs()) {
         if (*succs().begin() != succ)

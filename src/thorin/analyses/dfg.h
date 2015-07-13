@@ -1,6 +1,7 @@
 #ifndef THORIN_ANALYSES_DFG_H
 #define THORIN_ANALYSES_DFG_H
 
+#include <iostream>
 #include <vector>
 #include "thorin/analyses/cfg.h"
 
@@ -26,7 +27,8 @@ public:
         const CFNode* cf_node() const { return cf_node_; }
         const std::vector<const Node*>& preds() const { return preds_; }
         const std::vector<const Node*>& succs() const { return succs_; }
-        void dump() const;
+        void dump(std::ostream& os) const;
+        void dump() const { dump(std::cerr); }
 
     private:
         const CFNode* cf_node_;
@@ -51,7 +53,8 @@ public:
     const CFG<forward>& cfg() const { return cfg_; }
     size_t index(const Node* n) const { return cfg().index(n->cf_node()); }
     const Node* operator[](const CFNode* n) const { return nodes_[n]; }
-    void dump() const;
+    void dump(std::ostream& os) const;
+    void dump() const { dump(std::cerr); }
 
 private:
     void create();

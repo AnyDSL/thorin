@@ -13,17 +13,17 @@ DFGBase<forward>::~DFGBase() {
 }
 
 template<bool forward>
-void DFGBase<forward>::Node::dump() const {
+void DFGBase<forward>::Node::dump(std::ostream& os) const {
     if (const auto out_node = cf_node_->isa<OutNode>())
-        std::cout << "(" << out_node->context()->def()->unique_name() << ") ";
-    std::cout << cf_node_->def()->unique_name();
-    std::cout << " -> [";
+        os << "(" << out_node->context()->def()->unique_name() << ") ";
+    os << cf_node_->def()->unique_name();
+    os << " -> [";
     for (auto succ : succs()) {
         if (*succs().begin() != succ)
-            std::cout << ", ";
-        std::cout << succ->cf_node()->def()->unique_name();
+            os << ", ";
+        os << succ->cf_node()->def()->unique_name();
     }
-    std::cout << "]" << std::endl;
+    os << "]" << std::endl;
 }
 
 //------------------------------------------------------------------------------
@@ -55,9 +55,9 @@ void DFGBase<forward>::create() {
 }
 
 template<bool forward>
-void DFGBase<forward>::dump() const {
+void DFGBase<forward>::dump(std::ostream& os) const {
     for (auto node : nodes_)
-        node->dump();
+        node->dump(os);
 }
 
 template class DFGBase<true>;

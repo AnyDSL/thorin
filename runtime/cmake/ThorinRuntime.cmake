@@ -19,6 +19,7 @@ find_package(PythonInterp REQUIRED)
 message(STATUS "Python found: ${PYTHON_VERSION_STRING}")
 set(PYTHON_BIN ${PYTHON_EXECUTABLE})
 
+SET(BACKEND ${BACKEND} CACHE STRING "select the backend from the following: CPU, AVX, NVVM, CUDA, OPENCL, SPIR")
 IF(NOT BACKEND)
     SET(BACKEND cpu CACHE STRING "select the backend from the following: CPU, AVX, NVVM, CUDA, OPENCL, SPIR" FORCE)
 ENDIF()
@@ -66,6 +67,8 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
         )
     ELSEIF("${TRW_BACKEND}" STREQUAL "spir" OR "${TRW_BACKEND}" STREQUAL "opencl")
         FIND_LIBRARY(CL_LIB OpenCL ENV CL_LIB)
+        FIND_PATH(CL_INC CL/cl.h)
+        include_directories(${CL_INC})
         # set variables expected below
         set(${outfiles} ${${outfiles}} ${THORIN_RUNTIME_DIR}/opencl/cl_runtime.cpp)
         set(${outlibs} ${${outlibs}} ${CL_LIB})
@@ -116,7 +119,7 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
         COMMAND ${IMPALA_BIN} ${_impala_platform} ${_infiles} -emit-llvm -O3
         COMMAND ${PYTHON_BIN} ${THORIN_RUNTIME_DIR}/post-patcher.py ${TRW_BACKEND} ${CMAKE_CURRENT_BINARY_DIR}/${_basename}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-        DEPENDS ${IMPALA_BIN} ${THORIN_LIBRARIES} ${PYTHON_BIN} ${THORIN_RUNTIME_DIR}/post-patcher.py ${_impala_platform} ${_infiles} VERBATIM)
+        DEPENDS ${IMPALA_BIN} ${THORIN_LIBRARY} ${PYTHON_BIN} ${THORIN_RUNTIME_DIR}/post-patcher.py ${_impala_platform} ${_infiles} VERBATIM)
     IF("${TRW_BACKEND}" STREQUAL "spir")
         set(_spirfile ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.spir)
         set(_bcfile ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.spir.bc)

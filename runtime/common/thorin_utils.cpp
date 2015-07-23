@@ -2,6 +2,7 @@
 #include <ctime>
 #include <iostream>
 #include <random>
+#include <atomic>
 
 #if !defined(_WIN32) && (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__)))
 #include <unistd.h>
@@ -62,13 +63,19 @@ long long thorin_get_micro_time() {
 #endif
 }
 
-void thorin_print_micro_time(long long time) {
-    std::cerr << "   timing: " << time / 1000 << "(ms)" << std::endl;
+std::atomic_llong thorin_kernel_time(0);
+
+long long thorin_get_kernel_time() {
+    return thorin_kernel_time;
 }
 
-void thorin_print_gflops(float f) { printf("GFLOPS: %f\n", f); }
+void thorin_print_char(char c)      { std::cout << c; }
+void thorin_print_int(int i)        { std::cout << i; }
+void thorin_print_long(long long l) { std::cout << l; }
+void thorin_print_float(float f)    { std::cout << f; }
+void thorin_print_double(double d)  { std::cout << d; }
 
-float thorin_random_val(int max) {
+float thorin_random_val() {
 #if defined(__APPLE__) && defined(__clang__)
 #pragma message("Runtime random function is not thread-safe")
     static std::mt19937 std_gen;
@@ -76,5 +83,5 @@ float thorin_random_val(int max) {
     static thread_local std::mt19937 std_gen;
 #endif
     static std::uniform_real_distribution<float> std_dist(0.0f, 1.0f);
-    return std_dist(std_gen) * max;
+    return std_dist(std_gen);
 }

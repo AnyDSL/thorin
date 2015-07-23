@@ -1,6 +1,11 @@
 extern "C" {
-    fn thorin_random_val(int) -> f32;
+    fn thorin_random_val() -> f32;
     fn thorin_get_micro_time() -> i64;
-    fn thorin_print_micro_time(i64) -> ();
-    fn thorin_print_gflops(f32) -> ();
+    fn thorin_get_kernel_time() -> i64;
+
+    fn thorin_print_char(u8) -> ();
+    fn thorin_print_int(i32) -> ();
+    fn thorin_print_long(i64) -> ();
+    fn thorin_print_float(f32) -> ();
+    fn thorin_print_double(f64) -> ();
 }

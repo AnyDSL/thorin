@@ -702,8 +702,10 @@ Def World::store(Def mem, Def ptr, Def value, const std::string& name) {
         return mem;
 
     if (auto insert = value->isa<Insert>()) {
-        if (ptr->type().as<PtrType>()->referenced_type()->use_lea())
-            return store(mem, lea(ptr, insert->index(), insert->name), insert->value(), name);
+        if (ptr->type().as<PtrType>()->referenced_type()->use_lea()) {
+            auto peeled_store = store(mem, ptr, insert->agg());
+            return store(peeled_store, lea(ptr, insert->index(), insert->name), insert->value(), name);
+        }
     }
 
     return cse(new Store(mem, ptr, value, name));

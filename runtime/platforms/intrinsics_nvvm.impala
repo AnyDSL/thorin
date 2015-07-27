@@ -307,6 +307,15 @@ fn fmin(a: f64, b: f64) -> f64 { nvvm_fmin_d(a, b) }
 fn fmax(a: f64, b: f64) -> f64 { nvvm_fmax_d(a, b) }
 
 extern "C" {
+    fn minmin(a: i32, b: i32, c: i32) -> i32;
+    fn maxmax(a: i32, b: i32, c: i32) -> i32;
+    fn minmax(a: i32, b: i32, c: i32) -> i32;
+    fn maxmin(a: i32, b: i32, c: i32) -> i32;
+    fn ldg4f32(&simd[f32 * 4]) -> simd[f32 * 4];
+    fn ldg4i32(&simd[i32 * 4]) -> simd[i32 * 4];
+}
+
+extern "C" {
     // libdevice intrinsics: http://docs.nvidia.com/cuda/libdevice-users-guide
     fn "__nv_expf"      expf(f32) -> f32;
     fn "__nv_exp2f"     exp2f(f32) -> f32;

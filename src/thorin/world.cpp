@@ -73,7 +73,20 @@ Def World::literal(PrimTypeKind kind, int64_t value, size_t length) {
             default: THORIN_UNREACHABLE;
     }
 
-    return vector(lit, length);
+    return splat(lit, length);
+}
+
+Def World::bottom(Type type, size_t length) { 
+    return splat(cse(new Bottom(type, "")), length); 
+}
+
+Def World::splat(Def arg, size_t length, const std::string& name) {
+    if (length == 1)
+        return arg;
+
+    Array<Def> args(length);
+    std::fill(args.begin(), args.end(), arg);
+    return vector(args, name);
 }
 
 /*
@@ -653,15 +666,6 @@ Def World::insert(Def agg, Def index, Def value, const std::string& name) {
     }
 
     return cse(new Insert(agg, index, value, name));
-}
-
-Def World::vector(Def arg, size_t length, const std::string& name) {
-    if (length == 1)
-        return arg;
-
-    Array<Def> args(length);
-    std::fill(args.begin(), args.end(), arg);
-    return vector(args, name);
 }
 
 Def World::select(Def cond, Def a, Def b, const std::string& name) {

@@ -609,9 +609,12 @@ Def World::extract(Def agg, Def index, const std::string& name) {
         }
     }
 
-    // TODO
-    //if (auto ld = Load::is_out_val(agg))
-        //return extract(load(ld->mem(), lea(ld->ptr(), index, ld->name), name), 1);
+    // TODO this doesn't work:
+    // we have to use the current mem which is not necessarily ld->out_mem()
+    //if (auto ld = Load::is_out_val(agg)) {
+        //if (ld->out_val_type()->use_lea())
+            //return extract(load(ld->out_mem(), lea(ld->ptr(), index, ld->name), name), 1);
+    //}
 
     if (auto insert = agg->isa<Insert>()) {
         if (index == insert->index())
@@ -702,8 +705,10 @@ Def World::store(Def mem, Def ptr, Def value, const std::string& name) {
         return mem;
 
     if (auto insert = value->isa<Insert>()) {
-        if (ptr->type().as<PtrType>()->referenced_type()->use_lea())
-            return store(mem, lea(ptr, insert->index(), insert->name), insert->value(), name);
+        if (ptr->type().as<PtrType>()->referenced_type()->use_lea()) {
+            auto peeled_store = store(mem, ptr, insert->agg());
+            return store(peeled_store, lea(ptr, insert->index(), insert->name), insert->value(), name);
+        }
     }
 
     return cse(new Store(mem, ptr, value, name));

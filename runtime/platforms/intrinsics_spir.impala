@@ -43,6 +43,10 @@ extern "device" {
     fn "_Z3madddd"      mad(f64, f64, f64) -> f64;
     fn "_Z8copysignff"  copysignf(f32, f32) -> f32;
     fn "_Z8copysigndd"  copysign(f64, f64) -> f64;
+    fn "_Z3minff"       fminf(f32, f32) -> f32;
+    fn "_Z3maxff"       fmaxf(f32, f32) -> f32;
+    fn "_Z3mindd"       fmin(f64, f64) -> f64;
+    fn "_Z3maxdd"       fmax(f64, f64) -> f64;
     fn "_Z10atomic_addPVU3AS1ii" atomic_add_global(&i32, i32) -> i32;
     fn "_Z10atomic_addPVU3AS3ii" atomic_add_local(&i32, i32) -> i32;
     fn "_Z10atomic_minPVU3AS1ii" atomic_min_global(&i32, i32) -> i32;

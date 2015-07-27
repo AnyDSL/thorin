@@ -3,6 +3,9 @@ extern "thorin" {
     fn munmap(&[f32]) -> ();
     fn atomic(u32, &i32, i32) -> i32;
 
+    fn float_as_int(f32) -> i32;
+    fn int_as_float(i32) -> f32;
+
     fn select4i32(simd[bool * 4], simd[int * 4], simd[int * 4]) -> simd[int * 4];
     fn select8i32(simd[bool * 8], simd[int * 8], simd[int * 8]) -> simd[int * 8];
     fn select16i32(simd[bool * 16], simd[int * 16], simd[int * 16]) -> simd[int * 16];

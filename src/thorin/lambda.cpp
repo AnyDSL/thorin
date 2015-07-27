@@ -183,6 +183,8 @@ void Lambda::set_intrinsic() {
     else if (name == "mmap")         intrinsic_ = Intrinsic::Mmap;
     else if (name == "munmap")       intrinsic_ = Intrinsic::Munmap;
     else if (name == "atomic")       intrinsic_ = Intrinsic::Atomic;
+    else if (name == "float_as_int") intrinsic_ = Intrinsic::FloatAsInt;
+    else if (name == "int_as_float") intrinsic_ = Intrinsic::IntAsFloat;
     else if (name == "select4i32")   intrinsic_ = Intrinsic::Select4;
     else if (name == "select8i32")   intrinsic_ = Intrinsic::Select8;
     else if (name == "select16i32")  intrinsic_ = Intrinsic::Select16;

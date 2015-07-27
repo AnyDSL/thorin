@@ -45,6 +45,11 @@ extern "device" {
 fn rsqrtf(a: f32) -> f32 { 1.0f / sqrtf(a) }
 fn rsqrt(a: f64) -> f64 { 1.0 / sqrt(a) }
 
+fn fminf(a: f32, b: f32) -> f32 { if a < b { a } else { b } }
+fn fmaxf(a: f32, b: f32) -> f32 { if a > b { a } else { b } }
+fn fmin(a: f64, b: f64) -> f64 { if a < b { a } else { b } }
+fn fmax(a: f64, b: f64) -> f64 { if a > b { a } else { b } }
+
 fn get_vector_length() -> int { 1 }
 fn get_thread_number() -> int { 4 }
 fn outer_loop(lower: int, upper: int, body: fn(int, fn())) -> () {

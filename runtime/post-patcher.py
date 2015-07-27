@@ -87,8 +87,6 @@ if rttype in ("opencl"):
             for line in result:
                 f.write(line)
 
-
-
 # another pass to add the ldg, minmax and consorts to the nvvm file
 nvvm_defs = {
   "ldg4f32" : """define <4 x float> @ldg4f32(<4 x float>* %addr) {

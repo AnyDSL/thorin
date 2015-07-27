@@ -50,6 +50,13 @@ fn fmaxf(a: f32, b: f32) -> f32 { if a > b { a } else { b } }
 fn fmin(a: f64, b: f64) -> f64 { if a < b { a } else { b } }
 fn fmax(a: f64, b: f64) -> f64 { if a > b { a } else { b } }
 
+extern "device" {
+    fn "llvm.x86.sse.movmsk.ps" movmskps(simd[f32 * 4]) -> i32;
+    fn "llvm.x86.sse.cmp.ps" cmpps(simd[f32 * 4], simd[f32 * 4], i8) -> simd[f32 * 4];
+    fn "llvm.x86.sse.rcp.ps" rcpps(simd[f32 * 4], simd[f32 * 4], i8) -> simd[f32 * 4];
+    fn "llvm.x86.sse.rsqrt.ps" rsqrtps(simd[f32 * 4], simd[f32 * 4], i8) -> simd[f32 * 4];
+}
+
 fn get_vector_length() -> int { 8 }
 fn get_thread_number() -> int { 4 }
 fn outer_loop(lower: int, upper: int, body: fn(int, fn())) -> () {

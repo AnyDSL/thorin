@@ -66,28 +66,23 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention
 Lambda* CodeGen::emit_intrinsic(Lambda* lambda) {
     Lambda* to = lambda->to()->as_lambda();
     switch (to->intrinsic()) {
-        case Intrinsic::Atomic:     return emit_atomic(lambda);
-        case Intrinsic::Select4:
-        case Intrinsic::Select8:
-        case Intrinsic::Select16:   return emit_select(lambda);
-        case Intrinsic::Shuffle4:
-        case Intrinsic::Shuffle8:
-        case Intrinsic::Shuffle16:  return emit_shuffle(lambda);
-        case Intrinsic::FloatAsInt: return emit_reinterpret(lambda, builder_.getInt32Ty());
-        case Intrinsic::IntAsFloat: return emit_reinterpret(lambda, builder_.getFloatTy());
-        case Intrinsic::Munmap:     runtime_->munmap(lookup(lambda->arg(1)));
-                                    return lambda->args().back()->as_lambda();
-        case Intrinsic::CUDA:       return cuda_runtime_->emit_host_code(*this, lambda);
-        case Intrinsic::NVVM:       return nvvm_runtime_->emit_host_code(*this, lambda);
-        case Intrinsic::SPIR:       return spir_runtime_->emit_host_code(*this, lambda);
-        case Intrinsic::OpenCL:     return opencl_runtime_->emit_host_code(*this, lambda);
-        case Intrinsic::Parallel:   return emit_parallel(lambda);
-        case Intrinsic::Spawn:      return emit_spawn(lambda);
-        case Intrinsic::Sync:       return emit_sync(lambda);
+        case Intrinsic::Atomic:      return emit_atomic(lambda);
+        case Intrinsic::Select:      return emit_select(lambda);
+        case Intrinsic::Shuffle:     return emit_shuffle(lambda);
+        case Intrinsic::Reinterpret: return emit_reinterpret(lambda);
+        case Intrinsic::Munmap:      runtime_->munmap(lookup(lambda->arg(1)));
+                                     return lambda->args().back()->as_lambda();
+        case Intrinsic::CUDA:        return cuda_runtime_->emit_host_code(*this, lambda);
+        case Intrinsic::NVVM:        return nvvm_runtime_->emit_host_code(*this, lambda);
+        case Intrinsic::SPIR:        return spir_runtime_->emit_host_code(*this, lambda);
+        case Intrinsic::OpenCL:      return opencl_runtime_->emit_host_code(*this, lambda);
+        case Intrinsic::Parallel:    return emit_parallel(lambda);
+        case Intrinsic::Spawn:       return emit_spawn(lambda);
+        case Intrinsic::Sync:        return emit_sync(lambda);
 #ifdef WFV2_SUPPORT
-        case Intrinsic::Vectorize:  return emit_vectorize_continuation(lambda);
+        case Intrinsic::Vectorize:   return emit_vectorize_continuation(lambda);
 #else
-        case Intrinsic::Vectorize:  throw std::runtime_error("rebuild with libWFV support");
+        case Intrinsic::Vectorize:   throw std::runtime_error("rebuild with libWFV support");
 #endif
         default: THORIN_UNREACHABLE;
     }
@@ -129,11 +124,11 @@ Lambda* CodeGen::emit_shuffle(Lambda* lambda) {
     return cont;
 }
 
-Lambda* CodeGen::emit_reinterpret(Lambda* lambda, llvm::Type* type) {
+Lambda* CodeGen::emit_reinterpret(Lambda* lambda) {
     assert(lambda->num_args() == 3 && "required arguments are missing");
     auto val = lookup(lambda->arg(1));
-
     auto cont = lambda->arg(2)->as_lambda();
+    auto type = convert(cont->param(1)->type());
     params_[cont->param(1)] = builder_.CreateBitCast(val, type);
     return cont;
 }

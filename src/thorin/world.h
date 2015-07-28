@@ -102,7 +102,7 @@ public:
     Def one(Type type, size_t length = 1) { return one(type.as<PrimType>()->primtype_kind(), length); }
     Def allset(PrimTypeKind kind, size_t length = 1) { return literal(kind, -1, length); }
     Def allset(Type type, size_t length = 1) { return allset(type.as<PrimType>()->primtype_kind(), length); }
-    Def bottom(Type type, size_t length = 1);
+    Def bottom(Type type, size_t length = 1) { return splat(cse(new Bottom(type, "")), length); }
     Def bottom(PrimTypeKind kind, size_t length = 1) { return bottom(type(kind), length); }
     /// Creates a vector of all true while the length is derived from @p def.
     Def true_mask(Def def) { return literal(true, def->length()); }

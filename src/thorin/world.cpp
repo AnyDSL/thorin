@@ -76,10 +76,6 @@ Def World::literal(PrimTypeKind kind, int64_t value, size_t length) {
     return splat(lit, length);
 }
 
-Def World::bottom(Type type, size_t length) { 
-    return splat(cse(new Bottom(type, "")), length); 
-}
-
 Def World::splat(Def arg, size_t length, const std::string& name) {
     if (length == 1)
         return arg;

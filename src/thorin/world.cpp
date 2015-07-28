@@ -609,7 +609,7 @@ Def World::bitcast(Type to, Def cond, Def from, const std::string& name) {
 
 Def World::extract(Def agg, Def index, const std::string& name) {
     if (agg->isa<Bottom>())
-        return bottom(Extract::determine_type(agg, index));
+        return bottom(Extract::extracted_type(agg, index));
 
     if (auto aggregate = agg->isa<Aggregate>()) {
         if (auto lit = index->isa<PrimLit>()) {

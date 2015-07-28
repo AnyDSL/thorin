@@ -640,13 +640,27 @@ Def World::extract(Def agg, Def index, const std::string& name) {
 Def World::insert(Def agg, Def index, Def value, const std::string& name) {
     if (agg->isa<Bottom>()) {
         if (value->isa<Bottom>())
-            return bottom(agg->type());
+            return agg;
+
         // build aggregate container and fill with bottom
-        if (auto def_array = agg->type().isa<DefiniteArrayType>()) {
-            Array<Def> args(def_array->dim());
-            std::fill(args.begin(), args.end(), bottom(def_array->elem_type()));
+        if (auto definite_array_type = agg->type().isa<DefiniteArrayType>()) {
+            Array<Def> args(definite_array_type->dim());
+            std::fill(args.begin(), args.end(), bottom(definite_array_type->elem_type()));
             agg = definite_array(args, agg->name);
+        } else if (auto tuple_type = agg->type().isa<TupleType>()) {
+            Array<Def> args(tuple_type->num_args());
+            size_t i = 0;
+            for (auto type : tuple_type->args())
+                args[i++] = bottom(type);
+            agg = tuple(args, agg->name);
+        } else if (auto struct_app_type = agg->type().isa<StructAppType>()) {
+            Array<Def> args(struct_app_type->num_elems());
+            size_t i = 0;
+            for (auto type : struct_app_type->elems())
+                args[i++] = bottom(type);
+            agg = struct_agg(struct_app_type, args, agg->name);
         }
+
     }
 
     // TODO double-check

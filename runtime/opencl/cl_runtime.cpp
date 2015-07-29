@@ -19,7 +19,6 @@
 #define BENCH
 #ifdef BENCH
 std::vector<std::pair<size_t, void*>> kernel_args;
-float total_timing = 0.0f;
 #endif
 
 bool print_timing = true;
@@ -762,7 +761,6 @@ void launch_kernel(uint32_t dev, std::string kernel_name) {
     }
     kernel_args.clear();
     std::sort(timings.begin(), timings.end());
-    total_timing += timings[timings.size()/2];
     #endif
 
     err = clReleaseEvent(event);
@@ -819,11 +817,6 @@ void spir_synchronize(uint32_t dev) { check_dev(dev); synchronize(dev); }
 void thorin_init() { init_opencl(); }
 void* thorin_malloc(uint32_t size) { return mem_manager.malloc_host(size); }
 void thorin_free(void* ptr) { mem_manager.free_host(ptr); }
-void thorin_print_total_timing() {
-    #ifdef BENCH
-    std::cerr << "total accumulated timing: " << total_timing << " (ms)" << std::endl;
-    #endif
-}
 mem_id map_memory(uint32_t dev, uint32_t type_, void* from, int offset, int size) {
     check_dev(dev);
     mem_type type = (mem_type)type_;

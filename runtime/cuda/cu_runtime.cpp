@@ -12,6 +12,7 @@
 #endif
 
 #include <algorithm>
+#include <atomic>
 #include <cassert>
 #include <cstdlib>
 #include <fstream>
@@ -20,7 +21,6 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include <atomic>
 
 #ifndef LIBDEVICE_DIR
 #define LIBDEVICE_DIR ""
@@ -34,17 +34,17 @@
 
 template <typename T>
 void runtime_log(T t) {
-#ifndef NDEBUG
+    #ifndef NDEBUG
     std::clog << t;
-#endif
+    #endif
 }
 
 template <typename T, typename... Args>
 void runtime_log(T t, Args... args) {
-#ifndef NDEBUG
+    #ifndef NDEBUG
     std::clog << t;
     runtime_log(args...);
-#endif
+    #endif
 }
 
 // define dim3
@@ -665,7 +665,7 @@ void load_kernel(uint32_t dev, std::string file_name, std::string kernel_name, b
 
 
 void unload_module(uint32_t dev, CUmodule module) {
-    std::cerr << "unload module: " << module << std::endl;
+    runtime_log("unload module: ", module, "\n");
     cuCtxPushCurrent(contexts_[dev]);
     CUresult err = cuModuleUnload(module);
     checkErrDrv(err, "cuUnloadModule()");
@@ -810,17 +810,14 @@ void launch_kernel(uint32_t dev, std::string kernel_name) {
     cuEventElapsedTime(&time, start, end);
     thorin_kernel_time.fetch_add(time * 1000);
 
-#ifndef NDEBUG
-    std::clog << "Kernel timing on device " << dev
-              << " for '" << kernel_name << "' ("
-              << cuDimProblem.x*cuDimProblem.y << ": "
-              << cuDimProblem.x << "x" << cuDimProblem.y << ", "
-              << cuDimBlock.x*cuDimBlock.y << ": "
-              << cuDimBlock.x << "x" << cuDimBlock.y << "): "
-              << time
-              << "(ms)" << std::endl;
+    runtime_log("Kernel timing on device ", dev,
+                " for '", kernel_name, "' (",
+                cuDimProblem.x*cuDimProblem.y, ": ",
+                cuDimProblem.x, "x", cuDimProblem.y, ", ",
+                cuDimBlock.x*cuDimBlock.y, ": ",
+                cuDimBlock.x, "x", cuDimBlock.y, "): ",
+                time, " (ms)\n");
     //print_kernel_occupancy(dev, kernel_name);
-#endif
 
     cuEventDestroy(start);
     cuEventDestroy(end);
@@ -844,9 +841,7 @@ void nvvm_set_kernel_arg(uint32_t dev, void* param) { check_dev(dev); set_kernel
 void nvvm_set_kernel_arg_map(uint32_t dev, mem_id mem) { check_dev(dev); set_kernel_arg_map(dev, mem); }
 void nvvm_set_kernel_arg_tex(uint32_t dev, mem_id mem, const char* name, CUarray_format format) {
     check_dev(dev);
-#ifndef NDEBUG
-    std::cerr << " * set arg tex(" << dev << "):   " << mem << std::endl;
-#endif
+    runtime_log(" * set arg tex(", dev, "):   ", mem, "\n");
     get_tex_ref(dev, name);
     bind_tex(dev, mem, format);
 }

@@ -32,6 +32,10 @@ extern "device" {
     fn fma(f64, f64, f64) -> f64;
     fn copysignf(f32, f32) -> f32;
     fn copysign(f64, f64) -> f64;
+    fn fminf(f32, f32) -> f32;
+    fn fmaxf(f32, f32) -> f32;
+    fn fmin(f64, f64) -> f64;
+    fn fmax(f64, f64) -> f64;
     fn "atomicAdd" atomic_add_global(&i32, i32) -> i32;
     fn "atomicAdd" atomic_add_local(&i32, i32) -> i32;
     fn "atomicMin" atomic_min_global(&i32, i32) -> i32;

@@ -73,7 +73,16 @@ Def World::literal(PrimTypeKind kind, int64_t value, size_t length) {
             default: THORIN_UNREACHABLE;
     }
 
-    return vector(lit, length);
+    return splat(lit, length);
+}
+
+Def World::splat(Def arg, size_t length, const std::string& name) {
+    if (length == 1)
+        return arg;
+
+    Array<Def> args(length);
+    std::fill(args.begin(), args.end(), arg);
+    return vector(args, name);
 }
 
 /*
@@ -600,7 +609,7 @@ Def World::bitcast(Type to, Def cond, Def from, const std::string& name) {
 
 Def World::extract(Def agg, Def index, const std::string& name) {
     if (agg->isa<Bottom>())
-        return bottom(Extract::determine_type(agg, index));
+        return bottom(Extract::extracted_type(agg, index));
 
     if (auto aggregate = agg->isa<Aggregate>()) {
         if (auto lit = index->isa<PrimLit>()) {
@@ -609,9 +618,12 @@ Def World::extract(Def agg, Def index, const std::string& name) {
         }
     }
 
-    // TODO
-    //if (auto ld = Load::is_out_val(agg))
-        //return extract(load(ld->mem(), lea(ld->ptr(), index, ld->name), name), 1);
+    // TODO this doesn't work:
+    // we have to use the current mem which is not necessarily ld->out_mem()
+    //if (auto ld = Load::is_out_val(agg)) {
+        //if (ld->out_val_type()->use_lea())
+            //return extract(load(ld->out_mem(), lea(ld->ptr(), index, ld->name), name), 1);
+    //}
 
     if (auto insert = agg->isa<Insert>()) {
         if (index == insert->index())
@@ -628,13 +640,27 @@ Def World::extract(Def agg, Def index, const std::string& name) {
 Def World::insert(Def agg, Def index, Def value, const std::string& name) {
     if (agg->isa<Bottom>()) {
         if (value->isa<Bottom>())
-            return bottom(agg->type());
+            return agg;
+
         // build aggregate container and fill with bottom
-        if (auto def_array = agg->type().isa<DefiniteArrayType>()) {
-            Array<Def> args(def_array->dim());
-            std::fill(args.begin(), args.end(), bottom(def_array->elem_type()));
+        if (auto definite_array_type = agg->type().isa<DefiniteArrayType>()) {
+            Array<Def> args(definite_array_type->dim());
+            std::fill(args.begin(), args.end(), bottom(definite_array_type->elem_type()));
             agg = definite_array(args, agg->name);
+        } else if (auto tuple_type = agg->type().isa<TupleType>()) {
+            Array<Def> args(tuple_type->num_args());
+            size_t i = 0;
+            for (auto type : tuple_type->args())
+                args[i++] = bottom(type);
+            agg = tuple(args, agg->name);
+        } else if (auto struct_app_type = agg->type().isa<StructAppType>()) {
+            Array<Def> args(struct_app_type->num_elems());
+            size_t i = 0;
+            for (auto type : struct_app_type->elems())
+                args[i++] = bottom(type);
+            agg = struct_agg(struct_app_type, args, agg->name);
         }
+
     }
 
     // TODO double-check
@@ -650,15 +676,6 @@ Def World::insert(Def agg, Def index, Def value, const std::string& name) {
     }
 
     return cse(new Insert(agg, index, value, name));
-}
-
-Def World::vector(Def arg, size_t length, const std::string& name) {
-    if (length == 1)
-        return arg;
-
-    Array<Def> args(length);
-    std::fill(args.begin(), args.end(), arg);
-    return vector(args, name);
 }
 
 Def World::select(Def cond, Def a, Def b, const std::string& name) {
@@ -702,8 +719,10 @@ Def World::store(Def mem, Def ptr, Def value, const std::string& name) {
         return mem;
 
     if (auto insert = value->isa<Insert>()) {
-        if (ptr->type().as<PtrType>()->referenced_type()->use_lea())
-            return store(mem, lea(ptr, insert->index(), insert->name), insert->value(), name);
+        if (ptr->type().as<PtrType>()->referenced_type()->use_lea()) {
+            auto peeled_store = store(mem, ptr, insert->agg());
+            return store(peeled_store, lea(ptr, insert->index(), insert->name), insert->value(), name);
+        }
     }
 
     return cse(new Store(mem, ptr, value, name));

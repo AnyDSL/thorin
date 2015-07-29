@@ -26,7 +26,6 @@ void* thorin_malloc(uint32_t size) {
 void thorin_free(void* ptr) {
     thorin_aligned_free(ptr);
 }
-void thorin_print_total_timing() { }
 
 #ifndef USE_TBB
 static std::unordered_map<int, std::thread> thread_pool;

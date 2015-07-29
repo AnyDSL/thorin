@@ -265,7 +265,7 @@ Def PrimOp::rebuild() const {
         return this;
 }
 
-Type Extract::determine_type(Def agg, Def index) {
+Type Extract::extracted_type(Def agg, Def index) {
     if (auto tuple = agg->type().isa<TupleType>())
         return tuple->elem(index);
     else if (auto array = agg->type().isa<ArrayType>())

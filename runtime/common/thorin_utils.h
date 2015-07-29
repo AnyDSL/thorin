@@ -11,6 +11,7 @@ extern "C" {
     void thorin_print_long(long long);
     void thorin_print_float(float);
     void thorin_print_double(double);
+    void thorin_print_string(char*);
     void* thorin_aligned_malloc(size_t, size_t);
     void thorin_aligned_free(void*);
 } 

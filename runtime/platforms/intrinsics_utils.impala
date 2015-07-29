@@ -8,4 +8,5 @@ extern "C" {
     fn thorin_print_long(i64) -> ();
     fn thorin_print_float(f32) -> ();
     fn thorin_print_double(f64) -> ();
+    fn thorin_print_string(&[u8]) -> ();
 }

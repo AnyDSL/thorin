@@ -12,15 +12,14 @@
 #endif
 
 #include <algorithm>
+#include <atomic>
 #include <cassert>
 #include <cstdlib>
 #include <fstream>
-#include <iomanip>
 #include <iostream>
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include <atomic>
 
 #ifndef LIBDEVICE_DIR
 #define LIBDEVICE_DIR ""
@@ -34,17 +33,17 @@
 
 template <typename T>
 void runtime_log(T t) {
-#ifndef NDEBUG
+    #ifndef NDEBUG
     std::clog << t;
-#endif
+    #endif
 }
 
 template <typename T, typename... Args>
 void runtime_log(T t, Args... args) {
-#ifndef NDEBUG
+    #ifndef NDEBUG
     std::clog << t;
     runtime_log(args...);
-#endif
+    #endif
 }
 
 // define dim3
@@ -77,6 +76,7 @@ void set_config_size(uint32_t dev, uint32_t size_x, uint32_t size_y, uint32_t si
 void launch_kernel(uint32_t dev, std::string kernel_name);
 void synchronize(uint32_t dev);
 
+
 // global variables ...
 std::vector<CUdevice> devices_;
 std::vector<CUcontext> contexts_;
@@ -96,6 +96,7 @@ enum mem_type {
     Shared      = 3,
     Constant    = 4
 };
+
 
 class Memory {
     private:
@@ -139,7 +140,7 @@ class Memory {
             // unloading modules will fail
         }
 
-    void reserve(size_t num) {
+    void reserve(uint32_t num) {
         mmap.resize(mmap.size() + num);
         idtomem.resize(idtomem.size() + num);
         memtoid.resize(memtoid.size() + num);
@@ -431,10 +432,9 @@ void print_kernel_occupancy(uint32_t dev, std::string kernel_name) {
     int max_warps = max_blocks * (opt_block_size/warp_size);
     int active_warps = active_blocks * (block_size/warp_size);
     float occupancy = (float)active_warps/(float)max_warps;
-    std::clog << "Occupancy for kernel '" << kernel_name << "' is "
-              << std::fixed << std::setprecision(2) << occupancy << ": "
-              << active_warps << " out of " << max_warps << " warps" << std::endl
-              << "Optimal block size for max occupancy: " << opt_block_size << std::endl;
+    runtime_log("Occupancy for kernel '", kernel_name, "' is ", occupancy, ": ",
+               active_warps, " out of ", max_warps, " warps\n",
+               "Optimal block size for max occupancy: ", opt_block_size, "\n");
     #else
     // unused parameters
     (void)dev;
@@ -612,8 +612,7 @@ void compile_cuda(uint32_t dev, std::string file_name, CUjit_target target_cc) {
         exit(EXIT_FAILURE);
     }
 
-    std::string srcString = std::string(std::istreambuf_iterator<char>(srcFile),
-            (std::istreambuf_iterator<char>()));
+    std::string srcString(std::istreambuf_iterator<char>(srcFile), (std::istreambuf_iterator<char>()));
     const char* ptx = (const char*)srcString.c_str();
     // compile ptx
     create_module(dev, ptx, file_name, target_cc);
@@ -665,7 +664,7 @@ void load_kernel(uint32_t dev, std::string file_name, std::string kernel_name, b
 
 
 void unload_module(uint32_t dev, CUmodule module) {
-    std::cerr << "unload module: " << module << std::endl;
+    runtime_log("unload module: ", module, "\n");
     cuCtxPushCurrent(contexts_[dev]);
     CUresult err = cuModuleUnload(module);
     checkErrDrv(err, "cuUnloadModule()");
@@ -781,6 +780,7 @@ void set_kernel_arg_const(uint32_t dev, void* param, std::string name, uint32_t 
     write_memory(dev, const_mem, param, size);
 }
 
+
 extern std::atomic_llong thorin_kernel_time;
 
 void launch_kernel(uint32_t dev, std::string kernel_name) {
@@ -810,17 +810,14 @@ void launch_kernel(uint32_t dev, std::string kernel_name) {
     cuEventElapsedTime(&time, start, end);
     thorin_kernel_time.fetch_add(time * 1000);
 
-#ifndef NDEBUG
-    std::clog << "Kernel timing on device " << dev
-              << " for '" << kernel_name << "' ("
-              << cuDimProblem.x*cuDimProblem.y << ": "
-              << cuDimProblem.x << "x" << cuDimProblem.y << ", "
-              << cuDimBlock.x*cuDimBlock.y << ": "
-              << cuDimBlock.x << "x" << cuDimBlock.y << "): "
-              << time
-              << "(ms)" << std::endl;
-    //print_kernel_occupancy(dev, kernel_name);
-#endif
+    runtime_log("Kernel timing on device ", dev,
+                " for '", kernel_name, "' (",
+                cuDimProblem.x*cuDimProblem.y, ": ",
+                cuDimProblem.x, "x", cuDimProblem.y, ", ",
+                cuDimBlock.x*cuDimBlock.y, ": ",
+                cuDimBlock.x, "x", cuDimBlock.y, "): ",
+                time, " (ms)\n");
+    print_kernel_occupancy(dev, kernel_name);
 
     cuEventDestroy(start);
     cuEventDestroy(end);
@@ -844,9 +841,7 @@ void nvvm_set_kernel_arg(uint32_t dev, void* param) { check_dev(dev); set_kernel
 void nvvm_set_kernel_arg_map(uint32_t dev, mem_id mem) { check_dev(dev); set_kernel_arg_map(dev, mem); }
 void nvvm_set_kernel_arg_tex(uint32_t dev, mem_id mem, const char* name, CUarray_format format) {
     check_dev(dev);
-#ifndef NDEBUG
-    std::cerr << " * set arg tex(" << dev << "):   " << mem << std::endl;
-#endif
+    runtime_log(" * set arg tex(", dev, "):   ", mem, "\n");
     get_tex_ref(dev, name);
     bind_tex(dev, mem, format);
 }

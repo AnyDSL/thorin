@@ -4,6 +4,7 @@
 #include "thorin_utils.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cassert>
 #include <cstdlib>
 #include <fstream>
@@ -16,12 +17,20 @@
 #define KERNEL_DIR ""
 #endif
 
-#define BENCH
-#ifdef BENCH
-std::vector<std::pair<size_t, void*>> kernel_args;
-#endif
+template <typename T>
+void runtime_log(T t) {
+    #ifndef NDEBUG
+    std::clog << t;
+    #endif
+}
 
-bool print_timing = true;
+template <typename T, typename... Args>
+void runtime_log(T t, Args... args) {
+    #ifndef NDEBUG
+    std::clog << t;
+    runtime_log(args...);
+    #endif
+}
 
 // runtime forward declarations
 cl_mem malloc_buffer(uint32_t dev, void* host, cl_mem_flags flags, uint32_t size);
@@ -135,7 +144,7 @@ class Memory {
 
     void* malloc_host(uint32_t size) {
         void* mem = thorin_aligned_malloc(size, 4096);
-        std::cerr << " * malloc host(" << size << ") -> " << mem << std::endl;
+        runtime_log(" * malloc host(", size, ") -> ", mem, "\n");
         hostmem[mem] = size;
         return mem;
     }
@@ -143,7 +152,7 @@ class Memory {
         if (ptr==nullptr) return;
         // TODO: free associated device memory
         assert(hostmem.count(ptr) && "memory not allocated by thorin");
-        std::cerr << " * free host(" << ptr << ")" << std::endl;
+        runtime_log(" * free host(", ptr, ")\n");
         hostmem.erase(ptr);
         // free host memory
         thorin_aligned_free(ptr);
@@ -158,14 +167,14 @@ class Memory {
         mem_id id = get_id(dev, host);
 
         if (id) {
-            std::cerr << " * malloc buffer(" << dev << "): returning old copy " << id << " for " << host << std::endl;
+            runtime_log(" * malloc buffer(", dev, "):  returning old copy ", id, " for ", host, "\n");
             mcount[dev][id]++;
             return id;
         }
 
         id = get_id(ummap[dev], host);
         if (id) {
-            std::cerr << " * malloc buffer(" << dev << "): returning old copy " << id << " from associated device " << ummap[dev] << " for " << host << std::endl;
+            runtime_log(" * malloc buffer(", dev, "):  returning old copy ", id, " from associated device ", ummap[dev], " for ", host, "\n");
             id = map_memory(dev, host, get_dev_mem(ummap[dev], id), Global, offset, size);
         } else {
             void* host_ptr = (char*)host + offset;
@@ -174,7 +183,7 @@ class Memory {
             cl_mem_flags flags = CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR;
             cl_mem mem = malloc_buffer(dev, host_ptr, flags, size);
             id = map_memory(dev, host, mem, Global, offset, size);
-            std::cerr << " * malloc buffer(" << dev << "):  " << mem << " (" << id << ") <-> host: " << host << std::endl;
+            runtime_log(" * malloc buffer(", dev, "):  ", mem, " (", id, ") <-> host: ", host, "\n");
         }
         mcount[dev][id] = 1;
         return id;
@@ -187,9 +196,9 @@ class Memory {
     void free(uint32_t dev, mem_id mem) {
         auto ref_count = --mcount[dev][mem];
         if (ref_count) {
-            std::cerr << " * free buffer(" << dev << "):   " << mem << " update ref count to " << ref_count << std::endl;
+            runtime_log(" * free buffer(", dev, "):    ", mem, " update ref count to ", ref_count, "\n");
         } else {
-            std::cerr << " * free buffer(" << dev << "):    " << mem << std::endl;
+            runtime_log(" * free buffer(", dev, "):    ", mem, "\n");
             cl_mem dev_mem = get_dev_mem(dev, mem);
             free_buffer(dev, dev_mem);
             remove(dev, mem);
@@ -199,17 +208,15 @@ class Memory {
     void read(uint32_t dev, mem_id id) {
         assert(mmap[dev][id].cpu && "invalid host memory");
         void* host = mmap[dev][id].cpu;
-        std::cerr << " * read buffer(" << dev << "):    " << id << " -> " << host
-                  << " [" << mmap[dev][id].offset << ":" << mmap[dev][id].size
-                  << "]" << std::endl;
+        runtime_log(" * read buffer(", dev, "):    ", id, " -> ", host,
+                    " [", mmap[dev][id].offset, ":", mmap[dev][id].size, "]\n");
         void* host_ptr = (char*)host + mmap[dev][id].offset;
         read_buffer(dev, mmap[dev][id].gpu, host_ptr, mmap[dev][id].size);
     }
     void write(uint32_t dev, mem_id id, void* host) {
         assert(host==mmap[dev][id].cpu && "invalid host memory");
-        std::cerr << " * write buffer(" << dev << "):   " << id << " <- " << host
-                  << " [" << mmap[dev][id].offset << ":" << mmap[dev][id].size
-                  << "]" << std::endl;
+        runtime_log(" * write buffer(", dev, "):   ", id, " <- ", host,
+                    " [", mmap[dev][id].offset, ":", mmap[dev][id].size, "]\n");
         void* host_ptr = (char*)host + mmap[dev][id].offset;
         write_buffer(dev, mmap[dev][id].gpu, host_ptr, mmap[dev][id].size);
     }
@@ -218,7 +225,7 @@ class Memory {
         uint32_t dev = 0;
         for (auto dmap : mmap) {
             if (dmap.count(id)) {
-                std::cerr << " * munmap buffer(" << dev << "):  " << id << std::endl;
+                runtime_log(" * munmap buffer(", dev, "):  ", id, "\n");
                 read(dev, id);
                 free(dev, id);
                 return;
@@ -369,7 +376,7 @@ void init_opencl() {
     cl_int err = clGetPlatformIDs(0, NULL, &num_platforms);
     checkErr(err, "clGetPlatformIDs()");
 
-    std::cerr << "Number of available Platforms: " << num_platforms << std::endl;
+    std::clog << "Number of available Platforms: " << num_platforms << std::endl;
     if (num_platforms == 0) {
         exit(EXIT_FAILURE);
     } else {
@@ -397,9 +404,9 @@ void init_opencl() {
             std::vector<size_t> unified_device_ids;
 
             // get platform info
-            std::cerr << "  Platform Name: " << pnBuffer << std::endl;
-            std::cerr << "  Platform Vendor: " << pvBuffer << std::endl;
-            std::cerr << "  Platform Version: " << pv2Buffer << std::endl;
+            std::clog << "  Platform Name: " << pnBuffer << std::endl;
+            std::clog << "  Platform Vendor: " << pvBuffer << std::endl;
+            std::clog << "  Platform Version: " << pv2Buffer << std::endl;
 
             // get device info for each device
             for (size_t j=0; j<num_devices; ++j) {
@@ -429,28 +436,28 @@ void init_opencl() {
                 std::string extensions(pd3Buffer);
                 size_t found = extensions.find("cl_khr_spir");
                 bool has_spir = found!=std::string::npos;
-                std::cerr << "  (" << devices_.size()-1 << ") ";
-                std::cerr << "Device Name: " << pnBuffer << " (";
-                if (dev_type & CL_DEVICE_TYPE_CPU) std::cerr << "CL_DEVICE_TYPE_CPU";
-                if (dev_type & CL_DEVICE_TYPE_GPU) std::cerr << "CL_DEVICE_TYPE_GPU";
-                if (dev_type & CL_DEVICE_TYPE_ACCELERATOR) std::cerr << "CL_DEVICE_TYPE_ACCELERATOR";
+                std::clog << "  (" << devices_.size()-1 << ") ";
+                std::clog << "Device Name: " << pnBuffer << " (";
+                if (dev_type & CL_DEVICE_TYPE_CPU) std::clog << "CL_DEVICE_TYPE_CPU";
+                if (dev_type & CL_DEVICE_TYPE_GPU) std::clog << "CL_DEVICE_TYPE_GPU";
+                if (dev_type & CL_DEVICE_TYPE_ACCELERATOR) std::clog << "CL_DEVICE_TYPE_ACCELERATOR";
                 #ifdef CL_VERSION_1_2
-                if (dev_type & CL_DEVICE_TYPE_CUSTOM) std::cerr << "CL_DEVICE_TYPE_CUSTOM";
+                if (dev_type & CL_DEVICE_TYPE_CUSTOM) std::clog << "CL_DEVICE_TYPE_CUSTOM";
                 #endif
-                if (dev_type & CL_DEVICE_TYPE_DEFAULT) std::cerr << "|CL_DEVICE_TYPE_DEFAULT";
-                std::cerr << ")";
-                std::cerr << std::endl;
-                std::cerr << "      Device Vendor: " << pvBuffer << " (ID: " << device_vendor_id << ")" << std::endl;
-                std::cerr << "      Device OpenCL Version: " << pdBuffer << std::endl;
-                std::cerr << "      Device Driver Version: " << pd2Buffer << std::endl;
-                //std::cerr << "      Device Extensions: " << pd3Buffer << std::endl;
-                std::cerr << "      Device SPIR Support: " << has_spir << std::endl;
+                if (dev_type & CL_DEVICE_TYPE_DEFAULT) std::clog << "|CL_DEVICE_TYPE_DEFAULT";
+                std::clog << ")";
+                std::clog << std::endl;
+                std::clog << "      Device Vendor: " << pvBuffer << " (ID: " << device_vendor_id << ")" << std::endl;
+                std::clog << "      Device OpenCL Version: " << pdBuffer << std::endl;
+                std::clog << "      Device Driver Version: " << pd2Buffer << std::endl;
+                //std::clog << "      Device Extensions: " << pd3Buffer << std::endl;
+                std::clog << "      Device SPIR Support: " << has_spir << std::endl;
                 #ifdef CL_DEVICE_SPIR_VERSIONS
                 err = clGetDeviceInfo(devices[j], CL_DEVICE_SPIR_VERSIONS, sizeof(pd3Buffer), &pd3Buffer, NULL);
                 checkErr(err, "clGetDeviceInfo()");
-                std::cerr << "      Device SPIR Version: " << pd3Buffer << std::endl;
+                std::clog << "      Device SPIR Version: " << pd3Buffer << std::endl;
                 #endif
-                std::cerr << "      Device Host Unified Memory: " << has_unified << std::endl;
+                std::clog << "      Device Host Unified Memory: " << has_unified << std::endl;
             }
 
             // create context and command queues for unified memory devices
@@ -497,12 +504,12 @@ void dump_program_binary(cl_program program, cl_device_id device) {
 
     for (size_t i=0; i<devices.size(); ++i) {
         if (devices[i] == device) {
-            std::cerr << "OpenCL binary : " << std::endl;
+            runtime_log("OpenCL binary : \n");
             // binary can contain any character, emit char by char
             for (size_t n=0; n<binary_sizes[i]; ++n) {
-                std::cerr << binaries[i][n];
+                runtime_log(binaries[i][n]);
             }
-            std::cerr << std::endl;
+            runtime_log("\n");
         }
     }
 
@@ -514,13 +521,12 @@ void dump_program_binary(cl_program program, cl_device_id device) {
 
 // load OpenCL source file, build program, and create kernel
 void build_program_and_kernel(uint32_t dev, std::string file_name, std::string kernel_name, bool is_binary) {
-    bool print_progress = true;
     std::string cache_name = file_name + ":" + kernel_name;
 
     // get module and function from cache
     if (kernel_cache_[dev].count(cache_name)) {
         kernels_[dev] = kernel_cache_[dev][cache_name];
-        if (print_progress) std::cerr << "Compiling(" << dev << ") '" << kernel_name << "' ... returning old copy!" << std::endl;
+        runtime_log("Compiling(", dev, ") '", kernel_name, "' ... returning old copy!\n");
         return;
     }
 
@@ -543,7 +549,7 @@ void build_program_and_kernel(uint32_t dev, std::string file_name, std::string k
     const size_t length = clString.length();
     const char* c_str = clString.c_str();
 
-    if (print_progress) std::cerr << "Compiling(" << dev << ") '" << kernel_name << "' .";
+    runtime_log("Compiling(", dev, ") '", kernel_name, "' .");
     if (is_binary) {
         options += " -x spir -spir-std=1.2";
         program = clCreateProgramWithBinary(contexts_[dev], 1, &devices_[dev], &length, (const unsigned char**)&c_str, NULL, &err);
@@ -554,7 +560,7 @@ void build_program_and_kernel(uint32_t dev, std::string file_name, std::string k
     }
 
     err = clBuildProgram(program, 0, NULL, options.c_str(), NULL, NULL);
-    if (print_progress) std::cerr << ".";
+    runtime_log(".");
 
     cl_build_status build_status;
     clGetProgramBuildInfo(program, devices_[dev], CL_PROGRAM_BUILD_STATUS, sizeof(build_status), &build_status, NULL);
@@ -572,15 +578,11 @@ void build_program_and_kernel(uint32_t dev, std::string file_name, std::string k
         // get the options and log
         err |= clGetProgramBuildInfo(program, devices_[dev], CL_PROGRAM_BUILD_OPTIONS, options_size, program_build_options, NULL);
         err |= clGetProgramBuildInfo(program, devices_[dev], CL_PROGRAM_BUILD_LOG, log_size, program_build_log, NULL);
-        if (print_progress) {
-            if (err != CL_SUCCESS) std::cerr << ". failed!" << std::endl;
-            else std::cerr << ".";
-        }
-        std::cerr << std::endl
-                  << "OpenCL build options : "
-                  << program_build_options << std::endl
-                  << "OpenCL build log : " << std::endl
-                  << program_build_log << std::endl;
+        runtime_log(".");
+        if (err != CL_SUCCESS)
+            runtime_log(" failed!\n");
+        runtime_log("\nOpenCL build options : ", program_build_options, "\n",
+                    "OpenCL build log : ", "\n", program_build_log, "\n");
 
         // free memory for options and log
         delete[] program_build_options;
@@ -593,7 +595,7 @@ void build_program_and_kernel(uint32_t dev, std::string file_name, std::string k
     kernels_[dev] = clCreateKernel(program, kernel_name.c_str(), &err);
     kernel_cache_[dev][cache_name] = kernels_[dev];
     checkErr(err, "clCreateKernel()");
-    if (print_progress) std::cerr << ". done" << std::endl;
+    runtime_log(". done\n");
 
     // release program
     err = clReleaseProgram(program);
@@ -631,19 +633,19 @@ void write_buffer(uint32_t dev, cl_mem mem, void* host, uint32_t size) {
     cl_event event;
     cl_ulong end, start;
 
-    auto time = thorin_get_micro_time();
+    start = thorin_get_micro_time();
     cl_int err = clEnqueueWriteBuffer(command_queues_[dev], mem, CL_FALSE, 0, size, host, 0, NULL, &event);
     err |= clFinish(command_queues_[dev]);
     checkErr(err, "clEnqueueWriteBuffer()");
-    thorin_print_micro_time(thorin_get_micro_time() - time);
+    end = thorin_get_micro_time();
+    runtime_log("   timing for write buffer (cpu): ", (end-start)/1000.f, " (ms)\n");
 
-    if (print_timing) {
-        err = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, 0);
-        err |= clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, 0);
-        checkErr(err, "clGetEventProfilingInfo()");
-        std::cerr << "   timing for write buffer: "
-                  << (end-start)*1.0e-6f << "(ms)" << std::endl;
-    }
+    #ifndef NDEBUG
+    err = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, 0);
+    err |= clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, 0);
+    checkErr(err, "clGetEventProfilingInfo()");
+    runtime_log("   timing for write buffer (events): ", (end-start)*1.0e-6f, " (ms)\n");
+    #endif
     err = clReleaseEvent(event);
     checkErr(err, "clReleaseEvent()");
 }
@@ -653,19 +655,19 @@ void read_buffer(uint32_t dev, cl_mem mem, void* host, uint32_t size) {
     cl_event event;
     cl_ulong end, start;
 
-    auto time = thorin_get_micro_time();
+    start = thorin_get_micro_time();
     cl_int err = clEnqueueReadBuffer(command_queues_[dev], mem, CL_FALSE, 0, size, host, 0, NULL, &event);
     err |= clFinish(command_queues_[dev]);
     checkErr(err, "clEnqueueReadBuffer()");
-    thorin_print_micro_time(thorin_get_micro_time() - time);
+    end = thorin_get_micro_time();
+    runtime_log("   timing for read buffer (cpu): ", (end-start)/1000.f, " (ms)\n");
 
-    if (print_timing) {
-        err = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, 0);
-        err |= clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, 0);
-        checkErr(err, "clGetEventProfilingInfo()");
-        std::cerr << "   timing for read buffer: "
-                  << (end-start)*1.0e-6f << "(ms)" << std::endl;
-    }
+    #ifndef NDEBUG
+    err = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, 0);
+    err |= clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, 0);
+    checkErr(err, "clGetEventProfilingInfo()");
+    runtime_log("   timing for read buffer (events): ", (end-start)*1.0e-6f, " (ms)\n");
+    #endif
     err = clReleaseEvent(event);
     checkErr(err, "clReleaseEvent()");
 }
@@ -692,19 +694,15 @@ void set_config_size(uint32_t dev, uint32_t size_x, uint32_t size_y, uint32_t si
 
 
 void set_kernel_arg(uint32_t dev, void* param, uint32_t size) {
-    //std::cerr << " * set arg(" << dev << "):        " << param << std::endl;
-    #ifdef BENCH
-    kernel_args.emplace_back(size, param);
-    #else
+    //runtime_log(" * set arg(", dev, "):        ", param, "\n");
     cl_int err = clSetKernelArg(kernels_[dev], clArgIdx++, size, param);
     checkErr(err, "clSetKernelArg()");
-    #endif
 }
 
 
 void set_kernel_arg_map(uint32_t dev, mem_id id) {
     cl_mem& mem = mem_manager.get_dev_mem(dev, id);
-    std::cerr << " * set arg map(" << dev << "):    " << id << std::endl;
+    runtime_log(" * set arg map(", dev, "):    ", id, "\n");
     set_kernel_arg(dev, &mem, sizeof(cl_mem));
 }
 
@@ -714,7 +712,7 @@ void set_kernel_arg_const(uint32_t dev, void* param, uint32_t size) {
     cl_mem const_buf = malloc_buffer(dev, param, flags, size);
     kernel_structs_.emplace_back(const_buf);
     cl_mem& buf = kernel_structs_.back();
-    std::cerr << " * set arg const(" << dev << "):  " << buf << std::endl;
+    runtime_log(" * set arg const(", dev, "):  ", buf, "\n");
     set_kernel_arg(dev, &buf, sizeof(cl_mem));
 }
 
@@ -724,10 +722,12 @@ void set_kernel_arg_struct(uint32_t dev, void* param, uint32_t size) {
     cl_mem struct_buf = malloc_buffer(dev, param, flags, size);
     kernel_structs_.emplace_back(struct_buf);
     cl_mem& buf = kernel_structs_.back();
-    std::cerr << " * set arg struct(" << dev << "): " << buf << std::endl;
+    runtime_log(" * set arg struct(", dev, "): ", buf, "\n");
     set_kernel_arg(dev, &buf, sizeof(cl_mem));
 }
 
+
+extern std::atomic_llong thorin_kernel_time;
 
 void launch_kernel(uint32_t dev, std::string kernel_name) {
     cl_int err = CL_SUCCESS;
@@ -736,16 +736,6 @@ void launch_kernel(uint32_t dev, std::string kernel_name) {
     float time;
 
     // launch the kernel
-    #ifdef BENCH
-    std::vector<float> timings;
-    for (size_t iter=0; iter<7; ++iter) {
-        // set kernel arguments
-        size_t arg_index = 0;
-        for (auto arg : kernel_args) {
-            err |= clSetKernelArg(kernels_[dev], arg_index++, arg.first, arg.second);
-        }
-        checkErr(err, "clSetKernelArg()");
-    #endif
     err = clEnqueueNDRangeKernel(command_queues_[dev], kernels_[dev], 2, NULL, global_work_size, local_work_size, 0, NULL, &event);
     err |= clFinish(command_queues_[dev]);
     checkErr(err, "clEnqueueNDRangeKernel()");
@@ -756,31 +746,18 @@ void launch_kernel(uint32_t dev, std::string kernel_name) {
     err |= clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, 0);
     checkErr(err, "clGetEventProfilingInfo()");
     time = (end-start)*1.0e-6f;
-    #ifdef BENCH
-    timings.emplace_back(time);
-    }
-    kernel_args.clear();
-    std::sort(timings.begin(), timings.end());
-    #endif
+    thorin_kernel_time.fetch_add(time * 1000);
 
     err = clReleaseEvent(event);
     checkErr(err, "clReleaseEvent()");
 
-    if (print_timing) {
-        std::cerr << "Kernel timing on device " << dev
-                  << " for '" << kernel_name << "' ("
-                  << global_work_size[0]*global_work_size[1] << ": "
-                  << global_work_size[0] << "x" << global_work_size[1] << ", "
-                  << local_work_size[0]*local_work_size[1] << ": "
-                  << local_work_size[0] << "x" << local_work_size[1] << "): "
-                  #ifdef BENCH
-                  << "median of " << timings.size() << " runs: "
-                  << timings[timings.size()/2]
-                  #else
-                  << time
-                  #endif
-                  << "(ms)" << std::endl;
-    }
+    runtime_log("Kernel timing on device ", dev,
+                " for '", kernel_name, "' (",
+                global_work_size[0]*global_work_size[1], ": ",
+                global_work_size[0], "x", global_work_size[1], ", ",
+                local_work_size[0]*local_work_size[1], ": ",
+                local_work_size[0], "x", local_work_size[1], "): ",
+                time, " (ms)\n");
 
     // release temporary buffers for struct arguments
     for (cl_mem buf : kernel_structs_) {
@@ -817,6 +794,7 @@ void spir_synchronize(uint32_t dev) { check_dev(dev); synchronize(dev); }
 void thorin_init() { init_opencl(); }
 void* thorin_malloc(uint32_t size) { return mem_manager.malloc_host(size); }
 void thorin_free(void* ptr) { mem_manager.free_host(ptr); }
+
 mem_id map_memory(uint32_t dev, uint32_t type_, void* from, int offset, int size) {
     check_dev(dev);
     mem_type type = (mem_type)type_;
@@ -826,8 +804,9 @@ mem_id map_memory(uint32_t dev, uint32_t type_, void* from, int offset, int size
 
     mem_id mem = mem_manager.get_id(dev, from);
     if (mem) {
-        std::cerr << " * map memory(" << dev << ") -> malloc buffer:" << std::endl;
-        return mem_manager.malloc(dev, from, offset, size);
+        mem_id id = mem_manager.malloc(dev, from, offset, size);
+        runtime_log(" * map memory(", dev, ") -> malloc buffer: ", id, "\n");
+        return id;
     }
 
     if (type==Global || type==Texture) {
@@ -835,7 +814,7 @@ mem_id map_memory(uint32_t dev, uint32_t type_, void* from, int offset, int size
             // mapping the whole memory
             mem = mem_manager.malloc(dev, from);
             mem_manager.write(dev, mem, from);
-            std::cerr << " * map memory(" << dev << "):    " << from << " -> " << mem << std::endl;
+            runtime_log(" * map memory(", dev, "):    ", from, " -> ", mem, "\n");
 
             #if 0
             cl_event event;
@@ -847,13 +826,12 @@ mem_id map_memory(uint32_t dev, uint32_t type_, void* from, int offset, int size
             cl_int err = CL_SUCCESS;
             void* mapped_mem = clEnqueueMapBuffer(command_queues_[dev], dev_mem, blocking_map, map_flags, 0, size, 0, NULL, &event, &err);
             checkErr(err, "clEnqueueMapBuffer()");
-            if (print_timing) {
-                err = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, 0);
-                err |= clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, 0);
-                checkErr(err, "clGetEventProfilingInfo()");
-                std::cerr << "   timing for map_memory: "
-                          << (end-start)*1.0e-6f << "(ms)" << std::endl;
-            }
+            #ifndef NDEBUG
+            err = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, 0);
+            err |= clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, 0);
+            checkErr(err, "clGetEventProfilingInfo()");
+            runtime_log("   timing for map_memory: ", (end-start)*1.0e-6f, " (ms)\n");
+            #endif
             err = clReleaseEvent(event);
             checkErr(err, "clReleaseEvent()");
             #endif
@@ -861,7 +839,7 @@ mem_id map_memory(uint32_t dev, uint32_t type_, void* from, int offset, int size
             // mapping and slicing of a region
             mem = mem_manager.malloc(dev, from, offset, size);
             mem_manager.write(dev, mem, from);
-            std::cerr << " * map memory(" << dev << "):    " << from << " [" << offset << ":" << size << "] -> " << mem << std::endl;
+            runtime_log(" * map memory(", dev, "):    ", from, " [", offset, ":", size, "] -> ", mem, "\n");
 
             #if 0
             cl_mem_flags mem_flags = CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR;

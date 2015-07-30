@@ -167,14 +167,14 @@ class Memory {
         mem_id id = get_id(dev, host);
 
         if (id) {
-            runtime_log(" * malloc buffer(", dev, "): returning old copy ", id, " for ", host, "\n");
+            runtime_log(" * malloc buffer(", dev, "):  returning old copy ", id, " for ", host, "\n");
             mcount[dev][id]++;
             return id;
         }
 
         id = get_id(ummap[dev], host);
         if (id) {
-            runtime_log(" * malloc buffer(", dev, "): returning old copy ", id, " from associated device ", ummap[dev], " for ", host, "\n");
+            runtime_log(" * malloc buffer(", dev, "):  returning old copy ", id, " from associated device ", ummap[dev], " for ", host, "\n");
             id = map_memory(dev, host, get_dev_mem(ummap[dev], id), Global, offset, size);
         } else {
             void* host_ptr = (char*)host + offset;
@@ -196,7 +196,7 @@ class Memory {
     void free(uint32_t dev, mem_id mem) {
         auto ref_count = --mcount[dev][mem];
         if (ref_count) {
-            runtime_log(" * free buffer(", dev, "):   ", mem, " update ref count to ", ref_count, "\n");
+            runtime_log(" * free buffer(", dev, "):    ", mem, " update ref count to ", ref_count, "\n");
         } else {
             runtime_log(" * free buffer(", dev, "):    ", mem, "\n");
             cl_mem dev_mem = get_dev_mem(dev, mem);
@@ -794,6 +794,7 @@ void spir_synchronize(uint32_t dev) { check_dev(dev); synchronize(dev); }
 void thorin_init() { init_opencl(); }
 void* thorin_malloc(uint32_t size) { return mem_manager.malloc_host(size); }
 void thorin_free(void* ptr) { mem_manager.free_host(ptr); }
+
 mem_id map_memory(uint32_t dev, uint32_t type_, void* from, int offset, int size) {
     check_dev(dev);
     mem_type type = (mem_type)type_;
@@ -803,8 +804,9 @@ mem_id map_memory(uint32_t dev, uint32_t type_, void* from, int offset, int size
 
     mem_id mem = mem_manager.get_id(dev, from);
     if (mem) {
-        runtime_log(" * map memory(", dev, ") -> malloc buffer:\n");
-        return mem_manager.malloc(dev, from, offset, size);
+        mem_id id = mem_manager.malloc(dev, from, offset, size);
+        runtime_log(" * map memory(", dev, ") -> malloc buffer: ", id, "\n");
+        return id;
     }
 
     if (type==Global || type==Texture) {

@@ -15,6 +15,7 @@ namespace thorin {
 
 template<bool> class LoopTree;
 template<bool> class DomTreeBase;
+template<bool> class DFGBase;
 class CFNode;
 class InNode;
 class OutNode;
@@ -191,6 +192,7 @@ public:
     const InNode* operator [] (Lambda* lambda) const { return cfa()[lambda]; }
     const DomTreeBase<forward>& domtree() const;
     const LoopTree<forward>& looptree() const;
+    const DFGBase<forward>& dfg() const;
     void dump() const;
 
     static size_t index(const CFNode* n) { return forward ? n->f_index_ : n->b_index_; }
@@ -203,6 +205,7 @@ private:
     Map<const CFNode*> rpo_;
     mutable AutoPtr<const DomTreeBase<forward>> domtree_;
     mutable AutoPtr<const LoopTree<forward>> looptree_;
+    mutable AutoPtr<const DFGBase<forward>> dfg_;
 };
 
 //------------------------------------------------------------------------------

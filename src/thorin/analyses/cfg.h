@@ -1,10 +1,12 @@
 #ifndef THORIN_ANALYSES_CFG_H
 #define THORIN_ANALYSES_CFG_H
 
+#include <iostream>
 #include <vector>
 
-#include "thorin/lambda.h"
 #include "thorin/analyses/scope.h"
+#include "thorin/be/graphs.h"
+#include "thorin/lambda.h"
 #include "thorin/util/array.h"
 #include "thorin/util/autoptr.h"
 #include "thorin/util/indexmap.h"
@@ -133,7 +135,7 @@ private:
     const InNode* exit() const { return in_nodes_.array().back(); }
     const Scope& scope_;
 
-    Scope::Map<const InNode*> in_nodes_; ///< Maps lambda in scope to InNode. 
+    Scope::Map<const InNode*> in_nodes_; ///< Maps lambda in scope to InNode.
     mutable AutoPtr<const F_CFG> f_cfg_;
     mutable AutoPtr<const B_CFG> b_cfg_;
     size_t num_in_nodes_ = 0;
@@ -180,11 +182,11 @@ public:
     ArrayRef<const CFNode*> rpo() const { return rpo_.array(); }
     const CFNode* rpo(size_t i) const { return rpo_.array()[i]; }
     /// Range of @p InNode%s, i.e., all @p OutNode%s will be skipped during iteration.
-    Range<filter_iterator<ArrayRef<const CFNode*>::const_iterator, bool (*)(const CFNode*), const InNode*>> in_rpo() const { 
+    Range<filter_iterator<ArrayRef<const CFNode*>::const_iterator, bool (*)(const CFNode*), const InNode*>> in_rpo() const {
         return range<const InNode*>(rpo().begin(), rpo().end(), is_in_node);
     }
-    Range<filter_iterator<ArrayRef<const CFNode*>::const_reverse_iterator, 
-            bool (*)(const CFNode*), const InNode*>> reverse_in_rpo() const { 
+    Range<filter_iterator<ArrayRef<const CFNode*>::const_reverse_iterator,
+            bool (*)(const CFNode*), const InNode*>> reverse_in_rpo() const {
         return range<const InNode*>(rpo().rbegin(), rpo().rend(), is_in_node);
     }
     /// Like @p rpo() but without @p entry()
@@ -197,6 +199,24 @@ public:
 
     static size_t index(const CFNode* n) { return forward ? n->f_index_ : n->b_index_; }
     static bool is_in_node(const CFNode* n) { return n->isa<InNode>(); }
+
+    static void emit_scope(const Scope& scope, std::ostream& ostream = std::cout) {
+        auto& cfg = scope.cfg<forward>();
+
+        emit_ycomp(ostream, scope, range(cfg.rpo().begin(), cfg.rpo().end()),
+                   [] (const CFNode* node) {
+                       return range(node->succs().begin(), node->succs().end());
+                   },
+                   [] (const CFNode* node) {
+                       return std::make_pair(node->def()->unique_name(), node->def()->unique_name());
+                   },
+                   YComp_Orientation::TOP_TO_BOTTOM
+        );
+    }
+
+    static void emit_world(const World& world, std::ostream& ostream = std::cout) {
+        emit_ycomp(ostream, world, emit_scope);
+    }
 
 private:
     size_t post_order_visit(const CFNode* n, size_t i);

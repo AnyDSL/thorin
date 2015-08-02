@@ -2,7 +2,9 @@
 #define THORIN_ANALYSES_LOOPTREE_H
 
 #include <vector>
+#include <sstream>
 
+#include "thorin/be/graphs.h"
 #include "thorin/analyses/cfg.h"
 #include "thorin/util/array.h"
 #include "thorin/util/autoptr.h"
@@ -108,6 +110,55 @@ public:
     const Head* root() const { return root_; }
     const Leaf* operator [] (const CFNode* n) const { return find(leaves_, n); }
     void dump() const { root()->dump(); }
+
+    static void get_nodes(std::vector<const Node *>& nodes, const Node* node) {
+        nodes.push_back(node);
+        if(auto head = node->template isa<Head>()) {
+            for(auto child : head->children()) {
+                //nodes.push_back(child);
+                get_nodes(nodes, child);
+            }
+        }
+    }
+
+    static void emit_scope(const Scope& scope, std::ostream& ostream = std::cout) {
+        auto& looptree = scope.cfg<forward>().looptree();
+
+        std::vector<const Node *> nodes;
+        get_nodes(nodes, looptree.root());
+
+        ArrayRef<Node*> empty;
+
+        emit_ycomp(ostream, scope, range(nodes.begin(), nodes.end()),
+                   [&] (const Node* node) {
+                       if(auto head = node->template isa<Head>()) {
+                           return range(head->children().begin(), head->children().end());
+                       }
+
+                       // TODO: handle empty better
+                       return range(empty.begin(), empty.end());
+                   },
+                   [] (const Node* node) {
+                       if(auto head = node->template isa<Head>()) {
+                           std::stringstream str;
+                           for (auto cf_node : node->cf_nodes())
+                               str << cf_node->def()->unique_name() << "_";
+                           return std::make_pair(str.str(), str.str());
+                       } else if(auto leaf = node->template isa<Leaf>()) {
+                           std::stringstream str;
+                           str << "<" << leaf->cf_node()->def()->unique_name() << "> + dfs: " << leaf->index();
+                           return std::make_pair(str.str(), str.str());
+                       }
+
+                       THORIN_UNREACHABLE;
+                   },
+                   YComp_Orientation::LEFT_TO_RIGHT
+        );
+    }
+
+    static void emit_world(const World& world, std::ostream& ostream = std::cout) {
+        emit_ycomp(ostream, world, emit_scope);
+    }
 
 private:
     const CFG<forward>& cfg_;

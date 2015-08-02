@@ -32,6 +32,7 @@ namespace thorin {
 
         ~YCompScope() {
             down() << "}";
+            newline();
         }
 
     private:

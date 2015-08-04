@@ -18,13 +18,14 @@
 void thorin_init() { }
 void* thorin_malloc(uint32_t size) {
     void* mem = thorin_aligned_malloc(size, 64);
-    std::cerr << " * malloc(" << size << ") -> " << mem << std::endl;
+#ifndef NDEBUG
+    std::clog << " * malloc(" << size << ") -> " << mem << std::endl;
+#endif
     return mem;
 }
 void thorin_free(void* ptr) {
     thorin_aligned_free(ptr);
 }
-void thorin_print_total_timing() { }
 
 #ifndef USE_TBB
 static std::unordered_map<int, std::thread> thread_pool;

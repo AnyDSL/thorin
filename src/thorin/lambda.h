@@ -85,6 +85,9 @@ enum class Intrinsic : uint8_t {
     Shuffle4,                   ///< Intrinsic vector shuffle function (4 components)
     Shuffle8,                   ///< Intrinsic vector shuffle function (8 components)
     Shuffle16,                  ///< Intrinsic vector shuffle function (16 components)
+    Reinterpret,                ///< Intrinsic for reinterpretation of one type as another one
+    Select,                     ///< Intrinsic vector 'select' function
+    Shuffle,                    ///< Intrinsic vector 'shuffle' function
 };
 
 enum class CC : uint8_t {

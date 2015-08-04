@@ -322,13 +322,13 @@ public:
 class Extract : public AggOp {
 private:
     Extract(Def agg, Def index, const std::string& name)
-        : AggOp(Node_Extract, determine_type(agg, index), {agg, index}, name)
+        : AggOp(Node_Extract, extracted_type(agg, index), {agg, index}, name)
     {}
 
     virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
 public:
-    static Type determine_type(Def agg, Def index);
+    static Type extracted_type(Def agg, Def index);
 
     friend class World;
 };

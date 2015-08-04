@@ -16,7 +16,7 @@
 namespace thorin {
 
 /**
- * @brief The World represents the whole program and manages creation and destruction of AIR nodes.
+ * @brief The World represents the whole program and manages creation and destruction of Thorin nodes.
  * 
  * In particular, the following things are done by this class:
  *
@@ -93,7 +93,7 @@ public:
 #define THORIN_ALL_TYPE(T, M) \
     Def literal_##T(T val, size_t length = 1) { return literal(PrimType_##T, Box(val), length); }
 #include "thorin/tables/primtypetable.h"
-    Def literal(PrimTypeKind kind, Box box, size_t length = 1) { return vector(cse(new PrimLit(*this, kind, box, "")), length); }
+    Def literal(PrimTypeKind kind, Box box, size_t length = 1) { return splat(cse(new PrimLit(*this, kind, box, "")), length); }
     Def literal(PrimTypeKind kind, int64_t value, size_t length = 1);
     template<class T>
     Def literal(T value, size_t length = 1) { return literal(type2kind<T>::kind, Box(value), length); }
@@ -103,7 +103,7 @@ public:
     Def one(Type type, size_t length = 1) { return one(type.as<PrimType>()->primtype_kind(), length); }
     Def allset(PrimTypeKind kind, size_t length = 1) { return literal(kind, -1, length); }
     Def allset(Type type, size_t length = 1) { return allset(type.as<PrimType>()->primtype_kind(), length); }
-    Def bottom(Type type, size_t length = 1) { return vector(cse(new Bottom(type, "")), length); }
+    Def bottom(Type type, size_t length = 1) { return splat(cse(new Bottom(type, "")), length); }
     Def bottom(PrimTypeKind kind, size_t length = 1) { return bottom(type(kind), length); }
     /// Creates a vector of all true while the length is derived from @p def.
     Def true_mask(Def def) { return literal(true, def->length()); }
@@ -181,8 +181,8 @@ public:
         if (args.size() == 1) return args[0];
         return cse(new Vector(*this, args, name));
     }
-    /// Splats @p arg to create a @p Vector with @p length.
-    Def vector(Def arg, size_t length = 1, const std::string& name = "");
+    /// Splats \p arg to create a \p Vector with \p length.
+    Def splat(Def arg, size_t length = 1, const std::string& name = "");
     Def extract(Def tuple, Def index, const std::string& name = "");
     Def extract(Def tuple, u32 index, const std::string& name = "") { return extract(tuple, literal_qu32(index), name); }
     Def insert(Def tuple, Def index, Def value, const std::string& name = "");

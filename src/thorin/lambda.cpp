@@ -176,29 +176,37 @@ bool Lambda::is_external() const { return world().is_external(this); }
 bool Lambda::is_intrinsic() const { return intrinsic_ != Intrinsic::None; }
 bool Lambda::is_accelerator() const { return Intrinsic::_Accelerator_Begin <= intrinsic_ && intrinsic_ < Intrinsic::_Accelerator_End; }
 void Lambda::set_intrinsic() {
-    if      (name == "cuda")         intrinsic_ = Intrinsic::CUDA;
-    else if (name == "nvvm")         intrinsic_ = Intrinsic::NVVM;
-    else if (name == "spir")         intrinsic_ = Intrinsic::SPIR;
-    else if (name == "opencl")       intrinsic_ = Intrinsic::OpenCL;
-    else if (name == "parallel")     intrinsic_ = Intrinsic::Parallel;
-    else if (name == "spawn")        intrinsic_ = Intrinsic::Spawn;
-    else if (name == "sync")         intrinsic_ = Intrinsic::Sync;
-    else if (name == "vectorize")    intrinsic_ = Intrinsic::Vectorize;
-    else if (name == "mmap")         intrinsic_ = Intrinsic::Mmap;
-    else if (name == "munmap")       intrinsic_ = Intrinsic::Munmap;
-    else if (name == "atomic")       intrinsic_ = Intrinsic::Atomic;
-    else if (name == "select4i32")   intrinsic_ = Intrinsic::Select4;
-    else if (name == "select8i32")   intrinsic_ = Intrinsic::Select8;
-    else if (name == "select16i32")  intrinsic_ = Intrinsic::Select16;
-    else if (name == "select4f32")   intrinsic_ = Intrinsic::Select4;
-    else if (name == "select8f32")   intrinsic_ = Intrinsic::Select8;
-    else if (name == "select16f32")  intrinsic_ = Intrinsic::Select16;
-    else if (name == "shuffle4i32")  intrinsic_ = Intrinsic::Shuffle4;
-    else if (name == "shuffle8i32")  intrinsic_ = Intrinsic::Shuffle8;
-    else if (name == "shuffle16i32") intrinsic_ = Intrinsic::Shuffle16;
-    else if (name == "shuffle4f32")  intrinsic_ = Intrinsic::Shuffle4;
-    else if (name == "shuffle8f32")  intrinsic_ = Intrinsic::Shuffle8;
-    else if (name == "shuffle16f32") intrinsic_ = Intrinsic::Shuffle16;
+    if      (name == "cuda")              intrinsic_ = Intrinsic::CUDA;
+    else if (name == "nvvm")              intrinsic_ = Intrinsic::NVVM;
+    else if (name == "spir")              intrinsic_ = Intrinsic::SPIR;
+    else if (name == "opencl")            intrinsic_ = Intrinsic::OpenCL;
+    else if (name == "parallel")          intrinsic_ = Intrinsic::Parallel;
+    else if (name == "spawn")             intrinsic_ = Intrinsic::Spawn;
+    else if (name == "sync")              intrinsic_ = Intrinsic::Sync;
+    else if (name == "vectorize")         intrinsic_ = Intrinsic::Vectorize;
+    else if (name == "mmap")              intrinsic_ = Intrinsic::Mmap;
+    else if (name == "munmap")            intrinsic_ = Intrinsic::Munmap;
+    else if (name == "atomic")            intrinsic_ = Intrinsic::Atomic;
+    else if (name == "bitcast_i32_f32")   intrinsic_ = Intrinsic::Reinterpret;
+    else if (name == "bitcast_f32_i32")   intrinsic_ = Intrinsic::Reinterpret;
+    else if (name == "bitcast4_f32_i32")  intrinsic_ = Intrinsic::Reinterpret;
+    else if (name == "bitcast8_f32_i32")  intrinsic_ = Intrinsic::Reinterpret;
+    else if (name == "bitcast16_f32_i32") intrinsic_ = Intrinsic::Reinterpret;
+    else if (name == "bitcast4_i32_f32")  intrinsic_ = Intrinsic::Reinterpret;
+    else if (name == "bitcast8_i32_f32")  intrinsic_ = Intrinsic::Reinterpret;
+    else if (name == "bitcast16_i32_f32") intrinsic_ = Intrinsic::Reinterpret;
+    else if (name == "select4_i32")       intrinsic_ = Intrinsic::Select;
+    else if (name == "select8_i32")       intrinsic_ = Intrinsic::Select;
+    else if (name == "select16_i32")      intrinsic_ = Intrinsic::Select;
+    else if (name == "select4_f32")       intrinsic_ = Intrinsic::Select;
+    else if (name == "select8_f32")       intrinsic_ = Intrinsic::Select;
+    else if (name == "select16_f32")      intrinsic_ = Intrinsic::Select;
+    else if (name == "shuffle4_i32")      intrinsic_ = Intrinsic::Shuffle;
+    else if (name == "shuffle8_i32")      intrinsic_ = Intrinsic::Shuffle;
+    else if (name == "shuffle16_i32")     intrinsic_ = Intrinsic::Shuffle;
+    else if (name == "shuffle4_f32")      intrinsic_ = Intrinsic::Shuffle;
+    else if (name == "shuffle8_f32")      intrinsic_ = Intrinsic::Shuffle;
+    else if (name == "shuffle16_f32")     intrinsic_ = Intrinsic::Shuffle;
     else assert(false && "unsupported thorin intrinsic");
 }
 

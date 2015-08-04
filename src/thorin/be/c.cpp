@@ -622,6 +622,17 @@ std::ostream& CCodeGen::emit(Def def) {
             } else if (aggop->agg()->type().isa<TupleType>() || aggop->agg()->type().isa<StructAppType>()) {
                 emit(aggop->agg()) << ".e";
                 emit(aggop->index()) << ";";
+            } else if (aggop->agg()->type().isa<VectorType>()) {
+                if (aggop->index()->is_primlit(0))
+                    emit(aggop->agg()) << ".x;";
+                else if (aggop->index()->is_primlit(1))
+                    emit(aggop->agg()) << ".y;";
+                else if (aggop->index()->is_primlit(2))
+                    emit(aggop->agg()) << ".z;";
+                else if (aggop->index()->is_primlit(3))
+                    emit(aggop->agg()) << ".w;";
+                else
+                    THORIN_UNREACHABLE;
             } else {
                 THORIN_UNREACHABLE;
             }

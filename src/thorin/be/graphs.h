@@ -21,6 +21,11 @@ namespace thorin {
             sizeof(YComp_Orientation_Names)/sizeof(char*) == YComp_Orientation::SIZE_OF_ENUM, "Sizes do not match!"
     );
 
+    class YCompConfig {
+    public:
+        static int INDENTATION;
+    };
+
     template <typename I, typename SuccFct, typename UniqueFct>
     class YCompScope : public Printer {
     public:
@@ -32,6 +37,7 @@ namespace thorin {
 
         ~YCompScope() {
             down() << "}";
+            indent -= YCompConfig::INDENTATION;
             newline();
         }
 
@@ -39,6 +45,8 @@ namespace thorin {
         YCompScope(std::ostream& ostream, YComp_Orientation orientation)
                 : Printer(ostream)
         {
+            indent += YCompConfig::INDENTATION;
+
             newline() << "graph: {";
             up() << "layoutalgorithm: compilergraph";
             newline() << "orientation: " << YComp_Orientation_Names[orientation];
@@ -65,7 +73,6 @@ namespace thorin {
                 print_node(n);
 
             down() << "}";
-            newline();
         }
     };
 
@@ -76,14 +83,14 @@ namespace thorin {
 
     template<class Emit>
     void emit_ycomp(std::ostream& ostream, const World& world, Emit emit) {
-        ostream << "graph: {" <<  std::endl;;
-        ostream << "graph: {" <<  std::endl;;
-        ostream << "title: \"" << world.name() << '"' << std::endl;;
-        ostream << "label: \"" << world.name() << '"' << std::endl;
-        //ostream << "layoutalgorithm: compilergraph" <<  std::endl;
-        //ostream << "orientation: bottom_to_top" <<  std::endl;
+        ostream << "graph: {" <<  std::endl;
+        ostream << "    " << "graph: {" <<  std::endl;
+        ostream << "        " << "title: \"" << world.name() << '"' << std::endl;
+        ostream << "        " << "label: \"" << world.name() << '"' << std::endl;
+        YCompConfig::INDENTATION = 2;
         Scope::for_each(world, [&] (const Scope& scope) { emit(scope, ostream); });
-        ostream << '}' << std::endl;
+        YCompConfig::INDENTATION = 0;
+        ostream << "    " << '}' << std::endl;
         ostream << '}' << std::endl;
     }
 

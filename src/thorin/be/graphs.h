@@ -8,6 +8,37 @@
 
 namespace thorin {
 
+    class YCompCommandLine {
+        std::vector<std::string> graphs;
+        std::vector<bool> temps;
+        std::vector<std::string> files;
+
+    public:
+        void add(std::string graph, bool temp, std::string file) {
+            graphs.push_back(graph);
+            temps.push_back(temp);
+            files.push_back(file);
+        }
+
+        void print(World& world) {
+            for(unsigned int i = 0; i < graphs.size(); i++) {
+                std::string graph = graphs[i];
+                bool temp = temps[i];
+                std::ostream file(files[i]);
+
+                if(graph.compare("domtree") == 0) {
+                    DomTree::emit_world(world, file);
+                } else if(graph.compare("cfg") == 0) {
+                    CFG<temp>::emit_world(world, file);
+                } else if(graph.compare("dfg") == 0) {
+                    DFGBase<temp>::emit_world(world, file);
+                } else if(graph.compare("looptree") == 0) {
+                    LoopTree<temp>::emit_world(world, file);
+                }
+            }
+        }
+    };
+
     enum YComp_Orientation {
         LEFT_TO_RIGHT = 0,
         RIGHT_TO_LEFT,

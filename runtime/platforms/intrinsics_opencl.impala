@@ -52,7 +52,7 @@ extern "device" {
     fn "atomic_min" atomic_min_local(&i32, i32) -> i32;
 }
 
-fn work_dim() -> int               { get_work_dim() as int }
+fn work_dim() -> int              { get_work_dim() as int }
 fn global_size(idx: int) -> int   { get_global_size(idx as uint) as int }
 fn global_offset(idx: int) -> int { get_global_offset(idx as uint) as int }
 

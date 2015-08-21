@@ -329,7 +329,7 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
                 return arithop_or(cond, lor->rhs(), arithop_and(cond, lor->lhs(), ror->lhs()));
         }
 
-        // absorption
+        // absorption: a and (a or b) = a
         if (kind == ArithOp_and) {
             if (ror) {
                 if (a == ror->lhs()) return ror->rhs();
@@ -341,7 +341,7 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
             }
         }
 
-        // absorption
+        // absorption: a or (a and b) = a
         if (kind == ArithOp_or) {
             if (rand) {
                 if (a == rand->lhs()) return rand->rhs();

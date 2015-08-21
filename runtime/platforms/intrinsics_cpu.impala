@@ -1,29 +1,12 @@
 extern "C" {
-    fn expf(f32) -> f32;
-    fn exp2f(f32) -> f32;
-    fn logf(f32) -> f32;
-    fn log2f(f32) -> f32;
-    fn powf(f32, f32) -> f32;
-    fn sqrtf(f32) -> f32;
-    fn fabsf(f32) -> f32;
-    fn tanf(f32) -> f32;
-    fn atan2f(f32, f32) -> f32;
-    fn sinf(f32) -> f32;
-    fn cosf(f32) -> f32;
     fn asinf(f32) -> f32;
     fn acosf(f32) -> f32;
+    fn tanf(f32) -> f32;
+    fn atan2f(f32, f32) -> f32;
     fn erff(f32) -> f32;
-    fn floorf(f32) -> f32;
-    fn exp(f64) -> f64;
-    fn pow(f64) -> f64;
-    fn sqrt(f64) -> f64;
-    fn fabs(f64) -> f64;
     fn tan(f64) -> f64;
     fn atan2(f64) -> f64;
-    fn sin(f64) -> f64;
-    fn cos(f64) -> f64;
     fn erf(f64) -> f64;
-    fn floor(f64) -> f64;
 }
 
 // kind: Xchg Add Sub And Nand Or Xor Max Min
@@ -34,10 +17,27 @@ fn atomic_min(a: &i32, b: i32) -> i32 { atomic(7u, a, b) }
 fn atomic_max(a: &i32, b: i32) -> i32 { atomic(8u, a, b) }
 
 extern "device" {
-    fn "llvm.fma.f32" fmaf(f32, f32, f32) -> f32;
-    fn "llvm.fmuladd.f32" madf(f32, f32, f32) -> f32;
-    fn "llvm.fma.f64" fma(f64, f64, f64) -> f64;
-    fn "llvm.fmuladd.f64" mad(f64, f64, f64) -> f64;
+    fn "llvm.exp.f32"      expf(f32) -> f32;
+    fn "llvm.exp2.f32"     exp2f(f32) -> f32;
+    fn "llvm.log.f32"      logf(f32) -> f32;
+    fn "llvm.log2.f32"     log2f(f32) -> f32;
+    fn "llvm.pow.f32"      powf(f32, f32) -> f32;
+    fn "llvm.sqrt.f32"     sqrtf(f32) -> f32;
+    fn "llvm.fabs.f32"     fabsf(f32) -> f32;
+    fn "llvm.sin.f32"      sinf(f32) -> f32;
+    fn "llvm.cos.f32"      cosf(f32) -> f32;
+    fn "llvm.floor.f32"    floorf(f32) -> f32;
+    fn "llvm.fma.f32"      fmaf(f32, f32, f32) -> f32;
+    fn "llvm.fmuladd.f32"  madf(f32, f32, f32) -> f32;
+    fn "llvm.exp.f64"      exp(f64) -> f64;
+    fn "llvm.pow.f64"      pow(f64) -> f64;
+    fn "llvm.sqrt.f64"     sqrt(f64) -> f64;
+    fn "llvm.fabs.f64"     fabs(f64) -> f64;
+    fn "llvm.sin.f64"      sin(f64) -> f64;
+    fn "llvm.cos.f64"      cos(f64) -> f64;
+    fn "llvm.floor.f64"    floor(f64) -> f64;
+    fn "llvm.fma.f64"      fma(f64, f64, f64) -> f64;
+    fn "llvm.fmuladd.f64"  mad(f64, f64, f64) -> f64;
     fn "llvm.copysign.f32" copysignf(f32, f32) -> f32;
     fn "llvm.copysign.f64" copysign(f64, f64) -> f64;
 }

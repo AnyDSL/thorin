@@ -40,9 +40,9 @@ void mem2reg(const Scope& scope) {
             for (auto primop : block) {
                 auto def = Def(primop);
                 if (auto slot = def->isa<Slot>()) {
-                    // are all users loads and store?
+                    // are all users loads and stores *from* this slot (use.index() == 1)?
                     for (auto use : slot->uses()) {
-                        if (!use->isa<Load>() && !use->isa<Store>()) {
+                        if (use.index() != 1 || (!use->isa<Load>() && !use->isa<Store>())) {
                             take_address(slot);
                             goto next_primop;
                         }

@@ -11,6 +11,7 @@ void mem2reg(const Scope& scope) {
     auto schedule = schedule_late(scope);
     DefMap<size_t> addresses;
     LambdaSet set;
+    DefSet done;
     size_t cur_handle = 0;
 
     auto take_address = [&] (const Slot* slot) { addresses[slot] = size_t(-1); };
@@ -34,6 +35,9 @@ void mem2reg(const Scope& scope) {
         // search for slots/loads/stores from top to bottom and use set_value/get_value to install parameters.
         for (auto primop : schedule[lambda]) {
             auto def = Def(primop);
+            auto p = done.insert(def);
+            if (!p.second)
+                continue; // already dealt with - we just see this guy again due to replaces
             if (auto slot = def->isa<Slot>()) {
                 // evil HACK
                 if (slot->name == "sum_xxx") {

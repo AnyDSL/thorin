@@ -53,7 +53,7 @@ extern "device" {
     fn "_Z10atomic_minPVU3AS3ii" atomic_min_local(&i32, i32) -> i32;
 }
 
-fn work_dim() -> int               { _Z12get_work_dimv()}
+fn work_dim() -> int              { _Z12get_work_dimv()}
 fn global_size(idx: int) -> int   { _Z15get_global_sizej(idx) as int }
 fn global_offset(idx: int) -> int { _Z17get_global_offsetj(idx) as int }
 

@@ -429,6 +429,7 @@ void print_kernel_occupancy(uint32_t dev, std::string kernel_name) {
     err = cuOccupancyMaxActiveBlocksPerMultiprocessor(&max_blocks, functions_[dev], opt_block_size, dynamic_smem_bytes);
     checkErrDrv(err, "cuOccupancyMaxActiveBlocksPerMultiprocessor()");
 
+    block_size = ((block_size + warp_size - 1) / warp_size) * warp_size;
     int max_warps = max_blocks * (opt_block_size/warp_size);
     int active_warps = active_blocks * (block_size/warp_size);
     float occupancy = (float)active_warps/(float)max_warps;

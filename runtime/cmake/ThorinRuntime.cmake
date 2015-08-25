@@ -47,8 +47,11 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
     # add specific runtime
     IF("${TRW_BACKEND}" STREQUAL "nvvm" OR "${TRW_BACKEND}" STREQUAL "cuda")
         Find_Package(CUDA REQUIRED)
-        set(CUDA_RUNTIME_DEFINES "'-DLIBDEVICE_DIR=\"${CUDA_TOOLKIT_ROOT_DIR}/nvvm/libdevice/\"' '-DNVCC_BIN=\"${CUDA_TOOLKIT_ROOT_DIR}/bin/nvcc\"' '-DKERNEL_DIR=\"${CMAKE_CURRENT_BINARY_DIR}/\"'")
+        set(CUDA_RUNTIME_DEFINES "'-DLIBDEVICE_DIR=\"${CUDA_TOOLKIT_ROOT_DIR}/nvvm/libdevice/\"' '-DKERNEL_DIR=\"${CMAKE_CURRENT_BINARY_DIR}/\"'")
         set(CUDA_RUNTIME_INCLUDES "-I${CUDA_INCLUDE_DIRS} -I${CUDA_TOOLKIT_ROOT_DIR}/nvvm/include")
+        IF(CUDA_VERSION VERSION_LESS "7.00")
+            set(CUDA_RUNTIME_DEFINES "${CUDA_RUNTIME_DEFINES} '-DNVCC_BIN=\"${CUDA_TOOLKIT_ROOT_DIR}/bin/nvcc\"'")
+        ENDIF()
         # set variables expected below
         set(${outfiles} ${${outfiles}} ${THORIN_RUNTIME_DIR}/cuda/cu_runtime.cpp)
         Find_Library(CUDA_NVVM_LIBRARY nvvm HINTS ${CUDA_TOOLKIT_ROOT_DIR}/nvvm/lib ${CUDA_TOOLKIT_ROOT_DIR}/nvvm/lib64)

@@ -140,21 +140,22 @@ nvvm_defs = {
 if rttype == "nvvm":
     result = []
     filename = basename+".nvvm"
-    with open(filename) as f:
-        for line in f:
-            matched = False
+    if os.path.isfile(filename):
+        with open(filename) as f:
+            for line in f:
+                matched = False
 
-            for (func, code) in nvvm_defs.iteritems():
-                m = re.match('^declare (.*) (@' + func + ')\((.*)\)\n$', line)
-                if m is not None:
-                    result.append(code)
-                    matched = True
-                    break
+                for (func, code) in nvvm_defs.iteritems():
+                    m = re.match('^declare (.*) (@' + func + ')\((.*)\)\n$', line)
+                    if m is not None:
+                        result.append(code)
+                        matched = True
+                        break
 
-            if not matched:
-                result.append(line)
+                if not matched:
+                    result.append(line)
 
-    with open(filename, "w") as f:
-        for line in result:
-            f.write(line)
+        with open(filename, "w") as f:
+            for line in result:
+                f.write(line)
 

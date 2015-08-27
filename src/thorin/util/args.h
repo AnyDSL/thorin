@@ -104,8 +104,8 @@ public:
     void print_help() {
         // print some help infos
         const Class* c = as_class();
-        std::cout << "\t-" << c->arg() << "\t" << c->help_msg() << std::endl;
         previous_.print_help();
+        std::cout << "\t-" << c->arg() << "\t" << c->help_msg() << std::endl;
     }
 
 protected:

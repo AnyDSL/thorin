@@ -50,10 +50,10 @@ public:
     bool outer_contains(const Param* param) const { return outer_contains(param->lambda()); }
     bool inner_contains(Lambda* lambda) const { return lambda != entry() && outer_contains(lambda); }
     bool inner_contains(const Param* param) const { return inner_contains(param->lambda()); }
-    size_t index(Lambda* lambda) const { 
+    size_t index(Lambda* lambda) const {
         if (auto info = lambda->find_scope(this))
-            return info->index; 
-        return size_t(-1);  
+            return info->index;
+        return size_t(-1);
     }
     uint32_t id() const { return id_; }
     size_t size() const { return lambdas_.size(); }
@@ -63,6 +63,7 @@ public:
     const InNode* cfa(Lambda*) const;
     const F_CFG& f_cfg() const;
     const B_CFG& b_cfg() const;
+    template<bool forward> const CFG<forward>& cfg() const;
 
     typedef ArrayRef<Lambda*>::const_iterator const_iterator;
     const_iterator begin() const { return lambdas().begin(); }
@@ -88,6 +89,9 @@ private:
     static uint32_t candidate_counter_;
     static uint32_t id_counter_;
 };
+
+    template<> inline const CFG< true>& Scope::cfg() const { return f_cfg(); }
+    template<> inline const CFG<false>& Scope::cfg() const { return b_cfg(); }
 
 }
 

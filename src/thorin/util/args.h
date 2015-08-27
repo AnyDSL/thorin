@@ -1,6 +1,9 @@
 #ifndef THORIN_UTILS_H
 #define THORIN_UTILS_H
 
+
+#include "thorin/be/graphs.h"
+
 #include <cassert>
 #include <iostream>
 #include <iterator>
@@ -101,8 +104,8 @@ public:
     void print_help() {
         // print some help infos
         const Class* c = as_class();
-        std::cout << "\t-" << c->arg() << "\t" << c->help_msg() << std::endl;
         previous_.print_help();
+        std::cout << "\t-" << c->arg() << "\t" << c->help_msg() << std::endl;
     }
 
 protected:
@@ -181,6 +184,59 @@ struct Option<OptionStringVector, T> : public OptionBase<OptionStringVector, T, 
         {
             OptionBase<OptionStringVector, T, self>::target()->push_back(*it++);
         } while (*it && (*it)[0] != '-');
+        return it;
+    }
+};
+
+template<typename T>
+struct Option<YCompCommandLine, T> : public OptionBase<YCompCommandLine, T, Option<YCompCommandLine, T>> {
+    typedef Option<YCompCommandLine, T> self;
+
+    Option(const T& previous, const std::string& arg, const std::string& help_msg, YCompCommandLine* target, const YCompCommandLine& def)
+            : OptionBase<YCompCommandLine, T, self>(previous, arg, help_msg, target, def)
+    {}
+
+    bool has_next(typename OptionBase<YCompCommandLine, T, self>::iterator it) const {
+        return *it && (*it)[0] != '-';
+    }
+
+    typename OptionBase<YCompCommandLine, T, self>::iterator handle_option(typename OptionBase<YCompCommandLine, T, self>::iterator it) const {
+        // it points to the current argument
+        // -> skip it
+        ++it;
+        do
+        {
+            std::string graph = *it++;
+            bool temp = true;
+            std::string file;
+
+            std::string arg2;
+            if(has_next(it)) {
+                arg2 = *it++;
+
+                if(arg2.compare("true") == 0) {
+                    temp = true;
+                    if(has_next(it)) {
+                        file = *it++;
+                    } else {
+                        std::cerr << "Not enough args!" << std::endl;
+                    }
+                } else if(arg2.compare("false") == 0) {
+                    temp = false;
+                    if(has_next(it)) {
+                        file = *it++;
+                    }else {
+                        std::cerr << "Not enough args!" << std::endl;
+                    }
+                } else {
+                    file = arg2;
+                }
+
+                OptionBase<YCompCommandLine, T, self>::target()->add(graph, temp, file);
+            } else {
+                std::cerr << "Not enough args!" << std::endl;
+            }
+        } while (has_next(it));
         return it;
     }
 };

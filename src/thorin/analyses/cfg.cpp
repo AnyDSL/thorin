@@ -4,9 +4,10 @@
 #include <fstream>
 
 #include "thorin/primop.h"
-#include "thorin/analyses/scope.h"
+#include "thorin/analyses/dfg.h"
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/looptree.h"
+#include "thorin/analyses/scope.h"
 #include "thorin/be/ycomp.h"
 #include "thorin/util/queue.h"
 
@@ -327,6 +328,7 @@ void CFG<forward>::dump() const {
 
 template<bool forward> const DomTreeBase<forward>& CFG<forward>::domtree() const { return lazy_init(this, domtree_); }
 template<bool forward> const LoopTree<forward>& CFG<forward>::looptree() const { return lazy_init(this, looptree_); }
+template<bool forward> const DFGBase<forward>& CFG<forward>::dfg() const { return lazy_init(this, dfg_); }
 
 template class CFG<true>;
 template class CFG<false>;

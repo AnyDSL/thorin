@@ -80,7 +80,7 @@ namespace thorin {
             };
 
             auto title = scope.entry()->unique_name();
-            newline() << "graph {";
+            newline() << "graph: {";
             up() << "title: \"" << title << "\"";
             newline() << "label: \"" << title << "\"";
 

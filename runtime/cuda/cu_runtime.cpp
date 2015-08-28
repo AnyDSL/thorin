@@ -24,9 +24,6 @@
 #ifndef LIBDEVICE_DIR
 #define LIBDEVICE_DIR ""
 #endif
-#ifndef NVCC_BIN
-#define NVCC_BIN "nvcc"
-#endif
 #ifndef KERNEL_DIR
 #define KERNEL_DIR ""
 #endif
@@ -429,6 +426,7 @@ void print_kernel_occupancy(uint32_t dev, std::string kernel_name) {
     err = cuOccupancyMaxActiveBlocksPerMultiprocessor(&max_blocks, functions_[dev], opt_block_size, dynamic_smem_bytes);
     checkErrDrv(err, "cuOccupancyMaxActiveBlocksPerMultiprocessor()");
 
+    block_size = ((block_size + warp_size - 1) / warp_size) * warp_size;
     int max_warps = max_blocks * (opt_block_size/warp_size);
     int active_warps = active_blocks * (block_size/warp_size);
     float occupancy = (float)active_warps/(float)max_warps;
@@ -476,7 +474,7 @@ void compile_nvvm(uint32_t dev, std::string file_name, CUjit_target target_cc) {
         #endif
             libdevice_file_name = "libdevice.compute_35.10.bc"; break;
     }
-    std::ifstream libdeviceFile(std::string(LIBDEVICE_DIR)+libdevice_file_name);
+    std::ifstream libdeviceFile(std::string(LIBDEVICE_DIR) + libdevice_file_name);
     if (!libdeviceFile.is_open()) {
         std::cerr << "ERROR: Can't open libdevice source file '" << libdevice_file_name << "'!" << std::endl;
         exit(EXIT_FAILURE);
@@ -484,7 +482,7 @@ void compile_nvvm(uint32_t dev, std::string file_name, CUjit_target target_cc) {
 
     std::string libdeviceString = std::string(std::istreambuf_iterator<char>(libdeviceFile), (std::istreambuf_iterator<char>()));
 
-    std::ifstream srcFile(std::string(KERNEL_DIR)+file_name);
+    std::ifstream srcFile(std::string(KERNEL_DIR) + file_name);
     if (!srcFile.is_open()) {
         std::cerr << "ERROR: Can't open LL source file '" << KERNEL_DIR << file_name << "'!" << std::endl;
         exit(EXIT_FAILURE);
@@ -541,7 +539,7 @@ void compile_cuda(uint32_t dev, std::string file_name, CUjit_target target_cc) {
     nvrtcResult err;
     nvrtcProgram program;
 
-    std::ifstream srcFile(std::string(KERNEL_DIR)+file_name);
+    std::ifstream srcFile(std::string(KERNEL_DIR) + file_name);
     if (!srcFile.is_open()) {
         std::cerr << "ERROR: Can't open CU source file '" << KERNEL_DIR << file_name << "'!" << std::endl;
         exit(EXIT_FAILURE);
@@ -586,6 +584,9 @@ void compile_cuda(uint32_t dev, std::string file_name, CUjit_target target_cc) {
     delete[] ptx;
 }
 #else
+#ifndef NVCC_BIN
+#define NVCC_BIN "nvcc"
+#endif
 void compile_cuda(uint32_t dev, std::string file_name, CUjit_target target_cc) {
     char line[FILENAME_MAX];
     FILE* fpipe;
@@ -601,7 +602,7 @@ void compile_cuda(uint32_t dev, std::string file_name, CUjit_target target_cc) {
     }
 
     while (fgets(line, sizeof(char) * FILENAME_MAX, fpipe)) {
-        std::cerr << line;
+        runtime_log(line);
     }
     pclose(fpipe);
 
@@ -614,6 +615,7 @@ void compile_cuda(uint32_t dev, std::string file_name, CUjit_target target_cc) {
 
     std::string srcString(std::istreambuf_iterator<char>(srcFile), (std::istreambuf_iterator<char>()));
     const char* ptx = (const char*)srcString.c_str();
+
     // compile ptx
     create_module(dev, ptx, file_name, target_cc);
 }

@@ -28,6 +28,9 @@ extern "device" {
     fn "_Z5floorf"      floorf(f32) -> f32;
     fn "_Z3fmafff"      fmaf(f32, f32, f32) -> f32;
     fn "_Z3madfff"      madf(f32, f32, f32) -> f32;
+    fn "_Z5isinff"      isinff(f32) -> i32;
+    fn "_Z5isnanf"      isnanf(f32) -> i32;
+    fn "_Z8isfinitef"   isfinitef(f32) -> i32;
     fn "_Z3expd"        exp(f64) -> f64;
     fn "_Z3powdd"       pow(f64, f64) -> f64;
     fn "_Z5rsqrtd"      rsqrt(f64) -> f64;
@@ -53,7 +56,7 @@ extern "device" {
     fn "_Z10atomic_minPVU3AS3ii" atomic_min_local(&i32, i32) -> i32;
 }
 
-fn work_dim() -> int               { _Z12get_work_dimv()}
+fn work_dim() -> int              { _Z12get_work_dimv()}
 fn global_size(idx: int) -> int   { _Z15get_global_sizej(idx) as int }
 fn global_offset(idx: int) -> int { _Z17get_global_offsetj(idx) as int }
 

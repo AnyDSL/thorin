@@ -18,6 +18,9 @@ extern "device" {
     fn erff(f32) -> f32;
     fn floorf(f32) -> f32;
     fn fmaf(f32, f32, f32) -> f32;
+    fn "isinf"    isinff(f32) -> i32;
+    fn "isnan"    isnanf(f32) -> i32;
+    fn "isfinite" isfinitef(f32) -> i32;
     fn exp(f64) -> f64;
     fn pow(f64, f64) -> f64;
     fn rsqrt(f64) -> f64;

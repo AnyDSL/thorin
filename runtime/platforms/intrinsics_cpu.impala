@@ -4,6 +4,9 @@ extern "C" {
     fn tanf(f32) -> f32;
     fn atan2f(f32, f32) -> f32;
     fn erff(f32) -> f32;
+    fn "isinf"    isinff_(f32) -> bool;
+    fn "isnan"    isnanf_(f32) -> bool;
+    fn "isfinite" isfinitef_(f32) -> bool;
     fn tan(f64) -> f64;
     fn atan2(f64) -> f64;
     fn erf(f64) -> f64;
@@ -15,6 +18,10 @@ fn atomic_add(a: &i32, b: i32) -> i32 { atomic(1u, a, b) }
 fn atomic_sub(a: &i32, b: i32) -> i32 { atomic(2u, a, b) }
 fn atomic_min(a: &i32, b: i32) -> i32 { atomic(7u, a, b) }
 fn atomic_max(a: &i32, b: i32) -> i32 { atomic(8u, a, b) }
+
+fn isinff(a: f32) -> i32 { if isinff_(a) { 1 } else { 0 } }
+fn isnanf(a: f32) -> i32 { if isnanf_(a) { 1 } else { 0 } }
+fn isfinitef(a: f32) -> i32 { if isfinitef_(a) { 1 } else { 0 } }
 
 extern "device" {
     fn "llvm.exp.f32"      expf(f32) -> f32;

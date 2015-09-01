@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include <chrono>
 #include <ctime>
 #include <iostream>
 #include <random>
@@ -77,11 +78,12 @@ void thorin_print_double(double d)  { std::cout << d; }
 void thorin_print_string(char* s)   { std::cout << s; }
 
 float thorin_random_val() {
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
 #if defined(__APPLE__) && defined(__clang__)
 #pragma message("Runtime random function is not thread-safe")
-    static std::mt19937 std_gen;
+    static std::mt19937 std_gen(seed);
 #else
-    static thread_local std::mt19937 std_gen;
+    static thread_local std::mt19937 std_gen(seed);
 #endif
     static std::uniform_real_distribution<float> std_dist(0.0f, 1.0f);
     return std_dist(std_gen);

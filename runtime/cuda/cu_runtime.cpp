@@ -260,11 +260,11 @@ Memory mem_manager;
 #define checkErrDrv(err, name)   __checkCudaErrors  (err, name, __FILE__, __LINE__)
 
 std::string getCUDAErrorCodeStrDrv(CUresult errorCode) {
-    const char* errorName;
-    const char* errorString;
-    cuGetErrorName(errorCode, &errorName);
-    cuGetErrorString(errorCode, &errorString);
-    return std::string(errorName) + ": " + std::string(errorString);
+    const char* error_name;
+    const char* error_string;
+    cuGetErrorName(errorCode, &error_name);
+    cuGetErrorString(errorCode, &error_string);
+    return std::string(error_name) + ": " + std::string(error_string);
 }
 
 inline void __checkCudaErrors(CUresult err, std::string name, std::string file, const int line) {
@@ -373,20 +373,21 @@ void init_cuda() {
 void create_module(uint32_t dev, const void* ptx, std::string file_name, CUjit_target target_cc) {
     CUresult err = CUDA_SUCCESS;
 
-    const int errorLogSize = 10240;
-    char errorLogBuffer[errorLogSize] = {0};
+    const int error_log_size = 10240;
+    char error_log_buffer[error_log_size] = { 0 };
 
-    int num_options = 3;
-    CUjit_option options[] = { CU_JIT_ERROR_LOG_BUFFER, CU_JIT_ERROR_LOG_BUFFER_SIZE_BYTES, CU_JIT_TARGET };
-    void* optionValues[] = { (void*)errorLogBuffer, (void*)errorLogSize, (void*)target_cc };
+    int num_options = 4;
+    unsigned opt_level = 3;
+    CUjit_option options[] = { CU_JIT_ERROR_LOG_BUFFER, CU_JIT_ERROR_LOG_BUFFER_SIZE_BYTES, CU_JIT_TARGET, CU_JIT_OPTIMIZATION_LEVEL };
+    void* option_values[] = { (void*)error_log_buffer, (void*)error_log_size, (void*)target_cc, (void*)opt_level };
 
     // load ptx source
     runtime_log("Compiling(", dev, ") '", file_name, "' .");
-    err = cuModuleLoadDataEx(&modules_[dev], ptx, num_options, options, optionValues);
+    err = cuModuleLoadDataEx(&modules_[dev], ptx, num_options, options, option_values);
     module_cache_[dev][file_name] = modules_[dev];
 
     if (err != CUDA_SUCCESS) {
-        std::cerr << "Error log: " << errorLogBuffer << std::endl;
+        std::cerr << "Error log: " << error_log_buffer << std::endl;
     }
     checkErrDrv(err, "cuModuleLoadDataEx()");
     runtime_log(". done\n");
@@ -474,36 +475,36 @@ void compile_nvvm(uint32_t dev, std::string file_name, CUjit_target target_cc) {
         #endif
             libdevice_file_name = "libdevice.compute_35.10.bc"; break;
     }
-    std::ifstream libdeviceFile(std::string(LIBDEVICE_DIR) + libdevice_file_name);
-    if (!libdeviceFile.is_open()) {
+    std::ifstream libdevice_file(std::string(LIBDEVICE_DIR) + libdevice_file_name);
+    if (!libdevice_file.is_open()) {
         std::cerr << "ERROR: Can't open libdevice source file '" << libdevice_file_name << "'!" << std::endl;
         exit(EXIT_FAILURE);
     }
 
-    std::string libdeviceString = std::string(std::istreambuf_iterator<char>(libdeviceFile), (std::istreambuf_iterator<char>()));
+    std::string libdevice_string = std::string(std::istreambuf_iterator<char>(libdevice_file), (std::istreambuf_iterator<char>()));
 
-    std::ifstream srcFile(std::string(KERNEL_DIR) + file_name);
-    if (!srcFile.is_open()) {
+    std::ifstream src_file(std::string(KERNEL_DIR) + file_name);
+    if (!src_file.is_open()) {
         std::cerr << "ERROR: Can't open LL source file '" << KERNEL_DIR << file_name << "'!" << std::endl;
         exit(EXIT_FAILURE);
     }
 
-    std::string srcString = std::string(std::istreambuf_iterator<char>(srcFile), (std::istreambuf_iterator<char>()));
+    std::string src_string = std::string(std::istreambuf_iterator<char>(src_file), (std::istreambuf_iterator<char>()));
 
     err = nvvmCreateProgram(&program);
     checkErrNvvm(err, "nvvmCreateProgram()");
 
-    err = nvvmAddModuleToProgram(program, libdeviceString.c_str(), libdeviceString.length(), libdevice_file_name.c_str());
+    err = nvvmAddModuleToProgram(program, libdevice_string.c_str(), libdevice_string.length(), libdevice_file_name.c_str());
     checkErrNvvm(err, "nvvmAddModuleToProgram()");
 
-    err = nvvmAddModuleToProgram(program, srcString.c_str(), srcString.length(), file_name.c_str());
+    err = nvvmAddModuleToProgram(program, src_string.c_str(), src_string.length(), file_name.c_str());
     checkErrNvvm(err, "nvvmAddModuleToProgram()");
 
     std::string compute_arch("-arch=compute_" + std::to_string(target_cc));
-    int num_options = 1;
+    int num_options = 2;
     const char* options[3];
     options[0] = compute_arch.c_str();
-    options[1] = "-opt=3";
+    options[1] = "-opt=4";
     options[2] = "-g";
 
     err = nvvmCompileProgram(program, num_options, options);
@@ -539,15 +540,15 @@ void compile_cuda(uint32_t dev, std::string file_name, CUjit_target target_cc) {
     nvrtcResult err;
     nvrtcProgram program;
 
-    std::ifstream srcFile(std::string(KERNEL_DIR) + file_name);
-    if (!srcFile.is_open()) {
+    std::ifstream src_file(std::string(KERNEL_DIR) + file_name);
+    if (!src_file.is_open()) {
         std::cerr << "ERROR: Can't open CU source file '" << KERNEL_DIR << file_name << "'!" << std::endl;
         exit(EXIT_FAILURE);
     }
 
-    std::string srcString = std::string(std::istreambuf_iterator<char>(srcFile), (std::istreambuf_iterator<char>()));
+    std::string src_string = std::string(std::istreambuf_iterator<char>(src_file), (std::istreambuf_iterator<char>()));
 
-    err = nvrtcCreateProgram(&program, srcString.c_str(), file_name.c_str(), 0, NULL, NULL);
+    err = nvrtcCreateProgram(&program, src_string.c_str(), file_name.c_str(), 0, NULL, NULL);
     checkErrNvrtc(err, "nvrtcCreateProgram()");
 
     std::string compute_arch("-arch=compute_" + std::to_string(target_cc));
@@ -592,11 +593,11 @@ void compile_cuda(uint32_t dev, std::string file_name, CUjit_target target_cc) {
     FILE* fpipe;
 
     target_cc = target_cc == CU_TARGET_COMPUTE_21 ? CU_TARGET_COMPUTE_20 : target_cc; // compute_21 does not exist for nvcc
-    std::string command = (NVCC_BIN " -ptx -arch=compute_") + std::to_string(target_cc) + " ";
+    std::string command = (NVCC_BIN " -O4 -ptx -arch=compute_") + std::to_string(target_cc) + " ";
     command += std::string(KERNEL_DIR) + std::string(file_name) + " -o ";
     command += std::string(file_name) + ".ptx 2>&1";
 
-    if (!(fpipe = (FILE* )popen(command.c_str(), "r"))) {
+    if (!(fpipe = (FILE*)popen(command.c_str(), "r"))) {
         perror("Problems with pipe");
         exit(EXIT_FAILURE);
     }
@@ -607,14 +608,14 @@ void compile_cuda(uint32_t dev, std::string file_name, CUjit_target target_cc) {
     pclose(fpipe);
 
     std::string ptx_filename = file_name + ".ptx";
-    std::ifstream srcFile(ptx_filename);
-    if (!srcFile.is_open()) {
+    std::ifstream src_file(ptx_filename);
+    if (!src_file.is_open()) {
         std::cerr << "ERROR: Can't open PTX source file '" << ptx_filename << "'!" << std::endl;
         exit(EXIT_FAILURE);
     }
 
-    std::string srcString(std::istreambuf_iterator<char>(srcFile), (std::istreambuf_iterator<char>()));
-    const char* ptx = (const char*)srcString.c_str();
+    std::string src_string(std::istreambuf_iterator<char>(src_file), (std::istreambuf_iterator<char>()));
+    const char* ptx = (const char*)src_string.c_str();
 
     // compile ptx
     create_module(dev, ptx, file_name, target_cc);

@@ -372,14 +372,13 @@ void init_cuda() {
 // create module from ptx assembly
 void create_module(uint32_t dev, const void* ptx, std::string file_name, CUjit_target target_cc) {
     CUresult err = CUDA_SUCCESS;
-
+    const unsigned opt_level = 3;
     const int error_log_size = 10240;
+    const int num_options = 4;
     char error_log_buffer[error_log_size] = { 0 };
 
-    int num_options = 4;
-    unsigned opt_level = 3;
     CUjit_option options[] = { CU_JIT_ERROR_LOG_BUFFER, CU_JIT_ERROR_LOG_BUFFER_SIZE_BYTES, CU_JIT_TARGET, CU_JIT_OPTIMIZATION_LEVEL };
-    void* option_values[] = { (void*)error_log_buffer, (void*)error_log_size, (void*)target_cc, (void*)opt_level };
+    void* option_values[]  = { (void*)error_log_buffer, (void*)(size_t)error_log_size, (void*)target_cc, (void*)(size_t)opt_level };
 
     // load ptx source
     runtime_log("Compiling(", dev, ") '", file_name, "' .");

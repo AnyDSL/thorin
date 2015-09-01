@@ -588,23 +588,32 @@ void compile_cuda(uint32_t dev, std::string file_name, CUjit_target target_cc) {
 #define NVCC_BIN "nvcc"
 #endif
 void compile_cuda(uint32_t dev, std::string file_name, CUjit_target target_cc) {
-    char line[FILENAME_MAX];
-    FILE* fpipe;
-
     target_cc = target_cc == CU_TARGET_COMPUTE_21 ? CU_TARGET_COMPUTE_20 : target_cc; // compute_21 does not exist for nvcc
     std::string command = (NVCC_BIN " -O4 -ptx -arch=compute_") + std::to_string(target_cc) + " ";
     command += std::string(KERNEL_DIR) + std::string(file_name) + " -o ";
     command += std::string(file_name) + ".ptx 2>&1";
 
-    if (!(fpipe = (FILE*)popen(command.c_str(), "r"))) {
+    if (auto stream = popen(command.c_str(), "r")) {
+        std::vector<std::string> log;
+        char line[FILENAME_MAX];
+
+        while (fgets(line, sizeof(char) * FILENAME_MAX, stream)) {
+            log.push_back(line);
+        }
+
+        int exit_status = pclose(stream);
+        if (!WEXITSTATUS(exit_status)) {
+            for (auto line : log)
+                runtime_log(line);
+        } else {
+            for (auto line : log)
+                std::cerr << line;
+            exit(EXIT_FAILURE);
+        }
+    } else {
         perror("Problems with pipe");
         exit(EXIT_FAILURE);
     }
-
-    while (fgets(line, sizeof(char) * FILENAME_MAX, fpipe)) {
-        runtime_log(line);
-    }
-    pclose(fpipe);
 
     std::string ptx_filename = file_name + ".ptx";
     std::ifstream src_file(ptx_filename);

@@ -58,14 +58,17 @@ void thorin_print_float(float f)    { std::cout << f; }
 void thorin_print_double(double d)  { std::cout << d; }
 void thorin_print_string(char* s)   { std::cout << s; }
 
-float thorin_random_val() {
-    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
 #if defined(__APPLE__) && defined(__clang__)
 #pragma message("Runtime random function is not thread-safe")
-    static std::mt19937 std_gen(seed);
+static std::mt19937 std_gen;
 #else
-    static thread_local std::mt19937 std_gen(seed);
+static thread_local std::mt19937 std_gen;
 #endif
-    static std::uniform_real_distribution<float> std_dist(0.0f, 1.0f);
+static std::uniform_real_distribution<float> std_dist(0.0f, 1.0f);
+
+void thorin_random_seed(unsigned seed) {
+    std_gen.seed(seed);
+}
+float thorin_random_val() {
     return std_dist(std_gen);
 }

@@ -4,6 +4,7 @@
 extern "C" {
     // runtime functions provided to Impala
     float thorin_random_val();
+    void thorin_random_seed(unsigned);
     long long thorin_get_micro_time();
     long long thorin_get_kernel_time();
     void thorin_print_char(char);

@@ -578,9 +578,9 @@ void compile_cuda(uint32_t dev, std::string file_name, CUjit_target target_cc) {
 #endif
 void compile_cuda(uint32_t dev, std::string file_name, CUjit_target target_cc) {
     target_cc = target_cc == CU_TARGET_COMPUTE_21 ? CU_TARGET_COMPUTE_20 : target_cc; // compute_21 does not exist for nvcc
+    std::string ptx_filename = file_name + ".ptx";
     std::string command = (NVCC_BIN " -O4 -ptx -arch=compute_") + std::to_string(target_cc) + " ";
-    command += std::string(KERNEL_DIR) + std::string(file_name) + " -o ";
-    command += std::string(file_name) + ".ptx 2>&1";
+    command += std::string(KERNEL_DIR) + file_name + " -o " + ptx_filename + " 2>&1";
 
     if (auto stream = popen(command.c_str(), "r")) {
         std::vector<std::string> log;
@@ -604,7 +604,6 @@ void compile_cuda(uint32_t dev, std::string file_name, CUjit_target target_cc) {
         exit(EXIT_FAILURE);
     }
 
-    std::string ptx_filename = file_name + ".ptx";
     std::ifstream src_file(ptx_filename);
     if (!src_file.is_open()) {
         std::cerr << "ERROR: Can't open PTX source file '" << ptx_filename << "'!" << std::endl;

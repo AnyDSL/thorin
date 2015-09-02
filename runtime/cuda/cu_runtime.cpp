@@ -503,7 +503,7 @@ void compile_nvvm(uint32_t dev, std::string file_name, CUjit_target target_cc) {
     int num_options = 2;
     const char* options[3];
     options[0] = compute_arch.c_str();
-    options[1] = "-opt=4";
+    options[1] = "-opt=3";
     options[2] = "-g";
 
     err = nvvmCompileProgram(program, num_options, options);

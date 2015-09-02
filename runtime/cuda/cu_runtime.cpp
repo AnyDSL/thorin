@@ -3,8 +3,8 @@
 #include "thorin_runtime.h"
 #include "thorin_utils.h"
 
-#if CUDA_VERSION < 6000
-    #error "CUDA 6.0 or higher required!"
+#if CUDA_VERSION < 6050
+    #error "CUDA 6.5 or higher required!"
 #endif
 
 #if CUDA_VERSION >= 7000
@@ -404,7 +404,6 @@ void create_kernel(uint32_t dev, std::string kernel_name) {
 
 // computes occupancy for kernel function
 void print_kernel_occupancy(uint32_t dev, std::string kernel_name) {
-    #if CUDA_VERSION >= 6050
     CUresult err = CUDA_SUCCESS;
     int warp_size;
     int block_size = cuDimBlock.x*cuDimBlock.y;
@@ -433,11 +432,6 @@ void print_kernel_occupancy(uint32_t dev, std::string kernel_name) {
     runtime_log("Occupancy for kernel '", kernel_name, "' is ", occupancy, ": ",
                active_warps, " out of ", max_warps, " warps\n",
                "Optimal block size for max occupancy: ", opt_block_size, "\n");
-    #else
-    // unused parameters
-    (void)dev;
-    (void)kernel_name;
-    #endif
 }
 
 // load NVVM source and compile kernel
@@ -451,9 +445,6 @@ void compile_nvvm(uint32_t dev, std::string file_name, CUjit_target target_cc) {
         #if CUDA_VERSION == 6050
         case CU_TARGET_COMPUTE_37:
         #endif
-        #if CUDA_VERSION == 6000
-        case CU_TARGET_COMPUTE_50:
-        #endif
         default:
             assert(false && "unsupported compute capability");
         case CU_TARGET_COMPUTE_20:
@@ -461,9 +452,7 @@ void compile_nvvm(uint32_t dev, std::string file_name, CUjit_target target_cc) {
         case CU_TARGET_COMPUTE_32:
             libdevice_file_name = "libdevice.compute_20.10.bc"; break;
         case CU_TARGET_COMPUTE_30:
-        #if CUDA_VERSION >= 6050
         case CU_TARGET_COMPUTE_50:
-        #endif
         #if CUDA_VERSION >= 7000
         case CU_TARGET_COMPUTE_52:
         #endif

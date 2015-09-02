@@ -64,7 +64,7 @@ entry:
   %res = extractvalue { i32, i32, i32, i32 } %tex_fetch, 0
 
   ; llvm.nvvm.ldg not yet supported (CUDA 7.0)
-  ;%res = tail call i32 @llvm.nvvm.ldg.global.i.i32.p0i32(i32 %data, i32 4)
+  ;%res = tail call i32 @llvm.nvvm.ldg.global.i.i32.p0i32(i32 *%data, i32 4)
 
   %idxprom = sext i32 %add to i64
   %arrayidx = getelementptr inbounds i32* %data, i64 %idxprom

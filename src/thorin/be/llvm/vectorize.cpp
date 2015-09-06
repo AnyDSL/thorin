@@ -37,13 +37,13 @@ Lambda* CodeGen::emit_vectorize_continuation(Lambda* lambda) {
 
     // build simd-function signature
     Array<llvm::Type*> simd_args(num_kernel_args + 1);
-    simd_args[0] = builder_.getInt32Ty(); // loop index
+    simd_args[0] = irbuilder_.getInt32Ty(); // loop index
     for (size_t i = 0; i < num_kernel_args; ++i) {
         Type type = lambda->arg(i + VEC_NUM_ARGS)->type();
         simd_args[i + 1] = convert(type);
     }
 
-    auto simd_type = llvm::FunctionType::get(builder_.getVoidTy(), llvm_ref(simd_args), false);
+    auto simd_type = llvm::FunctionType::get(irbuilder_.getVoidTy(), llvm_ref(simd_args), false);
     auto kernel_simd_func = (llvm::Function*)module_->getOrInsertFunction(kernel->unique_name() + "_vectorize", simd_type);
 
     // build iteration loop and wire the calls
@@ -57,11 +57,11 @@ Lambda* CodeGen::emit_vectorize_continuation(Lambda* lambda) {
             Def arg = lambda->arg(i + VEC_NUM_ARGS);
             auto llvm_arg = lookup(arg);
             if (arg->type().isa<PtrType>())
-                llvm_arg = builder_.CreateBitCast(llvm_arg, simd_args[i + 1]);
+                llvm_arg = irbuilder_.CreateBitCast(llvm_arg, simd_args[i + 1]);
             args[i + 1] = llvm_arg;
         }
         // call new function
-        simd_kernel_call = builder_.CreateCall(kernel_simd_func, llvm_ref(args));
+        simd_kernel_call = irbuilder_.CreateCall(kernel_simd_func, llvm_ref(args));
     });
 
     u32 vector_length_constant = lambda->arg(VEC_ARG_LENGTH)->as<PrimLit>()->qu32_value();

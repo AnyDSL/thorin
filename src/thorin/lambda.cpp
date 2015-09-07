@@ -34,7 +34,7 @@ std::vector<Param::Peek> Param::peek() const {
 //------------------------------------------------------------------------------
 
 Lambda* Lambda::stub(Type2Type& type2type, const std::string& name) const {
-    auto result = world().lambda(type()->specialize(type2type).as<FnType>(), cc(), intrinsic(), name);
+    auto result = world().lambda(type()->specialize(type2type).as<FnType>(), loc(), cc(), intrinsic(), name);
     for (size_t i = 0, e = num_params(); i != e; ++i)
         result->param(i)->name = param(i)->name;
     return result;
@@ -229,7 +229,7 @@ void Lambda::jump(Def to, ArrayRef<Def> args) {
 }
 
 void Lambda::branch(Def cond, Def tto, Def fto, ArrayRef<Def> args) {
-    return jump(world().select(cond, tto, fto), args);
+    return jump(world().select(cond, tto, fto, cond->loc()), args);
 }
 
 std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Def> args, Type ret_type) {
@@ -248,7 +248,7 @@ std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Def> args, Type ret_type) 
     } else
         cont_args.push_back(ret_type);
 
-    auto next = world().lambda(world().fn_type(cont_args), name);
+    auto next = world().lambda(world().fn_type(cont_args), to->loc(), name);
     next->param(0)->name = "mem";
 
     // create jump to next
@@ -263,7 +263,7 @@ std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Def> args, Type ret_type) 
         Array<Def> defs(next->num_params()-1);
         auto p = next->params().slice_from_begin(1);
         std::copy(p.begin(), p.end(), defs.begin());
-        ret = world().tuple(defs);
+        ret = world().tuple(defs, to->loc());
 
     } else
         ret = next->param(1);
@@ -364,7 +364,7 @@ Def Lambda::get_value(size_t handle, Type type, const char* name) {
 return_bottom:
     // TODO provide hook instead of fixed functionality
     std::cerr << "'" << name << "'" << " may be undefined" << std::endl;
-    return set_value(handle, world().bottom(type));
+    return set_value(handle, world().bottom(type, Location("may_be_undefined", 47, 11, 47, 11)));
 }
 
 void Lambda::seal() {
@@ -419,7 +419,7 @@ Def Lambda::try_remove_trivial_param(const Param* param) {
     param->replace(same);
 
     for (auto peek : param->peek())
-        peek.from()->update_arg(index, world().bottom(param->type()));
+        peek.from()->update_arg(index, world().bottom(param->type(), param->loc()));
 
     for (auto use : same->uses()) {
         if (Lambda* lambda = use->isa_lambda()) {

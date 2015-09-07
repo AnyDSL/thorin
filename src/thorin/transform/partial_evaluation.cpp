@@ -106,7 +106,7 @@ void PartialEvaluator::eval(const Run* cur_run, Lambda* cur) {
             for (auto use : hlt->uses()) {  // TODO assert that there is only one EndHlt user
                 if (auto end = use->isa<EndHlt>()) {
                     if (auto lambda = end->def()->isa_lambda())
-                        lambda->update_to(world().run(lambda->to()));
+                        lambda->update_to(world().run(lambda->to(), lambda->loc()));
                     //break; // TODO there may be multiple versions of that due to updates
                 }
             }

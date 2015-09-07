@@ -20,10 +20,10 @@ static void update_src(Lambda* src, Lambda* resolver, Lambda* dst) {
             nto = resolver;
     } else if (auto select = src->to()->isa<Select>()) {
         if (select->tval() == dst)
-            nto = world.select(select->cond(), resolver, select->fval());
+            nto = world.select(select->cond(), resolver, select->fval(), select->loc());
         else {
             assert(select->fval() == dst);
-            nto = world.select(select->cond(), select->tval(), resolver);
+            nto = world.select(select->cond(), select->tval(), resolver, select->loc());
         }
     }
 

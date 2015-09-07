@@ -20,12 +20,13 @@ static bool map_param(World& world, Lambda* lambda, ToDo& todo) {
     Scope cont_scope(cont);
     Lambda* ncont;
 
-    auto map = world.map(ulambda->arg(2),  // target device (-1 for host device)
-                         ulambda->arg(3),  // address space
-                         ulambda->arg(0),  // memory
-                         ulambda->arg(1),  // source ptr
-                         ulambda->arg(4),  // offset to memory
-                         ulambda->arg(5)); // size of memory
+    auto map = world.map(ulambda->arg(2), // target device (-1 for host device)
+                         ulambda->arg(3), // address space
+                         ulambda->arg(0), // memory
+                         ulambda->arg(1), // source ptr
+                         ulambda->arg(4), // offset to memory
+                         ulambda->arg(5), // size of memory
+                         ulambda->loc());
     ncont = drop(cont_scope, { map->out_mem(), map->out_ptr() });
 
     ulambda->jump(ncont, {});
@@ -55,7 +56,7 @@ static void adapt_addr_space(World &world, ToDo& uses) {
                 if (i==index) fn[i] = entry.first;
                 else fn[i] = to->type()->arg(i);
             }
-            auto nto = world.lambda(world.fn_type(fn), to->cc(), to->intrinsic(), to->name);
+            auto nto = world.lambda(world.fn_type(fn), to->loc(), to->cc(), to->intrinsic(), to->name);
             assert(nto->num_params() == to->num_params());
 
             if (!to->empty()) {

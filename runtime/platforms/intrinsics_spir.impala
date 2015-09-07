@@ -25,6 +25,7 @@ extern "device" {
     fn "_Z4asinf"       asinf(f32) -> f32;
     fn "_Z4acosf"       acosf(f32) -> f32;
     fn "_Z3erff"        erff(f32) -> f32;
+    fn "_Z4fmodff"      fmodf(f32, f32) -> f32;
     fn "_Z5floorf"      floorf(f32) -> f32;
     fn "_Z3fmafff"      fmaf(f32, f32, f32) -> f32;
     fn "_Z3madfff"      madf(f32, f32, f32) -> f32;
@@ -41,6 +42,7 @@ extern "device" {
     fn "_Z3sind"        sin(f64) -> f64;
     fn "_Z3cosd"        cos(f64) -> f64;
     fn "_Z3erfd"        erf(f64) -> f64;
+    fn "_Z4fmoddd"      fmod(f64, f64) -> f64;
     fn "_Z5floord"      floor(f64) -> f64;
     fn "_Z3fmaddd"      fma(f64, f64, f64) -> f64;
     fn "_Z3madddd"      mad(f64, f64, f64) -> f64;

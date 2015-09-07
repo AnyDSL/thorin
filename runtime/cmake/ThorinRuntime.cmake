@@ -140,7 +140,7 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
             DEPENDS ${_spirfile} VERBATIM)
     ENDIF()
     add_custom_command(OUTPUT ${_objfile}
-        COMMAND ${CLANGPP_BIN} -O3 -march=native -g -c -o ${_objfile} ${_llfile}
+        COMMAND ${CLANGPP_BIN} -O3 -march=native -ffast-math -g -c -o ${_objfile} ${_llfile}
         DEPENDS ${_llfile} VERBATIM)
     SET_SOURCE_FILES_PROPERTIES(
         ${_objfile}

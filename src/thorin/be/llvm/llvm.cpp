@@ -4,6 +4,7 @@
 #include <iostream>
 #include <stdexcept>
 
+#include <llvm/ADT/Triple.h>
 #include <llvm/Analysis/Verifier.h>
 #include <llvm/Bitcode/ReaderWriter.h>
 #include <llvm/IR/Constant.h>
@@ -15,6 +16,8 @@
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Type.h>
 #include <llvm/PassManager.h>
+#include <llvm/Support/Host.h>
+#include <llvm/Support/Path.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
 #include <llvm/Transforms/Scalar.h>
@@ -166,10 +169,23 @@ llvm::Function* CodeGen::emit_function_decl(Lambda* lambda) {
 }
 
 void CodeGen::emit(int opt) {
+    module_->addModuleFlag(llvm::Module::Warning, "Debug Info Version", DEBUG_METADATA_VERSION);
+    // Darwin only supports dwarf2
+    if (llvm::Triple(llvm::sys::getProcessTriple()).isOSDarwin())
+        module_->addModuleFlag(llvm::Module::Warning, "Dwarf Version", 2);
     Scope::for_each(world_, [&] (const Scope& scope) {
         entry_ = scope.entry();
         assert(entry_->is_returning());
         llvm::Function* fct = emit_function_decl(entry_);
+
+        auto src_file = llvm::sys::path::filename(entry_->loc().pos1().filename());
+        auto src_dir = llvm::sys::path::parent_path(entry_->loc().pos1().filename());
+        auto difile = dibuilder_.createFile(src_file, src_dir);
+        auto compile_unit = dibuilder_.createCompileUnit(dwarf::DW_LANG_C, src_file, src_dir, "Impala", opt > 0, llvm::StringRef(), 0);
+        auto disubprogram = dibuilder_.createFunction(compile_unit, fct->getName(), fct->getName(), difile, entry_->loc().pos1().line(),
+                                                     dibuilder_.createSubroutineType(difile, dibuilder_.getOrCreateArray(llvm::ArrayRef<Value*>())),
+                                                     false /* internal linkage */, true /* definition */, entry_->loc().pos1().line(), 0 /* Flags */, opt > 0, fct);
+        auto discope = dibuilder_.createLexicalBlockFile(disubprogram, difile);
 
         // map params
         const Param* ret_param = nullptr;
@@ -225,8 +241,10 @@ void CodeGen::emit(int opt) {
             assert(bb_lambda == entry_ || bb_lambda->is_basicblock());
             irbuilder_.SetInsertPoint(bb2lambda[bb_lambda]);
 
-            for (auto primop : schedule[bb_lambda])
-                    primops_[primop] = emit(primop);
+            for (auto primop : schedule[bb_lambda]) {
+                irbuilder_.SetCurrentDebugLocation(DebugLoc::get(primop->loc().pos1().line(), primop->loc().pos1().col(), discope));
+                primops_[primop] = emit(primop);
+            }
 
             // terminate bb
             if (bb_lambda->to() == ret_param) { // return
@@ -358,6 +376,7 @@ void CodeGen::emit(int opt) {
     llvm::verifyModule(*this->module_);
 #endif
     optimize(opt);
+    dibuilder_.finalize();
 
     {
         std::string error;

@@ -3,11 +3,13 @@ extern "thorin" {
     fn "mmap" mmap_f64(&[f64], i32, i32, i32, i32) -> &[f64];
     fn "mmap" mmap_i16(&[i16], i32, i32, i32, i32) -> &[i16];
     fn "mmap" mmap_i32(&[i32], i32, i32, i32, i32) -> &[i32];
+    fn "mmap" mmap_u8(&[u8], i32, i32, i32, i32) -> &[u8];
 
     fn "munmap" munmap_f32(&[f32]) -> ();
     fn "munmap" munmap_f64(&[f64]) -> ();
     fn "munmap" munmap_i16(&[i16]) -> ();
     fn "munmap" munmap_i32(&[i32]) -> ();
+    fn "munmap" munmap_u8(&[u8]) -> ();
 
     fn atomic(u32, &i32, i32) -> i32;
 

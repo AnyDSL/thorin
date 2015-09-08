@@ -168,24 +168,30 @@ llvm::Function* CodeGen::emit_function_decl(Lambda* lambda) {
     return fcts_[lambda] = f;
 }
 
-void CodeGen::emit(int opt) {
-    module_->addModuleFlag(llvm::Module::Warning, "Debug Info Version", DEBUG_METADATA_VERSION);
-    // Darwin only supports dwarf2
-    if (llvm::Triple(llvm::sys::getProcessTriple()).isOSDarwin())
-        module_->addModuleFlag(llvm::Module::Warning, "Dwarf Version", 2);
+void CodeGen::emit(int opt, bool debug) {
+    if (debug) {
+        module_->addModuleFlag(llvm::Module::Warning, "Debug Info Version", DEBUG_METADATA_VERSION);
+        // Darwin only supports dwarf2
+        if (llvm::Triple(llvm::sys::getProcessTriple()).isOSDarwin())
+            module_->addModuleFlag(llvm::Module::Warning, "Dwarf Version", 2);
+    }
+
     Scope::for_each(world_, [&] (const Scope& scope) {
         entry_ = scope.entry();
         assert(entry_->is_returning());
         llvm::Function* fct = emit_function_decl(entry_);
 
-        auto src_file = llvm::sys::path::filename(entry_->loc().pos1().filename());
-        auto src_dir = llvm::sys::path::parent_path(entry_->loc().pos1().filename());
-        auto difile = dibuilder_.createFile(src_file, src_dir);
-        auto compile_unit = dibuilder_.createCompileUnit(dwarf::DW_LANG_C, src_file, src_dir, "Impala", opt > 0, llvm::StringRef(), 0);
-        auto disubprogram = dibuilder_.createFunction(compile_unit, fct->getName(), fct->getName(), difile, entry_->loc().pos1().line(),
-                                                     dibuilder_.createSubroutineType(difile, dibuilder_.getOrCreateArray(llvm::ArrayRef<Value*>())),
-                                                     false /* internal linkage */, true /* definition */, entry_->loc().pos1().line(), 0 /* Flags */, opt > 0, fct);
-        auto discope = dibuilder_.createLexicalBlockFile(disubprogram, difile);
+        DILexicalBlockFile discope;
+        if (debug) {
+            auto src_file = llvm::sys::path::filename(entry_->loc().pos1().filename());
+            auto src_dir = llvm::sys::path::parent_path(entry_->loc().pos1().filename());
+            auto difile = dibuilder_.createFile(src_file, src_dir);
+            auto compile_unit = dibuilder_.createCompileUnit(dwarf::DW_LANG_C, src_file, src_dir, "Impala", opt > 0, llvm::StringRef(), 0);
+            auto disubprogram = dibuilder_.createFunction(compile_unit, fct->getName(), fct->getName(), difile, entry_->loc().pos1().line(),
+                                                         dibuilder_.createSubroutineType(difile, dibuilder_.getOrCreateArray(llvm::ArrayRef<Value*>())),
+                                                         false /* internal linkage */, true /* definition */, entry_->loc().pos1().line(), 0 /* Flags */, opt > 0, fct);
+            discope = dibuilder_.createLexicalBlockFile(disubprogram, difile);
+        }
 
         // map params
         const Param* ret_param = nullptr;
@@ -242,7 +248,8 @@ void CodeGen::emit(int opt) {
             irbuilder_.SetInsertPoint(bb2lambda[bb_lambda]);
 
             for (auto primop : schedule[bb_lambda]) {
-                irbuilder_.SetCurrentDebugLocation(DebugLoc::get(primop->loc().pos1().line(), primop->loc().pos1().col(), discope));
+                if (debug)
+                    irbuilder_.SetCurrentDebugLocation(DebugLoc::get(primop->loc().pos1().line(), primop->loc().pos1().col(), discope));
                 primops_[primop] = emit(primop);
             }
 
@@ -376,7 +383,8 @@ void CodeGen::emit(int opt) {
     llvm::verifyModule(*this->module_);
 #endif
     optimize(opt);
-    dibuilder_.finalize();
+    if (debug)
+        dibuilder_.finalize();
 
     {
         std::string error;
@@ -966,7 +974,7 @@ void CodeGen::create_loop(llvm::Value* lower, llvm::Value* upper, llvm::Value* i
 
 //------------------------------------------------------------------------------
 
-void emit_llvm(World& world, int opt) {
+void emit_llvm(World& world, int opt, bool debug) {
     World cuda(world.name());
     World nvvm(world.name());
     World spir(world.name());
@@ -999,11 +1007,11 @@ void emit_llvm(World& world, int opt) {
     if (!cuda.lambdas().empty() || !nvvm.lambdas().empty() || !spir.lambdas().empty() || !opencl.lambdas().empty())
         world.cleanup();
 
-    CPUCodeGen(world).emit(opt);
-    if (!cuda.  lambdas().empty()) CUDACodeGen(cuda).emit(/*opt*/);
-    if (!nvvm.  lambdas().empty()) NVVMCodeGen(nvvm).emit(opt);
-    if (!spir.  lambdas().empty()) SPIRCodeGen(spir).emit(opt);
-    if (!opencl.lambdas().empty()) OpenCLCodeGen(opencl).emit(/*opt*/);
+    CPUCodeGen(world).emit(opt, debug);
+    if (!cuda.  lambdas().empty()) CUDACodeGen(cuda).emit(/*opt, debug*/);
+    if (!nvvm.  lambdas().empty()) NVVMCodeGen(nvvm).emit(opt, debug);
+    if (!spir.  lambdas().empty()) SPIRCodeGen(spir).emit(opt, debug);
+    if (!opencl.lambdas().empty()) OpenCLCodeGen(opencl).emit(/*opt, debug*/);
 }
 
 //------------------------------------------------------------------------------

@@ -21,7 +21,7 @@ protected:
             llvm::CallingConv::ID device_calling_convention, llvm::CallingConv::ID kernel_calling_convention);
 
 public:
-    void emit(int opt);
+    void emit(int opt, bool debug);
 
 protected:
     void optimize(int opt);
@@ -93,7 +93,7 @@ protected:
 template<class T>
 llvm::ArrayRef<T> llvm_ref(const Array<T>& array) { return llvm::ArrayRef<T>(array.begin(), array.end()); }
 
-void emit_llvm(World& world, int opt);
+void emit_llvm(World& world, int opt, bool debug);
 
 } // namespace thorin
 

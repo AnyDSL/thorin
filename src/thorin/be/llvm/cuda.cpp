@@ -1,3 +1,8 @@
+#include "thorin/be/llvm/cuda.h"
+
+#include <fstream>
+#include <stdexcept>
+
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Metadata.h>
 #include <llvm/IR/Module.h>
@@ -8,10 +13,6 @@
 #include "thorin/primop.h"
 #include "thorin/world.h"
 #include "thorin/be/c.h"
-#include "thorin/be/llvm/cuda.h"
-
-#include <iostream>
-#include <fstream>
 
 namespace thorin {
 

@@ -369,10 +369,8 @@ void create_context_command_queue(cl_platform_id platform, std::vector<cl_device
 
 // initialize OpenCL device
 void init_opencl() {
-    char pnBuffer[1024], pvBuffer[1024], pv2Buffer[1024], pdBuffer[1024], pd2Buffer[1024], pd3Buffer[1024];
-    cl_uint num_platforms, num_devices;
-
     // get OpenCL platform count
+    cl_uint num_platforms, num_devices;
     cl_int err = clGetPlatformIDs(0, NULL, &num_platforms);
     checkErr(err, "clGetPlatformIDs()");
 
@@ -387,9 +385,13 @@ void init_opencl() {
 
         // get platform info for each platform
         for (size_t i=0; i<num_platforms; ++i) {
-            err = clGetPlatformInfo(platforms[i], CL_PLATFORM_NAME, 1024, &pnBuffer, NULL);
-            err |= clGetPlatformInfo(platforms[i], CL_PLATFORM_VENDOR, 1024, &pvBuffer, NULL);
-            err |= clGetPlatformInfo(platforms[i], CL_PLATFORM_VERSION, 1024, &pv2Buffer, NULL);
+            char buffer[1024];
+            err  = clGetPlatformInfo(platforms[i], CL_PLATFORM_NAME, sizeof(buffer), &buffer, NULL);
+            std::clog << "  Platform Name: " << buffer << std::endl;
+            err |= clGetPlatformInfo(platforms[i], CL_PLATFORM_VENDOR, sizeof(buffer), &buffer, NULL);
+            std::clog << "  Platform Vendor: " << buffer << std::endl;
+            err |= clGetPlatformInfo(platforms[i], CL_PLATFORM_VERSION, sizeof(buffer), &buffer, NULL);
+            std::clog << "  Platform Version: " << buffer << std::endl;
             checkErr(err, "clGetPlatformInfo()");
 
             err = clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, 0, NULL, &num_devices);
@@ -403,61 +405,67 @@ void init_opencl() {
             std::vector<cl_device_id> unified_devices;
             std::vector<size_t> unified_device_ids;
 
-            // get platform info
-            std::clog << "  Platform Name: " << pnBuffer << std::endl;
-            std::clog << "  Platform Vendor: " << pvBuffer << std::endl;
-            std::clog << "  Platform Version: " << pv2Buffer << std::endl;
-
             // get device info for each device
             for (size_t j=0; j<num_devices; ++j) {
                 cl_device_type dev_type;
                 cl_uint device_vendor_id;
-                cl_bool has_unified;
-
-                err = clGetDeviceInfo(devices[j], CL_DEVICE_NAME, sizeof(pnBuffer), &pnBuffer, NULL);
-                err |= clGetDeviceInfo(devices[j], CL_DEVICE_VENDOR, sizeof(pvBuffer), &pvBuffer, NULL);
-                err |= clGetDeviceInfo(devices[j], CL_DEVICE_VENDOR_ID, sizeof(device_vendor_id), &device_vendor_id, NULL);
-                err |= clGetDeviceInfo(devices[j], CL_DEVICE_TYPE, sizeof(dev_type), &dev_type, NULL);
-                err |= clGetDeviceInfo(devices[j], CL_DEVICE_VERSION, sizeof(pdBuffer), &pdBuffer, NULL);
-                err |= clGetDeviceInfo(devices[j], CL_DRIVER_VERSION, sizeof(pd2Buffer), &pd2Buffer, NULL);
-                err |= clGetDeviceInfo(devices[j], CL_DEVICE_EXTENSIONS, sizeof(pd3Buffer), &pd3Buffer, NULL);
-                err |= clGetDeviceInfo(devices[j], CL_DEVICE_HOST_UNIFIED_MEMORY, sizeof(has_unified), &has_unified, NULL);
-                checkErr(err, "clGetDeviceInfo()");
 
                 devices_.push_back(devices[j]);
+                err  = clGetDeviceInfo(devices[j], CL_DEVICE_NAME, sizeof(buffer), &buffer, NULL);
+                err |= clGetDeviceInfo(devices[j], CL_DEVICE_TYPE, sizeof(dev_type), &dev_type, NULL);
+                std::clog << "  (" << devices_.size()-1 << ") ";
+                std::clog << "Device Name: " << buffer << " (";
+                if (dev_type & CL_DEVICE_TYPE_CPU)         std::clog << "CL_DEVICE_TYPE_CPU";
+                if (dev_type & CL_DEVICE_TYPE_GPU)         std::clog << "CL_DEVICE_TYPE_GPU";
+                if (dev_type & CL_DEVICE_TYPE_ACCELERATOR) std::clog << "CL_DEVICE_TYPE_ACCELERATOR";
+                #ifdef CL_VERSION_1_2
+                if (dev_type & CL_DEVICE_TYPE_CUSTOM)      std::clog << "CL_DEVICE_TYPE_CUSTOM";
+                #endif
+                if (dev_type & CL_DEVICE_TYPE_DEFAULT)     std::clog << "|CL_DEVICE_TYPE_DEFAULT";
+                std::clog << ")" << std::endl;
+                err |= clGetDeviceInfo(devices[j], CL_DEVICE_VENDOR, sizeof(buffer), &buffer, NULL);
+                err |= clGetDeviceInfo(devices[j], CL_DEVICE_VENDOR_ID, sizeof(device_vendor_id), &device_vendor_id, NULL);
+                std::clog << "      Device Vendor: " << buffer << " (ID: " << device_vendor_id << ")" << std::endl;
+                err |= clGetDeviceInfo(devices[j], CL_DEVICE_VERSION, sizeof(buffer), &buffer, NULL);
+                std::clog << "      Device OpenCL Version: " << buffer << std::endl;
+                err |= clGetDeviceInfo(devices[j], CL_DRIVER_VERSION, sizeof(buffer), &buffer, NULL);
+                std::clog << "      Device Driver Version: " << buffer << std::endl;
+                #ifdef CL_DEVICE_SPIR_VERSIONS
+                err |= clGetDeviceInfo(devices[j], CL_DEVICE_SPIR_VERSIONS , sizeof(buffer), &buffer, NULL);
+                std::clog << "      Device SPIR Version: " << buffer << std::endl;
+                #endif
+
+                cl_bool has_unified = false;
+                #ifdef CL_VERSION_2_0
+                cl_device_svm_capabilities caps;
+                err |= clGetDeviceInfo(devices[j], CL_DEVICE_SVM_CAPABILITIES, sizeof(caps), &caps, NULL);
+                std::clog << "      Device SVM capabilities:";
+                if (caps & CL_DEVICE_SVM_COARSE_GRAIN_BUFFER) std::clog << " CL_DEVICE_SVM_COARSE_GRAIN_BUFFER";
+                else                                          std::clog << " n/a";
+                if (caps & CL_DEVICE_SVM_FINE_GRAIN_BUFFER)   std::clog << " CL_DEVICE_SVM_FINE_GRAIN_BUFFER";
+                if (caps & CL_DEVICE_SVM_FINE_GRAIN_SYSTEM)   std::clog << " CL_DEVICE_SVM_FINE_GRAIN_SYSTEM";
+                if (caps & CL_DEVICE_SVM_ATOMICS)             std::clog << " CL_DEVICE_SVM_ATOMICS";
+                std::clog << std::endl;
+                // TODO: SVM is inconsistent with unified memory in OpenCL 1.1
+                has_unified = (caps & CL_DEVICE_SVM_COARSE_GRAIN_BUFFER) || (dev_type & CL_DEVICE_TYPE_CPU);
+                #else
+                err |= clGetDeviceInfo(devices[j], CL_DEVICE_HOST_UNIFIED_MEMORY, sizeof(has_unified), &has_unified, NULL);
+                std::clog << "      Device Host Unified Memory: " << has_unified << std::endl;
+                #endif
+
+                //err |= clGetDeviceInfo(devices[j], CL_DEVICE_EXTENSIONS, sizeof(buffer), &buffer, NULL);
+                //std::clog << "      Device Extensions: " << buffer << std::endl;
+                //std::string extensions(buffer);
+                //size_t found = extensions.find("cl_khr_spir");
+                //bool has_spir = found!=std::string::npos;
+                checkErr(err, "clGetDeviceInfo()");
+
                 if (has_unified) {
                     unified_devices.push_back(devices_.back());
                     unified_device_ids.push_back(devices_.size()-1);
                 } else {
                     create_context_command_queue(platforms[i], { devices_.back() }, { devices_.size()-1 } );
                 }
-
-                // use first device of desired type
-                std::string extensions(pd3Buffer);
-                size_t found = extensions.find("cl_khr_spir");
-                bool has_spir = found!=std::string::npos;
-                std::clog << "  (" << devices_.size()-1 << ") ";
-                std::clog << "Device Name: " << pnBuffer << " (";
-                if (dev_type & CL_DEVICE_TYPE_CPU) std::clog << "CL_DEVICE_TYPE_CPU";
-                if (dev_type & CL_DEVICE_TYPE_GPU) std::clog << "CL_DEVICE_TYPE_GPU";
-                if (dev_type & CL_DEVICE_TYPE_ACCELERATOR) std::clog << "CL_DEVICE_TYPE_ACCELERATOR";
-                #ifdef CL_VERSION_1_2
-                if (dev_type & CL_DEVICE_TYPE_CUSTOM) std::clog << "CL_DEVICE_TYPE_CUSTOM";
-                #endif
-                if (dev_type & CL_DEVICE_TYPE_DEFAULT) std::clog << "|CL_DEVICE_TYPE_DEFAULT";
-                std::clog << ")";
-                std::clog << std::endl;
-                std::clog << "      Device Vendor: " << pvBuffer << " (ID: " << device_vendor_id << ")" << std::endl;
-                std::clog << "      Device OpenCL Version: " << pdBuffer << std::endl;
-                std::clog << "      Device Driver Version: " << pd2Buffer << std::endl;
-                //std::clog << "      Device Extensions: " << pd3Buffer << std::endl;
-                std::clog << "      Device SPIR Support: " << has_spir << std::endl;
-                #ifdef CL_DEVICE_SPIR_VERSIONS
-                err = clGetDeviceInfo(devices[j], CL_DEVICE_SPIR_VERSIONS, sizeof(pd3Buffer), &pd3Buffer, NULL);
-                checkErr(err, "clGetDeviceInfo()");
-                std::clog << "      Device SPIR Version: " << pd3Buffer << std::endl;
-                #endif
-                std::clog << "      Device Host Unified Memory: " << has_unified << std::endl;
             }
 
             // create context and command queues for unified memory devices

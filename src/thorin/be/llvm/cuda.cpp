@@ -1,3 +1,8 @@
+#include "thorin/be/llvm/cuda.h"
+
+#include <fstream>
+#include <stdexcept>
+
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Metadata.h>
 #include <llvm/IR/Module.h>
@@ -8,10 +13,6 @@
 #include "thorin/primop.h"
 #include "thorin/world.h"
 #include "thorin/be/c.h"
-#include "thorin/be/llvm/cuda.h"
-
-#include <iostream>
-#include <fstream>
 
 namespace thorin {
 
@@ -25,7 +26,6 @@ void CUDACodeGen::emit() {
     if (!file.is_open())
         throw std::runtime_error("cannot write '" + name + "': " + strerror(errno));
     thorin::emit_c(world_, file, Lang::CUDA);
-    file.close();
 }
 
 }

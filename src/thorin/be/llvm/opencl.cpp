@@ -25,7 +25,6 @@ void OpenCLCodeGen::emit() {
     if (!file.is_open())
         throw std::runtime_error("cannot write '" + name + "': " + strerror(errno));
     thorin::emit_c(world_, file, Lang::OPENCL);
-    file.close();
 }
 
 }

@@ -1,5 +1,6 @@
 extern "C" {
     fn thorin_random_val() -> f32;
+    fn thorin_random_seed(u32) -> ();
     fn thorin_get_micro_time() -> i64;
     fn thorin_get_kernel_time() -> i64;
 

@@ -1,16 +1,11 @@
+#include <atomic>
+#include <chrono>
 #include <cstdlib>
-#include <ctime>
 #include <iostream>
 #include <random>
-#include <atomic>
 
 #if !defined(_WIN32) && (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__)))
 #include <unistd.h>
-#endif
-
-#ifdef __APPLE__
-#include <mach/clock.h>
-#include <mach/mach.h>
 #endif
 
 #if defined(_WIN32) || defined(__CYGWIN__)
@@ -46,20 +41,7 @@ long long thorin_get_micro_time() {
     QueryPerformanceFrequency(&freq);
     return counter.QuadPart * 1000000LL / freq.QuadPart;
 #else
-    struct timespec now;
-#ifdef __APPLE__ // OS X does not have clock_gettime, use clock_get_time
-    clock_serv_t cclock;
-    mach_timespec_t mts;
-    host_get_clock_service(mach_host_self(), CALENDAR_CLOCK, &cclock);
-    clock_get_time(cclock, &mts);
-    mach_port_deallocate(mach_task_self(), cclock);
-    now.tv_sec = mts.tv_sec;
-    now.tv_nsec = mts.tv_nsec;
-#else
-    clock_gettime(CLOCK_MONOTONIC, &now);
-#endif
-    long long time = now.tv_sec * 1000000LL + now.tv_nsec / 1000LL;
-    return time;
+    return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
 #endif
 }
 
@@ -76,13 +58,17 @@ void thorin_print_float(float f)    { std::cout << f; }
 void thorin_print_double(double d)  { std::cout << d; }
 void thorin_print_string(char* s)   { std::cout << s; }
 
-float thorin_random_val() {
 #if defined(__APPLE__) && defined(__clang__)
 #pragma message("Runtime random function is not thread-safe")
-    static std::mt19937 std_gen;
+static std::mt19937 std_gen;
 #else
-    static thread_local std::mt19937 std_gen;
+static thread_local std::mt19937 std_gen;
 #endif
-    static std::uniform_real_distribution<float> std_dist(0.0f, 1.0f);
+static std::uniform_real_distribution<float> std_dist(0.0f, 1.0f);
+
+void thorin_random_seed(unsigned seed) {
+    std_gen.seed(seed);
+}
+float thorin_random_val() {
     return std_dist(std_gen);
 }

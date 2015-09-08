@@ -1,33 +1,40 @@
 extern "thorin" {
-    fn mmap(&[f32], i32, i32, i32, i32) -> &[f32];
-    fn munmap(&[f32]) -> ();
+    fn "mmap" mmap_f32(&[f32], i32, i32, i32, i32) -> &[f32];
+    fn "mmap" mmap_f64(&[f64], i32, i32, i32, i32) -> &[f64];
+    fn "mmap" mmap_i16(&[i16], i32, i32, i32, i32) -> &[i16];
+    fn "mmap" mmap_i32(&[i32], i32, i32, i32, i32) -> &[i32];
+    fn "mmap" mmap_u8(&[u8], i32, i32, i32, i32) -> &[u8];
+
+    fn "munmap" munmap_f32(&[f32]) -> ();
+    fn "munmap" munmap_f64(&[f64]) -> ();
+    fn "munmap" munmap_i16(&[i16]) -> ();
+    fn "munmap" munmap_i32(&[i32]) -> ();
+    fn "munmap" munmap_u8(&[u8]) -> ();
+
     fn atomic(u32, &i32, i32) -> i32;
 
-    fn bitcast_f32_i32(f32) -> i32;
-    fn bitcast_i32_f32(i32) -> f32;
+    fn "bitcast" bitcast_f32_i32(f32) -> i32;
+    fn "bitcast" bitcast_i32_f32(i32) -> f32;
+    fn "bitcast" bitcast4_f32_i32(simd[f32 * 4]) -> simd[i32 * 4];
+    fn "bitcast" bitcast8_f32_i32(simd[f32 * 8]) -> simd[i32 * 8];
+    fn "bitcast" bitcast16_f32_i32(simd[f32 * 16]) -> simd[i32 * 16];
+    fn "bitcast" bitcast4_i32_f32(simd[i32 * 4]) -> simd[f32 * 4];
+    fn "bitcast" bitcast8_i32_f32(simd[i32 * 8]) -> simd[f32 * 8];
+    fn "bitcast" bitcast16_i32_f32(simd[i32 * 16]) -> simd[f32 * 16];
 
-    fn bitcast4_f32_i32(simd[f32 * 4]) -> simd[i32 * 4];
-    fn bitcast8_f32_i32(simd[f32 * 8]) -> simd[i32 * 8];
-    fn bitcast16_f32_i32(simd[f32 * 16]) -> simd[i32 * 16];
-    fn bitcast4_i32_f32(simd[i32 * 4]) -> simd[f32 * 4];
-    fn bitcast8_i32_f32(simd[i32 * 8]) -> simd[f32 * 8];
-    fn bitcast16_i32_f32(simd[i32 * 16]) -> simd[f32 * 16];
+    fn "select" select4_i32(simd[bool * 4], simd[i32 * 4], simd[i32 * 4]) -> simd[i32 * 4];
+    fn "select" select8_i32(simd[bool * 8], simd[i32 * 8], simd[i32 * 8]) -> simd[i32 * 8];
+    fn "select" select16_i32(simd[bool * 16], simd[i32 * 16], simd[i32 * 16]) -> simd[i32 * 16];
+    fn "select" select4_f32(simd[bool * 4], simd[f32 * 4], simd[f32 * 4]) -> simd[f32 * 4];
+    fn "select" select8_f32(simd[bool * 8], simd[f32 * 8], simd[f32 * 8]) -> simd[f32 * 8];
+    fn "select" select16_f32(simd[bool * 16], simd[f32 * 16], simd[f32 * 16]) -> simd[f32 * 16];
 
-    fn select4_i32(simd[bool * 4], simd[i32 * 4], simd[i32 * 4]) -> simd[i32 * 4];
-    fn select8_i32(simd[bool * 8], simd[i32 * 8], simd[i32 * 8]) -> simd[i32 * 8];
-    fn select16_i32(simd[bool * 16], simd[i32 * 16], simd[i32 * 16]) -> simd[i32 * 16];
-
-    fn select4_f32(simd[bool * 4], simd[f32 * 4], simd[f32 * 4]) -> simd[f32 * 4];
-    fn select8_f32(simd[bool * 8], simd[f32 * 8], simd[f32 * 8]) -> simd[f32 * 8];
-    fn select16_f32(simd[bool * 16], simd[f32 * 16], simd[f32 * 16]) -> simd[f32 * 16];
-
-    fn shuffle4_i32(simd[i32 * 4], simd[i32 * 4], simd[i32 * 4]) -> simd[i32 * 4];
-    fn shuffle8_i32(simd[i32 * 8], simd[i32 * 8], simd[i32 * 8]) -> simd[i32 * 8];
-    fn shuffle16_i32(simd[i32 * 16], simd[i32 * 16], simd[i32 * 16]) -> simd[i32 * 16];
-
-    fn shuffle4_f32(simd[f32 * 4], simd[f32 * 4], simd[i32 * 4]) -> simd[f32 * 4];
-    fn shuffle8_f32(simd[f32 * 8], simd[f32 * 8], simd[i32 * 8]) -> simd[f32 * 8];
-    fn shuffle16_f32(simd[f32 * 16], simd[f32 * 16], simd[i32 * 16]) -> simd[f32 * 16];
+    fn "shuffle" shuffle4_i32(simd[i32 * 4], simd[i32 * 4], simd[i32 * 4]) -> simd[i32 * 4];
+    fn "shuffle" shuffle8_i32(simd[i32 * 8], simd[i32 * 8], simd[i32 * 8]) -> simd[i32 * 8];
+    fn "shuffle" shuffle16_i32(simd[i32 * 16], simd[i32 * 16], simd[i32 * 16]) -> simd[i32 * 16];
+    fn "shuffle" shuffle4_f32(simd[f32 * 4], simd[f32 * 4], simd[i32 * 4]) -> simd[f32 * 4];
+    fn "shuffle" shuffle8_f32(simd[f32 * 8], simd[f32 * 8], simd[i32 * 8]) -> simd[f32 * 8];
+    fn "shuffle" shuffle16_f32(simd[f32 * 16], simd[f32 * 16], simd[i32 * 16]) -> simd[f32 * 16];
 
     fn cuda(i32, (i32, i32, i32), (i32, i32, i32), fn() -> ()) -> ();
     fn nvvm(i32, (i32, i32, i32), (i32, i32, i32), fn() -> ()) -> ();

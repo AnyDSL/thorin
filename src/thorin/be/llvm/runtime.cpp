@@ -1,8 +1,9 @@
 #include "thorin/be/llvm/runtime.h"
 
 #include <iostream>
-#include <exception>
 #include <sstream>
+#include <stdexcept>
+
 #include <llvm/Bitcode/ReaderWriter.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Type.h>

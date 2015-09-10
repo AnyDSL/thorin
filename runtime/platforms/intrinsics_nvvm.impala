@@ -301,6 +301,8 @@ fn atomic_add_local(a: &i32, b: i32) -> i32 { atomic_add(a, b) }
 fn atomic_min_global(a: &i32, b: i32) -> i32 { atomic_min(a, b) }
 fn atomic_min_local(a: &i32, b: i32) -> i32 { atomic_min(a, b) }
 
+fn isfinitef(a: f32) -> i32 { if isnanf(a) == 0 && isinff(a) == 0 { 1 } else { 0 } }
+
 fn fminf(a: f32, b: f32) -> f32 { nvvm_fmin_f(a, b) }
 fn fmaxf(a: f32, b: f32) -> f32 { nvvm_fmax_f(a, b) }
 fn fmin(a: f64, b: f64) -> f64 { nvvm_fmin_d(a, b) }
@@ -332,9 +334,12 @@ extern "C" {
     fn "__nv_asinf"     asinf(f32) -> f32;
     fn "__nv_acosf"     acosf(f32) -> f32;
     fn "__nv_erff"      erff(f32) -> f32;
+    fn "__nv_fmodf"     fmodf(f32, f32) -> f32;
     fn "__nv_floorf"    floorf(f32) -> f32;
     fn "__nv_fmaf"      fmaf(f32, f32, f32) -> f32;
     fn "__nv_fmaf"      madf(f32, f32, f32) -> f32;
+    fn "__nv_isinff"    isinff(f32) -> i32;
+    fn "__nv_isnanf"    isnanf(f32) -> i32;
     fn "__nv_exp"       exp(f64) -> f64;
     fn "__nv_pow"       pow(f64, f64) -> f64;
     fn "__nv_rsqrt"     rsqrt(f64) -> f64;
@@ -345,6 +350,7 @@ extern "C" {
     fn "__nv_sin"       sin(f64) -> f64;
     fn "__nv_cos"       cos(f64) -> f64;
     fn "__nv_erf"       erf(f64) -> f64;
+    fn "__nv_fmod"      fmod(f64, f64) -> f64;
     fn "__nv_floor"     floor(f64) -> f64;
     fn "__nv_fma"       fma(f64, f64, f64) -> f64;
     fn "__nv_fma"       mad(f64, f64, f64) -> f64;

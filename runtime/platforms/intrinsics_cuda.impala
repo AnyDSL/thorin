@@ -16,8 +16,12 @@ extern "device" {
     fn asinf(f32) -> f32;
     fn acosf(f32) -> f32;
     fn erff(f32) -> f32;
+    fn fmodf(f32, f32) -> f32;
     fn floorf(f32) -> f32;
     fn fmaf(f32, f32, f32) -> f32;
+    fn "isinf"    isinff(f32) -> i32;
+    fn "isnan"    isnanf(f32) -> i32;
+    fn "isfinite" isfinitef(f32) -> i32;
     fn exp(f64) -> f64;
     fn pow(f64, f64) -> f64;
     fn rsqrt(f64) -> f64;
@@ -28,6 +32,7 @@ extern "device" {
     fn sin(f64) -> f64;
     fn cos(f64) -> f64;
     fn erf(f64) -> f64;
+    fn fmod(f64, f64) -> f64;
     fn floor(f64) -> f64;
     fn fma(f64, f64, f64) -> f64;
     fn copysignf(f32, f32) -> f32;

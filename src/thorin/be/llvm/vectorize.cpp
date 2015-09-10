@@ -5,10 +5,11 @@
 #include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/Transforms/Scalar.h>
 
+#include <wfvInterface.h>
+
 #include "thorin/primop.h"
 #include "thorin/world.h"
 
-#include <wfvInterface.h>
 
 namespace thorin {
 

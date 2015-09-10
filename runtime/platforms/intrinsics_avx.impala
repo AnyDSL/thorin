@@ -64,7 +64,7 @@ extern "device" {
     fn "llvm.x86.sse.cmp.ps" cmpps128(simd[f32 * 4], simd[f32 * 4], i8) -> simd[f32 * 4];
     fn "llvm.x86.sse.rcp.ps" rcpps128(simd[f32 * 4]) -> simd[f32 * 4];
     fn "llvm.x86.sse.rsqrt.ps" rsqrtps128(simd[f32 * 4]) -> simd[f32 * 4];
-    fn "llvm.x86.sse.blendv.ps" blendvps128(simd[f32 * 4], simd[f32 * 4], simd[f32 * 4]) -> simd[f32 * 4];
+    fn "llvm.x86.sse41.blendvps" blendvps128(simd[f32 * 4], simd[f32 * 4], simd[f32 * 4]) -> simd[f32 * 4];
 
     fn "llvm.x86.avx.movmsk.ps.256" movmskps256(simd[f32 * 8]) -> i32;
     fn "llvm.x86.avx.cmp.ps.256" cmpps256(simd[f32 * 8], simd[f32 * 8], i8) -> simd[f32 * 8];

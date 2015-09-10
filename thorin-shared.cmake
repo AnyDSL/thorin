@@ -1,6 +1,6 @@
 IF ( LLVM_FOUND )
     FUNCTION ( get_thorin_llvm_dependency_libs OUT_VAR )
-    llvm_map_components_to_libnames ( THORIN_LLVM_TEMP_LIBS core mc native ipo irreader bitreader bitwriter support )
+    llvm_map_components_to_libnames ( THORIN_LLVM_TEMP_LIBS core mc native ipo irreader bitreader bitwriter scalaropts support )
     SET ( ${OUT_VAR} ${THORIN_LLVM_TEMP_LIBS} PARENT_SCOPE )
     ENDFUNCTION ()
 ELSE ()

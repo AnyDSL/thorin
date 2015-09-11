@@ -597,7 +597,7 @@ std::ostream& CCodeGen::emit(Def def) {
     }
 
     if (auto agg = def->isa<Aggregate>()) {
-        assert(def->isa<Tuple>() || def->isa<StructAgg>());
+        assert(def->isa<Tuple>() || def->isa<StructAgg>() || def->isa<Vector>());
         // emit definitions of inlined elements
         for (auto op : agg->ops()) emit_aggop_defs(op);
 

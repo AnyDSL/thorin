@@ -611,27 +611,28 @@ std::ostream& CCodeGen::emit(Def def) {
     }
 
     if (auto aggop = def->isa<AggOp>()) {
-        auto emit_access = [&] () {
-            if (aggop->agg()->type().isa<ArrayType>()) {
-                emit(aggop->agg()) << ".e[";
-                emit(aggop->index()) << "];";
-            } else if (aggop->agg()->type().isa<TupleType>() || aggop->agg()->type().isa<StructAppType>()) {
-                emit(aggop->agg()) << ".e";
-                emit(aggop->index()) << ";";
-            } else if (aggop->agg()->type().isa<VectorType>()) {
-                if (aggop->index()->is_primlit(0))
-                    emit(aggop->agg()) << ".x;";
-                else if (aggop->index()->is_primlit(1))
-                    emit(aggop->agg()) << ".y;";
-                else if (aggop->index()->is_primlit(2))
-                    emit(aggop->agg()) << ".z;";
-                else if (aggop->index()->is_primlit(3))
-                    emit(aggop->agg()) << ".w;";
+        auto emit_access = [&] (Def def, Def index) -> std::ostream& {
+            if (def->type().isa<ArrayType>()) {
+                emit(def) << ".e[";
+                emit(index) << "]";
+            } else if (def->type().isa<TupleType>() || def->type().isa<StructAppType>()) {
+                emit(def) << ".e";
+                emit(index);
+            } else if (def->type().isa<VectorType>()) {
+                if (index->is_primlit(0))
+                    emit(def) << ".x";
+                else if (index->is_primlit(1))
+                    emit(def) << ".y";
+                else if (index->is_primlit(2))
+                    emit(def) << ".z";
+                else if (index->is_primlit(3))
+                    emit(def) << ".w";
                 else
                     THORIN_UNREACHABLE;
             } else {
                 THORIN_UNREACHABLE;
             }
+            return stream();
         };
 
         if (auto extract = aggop->isa<Extract>()) {
@@ -642,14 +643,18 @@ std::ostream& CCodeGen::emit(Def def) {
             if (auto memop = extract->agg()->isa<MemOp>())
                 emit(memop) << ";";
             else
-                emit_access();
+                emit_access(aggop->agg(), aggop->index()) << ";";
             return insert(def->gid(), def->unique_name());
         }
 
         auto ins = def->as<Insert>();
-        emit(ins->index()) << ";";
-        emit_access();
-        return insert(def->gid(), ins->agg()->unique_name());
+        emit_type(aggop->type()) << " " << aggop->unique_name() << " = ";
+        emit(ins->agg()) << ";";
+        insert(def->gid(), aggop->unique_name());
+        newline();
+        emit_access(def, ins->index()) << " = ";
+        emit(ins->value()) << ";";
+        return stream();
     }
 
     if (auto primlit = def->isa<PrimLit>()) {

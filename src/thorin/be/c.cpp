@@ -602,8 +602,9 @@ std::ostream& CCodeGen::emit(Def def) {
         for (auto op : agg->ops()) emit_aggop_defs(op);
 
         emit_type(agg->type()) << " " << agg->unique_name() << ";";
+        char elem_prefix = (def->isa<Vector>()) ? 's' : 'e';
         for (size_t i = 0, e = agg->ops().size(); i != e; ++i) {
-            newline() << agg->unique_name() << ".e" << i << " = ";
+            newline() << agg->unique_name() << "." << elem_prefix << i << " = ";
             emit(agg->op(i)) << ";";
         }
         return insert(def->gid(), def->unique_name());

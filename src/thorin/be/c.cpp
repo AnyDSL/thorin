@@ -249,6 +249,8 @@ void CCodeGen::emit() {
 
         // lambda declarations
         auto lambda = scope.entry();
+        if (lambda->is_intrinsic())
+            return;
 
         // retrieve return param
         const Param *ret_param = nullptr;

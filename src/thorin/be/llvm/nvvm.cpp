@@ -32,8 +32,8 @@ NVVMCodeGen::NVVMCodeGen(World& world)
     }
     // nvvmir.version
     auto nvvmir_version_md = module_->getOrInsertNamedMetadata("nvvmir.version");
-    llvm::Metadata* annotation_values_11[] = { llvm::ConstantAsMetadata::get(builder_.getInt64(1)), llvm::ConstantAsMetadata::get(builder_.getInt64(1)) };
-    nvvmir_version_md->addOperand(llvm::MDNode::get(context_, annotation_values_11));
+    llvm::Metadata* annotation_values_12[] = { llvm::ConstantAsMetadata::get(builder_.getInt64(1)), llvm::ConstantAsMetadata::get(builder_.getInt64(2)) };
+    nvvmir_version_md->addOperand(llvm::MDNode::get(context_, annotation_values_12));
 }
 
 //------------------------------------------------------------------------------
@@ -171,7 +171,7 @@ static std::string get_texture_fetch_constraint(Type type) {
     char c;
     switch (type.as<PrimType>()->primtype_kind()) {
         case PrimType_ps8:  case PrimType_qs8:
-        case PrimType_pu8:  case PrimType_qu8:  c = 'c'; break; // not officially listed
+        case PrimType_pu8:  case PrimType_qu8:  c = 'c'; break;
         case PrimType_ps16: case PrimType_qs16:
         case PrimType_pu16: case PrimType_qu16: c = 'h'; break;
         case PrimType_bool:

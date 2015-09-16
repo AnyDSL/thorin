@@ -1,1 +1,5 @@
-gcc -o log main.cpp
+all:
+	gcc -o log main.cpp
+
+log:
+	gcc -DLOGGING -o log main.cpp

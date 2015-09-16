@@ -1,17 +1,24 @@
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "log.h"
 
+LOG_LEVEL Logging::level = INFO;
+
 int main(int argc, const char* argv[]) {
-  if(argc < 2) {
+  if(argc < 3) {
     exit(-1);
   }
 
-  int runs = atoi(argv[1]);
-
-  LOG(LOG_LEVEL::INFO, "Starting %i runs!", runs);
-  for(int i = 0; i < runs; i++) {
-    LOG(LOG_LEVEL::DEBUG, "-> %i / %i", i, runs);
+  if(atoi(argv[1]) == 0) {
+    Logging::level = DEBUG;
   }
-  LOG(LOG_LEVEL::INFO, "Finished!");
+
+  int runs = atoi(argv[2]);
+
+  LOG(INFO, "Starting %i runs!\n", runs);
+  for(int i = 0; i < runs; i++) {
+    LOG(DEBUG, "-> %i / %i\n", i, runs);
+  }
+  LOG(INFO, "Finished!\n");
 }

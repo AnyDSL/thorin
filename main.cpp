@@ -18,7 +18,7 @@ int main(int argc, const char* argv[]) {
 
   LOG(INFO, "Starting %i runs!\n", runs);
   for(Counter c; c.get() < runs; c.inc()) {
-    LOG(DEBUG, "-> %i / %i\n", c.get(), runs);
+    LOG(DEBUG, "-> %Y / %i\n", &c, runs);
   }
   LOG(INFO, "Finished!\n");
 }

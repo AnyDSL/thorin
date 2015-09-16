@@ -1,5 +1,7 @@
 all:
-	gcc -o log main.cpp
+	g++ -lstdc++ -o log main.cpp
 
 log:
-	gcc -DLOGGING -o log main.cpp
+	g++ -DLOGGING -lstdc++ -o log main.cpp
+
+.PHONY: all test clean log

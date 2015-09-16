@@ -17,8 +17,8 @@ int main(int argc, const char* argv[]) {
   int runs = atoi(argv[2]);
 
   LOG(INFO, "Starting %i runs!\n", runs);
-  for(int i = 0; i < runs; i++) {
-    LOG(DEBUG, "-> %i / %i\n", i, runs);
+  for(Counter c; c.get() < runs; c.inc()) {
+    LOG(DEBUG, "-> %i / %i\n", c.get(), runs);
   }
   LOG(INFO, "Finished!\n");
 }

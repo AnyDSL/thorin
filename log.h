@@ -7,6 +7,26 @@ public:
 	static LOG_LEVEL level;
 };
 
+/*
+ *	 Custom Class
+ */
+
+class Counter {
+public:
+	Counter() : c(0) {};
+
+	void inc() {
+		c++;
+	}
+
+	const int get() const {
+		return c;
+	}
+
+private:
+	int c;
+};
+
 #ifdef LOGGING
 #define LOG(_level, format, ...) { 			\
 	if(Logging::level <= _level) {			\

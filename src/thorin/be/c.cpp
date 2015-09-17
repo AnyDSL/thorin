@@ -217,6 +217,8 @@ void CCodeGen::emit() {
         stream() << "__device__ inline int gridDim_x() { return gridDim.x; }\n";
         stream() << "__device__ inline int gridDim_y() { return gridDim.y; }\n";
         stream() << "__device__ inline int gridDim_z() { return gridDim.z; }\n";
+        stream() << "__device__ inline int as_int(float val) { return __float_as_int(val); }\n";
+        stream() << "__device__ inline int as_float(int val) { return __int_as_float(val); }\n";
     }
     if (lang_==Lang::OPENCL) {
         stream() << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n";
@@ -247,6 +249,8 @@ void CCodeGen::emit() {
 
         // lambda declarations
         auto lambda = scope.entry();
+        if (lambda->is_intrinsic())
+            return;
 
         // retrieve return param
         const Param *ret_param = nullptr;
@@ -466,7 +470,16 @@ void CCodeGen::emit() {
                     emit(to_lambda);
                 } else {
                     if (to_lambda->is_intrinsic()) {
-                        THORIN_UNREACHABLE;
+                        if (to_lambda->intrinsic() == Intrinsic::Reinterpret) {
+                            auto cont = lambda->arg(2)->as_lambda();
+                            emit_type(cont->param(1)->type()) << " ";
+                            emit(cont->param(1)) << " = as_";
+                            emit_type(cont->param(1)->type()) << "(";
+                            emit(lambda->arg(1)) << ");";
+                            newline();
+                        } else {
+                            THORIN_UNREACHABLE;
+                        }
                     } else {
                         // emit temporaries for args
                         for (auto arg : lambda->args()) {

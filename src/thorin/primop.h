@@ -478,7 +478,7 @@ private:
 
 public:
     Def extra() const { return op(1); }
-    virtual bool has_multiple_outs() const { return true; }
+    virtual bool has_multiple_outs() const override { return true; }
     Def out_ptr() const { return out(1); }
     TupleType type() const { return MemOp::type().as<TupleType>(); }
     PtrType out_ptr_type() const { return type()->arg(1).as<PtrType>(); }
@@ -509,7 +509,7 @@ private:
     Load(Def mem, Def ptr, const std::string& name);
 
 public:
-    virtual bool has_multiple_outs() const { return true; }
+    virtual bool has_multiple_outs() const override { return true; }
     Def out_val() const { return out(1); }
     TupleType type() const { return MemOp::type().as<TupleType>(); }
     Type out_val_type() const { return type()->arg(1); }
@@ -545,7 +545,7 @@ private:
 
 public:
     TupleType type() const { return MemOp::type().as<TupleType>(); }
-    virtual bool has_multiple_outs() const { return true; }
+    virtual bool has_multiple_outs() const override { return true; }
     Def out_frame() const { return out(1); }
     static const Enter* is_out_mem(Def def) { return is_out<0, Enter>(def); }
     static const Enter* is_out_ptr(Def def) { return is_out<1, Enter>(def); }
@@ -562,7 +562,7 @@ private:
 public:
     Def mem_offset() const { return op(2); }
     Def mem_size() const { return op(3); }
-    virtual bool has_multiple_outs() const { return true; }
+    virtual bool has_multiple_outs() const override { return true; }
     Def out_ptr() const { return out(1); }
     TupleType type() const { return Access::type().as<TupleType>(); }
     PtrType out_ptr_type() const { return type()->arg(1).as<PtrType>(); }

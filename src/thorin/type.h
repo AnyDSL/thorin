@@ -348,7 +348,7 @@ public:
     Type type_arg(size_t i) const { return type_args()[i]; }
     size_t num_type_args() const { return type_args().size(); }
     Type elem(const Def& def) const { return TypeNode::elem(def); }
-    virtual Type elem(size_t i) const;
+    virtual Type elem(size_t i) const override;
     ArrayRef<Type> elems() const;
     size_t num_elems() const { return struct_abs_type()->num_args(); }
     virtual bool use_lea() const override { return true; }
@@ -409,7 +409,7 @@ public:
         : ArrayTypeNode(world, Node_IndefiniteArrayType, elem_type)
     {}
 
-    virtual IndefiniteArrayType is_indefinite() const;
+    virtual IndefiniteArrayType is_indefinite() const override;
 
 private:
     virtual Type vrebuild(World& to, ArrayRef<Type> args) const override;

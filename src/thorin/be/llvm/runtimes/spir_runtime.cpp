@@ -10,7 +10,7 @@ SPIRRuntime::SPIRRuntime(llvm::LLVMContext& context, llvm::Module* target, llvm:
 {}
 
 llvm::Value* SPIRRuntime::malloc(llvm::Value* device, llvm::Value* ptr) {
-    llvm::Value* malloc_args[] = { device, builder_.CreateBitCast(ptr, builder_.getInt8PtrTy()) };
+    llvm::Value* malloc_args[] = { device, builder_.CreatePointerCast(ptr, builder_.getInt8PtrTy()) };
     auto device_mem = builder_.CreateCall(get("spir_malloc_buffer"), malloc_args);
     return device_mem;
 }
@@ -21,12 +21,12 @@ llvm::Value* SPIRRuntime::free(llvm::Value* device, llvm::Value* mem) {
 }
 
 llvm::Value* SPIRRuntime::write(llvm::Value* device, llvm::Value* mem, llvm::Value* data) {
-    llvm::Value* mem_args[] = { device, mem, builder_.CreateBitCast(data, builder_.getInt8PtrTy()) };
+    llvm::Value* mem_args[] = { device, mem, builder_.CreatePointerCast(data, builder_.getInt8PtrTy()) };
     return builder_.CreateCall(get("spir_write_buffer"), mem_args);
 }
 
 llvm::Value* SPIRRuntime::read(llvm::Value* device, llvm::Value* mem, llvm::Value* data) {
-    llvm::Value* args[] = { device, mem, builder_.CreateBitCast(data, builder_.getInt8PtrTy()) };
+    llvm::Value* args[] = { device, mem, builder_.CreatePointerCast(data, builder_.getInt8PtrTy()) };
     return builder_.CreateCall(get("spir_read_buffer"), args);
 }
 

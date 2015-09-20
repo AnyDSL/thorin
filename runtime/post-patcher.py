@@ -134,6 +134,15 @@ nvvm_defs = {
     %1 = call i32 asm "vmax.s32.s32.s32.min $0, $1, $2, $3;", "=r, r, r, r" (i32 %a, i32 %b, i32 %c)
     ret i32 %1
 }
+""",
+  "ballot" : """define i32 @ballot(i32 %a) {
+    %1 = call i32 asm
+        "{ .reg .pred %p1;
+            setp.ne.u32 %p1, $1, 0;
+            vote.ballot.b32 $0, %p1;
+        }", "=r, r" (i32 %a)
+    ret i32 %1
+}
 """
 }
 

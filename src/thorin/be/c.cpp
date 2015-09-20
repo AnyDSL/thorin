@@ -217,6 +217,8 @@ void CCodeGen::emit() {
         stream() << "__device__ inline int gridDim_x() { return gridDim.x; }\n";
         stream() << "__device__ inline int gridDim_y() { return gridDim.y; }\n";
         stream() << "__device__ inline int gridDim_z() { return gridDim.z; }\n";
+        stream() << "__device__ inline int as_int(float val) { return __float_as_int(val); }\n";
+        stream() << "__device__ inline int as_float(int val) { return __int_as_float(val); }\n";
     }
     if (lang_==Lang::OPENCL) {
         stream() << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n";
@@ -247,6 +249,8 @@ void CCodeGen::emit() {
 
         // lambda declarations
         auto lambda = scope.entry();
+        if (lambda->is_intrinsic())
+            return;
 
         // retrieve return param
         const Param *ret_param = nullptr;
@@ -466,7 +470,16 @@ void CCodeGen::emit() {
                     emit(to_lambda);
                 } else {
                     if (to_lambda->is_intrinsic()) {
-                        THORIN_UNREACHABLE;
+                        if (to_lambda->intrinsic() == Intrinsic::Reinterpret) {
+                            auto cont = lambda->arg(2)->as_lambda();
+                            emit_type(cont->param(1)->type()) << " ";
+                            emit(cont->param(1)) << " = as_";
+                            emit_type(cont->param(1)->type()) << "(";
+                            emit(lambda->arg(1)) << ");";
+                            newline();
+                        } else {
+                            THORIN_UNREACHABLE;
+                        }
                     } else {
                         // emit temporaries for args
                         for (auto arg : lambda->args()) {
@@ -597,40 +610,42 @@ std::ostream& CCodeGen::emit(Def def) {
     }
 
     if (auto agg = def->isa<Aggregate>()) {
-        assert(def->isa<Tuple>() || def->isa<StructAgg>());
+        assert(def->isa<Tuple>() || def->isa<StructAgg>() || def->isa<Vector>());
         // emit definitions of inlined elements
         for (auto op : agg->ops()) emit_aggop_defs(op);
 
         emit_type(agg->type()) << " " << agg->unique_name() << ";";
+        char elem_prefix = (def->isa<Vector>()) ? 's' : 'e';
         for (size_t i = 0, e = agg->ops().size(); i != e; ++i) {
-            newline() << agg->unique_name() << ".e" << i << " = ";
+            newline() << agg->unique_name() << "." << elem_prefix << i << " = ";
             emit(agg->op(i)) << ";";
         }
         return insert(def->gid(), def->unique_name());
     }
 
     if (auto aggop = def->isa<AggOp>()) {
-        auto emit_access = [&] () {
-            if (aggop->agg()->type().isa<ArrayType>()) {
-                emit(aggop->agg()) << ".e[";
-                emit(aggop->index()) << "];";
-            } else if (aggop->agg()->type().isa<TupleType>() || aggop->agg()->type().isa<StructAppType>()) {
-                emit(aggop->agg()) << ".e";
-                emit(aggop->index()) << ";";
-            } else if (aggop->agg()->type().isa<VectorType>()) {
-                if (aggop->index()->is_primlit(0))
-                    emit(aggop->agg()) << ".x;";
-                else if (aggop->index()->is_primlit(1))
-                    emit(aggop->agg()) << ".y;";
-                else if (aggop->index()->is_primlit(2))
-                    emit(aggop->agg()) << ".z;";
-                else if (aggop->index()->is_primlit(3))
-                    emit(aggop->agg()) << ".w;";
+        auto emit_access = [&] (Def def, Def index) -> std::ostream& {
+            if (def->type().isa<ArrayType>()) {
+                emit(def) << ".e[";
+                emit(index) << "]";
+            } else if (def->type().isa<TupleType>() || def->type().isa<StructAppType>()) {
+                emit(def) << ".e";
+                emit(index);
+            } else if (def->type().isa<VectorType>()) {
+                if (index->is_primlit(0))
+                    emit(def) << ".x";
+                else if (index->is_primlit(1))
+                    emit(def) << ".y";
+                else if (index->is_primlit(2))
+                    emit(def) << ".z";
+                else if (index->is_primlit(3))
+                    emit(def) << ".w";
                 else
                     THORIN_UNREACHABLE;
             } else {
                 THORIN_UNREACHABLE;
             }
+            return stream();
         };
 
         if (auto extract = aggop->isa<Extract>()) {
@@ -641,14 +656,18 @@ std::ostream& CCodeGen::emit(Def def) {
             if (auto memop = extract->agg()->isa<MemOp>())
                 emit(memop) << ";";
             else
-                emit_access();
+                emit_access(aggop->agg(), aggop->index()) << ";";
             return insert(def->gid(), def->unique_name());
         }
 
         auto ins = def->as<Insert>();
-        emit(ins->index()) << ";";
-        emit_access();
-        return insert(def->gid(), ins->agg()->unique_name());
+        emit_type(aggop->type()) << " " << aggop->unique_name() << " = ";
+        emit(ins->agg()) << ";";
+        insert(def->gid(), aggop->unique_name());
+        newline();
+        emit_access(def, ins->index()) << " = ";
+        emit(ins->value()) << ";";
+        return stream();
     }
 
     if (auto primlit = def->isa<PrimLit>()) {

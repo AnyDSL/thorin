@@ -315,7 +315,10 @@ extern "C" {
     fn maxmin(a: i32, b: i32, c: i32) -> i32;
     fn ldg4_f32(&simd[f32 * 4]) -> simd[f32 * 4];
     fn ldg4_i32(&simd[i32 * 4]) -> simd[i32 * 4];
+    fn ballot(i32) -> i32;
 }
+
+fn popcount(i: i32) -> i32 { nvvm_popc_i(i) }
 
 extern "C" {
     // libdevice intrinsics: http://docs.nvidia.com/cuda/libdevice-users-guide

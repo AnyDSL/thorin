@@ -364,7 +364,7 @@ Def Lambda::get_value(size_t handle, Type type, const char* name) {
 return_bottom:
     // TODO provide hook instead of fixed functionality
     std::cerr << "'" << name << "'" << " may be undefined" << std::endl;
-    return set_value(handle, world().bottom(type, Location("may_be_undefined", 47, 11, 47, 11)));
+    return set_value(handle, world().bottom(type, Location()));
 }
 
 void Lambda::seal() {

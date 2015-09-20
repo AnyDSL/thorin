@@ -112,11 +112,7 @@ protected:
         , gid_(gid)
         , name(name)
     {}
-    #ifndef NDEBUG
-    virtual ~DefNode() { assert(loc_.is_set()); }
-    #else
     virtual ~DefNode() {}
-    #endif
 
     void clear_type() { type_.clear(); }
     void set_type(Type type) { type_ = type; }

@@ -801,7 +801,7 @@ Lambda* World::lambda(FnType fn, const Location& loc, CC cc, Intrinsic intrinsic
 }
 
 Lambda* World::meta_lambda() {
-    auto l = lambda(fn_type(), Location("meta", 47, 11, 47, 11), "meta");
+    auto l = lambda(fn_type(), Location(), "meta");
     l->jump(bottom(fn_type(), l->loc()), {});
     return l;
 }

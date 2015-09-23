@@ -26,6 +26,11 @@ ENDIF()
 STRING(TOLOWER "${BACKEND}" BACKEND)
 MESSAGE(STATUS "Selected backend: ${BACKEND}")
 
+STRING(TOLOWER "${CMAKE_BUILD_TYPE}" DEBUG)
+IF("${DEBUG}" STREQUAL "debug")
+    SET(DEBUG_FLAGS "-g")
+ENDIF()
+
 macro(THORIN_RUNTIME_WRAP outfiles outlibs)
     CMAKE_PARSE_ARGUMENTS("TRW" "MAIN" "BACKEND" "FILES" ${ARGN})
     IF(NOT "${TRW_UNPARSED_ARGUMENTS}" STREQUAL "")
@@ -128,7 +133,7 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
     set(_objfile ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.o)
     # tell cmake what to do
     add_custom_command(OUTPUT ${_llfile}
-        COMMAND ${IMPALA_BIN} ${_impala_platform} ${_infiles} -emit-llvm -O3
+        COMMAND ${IMPALA_BIN} ${_impala_platform} ${_infiles} -emit-llvm -O3 ${DEBUG_FLAGS}
         COMMAND ${PYTHON_BIN} ${THORIN_RUNTIME_DIR}/post-patcher.py ${TRW_BACKEND} ${CMAKE_CURRENT_BINARY_DIR}/${_basename}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         DEPENDS ${IMPALA_BIN} ${THORIN_LIBRARY} ${PYTHON_BIN} ${THORIN_RUNTIME_DIR}/post-patcher.py ${_impala_platform} ${_infiles} VERBATIM)
@@ -140,7 +145,7 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
             DEPENDS ${_spirfile} VERBATIM)
     ENDIF()
     add_custom_command(OUTPUT ${_objfile}
-        COMMAND ${CLANGPP_BIN} -O3 -march=native -ffast-math -g -c -o ${_objfile} ${_llfile}
+        COMMAND ${CLANGPP_BIN} -O3 -march=native -ffast-math ${DEBUG_FLAGS} -c -o ${_objfile} ${_llfile}
         DEPENDS ${_llfile} VERBATIM)
     SET_SOURCE_FILES_PROPERTIES(
         ${_objfile}

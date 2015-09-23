@@ -56,9 +56,9 @@ Lambda* Vectorizer::vectorize() {
     std::ostringstream oss;
     auto entry = scope.entry();
     oss << entry->name << "_x" << length;
-    auto vlambda = world().lambda(vectorize_type(entry->type(), length).as<FnType>(), oss.str());
+    auto vlambda = world().lambda(vectorize_type(entry->type(), length).as<FnType>(), entry->loc(), oss.str());
     vlambda->make_external();
-    mapped[entry] = *world().true_mask(length);
+    mapped[entry] = *world().true_mask(length, entry->loc());
 
     for (size_t i = 0, e = entry->num_params(); i != e; ++i) {
         const Param* param = entry->param(i);
@@ -99,7 +99,7 @@ void Vectorizer::infer_condition(Lambda* lambda) {
     if (postdomtree->idom(dom) == lambda)
         cond = mapped[dom];
     else {
-        cond = world().false_mask(length);
+        cond = world().false_mask(length, lambda->loc());
 
         for (auto pred : scope.preds(lambda)) {
             Def pred_cond = mapped[pred];
@@ -108,14 +108,14 @@ void Vectorizer::infer_condition(Lambda* lambda) {
                 assert(scope.num_succs(pred) == 2);
                 Def select_cond = vectorize(select->cond(), length);
                 if (select->tval() == lambda)
-                    pred_cond = world().arithop_and(pred_cond, select_cond);
+                    pred_cond = world().arithop_and(pred_cond, select_cond, pred_cond->loc());
                 else {
                     assert(select->fval() == lambda);
-                    pred_cond = world().arithop_and(pred_cond, world().arithop_not(select_cond));
+                    pred_cond = world().arithop_and(pred_cond, world().arithop_not(select_cond, select_cond->loc()), pred_cond->loc());
                 }
             }
 
-            cond = world().arithop_or(cond, pred_cond);
+            cond = world().arithop_or(cond, pred_cond, cond->loc());
         }
     }
 }
@@ -144,7 +144,7 @@ void Vectorizer::param2select(const Param* param) {
 
     for (auto pred : preds) {
         Def peek = vectorize(pred->arg(param->index()), length);
-        select = select ? world().select(mapped[pred], peek, select) : peek;
+        select = select ? world().select(mapped[pred], peek, select, select->loc()) : peek;
     }
 
     mapped[param] = select;
@@ -170,9 +170,9 @@ Def Vectorizer::vectorize(Def def, size_t length) {
     if (def->isa<Param>() || (def->isa<PrimOp>() && !def->is_const()))
         return mapped[def];
     if (auto primlit = def->isa<PrimLit>())
-        return world().literal(primlit->primtype_kind(), primlit->value(), length);
+        return world().literal(primlit->primtype_kind(), primlit->value(), primlit->loc(), length);
     if (def->isa<Bottom>())
-        return world().bottom(def->type(), length);
+        return world().bottom(def->type(), def->loc(), length);
 
     const PrimOp* primop = def->as<PrimOp>();
     Array<Def> vops(primop->size());

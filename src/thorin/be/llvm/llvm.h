@@ -1,6 +1,7 @@
 #ifndef THORIN_BE_LLVM_LLVM_H
 #define THORIN_BE_LLVM_LLVM_H
 
+#include <llvm/DIBuilder.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Module.h>
 
@@ -20,7 +21,7 @@ protected:
             llvm::CallingConv::ID device_calling_convention, llvm::CallingConv::ID kernel_calling_convention);
 
 public:
-    void emit(int opt);
+    void emit(int opt, bool debug);
 
 protected:
     void optimize(int opt);
@@ -64,7 +65,8 @@ protected:
     World& world_;
     llvm::LLVMContext context_;
     AutoPtr<llvm::Module> module_;
-    llvm::IRBuilder<> builder_;
+    llvm::IRBuilder<> irbuilder_;
+    llvm::DIBuilder dibuilder_;
     llvm::CallingConv::ID function_calling_convention_;
     llvm::CallingConv::ID device_calling_convention_;
     llvm::CallingConv::ID kernel_calling_convention_;
@@ -91,7 +93,7 @@ protected:
 template<class T>
 llvm::ArrayRef<T> llvm_ref(const Array<T>& array) { return llvm::ArrayRef<T>(array.begin(), array.end()); }
 
-void emit_llvm(World& world, int opt);
+void emit_llvm(World& world, int opt, bool debug);
 
 } // namespace thorin
 

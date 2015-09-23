@@ -18,8 +18,8 @@ extern "C" {
 fn atomic_xchg(a: &i32, b: i32) -> i32 { atomic(0u, a, b) }
 fn atomic_add(a: &i32, b: i32) -> i32 { atomic(1u, a, b) }
 fn atomic_sub(a: &i32, b: i32) -> i32 { atomic(2u, a, b) }
-fn atomic_min(a: &i32, b: i32) -> i32 { atomic(7u, a, b) }
-fn atomic_max(a: &i32, b: i32) -> i32 { atomic(8u, a, b) }
+fn atomic_max(a: &i32, b: i32) -> i32 { atomic(7u, a, b) }
+fn atomic_min(a: &i32, b: i32) -> i32 { atomic(8u, a, b) }
 
 fn isinff(a: f32) -> i32 { if isinff_(a) { 1 } else { 0 } }
 fn isnanf(a: f32) -> i32 { if isnanf_(a) { 1 } else { 0 } }

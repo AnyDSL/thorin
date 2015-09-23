@@ -11,8 +11,8 @@ namespace thorin {
 
 class PrimOp : public DefNode {
 protected:
-    PrimOp(NodeKind kind, Type type, ArrayRef<Def> args, const std::string& name)
-        : DefNode(-1, kind, type ? type.unify() : nullptr, args.size(), name)
+    PrimOp(NodeKind kind, Type type, ArrayRef<Def> args, const Location& loc, const std::string& name)
+        : DefNode(-1, kind, type ? type.unify() : nullptr, args.size(), loc, name)
         , is_outdated_(false)
     {
         for (size_t i = 0, e = size(); i != e; ++i)
@@ -63,16 +63,16 @@ struct PrimOpEqual { bool operator () (const PrimOp* o1, const PrimOp* o2) const
 
 class Literal : public PrimOp {
 protected:
-    Literal(NodeKind kind, Type type, const std::string& name)
-        : PrimOp(kind, type, {}, name)
+    Literal(NodeKind kind, Type type, const Location& loc, const std::string& name)
+        : PrimOp(kind, type, {}, loc, name)
     {}
 };
 
 /// This literal represents 'no value'.
 class Bottom : public Literal {
 private:
-    Bottom(Type type, const std::string& name)
-        : Literal(Node_Bottom, type, name)
+    Bottom(Type type, const Location& loc, const std::string& name)
+        : Literal(Node_Bottom, type, loc, name)
     {}
 
     virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
@@ -82,7 +82,7 @@ private:
 
 class PrimLit : public Literal {
 private:
-    PrimLit(World& world, PrimTypeKind kind, Box box, const std::string& name);
+    PrimLit(World& world, PrimTypeKind kind, Box box, const Location& loc, const std::string& name);
 
 public:
     Box value() const { return box_; }
@@ -104,8 +104,8 @@ private:
 
 class VectorOp : public PrimOp {
 protected:
-    VectorOp(NodeKind kind, Type type, ArrayRef<Def> args, const std::string& name)
-        : PrimOp(kind, type, args, name)
+    VectorOp(NodeKind kind, Type type, ArrayRef<Def> args, const Location& loc, const std::string& name)
+        : PrimOp(kind, type, args, loc, name)
     {
         assert(cond()->type()->is_bool());
     }
@@ -116,8 +116,8 @@ public:
 
 class Select : public VectorOp {
 private:
-    Select(Def cond, Def tval, Def fval, const std::string& name)
-        : VectorOp(Node_Select, tval->type(), {cond, tval, fval}, name)
+    Select(Def cond, Def tval, Def fval, const Location& loc, const std::string& name)
+        : VectorOp(Node_Select, tval->type(), {cond, tval, fval}, loc, name)
     {
         assert(tval->type() == fval->type() && "types of both values must be equal");
     }
@@ -133,8 +133,8 @@ public:
 
 class BinOp : public VectorOp {
 protected:
-    BinOp(NodeKind kind, Type type, Def cond, Def lhs, Def rhs, const std::string& name)
-        : VectorOp(kind, type, {cond, lhs, rhs}, name)
+    BinOp(NodeKind kind, Type type, Def cond, Def lhs, Def rhs, const Location& loc, const std::string& name)
+        : VectorOp(kind, type, {cond, lhs, rhs}, loc, name)
     {
         assert(lhs->type() == rhs->type() && "types are not equal");
     }
@@ -146,8 +146,8 @@ public:
 
 class ArithOp : public BinOp {
 private:
-    ArithOp(ArithOpKind kind, Def cond, Def lhs, Def rhs, const std::string& name)
-        : BinOp((NodeKind) kind, lhs->type(), cond, lhs, rhs, name)
+    ArithOp(ArithOpKind kind, Def cond, Def lhs, Def rhs, const Location& loc, const std::string& name)
+        : BinOp((NodeKind) kind, lhs->type(), cond, lhs, rhs, loc, name)
     {}
 
     virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
@@ -162,7 +162,7 @@ public:
 
 class Cmp : public BinOp {
 private:
-    Cmp(CmpKind kind, Def cond, Def lhs, Def rhs, const std::string& name);
+    Cmp(CmpKind kind, Def cond, Def lhs, Def rhs, const Location& loc, const std::string& name);
 
     virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
@@ -176,8 +176,8 @@ public:
 
 class ConvOp : public VectorOp {
 protected:
-    ConvOp(NodeKind kind, Def cond, Def from, Type to, const std::string& name)
-        : VectorOp(kind, to, {cond, from}, name)
+    ConvOp(NodeKind kind, Def cond, Def from, Type to, const Location& loc, const std::string& name)
+        : VectorOp(kind, to, {cond, from}, loc, name)
     {}
 
 public:
@@ -186,8 +186,8 @@ public:
 
 class Cast : public ConvOp {
 private:
-    Cast(Type to, Def cond, Def from, const std::string& name)
-        : ConvOp(Node_Cast, cond, from, to, name)
+    Cast(Type to, Def cond, Def from, const Location& loc, const std::string& name)
+        : ConvOp(Node_Cast, cond, from, to, loc, name)
     {}
 
     virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
@@ -197,8 +197,8 @@ private:
 
 class Bitcast : public ConvOp {
 private:
-    Bitcast(Type to, Def cond, Def from, const std::string& name)
-        : ConvOp(Node_Bitcast, cond, from, to, name)
+    Bitcast(Type to, Def cond, Def from, const Location& loc, const std::string& name)
+        : ConvOp(Node_Bitcast, cond, from, to, loc, name)
     {}
 
     virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
@@ -208,14 +208,14 @@ private:
 
 class Aggregate : public PrimOp {
 protected:
-    Aggregate(NodeKind kind, ArrayRef<Def> args, const std::string& name)
-        : PrimOp(kind, Type() /*set later*/, args, name)
+    Aggregate(NodeKind kind, ArrayRef<Def> args, const Location& loc, const std::string& name)
+        : PrimOp(kind, Type() /*set later*/, args, loc, name)
     {}
 };
 
 class DefiniteArray : public Aggregate {
 private:
-    DefiniteArray(World& world, Type elem, ArrayRef<Def> args, const std::string& name);
+    DefiniteArray(World& world, Type elem, ArrayRef<Def> args, const Location& loc, const std::string& name);
 
     virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
@@ -228,7 +228,7 @@ public:
 
 class IndefiniteArray : public Aggregate {
 private:
-    IndefiniteArray(World& world, Type elem, Def dim, const std::string& name);
+    IndefiniteArray(World& world, Type elem, Def dim, const Location& loc, const std::string& name);
 
     virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
@@ -241,7 +241,7 @@ public:
 
 class Tuple : public Aggregate {
 private:
-    Tuple(World& world, ArrayRef<Def> args, const std::string& name);
+    Tuple(World& world, ArrayRef<Def> args, const Location& loc, const std::string& name);
 
     virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
@@ -253,8 +253,8 @@ public:
 
 class StructAgg : public Aggregate {
 private:
-    StructAgg(StructAppType struct_app_type, ArrayRef<Def> args, const std::string& name)
-        : Aggregate(Node_StructAgg, args, name)
+    StructAgg(StructAppType struct_app_type, ArrayRef<Def> args, const Location& loc, const std::string& name)
+        : Aggregate(Node_StructAgg, args, loc, name)
     {
 #ifndef NDEBUG
         assert(struct_app_type->num_elems() == args.size());
@@ -274,7 +274,7 @@ public:
 
 class Vector : public Aggregate {
 private:
-    Vector(World& world, ArrayRef<Def> args, const std::string& name);
+    Vector(World& world, ArrayRef<Def> args, const Location& loc, const std::string& name);
 
     virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
@@ -283,8 +283,8 @@ private:
 
 class AggOp : public PrimOp {
 protected:
-    AggOp(NodeKind kind, Type type, ArrayRef<Def> args, const std::string& name)
-        : PrimOp(kind, type, args, name)
+    AggOp(NodeKind kind, Type type, ArrayRef<Def> args, const Location& loc, const std::string& name)
+        : PrimOp(kind, type, args, loc, name)
     {}
 
 public:
@@ -296,8 +296,8 @@ public:
 
 class Extract : public AggOp {
 private:
-    Extract(Def agg, Def index, const std::string& name)
-        : AggOp(Node_Extract, extracted_type(agg, index), {agg, index}, name)
+    Extract(Def agg, Def index, const Location& loc, const std::string& name)
+        : AggOp(Node_Extract, extracted_type(agg, index), {agg, index}, loc, name)
     {}
 
     virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
@@ -310,8 +310,8 @@ public:
 
 class Insert : public AggOp {
 private:
-    Insert(Def agg, Def index, Def value, const std::string& name)
-        : AggOp(Node_Insert, agg->type(), {agg, index, value}, name)
+    Insert(Def agg, Def index, Def value, const Location& loc, const std::string& name)
+        : AggOp(Node_Insert, agg->type(), {agg, index, value}, loc, name)
     {}
 
     virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
@@ -329,7 +329,7 @@ public:
  */
 class LEA : public PrimOp {
 private:
-    LEA(Def ptr, Def index, const std::string& name);
+    LEA(Def ptr, Def index, const Location& loc, const std::string& name);
 
     virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
@@ -345,8 +345,8 @@ public:
 
 class EvalOp : public PrimOp {
 protected:
-    EvalOp(NodeKind kind, Def def, const std::string& name)
-        : PrimOp(kind, def->type(), {def}, name)
+    EvalOp(NodeKind kind, Def def, const Location& loc, const std::string& name)
+        : PrimOp(kind, def->type(), {def}, loc, name)
     {}
 
 public:
@@ -355,8 +355,8 @@ public:
 
 class Run : public EvalOp {
 private:
-    Run(Def def, const std::string& name)
-        : EvalOp(Node_Run, def, name)
+    Run(Def def, const Location& loc, const std::string& name)
+        : EvalOp(Node_Run, def, loc, name)
     {}
 
     virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
@@ -366,8 +366,8 @@ private:
 
 class Hlt : public EvalOp {
 private:
-    Hlt(Def def, const std::string& name)
-        : EvalOp(Node_Hlt, def, name)
+    Hlt(Def def, const Location& loc, const std::string& name)
+        : EvalOp(Node_Hlt, def, loc, name)
     {}
 
     virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
@@ -377,8 +377,8 @@ private:
 
 class EndEvalOp : public PrimOp {
 protected:
-    EndEvalOp(NodeKind kind, Def def, Def eval, const std::string& name)
-        : PrimOp(kind, def->type(), {def, eval}, name)
+    EndEvalOp(NodeKind kind, Def def, Def eval, const Location& loc, const std::string& name)
+        : PrimOp(kind, def->type(), {def, eval}, loc, name)
     {}
 
 public:
@@ -388,8 +388,8 @@ public:
 
 class EndRun : public EndEvalOp {
 private:
-    EndRun(Def def, Def run, const std::string& name)
-        : EndEvalOp(Node_EndRun, def, run, name)
+    EndRun(Def def, Def run, const Location& loc, const std::string& name)
+        : EndEvalOp(Node_EndRun, def, run, loc, name)
     {}
 
     virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
@@ -402,8 +402,8 @@ public:
 
 class EndHlt : public EndEvalOp {
 private:
-    EndHlt(Def def, Def hlt, const std::string& name)
-        : EndEvalOp(Node_EndHlt, def, hlt, name)
+    EndHlt(Def def, Def hlt, const Location& loc, const std::string& name)
+        : EndEvalOp(Node_EndHlt, def, hlt, loc, name)
     {}
 
     virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
@@ -418,7 +418,7 @@ public:
 /// Loads from this address yield \p Bottom if the frame has already been closed via \p Leave.
 class Slot : public PrimOp {
 private:
-    Slot(Type type, Def frame, size_t index, const std::string& name);
+    Slot(Type type, Def frame, size_t index, const Location& loc, const std::string& name);
 
 public:
     Def frame() const { return op(0); }
@@ -439,7 +439,7 @@ private:
 /// This represents a global variable in the data segment.
 class Global : public PrimOp {
 private:
-    Global(Def init, bool is_mutable, const std::string& name);
+    Global(Def init, bool is_mutable, const Location& loc, const std::string& name);
 
 public:
     Def init() const { return op(0); }
@@ -460,8 +460,8 @@ private:
 
 class MemOp : public PrimOp {
 protected:
-    MemOp(NodeKind kind, Type type, ArrayRef<Def> args, const std::string& name)
-        : PrimOp(kind, type, args, name)
+    MemOp(NodeKind kind, Type type, ArrayRef<Def> args, const Location& loc, const std::string& name)
+        : PrimOp(kind, type, args, loc, name)
     {
         assert(mem()->type().isa<MemType>());
         assert(args.size() >= 1);
@@ -474,7 +474,7 @@ public:
 
 class Alloc : public MemOp {
 private:
-    Alloc(Type type, Def mem, Def extra, const std::string& name);
+    Alloc(Type type, Def mem, Def extra, const Location& loc, const std::string& name);
 
 public:
     Def extra() const { return op(1); }
@@ -494,8 +494,8 @@ private:
 
 class Access : public MemOp {
 protected:
-    Access(NodeKind kind, Type type, ArrayRef<Def> args, const std::string& name)
-        : MemOp(kind, type, args, name)
+    Access(NodeKind kind, Type type, ArrayRef<Def> args, const Location& loc, const std::string& name)
+        : MemOp(kind, type, args, loc, name)
     {
         assert(args.size() >= 2);
     }
@@ -506,7 +506,7 @@ public:
 
 class Load : public Access {
 private:
-    Load(Def mem, Def ptr, const std::string& name);
+    Load(Def mem, Def ptr, const Location& loc, const std::string& name);
 
 public:
     virtual bool has_multiple_outs() const override { return true; }
@@ -524,8 +524,8 @@ private:
 
 class Store : public Access {
 private:
-    Store(Def mem, Def ptr, Def value, const std::string& name)
-        : Access(Node_Store, mem->type(), {mem, ptr, value}, name)
+    Store(Def mem, Def ptr, Def value, const Location& loc, const std::string& name)
+        : Access(Node_Store, mem->type(), {mem, ptr, value}, loc, name)
     {}
 
     virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
@@ -539,7 +539,7 @@ public:
 
 class Enter : public MemOp {
 private:
-    Enter(Def mem, const std::string& name);
+    Enter(Def mem, const Location& loc, const std::string& name);
 
     virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
@@ -555,7 +555,7 @@ public:
 
 class Map : public Access {
 private:
-    Map(int32_t device, AddressSpace addr_space, Def mem, Def ptr, Def offset, Def size, const std::string& name);
+    Map(int32_t device, AddressSpace addr_space, Def mem, Def ptr, Def offset, Def size, const Location& loc, const std::string& name);
 
     virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 

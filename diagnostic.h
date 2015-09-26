@@ -37,9 +37,9 @@ static char* make_message(const char *fmt, va_list ap) {
 
    while (1) {
        /* Try to print in the allocated space */
-       va_start(ap, fmt);
+       //va_start(ap, fmt);
        n = vsnprintf(p, size, fmt, ap);
-       va_end(ap);
+       //va_end(ap);
 
        /* Check error code */
        if (n < 0)

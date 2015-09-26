@@ -2,6 +2,7 @@
 #include <stdlib.h>
 
 #include "log.h"
+#include "counter.h"
 
 LOG_LEVEL Logging::level = INFO;
 

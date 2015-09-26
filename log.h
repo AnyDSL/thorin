@@ -12,14 +12,14 @@ public:
 };
 
 static void logvf(LOG_LEVEL _level, const char *fmt, ...) {
-	va_list argp;
-	va_start(argp, fmt);
-	
 	if(Logging::level <= _level) {
+		va_list argp;
+		va_start(argp, fmt);
+	
 		messagevf(std::cout, fmt, argp);
+		
+		va_end(argp);
 	}
-
-	va_end(argp);
 }
 
 #ifdef LOGGING

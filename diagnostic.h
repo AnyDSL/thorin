@@ -52,7 +52,7 @@ static char* make_message(const char *fmt, va_list ap) {
        /* Else try again with more space */
        size = n + 1;       /* Precisely what is needed */
 
-       if ((np = realloc (p, size)) == NULL) {
+       if ((np = (char*) realloc (p, size)) == NULL) {
            free(p);
            return NULL;
        } else {

@@ -32,7 +32,7 @@ static char* make_message(const char *fmt, va_list ap) {
    int size = 100;     /* Guess we need no more than 100 bytes */
    char *p, *np;
 
-   if ((p = malloc(size)) == NULL)
+   if ((p = (char*) malloc(size)) == NULL)
        return NULL;
 
    while (1) {

@@ -1,8 +1,9 @@
 // #define _GNU_SOURCE /* See feature_test_macros(7) */
 #include <stdio.h>
+#include <stdlib.h>
+#include <stdarg.h>
 #include <ostream>
 #include <stdio.h>
-#include <stdarg.h>
 #include <string.h>
 #include <iostream>
 
@@ -26,6 +27,40 @@ fputc(0x80 | ( c        & 0x3F), out);
 }
 }*/
 
+static char* make_message(const char *fmt, va_list ap) {
+   int n;
+   int size = 100;     /* Guess we need no more than 100 bytes */
+   char *p, *np;
+
+   if ((p = malloc(size)) == NULL)
+       return NULL;
+
+   while (1) {
+       /* Try to print in the allocated space */
+       va_start(ap, fmt);
+       n = vsnprintf(p, size, fmt, ap);
+       va_end(ap);
+
+       /* Check error code */
+       if (n < 0)
+           return NULL;
+
+       /* If that worked, return the string */
+       if (n < size)
+           return p;
+
+       /* Else try again with more space */
+       size = n + 1;       /* Precisely what is needed */
+
+       if ((np = realloc (p, size)) == NULL) {
+           free(p);
+           return NULL;
+       } else {
+           p = np;
+       }
+   }
+}
+
 static inline char const* strstart(char const* str, char const* start) {
 	do {
 		if (*start == '\0')
@@ -39,7 +74,11 @@ static void print(std::ostream &out, char const *fmt, ...) {
 
     va_list argp;
     va_start(argp, fmt);
+#ifdef _GNU_SOURCE
     vasprintf(&tmp, fmt, argp);
+#else
+    tmp = make_message(fmt, argp); 
+#endif
     out << tmp;
     va_end(argp);
 

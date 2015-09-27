@@ -1007,10 +1007,10 @@ void emit_llvm(World& world, int opt, bool debug) {
         world.cleanup();
 
     CPUCodeGen(world).emit(opt, debug);
-    if (!cuda.  lambdas().empty()) CUDACodeGen(cuda).emit(/*opt, debug*/);
+    if (!cuda.  lambdas().empty()) CUDACodeGen(cuda).emit(/*opt,*/ debug);
     if (!nvvm.  lambdas().empty()) NVVMCodeGen(nvvm).emit(opt, debug);
     if (!spir.  lambdas().empty()) SPIRCodeGen(spir).emit(opt, debug);
-    if (!opencl.lambdas().empty()) OpenCLCodeGen(opencl).emit(/*opt, debug*/);
+    if (!opencl.lambdas().empty()) OpenCLCodeGen(opencl).emit(/*opt,*/ debug);
 }
 
 //------------------------------------------------------------------------------

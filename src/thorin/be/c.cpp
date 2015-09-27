@@ -14,21 +14,24 @@ namespace thorin {
 
 class CCodeGen : public Printer {
 public:
-    CCodeGen(World& world, std::ostream& stream, Lang lang)
+    CCodeGen(World& world, std::ostream& stream, Lang lang, bool debug)
         : Printer(stream)
         , world_(world)
         , lang_(lang)
+        , debug_(debug)
     {}
 
     void emit();
 private:
     World& world_;
     Lang lang_;
+    bool debug_;
     HashMap<size_t, std::string> globals_;
     HashMap<size_t, std::string> primops_;
 
     std::ostream& emit_aggop_defs(Def def);
     std::ostream& emit_aggop_decl(Type);
+    std::ostream& emit_debug_info(Def def);
     std::ostream& emit_type(Type);
     std::ostream& emit(Def def);
     bool lookup(size_t gid);
@@ -37,6 +40,16 @@ private:
     bool is_texture_type(Type type);
     bool process_kernel_ = false;
 };
+
+
+std::ostream& CCodeGen::emit_debug_info(Def def) {
+    if (debug_) {
+        stream() << "#line " << def->loc().pos1().line() << " \"" <<  def->loc().pos1().filename() << "\"";
+        newline();
+    }
+    return stream();
+}
+
 
 std::ostream& CCodeGen::emit_type(Type type) {
     if (type.empty()) {
@@ -409,6 +422,7 @@ void CCodeGen::emit() {
                 // skip higher-order primops, stuff dealing with frames and all memory related stuff except stores
                 if (!primop->type().isa<FnType>() && !primop->type().isa<FrameType>()
                         && (!primop->type().isa<MemType>() || primop->isa<Store>())) {
+                    emit_debug_info(primop);
                     emit(primop);
                     newline();
                 }
@@ -440,6 +454,7 @@ void CCodeGen::emit() {
                 }
                 stream() << ";";
             } else if (auto select = lambda->to()->isa<Select>()) { // conditional branch
+                emit_debug_info(select);
                 stream() << "if (";
                 emit(select->cond());
                 stream() << ") {";
@@ -451,6 +466,7 @@ void CCodeGen::emit() {
                 stream() << "return ; // bottom: unreachable";
             } else {
                 Lambda* to_lambda = lambda->to()->as_lambda();
+                emit_debug_info(to_lambda);
 
                 // emit inlined arrays/tuples/structs before the call operation
                 for (auto arg : lambda->args()) emit_aggop_defs(arg);
@@ -832,7 +848,7 @@ bool CCodeGen::is_texture_type(Type type) {
 
 //------------------------------------------------------------------------------
 
-void emit_c(World& world, std::ostream& stream, Lang lang) { CCodeGen(world, stream, lang).emit(); }
+void emit_c(World& world, std::ostream& stream, Lang lang, bool debug) { CCodeGen(world, stream, lang, debug).emit(); }
 
 //------------------------------------------------------------------------------
 

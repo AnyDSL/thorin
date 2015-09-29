@@ -3,7 +3,7 @@
 
 #include "log.h"
 
-class Counter : Printable {
+class Counter : public thorin::Printable {
 public:
     Counter() : c(0) { };
 
@@ -29,7 +29,7 @@ int main(int argc, const char* argv[]) {
     }
 
     if (atoi(argv[1]) == 0) {
-        Logging::level = LogLevel::Debug;
+        thorin::Logging::level = thorin::LogLevel::Debug;
     }
 
     int runs = atoi(argv[2]);

@@ -9,6 +9,8 @@
 
 #include "log.h"
 
+namespace thorin {
+
 LogLevel Logging::level = LogLevel::Info;
 
 /*static void fpututf32(utf32 const c, FILE *const out) {
@@ -306,3 +308,4 @@ void logvf(LogLevel level, const char* fmt, ...) {
 	}
 }
 
+}

@@ -4,6 +4,8 @@
 #include <cstdarg>
 #include <ostream>
 
+namespace thorin {
+
 enum class LogLevel {
     Debug, Info
 };
@@ -20,6 +22,7 @@ public:
     virtual const void print(std::ostream& out) const = 0;
 };
 
+}
 
 #ifdef LOGGING
 #define LOG(level, ...) logvf((level), __VA_ARGS__)
@@ -27,7 +30,7 @@ public:
 #define LOG(level, ...)
 #endif
 
-#define ILOG(...) LOG(LogLevel::Info,  __VA_ARGS__)
-#define DLOG(...) LOG(LogLevel::Debug, __VA_ARGS__)
+#define ILOG(...) LOG(thorin::LogLevel::Info,  __VA_ARGS__)
+#define DLOG(...) LOG(thorin::LogLevel::Debug, __VA_ARGS__)
 
 #endif

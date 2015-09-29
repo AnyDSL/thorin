@@ -6,31 +6,40 @@
 
 namespace thorin {
 
-enum class LogLevel {
-    Debug, Info
+class Log {
+    Log(const Log&) = delete;
+    Log& operator= (const Log&) = delete;
+
+public:
+    enum Level {
+        None, Info, Debug
+    };
+
+    static std::ostream& ostream() { return *ostream_; }
+    static void set_ostream(std::ostream& ostream) { ostream_ = &ostream; }
+    static Level level() { return level_; }
+    static void set_level(Level level) { level_ = level; }
+    static void log(Level, const char* fmt, ...);
+
+private:
+    static std::ostream* ostream_;
+    static Level level_;
 };
 
-class Logging {
+class Streamable {
 public:
-	static LogLevel level;
-};
-
-void logvf(LogLevel level, const char* fmt, ...);
-
-class Printable {
-public:
-    virtual const void print(std::ostream& out) const = 0;
+    virtual const void stream(std::ostream&) const = 0;
 };
 
 }
 
 #ifdef LOGGING
-#define LOG(level, ...) logvf((level), __VA_ARGS__)
+#define LOG(level, ...) thorin::Log::log((level), __VA_ARGS__)
 #else
 #define LOG(level, ...)
 #endif
 
-#define ILOG(...) LOG(thorin::LogLevel::Info,  __VA_ARGS__)
-#define DLOG(...) LOG(thorin::LogLevel::Debug, __VA_ARGS__)
+#define ILOG(...) LOG(thorin::Log::Info,  __VA_ARGS__)
+#define DLOG(...) LOG(thorin::Log::Debug, __VA_ARGS__)
 
 #endif

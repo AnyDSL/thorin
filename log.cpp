@@ -11,7 +11,7 @@
 
 namespace thorin {
 
-LogLevel Logging::level = LogLevel::Info;
+Log::Level Log::level_ = Log::Info;
 
 /*static void fpututf32(utf32 const c, FILE *const out) {
 if (c < 0x80U) {
@@ -211,8 +211,8 @@ static void messagevf(std::ostream& out, char const *fmt, va_list ap) {
             }
 
             case 'Y': {
-                const Printable *p = va_arg(ap, const Printable*);
-                p->print(out);
+                const Streamable* s = va_arg(ap, const Streamable*);
+                s->stream(out);
                 break;
             }
 
@@ -297,8 +297,8 @@ static void messagevf(std::ostream& out, char const *fmt, va_list ap) {
     //fputs(fmt, out); // Print rest.
 }
 
-void logvf(LogLevel level, const char* fmt, ...) {
-	if(Logging::level <= level) {
+void Log::log(Log::Level level, const char* fmt, ...) {
+	if (level <= Log::level()) {
 		va_list argp;
 		va_start(argp, fmt);
 	

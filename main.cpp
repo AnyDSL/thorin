@@ -1,5 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
+#include <iostream>
 
 #include "log.h"
 
@@ -24,10 +23,11 @@ private:
 };
 
 int main(int argc, const char* argv[]) {
-    if (argc < 3)
+    if (argc != 3)
         exit(-1);
 
     thorin::Log::set_level((thorin::Log::Level) atoi(argv[1]));
+    thorin::Log::set_stream(std::cerr);
     int runs = atoi(argv[2]);
 
     ILOG("Starting %i runs!\n", runs);

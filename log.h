@@ -15,14 +15,14 @@ public:
         None, Info, Debug
     };
 
-    static std::ostream& ostream() { return *ostream_; }
-    static void set_ostream(std::ostream& ostream) { ostream_ = &ostream; }
+    static std::ostream& stream() { return *stream_; }
+    static void set_stream(std::ostream& stream) { stream_ = &stream; }
     static Level level() { return level_; }
     static void set_level(Level level) { level_ = level; }
     static void log(Level, const char* fmt, ...);
 
 private:
-    static std::ostream* ostream_;
+    static std::ostream* stream_;
     static Level level_;
 };
 

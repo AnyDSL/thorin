@@ -12,6 +12,7 @@
 namespace thorin {
 
 Log::Level Log::level_ = Log::Info;
+std::ostream* Log::stream_ = nullptr;
 
 /*static void fpututf32(utf32 const c, FILE *const out) {
 if (c < 0x80U) {
@@ -298,12 +299,10 @@ static void messagevf(std::ostream& out, char const *fmt, va_list ap) {
 }
 
 void Log::log(Log::Level level, const char* fmt, ...) {
-	if (level <= Log::level()) {
+	if (Log::stream_ && level <= Log::level()) {
 		va_list argp;
 		va_start(argp, fmt);
-	
-		messagevf(std::cout, fmt, argp);
-		
+		messagevf(Log::stream(), fmt, argp);
 		va_end(argp);
 	}
 }

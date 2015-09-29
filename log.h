@@ -11,8 +11,8 @@ public:
 	static LOG_LEVEL level;
 };
 
-static void logvf(LOG_LEVEL _level, const char *fmt, ...) {
-	if(Logging::level <= _level) {
+static void logvf(LOG_LEVEL level, const char *fmt, ...) {
+	if(Logging::level <= level) {
 		va_list argp;
 		va_start(argp, fmt);
 	
@@ -23,9 +23,7 @@ static void logvf(LOG_LEVEL _level, const char *fmt, ...) {
 }
 
 #ifdef LOGGING
-#define LOG(_level, format, ...) { 			\
-	logvf(_level, format, ## __VA_ARGS__);          \
-}
+#define LOG(level, ...) logvf((level), __VA_ARGS__)
 #else
-#define LOG(_level, format, ...)
+#define LOG(level, ...)
 #endif

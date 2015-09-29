@@ -9,6 +9,8 @@
 
 #include "log.h"
 
+LogLevel Logging::level = LogLevel::Info;
+
 /*static void fpututf32(utf32 const c, FILE *const out) {
 if (c < 0x80U) {
 fputc(c, out);

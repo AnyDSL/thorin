@@ -3,8 +3,6 @@
 
 #include "log.h"
 
-LogLevel Logging::level = LogLevel::Info;
-
 class Counter : Printable {
 public:
     Counter() : c(0) { };

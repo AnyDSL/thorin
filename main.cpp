@@ -2,9 +2,28 @@
 #include <stdlib.h>
 
 #include "log.h"
-#include "counter.h"
 
 LogLevel Logging::level = LogLevel::Info;
+
+class Counter : Printable {
+public:
+    Counter() : c(0) { };
+
+    void inc() {
+        c++;
+    }
+
+    const int get() const {
+        return c;
+    }
+
+    const void print(std::ostream &out) const {
+      out << "[" << get() << "]";
+    }
+
+private:
+    int c;
+};
 
 int main(int argc, const char* argv[]) {
     if (argc < 3) {

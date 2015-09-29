@@ -1,4 +1,4 @@
-#include "printable.h"
+#include "log.h"
 
 /*
  *       Custom Class

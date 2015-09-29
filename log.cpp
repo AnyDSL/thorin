@@ -7,7 +7,7 @@
 #include <string.h>
 #include <iostream>
 
-#include "printable.h"
+#include "log.h"
 
 /*static void fpututf32(utf32 const c, FILE *const out) {
 if (c < 0x80U) {
@@ -292,3 +292,15 @@ static void messagevf(std::ostream& out, char const *fmt, va_list ap) {
     out << fmt;
     //fputs(fmt, out); // Print rest.
 }
+
+void logvf(LogLevel level, const char* fmt, ...) {
+	if(Logging::level <= level) {
+		va_list argp;
+		va_start(argp, fmt);
+	
+		messagevf(std::cout, fmt, argp);
+		
+		va_end(argp);
+	}
+}
+

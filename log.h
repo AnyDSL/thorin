@@ -1,9 +1,11 @@
-#include "diagnostic.h"
+#ifndef THORIN_UTIL_LOG_H
+#define THORIN_UTIL_LOG_H
 
-#include <iostream>
+#include <cstdarg>
+#include <ostream>
 
 enum class LogLevel {
-  Debug, Info
+    Debug, Info
 };
 
 class Logging {
@@ -11,16 +13,13 @@ public:
 	static LogLevel level;
 };
 
-static void logvf(LogLevel level, const char* fmt, ...) {
-	if(Logging::level <= level) {
-		va_list argp;
-		va_start(argp, fmt);
-	
-		messagevf(std::cout, fmt, argp);
-		
-		va_end(argp);
-	}
-}
+void logvf(LogLevel level, const char* fmt, ...);
+
+class Printable {
+public:
+    virtual const void print(std::ostream& out) const = 0;
+};
+
 
 #ifdef LOGGING
 #define LOG(level, ...) logvf((level), __VA_ARGS__)
@@ -30,3 +29,5 @@ static void logvf(LogLevel level, const char* fmt, ...) {
 
 #define ILOG(...) LOG(LogLevel::Info,  __VA_ARGS__)
 #define DLOG(...) LOG(LogLevel::Debug, __VA_ARGS__)
+
+#endif

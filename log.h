@@ -2,16 +2,16 @@
 
 #include <iostream>
 
-enum LOG_LEVEL {
-  DEBUG, INFO
+enum class LogLevel {
+  Debug, Info
 };
 
 class Logging {
 public:
-	static LOG_LEVEL level;
+	static LogLevel level;
 };
 
-static void logvf(LOG_LEVEL level, const char *fmt, ...) {
+static void logvf(LogLevel level, const char* fmt, ...) {
 	if(Logging::level <= level) {
 		va_list argp;
 		va_start(argp, fmt);
@@ -27,3 +27,6 @@ static void logvf(LOG_LEVEL level, const char *fmt, ...) {
 #else
 #define LOG(level, ...)
 #endif
+
+#define ILOG(...) LOG(LogLevel::Info,  __VA_ARGS__)
+#define DLOG(...) LOG(LogLevel::Debug, __VA_ARGS__)

@@ -27,7 +27,7 @@ fputc(0x80 | ( c        & 0x3F), out);
 }
 }*/
 
-static char* make_message(const char *fmt, va_list ap) {
+static char* make_message(const char* fmt, va_list ap) {
    int n;
    int size = 100;     /* Guess we need no more than 100 bytes */
    char *p, *np;
@@ -69,7 +69,7 @@ static inline char const* strstart(char const* str, char const* start) {
 	return NULL;
 }
 
-static void print(std::ostream &out, char const *fmt, ...) {
+static void print(std::ostream& out, char const *fmt, ...) {
     char *tmp;
 
     va_list argp;
@@ -88,7 +88,7 @@ static void print(std::ostream &out, char const *fmt, ...) {
 /**
  * Issue a diagnostic message.
  */
-static void messagevf(std::ostream &out, char const *fmt, va_list ap) {
+static void messagevf(std::ostream& out, char const *fmt, va_list ap) {
     //FILE *const out = stderr;
 
     for (char const *f; (f = strchr(fmt, '%')); fmt = f) {
@@ -175,7 +175,7 @@ static void messagevf(std::ostream &out, char const *fmt, va_list ap) {
             }
 
             case 's': {
-                const char *const str = va_arg(ap, const char*);
+                const char* const str = va_arg(ap, const char*);
                 print(out, "%.*s", precision, str);
                 //fprintf(out, "%.*s", precision, str);
                 break;

@@ -79,7 +79,7 @@ void messagevf(std::ostream& out, char const *fmt, va_list ap) {
             out << fmt[i];
         ++f; // skip '%'.
 
-        bool extended, flag_zero, flag_long, flag_high = false;
+        bool extended, flag_zero, flag_long = false;
         for (; ; ++f) {
             switch (*f) {
                 case '#':
@@ -91,8 +91,6 @@ void messagevf(std::ostream& out, char const *fmt, va_list ap) {
                 case 'l':
                     flag_long = true;
                     break;
-                case 'h':
-                    flag_high = true;
                     break;
                 default:
                     goto done_flags;
@@ -113,12 +111,6 @@ void messagevf(std::ostream& out, char const *fmt, va_list ap) {
             precision = va_arg(ap, int);
         }
 
-        /* Automatic highlight for some formats. */
-        /*if (!flag_high)
-            flag_high = strchr("EKNQTYk", *f);
-
-        if (flag_high)
-            fputs(colors.highlight, out);*/
         switch (*f++) {
             case '%':
                 out << '%';
@@ -166,10 +158,8 @@ void messagevf(std::ostream& out, char const *fmt, va_list ap) {
             default:
                 throw std::invalid_argument(std::string("unknown format specifier: ") + *(f - 1));
         }
-        /*if (flag_high)
-            fputs(colors.reset_highlight, out);*/
     }
-    out << fmt; // Print rest.
+    out << fmt; // stream rest.
 }
 
 void Log::log(Log::Level level, const char* file, int line, const char* fmt, ...) {

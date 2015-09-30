@@ -5,31 +5,33 @@
 #include <ios>
 #include <new>
 #include <stdexcept>
-#include <stdio.h>
 
 namespace thorin {
 
 Log::Level Log::level_ = Log::Info;
 std::ostream* Log::stream_ = nullptr;
 
-/*static void fpututf32(utf32 const c, FILE *const out) {
-if (c < 0x80U) {
-fputc(c, out);
-} else if (c < 0x800) {
-fputc(0xC0 | (c >> 6), out);
-fputc(0x80 | (c & 0x3F), out);
-} else if (c < 0x10000) {
-fputc(0xE0 | ( c >> 12), out);
-fputc(0x80 | ((c >>  6) & 0x3F), out);
-fputc(0x80 | ( c        & 0x3F), out);
-} else {
-fputc(0xF0 | ( c >> 18), out);
-fputc(0x80 | ((c >> 12) & 0x3F), out);
-fputc(0x80 | ((c >>  6) & 0x3F), out);
-fputc(0x80 | ( c        & 0x3F), out);
+static void streamc(std::ostream& out, int i) {
+    out << (unsigned char) i;
 }
-}*/
 
+static void streamutf32(std::ostream& out, const uint32_t c) {
+    if (c < 0x80U) {
+        streamc(out, c);
+    } else if (c < 0x800) {
+        streamc(out, 0xC0 | (c >> 6));
+        streamc(out, 0x80 | (c & 0x3F));
+    } else if (c < 0x10000) {
+        streamc(out, 0xE0 | ( c >> 12));
+        streamc(out, 0x80 | ((c >>  6) & 0x3F));
+        streamc(out, 0x80 | ( c        & 0x3F));
+    } else {
+        streamc(out, 0xF0 | ( c >> 18));
+        streamc(out, 0x80 | ((c >> 12) & 0x3F));
+        streamc(out, 0x80 | ((c >>  6) & 0x3F));
+        streamc(out, 0x80 | ( c        & 0x3F));
+    }
+}
 
 static inline char const* strstart(char const* str, char const* start) {
 	do {
@@ -75,22 +77,18 @@ static void streamf(std::ostream& out, char const *fmt, ...) {
 void messagevf(std::ostream& out, char const *fmt, va_list ap) {
     for (char const *f; (f = strchr(fmt, '%')); fmt = f) {
         // TODO is there a C++ trick to do this more nicely? it's a oneliner with fwrite
-        for (size_t i = 0; i < f - fmt; i++) // stream till '%'
+        for (int i = 0; i < f - fmt; i++) // stream till '%'
             out << fmt[i];
         ++f; // skip '%'.
 
-        bool extended, flag_zero, flag_long = false;
+        bool flag_zero, flag_long = false;
         for (; ; ++f) {
             switch (*f) {
-                case '#':
-                    extended = true;
-                    break;
                 case '0':
                     flag_zero = true;
                     break;
                 case 'l':
                     flag_long = true;
-                    break;
                     break;
                 default:
                     goto done_flags;
@@ -116,12 +114,10 @@ void messagevf(std::ostream& out, char const *fmt, va_list ap) {
                 out << '%';
                 break;
             case 'c': {
-                /*if (flag_long) {
-                    const utf32 val = va_arg(ap, utf32);
-                    fpututf32(val, out);
-                } else {*/
-                    out << (unsigned char) va_arg(ap, int);
-                //}
+                if (flag_long)
+                    streamutf32(out, va_arg(ap, uint32_t));
+                else
+                    streamc(out, va_arg(ap, int));
                 break;
             }
             case 'i':
@@ -159,7 +155,7 @@ void messagevf(std::ostream& out, char const *fmt, va_list ap) {
                 throw std::invalid_argument(std::string("unknown format specifier: ") + *(f - 1));
         }
     }
-    out << fmt; // stream rest.
+    out << fmt; // stream rest
 }
 
 void Log::log(Log::Level level, const char* file, int line, const char* fmt, ...) {

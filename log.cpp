@@ -52,7 +52,7 @@ static void streamf(std::ostream& out, char const *fmt, ...) {
     free(msg);
 }
 
-void messagevf(std::ostream& out, char const *fmt, va_list ap) {
+void vstreamf(std::ostream& out, char const *fmt, va_list ap) {
     for (char const *f; (f = strchr(fmt, '%')); fmt = f) {
         out.write(fmt, f++ - fmt); // write till '%' and skip '%'
 
@@ -127,7 +127,7 @@ void Log::log(Log::Level level, const char* file, int line, const char* fmt, ...
         Log::stream() << (level == Log::Info ? "I:" : "D:") << file << ':' << line << ": ";
 		va_list ap;
 		va_start(ap, fmt);
-		messagevf(Log::stream(), fmt, ap);
+		vstreamf(Log::stream(), fmt, ap);
 		va_end(ap);
 	}
     Log::stream() << std::endl;

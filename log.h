@@ -6,7 +6,10 @@
 
 namespace thorin {
 
+void messagevf(std::ostream& out, char const *fmt, va_list ap);
+
 class Log {
+    Log() = delete;
     Log(const Log&) = delete;
     Log& operator= (const Log&) = delete;
 

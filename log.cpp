@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <iostream>
+#include <ios>
+#include <new>
 
 #include "log.h"
 
@@ -32,39 +34,6 @@ fputc(0x80 | ( c        & 0x3F), out);
 }
 }*/
 
-static char* make_message(const char* fmt, va_list ap) {
-   int n;
-   int size = 100;     /* Guess we need no more than 100 bytes */
-   char *p, *np;
-
-   if ((p = (char*) malloc(size)) == NULL)
-       return NULL;
-
-   while (1) {
-       /* Try to print in the allocated space */
-       //va_start(ap, fmt);
-       n = vsnprintf(p, size, fmt, ap);
-       //va_end(ap);
-
-       /* Check error code */
-       if (n < 0)
-           return NULL;
-
-       /* If that worked, return the string */
-       if (n < size)
-           return p;
-
-       /* Else try again with more space */
-       size = n + 1;       /* Precisely what is needed */
-
-       if ((np = (char*) realloc (p, size)) == NULL) {
-           free(p);
-           return NULL;
-       } else {
-           p = np;
-       }
-   }
-}
 
 static inline char const* strstart(char const* str, char const* start) {
 	do {
@@ -75,25 +44,39 @@ static inline char const* strstart(char const* str, char const* start) {
 }
 
 static void print(std::ostream& out, char const *fmt, ...) {
-    char *tmp;
+    char* msg;
+    va_list ap;
+    va_start(ap, fmt);
 
-    va_list argp;
-    va_start(argp, fmt);
 #ifdef _GNU_SOURCE
-    vasprintf(&tmp, fmt, argp);
+    vasprintf(&msg, fmt, ap);
 #else
-    tmp = make_message(fmt, argp); 
-#endif
-    out << tmp;
-    va_end(argp);
+    // determine required size
+    int size = vsnprintf(nullptr, 0, fmt, ap);
+    va_end(ap);
 
-    free(tmp);
+    if (size < 0)
+        throw std::ios_base::failure("output error: cannot use vsnprintf");
+
+    size++; // for '\0'
+    msg = (char*) malloc(size);
+    if (msg == nullptr)
+        throw std::bad_alloc();
+
+    va_start(ap, fmt);
+    size = vsnprintf(msg, size, fmt, ap);
+    if (size < 0) {
+        free(msg);
+        throw std::ios_base::failure("output error: cannot use vsnprintf");
+    }
+#endif
+
+    va_end(ap);
+    out << msg;
+    free(msg);
 }
 
-/**
- * Issue a diagnostic message.
- */
-static void messagevf(std::ostream& out, char const *fmt, va_list ap) {
+void messagevf(std::ostream& out, char const *fmt, va_list ap) {
     //FILE *const out = stderr;
 
     for (char const *f; (f = strchr(fmt, '%')); fmt = f) {
@@ -230,10 +213,10 @@ static void messagevf(std::ostream& out, char const *fmt, va_list ap) {
 
 void Log::log(Log::Level level, const char* fmt, ...) {
 	if (Log::stream_ && level <= Log::level()) {
-		va_list argp;
-		va_start(argp, fmt);
-		messagevf(Log::stream(), fmt, argp);
-		va_end(argp);
+		va_list ap;
+		va_start(ap, fmt);
+		messagevf(Log::stream(), fmt, ap);
+		va_end(ap);
 	}
 }
 

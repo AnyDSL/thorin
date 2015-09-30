@@ -43,7 +43,7 @@ static inline char const* strstart(char const* str, char const* start) {
 	return NULL;
 }
 
-static void print(std::ostream& out, char const *fmt, ...) {
+static void streamf(std::ostream& out, char const *fmt, ...) {
     char* msg;
     va_list ap;
     va_start(ap, fmt);
@@ -152,11 +152,11 @@ void messagevf(std::ostream& out, char const *fmt, va_list ap) {
             case 'd': {
                 if (flag_long) {
                     const long val = va_arg(ap, long);
-                    print(out, "%ld", val);
+                    streamf(out, "%ld", val);
                     //fprintf(out, "%ld", val);
                 } else {
                     const int val = va_arg(ap, int);
-                    print(out, "%d", val);
+                    streamf(out, "%d", val);
                     //fprintf(out, "%d", val);
                 }
                 break;
@@ -164,7 +164,7 @@ void messagevf(std::ostream& out, char const *fmt, va_list ap) {
 
             case 's': {
                 const char* const str = va_arg(ap, const char*);
-                print(out, "%.*s", precision, str);
+                streamf(out, "%.*s", precision, str);
                 //fprintf(out, "%.*s", precision, str);
                 break;
             }
@@ -180,7 +180,7 @@ void messagevf(std::ostream& out, char const *fmt, va_list ap) {
             case 'u': {
                 const unsigned int val = va_arg(ap, unsigned
                         int);
-                print(out, "%u", val);
+                streamf(out, "%u", val);
                 //fprintf(out, "%u", val);
                 break;
             }
@@ -189,7 +189,7 @@ void messagevf(std::ostream& out, char const *fmt, va_list ap) {
                 unsigned int const val = va_arg(ap, unsigned
                         int);
                 char const *const xfmt = flag_zero ? "%0*X" : "%*X";
-                print(out, xfmt, field_width, val);
+                streamf(out, xfmt, field_width, val);
                 //fprintf(out, xfmt, field_width, val);
                 break;
             }

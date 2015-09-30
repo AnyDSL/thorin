@@ -78,8 +78,7 @@ void messagevf(std::ostream& out, char const *fmt, va_list ap) {
         }
 
         int precision = -1;
-        char const *const rest = strstart(f, ".*");
-        if (rest) {
+        if (auto rest = strstart(f, ".*")) {
             f = rest;
             precision = va_arg(ap, int);
         }

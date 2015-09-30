@@ -175,8 +175,9 @@ void messagevf(std::ostream& out, char const *fmt, va_list ap) {
     out << fmt; // Print rest.
 }
 
-void Log::log(Log::Level level, const char* fmt, ...) {
+void Log::log(Log::Level level, const char* file, int line, const char* fmt, ...) {
 	if (Log::stream_ && level <= Log::level()) {
+        Log::stream() << file << ':' << line << ": ";
 		va_list ap;
 		va_start(ap, fmt);
 		messagevf(Log::stream(), fmt, ap);

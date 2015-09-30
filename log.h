@@ -22,7 +22,7 @@ public:
     static void set_stream(std::ostream& stream) { stream_ = &stream; }
     static Level level() { return level_; }
     static void set_level(Level level) { level_ = level; }
-    static void log(Level, const char* fmt, ...);
+    static void log(Level level, const char* file, int line, const char* fmt, ...);
 
 private:
     static std::ostream* stream_;
@@ -37,7 +37,7 @@ public:
 }
 
 #ifdef LOGGING
-#define LOG(level, ...) thorin::Log::log((level), __VA_ARGS__)
+#define LOG(level, ...) thorin::Log::log((level), __FILE__, __LINE__, __VA_ARGS__)
 #else
 #define LOG(level, ...)
 #endif

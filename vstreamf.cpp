@@ -6,6 +6,8 @@
 #include <new>
 #include <stdexcept>
 
+#include "vstreamf.h"
+
 namespace thorin {
 
 static inline char const* strstart(char const* str, char const* start) {

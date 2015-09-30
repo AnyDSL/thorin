@@ -27,11 +27,6 @@ private:
     static Level level_;
 };
 
-class Streamable {
-public:
-    virtual std::ostream& stream(std::ostream&) const = 0;
-};
-
 }
 
 #ifdef LOGGING

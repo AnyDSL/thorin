@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include "log.h"
+#include "vstreamf.h"
 
 class Counter : public thorin::Streamable {
 public:

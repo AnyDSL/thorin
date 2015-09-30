@@ -16,9 +16,9 @@ template<class T> class Array;
 
 //------------------------------------------------------------------------------
 
-/** 
+/**
  * @brief A container-like wrapper for an array.
- * 
+ *
  * The array may either stem from a C array, a <tt>std::vector</tt>, a <tt>std::initializer_list</tt>, an @p Array or another @p ArrayRef.
  * @p ArrayRef does <em>not</em> own the data and, thus, does not destroy any data.
  * Likewise, you must be carefull to not destroy data an @p ArrayRef is pointing to.
@@ -80,9 +80,9 @@ private:
 //------------------------------------------------------------------------------
 
 
-/** 
+/**
  * @brief A container for a heap-allocated array.
- * 
+ *
  * This class is similar to <tt>std::vector</tt> with the following differences:
  *  - In contrast to std::vector, Array cannot grow dynamically.
  *    An @p Array may @p shrink, however.
@@ -127,7 +127,7 @@ public:
         std::copy(other.begin(), other.end(), this->begin());
     }
     template<class I>
-    Array(const I begin, const I end) 
+    Array(const I begin, const I end)
         : size_(std::distance(begin, end))
         , ptr_(new T[size_])
     {

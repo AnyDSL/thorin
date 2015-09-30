@@ -4,16 +4,16 @@
 #define THORIN_LNAME__(name, line) name##__##line
 #define THORIN_LNAME_(name, line)  THORIN_LNAME__(name, line)
 #define THORIN_LNAME(name)         THORIN_LNAME_(name, __LINE__)
- 
+
 namespace thorin {
 
 template<class T>
 struct Push {
-    Push(T& t, T new_val) 
-        : old_(t) 
-        , ref_(t) 
-    { 
-        t = new_val; 
+    Push(T& t, T new_val)
+        : old_(t)
+        , ref_(t)
+    {
+        t = new_val;
     }
     ~Push() { ref_ = old_; }
 

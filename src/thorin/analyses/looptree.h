@@ -16,7 +16,7 @@ template<bool> class LoopTreeBuilder;
 
 /**
  * @brief Calculates a loop nesting forest rooted at @p root_.
- * 
+ *
  * The implementation uses Steensgard's algorithm.
  * Check out G. Ramalingam, "On Loops, Dominators, and Dominance Frontiers", 1999, for more information.
  */

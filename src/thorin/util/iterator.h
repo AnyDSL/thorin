@@ -31,7 +31,7 @@ public:
     {
         skip();
     }
-    filter_iterator(filter_iterator&& other) 
+    filter_iterator(filter_iterator&& other)
         : iterator_(std::move(other.iterator_))
         , end_(std::move(other.end_))
         , predicate_(std::move(other.predicate_))
@@ -44,11 +44,11 @@ public:
     P predicate() const { return predicate_; }
 
     filter_iterator& operator= (filter_iterator other) { swap(*this, other); return *this; }
-    filter_iterator& operator++ () { 
+    filter_iterator& operator++ () {
         assert(iterator_ != end_);
         ++iterator_;
-        skip(); 
-        return *this; 
+        skip();
+        return *this;
     }
     filter_iterator operator++ (int) { filter_iterator res = *this; ++(*this); return res; }
     reference operator* () const { return (reference) *iterator_; }

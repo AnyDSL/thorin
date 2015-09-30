@@ -96,7 +96,7 @@ enum class CC : uint8_t {
 };
 
 
-/** 
+/**
  * @brief A function abstraction.
  *
  * A @p Lambda is always of function type @p FnTypeNode.

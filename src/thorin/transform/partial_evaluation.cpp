@@ -49,9 +49,9 @@ public:
     void seek();
     void eval(Lambda* begin, Lambda* cur, Lambda* end);
     void rewrite_jump(Lambda* src, Lambda* dst, const Call&);
-    void enqueue(Lambda* lambda) { 
+    void enqueue(Lambda* lambda) {
         if (!visit(visited_, lambda))
-            queue_.push(lambda); 
+            queue_.push(lambda);
     }
 
 private:
@@ -87,7 +87,7 @@ void PartialEvaluator::seek() {
 void PartialEvaluator::eval(Lambda* top, Lambda* cur, Lambda* end) {
     if (end == nullptr)
         std::cout << "no matching end: " << cur->unique_name() << std::endl;
-    else 
+    else
         std::cout << cur->unique_name() << " -> " << end->unique_name() << std::endl;
 
     while (true) {

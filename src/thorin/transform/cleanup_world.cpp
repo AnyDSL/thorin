@@ -190,7 +190,7 @@ void Cleaner::verify_closedness() {
         for (auto use : def->uses_)
             within(use.def().node());
         for (auto r : def->representatives_of_)
-            within(r); 
+            within(r);
     };
 
     for (auto primop : world().primops())

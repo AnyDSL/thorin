@@ -82,7 +82,7 @@ inline bool is_cmp(int kind)     { return (int) Begin_Cmp   <= kind && kind < (i
 inline bool is_bitop(int kind) { return  kind == ArithOp_and || kind == ArithOp_or || kind == ArithOp_xor; }
 inline bool is_shift(int kind) { return  kind == ArithOp_shl || kind == ArithOp_shr; }
 inline bool is_div_or_rem(int kind) { return kind == ArithOp_div || kind == ArithOp_rem; }
-inline bool is_commutative(int kind) { return kind == ArithOp_add  || kind == ArithOp_mul 
+inline bool is_commutative(int kind) { return kind == ArithOp_add  || kind == ArithOp_mul
                                            || kind == ArithOp_and  || kind == ArithOp_or || kind == ArithOp_xor; }
 inline bool is_associative(int kind) { return kind == ArithOp_add || kind == ArithOp_mul
                                            || kind == ArithOp_and || kind == ArithOp_or || kind == ArithOp_xor; }

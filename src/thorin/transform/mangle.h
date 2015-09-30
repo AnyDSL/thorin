@@ -10,7 +10,7 @@ Lambda* mangle(const Scope&, ArrayRef<Def> drop, ArrayRef<Def> lift, const Type2
 inline Lambda* drop(const Scope& scope, ArrayRef<Def> with, const Type2Type& type2type = Type2Type()) {
     return mangle(scope, with, Array<Def>(), type2type);
 }
-inline Lambda* clone(const Scope& scope, const Type2Type& type2type = Type2Type()) { 
+inline Lambda* clone(const Scope& scope, const Type2Type& type2type = Type2Type()) {
     return mangle(scope, Array<Def>(scope.entry()->num_params()), Array<Def>(), type2type);
 }
 inline Lambda* lift(const Scope& scope, ArrayRef<Def> what, const Type2Type& type2type = Type2Type()) {

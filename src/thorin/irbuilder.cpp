@@ -76,8 +76,8 @@ World& Var::world() const { return builder_->world(); }
 
 #ifndef NDEBUG
 #else
-JumpTarget::~JumpTarget() { 
-    assert((!lambda_ || first_ || lambda_->is_sealed()) && "JumpTarget not sealed"); 
+JumpTarget::~JumpTarget() {
+    assert((!lambda_ || first_ || lambda_->is_sealed()) && "JumpTarget not sealed");
 }
 #endif
 

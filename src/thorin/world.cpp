@@ -241,14 +241,14 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
 
                 default: break;
             }
-        } 
+        }
 
         if (a->is_one()) {
             switch (kind) {
                 case ArithOp_mul: return b;
                 default: break;
             }
-        } 
+        }
 
         if (a->is_allset()) {
             switch (kind) {
@@ -268,7 +268,7 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
 
                 default: break;
             }
-        } 
+        }
 
         if (b->is_one()) {
             switch (kind) {
@@ -278,7 +278,7 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
 
                 default: break;
             }
-        } 
+        }
 
         if (rlit && rlit->primlit_value<uint64_t>() >= uint64_t(num_bits(type))) {
             switch (kind) {

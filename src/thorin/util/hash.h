@@ -408,9 +408,9 @@ private:
 
 //------------------------------------------------------------------------------
 
-/** 
+/**
  * @brief This container is for the most part compatible with <tt>std::unordered_set</tt>.
- * 
+ *
  * We use our own implementation in order to have a consistent and deterministic behavior across different platforms.
  */
 template<class Key, class Hasher = Hash<Key>, class KeyEqual = std::equal_to<Key>>
@@ -440,9 +440,9 @@ public:
 
 //------------------------------------------------------------------------------
 
-/** 
+/**
  * @brief This container is for the most part compatible with <tt>std::unordered_map</tt>.
- * 
+ *
  * We use our own implementation in order to have a consistent and deterministic behavior across different platforms.
  */
 template<class Key, class T, class Hasher = Hash<Key>, class KeyEqual = std::equal_to<Key>>

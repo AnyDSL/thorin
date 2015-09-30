@@ -43,7 +43,7 @@ struct YCompConfig {
 template <typename I, typename SuccFct, typename UniqueFct>
 class YCompScope : public Printer {
 public:
-    YCompScope(std::ostream& ostream, const Scope& scope, Range<I> range, 
+    YCompScope(std::ostream& ostream, const Scope& scope, Range<I> range,
                SuccFct succs, UniqueFct unique, YComp_Orientation orientation)
         : YCompScope(ostream, orientation)
     {
@@ -75,7 +75,7 @@ private:
             newline() << "node: { title: \"" << nodeStrings.first << "_" << id << "\" label: \"" << nodeStrings.second << "\" }";
 
             for(auto child : succs(node)) {
-                newline() << "edge: { sourcename: \"" << nodeStrings.first << "_" << id 
+                newline() << "edge: { sourcename: \"" << nodeStrings.first << "_" << id
                           << "\" targetname: \"" << unique(child).first << "_" << id << "\" class: " << 16 << " }";
             }
         };
@@ -93,8 +93,8 @@ private:
 };
 
 template <typename I, typename SuccFct, typename UniqueFct>
-YCompScope<I,SuccFct,UniqueFct> emit_ycomp(std::ostream& ostream, const Scope& scope, Range<I> range, 
-                                           SuccFct succs, UniqueFct unique, 
+YCompScope<I,SuccFct,UniqueFct> emit_ycomp(std::ostream& ostream, const Scope& scope, Range<I> range,
+                                           SuccFct succs, UniqueFct unique,
                                            YComp_Orientation orientation = YComp_Orientation::BOTTOM_TO_TOP) {
     return YCompScope<I,SuccFct,UniqueFct>(ostream, scope, range, succs, unique, orientation);
 }

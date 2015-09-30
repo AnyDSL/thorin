@@ -14,7 +14,7 @@ private:
         static bool is_valid(T) { return true; }
     };
 
-    template<class T> 
+    template<class T>
     struct IsValidPred<T*> {
         static bool is_valid(T* value) { return value != nullptr; }
     };
@@ -73,8 +73,8 @@ inline Value* find(IndexMap<Indexer, Key, Value*>& map, Key key) {
 }
 
 template<class Indexer, class Key, class Value>
-inline const Value* find(const IndexMap<Indexer, Key, Value*>& map, Key key) { 
-    return find(const_cast<IndexMap<Indexer, Key, Value*>&>(map), key); 
+inline const Value* find(const IndexMap<Indexer, Key, Value*>& map, Key key) {
+    return find(const_cast<IndexMap<Indexer, Key, Value*>&>(map), key);
 }
 
 }

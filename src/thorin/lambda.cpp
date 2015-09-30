@@ -33,7 +33,7 @@ std::vector<Param::Peek> Param::peek() const {
 
 //------------------------------------------------------------------------------
 
-Def Lambda::to() const { 
+Def Lambda::to() const {
     return empty() ? world().bottom(world().fn_type()) : op(0);
 }
 

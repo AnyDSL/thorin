@@ -181,7 +181,7 @@ void CodeGen::emit(int opt) {
                 if (value == argv) {
                     arg->setName(param->unique_name()); // use param
                     params_[param] = arg++;
-                } else { 
+                } else {
                     params_[param] = value;             // use provided value
                 }
             } else {

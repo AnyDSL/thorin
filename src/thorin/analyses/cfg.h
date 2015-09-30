@@ -147,7 +147,7 @@ private:
 
 //------------------------------------------------------------------------------
 
-/** 
+/**
  * @brief A Control-Flow Graph.
  *
  * A small wrapper for the information obtained by a @p CFA.

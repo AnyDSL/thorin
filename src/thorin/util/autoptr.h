@@ -75,8 +75,8 @@ public:
 };
 
 /// Use to initialize an \p AutoPtr in a lazy way.
-template<class This, class T> 
-inline T& lazy_init(const This* self, AutoPtr<T>& ptr) { 
+template<class This, class T>
+inline T& lazy_init(const This* self, AutoPtr<T>& ptr) {
     return *(ptr ? ptr : ptr = new T(*self));
 }
 

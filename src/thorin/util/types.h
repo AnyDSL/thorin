@@ -33,7 +33,7 @@ public:
             else
                 return SInt(0);
         }
-        return SInt(-data_); 
+        return SInt(-data_);
     }
 
     SInt operator + (SInt other) const {
@@ -128,7 +128,7 @@ public:
         return res;
     }
 
-    UInt operator - (UInt other) const { 
+    UInt operator - (UInt other) const {
         UInt res(UT(this->data_) - UT(other.data_));
         if (!wrap && res.data_ > this->data_)
             throw BottomException();
@@ -226,7 +226,7 @@ public:
     Box(f64 val) { reset(); f64_ = val; }
 
     bool operator == (const Box& other) const { return bcast<uint64_t, Box>(*this) == bcast<uint64_t, Box>(other); }
-    template <typename T> inline T get() { THORIN_UNREACHABLE; } 
+    template <typename T> inline T get() { THORIN_UNREACHABLE; }
 #define THORIN_ALL_TYPE(T, M) \
     T get_##T() const { return (T)M##_; }
 #include "thorin/tables/primtypetable.h"

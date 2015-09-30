@@ -132,7 +132,7 @@ Schedule schedule_late(const Scope& scope) {
         if (!scope._contains(def) || def->isa_lambda() || def->isa<Param>())
             return;
         auto& late = def2late[def];
-        late = late 
+        late = late
              ? domtree.lca(domtree[late], domtree[n])->cf_node()->in_node()
              : n;
         assert(def2num[def] != 0);

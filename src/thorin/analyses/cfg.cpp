@@ -15,7 +15,7 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-uint64_t CFNodeHash::operator() (const CFNode* n) const { 
+uint64_t CFNodeHash::operator() (const CFNode* n) const {
     if (auto in = n->isa<InNode>())
         return hash_value(in->lambda()->gid());
     auto out = n->as<OutNode>();
@@ -50,7 +50,7 @@ static void leaves(Def def, std::function<void(Def)> f) {
 //------------------------------------------------------------------------------
 
 InNode::~InNode() {
-    for (auto p : out_nodes_) 
+    for (auto p : out_nodes_)
         delete p.second;
 }
 
@@ -107,7 +107,7 @@ Array<CFNodeSet> CFABuilder::cf_nodes_per_op(Lambda* lambda) {
     auto in = in_node(lambda);
 
     // create dummy empty set entry for lambdas without body
-    if (lambda->empty()) 
+    if (lambda->empty())
         return Array<CFNodeSet>(1);
 
     size_t num = lambda->size();
@@ -277,7 +277,7 @@ void CFABuilder::build_cfg() {
 
 //------------------------------------------------------------------------------
 
-CFA::CFA(const Scope& scope) 
+CFA::CFA(const Scope& scope)
     : scope_(scope)
     , in_nodes_(scope)
 {

@@ -17,9 +17,9 @@ public:
 
     public:
         reference operator=(bool b) {
-            if (b) 
+            if (b)
                 word_ |= uint64_t(1) << pos_;
-            else   
+            else
                 word_ &= ~(uint64_t(1) << pos_);
             return *this;
         }
@@ -61,15 +61,15 @@ public:
         return pos;
     }
     reference operator[] (Key key) {
-        auto i = indexer().index(key); 
-        assert(i != size_t(-1)); 
+        auto i = indexer().index(key);
+        assert(i != size_t(-1));
         return reference(bits_[i / 64u], i % 64u);
     }
     bool operator[] (Key key) const { return (*const_cast<IndexSet<Indexer, Key>*>(this))[key]; }
 
     /// Depending on @p flag this method either inserts (true) or removes (false) @p key and returns true if successful.
     template<bool flag>
-    bool set(Key key) { 
+    bool set(Key key) {
         auto ref = (*this)[key];
         auto old = ref.word();
         ref = flag;

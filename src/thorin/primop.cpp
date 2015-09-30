@@ -86,7 +86,7 @@ Slot::Slot(Type type, Def frame, size_t index, const std::string& name)
 Global::Global(Def init, bool is_mutable, const std::string& name)
     : PrimOp(Node_Global, init->type()->world().ptr_type(init->type()), {init}, name)
     , is_mutable_(is_mutable)
-{ 
+{
     assert(init->is_const());
 }
 
@@ -183,28 +183,28 @@ Def Store  ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.st
 Def Tuple  ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.tuple(ops, name); }
 Def Vector ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.vector(ops, name); }
 
-Def Alloc::vrebuild(World& to, ArrayRef<Def> ops, Type t) const { 
-    return to.alloc(t.as<TupleType>()->arg(1).as<PtrType>()->referenced_type(), ops[0], ops[1], name); 
+Def Alloc::vrebuild(World& to, ArrayRef<Def> ops, Type t) const {
+    return to.alloc(t.as<TupleType>()->arg(1).as<PtrType>()->referenced_type(), ops[0], ops[1], name);
 }
 
-Def Slot::vrebuild(World& to, ArrayRef<Def> ops, Type t) const { 
-    return to.slot(t.as<PtrType>()->referenced_type(), ops[0], index(), name); 
+Def Slot::vrebuild(World& to, ArrayRef<Def> ops, Type t) const {
+    return to.slot(t.as<PtrType>()->referenced_type(), ops[0], index(), name);
 }
 
-Def Map::vrebuild(World& to, ArrayRef<Def> ops, Type) const { 
-    return to.map(device(), addr_space(), ops[0], ops[1], ops[2], ops[3], name); 
+Def Map::vrebuild(World& to, ArrayRef<Def> ops, Type) const {
+    return to.map(device(), addr_space(), ops[0], ops[1], ops[2], ops[3], name);
 }
 
-Def DefiniteArray::vrebuild(World& to, ArrayRef<Def> ops, Type t) const { 
-    return to.definite_array(t.as<DefiniteArrayType>()->elem_type(), ops, name); 
+Def DefiniteArray::vrebuild(World& to, ArrayRef<Def> ops, Type t) const {
+    return to.definite_array(t.as<DefiniteArrayType>()->elem_type(), ops, name);
 }
 
-Def StructAgg::vrebuild(World& to, ArrayRef<Def> ops, Type t) const { 
-    return to.struct_agg(t.as<StructAppType>(), ops, name); 
+Def StructAgg::vrebuild(World& to, ArrayRef<Def> ops, Type t) const {
+    return to.struct_agg(t.as<StructAppType>(), ops, name);
 }
 
-Def IndefiniteArray::vrebuild(World& to, ArrayRef<Def> ops, Type t) const { 
-    return to.indefinite_array(t.as<IndefiniteArrayType>()->elem_type(), ops[0], name); 
+Def IndefiniteArray::vrebuild(World& to, ArrayRef<Def> ops, Type t) const {
+    return to.indefinite_array(t.as<IndefiniteArrayType>()->elem_type(), ops[0], name);
 }
 
 //------------------------------------------------------------------------------
@@ -247,7 +247,7 @@ const char* Cmp::op_name() const {
 
 Def PrimOp::out(size_t i) const {
     assert(i < type().as<TupleType>()->num_args());
-    return world().extract(this, i); 
+    return world().extract(this, i);
 }
 
 Def PrimOp::rebuild() const {

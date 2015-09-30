@@ -57,7 +57,7 @@ Type StructAppTypeNode::elem(size_t i) const {
 }
 
 ArrayRef<Type> StructAppTypeNode::elems() const {
-    for (size_t i = 0; i < num_elems(); ++i) 
+    for (size_t i = 0; i < num_elems(); ++i)
         elem(i);
     return elem_cache_;
 }
@@ -77,11 +77,11 @@ Type PrimTypeNode           ::vrebuild(World& to, ArrayRef<Type>     ) const { r
 Type TupleTypeNode          ::vrebuild(World& to, ArrayRef<Type> args) const { return to.tuple_type(args); }
 Type TypeVarNode            ::vrebuild(World& to, ArrayRef<Type>     ) const { return to.type_var(); }
 
-Type PtrTypeNode::vrebuild(World& to, ArrayRef<Type> args) const { 
+Type PtrTypeNode::vrebuild(World& to, ArrayRef<Type> args) const {
     return to.ptr_type(args.front(), length(), device(), addr_space());
 }
 
-Type StructAbsTypeNode::vrebuild(World& to, ArrayRef<Type> args) const { 
+Type StructAbsTypeNode::vrebuild(World& to, ArrayRef<Type> args) const {
     // TODO how do we handle recursive types?
     auto ntype = to.struct_abs_type(args.size());
     for (size_t i = 0, e = args.size(); i != e; ++i)
@@ -89,7 +89,7 @@ Type StructAbsTypeNode::vrebuild(World& to, ArrayRef<Type> args) const {
     return ntype;
 }
 
-Type StructAppTypeNode::vrebuild(World& to, ArrayRef<Type> args) const { 
+Type StructAppTypeNode::vrebuild(World& to, ArrayRef<Type> args) const {
     return to.struct_app_type(args[0].as<StructAbsType>(), args.skip_front());
 }
 

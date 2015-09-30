@@ -51,9 +51,9 @@ Type2Type type2type(Proxy<T> type, ArrayRef<Type> args) { return type2type(*type
 
 //------------------------------------------------------------------------------
 
-/** 
+/**
  * @brief A @p Proxy is a small wrapper for @p TypeNode%s.
- * 
+ *
  * Due to polymorphism types may only be unified very late.
  * For this reason, types are usually unified as late as possible - as soon as <tt>operator ==</tt> is invoked.
  * A @p TypeNode has a representative which points to the common unified type.
@@ -352,9 +352,9 @@ private:
     friend class World;
 };
 
-/** 
+/**
  * @brief A struct application.
- * 
+ *
  * A concrete instantiation of a struct abstraction is a struct application.
  * @see StructAbsTypeNode.
  */

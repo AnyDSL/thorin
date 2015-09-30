@@ -11,25 +11,21 @@ namespace thorin {
 Log::Level Log::level_ = Log::Info;
 std::ostream* Log::stream_ = nullptr;
 
-static void streamc(std::ostream& out, int i) {
-    out << (unsigned char) i;
-}
-
 static void streamutf32(std::ostream& out, const uint32_t c) {
     if (c < 0x80U) {
-        streamc(out, c);
+        out.put(c);
     } else if (c < 0x800) {
-        streamc(out, 0xC0 | (c >> 6));
-        streamc(out, 0x80 | (c & 0x3F));
+        out.put(0xC0 | (c >> 6));
+        out.put(0x80 | (c & 0x3F));
     } else if (c < 0x10000) {
-        streamc(out, 0xE0 | ( c >> 12));
-        streamc(out, 0x80 | ((c >>  6) & 0x3F));
-        streamc(out, 0x80 | ( c        & 0x3F));
+        out.put(0xE0 | ( c >> 12));
+        out.put(0x80 | ((c >>  6) & 0x3F));
+        out.put(0x80 | ( c        & 0x3F));
     } else {
-        streamc(out, 0xF0 | ( c >> 18));
-        streamc(out, 0x80 | ((c >> 12) & 0x3F));
-        streamc(out, 0x80 | ((c >>  6) & 0x3F));
-        streamc(out, 0x80 | ( c        & 0x3F));
+        out.put(0xF0 | ( c >> 18));
+        out.put(0x80 | ((c >> 12) & 0x3F));
+        out.put(0x80 | ((c >>  6) & 0x3F));
+        out.put(0x80 | ( c        & 0x3F));
     }
 }
 
@@ -117,7 +113,7 @@ void messagevf(std::ostream& out, char const *fmt, va_list ap) {
                 if (flag_long)
                     streamutf32(out, va_arg(ap, uint32_t));
                 else
-                    streamc(out, va_arg(ap, int));
+                    out.put(va_arg(ap, int));
                 break;
             }
             case 'i':

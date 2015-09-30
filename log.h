@@ -6,8 +6,6 @@
 
 namespace thorin {
 
-void vstreamf(std::ostream& out, char const *fmt, va_list ap);
-
 class Log {
     Log() = delete;
     Log(const Log&) = delete;

@@ -1,14 +1,9 @@
-// #define _GNU_SOURCE /* See feature_test_macros(7) */
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <ostream>
-#include <stdio.h>
-#include <string.h>
-#include <iostream>
+#include <cstdlib>
+#include <cstring>
 #include <ios>
 #include <new>
 #include <stdexcept>
+#include <stdio.h>
 
 #include "log.h"
 
@@ -78,20 +73,14 @@ static void streamf(std::ostream& out, char const *fmt, ...) {
 }
 
 void messagevf(std::ostream& out, char const *fmt, va_list ap) {
-    //FILE *const out = stderr;
-
     for (char const *f; (f = strchr(fmt, '%')); fmt = f) {
-        for(unsigned int i = 0; i < f - fmt; i++) {
+        for (size_t i = 0; i < f - fmt; i++)
             out << fmt[i];
-        }
 
         //fwrite(fmt, sizeof(*fmt), f - fmt, out); // Print till '%'.
         ++f; // Skip '%'.
 
-        bool extended = false;
-        bool flag_zero = false;
-        bool flag_long = false;
-        bool flag_high = false;
+        bool extended, flag_zero, flag_long, flag_high = false;
         for (; ; ++f) {
             switch (*f) {
                 case '#':
@@ -134,63 +123,46 @@ void messagevf(std::ostream& out, char const *fmt, va_list ap) {
         switch (*f++) {
             case '%':
                 out << '%';
-                //fputc('%', out);
                 break;
-
             case 'c': {
                 /*if (flag_long) {
                     const utf32 val = va_arg(ap, utf32);
                     fpututf32(val, out);
                 } else {*/
-                    const unsigned char val = (unsigned char) va_arg(ap, int);
-                    out << val;
+                    out << (unsigned char) va_arg(ap, int);
                 //}
                 break;
             }
-            
             case 'i':
             case 'd': {
-                if (flag_long) {
-                    const long val = va_arg(ap, long);
-                    streamf(out, "%ld", val);
-                } else {
-                    const int val = va_arg(ap, int);
-                    streamf(out, "%d", val);
-                }
+                if (flag_long)
+                    streamf(out, "%ld", va_arg(ap, long));
+                else
+                    streamf(out, "%d", va_arg(ap, int));
                 break;
             }
-
             case 's': {
-                const char* const str = va_arg(ap, const char*);
-                streamf(out, "%.*s", precision, str);
+                streamf(out, "%.*s", precision, va_arg(ap, const char*));
                 break;
             }
-
             case 'S': {
                 const std::string *str = va_arg(ap, const std::string*);
-		//const string_t *str = va_arg(ap, const string_t*);
+                //const string_t *str = va_arg(ap, const string_t*);
                 out << str;
-                //fwrite(str->begin, 1, str->size, out);
                 break;
             }
-
             case 'u': {
-                const unsigned int val = va_arg(ap, unsigned int);
-                streamf(out, "%u", val);
+                streamf(out, "%u", va_arg(ap, unsigned int));
                 break;
             }
-
             case 'X': {
-                unsigned int const val = va_arg(ap, unsigned
-                        int);
-                char const *const xfmt = flag_zero ? "%0*X" : "%*X";
+                auto val = va_arg(ap, unsigned int);
+                auto xfmt = flag_zero ? "%0*X" : "%*X";
                 streamf(out, xfmt, field_width, val);
                 break;
             }
-
             case 'Y': {
-                const Streamable* s = va_arg(ap, const Streamable*);
-                s->stream(out);
+                va_arg(ap, const Streamable*)->stream(out);
                 break;
             }
 

@@ -1,11 +1,11 @@
+#include "log.h"
+
 #include <cstdlib>
 #include <cstring>
 #include <ios>
 #include <new>
 #include <stdexcept>
 #include <stdio.h>
-
-#include "log.h"
 
 namespace thorin {
 
@@ -146,9 +146,7 @@ void messagevf(std::ostream& out, char const *fmt, va_list ap) {
                 break;
             }
             case 'S': {
-                const std::string *str = va_arg(ap, const std::string*);
-                //const string_t *str = va_arg(ap, const string_t*);
-                out << str;
+                out << *va_arg(ap, const std::string*);
                 break;
             }
             case 'u': {
@@ -183,6 +181,7 @@ void Log::log(Log::Level level, const char* file, int line, const char* fmt, ...
 		messagevf(Log::stream(), fmt, ap);
 		va_end(ap);
 	}
+    Log::stream() << std::endl;
 }
 
 }

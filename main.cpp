@@ -30,9 +30,9 @@ int main(int argc, const char* argv[]) {
     thorin::Log::set_stream(std::cerr);
     int runs = atoi(argv[2]);
 
-    ILOG("Starting %i runs!\n", runs);
+    ILOG("Starting %i runs!", runs);
     for (Counter c; c.get() < runs; c.inc()) {
-        DLOG("-> %Y / %i\n", &c, runs);
+        DLOG("-> %Y / %i", &c, runs);
     }
-    ILOG("Finished!\n");
+    ILOG("Finished!");
 }

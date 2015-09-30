@@ -20,9 +20,9 @@ public:
         {}
 
         reference operator=(bool b) {
-            if (b) 
+            if (b)
                 word_ |= 1 << pos_;
-            else   
+            else
                 word_ &= ~(1 << pos_);
             return *this;
         }

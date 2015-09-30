@@ -10,12 +10,12 @@ namespace thorin {
 
 /*
  * Watch out for the order of the template parameters in all of these casts.
- * All the casts use the order <L, R>. 
+ * All the casts use the order <L, R>.
  * This order may seem irritating at first glance, as you read <TO, FROM>.
  * This is solely for the reason, that C++ type deduction does not work the other way round.
  * However, for these kinds of cast you won't have to specify the template parameters explicitly anyway.
  * Thus, you do not have to care except for the bitcast -- so be warned.
- * Just read as <L, R> instead, i.e., 
+ * Just read as <L, R> instead, i.e.,
  * L is the thing which is returned (the left-hand side of the function call),
  * R is the thing which goes in (the right-hand side of a call).
  *
@@ -36,16 +36,16 @@ inline const L* scast(const R* r) { return const_cast<const L*>(scast<L, R>(cons
 
 /// shorthand for \c dynamic_cast
 template<class L, class R>
-inline L* dcast(R* u) { 
+inline L* dcast(R* u) {
     static_assert(std::is_base_of<R, L>::value, "R is not a base type of L");
-    return dynamic_cast<L*>(u); 
+    return dynamic_cast<L*>(u);
 }
 
 /// shorthand for \c dynamic_cast -- \c const version
 template<class L, class R>
 inline const L* dcast(const R* r) { return const_cast<const L*>(dcast<L, R>(const_cast<R*>(r))); }
 
-/** 
+/**
  * @brief A bitcast.
  *
  * The bitcast requires both types to be of the same size.
@@ -59,10 +59,10 @@ inline L bcast(const R& from) {
     return to;
 }
 
-/** 
+/**
  * @brief Provides handy \p as and \p isa methods.
  *
- * Inherit from this class in order to use 
+ * Inherit from this class in order to use
  * @code
 Bar* bar = foo->as<Bar>();
 if (Bar* bar = foo->isa<Bar>()) { ... }
@@ -84,7 +84,7 @@ public:
      * It is a program error (an assertion is raised) if this does not hold.
      */
     template<class To> To* as()  { return thorin::scast<To>(this); }
-    /** 
+    /**
      * @brief Acts as dynamic cast.
      * @return \p this cast to \p To if \p this is a \p To, 0 otherwise.
      */

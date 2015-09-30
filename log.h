@@ -29,7 +29,7 @@ private:
 
 class Streamable {
 public:
-    virtual const void stream(std::ostream&) const = 0;
+    virtual std::ostream& stream(std::ostream&) const = 0;
 };
 
 }

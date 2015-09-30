@@ -14,8 +14,8 @@ public:
         return c;
     }
 
-    const void stream(std::ostream &out) const {
-      out << "[" << get() << "]";
+    std::ostream& stream(std::ostream &out) const override {
+      return out << "[" << get() << "]";
     }
 
 private:

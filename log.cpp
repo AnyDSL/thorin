@@ -8,6 +8,7 @@
 #include <iostream>
 #include <ios>
 #include <new>
+#include <stdexcept>
 
 #include "log.h"
 
@@ -143,7 +144,6 @@ void messagevf(std::ostream& out, char const *fmt, va_list ap) {
                 } else {*/
                     const unsigned char val = (unsigned char) va_arg(ap, int);
                     out << val;
-                    //fputc(val, out);
                 //}
                 break;
             }
@@ -153,11 +153,9 @@ void messagevf(std::ostream& out, char const *fmt, va_list ap) {
                 if (flag_long) {
                     const long val = va_arg(ap, long);
                     streamf(out, "%ld", val);
-                    //fprintf(out, "%ld", val);
                 } else {
                     const int val = va_arg(ap, int);
                     streamf(out, "%d", val);
-                    //fprintf(out, "%d", val);
                 }
                 break;
             }
@@ -165,7 +163,6 @@ void messagevf(std::ostream& out, char const *fmt, va_list ap) {
             case 's': {
                 const char* const str = va_arg(ap, const char*);
                 streamf(out, "%.*s", precision, str);
-                //fprintf(out, "%.*s", precision, str);
                 break;
             }
 
@@ -178,10 +175,8 @@ void messagevf(std::ostream& out, char const *fmt, va_list ap) {
             }
 
             case 'u': {
-                const unsigned int val = va_arg(ap, unsigned
-                        int);
+                const unsigned int val = va_arg(ap, unsigned int);
                 streamf(out, "%u", val);
-                //fprintf(out, "%u", val);
                 break;
             }
 
@@ -190,7 +185,6 @@ void messagevf(std::ostream& out, char const *fmt, va_list ap) {
                         int);
                 char const *const xfmt = flag_zero ? "%0*X" : "%*X";
                 streamf(out, xfmt, field_width, val);
-                //fprintf(out, xfmt, field_width, val);
                 break;
             }
 
@@ -201,14 +195,12 @@ void messagevf(std::ostream& out, char const *fmt, va_list ap) {
             }
 
             default:
-                std::cerr << "unknown format specifier";
-		std::cerr << *(f - 1);
+                throw std::invalid_argument(std::string("unknown format specifier: ") + *(f - 1));
         }
         /*if (flag_high)
             fputs(colors.reset_highlight, out);*/
     }
-    out << fmt;
-    //fputs(fmt, out); // Print rest.
+    out << fmt; // Print rest.
 }
 
 void Log::log(Log::Level level, const char* fmt, ...) {

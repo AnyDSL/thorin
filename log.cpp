@@ -72,10 +72,7 @@ static void streamf(std::ostream& out, char const *fmt, ...) {
 
 void messagevf(std::ostream& out, char const *fmt, va_list ap) {
     for (char const *f; (f = strchr(fmt, '%')); fmt = f) {
-        // TODO is there a C++ trick to do this more nicely? it's a oneliner with fwrite
-        for (int i = 0; i < f - fmt; i++) // stream till '%'
-            out << fmt[i];
-        ++f; // skip '%'.
+        out.write(fmt, f++ - fmt); // write till '%' and skip '%'
 
         bool flag_zero, flag_long = false;
         for (; ; ++f) {

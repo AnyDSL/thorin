@@ -15,7 +15,7 @@ class Log {
 
 public:
     enum Level {
-        None, Info, Debug
+        Info, Debug
     };
 
     static std::ostream& stream() { return *stream_; }

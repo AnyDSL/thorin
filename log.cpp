@@ -11,24 +11,6 @@ namespace thorin {
 Log::Level Log::level_ = Log::Info;
 std::ostream* Log::stream_ = nullptr;
 
-static void streamutf32(std::ostream& out, const uint32_t c) {
-    if (c < 0x80U) {
-        out.put(c);
-    } else if (c < 0x800) {
-        out.put(0xC0 | (c >> 6));
-        out.put(0x80 | (c & 0x3F));
-    } else if (c < 0x10000) {
-        out.put(0xE0 | ( c >> 12));
-        out.put(0x80 | ((c >>  6) & 0x3F));
-        out.put(0x80 | ( c        & 0x3F));
-    } else {
-        out.put(0xF0 | ( c >> 18));
-        out.put(0x80 | ((c >> 12) & 0x3F));
-        out.put(0x80 | ((c >>  6) & 0x3F));
-        out.put(0x80 | ( c        & 0x3F));
-    }
-}
-
 static inline char const* strstart(char const* str, char const* start) {
 	do {
 		if (*start == '\0')
@@ -106,44 +88,34 @@ void messagevf(std::ostream& out, char const *fmt, va_list ap) {
             case '%':
                 out << '%';
                 break;
-            case 'c': {
-                if (flag_long)
-                    streamutf32(out, va_arg(ap, uint32_t));
-                else
-                    out.put(va_arg(ap, int));
+            case 'c':
+                out.put(va_arg(ap, int));
                 break;
-            }
             case 'i':
-            case 'd': {
+            case 'd':
                 if (flag_long)
                     streamf(out, "%ld", va_arg(ap, long));
                 else
                     streamf(out, "%d", va_arg(ap, int));
                 break;
-            }
-            case 's': {
+            case 's':
                 streamf(out, "%.*s", precision, va_arg(ap, const char*));
                 break;
-            }
-            case 'S': {
+            case 'S':
                 out << *va_arg(ap, const std::string*);
                 break;
-            }
-            case 'u': {
+            case 'u':
                 streamf(out, "%u", va_arg(ap, unsigned int));
                 break;
-            }
             case 'X': {
                 auto val = va_arg(ap, unsigned int);
                 auto xfmt = flag_zero ? "%0*X" : "%*X";
                 streamf(out, xfmt, field_width, val);
                 break;
             }
-            case 'Y': {
+            case 'Y':
                 va_arg(ap, const Streamable*)->stream(out);
                 break;
-            }
-
             default:
                 throw std::invalid_argument(std::string("unknown format specifier: ") + *(f - 1));
         }

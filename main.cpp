@@ -34,5 +34,5 @@ int main(int argc, const char* argv[]) {
     for (Counter c; c.get() < runs; c.inc()) {
         DLOG("-> %Y / %i", &c, runs);
     }
-    ILOG("Finished!");
+    ILOG("Finished! gt");
 }

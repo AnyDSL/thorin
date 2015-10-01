@@ -9,7 +9,7 @@ class CUDACodeGen : public CodeGen {
 public:
     CUDACodeGen(World& world);
 
-    void emit();
+    void emit(bool debug);
 
 protected:
     virtual std::string get_alloc_name() const { return "malloc"; }

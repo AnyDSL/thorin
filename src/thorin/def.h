@@ -11,6 +11,7 @@
 #include "thorin/util/autoptr.h"
 #include "thorin/util/cast.h"
 #include "thorin/util/hash.h"
+#include "thorin/util/location.h"
 
 namespace thorin {
 
@@ -95,13 +96,15 @@ using Def2Def = DefMap<const DefNode*>;
  * - \p Param%s and
  * - \p Lambda%s.
  */
-class DefNode : public MagicCast<DefNode> {
-protected:
+class DefNode : public HasLocation, public MagicCast<DefNode> {
+private:
     DefNode& operator = (const DefNode&); ///< Do not copy-assign a \p DefNode instance.
     DefNode(const DefNode&);              ///< Do not copy-construct a \p DefNode.
 
-    DefNode(size_t gid, NodeKind kind, Type type, size_t size, const std::string& name)
-        : kind_(kind)
+protected:
+    DefNode(size_t gid, NodeKind kind, Type type, size_t size, const Location& loc, const std::string& name)
+        : HasLocation(loc)
+        , kind_(kind)
         , ops_(size)
         , type_(type)
         , representative_(this)

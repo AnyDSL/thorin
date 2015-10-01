@@ -32,8 +32,8 @@ NVVMCodeGen::NVVMCodeGen(World& world)
     }
     // nvvmir.version
     auto nvvmir_version_md = module_->getOrInsertNamedMetadata("nvvmir.version");
-    llvm::Value* annotation_values_11[] = { builder_.getInt32(1), builder_.getInt32(1) };
-    nvvmir_version_md->addOperand(llvm::MDNode::get(context_, annotation_values_11));
+    llvm::Value* annotation_values_12[] = { irbuilder_.getInt32(1), irbuilder_.getInt32(2) };
+    nvvmir_version_md->addOperand(llvm::MDNode::get(context_, annotation_values_12));
 }
 
 //------------------------------------------------------------------------------
@@ -63,7 +63,7 @@ void NVVMCodeGen::emit_function_decl_hook(Lambda* lambda, llvm::Function* f) {
     auto annotation = module_->getOrInsertNamedMetadata("nvvm.annotations");
 
     const auto append_metadata = [&](llvm::Value* target, const std::string &name) {
-        llvm::Value* annotation_values[] = { target, llvm::MDString::get(context_, name), builder_.getInt64(1) };
+        llvm::Value* annotation_values[] = { target, llvm::MDString::get(context_, name), irbuilder_.getInt64(1) };
         llvm::MDNode* result = llvm::MDNode::get(context_, annotation_values);
         annotation->addOperand(result);
         return result;
@@ -71,7 +71,7 @@ void NVVMCodeGen::emit_function_decl_hook(Lambda* lambda, llvm::Function* f) {
 
     const auto emit_texture_kernel_arg = [&](const Param* param) {
         assert(param->type().as<PtrType>()->addr_space() == AddressSpace::Texture);
-        auto global = emit_global_memory(builder_.getInt64Ty(), param->name, 1);
+        auto global = emit_global_memory(irbuilder_.getInt64Ty(), param->name, 1);
         metadata_[param] = append_metadata(global, "texture");
     };
 
@@ -104,9 +104,9 @@ llvm::Function* NVVMCodeGen::get_texture_handle_fun() {
     // %tex_ref = call i64 @llvm.nvvm.texsurf.handle.p1i64(metadata !{i64 addrspace(1)* @texture, metadata !"texture", i32 1}, i64 addrspace(1)* @texture)
     llvm::Type* types[2] = {
             llvm::Type::getMetadataTy(context_),
-            llvm::PointerType::get(builder_.getInt64Ty(), 1)
+            llvm::PointerType::get(irbuilder_.getInt64Ty(), 1)
     };
-    auto type = llvm::FunctionType::get(builder_.getInt64Ty(), types, false);
+    auto type = llvm::FunctionType::get(irbuilder_.getInt64Ty(), types, false);
     return llvm::cast<llvm::Function>(module_->getOrInsertFunction("llvm.nvvm.texsurf.handle.p1i64", type));
 }
 
@@ -121,7 +121,7 @@ void NVVMCodeGen::emit_function_start(llvm::BasicBlock* bb, Lambda* lambda) {
             assert(md != metadata_.end());
             // require specific handle to be mapped to a parameter
             llvm::Value* args[] = { md->second, var };
-            params_[param] = builder_.CreateCall(texture_handle, args);
+            params_[param] = irbuilder_.CreateCall(texture_handle, args);
         }
     }
 }
@@ -129,7 +129,7 @@ void NVVMCodeGen::emit_function_start(llvm::BasicBlock* bb, Lambda* lambda) {
 llvm::Value* NVVMCodeGen::emit_load(const Load* load) {
     switch (resolve_addr_space(load->ptr())) {
         case AddressSpace::Texture:
-            return builder_.CreateExtractValue(lookup(load->ptr()), { unsigned(0) });
+            return irbuilder_.CreateExtractValue(lookup(load->ptr()), { unsigned(0) });
         default:
             // shared address space uses the same load functionality
             return CodeGen::emit_load(load);
@@ -169,7 +169,7 @@ static std::string get_texture_fetch_constraint(Type type) {
     char c;
     switch (type.as<PrimType>()->primtype_kind()) {
         case PrimType_ps8:  case PrimType_qs8:
-        case PrimType_pu8:  case PrimType_qu8:  c = 'c'; break; // not officially listed
+        case PrimType_pu8:  case PrimType_qu8:  c = 'c'; break;
         case PrimType_ps16: case PrimType_qs16:
         case PrimType_pu16: case PrimType_qu16: c = 'h'; break;
         case PrimType_bool:
@@ -198,16 +198,16 @@ llvm::Value* NVVMCodeGen::emit_lea(const LEA* lea) {
             llvm::Type* struct_types[] = { llvm_ptr_ty, llvm_ptr_ty, llvm_ptr_ty, llvm_ptr_ty };
             auto ret_type = llvm::StructType::create(struct_types);
             llvm::Type* args[] = {
-                builder_.getInt64Ty(),
-                builder_.getInt32Ty(), builder_.getInt32Ty(), builder_.getInt32Ty(), builder_.getInt32Ty() };
+                irbuilder_.getInt64Ty(),
+                irbuilder_.getInt32Ty(), irbuilder_.getInt32Ty(), irbuilder_.getInt32Ty(), irbuilder_.getInt32Ty() };
             auto type = llvm::FunctionType::get(ret_type, args, false);
             auto fetch_command = get_texture_fetch_command(ptr_ty->referenced_type());
             auto fetch_constraint = get_texture_fetch_constraint(ptr_ty->referenced_type());
             auto get_call = llvm::InlineAsm::get(type, fetch_command, fetch_constraint, false);
             llvm::Value* values[] = {
                 lookup(lea->ptr()), lookup(lea->index()),
-                builder_.getInt32(0), builder_.getInt32(0), builder_.getInt32(0) };
-            return builder_.CreateCall(get_call, values);
+                irbuilder_.getInt32(0), irbuilder_.getInt32(0), irbuilder_.getInt32(0) };
+            return irbuilder_.CreateCall(get_call, values);
         }
         default:
             return CodeGen::emit_lea(lea);

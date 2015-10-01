@@ -15,7 +15,7 @@ public:
         , type2type(type2type)
         , in_scope(scope.in_scope()) // copy constructor
         , oentry(scope.entry())
-        , nentry(oentry->world().lambda(oentry->name))
+        , nentry(oentry->world().lambda(oentry->loc(), oentry->name))
     {
         assert(!oentry->empty());
         assert(drop.size() == oentry->num_params());

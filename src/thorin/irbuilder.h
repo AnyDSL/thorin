@@ -57,8 +57,8 @@ public:
     Kind kind() const { return kind_; }
     IRBuilder* builder() const { return builder_; }
     World& world() const;
-    Def load() const;
-    void store(Def val) const;
+    Def load(const Location& loc) const;
+    void store(Def val, const Location& loc) const;
     Def def() const { return def_; }
     operator bool() { return kind() != Empty; }
     bool use_lea() const;
@@ -103,10 +103,11 @@ public:
     void seal() { assert(lambda_); lambda_->seal(); }
 
 private:
-    Lambda* branch_to(World& world);
+    void jump_from(Lambda* bb);
+    Lambda* branch_to(World& world, const Location& loc);
     Lambda* untangle();
     Lambda* enter();
-    Lambda* enter_unsealed(World& world);
+    Lambda* enter_unsealed(World& world, const Location& loc);
 
     Lambda* lambda_;
     bool first_;
@@ -128,14 +129,14 @@ public:
     World& world() const { return world_; }
     bool is_reachable() const { return cur_bb != nullptr; }
     void set_unreachable() { cur_bb = nullptr; }
-    Def create_frame();
-    Def alloc(Type type, Def extra, const std::string& name = "");
-    Def load(Def ptr, const std::string& name = "");
-    Def extract(Def agg, Def index, const std::string& name = "");
-    Def extract(Def agg, u32 index, const std::string& name = "");
-    void store(Def ptr, Def val, const std::string& name = "");
+    Def create_frame(const Location& loc);
+    Def alloc(Type type, Def extra, const Location& loc, const std::string& name = "");
+    Def load(Def ptr, const Location& loc, const std::string& name = "");
+    Def extract(Def agg, Def index, const Location& loc, const std::string& name = "");
+    Def extract(Def agg, u32 index, const Location& loc, const std::string& name = "");
+    void store(Def ptr, Def val, const Location& loc, const std::string& name = "");
     Lambda* enter(JumpTarget& jt) { return cur_bb = jt.enter(); }
-    Lambda* enter_unsealed(JumpTarget& jt) { return cur_bb = jt.enter_unsealed(world_); }
+    Lambda* enter_unsealed(JumpTarget& jt, const Location& loc) { return cur_bb = jt.enter_unsealed(world_, loc); }
     void jump(JumpTarget& jt);
     void branch(Def cond, JumpTarget& t, JumpTarget& f);
     Def call(Def to, ArrayRef<Def> args, Type ret_type);

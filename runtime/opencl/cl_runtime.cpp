@@ -430,10 +430,19 @@ void init_opencl() {
                 std::clog << "      Device OpenCL Version: " << buffer << std::endl;
                 err |= clGetDeviceInfo(devices[j], CL_DRIVER_VERSION, sizeof(buffer), &buffer, NULL);
                 std::clog << "      Device Driver Version: " << buffer << std::endl;
+                err |= clGetDeviceInfo(devices[j], CL_DEVICE_EXTENSIONS, sizeof(buffer), &buffer, NULL);
+                //std::clog << "      Device Extensions: " << buffer << std::endl;
+                std::string extensions(buffer);
+                size_t found = extensions.find("cl_khr_spir");
+                bool has_spir = found!=std::string::npos;
+                std::clog << "      Device SPIR Support: " << has_spir;
                 #ifdef CL_DEVICE_SPIR_VERSIONS
-                err |= clGetDeviceInfo(devices[j], CL_DEVICE_SPIR_VERSIONS , sizeof(buffer), &buffer, NULL);
-                std::clog << "      Device SPIR Version: " << buffer << std::endl;
+                if (has_spir) {
+                    err |= clGetDeviceInfo(devices[j], CL_DEVICE_SPIR_VERSIONS , sizeof(buffer), &buffer, NULL);
+                    std::clog << " (Version: " << buffer << ")";
+                }
                 #endif
+                std::clog << std::endl;
 
                 cl_bool has_unified = false;
                 #ifdef CL_VERSION_2_0
@@ -446,18 +455,12 @@ void init_opencl() {
                 if (caps & CL_DEVICE_SVM_FINE_GRAIN_SYSTEM)   std::clog << " CL_DEVICE_SVM_FINE_GRAIN_SYSTEM";
                 if (caps & CL_DEVICE_SVM_ATOMICS)             std::clog << " CL_DEVICE_SVM_ATOMICS";
                 std::clog << std::endl;
-                // TODO: SVM is inconsistent with unified memory in OpenCL 1.1
+                // TODO: SVM is inconsistent with unified memory in OpenCL 1.2
                 has_unified = (caps & CL_DEVICE_SVM_COARSE_GRAIN_BUFFER) || (dev_type & CL_DEVICE_TYPE_CPU);
                 #else
                 err |= clGetDeviceInfo(devices[j], CL_DEVICE_HOST_UNIFIED_MEMORY, sizeof(has_unified), &has_unified, NULL);
                 std::clog << "      Device Host Unified Memory: " << has_unified << std::endl;
                 #endif
-
-                //err |= clGetDeviceInfo(devices[j], CL_DEVICE_EXTENSIONS, sizeof(buffer), &buffer, NULL);
-                //std::clog << "      Device Extensions: " << buffer << std::endl;
-                //std::string extensions(buffer);
-                //size_t found = extensions.find("cl_khr_spir");
-                //bool has_spir = found!=std::string::npos;
                 checkErr(err, "clGetDeviceInfo()");
 
                 if (has_unified) {

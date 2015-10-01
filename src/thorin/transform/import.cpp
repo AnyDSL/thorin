@@ -41,7 +41,7 @@ Def import(Type2Type& type_old2new, Def2Def& def_old2new, World& to, Def odef) {
         if (olambda == olambda->world().end_scope())
             return def_old2new[olambda] = to.end_scope();
         auto npi = import(type_old2new, to, olambda->type()).as<FnType>();
-        nlambda = to.lambda(npi, olambda->cc(), olambda->intrinsic(), olambda->name);
+        nlambda = to.lambda(npi, olambda->loc(), olambda->cc(), olambda->intrinsic(), olambda->name);
         for (size_t i = 0, e = olambda->num_params(); i != e; ++i) {
             nlambda->param(i)->name = olambda->param(i)->name;
             def_old2new[olambda->param(i)] = nlambda->param(i);

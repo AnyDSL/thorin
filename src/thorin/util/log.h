@@ -33,7 +33,7 @@ private:
 #ifndef NDEBUG
 #define LOG(level, ...) thorin::Log::log((level), __FILE__, __LINE__, __VA_ARGS__)
 #else
-#define LOG(level, ...)
+#define LOG(level, ...) {}
 #endif
 
 #define ILOG(...) LOG(thorin::Log::Info,  __VA_ARGS__)

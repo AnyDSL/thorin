@@ -17,15 +17,15 @@ public:
     };
 
     static std::ostream& stream() { return *stream_; }
-    static void set(Level level, std::ostream& stream) { set_level(level); set_stream(stream); }
-    static Level level() { return level_; }
-    static void set_stream(std::ostream& stream) { stream_ = &stream; }
-    static void set_level(Level level) { level_ = level; }
-    static void log(Level level, const char* file, int line, const char* fmt, ...);
+    static void set(Level max_level, std::ostream* stream) { set_max_level(max_level); set_stream(stream); }
+    static Level max_level() { return max_level_; }
+    static void set_stream(std::ostream* stream) { stream_ = stream; }
+    static void set_max_level(Level max_level) { max_level_ = max_level; }
+    static void log(Level max_level, const char* file, int line, const char* fmt, ...);
 
 private:
     static std::ostream* stream_;
-    static Level level_;
+    static Level max_level_;
 };
 
 }

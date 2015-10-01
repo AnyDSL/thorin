@@ -90,8 +90,6 @@ void PartialEvaluator::eval(Lambda* top, Lambda* cur, Lambda* end) {
         DLOG("eval: %s -> %s", cur->unique_name().c_str(), end->unique_name().c_str());
 
     while (true) {
-        ILOG("A");
-        DLOG("B");
         if (cur == nullptr) {
             DLOG("cur is nullptr");
             return;

@@ -17,8 +17,9 @@ public:
     };
 
     static std::ostream& stream() { return *stream_; }
-    static void set_stream(std::ostream& stream) { stream_ = &stream; }
+    static void set(Level level, std::ostream& stream) { set_level(level); set_stream(stream); }
     static Level level() { return level_; }
+    static void set_stream(std::ostream& stream) { stream_ = &stream; }
     static void set_level(Level level) { level_ = level; }
     static void log(Level level, const char* file, int line, const char* fmt, ...);
 

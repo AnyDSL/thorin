@@ -100,7 +100,7 @@ void vstreamf(std::ostream& out, char const *fmt, va_list ap) {
                 streamf(out, "%.*s", precision, va_arg(ap, const char*));
                 break;
             case 'S':
-                out << *va_arg(ap, const std::string*);
+                out << va_arg(ap, const std::string);
                 break;
             case 'u':
                 streamf(out, "%u", va_arg(ap, unsigned int));

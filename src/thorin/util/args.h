@@ -1,7 +1,6 @@
 #ifndef THORIN_UTILS_H
 #define THORIN_UTILS_H
 
-
 #include "thorin/be/graphs.h"
 
 #include <cassert>
@@ -105,7 +104,7 @@ public:
         // print some help infos
         const Class* c = as_class();
         previous_.print_help();
-        std::cout << "\t-" << c->arg() << "\t" << c->help_msg() << std::endl;
+        std::cout << "  " << '-' << std::left << std::setw(24) << c->arg() << "\t" << c->help_msg() << std::endl;
     }
 
 protected:

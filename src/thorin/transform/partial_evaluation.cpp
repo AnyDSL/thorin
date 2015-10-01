@@ -4,9 +4,8 @@
 #include "thorin/analyses/domtree.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/util/hash.h"
+#include "thorin/util/log.h"
 #include "thorin/util/queue.h"
-
-#include <iostream>
 
 namespace thorin {
 
@@ -86,21 +85,23 @@ void PartialEvaluator::seek() {
 
 void PartialEvaluator::eval(Lambda* top, Lambda* cur, Lambda* end) {
     if (end == nullptr)
-        std::cout << "no matching end: " << cur->unique_name() << std::endl;
+        DLOG("no matching end: %s", cur->unique_name().c_str());
     else
-        std::cout << cur->unique_name() << " -> " << end->unique_name() << std::endl;
+        DLOG("eval: %s -> %s", cur->unique_name().c_str(), end->unique_name().c_str());
 
     while (true) {
+        ILOG("A");
+        DLOG("B");
         if (cur == nullptr) {
-            std::cout << "cur is nullptr: " << std::endl;
+            DLOG("cur is nullptr");
             return;
         }
         if (done_.contains(cur)) {
-            std::cout << "already done: " << cur->unique_name() << std::endl;
+            DLOG("already done: %s", cur->unique_name().c_str());
             return;
         }
         if (cur->empty()) {
-            std::cout << "empty: " << cur->unique_name() << std::endl;
+            DLOG("empty: %s", cur->unique_name().c_str());
             return;
         }
 
@@ -117,12 +118,12 @@ void PartialEvaluator::eval(Lambda* top, Lambda* cur, Lambda* end) {
         }
 
         if (dst == nullptr) {
-            std::cout << "dst is nullptr: " << cur->unique_name() << std::endl;
+            DLOG("dst is nullptr; cur: %s", cur->unique_name().c_str());
             return;
         }
 
         if (dst == end) {
-            std::cout << "end: " << end->unique_name() << std::endl;
+            DLOG("end: %s", end->unique_name().c_str());
             return;
         }
 
@@ -136,7 +137,7 @@ void PartialEvaluator::eval(Lambda* top, Lambda* cur, Lambda* end) {
                     cur = postdomtree[n]->in_idom()->lambda();
                     continue;
                 }
-                std::cout << "no postdom found: " << cur->unique_name() << std::endl;
+                DLOG("no postdom found for %s", cur->unique_name().c_str());
                 return;
             } else
                 cur = continuation(cur);
@@ -154,9 +155,7 @@ void PartialEvaluator::eval(Lambda* top, Lambda* cur, Lambda* end) {
 
         if (auto cached = find(cache_, call)) { // check for cached version
             rewrite_jump(cur, cached, call);
-            std::cout << "using cached call: " << std::endl;
-            cur->dump_head();
-            cur->dump_jump();
+            DLOG("using cached call: %s", cur->unique_name().c_str());
             return;
         } else {                                // no cached version found... create a new one
             Scope scope(dst);
@@ -188,8 +187,9 @@ void PartialEvaluator::rewrite_jump(Lambda* src, Lambda* dst, const Call& call) 
 //------------------------------------------------------------------------------
 
 void partial_evaluation(World& world) {
+    ILOG("PE begin");
     PartialEvaluator(world).seek();
-    std::cout << "PE done" << std::endl;
+    ILOG("PE finished");
 
     for (auto primop : world.primops()) {
         if (auto evalop = Def(primop)->isa<EvalOp>())

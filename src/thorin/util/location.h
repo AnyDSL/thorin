@@ -1,5 +1,5 @@
-#ifndef THORIN_LOCATION_H
-#define THORIN_LOCATION_H
+#ifndef THORIN_UTIL_LOCATION_H
+#define THORIN_UTIL_LOCATION_H
 
 #include <string>
 

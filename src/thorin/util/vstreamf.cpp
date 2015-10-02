@@ -3,12 +3,15 @@
 #include <cstdlib>
 #include <cstring>
 #include <ios>
+#include <iostream>
 #include <new>
 #include <stdexcept>
 
 #include "vstreamf.h"
 
 namespace thorin {
+
+void Streamable::dump() const { stream(std::cout); }
 
 static inline char const* strstart(char const* str, char const* start) {
 	do {

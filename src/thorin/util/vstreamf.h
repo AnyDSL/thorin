@@ -22,6 +22,9 @@ public:
     void dump() const;
 };
 
+/// Use @p Streamable in C++ streams via operator '<<'.
+std::ostream& operator << (std::ostream&, const Streamable*);
+
 }
 
 #endif

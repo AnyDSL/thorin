@@ -13,6 +13,8 @@ namespace thorin {
 
 void Streamable::dump() const { stream(std::cout); }
 
+std::ostream& operator << (std::ostream& ostream, const Streamable* s) { return s->stream(ostream); }
+
 static inline char const* strstart(char const* str, char const* start) {
 	do {
 		if (*start == '\0')

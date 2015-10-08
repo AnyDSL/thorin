@@ -85,9 +85,10 @@ void PartialEvaluator::seek() {
 
 void PartialEvaluator::eval(Lambda* top, Lambda* cur, Lambda* end) {
     if (end == nullptr)
-        DLOG("no matching end: %S", cur->unique_name());
-    else
-        DLOG("eval: %S -> %S", cur->unique_name(), end->unique_name());
+        DLOG("no matching end: %", cur->unique_name());
+    else {
+        DLOG("eval: % -> %", cur->unique_name(), end->unique_name());
+    }
 
     while (true) {
         if (cur == nullptr) {
@@ -95,11 +96,11 @@ void PartialEvaluator::eval(Lambda* top, Lambda* cur, Lambda* end) {
             return;
         }
         if (done_.contains(cur)) {
-            DLOG("already done: %S", cur->unique_name());
+            DLOG("already done: %", cur->unique_name());
             return;
         }
         if (cur->empty()) {
-            DLOG("empty: %S", cur->unique_name());
+            DLOG("empty: %", cur->unique_name());
             return;
         }
 
@@ -116,12 +117,12 @@ void PartialEvaluator::eval(Lambda* top, Lambda* cur, Lambda* end) {
         }
 
         if (dst == nullptr) {
-            DLOG("dst is nullptr; cur: %S", cur->unique_name());
+            DLOG("dst is nullptr; cur: %", cur->unique_name());
             return;
         }
 
         if (dst == end) {
-            DLOG("end: %S", end->unique_name());
+            DLOG("end: %", end->unique_name());
             return;
         }
 
@@ -135,7 +136,7 @@ void PartialEvaluator::eval(Lambda* top, Lambda* cur, Lambda* end) {
                     cur = postdomtree[n]->in_idom()->lambda();
                     continue;
                 }
-                DLOG("no postdom found for %S", cur->unique_name());
+                DLOG("no postdom found for %", cur->unique_name());
                 return;
             } else
                 cur = continuation(cur);
@@ -153,7 +154,7 @@ void PartialEvaluator::eval(Lambda* top, Lambda* cur, Lambda* end) {
 
         if (auto cached = find(cache_, call)) { // check for cached version
             rewrite_jump(cur, cached, call);
-            DLOG("using cached call: %S", cur->unique_name());
+            DLOG("using cached call: %", cur->unique_name());
             return;
         } else {                                // no cached version found... create a new one
             Scope scope(dst);

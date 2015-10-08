@@ -1,8 +1,10 @@
 #ifndef THORIN_UTIL_LOG_H
 #define THORIN_UTIL_LOG_H
 
-#include <cstdarg>
+#include <iomanip>
 #include <ostream>
+
+#include "streamf.h"
 
 namespace thorin {
 
@@ -21,7 +23,16 @@ public:
     static Level max_level() { return max_level_; }
     static void set_stream(std::ostream* stream) { stream_ = stream; }
     static void set_max_level(Level max_level) { max_level_ = max_level; }
-    static void log(Level max_level, const char* file, int line, const char* fmt, ...);
+
+    template<typename... Args>
+    static void log(Level level, const char* file, int line, const char* fmt, Args... args) {
+        if (Log::stream_ && level <= Log::max_level()) {
+            Log::stream() << (level == Log::Info ? "I:" : "D:") << file << ':' 
+                        << std::setw(4) << std::setfill('0') << line << ": ";
+            streamf(Log::stream(), fmt, args...);
+            Log::stream() << std::endl;
+        }
+    }
 
 private:
     static std::ostream* stream_;

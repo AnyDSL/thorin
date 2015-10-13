@@ -14,7 +14,7 @@ public:
     void dump() const;
 };
 
-/// Use @p Streamable in C++ streams via operator '<<'.
+/// Use @p Streamable in C++ streams via @c operator<<.
 std::ostream& operator << (std::ostream&, const Streamable*);
 
 namespace detail {
@@ -26,10 +26,10 @@ namespace detail {
 std::ostream& streamf(std::ostream& out, const char* fmt);
 
 /** 
- * fprintf-like function which works on C++ @p std::ostream.
- * Each "%" in @p fmt corresponds to one vardiac argument in @p args.
- * The type of the corresponding argument must either support operator << for C++ std::ostream or inherit from @p Streamable.
- * Use "%%" to escape.
+ * fprintf-like function which works on C++ @c std::ostream.
+ * Each @c "%" in @p fmt corresponds to one vardiac argument in @p args.
+ * The type of the corresponding argument must either support @c operator<< for C++ @c std::ostream or inherit from @p Streamable.
+ * Use @c "%%" to escape.
  */
 template<typename T, typename... Args>
 std::ostream&streamf(std::ostream& out, const char* fmt, T val, Args... args) {

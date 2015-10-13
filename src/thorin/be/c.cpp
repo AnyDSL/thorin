@@ -483,7 +483,7 @@ void CCodeGen::emit() {
                     // store parameter to phi nodes
                     for (size_t i = 0, size = to_lambda->num_params(); i != size; ++i)
                         if (!to_lambda->param(i)->type().isa<MemType>()) {
-                            stream() << "p" << to_lambda->param(i)->unique_name() << "_ = ";
+                            stream() << "p" << to_lambda->param(i)->unique_name() << " = ";
                             emit(lambda->arg(i)) << ";";
                             newline();
                         }

@@ -228,6 +228,12 @@ void CFABuilder::build_cfg() {
                 auto out = pair.second;
                 out->f_index_ = CFNode::Reachable;
 
+                if (auto ancestor = out->ancestor()) {
+                    assert(ancestor->f_index_ == CFNode::Reachable);
+                    out->link(ancestor);
+                    ancestor->link(out);
+                }
+
                 if (out->def()->isa<Param>())
                     out->link(cfa().exit());
 

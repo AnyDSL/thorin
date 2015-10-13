@@ -92,6 +92,7 @@ public:
     OutNode(const InNode* context, const OutNode* ancestor, Def def)
         : CFNode(def)
         , context_(context)
+        , ancestor_(ancestor)
     {
         assert(def->isa<Param>() || def->isa<Lambda>());
     }

@@ -86,7 +86,7 @@ private:
 /// Any jumps targeting a @p Lambda or @p Param outside the @p CFA's underlying @p Scope target this node.
 class OutNode : public CFNode {
 public:
-    OutNode(const InNode* context, Def def)
+    OutNode(const InNode* context, const OutNode* ancestor, Def def)
         : CFNode(def)
         , context_(context)
     {
@@ -96,10 +96,12 @@ public:
     virtual ~OutNode() {}
 
     const InNode* context() const { return context_; }
+    const OutNode* ancestor() const { return ancestor_; }
     virtual const InNode* in_node() const override { return context_; }
 
 private:
     const InNode* context_;
+    const OutNode* ancestor_;
 };
 
 //------------------------------------------------------------------------------

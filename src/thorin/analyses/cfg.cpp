@@ -91,11 +91,11 @@ public:
         return in;
     }
 
-    const OutNode* out_node(const InNode* in, Def def) {
+    const OutNode* out_node(const InNode* in, const OutNode* ancestor, Def def) {
         if (auto out = find(in->out_nodes_, def))
             return out;
         ++cfa_.num_out_nodes_;
-        return in->out_nodes_[def] = new OutNode(in, def);
+        return in->out_nodes_[def] = new OutNode(in, ancestor, def);
     }
 
     CFNodeSet& param2nodes(const Param* param) {
@@ -124,7 +124,7 @@ Array<CFNodeSet> CFABuilder::cf_nodes_per_op(Lambda* lambda) {
                 if (scope().inner_contains(op_lambda))
                     result[i].insert(in_node(op_lambda));
                 else if (i == 0)
-                    result[i].insert(out_node(in, op_lambda));
+                    result[i].insert(out_node(in, nullptr, op_lambda));
             } else {
                 auto param = def->as<Param>();
                 if (scope().inner_contains(param)) {
@@ -133,7 +133,7 @@ Array<CFNodeSet> CFABuilder::cf_nodes_per_op(Lambda* lambda) {
                         for (auto n : set) {
                             if (auto out = n->isa<OutNode>()) {
                                 assert(out->context() != in);
-                                auto new_out = out_node(in, out->def());
+                                auto new_out = out_node(in, out, out->def());
                                 new_out->link(out);
                                 result[0].insert(new_out);
                             } else
@@ -142,7 +142,7 @@ Array<CFNodeSet> CFABuilder::cf_nodes_per_op(Lambda* lambda) {
                     } else
                         result[i].insert(set.begin(), set.end());
                 } else if (i == 0)
-                    result[0].insert(out_node(in, param));
+                    result[0].insert(out_node(in, nullptr, param));
             }
         });
     }

@@ -4,9 +4,9 @@
 #include <iostream>
 #include <vector>
 
+#include "thorin/lambda.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/be/graphs.h"
-#include "thorin/lambda.h"
 #include "thorin/util/array.h"
 #include "thorin/util/autoptr.h"
 #include "thorin/util/indexmap.h"

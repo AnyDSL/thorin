@@ -229,9 +229,8 @@ void CFABuilder::build_cfg() {
                 out->f_index_ = CFNode::Reachable;
 
                 if (auto ancestor = out->ancestor()) {
-                    assert(ancestor->f_index_ == CFNode::Reachable);
+                    //assert(ancestor->f_index_ == CFNode::Reachable);
                     out->link(ancestor);
-                    ancestor->link(out);
                 }
 
                 if (out->def()->isa<Param>())

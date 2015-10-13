@@ -76,7 +76,7 @@ public:
         return old != ref.word();
     }
     bool insert(Key key) { return set<true>(key); } ///< Inserts \p key and returns true if successful.
-    bool erase(Key key) { return set<false>(key); } ///< Erase \p and returns true if successful.
+    bool erase(Key key) { return set<false>(key); } ///< Erase \p key and returns true if successful.
     bool contains(Key key) const { return (*this)[key]; }
     void clear() { std::fill(bits_.begin(), bits_.end(), 0u); }
 

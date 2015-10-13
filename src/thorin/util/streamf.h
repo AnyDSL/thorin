@@ -6,7 +6,7 @@
 
 namespace thorin {
 
-/// Inherit from this class and implement @p stream in order to use the '%Y' conversion specifier of @p vstreamf.
+/// Inherit from this class and implement @p stream in order to use @p streamf.
 class Streamable {
 public:
     virtual std::ostream& stream(std::ostream&) const = 0;
@@ -28,6 +28,7 @@ std::ostream& streamf(std::ostream& out, const char* fmt);
 /** 
  * fprintf-like function which works on C++ @p std::ostream.
  * Each "%" in @p fmt corresponds to one vardiac argument in @p args.
+ * The type of the corresponding argument must either support operator << for C++ std::ostream or inherit from @p Streamable.
  * Use "%%" to escape.
  */
 template<typename T, typename... Args>

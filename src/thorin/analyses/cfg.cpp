@@ -63,10 +63,14 @@ public:
         : cfa_(cfa)
         , lambda2param2nodes_(cfa.scope(), std::vector<CFNodeSet>(0))
     {
+        ILOG("starting CFA");
         in_node(scope().entry());
         in_node(scope().exit());
         run_cfa();
+        ILOG("finished CFA");
+        ILOG("build CFG");
         build_cfg();
+        ILOG("done CFG");
     }
 
     void run_cfa();

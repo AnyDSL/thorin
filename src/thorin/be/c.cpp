@@ -461,11 +461,10 @@ void CCodeGen::emit() {
                 emit_debug_info(lambda->arg(0)); // TODO correct?
                 stream() << "if (";
                 emit(lambda->arg(0));
-                stream() << ") {";
-                up(); emit(lambda->arg(1)); down();
-                stream() << "} else {";
-                up(); emit(lambda->arg(2)); down();
-                stream() << "}";
+                stream() << ") ";
+                emit(lambda->arg(1));
+                stream() << " else ";
+                emit(lambda->arg(2));
             } else if (lambda->to()->isa<Bottom>()) {
                 stream() << "return ; // bottom: unreachable";
             } else {

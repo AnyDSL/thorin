@@ -457,11 +457,10 @@ void CCodeGen::emit() {
                 emit_debug_info(select);
                 stream() << "if (";
                 emit(select->cond());
-                stream() << ") {";
-                up(); emit(select->tval()); down();
-                stream() << "} else {";
-                up(); emit(select->fval()); down();
-                stream() << "}";
+                stream() << ") ";
+                emit(select->tval());
+                stream() << " else ";
+                emit(select->fval());
             } else if (lambda->to()->isa<Bottom>()) {
                 stream() << "return ; // bottom: unreachable";
             } else {

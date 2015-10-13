@@ -107,7 +107,8 @@ private:
 /**
  * @brief Control Flow Analysis.
  *
- * This class maintains information obtained by a 0-CFA run on a @p Scope.
+ * This class maintains information obtained by local control-flow analysis run on a @p Scope.
+ * See "Shallow Embedding of DSLs via Online Partial Evaluation", Leißa et.al. for details.
  */
 class CFA {
 public:

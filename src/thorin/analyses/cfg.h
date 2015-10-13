@@ -10,6 +10,7 @@
 #include "thorin/util/array.h"
 #include "thorin/util/autoptr.h"
 #include "thorin/util/indexmap.h"
+#include "thorin/util/streamf.h"
 
 namespace thorin {
 
@@ -35,7 +36,7 @@ typedef thorin::HashSet<const CFNode*, CFNodeHash> CFNodeSet;
  *
  * Managed by @p CFA.
  */
-class CFNode : public MagicCast<CFNode> {
+class CFNode : public MagicCast<CFNode>, public Streamable {
 protected:
     CFNode(Def def)
         : def_(def)
@@ -44,19 +45,20 @@ protected:
 public:
     Def def() const { return def_; }
     virtual const InNode* in_node() const = 0;
-    void dump() const { def()->dump(); }
+
 
 private:
     const CFNodeSet& preds() const { return preds_; }
     const CFNodeSet& succs() const { return succs_; }
-    void link(const CFNode* other) const {
-        this->succs_.insert(other);
-        other->preds_.insert(this);
-    }
+    void link(const CFNode* other) const;
+
+    static const size_t Unreachable = -1;
+    static const size_t Reachable = -2;
+    static const size_t Visited = -3;
 
     Def def_;
-    mutable size_t f_index_ = -1; ///< RPO index in a forward @p CFG.
-    mutable size_t b_index_ = -1; ///< RPO index in a backwards @p CFG.
+    mutable size_t f_index_ = Unreachable; ///< RPO index in a forward @p CFG.
+    mutable size_t b_index_ =   Reachable; ///< RPO index in a backwards @p CFG.
     mutable CFNodeSet preds_;
     mutable CFNodeSet succs_;
 
@@ -76,6 +78,7 @@ public:
     Lambda* lambda() const { return def()->as_lambda(); }
     const DefMap<const OutNode*>& out_nodes() const { return out_nodes_; }
     virtual const InNode* in_node() const override { return this; }
+    virtual std::ostream& stream(std::ostream&) const override;
 
 private:
     mutable DefMap<const OutNode*> out_nodes_;
@@ -98,6 +101,7 @@ public:
     const InNode* context() const { return context_; }
     const OutNode* ancestor() const { return ancestor_; }
     virtual const InNode* in_node() const override { return context_; }
+    virtual std::ostream& stream(std::ostream&) const override;
 
 private:
     const InNode* context_;

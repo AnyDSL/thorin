@@ -15,7 +15,7 @@ void Streamable::dump() const { stream(std::cout); }
 
 std::ostream& operator << (std::ostream& ostream, const Streamable* s) { return s->stream(ostream); }
 
-void streamf(std::ostream& out, const char* fmt) {
+std::ostream& streamf(std::ostream& out, const char* fmt) {
     while (*fmt) {
         if (*fmt == '%') {
             if (*(fmt+1) == '%')
@@ -25,6 +25,7 @@ void streamf(std::ostream& out, const char* fmt) {
         }
         out << *fmt++;
     }
+    return out;
 }
 
 }

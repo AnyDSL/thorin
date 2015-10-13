@@ -23,7 +23,7 @@ namespace detail {
 }
 
 /// Base case.
-void streamf(std::ostream& out, const char* fmt);
+std::ostream& streamf(std::ostream& out, const char* fmt);
 
 /** 
  * fprintf-like function which works on C++ @p std::ostream.
@@ -31,7 +31,7 @@ void streamf(std::ostream& out, const char* fmt);
  * Use "%%" to escape.
  */
 template<typename T, typename... Args>
-void streamf(std::ostream& out, const char* fmt, T val, Args... args) {
+std::ostream&streamf(std::ostream& out, const char* fmt, T val, Args... args) {
     while (*fmt) {
         if (*fmt == '%') {
             if (*(fmt+1) == '%')
@@ -41,6 +41,7 @@ void streamf(std::ostream& out, const char* fmt, T val, Args... args) {
         }
         out << *fmt++;
     }
+    return out;
 }
 
 }

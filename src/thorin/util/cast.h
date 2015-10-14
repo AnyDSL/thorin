@@ -1,5 +1,5 @@
-#ifndef THORIN_CAST_HEADER_H
-#define THORIN_CAST_HEADER_H
+#ifndef THORIN_UTIL_CAST_H
+#define THORIN_UTIL_CAST_H
 
 #include <cstring>
 #include <type_traits>

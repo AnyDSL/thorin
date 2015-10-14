@@ -62,7 +62,7 @@ std::ostream& InNode::stream(std::ostream& out) const {
 }
 
 std::ostream& OutNode::stream(std::ostream& out) const {
-    return streamf(out, "<Out: %, %>", def()->unique_name(), context());
+    return streamf(out, "[Out: %, %]", def()->unique_name(), context());
 }
 
 InNode::~InNode() {

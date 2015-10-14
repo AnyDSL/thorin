@@ -14,21 +14,24 @@ namespace thorin {
 
 class CCodeGen : public Printer {
 public:
-    CCodeGen(World& world, std::ostream& stream, Lang lang)
+    CCodeGen(World& world, std::ostream& stream, Lang lang, bool debug)
         : Printer(stream)
         , world_(world)
         , lang_(lang)
+        , debug_(debug)
     {}
 
     void emit();
 private:
     World& world_;
     Lang lang_;
+    bool debug_;
     HashMap<size_t, std::string> globals_;
     HashMap<size_t, std::string> primops_;
 
     std::ostream& emit_aggop_defs(Def def);
     std::ostream& emit_aggop_decl(Type);
+    std::ostream& emit_debug_info(Def def);
     std::ostream& emit_type(Type);
     std::ostream& emit(Def def);
     bool lookup(size_t gid);
@@ -37,6 +40,16 @@ private:
     bool is_texture_type(Type type);
     bool process_kernel_ = false;
 };
+
+
+std::ostream& CCodeGen::emit_debug_info(Def def) {
+    if (debug_) {
+        stream() << "#line " << def->loc().pos1().line() << " \"" <<  def->loc().pos1().filename() << "\"";
+        newline();
+    }
+    return stream();
+}
+
 
 std::ostream& CCodeGen::emit_type(Type type) {
     if (type.empty()) {
@@ -379,12 +392,13 @@ void CCodeGen::emit() {
         }
 
         for (auto lambda : scope.rpo()) {
-            // dump declarations for variables set in gotos
+            // emit function arguments and phi nodes
             if (!lambda->is_cascading() && scope.entry() != lambda)
                 for (auto param : lambda->params())
                     if (!param->type().isa<MemType>()) {
                         newline();
-                        emit_type(param->type()) << " " << param->unique_name() << ";";
+                        emit_type(param->type()) << " " << param->unique_name() << ", "
+                                                 << "p" << param->unique_name() << ";";
                     }
         }
 
@@ -403,12 +417,20 @@ void CCodeGen::emit() {
             if (lambda != scope.entry()) {
                 stream() << "l" << lambda->gid() << ": ;";
                 up();
+                // load argument from phi node
+                if (lambda->to() != ret_param) // skip for return
+                    for (auto arg : lambda->args())
+                        if (!arg->type().isa<MemType>()) {
+                            stream() << arg->unique_name() << " = p" << arg->unique_name() << ";";
+                            newline();
+                        }
             }
 
             for (auto primop : schedule[lambda]) {
                 // skip higher-order primops, stuff dealing with frames and all memory related stuff except stores
                 if (!primop->type().isa<FnType>() && !primop->type().isa<FrameType>()
                         && (!primop->type().isa<MemType>() || primop->isa<Store>())) {
+                    emit_debug_info(primop);
                     emit(primop);
                     newline();
                 }
@@ -440,33 +462,31 @@ void CCodeGen::emit() {
                 }
                 stream() << ";";
             } else if (auto select = lambda->to()->isa<Select>()) { // conditional branch
+                emit_debug_info(select);
                 stream() << "if (";
                 emit(select->cond());
-                stream() << ") {";
-                up(); emit(select->tval()); down();
-                stream() << "} else {";
-                up(); emit(select->fval()); down();
-                stream() << "}";
+                stream() << ") ";
+                emit(select->tval());
+                stream() << " else ";
+                emit(select->fval());
             } else if (lambda->to()->isa<Bottom>()) {
                 stream() << "return ; // bottom: unreachable";
             } else {
                 Lambda* to_lambda = lambda->to()->as_lambda();
+                emit_debug_info(to_lambda);
 
                 // emit inlined arrays/tuples/structs before the call operation
                 for (auto arg : lambda->args()) emit_aggop_defs(arg);
 
-                if (to_lambda->is_basicblock()) {    // ordinary jump
+                if (to_lambda->is_basicblock()) {   // ordinary jump
                     assert(to_lambda->num_params()==lambda->num_args());
-                    size_t size = to_lambda->num_params();
-                    for (size_t i = 0; i != size; ++i) {
+                    // store parameter to phi nodes
+                    for (size_t i = 0, size = to_lambda->num_params(); i != size; ++i)
                         if (!to_lambda->param(i)->type().isa<MemType>()) {
-                            if (to_lambda->param(i)->gid() == lambda->arg(i)->gid())
-                                stream() << "// ";  // self-assignment
-                            stream() << to_lambda->param(i)->unique_name() << " = ";
+                            stream() << "p" << to_lambda->param(i)->unique_name() << " = ";
                             emit(lambda->arg(i)) << ";";
                             newline();
                         }
-                    }
                     emit(to_lambda);
                 } else {
                     if (to_lambda->is_intrinsic()) {
@@ -832,7 +852,7 @@ bool CCodeGen::is_texture_type(Type type) {
 
 //------------------------------------------------------------------------------
 
-void emit_c(World& world, std::ostream& stream, Lang lang) { CCodeGen(world, stream, lang).emit(); }
+void emit_c(World& world, std::ostream& stream, Lang lang, bool debug) { CCodeGen(world, stream, lang, debug).emit(); }
 
 //------------------------------------------------------------------------------
 

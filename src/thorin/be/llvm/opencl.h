@@ -9,7 +9,7 @@ class OpenCLCodeGen : public CodeGen {
 public:
     OpenCLCodeGen(World& world);
 
-    void emit();
+    void emit(bool debug);
 
 protected:
     virtual std::string get_alloc_name() const { assert(false && "alloc not supported in OpenCL"); }

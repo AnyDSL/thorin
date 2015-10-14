@@ -1,6 +1,5 @@
 #include "thorin/be/llvm/runtime.h"
 
-#include <iostream>
 #include <sstream>
 #include <stdexcept>
 
@@ -90,7 +89,7 @@ Lambda* KernelRuntime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
             auto rtype = ptr->referenced_type();
 
             if (!rtype.isa<ArrayType>()) {
-                std::cout << "only pointers to arrays supported as kernel argument; got other pointer:" << std::endl;
+                target_arg->error() << "currently only pointers to arrays supported as kernel argument; argument has different type:\n";
                 ptr->dump();
                 assert(rtype.isa<ArrayType>() && "currently only pointers to arrays supported");
             }

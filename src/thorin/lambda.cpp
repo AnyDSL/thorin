@@ -1,7 +1,5 @@
 #include "thorin/lambda.h"
 
-#include <iostream>
-
 #include "thorin/type.h"
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
@@ -363,7 +361,7 @@ Def Lambda::get_value(size_t handle, Type type, const char* name) {
 
 return_bottom:
     // TODO provide hook instead of fixed functionality
-    std::cerr << "'" << name << "'" << " may be undefined" << std::endl;
+    this->warn() << "'" << name << "'" << " may be undefined\n";
     return set_value(handle, world().bottom(type, Location()));
 }
 

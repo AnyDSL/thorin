@@ -21,12 +21,12 @@ OpenCLCodeGen::OpenCLCodeGen(World& world)
     : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::C, llvm::CallingConv::C)
 {}
 
-void OpenCLCodeGen::emit() {
+void OpenCLCodeGen::emit(bool debug) {
     auto name = get_output_name(world_.name());
     std::ofstream file(name);
     if (!file.is_open())
         throw std::runtime_error("cannot write '" + name + "': " + strerror(errno));
-    thorin::emit_c(world_, file, Lang::OPENCL);
+    thorin::emit_c(world_, file, Lang::OPENCL, debug);
 }
 
 }

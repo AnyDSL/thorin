@@ -1,7 +1,6 @@
 #include "thorin/be/llvm/llvm.h"
 
 #include <algorithm>
-#include <iostream>
 #include <stdexcept>
 
 #include <llvm/ADT/Triple.h>
@@ -638,7 +637,7 @@ llvm::Value* CodeGen::emit(Def def) {
                 vals[i] = llvm::cast<llvm::Constant>(emit(array->op(i)));
             return llvm::ConstantArray::get(type, llvm_ref(vals));
         }
-        std::cout << "warning: slow" << std::endl;
+        def->warn() << "slow\n";
         auto alloca = emit_alloca(type, array->name);
 
         u64 i = 0;
@@ -677,7 +676,7 @@ llvm::Value* CodeGen::emit(Def def) {
         auto llvm_agg = lookup(aggop->agg());
         auto llvm_idx = lookup(aggop->index());
         auto copy_to_alloca = [&] () {
-            std::cout << "warning: slow" << std::endl;
+            def->warn() << "slow\n";
             auto alloca = emit_alloca(llvm_agg->getType(), aggop->name);
             irbuilder_.CreateStore(llvm_agg, alloca);
 
@@ -1009,10 +1008,10 @@ void emit_llvm(World& world, int opt, bool debug) {
         world.cleanup();
 
     CPUCodeGen(world).emit(opt, debug);
-    if (!cuda.  lambdas().empty()) CUDACodeGen(cuda).emit(/*opt, debug*/);
+    if (!cuda.  lambdas().empty()) CUDACodeGen(cuda).emit(/*opt,*/ debug);
     if (!nvvm.  lambdas().empty()) NVVMCodeGen(nvvm).emit(opt, debug);
     if (!spir.  lambdas().empty()) SPIRCodeGen(spir).emit(opt, debug);
-    if (!opencl.lambdas().empty()) OpenCLCodeGen(opencl).emit(/*opt, debug*/);
+    if (!opencl.lambdas().empty()) OpenCLCodeGen(opencl).emit(/*opt,*/ debug);
 }
 
 //------------------------------------------------------------------------------

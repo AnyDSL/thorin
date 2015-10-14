@@ -5,7 +5,7 @@
 
 namespace thorin {
 
-template<class T> 
+template<class T>
 T pop(std::queue<T>& queue) {
     auto val = queue.front();
     queue.pop();

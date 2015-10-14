@@ -186,7 +186,7 @@ struct Option<OptionStringVector, T> : public OptionBase<OptionStringVector, T, 
 };
 
 template<>
-struct Option<void, void> : public BasicOption<void>{
+struct Option<void, void> : public BasicOption<void> {
     Option()
         : BasicOption<void>("empty arg", "", nullptr)
     {}

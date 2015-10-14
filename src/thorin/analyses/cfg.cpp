@@ -162,15 +162,11 @@ Array<CFNodeSet> CFABuilder::cf_nodes_per_op(Lambda* lambda) {
 
 void CFABuilder::run_cfa() {
     std::queue<Lambda*> queue;
-    LambdaSet inqueue;
 
     auto enqueue = [&] (Lambda* lambda) {
-        if (!inqueue.contains(lambda)) {
-            queue.push(lambda);
-            inqueue.insert(lambda);
-            in_node(lambda)->f_index_ = CFNode::Reachable;
-            DLOG("enqueuing %", lambda->unique_name());
-        }
+        DLOG("enqueuing %", lambda->unique_name());
+        queue.push(lambda);
+        in_node(lambda)->f_index_ = CFNode::Reachable;
     };
 
     enqueue(scope().entry());

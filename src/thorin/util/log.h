@@ -27,8 +27,7 @@ public:
     template<typename... Args>
     static void log(Level level, const char* file, int line, const char* fmt, Args... args) {
         if (Log::stream_ && level <= Log::max_level()) {
-            Log::stream() << (level == Log::Info ? "I:" : "D:") << file << ':' 
-                        << std::setw(4) << std::setfill('0') << line << ": ";
+            Log::stream() << (level == Log::Info ? "I:" : "D:") << file << ':' << std::setw(4) << line << ": ";
             streamf(Log::stream(), fmt, args...);
             Log::stream() << std::endl;
         }

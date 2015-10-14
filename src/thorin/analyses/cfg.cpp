@@ -216,8 +216,18 @@ void CFABuilder::build_cfg() {
             ++cfa_.num_in_nodes_;
             auto info = cf_nodes_per_op(in->lambda());
 
-            for (auto to : info[0])
+            for (auto to : info[0]) {
                 in->link(to);
+
+                if (auto out = to->isa<OutNode>()) {
+                    for (const auto& nodes : info.skip_front()) {
+                        for (auto n : nodes) {
+                            assert(n->f_index_ == CFNode::Reachable);
+                            out->link(n);
+                        }
+                    }
+                }
+            }
 
             for (auto pair : in->out_nodes()) {
                 ++cfa_.num_out_nodes_;

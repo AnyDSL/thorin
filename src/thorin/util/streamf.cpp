@@ -11,7 +11,7 @@
 
 namespace thorin {
 
-void Streamable::dump() const { stream(std::cout); }
+void Streamable::dump() const { stream(std::cout) << std::endl;; }
 
 std::ostream& operator << (std::ostream& ostream, const Streamable* s) { return s->stream(ostream); }
 

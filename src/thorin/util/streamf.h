@@ -1,7 +1,6 @@
 #ifndef THORIN_UTIL_STREAMF_H
 #define THORIN_UTIL_STREAMF_H
 
-#include <cstdarg>
 #include <ostream>
 
 namespace thorin {

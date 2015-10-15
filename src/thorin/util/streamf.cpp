@@ -1,12 +1,8 @@
 #include "log.h"
 
-#include <cstdlib>
-#include <cstring>
-#include <ios>
 #include <iostream>
-#include <new>
-#include <stdexcept>
 #include <sstream>
+#include <stdexcept>
 
 #include "streamf.h"
 

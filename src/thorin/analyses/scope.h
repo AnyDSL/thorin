@@ -90,8 +90,8 @@ private:
     static uint32_t id_counter_;
 };
 
-    template<> inline const CFG< true>& Scope::cfg() const { return f_cfg(); }
-    template<> inline const CFG<false>& Scope::cfg() const { return b_cfg(); }
+template<> inline const CFG< true>& Scope::cfg< true>() const { return f_cfg(); }
+template<> inline const CFG<false>& Scope::cfg<false>() const { return b_cfg(); }
 
 }
 

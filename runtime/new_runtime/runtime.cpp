@@ -1,8 +1,10 @@
-#include <atomic>
-#include <chrono>
-#include <cstdlib>
 #include <iostream>
+#include <cassert>
+#include <vector>
+#include <cstdlib>
+#include <chrono>
 #include <random>
+#include <atomic>
 
 #if !defined(_WIN32) && (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__)))
 #include <unistd.h>
@@ -13,7 +15,48 @@
 #include <windows.h>
 #endif
 
-#include "thorin_utils.h"
+#include "thorin_runtime.h"
+
+#include "runtime.h"
+#include "platform.h"
+#include "cpu_platform.h"
+#ifdef HAS_CUDA
+#include "cuda_platform.h"
+#endif
+
+static Runtime runtime;
+
+Runtime::Runtime() {
+    register_platform<CpuPlatform>();
+#ifdef HAS_CUDA
+    register_platform<CudaPlatform>();
+#endif
+}
+
+void thorin_info(void) {
+    runtime.display_info(std::cout);
+}
+
+void* thorin_alloc(unsigned dev, int64_t size) {
+    return runtime.alloc((device_id)dev, size);
+}
+
+void thorin_release(void* ptr) {
+    runtime.release(ptr);
+}
+
+void* thorin_map(void* ptr, int64_t offset, int64_t size) {
+    assert(0 && "Not implemented");
+    return nullptr;
+}
+
+void thorin_unmap(void* view) {
+    assert(0 && "Not implemented");
+}
+
+void thorin_copy(const void* src, void* dst) {
+    runtime.copy(src, dst);
+}
 
 #if _POSIX_VERSION >= 200112L || _XOPEN_SOURCE >= 600
 void* thorin_aligned_malloc(size_t size, size_t alignment) {
@@ -31,7 +74,7 @@ void thorin_aligned_free(void* ptr) { ::free(ptr); }
 void* thorin_aligned_malloc(size_t size, size_t alignment) { return ::_aligned_malloc(size, alignment); }
 void thorin_aligned_free(void* ptr) { ::_aligned_free(ptr); }
 #else
-#error "don't know how to retrieve aligned memory"
+#error "There is no way to allocate aligned memory on this system"
 #endif
 
 long long thorin_get_micro_time() {

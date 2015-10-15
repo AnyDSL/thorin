@@ -1,0 +1,28 @@
+extern "C" {
+    fn thorin_info() -> ();
+
+    fn thorin_alloc(u32, i64) -> &i8;
+    fn thorin_release(&i8) -> ();
+
+    fn thorin_map(&i8, i64, i64) -> &i8;
+    fn thorin_unmap(&i8) -> ();
+
+    fn thorin_copy(&i8, &i8) -> ();
+
+    fn thorin_random_val() -> f32;
+    fn thorin_random_seed(u32) -> ();
+
+    fn thorin_get_micro_time() -> i64;
+    fn thorin_get_kernel_time() -> i64;
+
+    fn thorin_print_char(i8) -> ();
+    fn thorin_print_int(i32) -> ();
+    fn thorin_print_long(i64) -> ();
+    fn thorin_print_float(f32) -> ();
+    fn thorin_print_double(f64) -> ();
+    fn thorin_print_string(&[u8]) -> ();
+}
+
+fn alloc_host(size: i32) -> &i8 { thorin_alloc(0u32, size as i64) }
+fn alloc_device(dev: u32, size: i32) -> &i8 { thorin_alloc(dev, size as i64) }
+fn release(ptr: &i8) -> () { thorin_release(ptr) }

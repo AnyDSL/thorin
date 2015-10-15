@@ -4,7 +4,7 @@ SET ( LIBRARY_NAME thorin )
 FILE ( GLOB_RECURSE SOURCES *.cpp *.h )
 
 # create lib
-get_thorin_dependency_libs( THORIN_LIBS )
+GET_THORIN_DEPENDENCY_LIBS ( THORIN_LIBS )
 
 IF ( BUILD_STATIC )
     MESSAGE ( "Building thorin as static library ..." )

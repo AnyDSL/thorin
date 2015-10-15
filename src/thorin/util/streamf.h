@@ -10,12 +10,11 @@ namespace thorin {
 class Streamable {
 public:
     virtual std::ostream& stream(std::ostream&) const = 0;
-    void dump() const; ///< Uses @p stream in order to dump to @p std::cout.
     std::string to_string() const; ///< Uses @p stream and @c std::ostringstream to generate a @c std::string.
+    void dump() const; ///< Uses @p stream in order to dump to @p std::cout.
 };
 
-/// Use @p Streamable in C++ streams via @c operator<<.
-std::ostream& operator << (std::ostream&, const Streamable*);
+std::ostream& operator << (std::ostream&, const Streamable*); ///< Use @p Streamable in C++ streams via @c operator<<.
 
 namespace detail {
     template<typename T> inline std::ostream& stream(std::ostream& out, T val) { return out << val; }
@@ -25,14 +24,14 @@ namespace detail {
 /// Base case.
 std::ostream& streamf(std::ostream& out, const char* fmt);
 
-/** 
+/**
  * fprintf-like function which works on C++ @c std::ostream.
  * Each @c "%" in @p fmt corresponds to one vardiac argument in @p args.
  * The type of the corresponding argument must either support @c operator<< for C++ @c std::ostream or inherit from @p Streamable.
  * Use @c "%%" to escape.
  */
 template<typename T, typename... Args>
-std::ostream&streamf(std::ostream& out, const char* fmt, T val, Args... args) {
+std::ostream& streamf(std::ostream& out, const char* fmt, T val, Args... args) {
     while (*fmt) {
         if (*fmt == '%') {
             if (*(fmt+1) == '%')

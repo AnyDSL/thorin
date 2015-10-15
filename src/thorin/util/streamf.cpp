@@ -12,14 +12,13 @@
 
 namespace thorin {
 
-void Streamable::dump() const { stream(std::cout) << std::endl;; }
-
 std::string Streamable::to_string() const {
     std::ostringstream out;
     stream(out);
     return out.str();
 }
 
+void Streamable::dump() const { stream(std::cout) << std::endl;; }
 std::ostream& operator << (std::ostream& ostream, const Streamable* s) { return s->stream(ostream); }
 
 std::ostream& streamf(std::ostream& out, const char* fmt) {

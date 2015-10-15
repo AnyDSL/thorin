@@ -203,7 +203,6 @@ public:
     const DomTreeBase<forward>& domtree() const;
     const LoopTree<forward>& looptree() const;
     const DFGBase<forward>& dfg() const;
-    void dump() const;
 
     static size_t index(const CFNode* n) { return forward ? n->f_index_ : n->b_index_; }
     static bool is_in_node(const CFNode* n) { return n->isa<InNode>(); }

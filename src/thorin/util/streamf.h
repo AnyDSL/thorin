@@ -10,8 +10,8 @@ namespace thorin {
 class Streamable {
 public:
     virtual std::ostream& stream(std::ostream&) const = 0;
-    /// Uses @p stream in order to dump to @p std::cout.
-    void dump() const;
+    void dump() const; ///< Uses @p stream in order to dump to @p std::cout.
+    std::string to_string() const; ///< Uses @p stream and @c std::ostringstream to generate a @c std::string.
 };
 
 /// Use @p Streamable in C++ streams via @c operator<<.

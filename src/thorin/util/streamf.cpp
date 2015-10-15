@@ -6,12 +6,19 @@
 #include <iostream>
 #include <new>
 #include <stdexcept>
+#include <sstream>
 
 #include "streamf.h"
 
 namespace thorin {
 
 void Streamable::dump() const { stream(std::cout) << std::endl;; }
+
+std::string Streamable::to_string() const {
+    std::ostringstream out;
+    stream(out);
+    return out.str();
+}
 
 std::ostream& operator << (std::ostream& ostream, const Streamable* s) { return s->stream(ostream); }
 

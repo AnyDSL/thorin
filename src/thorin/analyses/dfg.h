@@ -60,29 +60,28 @@ public:
     void dump(std::ostream& os) const;
     void dump() const { dump(std::cerr); }
 
-        static void emit_scope(const Scope& scope, std::ostream& ostream = std::cout) {
-            auto& dfg = scope.cfg<forward>().dfg();
-            //DFGBase<forward>& dfg = nullptr;
+    static void emit_scope(const Scope& scope, std::ostream& ostream = std::cout) {
+        auto& dfg = scope.cfg<forward>().dfg();
 
-            emit_ycomp(ostream, scope, range(dfg.nodes_.begin(), dfg.nodes_.end()),
-                       [] (const Node* node) {
-                           return range(node->succs().begin(), node->succs().end());
-                       },
-                       [] (const Node* node) {
-                           std::stringstream stream;
-                           if (auto out_node = node->cf_node_->template isa<OutNode>())
-                               stream << "(" << out_node->context()->def()->unique_name() << ") ";
-                           stream << node->cf_node_->def()->unique_name();
+        emit_ycomp(ostream, scope, range(dfg.nodes_.begin(), dfg.nodes_.end()),
+            [] (const Node* n) {
+                return range(n->succs().begin(), n->succs().end());
+            },
+            [] (const Node* n) {
+                std::stringstream stream;
+                if (auto out_node = n->cf_node_->template isa<OutNode>())
+                    stream << "(" << out_node->context()->def()->unique_name() << ") ";
 
-                           return std::make_pair(stream.str(), stream.str());
-                       },
-                       YComp_Orientation::TopToBottom
-            );
-        }
+                stream << n->cf_node_->def()->unique_name();
+                return std::make_pair(stream.str(), stream.str());
+            },
+            YComp_Orientation::TopToBottom
+        );
+    }
 
-        static void emit_world(const World& world, std::ostream& ostream = std::cout) {
-            emit_ycomp(ostream, world, emit_scope);
-        }
+    static void emit_world(const World& world, std::ostream& ostream = std::cout) {
+        emit_ycomp(ostream, world, emit_scope);
+    }
 
 private:
     void create();

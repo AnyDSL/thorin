@@ -211,13 +211,13 @@ public:
         auto& cfg = scope.cfg<forward>();
 
         emit_ycomp(ostream, scope, range(cfg.rpo().begin(), cfg.rpo().end()),
-                   [] (const CFNode* node) {
-                       return range(node->succs().begin(), node->succs().end());
-                   },
-                   [] (const CFNode* node) {
-                       return std::make_pair(node->def()->unique_name(), node->def()->unique_name());
-                   },
-                   YComp_Orientation::TopToBottom
+            [] (const CFNode* node) {
+                return range(node->succs().begin(), node->succs().end());
+            },
+            [] (const CFNode* node) {
+                return std::make_pair(node->def()->unique_name(), node->def()->unique_name());
+            },
+            YComp_Orientation::TopToBottom
         );
     }
 

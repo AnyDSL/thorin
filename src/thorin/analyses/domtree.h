@@ -57,29 +57,29 @@ public:
         create();
     }
 
-        static void emit_scope(const Scope& scope, std::ostream& ostream = std::cout) {
-            auto& domtree = scope.cfg<forward>().domtree();
-            emit_ycomp(ostream, scope, range(domtree.nodes().begin(), domtree.nodes().end()),
-                       [] (const Node* node) {
-                           return range(node->children().begin(), node->children().end());
-                       },
-                       [] (const Node* node) {
-                           auto id = std::to_string(node->cf_node()->def()->gid()) + "_" + std::to_string(node->cf_node()->in_node()->def()->gid());
-                           std::string label;
-                           if(auto out = node->cf_node()->template isa<thorin::OutNode>()) {
-                               label += "(" + out->context()->def()->unique_name() + ") ";
-                           }
+    static void emit_scope(const Scope& scope, std::ostream& ostream = std::cout) {
+        auto& domtree = scope.cfg<forward>().domtree();
+        emit_ycomp(ostream, scope, range(domtree.nodes().begin(), domtree.nodes().end()),
+            [] (const Node* n) {
+                return range(n->children().begin(), n->children().end());
+            },
+            [] (const Node* n) {
+                auto id = std::to_string(n->cf_node()->def()->gid()) + "_" + std::to_string(n->cf_node()->in_node()->def()->gid());
+                std::string label;
+                if(auto out = n->cf_node()->template isa<thorin::OutNode>()) {
+                    label += "(" + out->context()->def()->unique_name() + ") ";
+                }
 
-                           label += node->cf_node()->def()->unique_name();
-                           return std::make_pair(id, label);
-                       },
-                       YComp_Orientation::TopToBottom
-            );
-        }
+                label += n->cf_node()->def()->unique_name();
+                return std::make_pair(id, label);
+            },
+            YComp_Orientation::TopToBottom
+        );
+    }
 
-        static void emit_world(const World& world, std::ostream& ostream = std::cout) {
-            emit_ycomp(ostream, world, emit_scope);
-        }
+    static void emit_world(const World& world, std::ostream& ostream = std::cout) {
+        emit_ycomp(ostream, world, emit_scope);
+    }
 
     const CFG<forward>& cfg() const { return cfg_; }
     size_t index(const Node* n) const { return cfg().index(n->cf_node()); }

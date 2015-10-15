@@ -152,7 +152,7 @@ public:
 
                        THORIN_UNREACHABLE;
                    },
-                   YComp_Orientation::LEFT_TO_RIGHT
+                   YComp_Orientation::LeftToRight
         );
     }
 

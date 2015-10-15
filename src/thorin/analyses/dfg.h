@@ -76,7 +76,7 @@ public:
 
                            return std::make_pair(stream.str(), stream.str());
                        },
-                       YComp_Orientation::TOP_TO_BOTTOM
+                       YComp_Orientation::TopToBottom
             );
         }
 

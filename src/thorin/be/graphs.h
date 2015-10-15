@@ -26,18 +26,18 @@ private:
 };
 
 enum YComp_Orientation {
-    LEFT_TO_RIGHT = 0,
-    RIGHT_TO_LEFT,
-    BOTTOM_TO_TOP,
-    TOP_TO_BOTTOM,
-    SIZE_OF_ENUM
+    LeftToRight = 0,
+    RightToLeft,
+    BottomToTop,
+    TopToBottom,
+    Num
 };
 
 static const char* YComp_Orientation_Names[] = { "left_to_right", "right_to_left", "bottom_to_top", "top_to_bottom" };
-static_assert(sizeof(YComp_Orientation_Names)/sizeof(char*) == YComp_Orientation::SIZE_OF_ENUM, "Sizes do not match!");
+static_assert(sizeof(YComp_Orientation_Names)/sizeof(char*) == YComp_Orientation::Num, "Sizes do not match!");
 
 struct YCompConfig {
-    static int INDENTATION;
+    static int indentation;
 };
 
 template <typename I, typename SuccFct, typename UniqueFct>
@@ -52,7 +52,7 @@ public:
 
     ~YCompScope() {
         down() << "}";
-        indent -= YCompConfig::INDENTATION;
+        indent -= YCompConfig::indentation;
         newline();
     }
 
@@ -60,7 +60,7 @@ private:
     YCompScope(std::ostream& ostream, YComp_Orientation orientation)
             : Printer(ostream)
     {
-        indent += YCompConfig::INDENTATION;
+        indent += YCompConfig::indentation;
 
         newline() << "graph: {";
         up() << "layoutalgorithm: compilergraph";
@@ -95,7 +95,7 @@ private:
 template <typename I, typename SuccFct, typename UniqueFct>
 YCompScope<I,SuccFct,UniqueFct> emit_ycomp(std::ostream& ostream, const Scope& scope, Range<I> range,
                                            SuccFct succs, UniqueFct unique,
-                                           YComp_Orientation orientation = YComp_Orientation::BOTTOM_TO_TOP) {
+                                           YComp_Orientation orientation = YComp_Orientation::BottomToTop) {
     return YCompScope<I,SuccFct,UniqueFct>(ostream, scope, range, succs, unique, orientation);
 }
 
@@ -105,9 +105,9 @@ void emit_ycomp(std::ostream& ostream, const World& world, Emit emit) {
     ostream << "    " << "graph: {" <<  std::endl;
     ostream << "        " << "title: \"" << world.name() << '"' << std::endl;
     ostream << "        " << "label: \"" << world.name() << '"' << std::endl;
-    YCompConfig::INDENTATION = 2;
+    YCompConfig::indentation = 2;
     Scope::for_each(world, [&] (const Scope& scope) { emit(scope, ostream); });
-    YCompConfig::INDENTATION = 0;
+    YCompConfig::indentation = 0;
     ostream << "    " << '}' << std::endl;
     ostream << '}' << std::endl;
 }

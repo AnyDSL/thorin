@@ -73,7 +73,7 @@ public:
                            label += node->cf_node()->def()->unique_name();
                            return std::make_pair(id, label);
                        },
-                       YComp_Orientation::TOP_TO_BOTTOM
+                       YComp_Orientation::TopToBottom
             );
         }
 

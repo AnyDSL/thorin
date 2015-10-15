@@ -217,7 +217,7 @@ public:
                    [] (const CFNode* node) {
                        return std::make_pair(node->def()->unique_name(), node->def()->unique_name());
                    },
-                   YComp_Orientation::TOP_TO_BOTTOM
+                   YComp_Orientation::TopToBottom
         );
     }
 

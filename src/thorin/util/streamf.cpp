@@ -1,10 +1,10 @@
-#include "log.h"
+#include "thorin/util/streamf.h"
 
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
 
-#include "streamf.h"
+#include "thorin/util/log.h"
 
 namespace thorin {
 

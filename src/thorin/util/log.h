@@ -4,7 +4,7 @@
 #include <iomanip>
 #include <ostream>
 
-#include "streamf.h"
+#include "thorin/util/streamf.h"
 
 namespace thorin {
 

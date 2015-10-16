@@ -4,7 +4,8 @@
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/be/thorin.h"
-#include "thorin/util/queue.h"
+#include "thorin/util/log.h"
+#include "thorin/util/pop.h"
 
 namespace thorin {
 
@@ -370,8 +371,7 @@ Def Lambda::get_value(size_t handle, Type type, const char* name) {
     }
 
 return_bottom:
-    // TODO provide hook instead of fixed functionality
-    this->warn() << "'" << name << "'" << " may be undefined\n";
+    WLOG("'%' may be undefined at '%'", name, this->loc());
     return set_value(handle, world().bottom(type, Location()));
 }
 

@@ -3,14 +3,13 @@
 #include <algorithm>
 #include <iostream>
 #include <sstream>
-#include <stack>
 
 #include "thorin/lambda.h"
 #include "thorin/primop.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
 #include "thorin/be/thorin.h"
-#include "thorin/util/queue.h"
+#include "thorin/util/pop.h"
 
 namespace thorin {
 
@@ -101,8 +100,7 @@ std::vector<Use> DefNode::uses() const {
     stack.push(this);
 
     while (!stack.empty()) {
-        const DefNode* cur = stack.top();
-        stack.pop();
+        auto cur = pop(stack);
 
         for (auto use : cur->uses_) {
             if (!use.def().node()->is_proxy())

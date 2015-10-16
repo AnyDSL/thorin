@@ -140,7 +140,10 @@ protected:
         }
     }
 
-    void set(size_t i, Type type) { args_[i] = type; }
+    void set(size_t i, Type type) {
+        args_[i] = type;
+        order_ = std::max(order_, type->order());
+    }
 
 public:
     NodeKind kind() const { return kind_; }
@@ -164,7 +167,7 @@ public:
     void free_type_vars(TypeVarSet& bound, TypeVarSet& free) const;
     TypeVarSet free_type_vars() const;
     size_t gid() const { return gid_; }
-    int order() const;
+    int order() const { return order_; }
     /// Returns the vector length. Raises an assertion if this type is not a @p VectorType.
     size_t length() const;
     virtual Type instantiate(ArrayRef<Type>) const;
@@ -203,6 +206,8 @@ public:
 
 protected:
     Array<Type> specialize_args(Type2Type&) const;
+
+    int order_ = 0;
 
 private:
     virtual Type vrebuild(World& to, ArrayRef<Type> args) const = 0;
@@ -407,7 +412,9 @@ class FnTypeNode : public TypeNode {
 private:
     FnTypeNode(World& world, ArrayRef<Type> args)
         : TypeNode(world, Node_FnType, args)
-    {}
+    {
+        ++order_;
+    }
 
 public:
     bool is_basicblock() const { return order() == 1; }

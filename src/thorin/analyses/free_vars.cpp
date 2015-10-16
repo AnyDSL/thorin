@@ -2,8 +2,8 @@
 
 #include "thorin/primop.h"
 #include "thorin/world.h"
-#include "thorin/util/queue.h"
 #include "thorin/analyses/scope.h"
+#include "thorin/util/pop.h"
 
 namespace thorin {
 

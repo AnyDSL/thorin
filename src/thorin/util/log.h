@@ -15,7 +15,7 @@ class Log {
 
 public:
     enum Level {
-        Info, Debug
+        Warn, Info, Debug
     };
 
     static std::ostream& stream() { return *stream_; }
@@ -23,11 +23,12 @@ public:
     static Level max_level() { return max_level_; }
     static void set_stream(std::ostream* stream) { stream_ = stream; }
     static void set_max_level(Level max_level) { max_level_ = max_level; }
+    static char level2char(Level);
 
     template<typename... Args>
     static void log(Level level, const char* file, int line, const char* fmt, Args... args) {
         if (Log::stream_ && level <= Log::max_level()) {
-            Log::stream() << (level == Log::Info ? "I:" : "D:") << file << ':' << std::setw(4) << line << ": ";
+            Log::stream() << level2char(level) << ':' << file << ':' << std::setw(4) << line << ": ";
             streamf(Log::stream(), fmt, args...);
             Log::stream() << std::endl;
         }
@@ -46,6 +47,7 @@ private:
 #define LOG(level, ...) {}
 #endif
 
+#define WLOG(...) LOG(thorin::Log::Warn,  __VA_ARGS__)
 #define ILOG(...) LOG(thorin::Log::Info,  __VA_ARGS__)
 #define DLOG(...) LOG(thorin::Log::Debug, __VA_ARGS__)
 

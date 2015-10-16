@@ -31,21 +31,21 @@
 #include "thorin/primop.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
-#include "thorin/util/array.h"
-#include "thorin/util/push.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/be/llvm/cuda.h"
 #include "thorin/be/llvm/cpu.h"
+#include "thorin/be/llvm/cuda.h"
 #include "thorin/be/llvm/nvvm.h"
 #include "thorin/be/llvm/opencl.h"
-#include "thorin/be/llvm/spir.h"
-#include "thorin/transform/import.h"
-
 #include "thorin/be/llvm/runtimes/cuda_runtime.h"
 #include "thorin/be/llvm/runtimes/nvvm_runtime.h"
-#include "thorin/be/llvm/runtimes/spir_runtime.h"
 #include "thorin/be/llvm/runtimes/opencl_runtime.h"
+#include "thorin/be/llvm/runtimes/spir_runtime.h"
+#include "thorin/be/llvm/spir.h"
+#include "thorin/transform/import.h"
+#include "thorin/util/array.h"
+#include "thorin/util/log.h"
+#include "thorin/util/push.h"
 
 namespace thorin {
 
@@ -634,7 +634,7 @@ llvm::Value* CodeGen::emit(Def def) {
                 vals[i] = llvm::cast<llvm::Constant>(emit(array->op(i)));
             return llvm::ConstantArray::get(type, llvm_ref(vals));
         }
-        def->warn() << "slow\n";
+        WLOG("slow: alloca and loads/stores needed for definite array '%' at '%'", def->unique_name(), def->loc());
         auto alloca = emit_alloca(type, array->name);
 
         u64 i = 0;
@@ -673,7 +673,7 @@ llvm::Value* CodeGen::emit(Def def) {
         auto llvm_agg = lookup(aggop->agg());
         auto llvm_idx = lookup(aggop->index());
         auto copy_to_alloca = [&] () {
-            def->warn() << "slow\n";
+            WLOG("slow: alloca and loads/stores needed for aggregate '%' at '%'", def->unique_name(), def->loc());
             auto alloca = emit_alloca(llvm_agg->getType(), aggop->name);
             irbuilder_.CreateStore(llvm_agg, alloca);
 

@@ -46,7 +46,6 @@ public:
     Def def() const { return def_; }
     virtual const InNode* in_node() const = 0;
 
-
 private:
     const CFNodeSet& preds() const { return preds_; }
     const CFNodeSet& succs() const { return succs_; }

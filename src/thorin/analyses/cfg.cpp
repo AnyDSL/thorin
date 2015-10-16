@@ -1,6 +1,5 @@
 #include "thorin/analyses/cfg.h"
 
-#include <iostream>
 #include <fstream>
 
 #include "thorin/primop.h"
@@ -10,7 +9,7 @@
 #include "thorin/analyses/scope.h"
 #include "thorin/be/ycomp.h"
 #include "thorin/util/log.h"
-#include "thorin/util/queue.h"
+#include "thorin/util/pop.h"
 
 namespace thorin {
 
@@ -24,32 +23,6 @@ uint64_t CFNodeHash::operator() (const CFNode* n) const {
 }
 
 //------------------------------------------------------------------------------
-
-static void leaves(Def def, std::function<void(Def)> f) {
-    DefSet done;
-    std::queue<Def> queue;
-
-    auto enqueue = [&] (Def def) {
-        if (!done.contains(def)) {
-            queue.push(def);
-            done.insert(def);
-        }
-    };
-
-    enqueue(def);
-    while (!queue.empty()) {
-        auto def = pop(queue);
-        if (def->isa<Param>() || def->isa<Lambda>())
-            f(def);
-        else {
-            for (auto op : def->as<PrimOp>()->ops())
-                enqueue(op);
-        }
-    }
-}
-
-//------------------------------------------------------------------------------
-
 
 void CFNode::link(const CFNode* other) const {
     this->succs_.insert(other);
@@ -78,16 +51,20 @@ public:
         : cfa_(cfa)
         , lambda2param2nodes_(cfa.scope(), std::vector<CFNodeSet>(0))
     {
-        ILOG("starting CFA");
+        ILOG("*** CFA: propagating higher-order values: start");
+        propagate();
+        ILOG("*** CFA: propagating higher-order values: done");
+        ILOG("*** CFA: actual CFA: start");
         in_node(scope().entry())->f_index_ = CFNode::Reachable;
         in_node(scope().exit() )->f_index_ = CFNode::Reachable;
         run_cfa();
-        ILOG("finished CFA");
-        ILOG("build CFG");
+        ILOG("*** CFA: actual CFA: done");
+        ILOG("*** CFA: build CFG: start");
         build_cfg();
-        ILOG("done CFG");
+        ILOG("*** CFA: build CFG: done");
     }
 
+    void propagate();
     void run_cfa();
     void build_cfg();
 
@@ -118,7 +95,50 @@ public:
 private:
     CFA& cfa_;
     Scope::Map<std::vector<CFNodeSet>> lambda2param2nodes_; ///< Maps param in scope to CFNodeSet.
+    DefMap<DefSet> def2set_;
 };
+
+void CFABuilder::propagate() {
+    std::stack<Def> stack;
+
+    auto push = [&] (Def def) -> bool {
+        auto p = def2set_.emplace(def, DefSet());
+        if (p.second) { // if first insert
+            if (def->order() > 0) {
+                DLOG("pushing %", def->unique_name());
+                stack.push(def);
+                return true;
+            }
+        }
+        return false;
+    };
+
+    for (auto lambda : scope()) {
+        for (auto op : lambda->ops())
+            push(op);
+    }
+
+    while (!stack.empty()) {
+        auto def = stack.top();
+        auto& set = def2set_[def];
+
+        if (def->isa<Param>() || def->isa<Lambda>()) {
+            set.insert(def);
+            stack.pop();
+        } else {
+            bool todo = false;
+            for (auto op : def->as<PrimOp>()->ops())
+                todo |= push(op);
+            if (!todo) {
+                for (auto op : def->as<PrimOp>()->ops()) {
+                    auto& op_set = def2set_[op];
+                    set.insert(op_set.begin(), op_set.end());
+                }
+                stack.pop();
+            }
+        }
+    }
+}
 
 Array<CFNodeSet> CFABuilder::cf_nodes_per_op(Lambda* lambda) {
     auto in = in_node(lambda);
@@ -131,7 +151,7 @@ Array<CFNodeSet> CFABuilder::cf_nodes_per_op(Lambda* lambda) {
     Array<CFNodeSet> result(num);
 
     for (size_t i = 0; i != num; ++i) {
-        leaves(lambda->op(i), [&] (Def def) {
+        for (auto def : def2set_[lambda->op(i)]) {
             if (auto op_lambda = def->isa_lambda()) {
                 if (scope().inner_contains(op_lambda))
                     result[i].insert(in_node(op_lambda));
@@ -156,7 +176,7 @@ Array<CFNodeSet> CFABuilder::cf_nodes_per_op(Lambda* lambda) {
                         result[i].insert(out_node(in, nullptr, param));
                 }
             }
-        });
+        };
     }
 
     return result;
@@ -269,7 +289,7 @@ void CFABuilder::build_cfg() {
     bool error = false;
     for (auto in : cfa().in_nodes()) {
         if (in != cfa().entry() && in->preds_.size() == 0) {
-            std::cout << "missing predecessors: " << in->lambda()->unique_name() << std::endl;
+            WLOG("missing predecessors: %", in->lambda()->unique_name());
             error = true;
         }
     }

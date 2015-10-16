@@ -235,49 +235,43 @@ void CFABuilder::run_cfa() {
 
 void CFABuilder::build_cfg() {
     for (auto in : cfa().in_nodes()) {
-        if (in->f_index_ == CFNode::Reachable) {
-            ++cfa_.num_in_nodes_;
-            auto info = cf_nodes_per_op(in->lambda());
+        assert(in->f_index_ == CFNode::Reachable);
+        ++cfa_.num_in_nodes_;
+        auto info = cf_nodes_per_op(in->lambda());
 
-            for (auto to : info[0]) {
-                to->f_index_ = CFNode::Reachable;
-                in->link(to);
+        for (auto to : info[0]) {
+            to->f_index_ = CFNode::Reachable;
+            in->link(to);
 
-                if (auto out = to->isa<OutNode>()) {
-                    for (const auto& nodes : info.skip_front()) {
-                        for (auto n : nodes) {
-                            out->f_index_ = CFNode::Reachable;
-                            //assert(n->f_index_ == CFNode::Reachable);
-                            out->link(n);
-                            n->f_index_ = CFNode::Reachable;
-                        }
+            if (auto out = to->isa<OutNode>()) {
+                for (const auto& nodes : info.skip_front()) {
+                    for (auto n : nodes) {
+                        out->f_index_ = CFNode::Reachable;
+                        //assert(n->f_index_ == CFNode::Reachable);
+                        out->link(n);
+                        n->f_index_ = CFNode::Reachable;
                     }
                 }
             }
+        }
 
-            for (auto pair : in->out_nodes()) {
-                ++cfa_.num_out_nodes_;
-                auto out = pair.second;
-                //out->f_index_ = CFNode::Reachable;
+        for (auto pair : in->out_nodes()) {
+            ++cfa_.num_out_nodes_;
+            auto out = pair.second;
+            //out->f_index_ = CFNode::Reachable;
 
-                if (auto ancestor = out->ancestor()) {
-                    //assert(ancestor->f_index_ == CFNode::Reachable);
-                    out->link(ancestor);
-                }
-
-                if (out->def()->isa<Param>())
-                    out->link(cfa().exit());
-
-                //for (const auto& arg : info.skip_front()) {
-                    //for (auto n_arg : arg)
-                        //out->link(n_arg);
-                //}
+            if (auto ancestor = out->ancestor()) {
+                //assert(ancestor->f_index_ == CFNode::Reachable);
+                out->link(ancestor);
             }
-        } else {
-            DLOG("removing unreachble %", in);
-            assert(false && "does this ever happen?");
-            cfa_.in_nodes_[in->lambda()] = nullptr;
-            delete in;
+
+            if (out->def()->isa<Param>())
+                out->link(cfa().exit());
+
+            //for (const auto& arg : info.skip_front()) {
+                //for (auto n_arg : arg)
+                    //out->link(n_arg);
+            //}
         }
     }
 

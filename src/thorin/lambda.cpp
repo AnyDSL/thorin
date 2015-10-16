@@ -5,7 +5,7 @@
 #include "thorin/analyses/scope.h"
 #include "thorin/be/thorin.h"
 #include "thorin/util/log.h"
-#include "thorin/util/pop.h"
+#include "thorin/util/queue.h"
 
 namespace thorin {
 

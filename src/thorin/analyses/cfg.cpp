@@ -1,6 +1,7 @@
 #include "thorin/analyses/cfg.h"
 
 #include <fstream>
+#include <stack>
 
 #include "thorin/primop.h"
 #include "thorin/analyses/dfg.h"
@@ -9,7 +10,7 @@
 #include "thorin/analyses/scope.h"
 #include "thorin/be/ycomp.h"
 #include "thorin/util/log.h"
-#include "thorin/util/pop.h"
+#include "thorin/util/queue.h"
 
 namespace thorin {
 

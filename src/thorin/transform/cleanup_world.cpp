@@ -3,7 +3,7 @@
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/verify.h"
-#include "thorin/util/pop.h"
+#include "thorin/util/queue.h"
 
 namespace thorin {
 

@@ -38,7 +38,7 @@ protected:
 
     void set_block_size(device_id dev, uint32_t x, uint32_t y, uint32_t z) override;
     void set_grid_size(device_id dev, uint32_t x, uint32_t y, uint32_t z) override;
-    void set_arg(device_id dev, uint32_t arg, void* ptr) override;
+    void set_arg(device_id dev, uint32_t arg, void* ptr, uint32_t size) override;
     void load_kernel(device_id dev, const char* file, const char* name) override;
     void launch_kernel(device_id dev) override;
 

@@ -32,7 +32,7 @@ protected:
 
     void set_block_size(device_id, uint32_t, uint32_t, uint32_t) { no_kernel(); }
     void set_grid_size(device_id, uint32_t, uint32_t, uint32_t) { no_kernel(); }
-    void set_arg(device_id, uint32_t, void*) override { no_kernel(); }
+    void set_arg(device_id, uint32_t, void*, uint32_t) override { no_kernel(); }
     void load_kernel(device_id, const char*, const char*) { no_kernel(); }
     void launch_kernel(device_id) override { no_kernel(); }
 

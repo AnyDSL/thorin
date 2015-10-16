@@ -35,12 +35,12 @@ Runtime::Runtime() {
 #ifdef ENABLE_CUDA
     register_platform<CudaPlatform>();
 #else
-    register_platform<DummyPlatform>();
+    register_platform<DummyPlatform>("CUDA");
 #endif
 #ifdef ENABLE_OPENCL
     register_platform<OpenClPlatform>();
 #else
-    register_platform<DummyPlatform>();
+    register_platform<DummyPlatform>("OpenCL");
 #endif
 }
 
@@ -77,8 +77,8 @@ void thorin_set_grid_size(uint32_t plat, uint32_t dev, uint32_t x, uint32_t y, u
     runtime.set_grid_size((platform_id)plat, (device_id)dev, x, y, z);
 }
 
-void thorin_set_arg(uint32_t plat, uint32_t dev, uint32_t arg, void* ptr) {
-    runtime.set_arg((platform_id)plat, (device_id)dev, arg, ptr);
+void thorin_set_arg(uint32_t plat, uint32_t dev, uint32_t arg, void* ptr, uint32_t size) {
+    runtime.set_arg((platform_id)plat, (device_id)dev, arg, ptr, size);
 }
 
 void thorin_load_kernel(uint32_t plat, uint32_t dev, const char* file, const char* name) {
@@ -119,7 +119,7 @@ long long thorin_get_micro_time() {
 #endif
 }
 
-std::atomic_llong thorin_kernel_time(0);
+static std::atomic_llong thorin_kernel_time(0);
 
 long long thorin_get_kernel_time() {
     return thorin_kernel_time;

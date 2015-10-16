@@ -37,9 +37,9 @@ public:
     /// Sets the kernel launch grid size.
     virtual void set_grid_size(device_id dev, uint32_t x, uint32_t y, uint32_t z) = 0;
     /// Sets the argument of a kernel.
-    virtual void set_arg(device_id dev, uint32_t arg, void* ptr) = 0;
+    virtual void set_arg(device_id dev, uint32_t arg, void* ptr, uint32_t size) = 0;
     /// Loads a kernel on a device (taken from a file).
-    virtual void load_kernel(device_id dev, const char* file, const char* name);
+    virtual void load_kernel(device_id dev, const char* file, const char* name) = 0;
     /// Launches the loaded kernel.
     virtual void launch_kernel(device_id dev) = 0;
 

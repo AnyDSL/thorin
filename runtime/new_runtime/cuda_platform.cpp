@@ -128,12 +128,10 @@ void CudaPlatform::release(device_id dev, void* ptr, int64_t size) {
 }
 
 void* CudaPlatform::map(void* ptr, int64_t offset, int64_t size) {
-    assert(0 && "Not implemented");
+    return (void*)((CUdeviceptr)ptr + offset);
 }
 
-void CudaPlatform::unmap(void* view) {
-    assert(0 && "Not implemented");
-}
+void CudaPlatform::unmap(void* view) {}
 
 void CudaPlatform::set_block_size(device_id dev, uint32_t x, uint32_t y, uint32_t z) {
     auto& block = devices_[dev].block;
@@ -149,7 +147,7 @@ void CudaPlatform::set_grid_size(device_id dev, uint32_t x, uint32_t y, uint32_t
     grid.z = z;
 }
 
-void CudaPlatform::set_arg(device_id dev, uint32_t arg, void* ptr) {
+void CudaPlatform::set_arg(device_id dev, uint32_t arg, void* ptr, uint32_t size) {
     auto& args = devices_[dev].kernel_args;
     args.resize(arg + 1);
     args[arg] = ptr;

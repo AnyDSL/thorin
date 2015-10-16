@@ -77,8 +77,8 @@ public:
         platforms_[plat]->set_grid_size(dev, x, y, z); 
     }
 
-    void set_arg(platform_id plat, device_id dev, uint32_t arg, void* ptr) {
-        platforms_[plat]->set_arg(dev, arg, ptr);
+    void set_arg(platform_id plat, device_id dev, uint32_t arg, void* ptr, uint32_t size) {
+        platforms_[plat]->set_arg(dev, arg, ptr, size);
     }
 
     void load_kernel(platform_id plat, device_id dev, const char* file, const char* name) {

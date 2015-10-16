@@ -1,6 +1,5 @@
 #include "thorin/analyses/cfg.h"
 
-#include <iostream>
 #include <fstream>
 
 #include "thorin/primop.h"
@@ -268,7 +267,7 @@ void CFABuilder::build_cfg() {
     bool error = false;
     for (auto in : cfa().in_nodes()) {
         if (in != cfa().entry() && in->preds_.size() == 0) {
-            std::cout << "missing predecessors: " << in->lambda()->unique_name() << std::endl;
+            WLOG("missing predecessors: %", in->lambda()->unique_name());
             error = true;
         }
     }

@@ -18,11 +18,11 @@ protected:
         return thorin_aligned_malloc(size, 64);
     }
 
-    void release(void* ptr) override {
+    void release(device_id, void* ptr, int64_t) override {
         thorin_aligned_free(ptr);
     }
 
-    void* map(void* ptr, int64_t offset, int64_t size) override {
+    void* map(void* ptr, int64_t offset, int64_t) override {
         return (void*)((int8_t*)ptr + offset);
     }
 

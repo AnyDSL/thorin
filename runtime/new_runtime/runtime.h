@@ -8,11 +8,12 @@
 class Runtime {
 public:
     struct Mem {
+        platform_id plat;
         device_id dev;
         int64_t size;
         Mem() {}
-        Mem(device_id dev, int64_t size)
-            : dev(dev), size(size)
+        Mem(platform_id plat, device_id dev, int64_t size)
+            : plat(plat), dev(dev), size(size)
         {}
     };
 
@@ -24,16 +25,6 @@ public:
         View() {}
         View(void* ptr, int64_t off, int64_t size)
             : ptr(ptr), off(off), size(size)
-        {}
-    };
-
-    struct Device {
-        int index;
-        Platform* p;
-
-        Device() {}
-        Device(int index, Platform* p)
-            : index(index), p(p)
         {}
     };
 
@@ -51,9 +42,6 @@ public:
     void register_platform(Args... args) {
         Platform* p = new T(this, args...);
         platforms_.push_back(p);
-
-        for (int i = 0; i < p->dev_count(); i++)
-            devices_.emplace_back(i, p);
     }
 
     /// Displays available platforms.
@@ -64,18 +52,10 @@ public:
         }
     }
 
-    /// Returns the device corresponding to the given ID.
-    const Device& device(device_id dev) const {
-        return devices_[dev];    
-    }
-
     /// Allocates memory on the given device.
-    void* alloc(device_id dev, int64_t size) {
-        if (dev >= devices_.size())
-            error("Device ", dev, "is not available (there is only ", devices_.size(), "devices)");
-
-        void* ptr = devices_[dev].p->alloc(dev, size);
-        mems_.emplace(ptr, Mem(dev, size));
+    void* alloc(platform_id plat, device_id dev, int64_t size) {
+        void* ptr = platforms_[plat]->alloc(dev, size);
+        mems_.emplace(ptr, Mem(plat, dev, size));
         return ptr;
     }
 
@@ -85,28 +65,28 @@ public:
         if (it == mems_.end())
             error("Memory not allocated from runtime");
 
-        devices_[it->second.dev].p->release(ptr);
+        platforms_[it->second.plat]->release(it->second.dev, ptr, it->second.size);
         mems_.erase(it);
     }
 
-    void set_block_size(device_id dev, uint32_t x, uint32_t y, uint32_t z) {
-        devices_[dev].p->set_block_size(dev, x, y, z);
+    void set_block_size(platform_id plat, device_id dev, uint32_t x, uint32_t y, uint32_t z) {
+        platforms_[plat]->set_block_size(dev, x, y, z);
     }
 
-    void set_grid_size(device_id dev, uint32_t x, uint32_t y, uint32_t z) {
-        devices_[dev].p->set_grid_size(dev, x, y, z); 
+    void set_grid_size(platform_id plat, device_id dev, uint32_t x, uint32_t y, uint32_t z) {
+        platforms_[plat]->set_grid_size(dev, x, y, z); 
     }
 
-    void set_arg(device_id dev, uint32_t arg, void* ptr) {
-        devices_[dev].p->set_arg(dev, arg, ptr);
+    void set_arg(platform_id plat, device_id dev, uint32_t arg, void* ptr) {
+        platforms_[plat]->set_arg(dev, arg, ptr);
     }
 
-    void load_kernel(device_id dev, const char* file, const char* name) {
-        devices_[dev].p->load_kernel(dev, file, name);
+    void load_kernel(platform_id plat, device_id dev, const char* file, const char* name) {
+        platforms_[plat]->load_kernel(dev, file, name);
     }
 
-    void launch_kernel(device_id dev) {
-        devices_[dev].p->launch_kernel(dev);
+    void launch_kernel(platform_id plat, device_id dev) {
+        platforms_[plat]->launch_kernel(dev);
     }
 
     /// Copies memory.
@@ -116,19 +96,17 @@ public:
         if (src_mem == mems_.end() || dst_mem == mems_.end())
             error("Memory not allocated from runtime");
 
-        auto& src_dev = devices_[src_mem->second.dev];
-        auto& dst_dev = devices_[dst_mem->second.dev];
-        if (src_dev.p == dst_dev.p) {
+        if (src_mem->second.plat == dst_mem->second.plat) {
             // Copy from same platform
-            src_dev.p->copy(src, dst);
+            platforms_[src_mem->second.plat]->copy(src, dst);
         } else {
             // Copy from another platform
-            if (src_mem->second.dev == 0) {
+            if (src_mem->second.plat == 0) {
                 // Source is the CPU platform
-                dst_dev.p->copy_from_host(src, dst);
+                platforms_[dst_mem->second.plat]->copy_from_host(src, dst);
             } else if (dst_mem->second.dev == 0) {
                 // Destination is the CPU platform
-                src_dev.p->copy_to_host(src, dst);
+                platforms_[src_mem->second.plat]->copy_to_host(src, dst);
             } else {
                 error("Cannot copy memory between different platforms");
             }
@@ -169,7 +147,6 @@ private:
     }
 
     std::vector<Platform*> platforms_;
-    std::vector<Device> devices_;
     std::unordered_map<void*, Mem> mems_;
 };
 

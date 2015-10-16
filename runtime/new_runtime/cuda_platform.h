@@ -31,7 +31,7 @@ protected:
     };
 
     void* alloc(device_id dev, int64_t size) override;
-    void release(void* ptr) override;
+    void release(device_id dev, void* ptr, int64_t size) override;
 
     void* map(void* ptr, int64_t offset, int64_t size);
     void unmap(void* view) override;
@@ -74,9 +74,9 @@ protected:
     void checkNvrtcErrors(nvrtcResult err, const char*, const char*, const int);
 #endif
 
-    void compile_nvvm(int dev_index, const char* file_name, CUjit_target target_cc);
-    void compile_cuda(int dev_index, const char* file_name, CUjit_target target_cc);
-    void create_module(int dev_index, const char* file_name, CUjit_target target_cc, const void* ptx);
+    void compile_nvvm(device_id dev, const char* file_name, CUjit_target target_cc);
+    void compile_cuda(device_id dev, const char* file_name, CUjit_target target_cc);
+    void create_module(device_id dev, const char* file_name, CUjit_target target_cc, const void* ptx);
 };
 
 #endif

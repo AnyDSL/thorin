@@ -7,7 +7,7 @@ IF ( CUDA_FOUND )
     FIND_LIBRARY ( CUDA_NVRTC_LIBRARY nvrtc HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib      ${CUDA_TOOLKIT_ROOT_DIR}/lib64)
     INCLUDE_DIRECTORIES ( ${CUDA_INCLUDE_DIRS} "${CUDA_TOOLKIT_ROOT_DIR}/nvvm/include")
     SET ( CUDA_PLATFORM cuda_platform.cpp cuda_platform.h )
-    SET ( RUNTIME_DEFINITIONS ${RUNTIME_DEFINITIONS} -DHAS_CUDA )
+    SET ( RUNTIME_DEFINITIONS ${RUNTIME_DEFINITIONS} -DENABLE_CUDA )
 ELSE ()
     SET ( CUDA_PLATFORM "" )
 ENDIF ()
@@ -24,5 +24,6 @@ ADD_LIBRARY ( thorin_runtime
               thorin_runtime.h
               platform.h
               cpu_platform.h
+              dummy_platform.h
               ${CUDA_PLATFORM} )
 

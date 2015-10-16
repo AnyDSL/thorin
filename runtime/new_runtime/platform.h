@@ -10,6 +10,7 @@
 
 class Runtime;
 enum device_id : unsigned {};
+enum platform_id : unsigned {};
 
 /// A runtime platform. Exposes a set of devices, a copy function,
 /// and functions to allocate and release memory.
@@ -24,7 +25,7 @@ public:
     /// Allocates memory for a device on this platform.
     virtual void* alloc(device_id dev, int64_t size) = 0;
     /// Releases memory for a device on this platform.
-    virtual void release(void* ptr) = 0;
+    virtual void release(device_id dev, void* ptr, int64_t size) = 0;
 
     /// Maps a region of memory, with the given offset and size in bytes.
     virtual void* map(void* ptr, int64_t offset, int64_t size) = 0;

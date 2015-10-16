@@ -20,16 +20,27 @@
 #include "runtime.h"
 #include "platform.h"
 #include "cpu_platform.h"
-#ifdef HAS_CUDA
+#include "dummy_platform.h"
+#ifdef ENABLE_CUDA
 #include "cuda_platform.h"
+#endif
+#ifdef ENABLE_OPENCL
+#include "opencl_platform.h"
 #endif
 
 static Runtime runtime;
 
 Runtime::Runtime() {
     register_platform<CpuPlatform>();
-#ifdef HAS_CUDA
+#ifdef ENABLE_CUDA
     register_platform<CudaPlatform>();
+#else
+    register_platform<DummyPlatform>();
+#endif
+#ifdef ENABLE_OPENCL
+    register_platform<OpenClPlatform>();
+#else
+    register_platform<DummyPlatform>();
 #endif
 }
 
@@ -37,8 +48,8 @@ void thorin_info(void) {
     runtime.display_info(std::cout);
 }
 
-void* thorin_alloc(uint32_t dev, int64_t size) {
-    return runtime.alloc((device_id)dev, size);
+void* thorin_alloc(uint32_t plat, uint32_t dev, int64_t size) {
+    return runtime.alloc((platform_id)plat, (device_id)dev, size);
 }
 
 void thorin_release(void* ptr) {
@@ -58,24 +69,24 @@ void thorin_copy(const void* src, void* dst) {
     runtime.copy(src, dst);
 }
 
-void thorin_set_block_size(uint32_t dev, uint32_t x, uint32_t y, uint32_t z) {
-    runtime.set_block_size((device_id)dev, x, y, z);
+void thorin_set_block_size(uint32_t plat, uint32_t dev, uint32_t x, uint32_t y, uint32_t z) {
+    runtime.set_block_size((platform_id)plat, (device_id)dev, x, y, z);
 }
 
-void thorin_set_grid_size(uint32_t dev, uint32_t x, uint32_t y, uint32_t z) {
-    runtime.set_grid_size((device_id)dev, x, y, z);
+void thorin_set_grid_size(uint32_t plat, uint32_t dev, uint32_t x, uint32_t y, uint32_t z) {
+    runtime.set_grid_size((platform_id)plat, (device_id)dev, x, y, z);
 }
 
-void thorin_set_arg(uint32_t dev, uint32_t arg, void* ptr) {
-    runtime.set_arg((device_id)dev, arg, ptr);
+void thorin_set_arg(uint32_t plat, uint32_t dev, uint32_t arg, void* ptr) {
+    runtime.set_arg((platform_id)plat, (device_id)dev, arg, ptr);
 }
 
-void thorin_load_kernel(uint32_t dev, const char* file, const char* name) {
-    runtime.load_kernel((device_id)dev, file, name);
+void thorin_load_kernel(uint32_t plat, uint32_t dev, const char* file, const char* name) {
+    runtime.load_kernel((platform_id)plat, (device_id)dev, file, name);
 }
 
-void thorin_launch_kernel(uint32_t dev) {
-    runtime.launch_kernel((device_id)dev);
+void thorin_launch_kernel(uint32_t plat, uint32_t dev) {
+    runtime.launch_kernel((platform_id)plat, (device_id)dev);
 }
 
 #if _POSIX_VERSION >= 200112L || _XOPEN_SOURCE >= 600

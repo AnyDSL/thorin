@@ -99,20 +99,6 @@ Type StructAppTypeNode::vrebuild(World& to, ArrayRef<Type> args) const {
  * recursive properties
  */
 
-int TypeNode::order() const {
-    if (kind() == Node_PtrType)
-        return 0;
-
-    int result = 0;
-    for (auto arg : args())
-        result = std::max(result, arg->order());
-
-    if (kind() == Node_FnType)
-        return result + 1;
-
-    return result;
-}
-
 bool TypeNode::is_closed() const {
     for (auto arg : args()) {
         if (!arg->is_closed())

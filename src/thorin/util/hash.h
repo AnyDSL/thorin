@@ -278,10 +278,10 @@ public:
     }
     std::pair<iterator, bool> insert(const value_type& value) { return emplace(value); }
     std::pair<iterator, bool> insert(value_type&& value) { return emplace(value); }
-    template<class InputIt>
-    bool insert(InputIt first, InputIt last) {
+    template<class I>
+    bool insert(I begin, I end) {
         bool changed = false;
-        for (auto i = first; i != last; ++i)
+        for (auto i = begin; i != end; ++i)
             changed |= insert(*i).second;
         return changed;
     }

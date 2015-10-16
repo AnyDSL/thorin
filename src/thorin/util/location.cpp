@@ -33,15 +33,4 @@ std::ostream& operator << (std::ostream& os, const Location& loc) {
     return os << pos1.col();
 }
 
-//------------------------------------------------------------------------------
-
-std::ostream& Position::error() const { return std::cerr << *this << ": error: "; }
-std::ostream& Position::warn() const { return std::cerr << *this << ": warning: "; }
-std::ostream& Location::error() const { return std::cerr << *this << ": error: "; }
-std::ostream& Location::warn() const { return std::cerr << *this << ": warning: "; }
-std::ostream& HasLocation::error() const { return std::cerr << loc_ << ": error: "; }
-std::ostream& HasLocation::warn() const { return std::cerr << loc_ << ": warning: "; }
-
-//------------------------------------------------------------------------------
-
 }

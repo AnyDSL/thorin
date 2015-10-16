@@ -183,7 +183,7 @@ public:
 
 //------------------------------------------------------------------------------
 
-std::ostream& operator << (std::ostream& o, Def def);
+//std::ostream& operator << (std::ostream& o, Def def);
 
 bool UseLT::operator () (Use use1, Use use2) const { // <- note that we switch the order here on purpose
     auto gid1 = use1.def().node()->gid();

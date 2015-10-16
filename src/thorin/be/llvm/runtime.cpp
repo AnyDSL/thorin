@@ -11,6 +11,7 @@
 #include <llvm/Support/SourceMgr.h>
 
 #include "thorin/primop.h"
+#include "thorin/util/log.h"
 #include "thorin/be/llvm/llvm.h"
 
 namespace thorin {
@@ -89,7 +90,7 @@ Lambda* KernelRuntime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
             auto rtype = ptr->referenced_type();
 
             if (!rtype.isa<ArrayType>()) {
-                target_arg->error() << "currently only pointers to arrays supported as kernel argument; argument has different type:\n";
+                WLOG("currently only pointers to arrays supported as kernel argument at '%'; argument has different type:", target_arg);
                 ptr->dump();
                 assert(rtype.isa<ArrayType>() && "currently only pointers to arrays supported");
             }

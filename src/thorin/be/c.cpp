@@ -393,6 +393,7 @@ void CCodeGen::emit() {
 
         for (auto lambda : scope.rpo()) {
             // emit function arguments and phi nodes
+            // TODO emit phi nodes also for cascading lambdas
             if (!lambda->is_cascading() && scope.entry() != lambda)
                 for (auto param : lambda->params())
                     if (!param->type().isa<MemType>()) {
@@ -419,11 +420,13 @@ void CCodeGen::emit() {
                 up();
                 // load argument from phi node
                 if (lambda->to() != ret_param) // skip for return
-                    for (auto arg : lambda->args())
-                        if (!arg->type().isa<MemType>()) {
-                            stream() << arg->unique_name() << " = p" << arg->unique_name() << ";";
-                            newline();
-                        }
+                    if (auto to_lambda = lambda->to()->isa_lambda())
+                        if (scope.contains(to_lambda))
+                            for (auto param : lambda->params())
+                                if (!param->type().isa<MemType>()) {
+                                    stream() << param->unique_name() << " = p" << param->unique_name() << ";";
+                                    newline();
+                                }
             }
 
             for (auto primop : schedule[lambda]) {

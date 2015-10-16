@@ -391,8 +391,13 @@ void CCodeGen::emit() {
             }
         }
 
-        for (auto lambda : scope.rpo()) {
-            // emit function arguments and phi nodes
+        // never use early schedule here - this may break memory operations
+        Schedule schedule = schedule_smart(scope);
+
+        auto bbs = bb_schedule(scope);
+
+        // emit function arguments and phi nodes
+        for (auto lambda : bbs) {
             // TODO emit phi nodes also for cascading lambdas
             if (!lambda->is_cascading() && scope.entry() != lambda)
                 for (auto param : lambda->params())
@@ -403,10 +408,6 @@ void CCodeGen::emit() {
                     }
         }
 
-        // never use early schedule here - this may break memory operations
-        Schedule schedule = schedule_smart(scope);
-
-        auto bbs = bb_schedule(scope);
         // emit body for each bb
         for (auto lambda : bbs) {
             if (lambda->empty())

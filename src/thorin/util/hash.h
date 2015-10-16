@@ -110,10 +110,10 @@ private:
         friend class HashTable;
     };
 
-    static Node* free_but_reused() { return (Node*) -1; }
+    static Node* tombstone() { return (Node*) -1; }
     static Node* end_pointer()     { return (Node*)  1; }
     static bool is_end(Node** p)   { return *p == end_pointer(); }
-    static bool is_valid(Node** p) { return *p != nullptr && *p != free_but_reused(); }
+    static bool is_valid(Node** p) { return *p != nullptr && *p != tombstone(); }
 
     template<bool is_const>
     class iterator_base {
@@ -252,7 +252,7 @@ public:
         else if (size_ > c4 + c2)
             rehash(capacity_*size_t(2));
         else if (load_ > c4 + c2)
-            rehash(capacity_);  // free garbage (remove all free_but_reused entries)
+            rehash(capacity_);  // free garbage (remove all tombstones)
 
         Node** insert_pos = nullptr;
         auto& key = n->key();
@@ -267,7 +267,7 @@ public:
                 ++size_;
                 *insert_pos = n;
                 return std::make_pair(iterator(insert_pos, this), true);
-            } else if (*it == free_but_reused()) {
+            } else if (*it == tombstone()) {
                 if (insert_pos == nullptr)
                     insert_pos = it;
             } else if (key_eq_((*it)->key(), key)) {
@@ -295,7 +295,7 @@ public:
         assert(is_valid(pos.node_) && pos != end());
         --size_;
         delete *pos.node_;
-        *pos.node_ = free_but_reused();
+        *pos.node_ = tombstone();
         return iterator(iterator::move_to_valid(pos.node_), this);
     }
     iterator erase(const_iterator first, const_iterator last) {
@@ -329,7 +329,7 @@ public:
             if (*it == nullptr) {
                 assert(old_id == id());
                 return end();
-            } else if (*it != free_but_reused() && key_eq_((*it)->key(), key)) {
+            } else if (*it != tombstone() && key_eq_((*it)->key(), key)) {
                 assert(old_id == id());
                 return iterator(it, this);
             }

@@ -4,7 +4,7 @@
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/be/thorin.h"
-#include "thorin/util/queue.h"
+#include "thorin/util/pop.h"
 
 namespace thorin {
 

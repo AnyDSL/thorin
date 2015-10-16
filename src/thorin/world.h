@@ -4,7 +4,6 @@
 #include <cassert>
 #include <functional>
 #include <initializer_list>
-#include <queue>
 #include <string>
 
 #include "thorin/enums.h"

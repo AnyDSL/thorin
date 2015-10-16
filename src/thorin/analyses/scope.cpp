@@ -7,7 +7,7 @@
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/looptree.h"
-#include "thorin/util/queue.h"
+#include "thorin/util/pop.h"
 
 namespace thorin {
 

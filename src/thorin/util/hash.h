@@ -110,7 +110,7 @@ private:
         friend class HashTable;
     };
 
-    static Node* tombstone() { return (Node*) -1; }
+    static Node* tombstone()       { return (Node*) -1; }
     static Node* end_pointer()     { return (Node*)  1; }
     static bool is_end(Node** p)   { return *p == end_pointer(); }
     static bool is_valid(Node** p) { return *p != nullptr && *p != tombstone(); }

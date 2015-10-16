@@ -36,9 +36,9 @@ protected:
     void* map(void* ptr, int64_t offset, int64_t size);
     void unmap(void* view) override;
 
-    void set_block_size(device_id dev, unsigned x, unsigned y, unsigned z) override;
-    void set_grid_size(device_id dev, unsigned x, unsigned y, unsigned z) override;
-    void set_arg(device_id dev, int i, void* ptr) override;
+    void set_block_size(device_id dev, uint32_t x, uint32_t y, uint32_t z) override;
+    void set_grid_size(device_id dev, uint32_t x, uint32_t y, uint32_t z) override;
+    void set_arg(device_id dev, uint32_t arg, void* ptr) override;
     void load_kernel(device_id dev, const char* file, const char* name) override;
     void launch_kernel(device_id dev) override;
 
@@ -73,6 +73,10 @@ protected:
 #if CUDA_VERSION >= 7000
     void checkNvrtcErrors(nvrtcResult err, const char*, const char*, const int);
 #endif
+
+    void compile_nvvm(int dev_index, const char* file_name, CUjit_target target_cc);
+    void compile_cuda(int dev_index, const char* file_name, CUjit_target target_cc);
+    void create_module(int dev_index, const char* file_name, CUjit_target target_cc, const void* ptx);
 };
 
 #endif

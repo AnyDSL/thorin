@@ -35,14 +35,6 @@ public:
         Device(int index, Platform* p)
             : index(index), p(p)
         {}
-
-        void* alloc(device_id dev, int64_t size) { return p->alloc(dev, size); }
-        void release(void* ptr) { p->release(ptr); }
-        void* map(void* ptr, int64_t offset, int64_t size) { return p->map(ptr, offset, size); }
-        void unmap(void* view) { p->unmap(view); }
-        void copy(const void* src, void* dst) { p->copy(src, dst); }
-        void copy_from_host(const void* src, void* dst) { p->copy_from_host(src, dst); }
-        void copy_to_host(const void* src, void* dst) { p->copy_to_host(src, dst); }
     };
 
     Runtime();
@@ -82,7 +74,7 @@ public:
         if (dev >= devices_.size())
             error("Device ", dev, "is not available (there is only ", devices_.size(), "devices)");
 
-        void* ptr = devices_[dev].alloc(dev, size);
+        void* ptr = devices_[dev].p->alloc(dev, size);
         mems_.emplace(ptr, Mem(dev, size));
         return ptr;
     }
@@ -93,8 +85,28 @@ public:
         if (it == mems_.end())
             error("Memory not allocated from runtime");
 
-        devices_[it->second.dev].release(ptr);
+        devices_[it->second.dev].p->release(ptr);
         mems_.erase(it);
+    }
+
+    void set_block_size(device_id dev, uint32_t x, uint32_t y, uint32_t z) {
+        devices_[dev].p->set_block_size(dev, x, y, z);
+    }
+
+    void set_grid_size(device_id dev, uint32_t x, uint32_t y, uint32_t z) {
+        devices_[dev].p->set_grid_size(dev, x, y, z); 
+    }
+
+    void set_arg(device_id dev, uint32_t arg, void* ptr) {
+        devices_[dev].p->set_arg(dev, arg, ptr);
+    }
+
+    void load_kernel(device_id dev, const char* file, const char* name) {
+        devices_[dev].p->load_kernel(dev, file, name);
+    }
+
+    void launch_kernel(device_id dev) {
+        devices_[dev].p->launch_kernel(dev);
     }
 
     /// Copies memory.
@@ -104,19 +116,19 @@ public:
         if (src_mem == mems_.end() || dst_mem == mems_.end())
             error("Memory not allocated from runtime");
 
-        auto src_dev = devices_[src_mem->second.dev];
-        auto dst_dev = devices_[dst_mem->second.dev];
+        auto& src_dev = devices_[src_mem->second.dev];
+        auto& dst_dev = devices_[dst_mem->second.dev];
         if (src_dev.p == dst_dev.p) {
             // Copy from same platform
-            src_dev.copy(src, dst);
+            src_dev.p->copy(src, dst);
         } else {
             // Copy from another platform
             if (src_mem->second.dev == 0) {
                 // Source is the CPU platform
-                dst_dev.copy_from_host(src, dst);
+                dst_dev.p->copy_from_host(src, dst);
             } else if (dst_mem->second.dev == 0) {
                 // Destination is the CPU platform
-                src_dev.copy_to_host(src, dst);
+                src_dev.p->copy_to_host(src, dst);
             } else {
                 error("Cannot copy memory between different platforms");
             }

@@ -37,7 +37,7 @@ void thorin_info(void) {
     runtime.display_info(std::cout);
 }
 
-void* thorin_alloc(unsigned dev, int64_t size) {
+void* thorin_alloc(uint32_t dev, int64_t size) {
     return runtime.alloc((device_id)dev, size);
 }
 
@@ -56,6 +56,26 @@ void thorin_unmap(void* view) {
 
 void thorin_copy(const void* src, void* dst) {
     runtime.copy(src, dst);
+}
+
+void thorin_set_block_size(uint32_t dev, uint32_t x, uint32_t y, uint32_t z) {
+    runtime.set_block_size((device_id)dev, x, y, z);
+}
+
+void thorin_set_grid_size(uint32_t dev, uint32_t x, uint32_t y, uint32_t z) {
+    runtime.set_grid_size((device_id)dev, x, y, z);
+}
+
+void thorin_set_arg(uint32_t dev, uint32_t arg, void* ptr) {
+    runtime.set_arg((device_id)dev, arg, ptr);
+}
+
+void thorin_load_kernel(uint32_t dev, const char* file, const char* name) {
+    runtime.load_kernel((device_id)dev, file, name);
+}
+
+void thorin_launch_kernel(uint32_t dev) {
+    runtime.launch_kernel((device_id)dev);
 }
 
 #if _POSIX_VERSION >= 200112L || _XOPEN_SOURCE >= 600

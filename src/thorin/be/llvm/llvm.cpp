@@ -31,21 +31,21 @@
 #include "thorin/primop.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
-#include "thorin/util/array.h"
-#include "thorin/util/push.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/be/llvm/cuda.h"
 #include "thorin/be/llvm/cpu.h"
+#include "thorin/be/llvm/cuda.h"
 #include "thorin/be/llvm/nvvm.h"
 #include "thorin/be/llvm/opencl.h"
-#include "thorin/be/llvm/spir.h"
-#include "thorin/transform/import.h"
-
 #include "thorin/be/llvm/runtimes/cuda_runtime.h"
 #include "thorin/be/llvm/runtimes/nvvm_runtime.h"
-#include "thorin/be/llvm/runtimes/spir_runtime.h"
 #include "thorin/be/llvm/runtimes/opencl_runtime.h"
+#include "thorin/be/llvm/runtimes/spir_runtime.h"
+#include "thorin/be/llvm/spir.h"
+#include "thorin/transform/import.h"
+#include "thorin/util/array.h"
+#include "thorin/util/log.h"
+#include "thorin/util/push.h"
 
 namespace thorin {
 

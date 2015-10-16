@@ -50,7 +50,6 @@ static void leaves(Def def, std::function<void(Def)> f) {
 
 //------------------------------------------------------------------------------
 
-
 void CFNode::link(const CFNode* other) const {
     this->succs_.insert(other);
     other->preds_.insert(this);

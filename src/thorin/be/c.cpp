@@ -398,8 +398,7 @@ void CCodeGen::emit() {
 
         // emit function arguments and phi nodes
         for (auto lambda : bbs) {
-            // TODO emit phi nodes also for cascading lambdas
-            if (!lambda->is_cascading() && scope.entry() != lambda)
+            if (scope.entry() != lambda)
                 for (auto param : lambda->params())
                     if (!param->type().isa<MemType>()) {
                         newline();
@@ -526,17 +525,13 @@ void CCodeGen::emit() {
                         if (ret_arg == ret_param) {     // call + return
                             stream() << "return ";
                         } else {                        // call + continuation
-                            Lambda* succ = ret_arg->as_lambda();
-                            const Param* param = succ->param(0)->type().isa<MemType>() ? nullptr : succ->param(0);
+                            auto succ = ret_arg->as_lambda();
+                            auto param = succ->param(0)->type().isa<MemType>() ? nullptr : succ->param(0);
                             if (param == nullptr && succ->num_params() == 2)
                                 param = succ->param(1);
 
-                            if (param) {
-                                emit_type(param->type()) << " ";
-                                emit(param) << ";";
-                                newline();
+                            if (param)
                                 emit(param) << " = ";
-                            }
                         }
 
                         auto name = (to_lambda->is_external() || to_lambda->empty()) ? to_lambda->name : to_lambda->unique_name();

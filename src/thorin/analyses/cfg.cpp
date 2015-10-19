@@ -173,7 +173,7 @@ Array<CFNodeSet> CFABuilder::cf_nodes(Lambda* lambda) {
                             }
                         } else
                             result[i].insert(set.begin(), set.end());
-                    } else /*if (i == 0)*/ // TODO review this
+                    } else
                         result[i].insert(out_node(in, nullptr, param));
                 }
             }

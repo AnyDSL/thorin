@@ -286,6 +286,7 @@ public:
         return changed;
     }
     void insert(std::initializer_list<value_type> ilist) { insert(ilist.begin(), ilist.end()); }
+    template<class R> bool insert_range(const R& range) { return insert(range.begin(), range.end()); }
 
     // erase
     iterator erase(const_iterator pos) {

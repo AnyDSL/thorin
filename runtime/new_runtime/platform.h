@@ -28,9 +28,9 @@ public:
     virtual void release(device_id dev, void* ptr, int64_t size) = 0;
 
     /// Maps a region of memory, with the given offset and size in bytes.
-    virtual void* map(void* ptr, int64_t offset, int64_t size) = 0;
-    /// Unmaps a region of memory.
-    virtual void unmap(void* view) = 0;
+    virtual void* map(device_id dev, void* ptr, int64_t offset, int64_t size) = 0;
+    /// Unmaps a region of memory. The pointer to the origin of the buffer is also provided.
+    virtual void unmap(device_id dev, void* view, void* ptr) = 0;
 
     /// Sets the kernel launch block size.
     virtual void set_block_size(device_id dev, int32_t x, int32_t y, int32_t z) = 0;

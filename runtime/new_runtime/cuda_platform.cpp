@@ -127,11 +127,11 @@ void CudaPlatform::release(device_id dev, void* ptr, int64_t size) {
     cuCtxPopCurrent(NULL);
 }
 
-void* CudaPlatform::map(void* ptr, int64_t offset, int64_t size) {
+void* CudaPlatform::map(device_id dev, void* ptr, int64_t offset, int64_t size) {
     return (void*)((CUdeviceptr)ptr + offset);
 }
 
-void CudaPlatform::unmap(void* view) {}
+void CudaPlatform::unmap(device_id dev, void* view, void* ptr) {}
 
 void CudaPlatform::set_block_size(device_id dev, int32_t x, int32_t y, int32_t z) {
     auto& block = devices_[dev].block;

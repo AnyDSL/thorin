@@ -33,8 +33,8 @@ protected:
     void* alloc(device_id dev, int64_t size) override;
     void release(device_id dev, void* ptr, int64_t size) override;
 
-    void* map(void* ptr, int64_t offset, int64_t size);
-    void unmap(void* view) override;
+    void* map(device_id dev, void* ptr, int64_t offset, int64_t size);
+    void unmap(device_id dev, void* view, void* ptr) override;
 
     void set_block_size(device_id dev, int32_t x, int32_t y, int32_t z) override;
     void set_grid_size(device_id dev, int32_t x, int32_t y, int32_t z) override;

@@ -65,12 +65,11 @@ void thorin_release(void* ptr) {
 }
 
 void* thorin_map(void* ptr, int64_t offset, int64_t size) {
-    assert(0 && "Not implemented");
-    return nullptr;
+    return runtime.map(ptr, offset, size);
 }
 
 void thorin_unmap(void* view) {
-    assert(0 && "Not implemented");
+    runtime.unmap(view);
 }
 
 void thorin_copy(const void* src, void* dst) {

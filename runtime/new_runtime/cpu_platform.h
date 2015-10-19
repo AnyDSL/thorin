@@ -22,11 +22,11 @@ protected:
         thorin_aligned_free(ptr);
     }
 
-    void* map(void* ptr, int64_t offset, int64_t) override {
+    void* map(device_id dev, void* ptr, int64_t offset, int64_t size) override {
         return (void*)((int8_t*)ptr + offset);
     }
 
-    void unmap(void* view) override {}
+    void unmap(device_id dev, void* view, void* ptr) override {}
 
     void no_kernel() { runtime_->error("Kernels are not supported on the CPU"); }
 

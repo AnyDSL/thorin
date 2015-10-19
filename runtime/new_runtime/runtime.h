@@ -63,10 +63,32 @@ public:
     void release(void* ptr) {
         auto it = mems_.find(ptr);
         if (it == mems_.end())
-            error("Memory not allocated from runtime");
+            error("Memory not allocated by the runtime");
 
         platforms_[it->second.plat]->release(it->second.dev, ptr, it->second.size);
         mems_.erase(it);
+    }
+
+    void* map(void* ptr, int64_t offset, int64_t size) {
+        auto it = mems_.find(ptr);
+        if (it == mems_.end())
+            error("Memory not allocated by the runtime");
+
+        void* view = platforms_[it->second.plat]->map(it->second.dev, ptr, offset, size);
+        assert(views_.count(view) == 0 && "Mapping a part of a buffer that is already mapped");
+        views_.emplace(view, View(ptr, offset, size));
+        return view;
+    }
+
+    void unmap(void* view) {
+        auto view_it = views_.find(view);
+        if (view_it == views_.end())
+            error("Memory not mapped by the runtime");
+
+        auto ptr_it = mems_.find(view_it->second.ptr);
+        assert(ptr_it != mems_.end() && "View to a deallocated buffer or a buffer not allocated by the runtime");
+        platforms_[ptr_it->second.plat]->unmap(ptr_it->second.dev, view, view_it->second.ptr);
+        views_.erase(view_it);
     }
 
     void set_block_size(platform_id plat, device_id dev, uint32_t x, uint32_t y, uint32_t z) {
@@ -123,6 +145,12 @@ public:
         return it->second;
     }
 
+    View view_info(const void* view) {
+        auto it = views_.find((void*)view);
+        assert(it != views_.end());
+        return it->second;
+    }
+
     template <typename... Args>
     void error(Args... args) {
         std::cerr << "Runtime error: ";
@@ -151,7 +179,8 @@ private:
     }
 
     std::vector<Platform*> platforms_;
-    std::unordered_map<void*, Mem> mems_;
+    std::unordered_map<void*, Mem>  mems_;
+    std::unordered_map<void*, View> views_;
 };
 
 #endif

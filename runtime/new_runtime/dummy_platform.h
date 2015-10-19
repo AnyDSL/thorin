@@ -18,8 +18,8 @@ protected:
 
     void* alloc(device_id, int64_t) override { platform_error(); return nullptr; }
     void release(device_id, void*, int64_t) override { platform_error(); }
-    void* map(void*, int64_t, int64_t) override { platform_error(); return nullptr; }
-    void unmap(void*) override { platform_error(); }
+    void* map(device_id, void*, int64_t, int64_t) override { platform_error(); return nullptr; }
+    void unmap(device_id, void*, void*) override { platform_error(); }
 
     void set_block_size(device_id, int32_t, int32_t, int32_t) override { platform_error(); }
     void set_grid_size(device_id, int32_t, int32_t, int32_t) override { platform_error(); }

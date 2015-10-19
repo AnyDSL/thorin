@@ -7,6 +7,7 @@ namespace thorin {
 
 void lift_builtins(World& world) {
     std::vector<Lambda*> todo;
+    // TODO I think we can get rid of the copy here
     for (auto cur : world.copy_lambdas()) {
         if (cur->is_passed_to_accelerator() && !cur->is_basicblock())
             todo.push_back(cur);

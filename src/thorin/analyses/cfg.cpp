@@ -20,7 +20,6 @@ uint64_t CFNodeHash::operator() (const CFNode* n) const {
     if (auto in = n->isa<InNode>())
         return hash_value(in->lambda()->gid());
     auto out = n->as<OutNode>();
-    // TODO include ancestor?
     return hash_combine(hash_value(out->def()->gid()), out->context()->lambda()->gid());
 }
 
@@ -142,6 +141,7 @@ void CFABuilder::propagate_higher_order_values() {
         auto& set = def2set_[def];
 
         if (def->isa<Param>() || def->isa<Lambda>()) {
+            assert(def->order() > 0);
             set.insert(def);
             stack.pop();
         } else {
@@ -283,6 +283,7 @@ void CFABuilder::unreachable_node_elimination() {
     auto entry = cfa().entry();
     auto exit = cfa().exit();
 
+    // connect empty lambda to exit
     if (entry->succs_.empty())
         entry->link(exit);
 
@@ -293,6 +294,7 @@ void CFABuilder::unreachable_node_elimination() {
             for (auto i = out_nodes.begin(); i != out_nodes.end();) {
                 auto out = i->second;
                 if (out->f_index_ == CFNode::Reachable) {
+                    // connect out nodes without successors to exit
                     if (out->succs().empty())
                         out->link(exit);
                     ++i;

@@ -65,22 +65,18 @@ public:
         : cfa_(cfa)
         , lambda2param2nodes_(cfa.scope(), std::vector<CFNodeSet>(0))
     {
-        ILOG("*** CFA: propagating higher-order values: start");
-        propagate();
-        ILOG("*** CFA: propagating higher-order values: done");
-        ILOG("*** CFA: actual CFA: start");
         in_node(scope().entry());
         in_node(scope().exit() );
-        run_cfa();
-        ILOG("*** CFA: actual CFA: done");
-        ILOG("*** CFA: build CFG: start");
-        build_cfg();
-        ILOG("*** CFA: build CFG: done");
+        ILOG_SCOPE(propagate());
+        ILOG_SCOPE(run_cfa());
+        ILOG_SCOPE(build_cfg());
+        ILOG_SCOPE(unreachable_node_elimination());
     }
 
     void propagate();
     void run_cfa();
     void build_cfg();
+    void unreachable_node_elimination();
 
     const CFA& cfa() const { return cfa_; }
     const Scope& scope() const { return cfa_.scope(); }
@@ -278,8 +274,14 @@ void CFABuilder::build_cfg() {
             }
         }
     }
+}
 
+void CFABuilder::unreachable_node_elimination() {
+    auto entry = cfa().entry();
     auto exit = cfa().exit();
+
+    if (entry->succs_.empty())
+        entry->link(exit);
 
     for (auto in : cfa().in_nodes()) {
         if (in->f_index_ == CFNode::Reachable) {
@@ -293,6 +295,7 @@ void CFABuilder::build_cfg() {
                     ++i;
                     ++cfa_.num_out_nodes_;
                 } else {
+                    DLOG("removing: %", out);
                     i = out_nodes.erase(i);
                     delete out;
                 }
@@ -302,6 +305,7 @@ void CFABuilder::build_cfg() {
             for (auto p : in->out_nodes())
                 assert(p.second->f_index_ != CFNode::Reachable);
 #endif
+            DLOG("removing: %", in);
             cfa_.in_nodes_[in->lambda()] = nullptr;
             delete in;
         }

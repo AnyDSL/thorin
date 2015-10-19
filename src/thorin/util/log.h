@@ -29,6 +29,8 @@ public:
     static void log(Level level, const char* file, int line, const char* fmt, Args... args) {
         if (Log::stream_ && level <= Log::max_level()) {
             Log::stream() << level2char(level) << ':' << file << ':' << std::setw(4) << line << ": ";
+            if (level == Debug)
+                Log::stream() << "  ";
             streamf(Log::stream(), fmt, args...);
             Log::stream() << std::endl;
         }
@@ -50,5 +52,10 @@ private:
 #define WLOG(...) LOG(thorin::Log::Warn,  __VA_ARGS__)
 #define ILOG(...) LOG(thorin::Log::Info,  __VA_ARGS__)
 #define DLOG(...) LOG(thorin::Log::Debug, __VA_ARGS__)
+#define ILOG_SCOPE(s) { \
+    ILOG("*** BEGIN: " #s " {"); \
+    (s); \
+    ILOG("}"); \
+}
 
 #endif

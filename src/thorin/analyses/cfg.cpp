@@ -198,7 +198,7 @@ void CFABuilder::run_cfa() {
     auto enqueue = [&] (const InNode* in) {
         DLOG("enqueuing %", in->lambda()->unique_name());
         queue.push(in->lambda());
-        in->f_index_ = CFNode::Unreachable;
+        in->f_index_ = CFNode::Unfresh;
     };
 
     enqueue(cfa().entry());
@@ -247,7 +247,7 @@ void CFABuilder::build_cfg() {
     std::queue<const InNode*> queue;
 
     auto enqueue = [&] (const InNode* in) {
-        if (in->f_index_ == CFNode::Unreachable) {
+        if (in->f_index_ != CFNode::Reachable) {
             queue.push(in);
             DLOG("enqueuing %", in);
         }

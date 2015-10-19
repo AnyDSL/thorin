@@ -219,7 +219,7 @@ void CFABuilder::run_cfa() {
                             auto in_lambda = info_in->lambda();
                             bool todo = info_in->f_index_ == CFNode::Unreachable;
                             for (size_t p = 0; p != in_lambda->num_params(); ++p) {
-                                if (in_lambda->param(p)->order() >= 1)
+                                if (in_lambda->param(p)->order() > 0)
                                     todo |= lambda2param2nodes_[in_lambda][p].insert(out).second;
                             }
 

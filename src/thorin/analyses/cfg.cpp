@@ -208,13 +208,15 @@ void CFABuilder::run_cfa() {
     while (!queue.empty()) {
         auto cur_lambda = pop(queue);
         auto cur_in = in_node(cur_lambda);
+        auto args = args_cf_nodes(cur_in);
 
         for (auto n : to_cf_nodes(cur_in)) {
             if (auto in = n->isa<InNode>()) {
                 bool todo = in->f_index_ == CFNode::Fresh;
-                auto args = args_cf_nodes(cur_in);
-                for (size_t i = 0; i != cur_lambda->num_args(); ++i)
-                    todo |= lambda2param2nodes_[in->lambda()][i].insert_range(args[i]);
+                for (size_t i = 0; i != cur_lambda->num_args(); ++i) {
+                    if (in->lambda()->param(i)->order() > 0)
+                        todo |= lambda2param2nodes_[in->lambda()][i].insert_range(args[i]);
+                }
                 if (todo)
                     enqueue(in);
 
@@ -222,14 +224,13 @@ void CFABuilder::run_cfa() {
                 auto out = n->as<OutNode>();
                 assert(in_node(cur_lambda) == out->context() && "OutNode's context does not match");
 
-                for (const auto& nodes : args_cf_nodes(cur_in)) {
+                for (const auto& nodes : args) {
                     for (auto n : nodes) {
                         if (auto in = n->isa<InNode>()) {
-                            auto in_lambda = in->lambda();
                             bool todo = in->f_index_ == CFNode::Fresh;
-                            for (size_t i = 0; i != in_lambda->num_params(); ++i) {
-                                if (in_lambda->param(i)->order() > 0)
-                                    todo |= lambda2param2nodes_[in_lambda][i].insert(out).second;
+                            for (size_t i = 0; i != in->lambda()->num_params(); ++i) {
+                                if (in->lambda()->param(i)->order() > 0)
+                                    todo |= lambda2param2nodes_[in->lambda()][i].insert(out).second;
                             }
 
                             if (todo)

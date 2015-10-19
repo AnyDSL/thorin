@@ -283,16 +283,11 @@ std::string YCompGen::cfnode_title(const Scope& scope, const CFNode* node) {
 template<bool forward>
 std::ostream& YCompGen::emit_cfnode(const CFG<forward>& cfg, const CFNode* node) {
     write_node(cfnode_title(cfg.scope(), node),
-        [&] {
-            if(auto out = node->isa<OutNode>()) {
-                stream() << "(" << out->context()->def()->unique_name() << ") ";
-            }
-            stream() << node->def()->unique_name();
-        }, [&] { stream() << (node->isa<OutNode>() ? "Out" : "In"); });
+        [&] { stream() << node; },
+        [&] { stream() << (node->isa<InNode>() ? "In" : "Out"); });
 
-    for (auto successor : cfg.succs(node)) {
-        write_edge(cfnode_title(cfg.scope(), node), cfnode_title(cfg.scope(), successor), true);
-    }
+    for (auto succ : cfg.succs(node))
+        write_edge(cfnode_title(cfg.scope(), node), cfnode_title(cfg.scope(), succ), true);
 
     return stream();
 }

@@ -253,8 +253,9 @@ void CFABuilder::build_cfg() {
         }
     };
 
-    enqueue(cfa().entry());
-    cfa().entry()->f_index_ = CFNode::Reachable;
+    auto entry = cfa().entry();
+    enqueue(entry);
+    entry->f_index_ = CFNode::Reachable;
 
     while (!queue.empty()) {
         auto cur_in = pop(queue);

@@ -391,20 +391,23 @@ void CCodeGen::emit() {
             }
         }
 
-        for (auto lambda : scope.rpo()) {
-            // dump declarations for variables set in gotos
-            if (!lambda->is_cascading() && scope.entry() != lambda)
-                for (auto param : lambda->params())
-                    if (!param->type().isa<MemType>()) {
-                        newline();
-                        emit_type(param->type()) << " " << param->unique_name() << ";";
-                    }
-        }
-
         // never use early schedule here - this may break memory operations
         Schedule schedule = schedule_smart(scope);
 
         auto bbs = bb_schedule(scope);
+
+        // emit function arguments and phi nodes
+        for (auto lambda : bbs) {
+            if (scope.entry() != lambda)
+                for (auto param : lambda->params())
+                    if (!param->type().isa<MemType>()) {
+                        newline();
+                        emit_type(param->type()) << "  " << param->unique_name() << ";";
+                        newline();
+                        emit_type(param->type()) << " p" << param->unique_name() << ";";
+                    }
+        }
+
         // emit body for each bb
         for (auto lambda : bbs) {
             if (lambda->empty())
@@ -416,6 +419,15 @@ void CCodeGen::emit() {
             if (lambda != scope.entry()) {
                 stream() << "l" << lambda->gid() << ": ;";
                 up();
+                // load argument from phi node
+                if (lambda->to() != ret_param) // skip for return
+                    if (auto to_lambda = lambda->to()->isa_lambda())
+                        if (scope.contains(to_lambda))
+                            for (auto param : lambda->params())
+                                if (!param->type().isa<MemType>()) {
+                                    stream() << param->unique_name() << " = p" << param->unique_name() << ";";
+                                    newline();
+                                }
             }
 
             for (auto primop : schedule[lambda]) {
@@ -457,11 +469,10 @@ void CCodeGen::emit() {
                 emit_debug_info(select);
                 stream() << "if (";
                 emit(select->cond());
-                stream() << ") {";
-                up(); emit(select->tval()); down();
-                stream() << "} else {";
-                up(); emit(select->fval()); down();
-                stream() << "}";
+                stream() << ") ";
+                emit(select->tval());
+                stream() << " else ";
+                emit(select->fval());
             } else if (lambda->to()->isa<Bottom>()) {
                 stream() << "return ; // bottom: unreachable";
             } else {
@@ -471,24 +482,20 @@ void CCodeGen::emit() {
                 // emit inlined arrays/tuples/structs before the call operation
                 for (auto arg : lambda->args()) emit_aggop_defs(arg);
 
-                if (to_lambda->is_basicblock()) {    // ordinary jump
+                if (to_lambda->is_basicblock()) {   // ordinary jump
                     assert(to_lambda->num_params()==lambda->num_args());
-                    size_t size = to_lambda->num_params();
-                    for (size_t i = 0; i != size; ++i) {
+                    // store parameter to phi nodes
+                    for (size_t i = 0, size = to_lambda->num_params(); i != size; ++i)
                         if (!to_lambda->param(i)->type().isa<MemType>()) {
-                            if (to_lambda->param(i)->gid() == lambda->arg(i)->gid())
-                                stream() << "// ";  // self-assignment
-                            stream() << to_lambda->param(i)->unique_name() << " = ";
+                            stream() << "p" << to_lambda->param(i)->unique_name() << " = ";
                             emit(lambda->arg(i)) << ";";
                             newline();
                         }
-                    }
                     emit(to_lambda);
                 } else {
                     if (to_lambda->is_intrinsic()) {
                         if (to_lambda->intrinsic() == Intrinsic::Reinterpret) {
                             auto cont = lambda->arg(2)->as_lambda();
-                            emit_type(cont->param(1)->type()) << " ";
                             emit(cont->param(1)) << " = as_";
                             emit_type(cont->param(1)->type()) << "(";
                             emit(lambda->arg(1)) << ");";
@@ -518,17 +525,13 @@ void CCodeGen::emit() {
                         if (ret_arg == ret_param) {     // call + return
                             stream() << "return ";
                         } else {                        // call + continuation
-                            Lambda* succ = ret_arg->as_lambda();
-                            const Param* param = succ->param(0)->type().isa<MemType>() ? nullptr : succ->param(0);
+                            auto succ = ret_arg->as_lambda();
+                            auto param = succ->param(0)->type().isa<MemType>() ? nullptr : succ->param(0);
                             if (param == nullptr && succ->num_params() == 2)
                                 param = succ->param(1);
 
-                            if (param) {
-                                emit_type(param->type()) << " ";
-                                emit(param) << ";";
-                                newline();
+                            if (param)
                                 emit(param) << " = ";
-                            }
                         }
 
                         auto name = (to_lambda->is_external() || to_lambda->empty()) ? to_lambda->name : to_lambda->unique_name();

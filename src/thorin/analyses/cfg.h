@@ -51,10 +51,10 @@ private:
     const CFNodeSet& succs() const { return succs_; }
     void link(const CFNode* other) const;
 
-    static const size_t Fresh     = -1;
-    static const size_t Unfresh   = -2;
-    static const size_t Reachable = -3;
-    static const size_t Visited   = -4;
+    static const size_t Fresh     = size_t(-1);
+    static const size_t Unfresh   = size_t(-2);
+    static const size_t Reachable = size_t(-3);
+    static const size_t Visited   = size_t(-4);
 
     Def def_;
     mutable size_t f_index_ = Fresh;     ///< RPO index in a forward @p CFG.

@@ -67,13 +67,13 @@ public:
     {
         in_node(scope().entry());
         in_node(scope().exit() );
-        ILOG_SCOPE(propagate());
+        ILOG_SCOPE(propagate_higher_order_values());
         ILOG_SCOPE(run_cfa());
         ILOG_SCOPE(build_cfg());
         ILOG_SCOPE(unreachable_node_elimination());
     }
 
-    void propagate();
+    void propagate_higher_order_values();
     void run_cfa();
     void build_cfg();
     void unreachable_node_elimination();
@@ -108,7 +108,7 @@ private:
     DefMap<DefSet> def2set_;
 };
 
-void CFABuilder::propagate() {
+void CFABuilder::propagate_higher_order_values() {
     std::stack<Def> stack;
 
     auto push = [&] (Def def) -> bool {

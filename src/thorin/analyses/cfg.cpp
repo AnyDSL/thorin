@@ -20,15 +20,28 @@ uint64_t CFNodeHash::operator() (const CFNode* n) const {
     if (auto in = n->isa<InNode>())
         return hash_value(in->lambda()->gid());
     auto out = n->as<OutNode>();
+    // TODO include ancestor?
     return hash_combine(hash_value(out->def()->gid()), out->context()->lambda()->gid());
 }
 
 //------------------------------------------------------------------------------
 
 void CFNode::link(const CFNode* other) const {
-    this->succs_.insert(other);
-    other->preds_.insert(this);
     DLOG("% -> %", this, other);
+
+    assert(this->f_index_ == CFNode::Reachable);
+    other->f_index_ = CFNode::Reachable;
+
+    this->succs_.insert(other);
+    auto p = other->preds_.insert(this);
+
+    // recursively link ancestors
+    if (p.second) {
+        if (auto out = other->isa<OutNode>()) {
+            if (auto ancestor = out->ancestor())
+                out->link(ancestor);
+        }
+    }
 }
 
 std::ostream& InNode::stream(std::ostream& out) const {
@@ -56,8 +69,8 @@ public:
         propagate();
         ILOG("*** CFA: propagating higher-order values: done");
         ILOG("*** CFA: actual CFA: start");
-        in_node(scope().entry())->f_index_ = CFNode::Reachable;
-        in_node(scope().exit() )->f_index_ = CFNode::Reachable;
+        in_node(scope().entry());
+        in_node(scope().exit() );
         run_cfa();
         ILOG("*** CFA: actual CFA: done");
         ILOG("*** CFA: build CFG: start");
@@ -71,7 +84,7 @@ public:
 
     const CFA& cfa() const { return cfa_; }
     const Scope& scope() const { return cfa_.scope(); }
-    Array<CFNodeSet> cf_nodes(Lambda* lambda);
+    Array<CFNodeSet> cf_nodes(const InNode*);
 
     const InNode* in_node(Lambda* lambda) {
         assert(scope().outer_contains(lambda));
@@ -141,43 +154,39 @@ void CFABuilder::propagate() {
     }
 }
 
-Array<CFNodeSet> CFABuilder::cf_nodes(Lambda* lambda) {
-    auto in = in_node(lambda);
+Array<CFNodeSet> CFABuilder::cf_nodes(const InNode* in) {
+    auto cur_lambda = in->lambda();
 
     // create dummy empty set entry for lambdas without body
-    if (lambda->empty())
+    if (cur_lambda->empty())
         return Array<CFNodeSet>(1);
 
-    size_t num = lambda->size();
+    size_t num = cur_lambda->size();
     Array<CFNodeSet> result(num);
 
     for (size_t i = 0; i != num; ++i) {
-        for (auto def : def2set_[lambda->op(i)]) {
-            if (auto op_lambda = def->isa_lambda()) {
-                if (scope().inner_contains(op_lambda))
-                    result[i].insert(in_node(op_lambda));
-                else if (i == 0)
-                    result[i].insert(out_node(in, nullptr, op_lambda));
+        for (auto def : def2set_[cur_lambda->op(i)]) {
+            assert(def->order() > 0);
+
+            if (auto lambda = def->isa_lambda()) {
+                if (scope().inner_contains(lambda))
+                    result[i].insert(in_node(lambda));
+                else
+                    result[i].insert(out_node(in, nullptr, lambda));
             } else {
                 auto param = def->as<Param>();
-                if (param->order() > 0) {
-                    if (scope().inner_contains(param)) {
-                        const auto& set = param2nodes(param);
-                        if (i == 0) {
-                            for (auto n : set) {
-                                if (auto out = n->isa<OutNode>()) {
-                                    assert(out->context() != in);
-                                    result[0].insert(out_node(in, out, out->def()));
-                                } else
-                                    result[0].insert(n);
-                            }
+                if (scope().inner_contains(param)) {
+                    const auto& set = param2nodes(param);
+                    for (auto n : set) {
+                        if (auto out = n->isa<OutNode>()) {
+                            result[i].insert(out_node(in, out, out->def())); // create a new context if applicable
                         } else
-                            result[i].insert(set.begin(), set.end());
-                    } else
-                        result[i].insert(out_node(in, nullptr, param));
-                }
+                            result[i].insert(n->as<InNode>());
+                    }
+                } else
+                    result[i].insert(out_node(in, nullptr, param));
             }
-        };
+        }
     }
 
     return result;
@@ -186,45 +195,46 @@ Array<CFNodeSet> CFABuilder::cf_nodes(Lambda* lambda) {
 void CFABuilder::run_cfa() {
     std::queue<Lambda*> queue;
 
-    auto enqueue = [&] (Lambda* lambda) {
-        DLOG("enqueuing %", lambda->unique_name());
-        queue.push(lambda);
-        in_node(lambda)->f_index_ = CFNode::Reachable;
+    auto enqueue = [&] (const InNode* in) {
+        DLOG("enqueuing %", in->lambda()->unique_name());
+        queue.push(in->lambda());
+        in->f_index_ = CFNode::Unreachable;
     };
 
-    enqueue(scope().entry());
+    enqueue(cfa().entry());
 
     while (!queue.empty()) {
-        auto lambda = pop(queue);
-        auto info = cf_nodes(lambda);
-        size_t num = lambda->size();
+        auto cur_lambda = pop(queue);
+        auto info = cf_nodes(in_node(cur_lambda));
+        size_t num = cur_lambda->size();
 
-        for (auto to : info[0]) {
-            if (auto in = to->isa<InNode>()) {
-                bool todo = in->f_index_ == CFNode::Unreachable;
+        for (auto n : info.front()) {
+            if (auto in = n->isa<InNode>()) {
+                bool todo = in->f_index_ == CFNode::Fresh;
                 for (size_t i = 1; i != num; ++i) {
                     const auto& set = info[i];
                     todo |= lambda2param2nodes_[in->lambda()][i-1].insert(set.begin(), set.end());
                 }
 
                 if (todo)
-                    enqueue(in->lambda());
+                    enqueue(in);
 
             } else {
-                auto out = to->as<OutNode>();
-                assert(in_node(lambda) == out->context() && "OutNode's context does not match");
-                for (size_t i = 1; i != num; ++i) {
-                    for (auto n : info[i]) {
-                        if (auto info_in = n->isa<InNode>()) {
-                            auto in_lambda = info_in->lambda();
-                            bool todo = info_in->f_index_ == CFNode::Unreachable;
+                auto out = n->as<OutNode>();
+                assert(in_node(cur_lambda) == out->context() && "OutNode's context does not match");
+
+                for (const auto& nodes : info.skip_front()) {
+                    for (auto n : nodes) {
+                        if (auto in = n->isa<InNode>()) {
+                            auto in_lambda = in->lambda();
+                            bool todo = in->f_index_ == CFNode::Fresh;
                             for (size_t p = 0; p != in_lambda->num_params(); ++p) {
                                 if (in_lambda->param(p)->order() > 0)
                                     todo |= lambda2param2nodes_[in_lambda][p].insert(out).second;
                             }
 
                             if (todo)
-                                enqueue(info_in->lambda());
+                                enqueue(in);
                         }
                     }
                 }
@@ -234,51 +244,67 @@ void CFABuilder::run_cfa() {
 }
 
 void CFABuilder::build_cfg() {
-    for (auto in : cfa().in_nodes()) {
-        assert(in->f_index_ == CFNode::Reachable);
-        ++cfa_.num_in_nodes_;
-        auto info = cf_nodes(in->lambda());
+    std::queue<const InNode*> queue;
 
-        for (auto to : info[0]) {
-            to->f_index_ = CFNode::Reachable;
-            in->link(to);
+    auto enqueue = [&] (const InNode* in) {
+        if (in->f_index_ == CFNode::Unreachable) {
+            queue.push(in);
+            DLOG("enqueuing %", in);
+        }
+    };
 
-            if (auto out = to->isa<OutNode>()) {
+    enqueue(cfa().entry());
+    cfa().entry()->f_index_ = CFNode::Reachable;
+
+    while (!queue.empty()) {
+        auto cur_in = pop(queue);
+        auto info = cf_nodes(cur_in);
+        for (auto n : info.front()) {
+            if (auto in = n->isa<InNode>()) {
+                enqueue(in);
+                cur_in->link(in);
+            } else {
+                auto out = n->as<OutNode>();
+                cur_in->link(out);
                 for (const auto& nodes : info.skip_front()) {
                     for (auto n : nodes) {
-                        out->f_index_ = CFNode::Reachable;
-                        //assert(n->f_index_ == CFNode::Reachable);
-                        out->link(n);
-                        n->f_index_ = CFNode::Reachable;
+                        if (auto in = n->isa<InNode>()) {
+                            enqueue(in);
+                            out->link(n);
+                        }
                     }
                 }
             }
         }
-
-        for (auto pair : in->out_nodes()) {
-            ++cfa_.num_out_nodes_;
-            auto out = pair.second;
-            //out->f_index_ = CFNode::Reachable;
-
-            if (auto ancestor = out->ancestor()) {
-                //assert(ancestor->f_index_ == CFNode::Reachable);
-                out->link(ancestor);
-            }
-
-            if (out->def()->isa<Param>())
-                out->link(cfa().exit());
-
-            //for (const auto& arg : info.skip_front()) {
-                //for (auto n_arg : arg)
-                    //out->link(n_arg);
-            //}
-        }
     }
 
-    // TODO link CFNodes not reachable from exit
-    // HACK
-    if (scope().entry()->empty())
-        cfa().entry()->link(cfa().exit());
+    auto exit = cfa().exit();
+
+    for (auto in : cfa().in_nodes()) {
+        if (in->f_index_ == CFNode::Reachable) {
+            ++cfa_.num_in_nodes_;
+            auto& out_nodes = in->out_nodes_;
+            for (auto i = out_nodes.begin(); i != out_nodes.end();) {
+                auto out = i->second;
+                if (out->f_index_ == CFNode::Reachable) {
+                    if (out->succs().empty())
+                        out->link(exit);
+                    ++i;
+                    ++cfa_.num_out_nodes_;
+                } else {
+                    i = out_nodes.erase(i);
+                    delete out;
+                }
+            }
+        } else {
+#ifndef NDEBUG
+            for (auto p : in->out_nodes())
+                assert(p.second->f_index_ != CFNode::Reachable);
+#endif
+            cfa_.in_nodes_[in->lambda()] = nullptr;
+            delete in;
+        }
+    }
 
 #ifndef NDEBUG
     bool error = false;
@@ -288,13 +314,17 @@ void CFABuilder::build_cfg() {
             error = true;
         }
     }
-    if (error) {
-        std::ofstream out("out.vcg");
-        emit_ycomp(scope(), false, out);
-        out.close();
-        abort();
-    }
+
+    if (error)
+        cfa().error_dump();
 #endif
+}
+
+void CFA::error_dump() const {
+    std::ofstream out("out.vcg");
+    emit_ycomp(scope(), false, out);
+    out.close();
+    abort();
 }
 
 //------------------------------------------------------------------------------
@@ -321,7 +351,10 @@ CFG<forward>::CFG(const CFA& cfa)
     , rpo_(*this)
 {
     size_t result = post_order_visit(entry(), cfa.num_cf_nodes());
-    assert(result == 0);
+#ifndef NDEBUG
+    if (result != 0)
+        cfa.error_dump();
+#endif
 }
 
 template<bool forward>

@@ -51,13 +51,14 @@ private:
     const CFNodeSet& succs() const { return succs_; }
     void link(const CFNode* other) const;
 
-    static const size_t Unreachable = -1;
-    static const size_t Reachable = -2;
-    static const size_t Visited = -3;
+    static const size_t Fresh = -1;
+    static const size_t Unreachable = -2;
+    static const size_t Reachable = -3;
+    static const size_t Visited = -4;
 
     Def def_;
-    mutable size_t f_index_ = Unreachable; ///< RPO index in a forward @p CFG.
-    mutable size_t b_index_ =   Reachable; ///< RPO index in a backwards @p CFG.
+    mutable size_t f_index_ = Fresh;     ///< RPO index in a forward @p CFG.
+    mutable size_t b_index_ = Reachable; ///< RPO index in a backwards @p CFG.
     mutable CFNodeSet preds_;
     mutable CFNodeSet succs_;
 
@@ -140,8 +141,9 @@ private:
     size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
     const InNode* entry() const { return in_nodes_.array().front(); }
     const InNode* exit() const { return in_nodes_.array().back(); }
-    const Scope& scope_;
+    void error_dump() const;
 
+    const Scope& scope_;
     Scope::Map<const InNode*> in_nodes_; ///< Maps lambda in scope to InNode.
     mutable AutoPtr<const F_CFG> f_cfg_;
     mutable AutoPtr<const B_CFG> b_cfg_;

@@ -1,5 +1,5 @@
-#ifndef THORIN_GRAPHS_H
-#define THORIN_GRAPHS_H
+#ifndef THORIN_BE_GRAPHS_H
+#define THORIN_BE_GRAPHS_H
 
 #include <iostream>
 #include <fstream>

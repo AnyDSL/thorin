@@ -1,5 +1,5 @@
-#ifndef YCOMP_BE_H
-#define YCOMP_BE_H
+#ifndef YCOMP_BE_YCOMP_H
+#define YCOMP_BE_YCOMP_H
 
 #include <iostream>
 

@@ -48,7 +48,7 @@ void thorin_info(void) {
     runtime.display_info(std::cout);
 }
 
-void* thorin_alloc(uint32_t plat, uint32_t dev, int64_t size) {
+void* thorin_alloc(int32_t plat, int32_t dev, int64_t size) {
     return runtime.alloc((platform_id)plat, (device_id)dev, size);
 }
 
@@ -69,24 +69,28 @@ void thorin_copy(const void* src, void* dst) {
     runtime.copy(src, dst);
 }
 
-void thorin_set_block_size(uint32_t plat, uint32_t dev, uint32_t x, uint32_t y, uint32_t z) {
+void thorin_set_block_size(int32_t plat, int32_t dev, int32_t x, int32_t y, int32_t z) {
     runtime.set_block_size((platform_id)plat, (device_id)dev, x, y, z);
 }
 
-void thorin_set_grid_size(uint32_t plat, uint32_t dev, uint32_t x, uint32_t y, uint32_t z) {
+void thorin_set_grid_size(int32_t plat, int32_t dev, int32_t x, int32_t y, int32_t z) {
     runtime.set_grid_size((platform_id)plat, (device_id)dev, x, y, z);
 }
 
-void thorin_set_arg(uint32_t plat, uint32_t dev, uint32_t arg, void* ptr, uint32_t size) {
-    runtime.set_arg((platform_id)plat, (device_id)dev, arg, ptr, size);
+void thorin_set_kernel_arg(int32_t plat, int32_t dev, int32_t arg, void* ptr, int32_t size) {
+    runtime.set_kernel_arg((platform_id)plat, (device_id)dev, arg, ptr, size);
 }
 
-void thorin_load_kernel(uint32_t plat, uint32_t dev, const char* file, const char* name) {
+void thorin_load_kernel(int32_t plat, int32_t dev, const char* file, const char* name) {
     runtime.load_kernel((platform_id)plat, (device_id)dev, file, name);
 }
 
-void thorin_launch_kernel(uint32_t plat, uint32_t dev) {
+void thorin_launch_kernel(int32_t plat, int32_t dev) {
     runtime.launch_kernel((platform_id)plat, (device_id)dev);
+}
+
+void thorin_synchronize(int32_t plat, int32_t dev) {
+    runtime.synchronize((platform_id)plat, (device_id)dev);
 }
 
 #if _POSIX_VERSION >= 200112L || _XOPEN_SOURCE >= 600

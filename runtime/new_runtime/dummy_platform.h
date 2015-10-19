@@ -21,11 +21,12 @@ protected:
     void* map(void*, int64_t, int64_t) override { platform_error(); return nullptr; }
     void unmap(void*) override { platform_error(); }
 
-    void set_block_size(device_id, uint32_t, uint32_t, uint32_t) { platform_error(); }
-    void set_grid_size(device_id, uint32_t, uint32_t, uint32_t) { platform_error(); }
-    void set_arg(device_id, uint32_t, void*, uint32_t) override { platform_error(); }
-    void load_kernel(device_id, const char*, const char*) { platform_error(); }
+    void set_block_size(device_id, int32_t, int32_t, int32_t) override { platform_error(); }
+    void set_grid_size(device_id, int32_t, int32_t, int32_t) override { platform_error(); }
+    void set_kernel_arg(device_id, int32_t, void*, int32_t) override { platform_error(); }
+    void load_kernel(device_id, const char*, const char*) override { platform_error(); }
     void launch_kernel(device_id) override { platform_error(); }
+    void synchronize(device_id dev) override { platform_error(); }
 
     void copy(const void* src, void* dst) override { platform_error(); }
     void copy_from_host(const void* src, void* dst) override { platform_error(); }

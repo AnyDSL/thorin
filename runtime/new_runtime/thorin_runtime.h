@@ -15,7 +15,7 @@ enum thorin_platform {
 
 void thorin_info(void);
 
-void* thorin_alloc(uint32_t, uint32_t, int64_t);
+void* thorin_alloc(int32_t, int32_t, int64_t);
 void thorin_release(void*);
 
 void* thorin_map(void*, int64_t, int64_t);
@@ -23,14 +23,15 @@ void thorin_unmap(void*);
 
 void thorin_copy(const void*, void*);
 
-void thorin_set_block_size(uint32_t, uint32_t, uint32_t, uint32_t, uint32_t);
-void thorin_set_grid_size(uint32_t, uint32_t, uint32_t, uint32_t, uint32_t);
-void thorin_set_arg(uint32_t, uint32_t, uint32_t, void*, uint32_t);
-void thorin_load_kernel(uint32_t, uint32_t, const char*, const char*);
-void thorin_launch_kernel(uint32_t, uint32_t);
+void thorin_set_block_size(int32_t, int32_t, int32_t, int32_t, int32_t);
+void thorin_set_grid_size(int32_t, int32_t, int32_t, int32_t, int32_t);
+void thorin_set_kernel_arg(int32_t, int32_t, int32_t, void*, int32_t);
+void thorin_load_kernel(int32_t, int32_t, const char*, const char*);
+void thorin_launch_kernel(int32_t, int32_t);
+void thorin_synchronize(int32_t, int32_t);
 
 float thorin_random_val();
-void thorin_random_seed(uint32_t);
+void thorin_random_seed(int32_t);
 
 long long thorin_get_micro_time();
 long long thorin_get_kernel_time();

@@ -26,8 +26,8 @@ public:
 
 protected:
     struct dim3 {
-        unsigned int x, y, z;
-        dim3(unsigned int x = 1, unsigned int y = 1, unsigned int z = 1) : x(x), y(y), z(z) {}
+        int x, y, z;
+        dim3(int x = 1, int y = 1, int z = 1) : x(x), y(y), z(z) {}
     };
 
     void* alloc(device_id dev, int64_t size) override;
@@ -36,11 +36,12 @@ protected:
     void* map(void* ptr, int64_t offset, int64_t size);
     void unmap(void* view) override;
 
-    void set_block_size(device_id dev, uint32_t x, uint32_t y, uint32_t z) override;
-    void set_grid_size(device_id dev, uint32_t x, uint32_t y, uint32_t z) override;
-    void set_arg(device_id dev, uint32_t arg, void* ptr, uint32_t size) override;
+    void set_block_size(device_id dev, int32_t x, int32_t y, int32_t z) override;
+    void set_grid_size(device_id dev, int32_t x, int32_t y, int32_t z) override;
+    void set_kernel_arg(device_id dev, int32_t arg, void* ptr, int32_t size) override;
     void load_kernel(device_id dev, const char* file, const char* name) override;
     void launch_kernel(device_id dev) override;
+    void synchronize(device_id dev) override;
 
     void copy(const void* src, void* dst) override;
     void copy_from_host(const void* src, void* dst) override;
@@ -61,6 +62,7 @@ protected:
         dim3 grid, block;
         CUfunction kernel;
         std::vector<void*> kernel_args;
+        std::vector<void*> kernel_vals;
 
         std::unordered_map<std::string, CUmodule> modules;
         std::unordered_map<CUmodule, FunctionMap> functions;

@@ -1,7 +1,7 @@
 extern "C" {
     fn thorin_info() -> ();
 
-    fn thorin_alloc(u32, u32, i64) -> &i8;
+    fn thorin_alloc(i32, i32, i64) -> &i8;
     fn thorin_release(&i8) -> ();
 
     fn thorin_map(&i8, i64, i64) -> &i8;
@@ -23,9 +23,297 @@ extern "C" {
     fn thorin_print_string(&[u8]) -> ();
 }
 
-fn alloc_host(size: i32) -> &i8 { thorin_alloc(0u32, 0u32, size as i64) }
-fn alloc_cuda(dev: u32, size: i32) -> &i8 { thorin_alloc(1u32, dev, size as i64) }
-fn alloc_opencl(dev: u32, size: i32) -> &i8 { thorin_alloc(2u32, dev, size as i64) }
+extern "device" {
+    fn "llvm.nvvm.read.ptx.sreg.ctaid.x" nvvm_read_ptx_sreg_ctaid_x() -> i32;
+    fn "llvm.nvvm.read.ptx.sreg.ctaid.y" nvvm_read_ptx_sreg_ctaid_y() -> i32;
+    fn "llvm.nvvm.read.ptx.sreg.ctaid.z" nvvm_read_ptx_sreg_ctaid_z() -> i32;
+    fn "llvm.nvvm.read.ptx.sreg.nctaid.x" nvvm_read_ptx_sreg_nctaid_x() -> i32;
+    fn "llvm.nvvm.read.ptx.sreg.nctaid.y" nvvm_read_ptx_sreg_nctaid_y() -> i32;
+    fn "llvm.nvvm.read.ptx.sreg.nctaid.z" nvvm_read_ptx_sreg_nctaid_z() -> i32;
+    fn "llvm.nvvm.read.ptx.sreg.ntid.x" nvvm_read_ptx_sreg_ntid_x() -> i32;
+    fn "llvm.nvvm.read.ptx.sreg.ntid.y" nvvm_read_ptx_sreg_ntid_y() -> i32;
+    fn "llvm.nvvm.read.ptx.sreg.ntid.z" nvvm_read_ptx_sreg_ntid_z() -> i32;
+    fn "llvm.nvvm.read.ptx.sreg.tid.x" nvvm_read_ptx_sreg_tid_x() -> i32;
+    fn "llvm.nvvm.read.ptx.sreg.tid.y" nvvm_read_ptx_sreg_tid_y() -> i32;
+    fn "llvm.nvvm.read.ptx.sreg.tid.z" nvvm_read_ptx_sreg_tid_z() -> i32;
+    fn "llvm.nvvm.read.ptx.sreg.warpsize" nvvm_read_ptx_sreg_warpsize() -> i32;
+    fn "llvm.nvvm.barrier0" nvvm_barrier0() -> ();
+
+    fn "llvm.nvvm.abs.i" nvvm_abs_i(i32) -> i32;
+    fn "llvm.nvvm.abs.ll" nvvm_abs_ll(i64) -> i64;
+    fn "llvm.nvvm.add.rm.d" nvvm_add_rm_d(f64, f64) -> f64;
+    fn "llvm.nvvm.add.rm.f" nvvm_add_rm_f(f32, f32) -> f32;
+    fn "llvm.nvvm.add.rm.ftz.f" nvvm_add_rm_ftz_f(f32, f32) -> f32;
+    fn "llvm.nvvm.add.rn.d" nvvm_add_rn_d(f64, f64) -> f64;
+    fn "llvm.nvvm.add.rn.f" nvvm_add_rn_f(f32, f32) -> f32;
+    fn "llvm.nvvm.add.rn.ftz.f" nvvm_add_rn_ftz_f(f32, f32) -> f32;
+    fn "llvm.nvvm.add.rp.d" nvvm_add_rp_d(f64, f64) -> f64;
+    fn "llvm.nvvm.add.rp.f" nvvm_add_rp_f(f32, f32) -> f32;
+    fn "llvm.nvvm.add.rp.ftz.f" nvvm_add_rp_ftz_f(f32, f32) -> f32;
+    fn "llvm.nvvm.add.rz.d" nvvm_add_rz_d(f64, f64) -> f64;
+    fn "llvm.nvvm.add.rz.f" nvvm_add_rz_f(f32, f32) -> f32;
+    fn "llvm.nvvm.add.rz.ftz.f" nvvm_add_rz_ftz_f(f32, f32) -> f32;
+    fn "llvm.nvvm.barrier0.and" nvvm_barrier0_and(i32) -> i32;
+    fn "llvm.nvvm.barrier0.or" nvvm_barrier0_or(i32) -> i32;
+    fn "llvm.nvvm.barrier0.popc" nvvm_barrier0_popc(i32) -> i32;
+    fn "llvm.nvvm.bitcast.d2ll" nvvm_bitcast_d2ll(f64) -> i64;
+    fn "llvm.nvvm.bitcast.f2i" nvvm_bitcast_f2i(f32) -> i32;
+    fn "llvm.nvvm.bitcast.i2f" nvvm_bitcast_i2f(i32) -> f32;
+    fn "llvm.nvvm.bitcast.ll2d" nvvm_bitcast_ll2d(i64) -> f64;
+    fn "llvm.nvvm.brev32" nvvm_brev32(i32) -> i32;
+    fn "llvm.nvvm.brev64" nvvm_brev64(i64) -> i64;
+    fn "llvm.nvvm.ceil.d" nvvm_ceil_d(f64) -> f64;
+    fn "llvm.nvvm.ceil.f" nvvm_ceil_f(f32) -> f32;
+    fn "llvm.nvvm.ceil.ftz.f" nvvm_ceil_ftz_f(f32) -> f32;
+    fn "llvm.nvvm.clz.i" nvvm_clz_i(i32) -> i32;
+    fn "llvm.nvvm.clz.ll" nvvm_clz_ll(i64) -> i32;
+    fn "llvm.nvvm.cos.approx.f" nvvm_cos_approx_f(f32) -> f32;
+    fn "llvm.nvvm.cos.approx.ftz.f" nvvm_cos_approx_ftz_f(f32) -> f32;
+    fn "llvm.nvvm.d2f.rm" nvvm_d2f_rm(f64) -> f32;
+    fn "llvm.nvvm.d2f.rm.ftz" nvvm_d2f_rm_ftz(f64) -> f32;
+    fn "llvm.nvvm.d2f.rn" nvvm_d2f_rn(f64) -> f32;
+    fn "llvm.nvvm.d2f.rn.ftz" nvvm_d2f_rn_ftz(f64) -> f32;
+    fn "llvm.nvvm.d2f.rp" nvvm_d2f_rp(f64) -> f32;
+    fn "llvm.nvvm.d2f.rp.ftz" nvvm_d2f_rp_ftz(f64) -> f32;
+    fn "llvm.nvvm.d2f.rz" nvvm_d2f_rz(f64) -> f32;
+    fn "llvm.nvvm.d2f.rz.ftz" nvvm_d2f_rz_ftz(f64) -> f32;
+    fn "llvm.nvvm.d2i.hi" nvvm_d2i_hi(f64) -> i32;
+    fn "llvm.nvvm.d2i.lo" nvvm_d2i_lo(f64) -> i32;
+    fn "llvm.nvvm.d2i.rm" nvvm_d2i_rm(f64) -> i32;
+    fn "llvm.nvvm.d2i.rn" nvvm_d2i_rn(f64) -> i32;
+    fn "llvm.nvvm.d2i.rp" nvvm_d2i_rp(f64) -> i32;
+    fn "llvm.nvvm.d2i.rz" nvvm_d2i_rz(f64) -> i32;
+    fn "llvm.nvvm.d2ll.rm" nvvm_d2ll_rm(f64) -> i64;
+    fn "llvm.nvvm.d2ll.rn" nvvm_d2ll_rn(f64) -> i64;
+    fn "llvm.nvvm.d2ll.rp" nvvm_d2ll_rp(f64) -> i64;
+    fn "llvm.nvvm.d2ll.rz" nvvm_d2ll_rz(f64) -> i64;
+    fn "llvm.nvvm.d2ui.rm" nvvm_d2ui_rm(f64) -> i32;
+    fn "llvm.nvvm.d2ui.rn" nvvm_d2ui_rn(f64) -> i32;
+    fn "llvm.nvvm.d2ui.rp" nvvm_d2ui_rp(f64) -> i32;
+    fn "llvm.nvvm.d2ui.rz" nvvm_d2ui_rz(f64) -> i32;
+    fn "llvm.nvvm.d2ull.rm" nvvm_d2ull_rm(f64) -> i64;
+    fn "llvm.nvvm.d2ull.rn" nvvm_d2ull_rn(f64) -> i64;
+    fn "llvm.nvvm.d2ull.rp" nvvm_d2ull_rp(f64) -> i64;
+    fn "llvm.nvvm.d2ull.rz" nvvm_d2ull_rz(f64) -> i64;
+    fn "llvm.nvvm.div.approx.f" nvvm_div_approx_f(f32, f32) -> f32;
+    fn "llvm.nvvm.div.approx.ftz.f" nvvm_div_approx_ftz_f(f32, f32) -> f32;
+    fn "llvm.nvvm.div.rm.d" nvvm_div_rm_d(f64, f64) -> f64;
+    fn "llvm.nvvm.div.rm.f" nvvm_div_rm_f(f32, f32) -> f32;
+    fn "llvm.nvvm.div.rm.ftz.f" nvvm_div_rm_ftz_f(f32, f32) -> f32;
+    fn "llvm.nvvm.div.rn.d" nvvm_div_rn_d(f64, f64) -> f64;
+    fn "llvm.nvvm.div.rn.f" nvvm_div_rn_f(f32, f32) -> f32;
+    fn "llvm.nvvm.div.rn.ftz.f" nvvm_div_rn_ftz_f(f32, f32) -> f32;
+    fn "llvm.nvvm.div.rp.d" nvvm_div_rp_d(f64, f64) -> f64;
+    fn "llvm.nvvm.div.rp.f" nvvm_div_rp_f(f32, f32) -> f32;
+    fn "llvm.nvvm.div.rp.ftz.f" nvvm_div_rp_ftz_f(f32, f32) -> f32;
+    fn "llvm.nvvm.div.rz.d" nvvm_div_rz_d(f64, f64) -> f64;
+    fn "llvm.nvvm.div.rz.f" nvvm_div_rz_f(f32, f32) -> f32;
+    fn "llvm.nvvm.div.rz.ftz.f" nvvm_div_rz_ftz_f(f32, f32) -> f32;
+    fn "llvm.nvvm.ex2.approx.d" nvvm_ex2_approx_d(f64) -> f64;
+    fn "llvm.nvvm.ex2.approx.f" nvvm_ex2_approx_f(f32) -> f32;
+    fn "llvm.nvvm.ex2.approx.ftz.f" nvvm_ex2_approx_ftz_f(f32) -> f32;
+    fn "llvm.nvvm.f2h.rn" nvvm_f2h_rn(f32) -> i16;
+    fn "llvm.nvvm.f2h.rn.ftz" nvvm_f2h_rn_ftz(f32) -> i16;
+    fn "llvm.nvvm.f2i.rm" nvvm_f2i_rm(f32) -> i32;
+    fn "llvm.nvvm.f2i.rm.ftz" nvvm_f2i_rm_ftz(f32) -> i32;
+    fn "llvm.nvvm.f2i.rn" nvvm_f2i_rn(f32) -> i32;
+    fn "llvm.nvvm.f2i.rn.ftz" nvvm_f2i_rn_ftz(f32) -> i32;
+    fn "llvm.nvvm.f2i.rp" nvvm_f2i_rp(f32) -> i32;
+    fn "llvm.nvvm.f2i.rp.ftz" nvvm_f2i_rp_ftz(f32) -> i32;
+    fn "llvm.nvvm.f2i.rz" nvvm_f2i_rz(f32) -> i32;
+    fn "llvm.nvvm.f2i.rz.ftz" nvvm_f2i_rz_ftz(f32) -> i32;
+    fn "llvm.nvvm.f2ll.rm" nvvm_f2ll_rm(f32) -> i64;
+    fn "llvm.nvvm.f2ll.rm.ftz" nvvm_f2ll_rm_ftz(f32) -> i64;
+    fn "llvm.nvvm.f2ll.rn" nvvm_f2ll_rn(f32) -> i64;
+    fn "llvm.nvvm.f2ll.rn.ftz" nvvm_f2ll_rn_ftz(f32) -> i64;
+    fn "llvm.nvvm.f2ll.rp" nvvm_f2ll_rp(f32) -> i64;
+    fn "llvm.nvvm.f2ll.rp.ftz" nvvm_f2ll_rp_ftz(f32) -> i64;
+    fn "llvm.nvvm.f2ll.rz" nvvm_f2ll_rz(f32) -> i64;
+    fn "llvm.nvvm.f2ll.rz.ftz" nvvm_f2ll_rz_ftz(f32) -> i64;
+    fn "llvm.nvvm.f2ui.rm" nvvm_f2ui_rm(f32) -> i32;
+    fn "llvm.nvvm.f2ui.rm.ftz" nvvm_f2ui_rm_ftz(f32) -> i32;
+    fn "llvm.nvvm.f2ui.rn" nvvm_f2ui_rn(f32) -> i32;
+    fn "llvm.nvvm.f2ui.rn.ftz" nvvm_f2ui_rn_ftz(f32) -> i32;
+    fn "llvm.nvvm.f2ui.rp" nvvm_f2ui_rp(f32) -> i32;
+    fn "llvm.nvvm.f2ui.rp.ftz" nvvm_f2ui_rp_ftz(f32) -> i32;
+    fn "llvm.nvvm.f2ui.rz" nvvm_f2ui_rz(f32) -> i32;
+    fn "llvm.nvvm.f2ui.rz.ftz" nvvm_f2ui_rz_ftz(f32) -> i32;
+    fn "llvm.nvvm.f2ull.rm" nvvm_f2ull_rm(f32) -> i64;
+    fn "llvm.nvvm.f2ull.rm.ftz" nvvm_f2ull_rm_ftz(f32) -> i64;
+    fn "llvm.nvvm.f2ull.rn" nvvm_f2ull_rn(f32) -> i64;
+    fn "llvm.nvvm.f2ull.rn.ftz" nvvm_f2ull_rn_ftz(f32) -> i64;
+    fn "llvm.nvvm.f2ull.rp" nvvm_f2ull_rp(f32) -> i64;
+    fn "llvm.nvvm.f2ull.rp.ftz" nvvm_f2ull_rp_ftz(f32) -> i64;
+    fn "llvm.nvvm.f2ull.rz" nvvm_f2ull_rz(f32) -> i64;
+    fn "llvm.nvvm.f2ull.rz.ftz" nvvm_f2ull_rz_ftz(f32) -> i64;
+    fn "llvm.nvvm.fabs.d" nvvm_fabs_d(f64) -> f64;
+    fn "llvm.nvvm.fabs.f" nvvm_fabs_f(f32) -> f32;
+    fn "llvm.nvvm.fabs.ftz.f" nvvm_fabs_ftz_f(f32) -> f32;
+    fn "llvm.nvvm.floor.d" nvvm_floor_d(f64) -> f64;
+    fn "llvm.nvvm.floor.f" nvvm_floor_f(f32) -> f32;
+    fn "llvm.nvvm.floor.ftz.f" nvvm_floor_ftz_f(f32) -> f32;
+    fn "llvm.nvvm.fma.rm.d" nvvm_fma_rm_d(f64, f64, f64) -> f64;
+    fn "llvm.nvvm.fma.rm.f" nvvm_fma_rm_f(f32, f32, f32) -> f32;
+    fn "llvm.nvvm.fma.rm.ftz.f" nvvm_fma_rm_ftz_f(f32, f32, f32) -> f32;
+    fn "llvm.nvvm.fma.rn.d" nvvm_fma_rn_d(f64, f64, f64) -> f64;
+    fn "llvm.nvvm.fma.rn.f" nvvm_fma_rn_f(f32, f32, f32) -> f32;
+    fn "llvm.nvvm.fma.rn.ftz.f" nvvm_fma_rn_ftz_f(f32, f32, f32) -> f32;
+    fn "llvm.nvvm.fma.rp.d" nvvm_fma_rp_d(f64, f64, f64) -> f64;
+    fn "llvm.nvvm.fma.rp.f" nvvm_fma_rp_f(f32, f32, f32) -> f32;
+    fn "llvm.nvvm.fma.rp.ftz.f" nvvm_fma_rp_ftz_f(f32, f32, f32) -> f32;
+    fn "llvm.nvvm.fma.rz.d" nvvm_fma_rz_d(f64, f64, f64) -> f64;
+    fn "llvm.nvvm.fma.rz.f" nvvm_fma_rz_f(f32, f32, f32) -> f32;
+    fn "llvm.nvvm.fma.rz.ftz.f" nvvm_fma_rz_ftz_f(f32, f32, f32) -> f32;
+    fn "llvm.nvvm.fmax.d" nvvm_fmax_d(f64, f64) -> f64;
+    fn "llvm.nvvm.fmax.f" nvvm_fmax_f(f32, f32) -> f32;
+    fn "llvm.nvvm.fmax.ftz.f" nvvm_fmax_ftz_f(f32, f32) -> f32;
+    fn "llvm.nvvm.fmin.d" nvvm_fmin_d(f64, f64) -> f64;
+    fn "llvm.nvvm.fmin.f" nvvm_fmin_f(f32, f32) -> f32;
+    fn "llvm.nvvm.fmin.ftz.f" nvvm_fmin_ftz_f(f32, f32) -> f32;
+    fn "llvm.nvvm.h2f" nvvm_h2f(i16) -> f32;
+    fn "llvm.nvvm.i2d.rm" nvvm_i2d_rm(i32) -> f64;
+    fn "llvm.nvvm.i2d.rn" nvvm_i2d_rn(i32) -> f64;
+    fn "llvm.nvvm.i2d.rp" nvvm_i2d_rp(i32) -> f64;
+    fn "llvm.nvvm.i2d.rz" nvvm_i2d_rz(i32) -> f64;
+    fn "llvm.nvvm.i2f.rm" nvvm_i2f_rm(i32) -> f32;
+    fn "llvm.nvvm.i2f.rn" nvvm_i2f_rn(i32) -> f32;
+    fn "llvm.nvvm.i2f.rp" nvvm_i2f_rp(i32) -> f32;
+    fn "llvm.nvvm.i2f.rz" nvvm_i2f_rz(i32) -> f32;
+    fn "llvm.nvvm.lg2.approx.d" nvvm_lg2_approx_d(f64) -> f64;
+    fn "llvm.nvvm.lg2.approx.f" nvvm_lg2_approx_f(f32) -> f32;
+    fn "llvm.nvvm.lg2.approx.ftz.f" nvvm_lg2_approx_ftz_f(f32) -> f32;
+    fn "llvm.nvvm.ll2d.rm" nvvm_ll2d_rm(i64) -> f64;
+    fn "llvm.nvvm.ll2d.rn" nvvm_ll2d_rn(i64) -> f64;
+    fn "llvm.nvvm.ll2d.rp" nvvm_ll2d_rp(i64) -> f64;
+    fn "llvm.nvvm.ll2d.rz" nvvm_ll2d_rz(i64) -> f64;
+    fn "llvm.nvvm.ll2f.rm" nvvm_ll2f_rm(i64) -> f32;
+    fn "llvm.nvvm.ll2f.rn" nvvm_ll2f_rn(i64) -> f32;
+    fn "llvm.nvvm.ll2f.rp" nvvm_ll2f_rp(i64) -> f32;
+    fn "llvm.nvvm.ll2f.rz" nvvm_ll2f_rz(i64) -> f32;
+    fn "llvm.nvvm.lohi.i2d" nvvm_lohi_i2d(i32, i32) -> f64;
+    fn "llvm.nvvm.max.i" nvvm_max_i(i32, i32) -> i32;
+    fn "llvm.nvvm.max.ll" nvvm_max_ll(i64, i64) -> i64;
+    fn "llvm.nvvm.max.ui" nvvm_max_ui(i32, i32) -> i32;
+    fn "llvm.nvvm.max.ull" nvvm_max_ull(i64, i64) -> i64;
+    fn "llvm.nvvm.membar.cta" nvvm_membar_cta() -> ();
+    fn "llvm.nvvm.membar.gl" nvvm_membar_gl() -> ();
+    fn "llvm.nvvm.membar.sys" nvvm_membar_sys() -> ();
+    fn "llvm.nvvm.min.i" nvvm_min_i(i32, i32) -> i32;
+    fn "llvm.nvvm.min.ll" nvvm_min_ll(i64, i64) -> i64;
+    fn "llvm.nvvm.min.ui" nvvm_min_ui(i32, i32) -> i32;
+    fn "llvm.nvvm.min.ull" nvvm_min_ull(i64, i64) -> i64;
+    fn "llvm.nvvm.move.f64" nvvm_move_f64(f64) -> f64;
+    fn "llvm.nvvm.move.f32" nvvm_move_f32(f32) -> f32;
+    fn "llvm.nvvm.move.i16" nvvm_move_i16(i16) -> i16;
+    fn "llvm.nvvm.move.i32" nvvm_move_i32(i32) -> i32;
+    fn "llvm.nvvm.move.i64" nvvm_move_i64(i64) -> i64;
+    fn "llvm.nvvm.mul24.i" nvvm_mul24_i(i32, i32) -> i32;
+    fn "llvm.nvvm.mul24.ui" nvvm_mul24_ui(i32, i32) -> i32;
+    fn "llvm.nvvm.mul.rm.d" nvvm_mul_rm_d(f64, f64) -> f64;
+    fn "llvm.nvvm.mul.rm.f" nvvm_mul_rm_f(f32, f32) -> f32;
+    fn "llvm.nvvm.mul.rm.ftz.f" nvvm_mul_rm_ftz_f(f32, f32) -> f32;
+    fn "llvm.nvvm.mul.rn.d" nvvm_mul_rn_d(f64, f64) -> f64;
+    fn "llvm.nvvm.mul.rn.f" nvvm_mul_rn_f(f32, f32) -> f32;
+    fn "llvm.nvvm.mul.rn.ftz.f" nvvm_mul_rn_ftz_f(f32, f32) -> f32;
+    fn "llvm.nvvm.mul.rp.d" nvvm_mul_rp_d(f64, f64) -> f64;
+    fn "llvm.nvvm.mul.rp.f" nvvm_mul_rp_f(f32, f32) -> f32;
+    fn "llvm.nvvm.mul.rp.ftz.f" nvvm_mul_rp_ftz_f(f32, f32) -> f32;
+    fn "llvm.nvvm.mul.rz.d" nvvm_mul_rz_d(f64, f64) -> f64;
+    fn "llvm.nvvm.mul.rz.f" nvvm_mul_rz_f(f32, f32) -> f32;
+    fn "llvm.nvvm.mul.rz.ftz.f" nvvm_mul_rz_ftz_f(f32, f32) -> f32;
+    fn "llvm.nvvm.mulhi.i" nvvm_mulhi_i(i32, i32) -> i32;
+    fn "llvm.nvvm.mulhi.ll" nvvm_mulhi_ll(i64, i64) -> i64;
+    fn "llvm.nvvm.mulhi.ui" nvvm_mulhi_ui(i32, i32) -> i32;
+    fn "llvm.nvvm.mulhi.ull" nvvm_mulhi_ull(i64, i64) -> i64;
+    fn "llvm.nvvm.popc.i" nvvm_popc_i(i32) -> i32;
+    fn "llvm.nvvm.popc.ll" nvvm_popc_ll(i64) -> i32;
+    fn "llvm.nvvm.prmt" nvvm_prmt(i32, i32, i32) -> i32;
+    fn "llvm.nvvm.rcp.approx.ftz.d" nvvm_rcp_approx_ftz_d(f64) -> f64;
+    fn "llvm.nvvm.rcp.rm.d" nvvm_rcp_rm_d(f64) -> f64;
+    fn "llvm.nvvm.rcp.rm.f" nvvm_rcp_rm_f(f32) -> f32;
+    fn "llvm.nvvm.rcp.rm.ftz.f" nvvm_rcp_rm_ftz_f(f32) -> f32;
+    fn "llvm.nvvm.rcp.rn.d" nvvm_rcp_rn_d(f64) -> f64;
+    fn "llvm.nvvm.rcp.rn.f" nvvm_rcp_rn_f(f32) -> f32;
+    fn "llvm.nvvm.rcp.rn.ftz.f" nvvm_rcp_rn_ftz_f(f32) -> f32;
+    fn "llvm.nvvm.rcp.rp.d" nvvm_rcp_rp_d(f64) -> f64;
+    fn "llvm.nvvm.rcp.rp.f" nvvm_rcp_rp_f(f32) -> f32;
+    fn "llvm.nvvm.rcp.rp.ftz.f" nvvm_rcp_rp_ftz_f(f32) -> f32;
+    fn "llvm.nvvm.rcp.rz.d" nvvm_rcp_rz_d(f64) -> f64;
+    fn "llvm.nvvm.rcp.rz.f" nvvm_rcp_rz_f(f32) -> f32;
+    fn "llvm.nvvm.rcp.rz.ftz.f" nvvm_rcp_rz_ftz_f(f32) -> f32;
+    fn "llvm.nvvm.round.d" nvvm_round_d(f64) -> f64;
+    fn "llvm.nvvm.round.f" nvvm_round_f(f32) -> f32;
+    fn "llvm.nvvm.round.ftz.f" nvvm_round_ftz_f(f32) -> f32;
+    fn "llvm.nvvm.rsqrt.approx.d" nvvm_rsqrt_approx_d(f64) -> f64;
+    fn "llvm.nvvm.rsqrt.approx.f" nvvm_rsqrt_approx_f(f32) -> f32;
+    fn "llvm.nvvm.rsqrt.approx.ftz.f" nvvm_rsqrt_approx_ftz_f(f32) -> f32;
+    fn "llvm.nvvm.sad.i" nvvm_sad_i(i32, i32, i32) -> i32;
+    fn "llvm.nvvm.sad.ui" nvvm_sad_ui(i32, i32, i32) -> i32;
+    fn "llvm.nvvm.saturate.d" nvvm_saturate_d(f64) -> f64;
+    fn "llvm.nvvm.saturate.f" nvvm_saturate_f(f32) -> f32;
+    fn "llvm.nvvm.saturate.ftz.f" nvvm_saturate_ftz_f(f32) -> f32;
+    fn "llvm.nvvm.sin.approx.f" nvvm_sin_approx_f(f32) -> f32;
+    fn "llvm.nvvm.sin.approx.ftz.f" nvvm_sin_approx_ftz_f(f32) -> f32;
+    fn "llvm.nvvm.sqrt.approx.f" nvvm_sqrt_approx_f(f32) -> f32;
+    fn "llvm.nvvm.sqrt.approx.ftz.f" nvvm_sqrt_approx_ftz_f(f32) -> f32;
+    fn "llvm.nvvm.sqrt.f" nvvm_sqrt_f(f32) -> f32;
+    fn "llvm.nvvm.sqrt.rm.d" nvvm_sqrt_rm_d(f64) -> f64;
+    fn "llvm.nvvm.sqrt.rm.f" nvvm_sqrt_rm_f(f32) -> f32;
+    fn "llvm.nvvm.sqrt.rm.ftz.f" nvvm_sqrt_rm_ftz_f(f32) -> f32;
+    fn "llvm.nvvm.sqrt.rn.d" nvvm_sqrt_rn_d(f64) -> f64;
+    fn "llvm.nvvm.sqrt.rn.f" nvvm_sqrt_rn_f(f32) -> f32;
+    fn "llvm.nvvm.sqrt.rn.ftz.f" nvvm_sqrt_rn_ftz_f(f32) -> f32;
+    fn "llvm.nvvm.sqrt.rp.d" nvvm_sqrt_rp_d(f64) -> f64;
+    fn "llvm.nvvm.sqrt.rp.f" nvvm_sqrt_rp_f(f32) -> f32;
+    fn "llvm.nvvm.sqrt.rp.ftz.f" nvvm_sqrt_rp_ftz_f(f32) -> f32;
+    fn "llvm.nvvm.sqrt.rz.d" nvvm_sqrt_rz_d(f64) -> f64;
+    fn "llvm.nvvm.sqrt.rz.f" nvvm_sqrt_rz_f(f32) -> f32;
+    fn "llvm.nvvm.sqrt.rz.ftz.f" nvvm_sqrt_rz_ftz_f(f32) -> f32;
+    fn "llvm.nvvm.trunc.d" nvvm_trunc_d(f64) -> f64;
+    fn "llvm.nvvm.trunc.f" nvvm_trunc_f(f32) -> f32;
+    fn "llvm.nvvm.trunc.ftz.f" nvvm_trunc_ftz_f(f32) -> f32;
+    fn "llvm.nvvm.ui2d.rm" nvvm_ui2d_rm(i32) -> f64;
+    fn "llvm.nvvm.ui2d.rn" nvvm_ui2d_rn(i32) -> f64;
+    fn "llvm.nvvm.ui2d.rp" nvvm_ui2d_rp(i32) -> f64;
+    fn "llvm.nvvm.ui2d.rz" nvvm_ui2d_rz(i32) -> f64;
+    fn "llvm.nvvm.ui2f.rm" nvvm_ui2f_rm(i32) -> f32;
+    fn "llvm.nvvm.ui2f.rn" nvvm_ui2f_rn(i32) -> f32;
+    fn "llvm.nvvm.ui2f.rp" nvvm_ui2f_rp(i32) -> f32;
+    fn "llvm.nvvm.ui2f.rz" nvvm_ui2f_rz(i32) -> f32;
+    fn "llvm.nvvm.ull2d.rm" nvvm_ull2d_rm(i64) -> f64;
+    fn "llvm.nvvm.ull2d.rn" nvvm_ull2d_rn(i64) -> f64;
+    fn "llvm.nvvm.ull2d.rp" nvvm_ull2d_rp(i64) -> f64;
+    fn "llvm.nvvm.ull2d.rz" nvvm_ull2d_rz(i64) -> f64;
+    fn "llvm.nvvm.ull2f.rm" nvvm_ull2f_rm(i64) -> f32;
+    fn "llvm.nvvm.ull2f.rn" nvvm_ull2f_rn(i64) -> f32;
+    fn "llvm.nvvm.ull2f.rp" nvvm_ull2f_rp(i64) -> f32;
+    fn "llvm.nvvm.ull2f.rz" nvvm_ull2f_rz(i64) -> f32;
+}
+
+fn acc(dev: int, dim: (int, int, int), block: (int, int, int), body: fn() -> ()) -> () { nvvm(dev, dim, block, body) }
+fn acc_tidx() -> int    { nvvm_read_ptx_sreg_tid_x() }
+fn acc_tidy() -> int    { nvvm_read_ptx_sreg_tid_y() }
+fn acc_tidz() -> int    { nvvm_read_ptx_sreg_tid_z() }
+fn acc_bidx() -> int    { nvvm_read_ptx_sreg_ctaid_x() }
+fn acc_bidy() -> int    { nvvm_read_ptx_sreg_ctaid_y() }
+fn acc_bidz() -> int    { nvvm_read_ptx_sreg_ctaid_z() }
+fn acc_bdimx() -> int   { nvvm_read_ptx_sreg_ntid_x() }
+fn acc_bdimy() -> int   { nvvm_read_ptx_sreg_ntid_y() }
+fn acc_bdimz() -> int   { nvvm_read_ptx_sreg_ntid_z() }
+fn acc_gdimx() -> int   { nvvm_read_ptx_sreg_nctaid_x() }
+fn acc_gdimy() -> int   { nvvm_read_ptx_sreg_nctaid_y() }
+fn acc_gdimz() -> int   { nvvm_read_ptx_sreg_nctaid_z() }
+fn acc_gidx() -> int    { acc_tidx() + acc_bdimx() * acc_bidx() }
+fn acc_gidy() -> int    { acc_tidy() + acc_bdimy() * acc_bidy() }
+fn acc_gidz() -> int    { acc_tidz() + acc_bdimz() * acc_bidz() }
+
+extern "thorin" {
+    fn nvvm(i32, (i32, i32, i32), (i32, i32, i32), fn () -> ()) -> ();
+}
+
+fn alloc_host(size: i32) -> &i8 { thorin_alloc(0, 0, size as i64) }
+fn alloc_cuda(dev: i32, size: i32) -> &i8 { thorin_alloc(1, dev, size as i64) }
+fn alloc_opencl(dev: i32, size: i32) -> &i8 { thorin_alloc(2, dev, size as i64) }
 fn copy(a: &i8, b:&i8) -> () { thorin_copy(a, b) }
 fn release(ptr: &i8) -> () { thorin_release(ptr) }
 

@@ -12,7 +12,7 @@
 #include "runtime.h"
 
 #ifndef LIBDEVICE_DIR
-#define LIBDEVICE_DIR ""
+#define LIBDEVICE_DIR "/usr/local/cuda/nvvm/libdevice/"
 #endif
 #ifndef KERNEL_DIR
 #define KERNEL_DIR ""
@@ -133,38 +133,34 @@ void* CudaPlatform::map(void* ptr, int64_t offset, int64_t size) {
 
 void CudaPlatform::unmap(void* view) {}
 
-void CudaPlatform::set_block_size(device_id dev, uint32_t x, uint32_t y, uint32_t z) {
+void CudaPlatform::set_block_size(device_id dev, int32_t x, int32_t y, int32_t z) {
     auto& block = devices_[dev].block;
     block.x = x;
     block.y = y;
     block.z = z;
 }
 
-void CudaPlatform::set_grid_size(device_id dev, uint32_t x, uint32_t y, uint32_t z) {
+void CudaPlatform::set_grid_size(device_id dev, int32_t x, int32_t y, int32_t z) {
     auto& grid = devices_[dev].block;
     grid.x = x;
     grid.y = y;
     grid.z = z;
 }
 
-void CudaPlatform::set_arg(device_id dev, uint32_t arg, void* ptr, uint32_t size) {
+void CudaPlatform::set_kernel_arg(device_id dev, int32_t arg, void* ptr, int32_t size) {
     auto& args = devices_[dev].kernel_args;
+    auto& vals = devices_[dev].kernel_vals;
     args.resize(arg + 1);
-    args[arg] = ptr;
-}
-
-void CudaPlatform::launch_kernel(device_id dev) {
-    auto& cuda_dev = devices_[dev];
-    cuLaunchKernel(cuda_dev.kernel,
-                   cuda_dev.grid.x, cuda_dev.grid.y, cuda_dev.grid.z,
-                   cuda_dev.block.x, cuda_dev.block.y, cuda_dev.block.z,
-                   0, nullptr, cuda_dev.kernel_args.data(), nullptr);
+    vals.resize(arg + 1);
+    vals[arg] = ptr;
+    args[arg] = (void*)&vals[arg];
 }
 
 void CudaPlatform::load_kernel(device_id dev, const char* file, const char* name) {
     auto& mod_cache = devices_[dev].modules;
-    auto mod = mod_cache.find(file);
-    if (mod == mod_cache.end()) {
+    auto mod_it = mod_cache.find(file);
+    CUmodule mod;
+    if (mod_it == mod_cache.end()) {
         CUjit_target target_cc =
             (CUjit_target)(devices_[dev].compute_major * 10 +
                            devices_[dev].compute_minor);
@@ -178,22 +174,41 @@ void CudaPlatform::load_kernel(device_id dev, const char* file, const char* name
         } else {
             runtime_->error("Invalid kernel file extension");
         }
+
+        mod = mod_cache[file];
+    } else {
+        mod = mod_it->second;
     }
 
     // Checks that the function exists
     auto& func_cache = devices_[dev].functions;
-    auto& func_map = func_cache[mod->second];
-    auto it = func_map.find(name);
-    if (it == func_map.end()) {
+    auto& func_map = func_cache[mod];
+    auto func_it = func_map.find(name);
+    if (func_it == func_map.end()) {
         CUfunction func;
-        CUresult err = cuModuleGetFunction(&func, mod->second, name);
+        CUresult err = cuModuleGetFunction(&func, mod, name);
         if (err != CUDA_SUCCESS)
             runtime_->error("Function '", name, "' is not present in '", file, "'");
         func_map.emplace(name, func);
         devices_[dev].kernel = func;
     } else {
-        devices_[dev].kernel = it->second;
+        devices_[dev].kernel = func_it->second;
     }
+}
+
+void CudaPlatform::launch_kernel(device_id dev) {
+    auto& cuda_dev = devices_[dev];
+    cuLaunchKernel(cuda_dev.kernel,
+                   cuda_dev.grid.x, cuda_dev.grid.y, cuda_dev.grid.z,
+                   cuda_dev.block.x, cuda_dev.block.y, cuda_dev.block.z,
+                   0, nullptr, cuda_dev.kernel_args.data(), nullptr);
+}
+
+void CudaPlatform::synchronize(device_id dev) {
+    cuCtxPushCurrent(devices_[dev].ctx);
+    CUresult err = cuCtxSynchronize();
+    checkErrDrv(err, "cuCtxSynchronize()");
+    cuCtxPopCurrent(NULL);
 }
 
 void CudaPlatform::copy(const void* src, void* dst) {

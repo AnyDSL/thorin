@@ -402,8 +402,9 @@ void CCodeGen::emit() {
                 for (auto param : lambda->params())
                     if (!param->type().isa<MemType>()) {
                         newline();
-                        emit_type(param->type()) << " " << param->unique_name() << ", "
-                                                 << "p" << param->unique_name() << ";";
+                        emit_type(param->type()) << "  " << param->unique_name() << ";";
+                        newline();
+                        emit_type(param->type()) << " p" << param->unique_name() << ";";
                     }
         }
 

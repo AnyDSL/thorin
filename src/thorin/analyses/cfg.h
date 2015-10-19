@@ -89,10 +89,9 @@ private:
 /// Any jumps targeting a @p Lambda or @p Param outside the @p CFA's underlying @p Scope target this node.
 class OutNode : public CFNode {
 public:
-    OutNode(const InNode* context, const OutNode* ancestor, Def def)
+    OutNode(const InNode* context, Def def)
         : CFNode(def)
         , context_(context)
-        , ancestor_(ancestor)
     {
         assert(def->isa<Param>() || def->isa<Lambda>());
     }
@@ -100,13 +99,15 @@ public:
     virtual ~OutNode() {}
 
     const InNode* context() const { return context_; }
-    const OutNode* ancestor() const { return ancestor_; }
+    const CFNodeSet& ancestors() const { return ancestors_; }
     virtual const InNode* in_node() const override { return context_; }
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
     const InNode* context_;
-    const OutNode* ancestor_;
+    mutable CFNodeSet ancestors_;
+
+    friend class CFABuilder;
 };
 
 //------------------------------------------------------------------------------

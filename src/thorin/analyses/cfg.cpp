@@ -38,7 +38,7 @@ void CFNode::link(const CFNode* other) const {
     // recursively link ancestors
     if (p.second) {
         if (auto out = other->isa<OutNode>()) {
-            if (auto ancestor = out->ancestor())
+            for (auto ancestor : out->ancestors())
                 out->link(ancestor);
         }
     }
@@ -91,10 +91,16 @@ public:
         return in;
     }
 
-    const OutNode* out_node(const InNode* in, const OutNode* ancestor, Def def) {
+    const OutNode* out_node(const InNode* in, Def def) {
         if (auto out = find(in->out_nodes_, def))
             return out;
-        return in->out_nodes_[def] = new OutNode(in, ancestor, def);
+        return in->out_nodes_[def] = new OutNode(in, def);
+    }
+
+    const OutNode* out_node(const OutNode* ancestor, const InNode* in) {
+        auto out = out_node(in, ancestor->def());
+        out->ancestors_.insert(ancestor);
+        return out;
     }
 
     CFNodeSet& param2nodes(const Param* param) {
@@ -168,19 +174,19 @@ Array<CFNodeSet> CFABuilder::cf_nodes(const InNode* in) {
                 if (scope().inner_contains(lambda))
                     result[i].insert(in_node(lambda));
                 else
-                    result[i].insert(out_node(in, nullptr, lambda));
+                    result[i].insert(out_node(in, lambda));
             } else {
                 auto param = def->as<Param>();
                 if (scope().inner_contains(param)) {
                     const auto& set = param2nodes(param);
                     for (auto n : set) {
                         if (auto out = n->isa<OutNode>()) {
-                            result[i].insert(out_node(in, out, out->def())); // create a new context if applicable
+                            result[i].insert(out_node(out, in)); // create a new context if applicable
                         } else
                             result[i].insert(n->as<InNode>());
                     }
                 } else
-                    result[i].insert(out_node(in, nullptr, param));
+                    result[i].insert(out_node(in, param));
             }
         }
     }

@@ -16,10 +16,10 @@ enum thorin_platform {
 void thorin_info(void);
 
 void* thorin_alloc(int32_t, int32_t, int64_t);
-void thorin_release(void*);
+void  thorin_release(void*);
 
 void* thorin_map(void*, int64_t, int64_t);
-void thorin_unmap(void*);
+void  thorin_unmap(void*);
 
 void thorin_copy(const void*, void*);
 
@@ -45,6 +45,10 @@ void thorin_print_string(char*);
 
 void* thorin_aligned_malloc(size_t, size_t);
 void thorin_aligned_free(void*);
+
+void thorin_parallel_for(int32_t, int32_t, int32_t, void*, void*);
+int32_t thorin_spawn_thread(void*, void*);
+void thorin_sync_thread(int32_t);
 
 #ifdef __cplusplus
 }

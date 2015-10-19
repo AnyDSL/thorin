@@ -15,6 +15,14 @@
 #include <windows.h>
 #endif
 
+#ifdef ENABLE_TBB
+#include "tbb/tbb.h"
+#include "tbb/parallel_for.h"
+#include "tbb/task_scheduler_init.h"
+#else
+#include <thread>
+#endif
+
 #include "thorin_runtime.h"
 
 #include "runtime.h"
@@ -151,3 +159,121 @@ void thorin_random_seed(unsigned seed) {
 float thorin_random_val() {
     return std_dist(std_gen);
 }
+
+#ifndef ENABLE_TBB // C++11 threads version
+static std::unordered_map<int32_t, std::thread> thread_pool;
+static std::vector<int32_t> free_ids;
+
+void thorin_parallel_for(int32_t num_threads, int32_t lower, int32_t upper, void* args, void* fun) {
+    // Get number of available hardware threads
+    if (num_threads == 0) {
+        num_threads = std::thread::hardware_concurrency();
+        // hardware_concurrency is implementation defined, may return 0
+        num_threads = (num_threads == 0) ? 1 : num_threads;
+    }
+
+    void (*fun_ptr) (void*, int32_t, int32_t) = reinterpret_cast<void (*) (void*, int32_t, int32_t)>(fun);
+    const int32_t linear = (upper - lower) / num_threads;
+
+    // Create a pool of threads to execute the task
+    std::vector<std::thread> pool(num_threads);
+
+    for (int i = 0, a = lower, b = lower + linear; i < num_threads - 1; a = b, b += linear, i++) {
+        pool[i] = std::thread([=]() {
+            fun_ptr(args, a, b);
+        });
+    }
+
+    pool[num_threads - 1] = std::thread([=]() {
+        fun_ptr(args, lower + (num_threads - 1) * linear, upper);
+    });
+
+    // Wait for all the threads to finish
+    for (int i = 0; i < num_threads; i++)
+        pool[i].join();
+}
+
+int32_t thorin_spawn_thread(void* args, void* fun) {
+    int32_t (*fun_ptr) (void*) = reinterpret_cast<int32_t (*) (void*)>(fun);
+
+    int32_t id;
+    if (free_ids.size()) {
+        id = free_ids.back();
+        free_ids.pop_back();    
+    } else {
+        id = thread_pool.size();
+    }
+
+    auto spawned = std::make_pair(id, std::thread([=](){ fun_ptr(args); }));
+    thread_pool.emplace(std::move(spawned));
+    return id;
+}
+
+void thorin_sync_thread(int32_t id) {
+    auto thread = thread_pool.find(id);
+    if (thread != thread_pool.end()) {
+        thread->second.join();
+        free_ids.push_back(thread->first);
+        thread_pool.erase(thread);
+    } else {
+        assert(0 && "Trying to synchronize on invalid thread id");
+    }
+}
+#else // TBB version
+void thorin_parallel_for(int32_t num_threads, int32_t lower, int32_t upper, void* args, void* fun) {
+    tbb::task_scheduler_init init((num_threads == 0) ? tbb::task_scheduler_init::automatic : num_threads);
+    void (*fun_ptr) (void*, int32_t, int32_t) = reinterpret_cast<void (*) (void*, int32_t, int32_t)>(fun);
+
+    tbb::parallel_for(tbb::blocked_range<int32_t>(lower, upper), [=] (const tbb::blocked_range<int32_t>& range) {
+        fun_ptr(args, range.begin(), range.end());
+    });
+}
+
+static std::unordered_map<int32_t, tbb::task*> task_pool;
+static std::vector<int32_t> free_ids;
+
+class RuntimeTask : public tbb::task {
+public:
+    RuntimeTask(void* args, void* fun)
+        : args_(args), fun_(fun)
+    {}
+
+    tbb::task* execute() {
+        int32_t (*fun_ptr) (void*) = reinterpret_cast<int32_t (*) (void*)>(fun_);
+        fun_ptr(args_);
+        set_ref_count(1);
+        return nullptr;
+    }
+
+private:
+    void* args_;
+    void* fun_;
+};
+
+int32_t thorin_spawn_thread(void* args, void* fun) {
+    int32_t id;
+    if (free_ids.size()) {
+        id = free_ids.back();
+        free_ids.pop_back();
+    } else {
+        id = task_pool.size();
+    }
+
+    tbb::task* task = new (tbb::task::allocate_root()) RuntimeTask(args, fun);
+    tbb::task::spawn(*task);
+    task_pool[id] = task;
+    return id;
+}
+
+void thorin_sync_thread(int32_t id) {
+    auto task = task_pool.find(id);
+    if (task != task_pool.end()) {
+        task->second->wait_for_all();
+        tbb::task::destroy(*task->second);
+        free_ids.push_back(task->first);
+        task_pool.erase(task);
+    } else {
+        assert(0 && "Trying to synchronize on invalid task id");
+    }
+}
+#endif

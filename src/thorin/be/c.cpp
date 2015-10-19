@@ -495,7 +495,6 @@ void CCodeGen::emit() {
                     if (to_lambda->is_intrinsic()) {
                         if (to_lambda->intrinsic() == Intrinsic::Reinterpret) {
                             auto cont = lambda->arg(2)->as_lambda();
-                            emit_type(cont->param(1)->type()) << " ";
                             emit(cont->param(1)) << " = as_";
                             emit_type(cont->param(1)->type()) << "(";
                             emit(lambda->arg(1)) << ");";

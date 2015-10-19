@@ -71,7 +71,7 @@ public:
 
     const CFA& cfa() const { return cfa_; }
     const Scope& scope() const { return cfa_.scope(); }
-    Array<CFNodeSet> cf_nodes_per_op(Lambda* lambda);
+    Array<CFNodeSet> cf_nodes(Lambda* lambda);
 
     const InNode* in_node(Lambda* lambda) {
         assert(scope().outer_contains(lambda));
@@ -141,7 +141,7 @@ void CFABuilder::propagate() {
     }
 }
 
-Array<CFNodeSet> CFABuilder::cf_nodes_per_op(Lambda* lambda) {
+Array<CFNodeSet> CFABuilder::cf_nodes(Lambda* lambda) {
     auto in = in_node(lambda);
 
     // create dummy empty set entry for lambdas without body
@@ -196,7 +196,7 @@ void CFABuilder::run_cfa() {
 
     while (!queue.empty()) {
         auto lambda = pop(queue);
-        auto info = cf_nodes_per_op(lambda);
+        auto info = cf_nodes(lambda);
         size_t num = lambda->size();
 
         for (auto to : info[0]) {
@@ -237,7 +237,7 @@ void CFABuilder::build_cfg() {
     for (auto in : cfa().in_nodes()) {
         assert(in->f_index_ == CFNode::Reachable);
         ++cfa_.num_in_nodes_;
-        auto info = cf_nodes_per_op(in->lambda());
+        auto info = cf_nodes(in->lambda());
 
         for (auto to : info[0]) {
             to->f_index_ = CFNode::Reachable;

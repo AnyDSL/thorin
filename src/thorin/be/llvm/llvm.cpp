@@ -43,11 +43,6 @@
 #include "thorin/be/llvm/spir.h"
 #include "thorin/transform/import.h"
 
-#include "thorin/be/llvm/runtimes/cuda_runtime.h"
-#include "thorin/be/llvm/runtimes/nvvm_runtime.h"
-#include "thorin/be/llvm/runtimes/spir_runtime.h"
-#include "thorin/be/llvm/runtimes/opencl_runtime.h"
-
 namespace thorin {
 
 CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention, llvm::CallingConv::ID device_calling_convention, llvm::CallingConv::ID kernel_calling_convention)
@@ -59,11 +54,7 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention
     , function_calling_convention_(function_calling_convention)
     , device_calling_convention_(device_calling_convention)
     , kernel_calling_convention_(kernel_calling_convention)
-    , runtime_(new GenericRuntime(context_, module_, irbuilder_))
-    , cuda_runtime_(new CUDARuntime(context_, module_, irbuilder_))
-    , nvvm_runtime_(new NVVMRuntime(context_, module_, irbuilder_))
-    , spir_runtime_(new SPIRRuntime(context_, module_, irbuilder_))
-    , opencl_runtime_(new OpenCLRuntime(context_, module_, irbuilder_))
+    , runtime_(new Runtime(context_, module_, irbuilder_))
 {}
 
 Lambda* CodeGen::emit_intrinsic(Lambda* lambda) {
@@ -73,12 +64,10 @@ Lambda* CodeGen::emit_intrinsic(Lambda* lambda) {
         case Intrinsic::Select:      return emit_select(lambda);
         case Intrinsic::Shuffle:     return emit_shuffle(lambda);
         case Intrinsic::Reinterpret: return emit_reinterpret(lambda);
-        case Intrinsic::Munmap:      runtime_->munmap(lookup(lambda->arg(1)));
-                                     return lambda->args().back()->as_lambda();
-        case Intrinsic::CUDA:        return cuda_runtime_->emit_host_code(*this, lambda);
-        case Intrinsic::NVVM:        return nvvm_runtime_->emit_host_code(*this, lambda);
-        case Intrinsic::SPIR:        return spir_runtime_->emit_host_code(*this, lambda);
-        case Intrinsic::OpenCL:      return opencl_runtime_->emit_host_code(*this, lambda);
+        case Intrinsic::CUDA:        return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM, ".cu", lambda);
+        case Intrinsic::NVVM:        return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM, ".nvvm", lambda);
+        case Intrinsic::SPIR:        return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".spir", lambda);
+        case Intrinsic::OpenCL:      return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".cl", lambda);
         case Intrinsic::Parallel:    return emit_parallel(lambda);
         case Intrinsic::Spawn:       return emit_spawn(lambda);
         case Intrinsic::Sync:        return emit_sync(lambda);
@@ -755,7 +744,7 @@ llvm::Value* CodeGen::emit(Def def) {
 
     if (auto load = def->isa<Load>())    return emit_load(load);
     if (auto store = def->isa<Store>())  return emit_store(store);
-    if (auto mmap = def->isa<Map>())     return emit_mmap(mmap);
+    //if (auto mmap = def->isa<Map>())     return emit_mmap(mmap);
     if (auto lea = def->isa<LEA>())      return emit_lea(lea);
     if (def->isa<Enter>())               return nullptr;
 
@@ -806,21 +795,6 @@ llvm::Value* CodeGen::emit_lea(Def def) {
     assert(lea->ptr_referenced_type().isa<ArrayType>());
     llvm::Value* args[2] = { irbuilder_.getInt64(0), lookup(lea->index()) };
     return irbuilder_.CreateInBoundsGEP(lookup(lea->ptr()), args);
-}
-
-llvm::Value* CodeGen::emit_mmap(Def def) {
-    auto mmap = def->as<Map>();
-    // emit proper runtime call
-    auto ref_ty = mmap->out_ptr_type()->referenced_type();
-    Type type;
-    if (auto array = ref_ty->is_indefinite())
-        type = array->elem_type();
-    else
-        type = mmap->out_ptr_type()->referenced_type();
-    auto layout = llvm::DataLayout(module_->getDataLayout());
-    auto size = irbuilder_.getInt32(layout.getTypeAllocSize(convert(type)));
-    return runtime_->mmap(mmap->device(), (uint32_t)mmap->addr_space(), lookup(mmap->ptr()),
-                          lookup(mmap->mem_offset()), lookup(mmap->mem_size()), size);
 }
 
 llvm::Value* CodeGen::emit_shared_mmap(Def def, bool prefix) {

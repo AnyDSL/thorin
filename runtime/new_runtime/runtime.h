@@ -91,16 +91,24 @@ public:
         views_.erase(view_it);
     }
 
-    void set_block_size(platform_id plat, device_id dev, uint32_t x, uint32_t y, uint32_t z) {
+    void set_block_size(platform_id plat, device_id dev, int32_t x, int32_t y, int32_t z) {
         platforms_[plat]->set_block_size(dev, x, y, z);
     }
 
-    void set_grid_size(platform_id plat, device_id dev, uint32_t x, uint32_t y, uint32_t z) {
+    void set_grid_size(platform_id plat, device_id dev, int32_t x, int32_t y, int32_t z) {
         platforms_[plat]->set_grid_size(dev, x, y, z); 
     }
 
-    void set_kernel_arg(platform_id plat, device_id dev, uint32_t arg, void* ptr, uint32_t size) {
+    void set_kernel_arg(platform_id plat, device_id dev, int32_t arg, void* ptr, int32_t size) {
         platforms_[plat]->set_kernel_arg(dev, arg, ptr, size);
+    }
+
+    void set_kernel_arg_ptr(platform_id plat, device_id dev, int32_t arg, void* ptr) {
+        platforms_[plat]->set_kernel_arg_ptr(dev, arg, ptr);
+    }
+
+    void set_kernel_arg_struct(platform_id plat, device_id dev, int32_t arg, void* ptr, int32_t size) {
+        platforms_[plat]->set_kernel_arg_struct(dev, arg, ptr, size);
     }
 
     void load_kernel(platform_id plat, device_id dev, const char* file, const char* name) {

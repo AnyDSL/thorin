@@ -24,6 +24,8 @@ protected:
     void set_block_size(device_id, int32_t, int32_t, int32_t) override { platform_error(); }
     void set_grid_size(device_id, int32_t, int32_t, int32_t) override { platform_error(); }
     void set_kernel_arg(device_id, int32_t, void*, int32_t) override { platform_error(); }
+    void set_kernel_arg_ptr(device_id, int32_t, void*) override { platform_error(); }
+    void set_kernel_arg_struct(device_id, int32_t, void*, int32_t) override { platform_error(); }
     void load_kernel(device_id, const char*, const char*) override { platform_error(); }
     void launch_kernel(device_id) override { platform_error(); }
     void synchronize(device_id dev) override { platform_error(); }

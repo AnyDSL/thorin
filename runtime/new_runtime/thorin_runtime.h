@@ -26,6 +26,8 @@ void thorin_copy(const void*, void*);
 void thorin_set_block_size(int32_t, int32_t, int32_t, int32_t, int32_t);
 void thorin_set_grid_size(int32_t, int32_t, int32_t, int32_t, int32_t);
 void thorin_set_kernel_arg(int32_t, int32_t, int32_t, void*, int32_t);
+void thorin_set_kernel_arg_ptr(int32_t, int32_t, int32_t, void*);
+void thorin_set_kernel_arg_struct(int32_t, int32_t, int32_t, void*, int32_t);
 void thorin_load_kernel(int32_t, int32_t, const char*, const char*);
 void thorin_launch_kernel(int32_t, int32_t);
 void thorin_synchronize(int32_t, int32_t);

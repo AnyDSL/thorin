@@ -88,6 +88,14 @@ void thorin_set_kernel_arg(int32_t plat, int32_t dev, int32_t arg, void* ptr, in
     runtime.set_kernel_arg((platform_id)plat, (device_id)dev, arg, ptr, size);
 }
 
+void thorin_set_kernel_arg_ptr(int32_t plat, int32_t dev, int32_t arg, void* ptr) {
+    runtime.set_kernel_arg_ptr((platform_id)plat, (device_id)dev, arg, ptr);
+}
+
+void thorin_set_kernel_arg_struct(int32_t plat, int32_t dev, int32_t arg, void* ptr, int32_t size) {
+    runtime.set_kernel_arg_struct((platform_id)plat, (device_id)dev, arg, ptr, size);
+}
+
 void thorin_load_kernel(int32_t plat, int32_t dev, const char* file, const char* name) {
     runtime.load_kernel((platform_id)plat, (device_id)dev, file, name);
 }

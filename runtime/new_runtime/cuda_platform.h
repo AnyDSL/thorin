@@ -39,6 +39,8 @@ protected:
     void set_block_size(device_id dev, int32_t x, int32_t y, int32_t z) override;
     void set_grid_size(device_id dev, int32_t x, int32_t y, int32_t z) override;
     void set_kernel_arg(device_id dev, int32_t arg, void* ptr, int32_t size) override;
+    void set_kernel_arg_ptr(device_id dev, int32_t arg, void* ptr) override;
+    void set_kernel_arg_struct(device_id dev, int32_t arg, void* ptr, int32_t size) override;
     void load_kernel(device_id dev, const char* file, const char* name) override;
     void launch_kernel(device_id dev) override;
     void synchronize(device_id dev) override;

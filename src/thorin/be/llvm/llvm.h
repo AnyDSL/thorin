@@ -7,7 +7,6 @@
 
 #include "thorin/lambda.h"
 #include "thorin/be/llvm/runtime.h"
-#include "thorin/be/llvm/runtimes/generic_runtime.h"
 
 namespace thorin {
 
@@ -39,7 +38,6 @@ protected:
     virtual llvm::Value* emit_load(Def);
     virtual llvm::Value* emit_store(Def);
     virtual llvm::Value* emit_lea(Def);
-    virtual llvm::Value* emit_mmap(Def);
 
     virtual std::string get_alloc_name() const = 0;
     virtual std::string get_output_name(const std::string& name) const = 0;
@@ -77,15 +75,10 @@ protected:
     TypeMap<llvm::Type*> types_;
     std::vector<std::tuple<u32, llvm::Function*, llvm::CallInst*>> wfv_todo_;
 
-    AutoPtr<GenericRuntime> runtime_;
-    AutoPtr<KernelRuntime> cuda_runtime_;
-    AutoPtr<KernelRuntime> nvvm_runtime_;
-    AutoPtr<KernelRuntime> spir_runtime_;
-    AutoPtr<KernelRuntime> opencl_runtime_;
+    AutoPtr<Runtime> runtime_;
     Lambda* entry_ = nullptr;
 
-    friend class GenericRuntime;
-    friend class KernelRuntime;
+    friend class Runtime;
 };
 
 //------------------------------------------------------------------------------

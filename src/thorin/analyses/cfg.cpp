@@ -70,12 +70,18 @@ public:
         ILOG_SCOPE(run_cfa());
         ILOG_SCOPE(build_cfg());
         ILOG_SCOPE(unreachable_node_elimination());
+        ILOG_SCOPE(link_to_exit());
+#ifndef NDEBUG
+        ILOG_SCOPE(verify());
+#endif
     }
 
     void propagate_higher_order_values();
     void run_cfa();
     void build_cfg();
     void unreachable_node_elimination();
+    void link_to_exit();
+    void verify();
 
     const CFA& cfa() const { return cfa_; }
     const Scope& scope() const { return cfa_.scope(); }
@@ -190,7 +196,7 @@ CFNodeSet CFABuilder::cf_nodes(const InNode* in, size_t i) {
 Array<CFNodeSet> CFABuilder::args_cf_nodes(const InNode* in) {
     Array<CFNodeSet> result(in->lambda()->num_args());
     for (size_t i = 0; i != result.size(); ++i)
-        result[i] = cf_nodes(in, i+1); // shift due to args/ops discrepancy
+        result[i] = cf_nodes(in, i+1); // shift by one due to args/ops discrepancy
     return result;
 }
 
@@ -252,9 +258,8 @@ void CFABuilder::build_cfg() {
         }
     };
 
-    auto entry = cfa().entry();
-    enqueue(entry);
-    entry->f_index_ = CFNode::Reachable;
+    queue.push(cfa().entry());
+    cfa().entry()->f_index_ = cfa().exit()->f_index_ = CFNode::Reachable;
 
     while (!queue.empty()) {
         auto cur_in = pop(queue);
@@ -279,23 +284,14 @@ void CFABuilder::build_cfg() {
 }
 
 void CFABuilder::unreachable_node_elimination() {
-    auto entry = cfa().entry();
-    auto exit = cfa().exit();
-
-    // connect empty lambda to exit
-    if (entry->succs_.empty())
-        entry->link(exit);
-
     for (auto in : cfa().in_nodes()) {
         if (in->f_index_ == CFNode::Reachable) {
             ++cfa_.num_in_nodes_;
+
             auto& out_nodes = in->out_nodes_;
             for (auto i = out_nodes.begin(); i != out_nodes.end();) {
                 auto out = i->second;
                 if (out->f_index_ == CFNode::Reachable) {
-                    // connect out nodes without successors to exit
-                    if (out->succs().empty())
-                        out->link(exit);
                     ++i;
                     ++cfa_.num_out_nodes_;
                 } else {
@@ -314,8 +310,9 @@ void CFABuilder::unreachable_node_elimination() {
             delete in;
         }
     }
+}
 
-#ifndef NDEBUG
+void CFABuilder::verify() {
     bool error = false;
     for (auto in : cfa().in_nodes()) {
         if (in != cfa().entry() && in->preds_.size() == 0) {
@@ -326,11 +323,27 @@ void CFABuilder::unreachable_node_elimination() {
 
     if (error)
         cfa().error_dump();
-#endif
+}
+
+void CFABuilder::link_to_exit() {
+    auto exit = cfa().exit();
+
+    auto link = [&] (const CFNode* n) {
+        if (n->succs().empty() && n != exit)
+            n->link(exit);
+    };
+
+    for (auto in : cfa().in_nodes()) {
+        link(in);
+        for (auto p : in->out_nodes()) 
+            link(p.second);
+    }
+
+    // TODO deal with endless loops
 }
 
 void CFA::error_dump() const {
-    std::ofstream out("out.vcg");
+    std::ofstream out(scope().world().name() + entry()->lambda()->unique_name() + ".vcg");
     emit_ycomp(scope(), false, out);
     out.close();
     abort();

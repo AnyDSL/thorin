@@ -174,9 +174,9 @@ CFNodeSet CFABuilder::cf_nodes(const InNode* in, size_t i) {
             if (scope().inner_contains(param)) {
                 const auto& set = param2nodes(param);
                 for (auto n : set) {
-                    if (auto out = n->isa<OutNode>()) {
+                    if (auto out = n->isa<OutNode>())
                         result.insert(out_node(out, in)); // create a new context if applicable
-                    } else
+                    else
                         result.insert(n->as<InNode>());
                 }
             } else
@@ -232,7 +232,6 @@ void CFABuilder::run_cfa() {
                                 if (in->lambda()->param(i)->order() > 0)
                                     todo |= lambda2param2nodes_[in->lambda()][i].insert(out).second;
                             }
-
                             if (todo)
                                 enqueue(in);
                         }

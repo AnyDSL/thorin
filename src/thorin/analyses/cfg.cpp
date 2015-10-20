@@ -63,9 +63,9 @@ public:
     CFABuilder(CFA& cfa)
         : cfa_(cfa)
         , lambda2param2nodes_(cfa.scope(), std::vector<CFNodeSet>(0))
+        , entry_(in_node(scope().entry()))
+        , exit_ (in_node(scope().exit()))
     {
-        in_node(scope().entry());
-        in_node(scope().exit() );
         ILOG_SCOPE(propagate_higher_order_values());
         ILOG_SCOPE(run_cfa());
         ILOG_SCOPE(build_cfg());
@@ -85,6 +85,8 @@ public:
 
     const CFA& cfa() const { return cfa_; }
     const Scope& scope() const { return cfa_.scope(); }
+    const InNode* entry() const { return entry_; }
+    const InNode* exit() const { return exit_; }
 
     CFNodeSet cf_nodes(const InNode*, size_t i);
     CFNodeSet to_cf_nodes(const InNode* in) { return in->lambda()->empty() ? CFNodeSet() : cf_nodes(in, 0); }
@@ -120,6 +122,8 @@ private:
     CFA& cfa_;
     Scope::Map<std::vector<CFNodeSet>> lambda2param2nodes_; ///< Maps param in scope to CFNodeSet.
     DefMap<DefSet> def2set_;
+    const InNode* entry_;
+    const InNode* exit_;
 };
 
 void CFABuilder::propagate_higher_order_values() {
@@ -209,7 +213,7 @@ void CFABuilder::run_cfa() {
         in->f_index_ = CFNode::Unfresh;
     };
 
-    enqueue(cfa().entry());
+    enqueue(entry());
 
     while (!queue.empty()) {
         auto cur_lambda = pop(queue);
@@ -258,8 +262,8 @@ void CFABuilder::build_cfg() {
         }
     };
 
-    queue.push(cfa().entry());
-    cfa().entry()->f_index_ = cfa().exit()->f_index_ = CFNode::Reachable;
+    queue.push(entry());
+    entry()->f_index_ = exit()->f_index_ = CFNode::Reachable;
 
     while (!queue.empty()) {
         auto cur_in = pop(queue);
@@ -315,7 +319,7 @@ void CFABuilder::unreachable_node_elimination() {
 void CFABuilder::verify() {
     bool error = false;
     for (auto in : cfa().in_nodes()) {
-        if (in != cfa().entry() && in->preds_.size() == 0) {
+        if (in != entry() && in->preds_.size() == 0) {
             WLOG("missing predecessors: %", in->lambda()->unique_name());
             error = true;
         }
@@ -326,11 +330,9 @@ void CFABuilder::verify() {
 }
 
 void CFABuilder::link_to_exit() {
-    auto exit = cfa().exit();
-
-    auto link = [&] (const CFNode* n) {
-        if (n->succs().empty() && n != exit)
-            n->link(exit);
+    auto link_dead_end_to_exit = [&] (const CFNode* n) {
+        if (n->succs().empty() && n != exit())
+            n->link(exit());
     };
 
     for (auto in : cfa().in_nodes()) {

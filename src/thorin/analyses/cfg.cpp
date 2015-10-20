@@ -336,9 +336,13 @@ void CFABuilder::link_to_exit() {
     };
 
     for (auto in : cfa().in_nodes()) {
-        link(in);
-        for (auto p : in->out_nodes()) 
-            link(p.second);
+        link_dead_end_to_exit(in);
+        for (auto p : in->out_nodes()) {
+            auto out = p.second;
+            link_dead_end_to_exit(out);
+            if (out->ancestors().empty() && out->def()->isa<Param>())
+                out->link(exit());
+        }
     }
 
     // TODO deal with endless loops

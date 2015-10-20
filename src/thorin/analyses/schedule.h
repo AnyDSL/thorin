@@ -47,7 +47,7 @@ public:
         , indices_(std::move(other.indices_))
         , blocks_(std::move(other.blocks_))
     {}
-    Schedule(const Scope& scope);
+    explicit Schedule(const Scope& scope);
 
     const Scope& scope() const { return scope_; }
     const CFA& cfa() const { return scope().cfa(); }

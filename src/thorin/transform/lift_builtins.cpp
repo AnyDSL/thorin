@@ -9,7 +9,7 @@ namespace thorin {
 void lift_builtins(World& world) {
     std::vector<Lambda*> todo;
     Scope::for_each(world, [&] (const Scope& scope) {
-        for (auto in : scope.f_cfg().reverse_in_rpo()) {
+        for (auto in : scope.f_cfg().in_po()) {
             auto lambda = in->lambda();
             if (lambda->is_passed_to_accelerator() && !lambda->is_basicblock())
                 todo.push_back(lambda);

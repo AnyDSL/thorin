@@ -39,7 +39,7 @@ static void lift_enters(const Scope& scope) {
     World& world = scope.world();
     std::vector<const Enter*> enters;
 
-    for (auto n : scope.f_cfg().reverse_in_rpo()) {
+    for (auto n : scope.f_cfg().in_po()) {
         if (n != scope.f_cfg().entry())
             find_enters(n->lambda(), enters);
     }

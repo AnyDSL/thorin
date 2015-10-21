@@ -188,7 +188,7 @@ public:
     size_t num_succs(const CFNode* n) const { return succs(n).size(); }
     const InNode* entry() const { return forward ? cfa().entry() : cfa().exit();  }
     const InNode* exit()  const { return forward ? cfa().exit()  : cfa().entry(); }
-    /// All lambdas within this scope in reverse post-order.
+    /// All @p CFNode%s within this @p CFG in reverse post-order.
     ArrayRef<const CFNode*> rpo() const { return rpo_.array(); }
     const CFNode* rpo(size_t i) const { return rpo_.array()[i]; }
     /// Range of @p InNode%s, i.e., all @p OutNode%s will be skipped during iteration.

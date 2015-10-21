@@ -1,16 +1,24 @@
 #include "thorin/world.h"
+#include "thorin/analyses/domtree.h"
 #include "thorin/analyses/free_vars.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/transform/mangle.h"
 
+#include <iostream>
+
 namespace thorin {
 
 void lift_builtins(World& world) {
+    world.dump();
+
     std::vector<Lambda*> todo;
-    for (auto cur : world.copy_lambdas()) {
-        if (cur->is_passed_to_accelerator() && !cur->is_basicblock())
-            todo.push_back(cur);
-    }
+    Scope::for_each(world, [&] (const Scope& scope) {
+        for (auto i = scope.rbegin(), e = scope.rend(); i != e; ++i) {
+            auto cur = *i;
+            if (cur->is_passed_to_accelerator() && !cur->is_basicblock())
+                todo.push_back(cur);
+        }
+    });
 
     for (auto cur : todo) {
         Scope scope(cur);

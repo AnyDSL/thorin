@@ -7,8 +7,6 @@
 namespace thorin {
 
 void lift_builtins(World& world) {
-    world.dump();
-
     std::vector<Lambda*> todo;
     Scope::for_each(world, [&] (const Scope& scope) {
         for (auto in : scope.f_cfg().reverse_in_rpo()) {

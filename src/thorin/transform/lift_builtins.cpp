@@ -4,13 +4,9 @@
 #include "thorin/analyses/scope.h"
 #include "thorin/transform/mangle.h"
 
-#include <iostream>
-
 namespace thorin {
 
 void lift_builtins(World& world) {
-    world.dump();
-
     std::vector<Lambda*> todo;
     Scope::for_each(world, [&] (const Scope& scope) {
         for (auto i = scope.rbegin(), e = scope.rend(); i != e; ++i) {

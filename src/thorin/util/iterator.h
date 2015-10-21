@@ -98,6 +98,12 @@ private:
 template<class I>
 Range<I> range(I begin, I end) { return Range<I>(begin, end); }
 
+template<class T>
+auto range(const T& t) -> Range<decltype(t.begin())> { return range(t.begin(), t.end()); }
+
+template<class T>
+auto reverse_range(const T& t) -> Range<decltype(t.rbegin())> { return range(t.rbegin(), t.rend()); }
+
 template<class I, class P>
 Range<filter_iterator<I, P>> range(I begin, I end, P predicate) {
     typedef filter_iterator<I, P> Filter;

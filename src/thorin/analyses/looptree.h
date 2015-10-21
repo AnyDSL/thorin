@@ -125,15 +125,14 @@ public:
         std::vector<const Node *> nodes;
         get_nodes(nodes, looptree.root());
 
-        emit_ycomp(ostream, scope, range(nodes.begin(), nodes.end()),
+        emit_ycomp(ostream, scope, range(nodes),
             [] (const Node* n) {
-                if (auto head = n->template isa<Head>()) {
-                    return range(head->children().begin(), head->children().end());
-                }
+                if (auto head = n->template isa<Head>())
+                    return range(head->children());
 
                 // TODO: handle empty better
                 ArrayRef<Node*> empty;
-                return range(empty.begin(), empty.end());
+                return range(empty);
             },
             [] (const Node* n) {
                 if (auto head = n->template isa<Head>()) {

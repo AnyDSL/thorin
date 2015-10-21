@@ -1,4 +1,4 @@
-#include "dfg.h"
+#include "thorin/analyses/dfg.h"
 
 #include <iostream>
 #include "thorin/world.h"

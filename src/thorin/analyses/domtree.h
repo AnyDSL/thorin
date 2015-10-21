@@ -59,10 +59,8 @@ public:
 
     static void emit_scope(const Scope& scope, std::ostream& ostream = std::cout) {
         auto& domtree = scope.cfg<forward>().domtree();
-        emit_ycomp(ostream, scope, range(domtree.nodes().begin(), domtree.nodes().end()),
-            [] (const Node* n) {
-                return range(n->children().begin(), n->children().end());
-            },
+        emit_ycomp(ostream, scope, range(domtree.nodes()),
+            [] (const Node* n) { return range(n->children()); },
             [] (const Node* n) {
                 auto id = std::to_string(n->cf_node()->def()->gid()) + "_" + std::to_string(n->cf_node()->in_node()->def()->gid());
                 std::string label;

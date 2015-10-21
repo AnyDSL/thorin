@@ -57,16 +57,15 @@ public:
     const CFG<forward>& cfg() const { return cfg_; }
     size_t index(const Node* n) const { return cfg().index(n->cf_node()); }
     const Node* operator[](const CFNode* n) const { return nodes_[n]; }
+    ArrayRef<const Node*> nodes() const { return nodes_.array(); }
     void dump(std::ostream& os) const;
     void dump() const { dump(std::cerr); }
 
     static void emit_scope(const Scope& scope, std::ostream& ostream = std::cout) {
         auto& dfg = scope.cfg<forward>().dfg();
 
-        emit_ycomp(ostream, scope, range(dfg.nodes_.begin(), dfg.nodes_.end()),
-            [] (const Node* n) {
-                return range(n->succs().begin(), n->succs().end());
-            },
+        emit_ycomp(ostream, scope, range(dfg.nodes()),
+            [] (const Node* n) { return range(n->succs()); },
             [] (const Node* n) {
                 std::stringstream stream;
                 if (auto out_node = n->cf_node_->template isa<OutNode>())

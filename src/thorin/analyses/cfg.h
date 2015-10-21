@@ -193,9 +193,7 @@ public:
     ArrayRef<const CFNode*> body() const { return rpo().skip_front(); } ///< Like @p rpo() but without @p entry()
 
     /// All @p CFNode%s within this @p CFG in post-order.
-    Range<ArrayRef<const CFNode*>::const_reverse_iterator> po() const {
-        return range(rpo_.array().rbegin(), rpo_.array().rend());
-    }
+    Range<ArrayRef<const CFNode*>::const_reverse_iterator> po() const { return reverse_range(rpo_.array()); }
 
     const CFNode* rpo(size_t i) const { return rpo_.array()[i]; }           ///< Maps from reverse post-order index to @p CFNode.
     const CFNode* po(size_t i) const { return rpo_.array()[size()-1-i]; }   ///< Maps from post-order index to @p CFNode.
@@ -207,8 +205,7 @@ public:
     }
 
     /// Range of @p InNode%s in post-order. All @p OutNode%s will be skipped during iteration.
-    Range<filter_iterator<ArrayRef<const CFNode*>::const_reverse_iterator,
-            bool (*)(const CFNode*), const InNode*>> in_po() const {
+    Range<filter_iterator<ArrayRef<const CFNode*>::const_reverse_iterator, bool (*)(const CFNode*), const InNode*>> in_po() const {
         return range<const InNode*>(rpo().rbegin(), rpo().rend(), is_in_node);
     }
 
@@ -222,10 +219,8 @@ public:
     static void emit_scope(const Scope& scope, std::ostream& ostream = std::cout) {
         auto& cfg = scope.cfg<forward>();
 
-        emit_ycomp(ostream, scope, range(cfg.rpo().begin(), cfg.rpo().end()),
-            [] (const CFNode* node) {
-                return range(node->succs().begin(), node->succs().end());
-            },
+        emit_ycomp(ostream, scope, range(cfg.rpo()),
+            [] (const CFNode* node) { return range(node->succs()); },
             [] (const CFNode* node) {
                 return std::make_pair(node->def()->unique_name(), node->def()->unique_name());
             },

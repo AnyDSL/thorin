@@ -19,9 +19,12 @@ class CFA;
 class InNode;
 
 /**
- * @brief A \p Scope represents a region of \p Lambda%s which are live from the view of an \p entry \p Lambda.
+ * @brief A @p Scope represents a region of @p Lambda%s which are live from the view of an @p entry @p Lambda.
  *
- * Transitively, all user's of the \p entry's parameters are pooled into this \p Scope.
+ * Transitively, all user's of the @p entry's parameters are pooled into this @p Scope.
+ * Use @p lambdas() to retrieve a vector of @p Lambda%s in this @p Scope.
+ * @p entry() will be first, @p exit() will be last.
+ * @warning All other @p Lambda%s are in no particular order.
  */
 class Scope {
 public:
@@ -35,13 +38,12 @@ public:
     explicit Scope(Lambda* entry);
     ~Scope();
 
-    /// All lambdas within this scope in reverse post-order.
     ArrayRef<Lambda*> lambdas() const { return lambdas_; }
     Lambda* operator [] (size_t i) const { return lambdas_[i]; }
     Lambda* entry() const { return lambdas().front(); }
     Lambda* exit() const { return lambdas().back(); }
-    /// Like \p lambdas() but without \p entry()
-    ArrayRef<Lambda*> body() const { return lambdas().skip_front(); }
+    ArrayRef<Lambda*> body() const { return lambdas().skip_front(); } ///< Like @p lambdas() but without \p entry()
+
     const DefSet& in_scope() const { return in_scope_; }
     /// deprecated.
     bool _contains(Def def) const { return in_scope_.contains(def); }

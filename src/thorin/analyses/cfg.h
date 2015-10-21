@@ -129,7 +129,7 @@ public:
     const Scope& scope() const { return scope_; }
     size_t num_in_nodes() const { return num_in_nodes_; }
     size_t num_out_nodes() const { return num_out_nodes_; }
-    size_t num_cf_nodes() const { return num_in_nodes() + num_out_nodes(); }
+    size_t size() const { return num_in_nodes() + num_out_nodes(); }
     const Scope::Map<const InNode*>& in_nodes() const { return in_nodes_; }
     const F_CFG& f_cfg() const;
     const B_CFG& b_cfg() const;
@@ -181,27 +181,37 @@ public:
 
     const CFA& cfa() const { return cfa_; }
     const Scope& scope() const { return cfa().scope(); }
-    size_t size() const { return cfa_.num_cf_nodes(); }
+    size_t size() const { return cfa().size(); }
     const CFNodeSet& preds(const CFNode* n) const { return forward ? n->preds() : n->succs(); }
     const CFNodeSet& succs(const CFNode* n) const { return forward ? n->succs() : n->preds(); }
     size_t num_preds(const CFNode* n) const { return preds(n).size(); }
     size_t num_succs(const CFNode* n) const { return succs(n).size(); }
     const InNode* entry() const { return forward ? cfa().entry() : cfa().exit();  }
     const InNode* exit()  const { return forward ? cfa().exit()  : cfa().entry(); }
-    /// All @p CFNode%s within this @p CFG in reverse post-order.
-    ArrayRef<const CFNode*> rpo() const { return rpo_.array(); }
-    const CFNode* rpo(size_t i) const { return rpo_.array()[i]; }
-    /// Range of @p InNode%s, i.e., all @p OutNode%s will be skipped during iteration.
+
+    ArrayRef<const CFNode*> rpo() const { return rpo_.array(); }        ///< All @p CFNode%s within this @p CFG in reverse post-order.
+    ArrayRef<const CFNode*> body() const { return rpo().skip_front(); } ///< Like @p rpo() but without @p entry()
+
+    /// All @p CFNode%s within this @p CFG in post-order.
+    Range<ArrayRef<const CFNode*>::const_reverse_iterator> po() const {
+        return range(rpo_.array().rbegin(), rpo_.array().rend());
+    }
+
+    const CFNode* rpo(size_t i) const { return rpo_.array()[i]; }           ///< Maps from reverse post-order index to @p CFNode.
+    const CFNode* po(size_t i) const { return rpo_.array()[size()-1-i]; }   ///< Maps from post-order index to @p CFNode.
+    const InNode* operator [] (Lambda* l) const { return cfa()[l]; }        ///< Maps from @p l to @p InNode.
+
+    /// Range of @p InNode%s in reverse post-order. All @p OutNode%s will be skipped during iteration.
     Range<filter_iterator<ArrayRef<const CFNode*>::const_iterator, bool (*)(const CFNode*), const InNode*>> in_rpo() const {
         return range<const InNode*>(rpo().begin(), rpo().end(), is_in_node);
     }
+
+    /// Range of @p InNode%s in post-order. All @p OutNode%s will be skipped during iteration.
     Range<filter_iterator<ArrayRef<const CFNode*>::const_reverse_iterator,
             bool (*)(const CFNode*), const InNode*>> in_po() const {
         return range<const InNode*>(rpo().rbegin(), rpo().rend(), is_in_node);
     }
-    /// Like @p rpo() but without @p entry()
-    ArrayRef<const CFNode*> body() const { return rpo().skip_front(); }
-    const InNode* operator [] (Lambda* lambda) const { return cfa()[lambda]; }
+
     const DomTreeBase<forward>& domtree() const;
     const LoopTree<forward>& looptree() const;
     const DFGBase<forward>& dfg() const;

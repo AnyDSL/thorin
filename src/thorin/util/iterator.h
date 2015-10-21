@@ -98,9 +98,6 @@ private:
 template<class I>
 Range<I> range(I begin, I end) { return Range<I>(begin, end); }
 
-template<class C>
-typename C::reverse_iterator reverse(const C& collection) { return range(collection.rbegin(), collection.rend()); }
-
 template<class I, class P>
 Range<filter_iterator<I, P>> range(I begin, I end, P predicate) {
     typedef filter_iterator<I, P> Filter;

@@ -419,15 +419,20 @@ void CCodeGen::emit() {
             if (lambda != scope.entry()) {
                 stream() << "l" << lambda->gid() << ": ;";
                 up();
-                // load argument from phi node
+                // load param from phi node
+                auto load_params = [&] () {
+                for (auto param : lambda->params())
+                    if (!param->type().isa<MemType>()) {
+                        stream() << param->unique_name() << " = p" << param->unique_name() << ";";
+                        newline();
+                    }
+                };
+                if (lambda->to()->isa<Select>())
+                    load_params();
                 if (lambda->to() != ret_param) // skip for return
                     if (auto to_lambda = lambda->to()->isa_lambda())
                         if (scope.contains(to_lambda))
-                            for (auto param : lambda->params())
-                                if (!param->type().isa<MemType>()) {
-                                    stream() << param->unique_name() << " = p" << param->unique_name() << ";";
-                                    newline();
-                                }
+                                load_params();
             }
 
             for (auto primop : schedule[lambda]) {
@@ -484,7 +489,7 @@ void CCodeGen::emit() {
 
                 if (to_lambda->is_basicblock()) {   // ordinary jump
                     assert(to_lambda->num_params()==lambda->num_args());
-                    // store parameter to phi nodes
+                    // store argument to phi nodes
                     for (size_t i = 0, size = to_lambda->num_params(); i != size; ++i)
                         if (!to_lambda->param(i)->type().isa<MemType>()) {
                             stream() << "p" << to_lambda->param(i)->unique_name() << " = ";
@@ -504,8 +509,28 @@ void CCodeGen::emit() {
                             THORIN_UNREACHABLE;
                         }
                     } else {
-                        // emit temporaries for args
+                        auto emit_call = [&] () {
+                            auto name = (to_lambda->is_external() || to_lambda->empty()) ? to_lambda->name : to_lambda->unique_name();
+                            stream() << name << "(";
+                            // emit all first-order args
+                            size_t i = 0;
+                            for (auto arg : lambda->args()) {
+                                if (arg->order() == 0 && !arg->type().isa<MemType>()) {
+                                    if (i++ > 0) stream() << ", ";
+                                    emit(arg);
+                                }
+                            }
+                            stream() << ");";
+                        };
+
+                        Def ret_arg = 0;
                         for (auto arg : lambda->args()) {
+                            // retrieve return argument
+                            if (arg->order() != 0) {
+                                assert(!ret_arg);
+                                ret_arg = arg;
+                            }
+                            // emit temporaries for args
                             if (arg->order() == 0 && !arg->type().isa<MemType>() &&
                                 !lookup(arg->gid()) && !arg->isa<PrimLit>()) {
                                 emit(arg);
@@ -513,17 +538,9 @@ void CCodeGen::emit() {
                             }
                         }
 
-                        // retrieve return argument
-                        Def ret_arg = 0;
-                        for (auto arg : lambda->args()) {
-                            if (arg->order() != 0) {
-                                assert(!ret_arg);
-                                ret_arg = arg;
-                            }
-                        }
-
                         if (ret_arg == ret_param) {     // call + return
                             stream() << "return ";
+                            emit_call();
                         } else {                        // call + continuation
                             auto succ = ret_arg->as_lambda();
                             auto param = succ->param(0)->type().isa<MemType>() ? nullptr : succ->param(0);
@@ -532,19 +549,16 @@ void CCodeGen::emit() {
 
                             if (param)
                                 emit(param) << " = ";
-                        }
 
-                        auto name = (to_lambda->is_external() || to_lambda->empty()) ? to_lambda->name : to_lambda->unique_name();
-                        stream() << name << "(";
-                        // emit all first-order args
-                        size_t i = 0;
-                        for (auto arg : lambda->args()) {
-                            if (arg->order() == 0 && !arg->type().isa<MemType>()) {
-                                if (i++ > 0) stream() << ", ";
-                                emit(arg);
+                            emit_call();
+
+                            if (param) {
+                                newline();
+                                // store argument to phi nodes
+                                stream() << "p" << succ->param(1)->unique_name() << " = ";
+                                emit(param) << ";";
                             }
                         }
-                        stream() << ");";
                     }
                 }
             }

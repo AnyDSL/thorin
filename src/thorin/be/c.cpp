@@ -419,20 +419,13 @@ void CCodeGen::emit() {
             if (lambda != scope.entry()) {
                 stream() << "l" << lambda->gid() << ": ;";
                 up();
-                // load param from phi node
-                auto load_params = [&] () {
-                for (auto param : lambda->params())
-                    if (!param->type().isa<MemType>()) {
-                        stream() << param->unique_name() << " = p" << param->unique_name() << ";";
-                        newline();
-                    }
-                };
-                if (lambda->to()->isa<Select>())
-                    load_params();
+                // load params from phi node
                 if (lambda->to() != ret_param) // skip for return
-                    if (auto to_lambda = lambda->to()->isa_lambda())
-                        if (scope.contains(to_lambda))
-                                load_params();
+                    for (auto param : lambda->params())
+                        if (!param->type().isa<MemType>()) {
+                            stream() << param->unique_name() << " = p" << param->unique_name() << ";";
+                            newline();
+                        }
             }
 
             for (auto primop : schedule[lambda]) {

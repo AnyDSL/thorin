@@ -349,6 +349,7 @@ void CodeGen::emit(int opt, bool debug) {
                                     break;
                                 case 1:
                                     param = succ->param(0);
+                                    param = param->is_mem() ? nullptr : param;
                                     break;
                                 case 2:
                                     assert(succ->mem_param() && "no mem_param found for succ");

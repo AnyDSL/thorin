@@ -1,7 +1,7 @@
 #ifndef THORIN_UTIL_LOCATION_H
 #define THORIN_UTIL_LOCATION_H
 
-#include <string>
+#include <ostream>
 
 namespace thorin {
 
@@ -52,8 +52,8 @@ public:
         , pos2_(pos1)
     {}
     Location(const char* filename, int line1, int col1, int line2, int col2)
-        : pos1_(Position(filename, line1, col1))
-        , pos2_(Position(filename, line2, col2))
+        : pos1_(filename, line1, col1)
+        , pos2_(filename, line2, col2)
     {}
 
     const Position& pos1() const { return pos1_; }

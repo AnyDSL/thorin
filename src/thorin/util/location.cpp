@@ -1,17 +1,9 @@
 #include "thorin/util/location.h"
 
-#include <cctype>
-#include <iostream>
-
 namespace thorin {
 
-//------------------------------------------------------------------------------
-
 static std::ostream& line_col(const Position& pos, std::ostream& os) { return os << pos.line() << " col " << pos.col(); }
-
-std::ostream& operator << (std::ostream& os, const Position& pos) {
-    return line_col(pos, os << pos.filename() << ':');
-}
+std::ostream& operator << (std::ostream& os, const Position& pos) { return line_col(pos, os << pos.filename() << ':'); }
 
 std::ostream& operator << (std::ostream& os, const Location& loc) {
     const Position& pos1 = loc.pos1();

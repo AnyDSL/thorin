@@ -66,6 +66,7 @@ public:
         , entry_(in_node(scope().entry()))
         , exit_ (in_node(scope().exit()))
     {
+        ILOG("*** CFA: %", scope().entry()->unique_name());
         ILOG_SCOPE(propagate_higher_order_values());
         ILOG_SCOPE(run_cfa());
         ILOG_SCOPE(build_cfg());

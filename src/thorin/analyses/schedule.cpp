@@ -1,7 +1,5 @@
 #include "thorin/analyses/schedule.h"
 
-#include <iostream>
-
 #include "thorin/lambda.h"
 #include "thorin/primop.h"
 #include "thorin/world.h"
@@ -9,6 +7,7 @@
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/looptree.h"
 #include "thorin/analyses/scope.h"
+#include "thorin/util/log.h"
 #include "thorin/util/queue.h"
 
 namespace thorin {
@@ -45,13 +44,8 @@ void Schedule::verify() {
         mem = mem ? mem : block2mem[(*this)[domtree[block.in_node()]->in_idom()]];
         for (auto primop : block) {
             if (auto memop = primop->isa<MemOp>()) {
-                if (memop->mem() != mem) {
-                    std::cout << "incorrect schedule:" << std::endl;
-                    memop->dump();
-                    std::cout << "current mem:" << std::endl;
-                    mem->dump();
-                }
-
+                if (memop->mem() != mem)
+                    WLOG("incorrect schedule: % (current mem is %)", memop, mem);
                 mem = memop->out_mem();
             }
         }

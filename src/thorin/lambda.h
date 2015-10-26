@@ -51,6 +51,7 @@ public:
     Lambda* lambda() const { return lambda_; }
     size_t index() const { return index_; }
     std::vector<Peek> peek() const;
+    const Param* is_mem() const { return type().isa<MemType>() ? this : nullptr; }
 
 private:
     Lambda* const lambda_;
@@ -151,13 +152,6 @@ public:
     bool is_external() const;
     void make_external();
     void make_internal();
-    /**
-     * Is this Lambda part of a call-lambda-cascade? <br>
-     * @code
-lambda(...) jump (foo, [..., lambda(...) ..., ...]
-     * @endcode
-     */
-    bool is_cascading() const;
     bool is_basicblock() const;
     bool is_returning() const;
     bool is_intrinsic() const;

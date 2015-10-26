@@ -86,9 +86,8 @@ void PartialEvaluator::seek() {
 void PartialEvaluator::eval(Lambda* top, Lambda* cur, Lambda* end) {
     if (end == nullptr)
         DLOG("no matching end: %", cur->unique_name());
-    else {
+    else
         DLOG("eval: % -> %", cur->unique_name(), end->unique_name());
-    }
 
     while (true) {
         if (cur == nullptr) {

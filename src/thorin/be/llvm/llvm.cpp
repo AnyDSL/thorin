@@ -195,7 +195,7 @@ void CodeGen::emit(int opt, bool debug) {
         const Param* ret_param = nullptr;
         auto arg = fct->arg_begin();
         for (auto param : entry_->params()) {
-            if (param->type().isa<MemType>())
+            if (param->is_mem())
                 continue;
             if (param->order() == 0) {
                 auto argv = &*arg;
@@ -223,10 +223,13 @@ void CodeGen::emit(int opt, bool debug) {
                 auto bb = bb2lambda[lambda] = llvm::BasicBlock::Create(context_, lambda->name, fct);
 
                 // create phi node stubs (for all non-cascading lambdas different from entry)
-                if (!lambda->is_cascading() && entry_ != lambda) {
-                    for (auto param : lambda->params())
-                        if (!param->type().isa<MemType>())
-                            phis_[param] = llvm::PHINode::Create(convert(param->type()), (unsigned) param->peek().size(), param->name, bb);
+                if (entry_ != lambda) {
+                    for (auto param : lambda->params()) {
+                        if (!param->is_mem()) {
+                            phis_[param] = llvm::PHINode::Create(convert(param->type()),
+                                                                 (unsigned) param->peek().size(), param->name, bb);
+                        }
+                    }
                 }
             }
         }
@@ -256,16 +259,16 @@ void CodeGen::emit(int opt, bool debug) {
                 switch (num_args) {
                     case 0: irbuilder_.CreateRetVoid(); break;
                     case 1:
-                        if (lambda->arg(0)->type().isa<MemType>())
+                        if (lambda->arg(0)->is_mem())
                             irbuilder_.CreateRetVoid();
                         else
                             irbuilder_.CreateRet(lookup(lambda->arg(0)));
                         break;
                     case 2:
-                        if (lambda->arg(0)->type().isa<MemType>()) {
+                        if (lambda->arg(0)->is_mem()) {
                             irbuilder_.CreateRet(lookup(lambda->arg(1)));
                             break;
-                        } else if (lambda->arg(1)->type().isa<MemType>()) {
+                        } else if (lambda->arg(1)->is_mem()) {
                             irbuilder_.CreateRet(lookup(lambda->arg(0)));
                             break;
                         }
@@ -276,7 +279,7 @@ void CodeGen::emit(int opt, bool debug) {
 
                         size_t n = 0;
                         for (auto arg : lambda->args()) {
-                            if (!arg->type().isa<MemType>()) {
+                            if (!arg->is_mem()) {
                                 auto val = lookup(arg);
                                 values[n] = val;
                                 args[n++] = val->getType();
@@ -316,7 +319,7 @@ void CodeGen::emit(int opt, bool debug) {
                         Def ret_arg;
                         for (auto arg : lambda->args()) {
                             if (arg->order() == 0) {
-                                if (!arg->type().isa<MemType>())
+                                if (!arg->is_mem())
                                     args.push_back(lookup(arg));
                             } else {
                                 assert(!ret_arg);
@@ -336,19 +339,28 @@ void CodeGen::emit(int opt, bool debug) {
                         if (ret_arg == ret_param) {     // call + return
                             irbuilder_.CreateRet(call);
                         } else {                        // call + continuation
-                            Lambda* succ = ret_arg->as_lambda();
-                            const Param* param = succ->param(0)->type().isa<MemType>() ? nullptr : succ->param(0);
-                            if (param == nullptr && succ->num_params() == 2)
-                                param = succ->param(1);
+                            auto succ = ret_arg->as_lambda();
+
+                            const Param* param = nullptr;
+                            switch (succ->num_params()) {
+                                case 0:
+                                    break;
+                                case 1:
+                                    param = succ->param(0);
+                                    break;
+                                case 2:
+                                    assert(succ->mem_param() && "no mem_param found for succ");
+                                    param = succ->param(0);
+                                    param = param->is_mem() ? succ->param(1) : param;
+                                    break;
+                                default:
+                                    THORIN_UNREACHABLE;
+                            }
+                            assert(param == nullptr || !param->is_mem());
 
                             irbuilder_.CreateBr(bb2lambda[succ]);
-                            if (param) {
-                                auto i = phis_.find(param);
-                                if (i != phis_.end())
-                                    i->second->addIncoming(call, irbuilder_.GetInsertBlock());
-                                else
-                                    params_[param] = call;
-                            }
+                            if (param)
+                                find(phis_, param)->addIncoming(call, irbuilder_.GetInsertBlock());
                         }
                     }
                 }
@@ -357,8 +369,8 @@ void CodeGen::emit(int opt, bool debug) {
 
         // add missing arguments to phis_
         for (auto p : phis_) {
-            const Param* param = p.first;
-            llvm::PHINode* phi = p.second;
+            auto param = p.first;
+            auto phi = p.second;
 
             for (auto peek : param->peek())
                 phi->addIncoming(lookup(peek.def()), bb2lambda[peek.from()]);

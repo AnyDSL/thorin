@@ -58,7 +58,6 @@ private:
     Scope& scope_;
     LambdaSet done_;
     std::queue<Lambda*> queue_;
-    Lambda* top_;
     LambdaSet visited_;
     HashMap<Call, Lambda*, CallHash> cache_;
 };

@@ -403,6 +403,28 @@ size_t CFG<forward>::post_order_visit(const CFNode* n, size_t i) {
     return n_index;
 }
 
+namespace detail {
+    void in_next(const InNode* in, YieldIn f, std::function<const CFNodeSet&(const CFNode*)> next) {
+        std::queue<const CFNode*> queue;
+
+        auto enqueue = [&] (const CFNode* n) {
+            const auto& set = next(n);
+            for (auto succ : set)
+                queue.push(succ);
+        };
+
+        enqueue(in);
+
+        while (!queue.empty()) {
+            auto n = pop(queue);
+            if (auto in = n->isa<InNode>())
+                f(in);
+            else
+                enqueue(n);
+        }
+    }
+}
+
 template<bool forward> const DomTreeBase<forward>& CFG<forward>::domtree() const { return lazy_init(this, domtree_); }
 template<bool forward> const LoopTree<forward>& CFG<forward>::looptree() const { return lazy_init(this, looptree_); }
 template<bool forward> const DFGBase<forward>& CFG<forward>::dfg() const { return lazy_init(this, dfg_); }

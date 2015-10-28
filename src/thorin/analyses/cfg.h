@@ -86,6 +86,8 @@ private:
     friend class CFABuilder;
 };
 
+typedef std::function<void(const InNode*)> YieldIn;
+
 /// Any jumps targeting a @p Lambda or @p Param outside the @p CFA's underlying @p Scope target this node.
 class OutNode : public CFNode {
 public:
@@ -157,6 +159,10 @@ private:
 
 //------------------------------------------------------------------------------
 
+namespace detail {
+    void in_next(const InNode* in, YieldIn f, std::function<const CFNodeSet&(const CFNode*)> next);
+}
+
 /**
  * @brief A Control-Flow Graph.
  *
@@ -184,6 +190,14 @@ public:
     size_t size() const { return cfa().size(); }
     const CFNodeSet& preds(const CFNode* n) const { return forward ? n->preds() : n->succs(); }
     const CFNodeSet& succs(const CFNode* n) const { return forward ? n->succs() : n->preds(); }
+    void in_preds(const InNode* in, YieldIn f) const {
+        detail::in_next(in, f, [&] (const CFNode* n) -> const CFNodeSet& { return preds(n); });
+    }
+    void in_succs(const InNode* in, YieldIn f) const {
+        detail::in_next(in, f, [&] (const CFNode* n) -> const CFNodeSet& { return succs(n); });
+    }
+    void in_preds(Lambda* lambda, YieldIn f) const { in_preds(cfa()[lambda], f); }
+    void in_succs(Lambda* lambda, YieldIn f) const { in_succs(cfa()[lambda], f); }
     size_t num_preds(const CFNode* n) const { return preds(n).size(); }
     size_t num_succs(const CFNode* n) const { return succs(n).size(); }
     const InNode* entry() const { return forward ? cfa().entry() : cfa().exit();  }

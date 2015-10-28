@@ -58,17 +58,17 @@ public:
     const Node* operator[](const CFNode* n) const { return nodes_[n]; }
     ArrayRef<const Node*> nodes() const { return nodes_.array(); }
 
-    static void emit_scope(const Scope& scope, std::ostream& ostream = std::cout) {
-        auto& dfg = scope.cfg<forward>().dfg();
+    static const DFGBase& get(const Scope& scope) { return scope.cfg<forward>().dfg(); }
 
-        emit_ycomp(ostream, scope, range(dfg.nodes()),
+    void ycomp(std::ostream& ostream = std::cout) const {
+        emit_ycomp(ostream, cfg().scope(), range(nodes()),
             [] (const Node* n) { return range(n->succs()); },
             YComp_Orientation::TopToBottom
         );
     }
 
-    static void emit_world(const World& world, std::ostream& ostream = std::cout) {
-        emit_ycomp(ostream, world, emit_scope);
+    static void emit_world(World& world, std::ostream& ostream = std::cout) {
+        emit_ycomp(ostream, world, &DFGBase<forward>::ycomp);
     }
 
 private:

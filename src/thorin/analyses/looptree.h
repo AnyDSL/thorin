@@ -110,6 +110,7 @@ public:
     const Leaf* operator [] (const CFNode* n) const { return find(leaves_, n); }
     void dump() const { root()->dump(); }
 
+    static const LoopTree& get(const Scope& scope) { return scope.cfg<forward>().looptree(); }
     static void get_nodes(std::vector<const Node *>& nodes, const Node* node) {
         nodes.push_back(node);
         if (auto head = node->template isa<Head>()) {
@@ -118,13 +119,11 @@ public:
         }
     }
 
-    static void emit_scope(const Scope& scope, std::ostream& ostream = std::cout) {
-        auto& looptree = scope.cfg<forward>().looptree();
-
+    void ycomp(std::ostream& ostream = std::cout) const {
         std::vector<const Node *> nodes;
-        get_nodes(nodes, looptree.root());
+        get_nodes(nodes, root());
 
-        emit_ycomp(ostream, scope, range(nodes),
+        emit_ycomp(ostream, cfg().scope(), range(nodes),
             [] (const Node* n) {
                 if (auto head = n->template isa<Head>())
                     return range(head->children());
@@ -134,8 +133,8 @@ public:
         );
     }
 
-    static void emit_world(const World& world, std::ostream& ostream = std::cout) {
-        emit_ycomp(ostream, world, emit_scope);
+    static void emit_world(World& world, std::ostream& ostream = std::cout) {
+        emit_ycomp(ostream, world, &LoopTree<forward>::ycomp);
     }
 
 private:

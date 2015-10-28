@@ -55,16 +55,17 @@ public:
         create();
     }
 
-    static void emit_scope(const Scope& scope, std::ostream& ostream = std::cout) {
-        auto& domtree = scope.cfg<forward>().domtree();
-        emit_ycomp(ostream, scope, range(domtree.nodes()),
+    static const DomTreeBase& get(const Scope& scope) { return scope.cfg<forward>().domtree(); }
+
+    void ycomp(std::ostream& ostream = std::cout) const {
+        emit_ycomp(ostream, cfg().scope(), range(nodes()),
             [] (const Node* n) { return range(n->children()); },
             YComp_Orientation::TopToBottom
         );
     }
 
-    static void emit_world(const World& world, std::ostream& ostream = std::cout) {
-        emit_ycomp(ostream, world, emit_scope);
+    static void emit_world(World& world, std::ostream& ostream = std::cout) {
+        emit_ycomp(ostream, world, &DomTreeBase<forward>::ycomp);
     }
 
     const CFG<forward>& cfg() const { return cfg_; }

@@ -98,17 +98,17 @@ YCompScope<I, SuccFct> emit_ycomp(std::ostream& ostream, const Scope& scope, Ran
     return YCompScope<I, SuccFct>(ostream, scope, range, succs, orientation);
 }
 
-template<class Emit>
-void emit_ycomp(std::ostream& ostream, const World& world, Emit emit) {
-    ostream << "graph: {" <<  std::endl;
-    ostream << "    " << "graph: {" <<  std::endl;
-    ostream << "        " << "title: \"" << world.name() << '"' << std::endl;
-    ostream << "        " << "label: \"" << world.name() << '"' << std::endl;
+template<class G>
+void emit_ycomp(std::ostream& out, World& world, void (G::* ycomp)(std::ostream&) const) {
+    out << "graph: {" <<  std::endl;
+    out << "    " << "graph: {" <<  std::endl;
+    out << "        " << "title: \"" << world.name() << '"' << std::endl;
+    out << "        " << "label: \"" << world.name() << '"' << std::endl;
     YCompConfig::indentation = 2;
-    Scope::for_each(world, [&] (const Scope& scope) { emit(scope, ostream); });
+    Scope::for_each(world, [&] (const Scope& scope) { G::get(scope).ycomp(out); });
     YCompConfig::indentation = 0;
-    ostream << "    " << '}' << std::endl;
-    ostream << '}' << std::endl;
+    out << "    " << '}' << std::endl;
+    out << '}' << std::endl;
 }
 
 }

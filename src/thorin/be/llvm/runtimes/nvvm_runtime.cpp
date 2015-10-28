@@ -44,7 +44,7 @@ llvm::Value* NVVMRuntime::synchronize(llvm::Value* device) {
     return builder_.CreateCall(get("nvvm_synchronize"), { device });
 }
 
-llvm::Value* NVVMRuntime::set_kernel_arg(llvm::Value* device, llvm::Value* ptr, llvm::Type* type) {
+llvm::Value* NVVMRuntime::set_kernel_arg(llvm::Value* device, llvm::Value* ptr, llvm::Type*) {
     llvm::Value* arg_args[] = { device, ptr };
     return builder_.CreateCall(get("nvvm_set_kernel_arg"), arg_args);
 }

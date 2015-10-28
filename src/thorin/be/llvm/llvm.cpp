@@ -96,7 +96,7 @@ Lambda* CodeGen::emit_atomic(Lambda* lambda) {
     u32 kind = lambda->arg(1)->as<PrimLit>()->qu32_value();
     auto ptr = lookup(lambda->arg(2));
     auto val = lookup(lambda->arg(3));
-    assert(kind >= llvm::AtomicRMWInst::BinOp::Xchg && kind <= llvm::AtomicRMWInst::BinOp::UMin && "unsupported atomic");
+    assert(int(llvm::AtomicRMWInst::BinOp::Xchg) <= int(kind) && int(kind) <= int(llvm::AtomicRMWInst::BinOp::UMin) && "unsupported atomic");
     llvm::AtomicRMWInst::BinOp binop = (llvm::AtomicRMWInst::BinOp)kind;
 
     auto cont = lambda->arg(4)->as_lambda();

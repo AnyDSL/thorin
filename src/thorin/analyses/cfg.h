@@ -10,7 +10,7 @@
 #include "thorin/util/array.h"
 #include "thorin/util/autoptr.h"
 #include "thorin/util/indexmap.h"
-#include "thorin/util/streamf.h"
+#include "thorin/util/stream.h"
 
 namespace thorin {
 

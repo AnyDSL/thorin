@@ -1,5 +1,5 @@
-#ifndef THORIN_UTIL_STREAMF_H
-#define THORIN_UTIL_STREAMF_H
+#ifndef THORIN_UTIL_STREAM_H
+#define THORIN_UTIL_STREAM_H
 
 #include <ostream>
 
@@ -8,6 +8,8 @@ namespace thorin {
 /// Inherit from this class and implement @p stream in order to use @p streamf.
 class Streamable {
 public:
+    virtual ~Streamable() {}
+
     virtual std::ostream& stream(std::ostream&) const = 0;
     std::string to_string() const; ///< Uses @p stream and @c std::ostringstream to generate a @c std::string.
     void dump() const; ///< Uses @p stream in order to dump to @p std::cout.

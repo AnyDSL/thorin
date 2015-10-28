@@ -22,7 +22,7 @@ template<bool> class CFG;
 template<bool forward>
 class DomTreeBase {
 public:
-    class Node {
+    class Node : public Streamable {
     private:
         explicit Node(const CFNode* cf_node)
             : cf_node_(cf_node)
@@ -35,11 +35,9 @@ public:
         const std::vector<const Node*>& children() const { return children_; }
         size_t num_children() const { return children_.size(); }
         bool entry() const { return idom_ == this; }
-        void dump() const { dump(0); }
+        std::ostream& stream(std::ostream& out) const override { return cf_node()->stream(out); }
 
     private:
-        void dump(const int depth) const;
-
         const CFNode* cf_node_;
         mutable const Node* idom_ = nullptr;
         mutable AutoVector<const Node*> children_;
@@ -61,7 +59,7 @@ public:
         auto& domtree = scope.cfg<forward>().domtree();
         emit_ycomp(ostream, scope, range(domtree.nodes()),
             [] (const Node* n) { return range(n->children()); },
-            [] (const Node* n) { return n->cf_node()->to_string(); },
+            [] (const Node* n) { return n->to_string(); },
             YComp_Orientation::TopToBottom
         );
     }
@@ -77,7 +75,6 @@ public:
     /// Returns the least common ancestor of @p i and @p j.
     const Node* lca(const Node* i, const Node* j) const;
     const Node* operator [] (const CFNode* n) const { return nodes_[n]; }
-    void dump() const { root()->dump(); }
 
 private:
     void create();

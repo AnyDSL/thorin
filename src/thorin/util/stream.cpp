@@ -1,4 +1,4 @@
-#include "thorin/util/streamf.h"
+#include "thorin/util/stream.h"
 
 #include <iostream>
 #include <sstream>

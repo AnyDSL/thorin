@@ -204,27 +204,16 @@ LoopTree<forward>::Node::Node(Head* parent, int depth, const std::vector<const C
 }
 
 template<bool forward>
-std::ostream& LoopTree<forward>::Node::indent() const {
-    for (int i = 0; i < depth(); ++i)
-        std::cout << '\t';
-    return std::cout;
+std::ostream& LoopTree<forward>::Leaf::stream(std::ostream& out) const {
+    return streamf(out, "<% | dfs: %", cf_node(), index());
 }
 
 template<bool forward>
-void LoopTree<forward>::Leaf::dump() const {
-    this->indent() << '<' << cf_node()->def()->unique_name() << '>' << std::endl;
-    this->indent() << "+ dfs: " << index() << std::endl;
-}
-
-template<bool forward>
-void LoopTree<forward>::Head::dump() const {
-    this->indent() << "( ";
-    for (auto head : this->cf_nodes())
-        std::cout << head->def()->unique_name() << " ";
-    std::cout << ") " << std::endl;
-
-    for (auto child : children())
-        child->dump();
+std::ostream& LoopTree<forward>::Head::stream(std::ostream& out) const {
+    out << "[";
+    for (auto head : this->cf_nodes()) // TODO use stream comma list - once it is there
+        out << head << ", ";
+    return out << "]";
 }
 
 //------------------------------------------------------------------------------

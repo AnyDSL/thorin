@@ -13,22 +13,6 @@ DFGBase<forward>::~DFGBase() {
 }
 
 template<bool forward>
-void DFGBase<forward>::Node::dump(std::ostream& os) const {
-    if (const auto out_node = cf_node_->isa<OutNode>())
-        os << "(" << out_node->context()->def()->unique_name() << ") ";
-    os << cf_node_->def()->unique_name();
-    os << " -> [";
-    for (auto succ : succs()) {
-        if (*succs().begin() != succ)
-            os << ", ";
-        os << succ->cf_node()->def()->unique_name();
-    }
-    os << "]" << std::endl;
-}
-
-//------------------------------------------------------------------------------
-
-template<bool forward>
 void DFGBase<forward>::create() {
     const auto& domtree = cfg().domtree();
 
@@ -52,12 +36,6 @@ void DFGBase<forward>::create() {
             }
         }
     }
-}
-
-template<bool forward>
-void DFGBase<forward>::dump(std::ostream& os) const {
-    for (auto node : nodes_)
-        node->dump(os);
 }
 
 template class DFGBase<true>;

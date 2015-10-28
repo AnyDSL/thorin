@@ -12,17 +12,6 @@ namespace thorin {
 //------------------------------------------------------------------------------
 
 template<bool forward>
-void DomTreeBase<forward>::Node::dump(const int depth) const {
-    for (int i = 0, e = depth; i != e; ++i)
-        std::cout << '\t';
-    std::cout << cf_node()->def()->unique_name() << std::endl;
-    for (auto child : children())
-        child->dump(depth+1);
-}
-
-//------------------------------------------------------------------------------
-
-template<bool forward>
 void DomTreeBase<forward>::create() {
     for (auto n : cfg().rpo())
         nodes_[n] = new Node(n);

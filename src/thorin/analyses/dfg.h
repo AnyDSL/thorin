@@ -21,7 +21,7 @@ namespace thorin {
 template<bool forward>
 class DFGBase {
 public:
-    class Node {
+    class Node : public Streamable {
     private:
         explicit Node(const CFNode* cf_node)
             : cf_node_(cf_node)
@@ -31,8 +31,7 @@ public:
         const CFNode* cf_node() const { return cf_node_; }
         const std::vector<const Node*>& preds() const { return preds_; }
         const std::vector<const Node*>& succs() const { return succs_; }
-        void dump(std::ostream& os) const;
-        void dump() const { dump(std::cerr); }
+        std::ostream& stream(std::ostream& out) const override { return cf_node()->stream(out); }
 
     private:
         const CFNode* cf_node_;
@@ -58,22 +57,13 @@ public:
     size_t index(const Node* n) const { return cfg().index(n->cf_node()); }
     const Node* operator[](const CFNode* n) const { return nodes_[n]; }
     ArrayRef<const Node*> nodes() const { return nodes_.array(); }
-    void dump(std::ostream& os) const;
-    void dump() const { dump(std::cerr); }
 
     static void emit_scope(const Scope& scope, std::ostream& ostream = std::cout) {
         auto& dfg = scope.cfg<forward>().dfg();
 
         emit_ycomp(ostream, scope, range(dfg.nodes()),
             [] (const Node* n) { return range(n->succs()); },
-            [] (const Node* n) {
-                std::stringstream stream;
-                if (auto out_node = n->cf_node_->template isa<OutNode>())
-                    stream << "(" << out_node->context()->def()->unique_name() << ") ";
-
-                stream << n->cf_node_->def()->unique_name();
-                return stream.str();
-            },
+            [] (const Node* n) { return n->to_string(); },
             YComp_Orientation::TopToBottom
         );
     }

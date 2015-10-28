@@ -35,7 +35,7 @@ public:
     * The root node is a @p Head without any CFNode%s but further @p Node children and @p depth_ -1.
     * Thus, the forest is pooled into a tree.
     */
-    class Node : public MagicCast<Node> {
+    class Node : public MagicCast<Node>, public Streamable {
     protected:
         Node(Head* parent, int depth, const std::vector<const CFNode*>&);
 
@@ -44,7 +44,6 @@ public:
         const Head* parent() const { return parent_; }
         ArrayRef<const CFNode*> cf_nodes() const { return cf_nodes_; }
         size_t num_cf_nodes() const { return cf_nodes().size(); }
-        virtual void dump() const = 0;
 
     protected:
         std::ostream& indent() const;
@@ -68,7 +67,7 @@ public:
         const Super* child(size_t i) const { return children_[i]; }
         size_t num_children() const { return children().size(); }
         bool is_root() const { return Super::parent_ == 0; }
-        virtual void dump() const;
+        virtual std::ostream& stream(std::ostream&) const override;
 
     private:
         AutoVector<Super*> children_;
@@ -93,7 +92,7 @@ public:
         const CFNode* cf_node() const { return Super::cf_nodes().front(); }
         /// Index of a DFS of the @p LoopTree's @p Leaf%s.
         size_t index() const { return index_; }
-        virtual void dump() const;
+        virtual std::ostream& stream(std::ostream&) const override;
 
     private:
         size_t index_;
@@ -129,25 +128,9 @@ public:
             [] (const Node* n) {
                 if (auto head = n->template isa<Head>())
                     return range(head->children());
-
-                // TODO: handle empty better
-                ArrayRef<Node*> empty;
-                return range(empty);
+                return range(ArrayRef<Node*>());
             },
-            [] (const Node* n) {
-                if (auto head = n->template isa<Head>()) {
-                    std::ostringstream oss;
-                    for (auto cf_node : n->cf_nodes())
-                        oss << cf_node->def()->unique_name() << "_";
-                    return oss.str();
-                } else if (auto leaf = n->template isa<Leaf>()) {
-                    std::ostringstream oss;
-                    oss << "<" << leaf->cf_node()->def()->unique_name() << "> + dfs: " << leaf->index();
-                    return oss.str();
-                }
-
-                THORIN_UNREACHABLE;
-            },
+            [] (const Node* n) { return n->to_string(); },
             YComp_Orientation::LeftToRight
         );
     }

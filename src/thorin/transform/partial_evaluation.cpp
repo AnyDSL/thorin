@@ -128,8 +128,14 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
 
         if (dst->empty()) {
             auto& postdomtree = scope_.update().b_cfg().domtree();
-            if (auto n = scope().cfa(cur)) {
-                cur = postdomtree[n]->in_idom()->lambda();
+            if (const CFNode* n = scope().cfa(cur)) {
+                auto old = n;
+                do {
+                    n = postdomtree[n]->idom()->cf_node();;
+                } while (n->isa<OutNode>());
+
+                DLOG("postdom: % -> %", old, n);
+                cur = n->as<InNode>()->lambda();
                 continue;
             }
             WLOG("no postdom found for %", cur->unique_name());

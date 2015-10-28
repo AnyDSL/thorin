@@ -78,7 +78,7 @@ void PartialEvaluator::run() {
             scope_.update();
         }
 
-        scope_.update().f_cfg().in_succs(lambda, [&] (const InNode* in) { enqueue(in->lambda()); });
+        scope().f_cfg().in_succs(lambda, [&] (const InNode* in) { enqueue(in->lambda()); });
     }
 }
 

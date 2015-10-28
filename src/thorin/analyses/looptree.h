@@ -130,7 +130,6 @@ public:
                     return range(head->children());
                 return range(ArrayRef<Node*>());
             },
-            [] (const Node* n) { return n->to_string(); },
             YComp_Orientation::LeftToRight
         );
     }

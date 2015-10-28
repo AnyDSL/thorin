@@ -63,7 +63,6 @@ public:
 
         emit_ycomp(ostream, scope, range(dfg.nodes()),
             [] (const Node* n) { return range(n->succs()); },
-            [] (const Node* n) { return n->to_string(); },
             YComp_Orientation::TopToBottom
         );
     }

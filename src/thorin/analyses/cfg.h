@@ -235,7 +235,6 @@ public:
 
         emit_ycomp(ostream, scope, range(cfg.rpo()),
             [] (const CFNode* n) { return range(n->succs()); },
-            [] (const CFNode* n) { return n->to_string(); },
             YComp_Orientation::TopToBottom
         );
     }

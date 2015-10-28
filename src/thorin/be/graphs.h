@@ -8,6 +8,7 @@
 #include "thorin/analyses/scope.h"
 #include "thorin/util/iterator.h"
 #include "thorin/util/printer.h"
+#include "thorin/util/stream.h"
 
 namespace thorin {
 
@@ -40,14 +41,14 @@ struct YCompConfig {
     static int indentation;
 };
 
-template <typename I, typename SuccFct, typename UniqueFct>
+template <typename I, typename SuccFct>
 class YCompScope : public Printer {
 public:
     YCompScope(std::ostream& ostream, const Scope& scope, Range<I> range,
-               SuccFct succs, UniqueFct unique, YComp_Orientation orientation)
+               SuccFct succs, YComp_Orientation orientation)
         : YCompScope(ostream, orientation)
     {
-        addScope(scope, range, succs, unique);
+        addScope(scope, range, succs);
     }
 
     ~YCompScope() {
@@ -67,16 +68,15 @@ private:
         newline() << "orientation: " << YComp_Orientation_Names[orientation];
     }
 
-    void addScope(const Scope& scope, Range<I> range, SuccFct succs, UniqueFct unique) {
+    void addScope(const Scope& scope, Range<I> range, SuccFct succs) {
         auto id = scope.id();
 
         auto print_node = [&] (decltype(*range.begin()) node) {
-            auto str = unique(node);
-            newline() << "node: { title: \"" << str << "_" << id << "\" label: \"" << str << "\" }";
+            newline() << "node: { title: \"" << node << "_" << id << "\" label: \"" << node << "\" }";
 
             for (auto succ : succs(node)) {
-                newline() << "edge: { sourcename: \"" << str << "_" << id
-                          << "\" targetname: \"" << unique(succ) << "_" << id << "\" class: " << 16 << " }";
+                newline() << "edge: { sourcename: \"" << node << "_" << id
+                          << "\" targetname: \"" << succ << "_" << id << "\" class: " << 16 << " }";
             }
         };
 
@@ -92,11 +92,10 @@ private:
     }
 };
 
-template <typename I, typename SuccFct, typename UniqueFct>
-YCompScope<I,SuccFct,UniqueFct> emit_ycomp(std::ostream& ostream, const Scope& scope, Range<I> range,
-                                           SuccFct succs, UniqueFct unique,
+template <typename I, typename SuccFct>
+YCompScope<I, SuccFct> emit_ycomp(std::ostream& ostream, const Scope& scope, Range<I> range, SuccFct succs,
                                            YComp_Orientation orientation = YComp_Orientation::BottomToTop) {
-    return YCompScope<I,SuccFct,UniqueFct>(ostream, scope, range, succs, unique, orientation);
+    return YCompScope<I, SuccFct>(ostream, scope, range, succs, orientation);
 }
 
 template<class Emit>

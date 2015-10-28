@@ -59,7 +59,6 @@ public:
         auto& domtree = scope.cfg<forward>().domtree();
         emit_ycomp(ostream, scope, range(domtree.nodes()),
             [] (const Node* n) { return range(n->children()); },
-            [] (const Node* n) { return n->to_string(); },
             YComp_Orientation::TopToBottom
         );
     }

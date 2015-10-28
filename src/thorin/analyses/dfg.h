@@ -59,7 +59,7 @@ public:
     ArrayRef<const Node*> nodes() const { return nodes_.array(); }
 
     virtual void ycomp(std::ostream& out) const override {
-        emit_ycomp(out, cfg().scope(), range(nodes()),
+        thorin::ycomp(out, cfg().scope(), range(nodes()),
             [] (const Node* n) { return range(n->succs()); },
             YComp_Orientation::TopToBottom
         );

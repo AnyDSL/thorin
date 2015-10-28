@@ -64,7 +64,7 @@ public:
     const Node* operator [] (const CFNode* n) const { return nodes_[n]; }
 
     virtual void ycomp(std::ostream& out) const override {
-        emit_ycomp(out, cfg().scope(), range(nodes()),
+        thorin::ycomp(out, cfg().scope(), range(nodes()),
             [] (const Node* n) { return range(n->children()); },
             YComp_Orientation::TopToBottom
         );

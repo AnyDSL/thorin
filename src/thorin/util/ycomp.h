@@ -93,13 +93,13 @@ private:
 };
 
 template <typename I, typename SuccFct>
-YCompScope<I, SuccFct> emit_ycomp(std::ostream& ostream, const Scope& scope, Range<I> range, SuccFct succs,
+YCompScope<I, SuccFct> ycomp(std::ostream& ostream, const Scope& scope, Range<I> range, SuccFct succs,
                                            YComp_Orientation orientation = YComp_Orientation::BottomToTop) {
     return YCompScope<I, SuccFct>(ostream, scope, range, succs, orientation);
 }
 
 template<class G>
-void emit_ycomp(std::ostream& out, World& world, void (G::* ycomp)(std::ostream&) const) {
+void ycomp(std::ostream& out, World& world, void (G::* ycomp)(std::ostream&) const) {
     out << "graph: {" <<  std::endl;
     out << "    " << "graph: {" <<  std::endl;
     out << "        " << "title: \"" << world.name() << '"' << std::endl;
@@ -112,7 +112,7 @@ void emit_ycomp(std::ostream& out, World& world, void (G::* ycomp)(std::ostream&
 }
 
 template<class G>
-void ycomp_world(World& world, std::ostream& out) { emit_ycomp(out, world, &G::ycomp); }
+void ycomp(World& world, std::ostream& out) { ycomp(out, world, &G::ycomp); }
 
 class YComp {
 public:

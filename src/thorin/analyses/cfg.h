@@ -228,7 +228,7 @@ public:
     const DFGBase<forward>& dfg() const;
 
     virtual void ycomp(std::ostream& out) const override {
-        emit_ycomp(out, scope(), range(rpo()),
+        thorin::ycomp(out, scope(), range(rpo()),
             [] (const CFNode* n) { return range(n->succs()); },
             YComp_Orientation::TopToBottom
         );

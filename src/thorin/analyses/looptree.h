@@ -113,7 +113,7 @@ public:
         std::vector<const Node *> nodes;
         get_nodes(nodes, root());
 
-        emit_ycomp(out, cfg().scope(), range(nodes),
+        thorin::ycomp(out, cfg().scope(), range(nodes),
             [] (const Node* n) {
                 if (auto head = n->template isa<Head>())
                     return range(head->children());

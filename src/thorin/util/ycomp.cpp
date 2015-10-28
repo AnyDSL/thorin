@@ -16,6 +16,12 @@ void YCompCommandLine::add(std::string graph, bool temp, std::string file) {
     files.push_back(file);
 }
 
+#define YCOMP(T) \
+    if (temp) \
+        ycomp<T<true >>(world, file); \
+    else \
+        ycomp<T<false>>(world, file);
+
 void YCompCommandLine::print(World& world) {
     for(unsigned int i = 0; i < graphs.size(); i++) {
         std::string graph = graphs[i];
@@ -23,29 +29,13 @@ void YCompCommandLine::print(World& world) {
         std::ofstream file(files[i]);
 
         if (graph.compare("domtree") == 0) {
-            if (temp) {
-                ycomp_world<DomTreeBase<true>>(world, file);
-            } else {
-                ycomp_world<DomTreeBase<false>>(world, file);
-            }
+            YCOMP(DomTreeBase);
         } else if (graph.compare("cfg") == 0) {
-            if (temp) {
-                ycomp_world<CFG<true>>(world, file);
-            } else {
-                ycomp_world<CFG<false>>(world, file);
-            }
+            YCOMP(CFG);
         } else if (graph.compare("dfg") == 0) {
-            if (temp) {
-                ycomp_world<DFGBase<true>>(world, file);
-            } else {
-                ycomp_world<DFGBase<false>>(world, file);
-            }
+            YCOMP(DFGBase);
         } else if (graph.compare("looptree") == 0) {
-            if (temp) {
-                ycomp_world<LoopTree<true>>(world, file);
-            } else {
-                ycomp_world<LoopTree<false>>(world, file);
-            }
+            YCOMP(LoopTree);
         } else {
             std::cerr << "No outpur for " << graph << " found!" << std::endl;
         }

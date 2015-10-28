@@ -105,7 +105,7 @@ void ycomp(std::ostream& out, World& world, void (G::* ycomp)(std::ostream&) con
     out << "        " << "title: \"" << world.name() << '"' << std::endl;
     out << "        " << "label: \"" << world.name() << '"' << std::endl;
     YCompConfig::indentation = 2;
-    Scope::for_each(world, [&] (const Scope& scope) { G::get(scope).ycomp(out); });
+    Scope::for_each(world, [&] (const Scope& scope) { G::create(scope).ycomp(out); });
     YCompConfig::indentation = 0;
     out << "    " << '}' << std::endl;
     out << '}' << std::endl;
@@ -114,14 +114,29 @@ void ycomp(std::ostream& out, World& world, void (G::* ycomp)(std::ostream&) con
 template<class G>
 void ycomp(World& world, std::ostream& out) { ycomp(out, world, &G::ycomp); }
 
+//------------------------------------------------------------------------------
+
 class YComp {
 public:
+    YComp(const Scope& scope)
+        : scope_(scope)
+    {}
+
     virtual ~YComp() {}
 
-    virtual void ycomp(std::ostream&) const = 0;
-    void ycomp(const char* filename);
+    const Scope& scope() const { return scope_; }
+    const World& world() const { return scope().world(); }
+    void ycomp() const;                              ///< Dumps ycomp to a file with an auto-generated a file name.
+    void ycomp(const char* filename) const;          ///< Dumps ycomp file to @p filename.
+    virtual void ycomp(std::ostream& out) const = 0; ///< Dumps ycomp file to @p out.
+
+private:
+    const Scope& scope_;
 };
 
+//------------------------------------------------------------------------------
+
 }
+
 
 #endif

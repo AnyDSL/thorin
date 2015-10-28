@@ -184,9 +184,9 @@ public:
     CFG& operator= (CFG) = delete;
 
     explicit CFG(const CFA&);
+    static const CFG& create(const Scope& scope) { return scope.cfg<forward>(); }
 
     const CFA& cfa() const { return cfa_; }
-    const Scope& scope() const { return cfa().scope(); }
     size_t size() const { return cfa().size(); }
     const CFNodeSet& preds(const CFNode* n) const { return forward ? n->preds() : n->succs(); }
     const CFNodeSet& succs(const CFNode* n) const { return forward ? n->succs() : n->preds(); }
@@ -234,7 +234,6 @@ public:
         );
     }
 
-    static const CFG& get(const Scope& scope) { return scope.cfg<forward>(); }
     static size_t index(const CFNode* n) { return forward ? n->f_index_ : n->b_index_; }
     static bool is_in_node(const CFNode* n) { return n->isa<InNode>(); }
 

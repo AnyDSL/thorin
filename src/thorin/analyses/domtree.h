@@ -49,11 +49,13 @@ public:
     DomTreeBase& operator= (DomTreeBase) = delete;
 
     explicit DomTreeBase(const CFG<forward>& cfg)
-        : cfg_(cfg)
+        : YComp(cfg.scope())
+        , cfg_(cfg)
         , nodes_(cfg)
     {
         create();
     }
+    static const DomTreeBase& create(const Scope& scope) { return scope.cfg<forward>().domtree(); }
 
     const CFG<forward>& cfg() const { return cfg_; }
     size_t index(const Node* n) const { return cfg().index(n->cf_node()); }
@@ -64,13 +66,11 @@ public:
     const Node* operator [] (const CFNode* n) const { return nodes_[n]; }
 
     virtual void ycomp(std::ostream& out) const override {
-        thorin::ycomp(out, cfg().scope(), range(nodes()),
+        thorin::ycomp(out, scope(), range(nodes()),
             [] (const Node* n) { return range(n->children()); },
             YComp_Orientation::TopToBottom
         );
     }
-
-    static const DomTreeBase& get(const Scope& scope) { return scope.cfg<forward>().domtree(); }
 
 private:
     void create();

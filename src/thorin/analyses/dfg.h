@@ -45,11 +45,13 @@ public:
     DFGBase& operator=(DFGBase) = delete;
 
     explicit DFGBase(const CFG<forward> &cfg)
-        : cfg_(cfg)
+        : YComp(cfg.scope())
+        , cfg_(cfg)
         , nodes_(cfg)
     {
         create();
     }
+    static const DFGBase& create(const Scope& scope) { return scope.cfg<forward>().dfg(); }
 
     ~DFGBase();
 
@@ -59,13 +61,11 @@ public:
     ArrayRef<const Node*> nodes() const { return nodes_.array(); }
 
     virtual void ycomp(std::ostream& out) const override {
-        thorin::ycomp(out, cfg().scope(), range(nodes()),
+        thorin::ycomp(out, scope(), range(nodes()),
             [] (const Node* n) { return range(n->succs()); },
             YComp_Orientation::TopToBottom
         );
     }
-
-    static const DFGBase& get(const Scope& scope) { return scope.cfg<forward>().dfg(); }
 
 private:
     void create();

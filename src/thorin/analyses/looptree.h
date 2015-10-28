@@ -104,6 +104,7 @@ public:
     LoopTree& operator= (LoopTree) = delete;
 
     explicit LoopTree(const CFG<forward>& cfg);
+    static const LoopTree& create(const Scope& scope) { return scope.cfg<forward>().looptree(); }
 
     const CFG<forward>& cfg() const { return cfg_; }
     const Head* root() const { return root_; }
@@ -122,8 +123,6 @@ public:
             YComp_Orientation::LeftToRight
         );
     }
-
-    static const LoopTree& get(const Scope& scope) { return scope.cfg<forward>().looptree(); }
 
 private:
     static void get_nodes(std::vector<const Node *>& nodes, const Node* node) {

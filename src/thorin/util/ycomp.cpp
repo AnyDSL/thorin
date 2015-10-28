@@ -37,14 +37,25 @@ void YCompCommandLine::print(World& world) {
         } else if (graph.compare("looptree") == 0) {
             YCOMP(LoopTree);
         } else {
-            std::cerr << "No outpur for " << graph << " found!" << std::endl;
+            throw std::invalid_argument("no output for graph found");
         }
     }
 }
 
-void YComp::ycomp(const char* filename) {
+//------------------------------------------------------------------------------
+
+void YComp::ycomp(const char* filename) const {
     std::ofstream file(filename);
     ycomp(file);
 }
+
+void YComp::ycomp() const {
+    std::string name(typeid(*this).name());
+    std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+    name = world().name() + "_" + scope().entry()->unique_name() + "_" + name + ".vcg";
+    ycomp(name.c_str());
+}
+
+//------------------------------------------------------------------------------
 
 }

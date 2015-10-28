@@ -377,7 +377,8 @@ const B_CFG& CFA::b_cfg() const { return lazy_init(this, b_cfg_); }
 
 template<bool forward>
 CFG<forward>::CFG(const CFA& cfa)
-    : cfa_(cfa)
+    : YComp(cfa.scope())
+    , cfa_(cfa)
     , rpo_(*this)
 {
     size_t result = post_order_visit(entry(), size());

@@ -220,7 +220,8 @@ std::ostream& LoopTree<forward>::Head::stream(std::ostream& out) const {
 
 template<bool forward>
 LoopTree<forward>::LoopTree(const CFG<forward>& cfg)
-    : cfg_(cfg)
+    : YComp(cfg.scope())
+    , cfg_(cfg)
     , leaves_(cfg)
 {
     LoopTreeBuilder<forward>(*this);

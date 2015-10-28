@@ -1,0 +1,37 @@
+extern "C" {
+    fn thorin_info() -> ();
+
+    fn thorin_alloc(i32, i32, i64) -> &i8;
+    fn thorin_release(&i8) -> ();
+
+    fn thorin_map(&i8, i64, i64) -> &i8;
+    fn thorin_unmap(&i8) -> ();
+
+    fn thorin_copy(&i8, &i8) -> ();
+
+    fn thorin_random_val() -> f32;
+    fn thorin_random_seed(u32) -> ();
+
+    fn thorin_get_micro_time() -> i64;
+    fn thorin_get_kernel_time() -> i64;
+
+    fn thorin_print_char(u8) -> ();
+    fn thorin_print_int(i32) -> ();
+    fn thorin_print_long(i64) -> ();
+    fn thorin_print_float(f32) -> ();
+    fn thorin_print_double(f64) -> ();
+    fn thorin_print_string(&[u8]) -> ();
+}
+
+fn alloc_host(size: i32) -> &i8 { thorin_alloc(0, 0, size as i64) }
+fn alloc_cuda(dev: i32, size: i32) -> &i8 { thorin_alloc(1, dev, size as i64) }
+fn alloc_opencl(dev: i32, size: i32) -> &i8 { thorin_alloc(2, dev, size as i64) }
+fn copy(a: &i8, b:&i8) -> () { thorin_copy(a, b) }
+fn release(ptr: &i8) -> () { thorin_release(ptr) }
+
+fn print_char(c: u8) -> () { thorin_print_char(c) }
+fn print_int(i: i32) -> () { thorin_print_int(i) }
+fn print_long(l: i64) -> () { thorin_print_long(l) }
+fn print_float(f: f32) -> () { thorin_print_float(f) }
+fn print_double(d: f64) -> () { thorin_print_double(d) }
+fn print_string(s: &[u8]) -> () { thorin_print_string(s) }

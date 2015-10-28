@@ -12,7 +12,7 @@
 #include "runtime.h"
 
 #ifndef LIBDEVICE_DIR
-#define LIBDEVICE_DIR "/usr/local/cuda/nvvm/libdevice/"
+#define LIBDEVICE_DIR ""
 #endif
 #ifndef KERNEL_DIR
 #define KERNEL_DIR ""

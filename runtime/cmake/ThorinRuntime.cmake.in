@@ -1,0 +1,85 @@
+INCLUDE ( CMakeParseArguments )
+
+SET ( THORIN_RUNTIME_LIBRARIES @CONF_RUNTIME_LIBRARIES@)
+
+# Find impala
+FIND_PROGRAM ( IMPALA_BIN impala )
+IF ( NOT IMPALA_BIN )
+    MESSAGE ( FATAL_ERROR "Could not find impala binary, it has to be in the PATH" )
+ENDIF()
+
+FIND_PROGRAM ( LLVM_AS_BIN llvm-as )
+FIND_PROGRAM ( CLANG_BIN clang )
+IF ( NOT LLVM_AS_BIN )
+    MESSAGE ( FATAL_ERROR "Could not find llvm-as binary, it has to be in the PATH" )
+ENDIF()
+IF ( NOT CLANG_BIN )
+    MESSAGE ( FATAL_ERROR "Could not find clang binary, it has to be in the PATH" )
+ENDIF()
+
+# Find python for post-patcher.py
+FIND_PACKAGE ( PythonInterp REQUIRED )
+MESSAGE ( STATUS "Python found: ${PYTHON_VERSION_STRING}" )
+SET ( PYTHON_BIN ${PYTHON_EXECUTABLE} )
+
+SET ( BACKEND ${BACKEND} CACHE STRING "select the backend from the following: CPU, AVX, NVVM, CUDA, OPENCL, SPIR" )
+IF ( NOT BACKEND )
+    SET ( BACKEND cpu CACHE STRING "select the backend from the following: CPU, AVX, NVVM, CUDA, OPENCL, SPIR" FORCE )
+ENDIF()
+
+STRING ( TOLOWER "${BACKEND}" BACKEND )
+MESSAGE ( STATUS "Selected backend: ${BACKEND}" )
+
+STRING ( TOLOWER "${CMAKE_BUILD_TYPE}" DEBUG )
+IF ( "${DEBUG}" STREQUAL "debug" )
+    SET ( DEBUG_FLAGS "-g" )
+ENDIF ()
+
+MACRO ( THORIN_RUNTIME_WRAP outfiles )
+    CMAKE_PARSE_ARGUMENTS("TRW" "" "BACKEND" "FILES" ${ARGN})
+    IF ( NOT "${TRW_UNPARSED_ARGUMENTS}" STREQUAL "" )
+        MESSAGE ( FATAL_ERROR "Unparsed arguments ${TRW_UNPARSED_ARGUMENTS}" )
+    ENDIF ()
+
+    # Get last filename, and absolute filenames
+    SET ( _infiles )
+    FOREACH ( _it ${TRW_FILES} )
+        GET_FILENAME_COMPONENT ( _infile ${_it} ABSOLUTE )
+        SET ( _infiles ${_infiles} ${_infile} )
+        SET ( _lastfile ${_it} )
+    ENDFOREACH ()
+
+    # Add all input files as one impala job
+    GET_FILENAME_COMPONENT ( _basename ${_lastfile} NAME_WE )
+    SET ( _llfile ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.ll )
+    SET ( _objfile ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.o )
+
+    SET ( _impala_platform ${_impala_platform}
+        ${THORIN_RUNTIME_DIR}/runtime.impala
+        ${THORIN_RUNTIME_DIR}/platforms/intrinsics_thorin.impala
+        ${THORIN_RUNTIME_DIR}/platforms/intrinsics_${TRW_BACKEND}.impala )
+
+    # Generate .ll file and patch it
+    ADD_CUSTOM_COMMAND ( OUTPUT ${_llfile}
+        COMMAND ${IMPALA_BIN} ${_impala_platform} ${_infiles} -emit-llvm -O3 ${DEBUG_FLAGS}
+        COMMAND ${PYTHON_BIN} ${THORIN_RUNTIME_DIR}/post-patcher.py ${TRW_BACKEND} ${CMAKE_CURRENT_BINARY_DIR}/${_basename}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        DEPENDS ${IMPALA_BIN} ${THORIN_LIBRARY} ${PYTHON_BIN} ${THORIN_RUNTIME_DIR}/post-patcher.py ${_impala_platform} ${_infiles} VERBATIM )
+    
+    # Generate .bc files for SPIR
+    IF("${TRW_BACKEND}" STREQUAL "spir")
+        SET ( _spirfile ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.spir )
+        SET ( _bcfile ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.spir.bc )
+        ADD_CUSTOM_COMMAND ( OUTPUT ${_bcfile}
+            COMMAND ${LLVM_AS_BIN} ${_spirfile}
+            DEPENDS ${_spirfile} VERBATIM )
+    ENDIF()
+
+    # Run clang on the patched .ll file to get the .o
+    ADD_CUSTOM_COMMAND ( OUTPUT ${_objfile}
+        COMMAND ${CLANG_BIN} -O3 -march=native -ffast-math ${DEBUG_FLAGS} -c -o ${_objfile} ${_llfile}
+        DEPENDS ${_llfile} VERBATIM )
+
+    SET_SOURCE_FILES_PROPERTIES ( ${_objfile} PROPERTIES EXTERNAL_OBJECT true GENERATED true )
+    SET ( ${outfiles} ${${outfiles}} ${_objfile} ${_bcfile} )
+ENDMACRO ()

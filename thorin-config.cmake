@@ -4,7 +4,7 @@
 # THORIN_INCLUDE_DIRS
 # THORIN_LIBRARIES (including dependencies to LLVM/WFV2)
 # THORIN_RUNTIME_DIR
-# THORIN_RUNTIME_INCLUDE_DIR
+# THORIN_CMAKE_DIR
 # THORIN_FOUND
 
 SET ( PROJ_NAME THORIN )
@@ -28,23 +28,25 @@ FIND_PATH ( THORIN_LIBS_DIR
     PATH_SUFFIXES
         ${CMAKE_CONFIGURATION_TYPES}
 )
+FIND_PATH ( THORIN_CMAKE_DIR
+    NAMES
+        ThorinRuntime.cmake
+    PATHS
+        ${THORIN_ROOT_DIR}/build_debug/cmake
+        ${THORIN_ROOT_DIR}/build_release/cmake
+        ${THORIN_ROOT_DIR}/build/cmake
+)
 FIND_PATH ( THORIN_RUNTIME_DIR
     NAMES
-        cmake/ThorinRuntime.cmake platforms/intrinsics_thorin.impala
+        cmake/ThorinRuntime.cmake.in platforms/intrinsics_thorin.impala
     PATHS
         ${THORIN_ROOT_DIR}/runtime
 )
-FIND_PATH ( THORIN_RUNTIME_INCLUDE_DIR
-    NAMES
-        thorin_runtime.h
-    PATHS
-        ${THORIN_ROOT_DIR}/runtime/common
-)
 
-# include AnyDSL specific stuff
+# Include AnyDSL specific stuff
 INCLUDE ( ${CMAKE_CURRENT_LIST_DIR}/thorin-shared.cmake )
 FIND_LIBRARY ( THORIN_LIBRARY NAMES ${THORIN_OUTPUT_LIBS} PATHS ${THORIN_LIBS_DIR} )
-get_thorin_dependency_libs ( THORIN_TEMP_LIBS )
+GET_THORIN_DEPENDENCY_LIBS ( THORIN_TEMP_LIBS )
 
 SET ( THORIN_LIBRARIES ${THORIN_LIBRARY} ${THORIN_TEMP_LIBS} )
 SET ( THORIN_INCLUDE_DIRS ${THORIN_INCLUDE_DIR} )

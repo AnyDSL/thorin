@@ -284,3 +284,11 @@ void thorin_sync_thread(int32_t id) {
     }
 }
 #endif
+
+#ifdef PROVIDE_MAIN
+extern "C" int main_impala(void);
+
+int main(int argc, const char** argv) {
+    return main_impala();
+}
+#endif

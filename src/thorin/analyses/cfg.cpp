@@ -143,26 +143,27 @@ void CFABuilder::propagate_higher_order_values() {
     };
 
     for (auto lambda : scope()) {
-        for (auto op : lambda->ops())
+        for (auto op : lambda->ops()) {
             push(op);
-    }
 
-    while (!stack.empty()) {
-        auto def = stack.top();
-        auto& set = def2set_[def];
+            while (!stack.empty()) {
+                auto def = stack.top();
+                auto& set = def2set_[def];
 
-        if (def->isa<Param>() || def->isa<Lambda>()) {
-            assert(def->order() > 0);
-            set.insert(def);
-            stack.pop();
-        } else {
-            bool todo = false;
-            for (auto op : def->as<PrimOp>()->ops())
-                todo |= push(op);
-            if (!todo) {
-                for (auto op : def->as<PrimOp>()->ops())
-                    set.insert_range(def2set_[op]);
-                stack.pop();
+                if (def->isa<Param>() || def->isa<Lambda>()) {
+                    assert(def->order() > 0);
+                    set.insert(def);
+                    stack.pop();
+                } else {
+                    bool todo = false;
+                    for (auto op : def->as<PrimOp>()->ops())
+                        todo |= push(op);
+                    if (!todo) {
+                        for (auto op : def->as<PrimOp>()->ops())
+                            set.insert_range(def2set_[op]);
+                        stack.pop();
+                    }
+                }
             }
         }
     }

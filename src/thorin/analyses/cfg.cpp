@@ -32,15 +32,7 @@ void CFNode::link(const CFNode* other) const {
     other->f_index_ = CFNode::Reachable;
 
     this->succs_.insert(other);
-    auto p = other->preds_.insert(this);
-
-    // recursively link ancestors
-    if (p.second) {
-        if (auto out = other->isa<OutNode>()) {
-            for (auto ancestor : out->ancestors())
-                out->link(ancestor);
-        }
-    }
+    other->preds_.insert(this);
 }
 
 std::ostream& InNode::stream(std::ostream& out) const {
@@ -67,6 +59,7 @@ public:
         ILOG_SCOPE(build_cfg());
         ILOG_SCOPE(unreachable_node_elimination());
         ILOG_SCOPE(link_to_exit());
+        ILOG_SCOPE(transetive_cfg());
 #ifndef NDEBUG
         ILOG_SCOPE(verify());
 #endif
@@ -77,6 +70,7 @@ public:
     void build_cfg();
     void unreachable_node_elimination();
     void link_to_exit();
+    void transetive_cfg();
     void verify();
 
     const CFA& cfa() const { return cfa_; }
@@ -286,15 +280,15 @@ void CFABuilder::build_cfg() {
         for (auto n : to_cf_nodes(cur_in)) {
             if (auto in = n->isa<InNode>()) {
                 enqueue(in);
-                cur_in->link(in);
+                link(cur_in, in);
             } else {
                 auto out = n->as<OutNode>();
-                cur_in->link(out);
+                link(cur_in, out);
                 for (const auto& nodes : args_cf_nodes(cur_in)) {
                     for (auto n : nodes) {
                         if (auto in = n->isa<InNode>()) {
                             enqueue(in);
-                            out->link(n);
+                            link(out, n);
                         }
                     }
                 }
@@ -348,7 +342,7 @@ void CFABuilder::verify() {
 void CFABuilder::link_to_exit() {
     auto link_dead_end_to_exit = [&] (const CFNode* n) {
         if (n->succs().empty() && n != exit())
-            n->link(exit());
+            link(n, exit());
     };
 
     for (auto in : cfa().in_nodes()) {
@@ -357,11 +351,19 @@ void CFABuilder::link_to_exit() {
             auto out = p.second;
             link_dead_end_to_exit(out);
             if (out->ancestors().empty() && out->def()->isa<Param>())
-                out->link(exit());
+                link(out, exit());
         }
     }
 
     // TODO deal with endless loops
+}
+
+void CFABuilder::transetive_cfg() {
+    for (auto p : edges_) {
+        auto src = p.first;
+        for (auto dst : p.second)
+            src->link(dst);
+    }
 }
 
 void CFA::error_dump() const {

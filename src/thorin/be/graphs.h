@@ -71,12 +71,12 @@ private:
         auto id = scope.id();
 
         auto print_node = [&] (decltype(*range.begin()) node) {
-            auto nodeStrings = unique(node);
-            newline() << "node: { title: \"" << nodeStrings.first << "_" << id << "\" label: \"" << nodeStrings.second << "\" }";
+            auto str = unique(node);
+            newline() << "node: { title: \"" << str << "_" << id << "\" label: \"" << str << "\" }";
 
-            for(auto child : succs(node)) {
-                newline() << "edge: { sourcename: \"" << nodeStrings.first << "_" << id
-                          << "\" targetname: \"" << unique(child).first << "_" << id << "\" class: " << 16 << " }";
+            for (auto succ : succs(node)) {
+                newline() << "edge: { sourcename: \"" << str << "_" << id
+                          << "\" targetname: \"" << unique(succ) << "_" << id << "\" class: " << 16 << " }";
             }
         };
 

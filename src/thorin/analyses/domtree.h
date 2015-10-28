@@ -61,16 +61,7 @@ public:
         auto& domtree = scope.cfg<forward>().domtree();
         emit_ycomp(ostream, scope, range(domtree.nodes()),
             [] (const Node* n) { return range(n->children()); },
-            [] (const Node* n) {
-                auto id = std::to_string(n->cf_node()->def()->gid()) + "_" + std::to_string(n->cf_node()->in_node()->def()->gid());
-                std::string label;
-                if(auto out = n->cf_node()->template isa<thorin::OutNode>()) {
-                    label += "(" + out->context()->def()->unique_name() + ") ";
-                }
-
-                label += n->cf_node()->def()->unique_name();
-                return std::make_pair(id, label);
-            },
+            [] (const Node* n) { return n->cf_node()->to_string(); },
             YComp_Orientation::TopToBottom
         );
     }

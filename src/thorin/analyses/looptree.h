@@ -136,14 +136,14 @@ public:
             },
             [] (const Node* n) {
                 if (auto head = n->template isa<Head>()) {
-                    std::stringstream str;
+                    std::ostringstream oss;
                     for (auto cf_node : n->cf_nodes())
-                        str << cf_node->def()->unique_name() << "_";
-                    return std::make_pair(str.str(), str.str());
+                        oss << cf_node->def()->unique_name() << "_";
+                    return oss.str();
                 } else if (auto leaf = n->template isa<Leaf>()) {
-                    std::stringstream str;
-                    str << "<" << leaf->cf_node()->def()->unique_name() << "> + dfs: " << leaf->index();
-                    return std::make_pair(str.str(), str.str());
+                    std::ostringstream oss;
+                    oss << "<" << leaf->cf_node()->def()->unique_name() << "> + dfs: " << leaf->index();
+                    return oss.str();
                 }
 
                 THORIN_UNREACHABLE;

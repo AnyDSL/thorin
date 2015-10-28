@@ -72,7 +72,7 @@ public:
                     stream << "(" << out_node->context()->def()->unique_name() << ") ";
 
                 stream << n->cf_node_->def()->unique_name();
-                return std::make_pair(stream.str(), stream.str());
+                return stream.str();
             },
             YComp_Orientation::TopToBottom
         );

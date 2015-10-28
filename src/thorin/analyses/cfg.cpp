@@ -1,4 +1,3 @@
-#if 0
 #include "thorin/analyses/cfg.h"
 
 #include <fstream>
@@ -15,10 +14,40 @@
 
 namespace thorin {
 
+struct CFNodeHash {
+    uint64_t operator() (const CFNodeBase* n) const;
+};
+
+typedef thorin::HashSet<const CFNodeBase*, CFNodeHash> CFNodeSet;
+
 //------------------------------------------------------------------------------
 
-uint64_t CFNodeHash::operator() (const CFNode* n) const {
-    if (auto in = n->isa<InNode>())
+
+/// Any jumps targeting a @p Lambda or @p Param outside the @p CFA's underlying @p Scope target this node.
+class OutNode : public CFNodeBase {
+public:
+    OutNode(const CFNode* context, Def def)
+        : CFNodeBase(def)
+        , context_(context)
+    {
+        assert(def->isa<Param>() || def->isa<Lambda>());
+    }
+
+    const CFNode* context() const { return context_; }
+    const CFNodeSet& ancestors() const { return ancestors_; }
+    virtual std::ostream& stream(std::ostream&) const override;
+
+private:
+    const CFNode* context_;
+    mutable CFNodeSet ancestors_;
+
+    friend class CFABuilder;
+};
+
+//------------------------------------------------------------------------------
+
+uint64_t CFNodeHash::operator() (const CFNodeBase* n) const {
+    if (auto in = n->isa<CFNode>())
         return hash_value(in->lambda()->gid());
     auto out = n->as<OutNode>();
     return hash_combine(hash_value(out->def()->gid()), out->context()->lambda()->gid());
@@ -27,16 +56,11 @@ uint64_t CFNodeHash::operator() (const CFNode* n) const {
 //------------------------------------------------------------------------------
 
 void CFNode::link(const CFNode* other) const {
-    DLOG("% -> %", this, other);
-
-    assert(this->f_index_ == CFNode::Reachable);
-    other->f_index_ = CFNode::Reachable;
-
-    this->succs_.insert(other);
-    other->preds_.insert(this);
+    this ->succs_.push_back(other);
+    other->preds_.push_back(this);
 }
 
-std::ostream& InNode::stream(std::ostream& out) const {
+std::ostream& CFNode::stream(std::ostream& out) const {
     return streamf(out, "<In: %>", lambda()->unique_name());
 }
 
@@ -45,30 +69,6 @@ std::ostream& OutNode::stream(std::ostream& out) const {
 }
 
 //------------------------------------------------------------------------------
-
-/// Any jumps targeting a @p Lambda or @p Param outside the @p CFA's underlying @p Scope target this node.
-class OutNode : public CFNode {
-public:
-    OutNode(const InNode* context, Def def)
-        : CFNode(def)
-        , context_(context)
-    {
-        assert(def->isa<Param>() || def->isa<Lambda>());
-    }
-
-    virtual ~OutNode() {}
-
-    const InNode* context() const { return context_; }
-    const CFNodeSet& ancestors() const { return ancestors_; }
-    virtual const InNode* in_node() const override { return context_; }
-    virtual std::ostream& stream(std::ostream&) const override;
-
-private:
-    const InNode* context_;
-    mutable CFNodeSet ancestors_;
-
-    friend class CFABuilder;
-};
 
 class CFABuilder {
 public:
@@ -100,40 +100,40 @@ public:
 
     const CFA& cfa() const { return cfa_; }
     const Scope& scope() const { return cfa_.scope(); }
-    const InNode* entry() const { return entry_; }
-    const InNode* exit() const { return exit_; }
+    const CFNode* entry() const { return entry_; }
+    const CFNode* exit() const { return exit_; }
 
-    CFNodeSet cf_nodes(const InNode*, size_t i);
-    CFNodeSet to_cf_nodes(const InNode* in) { return in->lambda()->empty() ? CFNodeSet() : cf_nodes(in, 0); }
-    Array<CFNodeSet> args_cf_nodes(const InNode*);
+    CFNodeSet cf_nodes(const CFNode*, size_t i);
+    CFNodeSet to_cf_nodes(const CFNode* in) { return in->lambda()->empty() ? CFNodeSet() : cf_nodes(in, 0); }
+    Array<CFNodeSet> args_cf_nodes(const CFNode*);
 
-    const InNode* in_node(Lambda* lambda) {
+    const CFNode* in_node(Lambda* lambda) {
         assert(scope().outer_contains(lambda));
-        if (auto in = find(cfa().in_nodes(), lambda))
+        if (auto in = find(cfa().nodes(), lambda))
             return in;
-        auto in = cfa_.in_nodes_[lambda] = new InNode(lambda);
+        auto in = cfa_.nodes_[lambda] = new CFNode(lambda);
         lambda2param2nodes_[lambda].resize(lambda->num_params()); // make room for params
         return in;
     }
 
-    const OutNode* out_node(const InNode* in, Def def) {
+    const OutNode* out_node(const CFNode* in, Def def) {
         if (auto out = find(out_nodes_[in], def))
             return out;
         return out_nodes_[in][def] = new OutNode(in, def);
     }
 
-    const OutNode* out_node(const OutNode* ancestor, const InNode* in) {
+    const OutNode* out_node(const OutNode* ancestor, const CFNode* in) {
         auto out = out_node(in, ancestor->def());
         out->ancestors_.insert(ancestor);
         return out;
     }
 
     CFNodeSet& param2nodes(const Param* param) {
-        in_node(param->lambda()); // alloc InNode and make room in lambda2param2nodes_
+        in_node(param->lambda()); // alloc CFNode and make room in lambda2param2nodes_
         return lambda2param2nodes_[param->lambda()][param->index()];
     }
 
-    void link(const CFNode* src, const CFNode* dst) {
+    void link(const CFNodeBase* src, const CFNodeBase* dst) {
         DLOG("% -> %", src, dst);
 
         assert(src->f_index_ == CFNode::Reachable);
@@ -154,12 +154,12 @@ private:
     CFA& cfa_;
     Scope::Map<std::vector<CFNodeSet>> lambda2param2nodes_; ///< Maps param in scope to CFNodeSet.
     DefMap<DefSet> def2set_;
-    HashMap<const CFNode*, CFNodeSet, CFNodeHash> edges_;
-    const InNode* entry_;
-    const InNode* exit_;
+    HashMap<const CFNodeBase*, CFNodeSet, CFNodeHash> edges_;
+    const CFNode* entry_;
+    const CFNode* exit_;
     size_t num_in_nodes_ = 0;
     size_t num_out_nodes_ = 0;
-    mutable HashMap<const InNode*, DefMap<const OutNode*>> out_nodes_;
+    mutable HashMap<const CFNode*, DefMap<const OutNode*>> out_nodes_;
 };
 
 void CFABuilder::propagate_higher_order_values() {
@@ -204,7 +204,7 @@ void CFABuilder::propagate_higher_order_values() {
     }
 }
 
-CFNodeSet CFABuilder::cf_nodes(const InNode* in, size_t i) {
+CFNodeSet CFABuilder::cf_nodes(const CFNode* in, size_t i) {
     CFNodeSet result;
     auto cur_lambda = in->lambda();
 
@@ -224,7 +224,7 @@ CFNodeSet CFABuilder::cf_nodes(const InNode* in, size_t i) {
                     if (auto out = n->isa<OutNode>())
                         result.insert(out_node(out, in)); // create a new context if applicable
                     else
-                        result.insert(n->as<InNode>());
+                        result.insert(n->as<CFNode>());
                 }
             } else
                 result.insert(out_node(in, param));
@@ -234,7 +234,7 @@ CFNodeSet CFABuilder::cf_nodes(const InNode* in, size_t i) {
     return result;
 }
 
-Array<CFNodeSet> CFABuilder::args_cf_nodes(const InNode* in) {
+Array<CFNodeSet> CFABuilder::args_cf_nodes(const CFNode* in) {
     Array<CFNodeSet> result(in->lambda()->num_args());
     for (size_t i = 0; i != result.size(); ++i)
         result[i] = cf_nodes(in, i+1); // shift by one due to args/ops discrepancy
@@ -244,7 +244,7 @@ Array<CFNodeSet> CFABuilder::args_cf_nodes(const InNode* in) {
 void CFABuilder::run_cfa() {
     std::queue<Lambda*> queue;
 
-    auto enqueue = [&] (const InNode* in) {
+    auto enqueue = [&] (const CFNode* in) {
         DLOG("enqueuing %", in->lambda()->unique_name());
         queue.push(in->lambda());
         in->f_index_ = CFNode::Unfresh;
@@ -258,7 +258,7 @@ void CFABuilder::run_cfa() {
         auto args = args_cf_nodes(cur_in);
 
         for (auto n : to_cf_nodes(cur_in)) {
-            if (auto in = n->isa<InNode>()) {
+            if (auto in = n->isa<CFNode>()) {
                 bool todo = in->f_index_ == CFNode::Fresh;
                 for (size_t i = 0; i != cur_lambda->num_args(); ++i) {
                     if (in->lambda()->param(i)->order() > 0)
@@ -273,7 +273,7 @@ void CFABuilder::run_cfa() {
 
                 for (const auto& nodes : args) {
                     for (auto n : nodes) {
-                        if (auto in = n->isa<InNode>()) {
+                        if (auto in = n->isa<CFNode>()) {
                             bool todo = in->f_index_ == CFNode::Fresh;
                             for (size_t i = 0; i != in->lambda()->num_params(); ++i) {
                                 if (in->lambda()->param(i)->order() > 0)
@@ -290,9 +290,9 @@ void CFABuilder::run_cfa() {
 }
 
 void CFABuilder::build_cfg() {
-    std::queue<const InNode*> queue;
+    std::queue<const CFNode*> queue;
 
-    auto enqueue = [&] (const InNode* in) {
+    auto enqueue = [&] (const CFNode* in) {
         if (in->f_index_ != CFNode::Reachable) {
             queue.push(in);
             DLOG("enqueuing %", in);
@@ -305,7 +305,7 @@ void CFABuilder::build_cfg() {
     while (!queue.empty()) {
         auto cur_in = pop(queue);
         for (auto n : to_cf_nodes(cur_in)) {
-            if (auto in = n->isa<InNode>()) {
+            if (auto in = n->isa<CFNode>()) {
                 enqueue(in);
                 link(cur_in, in);
             } else {
@@ -313,7 +313,7 @@ void CFABuilder::build_cfg() {
                 link(cur_in, out);
                 for (const auto& nodes : args_cf_nodes(cur_in)) {
                     for (auto n : nodes) {
-                        if (auto in = n->isa<InNode>()) {
+                        if (auto in = n->isa<CFNode>()) {
                             enqueue(in);
                             link(out, n);
                         }
@@ -325,16 +325,16 @@ void CFABuilder::build_cfg() {
 }
 
 void CFABuilder::unreachable_node_elimination() {
-    for (auto in : cfa().in_nodes()) {
+    for (auto in : cfa().nodes()) {
         if (in->f_index_ == CFNode::Reachable) {
-            ++cfa_.num_in_nodes_;
+            ++num_in_nodes_;
 
             auto& out_nodes = out_nodes_[in];
             for (auto i = out_nodes.begin(); i != out_nodes.end();) {
                 auto out = i->second;
                 if (out->f_index_ == CFNode::Reachable) {
                     ++i;
-                    ++cfa_.num_out_nodes_;
+                    ++num_out_nodes_;
                 } else {
                     DLOG("removing: %", out);
                     i = out_nodes.erase(i);
@@ -347,7 +347,7 @@ void CFABuilder::unreachable_node_elimination() {
                 assert(p.second->f_index_ != CFNode::Reachable);
 #endif
             DLOG("removing: %", in);
-            cfa_.in_nodes_[in->lambda()] = nullptr;
+            cfa_.nodes_[in->lambda()] = nullptr;
             delete in;
         }
     }
@@ -355,7 +355,7 @@ void CFABuilder::unreachable_node_elimination() {
 
 void CFABuilder::verify() {
     bool error = false;
-    for (auto in : cfa().in_nodes()) {
+    for (auto in : cfa().nodes()) {
         if (in != entry() && in->preds_.size() == 0) {
             WLOG("missing predecessors: %", in->lambda()->unique_name());
             error = true;
@@ -367,12 +367,12 @@ void CFABuilder::verify() {
 }
 
 void CFABuilder::link_to_exit() {
-    auto link_dead_end_to_exit = [&] (const CFNode* n) {
-        if (n->succs().empty() && n != exit())
+    auto link_dead_end_to_exit = [&] (const CFNodeBase* n) {
+        if (edges_[n].empty() && n != exit())
             link(n, exit());
     };
 
-    for (auto in : cfa().in_nodes()) {
+    for (auto in : cfa().nodes()) {
         link_dead_end_to_exit(in);
         for (auto p : out_nodes_[in]) {
             auto out = p.second;
@@ -386,11 +386,13 @@ void CFABuilder::link_to_exit() {
 }
 
 void CFABuilder::transetive_cfg() {
+#if 0
     for (auto p : edges_) {
         auto src = p.first;
         for (auto dst : p.second)
             src->link(dst);
     }
+#endif
 }
 
 void CFA::error_dump() const {
@@ -404,13 +406,13 @@ void CFA::error_dump() const {
 
 CFA::CFA(const Scope& scope)
     : scope_(scope)
-    , in_nodes_(scope)
+    , nodes_(scope)
 {
     CFABuilder cfa(*this);
 }
 
 CFA::~CFA() {
-    for (auto n : in_nodes_.array()) delete n;
+    for (auto n : nodes_.array()) delete n;
 }
 
 const F_CFG& CFA::f_cfg() const { return lazy_init(this, f_cfg_); }
@@ -447,8 +449,9 @@ size_t CFG<forward>::post_order_visit(const CFNode* n, size_t i) {
     return n_index;
 }
 
+#if 0
 template<bool forward>
-void CFG<forward>::in_next(const InNode* in, YieldIn f, const CFNodeSet&(CFG<forward>::* next)(const CFNode*) const) const {
+void CFG<forward>::in_next(const CFNode* in, YieldIn f, const CFNodeSet&(CFG<forward>::* next)(const CFNode*) const) const {
     std::queue<const CFNode*> queue;
 
     auto enqueue = [&] (const CFNode* n) {
@@ -461,12 +464,13 @@ void CFG<forward>::in_next(const InNode* in, YieldIn f, const CFNodeSet&(CFG<for
 
     while (!queue.empty()) {
         auto n = pop(queue);
-        if (auto in = n->isa<InNode>())
+        if (auto in = n->isa<CFNode>())
             f(in);
         else
             enqueue(n);
     }
 }
+#endif
 
 template<bool forward> const DomTreeBase<forward>& CFG<forward>::domtree() const { return lazy_init(this, domtree_); }
 template<bool forward> const LoopTree<forward>& CFG<forward>::looptree() const { return lazy_init(this, looptree_); }
@@ -478,4 +482,3 @@ template class CFG<false>;
 //------------------------------------------------------------------------------
 
 }
-#endif

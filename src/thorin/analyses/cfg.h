@@ -20,14 +20,7 @@ template<bool> class LoopTree;
 template<bool> class DomTreeBase;
 template<bool> class DFGBase;
 class CFNode;
-
-struct CFNodeHash {
-    uint64_t operator() (const CFNode* n) const;
-};
-
-typedef thorin::HashSet<const CFNode*, CFNodeHash> CFNodeSet;
-
-//------------------------------------------------------------------------------
+typedef std::vector<const CFNode*> CFNodes;
 
 /**
  * @brief A Control-Flow Node.
@@ -43,15 +36,17 @@ protected:
 public:
     Def def() const { return def_; }
 
-private:
+protected:
     static const size_t Fresh     = size_t(-1);
     static const size_t Unfresh   = size_t(-2);
     static const size_t Reachable = size_t(-3);
     static const size_t Visited   = size_t(-4);
 
-    Def def_;
     mutable size_t f_index_ = Fresh;     ///< RPO index in a forward @p CFG.
     mutable size_t b_index_ = Reachable; ///< RPO index in a backwards @p CFG.
+
+private:
+    Def def_;
 
     friend class CFABuilder;
     template<bool> friend class CFG;
@@ -68,12 +63,12 @@ public:
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
-    const CFNodeSet& preds() const { return preds_; }
-    const CFNodeSet& succs() const { return succs_; }
+    const CFNodes& preds() const { return preds_; }
+    const CFNodes& succs() const { return succs_; }
     void link(const CFNode* other) const;
 
-    mutable CFNodeSet preds_;
-    mutable CFNodeSet succs_;
+    mutable CFNodes preds_;
+    mutable CFNodes succs_;
 
     friend class CFA;
     friend class CFABuilder;
@@ -104,8 +99,8 @@ public:
     const CFNode* operator [] (Lambda* lambda) const { return find(nodes_, lambda); }
 
 private:
-    const CFNodeSet& preds(Lambda* lambda) const { return nodes_[lambda]->preds(); }
-    const CFNodeSet& succs(Lambda* lambda) const { return nodes_[lambda]->succs(); }
+    const CFNodes& preds(Lambda* lambda) const { return nodes_[lambda]->preds(); }
+    const CFNodes& succs(Lambda* lambda) const { return nodes_[lambda]->succs(); }
     const CFNode* entry() const { return nodes_.array().front(); }
     const CFNode* exit() const { return nodes_.array().back(); }
     void error_dump() const;
@@ -147,10 +142,10 @@ public:
 
     const CFA& cfa() const { return cfa_; }
     size_t size() const { return cfa().size(); }
-    const CFNodeSet& preds(Lambda* lambda) const { return preds(cfa()[lambda]); }
-    const CFNodeSet& succs(Lambda* lambda) const { return succs(cfa()[lambda]); }
-    const CFNodeSet& preds(const CFNode* n) const { return forward ? n->preds() : n->succs(); }
-    const CFNodeSet& succs(const CFNode* n) const { return forward ? n->succs() : n->preds(); }
+    const CFNodes& preds(Lambda* lambda) const { return preds(cfa()[lambda]); }
+    const CFNodes& succs(Lambda* lambda) const { return succs(cfa()[lambda]); }
+    const CFNodes& preds(const CFNode* n) const { return forward ? n->preds() : n->succs(); }
+    const CFNodes& succs(const CFNode* n) const { return forward ? n->succs() : n->preds(); }
     size_t num_preds(const CFNode* n) const { return preds(n).size(); }
     size_t num_succs(const CFNode* n) const { return succs(n).size(); }
     const CFNode* entry() const { return forward ? cfa().entry() : cfa().exit();  }

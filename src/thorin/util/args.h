@@ -257,7 +257,7 @@ struct Option<void, void> : public BasicOption<void> {
         return Option<NData, Option<void, void>>(*this, param, domain, help, &target, init);
     }
 
-    bool is_param(const char* value) const { return true; }
+    bool is_param(const char*) const { return true; }
     void print_help() {}
 };
 
@@ -277,7 +277,7 @@ struct ImplicitOption : BasicOption<std::vector<std::string>> {
         return it;
     }
 
-    bool is_param(const char* value) const { return true; }
+    bool is_param(const char*) const { return true; }
     void print_help() { std::cout << "implicit arguments: " << help() << std::endl; }
 };
 

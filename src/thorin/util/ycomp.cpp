@@ -22,30 +22,39 @@ void YCompCommandLine::print(World& world) {
         const bool temp = temps[i];
         std::ofstream file(files[i]);
 
-        if(graph.compare("domtree") == 0) {
-            DomTree::emit_world(world, file);
-        } else if(graph.compare("cfg") == 0) {
-            if(temp) {
-                CFG<true>::emit_world(world, file);
+        if (graph.compare("domtree") == 0) {
+            if (temp) {
+                ycomp_world<DomTreeBase<true>>(world, file);
             } else {
-                CFG<false>::emit_world(world, file);
+                ycomp_world<DomTreeBase<false>>(world, file);
             }
-        } else if(graph.compare("dfg") == 0) {
-            if(temp) {
-                DFGBase<true>::emit_world(world, file);
+        } else if (graph.compare("cfg") == 0) {
+            if (temp) {
+                ycomp_world<CFG<true>>(world, file);
             } else {
-                DFGBase<false>::emit_world(world, file);
+                ycomp_world<CFG<false>>(world, file);
             }
-        } else if(graph.compare("looptree") == 0) {
-            if(temp) {
-                LoopTree<true>::emit_world(world, file);
+        } else if (graph.compare("dfg") == 0) {
+            if (temp) {
+                ycomp_world<DFGBase<true>>(world, file);
             } else {
-                LoopTree<false>::emit_world(world, file);
+                ycomp_world<DFGBase<false>>(world, file);
+            }
+        } else if (graph.compare("looptree") == 0) {
+            if (temp) {
+                ycomp_world<LoopTree<true>>(world, file);
+            } else {
+                ycomp_world<LoopTree<false>>(world, file);
             }
         } else {
             std::cerr << "No outpur for " << graph << " found!" << std::endl;
         }
     }
+}
+
+void YComp::ycomp(const char* filename) {
+    std::ofstream file(filename);
+    ycomp(file);
 }
 
 }

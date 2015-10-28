@@ -111,6 +111,17 @@ void emit_ycomp(std::ostream& out, World& world, void (G::* ycomp)(std::ostream&
     out << '}' << std::endl;
 }
 
+template<class G>
+void ycomp_world(World& world, std::ostream& out) { emit_ycomp(out, world, &G::ycomp); }
+
+class YComp {
+public:
+    virtual ~YComp() {}
+
+    virtual void ycomp(std::ostream&) const = 0;
+    void ycomp(const char* filename);
+};
+
 }
 
 #endif

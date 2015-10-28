@@ -20,7 +20,7 @@ template<bool> class CFG;
  * This template parameter is associated with @p CFG's @c forward parameter.
  */
 template<bool forward>
-class DomTreeBase {
+class DomTreeBase : public YComp {
 public:
     class Node : public Streamable {
     private:
@@ -55,19 +55,6 @@ public:
         create();
     }
 
-    static const DomTreeBase& get(const Scope& scope) { return scope.cfg<forward>().domtree(); }
-
-    void ycomp(std::ostream& ostream = std::cout) const {
-        emit_ycomp(ostream, cfg().scope(), range(nodes()),
-            [] (const Node* n) { return range(n->children()); },
-            YComp_Orientation::TopToBottom
-        );
-    }
-
-    static void emit_world(World& world, std::ostream& ostream = std::cout) {
-        emit_ycomp(ostream, world, &DomTreeBase<forward>::ycomp);
-    }
-
     const CFG<forward>& cfg() const { return cfg_; }
     size_t index(const Node* n) const { return cfg().index(n->cf_node()); }
     ArrayRef<const Node*> nodes() const { return nodes_.array(); }
@@ -75,6 +62,15 @@ public:
     /// Returns the least common ancestor of @p i and @p j.
     const Node* lca(const Node* i, const Node* j) const;
     const Node* operator [] (const CFNode* n) const { return nodes_[n]; }
+
+    virtual void ycomp(std::ostream& out) const override {
+        emit_ycomp(out, cfg().scope(), range(nodes()),
+            [] (const Node* n) { return range(n->children()); },
+            YComp_Orientation::TopToBottom
+        );
+    }
+
+    static const DomTreeBase& get(const Scope& scope) { return scope.cfg<forward>().domtree(); }
 
 private:
     void create();

@@ -174,7 +174,7 @@ namespace detail {
  * @see DomTreeBase
  */
 template<bool forward>
-class CFG {
+class CFG : public YComp {
 public:
     template<class Value>
     using Map = IndexMap<CFG<forward>, const CFNode*, Value>;
@@ -227,21 +227,16 @@ public:
     const LoopTree<forward>& looptree() const;
     const DFGBase<forward>& dfg() const;
 
-    static size_t index(const CFNode* n) { return forward ? n->f_index_ : n->b_index_; }
-    static bool is_in_node(const CFNode* n) { return n->isa<InNode>(); }
-
-    static const CFG& get(const Scope& scope) { return scope.cfg<forward>(); }
-
-    void ycomp(std::ostream& ostream = std::cout) const {
-        emit_ycomp(ostream, scope(), range(rpo()),
+    virtual void ycomp(std::ostream& out) const override {
+        emit_ycomp(out, scope(), range(rpo()),
             [] (const CFNode* n) { return range(n->succs()); },
             YComp_Orientation::TopToBottom
         );
     }
 
-    static void emit_world(World& world, std::ostream& out = std::cout) {
-        emit_ycomp(out, world, &CFG<forward>::ycomp);
-    }
+    static const CFG& get(const Scope& scope) { return scope.cfg<forward>(); }
+    static size_t index(const CFNode* n) { return forward ? n->f_index_ : n->b_index_; }
+    static bool is_in_node(const CFNode* n) { return n->isa<InNode>(); }
 
 private:
     size_t post_order_visit(const CFNode* n, size_t i);

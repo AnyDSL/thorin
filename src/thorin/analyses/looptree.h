@@ -21,7 +21,7 @@ template<bool> class LoopTreeBuilder;
  * Check out G. Ramalingam, "On Loops, Dominators, and Dominance Frontiers", 1999, for more information.
  */
 template<bool forward>
-class LoopTree {
+class LoopTree : public YComp {
 public:
     class Head;
 
@@ -108,22 +108,12 @@ public:
     const CFG<forward>& cfg() const { return cfg_; }
     const Head* root() const { return root_; }
     const Leaf* operator [] (const CFNode* n) const { return find(leaves_, n); }
-    void dump() const { root()->dump(); }
 
-    static const LoopTree& get(const Scope& scope) { return scope.cfg<forward>().looptree(); }
-    static void get_nodes(std::vector<const Node *>& nodes, const Node* node) {
-        nodes.push_back(node);
-        if (auto head = node->template isa<Head>()) {
-            for (auto child : head->children())
-                get_nodes(nodes, child);
-        }
-    }
-
-    void ycomp(std::ostream& ostream = std::cout) const {
+    virtual void ycomp(std::ostream& out) const override {
         std::vector<const Node *> nodes;
         get_nodes(nodes, root());
 
-        emit_ycomp(ostream, cfg().scope(), range(nodes),
+        emit_ycomp(out, cfg().scope(), range(nodes),
             [] (const Node* n) {
                 if (auto head = n->template isa<Head>())
                     return range(head->children());
@@ -133,11 +123,17 @@ public:
         );
     }
 
-    static void emit_world(World& world, std::ostream& ostream = std::cout) {
-        emit_ycomp(ostream, world, &LoopTree<forward>::ycomp);
-    }
+    static const LoopTree& get(const Scope& scope) { return scope.cfg<forward>().looptree(); }
 
 private:
+    static void get_nodes(std::vector<const Node *>& nodes, const Node* node) {
+        nodes.push_back(node);
+        if (auto head = node->template isa<Head>()) {
+            for (auto child : head->children())
+                get_nodes(nodes, child);
+        }
+    }
+
     const CFG<forward>& cfg_;
     typename CFG<forward>::template Map<Leaf*> leaves_;
     AutoPtr<Head> root_;

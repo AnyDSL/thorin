@@ -19,7 +19,7 @@ namespace thorin {
  * This template parameter is associated with @p CFG's @c forward parameter.
  */
 template<bool forward>
-class DFGBase {
+class DFGBase : public YComp {
 public:
     class Node : public Streamable {
     private:
@@ -58,18 +58,14 @@ public:
     const Node* operator[](const CFNode* n) const { return nodes_[n]; }
     ArrayRef<const Node*> nodes() const { return nodes_.array(); }
 
-    static const DFGBase& get(const Scope& scope) { return scope.cfg<forward>().dfg(); }
-
-    void ycomp(std::ostream& ostream = std::cout) const {
-        emit_ycomp(ostream, cfg().scope(), range(nodes()),
+    virtual void ycomp(std::ostream& out) const override {
+        emit_ycomp(out, cfg().scope(), range(nodes()),
             [] (const Node* n) { return range(n->succs()); },
             YComp_Orientation::TopToBottom
         );
     }
 
-    static void emit_world(World& world, std::ostream& ostream = std::cout) {
-        emit_ycomp(ostream, world, &DFGBase<forward>::ycomp);
-    }
+    static const DFGBase& get(const Scope& scope) { return scope.cfg<forward>().dfg(); }
 
 private:
     void create();

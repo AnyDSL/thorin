@@ -16,8 +16,8 @@ public:
 
         Block() {}
 
-        const InNode* in_node() const { return in_node_; }
-        Lambda* lambda() const { return in_node()->lambda(); }
+        const CFNode* cf_node() const { return cf_node_; }
+        Lambda* lambda() const { return cf_node()->lambda(); }
         ArrayRef<const PrimOp*> primops() const { return primops_; }
         size_t index() const { return index_; }
 
@@ -26,7 +26,7 @@ public:
         const_iterator end() const { return primops().end(); }
 
     private:
-        const InNode* in_node_;
+        const CFNode* cf_node_;
         std::vector<const PrimOp*> primops_;
         size_t index_;
 
@@ -54,7 +54,7 @@ public:
     const F_CFG& cfg() const { return scope().f_cfg(); }
     ArrayRef<Block> blocks() const { return blocks_; }
     size_t size() const { return blocks_.size(); }
-    const Block& operator [] (const InNode* n) const { return blocks_[indices_[n]]; }
+    const Block& operator [] (const CFNode* n) const { return blocks_[indices_[n]]; }
     static size_t index(const Block& block) { return block.index(); }
     void verify();
 
@@ -64,7 +64,7 @@ public:
 
 private:
     void block_schedule();
-    void append(const InNode* n, const PrimOp* primop) { blocks_[indices_[n]].primops_.push_back(primop); }
+    void append(const CFNode* n, const PrimOp* primop) { blocks_[indices_[n]].primops_.push_back(primop); }
 
     const Scope& scope_;
     F_CFG::Map<size_t> indices_;

@@ -12,12 +12,12 @@
 
 namespace thorin {
 
-typedef DefMap<const InNode*> Def2InNode;
+typedef DefMap<const CFNode*> Def2CFNode;
 
 Schedule::Schedule(const Scope& scope)
     : scope_(scope)
     , indices_(cfg())
-    , blocks_(cfa().num_in_nodes())
+    , blocks_(cfa().size())
 {
     block_schedule();
 }
@@ -25,9 +25,9 @@ Schedule::Schedule(const Scope& scope)
 void Schedule::block_schedule() {
     // until we have sth better simply use the RPO of the CFG
     size_t i = 0;
-    for (auto n : cfg().in_rpo()) {
+    for (auto n : cfg().rpo()) {
         auto& block = blocks_[i];
-        block.in_node_ = n;
+        block.cf_node_ = n;
         block.index_ = i;
         indices_[n] = i++;
     }
@@ -41,7 +41,7 @@ void Schedule::verify() {
 
     for (auto& block : *this) {
         Def mem = block.lambda()->mem_param();
-        mem = mem ? mem : block2mem[(*this)[domtree[block.in_node()]->in_idom()]];
+        mem = mem ? mem : block2mem[(*this)[domtree[block.cf_node()]->idom()->cf_node()]];
         for (auto primop : block) {
             if (auto memop = primop->isa<MemOp>()) {
                 if (memop->mem() != mem)
@@ -54,8 +54,8 @@ void Schedule::verify() {
 #endif
 }
 
-static Def2InNode schedule_early(const Scope& scope) {
-    Def2InNode def2early;
+static Def2CFNode schedule_early(const Scope& scope) {
+    Def2CFNode def2early;
     DefMap<int> def2num;
     auto& cfg = scope.f_cfg();
     std::queue<Def> queue;
@@ -82,10 +82,10 @@ static Def2InNode schedule_early(const Scope& scope) {
         }
     };
 
-    for (auto n : cfg.in_rpo())
+    for (auto n : cfg.rpo())
         enqueue_uses(n->lambda());
 
-    for (auto n : cfg.in_rpo()) {
+    for (auto n : cfg.rpo()) {
         for (auto param : n->lambda()->params()) {
             if (!param->is_proxy())
                 queue.push(param);
@@ -103,7 +103,7 @@ static Def2InNode schedule_early(const Scope& scope) {
 }
 
 Schedule schedule_late(const Scope& scope) {
-    Def2InNode def2late;
+    Def2CFNode def2late;
     DefMap<int> def2num;
     auto& cfg = scope.f_cfg();
     auto& domtree = cfg.domtree();
@@ -122,12 +122,12 @@ Schedule schedule_late(const Scope& scope) {
         }
     }
 
-    auto enqueue = [&] (const InNode* n, Def def) {
+    auto enqueue = [&] (const CFNode* n, Def def) {
         if (!scope._contains(def) || def->isa_lambda() || def->isa<Param>())
             return;
         auto& late = def2late[def];
         late = late
-             ? domtree.lca(domtree[late], domtree[n])->cf_node()->in_node()
+             ? domtree.lca(domtree[late], domtree[n])->cf_node()
              : n;
         assert(def2num[def] != 0);
         if (--def2num[def] == 0) {
@@ -137,7 +137,7 @@ Schedule schedule_late(const Scope& scope) {
         }
     };
 
-    for (auto n : cfg.in_rpo()) {
+    for (auto n : cfg.rpo()) {
         for (auto op : n->lambda()->ops())
             enqueue(n, op);
     }
@@ -169,14 +169,14 @@ Schedule schedule_smart(const Scope& scope) {
             assert(scope._contains(primop));
             auto node_early = def2early[primop];
             assert(node_early != nullptr);
-            auto node_best = block.in_node();
+            auto node_best = block.cf_node();
 
             if (primop->isa<Enter>() || primop->isa<Slot>() || Enter::is_out_mem(primop) || Enter::is_out_frame(primop))
                 node_best = node_early;
             else {
                 int depth = looptree[node_best]->depth();
                 for (auto i = node_best; i != node_early;) {
-                    i = domtree[i]->in_idom();
+                    i = domtree[i]->idom()->cf_node();
                     int cur_depth = looptree[i]->depth();
                     if (cur_depth < depth) {
                         node_best = i;

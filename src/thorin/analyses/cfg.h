@@ -20,8 +20,6 @@ template<bool> class LoopTree;
 template<bool> class DomTreeBase;
 template<bool> class DFGBase;
 class CFNode;
-class InNode;
-class OutNode;
 
 struct CFNodeHash {
     uint64_t operator() (const CFNode* n) const;
@@ -42,9 +40,16 @@ protected:
         : def_(def)
     {}
 
-public:
     Def def() const { return def_; }
-    virtual const InNode* in_node() const = 0;
+
+public:
+    CFNode(Lambda* lambda)
+        : def_(lambda)
+    {}
+
+    Lambda* lambda() const { return def()->as_lambda(); }
+    virtual std::ostream& stream(std::ostream&) const override;
+
 
 private:
     const CFNodeSet& preds() const { return preds_; }
@@ -67,47 +72,6 @@ private:
     template<bool> friend class CFG;
 };
 
-/// This node represents a @p CFNode within its underlying @p Scope.
-class InNode : public CFNode {
-public:
-    InNode(Lambda* lambda)
-        : CFNode(lambda)
-    {}
-    virtual ~InNode() {}
-
-    Lambda* lambda() const { return def()->as_lambda(); }
-    virtual const InNode* in_node() const override { return this; }
-    virtual std::ostream& stream(std::ostream&) const override;
-
-    friend class CFABuilder;
-};
-
-typedef std::function<void(const InNode*)> YieldIn;
-
-/// Any jumps targeting a @p Lambda or @p Param outside the @p CFA's underlying @p Scope target this node.
-class OutNode : public CFNode {
-public:
-    OutNode(const InNode* context, Def def)
-        : CFNode(def)
-        , context_(context)
-    {
-        assert(def->isa<Param>() || def->isa<Lambda>());
-    }
-
-    virtual ~OutNode() {}
-
-    const InNode* context() const { return context_; }
-    const CFNodeSet& ancestors() const { return ancestors_; }
-    virtual const InNode* in_node() const override { return context_; }
-    virtual std::ostream& stream(std::ostream&) const override;
-
-private:
-    const InNode* context_;
-    mutable CFNodeSet ancestors_;
-
-    friend class CFABuilder;
-};
-
 //------------------------------------------------------------------------------
 
 /**
@@ -125,31 +89,24 @@ public:
     ~CFA();
 
     const Scope& scope() const { return scope_; }
-    size_t num_in_nodes() const { return num_in_nodes_; }
-    size_t num_out_nodes() const { return num_out_nodes_; }
-    size_t size() const { return num_in_nodes() + num_out_nodes(); }
-    const Scope::Map<const InNode*>& in_nodes() const { return in_nodes_; }
+    size_t size() const { return size_; }
+    const Scope::Map<const CFNode*>& nodes() const { return nodes_; }
     const F_CFG& f_cfg() const;
     const B_CFG& b_cfg() const;
-    const InNode* operator [] (Lambda* lambda) const { return find(in_nodes_, lambda); }
+    const CFNode* operator [] (Lambda* lambda) const { return find(nodes_, lambda); }
 
 private:
-    const CFNodeSet& preds(Lambda* lambda) const { return in_nodes_[lambda]->preds(); }
-    const CFNodeSet& succs(Lambda* lambda) const { return in_nodes_[lambda]->succs(); }
-    size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
-    size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
-    const InNode* entry() const { return in_nodes_.array().front(); }
-    const InNode* exit() const { return in_nodes_.array().back(); }
+    const CFNodeSet& preds(Lambda* lambda) const { return nodes_[lambda]->preds(); }
+    const CFNodeSet& succs(Lambda* lambda) const { return nodes_[lambda]->succs(); }
+    const CFNode* entry() const { return nodes_.array().front(); }
+    const CFNode* exit() const { return nodes_.array().back(); }
     void error_dump() const;
 
     const Scope& scope_;
-    Scope::Map<const InNode*> in_nodes_; ///< Maps lambda in scope to InNode.
+    Scope::Map<const CFNode*> nodes_;
+    size_t size_ = 0;
     mutable AutoPtr<const F_CFG> f_cfg_;
     mutable AutoPtr<const B_CFG> b_cfg_;
-    size_t num_in_nodes_ = 0;
-    size_t num_out_nodes_ = 0;
-
-    mutable HashMap<const InNode*, DefMap<const OutNode*>> out_nodes_;
 
     friend class CFABuilder;
     template<bool> friend class CFG;
@@ -182,16 +139,14 @@ public:
 
     const CFA& cfa() const { return cfa_; }
     size_t size() const { return cfa().size(); }
+    const CFNodeSet& preds(Lambda* lambda) const { return preds(cfa()[lambda]); }
+    const CFNodeSet& succs(Lambda* lambda) const { return succs(cfa()[lambda]); }
     const CFNodeSet& preds(const CFNode* n) const { return forward ? n->preds() : n->succs(); }
     const CFNodeSet& succs(const CFNode* n) const { return forward ? n->succs() : n->preds(); }
-    void in_preds(const InNode* in, YieldIn f) const { in_next(in, f, &CFG<forward>::preds); }
-    void in_succs(const InNode* in, YieldIn f) const { in_next(in, f, &CFG<forward>::succs); }
-    void in_preds(Lambda* lambda, YieldIn f) const { in_preds(cfa()[lambda], f); }
-    void in_succs(Lambda* lambda, YieldIn f) const { in_succs(cfa()[lambda], f); }
     size_t num_preds(const CFNode* n) const { return preds(n).size(); }
     size_t num_succs(const CFNode* n) const { return succs(n).size(); }
-    const InNode* entry() const { return forward ? cfa().entry() : cfa().exit();  }
-    const InNode* exit()  const { return forward ? cfa().exit()  : cfa().entry(); }
+    const CFNode* entry() const { return forward ? cfa().entry() : cfa().exit();  }
+    const CFNode* exit()  const { return forward ? cfa().exit()  : cfa().entry(); }
 
     ArrayRef<const CFNode*> rpo() const { return rpo_.array(); }        ///< All @p CFNode%s within this @p CFG in reverse post-order.
     ArrayRef<const CFNode*> body() const { return rpo().skip_front(); } ///< Like @p rpo() but without @p entry()
@@ -201,17 +156,7 @@ public:
 
     const CFNode* rpo(size_t i) const { return rpo_.array()[i]; }           ///< Maps from reverse post-order index to @p CFNode.
     const CFNode* po(size_t i) const { return rpo_.array()[size()-1-i]; }   ///< Maps from post-order index to @p CFNode.
-    const InNode* operator [] (Lambda* l) const { return cfa()[l]; }        ///< Maps from @p l to @p InNode.
-
-    /// Range of @p InNode%s in reverse post-order. All @p OutNode%s will be skipped during iteration.
-    Range<filter_iterator<ArrayRef<const CFNode*>::const_iterator, bool (*)(const CFNode*), const InNode*>> in_rpo() const {
-        return range<const InNode*>(rpo().begin(), rpo().end(), is_in_node);
-    }
-
-    /// Range of @p InNode%s in post-order. All @p OutNode%s will be skipped during iteration.
-    Range<filter_iterator<ArrayRef<const CFNode*>::const_reverse_iterator, bool (*)(const CFNode*), const InNode*>> in_po() const {
-        return range<const InNode*>(rpo().rbegin(), rpo().rend(), is_in_node);
-    }
+    const CFNode* operator [] (Lambda* l) const { return cfa()[l]; }        ///< Maps from @p l to @p CFNode.
 
     const DomTreeBase<forward>& domtree() const;
     const LoopTree<forward>& looptree() const;
@@ -225,10 +170,8 @@ public:
     }
 
     static size_t index(const CFNode* n) { return forward ? n->f_index_ : n->b_index_; }
-    static bool is_in_node(const CFNode* n) { return n->isa<InNode>(); }
 
 private:
-    void in_next(const InNode*, YieldIn, const CFNodeSet&(CFG<forward>::*)(const CFNode*) const) const;
     size_t post_order_visit(const CFNode* n, size_t i);
 
     const CFA& cfa_;

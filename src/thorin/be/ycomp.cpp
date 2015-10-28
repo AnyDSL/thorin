@@ -42,7 +42,6 @@ private:
     std::ostream& emit_lambda_graph(const Lambda*);
     std::ostream& emit_block(const Schedule::Block&);
 
-    std::string cfnode_title(const Scope&, const CFNode*);
     template<bool forward>
     std::ostream& emit_cfnode(const CFG<forward>&, const CFNode*);
 
@@ -275,19 +274,14 @@ std::ostream& YCompGen::emit_lambda_graph(const Lambda* lambda) {
     return emit_lambda_graph_end();
 }
 
-std::string YCompGen::cfnode_title(const Scope& scope, const CFNode* node) {
-    return std::to_string(scope.id()) + std::to_string(node->def()->gid()) +
-        "_" + std::to_string(node->in_node()->def()->gid());
-}
-
 template<bool forward>
 std::ostream& YCompGen::emit_cfnode(const CFG<forward>& cfg, const CFNode* node) {
-    write_node(cfnode_title(cfg.scope(), node),
+    write_node(node->to_string(),
         [&] { stream() << node; },
-        [&] { stream() << (node->isa<InNode>() ? "In" : "Out"); });
+        [&] { stream() << node; }); // TODO fix this: twice the same thing
 
     for (auto succ : cfg.succs(node))
-        write_edge(cfnode_title(cfg.scope(), node), cfnode_title(cfg.scope(), succ), true);
+        write_edge(node->to_string(), succ->to_string(), true);
 
     return stream();
 }

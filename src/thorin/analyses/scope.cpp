@@ -127,7 +127,7 @@ void Scope::build_in_scope() {
 }
 
 const CFA& Scope::cfa() const { return lazy_init(this, cfa_); }
-const InNode* Scope::cfa(Lambda* lambda) const { return cfa()[lambda]; }
+const CFNode* Scope::cfa(Lambda* lambda) const { return cfa()[lambda]; }
 const F_CFG& Scope::f_cfg() const { return cfa().f_cfg(); }
 const B_CFG& Scope::b_cfg() const { return cfa().b_cfg(); }
 

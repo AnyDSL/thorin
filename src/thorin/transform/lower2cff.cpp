@@ -69,7 +69,7 @@ size_t CFFLowering::process() {
     std::vector<Lambda*> todo;
     for (auto top : top_) {
         Scope scope(top);
-        for (auto n : scope.f_cfg().in_po()) {
+        for (auto n : scope.f_cfg().po()) {
             auto lambda = n->lambda();
             if (!lambda->is_intrinsic() && !lambda->is_passed_to_accelerator()) {
                 if (lambda->num_params() != 0                           // is there sth to drop?

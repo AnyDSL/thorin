@@ -5,7 +5,7 @@
 namespace thorin {
 
 static void dead_load_opt(const Scope& scope) {
-    for (auto n : scope.f_cfg().in_po()) {
+    for (auto n : scope.f_cfg().po()) {
         auto lambda = n->lambda();
         Def mem;
         for (auto arg : lambda->args()) {
@@ -31,9 +31,7 @@ static void dead_load_opt(const Scope& scope) {
 }
 
 void dead_load_opt(World& world) {
-    Scope::for_each(world, [&] (const Scope& scope) {
-        dead_load_opt(scope);
-    });
+    Scope::for_each(world, [&] (const Scope& scope) { dead_load_opt(scope); });
 }
 
 }

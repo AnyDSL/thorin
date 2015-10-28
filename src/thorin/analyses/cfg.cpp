@@ -1,3 +1,4 @@
+#if 0
 #include "thorin/analyses/cfg.h"
 
 #include <fstream>
@@ -44,6 +45,30 @@ std::ostream& OutNode::stream(std::ostream& out) const {
 }
 
 //------------------------------------------------------------------------------
+
+/// Any jumps targeting a @p Lambda or @p Param outside the @p CFA's underlying @p Scope target this node.
+class OutNode : public CFNode {
+public:
+    OutNode(const InNode* context, Def def)
+        : CFNode(def)
+        , context_(context)
+    {
+        assert(def->isa<Param>() || def->isa<Lambda>());
+    }
+
+    virtual ~OutNode() {}
+
+    const InNode* context() const { return context_; }
+    const CFNodeSet& ancestors() const { return ancestors_; }
+    virtual const InNode* in_node() const override { return context_; }
+    virtual std::ostream& stream(std::ostream&) const override;
+
+private:
+    const InNode* context_;
+    mutable CFNodeSet ancestors_;
+
+    friend class CFABuilder;
+};
 
 class CFABuilder {
 public:
@@ -92,9 +117,9 @@ public:
     }
 
     const OutNode* out_node(const InNode* in, Def def) {
-        if (auto out = find(cfa_.out_nodes_[in], def))
+        if (auto out = find(out_nodes_[in], def))
             return out;
-        return cfa_.out_nodes_[in][def] = new OutNode(in, def);
+        return out_nodes_[in][def] = new OutNode(in, def);
     }
 
     const OutNode* out_node(const OutNode* ancestor, const InNode* in) {
@@ -132,7 +157,9 @@ private:
     HashMap<const CFNode*, CFNodeSet, CFNodeHash> edges_;
     const InNode* entry_;
     const InNode* exit_;
-
+    size_t num_in_nodes_ = 0;
+    size_t num_out_nodes_ = 0;
+    mutable HashMap<const InNode*, DefMap<const OutNode*>> out_nodes_;
 };
 
 void CFABuilder::propagate_higher_order_values() {
@@ -302,7 +329,7 @@ void CFABuilder::unreachable_node_elimination() {
         if (in->f_index_ == CFNode::Reachable) {
             ++cfa_.num_in_nodes_;
 
-            auto& out_nodes = cfa_.out_nodes_[in];
+            auto& out_nodes = out_nodes_[in];
             for (auto i = out_nodes.begin(); i != out_nodes.end();) {
                 auto out = i->second;
                 if (out->f_index_ == CFNode::Reachable) {
@@ -316,7 +343,7 @@ void CFABuilder::unreachable_node_elimination() {
             }
         } else {
 #ifndef NDEBUG
-            for (auto p : cfa_.out_nodes_[in])
+            for (auto p : out_nodes_[in])
                 assert(p.second->f_index_ != CFNode::Reachable);
 #endif
             DLOG("removing: %", in);
@@ -347,7 +374,7 @@ void CFABuilder::link_to_exit() {
 
     for (auto in : cfa().in_nodes()) {
         link_dead_end_to_exit(in);
-        for (auto p : cfa_.out_nodes_[in]) {
+        for (auto p : out_nodes_[in]) {
             auto out = p.second;
             link_dead_end_to_exit(out);
             if (out->ancestors().empty() && out->def()->isa<Param>())
@@ -451,3 +478,4 @@ template class CFG<false>;
 //------------------------------------------------------------------------------
 
 }
+#endif

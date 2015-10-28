@@ -16,7 +16,7 @@ typedef CFG<true>  F_CFG;
 typedef CFG<false> B_CFG;
 
 class CFA;
-class InNode;
+class CFNode;
 
 /**
  * @brief A @p Scope represents a region of @p Lambda%s which are live from the view of an @p entry @p Lambda.
@@ -63,7 +63,7 @@ public:
     World& world() const { return world_; }
     void dump() const;
     const CFA& cfa() const;
-    const InNode* cfa(Lambda*) const;
+    const CFNode* cfa(Lambda*) const;
     const F_CFG& f_cfg() const;
     const B_CFG& b_cfg() const;
     template<bool forward> const CFG<forward>& cfg() const;

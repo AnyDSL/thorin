@@ -34,28 +34,16 @@ typedef thorin::HashSet<const CFNode*, CFNodeHash> CFNodeSet;
  *
  * Managed by @p CFA.
  */
-class CFNode : public MagicCast<CFNode>, public Streamable {
+class CFNodeBase : public MagicCast<CFNodeBase>, public Streamable {
 protected:
-    CFNode(Def def)
+    CFNodeBase(Def def)
         : def_(def)
     {}
 
+public:
     Def def() const { return def_; }
 
-public:
-    CFNode(Lambda* lambda)
-        : def_(lambda)
-    {}
-
-    Lambda* lambda() const { return def()->as_lambda(); }
-    virtual std::ostream& stream(std::ostream&) const override;
-
-
 private:
-    const CFNodeSet& preds() const { return preds_; }
-    const CFNodeSet& succs() const { return succs_; }
-    void link(const CFNode* other) const;
-
     static const size_t Fresh     = size_t(-1);
     static const size_t Unfresh   = size_t(-2);
     static const size_t Reachable = size_t(-3);
@@ -64,11 +52,31 @@ private:
     Def def_;
     mutable size_t f_index_ = Fresh;     ///< RPO index in a forward @p CFG.
     mutable size_t b_index_ = Reachable; ///< RPO index in a backwards @p CFG.
+
+    friend class CFABuilder;
+    template<bool> friend class CFG;
+};
+
+/// This node represents a @p CFNode within its underlying @p Scope.
+class CFNode : public CFNodeBase {
+public:
+    CFNode(Lambda* lambda)
+        : CFNodeBase(lambda)
+    {}
+
+    Lambda* lambda() const { return def()->as_lambda(); }
+    virtual std::ostream& stream(std::ostream&) const override;
+
+private:
+    const CFNodeSet& preds() const { return preds_; }
+    const CFNodeSet& succs() const { return succs_; }
+    void link(const CFNode* other) const;
+
     mutable CFNodeSet preds_;
     mutable CFNodeSet succs_;
 
-    friend class CFABuilder;
     friend class CFA;
+    friend class CFABuilder;
     template<bool> friend class CFG;
 };
 

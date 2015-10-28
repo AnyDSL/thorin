@@ -157,7 +157,6 @@ private:
     HashMap<const CFNodeBase*, CFNodeSet, CFNodeHash> edges_;
     const CFNode* entry_;
     const CFNode* exit_;
-    size_t num_in_nodes_ = 0;
     size_t num_out_nodes_ = 0;
     mutable HashMap<const CFNode*, DefMap<const OutNode*>> out_nodes_;
 };
@@ -327,7 +326,7 @@ void CFABuilder::build_cfg() {
 void CFABuilder::unreachable_node_elimination() {
     for (auto in : cfa().nodes()) {
         if (in->f_index_ == CFNode::Reachable) {
-            ++num_in_nodes_;
+            ++cfa_.size_;
 
             auto& out_nodes = out_nodes_[in];
             for (auto i = out_nodes.begin(); i != out_nodes.end();) {
@@ -386,14 +385,32 @@ void CFABuilder::link_to_exit() {
 }
 
 void CFABuilder::transetive_cfg() {
-#if 0
+    std::queue<const CFNodeBase*> queue;
+
+    auto link_to_succs = [&] (const CFNode* src) {
+        auto enqueue = [&] (const CFNodeBase* n) {
+            auto i = edges_.find(n);
+            for (auto succ : i->second)
+                queue.push(succ);
+        };
+
+        enqueue(src);
+
+        while (!queue.empty()) {
+            auto n = pop(queue);
+            if (auto dst = n->isa<CFNode>())
+                src->link(dst);
+            else
+                enqueue(n);
+        }
+    };
+
     for (auto p : edges_) {
-        auto src = p.first;
-        for (auto dst : p.second)
-            src->link(dst);
+        if (auto in = p.first->isa<CFNode>())
+            link_to_succs(in);
     }
-#endif
 }
+
 
 void CFA::error_dump() const {
     std::ofstream out(scope().world().name() + entry()->lambda()->unique_name() + ".vcg");
@@ -448,29 +465,6 @@ size_t CFG<forward>::post_order_visit(const CFNode* n, size_t i) {
     rpo_[n] = n;
     return n_index;
 }
-
-#if 0
-template<bool forward>
-void CFG<forward>::in_next(const CFNode* in, YieldIn f, const CFNodeSet&(CFG<forward>::* next)(const CFNode*) const) const {
-    std::queue<const CFNode*> queue;
-
-    auto enqueue = [&] (const CFNode* n) {
-        const auto& set = (this->*next)(n);
-        for (auto succ : set)
-            queue.push(succ);
-    };
-
-    enqueue(in);
-
-    while (!queue.empty()) {
-        auto n = pop(queue);
-        if (auto in = n->isa<CFNode>())
-            f(in);
-        else
-            enqueue(n);
-    }
-}
-#endif
 
 template<bool forward> const DomTreeBase<forward>& CFG<forward>::domtree() const { return lazy_init(this, domtree_); }
 template<bool forward> const LoopTree<forward>& CFG<forward>::looptree() const { return lazy_init(this, looptree_); }

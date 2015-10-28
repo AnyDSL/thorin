@@ -32,9 +32,7 @@ void mem2reg(const Scope& scope) {
     scope.entry()->set_parent(nullptr);
     scope.entry()->seal();
 
-    auto schedule = schedule_late(scope);
-    for (auto n : cfg.rpo()) {
-        auto& block = schedule[n];
+    for (const auto& block : schedule_late(scope)) {
         auto lambda = block.lambda();
         // search for slots/loads/stores from top to bottom and use set_value/get_value to install parameters
         for (auto primop : block) {
@@ -71,7 +69,7 @@ next_primop:;
         }
 
         // seal successors of last lambda if applicable
-        for (auto succ : cfg.succs(n)) {
+        for (auto succ : cfg.succs(block.cf_node())) {
             auto lsucc = succ->lambda();
             if (lsucc->parent() != nullptr) {
                 auto i = lambda2num.find(lsucc);

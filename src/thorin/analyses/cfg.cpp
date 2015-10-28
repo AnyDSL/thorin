@@ -404,25 +404,24 @@ size_t CFG<forward>::post_order_visit(const CFNode* n, size_t i) {
     return n_index;
 }
 
-namespace detail {
-    void in_next(const InNode* in, YieldIn f, std::function<const CFNodeSet&(const CFNode*)> next) {
-        std::queue<const CFNode*> queue;
+template<bool forward>
+void CFG<forward>::in_next(const InNode* in, YieldIn f, const CFNodeSet&(CFG<forward>::* next)(const CFNode*) const) const {
+    std::queue<const CFNode*> queue;
 
-        auto enqueue = [&] (const CFNode* n) {
-            const auto& set = next(n);
-            for (auto succ : set)
-                queue.push(succ);
-        };
+    auto enqueue = [&] (const CFNode* n) {
+        const auto& set = (this->*next)(n);
+        for (auto succ : set)
+            queue.push(succ);
+    };
 
-        enqueue(in);
+    enqueue(in);
 
-        while (!queue.empty()) {
-            auto n = pop(queue);
-            if (auto in = n->isa<InNode>())
-                f(in);
-            else
-                enqueue(n);
-        }
+    while (!queue.empty()) {
+        auto n = pop(queue);
+        if (auto in = n->isa<InNode>())
+            f(in);
+        else
+            enqueue(n);
     }
 }
 

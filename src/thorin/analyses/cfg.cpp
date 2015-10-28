@@ -51,11 +51,6 @@ std::ostream& OutNode::stream(std::ostream& out) const {
     return streamf(out, "[Out: %, %]", def()->unique_name(), context());
 }
 
-InNode::~InNode() {
-    for (auto p : out_nodes_)
-        delete p.second;
-}
-
 //------------------------------------------------------------------------------
 
 class CFABuilder {
@@ -103,9 +98,9 @@ public:
     }
 
     const OutNode* out_node(const InNode* in, Def def) {
-        if (auto out = find(in->out_nodes_, def))
+        if (auto out = find(cfa_.out_nodes_[in], def))
             return out;
-        return in->out_nodes_[def] = new OutNode(in, def);
+        return cfa_.out_nodes_[in][def] = new OutNode(in, def);
     }
 
     const OutNode* out_node(const OutNode* ancestor, const InNode* in) {
@@ -119,12 +114,31 @@ public:
         return lambda2param2nodes_[param->lambda()][param->index()];
     }
 
+    void link(const CFNode* src, const CFNode* dst) {
+        DLOG("% -> %", src, dst);
+
+        assert(src->f_index_ == CFNode::Reachable);
+        dst->f_index_ = CFNode::Reachable;
+
+        auto p = edges_[src].insert(dst);
+
+        // recursively link ancestors
+        if (p.second) {
+            if (auto out = dst->isa<OutNode>()) {
+                for (auto ancestor : out->ancestors())
+                    link(out, ancestor);
+            }
+        }
+    }
+
 private:
     CFA& cfa_;
     Scope::Map<std::vector<CFNodeSet>> lambda2param2nodes_; ///< Maps param in scope to CFNodeSet.
     DefMap<DefSet> def2set_;
+    HashMap<const CFNode*, CFNodeSet, CFNodeHash> edges_;
     const InNode* entry_;
     const InNode* exit_;
+
 };
 
 void CFABuilder::propagate_higher_order_values() {
@@ -294,7 +308,7 @@ void CFABuilder::unreachable_node_elimination() {
         if (in->f_index_ == CFNode::Reachable) {
             ++cfa_.num_in_nodes_;
 
-            auto& out_nodes = in->out_nodes_;
+            auto& out_nodes = cfa_.out_nodes_[in];
             for (auto i = out_nodes.begin(); i != out_nodes.end();) {
                 auto out = i->second;
                 if (out->f_index_ == CFNode::Reachable) {
@@ -308,7 +322,7 @@ void CFABuilder::unreachable_node_elimination() {
             }
         } else {
 #ifndef NDEBUG
-            for (auto p : in->out_nodes())
+            for (auto p : cfa_.out_nodes_[in])
                 assert(p.second->f_index_ != CFNode::Reachable);
 #endif
             DLOG("removing: %", in);
@@ -339,7 +353,7 @@ void CFABuilder::link_to_exit() {
 
     for (auto in : cfa().in_nodes()) {
         link_dead_end_to_exit(in);
-        for (auto p : in->out_nodes()) {
+        for (auto p : cfa_.out_nodes_[in]) {
             auto out = p.second;
             link_dead_end_to_exit(out);
             if (out->ancestors().empty() && out->def()->isa<Param>())

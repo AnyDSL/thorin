@@ -73,15 +73,11 @@ public:
     InNode(Lambda* lambda)
         : CFNode(lambda)
     {}
-    virtual ~InNode();
+    virtual ~InNode() {}
 
     Lambda* lambda() const { return def()->as_lambda(); }
-    const DefMap<const OutNode*>& out_nodes() const { return out_nodes_; }
     virtual const InNode* in_node() const override { return this; }
     virtual std::ostream& stream(std::ostream&) const override;
-
-private:
-    mutable DefMap<const OutNode*> out_nodes_;
 
     friend class CFABuilder;
 };
@@ -152,6 +148,8 @@ private:
     mutable AutoPtr<const B_CFG> b_cfg_;
     size_t num_in_nodes_ = 0;
     size_t num_out_nodes_ = 0;
+
+    mutable HashMap<const InNode*, DefMap<const OutNode*>> out_nodes_;
 
     friend class CFABuilder;
     template<bool> friend class CFG;

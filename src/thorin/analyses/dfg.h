@@ -7,7 +7,7 @@
 
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/be/graphs.h"
+#include "thorin/util/ycomp.h"
 
 namespace thorin {
 

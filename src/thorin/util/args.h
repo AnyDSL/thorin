@@ -6,7 +6,7 @@
 #include <iterator>
 #include <vector>
 
-#include "thorin/be/graphs.h"
+#include "thorin/util/ycomp.h"
 
 namespace thorin {
 

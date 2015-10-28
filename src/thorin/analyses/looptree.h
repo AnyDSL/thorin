@@ -4,11 +4,11 @@
 #include <vector>
 #include <sstream>
 
-#include "thorin/be/graphs.h"
 #include "thorin/analyses/cfg.h"
 #include "thorin/util/array.h"
 #include "thorin/util/autoptr.h"
 #include "thorin/util/cast.h"
+#include "thorin/util/ycomp.h"
 
 namespace thorin {
 

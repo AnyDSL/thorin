@@ -1,4 +1,4 @@
-#include "thorin/be/graphs.h"
+#include "thorin/util/ycomp.h"
 
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/dfg.h"

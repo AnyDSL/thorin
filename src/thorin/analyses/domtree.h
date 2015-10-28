@@ -1,11 +1,11 @@
 #ifndef THORIN_ANALYSES_DOMTREE_H
 #define THORIN_ANALYSES_DOMTREE_H
 
-#include "thorin/analyses/cfg.h"
-#include "thorin/be/graphs.h"
 #include "thorin/lambda.h"
+#include "thorin/analyses/cfg.h"
 #include "thorin/util/array.h"
 #include "thorin/util/iterator.h"
+#include "thorin/util/ycomp.h"
 
 namespace thorin {
 

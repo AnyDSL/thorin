@@ -38,6 +38,7 @@ public:
     explicit Scope(Lambda* entry);
     ~Scope();
 
+    const Scope& update();
     ArrayRef<Lambda*> lambdas() const { return lambdas_; }
     Lambda* operator [] (size_t i) const { return lambdas_[i]; }
     Lambda* entry() const { return lambdas().front(); }
@@ -66,15 +67,19 @@ public:
     const F_CFG& f_cfg() const;
     const B_CFG& b_cfg() const;
     template<bool forward> const CFG<forward>& cfg() const;
+    void verify() const;
 
     typedef ArrayRef<Lambda*>::const_iterator const_iterator;
     const_iterator begin() const { return lambdas().begin(); }
     const_iterator end() const { return lambdas().end(); }
 
     template<bool elide_empty = true>
-    static void for_each(const World&, std::function<void(const Scope&)>);
+    static void for_each(const World&, std::function<void(Scope&)>);
 
 private:
+    void cleanup();
+    void run(Lambda* entry);
+
     static bool is_candidate(Def def) { return def->candidate_ == candidate_counter_; }
     static void set_candidate(Def def) { def->candidate_ = candidate_counter_; }
     static void unset_candidate(Def def) { assert(is_candidate(def)); --def->candidate_; }

@@ -18,13 +18,31 @@ Scope::Scope(Lambda* entry)
     : world_(entry->world())
     , id_(id_counter_++)
 {
+    run(entry);
+}
+
+Scope::~Scope() { cleanup(); }
+
+const Scope& Scope::update() {
+    cleanup();
+    auto e = entry();
+    lambdas_.clear();
+    in_scope_.clear();
+    cfa_.release();
+    id_ = id_counter_++;
+    run(e);
+    return *this;
+}
+
+void Scope::run(Lambda* entry) {
     assert(!entry->is_proxy());
     identify_scope(entry);
     build_in_scope();
     ++candidate_counter_;
+    verify();
 }
 
-Scope::~Scope() {
+void Scope::cleanup() {
     for (auto lambda : lambdas())
         lambda->unregister_scope(this);
 }
@@ -72,6 +90,16 @@ void Scope::identify_scope(Lambda* entry) {
     assert(lambdas().front() == entry);
 }
 
+void Scope::verify() const {
+#ifndef NDEBUG
+    for (auto lambda : lambdas_) {
+        auto info = lambda->find_scope(this);
+        assert(info->scope == this);
+        assert((*this)[info->index] == lambda);
+    }
+#endif
+}
+
 void Scope::build_in_scope() {
     std::queue<Def> queue;
     auto enqueue = [&] (Def def) {
@@ -104,7 +132,7 @@ const F_CFG& Scope::f_cfg() const { return cfa().f_cfg(); }
 const B_CFG& Scope::b_cfg() const { return cfa().b_cfg(); }
 
 template<bool elide_empty>
-void Scope::for_each(const World& world, std::function<void(const Scope&)> f) {
+void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
     LambdaSet done;
     std::queue<Lambda*> queue;
 
@@ -134,7 +162,7 @@ void Scope::for_each(const World& world, std::function<void(const Scope&)> f) {
     }
 }
 
-template void Scope::for_each<true> (const World&, std::function<void(const Scope&)>);
-template void Scope::for_each<false>(const World&, std::function<void(const Scope&)>);
+template void Scope::for_each<true> (const World&, std::function<void(Scope&)>);
+template void Scope::for_each<false>(const World&, std::function<void(Scope&)>);
 
 }

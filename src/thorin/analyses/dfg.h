@@ -45,7 +45,7 @@ public:
     DFGBase& operator=(DFGBase) = delete;
 
     explicit DFGBase(const CFG<forward> &cfg)
-        : YComp(cfg.scope())
+        : YComp(cfg.scope(), forward ? "dom_frontiers" : "controL_dependencies")
         , cfg_(cfg)
         , nodes_(cfg)
     {
@@ -60,7 +60,7 @@ public:
     const Node* operator[](const CFNode* n) const { return nodes_[n]; }
     ArrayRef<const Node*> nodes() const { return nodes_.array(); }
 
-    virtual void ycomp(std::ostream& out) const override {
+    virtual void stream_ycomp(std::ostream& out) const override {
         thorin::ycomp(out, scope(), range(nodes()),
             [] (const Node* n) { return range(n->succs()); },
             YComp_Orientation::TopToBottom

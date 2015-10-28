@@ -227,7 +227,7 @@ public:
     const LoopTree<forward>& looptree() const;
     const DFGBase<forward>& dfg() const;
 
-    virtual void ycomp(std::ostream& out) const override {
+    virtual void stream_ycomp(std::ostream& out) const override {
         thorin::ycomp(out, scope(), range(rpo()),
             [] (const CFNode* n) { return range(n->succs()); },
             YComp_Orientation::TopToBottom

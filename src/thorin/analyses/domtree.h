@@ -49,7 +49,7 @@ public:
     DomTreeBase& operator= (DomTreeBase) = delete;
 
     explicit DomTreeBase(const CFG<forward>& cfg)
-        : YComp(cfg.scope())
+        : YComp(cfg.scope(), forward ? "domtree" : "post_domtree")
         , cfg_(cfg)
         , nodes_(cfg)
     {
@@ -65,7 +65,7 @@ public:
     const Node* lca(const Node* i, const Node* j) const;
     const Node* operator [] (const CFNode* n) const { return nodes_[n]; }
 
-    virtual void ycomp(std::ostream& out) const override {
+    virtual void stream_ycomp(std::ostream& out) const override {
         thorin::ycomp(out, scope(), range(nodes()),
             [] (const Node* n) { return range(n->children()); },
             YComp_Orientation::TopToBottom

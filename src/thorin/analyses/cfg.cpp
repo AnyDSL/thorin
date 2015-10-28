@@ -377,7 +377,7 @@ const B_CFG& CFA::b_cfg() const { return lazy_init(this, b_cfg_); }
 
 template<bool forward>
 CFG<forward>::CFG(const CFA& cfa)
-    : YComp(cfa.scope())
+    : YComp(cfa.scope(), forward ? "f_cfg" : "b_cfg")
     , cfa_(cfa)
     , rpo_(*this)
 {

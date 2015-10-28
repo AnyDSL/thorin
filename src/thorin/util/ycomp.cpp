@@ -44,16 +44,14 @@ void YCompCommandLine::print(World& world) {
 
 //------------------------------------------------------------------------------
 
-void YComp::ycomp(const char* filename) const {
+void YComp::write_ycomp(const char* filename) const {
     std::ofstream file(filename);
-    ycomp(file);
+    stream_ycomp(file);
 }
 
 void YComp::ycomp() const {
-    std::string name(typeid(*this).name());
-    std::transform(name.begin(), name.end(), name.begin(), ::tolower);
-    name = world().name() + "_" + scope().entry()->unique_name() + "_" + name + ".vcg";
-    ycomp(name.c_str());
+    auto filename = world().name() + "_" + scope().entry()->unique_name() + "_" + name() + ".vcg";
+    write_ycomp(filename.c_str());
 }
 
 //------------------------------------------------------------------------------

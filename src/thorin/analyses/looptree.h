@@ -110,7 +110,7 @@ public:
     const Head* root() const { return root_; }
     const Leaf* operator [] (const CFNode* n) const { return find(leaves_, n); }
 
-    virtual void ycomp(std::ostream& out) const override {
+    virtual void stream_ycomp(std::ostream& out) const override {
         std::vector<const Node *> nodes;
         get_nodes(nodes, root());
 

@@ -616,7 +616,7 @@ llvm::Value* CodeGen::emit(Def def) {
             if (dst->is_type_f()) {
                 if (src->is_type_s())
                     return irbuilder_.CreateSIToFP(from, to);
-                return irbuilder_.CreateSIToFP(from, to);
+                return irbuilder_.CreateUIToFP(from, to);
             }
             if (       (src->is_type_i() || src->is_bool())
                     && (dst->is_type_i() || dst->is_bool())

@@ -40,23 +40,25 @@ struct CallHash {
 
 class PartialEvaluator {
 public:
-    PartialEvaluator(World& world)
-        : world_(world)
+    PartialEvaluator(Scope& scope)
+        : scope_(scope)
     {}
 
-    World& world() { return world_; }
-    void seek();
-    void eval(Lambda* begin, Lambda* cur, Lambda* end);
+    Scope& scope() { return scope_; }
+    World& world() { return scope().world(); }
+    void run();
+    void eval(Lambda* begin, Lambda* end);
     void rewrite_jump(Lambda* src, Lambda* dst, const Call&);
     void enqueue(Lambda* lambda) {
-        if (!visit(visited_, lambda))
+        if (scope().outer_contains(lambda) && !visit(visited_, lambda))
             queue_.push(lambda);
     }
 
 private:
-    World& world_;
+    Scope& scope_;
     LambdaSet done_;
     std::queue<Lambda*> queue_;
+    Lambda* top_;
     LambdaSet visited_;
     HashMap<Call, Lambda*, CallHash> cache_;
 };
@@ -65,27 +67,24 @@ static Lambda* continuation(Lambda* lambda) {
     return lambda->num_args() != 0 ? lambda->args().back()->isa_lambda() : (Lambda*) nullptr;
 }
 
-void PartialEvaluator::seek() {
-    for (auto lambda : world().externals())
-        enqueue(lambda);
+void PartialEvaluator::run() {
+    enqueue(scope().entry());
 
-    Lambda* top = nullptr;
     while (!queue_.empty()) {
         auto lambda = pop(queue_);
-        if (world().is_external(lambda))
-            top = lambda;
 
-        if (lambda->to()->isa<Run>())
-            eval(top, lambda, continuation(lambda));
+        if (lambda->to()->isa<Run>()) {
+            eval(lambda, continuation(lambda));
+            scope_.update();
+        }
 
-        for (auto succ : lambda->succs())
-            enqueue(succ);
+        scope_.update().f_cfg().in_succs(lambda, [&] (const InNode* in) { enqueue(in->lambda()); });
     }
 }
 
-void PartialEvaluator::eval(Lambda* top, Lambda* cur, Lambda* end) {
+void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
     if (end == nullptr)
-        DLOG("no matching end: %", cur->unique_name());
+        WLOG("no matching end: %", cur->unique_name());
     else
         DLOG("eval: % -> %", cur->unique_name(), end->unique_name());
 
@@ -107,8 +106,9 @@ void PartialEvaluator::eval(Lambda* top, Lambda* cur, Lambda* end) {
         if (auto run = cur->to()->isa<Run>()) {
             dst = run->def()->isa_lambda();
         } else if (cur->to()->isa<Hlt>()) {
-            for (auto succ : cur->succs())
-                enqueue(succ);
+            auto& s = scope_.update();
+            assert(s.outer_contains(cur));
+            s.f_cfg().in_succs(cur, [&] (const InNode* in) { enqueue(in->lambda()); });
             cur = continuation(cur);
             continue;
         } else {
@@ -128,18 +128,13 @@ void PartialEvaluator::eval(Lambda* top, Lambda* cur, Lambda* end) {
         done_.insert(cur);
 
         if (dst->empty()) {
-            if (dst == world().branch()) {
-                Scope scope(top);
-                auto& postdomtree = scope.b_cfg().domtree();
-                if (auto n = scope.cfa(cur)) {
-                    cur = postdomtree[n]->in_idom()->lambda();
-                    continue;
-                }
-                DLOG("no postdom found for %", cur->unique_name());
-                return;
-            } else
-                cur = continuation(cur);
-            continue;
+            auto& postdomtree = scope_.update().b_cfg().domtree();
+            if (auto n = scope().cfa(cur)) {
+                cur = postdomtree[n]->in_idom()->lambda();
+                continue;
+            }
+            WLOG("no postdom found for %", cur->unique_name());
+            return;
         }
 
         Call call(dst);
@@ -184,10 +179,13 @@ void PartialEvaluator::rewrite_jump(Lambda* src, Lambda* dst, const Call& call) 
 
 //------------------------------------------------------------------------------
 
+void eval(World& world) {
+    Scope::for_each(world, [&] (Scope& scope) { PartialEvaluator(scope).run(); });
+}
+
 void partial_evaluation(World& world) {
-    ILOG("PE begin");
-    PartialEvaluator(world).seek();
-    ILOG("PE finished");
+    world.cleanup();
+    ILOG_SCOPE(eval(world));
 
     for (auto primop : world.primops()) {
         if (auto evalop = Def(primop)->isa<EvalOp>())

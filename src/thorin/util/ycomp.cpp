@@ -18,9 +18,9 @@ void YCompCommandLine::add(std::string graph, bool temp, std::string file) {
 
 #define YCOMP(T) \
     if (temp) \
-        ycomp<T<true >>(world, file); \
+        ycomp<T<true >>(file, world); \
     else \
-        ycomp<T<false>>(world, file);
+        ycomp<T<false>>(file, world);
 
 void YCompCommandLine::print(World& world) {
     for(unsigned int i = 0; i < graphs.size(); i++) {

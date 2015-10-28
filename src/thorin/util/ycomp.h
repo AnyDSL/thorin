@@ -99,7 +99,7 @@ YCompScope<I, SuccFct> ycomp(std::ostream& ostream, const Scope& scope, Range<I>
 }
 
 template<class G>
-void ycomp(std::ostream& out, World& world, void (G::* ycomp)(std::ostream&) const) {
+void ycomp(std::ostream& out, World& world) {
     out << "graph: {" <<  std::endl;
     out << "    " << "graph: {" <<  std::endl;
     out << "        " << "title: \"" << world.name() << '"' << std::endl;
@@ -110,9 +110,6 @@ void ycomp(std::ostream& out, World& world, void (G::* ycomp)(std::ostream&) con
     out << "    " << '}' << std::endl;
     out << '}' << std::endl;
 }
-
-template<class G>
-void ycomp(World& world, std::ostream& out) { ycomp(out, world, &G::stream_ycomp); }
 
 //------------------------------------------------------------------------------
 

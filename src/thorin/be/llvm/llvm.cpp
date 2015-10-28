@@ -90,6 +90,10 @@ Lambda* CodeGen::emit_intrinsic(Lambda* lambda) {
     }
 }
 
+void CodeGen::emit_result_phi(const Param* param, llvm::Value* lambda) {
+    find(phis_, param)->addIncoming(lambda, irbuilder_.GetInsertBlock());
+}
+
 Lambda* CodeGen::emit_atomic(Lambda* lambda) {
     assert(lambda->num_args() == 5 && "required arguments are missing");
     // atomic kind: Xchg Add Sub And Nand Or Xor Max Min
@@ -100,7 +104,8 @@ Lambda* CodeGen::emit_atomic(Lambda* lambda) {
     llvm::AtomicRMWInst::BinOp binop = (llvm::AtomicRMWInst::BinOp)kind;
 
     auto cont = lambda->arg(4)->as_lambda();
-    params_[cont->param(1)] = irbuilder_.CreateAtomicRMW(binop, ptr, val, llvm::AtomicOrdering::SequentiallyConsistent, llvm::SynchronizationScope::CrossThread);
+    auto call = irbuilder_.CreateAtomicRMW(binop, ptr, val, llvm::AtomicOrdering::SequentiallyConsistent, llvm::SynchronizationScope::CrossThread);
+    emit_result_phi(cont->param(1), call);
     return cont;
 }
 
@@ -111,7 +116,8 @@ Lambda* CodeGen::emit_select(Lambda* lambda) {
     auto b = lookup(lambda->arg(3));
 
     auto cont = lambda->arg(4)->as_lambda();
-    params_[cont->param(1)] = irbuilder_.CreateSelect(cond, a, b);
+    auto call = irbuilder_.CreateSelect(cond, a, b);
+    emit_result_phi(cont->param(1), call);
     return cont;
 }
 
@@ -122,7 +128,8 @@ Lambda* CodeGen::emit_shuffle(Lambda* lambda) {
     auto b = lookup(lambda->arg(2));
 
     auto cont = lambda->arg(4)->as_lambda();
-    params_[cont->param(1)] = irbuilder_.CreateShuffleVector(a, b, mask);
+    auto call = irbuilder_.CreateShuffleVector(a, b, mask);
+    emit_result_phi(cont->param(1), call);
     return cont;
 }
 
@@ -131,7 +138,8 @@ Lambda* CodeGen::emit_reinterpret(Lambda* lambda) {
     auto val = lookup(lambda->arg(1));
     auto cont = lambda->arg(2)->as_lambda();
     auto type = convert(cont->param(1)->type());
-    params_[cont->param(1)] = irbuilder_.CreateBitCast(val, type);
+    auto call = irbuilder_.CreateBitCast(val, type);
+    emit_result_phi(cont->param(1), call);
     return cont;
 }
 
@@ -216,13 +224,13 @@ void CodeGen::emit(int opt, bool debug) {
         BBMap bb2lambda;
         auto schedule = schedule_smart(scope);
 
-        for (auto& block : schedule) {
+        for (const auto& block : schedule) {
             auto lambda = block.lambda();
             // map all bb-like lambdas to llvm bb stubs
             if (lambda->intrinsic() != Intrinsic::EndScope) {
                 auto bb = bb2lambda[lambda] = llvm::BasicBlock::Create(context_, lambda->name, fct);
 
-                // create phi node stubs (for all non-cascading lambdas different from entry)
+                // create phi node stubs (for all lambdas different from entry)
                 if (entry_ != lambda) {
                     for (auto param : lambda->params()) {
                         if (!param->is_mem()) {
@@ -361,7 +369,7 @@ void CodeGen::emit(int opt, bool debug) {
 
                             irbuilder_.CreateBr(bb2lambda[succ]);
                             if (param)
-                                find(phis_, param)->addIncoming(call, irbuilder_.GetInsertBlock());
+                                emit_result_phi(param, call);
                         }
                     }
                 }

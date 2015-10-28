@@ -110,7 +110,7 @@ llvm::Function* NVVMCodeGen::get_texture_handle_fun() {
     return llvm::cast<llvm::Function>(module_->getOrInsertFunction("llvm.nvvm.texsurf.handle.p1i64", type));
 }
 
-void NVVMCodeGen::emit_function_start(llvm::BasicBlock* bb, Lambda* lambda) {
+void NVVMCodeGen::emit_function_start(llvm::BasicBlock*, Lambda* lambda) {
     if (!lambda->is_external())
         return;
     // kernel needs special setup code for the arguments

@@ -281,7 +281,7 @@ void CCodeGen::emit() {
 
         // emit texture declaration for CUDA
         for (auto param : lambda->params()) {
-            if (param->order() == 0 && !param->type().isa<MemType>()) {
+            if (param->order() == 0 && !param->is_mem()) {
                 if (is_texture_type(param->type())) {
                     stream() << "texture<";
                     emit_type(param->type().as<PtrType>()->referenced_type());
@@ -304,7 +304,7 @@ void CCodeGen::emit() {
         emit_type(ret_fn_type->args().back()) << " " << name << "(";
         size_t i = 0;
         for (auto param : lambda->params()) {
-            if (param->order() == 0 && !param->type().isa<MemType>()) {
+            if (param->order() == 0 && !param->is_mem()) {
                 // skip arrays bound to texture memory
                 if (is_texture_type(param->type())) continue;
                 if (i++ > 0) stream() << ", ";
@@ -361,7 +361,7 @@ void CCodeGen::emit() {
         size_t i = 0;
         // emit and store all first-order params
         for (auto param : lambda->params()) {
-            if (param->order() == 0 && !param->type().isa<MemType>()) {
+            if (param->order() == 0 && !param->is_mem()) {
                 // skip arrays bound to texture memory
                 if (is_texture_type(param->type())) continue;
                 if (i++ > 0) stream() << ", ";
@@ -382,7 +382,7 @@ void CCodeGen::emit() {
 
         // emit and store all first-order params
         for (auto param : lambda->params()) {
-            if (param->order() == 0 && !param->type().isa<MemType>()) {
+            if (param->order() == 0 && !param->is_mem()) {
                 if (lang_==Lang::OPENCL && lambda->is_external() &&
                     (param->type().isa<DefiniteArrayType>() ||
                      param->type().isa<StructAppType>() ||
@@ -401,7 +401,7 @@ void CCodeGen::emit() {
             auto lambda = block.lambda();
             if (scope.entry() != lambda) {
                 for (auto param : lambda->params()) {
-                    if (!param->type().isa<MemType>()) {
+                    if (!param->is_mem()) {
                         newline();
                         emit_type(param->type()) << "  " << param->unique_name() << ";";
                         newline();
@@ -422,21 +422,19 @@ void CCodeGen::emit() {
             if (lambda != scope.entry()) {
                 stream() << "l" << lambda->gid() << ": ;";
                 up();
-                // load argument from phi node
+                // load params from phi node
                 if (lambda->to() != ret_param) // skip for return
-                    if (auto to_lambda = lambda->to()->isa_lambda())
-                        if (scope.outer_contains(to_lambda))
-                            for (auto param : lambda->params())
-                                if (!param->type().isa<MemType>()) {
-                                    stream() << param->unique_name() << " = p" << param->unique_name() << ";";
-                                    newline();
-                                }
+                    for (auto param : lambda->params())
+                        if (!param->is_mem()) {
+                            stream() << param->unique_name() << " = p" << param->unique_name() << ";";
+                            newline();
+                        }
             }
 
             for (auto primop : block) {
                 // skip higher-order primops, stuff dealing with frames and all memory related stuff except stores
                 if (!primop->type().isa<FnType>() && !primop->type().isa<FrameType>()
-                        && (!primop->type().isa<MemType>() || primop->isa<Store>())) {
+                        && (!primop->is_mem() || primop->isa<Store>())) {
                     emit_debug_info(primop);
                     emit(primop);
                     newline();
@@ -450,16 +448,16 @@ void CCodeGen::emit() {
                 switch (num_args) {
                     case 0: break;
                     case 1:
-                        if (lambda->arg(0)->type().isa<MemType>())
+                        if (lambda->arg(0)->is_mem())
                             break;
                         else
                             emit(lambda->arg(0));
                         break;
                     case 2:
-                        if (lambda->arg(0)->type().isa<MemType>()) {
+                        if (lambda->arg(0)->is_mem()) {
                             emit(lambda->arg(1));
                             break;
-                        } else if (lambda->arg(1)->type().isa<MemType>()) {
+                        } else if (lambda->arg(1)->is_mem()) {
                             emit(lambda->arg(0));
                             break;
                         }
@@ -487,9 +485,9 @@ void CCodeGen::emit() {
 
                 if (to_lambda->is_basicblock()) {   // ordinary jump
                     assert(to_lambda->num_params()==lambda->num_args());
-                    // store parameter to phi nodes
+                    // store argument to phi nodes
                     for (size_t i = 0, size = to_lambda->num_params(); i != size; ++i)
-                        if (!to_lambda->param(i)->type().isa<MemType>()) {
+                        if (!to_lambda->param(i)->is_mem()) {
                             stream() << "p" << to_lambda->param(i)->unique_name() << " = ";
                             emit(lambda->arg(i)) << ";";
                             newline();
@@ -507,47 +505,56 @@ void CCodeGen::emit() {
                             THORIN_UNREACHABLE;
                         }
                     } else {
-                        // emit temporaries for args
+                        auto emit_call = [&] () {
+                            auto name = (to_lambda->is_external() || to_lambda->empty()) ? to_lambda->name : to_lambda->unique_name();
+                            stream() << name << "(";
+                            // emit all first-order args
+                            size_t i = 0;
+                            for (auto arg : lambda->args()) {
+                                if (arg->order() == 0 && !arg->is_mem()) {
+                                    if (i++ > 0) stream() << ", ";
+                                    emit(arg);
+                                }
+                            }
+                            stream() << ");";
+                        };
+
+                        Def ret_arg = 0;
                         for (auto arg : lambda->args()) {
-                            if (arg->order() == 0 && !arg->type().isa<MemType>() &&
+                            // retrieve return argument
+                            if (arg->order() != 0) {
+                                assert(!ret_arg);
+                                ret_arg = arg;
+                            }
+                            // emit temporaries for args
+                            if (arg->order() == 0 && !arg->is_mem() &&
                                 !lookup(arg->gid()) && !arg->isa<PrimLit>()) {
                                 emit(arg);
                                 newline();
                             }
                         }
 
-                        // retrieve return argument
-                        Def ret_arg = 0;
-                        for (auto arg : lambda->args()) {
-                            if (arg->order() != 0) {
-                                assert(!ret_arg);
-                                ret_arg = arg;
-                            }
-                        }
-
                         if (ret_arg == ret_param) {     // call + return
                             stream() << "return ";
+                            emit_call();
                         } else {                        // call + continuation
                             auto succ = ret_arg->as_lambda();
-                            auto param = succ->param(0)->type().isa<MemType>() ? nullptr : succ->param(0);
+                            auto param = succ->param(0)->is_mem() ? nullptr : succ->param(0);
                             if (param == nullptr && succ->num_params() == 2)
                                 param = succ->param(1);
 
                             if (param)
                                 emit(param) << " = ";
-                        }
 
-                        auto name = (to_lambda->is_external() || to_lambda->empty()) ? to_lambda->name : to_lambda->unique_name();
-                        stream() << name << "(";
-                        // emit all first-order args
-                        size_t i = 0;
-                        for (auto arg : lambda->args()) {
-                            if (arg->order() == 0 && !arg->type().isa<MemType>()) {
-                                if (i++ > 0) stream() << ", ";
-                                emit(arg);
+                            emit_call();
+
+                            if (param) {
+                                newline();
+                                // store argument to phi nodes
+                                stream() << "p" << succ->param(1)->unique_name() << " = ";
+                                emit(param) << ";";
                             }
                         }
-                        stream() << ");";
                     }
                 }
             }
@@ -671,7 +678,7 @@ std::ostream& CCodeGen::emit(Def def) {
         };
 
         if (auto extract = aggop->isa<Extract>()) {
-            if (extract->type().isa<MemType>() || extract->type().isa<FrameType>())
+            if (extract->is_mem() || extract->type().isa<FrameType>())
                 return stream();
             emit_type(aggop->type()) << " " << aggop->unique_name() << ";";
             newline() << aggop->unique_name() << " = ";

@@ -14,14 +14,13 @@
 
 namespace thorin {
 
+//------------------------------------------------------------------------------
+
 struct CFNodeHash {
     uint64_t operator() (const CFNodeBase* n) const;
 };
 
 typedef thorin::HashSet<const CFNodeBase*, CFNodeHash> CFNodeSet;
-
-//------------------------------------------------------------------------------
-
 
 /// Any jumps targeting a @p Lambda or @p Param outside the @p CFA's underlying @p Scope target this node.
 class OutNode : public CFNodeBase {
@@ -43,8 +42,6 @@ private:
 
     friend class CFABuilder;
 };
-
-//------------------------------------------------------------------------------
 
 uint64_t CFNodeHash::operator() (const CFNodeBase* n) const {
     if (auto in = n->isa<CFNode>())

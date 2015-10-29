@@ -58,11 +58,11 @@ void CFNode::link(const CFNode* other) const {
 }
 
 std::ostream& CFNode::stream(std::ostream& out) const {
-    return streamf(out, "<In: %>", lambda()->unique_name());
+    return streamf(out, "%", lambda()->unique_name());
 }
 
 std::ostream& OutNode::stream(std::ostream& out) const {
-    return streamf(out, "[Out: %, %]", def()->unique_name(), context());
+    return streamf(out, "[Out: % (%)]", def()->unique_name(), context());
 }
 
 //------------------------------------------------------------------------------

@@ -440,10 +440,11 @@ CFG<forward>::CFG(const CFA& cfa)
     , cfa_(cfa)
     , rpo_(*this)
 {
-    size_t result = post_order_visit(entry(), size());
 #ifndef NDEBUG
-    if (result != 0)
+    if (post_order_visit(entry(), size()) != 0)
         cfa.error_dump();
+#else
+    post_order_visit(entry(), size());
 #endif
 }
 

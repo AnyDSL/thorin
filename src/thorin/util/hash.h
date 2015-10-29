@@ -124,13 +124,18 @@ private:
         typedef typename std::conditional<is_const, const value_type*, value_type*>::type pointer;
         typedef std::forward_iterator_tag iterator_category;
 
+
+#ifndef NDEBUG
         iterator_base(Node** node, const HashTable* table)
             : node_(node)
-#ifndef NDEBUG
             , table_(table)
             , id_(table->id())
+#else
+        iterator_base(Node** node, const HashTable*)
+            : node_(node)
 #endif
         {}
+
         iterator_base(const iterator_base<false>& i)
             : node_(i.node_)
 #ifndef NDEBUG

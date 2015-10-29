@@ -838,7 +838,7 @@ bool CCodeGen::lookup(size_t gid) {
 std::string &CCodeGen::get_name(size_t gid) {
     if (globals_.count(gid)) return globals_[gid];
     if (primops_.count(gid)) return primops_[gid];
-    assert(false && "couldn't find def");
+    THORIN_UNREACHABLE; // couldn't find def
 }
 
 std::ostream& CCodeGen::insert(size_t gid, std::string str) {

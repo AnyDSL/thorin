@@ -3,6 +3,7 @@
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/verify.h"
+#include "thorin/util/log.h"
 
 namespace thorin {
 
@@ -43,12 +44,16 @@ static void critical_edge_elimination(const Scope& scope) {
             if (preds.size() > 1) {
                 for (auto pred : preds) {
                     auto lpred = pred->lambda();
-                    if (cfg.num_succs(pred) != 1)
+                    if (cfg.num_succs(pred) != 1) {
+                        WLOG("critical edge: %, %", lpred->unique_name(), lambda->unique_name());
                         edges.emplace_back(lpred, lambda);
+                    }
                 }
             }
         }
     }
+
+    return;
 
     // remove critical edges by inserting a resovling lambda
     for (auto edge : edges) {
@@ -87,7 +92,7 @@ next_lambda:;
             update_src(src, resolve(dst, ".cascading"), dst);
     }
 
-    //Scope::for_each(world, [] (const Scope& scope) { critical_edge_elimination(scope); });
+    Scope::for_each(world, [] (const Scope& scope) { critical_edge_elimination(scope); });
     debug_verify(world);
 }
 

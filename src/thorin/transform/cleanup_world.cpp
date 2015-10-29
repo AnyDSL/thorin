@@ -66,25 +66,20 @@ const CFNode* Merger::dom_succ(const CFNode* n) {
     return nullptr;
 }
 
-void Merger::merge(const CFNode* /*n*/) {
-#if 0
-    const DomNode* cur = n;
-    if (n->isa<InNode>()) {
-        for (const DomNode* next = dom_succ(cur); next != nullptr; cur = next, next = dom_succ(next)) {
-            assert(cur->lambda()->num_args() == next->lambda()->num_params());
-            for (size_t i = 0, e = cur->lambda()->num_args(); i != e; ++i)
-                Def(next->lambda()->param(i))->replace(cur->lambda()->arg(i));
-            cur->lambda()->destroy_body();
-        }
-
-        if (cur != n)
-            n->lambda()->jump(cur->lambda()->to(), cur->lambda()->args());
-
+void Merger::merge(const CFNode* n) {
+    auto cur = n;
+    for (auto next = dom_succ(cur); next != nullptr; cur = next, next = dom_succ(next)) {
+        assert(cur->lambda()->num_args() == next->lambda()->num_params());
+        for (size_t i = 0, e = cur->lambda()->num_args(); i != e; ++i)
+            Def(next->lambda()->param(i))->replace(cur->lambda()->arg(i));
+        cur->lambda()->destroy_body();
     }
 
-    for (auto child : cur->children())
+    if (cur != n)
+        n->lambda()->jump(cur->lambda()->to(), cur->lambda()->args());
+
+    for (auto child : domtree.children(cur))
         merge(child);
-#endif
 }
 
 void Cleaner::merge_lambdas() {
@@ -209,7 +204,7 @@ void Cleaner::within(const DefNode* def) {
 }
 
 void Cleaner::cleanup() {
-    //merge_lambdas();
+    merge_lambdas();
     eliminate_params();
     unreachable_code_elimination();
     dead_code_elimination();

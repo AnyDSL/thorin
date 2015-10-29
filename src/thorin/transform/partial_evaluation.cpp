@@ -84,7 +84,7 @@ void PartialEvaluator::run() {
 
 void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
     if (end == nullptr)
-        WLOG("no matching end: %", cur->unique_name());
+        WLOG("no matching end: % at %", cur->unique_name(), cur->loc());
     else
         DLOG("eval: % -> %", cur->unique_name(), end->unique_name());
 
@@ -136,7 +136,7 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
                 cur = p->lambda();
                 continue;
             }
-            WLOG("no postdom found for %", cur->unique_name());
+            WLOG("no postdom found for % at %", cur->unique_name(), cur->loc());
             return;
         }
 

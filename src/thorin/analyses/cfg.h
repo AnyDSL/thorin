@@ -1,10 +1,8 @@
 #ifndef THORIN_ANALYSES_CFG_H
 #define THORIN_ANALYSES_CFG_H
 
-#include <iostream>
 #include <vector>
 
-#include "thorin/lambda.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/util/array.h"
 #include "thorin/util/autoptr.h"
@@ -160,17 +158,10 @@ public:
     const CFNode* rpo(size_t i) const { return rpo_.array()[i]; }           ///< Maps from reverse post-order index to @p CFNode.
     const CFNode* po(size_t i) const { return rpo_.array()[size()-1-i]; }   ///< Maps from post-order index to @p CFNode.
     const CFNode* operator [] (Lambda* l) const { return cfa()[l]; }        ///< Maps from @p l to @p CFNode.
-
     const DomTreeBase<forward>& domtree() const;
     const LoopTree<forward>& looptree() const;
     const DomFrontierBase<forward>& domfrontier() const;
-
-    virtual void stream_ycomp(std::ostream& out) const override {
-        thorin::ycomp(out, scope(), range(rpo()),
-            [] (const CFNode* n) { return range(n->succs()); },
-            YComp_Orientation::TopToBottom
-        );
-    }
+    virtual void stream_ycomp(std::ostream& out) const override;
 
     static size_t index(const CFNode* n) { return forward ? n->f_index_ : n->b_index_; }
 

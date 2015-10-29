@@ -1,7 +1,5 @@
 #include "thorin/analyses/domtree.h"
 
-#include "thorin/util/ycomp.h"
-
 namespace thorin {
 
 template<bool forward>
@@ -53,9 +51,8 @@ const CFNode* DomTreeBase<forward>::lca(const CFNode* i, const CFNode* j) const 
 
 template<bool forward>
 void DomTreeBase<forward>::stream_ycomp(std::ostream& out) const {
-    thorin::ycomp(out, scope(), range(cfg().rpo()),
-        [&] (const CFNode* n) { return range(children(n)); },
-        YComp_Orientation::TopToBottom
+    thorin::ycomp(out, YCompOrientation::TopToBottom, scope(), range(cfg().rpo()),
+        [&] (const CFNode* n) { return range(children(n)); }
     );
 }
 

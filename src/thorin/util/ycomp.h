@@ -26,7 +26,7 @@ private:
 
 };
 
-enum YComp_Orientation {
+enum YCompOrientation {
     LeftToRight = 0,
     RightToLeft,
     BottomToTop,
@@ -34,8 +34,8 @@ enum YComp_Orientation {
     Num
 };
 
-static const char* YComp_Orientation_Names[] = { "left_to_right", "right_to_left", "bottom_to_top", "top_to_bottom" };
-static_assert(sizeof(YComp_Orientation_Names)/sizeof(char*) == YComp_Orientation::Num, "Sizes do not match!");
+static const char* YCompOrientation_Names[] = { "left_to_right", "right_to_left", "bottom_to_top", "top_to_bottom" };
+static_assert(sizeof(YCompOrientation_Names)/sizeof(char*) == YCompOrientation::Num, "Sizes do not match!");
 
 struct YCompConfig {
     static int indentation;
@@ -45,7 +45,7 @@ template <typename I, typename SuccFct>
 class YCompScope : public Printer {
 public:
     YCompScope(std::ostream& ostream, const Scope& scope, Range<I> range,
-               SuccFct succs, YComp_Orientation orientation)
+               SuccFct succs, YCompOrientation orientation)
         : YCompScope(ostream, orientation)
     {
         addScope(scope, range, succs);
@@ -58,14 +58,14 @@ public:
     }
 
 private:
-    YCompScope(std::ostream& ostream, YComp_Orientation orientation)
+    YCompScope(std::ostream& ostream, YCompOrientation orientation)
             : Printer(ostream)
     {
         indent += YCompConfig::indentation;
 
         newline() << "graph: {";
         up() << "layoutalgorithm: compilergraph";
-        newline() << "orientation: " << YComp_Orientation_Names[orientation];
+        newline() << "orientation: " << YCompOrientation_Names[orientation];
     }
 
     void addScope(const Scope& scope, Range<I> range, SuccFct succs) {
@@ -92,10 +92,9 @@ private:
     }
 };
 
-template <typename I, typename SuccFct>
-YCompScope<I, SuccFct> ycomp(std::ostream& ostream, const Scope& scope, Range<I> range, SuccFct succs,
-                                           YComp_Orientation orientation = YComp_Orientation::BottomToTop) {
-    return YCompScope<I, SuccFct>(ostream, scope, range, succs, orientation);
+template <typename I, typename S>
+YCompScope<I, S> ycomp(std::ostream& out, YCompOrientation o, const Scope& scope, Range<I> range, S succs) {
+    return YCompScope<I, S>(out, scope, range, succs, o);
 }
 
 template<class G>

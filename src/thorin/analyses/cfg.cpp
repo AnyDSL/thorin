@@ -464,6 +464,13 @@ size_t CFG<forward>::post_order_visit(const CFNode* n, size_t i) {
     return n_index;
 }
 
+template<bool forward>
+void CFG<forward>::stream_ycomp(std::ostream& out) const {
+    thorin::ycomp(out, YCompOrientation::TopToBottom, scope(), range(rpo()),
+        [] (const CFNode* n) { return range(n->succs()); }
+    );
+}
+
 template<bool forward> const DomTreeBase<forward>& CFG<forward>::domtree() const { return lazy_init(this, domtree_); }
 template<bool forward> const LoopTree<forward>& CFG<forward>::looptree() const { return lazy_init(this, looptree_); }
 template<bool forward> const DomFrontierBase<forward>& CFG<forward>::domfrontier() const { return lazy_init(this, domfrontier_); }

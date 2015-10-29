@@ -105,24 +105,10 @@ public:
 
     explicit LoopTree(const CFG<forward>& cfg);
     static const LoopTree& create(const Scope& scope) { return scope.cfg<forward>().looptree(); }
-
     const CFG<forward>& cfg() const { return cfg_; }
     const Head* root() const { return root_; }
     const Leaf* operator [] (const CFNode* n) const { return find(leaves_, n); }
-
-    virtual void stream_ycomp(std::ostream& out) const override {
-        std::vector<const Node *> nodes;
-        get_nodes(nodes, root());
-
-        thorin::ycomp(out, cfg().scope(), range(nodes),
-            [] (const Node* n) {
-                if (auto head = n->template isa<Head>())
-                    return range(head->children());
-                return range(ArrayRef<Node*>());
-            },
-            YComp_Orientation::LeftToRight
-        );
-    }
+    virtual void stream_ycomp(std::ostream& out) const override;
 
 private:
     static void get_nodes(std::vector<const Node *>& nodes, const Node* node) {

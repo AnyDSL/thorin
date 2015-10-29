@@ -1,8 +1,6 @@
 #include "thorin/analyses/domfrontier.h"
 
-#include "thorin/world.h"
 #include "thorin/analyses/domtree.h"
-#include "thorin/util/ycomp.h"
 
 namespace thorin {
 
@@ -28,9 +26,8 @@ void DomFrontierBase<forward>::create() {
 
 template<bool forward>
 void DomFrontierBase<forward>::stream_ycomp(std::ostream& out) const {
-    thorin::ycomp(out, scope(), range(cfg().rpo()),
-        [&] (const CFNode* n) { return range(succs(n)); },
-        YComp_Orientation::TopToBottom
+    thorin::ycomp(out, YCompOrientation::TopToBottom, scope(), range(cfg().rpo()),
+        [&] (const CFNode* n) { return range(succs(n)); }
     );
 }
 

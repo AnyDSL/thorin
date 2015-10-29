@@ -1,7 +1,7 @@
 #include "thorin/util/ycomp.h"
 
 #include "thorin/analyses/cfg.h"
-#include "thorin/analyses/dfg.h"
+#include "thorin/analyses/domfrontier.h"
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/looptree.h"
 
@@ -33,7 +33,7 @@ void YCompCommandLine::print(World& world) {
         } else if (graph.compare("cfg") == 0) {
             YCOMP(CFG);
         } else if (graph.compare("dfg") == 0) {
-            YCOMP(DFGBase);
+            YCOMP(DomFrontierBase);
         } else if (graph.compare("looptree") == 0) {
             YCOMP(LoopTree);
         } else {

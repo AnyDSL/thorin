@@ -18,7 +18,7 @@ namespace thorin {
 
 template<bool> class LoopTree;
 template<bool> class DomTreeBase;
-template<bool> class DFGBase;
+template<bool> class DomFrontierBase;
 class CFNode;
 typedef std::vector<const CFNode*> CFNodes;
 
@@ -163,7 +163,7 @@ public:
 
     const DomTreeBase<forward>& domtree() const;
     const LoopTree<forward>& looptree() const;
-    const DFGBase<forward>& dfg() const;
+    const DomFrontierBase<forward>& domfrontier() const;
 
     virtual void stream_ycomp(std::ostream& out) const override {
         thorin::ycomp(out, scope(), range(rpo()),
@@ -181,7 +181,7 @@ private:
     Map<const CFNode*> rpo_;
     mutable AutoPtr<const DomTreeBase<forward>> domtree_;
     mutable AutoPtr<const LoopTree<forward>> looptree_;
-    mutable AutoPtr<const DFGBase<forward>> dfg_;
+    mutable AutoPtr<const DomFrontierBase<forward>> domfrontier_;
 };
 
 //------------------------------------------------------------------------------

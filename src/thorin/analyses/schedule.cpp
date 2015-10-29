@@ -41,7 +41,7 @@ void Schedule::verify() {
 
     for (auto& block : *this) {
         Def mem = block.lambda()->mem_param();
-        mem = mem ? mem : block2mem[(*this)[domtree[block.cf_node()]->idom()->cf_node()]];
+        mem = mem ? mem : block2mem[(*this)[domtree.idom(block.cf_node())]];
         for (auto primop : block) {
             if (auto memop = primop->isa<MemOp>()) {
                 if (memop->mem() != mem)
@@ -126,9 +126,7 @@ Schedule schedule_late(const Scope& scope) {
         if (!scope._contains(def) || def->isa_lambda() || def->isa<Param>())
             return;
         auto& late = def2late[def];
-        late = late
-             ? domtree.lca(domtree[late], domtree[n])->cf_node()
-             : n;
+        late = late ? domtree.lca(late, n) : n;
         assert(def2num[def] != 0);
         if (--def2num[def] == 0) {
             queue.push(def);
@@ -176,7 +174,7 @@ Schedule schedule_smart(const Scope& scope) {
             else {
                 int depth = looptree[node_best]->depth();
                 for (auto i = node_best; i != node_early;) {
-                    i = domtree[i]->idom()->cf_node();
+                    i = domtree.idom(i);
                     int cur_depth = looptree[i]->depth();
                     if (cur_depth < depth) {
                         node_best = i;

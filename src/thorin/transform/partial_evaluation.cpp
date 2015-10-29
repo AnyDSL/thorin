@@ -131,7 +131,7 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
         if (dst->empty()) {
             auto& postdomtree = scope_.update().b_cfg().domtree();
             if (auto n = scope().cfa(cur)) {
-                auto p = postdomtree[n]->idom()->cf_node();;
+                auto p = postdomtree.idom(n);
                 DLOG("postdom: % -> %", n, p);
                 cur = p->lambda();
                 continue;

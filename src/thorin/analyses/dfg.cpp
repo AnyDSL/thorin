@@ -24,14 +24,14 @@ void DFGBase<forward>::create() {
         const auto dfnode = (*this)[node];
         const auto& preds = cfg().preds(node);
         if (preds.size() > 1) {
-            const auto idom = domtree[node]->idom()->cf_node();
+            const auto idom = domtree.idom(node);
             for (const auto pred : preds) {
                 auto runner = pred;
                 while (runner != idom) {
                     auto dfrunner = (*this)[runner];
                     dfnode->succs_.push_back(dfrunner);
                     dfrunner->preds_.push_back(dfnode);
-                    runner = domtree[runner]->idom()->cf_node();
+                    runner = domtree.idom(runner);
                 }
             }
         }

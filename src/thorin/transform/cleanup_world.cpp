@@ -46,8 +46,8 @@ public:
         merge(domtree.root());
     }
 
-    void merge(const DomNode* n);
-    const DomNode* dom_succ(const DomNode* n);
+    void merge(const CFNode* n);
+    const CFNode* dom_succ(const CFNode* n);
     World& world() { return scope.world(); }
 
     const Scope& scope;
@@ -55,21 +55,21 @@ public:
     const DomTree& domtree;
 };
 
-const DomNode* Merger::dom_succ(const DomNode* n) {
-    const auto& succs = cfg.succs(n->cf_node());
-    const auto& children = n->children();
-    if (succs.size() == 1 && children.size() == 1 && *succs.begin() == (*children.begin())->cf_node()) {
+const CFNode* Merger::dom_succ(const CFNode* n) {
+    const auto& succs = cfg.succs(n);
+    const auto& children = domtree.children(n);
+    if (succs.size() == 1 && children.size() == 1 && *succs.begin() == (*children.begin())) {
         auto lambda = (*succs.begin())->lambda();
-        if (lambda->num_uses() == 1 && lambda == n->cf_node()->lambda()->to())
+        if (lambda->num_uses() == 1 && lambda == n->lambda()->to())
             return children.front();
     }
     return nullptr;
 }
 
-void Merger::merge(const DomNode* /*n*/) {
+void Merger::merge(const CFNode* /*n*/) {
 #if 0
     const DomNode* cur = n;
-    if (n->cf_node()->isa<InNode>()) {
+    if (n->isa<InNode>()) {
         for (const DomNode* next = dom_succ(cur); next != nullptr; cur = next, next = dom_succ(next)) {
             assert(cur->lambda()->num_args() == next->lambda()->num_params());
             for (size_t i = 0, e = cur->lambda()->num_args(); i != e; ++i)

@@ -1,16 +1,9 @@
 #ifndef THORIN_ANALYSES_DOMTREE_H
 #define THORIN_ANALYSES_DOMTREE_H
 
-#include "thorin/lambda.h"
 #include "thorin/analyses/cfg.h"
-#include "thorin/util/array.h"
-#include "thorin/util/iterator.h"
-#include "thorin/util/ycomp.h"
 
 namespace thorin {
-
-class CFNode;
-template<bool> class CFG;
 
 /**
  * @brief A Dominance Tree.
@@ -22,67 +15,37 @@ template<bool> class CFG;
 template<bool forward>
 class DomTreeBase : public YComp {
 public:
-    class Node : public Streamable {
-    private:
-        explicit Node(const CFNode* cf_node)
-            : cf_node_(cf_node)
-        {}
-
-    public:
-        const CFNode* cf_node() const { return cf_node_; }
-        const Node* idom() const { return idom_; }
-        const std::vector<const Node*>& children() const { return children_; }
-        size_t num_children() const { return children_.size(); }
-        bool entry() const { return idom_ == this; }
-        std::ostream& stream(std::ostream& out) const override { return cf_node()->stream(out); }
-
-    private:
-        const CFNode* cf_node_;
-        mutable const Node* idom_ = nullptr;
-        mutable AutoVector<const Node*> children_;
-
-        template<bool> friend class DomTreeBase;
-    };
-
     DomTreeBase(const DomTreeBase&) = delete;
     DomTreeBase& operator= (DomTreeBase) = delete;
 
     explicit DomTreeBase(const CFG<forward>& cfg)
         : YComp(cfg.scope(), forward ? "domtree" : "post_domtree")
         , cfg_(cfg)
-        , nodes_(cfg)
+        , idoms_(cfg)
+        , children_(cfg)
     {
         create();
     }
     static const DomTreeBase& create(const Scope& scope) { return scope.cfg<forward>().domtree(); }
 
     const CFG<forward>& cfg() const { return cfg_; }
-    size_t index(const Node* n) const { return cfg().index(n->cf_node()); }
-    ArrayRef<const Node*> nodes() const { return nodes_.array(); }
-    const Node* root() const { return root_; }
-    /// Returns the least common ancestor of @p i and @p j.
-    const Node* lca(const Node* i, const Node* j) const;
-    const Node* operator [] (const CFNode* n) const { return nodes_[n]; }
-
-    virtual void stream_ycomp(std::ostream& out) const override {
-        thorin::ycomp(out, scope(), range(nodes()),
-            [] (const Node* n) { return range(n->children()); },
-            YComp_Orientation::TopToBottom
-        );
-    }
+    size_t index(const CFNode* n) const { return cfg().index(n); }
+    const CFNode* root() const { return *idoms_.begin(); }
+    const CFNodes& children(const CFNode* n) const { return children_[n]; }
+    const CFNode* idom(const CFNode* n) const { return idoms_[n]; }
+    const CFNode* lca(const CFNode* i, const CFNode* j) const; ///< Returns the least common ancestor of @p i and @p j.
+    virtual void stream_ycomp(std::ostream& out) const override;
 
 private:
     void create();
 
     const CFG<forward>& cfg_;
-    AutoPtr<const Node> root_;
-    typename CFG<forward>::template Map<const Node*> nodes_;
+    typename CFG<forward>::template Map<const CFNode*> idoms_;
+    typename CFG<forward>::template Map<std::vector<const CFNode*>> children_;
 };
 
 typedef DomTreeBase<true>  DomTree;
 typedef DomTreeBase<false> PostDomTree;
-typedef DomTree::Node      DomNode;
-typedef PostDomTree::Node  PostDomNode;
 
 }
 

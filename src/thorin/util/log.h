@@ -46,7 +46,7 @@ private:
 #ifndef NDEBUG
 #define LOG(level, ...) thorin::Log::log((level), __FILE__, __LINE__, __VA_ARGS__)
 #else
-#define LOG(level, ...) {}
+#define LOG(level, ...) do {} while (false)
 #endif
 
 #define WLOG(...) LOG(thorin::Log::Warn,  __VA_ARGS__)

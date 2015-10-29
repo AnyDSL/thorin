@@ -125,6 +125,7 @@ public:
     const Scope& scope() const { return scope_; }
     const World& world() const { return scope().world(); }
     const char* name() const { return name_; }
+    // Note that we don't use overloading for the following methods in order to have them accessible from gdb.
     void ycomp() const;                                     ///< Dumps ycomp to a file with an auto-generated a file name.
     void write_ycomp(const char* filename) const;           ///< Dumps ycomp file to @p filename.
     virtual void stream_ycomp(std::ostream& out) const = 0; ///< Dumps ycomp file to @p out.

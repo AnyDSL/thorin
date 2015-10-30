@@ -454,8 +454,7 @@ CFG<forward>::CFG(const CFA& cfa)
     , rpo_(*this)
 {
 #ifndef NDEBUG
-    auto res = post_order_visit(entry(), size());
-    assert(res == 0);
+    assert(post_order_visit(entry(), size()) == 0);
 #else
     post_order_visit(entry(), size());
 #endif

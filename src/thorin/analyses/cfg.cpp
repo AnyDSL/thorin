@@ -87,6 +87,13 @@ public:
 #endif
     }
 
+    ~CFABuilder() {
+        for (auto p : out_nodes_) {
+            for (auto q : p.second)
+                delete q.second;
+        }
+    }
+
     void propagate_higher_order_values();
     void run_cfa();
     void build_cfg();

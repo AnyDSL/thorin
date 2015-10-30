@@ -45,11 +45,30 @@ std::ostream& streamf(std::ostream& out, const char* fmt, T val, Args... args) {
     return out;
 }
 
-template <class charT, class traits>
-basic_ostream<charT,traits>& endl(basic_ostream<charT,traits>& os);
+namespace indent {
+  unsigned int level;
+}
 
-basic_ostream<charT,traits>& operator<<
-    (basic_ostream<charT,traits>& (*pf)(basic_ostream<charT,traits>&));
+template <class charT, class traits>
+std::basic_ostream<charT,traits>& endl(std::basic_ostream<charT,traits>& os) {
+  os << "\n";
+  os << std::string(indent::level, '\t');
+  return os;
+}
+
+template <class charT, class traits>
+std::basic_ostream<charT,traits>& up(std::basic_ostream<charT,traits>& os) {
+  indent::level++;
+  return os;
+}
+
+template <class charT, class traits>
+std::basic_ostream<charT,traits>& down(std::basic_ostream<charT,traits>& os) {
+  indent::level--;
+  return os;
+}
+
+
 
 }
 

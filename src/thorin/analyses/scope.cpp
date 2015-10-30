@@ -136,10 +136,15 @@ void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
     LambdaSet done;
     std::queue<Lambda*> queue;
 
+    auto enqueue = [&] (Lambda* lambda) {
+        auto p = done.insert(lambda);
+        if (p.second)
+            queue.push(lambda);
+    };
+
     for (auto lambda : world.externals()) {
         assert(!lambda->empty() && "external must not be empty");
-        done.insert(lambda);
-        queue.push(lambda);
+        enqueue(lambda);
     }
 
     while (!queue.empty()) {
@@ -148,15 +153,11 @@ void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
             continue;
         Scope scope(lambda);
         f(scope);
-        for (auto lambda : scope)
-            done.insert(lambda);
 
-        for (auto lambda : scope) {
-            for (auto succ : lambda->succs()) {
-                if (!done.contains(succ)) {
-                    done.insert(succ);
-                    queue.push(succ);
-                }
+        for (auto n : scope.f_cfg().reverse_post_order()) {
+            for (auto succ : n->lambda()->succs()) {
+                if (!scope.outer_contains(succ))
+                    enqueue(succ);
             }
         }
     }

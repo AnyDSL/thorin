@@ -36,7 +36,7 @@ static void update_src(Lambda* src, Lambda* resolver, Lambda* dst) {
 
 static void critical_edge_elimination(const Scope& scope) {
     const auto& cfg = scope.f_cfg();
-    for (auto n : cfg.po()) {
+    for (auto n : cfg.post_order()) {
         if (cfg.num_preds(n) > 1) {
             for (auto pred : cfg.preds(n)) {
                 if (cfg.num_succs(pred) != 1) {

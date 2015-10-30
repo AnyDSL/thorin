@@ -33,7 +33,7 @@ void lower2cff(World& world) {
             };
 
             const auto& cfg = scope.f_cfg();
-            for (auto n : cfg.po()) {
+            for (auto n : cfg.post_order()) {
                 auto lambda = n->lambda();
                 if (auto to = lambda->to()->isa_lambda()) {
                     if (is_bad(to)) {
@@ -82,8 +82,6 @@ void lower2cff(World& world) {
         }
     }
 
-    world.cleanup();
-
     Scope::for_each(world, [&] (const Scope& scope) {
         for (auto lambda : scope) {
             for (auto op : lambda->ops())
@@ -93,6 +91,7 @@ void lower2cff(World& world) {
 
     });
 
+    world.cleanup();
     debug_verify(world);
 }
 

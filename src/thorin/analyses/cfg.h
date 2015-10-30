@@ -152,10 +152,10 @@ public:
     ArrayRef<const CFNode*> body() const { return rpo().skip_front(); } ///< Like @p rpo() but without @p entry()
 
     /// All @p CFNode%s within this @p CFG in post-order.
-    Range<ArrayRef<const CFNode*>::const_reverse_iterator> po() const { return reverse_range(rpo_.array()); }
+    Range<ArrayRef<const CFNode*>::const_reverse_iterator> post_order() const { return reverse_range(rpo_.array()); }
 
     const CFNode* rpo(size_t i) const { return rpo_.array()[i]; }           ///< Maps from reverse post-order index to @p CFNode.
-    const CFNode* po(size_t i) const { return rpo_.array()[size()-1-i]; }   ///< Maps from post-order index to @p CFNode.
+    const CFNode* post_order(size_t i) const { return rpo_.array()[size()-1-i]; }   ///< Maps from post-order index to @p CFNode.
     const CFNode* operator [] (Lambda* l) const { return cfa()[l]; }        ///< Maps from @p l to @p CFNode.
     const DomTreeBase<forward>& domtree() const;
     const LoopTree<forward>& looptree() const;

@@ -317,7 +317,8 @@ void CFABuilder::build_cfg() {
                         if (auto in = n->isa<CFNode>()) {
                             enqueue(in);
                             link(out, n);
-                        }
+                        } else if (!n->as<OutNode>()->ancestors().empty())
+                            link(out, n);
                     }
                 }
             }

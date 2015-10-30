@@ -8,7 +8,7 @@ void DomTreeBase<forward>::create() {
     idoms_[cfg().entry()] = cfg().entry();
 
     // all others' idom are set to their first found dominating pred
-    for (auto n : cfg().body()) {
+    for (auto n : cfg().reverse_post_order().skip_front()) {
         for (auto pred : cfg().preds(n)) {
             if (cfg().index(pred) < cfg().index(n)) {
                 idoms_[n] = pred;
@@ -22,7 +22,7 @@ outer_loop:;
     for (bool todo = true; todo;) {
         todo = false;
 
-        for (auto n : cfg().body()) {
+        for (auto n : cfg().reverse_post_order().skip_front()) {
             const CFNode* new_idom = nullptr;
             for (auto pred : cfg().preds(n))
                 new_idom = new_idom ? lca(new_idom, pred) : pred;
@@ -35,7 +35,7 @@ outer_loop:;
         }
     }
 
-    for (auto n : cfg().body())
+    for (auto n : cfg().reverse_post_order().skip_front())
         children_[idom(n)].push_back(n);
 }
 
@@ -51,7 +51,7 @@ const CFNode* DomTreeBase<forward>::lca(const CFNode* i, const CFNode* j) const 
 
 template<bool forward>
 void DomTreeBase<forward>::stream_ycomp(std::ostream& out) const {
-    thorin::ycomp(out, YCompOrientation::TopToBottom, scope(), range(cfg().rpo()),
+    thorin::ycomp(out, YCompOrientation::TopToBottom, scope(), range(cfg().reverse_post_order()),
         [&] (const CFNode* n) { return range(children(n)); }
     );
 }

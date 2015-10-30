@@ -25,7 +25,7 @@ Schedule::Schedule(const Scope& scope)
 void Schedule::block_schedule() {
     // until we have sth better simply use the RPO of the CFG
     size_t i = 0;
-    for (auto n : cfg().rpo()) {
+    for (auto n : cfg().reverse_post_order()) {
         auto& block = blocks_[i];
         block.cf_node_ = n;
         block.index_ = i;
@@ -82,10 +82,10 @@ static Def2CFNode schedule_early(const Scope& scope) {
         }
     };
 
-    for (auto n : cfg.rpo())
+    for (auto n : cfg.reverse_post_order())
         enqueue_uses(n->lambda());
 
-    for (auto n : cfg.rpo()) {
+    for (auto n : cfg.reverse_post_order()) {
         for (auto param : n->lambda()->params()) {
             if (!param->is_proxy())
                 queue.push(param);
@@ -135,7 +135,7 @@ Schedule schedule_late(const Scope& scope) {
         }
     };
 
-    for (auto n : cfg.rpo()) {
+    for (auto n : cfg.reverse_post_order()) {
         for (auto op : n->lambda()->ops())
             enqueue(n, op);
     }

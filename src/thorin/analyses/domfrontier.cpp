@@ -9,7 +9,7 @@ void DomFrontierBase<forward>::create() {
     const auto& domtree = cfg().domtree();
 
     // compute the dominance frontier of each node as described in Cooper et al.
-    for (const auto n : cfg().body()) {
+    for (const auto n : cfg().reverse_post_order().skip_front()) {
         const auto& preds = cfg().preds(n);
         if (preds.size() > 1) {
             const auto idom = domtree.idom(n);
@@ -26,7 +26,7 @@ void DomFrontierBase<forward>::create() {
 
 template<bool forward>
 void DomFrontierBase<forward>::stream_ycomp(std::ostream& out) const {
-    thorin::ycomp(out, YCompOrientation::TopToBottom, scope(), range(cfg().rpo()),
+    thorin::ycomp(out, YCompOrientation::TopToBottom, scope(), range(cfg().reverse_post_order()),
         [&] (const CFNode* n) { return range(succs(n)); }
     );
 }

@@ -82,6 +82,8 @@ void lower2cff(World& world) {
         }
     }
 
+    world.cleanup();
+
     Scope::for_each(world, [&] (const Scope& scope) {
         for (auto lambda : scope) {
             for (auto op : lambda->ops())
@@ -91,7 +93,6 @@ void lower2cff(World& world) {
 
     });
 
-    world.cleanup();
     debug_verify(world);
 }
 

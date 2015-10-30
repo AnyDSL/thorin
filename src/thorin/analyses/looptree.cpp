@@ -105,7 +105,7 @@ private:
 
 template<bool forward>
 void LoopTreeBuilder<forward>::build() {
-    for (auto n : cfg().rpo()) // clear all flags
+    for (auto n : cfg().reverse_post_order()) // clear all flags
         states_[n] = 0;
 
     recurse(looptree_.root_ = new Head(nullptr, 0, std::vector<const CFNode*>(0)), {cfg().entry()}, 1);

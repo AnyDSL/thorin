@@ -50,8 +50,6 @@ uint64_t CFNodeHash::operator() (const CFNodeBase* n) const {
     return hash_combine(hash_value(out->def()->gid()), out->context()->lambda()->gid());
 }
 
-//------------------------------------------------------------------------------
-
 void CFNode::link(const CFNode* other) const {
     this ->succs_.push_back(other);
     other->preds_.push_back(this);

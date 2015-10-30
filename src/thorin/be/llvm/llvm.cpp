@@ -597,7 +597,7 @@ llvm::Value* CodeGen::emit(Def def) {
                 return irbuilder_.CreatePtrToInt(from, to);
             }
             if (dst_type.isa<PtrType>()) {
-                assert(src_type->is_type_i() || dst_type->is_bool());
+                assert(src_type->is_type_i() || src_type->is_bool());
                 return irbuilder_.CreateIntToPtr(from, to);
             }
 

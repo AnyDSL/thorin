@@ -23,17 +23,6 @@ Scope::Scope(Lambda* entry)
 
 Scope::~Scope() { cleanup(); }
 
-const Scope& Scope::update() {
-    cleanup();
-    auto e = entry();
-    lambdas_.clear();
-    in_scope_.clear();
-    cfa_.release();
-    id_ = id_counter_++;
-    run(e);
-    return *this;
-}
-
 void Scope::run(Lambda* entry) {
     assert(!entry->is_proxy());
     identify_scope(entry);
@@ -45,6 +34,17 @@ void Scope::run(Lambda* entry) {
 void Scope::cleanup() {
     for (auto lambda : lambdas())
         lambda->unregister_scope(this);
+}
+
+const Scope& Scope::update() {
+    cleanup();
+    auto e = entry();
+    lambdas_.clear();
+    in_scope_.clear();
+    cfa_.release();
+    id_ = id_counter_++;
+    run(e);
+    return *this;
 }
 
 void Scope::identify_scope(Lambda* entry) {

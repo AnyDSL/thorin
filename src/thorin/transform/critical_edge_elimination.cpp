@@ -35,31 +35,16 @@ static void update_src(Lambda* src, Lambda* resolver, Lambda* dst) {
 }
 
 static void critical_edge_elimination(const Scope& scope) {
-    auto& cfg = scope.f_cfg();
-    // find critical edges
-    std::vector<std::pair<Lambda*, Lambda*>> edges;
-    for (auto lambda : scope) {
-        if (!lambda->to()->isa<Bottom>()) {
-            const auto& preds = cfg.preds(cfg[lambda]);
-            if (preds.size() > 1) {
-                for (auto pred : preds) {
-                    auto lpred = pred->lambda();
-                    if (cfg.num_succs(pred) != 1) {
-                        WLOG("critical edge: %, %", lpred->unique_name(), lambda->unique_name());
-                        edges.emplace_back(lpred, lambda);
-                    }
+    const auto& cfg = scope.f_cfg();
+    for (auto n : cfg.po()) {
+        if (cfg.num_preds(n) > 1) {
+            for (auto pred : cfg.preds(n)) {
+                if (cfg.num_succs(pred) != 1) {
+                    WLOG("critical edge: %, %", pred, n);
+                    update_src(pred->lambda(), resolve(n->lambda(), ".crit"), n->lambda());
                 }
             }
         }
-    }
-
-    return;
-
-    // remove critical edges by inserting a resovling lambda
-    for (auto edge : edges) {
-        auto src = edge.first;
-        auto dst = edge.second;
-        update_src(src, resolve(dst, ".crit"), dst);
     }
 }
 

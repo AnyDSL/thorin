@@ -45,6 +45,12 @@ std::ostream& streamf(std::ostream& out, const char* fmt, T val, Args... args) {
     return out;
 }
 
+template <class charT, class traits>
+basic_ostream<charT,traits>& endl(basic_ostream<charT,traits>& os);
+
+basic_ostream<charT,traits>& operator<<
+    (basic_ostream<charT,traits>& (*pf)(basic_ostream<charT,traits>&));
+
 }
 
 #endif

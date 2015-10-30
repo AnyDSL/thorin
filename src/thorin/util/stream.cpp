@@ -14,7 +14,7 @@ std::string Streamable::to_string() const {
     return out.str();
 }
 
-void Streamable::dump() const { stream(std::cout) << std::endl;; }
+void Streamable::dump() const { stream(std::cout) << thorin::endl;; }
 std::ostream& operator << (std::ostream& ostream, const Streamable* s) { return s->stream(ostream); }
 
 std::ostream& streamf(std::ostream& out, const char* fmt) {

@@ -101,7 +101,6 @@ private:
     const CFNodes& succs(Lambda* lambda) const { return nodes_[lambda]->succs(); }
     const CFNode* entry() const { return nodes_.array().front(); }
     const CFNode* exit() const { return nodes_.array().back(); }
-    void error_dump() const;
 
     const Scope& scope_;
     Scope::Map<const CFNode*> nodes_;

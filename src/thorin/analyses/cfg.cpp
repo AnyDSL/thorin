@@ -65,10 +65,11 @@ std::ostream& OutNode::stream(std::ostream& out) const {
 
 //------------------------------------------------------------------------------
 
-class CFABuilder {
+class CFABuilder : public YComp {
 public:
     CFABuilder(CFA& cfa)
-        : cfa_(cfa)
+        : YComp(cfa.scope(), "cfa")
+        , cfa_(cfa)
         , lambda2param2nodes_(cfa.scope(), std::vector<CFNodeSet>(0))
         , entry_(in_node(scope().entry()))
         , exit_ (in_node(scope().exit()))
@@ -99,9 +100,9 @@ public:
     void link_to_exit();
     void transetive_cfg();
     void verify();
+    virtual void stream_ycomp(std::ostream& out) const override;
 
     const CFA& cfa() const { return cfa_; }
-    const Scope& scope() const { return cfa_.scope(); }
     const CFNode* entry() const { return entry_; }
     const CFNode* exit() const { return exit_; }
 
@@ -364,8 +365,10 @@ void CFABuilder::verify() {
         }
     }
 
-    if (error)
-        cfa().error_dump();
+    if (error) {
+        ycomp();
+        abort();
+    }
 }
 
 void CFABuilder::link_to_exit() {
@@ -414,12 +417,16 @@ void CFABuilder::transetive_cfg() {
     }
 }
 
+void CFABuilder::stream_ycomp(std::ostream& out) const {
+    std::vector<const CFNodeBase*> nodes(cfa().nodes().begin(), cfa().nodes().end());
+    for (auto p : out_nodes_) {
+        for (auto q : p.second)
+            nodes.push_back(q.second);
+    }
 
-void CFA::error_dump() const {
-    std::ofstream out(scope().world().name() + entry()->lambda()->unique_name() + ".vcg");
-    emit_ycomp(scope(), false, out);
-    out.close();
-    abort();
+    thorin::ycomp(out, YCompOrientation::TopToBottom, scope(), range(nodes),
+        [&] (const CFNodeBase* n) { return edges_.find(n)->second; }
+    );
 }
 
 //------------------------------------------------------------------------------
@@ -447,8 +454,8 @@ CFG<forward>::CFG(const CFA& cfa)
     , rpo_(*this)
 {
 #ifndef NDEBUG
-    if (post_order_visit(entry(), size()) != 0)
-        cfa.error_dump();
+    auto res = post_order_visit(entry(), size());
+    assert(res == 0);
 #else
     post_order_visit(entry(), size());
 #endif

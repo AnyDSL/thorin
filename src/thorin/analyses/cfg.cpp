@@ -260,6 +260,9 @@ void CFABuilder::run_cfa() {
         auto args = args_cf_nodes(cur_in);
 
         for (auto n : to_cf_nodes(cur_in)) {
+            if (n->def()->type() != cur_lambda->to()->type())
+                continue;
+
             if (auto in = n->isa<CFNode>()) {
                 bool todo = in->f_index_ == CFNode::Fresh;
                 for (size_t i = 0; i != cur_lambda->num_args(); ++i) {

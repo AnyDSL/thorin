@@ -4,98 +4,101 @@
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/verify.h"
 #include "thorin/transform/mangle.h"
+#include "thorin/util/log.h"
 
 namespace thorin {
 
-class CFFLowering {
-public:
-    CFFLowering(World& world) {
-        Scope::for_each(world, [&] (const Scope& scope) { top_.insert(scope.entry()); });
-    }
+void lower2cff(World& world) {
+    HashMap<Array<Def>, Lambda*> cache;
+    LambdaSet top;
 
-    void transform(Lambda* lambda);
-    size_t process();
+    bool local = true;
+    for (bool todo = true; todo || local;) {
+        todo = false;
 
-private:
-    LambdaSet top_;
-};
+        Scope::for_each(world, [&] (Scope& scope) {
+            bool dirty = false;
 
-void CFFLowering::transform(Lambda* lambda) {
-    Scope scope(lambda);
-    HashMap<Array<Def>, Lambda*> args2lambda;
-
-    for (auto use : lambda->uses()) {
-        if (use.index() == 0) {
-            if (auto ulambda = use->isa_lambda()) {
-                if (!scope.outer_contains(ulambda)) {
-                    Type2Type map;
-                    bool res = lambda->type()->infer_with(map, ulambda->arg_fn_type());
-                    assert(res);
-
-                    size_t num_args = lambda->num_params();
-                    //bool ret = false;
-                    bool ret = true; // HACK
-                    Array<Def> args(num_args);
-                    for (size_t i = num_args; i-- != 0;) {
-                        // don't drop the "return" of a top-level function
-                        if (!ret &&  top_.find(lambda) != top_.end() && lambda->param(i)->type()->specialize(map)->order() == 1) {
-                            ret = true;
-                            args[i] = nullptr;
-                        } else
-                            args[i] = (lambda->param(i)->order() >= 1) ? ulambda->arg(i) : nullptr;
-                    }
-
-                    // check whether we can reuse an existing version
-                    auto i = args2lambda.find(args);
-                    Lambda* target;
-                    if (i != args2lambda.end())
-                        target = i->second; // use already dropped version as target
+            auto is_bad = [&] (Lambda* to) {
+                if (to->empty())
+                    return false;
+                if (local)
+                    return scope.inner_contains(to) && !to->is_basicblock();
+                else {
+                    if (top.contains(to))
+                        return !to->is_returning() && !scope.outer_contains(to);
                     else
-                        args2lambda[args] = target = drop(scope, args, map);
+                        return !to->is_basicblock();
+                }
+            };
 
-                    std::vector<Def> nargs;
-                    for (size_t i = 0, e = num_args; i != e; ++i) {
-                        if (args[i] == nullptr)
-                            nargs.push_back(ulambda->arg(i));
+            const auto& cfg = scope.f_cfg();
+            for (auto n : cfg.po()) {
+                auto lambda = n->lambda();
+                if (auto to = lambda->to()->isa_lambda()) {
+                    if (is_bad(to)) {
+                        DLOG("bad: %", to->unique_name());
+                        todo = true;
+                        dirty = true;
+                        Type2Type map;
+                        bool res = to->type()->infer_with(map, lambda->arg_fn_type());
+                        assert(res);
+
+                        Array<Def> ops(lambda->size());
+                        ops[0] = to;
+                        for (size_t i = 1, e = ops.size(); i != e; ++i)
+                            ops[i] = to->param(i-1)->order() > 0 ? lambda->arg(i-1) : nullptr;
+
+                        auto p = cache.emplace(ops, nullptr);
+                        Lambda*& target = p.first->second;
+                        if (p.second) {
+                            Scope to_scope(to);
+                            target = drop(to_scope, ops.skip_front(), map); // use already dropped version as target
+                        }
+
+                        std::vector<Def> nargs;
+                        size_t i = 0;
+                        for (auto arg : ops.skip_front()) {
+                            if (arg == nullptr)
+                                nargs.push_back(lambda->arg(i));
+                            ++i;
+                        }
+
+                        lambda->jump(target, nargs);
+                        assert(lambda->arg_fn_type() == target->type());
                     }
-                    ulambda->jump(target, nargs);
                 }
             }
-        }
-    }
-}
 
-size_t CFFLowering::process() {
-    std::vector<Lambda*> todo;
-    for (auto top : top_) {
-        Scope scope(top);
-        for (auto n : scope.f_cfg().po()) {
-            auto lambda = n->lambda();
-            if (!lambda->is_intrinsic() && !lambda->is_passed_to_accelerator()) {
-                if (lambda->num_params() != 0                           // is there sth to drop?
-                    && (lambda->type()->is_polymorphic()                // drop polymorphic functions
-                        || (!lambda->is_basicblock()                    // don't drop basic blocks
-                            && (!lambda->is_returning()                 // drop non-returning lambdas
-                                || top_.find(lambda) == top_.end()))))  // lift/drop returning non top-level lambdas
-                    todo.push_back(lambda);
+            if (dirty) {
+                scope.update();
+                for (auto lambda : scope) {
+                    auto to = lambda->to();
+                    assert(lambda->arg_fn_type() == to->type().as<FnType>());
+                    for (size_t i = 0, e = lambda->num_args(); i != e; ++i)
+                        lambda->arg_fn_type()->arg(i) == lambda->arg(i)->type();
+                }
             }
+            top.insert(scope.entry());
+        });
+
+        if (!todo && local) {
+            DLOG("switching to global mode");
+            local = false;
+            todo = true;
         }
     }
 
-    for (auto lambda : todo)
-        transform(lambda);
+    world.cleanup();
 
-    return todo.size();
-}
+    Scope::for_each(world, [&] (const Scope& scope) {
+        for (auto lambda : scope) {
+            for (auto op : lambda->ops())
+                if (auto param = op->isa<Param>())
+                    assert(param->order() == 0 || !scope.inner_contains(param));
+        }
 
-void lower2cff(World& world) {
-    size_t todo;
-    do {
-        CFFLowering lowering(world);
-        todo = lowering.process();
-        debug_verify(world);
-        world.cleanup();
-    } while (todo);
+    });
 
     debug_verify(world);
 }

@@ -70,15 +70,8 @@ void lower2cff(World& world) {
                 }
             }
 
-            if (dirty) {
+            if (dirty)
                 scope.update();
-                for (auto lambda : scope) {
-                    auto to = lambda->to();
-                    assert(lambda->arg_fn_type() == to->type().as<FnType>());
-                    for (size_t i = 0, e = lambda->num_args(); i != e; ++i)
-                        lambda->arg_fn_type()->arg(i) == lambda->arg(i)->type();
-                }
-            }
             top.insert(scope.entry());
         });
 

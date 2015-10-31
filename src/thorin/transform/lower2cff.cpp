@@ -34,8 +34,6 @@ void lower2cff(World& world) {
             const auto& cfg = scope.f_cfg();
             for (auto n : cfg.post_order()) {
                 auto lambda = n->lambda();
-                if (lambda->gid() == 25521)
-                    lambda->dump();
                 if (auto to = lambda->to()->isa_lambda()) {
                     if (is_bad(to)) {
                         DLOG("bad: %", to->unique_name());

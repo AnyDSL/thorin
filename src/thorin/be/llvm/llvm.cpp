@@ -377,11 +377,11 @@ void CodeGen::emit(int opt, bool debug) {
         }
 
         // add missing arguments to phis_
-        for (auto p : phis_) {
+        for (const auto& p : phis_) {
             auto param = p.first;
             auto phi = p.second;
 
-            for (auto peek : param->peek())
+            for (const auto& peek : param->peek())
                 phi->addIncoming(lookup(peek.def()), bb2lambda[peek.from()]);
         }
 

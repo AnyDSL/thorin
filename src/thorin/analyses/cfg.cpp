@@ -87,8 +87,8 @@ public:
     }
 
     ~CFABuilder() {
-        for (auto p : out_nodes_) {
-            for (auto q : p.second)
+        for (const auto& p : out_nodes_) {
+            for (const auto& q : p.second)
                 delete q.second;
         }
     }
@@ -142,7 +142,7 @@ public:
         assert(src->f_index_ == CFNode::Reachable);
         dst->f_index_ = CFNode::Reachable;
 
-        auto p = edges_[src].insert(dst);
+        const auto& p = edges_[src].insert(dst);
 
         // recursively link ancestors
         if (p.second) {
@@ -168,7 +168,7 @@ void CFABuilder::propagate_higher_order_values() {
     std::stack<Def> stack;
 
     auto push = [&] (Def def) -> bool {
-        auto p = def2set_.emplace(def, DefSet());
+        const auto& p = def2set_.emplace(def, DefSet());
         if (p.second) { // if first insert
             if (def->order() > 0) {
                 DLOG("pushing %", def->unique_name());
@@ -349,7 +349,7 @@ void CFABuilder::unreachable_node_elimination() {
             }
         } else {
 #ifndef NDEBUG
-            for (auto p : out_nodes_[in])
+            for (const auto& p : out_nodes_[in])
                 assert(p.second->f_index_ != CFNode::Reachable);
 #endif
             DLOG("removing: %", in);
@@ -382,7 +382,7 @@ void CFABuilder::link_to_exit() {
 
     for (auto in : cfa().nodes()) {
         link_dead_end_to_exit(in);
-        for (auto p : out_nodes_[in]) {
+        for (const auto& p : out_nodes_[in]) {
             auto out = p.second;
             link_dead_end_to_exit(out);
             if (out->ancestors().empty() && out->def()->isa<Param>())
@@ -414,7 +414,7 @@ void CFABuilder::transetive_cfg() {
         }
     };
 
-    for (auto p : edges_) {
+    for (const auto& p : edges_) {
         if (auto in = p.first->isa<CFNode>())
             link_to_succs(in);
     }
@@ -422,8 +422,8 @@ void CFABuilder::transetive_cfg() {
 
 void CFABuilder::stream_ycomp(std::ostream& out) const {
     std::vector<const CFNodeBase*> nodes(cfa().nodes().begin(), cfa().nodes().end());
-    for (auto p : out_nodes_) {
-        for (auto q : p.second)
+    for (const auto& p : out_nodes_) {
+        for (const auto& q : p.second)
             nodes.push_back(q.second);
     }
 

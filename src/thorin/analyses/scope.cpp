@@ -137,7 +137,7 @@ void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
     std::queue<Lambda*> queue;
 
     auto enqueue = [&] (Lambda* lambda) {
-        auto p = done.insert(lambda);
+        const auto& p = done.insert(lambda);
         if (p.second)
             queue.push(lambda);
     };

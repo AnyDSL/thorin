@@ -849,7 +849,7 @@ const TypeNode* World::unify_base(const TypeNode* type) {
         type->representative_ = representative;
         return representative;
     } else {
-        auto p = types_.insert(type);
+        const auto& p = types_.insert(type);
         assert(p.second && "hash/equal broken");
         type->representative_ = type;
         return type;
@@ -864,7 +864,7 @@ const DefNode* World::cse_base(const PrimOp* primop) {
         primop = *i;
     } else {
         primop->set_gid(gid_++);
-        auto p = primops_.insert(primop);
+        const auto& p = primops_.insert(primop);
         assert(p.second && "hash/equal broken");
     }
 

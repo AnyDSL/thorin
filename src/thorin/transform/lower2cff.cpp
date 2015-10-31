@@ -48,7 +48,7 @@ void lower2cff(World& world) {
                         for (size_t i = 1, e = ops.size(); i != e; ++i)
                             ops[i] = to->param(i-1)->order() > 0 ? lambda->arg(i-1) : nullptr;
 
-                        auto p = cache.emplace(ops, nullptr);
+                        const auto& p = cache.emplace(ops, nullptr);
                         Lambda*& target = p.first->second;
                         if (p.second) {
                             Scope to_scope(to);

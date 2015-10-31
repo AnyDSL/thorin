@@ -7,31 +7,32 @@
 
 namespace thorin {
 
-static Lambda* resolve(Lambda* dst, const char* suffix) {
-    auto resolver = dst->stub(dst->name + suffix);
-    resolver->jump(dst, resolver->params_as_defs());
-    return resolver;
-}
+static void update_src(Lambda* src, Lambda* dst, const char* suffix) {
+    auto resolve = [&] (Lambda* dst) {
+        auto resolver = dst->stub(dst->name + suffix);
+        resolver->jump(dst, resolver->params_as_defs());
+        return resolver;
+    };
 
-static void update_src(Lambda* src, Lambda* resolver, Lambda* dst) {
     if (src->to() == dst)
-        src->update_to(resolver);
+        src->update_to(resolve(dst));
     else if (src->to() == src->world().branch()) {
         if (src->arg(1) == dst)
-            src->branch(src->arg(0), resolver, src->arg(2));
+            src->branch(src->arg(0), resolve(dst), src->arg(2));
         else {
             assert(src->arg(2) == dst);
-            src->branch(src->arg(0), src->arg(1), resolver);
+            src->branch(src->arg(0), src->arg(1), resolve(dst));
         }
-    } else {
+    } else if (src->to() == dst) {
         for (size_t i = 0, e = src->num_args(); i != e; ++i) {
             if (src->arg(i) == dst) {
-                src->update_arg(i, resolver);
+                src->update_arg(i, resolve(dst));
                 return;
             }
         }
         THORIN_UNREACHABLE;
     }
+    DLOG("cannot remove critical edge % -> %", src->unique_name(), dst->unique_name());
 }
 
 static void critical_edge_elimination(const Scope& scope) {
@@ -40,8 +41,8 @@ static void critical_edge_elimination(const Scope& scope) {
         if (cfg.num_preds(n) > 1) {
             for (auto pred : cfg.preds(n)) {
                 if (cfg.num_succs(pred) != 1) {
-                    WLOG("critical edge: %, %", pred, n);
-                    update_src(pred->lambda(), resolve(n->lambda(), ".crit"), n->lambda());
+                    DLOG("critical edge: %, %", pred, n);
+                    update_src(pred->lambda(), n->lambda(), ".crit");
                 }
             }
         }
@@ -74,7 +75,7 @@ next_lambda:;
 
     for (auto dst : todo) {
         for (auto src : dst->preds())
-            update_src(src, resolve(dst, ".cascading"), dst);
+            update_src(src, dst, ".cascading");
     }
 
     Scope::for_each(world, [] (const Scope& scope) { critical_edge_elimination(scope); });

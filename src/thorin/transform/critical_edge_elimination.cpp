@@ -30,9 +30,8 @@ static void update_src(Lambda* src, Lambda* dst, const char* suffix) {
                 return;
             }
         }
-        THORIN_UNREACHABLE;
+        DLOG("cannot remove critical edge % -> %", src->unique_name(), dst->unique_name());
     }
-    DLOG("cannot remove critical edge % -> %", src->unique_name(), dst->unique_name());
 }
 
 static void critical_edge_elimination(const Scope& scope) {
@@ -41,7 +40,7 @@ static void critical_edge_elimination(const Scope& scope) {
         if (cfg.num_preds(n) > 1) {
             for (auto pred : cfg.preds(n)) {
                 if (cfg.num_succs(pred) != 1) {
-                    DLOG("critical edge: %, %", pred, n);
+                    DLOG("critical edge: % -> %", pred, n);
                     update_src(pred->lambda(), n->lambda(), ".crit");
                 }
             }

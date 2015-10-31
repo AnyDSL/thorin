@@ -892,9 +892,9 @@ void World::opt() {
     cleanup();
     lower2cff(*this);
     clone_bodies(*this);
-    mem2reg(*this);
     memmap_builtins(*this);
     lift_builtins(*this);
+    mem2reg(*this);
     inliner(*this);
     lift_enters(*this);
     dead_load_opt(*this);

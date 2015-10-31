@@ -129,6 +129,7 @@ public:
     void set_op(size_t i, Def def);
     void unset_op(size_t i);
     void unset_ops();
+    Def is_mem() const { return type().isa<MemType>() ? this : nullptr; }
     Lambda* as_lambda() const;
     Lambda* isa_lambda() const;
     bool is_const() const;

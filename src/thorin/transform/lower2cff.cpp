@@ -1,6 +1,5 @@
 #include "thorin/lambda.h"
 #include "thorin/world.h"
-#include "thorin/type.h"
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/verify.h"
 #include "thorin/transform/mangle.h"
@@ -35,6 +34,8 @@ void lower2cff(World& world) {
             const auto& cfg = scope.f_cfg();
             for (auto n : cfg.post_order()) {
                 auto lambda = n->lambda();
+                if (lambda->gid() == 25521)
+                    lambda->dump();
                 if (auto to = lambda->to()->isa_lambda()) {
                     if (is_bad(to)) {
                         DLOG("bad: %", to->unique_name());
@@ -82,18 +83,8 @@ void lower2cff(World& world) {
         }
     }
 
-    world.cleanup();
-
-    Scope::for_each(world, [&] (const Scope& scope) {
-        for (auto lambda : scope) {
-            for (auto op : lambda->ops())
-                if (auto param = op->isa<Param>())
-                    assert(param->order() == 0 || !scope.inner_contains(param));
-        }
-
-    });
-
     debug_verify(world);
+    world.cleanup();
 }
 
 }

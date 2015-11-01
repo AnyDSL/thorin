@@ -7,7 +7,7 @@
 
 namespace thorin {
 
-static void update_src(Lambda* src, Lambda* dst, const char* suffix) {
+static bool update_src(Lambda* src, Lambda* dst, const char* suffix) {
     auto resolve = [&] (Lambda* dst) {
         auto resolver = dst->stub(dst->name + suffix);
         resolver->jump(dst, resolver->params_as_defs());
@@ -23,29 +23,36 @@ static void update_src(Lambda* src, Lambda* dst, const char* suffix) {
             assert(src->arg(2) == dst);
             src->branch(src->arg(0), src->arg(1), resolve(dst));
         }
-    } else if (src->to() == dst) {
+    } else {
         for (size_t i = 0, e = src->num_args(); i != e; ++i) {
             if (src->arg(i) == dst) {
                 src->update_arg(i, resolve(dst));
-                return;
+                return true;
             }
         }
         DLOG("cannot remove critical edge % -> %", src->unique_name(), dst->unique_name());
+        return false;
     }
+
+    return true;
 }
 
-static void critical_edge_elimination(const Scope& scope) {
+static void critical_edge_elimination(Scope& scope) {
+    bool dirty = false;
     const auto& cfg = scope.f_cfg();
     for (auto n : cfg.post_order()) {
         if (cfg.num_preds(n) > 1) {
             for (auto pred : cfg.preds(n)) {
                 if (cfg.num_succs(pred) != 1) {
                     DLOG("critical edge: % -> %", pred, n);
-                    update_src(pred->lambda(), n->lambda(), ".crit");
+                    dirty |= update_src(pred->lambda(), n->lambda(), ".crit");
                 }
             }
         }
     }
+
+    if (dirty)
+        scope.update();
 }
 
 void critical_edge_elimination(World& world) {
@@ -77,7 +84,7 @@ next_lambda:;
             update_src(src, dst, ".cascading");
     }
 
-    Scope::for_each(world, [] (const Scope& scope) { critical_edge_elimination(scope); });
+    Scope::for_each(world, [] (Scope& scope) { critical_edge_elimination(scope); });
     debug_verify(world);
 }
 

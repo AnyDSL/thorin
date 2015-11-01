@@ -90,8 +90,8 @@ Lambda* CodeGen::emit_intrinsic(Lambda* lambda) {
     }
 }
 
-void CodeGen::emit_result_phi(const Param* param, llvm::Value* lambda) {
-    find(phis_, param)->addIncoming(lambda, irbuilder_.GetInsertBlock());
+void CodeGen::emit_result_phi(const Param* param, llvm::Value* value) {
+    find(phis_, param)->addIncoming(value, irbuilder_.GetInsertBlock());
 }
 
 Lambda* CodeGen::emit_atomic(Lambda* lambda) {
@@ -348,28 +348,37 @@ void CodeGen::emit(int opt, bool debug) {
                             irbuilder_.CreateRet(call);
                         } else {                        // call + continuation
                             auto succ = ret_arg->as_lambda();
-
                             const Param* param = nullptr;
                             switch (succ->num_params()) {
                                 case 0:
                                     break;
                                 case 1:
                                     param = succ->param(0);
-                                    param = param->is_mem() ? nullptr : param;
+                                    irbuilder_.CreateBr(bb2lambda[succ]);
+                                    if (!param->is_mem())
+                                        emit_result_phi(param, call);
                                     break;
                                 case 2:
                                     assert(succ->mem_param() && "no mem_param found for succ");
                                     param = succ->param(0);
                                     param = param->is_mem() ? succ->param(1) : param;
+                                    irbuilder_.CreateBr(bb2lambda[succ]);
+                                    emit_result_phi(param, call);
                                     break;
-                                default:
-                                    THORIN_UNREACHABLE;
-                            }
-                            assert(param == nullptr || !param->is_mem());
+                                default: {
+                                    assert(succ->param(0)->is_mem());
+                                    auto tuple = succ->params().skip_front();
 
-                            irbuilder_.CreateBr(bb2lambda[succ]);
-                            if (param)
-                                emit_result_phi(param, call);
+                                    Array<llvm::Value*> extracts(tuple.size());
+                                    for (size_t i = 0, e = tuple.size(); i != e; ++i)
+                                        extracts[i] = irbuilder_.CreateExtractValue(call, unsigned(i));
+
+                                    irbuilder_.CreateBr(bb2lambda[succ]);
+                                    for (size_t i = 0, e = tuple.size(); i != e; ++i)
+                                        emit_result_phi(tuple[i], extracts[i]);
+                                    break;
+                                }
+                            }
                         }
                     }
                 }
@@ -677,14 +686,11 @@ llvm::Value* CodeGen::emit(Def def) {
         llvm::Value* llvm_agg = llvm::UndefValue::get(convert(agg->type()));
 
         if (def->isa<Vector>()) {
-            // Insert/ExtractValue doesn't work for vectors
-            for (size_t i = 0, e = agg->ops().size(); i != e; ++i) {
+            for (size_t i = 0, e = agg->ops().size(); i != e; ++i)
                 llvm_agg = irbuilder_.CreateInsertElement(llvm_agg, lookup(agg->op(i)), irbuilder_.getInt32(i));
-            }
         } else {
-            for (size_t i = 0, e = agg->ops().size(); i != e; ++i) {
+            for (size_t i = 0, e = agg->ops().size(); i != e; ++i)
                 llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, lookup(agg->op(i)), { unsigned(i) });
-            }
         }
 
         return llvm_agg;

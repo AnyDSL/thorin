@@ -39,32 +39,24 @@ void lower2cff(World& world) {
                         DLOG("bad: %", to->unique_name());
                         todo = true;
                         dirty = true;
+
                         Type2Type map;
                         bool res = to->type()->infer_with(map, lambda->arg_fn_type());
                         assert(res);
 
-                        Array<Def> ops(lambda->size());
-                        ops[0] = to;
-                        for (size_t i = 1, e = ops.size(); i != e; ++i)
-                            ops[i] = to->param(i-1)->order() > 0 ? lambda->arg(i-1) : nullptr;
+                        Array<Def> call(lambda->size());
+                        call.front() = to;
+                        for (size_t i = 1, e = call.size(); i != e; ++i)
+                            call[i] = to->param(i-1)->order() > 0 ? lambda->arg(i-1) : nullptr;
 
-                        const auto& p = cache.emplace(ops, nullptr);
+                        const auto& p = cache.emplace(call, nullptr);
                         Lambda*& target = p.first->second;
                         if (p.second) {
                             Scope to_scope(to);
-                            target = drop(to_scope, ops.skip_front(), map); // use already dropped version as target
+                            target = drop(to_scope, call.skip_front(), map); // use already dropped version as target
                         }
 
-                        std::vector<Def> nargs;
-                        size_t i = 0;
-                        for (auto arg : ops.skip_front()) {
-                            if (arg == nullptr)
-                                nargs.push_back(lambda->arg(i));
-                            ++i;
-                        }
-
-                        lambda->jump(target, nargs);
-                        assert(lambda->arg_fn_type() == target->type());
+                        jump_to_cached_call(lambda, target, call);
                     }
                 }
             }

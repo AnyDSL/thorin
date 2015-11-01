@@ -259,6 +259,8 @@ private:
     friend class World;
 };
 
+void jump_to_cached_call(Lambda* src, Lambda* dst, ArrayRef<Def> call);
+
 //------------------------------------------------------------------------------
 
 template<class To>

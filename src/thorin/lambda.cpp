@@ -440,6 +440,17 @@ Def Lambda::try_remove_trivial_param(const Param* param) {
     return same;
 }
 
+void jump_to_cached_call(Lambda* src, Lambda* dst, ArrayRef<Def> call) {
+    std::vector<Def> nargs;
+    for (size_t i = 1, e = src->size(); i != e; ++i) {
+        if (call[i] == nullptr)
+            nargs.push_back(src->op(i));
+    }
+
+    src->jump(dst, nargs);
+    assert(src->arg_fn_type() == dst->type());
+}
+
 //------------------------------------------------------------------------------
 
 }

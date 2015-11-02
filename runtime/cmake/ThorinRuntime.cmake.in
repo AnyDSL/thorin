@@ -1,6 +1,6 @@
 INCLUDE ( CMakeParseArguments )
 
-SET ( THORIN_RUNTIME_LIBRARIES @CONF_RUNTIME_LIBRARIES@)
+SET ( THORIN_RUNTIME_LIBRARIES @CONF_RUNTIME_LIBRARIES@ )
 
 # Find impala
 FIND_PROGRAM ( IMPALA_BIN impala )
@@ -80,6 +80,6 @@ MACRO ( THORIN_RUNTIME_WRAP outfiles )
         COMMAND ${CLANG_BIN} -O3 -march=native -ffast-math ${DEBUG_FLAGS} -c -o ${_objfile} ${_llfile}
         DEPENDS ${_llfile} VERBATIM )
 
-    SET_SOURCE_FILES_PROPERTIES ( ${_objfile} PROPERTIES EXTERNAL_OBJECT true GENERATED true )
+    SET_SOURCE_FILES_PROPERTIES ( ${_objfile} PROPERTIES EXTERNAL_OBJECT true GENERATED true LANGUAGE CXX )
     SET ( ${outfiles} ${${outfiles}} ${_objfile} ${_bcfile} )
 ENDMACRO ()

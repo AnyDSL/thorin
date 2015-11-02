@@ -54,6 +54,7 @@ void thorin_sync_thread(int32_t);
 
 #ifdef __cplusplus
 }
+#include "thorin_runtime.hpp"
 #endif
 
 #endif

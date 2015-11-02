@@ -37,16 +37,26 @@ public:
         allocate(p, d, size);
     }
 
-    template <typename U>
-    Array(Array<U>&& other) {
-        data_ = other.data_;
-        size_ = other.size_;
-        platform_ = other.platform_;
-        device_ = other.device_;
+    Array(Array&& other)
+        : platform_(other.platform_),
+          device_(other.device_),
+          size_(other.size_),
+          data_(other.data_) {
         other.data_ = nullptr;
     }
 
-    Array(Array&) = delete;
+    Array& operator = (Array&& other) {
+        deallocate();
+        platform_ = other.platform_;
+        device_ = other.device_;
+        size_ = other.size_;
+        data_ = other.data_;
+        other.data_ = nullptr;
+        return *this;
+    }
+
+    Array(const Array&) = delete;
+    Array& operator = (const Array&) = delete;
 
     ~Array() { deallocate(); }
 

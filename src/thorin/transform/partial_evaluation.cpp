@@ -23,6 +23,7 @@ public:
         if (scope().outer_contains(lambda) && !visit(visited_, lambda))
             queue_.push(lambda);
     }
+    Lambda* postdom(Lambda*);
 
 private:
     Scope& scope_;
@@ -99,15 +100,8 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
         done_.insert(cur);
 
         if (dst->empty()) {
-            auto& postdomtree = scope_.update().b_cfg().domtree();
-            if (auto n = scope().cfa(cur)) {
-                auto p = postdomtree.idom(n);
-                DLOG("postdom: % -> %", n, p);
-                cur = p->lambda();
-                continue;
-            }
-            WLOG("no postdom found for % at %", cur->unique_name(), cur->loc());
-            return;
+            cur = postdom(cur);
+            continue;
         }
 
         Array<Def> call(cur->size());
@@ -120,12 +114,18 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
                 all = false;
         }
 
-        if (auto cached = find(cache_, call)) { // check for cached version
+        if (auto cached = find(cache_, call)) {      // check for cached version
             jump_to_cached_call(cur, cached, call);
             DLOG("using cached call: %", cur->unique_name());
             return;
-        } else {                                // no cached version found... create a new one
+        } else {                                     // no cached version found... create a new one
             auto dropped = drop(cur, call);
+
+            if (dropped->to() == world().branch()) { // don't peel loops
+                cur = postdom(cur);
+                continue;
+            }
+
             cache_[call] = dropped;
             jump_to_cached_call(cur, dropped, call);
             if (all) {
@@ -135,6 +135,17 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
                 cur = dropped;
         }
     }
+}
+
+Lambda* PartialEvaluator::postdom(Lambda* cur) {
+    if (auto n = scope_.update().cfa(cur)) {
+        auto p = scope().b_cfg().domtree().idom(n);
+        DLOG("postdom: % -> %", n, p);
+        return p->lambda();
+    }
+
+    WLOG("no postdom found for % at %", cur->unique_name(), cur->loc());
+    return nullptr;
 }
 
 //------------------------------------------------------------------------------

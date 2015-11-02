@@ -37,12 +37,7 @@ void lower2cff(World& world) {
                 if (auto to = lambda->to()->isa_lambda()) {
                     if (is_bad(to)) {
                         DLOG("bad: %", to->unique_name());
-                        todo = true;
-                        dirty = true;
-
-                        Type2Type map;
-                        bool res = to->type()->infer_with(map, lambda->arg_fn_type());
-                        assert(res);
+                        todo = dirty = true;
 
                         Array<Def> call(lambda->size());
                         call.front() = to;
@@ -53,7 +48,7 @@ void lower2cff(World& world) {
                         Lambda*& target = p.first->second;
                         if (p.second) {
                             Scope to_scope(to);
-                            target = drop(to_scope, call.skip_front(), map); // use already dropped version as target
+                            target = drop(lambda, call); // use already dropped version as target
                         }
 
                         jump_to_cached_call(lambda, target, call);

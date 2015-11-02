@@ -125,11 +125,7 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
             DLOG("using cached call: %", cur->unique_name());
             return;
         } else {                                // no cached version found... create a new one
-            Scope scope(dst);
-            Type2Type type2type;
-            bool res = dst->type()->infer_with(type2type, cur->arg_fn_type());
-            assert(res);
-            auto dropped = drop(scope, call.skip_front(), type2type);
+            auto dropped = drop(cur, call);
             cache_[call] = dropped;
             jump_to_cached_call(cur, dropped, call);
             if (all) {

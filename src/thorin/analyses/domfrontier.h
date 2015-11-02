@@ -36,8 +36,8 @@ public:
 private:
     void create();
     void link(const CFNode* src, const CFNode* dst) {
-        succs_[src].push_back(src);
-        preds_[dst].push_back(dst);
+        succs_[src].push_back(dst);
+        preds_[dst].push_back(src);
     }
 
     const CFG<forward>& cfg_;

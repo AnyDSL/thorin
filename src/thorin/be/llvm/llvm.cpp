@@ -848,7 +848,11 @@ llvm::Value* CodeGen::emit_mmap(const Map* mmap) {
 llvm::Value* CodeGen::emit_shared_mmap(Def def, bool prefix) {
     auto mmap = def->as<Map>();
     assert(entry_ && "shared memory can only be mapped inside kernel");
+    if (mmap->addr_space() != AddressSpace::Shared)
+        WLOG("error: mmap: expected shared / local memory address space at %", mmap->loc());
     assert(mmap->addr_space() == AddressSpace::Shared && "wrong address space for shared memory");
+    if (!mmap->mem_size()->isa<PrimLit>())
+        WLOG("error: mmap: couldn't extract memory size at %", mmap->mem_size()->loc());
     auto num_elems = mmap->mem_size()->as<PrimLit>()->ps32_value();
 
     // construct array type

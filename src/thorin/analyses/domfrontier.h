@@ -19,7 +19,7 @@ public:
     DomFrontierBase& operator=(DomFrontierBase) = delete;
 
     explicit DomFrontierBase(const CFG<forward> &cfg)
-        : YComp(cfg.scope(), forward ? "dom_frontiers" : "controL_dependencies")
+        : YComp(cfg.scope(), forward ? "dom_frontier" : "control_dependencies")
         , cfg_(cfg)
         , preds_(cfg)
         , succs_(cfg)

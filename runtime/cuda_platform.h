@@ -23,6 +23,7 @@
 class CudaPlatform : public Platform {
 public:
     CudaPlatform(Runtime* runtime);
+    ~CudaPlatform();
 
 protected:
     struct dim3 {
@@ -63,6 +64,7 @@ protected:
 
         dim3 grid, block;
         CUfunction kernel;
+        CUevent start_kernel, end_kernel;
         std::vector<void*> kernel_args;
         std::vector<void*> kernel_vals;
 

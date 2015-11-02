@@ -138,7 +138,7 @@ long long thorin_get_micro_time() {
 #endif
 }
 
-static std::atomic_llong thorin_kernel_time(0);
+std::atomic_llong thorin_kernel_time(0);
 
 long long thorin_get_kernel_time() {
     return thorin_kernel_time;

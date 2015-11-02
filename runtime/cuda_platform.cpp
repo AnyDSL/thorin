@@ -106,6 +106,19 @@ CudaPlatform::CudaPlatform(Runtime* runtime)
 
         err = cuCtxCreate(&devices_[i].ctx, 0, devices_[i].dev);
         checkErrDrv(err, "cuCtxCreate()");
+
+        err = cuEventCreate(&devices_[i].start_kernel, CU_EVENT_DEFAULT);
+        checkErrDrv(err, "cuEventCreate()");
+        err = cuEventCreate(&devices_[i].end_kernel, CU_EVENT_DEFAULT);
+        checkErrDrv(err, "cuEventCreate()");
+    }
+}
+
+CudaPlatform::~CudaPlatform() {
+    for (size_t i = 0; i < devices_.size(); i++) {
+        cuEventDestroy(devices_[i].start_kernel);
+        cuEventDestroy(devices_[i].end_kernel);
+        cuCtxDestroy(devices_[i].ctx);
     }
 }
 
@@ -141,7 +154,7 @@ void CudaPlatform::set_block_size(device_id dev, int32_t x, int32_t y, int32_t z
 }
 
 void CudaPlatform::set_grid_size(device_id dev, int32_t x, int32_t y, int32_t z) {
-    auto& grid = devices_[dev].block;
+    auto& grid = devices_[dev].grid;
     grid.x = x;
     grid.y = y;
     grid.z = z;
@@ -203,6 +216,7 @@ void CudaPlatform::load_kernel(device_id dev, const char* file, const char* name
 
 void CudaPlatform::launch_kernel(device_id dev) {
     auto& cuda_dev = devices_[dev];
+    cuCtxPushCurrent(cuda_dev.ctx);
 
     // Set up arguments
     auto& args = cuda_dev.kernel_args;
@@ -211,15 +225,34 @@ void CudaPlatform::launch_kernel(device_id dev) {
     for (size_t i = 0; i < vals.size(); i++)
         args[i] = (void*)&vals[i];
 
-    cuLaunchKernel(cuda_dev.kernel,
-                   cuda_dev.grid.x,  cuda_dev.grid.y,  cuda_dev.grid.z,
-                   cuda_dev.block.x, cuda_dev.block.y, cuda_dev.block.z,
-                   0, nullptr, args.data(), nullptr);
+    cuEventRecord(cuda_dev.start_kernel, 0);
+
+    CUresult err = cuLaunchKernel(cuda_dev.kernel,
+        cuda_dev.grid.x / cuda_dev.block.x,
+        cuda_dev.grid.y / cuda_dev.block.y,
+        cuda_dev.grid.z / cuda_dev.block.z,
+        cuda_dev.block.x, cuda_dev.block.y, cuda_dev.block.z,
+        0, nullptr, args.data(), nullptr);
+    checkErrDrv(err, "cuLaunchKernel()");
+
+    cuEventRecord(cuda_dev.end_kernel, 0);
+    cuCtxPopCurrent(NULL);
 }
 
+extern std::atomic_llong thorin_kernel_time;
+
 void CudaPlatform::synchronize(device_id dev) {
-    cuCtxPushCurrent(devices_[dev].ctx);
-    CUresult err = cuCtxSynchronize();
+    auto& cuda_dev = devices_[dev];
+    cuCtxPushCurrent(cuda_dev.ctx);
+
+    float time;
+    CUresult err = cuEventSynchronize(cuda_dev.end_kernel);
+    checkErrDrv(err, "cuEventSynchronize()");
+
+    cuEventElapsedTime(&time, cuda_dev.start_kernel, cuda_dev.end_kernel);
+    thorin_kernel_time.fetch_add(time * 1000);
+
+    err = cuCtxSynchronize();
     checkErrDrv(err, "cuCtxSynchronize()");
     cuCtxPopCurrent(NULL);
 }
@@ -424,5 +457,4 @@ void CudaPlatform::create_module(device_id dev, const char* file_name, CUjit_tar
     checkErrDrv(err, "cuModuleLoadDataEx()");
 
     devices_[dev].modules[file_name] = mod;
-    
 }

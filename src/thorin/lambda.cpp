@@ -47,7 +47,7 @@ Array<Def> Lambda::params_as_defs() const {
 
 const Param* Lambda::mem_param() const {
     for (auto param : params()) {
-        if (param->type().isa<MemType>())
+        if (param->is_mem())
             return param;
     }
     return nullptr;
@@ -195,14 +195,6 @@ bool Lambda::visit_capturing_intrinsics(std::function<bool(Lambda*)> func) const
                     if (to_lambda->is_intrinsic() && func(to_lambda))
                         return true;
         }
-    }
-    return false;
-}
-
-bool Lambda::is_cascading() const {
-    if (uses().size() == 1) {
-        Use use = uses().front();
-        return use->isa<Lambda>() && use.index() > 0;
     }
     return false;
 }

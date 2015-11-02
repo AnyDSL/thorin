@@ -8,7 +8,7 @@ static void dead_load_opt(const Scope& scope) {
         auto lambda = scope.rpo(i);
         Def mem;
         for (auto arg : lambda->args()) {
-            if (arg->type().isa<MemType>()) {
+            if (arg->is_mem()) {
                 mem = arg;
                 break;
             }

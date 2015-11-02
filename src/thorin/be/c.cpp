@@ -7,6 +7,7 @@
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/util/autoptr.h"
+#include "thorin/util/log.h"
 #include "thorin/util/printer.h"
 #include "thorin/be/c.h"
 
@@ -805,21 +806,16 @@ std::ostream& CCodeGen::emit(Def def) {
     }
 
     if (auto mmap = def->isa<Map>()) {
-        assert(mmap->mem_size()->isa<PrimLit>() && "mmap: couldn't extract memory size");
+        if (mmap->addr_space() != AddressSpace::Shared)
+            WLOG("error: mmap: expected shared / local memory address space at %", mmap->loc());
+        assert(mmap->addr_space() == AddressSpace::Shared && "wrong address space for shared memory");
+        if (!mmap->mem_size()->isa<PrimLit>())
+            WLOG("error: mmap: couldn't extract memory size at %", mmap->mem_size()->loc());
 
-        if (lang_==Lang::CUDA) {
-            switch (mmap->addr_space()) {
-                default: break;
-                case AddressSpace::Shared: stream() << "__shared__ ";  break;
-            }
-        }
-        if (lang_==Lang::OPENCL) {
-            switch (mmap->addr_space()) {
-                default: break;
-                case AddressSpace::Global: stream() << "__global "; break;
-                case AddressSpace::Shared: stream() << "__local ";  break;
-            }
-        }
+        if (lang_==Lang::CUDA)
+            stream() << "__shared__ ";
+        if (lang_==Lang::OPENCL)
+            stream() << "__local ";
         emit_type(mmap->out_ptr_type()->referenced_type()) << " " << mmap->unique_name() << "[";
         emit(mmap->mem_size()) << "];";
 

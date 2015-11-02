@@ -92,7 +92,8 @@ Lambda* Runtime::emit_host_code(CodeGen &code_gen, Platform platform, const std:
                 assert(rtype.isa<ArrayType>() && "currently only pointers to arrays supported");
             }
 
-            set_kernel_arg_ptr(target_platform, target_device_val, i, target_val);
+            auto void_ptr = builder_.CreateBitCast(target_val, builder_.getInt8PtrTy());
+            set_kernel_arg_ptr(target_platform, target_device_val, i, void_ptr);
         } else {
             // normal variable
             auto alloca = code_gen.emit_alloca(target_val->getType(), target_arg->name);

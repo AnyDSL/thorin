@@ -100,6 +100,7 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
         done_.insert(cur);
 
         if (dst->empty()) {
+            scope_.update();
             cur = postdom(cur);
             continue;
         }
@@ -122,8 +123,11 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
             auto dropped = drop(cur, call);
 
             if (dropped->to() == world().branch()) { // don't peel loops
-                cur = postdom(cur);
-                continue;
+                scope_.update();
+                if (!scope().inner_contains(dst) || scope().f_cfg().num_preds(dst) != 1) {
+                    cur = postdom(cur);
+                    continue;
+                }
             }
 
             cache_[call] = dropped;
@@ -138,9 +142,9 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
 }
 
 Lambda* PartialEvaluator::postdom(Lambda* cur) {
-    if (auto n = scope_.update().cfa(cur)) {
-        auto p = scope().b_cfg().domtree().idom(n);
-        DLOG("postdom: % -> %", n, p);
+    const auto& postdomtree = scope().b_cfg().domtree();
+    if (auto n = scope_.cfa(cur)) {
+        auto p = postdomtree.idom(n);
         return p->lambda();
     }
 

@@ -139,12 +139,14 @@ public:
 
     const CFA& cfa() const { return cfa_; }
     size_t size() const { return cfa().size(); }
-    const CFNodes& preds(Lambda* lambda) const { return preds(cfa()[lambda]); }
-    const CFNodes& succs(Lambda* lambda) const { return succs(cfa()[lambda]); }
     const CFNodes& preds(const CFNode* n) const { return forward ? n->preds() : n->succs(); }
     const CFNodes& succs(const CFNode* n) const { return forward ? n->succs() : n->preds(); }
+    const CFNodes& preds(Lambda* lambda) const { return preds(cfa()[lambda]); }
+    const CFNodes& succs(Lambda* lambda) const { return succs(cfa()[lambda]); }
     size_t num_preds(const CFNode* n) const { return preds(n).size(); }
     size_t num_succs(const CFNode* n) const { return succs(n).size(); }
+    size_t num_preds(Lambda* lambda) const { return num_preds(cfa()[lambda]); }
+    size_t num_succs(Lambda* lambda) const { return num_succs(cfa()[lambda]); }
     const CFNode* entry() const { return forward ? cfa().entry() : cfa().exit();  }
     const CFNode* exit()  const { return forward ? cfa().exit()  : cfa().entry(); }
 

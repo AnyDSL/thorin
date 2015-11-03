@@ -206,7 +206,7 @@ void CFABuilder::propagate_higher_order_values() {
     }
 }
 
-CFNodeSet CFABuilder::cf_nodes(const CFNode* in, size_t i) {
+CFNodeSet CFABuilder::nodes(const CFNode* in, size_t i) {
     CFNodeSet result;
     auto cur_lambda = in->lambda();
 

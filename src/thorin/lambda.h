@@ -65,7 +65,7 @@ private:
 
 enum class Intrinsic : uint8_t {
     None,                       ///< Not an intrinsic.
-    _Accelerator_Begin = None,
+    _Accelerator_Begin,
     CUDA = _Accelerator_Begin,  ///< Internal CUDA-Backend.
     NVVM,                       ///< Internal NNVM-Backend.
     SPIR,                       ///< Internal SPIR-Backend.

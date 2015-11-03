@@ -27,7 +27,7 @@ void Schedule::block_schedule() {
     size_t i = 0;
     for (auto n : cfg().reverse_post_order()) {
         auto& block = blocks_[i];
-        block.cf_node_ = n;
+        block.node_ = n;
         block.index_ = i;
         indices_[n] = i++;
     }
@@ -41,7 +41,7 @@ void Schedule::verify() {
 
     for (auto& block : *this) {
         Def mem = block.lambda()->mem_param();
-        mem = mem ? mem : block2mem[(*this)[domtree.idom(block.cf_node())]];
+        mem = mem ? mem : block2mem[(*this)[domtree.idom(block.node())]];
         for (auto primop : block) {
             if (auto memop = primop->isa<MemOp>()) {
                 if (memop->mem() != mem)
@@ -167,7 +167,7 @@ Schedule schedule_smart(const Scope& scope) {
             assert(scope._contains(primop));
             auto node_early = def2early[primop];
             assert(node_early != nullptr);
-            auto node_best = block.cf_node();
+            auto node_best = block.node();
 
             if (primop->isa<Enter>() || primop->isa<Slot>() || Enter::is_out_mem(primop) || Enter::is_out_frame(primop))
                 node_best = node_early;

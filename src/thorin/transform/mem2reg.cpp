@@ -69,7 +69,7 @@ next_primop:;
         }
 
         // seal successors of last lambda if applicable
-        for (auto succ : cfg.succs(block.cf_node())) {
+        for (auto succ : cfg.succs(block.node())) {
             auto lsucc = succ->lambda();
             if (lsucc->parent() != nullptr) {
                 auto i = lambda2num.find(lsucc);

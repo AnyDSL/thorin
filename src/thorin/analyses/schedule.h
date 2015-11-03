@@ -16,8 +16,8 @@ public:
 
         Block() {}
 
-        const CFNode* cf_node() const { return cf_node_; }
-        Lambda* lambda() const { return cf_node()->lambda(); }
+        const CFNode* node() const { return node_; }
+        Lambda* lambda() const { return node()->lambda(); }
         ArrayRef<const PrimOp*> primops() const { return primops_; }
         size_t index() const { return index_; }
 
@@ -26,7 +26,7 @@ public:
         const_iterator end() const { return primops().end(); }
 
     private:
-        const CFNode* cf_node_;
+        const CFNode* node_;
         std::vector<const PrimOp*> primops_;
         size_t index_;
 

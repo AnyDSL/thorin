@@ -106,9 +106,9 @@ public:
     const CFNode* entry() const { return entry_; }
     const CFNode* exit() const { return exit_; }
 
-    CFNodeSet cf_nodes(const CFNode*, size_t i);
-    CFNodeSet to_cf_nodes(const CFNode* in) { return in->lambda()->empty() ? CFNodeSet() : cf_nodes(in, 0); }
-    Array<CFNodeSet> args_cf_nodes(const CFNode*);
+    CFNodeSet nodes(const CFNode*, size_t i);
+    CFNodeSet to_nodes(const CFNode* in) { return in->lambda()->empty() ? CFNodeSet() : nodes(in, 0); }
+    Array<CFNodeSet> arg_nodes(const CFNode*);
 
     const CFNode* in_node(Lambda* lambda) {
         assert(scope().outer_contains(lambda));
@@ -236,10 +236,10 @@ CFNodeSet CFABuilder::cf_nodes(const CFNode* in, size_t i) {
     return result;
 }
 
-Array<CFNodeSet> CFABuilder::args_cf_nodes(const CFNode* in) {
+Array<CFNodeSet> CFABuilder::arg_nodes(const CFNode* in) {
     Array<CFNodeSet> result(in->lambda()->num_args());
     for (size_t i = 0; i != result.size(); ++i)
-        result[i] = cf_nodes(in, i+1); // shift by one due to args/ops discrepancy
+        result[i] = nodes(in, i+1); // shift by one due to args/ops discrepancy
     return result;
 }
 
@@ -257,9 +257,9 @@ void CFABuilder::run_cfa() {
     while (!queue.empty()) {
         auto cur_lambda = pop(queue);
         auto cur_in = in_node(cur_lambda);
-        auto args = args_cf_nodes(cur_in);
+        auto args = arg_nodes(cur_in);
 
-        for (auto n : to_cf_nodes(cur_in)) {
+        for (auto n : to_nodes(cur_in)) {
             if (n->def()->type() != cur_lambda->to()->type())
                 continue;
 
@@ -309,14 +309,14 @@ void CFABuilder::build_cfg() {
 
     while (!queue.empty()) {
         auto cur_in = pop(queue);
-        for (auto n : to_cf_nodes(cur_in)) {
+        for (auto n : to_nodes(cur_in)) {
             if (auto in = n->isa<CFNode>()) {
                 enqueue(in);
                 link(cur_in, in);
             } else {
                 auto out = n->as<OutNode>();
                 link(cur_in, out);
-                for (const auto& nodes : args_cf_nodes(cur_in)) {
+                for (const auto& nodes : arg_nodes(cur_in)) {
                     for (auto n : nodes) {
                         if (auto in = n->isa<CFNode>()) {
                             enqueue(in);

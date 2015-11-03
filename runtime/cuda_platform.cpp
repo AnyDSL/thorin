@@ -186,9 +186,13 @@ void CudaPlatform::load_kernel(device_id dev, const char* file, const char* name
         // Compile the given file
         auto ext = strrchr(file, '.');
         if (ext && !strcmp(ext + 1, "nvvm")) {
+            cuCtxPushCurrent(devices_[dev].ctx);
             compile_nvvm(dev, file, target_cc);
+            cuCtxPopCurrent(NULL);
         } else if (ext && !strcmp(ext + 1, "cu")) {
+            cuCtxPushCurrent(devices_[dev].ctx);
             compile_cuda(dev, file, target_cc);
+            cuCtxPopCurrent(NULL);
         } else {
             runtime_->error("Invalid kernel file extension");
         }

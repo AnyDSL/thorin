@@ -124,8 +124,8 @@ CudaPlatform::~CudaPlatform() {
 
 void* CudaPlatform::alloc(device_id dev, int64_t size) {
     cuCtxPushCurrent(devices_[dev].ctx);
-    CUdeviceptr mem;
 
+    CUdeviceptr mem;
     CUresult err = cuMemAlloc(&mem, size);
     checkErrDrv(err, "cuMemAlloc()");
 
@@ -161,7 +161,7 @@ void CudaPlatform::set_grid_size(device_id dev, int32_t x, int32_t y, int32_t z)
 }
 
 void CudaPlatform::set_kernel_arg(device_id dev, int32_t arg, void* ptr, int32_t size) {
-    set_kernel_arg_ptr(dev, arg, ptr);
+    set_kernel_arg_ptr(dev, arg, (void*)*(intptr_t*)ptr);
 }
 
 void CudaPlatform::set_kernel_arg_ptr(device_id dev, int32_t arg, void* ptr) {

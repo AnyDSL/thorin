@@ -73,6 +73,9 @@ public:
     Device device() const { return device_; }
     int64_t size() const { return size_; }
 
+    const T& operator [] (int i) const { return data_[i]; }
+    T& operator [] (int i) { return data_[i]; }
+
 protected:
     void allocate(Platform p, Device d, int64_t size) {
         size_ = size;

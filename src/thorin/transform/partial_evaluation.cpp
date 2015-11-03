@@ -145,6 +145,7 @@ Lambda* PartialEvaluator::postdom(Lambda* cur) {
     const auto& postdomtree = scope().b_cfg().domtree();
     if (auto n = scope_.cfa(cur)) {
         auto p = postdomtree.idom(n);
+        DLOG("postdom: % -> %", n, p);
         return p->lambda();
     }
 

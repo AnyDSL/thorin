@@ -8,7 +8,7 @@
 
 namespace thorin {
 
-indent::level = 0;
+unsigned int indent::level = 0;
 
 std::string Streamable::to_string() const {
     std::ostringstream out;

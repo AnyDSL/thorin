@@ -6,9 +6,9 @@ namespace thorin {
 
 template<bool forward>
 void DomFrontierBase<forward>::create() {
-    const auto& domtree = cfg().domtree();
+    // Cooper et al, 2001. A Simple, Fast Dominance Algorithm. http://www.cs.rice.edu/~keith/EMBED/dom.pdf
 
-    // compute the dominance frontier of each node as described in Cooper et al.
+    const auto& domtree = cfg().domtree();
     for (auto n : cfg().reverse_post_order().skip_front()) {
         const auto& preds = cfg().preds(n);
         if (preds.size() > 1) {

@@ -104,6 +104,8 @@ public:
     PrimType type() const { return Literal::type().as<PrimType>(); }
     PrimTypeKind primtype_kind() const { return type()->primtype_kind(); }
 
+    std::ostream& stream(std::ostream&) const;
+
 private:
     virtual uint64_t vhash() const override;
     virtual bool equal(const PrimOp* other) const override;
@@ -457,6 +459,8 @@ public:
     PtrType type() const { return PrimOp::type().as<PtrType>(); }
     Type alloced_type() const { return type()->referenced_type(); }
     virtual const char* op_name() const override;
+
+    std::ostream& stream(std::ostream&) const;
 
 private:
     virtual uint64_t vhash() const override { return hash_value(gid()); }

@@ -56,7 +56,7 @@ MACRO ( THORIN_RUNTIME_WRAP outfiles )
     SET ( _llfile ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.ll )
     SET ( _objfile ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.o )
 
-    SET ( _impala_platform ${_impala_platform}
+    SET ( _impala_platform
         ${THORIN_RUNTIME_DIR}/runtime.impala
         ${THORIN_RUNTIME_DIR}/platforms/intrinsics_thorin.impala
         ${THORIN_RUNTIME_DIR}/platforms/intrinsics_${TRW_BACKEND}.impala )

@@ -269,6 +269,8 @@ std::ostream& PrimLit::stream(std::ostream& os) const {
           default: THORIN_UNREACHABLE;
       }
   }
+
+  return os;
 }
 
 std::ostream& Global::stream(std::ostream& os) const {

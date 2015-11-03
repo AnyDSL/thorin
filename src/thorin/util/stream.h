@@ -46,7 +46,7 @@ std::ostream& streamf(std::ostream& out, const char* fmt, T val, Args... args) {
 }
 
 namespace indent {
-  extern unsigned int level;
+  unsigned int level;
 }
 
 template <class charT, class traits>

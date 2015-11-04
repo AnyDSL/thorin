@@ -28,12 +28,6 @@ ELSE ()
     SET ( CONF_RUNTIME_LIBRARIES ${CONF_RUNTIME_LIBRARIES} "${CMAKE_THREAD_LIBS_INIT}")
 ENDIF ()
 
-# Provide a main function if needed
-SET ( PROVIDE_MAIN "OFF" CACHE BOOL "Provide a main function in the runtime")
-IF ( PROVIDE_MAIN )
-    SET ( RUNTIME_DEFINITIONS ${RUNTIME_DEFINITIONS} -DPROVIDE_MAIN)
-ENDIF ()
-
 IF ( NOT MSVC )
     ADD_DEFINITIONS ( "-std=c++11 -Wall -Wunused" )
 ENDIF ()

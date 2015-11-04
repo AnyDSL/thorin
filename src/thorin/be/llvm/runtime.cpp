@@ -91,7 +91,7 @@ Lambda* KernelRuntime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
             auto rtype = ptr->referenced_type();
 
             if (!rtype.isa<ArrayType>()) {
-                WLOG("currently only pointers to arrays supported as kernel argument at '%'; argument has different type:", target_arg);
+                WLOG("currently only pointers to arrays supported as kernel argument at '%'; argument has different type:", target_arg->loc());
                 ptr->dump();
                 assert(rtype.isa<ArrayType>() && "currently only pointers to arrays supported");
             }

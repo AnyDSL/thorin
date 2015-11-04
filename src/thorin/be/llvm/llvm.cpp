@@ -746,7 +746,7 @@ llvm::Value* CodeGen::emit(Def def) {
     if (auto alloc = def->isa<Alloc>()) { // TODO factor this code
         // TODO do this only once
         auto llvm_malloc = llvm::cast<llvm::Function>(module_->getOrInsertFunction(
-                    get_alloc_name(), irbuilder_.getInt8PtrTy(), irbuilder_.getInt64Ty(), nullptr));
+                    get_alloc_name(), irbuilder_.getInt8PtrTy(), irbuilder_.getInt32Ty(), irbuilder_.getInt32Ty(), irbuilder_.getInt64Ty(), nullptr));
         llvm_malloc->addAttribute(llvm::AttributeSet::ReturnIndex, llvm::Attribute::NoAlias);
         auto alloced_type = convert(alloc->alloced_type());
         llvm::CallInst* void_ptr;
@@ -756,9 +756,20 @@ llvm::Value* CodeGen::emit(Def def) {
                     irbuilder_.getInt64(layout.getTypeAllocSize(alloced_type)),
                     irbuilder_.CreateMul(irbuilder_.CreateIntCast(lookup(alloc->extra()), irbuilder_.getInt64Ty(), false),
                                          irbuilder_.getInt64(layout.getTypeAllocSize(convert(array->elem_type())))));
-            void_ptr = irbuilder_.CreateCall(llvm_malloc, size);
-        } else
-            void_ptr = irbuilder_.CreateCall(llvm_malloc, irbuilder_.getInt64(layout.getTypeAllocSize(alloced_type)));
+            llvm::Value* malloc_args[] = {
+                irbuilder_.getInt32(0),
+                irbuilder_.getInt32(0),
+                size
+            };
+            void_ptr = irbuilder_.CreateCall(llvm_malloc, malloc_args);
+        } else {
+            llvm::Value* malloc_args[] = {
+                irbuilder_.getInt32(0),
+                irbuilder_.getInt32(0),
+                irbuilder_.getInt64(layout.getTypeAllocSize(alloced_type))
+            };
+            void_ptr = irbuilder_.CreateCall(llvm_malloc, malloc_args);
+        }
 
         return irbuilder_.CreatePointerCast(void_ptr, convert(alloc->out_ptr_type()));
     }

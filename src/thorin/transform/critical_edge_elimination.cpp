@@ -14,21 +14,15 @@ static bool update_src(Lambda* src, Lambda* dst, const char* suffix) {
         return resolver;
     };
 
-    if (src->to() == dst)
-        src->update_to(resolve(dst));
-    else if (src->to() == src->world().branch()) {
-        if (src->arg(1) == dst)
-            src->branch(src->arg(0), resolve(dst), src->arg(2));
-        else {
-            assert(src->arg(2) == dst);
-            src->branch(src->arg(0), src->arg(1), resolve(dst));
+    for (size_t i = 0, e = src->size(); i != e; ++i) {
+        if (src->op(i) == dst) {
+            src->update_op(i, resolve(dst));
+            return true;
         }
-    } else {
-        DLOG("cannot remove critical edge % -> %", src->unique_name(), dst->unique_name());
-        return false;
     }
 
-    return true;
+    DLOG("cannot remove critical edge % -> %", src->unique_name(), dst->unique_name());
+    return false;
 }
 
 static void critical_edge_elimination(Scope& scope) {

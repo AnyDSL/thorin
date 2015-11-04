@@ -32,6 +32,10 @@ public:
         : Array(Platform::HOST, Device(0), size)
     {}
 
+    Array(Platform p, Device d, T* ptr)
+        : platform_(p), device_(d), data_(ptr)
+    {}
+
     Array(Platform p, Device d, int64_t size)
         : platform_(p), device_(d) {
         allocate(p, d, size);
@@ -75,6 +79,15 @@ public:
 
     const T& operator [] (int i) const { return data_[i]; }
     T& operator [] (int i) { return data_[i]; }
+
+    T* release() {
+        T* ptr = data_;
+        data_ = nullptr;
+        size_ = 0;
+        platform_ = Platform::HOST;
+        device_ = Device(0);
+        return ptr;
+    }
 
 protected:
     void allocate(Platform p, Device d, int64_t size) {

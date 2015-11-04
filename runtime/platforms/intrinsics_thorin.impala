@@ -11,6 +11,7 @@ extern "thorin" {
     fn "munmap" munmap_i32(&[i32]) -> ();
     fn "munmap" munmap_u8(&[u8]) -> ();
 
+    fn "bitcast" bitcast_f64_i64(f64) -> i64;
     fn "bitcast" bitcast_f32_i32(f32) -> i32;
     fn "bitcast" bitcast_i32_f32(i32) -> f32;
     fn "bitcast" bitcast4_f32_i32(simd[f32 * 4]) -> simd[i32 * 4];

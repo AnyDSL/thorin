@@ -196,8 +196,8 @@ bool Lambda::visit_capturing_intrinsics(std::function<bool(Lambda*)> func) const
     if (!is_intrinsic()) {
         for (auto use : uses()) {
             if (auto lambda = (use->isa<Global>() ? use->uses().front() : use)->isa<Lambda>()) // TODO make more robust
-                if (auto to_lambda = lambda->to()->isa_lambda())
-                    if (to_lambda->is_intrinsic() && func(to_lambda))
+                if (auto to = lambda->to()->isa_lambda())
+                    if (to->is_intrinsic() && func(to))
                         return true;
         }
     }

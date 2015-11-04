@@ -24,12 +24,6 @@ static bool update_src(Lambda* src, Lambda* dst, const char* suffix) {
             src->branch(src->arg(0), src->arg(1), resolve(dst));
         }
     } else {
-        for (size_t i = 0, e = src->num_args(); i != e; ++i) {
-            if (src->arg(i) == dst) {
-                src->update_arg(i, resolve(dst));
-                return true;
-            }
-        }
         DLOG("cannot remove critical edge % -> %", src->unique_name(), dst->unique_name());
         return false;
     }

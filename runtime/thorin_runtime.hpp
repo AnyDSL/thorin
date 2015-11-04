@@ -32,8 +32,8 @@ public:
         : Array(Platform::HOST, Device(0), size)
     {}
 
-    Array(Platform p, Device d, T* ptr)
-        : platform_(p), device_(d), data_(ptr)
+    Array(Platform p, Device d, T* ptr, int64_t size)
+        : platform_(p), device_(d), data_(ptr), size_(size)
     {}
 
     Array(Platform p, Device d, int64_t size)

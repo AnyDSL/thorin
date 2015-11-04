@@ -262,25 +262,42 @@ void CudaPlatform::synchronize(device_id dev) {
 }
 
 void CudaPlatform::copy(const void* src, void* dst) {
+    auto src_info = runtime_->memory_info(src);
+    auto dst_info = runtime_->memory_info(dst);
+    assert(src_info.dev == dst_info.dev);
+    
+    cuCtxPushCurrent(devices_[src_info.dev].ctx);
+    
     CUdeviceptr src_mem = (CUdeviceptr)src;
     CUdeviceptr dst_mem = (CUdeviceptr)dst;
-    auto src_size = runtime_->memory_info(src).size;
-    CUresult err = cuMemcpyDtoD(dst_mem, src_mem, src_size);
+    CUresult err = cuMemcpyDtoD(dst_mem, src_mem, src_info.size);
     checkErrDrv(err, "cuMemcpyDtoD()");
+    
+    cuCtxPopCurrent(NULL);
 }
 
 void CudaPlatform::copy_from_host(const void* src, void* dst) {
+    auto src_info = runtime_->memory_info(src);
+    auto dst_info = runtime_->memory_info(dst);
+    cuCtxPushCurrent(devices_[dst_info.dev].ctx);
+    
     CUdeviceptr dst_mem = (CUdeviceptr)dst;
-    auto src_size = runtime_->memory_info(src).size;
-    CUresult err = cuMemcpyHtoD(dst_mem, src, src_size);
+
+    CUresult err = cuMemcpyHtoD(dst_mem, src, src_info.size);
     checkErrDrv(err, "cuMemcpyHtoD()");
+    
+    cuCtxPopCurrent(NULL);
 }
 
 void CudaPlatform::copy_to_host(const void* src, void* dst) {
+    auto src_info = runtime_->memory_info(src);
+    cuCtxPushCurrent(devices_[src_info.dev].ctx);
+    
     CUdeviceptr src_mem = (CUdeviceptr)src;
-    auto src_size = runtime_->memory_info(src).size;
-    CUresult err = cuMemcpyDtoH(dst, src_mem, src_size);
+    CUresult err = cuMemcpyDtoH(dst, src_mem, src_info.size);
     checkErrDrv(err, "cuMemcpyDtoH()");
+    
+    cuCtxPopCurrent(NULL);
 }
 
 int CudaPlatform::dev_count() {

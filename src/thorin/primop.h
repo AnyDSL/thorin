@@ -4,14 +4,13 @@
 #include "thorin/def.h"
 #include "thorin/enums.h"
 #include "thorin/util/hash.h"
-#include "thorin/util/stream.h"
 
 namespace thorin {
 
 //------------------------------------------------------------------------------
 
 /// Base class for all @p PrimOp%s.
-class PrimOp : public DefNode, public Streamable {
+class PrimOp : public DefNode {
 protected:
     PrimOp(NodeKind kind, Type type, ArrayRef<Def> args, const Location& loc, const std::string& name)
         : DefNode(-1, kind, type ? type.unify() : nullptr, args.size(), loc, name)
@@ -35,8 +34,6 @@ public:
     Def rebuild(ArrayRef<Def> ops, Type type) const { return rebuild(world(), ops, type); }
     virtual bool has_multiple_outs() const { return false; }
     virtual const char* op_name() const;
-
-    // stream
     virtual std::ostream& stream(std::ostream&) const;
 
 protected:

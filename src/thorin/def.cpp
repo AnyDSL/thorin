@@ -187,6 +187,7 @@ Lambda* DefNode::as_lambda() const { return const_cast<Lambda*>(scast<Lambda>(th
 Lambda* DefNode::isa_lambda() const { return const_cast<Lambda*>(dcast<Lambda>(this)); }
 int DefNode::order() const { return type()->order(); }
 size_t DefNode::length() const { return type().as<VectorType>()->length(); }
+std::ostream& DefNode::stream(std::ostream& out) const { return out << unique_name(); }
 
 //------------------------------------------------------------------------------
 

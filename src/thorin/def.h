@@ -12,6 +12,7 @@
 #include "thorin/util/cast.h"
 #include "thorin/util/hash.h"
 #include "thorin/util/location.h"
+#include "thorin/util/stream.h"
 
 namespace thorin {
 
@@ -96,7 +97,7 @@ using Def2Def = DefMap<const DefNode*>;
  * - \p Param%s and
  * - \p Lambda%s.
  */
-class DefNode : public HasLocation, public MagicCast<DefNode> {
+class DefNode : public HasLocation, public MagicCast<DefNode>, public Streamable {
 private:
     DefNode& operator = (const DefNode&); ///< Do not copy-assign a \p DefNode instance.
     DefNode(const DefNode&);              ///< Do not copy-construct a \p DefNode.
@@ -161,6 +162,7 @@ public:
     bool is_associative() const { return thorin::is_associative(kind()); }
     template<class T> inline T primlit_value() const; // implementation in literal.h
     virtual Def rebuild() const { return this; }
+    virtual std::ostream& stream(std::ostream&) const;
 
 private:
     const NodeKind kind_;

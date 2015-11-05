@@ -166,18 +166,8 @@ std::ostream& CodeGen::emit_primop(const PrimOp* primop) {
 std::ostream& CodeGen::emit_assignment(const PrimOp* primop) {
     emit_type(primop->type()) << " ";
     emit_name(primop) << " = ";
-
-    auto ops = primop->ops();
-    if (auto vectorop = primop->isa<VectorOp>()) {
-        if (!vectorop->cond()->is_allset()) {
-            stream() << "@ ";
-            emit_name(vectorop->cond()) << " ";
-        }
-        ops = ops.skip_front();
-    }
-
     stream() << primop->op_name() << " ";
-    dump_list([&](Def def) { emit_def(def); }, ops);
+    dump_list([&](Def def) { emit_def(def); }, primop->ops());
     return newline();
 }
 

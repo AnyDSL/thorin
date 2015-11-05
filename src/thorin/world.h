@@ -52,7 +52,7 @@ public:
     typedef HashSet<const PrimOp*, PrimOpHash, PrimOpEqual> PrimOps;
     typedef HashSet<const TypeNode*, TypeHash, TypeEqual> Types;
 
-    World(std::string name = "");
+    World(std::string name = {});
     ~World();
 
     // types
@@ -75,7 +75,7 @@ public:
     }
     TupleType           tuple_type() { return tuple0_; } ///< Returns unit, i.e., an empty @p TupleType.
     TupleType           tuple_type(ArrayRef<Type> args) { return join(new TupleTypeNode(*this, args)); }
-    StructAbsType       struct_abs_type(size_t size, const std::string& name = "") {
+    StructAbsType       struct_abs_type(size_t size, const std::string& name = {}) {
         return join(new StructAbsTypeNode(*this, size, name));
     }
     StructAppType       struct_app_type(StructAbsType struct_abs_type, ArrayRef<Type> args) {
@@ -104,60 +104,34 @@ public:
     Def allset(Type type, const Location& loc, size_t length = 1) { return allset(type.as<PrimType>()->primtype_kind(), loc, length); }
     Def bottom(Type type, const Location& loc, size_t length = 1) { return splat(cse(new Bottom(type, loc, "")), length); }
     Def bottom(PrimTypeKind kind, const Location& loc, size_t length = 1) { return bottom(type(kind), loc, length); }
-    /// Creates a vector of all true while the length is derived from @p def.
-    Def true_mask(Def def) { return literal(true, def->loc(), def->length()); }
-    Def true_mask(size_t length, const Location& loc) { return literal(true, loc, length); }
-    Def false_mask(Def def) { return literal(false, def->loc(), def->length()); }
-    Def false_mask(size_t length, const Location& loc) { return literal(false, loc, length); }
 
     // arithops
 
     /// Creates an \p ArithOp or a \p Cmp.
-    Def binop(int kind, Def cond, Def lhs, Def rhs, const Location& loc, const std::string& name = "");
-    Def binop(int kind, Def lhs, Def rhs, const Location& loc, const std::string& name = "") {
-        return binop(kind, true_mask(lhs), lhs, rhs, loc, name);
-    }
-
-    Def arithop(ArithOpKind kind, Def cond, Def lhs, Def rhs, const Location& loc, const std::string& name = "");
-    Def arithop(ArithOpKind kind, Def lhs, Def rhs, const Location& loc, const std::string& name = "") {
-        return arithop(kind, true_mask(lhs), lhs, rhs, loc, name);
-    }
+    Def binop(int kind, Def lhs, Def rhs, const Location& loc, const std::string& name = {});
+    Def arithop_not(Def def, const Location& loc);
+    Def arithop_minus(Def def, const Location& loc);
+    Def arithop(ArithOpKind kind, Def lhs, Def rhs, const Location& loc, const std::string& name = "");
 #define THORIN_ARITHOP(OP) \
-    Def arithop_##OP(Def cond, Def lhs, Def rhs, const Location& loc, const std::string& name = "") { \
-        return arithop(ArithOp_##OP, cond, lhs, rhs, loc, name); \
-    } \
     Def arithop_##OP(Def lhs, Def rhs, const Location& loc, const std::string& name = "") { \
-        return arithop(ArithOp_##OP, true_mask(lhs), lhs, rhs, loc, name); \
+        return arithop(ArithOp_##OP, lhs, rhs, loc, name); \
     }
 #include "thorin/tables/arithoptable.h"
 
-    Def arithop_not(Def cond, Def def, const Location& loc);
-    Def arithop_not(Def def, const Location& loc) { return arithop_not(true_mask(def), def, loc); }
-    Def arithop_minus(Def cond, Def def, const Location& loc);
-    Def arithop_minus(Def def, const Location& loc) { return arithop_minus(true_mask(def), def, loc); }
-
     // compares
 
-    Def cmp(CmpKind kind, Def cond, Def lhs, Def rhs, const Location& loc, const std::string& name = "");
-    Def cmp(CmpKind kind, Def lhs, Def rhs, const Location& loc, const std::string& name = "") {
-        return cmp(kind, true_mask(lhs), lhs, rhs, loc, name);
-    }
+    Def cmp(CmpKind kind, Def lhs, Def rhs, const Location& loc, const std::string& name = "");
 #define THORIN_CMP(OP) \
-    Def cmp_##OP(Def cond, Def lhs, Def rhs, const Location& loc, const std::string& name = "") { \
-        return cmp(Cmp_##OP, cond, lhs, rhs, loc, name);  \
-    } \
     Def cmp_##OP(Def lhs, Def rhs, const Location& loc, const std::string& name = "") { \
-        return cmp(Cmp_##OP, true_mask(lhs), lhs, rhs, loc, name);  \
+        return cmp(Cmp_##OP, lhs, rhs, loc, name);  \
     }
 #include "thorin/tables/cmptable.h"
 
     // casts
 
     Def convert(Type to, Def from, const Location& loc, const std::string& name = "");
-    Def cast(Type to, Def cond, Def from, const Location& loc, const std::string& name = "");
-    Def cast(Type to, Def from, const Location& loc, const std::string& name = "") { return cast(to, true_mask(from), from, loc, name); }
-    Def bitcast(Type to, Def cond, Def from, const Location& loc, const std::string& name = "");
-    Def bitcast(Type to, Def from, const Location& loc, const std::string& name = "") { return bitcast(to, true_mask(from), from, loc, name); }
+    Def cast(Type to, Def from, const Location& loc, const std::string& name = "");
+    Def bitcast(Type to, Def from, const Location& loc, const std::string& name = "");
 
     // aggregate operations
 
@@ -189,7 +163,7 @@ public:
         return insert(tuple, literal_qu32(index, loc), value, loc, name);
     }
 
-    Def select(Def cond, Def t, Def f, const std::string& name = "");
+    Def select(Def cond, Def t, Def f, const Location& loc, const std::string& name = "");
 
     // memory stuff
 
@@ -212,7 +186,6 @@ public:
 
     Def run(Def def, const Location& loc, const std::string& name = "");
     Def hlt(Def def, const Location& loc, const std::string& name = "");
-    Def select(Def cond, Def t, Def f, const Location& loc, const std::string& name = "");
 
     // lambdas
 

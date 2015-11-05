@@ -33,7 +33,7 @@ static void critical_edge_elimination(Scope& scope) {
             for (auto pred : cfg.preds(n)) {
                 if (cfg.num_succs(pred) != 1) {
                     DLOG("critical edge: % -> %", pred, n);
-                    dirty |= update_src(pred->lambda(), n->lambda(), ".crit");
+                    dirty |= update_src(pred->lambda(), n->lambda(), "_crit");
                 }
             }
         }
@@ -69,7 +69,7 @@ next_lambda:;
 
     for (auto dst : todo) {
         for (auto src : dst->preds())
-            update_src(src, dst, ".cascading");
+            update_src(src, dst, "_cascading");
     }
 
     Scope::for_each(world, [] (Scope& scope) { critical_edge_elimination(scope); });

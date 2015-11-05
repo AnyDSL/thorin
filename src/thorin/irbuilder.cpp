@@ -100,7 +100,7 @@ void Lambda::jump(JumpTarget& jt) {
 }
 
 Lambda* JumpTarget::branch_to(World& world, const Location& loc) {
-    auto bb = world.basicblock(loc, lambda_ ? name_ + std::string(".crit") : name_);
+    auto bb = world.basicblock(loc, lambda_ ? name_ + std::string("_crit") : name_);
     bb->jump(*this);
     bb->seal();
     return bb;

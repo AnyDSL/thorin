@@ -15,15 +15,25 @@ public:
         : scope_(scope)
     {}
 
-    Scope& scope() { return scope_; }
+    const Scope& scope() {
+        if (dirty_) {
+            dirty_ = false;
+            return scope_.update();
+        }
+        return scope_;
+    }
+
     World& world() { return scope().world(); }
     void run();
     void eval(Lambda* begin, Lambda* end);
-    void enqueue(Lambda* lambda) {
-        if (scope().outer_contains(lambda) && !visit(visited_, lambda))
-            queue_.push(lambda);
-    }
     Lambda* postdom(Lambda*);
+    void enqueue(Lambda* lambda) {
+        if (scope().outer_contains(lambda)) {
+            auto p = visited_.insert(lambda);
+            if (p.second)
+                queue_.push(lambda);
+        }
+    }
 
 private:
     Scope& scope_;
@@ -31,6 +41,7 @@ private:
     std::queue<Lambda*> queue_;
     LambdaSet visited_;
     HashMap<Array<Def>, Lambda*> cache_;
+    bool dirty_ = false;
 };
 
 static Lambda* continuation(Lambda* lambda) {
@@ -43,10 +54,8 @@ void PartialEvaluator::run() {
     while (!queue_.empty()) {
         auto lambda = pop(queue_);
 
-        if (lambda->to()->isa<Run>()) {
+        if (lambda->to()->isa<Run>())
             eval(lambda, continuation(lambda));
-            scope_.update();
-        }
 
         for (auto succ : scope().f_cfg().succs(lambda))
             enqueue(succ->lambda());
@@ -60,49 +69,38 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
         DLOG("eval: % -> %", cur->unique_name(), end->unique_name());
 
     while (true) {
-        if (cur == nullptr) {
-            DLOG("cur is nullptr");
+        if (cur == end) {
+            DLOG("end: %", end->unique_name());
             return;
-        }
-        if (done_.contains(cur)) {
+        } else if (done_.contains(cur)) {
             DLOG("already done: %", cur->unique_name());
             return;
-        }
-        if (cur->empty()) {
-            DLOG("empty: %", cur->unique_name());
+        } else if (cur == nullptr) {
+            WLOG("cur is nullptr");
+            return;
+        } else if (cur->empty()) {
+            WLOG("empty: %", cur->unique_name());
             return;
         }
+
+        done_.insert(cur);
 
         Lambda* dst = nullptr;
         if (auto run = cur->to()->isa<Run>()) {
             dst = run->def()->isa_lambda();
         } else if (cur->to()->isa<Hlt>()) {
-            auto& s = scope_.update();
-            assert(s.outer_contains(cur));
-            for (auto succ : s.f_cfg().succs(cur))
-                enqueue(succ->lambda());
             cur = continuation(cur);
             continue;
         } else {
             dst = cur->to()->isa_lambda();
         }
 
-        if (dst == nullptr) {
-            DLOG("dst is nullptr; cur: %", cur->unique_name());
-            return;
-        }
-
-        if (dst == end) {
-            DLOG("end: %", end->unique_name());
-            return;
-        }
-
-        done_.insert(cur);
-
-        if (dst->empty()) {
-            scope_.update();
+        if (dst == nullptr || dst->empty()) {
             cur = postdom(cur);
             continue;
+        } else if (dst == end) {
+            DLOG("end: %", end->unique_name());
+            return;
         }
 
         Array<Def> call(cur->size());
@@ -123,13 +121,13 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
             auto dropped = drop(cur, call);
 
             if (dropped->to() == world().branch()) { // don't peel loops
-                scope_.update();
                 if (!scope().inner_contains(dst) || scope().f_cfg().num_preds(dst) != 1) {
                     cur = postdom(cur);
                     continue;
                 }
             }
 
+            dirty_ = true;
             cache_[call] = dropped;
             jump_to_cached_call(cur, dropped, call);
             if (all) {
@@ -143,7 +141,7 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
 
 Lambda* PartialEvaluator::postdom(Lambda* cur) {
     const auto& postdomtree = scope().b_cfg().domtree();
-    if (auto n = scope_.cfa(cur)) {
+    if (auto n = scope().cfa(cur)) {
         auto p = postdomtree.idom(n);
         DLOG("postdom: % -> %", n, p);
         return p->lambda();

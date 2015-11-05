@@ -119,6 +119,10 @@ private:
     const T* node_;
 };
 
+namespace detail {
+    template<class T> inline std::ostream& stream(std::ostream& out, Proxy<T> proxy) { return proxy->stream(out); }
+}
+
 //------------------------------------------------------------------------------
 
 /// Base class for all \p TypeNode%s.

@@ -196,8 +196,8 @@ bool Lambda::visit_capturing_intrinsics(std::function<bool(Lambda*)> func) const
     if (!is_intrinsic()) {
         for (auto use : uses()) {
             if (auto lambda = (use->isa<Global>() ? use->uses().front() : use)->isa<Lambda>()) // TODO make more robust
-                if (auto to_lambda = lambda->to()->isa_lambda())
-                    if (to_lambda->is_intrinsic() && func(to_lambda))
+                if (auto to = lambda->to()->isa_lambda())
+                    if (to->is_intrinsic() && func(to))
                         return true;
         }
     }
@@ -438,6 +438,17 @@ Def Lambda::try_remove_trivial_param(const Param* param) {
     }
 
     return same;
+}
+
+void jump_to_cached_call(Lambda* src, Lambda* dst, ArrayRef<Def> call) {
+    std::vector<Def> nargs;
+    for (size_t i = 1, e = src->size(); i != e; ++i) {
+        if (call[i] == nullptr)
+            nargs.push_back(src->op(i));
+    }
+
+    src->jump(dst, nargs);
+    assert(src->arg_fn_type() == dst->type());
 }
 
 //------------------------------------------------------------------------------

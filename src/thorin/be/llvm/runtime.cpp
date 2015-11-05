@@ -56,7 +56,8 @@ Lambda* KernelRuntime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
     assert(lambda->num_args() >= ACC_NUM_ARGS && "required arguments are missing");
 
     // arguments
-    assert(lambda->arg(ACC_ARG_DEVICE)->isa<PrimLit>() && "target device must be hard-coded");
+    if (!lambda->arg(ACC_ARG_DEVICE)->isa<PrimLit>())
+        WLOG("error: target device must be hard-coded at %", lambda->arg(ACC_ARG_DEVICE)->loc());
     auto target_device = int(lambda->arg(ACC_ARG_DEVICE)->as<PrimLit>()->qu32_value().data());
     auto target_device_val = builder_.getInt32(target_device);
     auto it_space  = lambda->arg(ACC_ARG_SPACE)->as<Tuple>();
@@ -90,7 +91,7 @@ Lambda* KernelRuntime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
             auto rtype = ptr->referenced_type();
 
             if (!rtype.isa<ArrayType>()) {
-                WLOG("currently only pointers to arrays supported as kernel argument at '%'; argument has different type:", target_arg);
+                WLOG("currently only pointers to arrays supported as kernel argument at '%'; argument has different type:", target_arg->loc());
                 ptr->dump();
                 assert(rtype.isa<ArrayType>() && "currently only pointers to arrays supported");
             }

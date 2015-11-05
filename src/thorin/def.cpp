@@ -30,7 +30,7 @@ const DefNode* Def::deref() const {
         auto res = representative->representatives_of_.erase(n);
         assert(res == 1);
         n->representative_ = target;
-        auto p = target->representatives_of_.insert(n);
+        const auto& p = target->representatives_of_.insert(n);
         assert(p.second);
         n = representative;
     }
@@ -44,7 +44,7 @@ void DefNode::set_op(size_t i, Def def) {
     auto node = *def;
     ops_[i] = node;
     assert(def->uses_.count(Use(i, this)) == 0);
-    auto p = node->uses_.emplace(i, this);
+    const auto& p = node->uses_.emplace(i, this);
     assert(p.second);
 }
 
@@ -152,7 +152,7 @@ void DefNode::replace(Def with) const {
     if (this != *with) {
         assert(!is_proxy());
         this->representative_ = with;
-        auto p = with->representatives_of_.insert(this);
+        const auto& p = with->representatives_of_.insert(this);
         assert(p.second);
 
         std::queue<const DefNode*> queue;

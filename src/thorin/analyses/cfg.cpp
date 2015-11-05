@@ -50,8 +50,6 @@ uint64_t CFNodeHash::operator() (const CFNodeBase* n) const {
     return hash_combine(hash_value(out->def()->gid()), out->context()->lambda()->gid());
 }
 
-//------------------------------------------------------------------------------
-
 void CFNode::link(const CFNode* other) const {
     this ->succs_.push_back(other);
     other->preds_.push_back(this);
@@ -67,10 +65,11 @@ std::ostream& OutNode::stream(std::ostream& out) const {
 
 //------------------------------------------------------------------------------
 
-class CFABuilder {
+class CFABuilder : public YComp {
 public:
     CFABuilder(CFA& cfa)
-        : cfa_(cfa)
+        : YComp(cfa.scope(), "cfa")
+        , cfa_(cfa)
         , lambda2param2nodes_(cfa.scope(), std::vector<CFNodeSet>(0))
         , entry_(in_node(scope().entry()))
         , exit_ (in_node(scope().exit()))
@@ -87,6 +86,13 @@ public:
 #endif
     }
 
+    ~CFABuilder() {
+        for (const auto& p : out_nodes_) {
+            for (const auto& q : p.second)
+                delete q.second;
+        }
+    }
+
     void propagate_higher_order_values();
     void run_cfa();
     void build_cfg();
@@ -94,15 +100,15 @@ public:
     void link_to_exit();
     void transetive_cfg();
     void verify();
+    virtual void stream_ycomp(std::ostream& out) const override;
 
     const CFA& cfa() const { return cfa_; }
-    const Scope& scope() const { return cfa_.scope(); }
     const CFNode* entry() const { return entry_; }
     const CFNode* exit() const { return exit_; }
 
-    CFNodeSet cf_nodes(const CFNode*, size_t i);
-    CFNodeSet to_cf_nodes(const CFNode* in) { return in->lambda()->empty() ? CFNodeSet() : cf_nodes(in, 0); }
-    Array<CFNodeSet> args_cf_nodes(const CFNode*);
+    CFNodeSet nodes(const CFNode*, size_t i);
+    CFNodeSet to_nodes(const CFNode* in) { return in->lambda()->empty() ? CFNodeSet() : nodes(in, 0); }
+    Array<CFNodeSet> arg_nodes(const CFNode*);
 
     const CFNode* in_node(Lambda* lambda) {
         assert(scope().outer_contains(lambda));
@@ -136,7 +142,7 @@ public:
         assert(src->f_index_ == CFNode::Reachable);
         dst->f_index_ = CFNode::Reachable;
 
-        auto p = edges_[src].insert(dst);
+        const auto& p = edges_[src].insert(dst);
 
         // recursively link ancestors
         if (p.second) {
@@ -162,7 +168,7 @@ void CFABuilder::propagate_higher_order_values() {
     std::stack<Def> stack;
 
     auto push = [&] (Def def) -> bool {
-        auto p = def2set_.emplace(def, DefSet());
+        const auto& p = def2set_.emplace(def, DefSet());
         if (p.second) { // if first insert
             if (def->order() > 0) {
                 DLOG("pushing %", def->unique_name());
@@ -200,7 +206,7 @@ void CFABuilder::propagate_higher_order_values() {
     }
 }
 
-CFNodeSet CFABuilder::cf_nodes(const CFNode* in, size_t i) {
+CFNodeSet CFABuilder::nodes(const CFNode* in, size_t i) {
     CFNodeSet result;
     auto cur_lambda = in->lambda();
 
@@ -230,10 +236,10 @@ CFNodeSet CFABuilder::cf_nodes(const CFNode* in, size_t i) {
     return result;
 }
 
-Array<CFNodeSet> CFABuilder::args_cf_nodes(const CFNode* in) {
+Array<CFNodeSet> CFABuilder::arg_nodes(const CFNode* in) {
     Array<CFNodeSet> result(in->lambda()->num_args());
     for (size_t i = 0; i != result.size(); ++i)
-        result[i] = cf_nodes(in, i+1); // shift by one due to args/ops discrepancy
+        result[i] = nodes(in, i+1); // shift by one due to args/ops discrepancy
     return result;
 }
 
@@ -251,9 +257,12 @@ void CFABuilder::run_cfa() {
     while (!queue.empty()) {
         auto cur_lambda = pop(queue);
         auto cur_in = in_node(cur_lambda);
-        auto args = args_cf_nodes(cur_in);
+        auto args = arg_nodes(cur_in);
 
-        for (auto n : to_cf_nodes(cur_in)) {
+        for (auto n : to_nodes(cur_in)) {
+            if (n->def()->type() != cur_lambda->to()->type())
+                continue;
+
             if (auto in = n->isa<CFNode>()) {
                 bool todo = in->f_index_ == CFNode::Fresh;
                 for (size_t i = 0; i != cur_lambda->num_args(); ++i) {
@@ -300,19 +309,20 @@ void CFABuilder::build_cfg() {
 
     while (!queue.empty()) {
         auto cur_in = pop(queue);
-        for (auto n : to_cf_nodes(cur_in)) {
+        for (auto n : to_nodes(cur_in)) {
             if (auto in = n->isa<CFNode>()) {
                 enqueue(in);
                 link(cur_in, in);
             } else {
                 auto out = n->as<OutNode>();
                 link(cur_in, out);
-                for (const auto& nodes : args_cf_nodes(cur_in)) {
+                for (const auto& nodes : arg_nodes(cur_in)) {
                     for (auto n : nodes) {
                         if (auto in = n->isa<CFNode>()) {
                             enqueue(in);
                             link(out, n);
-                        }
+                        } else if (!n->as<OutNode>()->ancestors().empty())
+                            link(out, n);
                     }
                 }
             }
@@ -339,7 +349,7 @@ void CFABuilder::unreachable_node_elimination() {
             }
         } else {
 #ifndef NDEBUG
-            for (auto p : out_nodes_[in])
+            for (const auto& p : out_nodes_[in])
                 assert(p.second->f_index_ != CFNode::Reachable);
 #endif
             DLOG("removing: %", in);
@@ -358,8 +368,10 @@ void CFABuilder::verify() {
         }
     }
 
-    if (error)
-        cfa().error_dump();
+    if (error) {
+        ycomp();
+        abort();
+    }
 }
 
 void CFABuilder::link_to_exit() {
@@ -370,7 +382,7 @@ void CFABuilder::link_to_exit() {
 
     for (auto in : cfa().nodes()) {
         link_dead_end_to_exit(in);
-        for (auto p : out_nodes_[in]) {
+        for (const auto& p : out_nodes_[in]) {
             auto out = p.second;
             link_dead_end_to_exit(out);
             if (out->ancestors().empty() && out->def()->isa<Param>())
@@ -402,18 +414,22 @@ void CFABuilder::transetive_cfg() {
         }
     };
 
-    for (auto p : edges_) {
+    for (const auto& p : edges_) {
         if (auto in = p.first->isa<CFNode>())
             link_to_succs(in);
     }
 }
 
+void CFABuilder::stream_ycomp(std::ostream& out) const {
+    std::vector<const CFNodeBase*> nodes(cfa().nodes().begin(), cfa().nodes().end());
+    for (const auto& p : out_nodes_) {
+        for (const auto& q : p.second)
+            nodes.push_back(q.second);
+    }
 
-void CFA::error_dump() const {
-    std::ofstream out(scope().world().name() + entry()->lambda()->unique_name() + ".vcg");
-    emit_ycomp(scope(), false, out);
-    out.close();
-    abort();
+    thorin::ycomp(out, YCompOrientation::TopToBottom, scope(), range(nodes),
+        [&] (const CFNodeBase* n) { return edges_.find(n)->second; }
+    );
 }
 
 //------------------------------------------------------------------------------
@@ -441,8 +457,7 @@ CFG<forward>::CFG(const CFA& cfa)
     , rpo_(*this)
 {
 #ifndef NDEBUG
-    if (post_order_visit(entry(), size()) != 0)
-        cfa.error_dump();
+    assert(post_order_visit(entry(), size()) == 0);
 #else
     post_order_visit(entry(), size());
 #endif
@@ -466,8 +481,8 @@ size_t CFG<forward>::post_order_visit(const CFNode* n, size_t i) {
 
 template<bool forward>
 void CFG<forward>::stream_ycomp(std::ostream& out) const {
-    thorin::ycomp(out, YCompOrientation::TopToBottom, scope(), range(rpo()),
-        [] (const CFNode* n) { return range(n->succs()); }
+    thorin::ycomp(out, YCompOrientation::TopToBottom, scope(), range(reverse_post_order()),
+        [&] (const CFNode* n) { return range(succs(n)); }
     );
 }
 

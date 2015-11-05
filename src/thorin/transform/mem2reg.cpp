@@ -5,6 +5,7 @@
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/verify.h"
 #include "thorin/transform/critical_edge_elimination.h"
+#include "thorin/util/log.h"
 
 namespace thorin {
 
@@ -31,6 +32,22 @@ void mem2reg(const Scope& scope) {
     // ... except top-level lambdas
     scope.entry()->set_parent(nullptr);
     scope.entry()->seal();
+
+    // set parent pointers for functions passed to accelerator
+    for (auto lambda : scope) {
+        if (auto to = lambda->to()->isa_lambda()) {
+            if (to->is_accelerator()) {
+                for (auto arg : lambda->args()) {
+                    if (auto alambda = arg->isa_lambda()) {
+                        if (!alambda->is_basicblock()) {
+                            DLOG("% calls accelerator with %", lambda->unique_name(), alambda->unique_name());
+                            alambda->set_parent(lambda);
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     for (const auto& block : schedule_late(scope)) {
         auto lambda = block.lambda();
@@ -69,7 +86,7 @@ next_primop:;
         }
 
         // seal successors of last lambda if applicable
-        for (auto succ : cfg.succs(block.cf_node())) {
+        for (auto succ : cfg.succs(block.node())) {
             auto lsucc = succ->lambda();
             if (lsucc->parent() != nullptr) {
                 auto i = lambda2num.find(lsucc);

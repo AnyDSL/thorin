@@ -15,6 +15,7 @@
 #include "thorin/transform/partial_evaluation.h"
 #include "thorin/transform/dead_load_opt.h"
 #include "thorin/util/array.h"
+#include "thorin/util/log.h"
 
 #if (defined(__clang__) || defined(__GNUC__)) && (defined(__x86_64__) || defined(__i386__))
 #define THORIN_BREAK asm("int3");
@@ -774,6 +775,10 @@ Def World::global_immutable_string(const Location& loc, const std::string& str, 
 }
 
 const Map* World::map(Def device, Def addr_space, Def mem, Def ptr, Def mem_offset, Def mem_size, const Location& loc, const std::string& name) {
+    if (!device->isa<PrimLit>())
+        WLOG("error: target device must be hard-coded at %", device->loc());
+    if (!addr_space->isa<PrimLit>())
+        WLOG("error: address space must be hard-coded at %", addr_space->loc());
     return map(device->as<PrimLit>()->ps32_value().data(), (AddressSpace)addr_space->as<PrimLit>()->ps32_value().data(),
                mem, ptr, mem_offset, mem_size, loc, name);
 }
@@ -849,7 +854,7 @@ const TypeNode* World::unify_base(const TypeNode* type) {
         type->representative_ = representative;
         return representative;
     } else {
-        auto p = types_.insert(type);
+        const auto& p = types_.insert(type);
         assert(p.second && "hash/equal broken");
         type->representative_ = type;
         return type;
@@ -864,7 +869,7 @@ const DefNode* World::cse_base(const PrimOp* primop) {
         primop = *i;
     } else {
         primop->set_gid(gid_++);
-        auto p = primops_.insert(primop);
+        const auto& p = primops_.insert(primop);
         assert(p.second && "hash/equal broken");
     }
 

@@ -120,12 +120,9 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
         } else {                                     // no cached version found... create a new one
             auto dropped = drop(cur, call);
 
-            if (dropped->to() == world().branch()) { // don't peel loops
-                if (!scope().inner_contains(dst)) {
-                    // TODO also don't peel inside functions with incoming back-edges
-                    cur = postdom(cur);
-                    continue;
-                }
+            if (dropped->to() == world().branch()) {
+                // TODO don't stupidly inline functions
+                // TODO also don't peel inside functions with incoming back-edges
             }
 
             dirty_ = true;

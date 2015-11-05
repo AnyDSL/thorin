@@ -246,7 +246,7 @@ const char* Cmp::op_name() const {
  */
 
 std::ostream& PrimOp::stream(std::ostream& os) const {
-  return os << (this->isa<Lambda>() && this->as<Lambda>()->is_intrinsic() ? this->name : this->unique_name());
+  return os << this->unique_name();
 }
 
 std::ostream& PrimLit::stream(std::ostream& os) const {

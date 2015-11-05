@@ -552,7 +552,7 @@ private:
 
 public:
     Def val() const { return op(2); }
-    MemType type() const { return type().as<MemType>(); }
+    MemType type() const { return Access::type().as<MemType>(); }
 
     friend class World;
 };

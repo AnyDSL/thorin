@@ -250,7 +250,7 @@ std::ostream& PrimOp::stream(std::ostream& os) const {
 }
 
 std::ostream& PrimLit::stream(std::ostream& os) const {
-  //emit_type(primop->type()) << ' ';
+  os << this->type() << ' ';
   auto kind = this->primtype_kind();
 
   // print i8 as ints

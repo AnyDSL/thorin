@@ -189,6 +189,98 @@ bool TypeVarNode::equal(const TypeNode* other) const {
 //------------------------------------------------------------------------------
 
 /*
+ * stream
+ */
+
+std::ostream& MemTypeNode::stream(std::ostream& os) const {
+    return os << "mem";
+}
+
+std::ostream& FrameTypeNode::stream(std::ostream& os) const {
+    return os << "frame";
+}
+
+std::ostream& FnTypeNode::stream(std::ostream& os) const {
+    os << "fn";
+    // TODO: emit_type_vars(this);
+    return os; // TODO: emit_type_args(this);
+}
+
+std::ostream& TupleTypeNode::stream(std::ostream& os) const {
+  // TODO: emit_type_vars(this);
+  return os; //TODO: emit_type_args(this);
+}
+
+std::ostream& StructAbsTypeNode::stream(std::ostream& os) const {
+    os << this->name();
+    return os; // TODO: emit_type_vars(struct_abs);
+    // TODO emit args - but don't do this inline: structs may be recursive
+    //return emit_type_args(struct_abs);
+}
+
+std::ostream& StructAppTypeNode::stream(std::ostream& os) const {
+    os << this->struct_abs_type()->name();
+    return os; // TODO: emit_type_elems(struct_app);
+}
+
+std::ostream& TypeVarNode::stream(std::ostream& os) const {
+    return os << '<' << this->gid() << '>';
+}
+
+std::ostream& IndefiniteArrayTypeNode::stream(std::ostream& os) const {
+    return os << '[' << this->elem_type() << ']';
+}
+
+std::ostream& DefiniteArrayTypeNode::stream(std::ostream& os) const {
+    return os << '[' << this->dim() << " x " << this->elem_type() << ']';
+}
+
+std::ostream& PtrTypeNode::stream(std::ostream& os) const {
+    if (this->is_vector())
+        os << '<' << this->length() << " x ";
+    os << this->referenced_type() << '*';
+    if (this->is_vector())
+        os << '>';
+    auto device = this->device();
+    if (device != -1)
+        os << '[' << device << ']';
+    switch (this->addr_space()) {
+        case AddressSpace::Global:   os << "[Global]";   break;
+        case AddressSpace::Texture:  os << "[Tex]";      break;
+        case AddressSpace::Shared:   os << "[Shared]";   break;
+        case AddressSpace::Constant: os << "[Constant]"; break;
+        default: /* ignore unknown address space */      break;
+    }
+    return os;
+}
+
+std::ostream& PrimTypeNode::stream(std::ostream& os) const {
+    if (this->is_vector())
+        os << "<" << this->length() << " x ";
+
+    switch (this->primtype_kind()) {
+#define THORIN_ALL_TYPE(T, M) case Node_PrimType_##T: os << #T; break;
+#include "thorin/tables/primtypetable.h"
+          default: THORIN_UNREACHABLE;
+    }
+
+    if (this->is_vector())
+        os << ">";
+
+    return os;
+}
+
+std::ostream& TypeNode::stream(std::ostream& os) const {
+   if (this->empty()) {
+       return stream() << "<NULL>";
+   }
+
+   THORIN_UNREACHABLE;
+ }
+
+//------------------------------------------------------------------------------
+
+/*
  * specialize and instantiate
  */
 

@@ -34,7 +34,7 @@ public:
     Def rebuild(ArrayRef<Def> ops, Type type) const { return rebuild(world(), ops, type); }
     virtual bool has_multiple_outs() const { return false; }
     virtual const char* op_name() const;
-    virtual std::ostream& stream(std::ostream&) const;
+    virtual std::ostream& stream(std::ostream&) const override;
 
 protected:
     virtual uint64_t vhash() const;
@@ -101,7 +101,7 @@ public:
     PrimType type() const { return Literal::type().as<PrimType>(); }
     PrimTypeKind primtype_kind() const { return type()->primtype_kind(); }
 
-    std::ostream& stream(std::ostream&) const;
+    std::ostream& stream(std::ostream&) const override;
 
 private:
     virtual uint64_t vhash() const override;
@@ -457,7 +457,7 @@ public:
     Type alloced_type() const { return type()->referenced_type(); }
     virtual const char* op_name() const override;
 
-    std::ostream& stream(std::ostream&) const;
+    std::ostream& stream(std::ostream&) const override;
 
 private:
     virtual uint64_t vhash() const override { return hash_value(gid()); }

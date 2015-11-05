@@ -121,7 +121,8 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
             auto dropped = drop(cur, call);
 
             if (dropped->to() == world().branch()) { // don't peel loops
-                if (!scope().inner_contains(dst) || scope().f_cfg().num_preds(dst) != 1) {
+                if (!scope().inner_contains(dst)) {
+                    // TODO also don't peel inside functions with incoming back-edges
                     cur = postdom(cur);
                     continue;
                 }

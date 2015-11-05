@@ -74,7 +74,7 @@ public:
         , entry_(in_node(scope().entry()))
         , exit_ (in_node(scope().exit()))
     {
-        ILOG("*** CFA: %", scope().entry()->unique_name());
+        ILOG("*** CFA: %", scope().entry());
         ILOG_SCOPE(propagate_higher_order_values());
         ILOG_SCOPE(run_cfa());
         ILOG_SCOPE(build_cfg());
@@ -171,7 +171,7 @@ void CFABuilder::propagate_higher_order_values() {
         const auto& p = def2set_.emplace(def, DefSet());
         if (p.second) { // if first insert
             if (def->order() > 0) {
-                DLOG("pushing %", def->unique_name());
+                DLOG("pushing %", def);
                 stack.push(def);
                 return true;
             }
@@ -247,7 +247,7 @@ void CFABuilder::run_cfa() {
     std::queue<Lambda*> queue;
 
     auto enqueue = [&] (const CFNode* in) {
-        DLOG("enqueuing %", in->lambda()->unique_name());
+        DLOG("enqueuing %", in->lambda());
         queue.push(in->lambda());
         in->f_index_ = CFNode::Unfresh;
     };
@@ -363,7 +363,7 @@ void CFABuilder::verify() {
     bool error = false;
     for (auto in : cfa().nodes()) {
         if (in != entry() && in->preds_.size() == 0) {
-            WLOG("missing predecessors: %", in->lambda()->unique_name());
+            WLOG("missing predecessors: %", in->lambda());
             error = true;
         }
     }

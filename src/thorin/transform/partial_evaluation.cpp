@@ -64,22 +64,22 @@ void PartialEvaluator::run() {
 
 void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
     if (end == nullptr)
-        WLOG("no matching end: % at %", cur->unique_name(), cur->loc());
+        WLOG("no matching end: % at %", cur, cur->loc());
     else
-        DLOG("eval: % -> %", cur->unique_name(), end->unique_name());
+        DLOG("eval: % -> %", cur, end);
 
     while (true) {
         if (cur == end) {
-            DLOG("end: %", end->unique_name());
+            DLOG("end: %", end);
             return;
         } else if (done_.contains(cur)) {
-            DLOG("already done: %", cur->unique_name());
+            DLOG("already done: %", cur);
             return;
         } else if (cur == nullptr) {
             WLOG("cur is nullptr");
             return;
         } else if (cur->empty()) {
-            WLOG("empty: %", cur->unique_name());
+            WLOG("empty: %", cur);
             return;
         }
 
@@ -99,7 +99,7 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
             cur = postdom(cur);
             continue;
         } else if (dst == end) {
-            DLOG("end: %", end->unique_name());
+            DLOG("end: %", end);
             return;
         }
 
@@ -115,7 +115,7 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
 
         if (auto cached = find(cache_, call)) {      // check for cached version
             jump_to_cached_call(cur, cached, call);
-            DLOG("using cached call: %", cur->unique_name());
+            DLOG("using cached call: %", cur);
             return;
         } else {                                     // no cached version found... create a new one
             auto dropped = drop(cur, call);
@@ -147,7 +147,7 @@ Lambda* PartialEvaluator::postdom(Lambda* cur) {
         return p->lambda();
     }
 
-    WLOG("no postdom found for % at %", cur->unique_name(), cur->loc());
+    WLOG("no postdom found for % at %", cur, cur->loc());
     return nullptr;
 }
 

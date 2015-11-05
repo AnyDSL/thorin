@@ -36,7 +36,7 @@ void lower2cff(World& world) {
                 auto lambda = n->lambda();
                 if (auto to = lambda->to()->isa_lambda()) {
                     if (is_bad(to)) {
-                        DLOG("bad: %", to->unique_name());
+                        DLOG("bad: %", to);
                         todo = dirty = true;
 
                         Array<Def> call(lambda->size());

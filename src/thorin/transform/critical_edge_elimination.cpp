@@ -21,7 +21,7 @@ static bool update_src(Lambda* src, Lambda* dst, const char* suffix) {
         }
     }
 
-    DLOG("cannot remove critical edge % -> %", src->unique_name(), dst->unique_name());
+    DLOG("cannot remove critical edge % -> %", src, dst);
     return false;
 }
 

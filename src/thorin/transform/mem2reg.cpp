@@ -40,7 +40,7 @@ void mem2reg(const Scope& scope) {
                 for (auto arg : lambda->args()) {
                     if (auto alambda = arg->isa_lambda()) {
                         if (!alambda->is_basicblock()) {
-                            DLOG("% calls accelerator with %", lambda->unique_name(), alambda->unique_name());
+                            DLOG("% calls accelerator with %", lambda, alambda);
                             alambda->set_parent(lambda);
                         }
                     }

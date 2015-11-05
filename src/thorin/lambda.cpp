@@ -4,6 +4,7 @@
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/be/thorin.h"
+#include "thorin/util/log.h"
 #include "thorin/util/queue.h"
 
 namespace thorin {
@@ -30,6 +31,10 @@ std::vector<Param::Peek> Param::peek() const {
 }
 
 //------------------------------------------------------------------------------
+
+Def Lambda::to() const {
+    return empty() ? world().bottom(world().fn_type(), Location()) : op(0);
+}
 
 Lambda* Lambda::stub(Type2Type& type2type, const std::string& name) const {
     auto result = world().lambda(type()->specialize(type2type).as<FnType>(), loc(), cc(), intrinsic(), name);
@@ -191,8 +196,8 @@ bool Lambda::visit_capturing_intrinsics(std::function<bool(Lambda*)> func) const
     if (!is_intrinsic()) {
         for (auto use : uses()) {
             if (auto lambda = (use->isa<Global>() ? use->uses().front() : use)->isa<Lambda>()) // TODO make more robust
-                if (auto to_lambda = lambda->to()->isa_lambda())
-                    if (to_lambda->is_intrinsic() && func(to_lambda))
+                if (auto to = lambda->to()->isa_lambda())
+                    if (to->is_intrinsic() && func(to))
                         return true;
         }
     }
@@ -218,8 +223,14 @@ void Lambda::jump(Def to, ArrayRef<Def> args) {
         set_op(x++, arg);
 }
 
-void Lambda::branch(Def cond, Def tto, Def fto, ArrayRef<Def> args) {
-    return jump(world().select(cond, tto, fto, cond->loc()), args);
+void Lambda::branch(Def cond, Def t, Def f) {
+    if (auto lit = cond->isa<PrimLit>())
+        return jump(lit->value().get_bool() ? t : f, {});
+    if (t == f)
+        return jump(t, {});
+    if (cond->is_not())
+        return branch(cond->as<ArithOp>()->rhs(), f, t);
+    return jump(world().branch(), {cond, t, f});
 }
 
 std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Def> args, Type ret_type) {
@@ -251,7 +262,7 @@ std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Def> args, Type ret_type) 
     Def ret;
     if (pack) {
         Array<Def> defs(next->num_params()-1);
-        auto p = next->params().slice_from_begin(1);
+        auto p = next->params().skip_front();
         std::copy(p.begin(), p.end(), defs.begin());
         ret = world().tuple(defs, to->loc());
 
@@ -264,7 +275,7 @@ std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Def> args, Type ret_type) 
 
 std::list<Lambda::ScopeInfo>::iterator Lambda::list_iter(const Scope* scope) {
     return std::find_if(scopes_.begin(), scopes_.end(), [&] (const ScopeInfo& info) {
-        return info.scope->sid() == scope->sid();
+        return info.scope->id() == scope->id();
     });
 }
 
@@ -352,8 +363,7 @@ Def Lambda::get_value(size_t handle, Type type, const char* name) {
     }
 
 return_bottom:
-    // TODO provide hook instead of fixed functionality
-    this->warn() << "'" << name << "'" << " may be undefined\n";
+    WLOG("'%' may be undefined at '%'", name, this->loc());
     return set_value(handle, world().bottom(type, Location()));
 }
 
@@ -428,6 +438,17 @@ Def Lambda::try_remove_trivial_param(const Param* param) {
     }
 
     return same;
+}
+
+void jump_to_cached_call(Lambda* src, Lambda* dst, ArrayRef<Def> call) {
+    std::vector<Def> nargs;
+    for (size_t i = 1, e = src->size(); i != e; ++i) {
+        if (call[i] == nullptr)
+            nargs.push_back(src->op(i));
+    }
+
+    src->jump(dst, nargs);
+    assert(src->arg_fn_type() == dst->type());
 }
 
 //------------------------------------------------------------------------------

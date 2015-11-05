@@ -2,11 +2,12 @@
 #include "thorin/primop.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
-#include "thorin/analyses/bb_schedule.h"
+#include "thorin/analyses/cfg.h"
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/util/autoptr.h"
+#include "thorin/util/log.h"
 #include "thorin/util/printer.h"
 #include "thorin/be/c.h"
 
@@ -22,13 +23,9 @@ public:
     {}
 
     void emit();
-private:
-    World& world_;
-    Lang lang_;
-    bool debug_;
-    HashMap<size_t, std::string> globals_;
-    HashMap<size_t, std::string> primops_;
+    World& world() const { return world_; }
 
+private:
     std::ostream& emit_aggop_defs(Def def);
     std::ostream& emit_aggop_decl(Type);
     std::ostream& emit_debug_info(Def def);
@@ -38,7 +35,13 @@ private:
     std::ostream& insert(size_t gid, std::string str);
     std::string &get_name(size_t gid);
     bool is_texture_type(Type type);
+
+    World& world_;
+    Lang lang_;
+    HashMap<size_t, std::string> globals_;
+    HashMap<size_t, std::string> primops_;
     bool process_kernel_ = false;
+    bool debug_;
 };
 
 
@@ -238,17 +241,18 @@ void CCodeGen::emit() {
     }
 
     // emit declarations
-    Scope::for_each<false>(world_, [&] (const Scope& scope) {
-        Schedule schedule = schedule_smart(scope);
+    Scope::for_each<false>(world(), [&] (const Scope& scope) {
+        if (scope.entry() == world().branch()) return;
+        auto schedule = schedule_smart(scope);
 
         // tuple declarations
-        for (auto lambda : scope) {
-            for (auto param : lambda->params()) {
+        for (auto& block : schedule) {
+            for (auto param : block.lambda()->params()) {
                 emit_aggop_decl(param->type());
                 insert(param->gid(), param->unique_name());
             }
 
-            for (auto primop : schedule[lambda]) {
+            for (auto primop : block) {
                 if (!primop->isa<MemOp>()) {
                     emit_aggop_decl(primop->type());
                     // search for inlined tuples/arrays
@@ -315,7 +319,7 @@ void CCodeGen::emit() {
     newline();
 
     // emit all globals
-    for (auto primop : world_.primops()) {
+    for (auto primop : world().primops()) {
         if (auto global = primop->isa<Global>()) {
             emit_aggop_decl(global->type());
             emit(global);
@@ -326,7 +330,7 @@ void CCodeGen::emit() {
     // emit connected functions first
     process_kernel_ = true;
 
-    Scope::for_each(world_, [&] (const Scope& scope) {
+    Scope::for_each(world(), [&] (const Scope& scope) {
         auto lambda = scope.entry();
         if (lambda->is_intrinsic())
             return;
@@ -391,25 +395,25 @@ void CCodeGen::emit() {
             }
         }
 
-        // never use early schedule here - this may break memory operations
-        Schedule schedule = schedule_smart(scope);
-
-        auto bbs = bb_schedule(scope);
+        auto schedule = schedule_smart(scope);
 
         // emit function arguments and phi nodes
-        for (auto lambda : bbs) {
-            if (scope.entry() != lambda)
-                for (auto param : lambda->params())
+        for (const auto& block : schedule) {
+            auto lambda = block.lambda();
+            if (scope.entry() != lambda) {
+                for (auto param : lambda->params()) {
                     if (!param->is_mem()) {
                         newline();
                         emit_type(param->type()) << "  " << param->unique_name() << ";";
                         newline();
                         emit_type(param->type()) << " p" << param->unique_name() << ";";
                     }
+                }
+            }
         }
 
-        // emit body for each bb
-        for (auto lambda : bbs) {
+        for (const auto& block : schedule) {
+            auto lambda = block.lambda();
             if (lambda->empty())
                 continue;
             assert(lambda == scope.entry() || lambda->is_basicblock());
@@ -428,7 +432,7 @@ void CCodeGen::emit() {
                         }
             }
 
-            for (auto primop : schedule[lambda]) {
+            for (auto primop : block) {
                 // skip higher-order primops, stuff dealing with frames and all memory related stuff except stores
                 if (!primop->type().isa<FnType>() && !primop->type().isa<FrameType>()
                         && (!primop->is_mem() || primop->isa<Store>())) {
@@ -463,14 +467,14 @@ void CCodeGen::emit() {
                         THORIN_UNREACHABLE;
                 }
                 stream() << ";";
-            } else if (auto select = lambda->to()->isa<Select>()) { // conditional branch
-                emit_debug_info(select);
+            } else if (lambda->to() == world().branch()) {
+                emit_debug_info(lambda->arg(0)); // TODO correct?
                 stream() << "if (";
-                emit(select->cond());
+                emit(lambda->arg(0));
                 stream() << ") ";
-                emit(select->tval());
+                emit(lambda->arg(1));
                 stream() << " else ";
-                emit(select->fval());
+                emit(lambda->arg(2));
             } else if (lambda->to()->isa<Bottom>()) {
                 stream() << "return ; // bottom: unreachable";
             } else {
@@ -802,21 +806,16 @@ std::ostream& CCodeGen::emit(Def def) {
     }
 
     if (auto mmap = def->isa<Map>()) {
-        assert(mmap->mem_size()->isa<PrimLit>() && "mmap: couldn't extract memory size");
+        if (mmap->addr_space() != AddressSpace::Shared)
+            WLOG("error: mmap: expected shared / local memory address space at %", mmap->loc());
+        assert(mmap->addr_space() == AddressSpace::Shared && "wrong address space for shared memory");
+        if (!mmap->mem_size()->isa<PrimLit>())
+            WLOG("error: mmap: couldn't extract memory size at %", mmap->mem_size()->loc());
 
-        if (lang_==Lang::CUDA) {
-            switch (mmap->addr_space()) {
-                default: break;
-                case AddressSpace::Shared: stream() << "__shared__ ";  break;
-            }
-        }
-        if (lang_==Lang::OPENCL) {
-            switch (mmap->addr_space()) {
-                default: break;
-                case AddressSpace::Global: stream() << "__global "; break;
-                case AddressSpace::Shared: stream() << "__local ";  break;
-            }
-        }
+        if (lang_==Lang::CUDA)
+            stream() << "__shared__ ";
+        if (lang_==Lang::OPENCL)
+            stream() << "__local ";
         emit_type(mmap->out_ptr_type()->referenced_type()) << " " << mmap->unique_name() << "[";
         emit(mmap->mem_size()) << "];";
 
@@ -835,7 +834,7 @@ bool CCodeGen::lookup(size_t gid) {
 std::string &CCodeGen::get_name(size_t gid) {
     if (globals_.count(gid)) return globals_[gid];
     if (primops_.count(gid)) return primops_[gid];
-    assert(false && "couldn't find def");
+    THORIN_UNREACHABLE; // couldn't find def
 }
 
 std::ostream& CCodeGen::insert(size_t gid, std::string str) {

@@ -30,7 +30,7 @@ const DefNode* Def::deref() const {
         auto res = representative->representatives_of_.erase(n);
         assert(res == 1);
         n->representative_ = target;
-        auto p = target->representatives_of_.insert(n);
+        const auto& p = target->representatives_of_.insert(n);
         assert(p.second);
         n = representative;
     }
@@ -44,7 +44,7 @@ void DefNode::set_op(size_t i, Def def) {
     auto node = *def;
     ops_[i] = node;
     assert(def->uses_.count(Use(i, this)) == 0);
-    auto p = node->uses_.emplace(i, this);
+    const auto& p = node->uses_.emplace(i, this);
     assert(p.second);
 }
 
@@ -101,7 +101,7 @@ std::vector<Use> DefNode::uses() const {
     stack.push(this);
 
     while (!stack.empty()) {
-        const DefNode* cur = stack.top();
+        auto cur = stack.top();
         stack.pop();
 
         for (auto use : cur->uses_) {
@@ -152,7 +152,7 @@ void DefNode::replace(Def with) const {
     if (this != *with) {
         assert(!is_proxy());
         this->representative_ = with;
-        auto p = with->representatives_of_.insert(this);
+        const auto& p = with->representatives_of_.insert(this);
         assert(p.second);
 
         std::queue<const DefNode*> queue;
@@ -187,6 +187,7 @@ Lambda* DefNode::as_lambda() const { return const_cast<Lambda*>(scast<Lambda>(th
 Lambda* DefNode::isa_lambda() const { return const_cast<Lambda*>(dcast<Lambda>(this)); }
 int DefNode::order() const { return type()->order(); }
 size_t DefNode::length() const { return type().as<VectorType>()->length(); }
+std::ostream& DefNode::stream(std::ostream& out) const { return out << unique_name(); }
 
 //------------------------------------------------------------------------------
 

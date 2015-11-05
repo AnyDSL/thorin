@@ -31,12 +31,12 @@ class TypeVarNode;              typedef Proxy<TypeVarNode>              TypeVar;
 
 template<class T>
 struct GIDHash {
-    size_t operator () (T n) const { return n->gid(); }
+    uint64_t operator () (T n) const { return n->gid(); }
 };
 
 template<class T>
 struct GIDEq {
-    size_t operator () (T n1, T n2) const { return n1->gid() == n2->gid(); }
+    bool operator () (T n1, T n2) const { return n1->gid() == n2->gid(); }
 };
 
 template<class To>
@@ -51,6 +51,18 @@ Type2Type type2type(Proxy<T> type, ArrayRef<Type> args) { return type2type(*type
 
 //------------------------------------------------------------------------------
 
+/**
+ * @brief A @p Proxy is a small wrapper for @p TypeNode%s.
+ *
+ * Due to polymorphism types may only be unified very late.
+ * For this reason, types are usually unified as late as possible - as soon as <tt>operator ==</tt> is invoked.
+ * A @p TypeNode has a representative which points to the common unified type.
+ * The @p Proxy hides any dereferencing of a @p TypeNode's representative behind <tt>operator -></tt>.
+ * For each @p TypeNode there is an appropriate @c typedef without @c "Node" for its according @p Proxy wrapper.
+ * For example, @p FnType is a \c typedef for \c Proxy<FnTypeNode>.
+ * Use @p Proxy's \p as and \p isa for a static/dynamic cast of its underlying type as \p Proxy.
+ * For example: <tt> FnType fntype = type.as<FnType>()</tt>.
+ */
 template<class T>
 class Proxy {
 public:
@@ -98,7 +110,7 @@ public:
     Proxy<T>& operator= (Proxy<T> other) { swap(*this, other); return *this; }
     friend void swap(Proxy<T>& p1, Proxy<T>& p2) {
         assert(p1.node_ == nullptr);
-        auto tmp = p2.node();
+        auto tmp = p2.node_;
         p2.node_ = p1.node_;
         p1.node_ = tmp;
     }
@@ -107,14 +119,18 @@ private:
     const T* node_;
 };
 
+namespace detail {
+    template<class T> inline std::ostream& stream(std::ostream& out, Proxy<T> proxy) { return proxy->stream(out); }
+}
+
 //------------------------------------------------------------------------------
 
+/// Base class for all \p TypeNode%s.
 class TypeNode : public MagicCast<TypeNode> {
-private:
-    TypeNode& operator = (const TypeNode&); ///< Do not copy-assign a \p TypeNode instance.
-    TypeNode(const TypeNode&);              ///< Do not copy-construct a \p TypeNode.
-
 protected:
+    TypeNode& operator = (const TypeNode&); ///< Do not copy-assign a @p TypeNode instance.
+    TypeNode(const TypeNode&);              ///< Do not copy-construct a @p TypeNode.
+
     TypeNode(World& world, NodeKind kind, ArrayRef<Type> args)
         : representative_(nullptr)
         , world_(world)
@@ -128,7 +144,10 @@ protected:
         }
     }
 
-    void set(size_t i, Type type) { args_[i] = type; }
+    void set(size_t i, Type type) {
+        args_[i] = type;
+        order_ = std::max(order_, type->order());
+    }
 
 public:
     NodeKind kind() const { return kind_; }
@@ -152,8 +171,8 @@ public:
     void free_type_vars(TypeVarSet& bound, TypeVarSet& free) const;
     TypeVarSet free_type_vars() const;
     size_t gid() const { return gid_; }
-    int order() const;
-    /// Returns the vector length. Raises an assertion if this type is not a \p VectorType.
+    int order() const { return order_; }
+    /// Returns the vector length. Raises an assertion if this type is not a @p VectorType.
     size_t length() const;
     virtual Type instantiate(ArrayRef<Type>) const;
     Type instantiate(Type2Type&) const;
@@ -183,14 +202,19 @@ public:
     bool is_type_f() const { return thorin::is_type_f(kind()); }
     bool is_bool() const { return kind() == Node_PrimType_bool; }
 
-    virtual size_t hash() const;
+    virtual uint64_t hash() const;
     virtual bool equal(const TypeNode*) const;
     virtual bool is_closed() const;
     virtual IndefiniteArrayType is_indefinite() const;
     virtual bool use_lea() const { return false; }
 
+    // stream
+    virtual std::ostream& stream(std::ostream&) const;
+
 protected:
     Array<Type> specialize_args(Type2Type&) const;
+
+    int order_ = 0;
 
 private:
     virtual Type vrebuild(World& to, ArrayRef<Type> args) const = 0;
@@ -208,6 +232,9 @@ private:
 
 /// The type of the memory monad.
 class MemTypeNode : public TypeNode {
+public:
+    virtual std::ostream& stream(std::ostream&) const override;
+
 private:
     MemTypeNode(World& world)
         : TypeNode(world, Node_MemType, {})
@@ -221,6 +248,9 @@ private:
 
 /// The type of a stack frame.
 class FrameTypeNode : public TypeNode {
+public:
+    virtual std::ostream& stream(std::ostream&) const override;
+
 private:
     FrameTypeNode(World& world)
         : TypeNode(world, Node_FrameType, {})
@@ -232,6 +262,7 @@ private:
     friend class World;
 };
 
+/// Base class for all SIMD types.
 class VectorTypeNode : public TypeNode {
 protected:
     VectorTypeNode(World& world, NodeKind kind, ArrayRef<Type> args, size_t length)
@@ -239,7 +270,7 @@ protected:
         , length_(length)
     {}
 
-    virtual size_t hash() const override { return hash_combine(TypeNode::hash(), length()); }
+    virtual uint64_t hash() const override { return hash_combine(TypeNode::hash(), length()); }
     virtual bool equal(const TypeNode* other) const override {
         return TypeNode::equal(other) && this->length() == other->as<VectorTypeNode>()->length();
     }
@@ -255,7 +286,7 @@ private:
     size_t length_;
 };
 
-/// Primitive types -- also known as atomic or scalar types.
+/// Primitive type.
 class PrimTypeNode : public VectorTypeNode {
 private:
     PrimTypeNode(World& world, PrimTypeKind kind, size_t length)
@@ -264,6 +295,8 @@ private:
 
 public:
     PrimTypeKind primtype_kind() const { return (PrimTypeKind) kind(); }
+
+    virtual std::ostream& stream(std::ostream&) const override;
 
 private:
     virtual Type vrebuild(World& to, ArrayRef<Type> args) const override;
@@ -280,6 +313,7 @@ enum class AddressSpace : uint32_t {
     Constant = 4,
 };
 
+/// Pointer type.
 class PtrTypeNode : public VectorTypeNode {
 private:
     PtrTypeNode(World& world, Type referenced_type, size_t length, int32_t device, AddressSpace addr_space)
@@ -294,8 +328,10 @@ public:
     int32_t device() const { return device_; }
     bool is_host_device() const { return device_ == -1; }
 
-    virtual size_t hash() const override;
+    virtual uint64_t hash() const override;
     virtual bool equal(const TypeNode* other) const override;
+
+    virtual std::ostream& stream(std::ostream&) const override;
 
 private:
     virtual Type vrebuild(World& to, ArrayRef<Type> args) const override;
@@ -307,6 +343,14 @@ private:
     friend class World;
 };
 
+/**
+ * @brief A struct abstraction.
+ *
+ * Structs may be recursive via a pointer indirection (like in C or Java).
+ * But unlike C, structs may be polymorphic.
+ * A concrete instantiation of a struct abstraction is a struct application.
+ * @see StructAppTypeNode
+ */
 class StructAbsTypeNode : public TypeNode {
 private:
     StructAbsTypeNode(World& world, size_t size, const std::string& name)
@@ -317,9 +361,11 @@ private:
 public:
     const std::string& name() const { return name_; }
     void set(size_t i, Type type) const { const_cast<StructAbsTypeNode*>(this)->TypeNode::set(i, type); }
-    virtual size_t hash() const override { return hash_value(this->gid()); }
+    virtual uint64_t hash() const override { return hash_value(this->gid()); }
     virtual bool equal(const TypeNode* other) const override { return this == other; }
     virtual Type instantiate(ArrayRef<Type> args) const override;
+
+    virtual std::ostream& stream(std::ostream&) const override;
 
 private:
     virtual Type vrebuild(World& to, ArrayRef<Type> args) const override;
@@ -330,6 +376,12 @@ private:
     friend class World;
 };
 
+/**
+ * @brief A struct application.
+ *
+ * A concrete instantiation of a struct abstraction is a struct application.
+ * @see StructAbsTypeNode.
+ */
 class StructAppTypeNode : public TypeNode {
 private:
     StructAppTypeNode(StructAbsType struct_abs_type, ArrayRef<Type> args)
@@ -344,7 +396,7 @@ private:
 
 public:
     StructAbsType struct_abs_type() const { return arg(0).as<StructAbsType>(); }
-    ArrayRef<Type> type_args() const { return args().slice_from_begin(1); }
+    ArrayRef<Type> type_args() const { return args().skip_front(); }
     Type type_arg(size_t i) const { return type_args()[i]; }
     size_t num_type_args() const { return type_args().size(); }
     Type elem(const Def& def) const { return TypeNode::elem(def); }
@@ -352,6 +404,8 @@ public:
     ArrayRef<Type> elems() const;
     size_t num_elems() const { return struct_abs_type()->num_args(); }
     virtual bool use_lea() const override { return true; }
+
+    virtual std::ostream& stream(std::ostream&) const override;
 
 private:
     virtual Type vrebuild(World& to, ArrayRef<Type> args) const override;
@@ -373,17 +427,24 @@ private:
     virtual Type vrebuild(World& to, ArrayRef<Type> args) const override;
 
     friend class World;
+
+public:
+    virtual std::ostream& stream(std::ostream&) const override;
 };
 
 class FnTypeNode : public TypeNode {
 private:
     FnTypeNode(World& world, ArrayRef<Type> args)
         : TypeNode(world, Node_FnType, args)
-    {}
+    {
+        ++order_;
+    }
 
 public:
     bool is_basicblock() const { return order() == 1; }
     bool is_returning() const;
+
+    virtual std::ostream& stream(std::ostream&) const override;
 
 private:
     virtual Type vrebuild(World& to, ArrayRef<Type> args) const override;
@@ -411,6 +472,8 @@ public:
 
     virtual IndefiniteArrayType is_indefinite() const override;
 
+    virtual std::ostream& stream(std::ostream&) const override;
+
 private:
     virtual Type vrebuild(World& to, ArrayRef<Type> args) const override;
     virtual Type vinstantiate(Type2Type&) const override;
@@ -426,10 +489,12 @@ public:
     {}
 
     u64 dim() const { return dim_; }
-    virtual size_t hash() const override { return hash_combine(TypeNode::hash(), dim()); }
+    virtual uint64_t hash() const override { return hash_combine(TypeNode::hash(), dim()); }
     virtual bool equal(const TypeNode* other) const override {
         return TypeNode::equal(other) && this->dim() == other->as<DefiniteArrayTypeNode>()->dim();
     }
+
+    virtual std::ostream& stream(std::ostream&) const override;
 
 private:
     virtual Type vrebuild(World& to, ArrayRef<Type> args) const override;
@@ -451,6 +516,8 @@ public:
     Type bound_at() const { return Type(bound_at_); }
     virtual bool equal(const TypeNode*) const override;
     virtual bool is_closed() const override { return bound_at_ != nullptr; }
+
+    virtual std::ostream& stream(std::ostream&) const override;
 
 private:
     virtual Type vrebuild(World& to, ArrayRef<Type> args) const override;

@@ -4,7 +4,6 @@
 #include <cassert>
 #include <functional>
 #include <initializer_list>
-#include <queue>
 #include <string>
 
 #include "thorin/enums.h"
@@ -16,13 +15,14 @@
 namespace thorin {
 
 /**
- * The World represents the whole program and manages creation and destruction of Thorin nodes.
+ * @brief The World represents the whole program and manages creation and destruction of Thorin nodes.
+ *
  * In particular, the following things are done by this class:
  *
- *  - \p Type unification: \n
- *      There exists only one unique \p Type.
- *      These \p Type%s are hashed into an internal map for fast access.
- *      The getters just calculate a hash and lookup the \p Type, if it is already present, or create a new one otherwise.
+ *  - @p Type unification: \n
+ *      There exists only one unique @p Type.
+ *      These @p Type%s are hashed into an internal map for fast access.
+ *      The getters just calculate a hash and lookup the @p Type, if it is already present, or create a new one otherwise.
  *  - Value unification: \n
  *      This is a built-in mechanism for the following things:
  *      - constant pooling
@@ -31,10 +31,10 @@ namespace thorin {
  *      - canonicalization of expressions
  *      - several local optimizations
  *
- *  \p PrimOp%s do not explicitly belong to a Lambda.
+ *  @p PrimOp%s do not explicitly belong to a Lambda.
  *  Instead they either implicitly belong to a Lambda--when
  *  they (possibly via multiple levels of indirection) depend on a Lambda's Param--or they are dead.
- *  Use \p cleanup to remove dead code and unreachable code.
+ *  Use @p cleanup to remove dead code and unreachable code.
  *
  *  You can create several worlds.
  *  All worlds are completely independent from each other.
@@ -42,10 +42,10 @@ namespace thorin {
  */
 class World {
 private:
-    World& operator = (const World&); ///< Do not copy-assign a \p World instance.
-    World(const World&);              ///< Do not copy-construct a \p World.
+    World& operator = (const World&); ///< Do not copy-assign a @p World instance.
+    World(const World&);              ///< Do not copy-construct a @p World.
 
-    struct TypeHash { size_t operator () (const TypeNode* t) const { return t->hash(); } };
+    struct TypeHash { uint64_t operator () (const TypeNode* t) const { return t->hash(); } };
     struct TypeEqual { bool operator () (const TypeNode* t1, const TypeNode* t2) const { return t1->equal(t2); } };
 
 public:
@@ -73,7 +73,7 @@ public:
     PtrType     ptr_type(Type referenced_type, size_t length = 1, int32_t device = -1, AddressSpace addr_space = AddressSpace::Generic) {
         return join(new PtrTypeNode(*this, referenced_type, length, device, addr_space));
     }
-    TupleType           tuple_type() { return tuple0_; } ///< Returns unit, i.e., an empty \p TupleType.
+    TupleType           tuple_type() { return tuple0_; } ///< Returns unit, i.e., an empty @p TupleType.
     TupleType           tuple_type(ArrayRef<Type> args) { return join(new TupleTypeNode(*this, args)); }
     StructAbsType       struct_abs_type(size_t size, const std::string& name = "") {
         return join(new StructAbsTypeNode(*this, size, name));
@@ -81,7 +81,7 @@ public:
     StructAppType       struct_app_type(StructAbsType struct_abs_type, ArrayRef<Type> args) {
         return join(new StructAppTypeNode(struct_abs_type, args));
     }
-    FnType              fn_type() { return fn0_; }       ///< Returns an empty \p FnType.
+    FnType              fn_type() { return fn0_; }       ///< Returns an empty @p FnType.
     FnType              fn_type(ArrayRef<Type> args) { return join(new FnTypeNode(*this, args)); }
     TypeVar             type_var() { return join(new TypeVarNode(*this)); }
     DefiniteArrayType   definite_array_type(Type elem, u64 dim) { return join(new DefiniteArrayTypeNode(*this, elem, dim)); }
@@ -189,6 +189,8 @@ public:
         return insert(tuple, literal_qu32(index, loc), value, loc, name);
     }
 
+    Def select(Def cond, Def t, Def f, const std::string& name = "");
+
     // memory stuff
 
     Def load(Def mem, Def ptr, const Location& loc, const std::string& name = "");
@@ -206,14 +208,10 @@ public:
         return cse(new Map(device, addr_space, mem, ptr, mem_offset, mem_size, loc, name));
     }
 
-    // guided partial evaluation
+    // misc
 
     Def run(Def def, const Location& loc, const std::string& name = "");
     Def hlt(Def def, const Location& loc, const std::string& name = "");
-    Def end_run(Def def, Def run, const Location& loc, const std::string& name = "") { return cse(new EndRun(def, run, loc, name)); }
-    Def end_hlt(Def def, Def hlt, const Location& loc, const std::string& name = "") { return cse(new EndHlt(def, hlt, loc, name)); }
-
-    /// Select is higher-order. You can build branches with a \p Select primop.
     Def select(Def cond, Def t, Def f, const Location& loc, const std::string& name = "");
 
     // lambdas
@@ -223,6 +221,8 @@ public:
     Lambda* lambda(const Location& loc, const std::string& name) { return lambda(fn_type(), loc, CC::C, Intrinsic::None, name); }
     Lambda* basicblock(const Location& loc, const std::string& name = "");
     Lambda* meta_lambda();
+    Lambda* branch() const { return branch_; }
+    Lambda* end_scope() const { return end_scope_; }
 
     /// Performs dead code, unreachable code and unused type elimination.
     void cleanup();
@@ -237,6 +237,7 @@ public:
     const LambdaSet& externals() const { return externals_; }
     const Types& types() const { return types_; }
     size_t gid() const { return gid_; }
+    bool empty() const { return lambdas().size() <= 2; } // TODO rework intrinsic stuff. 2 = branch + end_scope
 
     // other stuff
 
@@ -246,6 +247,7 @@ public:
     void destroy(Lambda* lambda);
 #ifndef NDEBUG
     void breakpoint(size_t number) { breakpoints_.insert(number); }
+    const HashSet<size_t>& breakpoints() const { return breakpoints_; }
 #endif
     const TypeNode* unify_base(const TypeNode*);
     template<class T> Proxy<T> unify(const T* type) { return Proxy<T>(unify_base(type)->template as<T>()); }
@@ -273,8 +275,9 @@ private:
 #ifndef NDEBUG
     HashSet<size_t> breakpoints_;
 #endif
-
     size_t gid_;
+    Lambda* branch_;
+    Lambda* end_scope_;
 
     union {
         struct {

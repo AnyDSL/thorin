@@ -13,7 +13,7 @@ CPUCodeGen::CPUCodeGen(World& world)
     auto triple_str = llvm::sys::getDefaultTargetTriple();
     module_->setTargetTriple(triple_str);
     llvm::EngineBuilder builder(module_);
-    auto machine = builder.selectTarget();
+    std::unique_ptr<llvm::TargetMachine> machine(builder.selectTarget());
     assert(machine && "can't create machine for host architecture");
     module_->setDataLayout(machine->getDataLayout()->getStringRepresentation());
 }

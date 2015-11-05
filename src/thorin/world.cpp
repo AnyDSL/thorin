@@ -12,10 +12,10 @@
 #include "thorin/transform/lower2cff.h"
 #include "thorin/transform/mem2reg.h"
 #include "thorin/transform/memmap_builtins.h"
-#include "thorin/transform/merge_lambdas.h"
 #include "thorin/transform/partial_evaluation.h"
 #include "thorin/transform/dead_load_opt.h"
 #include "thorin/util/array.h"
+#include "thorin/util/log.h"
 
 #if (defined(__clang__) || defined(__GNUC__)) && (defined(__x86_64__) || defined(__i386__))
 #define THORIN_BREAK asm("int3");
@@ -45,7 +45,13 @@ World::World(std::string name)
     , frame_  (*unify(*join(new FrameTypeNode(*this))))
 #define THORIN_ALL_TYPE(T, M) ,T##_(*unify(*join(new PrimTypeNode(*this, PrimType_##T, 1))))
 #include "thorin/tables/primtypetable.h"
-{}
+{
+    branch_ = lambda(fn_type({type_bool(), fn_type(), fn_type()}), Location(), CC::C, Intrinsic::Branch, "br");
+    end_scope_ = lambda(fn_type(), Location(), CC::C, Intrinsic::EndScope, "end_scope");
+    auto v = type_var();
+    auto f = fn_type({type_bool(), fn_type(), fn_type(), v});
+    f->bind(v);
+}
 
 World::~World() {
     for (auto primop : primops_) delete primop;
@@ -267,6 +273,7 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const Location& loc
 
         if (b->is_one()) {
             switch (kind) {
+                case ArithOp_mul:
                 case ArithOp_div: return a;
                 case ArithOp_rem: return zero(type, loc);
 
@@ -711,12 +718,22 @@ Def World::load(Def mem, Def ptr, const Location& loc, const std::string& name) 
             return global->init();
     }
 
+    if (auto ld = Load::is_out_mem(mem)) {
+        if (ptr == ld->ptr())
+            return ld;
+    }
+
     return cse(new Load(mem, ptr, loc, name));
 }
 
 Def World::store(Def mem, Def ptr, Def value, const Location& loc, const std::string& name) {
     if (value->isa<Bottom>())
         return mem;
+
+    if (auto st = mem->isa<Store>()) {
+        if (ptr == st->ptr() && value == st->val())
+            return st;
+    }
 
     if (auto insert = value->isa<Insert>()) {
         if (ptr->type().as<PtrType>()->referenced_type()->use_lea()) {
@@ -758,6 +775,10 @@ Def World::global_immutable_string(const Location& loc, const std::string& str, 
 }
 
 const Map* World::map(Def device, Def addr_space, Def mem, Def ptr, Def mem_offset, Def mem_size, const Location& loc, const std::string& name) {
+    if (!device->isa<PrimLit>())
+        WLOG("error: target device must be hard-coded at %", device->loc());
+    if (!addr_space->isa<PrimLit>())
+        WLOG("error: address space must be hard-coded at %", addr_space->loc());
     return map(device->as<PrimLit>()->ps32_value().data(), (AddressSpace)addr_space->as<PrimLit>()->ps32_value().data(),
                mem, ptr, mem_offset, mem_size, loc, name);
 }
@@ -808,11 +829,8 @@ Lambda* World::meta_lambda() {
 
 Lambda* World::basicblock(const Location& loc, const std::string& name) {
     THORIN_CHECK_BREAK(gid_)
-    auto bb = new Lambda(gid_++, fn_type({mem_type()}), loc, CC::C, Intrinsic::None, false, name);
+    auto bb = new Lambda(gid_++, fn_type(), loc, CC::C, Intrinsic::None, false, name);
     lambdas_.insert(bb);
-    auto mem = param(mem_type(), bb, 0, "mem");
-    bb->params_.push_back(mem);
-    bb->set_mem(mem);
     return bb;
 }
 
@@ -836,7 +854,7 @@ const TypeNode* World::unify_base(const TypeNode* type) {
         type->representative_ = representative;
         return representative;
     } else {
-        auto p = types_.insert(type);
+        const auto& p = types_.insert(type);
         assert(p.second && "hash/equal broken");
         type->representative_ = type;
         return type;
@@ -851,7 +869,7 @@ const DefNode* World::cse_base(const PrimOp* primop) {
         primop = *i;
     } else {
         primop->set_gid(gid_++);
-        auto p = primops_.insert(primop);
+        const auto& p = primops_.insert(primop);
         assert(p.second && "hash/equal broken");
     }
 
@@ -876,7 +894,6 @@ void World::cleanup() { cleanup_world(*this); }
 void World::opt() {
     cleanup();
     partial_evaluation(*this);
-    merge_lambdas(*this);
     cleanup();
     lower2cff(*this);
     clone_bodies(*this);
@@ -884,7 +901,6 @@ void World::opt() {
     memmap_builtins(*this);
     lift_builtins(*this);
     inliner(*this);
-    merge_lambdas(*this);
     lift_enters(*this);
     dead_load_opt(*this);
     cleanup();

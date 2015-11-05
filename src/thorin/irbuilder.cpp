@@ -1,6 +1,5 @@
 #include "thorin/irbuilder.h"
 
-#include "thorin/lambda.h"
 #include "thorin/primop.h"
 #include "thorin/world.h"
 
@@ -76,33 +75,33 @@ World& Var::world() const { return builder_->world(); }
 //------------------------------------------------------------------------------
 
 #ifndef NDEBUG
-JumpTarget::~JumpTarget() { assert((!lambda_ || first_ || lambda_->is_sealed()) && "JumpTarget not sealed"); }
+#else
+JumpTarget::~JumpTarget() {
+    assert((!lambda_ || first_ || lambda_->is_sealed()) && "JumpTarget not sealed");
+}
 #endif
-
-World& JumpTarget::world() const { assert(lambda_); return lambda_->world(); }
-void JumpTarget::seal() { assert(lambda_); lambda_->seal(); }
 
 Lambda* JumpTarget::untangle() {
     if (!first_)
         return lambda_;
     assert(lambda_);
     auto bb = world().basicblock(lambda_->loc(), name_);
-    lambda_->jump(bb, {lambda_->get_mem()});
+    lambda_->jump(bb, {});
     first_ = false;
     return lambda_ = bb;
 }
 
-void JumpTarget::jump_from(Lambda* bb) {
-    if (!lambda_) {
-        lambda_ = bb;
-        first_ = true;
+void Lambda::jump(JumpTarget& jt) {
+    if (!jt.lambda_) {
+        jt.lambda_ = this;
+        jt.first_ = true;
     } else
-        bb->jump(untangle(), {bb->get_mem()});
+        this->jump(jt.untangle(), {});
 }
 
 Lambda* JumpTarget::branch_to(World& world, const Location& loc) {
-    auto bb = world.basicblock(loc, lambda_ ? name_ + std::string(".crit") : name_);
-    jump_from(bb);
+    auto bb = world.basicblock(loc, lambda_ ? name_ + std::string("_crit") : name_);
+    bb->jump(*this);
     bb->seal();
     return bb;
 }
@@ -118,6 +117,40 @@ Lambda* JumpTarget::enter_unsealed(World& world, const Location& loc) {
 }
 
 //------------------------------------------------------------------------------
+
+void IRBuilder::jump(JumpTarget& jt) {
+    if (is_reachable()) {
+        cur_bb->jump(jt);
+        set_unreachable();
+    }
+}
+
+void IRBuilder::branch(Def cond, JumpTarget& t, JumpTarget& f) {
+    if (is_reachable()) {
+        if (auto lit = cond->isa<PrimLit>()) {
+            jump(lit->value().get_bool() ? t : f);
+        } else if (&t == &f) {
+            jump(t);
+        } else {
+            auto tl = t.branch_to(world_, cond->loc());
+            auto fl = f.branch_to(world_, cond->loc());
+            cur_bb->branch(cond, tl, fl);
+            set_unreachable();
+        }
+    }
+}
+
+Def IRBuilder::call(Def to, ArrayRef<Def> args, Type ret_type) {
+    if (is_reachable()) {
+        auto p = cur_bb->call(to, args, ret_type);
+        cur_bb = p.first;
+        return p.second;
+    }
+    return Def();
+}
+
+Def IRBuilder::get_mem() { return cur_bb->get_mem(); }
+void IRBuilder::set_mem(Def mem) { if (is_reachable()) cur_bb->set_mem(mem); }
 
 Def IRBuilder::create_frame(const Location& loc) {
     auto enter = world().enter(get_mem(), loc);
@@ -154,40 +187,6 @@ Def IRBuilder::extract(Def agg, Def index, const Location& loc, const std::strin
     }
     return world().extract(agg, index, loc, name);
 }
-
-void IRBuilder::jump(JumpTarget& jt) {
-    if (is_reachable()) {
-        jt.jump_from(cur_bb);
-        set_unreachable();
-    }
-}
-
-void IRBuilder::branch(Def cond, JumpTarget& t, JumpTarget& f) {
-    if (is_reachable()) {
-        if (auto lit = cond->isa<PrimLit>()) {
-            jump(lit->value().get_bool() ? t : f);
-        } else if (&t == &f) {
-            jump(t);
-        } else {
-            auto tl = t.branch_to(world_, cond->loc());
-            auto fl = f.branch_to(world_, cond->loc());
-            cur_bb->branch(cond, tl, fl, {get_mem()});
-            set_unreachable();
-        }
-    }
-}
-
-Def IRBuilder::call(Def to, ArrayRef<Def> args, Type ret_type) {
-    if (is_reachable()) {
-        auto p = cur_bb->call(to, args, ret_type);
-        cur_bb = p.first;
-        return p.second;
-    }
-    return Def();
-}
-
-Def IRBuilder::get_mem() { return cur_bb->get_mem(); }
-void IRBuilder::set_mem(Def mem) { if (is_reachable()) cur_bb->set_mem(mem); }
 
 //------------------------------------------------------------------------------
 

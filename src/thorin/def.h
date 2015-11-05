@@ -1,7 +1,6 @@
 #ifndef THORIN_DEF_H
 #define THORIN_DEF_H
 
-#include <map>
 #include <set>
 #include <string>
 #include <vector>
@@ -13,6 +12,7 @@
 #include "thorin/util/cast.h"
 #include "thorin/util/hash.h"
 #include "thorin/util/location.h"
+#include "thorin/util/stream.h"
 
 namespace thorin {
 
@@ -97,7 +97,7 @@ using Def2Def = DefMap<const DefNode*>;
  * - \p Param%s and
  * - \p Lambda%s.
  */
-class DefNode : public HasLocation, public MagicCast<DefNode> {
+class DefNode : public HasLocation, public MagicCast<DefNode>, public Streamable {
 private:
     DefNode& operator = (const DefNode&); ///< Do not copy-assign a \p DefNode instance.
     DefNode(const DefNode&);              ///< Do not copy-construct a \p DefNode.
@@ -162,6 +162,7 @@ public:
     bool is_associative() const { return thorin::is_associative(kind()); }
     template<class T> inline T primlit_value() const; // implementation in literal.h
     virtual Def rebuild() const { return this; }
+    virtual std::ostream& stream(std::ostream&) const;
 
 private:
     const NodeKind kind_;
@@ -181,12 +182,13 @@ public:
     friend class Scope;
     friend class World;
     friend class Cleaner;
-    friend void verify_closedness(World& world);
 };
 
-//------------------------------------------------------------------------------
+namespace detail {
+    inline std::ostream& stream(std::ostream& out, Def def) { return def->stream(out); }
+}
 
-std::ostream& operator << (std::ostream& o, Def def);
+//------------------------------------------------------------------------------
 
 bool UseLT::operator () (Use use1, Use use2) const { // <- note that we switch the order here on purpose
     auto gid1 = use1.def().node()->gid();
@@ -198,17 +200,17 @@ bool UseLT::operator () (Use use1, Use use2) const { // <- note that we switch t
 
 template<>
 struct Hash<ArrayRef<Def>> {
-    size_t operator () (ArrayRef<Def> defs) const {
-        size_t seed = hash_begin(defs.size());
+    uint64_t operator () (ArrayRef<Def> defs) const {
+        uint64_t seed = hash_begin(defs.size());
         for (auto def : defs)
-            seed = hash_combine(seed, def.empty() ? size_t(-1) : def->gid());
+            seed = hash_combine(seed, def.empty() ? uint64_t(-1) : def->gid());
         return seed;
     }
 };
 
 template<>
 struct Hash<Array<Def>> {
-    size_t operator () (const Array<Def> defs) const { return Hash<ArrayRef<Def>>()(defs); }
+    uint64_t operator () (const Array<Def> defs) const { return Hash<ArrayRef<Def>>()(defs); }
 };
 
 //------------------------------------------------------------------------------

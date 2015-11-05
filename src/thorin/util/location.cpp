@@ -1,19 +1,9 @@
 #include "thorin/util/location.h"
 
-#include <cctype>
-#include <iostream>
-
 namespace thorin {
 
-//------------------------------------------------------------------------------
-
-std::ostream& Position::line_col(std::ostream& os) const { return os << line_ << " col " << col_; }
-
-//------------------------------------------------------------------------------
-
-std::ostream& operator << (std::ostream& os, const Position& pos) {
-    return pos.line_col( os << pos.filename() << ':' );
-}
+static std::ostream& line_col(const Position& pos, std::ostream& os) { return os << pos.line() << " col " << pos.col(); }
+std::ostream& operator << (std::ostream& os, const Position& pos) { return line_col(pos, os << pos.filename() << ':'); }
 
 std::ostream& operator << (std::ostream& os, const Location& loc) {
     const Position& pos1 = loc.pos1();
@@ -25,7 +15,7 @@ std::ostream& operator << (std::ostream& os, const Location& loc) {
     os << pos1.filename() << ':';
 
     if (pos1.line() != pos2.line())
-        return pos2.line_col( pos1.line_col(os) << " - " );
+        return line_col(pos2, line_col(pos1, os) << " - ");
 
     os << pos1.line() << " col ";
 
@@ -34,16 +24,5 @@ std::ostream& operator << (std::ostream& os, const Location& loc) {
 
     return os << pos1.col();
 }
-
-//------------------------------------------------------------------------------
-
-std::ostream& Position::error() const { return std::cerr << *this << ": error: "; }
-std::ostream& Position::warn() const { return std::cerr << *this << ": warning: "; }
-std::ostream& Location::error() const { return std::cerr << *this << ": error: "; }
-std::ostream& Location::warn() const { return std::cerr << *this << ": warning: "; }
-std::ostream& HasLocation::error() const { return std::cerr << loc_ << ": error: "; }
-std::ostream& HasLocation::warn() const { return std::cerr << loc_ << ": warning: "; }
-
-//------------------------------------------------------------------------------
 
 }

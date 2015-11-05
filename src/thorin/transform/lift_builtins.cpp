@@ -9,10 +9,10 @@ namespace thorin {
 void lift_builtins(World& world) {
     std::vector<Lambda*> todo;
     Scope::for_each(world, [&] (const Scope& scope) {
-        for (auto i = scope.rbegin(), e = scope.rend(); i != e; ++i) {
-            auto cur = *i;
-            if (cur->is_passed_to_accelerator() && !cur->is_basicblock())
-                todo.push_back(cur);
+        for (auto n : scope.f_cfg().post_order()) {
+            auto lambda = n->lambda();
+            if (lambda->is_passed_to_accelerator() && !lambda->is_basicblock())
+                todo.push_back(lambda);
         }
     });
 
@@ -35,7 +35,7 @@ void lift_builtins(World& world) {
                         assert(oops[use.index()] == cur);
                         nops[use.index()] = world.global(lifted, lifted->loc(), false, lifted->name);   // update to new lifted lambda
                         std::copy(vars.begin(), vars.end(), nops.begin() + oops.size());                // append former free vars
-                        ulambda->jump(cur, nops.slice_from_begin(1));                                   // set new args
+                        ulambda->jump(cur, nops.skip_front());                                          // set new args
                         // jump to new top-level dummy function
                         ulambda->update_to(world.lambda(ulambda->arg_fn_type(), to->loc(), to->cc(), to->intrinsic(), to->name));
                     }

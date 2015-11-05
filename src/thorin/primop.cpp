@@ -125,15 +125,15 @@ Map::Map(int32_t device, AddressSpace addr_space, Def mem, Def ptr, Def mem_offs
  * hash
  */
 
-size_t PrimOp::vhash() const {
-    size_t seed = hash_combine(hash_combine(hash_begin((int) kind()), size()), type().unify()->gid());
+uint64_t PrimOp::vhash() const {
+    uint64_t seed = hash_combine(hash_combine(hash_begin((int) kind()), size()), type().unify()->gid());
     for (auto op : ops_)
         seed = hash_combine(seed, op.node()->gid());
     return seed;
 }
 
-size_t PrimLit::vhash() const { return hash_combine(Literal::vhash(), bcast<uint64_t, Box>(value())); }
-size_t Slot::vhash() const { return hash_combine(PrimOp::vhash(), index()); }
+uint64_t PrimLit::vhash() const { return hash_combine(Literal::vhash(), bcast<uint64_t, Box>(value())); }
+uint64_t Slot::vhash() const { return hash_combine(PrimOp::vhash(), index()); }
 
 //------------------------------------------------------------------------------
 
@@ -169,8 +169,6 @@ Def Bitcast::vrebuild(World& to, ArrayRef<Def> ops, Type t) const { return to.bi
 Def Bottom ::vrebuild(World& to, ArrayRef<Def>,     Type t) const { return to.bottom(t, this->loc()); }
 Def Cast   ::vrebuild(World& to, ArrayRef<Def> ops, Type t) const { return to.cast(t, ops[0], ops[1], this->loc(), name); }
 Def Cmp    ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.cmp(cmp_kind(), ops[0], ops[1], ops[2], this->loc(), name); }
-Def EndHlt ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.end_hlt(ops[0], ops[1], this->loc(), name); }
-Def EndRun ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.end_run(ops[0], ops[1], this->loc(), name); }
 Def Enter  ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.enter(ops[0], this->loc(), name); }
 Def Extract::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.extract(ops[0], ops[1], this->loc(), name); }
 Def Global ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.global(ops[0], this->loc(), is_mutable(), name); }
@@ -239,6 +237,45 @@ const char* Cmp::op_name() const {
 #include "thorin/tables/cmptable.h"
         default: THORIN_UNREACHABLE;
     }
+}
+
+//------------------------------------------------------------------------------
+
+/*
+ * stream
+ */
+
+std::ostream& PrimOp::stream(std::ostream& os) const {
+    // TODO is_const
+    return os << this->unique_name();
+}
+
+std::ostream& PrimLit::stream(std::ostream& os) const {
+    os << this->type() << ' ';
+    auto kind = this->primtype_kind();
+
+    // print i8 as ints
+    if (kind == PrimType_qs8)
+        os << (int) this->qs8_value();
+    else if (kind == PrimType_ps8)
+        os << (int) this->ps8_value();
+    else if (kind == PrimType_qu8)
+        os << (unsigned) this->qu8_value();
+    else if (kind == PrimType_pu8)
+        os << (unsigned) this->pu8_value();
+    else {
+        switch (kind) {
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: os << this->T##_value(); break;
+#include "thorin/tables/primtypetable.h"
+            default: THORIN_UNREACHABLE;
+        }
+    }
+
+    return os;
+}
+
+std::ostream& Global::stream(std::ostream& os) const {
+    return PrimOp::stream(os);
 }
 
 //------------------------------------------------------------------------------

@@ -16,6 +16,16 @@ template<class T> class Array;
 
 //------------------------------------------------------------------------------
 
+/**
+ * @brief A container-like wrapper for an array.
+ *
+ * The array may either stem from a C array, a <tt>std::vector</tt>, a <tt>std::initializer_list</tt>, an @p Array or another @p ArrayRef.
+ * @p ArrayRef does <em>not</em> own the data and, thus, does not destroy any data.
+ * Likewise, you must be carefull to not destroy data an @p ArrayRef is pointing to.
+ * Thorin makes use of @p ArrayRef%s in many places.
+ * Note that you can often construct an @p ArrayRef inline with an initializer_list: <code>foo(arg1, {elem1, elem2, elem3}, arg3)</code>.
+ * Useful operations are @p skip_front and @p skip_back to create other @p ArrayRef%s.
+ */
 template<class T>
 class ArrayRef {
 public:
@@ -23,28 +33,28 @@ public:
     typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
 
     ArrayRef()
-        : ptr_(nullptr)
-        , size_(0)
+        : size_(0)
+        , ptr_(nullptr)
     {}
     ArrayRef(const ArrayRef<T>& ref)
-        : ptr_(ref.ptr_)
-        , size_(ref.size_)
+        : size_(ref.size_)
+        , ptr_(ref.ptr_)
     {}
     ArrayRef(const std::vector<T>& vector)
-       : ptr_(vector.data())
-       , size_(vector.size())
+       : size_(vector.size())
+       , ptr_(vector.data())
     {}
     ArrayRef(const T* ptr, size_t size)
-        : ptr_(ptr)
-        , size_(size)
+        : size_(size)
+        , ptr_(ptr)
     {}
     ArrayRef(const Array<T>& array)
-        : ptr_(array.begin())
-        , size_(array.size())
+        : size_(array.size())
+        , ptr_(array.begin())
     {}
     ArrayRef(std::initializer_list<T> list)
-        : ptr_(list.begin())
-        , size_(std::distance(list.begin(), list.end()))
+        : size_(std::distance(list.begin(), list.end()))
+        , ptr_(list.begin())
     {}
 
     const_iterator begin() const { return ptr_; }
@@ -56,58 +66,80 @@ public:
     bool empty() const { return size_ == 0; }
     T const& front() const { assert(!empty()); return ptr_[0]; }
     T const& back()  const { assert(!empty()); return ptr_[size_ - 1]; }
-    ArrayRef<T> slice(size_t begin, size_t end) const { return ArrayRef<T>(ptr_ + begin, end - begin); }
-    ArrayRef<T> slice_to_end(size_t end) const { return ArrayRef<T>(ptr_, end); }
-    ArrayRef<T> slice_num_from_end(size_t num) const { return ArrayRef<T>(ptr_, size_ - num); }
-    ArrayRef<T> slice_from_begin(size_t begin) const { return ArrayRef<T>(ptr_ + begin, size_ - begin); }
+    ArrayRef<T> skip_front(size_t num = 1) const { return ArrayRef<T>(ptr_ + num, size() - num); }
+    ArrayRef<T> skip_back(size_t num = 1) const { return ArrayRef<T>(ptr_, size() - num); }
     Array<T> cut(ArrayRef<size_t> indices, size_t reserve = 0) const;
     template<class Other>
     bool operator == (const Other& other) const { return this->size() == other.size() && std::equal(begin(), end(), other.begin()); }
 
 private:
-    const T* ptr_;
     size_t size_;
+    const T* ptr_;
 };
 
 //------------------------------------------------------------------------------
 
+
+/**
+ * @brief A container for a heap-allocated array.
+ *
+ * This class is similar to <tt>std::vector</tt> with the following differences:
+ *  - In contrast to std::vector, Array cannot grow dynamically.
+ *    An @p Array may @p shrink, however.
+ *    But once shrunk, there is no way back.
+ *  - Because of this @p Array is slightly more lightweight and usually consumes slightly less memory than <tt>std::vector</tt>.
+ *  - @p Array integrates nicely with the usefull @p ArrayRef container.
+ */
 template<class T>
 class Array {
 public:
     Array()
-        : ptr_(nullptr)
-        , size_(0)
+        : size_(0)
+        , ptr_(nullptr)
     {}
     explicit Array(size_t size)
-        : ptr_(new T[size]())
-        , size_(size)
+        : size_(size)
+        , ptr_(new T[size]())
     {}
+    Array(size_t size, const T& val)
+        : size_(size)
+        , ptr_(new T[size])
+    {
+        std::fill(begin(), end(), val);
+    }
     Array(ArrayRef<T> ref)
-        : ptr_(new T[ref.size()])
-        , size_(ref.size())
+        : size_(ref.size())
+        , ptr_(new T[ref.size()])
     {
-        std::copy(ref.begin(), ref.end(), begin());
+        std::copy(ref.begin(), ref.end(), this->begin());
     }
-    Array(Array&& array)
-        : ptr_(std::move(array.ptr_))
-        , size_(std::move(array.size_))
+    Array(Array&& other)
+        : size_(std::move(other.size_))
+        , ptr_(std::move(other.ptr_))
     {
-        array.ptr_ = nullptr;
-        array.size_ = 0;
+        other.ptr_ = nullptr;
+        other.size_ = 0;
     }
-    Array(const Array& array)
-        : ptr_(new T[array.size()])
-        , size_(array.size())
+    Array(const Array& other)
+        : size_(other.size())
+        , ptr_(new T[other.size()])
     {
-        std::copy(array.begin(), array.end(), begin());
+        std::copy(other.begin(), other.end(), this->begin());
+    }
+    template<class I>
+    Array(const I begin, const I end)
+        : size_(std::distance(begin, end))
+        , ptr_(new T[size_])
+    {
+        std::copy(begin, end, ptr_);
+    }
+    Array(std::initializer_list<T> list)
+        : size_(std::distance(list.begin(), list.end()))
+        , ptr_(new T[size_])
+    {
+        std::copy(list.begin(), list.end(), ptr_);
     }
     ~Array() { delete[] ptr_; }
-
-    void alloc(size_t size) {
-        assert(ptr_ == nullptr && size_ == 0);
-        ptr_ = new T[size]();
-        size_ = size;
-    };
 
     typedef T* iterator;
     typedef const T* const_iterator;
@@ -116,8 +148,8 @@ public:
 
     iterator begin() { return ptr_; }
     iterator end() { return ptr_ + size_; }
-    reverse_iterator rbegin() { return const_reverse_iterator(end()); }
-    reverse_iterator rend() { return const_reverse_iterator(begin()); }
+    reverse_iterator rbegin() { return reverse_iterator(end()); }
+    reverse_iterator rend() { return reverse_iterator(begin()); }
     const_iterator begin() const { return ptr_; }
     const_iterator end() const { return ptr_ + size_; }
     const_reverse_iterator rbegin() const { return const_reverse_iterator(end()); }
@@ -129,9 +161,8 @@ public:
     T& back()  const { assert(!empty()); return ptr_[size_ - 1]; }
     size_t size() const { return size_; }
     bool empty() const { return size_ == 0; }
-    ArrayRef<T> slice(size_t begin, size_t end) const { return ArrayRef<T>(ptr_ + begin, end - begin); }
-    ArrayRef<T> slice_to_end(size_t end) const { return ArrayRef<T>(ptr_, end); }
-    ArrayRef<T> slice_from_begin(size_t begin) const { return ArrayRef<T>(ptr_ + begin, size_ - begin); }
+    ArrayRef<T> skip_front(size_t num = 1) const { return ArrayRef<T>(ptr_ + num, size() - num); }
+    ArrayRef<T> skip_back(size_t num = 1) const { return ArrayRef<T>(ptr_, size() - num); }
     Array<T> cut(ArrayRef<size_t> indices, size_t reserve = 0) const { return ArrayRef<T>(*this).cut(indices, reserve); }
     bool operator == (const Array<T>& other) const { return ArrayRef<T>(*this) == ArrayRef<T>(other); }
     void shrink(size_t newsize) { assert(newsize <= size_); size_ = newsize; }
@@ -141,14 +172,14 @@ public:
 
     friend void swap(Array& a, Array& b) {
         using std::swap;
-        swap(a.ptr_,  b.ptr_);
         swap(a.size_, b.size_);
+        swap(a.ptr_,  b.ptr_);
     }
     Array<T>& operator= (Array<T> other) { swap(*this, other); return *this; }
 
 private:
-    T* ptr_;
     size_t size_;
+    T* ptr_;
 };
 
 template<class T>
@@ -182,13 +213,15 @@ inline size_t hash_combine(size_t seed, thorin::ArrayRef<T> aref) {
 
 template<class T>
 struct Hash<thorin::ArrayRef<T>> {
-    size_t operator () (thorin::ArrayRef<T> aref) const { return hash_combine(0, aref); }
+    uint64_t operator () (thorin::ArrayRef<T> aref) const { return hash_combine(0, aref); }
 };
 
 template<class T>
 struct Hash<thorin::Array<T>> {
-    size_t operator () (const thorin::Array<T>& array) const { return hash_value(array.ref()); }
+    uint64_t operator () (const thorin::Array<T>& array) const { return hash_value(array.ref()); }
 };
+
+//------------------------------------------------------------------------------
 
 }
 

@@ -31,17 +31,17 @@
 #include "thorin/primop.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
-#include "thorin/util/array.h"
-#include "thorin/util/push.h"
-#include "thorin/analyses/bb_schedule.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/be/llvm/cuda.h"
 #include "thorin/be/llvm/cpu.h"
+#include "thorin/be/llvm/cuda.h"
 #include "thorin/be/llvm/nvvm.h"
 #include "thorin/be/llvm/opencl.h"
 #include "thorin/be/llvm/spir.h"
 #include "thorin/transform/import.h"
+#include "thorin/util/array.h"
+#include "thorin/util/log.h"
+#include "thorin/util/push.h"
 
 namespace thorin {
 
@@ -80,8 +80,8 @@ Lambda* CodeGen::emit_intrinsic(Lambda* lambda) {
     }
 }
 
-void CodeGen::emit_result_phi(const Param* param, llvm::Value* lambda) {
-    find(phis_, param)->addIncoming(lambda, irbuilder_.GetInsertBlock());
+void CodeGen::emit_result_phi(const Param* param, llvm::Value* value) {
+    find(phis_, param)->addIncoming(value, irbuilder_.GetInsertBlock());
 }
 
 Lambda* CodeGen::emit_atomic(Lambda* lambda) {
@@ -90,7 +90,7 @@ Lambda* CodeGen::emit_atomic(Lambda* lambda) {
     u32 kind = lambda->arg(1)->as<PrimLit>()->qu32_value();
     auto ptr = lookup(lambda->arg(2));
     auto val = lookup(lambda->arg(3));
-    assert(kind >= llvm::AtomicRMWInst::BinOp::Xchg && kind <= llvm::AtomicRMWInst::BinOp::UMin && "unsupported atomic");
+    assert(int(llvm::AtomicRMWInst::BinOp::Xchg) <= int(kind) && int(kind) <= int(llvm::AtomicRMWInst::BinOp::UMin) && "unsupported atomic");
     llvm::AtomicRMWInst::BinOp binop = (llvm::AtomicRMWInst::BinOp)kind;
 
     auto cont = lambda->arg(4)->as_lambda();
@@ -199,15 +199,12 @@ void CodeGen::emit(int opt, bool debug) {
                 auto argv = &*arg;
                 auto value = map_param(fct, argv, param);
                 if (value == argv) {
-                    // use param
-                    arg->setName(param->unique_name());
+                    arg->setName(param->unique_name()); // use param
                     params_[param] = arg++;
                 } else {
-                    // use provided value
-                    params_[param] = value;
+                    params_[param] = value;             // use provided value
                 }
-            }
-            else {
+            } else {
                 assert(!ret_param);
                 ret_param = param;
             }
@@ -215,18 +212,21 @@ void CodeGen::emit(int opt, bool debug) {
         assert(ret_param);
 
         BBMap bb2lambda;
-        auto bbs = bb_schedule(scope);
+        auto schedule = schedule_smart(scope);
 
-        for (auto bb_lambda : bbs) {
+        for (const auto& block : schedule) {
+            auto lambda = block.lambda();
             // map all bb-like lambdas to llvm bb stubs
-            auto bb = bb2lambda[bb_lambda] = llvm::BasicBlock::Create(context_, bb_lambda->name, fct);
+            if (lambda->intrinsic() != Intrinsic::EndScope) {
+                auto bb = bb2lambda[lambda] = llvm::BasicBlock::Create(context_, lambda->name, fct);
 
-            // create phi node stubs (for all lambdas different from entry)
-            if (entry_ != bb_lambda) {
-                for (auto param : bb_lambda->params()) {
-                    if (!param->is_mem()) {
-                        phis_[param] = llvm::PHINode::Create(convert(param->type()),
-                                                             (unsigned) param->peek().size(), param->name, bb);
+                // create phi node stubs (for all lambdas different from entry)
+                if (entry_ != lambda) {
+                    for (auto param : lambda->params()) {
+                        if (!param->is_mem()) {
+                            phis_[param] = llvm::PHINode::Create(convert(param->type()),
+                                                                 (unsigned) param->peek().size(), param->name, bb);
+                        }
                     }
                 }
             }
@@ -237,38 +237,37 @@ void CodeGen::emit(int opt, bool debug) {
         irbuilder_.SetInsertPoint(startBB);
         emit_function_start(startBB, entry_);
         irbuilder_.CreateBr(oldStartBB);
-        auto schedule = schedule_smart(scope);
 
-        // emit body for each bb
-        for (auto bb_lambda : bbs) {
-            if (bb_lambda->empty())
+        for (auto& block : schedule) {
+            auto lambda = block.lambda();
+            if (lambda->intrinsic() == Intrinsic::EndScope)
                 continue;
-            assert(bb_lambda == entry_ || bb_lambda->is_basicblock());
-            irbuilder_.SetInsertPoint(bb2lambda[bb_lambda]);
+            assert(lambda == entry_ || lambda->is_basicblock());
+            irbuilder_.SetInsertPoint(bb2lambda[lambda]);
 
-            for (auto primop : schedule[bb_lambda]) {
+            for (auto primop : block) {
                 if (debug)
                     irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(primop->loc().pos1().line(), primop->loc().pos1().col(), discope));
                 primops_[primop] = emit(primop);
             }
 
             // terminate bb
-            if (bb_lambda->to() == ret_param) { // return
-                size_t num_args = bb_lambda->num_args();
+            if (lambda->to() == ret_param) { // return
+                size_t num_args = lambda->num_args();
                 switch (num_args) {
                     case 0: irbuilder_.CreateRetVoid(); break;
                     case 1:
-                        if (bb_lambda->arg(0)->is_mem())
+                        if (lambda->arg(0)->is_mem())
                             irbuilder_.CreateRetVoid();
                         else
-                            irbuilder_.CreateRet(lookup(bb_lambda->arg(0)));
+                            irbuilder_.CreateRet(lookup(lambda->arg(0)));
                         break;
                     case 2:
-                        if (bb_lambda->arg(0)->is_mem()) {
-                            irbuilder_.CreateRet(lookup(bb_lambda->arg(1)));
+                        if (lambda->arg(0)->is_mem()) {
+                            irbuilder_.CreateRet(lookup(lambda->arg(1)));
                             break;
-                        } else if (bb_lambda->arg(1)->is_mem()) {
-                            irbuilder_.CreateRet(lookup(bb_lambda->arg(0)));
+                        } else if (lambda->arg(1)->is_mem()) {
+                            irbuilder_.CreateRet(lookup(lambda->arg(0)));
                             break;
                         }
                         // FALLTHROUGH
@@ -277,7 +276,7 @@ void CodeGen::emit(int opt, bool debug) {
                         Array<llvm::Type*> args(num_args);
 
                         size_t n = 0;
-                        for (auto arg : bb_lambda->args()) {
+                        for (auto arg : lambda->args()) {
                             if (!arg->is_mem()) {
                                 auto val = lookup(arg);
                                 values[n] = val;
@@ -297,26 +296,26 @@ void CodeGen::emit(int opt, bool debug) {
                         break;
                     }
                 }
-            } else if (auto select = bb_lambda->to()->isa<Select>()) { // conditional branch
-                llvm::Value* cond = lookup(select->cond());
-                llvm::BasicBlock* tbb = bb2lambda[select->tval()->as_lambda()];
-                llvm::BasicBlock* fbb = bb2lambda[select->fval()->as_lambda()];
+            } else if (lambda->to() == world().branch()) {
+                auto cond = lookup(lambda->arg(0));
+                auto tbb = bb2lambda[lambda->arg(1)->as_lambda()];
+                auto fbb = bb2lambda[lambda->arg(2)->as_lambda()];
                 irbuilder_.CreateCondBr(cond, tbb, fbb);
-            } else if (bb_lambda->to()->isa<Bottom>()) {
+            } else if (lambda->to()->isa<Bottom>()) {
                 irbuilder_.CreateUnreachable();
             } else {
-                Lambda* to_lambda = bb_lambda->to()->as_lambda();
+                auto to_lambda = lambda->to()->as_lambda();
                 if (to_lambda->is_basicblock())         // ordinary jump
                     irbuilder_.CreateBr(bb2lambda[to_lambda]);
                 else {
                     if (to_lambda->is_intrinsic()) {
-                        Lambda* ret_lambda = emit_intrinsic(bb_lambda);
+                        auto ret_lambda = emit_intrinsic(lambda);
                         irbuilder_.CreateBr(bb2lambda[ret_lambda]);
                     } else {
                         // put all first-order args into an array
                         std::vector<llvm::Value*> args;
                         Def ret_arg;
-                        for (auto arg : bb_lambda->args()) {
+                        for (auto arg : lambda->args()) {
                             if (arg->order() == 0) {
                                 if (!arg->is_mem())
                                     args.push_back(lookup(arg));
@@ -339,28 +338,37 @@ void CodeGen::emit(int opt, bool debug) {
                             irbuilder_.CreateRet(call);
                         } else {                        // call + continuation
                             auto succ = ret_arg->as_lambda();
-
                             const Param* param = nullptr;
                             switch (succ->num_params()) {
                                 case 0:
                                     break;
                                 case 1:
                                     param = succ->param(0);
-                                    param = param->is_mem() ? nullptr : param;
+                                    irbuilder_.CreateBr(bb2lambda[succ]);
+                                    if (!param->is_mem())
+                                        emit_result_phi(param, call);
                                     break;
                                 case 2:
                                     assert(succ->mem_param() && "no mem_param found for succ");
                                     param = succ->param(0);
                                     param = param->is_mem() ? succ->param(1) : param;
+                                    irbuilder_.CreateBr(bb2lambda[succ]);
+                                    emit_result_phi(param, call);
                                     break;
-                                default:
-                                    THORIN_UNREACHABLE;
-                            }
-                            assert(param == nullptr || !param->is_mem());
+                                default: {
+                                    assert(succ->param(0)->is_mem());
+                                    auto tuple = succ->params().skip_front();
 
-                            irbuilder_.CreateBr(bb2lambda[succ]);
-                            if (param)
-                                emit_result_phi(param, call);
+                                    Array<llvm::Value*> extracts(tuple.size());
+                                    for (size_t i = 0, e = tuple.size(); i != e; ++i)
+                                        extracts[i] = irbuilder_.CreateExtractValue(call, unsigned(i));
+
+                                    irbuilder_.CreateBr(bb2lambda[succ]);
+                                    for (size_t i = 0, e = tuple.size(); i != e; ++i)
+                                        emit_result_phi(tuple[i], extracts[i]);
+                                    break;
+                                }
+                            }
                         }
                     }
                 }
@@ -368,11 +376,11 @@ void CodeGen::emit(int opt, bool debug) {
         }
 
         // add missing arguments to phis_
-        for (auto p : phis_) {
+        for (const auto& p : phis_) {
             auto param = p.first;
             auto phi = p.second;
 
-            for (auto peek : param->peek())
+            for (const auto& peek : param->peek())
                 phi->addIncoming(lookup(peek.def()), bb2lambda[peek.from()]);
         }
 
@@ -646,7 +654,7 @@ llvm::Value* CodeGen::emit(Def def) {
                 vals[i] = llvm::cast<llvm::Constant>(emit(array->op(i)));
             return llvm::ConstantArray::get(type, llvm_ref(vals));
         }
-        def->warn() << "slow\n";
+        WLOG("slow: alloca and loads/stores needed for definite array '%' at '%'", def, def->loc());
         auto alloca = emit_alloca(type, array->name);
 
         u64 i = 0;
@@ -668,14 +676,11 @@ llvm::Value* CodeGen::emit(Def def) {
         llvm::Value* llvm_agg = llvm::UndefValue::get(convert(agg->type()));
 
         if (def->isa<Vector>()) {
-            // Insert/ExtractValue doesn't work for vectors
-            for (size_t i = 0, e = agg->ops().size(); i != e; ++i) {
+            for (size_t i = 0, e = agg->ops().size(); i != e; ++i)
                 llvm_agg = irbuilder_.CreateInsertElement(llvm_agg, lookup(agg->op(i)), irbuilder_.getInt32(i));
-            }
         } else {
-            for (size_t i = 0, e = agg->ops().size(); i != e; ++i) {
+            for (size_t i = 0, e = agg->ops().size(); i != e; ++i)
                 llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, lookup(agg->op(i)), { unsigned(i) });
-            }
         }
 
         return llvm_agg;
@@ -685,7 +690,7 @@ llvm::Value* CodeGen::emit(Def def) {
         auto llvm_agg = lookup(aggop->agg());
         auto llvm_idx = lookup(aggop->index());
         auto copy_to_alloca = [&] () {
-            def->warn() << "slow\n";
+            WLOG("slow: alloca and loads/stores needed for aggregate '%' at '%'", def, def->loc());
             auto alloca = emit_alloca(llvm_agg->getType(), aggop->name);
             irbuilder_.CreateStore(llvm_agg, alloca);
 
@@ -810,17 +815,15 @@ llvm::Value* CodeGen::emit(Def def) {
     THORIN_UNREACHABLE;
 }
 
-llvm::Value* CodeGen::emit_load(Def def) {
-    return irbuilder_.CreateLoad(lookup(def->as<Load>()->ptr()));
+llvm::Value* CodeGen::emit_load(const Load* load) {
+    return irbuilder_.CreateLoad(lookup(load->ptr()));
 }
 
-llvm::Value* CodeGen::emit_store(Def def) {
-    auto store = def->as<Store>();
+llvm::Value* CodeGen::emit_store(const Store* store) {
     return irbuilder_.CreateStore(lookup(store->val()), lookup(store->ptr()));
 }
 
-llvm::Value* CodeGen::emit_lea(Def def) {
-    auto lea = def->as<LEA>();
+llvm::Value* CodeGen::emit_lea(const LEA* lea) {
     if (lea->ptr_referenced_type().isa<TupleType>() || lea->ptr_referenced_type().isa<StructAppType>())
         return irbuilder_.CreateStructGEP(lookup(lea->ptr()), lea->index()->primlit_value<u32>());
 
@@ -832,7 +835,11 @@ llvm::Value* CodeGen::emit_lea(Def def) {
 llvm::Value* CodeGen::emit_shared_mmap(Def def, bool prefix) {
     auto mmap = def->as<Map>();
     assert(entry_ && "shared memory can only be mapped inside kernel");
+    if (mmap->addr_space() != AddressSpace::Shared)
+        WLOG("error: mmap: expected shared / local memory address space at %", mmap->loc());
     assert(mmap->addr_space() == AddressSpace::Shared && "wrong address space for shared memory");
+    if (!mmap->mem_size()->isa<PrimLit>())
+        WLOG("error: mmap: couldn't extract memory size at %", mmap->mem_size()->loc());
     auto num_elems = mmap->mem_size()->as<PrimLit>()->ps32_value();
 
     // construct array type
@@ -1009,14 +1016,14 @@ void emit_llvm(World& world, int opt, bool debug) {
             imported->param(i)->name = lambda->param(i)->unique_name();
     });
 
-    if (!cuda.lambdas().empty() || !nvvm.lambdas().empty() || !spir.lambdas().empty() || !opencl.lambdas().empty())
+    if (!cuda.empty() || !nvvm.empty() || !spir.empty() || !opencl.empty())
         world.cleanup();
 
     CPUCodeGen(world).emit(opt, debug);
-    if (!cuda.  lambdas().empty()) CUDACodeGen(cuda).emit(/*opt,*/ debug);
-    if (!nvvm.  lambdas().empty()) NVVMCodeGen(nvvm).emit(opt, debug);
-    if (!spir.  lambdas().empty()) SPIRCodeGen(spir).emit(opt, debug);
-    if (!opencl.lambdas().empty()) OpenCLCodeGen(opencl).emit(/*opt,*/ debug);
+    if (!cuda.  empty()) CUDACodeGen(cuda).emit(/*opt,*/ debug);
+    if (!nvvm.  empty()) NVVMCodeGen(nvvm).emit(opt, debug);
+    if (!spir.  empty()) SPIRCodeGen(spir).emit(opt, debug);
+    if (!opencl.empty()) OpenCLCodeGen(opencl).emit(/*opt,*/ debug);
 }
 
 //------------------------------------------------------------------------------

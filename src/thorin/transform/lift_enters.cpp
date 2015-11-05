@@ -1,5 +1,6 @@
 #include "thorin/primop.h"
 #include "thorin/world.h"
+#include "thorin/analyses/cfg.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/verify.h"
 
@@ -38,16 +39,18 @@ static void lift_enters(const Scope& scope) {
     World& world = scope.world();
     std::vector<const Enter*> enters;
 
-    for (size_t i = scope.size(); i-- != 1;)
-        find_enters(scope.rpo(i), enters);
+    for (auto n : scope.f_cfg().post_order()) {
+        if (n != scope.f_cfg().entry())
+            find_enters(n->lambda(), enters);
+    }
 
     auto mem_param = scope.entry()->mem_param();
     assert(mem_param->num_uses() == 1);
     auto enter = find_enter(mem_param);
-    if (enter == nullptr) {
-        assert(false && "TODO");
-        //enter = world.enter(mem_param)->as<Enter>();
-    }
+
+    if (enter == nullptr)
+        return; // do nothing
+
     auto frame = enter->out_frame();
 
     size_t index = 0; // find max slot index

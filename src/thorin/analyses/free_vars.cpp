@@ -2,8 +2,8 @@
 
 #include "thorin/primop.h"
 #include "thorin/world.h"
-#include "thorin/util/queue.h"
 #include "thorin/analyses/scope.h"
+#include "thorin/util/queue.h"
 
 namespace thorin {
 
@@ -15,7 +15,7 @@ std::vector<Def> free_vars(const Scope& scope) {
     // now find all params not in scope
     auto enqueue = [&] (Def def) {
         if (!visit(set, def) && !def->is_const()) {
-            if (scope.contains(def))
+            if (scope._contains(def))
                 for (auto op : def->ops())
                     queue.push(op);
             else

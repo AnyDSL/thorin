@@ -272,7 +272,7 @@ std::ostream& PrimTypeNode::stream(std::ostream& os) const {
 
 std::ostream& TypeNode::stream(std::ostream& os) const {
    if (this->empty()) {
-       return stream() << "<NULL>";
+       return os << "<NULL>";
    }
 
    THORIN_UNREACHABLE;

@@ -178,7 +178,7 @@ public:
     // value numbering
 
     Def set_value(size_t handle, Def def);
-    Def get_value(size_t handle, Type type, const char* name = {});
+    Def get_value(size_t handle, Type type, const char* name = "");
     Def set_mem(Def def);
     Def get_mem();
     Lambda* parent() const { return parent_; }            ///< See @p parent_ for more information.

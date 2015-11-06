@@ -125,7 +125,7 @@ public:
     Lambda* update_to(Def def) { return update_op(0, def); }
     Lambda* update_op(size_t i, Def def);
     Lambda* update_arg(size_t i, Def def) { return update_op(i+1, def); }
-    const Param* append_param(Type type, const std::string& name = {});
+    const Param* append_param(Type type, const std::string& name = "");
     Lambdas direct_preds() const;
     Lambdas direct_succs() const;
     Lambdas indirect_preds() const;
@@ -178,7 +178,7 @@ public:
     // value numbering
 
     Def set_value(size_t handle, Def def);
-    Def get_value(size_t handle, Type type, const char* name = {});
+    Def get_value(size_t handle, Type type, const char* name = "");
     Def set_mem(Def def);
     Def get_mem();
     Lambda* parent() const { return parent_; }            ///< See @p parent_ for more information.

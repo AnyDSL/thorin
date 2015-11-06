@@ -1,13 +1,10 @@
 extern "C" {
     fn thorin_info() -> ();
 
-    fn thorin_alloc(i32, i32, i64) -> &i8;
-    fn thorin_release(&i8) -> ();
+    fn thorin_alloc(i32, i32, i64) -> &[i8];
+    fn thorin_release(&[i8]) -> ();
 
-    fn thorin_map(&i8, i64, i64) -> &i8;
-    fn thorin_unmap(&i8) -> ();
-
-    fn thorin_copy(&i8, &i8) -> ();
+    fn thorin_copy(&[i8], i64, &[i8], i64, i64) -> ();
 
     fn thorin_random_val() -> f32;
     fn thorin_random_seed(u32) -> ();
@@ -23,11 +20,12 @@ extern "C" {
     fn thorin_print_string(&[u8]) -> ();
 }
 
-fn alloc_host(size: i32) -> &i8 { thorin_alloc(0, 0, size as i64) }
-fn alloc_cuda(dev: i32, size: i32) -> &i8 { thorin_alloc(1, dev, size as i64) }
-fn alloc_opencl(dev: i32, size: i32) -> &i8 { thorin_alloc(2, dev, size as i64) }
-fn copy(a: &i8, b:&i8) -> () { thorin_copy(a, b) }
-fn release(ptr: &i8) -> () { thorin_release(ptr) }
+fn alloc_host(size: i32) -> &[i8] { thorin_alloc(0, 0, size as i64) }
+fn alloc_cuda(dev: i32, size: i32) -> &[i8] { thorin_alloc(1, dev, size as i64) }
+fn alloc_opencl(dev: i32, size: i32) -> &[i8] { thorin_alloc(2, dev, size as i64) }
+fn copy(a: &[i8], b:&[i8], size: i32) -> () { thorin_copy(a, 0i64, b, 0i64, size as i64) }
+fn copy_offset(a: &[i8], off_a: i64, b:&[i8], off_b: i64, size: i32) -> () { thorin_copy(a, off_a, b, off_b, size as i64) }
+fn release(ptr: &[i8]) -> () { thorin_release(ptr) }
 
 fn print_char(c: u8) -> () { thorin_print_char(c) }
 fn print_int(i: i32) -> () { thorin_print_int(i) }

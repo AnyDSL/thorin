@@ -46,9 +46,9 @@ protected:
     void launch_kernel(device_id dev) override;
     void synchronize(device_id dev) override;
 
-    void copy(const void* src, void* dst) override;
-    void copy_from_host(const void* src, void* dst) override;
-    void copy_to_host(const void* src, void* dst) override;
+    void copy(const void* src, int64_t offset_src, void* dst, int64_t offset_dst, int64_t size) override;
+    void copy_from_host(const void* src, int64_t offset_src, void* dst, int64_t offset_dst, int64_t size) override;
+    void copy_to_host(const void* src, int64_t offset_src, void* dst, int64_t offset_dst, int64_t size) override;
 
     int dev_count() override;
 

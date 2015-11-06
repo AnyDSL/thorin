@@ -17,17 +17,6 @@ public:
         {}
     };
 
-    struct View {
-        void* ptr;
-        int64_t off;
-        int64_t size;
-
-        View() {}
-        View(void* ptr, int64_t off, int64_t size)
-            : ptr(ptr), off(off), size(size)
-        {}
-    };
-
     Runtime();
 
     ~Runtime() {
@@ -68,28 +57,6 @@ public:
 
         platforms_[it->second.plat]->release(it->second.dev, ptr, it->second.size);
         mems_.erase(it);
-    }
-
-    void* map(void* ptr, int64_t offset, int64_t size) {
-        auto it = mems_.find(ptr);
-        if (it == mems_.end())
-            error("Memory not allocated by the runtime");
-
-        void* view = platforms_[it->second.plat]->map(it->second.dev, ptr, offset, size);
-        assert(views_.count(view) == 0 && "Mapping a part of a buffer that is already mapped");
-        views_.emplace(view, View(ptr, offset, size));
-        return view;
-    }
-
-    void unmap(void* view) {
-        auto view_it = views_.find(view);
-        if (view_it == views_.end())
-            error("Memory not mapped by the runtime");
-
-        auto ptr_it = mems_.find(view_it->second.ptr);
-        assert(ptr_it != mems_.end() && "View to a deallocated buffer or a buffer not allocated by the runtime");
-        platforms_[ptr_it->second.plat]->unmap(ptr_it->second.dev, view, view_it->second.ptr);
-        views_.erase(view_it);
     }
 
     void set_block_size(platform_id plat, device_id dev, int32_t x, int32_t y, int32_t z) {
@@ -133,7 +100,7 @@ public:
     }
 
     /// Copies memory.
-    void copy(const void* src, void* dst) {
+    void copy(const void* src, int64_t offset_src, void* dst, int64_t offset_dst, int64_t size) {
         auto src_mem = mems_.find((void*)src);
         auto dst_mem = mems_.find(dst);
         if (src_mem == mems_.end() || dst_mem == mems_.end())
@@ -141,15 +108,15 @@ public:
 
         if (src_mem->second.plat == dst_mem->second.plat) {
             // Copy from same platform
-            platforms_[src_mem->second.plat]->copy(src, dst);
+            platforms_[src_mem->second.plat]->copy(src, offset_src, dst, offset_dst, size);
         } else {
             // Copy from another platform
             if (src_mem->second.plat == 0) {
                 // Source is the CPU platform
-                platforms_[dst_mem->second.plat]->copy_from_host(src, dst);
+                platforms_[dst_mem->second.plat]->copy_from_host(src, offset_src, dst, offset_dst, size);
             } else if (dst_mem->second.dev == 0) {
                 // Destination is the CPU platform
-                platforms_[src_mem->second.plat]->copy_to_host(src, dst);
+                platforms_[src_mem->second.plat]->copy_to_host(src, offset_src, dst, offset_dst, size);
             } else {
                 error("Cannot copy memory between different platforms");
             }
@@ -159,12 +126,6 @@ public:
     Mem memory_info(const void* ptr) {
         auto it = mems_.find((void*)ptr);
         assert(it != mems_.end());
-        return it->second;
-    }
-
-    View view_info(const void* view) {
-        auto it = views_.find((void*)view);
-        assert(it != views_.end());
         return it->second;
     }
 
@@ -201,7 +162,6 @@ private:
 
     std::vector<Platform*> platforms_;
     std::unordered_map<void*, Mem>  mems_;
-    std::unordered_map<void*, View> views_;
 };
 
 #endif

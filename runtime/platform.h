@@ -50,11 +50,11 @@ public:
     virtual void synchronize(device_id dev) = 0;
 
     /// Copies memory. Copy can only be performed devices in the same platform.
-    virtual void copy(const void* src, void* dst) = 0;
+    virtual void copy(const void* src, int64_t offset_src, void* dst, int64_t offset_dst, int64_t size) = 0;
     /// Copies memory from the host (CPU).
-    virtual void copy_from_host(const void* src, void* dst) = 0;
+    virtual void copy_from_host(const void* src, int64_t offset_src, void* dst, int64_t offset_dst, int64_t size) = 0;
     /// Copies memory to the host (CPU).
-    virtual void copy_to_host(const void* src, void* dst) = 0;
+    virtual void copy_to_host(const void* src, int64_t offset_src, void* dst, int64_t offset_dst, int64_t size) = 0;
 
     /// Returns the number of devices in this platform.
     virtual int dev_count() = 0;

@@ -20,7 +20,9 @@ struct Device {
 
 template <typename T>
 class Array {
-    template <typename U, typename V> friend void copy(const Array<U>&, Array<V>&);
+    template <typename U> friend void copy(const Array<U>&, Array<U>&);
+    template <typename U> friend void copy(const Array<U>&, Array<U>&, int64_t);
+    template <typename U> friend void copy(const Array<U>&, int64_t, Array<U>&, int64_t, int64_t);
 public:
     Array()
         : platform_(Platform::HOST),
@@ -105,9 +107,19 @@ protected:
     Device device_;
 };
 
-template <typename T, typename U>
-void copy(const Array<T>& a, Array<U>& b) {
-    thorin_copy((const void*)a.data_, (void*)b.data_);
+template <typename T>
+void copy(const Array<T>& a, Array<T>& b) {
+    thorin_copy((const void*)a.data_, 0, (void*)b.data_, 0, a.size_ * sizeof(T));
+}
+
+template <typename T>
+void copy(const Array<T>& a, Array<T>& b, int64_t size) {
+    thorin_copy((const void*)a.data_, 0, (void*)b.data_, 0, size * sizeof(T));
+}
+
+template <typename T>
+void copy(const Array<T>& a, int64_t offset_a, Array<T>& b, int64_t offset_b, int64_t size) {
+    thorin_copy((const void*)a.data_, offset_a * sizeof(T), (void*)b.data_, offset_b * sizeof(T), size * sizeof(T));
 }
 
 } // namespace thorin

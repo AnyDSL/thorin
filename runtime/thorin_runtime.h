@@ -18,10 +18,7 @@ void thorin_info(void);
 void* thorin_alloc(int32_t, int32_t, int64_t);
 void  thorin_release(void*);
 
-void* thorin_map(void*, int64_t, int64_t);
-void  thorin_unmap(void*);
-
-void thorin_copy(const void*, void*);
+void thorin_copy(const void*, int64_t, void*, int64_t, int64_t);
 
 void thorin_set_block_size(int32_t, int32_t, int32_t, int32_t, int32_t);
 void thorin_set_grid_size(int32_t, int32_t, int32_t, int32_t, int32_t);

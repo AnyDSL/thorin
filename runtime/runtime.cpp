@@ -64,16 +64,8 @@ void thorin_release(void* ptr) {
     runtime.release(ptr);
 }
 
-void* thorin_map(void* ptr, int64_t offset, int64_t size) {
-    return runtime.map(ptr, offset, size);
-}
-
-void thorin_unmap(void* view) {
-    runtime.unmap(view);
-}
-
-void thorin_copy(const void* src, void* dst) {
-    runtime.copy(src, dst);
+void thorin_copy(const void* src, int64_t offset_src, void* dst, int64_t offset_dst, int64_t size) {
+    runtime.copy(src, offset_src, dst, offset_dst, size);
 }
 
 void thorin_set_block_size(int32_t plat, int32_t dev, int32_t x, int32_t y, int32_t z) {

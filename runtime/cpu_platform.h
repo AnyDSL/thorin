@@ -39,12 +39,11 @@ protected:
     void launch_kernel(device_id) override { no_kernel(); }
     void synchronize(device_id dev) override { no_kernel(); }
 
-    void copy(const void* src, void* dst) override {
-        auto info = runtime_->memory_info(src);
-        memcpy(dst, src, info.size);
+    void copy(const void* src, int64_t offset_src, void* dst, int64_t offset_dst, int64_t size) override {
+        memcpy((char*)dst + offset_dst, (char*)src + offset_src, size);
     }
-    void copy_from_host(const void* src, void* dst) override { copy(src, dst); }
-    void copy_to_host(const void* src, void* dst) override { copy(src, dst); }
+    void copy_from_host(const void* src, int64_t offset_src, void* dst, int64_t offset_dst, int64_t size) override { copy(src, offset_src, dst, offset_dst, size); }
+    void copy_to_host(const void* src, int64_t offset_src, void* dst, int64_t offset_dst, int64_t size) override { copy(src, offset_src, dst, offset_dst, size); }
 
     int dev_count() override { return 1; }
 

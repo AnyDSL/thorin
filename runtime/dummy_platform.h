@@ -28,11 +28,11 @@ protected:
     void set_kernel_arg_struct(device_id, int32_t, void*, int32_t) override { platform_error(); }
     void load_kernel(device_id, const char*, const char*) override { platform_error(); }
     void launch_kernel(device_id) override { platform_error(); }
-    void synchronize(device_id dev) override { platform_error(); }
+    void synchronize(device_id) override { platform_error(); }
 
-    void copy(const void* src, void* dst) override { platform_error(); }
-    void copy_from_host(const void* src, void* dst) override { platform_error(); }
-    void copy_to_host(const void* src, void* dst) override { platform_error(); }
+    void copy(const void*, int64_t, void*, int64_t, int64_t) override { platform_error(); }
+    void copy_from_host(const void*, int64_t, void*, int64_t, int64_t) override { platform_error(); }
+    void copy_to_host(const void*, int64_t, void*, int64_t, int64_t) override { platform_error(); }
 
     int dev_count() override { return 0; }
 

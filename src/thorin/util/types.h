@@ -8,6 +8,7 @@
 #include <type_traits>
 
 #include "thorin/util/cast.h"
+#include "thorin/util/hash.h"
 
 namespace thorin {
 

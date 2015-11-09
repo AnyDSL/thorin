@@ -13,11 +13,8 @@ enum {
 };
 
 Lambda* CodeGen::emit_parallel(Lambda* lambda) {
-    auto target = lambda->to()->as_lambda();
-    assert(target->intrinsic() == Intrinsic::Parallel);
-    assert(lambda->num_args() >= PAR_NUM_ARGS && "required arguments are missing");
-
     // arguments
+    assert(lambda->num_args() >= PAR_NUM_ARGS && "required arguments are missing");
     auto num_threads = lookup(lambda->arg(PAR_ARG_NUMTHREADS));
     auto lower = lookup(lambda->arg(PAR_ARG_LOWER));
     auto upper = lookup(lambda->arg(PAR_ARG_UPPER));
@@ -92,10 +89,7 @@ enum {
 };
 
 Lambda* CodeGen::emit_spawn(Lambda* lambda) {
-    auto target = lambda->to()->as_lambda();
-    assert(target->intrinsic() == Intrinsic::Spawn);
     assert(lambda->num_args() >= SPAWN_NUM_ARGS && "required arguments are missing");
-
     auto kernel = lambda->arg(SPAWN_ARG_BODY)->as<Global>()->init()->as_lambda();
     const size_t num_kernel_args = lambda->num_args() - SPAWN_NUM_ARGS;
 
@@ -122,7 +116,7 @@ Lambda* CodeGen::emit_spawn(Lambda* lambda) {
     auto wrapper_ft = llvm::FunctionType::get(irbuilder_.getVoidTy(), wrapper_arg_types, false);
     auto wrapper_name = kernel->unique_name() + "_spawn_thread";
     auto wrapper = (llvm::Function*)module_->getOrInsertFunction(wrapper_name, wrapper_ft);
-    auto tid = runtime_->spawn_thread(ptr, wrapper);
+    auto call = runtime_->spawn_thread(ptr, wrapper);
 
     // set insert point to the wrapper function
     auto old_bb = irbuilder_.GetInsertBlock();
@@ -147,10 +141,9 @@ Lambda* CodeGen::emit_spawn(Lambda* lambda) {
     irbuilder_.SetInsertPoint(old_bb);
 
     // bind parameter of continuation to received handle
-    auto ret = lambda->arg(SPAWN_ARG_RETURN)->as_lambda();
-    params_[ret->params().back()] = tid;
-
-    return ret;
+    auto cont = lambda->arg(SPAWN_ARG_RETURN)->as_lambda();
+    emit_result_phi(cont->param(1), call);
+    return cont;
 }
 
 enum {
@@ -161,13 +154,9 @@ enum {
 };
 
 Lambda* CodeGen::emit_sync(Lambda* lambda) {
-    auto target = lambda->to()->as_lambda();
-    assert(target->intrinsic() == Intrinsic::Sync);
     assert(lambda->num_args() == SYNC_NUM_ARGS && "wrong number of arguments");
-
     auto id = lookup(lambda->arg(SYNC_ARG_ID));
     runtime_->sync_thread(id);
-
     return lambda->arg(SYNC_ARG_RETURN)->as_lambda();
 }
 

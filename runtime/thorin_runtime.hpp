@@ -18,34 +18,36 @@ struct Device {
     int32_t id;
 };
 
+inline int32_t make_device(Platform p, Device d) {
+    return THORIN_DEVICE((int32_t)p, d.id);
+}
+
 template <typename T>
 class Array {
     template <typename U> friend void copy(const Array<U>&, Array<U>&);
     template <typename U> friend void copy(const Array<U>&, Array<U>&, int64_t);
     template <typename U> friend void copy(const Array<U>&, int64_t, Array<U>&, int64_t, int64_t);
+
 public:
     Array()
-        : platform_(Platform::HOST),
-          device_(Device(0)),
-          size_(0), data_(nullptr)
+        : dev_(0), size_(0), data_(nullptr)
     {}
 
     Array(int64_t size)
         : Array(Platform::HOST, Device(0), size)
     {}
 
-    Array(Platform p, Device d, T* ptr, int64_t size)
-        : platform_(p), device_(d), data_(ptr), size_(size)
+    Array(int32_t dev, T* ptr, int64_t size)
+        : dev_(dev), data_(ptr), size_(size)
     {}
 
     Array(Platform p, Device d, int64_t size)
-        : platform_(p), device_(d) {
-        allocate(p, d, size);
+        : dev_(make_device(p, d)) {
+        allocate(size);
     }
 
     Array(Array&& other)
-        : platform_(other.platform_),
-          device_(other.device_),
+        : dev_(other.dev_),
           size_(other.size_),
           data_(other.data_) {
         other.data_ = nullptr;
@@ -53,8 +55,7 @@ public:
 
     Array& operator = (Array&& other) {
         deallocate();
-        platform_ = other.platform_;
-        device_ = other.device_;
+        dev_ = other.dev_;
         size_ = other.size_;
         data_ = other.data_;
         other.data_ = nullptr;
@@ -75,8 +76,6 @@ public:
     T* data() { return data_; }
     const T* data() const { return data_; }
 
-    Platform platform() const { return platform_; }
-    Device device() const { return device_; }
     int64_t size() const { return size_; }
 
     const T& operator [] (int i) const { return data_[i]; }
@@ -86,40 +85,44 @@ public:
         T* ptr = data_;
         data_ = nullptr;
         size_ = 0;
-        platform_ = Platform::HOST;
-        device_ = Device(0);
+        dev_ = 0;
         return ptr;
     }
 
 protected:
-    void allocate(Platform p, Device d, int64_t size) {
+    void allocate(int64_t size) {
         size_ = size;
-        data_ = (T*)thorin_alloc((int32_t)p, d.id, sizeof(T) * size);
+        data_ = (T*)thorin_alloc(dev_, sizeof(T) * size);
     }
 
     void deallocate() {
-        if (data_) thorin_release((void*)data_);
+        if (data_) thorin_release(dev_, (void*)data_);
     }
 
     T* data_;
     int64_t size_;
-    Platform platform_;
-    Device device_;
+    int32_t dev_;
 };
 
 template <typename T>
 void copy(const Array<T>& a, Array<T>& b) {
-    thorin_copy((const void*)a.data_, 0, (void*)b.data_, 0, a.size_ * sizeof(T));
+    thorin_copy(a.dev_, (const void*)a.data_, 0,
+                b.dev_, (void*)b.data_, 0,
+                a.size_ * sizeof(T));
 }
 
 template <typename T>
 void copy(const Array<T>& a, Array<T>& b, int64_t size) {
-    thorin_copy((const void*)a.data_, 0, (void*)b.data_, 0, size * sizeof(T));
+    thorin_copy(a.dev_, (const void*)a.data_, 0,
+                b.dev_, (void*)b.data_, 0,
+                size * sizeof(T));
 }
 
 template <typename T>
 void copy(const Array<T>& a, int64_t offset_a, Array<T>& b, int64_t offset_b, int64_t size) {
-    thorin_copy((const void*)a.data_, offset_a * sizeof(T), (void*)b.data_, offset_b * sizeof(T), size * sizeof(T));
+    thorin_copy(a.dev_, (const void*)a.data_, offset_a,
+                b.dev_, (void*)b.data_, offset_b,
+                size * sizeof(T));
 }
 
 } // namespace thorin

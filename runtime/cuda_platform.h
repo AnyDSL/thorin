@@ -32,10 +32,7 @@ protected:
     };
 
     void* alloc(device_id dev, int64_t size) override;
-    void release(device_id dev, void* ptr, int64_t size) override;
-
-    void* map(device_id dev, void* ptr, int64_t offset, int64_t size);
-    void unmap(device_id dev, void* view, void* ptr) override;
+    void release(device_id dev, void* ptr) override;
 
     void set_block_size(device_id dev, int32_t x, int32_t y, int32_t z) override;
     void set_grid_size(device_id dev, int32_t x, int32_t y, int32_t z) override;
@@ -46,9 +43,9 @@ protected:
     void launch_kernel(device_id dev) override;
     void synchronize(device_id dev) override;
 
-    void copy(const void* src, int64_t offset_src, void* dst, int64_t offset_dst, int64_t size) override;
-    void copy_from_host(const void* src, int64_t offset_src, void* dst, int64_t offset_dst, int64_t size) override;
-    void copy_to_host(const void* src, int64_t offset_src, void* dst, int64_t offset_dst, int64_t size) override;
+    void copy(device_id dev_src, const void* src, int64_t offset_src, device_id dev_dst, void* dst, int64_t offset_dst, int64_t size) override;
+    void copy_from_host(const void* src, int64_t offset_src, device_id dev_dst, void* dst, int64_t offset_dst, int64_t size) override;
+    void copy_to_host(device_id dev_src, const void* src, int64_t offset_src, void* dst, int64_t offset_dst, int64_t size) override;
 
     int dev_count() override;
 

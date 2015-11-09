@@ -45,7 +45,7 @@ enum {
     ACC_NUM_ARGS
 };
 
-Lambda* Runtime::emit_host_code(CodeGen &code_gen, Platform platform, const std::string& ext, Lambda* lambda) {
+Lambda* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std::string& ext, Lambda* lambda) {
     // to-target is the desired kernel call
     // target(mem, device, (dim.x, dim.y, dim.z), (block.x, block.y, block.z), body, return, free_vars)
     auto target = lambda->to()->as_lambda();
@@ -55,9 +55,12 @@ Lambda* Runtime::emit_host_code(CodeGen &code_gen, Platform platform, const std:
     // arguments
     if (!lambda->arg(ACC_ARG_DEVICE)->isa<PrimLit>())
         WLOG("error: target device must be hard-coded at %", lambda->arg(ACC_ARG_DEVICE)->loc());
-    auto target_device = int(lambda->arg(ACC_ARG_DEVICE)->as<PrimLit>()->qu32_value().data());
-    auto target_device_val = builder_.getInt32(target_device);
+    auto target_device_id = int(lambda->arg(ACC_ARG_DEVICE)->as<PrimLit>()->qu32_value().data());
+
     auto target_platform = builder_.getInt32(platform);
+    auto target_device = builder_.CreateOr(target_platform,
+        builder_.CreateShl(builder_.getInt32(target_device_id), builder_.getInt32(4)));
+
     auto it_space  = lambda->arg(ACC_ARG_SPACE)->as<Tuple>();
     auto it_config = lambda->arg(ACC_ARG_CONFIG)->as<Tuple>();
     auto kernel = lambda->arg(ACC_ARG_BODY)->as<Global>()->init()->as<Lambda>();
@@ -65,7 +68,7 @@ Lambda* Runtime::emit_host_code(CodeGen &code_gen, Platform platform, const std:
     // load kernel
     auto kernel_name = builder_.CreateGlobalStringPtr(kernel->name);
     auto file_name = builder_.CreateGlobalStringPtr(lambda->world().name() + ext);
-    load_kernel(target_platform, target_device_val, file_name, kernel_name);
+    load_kernel(target_device, file_name, kernel_name);
 
     // fetch values and create external calls for initialization
     // check for source devices of all pointers
@@ -83,7 +86,7 @@ Lambda* Runtime::emit_host_code(CodeGen &code_gen, Platform platform, const std:
             builder_.CreateStore(target_val, alloca);
             auto void_ptr = builder_.CreateBitCast(alloca, builder_.getInt8PtrTy());
             // TODO: recurse over struct|tuple and check if it contains pointers
-            set_kernel_arg_struct(target_platform, target_device_val, i, void_ptr, target_val->getType());
+            set_kernel_arg_struct(target_device, i, void_ptr, target_val->getType());
         } else if (target_arg->type().isa<PtrType>()) {
             auto ptr = target_arg->type().as<PtrType>();
             auto rtype = ptr->referenced_type();
@@ -95,70 +98,70 @@ Lambda* Runtime::emit_host_code(CodeGen &code_gen, Platform platform, const std:
             }
 
             auto void_ptr = builder_.CreateBitCast(target_val, builder_.getInt8PtrTy());
-            set_kernel_arg_ptr(target_platform, target_device_val, i, void_ptr);
+            set_kernel_arg_ptr(target_device, i, void_ptr);
         } else {
             // normal variable
             auto alloca = code_gen.emit_alloca(target_val->getType(), target_arg->name);
             builder_.CreateStore(target_val, alloca);
             auto void_ptr = builder_.CreateBitCast(alloca, builder_.getInt8PtrTy());
-            set_kernel_arg(target_platform, target_device_val, i, void_ptr, target_val->getType());
+            set_kernel_arg(target_device, i, void_ptr, target_val->getType());
         }
     }
 
     // setup configuration and launch
     const auto get_u32 = [&](Def def) { return builder_.CreateSExt(code_gen.lookup(def), builder_.getInt32Ty()); };
-    set_grid_size(target_platform, target_device_val, get_u32(it_space->op(0)), get_u32(it_space->op(1)), get_u32(it_space->op(2)));
-    set_block_size(target_platform, target_device_val, get_u32(it_config->op(0)), get_u32(it_config->op(1)), get_u32(it_config->op(2)));
-    launch_kernel(target_platform, target_device_val);
+    set_grid_size(target_device, get_u32(it_space->op(0)), get_u32(it_space->op(1)), get_u32(it_space->op(2)));
+    set_block_size(target_device, get_u32(it_config->op(0)), get_u32(it_config->op(1)), get_u32(it_config->op(2)));
+    launch_kernel(target_device);
 
     // synchronize
-    synchronize(target_platform, target_device_val);
+    synchronize(target_device);
 
     return lambda->arg(ACC_ARG_RETURN)->as_lambda();
 }
 
-llvm::Value* Runtime::set_grid_size(llvm::Value* platform, llvm::Value* device, llvm::Value* x, llvm::Value* y, llvm::Value* z) {
-    llvm::Value* grid_size_args[] = { platform, device, x, y, z };
+llvm::Value* Runtime::set_grid_size(llvm::Value* device, llvm::Value* x, llvm::Value* y, llvm::Value* z) {
+    llvm::Value* grid_size_args[] = { device, x, y, z };
     return builder_.CreateCall(get("thorin_set_grid_size"), grid_size_args);
 }
 
-llvm::Value* Runtime::set_block_size(llvm::Value* platform, llvm::Value* device, llvm::Value* x, llvm::Value* y, llvm::Value* z) {
-    llvm::Value* block_size_args[] = { platform, device, x, y, z };
+llvm::Value* Runtime::set_block_size(llvm::Value* device, llvm::Value* x, llvm::Value* y, llvm::Value* z) {
+    llvm::Value* block_size_args[] = { device, x, y, z };
     return builder_.CreateCall(get("thorin_set_block_size"), block_size_args);
 }
 
-llvm::Value* Runtime::synchronize(llvm::Value* platform, llvm::Value* device) {
-    llvm::Value* sync_args[] = { platform, device };
+llvm::Value* Runtime::synchronize(llvm::Value* device) {
+    llvm::Value* sync_args[] = { device };
     return builder_.CreateCall(get("thorin_synchronize"), sync_args);
 }
 
-llvm::Value* Runtime::set_kernel_arg(llvm::Value* platform, llvm::Value* device, int arg, llvm::Value* mem, llvm::Type* type) {
-    llvm::Value* kernel_args[] = { platform, device, builder_.getInt32(arg), mem, builder_.getInt32(layout_->getTypeAllocSize(type)) };
+llvm::Value* Runtime::set_kernel_arg(llvm::Value* device, int arg, llvm::Value* mem, llvm::Type* type) {
+    llvm::Value* kernel_args[] = { device, builder_.getInt32(arg), mem, builder_.getInt32(layout_->getTypeAllocSize(type)) };
     return builder_.CreateCall(get("thorin_set_kernel_arg"), kernel_args);
 }
 
-llvm::Value* Runtime::set_kernel_arg_ptr(llvm::Value* platform, llvm::Value* device, int arg, llvm::Value* ptr) {
-    llvm::Value* kernel_args[] = { platform, device, builder_.getInt32(arg), ptr };
+llvm::Value* Runtime::set_kernel_arg_ptr(llvm::Value* device, int arg, llvm::Value* ptr) {
+    llvm::Value* kernel_args[] = { device, builder_.getInt32(arg), ptr };
     return builder_.CreateCall(get("thorin_set_kernel_arg_ptr"), kernel_args);
 }
 
-llvm::Value* Runtime::set_kernel_arg_struct(llvm::Value* platform, llvm::Value* device, int arg, llvm::Value* mem, llvm::Type* type) {
-    llvm::Value* kernel_args[] = { platform, device, builder_.getInt32(arg), mem, builder_.getInt32(layout_->getTypeAllocSize(type)) };
+llvm::Value* Runtime::set_kernel_arg_struct(llvm::Value* device, int arg, llvm::Value* mem, llvm::Type* type) {
+    llvm::Value* kernel_args[] = { device, builder_.getInt32(arg), mem, builder_.getInt32(layout_->getTypeAllocSize(type)) };
     return builder_.CreateCall(get("thorin_set_kernel_arg_struct"), kernel_args);
 }
 
-llvm::Value* Runtime::load_kernel(llvm::Value* platform, llvm::Value* device, llvm::Value* file, llvm::Value* kernel) {
-    llvm::Value* load_args[] = { platform, device, file, kernel };
+llvm::Value* Runtime::load_kernel(llvm::Value* device, llvm::Value* file, llvm::Value* kernel) {
+    llvm::Value* load_args[] = { device, file, kernel };
     return builder_.CreateCall(get("thorin_load_kernel"), load_args);
 }
 
-llvm::Value* Runtime::launch_kernel(llvm::Value* platform, llvm::Value* device) {
-    llvm::Value* launch_args[] = { platform, device };
+llvm::Value* Runtime::launch_kernel(llvm::Value* device) {
+    llvm::Value* launch_args[] = { device };
     return builder_.CreateCall(get("thorin_launch_kernel"), launch_args);
 }
 
 llvm::Value* Runtime::parallel_for(llvm::Value* num_threads, llvm::Value* lower, llvm::Value* upper,
-                                          llvm::Value* closure_ptr, llvm::Value* fun_ptr) {
+                                   llvm::Value* closure_ptr, llvm::Value* fun_ptr) {
     llvm::Value* parallel_args[] = {
         num_threads, lower, upper,
         builder_.CreateBitCast(closure_ptr, builder_.getInt8PtrTy()),

@@ -17,9 +17,7 @@ protected:
     }
 
     void* alloc(device_id, int64_t) override { platform_error(); return nullptr; }
-    void release(device_id, void*, int64_t) override { platform_error(); }
-    void* map(device_id, void*, int64_t, int64_t) override { platform_error(); return nullptr; }
-    void unmap(device_id, void*, void*) override { platform_error(); }
+    void release(device_id, void*) override { platform_error(); }
 
     void set_block_size(device_id, int32_t, int32_t, int32_t) override { platform_error(); }
     void set_grid_size(device_id, int32_t, int32_t, int32_t) override { platform_error(); }
@@ -30,9 +28,9 @@ protected:
     void launch_kernel(device_id) override { platform_error(); }
     void synchronize(device_id) override { platform_error(); }
 
-    void copy(const void*, int64_t, void*, int64_t, int64_t) override { platform_error(); }
-    void copy_from_host(const void*, int64_t, void*, int64_t, int64_t) override { platform_error(); }
-    void copy_to_host(const void*, int64_t, void*, int64_t, int64_t) override { platform_error(); }
+    void copy(device_id, const void*, int64_t, device_id, void*, int64_t, int64_t) override { platform_error(); }
+    void copy_from_host(const void*, int64_t, device_id, void*, int64_t, int64_t) override { platform_error(); }
+    void copy_to_host(device_id, const void*, int64_t, void*, int64_t, int64_t) override { platform_error(); }
 
     int dev_count() override { return 0; }
 

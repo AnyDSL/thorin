@@ -133,18 +133,12 @@ void* CudaPlatform::alloc(device_id dev, int64_t size) {
     return (void*)mem;
 }
 
-void CudaPlatform::release(device_id dev, void* ptr, int64_t size) {
+void CudaPlatform::release(device_id dev, void* ptr) {
     cuCtxPushCurrent(devices_[dev].ctx);
     CUresult err = cuMemFree((CUdeviceptr)ptr);
     checkErrDrv(err, "cuMemFree()");
     cuCtxPopCurrent(NULL);
 }
-
-void* CudaPlatform::map(device_id dev, void* ptr, int64_t offset, int64_t size) {
-    return (void*)((CUdeviceptr)ptr + offset);
-}
-
-void CudaPlatform::unmap(device_id dev, void* view, void* ptr) {}
 
 void CudaPlatform::set_block_size(device_id dev, int32_t x, int32_t y, int32_t z) {
     auto& block = devices_[dev].block;
@@ -261,11 +255,10 @@ void CudaPlatform::synchronize(device_id dev) {
     cuCtxPopCurrent(NULL);
 }
 
-void CudaPlatform::copy(const void* src, int64_t offset_src, void* dst, int64_t offset_dst, int64_t size) {
-    auto src_info = runtime_->memory_info(src);
-    assert(src_info.dev == runtime_->memory_info(dst).dev);
+void CudaPlatform::copy(device_id dev_src, const void* src, int64_t offset_src, device_id dev_dst, void* dst, int64_t offset_dst, int64_t size) {
+    assert(dev_src == dev_dst);
     
-    cuCtxPushCurrent(devices_[src_info.dev].ctx);
+    cuCtxPushCurrent(devices_[dev_src].ctx);
     
     CUdeviceptr src_mem = (CUdeviceptr)src;
     CUdeviceptr dst_mem = (CUdeviceptr)dst;
@@ -275,9 +268,8 @@ void CudaPlatform::copy(const void* src, int64_t offset_src, void* dst, int64_t 
     cuCtxPopCurrent(NULL);
 }
 
-void CudaPlatform::copy_from_host(const void* src, int64_t offset_src, void* dst, int64_t offset_dst, int64_t size) {
-    auto dst_info = runtime_->memory_info(dst);
-    cuCtxPushCurrent(devices_[dst_info.dev].ctx);
+void CudaPlatform::copy_from_host(const void* src, int64_t offset_src, device_id dev_dst, void* dst, int64_t offset_dst, int64_t size) {
+    cuCtxPushCurrent(devices_[dev_dst].ctx);
     
     CUdeviceptr dst_mem = (CUdeviceptr)dst;
 
@@ -287,9 +279,8 @@ void CudaPlatform::copy_from_host(const void* src, int64_t offset_src, void* dst
     cuCtxPopCurrent(NULL);
 }
 
-void CudaPlatform::copy_to_host(const void* src, int64_t offset_src, void* dst, int64_t offset_dst, int64_t size) {
-    auto src_info = runtime_->memory_info(src);
-    cuCtxPushCurrent(devices_[src_info.dev].ctx);
+void CudaPlatform::copy_to_host(device_id dev_src, const void* src, int64_t offset_src, void* dst, int64_t offset_dst, int64_t size) {
+    cuCtxPushCurrent(devices_[dev_src].ctx);
     
     CUdeviceptr src_mem = (CUdeviceptr)src;
     CUresult err = cuMemcpyDtoH((char*)dst + offset_dst, src_mem + offset_src, size);

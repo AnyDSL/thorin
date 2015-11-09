@@ -7,7 +7,9 @@
 extern "C" {
 #endif
 
-enum thorin_platform {
+#define THORIN_DEVICE(p, d) ((p) | ((d) << 4))
+
+enum {
     THORIN_HOST = 0,
     THORIN_CUDA = 1,
     THORIN_OPENCL = 2
@@ -15,19 +17,19 @@ enum thorin_platform {
 
 void thorin_info(void);
 
-void* thorin_alloc(int32_t, int32_t, int64_t);
-void  thorin_release(void*);
+void* thorin_alloc(int32_t, int64_t);
+void  thorin_release(int32_t, void*);
 
-void thorin_copy(const void*, int64_t, void*, int64_t, int64_t);
+void thorin_copy(int32_t, const void*, int64_t, int32_t, void*, int64_t, int64_t);
 
-void thorin_set_block_size(int32_t, int32_t, int32_t, int32_t, int32_t);
-void thorin_set_grid_size(int32_t, int32_t, int32_t, int32_t, int32_t);
-void thorin_set_kernel_arg(int32_t, int32_t, int32_t, void*, int32_t);
-void thorin_set_kernel_arg_ptr(int32_t, int32_t, int32_t, void*);
-void thorin_set_kernel_arg_struct(int32_t, int32_t, int32_t, void*, int32_t);
-void thorin_load_kernel(int32_t, int32_t, const char*, const char*);
-void thorin_launch_kernel(int32_t, int32_t);
-void thorin_synchronize(int32_t, int32_t);
+void thorin_set_block_size(int32_t, int32_t, int32_t, int32_t);
+void thorin_set_grid_size(int32_t, int32_t, int32_t, int32_t);
+void thorin_set_kernel_arg(int32_t, int32_t, void*, int32_t);
+void thorin_set_kernel_arg_ptr(int32_t, int32_t, void*);
+void thorin_set_kernel_arg_struct(int32_t, int32_t, void*, int32_t);
+void thorin_load_kernel(int32_t, const char*, const char*);
+void thorin_launch_kernel(int32_t);
+void thorin_synchronize(int32_t);
 
 float thorin_random_val();
 void thorin_random_seed(int32_t);

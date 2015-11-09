@@ -24,22 +24,22 @@ public:
     };
 
     /// Emits a call to thorin_set_block_size.
-    llvm::Value* set_block_size(llvm::Value* platform, llvm::Value* device, llvm::Value* x, llvm::Value* y, llvm::Value* z);
+    llvm::Value* set_block_size(llvm::Value* device, llvm::Value* x, llvm::Value* y, llvm::Value* z);
     /// Emits a call to thorin_set_grid_size.
-    llvm::Value* set_grid_size(llvm::Value* platform, llvm::Value* device, llvm::Value* x, llvm::Value* y, llvm::Value* z);
+    llvm::Value* set_grid_size(llvm::Value* device, llvm::Value* x, llvm::Value* y, llvm::Value* z);
     /// Emits a call to thorin_synchronize.
-    llvm::Value* synchronize(llvm::Value* platform, llvm::Value* device);
+    llvm::Value* synchronize(llvm::Value* device);
 
     /// Emits a call to thorin_set_kernel_arg.
-    llvm::Value* set_kernel_arg(llvm::Value* platform, llvm::Value* device, int arg, llvm::Value* ptr, llvm::Type* type);
+    llvm::Value* set_kernel_arg(llvm::Value* device, int arg, llvm::Value* ptr, llvm::Type* type);
     /// Emits a call to thorin_set_kernel_arg_ptr.
-    llvm::Value* set_kernel_arg_ptr(llvm::Value* platform, llvm::Value* device, int arg, llvm::Value* ptr);
+    llvm::Value* set_kernel_arg_ptr(llvm::Value* device, int arg, llvm::Value* ptr);
     /// Emits a call to thorin_set_kernel_arg_struct.
-    llvm::Value* set_kernel_arg_struct(llvm::Value* platform, llvm::Value* device, int arg, llvm::Value* ptr, llvm::Type* type);
+    llvm::Value* set_kernel_arg_struct(llvm::Value* device, int arg, llvm::Value* ptr, llvm::Type* type);
     /// Emits a call to thorin_load_kernel.
-    llvm::Value* load_kernel(llvm::Value* platform, llvm::Value* device, llvm::Value* file, llvm::Value* kernel);
+    llvm::Value* load_kernel(llvm::Value* device, llvm::Value* file, llvm::Value* kernel);
     /// Emits a call to thorin_launch_kernel.
-    llvm::Value* launch_kernel(llvm::Value* platform, llvm::Value* device);
+    llvm::Value* launch_kernel(llvm::Value* device);
 
     /// Emits a call to thorin_parallel_for.
     llvm::Value* parallel_for(llvm::Value* num_threads, llvm::Value* lower, llvm::Value* upper,

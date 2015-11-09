@@ -7,20 +7,9 @@
 
 class Runtime {
 public:
-    struct Mem {
-        platform_id plat;
-        device_id dev;
-        int64_t size;
-        Mem() {}
-        Mem(platform_id plat, device_id dev, int64_t size)
-            : plat(plat), dev(dev), size(size)
-        {}
-    };
-
     Runtime();
 
     ~Runtime() {
-        assert(mems_.size() == 0 && "Some memory blocks have not been released");
         for (auto p: platforms_) {
             delete p;
         }
@@ -44,19 +33,12 @@ public:
     /// Allocates memory on the given device.
     void* alloc(platform_id plat, device_id dev, int64_t size) {
         check_device(plat, dev);
-        void* ptr = platforms_[plat]->alloc(dev, size);
-        mems_.emplace(ptr, Mem(plat, dev, size));
-        return ptr;
+        return platforms_[plat]->alloc(dev, size);
     }
 
     /// Releases memory.
-    void release(void* ptr) {
-        auto it = mems_.find(ptr);
-        if (it == mems_.end())
-            error("Memory not allocated by the runtime");
-
-        platforms_[it->second.plat]->release(it->second.dev, ptr, it->second.size);
-        mems_.erase(it);
+    void release(platform_id plat, device_id dev, void* ptr) {
+        platforms_[plat]->release(dev, ptr);
     }
 
     void set_block_size(platform_id plat, device_id dev, int32_t x, int32_t y, int32_t z) {
@@ -100,33 +82,23 @@ public:
     }
 
     /// Copies memory.
-    void copy(const void* src, int64_t offset_src, void* dst, int64_t offset_dst, int64_t size) {
-        auto src_mem = mems_.find((void*)src);
-        auto dst_mem = mems_.find(dst);
-        if (src_mem == mems_.end() || dst_mem == mems_.end())
-            error("Memory not allocated from runtime");
-
-        if (src_mem->second.plat == dst_mem->second.plat) {
+    void copy(platform_id plat_src, device_id dev_src, const void* src, int64_t offset_src,
+              platform_id plat_dst, device_id dev_dst, void* dst, int64_t offset_dst, int64_t size) {
+        if (plat_src == plat_dst) {
             // Copy from same platform
-            platforms_[src_mem->second.plat]->copy(src, offset_src, dst, offset_dst, size);
+            platforms_[plat_src]->copy(dev_src, src, offset_src, dev_dst, dst, offset_dst, size);
         } else {
             // Copy from another platform
-            if (src_mem->second.plat == 0) {
+            if (plat_src == 0) {
                 // Source is the CPU platform
-                platforms_[dst_mem->second.plat]->copy_from_host(src, offset_src, dst, offset_dst, size);
-            } else if (dst_mem->second.dev == 0) {
+                platforms_[plat_dst]->copy_from_host(src, offset_src, dev_dst, dst, offset_dst, size);
+            } else if (plat_dst == 0) {
                 // Destination is the CPU platform
-                platforms_[src_mem->second.plat]->copy_to_host(src, offset_src, dst, offset_dst, size);
+                platforms_[plat_src]->copy_to_host(dev_src, src, offset_src, dst, offset_dst, size);
             } else {
                 error("Cannot copy memory between different platforms");
             }
         }
-    }
-
-    Mem memory_info(const void* ptr) {
-        auto it = mems_.find((void*)ptr);
-        assert(it != mems_.end());
-        return it->second;
     }
 
     template <typename... Args>
@@ -161,7 +133,6 @@ private:
     }
 
     std::vector<Platform*> platforms_;
-    std::unordered_map<void*, Mem>  mems_;
 };
 
 #endif

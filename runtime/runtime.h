@@ -93,11 +93,11 @@ public:
             if (plat_src == 0) {
                 // Source is the CPU platform
                 platforms_[plat_dst]->copy_from_host(src, offset_src, dev_dst, dst, offset_dst, size);
-                log("Copy from host to ", dev_dst, " on platform ", plat_dst);
+                log("Copy from host to device ", dev_dst, " on platform ", plat_dst);
             } else if (plat_dst == 0) {
                 // Destination is the CPU platform
                 platforms_[plat_src]->copy_to_host(dev_src, src, offset_src, dst, offset_dst, size);
-                log("Copy to host from ", dev_src, " on platform ", plat_src);
+                log("Copy to host from device ", dev_src, " on platform ", plat_src);
             } else {
                 error("Cannot copy memory between different platforms");
             }

@@ -95,21 +95,18 @@ Def World::splat(Def arg, size_t length, const std::string& name) {
  * arithops
  */
 
-Def World::binop(int kind, Def cond, Def lhs, Def rhs, const Location& loc, const std::string& name) {
+Def World::binop(int kind, Def lhs, Def rhs, const Location& loc, const std::string& name) {
     if (is_arithop(kind))
-        return arithop((ArithOpKind) kind, cond, lhs, rhs, loc, name);
+        return arithop((ArithOpKind) kind, lhs, rhs, loc, name);
 
     assert(is_cmp(kind) && "must be a Cmp");
-    return cmp((CmpKind) kind, cond, lhs, rhs, loc, name);
+    return cmp((CmpKind) kind, lhs, rhs, loc, name);
 }
 
-Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const Location& loc, const std::string& name) {
+Def World::arithop(ArithOpKind kind, Def a, Def b, const Location& loc, const std::string& name) {
     assert(a->type() == b->type());
     assert(a->type().as<PrimType>()->length() == b->type().as<PrimType>()->length());
     PrimTypeKind type = a->type().as<PrimType>()->primtype_kind();
-
-    if (cond->isa<Bottom>() || a->isa<Bottom>() || b->isa<Bottom>())
-        return bottom(type, loc);
 
     auto llit = a->isa<PrimLit>();
     auto rlit = b->isa<PrimLit>();
@@ -117,11 +114,10 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const Location& loc
     auto rvec = b->isa<Vector>();
 
     if (lvec && rvec) {
-        auto cvec = cond->isa<Vector>();
         size_t num = lvec->type().as<PrimType>()->length();
         Array<Def> ops(num);
         for (size_t i = 0; i != num; ++i)
-            ops[i] = cvec && cvec->op(i)->is_zero() ? bottom(type, loc, 1) : arithop(kind, lvec->op(i), rvec->op(i), loc);
+            ops[i] = arithop(kind, lvec->op(i), rvec->op(i), loc);
         return vector(ops, loc, name);
     }
 
@@ -205,7 +201,7 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const Location& loc
     if (is_type_i(type)) {
         if (a == b) {
             switch (kind) {
-                case ArithOp_add: return arithop_mul(cond, literal(type, 2, loc), a, loc);
+                case ArithOp_add: return arithop_mul(literal(type, 2, loc), a, loc);
 
                 case ArithOp_sub:
                 case ArithOp_xor: return zero(type, loc);
@@ -294,7 +290,7 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const Location& loc
             if (b->is_not())                            // do we have ~~x?
                 return b->as<ArithOp>()->rhs();
             if (auto cmp = b->isa<Cmp>())   // do we have ~(a cmp b)?
-                return this->cmp(negate(cmp->cmp_kind()), cond, cmp->lhs(), cmp->rhs(), loc);
+                return this->cmp(negate(cmp->cmp_kind()), cmp->lhs(), cmp->rhs(), loc);
         }
 
         auto lcmp = a->isa<Cmp>();
@@ -314,9 +310,9 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const Location& loc
         // distributivity (a and b) or (a and c)
         if (kind == ArithOp_or && land && rand) {
             if (land->lhs() == rand->lhs())
-                return arithop_and(cond, land->lhs(), arithop_or(cond, land->rhs(), rand->rhs(), loc), loc);
+                return arithop_and(land->lhs(), arithop_or(land->rhs(), rand->rhs(), loc), loc);
             if (land->rhs() == rand->rhs())
-                return arithop_and(cond, land->rhs(), arithop_or(cond, land->lhs(), rand->lhs(), loc), loc);
+                return arithop_and(land->rhs(), arithop_or(land->lhs(), rand->lhs(), loc), loc);
         }
 
         auto lor = a->kind() == Node_or ? a->as<ArithOp>() : nullptr;
@@ -325,9 +321,9 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const Location& loc
         // distributivity (a or b) and (a or c)
         if (kind == ArithOp_and && lor && ror) {
             if (lor->lhs() == ror->lhs())
-                return arithop_or(cond, lor->lhs(), arithop_and(cond, lor->rhs(), ror->rhs(), loc), loc);
+                return arithop_or(lor->lhs(), arithop_and(lor->rhs(), ror->rhs(), loc), loc);
             if (lor->rhs() == ror->rhs())
-                return arithop_or(cond, lor->rhs(), arithop_and(cond, lor->lhs(), ror->lhs(), loc), loc);
+                return arithop_or(lor->rhs(), arithop_and(lor->lhs(), ror->lhs(), loc), loc);
         }
 
         // absorption: a and (a or b) = a
@@ -392,20 +388,20 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const Location& loc
             return arithop(kind, a_lhs_lv, arithop(kind, a_same->rhs(), b, loc), loc);
     }
 
-    return cse(new ArithOp(kind, cond, a, b, loc, name));
+    return cse(new ArithOp(kind, a, b, loc, name));
 }
 
-Def World::arithop_not(Def cond, Def def, const Location& loc) { return arithop_xor(cond, allset(def->type(), loc, def->length()), def, loc); }
+Def World::arithop_not(Def def, const Location& loc) { return arithop_xor(allset(def->type(), loc, def->length()), def, loc); }
 
-Def World::arithop_minus(Def cond, Def def, const Location& loc) {
+Def World::arithop_minus(Def def, const Location& loc) {
     switch (PrimTypeKind kind = def->type().as<PrimType>()->primtype_kind()) {
 #define THORIN_F_TYPE(T, M) \
         case PrimType_##T: \
-            return arithop_sub(cond, literal_##T(-0.f, loc, def->length()), def, loc);
+            return arithop_sub(literal_##T(-0.f, loc, def->length()), def, loc);
 #include "thorin/tables/primtypetable.h"
         default:
             assert(is_type_i(kind));
-            return arithop_sub(cond, zero(kind, loc), def, loc);
+            return arithop_sub(zero(kind, loc), def, loc);
     }
 }
 
@@ -413,10 +409,7 @@ Def World::arithop_minus(Def cond, Def def, const Location& loc) {
  * compares
  */
 
-Def World::cmp(CmpKind kind, Def cond, Def a, Def b, const Location& loc, const std::string& name) {
-    if (cond->isa<Bottom>() || a->isa<Bottom>() || b->isa<Bottom>())
-        return bottom(type_bool(), loc);
-
+Def World::cmp(CmpKind kind, Def a, Def b, const Location& loc, const std::string& name) {
     CmpKind oldkind = kind;
     switch (kind) {
         case Cmp_gt:  kind = Cmp_lt; break;
@@ -481,7 +474,7 @@ Def World::cmp(CmpKind kind, Def cond, Def a, Def b, const Location& loc, const 
         }
     }
 
-    return cse(new Cmp(kind, cond, a, b, loc, name));
+    return cse(new Cmp(kind, a, b, loc, name));
 }
 
 /*
@@ -494,10 +487,7 @@ Def World::convert(Type to, Def from, const Location& loc, const std::string& na
     return cast(to, from, loc, name);
 }
 
-Def World::cast(Type to, Def cond, Def from, const Location& loc, const std::string& name) {
-    if (cond->isa<Bottom>() || from->isa<Bottom>())
-        return bottom(to, loc);
-
+Def World::cast(Type to, Def from, const Location& loc, const std::string& name) {
     if (auto vec = from->isa<Vector>()) {
         size_t num = vec->length();
         auto to_vec = to.as<VectorType>();
@@ -581,21 +571,14 @@ Def World::cast(Type to, Def cond, Def from, const Location& loc, const std::str
         }
     }
 
-    return cse(new Cast(to, cond, from, loc, name));
+    return cse(new Cast(to, from, loc, name));
 }
 
-Def World::bitcast(Type to, Def cond, Def from, const Location& loc, const std::string& name) {
+Def World::bitcast(Type to, Def from, const Location& loc, const std::string& name) {
     if (auto other = from->isa<Bitcast>()) {
-        if (to == other->type()) {
-            if (cond == other->cond())
-                return other;
-            else
-                assert(false && "TODO");
-        }
+        if (to == other->type())
+            return other;
     }
-
-    if (cond->isa<Bottom>() || from->isa<Bottom>())
-        return bottom(to, loc);
 
     if (auto vec = from->isa<Vector>()) {
         size_t num = vec->length();
@@ -607,7 +590,7 @@ Def World::bitcast(Type to, Def cond, Def from, const Location& loc, const std::
     }
 
     // TODO constant folding
-    return cse(new Bitcast(to, cond, from, loc, name));
+    return cse(new Bitcast(to, from, loc, name));
 }
 
 /*

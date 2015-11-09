@@ -264,7 +264,7 @@ void CudaPlatform::copy(device_id dev_src, const void* src, int64_t offset_src, 
     CUdeviceptr dst_mem = (CUdeviceptr)dst;
     CUresult err = cuMemcpyDtoD(dst_mem + offset_dst, src_mem + offset_src, size);
     checkErrDrv(err, "cuMemcpyDtoD()");
-    
+   
     cuCtxPopCurrent(NULL);
 }
 

@@ -17,8 +17,8 @@ PrimLit::PrimLit(World& world, PrimTypeKind kind, Box box, const Location& loc, 
     , box_(box)
 {}
 
-Cmp::Cmp(CmpKind kind, Def cond, Def lhs, Def rhs, const Location& loc, const std::string& name)
-    : BinOp((NodeKind) kind, lhs->world().type_bool(lhs->type()->length()), cond, lhs, rhs, loc, name)
+Cmp::Cmp(CmpKind kind, Def lhs, Def rhs, const Location& loc, const std::string& name)
+    : BinOp((NodeKind) kind, lhs->world().type_bool(lhs->type()->length()), lhs, rhs, loc, name)
 {}
 
 DefiniteArray::DefiniteArray(World& world, Type elem, ArrayRef<Def> args, const Location& loc, const std::string& name)
@@ -164,11 +164,11 @@ bool Slot::equal(const PrimOp* other) const {
 
 // do not use any of PrimOp's type getters - during import we need to derive types from 't' in the new world 'to'
 
-Def ArithOp::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.arithop(arithop_kind(), ops[0], ops[1], ops[2], this->loc(), name); }
-Def Bitcast::vrebuild(World& to, ArrayRef<Def> ops, Type t) const { return to.bitcast(t, ops[0], ops[1], this->loc(), name); }
+Def ArithOp::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.arithop(arithop_kind(), ops[0], ops[1], this->loc(), name); }
+Def Bitcast::vrebuild(World& to, ArrayRef<Def> ops, Type t) const { return to.bitcast(t, ops[0], this->loc(), name); }
 Def Bottom ::vrebuild(World& to, ArrayRef<Def>,     Type t) const { return to.bottom(t, this->loc()); }
-Def Cast   ::vrebuild(World& to, ArrayRef<Def> ops, Type t) const { return to.cast(t, ops[0], ops[1], this->loc(), name); }
-Def Cmp    ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.cmp(cmp_kind(), ops[0], ops[1], ops[2], this->loc(), name); }
+Def Cast   ::vrebuild(World& to, ArrayRef<Def> ops, Type t) const { return to.cast(t, ops[0], this->loc(), name); }
+Def Cmp    ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.cmp(cmp_kind(), ops[0], ops[1], this->loc(), name); }
 Def Enter  ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.enter(ops[0], this->loc(), name); }
 Def Extract::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.extract(ops[0], ops[1], this->loc(), name); }
 Def Global ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.global(ops[0], this->loc(), is_mutable(), name); }

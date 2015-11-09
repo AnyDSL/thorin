@@ -141,13 +141,6 @@ std::ostream& YCompGen::emit_primop(const PrimOp* primop) {
             stream() << primop->op_name() << " ";
             emit_name(primop);
         }
-        if (auto vectorop = primop->isa<VectorOp>()) {
-            if (!vectorop->cond()->is_allset()) {
-                stream() << "@ ";
-                emit_name(vectorop->cond());
-                stream() << " ";
-            }
-        }
     };
     write_node(primop->gid(), emit_label,
         [&] { emit_type(primop->type()); });

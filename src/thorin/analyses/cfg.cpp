@@ -80,7 +80,7 @@ public:
         ILOG_SCOPE(build_cfg());
         ILOG_SCOPE(unreachable_node_elimination());
         ILOG_SCOPE(link_to_exit());
-        ILOG_SCOPE(transetive_cfg());
+        ILOG_SCOPE(transitive_cfg());
 #ifndef NDEBUG
         ILOG_SCOPE(verify());
 #endif
@@ -98,7 +98,7 @@ public:
     void build_cfg();
     void unreachable_node_elimination();
     void link_to_exit();
-    void transetive_cfg();
+    void transitive_cfg();
     void verify();
     virtual void stream_ycomp(std::ostream& out) const override;
 
@@ -393,7 +393,7 @@ void CFABuilder::link_to_exit() {
     // TODO deal with endless loops
 }
 
-void CFABuilder::transetive_cfg() {
+void CFABuilder::transitive_cfg() {
     std::queue<const CFNodeBase*> queue;
 
     auto link_to_succs = [&] (const CFNode* src) {

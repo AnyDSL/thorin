@@ -237,8 +237,24 @@ std::ostream& emit_assignment(const PrimOp* primop, std::ostream& ostream) { ret
 
 //------------------------------------------------------------------------------
 
-void Scope::dump() const { emit_thorin(*this); }
-void World::dump() const { emit_thorin(*this); }
+void Scope::stream_thorin(std::ostream& out) const { emit_thorin(*this, out); }
+void World::stream_thorin(std::ostream& out) const { emit_thorin(*this, out); }
+
+void Scope::dump() const { emit_thorin(*this, std::cout); }
+void World::dump() const { emit_thorin(*this, std::cout); }
+
+void Scope::write_thorin(const char* filename) const { std::ofstream file(filename); stream_thorin(file); }
+void World::write_thorin(const char* filename) const { std::ofstream file(filename); stream_thorin(file); }
+
+void Scope::thorin() const {
+    auto filename = world().name() + "_" + entry()->unique_name() + ".thorin";
+    write_thorin(filename.c_str());
+}
+
+void World::thorin() const {
+    auto filename = name() + ".thorin";
+    write_thorin(filename.c_str());
+}
 
 //------------------------------------------------------------------------------
 

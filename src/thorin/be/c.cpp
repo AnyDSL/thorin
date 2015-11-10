@@ -513,11 +513,11 @@ void CCodeGen::emit() {
 
                             auto cont = lambda->arg(2)->as_lambda();
                             auto fn_type = to_lambda->type().as<FnType>();
-                            emit_type(fn_type->args().back().as<FnType>()->arg(1).as<PtrType>()->referenced_type()) << " " << to_lambda->unique_name() << "[";
+                            emit_type(fn_type->args().back().as<FnType>()->arg(1).as<PtrType>()->referenced_type()) << " " << to_lambda->name << lambda->gid() << "[";
                             emit(lambda->arg(1)) << "];";
                             newline();
                             // store argument to phi nodes
-                            stream() << "p" << cont->param(1)->unique_name() << " = " << to_lambda->unique_name() << ";";
+                            stream() << "p" << cont->param(1)->unique_name() << " = " << to_lambda->name << lambda->gid() << ";";
                         } else {
                             THORIN_UNREACHABLE;
                         }

@@ -175,20 +175,21 @@ bool Lambda::is_external() const { return world().is_external(this); }
 bool Lambda::is_intrinsic() const { return intrinsic_ != Intrinsic::None; }
 bool Lambda::is_accelerator() const { return Intrinsic::_Accelerator_Begin <= intrinsic_ && intrinsic_ < Intrinsic::_Accelerator_End; }
 void Lambda::set_intrinsic() {
-    if      (name == "cuda")      intrinsic_ = Intrinsic::CUDA;
-    else if (name == "nvvm")      intrinsic_ = Intrinsic::NVVM;
-    else if (name == "spir")      intrinsic_ = Intrinsic::SPIR;
-    else if (name == "opencl")    intrinsic_ = Intrinsic::OpenCL;
-    else if (name == "parallel")  intrinsic_ = Intrinsic::Parallel;
-    else if (name == "spawn")     intrinsic_ = Intrinsic::Spawn;
-    else if (name == "sync")      intrinsic_ = Intrinsic::Sync;
-    else if (name == "vectorize") intrinsic_ = Intrinsic::Vectorize;
-    else if (name == "mmap")      intrinsic_ = Intrinsic::Mmap;
-    else if (name == "munmap")    intrinsic_ = Intrinsic::Munmap;
-    else if (name == "atomic")    intrinsic_ = Intrinsic::Atomic;
-    else if (name == "bitcast")   intrinsic_ = Intrinsic::Reinterpret;
-    else if (name == "select")    intrinsic_ = Intrinsic::Select;
-    else if (name == "shuffle")   intrinsic_ = Intrinsic::Shuffle;
+    if      (name == "cuda")            intrinsic_ = Intrinsic::CUDA;
+    else if (name == "nvvm")            intrinsic_ = Intrinsic::NVVM;
+    else if (name == "spir")            intrinsic_ = Intrinsic::SPIR;
+    else if (name == "opencl")          intrinsic_ = Intrinsic::OpenCL;
+    else if (name == "parallel")        intrinsic_ = Intrinsic::Parallel;
+    else if (name == "spawn")           intrinsic_ = Intrinsic::Spawn;
+    else if (name == "sync")            intrinsic_ = Intrinsic::Sync;
+    else if (name == "vectorize")       intrinsic_ = Intrinsic::Vectorize;
+    else if (name == "mmap")            intrinsic_ = Intrinsic::Mmap;
+    else if (name == "munmap")          intrinsic_ = Intrinsic::Munmap;
+    else if (name == "reserve_shared")  intrinsic_ = Intrinsic::Reserve;
+    else if (name == "atomic")          intrinsic_ = Intrinsic::Atomic;
+    else if (name == "bitcast")         intrinsic_ = Intrinsic::Reinterpret;
+    else if (name == "select")          intrinsic_ = Intrinsic::Select;
+    else if (name == "shuffle")         intrinsic_ = Intrinsic::Shuffle;
     else assert(false && "unsupported thorin intrinsic");
 }
 

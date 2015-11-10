@@ -502,6 +502,22 @@ void CCodeGen::emit() {
                             emit_type(cont->param(1)->type()) << "(";
                             emit(lambda->arg(1)) << ");";
                             newline();
+                        } else if (to_lambda->intrinsic() == Intrinsic::Reserve) {
+                            if (!lambda->arg(1)->isa<PrimLit>())
+                                WLOG("error: reserve_shared: couldn't extract memory size at %", lambda->arg(1)->loc());
+
+                            if (lang_==Lang::CUDA)
+                                stream() << "__shared__ ";
+                            if (lang_==Lang::OPENCL)
+                                stream() << "__local ";
+
+                            auto cont = lambda->arg(2)->as_lambda();
+                            auto fn_type = to_lambda->type().as<FnType>();
+                            emit_type(fn_type->args().back().as<FnType>()->arg(1).as<PtrType>()->referenced_type()) << " " << to_lambda->unique_name() << "[";
+                            emit(lambda->arg(1)) << "];";
+                            newline();
+                            // store argument to phi nodes
+                            stream() << "p" << cont->param(1)->unique_name() << " = " << to_lambda->unique_name() << ";";
                         } else {
                             THORIN_UNREACHABLE;
                         }

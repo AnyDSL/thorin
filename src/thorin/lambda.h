@@ -77,6 +77,7 @@ enum class Intrinsic : uint8_t {
     _Accelerator_End,
     Mmap = _Accelerator_End,    ///< Intrinsic memory-mapping function.
     Munmap,                     ///< Intrinsic memory-unmapping function.
+    Reserve,                    ///< Intrinsic memory reserve function
     Atomic,                     ///< Intrinsic atomic function
     Branch,                     ///< branch(cond, T, F).
     EndScope,                   ///< Dummy function which marks the end of a @p Scope.

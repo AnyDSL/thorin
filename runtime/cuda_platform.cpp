@@ -225,6 +225,11 @@ void CudaPlatform::launch_kernel(device_id dev) {
 
     cuEventRecord(cuda_dev.start_kernel, 0);
 
+    assert(cuda_dev.grid.x > 0 && cuda_dev.grid.x % cuda_dev.block.x == 0 &&
+           cuda_dev.grid.y > 0 && cuda_dev.grid.y % cuda_dev.block.y == 0 &&
+           cuda_dev.grid.z > 0 && cuda_dev.grid.z % cuda_dev.block.z == 0 &&
+           "The grid size is not a multiple of the block size");
+
     CUresult err = cuLaunchKernel(cuda_dev.kernel,
         cuda_dev.grid.x / cuda_dev.block.x,
         cuda_dev.grid.y / cuda_dev.block.y,

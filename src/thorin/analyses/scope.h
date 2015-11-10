@@ -61,13 +61,18 @@ public:
     uint32_t id() const { return id_; }
     size_t size() const { return lambdas_.size(); }
     World& world() const { return world_; }
-    void dump() const;
     const CFA& cfa() const;
     const CFNode* cfa(Lambda*) const;
     const F_CFG& f_cfg() const;
     const B_CFG& b_cfg() const;
     template<bool forward> const CFG<forward>& cfg() const;
     void verify() const;
+
+    // Note that we don't use overloading for the following methods in order to have them accessible from gdb.
+    void stream_thorin(std::ostream& out) const;    ///< Streams thorin to file @p out.
+    void write_thorin(const char* filename) const;  ///< Dumps thorin to file with name @p filename.
+    void thorin() const;                            ///< Dumps thorin to a file with an auto-generated file name.
+    void dump() const;                              ///< Dumps thorin to stdout.
 
     typedef ArrayRef<Lambda*>::const_iterator const_iterator;
     const_iterator begin() const { return lambdas().begin(); }

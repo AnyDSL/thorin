@@ -315,11 +315,9 @@ void CFABuilder::build_cfg() {
                 link(cur_in, out);
                 for (const auto& nodes : arg_nodes(cur_in)) {
                     for (auto n : nodes) {
-                        if (auto in = n->isa<CFNode>()) {
+                        if (auto in = n->isa<CFNode>())
                             enqueue(in);
-                            link(out, n);
-                        } else if (!n->as<OutNode>()->ancestors().empty())
-                            link(out, n);
+                        link(out, n);
                     }
                 }
             }

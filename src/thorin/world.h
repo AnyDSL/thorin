@@ -224,7 +224,12 @@ public:
 #endif
     const TypeNode* unify_base(const TypeNode*);
     template<class T> Proxy<T> unify(const T* type) { return Proxy<T>(unify_base(type)->template as<T>()); }
-    void dump() const;
+
+    // Note that we don't use overloading for the following methods in order to have them accessible from gdb.
+    void stream_thorin(std::ostream& out) const;    ///< Streams thorin to file @p out.
+    void write_thorin(const char* filename) const;  ///< Dumps thorin to file with name @p filename.
+    void thorin() const;                            ///< Dumps thorin to a file with an auto-generated file name.
+    void dump() const;                              ///< Dumps thorin to stdout.
 
 private:
     const TypeNode* register_base(const TypeNode* type) {

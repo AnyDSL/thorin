@@ -52,7 +52,7 @@ Lambda* KernelRuntime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
     // to-target is the desired kernel call
     // target(mem, device, (dim.x, dim.y, dim.z), (block.x, block.y, block.z), body, return, free_vars)
     auto target = lambda->to()->as_lambda();
-    assert(target->is_intrinsic());
+    assert_unused(target->is_intrinsic());
     assert(lambda->num_args() >= ACC_NUM_ARGS && "required arguments are missing");
 
     // arguments

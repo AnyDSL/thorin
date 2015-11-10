@@ -838,7 +838,7 @@ const TypeNode* World::unify_base(const TypeNode* type) {
         return representative;
     } else {
         const auto& p = types_.insert(type);
-        assert(p.second && "hash/equal broken");
+        assert_unused(p.second && "hash/equal broken");
         type->representative_ = type;
         return type;
     }
@@ -853,7 +853,7 @@ const DefNode* World::cse_base(const PrimOp* primop) {
     } else {
         primop->set_gid(gid_++);
         const auto& p = primops_.insert(primop);
-        assert(p.second && "hash/equal broken");
+        assert_unused(p.second && "hash/equal broken");
     }
 
     THORIN_CHECK_BREAK(primop->gid())

@@ -80,7 +80,7 @@ public:
         ILOG_SCOPE(build_cfg());
         ILOG_SCOPE(unreachable_node_elimination());
         ILOG_SCOPE(link_to_exit());
-        ILOG_SCOPE(transetive_cfg());
+        ILOG_SCOPE(transitive_cfg());
 #ifndef NDEBUG
         ILOG_SCOPE(verify());
 #endif
@@ -98,7 +98,7 @@ public:
     void build_cfg();
     void unreachable_node_elimination();
     void link_to_exit();
-    void transetive_cfg();
+    void transitive_cfg();
     void verify();
     virtual void stream_ycomp(std::ostream& out) const override;
 
@@ -171,7 +171,6 @@ void CFABuilder::propagate_higher_order_values() {
         const auto& p = def2set_.emplace(def, DefSet());
         if (p.second) { // if first insert
             if (def->order() > 0) {
-                DLOG("pushing %", def);
                 stack.push(def);
                 return true;
             }
@@ -247,7 +246,6 @@ void CFABuilder::run_cfa() {
     std::queue<Lambda*> queue;
 
     auto enqueue = [&] (const CFNode* in) {
-        DLOG("enqueuing %", in->lambda());
         queue.push(in->lambda());
         in->f_index_ = CFNode::Unfresh;
     };
@@ -300,7 +298,6 @@ void CFABuilder::build_cfg() {
     auto enqueue = [&] (const CFNode* in) {
         if (in->f_index_ != CFNode::Reachable) {
             queue.push(in);
-            DLOG("enqueuing %", in);
         }
     };
 
@@ -393,7 +390,7 @@ void CFABuilder::link_to_exit() {
     // TODO deal with endless loops
 }
 
-void CFABuilder::transetive_cfg() {
+void CFABuilder::transitive_cfg() {
     std::queue<const CFNodeBase*> queue;
 
     auto link_to_succs = [&] (const CFNode* src) {

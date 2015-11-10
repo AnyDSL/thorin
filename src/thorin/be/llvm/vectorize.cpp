@@ -26,7 +26,7 @@ enum {
 
 Lambda* CodeGen::emit_vectorize_continuation(Lambda* lambda) {
     auto target = lambda->to()->as_lambda();
-    assert(target->intrinsic() == Intrinsic::Vectorize);
+    assert_unused(target->intrinsic() == Intrinsic::Vectorize);
     assert(lambda->num_args() >= VEC_NUM_ARGS && "required arguments are missing");
 
     // arguments
@@ -88,9 +88,9 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
     wfv.addCommonMappings(true, true, true, true, false);
     auto loop_counter_argument = kernel_func->getArgumentList().begin();
     bool b_simd = wfv.addSIMDSemantics(*loop_counter_argument, false, true, false, true, false, true);
-    assert(b_simd && "simd semantics for vectorization failed");
+    assert_unused(b_simd && "simd semantics for vectorization failed");
     bool b = wfv.run();
-    assert(b && "vectorization failed");
+    assert_unused(b && "vectorization failed");
 
     // inline kernel
     llvm::InlineFunctionInfo info;

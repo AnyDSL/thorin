@@ -196,9 +196,9 @@ void Cleaner::verify_closedness() {
 void Cleaner::within(const DefNode* def) {
     //assert(world.types().find(*def->type()) != world.types().end());
     if (auto primop = def->isa<PrimOp>()) {
-        assert(world().primops().find(primop) != world().primops().end());
+        assert_unused(world().primops().find(primop) != world().primops().end());
     } else if (auto lambda = def->isa_lambda())
-        assert(world().lambdas().find(lambda) != world().lambdas().end());
+        assert_unused(world().lambdas().find(lambda) != world().lambdas().end());
     else
         within(def->as<Param>()->lambda());
 }

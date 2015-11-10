@@ -54,7 +54,8 @@ void PartialEvaluator::run() {
     while (!queue_.empty()) {
         auto lambda = pop(queue_);
 
-        if (lambda->to()->isa<Run>())
+        // due to the optimization below to eat up a call, we might see a new Run here
+        while (lambda->to()->isa<Run>())
             eval(lambda, continuation(lambda));
 
         for (auto succ : scope().f_cfg().succs(lambda))
@@ -69,10 +70,7 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
         DLOG("eval: % -> %", cur, end);
 
     while (true) {
-        if (cur == end) {
-            DLOG("end: %", end);
-            return;
-        } else if (done_.contains(cur)) {
+        if (done_.contains(cur)) {
             DLOG("already done: %", cur);
             return;
         } else if (cur == nullptr) {
@@ -98,9 +96,6 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
         if (dst == nullptr || dst->empty()) {
             cur = postdom(cur);
             continue;
-        } else if (dst == end) {
-            DLOG("end: %", end);
-            return;
         }
 
         Array<Def> call(cur->size());
@@ -113,12 +108,11 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
                 all = false;
         }
 
-        DLOG("dst: %", dst);
-        if (auto cached = find(cache_, call)) {      // check for cached version
+        if (auto cached = find(cache_, call)) {             // check for cached version
             jump_to_cached_call(cur, cached, call);
             DLOG("using cached call: %", cur);
             return;
-        } else {                                     // no cached version found... create a new one
+        } else {                                            // no cached version found... create a new one
             auto dropped = drop(cur, call);
 
             if (dropped->to() == world().branch()) {
@@ -130,10 +124,15 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
             cache_[call] = dropped;
             jump_to_cached_call(cur, dropped, call);
             if (all) {
-                cur->jump(dropped->to(), dropped->args());
+                cur->jump(dropped->to(), dropped->args()); // eat up call
                 done_.erase(cur);
             } else
                 cur = dropped;
+        }
+
+        if (dst == end) {
+            DLOG("end: %", end);
+            return;
         }
     }
 }

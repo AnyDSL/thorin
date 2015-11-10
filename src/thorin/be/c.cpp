@@ -694,6 +694,8 @@ std::ostream& CCodeGen::emit(Def def) {
             return stream();
         };
 
+        emit_aggop_defs(aggop->agg());
+
         if (auto extract = aggop->isa<Extract>()) {
             if (extract->is_mem() || extract->type().isa<FrameType>())
                 return stream();

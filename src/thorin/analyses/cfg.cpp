@@ -317,6 +317,7 @@ void CFABuilder::build_cfg() {
                     for (auto n : nodes) {
                         if (auto in = n->isa<CFNode>())
                             enqueue(in);
+                        // TODO re-consider this special case
                         link(out, n);
                     }
                 }

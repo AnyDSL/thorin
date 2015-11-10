@@ -113,6 +113,7 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
                 all = false;
         }
 
+        DLOG("dst: %", dst);
         if (auto cached = find(cache_, call)) {      // check for cached version
             jump_to_cached_call(cur, cached, call);
             DLOG("using cached call: %", cur);

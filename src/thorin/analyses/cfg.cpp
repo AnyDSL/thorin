@@ -171,7 +171,6 @@ void CFABuilder::propagate_higher_order_values() {
         const auto& p = def2set_.emplace(def, DefSet());
         if (p.second) { // if first insert
             if (def->order() > 0) {
-                DLOG("pushing %", def);
                 stack.push(def);
                 return true;
             }
@@ -247,7 +246,6 @@ void CFABuilder::run_cfa() {
     std::queue<Lambda*> queue;
 
     auto enqueue = [&] (const CFNode* in) {
-        DLOG("enqueuing %", in->lambda());
         queue.push(in->lambda());
         in->f_index_ = CFNode::Unfresh;
     };
@@ -300,7 +298,6 @@ void CFABuilder::build_cfg() {
     auto enqueue = [&] (const CFNode* in) {
         if (in->f_index_ != CFNode::Reachable) {
             queue.push(in);
-            DLOG("enqueuing %", in);
         }
     };
 

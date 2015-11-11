@@ -35,6 +35,7 @@ public:
     virtual bool has_multiple_outs() const { return false; }
     virtual const char* op_name() const;
     virtual std::ostream& stream(std::ostream&) const override;
+    std::ostream& stream_assignment(std::ostream&) const;
 
 protected:
     virtual uint64_t vhash() const;

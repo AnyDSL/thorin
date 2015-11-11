@@ -38,10 +38,11 @@ protected:
     static const size_t Fresh     = size_t(-1);
     static const size_t Unfresh   = size_t(-2);
     static const size_t Reachable = size_t(-3);
-    static const size_t Visited   = size_t(-4);
+    static const size_t Done      = size_t(-4);
+    static const size_t Visited   = size_t(-5);
 
-    mutable size_t f_index_ = Fresh;     ///< RPO index in a forward @p CFG.
-    mutable size_t b_index_ = Reachable; ///< RPO index in a backwards @p CFG.
+    mutable size_t f_index_ = Fresh; ///< RPO index in a forward @p CFG.
+    mutable size_t b_index_ = Fresh; ///< RPO index in a backwards @p CFG.
 
 private:
     Def def_;

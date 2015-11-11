@@ -173,9 +173,9 @@ void CFABuilder::propagate_higher_order_values() {
     std::stack<Def> stack;
 
     auto push = [&] (Def def) -> bool {
-        const auto& p = def2set_.emplace(def, DefSet());
-        if (p.second) { // if first insert
-            if (def->order() > 0) {
+        if (def->order() > 0) {
+            const auto& p = def2set_.emplace(def, DefSet());
+            if (p.second) { // if first insert
                 stack.push(def);
                 return true;
             }

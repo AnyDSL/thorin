@@ -174,18 +174,13 @@ Lambda* PartialEvaluator::postdom(Lambda* cur) {
         return p;
     };
 
-    if (cur != cur_scope_->entry()) {
-        if (auto p = is_valid(postdom(cur, Scope(cur))))
-            return p;
-    }
-
-    if (auto p = is_valid(postdom(cur, cur_scope())))
-        return p;
-
     if (top_scope_.entry() != cur_scope_->entry()) {
-        if (auto p = is_valid(postdom(cur, top_scope())))
+        if (auto p = is_valid(postdom(cur, cur_scope())))
             return p;
     }
+
+    if (auto p = is_valid(postdom(cur, top_scope())))
+        return p;
 
     WLOG("no postdom found for % at %", cur, cur->loc());
     return nullptr;

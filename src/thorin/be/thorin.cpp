@@ -30,7 +30,7 @@ public:
 
 //------------------------------------------------------------------------------
 
-std::ostream& CodeGen::emit_type_vars(Type type) {
+/*std::ostream& CodeGen::emit_type_vars(Type type) {
     if (type->num_type_vars() != 0)
         return dump_list([&](TypeVar type_var) { emit_type(type_var); }, type->type_vars(), "[", "]");
     return stream();
@@ -44,9 +44,9 @@ std::ostream& CodeGen::emit_type_elems(Type type) {
     if (auto struct_app = type.isa<StructAppType>())
         return dump_list([&](Type type) { emit_type(type); }, struct_app->elems(), "{", "}");
     return emit_type_args(type);
-}
+}*/
 
-std::ostream& CodeGen::emit_type(Type type) {
+/*std::ostream& CodeGen::emit_type(Type type) {
     if (type.empty()) {
         return stream() << "<NULL>";
     } else if (type.isa<FrameType>()) {
@@ -93,7 +93,7 @@ std::ostream& CodeGen::emit_type(Type type) {
             case AddressSpace::Texture:  stream() << "[Tex]";      break;
             case AddressSpace::Shared:   stream() << "[Shared]";   break;
             case AddressSpace::Constant: stream() << "[Constant]"; break;
-            default: /* ignore unknown address space */            break;
+            default:          break;
         }
         return stream();
     } else if (auto primtype = type.isa<PrimType>()) {
@@ -109,7 +109,7 @@ std::ostream& CodeGen::emit_type(Type type) {
         return stream();
     }
     THORIN_UNREACHABLE;
-}
+}*/
 
 std::ostream& CodeGen::emit_def(Def def) {
     if (auto primop = def->isa<PrimOp>())
@@ -121,7 +121,7 @@ std::ostream& CodeGen::emit_name(Def def) {
     return stream() << (def->isa<Lambda>() && def->as<Lambda>()->is_intrinsic() ? def->name : def->unique_name());
 }
 
-std::ostream& CodeGen::emit_primop(const PrimOp* primop) {
+/*std::ostream& CodeGen::emit_primop(const PrimOp* primop) {
     if (primop->is_proxy())
         stream() << "<proxy>";
     else if (auto primlit = primop->isa<PrimLit>()) {
@@ -161,9 +161,9 @@ std::ostream& CodeGen::emit_primop(const PrimOp* primop) {
         emit_name(primop);
 
     return stream();
-}
+}*/
 
-std::ostream& CodeGen::emit_assignment(const PrimOp* primop) {
+/*std::ostream& CodeGen::emit_assignment(const PrimOp* primop) {
     emit_type(primop->type()) << " ";
     emit_name(primop) << " = ";
 
@@ -179,7 +179,7 @@ std::ostream& CodeGen::emit_assignment(const PrimOp* primop) {
     stream() << primop->op_name() << " ";
     dump_list([&](Def def) { emit_def(def); }, ops);
     return newline();
-}
+}*/
 
 std::ostream& CodeGen::emit_head(const Lambda* lambda) {
     emit_name(lambda);

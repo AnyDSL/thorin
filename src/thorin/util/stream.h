@@ -69,7 +69,8 @@ std::basic_ostream<charT,traits>& down(std::basic_ostream<charT,traits>& os) {
 }
 
 template<class Emit, class List>
-std::ostream& stream_list(std::ostream& out, Emit emit, const List& list, const char* begin, const char* end, const char* sep, bool nl) {
+std::ostream& stream_list(std::ostream& out, Emit emit, const List& list,
+        const char* begin = "", const char* end = "", const char* sep = ", ", bool nl = false) {
     out << begin;
     const char* cur_sep = "";
     bool cur_nl = false;

@@ -192,13 +192,13 @@ bool TypeVarNode::equal(const TypeNode* other) const {
  * helpers
  */
 
-static std::ostream& emit_type_vars(std::ostream& os, Type type) {
+static std::ostream& stream_type_vars(std::ostream& os, Type type) {
    if (type->num_type_vars() != 0)
        return stream_list(os, [&](TypeVar type_var) { os << type_var; }, type->type_vars(), "[", "]");
    return os;
 }
 
-static std::ostream& emit_type_args(std::ostream& os, Type type) {
+static std::ostream& stream_type_args(std::ostream& os, Type type) {
    return stream_list(os, [&](Type type) { os << type; }, type->args(), "(", ")");
 }
 
@@ -216,25 +216,25 @@ std::ostream& FrameTypeNode::stream(std::ostream& os) const {
 
 std::ostream& FnTypeNode::stream(std::ostream& os) const {
     os << "fn";
-    emit_type_vars(os, this);
-    return emit_type_args(os, this);
+    stream_type_vars(os, this);
+    return stream_type_args(os, this);
 }
 
 std::ostream& TupleTypeNode::stream(std::ostream& os) const {
-  emit_type_vars(os, this);
-  return emit_type_args(os, this);
+  stream_type_vars(os, this);
+  return stream_type_args(os, this);
 }
 
 std::ostream& StructAbsTypeNode::stream(std::ostream& os) const {
     os << this->name();
-    return emit_type_vars(os, this);
+    return stream_type_vars(os, this);
     // TODO emit args - but don't do this inline: structs may be recursive
     //return emit_type_args(struct_abs);
 }
 
 std::ostream& StructAppTypeNode::stream(std::ostream& os) const {
     os << this->struct_abs_type()->name();
-    return emit_type_elems(os, this);
+    return stream_type_elems(os, this);
 }
 
 std::ostream& TypeVarNode::stream(std::ostream& os) const {

@@ -1,18 +1,4 @@
 extern "thorin" {
-    fn "mmap" mmap_f32(&[f32], i32, i32, i32, i32) -> &[f32];
-    fn "mmap" mmap_f64(&[f64], i32, i32, i32, i32) -> &[f64];
-    fn "mmap" mmap_i16(&[i16], i32, i32, i32, i32) -> &[i16];
-    fn "mmap" mmap_i32(&[i32], i32, i32, i32, i32) -> &[i32];
-    fn "mmap" mmap_u8(&[u8], i32, i32, i32, i32) -> &[u8];
-
-    fn "reserve_shared" reserve_shared_f32(i32) -> &[i8];
-
-    fn "munmap" munmap_f32(&[f32]) -> ();
-    fn "munmap" munmap_f64(&[f64]) -> ();
-    fn "munmap" munmap_i16(&[i16]) -> ();
-    fn "munmap" munmap_i32(&[i32]) -> ();
-    fn "munmap" munmap_u8(&[u8]) -> ();
-
     fn "bitcast" bitcast_f64_i64(f64) -> i64;
     fn "bitcast" bitcast_f32_i32(f32) -> i32;
     fn "bitcast" bitcast_i32_f32(i32) -> f32;
@@ -22,6 +8,8 @@ extern "thorin" {
     fn "bitcast" bitcast4_i32_f32(simd[i32 * 4]) -> simd[f32 * 4];
     fn "bitcast" bitcast8_i32_f32(simd[i32 * 8]) -> simd[f32 * 8];
     fn "bitcast" bitcast16_i32_f32(simd[i32 * 16]) -> simd[f32 * 16];
+
+    fn "reserve_shared" reserve_shared(i32) -> &[i8];
 
     fn "select" select4_i32(simd[bool * 4], simd[i32 * 4], simd[i32 * 4]) -> simd[i32 * 4];
     fn "select" select8_i32(simd[bool * 8], simd[i32 * 8], simd[i32 * 8]) -> simd[i32 * 8];

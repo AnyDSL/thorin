@@ -18,7 +18,7 @@ void TypeNode::bind(TypeVar type_var) const {
     type_var->bound_at_ = this;
 }
 
-void TypeNode::dump() const { emit_type(Type(this)); std::cout << std::endl; }
+void TypeNode::dump() const { std::cout << Type(this) << std::endl; }
 size_t TypeNode::length() const { return as<VectorTypeNode>()->length(); }
 Type TypeNode::elem(const Def& def) const { return elem(def->primlit_value<size_t>()); }
 const TypeNode* TypeNode::unify() const { return world().unify_base(this); }

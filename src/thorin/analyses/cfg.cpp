@@ -360,21 +360,6 @@ void CFABuilder::unreachable_node_elimination() {
     }
 }
 
-void CFABuilder::verify() {
-    bool error = false;
-    for (auto in : cfa().nodes()) {
-        if (in != entry() && in->preds_.size() == 0) {
-            WLOG("missing predecessors: %", in->lambda());
-            error = true;
-        }
-    }
-
-    if (error) {
-        ycomp();
-        abort();
-    }
-}
-
 void CFABuilder::link_dead_ends() {
     auto link_dead_end_to_exit = [&] (const CFNodeBase* n) {
         if (succs_[n].empty() && n != exit())
@@ -466,6 +451,21 @@ void CFABuilder::transitive_cfg() {
     for (const auto& p : succs_) {
         if (auto in = p.first->isa<CFNode>())
             link_to_succs(in);
+    }
+}
+
+void CFABuilder::verify() {
+    bool error = false;
+    for (auto in : cfa().nodes()) {
+        if (in != entry() && in->preds_.size() == 0) {
+            WLOG("missing predecessors: %", in->lambda());
+            error = true;
+        }
+    }
+
+    if (error) {
+        ycomp();
+        abort();
     }
 }
 

@@ -246,8 +246,22 @@ const char* Cmp::op_name() const {
  */
 
 std::ostream& PrimOp::stream(std::ostream& os) const {
-    // TODO is_const
-    return os << this->unique_name();
+  if (this->is_const()) {
+    if (this->empty()) {
+      os << this->op_name() << ' ';
+      os << this->type();
+    } else {
+      os << '(';
+      if (this->isa<PrimLit>())
+        os << this->type() << ' ';
+      os << this->op_name();
+      stream_list(os, [&](Def def) { emit_def(def); }, this->ops(), " ", ")");
+    }
+  } else {
+    os << this->unique_name();
+  }
+
+  return os;
 }
 
 std::ostream& PrimLit::stream(std::ostream& os) const {

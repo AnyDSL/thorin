@@ -823,23 +823,6 @@ std::ostream& CCodeGen::emit(Def def) {
         return insert(def->gid(), def->unique_name());
     }
 
-    if (auto mmap = def->isa<Map>()) {
-        if (mmap->addr_space() != AddressSpace::Shared)
-            WLOG("error: mmap: expected shared / local memory address space at %", mmap->loc());
-        assert(mmap->addr_space() == AddressSpace::Shared && "wrong address space for shared memory");
-        if (!mmap->mem_size()->isa<PrimLit>())
-            WLOG("error: mmap: couldn't extract memory size at %", mmap->mem_size()->loc());
-
-        if (lang_==Lang::CUDA)
-            stream() << "__shared__ ";
-        if (lang_==Lang::OPENCL)
-            stream() << "__local ";
-        emit_type(mmap->out_ptr_type()->referenced_type()) << " " << mmap->unique_name() << "[";
-        emit(mmap->mem_size()) << "];";
-
-        return insert(def->gid(), def->unique_name());
-    }
-
     THORIN_UNREACHABLE;
 }
 

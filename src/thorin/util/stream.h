@@ -61,8 +61,8 @@ std::ostream& stream_list(std::ostream& out, Emit emit, const List& list, const 
     return out << end;
 }
 
-namespace indent {
-  extern unsigned int level;
+namespace detail {
+  extern unsigned int indent;
 }
 
 template <class charT, class traits>

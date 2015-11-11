@@ -589,6 +589,9 @@ llvm::Value* CodeGen::emit(Def def) {
             return from;
 
         if (conv->isa<Cast>()) {
+            if (src_type.isa<PtrType>() && dst_type.isa<PtrType>()) {
+                return irbuilder_.CreatePointerCast(from, to);
+            }
             if (src_type.isa<PtrType>()) {
                 assert(dst_type->is_type_i() || dst_type->is_bool());
                 return irbuilder_.CreatePtrToInt(from, to);

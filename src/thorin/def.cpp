@@ -174,9 +174,9 @@ void DefNode::replace(Def with) const {
 void DefNode::dump() const {
     auto primop = this->isa<PrimOp>();
     if (primop && !primop->is_const())
-        primop->stream_assignment();
+        primop->stream_assignment(std::cout);
     else {
-        os << this;
+        std::cout << this;
         std::cout << std::endl;
     }
 }

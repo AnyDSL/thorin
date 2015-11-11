@@ -202,6 +202,12 @@ static std::ostream& stream_type_args(std::ostream& os, Type type) {
    return stream_list(os, [&](Type type) { os << type; }, type->args(), "(", ")");
 }
 
+static std::ostream& stream_type_elems(std::ostream& os, Type type) {
+    if (auto struct_app = type.isa<StructAppType>())
+        return stream_list([&](Type type) { os << type; }, struct_app->elems(), "{", "}");
+    return stream_type_args(os, type);
+}
+
 /*
  * stream
  */

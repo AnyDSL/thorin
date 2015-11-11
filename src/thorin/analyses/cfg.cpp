@@ -189,10 +189,10 @@ void CFABuilder::propagate_higher_order_values() {
 
             while (!stack.empty()) {
                 auto def = stack.top();
+                assert(def->order() > 0);
                 auto& set = def2set_[def];
 
                 if (def->isa<Param>() || def->isa<Lambda>()) {
-                    assert(def->order() > 0);
                     set.insert(def);
                     stack.pop();
                 } else {
@@ -213,27 +213,33 @@ void CFABuilder::propagate_higher_order_values() {
 CFNodeSet CFABuilder::nodes(const CFNode* in, size_t i) {
     CFNodeSet result;
     auto cur_lambda = in->lambda();
+    auto op = cur_lambda->op(i);
 
-    for (auto def : def2set_[cur_lambda->op(i)]) {
-        assert(def->order() > 0);
+    if (op->order() > 0) {
+        auto iter = def2set_.find(cur_lambda->op(i));
+        assert(iter != def2set_.end());
 
-        if (auto lambda = def->isa_lambda()) {
-            if (scope().inner_contains(lambda))
-                result.insert(in_node(lambda));
-            else
-                result.insert(out_node(in, lambda));
-        } else {
-            auto param = def->as<Param>();
-            if (scope().inner_contains(param)) {
-                const auto& set = param2nodes(param);
-                for (auto n : set) {
-                    if (auto out = n->isa<OutNode>())
-                        result.insert(out_node(out, in)); // create a new context if applicable
-                    else
-                        result.insert(n->as<CFNode>());
-                }
-            } else
-                result.insert(out_node(in, param));
+        for (auto def : iter->second) {
+            assert(def->order() > 0);
+
+            if (auto lambda = def->isa_lambda()) {
+                if (scope().inner_contains(lambda))
+                    result.insert(in_node(lambda));
+                else
+                    result.insert(out_node(in, lambda));
+            } else {
+                auto param = def->as<Param>();
+                if (scope().inner_contains(param)) {
+                    const auto& set = param2nodes(param);
+                    for (auto n : set) {
+                        if (auto out = n->isa<OutNode>())
+                            result.insert(out_node(out, in)); // create a new context if applicable
+                        else
+                            result.insert(n->as<CFNode>());
+                    }
+                } else
+                    result.insert(out_node(in, param));
+            }
         }
     }
 

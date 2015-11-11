@@ -196,10 +196,10 @@ void CFABuilder::propagate_higher_order_values() {
                     set.insert(def);
                     stack.pop();
                 } else {
-                    bool top = true;
+                    bool todo = false;
                     for (auto op : def->as<PrimOp>()->ops())
-                        top &= !push(op);
-                    if (top) {
+                        todo |= push(op);
+                    if (!todo) {
                         for (auto op : def->as<PrimOp>()->ops())
                             set.insert_range(def2set_[op]);
                         stack.pop();
@@ -412,11 +412,11 @@ void CFABuilder::link_to_exit() {
     while (!stack.empty()) {
         auto n = stack.top();
 
-        bool top = true;
+        bool todo = false;
         for (auto succ : succs_[n])
-            top &= !push(succ);
+            todo |= push(succ);
 
-        if (top) {
+        if (!todo) {
             if (n->b_index_ != CFNode::Done) {
                 DLOG("unreachble from exit: %", n);
                 link(n, exit());

@@ -19,7 +19,7 @@ public:
     DomFrontierBase& operator=(DomFrontierBase) = delete;
 
     explicit DomFrontierBase(const CFG<forward> &cfg)
-        : YComp(cfg.scope(), forward ? "dom_frontiers" : "controL_dependencies")
+        : YComp(cfg.scope(), forward ? "dom_frontier" : "control_dependencies")
         , cfg_(cfg)
         , preds_(cfg)
         , succs_(cfg)
@@ -36,8 +36,8 @@ public:
 private:
     void create();
     void link(const CFNode* src, const CFNode* dst) {
-        succs_[src].push_back(src);
-        preds_[dst].push_back(dst);
+        succs_[src].push_back(dst);
+        preds_[dst].push_back(src);
     }
 
     const CFG<forward>& cfg_;

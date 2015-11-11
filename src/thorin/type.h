@@ -119,6 +119,10 @@ private:
     const T* node_;
 };
 
+namespace detail {
+    template<class T> inline std::ostream& stream(std::ostream& out, Proxy<T> proxy) { return proxy->stream(out); }
+}
+
 //------------------------------------------------------------------------------
 
 /// Base class for all \p TypeNode%s.
@@ -229,7 +233,7 @@ private:
 /// The type of the memory monad.
 class MemTypeNode : public TypeNode {
 public:
-    virtual std::ostream& stream(std::ostream&) const;
+    virtual std::ostream& stream(std::ostream&) const override;
 
 private:
     MemTypeNode(World& world)
@@ -245,7 +249,7 @@ private:
 /// The type of a stack frame.
 class FrameTypeNode : public TypeNode {
 public:
-    virtual std::ostream& stream(std::ostream&) const;
+    virtual std::ostream& stream(std::ostream&) const override;
 
 private:
     FrameTypeNode(World& world)
@@ -292,7 +296,7 @@ private:
 public:
     PrimTypeKind primtype_kind() const { return (PrimTypeKind) kind(); }
 
-    virtual std::ostream& stream(std::ostream&) const;
+    virtual std::ostream& stream(std::ostream&) const override;
 
 private:
     virtual Type vrebuild(World& to, ArrayRef<Type> args) const override;
@@ -327,7 +331,7 @@ public:
     virtual uint64_t hash() const override;
     virtual bool equal(const TypeNode* other) const override;
 
-    virtual std::ostream& stream(std::ostream&) const;
+    virtual std::ostream& stream(std::ostream&) const override;
 
 private:
     virtual Type vrebuild(World& to, ArrayRef<Type> args) const override;
@@ -361,7 +365,7 @@ public:
     virtual bool equal(const TypeNode* other) const override { return this == other; }
     virtual Type instantiate(ArrayRef<Type> args) const override;
 
-    virtual std::ostream& stream(std::ostream&) const;
+    virtual std::ostream& stream(std::ostream&) const override;
 
 private:
     virtual Type vrebuild(World& to, ArrayRef<Type> args) const override;
@@ -401,7 +405,7 @@ public:
     size_t num_elems() const { return struct_abs_type()->num_args(); }
     virtual bool use_lea() const override { return true; }
 
-    virtual std::ostream& stream(std::ostream&) const;
+    virtual std::ostream& stream(std::ostream&) const override;
 
 private:
     virtual Type vrebuild(World& to, ArrayRef<Type> args) const override;
@@ -425,7 +429,7 @@ private:
     friend class World;
 
 public:
-    virtual std::ostream& stream(std::ostream&) const;
+    virtual std::ostream& stream(std::ostream&) const override;
 };
 
 class FnTypeNode : public TypeNode {
@@ -440,7 +444,7 @@ public:
     bool is_basicblock() const { return order() == 1; }
     bool is_returning() const;
 
-    virtual std::ostream& stream(std::ostream&) const;
+    virtual std::ostream& stream(std::ostream&) const override;
 
 private:
     virtual Type vrebuild(World& to, ArrayRef<Type> args) const override;
@@ -468,7 +472,7 @@ public:
 
     virtual IndefiniteArrayType is_indefinite() const override;
 
-    virtual std::ostream& stream(std::ostream&) const;
+    virtual std::ostream& stream(std::ostream&) const override;
 
 private:
     virtual Type vrebuild(World& to, ArrayRef<Type> args) const override;
@@ -490,7 +494,7 @@ public:
         return TypeNode::equal(other) && this->dim() == other->as<DefiniteArrayTypeNode>()->dim();
     }
 
-    virtual std::ostream& stream(std::ostream&) const;
+    virtual std::ostream& stream(std::ostream&) const override;
 
 private:
     virtual Type vrebuild(World& to, ArrayRef<Type> args) const override;
@@ -513,7 +517,7 @@ public:
     virtual bool equal(const TypeNode*) const override;
     virtual bool is_closed() const override { return bound_at_ != nullptr; }
 
-    virtual std::ostream& stream(std::ostream&) const;
+    virtual std::ostream& stream(std::ostream&) const override;
 
 private:
     virtual Type vrebuild(World& to, ArrayRef<Type> args) const override;

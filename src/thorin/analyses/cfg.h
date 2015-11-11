@@ -101,7 +101,6 @@ private:
     const CFNodes& succs(Lambda* lambda) const { return nodes_[lambda]->succs(); }
     const CFNode* entry() const { return nodes_.array().front(); }
     const CFNode* exit() const { return nodes_.array().back(); }
-    void error_dump() const;
 
     const Scope& scope_;
     Scope::Map<const CFNode*> nodes_;
@@ -140,24 +139,22 @@ public:
 
     const CFA& cfa() const { return cfa_; }
     size_t size() const { return cfa().size(); }
-    const CFNodes& preds(Lambda* lambda) const { return preds(cfa()[lambda]); }
-    const CFNodes& succs(Lambda* lambda) const { return succs(cfa()[lambda]); }
     const CFNodes& preds(const CFNode* n) const { return forward ? n->preds() : n->succs(); }
     const CFNodes& succs(const CFNode* n) const { return forward ? n->succs() : n->preds(); }
+    const CFNodes& preds(Lambda* lambda) const { return preds(cfa()[lambda]); }
+    const CFNodes& succs(Lambda* lambda) const { return succs(cfa()[lambda]); }
     size_t num_preds(const CFNode* n) const { return preds(n).size(); }
     size_t num_succs(const CFNode* n) const { return succs(n).size(); }
+    size_t num_preds(Lambda* lambda) const { return num_preds(cfa()[lambda]); }
+    size_t num_succs(Lambda* lambda) const { return num_succs(cfa()[lambda]); }
     const CFNode* entry() const { return forward ? cfa().entry() : cfa().exit();  }
     const CFNode* exit()  const { return forward ? cfa().exit()  : cfa().entry(); }
 
-    ArrayRef<const CFNode*> rpo() const { return rpo_.array(); }        ///< All @p CFNode%s within this @p CFG in reverse post-order.
-    ArrayRef<const CFNode*> body() const { return rpo().skip_front(); } ///< Like @p rpo() but without @p entry()
-
-    /// All @p CFNode%s within this @p CFG in post-order.
-    Range<ArrayRef<const CFNode*>::const_reverse_iterator> po() const { return reverse_range(rpo_.array()); }
-
-    const CFNode* rpo(size_t i) const { return rpo_.array()[i]; }           ///< Maps from reverse post-order index to @p CFNode.
-    const CFNode* po(size_t i) const { return rpo_.array()[size()-1-i]; }   ///< Maps from post-order index to @p CFNode.
-    const CFNode* operator [] (Lambda* l) const { return cfa()[l]; }        ///< Maps from @p l to @p CFNode.
+    ArrayRef<const CFNode*> reverse_post_order() const { return rpo_.array(); }
+    Range<ArrayRef<const CFNode*>::const_reverse_iterator> post_order() const { return reverse_range(rpo_.array()); }
+    const CFNode* reverse_post_order(size_t i) const { return rpo_.array()[i]; }  ///< Maps from reverse post-order index to @p CFNode.
+    const CFNode* post_order(size_t i) const { return rpo_.array()[size()-1-i]; } ///< Maps from post-order index to @p CFNode.
+    const CFNode* operator [] (Lambda* lambda) const { return cfa()[lambda]; }    ///< Maps from @p l to @p CFNode.
     const DomTreeBase<forward>& domtree() const;
     const LoopTree<forward>& looptree() const;
     const DomFrontierBase<forward>& domfrontier() const;

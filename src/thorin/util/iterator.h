@@ -15,7 +15,7 @@ public:
     typedef V value_type;
     typedef V& reference;
     typedef V* pointer;
-    typedef typename std::iterator_traits<I>::iterator_category iterator_category;
+    typedef std::forward_iterator_tag iterator_category;
 
     filter_iterator(I iterator, I end, P predicate)
         : iterator_(iterator)

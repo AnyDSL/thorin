@@ -9,49 +9,30 @@
 
 namespace thorin {
 
-//------------------------------------------------------------------------------
-
-class Call {
-public:
-    Call() {}
-    Call(Lambda* to)
-        : to_(to)
-        , args_(to->type()->num_args())
-    {}
-
-    Lambda* to() const { return to_; }
-    ArrayRef<Def> args() const { return args_; }
-    Def& arg(size_t i) { return args_[i]; }
-    const Def& arg(size_t i) const { return args_[i]; }
-    bool operator == (const Call& other) const { return this->to() == other.to() && this->args() == other.args(); }
-
-private:
-    Lambda* to_;
-    Array<Def> args_;
-};
-
-struct CallHash {
-    uint64_t operator () (const Call& call) const {
-        return hash_combine(hash_value(call.args()), call.to());
-    }
-};
-
-//------------------------------------------------------------------------------
-
 class PartialEvaluator {
 public:
     PartialEvaluator(Scope& scope)
         : scope_(scope)
     {}
 
-    Scope& scope() { return scope_; }
+    const Scope& scope() {
+        if (dirty_) {
+            dirty_ = false;
+            return scope_.update();
+        }
+        return scope_;
+    }
+
     World& world() { return scope().world(); }
     void run();
     void eval(Lambda* begin, Lambda* end);
-    void rewrite_jump(Lambda* src, Lambda* dst, const Call&);
+    Lambda* postdom(Lambda*);
     void enqueue(Lambda* lambda) {
-        if (scope().outer_contains(lambda) && !visit(visited_, lambda))
-            queue_.push(lambda);
+        if (scope().outer_contains(lambda)) {
+            auto p = visited_.insert(lambda);
+            if (p.second)
+                queue_.push(lambda);
+        }
     }
 
 private:
@@ -59,7 +40,8 @@ private:
     LambdaSet done_;
     std::queue<Lambda*> queue_;
     LambdaSet visited_;
-    HashMap<Call, Lambda*, CallHash> cache_;
+    HashMap<Array<Def>, Lambda*> cache_;
+    bool dirty_ = false;
 };
 
 static Lambda* continuation(Lambda* lambda) {
@@ -72,10 +54,8 @@ void PartialEvaluator::run() {
     while (!queue_.empty()) {
         auto lambda = pop(queue_);
 
-        if (lambda->to()->isa<Run>()) {
+        if (lambda->to()->isa<Run>())
             eval(lambda, continuation(lambda));
-            scope_.update();
-        }
 
         for (auto succ : scope().f_cfg().succs(lambda))
             enqueue(succ->lambda());
@@ -84,82 +64,70 @@ void PartialEvaluator::run() {
 
 void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
     if (end == nullptr)
-        WLOG("no matching end: % at %", cur->unique_name(), cur->loc());
+        WLOG("no matching end: % at %", cur, cur->loc());
     else
-        DLOG("eval: % -> %", cur->unique_name(), end->unique_name());
+        DLOG("eval: % -> %", cur, end);
 
     while (true) {
-        if (cur == nullptr) {
-            DLOG("cur is nullptr");
+        if (cur == end) {
+            DLOG("end: %", end);
+            return;
+        } else if (done_.contains(cur)) {
+            DLOG("already done: %", cur);
+            return;
+        } else if (cur == nullptr) {
+            WLOG("cur is nullptr");
+            return;
+        } else if (cur->empty()) {
+            WLOG("empty: %", cur);
             return;
         }
-        if (done_.contains(cur)) {
-            DLOG("already done: %", cur->unique_name());
-            return;
-        }
-        if (cur->empty()) {
-            DLOG("empty: %", cur->unique_name());
-            return;
-        }
+
+        done_.insert(cur);
 
         Lambda* dst = nullptr;
         if (auto run = cur->to()->isa<Run>()) {
             dst = run->def()->isa_lambda();
         } else if (cur->to()->isa<Hlt>()) {
-            auto& s = scope_.update();
-            assert(s.outer_contains(cur));
-            for (auto succ : s.f_cfg().succs(cur))
-                enqueue(succ->lambda());
             cur = continuation(cur);
             continue;
         } else {
             dst = cur->to()->isa_lambda();
         }
 
-        if (dst == nullptr) {
-            DLOG("dst is nullptr; cur: %", cur->unique_name());
+        if (dst == nullptr || dst->empty()) {
+            cur = postdom(cur);
+            continue;
+        } else if (dst == end) {
+            DLOG("end: %", end);
             return;
         }
 
-        if (dst == end) {
-            DLOG("end: %", end->unique_name());
-            return;
-        }
-
-        done_.insert(cur);
-
-        if (dst->empty()) {
-            auto& postdomtree = scope_.update().b_cfg().domtree();
-            if (auto n = scope().cfa(cur)) {
-                auto p = postdomtree.idom(n);
-                DLOG("postdom: % -> %", n, p);
-                cur = p->lambda();
-                continue;
-            }
-            WLOG("no postdom found for % at %", cur->unique_name(), cur->loc());
-            return;
-        }
-
-        Call call(dst);
+        Array<Def> call(cur->size());
+        call.front() = dst;
         bool all = true;
-        for (size_t i = 0; i != cur->num_args(); ++i) {
-            if (!cur->arg(i)->isa<Hlt>())
-                call.arg(i) = cur->arg(i);
+        for (size_t i = 1, e = call.size(); i != e; ++i) {
+            if (!cur->op(i)->isa<Hlt>())
+                call[i] = cur->op(i);
             else
                 all = false;
         }
 
-        if (auto cached = find(cache_, call)) { // check for cached version
-            rewrite_jump(cur, cached, call);
-            DLOG("using cached call: %", cur->unique_name());
+        if (auto cached = find(cache_, call)) {      // check for cached version
+            jump_to_cached_call(cur, cached, call);
+            DLOG("using cached call: %", cur);
             return;
-        } else {                                // no cached version found... create a new one
-            Scope scope(dst);
-            Type2Type type2type;
-            bool res = dst->type()->infer_with(type2type, cur->arg_fn_type());
-            assert(res);
-            auto dropped = drop(scope, call.args(), type2type);
-            rewrite_jump(cur, dropped, call);
+        } else {                                     // no cached version found... create a new one
+            auto dropped = drop(cur, call);
+
+            if (dropped->to() == world().branch()) {
+                // TODO don't stupidly inline functions
+                // TODO also don't peel inside functions with incoming back-edges
+            }
+
+            dirty_ = true;
+            cache_[call] = dropped;
+            jump_to_cached_call(cur, dropped, call);
             if (all) {
                 cur->jump(dropped->to(), dropped->args());
                 done_.erase(cur);
@@ -169,15 +137,16 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
     }
 }
 
-void PartialEvaluator::rewrite_jump(Lambda* src, Lambda* dst, const Call& call) {
-    std::vector<Def> nargs;
-    for (size_t i = 0, e = src->num_args(); i != e; ++i) {
-        if (call.arg(i) == nullptr)
-            nargs.push_back(src->arg(i));
+Lambda* PartialEvaluator::postdom(Lambda* cur) {
+    const auto& postdomtree = scope().b_cfg().domtree();
+    if (auto n = scope().cfa(cur)) {
+        auto p = postdomtree.idom(n);
+        DLOG("postdom: % -> %", n, p);
+        return p->lambda();
     }
 
-    src->jump(dst, nargs);
-    cache_[call] = dst;
+    WLOG("no postdom found for % at %", cur, cur->loc());
+    return nullptr;
 }
 
 //------------------------------------------------------------------------------

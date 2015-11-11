@@ -7,60 +7,40 @@
 
 namespace thorin {
 
-static Lambda* resolve(Lambda* dst, const char* suffix) {
-    auto resolver = dst->stub(dst->name + suffix);
-    resolver->jump(dst, resolver->params_as_defs());
-    return resolver;
-}
+static bool update_src(Lambda* src, Lambda* dst, const char* suffix) {
+    auto resolve = [&] (Lambda* dst) {
+        auto resolver = dst->stub(dst->name + suffix);
+        resolver->jump(dst, resolver->params_as_defs());
+        return resolver;
+    };
 
-static void update_src(Lambda* src, Lambda* resolver, Lambda* dst) {
-    if (src->to() == dst)
-        src->update_to(resolver);
-    else if (src->to() == src->world().branch()) {
-        if (src->arg(1) == dst)
-            src->branch(src->arg(0), resolver, src->arg(2));
-        else {
-            assert(src->arg(2) == dst);
-            src->branch(src->arg(0), src->arg(1), resolver);
+    for (size_t i = 0, e = src->size(); i != e; ++i) {
+        if (src->op(i) == dst) {
+            src->update_op(i, resolve(dst));
+            return true;
         }
-    } else {
-        for (size_t i = 0, e = src->num_args(); i != e; ++i) {
-            if (src->arg(i) == dst) {
-                src->update_arg(i, resolver);
-                return;
-            }
-        }
-        THORIN_UNREACHABLE;
     }
+
+    DLOG("cannot remove critical edge % -> %", src, dst);
+    return false;
 }
 
-static void critical_edge_elimination(const Scope& scope) {
-    auto& cfg = scope.f_cfg();
-    // find critical edges
-    std::vector<std::pair<Lambda*, Lambda*>> edges;
-    for (auto lambda : scope) {
-        if (!lambda->to()->isa<Bottom>()) {
-            const auto& preds = cfg.preds(cfg[lambda]);
-            if (preds.size() > 1) {
-                for (auto pred : preds) {
-                    auto lpred = pred->lambda();
-                    if (cfg.num_succs(pred) != 1) {
-                        WLOG("critical edge: %, %", lpred->unique_name(), lambda->unique_name());
-                        edges.emplace_back(lpred, lambda);
-                    }
+static void critical_edge_elimination(Scope& scope) {
+    bool dirty = false;
+    const auto& cfg = scope.f_cfg();
+    for (auto n : cfg.post_order()) {
+        if (cfg.num_preds(n) > 1) {
+            for (auto pred : cfg.preds(n)) {
+                if (cfg.num_succs(pred) != 1) {
+                    DLOG("critical edge: % -> %", pred, n);
+                    dirty |= update_src(pred->lambda(), n->lambda(), "_crit");
                 }
             }
         }
     }
 
-    return;
-
-    // remove critical edges by inserting a resovling lambda
-    for (auto edge : edges) {
-        auto src = edge.first;
-        auto dst = edge.second;
-        update_src(src, resolve(dst, ".crit"), dst);
-    }
+    if (dirty)
+        scope.update();
 }
 
 void critical_edge_elimination(World& world) {
@@ -89,10 +69,10 @@ next_lambda:;
 
     for (auto dst : todo) {
         for (auto src : dst->preds())
-            update_src(src, resolve(dst, ".cascading"), dst);
+            update_src(src, dst, "_cascading");
     }
 
-    Scope::for_each(world, [] (const Scope& scope) { critical_edge_elimination(scope); });
+    Scope::for_each(world, [] (Scope& scope) { critical_edge_elimination(scope); });
     debug_verify(world);
 }
 

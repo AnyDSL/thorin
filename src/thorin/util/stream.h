@@ -67,24 +67,22 @@ namespace indent {
 
 template <class charT, class traits>
 std::basic_ostream<charT,traits>& endl(std::basic_ostream<charT,traits>& os) {
-  os << "\n";
-  os << std::string(indent::level, '\t');
-  return os;
+    os << std::endl;
+    os << std::string('\t', detail::indent);
+    return os;
 }
 
 template <class charT, class traits>
 std::basic_ostream<charT,traits>& up(std::basic_ostream<charT,traits>& os) {
-  indent::level++;
-  return os;
+    detail::indent++;
+    return os;
 }
 
 template <class charT, class traits>
 std::basic_ostream<charT,traits>& down(std::basic_ostream<charT,traits>& os) {
-  indent::level--;
-  return os;
+    detail::indent--;
+    return os;
 }
-
-
 
 }
 

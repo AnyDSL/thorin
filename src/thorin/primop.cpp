@@ -246,35 +246,36 @@ const char* Cmp::op_name() const {
  */
 
 std::ostream& PrimOp::stream(std::ostream& os) const {
-  return os << (this->isa<Lambda>() && this->as<Lambda>()->is_intrinsic() ? this->name : this->unique_name());
+    // TODO is_const
+    return os << this->unique_name();
 }
 
 std::ostream& PrimLit::stream(std::ostream& os) const {
-  os << this->type() << ' ';
-  auto kind = this->primtype_kind();
+    os << this->type() << ' ';
+    auto kind = this->primtype_kind();
 
-  // print i8 as ints
-  if (kind == PrimType_qs8)
-      os << (int) this->qs8_value();
-  else if (kind == PrimType_ps8)
-      os << (int) this->ps8_value();
-  else if (kind == PrimType_qu8)
-      os << (unsigned) this->qu8_value();
-  else if (kind == PrimType_pu8)
-      os << (unsigned) this->pu8_value();
-  else {
-      switch (kind) {
+    // print i8 as ints
+    if (kind == PrimType_qs8)
+        os << (int) this->qs8_value();
+    else if (kind == PrimType_ps8)
+        os << (int) this->ps8_value();
+    else if (kind == PrimType_qu8)
+        os << (unsigned) this->qu8_value();
+    else if (kind == PrimType_pu8)
+        os << (unsigned) this->pu8_value();
+    else {
+        switch (kind) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: os << this->T##_value(); break;
 #include "thorin/tables/primtypetable.h"
-          default: THORIN_UNREACHABLE;
-      }
-  }
+            default: THORIN_UNREACHABLE;
+        }
+    }
 
-  return os;
+    return os;
 }
 
 std::ostream& Global::stream(std::ostream& os) const {
-  return PrimOp::stream(os);
+    return PrimOp::stream(os);
 }
 
 //------------------------------------------------------------------------------

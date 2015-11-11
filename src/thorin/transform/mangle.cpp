@@ -1,3 +1,5 @@
+#include "thorin/transform/mangle.h"
+
 #include "thorin/primop.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
@@ -139,6 +141,15 @@ Def Mangler::mangle(Def odef) {
 
 Lambda* mangle(const Scope& scope, ArrayRef<Def> drop, ArrayRef<Def> lift, const Type2Type& type2type) {
     return Mangler(scope, drop, lift, type2type).mangle();
+}
+
+Lambda* drop(Lambda* cur, ArrayRef<Def> call) {
+    auto dst = call.front()->as_lambda();
+    Scope scope(dst);
+    Type2Type type2type;
+    bool res = dst->type()->infer_with(type2type, cur->arg_fn_type());
+    assert(res);
+    return drop(scope, call.skip_front(), type2type);
 }
 
 //------------------------------------------------------------------------------

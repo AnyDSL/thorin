@@ -6,19 +6,16 @@ namespace thorin {
 
 template<bool forward>
 void DomFrontierBase<forward>::create() {
-    const auto& domtree = cfg().domtree();
+    // Cooper et al, 2001. A Simple, Fast Dominance Algorithm. http://www.cs.rice.edu/~keith/EMBED/dom.pdf
 
-    // compute the dominance frontier of each node as described in Cooper et al.
-    for (const auto n : cfg().body()) {
+    const auto& domtree = cfg().domtree();
+    for (auto n : cfg().reverse_post_order().skip_front()) {
         const auto& preds = cfg().preds(n);
         if (preds.size() > 1) {
-            const auto idom = domtree.idom(n);
-            for (const auto pred : preds) {
-                auto runner = pred;
-                while (runner != idom) {
-                    link(n, runner);
-                    runner = domtree.idom(runner);
-                }
+            auto idom = domtree.idom(n);
+            for (auto pred : preds) {
+                for (auto i = pred; i != idom; i = domtree.idom(i))
+                    link(i, n);
             }
         }
     }
@@ -26,9 +23,9 @@ void DomFrontierBase<forward>::create() {
 
 template<bool forward>
 void DomFrontierBase<forward>::stream_ycomp(std::ostream& out) const {
-    thorin::ycomp(out, YCompOrientation::TopToBottom, scope(), range(cfg().rpo()),
-        [&] (const CFNode* n) { return range(succs(n)); }
-    );
+    thorin::ycomp(out, forward ? YCompOrientation::TopToBottom : YCompOrientation::BottomToTop,
+                  scope(), range(cfg().reverse_post_order()),
+                  [&] (const CFNode* n) { return range(succs(n)); });
 }
 
 template class DomFrontierBase<true>;

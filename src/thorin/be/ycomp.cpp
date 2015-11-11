@@ -292,7 +292,7 @@ void YCompGen::emit_scope_cfg(const Scope& scope) {
     newline() << "label: \"scope " << scope.id() << "\"";
 
     auto& cfg = scope.f_cfg();
-    for (auto node : cfg.rpo()) {
+    for (auto node : cfg.reverse_post_order()) {
         emit_cfnode(cfg, node);
     }
 

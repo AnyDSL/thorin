@@ -8,10 +8,15 @@ extern "C" {
     fn "isinf"    isinff_(f32) -> bool;
     fn "isnan"    isnanf_(f32) -> bool;
     fn "isfinite" isfinitef_(f32) -> bool;
+    fn asin(f64) -> f64;
+    fn acos(f64) -> f64;
     fn tan(f64) -> f64;
-    fn atan2(f64) -> f64;
+    fn atan2(f64, f64) -> f64;
     fn erf(f64) -> f64;
     fn fmod(f64, f64) -> f64;
+    fn "isinf"    isinf_(f64) -> bool;
+    fn "isnan"    isnan_(f64) -> bool;
+    fn "isfinite" isfinite_(f64) -> bool;
 }
 
 // kind: Xchg Add Sub And Nand Or Xor Max Min
@@ -24,6 +29,9 @@ fn atomic_min(a: &i32, b: i32) -> i32 { atomic(8u, a, b) }
 fn isinff(a: f32) -> i32 { if isinff_(a) { 1 } else { 0 } }
 fn isnanf(a: f32) -> i32 { if isnanf_(a) { 1 } else { 0 } }
 fn isfinitef(a: f32) -> i32 { if isfinitef_(a) { 1 } else { 0 } }
+fn isinf(a: f64) -> i64 { if isinf_(a) { 1i64 } else { 0i64 } }
+fn isnan(a: f64) -> i64 { if isnan_(a) { 1i64 } else { 0i64 } }
+fn isfinite(a: f64) -> i64 { if isfinite_(a) { 1i64 } else { 0i64 } }
 
 extern "device" {
     fn "llvm.exp.f32"      expf(f32) -> f32;

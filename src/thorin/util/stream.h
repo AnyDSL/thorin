@@ -45,6 +45,22 @@ std::ostream& streamf(std::ostream& out, const char* fmt, T val, Args... args) {
     return out;
 }
 
+template<class Emit, class List>
+std::ostream& stream_list(std::ostream& out, Emit emit, const List& list, const char* begin, const char* end, const char* sep, bool nl) {
+    out << begin;
+    const char* cur_sep = "";
+    bool cur_nl = false;
+    for (const auto& elem : list) {
+        out << cur_sep;
+        if (cur_nl)
+            out << thorin::endl;
+        emit(elem);
+        cur_sep = sep;
+        cur_nl = true & nl;
+    }
+    return out << end;
+}
+
 namespace indent {
   extern unsigned int level;
 }

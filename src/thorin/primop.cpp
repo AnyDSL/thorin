@@ -255,7 +255,7 @@ std::ostream& PrimOp::stream(std::ostream& os) const {
       if (this->isa<PrimLit>())
         os << this->type() << ' ';
       os << this->op_name();
-      stream_list(os, [&](Def def) { emit_def(def); }, this->ops(), " ", ")");
+      stream_list(os, [&](Def def) { os << def; }, this->ops(), " ", ")");
     }
   } else {
     os << this->unique_name();

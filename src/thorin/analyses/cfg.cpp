@@ -79,7 +79,6 @@ public:
         ILOG_SCOPE(run_cfa());
         ILOG_SCOPE(build_cfg());
         ILOG_SCOPE(unreachable_node_elimination());
-        ILOG_SCOPE(link_dead_ends());
         ILOG_SCOPE(link_to_exit());
         ILOG_SCOPE(transitive_cfg());
 #ifndef NDEBUG
@@ -98,7 +97,6 @@ public:
     void run_cfa();
     void build_cfg();
     void unreachable_node_elimination();
-    void link_dead_ends();
     void link_to_exit();
     void transitive_cfg();
     void verify();
@@ -366,44 +364,17 @@ void CFABuilder::unreachable_node_elimination() {
     }
 }
 
-void CFABuilder::link_dead_ends() {
-    auto link_dead_end_to_exit = [&] (const CFNodeBase* n) {
-        if (succs_[n].empty() && n != exit())
-            link(n, exit());
-    };
-
-    for (auto in : cfa().nodes()) {
-        link_dead_end_to_exit(in);
-        for (const auto& p : out_nodes_[in]) {
-            auto out = p.second;
-            link_dead_end_to_exit(out);
-            if (out->ancestors().empty() && out->def()->isa<Param>())
-                link(out, exit());
-        }
-    }
-}
-
 void CFABuilder::link_to_exit() {
-    std::queue<const CFNodeBase*> queue;
-    std::stack<const CFNodeBase*> stack;
-
-    auto enqueue = [&] (const CFNodeBase* n) {
-        if (n->b_index_ != CFNode::Done) {
-            n->b_index_ = CFNode::Done;
-            queue.push(n);
-        }
-    };
-
-    auto push = [&] (const CFNodeBase* n) -> bool {
-        if (n->f_index_ != CFNode::Done) {
-            n->f_index_ = CFNode::Done;
-            stack.push(n);
-            return true;
-        }
-        return false;
-    };
-
     auto backwards_reachable = [&] (const CFNodeBase* n) {
+        std::queue<const CFNodeBase*> queue;
+
+        auto enqueue = [&] (const CFNodeBase* n) {
+            if (n->b_index_ != CFNode::Done) {
+                n->b_index_ = CFNode::Done;
+                queue.push(n);
+            }
+        };
+
         enqueue(n);
 
         while (!queue.empty()) {
@@ -412,24 +383,81 @@ void CFABuilder::link_to_exit() {
         }
     };
 
+    std::vector<const CFNodeBase*> stack;
+
+    auto push = [&] (const CFNodeBase* n) {
+        if (n->f_index_ == CFNode::Reachable) {
+            n->f_index_ = CFNode::OnStackTodo;
+            stack.push_back(n);
+        }
+    };
+
+    auto backtrack = [&] () {
+        static size_t mark = 0;
+        std::stack<const CFNodeBase*> backtrack_stack;
+        const CFNodeBase* candidate = nullptr;
+
+        auto push = [&] (const CFNodeBase* n) {
+            assert(n->b_index_ > 0 || n->b_index_ == CFNode::Done);
+
+            if (n->f_index_ == CFNode::OnStackTodo && n->b_index_ != mark) {
+                n->b_index_ = mark;
+                backtrack_stack.push(n);
+                return true;
+            }
+            return false;
+        };
+
+        push(stack.back());
+
+        while (!backtrack_stack.empty()) {
+            auto n = backtrack_stack.top();
+
+            bool todo = false;
+            for (auto pred : preds_[n])
+                todo |= push(pred);
+
+            if (!todo) {
+                candidate = n;
+                backtrack_stack.pop();
+            }
+        }
+
+        ++mark;
+
+        if (candidate) { // reorder stack
+            auto i = std::find(stack.begin(), stack.end(), candidate);
+            assert(i != stack.end());
+            std::move(i+1, stack.end(), i);
+            stack.back() = candidate;
+            return true;
+        }
+        return false;
+    };
+
     backwards_reachable(exit());
     push(entry());
 
     while (!stack.empty()) {
-        auto n = stack.top();
+        auto n = stack.back();
 
-        bool todo = false;
-        for (auto succ : succs_[n])
-            todo |= push(succ);
-
-        if (!todo) {
+        if (n->f_index_ == CFNode::OnStackTodo) {
+            n->f_index_ = CFNode::OnStackReady;
+            for (auto succ : succs_[n])
+                push(succ);
+        } else {
             if (n->b_index_ != CFNode::Done) {
-                DLOG("unreachble from exit: %", n);
-                link(n, exit());
-                backwards_reachable(n);
+                if (!backtrack()) {
+                    n->f_index_ = CFNode::Done;
+                    stack.pop_back();
+                    DLOG("unreachble from exit: %", n);
+                    link(n, exit());
+                    backwards_reachable(n);
+                }
+            } else {
+                n->f_index_ = CFNode::Done;
+                stack.pop_back();
             }
-
-            stack.pop();
         }
     }
 }

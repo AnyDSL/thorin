@@ -192,7 +192,7 @@ bool TypeVarNode::equal(const TypeNode* other) const {
  * helpers
  */
 
-static std::ostream& stream_type_vars(std::ostream& os, Type type) {
+std::ostream& stream_type_vars(std::ostream& os, Type type) {
    if (type->num_type_vars() != 0)
        return stream_list(os, [&](TypeVar type_var) { os << type_var; }, type->type_vars(), "[", "]");
    return os;

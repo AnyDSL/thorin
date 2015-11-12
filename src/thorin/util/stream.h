@@ -52,7 +52,7 @@ namespace detail {
 template <class charT, class traits>
 std::basic_ostream<charT,traits>& endl(std::basic_ostream<charT,traits>& os) {
     os << std::endl;
-    os << std::string('\t', detail::indent);
+    os << std::string(detail::indent, '\t');
     return os;
 }
 

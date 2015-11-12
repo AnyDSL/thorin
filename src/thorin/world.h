@@ -11,6 +11,7 @@
 #include "thorin/primop.h"
 #include "thorin/type.h"
 #include "thorin/util/hash.h"
+#include "thorin/util/stream.h"
 
 namespace thorin {
 
@@ -40,7 +41,7 @@ namespace thorin {
  *  All worlds are completely independent from each other.
  *  This is particular useful for multi-threading.
  */
-class World {
+class World : public Streamable {
 private:
     World& operator = (const World&); ///< Do not copy-assign a @p World instance.
     World(const World&);              ///< Do not copy-construct a @p World.
@@ -226,10 +227,9 @@ public:
     template<class T> Proxy<T> unify(const T* type) { return Proxy<T>(unify_base(type)->template as<T>()); }
 
     // Note that we don't use overloading for the following methods in order to have them accessible from gdb.
-    void stream_thorin(std::ostream& out) const;    ///< Streams thorin to file @p out.
-    void write_thorin(const char* filename) const;  ///< Dumps thorin to file with name @p filename.
-    void thorin() const;                            ///< Dumps thorin to a file with an auto-generated file name.
-    void dump() const;                              ///< Dumps thorin to stdout.
+    virtual std::ostream& stream(std::ostream&) const override; ///< Streams thorin to file @p out.
+    void write_thorin(const char* filename) const;              ///< Dumps thorin to file with name @p filename.
+    void thorin() const;                                        ///< Dumps thorin to a file with an auto-generated file name.
 
 private:
     const TypeNode* register_base(const TypeNode* type) {

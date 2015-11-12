@@ -248,20 +248,8 @@ const char* Cmp::op_name() const {
 std::ostream& PrimOp::stream_assignment(std::ostream& os) const {
   os << this->type() << " ";
   os << this << " = ";
-
-  auto ops = this->ops();
-  if (auto vectorop = this->isa<VectorOp>()) {
-      if (!vectorop->cond()->is_allset()) {
-          os << "@ ";
-          os << vectorop->cond()->unique_name() << " ";
-          //emit_name(vectorop->cond()) << " ";
-      }
-      ops = ops.skip_front();
-  }
-
   os << this->op_name() << " ";
-  stream_list(os, [&](Def def) { os << def; }, ops);
-  return os << endl;
+  return stream_list(os, [&](Def def) { os << def; }, ops()) << endl;
 }
 
 std::ostream& PrimOp::stream(std::ostream& os) const {

@@ -8,6 +8,7 @@
 #include "thorin/util/autoptr.h"
 #include "thorin/util/indexmap.h"
 #include "thorin/util/indexset.h"
+#include "thorin/util/stream.h"
 
 namespace thorin {
 
@@ -26,7 +27,7 @@ class CFNode;
  * @p entry() will be first, @p exit() will be last.
  * @warning All other @p Lambda%s are in no particular order.
  */
-class Scope {
+class Scope : public Streamable {
 public:
     template<class Value>
     using Map = IndexMap<Scope, Lambda*, Value>;
@@ -69,10 +70,9 @@ public:
     void verify() const;
 
     // Note that we don't use overloading for the following methods in order to have them accessible from gdb.
-    void stream_thorin(std::ostream& out) const;    ///< Streams thorin to file @p out.
-    void write_thorin(const char* filename) const;  ///< Dumps thorin to file with name @p filename.
-    void thorin() const;                            ///< Dumps thorin to a file with an auto-generated file name.
-    void dump() const;                              ///< Dumps thorin to stdout.
+    virtual std::ostream& stream(std::ostream&) const override;  ///< Streams thorin to file @p out.
+    void write_thorin(const char* filename) const;               ///< Dumps thorin to file with name @p filename.
+    void thorin() const;                                         ///< Dumps thorin to a file with an auto-generated file name.
 
     typedef ArrayRef<Lambda*>::const_iterator const_iterator;
     const_iterator begin() const { return lambdas().begin(); }

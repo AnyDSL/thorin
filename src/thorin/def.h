@@ -81,6 +81,9 @@ struct UseLT {
     inline bool operator () (Use use1, Use use2) const;
 };
 
+std::ostream& operator << (std::ostream&, Def);
+std::ostream& operator << (std::ostream&, Use);
+
 //------------------------------------------------------------------------------
 
 template<class To>

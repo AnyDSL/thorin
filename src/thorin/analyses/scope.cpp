@@ -168,25 +168,25 @@ void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
 template void Scope::for_each<true> (const World&, std::function<void(Scope&)>);
 template void Scope::for_each<false>(const World&, std::function<void(Scope&)>);
 
-std::ostream& Scope::stream(std::ostream& out) const {
+std::ostream& Scope::stream(std::ostream& os) const {
     auto schedule = schedule_smart(*this);
     for (auto& block : schedule) {
         auto lambda = block.lambda();
         if (lambda->intrinsic() != Intrinsic::EndScope) {
             bool indent = lambda != entry();
             if (indent)
-                out << up;
-            out << endl;
-            lambda->stream_head(out) << up << endl;
+                os << up;
+            os << endl;
+            lambda->stream_head(os) << up << endl;
             for (auto primop : block)
-                primop->stream_assignment(out);
+                primop->stream_assignment(os);
 
-            lambda->stream_jump(out) << down << endl;
+            lambda->stream_jump(os) << down << endl;
             if (indent)
-                out << down;
+                os << down;
         }
     }
-    return out << endl;
+    return os << endl;
 }
 
 void Scope::write_thorin(const char* filename) const { std::ofstream file(filename); stream(file); }

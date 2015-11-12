@@ -246,47 +246,35 @@ const char* Cmp::op_name() const {
  */
 
 std::ostream& PrimOp::stream_assignment(std::ostream& os) const {
-  os << this->type() << " ";
-  os << this << " = ";
-  os << this->op_name() << " ";
-  return stream_list(os, [&](Def def) { os << def; }, ops()) << endl;
+    return streamf(os, "% % = % %", type(), unique_name(), op_name(), stream_list(ops(), [&] (Def def) { os << def; })) << endl;
 }
 
 std::ostream& PrimOp::stream(std::ostream& os) const {
-  if (this->is_const()) {
-    if (this->empty()) {
-      os << this->op_name() << ' ';
-      os << this->type();
-    } else {
-      os << '(';
-      if (this->isa<PrimLit>())
-        os << this->type() << ' ';
-      os << this->op_name();
-      stream_list(os, [&](Def def) { os << def; }, this->ops(), " ", ")");
-    }
-  } else {
-    os << this->unique_name();
-  }
-
-  return os;
+    if (this->is_const()) {
+        if (this->empty())
+            return streamf(os, "% %", op_name(), type());
+        else
+            return streamf(os, "(% % %)", type(), op_name(), stream_list(ops(), [&](Def def) { os << def; }));
+    } else
+        return os << unique_name();
 }
 
 std::ostream& PrimLit::stream(std::ostream& os) const {
-    os << this->type() << ' ';
-    auto kind = this->primtype_kind();
+    os << type() << ' ';
+    auto kind = primtype_kind();
 
     // print i8 as ints
     if (kind == PrimType_qs8)
-        os << (int) this->qs8_value();
+        return os << (int) qs8_value();
     else if (kind == PrimType_ps8)
-        os << (int) this->ps8_value();
+        return os << (int) ps8_value();
     else if (kind == PrimType_qu8)
-        os << (unsigned) this->qu8_value();
+        return os << (unsigned) qu8_value();
     else if (kind == PrimType_pu8)
-        os << (unsigned) this->pu8_value();
+        return os << (unsigned) pu8_value();
     else {
         switch (kind) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: os << this->T##_value(); break;
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return os << T##_value();
 #include "thorin/tables/primtypetable.h"
             default: THORIN_UNREACHABLE;
         }
@@ -295,9 +283,7 @@ std::ostream& PrimLit::stream(std::ostream& os) const {
     return os;
 }
 
-std::ostream& Global::stream(std::ostream& os) const {
-    return PrimOp::stream(os);
-}
+std::ostream& Global::stream(std::ostream& os) const { return PrimOp::stream(os); }
 
 //------------------------------------------------------------------------------
 
@@ -307,7 +293,7 @@ std::ostream& Global::stream(std::ostream& os) const {
 
 Def PrimOp::out(size_t i) const {
     assert(i < type().as<TupleType>()->num_args());
-    return world().extract(this, i, this->loc());
+    return world().extract(this, i, loc());
 }
 
 Def PrimOp::rebuild() const {
@@ -317,7 +303,7 @@ Def PrimOp::rebuild() const {
             ops[i] = op(i)->rebuild();
 
         auto def = rebuild(ops);
-        this->replace(def);
+        replace(def);
         return def;
     } else
         return this;

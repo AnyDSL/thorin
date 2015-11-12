@@ -123,6 +123,9 @@ namespace detail {
     template<class T> inline std::ostream& stream(std::ostream& out, Proxy<T> proxy) { return proxy->stream(out); }
 }
 
+template<class T>
+std::ostream& operator << (std::ostream& os, Proxy<T> proxy) { return proxy->stream(os); }
+
 //------------------------------------------------------------------------------
 
 /// Base class for all \p TypeNode%s.

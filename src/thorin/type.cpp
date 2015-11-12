@@ -188,36 +188,27 @@ bool TypeVarNode::equal(const TypeNode* other) const {
 //------------------------------------------------------------------------------
 
 /*
- * helpers
+ * stream
  */
 
 std::ostream& stream_type_vars(std::ostream& os, Type type) {
    if (type->num_type_vars() != 0)
-       return stream_list(os, [&](TypeVar type_var) { os << type_var; }, type->type_vars(), "[", "]");
+       return stream_list(os, type->type_vars(), [&](TypeVar type_var) { os << type_var; }, "[", "]");
    return os;
 }
 
 static std::ostream& stream_type_args(std::ostream& os, Type type) {
-   return stream_list(os, [&](Type type) { os << type; }, type->args(), "(", ")");
+   return stream_list(os, type->args(), [&](Type type) { os << type; }, "(", ")");
 }
 
 static std::ostream& stream_type_elems(std::ostream& os, Type type) {
     if (auto struct_app = type.isa<StructAppType>())
-        return stream_list(os, [&](Type type) { os << type; }, struct_app->elems(), "{", "}");
+        return stream_list(os, struct_app->elems(), [&](Type type) { os << type; }, "{", "}");
     return stream_type_args(os, type);
 }
 
-/*
- * stream
- */
-
-std::ostream& MemTypeNode::stream(std::ostream& os) const {
-    return os << "mem";
-}
-
-std::ostream& FrameTypeNode::stream(std::ostream& os) const {
-    return os << "frame";
-}
+std::ostream& MemTypeNode::stream(std::ostream& os) const { return os << "mem"; }
+std::ostream& FrameTypeNode::stream(std::ostream& os) const { return os << "frame"; }
 
 std::ostream& FnTypeNode::stream(std::ostream& os) const {
     os << "fn";
@@ -231,7 +222,7 @@ std::ostream& TupleTypeNode::stream(std::ostream& os) const {
 }
 
 std::ostream& StructAbsTypeNode::stream(std::ostream& os) const {
-    os << this->name();
+    os << name();
     return stream_type_vars(os, this);
     // TODO emit args - but don't do this inline: structs may be recursive
     //return emit_type_args(struct_abs);
@@ -242,17 +233,9 @@ std::ostream& StructAppTypeNode::stream(std::ostream& os) const {
     return stream_type_elems(os, this);
 }
 
-std::ostream& TypeVarNode::stream(std::ostream& os) const {
-    return os << '<' << this->gid() << '>';
-}
-
-std::ostream& IndefiniteArrayTypeNode::stream(std::ostream& os) const {
-    return os << '[' << this->elem_type() << ']';
-}
-
-std::ostream& DefiniteArrayTypeNode::stream(std::ostream& os) const {
-    return os << '[' << this->dim() << " x " << this->elem_type() << ']';
-}
+std::ostream& TypeVarNode::stream(std::ostream& os) const { return streamf(os, "<%>", gid()); }
+std::ostream& IndefiniteArrayTypeNode::stream(std::ostream& os) const { return streamf(os, "[%]", elem_type()); }
+std::ostream& DefiniteArrayTypeNode::stream(std::ostream& os) const { return streamf(os, "[% x %]", dim(), elem_type()); }
 
 std::ostream& PtrTypeNode::stream(std::ostream& os) const {
     if (this->is_vector())
@@ -290,12 +273,9 @@ std::ostream& PrimTypeNode::stream(std::ostream& os) const {
 }
 
 std::ostream& TypeNode::stream(std::ostream& os) const {
-   if (this->empty()) {
-       return os << "<NULL>";
-   }
-
-   THORIN_UNREACHABLE;
- }
+    assert(empty());
+    return os << "<NULL>";
+}
 
 //------------------------------------------------------------------------------
 

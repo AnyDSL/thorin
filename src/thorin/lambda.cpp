@@ -450,24 +450,21 @@ Def Lambda::try_remove_trivial_param(const Param* param) {
     return same;
 }
 
-std::ostream& Lambda::stream_head(std::ostream& out) const {
-    out << this;
-    stream_type_vars(out, type());
-    stream_list(out, [&](const Param* param) { streamf(out, "% %", param->type(), param); }, params(), "(", ")");
-
+std::ostream& Lambda::stream_head(std::ostream& os) const {
+    os << unique_name();
+    stream_type_vars(os, type());
+    stream_list(os, params(), [&](const Param* param) { streamf(os, "% %", param->type(), param); }, "(", ")");
     if (is_external())
-        out << " extern ";
+        os << " extern ";
     if (cc() == CC::Device)
-        out << " device ";
-    return out;
+        os << " device ";
+    return os;
 }
 
-std::ostream& Lambda::stream_jump(std::ostream& out) const {
-    if (!empty()) {
-        out << to();
-        stream_list(out, [&](Def def) { out << def; }, args(), " ", "");
-    }
-    return out;
+std::ostream& Lambda::stream_jump(std::ostream& os) const {
+    if (!empty())
+        return streamf(os, "% %", to(), stream_list(args(), [&](Def def) { os << def; }));
+    return os;
 }
 
 void Lambda::dump_head() const { stream_head(std::cout) << endl; }

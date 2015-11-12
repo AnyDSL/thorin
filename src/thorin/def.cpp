@@ -188,6 +188,9 @@ int DefNode::order() const { return type()->order(); }
 size_t DefNode::length() const { return type().as<VectorType>()->length(); }
 std::ostream& DefNode::stream(std::ostream& out) const { return out << unique_name(); }
 
+std::ostream& operator << (std::ostream& os, Def def) { return def->stream(os); }
+std::ostream& operator << (std::ostream& os, Use use) { return use->stream(os); }
+
 //------------------------------------------------------------------------------
 
 }

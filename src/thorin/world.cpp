@@ -896,16 +896,16 @@ void World::opt() {
  * stream
  */
 
-std::ostream& World::stream(std::ostream& out) const {
-    out << "module '" << name() << "'\n\n";
+std::ostream& World::stream(std::ostream& os) const {
+    os << "module '" << name() << "'\n\n";
 
     for (auto primop : primops()) {
         if (auto global = primop->isa<Global>())
-            global->stream_assignment(out);
+            global->stream_assignment(os);
     }
 
-    Scope::for_each<false>(*this, [&] (const Scope& scope) { scope.stream(out); });
-    return out;
+    Scope::for_each<false>(*this, [&] (const Scope& scope) { scope.stream(os); });
+    return os;
 }
 
 void World::write_thorin(const char* filename) const { std::ofstream file(filename); stream(file); }

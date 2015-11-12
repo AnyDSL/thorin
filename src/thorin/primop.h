@@ -114,25 +114,13 @@ private:
     friend class World;
 };
 
-/// This will be removed in the future.
-class VectorOp : public PrimOp {
-protected:
-    VectorOp(NodeKind kind, Type type, ArrayRef<Def> args, const Location& loc, const std::string& name)
-        : PrimOp(kind, type, args, loc, name)
-    {
-        assert(cond()->type()->is_bool());
-    }
-
-public:
-    Def cond() const { return op(0); }
-};
-
 /// Akin to <tt>cond ? tval : fval</tt>.
-class Select : public VectorOp {
+class Select : public PrimOp {
 private:
     Select(Def cond, Def tval, Def fval, const Location& loc, const std::string& name)
-        : VectorOp(Node_Select, tval->type(), {cond, tval, fval}, loc, name)
+        : PrimOp(Node_Select, tval->type(), {cond, tval, fval}, loc, name)
     {
+        assert(cond->type()->is_bool());
         assert(tval->type() == fval->type() && "types of both values must be equal");
         assert(!tval->type().isa<FnType>() && "must not be a function");
     }
@@ -140,6 +128,7 @@ private:
     virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
 public:
+    Def cond() const { return op(0); }
     Def tval() const { return op(1); }
     Def fval() const { return op(2); }
 
@@ -147,24 +136,24 @@ public:
 };
 
 /// Base class for all side-effect free binary \p PrimOp%s.
-class BinOp : public VectorOp {
+class BinOp : public PrimOp {
 protected:
-    BinOp(NodeKind kind, Type type, Def cond, Def lhs, Def rhs, const Location& loc, const std::string& name)
-        : VectorOp(kind, type, {cond, lhs, rhs}, loc, name)
+    BinOp(NodeKind kind, Type type, Def lhs, Def rhs, const Location& loc, const std::string& name)
+        : PrimOp(kind, type, {lhs, rhs}, loc, name)
     {
         assert(lhs->type() == rhs->type() && "types are not equal");
     }
 
 public:
-    Def lhs() const { return op(1); }
-    Def rhs() const { return op(2); }
+    Def lhs() const { return op(0); }
+    Def rhs() const { return op(1); }
 };
 
 /// One of \p ArithOpKind arithmetic operation.
 class ArithOp : public BinOp {
 private:
-    ArithOp(ArithOpKind kind, Def cond, Def lhs, Def rhs, const Location& loc, const std::string& name)
-        : BinOp((NodeKind) kind, lhs->type(), cond, lhs, rhs, loc, name)
+    ArithOp(ArithOpKind kind, Def lhs, Def rhs, const Location& loc, const std::string& name)
+        : BinOp((NodeKind) kind, lhs->type(), lhs, rhs, loc, name)
     {}
 
     virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
@@ -180,7 +169,7 @@ public:
 /// One of \p CmpKind compare.
 class Cmp : public BinOp {
 private:
-    Cmp(CmpKind kind, Def cond, Def lhs, Def rhs, const Location& loc, const std::string& name);
+    Cmp(CmpKind kind, Def lhs, Def rhs, const Location& loc, const std::string& name);
 
     virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
 
@@ -193,21 +182,21 @@ public:
 };
 
 /// Base class for @p Bitcast and @p Cast.
-class ConvOp : public VectorOp {
+class ConvOp : public PrimOp {
 protected:
-    ConvOp(NodeKind kind, Def cond, Def from, Type to, const Location& loc, const std::string& name)
-        : VectorOp(kind, to, {cond, from}, loc, name)
+    ConvOp(NodeKind kind, Def from, Type to, const Location& loc, const std::string& name)
+        : PrimOp(kind, to, {from}, loc, name)
     {}
 
 public:
-    Def from() const { return op(1); }
+    Def from() const { return op(0); }
 };
 
 /// Converts <tt>from</tt> to type <tt>to</tt>.
 class Cast : public ConvOp {
 private:
-    Cast(Type to, Def cond, Def from, const Location& loc, const std::string& name)
-        : ConvOp(Node_Cast, cond, from, to, loc, name)
+    Cast(Type to, Def from, const Location& loc, const std::string& name)
+        : ConvOp(Node_Cast, from, to, loc, name)
     {}
 
     virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
@@ -218,8 +207,8 @@ private:
 /// Reinterprets the bits of <tt>from</tt> as type <tt>to</tt>.
 class Bitcast : public ConvOp {
 private:
-    Bitcast(Type to, Def cond, Def from, const Location& loc, const std::string& name)
-        : ConvOp(Node_Bitcast, cond, from, to, loc, name)
+    Bitcast(Type to, Def from, const Location& loc, const std::string& name)
+        : ConvOp(Node_Bitcast, from, to, loc, name)
     {}
 
     virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;

@@ -148,7 +148,7 @@ Lambda* drop(Lambda* cur, ArrayRef<Def> call) {
     Scope scope(dst);
     Type2Type type2type;
     bool res = dst->type()->infer_with(type2type, cur->arg_fn_type());
-    assert(res);
+    assert_unused(res);
     return drop(scope, call.skip_front(), type2type);
 }
 

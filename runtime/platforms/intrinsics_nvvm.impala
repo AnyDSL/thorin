@@ -266,7 +266,7 @@ extern "device" {
 }
 
 fn acc(dev: i32, dim: (i32, i32, i32), block: (i32, i32, i32), body: fn() -> ()) -> () { nvvm(dev, dim, block, body) }
-fn acc_alloc(dev: i32, size: i32) -> i32 { alloc_cuda(dev, size) }
+fn acc_alloc(dev: i32, size: i32) -> Buffer { alloc_cuda(dev, size) }
 fn acc_tidx() -> i32    { nvvm_read_ptx_sreg_tid_x() }
 fn acc_tidy() -> i32    { nvvm_read_ptx_sreg_tid_y() }
 fn acc_tidz() -> i32    { nvvm_read_ptx_sreg_tid_z() }

@@ -1,4 +1,4 @@
-before_install: git clone https://github.com/AnyDSL/travis-ci.git
+before_install: git clone https://github.com/AnyDSL/travis-ci.git .
 
 install: cat README.md
 

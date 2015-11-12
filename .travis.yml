@@ -1,5 +1,5 @@
 before_install: git clone https://github.com/AnyDSL/travis-ci.git
 
-install: cat travis-ci/README.md
+install: source travis-ci/project.sh
 
-script: echo "test"
+script: clang --version

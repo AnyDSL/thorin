@@ -1,9 +1,10 @@
 #include "thorin/lambda.h"
 
+#include <iostream>
+
 #include "thorin/type.h"
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/be/thorin.h"
 #include "thorin/util/log.h"
 #include "thorin/util/queue.h"
 
@@ -448,10 +449,6 @@ Def Lambda::try_remove_trivial_param(const Param* param) {
 
     return same;
 }
-
-/*
- * stream
- */
 
 std::ostream& Lambda::stream_head(std::ostream& out) const {
     out << this;

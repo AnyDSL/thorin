@@ -6,7 +6,6 @@
 
 #include "thorin/lambda.h"
 #include "thorin/world.h"
-#include "thorin/be/thorin.h"
 
 namespace thorin {
 

@@ -9,7 +9,6 @@
 #include "thorin/primop.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
-#include "thorin/be/thorin.h"
 #include "thorin/util/queue.h"
 
 namespace thorin {

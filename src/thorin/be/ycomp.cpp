@@ -4,7 +4,6 @@
 #include "thorin/world.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/be/thorin.h"
 #include "thorin/util/printer.h"
 
 namespace thorin {

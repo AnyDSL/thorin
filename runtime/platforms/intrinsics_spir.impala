@@ -58,32 +58,32 @@ extern "device" {
     fn "_Z10atomic_minPVU3AS3ii" atomic_min_local(&i32, i32) -> i32;
 }
 
-fn work_dim() -> int              { _Z12get_work_dimv()}
-fn global_size(idx: int) -> int   { _Z15get_global_sizej(idx) as int }
-fn global_offset(idx: int) -> int { _Z17get_global_offsetj(idx) as int }
+fn work_dim() -> i32              { _Z12get_work_dimv()}
+fn global_size(idx: i32) -> i32   { _Z15get_global_sizej(idx) as i32 }
+fn global_offset(idx: i32) -> i32 { _Z17get_global_offsetj(idx) as i32 }
 
-fn acc(dev: int, dim: (int, int, int), block: (int, int, int), body: fn() -> ()) -> () { spir(dev, dim, block, body) }
+fn acc(dev: i32, dim: (i32, i32, i32), block: (i32, i32, i32), body: fn() -> ()) -> () { spir(dev, dim, block, body) }
 fn acc_alloc(dev: i32, size: i32) -> i32 { alloc_opencl(dev, size) }
-fn acc_tidx() -> int    { _Z12get_local_idj(0) as int }
-fn acc_tidy() -> int    { _Z12get_local_idj(1) as int }
-fn acc_tidz() -> int    { _Z12get_local_idj(2) as int }
-fn acc_bidx() -> int    { _Z12get_group_idj(0) as int }
-fn acc_bidy() -> int    { _Z12get_group_idj(1) as int }
-fn acc_bidz() -> int    { _Z12get_group_idj(2) as int }
-fn acc_bdimx() -> int   { _Z14get_local_sizej(0) as int }
-fn acc_bdimy() -> int   { _Z14get_local_sizej(1) as int }
-fn acc_bdimz() -> int   { _Z14get_local_sizej(2) as int }
-fn acc_gdimx() -> int   { _Z14get_num_groupsj(0) as int }
-fn acc_gdimy() -> int   { _Z14get_num_groupsj(1) as int }
-fn acc_gdimz() -> int   { _Z14get_num_groupsj(2) as int }
-fn acc_gidx() -> int    { _Z13get_global_idj(0) as int }
-fn acc_gidy() -> int    { _Z13get_global_idj(1) as int }
-fn acc_gidz() -> int    { _Z13get_global_idj(2) as int }
+fn acc_tidx() -> i32    { _Z12get_local_idj(0) as i32 }
+fn acc_tidy() -> i32    { _Z12get_local_idj(1) as i32 }
+fn acc_tidz() -> i32    { _Z12get_local_idj(2) as i32 }
+fn acc_bidx() -> i32    { _Z12get_group_idj(0) as i32 }
+fn acc_bidy() -> i32    { _Z12get_group_idj(1) as i32 }
+fn acc_bidz() -> i32    { _Z12get_group_idj(2) as i32 }
+fn acc_bdimx() -> i32   { _Z14get_local_sizej(0) as i32 }
+fn acc_bdimy() -> i32   { _Z14get_local_sizej(1) as i32 }
+fn acc_bdimz() -> i32   { _Z14get_local_sizej(2) as i32 }
+fn acc_gdimx() -> i32   { _Z14get_num_groupsj(0) as i32 }
+fn acc_gdimy() -> i32   { _Z14get_num_groupsj(1) as i32 }
+fn acc_gdimz() -> i32   { _Z14get_num_groupsj(2) as i32 }
+fn acc_gidx() -> i32    { _Z13get_global_idj(0) as i32 }
+fn acc_gidy() -> i32    { _Z13get_global_idj(1) as i32 }
+fn acc_gidz() -> i32    { _Z13get_global_idj(2) as i32 }
 fn acc_barrier() -> ()  { _Z7barrierj(1) }  // CLK_LOCAL_MEM_FENCE -> 1 // CLK_GLOBAL_MEM_FENCE -> 2
-fn acc_vector_length() -> int { 32 }
-fn acc_mem() -> int     { 1 }
-fn acc_tex() -> int     { acc_mem() }
-fn acc_spm() -> int     { 3 }
-fn acc_cst() -> int     { 4 }
-fn acc_dev() -> int     { 1 }
+fn acc_vector_length() -> i32 { 32 }
+fn acc_mem() -> i32     { 1 }
+fn acc_tex() -> i32     { acc_mem() }
+fn acc_spm() -> i32     { 3 }
+fn acc_cst() -> i32     { 4 }
+fn acc_dev() -> i32     { 1 }
 

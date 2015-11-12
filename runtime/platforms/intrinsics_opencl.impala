@@ -57,32 +57,32 @@ extern "device" {
     fn "atomic_min" atomic_min_local(&i32, i32) -> i32;
 }
 
-fn work_dim() -> int              { get_work_dim() as int }
-fn global_size(idx: int) -> int   { get_global_size(idx as uint) as int }
-fn global_offset(idx: int) -> int { get_global_offset(idx as uint) as int }
+fn work_dim() -> i32              { get_work_dim() as i32 }
+fn global_size(idx: i32) -> i32   { get_global_size(idx as ui32) as i32 }
+fn global_offset(idx: i32) -> i32 { get_global_offset(idx as ui32) as i32 }
 
-fn acc(dev: int, dim: (int, int, int), block: (int, int, int), body: fn() -> ()) -> () { opencl(dev, dim, block, body) }
+fn acc(dev: i32, dim: (i32, i32, i32), block: (i32, i32, i32), body: fn() -> ()) -> () { opencl(dev, dim, block, body) }
 fn acc_alloc(dev: i32, size: i32) -> i32 { alloc_opencl(dev, size) }
-fn acc_tidx() -> int    { get_local_id(0u) as int }
-fn acc_tidy() -> int    { get_local_id(1u) as int }
-fn acc_tidz() -> int    { get_local_id(2u) as int }
-fn acc_bidx() -> int    { get_group_id(0u) as int }
-fn acc_bidy() -> int    { get_group_id(1u) as int }
-fn acc_bidz() -> int    { get_group_id(2u) as int }
-fn acc_bdimx() -> int   { get_local_size(0u) as int }
-fn acc_bdimy() -> int   { get_local_size(1u) as int }
-fn acc_bdimz() -> int   { get_local_size(2u) as int }
-fn acc_gdimx() -> int   { get_num_groups(0u) as int }
-fn acc_gdimy() -> int   { get_num_groups(1u) as int }
-fn acc_gdimz() -> int   { get_num_groups(2u) as int }
-fn acc_gidx() -> int    { get_global_id(0u) as int }
-fn acc_gidy() -> int    { get_global_id(1u) as int }
-fn acc_gidz() -> int    { get_global_id(2u) as int }
+fn acc_tidx() -> i32    { get_local_id(0u) as i32 }
+fn acc_tidy() -> i32    { get_local_id(1u) as i32 }
+fn acc_tidz() -> i32    { get_local_id(2u) as i32 }
+fn acc_bidx() -> i32    { get_group_id(0u) as i32 }
+fn acc_bidy() -> i32    { get_group_id(1u) as i32 }
+fn acc_bidz() -> i32    { get_group_id(2u) as i32 }
+fn acc_bdimx() -> i32   { get_local_size(0u) as i32 }
+fn acc_bdimy() -> i32   { get_local_size(1u) as i32 }
+fn acc_bdimz() -> i32   { get_local_size(2u) as i32 }
+fn acc_gdimx() -> i32   { get_num_groups(0u) as i32 }
+fn acc_gdimy() -> i32   { get_num_groups(1u) as i32 }
+fn acc_gdimz() -> i32   { get_num_groups(2u) as i32 }
+fn acc_gidx() -> i32    { get_global_id(0u) as i32 }
+fn acc_gidy() -> i32    { get_global_id(1u) as i32 }
+fn acc_gidz() -> i32    { get_global_id(2u) as i32 }
 fn acc_barrier() -> ()  { barrier(1u) }  // CLK_LOCAL_MEM_FENCE -> 1 // CLK_GLOBAL_MEM_FENCE -> 2
-fn acc_vector_length() -> int { 32 }
-fn acc_mem() -> int     { 1 }
-fn acc_tex() -> int     { acc_mem() }
-fn acc_spm() -> int     { 3 }
-fn acc_cst() -> int     { 4 }
-fn acc_dev() -> int     { 1 }
+fn acc_vector_length() -> i32 { 32 }
+fn acc_mem() -> i32     { 1 }
+fn acc_tex() -> i32     { acc_mem() }
+fn acc_spm() -> i32     { 3 }
+fn acc_cst() -> i32     { 4 }
+fn acc_dev() -> i32     { 1 }
 

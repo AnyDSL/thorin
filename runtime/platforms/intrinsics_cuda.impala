@@ -61,6 +61,7 @@ extern "device" {
 }
 
 fn acc(dev: int, dim: (int, int, int), block: (int, int, int), body: fn() -> ()) -> () { cuda(dev, dim, block, body) }
+fn acc_alloc(dev: i32, size: i32) -> i32 { alloc_cuda(dev, size) }
 fn acc_tidx() -> int    { threadIdx_x() }
 fn acc_tidy() -> int    { threadIdx_y() }
 fn acc_tidz() -> int    { threadIdx_z() }

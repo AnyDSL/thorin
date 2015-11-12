@@ -206,8 +206,23 @@ bool Lambda::visit_capturing_intrinsics(std::function<bool(Lambda*)> func) const
 
 bool Lambda::is_basicblock() const { return type()->is_basicblock(); }
 bool Lambda::is_returning() const { return type()->is_returning(); }
-void Lambda::dump_head() const { emit_head(this); }
-void Lambda::dump_jump() const { emit_jump(this); }
+
+std::list<Lambda::ScopeInfo>::iterator Lambda::list_iter(const Scope* scope) {
+    return std::find_if(scopes_.begin(), scopes_.end(), [&] (const ScopeInfo& info) {
+        return info.scope->id() == scope->id();
+    });
+}
+
+Lambda::ScopeInfo* Lambda::find_scope(const Scope* scope) {
+    auto i = list_iter(scope);
+    if (i != scopes_.end()) {
+        // heuristic: swap found node to front so current scope will be found as first element in list
+        if (i != scopes_.begin())
+            scopes_.splice(scopes_.begin(), scopes_, i);
+        return &scopes_.front();
+    } else
+        return nullptr;
+}
 
 /*
  * terminate
@@ -273,21 +288,15 @@ std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Def> args, Type ret_type) 
     return std::make_pair(next, ret);
 }
 
-std::list<Lambda::ScopeInfo>::iterator Lambda::list_iter(const Scope* scope) {
-    return std::find_if(scopes_.begin(), scopes_.end(), [&] (const ScopeInfo& info) {
-        return info.scope->id() == scope->id();
-    });
-}
+void jump_to_cached_call(Lambda* src, Lambda* dst, ArrayRef<Def> call) {
+    std::vector<Def> nargs;
+    for (size_t i = 1, e = src->size(); i != e; ++i) {
+        if (call[i] == nullptr)
+            nargs.push_back(src->op(i));
+    }
 
-Lambda::ScopeInfo* Lambda::find_scope(const Scope* scope) {
-    auto i = list_iter(scope);
-    if (i != scopes_.end()) {
-        // heuristic: swap found node to front so current scope will be found as first element in list
-        if (i != scopes_.begin())
-            scopes_.splice(scopes_.begin(), scopes_, i);
-        return &scopes_.front();
-    } else
-        return nullptr;
+    src->jump(dst, nargs);
+    assert(src->arg_fn_type() == dst->type());
 }
 
 /*
@@ -440,16 +449,32 @@ Def Lambda::try_remove_trivial_param(const Param* param) {
     return same;
 }
 
-void jump_to_cached_call(Lambda* src, Lambda* dst, ArrayRef<Def> call) {
-    std::vector<Def> nargs;
-    for (size_t i = 1, e = src->size(); i != e; ++i) {
-        if (call[i] == nullptr)
-            nargs.push_back(src->op(i));
-    }
+/*
+ * stream
+ */
 
-    src->jump(dst, nargs);
-    assert(src->arg_fn_type() == dst->type());
+std::ostream& Lambda::stream_head(std::ostream& out) const {
+    out << this;
+    stream_type_vars(out, type());
+    stream_list(out, [&](const Param* param) { streamf(out, "% %", param->type(), param); }, params(), "(", ")");
+
+    if (is_external())
+        out << " extern ";
+    if (cc() == CC::Device)
+        out << " device ";
+    return out;
 }
+
+std::ostream& Lambda::stream_jump(std::ostream& out) const {
+    if (!empty()) {
+        out << to();
+        stream_list(out, [&](Def def) { out << def; }, args(), " ", "");
+    }
+    return out;
+}
+
+void Lambda::dump_head() const { stream_head(std::cout) << endl; }
+void Lambda::dump_jump() const { stream_jump(std::cout) << endl; }
 
 //------------------------------------------------------------------------------
 

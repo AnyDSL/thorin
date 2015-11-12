@@ -10,8 +10,6 @@ namespace thorin {
 
 class Scope;
 
-std::ostream& emit_head(const Lambda*, std::ostream& = std::cout);
-std::ostream& emit_jump(const Lambda*, std::ostream& = std::cout);
 
 }
 

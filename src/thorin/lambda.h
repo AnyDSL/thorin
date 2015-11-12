@@ -163,10 +163,13 @@ public:
     bool is_passed_to_intrinsic(Intrinsic intrinsic) const {
         return visit_capturing_intrinsics([&] (Lambda* lambda) { return lambda->intrinsic() == intrinsic; });
     }
-    void dump_head() const;
-    void dump_jump() const;
     void destroy_body();
     void refresh();
+
+    std::ostream& stream_head(std::ostream&) const;
+    std::ostream& stream_jump(std::ostream&) const;
+    void dump_head() const;
+    void dump_jump() const;
 
     // terminate
 

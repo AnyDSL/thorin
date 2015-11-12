@@ -1,12 +1,14 @@
 #include "thorin/analyses/scope.h"
 
 #include <algorithm>
+#include <fstream>
 
 #include "thorin/lambda.h"
 #include "thorin/world.h"
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/looptree.h"
+#include "thorin/analyses/schedule.h"
 #include "thorin/util/queue.h"
 
 namespace thorin {
@@ -165,5 +167,33 @@ void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
 
 template void Scope::for_each<true> (const World&, std::function<void(Scope&)>);
 template void Scope::for_each<false>(const World&, std::function<void(Scope&)>);
+
+std::ostream& Scope::stream(std::ostream& out) const {
+    auto schedule = schedule_smart(*this);
+    for (auto& block : schedule) {
+        auto lambda = block.lambda();
+        if (lambda->intrinsic() != Intrinsic::EndScope) {
+            bool indent = lambda != entry();
+            if (indent)
+                out << up;
+            out << endl;
+            lambda->stream_head(out) << up << endl;
+            for (auto primop : block)
+                primop->stream_assignment(out);
+
+            lambda->stream_jump(out) << down << endl;
+            if (indent)
+                out << down;
+        }
+    }
+    return out << endl;
+}
+
+void Scope::write_thorin(const char* filename) const { std::ofstream file(filename); stream(file); }
+
+void Scope::thorin() const {
+    auto filename = world().name() + "_" + entry()->unique_name() + ".thorin";
+    write_thorin(filename.c_str());
+}
 
 }

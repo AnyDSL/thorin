@@ -19,12 +19,8 @@ std::ostream& operator << (std::ostream& ostream, const Streamable* s) { return 
 
 std::ostream& streamf(std::ostream& os, const char* fmt) {
     while (*fmt) {
-        if (*fmt == '%') {
-            if (*(fmt+1) == '%')
-                ++fmt;
-            else
-                throw std::invalid_argument("invalid format string: missing arguments");
-        }
+        if (*fmt == '%')
+            throw std::invalid_argument("invalid format string: missing arguments");
         os << *fmt++;
     }
     return os;

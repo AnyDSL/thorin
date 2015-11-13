@@ -29,17 +29,12 @@ std::ostream& streamf(std::ostream& os, const char* fmt);
  * fprintf-like function which works on C++ @c std::ostream.
  * Each @c "%" in @p fmt corresponds to one vardiac argument in @p args.
  * The type of the corresponding argument must either support @c operator<< for C++ @c std::ostream or inherit from @p Streamable.
- * Use @c "%%" to escape.
  */
 template<typename T, typename... Args>
 std::ostream& streamf(std::ostream& os, const char* fmt, T val, Args... args) {
     while (*fmt) {
-        if (*fmt == '%') {
-            if (*(fmt+1) == '%')
-                ++fmt;
-            else
-                return streamf(detail::stream(os, val), ++fmt, args...); // call even when *fmt == 0 to detect extra arguments
-        }
+        if (*fmt == '%')
+            return streamf(detail::stream(os, val), ++fmt, args...); // call even when *fmt == 0 to detect extra arguments
         os << *fmt++;
     }
     return os;

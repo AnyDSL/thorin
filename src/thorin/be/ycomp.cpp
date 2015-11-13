@@ -4,7 +4,6 @@
 #include "thorin/world.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/be/thorin.h"
 #include "thorin/util/printer.h"
 
 namespace thorin {
@@ -45,8 +44,8 @@ private:
     template<bool forward>
     std::ostream& emit_cfnode(const CFG<forward>&, const CFNode*);
 
-    std::ostream& emit_type(Type type) { return thorin::emit_type(type, stream()); }
-    std::ostream& emit_name(Def def) { return thorin::emit_name(def, stream()); }
+    std::ostream& emit_type(Type type) { return stream() << type; }
+    std::ostream& emit_name(Def def) { return stream() << def; }
 
     template<typename T, typename U>
     std::ostream& write_edge(T source, U target, bool control_flow,

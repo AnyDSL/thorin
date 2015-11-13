@@ -123,6 +123,9 @@ namespace detail {
     template<class T> inline std::ostream& stream(std::ostream& out, Proxy<T> proxy) { return proxy->stream(out); }
 }
 
+template<class T>
+std::ostream& operator << (std::ostream& os, Proxy<T> proxy) { return proxy->stream(os); }
+
 //------------------------------------------------------------------------------
 
 /// Base class for all \p TypeNode%s.
@@ -530,6 +533,10 @@ private:
     friend void TypeNode::bind(TypeVar type_var) const;
     friend class World;
 };
+
+//------------------------------------------------------------------------------
+
+std::ostream& stream_type_vars(std::ostream& os, Type type);
 
 //------------------------------------------------------------------------------
 

@@ -6,7 +6,6 @@
 
 #include "thorin/lambda.h"
 #include "thorin/world.h"
-#include "thorin/be/thorin.h"
 
 namespace thorin {
 
@@ -18,7 +17,7 @@ void TypeNode::bind(TypeVar type_var) const {
     type_var->bound_at_ = this;
 }
 
-void TypeNode::dump() const { emit_type(Type(this)); std::cout << std::endl; }
+void TypeNode::dump() const { std::cout << Type(this) << std::endl; }
 size_t TypeNode::length() const { return as<VectorTypeNode>()->length(); }
 Type TypeNode::elem(const Def& def) const { return elem(def->primlit_value<size_t>()); }
 const TypeNode* TypeNode::unify() const { return world().unify_base(this); }
@@ -192,48 +191,51 @@ bool TypeVarNode::equal(const TypeNode* other) const {
  * stream
  */
 
-std::ostream& MemTypeNode::stream(std::ostream& os) const {
-    return os << "mem";
+std::ostream& stream_type_vars(std::ostream& os, Type type) {
+   if (type->num_type_vars() != 0)
+       return stream_list(os, type->type_vars(), [&](TypeVar type_var) { os << type_var; }, "[", "]");
+   return os;
 }
 
-std::ostream& FrameTypeNode::stream(std::ostream& os) const {
-    return os << "frame";
+static std::ostream& stream_type_args(std::ostream& os, Type type) {
+   return stream_list(os, type->args(), [&](Type type) { os << type; }, "(", ")");
 }
+
+static std::ostream& stream_type_elems(std::ostream& os, Type type) {
+    if (auto struct_app = type.isa<StructAppType>())
+        return stream_list(os, struct_app->elems(), [&](Type type) { os << type; }, "{", "}");
+    return stream_type_args(os, type);
+}
+
+std::ostream& MemTypeNode::stream(std::ostream& os) const { return os << "mem"; }
+std::ostream& FrameTypeNode::stream(std::ostream& os) const { return os << "frame"; }
 
 std::ostream& FnTypeNode::stream(std::ostream& os) const {
     os << "fn";
-    // TODO: emit_type_vars(this);
-    return os; // TODO: emit_type_args(this);
+    stream_type_vars(os, this);
+    return stream_type_args(os, this);
 }
 
 std::ostream& TupleTypeNode::stream(std::ostream& os) const {
-  // TODO: emit_type_vars(this);
-  return os; //TODO: emit_type_args(this);
+  stream_type_vars(os, this);
+  return stream_type_args(os, this);
 }
 
 std::ostream& StructAbsTypeNode::stream(std::ostream& os) const {
-    os << this->name();
-    return os; // TODO: emit_type_vars(struct_abs);
+    os << name();
+    return stream_type_vars(os, this);
     // TODO emit args - but don't do this inline: structs may be recursive
     //return emit_type_args(struct_abs);
 }
 
 std::ostream& StructAppTypeNode::stream(std::ostream& os) const {
     os << this->struct_abs_type()->name();
-    return os; // TODO: emit_type_elems(struct_app);
+    return stream_type_elems(os, this);
 }
 
-std::ostream& TypeVarNode::stream(std::ostream& os) const {
-    return os << '<' << this->gid() << '>';
-}
-
-std::ostream& IndefiniteArrayTypeNode::stream(std::ostream& os) const {
-    return os << '[' << this->elem_type() << ']';
-}
-
-std::ostream& DefiniteArrayTypeNode::stream(std::ostream& os) const {
-    return os << '[' << this->dim() << " x " << this->elem_type() << ']';
-}
+std::ostream& TypeVarNode::stream(std::ostream& os) const { return streamf(os, "<%>", gid()); }
+std::ostream& IndefiniteArrayTypeNode::stream(std::ostream& os) const { return streamf(os, "[%]", elem_type()); }
+std::ostream& DefiniteArrayTypeNode::stream(std::ostream& os) const { return streamf(os, "[% x %]", dim(), elem_type()); }
 
 std::ostream& PtrTypeNode::stream(std::ostream& os) const {
     if (this->is_vector())
@@ -271,12 +273,9 @@ std::ostream& PrimTypeNode::stream(std::ostream& os) const {
 }
 
 std::ostream& TypeNode::stream(std::ostream& os) const {
-   if (this->empty()) {
-       return os << "<NULL>";
-   }
-
-   THORIN_UNREACHABLE;
- }
+    assert(empty());
+    return os << "<NULL>";
+}
 
 //------------------------------------------------------------------------------
 

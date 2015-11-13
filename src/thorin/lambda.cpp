@@ -1,9 +1,10 @@
 #include "thorin/lambda.h"
 
+#include <iostream>
+
 #include "thorin/type.h"
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/be/thorin.h"
 #include "thorin/util/log.h"
 #include "thorin/util/queue.h"
 
@@ -207,8 +208,23 @@ bool Lambda::visit_capturing_intrinsics(std::function<bool(Lambda*)> func) const
 
 bool Lambda::is_basicblock() const { return type()->is_basicblock(); }
 bool Lambda::is_returning() const { return type()->is_returning(); }
-void Lambda::dump_head() const { emit_head(this); }
-void Lambda::dump_jump() const { emit_jump(this); }
+
+std::list<Lambda::ScopeInfo>::iterator Lambda::list_iter(const Scope* scope) {
+    return std::find_if(scopes_.begin(), scopes_.end(), [&] (const ScopeInfo& info) {
+        return info.scope->id() == scope->id();
+    });
+}
+
+Lambda::ScopeInfo* Lambda::find_scope(const Scope* scope) {
+    auto i = list_iter(scope);
+    if (i != scopes_.end()) {
+        // heuristic: swap found node to front so current scope will be found as first element in list
+        if (i != scopes_.begin())
+            scopes_.splice(scopes_.begin(), scopes_, i);
+        return &scopes_.front();
+    } else
+        return nullptr;
+}
 
 /*
  * terminate
@@ -274,21 +290,15 @@ std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Def> args, Type ret_type) 
     return std::make_pair(next, ret);
 }
 
-std::list<Lambda::ScopeInfo>::iterator Lambda::list_iter(const Scope* scope) {
-    return std::find_if(scopes_.begin(), scopes_.end(), [&] (const ScopeInfo& info) {
-        return info.scope->id() == scope->id();
-    });
-}
+void jump_to_cached_call(Lambda* src, Lambda* dst, ArrayRef<Def> call) {
+    std::vector<Def> nargs;
+    for (size_t i = 1, e = src->size(); i != e; ++i) {
+        if (call[i] == nullptr)
+            nargs.push_back(src->op(i));
+    }
 
-Lambda::ScopeInfo* Lambda::find_scope(const Scope* scope) {
-    auto i = list_iter(scope);
-    if (i != scopes_.end()) {
-        // heuristic: swap found node to front so current scope will be found as first element in list
-        if (i != scopes_.begin())
-            scopes_.splice(scopes_.begin(), scopes_, i);
-        return &scopes_.front();
-    } else
-        return nullptr;
+    src->jump(dst, nargs);
+    assert(src->arg_fn_type() == dst->type());
 }
 
 /*
@@ -441,16 +451,25 @@ Def Lambda::try_remove_trivial_param(const Param* param) {
     return same;
 }
 
-void jump_to_cached_call(Lambda* src, Lambda* dst, ArrayRef<Def> call) {
-    std::vector<Def> nargs;
-    for (size_t i = 1, e = src->size(); i != e; ++i) {
-        if (call[i] == nullptr)
-            nargs.push_back(src->op(i));
-    }
-
-    src->jump(dst, nargs);
-    assert(src->arg_fn_type() == dst->type());
+std::ostream& Lambda::stream_head(std::ostream& os) const {
+    os << unique_name();
+    stream_type_vars(os, type());
+    stream_list(os, params(), [&](const Param* param) { streamf(os, "% %", param->type(), param); }, "(", ")");
+    if (is_external())
+        os << " extern ";
+    if (cc() == CC::Device)
+        os << " device ";
+    return os;
 }
+
+std::ostream& Lambda::stream_jump(std::ostream& os) const {
+    if (!empty())
+        return streamf(os, "% %", to(), stream_list(args(), [&](Def def) { os << def; }));
+    return os;
+}
+
+void Lambda::dump_head() const { stream_head(std::cout) << endl; }
+void Lambda::dump_jump() const { stream_jump(std::cout) << endl; }
 
 //------------------------------------------------------------------------------
 

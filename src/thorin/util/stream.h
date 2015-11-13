@@ -18,31 +18,26 @@ public:
 std::ostream& operator << (std::ostream&, const Streamable*); ///< Use @p Streamable in C++ streams via @c operator<<.
 
 namespace detail {
-    template<typename T> inline std::ostream& stream(std::ostream& out, T val) { return out << val; }
-    template<> inline std::ostream& stream<const Streamable*>(std::ostream& out, const Streamable* s) { return s->stream(out); }
+    template<typename T> inline std::ostream& stream(std::ostream& os, T val) { return os << val; }
+    template<> inline std::ostream& stream<const Streamable*>(std::ostream& os, const Streamable* s) { return s->stream(os); }
 }
 
 /// Base case.
-std::ostream& streamf(std::ostream& out, const char* fmt);
+std::ostream& streamf(std::ostream& os, const char* fmt);
 
 /**
  * fprintf-like function which works on C++ @c std::ostream.
  * Each @c "%" in @p fmt corresponds to one vardiac argument in @p args.
  * The type of the corresponding argument must either support @c operator<< for C++ @c std::ostream or inherit from @p Streamable.
- * Use @c "%%" to escape.
  */
 template<typename T, typename... Args>
-std::ostream& streamf(std::ostream& out, const char* fmt, T val, Args... args) {
+std::ostream& streamf(std::ostream& os, const char* fmt, T val, Args... args) {
     while (*fmt) {
-        if (*fmt == '%') {
-            if (*(fmt+1) == '%')
-                ++fmt;
-            else
-                return streamf(detail::stream(out, val), ++fmt, args...); // call even when *fmt == 0 to detect extra arguments
-        }
-        out << *fmt++;
+        if (*fmt == '%')
+            return streamf(detail::stream(os, val), ++fmt, args...); // call even when *fmt == 0 to detect extra arguments
+        os << *fmt++;
     }
-    return out;
+    return os;
 }
 
 namespace detail {
@@ -51,21 +46,60 @@ namespace detail {
 
 template <class charT, class traits>
 std::basic_ostream<charT,traits>& endl(std::basic_ostream<charT,traits>& os) {
-    os << std::endl;
-    os << std::string('\t', detail::indent);
-    return os;
+    return os << std::endl << std::string(detail::indent * 4, ' ');
 }
 
 template <class charT, class traits>
-std::basic_ostream<charT,traits>& up(std::basic_ostream<charT,traits>& os) {
-    detail::indent++;
-    return os;
-}
+std::basic_ostream<charT,traits>& up(std::basic_ostream<charT,traits>& os) { detail::indent++; return os; }
 
 template <class charT, class traits>
-std::basic_ostream<charT,traits>& down(std::basic_ostream<charT,traits>& os) {
-    detail::indent--;
-    return os;
+std::basic_ostream<charT,traits>& down(std::basic_ostream<charT,traits>& os) { detail::indent--; return os; }
+
+template <class charT, class traits>
+std::basic_ostream<charT,traits>& up_endl(std::basic_ostream<charT,traits>& os) { return os << up << endl; }
+
+template <class charT, class traits>
+std::basic_ostream<charT,traits>& down_endl(std::basic_ostream<charT,traits>& os) { return os << down << endl; }
+
+template<class Emit, class List>
+std::ostream& stream_list(std::ostream& os, const List& list, Emit emit,
+        const char* begin = "", const char* end = "", const char* sep = ", ", bool nl = false) {
+    os << begin;
+    const char* cur_sep = "";
+    bool cur_nl = false;
+    for (const auto& elem : list) {
+        os << cur_sep;
+        if (cur_nl)
+            os << endl;
+        emit(elem);
+        cur_sep = sep;
+        cur_nl = true & nl;
+    }
+    return os << end;
+}
+
+template<class Emit, class List>
+class StreamList {
+public:
+    StreamList(const List& list, Emit emit, const char* sep)
+        : emit(emit)
+        , list(list)
+        , sep(sep)
+    {}
+
+    Emit emit;
+    const List& list;
+    const char* sep;
+};
+
+template<class Emit, class List>
+std::ostream& operator << (std::ostream& os, StreamList<Emit, List> sl) {
+    return stream_list(os, sl.list, sl.emit, "", "", sl.sep);
+}
+
+template<class Emit, class List>
+StreamList<Emit, List> stream_list(const List& list, Emit emit, const char* sep = ", ") {
+    return StreamList<Emit, List>(list, emit, sep);
 }
 
 }

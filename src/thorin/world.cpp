@@ -1,9 +1,12 @@
 #include "thorin/world.h"
 
+#include <fstream>
+
 #include "thorin/def.h"
 #include "thorin/primop.h"
 #include "thorin/lambda.h"
 #include "thorin/type.h"
+#include "thorin/analyses/scope.h"
 #include "thorin/transform/cleanup_world.h"
 #include "thorin/transform/clone_bodies.h"
 #include "thorin/transform/inliner.h"
@@ -887,6 +890,29 @@ void World::opt() {
     lift_enters(*this);
     dead_load_opt(*this);
     cleanup();
+}
+
+/*
+ * stream
+ */
+
+std::ostream& World::stream(std::ostream& os) const {
+    os << "module '" << name() << "'\n\n";
+
+    for (auto primop : primops()) {
+        if (auto global = primop->isa<Global>())
+            global->stream_assignment(os);
+    }
+
+    Scope::for_each<false>(*this, [&] (const Scope& scope) { scope.stream(os); });
+    return os;
+}
+
+void World::write_thorin(const char* filename) const { std::ofstream file(filename); stream(file); }
+
+void World::thorin() const {
+    auto filename = name() + ".thorin";
+    write_thorin(filename.c_str());
 }
 
 }

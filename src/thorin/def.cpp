@@ -9,7 +9,6 @@
 #include "thorin/primop.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
-#include "thorin/be/thorin.h"
 #include "thorin/util/queue.h"
 
 namespace thorin {
@@ -174,9 +173,9 @@ void DefNode::replace(Def with) const {
 void DefNode::dump() const {
     auto primop = this->isa<PrimOp>();
     if (primop && !primop->is_const())
-        emit_assignment(primop);
+        primop->stream_assignment(std::cout);
     else {
-        emit_def(this);
+        std::cout << this;
         std::cout << std::endl;
     }
 }
@@ -188,6 +187,9 @@ Lambda* DefNode::isa_lambda() const { return const_cast<Lambda*>(dcast<Lambda>(t
 int DefNode::order() const { return type()->order(); }
 size_t DefNode::length() const { return type().as<VectorType>()->length(); }
 std::ostream& DefNode::stream(std::ostream& out) const { return out << unique_name(); }
+
+std::ostream& operator << (std::ostream& os, Def def) { return def->stream(os); }
+std::ostream& operator << (std::ostream& os, Use use) { return use->stream(os); }
 
 //------------------------------------------------------------------------------
 

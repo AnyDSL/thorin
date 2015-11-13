@@ -1,6 +1,7 @@
 before_install: git clone https://github.com/AnyDSL/travis-ci.git
 
-install: true
+install:
+  - bash travis-ci/build.sh
 
 script:
   - travis-ci/llvm_install/bin/clang --version

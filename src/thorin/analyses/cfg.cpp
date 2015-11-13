@@ -510,9 +510,12 @@ void CFABuilder::stream_ycomp(std::ostream& out) const {
             nodes.push_back(q.second);
     }
 
-    thorin::ycomp(out, YCompOrientation::TopToBottom, scope(), range(nodes),
-        [&] (const CFNodeBase* n) { return succs_.find(n)->second; }
-    );
+    auto succs = [&] (const CFNodeBase* n) {
+        auto i = succs_.find(n);
+        return i != succs_.end() ? i->second : CFNodeSet();
+    };
+
+    thorin::ycomp(out, YCompOrientation::TopToBottom, scope(), range(nodes), succs);
 }
 
 //------------------------------------------------------------------------------

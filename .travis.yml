@@ -1,7 +1,8 @@
 before_install: git clone https://github.com/AnyDSL/travis-ci.git
 
 install:
-  - bash travis-ci/build.sh impala
+  - bash travis-ci/install.sh impala
 
 script:
   - travis-ci/llvm_install/bin/clang --version
+  - ls -lah ../

@@ -107,7 +107,7 @@ std::ostream& CCodeGen::emit_type(Type type) {
         if (lang_==Lang::OPENCL) {
             switch (ptr->addr_space()) {
                 default: break;
-                //case AddressSpace::Generic: // once address spaces are correct, ::Global should be sufficient -> use mmap
+                case AddressSpace::Generic: // once address spaces are correct, ::Global should be sufficient
                 case AddressSpace::Global: os << "__global "; break;
                 case AddressSpace::Shared: os << "__local ";  break;
             }

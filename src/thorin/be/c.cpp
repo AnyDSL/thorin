@@ -100,8 +100,8 @@ std::ostream& CCodeGen::emit_type(Type type) {
         if (lang_==Lang::CUDA) {
             switch (ptr->addr_space()) {
                 default: break;
-                // only declaration need __shared__
-                case AddressSpace::Shared: os << "";  break;
+                // only declarations require __shared__
+                //case AddressSpace::Shared: os << "__shared__ ";  break;
             }
         }
         if (lang_==Lang::OPENCL) {

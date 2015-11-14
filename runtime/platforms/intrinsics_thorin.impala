@@ -9,7 +9,7 @@ extern "thorin" {
     fn "bitcast" bitcast8_i32_f32(simd[i32 * 8]) -> simd[f32 * 8];
     fn "bitcast" bitcast16_i32_f32(simd[i32 * 16]) -> simd[f32 * 16];
 
-    fn "reserve_shared" reserve_shared(i32) -> &[i8];
+    fn "reserve_shared" reserve_shared(i32) -> &[3][i8];
 
     fn "select" select4_i32(simd[bool * 4], simd[i32 * 4], simd[i32 * 4]) -> simd[i32 * 4];
     fn "select" select8_i32(simd[bool * 8], simd[i32 * 8], simd[i32 * 8]) -> simd[i32 * 8];

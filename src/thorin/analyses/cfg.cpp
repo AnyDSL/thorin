@@ -398,9 +398,9 @@ void CFABuilder::link_to_exit() {
         const CFNodeBase* candidate = nullptr;
 
         auto push = [&] (const CFNodeBase* n) {
-            assert(n->b_index_ > 0 || n->b_index_ == CFNode::Done);
+            assert(int(n->b_index_) >= -1 || n->b_index_ == CFNode::Done);
 
-            if (n->f_index_ == CFNode::OnStackTodo && n->b_index_ != mark) {
+            if ((n->f_index_ == CFNode::OnStackTodo || n->f_index_ == CFNode::OnStackReady) && n->b_index_ != mark) {
                 n->b_index_ = mark;
                 backtrack_stack.push(n);
                 return true;
@@ -408,17 +408,20 @@ void CFABuilder::link_to_exit() {
             return false;
         };
 
-        push(stack.back());
+        backtrack_stack.push(stack.back());
 
         while (!backtrack_stack.empty()) {
             auto n = backtrack_stack.top();
 
             bool todo = false;
-            for (auto pred : preds_[n])
-                todo |= push(pred);
+            for (auto succ : succs_[n])
+                todo |= push(succ);
 
             if (!todo) {
-                candidate = n;
+                if (n->f_index_ == CFNode::OnStackTodo) {
+                    candidate = n;
+                    DLOG("candidate: %", candidate);
+                }
                 backtrack_stack.pop();
             }
         }
@@ -426,6 +429,7 @@ void CFABuilder::link_to_exit() {
         ++mark;
 
         if (candidate) { // reorder stack
+            DLOG("reorder for candidate: %", candidate);
             auto i = std::find(stack.begin(), stack.end(), candidate);
             assert(i != stack.end());
             std::move(i+1, stack.end(), i);
@@ -510,9 +514,12 @@ void CFABuilder::stream_ycomp(std::ostream& out) const {
             nodes.push_back(q.second);
     }
 
-    thorin::ycomp(out, YCompOrientation::TopToBottom, scope(), range(nodes),
-        [&] (const CFNodeBase* n) { return succs_.find(n)->second; }
-    );
+    auto succs = [&] (const CFNodeBase* n) {
+        auto i = succs_.find(n);
+        return i != succs_.end() ? i->second : CFNodeSet();
+    };
+
+    thorin::ycomp(out, YCompOrientation::TopToBottom, scope(), range(nodes), succs);
 }
 
 //------------------------------------------------------------------------------

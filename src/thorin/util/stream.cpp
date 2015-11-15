@@ -20,7 +20,7 @@ std::ostream& operator << (std::ostream& ostream, const Streamable* s) { return 
 std::ostream& streamf(std::ostream& os, const char* fmt) {
     while (*fmt) {
         if (*fmt == '%')
-            throw std::invalid_argument("invalid format string: missing arguments");
+            throw std::invalid_argument("invalid format string for 'streamf': missing arguments; use 'catch throw' in 'gdb'");
         os << *fmt++;
     }
     return os;

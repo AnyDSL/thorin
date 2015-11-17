@@ -2,162 +2,128 @@
 #define THORIN_ANALYSES_LOOPTREE_H
 
 #include <vector>
+#include <sstream>
 
-#include "thorin/lambda.h"
+#include "thorin/analyses/cfg.h"
 #include "thorin/util/array.h"
 #include "thorin/util/autoptr.h"
 #include "thorin/util/cast.h"
+#include "thorin/util/ycomp.h"
 
 namespace thorin {
 
-class Lambda;
-class Scope;
-class World;
-
-class LoopHeader;
+template<bool> class LoopTreeBuilder;
 
 /**
- * Represents a node of a loop nesting forest.
- * Please refer to G. Ramalingam, "On Loops, Dominators, and Dominance Frontiers", 1999
- * for an introduction to loop nesting forests.
- * A \p LoopNode consists of a set of header \p Lambda%s.
- * The header lambdas are the set of lambdas not dominated by any other lambda within the loop.
- * The root node is a \p LoopHeader without any lambdas but further \p LoopNode children and \p depth_ -1.
- * Thus, the forest is pooled into a tree.
- */
-class LoopNode : public MagicCast<LoopNode> {
-public:
-    LoopNode(LoopHeader* parent, int depth, const std::vector<Lambda*>& lambdas);
-
-    int depth() const { return depth_; }
-    const LoopHeader* parent() const { return parent_; }
-    ArrayRef<Lambda*> lambdas() const { return lambdas_; }
-    size_t num_lambdas() const { return lambdas().size(); }
-    virtual void dump() const = 0;
-
-protected:
-    std::ostream& indent() const;
-
-    LoopHeader* parent_;
-    int depth_;
-    std::vector<Lambda*> lambdas_;
-};
-
-/// A LoopHeader owns further \p LoopNode%s as children.
-class LoopHeader : public LoopNode {
-public:
-    struct Edge {
-        Edge() {}
-        Edge(Lambda* src, Lambda* dst, int levels)
-            : src_(src)
-            , dst_(dst)
-            , levels_(levels)
-        {}
-
-        Lambda* src() const { return src_; }
-        Lambda* dst() const { return dst_; }
-        int levels() const { return levels_; }
-        void dump();
-
-    private:
-        Lambda* src_;
-        Lambda* dst_;
-        int levels_;
-    };
-
-    explicit LoopHeader(LoopHeader* parent, int depth, const std::vector<Lambda*>& lambdas)
-        : LoopNode(parent, depth, lambdas)
-        , dfs_begin_(0)
-        , dfs_end_(-1)
-    {}
-
-    ArrayRef<LoopNode*> children() const { return children_; }
-    const LoopNode* child(size_t i) const { return children_[i]; }
-    size_t num_children() const { return children().size(); }
-    const std::vector<Edge>& entry_edges() const { return entry_edges_; }
-    const std::vector<Edge>& exit_edges() const { return exit_edges_; }
-    const std::vector<Edge>& back_edges() const { return back_edges_; }
-    /// Set of lambdas not dominated by any other lambda within the loop. Same as \p lambdas() as \p LambdaSet.
-    const LambdaSet& headers() const { return headers_; }
-    /// Set of lambdas dominating the loop. They are not within the loop.
-    const LambdaSet& preheaders() const { return preheaders_; }
-    /// Set of lambdas which jump to one of the headers.
-    const LambdaSet& latches() const { return latches_; }
-    /// Set of lambdas which jump out of the loop.
-    const LambdaSet& exitings() const { return exitings_; }
-    /// Set of lambdas jumped to via exiting lambdas.
-    const LambdaSet& exits() const { return exits_; }
-    bool is_root() const { return parent_ == 0; }
-    size_t dfs_begin() const { return dfs_begin_; };
-    size_t dfs_end() const { return dfs_end_; }
-    virtual void dump() const;
-
-private:
-    size_t dfs_begin_;
-    size_t dfs_end_;
-    AutoVector<LoopNode*> children_;
-    std::vector<Edge> entry_edges_;
-    std::vector<Edge> exit_edges_;
-    std::vector<Edge> back_edges_;
-    LambdaSet headers_;
-    LambdaSet preheaders_;
-    LambdaSet latches_;
-    LambdaSet exits_;
-    LambdaSet exitings_;
-
-    friend class LoopNode;
-    friend class LoopTreeBuilder;
-};
-
-class LoopLeaf : public LoopNode {
-public:
-    explicit LoopLeaf(size_t dfs_id, LoopHeader* parent, int depth, const std::vector<Lambda*>& lambdas)
-        : LoopNode(parent, depth, lambdas)
-        , dfs_id_(dfs_id)
-    {
-        assert(num_lambdas() == 1);
-    }
-
-    Lambda* lambda() const { return lambdas().front(); }
-    size_t dfs_id() const { return dfs_id_; }
-    virtual void dump() const;
-
-private:
-    size_t dfs_id_;
-};
-
-/**
- * Calculates a loop nesting forest rooted at \p root_.
+ * @brief Calculates a loop nesting forest rooted at @p root_.
+ *
  * The implementation uses Steensgard's algorithm.
  * Check out G. Ramalingam, "On Loops, Dominators, and Dominance Frontiers", 1999, for more information.
  */
-class LoopTree {
+template<bool forward>
+class LoopTree : public YComp {
 public:
-    explicit LoopTree(const Scope& scope);
+    class Head;
 
-    const Scope& scope() const { return scope_; }
-    const LoopHeader* root() const { return root_; }
-    int depth(Lambda* lambda) const { return lambda2leaf(lambda)->depth(); }
-    size_t lambda2dfs(Lambda* lambda) const { return lambda2leaf(lambda)->dfs_id(); }
-    bool contains(const LoopHeader* header, Lambda* lambda) const;
-    ArrayRef<const LoopLeaf*> loop(const LoopHeader* header) {
-        return ArrayRef<const LoopLeaf*>(dfs_leaves_.data() + header->dfs_begin(), header->dfs_end() - header->dfs_begin());
-    }
-    Array<Lambda*> loop_lambdas(const LoopHeader* header);
-    Array<Lambda*> loop_lambdas_in_rpo(const LoopHeader* header);
-    void dump() const { root()->dump(); }
-    const LoopLeaf* lambda2leaf(Lambda* lambda) const { return find(map_, lambda); }
-    const LoopHeader* lambda2header(Lambda* lambda) const;
+    /**
+    * @brief Represents a node of a loop nesting forest.
+    *
+    * Please refer to G. Ramalingam, "On Loops, Dominators, and Dominance Frontiers", 1999
+    * for an introduction to loop nesting forests.
+    * A @p Node consists of a set of header @p CFNode%s.
+    * The header CFNode%s are the set of CFNode%s not dominated by any other @p CFNode within the loop.
+    * The root node is a @p Head without any CFNode%s but further @p Node children and @p depth_ -1.
+    * Thus, the forest is pooled into a tree.
+    */
+    class Node : public MagicCast<Node>, public Streamable {
+    protected:
+        Node(Head* parent, int depth, const std::vector<const CFNode*>&);
+
+    public:
+        int depth() const { return depth_; }
+        const Head* parent() const { return parent_; }
+        ArrayRef<const CFNode*> cf_nodes() const { return cf_nodes_; }
+        size_t num_cf_nodes() const { return cf_nodes().size(); }
+
+    protected:
+        std::ostream& indent() const;
+
+        Head* parent_;
+        std::vector<const CFNode*> cf_nodes_;
+        int depth_;
+    };
+
+    /// A Head owns further @p Node%s as children.
+    class Head : public Node {
+    private:
+        typedef Node Super;
+
+        Head(Head* parent, int depth, const std::vector<const CFNode*>& cf_nodes)
+            : Super(parent, depth, cf_nodes)
+        {}
+
+    public:
+        ArrayRef<Super*> children() const { return children_; }
+        const Super* child(size_t i) const { return children_[i]; }
+        size_t num_children() const { return children().size(); }
+        bool is_root() const { return Super::parent_ == 0; }
+        virtual std::ostream& stream(std::ostream&) const override;
+
+    private:
+        AutoVector<Super*> children_;
+
+        friend class Node;
+        friend class LoopTreeBuilder<forward>;
+    };
+
+    /// A Leaf only holds a single @p CFNode and does not have any children.
+    class Leaf : public Node {
+    private:
+        typedef Node Super;
+
+        Leaf(size_t index, Head* parent, int depth, const std::vector<const CFNode*>& cf_nodes)
+            : Super(parent, depth, cf_nodes)
+            , index_(index)
+        {
+            assert(Super::num_cf_nodes() == 1);
+        }
+
+    public:
+        const CFNode* cf_node() const { return Super::cf_nodes().front(); }
+        /// Index of a DFS of the @p LoopTree's @p Leaf%s.
+        size_t index() const { return index_; }
+        virtual std::ostream& stream(std::ostream&) const override;
+
+    private:
+        size_t index_;
+
+        friend class LoopTreeBuilder<forward>;
+    };
+
+    LoopTree(const LoopTree&) = delete;
+    LoopTree& operator= (LoopTree) = delete;
+
+    explicit LoopTree(const CFG<forward>& cfg);
+    static const LoopTree& create(const Scope& scope) { return scope.cfg<forward>().looptree(); }
+    const CFG<forward>& cfg() const { return cfg_; }
+    const Head* root() const { return root_; }
+    const Leaf* operator [] (const CFNode* n) const { return find(leaves_, n); }
+    virtual void stream_ycomp(std::ostream& out) const override;
 
 private:
-    LoopLeaf* lambda2leaf(Lambda* lambda) { return map_[lambda]; }
+    static void get_nodes(std::vector<const Node *>& nodes, const Node* node) {
+        nodes.push_back(node);
+        if (auto head = node->template isa<Head>()) {
+            for (auto child : head->children())
+                get_nodes(nodes, child);
+        }
+    }
 
-    const Scope& scope_;
-    LambdaMap<LoopLeaf*> map_;
-    Array<LoopLeaf*> dfs_leaves_;
-    AutoPtr<LoopHeader> root_;
+    const CFG<forward>& cfg_;
+    typename CFG<forward>::template Map<Leaf*> leaves_;
+    AutoPtr<Head> root_;
 
-    friend class LoopTreeBuilder;
+    friend class LoopTreeBuilder<forward>;
 };
 
 }

@@ -1,3 +1,5 @@
+#include "thorin/transform/mangle.h"
+
 #include "thorin/primop.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
@@ -8,14 +10,12 @@ namespace thorin {
 
 class Mangler {
 public:
-    Mangler(const Scope& scope, Def2Def& old2new, ArrayRef<Def> drop, ArrayRef<Def> lift, const Type2Type& type2type)
+    Mangler(const Scope& scope, ArrayRef<Def> drop, ArrayRef<Def> lift, const Type2Type& type2type)
         : scope(scope)
-        , old2new(old2new)
         , drop(drop)
         , lift(lift)
         , type2type(type2type)
-        , world(scope.world())
-        , set(scope.in_scope()) // copy constructor
+        , in_scope(scope.in_scope()) // copy constructor
         , oentry(scope.entry())
         , nentry(oentry->world().lambda(oentry->loc(), oentry->name))
     {
@@ -27,28 +27,24 @@ public:
 
         while (!queue.empty()) {
             for (auto use : pop(queue)->uses()) {
-                if (!use->isa_lambda() && !visit(set, use))
+                if (!use->isa_lambda() && !visit(in_scope, use))
                     queue.push(use);
             }
         }
     }
 
+    World& world() const { return scope.world(); }
     Lambda* mangle();
     void mangle_body(Lambda* olambda, Lambda* nlambda);
     Lambda* mangle_head(Lambda* olambda);
     Def mangle(Def odef);
-    Def lookup(Def def) {
-        assert(old2new.contains(def));
-        return old2new[def];
-    }
 
     const Scope& scope;
-    Def2Def& old2new;
+    Def2Def old2new;
     ArrayRef<Def> drop;
     ArrayRef<Def> lift;
     Type2Type type2type;
-    World& world;
-    DefSet set;
+    DefSet in_scope;
     Lambda* oentry;
     Lambda* nentry;
 };
@@ -67,14 +63,6 @@ Lambda* Mangler::mangle() {
         old2new[def] = nentry->append_param(def->type()->specialize(type2type));
 
     mangle_body(oentry, nentry);
-
-    for (auto cur : scope.rpo().slice_from_begin(1)) {
-        if (old2new.contains(cur))
-            mangle_body(cur, lookup(cur)->as_lambda());
-        else
-            old2new[cur] = cur;
-    }
-
     return nentry;
 }
 
@@ -92,22 +80,18 @@ Lambda* Mangler::mangle_head(Lambda* olambda) {
 
 void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
     assert(!olambda->empty());
-    Array<Def> ops(olambda->ops().size());
-    for (size_t i = 1, e = ops.size(); i != e; ++i)
-        ops[i] = mangle(olambda->op(i));
 
-    // fold branch if possible
-    if (auto select = olambda->to()->isa<Select>()) {
-        Def cond = mangle(select->cond());
-        if (auto lit = cond->isa<PrimLit>())
-            ops[0] = mangle(lit->value().get_bool() ? select->tval() : select->fval());
-        else
-            ops[0] = mangle(select); //world.select(cond, mangle(select->tval()), mangle(select->fval()));
-    } else
-        ops[0] = mangle(olambda->to());
+    if (olambda->to() == world().branch()) {        // fold branch if possible
+        if (auto lit = mangle(olambda->arg(0))->isa<PrimLit>())
+            return nlambda->jump(mangle(lit->value().get_bool() ? olambda->arg(1) : olambda->arg(2)), {});
+    }
 
-    ArrayRef<Def> nargs(ops.slice_from_begin(1)); // new args of nlambda
-    Def ntarget = ops.front();                    // new target of nlambda
+    Array<Def> nops(olambda->ops().size());
+    for (size_t i = 0, e = nops.size(); i != e; ++i)
+        nops[i] = mangle(olambda->op(i));
+
+    ArrayRef<Def> nargs(nops.skip_front());         // new args of nlambda
+    Def ntarget = nops.front();                     // new target of nlambda
 
     // check whether we can optimize tail recursion
     if (ntarget == oentry) {
@@ -128,33 +112,44 @@ void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
 }
 
 Def Mangler::mangle(Def odef) {
-    if (!set.contains(odef) && !old2new.contains(odef))
+    auto i = old2new.find(odef);
+    if (i != old2new.end())
+        return i->second;
+
+    if (!in_scope.contains(odef))
         return odef;
-    if (old2new.contains(odef))
-        return lookup(odef);
 
     if (auto olambda = odef->isa_lambda()) {
-        assert(scope.contains(olambda));
-        return mangle_head(olambda);
+        auto nlambda = mangle_head(olambda);
+        mangle_body(olambda, nlambda);
+        return nlambda;
     } else if (auto param = odef->isa<Param>()) {
-        assert(scope.contains(param->lambda()));
-        return old2new[odef] = odef;
+        assert(in_scope.contains(param->lambda()));
+        mangle(param->lambda());
+        assert(old2new.contains(param));
+        return old2new[param];
+    } else {
+        auto oprimop = odef->as<PrimOp>();
+        Array<Def> nops(oprimop->size());
+        for (size_t i = 0, e = oprimop->size(); i != e; ++i)
+            nops[i] = mangle(oprimop->op(i));
+        return old2new[oprimop] = oprimop->rebuild(nops);
     }
-
-    auto oprimop = odef->as<PrimOp>();
-    Array<Def> nops(oprimop->size());
-    Def nprimop;
-
-    for (size_t i = 0, e = oprimop->size(); i != e; ++i)
-        nops[i] = mangle(oprimop->op(i));
-    nprimop = oprimop->rebuild(nops);
-    return old2new[oprimop] = nprimop;
 }
 
 //------------------------------------------------------------------------------
 
-Lambda* mangle(const Scope& scope, Def2Def& old2new, ArrayRef<Def> drop, ArrayRef<Def> lift, const Type2Type& type2type) {
-    return Mangler(scope, old2new, drop, lift, type2type).mangle();
+Lambda* mangle(const Scope& scope, ArrayRef<Def> drop, ArrayRef<Def> lift, const Type2Type& type2type) {
+    return Mangler(scope, drop, lift, type2type).mangle();
+}
+
+Lambda* drop(Lambda* cur, ArrayRef<Def> call) {
+    auto dst = call.front()->as_lambda();
+    Scope scope(dst);
+    Type2Type type2type;
+    bool res = dst->type()->infer_with(type2type, cur->arg_fn_type());
+    assert_unused(res);
+    return drop(scope, call.skip_front(), type2type);
 }
 
 //------------------------------------------------------------------------------

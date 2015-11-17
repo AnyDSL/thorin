@@ -11,6 +11,7 @@
 #include <llvm/Support/SourceMgr.h>
 
 #include "thorin/primop.h"
+#include "thorin/util/log.h"
 #include "thorin/be/llvm/llvm.h"
 
 namespace thorin {
@@ -51,11 +52,12 @@ Lambda* KernelRuntime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
     // to-target is the desired kernel call
     // target(mem, device, (dim.x, dim.y, dim.z), (block.x, block.y, block.z), body, return, free_vars)
     auto target = lambda->to()->as_lambda();
-    assert(target->is_intrinsic());
+    assert_unused(target->is_intrinsic());
     assert(lambda->num_args() >= ACC_NUM_ARGS && "required arguments are missing");
 
     // arguments
-    assert(lambda->arg(ACC_ARG_DEVICE)->isa<PrimLit>() && "target device must be hard-coded");
+    if (!lambda->arg(ACC_ARG_DEVICE)->isa<PrimLit>())
+        WLOG("error: target device must be hard-coded at %", lambda->arg(ACC_ARG_DEVICE)->loc());
     auto target_device = int(lambda->arg(ACC_ARG_DEVICE)->as<PrimLit>()->qu32_value().data());
     auto target_device_val = builder_.getInt32(target_device);
     auto it_space  = lambda->arg(ACC_ARG_SPACE)->as<Tuple>();
@@ -89,7 +91,7 @@ Lambda* KernelRuntime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
             auto rtype = ptr->referenced_type();
 
             if (!rtype.isa<ArrayType>()) {
-                target_arg->error() << "currently only pointers to arrays supported as kernel argument; argument has different type:\n";
+                WLOG("currently only pointers to arrays supported as kernel argument at '%'; argument has different type:", target_arg->loc());
                 ptr->dump();
                 assert(rtype.isa<ArrayType>() && "currently only pointers to arrays supported");
             }

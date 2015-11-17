@@ -12,9 +12,11 @@ inline __declspec(noreturn) void thorin_dummy_function() { abort(); }
 #endif
 
 #ifndef NDEBUG
-#define THORIN_CALL_ONCE
-#else
 #define THORIN_CALL_ONCE do { static bool once = true; assert(once); once=false; } while(0)
+#define assert_unused(x) assert(x)
+#else
+#define THORIN_CALL_ONCE
+#define assert_unused(x) ((void) (0 && (x)))
 #endif
 
 #endif

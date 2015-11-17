@@ -6,7 +6,6 @@
 
 #include "thorin/lambda.h"
 #include "thorin/world.h"
-#include "thorin/be/thorin.h"
 
 namespace thorin {
 
@@ -18,7 +17,7 @@ void TypeNode::bind(TypeVar type_var) const {
     type_var->bound_at_ = this;
 }
 
-void TypeNode::dump() const { emit_type(Type(this)); std::cout << std::endl; }
+void TypeNode::dump() const { std::cout << Type(this) << std::endl; }
 size_t TypeNode::length() const { return as<VectorTypeNode>()->length(); }
 Type TypeNode::elem(const Def& def) const { return elem(def->primlit_value<size_t>()); }
 const TypeNode* TypeNode::unify() const { return world().unify_base(this); }
@@ -90,7 +89,7 @@ Type StructAbsTypeNode::vrebuild(World& to, ArrayRef<Type> args) const {
 }
 
 Type StructAppTypeNode::vrebuild(World& to, ArrayRef<Type> args) const {
-    return to.struct_app_type(args[0].as<StructAbsType>(), args.slice_from_begin(1));
+    return to.struct_app_type(args[0].as<StructAbsType>(), args.skip_front());
 }
 
 //------------------------------------------------------------------------------
@@ -98,20 +97,6 @@ Type StructAppTypeNode::vrebuild(World& to, ArrayRef<Type> args) const {
 /*
  * recursive properties
  */
-
-int TypeNode::order() const {
-    if (kind() == Node_PtrType)
-        return 0;
-
-    int result = 0;
-    for (auto arg : args())
-        result = std::max(result, arg->order());
-
-    if (kind() == Node_FnType)
-        return result + 1;
-
-    return result;
-}
 
 bool TypeNode::is_closed() const {
     for (auto arg : args()) {
@@ -150,15 +135,15 @@ void TypeNode::free_type_vars(TypeVarSet& bound, TypeVarSet& free) const {
  * hash
  */
 
-size_t TypeNode::hash() const {
-    size_t seed = hash_combine(hash_combine(hash_begin((int) kind()), num_args()), num_type_vars());
+uint64_t TypeNode::hash() const {
+    uint64_t seed = hash_combine(hash_combine(hash_begin((int) kind()), num_args()), num_type_vars());
     for (auto arg : args_)
         seed = hash_combine(seed, arg->hash());
     return seed;
 }
 
-size_t PtrTypeNode::hash() const {
-    return hash_combine(hash_combine(VectorTypeNode::hash(), (size_t)device()), (size_t)addr_space());
+uint64_t PtrTypeNode::hash() const {
+    return hash_combine(hash_combine(VectorTypeNode::hash(), (uint64_t)device()), (uint64_t)addr_space());
 }
 
 //------------------------------------------------------------------------------
@@ -198,6 +183,98 @@ bool TypeVarNode::equal(const TypeNode* other) const {
     if (auto typevar = other->isa<TypeVarNode>())
         return this->equiv_ == typevar;
     return false;
+}
+
+//------------------------------------------------------------------------------
+
+/*
+ * stream
+ */
+
+std::ostream& stream_type_vars(std::ostream& os, Type type) {
+   if (type->num_type_vars() != 0)
+       return stream_list(os, type->type_vars(), [&](TypeVar type_var) { os << type_var; }, "[", "]");
+   return os;
+}
+
+static std::ostream& stream_type_args(std::ostream& os, Type type) {
+   return stream_list(os, type->args(), [&](Type type) { os << type; }, "(", ")");
+}
+
+static std::ostream& stream_type_elems(std::ostream& os, Type type) {
+    if (auto struct_app = type.isa<StructAppType>())
+        return stream_list(os, struct_app->elems(), [&](Type type) { os << type; }, "{", "}");
+    return stream_type_args(os, type);
+}
+
+std::ostream& MemTypeNode::stream(std::ostream& os) const { return os << "mem"; }
+std::ostream& FrameTypeNode::stream(std::ostream& os) const { return os << "frame"; }
+
+std::ostream& FnTypeNode::stream(std::ostream& os) const {
+    os << "fn";
+    stream_type_vars(os, this);
+    return stream_type_args(os, this);
+}
+
+std::ostream& TupleTypeNode::stream(std::ostream& os) const {
+  stream_type_vars(os, this);
+  return stream_type_args(os, this);
+}
+
+std::ostream& StructAbsTypeNode::stream(std::ostream& os) const {
+    os << name();
+    return stream_type_vars(os, this);
+    // TODO emit args - but don't do this inline: structs may be recursive
+    //return emit_type_args(struct_abs);
+}
+
+std::ostream& StructAppTypeNode::stream(std::ostream& os) const {
+    os << this->struct_abs_type()->name();
+    return stream_type_elems(os, this);
+}
+
+std::ostream& TypeVarNode::stream(std::ostream& os) const { return streamf(os, "<%>", gid()); }
+std::ostream& IndefiniteArrayTypeNode::stream(std::ostream& os) const { return streamf(os, "[%]", elem_type()); }
+std::ostream& DefiniteArrayTypeNode::stream(std::ostream& os) const { return streamf(os, "[% x %]", dim(), elem_type()); }
+
+std::ostream& PtrTypeNode::stream(std::ostream& os) const {
+    if (this->is_vector())
+        os << '<' << this->length() << " x ";
+    os << this->referenced_type() << '*';
+    if (this->is_vector())
+        os << '>';
+    auto device = this->device();
+    if (device != -1)
+        os << '[' << device << ']';
+    switch (this->addr_space()) {
+        case AddressSpace::Global:   os << "[Global]";   break;
+        case AddressSpace::Texture:  os << "[Tex]";      break;
+        case AddressSpace::Shared:   os << "[Shared]";   break;
+        case AddressSpace::Constant: os << "[Constant]"; break;
+        default: /* ignore unknown address space */      break;
+    }
+    return os;
+}
+
+std::ostream& PrimTypeNode::stream(std::ostream& os) const {
+    if (this->is_vector())
+        os << "<" << this->length() << " x ";
+
+    switch (this->primtype_kind()) {
+#define THORIN_ALL_TYPE(T, M) case Node_PrimType_##T: os << #T; break;
+#include "thorin/tables/primtypetable.h"
+          default: THORIN_UNREACHABLE;
+    }
+
+    if (this->is_vector())
+        os << ">";
+
+    return os;
+}
+
+std::ostream& TypeNode::stream(std::ostream& os) const {
+    assert(empty());
+    return os << "<NULL>";
 }
 
 //------------------------------------------------------------------------------

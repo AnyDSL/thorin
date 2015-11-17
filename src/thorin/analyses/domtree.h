@@ -1,67 +1,51 @@
 #ifndef THORIN_ANALYSES_DOMTREE_H
 #define THORIN_ANALYSES_DOMTREE_H
 
-#include "thorin/lambda.h"
-#include "thorin/analyses/scope.h"
-#include "thorin/util/array.h"
+#include "thorin/analyses/cfg.h"
 
 namespace thorin {
 
-class DomNode {
-public:
-    explicit DomNode(Lambda* lambda)
-        : lambda_(lambda)
-    {}
-
-    Lambda* lambda() const { return lambda_; }
-    const DomNode* idom() const { return idom_; }
-    const std::vector<const DomNode*>& children() const { return children_; }
-    size_t num_children() const { return children_.size(); }
-    bool entry() const { return idom_ == this; }
-    int depth() const { return depth_; }
-    size_t max_rpo_id() const;
-    void dump() const;
-
-private:
-    Lambda* lambda_;
-    DomNode* idom_ = nullptr;
-    AutoVector<const DomNode*> children_;
-    int depth_;
-    size_t max_rpo_id_;
-
-    template<bool> friend class DomTreeBase;
-};
-
+/**
+ * @brief A Dominance Tree.
+ *
+ * The template parameter @p forward determines
+ * whether a regular dominance tree (@c true) or a post-dominance tree (@c false) should be constructed.
+ * This template parameter is associated with @p CFG's @c forward parameter.
+ */
 template<bool forward>
-class DomTreeBase {
+class DomTreeBase : public YComp {
 public:
-    explicit DomTreeBase(const Scope& scope);
+    DomTreeBase(const DomTreeBase&) = delete;
+    DomTreeBase& operator= (DomTreeBase) = delete;
 
-    const ScopeView<forward>& scope_view() const { return scope_view_; }
-    size_t rpo_id(Lambda* lambda) const { return scope_view().rpo_id(lambda); };
-    size_t rpo_id(DomNode* n) const { return rpo_id(n->lambda()); }
-    const DomNode* root() const { return root_; }
-    int depth(Lambda* lambda) const { return lookup(lambda)->depth(); }
-    /// Returns the least common ancestor of \p i and \p j.
-    Lambda* lca(Lambda* i, Lambda* j) const { return lca(lookup(i), lookup(j))->lambda(); }
-    const DomNode* lca(const DomNode* i, const DomNode* j) const {
-        return const_cast<DomTreeBase*>(this)->lca(const_cast<DomNode*>(i), const_cast<DomNode*>(j));
+    explicit DomTreeBase(const CFG<forward>& cfg)
+        : YComp(cfg.scope(), forward ? "domtree" : "post_domtree")
+        , cfg_(cfg)
+        , idoms_(cfg)
+        , children_(cfg)
+    {
+        create();
     }
-    Lambda* idom(Lambda* lambda) const { return lookup(lambda)->idom()->lambda(); }
-    const DomNode* lookup(Lambda* lambda) const { return lookup(rpo_id(lambda)); }
-    const DomNode* lookup(size_t rpo_id) const { return domnodes_[rpo_id]; }
-    void dump() const { root()->dump(); }
+    static const DomTreeBase& create(const Scope& scope) { return scope.cfg<forward>().domtree(); }
+
+    const CFG<forward>& cfg() const { return cfg_; }
+    size_t index(const CFNode* n) const { return cfg().index(n); }
+    const CFNode* root() const { return *idoms_.begin(); }
+    const CFNodes& children(const CFNode* n) const { return children_[n]; }
+    const CFNode* idom(const CFNode* n) const { return idoms_[n]; }
+    const CFNode* lca(const CFNode* i, const CFNode* j) const; ///< Returns the least common ancestor of @p i and @p j.
+    virtual void stream_ycomp(std::ostream& out) const override;
 
 private:
-    DomNode*& lookup(Lambda* lambda) { return domnodes_[rpo_id(lambda)]; }
     void create();
-    size_t postprocess(DomNode* n, int depth);
-    DomNode* lca(DomNode*, DomNode*);
 
-    ScopeView<forward> scope_view_;
-    AutoPtr<DomNode> root_;
-    std::vector<DomNode*> domnodes_;
+    const CFG<forward>& cfg_;
+    typename CFG<forward>::template Map<const CFNode*> idoms_;
+    typename CFG<forward>::template Map<std::vector<const CFNode*>> children_;
 };
+
+typedef DomTreeBase<true>  DomTree;
+typedef DomTreeBase<false> PostDomTree;
 
 }
 

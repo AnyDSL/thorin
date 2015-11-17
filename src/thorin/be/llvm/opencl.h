@@ -12,7 +12,7 @@ public:
     void emit(bool debug);
 
 protected:
-    virtual std::string get_alloc_name() const { assert(false && "alloc not supported in OpenCL"); }
+    virtual std::string get_alloc_name() const { THORIN_UNREACHABLE; /*alloc not supported in OpenCL*/; }
     virtual std::string get_output_name(const std::string& name) const { return name + ".cl"; }
     virtual std::string get_binary_output_name(const std::string& name) const { return name + ".cl.bc"; }
 };

@@ -61,7 +61,7 @@ llvm::Value* SPIRRuntime::set_kernel_arg_struct(llvm::Value* device, llvm::Value
     return builder_.CreateCall(get("spir_set_kernel_arg_struct"), arg_args);
 }
 
-llvm::Value* SPIRRuntime::set_texture(llvm::Value* device, llvm::Value* mem, llvm::Value* name, PrimTypeKind type) {
+llvm::Value* SPIRRuntime::set_texture(llvm::Value* device, llvm::Value* mem, llvm::Value* name, PrimTypeKind) {
     assert(false && "textures only supported in CUDA/NVVM");
     llvm::Value* tex_args[] = { device, mem, name, builder_.getInt32(0) };
     return builder_.CreateCall(get("spir_set_kernel_arg_tex"), tex_args);

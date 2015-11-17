@@ -7,6 +7,7 @@ namespace thorin {
 void clone_bodies(World& world) {
     std::vector<Lambda*> todo;
 
+    // TODO this looks broken: I guess we should do that in post-order as in lift_builtins
     for (auto lambda : world.copy_lambdas()) {
         if (lambda->is_passed_to_accelerator())
             todo.push_back(lambda);

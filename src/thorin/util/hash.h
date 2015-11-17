@@ -5,7 +5,6 @@
 #include <cassert>
 #include <cstdint>
 #include <functional>
-#include <limits>
 #include <type_traits>
 
 namespace thorin {
@@ -13,19 +12,13 @@ namespace thorin {
 //------------------------------------------------------------------------------
 
 // currently no better place to fit this
-/// Determines wether \p i is a power of two.
+/// Determines whether \p i is a power of two.
 inline size_t is_power_of_2(size_t i) { return ((i != 0) && !(i & (i - 1))); }
 
 //------------------------------------------------------------------------------
 
-// magic numbers from http://www.isthe.com/chongo/tech/comp/fnv/index.html#FNV-param
-template<int nu> struct FNV1 {};
-
-template<> struct FNV1<4> {
-    static const uint32_t offset = 2166136261u;
-    static const uint32_t prime  = 16777619u;
-};
-template<> struct FNV1<8> {
+/// Magic numbers from http://www.isthe.com/chongo/tech/comp/fnv/index.html#FNV-param .
+struct FNV1 {
     static const uint64_t offset = 14695981039346656037ull;
     static const uint64_t prime  = 1099511628211ull;
 };
@@ -34,50 +27,52 @@ template<> struct FNV1<8> {
     static_assert(std::is_signed<T>::value || std::is_unsigned<T>::value, \
             "please provide your own hash function; use hash_combine to create one");
 
+/// Returns a new hash by combining the hash @p seed with @p val.
 template<class T>
-size_t hash_combine(size_t seed, T val) {
+uint64_t hash_combine(uint64_t seed, T val) {
     THORIN_SUPPORTED_HASH_TYPES
     if (std::is_signed<T>::value)
         return hash_combine(seed, typename std::make_unsigned<T>::type(val));
     assert(std::is_unsigned<T>::value);
-    for (size_t i = 0; i < sizeof(T); ++i) {
+    for (uint64_t i = 0; i < sizeof(T); ++i) {
         T octet = val & T(0xff); // extract lower 8 bits
         seed ^= octet;
-        seed *= FNV1<sizeof(size_t)>::prime;
-        val = val >> size_t(8);
+        seed *= FNV1::prime;
+        val = val >> uint64_t(8);
     }
     return seed;
 }
 
 template<class T>
-size_t hash_combine(size_t seed, T* val) { return hash_combine(seed, uintptr_t(val)); }
+uint64_t hash_combine(uint64_t seed, T* val) { return hash_combine(seed, uintptr_t(val)); }
 
 template<class T>
-size_t hash_begin(T val) { return hash_combine(FNV1<sizeof(size_t)>::offset, val); }
+uint64_t hash_begin(T val) { return hash_combine(FNV1::offset, val); }
 
 template<class T>
 struct Hash {
-    size_t operator() (T val) const {
+    uint64_t operator() (T val) const {
         THORIN_SUPPORTED_HASH_TYPES
         if (std::is_signed<T>::value)
             return Hash<typename std::make_unsigned<T>::type>()(val);
         assert(std::is_unsigned<T>::value);
-        if (sizeof(size_t) >= sizeof(T))
+        if (sizeof(uint64_t) >= sizeof(T))
             return val;
         return hash_begin(val);
     }
 };
 
 template<class T>
-size_t hash_value(T val) { return Hash<T>()(val); }
+uint64_t hash_value(T val) { return Hash<T>()(val); }
 
 template<class T>
 struct Hash<T*> {
-    size_t operator() (T* val) const { return Hash<uintptr_t>()(uintptr_t(val)); }
+    uint64_t operator() (T* val) const { return Hash<uintptr_t>()(uintptr_t(val)); }
 };
 
 //------------------------------------------------------------------------------
 
+/// Used internally for @p HashSet and @p HashMap.
 template<class Key, class T, class Hasher, class KeyEqual>
 class HashTable {
 private:
@@ -115,10 +110,10 @@ private:
         friend class HashTable;
     };
 
-    static Node* free_but_reused() { return (Node*) -1; }
+    static Node* tombstone()       { return (Node*) -1; }
     static Node* end_pointer()     { return (Node*)  1; }
     static bool is_end(Node** p)   { return *p == end_pointer(); }
-    static bool is_valid(Node** p) { return *p != nullptr && *p != free_but_reused(); }
+    static bool is_valid(Node** p) { return *p != nullptr && *p != tombstone(); }
 
     template<bool is_const>
     class iterator_base {
@@ -129,13 +124,18 @@ private:
         typedef typename std::conditional<is_const, const value_type*, value_type*>::type pointer;
         typedef std::forward_iterator_tag iterator_category;
 
+
+#ifndef NDEBUG
         iterator_base(Node** node, const HashTable* table)
             : node_(node)
-#ifndef NDEBUG
             , table_(table)
             , id_(table->id())
+#else
+        iterator_base(Node** node, const HashTable*)
+            : node_(node)
 #endif
         {}
+
         iterator_base(const iterator_base<false>& i)
             : node_(i.node_)
 #ifndef NDEBUG
@@ -257,11 +257,11 @@ public:
         else if (size_ > c4 + c2)
             rehash(capacity_*size_t(2));
         else if (load_ > c4 + c2)
-            rehash(capacity_);  // free garbage (remove all free_but_reused entries)
+            rehash(capacity_);  // free garbage (remove all tombstones)
 
         Node** insert_pos = nullptr;
         auto& key = n->key();
-        for (size_t i = hash_function_(key), step = 0; true; i += ++step) {
+        for (uint64_t i = hash_function_(key), step = 0; true; i += ++step) {
             size_t x = i & (capacity_-1);
             auto it = nodes_ + x;
             if (*it == nullptr) {
@@ -272,7 +272,7 @@ public:
                 ++size_;
                 *insert_pos = n;
                 return std::make_pair(iterator(insert_pos, this), true);
-            } else if (*it == free_but_reused()) {
+            } else if (*it == tombstone()) {
                 if (insert_pos == nullptr)
                     insert_pos = it;
             } else if (key_eq_((*it)->key(), key)) {
@@ -283,12 +283,15 @@ public:
     }
     std::pair<iterator, bool> insert(const value_type& value) { return emplace(value); }
     std::pair<iterator, bool> insert(value_type&& value) { return emplace(value); }
-    template<class InputIt>
-    void insert(InputIt first, InputIt last) {
-        for (auto i = first; i != last; ++i)
-            insert(*i);
+    template<class I>
+    bool insert(I begin, I end) {
+        bool changed = false;
+        for (auto i = begin; i != end; ++i)
+            changed |= insert(*i).second;
+        return changed;
     }
     void insert(std::initializer_list<value_type> ilist) { insert(ilist.begin(), ilist.end()); }
+    template<class R> bool insert_range(const R& range) { return insert(range.begin(), range.end()); }
 
     // erase
     iterator erase(const_iterator pos) {
@@ -298,7 +301,7 @@ public:
         assert(is_valid(pos.node_) && pos != end());
         --size_;
         delete *pos.node_;
-        *pos.node_ = free_but_reused();
+        *pos.node_ = tombstone();
         return iterator(iterator::move_to_valid(pos.node_), this);
     }
     iterator erase(const_iterator first, const_iterator last) {
@@ -326,13 +329,13 @@ public:
 #ifndef NDEBUG
         int old_id = id_;
 #endif
-        for (size_t i = hash_function_(key), step = 0; true; i += ++step) {
+        for (uint64_t i = hash_function_(key), step = 0; true; i += ++step) {
             size_t x = i & (capacity_-1);
             auto it = nodes_ + x;
             if (*it == nullptr) {
                 assert(old_id == id());
                 return end();
-            } else if (*it != free_but_reused() && key_eq_((*it)->key(), key)) {
+            } else if (*it != tombstone() && key_eq_((*it)->key(), key)) {
                 assert(old_id == id());
                 return iterator(it, this);
             }
@@ -352,7 +355,7 @@ public:
         for (size_t i = 0; i != old_capacity; ++i) {
             if (is_valid(nodes_+i)) {
                 Node* old = nodes_[i];
-                for (size_t i = hash_function_(old->key()), step = 0; true; i += ++step) {
+                for (uint64_t i = hash_function_(old->key()), step = 0; true; i += ++step) {
                     size_t x = i & (capacity_-1);
                     if (nodes[x] == nullptr) {
                         nodes[x] = old;
@@ -411,6 +414,11 @@ private:
 
 //------------------------------------------------------------------------------
 
+/**
+ * @brief This container is for the most part compatible with <tt>std::unordered_set</tt>.
+ *
+ * We use our own implementation in order to have a consistent and deterministic behavior across different platforms.
+ */
 template<class Key, class Hasher = Hash<Key>, class KeyEqual = std::equal_to<Key>>
 class HashSet : public HashTable<Key, void, Hasher, KeyEqual> {
 public:
@@ -438,6 +446,11 @@ public:
 
 //------------------------------------------------------------------------------
 
+/**
+ * @brief This container is for the most part compatible with <tt>std::unordered_map</tt>.
+ *
+ * We use our own implementation in order to have a consistent and deterministic behavior across different platforms.
+ */
 template<class Key, class T, class Hasher = Hash<Key>, class KeyEqual = std::equal_to<Key>>
 class HashMap : public HashTable<Key, T, Hasher, KeyEqual> {
 public:

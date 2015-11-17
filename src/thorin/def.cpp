@@ -9,7 +9,6 @@
 #include "thorin/primop.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
-#include "thorin/be/thorin.h"
 #include "thorin/util/queue.h"
 
 namespace thorin {
@@ -28,10 +27,10 @@ const DefNode* Def::deref() const {
     while (n->representative_ != target) {
         auto representative = n->representative_;
         auto res = representative->representatives_of_.erase(n);
-        assert(res == 1);
+        assert_unused(res == 1);
         n->representative_ = target;
-        auto p = target->representatives_of_.insert(n);
-        assert(p.second);
+        const auto& p = target->representatives_of_.insert(n);
+        assert_unused(p.second);
         n = representative;
     }
 
@@ -44,8 +43,8 @@ void DefNode::set_op(size_t i, Def def) {
     auto node = *def;
     ops_[i] = node;
     assert(def->uses_.count(Use(i, this)) == 0);
-    auto p = node->uses_.emplace(i, this);
-    assert(p.second);
+    const auto& p = node->uses_.emplace(i, this);
+    assert_unused(p.second);
 }
 
 void DefNode::unregister_uses() const {
@@ -62,7 +61,7 @@ void DefNode::unregister_use(size_t i) const {
 void DefNode::unlink_representative() const {
     if (is_proxy()) {
         auto num = this->representative_->representatives_of_.erase(this);
-        assert(num == 1);
+        assert_unused(num == 1);
     }
 }
 
@@ -101,7 +100,7 @@ std::vector<Use> DefNode::uses() const {
     stack.push(this);
 
     while (!stack.empty()) {
-        const DefNode* cur = stack.top();
+        auto cur = stack.top();
         stack.pop();
 
         for (auto use : cur->uses_) {
@@ -152,8 +151,8 @@ void DefNode::replace(Def with) const {
     if (this != *with) {
         assert(!is_proxy());
         this->representative_ = with;
-        auto p = with->representatives_of_.insert(this);
-        assert(p.second);
+        const auto& p = with->representatives_of_.insert(this);
+        assert_unused(p.second);
 
         std::queue<const DefNode*> queue;
         queue.push(this);
@@ -174,9 +173,9 @@ void DefNode::replace(Def with) const {
 void DefNode::dump() const {
     auto primop = this->isa<PrimOp>();
     if (primop && !primop->is_const())
-        emit_assignment(primop);
+        primop->stream_assignment(std::cout);
     else {
-        emit_def(this);
+        std::cout << this;
         std::cout << std::endl;
     }
 }
@@ -187,6 +186,10 @@ Lambda* DefNode::as_lambda() const { return const_cast<Lambda*>(scast<Lambda>(th
 Lambda* DefNode::isa_lambda() const { return const_cast<Lambda*>(dcast<Lambda>(this)); }
 int DefNode::order() const { return type()->order(); }
 size_t DefNode::length() const { return type().as<VectorType>()->length(); }
+std::ostream& DefNode::stream(std::ostream& out) const { return out << unique_name(); }
+
+std::ostream& operator << (std::ostream& os, Def def) { return def->stream(os); }
+std::ostream& operator << (std::ostream& os, Use use) { return use->stream(os); }
 
 //------------------------------------------------------------------------------
 

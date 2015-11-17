@@ -8,6 +8,7 @@
 #include <wfvInterface.h>
 
 #include "thorin/primop.h"
+#include "thorin/util/log.h"
 #include "thorin/world.h"
 
 
@@ -25,7 +26,7 @@ enum {
 
 Lambda* CodeGen::emit_vectorize_continuation(Lambda* lambda) {
     auto target = lambda->to()->as_lambda();
-    assert(target->intrinsic() == Intrinsic::Vectorize);
+    assert_unused(target->intrinsic() == Intrinsic::Vectorize);
     assert(lambda->num_args() >= VEC_NUM_ARGS && "required arguments are missing");
 
     // arguments
@@ -65,6 +66,8 @@ Lambda* CodeGen::emit_vectorize_continuation(Lambda* lambda) {
         simd_kernel_call = irbuilder_.CreateCall(kernel_simd_func, llvm_ref(args));
     });
 
+    if (!lambda->arg(VEC_ARG_LENGTH)->isa<PrimLit>())
+        WLOG("error: vector length must be hard-coded at %", lambda->arg(VEC_ARG_LENGTH)->loc());
     u32 vector_length_constant = lambda->arg(VEC_ARG_LENGTH)->as<PrimLit>()->qu32_value();
     wfv_todo_.emplace_back(vector_length_constant, emit_function_decl(kernel), simd_kernel_call);
 
@@ -85,9 +88,9 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
     wfv.addCommonMappings(true, true, true, true, false);
     auto loop_counter_argument = kernel_func->getArgumentList().begin();
     bool b_simd = wfv.addSIMDSemantics(*loop_counter_argument, false, true, false, true, false, true);
-    assert(b_simd && "simd semantics for vectorization failed");
+    assert_unused(b_simd && "simd semantics for vectorization failed");
     bool b = wfv.run();
-    assert(b && "vectorization failed");
+    assert_unused(b && "vectorization failed");
 
     // inline kernel
     llvm::InlineFunctionInfo info;

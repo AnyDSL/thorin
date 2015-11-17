@@ -13,8 +13,8 @@ void inliner(World& world) {
             for (auto use : top->uses()) {
                 if (auto ulambda = use->isa_lambda()) {
                     if (ulambda->to() == top) {
-                        if (!scope.contains(ulambda))
-                            ulambda->jump(drop(scope, ulambda->args()), std::initializer_list<Def>());
+                        if (!scope.outer_contains(ulambda))
+                            ulambda->jump(drop(scope, ulambda->args()));
                     }
                 }
             }

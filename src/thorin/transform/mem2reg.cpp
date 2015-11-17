@@ -1,21 +1,23 @@
 #include "thorin/primop.h"
 #include "thorin/world.h"
+#include "thorin/analyses/cfg.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/verify.h"
 #include "thorin/transform/critical_edge_elimination.h"
+#include "thorin/util/log.h"
 
 namespace thorin {
 
 void mem2reg(const Scope& scope) {
-    auto schedule = schedule_late(scope);
-    DefMap<size_t> addresses;
-    LambdaSet set;
+    const auto& cfg = scope.f_cfg();
+    DefMap<size_t> slot2handle;
+    LambdaMap<size_t> lambda2num;
     DefSet done;
     size_t cur_handle = 0;
 
-    auto take_address = [&] (const Slot* slot) { addresses[slot] = size_t(-1); };
-    auto is_address_taken = [&] (const Slot* slot) { return addresses[slot] == size_t(-1); };
+    auto take_address = [&] (const Slot* slot) { slot2handle[slot] = size_t(-1); };
+    auto is_address_taken = [&] (const Slot* slot) { return slot2handle[slot] == size_t(-1); };
 
     for (auto lambda : scope)
         lambda->clear_value_numbering_table();
@@ -28,44 +30,55 @@ void mem2reg(const Scope& scope) {
     }
 
     // ... except top-level lambdas
-    scope.entry()->set_parent(0);
+    scope.entry()->set_parent(nullptr);
     scope.entry()->seal();
 
-    for (Lambda* lambda : scope) {
-        // search for slots/loads/stores from top to bottom and use set_value/get_value to install parameters.
-        for (auto primop : schedule[lambda]) {
-            auto def = Def(primop);
-            auto p = done.insert(def);
-            if (!p.second)
-                continue; // already dealt with - we just see this guy again due to replaces
-            if (auto slot = def->isa<Slot>()) {
-                // evil HACK
-                if (slot->name == "sum_xxx") {
-                    take_address(slot);
-                    goto next_primop;
+    // set parent pointers for functions passed to accelerator
+    for (auto lambda : scope) {
+        if (auto to = lambda->to()->isa_lambda()) {
+            if (to->is_accelerator()) {
+                for (auto arg : lambda->args()) {
+                    if (auto alambda = arg->isa_lambda()) {
+                        if (!alambda->is_basicblock()) {
+                            DLOG("% calls accelerator with %", lambda, alambda);
+                            alambda->set_parent(lambda);
+                        }
+                    }
                 }
+            }
+        }
+    }
 
-                // are all users loads and stores *from* this slot (use.index() == 1)?
-                for (auto use : slot->uses()) {
-                    if (use.index() != 1 || (!use->isa<Load>() && !use->isa<Store>())) {
-                        take_address(slot);
-                        goto next_primop;
+    for (const auto& block : schedule_late(scope)) {
+        auto lambda = block.lambda();
+        // search for slots/loads/stores from top to bottom and use set_value/get_value to install parameters
+        for (auto primop : block) {
+            auto def = Def(primop);
+            // already dealt with? we might see this guy again due to replaces
+            if (done.insert(def).second) {
+                if (auto slot = def->isa<Slot>()) {
+                    // are all users loads and stores *from* this slot (use.index() == 1)?
+                    for (auto use : slot->uses()) {
+                        if (use.index() != 1 || (!use->isa<Load>() && !use->isa<Store>())) {
+                            take_address(slot);
+                            goto next_primop;
+                        }
                     }
-                }
-                addresses[slot] = cur_handle++;
-            } else if (auto store = def->isa<Store>()) {
-                if (auto slot = store->ptr()->isa<Slot>()) {
-                    if (!is_address_taken(slot)) {
-                        lambda->set_value(addresses[slot], store->val());
-                        store->replace(store->mem());
+                    slot2handle[slot] = cur_handle++;
+                } else if (auto store = def->isa<Store>()) {
+                    if (auto slot = store->ptr()->isa<Slot>()) {
+                        if (!is_address_taken(slot)) {
+                            lambda->set_value(slot2handle[slot], store->val());
+                            store->replace(store->mem());
+                        }
                     }
-                }
-            } else if (auto load = def->isa<Load>()) {
-                if (auto slot = load->ptr()->isa<Slot>()) {
-                    if (!is_address_taken(slot)) {
-                        auto type = slot->type().as<PtrType>()->referenced_type();
-                        load->out_val()->replace(lambda->get_value(addresses[slot], type, slot->name.c_str()));
-                        load->out_mem()->replace(load->mem());
+                } else if (auto load = def->isa<Load>()) {
+                    if (auto slot = load->ptr()->isa<Slot>()) {
+                        if (!is_address_taken(slot)) {
+                            auto type = slot->type().as<PtrType>()->referenced_type();
+                            load->out_val()->replace(lambda->get_value(slot2handle[slot], type, slot->name.c_str()));
+                            load->out_mem()->replace(load->mem());
+                        }
                     }
                 }
             }
@@ -73,14 +86,14 @@ next_primop:;
         }
 
         // seal successors of last lambda if applicable
-        for (auto succ : scope.succs(lambda)) {
-            if (succ->parent() != 0) {
-                if (!visit(set, succ)) {
-                    assert(addresses.find(succ) == addresses.end());
-                    addresses[succ] = succ->preds().size();
-                }
-                if (--addresses[succ] == 0)
-                    succ->seal();
+        for (auto succ : cfg.succs(block.node())) {
+            auto lsucc = succ->lambda();
+            if (lsucc->parent() != nullptr) {
+                auto i = lambda2num.find(lsucc);
+                if (i == lambda2num.end())
+                    i = lambda2num.emplace(lsucc, cfg.num_preds(succ)).first;
+                if (--i->second == 0)
+                    lsucc->seal();
             }
         }
     }

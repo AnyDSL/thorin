@@ -113,6 +113,6 @@ void SPIRCodeGen::emit_function_decl_hook(Lambda* lambda, llvm::Function* f) {
     kernels_md->addOperand(llvm::MDNode::get(context_, annotation_values_kernel));
 }
 
-llvm::Value* SPIRCodeGen::emit_mmap(Def def) { return emit_shared_mmap(def, true /* add kernel prefix */); }
+llvm::Value* SPIRCodeGen::emit_mmap(const Map* mmap) { return emit_shared_mmap(mmap, true /* add kernel prefix */); }
 
 }

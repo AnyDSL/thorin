@@ -10,6 +10,7 @@
 
 namespace thorin {
 
+class JumpTarget;
 class Lambda;
 class Scope;
 
@@ -17,6 +18,11 @@ typedef std::vector<Lambda*> Lambdas;
 
 //------------------------------------------------------------------------------
 
+/**
+ * @brief A parameter of a @p Lambda function.
+ *
+ * A @p Param knows its @p lambda() it belongs to.
+ */
 class Param : public DefNode {
 private:
     Param(size_t gid, Type type, Lambda* lambda, size_t index, const Location& loc, const std::string& name)
@@ -72,6 +78,14 @@ enum class Intrinsic : uint8_t {
     Mmap = _Accelerator_End,    ///< Intrinsic memory-mapping function.
     Munmap,                     ///< Intrinsic memory-unmapping function.
     Atomic,                     ///< Intrinsic atomic function
+    Branch,                     ///< branch(cond, T, F).
+    EndScope,                   ///< Dummy function which marks the end of a @p Scope.
+    Select4,                    ///< Intrinsic vector select function (4 components)
+    Select8,                    ///< Intrinsic vector select function (8 components)
+    Select16,                   ///< Intrinsic vector select function (16 components)
+    Shuffle4,                   ///< Intrinsic vector shuffle function (4 components)
+    Shuffle8,                   ///< Intrinsic vector shuffle function (8 components)
+    Shuffle16,                  ///< Intrinsic vector shuffle function (16 components)
     Reinterpret,                ///< Intrinsic for reinterpretation of one type as another one
     Select,                     ///< Intrinsic vector 'select' function
     Shuffle,                    ///< Intrinsic vector 'shuffle' function
@@ -82,6 +96,13 @@ enum class CC : uint8_t {
     Device,     ///< Device calling convention. These are special functions only available on a particular device.
 };
 
+
+/**
+ * @brief A function abstraction.
+ *
+ * A @p Lambda is always of function type @p FnTypeNode.
+ * Each element of this function type is associated a properly typed @p Param - retrieved via @p params().
+ */
 class Lambda : public DefNode {
 private:
     Lambda(size_t gid, FnType fn, const Location& loc, CC cc, Intrinsic intrinsic, bool is_sealed, const std::string& name)
@@ -115,8 +136,8 @@ public:
     Array<Def> params_as_defs() const;
     const Param* param(size_t i) const { assert(i < num_params()); return params_[i]; }
     const Param* mem_param() const;
-    Def to() const { return op(0); };
-    ArrayRef<Def> args() const { return empty() ? ArrayRef<Def>(0, 0) : ops().slice_from_begin(1); }
+    Def to() const;
+    ArrayRef<Def> args() const { return empty() ? ArrayRef<Def>(0, 0) : ops().skip_front(); }
     Def arg(size_t i) const { return args()[i]; }
     FnType type() const { return DefNode::type().as<FnType>(); }
     FnType to_fn_type() const { return to()->type().as<FnType>(); }
@@ -127,7 +148,7 @@ public:
     Intrinsic intrinsic() const { return intrinsic_; }
     CC& cc() { return cc_; }
     CC cc() const { return cc_; }
-    void set_intrinsic(); ///< Sets \p intrinsic_ derived on this \p Lambda's \p name.
+    void set_intrinsic(); ///< Sets @p intrinsic_ derived on this @p Lambda's @p name.
     bool is_external() const;
     void make_external();
     void make_internal();
@@ -142,15 +163,19 @@ public:
     bool is_passed_to_intrinsic(Intrinsic intrinsic) const {
         return visit_capturing_intrinsics([&] (Lambda* lambda) { return lambda->intrinsic() == intrinsic; });
     }
-    void dump_head() const;
-    void dump_jump() const;
     void destroy_body();
     void refresh();
 
+    std::ostream& stream_head(std::ostream&) const;
+    std::ostream& stream_jump(std::ostream&) const;
+    void dump_head() const;
+    void dump_jump() const;
+
     // terminate
 
-    void jump(Def to, ArrayRef<Def> args);
-    void branch(Def cond, Def tto, Def fto, ArrayRef<Def> args = ArrayRef<Def>(nullptr, 0));
+    void jump(Def to, ArrayRef<Def> args = ArrayRef<Def>(0, 0));
+    void jump(JumpTarget&);
+    void branch(Def cond, Def t, Def f);
     std::pair<Lambda*, Def> call(Def to, ArrayRef<Def> args, Type ret_type);
 
     // value numbering
@@ -159,8 +184,8 @@ public:
     Def get_value(size_t handle, Type type, const char* name = "");
     Def set_mem(Def def);
     Def get_mem();
-    Lambda* parent() const { return parent_; }            ///< See \ref parent_ for more information.
-    void set_parent(Lambda* parent) { parent_ = parent; } ///< See \ref parent_ for more information.
+    Lambda* parent() const { return parent_; }            ///< See @p parent_ for more information.
+    void set_parent(Lambda* parent) { parent_ = parent; } ///< See @p parent_ for more information.
     void seal();
     bool is_sealed() const { return is_sealed_; }
     void unseal() { is_sealed_ = false; }
@@ -198,13 +223,11 @@ private:
     struct ScopeInfo {
         ScopeInfo(const Scope* scope)
             : scope(scope)
-            , rpo_id(-1)
-            , rev_rpo_id(-1)
+            , index(-1)
         {}
 
         const Scope* scope;
-        size_t rpo_id;
-        size_t rev_rpo_id;
+        size_t index;
     };
 
     std::list<ScopeInfo>::iterator list_iter(const Scope*);
@@ -214,13 +237,13 @@ private:
 
     /**
      * There exist three cases to distinguish here.
-     * - \p parent_ == this: This \p Lambda is considered as a basic block, i.e.,
-     *                       SSA construction will propagate value through this \p Lambda's predecessors.
-     * - \p parent_ == nullptr: This \p Lambda is considered as top level function, i.e.,
+     * - @p parent_ == this: This @p Lambda is considered as a basic block, i.e.,
+     *                       SSA construction will propagate value through this @p Lambda's predecessors.
+     * - @p parent_ == nullptr: This @p Lambda is considered as top level function, i.e.,
      *                          SSA construction will stop propagate values here.
-     *                          Any \p get_value which arrives here without finding a definition will return \p bottom.
-     * - otherwise: This \p Lambda is considered as function head nested in \p parent_.
-     *              Any \p get_value which arrives here without finding a definition will recursively try to find one in \p parent_.
+     *                          Any @p get_value which arrives here without finding a definition will return @p bottom.
+     * - otherwise: This @p Lambda is considered as function head nested in @p parent_.
+     *              Any @p get_value which arrives here without finding a definition will recursively try to find one in @p parent_.
      */
     Lambda* parent_;
     std::vector<const Param*> params_;
@@ -235,8 +258,11 @@ private:
 
     friend class Cleaner;
     friend class Scope;
+    friend class CFA;
     friend class World;
 };
+
+void jump_to_cached_call(Lambda* src, Lambda* dst, ArrayRef<Def> call);
 
 //------------------------------------------------------------------------------
 

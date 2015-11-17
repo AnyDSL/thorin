@@ -4,6 +4,7 @@
 #include <memory>
 
 #include "thorin/def.h"
+#include "thorin/lambda.h"
 #include "thorin/util/array.h"
 
 namespace thorin {
@@ -43,14 +44,10 @@ public:
         , var_    (var.var_ == nullptr ? nullptr : new Var(*var.var_))
     {}
     Var(Var&& var)
-        : kind_   (std::move(var.kind()))
-        , builder_(std::move(var.builder_))
-        , handle_ (std::move(var.handle_))
-        , type_   (std::move(var.type_))
-        , name_   (std::move(var.name_))
-        , def_    (std::move(var.def_))
-        , var_    (std::move(var.var_))
-    {}
+        : Var()
+    {
+        swap(*this, var);
+    }
 
     Var static create_val(IRBuilder&, Def val);
     Var static create_mut(IRBuilder&, size_t handle, Type type, const char* name);
@@ -98,11 +95,12 @@ public:
         , name_(name)
     {}
 #ifndef NDEBUG
+#else
     ~JumpTarget();
 #endif
 
-    World& world() const;
-    void seal();
+    World& world() const { assert(lambda_); return lambda_->world(); }
+    void seal() { assert(lambda_); lambda_->seal(); }
 
 private:
     void jump_from(Lambda* bb);
@@ -115,6 +113,7 @@ private:
     bool first_;
     const char* name_;
 
+    friend void Lambda::jump(JumpTarget&);
     friend class IRBuilder;
 };
 

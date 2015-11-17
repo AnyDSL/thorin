@@ -81,9 +81,12 @@ void PartialEvaluator::run() {
 
         // due to the optimization below to eat up a call, we might see a new Run here
         while (lambda->to()->isa<Run>()) {
+            auto cur = lambda->to();
             init_cur_scope(lambda);
             eval(lambda, continuation(lambda));
             release_cur_scope();
+            if (cur == lambda->to())
+                break;
         }
 
         for (auto succ : top_scope().f_cfg().succs(lambda))

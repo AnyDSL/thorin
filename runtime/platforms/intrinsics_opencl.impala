@@ -58,8 +58,8 @@ extern "device" {
 }
 
 fn work_dim() -> i32              { get_work_dim() as i32 }
-fn global_size(idx: i32) -> i32   { get_global_size(idx as ui32) as i32 }
-fn global_offset(idx: i32) -> i32 { get_global_offset(idx as ui32) as i32 }
+fn global_size(idx: i32) -> i32   { get_global_size(idx as u32) as i32 }
+fn global_offset(idx: i32) -> i32 { get_global_offset(idx as u32) as i32 }
 
 fn acc(dev: i32, dim: (i32, i32, i32), block: (i32, i32, i32), body: fn() -> ()) -> () { opencl(dev, dim, block, body) }
 fn acc_alloc(dev: i32, size: i32) -> Buffer { alloc_opencl(dev, size) }

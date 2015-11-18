@@ -5,9 +5,9 @@ before_install: git clone https://github.com/AnyDSL/travis-ci.git
 cache: ccache
 
 install:
-  - bash travis-ci/install.sh impala
-  - bash travis-ci/build.sh
+  - travis-ci/install.sh impala
+  - travis-ci/build.sh
   - export PATH=$PATH:$PWD/../llvm_install/bin:$PWD/../impala/build/bin
 
 script:
-  - bash travis-ci/run.sh
+  - travis-ci/run.sh

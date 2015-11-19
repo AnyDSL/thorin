@@ -706,7 +706,8 @@ std::ostream& CCodeGen::emit(Def def) {
         }
 
         auto ins = def->as<Insert>();
-        emit_type(aggop->type()) << " " << aggop->unique_name() << " = ";
+        emit_type(aggop->type()) << " " << aggop->unique_name() << ";" << endl;
+        os << aggop->unique_name() << " = ";
         emit(ins->agg()) << ";" << endl;
         insert(def->gid(), aggop->unique_name());
         emit_access(def, ins->index()) << " = ";

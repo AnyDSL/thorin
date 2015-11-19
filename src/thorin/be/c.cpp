@@ -639,7 +639,10 @@ std::ostream& CCodeGen::emit(Def def) {
 
         emit_type(array->type()) << " " << array->unique_name() << ";";
         for (size_t i = 0, e = array->size(); i != e; ++i) {
-            os << endl << array->unique_name() << ".e[" << i << "] = ";
+            os << endl;
+            if (array->op(i)->isa<Bottom>())
+                os << "//";
+            os << array->unique_name() << ".e[" << i << "] = ";
             emit(array->op(i)) << ";";
         }
         return insert(def->gid(), def->unique_name());
@@ -654,7 +657,10 @@ std::ostream& CCodeGen::emit(Def def) {
         emit_type(agg->type()) << " " << agg->unique_name() << ";";
         char elem_prefix = (def->isa<Vector>()) ? 's' : 'e';
         for (size_t i = 0, e = agg->ops().size(); i != e; ++i) {
-            os << endl << agg->unique_name() << "." << elem_prefix << i << " = ";
+            os << endl;
+            if (agg->op(i)->isa<Bottom>())
+                os << "//";
+            os << agg->unique_name() << "." << elem_prefix << i << " = ";
             emit(agg->op(i)) << ";";
         }
         return insert(def->gid(), def->unique_name());

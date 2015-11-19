@@ -166,7 +166,8 @@ void CudaPlatform::set_kernel_arg_ptr(device_id dev, int32_t arg, void* ptr) {
     vals.resize(std::max(arg + 1, (int32_t)vals.size()));
     args.resize(std::max(arg + 1, (int32_t)args.size()));
     vals[arg] = ptr;
-    args[arg] = &vals[arg];
+    // The argument will be set at kernel launch (since the vals array may grow)
+    args[arg] = nullptr;
 }
 
 void CudaPlatform::set_kernel_arg_struct(device_id dev, int32_t arg, void* ptr, int32_t size) {
@@ -223,6 +224,11 @@ void CudaPlatform::launch_kernel(device_id dev) {
 
     // Set up arguments
     auto& args = cuda_dev.kernel_args;
+    auto& vals = cuda_dev.kernel_vals;
+    for (size_t i = 0; i < args.size(); i++) {
+        // Set the arguments pointers
+        if (!args[i]) args[i] = &vals[i];
+    }
 
     cuEventRecord(cuda_dev.start_kernel, 0);
 

@@ -155,17 +155,22 @@ void CudaPlatform::set_grid_size(device_id dev, int32_t x, int32_t y, int32_t z)
 }
 
 void CudaPlatform::set_kernel_arg(device_id dev, int32_t arg, void* ptr, int32_t size) {
-    set_kernel_arg_ptr(dev, arg, (void*)*(intptr_t*)ptr);
+    auto& args = devices_[dev].kernel_args;
+    args.resize(std::max(arg + 1, (int32_t)args.size()));
+    args[arg] = ptr;
 }
 
 void CudaPlatform::set_kernel_arg_ptr(device_id dev, int32_t arg, void* ptr) {
     auto& vals = devices_[dev].kernel_vals;
-    vals.resize(arg + 1);
+    auto& args = devices_[dev].kernel_args;
+    vals.resize(std::max(arg + 1, (int32_t)vals.size()));
+    args.resize(std::max(arg + 1, (int32_t)args.size()));
     vals[arg] = ptr;
+    args[arg] = &vals[arg];
 }
 
 void CudaPlatform::set_kernel_arg_struct(device_id dev, int32_t arg, void* ptr, int32_t size) {
-    set_kernel_arg_ptr(dev, arg, ptr);
+    set_kernel_arg(dev, arg, ptr, size);
 }
 
 void CudaPlatform::load_kernel(device_id dev, const char* file, const char* name) {
@@ -218,10 +223,6 @@ void CudaPlatform::launch_kernel(device_id dev) {
 
     // Set up arguments
     auto& args = cuda_dev.kernel_args;
-    auto& vals = cuda_dev.kernel_vals;
-    args.resize(vals.size());
-    for (size_t i = 0; i < vals.size(); i++)
-        args[i] = (void*)&vals[i];
 
     cuEventRecord(cuda_dev.start_kernel, 0);
 

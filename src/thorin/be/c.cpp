@@ -421,11 +421,9 @@ void CCodeGen::emit() {
             if (lambda != scope.entry()) {
                 os << "l" << lambda->gid() << ": ;" << up << endl;
                 // load params from phi node
-                if (lambda->to() != ret_param) // skip for return
-                    for (auto param : lambda->params())
-                        if (!param->is_mem()) {
-                            os << param->unique_name() << " = p" << param->unique_name() << ";" << endl;
-                        }
+                for (auto param : lambda->params())
+                    if (!param->is_mem())
+                        os << param->unique_name() << " = p" << param->unique_name() << ";" << endl;
             }
 
             for (auto primop : block) {

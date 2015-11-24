@@ -656,8 +656,11 @@ llvm::Value* CodeGen::emit(Def def) {
             assert(false && "unsupported cast");
         }
 
-        if (conv->isa<Bitcast>())
+        if (conv->isa<Bitcast>()) {
+            if (src_type.isa<PtrType>() && dst_type.isa<PtrType>())
+                return irbuilder_.CreatePointerCast(from, to);
             return irbuilder_.CreateBitCast(from, to);
+        }
     }
 
     if (auto select = def->isa<Select>()) {

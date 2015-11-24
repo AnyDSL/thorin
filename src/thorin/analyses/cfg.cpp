@@ -33,12 +33,10 @@ public:
     }
 
     const CFNode* context() const { return context_; }
-    const CFNodeSet& ancestors() const { return ancestors_; }
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
     const CFNode* context_;
-    mutable CFNodeSet ancestors_;
 
     friend class CFABuilder;
 };
@@ -125,11 +123,7 @@ public:
         return out_nodes_[in][def] = new OutNode(in, def);
     }
 
-    const OutNode* out_node(const OutNode* ancestor, const CFNode* in) {
-        auto out = out_node(in, ancestor->def());
-        out->ancestors_.insert(ancestor);
-        return out;
-    }
+    const OutNode* out_node(Def def, const CFNode* in) { return out_node(in, def); }
 
     CFNodeSet& param2nodes(const Param* param) {
         in_node(param->lambda()); // alloc CFNode and make room in lambda2param2nodes_
@@ -138,21 +132,12 @@ public:
 
     void link(const CFNodeBase* src, const CFNodeBase* dst) {
         DLOG("% -> %", src, dst);
-
         assert(src->f_index_ == CFNode::Reachable || src->f_index_ == CFNode::Done);
         dst->f_index_ = src->f_index_;
 
         const auto& p = succs_[src].insert(dst);
         const auto& q = preds_[dst].insert(src);
-
-        // recursively link ancestors
-        if (p.second) {
-            assert_unused(q.second);
-            if (auto out = dst->isa<OutNode>()) {
-                for (auto ancestor : out->ancestors())
-                    link(out, ancestor);
-            }
-        }
+        assert_unused(p.second == q.second);
     }
 
 private:
@@ -231,7 +216,7 @@ CFNodeSet CFABuilder::nodes(const CFNode* in, size_t i) {
                     const auto& set = param2nodes(param);
                     for (auto n : set) {
                         if (auto out = n->isa<OutNode>())
-                            result.insert(out_node(out, in)); // create a new context if applicable
+                            result.insert(out_node(out->def(), in)); // create a new context if applicable
                         else
                             result.insert(n->as<CFNode>());
                     }

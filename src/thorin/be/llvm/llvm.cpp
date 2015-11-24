@@ -63,6 +63,7 @@ Lambda* CodeGen::emit_intrinsic(Lambda* lambda) {
         case Intrinsic::Atomic:      return emit_atomic(lambda);
         case Intrinsic::Select:      return emit_select(lambda);
         case Intrinsic::Shuffle:     return emit_shuffle(lambda);
+        case Intrinsic::Reserve:     return emit_reserve(lambda);
         case Intrinsic::Reinterpret: return emit_reinterpret(lambda);
         case Intrinsic::CUDA:        return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM, ".cu", lambda);
         case Intrinsic::NVVM:        return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM, ".nvvm", lambda);
@@ -119,6 +120,27 @@ Lambda* CodeGen::emit_shuffle(Lambda* lambda) {
 
     auto cont = lambda->arg(4)->as_lambda();
     auto call = irbuilder_.CreateShuffleVector(a, b, mask);
+    emit_result_phi(cont->param(1), call);
+    return cont;
+}
+
+Lambda* CodeGen::emit_reserve(const Lambda* lambda) {
+    WLOG("error: reserve_shared: only allowed in device code", lambda->loc());
+    assert(false && "reserve_shared: only allowed in device code");
+}
+
+Lambda* CodeGen::emit_reserve_shared(const Lambda* lambda, bool prefix) {
+    assert(lambda->num_args() == 3 && "required arguments are missing");
+    if (!lambda->arg(1)->isa<PrimLit>())
+        WLOG("error: reserve_shared: couldn't extract memory size at %", lambda->arg(1)->loc());
+    auto num_elems = lambda->arg(1)->as<PrimLit>()->ps32_value();
+    auto cont = lambda->arg(2)->as_lambda();
+    auto type = convert(cont->param(1)->type());
+    // construct array type
+    auto elem_type = cont->param(1)->type().as<PtrType>()->referenced_type().as<ArrayType>()->elem_type();
+    auto smem_type = this->convert(lambda->world().definite_array_type(elem_type, num_elems));
+    auto global = emit_global_memory(smem_type, (prefix ? entry_->name + "." : "") + lambda->unique_name(), 3);
+    auto call = irbuilder_.CreatePointerCast(global, type);
     emit_result_phi(cont->param(1), call);
     return cont;
 }
@@ -784,7 +806,6 @@ llvm::Value* CodeGen::emit(Def def) {
 
     if (auto load = def->isa<Load>())    return emit_load(load);
     if (auto store = def->isa<Store>())  return emit_store(store);
-    //if (auto mmap = def->isa<Map>())     return emit_mmap(mmap);
     if (auto lea = def->isa<LEA>())      return emit_lea(lea);
     if (def->isa<Enter>())               return nullptr;
 
@@ -833,23 +854,6 @@ llvm::Value* CodeGen::emit_lea(const LEA* lea) {
     assert(lea->ptr_referenced_type().isa<ArrayType>());
     llvm::Value* args[2] = { irbuilder_.getInt64(0), lookup(lea->index()) };
     return irbuilder_.CreateInBoundsGEP(lookup(lea->ptr()), args);
-}
-
-llvm::Value* CodeGen::emit_shared_mmap(Def def, bool prefix) {
-    auto mmap = def->as<Map>();
-    assert(entry_ && "shared memory can only be mapped inside kernel");
-    if (mmap->addr_space() != AddressSpace::Shared)
-        WLOG("error: mmap: expected shared / local memory address space at %", mmap->loc());
-    assert(mmap->addr_space() == AddressSpace::Shared && "wrong address space for shared memory");
-    if (!mmap->mem_size()->isa<PrimLit>())
-        WLOG("error: mmap: couldn't extract memory size at %", mmap->mem_size()->loc());
-    auto num_elems = mmap->mem_size()->as<PrimLit>()->ps32_value();
-
-    // construct array type
-    auto elem_type = mmap->out_ptr_type()->referenced_type().as<ArrayType>()->elem_type();
-    auto type = this->convert(mmap->world().definite_array_type(elem_type, num_elems));
-    auto global = emit_global_memory(type, (prefix ? entry_->name + "." : "") + mmap->unique_name(), 3);
-    return global;
 }
 
 llvm::Type* CodeGen::convert(Type type) {

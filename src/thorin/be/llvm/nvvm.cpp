@@ -214,7 +214,7 @@ llvm::Value* NVVMCodeGen::emit_lea(const LEA* lea) {
     }
 }
 
-//llvm::Value* NVVMCodeGen::emit_mmap(const Map* mmap) { return emit_shared_mmap(mmap); }
+Lambda* NVVMCodeGen::emit_reserve(const Lambda* lambda) { return emit_reserve_shared(lambda); }
 
 llvm::GlobalVariable* NVVMCodeGen::resolve_global_variable(const Param* param) {
     if (resolve_addr_space(param) != AddressSpace::Global)

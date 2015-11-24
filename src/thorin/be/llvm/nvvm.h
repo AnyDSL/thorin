@@ -19,7 +19,7 @@ protected:
     virtual llvm::Value* emit_load(const Load*) override;
     virtual llvm::Value* emit_store(const Store*) override;
     virtual llvm::Value* emit_lea(const LEA*) override;
-    //virtual llvm::Value* emit_mmap(const Map*) override;
+    virtual Lambda* emit_reserve(const Lambda*) override;
     virtual std::string get_alloc_name() const override { return "malloc"; }
     virtual std::string get_output_name(const std::string& name) const override { return name + ".nvvm"; }
     virtual std::string get_binary_output_name(const std::string& name) const override { return name + ".nvvm.bc"; }

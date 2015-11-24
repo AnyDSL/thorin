@@ -71,7 +71,7 @@ void NVVMCodeGen::emit_function_decl_hook(Lambda* lambda, llvm::Function* f) {
 
     const auto emit_texture_kernel_arg = [&](const Param* param) {
         assert(param->type().as<PtrType>()->addr_space() == AddressSpace::Texture);
-        auto global = emit_global_memory(irbuilder_.getInt64Ty(), param->name, 1);
+        auto global = emit_global_variable(irbuilder_.getInt64Ty(), param->name, 1);
         metadata_[param] = append_metadata(global, "texture");
     };
 

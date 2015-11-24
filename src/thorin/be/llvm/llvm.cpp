@@ -139,7 +139,7 @@ Lambda* CodeGen::emit_reserve_shared(const Lambda* lambda, bool prefix) {
     // construct array type
     auto elem_type = cont->param(1)->type().as<PtrType>()->referenced_type().as<ArrayType>()->elem_type();
     auto smem_type = this->convert(lambda->world().definite_array_type(elem_type, num_elems));
-    auto global = emit_global_memory(smem_type, (prefix ? entry_->name + "." : "") + lambda->unique_name(), 3);
+    auto global = emit_global_variable(smem_type, (prefix ? entry_->name + "." : "") + lambda->unique_name(), 3);
     auto call = irbuilder_.CreatePointerCast(global, type);
     emit_result_phi(cont->param(1), call);
     return cont;
@@ -965,7 +965,7 @@ multiple:
     return types_[*type] = llvm::VectorType::get(llvm_type, type->length());
 }
 
-llvm::GlobalVariable* CodeGen::emit_global_memory(llvm::Type* type, const std::string& name, unsigned addr_space) {
+llvm::GlobalVariable* CodeGen::emit_global_variable(llvm::Type* type, const std::string& name, unsigned addr_space) {
     return new llvm::GlobalVariable(*module_, type, false,
             llvm::GlobalValue::InternalLinkage, llvm::Constant::getNullValue(type), name,
             nullptr, llvm::GlobalVariable::NotThreadLocal, addr_space);

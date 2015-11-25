@@ -46,6 +46,7 @@ fn alloc_host(size: i32) -> Buffer { alloc(0, size) }
 fn alloc_cuda(dev: i32, size: i32) -> Buffer { alloc(thorin_device(1, dev), size) }
 fn alloc_cuda_unified(size: i32) -> Buffer { alloc_unified(thorin_device(1, 0), size) }
 fn alloc_opencl(dev: i32, size: i32) -> Buffer { alloc(thorin_device(2, dev), size) }
+fn alloc_opencl_unified(size: i32) -> Buffer { alloc_unified(thorin_device(2, 0), size) }
 
 fn copy(a: Buffer, b: Buffer, size: i32) -> () {
     thorin_copy(a.device, a.data as &i8, 0i64, b.device, b.data as &i8, 0i64, size as i64)

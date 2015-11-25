@@ -19,6 +19,7 @@ enum {
 void thorin_info(void);
 
 void* thorin_alloc(int32_t, int64_t);
+void* thorin_alloc_unified(int32_t, int64_t);
 void  thorin_release(int32_t, void*);
 
 void thorin_copy(int32_t, const void*, int64_t, int32_t, void*, int64_t, int64_t);

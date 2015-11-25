@@ -36,6 +36,11 @@ public:
         return platforms_[plat]->alloc(dev, size);
     }
 
+    /// Allocates unified memory on the given platform.
+    void* alloc_unified(platform_id plat, int64_t size) {
+        return platforms_[plat]->alloc_unified(size);
+    }
+
     /// Releases memory.
     void release(platform_id plat, device_id dev, void* ptr) {
         platforms_[plat]->release(dev, ptr);

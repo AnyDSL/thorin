@@ -18,6 +18,10 @@ protected:
         return thorin_aligned_malloc(size, 64);
     }
 
+    void* alloc_unified(int64_t size) override {
+        return alloc(device_id(0), size);
+    }
+
     void release(device_id, void* ptr) override {
         thorin_aligned_free(ptr);
     }

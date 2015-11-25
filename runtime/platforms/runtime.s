@@ -1,5 +1,6 @@
 ; Module thorin runtime decls
 declare i8* @thorin_alloc(i32, i64);
+declare i8* @thorin_alloc_unified(i32, i64);
 declare void @thorin_release(i32, i8*);
 declare void @thorin_set_block_size(i32, i32, i32, i32);
 declare void @thorin_set_grid_size(i32, i32, i32, i32);

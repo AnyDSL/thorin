@@ -68,6 +68,10 @@ void* thorin_alloc(int32_t mask, int64_t size) {
     return runtime.alloc(to_platform(mask), to_device(mask), size);
 }
 
+void* thorin_alloc_unified(int32_t mask, int64_t size) {
+    return runtime.alloc_unified(to_platform(mask), size);
+}
+
 void thorin_release(int32_t mask, void* ptr) {
     runtime.release(to_platform(mask), to_device(mask), ptr);
 }

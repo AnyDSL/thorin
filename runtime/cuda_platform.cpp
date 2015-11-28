@@ -133,11 +133,14 @@ void* CudaPlatform::alloc(device_id dev, int64_t size) {
     return (void*)mem;
 }
 
-void* CudaPlatform::alloc_unified(int64_t size) {
+void* CudaPlatform::alloc_unified(device_id dev, int64_t size) {
+    cuCtxPushCurrent(devices_[dev].ctx);
+
     CUdeviceptr mem;
     CUresult err = cuMemAllocManaged(&mem, size, CU_MEM_ATTACH_GLOBAL);
     checkErrDrv(err, "cuMemAllocManaged()");
 
+    cuCtxPopCurrent(NULL);
     return (void*)mem;
 }
 

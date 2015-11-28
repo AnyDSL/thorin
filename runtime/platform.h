@@ -24,8 +24,8 @@ public:
 
     /// Allocates memory for a device on this platform.
     virtual void* alloc(device_id dev, int64_t size) = 0;
-    /// Allocates unified memory for a platform.
-    virtual void* alloc_unified(int64_t size) = 0;
+    /// Allocates unified memory for a platform (and a device).
+    virtual void* alloc_unified(device_id dev, int64_t size) = 0;
     /// Releases memory for a device on this platform.
     virtual void release(device_id dev, void* ptr) = 0;
 

@@ -18,7 +18,6 @@
 #define KERNEL_DIR ""
 #endif
 
-#define check_dev(dev) __check_device(dev)
 #define checkErrNvvm(err, name)  checkNvvmErrors  (err, name, __FILE__, __LINE__)
 #define checkErrNvrtc(err, name) checkNvrtcErrors (err, name, __FILE__, __LINE__)
 #define checkErrDrv(err, name)   checkCudaErrors  (err, name, __FILE__, __LINE__)

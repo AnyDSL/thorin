@@ -1,9 +1,11 @@
 #ifndef RUNTIME_H
 #define RUNTIME_H
 
-#include <iostream>
-
 #include "platform.h"
+
+#include <cstdlib>
+#include <iostream>
+#include <vector>
 
 class Runtime {
 public:

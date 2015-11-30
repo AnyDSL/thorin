@@ -4,9 +4,9 @@
 #include "platform.h"
 #include "runtime.h"
 
-#include <cstring>
-#include <vector>
+#include <string>
 #include <unordered_map>
+#include <vector>
 
 #include <cuda.h>
 #include <nvvm.h>

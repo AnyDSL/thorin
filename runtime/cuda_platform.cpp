@@ -1,3 +1,6 @@
+#include "cuda_platform.h"
+#include "runtime.h"
+
 #include <algorithm>
 #include <atomic>
 #include <cassert>
@@ -5,11 +8,6 @@
 #include <fstream>
 #include <iostream>
 #include <string>
-#include <unordered_map>
-#include <vector>
-
-#include "cuda_platform.h"
-#include "runtime.h"
 
 #ifndef LIBDEVICE_DIR
 #define LIBDEVICE_DIR ""

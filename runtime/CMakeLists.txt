@@ -1,6 +1,9 @@
 SET ( RUNTIME_DEFINITIONS )
 SET ( CONF_RUNTIME_LIBRARIES )
 
+# Add path for custom modules
+SET(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/runtime/cmake/modules)
+
 # Look for CUDA
 FIND_PACKAGE ( CUDA )
 IF ( CUDA_FOUND )
@@ -19,6 +22,16 @@ IF ( CUDA_FOUND )
     SET ( CONF_RUNTIME_LIBRARIES ${CONF_RUNTIME_LIBRARIES} "${CUDA_LIBRARY}" "${CUDA_NVVM_LIBRARY}" "${CUDA_NVRTC_LIBRARY}")
 ELSE ()
     SET ( CUDA_PLATFORM "" )
+ENDIF ()
+
+# Look for OpenCL
+FIND_PACKAGE(OpenCL)
+IF ( OPENCL_FOUND )
+    INCLUDE_DIRECTORIES ( ${OPENCL_INCLUDE_DIRS} )
+    SET ( OPENCL_PLATFORM opencl_platform.cpp opencl_platform.h )
+    SET ( CONF_RUNTIME_LIBRARIES ${CONF_RUNTIME_LIBRARIES} "${CUDA_LIBRARY}" "${CUDA_NVVM_LIBRARY}" "${CUDA_NVRTC_LIBRARY}")
+ELSE ()
+    SET ( OPENCL_PLATFORM "" )
 ENDIF ()
 
 # Look for TBB
@@ -45,7 +58,8 @@ ADD_LIBRARY ( thorin_runtime
               platform.h
               cpu_platform.h
               dummy_platform.h
-              ${CUDA_PLATFORM} )
+              ${CUDA_PLATFORM}
+              ${OPENCL_PLATFORM} )
 
 # Generate the ThorinRuntime.cmake file from the template
 CONFIGURE_FILE ( cmake/ThorinRuntime.cmake.in "${CMAKE_BINARY_DIR}/cmake/ThorinRuntime.cmake" @ONLY )

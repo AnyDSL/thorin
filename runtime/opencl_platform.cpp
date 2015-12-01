@@ -385,6 +385,9 @@ void OpenCLPlatform::launch_kernel(device_id dev) {
         cl_int err = clSetKernelArg(devices_[dev].kernel, i, sizs[i], args[i]);
         checkErr(err, "clSetKernelArg()");
     }
+    args.clear();
+    vals.clear();
+    sizs.clear();
 
     // launch the kernel
     err = clEnqueueNDRangeKernel(devices_[dev].queue, devices_[dev].kernel, 2, NULL, devices_[dev].global_work_size, devices_[dev].local_work_size, 0, NULL, &event);

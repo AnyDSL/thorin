@@ -237,6 +237,8 @@ void CudaPlatform::launch_kernel(device_id dev) {
         // Set the arguments pointers
         if (!args[i]) args[i] = &vals[i];
     }
+    args.clear();
+    vals.clear();
 
     cuEventRecord(cuda_dev.start_kernel, 0);
 

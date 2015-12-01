@@ -50,12 +50,13 @@ protected:
     std::string name() override { return "OpenCL"; }
 
     struct DeviceData {
+        cl_platform_id platform;
         cl_device_id dev;
+        cl_command_queue queue;
         cl_context ctx;
+        cl_kernel kernel;
 
         size_t local_work_size[3], global_work_size[3];
-        cl_command_queue queue;
-        cl_kernel kernel;
         cl_ulong start_kernel, end_kernel;
         std::vector<void*> kernel_args;
         std::vector<void*> kernel_vals;

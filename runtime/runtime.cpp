@@ -46,7 +46,7 @@ Runtime::Runtime() {
     register_platform<DummyPlatform>("CUDA");
 #endif
 #ifdef ENABLE_OPENCL
-    register_platform<OpenClPlatform>();
+    register_platform<OpenCLPlatform>();
 #else
     register_platform<DummyPlatform>("OpenCL");
 #endif

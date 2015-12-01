@@ -35,7 +35,7 @@ public:
     virtual void set_grid_size(device_id dev, int32_t x, int32_t y, int32_t z) = 0;
     /// Sets the argument of a kernel. The argument is a pointer to the value on the stack.
     virtual void set_kernel_arg(device_id dev, int32_t arg, void* ptr, int32_t size) = 0;
-    /// Sets the argument of a kernel. The argument is a pointer to device-allocted memory.
+    /// Sets the argument of a kernel. The argument is a pointer to device-allocated memory.
     virtual void set_kernel_arg_ptr(device_id dev, int32_t arg, void* ptr) = 0;
     /// Sets the argument of a kernel. The argument is a pointer to a stack-allocated structure.
     virtual void set_kernel_arg_struct(device_id dev, int32_t arg, void* ptr, int32_t size) = 0;

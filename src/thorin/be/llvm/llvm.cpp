@@ -443,7 +443,7 @@ void CodeGen::optimize(int opt) {
             pmbuilder.SizeLevel = 1;
         } else {
             pmbuilder.OptLevel = (unsigned) opt;
-            pmbuilder.SizeLevel = 0U;
+            pmbuilder.SizeLevel = 0u;
         }
         pmbuilder.DisableUnitAtATime = true;
         if (opt == 3) {

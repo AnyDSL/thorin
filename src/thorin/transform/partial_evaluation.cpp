@@ -57,18 +57,7 @@ public:
     }
 
     void mark_dirty() { top_dirty_ = cur_dirty_ = true; }
-
-    Lambda* continuation(Lambda* lambda) {
-        assert(!lambda->empty());
-        if (auto result = lambda->args().back()->isa_lambda())
-            return result;
-
-        auto evalop = lambda->to()->as<EvalOp>();
-        if (auto eval_lambda = evalop->def()->isa_lambda())
-            return postdom(eval_lambda);
-
-        return nullptr;
-    }
+    Lambda* continuation(Lambda* lambda) { return lambda->to()->as<EvalOp>()->end()->isa_lambda(); }
 
 private:
     Scope* cur_scope_;

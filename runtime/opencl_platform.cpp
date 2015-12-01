@@ -309,12 +309,23 @@ void OpenCLPlatform::synchronize(device_id dev) {
 }
 
 void OpenCLPlatform::copy(device_id dev_src, const void* src, int64_t offset_src, device_id dev_dst, void* dst, int64_t offset_dst, int64_t size) {
+    assert(dev_src == dev_dst);
+
+    cl_int err = clEnqueueCopyBuffer(devices_[dev_src].queue, (cl_mem)src, (cl_mem)dst, offset_src, offset_dst, size, 0, NULL, NULL);
+    err |= clFinish(devices_[dev_src].queue);
+    checkErr(err, "clEnqueueCopyBuffer()");
 }
 
 void OpenCLPlatform::copy_from_host(const void* src, int64_t offset_src, device_id dev_dst, void* dst, int64_t offset_dst, int64_t size) {
+    cl_int err = clEnqueueWriteBuffer(devices_[dev_dst].queue, (cl_mem)dst, CL_FALSE, offset_dst, size, (char*)src + offset_src, 0, NULL, NULL);
+    err |= clFinish(devices_[dev_dst].queue);
+    checkErr(err, "clEnqueueWriteBuffer()");
 }
 
 void OpenCLPlatform::copy_to_host(device_id dev_src, const void* src, int64_t offset_src, void* dst, int64_t offset_dst, int64_t size) {
+    cl_int err = clEnqueueReadBuffer(devices_[dev_src].queue, (cl_mem)src, CL_FALSE, offset_src, size, (char*)dst + offset_dst, 0, NULL, NULL);
+    err |= clFinish(devices_[dev_src].queue);
+    checkErr(err, "clEnqueueReadBuffer()");
 }
 
 int OpenCLPlatform::dev_count() {

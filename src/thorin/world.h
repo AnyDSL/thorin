@@ -185,8 +185,8 @@ public:
 
     // misc
 
-    Def run(Def def, const Location& loc, const std::string& name = "");
-    Def hlt(Def def, const Location& loc, const std::string& name = "");
+    Def run(Def begin, Def end, const Location& loc, const std::string& name = "");
+    Def hlt(Def begin, Def end, const Location& loc, const std::string& name = "");
 
     // lambdas
 

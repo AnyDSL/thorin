@@ -773,17 +773,8 @@ const Map* World::map(Def device, Def addr_space, Def mem, Def ptr, Def mem_offs
  * guided partial evaluation
  */
 
-Def World::run(Def def, const Location& loc, const std::string& name) {
-    if (auto run = def->isa<Run>()) return run;
-    if (auto hlt = def->isa<Hlt>()) return hlt;
-    return cse(new Run(def, loc, name));
-}
-
-Def World::hlt(Def def, const Location& loc, const std::string& name) {
-    if (auto hlt = def->isa<Hlt>()) return hlt;
-    if (auto run = def->isa<Run>()) def = run->def();
-    return cse(new Hlt(def, loc, name));
-}
+Def World::run(Def begin, Def end, const Location& loc, const std::string& name) { return cse(new Run(begin, end, loc, name)); }
+Def World::hlt(Def begin, Def end, const Location& loc, const std::string& name) { return cse(new Hlt(begin, end, loc, name)); }
 
 /*
  * lambdas

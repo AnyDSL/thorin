@@ -116,7 +116,7 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
 
         Lambda* dst = nullptr;
         if (auto run = cur->to()->isa<Run>()) {
-            dst = run->def()->isa_lambda();
+            dst = run->begin()->isa_lambda();
         } else if (cur->to()->isa<Hlt>()) {
             cur = continuation(cur);
             continue;
@@ -208,7 +208,7 @@ void partial_evaluation(World& world) {
 
     for (auto primop : world.primops()) {
         if (auto evalop = Def(primop)->isa<EvalOp>())
-            evalop->replace(evalop->def());
+            evalop->replace(evalop->begin());
     }
 }
 

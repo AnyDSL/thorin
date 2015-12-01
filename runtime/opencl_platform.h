@@ -60,6 +60,7 @@ protected:
         cl_ulong start_kernel, end_kernel;
         std::vector<void*> kernel_args;
         std::vector<void*> kernel_vals;
+        std::vector<size_t> kernel_arg_sizes;
 
         std::unordered_map<std::string, cl_kernel> kernels;
     };

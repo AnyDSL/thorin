@@ -270,42 +270,142 @@ void OpenCLPlatform::set_grid_size(device_id dev, int32_t x, int32_t y, int32_t 
 
 void OpenCLPlatform::set_kernel_arg(device_id dev, int32_t arg, void* ptr, int32_t size) {
     auto& args = devices_[dev].kernel_args;
+    auto& sizs = devices_[dev].kernel_arg_sizes;
     args.resize(std::max(arg + 1, (int32_t)args.size()));
+    sizs.resize(std::max(arg + 1, (int32_t)sizs.size()));
     args[arg] = ptr;
+    sizs[arg] = size;
 }
 
 void OpenCLPlatform::set_kernel_arg_ptr(device_id dev, int32_t arg, void* ptr) {
     auto& vals = devices_[dev].kernel_vals;
     auto& args = devices_[dev].kernel_args;
+    auto& sizs = devices_[dev].kernel_arg_sizes;
     vals.resize(std::max(arg + 1, (int32_t)vals.size()));
     args.resize(std::max(arg + 1, (int32_t)args.size()));
+    sizs.resize(std::max(arg + 1, (int32_t)sizs.size()));
     vals[arg] = ptr;
     // The argument will be set at kernel launch (since the vals array may grow)
     args[arg] = nullptr;
+    sizs[arg] = sizeof(cl_mem);
 }
 
 void OpenCLPlatform::set_kernel_arg_struct(device_id dev, int32_t arg, void* ptr, int32_t size) {
-    set_kernel_arg(dev, arg, ptr, size);
+    assert(false && "not yet implemented");
 }
 
 void OpenCLPlatform::load_kernel(device_id dev, const char* file, const char* name) {
-}
+    std::string cache_name = file + std::string(":") + name;
+    auto& kernel_cache = devices_[dev].kernels;
+    auto kernel_it = kernel_cache.find(cache_name);
+    if (kernel_it != kernel_cache.end()) {
+        devices_[dev].kernel = kernel_it->second;
+        return;
+    }
 
-void OpenCLPlatform::launch_kernel(device_id dev) {
+    cl_program program;
+    cl_int err = CL_SUCCESS;
+
+    bool is_binary = false;
+    std::ifstream srcFile(std::string(KERNEL_DIR) + file);
+    if (!srcFile.is_open()) {
+        std::cerr << "ERROR: Can't open "
+                  << (is_binary?"SPIR binary":"OpenCL source")
+                  << " file '" << name << "'!" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    std::string clString(std::istreambuf_iterator<char>(srcFile), (std::istreambuf_iterator<char>()));
+    std::string options = "-cl-single-precision-constant -cl-denorms-are-zero";
+
+    const size_t length = clString.length();
+    const char* c_str = clString.c_str();
+
+    if (is_binary) {
+        options += " -x spir -spir-std=1.2";
+        program = clCreateProgramWithBinary(devices_[dev].ctx, 1, &devices_[dev].dev, &length, (const unsigned char**)&c_str, NULL, &err);
+        checkErr(err, "clCreateProgramWithBinary()");
+    } else {
+        program = clCreateProgramWithSource(devices_[dev].ctx, 1, (const char**)&c_str, &length, &err);
+        checkErr(err, "clCreateProgramWithSource()");
+    }
+
+    err = clBuildProgram(program, 0, NULL, options.c_str(), NULL, NULL);
+
+    cl_build_status build_status;
+    clGetProgramBuildInfo(program, devices_[dev].dev, CL_PROGRAM_BUILD_STATUS, sizeof(build_status), &build_status, NULL);
+
+    if (build_status == CL_BUILD_ERROR || err != CL_SUCCESS) {
+        // determine the size of the options and log
+        size_t log_size, options_size;
+        err |= clGetProgramBuildInfo(program, devices_[dev].dev, CL_PROGRAM_BUILD_OPTIONS, 0, NULL, &options_size);
+        err |= clGetProgramBuildInfo(program, devices_[dev].dev, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
+
+        // allocate memory for the options and log
+        char* program_build_options = new char[options_size];
+        char* program_build_log = new char[log_size];
+
+        // get the options and log
+        err |= clGetProgramBuildInfo(program, devices_[dev].dev, CL_PROGRAM_BUILD_OPTIONS, options_size, program_build_options, NULL);
+        err |= clGetProgramBuildInfo(program, devices_[dev].dev, CL_PROGRAM_BUILD_LOG, log_size, program_build_log, NULL);
+        runtime_->log("OpenCL build options : ", program_build_options);
+        runtime_->log("OpenCL build log : ");
+        runtime_->log(program_build_log);
+
+        // free memory for options and log
+        delete[] program_build_options;
+        delete[] program_build_log;
+    }
+    checkErr(err, "clBuildProgram(), clGetProgramBuildInfo()");
+
+    devices_[dev].kernel = clCreateKernel(program, name, &err);
+    kernel_cache.emplace(name, devices_[dev].kernel);
+    checkErr(err, "clCreateKernel()");
+
+    // release program
+    err = clReleaseProgram(program);
+    checkErr(err, "clReleaseProgram()");
 }
 
 extern std::atomic_llong thorin_kernel_time;
 
+void OpenCLPlatform::launch_kernel(device_id dev) {
+    cl_int err = CL_SUCCESS;
+    cl_event event;
+    cl_ulong end, start;
+    float time;
+
+    // Set up arguments
+    auto& args = devices_[dev].kernel_args;
+    auto& vals = devices_[dev].kernel_vals;
+    auto& sizs = devices_[dev].kernel_arg_sizes;
+    for (size_t i = 0; i < args.size(); i++) {
+        // Set the arguments pointers
+        if (!args[i]) args[i] = &vals[i];
+        cl_int err = clSetKernelArg(devices_[dev].kernel, i, sizs[i], args[i]);
+        checkErr(err, "clSetKernelArg()");
+    }
+
+    // launch the kernel
+    err = clEnqueueNDRangeKernel(devices_[dev].queue, devices_[dev].kernel, 2, NULL, devices_[dev].global_work_size, devices_[dev].local_work_size, 0, NULL, &event);
+    err |= clFinish(devices_[dev].queue);
+    checkErr(err, "clEnqueueNDRangeKernel()");
+
+    err = clWaitForEvents(1, &event);
+    checkErr(err, "clWaitForEvents()");
+    err = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, 0);
+    err |= clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, 0);
+    checkErr(err, "clGetEventProfilingInfo()");
+    time = (end-start)*1.0e-6f;
+    thorin_kernel_time.fetch_add(time * 1000);
+
+    err = clReleaseEvent(event);
+    checkErr(err, "clReleaseEvent()");
+}
+
 void OpenCLPlatform::synchronize(device_id dev) {
     cl_int err = clFinish(devices_[dev].queue);
     checkErr(err, "clFinish()");
-    // TODO
-    //float time;
-    //CUresult err = cuEventSynchronize(cuda_dev.end_kernel);
-    //checkErrDrv(err, "cuEventSynchronize()");
-
-    //cuEventElapsedTime(&time, cuda_dev.start_kernel, cuda_dev.end_kernel);
-    //thorin_kernel_time.fetch_add(time * 1000);
 }
 
 void OpenCLPlatform::copy(device_id dev_src, const void* src, int64_t offset_src, device_id dev_dst, void* dst, int64_t offset_dst, int64_t size) {

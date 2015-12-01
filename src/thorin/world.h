@@ -194,7 +194,6 @@ public:
     Lambda* lambda(FnType fn, const Location& loc, const std::string& name) { return lambda(fn, loc, CC::C, Intrinsic::None, name); }
     Lambda* lambda(const Location& loc, const std::string& name) { return lambda(fn_type(), loc, CC::C, Intrinsic::None, name); }
     Lambda* basicblock(const Location& loc, const std::string& name = "");
-    Lambda* meta_lambda();
     Lambda* branch() const { return branch_; }
     Lambda* end_scope() const { return end_scope_; }
 

@@ -405,7 +405,9 @@ void CCodeGen::emit() {
                 for (auto param : lambda->params()) {
                     if (!param->is_mem()) {
                         os << endl;
+                        emit_addr_space(param->type());
                         emit_type(param->type()) << "  " << param->unique_name() << ";" << endl;
+                        emit_addr_space(param->type());
                         emit_type(param->type()) << " p" << param->unique_name() << ";";
                     }
                 }
@@ -625,8 +627,10 @@ std::ostream& CCodeGen::emit(Def def) {
     }
 
     if (auto conv = def->isa<ConvOp>()) {
+        emit_addr_space(conv->type());
         emit_type(conv->type()) << " " << conv->unique_name() << ";" << endl;
         os << conv->unique_name() << " = (";
+        emit_addr_space(conv->type());
         emit_type(conv->type()) << ")";
         emit(conv->from()) << ";";
         return insert(def->gid(), def->unique_name());

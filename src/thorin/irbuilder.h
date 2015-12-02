@@ -136,6 +136,7 @@ public:
     Def extract(Def agg, u32 index, const Location& loc, const std::string& name = "");
     void store(Def ptr, Def val, const Location& loc, const std::string& name = "");
     Lambda* enter(JumpTarget& jt) { return cur_bb = jt.enter(); }
+    void enter(Lambda* lambda) { cur_bb = lambda; lambda->seal(); }
     Lambda* enter_unsealed(JumpTarget& jt, const Location& loc) { return cur_bb = jt.enter_unsealed(world_, loc); }
     void jump(JumpTarget& jt);
     void branch(Def cond, JumpTarget& t, JumpTarget& f);

@@ -58,18 +58,6 @@ public:
 
     void mark_dirty() { top_dirty_ = cur_dirty_ = true; }
 
-    Lambda* continuation(Lambda* lambda) {
-        assert(!lambda->empty());
-        if (auto result = lambda->args().back()->isa_lambda())
-            return result;
-
-        auto evalop = lambda->to()->as<EvalOp>();
-        if (auto eval_lambda = evalop->def()->isa_lambda())
-            return postdom(eval_lambda);
-
-        return nullptr;
-    }
-
 private:
     Scope* cur_scope_;
     Scope& top_scope_;
@@ -80,6 +68,10 @@ private:
     bool cur_dirty_;
     bool top_dirty_ = false;
 };
+
+static Lambda* continuation(Lambda* lambda) {
+    return lambda->num_args() != 0 ? lambda->args().back()->isa_lambda() : (Lambda*) nullptr;
+}
 
 void PartialEvaluator::run() {
     enqueue(top_scope().entry());

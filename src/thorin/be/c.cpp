@@ -29,6 +29,7 @@ private:
     std::ostream& emit_aggop_defs(Def def);
     std::ostream& emit_aggop_decl(Type);
     std::ostream& emit_debug_info(Def def);
+    std::ostream& emit_addr_space(Type);
     std::ostream& emit_type(Type);
     std::ostream& emit(Def def);
     bool lookup(size_t gid);
@@ -52,6 +53,21 @@ std::ostream& CCodeGen::emit_debug_info(Def def) {
     return os;
 }
 
+
+std::ostream& CCodeGen::emit_addr_space(Type type) {
+    if (auto ptr = type.isa<PtrType>()) {
+        if (lang_==Lang::OPENCL) {
+            switch (ptr->addr_space()) {
+                default: break;
+                case AddressSpace::Generic: // once address spaces are correct, ::Global should be sufficient
+                case AddressSpace::Global: os << "__global "; break;
+                case AddressSpace::Shared: os << "__local ";  break;
+            }
+        }
+    }
+
+    return os;
+}
 
 std::ostream& CCodeGen::emit_type(Type type) {
     if (type.empty()) {
@@ -97,21 +113,6 @@ std::ostream& CCodeGen::emit_type(Type type) {
         os << down << endl << "} array_" << array->gid() << ";";
         return os;
     } else if (auto ptr = type.isa<PtrType>()) {
-        if (lang_==Lang::CUDA) {
-            switch (ptr->addr_space()) {
-                default: break;
-                // only declarations require __shared__
-                //case AddressSpace::Shared: os << "__shared__ ";  break;
-            }
-        }
-        if (lang_==Lang::OPENCL) {
-            switch (ptr->addr_space()) {
-                default: break;
-                case AddressSpace::Generic: // once address spaces are correct, ::Global should be sufficient
-                case AddressSpace::Global: os << "__global "; break;
-                case AddressSpace::Shared: os << "__local ";  break;
-            }
-        }
         emit_type(ptr->referenced_type());
         os << '*';
         if (ptr->is_vector())
@@ -374,6 +375,7 @@ void CCodeGen::emit() {
                     os << "__global ";
                     emit_type(param->type()) << " *" << param->unique_name() << "_";
                 } else {
+                    emit_addr_space(param->type());
                     emit_type(param->type()) << " " << param->unique_name();
                 }
             }
@@ -773,17 +775,20 @@ std::ostream& CCodeGen::emit(Def def) {
             emit(lea->ptr()) << ", ";
             emit(lea->index()) << ");";
         } else {
-            emit_type(lea->type()) << " " << lea->unique_name() << ";" << endl;
-            os << lea->unique_name() << " = ";
             if (lea->ptr_referenced_type().isa<TupleType>() || lea->ptr_referenced_type().isa<StructAppType>()) {
-                os << "&";
+                emit_type(lea->type()) << " " << lea->unique_name() << ";" << endl;
+                os << lea->unique_name() << " = &";
                 emit(lea->ptr()) << "->e";
                 emit(lea->index()) << ";";
             } else if (lea->ptr_referenced_type().isa<DefiniteArrayType>()) {
-                os << "&";
+                emit_type(lea->type()) << " " << lea->unique_name() << ";" << endl;
+                os << lea->unique_name() << " = &";
                 emit(lea->ptr()) << "->e[";
                 emit(lea->index()) << "];";
             } else {
+                emit_addr_space(lea->ptr()->type());
+                emit_type(lea->type()) << " " << lea->unique_name() << ";" << endl;
+                os << lea->unique_name() << " = ";
                 emit(lea->ptr()) << " + ";
                 emit(lea->index()) << ";";
             }

@@ -32,7 +32,7 @@ void YCompCommandLine::print(World& world) {
             YCOMP(DomTreeBase);
         } else if (graph.compare("cfg") == 0) {
             YCOMP(CFG);
-        } else if (graph.compare("domfrontiers") == 0) {
+        } else if (graph.compare("dfg") == 0) {
             YCOMP(DomFrontierBase);
         } else if (graph.compare("looptree") == 0) {
             YCOMP(LoopTree);

@@ -121,7 +121,8 @@ static Lambdas preds(const Lambda* lambda) {
             continue;
         }
 
-        enqueue(use);
+        if (!use->isa<EvalOp>() || use.index() != 1) // ignore evalop's end
+            enqueue(use);
     }
 
     return preds;
@@ -154,9 +155,14 @@ static Lambdas succs(const Lambda* lambda) {
             succs.push_back(lambda);
             continue;
         }
-        for (auto op : def->ops()) {
-            if (op->order() >= 1)
-                enqueue(op);
+
+        if (auto evalop = def->isa<EvalOp>()) { // ignore evalop's end
+            enqueue(evalop->begin());
+        } else {
+            for (auto op : def->ops()) {
+                if (op->order() >= 1)
+                    enqueue(op);
+            }
         }
     }
 

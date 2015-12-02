@@ -195,8 +195,16 @@ void CFABuilder::propagate_higher_order_values() {
                     stack.pop();
                 } else {
                     bool todo = false;
-                    for (auto op : def->as<PrimOp>()->ops())
-                        todo |= push(op);
+#if 0
+                    if (auto evalop = def->isa<EvalOp>()) { // ignore evalop's end
+                        todo |= push(evalop->begin());
+                    } else {
+#else
+                    {
+#endif
+                        for (auto op : def->as<PrimOp>()->ops())
+                            todo |= push(op);
+                    }
                     if (!todo) {
                         for (auto op : def->as<PrimOp>()->ops())
                             set.insert_range(def2set_[op]);

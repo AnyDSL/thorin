@@ -106,7 +106,7 @@ void OpenCLPlatform::checkOpenCLErrors(cl_int err, const char* name, const char*
 OpenCLPlatform::OpenCLPlatform(Runtime* runtime)
     : Platform(runtime)
 {
-    // Get OpenCL platform count
+    // get OpenCL platform count
     cl_uint num_platforms, num_devices;
     cl_int err = clGetPlatformIDs(0, NULL, &num_platforms);
     checkErr(err, "clGetPlatformIDs()");
@@ -221,7 +221,10 @@ OpenCLPlatform::OpenCLPlatform(Runtime* runtime)
 
 OpenCLPlatform::~OpenCLPlatform() {
     for (size_t i = 0; i < devices_.size(); i++) {
-        // TODO
+        for (auto& it : devices_[i].kernels) {
+            cl_int err = clReleaseKernel(it.second);
+            checkErr(err, "clReleaseKernel()");
+        }
     }
 }
 
@@ -285,13 +288,19 @@ void OpenCLPlatform::set_kernel_arg_ptr(device_id dev, int32_t arg, void* ptr) {
     args.resize(std::max(arg + 1, (int32_t)args.size()));
     sizs.resize(std::max(arg + 1, (int32_t)sizs.size()));
     vals[arg] = ptr;
-    // The argument will be set at kernel launch (since the vals array may grow)
+    // the argument will be set at kernel launch (since the vals array may grow)
     args[arg] = nullptr;
     sizs[arg] = sizeof(cl_mem);
 }
 
 void OpenCLPlatform::set_kernel_arg_struct(device_id dev, int32_t arg, void* ptr, int32_t size) {
-    assert(false && "not yet implemented");
+    cl_int err = CL_SUCCESS;
+    cl_mem_flags flags = CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR;
+    cl_mem struct_buf = clCreateBuffer(devices_[dev].ctx, flags, size, ptr, &err);
+    checkErr(err, "clCreateBuffer()");
+    devices_[dev].kernel_structs.emplace_back(struct_buf);
+    cl_mem& buf = devices_[dev].kernel_structs.back();
+    set_kernel_arg_ptr(dev, arg, (void*)buf);
 }
 
 void OpenCLPlatform::load_kernel(device_id dev, const char* file, const char* name) {
@@ -375,12 +384,12 @@ void OpenCLPlatform::launch_kernel(device_id dev) {
     cl_ulong end, start;
     float time;
 
-    // Set up arguments
+    // set up arguments
     auto& args = devices_[dev].kernel_args;
     auto& vals = devices_[dev].kernel_vals;
     auto& sizs = devices_[dev].kernel_arg_sizes;
     for (size_t i = 0; i < args.size(); i++) {
-        // Set the arguments pointers
+        // set the arguments pointers
         if (!args[i]) args[i] = &vals[i];
         cl_int err = clSetKernelArg(devices_[dev].kernel, i, sizs[i], args[i]);
         checkErr(err, "clSetKernelArg()");
@@ -404,6 +413,11 @@ void OpenCLPlatform::launch_kernel(device_id dev) {
 
     err = clReleaseEvent(event);
     checkErr(err, "clReleaseEvent()");
+
+    // release temporary buffers for struct arguments
+    for (cl_mem buf : devices_[dev].kernel_structs)
+        release(dev, buf);
+    devices_[dev].kernel_structs.clear();
 }
 
 void OpenCLPlatform::synchronize(device_id dev) {

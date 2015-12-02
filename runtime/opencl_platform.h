@@ -4,6 +4,7 @@
 #include "platform.h"
 #include "runtime.h"
 
+#include <list>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -61,6 +62,7 @@ protected:
         std::vector<void*> kernel_args;
         std::vector<void*> kernel_vals;
         std::vector<size_t> kernel_arg_sizes;
+        std::list<cl_mem> kernel_structs;
 
         std::unordered_map<std::string, cl_kernel> kernels;
     };

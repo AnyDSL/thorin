@@ -807,12 +807,6 @@ Lambda* World::lambda(FnType fn, const Location& loc, CC cc, Intrinsic intrinsic
     return l;
 }
 
-Lambda* World::meta_lambda() {
-    auto l = lambda(fn_type(), Location(), "meta");
-    l->jump(bottom(fn_type(), l->loc()), {});
-    return l;
-}
-
 Lambda* World::basicblock(const Location& loc, const std::string& name) {
     THORIN_CHECK_BREAK(gid_)
     auto bb = new Lambda(gid_++, fn_type(), loc, CC::C, Intrinsic::None, false, name);

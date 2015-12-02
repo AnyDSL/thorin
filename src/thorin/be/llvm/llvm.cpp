@@ -419,7 +419,7 @@ void CodeGen::emit(int opt, bool debug) {
 #endif
 
 #ifndef NDEBUG
-    llvm::verifyModule(*this->module_);
+    llvm::verifyModule(*module_);
 #endif
     optimize(opt);
     if (debug)
@@ -455,7 +455,7 @@ void CodeGen::optimize(int opt) {
             pmbuilder.SizeLevel = 1;
         } else {
             pmbuilder.OptLevel = (unsigned) opt;
-            pmbuilder.SizeLevel = 0U;
+            pmbuilder.SizeLevel = 0u;
         }
         pmbuilder.DisableUnitAtATime = true;
         if (opt == 3) {

@@ -167,13 +167,14 @@ OpenCLPlatform::OpenCLPlatform(Runtime* runtime)
             std::string extensions(buffer);
             size_t found = extensions.find("cl_khr_spir");
             bool has_spir = found!=std::string::npos;
-            runtime_->log("      Device SPIR Support: ", has_spir);
+            std::string spir_version;
             #ifdef CL_DEVICE_SPIR_VERSIONS
             if (has_spir) {
                 err |= clGetDeviceInfo(devices[j], CL_DEVICE_SPIR_VERSIONS , sizeof(buffer), &buffer, NULL);
-                runtime_->log(" (Version: ", buffer, ")");
+                spir_version = " (Version: " + std::string(buffer) + ")";
             }
             #endif
+            runtime_->log("      Device SPIR Support: ", has_spir, spir_version);
 
             cl_bool has_unified = false;
             #ifdef CL_VERSION_2_0

@@ -43,20 +43,17 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
     set(${outfiles} ${THORIN_RUNTIME_DIR}/common/thorin_runtime.cpp ${THORIN_RUNTIME_DIR}/common/thorin_utils.cpp)
     set(${outlibs})
     IF("${TRW_MAIN}")
-        SET_SOURCE_FILES_PROPERTIES(
-            ${THORIN_RUNTIME_DIR}/common/thorin_runtime.cpp
-            PROPERTIES
-            COMPILE_FLAGS "-DPROVIDE_MAIN"
-        )
+        set_source_files_properties(${THORIN_RUNTIME_DIR}/common/thorin_runtime.cpp PROPERTIES COMPILE_DEFINITIONS "PROVIDE_MAIN")
     ENDIF()
     # add specific runtime
     IF("${TRW_BACKEND}" STREQUAL "nvvm" OR "${TRW_BACKEND}" STREQUAL "cuda")
         Find_Package(CUDA REQUIRED)
-        set(CUDA_RUNTIME_DEFINES "'-DLIBDEVICE_DIR=\"${CUDA_TOOLKIT_ROOT_DIR}/nvvm/libdevice/\"' '-DKERNEL_DIR=\"${CMAKE_CURRENT_BINARY_DIR}/\"'")
-        set(CUDA_RUNTIME_INCLUDES "-I${CUDA_INCLUDE_DIRS} -I${CUDA_TOOLKIT_ROOT_DIR}/nvvm/include")
+        list(APPEND CUDA_RUNTIME_DEFINES "LIBDEVICE_DIR=${CUDA_TOOLKIT_ROOT_DIR}/nvvm/libdevice/")
+        list(APPEND CUDA_RUNTIME_DEFINES "KERNEL_DIR=${CMAKE_CURRENT_BINARY_DIR}/")
         IF(CUDA_VERSION VERSION_LESS "7.00")
-            set(CUDA_RUNTIME_DEFINES "${CUDA_RUNTIME_DEFINES} '-DNVCC_BIN=\"${CUDA_TOOLKIT_ROOT_DIR}/bin/nvcc\"'")
+            list(APPEND CUDA_RUNTIME_DEFINES "NVCC_BIN=${CUDA_TOOLKIT_ROOT_DIR}/bin/nvcc")
         ENDIF()
+        include_directories(${CUDA_INCLUDE_DIRS} ${CUDA_TOOLKIT_ROOT_DIR}/nvvm/include)
         # set variables expected below
         set(${outfiles} ${${outfiles}} ${THORIN_RUNTIME_DIR}/cuda/cu_runtime.cpp)
         Find_Library(CUDA_NVVM_LIBRARY nvvm HINTS ${CUDA_TOOLKIT_ROOT_DIR}/nvvm/lib ${CUDA_TOOLKIT_ROOT_DIR}/nvvm/lib64)
@@ -67,12 +64,7 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
         ENDIF()
         set(_impala_platform ${_impala_platform} ${THORIN_RUNTIME_DIR}/platforms/intrinsics_${TRW_BACKEND}.impala)
         # cu_runtime needs some defines
-        # lucky enough, cmake does the right thing here even when we compile impala programs from various folders
-        SET_SOURCE_FILES_PROPERTIES(
-            ${THORIN_RUNTIME_DIR}/cuda/cu_runtime.cpp
-            PROPERTIES
-            COMPILE_FLAGS "${CUDA_RUNTIME_DEFINES} ${CUDA_RUNTIME_INCLUDES}"
-        )
+        set_source_files_properties(${THORIN_RUNTIME_DIR}/cuda/cu_runtime.cpp PROPERTIES COMPILE_DEFINITIONS ${CUDA_RUNTIME_DEFINES})
     ELSEIF("${TRW_BACKEND}" STREQUAL "spir" OR "${TRW_BACKEND}" STREQUAL "opencl")
         FIND_LIBRARY(CL_LIB OpenCL ENV CL_LIB)
         IF(APPLE)
@@ -86,12 +78,7 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
         set(${outlibs} ${${outlibs}} ${CL_LIB})
         set(_impala_platform ${_impala_platform} ${THORIN_RUNTIME_DIR}/platforms/intrinsics_${TRW_BACKEND}.impala)
         # cl_runtime needs some defines
-        # lucky enough, cmake does the right thing here even when we compile impala programs from various folders
-        SET_SOURCE_FILES_PROPERTIES(
-            ${THORIN_RUNTIME_DIR}/opencl/cl_runtime.cpp
-            PROPERTIES
-            COMPILE_FLAGS "'-DKERNEL_DIR=\"${CMAKE_CURRENT_BINARY_DIR}/\"'"
-        )
+        set_source_files_properties(${THORIN_RUNTIME_DIR}/opencl/cl_runtime.cpp PROPERTIES COMPILE_DEFINITIONS "KERNEL_DIR=${CMAKE_CURRENT_BINARY_DIR}/")
     ELSEIF("${TRW_BACKEND}" STREQUAL "cpu" OR "${TRW_BACKEND}" STREQUAL "avx")
         ENABLE_LANGUAGE(C)
         find_package(Threads REQUIRED)
@@ -103,7 +90,7 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
         # set variables expected below
         set(${outfiles} ${${outfiles}} ${THORIN_RUNTIME_DIR}/cpu/cpu_runtime.cpp)
         IF(TBB_FOUND)
-            INCLUDE_DIRECTORIES(${TBB_INCLUDE_DIRS})
+            include_directories(${TBB_INCLUDE_DIRS})
             set(${outlibs} ${${outlibs}} ${TBB_LIBRARY})
             ADD_DEFINITIONS(-DUSE_TBB)
         ELSE()
@@ -147,10 +134,9 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
     add_custom_command(OUTPUT ${_objfile}
         COMMAND ${CLANGPP_BIN} -O3 -march=native -ffast-math ${DEBUG_FLAGS} -c -o ${_objfile} ${_llfile}
         DEPENDS ${_llfile} VERBATIM)
-    SET_SOURCE_FILES_PROPERTIES(
-        ${_objfile}
-        PROPERTIES
-        EXTERNAL_OBJECT true
-        GENERATED true)
+    set_source_files_properties(${_objfile} PROPERTIES EXTERNAL_OBJECT true GENERATED true)
+    IF(NOT MSVC)
+        set_source_files_properties(${${outfiles}} PROPERTIES COMPILE_FLAGS "-std=c++11")
+    ENDIF()
     set(${outfiles} ${${outfiles}} ${_objfile} ${_bcfile})
 endmacro()

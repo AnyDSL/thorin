@@ -22,6 +22,19 @@ struct CFNodeHash {
 
 typedef thorin::HashSet<const CFNodeBase*, CFNodeHash> CFNodeSet;
 
+class SymNode : public CFNodeBase {
+public:
+    SymNode(Def def)
+        : CFNodeBase(def)
+    {
+        assert(def->isa<Param>() || def->isa<Lambda>());
+    }
+
+    virtual std::ostream& stream(std::ostream&) const override;
+
+    friend class CFABuilder;
+};
+
 /// Any jumps targeting a @p Lambda or @p Param outside the @p CFA's underlying @p Scope target this node.
 class OutNode : public CFNodeBase {
 public:
@@ -46,8 +59,10 @@ private:
 uint64_t CFNodeHash::operator() (const CFNodeBase* n) const {
     if (auto in = n->isa<CFNode>())
         return hash_value(in->lambda()->gid());
-    auto out = n->as<OutNode>();
-    return hash_combine(hash_value(out->def()->gid()), out->context()->lambda()->gid());
+    else if (auto out = n->isa<OutNode>())
+        return hash_combine(hash_begin(out->def()->gid()), out->context()->lambda()->gid());
+    else
+        return hash_combine(hash_begin(23), n->as<SymNode>()->def()->gid());
 }
 
 void CFNode::link(const CFNode* other) const {
@@ -55,13 +70,9 @@ void CFNode::link(const CFNode* other) const {
     other->preds_.push_back(this);
 }
 
-std::ostream& CFNode::stream(std::ostream& out) const {
-    return streamf(out, "%", lambda()->unique_name());
-}
-
-std::ostream& OutNode::stream(std::ostream& out) const {
-    return streamf(out, "[Out: % (%)]", def()->unique_name(), context());
-}
+std::ostream& CFNode::stream(std::ostream& out) const { return streamf(out, "%", lambda()); }
+std::ostream& SymNode::stream(std::ostream& out) const { return streamf(out, "[Sym: %]", def()); }
+std::ostream& OutNode::stream(std::ostream& out) const { return streamf(out, "[Out: % (%)]", def(), context()); }
 
 //------------------------------------------------------------------------------
 
@@ -91,6 +102,9 @@ public:
             for (const auto& q : p.second)
                 delete q.second;
         }
+
+        for (auto p : def2sym_)
+            delete p.second;
     }
 
     void propagate_higher_order_values();
@@ -109,6 +123,8 @@ public:
     CFNodeSet nodes(const CFNode*, size_t i);
     CFNodeSet to_nodes(const CFNode* in) { return in->lambda()->empty() ? CFNodeSet() : nodes(in, 0); }
     Array<CFNodeSet> arg_nodes(const CFNode*);
+    bool contains(Lambda* lambda) { return scope().inner_contains(lambda); }
+    bool contains(const Param* param) { return contains(param->lambda()); }
 
     const CFNode* in_node(Lambda* lambda) {
         assert(scope().outer_contains(lambda));
@@ -117,6 +133,12 @@ public:
         auto in = cfa_.nodes_[lambda] = new CFNode(lambda);
         lambda2param2nodes_[lambda].resize(lambda->num_params()); // make room for params
         return in;
+    }
+
+    const SymNode* sym_node(Def def) {
+        if (auto sym = find(def2sym_, def))
+            return sym;
+        return def2sym_[def] = new SymNode(def);
     }
 
     const OutNode* out_node(const CFNode* in, Def def) {
@@ -165,6 +187,7 @@ private:
     const CFNode* exit_;
     size_t num_out_nodes_ = 0;
     mutable HashMap<const CFNode*, DefMap<const OutNode*>> out_nodes_;
+    mutable DefMap<const SymNode*> def2sym_;
 };
 
 void CFABuilder::propagate_higher_order_values() {
@@ -221,22 +244,32 @@ CFNodeSet CFABuilder::nodes(const CFNode* in, size_t i) {
             assert(def->order() > 0);
 
             if (auto lambda = def->isa_lambda()) {
-                if (scope().inner_contains(lambda))
+                if (contains(lambda))
                     result.insert(in_node(lambda));
-                else
+                else if (i == 0)
                     result.insert(out_node(in, lambda));
+                else
+                    result.insert(sym_node(lambda));
             } else {
                 auto param = def->as<Param>();
-                if (scope().inner_contains(param)) {
+                if (contains(param)) {
                     const auto& set = param2nodes(param);
                     for (auto n : set) {
-                        if (auto out = n->isa<OutNode>())
-                            result.insert(out_node(out, in)); // create a new context if applicable
-                        else
-                            result.insert(n->as<CFNode>());
+                        assert(!n->isa<OutNode>());
+                        if (auto sym = n->isa<SymNode>()) {
+                            if (i == 0) {
+                                result.insert(out_node(in, sym->def()));
+                                continue;
+                            }
+                        }
+                        result.insert(n);
                     }
-                } else
-                    result.insert(out_node(in, param));
+                } else {
+                    if (i == 0)
+                        result.insert(out_node(in, param));
+                    else
+                        result.insert(sym_node(param));
+                }
             }
         }
     }
@@ -289,7 +322,7 @@ void CFABuilder::run_cfa() {
                             bool todo = in->f_index_ == CFNode::Fresh;
                             for (size_t i = 0; i != in->lambda()->num_params(); ++i) {
                                 if (in->lambda()->param(i)->order() > 0)
-                                    todo |= lambda2param2nodes_[in->lambda()][i].insert(out).second;
+                                    todo |= lambda2param2nodes_[in->lambda()][i].insert(sym_node(out->def())).second;
                             }
                             if (todo)
                                 enqueue(in);

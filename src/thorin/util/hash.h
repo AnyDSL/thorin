@@ -48,6 +48,7 @@ uint64_t hash_combine(uint64_t seed, T* val) { return hash_combine(seed, uintptr
 
 template<class T>
 uint64_t hash_begin(T val) { return hash_combine(FNV1::offset, val); }
+inline uint64_t hash_begin() { return FNV1::offset; }
 
 template<class T>
 struct Hash {

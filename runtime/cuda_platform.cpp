@@ -379,7 +379,6 @@ void CudaPlatform::compile_nvvm(device_id dev, const char* file_name, CUjit_targ
         nvvmGetProgramLog(program, &error_log[0]);
         runtime_->error("Compilation error: ", error_log);
     }
-
     checkErrNvvm(err, "nvvmCompileProgram()");
 
     size_t ptx_size;

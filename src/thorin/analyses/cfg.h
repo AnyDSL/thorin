@@ -26,13 +26,31 @@ typedef std::vector<const CFNode*> CFNodes;
  * Managed by @p CFA.
  */
 class CFNodeBase : public MagicCast<CFNodeBase>, public Streamable {
-protected:
+public:
     CFNodeBase(Def def)
         : def_(def)
+        , id_(id_counter_++)
     {}
 
-public:
+    uint64_t id() const { return id_; }
     Def def() const { return def_; }
+
+private:
+    Def def_;
+    uint64_t id_;
+    static uint32_t id_counter_;
+};
+
+template<>
+struct Hash<const CFNodeBase*> {
+    uint64_t operator() (const CFNodeBase* n) const { return n->id(); }
+};
+
+class RealCFNode : public CFNodeBase {
+protected:
+    RealCFNode(Def def)
+        : CFNodeBase(def)
+    {}
 
 protected:
     static const size_t Fresh        = size_t(-1);
@@ -46,18 +64,15 @@ protected:
     mutable size_t f_index_ = Fresh; ///< RPO index in a forward @p CFG.
     mutable size_t b_index_ = Fresh; ///< RPO index in a backwards @p CFG.
 
-private:
-    Def def_;
-
     friend class CFABuilder;
     template<bool> friend class CFG;
 };
 
 /// This node represents a @p CFNode within its underlying @p Scope.
-class CFNode : public CFNodeBase {
+class CFNode : public RealCFNode {
 public:
     CFNode(Lambda* lambda)
-        : CFNodeBase(lambda)
+        : RealCFNode(lambda)
     {}
 
     Lambda* lambda() const { return def()->as_lambda(); }

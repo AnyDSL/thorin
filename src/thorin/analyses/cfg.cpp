@@ -16,43 +16,56 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-struct CFNodeHash {
-    uint64_t operator() (const CFNodeBase* n) const;
-};
+uint32_t CFNodeBase::id_counter_ = 1;
 
-typedef thorin::HashSet<const CFNodeBase*, CFNodeHash> CFNodeSet;
+typedef thorin::HashSet<const CFNodeBase*> CFNodeSet;
 
 /// Any jumps targeting a @p Lambda or @p Param outside the @p CFA's underlying @p Scope target this node.
-class OutNode : public CFNodeBase {
+class OutNode : public RealCFNode {
 public:
     OutNode(const CFNode* context, Def def)
-        : CFNodeBase(def)
+        : RealCFNode(def)
         , context_(context)
     {
         assert(def->isa<Param>() || def->isa<Lambda>());
     }
 
     const CFNode* context() const { return context_; }
-    const CFNodeSet& ancestors() const { return ancestors_; }
+    const HashSet<const OutNode*>& ancestors() const { return ancestors_; }
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
     const CFNode* context_;
-    mutable CFNodeSet ancestors_;
+    mutable HashSet<const OutNode*> ancestors_;
 
     friend class CFABuilder;
 };
 
 class SymNode : public CFNodeBase {
-public:
+protected:
     SymNode(Def def)
         : CFNodeBase(def)
-        , out_node_(nullptr)
+    {}
+};
+
+class SymDefNode : public SymNode {
+public:
+    SymDefNode(Def def)
+        : SymNode(def)
     {
         assert(def->isa<Param>() || def->isa<Lambda>());
     }
-    SymNode(const OutNode* out_node)
-        : CFNodeBase(Def())
+
+    virtual std::ostream& stream(std::ostream&) const override;
+
+private:
+    Def def_;
+};
+
+class SymOutNode : public SymNode {
+public:
+    SymOutNode(const OutNode* out_node)
+        : SymNode(out_node->def())
         , out_node_(out_node)
     {}
 
@@ -63,20 +76,6 @@ private:
     const OutNode* out_node_;
 };
 
-uint64_t CFNodeHash::operator() (const CFNodeBase* n) const {
-    if (auto in = n->isa<CFNode>())
-        return hash_value(in->lambda()->gid());
-    else if (auto out = n->isa<OutNode>())
-        return hash_combine(hash_begin(out->def()->gid()), out->context()->lambda()->gid());
-    else {
-        auto sym = n->as<SymNode>();
-        if (auto out = sym->out_node())
-            return hash_combine(hash_value(out), 42);
-        else
-            return hash_combine(hash_begin(23), n->as<SymNode>()->def()->gid());
-    }
-}
-
 void CFNode::link(const CFNode* other) const {
     this ->succs_.push_back(other);
     other->preds_.push_back(this);
@@ -84,7 +83,8 @@ void CFNode::link(const CFNode* other) const {
 
 std::ostream& CFNode::stream(std::ostream& out) const { return streamf(out, "%", lambda()); }
 std::ostream& OutNode::stream(std::ostream& out) const { return streamf(out, "[Out: % (%)]", def(), context()); }
-std::ostream& SymNode::stream(std::ostream& out) const { return streamf(out, "[Sym: %]", def()); }
+std::ostream& SymDefNode::stream(std::ostream& out) const { return streamf(out, "[Sym: %]", def()); }
+std::ostream& SymOutNode::stream(std::ostream& out) const { return streamf(out, "[Sym: %]", out_node()); }
 
 //------------------------------------------------------------------------------
 
@@ -147,18 +147,6 @@ public:
         return in;
     }
 
-    const SymNode* sym_node(Def def) {
-        if (auto sym = find(def2sym_, def))
-            return sym;
-        return def2sym_[def] = new SymNode(def);
-    }
-
-    const SymNode* sym_node(const OutNode* out) {
-        if (auto sym = find(out2sym_, out))
-            return sym;
-        return out2sym_[out] = new SymNode(out);
-    }
-
     const OutNode* out_node(const CFNode* in, Def def) {
         if (auto out = find(out_nodes_[in], def))
             return out;
@@ -172,9 +160,21 @@ public:
     }
 
     const OutNode* out_node(const CFNode* in, const SymNode* sym) {
-        if (sym->out_node() == nullptr)
-            return out_node(in, sym->def());
-        return out_node(in, sym->out_node());
+        if (auto sym_def = sym->isa<SymDefNode>())
+            return out_node(in, sym_def->def());
+        return out_node(in, sym->as<SymOutNode>()->out_node());
+    }
+
+    const SymNode* sym_node(Def def) {
+        if (auto sym = find(def2sym_, def))
+            return sym;
+        return def2sym_[def] = new SymDefNode(def);
+    }
+
+    const SymNode* sym_node(const OutNode* out) {
+        if (auto sym = find(out2sym_, out))
+            return sym;
+        return out2sym_[out] = new SymOutNode(out);
     }
 
     CFNodeSet& param2nodes(const Param* param) {
@@ -182,7 +182,7 @@ public:
         return lambda2param2nodes_[param->lambda()][param->index()];
     }
 
-    void link(const CFNodeBase* src, const CFNodeBase* dst) {
+    void link(const RealCFNode* src, const RealCFNode* dst) {
         DLOG("% -> %", src, dst);
 
         assert(src->f_index_ == CFNode::Reachable || src->f_index_ == CFNode::Done);
@@ -205,8 +205,8 @@ private:
     CFA& cfa_;
     Scope::Map<std::vector<CFNodeSet>> lambda2param2nodes_; ///< Maps param in scope to CFNodeSet.
     DefMap<DefSet> def2set_;
-    HashMap<const CFNodeBase*, CFNodeSet, CFNodeHash> succs_;
-    HashMap<const CFNodeBase*, CFNodeSet, CFNodeHash> preds_;
+    HashMap<const RealCFNode*, HashSet<const RealCFNode*>> succs_;
+    HashMap<const RealCFNode*, HashSet<const RealCFNode*>> preds_;
     const CFNode* entry_;
     const CFNode* exit_;
     size_t num_out_nodes_ = 0;
@@ -390,7 +390,7 @@ void CFABuilder::build_cfg() {
                     for (auto n : nodes) {
                         if (auto in = n->isa<CFNode>()) {
                             enqueue(in);
-                            link(out, n);
+                            link(out, in);
                         }
                     }
                 }
@@ -429,10 +429,10 @@ void CFABuilder::unreachable_node_elimination() {
 }
 
 void CFABuilder::link_to_exit() {
-    auto backwards_reachable = [&] (const CFNodeBase* n) {
-        std::queue<const CFNodeBase*> queue;
+    auto backwards_reachable = [&] (const RealCFNode* n) {
+        std::queue<const RealCFNode*> queue;
 
-        auto enqueue = [&] (const CFNodeBase* n) {
+        auto enqueue = [&] (const RealCFNode* n) {
             if (n->b_index_ != CFNode::Done) {
                 n->b_index_ = CFNode::Done;
                 queue.push(n);
@@ -447,9 +447,9 @@ void CFABuilder::link_to_exit() {
         }
     };
 
-    std::vector<const CFNodeBase*> stack;
+    std::vector<const RealCFNode*> stack;
 
-    auto push = [&] (const CFNodeBase* n) {
+    auto push = [&] (const RealCFNode* n) {
         if (n->f_index_ == CFNode::Reachable) {
             n->f_index_ = CFNode::OnStackTodo;
             stack.push_back(n);
@@ -458,10 +458,10 @@ void CFABuilder::link_to_exit() {
 
     auto backtrack = [&] () {
         static size_t mark = 0;
-        std::stack<const CFNodeBase*> backtrack_stack;
-        const CFNodeBase* candidate = nullptr;
+        std::stack<const RealCFNode*> backtrack_stack;
+        const RealCFNode* candidate = nullptr;
 
-        auto push = [&] (const CFNodeBase* n) {
+        auto push = [&] (const RealCFNode* n) {
             assert(int(n->b_index_) >= -1 || n->b_index_ == CFNode::Done);
 
             if ((n->f_index_ == CFNode::OnStackTodo || n->f_index_ == CFNode::OnStackReady) && n->b_index_ != mark) {
@@ -531,10 +531,10 @@ void CFABuilder::link_to_exit() {
 }
 
 void CFABuilder::transitive_cfg() {
-    std::queue<const CFNodeBase*> queue;
+    std::queue<const RealCFNode*> queue;
 
     auto link_to_succs = [&] (const CFNode* src) {
-        auto enqueue = [&] (const CFNodeBase* n) {
+        auto enqueue = [&] (const RealCFNode* n) {
             for (auto succ : succs_.find(n)->second)
                 queue.push(succ);
         };
@@ -572,15 +572,15 @@ void CFABuilder::verify() {
 }
 
 void CFABuilder::stream_ycomp(std::ostream& out) const {
-    std::vector<const CFNodeBase*> nodes(cfa().nodes().begin(), cfa().nodes().end());
+    std::vector<const RealCFNode*> nodes(cfa().nodes().begin(), cfa().nodes().end());
     for (const auto& p : out_nodes_) {
         for (const auto& q : p.second)
             nodes.push_back(q.second);
     }
 
-    auto succs = [&] (const CFNodeBase* n) {
+    auto succs = [&] (const RealCFNode* n) {
         auto i = succs_.find(n);
-        return i != succs_.end() ? i->second : CFNodeSet();
+        return i != succs_.end() ? i->second : HashSet<const RealCFNode*>();
     };
 
     thorin::ycomp(out, YCompOrientation::TopToBottom, scope(), range(nodes), succs);

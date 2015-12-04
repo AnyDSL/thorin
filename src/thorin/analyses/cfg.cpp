@@ -167,7 +167,6 @@ public:
 
     const OutNode* out_node(const CFNode* in, const OutNode* ancestor) {
         auto out = out_node(in, ancestor->def());
-        // TODO assert?
         out->ancestors_.insert(ancestor);
         return out;
     }
@@ -288,7 +287,7 @@ CFNodeSet CFABuilder::nodes(const CFNode* in, size_t i) {
                             }
                         } else if (auto out = n->isa<OutNode>()) {
                             if (i == 0)
-                                result.insert(out_node(in, out)); // create a new context if applicable
+                                result.insert(out_node(in, out)); // create a new context
                             else
                                 result.insert(sym_node(out));
                             continue;

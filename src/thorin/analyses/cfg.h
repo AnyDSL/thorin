@@ -17,8 +17,6 @@ namespace thorin {
 template<bool> class LoopTree;
 template<bool> class DomTreeBase;
 template<bool> class DomFrontierBase;
-class CFNode;
-typedef std::vector<const CFNode*> CFNodes;
 
 /**
  * @brief A Control-Flow Node.
@@ -67,6 +65,9 @@ protected:
     friend class CFABuilder;
     template<bool> friend class CFG;
 };
+
+class CFNode;
+typedef HashSet<const CFNode*> CFNodes;
 
 /// This node represents a @p CFNode within its underlying @p Scope.
 class CFNode : public RealCFNode {

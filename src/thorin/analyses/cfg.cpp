@@ -77,8 +77,8 @@ private:
 };
 
 void CFNode::link(const CFNode* other) const {
-    this ->succs_.push_back(other);
-    other->preds_.push_back(this);
+    this ->succs_.emplace(other);
+    other->preds_.emplace(this);
 }
 
 std::ostream& CFNode::stream(std::ostream& out) const { return streamf(out, "%", lambda()); }

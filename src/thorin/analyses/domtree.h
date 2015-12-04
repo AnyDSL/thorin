@@ -31,7 +31,7 @@ public:
     const CFG<forward>& cfg() const { return cfg_; }
     size_t index(const CFNode* n) const { return cfg().index(n); }
     const CFNode* root() const { return *idoms_.begin(); }
-    const CFNodes& children(const CFNode* n) const { return children_[n]; }
+    const std::vector<const CFNode*>& children(const CFNode* n) const { return children_[n]; }
     const CFNode* idom(const CFNode* n) const { return idoms_[n]; }
     const CFNode* lca(const CFNode* i, const CFNode* j) const; ///< Returns the least common ancestor of @p i and @p j.
     virtual void stream_ycomp(std::ostream& out) const override;

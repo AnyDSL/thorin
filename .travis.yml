@@ -10,7 +10,7 @@ install:
   
   - cd anydsl
   - bash scripts/install_cmake.sh ~/bin/
-  - PATH=~/bin/:/home/travis/AnyDSL/thorin/anydsl/llvm_install/:$PATH
+  - export PATH=~/bin/:/home/travis/AnyDSL/thorin/anydsl/llvm_install/:$PATH
   
   - clang --version
   - cmake --version

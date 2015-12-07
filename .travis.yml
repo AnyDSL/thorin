@@ -2,7 +2,8 @@ language: python
 
 before_install: git clone --branch=master_llvm36 https://github.com/AnyDSL/anydsl.git
 
-cache: ccache
+cache: 
+  - ccache
 
 install:
   - mkdir -p ~/bin/
@@ -12,8 +13,8 @@ install:
   - export PATH=~/bin/:$PATH
   
   - cp config.sh.template config.sh
-  - sed -i '/: ${BRANCH:=master}/c\: ${BRANCH:=master_llvm36}' config.sh
-  - sed -i '/: ${HTTPS:=false}/c\: ${HTTPS:=true}' config.sh
+  - sed -i 's/BRANCH:=master/BRANCH:=master_llvm36/g' config.sh
+  - sed -i 's/HTTPS:=false/HTTPS:=true/g' config.sh
   - cat config.sh
   
   - bash setup_travis.sh

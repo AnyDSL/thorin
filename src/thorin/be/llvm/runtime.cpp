@@ -84,7 +84,7 @@ Lambda* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std:
             // definite array | struct | tuple
             auto alloca = code_gen.emit_alloca(target_val->getType(), target_arg->name);
             builder_.CreateStore(target_val, alloca);
-            auto void_ptr = builder_.CreateBitCast(alloca, builder_.getInt8PtrTy());
+            auto void_ptr = builder_.CreatePointerCast(alloca, builder_.getInt8PtrTy());
             // TODO: recurse over struct|tuple and check if it contains pointers
             set_kernel_arg_struct(target_device, i, void_ptr, target_val->getType());
         } else if (target_arg->type().isa<PtrType>()) {
@@ -97,13 +97,13 @@ Lambda* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std:
                 assert(rtype.isa<ArrayType>() && "currently only pointers to arrays supported");
             }
 
-            auto void_ptr = builder_.CreateBitCast(target_val, builder_.getInt8PtrTy());
+            auto void_ptr = builder_.CreatePointerCast(target_val, builder_.getInt8PtrTy());
             set_kernel_arg_ptr(target_device, i, void_ptr);
         } else {
             // normal variable
             auto alloca = code_gen.emit_alloca(target_val->getType(), target_arg->name);
             builder_.CreateStore(target_val, alloca);
-            auto void_ptr = builder_.CreateBitCast(alloca, builder_.getInt8PtrTy());
+            auto void_ptr = builder_.CreatePointerCast(alloca, builder_.getInt8PtrTy());
             set_kernel_arg(target_device, i, void_ptr, target_val->getType());
         }
     }
@@ -164,16 +164,16 @@ llvm::Value* Runtime::parallel_for(llvm::Value* num_threads, llvm::Value* lower,
                                    llvm::Value* closure_ptr, llvm::Value* fun_ptr) {
     llvm::Value* parallel_args[] = {
         num_threads, lower, upper,
-        builder_.CreateBitCast(closure_ptr, builder_.getInt8PtrTy()),
-        builder_.CreateBitCast(fun_ptr, builder_.getInt8PtrTy())
+        builder_.CreatePointerCast(closure_ptr, builder_.getInt8PtrTy()),
+        builder_.CreatePointerCast(fun_ptr, builder_.getInt8PtrTy())
     };
     return builder_.CreateCall(get("thorin_parallel_for"), parallel_args);
 }
 
 llvm::Value* Runtime::spawn_thread(llvm::Value* closure_ptr, llvm::Value* fun_ptr) {
     llvm::Value* spawn_args[] = {
-        builder_.CreateBitCast(closure_ptr, builder_.getInt8PtrTy()),
-        builder_.CreateBitCast(fun_ptr, builder_.getInt8PtrTy())
+        builder_.CreatePointerCast(closure_ptr, builder_.getInt8PtrTy()),
+        builder_.CreatePointerCast(fun_ptr, builder_.getInt8PtrTy())
     };
     return builder_.CreateCall(get("thorin_spawn_thread"), spawn_args);
 }

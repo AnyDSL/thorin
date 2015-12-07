@@ -1,13 +1,17 @@
 language: python
 
-before_install: git clone https://github.com/AnyDSL/travis-ci.git
+before_install: git clone --branch=master_llvm36 https://github.com/AnyDSL/anydsl.git
 
 cache: ccache
 
 install:
-  - bash travis-ci/install.sh impala
-  - bash travis-ci/build.sh
-  - export PATH=$PATH:$PWD/../llvm_install/bin:$PWD/../impala/build/bin
+  - mkdir -p ~/bin/
+  - bash scripts/install_cmake.sh ~/bin/
+ - export PATH=~/bin/:$PATH
+  
+  - cd anydsl
+  - bash setup_travis.sh
 
 script:
-  - bash travis-ci/run.sh
+  - clang --version
+  - cmake --version

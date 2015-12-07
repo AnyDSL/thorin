@@ -11,6 +11,10 @@ install:
   - bash scripts/install_cmake.sh ~/bin/
   - export PATH=~/bin/:$PATH
   
+  - cp config.sh.template config.sh
+  - sed -i '/BRANCH:=master/c\BRANCH:=master_llvm36' config.sh
+  - sed -i '/HTTPS:=false/c\HTTPS:=true' config.sh
+  
   - bash setup_travis.sh
 
 script:

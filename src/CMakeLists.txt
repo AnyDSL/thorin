@@ -25,7 +25,7 @@ ELSE ()
 ENDIF ()
 
 # check for possible llvm extension
-FIND_PACKAGE ( LLVM QUIET )
+FIND_PACKAGE ( LLVM REQUIRED )
 
 IF ( LLVM_FOUND )
     MESSAGE ( STATUS "Building with LLVM ${LLVM_PACKAGE_VERSION}." )

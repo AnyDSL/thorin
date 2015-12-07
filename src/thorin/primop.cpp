@@ -111,14 +111,6 @@ Enter::Enter(Def mem, const Location& loc, const std::string& name)
     set_type(w.tuple_type({w.mem_type(), w.frame_type()}));
 }
 
-Map::Map(int32_t device, AddressSpace addr_space, Def mem, Def ptr, Def mem_offset, Def mem_size, const Location& loc, const std::string &name)
-    : Access(Node_Map, Type(), {mem, ptr, mem_offset, mem_size}, loc, name)
-{
-    World& w = mem->world();
-    auto ptr_type = ptr->type().as<PtrType>();
-    set_type(w.tuple_type({ w.mem_type(), w.ptr_type(ptr_type->referenced_type(), ptr_type->length(), device, addr_space)}));
-}
-
 //------------------------------------------------------------------------------
 
 /*
@@ -189,10 +181,6 @@ Def Alloc::vrebuild(World& to, ArrayRef<Def> ops, Type t) const {
 
 Def Slot::vrebuild(World& to, ArrayRef<Def> ops, Type t) const {
     return to.slot(t.as<PtrType>()->referenced_type(), ops[0], index(), loc(), name);
-}
-
-Def Map::vrebuild(World& to, ArrayRef<Def> ops, Type) const {
-    return to.map(device(), addr_space(), ops[0], ops[1], ops[2], ops[3], loc(), name);
 }
 
 Def DefiniteArray::vrebuild(World& to, ArrayRef<Def> ops, Type t) const {

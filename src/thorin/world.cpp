@@ -14,7 +14,6 @@
 #include "thorin/transform/lift_enters.h"
 #include "thorin/transform/lower2cff.h"
 #include "thorin/transform/mem2reg.h"
-#include "thorin/transform/memmap_builtins.h"
 #include "thorin/transform/partial_evaluation.h"
 #include "thorin/transform/dead_load_opt.h"
 #include "thorin/util/array.h"
@@ -760,15 +759,6 @@ Def World::global_immutable_string(const Location& loc, const std::string& str, 
     return global(definite_array(str_array, loc), loc, false, name);
 }
 
-const Map* World::map(Def device, Def addr_space, Def mem, Def ptr, Def mem_offset, Def mem_size, const Location& loc, const std::string& name) {
-    if (!device->isa<PrimLit>())
-        WLOG("error: target device must be hard-coded at %", device->loc());
-    if (!addr_space->isa<PrimLit>())
-        WLOG("error: address space must be hard-coded at %", addr_space->loc());
-    return map(device->as<PrimLit>()->ps32_value().data(), (AddressSpace)addr_space->as<PrimLit>()->ps32_value().data(),
-               mem, ptr, mem_offset, mem_size, loc, name);
-}
-
 /*
  * guided partial evaluation
  */
@@ -878,7 +868,6 @@ void World::opt() {
     lower2cff(*this);
     clone_bodies(*this);
     mem2reg(*this);
-    memmap_builtins(*this);
     lift_builtins(*this);
     inliner(*this);
     lift_enters(*this);

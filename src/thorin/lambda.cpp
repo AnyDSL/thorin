@@ -184,8 +184,6 @@ void Lambda::set_intrinsic() {
     else if (name == "spawn")           intrinsic_ = Intrinsic::Spawn;
     else if (name == "sync")            intrinsic_ = Intrinsic::Sync;
     else if (name == "vectorize")       intrinsic_ = Intrinsic::Vectorize;
-    else if (name == "mmap")            intrinsic_ = Intrinsic::Mmap;
-    else if (name == "munmap")          intrinsic_ = Intrinsic::Munmap;
     else if (name == "reserve_shared")  intrinsic_ = Intrinsic::Reserve;
     else if (name == "atomic")          intrinsic_ = Intrinsic::Atomic;
     else if (name == "bitcast")         intrinsic_ = Intrinsic::Reinterpret;

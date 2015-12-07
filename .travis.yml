@@ -7,7 +7,7 @@ cache: ccache
 install:
   - mkdir -p ~/bin/
   - bash scripts/install_cmake.sh ~/bin/
- - export PATH=~/bin/:$PATH
+  - export PATH=~/bin/:$PATH
   
   - cd anydsl
   - bash setup_travis.sh

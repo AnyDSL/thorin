@@ -200,7 +200,6 @@ OpenCLPlatform::OpenCLPlatform(Runtime* runtime)
             devices_[dev].dev = device;
 
             // create context
-            cl_int err = CL_SUCCESS;
             cl_context_properties cprops[3] = { CL_CONTEXT_PLATFORM, (cl_context_properties)platform, 0 };
             devices_[dev].ctx = clCreateContext(cprops, 1, &devices_[dev].dev, NULL, NULL, &err);
             checkErr(err, "clCreateContext()");
@@ -313,23 +312,25 @@ void OpenCLPlatform::load_kernel(device_id dev, const char* file, const char* na
         return;
     }
 
-    cl_program program;
-    cl_int err = CL_SUCCESS;
+    std::string spir_bc("spir.bc");
+    std::string file_str(file);
+    std::ifstream src_file(std::string(KERNEL_DIR) + file);
+    bool is_binary = file_str.compare(file_str.length() - spir_bc.length(), spir_bc.length(), spir_bc) == 0;
 
-    bool is_binary = false;
-    std::ifstream srcFile(std::string(KERNEL_DIR) + file);
-    if (!srcFile.is_open()) {
+    if (!src_file.is_open()) {
         std::cerr << "ERROR: Can't open "
-                  << (is_binary?"SPIR binary":"OpenCL source")
+                  << (is_binary ? "SPIR binary" : "OpenCL source")
                   << " file '" << name << "'!" << std::endl;
         exit(EXIT_FAILURE);
     }
 
-    std::string clString(std::istreambuf_iterator<char>(srcFile), (std::istreambuf_iterator<char>()));
+    std::string cl_str(std::istreambuf_iterator<char>(src_file), (std::istreambuf_iterator<char>()));
     std::string options = "-cl-single-precision-constant -cl-denorms-are-zero";
 
-    const size_t length = clString.length();
-    const char* c_str = clString.c_str();
+    const size_t length = cl_str.length();
+    const char* c_str = cl_str.c_str();
+    cl_int err = CL_SUCCESS;
+    cl_program program;
 
     if (is_binary) {
         options += " -x spir -spir-std=1.2";

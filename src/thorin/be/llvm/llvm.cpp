@@ -67,7 +67,7 @@ Lambda* CodeGen::emit_intrinsic(Lambda* lambda) {
         case Intrinsic::Reinterpret: return emit_reinterpret(lambda);
         case Intrinsic::CUDA:        return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM, ".cu", lambda);
         case Intrinsic::NVVM:        return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM, ".nvvm", lambda);
-        case Intrinsic::SPIR:        return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".spir", lambda);
+        case Intrinsic::SPIR:        return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".spir.bc", lambda);
         case Intrinsic::OpenCL:      return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".cl", lambda);
         case Intrinsic::Parallel:    return emit_parallel(lambda);
         case Intrinsic::Spawn:       return emit_spawn(lambda);

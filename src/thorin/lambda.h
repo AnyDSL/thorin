@@ -282,7 +282,14 @@ private:
 
 template<>
 struct Hash<Call> {
-    uint64_t operator () (const Call& call) const { return hash_combine(hash_value(call.type_args()), call.args()); }
+    uint64_t operator () (const Call& call) const {
+        uint64_t seed = hash_begin();
+        for (auto type : call.type_args())
+            seed = hash_combine(seed, type->gid());
+        for (auto arg : call.args())
+            seed = hash_combine(seed, arg->gid());
+        return seed;
+    }
 };
 
 void jump_to_cached_call(Lambda* src, Lambda* dst, ArrayRef<Def> call);

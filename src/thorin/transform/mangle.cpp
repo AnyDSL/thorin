@@ -83,7 +83,7 @@ void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
 
     if (olambda->to() == world().branch()) {        // fold branch if possible
         if (auto lit = mangle(olambda->arg(0))->isa<PrimLit>())
-            return nlambda->jump({}, mangle(lit->value().get_bool() ? olambda->arg(1) : olambda->arg(2)), {});
+            return nlambda->jump(mangle(lit->value().get_bool() ? olambda->arg(1) : olambda->arg(2)), {}, {});
     }
 
     Array<Def> nops(olambda->ops().size());
@@ -105,10 +105,10 @@ void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
         }
 
         if (substitute)
-            return nlambda->jump({}, nentry, nargs.cut(cut)); // TODO type_args!!!
+            return nlambda->jump(nentry, {}, nargs.cut(cut)); // TODO type_args!!!
     }
 
-    nlambda->jump({}, ntarget, nargs); // TODO type_args!!!
+    nlambda->jump(ntarget, {}, nargs); // TODO type_args!!!
 }
 
 Def Mangler::mangle(Def odef) {
@@ -143,9 +143,9 @@ Lambda* mangle(const Scope& scope, ArrayRef<Def> drop, ArrayRef<Def> lift, const
     return Mangler(scope, drop, lift, type2type).mangle();
 }
 
-Lambda* drop(Lambda* cur, ArrayRef<Type> type_args, ArrayRef<Def> call) {
-    Scope scope(call.front()->as_lambda());
-    return drop(scope, type_args, call.skip_front());
+Lambda* drop(const Call& call) {
+    Scope scope(call.args().front()->as_lambda());
+    return drop(scope, call.type_args(), call.args().skip_front());
 }
 
 //------------------------------------------------------------------------------

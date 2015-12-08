@@ -139,6 +139,7 @@ public:
     Def to() const;
     ArrayRef<Type> type_args() const { return type_args_; }
     Type type_arg(size_t i) const { return type_args_[i]; }
+    size_t num_type_args() const { return type_args_.size(); }
     ArrayRef<Def> args() const { return empty() ? ArrayRef<Def>(0, 0) : ops().skip_front(); }
     Def arg(size_t i) const { return args()[i]; }
     FnType type() const { return DefNode::type().as<FnType>(); }
@@ -175,10 +176,10 @@ public:
 
     // terminate
 
-    void jump(Array<Type> type_args, Def to, ArrayRef<Def> args);
+    void jump(Def to, Array<Type> type_args, ArrayRef<Def> args);
     void jump(JumpTarget&);
     void branch(Def cond, Def t, Def f);
-    std::pair<Lambda*, Def> call(ArrayRef<Type> type_args, Def to, ArrayRef<Def> args, Type ret_type);
+    std::pair<Lambda*, Def> call(Def to, ArrayRef<Type> type_args, ArrayRef<Def> args, Type ret_type);
 
     // value numbering
 
@@ -266,18 +267,41 @@ private:
 };
 
 struct Call {
-    Call(ArrayRef<Type> type_args, Array<Def> args)
+    Call(ArrayRef<Type> type_args, Array<Def> ops)
         : type_args_(type_args)
-        , args_(args)
+        , ops_(ops)
+    {}
+    Call(Array<Type>&& type_args, Array<Def>&& ops)
+        : type_args_(std::move(type_args))
+        , ops_(std::move(ops))
+    {}
+    Call(const Call& call)
+        : type_args_(call.type_args())
+        , ops_(call.ops())
+    {}
+    Call(Call&& call)
+        : type_args_(std::move(call.type_args_))
+        , ops_(std::move(call.ops_))
     {}
 
     ArrayRef<Type> type_args() const { return type_args_; }
-    ArrayRef<Def> args() const { return args_; }
-    bool operator==(const Call& other) const { return this->type_args() == other.type_args() && this->args() == other.args(); }
+    Type type_arg(size_t i) const { return type_args_[i]; }
+    ArrayRef<Def> ops() const { return ops_; }
+    Def to() const { return ops_.front(); }
+    ArrayRef<Def> args() const { return ops_.skip_front(); }
+    Def arg(size_t i) const { return args()[i]; }
+    bool operator==(const Call& other) const { return this->type_args() == other.type_args() && this->ops() == other.ops(); }
+    Call& operator=(Call other) { swap(*this, other); return *this; }
+
+    friend void swap(Call& call1, Call& call2) {
+        using std::swap;
+        swap(call1.type_args_, call2.type_args_);
+        swap(call1.ops_,       call2.ops_);
+    }
 
 private:
     Array<Type> type_args_;
-    Array<Def> args_;
+    Array<Def> ops_;
 };
 
 template<>
@@ -286,13 +310,13 @@ struct Hash<Call> {
         uint64_t seed = hash_begin();
         for (auto type : call.type_args())
             seed = hash_combine(seed, type->gid());
-        for (auto arg : call.args())
+        for (auto arg : call.ops())
             seed = hash_combine(seed, arg->gid());
         return seed;
     }
 };
 
-void jump_to_cached_call(Lambda* src, Lambda* dst, ArrayRef<Def> call);
+void jump_to_cached_call(Lambda* src, Lambda* dst, const Call&);
 
 //------------------------------------------------------------------------------
 

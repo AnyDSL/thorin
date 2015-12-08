@@ -265,6 +265,26 @@ private:
     friend class World;
 };
 
+struct Call {
+    Call(ArrayRef<Type> type_args, Array<Def> args)
+        : type_args_(type_args)
+        , args_(args)
+    {}
+
+    ArrayRef<Type> type_args() const { return type_args_; }
+    ArrayRef<Def> args() const { return args_; }
+    bool operator==(const Call& other) const { return this->type_args() == other.type_args() && this->args() == other.args(); }
+
+private:
+    Array<Type> type_args_;
+    Array<Def> args_;
+};
+
+template<>
+struct Hash<Call> {
+    uint64_t operator () (const Call& call) const { return hash_combine(hash_value(call.type_args()), call.args()); }
+};
+
 void jump_to_cached_call(Lambda* src, Lambda* dst, ArrayRef<Def> call);
 
 //------------------------------------------------------------------------------

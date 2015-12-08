@@ -143,13 +143,9 @@ Lambda* mangle(const Scope& scope, ArrayRef<Def> drop, ArrayRef<Def> lift, const
     return Mangler(scope, drop, lift, type2type).mangle();
 }
 
-Lambda* drop(Lambda* cur, ArrayRef<Def> call) {
-    auto dst = call.front()->as_lambda();
-    Scope scope(dst);
-    Type2Type type2type;
-    bool res = dst->type()->infer_with(type2type, cur->arg_fn_type());
-    assert_unused(res);
-    return drop(scope, call.skip_front(), type2type);
+Lambda* drop(Lambda* cur, ArrayRef<Type> type_args, ArrayRef<Def> call) {
+    Scope scope(call.front()->as_lambda());
+    return drop(scope, type_args, call.skip_front());
 }
 
 //------------------------------------------------------------------------------

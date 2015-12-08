@@ -64,7 +64,7 @@ private:
     LambdaSet done_;
     std::queue<Lambda*> queue_;
     LambdaSet visited_;
-    HashMap<Array<Def>, Lambda*> cache_;
+    HashMap<std::pair<Array<Type>, Array<Def>>, Lambda*> cache_;
     bool cur_dirty_;
     bool top_dirty_ = false;
 };

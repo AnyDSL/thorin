@@ -23,7 +23,7 @@ void lift_builtins(World& world) {
         for (auto var : vars)
             assert(var->order() == 0 && "creating a higher-order function");
 #endif
-        auto lifted = lift(scope, vars);
+        auto lifted = lift(scope, {}, vars);
 
         for (auto use : cur->uses()) {
             if (auto ulambda = use->isa_lambda()) {

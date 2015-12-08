@@ -14,7 +14,7 @@ void inliner(World& world) {
                 if (auto ulambda = use->isa_lambda()) {
                     if (ulambda->to() == top) {
                         if (!scope.outer_contains(ulambda))
-                            ulambda->jump({}, drop(scope, ulambda->args()), {}); // TODO use type_args here instead of empty Type2Type set
+                            ulambda->jump({}, drop(scope, ulambda->type_args(), ulambda->args()), {});
                     }
                 }
             }

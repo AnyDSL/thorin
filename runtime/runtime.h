@@ -40,11 +40,13 @@ public:
 
     /// Allocates unified memory on the given platform (and on the given device).
     void* alloc_unified(platform_id plat, device_id dev, int64_t size) {
+        check_device(plat, dev);
         return platforms_[plat]->alloc_unified(dev, size);
     }
 
     /// Releases memory.
     void release(platform_id plat, device_id dev, void* ptr) {
+        check_device(plat, dev);
         platforms_[plat]->release(dev, ptr);
     }
 
@@ -91,6 +93,8 @@ public:
     /// Copies memory.
     void copy(platform_id plat_src, device_id dev_src, const void* src, int64_t offset_src,
               platform_id plat_dst, device_id dev_dst, void* dst, int64_t offset_dst, int64_t size) {
+        check_device(plat_src, dev_src);
+        check_device(plat_dst, dev_dst);
         if (plat_src == plat_dst) {
             // Copy from same platform
             platforms_[plat_src]->copy(dev_src, src, offset_src, dev_dst, dst, offset_dst, size);

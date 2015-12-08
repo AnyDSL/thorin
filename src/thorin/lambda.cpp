@@ -229,7 +229,7 @@ Lambda::ScopeInfo* Lambda::find_scope(const Scope* scope) {
  * terminate
  */
 
-void Lambda::jump(Def to, ArrayRef<Def> args) {
+void Lambda::jump(Array<Type> type_args, Def to, ArrayRef<Def> args) {
     unset_ops();
     resize(args.size()+1);
     set_op(0, to);
@@ -237,21 +237,23 @@ void Lambda::jump(Def to, ArrayRef<Def> args) {
     size_t x = 1;
     for (auto arg : args)
         set_op(x++, arg);
+
+    swap(type_args_, type_args);
 }
 
 void Lambda::branch(Def cond, Def t, Def f) {
     if (auto lit = cond->isa<PrimLit>())
-        return jump(lit->value().get_bool() ? t : f, {});
+        return jump({}, lit->value().get_bool() ? t : f, {});
     if (t == f)
-        return jump(t, {});
+        return jump({}, t, {});
     if (cond->is_not())
         return branch(cond->as<ArithOp>()->rhs(), f, t);
-    return jump(world().branch(), {cond, t, f});
+    return jump({}, world().branch(), {cond, t, f});
 }
 
-std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Def> args, Type ret_type) {
+std::pair<Lambda*, Def> Lambda::call(ArrayRef<Type> type_args, Def to, ArrayRef<Def> args, Type ret_type) {
     if (ret_type.empty()) {
-        jump(to, args);
+        jump(type_args, to, args);
         return std::make_pair(nullptr, Def());
     }
 
@@ -272,7 +274,7 @@ std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Def> args, Type ret_type) 
     size_t csize = args.size() + 1;
     Array<Def> cargs(csize);
     *std::copy(args.begin(), args.end(), cargs.begin()) = next;
-    jump(to, cargs);
+    jump(type_args, to, cargs);
 
     // determine return value
     Def ret;
@@ -289,6 +291,7 @@ std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Def> args, Type ret_type) 
     return std::make_pair(next, ret);
 }
 
+#if 0
 void jump_to_cached_call(Lambda* src, Lambda* dst, ArrayRef<Def> call) {
     std::vector<Def> nargs;
     for (size_t i = 1, e = src->size(); i != e; ++i) {
@@ -299,6 +302,7 @@ void jump_to_cached_call(Lambda* src, Lambda* dst, ArrayRef<Def> call) {
     src->jump(dst, nargs);
     assert(src->arg_fn_type() == dst->type());
 }
+#endif
 
 /*
  * value numbering

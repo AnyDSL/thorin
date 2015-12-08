@@ -29,7 +29,7 @@ static bool map_param(World& world, Lambda* lambda, ToDo& todo) {
                          ulambda->loc());
     ncont = drop(cont_scope, { map->out_mem(), map->out_ptr() });
 
-    ulambda->jump(ncont, {});
+    ulambda->jump({}, ncont, {});
     cont->destroy_body();
     for (auto use : map->out_ptr()->uses())
         todo.emplace_back(map->out_ptr_type(), use);
@@ -66,7 +66,7 @@ static void adapt_addr_space(World &world, ToDo& uses) {
                     mapping[i] = nto->param(i);
 
                 auto specialized = drop(to_scope, mapping);
-                nto->jump(specialized, {});
+                nto->jump({}, specialized, {});
             }
             ulambda->update_to(nto);
         }

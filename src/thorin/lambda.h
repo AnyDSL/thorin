@@ -137,6 +137,8 @@ public:
     const Param* param(size_t i) const { assert(i < num_params()); return params_[i]; }
     const Param* mem_param() const;
     Def to() const;
+    ArrayRef<Type> type_args() const { return type_args_; }
+    Type type_arg(size_t i) const { return type_args_[i]; }
     ArrayRef<Def> args() const { return empty() ? ArrayRef<Def>(0, 0) : ops().skip_front(); }
     Def arg(size_t i) const { return args()[i]; }
     FnType type() const { return DefNode::type().as<FnType>(); }
@@ -173,10 +175,10 @@ public:
 
     // terminate
 
-    void jump(Def to, ArrayRef<Def> args = ArrayRef<Def>(0, 0));
+    void jump(Array<Type> type_args, Def to, ArrayRef<Def> args);
     void jump(JumpTarget&);
     void branch(Def cond, Def t, Def f);
-    std::pair<Lambda*, Def> call(Def to, ArrayRef<Def> args, Type ret_type);
+    std::pair<Lambda*, Def> call(ArrayRef<Type> type_args, Def to, ArrayRef<Def> args, Type ret_type);
 
     // value numbering
 
@@ -234,6 +236,7 @@ private:
     ScopeInfo* find_scope(const Scope*);
     ScopeInfo* register_scope(const Scope* scope) { scopes_.emplace_front(scope); return &scopes_.front(); }
     void unregister_scope(const Scope* scope) { scopes_.erase(list_iter(scope)); }
+    Array<Type> type_args_;
 
     /**
      * There exist three cases to distinguish here.

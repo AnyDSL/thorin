@@ -76,7 +76,7 @@ void Merger::merge(const CFNode* n) {
     }
 
     if (cur != n)
-        n->lambda()->jump(cur->lambda()->to(), cur->lambda()->args());
+        n->lambda()->jump(cur->lambda()->type_args(), cur->lambda()->to(), cur->lambda()->args());
 
     for (auto child : domtree.children(cur))
         merge(child);
@@ -107,13 +107,13 @@ void Cleaner::eliminate_params() {
                 nlambda->param(j++)->name = olambda->param(i)->name;
             }
 
-            nlambda->jump(olambda->to(), olambda->args());
+            nlambda->jump(olambda->type_args(), olambda->to(), olambda->args());
             olambda->destroy_body();
 
             for (auto use : olambda->uses()) {
                 if (auto ulambda = use->isa_lambda()) {
                     assert(use.index() == 0 && "deleted param of lambda used as argument");
-                    ulambda->jump(nlambda, ulambda->args().cut(proxy_idx));
+                    ulambda->jump(ulambda->type_args(), nlambda, ulambda->args().cut(proxy_idx));
                 }
                 // else must be a dead 'select' primop
             }

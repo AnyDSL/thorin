@@ -245,7 +245,6 @@ void CFABuilder::propagate_higher_order_values() {
                     if (auto load = def->isa<Load>()) {
                         if (load->type()->order() >= 1)
                             WLOG("higher-order load not yet supported");
-
                     }
                     bool todo = false;
                     for (auto op : def->as<PrimOp>()->ops())

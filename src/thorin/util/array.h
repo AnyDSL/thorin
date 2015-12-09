@@ -126,6 +126,12 @@ public:
     {
         std::copy(other.begin(), other.end(), this->begin());
     }
+    Array(const std::vector<T>& other)
+        : size_(other.size())
+        , ptr_(new T[other.size()])
+    {
+        std::copy(other.begin(), other.end(), this->begin());
+    }
     template<class I>
     Array(const I begin, const I end)
         : size_(std::distance(begin, end))

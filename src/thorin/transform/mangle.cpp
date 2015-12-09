@@ -10,17 +10,17 @@ namespace thorin {
 
 class Mangler {
 public:
-    Mangler(const Scope& scope, ArrayRef<Def> drop, ArrayRef<Def> lift, const Type2Type& type2type)
+    Mangler(const Scope& scope, ArrayRef<Type> type_args, ArrayRef<Def> args, ArrayRef<Def> lift)
         : scope(scope)
-        , drop(drop)
+        , type_args(type_args)
+        , args(args)
         , lift(lift)
-        , type2type(type2type)
         , in_scope(scope.in_scope()) // copy constructor
         , oentry(scope.entry())
         , nentry(oentry->world().lambda(oentry->loc(), oentry->name))
     {
         assert(!oentry->empty());
-        assert(drop.size() == oentry->num_params());
+        assert(args.size() == oentry->num_params());
         std::queue<Def> queue;
         for (auto def : lift)
             queue.push(def);
@@ -41,7 +41,8 @@ public:
 
     const Scope& scope;
     Def2Def old2new;
-    ArrayRef<Def> drop;
+    ArrayRef<Type> type_args;
+    ArrayRef<Def> args;
     ArrayRef<Def> lift;
     Type2Type type2type;
     DefSet in_scope;
@@ -51,9 +52,20 @@ public:
 
 Lambda* Mangler::mangle() {
     old2new[oentry] = oentry;
+
+#if 0
+    for (size_t i = 0, e = oentry->num_type_params(); i != e; ++i) {
+        auto otype_param = oentry->type_param(i);
+        if (auto type_param = type_params[i])
+            type2type[otype_param] = type_param;
+        else
+            type2type[oparam] = nentry->append_param(oparam->type()->specialize(type2type), oparam->name);
+    }
+#endif
+
     for (size_t i = 0, e = oentry->num_params(); i != e; ++i) {
         auto oparam = oentry->param(i);
-        if (auto def = drop[i])
+        if (auto def = args[i])
             old2new[oparam] = def;
         else
             old2new[oparam] = nentry->append_param(oparam->type()->specialize(type2type), oparam->name);
@@ -83,7 +95,7 @@ void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
 
     if (olambda->to() == world().branch()) {        // fold branch if possible
         if (auto lit = mangle(olambda->arg(0))->isa<PrimLit>())
-            return nlambda->jump({}, mangle(lit->value().get_bool() ? olambda->arg(1) : olambda->arg(2)), {});
+            return nlambda->jump(mangle(lit->value().get_bool() ? olambda->arg(1) : olambda->arg(2)), {}, {});
     }
 
     Array<Def> nops(olambda->ops().size());
@@ -97,18 +109,18 @@ void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
     if (ntarget == oentry) {
         std::vector<size_t> cut;
         bool substitute = true;
-        for (size_t i = 0, e = drop.size(); i != e && substitute; ++i) {
-            if (auto def = drop[i]) {
+        for (size_t i = 0, e = args.size(); i != e && substitute; ++i) {
+            if (auto def = args[i]) {
                 substitute &= def == nargs[i];
                 cut.push_back(i);
             }
         }
 
         if (substitute)
-            return nlambda->jump({}, nentry, nargs.cut(cut)); // TODO type_args!!!
+            return nlambda->jump(nentry, {}, nargs.cut(cut)); // TODO type_args!!!
     }
 
-    nlambda->jump({}, ntarget, nargs); // TODO type_args!!!
+    nlambda->jump(ntarget, {}, nargs); // TODO type_args!!!
 }
 
 Def Mangler::mangle(Def odef) {
@@ -139,17 +151,13 @@ Def Mangler::mangle(Def odef) {
 
 //------------------------------------------------------------------------------
 
-Lambda* mangle(const Scope& scope, ArrayRef<Def> drop, ArrayRef<Def> lift, const Type2Type& type2type) {
-    return Mangler(scope, drop, lift, type2type).mangle();
+Lambda* mangle(const Scope& scope, ArrayRef<Type> type_args, ArrayRef<Def> args, ArrayRef<Def> lift) {
+    return Mangler(scope, type_args, args, lift).mangle();
 }
 
-Lambda* drop(Lambda* cur, ArrayRef<Def> call) {
-    auto dst = call.front()->as_lambda();
-    Scope scope(dst);
-    Type2Type type2type;
-    bool res = dst->type()->infer_with(type2type, cur->arg_fn_type());
-    assert_unused(res);
-    return drop(scope, call.skip_front(), type2type);
+Lambda* drop(const Call& call) {
+    Scope scope(call.args().front()->as_lambda());
+    return drop(scope, call.type_args(), call.args().skip_front());
 }
 
 //------------------------------------------------------------------------------

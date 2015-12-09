@@ -86,7 +86,7 @@ Lambda* JumpTarget::untangle() {
         return lambda_;
     assert(lambda_);
     auto bb = world().basicblock(lambda_->loc(), name_);
-    lambda_->jump({}, bb, {});
+    lambda_->jump(bb, {}, {});
     first_ = false;
     return lambda_ = bb;
 }
@@ -96,7 +96,7 @@ void Lambda::jump(JumpTarget& jt) {
         jt.lambda_ = this;
         jt.first_ = true;
     } else
-        this->jump({}, jt.untangle(), {});
+        this->jump(jt.untangle(), {}, {});
 }
 
 Lambda* JumpTarget::branch_to(World& world, const Location& loc) {
@@ -142,7 +142,7 @@ void IRBuilder::branch(Def cond, JumpTarget& t, JumpTarget& f) {
 
 Def IRBuilder::call(ArrayRef<Type> type_args, Def to, ArrayRef<Def> args, Type ret_type) {
     if (is_reachable()) {
-        auto p = cur_bb->call(type_args, to, args, ret_type);
+        auto p = cur_bb->call(to, type_args, args, ret_type);
         cur_bb = p.first;
         return p.second;
     }

@@ -84,7 +84,7 @@ public:
     }
     FnType              fn_type() { return fn0_; }       ///< Returns an empty @p FnType.
     FnType              fn_type(ArrayRef<Type> args) { return join(new FnTypeNode(*this, args)); }
-    TypeVar             type_var() { return join(new TypeVarNode(*this)); }
+    TypeParam           type_param() { return join(new TypeParamNode(*this)); }
     DefiniteArrayType   definite_array_type(Type elem, u64 dim) { return join(new DefiniteArrayTypeNode(*this, elem, dim)); }
     IndefiniteArrayType indefinite_array_type(Type elem) { return join(new IndefiniteArrayTypeNode(*this, elem)); }
 

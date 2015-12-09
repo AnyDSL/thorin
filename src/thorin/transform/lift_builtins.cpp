@@ -23,7 +23,7 @@ void lift_builtins(World& world) {
         for (auto var : vars)
             assert(var->order() == 0 && "creating a higher-order function");
 #endif
-        auto lifted = lift(scope, vars);
+        auto lifted = lift(scope, {}, vars);
 
         for (auto use : cur->uses()) {
             if (auto ulambda = use->isa_lambda()) {
@@ -35,7 +35,7 @@ void lift_builtins(World& world) {
                         assert(oops[use.index()] == cur);
                         nops[use.index()] = world.global(lifted, lifted->loc(), false, lifted->name);   // update to new lifted lambda
                         std::copy(vars.begin(), vars.end(), nops.begin() + oops.size());                // append former free vars
-                        ulambda->jump(ulambda->type_args(), cur, nops.skip_front());                                          // set new args
+                        ulambda->jump(cur, ulambda->type_args(), nops.skip_front());                    // set new args
                         // jump to new top-level dummy function
                         ulambda->update_to(world.lambda(ulambda->arg_fn_type(), to->loc(), to->cc(), to->intrinsic(), to->name));
                     }

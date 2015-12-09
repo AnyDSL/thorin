@@ -407,7 +407,7 @@ void CodeGen::emit(int opt, bool debug) {
 #endif
 
 #ifndef NDEBUG
-    llvm::verifyModule(*this->module_);
+    llvm::verifyModule(*module_);
 #endif
     optimize(opt);
     if (debug)
@@ -443,7 +443,7 @@ void CodeGen::optimize(int opt) {
             pmbuilder.SizeLevel = 1;
         } else {
             pmbuilder.OptLevel = (unsigned) opt;
-            pmbuilder.SizeLevel = 0U;
+            pmbuilder.SizeLevel = 0u;
         }
         pmbuilder.DisableUnitAtATime = true;
         if (opt == 3) {
@@ -860,7 +860,7 @@ llvm::Value* CodeGen::emit_shared_mmap(Def def, bool prefix) {
 
     // construct array type
     auto elem_type = mmap->out_ptr_type()->referenced_type().as<ArrayType>()->elem_type();
-    auto type = this->convert(mmap->world().definite_array_type(elem_type, num_elems));
+    auto type = convert(mmap->world().definite_array_type(elem_type, num_elems));
     auto global = emit_global_memory(type, (prefix ? entry_->name + "." : "") + mmap->unique_name(), 3);
     return global;
 }

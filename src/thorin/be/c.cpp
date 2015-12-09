@@ -301,17 +301,19 @@ void CCodeGen::emit() {
             return;
 
         // emit function declaration
-        auto ret_fn_type = ret_param->type().as<FnType>();
+        auto ret_type = ret_param->type().as<FnType>()->args().back();
         auto name = (lambda->is_external() || lambda->empty()) ? lambda->name : lambda->unique_name();
         if (lang_==Lang::CUDA)
             os << "__device__ ";
-        emit_type(ret_fn_type->args().back()) << " " << name << "(";
+        emit_addr_space(ret_type);
+        emit_type(ret_type) << " " << name << "(";
         size_t i = 0;
         for (auto param : lambda->params()) {
             if (param->order() == 0 && !param->is_mem()) {
                 // skip arrays bound to texture memory
                 if (is_texture_type(param->type())) continue;
                 if (i++ > 0) os << ", ";
+                emit_addr_space(param->type());
                 emit_type(param->type());
                 insert(param->gid(), param->unique_name());
             }
@@ -348,7 +350,7 @@ void CCodeGen::emit() {
         }
         assert(ret_param);
 
-        auto ret_fn_type = ret_param->type().as<FnType>();
+        auto ret_type = ret_param->type().as<FnType>()->args().back();
         auto name = (lambda->is_external() || lambda->empty()) ? lambda->name : lambda->unique_name();
         if (lambda->is_external()) {
             switch (lang_) {
@@ -359,7 +361,7 @@ void CCodeGen::emit() {
         } else {
             if (lang_==Lang::CUDA) os << "__device__ ";
         }
-        emit_type(ret_fn_type->args().back()) << " " << name << "(";
+        emit_type(ret_type) << " " << name << "(";
         size_t i = 0;
         // emit and store all first-order params
         for (auto param : lambda->params()) {

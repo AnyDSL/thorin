@@ -140,7 +140,7 @@ void IRBuilder::branch(Def cond, JumpTarget& t, JumpTarget& f) {
     }
 }
 
-Def IRBuilder::call(ArrayRef<Type> type_args, Def to, ArrayRef<Def> args, Type ret_type) {
+Def IRBuilder::call(Def to, ArrayRef<Type> type_args, ArrayRef<Def> args, Type ret_type) {
     if (is_reachable()) {
         auto p = cur_bb->call(to, type_args, args, ret_type);
         cur_bb = p.first;

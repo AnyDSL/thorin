@@ -470,8 +470,18 @@ std::ostream& Lambda::stream_head(std::ostream& os) const {
 }
 
 std::ostream& Lambda::stream_jump(std::ostream& os) const {
-    if (!empty())
-        return streamf(os, "% %", to(), stream_list(args(), [&](Def def) { os << def; }));
+    if (!empty()) {
+        os << to();
+
+        if (num_type_args()) {
+            os << "[";
+            os << stream_list(type_args(), [&](Type type) { os << type; });
+            os << "]";
+        }
+
+        os << " ";
+        os << stream_list(args(), [&](Def def) { os << def; });
+    }
     return os;
 }
 

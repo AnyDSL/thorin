@@ -327,9 +327,9 @@ struct Hash<Call> {
     uint64_t operator () (const Call& call) const {
         uint64_t seed = hash_begin();
         for (auto type : call.type_args())
-            seed = hash_combine(seed, type->gid());
+            seed = hash_combine(seed, type ? type->gid() : 0);
         for (auto arg : call.ops())
-            seed = hash_combine(seed, arg->gid());
+            seed = hash_combine(seed,  arg ?  arg->gid() : 0);
         return seed;
     }
 };

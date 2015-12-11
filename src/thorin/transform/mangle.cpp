@@ -156,8 +156,8 @@ Lambda* mangle(const Scope& scope, ArrayRef<Type> type_args, ArrayRef<Def> args,
 }
 
 Lambda* drop(const Call& call) {
-    Scope scope(call.args().front()->as_lambda());
-    return drop(scope, call.type_args(), call.args().skip_front());
+    Scope scope(call.to()->as_lambda());
+    return drop(scope, call.type_args(), call.args());
 }
 
 //------------------------------------------------------------------------------

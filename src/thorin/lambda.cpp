@@ -299,9 +299,9 @@ void jump_to_cached_call(Lambda* src, Lambda* dst, const Call& call) {
     }
 
     std::vector<Def> nargs;
-    for (size_t i = 1, e = src->size(); i != e; ++i) {
+    for (size_t i = 0, e = src->num_args(); i != e; ++i) {
         if (call.arg(i) == nullptr)
-            nargs.push_back(src->op(i));
+            nargs.push_back(src->arg(i));
     }
 
     src->jump(dst, ntype_args, nargs);

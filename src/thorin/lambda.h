@@ -286,13 +286,28 @@ struct Call {
         : type_args_(std::move(call.type_args_))
         , ops_(std::move(call.ops_))
     {}
+    Call(const Lambda* lambda)
+        : type_args_(lambda->num_type_args())
+        , ops_(lambda->size())
+    {}
 
     ArrayRef<Type> type_args() const { return type_args_; }
+    size_t num_type_args() const { return type_args().size(); }
     Type type_arg(size_t i) const { return type_args_[i]; }
+    Type& type_arg(size_t i) { return type_args_[i]; }
+
     ArrayRef<Def> ops() const { return ops_; }
+    size_t num_ops() const { return ops().size(); }
+    Def op(size_t i) const { return ops_[i]; }
+    Def& to(size_t i) { return ops_[i]; }
     Def to() const { return ops_.front(); }
+    Def& to() { return ops_.front(); }
+
     ArrayRef<Def> args() const { return ops_.skip_front(); }
+    size_t num_args() const { return args().size(); }
     Def arg(size_t i) const { return args()[i]; }
+    Def& arg(size_t i) { return ops_[i+1]; }
+
     bool operator==(const Call& other) const { return this->type_args() == other.type_args() && this->ops() == other.ops(); }
     Call& operator=(Call other) { swap(*this, other); return *this; }
 

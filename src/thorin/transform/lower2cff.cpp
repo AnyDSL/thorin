@@ -39,14 +39,14 @@ void lower2cff(World& world) {
                         DLOG("bad: %", to);
                         todo = dirty = true;
 
-                        Array<Def> ops(lambda->size());
-                        ops.front() = to;
-                        for (size_t i = 1, e = ops.size(); i != e; ++i)
-                            ops[i] = to->param(i-1)->order() > 0 ? lambda->arg(i-1) : nullptr;
+                        Call call(lambda);
+                        for (size_t i = 0, e = call.num_type_args(); i != e; ++i)
+                            call.type_arg(i) = lambda->type_arg(i);
 
+                        call.to() = to;
+                        for (size_t i = 0, e = call.num_args(); i != e; ++i)
+                            call.arg(i) = to->param(i)->order() > 0 ? lambda->arg(i) : nullptr;
 
-                        Array<Type> type_args(lambda->num_type_args());
-                        Call call(std::move(type_args), std::move(ops));
 
                         const auto& p = cache.emplace(call, nullptr);
                         Lambda*& target = p.first->second;
@@ -54,8 +54,7 @@ void lower2cff(World& world) {
                             target = drop(call); // use already dropped version as target
                         }
 
-                        // TODO type_args!!!
-                        //jump_to_cached_call(lambda, target, call);
+                        jump_to_cached_call(lambda, target, call);
                     }
                 }
             }

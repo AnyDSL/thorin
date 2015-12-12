@@ -528,9 +528,11 @@ private:
 
     mutable const TypeNode* bound_at_;
     mutable const TypeParamNode* equiv_;
+    mutable std::string name_;
 
     friend bool TypeNode::equal(const TypeNode*) const;
     friend void TypeNode::bind(TypeParam type_param) const;
+    friend const TypeNode* TypeNode::unify() const;
     friend class World;
 };
 

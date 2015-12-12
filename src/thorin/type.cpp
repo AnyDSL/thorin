@@ -20,7 +20,25 @@ void TypeNode::bind(TypeParam type_param) const {
 void TypeNode::dump() const { std::cout << Type(this) << std::endl; }
 size_t TypeNode::length() const { return as<VectorTypeNode>()->length(); }
 Type TypeNode::elem(const Def& def) const { return elem(def->primlit_value<size_t>()); }
-const TypeNode* TypeNode::unify() const { return world().unify_base(this); }
+
+const TypeNode* TypeNode::unify() const {
+    bool first = !is_unified();
+    auto type = world().unify_base(this);
+
+    static const char* names[] = {"α", "β", "γ", "δ", "ε", "ζ", "η", "θ", "ι", "κ", "λ", "μ",
+                                  "ν", "ξ", "ο", "π", "ρ", "σ", "τ", "υ", "φ", "χ", "ψ", "ω"};
+    static const size_t num_names = sizeof(names)/sizeof(names[0]);
+
+    if (first) {
+        for (size_t i = 0, e = type->num_type_params(); i != e; ++i) {
+            auto type_param = type->type_param(i);
+            for (size_t j = 0; j <= i / num_names; ++j)
+                type_param->name_ += names[i % num_names];
+        }
+    }
+
+    return type;
+}
 
 VectorType VectorTypeNode::scalarize() const {
     if (auto ptr = isa<PtrTypeNode>())
@@ -233,7 +251,7 @@ std::ostream& StructAppTypeNode::stream(std::ostream& os) const {
     return stream_type_elems(os, this);
 }
 
-std::ostream& TypeParamNode::stream(std::ostream& os) const { return streamf(os, "<%>", gid()); }
+std::ostream& TypeParamNode::stream(std::ostream& os) const { return os << name_; }
 std::ostream& IndefiniteArrayTypeNode::stream(std::ostream& os) const { return streamf(os, "[%]", elem_type()); }
 std::ostream& DefiniteArrayTypeNode::stream(std::ostream& os) const { return streamf(os, "[% x %]", dim(), elem_type()); }
 

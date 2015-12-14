@@ -166,8 +166,6 @@ public:
     bool empty() const { return args_.empty(); }
     void dump() const;
     World& world() const { return world_; }
-    bool check_with(Type) const { return true; } // TODO
-    bool infer_with(Type2Type&, Type) const { return true; } // TODO
     const TypeNode* representative() const { return representative_; }
     bool is_unified() const { return representative_ != nullptr; }
     const TypeNode* unify() const;

@@ -294,13 +294,13 @@ std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Type> type_args, ArrayRef<
 void jump_to_cached_call(Lambda* src, Lambda* dst, const Call& call) {
     std::vector<Type> ntype_args;
     for (size_t i = 0, e = src->num_type_args(); i != e; ++i) {
-        if (call.type_arg(i) == nullptr)
+        if (!call.type_arg(i))
             ntype_args.push_back(src->type_arg(i));
     }
 
     std::vector<Def> nargs;
     for (size_t i = 0, e = src->num_args(); i != e; ++i) {
-        if (call.arg(i) == nullptr)
+        if (!call.arg(i))
             nargs.push_back(src->arg(i));
     }
 

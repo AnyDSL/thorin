@@ -198,8 +198,8 @@ bool PtrTypeNode::equal(const TypeNode* other) const {
 }
 
 bool TypeParamNode::equal(const TypeNode* other) const {
-    if (auto typevar = other->isa<TypeParamNode>())
-        return this->equiv_ == typevar;
+    if (auto type_param = other->isa<TypeParamNode>())
+        return this->equiv_ == type_param;
     return false;
 }
 

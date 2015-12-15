@@ -722,18 +722,19 @@ std::ostream& CCodeGen::emit(Def def) {
     }
 
     if (auto primlit = def->isa<PrimLit>()) {
+        auto float_mode = lang_ == Lang::CUDA ? std::scientific : std::hexfloat;
         switch (primlit->primtype_kind()) {
-            case PrimType_bool: os << (primlit->bool_value() ? "true" : "false");                           break;
-            case PrimType_ps8:  case PrimType_qs8:  os << (int) primlit->ps8_value();                       break;
-            case PrimType_pu8:  case PrimType_qu8:  os << (unsigned) primlit->pu8_value();                  break;
-            case PrimType_ps16: case PrimType_qs16: os << primlit->ps16_value();                            break;
-            case PrimType_pu16: case PrimType_qu16: os << primlit->pu16_value();                            break;
-            case PrimType_ps32: case PrimType_qs32: os << primlit->ps32_value();                            break;
-            case PrimType_pu32: case PrimType_qu32: os << primlit->pu32_value();                            break;
-            case PrimType_ps64: case PrimType_qs64: os << primlit->ps64_value();                            break;
-            case PrimType_pu64: case PrimType_qu64: os << primlit->pu64_value();                            break;
-            case PrimType_pf32: case PrimType_qf32: os << std::scientific << primlit->pf32_value() << 'f';  break;
-            case PrimType_pf64: case PrimType_qf64: os << std::scientific << primlit->pf64_value();         break;
+            case PrimType_bool: os << (primlit->bool_value() ? "true" : "false");                       break;
+            case PrimType_ps8:  case PrimType_qs8:  os << (int) primlit->ps8_value();                   break;
+            case PrimType_pu8:  case PrimType_qu8:  os << (unsigned) primlit->pu8_value();              break;
+            case PrimType_ps16: case PrimType_qs16: os << primlit->ps16_value();                        break;
+            case PrimType_pu16: case PrimType_qu16: os << primlit->pu16_value();                        break;
+            case PrimType_ps32: case PrimType_qs32: os << primlit->ps32_value();                        break;
+            case PrimType_pu32: case PrimType_qu32: os << primlit->pu32_value();                        break;
+            case PrimType_ps64: case PrimType_qs64: os << primlit->ps64_value();                        break;
+            case PrimType_pu64: case PrimType_qu64: os << primlit->pu64_value();                        break;
+            case PrimType_pf32: case PrimType_qf32: os << float_mode << primlit->pf32_value() << 'f';   break;
+            case PrimType_pf64: case PrimType_qf64: os << float_mode << primlit->pf64_value();          break;
         }
         return os;
     }

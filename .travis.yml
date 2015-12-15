@@ -25,4 +25,5 @@ install:
   - bash setup_travis.sh
 
 script:
-  - python impala/test/run_tests.py
+  - cd impala/test/
+  - python run_tests.py .

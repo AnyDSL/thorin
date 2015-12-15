@@ -111,7 +111,7 @@ OpenCLPlatform::OpenCLPlatform(Runtime* runtime)
     cl_int err = clGetPlatformIDs(0, NULL, &num_platforms);
     checkErr(err, "clGetPlatformIDs()");
 
-    runtime_->log("Number of available Platforms: ", num_platforms);
+    runtime_->log("Number of available OpenCL Platforms: ", num_platforms);
 
     cl_platform_id* platforms = new cl_platform_id[num_platforms];
 

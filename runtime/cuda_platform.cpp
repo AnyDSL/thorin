@@ -98,7 +98,7 @@ CudaPlatform::CudaPlatform(Runtime* runtime)
         err = cuDeviceGetAttribute(&devices_[i].compute_minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, devices_[i].dev);
         checkErrDrv(err, "cuDeviceGetAttribute()");
 
-        runtime_->log("Device ", i, ": ", name, ", ",
+        runtime_->log("  (", i, ") ", name, ", ",
                       "Compute capability: ", devices_[i].compute_major,
                       ".", devices_[i].compute_minor);
 

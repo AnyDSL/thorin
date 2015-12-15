@@ -6,16 +6,20 @@
 
 namespace thorin {
 
-Lambda* mangle(const Scope&, ArrayRef<Def> drop, ArrayRef<Def> lift, const Type2Type& type2type = Type2Type());
-inline Lambda* drop(const Scope& scope, ArrayRef<Def> with, const Type2Type& type2type = Type2Type()) {
-    return mangle(scope, with, Array<Def>(), type2type);
+Lambda* mangle(const Scope&, ArrayRef<Type> type_args, ArrayRef<Def> args, ArrayRef<Def> lift);
+
+inline Lambda* drop(const Scope& scope, ArrayRef<Type> type_args, ArrayRef<Def> args) {
+    return mangle(scope, type_args, args, Array<Def>());
 }
-Lambda* drop(Lambda* cur, ArrayRef<Def> call);
-inline Lambda* clone(const Scope& scope, const Type2Type& type2type = Type2Type()) {
-    return mangle(scope, Array<Def>(scope.entry()->num_params()), Array<Def>(), type2type);
+
+Lambda* drop(const Call&);
+
+inline Lambda* lift(const Scope& scope, ArrayRef<Type> type_args, ArrayRef<Def> defs) {
+    return mangle(scope, type_args, Array<Def>(scope.entry()->num_params()), defs);
 }
-inline Lambda* lift(const Scope& scope, ArrayRef<Def> what, const Type2Type& type2type = Type2Type()) {
-    return mangle(scope, Array<Def>(scope.entry()->num_params()), what, type2type);
+
+inline Lambda* clone(const Scope& scope) {
+    return mangle(scope, {/*TODO type_args*/}, Array<Def>(scope.entry()->num_params()), Array<Def>());
 }
 
 }

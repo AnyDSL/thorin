@@ -16,7 +16,6 @@ install:
   - cd anydsl
   - bash scripts/install_cmake.sh ~/cmake/
   - export PATH=~/cmake/bin:~/work/anydsl/llvm_install/bin:~/work/anydsl/impala/build/bin:$PATH
-  - echo $PATH
   
   - cp config.sh.template config.sh
   - sed -i 's/BRANCH:=master/BRANCH:=master_llvm36/g' config.sh
@@ -26,5 +25,4 @@ install:
   - bash setup_travis.sh
 
 script:
-  - clang --version
-  - cmake --version
+  - python impala/test/run_tests.py

@@ -1,6 +1,6 @@
 language: python
 
-before_install: git clone --branch=master_llvm36 https://github.com/AnyDSL/anydsl.git
+before_install: 
 
 sudo: required
 dist: trusty
@@ -9,17 +9,16 @@ cache:
   - ccache
 
 install:
-  - mkdir -p ~/cmake/
+  - mkdir -p ~/cmake
+  - mkdir -p ~/work
+  
+  - cd ~/work
+  - git clone --branch=master_llvm36 https://github.com/AnyDSL/anydsl.git
   
   - cd anydsl
   - bash scripts/install_cmake.sh ~/cmake/
-  - export PATH=~/cmake/bin/:/home/travis/AnyDSL/thorin/anydsl/llvm_install/bin:$PATH
+  - export PATH=~/cmake/bin:~/work/anydsl/llvm_install/bin:~/work/anydsl/impala/build/bin:$PATH
   - echo $PATH
-  
-  - clang --version
-  - cmake --version
-  - gcc --version
-  - g++ --version
   
   - cp config.sh.template config.sh
   - sed -i 's/BRANCH:=master/BRANCH:=master_llvm36/g' config.sh

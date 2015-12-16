@@ -50,6 +50,8 @@ protected:
 
     std::string name() override { return "OpenCL"; }
 
+    typedef std::unordered_map<std::string, cl_kernel> KernelMap;
+
     struct DeviceData {
         cl_platform_id platform;
         cl_device_id dev;
@@ -64,7 +66,8 @@ protected:
         std::vector<size_t> kernel_arg_sizes;
         std::list<cl_mem> kernel_structs;
 
-        std::unordered_map<std::string, cl_kernel> kernels;
+        std::unordered_map<std::string, cl_program> programs;
+        std::unordered_map<cl_program, KernelMap> kernels;
     };
 
     std::vector<DeviceData> devices_;

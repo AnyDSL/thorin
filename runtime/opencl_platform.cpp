@@ -221,9 +221,15 @@ OpenCLPlatform::OpenCLPlatform(Runtime* runtime)
 
 OpenCLPlatform::~OpenCLPlatform() {
     for (size_t i = 0; i < devices_.size(); i++) {
-        for (auto& it : devices_[i].kernels) {
-            cl_int err = clReleaseKernel(it.second);
-            checkErr(err, "clReleaseKernel()");
+        for (auto& map : devices_[i].kernels) {
+            for (auto& it : map.second) {
+                cl_int err = clReleaseKernel(it.second);
+                checkErr(err, "clReleaseKernel()");
+            }
+        }
+        for (auto& it : devices_[i].programs) {
+            cl_int err = clReleaseProgram(it.second);
+            checkErr(err, "clReleaseProgram()");
         }
     }
 }
@@ -304,78 +310,85 @@ void OpenCLPlatform::set_kernel_arg_struct(device_id dev, int32_t arg, void* ptr
 }
 
 void OpenCLPlatform::load_kernel(device_id dev, const char* file, const char* name) {
-    std::string cache_name = file + std::string(":") + name;
-    auto& kernel_cache = devices_[dev].kernels;
-    auto kernel_it = kernel_cache.find(cache_name);
-    if (kernel_it != kernel_cache.end()) {
-        devices_[dev].kernel = kernel_it->second;
-        return;
-    }
-
-    std::string spir_bc("spir.bc");
-    std::string file_str(file);
-    std::ifstream src_file(std::string(KERNEL_DIR) + file);
-    bool is_binary = file_str.compare(file_str.length() - spir_bc.length(), spir_bc.length(), spir_bc) == 0;
-
-    if (!src_file.is_open()) {
-        std::cerr << "ERROR: Can't open "
-                  << (is_binary ? "SPIR binary" : "OpenCL source")
-                  << " file '" << name << "'!" << std::endl;
-        exit(EXIT_FAILURE);
-    }
-
-    std::string cl_str(std::istreambuf_iterator<char>(src_file), (std::istreambuf_iterator<char>()));
-    std::string options = "-cl-single-precision-constant -cl-denorms-are-zero";
-
-    const size_t length = cl_str.length();
-    const char* c_str = cl_str.c_str();
     cl_int err = CL_SUCCESS;
     cl_program program;
+    auto& prog_cache = devices_[dev].programs;
+    auto prog_it = prog_cache.find(file);
+    if (prog_it == prog_cache.end()) {
+        std::string spir_bc("spir.bc");
+        std::string file_str(file);
+        std::ifstream src_file(std::string(KERNEL_DIR) + file);
+        bool is_binary = file_str.compare(file_str.length() - spir_bc.length(), spir_bc.length(), spir_bc) == 0;
 
-    if (is_binary) {
-        options += " -x spir -spir-std=1.2";
-        program = clCreateProgramWithBinary(devices_[dev].ctx, 1, &devices_[dev].dev, &length, (const unsigned char**)&c_str, NULL, &err);
-        checkErr(err, "clCreateProgramWithBinary()");
+        if (!src_file.is_open()) {
+            std::cerr << "ERROR: Can't open "
+                      << (is_binary ? "SPIR binary" : "OpenCL source")
+                      << " file '" << name << "'!" << std::endl;
+            exit(EXIT_FAILURE);
+        }
+
+        runtime_->log("Compiling '", file, "' on OpenCL device ", dev);
+
+        std::string cl_str(std::istreambuf_iterator<char>(src_file), (std::istreambuf_iterator<char>()));
+        std::string options = "-cl-single-precision-constant -cl-denorms-are-zero";
+
+        const size_t length = cl_str.length();
+        const char* c_str = cl_str.c_str();
+
+        if (is_binary) {
+            options += " -x spir -spir-std=1.2";
+            program = clCreateProgramWithBinary(devices_[dev].ctx, 1, &devices_[dev].dev, &length, (const unsigned char**)&c_str, NULL, &err);
+            checkErr(err, "clCreateProgramWithBinary()");
+        } else {
+            program = clCreateProgramWithSource(devices_[dev].ctx, 1, (const char**)&c_str, &length, &err);
+            checkErr(err, "clCreateProgramWithSource()");
+        }
+
+        err = clBuildProgram(program, 0, NULL, options.c_str(), NULL, NULL);
+
+        cl_build_status build_status;
+        clGetProgramBuildInfo(program, devices_[dev].dev, CL_PROGRAM_BUILD_STATUS, sizeof(build_status), &build_status, NULL);
+
+        if (build_status == CL_BUILD_ERROR || err != CL_SUCCESS) {
+            // determine the size of the options and log
+            size_t log_size, options_size;
+            err |= clGetProgramBuildInfo(program, devices_[dev].dev, CL_PROGRAM_BUILD_OPTIONS, 0, NULL, &options_size);
+            err |= clGetProgramBuildInfo(program, devices_[dev].dev, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
+
+            // allocate memory for the options and log
+            char* program_build_options = new char[options_size];
+            char* program_build_log = new char[log_size];
+
+            // get the options and log
+            err |= clGetProgramBuildInfo(program, devices_[dev].dev, CL_PROGRAM_BUILD_OPTIONS, options_size, program_build_options, NULL);
+            err |= clGetProgramBuildInfo(program, devices_[dev].dev, CL_PROGRAM_BUILD_LOG, log_size, program_build_log, NULL);
+            runtime_->log("OpenCL build options : ", program_build_options);
+            runtime_->log("OpenCL build log : ");
+            runtime_->log(program_build_log);
+
+            // free memory for options and log
+            delete[] program_build_options;
+            delete[] program_build_log;
+        }
+        checkErr(err, "clBuildProgram(), clGetProgramBuildInfo()");
+
+        prog_cache[file] = program;
     } else {
-        program = clCreateProgramWithSource(devices_[dev].ctx, 1, (const char**)&c_str, &length, &err);
-        checkErr(err, "clCreateProgramWithSource()");
+        program = prog_it->second;
     }
 
-    err = clBuildProgram(program, 0, NULL, options.c_str(), NULL, NULL);
-
-    cl_build_status build_status;
-    clGetProgramBuildInfo(program, devices_[dev].dev, CL_PROGRAM_BUILD_STATUS, sizeof(build_status), &build_status, NULL);
-
-    if (build_status == CL_BUILD_ERROR || err != CL_SUCCESS) {
-        // determine the size of the options and log
-        size_t log_size, options_size;
-        err |= clGetProgramBuildInfo(program, devices_[dev].dev, CL_PROGRAM_BUILD_OPTIONS, 0, NULL, &options_size);
-        err |= clGetProgramBuildInfo(program, devices_[dev].dev, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
-
-        // allocate memory for the options and log
-        char* program_build_options = new char[options_size];
-        char* program_build_log = new char[log_size];
-
-        // get the options and log
-        err |= clGetProgramBuildInfo(program, devices_[dev].dev, CL_PROGRAM_BUILD_OPTIONS, options_size, program_build_options, NULL);
-        err |= clGetProgramBuildInfo(program, devices_[dev].dev, CL_PROGRAM_BUILD_LOG, log_size, program_build_log, NULL);
-        runtime_->log("OpenCL build options : ", program_build_options);
-        runtime_->log("OpenCL build log : ");
-        runtime_->log(program_build_log);
-
-        // free memory for options and log
-        delete[] program_build_options;
-        delete[] program_build_log;
+    // checks that the kernel exists
+    auto& kernel_cache = devices_[dev].kernels;
+    auto& kernel_map = kernel_cache[program];
+    auto kernel_it = kernel_map.find(name);
+    if (kernel_it == kernel_map.end()) {
+        devices_[dev].kernel = clCreateKernel(program, name, &err);
+        checkErr(err, "clCreateKernel()");
+        kernel_map.emplace(name, devices_[dev].kernel);
+        devices_[dev].kernel = devices_[dev].kernel;
+    } else {
+        devices_[dev].kernel = kernel_it->second;
     }
-    checkErr(err, "clBuildProgram(), clGetProgramBuildInfo()");
-
-    devices_[dev].kernel = clCreateKernel(program, name, &err);
-    kernel_cache.emplace(name, devices_[dev].kernel);
-    checkErr(err, "clCreateKernel()");
-
-    // release program
-    err = clReleaseProgram(program);
-    checkErr(err, "clReleaseProgram()");
 }
 
 extern std::atomic_llong thorin_kernel_time;

@@ -19,16 +19,18 @@ public:
     };
 
     static std::ostream& stream() { return *stream_; }
-    static void set(Level max_level, std::ostream* stream) { set_max_level(max_level); set_stream(stream); }
+    static void set(Level max_level, std::ostream* stream, bool print_loc = true) { set_max_level(max_level); set_stream(stream); set_print_loc(print_loc); }
     static Level max_level() { return max_level_; }
     static void set_stream(std::ostream* stream) { stream_ = stream; }
     static void set_max_level(Level max_level) { max_level_ = max_level; }
+    static void set_print_loc(bool print_loc) { print_loc_ = print_loc; }
     static char level2char(Level);
 
     template<typename... Args>
     static void log(Level level, const char* file, int line, const char* fmt, Args... args) {
         if (Log::stream_ && level <= Log::max_level()) {
-            Log::stream() << level2char(level) << ':' << file << ':' << std::setw(4) << line << ": ";
+            if (print_loc_)
+                Log::stream() << level2char(level) << ':' << file << ':' << std::setw(4) << line << ": ";
             if (level == Debug)
                 Log::stream() << "  ";
             streamf(Log::stream(), fmt, args...);
@@ -41,6 +43,7 @@ public:
 private:
     static std::ostream* stream_;
     static Level max_level_;
+    static bool print_loc_;
 };
 
 }

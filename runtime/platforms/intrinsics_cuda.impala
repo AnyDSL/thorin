@@ -41,10 +41,10 @@ extern "device" {
     fn fmaxf(f32, f32) -> f32;
     fn fmin(f64, f64) -> f64;
     fn fmax(f64, f64) -> f64;
-    fn "atomicAdd" atomic_add_global(&i32, i32) -> i32;
-    fn "atomicAdd" atomic_add_local(&i32, i32) -> i32;
-    fn "atomicMin" atomic_min_global(&i32, i32) -> i32;
-    fn "atomicMin" atomic_min_local(&i32, i32) -> i32;
+    fn "atomicAdd" atomic_add_global(&[1]i32, i32) -> i32;
+    fn "atomicAdd" atomic_add_local(&[3]i32, i32) -> i32;
+    fn "atomicMin" atomic_min_global(&[1]i32, i32) -> i32;
+    fn "atomicMin" atomic_min_local(&[3]i32, i32) -> i32;
     // wrappers for threadIdx.x etc. are provided
     fn threadIdx_x() -> i32;
     fn threadIdx_y() -> i32;

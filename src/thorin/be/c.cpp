@@ -58,8 +58,8 @@ std::ostream& CCodeGen::emit_addr_space(Type type) {
     if (auto ptr = type.isa<PtrType>()) {
         if (lang_==Lang::OPENCL) {
             switch (ptr->addr_space()) {
-                default: break;
-                case AddressSpace::Generic: // once address spaces are correct, ::Global should be sufficient
+                default:
+                case AddressSpace::Generic:                   break;
                 case AddressSpace::Global: os << "__global "; break;
                 case AddressSpace::Shared: os << "__local ";  break;
             }

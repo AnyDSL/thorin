@@ -501,7 +501,7 @@ void CCodeGen::emit() {
                             emit(lambda->arg(1)) << ");" << endl;
                         } else if (to_lambda->intrinsic() == Intrinsic::Reserve) {
                             if (!lambda->arg(1)->isa<PrimLit>())
-                                WLOG("error: reserve_shared: couldn't extract memory size at %", lambda->arg(1)->loc());
+                                ELOG("reserve_shared: couldn't extract memory size at %", lambda->arg(1)->loc());
 
                             switch (lang_) {
                                 case Lang::C99:                         break;

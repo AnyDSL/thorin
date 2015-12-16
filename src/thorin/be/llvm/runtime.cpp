@@ -54,7 +54,7 @@ Lambda* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std:
 
     // arguments
     if (!lambda->arg(ACC_ARG_DEVICE)->isa<PrimLit>())
-        WLOG("error: target device must be hard-coded at %", lambda->arg(ACC_ARG_DEVICE)->loc());
+        ELOG("target device must be hard-coded at %", lambda->arg(ACC_ARG_DEVICE)->loc());
     auto target_device_id = int(lambda->arg(ACC_ARG_DEVICE)->as<PrimLit>()->qu32_value().data());
 
     auto target_platform = builder_.getInt32(platform);
@@ -92,9 +92,8 @@ Lambda* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std:
             auto rtype = ptr->referenced_type();
 
             if (!rtype.isa<ArrayType>()) {
-                WLOG("currently only pointers to arrays supported as kernel argument at '%'; argument has different type:", target_arg->loc());
                 ptr->dump();
-                assert(rtype.isa<ArrayType>() && "currently only pointers to arrays supported");
+                ELOG("currently only pointers to arrays supported as kernel argument at '%'; argument has different type:", target_arg->loc());
             }
 
             auto void_ptr = builder_.CreatePointerCast(target_val, builder_.getInt8PtrTy());

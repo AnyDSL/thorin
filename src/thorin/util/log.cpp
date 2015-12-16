@@ -9,6 +9,7 @@ std::ostream* Log::stream_ = nullptr;
 
 char Log::level2char(Level level) {
     switch (level) {
+        case Error: return 'E';
         case Warn:  return 'W';
         case Info:  return 'I';
         case Debug: return 'D';

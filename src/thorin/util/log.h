@@ -15,7 +15,7 @@ class Log {
 
 public:
     enum Level {
-        Warn, Info, Debug
+        Error, Warn, Info, Debug
     };
 
     static std::ostream& stream() { return *stream_; }
@@ -33,6 +33,8 @@ public:
                 Log::stream() << "  ";
             streamf(Log::stream(), fmt, args...);
             Log::stream() << std::endl;
+            if (level == Error)
+                exit(EXIT_FAILURE);
         }
     }
 
@@ -49,6 +51,7 @@ private:
 #define LOG(level, ...) do {} while (false)
 #endif
 
+#define ELOG(...) LOG(thorin::Log::Error, __VA_ARGS__)
 #define WLOG(...) LOG(thorin::Log::Warn,  __VA_ARGS__)
 #define ILOG(...) LOG(thorin::Log::Info,  __VA_ARGS__)
 #define DLOG(...) LOG(thorin::Log::Debug, __VA_ARGS__)

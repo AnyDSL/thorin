@@ -6,7 +6,6 @@
 #include <cassert>
 #include <cstdlib>
 #include <fstream>
-#include <iostream>
 #include <string>
 
 #ifndef KERNEL_DIR
@@ -96,10 +95,9 @@ std::string get_opencl_error_code_str(int error) {
 
 void OpenCLPlatform::checkOpenCLErrors(cl_int err, const char* name, const char* file, const int line) {
     if (err != CL_SUCCESS) {
-        std::cerr << "ERROR: " << name << " (" << err << ")"
-                  << " [file " << file << ", line " << line << "]: "
-                  << get_opencl_error_code_str(err) << std::endl;
-        exit(EXIT_FAILURE);
+        runtime_->error("OpenCL API function ", name, " (", err, ")",
+                        " [file ", file, ", line ", line, "]: ",
+                        get_opencl_error_code_str(err));
     }
 }
 
@@ -321,10 +319,8 @@ void OpenCLPlatform::load_kernel(device_id dev, const char* file, const char* na
         bool is_binary = file_str.compare(file_str.length() - spir_bc.length(), spir_bc.length(), spir_bc) == 0;
 
         if (!src_file.is_open()) {
-            std::cerr << "ERROR: Can't open "
-                      << (is_binary ? "SPIR binary" : "OpenCL source")
-                      << " file '" << name << "'!" << std::endl;
-            exit(EXIT_FAILURE);
+            runtime_->error("ERROR: Can't open ", (is_binary ? "SPIR binary" : "OpenCL source"),
+                            " file '", name, "'!");
         }
 
         runtime_->log("Compiling '", file, "' on OpenCL device ", dev);

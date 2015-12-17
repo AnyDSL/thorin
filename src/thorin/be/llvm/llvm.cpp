@@ -62,6 +62,7 @@ Lambda* CodeGen::emit_intrinsic(Lambda* lambda) {
     switch (to->intrinsic()) {
         case Intrinsic::Atomic:      return emit_atomic(lambda);
         case Intrinsic::Select:      return emit_select(lambda);
+        case Intrinsic::Sizeof:      return emit_sizeof(lambda);
         case Intrinsic::Shuffle:     return emit_shuffle(lambda);
         case Intrinsic::Reserve:     return emit_reserve(lambda);
         case Intrinsic::Reinterpret: return emit_reinterpret(lambda);
@@ -108,6 +109,16 @@ Lambda* CodeGen::emit_select(Lambda* lambda) {
 
     auto cont = lambda->arg(4)->as_lambda();
     auto call = irbuilder_.CreateSelect(cond, a, b);
+    emit_result_phi(cont->param(1), call);
+    return cont;
+}
+
+Lambda* CodeGen::emit_sizeof(Lambda* lambda) {
+    assert(lambda->num_args() == 2 && "required arguments are missing");
+    auto type = convert(lambda->type_arg(0));
+    auto cont = lambda->arg(1)->as_lambda();
+    auto layout = llvm::DataLayout(module_->getDataLayout());
+    auto call = irbuilder_.getInt32(layout.getTypeAllocSize(type));
     emit_result_phi(cont->param(1), call);
     return cont;
 }

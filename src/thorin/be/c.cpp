@@ -100,7 +100,7 @@ std::ostream& CCodeGen::emit_type(Type type) {
         }
         os << down << endl << "} struct_" << struct_app->gid() << ";";
         return os;
-    } else if (type.isa<TypeVar>()) {
+    } else if (type.isa<TypeParam>()) {
         THORIN_UNREACHABLE;
     } else if (auto array = type.isa<IndefiniteArrayType>()) {
         emit_type(array->elem_type());

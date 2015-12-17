@@ -1,4 +1,6 @@
 extern "thorin" {
+    fn sizeof[T]() -> i32;
+
     fn "bitcast" bitcast_f64_i64(f64) -> i64;
     fn "bitcast" bitcast_f32_i32(f32) -> i32;
     fn "bitcast" bitcast_i32_f32(i32) -> f32;

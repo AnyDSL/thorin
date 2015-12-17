@@ -53,6 +53,7 @@ private:
     Lambda* emit_sync(Lambda*);
     Lambda* emit_vectorize_continuation(Lambda*);
     Lambda* emit_atomic(Lambda*);
+    Lambda* emit_sizeof(Lambda*);
     Lambda* emit_select(Lambda*);
     Lambda* emit_shuffle(Lambda*);
     Lambda* emit_reinterpret(Lambda*);

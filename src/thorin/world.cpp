@@ -50,9 +50,6 @@ World::World(std::string name)
 {
     branch_ = lambda(fn_type({type_bool(), fn_type(), fn_type()}), Location(), CC::C, Intrinsic::Branch, "br");
     end_scope_ = lambda(fn_type(), Location(), CC::C, Intrinsic::EndScope, "end_scope");
-    auto v = type_var();
-    auto f = fn_type({type_bool(), fn_type(), fn_type(), v});
-    f->bind(v);
 }
 
 World::~World() {

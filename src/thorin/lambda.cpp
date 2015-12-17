@@ -176,19 +176,20 @@ bool Lambda::is_external() const { return world().is_external(this); }
 bool Lambda::is_intrinsic() const { return intrinsic_ != Intrinsic::None; }
 bool Lambda::is_accelerator() const { return Intrinsic::_Accelerator_Begin <= intrinsic_ && intrinsic_ < Intrinsic::_Accelerator_End; }
 void Lambda::set_intrinsic() {
-    if      (name == "cuda")            intrinsic_ = Intrinsic::CUDA;
-    else if (name == "nvvm")            intrinsic_ = Intrinsic::NVVM;
-    else if (name == "spir")            intrinsic_ = Intrinsic::SPIR;
-    else if (name == "opencl")          intrinsic_ = Intrinsic::OpenCL;
-    else if (name == "parallel")        intrinsic_ = Intrinsic::Parallel;
-    else if (name == "spawn")           intrinsic_ = Intrinsic::Spawn;
-    else if (name == "sync")            intrinsic_ = Intrinsic::Sync;
-    else if (name == "vectorize")       intrinsic_ = Intrinsic::Vectorize;
-    else if (name == "reserve_shared")  intrinsic_ = Intrinsic::Reserve;
-    else if (name == "atomic")          intrinsic_ = Intrinsic::Atomic;
-    else if (name == "bitcast")         intrinsic_ = Intrinsic::Reinterpret;
-    else if (name == "select")          intrinsic_ = Intrinsic::Select;
-    else if (name == "shuffle")         intrinsic_ = Intrinsic::Shuffle;
+    if      (name == "cuda")           intrinsic_ = Intrinsic::CUDA;
+    else if (name == "nvvm")           intrinsic_ = Intrinsic::NVVM;
+    else if (name == "spir")           intrinsic_ = Intrinsic::SPIR;
+    else if (name == "opencl")         intrinsic_ = Intrinsic::OpenCL;
+    else if (name == "parallel")       intrinsic_ = Intrinsic::Parallel;
+    else if (name == "spawn")          intrinsic_ = Intrinsic::Spawn;
+    else if (name == "sync")           intrinsic_ = Intrinsic::Sync;
+    else if (name == "vectorize")      intrinsic_ = Intrinsic::Vectorize;
+    else if (name == "reserve_shared") intrinsic_ = Intrinsic::Reserve;
+    else if (name == "atomic")         intrinsic_ = Intrinsic::Atomic;
+    else if (name == "bitcast")        intrinsic_ = Intrinsic::Reinterpret;
+    else if (name == "select")         intrinsic_ = Intrinsic::Select;
+    else if (name == "sizeof")         intrinsic_ = Intrinsic::Sizeof;
+    else if (name == "shuffle")        intrinsic_ = Intrinsic::Shuffle;
     else assert(false && "unsupported thorin intrinsic");
 }
 
@@ -228,7 +229,7 @@ Lambda::ScopeInfo* Lambda::find_scope(const Scope* scope) {
  * terminate
  */
 
-void Lambda::jump(Def to, ArrayRef<Def> args) {
+void Lambda::jump(Def to, Array<Type> type_args, ArrayRef<Def> args) {
     unset_ops();
     resize(args.size()+1);
     set_op(0, to);
@@ -236,21 +237,23 @@ void Lambda::jump(Def to, ArrayRef<Def> args) {
     size_t x = 1;
     for (auto arg : args)
         set_op(x++, arg);
+
+    swap(type_args_, type_args);
 }
 
 void Lambda::branch(Def cond, Def t, Def f) {
     if (auto lit = cond->isa<PrimLit>())
-        return jump(lit->value().get_bool() ? t : f, {});
+        return jump(lit->value().get_bool() ? t : f, {}, {});
     if (t == f)
-        return jump(t, {});
+        return jump(t, {}, {});
     if (cond->is_not())
         return branch(cond->as<ArithOp>()->rhs(), f, t);
-    return jump(world().branch(), {cond, t, f});
+    return jump(world().branch(), {}, {cond, t, f});
 }
 
-std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Def> args, Type ret_type) {
+std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Type> type_args, ArrayRef<Def> args, Type ret_type) {
     if (ret_type.empty()) {
-        jump(to, args);
+        jump(to, type_args, args);
         return std::make_pair(nullptr, Def());
     }
 
@@ -271,7 +274,7 @@ std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Def> args, Type ret_type) 
     size_t csize = args.size() + 1;
     Array<Def> cargs(csize);
     *std::copy(args.begin(), args.end(), cargs.begin()) = next;
-    jump(to, cargs);
+    jump(to, type_args, cargs);
 
     // determine return value
     Def ret;
@@ -288,14 +291,20 @@ std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Def> args, Type ret_type) 
     return std::make_pair(next, ret);
 }
 
-void jump_to_cached_call(Lambda* src, Lambda* dst, ArrayRef<Def> call) {
-    std::vector<Def> nargs;
-    for (size_t i = 1, e = src->size(); i != e; ++i) {
-        if (call[i] == nullptr)
-            nargs.push_back(src->op(i));
+void jump_to_cached_call(Lambda* src, Lambda* dst, const Call& call) {
+    std::vector<Type> ntype_args;
+    for (size_t i = 0, e = src->num_type_args(); i != e; ++i) {
+        if (!call.type_arg(i))
+            ntype_args.push_back(src->type_arg(i));
     }
 
-    src->jump(dst, nargs);
+    std::vector<Def> nargs;
+    for (size_t i = 0, e = src->num_args(); i != e; ++i) {
+        if (!call.arg(i))
+            nargs.push_back(src->arg(i));
+    }
+
+    src->jump(dst, ntype_args, nargs);
     assert(src->arg_fn_type() == dst->type());
 }
 
@@ -451,7 +460,7 @@ Def Lambda::try_remove_trivial_param(const Param* param) {
 
 std::ostream& Lambda::stream_head(std::ostream& os) const {
     os << unique_name();
-    stream_type_vars(os, type());
+    stream_type_params(os, type());
     stream_list(os, params(), [&](const Param* param) { streamf(os, "% %", param->type(), param); }, "(", ")");
     if (is_external())
         os << " extern ";
@@ -461,8 +470,14 @@ std::ostream& Lambda::stream_head(std::ostream& os) const {
 }
 
 std::ostream& Lambda::stream_jump(std::ostream& os) const {
-    if (!empty())
-        return streamf(os, "% %", to(), stream_list(args(), [&](Def def) { os << def; }));
+    if (!empty()) {
+        os << to();
+
+        if (num_type_args())
+            os << '[' << stream_list(type_args(), [&](Type type) { os << type; }) << ']';
+
+        os << '(' << stream_list(args(), [&](Def def) { os << def; }) << ')';
+    }
     return os;
 }
 

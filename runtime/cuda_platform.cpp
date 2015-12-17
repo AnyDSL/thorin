@@ -67,14 +67,14 @@ CudaPlatform::CudaPlatform(Runtime* runtime)
     nvvmResult errNvvm = nvvmVersion(&nvvm_major, &nvvm_minor);
     checkErrNvvm(errNvvm, "nvvmVersion()");
 
-    ILOG("CUDA Driver Version %.%", driver_version/1000, (driver_version%100)/10);
+    WLOG("CUDA Driver Version %.%", driver_version/1000, (driver_version%100)/10);
     #if CUDA_VERSION >= 7000
     int nvrtc_major = 0, nvrtc_minor = 0;
     nvrtcResult errNvrtc = nvrtcVersion(&nvrtc_major, &nvrtc_minor);
     checkErrNvrtc(errNvrtc, "nvrtcVersion()");
-    ILOG("NVRTC Version %.%", nvrtc_major, nvrtc_minor);
+    WLOG("NVRTC Version %.%", nvrtc_major, nvrtc_minor);
     #endif
-    ILOG("NVVM Version %.%", nvvm_major, nvvm_minor);
+    WLOG("NVVM Version %.%", nvvm_major, nvvm_minor);
 
     devices_.resize(device_count);
 
@@ -91,7 +91,7 @@ CudaPlatform::CudaPlatform(Runtime* runtime)
         err = cuDeviceGetAttribute(&devices_[i].compute_minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, devices_[i].dev);
         checkErrDrv(err, "cuDeviceGetAttribute()");
 
-        ILOG("  (%) %, Compute capability: %.%", i, name, devices_[i].compute_major, devices_[i].compute_minor);
+        WLOG("  (%) %, Compute capability: %.%", i, name, devices_[i].compute_major, devices_[i].compute_minor);
 
         err = cuCtxCreate(&devices_[i].ctx, 0, devices_[i].dev);
         checkErrDrv(err, "cuCtxCreate()");
@@ -447,7 +447,7 @@ void CudaPlatform::compile_cuda(device_id dev, const char* file_name, CUjit_targ
 
         int exit_status = pclose(stream);
         if (!WEXITSTATUS(exit_status)) {
-            ILOG(log);
+            WLOG(log);
         } else {
             ELOG("Compilation error: %", log);
         }
@@ -474,7 +474,7 @@ void CudaPlatform::create_module(device_id dev, const char* file_name, CUjit_tar
     void* option_values[]  = { (void*)error_log_buffer, (void*)(size_t)error_log_size, (void*)target_cc, (void*)(size_t)opt_level };
 
     // load ptx source
-    ILOG("Compiling '%' on CUDA device ", file_name, dev);
+    WLOG("Compiling '%' on CUDA device ", file_name, dev);
     CUmodule mod;
     CUresult err = cuModuleLoadDataEx(&mod, ptx, num_options, options, option_values);
     checkErrDrv(err, "cuModuleLoadDataEx()");

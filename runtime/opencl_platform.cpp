@@ -107,7 +107,7 @@ OpenCLPlatform::OpenCLPlatform(Runtime* runtime)
     cl_int err = clGetPlatformIDs(0, NULL, &num_platforms);
     checkErr(err, "clGetPlatformIDs()");
 
-    ILOG("Number of available OpenCL Platforms: %", num_platforms);
+    WLOG("Number of available OpenCL Platforms: %", num_platforms);
 
     cl_platform_id* platforms = new cl_platform_id[num_platforms];
 
@@ -120,11 +120,11 @@ OpenCLPlatform::OpenCLPlatform(Runtime* runtime)
 
         char buffer[1024];
         err  = clGetPlatformInfo(platforms[i], CL_PLATFORM_NAME, sizeof(buffer), &buffer, NULL);
-        ILOG("  Platform Name: %", buffer);
+        WLOG("  Platform Name: %", buffer);
         err |= clGetPlatformInfo(platforms[i], CL_PLATFORM_VENDOR, sizeof(buffer), &buffer, NULL);
-        ILOG("  Platform Vendor: %", buffer);
+        WLOG("  Platform Vendor: %", buffer);
         err |= clGetPlatformInfo(platforms[i], CL_PLATFORM_VERSION, sizeof(buffer), &buffer, NULL);
-        ILOG("  Platform Version: %", buffer);
+        WLOG("  Platform Version: %", buffer);
         checkErr(err, "clGetPlatformInfo()");
 
         err = clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, 0, NULL, &num_devices);
@@ -150,19 +150,18 @@ OpenCLPlatform::OpenCLPlatform(Runtime* runtime)
             if (dev_type & CL_DEVICE_TYPE_CUSTOM)      type_str  = "CL_DEVICE_TYPE_CUSTOM";
             #endif
             if (dev_type & CL_DEVICE_TYPE_DEFAULT)     type_str += "|CL_DEVICE_TYPE_DEFAULT";
-            ILOG("  (%) Device Name: % (%)", devices_.size(), buffer, type_str);
+            WLOG("  (%) Device Name: % (%)", devices_.size(), buffer, type_str);
             err |= clGetDeviceInfo(devices[j], CL_DEVICE_VENDOR, sizeof(buffer), &buffer, NULL);
             err |= clGetDeviceInfo(devices[j], CL_DEVICE_VENDOR_ID, sizeof(device_vendor_id), &device_vendor_id, NULL);
-            ILOG("      Device Vendor: %", buffer, " (ID: ", device_vendor_id, ")");
+            WLOG("      Device Vendor: %", buffer, " (ID: ", device_vendor_id, ")");
             err |= clGetDeviceInfo(devices[j], CL_DEVICE_VERSION, sizeof(buffer), &buffer, NULL);
-            ILOG("      Device OpenCL Version: %", buffer);
+            WLOG("      Device OpenCL Version: %", buffer);
             err |= clGetDeviceInfo(devices[j], CL_DRIVER_VERSION, sizeof(buffer), &buffer, NULL);
-            ILOG("      Device Driver Version: %", buffer);
+            WLOG("      Device Driver Version: %", buffer);
             err |= clGetDeviceInfo(devices[j], CL_DEVICE_EXTENSIONS, sizeof(buffer), &buffer, NULL);
-            //ILOG("      Device Extensions: %", buffer);
+            //WLOG("      Device Extensions: %", buffer);
             std::string extensions(buffer);
-            size_t found = extensions.find("cl_khr_spir");
-            bool has_spir = found!=std::string::npos;
+            bool has_spir = extensions.find("cl_khr_spir") != std::string::npos;
             std::string spir_version;
             #ifdef CL_DEVICE_SPIR_VERSIONS
             if (has_spir) {
@@ -170,23 +169,23 @@ OpenCLPlatform::OpenCLPlatform(Runtime* runtime)
                 spir_version = "(Version: " + std::string(buffer) + ")";
             }
             #endif
-            ILOG("      Device SPIR Support: % %", has_spir, spir_version);
+            WLOG("      Device SPIR Support: % %", has_spir, spir_version);
 
             cl_bool has_unified = false;
             #ifdef CL_VERSION_2_0
             cl_device_svm_capabilities caps;
             err |= clGetDeviceInfo(devices[j], CL_DEVICE_SVM_CAPABILITIES, sizeof(caps), &caps, NULL);
-            ILOG("      Device SVM capabilities:");
-            if (caps & CL_DEVICE_SVM_COARSE_GRAIN_BUFFER) ILOG(" CL_DEVICE_SVM_COARSE_GRAIN_BUFFER");
-            else                                          ILOG(" n/a");
-            if (caps & CL_DEVICE_SVM_FINE_GRAIN_BUFFER)   ILOG(" CL_DEVICE_SVM_FINE_GRAIN_BUFFER");
-            if (caps & CL_DEVICE_SVM_FINE_GRAIN_SYSTEM)   ILOG(" CL_DEVICE_SVM_FINE_GRAIN_SYSTEM");
-            if (caps & CL_DEVICE_SVM_ATOMICS)             ILOG(" CL_DEVICE_SVM_ATOMICS");
+            WLOG("      Device SVM capabilities:");
+            if (caps & CL_DEVICE_SVM_COARSE_GRAIN_BUFFER) WLOG(" CL_DEVICE_SVM_COARSE_GRAIN_BUFFER");
+            else                                          WLOG(" n/a");
+            if (caps & CL_DEVICE_SVM_FINE_GRAIN_BUFFER)   WLOG(" CL_DEVICE_SVM_FINE_GRAIN_BUFFER");
+            if (caps & CL_DEVICE_SVM_FINE_GRAIN_SYSTEM)   WLOG(" CL_DEVICE_SVM_FINE_GRAIN_SYSTEM");
+            if (caps & CL_DEVICE_SVM_ATOMICS)             WLOG(" CL_DEVICE_SVM_ATOMICS");
             // TODO: SVM is inconsistent with unified memory in OpenCL 1.2
             has_unified = (caps & CL_DEVICE_SVM_COARSE_GRAIN_BUFFER) || (dev_type & CL_DEVICE_TYPE_CPU);
             #else
             err |= clGetDeviceInfo(devices[j], CL_DEVICE_HOST_UNIFIED_MEMORY, sizeof(has_unified), &has_unified, NULL);
-            ILOG("      Device Host Unified Memory: %", has_unified);
+            WLOG("      Device Host Unified Memory: %", has_unified);
             #endif
             checkErr(err, "clGetDeviceInfo()");
 
@@ -320,7 +319,7 @@ void OpenCLPlatform::load_kernel(device_id dev, const char* file, const char* na
             ELOG("Can't open % file '%'!", (is_binary ? "SPIR binary" : "OpenCL source"), name);
         }
 
-        ILOG("Compiling '%' on OpenCL device %", file, dev);
+        WLOG("Compiling '%' on OpenCL device %", file, dev);
 
         std::string cl_str(std::istreambuf_iterator<char>(src_file), (std::istreambuf_iterator<char>()));
         std::string options = "-cl-single-precision-constant -cl-denorms-are-zero";
@@ -355,8 +354,8 @@ void OpenCLPlatform::load_kernel(device_id dev, const char* file, const char* na
             // get the options and log
             err |= clGetProgramBuildInfo(program, devices_[dev].dev, CL_PROGRAM_BUILD_OPTIONS, options_size, program_build_options, NULL);
             err |= clGetProgramBuildInfo(program, devices_[dev].dev, CL_PROGRAM_BUILD_LOG, log_size, program_build_log, NULL);
-            ILOG("OpenCL build options : %", program_build_options);
-            ILOG("OpenCL build log : %", program_build_log);
+            WLOG("OpenCL build options : %", program_build_options);
+            WLOG("OpenCL build log : %", program_build_log);
 
             // free memory for options and log
             delete[] program_build_options;

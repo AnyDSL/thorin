@@ -2,6 +2,7 @@
 #define THORIN_UTIL_LOG_H
 
 #include <iomanip>
+#include <cstdlib>
 #include <ostream>
 
 #include "thorin/util/stream.h"
@@ -36,7 +37,7 @@ public:
             streamf(Log::stream(), fmt, args...);
             Log::stream() << std::endl;
             if (level == Error)
-                exit(EXIT_FAILURE);
+                std::abort();
         }
     }
 

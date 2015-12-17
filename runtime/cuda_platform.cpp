@@ -53,7 +53,9 @@ CudaPlatform::CudaPlatform(Runtime* runtime)
 {
     int device_count = 0, driver_version = 0, nvvm_major = 0, nvvm_minor = 0;
 
+#ifndef _WIN32
     setenv("CUDA_CACHE_DISABLE", "1", 1);
+#endif
 
     CUresult err = cuInit(0);
     checkErrDrv(err, "cuInit()");

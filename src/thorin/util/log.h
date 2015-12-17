@@ -48,16 +48,17 @@ private:
 
 }
 
+#define ALWAYS_LOG(level, ...) thorin::Log::log((level), __FILE__, __LINE__, __VA_ARGS__)
 #ifndef NDEBUG
-#define LOG(level, ...) thorin::Log::log((level), __FILE__, __LINE__, __VA_ARGS__)
+#define MAYBE_LOG(level, ...) ALWAYS_LOG(level, __VA_ARGS__)
 #else
-#define LOG(level, ...) do {} while (false)
+#define MAYBE_LOG(level, ...) do {} while (false)
 #endif
 
-#define ELOG(...) LOG(thorin::Log::Error, __VA_ARGS__)
-#define WLOG(...) LOG(thorin::Log::Warn,  __VA_ARGS__)
-#define ILOG(...) LOG(thorin::Log::Info,  __VA_ARGS__)
-#define DLOG(...) LOG(thorin::Log::Debug, __VA_ARGS__)
+#define ELOG(...) ALWAYS_LOG(thorin::Log::Error, __VA_ARGS__)
+#define WLOG(...) ALWAYS_LOG(thorin::Log::Warn,  __VA_ARGS__)
+#define ILOG(...)  MAYBE_LOG(thorin::Log::Info,  __VA_ARGS__)
+#define DLOG(...)  MAYBE_LOG(thorin::Log::Debug, __VA_ARGS__)
 #define ILOG_SCOPE(s) { \
     ILOG("*** BEGIN: " #s " {"); \
     (s); \

@@ -16,23 +16,23 @@
 
 namespace thorin {
 
-Runtime::Runtime(llvm::LLVMContext& context, llvm::Module* target, llvm::IRBuilder<>& builder, const char* mod_name)
+Runtime::Runtime(llvm::LLVMContext& context, llvm::Module& target, llvm::IRBuilder<>& builder, const char* mod_name)
     : target_(target)
     , builder_(builder)
 {
     llvm::SMDiagnostic diag;
-    runtime_ = llvm::ParseIRFile(mod_name, diag, context);
+    runtime_ = llvm::parseIRFile(mod_name, diag, context);
     if (runtime_ == nullptr)
         throw std::logic_error("runtime could not be loaded");
 }
 
 llvm::Function* Runtime::get(const char* name) {
-    auto result = llvm::cast<llvm::Function>(target_->getOrInsertFunction(name, runtime_->getFunction(name)->getFunctionType()));
+    auto result = llvm::cast<llvm::Function>(target_.getOrInsertFunction(name, runtime_->getFunction(name)->getFunctionType()));
     assert(result != nullptr && "Required runtime function could not be resolved");
     return result;
 }
 
-KernelRuntime::KernelRuntime(llvm::LLVMContext& context, llvm::Module* target, llvm::IRBuilder<> &builder,
+KernelRuntime::KernelRuntime(llvm::LLVMContext& context, llvm::Module& target, llvm::IRBuilder<> &builder,
                              llvm::Type* device_ptr_ty, const char* mod_name)
     : Runtime(context, target, builder, mod_name)
     , device_ptr_ty_(device_ptr_ty)

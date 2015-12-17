@@ -29,42 +29,37 @@ std::ostream& streamf(std::ostream& os, const char* fmt);
  * fprintf-like function which works on C++ @c std::ostream.
  * Each @c "%" in @p fmt corresponds to one vardiac argument in @p args.
  * The type of the corresponding argument must either support @c operator<< for C++ @c std::ostream or inherit from @p Streamable.
- * Use @c "%%" to escape.
  */
 template<typename T, typename... Args>
 std::ostream& streamf(std::ostream& os, const char* fmt, T val, Args... args) {
     while (*fmt) {
-        if (*fmt == '%') {
-            if (*(fmt+1) == '%')
-                ++fmt;
-            else
-                return streamf(detail::stream(os, val), ++fmt, args...); // call even when *fmt == 0 to detect extra arguments
-        }
+        if (*fmt == '%')
+            return streamf(detail::stream(os, val), ++fmt, args...); // call even when *fmt == 0 to detect extra arguments
         os << *fmt++;
     }
     return os;
 }
 
 namespace detail {
-  extern unsigned int indent;
+    extern unsigned int indent;
 }
 
 template <class charT, class traits>
 std::basic_ostream<charT,traits>& endl(std::basic_ostream<charT,traits>& os) {
-    return os << std::endl << std::string(detail::indent, '\t');
+    return os << std::endl << std::string(detail::indent * 4, ' ');
 }
 
 template <class charT, class traits>
-std::basic_ostream<charT,traits>& up(std::basic_ostream<charT,traits>& os) {
-    detail::indent++;
-    return os;
-}
+std::basic_ostream<charT,traits>& up(std::basic_ostream<charT,traits>& os) { detail::indent++; return os; }
 
 template <class charT, class traits>
-std::basic_ostream<charT,traits>& down(std::basic_ostream<charT,traits>& os) {
-    detail::indent--;
-    return os;
-}
+std::basic_ostream<charT,traits>& down(std::basic_ostream<charT,traits>& os) { detail::indent--; return os; }
+
+template <class charT, class traits>
+std::basic_ostream<charT,traits>& up_endl(std::basic_ostream<charT,traits>& os) { return os << up << endl; }
+
+template <class charT, class traits>
+std::basic_ostream<charT,traits>& down_endl(std::basic_ostream<charT,traits>& os) { return os << down << endl; }
 
 template<class Emit, class List>
 std::ostream& stream_list(std::ostream& os, const List& list, Emit emit,

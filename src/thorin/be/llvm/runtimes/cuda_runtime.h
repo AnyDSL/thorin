@@ -7,7 +7,7 @@ namespace thorin {
 
 class CUDARuntime : public NVVMRuntime {
 public:
-    CUDARuntime(llvm::LLVMContext& context, llvm::Module* target, llvm::IRBuilder<>& builder);
+    CUDARuntime(llvm::LLVMContext& context, llvm::Module& target, llvm::IRBuilder<>& builder);
 
     virtual llvm::Value* load_kernel(llvm::Value* device, llvm::Value* file, llvm::Value* kernel);
 

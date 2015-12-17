@@ -177,11 +177,11 @@ std::ostream& Scope::stream(std::ostream& os) const {
             if (indent)
                 os << up;
             os << endl;
-            lambda->stream_head(os) << up << endl;
+            lambda->stream_head(os) << up_endl;
             for (auto primop : block)
                 primop->stream_assignment(os);
 
-            lambda->stream_jump(os) << down << endl;
+            lambda->stream_jump(os) << down_endl;
             if (indent)
                 os << down;
         }

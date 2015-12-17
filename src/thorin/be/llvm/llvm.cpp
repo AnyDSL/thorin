@@ -4,7 +4,6 @@
 #include <stdexcept>
 
 #include <llvm/ADT/Triple.h>
-#include <llvm/Analysis/Verifier.h>
 #include <llvm/Bitcode/ReaderWriter.h>
 #include <llvm/IR/Constant.h>
 #include <llvm/IR/Constants.h>
@@ -14,10 +13,12 @@
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Type.h>
+#include <llvm/IR/Verifier.h>
 #include <llvm/PassManager.h>
 #include <llvm/Support/Host.h>
 #include <llvm/Support/Path.h>
 #include <llvm/Support/raw_ostream.h>
+#include <llvm/Support/FileSystem.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Transforms/IPO.h>
@@ -58,11 +59,11 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention
     , function_calling_convention_(function_calling_convention)
     , device_calling_convention_(device_calling_convention)
     , kernel_calling_convention_(kernel_calling_convention)
-    , runtime_(new GenericRuntime(context_, module_, irbuilder_))
-    , cuda_runtime_(new CUDARuntime(context_, module_, irbuilder_))
-    , nvvm_runtime_(new NVVMRuntime(context_, module_, irbuilder_))
-    , spir_runtime_(new SPIRRuntime(context_, module_, irbuilder_))
-    , opencl_runtime_(new OpenCLRuntime(context_, module_, irbuilder_))
+    , runtime_(new GenericRuntime(context_, *module_, irbuilder_))
+    , cuda_runtime_(new CUDARuntime(context_, *module_, irbuilder_))
+    , nvvm_runtime_(new NVVMRuntime(context_, *module_, irbuilder_))
+    , spir_runtime_(new SPIRRuntime(context_, *module_, irbuilder_))
+    , opencl_runtime_(new OpenCLRuntime(context_, *module_, irbuilder_))
 {}
 
 Lambda* CodeGen::emit_intrinsic(Lambda* lambda) {
@@ -194,7 +195,7 @@ void CodeGen::emit(int opt, bool debug) {
             auto difile = dibuilder_.createFile(src_file, src_dir);
             auto compile_unit = dibuilder_.createCompileUnit(llvm::dwarf::DW_LANG_C, src_file, src_dir, "Impala", opt > 0, llvm::StringRef(), 0);
             auto disubprogram = dibuilder_.createFunction(compile_unit, fct->getName(), fct->getName(), difile, entry_->loc().pos1().line(),
-                                                         dibuilder_.createSubroutineType(difile, dibuilder_.getOrCreateArray(llvm::ArrayRef<llvm::Value*>())),
+                                                         dibuilder_.createSubroutineType(difile, dibuilder_.getOrCreateTypeArray(llvm::ArrayRef<llvm::Metadata*>())),
                                                          false /* internal linkage */, true /* definition */, entry_->loc().pos1().line(), 0 /* Flags */, opt > 0, fct);
             discope = dibuilder_.createLexicalBlockFile(disubprogram, difile);
         }
@@ -414,21 +415,21 @@ void CodeGen::emit(int opt, bool debug) {
         dibuilder_.finalize();
 
     {
-        std::string error;
+        std::error_code EC;
         auto bc_name = get_binary_output_name(world_.name());
-        llvm::raw_fd_ostream out(bc_name.c_str(), error, llvm::sys::fs::F_Binary);
-        if (!error.empty())
-            throw std::runtime_error("cannot write '" + bc_name + "': " + error);
+        llvm::raw_fd_ostream out(bc_name, EC, llvm::sys::fs::F_None);
+        if (EC)
+            throw std::runtime_error("cannot write '" + bc_name + "': " + EC.message());
 
-        llvm::WriteBitcodeToFile(module_, out);
+        llvm::WriteBitcodeToFile(module_.get(), out);
     }
 
     {
-        std::string error;
+        std::error_code EC;
         auto ll_name = get_output_name(world_.name());
-        llvm::raw_fd_ostream out(ll_name.c_str(), error);
-        if (!error.empty())
-            throw std::runtime_error("cannot write '" + ll_name + "': " + error);
+        llvm::raw_fd_ostream out(ll_name, EC, llvm::sys::fs::F_Text);
+        if (EC)
+            throw std::runtime_error("cannot write '" + ll_name + "': " + EC.message());
 
         module_->print(out, nullptr);
     }
@@ -768,15 +769,15 @@ llvm::Value* CodeGen::emit(Def def) {
         llvm_malloc->addAttribute(llvm::AttributeSet::ReturnIndex, llvm::Attribute::NoAlias);
         auto alloced_type = convert(alloc->alloced_type());
         llvm::CallInst* void_ptr;
-        auto layout = llvm::DataLayout(module_->getDataLayout());
+        auto layout = module_->getDataLayout();
         if (auto array = alloc->alloced_type()->is_indefinite()) {
             auto size = irbuilder_.CreateAdd(
-                    irbuilder_.getInt64(layout.getTypeAllocSize(alloced_type)),
+                    irbuilder_.getInt64(layout->getTypeAllocSize(alloced_type)),
                     irbuilder_.CreateMul(irbuilder_.CreateIntCast(lookup(alloc->extra()), irbuilder_.getInt64Ty(), false),
-                                         irbuilder_.getInt64(layout.getTypeAllocSize(convert(array->elem_type())))));
+                                         irbuilder_.getInt64(layout->getTypeAllocSize(convert(array->elem_type())))));
             void_ptr = irbuilder_.CreateCall(llvm_malloc, size);
         } else
-            void_ptr = irbuilder_.CreateCall(llvm_malloc, irbuilder_.getInt64(layout.getTypeAllocSize(alloced_type)));
+            void_ptr = irbuilder_.CreateCall(llvm_malloc, irbuilder_.getInt64(layout->getTypeAllocSize(alloced_type)));
 
         return irbuilder_.CreatePointerCast(void_ptr, convert(alloc->out_ptr_type()));
     }
@@ -842,8 +843,8 @@ llvm::Value* CodeGen::emit_mmap(const Map* mmap) {
         type = array->elem_type();
     else
         type = mmap->out_ptr_type()->referenced_type();
-    auto layout = llvm::DataLayout(module_->getDataLayout());
-    auto size = irbuilder_.getInt32(layout.getTypeAllocSize(convert(type)));
+    auto layout = module_->getDataLayout();
+    auto size = irbuilder_.getInt32(layout->getTypeAllocSize(convert(type)));
     return runtime_->mmap(mmap->device(), (uint32_t)mmap->addr_space(), lookup(mmap->ptr()),
                           lookup(mmap->mem_offset()), lookup(mmap->mem_size()), size);
 }

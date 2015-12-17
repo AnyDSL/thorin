@@ -5,7 +5,7 @@
 
 namespace thorin {
 
-GenericRuntime::GenericRuntime(llvm::LLVMContext& context, llvm::Module* target, llvm::IRBuilder<>& builder)
+GenericRuntime::GenericRuntime(llvm::LLVMContext& context, llvm::Module& target, llvm::IRBuilder<>& builder)
     : Runtime(context, target, builder, THORIN_RUNTIME_PLATFORMS "generic.s")
 {}
 

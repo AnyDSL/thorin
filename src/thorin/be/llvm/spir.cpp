@@ -27,7 +27,7 @@ SPIRCodeGen::SPIRCodeGen(World& world)
     module_->getOrInsertNamedMetadata("opencl.enable.FP_CONTRACT");
     // opencl.spir.version
     auto spir_version_md = module_->getOrInsertNamedMetadata("opencl.spir.version");
-    llvm::Value* annotation_values_12[] = { irbuilder_.getInt32(1), irbuilder_.getInt32(2) };
+    llvm::Metadata* annotation_values_12[] = { llvm::ConstantAsMetadata::get(irbuilder_.getInt64(1)), llvm::ConstantAsMetadata::get(irbuilder_.getInt64(2)) };
     spir_version_md->addOperand(llvm::MDNode::get(context_, annotation_values_12));
     // opencl.ocl.version
     auto ocl_version_md = module_->getOrInsertNamedMetadata("opencl.ocl.version");
@@ -72,11 +72,11 @@ llvm::FunctionType* SPIRCodeGen::convert_fn_type(Lambda* lambda) {
 void SPIRCodeGen::emit_function_decl_hook(Lambda* lambda, llvm::Function* f) {
     // append required metadata
     size_t num_params = f->arg_size() + 1;
-    Array<llvm::Value*> annotation_values_addr_space(num_params);
-    Array<llvm::Value*> annotation_values_access_qual(num_params);
-    Array<llvm::Value*> annotation_values_type(num_params);
-    Array<llvm::Value*> annotation_values_type_qual(num_params);
-    Array<llvm::Value*> annotation_values_name(num_params);
+    Array<llvm::Metadata*> annotation_values_addr_space(num_params);
+    Array<llvm::Metadata*> annotation_values_access_qual(num_params);
+    Array<llvm::Metadata*> annotation_values_type(num_params);
+    Array<llvm::Metadata*> annotation_values_type_qual(num_params);
+    Array<llvm::Metadata*> annotation_values_name(num_params);
     annotation_values_addr_space[0]  = llvm::MDString::get(context_, "kernel_arg_addr_space");
     annotation_values_access_qual[0] = llvm::MDString::get(context_, "kernel_arg_access_qual");
     annotation_values_type[0]        = llvm::MDString::get(context_, "kernel_arg_type");
@@ -90,7 +90,7 @@ void SPIRCodeGen::emit_function_decl_hook(Lambda* lambda, llvm::Function* f) {
             addr_space = llvm::dyn_cast<llvm::PointerType>(type)->getAddressSpace();
             type = llvm::dyn_cast<llvm::PointerType>(type)->getElementType()->getPointerTo(0);
         }
-        annotation_values_addr_space[index] = irbuilder_.getInt32(addr_space);
+        annotation_values_addr_space[index] = llvm::ConstantAsMetadata::get(irbuilder_.getInt32(addr_space));
         annotation_values_access_qual[index] = llvm::MDString::get(context_, "none");
         std::string type_string;
         llvm::raw_string_ostream type_os(type_string);
@@ -100,8 +100,8 @@ void SPIRCodeGen::emit_function_decl_hook(Lambda* lambda, llvm::Function* f) {
         annotation_values_type_qual[index] = llvm::MDString::get(context_, "");
         annotation_values_name[index] = llvm::MDString::get(context_, lambda->param(index + 1)->name);
     }
-    llvm::Value* annotation_values_kernel[] = {
-        f,
+    llvm::Metadata* annotation_values_kernel[] = {
+        llvm::ValueAsMetadata::get(f),
         llvm::MDNode::get(context_, llvm_ref(annotation_values_addr_space)),
         llvm::MDNode::get(context_, llvm_ref(annotation_values_access_qual)),
         llvm::MDNode::get(context_, llvm_ref(annotation_values_type)),

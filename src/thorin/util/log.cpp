@@ -5,7 +5,7 @@
 namespace thorin {
 
 bool Log::print_loc_ = true;
-Log::Level Log::max_level_ = Log::Info;
+Log::Level Log::min_level_ = Log::Info;
 std::ostream* Log::stream_ = nullptr;
 
 char Log::level2char(Level level) {

@@ -6,7 +6,6 @@
 #include <cassert>
 #include <cstdlib>
 #include <fstream>
-#include <iostream>
 #include <string>
 
 #ifndef KERNEL_DIR
@@ -96,10 +95,7 @@ std::string get_opencl_error_code_str(int error) {
 
 void OpenCLPlatform::checkOpenCLErrors(cl_int err, const char* name, const char* file, const int line) {
     if (err != CL_SUCCESS) {
-        std::cerr << "ERROR: " << name << " (" << err << ")"
-                  << " [file " << file << ", line " << line << "]: "
-                  << get_opencl_error_code_str(err) << std::endl;
-        exit(EXIT_FAILURE);
+        ELOG("OpenCL API function % (%) [file %, line %]: %", name, err, file, line, get_opencl_error_code_str(err));
     }
 }
 
@@ -111,7 +107,7 @@ OpenCLPlatform::OpenCLPlatform(Runtime* runtime)
     cl_int err = clGetPlatformIDs(0, NULL, &num_platforms);
     checkErr(err, "clGetPlatformIDs()");
 
-    runtime_->log("Number of available Platforms: ", num_platforms);
+    ILOG("Number of available OpenCL Platforms: %", num_platforms);
 
     cl_platform_id* platforms = new cl_platform_id[num_platforms];
 
@@ -124,11 +120,11 @@ OpenCLPlatform::OpenCLPlatform(Runtime* runtime)
 
         char buffer[1024];
         err  = clGetPlatformInfo(platforms[i], CL_PLATFORM_NAME, sizeof(buffer), &buffer, NULL);
-        runtime_->log("  Platform Name: ", buffer);
+        ILOG("  Platform Name: %", buffer);
         err |= clGetPlatformInfo(platforms[i], CL_PLATFORM_VENDOR, sizeof(buffer), &buffer, NULL);
-        runtime_->log("  Platform Vendor: ", buffer);
+        ILOG("  Platform Vendor: %", buffer);
         err |= clGetPlatformInfo(platforms[i], CL_PLATFORM_VERSION, sizeof(buffer), &buffer, NULL);
-        runtime_->log("  Platform Version: ", buffer);
+        ILOG("  Platform Version: %", buffer);
         checkErr(err, "clGetPlatformInfo()");
 
         err = clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, 0, NULL, &num_devices);
@@ -154,16 +150,16 @@ OpenCLPlatform::OpenCLPlatform(Runtime* runtime)
             if (dev_type & CL_DEVICE_TYPE_CUSTOM)      type_str  = "CL_DEVICE_TYPE_CUSTOM";
             #endif
             if (dev_type & CL_DEVICE_TYPE_DEFAULT)     type_str += "|CL_DEVICE_TYPE_DEFAULT";
-            runtime_->log("  (", devices_.size(), ") Device Name: ", buffer, " (", type_str, ")");
+            ILOG("  (%) Device Name: % (%)", devices_.size(), buffer, type_str);
             err |= clGetDeviceInfo(devices[j], CL_DEVICE_VENDOR, sizeof(buffer), &buffer, NULL);
             err |= clGetDeviceInfo(devices[j], CL_DEVICE_VENDOR_ID, sizeof(device_vendor_id), &device_vendor_id, NULL);
-            runtime_->log("      Device Vendor: ", buffer, " (ID: ", device_vendor_id, ")");
+            ILOG("      Device Vendor: %", buffer, " (ID: ", device_vendor_id, ")");
             err |= clGetDeviceInfo(devices[j], CL_DEVICE_VERSION, sizeof(buffer), &buffer, NULL);
-            runtime_->log("      Device OpenCL Version: ", buffer);
+            ILOG("      Device OpenCL Version: %", buffer);
             err |= clGetDeviceInfo(devices[j], CL_DRIVER_VERSION, sizeof(buffer), &buffer, NULL);
-            runtime_->log("      Device Driver Version: ", buffer);
+            ILOG("      Device Driver Version: %", buffer);
             err |= clGetDeviceInfo(devices[j], CL_DEVICE_EXTENSIONS, sizeof(buffer), &buffer, NULL);
-            //runtime_->log("      Device Extensions: ", buffer);
+            //ILOG("      Device Extensions: %", buffer);
             std::string extensions(buffer);
             size_t found = extensions.find("cl_khr_spir");
             bool has_spir = found!=std::string::npos;
@@ -171,26 +167,26 @@ OpenCLPlatform::OpenCLPlatform(Runtime* runtime)
             #ifdef CL_DEVICE_SPIR_VERSIONS
             if (has_spir) {
                 err |= clGetDeviceInfo(devices[j], CL_DEVICE_SPIR_VERSIONS , sizeof(buffer), &buffer, NULL);
-                spir_version = " (Version: " + std::string(buffer) + ")";
+                spir_version = "(Version: " + std::string(buffer) + ")";
             }
             #endif
-            runtime_->log("      Device SPIR Support: ", has_spir, spir_version);
+            ILOG("      Device SPIR Support: % %", has_spir, spir_version);
 
             cl_bool has_unified = false;
             #ifdef CL_VERSION_2_0
             cl_device_svm_capabilities caps;
             err |= clGetDeviceInfo(devices[j], CL_DEVICE_SVM_CAPABILITIES, sizeof(caps), &caps, NULL);
-            runtime_->log("      Device SVM capabilities:");
-            if (caps & CL_DEVICE_SVM_COARSE_GRAIN_BUFFER) runtime_->log(" CL_DEVICE_SVM_COARSE_GRAIN_BUFFER");
-            else                                          runtime_->log(" n/a");
-            if (caps & CL_DEVICE_SVM_FINE_GRAIN_BUFFER)   runtime_->log(" CL_DEVICE_SVM_FINE_GRAIN_BUFFER");
-            if (caps & CL_DEVICE_SVM_FINE_GRAIN_SYSTEM)   runtime_->log(" CL_DEVICE_SVM_FINE_GRAIN_SYSTEM");
-            if (caps & CL_DEVICE_SVM_ATOMICS)             runtime_->log(" CL_DEVICE_SVM_ATOMICS");
+            ILOG("      Device SVM capabilities:");
+            if (caps & CL_DEVICE_SVM_COARSE_GRAIN_BUFFER) ILOG(" CL_DEVICE_SVM_COARSE_GRAIN_BUFFER");
+            else                                          ILOG(" n/a");
+            if (caps & CL_DEVICE_SVM_FINE_GRAIN_BUFFER)   ILOG(" CL_DEVICE_SVM_FINE_GRAIN_BUFFER");
+            if (caps & CL_DEVICE_SVM_FINE_GRAIN_SYSTEM)   ILOG(" CL_DEVICE_SVM_FINE_GRAIN_SYSTEM");
+            if (caps & CL_DEVICE_SVM_ATOMICS)             ILOG(" CL_DEVICE_SVM_ATOMICS");
             // TODO: SVM is inconsistent with unified memory in OpenCL 1.2
             has_unified = (caps & CL_DEVICE_SVM_COARSE_GRAIN_BUFFER) || (dev_type & CL_DEVICE_TYPE_CPU);
             #else
             err |= clGetDeviceInfo(devices[j], CL_DEVICE_HOST_UNIFIED_MEMORY, sizeof(has_unified), &has_unified, NULL);
-            runtime_->log("      Device Host Unified Memory: ", has_unified);
+            ILOG("      Device Host Unified Memory: %", has_unified);
             #endif
             checkErr(err, "clGetDeviceInfo()");
 
@@ -221,9 +217,15 @@ OpenCLPlatform::OpenCLPlatform(Runtime* runtime)
 
 OpenCLPlatform::~OpenCLPlatform() {
     for (size_t i = 0; i < devices_.size(); i++) {
-        for (auto& it : devices_[i].kernels) {
-            cl_int err = clReleaseKernel(it.second);
-            checkErr(err, "clReleaseKernel()");
+        for (auto& map : devices_[i].kernels) {
+            for (auto& it : map.second) {
+                cl_int err = clReleaseKernel(it.second);
+                checkErr(err, "clReleaseKernel()");
+            }
+        }
+        for (auto& it : devices_[i].programs) {
+            cl_int err = clReleaseProgram(it.second);
+            checkErr(err, "clReleaseProgram()");
         }
     }
 }
@@ -304,78 +306,81 @@ void OpenCLPlatform::set_kernel_arg_struct(device_id dev, int32_t arg, void* ptr
 }
 
 void OpenCLPlatform::load_kernel(device_id dev, const char* file, const char* name) {
-    std::string cache_name = file + std::string(":") + name;
-    auto& kernel_cache = devices_[dev].kernels;
-    auto kernel_it = kernel_cache.find(cache_name);
-    if (kernel_it != kernel_cache.end()) {
-        devices_[dev].kernel = kernel_it->second;
-        return;
-    }
-
-    std::string spir_bc("spir.bc");
-    std::string file_str(file);
-    std::ifstream src_file(std::string(KERNEL_DIR) + file);
-    bool is_binary = file_str.compare(file_str.length() - spir_bc.length(), spir_bc.length(), spir_bc) == 0;
-
-    if (!src_file.is_open()) {
-        std::cerr << "ERROR: Can't open "
-                  << (is_binary ? "SPIR binary" : "OpenCL source")
-                  << " file '" << name << "'!" << std::endl;
-        exit(EXIT_FAILURE);
-    }
-
-    std::string cl_str(std::istreambuf_iterator<char>(src_file), (std::istreambuf_iterator<char>()));
-    std::string options = "-cl-single-precision-constant -cl-denorms-are-zero";
-
-    const size_t length = cl_str.length();
-    const char* c_str = cl_str.c_str();
     cl_int err = CL_SUCCESS;
     cl_program program;
+    auto& prog_cache = devices_[dev].programs;
+    auto prog_it = prog_cache.find(file);
+    if (prog_it == prog_cache.end()) {
+        std::string spir_bc("spir.bc");
+        std::string file_str(file);
+        std::ifstream src_file(std::string(KERNEL_DIR) + file);
+        bool is_binary = file_str.compare(file_str.length() - spir_bc.length(), spir_bc.length(), spir_bc) == 0;
 
-    if (is_binary) {
-        options += " -x spir -spir-std=1.2";
-        program = clCreateProgramWithBinary(devices_[dev].ctx, 1, &devices_[dev].dev, &length, (const unsigned char**)&c_str, NULL, &err);
-        checkErr(err, "clCreateProgramWithBinary()");
+        if (!src_file.is_open()) {
+            ELOG("Can't open % file '%'!", (is_binary ? "SPIR binary" : "OpenCL source"), name);
+        }
+
+        ILOG("Compiling '%' on OpenCL device %", file, dev);
+
+        std::string cl_str(std::istreambuf_iterator<char>(src_file), (std::istreambuf_iterator<char>()));
+        std::string options = "-cl-single-precision-constant -cl-denorms-are-zero";
+
+        const size_t length = cl_str.length();
+        const char* c_str = cl_str.c_str();
+
+        if (is_binary) {
+            options += " -x spir -spir-std=1.2";
+            program = clCreateProgramWithBinary(devices_[dev].ctx, 1, &devices_[dev].dev, &length, (const unsigned char**)&c_str, NULL, &err);
+            checkErr(err, "clCreateProgramWithBinary()");
+        } else {
+            program = clCreateProgramWithSource(devices_[dev].ctx, 1, (const char**)&c_str, &length, &err);
+            checkErr(err, "clCreateProgramWithSource()");
+        }
+
+        err = clBuildProgram(program, 0, NULL, options.c_str(), NULL, NULL);
+
+        cl_build_status build_status;
+        clGetProgramBuildInfo(program, devices_[dev].dev, CL_PROGRAM_BUILD_STATUS, sizeof(build_status), &build_status, NULL);
+
+        if (build_status == CL_BUILD_ERROR || err != CL_SUCCESS) {
+            // determine the size of the options and log
+            size_t log_size, options_size;
+            err |= clGetProgramBuildInfo(program, devices_[dev].dev, CL_PROGRAM_BUILD_OPTIONS, 0, NULL, &options_size);
+            err |= clGetProgramBuildInfo(program, devices_[dev].dev, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
+
+            // allocate memory for the options and log
+            char* program_build_options = new char[options_size];
+            char* program_build_log = new char[log_size];
+
+            // get the options and log
+            err |= clGetProgramBuildInfo(program, devices_[dev].dev, CL_PROGRAM_BUILD_OPTIONS, options_size, program_build_options, NULL);
+            err |= clGetProgramBuildInfo(program, devices_[dev].dev, CL_PROGRAM_BUILD_LOG, log_size, program_build_log, NULL);
+            ILOG("OpenCL build options : %", program_build_options);
+            ILOG("OpenCL build log : %", program_build_log);
+
+            // free memory for options and log
+            delete[] program_build_options;
+            delete[] program_build_log;
+        }
+        checkErr(err, "clBuildProgram(), clGetProgramBuildInfo()");
+
+        prog_cache[file] = program;
     } else {
-        program = clCreateProgramWithSource(devices_[dev].ctx, 1, (const char**)&c_str, &length, &err);
-        checkErr(err, "clCreateProgramWithSource()");
+        program = prog_it->second;
     }
 
-    err = clBuildProgram(program, 0, NULL, options.c_str(), NULL, NULL);
-
-    cl_build_status build_status;
-    clGetProgramBuildInfo(program, devices_[dev].dev, CL_PROGRAM_BUILD_STATUS, sizeof(build_status), &build_status, NULL);
-
-    if (build_status == CL_BUILD_ERROR || err != CL_SUCCESS) {
-        // determine the size of the options and log
-        size_t log_size, options_size;
-        err |= clGetProgramBuildInfo(program, devices_[dev].dev, CL_PROGRAM_BUILD_OPTIONS, 0, NULL, &options_size);
-        err |= clGetProgramBuildInfo(program, devices_[dev].dev, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
-
-        // allocate memory for the options and log
-        char* program_build_options = new char[options_size];
-        char* program_build_log = new char[log_size];
-
-        // get the options and log
-        err |= clGetProgramBuildInfo(program, devices_[dev].dev, CL_PROGRAM_BUILD_OPTIONS, options_size, program_build_options, NULL);
-        err |= clGetProgramBuildInfo(program, devices_[dev].dev, CL_PROGRAM_BUILD_LOG, log_size, program_build_log, NULL);
-        runtime_->log("OpenCL build options : ", program_build_options);
-        runtime_->log("OpenCL build log : ");
-        runtime_->log(program_build_log);
-
-        // free memory for options and log
-        delete[] program_build_options;
-        delete[] program_build_log;
+    // checks that the kernel exists
+    auto& kernel_cache = devices_[dev].kernels;
+    auto& kernel_map = kernel_cache[program];
+    auto kernel_it = kernel_map.find(name);
+    if (kernel_it == kernel_map.end()) {
+        devices_[dev].kernel = clCreateKernel(program, name, &err);
+        checkErr(err, "clCreateKernel()");
+        kernel_map.emplace(name, devices_[dev].kernel);
+        devices_[dev].kernel = devices_[dev].kernel;
+    } else {
+        devices_[dev].kernel = kernel_it->second;
     }
-    checkErr(err, "clBuildProgram(), clGetProgramBuildInfo()");
-
-    devices_[dev].kernel = clCreateKernel(program, name, &err);
-    kernel_cache.emplace(name, devices_[dev].kernel);
-    checkErr(err, "clCreateKernel()");
-
-    // release program
-    err = clReleaseProgram(program);
-    checkErr(err, "clReleaseProgram()");
 }
 
 extern std::atomic_llong thorin_kernel_time;

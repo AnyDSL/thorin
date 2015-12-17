@@ -39,6 +39,7 @@
 static Runtime runtime;
 
 Runtime::Runtime() {
+    thorin::Log::set(thorin::Log::Debug, &std::cout, false);
     register_platform<CpuPlatform>();
 #ifdef ENABLE_CUDA
     register_platform<CudaPlatform>();
@@ -212,7 +213,7 @@ int32_t thorin_spawn_thread(void* args, void* fun) {
     int32_t id;
     if (free_ids.size()) {
         id = free_ids.back();
-        free_ids.pop_back();    
+        free_ids.pop_back();
     } else {
         id = thread_pool.size();
     }

@@ -136,14 +136,14 @@ Lambda* CodeGen::emit_shuffle(Lambda* lambda) {
 }
 
 Lambda* CodeGen::emit_reserve(const Lambda* lambda) {
-    WLOG("error: reserve_shared: only allowed in device code", lambda->loc());
-    assert(false && "reserve_shared: only allowed in device code");
+    ELOG("reserve_shared: only allowed in device code", lambda->loc());
+    THORIN_UNREACHABLE;
 }
 
 Lambda* CodeGen::emit_reserve_shared(const Lambda* lambda, bool prefix) {
     assert(lambda->num_args() == 3 && "required arguments are missing");
     if (!lambda->arg(1)->isa<PrimLit>())
-        WLOG("error: reserve_shared: couldn't extract memory size at %", lambda->arg(1)->loc());
+        ELOG("reserve_shared: couldn't extract memory size at %", lambda->arg(1)->loc());
     auto num_elems = lambda->arg(1)->as<PrimLit>()->ps32_value();
     auto cont = lambda->arg(2)->as_lambda();
     auto type = convert(cont->param(1)->type());

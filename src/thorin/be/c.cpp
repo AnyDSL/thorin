@@ -58,8 +58,8 @@ std::ostream& CCodeGen::emit_addr_space(Type type) {
     if (auto ptr = type.isa<PtrType>()) {
         if (lang_==Lang::OPENCL) {
             switch (ptr->addr_space()) {
-                default: break;
-                case AddressSpace::Generic: // once address spaces are correct, ::Global should be sufficient
+                default:
+                case AddressSpace::Generic:                   break;
                 case AddressSpace::Global: os << "__global "; break;
                 case AddressSpace::Shared: os << "__local ";  break;
             }
@@ -301,17 +301,19 @@ void CCodeGen::emit() {
             return;
 
         // emit function declaration
-        auto ret_fn_type = ret_param->type().as<FnType>();
+        auto ret_type = ret_param->type().as<FnType>()->args().back();
         auto name = (lambda->is_external() || lambda->empty()) ? lambda->name : lambda->unique_name();
         if (lang_==Lang::CUDA)
             os << "__device__ ";
-        emit_type(ret_fn_type->args().back()) << " " << name << "(";
+        emit_addr_space(ret_type);
+        emit_type(ret_type) << " " << name << "(";
         size_t i = 0;
         for (auto param : lambda->params()) {
             if (param->order() == 0 && !param->is_mem()) {
                 // skip arrays bound to texture memory
                 if (is_texture_type(param->type())) continue;
                 if (i++ > 0) os << ", ";
+                emit_addr_space(param->type());
                 emit_type(param->type());
                 insert(param->gid(), param->unique_name());
             }
@@ -348,7 +350,7 @@ void CCodeGen::emit() {
         }
         assert(ret_param);
 
-        auto ret_fn_type = ret_param->type().as<FnType>();
+        auto ret_type = ret_param->type().as<FnType>()->args().back();
         auto name = (lambda->is_external() || lambda->empty()) ? lambda->name : lambda->unique_name();
         if (lambda->is_external()) {
             switch (lang_) {
@@ -359,7 +361,7 @@ void CCodeGen::emit() {
         } else {
             if (lang_==Lang::CUDA) os << "__device__ ";
         }
-        emit_type(ret_fn_type->args().back()) << " " << name << "(";
+        emit_type(ret_type) << " " << name << "(";
         size_t i = 0;
         // emit and store all first-order params
         for (auto param : lambda->params()) {
@@ -499,7 +501,7 @@ void CCodeGen::emit() {
                             emit(lambda->arg(1)) << ");" << endl;
                         } else if (to_lambda->intrinsic() == Intrinsic::Reserve) {
                             if (!lambda->arg(1)->isa<PrimLit>())
-                                WLOG("error: reserve_shared: couldn't extract memory size at %", lambda->arg(1)->loc());
+                                ELOG("reserve_shared: couldn't extract memory size at %", lambda->arg(1)->loc());
 
                             switch (lang_) {
                                 case Lang::C99:                         break;
@@ -627,12 +629,24 @@ std::ostream& CCodeGen::emit(Def def) {
     }
 
     if (auto conv = def->isa<ConvOp>()) {
-        emit_addr_space(conv->type());
-        emit_type(conv->type()) << " " << conv->unique_name() << ";" << endl;
-        os << conv->unique_name() << " = (";
-        emit_addr_space(conv->type());
-        emit_type(conv->type()) << ")";
-        emit(conv->from()) << ";";
+        if (lang_ == Lang::OPENCL && conv->type().isa<PtrType>()) {
+            os << "union { ";
+            emit_addr_space(conv->type());
+            emit_type(conv->type()) << " dst; ";
+            emit_addr_space(conv->from()->type());
+            emit_type(conv->from()->type()) << " src; ";
+            os << "} u" << conv->unique_name() << ";" << endl;
+            os << "u" << conv->unique_name() << ".src = ";
+            emit(conv->from()) << ";" << endl;
+            emit_addr_space(conv->type());
+            emit_type(conv->type()) << " " << conv->unique_name() << ";" << endl;
+            os << conv->unique_name() << " = u" << conv->unique_name() << ".dst;";
+        } else {
+            emit_type(conv->type()) << " " << conv->unique_name() << ";" << endl;
+            os << conv->unique_name() << " = (";
+            emit_type(conv->type()) << ")";
+            emit(conv->from()) << ";";
+        }
         return insert(def->gid(), def->unique_name());
     }
 
@@ -720,6 +734,7 @@ std::ostream& CCodeGen::emit(Def def) {
     }
 
     if (auto primlit = def->isa<PrimLit>()) {
+        auto float_mode = lang_ == Lang::CUDA ? std::scientific : std::hexfloat;
         switch (primlit->primtype_kind()) {
             case PrimType_bool: os << (primlit->bool_value() ? "true" : "false");                       break;
             case PrimType_ps8:  case PrimType_qs8:  os << (int) primlit->ps8_value();                   break;
@@ -730,8 +745,8 @@ std::ostream& CCodeGen::emit(Def def) {
             case PrimType_pu32: case PrimType_qu32: os << primlit->pu32_value();                        break;
             case PrimType_ps64: case PrimType_qs64: os << primlit->ps64_value();                        break;
             case PrimType_pu64: case PrimType_qu64: os << primlit->pu64_value();                        break;
-            case PrimType_pf32: case PrimType_qf32: os << std::fixed << primlit->pf32_value() << 'f';   break;
-            case PrimType_pf64: case PrimType_qf64: os << std::fixed << primlit->pf64_value();          break;
+            case PrimType_pf32: case PrimType_qf32: os << float_mode << primlit->pf32_value() << 'f';   break;
+            case PrimType_pf64: case PrimType_qf64: os << float_mode << primlit->pf64_value();          break;
         }
         return os;
     }

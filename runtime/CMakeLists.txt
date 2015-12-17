@@ -4,6 +4,8 @@ SET ( CONF_RUNTIME_LIBRARIES )
 # Add path for custom modules
 SET(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/runtime/cmake/modules)
 
+INCLUDE_DIRECTORIES( ${CMAKE_SOURCE_DIR}/src )
+
 # Look for CUDA
 FIND_PACKAGE ( CUDA )
 IF ( CUDA_FOUND )
@@ -60,6 +62,10 @@ ADD_LIBRARY ( thorin_runtime
               platform.h
               cpu_platform.h
               dummy_platform.h
+              ${CMAKE_SOURCE_DIR}/src/thorin/util/log.h
+              ${CMAKE_SOURCE_DIR}/src/thorin/util/log.cpp
+              ${CMAKE_SOURCE_DIR}/src/thorin/util/stream.h
+              ${CMAKE_SOURCE_DIR}/src/thorin/util/stream.cpp
               ${CUDA_PLATFORM}
               ${OPENCL_PLATFORM} )
 

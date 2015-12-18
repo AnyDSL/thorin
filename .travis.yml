@@ -10,10 +10,8 @@ install:
   - mkdir -p ~/cmake
   - mkdir -p ~/work
   
-  - remote_branch=${remote_ref#refs/heads/}
-  
   - cd ~/work
-  - git clone --branch="$remote_branch" https://github.com/AnyDSL/anydsl.git
+  - git clone --branch=$TRAVIS_BRANCH https://github.com/AnyDSL/anydsl.git
   
   - cd anydsl
   - bash scripts/install_cmake.sh ~/cmake/

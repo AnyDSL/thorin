@@ -629,24 +629,12 @@ std::ostream& CCodeGen::emit(Def def) {
     }
 
     if (auto conv = def->isa<ConvOp>()) {
-        if (lang_ == Lang::OPENCL && conv->type().isa<PtrType>()) {
-            os << "union { ";
-            emit_addr_space(conv->type());
-            emit_type(conv->type()) << " dst; ";
-            emit_addr_space(conv->from()->type());
-            emit_type(conv->from()->type()) << " src; ";
-            os << "} u" << conv->unique_name() << ";" << endl;
-            os << "u" << conv->unique_name() << ".src = ";
-            emit(conv->from()) << ";" << endl;
-            emit_addr_space(conv->type());
-            emit_type(conv->type()) << " " << conv->unique_name() << ";" << endl;
-            os << conv->unique_name() << " = u" << conv->unique_name() << ".dst;";
-        } else {
-            emit_type(conv->type()) << " " << conv->unique_name() << ";" << endl;
-            os << conv->unique_name() << " = (";
-            emit_type(conv->type()) << ")";
-            emit(conv->from()) << ";";
-        }
+        emit_addr_space(conv->type());
+        emit_type(conv->type()) << " " << conv->unique_name() << ";" << endl;
+        os << conv->unique_name() << " = (";
+        emit_addr_space(conv->type());
+        emit_type(conv->type()) << ")";
+        emit(conv->from()) << ";";
         return insert(def->gid(), def->unique_name());
     }
 

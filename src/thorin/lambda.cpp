@@ -189,6 +189,7 @@ void Lambda::set_intrinsic() {
     else if (name == "atomic")    intrinsic_ = Intrinsic::Atomic;
     else if (name == "bitcast")   intrinsic_ = Intrinsic::Reinterpret;
     else if (name == "select")    intrinsic_ = Intrinsic::Select;
+    else if (name == "sizeof")    intrinsic_ = Intrinsic::Sizeof;
     else if (name == "shuffle")   intrinsic_ = Intrinsic::Shuffle;
     else assert(false && "unsupported thorin intrinsic");
 }

@@ -20,9 +20,10 @@ install:
   - cp config.sh.template config.sh
   - sed -i 's/BRANCH:=master/BRANCH:=$TRAVIS_BRANCH/g' config.sh
   - sed -i 's/HTTPS:=false/HTTPS:=true/g' config.sh
+  - sed -i 's/FETCH_LLVM:=false/FETCH_LLVM:=true/g' config.sh
   - cat config.sh
   
-  - bash setup_travis.sh
+  - CXX=/home/travis/work/anydsl/llvm_install/bin/clang++ ./setup.sh
 
 script:
   - cd impala/test/

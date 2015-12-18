@@ -322,7 +322,7 @@ void OpenCLPlatform::load_kernel(device_id dev, const char* file, const char* na
         WLOG("Compiling '%' on OpenCL device %", file, dev);
 
         std::string cl_str(std::istreambuf_iterator<char>(src_file), (std::istreambuf_iterator<char>()));
-        std::string options = "-cl-single-precision-constant -cl-denorms-are-zero";
+        std::string options = "-cl-fast-relaxed-math";
 
         const size_t length = cl_str.length();
         const char* c_str = cl_str.c_str();

@@ -52,14 +52,15 @@ public:
 
 Lambda* Mangler::mangle() {
     old2new[oentry] = oentry;
-
 #if 0
+    std::vector<TypeParam> type_params;
+
     for (size_t i = 0, e = oentry->num_type_params(); i != e; ++i) {
         auto otype_param = oentry->type_param(i);
-        if (auto type_param = type_params[i])
-            type2type[otype_param] = type_param;
+        if (auto type = type_args[i])
+            type2type[*otype_param] = type;
         else
-            type2type[oparam] = nentry->append_param(oparam->type()->specialize(type2type), oparam->name);
+            type_params.push_back(type2type[otype_param] = world.type_param());
     }
 #endif
 
@@ -70,6 +71,11 @@ Lambda* Mangler::mangle() {
         else
             old2new[oparam] = nentry->append_param(oparam->type()->specialize(type2type), oparam->name);
     }
+
+#if 0
+    for (auto type_param : type_params)
+        type_param->bind(nentry->fn_type());
+#endif
 
     for (auto def : lift)
         old2new[def] = nentry->append_param(def->type()->specialize(type2type));

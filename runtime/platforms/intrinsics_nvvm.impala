@@ -298,10 +298,15 @@ fn atomic_sub(a: &i32, b: i32) -> i32 { atomic(2u, a, b) }
 fn atomic_max(a: &i32, b: i32) -> i32 { atomic(7u, a, b) }
 fn atomic_min(a: &i32, b: i32) -> i32 { atomic(8u, a, b) }
 
-fn atomic_add_global(a: &[1]i32, b: i32) -> i32 { atomic(1u, a, b) }
-fn atomic_add_local(a: &[3]i32, b: i32) -> i32 { atomic(1u, a, b) }
-fn atomic_min_global(a: &[1]i32, b: i32) -> i32 { atomic(8u, a, b) }
-fn atomic_min_local(a: &[3]i32, b: i32) -> i32 { atomic(8u, a, b) }
+extern "thorin" {
+    fn "atomic" atomic_global(u32, &[1]i32, i32) -> i32;
+    fn "atomic" atomic_local (u32, &[3]i32, i32) -> i32;
+}
+
+fn atomic_add_global(a: &[1]i32, b: i32) -> i32 { atomic_global(1u, a, b) }
+fn atomic_add_local (a: &[3]i32, b: i32) -> i32 { atomic_local (1u, a, b) }
+fn atomic_min_global(a: &[1]i32, b: i32) -> i32 { atomic_global(8u, a, b) }
+fn atomic_min_local (a: &[3]i32, b: i32) -> i32 { atomic_local (8u, a, b) }
 
 fn isfinitef(a: f32) -> i32 { if isnanf(a) == 0 && isinff(a) == 0 { 1 } else { 0 } }
 

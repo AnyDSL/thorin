@@ -18,7 +18,7 @@ install:
   - export PATH=~/cmake/bin:~/work/anydsl/llvm_install/bin:~/work/anydsl/impala/build/bin:$PATH
   
   - cp config.sh.template config.sh
-  - sed -i 's/BRANCH:=master/BRANCH:=$remote_branch/g' config.sh
+  - sed -i 's/BRANCH:=master/BRANCH:=$TRAVIS_BRANCH/g' config.sh
   - sed -i 's/HTTPS:=false/HTTPS:=true/g' config.sh
   - cat config.sh
   

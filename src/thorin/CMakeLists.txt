@@ -49,16 +49,6 @@ SET ( SOURCES
     be/llvm/parallel.cpp
     be/llvm/runtime.cpp
     be/llvm/runtime.h
-    be/llvm/runtimes/cuda_runtime.cpp
-    be/llvm/runtimes/cuda_runtime.h
-    be/llvm/runtimes/generic_runtime.cpp
-    be/llvm/runtimes/generic_runtime.h
-    be/llvm/runtimes/nvvm_runtime.cpp
-    be/llvm/runtimes/nvvm_runtime.h
-    be/llvm/runtimes/opencl_runtime.cpp
-    be/llvm/runtimes/opencl_runtime.h
-    be/llvm/runtimes/spir_runtime.cpp
-    be/llvm/runtimes/spir_runtime.h
     be/llvm/spir.cpp
     be/llvm/spir.h
     be/llvm/vectorize.cpp
@@ -91,8 +81,6 @@ SET ( SOURCES
     transform/mangle.h
     transform/mem2reg.cpp
     transform/mem2reg.h
-    transform/memmap_builtins.cpp
-    transform/memmap_builtins.h
     transform/partial_evaluation.cpp
     transform/partial_evaluation.h
     util/args.h
@@ -121,11 +109,11 @@ SET ( SOURCES
 )
 
 # create lib
-get_thorin_dependency_libs( THORIN_LIBS )
+GET_THORIN_DEPENDENCY_LIBS ( THORIN_LIBS )
 
-# set define for *.s files
+# set define for *.s file
 GET_FILENAME_COMPONENT ( THORIN_RUNTIME_PLATFORMS "${CMAKE_CURRENT_SOURCE_DIR}/../../runtime/platforms" ABSOLUTE )
-SET_SOURCE_FILES_PROPERTIES(${SOURCES} PROPERTIES COMPILE_DEFINITIONS THORIN_RUNTIME_PLATFORMS=\"${THORIN_RUNTIME_PLATFORMS}/\")
+SET_SOURCE_FILES_PROPERTIES(be/llvm/runtime.cpp PROPERTIES COMPILE_DEFINITIONS THORIN_RUNTIME_PLATFORMS=\"${THORIN_RUNTIME_PLATFORMS}/\")
 
 IF ( BUILD_STATIC )
     MESSAGE ( "Building thorin as static library ..." )

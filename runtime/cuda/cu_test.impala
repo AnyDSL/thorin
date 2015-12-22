@@ -1,7 +1,0 @@
-extern "C" {
-    fn cu_test() -> int;
-}
-
-fn main() -> int {
-  cu_test()
-}

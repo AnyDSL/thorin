@@ -114,9 +114,9 @@ Lambda* CodeGen::emit_spawn(Lambda* lambda) {
     // wrapper(void* closure)
     llvm::Type* wrapper_arg_types[] = { irbuilder_.getInt8PtrTy(0) };
     auto wrapper_ft = llvm::FunctionType::get(irbuilder_.getVoidTy(), wrapper_arg_types, false);
-    auto wrapper_name = kernel->unique_name() + "_parallel_spawn";
+    auto wrapper_name = kernel->unique_name() + "_spawn_thread";
     auto wrapper = (llvm::Function*)module_->getOrInsertFunction(wrapper_name, wrapper_ft);
-    auto call = runtime_->parallel_spawn(ptr, wrapper);
+    auto call = runtime_->spawn_thread(ptr, wrapper);
 
     // set insert point to the wrapper function
     auto old_bb = irbuilder_.GetInsertBlock();
@@ -156,7 +156,7 @@ enum {
 Lambda* CodeGen::emit_sync(Lambda* lambda) {
     assert(lambda->num_args() == SYNC_NUM_ARGS && "wrong number of arguments");
     auto id = lookup(lambda->arg(SYNC_ARG_ID));
-    runtime_->parallel_sync(id);
+    runtime_->sync_thread(id);
     return lambda->arg(SYNC_ARG_RETURN)->as_lambda();
 }
 

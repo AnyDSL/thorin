@@ -71,7 +71,7 @@ void NVVMCodeGen::emit_function_decl_hook(Lambda* lambda, llvm::Function* f) {
 
     const auto emit_texture_kernel_arg = [&](const Param* param) {
         assert(param->type().as<PtrType>()->addr_space() == AddressSpace::Texture);
-        auto global = emit_global_memory(irbuilder_.getInt64Ty(), param->name, 1);
+        auto global = emit_global_variable(irbuilder_.getInt64Ty(), param->name, 1);
         metadata_[param] = append_metadata(global, "texture");
     };
 
@@ -214,7 +214,7 @@ llvm::Value* NVVMCodeGen::emit_lea(const LEA* lea) {
     }
 }
 
-llvm::Value* NVVMCodeGen::emit_mmap(const Map* mmap) { return emit_shared_mmap(mmap); }
+Lambda* NVVMCodeGen::emit_reserve(const Lambda* lambda) { return emit_reserve_shared(lambda); }
 
 llvm::GlobalVariable* NVVMCodeGen::resolve_global_variable(const Param* param) {
     if (resolve_addr_space(param) != AddressSpace::Global)

@@ -177,11 +177,6 @@ public:
     Def global(Def init, const Location& loc, bool is_mutable = true, const std::string& name = "");
     Def global_immutable_string(const Location& loc, const std::string& str, const std::string& name = "");
     Def lea(Def ptr, Def index, const Location& loc, const std::string& name = "") { return cse(new LEA(ptr, index, loc, name)); }
-    const Map* map(Def device, Def addr_space, Def mem, Def ptr, Def mem_offset, Def mem_size, const Location& loc, const std::string& name = "");
-    const Map* map(uint32_t device, AddressSpace addr_space, Def mem, Def ptr, Def mem_offset,
-                   Def mem_size, const Location& loc, const std::string& name = "") {
-        return cse(new Map(device, addr_space, mem, ptr, mem_offset, mem_size, loc, name));
-    }
 
     // misc
 

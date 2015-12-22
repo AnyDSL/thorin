@@ -29,6 +29,7 @@ private:
     std::ostream& emit_aggop_defs(Def def);
     std::ostream& emit_aggop_decl(Type);
     std::ostream& emit_debug_info(Def def);
+    std::ostream& emit_addr_space(Type);
     std::ostream& emit_type(Type);
     std::ostream& emit(Def def);
     bool lookup(size_t gid);
@@ -52,6 +53,21 @@ std::ostream& CCodeGen::emit_debug_info(Def def) {
     return os;
 }
 
+
+std::ostream& CCodeGen::emit_addr_space(Type type) {
+    if (auto ptr = type.isa<PtrType>()) {
+        if (lang_==Lang::OPENCL) {
+            switch (ptr->addr_space()) {
+                default:
+                case AddressSpace::Generic:                   break;
+                case AddressSpace::Global: os << "__global "; break;
+                case AddressSpace::Shared: os << "__local ";  break;
+            }
+        }
+    }
+
+    return os;
+}
 
 std::ostream& CCodeGen::emit_type(Type type) {
     if (type.empty()) {
@@ -97,21 +113,6 @@ std::ostream& CCodeGen::emit_type(Type type) {
         os << down << endl << "} array_" << array->gid() << ";";
         return os;
     } else if (auto ptr = type.isa<PtrType>()) {
-        if (lang_==Lang::CUDA) {
-            switch (ptr->addr_space()) {
-                default: break;
-                // only declaration need __shared__
-                case AddressSpace::Shared: os << "";  break;
-            }
-        }
-        if (lang_==Lang::OPENCL) {
-            switch (ptr->addr_space()) {
-                default: break;
-                //case AddressSpace::Generic: // once address spaces are correct, ::Global should be sufficient -> use mmap
-                case AddressSpace::Global: os << "__global "; break;
-                case AddressSpace::Shared: os << "__local ";  break;
-            }
-        }
         emit_type(ptr->referenced_type());
         os << '*';
         if (ptr->is_vector())
@@ -300,17 +301,19 @@ void CCodeGen::emit() {
             return;
 
         // emit function declaration
-        auto ret_fn_type = ret_param->type().as<FnType>();
+        auto ret_type = ret_param->type().as<FnType>()->args().back();
         auto name = (lambda->is_external() || lambda->empty()) ? lambda->name : lambda->unique_name();
         if (lang_==Lang::CUDA)
             os << "__device__ ";
-        emit_type(ret_fn_type->args().back()) << " " << name << "(";
+        emit_addr_space(ret_type);
+        emit_type(ret_type) << " " << name << "(";
         size_t i = 0;
         for (auto param : lambda->params()) {
             if (param->order() == 0 && !param->is_mem()) {
                 // skip arrays bound to texture memory
                 if (is_texture_type(param->type())) continue;
                 if (i++ > 0) os << ", ";
+                emit_addr_space(param->type());
                 emit_type(param->type());
                 insert(param->gid(), param->unique_name());
             }
@@ -347,7 +350,7 @@ void CCodeGen::emit() {
         }
         assert(ret_param);
 
-        auto ret_fn_type = ret_param->type().as<FnType>();
+        auto ret_type = ret_param->type().as<FnType>()->args().back();
         auto name = (lambda->is_external() || lambda->empty()) ? lambda->name : lambda->unique_name();
         if (lambda->is_external()) {
             switch (lang_) {
@@ -358,7 +361,7 @@ void CCodeGen::emit() {
         } else {
             if (lang_==Lang::CUDA) os << "__device__ ";
         }
-        emit_type(ret_fn_type->args().back()) << " " << name << "(";
+        emit_type(ret_type) << " " << name << "(";
         size_t i = 0;
         // emit and store all first-order params
         for (auto param : lambda->params()) {
@@ -374,6 +377,7 @@ void CCodeGen::emit() {
                     os << "__global ";
                     emit_type(param->type()) << " *" << param->unique_name() << "_";
                 } else {
+                    emit_addr_space(param->type());
                     emit_type(param->type()) << " " << param->unique_name();
                 }
             }
@@ -403,7 +407,9 @@ void CCodeGen::emit() {
                 for (auto param : lambda->params()) {
                     if (!param->is_mem()) {
                         os << endl;
+                        emit_addr_space(param->type());
                         emit_type(param->type()) << "  " << param->unique_name() << ";" << endl;
+                        emit_addr_space(param->type());
                         emit_type(param->type()) << " p" << param->unique_name() << ";";
                     }
                 }
@@ -493,6 +499,22 @@ void CCodeGen::emit() {
                             emit(cont->param(1)) << " = as_";
                             emit_type(cont->param(1)->type()) << "(";
                             emit(lambda->arg(1)) << ");" << endl;
+                        } else if (to_lambda->intrinsic() == Intrinsic::Reserve) {
+                            if (!lambda->arg(1)->isa<PrimLit>())
+                                ELOG("reserve_shared: couldn't extract memory size at %", lambda->arg(1)->loc());
+
+                            switch (lang_) {
+                                case Lang::C99:                         break;
+                                case Lang::CUDA:   os << "__shared__ "; break;
+                                case Lang::OPENCL: os << "__local ";    break;
+                            }
+
+                            auto cont = lambda->arg(2)->as_lambda();
+                            auto fn_type = to_lambda->type().as<FnType>();
+                            emit_type(fn_type->args().back().as<FnType>()->arg(1).as<PtrType>()->referenced_type()) << " " << to_lambda->name << lambda->gid() << "[";
+                            emit(lambda->arg(1)) << "];" << endl;
+                            // store argument to phi nodes
+                            os << "p" << cont->param(1)->unique_name() << " = " << to_lambda->name << lambda->gid() << ";";
                         } else {
                             THORIN_UNREACHABLE;
                         }
@@ -607,8 +629,10 @@ std::ostream& CCodeGen::emit(Def def) {
     }
 
     if (auto conv = def->isa<ConvOp>()) {
+        emit_addr_space(conv->type());
         emit_type(conv->type()) << " " << conv->unique_name() << ";" << endl;
         os << conv->unique_name() << " = (";
+        emit_addr_space(conv->type());
         emit_type(conv->type()) << ")";
         emit(conv->from()) << ";";
         return insert(def->gid(), def->unique_name());
@@ -698,6 +722,7 @@ std::ostream& CCodeGen::emit(Def def) {
     }
 
     if (auto primlit = def->isa<PrimLit>()) {
+        auto float_mode = lang_ == Lang::CUDA ? std::scientific : std::hexfloat;
         switch (primlit->primtype_kind()) {
             case PrimType_bool: os << (primlit->bool_value() ? "true" : "false");                       break;
             case PrimType_ps8:  case PrimType_qs8:  os << (int) primlit->ps8_value();                   break;
@@ -708,8 +733,8 @@ std::ostream& CCodeGen::emit(Def def) {
             case PrimType_pu32: case PrimType_qu32: os << primlit->pu32_value();                        break;
             case PrimType_ps64: case PrimType_qs64: os << primlit->ps64_value();                        break;
             case PrimType_pu64: case PrimType_qu64: os << primlit->pu64_value();                        break;
-            case PrimType_pf32: case PrimType_qf32: os << std::fixed << primlit->pf32_value() << 'f';   break;
-            case PrimType_pf64: case PrimType_qf64: os << std::fixed << primlit->pf64_value();          break;
+            case PrimType_pf32: case PrimType_qf32: os << float_mode << primlit->pf32_value() << 'f';   break;
+            case PrimType_pf64: case PrimType_qf64: os << float_mode << primlit->pf64_value();          break;
         }
         return os;
     }
@@ -757,17 +782,20 @@ std::ostream& CCodeGen::emit(Def def) {
             emit(lea->ptr()) << ", ";
             emit(lea->index()) << ");";
         } else {
-            emit_type(lea->type()) << " " << lea->unique_name() << ";" << endl;
-            os << lea->unique_name() << " = ";
             if (lea->ptr_referenced_type().isa<TupleType>() || lea->ptr_referenced_type().isa<StructAppType>()) {
-                os << "&";
+                emit_type(lea->type()) << " " << lea->unique_name() << ";" << endl;
+                os << lea->unique_name() << " = &";
                 emit(lea->ptr()) << "->e";
                 emit(lea->index()) << ";";
             } else if (lea->ptr_referenced_type().isa<DefiniteArrayType>()) {
-                os << "&";
+                emit_type(lea->type()) << " " << lea->unique_name() << ";" << endl;
+                os << lea->unique_name() << " = &";
                 emit(lea->ptr()) << "->e[";
                 emit(lea->index()) << "];";
             } else {
+                emit_addr_space(lea->ptr()->type());
+                emit_type(lea->type()) << " " << lea->unique_name() << ";" << endl;
+                os << lea->unique_name() << " = ";
                 emit(lea->ptr()) << " + ";
                 emit(lea->index()) << ";";
             }
@@ -798,24 +826,6 @@ std::ostream& CCodeGen::emit(Def def) {
             case Lang::OPENCL: os << "__constant "; break;
         }
         emit_type(global->alloced_type()) << " *" << global->unique_name() << " = &" << global->unique_name() << "_slot;";
-
-        return insert(def->gid(), def->unique_name());
-    }
-
-    if (auto mmap = def->isa<Map>()) {
-        if (mmap->addr_space() != AddressSpace::Shared)
-            WLOG("error: mmap: expected shared / local memory address space at %", mmap->loc());
-        assert(mmap->addr_space() == AddressSpace::Shared && "wrong address space for shared memory");
-        if (!mmap->mem_size()->isa<PrimLit>())
-            WLOG("error: mmap: couldn't extract memory size at %", mmap->mem_size()->loc());
-
-        switch (lang_) {
-            case Lang::C99:                         break;
-            case Lang::CUDA:   os << "__shared__ "; break;
-            case Lang::OPENCL: os << "__local ";    break;
-        }
-        emit_type(mmap->out_ptr_type()->referenced_type()) << " " << mmap->unique_name() << "[";
-        emit(mmap->mem_size()) << "];";
 
         return insert(def->gid(), def->unique_name());
     }

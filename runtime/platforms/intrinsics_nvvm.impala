@@ -268,28 +268,24 @@ extern "device" {
 fn acc(dev: i32, dim: (i32, i32, i32), block: (i32, i32, i32), body: fn() -> ()) -> () { nvvm(dev, dim, block, body) }
 fn acc_alloc(dev: i32, size: i32) -> Buffer { alloc_cuda(dev, size) }
 fn acc_alloc_unified(dev: i32, size: i32) -> Buffer { alloc_cuda_unified(dev, size) }
-fn acc_tidx() -> i32    { nvvm_read_ptx_sreg_tid_x() }
-fn acc_tidy() -> i32    { nvvm_read_ptx_sreg_tid_y() }
-fn acc_tidz() -> i32    { nvvm_read_ptx_sreg_tid_z() }
-fn acc_bidx() -> i32    { nvvm_read_ptx_sreg_ctaid_x() }
-fn acc_bidy() -> i32    { nvvm_read_ptx_sreg_ctaid_y() }
-fn acc_bidz() -> i32    { nvvm_read_ptx_sreg_ctaid_z() }
-fn acc_bdimx() -> i32   { nvvm_read_ptx_sreg_ntid_x() }
-fn acc_bdimy() -> i32   { nvvm_read_ptx_sreg_ntid_y() }
-fn acc_bdimz() -> i32   { nvvm_read_ptx_sreg_ntid_z() }
-fn acc_gdimx() -> i32   { nvvm_read_ptx_sreg_nctaid_x() }
-fn acc_gdimy() -> i32   { nvvm_read_ptx_sreg_nctaid_y() }
-fn acc_gdimz() -> i32   { nvvm_read_ptx_sreg_nctaid_z() }
-fn acc_gidx() -> i32    { acc_tidx() + acc_bdimx() * acc_bidx() }
-fn acc_gidy() -> i32    { acc_tidy() + acc_bdimy() * acc_bidy() }
-fn acc_gidz() -> i32    { acc_tidz() + acc_bdimz() * acc_bidz() }
-fn acc_barrier() -> ()  { nvvm_barrier0() }
-fn acc_vector_length() -> i32 { 32 }
-fn acc_mem() -> i32     { 1 }
-fn acc_tex() -> i32     { 2 }
-fn acc_spm() -> i32     { 3 }
-fn acc_cst() -> i32     { 4 }
-fn acc_dev() -> i32     { 0 }
+fn acc_tidx() -> i32     { nvvm_read_ptx_sreg_tid_x() }
+fn acc_tidy() -> i32     { nvvm_read_ptx_sreg_tid_y() }
+fn acc_tidz() -> i32     { nvvm_read_ptx_sreg_tid_z() }
+fn acc_bidx() -> i32     { nvvm_read_ptx_sreg_ctaid_x() }
+fn acc_bidy() -> i32     { nvvm_read_ptx_sreg_ctaid_y() }
+fn acc_bidz() -> i32     { nvvm_read_ptx_sreg_ctaid_z() }
+fn acc_bdimx() -> i32    { nvvm_read_ptx_sreg_ntid_x() }
+fn acc_bdimy() -> i32    { nvvm_read_ptx_sreg_ntid_y() }
+fn acc_bdimz() -> i32    { nvvm_read_ptx_sreg_ntid_z() }
+fn acc_gdimx() -> i32    { nvvm_read_ptx_sreg_nctaid_x() }
+fn acc_gdimy() -> i32    { nvvm_read_ptx_sreg_nctaid_y() }
+fn acc_gdimz() -> i32    { nvvm_read_ptx_sreg_nctaid_z() }
+fn acc_gidx() -> i32     { acc_tidx() + acc_bdimx() * acc_bidx() }
+fn acc_gidy() -> i32     { acc_tidy() + acc_bdimy() * acc_bidy() }
+fn acc_gidz() -> i32     { acc_tidz() + acc_bdimz() * acc_bidz() }
+fn acc_barrier() -> ()   { nvvm_barrier0() }
+fn acc_use_tex() -> bool { true }
+fn acc_dev() -> i32      { 0 }
 
 // kind: Xchg Add Sub And Nand Or Xor Max Min
 fn atomic_xchg(a: &i32, b: i32) -> i32 { atomic(0u, a, b) }
@@ -320,6 +316,8 @@ extern "C" {
     fn maxmax(a: i32, b: i32, c: i32) -> i32;
     fn minmax(a: i32, b: i32, c: i32) -> i32;
     fn maxmin(a: i32, b: i32, c: i32) -> i32;
+    fn ldg_f32(&[1]f32) -> f32;
+    fn ldg_i32(&[1]i32) -> i32;
     fn ldg4_f32(&simd[f32 * 4]) -> simd[f32 * 4];
     fn ldg4_i32(&simd[i32 * 4]) -> simd[i32 * 4];
     fn ballot(i32) -> i32;

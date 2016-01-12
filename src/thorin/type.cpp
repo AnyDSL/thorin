@@ -22,12 +22,12 @@ size_t TypeNode::length() const { return as<VectorTypeNode>()->length(); }
 Type TypeNode::elem(const Def& def) const { return elem(def->primlit_value<size_t>()); }
 
 const TypeNode* TypeNode::unify() const {
-    bool first = !is_unified();
-    auto type = world().unify_base(this);
-
     static const char* names[] = {"α", "β", "γ", "δ", "ε", "ζ", "η", "θ", "ι", "κ", "λ", "μ",
                                   "ν", "ξ", "ο", "π", "ρ", "σ", "τ", "υ", "φ", "χ", "ψ", "ω"};
     static const size_t num_names = sizeof(names)/sizeof(names[0]);
+
+    bool first = !is_unified();
+    auto type = world().unify_base(this);
 
     if (first) {
         for (size_t i = 0, e = type->num_type_params(); i != e; ++i) {

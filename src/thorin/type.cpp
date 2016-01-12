@@ -256,15 +256,15 @@ std::ostream& IndefiniteArrayTypeNode::stream(std::ostream& os) const { return s
 std::ostream& DefiniteArrayTypeNode::stream(std::ostream& os) const { return streamf(os, "[% x %]", dim(), elem_type()); }
 
 std::ostream& PtrTypeNode::stream(std::ostream& os) const {
-    if (this->is_vector())
-        os << '<' << this->length() << " x ";
-    os << this->referenced_type() << '*';
-    if (this->is_vector())
+    if (is_vector())
+        os << '<' << length() << " x ";
+    os << referenced_type() << '*';
+    if (is_vector())
         os << '>';
-    auto device = this->device();
+    auto device = device();
     if (device != -1)
         os << '[' << device << ']';
-    switch (this->addr_space()) {
+    switch (addr_space()) {
         case AddressSpace::Global:   os << "[Global]";   break;
         case AddressSpace::Texture:  os << "[Tex]";      break;
         case AddressSpace::Shared:   os << "[Shared]";   break;
@@ -275,16 +275,16 @@ std::ostream& PtrTypeNode::stream(std::ostream& os) const {
 }
 
 std::ostream& PrimTypeNode::stream(std::ostream& os) const {
-    if (this->is_vector())
-        os << "<" << this->length() << " x ";
+    if (is_vector())
+        os << "<" << length() << " x ";
 
-    switch (this->primtype_kind()) {
+    switch (primtype_kind()) {
 #define THORIN_ALL_TYPE(T, M) case Node_PrimType_##T: os << #T; break;
 #include "thorin/tables/primtypetable.h"
           default: THORIN_UNREACHABLE;
     }
 
-    if (this->is_vector())
+    if (is_vector())
         os << ">";
 
     return os;

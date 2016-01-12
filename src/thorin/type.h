@@ -275,7 +275,7 @@ protected:
     }
 
 public:
-    /// The number of vector argents - the vector length.
+    /// The number of vector arguments - the vector length.
     size_t length() const { return length_; }
     bool is_vector() const { return length_ != 1; }
     /// Rebuilds the type with vector length 1.

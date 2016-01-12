@@ -208,8 +208,6 @@ public:
     virtual bool is_closed() const;
     virtual IndefiniteArrayType is_indefinite() const;
     virtual bool use_lea() const { return false; }
-
-    // stream
     virtual std::ostream& stream(std::ostream&) const;
 
 protected:

@@ -156,7 +156,7 @@ void CudaPlatform::set_grid_size(device_id dev, int32_t x, int32_t y, int32_t z)
     grid.z = z;
 }
 
-void CudaPlatform::set_kernel_arg(device_id dev, int32_t arg, void* ptr, int32_t size) {
+void CudaPlatform::set_kernel_arg(device_id dev, int32_t arg, void* ptr, int32_t) {
     auto& args = devices_[dev].kernel_args;
     args.resize(std::max(arg + 1, (int32_t)args.size()));
     args[arg] = ptr;

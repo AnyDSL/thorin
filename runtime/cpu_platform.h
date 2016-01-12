@@ -14,7 +14,7 @@ public:
     {}
 
 protected:
-    void* alloc(device_id dev, int64_t size) override {
+    void* alloc(device_id, int64_t size) override {
         return thorin_aligned_malloc(size, 64);
     }
 
@@ -35,7 +35,7 @@ protected:
     void set_kernel_arg_struct(device_id, int32_t, void*, int32_t) override { no_kernel(); }
     void load_kernel(device_id, const char*, const char*) override { no_kernel(); }
     void launch_kernel(device_id) override { no_kernel(); }
-    void synchronize(device_id dev) override { no_kernel(); }
+    void synchronize(device_id) override { no_kernel(); }
 
     void copy(const void* src, int64_t offset_src, void* dst, int64_t offset_dst, int64_t size) {
         memcpy((char*)dst + offset_dst, (char*)src + offset_src, size);

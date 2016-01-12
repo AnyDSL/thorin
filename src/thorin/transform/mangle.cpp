@@ -78,7 +78,7 @@ Lambda* Mangler::mangle() {
 
     // map value params
     def2def[oentry] = oentry;
-    for (size_t i, j = 0, e = oentry->num_params(); i != e; ++i) {
+    for (size_t i = 0, j = 0, e = oentry->num_params(); i != e; ++i) {
         auto oparam = oentry->param(i);
         if (auto def = args[i])
             def2def[oparam] = def;

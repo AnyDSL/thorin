@@ -19,7 +19,7 @@ inline Lambda* lift(const Scope& scope, ArrayRef<Type> type_args, ArrayRef<Def> 
 }
 
 inline Lambda* clone(const Scope& scope) {
-    return mangle(scope, {/*TODO type_args*/}, Array<Def>(scope.entry()->num_params()), Array<Def>());
+    return mangle(scope, Array<Type>(scope.entry()->num_type_params()), Array<Def>(scope.entry()->num_params()), Array<Def>());
 }
 
 }

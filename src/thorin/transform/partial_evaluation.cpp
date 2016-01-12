@@ -158,8 +158,7 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
             cache_[call] = dropped;
             jump_to_cached_call(cur, dropped, call);
             if (all) {
-                // TODO type_args!!!
-                cur->jump(dropped->to(), {}, dropped->args()); // eat up call
+                cur->jump(dropped->to(), dropped->type_args(), dropped->args());
                 done_.erase(cur);
             } else
                 cur = dropped;

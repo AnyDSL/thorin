@@ -303,9 +303,8 @@ std::ostream& TypeNode::stream(std::ostream& os) const {
 Type2Type type2type(const TypeNode* type, ArrayRef<Type> args) {
     assert(type->num_type_params() == args.size());
     Type2Type map;
-    size_t i = 0;
-    for (TypeParam v : type->type_params())
-        map[*v] = *args[i++];
+    for (size_t i = 0, e = args.size(); i != e; ++i)
+        map[*type->type_param(i)] = *args[i];
     assert(map.size() == args.size());
     return map;
 }

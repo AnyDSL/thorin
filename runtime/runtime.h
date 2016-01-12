@@ -2,8 +2,8 @@
 #define RUNTIME_H
 
 #include "platform.h"
-#include "thorin/util/log.h"
 
+#include <cassert>
 #include <cstdlib>
 #include <iostream>
 #include <vector>

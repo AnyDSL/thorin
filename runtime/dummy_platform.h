@@ -12,10 +12,6 @@ public:
     {}
 
 protected:
-    void platform_error() {
-        ELOG("The selected platform is not available");
-    }
-
     void* alloc(device_id, int64_t) override { platform_error(); return nullptr; }
     void* alloc_host(device_id, int64_t) override { platform_error(); return nullptr; }
     void* alloc_unified(device_id, int64_t) override { platform_error(); return nullptr; }

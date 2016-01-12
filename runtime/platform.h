@@ -1,12 +1,9 @@
 #ifndef PLATFORM_H
 #define PLATFORM_H
 
-#include <unordered_map>
-#include <mutex>
 #include <string>
-#include <cassert>
 
-#include "thorin_runtime.h"
+#include "thorin/util/log.h"
 
 class Runtime;
 enum device_id : unsigned {};
@@ -65,6 +62,10 @@ public:
     virtual std::string name() = 0;
 
 protected:
+    void platform_error() {
+        ELOG("The selected platform is not available");
+    }
+
     Runtime* runtime_;
 };
 

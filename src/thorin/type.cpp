@@ -261,9 +261,8 @@ std::ostream& PtrTypeNode::stream(std::ostream& os) const {
     os << referenced_type() << '*';
     if (is_vector())
         os << '>';
-    auto device = device();
-    if (device != -1)
-        os << '[' << device << ']';
+    if (device() != -1)
+        os << '[' << device() << ']';
     switch (addr_space()) {
         case AddressSpace::Global:   os << "[Global]";   break;
         case AddressSpace::Texture:  os << "[Tex]";      break;

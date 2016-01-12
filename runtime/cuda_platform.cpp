@@ -449,7 +449,7 @@ void CudaPlatform::compile_cuda(device_id dev, const char* file_name, CUjit_targ
 
         int exit_status = pclose(stream);
         if (!WEXITSTATUS(exit_status)) {
-            WLOG(log);
+            WLOG("%", log);
         } else {
             ELOG("Compilation error: %", log);
         }

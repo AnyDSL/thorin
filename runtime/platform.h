@@ -1,12 +1,9 @@
 #ifndef PLATFORM_H
 #define PLATFORM_H
 
-#include <unordered_map>
-#include <mutex>
 #include <string>
-#include <cassert>
 
-#include "thorin_runtime.h"
+#include "thorin/util/log.h"
 
 class Runtime;
 enum device_id : unsigned {};
@@ -24,10 +21,16 @@ public:
 
     /// Allocates memory for a device on this platform.
     virtual void* alloc(device_id dev, int64_t size) = 0;
+    /// Allocates page-locked host memory for a platform (and a device).
+    virtual void* alloc_host(device_id dev, int64_t size) = 0;
     /// Allocates unified memory for a platform (and a device).
     virtual void* alloc_unified(device_id dev, int64_t size) = 0;
+    /// Returns the device memory associated with the page-locked memory.
+    virtual void* get_device_ptr(device_id dev, void* ptr) = 0;
     /// Releases memory for a device on this platform.
     virtual void release(device_id dev, void* ptr) = 0;
+    /// Releases page-locked host memory for a device on this platform.
+    virtual void release_host(device_id dev, void* ptr) = 0;
 
     /// Sets the kernel launch block size.
     virtual void set_block_size(device_id dev, int32_t x, int32_t y, int32_t z) = 0;
@@ -59,6 +62,10 @@ public:
     virtual std::string name() = 0;
 
 protected:
+    void platform_error() {
+        ELOG("The selected platform is not available");
+    }
+
     Runtime* runtime_;
 };
 

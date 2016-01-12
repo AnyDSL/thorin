@@ -53,9 +53,9 @@ CudaPlatform::CudaPlatform(Runtime* runtime)
 {
     int device_count = 0, driver_version = 0, nvvm_major = 0, nvvm_minor = 0;
 
-#ifndef _WIN32
+    #ifndef _WIN32
     setenv("CUDA_CACHE_DISABLE", "1", 1);
-#endif
+    #endif
 
     CUresult err = cuInit(0);
     checkErrDrv(err, "cuInit()");
@@ -95,7 +95,7 @@ CudaPlatform::CudaPlatform(Runtime* runtime)
 
         WLOG("  (%) %, Compute capability: %.%", i, name, devices_[i].compute_major, devices_[i].compute_minor);
 
-        err = cuCtxCreate(&devices_[i].ctx, 0, devices_[i].dev);
+        err = cuCtxCreate(&devices_[i].ctx, CU_CTX_MAP_HOST, devices_[i].dev);
         checkErrDrv(err, "cuCtxCreate()");
 
         err = cuEventCreate(&devices_[i].start_kernel, CU_EVENT_DEFAULT);
@@ -124,6 +124,17 @@ void* CudaPlatform::alloc(device_id dev, int64_t size) {
     return (void*)mem;
 }
 
+void* CudaPlatform::alloc_host(device_id dev, int64_t size) {
+    cuCtxPushCurrent(devices_[dev].ctx);
+
+    void* mem;
+    CUresult err = cuMemHostAlloc(&mem, size, CU_MEMHOSTALLOC_DEVICEMAP);
+    checkErrDrv(err, "cuMemHostAlloc()");
+
+    cuCtxPopCurrent(NULL);
+    return mem;
+}
+
 void* CudaPlatform::alloc_unified(device_id dev, int64_t size) {
     cuCtxPushCurrent(devices_[dev].ctx);
 
@@ -135,10 +146,28 @@ void* CudaPlatform::alloc_unified(device_id dev, int64_t size) {
     return (void*)mem;
 }
 
+void* CudaPlatform::get_device_ptr(device_id dev, void* ptr) {
+    cuCtxPushCurrent(devices_[dev].ctx);
+
+    CUdeviceptr mem;
+    CUresult err = cuMemHostGetDevicePointer(&mem, ptr, 0);
+    checkErrDrv(err, "cuMemHostGetDevicePointer()");
+
+    cuCtxPopCurrent(NULL);
+    return (void*)mem;
+}
+
 void CudaPlatform::release(device_id dev, void* ptr) {
     cuCtxPushCurrent(devices_[dev].ctx);
     CUresult err = cuMemFree((CUdeviceptr)ptr);
     checkErrDrv(err, "cuMemFree()");
+    cuCtxPopCurrent(NULL);
+}
+
+void CudaPlatform::release_host(device_id dev, void* ptr) {
+    cuCtxPushCurrent(devices_[dev].ctx);
+    CUresult err = cuMemFreeHost(ptr);
+    checkErrDrv(err, "cuMemFreeHost()");
     cuCtxPopCurrent(NULL);
 }
 

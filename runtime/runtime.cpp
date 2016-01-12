@@ -1,10 +1,11 @@
-#include <iostream>
-#include <cassert>
-#include <vector>
-#include <cstdlib>
-#include <chrono>
-#include <random>
 #include <atomic>
+#include <cassert>
+#include <chrono>
+#include <cstdlib>
+#include <iostream>
+#include <random>
+#include <unordered_map>
+#include <vector>
 
 #if !defined(_WIN32) && (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__)))
 #include <unistd.h>
@@ -69,12 +70,24 @@ void* thorin_alloc(int32_t mask, int64_t size) {
     return runtime.alloc(to_platform(mask), to_device(mask), size);
 }
 
+void* thorin_alloc_host(int32_t mask, int64_t size) {
+    return runtime.alloc_host(to_platform(mask), to_device(mask), size);
+}
+
 void* thorin_alloc_unified(int32_t mask, int64_t size) {
     return runtime.alloc_unified(to_platform(mask), to_device(mask), size);
 }
 
+void* thorin_get_device_ptr(int32_t mask, void* ptr) {
+    return runtime.get_device_ptr(to_platform(mask), to_device(mask), ptr);
+}
+
 void thorin_release(int32_t mask, void* ptr) {
     runtime.release(to_platform(mask), to_device(mask), ptr);
+}
+
+void thorin_release_host(int32_t mask, void* ptr) {
+    runtime.release_host(to_platform(mask), to_device(mask), ptr);
 }
 
 void thorin_copy(int32_t mask_src, const void* src, int64_t offset_src,

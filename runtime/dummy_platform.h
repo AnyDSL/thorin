@@ -12,13 +12,12 @@ public:
     {}
 
 protected:
-    void platform_error() {
-        ELOG("The selected platform is not available");
-    }
-
     void* alloc(device_id, int64_t) override { platform_error(); return nullptr; }
+    void* alloc_host(device_id, int64_t) override { platform_error(); return nullptr; }
     void* alloc_unified(device_id, int64_t) override { platform_error(); return nullptr; }
+    void* get_device_ptr(device_id, void*) override { platform_error(); return nullptr; }
     void release(device_id, void*) override { platform_error(); }
+    void release_host(device_id, void*) override { platform_error(); }
 
     void set_block_size(device_id, int32_t, int32_t, int32_t) override { platform_error(); }
     void set_grid_size(device_id, int32_t, int32_t, int32_t) override { platform_error(); }

@@ -18,12 +18,24 @@ protected:
         return thorin_aligned_malloc(size, 64);
     }
 
+    void* alloc_host(device_id dev, int64_t size) override {
+        return alloc(dev, size);
+    }
+
     void* alloc_unified(device_id dev, int64_t size) override {
         return alloc(dev, size);
     }
 
+    void* get_device_ptr(device_id, void* ptr) override {
+        return ptr;
+    }
+
     void release(device_id, void* ptr) override {
         thorin_aligned_free(ptr);
+    }
+
+    void release_host(device_id dev, void* ptr) override {
+        release(dev, ptr);
     }
 
     void no_kernel() { ELOG("Kernels are not supported on the CPU"); }

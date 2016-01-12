@@ -240,19 +240,6 @@ void* OpenCLPlatform::alloc(device_id dev, int64_t size) {
     return (void*)mem;
 }
 
-void* OpenCLPlatform::alloc_unified(device_id dev, int64_t size) {
-    if (!size) return 0;
-
-    cl_int err = CL_SUCCESS;
-    // CL_MEM_ALLOC_HOST_PTR -> OpenCL allocates memory that can be shared - preferred on AMD hardware ?
-    // CL_MEM_USE_HOST_PTR   -> use existing, properly aligned and sized memory
-    cl_mem_flags flags = CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR;
-    cl_mem mem = clCreateBuffer(devices_[dev].ctx, flags, size, NULL, &err);
-    checkErr(err, "clCreateBuffer()");
-
-    return (void*)mem;
-}
-
 void OpenCLPlatform::release(device_id, void* ptr) {
     cl_int err = clReleaseMemObject((cl_mem)ptr);
     checkErr(err, "clReleaseMemObject()");

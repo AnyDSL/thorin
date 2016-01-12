@@ -2,8 +2,11 @@ extern "C" {
     fn thorin_info() -> ();
 
     fn thorin_alloc(i32, i64) -> &i8;
+    fn thorin_alloc_host(i32, i64) -> &i8;
     fn thorin_alloc_unified(i32, i64) -> &i8;
+    fn thorin_get_device_ptr(i32, &i8) -> &i8;
     fn thorin_release(i32, &i8) -> ();
+    fn thorin_release_host(i32, &i8) -> ();
 
     fn thorin_copy(i32, &i8, i64, i32, &i8, i64, i64) -> ();
 
@@ -34,6 +37,12 @@ fn alloc(dev: i32, size: i32) -> Buffer {
         data: thorin_alloc(dev, size as i64) as &[i8]
     }
 }
+fn alloc_host(dev: i32, size: i32) -> Buffer {
+    Buffer {
+        device: dev,
+        data: thorin_alloc_host(dev, size as i64) as &[i8]
+    }
+}
 fn alloc_unified(dev: i32, size: i32) -> Buffer {
     Buffer {
         device: dev,
@@ -42,8 +51,9 @@ fn alloc_unified(dev: i32, size: i32) -> Buffer {
 }
 fn release(a: Buffer) -> () { thorin_release(a.device, a.data as &i8) }
 
-fn alloc_host(size: i32) -> Buffer { alloc(0, size) }
+fn alloc_cpu(size: i32) -> Buffer { alloc(0, size) }
 fn alloc_cuda(dev: i32, size: i32) -> Buffer { alloc(thorin_device(1, dev), size) }
+fn alloc_cuda_host(dev: i32, size: i32) -> Buffer { alloc_host(thorin_device(1, dev), size) }
 fn alloc_cuda_unified(dev: i32, size: i32) -> Buffer { alloc_unified(thorin_device(1, dev), size) }
 fn alloc_opencl(dev: i32, size: i32) -> Buffer { alloc(thorin_device(2, dev), size) }
 fn alloc_opencl_unified(dev: i32, size: i32) -> Buffer { alloc_unified(thorin_device(2, dev), size) }

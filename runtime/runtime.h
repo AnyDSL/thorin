@@ -39,16 +39,33 @@ public:
         return platforms_[plat]->alloc(dev, size);
     }
 
+    /// Allocates page-locked memory on the given platform (and on the given device).
+    void* alloc_host(platform_id plat, device_id dev, int64_t size) {
+        check_device(plat, dev);
+        return platforms_[plat]->alloc_host(dev, size);
+    }
+
     /// Allocates unified memory on the given platform (and on the given device).
     void* alloc_unified(platform_id plat, device_id dev, int64_t size) {
         check_device(plat, dev);
         return platforms_[plat]->alloc_unified(dev, size);
     }
 
+    /// Returns the device memory associated with the page-locked memory.
+    void* get_device_ptr(platform_id plat, device_id dev, void* ptr) {
+        check_device(plat, dev);
+        return platforms_[plat]->get_device_ptr(dev, ptr);
+    }
+
     /// Releases memory.
     void release(platform_id plat, device_id dev, void* ptr) {
         check_device(plat, dev);
         platforms_[plat]->release(dev, ptr);
+    }
+
+    void release_host(platform_id plat, device_id dev, void* ptr) {
+        check_device(plat, dev);
+        platforms_[plat]->release_host(dev, ptr);
     }
 
     void set_block_size(platform_id plat, device_id dev, int32_t x, int32_t y, int32_t z) {

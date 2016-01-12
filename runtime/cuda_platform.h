@@ -32,8 +32,11 @@ protected:
     };
 
     void* alloc(device_id dev, int64_t size) override;
+    void* alloc_host(device_id dev, int64_t size) override;
     void* alloc_unified(device_id dev, int64_t size) override;
+    void* get_device_ptr(device_id, void*) override;
     void release(device_id dev, void* ptr) override;
+    void release_host(device_id dev, void* ptr) override;
 
     void set_block_size(device_id dev, int32_t x, int32_t y, int32_t z) override;
     void set_grid_size(device_id dev, int32_t x, int32_t y, int32_t z) override;

@@ -30,8 +30,11 @@ protected:
     };
 
     void* alloc(device_id dev, int64_t size) override;
-    void* alloc_unified(device_id dev, int64_t size) override;
+    void* alloc_host(device_id, int64_t) override { platform_error(); return nullptr; }
+    void* alloc_unified(device_id, int64_t) override { platform_error(); return nullptr; }
+    void* get_device_ptr(device_id, void*) override { platform_error(); return nullptr; }
     void release(device_id dev, void* ptr) override;
+    void release_host(device_id dev, void* ptr) override { platform_error(); }
 
     void set_block_size(device_id dev, int32_t x, int32_t y, int32_t z) override;
     void set_grid_size(device_id dev, int32_t x, int32_t y, int32_t z) override;

@@ -16,7 +16,7 @@ typedef LambdaMap<llvm::BasicBlock*> BBMap;
 
 class CodeGen {
 protected:
-    CodeGen(World& world, llvm::CallingConv::ID function_calling_convention,
+    CodeGen(World& world, llvm::GlobalValue::LinkageTypes function_external_linkage, llvm::CallingConv::ID function_calling_convention,
             llvm::CallingConv::ID device_calling_convention, llvm::CallingConv::ID kernel_calling_convention);
 
 public:
@@ -69,6 +69,7 @@ protected:
     AutoPtr<llvm::Module> module_;
     llvm::IRBuilder<> irbuilder_;
     llvm::DIBuilder dibuilder_;
+    llvm::GlobalValue::LinkageTypes function_external_linkage_;
     llvm::CallingConv::ID function_calling_convention_;
     llvm::CallingConv::ID device_calling_convention_;
     llvm::CallingConv::ID kernel_calling_convention_;

@@ -1,13 +1,15 @@
 #include "thorin/be/llvm/cpu.h"
 
+#include <llvm/ADT/Triple.h>
+#include <llvm/ExecutionEngine/ExecutionEngine.h>
 #include <llvm/Support/Host.h>
 #include <llvm/Support/TargetSelect.h>
-#include <llvm/ExecutionEngine/ExecutionEngine.h>
 
 namespace thorin {
 
 CPUCodeGen::CPUCodeGen(World& world)
-    : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::C, llvm::CallingConv::C)
+    : CodeGen(world, llvm::Triple(llvm::sys::getProcessTriple()).isOSWindows() ? llvm::Function::DLLExportLinkage : llvm::Function::ExternalLinkage,
+              llvm::CallingConv::C, llvm::CallingConv::C, llvm::CallingConv::C)
 {
     llvm::InitializeNativeTarget();
     auto triple_str = llvm::sys::getDefaultTargetTriple();

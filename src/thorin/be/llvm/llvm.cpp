@@ -45,12 +45,13 @@
 
 namespace thorin {
 
-CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention, llvm::CallingConv::ID device_calling_convention, llvm::CallingConv::ID kernel_calling_convention)
+CodeGen::CodeGen(World& world, llvm::GlobalValue::LinkageTypes function_external_linkage, llvm::CallingConv::ID function_calling_convention, llvm::CallingConv::ID device_calling_convention, llvm::CallingConv::ID kernel_calling_convention)
     : world_(world)
     , context_()
     , module_(new llvm::Module(world.name(), context_))
     , irbuilder_(context_)
     , dibuilder_(*module_.get())
+    , function_external_linkage_(function_external_linkage)
     , function_calling_convention_(function_calling_convention)
     , device_calling_convention_(device_calling_convention)
     , kernel_calling_convention_(kernel_calling_convention)
@@ -179,7 +180,7 @@ llvm::Function* CodeGen::emit_function_decl(Lambda* lambda) {
 
     // set linkage
     if (lambda->is_external() || lambda->empty())
-        f->setLinkage(llvm::Function::ExternalLinkage);
+        f->setLinkage(function_external_linkage_);
     else
         f->setLinkage(llvm::Function::InternalLinkage);
 

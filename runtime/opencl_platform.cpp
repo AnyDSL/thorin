@@ -171,19 +171,18 @@ OpenCLPlatform::OpenCLPlatform(Runtime* runtime)
             #endif
             WLOG("      Device SPIR Support: % %", has_spir, spir_version);
 
-            cl_bool has_unified = false;
             #ifdef CL_VERSION_2_0
-            cl_device_svm_capabilities caps;
-            err |= clGetDeviceInfo(devices[j], CL_DEVICE_SVM_CAPABILITIES, sizeof(caps), &caps, NULL);
-            WLOG("      Device SVM capabilities:");
-            if (caps & CL_DEVICE_SVM_COARSE_GRAIN_BUFFER) WLOG(" CL_DEVICE_SVM_COARSE_GRAIN_BUFFER");
-            else                                          WLOG(" n/a");
-            if (caps & CL_DEVICE_SVM_FINE_GRAIN_BUFFER)   WLOG(" CL_DEVICE_SVM_FINE_GRAIN_BUFFER");
-            if (caps & CL_DEVICE_SVM_FINE_GRAIN_SYSTEM)   WLOG(" CL_DEVICE_SVM_FINE_GRAIN_SYSTEM");
-            if (caps & CL_DEVICE_SVM_ATOMICS)             WLOG(" CL_DEVICE_SVM_ATOMICS");
-            // TODO: SVM is inconsistent with unified memory in OpenCL 1.2
-            has_unified = (caps & CL_DEVICE_SVM_COARSE_GRAIN_BUFFER) || (dev_type & CL_DEVICE_TYPE_CPU);
+            std::string svm_caps_str;
+            cl_device_svm_capabilities svm_caps;
+            err |= clGetDeviceInfo(devices[j], CL_DEVICE_SVM_CAPABILITIES, sizeof(svm_caps), &svm_caps, NULL);
+            if (svm_caps & CL_DEVICE_SVM_COARSE_GRAIN_BUFFER) svm_caps_str += " CL_DEVICE_SVM_COARSE_GRAIN_BUFFER";
+            else                                              svm_caps_str += " n/a";
+            if (svm_caps & CL_DEVICE_SVM_FINE_GRAIN_BUFFER)   svm_caps_str += " CL_DEVICE_SVM_FINE_GRAIN_BUFFER";
+            if (svm_caps & CL_DEVICE_SVM_FINE_GRAIN_SYSTEM)   svm_caps_str += " CL_DEVICE_SVM_FINE_GRAIN_SYSTEM";
+            if (svm_caps & CL_DEVICE_SVM_ATOMICS)             svm_caps_str += " CL_DEVICE_SVM_ATOMICS";
+            WLOG("      Device SVM capabilities:%", svm_caps_str);
             #else
+            cl_bool has_unified = false;
             err |= clGetDeviceInfo(devices[j], CL_DEVICE_HOST_UNIFIED_MEMORY, sizeof(has_unified), &has_unified, NULL);
             WLOG("      Device Host Unified Memory: %", has_unified);
             #endif
@@ -195,14 +194,14 @@ OpenCLPlatform::OpenCLPlatform(Runtime* runtime)
             devices_[dev].dev = device;
 
             // create context
-            cl_context_properties cprops[3] = { CL_CONTEXT_PLATFORM, (cl_context_properties)platform, 0 };
-            devices_[dev].ctx = clCreateContext(cprops, 1, &devices_[dev].dev, NULL, NULL, &err);
+            cl_context_properties ctx_props[3] = { CL_CONTEXT_PLATFORM, (cl_context_properties)platform, 0 };
+            devices_[dev].ctx = clCreateContext(ctx_props, 1, &devices_[dev].dev, NULL, NULL, &err);
             checkErr(err, "clCreateContext()");
 
             // create command queue
             #ifdef CL_VERSION_2_0
-            cl_queue_properties cprops[3] = { CL_QUEUE_PROPERTIES, CL_QUEUE_PROFILING_ENABLE, 0 };
-            devices_[dev].queue = clCreateCommandQueueWithProperties(devices_[dev].ctx, devices_[dev].dev, cprops, &err);
+            cl_queue_properties queue_props[3] = { CL_QUEUE_PROPERTIES, CL_QUEUE_PROFILING_ENABLE, 0 };
+            devices_[dev].queue = clCreateCommandQueueWithProperties(devices_[dev].ctx, devices_[dev].dev, queue_props, &err);
             checkErr(err, "clCreateCommandQueueWithProperties()");
             #else
             devices_[dev].queue = clCreateCommandQueue(devices_[dev].ctx, devices_[dev].dev, CL_QUEUE_PROFILING_ENABLE, &err);

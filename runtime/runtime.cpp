@@ -158,7 +158,7 @@ long long thorin_get_micro_time() {
 #endif
 }
 
-std::atomic_llong thorin_kernel_time(0);
+std::atomic<long long> thorin_kernel_time(0);
 
 long long thorin_get_kernel_time() {
     return thorin_kernel_time;
@@ -171,7 +171,7 @@ void thorin_print_float(float f)    { std::cout << f; }
 void thorin_print_double(double d)  { std::cout << d; }
 void thorin_print_string(char* s)   { std::cout << s; }
 
-#if defined(__APPLE__) && defined(__clang__)
+#if defined(__APPLE__) && defined(__clang__) || defined(_MSC_VER)
 #pragma message("Runtime random function is not thread-safe")
 static std::mt19937 std_gen;
 #else

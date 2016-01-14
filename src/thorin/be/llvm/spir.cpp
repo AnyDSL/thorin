@@ -13,7 +13,7 @@
 namespace thorin {
 
 SPIRCodeGen::SPIRCodeGen(World& world)
-    : CodeGen(world, llvm::Function::ExternalLinkage, llvm::CallingConv::SPIR_FUNC, llvm::CallingConv::SPIR_FUNC, llvm::CallingConv::SPIR_KERNEL)
+    : CodeGen(world, llvm::Function::ExternalLinkage, llvm::Function::ExternalLinkage, llvm::CallingConv::SPIR_FUNC, llvm::CallingConv::SPIR_FUNC, llvm::CallingConv::SPIR_KERNEL)
 {
     auto triple = llvm::Triple(llvm::sys::getDefaultTargetTriple());
     if (triple.isArch32Bit()) {

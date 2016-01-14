@@ -8,7 +8,9 @@
 namespace thorin {
 
 CPUCodeGen::CPUCodeGen(World& world)
-    : CodeGen(world, llvm::Triple(llvm::sys::getProcessTriple()).isOSWindows() ? llvm::Function::DLLExportLinkage : llvm::Function::ExternalLinkage,
+    : CodeGen(world,
+              llvm::Triple(llvm::sys::getProcessTriple()).isOSWindows() ? llvm::Function::DLLImportLinkage : llvm::Function::ExternalLinkage,
+              llvm::Triple(llvm::sys::getProcessTriple()).isOSWindows() ? llvm::Function::DLLExportLinkage : llvm::Function::ExternalLinkage,
               llvm::CallingConv::C, llvm::CallingConv::C, llvm::CallingConv::C)
 {
     llvm::InitializeNativeTarget();

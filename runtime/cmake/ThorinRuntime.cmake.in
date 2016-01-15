@@ -50,7 +50,7 @@ IF ( "${DEBUG}" STREQUAL "debug" )
 ENDIF ()
 
 MACRO ( THORIN_RUNTIME_WRAP outfiles )
-    CMAKE_PARSE_ARGUMENTS("TRW" "" "BACKEND" "FILES" ${ARGN})
+    CMAKE_PARSE_ARGUMENTS("TRW" "" "BACKEND" "FLAGS;FILES" ${ARGN})
     IF ( NOT "${TRW_UNPARSED_ARGUMENTS}" STREQUAL "" )
         MESSAGE ( FATAL_ERROR "Unparsed arguments ${TRW_UNPARSED_ARGUMENTS}" )
     ENDIF ()
@@ -73,9 +73,14 @@ MACRO ( THORIN_RUNTIME_WRAP outfiles )
         ${THORIN_RUNTIME_DIR}/platforms/intrinsics_thorin.impala
         ${THORIN_RUNTIME_DIR}/platforms/intrinsics_${TRW_BACKEND}.impala )
 
+    SET ( _impala_flags -emit-llvm -O3 ${DEBUG_FLAGS} )
+    IF (TRW_FLAGS)
+        SET ( _impala_flags ${_impala_flags} ${TRW_FLAGS} )
+    ENDIF ()
+
     # Generate .ll file and patch it
     ADD_CUSTOM_COMMAND ( OUTPUT ${_llfile}
-        COMMAND ${IMPALA_BIN} ${_impala_platform} ${_infiles} -emit-llvm -O3 ${DEBUG_FLAGS}
+        COMMAND ${IMPALA_BIN} ${_impala_platform} ${_infiles} ${_impala_flags}
         COMMAND ${PYTHON_BIN} ${THORIN_RUNTIME_DIR}/post-patcher.py ${TRW_BACKEND} ${CMAKE_CURRENT_BINARY_DIR}/${_basename}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         DEPENDS ${IMPALA_BIN} ${THORIN_LIBRARY} ${PYTHON_BIN} ${THORIN_RUNTIME_DIR}/post-patcher.py ${_impala_platform} ${_infiles} VERBATIM )

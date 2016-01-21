@@ -15,7 +15,6 @@
 #include "thorin/transform/lift_enters.h"
 #include "thorin/transform/lower2cff.h"
 #include "thorin/transform/mem2reg.h"
-#include "thorin/transform/memmap_builtins.h"
 #include "thorin/transform/partial_evaluation.h"
 #include "thorin/transform/dead_load_opt.h"
 #include "thorin/util/array.h"
@@ -52,9 +51,6 @@ World::World(std::string name)
 {
     branch_ = lambda(fn_type({type_bool(), fn_type(), fn_type()}), Location(), CC::C, Intrinsic::Branch, "br");
     end_scope_ = lambda(fn_type(), Location(), CC::C, Intrinsic::EndScope, "end_scope");
-    auto v = type_var();
-    auto f = fn_type({type_bool(), fn_type(), fn_type(), v});
-    f->bind(v);
 }
 
 World::~World() {
@@ -761,15 +757,6 @@ Def World::global_immutable_string(const Location& loc, const std::string& str, 
     return global(definite_array(str_array, loc), loc, false, name);
 }
 
-const Map* World::map(Def device, Def addr_space, Def mem, Def ptr, Def mem_offset, Def mem_size, const Location& loc, const std::string& name) {
-    if (!device->isa<PrimLit>())
-        WLOG("error: target device must be hard-coded at %", device->loc());
-    if (!addr_space->isa<PrimLit>())
-        WLOG("error: address space must be hard-coded at %", addr_space->loc());
-    return map(device->as<PrimLit>()->ps32_value().data(), (AddressSpace)addr_space->as<PrimLit>()->ps32_value().data(),
-               mem, ptr, mem_offset, mem_size, loc, name);
-}
-
 /*
  * guided partial evaluation
  */
@@ -805,12 +792,6 @@ Lambda* World::lambda(FnType fn, const Location& loc, CC cc, Intrinsic intrinsic
         }
     }
 
-    return l;
-}
-
-Lambda* World::meta_lambda() {
-    auto l = lambda(fn_type(), Location(), "meta");
-    l->jump(bottom(fn_type(), l->loc()), {});
     return l;
 }
 
@@ -885,7 +866,6 @@ void World::opt() {
     lower2cff(*this);
     clone_bodies(*this);
     mem2reg(*this);
-    memmap_builtins(*this);
     lift_builtins(*this);
     inliner(*this);
     lift_enters(*this);

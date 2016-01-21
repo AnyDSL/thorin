@@ -16,7 +16,6 @@
                 THORIN_AIR_NODE(Store, store)
             THORIN_AIR_NODE(Enter, enter)
             THORIN_AIR_NODE(Leave, leave)
-            THORIN_AIR_NODE(Map, map)
         THORIN_AIR_NODE(Select, select)
         THORIN_AIR_NODE(Global, global)
         THORIN_AIR_NODE(Slot, slot)
@@ -41,7 +40,7 @@
     // Type
         // PrimType
         THORIN_AIR_NODE(FrameType, frame)
-        THORIN_AIR_NODE(TypeVar, type_var)
+        THORIN_AIR_NODE(TypeParam, type_param)
         THORIN_AIR_NODE(MemType, mem)
         THORIN_AIR_NODE(FnType, fn)
         THORIN_AIR_NODE(PtrType, ptr)

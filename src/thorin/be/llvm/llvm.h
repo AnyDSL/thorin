@@ -7,7 +7,6 @@
 
 #include "thorin/lambda.h"
 #include "thorin/be/llvm/runtime.h"
-#include "thorin/be/llvm/runtimes/generic_runtime.h"
 
 namespace thorin {
 
@@ -17,8 +16,7 @@ typedef LambdaMap<llvm::BasicBlock*> BBMap;
 
 class CodeGen {
 protected:
-    CodeGen(World& world, llvm::CallingConv::ID function_calling_convention,
-            llvm::CallingConv::ID device_calling_convention, llvm::CallingConv::ID kernel_calling_convention);
+    CodeGen(World& world, llvm::CallingConv::ID function_calling_convention, llvm::CallingConv::ID device_calling_convention, llvm::CallingConv::ID kernel_calling_convention);
 
 public:
     World& world() const { return world_; }
@@ -40,13 +38,12 @@ protected:
     virtual llvm::Value* emit_load(const Load*);
     virtual llvm::Value* emit_store(const Store*);
     virtual llvm::Value* emit_lea(const LEA*);
-    virtual llvm::Value* emit_mmap(const Map*);
 
     virtual std::string get_alloc_name() const = 0;
     virtual std::string get_output_name(const std::string& name) const = 0;
     virtual std::string get_binary_output_name(const std::string& name) const = 0;
-    llvm::GlobalVariable* emit_global_memory(llvm::Type*, const std::string&, unsigned);
-    llvm::Value* emit_shared_mmap(Def def, bool prefix=false);
+    llvm::GlobalVariable* emit_global_variable(llvm::Type*, const std::string&, unsigned);
+    Lambda* emit_reserve_shared(const Lambda*, bool prefix=false);
 
 private:
     Lambda* emit_intrinsic(Lambda*);
@@ -55,9 +52,11 @@ private:
     Lambda* emit_sync(Lambda*);
     Lambda* emit_vectorize_continuation(Lambda*);
     Lambda* emit_atomic(Lambda*);
+    Lambda* emit_sizeof(Lambda*);
     Lambda* emit_select(Lambda*);
     Lambda* emit_shuffle(Lambda*);
     Lambda* emit_reinterpret(Lambda*);
+    virtual Lambda* emit_reserve(const Lambda*);
     void emit_result_phi(const Param*, llvm::Value*);
     void emit_vectorize(u32, llvm::Function*, llvm::CallInst*);
 
@@ -79,15 +78,10 @@ protected:
     TypeMap<llvm::Type*> types_;
     std::vector<std::tuple<u32, llvm::Function*, llvm::CallInst*>> wfv_todo_;
 
-    AutoPtr<GenericRuntime> runtime_;
-    AutoPtr<KernelRuntime> cuda_runtime_;
-    AutoPtr<KernelRuntime> nvvm_runtime_;
-    AutoPtr<KernelRuntime> spir_runtime_;
-    AutoPtr<KernelRuntime> opencl_runtime_;
+    AutoPtr<Runtime> runtime_;
     Lambda* entry_ = nullptr;
 
-    friend class GenericRuntime;
-    friend class KernelRuntime;
+    friend class Runtime;
 };
 
 //------------------------------------------------------------------------------

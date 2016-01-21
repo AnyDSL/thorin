@@ -6,7 +6,15 @@
 
 namespace thorin {
 
-unsigned int detail::indent = 0;
+namespace detail {
+
+static unsigned int indent = 0;
+
+void inc_indent() { indent++; }
+void dec_indent() { indent--; }
+unsigned int get_indent() { return indent; }
+
+};
 
 std::string Streamable::to_string() const {
     std::ostringstream os;

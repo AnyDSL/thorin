@@ -64,7 +64,7 @@ private:
     LambdaSet done_;
     std::queue<Lambda*> queue_;
     LambdaSet visited_;
-    HashMap<Array<Def>, Lambda*> cache_;
+    HashMap<Call, Lambda*> cache_;
     bool cur_dirty_;
     bool top_dirty_ = false;
 };
@@ -81,9 +81,12 @@ void PartialEvaluator::run() {
 
         // due to the optimization below to eat up a call, we might see a new Run here
         while (lambda->to()->isa<Run>()) {
+            auto cur = lambda->to();
             init_cur_scope(lambda);
             eval(lambda, continuation(lambda));
             release_cur_scope();
+            if (cur == lambda->to())
+                break;
         }
 
         for (auto succ : top_scope().f_cfg().succs(lambda))
@@ -126,15 +129,17 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
             continue;
         }
 
-        Array<Def> call(cur->size());
-        call.front() = dst;
+        Array<Def> ops(cur->size());
+        ops.front() = dst;
         bool all = true;
-        for (size_t i = 1, e = call.size(); i != e; ++i) {
+        for (size_t i = 1, e = ops.size(); i != e; ++i) {
             if (!cur->op(i)->isa<Hlt>())
-                call[i] = cur->op(i);
+                ops[i] = cur->op(i);
             else
                 all = false;
         }
+
+        Call call(cur->type_args(), ops);
 
         //DLOG("dst: %", dst);
         if (auto cached = find(cache_, call)) {             // check for cached version
@@ -142,7 +147,7 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
             DLOG("using cached call: %", cur);
             return;
         } else {                                            // no cached version found... create a new one
-            auto dropped = drop(cur, call);
+            auto dropped = drop(call);
 
             if (dropped->to() == world().branch()) {
                 // TODO don't stupidly inline functions
@@ -153,7 +158,7 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
             cache_[call] = dropped;
             jump_to_cached_call(cur, dropped, call);
             if (all) {
-                cur->jump(dropped->to(), dropped->args()); // eat up call
+                cur->jump(dropped->to(), dropped->type_args(), dropped->args());
                 done_.erase(cur);
             } else
                 cur = dropped;

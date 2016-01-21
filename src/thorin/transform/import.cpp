@@ -60,9 +60,14 @@ Def import(Type2Type& type_old2new, Def2Def& def_old2new, World& to, Def odef) {
     if (auto oprimop = odef->isa<PrimOp>())
         return def_old2new[oprimop] = oprimop->rebuild(to, nops, ntype);
 
+    auto olambda = odef->as_lambda();
+    Array<Type> ntype_args(olambda->type_args().size());
+    for (size_t i = 0, e = ntype_args.size(); i != e; ++i)
+        ntype_args[i] = import(type_old2new, to, olambda->type_arg(i));
+
     assert(nlambda && &nlambda->world() == &to);
     if (size > 0)
-        nlambda->jump(nops[0], nops.skip_front());
+        nlambda->jump(nops.front(), ntype_args, nops.skip_front());
     return nlambda;
 }
 

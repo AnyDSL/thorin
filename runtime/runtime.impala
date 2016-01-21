@@ -1,0 +1,74 @@
+extern "C" {
+    fn thorin_info() -> ();
+
+    fn thorin_alloc(i32, i64) -> &i8;
+    fn thorin_alloc_host(i32, i64) -> &i8;
+    fn thorin_alloc_unified(i32, i64) -> &i8;
+    fn thorin_get_device_ptr(i32, &i8) -> &i8;
+    fn thorin_release(i32, &i8) -> ();
+    fn thorin_release_host(i32, &i8) -> ();
+
+    fn thorin_copy(i32, &i8, i64, i32, &i8, i64, i64) -> ();
+
+    fn thorin_random_val() -> f32;
+    fn thorin_random_seed(u32) -> ();
+
+    fn thorin_get_micro_time() -> i64;
+    fn thorin_get_kernel_time() -> i64;
+
+    fn thorin_print_char(u8) -> ();
+    fn thorin_print_int(i32) -> ();
+    fn thorin_print_long(i64) -> ();
+    fn thorin_print_float(f32) -> ();
+    fn thorin_print_double(f64) -> ();
+    fn thorin_print_string(&[u8]) -> ();
+}
+
+fn thorin_device(platform: i32, device: i32) -> i32 { platform | (device << 4) }
+
+struct Buffer {
+    device: i32,
+    data: &[i8]
+}
+
+fn alloc(dev: i32, size: i32) -> Buffer {
+    Buffer {
+        device: dev,
+        data: thorin_alloc(dev, size as i64) as &[i8]
+    }
+}
+fn alloc_host(dev: i32, size: i32) -> Buffer {
+    Buffer {
+        device: dev,
+        data: thorin_alloc_host(dev, size as i64) as &[i8]
+    }
+}
+fn alloc_unified(dev: i32, size: i32) -> Buffer {
+    Buffer {
+        device: dev,
+        data: thorin_alloc_unified(dev, size as i64) as &[i8]
+    }
+}
+fn release(a: Buffer) -> () { thorin_release(a.device, a.data as &i8) }
+
+fn alloc_cpu(size: i32) -> Buffer { alloc(0, size) }
+fn alloc_cuda(dev: i32, size: i32) -> Buffer { alloc(thorin_device(1, dev), size) }
+fn alloc_cuda_host(dev: i32, size: i32) -> Buffer { alloc_host(thorin_device(1, dev), size) }
+fn alloc_cuda_unified(dev: i32, size: i32) -> Buffer { alloc_unified(thorin_device(1, dev), size) }
+fn alloc_opencl(dev: i32, size: i32) -> Buffer { alloc(thorin_device(2, dev), size) }
+fn alloc_opencl_unified(dev: i32, size: i32) -> Buffer { alloc_unified(thorin_device(2, dev), size) }
+
+fn copy(a: Buffer, b: Buffer, size: i32) -> () {
+    thorin_copy(a.device, a.data as &i8, 0i64, b.device, b.data as &i8, 0i64, size as i64)
+}
+
+fn copy_offset(a: Buffer, off_a: i32, b: Buffer, off_b: i32, size: i32) -> () {
+    thorin_copy(a.device, a.data as &i8, off_a as i64, b.device, b.data as &i8, off_b as i64, size as i64)
+}
+
+fn print_char(c: u8) -> () { thorin_print_char(c) }
+fn print_int(i: i32) -> () { thorin_print_int(i) }
+fn print_long(l: i64) -> () { thorin_print_long(l) }
+fn print_float(f: f32) -> () { thorin_print_float(f) }
+fn print_double(d: f64) -> () { thorin_print_double(d) }
+fn print_string(s: &[u8]) -> () { thorin_print_string(s) }

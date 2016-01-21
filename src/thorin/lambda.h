@@ -75,19 +75,13 @@ enum class Intrinsic : uint8_t {
     Sync,                       ///< Internal Parallel-CPU-Backend.
     Vectorize,                  ///< External vectorizer.
     _Accelerator_End,
-    Mmap = _Accelerator_End,    ///< Intrinsic memory-mapping function.
-    Munmap,                     ///< Intrinsic memory-unmapping function.
+    Reserve = _Accelerator_End, ///< Intrinsic memory reserve function
     Atomic,                     ///< Intrinsic atomic function
     Branch,                     ///< branch(cond, T, F).
     EndScope,                   ///< Dummy function which marks the end of a @p Scope.
-    Select4,                    ///< Intrinsic vector select function (4 components)
-    Select8,                    ///< Intrinsic vector select function (8 components)
-    Select16,                   ///< Intrinsic vector select function (16 components)
-    Shuffle4,                   ///< Intrinsic vector shuffle function (4 components)
-    Shuffle8,                   ///< Intrinsic vector shuffle function (8 components)
-    Shuffle16,                  ///< Intrinsic vector shuffle function (16 components)
     Reinterpret,                ///< Intrinsic for reinterpretation of one type as another one
     Select,                     ///< Intrinsic vector 'select' function
+    Sizeof,                     ///< Sizeof intrinsic
     Shuffle,                    ///< Intrinsic vector 'shuffle' function
 };
 
@@ -132,11 +126,17 @@ public:
     Lambdas indirect_succs() const;
     Lambdas preds() const;
     Lambdas succs() const;
+    ArrayRef<TypeParam> type_params() const { return type()->type_params(); }
+    TypeParam type_param(size_t i) const { return type_params()[i]; }
+    size_t num_type_params() const { return type_params().size(); }
     ArrayRef<const Param*> params() const { return params_; }
     Array<Def> params_as_defs() const;
     const Param* param(size_t i) const { assert(i < num_params()); return params_[i]; }
     const Param* mem_param() const;
     Def to() const;
+    ArrayRef<Type> type_args() const { return type_args_; }
+    Type type_arg(size_t i) const { return type_args_[i]; }
+    size_t num_type_args() const { return type_args_.size(); }
     ArrayRef<Def> args() const { return empty() ? ArrayRef<Def>(0, 0) : ops().skip_front(); }
     Def arg(size_t i) const { return args()[i]; }
     FnType type() const { return DefNode::type().as<FnType>(); }
@@ -173,10 +173,10 @@ public:
 
     // terminate
 
-    void jump(Def to, ArrayRef<Def> args = ArrayRef<Def>(0, 0));
+    void jump(Def to, Array<Type> type_args, ArrayRef<Def> args);
     void jump(JumpTarget&);
     void branch(Def cond, Def t, Def f);
-    std::pair<Lambda*, Def> call(Def to, ArrayRef<Def> args, Type ret_type);
+    std::pair<Lambda*, Def> call(Def to, ArrayRef<Type> type_args, ArrayRef<Def> args, Type ret_type);
 
     // value numbering
 
@@ -234,6 +234,7 @@ private:
     ScopeInfo* find_scope(const Scope*);
     ScopeInfo* register_scope(const Scope* scope) { scopes_.emplace_front(scope); return &scopes_.front(); }
     void unregister_scope(const Scope* scope) { scopes_.erase(list_iter(scope)); }
+    Array<Type> type_args_;
 
     /**
      * There exist three cases to distinguish here.
@@ -262,7 +263,72 @@ private:
     friend class World;
 };
 
-void jump_to_cached_call(Lambda* src, Lambda* dst, ArrayRef<Def> call);
+struct Call {
+    Call(ArrayRef<Type> type_args, Array<Def> ops)
+        : type_args_(type_args)
+        , ops_(ops)
+    {}
+    Call(Array<Type>&& type_args, Array<Def>&& ops)
+        : type_args_(std::move(type_args))
+        , ops_(std::move(ops))
+    {}
+    Call(const Call& call)
+        : type_args_(call.type_args())
+        , ops_(call.ops())
+    {}
+    Call(Call&& call)
+        : type_args_(std::move(call.type_args_))
+        , ops_(std::move(call.ops_))
+    {}
+    Call(const Lambda* lambda)
+        : type_args_(lambda->num_type_args())
+        , ops_(lambda->size())
+    {}
+
+    ArrayRef<Type> type_args() const { return type_args_; }
+    size_t num_type_args() const { return type_args().size(); }
+    Type type_arg(size_t i) const { return type_args_[i]; }
+    Type& type_arg(size_t i) { return type_args_[i]; }
+
+    ArrayRef<Def> ops() const { return ops_; }
+    size_t num_ops() const { return ops().size(); }
+    Def op(size_t i) const { return ops_[i]; }
+    Def& to(size_t i) { return ops_[i]; }
+    Def to() const { return ops_.front(); }
+    Def& to() { return ops_.front(); }
+
+    ArrayRef<Def> args() const { return ops_.skip_front(); }
+    size_t num_args() const { return args().size(); }
+    Def arg(size_t i) const { return args()[i]; }
+    Def& arg(size_t i) { return ops_[i+1]; }
+
+    bool operator==(const Call& other) const { return this->type_args() == other.type_args() && this->ops() == other.ops(); }
+    Call& operator=(Call other) { swap(*this, other); return *this; }
+
+    friend void swap(Call& call1, Call& call2) {
+        using std::swap;
+        swap(call1.type_args_, call2.type_args_);
+        swap(call1.ops_,       call2.ops_);
+    }
+
+private:
+    Array<Type> type_args_;
+    Array<Def> ops_;
+};
+
+template<>
+struct Hash<Call> {
+    uint64_t operator () (const Call& call) const {
+        uint64_t seed = hash_begin();
+        for (auto type : call.type_args())
+            seed = hash_combine(seed, type ? type->gid() : 0);
+        for (auto arg : call.ops())
+            seed = hash_combine(seed,  arg ?  arg->gid() : 0);
+        return seed;
+    }
+};
+
+void jump_to_cached_call(Lambda* src, Lambda* dst, const Call&);
 
 //------------------------------------------------------------------------------
 

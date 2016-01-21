@@ -1,5 +1,7 @@
 #include "thorin/be/llvm/cpu.h"
 
+#include <llvm/ADT/Triple.h>
+#include <llvm/ExecutionEngine/ExecutionEngine.h>
 #include <llvm/Support/Host.h>
 #include <llvm/Support/TargetRegistry.h>
 #include <llvm/Support/TargetSelect.h>

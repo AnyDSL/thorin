@@ -84,7 +84,7 @@ public:
     }
     FnType              fn_type() { return fn0_; }       ///< Returns an empty @p FnType.
     FnType              fn_type(ArrayRef<Type> args) { return join(new FnTypeNode(*this, args)); }
-    TypeVar             type_var() { return join(new TypeVarNode(*this)); }
+    TypeParam           type_param() { return join(new TypeParamNode(*this)); }
     DefiniteArrayType   definite_array_type(Type elem, u64 dim) { return join(new DefiniteArrayTypeNode(*this, elem, dim)); }
     IndefiniteArrayType indefinite_array_type(Type elem) { return join(new IndefiniteArrayTypeNode(*this, elem)); }
 
@@ -177,11 +177,6 @@ public:
     Def global(Def init, const Location& loc, bool is_mutable = true, const std::string& name = "");
     Def global_immutable_string(const Location& loc, const std::string& str, const std::string& name = "");
     Def lea(Def ptr, Def index, const Location& loc, const std::string& name = "") { return cse(new LEA(ptr, index, loc, name)); }
-    const Map* map(Def device, Def addr_space, Def mem, Def ptr, Def mem_offset, Def mem_size, const Location& loc, const std::string& name = "");
-    const Map* map(uint32_t device, AddressSpace addr_space, Def mem, Def ptr, Def mem_offset,
-                   Def mem_size, const Location& loc, const std::string& name = "") {
-        return cse(new Map(device, addr_space, mem, ptr, mem_offset, mem_size, loc, name));
-    }
 
     // misc
 
@@ -194,7 +189,6 @@ public:
     Lambda* lambda(FnType fn, const Location& loc, const std::string& name) { return lambda(fn, loc, CC::C, Intrinsic::None, name); }
     Lambda* lambda(const Location& loc, const std::string& name) { return lambda(fn_type(), loc, CC::C, Intrinsic::None, name); }
     Lambda* basicblock(const Location& loc, const std::string& name = "");
-    Lambda* meta_lambda();
     Lambda* branch() const { return branch_; }
     Lambda* end_scope() const { return end_scope_; }
 

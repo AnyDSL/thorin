@@ -11,16 +11,34 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-void TypeNode::bind(TypeVar type_var) const {
-    assert(!type_var->is_unified());
-    type_vars_.push_back(type_var);
-    type_var->bound_at_ = this;
+void TypeNode::bind(TypeParam type_param) const {
+    assert(!type_param->is_unified());
+    type_params_.push_back(type_param);
+    type_param->bound_at_ = this;
 }
 
 void TypeNode::dump() const { std::cout << Type(this) << std::endl; }
 size_t TypeNode::length() const { return as<VectorTypeNode>()->length(); }
 Type TypeNode::elem(const Def& def) const { return elem(def->primlit_value<size_t>()); }
-const TypeNode* TypeNode::unify() const { return world().unify_base(this); }
+
+const TypeNode* TypeNode::unify() const {
+    static const char* names[] = {"α", "β", "γ", "δ", "ε", "ζ", "η", "θ", "ι", "κ", "λ", "μ",
+                                  "ν", "ξ", "ο", "π", "ρ", "σ", "τ", "υ", "φ", "χ", "ψ", "ω"};
+    static const size_t num_names = sizeof(names)/sizeof(names[0]);
+
+    bool first = !is_unified();
+    auto type = world().unify_base(this);
+
+    if (first) {
+        for (size_t i = 0, e = type->num_type_params(); i != e; ++i) {
+            auto type_param = type->type_param(i);
+            for (size_t j = 0; j <= i / num_names; ++j)
+                type_param->name_ += names[i % num_names];
+        }
+    }
+
+    return type;
+}
 
 VectorType VectorTypeNode::scalarize() const {
     if (auto ptr = isa<PtrTypeNode>())
@@ -74,7 +92,7 @@ Type IndefiniteArrayTypeNode::vrebuild(World& to, ArrayRef<Type> args) const { r
 Type MemTypeNode            ::vrebuild(World& to, ArrayRef<Type>     ) const { return to.mem_type(); }
 Type PrimTypeNode           ::vrebuild(World& to, ArrayRef<Type>     ) const { return to.type(primtype_kind(), length()); }
 Type TupleTypeNode          ::vrebuild(World& to, ArrayRef<Type> args) const { return to.tuple_type(args); }
-Type TypeVarNode            ::vrebuild(World& to, ArrayRef<Type>     ) const { return to.type_var(); }
+Type TypeParamNode            ::vrebuild(World& to, ArrayRef<Type>     ) const { return to.type_param(); }
 
 Type PtrTypeNode::vrebuild(World& to, ArrayRef<Type> args) const {
     return to.ptr_type(args.front(), length(), device(), addr_space());
@@ -114,18 +132,18 @@ IndefiniteArrayType TypeNode::is_indefinite() const {
 
 IndefiniteArrayType IndefiniteArrayTypeNode::is_indefinite() const { return this; }
 
-TypeVarSet TypeNode::free_type_vars() const { TypeVarSet bound, free; free_type_vars(bound, free); return free; }
+TypeParamSet TypeNode::free_type_params() const { TypeParamSet bound, free; free_type_params(bound, free); return free; }
 
-void TypeNode::free_type_vars(TypeVarSet& bound, TypeVarSet& free) const {
-    for (auto type_var : type_vars())
-        bound.insert(*type_var);
+void TypeNode::free_type_params(TypeParamSet& bound, TypeParamSet& free) const {
+    for (auto type_param : type_params())
+        bound.insert(*type_param);
 
     for (auto arg : args()) {
-        if (auto type_var = arg->isa<TypeVarNode>()) {
-            if (!bound.contains(type_var))
-                free.insert(type_var);
+        if (auto type_param = arg->isa<TypeParamNode>()) {
+            if (!bound.contains(type_param))
+                free.insert(type_param);
         } else
-            arg->free_type_vars(bound, free);
+            arg->free_type_params(bound, free);
     }
 }
 
@@ -136,7 +154,7 @@ void TypeNode::free_type_vars(TypeVarSet& bound, TypeVarSet& free) const {
  */
 
 uint64_t TypeNode::hash() const {
-    uint64_t seed = hash_combine(hash_combine(hash_begin((int) kind()), num_args()), num_type_vars());
+    uint64_t seed = hash_combine(hash_combine(hash_begin((int) kind()), num_args()), num_type_params());
     for (auto arg : args_)
         seed = hash_combine(seed, arg->hash());
     return seed;
@@ -154,18 +172,18 @@ uint64_t PtrTypeNode::hash() const {
 
 bool TypeNode::equal(const TypeNode* other) const {
     bool result = this->kind() == other->kind() && this->num_args() == other->num_args()
-        && this->num_type_vars() == other->num_type_vars();
+        && this->num_type_params() == other->num_type_params();
 
     if (result) {
-        for (size_t i = 0, e = num_type_vars(); result && i != e; ++i) {
-            assert(this->type_var(i)->equiv_ == nullptr);
-            this->type_var(i)->equiv_ = *other->type_var(i);
+        for (size_t i = 0, e = num_type_params(); result && i != e; ++i) {
+            assert(this->type_param(i)->equiv_ == nullptr);
+            this->type_param(i)->equiv_ = *other->type_param(i);
         }
 
         for (size_t i = 0, e = num_args(); result && i != e; ++i)
             result &= this->args_[i]->equal(*other->args_[i]);
 
-        for (auto var : type_vars())
+        for (auto var : type_params())
             var->equiv_ = nullptr;
     }
 
@@ -179,9 +197,9 @@ bool PtrTypeNode::equal(const TypeNode* other) const {
     return ptr->device() == device() && ptr->addr_space() == addr_space();
 }
 
-bool TypeVarNode::equal(const TypeNode* other) const {
-    if (auto typevar = other->isa<TypeVarNode>())
-        return this->equiv_ == typevar;
+bool TypeParamNode::equal(const TypeNode* other) const {
+    if (auto type_param = other->isa<TypeParamNode>())
+        return this->equiv_ == type_param;
     return false;
 }
 
@@ -191,9 +209,9 @@ bool TypeVarNode::equal(const TypeNode* other) const {
  * stream
  */
 
-std::ostream& stream_type_vars(std::ostream& os, Type type) {
-   if (type->num_type_vars() != 0)
-       return stream_list(os, type->type_vars(), [&](TypeVar type_var) { os << type_var; }, "[", "]");
+std::ostream& stream_type_params(std::ostream& os, Type type) {
+   if (type->num_type_params() != 0)
+       return stream_list(os, type->type_params(), [&](TypeParam type_param) { os << type_param; }, "[", "]");
    return os;
 }
 
@@ -212,18 +230,18 @@ std::ostream& FrameTypeNode::stream(std::ostream& os) const { return os << "fram
 
 std::ostream& FnTypeNode::stream(std::ostream& os) const {
     os << "fn";
-    stream_type_vars(os, this);
+    stream_type_params(os, this);
     return stream_type_args(os, this);
 }
 
 std::ostream& TupleTypeNode::stream(std::ostream& os) const {
-  stream_type_vars(os, this);
+  stream_type_params(os, this);
   return stream_type_args(os, this);
 }
 
 std::ostream& StructAbsTypeNode::stream(std::ostream& os) const {
     os << name();
-    return stream_type_vars(os, this);
+    return stream_type_params(os, this);
     // TODO emit args - but don't do this inline: structs may be recursive
     //return emit_type_args(struct_abs);
 }
@@ -233,20 +251,19 @@ std::ostream& StructAppTypeNode::stream(std::ostream& os) const {
     return stream_type_elems(os, this);
 }
 
-std::ostream& TypeVarNode::stream(std::ostream& os) const { return streamf(os, "<%>", gid()); }
+std::ostream& TypeParamNode::stream(std::ostream& os) const { return os << name_; }
 std::ostream& IndefiniteArrayTypeNode::stream(std::ostream& os) const { return streamf(os, "[%]", elem_type()); }
 std::ostream& DefiniteArrayTypeNode::stream(std::ostream& os) const { return streamf(os, "[% x %]", dim(), elem_type()); }
 
 std::ostream& PtrTypeNode::stream(std::ostream& os) const {
-    if (this->is_vector())
-        os << '<' << this->length() << " x ";
-    os << this->referenced_type() << '*';
-    if (this->is_vector())
+    if (is_vector())
+        os << '<' << length() << " x ";
+    os << referenced_type() << '*';
+    if (is_vector())
         os << '>';
-    auto device = this->device();
-    if (device != -1)
-        os << '[' << device << ']';
-    switch (this->addr_space()) {
+    if (device() != -1)
+        os << '[' << device() << ']';
+    switch (addr_space()) {
         case AddressSpace::Global:   os << "[Global]";   break;
         case AddressSpace::Texture:  os << "[Tex]";      break;
         case AddressSpace::Shared:   os << "[Shared]";   break;
@@ -257,16 +274,16 @@ std::ostream& PtrTypeNode::stream(std::ostream& os) const {
 }
 
 std::ostream& PrimTypeNode::stream(std::ostream& os) const {
-    if (this->is_vector())
-        os << "<" << this->length() << " x ";
+    if (is_vector())
+        os << "<" << length() << " x ";
 
-    switch (this->primtype_kind()) {
+    switch (primtype_kind()) {
 #define THORIN_ALL_TYPE(T, M) case Node_PrimType_##T: os << #T; break;
 #include "thorin/tables/primtypetable.h"
           default: THORIN_UNREACHABLE;
     }
 
-    if (this->is_vector())
+    if (is_vector())
         os << ">";
 
     return os;
@@ -284,27 +301,26 @@ std::ostream& TypeNode::stream(std::ostream& os) const {
  */
 
 Type2Type type2type(const TypeNode* type, ArrayRef<Type> args) {
-    assert(type->num_type_vars() == args.size());
+    assert(type->num_type_params() == args.size());
     Type2Type map;
-    size_t i = 0;
-    for (TypeVar v : type->type_vars())
-        map[*v] = *args[i++];
+    for (size_t i = 0, e = args.size(); i != e; ++i)
+        map[*type->type_param(i)] = *args[i];
     assert(map.size() == args.size());
     return map;
 }
 
 Type TypeNode::instantiate(ArrayRef<Type> types) const {
-    assert(types.size() == num_type_vars());
+    assert(types.size() == num_type_params());
     Type2Type map;
     for (size_t i = 0, e = types.size(); i != e; ++i)
-        map[*type_var(i)] = *types[i];
+        map[*type_param(i)] = *types[i];
     return instantiate(map);
 }
 
 Type TypeNode::instantiate(Type2Type& map) const {
 #ifndef NDEBUG
-    for (auto type_var : type_vars())
-        assert(map.contains(*type_var));
+    for (auto type_param : type_params())
+        assert(map.contains(*type_param));
 #endif
     return vinstantiate(map);
 }
@@ -313,14 +329,14 @@ Type TypeNode::specialize(Type2Type& map) const {
     if (auto result = find(map, this))
         return result;
 
-    for (auto type_var : type_vars()) {
-        assert(!map.contains(*type_var));
-        map[*type_var] = *world().type_var();
+    for (auto type_param : type_params()) {
+        assert(!map.contains(*type_param));
+        map[*type_param] = *world().type_param();
     }
 
     auto t = instantiate(map);
-    for (auto type_var : type_vars())
-        t->bind(map[*type_var]->as<TypeVarNode>());
+    for (auto type_param : type_params())
+        t->bind(map[*type_param]->as<TypeParamNode>());
 
     return t;
 }
@@ -335,7 +351,7 @@ Array<Type> TypeNode::specialize_args(Type2Type& map) const {
 Type FrameTypeNode::vinstantiate(Type2Type& map) const { return map[this] = this; }
 Type MemTypeNode  ::vinstantiate(Type2Type& map) const { return map[this] = this; }
 Type PrimTypeNode ::vinstantiate(Type2Type& map) const { return map[this] = this; }
-Type TypeVarNode  ::vinstantiate(Type2Type& map) const { return map[this] = this; }
+Type TypeParamNode::vinstantiate(Type2Type& map) const { return map[this] = this; }
 
 Type DefiniteArrayTypeNode::vinstantiate(Type2Type& map) const {
     return map[this] = *world().definite_array_type(elem_type()->specialize(map), dim());

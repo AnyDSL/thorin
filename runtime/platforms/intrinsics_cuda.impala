@@ -41,49 +41,51 @@ extern "device" {
     fn fmaxf(f32, f32) -> f32;
     fn fmin(f64, f64) -> f64;
     fn fmax(f64, f64) -> f64;
-    fn "atomicAdd" atomic_add_global(&i32, i32) -> i32;
-    fn "atomicAdd" atomic_add_local(&i32, i32) -> i32;
-    fn "atomicMin" atomic_min_global(&i32, i32) -> i32;
-    fn "atomicMin" atomic_min_local(&i32, i32) -> i32;
+    fn "atomicAdd" atomic_add_global(&[1]i32, i32) -> i32;
+    fn "atomicAdd" atomic_add_local(&[3]i32, i32) -> i32;
+    fn "atomicMin" atomic_min_global(&[1]i32, i32) -> i32;
+    fn "atomicMin" atomic_min_local(&[3]i32, i32) -> i32;
+    fn "__ldg" __ldg_f32(&[1]f32) -> f32;
+    fn "__ldg" __ldg_i32(&[1]i32) -> i32;
     // wrappers for threadIdx.x etc. are provided
-    fn threadIdx_x() -> int;
-    fn threadIdx_y() -> int;
-    fn threadIdx_z() -> int;
-    fn blockIdx_x() -> int;
-    fn blockIdx_y() -> int;
-    fn blockIdx_z() -> int;
-    fn blockDim_x() -> int;
-    fn blockDim_y() -> int;
-    fn blockDim_z() -> int;
-    fn gridDim_x() -> int;
-    fn gridDim_y() -> int;
-    fn gridDim_z() -> int;
+    fn threadIdx_x() -> i32;
+    fn threadIdx_y() -> i32;
+    fn threadIdx_z() -> i32;
+    fn blockIdx_x() -> i32;
+    fn blockIdx_y() -> i32;
+    fn blockIdx_z() -> i32;
+    fn blockDim_x() -> i32;
+    fn blockDim_y() -> i32;
+    fn blockDim_z() -> i32;
+    fn gridDim_x() -> i32;
+    fn gridDim_y() -> i32;
+    fn gridDim_z() -> i32;
 }
 
-fn acc(dev: int, dim: (int, int, int), block: (int, int, int), body: fn() -> ()) -> () { cuda(dev, dim, block, body) }
-fn acc_tidx() -> int    { threadIdx_x() }
-fn acc_tidy() -> int    { threadIdx_y() }
-fn acc_tidz() -> int    { threadIdx_z() }
-fn acc_bidx() -> int    { blockIdx_x() }
-fn acc_bidy() -> int    { blockIdx_y() }
-fn acc_bidz() -> int    { blockIdx_z() }
-fn acc_bdimx() -> int   { blockDim_x() }
-fn acc_bdimy() -> int   { blockDim_y() }
-fn acc_bdimz() -> int   { blockDim_z() }
-fn acc_gdimx() -> int   { gridDim_x() }
-fn acc_gdimy() -> int   { gridDim_y() }
-fn acc_gdimz() -> int   { gridDim_z() }
-fn acc_gidx() -> int    { acc_tidx() + acc_bdimx() * acc_bidx() }
-fn acc_gidy() -> int    { acc_tidy() + acc_bdimy() * acc_bidy() }
-fn acc_gidz() -> int    { acc_tidz() + acc_bdimz() * acc_bidz() }
-fn acc_barrier() -> ()  { __syncthreads() }
-fn acc_vector_length() -> int { 32 }
-fn acc_mem() -> int     { 1 }
-fn acc_tex() -> int     { 2 }
-fn acc_spm() -> int     { 3 }
-fn acc_cst() -> int     { 4 }
-fn acc_dev() -> int     { 0 }
+fn acc(dev: i32, dim: (i32, i32, i32), block: (i32, i32, i32), body: fn() -> ()) -> () { cuda(dev, dim, block, body) }
+fn acc_alloc(dev: i32, size: i32) -> Buffer { alloc_cuda(dev, size) }
+fn acc_alloc_unified(dev: i32, size: i32) -> Buffer { alloc_cuda_unified(dev, size) }
+fn acc_tidx() -> i32     { threadIdx_x() }
+fn acc_tidy() -> i32     { threadIdx_y() }
+fn acc_tidz() -> i32     { threadIdx_z() }
+fn acc_bidx() -> i32     { blockIdx_x() }
+fn acc_bidy() -> i32     { blockIdx_y() }
+fn acc_bidz() -> i32     { blockIdx_z() }
+fn acc_bdimx() -> i32    { blockDim_x() }
+fn acc_bdimy() -> i32    { blockDim_y() }
+fn acc_bdimz() -> i32    { blockDim_z() }
+fn acc_gdimx() -> i32    { gridDim_x() }
+fn acc_gdimy() -> i32    { gridDim_y() }
+fn acc_gdimz() -> i32    { gridDim_z() }
+fn acc_gidx() -> i32     { acc_tidx() + acc_bdimx() * acc_bidx() }
+fn acc_gidy() -> i32     { acc_tidy() + acc_bdimy() * acc_bidy() }
+fn acc_gidz() -> i32     { acc_tidz() + acc_bdimz() * acc_bidz() }
+fn acc_barrier() -> ()   { __syncthreads() }
+fn acc_use_tex() -> bool { true }
+fn acc_dev() -> i32      { 0 }
 
+fn ldg_f32(a: &[1]f32) -> f32 { __ldg_f32(a) }
+fn ldg_i32(a: &[1]i32) -> i32 { __ldg_i32(a) }
 fn madf(a: f32, b: f32, c: f32) -> f32 { fmaf(a, b, c) }
 fn mad(a: f64, b: f64, c: f64) -> f64 { fma(a, b, c) }
 

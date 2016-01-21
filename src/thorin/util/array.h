@@ -126,6 +126,12 @@ public:
     {
         std::copy(other.begin(), other.end(), this->begin());
     }
+    Array(const std::vector<T>& other)
+        : size_(other.size())
+        , ptr_(new T[other.size()])
+    {
+        std::copy(other.begin(), other.end(), this->begin());
+    }
     template<class I>
     Array(const I begin, const I end)
         : size_(std::distance(begin, end))
@@ -213,7 +219,7 @@ inline size_t hash_combine(size_t seed, thorin::ArrayRef<T> aref) {
 
 template<class T>
 struct Hash<thorin::ArrayRef<T>> {
-    uint64_t operator () (thorin::ArrayRef<T> aref) const { return hash_combine(0, aref); }
+    uint64_t operator () (thorin::ArrayRef<T> aref) const { return hash_combine(hash_begin(), aref); }
 };
 
 template<class T>

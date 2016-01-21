@@ -204,39 +204,36 @@ struct Option<YCompCommandLine, T> : public OptionBase<YCompCommandLine, T, Opti
         // it points to the current argument
         // -> skip it
         ++it;
-        do
-        {
-            std::string graph = *it++;
-            bool temp = true;
-            std::string file;
+        std::string graph = *it++;
+        bool temp = true;
+        std::string file;
 
-            std::string arg2;
-            if(has_next(it)) {
-                arg2 = *it++;
+        std::string arg2;
+        if(has_next(it)) {
+            arg2 = *it++;
 
-                if(arg2.compare("true") == 0) {
-                    temp = true;
-                    if(has_next(it)) {
-                        file = *it++;
-                    } else {
-                        std::cerr << "Not enough args!" << std::endl;
-                    }
-                } else if(arg2.compare("false") == 0) {
-                    temp = false;
-                    if(has_next(it)) {
-                        file = *it++;
-                    }else {
-                        std::cerr << "Not enough args!" << std::endl;
-                    }
+            if(arg2.compare("true") == 0) {
+                temp = true;
+                if(has_next(it)) {
+                    file = *it++;
                 } else {
-                    file = arg2;
+                    std::cerr << "Not enough args, missing yComp output file." << std::endl;
                 }
-
-                OptionBase<YCompCommandLine, T, self>::target()->add(graph, temp, file);
+            } else if(arg2.compare("false") == 0) {
+                temp = false;
+                if(has_next(it)) {
+                    file = *it++;
+                }else {
+                    std::cerr << "Not enough args, missing yComp output file." << std::endl;
+                }
             } else {
-                std::cerr << "Not enough args!" << std::endl;
+                file = arg2;
             }
-        } while (has_next(it));
+
+            OptionBase<YCompCommandLine, T, self>::target()->add(graph, temp, file);
+        } else {
+            std::cerr << "Not enough args, missing graph direction and/or file." << std::endl;
+        }
         return it;
     }
 };

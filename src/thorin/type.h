@@ -25,7 +25,7 @@ class FnTypeNode;               typedef Proxy<FnTypeNode>               FnType;
 class ArrayTypeNode;            typedef Proxy<ArrayTypeNode>            ArrayType;
 class DefiniteArrayTypeNode;    typedef Proxy<DefiniteArrayTypeNode>    DefiniteArrayType;
 class IndefiniteArrayTypeNode;  typedef Proxy<IndefiniteArrayTypeNode>  IndefiniteArrayType;
-class TypeVarNode;              typedef Proxy<TypeVarNode>              TypeVar;
+class TypeParamNode;            typedef Proxy<TypeParamNode>            TypeParam;
 
 //------------------------------------------------------------------------------
 
@@ -43,7 +43,7 @@ template<class To>
 using TypeMap    = HashMap<const TypeNode*, To, GIDHash<const TypeNode*>, GIDEq<const TypeNode*>>;
 using TypeSet    = HashSet<const TypeNode*, GIDHash<const TypeNode*>, GIDEq<const TypeNode*>>;
 using Type2Type  = TypeMap<const TypeNode*>;
-using TypeVarSet = HashSet<const TypeVarNode*, GIDHash<const TypeVarNode*>, GIDEq<const TypeVarNode*>>;
+using TypeParamSet = HashSet<const TypeParamNode*, GIDHash<const TypeParamNode*>, GIDEq<const TypeParamNode*>>;
 
 Type2Type type2type(const TypeNode*, ArrayRef<Type>);
 template<class T>
@@ -156,23 +156,21 @@ public:
     NodeKind kind() const { return kind_; }
     bool is_corenode() const { return ::thorin::is_corenode(kind()); }
     ArrayRef<Type> args() const { return args_; }
-    ArrayRef<TypeVar> type_vars() const { return type_vars_; }
-    size_t num_type_vars() const { return type_vars().size(); }
+    ArrayRef<TypeParam> type_params() const { return type_params_; }
+    size_t num_type_params() const { return type_params().size(); }
     Type arg(size_t i) const { assert(i < args().size()); return args()[i]; }
-    TypeVar type_var(size_t i) const { assert(i < type_vars().size()); return type_vars()[i]; }
-    void bind(TypeVar v) const;
+    TypeParam type_param(size_t i) const { assert(i < type_params().size()); return type_params()[i]; }
+    void bind(TypeParam) const;
     size_t num_args() const { return args_.size(); }
-    bool is_polymorphic() const { return num_type_vars() > 0; }
+    bool is_polymorphic() const { return num_type_params() > 0; }
     bool empty() const { return args_.empty(); }
     void dump() const;
     World& world() const { return world_; }
-    bool check_with(Type) const { return true; } // TODO
-    bool infer_with(Type2Type&, Type) const { return true; } // TODO
     const TypeNode* representative() const { return representative_; }
     bool is_unified() const { return representative_ != nullptr; }
     const TypeNode* unify() const;
-    void free_type_vars(TypeVarSet& bound, TypeVarSet& free) const;
-    TypeVarSet free_type_vars() const;
+    void free_type_params(TypeParamSet& bound, TypeParamSet& free) const;
+    TypeParamSet free_type_params() const;
     size_t gid() const { return gid_; }
     int order() const { return order_; }
     /// Returns the vector length. Raises an assertion if this type is not a @p VectorType.
@@ -210,8 +208,6 @@ public:
     virtual bool is_closed() const;
     virtual IndefiniteArrayType is_indefinite() const;
     virtual bool use_lea() const { return false; }
-
-    // stream
     virtual std::ostream& stream(std::ostream&) const;
 
 protected:
@@ -226,7 +222,7 @@ private:
     mutable const TypeNode* representative_;
     World& world_;
     NodeKind kind_;
-    mutable std::vector<TypeVar> type_vars_;
+    mutable std::vector<TypeParam> type_params_;
     std::vector<Type> args_;
     mutable size_t gid_;
 
@@ -279,7 +275,7 @@ protected:
     }
 
 public:
-    /// The number of vector argents - the vector length.
+    /// The number of vector arguments - the vector length.
     size_t length() const { return length_; }
     bool is_vector() const { return length_ != 1; }
     /// Rebuilds the type with vector length 1.
@@ -508,10 +504,10 @@ private:
     friend class World;
 };
 
-class TypeVarNode : public TypeNode {
+class TypeParamNode : public TypeNode {
 private:
-    TypeVarNode(World& world)
-        : TypeNode(world, Node_TypeVar, {})
+    TypeParamNode(World& world)
+        : TypeNode(world, Node_TypeParam, {})
         , equiv_(nullptr)
     {}
 
@@ -527,16 +523,18 @@ private:
     virtual Type vinstantiate(Type2Type&) const override;
 
     mutable const TypeNode* bound_at_;
-    mutable const TypeVarNode* equiv_;
+    mutable const TypeParamNode* equiv_;
+    mutable std::string name_;
 
     friend bool TypeNode::equal(const TypeNode*) const;
-    friend void TypeNode::bind(TypeVar type_var) const;
+    friend void TypeNode::bind(TypeParam type_param) const;
+    friend const TypeNode* TypeNode::unify() const;
     friend class World;
 };
 
 //------------------------------------------------------------------------------
 
-std::ostream& stream_type_vars(std::ostream& os, Type type);
+std::ostream& stream_type_params(std::ostream& os, Type type);
 
 //------------------------------------------------------------------------------
 

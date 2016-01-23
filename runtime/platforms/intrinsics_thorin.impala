@@ -1,37 +1,15 @@
 extern "thorin" {
     fn sizeof[T]() -> i32;
 
-    fn "bitcast" bitcast_f64_i64(f64) -> i64;
-    fn "bitcast" bitcast_f32_i32(f32) -> i32;
-    fn "bitcast" bitcast_i32_f32(i32) -> f32;
-    fn "bitcast" bitcast4_f32_i32(simd[f32 * 4]) -> simd[i32 * 4];
-    fn "bitcast" bitcast8_f32_i32(simd[f32 * 8]) -> simd[i32 * 8];
-    fn "bitcast" bitcast16_f32_i32(simd[f32 * 16]) -> simd[i32 * 16];
-    fn "bitcast" bitcast4_i32_f32(simd[i32 * 4]) -> simd[f32 * 4];
-    fn "bitcast" bitcast8_i32_f32(simd[i32 * 8]) -> simd[f32 * 8];
-    fn "bitcast" bitcast16_i32_f32(simd[i32 * 16]) -> simd[f32 * 16];
-
-    fn "reserve_shared" reserve_shared_i32(i32) -> &[3][i32];
-    fn "reserve_shared" reserve_shared_f32(i32) -> &[3][f32];
-
-    fn "select" select4_i32(simd[bool * 4], simd[i32 * 4], simd[i32 * 4]) -> simd[i32 * 4];
-    fn "select" select8_i32(simd[bool * 8], simd[i32 * 8], simd[i32 * 8]) -> simd[i32 * 8];
-    fn "select" select16_i32(simd[bool * 16], simd[i32 * 16], simd[i32 * 16]) -> simd[i32 * 16];
-    fn "select" select4_f32(simd[bool * 4], simd[f32 * 4], simd[f32 * 4]) -> simd[f32 * 4];
-    fn "select" select8_f32(simd[bool * 8], simd[f32 * 8], simd[f32 * 8]) -> simd[f32 * 8];
-    fn "select" select16_f32(simd[bool * 16], simd[f32 * 16], simd[f32 * 16]) -> simd[f32 * 16];
-
-    fn "shuffle" shuffle4_i32(simd[i32 * 4], simd[i32 * 4], simd[i32 * 4]) -> simd[i32 * 4];
-    fn "shuffle" shuffle8_i32(simd[i32 * 8], simd[i32 * 8], simd[i32 * 8]) -> simd[i32 * 8];
-    fn "shuffle" shuffle16_i32(simd[i32 * 16], simd[i32 * 16], simd[i32 * 16]) -> simd[i32 * 16];
-    fn "shuffle" shuffle4_f32(simd[f32 * 4], simd[f32 * 4], simd[i32 * 4]) -> simd[f32 * 4];
-    fn "shuffle" shuffle8_f32(simd[f32 * 8], simd[f32 * 8], simd[i32 * 8]) -> simd[f32 * 8];
-    fn "shuffle" shuffle16_f32(simd[f32 * 16], simd[f32 * 16], simd[i32 * 16]) -> simd[f32 * 16];
+    fn bitcast[T, U](T) -> U;
+    fn select[T,U](T, U, U) -> U;
+    fn shuffle[T](T, T, T) -> T;
 
     fn cuda(i32, (i32, i32, i32), (i32, i32, i32), fn() -> ()) -> ();
     fn nvvm(i32, (i32, i32, i32), (i32, i32, i32), fn() -> ()) -> ();
     fn spir(i32, (i32, i32, i32), (i32, i32, i32), fn() -> ()) -> ();
     fn opencl(i32, (i32, i32, i32), (i32, i32, i32), fn() -> ()) -> ();
+    fn reserve_shared[T](i32) -> &[3][T];
 
     fn parallel(num_threads: i32, lower: i32, upper: i32, body: fn(i32) -> ()) -> ();
     fn spawn(body: fn() -> ()) -> i32;

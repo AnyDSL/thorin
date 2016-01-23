@@ -1,7 +1,7 @@
 extern "thorin" {
     fn sizeof[T]() -> i32;
 
-    fn bitcast[T, U](T) -> U;
+    fn bitcast[D, S](S) -> D;
     fn select[T,U](T, U, U) -> U;
     fn shuffle[T](T, T, T) -> T;
 

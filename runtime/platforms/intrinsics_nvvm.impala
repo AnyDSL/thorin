@@ -265,6 +265,47 @@ extern "device" {
     fn "llvm.nvvm.ull2f.rz" nvvm_ull2f_rz(i64) -> f32;
 }
 
+extern "C" {
+    // libdevice intrinsics: http://docs.nvidia.com/cuda/libdevice-users-guide
+    fn "__nv_expf"      expf(f32) -> f32;
+    fn "__nv_exp2f"     exp2f(f32) -> f32;
+    fn "__nv_logf"      logf(f32) -> f32;
+    fn "__nv_log2f"     log2f(f32) -> f32;
+    fn "__nv_powf"      powf(f32, f32) -> f32;
+    fn "__nv_rsqrtf"    rsqrtf(f32) -> f32;
+    fn "__nv_sqrtf"     sqrtf(f32) -> f32;
+    fn "__nv_fabsf"     fabsf(f32) -> f32;
+    fn "__nv_tanf"      tanf(f32) -> f32;
+    fn "__nv_atan2f"    atan2f(f32, f32) -> f32;
+    fn "__nv_sinf"      sinf(f32) -> f32;
+    fn "__nv_cosf"      cosf(f32) -> f32;
+    fn "__nv_asinf"     asinf(f32) -> f32;
+    fn "__nv_acosf"     acosf(f32) -> f32;
+    fn "__nv_erff"      erff(f32) -> f32;
+    fn "__nv_fmodf"     fmodf(f32, f32) -> f32;
+    fn "__nv_floorf"    floorf(f32) -> f32;
+    fn "__nv_fmaf"      fmaf(f32, f32, f32) -> f32;
+    fn "__nv_fmaf"      madf(f32, f32, f32) -> f32;
+    fn "__nv_isinff"    isinff(f32) -> i32;
+    fn "__nv_isnanf"    isnanf(f32) -> i32;
+    fn "__nv_exp"       exp(f64) -> f64;
+    fn "__nv_pow"       pow(f64, f64) -> f64;
+    fn "__nv_rsqrt"     rsqrt(f64) -> f64;
+    fn "__nv_sqrt"      sqrt(f64) -> f64;
+    fn "__nv_fabs"      fabs(f64) -> f64;
+    fn "__nv_tan"       tan(f64) -> f64;
+    fn "__nv_atan2"     atan2(f64, f64) -> f64;
+    fn "__nv_sin"       sin(f64) -> f64;
+    fn "__nv_cos"       cos(f64) -> f64;
+    fn "__nv_erf"       erf(f64) -> f64;
+    fn "__nv_fmod"      fmod(f64, f64) -> f64;
+    fn "__nv_floor"     floor(f64) -> f64;
+    fn "__nv_fma"       fma(f64, f64, f64) -> f64;
+    fn "__nv_fma"       mad(f64, f64, f64) -> f64;
+    fn "__nv_copysignf" copysignf(f32, f32) -> f32;
+    fn "__nv_copysign"  copysign(f64, f64) -> f64;
+}
+
 fn acc(dev: i32, dim: (i32, i32, i32), block: (i32, i32, i32), body: fn() -> ()) -> () { nvvm(dev, dim, block, body) }
 fn acc_alloc(dev: i32, size: i32) -> Buffer { alloc_cuda(dev, size) }
 fn acc_alloc_unified(dev: i32, size: i32) -> Buffer { alloc_cuda_unified(dev, size) }
@@ -311,7 +352,7 @@ fn fmaxf(a: f32, b: f32) -> f32 { nvvm_fmax_f(a, b) }
 fn fmin(a: f64, b: f64) -> f64 { nvvm_fmin_d(a, b) }
 fn fmax(a: f64, b: f64) -> f64 { nvvm_fmax_d(a, b) }
 
-extern "C" {
+extern "device" {
     fn minmin(a: i32, b: i32, c: i32) -> i32;
     fn maxmax(a: i32, b: i32, c: i32) -> i32;
     fn minmax(a: i32, b: i32, c: i32) -> i32;
@@ -324,45 +365,4 @@ extern "C" {
 }
 
 fn popcount(i: i32) -> i32 { nvvm_popc_i(i) }
-
-extern "C" {
-    // libdevice intrinsics: http://docs.nvidia.com/cuda/libdevice-users-guide
-    fn "__nv_expf"      expf(f32) -> f32;
-    fn "__nv_exp2f"     exp2f(f32) -> f32;
-    fn "__nv_logf"      logf(f32) -> f32;
-    fn "__nv_log2f"     log2f(f32) -> f32;
-    fn "__nv_powf"      powf(f32, f32) -> f32;
-    fn "__nv_rsqrtf"    rsqrtf(f32) -> f32;
-    fn "__nv_sqrtf"     sqrtf(f32) -> f32;
-    fn "__nv_fabsf"     fabsf(f32) -> f32;
-    fn "__nv_tanf"      tanf(f32) -> f32;
-    fn "__nv_atan2f"    atan2f(f32, f32) -> f32;
-    fn "__nv_sinf"      sinf(f32) -> f32;
-    fn "__nv_cosf"      cosf(f32) -> f32;
-    fn "__nv_asinf"     asinf(f32) -> f32;
-    fn "__nv_acosf"     acosf(f32) -> f32;
-    fn "__nv_erff"      erff(f32) -> f32;
-    fn "__nv_fmodf"     fmodf(f32, f32) -> f32;
-    fn "__nv_floorf"    floorf(f32) -> f32;
-    fn "__nv_fmaf"      fmaf(f32, f32, f32) -> f32;
-    fn "__nv_fmaf"      madf(f32, f32, f32) -> f32;
-    fn "__nv_isinff"    isinff(f32) -> i32;
-    fn "__nv_isnanf"    isnanf(f32) -> i32;
-    fn "__nv_exp"       exp(f64) -> f64;
-    fn "__nv_pow"       pow(f64, f64) -> f64;
-    fn "__nv_rsqrt"     rsqrt(f64) -> f64;
-    fn "__nv_sqrt"      sqrt(f64) -> f64;
-    fn "__nv_fabs"      fabs(f64) -> f64;
-    fn "__nv_tan"       tan(f64) -> f64;
-    fn "__nv_atan2"     atan2(f64, f64) -> f64;
-    fn "__nv_sin"       sin(f64) -> f64;
-    fn "__nv_cos"       cos(f64) -> f64;
-    fn "__nv_erf"       erf(f64) -> f64;
-    fn "__nv_fmod"      fmod(f64, f64) -> f64;
-    fn "__nv_floor"     floor(f64) -> f64;
-    fn "__nv_fma"       fma(f64, f64, f64) -> f64;
-    fn "__nv_fma"       mad(f64, f64, f64) -> f64;
-    fn "__nv_copysignf" copysignf(f32, f32) -> f32;
-    fn "__nv_copysign"  copysign(f64, f64) -> f64;
-}
 

@@ -19,12 +19,12 @@ public:
         Debug, Info, Warn, Error,
     };
 
-	static std::ostream& stream();
-	static void set(Level min_level, std::ostream* stream, bool print_loc = true);
-	static Level min_level();
-	static void set_stream(std::ostream* stream);
-	static void set_min_level(Level min_level);
-	static void set_print_loc(bool print_loc);
+    static std::ostream& stream();
+    static void set(Level min_level, std::ostream* stream, bool print_loc = true);
+    static Level min_level();
+    static void set_stream(std::ostream* stream);
+    static void set_min_level(Level min_level);
+    static void set_print_loc(bool print_loc);
     static char level2char(Level);
 
     template<typename... Args>

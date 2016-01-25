@@ -510,8 +510,8 @@ void CCodeGen::emit() {
                             }
 
                             auto cont = lambda->arg(2)->as_lambda();
-                            auto fn_type = to_lambda->type().as<FnType>();
-                            emit_type(fn_type->args().back().as<FnType>()->arg(1).as<PtrType>()->referenced_type()) << " " << to_lambda->name << lambda->gid() << "[";
+                            auto elem_type = cont->param(1)->type().as<PtrType>()->referenced_type().as<ArrayType>()->elem_type();
+                            emit_type(elem_type) << " " << to_lambda->name << lambda->gid() << "[";
                             emit(lambda->arg(1)) << "];" << endl;
                             // store argument to phi nodes
                             os << "p" << cont->param(1)->unique_name() << " = " << to_lambda->name << lambda->gid() << ";";

@@ -158,12 +158,20 @@ Lambda* CodeGen::emit_reserve_shared(const Lambda* lambda, bool prefix) {
     return cont;
 }
 
+llvm::Value* CodeGen::emit_bitcast(Def val, Type dst_type) {
+    auto from = lookup(val);
+    auto src_type = val->type();
+    auto to = convert(dst_type);
+    if (src_type.isa<PtrType>() && dst_type.isa<PtrType>())
+        return irbuilder_.CreatePointerCast(from, to);
+    return irbuilder_.CreateBitCast(from, to);
+}
+
 Lambda* CodeGen::emit_reinterpret(Lambda* lambda) {
     assert(lambda->num_args() == 3 && "required arguments are missing");
-    auto val = lookup(lambda->arg(1));
     auto cont = lambda->arg(2)->as_lambda();
-    auto type = convert(cont->param(1)->type());
-    auto call = irbuilder_.CreateBitCast(val, type);
+    auto type = cont->param(1)->type();
+    auto call = emit_bitcast(lambda->arg(1), type);
     emit_result_phi(cont->param(1), call);
     return cont;
 }
@@ -671,11 +679,8 @@ llvm::Value* CodeGen::emit(Def def) {
             assert(false && "unsupported cast");
         }
 
-        if (conv->isa<Bitcast>()) {
-            if (src_type.isa<PtrType>() && dst_type.isa<PtrType>())
-                return irbuilder_.CreatePointerCast(from, to);
-            return irbuilder_.CreateBitCast(from, to);
-        }
+        if (conv->isa<Bitcast>())
+            return emit_bitcast(conv->from(), dst_type);
     }
 
     if (auto select = def->isa<Select>()) {

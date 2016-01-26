@@ -499,6 +499,9 @@ void CCodeGen::emit() {
                             emit(cont->param(1)) << " = as_";
                             emit_type(cont->param(1)->type()) << "(";
                             emit(lambda->arg(1)) << ");" << endl;
+                            // store argument to phi node
+                            os << "p" << cont->param(1)->unique_name() << " = ";
+                            emit(cont->param(1)) << ";";
                         } else if (to_lambda->intrinsic() == Intrinsic::Reserve) {
                             if (!lambda->arg(1)->isa<PrimLit>())
                                 ELOG("reserve_shared: couldn't extract memory size at %", lambda->arg(1)->loc());
@@ -513,7 +516,7 @@ void CCodeGen::emit() {
                             auto elem_type = cont->param(1)->type().as<PtrType>()->referenced_type().as<ArrayType>()->elem_type();
                             emit_type(elem_type) << " " << to_lambda->name << lambda->gid() << "[";
                             emit(lambda->arg(1)) << "];" << endl;
-                            // store argument to phi nodes
+                            // store argument to phi node
                             os << "p" << cont->param(1)->unique_name() << " = " << to_lambda->name << lambda->gid() << ";";
                         } else {
                             THORIN_UNREACHABLE;
@@ -562,7 +565,7 @@ void CCodeGen::emit() {
                             emit_call();
 
                             if (param) {
-                                // store argument to phi nodes
+                                // store argument to phi node
                                 os << endl << "p" << succ->param(1)->unique_name() << " = ";
                                 emit(param) << ";";
                             }

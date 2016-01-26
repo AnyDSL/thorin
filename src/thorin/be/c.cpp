@@ -30,6 +30,7 @@ private:
     std::ostream& emit_aggop_decl(Type);
     std::ostream& emit_debug_info(Def def);
     std::ostream& emit_addr_space(Type);
+    std::ostream& emit_bitcast(Def val, Def dst);
     std::ostream& emit_type(Type);
     std::ostream& emit(Def def);
     bool lookup(size_t gid);
@@ -163,9 +164,8 @@ std::ostream& CCodeGen::emit_aggop_defs(Def def) {
     }
 
     // argument is a cast
-    if (auto conv = def->isa<ConvOp>()) {
+    if (auto conv = def->isa<Cast>())
         emit(conv) << endl;
-    }
 
     return os;
 }
@@ -220,6 +220,20 @@ std::ostream& CCodeGen::emit_aggop_decl(Type type) {
     return os;
 }
 
+std::ostream& CCodeGen::emit_bitcast(Def val, Def dst) {
+    auto dst_type = dst->type();
+    os << "union { ";
+    emit_addr_space(dst_type);
+    emit_type(dst_type) << " dst; ";
+    emit_addr_space(val->type());
+    emit_type(val->type()) << " src; ";
+    os << "} u" << dst->unique_name() << ";" << endl;
+    os << "u" << dst->unique_name() << ".src = ";
+    emit(val) << ";" << endl;
+    os << dst->unique_name() << " = u" << dst->unique_name() << ".dst;";
+
+    return os;
+}
 
 void CCodeGen::emit() {
     if (lang_==Lang::CUDA) {
@@ -236,8 +250,6 @@ void CCodeGen::emit() {
         os << "__device__ inline int gridDim_x() { return gridDim.x; }" << endl;
         os << "__device__ inline int gridDim_y() { return gridDim.y; }" << endl;
         os << "__device__ inline int gridDim_z() { return gridDim.z; }" << endl;
-        os << "__device__ inline int as_int(float val) { return __float_as_int(val); }" << endl;
-        os << "__device__ inline int as_float(int val) { return __int_as_float(val); }" << endl;
     }
     if (lang_==Lang::OPENCL) {
         os << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable" << endl;
@@ -481,7 +493,8 @@ void CCodeGen::emit() {
                 emit_debug_info(to_lambda);
 
                 // emit inlined arrays/tuples/structs before the call operation
-                for (auto arg : lambda->args()) emit_aggop_defs(arg);
+                for (auto arg : lambda->args())
+                    emit_aggop_defs(arg);
 
                 if (to_lambda->is_basicblock()) {   // ordinary jump
                     assert(to_lambda->num_params()==lambda->num_args());
@@ -496,9 +509,7 @@ void CCodeGen::emit() {
                     if (to_lambda->is_intrinsic()) {
                         if (to_lambda->intrinsic() == Intrinsic::Reinterpret) {
                             auto cont = lambda->arg(2)->as_lambda();
-                            emit(cont->param(1)) << " = as_";
-                            emit_type(cont->param(1)->type()) << "(";
-                            emit(lambda->arg(1)) << ");" << endl;
+                            emit_bitcast(lambda->arg(1), cont->param(1)) << endl;
                             // store argument to phi node
                             os << "p" << cont->param(1)->unique_name() << " = ";
                             emit(cont->param(1)) << ";";
@@ -632,12 +643,22 @@ std::ostream& CCodeGen::emit(Def def) {
     }
 
     if (auto conv = def->isa<ConvOp>()) {
+        if (conv->from()->type() == conv->type())
+            return insert(def->gid(), conv->from()->unique_name());
+
         emit_addr_space(conv->type());
         emit_type(conv->type()) << " " << conv->unique_name() << ";" << endl;
-        os << conv->unique_name() << " = (";
-        emit_addr_space(conv->type());
-        emit_type(conv->type()) << ")";
-        emit(conv->from()) << ";";
+
+        if (conv->isa<Cast>()) {
+            os << conv->unique_name() << " = (";
+            emit_addr_space(conv->type());
+            emit_type(conv->type()) << ")";
+            emit(conv->from()) << ";";
+        }
+
+        if (conv->isa<Bitcast>())
+            emit_bitcast(conv->from(), conv);
+
         return insert(def->gid(), def->unique_name());
     }
 

@@ -37,6 +37,17 @@ ELSE ()
     MESSAGE ( STATUS "Building without LLVM. Specify LLVM_DIR to compile with LLVM." )
 ENDIF ()
 
+# check for colored terminal
+SET ( COLOR_TTY_AVAILABLE TRUE )
+IF ( WIN32 )
+    # Windows console does not support ANSI escape codes
+    SET ( COLOR_TTY_AVAILABLE FALSE )
+ENDIF()
+SET ( COLORIZE_OUTPUT ${COLOR_TTY_AVAILABLE} CACHE BOOL "Set to true to enable colored error messages" )
+IF ( COLORIZE_OUTPUT )
+    ADD_DEFINITIONS ( -DCOLORIZE_LOG )
+ENDIF ()
+
 INCLUDE ( thorin-shared )
 
 # build thorin lib

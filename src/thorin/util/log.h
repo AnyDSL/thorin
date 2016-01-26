@@ -25,13 +25,16 @@ public:
     static void set_stream(std::ostream* stream);
     static void set_min_level(Level min_level);
     static void set_print_loc(bool print_loc);
-    static char level2char(Level);
+    static std::string level2string(Level);
+    static int level2color(Level);
+    static std::string colorize(const std::string&, int);
 
     template<typename... Args>
     static void log(Level level, const char* file, int line, const char* fmt, Args... args) {
         if (Log::stream_ && Log::min_level_ <= level) {
             if (print_loc_)
-                Log::stream() << level2char(level) << ':' << file << ':' << std::setw(4) << line << ": ";
+                Log::stream() << colorize(level2string(level), level2color(level)) << ':'
+                              << colorize(file, 7) << ':' << std::setw(4) << line << ": ";
             if (level == Debug)
                 Log::stream() << "  ";
             streamf(Log::stream(), fmt, args...);

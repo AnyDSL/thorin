@@ -67,7 +67,7 @@ Lambda* CodeGen::emit_intrinsic(Lambda* lambda) {
         case Intrinsic::Sizeof:      return emit_sizeof(lambda);
         case Intrinsic::Shuffle:     return emit_shuffle(lambda);
         case Intrinsic::Reserve:     return emit_reserve(lambda);
-        case Intrinsic::Reinterpret: return emit_reinterpret(lambda);
+        case Intrinsic::Bitcast:    return emit_reinterpret(lambda);
         case Intrinsic::CUDA:        return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM, ".cu", lambda);
         case Intrinsic::NVVM:        return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM, ".nvvm", lambda);
         case Intrinsic::SPIR:        return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".spir.bc", lambda);

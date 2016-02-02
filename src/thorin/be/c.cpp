@@ -507,7 +507,7 @@ void CCodeGen::emit() {
                     emit(to_lambda);
                 } else {
                     if (to_lambda->is_intrinsic()) {
-                        if (to_lambda->intrinsic() == Intrinsic::Reinterpret) {
+                        if (to_lambda->intrinsic() == Intrinsic::Bitcast) {
                             auto cont = lambda->arg(2)->as_lambda();
                             emit_bitcast(lambda->arg(1), cont->param(1)) << endl;
                             // store argument to phi node

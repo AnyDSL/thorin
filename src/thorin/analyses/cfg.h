@@ -116,8 +116,8 @@ public:
     const CFNode* operator [] (Lambda* lambda) const { return find(nodes_, lambda); }
 
 private:
-    const CFNodes& preds(Lambda* lambda) const { return nodes_[lambda]->preds(); }
-    const CFNodes& succs(Lambda* lambda) const { return nodes_[lambda]->succs(); }
+    const CFNodes& preds(Lambda* lambda) const { auto l = nodes_[lambda]; assert(l); return l->preds(); }
+    const CFNodes& succs(Lambda* lambda) const { auto l = nodes_[lambda]; assert(l); return l->succs(); }
     const CFNode* entry() const { return nodes_.array().front(); }
     const CFNode* exit() const { return nodes_.array().back(); }
 
@@ -158,8 +158,8 @@ public:
 
     const CFA& cfa() const { return cfa_; }
     size_t size() const { return cfa().size(); }
-    const CFNodes& preds(const CFNode* n) const { return forward ? n->preds() : n->succs(); }
-    const CFNodes& succs(const CFNode* n) const { return forward ? n->succs() : n->preds(); }
+    const CFNodes& preds(const CFNode* n) const { return n ? (forward ? n->preds() : n->succs()) : empty_; }
+    const CFNodes& succs(const CFNode* n) const { return n ? (forward ? n->succs() : n->preds()) : empty_; }
     const CFNodes& preds(Lambda* lambda) const { return preds(cfa()[lambda]); }
     const CFNodes& succs(Lambda* lambda) const { return succs(cfa()[lambda]); }
     size_t num_preds(const CFNode* n) const { return preds(n).size(); }
@@ -183,6 +183,7 @@ public:
 
 private:
     size_t post_order_visit(const CFNode* n, size_t i);
+    static CFNodes empty_;
 
     const CFA& cfa_;
     Map<const CFNode*> rpo_;

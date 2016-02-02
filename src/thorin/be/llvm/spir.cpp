@@ -44,31 +44,6 @@ SPIRCodeGen::SPIRCodeGen(World& world)
 // Kernel code
 //------------------------------------------------------------------------------
 
-llvm::FunctionType* SPIRCodeGen::convert_fn_type(Lambda* lambda) {
-    // iterate over function type and set address space for SPIR
-    auto ft = llvm::cast<llvm::FunctionType>(convert(lambda->type()));
-    auto rtype = ft->getReturnType();
-    llvm::SmallVector<llvm::Type*, 4> types;
-    if (lambda->is_external()) {
-        // SPIR address space qualifiers are different:
-        // 0 - private
-        // 1 - global
-        // 2 - constant
-        // 3 - local
-        if (llvm::isa<llvm::PointerType>(rtype))
-            rtype = llvm::dyn_cast<llvm::PointerType>(rtype)->getElementType()->getPointerTo(1);
-        for (size_t i = 0; i < ft->getFunctionNumParams(); ++i) {
-            llvm::Type* ty = ft->getFunctionParamType(i);
-            if (llvm::isa<llvm::PointerType>(ty))
-                types.push_back(llvm::dyn_cast<llvm::PointerType>(ty)->getElementType()->getPointerTo(1));
-            else
-                types.push_back(ty);
-        }
-        return llvm::FunctionType::get(rtype, types, /*not a vararg*/ false);
-    } else
-        return ft;
-}
-
 void SPIRCodeGen::emit_function_decl_hook(Lambda* lambda, llvm::Function* f) {
     // append required metadata
     size_t num_params = f->arg_size() + 1;

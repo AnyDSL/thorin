@@ -92,7 +92,7 @@ Type IndefiniteArrayTypeNode::vrebuild(World& to, ArrayRef<Type> args) const { r
 Type MemTypeNode            ::vrebuild(World& to, ArrayRef<Type>     ) const { return to.mem_type(); }
 Type PrimTypeNode           ::vrebuild(World& to, ArrayRef<Type>     ) const { return to.type(primtype_kind(), length()); }
 Type TupleTypeNode          ::vrebuild(World& to, ArrayRef<Type> args) const { return to.tuple_type(args); }
-Type TypeParamNode            ::vrebuild(World& to, ArrayRef<Type>     ) const { return to.type_param(); }
+Type TypeParamNode          ::vrebuild(World& to, ArrayRef<Type>     ) const { return to.type_param(); }
 
 Type PtrTypeNode::vrebuild(World& to, ArrayRef<Type> args) const {
     return to.ptr_type(args.front(), length(), device(), addr_space());
@@ -145,6 +145,14 @@ void TypeNode::free_type_params(TypeParamSet& bound, TypeParamSet& free) const {
         } else
             arg->free_type_params(bound, free);
     }
+}
+
+bool TypeNode::is_concrete() const {
+    for (auto arg : args()) {
+        if (!arg->is_concrete())
+            return false;
+    }
+    return true;
 }
 
 //------------------------------------------------------------------------------

@@ -79,7 +79,7 @@ enum class Intrinsic : uint8_t {
     Atomic,                     ///< Intrinsic atomic function
     Branch,                     ///< branch(cond, T, F).
     EndScope,                   ///< Dummy function which marks the end of a @p Scope.
-    Reinterpret,                ///< Intrinsic for reinterpretation of one type as another one
+    Bitcast,                    ///< Intrinsic for reinterpretation of one type as another one
     Select,                     ///< Intrinsic vector 'select' function
     Sizeof,                     ///< Sizeof intrinsic
     Shuffle,                    ///< Intrinsic vector 'shuffle' function

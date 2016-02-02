@@ -47,6 +47,10 @@ extern "device" {
     fn "atomicMin" atomic_min_local(&[3]i32, i32) -> i32;
     fn "__ldg" __ldg_f32(&[1]f32) -> f32;
     fn "__ldg" __ldg_i32(&[1]i32) -> i32;
+    fn "__ldg" __ldg4_f32(&simd[f32 * 4]) -> simd[f32 * 4];
+    fn "__ldg" __ldg4_i32(&simd[i32 * 4]) -> simd[i32 * 4];
+    fn min(a: i32, b: i32) -> i32;
+    fn max(a: i32, b: i32) -> i32;
     // wrappers for threadIdx.x etc. are provided
     fn threadIdx_x() -> i32;
     fn threadIdx_y() -> i32;
@@ -86,6 +90,12 @@ fn acc_dev() -> i32      { 0 }
 
 fn ldg_f32(a: &[1]f32) -> f32 { __ldg_f32(a) }
 fn ldg_i32(a: &[1]i32) -> i32 { __ldg_i32(a) }
+fn ldg4_f32(a: &simd[f32 * 4]) -> simd[f32 * 4] { __ldg4_f32(a) }
+fn ldg4_i32(a: &simd[i32 * 4]) -> simd[i32 * 4] { __ldg4_i32(a) }
+fn minmin(a: i32, b: i32, c: i32) -> i32 { min(min(a, b), c) }
+fn maxmax(a: i32, b: i32, c: i32) -> i32 { max(max(a, b), c) }
+fn minmax(a: i32, b: i32, c: i32) -> i32 { max(min(a, b), c) }
+fn maxmin(a: i32, b: i32, c: i32) -> i32 { min(max(a, b), c) }
 fn madf(a: f32, b: f32, c: f32) -> f32 { fmaf(a, b, c) }
 fn mad(a: f64, b: f64, c: f64) -> f64 { fma(a, b, c) }
 

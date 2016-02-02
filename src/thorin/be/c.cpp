@@ -30,6 +30,7 @@ private:
     std::ostream& emit_aggop_decl(Type);
     std::ostream& emit_debug_info(Def def);
     std::ostream& emit_addr_space(Type);
+    std::ostream& emit_bitcast(Def val, Def dst);
     std::ostream& emit_type(Type);
     std::ostream& emit(Def def);
     bool lookup(size_t gid);
@@ -163,9 +164,8 @@ std::ostream& CCodeGen::emit_aggop_defs(Def def) {
     }
 
     // argument is a cast
-    if (auto conv = def->isa<ConvOp>()) {
+    if (auto conv = def->isa<Cast>())
         emit(conv) << endl;
-    }
 
     return os;
 }
@@ -220,6 +220,20 @@ std::ostream& CCodeGen::emit_aggop_decl(Type type) {
     return os;
 }
 
+std::ostream& CCodeGen::emit_bitcast(Def val, Def dst) {
+    auto dst_type = dst->type();
+    os << "union { ";
+    emit_addr_space(dst_type);
+    emit_type(dst_type) << " dst; ";
+    emit_addr_space(val->type());
+    emit_type(val->type()) << " src; ";
+    os << "} u" << dst->unique_name() << ";" << endl;
+    os << "u" << dst->unique_name() << ".src = ";
+    emit(val) << ";" << endl;
+    os << dst->unique_name() << " = u" << dst->unique_name() << ".dst;";
+
+    return os;
+}
 
 void CCodeGen::emit() {
     if (lang_==Lang::CUDA) {
@@ -236,8 +250,6 @@ void CCodeGen::emit() {
         os << "__device__ inline int gridDim_x() { return gridDim.x; }" << endl;
         os << "__device__ inline int gridDim_y() { return gridDim.y; }" << endl;
         os << "__device__ inline int gridDim_z() { return gridDim.z; }" << endl;
-        os << "__device__ inline int as_int(float val) { return __float_as_int(val); }" << endl;
-        os << "__device__ inline int as_float(int val) { return __int_as_float(val); }" << endl;
     }
     if (lang_==Lang::OPENCL) {
         os << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable" << endl;
@@ -481,7 +493,8 @@ void CCodeGen::emit() {
                 emit_debug_info(to_lambda);
 
                 // emit inlined arrays/tuples/structs before the call operation
-                for (auto arg : lambda->args()) emit_aggop_defs(arg);
+                for (auto arg : lambda->args())
+                    emit_aggop_defs(arg);
 
                 if (to_lambda->is_basicblock()) {   // ordinary jump
                     assert(to_lambda->num_params()==lambda->num_args());
@@ -494,11 +507,12 @@ void CCodeGen::emit() {
                     emit(to_lambda);
                 } else {
                     if (to_lambda->is_intrinsic()) {
-                        if (to_lambda->intrinsic() == Intrinsic::Reinterpret) {
+                        if (to_lambda->intrinsic() == Intrinsic::Bitcast) {
                             auto cont = lambda->arg(2)->as_lambda();
-                            emit(cont->param(1)) << " = as_";
-                            emit_type(cont->param(1)->type()) << "(";
-                            emit(lambda->arg(1)) << ");" << endl;
+                            emit_bitcast(lambda->arg(1), cont->param(1)) << endl;
+                            // store argument to phi node
+                            os << "p" << cont->param(1)->unique_name() << " = ";
+                            emit(cont->param(1)) << ";";
                         } else if (to_lambda->intrinsic() == Intrinsic::Reserve) {
                             if (!lambda->arg(1)->isa<PrimLit>())
                                 ELOG("reserve_shared: couldn't extract memory size at %", lambda->arg(1)->loc());
@@ -510,10 +524,10 @@ void CCodeGen::emit() {
                             }
 
                             auto cont = lambda->arg(2)->as_lambda();
-                            auto fn_type = to_lambda->type().as<FnType>();
-                            emit_type(fn_type->args().back().as<FnType>()->arg(1).as<PtrType>()->referenced_type()) << " " << to_lambda->name << lambda->gid() << "[";
+                            auto elem_type = cont->param(1)->type().as<PtrType>()->referenced_type().as<ArrayType>()->elem_type();
+                            emit_type(elem_type) << " " << to_lambda->name << lambda->gid() << "[";
                             emit(lambda->arg(1)) << "];" << endl;
-                            // store argument to phi nodes
+                            // store argument to phi node
                             os << "p" << cont->param(1)->unique_name() << " = " << to_lambda->name << lambda->gid() << ";";
                         } else {
                             THORIN_UNREACHABLE;
@@ -562,7 +576,7 @@ void CCodeGen::emit() {
                             emit_call();
 
                             if (param) {
-                                // store argument to phi nodes
+                                // store argument to phi node
                                 os << endl << "p" << succ->param(1)->unique_name() << " = ";
                                 emit(param) << ";";
                             }
@@ -629,12 +643,22 @@ std::ostream& CCodeGen::emit(Def def) {
     }
 
     if (auto conv = def->isa<ConvOp>()) {
+        if (conv->from()->type() == conv->type())
+            return insert(def->gid(), conv->from()->unique_name());
+
         emit_addr_space(conv->type());
         emit_type(conv->type()) << " " << conv->unique_name() << ";" << endl;
-        os << conv->unique_name() << " = (";
-        emit_addr_space(conv->type());
-        emit_type(conv->type()) << ")";
-        emit(conv->from()) << ";";
+
+        if (conv->isa<Cast>()) {
+            os << conv->unique_name() << " = (";
+            emit_addr_space(conv->type());
+            emit_type(conv->type()) << ")";
+            emit(conv->from()) << ";";
+        }
+
+        if (conv->isa<Bitcast>())
+            emit_bitcast(conv->from(), conv);
+
         return insert(def->gid(), def->unique_name());
     }
 
@@ -654,71 +678,78 @@ std::ostream& CCodeGen::emit(Def def) {
         return insert(def->gid(), def->unique_name());
     }
 
-    if (auto agg = def->isa<Aggregate>()) {
-        assert(def->isa<Tuple>() || def->isa<StructAgg>() || def->isa<Vector>());
-        // emit definitions of inlined elements
-        for (auto op : agg->ops())
-            emit_aggop_defs(op);
-
-        emit_type(agg->type()) << " " << agg->unique_name() << ";";
-        char elem_prefix = (def->isa<Vector>()) ? 's' : 'e';
-        for (size_t i = 0, e = agg->ops().size(); i != e; ++i) {
-            os << endl;
-            if (agg->op(i)->isa<Bottom>())
-                os << "//";
-            os << agg->unique_name() << "." << elem_prefix << i << " = ";
-            emit(agg->op(i)) << ";";
-        }
-        return insert(def->gid(), def->unique_name());
-    }
-
-    if (auto aggop = def->isa<AggOp>()) {
+    // aggregate operations
+    {
         auto emit_access = [&] (Def def, Def index) -> std::ostream& {
             if (def->type().isa<ArrayType>()) {
-                emit(def) << ".e[";
+                os << ".e[";
                 emit(index) << "]";
             } else if (def->type().isa<TupleType>() || def->type().isa<StructAppType>()) {
-                emit(def) << ".e";
+                os << ".e";
                 emit(index);
             } else if (def->type().isa<VectorType>()) {
                 if (index->is_primlit(0))
-                    emit(def) << ".x";
+                    os << ".x";
                 else if (index->is_primlit(1))
-                    emit(def) << ".y";
+                    os << ".y";
                 else if (index->is_primlit(2))
-                    emit(def) << ".z";
+                    os << ".z";
                 else if (index->is_primlit(3))
-                    emit(def) << ".w";
-                else
-                    THORIN_UNREACHABLE;
+                    os << ".w";
+                else {
+                    os << ".s";
+                    emit(index);
+                }
             } else {
                 THORIN_UNREACHABLE;
             }
             return os;
         };
 
-        emit_aggop_defs(aggop->agg());
+        if (auto agg = def->isa<Aggregate>()) {
+            assert(def->isa<Tuple>() || def->isa<StructAgg>() || def->isa<Vector>());
+            // emit definitions of inlined elements
+            for (auto op : agg->ops())
+                emit_aggop_defs(op);
 
-        if (auto extract = aggop->isa<Extract>()) {
-            if (extract->is_mem() || extract->type().isa<FrameType>())
-                return os;
-            emit_type(aggop->type()) << " " << aggop->unique_name() << ";" << endl;
-            os << aggop->unique_name() << " = ";
-            if (auto memop = extract->agg()->isa<MemOp>())
-                emit(memop) << ";";
-            else
-                emit_access(aggop->agg(), aggop->index()) << ";";
+            emit_type(agg->type()) << " " << agg->unique_name() << ";";
+            for (size_t i = 0, e = agg->ops().size(); i != e; ++i) {
+                os << endl;
+                if (agg->op(i)->isa<Bottom>())
+                    os << "//";
+                os << agg->unique_name();
+                emit_access(def, world_.literal_qs32(i, def->loc())) << " = ";
+                emit(agg->op(i)) << ";";
+            }
             return insert(def->gid(), def->unique_name());
         }
 
-        auto ins = def->as<Insert>();
-        emit_type(aggop->type()) << " " << aggop->unique_name() << ";" << endl;
-        os << aggop->unique_name() << " = ";
-        emit(ins->agg()) << ";" << endl;
-        insert(def->gid(), aggop->unique_name());
-        emit_access(def, ins->index()) << " = ";
-        emit(ins->value()) << ";";
-        return os;
+        if (auto aggop = def->isa<AggOp>()) {
+            emit_aggop_defs(aggop->agg());
+
+            if (auto extract = aggop->isa<Extract>()) {
+                if (extract->is_mem() || extract->type().isa<FrameType>())
+                    return os;
+                emit_type(aggop->type()) << " " << aggop->unique_name() << ";" << endl;
+                os << aggop->unique_name() << " = ";
+                if (auto memop = extract->agg()->isa<MemOp>())
+                    emit(memop) << ";";
+                else {
+                    emit(aggop->agg());
+                    emit_access(aggop->agg(), aggop->index()) << ";";
+                }
+                return insert(def->gid(), def->unique_name());
+            }
+
+            auto ins = def->as<Insert>();
+            emit_type(aggop->type()) << " " << aggop->unique_name() << ";" << endl;
+            os << aggop->unique_name() << " = ";
+            emit(ins->agg()) << ";" << endl;
+            os << aggop->unique_name();
+            emit_access(def, ins->index()) << " = ";
+            emit(ins->value()) << ";";
+            return insert(def->gid(), aggop->unique_name());
+        }
     }
 
     if (auto primlit = def->isa<PrimLit>()) {

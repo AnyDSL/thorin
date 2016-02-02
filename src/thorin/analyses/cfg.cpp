@@ -17,6 +17,8 @@ namespace thorin {
 //------------------------------------------------------------------------------
 
 uint32_t CFNodeBase::id_counter_ = 1;
+template<bool forward>
+CFNodes CFG<forward>::empty_ = CFNodes();
 
 typedef thorin::HashSet<const CFNodeBase*> CFNodeSet;
 

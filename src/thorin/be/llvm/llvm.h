@@ -56,6 +56,7 @@ private:
     Lambda* emit_select(Lambda*);
     Lambda* emit_shuffle(Lambda*);
     Lambda* emit_reinterpret(Lambda*);
+    llvm::Value* emit_bitcast(Def, Type);
     virtual Lambda* emit_reserve(const Lambda*);
     void emit_result_phi(const Param*, llvm::Value*);
     void emit_vectorize(u32, llvm::Function*, llvm::CallInst*);

@@ -565,28 +565,6 @@ public:
     friend class World;
 };
 
-/// This will be removed in the future.
-class Map : public Access {
-private:
-    Map(int32_t device, AddressSpace addr_space, Def mem, Def ptr, Def offset, Def size, const Location& loc, const std::string& name);
-
-    virtual Def vrebuild(World& to, ArrayRef<Def> ops, Type type) const override;
-
-public:
-    Def mem_offset() const { return op(2); }
-    Def mem_size() const { return op(3); }
-    virtual bool has_multiple_outs() const override { return true; }
-    Def out_ptr() const { return out(1); }
-    TupleType type() const { return Access::type().as<TupleType>(); }
-    PtrType out_ptr_type() const { return type()->arg(1).as<PtrType>(); }
-    AddressSpace addr_space() const { return out_ptr_type()->addr_space(); }
-    int32_t device() const { return out_ptr_type()->device(); }
-    static const Map* is_out_mem(Def def) { return is_out<0, Map>(def); }
-    static const Map* is_out_ptr(Def def) { return is_out<1, Map>(def); }
-
-    friend class World;
-};
-
 //------------------------------------------------------------------------------
 
 template<class T>

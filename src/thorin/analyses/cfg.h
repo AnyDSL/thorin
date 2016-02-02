@@ -17,8 +17,6 @@ namespace thorin {
 template<bool> class LoopTree;
 template<bool> class DomTreeBase;
 template<bool> class DomFrontierBase;
-class CFNode;
-typedef std::vector<const CFNode*> CFNodes;
 
 /**
  * @brief A Control-Flow Node.
@@ -26,13 +24,31 @@ typedef std::vector<const CFNode*> CFNodes;
  * Managed by @p CFA.
  */
 class CFNodeBase : public MagicCast<CFNodeBase>, public Streamable {
-protected:
+public:
     CFNodeBase(Def def)
         : def_(def)
+        , id_(id_counter_++)
     {}
 
-public:
+    uint64_t id() const { return id_; }
     Def def() const { return def_; }
+
+private:
+    Def def_;
+    uint64_t id_;
+    static uint32_t id_counter_;
+};
+
+template<>
+struct Hash<const CFNodeBase*> {
+    uint64_t operator() (const CFNodeBase* n) const { return n->id(); }
+};
+
+class RealCFNode : public CFNodeBase {
+protected:
+    RealCFNode(Def def)
+        : CFNodeBase(def)
+    {}
 
 protected:
     static const size_t Fresh        = size_t(-1);
@@ -46,18 +62,18 @@ protected:
     mutable size_t f_index_ = Fresh; ///< RPO index in a forward @p CFG.
     mutable size_t b_index_ = Fresh; ///< RPO index in a backwards @p CFG.
 
-private:
-    Def def_;
-
     friend class CFABuilder;
     template<bool> friend class CFG;
 };
 
+class CFNode;
+typedef HashSet<const CFNode*> CFNodes;
+
 /// This node represents a @p CFNode within its underlying @p Scope.
-class CFNode : public CFNodeBase {
+class CFNode : public RealCFNode {
 public:
     CFNode(Lambda* lambda)
-        : CFNodeBase(lambda)
+        : RealCFNode(lambda)
     {}
 
     Lambda* lambda() const { return def()->as_lambda(); }
@@ -100,8 +116,8 @@ public:
     const CFNode* operator [] (Lambda* lambda) const { return find(nodes_, lambda); }
 
 private:
-    const CFNodes& preds(Lambda* lambda) const { return nodes_[lambda]->preds(); }
-    const CFNodes& succs(Lambda* lambda) const { return nodes_[lambda]->succs(); }
+    const CFNodes& preds(Lambda* lambda) const { auto l = nodes_[lambda]; assert(l); return l->preds(); }
+    const CFNodes& succs(Lambda* lambda) const { auto l = nodes_[lambda]; assert(l); return l->succs(); }
     const CFNode* entry() const { return nodes_.array().front(); }
     const CFNode* exit() const { return nodes_.array().back(); }
 
@@ -142,8 +158,8 @@ public:
 
     const CFA& cfa() const { return cfa_; }
     size_t size() const { return cfa().size(); }
-    const CFNodes& preds(const CFNode* n) const { return forward ? n->preds() : n->succs(); }
-    const CFNodes& succs(const CFNode* n) const { return forward ? n->succs() : n->preds(); }
+    const CFNodes& preds(const CFNode* n) const { return n ? (forward ? n->preds() : n->succs()) : empty_; }
+    const CFNodes& succs(const CFNode* n) const { return n ? (forward ? n->succs() : n->preds()) : empty_; }
     const CFNodes& preds(Lambda* lambda) const { return preds(cfa()[lambda]); }
     const CFNodes& succs(Lambda* lambda) const { return succs(cfa()[lambda]); }
     size_t num_preds(const CFNode* n) const { return preds(n).size(); }
@@ -167,6 +183,7 @@ public:
 
 private:
     size_t post_order_visit(const CFNode* n, size_t i);
+    static CFNodes empty_;
 
     const CFA& cfa_;
     Map<const CFNode*> rpo_;

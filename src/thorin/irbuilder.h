@@ -140,7 +140,7 @@ public:
     Lambda* enter_unsealed(JumpTarget& jt, const Location& loc) { return cur_bb = jt.enter_unsealed(world_, loc); }
     void jump(JumpTarget& jt);
     void branch(Def cond, JumpTarget& t, JumpTarget& f);
-    Def call(Def to, ArrayRef<Def> args, Type ret_type);
+    Def call(Def to, ArrayRef<Type> type_args, ArrayRef<Def> args, Type ret_type);
     Def get_mem();
     void set_mem(Def def);
 

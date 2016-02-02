@@ -11,8 +11,7 @@ public:
 
 protected:
     virtual void emit_function_decl_hook(Lambda*, llvm::Function*) override;
-    virtual llvm::FunctionType* convert_fn_type(Lambda*) override;
-    virtual llvm::Value* emit_mmap(const Map*) override;
+    virtual Lambda* emit_reserve(const Lambda*) override;
     virtual std::string get_alloc_name() const override { THORIN_UNREACHABLE; /*alloc not supported in SPIR*/ }
     virtual std::string get_output_name(const std::string& name) const override { return name + ".spir"; }
     virtual std::string get_binary_output_name(const std::string& name) const override { return name + ".spir.bc"; }

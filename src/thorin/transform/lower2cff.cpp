@@ -8,7 +8,7 @@
 namespace thorin {
 
 void lower2cff(World& world) {
-    HashMap<Array<Def>, Lambda*> cache;
+    HashMap<Call, Lambda*> cache;
     LambdaSet top;
 
     bool local = true;
@@ -39,16 +39,19 @@ void lower2cff(World& world) {
                         DLOG("bad: %", to);
                         todo = dirty = true;
 
-                        Array<Def> call(lambda->size());
-                        call.front() = to;
-                        for (size_t i = 1, e = call.size(); i != e; ++i)
-                            call[i] = to->param(i-1)->order() > 0 ? lambda->arg(i-1) : nullptr;
+                        Call call(lambda);
+                        for (size_t i = 0, e = call.num_type_args(); i != e; ++i)
+                            call.type_arg(i) = lambda->type_arg(i);
+
+                        call.to() = to;
+                        for (size_t i = 0, e = call.num_args(); i != e; ++i)
+                            call.arg(i) = to->param(i)->order() > 0 ? lambda->arg(i) : nullptr;
+
 
                         const auto& p = cache.emplace(call, nullptr);
                         Lambda*& target = p.first->second;
                         if (p.second) {
-                            Scope to_scope(to);
-                            target = drop(lambda, call); // use already dropped version as target
+                            target = drop(call); // use already dropped version as target
                         }
 
                         jump_to_cached_call(lambda, target, call);

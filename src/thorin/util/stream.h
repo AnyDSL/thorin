@@ -41,19 +41,21 @@ std::ostream& streamf(std::ostream& os, const char* fmt, T val, Args... args) {
 }
 
 namespace detail {
-    extern unsigned int indent;
+	void inc_indent();
+	void dec_indent();
+	unsigned int get_indent();
 }
 
 template <class charT, class traits>
 std::basic_ostream<charT,traits>& endl(std::basic_ostream<charT,traits>& os) {
-    return os << std::endl << std::string(detail::indent * 4, ' ');
+    return os << std::endl << std::string(detail::get_indent() * 4, ' ');
 }
 
 template <class charT, class traits>
-std::basic_ostream<charT,traits>& up(std::basic_ostream<charT,traits>& os) { detail::indent++; return os; }
+std::basic_ostream<charT,traits>& up(std::basic_ostream<charT,traits>& os) { detail::inc_indent(); return os; }
 
 template <class charT, class traits>
-std::basic_ostream<charT,traits>& down(std::basic_ostream<charT,traits>& os) { detail::indent--; return os; }
+std::basic_ostream<charT,traits>& down(std::basic_ostream<charT,traits>& os) { detail::dec_indent(); return os; }
 
 template <class charT, class traits>
 std::basic_ostream<charT,traits>& up_endl(std::basic_ostream<charT,traits>& os) { return os << up << endl; }

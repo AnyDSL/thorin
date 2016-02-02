@@ -10,7 +10,7 @@ namespace thorin {
 static bool update_src(Lambda* src, Lambda* dst, const char* suffix) {
     auto resolve = [&] (Lambda* dst) {
         auto resolver = dst->stub(dst->name + suffix);
-        resolver->jump(dst, resolver->params_as_defs());
+        resolver->jump(dst, resolver->type_args(), resolver->params_as_defs());
         return resolver;
     };
 

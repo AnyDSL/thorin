@@ -29,8 +29,8 @@ public:
     static const DomFrontierBase& create(const Scope& scope) { return scope.cfg<forward>().domfrontier(); }
 
     const CFG<forward>& cfg() const { return cfg_; }
-    const CFNodes& preds(const CFNode* n) const { return preds_[n]; }
-    const CFNodes& succs(const CFNode* n) const { return succs_[n]; }
+    const std::vector<const CFNode*>& preds(const CFNode* n) const { return preds_[n]; }
+    const std::vector<const CFNode*>& succs(const CFNode* n) const { return succs_[n]; }
     virtual void stream_ycomp(std::ostream& out) const override;
 
 private:

@@ -81,6 +81,9 @@ extern "device" {
     fn "llvm.x86.avx.blendv.ps.256" blendvps256(simd[f32 * 8], simd[f32 * 8], simd[f32 * 8]) -> simd[f32 * 8];
 }
 
+fn ldg_f32(a: &[1]f32) -> f32 { *a }
+fn ldg_i32(a: &[1]i32) -> i32 { *a }
+
 fn get_vector_length() -> int { 8 }
 fn get_thread_number() -> int { 4 }
 fn outer_loop(lower: int, upper: int, body: fn(int, fn())) -> () {

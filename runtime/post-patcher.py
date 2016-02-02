@@ -89,6 +89,16 @@ if rttype in ("opencl"):
 
 # another pass to add the ldg, minmax and consorts to the nvvm file
 nvvm_defs = {
+  "ldg_f32" : """define float @ldg_f32(float addrspace(1)* %addr) {
+    %1 = call float asm "ld.global.nc.f32 $0, [$1];", "=f, l" (float addrspace(1)* %addr)
+    ret float %1
+}
+""",
+  "ldg_i32" : """define i32 @ldg_i32(i32 addrspace(1)* %addr) {
+    %1 = call i32 asm "ld.global.nc.i32 $0, [$1];", "=f, l" (i32 addrspace(1)* %addr)
+    ret i32 %1
+}
+""",
   "ldg4_f32" : """define <4 x float> @ldg4_f32(<4 x float>* %addr) {
     %1 = call {float, float, float, float} asm "ld.global.nc.v4.f32 {$0, $1, $2, $3}, [$4];", "=f,=f,=f,=f, l" (<4 x float>* %addr)
     %2 = extractvalue {float, float, float, float} %1, 0

@@ -67,7 +67,7 @@ Lambda* CodeGen::emit_vectorize_continuation(Lambda* lambda) {
     });
 
     if (!lambda->arg(VEC_ARG_LENGTH)->isa<PrimLit>())
-        WLOG("error: vector length must be hard-coded at %", lambda->arg(VEC_ARG_LENGTH)->loc());
+        ELOG("vector length must be hard-coded at %", lambda->arg(VEC_ARG_LENGTH)->loc());
     u32 vector_length_constant = lambda->arg(VEC_ARG_LENGTH)->as<PrimLit>()->qu32_value();
     wfv_todo_.emplace_back(vector_length_constant, emit_function_decl(kernel), simd_kernel_call);
 

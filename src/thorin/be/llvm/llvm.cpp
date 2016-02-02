@@ -37,10 +37,6 @@
 #include "thorin/be/llvm/cuda.h"
 #include "thorin/be/llvm/nvvm.h"
 #include "thorin/be/llvm/opencl.h"
-#include "thorin/be/llvm/runtimes/cuda_runtime.h"
-#include "thorin/be/llvm/runtimes/nvvm_runtime.h"
-#include "thorin/be/llvm/runtimes/opencl_runtime.h"
-#include "thorin/be/llvm/runtimes/spir_runtime.h"
 #include "thorin/be/llvm/spir.h"
 #include "thorin/transform/import.h"
 #include "thorin/util/array.h"
@@ -49,20 +45,19 @@
 
 namespace thorin {
 
-CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention, llvm::CallingConv::ID device_calling_convention, llvm::CallingConv::ID kernel_calling_convention)
+CodeGen::CodeGen(World& world, llvm::GlobalValue::LinkageTypes function_import_linkage, llvm::GlobalValue::LinkageTypes function_export_linkage,
+                 llvm::CallingConv::ID function_calling_convention, llvm::CallingConv::ID device_calling_convention, llvm::CallingConv::ID kernel_calling_convention)
     : world_(world)
     , context_()
     , module_(new llvm::Module(world.name(), context_))
     , irbuilder_(context_)
     , dibuilder_(*module_.get())
+    , function_import_linkage_(function_import_linkage)
+    , function_export_linkage_(function_export_linkage)
     , function_calling_convention_(function_calling_convention)
     , device_calling_convention_(device_calling_convention)
     , kernel_calling_convention_(kernel_calling_convention)
-    , runtime_(new GenericRuntime(context_, module_, irbuilder_))
-    , cuda_runtime_(new CUDARuntime(context_, module_, irbuilder_))
-    , nvvm_runtime_(new NVVMRuntime(context_, module_, irbuilder_))
-    , spir_runtime_(new SPIRRuntime(context_, module_, irbuilder_))
-    , opencl_runtime_(new OpenCLRuntime(context_, module_, irbuilder_))
+    , runtime_(new Runtime(context_, module_, irbuilder_))
 {}
 
 Lambda* CodeGen::emit_intrinsic(Lambda* lambda) {
@@ -70,14 +65,14 @@ Lambda* CodeGen::emit_intrinsic(Lambda* lambda) {
     switch (to->intrinsic()) {
         case Intrinsic::Atomic:      return emit_atomic(lambda);
         case Intrinsic::Select:      return emit_select(lambda);
+        case Intrinsic::Sizeof:      return emit_sizeof(lambda);
         case Intrinsic::Shuffle:     return emit_shuffle(lambda);
-        case Intrinsic::Reinterpret: return emit_reinterpret(lambda);
-        case Intrinsic::Munmap:      runtime_->munmap(lookup(lambda->arg(1)));
-                                     return lambda->args().back()->as_lambda();
-        case Intrinsic::CUDA:        return cuda_runtime_->emit_host_code(*this, lambda);
-        case Intrinsic::NVVM:        return nvvm_runtime_->emit_host_code(*this, lambda);
-        case Intrinsic::SPIR:        return spir_runtime_->emit_host_code(*this, lambda);
-        case Intrinsic::OpenCL:      return opencl_runtime_->emit_host_code(*this, lambda);
+        case Intrinsic::Reserve:     return emit_reserve(lambda);
+        case Intrinsic::Bitcast:    return emit_reinterpret(lambda);
+        case Intrinsic::CUDA:        return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM, ".cu", lambda);
+        case Intrinsic::NVVM:        return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM, ".nvvm", lambda);
+        case Intrinsic::SPIR:        return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".spir.bc", lambda);
+        case Intrinsic::OpenCL:      return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".cl", lambda);
         case Intrinsic::Parallel:    return emit_parallel(lambda);
         case Intrinsic::Spawn:       return emit_spawn(lambda);
         case Intrinsic::Sync:        return emit_sync(lambda);
@@ -121,6 +116,16 @@ Lambda* CodeGen::emit_select(Lambda* lambda) {
     return cont;
 }
 
+Lambda* CodeGen::emit_sizeof(Lambda* lambda) {
+    assert(lambda->num_args() == 2 && "required arguments are missing");
+    auto type = convert(lambda->type_arg(0));
+    auto cont = lambda->arg(1)->as_lambda();
+    auto layout = llvm::DataLayout(module_->getDataLayout());
+    auto call = irbuilder_.getInt32(layout.getTypeAllocSize(type));
+    emit_result_phi(cont->param(1), call);
+    return cont;
+}
+
 Lambda* CodeGen::emit_shuffle(Lambda* lambda) {
     assert(lambda->num_args() == 5 && "required arguments are missing");
     auto mask = lookup(lambda->arg(3));
@@ -133,12 +138,41 @@ Lambda* CodeGen::emit_shuffle(Lambda* lambda) {
     return cont;
 }
 
-Lambda* CodeGen::emit_reinterpret(Lambda* lambda) {
+Lambda* CodeGen::emit_reserve(const Lambda* lambda) {
+    ELOG("reserve_shared: only allowed in device code", lambda->loc());
+    THORIN_UNREACHABLE;
+}
+
+Lambda* CodeGen::emit_reserve_shared(const Lambda* lambda, bool prefix) {
     assert(lambda->num_args() == 3 && "required arguments are missing");
-    auto val = lookup(lambda->arg(1));
+    if (!lambda->arg(1)->isa<PrimLit>())
+        ELOG("reserve_shared: couldn't extract memory size at %", lambda->arg(1)->loc());
+    auto num_elems = lambda->arg(1)->as<PrimLit>()->ps32_value();
     auto cont = lambda->arg(2)->as_lambda();
     auto type = convert(cont->param(1)->type());
-    auto call = irbuilder_.CreateBitCast(val, type);
+    // construct array type
+    auto elem_type = cont->param(1)->type().as<PtrType>()->referenced_type().as<ArrayType>()->elem_type();
+    auto smem_type = this->convert(lambda->world().definite_array_type(elem_type, num_elems));
+    auto global = emit_global_variable(smem_type, (prefix ? entry_->name + "." : "") + lambda->unique_name(), 3);
+    auto call = irbuilder_.CreatePointerCast(global, type);
+    emit_result_phi(cont->param(1), call);
+    return cont;
+}
+
+llvm::Value* CodeGen::emit_bitcast(Def val, Type dst_type) {
+    auto from = lookup(val);
+    auto src_type = val->type();
+    auto to = convert(dst_type);
+    if (src_type.isa<PtrType>() && dst_type.isa<PtrType>())
+        return irbuilder_.CreatePointerCast(from, to);
+    return irbuilder_.CreateBitCast(from, to);
+}
+
+Lambda* CodeGen::emit_reinterpret(Lambda* lambda) {
+    assert(lambda->num_args() == 3 && "required arguments are missing");
+    auto cont = lambda->arg(2)->as_lambda();
+    auto type = cont->param(1)->type();
+    auto call = emit_bitcast(lambda->arg(1), type);
     emit_result_phi(cont->param(1), call);
     return cont;
 }
@@ -155,8 +189,10 @@ llvm::Function* CodeGen::emit_function_decl(Lambda* lambda) {
     auto f = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, convert_fn_type(lambda)));
 
     // set linkage
-    if (lambda->is_external() || lambda->empty())
-        f->setLinkage(llvm::Function::ExternalLinkage);
+    if (lambda->empty())
+        f->setLinkage(function_import_linkage_);
+    else if (lambda->is_external())
+        f->setLinkage(function_export_linkage_);
     else
         f->setLinkage(llvm::Function::InternalLinkage);
 
@@ -645,7 +681,7 @@ llvm::Value* CodeGen::emit(Def def) {
         }
 
         if (conv->isa<Bitcast>())
-            return irbuilder_.CreateBitCast(from, to);
+            return emit_bitcast(conv->from(), dst_type);
     }
 
     if (auto select = def->isa<Select>()) {
@@ -764,7 +800,7 @@ llvm::Value* CodeGen::emit(Def def) {
     if (auto alloc = def->isa<Alloc>()) { // TODO factor this code
         // TODO do this only once
         auto llvm_malloc = llvm::cast<llvm::Function>(module_->getOrInsertFunction(
-                    get_alloc_name(), irbuilder_.getInt8PtrTy(), irbuilder_.getInt64Ty(), nullptr));
+                    get_alloc_name(), irbuilder_.getInt8PtrTy(), irbuilder_.getInt32Ty(), irbuilder_.getInt64Ty(), nullptr));
         llvm_malloc->addAttribute(llvm::AttributeSet::ReturnIndex, llvm::Attribute::NoAlias);
         auto alloced_type = convert(alloc->alloced_type());
         llvm::CallInst* void_ptr;
@@ -774,16 +810,24 @@ llvm::Value* CodeGen::emit(Def def) {
                     irbuilder_.getInt64(layout.getTypeAllocSize(alloced_type)),
                     irbuilder_.CreateMul(irbuilder_.CreateIntCast(lookup(alloc->extra()), irbuilder_.getInt64Ty(), false),
                                          irbuilder_.getInt64(layout.getTypeAllocSize(convert(array->elem_type())))));
-            void_ptr = irbuilder_.CreateCall(llvm_malloc, size);
-        } else
-            void_ptr = irbuilder_.CreateCall(llvm_malloc, irbuilder_.getInt64(layout.getTypeAllocSize(alloced_type)));
+            llvm::Value* malloc_args[] = {
+                irbuilder_.getInt32(0),
+                size
+            };
+            void_ptr = irbuilder_.CreateCall(llvm_malloc, malloc_args);
+        } else {
+            llvm::Value* malloc_args[] = {
+                irbuilder_.getInt32(0),
+                irbuilder_.getInt64(layout.getTypeAllocSize(alloced_type))
+            };
+            void_ptr = irbuilder_.CreateCall(llvm_malloc, malloc_args);
+        }
 
         return irbuilder_.CreatePointerCast(void_ptr, convert(alloc->out_ptr_type()));
     }
 
     if (auto load = def->isa<Load>())    return emit_load(load);
     if (auto store = def->isa<Store>())  return emit_store(store);
-    if (auto mmap = def->isa<Map>())     return emit_mmap(mmap);
     if (auto lea = def->isa<LEA>())      return emit_lea(lea);
     if (def->isa<Enter>())               return nullptr;
 
@@ -832,37 +876,6 @@ llvm::Value* CodeGen::emit_lea(const LEA* lea) {
     assert(lea->ptr_referenced_type().isa<ArrayType>());
     llvm::Value* args[2] = { irbuilder_.getInt64(0), lookup(lea->index()) };
     return irbuilder_.CreateInBoundsGEP(lookup(lea->ptr()), args);
-}
-
-llvm::Value* CodeGen::emit_mmap(const Map* mmap) {
-    // emit proper runtime call
-    auto ref_ty = mmap->out_ptr_type()->referenced_type();
-    Type type;
-    if (auto array = ref_ty->is_indefinite())
-        type = array->elem_type();
-    else
-        type = mmap->out_ptr_type()->referenced_type();
-    auto layout = llvm::DataLayout(module_->getDataLayout());
-    auto size = irbuilder_.getInt32(layout.getTypeAllocSize(convert(type)));
-    return runtime_->mmap(mmap->device(), (uint32_t)mmap->addr_space(), lookup(mmap->ptr()),
-                          lookup(mmap->mem_offset()), lookup(mmap->mem_size()), size);
-}
-
-llvm::Value* CodeGen::emit_shared_mmap(Def def, bool prefix) {
-    auto mmap = def->as<Map>();
-    assert(entry_ && "shared memory can only be mapped inside kernel");
-    if (mmap->addr_space() != AddressSpace::Shared)
-        WLOG("error: mmap: expected shared / local memory address space at %", mmap->loc());
-    assert(mmap->addr_space() == AddressSpace::Shared && "wrong address space for shared memory");
-    if (!mmap->mem_size()->isa<PrimLit>())
-        WLOG("error: mmap: couldn't extract memory size at %", mmap->mem_size()->loc());
-    auto num_elems = mmap->mem_size()->as<PrimLit>()->ps32_value();
-
-    // construct array type
-    auto elem_type = mmap->out_ptr_type()->referenced_type().as<ArrayType>()->elem_type();
-    auto type = convert(mmap->world().definite_array_type(elem_type, num_elems));
-    auto global = emit_global_memory(type, (prefix ? entry_->name + "." : "") + mmap->unique_name(), 3);
-    return global;
 }
 
 llvm::Type* CodeGen::convert(Type type) {
@@ -971,7 +984,7 @@ multiple:
     return types_[*type] = llvm::VectorType::get(llvm_type, type->length());
 }
 
-llvm::GlobalVariable* CodeGen::emit_global_memory(llvm::Type* type, const std::string& name, unsigned addr_space) {
+llvm::GlobalVariable* CodeGen::emit_global_variable(llvm::Type* type, const std::string& name, unsigned addr_space) {
     return new llvm::GlobalVariable(*module_, type, false,
             llvm::GlobalValue::InternalLinkage, llvm::Constant::getNullValue(type), name,
             nullptr, llvm::GlobalVariable::NotThreadLocal, addr_space);

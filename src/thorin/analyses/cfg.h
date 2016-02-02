@@ -116,8 +116,8 @@ public:
     const CFNode* operator [] (Lambda* lambda) const { return find(nodes_, lambda); }
 
 private:
-    const CFNodes& preds(Lambda* lambda) const { return nodes_[lambda]->preds(); }
-    const CFNodes& succs(Lambda* lambda) const { return nodes_[lambda]->succs(); }
+    const CFNodes& preds(Lambda* lambda) const { auto l = nodes_[lambda]; assert(l); return l->preds(); }
+    const CFNodes& succs(Lambda* lambda) const { auto l = nodes_[lambda]; assert(l); return l->succs(); }
     const CFNode* entry() const { return nodes_.array().front(); }
     const CFNode* exit() const { return nodes_.array().back(); }
 

@@ -206,6 +206,7 @@ public:
     virtual uint64_t hash() const;
     virtual bool equal(const TypeNode*) const;
     virtual bool is_closed() const;
+    virtual bool is_concrete() const;
     virtual IndefiniteArrayType is_indefinite() const;
     virtual bool use_lea() const { return false; }
     virtual std::ostream& stream(std::ostream&) const;
@@ -515,6 +516,7 @@ public:
     Type bound_at() const { return Type(bound_at_); }
     virtual bool equal(const TypeNode*) const override;
     virtual bool is_closed() const override { return bound_at_ != nullptr; }
+    virtual bool is_concrete() const override { return false; }
 
     virtual std::ostream& stream(std::ostream&) const override;
 

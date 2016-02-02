@@ -243,6 +243,37 @@ Lambda::ScopeInfo* Lambda::find_scope(const Scope* scope) {
  */
 
 void Lambda::jump(Def to, Array<Type> type_args, ArrayRef<Def> args) {
+    if (auto lambda = to->isa<Lambda>()) {
+        switch (lambda->intrinsic()) {
+            case Intrinsic::Branch: {
+                assert(type_args.empty());
+                assert(args.size() == 3);
+                Def cond = args[0], t = args[1], f = args[2];
+                if (auto lit = cond->isa<PrimLit>())
+                    return jump(lit->value().get_bool() ? t : f, {}, {});
+                if (t == f)
+                    return jump(t, {}, {});
+                if (cond->is_not())
+                    return branch(cond->as<ArithOp>()->rhs(), f, t);
+                break;
+            }
+            case Intrinsic::Bitcast: {
+                assert(type_args.size() == 2);
+                Type dst = type_args[0], src = type_args[1];
+
+                if (dst->is_concrete()) {
+                    assert(args.size() == 3);
+                    Def mem = args[0], def = args[1], cont = args[2];
+                    assert_unused(def->type() == src);
+                    return jump(cont, {}, { mem, world().bitcast(dst, def, Location()) });
+                }
+                break;
+            }
+            default:
+                break;
+        }
+    }
+
     unset_ops();
     resize(args.size()+1);
     set_op(0, to);
@@ -254,15 +285,7 @@ void Lambda::jump(Def to, Array<Type> type_args, ArrayRef<Def> args) {
     swap(type_args_, type_args);
 }
 
-void Lambda::branch(Def cond, Def t, Def f) {
-    if (auto lit = cond->isa<PrimLit>())
-        return jump(lit->value().get_bool() ? t : f, {}, {});
-    if (t == f)
-        return jump(t, {}, {});
-    if (cond->is_not())
-        return branch(cond->as<ArithOp>()->rhs(), f, t);
-    return jump(world().branch(), {}, {cond, t, f});
-}
+void Lambda::branch(Def cond, Def t, Def f) { return jump(world().branch(), {}, {cond, t, f}); }
 
 std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Type> type_args, ArrayRef<Def> args, Type ret_type) {
     if (ret_type.empty()) {

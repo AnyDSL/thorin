@@ -147,6 +147,14 @@ void TypeNode::free_type_params(TypeParamSet& bound, TypeParamSet& free) const {
     }
 }
 
+bool TypeNode::is_concrete() const {
+    for (auto arg : args()) {
+        if (!arg->is_concrete())
+            return false;
+    }
+    return true;
+}
+
 //------------------------------------------------------------------------------
 
 /*

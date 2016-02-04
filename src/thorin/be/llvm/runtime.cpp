@@ -53,15 +53,10 @@ Lambda* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std:
     assert(lambda->num_args() >= ACC_NUM_ARGS && "required arguments are missing");
 
     // arguments
-    if (!lambda->arg(ACC_ARG_DEVICE)->isa<PrimLit>())
-        ELOG("target device must be hard-coded at %", lambda->arg(ACC_ARG_DEVICE)->loc());
-    auto target_device_id = int(lambda->arg(ACC_ARG_DEVICE)->as<PrimLit>()->qu32_value().data());
-
+    auto target_device_id = code_gen.lookup(lambda->arg(ACC_ARG_DEVICE));
     auto target_platform = builder_.getInt32(platform);
-    auto target_device = builder_.CreateOr(target_platform,
-        builder_.CreateShl(builder_.getInt32(target_device_id), builder_.getInt32(4)));
-
-    auto it_space  = lambda->arg(ACC_ARG_SPACE)->as<Tuple>();
+    auto target_device = builder_.CreateOr(target_platform, builder_.CreateShl(target_device_id, builder_.getInt32(4)));
+    auto it_space = lambda->arg(ACC_ARG_SPACE)->as<Tuple>();
     auto it_config = lambda->arg(ACC_ARG_CONFIG)->as<Tuple>();
     auto kernel = lambda->arg(ACC_ARG_BODY)->as<Global>()->init()->as<Lambda>();
 

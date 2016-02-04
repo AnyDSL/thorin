@@ -222,22 +222,24 @@ void CodeGen::emit(int opt, bool debug) {
         if (llvm::Triple(llvm::sys::getProcessTriple()).isOSDarwin())
             module_->addModuleFlag(llvm::Module::Warning, "Dwarf Version", 2);
     }
+    llvm::DICompileUnit dcompile_unit = dibuilder_.createCompileUnit(llvm::dwarf::DW_LANG_C, world_.name(), llvm::StringRef(), "Impala", opt > 0, llvm::StringRef(), 0);
 
     Scope::for_each(world_, [&] (const Scope& scope) {
         entry_ = scope.entry();
         assert(entry_->is_returning());
         llvm::Function* fct = emit_function_decl(entry_);
 
-        llvm::DILexicalBlockFile discope;
+        llvm::DISubprogram disub_program;
+        llvm::DIScope* discope = &dcompile_unit;
         if (debug) {
             auto src_file = llvm::sys::path::filename(entry_->loc().pos1().filename());
             auto src_dir = llvm::sys::path::parent_path(entry_->loc().pos1().filename());
             auto difile = dibuilder_.createFile(src_file, src_dir);
-            auto compile_unit = dibuilder_.createCompileUnit(llvm::dwarf::DW_LANG_C, src_file, src_dir, "Impala", opt > 0, llvm::StringRef(), 0);
-            auto disubprogram = dibuilder_.createFunction(compile_unit, fct->getName(), fct->getName(), difile, entry_->loc().pos1().line(),
-                                                         dibuilder_.createSubroutineType(difile, dibuilder_.getOrCreateTypeArray(llvm::ArrayRef<llvm::Metadata*>())),
-                                                         false /* internal linkage */, true /* definition */, entry_->loc().pos1().line(), 0 /* Flags */, opt > 0, fct);
-            discope = dibuilder_.createLexicalBlockFile(disubprogram, difile);
+            disub_program = dibuilder_.createFunction(llvm::DIDescriptor(difile), fct->getName(), fct->getName(), difile, entry_->loc().pos1().line(),
+                                                      dibuilder_.createSubroutineType(difile, dibuilder_.getOrCreateTypeArray(llvm::ArrayRef<llvm::Metadata*>())),
+                                                      false /* internal linkage */, true /* definition */, entry_->loc().pos1().line(),
+                                                      llvm::DIDescriptor::FlagPrototyped /* Flags */, opt > 0, fct);
+            discope = &disub_program;
         }
 
         // map params
@@ -298,7 +300,7 @@ void CodeGen::emit(int opt, bool debug) {
 
             for (auto primop : block) {
                 if (debug)
-                    irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(primop->loc().pos1().line(), primop->loc().pos1().col(), discope));
+                    irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(primop->loc().pos1().line(), primop->loc().pos1().col(), llvm::DIScope(*discope)));
                 primops_[primop] = emit(primop);
             }
 

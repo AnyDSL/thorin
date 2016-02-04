@@ -186,7 +186,8 @@ llvm::Function* CodeGen::emit_function_decl(Lambda* lambda) {
     std::string name = (lambda->is_external() || lambda->empty()) ? lambda->name : lambda->unique_name();
     auto f = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, convert_fn_type(lambda)));
 
-    // set dll storage class on Windows
+#ifdef _MSC_VER
+    // set dll storage class for MSVC
     if (!entry_ && llvm::Triple(llvm::sys::getProcessTriple()).isOSWindows()) {
         if (lambda->empty()) {
             f->setDLLStorageClass(llvm::GlobalValue::DLLImportStorageClass);
@@ -194,6 +195,7 @@ llvm::Function* CodeGen::emit_function_decl(Lambda* lambda) {
             f->setDLLStorageClass(llvm::GlobalValue::DLLExportStorageClass);
         }
     }
+#endif
 
     // set linkage
     if (lambda->empty() || lambda->is_external())

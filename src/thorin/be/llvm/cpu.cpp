@@ -10,11 +10,11 @@ namespace thorin {
 CPUCodeGen::CPUCodeGen(World& world)
     : CodeGen(world,
 #ifdef _MSC_VER
-		      // Use DLL export calling convention with Visual Studio
+              // Use DLL export calling convention with Visual Studio
               llvm::Function::DLLImportLinkage,
               llvm::Function::DLLExportLinkage,
 #else
-	          llvm::Function::ExternalLinkage,
+              llvm::Function::ExternalLinkage,
               llvm::Function::ExternalLinkage,
 #endif
               llvm::CallingConv::C, llvm::CallingConv::C, llvm::CallingConv::C)

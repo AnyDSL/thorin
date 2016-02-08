@@ -224,7 +224,7 @@ void CodeGen::emit(int opt, bool debug) {
         if (llvm::Triple(llvm::sys::getProcessTriple()).isOSDarwin())
             module_->addModuleFlag(llvm::Module::Warning, "Dwarf Version", 2);
     }
-    llvm::DICompileUnit dcompile_unit = dibuilder_.createCompileUnit(llvm::dwarf::DW_LANG_C, world_.name(), llvm::StringRef(), "Impala", opt > 0, llvm::StringRef(), 0);
+    auto dicompile_unit = dibuilder_.createCompileUnit(llvm::dwarf::DW_LANG_C, world_.name(), llvm::StringRef(), "Impala", opt > 0, llvm::StringRef(), 0);
 
     Scope::for_each(world_, [&] (const Scope& scope) {
         entry_ = scope.entry();
@@ -232,7 +232,7 @@ void CodeGen::emit(int opt, bool debug) {
         llvm::Function* fct = emit_function_decl(entry_);
 
         llvm::DISubprogram disub_program;
-        llvm::DIScope* discope = &dcompile_unit;
+        llvm::DIScope* discope = &dicompile_unit;
         if (debug) {
             auto src_file = llvm::sys::path::filename(entry_->loc().pos1().filename());
             auto src_dir = llvm::sys::path::parent_path(entry_->loc().pos1().filename());
@@ -290,6 +290,8 @@ void CodeGen::emit(int opt, bool debug) {
         auto oldStartBB = fct->begin();
         auto startBB = llvm::BasicBlock::Create(context_, fct->getName() + "_start", fct, oldStartBB);
         irbuilder_.SetInsertPoint(startBB);
+        if (debug)
+            irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(entry_->loc().pos1().line(), entry_->loc().pos1().col(), *discope));
         emit_function_start(startBB, entry_);
         irbuilder_.CreateBr(oldStartBB);
 
@@ -302,7 +304,7 @@ void CodeGen::emit(int opt, bool debug) {
 
             for (auto primop : block) {
                 if (debug)
-                    irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(primop->loc().pos1().line(), primop->loc().pos1().col(), llvm::DIScope(*discope)));
+                    irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(primop->loc().pos1().line(), primop->loc().pos1().col(), *discope));
                 primops_[primop] = emit(primop);
             }
 

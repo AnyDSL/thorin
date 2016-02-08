@@ -61,23 +61,23 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention
 Lambda* CodeGen::emit_intrinsic(Lambda* lambda) {
     Lambda* to = lambda->to()->as_lambda();
     switch (to->intrinsic()) {
-        case Intrinsic::Atomic:      return emit_atomic(lambda);
-        case Intrinsic::Select:      return emit_select(lambda);
-        case Intrinsic::Sizeof:      return emit_sizeof(lambda);
-        case Intrinsic::Shuffle:     return emit_shuffle(lambda);
-        case Intrinsic::Reserve:     return emit_reserve(lambda);
+        case Intrinsic::Atomic:     return emit_atomic(lambda);
+        case Intrinsic::Select:     return emit_select(lambda);
+        case Intrinsic::Sizeof:     return emit_sizeof(lambda);
+        case Intrinsic::Shuffle:    return emit_shuffle(lambda);
+        case Intrinsic::Reserve:    return emit_reserve(lambda);
         case Intrinsic::Bitcast:    return emit_reinterpret(lambda);
-        case Intrinsic::CUDA:        return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM, ".cu", lambda);
-        case Intrinsic::NVVM:        return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM, ".nvvm", lambda);
-        case Intrinsic::SPIR:        return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".spir.bc", lambda);
-        case Intrinsic::OpenCL:      return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".cl", lambda);
-        case Intrinsic::Parallel:    return emit_parallel(lambda);
-        case Intrinsic::Spawn:       return emit_spawn(lambda);
-        case Intrinsic::Sync:        return emit_sync(lambda);
+        case Intrinsic::CUDA:       return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM, ".cu", lambda);
+        case Intrinsic::NVVM:       return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM, ".nvvm", lambda);
+        case Intrinsic::SPIR:       return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".spir.bc", lambda);
+        case Intrinsic::OpenCL:     return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".cl", lambda);
+        case Intrinsic::Parallel:   return emit_parallel(lambda);
+        case Intrinsic::Spawn:      return emit_spawn(lambda);
+        case Intrinsic::Sync:       return emit_sync(lambda);
 #ifdef WFV2_SUPPORT
-        case Intrinsic::Vectorize:   return emit_vectorize_continuation(lambda);
+        case Intrinsic::Vectorize:  return emit_vectorize_continuation(lambda);
 #else
-        case Intrinsic::Vectorize:   throw std::runtime_error("rebuild with libWFV support");
+        case Intrinsic::Vectorize:  throw std::runtime_error("rebuild with libWFV support");
 #endif
         default: THORIN_UNREACHABLE;
     }

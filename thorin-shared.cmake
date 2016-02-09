@@ -1,7 +1,6 @@
 IF ( LLVM_FOUND )
     FUNCTION ( GET_THORIN_LLVM_DEPENDENCY_LIBS OUT_VAR )
-        LLVM_MAP_COMPONENTS_TO_LIBRARIES ( THORIN_LLVM_TEMP_LIBS jit native analysis ipo )
-        SET( THORIN_LLVM_TEMP_LIBS ${THORIN_LLVM_TEMP_LIBS} LLVMIRReader LLVMAsmParser LLVMBitReader LLVMBitWriter LLVMSupport LLVMCore )
+        LLVM_MAP_COMPONENTS_TO_LIBRARIES ( THORIN_LLVM_TEMP_LIBS analysis bitreader bitwriter core ipo irreader jit native support )
         SET ( ${OUT_VAR} ${THORIN_LLVM_TEMP_LIBS} PARENT_SCOPE )
     ENDFUNCTION ()
 ELSE ()

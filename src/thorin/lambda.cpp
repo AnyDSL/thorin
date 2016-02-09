@@ -251,6 +251,18 @@ Lambda::ScopeInfo* Lambda::find_scope(const Scope* scope) {
 void Lambda::jump(Def to, Array<Type> type_args, ArrayRef<Def> args) {
     if (auto lambda = to->isa<Lambda>()) {
         switch (lambda->intrinsic()) {
+            case Intrinsic::Bitcast: {
+                assert(type_args.size() == 2);
+                Type dst = type_args[0], src = type_args[1];
+
+                if (dst->is_concrete()) {
+                    assert(args.size() == 3);
+                    Def mem = args[0], def = args[1], k = args[2];
+                    assert_unused(def->type() == src);
+                    return jump(k, {}, { mem, world().bitcast(dst, def, /*TODO*/Location()) });
+                }
+                break;
+            }
             case Intrinsic::Branch: {
                 assert(type_args.empty());
                 assert(args.size() == 3);
@@ -263,15 +275,14 @@ void Lambda::jump(Def to, Array<Type> type_args, ArrayRef<Def> args) {
                     return branch(cond->as<ArithOp>()->rhs(), f, t);
                 break;
             }
-            case Intrinsic::Bitcast: {
+            case Intrinsic::Select: {
                 assert(type_args.size() == 2);
-                Type dst = type_args[0], src = type_args[1];
+                Type type = type_args[1];
 
-                if (dst->is_concrete()) {
-                    assert(args.size() == 3);
-                    Def mem = args[0], def = args[1], cont = args[2];
-                    assert_unused(def->type() == src);
-                    return jump(cont, {}, { mem, world().bitcast(dst, def, Location()) });
+                if (type->is_concrete()) {
+                    assert(args.size() == 5);
+                    Def mem = args[0], cond = args[1], t = args[2], f = args[3], k = args[4];
+                    return jump(k, {}, { mem, world().select(cond, t, f, /*TODO*/Location()) });
                 }
                 break;
             }

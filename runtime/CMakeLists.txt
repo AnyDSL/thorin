@@ -2,7 +2,7 @@ SET ( RUNTIME_DEFINITIONS )
 SET ( CONF_RUNTIME_LIBRARIES )
 
 # Add path for custom modules
-SET(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/runtime/cmake/modules)
+LIST( APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/runtime/cmake/modules" )
 
 INCLUDE_DIRECTORIES( ${CMAKE_SOURCE_DIR}/src )
 

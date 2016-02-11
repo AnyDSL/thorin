@@ -753,7 +753,11 @@ std::ostream& CCodeGen::emit(Def def) {
     }
 
     if (auto primlit = def->isa<PrimLit>()) {
+#if __GNUC__ == 4 || (__GNUC__ == 5 && __GNUC_MINOR__ < 1)
+        auto float_mode = std::scientific;
+#else
         auto float_mode = lang_ == Lang::CUDA ? std::scientific : std::hexfloat;
+#endif
         switch (primlit->primtype_kind()) {
             case PrimType_bool: os << (primlit->bool_value() ? "true" : "false");                       break;
             case PrimType_ps8:  case PrimType_qs8:  os << (int) primlit->ps8_value();                   break;

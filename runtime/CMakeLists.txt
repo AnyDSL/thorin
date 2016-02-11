@@ -2,7 +2,7 @@ SET ( RUNTIME_DEFINITIONS )
 SET ( CONF_RUNTIME_LIBRARIES )
 
 # Add path for custom modules
-SET(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/runtime/cmake/modules)
+LIST( APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/runtime/cmake/modules" )
 
 INCLUDE_DIRECTORIES( ${CMAKE_SOURCE_DIR}/src )
 
@@ -68,6 +68,8 @@ ADD_LIBRARY ( thorin_runtime
               ${CMAKE_SOURCE_DIR}/src/thorin/util/stream.cpp
               ${CUDA_PLATFORM}
               ${OPENCL_PLATFORM} )
+
+TARGET_LINK_LIBRARIES ( thorin_runtime ${CONF_RUNTIME_LIBRARIES} )
 
 # Generate the ThorinRuntime.cmake file from the template
 CONFIGURE_FILE ( cmake/ThorinRuntime.cmake.in "${CMAKE_BINARY_DIR}/cmake/ThorinRuntime.cmake" @ONLY )

@@ -853,9 +853,13 @@ void World::opt() {
     cleanup();
     lower2cff(*this);
     clone_bodies(*this);
+    mem2reg(*this);
     cleanup();
     partial_evaluation(*this);
     cleanup();
+    lower2cff(*this);
+    clone_bodies(*this);
+    mem2reg(*this);
     lift_builtins(*this);
     inliner(*this);
     lift_enters(*this);

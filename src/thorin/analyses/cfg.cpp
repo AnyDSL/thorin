@@ -248,9 +248,15 @@ void CFABuilder::propagate_higher_order_values() {
                         if (load->type()->order() >= 1)
                             WLOG("higher-order load not yet supported");
                     }
+
                     bool todo = false;
-                    for (auto op : def->as<PrimOp>()->ops())
-                        todo |= push(op);
+                    if (auto evalop = def->isa<EvalOp>()) {
+                        todo |= push(evalop->begin()); // ignore end
+                    } else {
+                        for (auto op : def->as<PrimOp>()->ops())
+                            todo |= push(op);
+                    }
+
                     if (!todo) {
                         for (auto op : def->as<PrimOp>()->ops())
                             set.insert_range(def2set_[op]);

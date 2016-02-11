@@ -851,11 +851,11 @@ void World::cleanup() { cleanup_world(*this); }
 
 void World::opt() {
     cleanup();
-    partial_evaluation(*this);
-    cleanup();
     lower2cff(*this);
     clone_bodies(*this);
-    mem2reg(*this);
+    cleanup();
+    partial_evaluation(*this);
+    cleanup();
     lift_builtins(*this);
     inliner(*this);
     lift_enters(*this);

@@ -6,23 +6,23 @@ static std::ostream& line_col(const Position& pos, std::ostream& os) { return os
 std::ostream& operator << (std::ostream& os, const Position& pos) { return line_col(pos, os << pos.filename() << ':'); }
 
 std::ostream& operator << (std::ostream& os, const Location& loc) {
-    const Position& pos1 = loc.pos1();
-    const Position& pos2 = loc.pos2();
+    const Position& first = loc.begin();
+    const Position& end = loc.end();
 
-    if (pos1.filename() != pos2.filename())
-        return os << pos1 << " - " << pos2;
+    if (first.filename() != end.filename())
+        return os << first << " - " << end;
 
-    os << pos1.filename() << ':';
+    os << first.filename() << ':';
 
-    if (pos1.line() != pos2.line())
-        return line_col(pos2, line_col(pos1, os) << " - ");
+    if (first.line() != end.line())
+        return line_col(end, line_col(first, os) << " - ");
 
-    os << pos1.line() << " col ";
+    os << first.line() << " col ";
 
-    if (pos1.col() != pos2.col())
-        return os << pos1.col() << " - " << pos2.col();
+    if (first.col() != end.col())
+        return os << first.col() << " - " << end.col();
 
-    return os << pos1.col();
+    return os << first.col();
 }
 
 }

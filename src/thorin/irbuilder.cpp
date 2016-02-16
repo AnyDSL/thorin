@@ -85,7 +85,7 @@ Lambda* JumpTarget::untangle() {
     if (!first_)
         return lambda_;
     assert(lambda_);
-    auto bb = world().basicblock(lambda_->loc(), name_);
+    auto bb = world().basicblock(loc(), name_);
     lambda_->jump(bb, {}, {});
     first_ = false;
     return lambda_ = bb;
@@ -99,8 +99,8 @@ void Lambda::jump(JumpTarget& jt) {
         this->jump(jt.untangle(), {}, {});
 }
 
-Lambda* JumpTarget::branch_to(World& world, const Location& loc) {
-    auto bb = world.basicblock(loc, lambda_ ? name_ + std::string("_crit") : name_);
+Lambda* JumpTarget::branch_to(World& world) {
+    auto bb = world.basicblock(loc(), lambda_ ? name_ + std::string("_crit") : name_);
     bb->jump(*this);
     bb->seal();
     return bb;
@@ -112,8 +112,8 @@ Lambda* JumpTarget::enter() {
     return lambda_;
 }
 
-Lambda* JumpTarget::enter_unsealed(World& world, const Location& loc) {
-    return lambda_ ? untangle() : lambda_ = world.basicblock(loc, name_);
+Lambda* JumpTarget::enter_unsealed(World& world) {
+    return lambda_ ? untangle() : lambda_ = world.basicblock(loc(), name_);
 }
 
 //------------------------------------------------------------------------------
@@ -132,8 +132,8 @@ void IRBuilder::branch(Def cond, JumpTarget& t, JumpTarget& f) {
         } else if (&t == &f) {
             jump(t);
         } else {
-            auto tl = t.branch_to(world_, cond->loc());
-            auto fl = f.branch_to(world_, cond->loc());
+            auto tl = t.branch_to(world_);
+            auto fl = f.branch_to(world_);
             cur_bb->branch(cond, tl, fl);
             set_unreachable();
         }

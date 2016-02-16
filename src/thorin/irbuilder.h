@@ -87,10 +87,11 @@ private:
 
 //------------------------------------------------------------------------------
 
-class JumpTarget {
+class JumpTarget : public HasLocation {
 public:
-    JumpTarget(const char* name = "")
-        : lambda_(nullptr)
+    JumpTarget(const Location& loc, const char* name = "")
+        : HasLocation(loc)
+        , lambda_(nullptr)
         , first_(false)
         , name_(name)
     {}
@@ -104,10 +105,10 @@ public:
 
 private:
     void jump_from(Lambda* bb);
-    Lambda* branch_to(World& world, const Location& loc);
+    Lambda* branch_to(World& world);
     Lambda* untangle();
     Lambda* enter();
-    Lambda* enter_unsealed(World& world, const Location& loc);
+    Lambda* enter_unsealed(World& world);
 
     Lambda* lambda_;
     bool first_;
@@ -136,7 +137,7 @@ public:
     Def extract(Def agg, u32 index, const Location& loc, const std::string& name = "");
     void store(Def ptr, Def val, const Location& loc, const std::string& name = "");
     Lambda* enter(JumpTarget& jt) { return cur_bb = jt.enter(); }
-    Lambda* enter_unsealed(JumpTarget& jt, const Location& loc) { return cur_bb = jt.enter_unsealed(world_, loc); }
+    Lambda* enter_unsealed(JumpTarget& jt) { return cur_bb = jt.enter_unsealed(world_); }
     void jump(JumpTarget& jt);
     void branch(Def cond, JumpTarget& t, JumpTarget& f);
     Def call(Def to, ArrayRef<Type> type_args, ArrayRef<Def> args, Type ret_type);

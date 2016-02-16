@@ -128,14 +128,15 @@ static Lambdas preds(const Lambda* lambda) {
 
     while (!queue.empty()) {
         auto use = pop(queue);
-        if (auto lambda = use->isa_lambda()) {
-            if ((use.index() == 0 && direct) || (use.index() != 0 && indirect))
-                preds.push_back(lambda);
-            continue;
-        }
+        if (!use->isa<EvalOp>() || use.index() != 1) { // ignore evalop's end
+            if (auto lambda = use->isa_lambda()) {
+                if ((use.index() == 0 && direct) || (use.index() != 0 && indirect))
+                    preds.push_back(lambda);
+                continue;
+            }
 
-        if (!use->isa<EvalOp>() || use.index() != 1) // ignore evalop's end
             enqueue(use);
+        }
     }
 
     return preds;

@@ -242,7 +242,8 @@ Lambda::ScopeInfo* Lambda::find_scope(const Scope* scope) {
  * terminate
  */
 
-void Lambda::jump(Def to, Array<Type> type_args, ArrayRef<Def> args) {
+void Lambda::jump(Def to, Array<Type> type_args, ArrayRef<Def> args, const Location& loc) {
+    jump_loc_ = loc;
     if (auto lambda = to->isa<Lambda>()) {
         switch (lambda->intrinsic()) {
             case Intrinsic::Bitcast: {
@@ -253,7 +254,7 @@ void Lambda::jump(Def to, Array<Type> type_args, ArrayRef<Def> args) {
                     assert(args.size() == 3);
                     Def mem = args[0], def = args[1], k = args[2];
                     assert_unused(def->type() == src);
-                    return jump(k, {}, { mem, world().bitcast(dst, def, /*TODO*/Location()) });
+                    return jump(k, {}, { mem, world().bitcast(dst, def, loc) }, loc);
                 }
                 break;
             }
@@ -262,11 +263,11 @@ void Lambda::jump(Def to, Array<Type> type_args, ArrayRef<Def> args) {
                 assert(args.size() == 3);
                 Def cond = args[0], t = args[1], f = args[2];
                 if (auto lit = cond->isa<PrimLit>())
-                    return jump(lit->value().get_bool() ? t : f, {}, {});
+                    return jump(lit->value().get_bool() ? t : f, {}, {}, loc);
                 if (t == f)
-                    return jump(t, {}, {});
+                    return jump(t, {}, {}, loc);
                 if (cond->is_not())
-                    return branch(cond->as<ArithOp>()->rhs(), f, t);
+                    return branch(cond->as<ArithOp>()->rhs(), f, t, loc);
                 break;
             }
             case Intrinsic::Select: {
@@ -276,7 +277,7 @@ void Lambda::jump(Def to, Array<Type> type_args, ArrayRef<Def> args) {
                 if (type->is_concrete()) {
                     assert(args.size() == 5);
                     Def mem = args[0], cond = args[1], t = args[2], f = args[3], k = args[4];
-                    return jump(k, {}, { mem, world().select(cond, t, f, /*TODO*/Location()) });
+                    return jump(k, {}, { mem, world().select(cond, t, f, loc) }, loc);
                 }
                 break;
             }
@@ -296,11 +297,11 @@ void Lambda::jump(Def to, Array<Type> type_args, ArrayRef<Def> args) {
     swap(type_args_, type_args);
 }
 
-void Lambda::branch(Def cond, Def t, Def f) { return jump(world().branch(), {}, {cond, t, f}); }
+void Lambda::branch(Def cond, Def t, Def f, const Location& loc) { return jump(world().branch(), {}, {cond, t, f}, loc); }
 
-std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Type> type_args, ArrayRef<Def> args, Type ret_type) {
+std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Type> type_args, ArrayRef<Def> args, Type ret_type, const Location& loc) {
     if (ret_type.empty()) {
-        jump(to, type_args, args);
+        jump(to, type_args, args, loc);
         return std::make_pair(nullptr, Def());
     }
 
@@ -321,7 +322,7 @@ std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Type> type_args, ArrayRef<
     size_t csize = args.size() + 1;
     Array<Def> cargs(csize);
     *std::copy(args.begin(), args.end(), cargs.begin()) = next;
-    jump(to, type_args, cargs);
+    jump(to, type_args, cargs, loc);
 
     // determine return value
     Def ret;
@@ -351,7 +352,7 @@ void jump_to_cached_call(Lambda* src, Lambda* dst, const Call& call) {
             nargs.push_back(src->arg(i));
     }
 
-    src->jump(dst, ntype_args, nargs);
+    src->jump(dst, ntype_args, nargs, src->jump_loc());
     assert(src->arg_fn_type() == dst->type());
 }
 

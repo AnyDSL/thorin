@@ -43,28 +43,28 @@ private:
 class Location {
 public:
     Location() {}
-    Location(const Position& pos1, const Position& pos2)
-        : pos1_(pos1)
-        , pos2_(pos2)
+    Location(const Position& begin, const Position& end)
+        : begin_(begin)
+        , end_(end)
     {}
-    Location(const Position& pos1)
-        : pos1_(pos1)
-        , pos2_(pos1)
+    Location(const Position& begin)
+        : begin_(begin)
+        , end_(begin)
     {}
     Location(const char* filename, int line1, int col1, int line2, int col2)
-        : pos1_(filename, line1, col1)
-        , pos2_(filename, line2, col2)
+        : begin_(filename, line1, col1)
+        , end_(filename, line2, col2)
     {}
 
-    const Position& pos1() const { return pos1_; }
-    const Position& pos2() const { return pos2_; }
-    void set_pos1(const Position& pos1) { pos1_ = pos1; }
-    void set_pos2(const Position& pos2) { pos2_ = pos2; }
-    bool is_set() const { return pos1().is_set() && pos2().is_set(); }
+    const Position& begin() const { return begin_; }
+    const Position& end() const { return end_; }
+    void set_begin(const Position& begin) { begin_ = begin; }
+    void set_end(const Position& end) { end_ = end; }
+    bool is_set() const { return begin().is_set() && end().is_set(); }
 
 protected:
-    Position pos1_;
-    Position pos2_;
+    Position begin_;
+    Position end_;
 
     friend class HasLocation;
 };
@@ -77,20 +77,18 @@ public:
     HasLocation(const Position& pos)
         : loc_(pos, pos)
     {}
-    HasLocation(const Position& pos1, const Position& pos2)
-        : loc_(pos1, pos2)
+    HasLocation(const Position& begin, const Position& end)
+        : loc_(begin, end)
     {}
     HasLocation(const Location& loc)
         : loc_(loc)
     {}
 
     const Location& loc() const  { return loc_; }
-    const Position& pos1() const { return loc_.pos1(); }
-    const Position& pos2() const { return loc_.pos2(); }
-    void set_pos1(const Position& pos1) { loc_.pos1_ = pos1; }
-    void set_pos2(const Position& pos2) { loc_.pos2_ = pos2; }
+    void set_begin(const Position& begin) { loc_.begin_ = begin; }
+    void set_end(const Position& end) { loc_.end_ = end; }
     void set_loc(const Location& loc) { loc_ = loc; }
-    void set_loc(const Position& pos1, const Position& pos2) { loc_.pos1_ = pos1; loc_.pos2_ = pos2; }
+    void set_loc(const Position& begin, const Position& end) { loc_.begin_ = begin; loc_.end_ = end; }
     void set_loc(const char* filename, int line1, int col1, int line2, int col2) {
         loc_ = Location(filename, line1, col1, line2, col2);
     }

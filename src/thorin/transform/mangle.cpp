@@ -110,7 +110,7 @@ void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
 
     if (olambda->to() == world().branch()) {        // fold branch if possible
         if (auto lit = mangle(olambda->arg(0))->isa<PrimLit>())
-            return nlambda->jump(mangle(lit->value().get_bool() ? olambda->arg(1) : olambda->arg(2)), {}, {});
+            return nlambda->jump(mangle(lit->value().get_bool() ? olambda->arg(1) : olambda->arg(2)), {}, {}, olambda->jump_loc());
     }
 
     Array<Def> nops(olambda->size());
@@ -137,10 +137,10 @@ void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
         }
 
         if (substitute)
-            return nlambda->jump(nentry, ntype_args, nargs.cut(cut));
+            return nlambda->jump(nentry, ntype_args, nargs.cut(cut), olambda->jump_loc());
     }
 
-    nlambda->jump(ntarget, ntype_args, nargs);
+    nlambda->jump(ntarget, ntype_args, nargs, olambda->jump_loc());
 }
 
 Def Mangler::mangle(Def odef) {

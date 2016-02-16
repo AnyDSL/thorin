@@ -71,7 +71,7 @@ Def import(Type2Type& type_old2new, Def2Def& def_old2new, World& to, Def odef) {
 
     assert(nlambda && &nlambda->world() == &to);
     if (size > 0)
-        nlambda->jump(nops.front(), ntype_args, nops.skip_front());
+        nlambda->jump(nops.front(), ntype_args, nops.skip_front(), olambda->jump_loc());
     return nlambda;
 }
 

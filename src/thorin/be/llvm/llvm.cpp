@@ -137,7 +137,7 @@ Lambda* CodeGen::emit_shuffle(Lambda* lambda) {
 }
 
 Lambda* CodeGen::emit_reserve(const Lambda* lambda) {
-    ELOG("reserve_shared: only allowed in device code", lambda->loc());
+    ELOG("reserve_shared: only allowed in device code at %", lambda->jump_loc());
     THORIN_UNREACHABLE;
 }
 
@@ -234,12 +234,12 @@ void CodeGen::emit(int opt, bool debug) {
         llvm::DISubprogram disub_program;
         llvm::DIScope* discope = &dicompile_unit;
         if (debug) {
-            auto src_file = llvm::sys::path::filename(entry_->loc().pos1().filename());
-            auto src_dir = llvm::sys::path::parent_path(entry_->loc().pos1().filename());
+            auto src_file = llvm::sys::path::filename(entry_->loc().begin().filename());
+            auto src_dir = llvm::sys::path::parent_path(entry_->loc().begin().filename());
             auto difile = dibuilder_.createFile(src_file, src_dir);
-            disub_program = dibuilder_.createFunction(llvm::DIDescriptor(difile), fct->getName(), fct->getName(), difile, entry_->loc().pos1().line(),
+            disub_program = dibuilder_.createFunction(llvm::DIDescriptor(difile), fct->getName(), fct->getName(), difile, entry_->loc().begin().line(),
                                                       dibuilder_.createSubroutineType(difile, dibuilder_.getOrCreateTypeArray(llvm::ArrayRef<llvm::Metadata*>())),
-                                                      false /* internal linkage */, true /* definition */, entry_->loc().pos1().line(),
+                                                      false /* internal linkage */, true /* definition */, entry_->loc().begin().line(),
                                                       llvm::DIDescriptor::FlagPrototyped /* Flags */, opt > 0, fct);
             discope = &disub_program;
         }
@@ -291,7 +291,7 @@ void CodeGen::emit(int opt, bool debug) {
         auto startBB = llvm::BasicBlock::Create(context_, fct->getName() + "_start", fct, oldStartBB);
         irbuilder_.SetInsertPoint(startBB);
         if (debug)
-            irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(entry_->loc().pos1().line(), entry_->loc().pos1().col(), *discope));
+            irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(entry_->loc().begin().line(), entry_->loc().begin().col(), *discope));
         emit_function_start(startBB, entry_);
         irbuilder_.CreateBr(oldStartBB);
 
@@ -304,11 +304,13 @@ void CodeGen::emit(int opt, bool debug) {
 
             for (auto primop : block) {
                 if (debug)
-                    irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(primop->loc().pos1().line(), primop->loc().pos1().col(), *discope));
+                    irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(primop->loc().begin().line(), primop->loc().begin().col(), *discope));
                 primops_[primop] = emit(primop);
             }
 
             // terminate bb
+            if (debug)
+                irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(lambda->jump_loc().begin().line(), lambda->jump_loc().begin().col(), *discope));
             if (lambda->to() == ret_param) { // return
                 size_t num_args = lambda->num_args();
                 switch (num_args) {

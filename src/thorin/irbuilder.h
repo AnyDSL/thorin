@@ -105,7 +105,7 @@ public:
 
 private:
     void jump_from(Lambda* bb);
-    Lambda* branch_to(World& world);
+    Lambda* branch_to(World& world, const Location& loc);
     Lambda* untangle();
     Lambda* enter();
     Lambda* enter_unsealed(World& world);
@@ -114,7 +114,7 @@ private:
     bool first_;
     const char* name_;
 
-    friend void Lambda::jump(JumpTarget&);
+    friend void Lambda::jump(JumpTarget&, const Location&);
     friend class IRBuilder;
 };
 
@@ -138,9 +138,9 @@ public:
     void store(Def ptr, Def val, const Location& loc, const std::string& name = "");
     Lambda* enter(JumpTarget& jt) { return cur_bb = jt.enter(); }
     Lambda* enter_unsealed(JumpTarget& jt) { return cur_bb = jt.enter_unsealed(world_); }
-    void jump(JumpTarget& jt);
-    void branch(Def cond, JumpTarget& t, JumpTarget& f);
-    Def call(Def to, ArrayRef<Type> type_args, ArrayRef<Def> args, Type ret_type);
+    void jump(JumpTarget& jt, const Location& loc);
+    void branch(Def cond, JumpTarget& t, JumpTarget& f, const Location& loc);
+    Def call(Def to, ArrayRef<Type> type_args, ArrayRef<Def> args, Type ret_type, const Location& loc);
     Def get_mem();
     void set_mem(Def def);
 

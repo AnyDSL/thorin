@@ -86,22 +86,22 @@ Lambda* JumpTarget::untangle() {
         return lambda_;
     assert(lambda_);
     auto bb = world().basicblock(loc(), name_);
-    lambda_->jump(bb, {}, {});
+    lambda_->jump(bb, {}, {}, loc());
     first_ = false;
     return lambda_ = bb;
 }
 
-void Lambda::jump(JumpTarget& jt) {
+void Lambda::jump(JumpTarget& jt, const Location& loc) {
     if (!jt.lambda_) {
         jt.lambda_ = this;
         jt.first_ = true;
     } else
-        this->jump(jt.untangle(), {}, {});
+        this->jump(jt.untangle(), {}, {}, loc);
 }
 
-Lambda* JumpTarget::branch_to(World& world) {
-    auto bb = world.basicblock(loc(), lambda_ ? name_ + std::string("_crit") : name_);
-    bb->jump(*this);
+Lambda* JumpTarget::branch_to(World& world, const Location& loc) {
+    auto bb = world.basicblock(loc, lambda_ ? name_ + std::string("_crit") : name_);
+    bb->jump(*this, loc);
     bb->seal();
     return bb;
 }
@@ -118,31 +118,31 @@ Lambda* JumpTarget::enter_unsealed(World& world) {
 
 //------------------------------------------------------------------------------
 
-void IRBuilder::jump(JumpTarget& jt) {
+void IRBuilder::jump(JumpTarget& jt, const Location& loc) {
     if (is_reachable()) {
-        cur_bb->jump(jt);
+        cur_bb->jump(jt, loc);
         set_unreachable();
     }
 }
 
-void IRBuilder::branch(Def cond, JumpTarget& t, JumpTarget& f) {
+void IRBuilder::branch(Def cond, JumpTarget& t, JumpTarget& f, const Location& loc) {
     if (is_reachable()) {
         if (auto lit = cond->isa<PrimLit>()) {
-            jump(lit->value().get_bool() ? t : f);
+            jump(lit->value().get_bool() ? t : f, loc);
         } else if (&t == &f) {
-            jump(t);
+            jump(t, loc);
         } else {
-            auto tl = t.branch_to(world_);
-            auto fl = f.branch_to(world_);
-            cur_bb->branch(cond, tl, fl);
+            auto tl = t.branch_to(world_, loc);
+            auto fl = f.branch_to(world_, loc);
+            cur_bb->branch(cond, tl, fl, loc);
             set_unreachable();
         }
     }
 }
 
-Def IRBuilder::call(Def to, ArrayRef<Type> type_args, ArrayRef<Def> args, Type ret_type) {
+Def IRBuilder::call(Def to, ArrayRef<Type> type_args, ArrayRef<Def> args, Type ret_type, const Location& loc) {
     if (is_reachable()) {
-        auto p = cur_bb->call(to, type_args, args, ret_type);
+        auto p = cur_bb->call(to, type_args, args, ret_type, loc);
         cur_bb = p.first;
         return p.second;
     }

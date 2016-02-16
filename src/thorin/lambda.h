@@ -139,7 +139,7 @@ public:
     size_t num_type_args() const { return type_args_.size(); }
     ArrayRef<Def> args() const { return empty() ? ArrayRef<Def>(0, 0) : ops().skip_front(); }
     Def arg(size_t i) const { return args()[i]; }
-    const Location& call_loc() const  { return call_loc_; }
+    const Location& jump_loc() const { return jump_loc_; }
     FnType type() const { return DefNode::type().as<FnType>(); }
     FnType to_fn_type() const { return to()->type().as<FnType>(); }
     FnType arg_fn_type() const;
@@ -174,10 +174,10 @@ public:
 
     // terminate
 
-    void jump(Def to, Array<Type> type_args, ArrayRef<Def> args);
-    void jump(JumpTarget&);
-    void branch(Def cond, Def t, Def f);
-    std::pair<Lambda*, Def> call(Def to, ArrayRef<Type> type_args, ArrayRef<Def> args, Type ret_type);
+    void jump(Def to, Array<Type> type_args, ArrayRef<Def> args, const Location& loc);
+    void jump(JumpTarget&, const Location& loc);
+    void branch(Def cond, Def t, Def f, const Location& loc);
+    std::pair<Lambda*, Def> call(Def to, ArrayRef<Type> type_args, ArrayRef<Def> args, Type ret_type, const Location& loc);
 
     // value numbering
 
@@ -236,7 +236,7 @@ private:
     ScopeInfo* register_scope(const Scope* scope) { scopes_.emplace_front(scope); return &scopes_.front(); }
     void unregister_scope(const Scope* scope) { scopes_.erase(list_iter(scope)); }
     Array<Type> type_args_;
-    Location call_loc_;
+    Location jump_loc_;
 
     /**
      * There exist three cases to distinguish here.
@@ -330,7 +330,7 @@ struct Hash<Call> {
     }
 };
 
-void jump_to_cached_call(Lambda* src, Lambda* dst, const Call&);
+void jump_to_cached_call(Lambda* src, Lambda* dst, const Call& call);
 
 //------------------------------------------------------------------------------
 

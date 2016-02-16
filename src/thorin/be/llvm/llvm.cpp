@@ -139,7 +139,7 @@ Lambda* CodeGen::emit_shuffle(Lambda* lambda) {
 }
 
 Lambda* CodeGen::emit_reserve(const Lambda* lambda) {
-    ELOG("reserve_shared: only allowed in device code", lambda->loc());
+    ELOG("reserve_shared: only allowed in device code at %", lambda->jump_loc());
     THORIN_UNREACHABLE;
 }
 

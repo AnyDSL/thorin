@@ -7,6 +7,10 @@
 
 namespace thorin {
 
+enum class EvalState {
+    Run, Hlt, None
+};
+
 void lower2cff(World& world) {
     HashMap<Call, Lambda*> cache;
     LambdaSet top;
@@ -34,18 +38,30 @@ void lower2cff(World& world) {
             const auto& cfg = scope.f_cfg();
             for (auto n : cfg.post_order()) {
                 auto lambda = n->lambda();
-                if (auto to = lambda->to()->isa_lambda()) {
-                    if (is_bad(to)) {
-                        DLOG("bad: %", to);
+                auto to = lambda->to();
+                Def end;
+                EvalState state = EvalState::None;
+                Location loc;
+
+                if (auto evalop = to->isa<EvalOp>()) {
+                    to = evalop->begin();
+                    end = evalop->end();
+                    state = evalop->isa<Run>() ? EvalState::Run : EvalState::Hlt;
+                    loc = evalop->loc();
+                }
+
+                if (auto to_lambda = to->isa_lambda()) {
+                    if (is_bad(to_lambda)) {
+                        DLOG("bad: %", to_lambda);
                         todo = dirty = true;
 
                         Call call(lambda);
                         for (size_t i = 0, e = call.num_type_args(); i != e; ++i)
                             call.type_arg(i) = lambda->type_arg(i);
 
-                        call.to() = to;
+                        call.to() = to_lambda;
                         for (size_t i = 0, e = call.num_args(); i != e; ++i)
-                            call.arg(i) = to->param(i)->order() > 0 ? lambda->arg(i) : nullptr;
+                            call.arg(i) = to_lambda->param(i)->order() > 0 ? lambda->arg(i) : nullptr;
 
 
                         const auto& p = cache.emplace(call, nullptr);
@@ -55,6 +71,11 @@ void lower2cff(World& world) {
                         }
 
                         jump_to_cached_call(lambda, target, call);
+                        switch (state) {
+                            case EvalState::Run: lambda->update_to(world.run(lambda->to(), end, loc));
+                            case EvalState::Hlt: lambda->update_to(world.hlt(lambda->to(), end, loc));
+                            default: break;
+                        }
                     }
                 }
             }

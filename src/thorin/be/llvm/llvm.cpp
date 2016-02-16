@@ -281,6 +281,8 @@ void CodeGen::emit(int opt, bool debug) {
         auto oldStartBB = fct->begin();
         auto startBB = llvm::BasicBlock::Create(context_, fct->getName() + "_start", fct, oldStartBB);
         irbuilder_.SetInsertPoint(startBB);
+        if (debug)
+            irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(entry_->loc().begin().line(), entry_->loc().begin().col(), discope));
         emit_function_start(startBB, entry_);
         irbuilder_.CreateBr(oldStartBB);
 
@@ -298,6 +300,8 @@ void CodeGen::emit(int opt, bool debug) {
             }
 
             // terminate bb
+            if (debug)
+                irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(lambda->jump_loc().begin().line(), lambda->jump_loc().begin().col(), discope));
             if (lambda->to() == ret_param) { // return
                 size_t num_args = lambda->num_args();
                 switch (num_args) {

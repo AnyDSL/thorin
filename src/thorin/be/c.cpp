@@ -50,7 +50,7 @@ private:
 
 std::ostream& CCodeGen::emit_debug_info(Def def) {
     if (debug_)
-        return streamf(os, "#line % \"%\"", def->loc().pos1().line(), def->loc().pos1().filename()) << endl;
+        return streamf(os, "#line % \"%\"", def->loc().begin().line(), def->loc().begin().filename()) << endl;
     return os;
 }
 

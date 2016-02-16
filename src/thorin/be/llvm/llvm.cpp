@@ -225,13 +225,13 @@ void CodeGen::emit(int opt, bool debug) {
 
         llvm::DILexicalBlockFile discope;
         if (debug) {
-            auto src_file = llvm::sys::path::filename(entry_->loc().pos1().filename());
-            auto src_dir = llvm::sys::path::parent_path(entry_->loc().pos1().filename());
+            auto src_file = llvm::sys::path::filename(entry_->loc().begin().filename());
+            auto src_dir = llvm::sys::path::parent_path(entry_->loc().begin().filename());
             auto difile = dibuilder_.createFile(src_file, src_dir);
             auto compile_unit = dibuilder_.createCompileUnit(llvm::dwarf::DW_LANG_C, src_file, src_dir, "Impala", opt > 0, llvm::StringRef(), 0);
-            auto disubprogram = dibuilder_.createFunction(compile_unit, fct->getName(), fct->getName(), difile, entry_->loc().pos1().line(),
+            auto disubprogram = dibuilder_.createFunction(compile_unit, fct->getName(), fct->getName(), difile, entry_->loc().begin().line(),
                                                          dibuilder_.createSubroutineType(difile, dibuilder_.getOrCreateArray(llvm::ArrayRef<llvm::Value*>())),
-                                                         false /* internal linkage */, true /* definition */, entry_->loc().pos1().line(), 0 /* Flags */, opt > 0, fct);
+                                                         false /* internal linkage */, true /* definition */, entry_->loc().begin().line(), 0 /* Flags */, opt > 0, fct);
             discope = dibuilder_.createLexicalBlockFile(disubprogram, difile);
         }
 
@@ -293,7 +293,7 @@ void CodeGen::emit(int opt, bool debug) {
 
             for (auto primop : block) {
                 if (debug)
-                    irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(primop->loc().pos1().line(), primop->loc().pos1().col(), discope));
+                    irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(primop->loc().begin().line(), primop->loc().begin().col(), discope));
                 primops_[primop] = emit(primop);
             }
 

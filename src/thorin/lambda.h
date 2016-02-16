@@ -139,6 +139,7 @@ public:
     size_t num_type_args() const { return type_args_.size(); }
     ArrayRef<Def> args() const { return empty() ? ArrayRef<Def>(0, 0) : ops().skip_front(); }
     Def arg(size_t i) const { return args()[i]; }
+    const Location& call_loc() const  { return call_loc_; }
     FnType type() const { return DefNode::type().as<FnType>(); }
     FnType to_fn_type() const { return to()->type().as<FnType>(); }
     FnType arg_fn_type() const;
@@ -235,6 +236,7 @@ private:
     ScopeInfo* register_scope(const Scope* scope) { scopes_.emplace_front(scope); return &scopes_.front(); }
     void unregister_scope(const Scope* scope) { scopes_.erase(list_iter(scope)); }
     Array<Type> type_args_;
+    Location call_loc_;
 
     /**
      * There exist three cases to distinguish here.

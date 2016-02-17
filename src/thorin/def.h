@@ -142,8 +142,7 @@ public:
     World& world() const;
     ArrayRef<const Def*> ops() const { return ops_; }
     const Def* op(size_t i) const { assert(i < ops().size() && "index out of bounds"); return ops_[i]; }
-    template<class T>
-    const Def* op(const T* def) const;
+    template<class T> const Def* op(const T* def) const;
     void replace(const Def*) const;
     size_t length() const; ///< Returns the vector length. Raises an assertion if type of this is not a \p VectorType.
     bool is_primlit(int val) const;

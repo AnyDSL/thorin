@@ -112,11 +112,10 @@ void Def::dump() const {
     }
 }
 
-template<class T>
-const Def* Def::op(const T* def) const {
-    static_assert(std::is_same<T, Def>::value, "only Def pointers allowed");
-    return op(def->primlit_value<size_t>());
-}
+// this workaround is need in order to disambiguate def->op(0) from def->op(size_t) vs def->op(const Def*)
+template<class T> const Def* Def::op(const T* def) const { return op(def->primlit_value<size_t>()); }
+template const Def* Def::op<Def>(const Def*) const;         // instantiate method
+template const Def* Def::op<PrimLit>(const PrimLit*) const; // instantiate method
 
 World& Def::world() const { return type()->world(); }
 Lambda* Def::as_lambda() const { return const_cast<Lambda*>(scast<Lambda>(this)); }

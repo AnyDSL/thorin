@@ -91,97 +91,97 @@ public:
     // literals
 
 #define THORIN_ALL_TYPE(T, M) \
-    Def literal_##T(T val, const Location& loc, size_t length = 1) { return literal(PrimType_##T, Box(val), loc, length); }
+    const Def* literal_##T(T val, const Location& loc, size_t length = 1) { return literal(PrimType_##T, Box(val), loc, length); }
 #include "thorin/tables/primtypetable.h"
-    Def literal(PrimTypeKind kind, Box box, const Location& loc, size_t length = 1) { return splat(cse(new PrimLit(*this, kind, box, loc, "")), length); }
-    Def literal(PrimTypeKind kind, int64_t value, const Location& loc, size_t length = 1);
+    const Def* literal(PrimTypeKind kind, Box box, const Location& loc, size_t length = 1) { return splat(cse(new PrimLit(*this, kind, box, loc, "")), length); }
+    const Def* literal(PrimTypeKind kind, int64_t value, const Location& loc, size_t length = 1);
     template<class T>
-    Def literal(T value, const Location& loc, size_t length = 1) { return literal(type2kind<T>::kind, Box(value), loc, length); }
-    Def zero(PrimTypeKind kind, const Location& loc, size_t length = 1) { return literal(kind, 0, loc, length); }
-    Def zero(Type type, const Location& loc, size_t length = 1) { return zero(type.as<PrimType>()->primtype_kind(), loc, length); }
-    Def one(PrimTypeKind kind, const Location& loc, size_t length = 1) { return literal(kind, 1, loc, length); }
-    Def one(Type type, const Location& loc, size_t length = 1) { return one(type.as<PrimType>()->primtype_kind(), loc, length); }
-    Def allset(PrimTypeKind kind, const Location& loc, size_t length = 1) { return literal(kind, -1, loc, length); }
-    Def allset(Type type, const Location& loc, size_t length = 1) { return allset(type.as<PrimType>()->primtype_kind(), loc, length); }
-    Def bottom(Type type, const Location& loc, size_t length = 1) { return splat(cse(new Bottom(type, loc, "")), length); }
-    Def bottom(PrimTypeKind kind, const Location& loc, size_t length = 1) { return bottom(type(kind), loc, length); }
+    const Def* literal(T value, const Location& loc, size_t length = 1) { return literal(type2kind<T>::kind, Box(value), loc, length); }
+    const Def* zero(PrimTypeKind kind, const Location& loc, size_t length = 1) { return literal(kind, 0, loc, length); }
+    const Def* zero(Type type, const Location& loc, size_t length = 1) { return zero(type.as<PrimType>()->primtype_kind(), loc, length); }
+    const Def* one(PrimTypeKind kind, const Location& loc, size_t length = 1) { return literal(kind, 1, loc, length); }
+    const Def* one(Type type, const Location& loc, size_t length = 1) { return one(type.as<PrimType>()->primtype_kind(), loc, length); }
+    const Def* allset(PrimTypeKind kind, const Location& loc, size_t length = 1) { return literal(kind, -1, loc, length); }
+    const Def* allset(Type type, const Location& loc, size_t length = 1) { return allset(type.as<PrimType>()->primtype_kind(), loc, length); }
+    const Def* bottom(Type type, const Location& loc, size_t length = 1) { return splat(cse(new Bottom(type, loc, "")), length); }
+    const Def* bottom(PrimTypeKind kind, const Location& loc, size_t length = 1) { return bottom(type(kind), loc, length); }
 
     // arithops
 
     /// Creates an \p ArithOp or a \p Cmp.
-    Def binop(int kind, Def lhs, Def rhs, const Location& loc, const std::string& name = "");
-    Def arithop_not(Def def, const Location& loc);
-    Def arithop_minus(Def def, const Location& loc);
-    Def arithop(ArithOpKind kind, Def lhs, Def rhs, const Location& loc, const std::string& name = "");
+    const Def* binop(int kind, const Def* lhs, const Def* rhs, const Location& loc, const std::string& name = "");
+    const Def* arithop_not(const Def* def, const Location& loc);
+    const Def* arithop_minus(const Def* def, const Location& loc);
+    const Def* arithop(ArithOpKind kind, const Def* lhs, const Def* rhs, const Location& loc, const std::string& name = "");
 #define THORIN_ARITHOP(OP) \
-    Def arithop_##OP(Def lhs, Def rhs, const Location& loc, const std::string& name = "") { \
+    const Def* arithop_##OP(const Def* lhs, const Def* rhs, const Location& loc, const std::string& name = "") { \
         return arithop(ArithOp_##OP, lhs, rhs, loc, name); \
     }
 #include "thorin/tables/arithoptable.h"
 
     // compares
 
-    Def cmp(CmpKind kind, Def lhs, Def rhs, const Location& loc, const std::string& name = "");
+    const Def* cmp(CmpKind kind, const Def* lhs, const Def* rhs, const Location& loc, const std::string& name = "");
 #define THORIN_CMP(OP) \
-    Def cmp_##OP(Def lhs, Def rhs, const Location& loc, const std::string& name = "") { \
+    const Def* cmp_##OP(const Def* lhs, const Def* rhs, const Location& loc, const std::string& name = "") { \
         return cmp(Cmp_##OP, lhs, rhs, loc, name);  \
     }
 #include "thorin/tables/cmptable.h"
 
     // casts
 
-    Def convert(Type to, Def from, const Location& loc, const std::string& name = "");
-    Def cast(Type to, Def from, const Location& loc, const std::string& name = "");
-    Def bitcast(Type to, Def from, const Location& loc, const std::string& name = "");
+    const Def* convert(Type to, const Def* from, const Location& loc, const std::string& name = "");
+    const Def* cast(Type to, const Def* from, const Location& loc, const std::string& name = "");
+    const Def* bitcast(Type to, const Def* from, const Location& loc, const std::string& name = "");
 
     // aggregate operations
 
-    Def definite_array(Type elem, ArrayRef<Def> args, const Location& loc, const std::string& name = "") {
+    const Def* definite_array(Type elem, ArrayRef<const Def*> args, const Location& loc, const std::string& name = "") {
         return cse(new DefiniteArray(*this, elem, args, loc, name));
     }
     /// Create definite_array with at least one element. The type of that element is the element type of the definite array.
-    Def definite_array(ArrayRef<Def> args, const Location& loc, const std::string& name = "") {
+    const Def* definite_array(ArrayRef<const Def*> args, const Location& loc, const std::string& name = "") {
         assert(!args.empty());
         return definite_array(args.front()->type(), args, loc, name);
     }
-    Def indefinite_array(Type elem, Def dim, const Location& loc, const std::string& name = "") {
+    const Def* indefinite_array(Type elem, const Def* dim, const Location& loc, const std::string& name = "") {
         return cse(new IndefiniteArray(*this, elem, dim, loc, name));
     }
-    Def struct_agg(StructAppType struct_app_type, ArrayRef<Def> args, const Location& loc, const std::string& name = "") {
+    const Def* struct_agg(StructAppType struct_app_type, ArrayRef<const Def*> args, const Location& loc, const std::string& name = "") {
         return cse(new StructAgg(struct_app_type, args, loc, name));
     }
-    Def tuple(ArrayRef<Def> args, const Location& loc, const std::string& name = "") { return cse(new Tuple(*this, args, loc, name)); }
-    Def vector(ArrayRef<Def> args, const Location& loc, const std::string& name = "") {
+    const Def* tuple(ArrayRef<const Def*> args, const Location& loc, const std::string& name = "") { return cse(new Tuple(*this, args, loc, name)); }
+    const Def* vector(ArrayRef<const Def*> args, const Location& loc, const std::string& name = "") {
         if (args.size() == 1) return args[0];
         return cse(new Vector(*this, args, loc, name));
     }
     /// Splats \p arg to create a \p Vector with \p length.
-    Def splat(Def arg, size_t length = 1, const std::string& name = "");
-    Def extract(Def tuple, Def index, const Location& loc, const std::string& name = "");
-    Def extract(Def tuple, u32 index, const Location& loc, const std::string& name = "") { return extract(tuple, literal_qu32(index, loc), loc, name); }
-    Def insert(Def tuple, Def index, Def value, const Location& loc, const std::string& name = "");
-    Def insert(Def tuple, u32 index, Def value, const Location& loc, const std::string& name = "") {
+    const Def* splat(const Def* arg, size_t length = 1, const std::string& name = "");
+    const Def* extract(const Def* tuple, const Def* index, const Location& loc, const std::string& name = "");
+    const Def* extract(const Def* tuple, u32 index, const Location& loc, const std::string& name = "") { return extract(tuple, literal_qu32(index, loc), loc, name); }
+    const Def* insert(const Def* tuple, const Def* index, const Def* value, const Location& loc, const std::string& name = "");
+    const Def* insert(const Def* tuple, u32 index, const Def* value, const Location& loc, const std::string& name = "") {
         return insert(tuple, literal_qu32(index, loc), value, loc, name);
     }
 
-    Def select(Def cond, Def t, Def f, const Location& loc, const std::string& name = "");
+    const Def* select(const Def* cond, const Def* t, const Def* f, const Location& loc, const std::string& name = "");
 
     // memory stuff
 
-    Def load(Def mem, Def ptr, const Location& loc, const std::string& name = "");
-    Def store(Def mem, Def ptr, Def val, const Location& loc, const std::string& name = "");
-    Def enter(Def mem, const Location& loc, const std::string& name = "");
-    Def slot(Type type, Def frame, size_t index, const Location& loc, const std::string& name = "");
-    Def alloc(Type type, Def mem, Def extra, const Location& loc, const std::string& name = "");
-    Def alloc(Type type, Def mem, const Location& loc, const std::string& name = "") { return alloc(type, mem, literal_qu64(0, loc), loc, name); }
-    Def global(Def init, const Location& loc, bool is_mutable = true, const std::string& name = "");
-    Def global_immutable_string(const Location& loc, const std::string& str, const std::string& name = "");
-    Def lea(Def ptr, Def index, const Location& loc, const std::string& name = "") { return cse(new LEA(ptr, index, loc, name)); }
+    const Def* load(const Def* mem, const Def* ptr, const Location& loc, const std::string& name = "");
+    const Def* store(const Def* mem, const Def* ptr, const Def* val, const Location& loc, const std::string& name = "");
+    const Def* enter(const Def* mem, const Location& loc, const std::string& name = "");
+    const Def* slot(Type type, const Def* frame, size_t index, const Location& loc, const std::string& name = "");
+    const Def* alloc(Type type, const Def* mem, const Def* extra, const Location& loc, const std::string& name = "");
+    const Def* alloc(Type type, const Def* mem, const Location& loc, const std::string& name = "") { return alloc(type, mem, literal_qu64(0, loc), loc, name); }
+    const Def* global(const Def* init, const Location& loc, bool is_mutable = true, const std::string& name = "");
+    const Def* global_immutable_string(const Location& loc, const std::string& str, const std::string& name = "");
+    const Def* lea(const Def* ptr, const Def* index, const Location& loc, const std::string& name = "") { return cse(new LEA(ptr, index, loc, name)); }
 
     // misc
 
-    Def run(Def def, const Location& loc, const std::string& name = "");
-    Def hlt(Def def, const Location& loc, const std::string& name = "");
+    const Def* run(const Def* def, const Location& loc, const std::string& name = "");
+    const Def* hlt(const Def* def, const Location& loc, const std::string& name = "");
 
     // lambdas
 
@@ -233,7 +233,7 @@ private:
         return type;
     }
     template<class T> Proxy<T> join(const T* t) { return Proxy<T>(register_base(t)->template as<T>()); }
-    const DefNode* cse_base(const PrimOp*);
+    const Def* cse_base(const PrimOp*);
     template<class T> const T* cse(const T* primop) { return cse_base(primop)->template as<T>(); }
 
     const Param* param(Type type, Lambda* lambda, size_t index, const std::string& name = "");

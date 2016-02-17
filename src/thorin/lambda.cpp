@@ -33,7 +33,7 @@ std::vector<Param::Peek> Param::peek() const {
 
 //------------------------------------------------------------------------------
 
-Def Lambda::to() const {
+const Def* Lambda::to() const {
     return empty() ? world().bottom(world().fn_type(), Location()) : op(0);
 }
 
@@ -57,8 +57,8 @@ Lambda* Lambda::stub(Type2Type& type2type, const std::string& name) const {
     return result;
 }
 
-Array<Def> Lambda::params_as_defs() const {
-    Array<Def> params(num_params());
+Array<const Def*> Lambda::params_as_defs() const {
+    Array<const Def*> params(num_params());
     for (size_t i = 0, e = num_params(); i != e; ++i)
         params[i] = param(i);
     return params;
@@ -72,7 +72,7 @@ const Param* Lambda::mem_param() const {
     return nullptr;
 }
 
-Lambda* Lambda::update_op(size_t i, Def def) {
+Lambda* Lambda::update_op(size_t i, const Def* def) {
     unset_op(i);
     set_op(i, def);
     return this;
@@ -114,7 +114,7 @@ static Lambdas preds(const Lambda* lambda) {
     std::queue<Use> queue;
     DefSet done;
 
-    auto enqueue = [&] (Def def) {
+    auto enqueue = [&] (const Def* def) {
         for (auto use : def->uses()) {
             if (done.find(use) == done.end()) {
                 queue.push(use);
@@ -143,10 +143,10 @@ static Lambdas preds(const Lambda* lambda) {
 template<bool direct, bool indirect>
 static Lambdas succs(const Lambda* lambda) {
     std::vector<Lambda*> succs;
-    std::queue<Def> queue;
+    std::queue<const Def*> queue;
     DefSet done;
 
-    auto enqueue = [&] (Def def) {
+    auto enqueue = [&] (const Def* def) {
         if (done.find(def) == done.end()) {
             queue.push(def);
             done.insert(def);
@@ -209,7 +209,7 @@ void Lambda::set_intrinsic() {
 bool Lambda::visit_capturing_intrinsics(std::function<bool(Lambda*)> func) const {
     if (!is_intrinsic()) {
         for (auto use : uses()) {
-            if (auto lambda = (use->isa<Global>() ? use->uses().front() : use)->isa<Lambda>()) // TODO make more robust
+            if (auto lambda = (use->isa<Global>() ? *use->uses().begin() : use)->isa<Lambda>()) // TODO make more robust
                 if (auto to = lambda->to()->isa_lambda())
                     if (to->is_intrinsic() && func(to))
                         return true;
@@ -242,7 +242,7 @@ Lambda::ScopeInfo* Lambda::find_scope(const Scope* scope) {
  * terminate
  */
 
-void Lambda::jump(Def to, Array<Type> type_args, ArrayRef<Def> args, const Location& loc) {
+void Lambda::jump(const Def* to, Array<Type> type_args, ArrayRef<const Def*> args, const Location& loc) {
     jump_loc_ = loc;
     if (auto lambda = to->isa<Lambda>()) {
         switch (lambda->intrinsic()) {
@@ -252,7 +252,7 @@ void Lambda::jump(Def to, Array<Type> type_args, ArrayRef<Def> args, const Locat
 
                 if (dst->is_concrete()) {
                     assert(args.size() == 3);
-                    Def mem = args[0], def = args[1], k = args[2];
+                    auto mem = args[0], def = args[1], k = args[2];
                     assert_unused(def->type() == src);
                     return jump(k, {}, { mem, world().bitcast(dst, def, loc) }, loc);
                 }
@@ -261,7 +261,7 @@ void Lambda::jump(Def to, Array<Type> type_args, ArrayRef<Def> args, const Locat
             case Intrinsic::Branch: {
                 assert(type_args.empty());
                 assert(args.size() == 3);
-                Def cond = args[0], t = args[1], f = args[2];
+                auto cond = args[0], t = args[1], f = args[2];
                 if (auto lit = cond->isa<PrimLit>())
                     return jump(lit->value().get_bool() ? t : f, {}, {}, loc);
                 if (t == f)
@@ -276,7 +276,7 @@ void Lambda::jump(Def to, Array<Type> type_args, ArrayRef<Def> args, const Locat
 
                 if (type->is_concrete()) {
                     assert(args.size() == 5);
-                    Def mem = args[0], cond = args[1], t = args[2], f = args[3], k = args[4];
+                    auto mem = args[0], cond = args[1], t = args[2], f = args[3], k = args[4];
                     return jump(k, {}, { mem, world().select(cond, t, f, loc) }, loc);
                 }
                 break;
@@ -297,12 +297,12 @@ void Lambda::jump(Def to, Array<Type> type_args, ArrayRef<Def> args, const Locat
     swap(type_args_, type_args);
 }
 
-void Lambda::branch(Def cond, Def t, Def f, const Location& loc) { return jump(world().branch(), {}, {cond, t, f}, loc); }
+void Lambda::branch(const Def* cond, const Def* t, const Def* f, const Location& loc) { return jump(world().branch(), {}, {cond, t, f}, loc); }
 
-std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Type> type_args, ArrayRef<Def> args, Type ret_type, const Location& loc) {
+std::pair<Lambda*, const Def*> Lambda::call(const Def* to, ArrayRef<Type> type_args, ArrayRef<const Def*> args, Type ret_type, const Location& loc) {
     if (ret_type.empty()) {
         jump(to, type_args, args, loc);
-        return std::make_pair(nullptr, Def());
+        return std::make_pair(nullptr, nullptr);
     }
 
     std::vector<Type> cont_args;
@@ -320,14 +320,14 @@ std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Type> type_args, ArrayRef<
 
     // create jump to next
     size_t csize = args.size() + 1;
-    Array<Def> cargs(csize);
+    Array<const Def*> cargs(csize);
     *std::copy(args.begin(), args.end(), cargs.begin()) = next;
     jump(to, type_args, cargs, loc);
 
     // determine return value
-    Def ret;
+    const Def* ret;
     if (pack) {
-        Array<Def> defs(next->num_params()-1);
+        Array<const Def*> defs(next->num_params()-1);
         auto p = next->params().skip_front();
         std::copy(p.begin(), p.end(), defs.begin());
         ret = world().tuple(defs, to->loc());
@@ -346,7 +346,7 @@ void jump_to_cached_call(Lambda* src, Lambda* dst, const Call& call) {
             ntype_args.push_back(src->type_arg(i));
     }
 
-    std::vector<Def> nargs;
+    std::vector<const Def*> nargs;
     for (size_t i = 0, e = src->num_args(); i != e; ++i) {
         if (!call.arg(i))
             nargs.push_back(src->arg(i));
@@ -360,20 +360,20 @@ void jump_to_cached_call(Lambda* src, Lambda* dst, const Call& call) {
  * value numbering
  */
 
-Def Lambda::find_def(size_t handle) {
+const Def* Lambda::find_def(size_t handle) {
     increase_values(handle);
     return values_[handle];
 }
 
-Def Lambda::set_mem(Def def) { return set_value(0, def); }
-Def Lambda::get_mem() { return get_value(0, world().mem_type(), "mem"); }
+const Def* Lambda::set_mem(const Def* def) { return set_value(0, def); }
+const Def* Lambda::get_mem() { return get_value(0, world().mem_type(), "mem"); }
 
-Def Lambda::set_value(size_t handle, Def def) {
+const Def* Lambda::set_value(size_t handle, const Def* def) {
     increase_values(handle);
     return values_[handle] = def;
 }
 
-Def Lambda::get_value(size_t handle, Type type, const char* name) {
+const Def* Lambda::get_value(size_t handle, Type type, const char* name) {
     if (auto def = find_def(handle))
         return def;
 
@@ -397,11 +397,11 @@ Def Lambda::get_value(size_t handle, Type type, const char* name) {
                     return set_value(handle, append_param(type, name)); // create param to break cycle
 
                 is_visited_ = true;
-                const DefNode* same = nullptr;
+                const Def* same = nullptr;
                 for (auto pred : preds) {
-                    const DefNode* def = pred->get_value(handle, type, name);
+                    auto def = pred->get_value(handle, type, name);
                     if (same && same != def) {
-                        same = (const DefNode*)-1; // defs from preds are different
+                        same = (const Def*)-1; // defs from preds are different
                         break;
                     }
                     same = def;
@@ -410,11 +410,11 @@ Def Lambda::get_value(size_t handle, Type type, const char* name) {
                 is_visited_ = false;
 
                 // fix any params which may have been introduced to break the cycle above
-                const DefNode* def = nullptr;
+                const Def* def = nullptr;
                 if (auto found = find_def(handle))
                     def = fix(handle, found->as<Param>()->index(), type, name);
 
-                if (same != (const DefNode*)-1)
+                if (same != (const Def*)-1)
                     return same;
 
                 if (def)
@@ -442,7 +442,7 @@ void Lambda::seal() {
     todos_.clear();
 }
 
-Def Lambda::fix(size_t handle, size_t index, Type type, const char* name) {
+const Def* Lambda::fix(size_t handle, size_t index, Type type, const char* name) {
     auto param = this->param(index);
 
     assert(is_sealed() && "must be sealed");
@@ -464,7 +464,7 @@ Def Lambda::fix(size_t handle, size_t index, Type type, const char* name) {
     return try_remove_trivial_param(param);
 }
 
-Def Lambda::try_remove_trivial_param(const Param* param) {
+const Def* Lambda::try_remove_trivial_param(const Param* param) {
     assert(param->lambda() == this);
     assert(is_sealed() && "must be sealed");
 
@@ -472,10 +472,10 @@ Def Lambda::try_remove_trivial_param(const Param* param) {
     size_t index = param->index();
 
     // find Horspool-like phis
-    const DefNode* same = nullptr;
+    const Def* same = nullptr;
     for (auto pred : preds) {
-        Def def = pred->arg(index);
-        if (def.deref() == param || same == def)
+        auto def = pred->arg(index);
+        if (def == param || same == def)
             continue;
         if (same)
             return param;
@@ -524,7 +524,7 @@ std::ostream& Lambda::stream_jump(std::ostream& os) const {
         if (num_type_args())
             os << '[' << stream_list(type_args(), [&](Type type) { os << type; }) << ']';
 
-        os << '(' << stream_list(args(), [&](Def def) { os << def; }) << ')';
+        os << '(' << stream_list(args(), [&](const Def* def) { os << def; }) << ')';
     }
     return os;
 }

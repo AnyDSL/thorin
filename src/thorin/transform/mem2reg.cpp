@@ -53,7 +53,7 @@ void mem2reg(const Scope& scope) {
         auto lambda = block.lambda();
         // search for slots/loads/stores from top to bottom and use set_value/get_value to install parameters
         for (auto primop : block) {
-            auto def = Def(primop);
+            auto def = primop;
             // already dealt with? we might see this guy again due to replaces
             if (done.insert(def).second) {
                 if (auto slot = def->isa<Slot>()) {

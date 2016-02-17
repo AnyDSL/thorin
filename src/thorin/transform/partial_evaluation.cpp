@@ -129,7 +129,7 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
             continue;
         }
 
-        Array<Def> ops(cur->size());
+        Array<const Def*> ops(cur->size());
         ops.front() = dst;
         bool all = true;
         for (size_t i = 1, e = ops.size(); i != e; ++i) {
@@ -209,7 +209,7 @@ void partial_evaluation(World& world) {
     ILOG_SCOPE(eval(world));
 
     for (auto primop : world.primops()) {
-        if (auto evalop = Def(primop)->isa<EvalOp>())
+        if (auto evalop = primop->isa<EvalOp>())
             evalop->replace(evalop->def());
     }
 }

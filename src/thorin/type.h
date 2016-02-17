@@ -178,7 +178,7 @@ public:
     virtual Type instantiate(ArrayRef<Type>) const;
     Type instantiate(Type2Type&) const;
     Type specialize(Type2Type&) const;
-    Type elem(const Def& def) const;
+    Type elem(const Def*) const;
     Type rebuild(World& to, ArrayRef<Type> args) const {
         assert(num_args() == args.size());
         if (args.empty() && &world() == &to)
@@ -399,7 +399,7 @@ public:
     ArrayRef<Type> type_args() const { return args().skip_front(); }
     Type type_arg(size_t i) const { return type_args()[i]; }
     size_t num_type_args() const { return type_args().size(); }
-    Type elem(const Def& def) const { return TypeNode::elem(def); }
+    Type elem(const Def* def) const { return TypeNode::elem(def); }
     virtual Type elem(size_t i) const override;
     ArrayRef<Type> elems() const;
     size_t num_elems() const { return struct_abs_type()->num_args(); }

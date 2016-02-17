@@ -40,7 +40,7 @@ NVVMCodeGen::NVVMCodeGen(World& world)
 // Kernel code
 //------------------------------------------------------------------------------
 
-static AddressSpace resolve_addr_space(Def def) {
+static AddressSpace resolve_addr_space(const Def* def) {
     if (auto ptr = def->type().isa<PtrType>())
         return ptr->addr_space();
     return AddressSpace::Generic;

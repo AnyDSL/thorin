@@ -28,13 +28,13 @@ private:
 
     static void EMIT_NOOP() { }
 
-    std::ostream& emit_operands(Def def);
+    std::ostream& emit_operands(const Def* def);
     std::ostream& emit_lambda_graph_begin(const Lambda*);
     std::ostream& emit_lambda_graph_params(const Lambda*);
     std::ostream& emit_lambda_graph_continuation(const Lambda*);
     std::ostream& emit_lambda_graph_end();
 
-    std::ostream& emit_def(Def);
+    std::ostream& emit_def(const Def*);
     std::ostream& emit_primop(const PrimOp*);
     std::ostream& emit_param(const Param*);
     std::ostream& emit_lambda(const Lambda*);
@@ -45,7 +45,7 @@ private:
     std::ostream& emit_cfnode(const CFG<forward>&, const CFNode*);
 
     std::ostream& emit_type(Type type) { return stream() << type; }
-    std::ostream& emit_name(Def def) { return stream() << def; }
+    std::ostream& emit_name(const Def* def) { return stream() << def; }
 
     template<typename T, typename U>
     std::ostream& write_edge(T source, U target, bool control_flow,
@@ -61,19 +61,19 @@ private:
 //------------------------------------------------------------------------------
 
 
-std::ostream& YCompGen::emit_operands(Def def) {
+std::ostream& YCompGen::emit_operands(const Def* def) {
     int i = 0;
     Emitter emit_label = EMIT_NOOP;
     if (def->size() > 1) {
         emit_label = [&] { stream() << i++; };
     }
-    dump_list([&](Def operand) {
-            write_edge(def->gid(), operand->gid(), false, emit_label);
-        }, def->ops(), "", "", "");
+    dump_list([&](const Def* op) {
+        write_edge(def->gid(), op->gid(), false, emit_label);
+    }, def->ops(), "", "", "");
     return stream();
 }
 
-std::ostream& YCompGen::emit_def(Def def) {
+std::ostream& YCompGen::emit_def(const Def* def) {
     if (emitted_defs.contains(def)) {
         return stream();
     }
@@ -100,9 +100,7 @@ std::ostream& YCompGen::emit_primop(const PrimOp* primop) {
     }
     emitted_defs.insert(primop);
     auto emit_label = [&] {
-        if (primop->is_proxy()) {
-            stream() << "<proxy>";
-        } else if (auto primlit = primop->isa<PrimLit>()) {
+        if (auto primlit = primop->isa<PrimLit>()) {
             auto kind = primlit->primtype_kind();
 
             // print i8 as ints

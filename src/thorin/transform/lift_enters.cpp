@@ -6,7 +6,7 @@
 
 namespace thorin {
 
-static const Enter* find_enter(Def def) {
+static const Enter* find_enter(const Def* def) {
     for (auto use : def->uses()) {
         if (auto enter = use->isa<Enter>())
             return enter;
@@ -16,7 +16,7 @@ static const Enter* find_enter(Def def) {
 
 static void find_enters(Lambda* lambda, std::vector<const Enter*>& enters) {
     if (auto param = lambda->mem_param()) {
-        for (Def cur = param; cur;) {
+        for (const Def* cur = param; cur;) {
             if (auto memop = cur->isa<MemOp>())
                 cur = memop->out_mem();
 
@@ -62,7 +62,6 @@ static void lift_enters(const Scope& scope) {
             auto slot = use->as<Slot>();
             slot->replace(world.slot(slot->alloced_type(), frame, index++, slot->loc(), slot->name));
         }
-        assert(!old_enter->is_proxy());
         old_enter->out_mem()->replace(old_enter->mem());
     }
 

@@ -21,7 +21,7 @@ public:
     void unreachable_code_elimination();
     void dead_code_elimination();
     void verify_closedness();
-    void within(const DefNode*);
+    void within(const Def*);
     void set_live(const PrimOp* primop) { nprimops_.insert(primop); primop->live_ = counter_; }
     void set_reachable(Lambda* lambda)  { nlambdas_.insert(lambda); lambda->reachable_ = counter_; }
     static bool is_live(const PrimOp* primop) { return primop->live_ == counter_; }
@@ -67,6 +67,7 @@ const CFNode* Merger::dom_succ(const CFNode* n) {
 }
 
 void Merger::merge(const CFNode* n) {
+#if 0
     auto cur = n;
     for (auto next = dom_succ(cur); next != nullptr; cur = next, next = dom_succ(next)) {
         assert(cur->lambda()->num_args() == next->lambda()->num_params());
@@ -80,6 +81,7 @@ void Merger::merge(const CFNode* n) {
 
     for (auto child : domtree.children(cur))
         merge(child);
+#endif
 }
 
 void Cleaner::merge_lambdas() {
@@ -87,6 +89,7 @@ void Cleaner::merge_lambdas() {
 }
 
 void Cleaner::eliminate_params() {
+#if 0
     for (auto olambda : world().copy_lambdas()) {
         std::vector<size_t> proxy_idx;
         std::vector<size_t> param_idx;
@@ -119,6 +122,7 @@ void Cleaner::eliminate_params() {
             }
         }
     }
+#endif
 }
 
 void Cleaner::unreachable_code_elimination() {
@@ -174,14 +178,11 @@ void Cleaner::dead_code_elimination() {
 }
 
 void Cleaner::verify_closedness() {
-    auto check = [&](const DefNode* def) {
-        within(def->representative_);
+    auto check = [&](const Def* def) {
         for (auto op : def->ops())
-            within(op.node());
+            within(op);
         for (auto use : def->uses_)
-            within(use.def().node());
-        for (auto r : def->representatives_of_)
-            within(r);
+            within(use.def());
     };
 
     for (auto primop : world().primops())
@@ -193,7 +194,7 @@ void Cleaner::verify_closedness() {
     }
 }
 
-void Cleaner::within(const DefNode* def) {
+void Cleaner::within(const Def* def) {
     //assert(world.types().find(*def->type()) != world.types().end());
     if (auto primop = def->isa<PrimOp>()) {
         assert_unused(world().primops().find(primop) != world().primops().end());
@@ -211,19 +212,8 @@ void Cleaner::cleanup() {
 
     // unlink dead primops from the rest
     for (auto primop : world().primops()) {
-        if (!is_live(primop)) {
+        if (!is_live(primop))
             primop->unregister_uses();
-            primop->unlink_representative();
-        }
-    }
-
-    // unlink unreachable lambdas from the rest
-    for (auto lambda : world().lambdas()) {
-        if (!is_reachable(lambda)) {
-            for (auto param : lambda->params())
-                param->unlink_representative();
-            lambda->unlink_representative();
-        }
     }
 
     swap(world().primops_, nprimops_);

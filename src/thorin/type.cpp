@@ -19,7 +19,7 @@ void TypeNode::bind(TypeParam type_param) const {
 
 void TypeNode::dump() const { std::cout << Type(this) << std::endl; }
 size_t TypeNode::length() const { return as<VectorTypeNode>()->length(); }
-Type TypeNode::elem(const Def& def) const { return elem(def->primlit_value<size_t>()); }
+Type TypeNode::elem(const Def* def) const { return elem(def->primlit_value<size_t>()); }
 
 const TypeNode* TypeNode::unify() const {
     static const char* names[] = {"α", "β", "γ", "δ", "ε", "ζ", "η", "θ", "ι", "κ", "λ", "μ",

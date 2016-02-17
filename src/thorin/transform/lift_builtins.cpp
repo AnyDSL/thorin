@@ -30,7 +30,7 @@ void lift_builtins(World& world) {
                 if (auto to = ulambda->to()->isa_lambda()) {
                     if (to->is_intrinsic()) {
                         auto oops = ulambda->ops();
-                        Array<Def> nops(oops.size() + vars.size());
+                        Array<const Def*> nops(oops.size() + vars.size());
                         std::copy(oops.begin(), oops.end(), nops.begin());                                  // copy over old ops
                         assert(oops[use.index()] == cur);
                         nops[use.index()] = world.global(lifted, lifted->loc(), false, lifted->name);       // update to new lifted lambda

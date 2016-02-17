@@ -37,10 +37,10 @@ void Schedule::block_schedule() {
 void Schedule::verify() {
 #ifndef NDEBUG
     auto& domtree = cfg().domtree();
-    Schedule::Map<Def> block2mem(*this);
+    Schedule::Map<const Def*> block2mem(*this);
 
     for (auto& block : *this) {
-        Def mem = block.lambda()->mem_param();
+        const Def* mem = block.lambda()->mem_param();
         mem = mem ? mem : block2mem[(*this)[domtree.idom(block.node())]];
         for (auto primop : block) {
             if (auto memop = primop->isa<MemOp>()) {
@@ -58,7 +58,7 @@ static Def2CFNode schedule_early(const Scope& scope) {
     Def2CFNode def2early;
     DefMap<int> def2num;
     auto& cfg = scope.f_cfg();
-    std::queue<Def> queue;
+    std::queue<const Def*> queue;
 
     for (auto def : scope.in_scope()) {
         if (auto primop = def->isa<PrimOp>()) {
@@ -71,7 +71,7 @@ static Def2CFNode schedule_early(const Scope& scope) {
         }
     }
 
-    auto enqueue_uses = [&] (Def def) {
+    auto enqueue_uses = [&] (const Def* def) {
         for (auto use : def->uses()) {
             if (auto primop = use->isa<PrimOp>()) {
                 if (scope._contains(primop)) {
@@ -87,8 +87,9 @@ static Def2CFNode schedule_early(const Scope& scope) {
 
     for (auto n : cfg.reverse_post_order()) {
         for (auto param : n->lambda()->params()) {
-            if (!param->is_proxy())
-                queue.push(param);
+            //if (!param->is_proxy())
+            // TODO
+            queue.push(param);
         }
 
         while (!queue.empty()) {
@@ -107,7 +108,7 @@ Schedule schedule_late(const Scope& scope) {
     DefMap<int> def2num;
     auto& cfg = scope.f_cfg();
     auto& domtree = cfg.domtree();
-    std::queue<Def> queue;
+    std::queue<const Def*> queue;
     Schedule schedule(scope);
 
     for (auto def : scope.in_scope()) {
@@ -122,7 +123,7 @@ Schedule schedule_late(const Scope& scope) {
         }
     }
 
-    auto enqueue = [&] (const CFNode* n, Def def) {
+    auto enqueue = [&] (const CFNode* n, const Def* def) {
         if (!scope._contains(def) || def->isa_lambda() || def->isa<Param>())
             return;
         auto& late = def2late[def];

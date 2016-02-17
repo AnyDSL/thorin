@@ -7,7 +7,7 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-Var Var::create_val(IRBuilder& builder, Def val) {
+Var Var::create_val(IRBuilder& builder, const Def* val) {
     Var result;
     result.kind_    = ImmutableValRef;
     result.builder_ = &builder;
@@ -25,7 +25,7 @@ Var Var::create_mut(IRBuilder& builder, size_t handle, Type type, const char* na
     return result;
 }
 
-Var Var::create_ptr(IRBuilder& builder, Def ptr) {
+Var Var::create_ptr(IRBuilder& builder, const Def* ptr) {
     Var result;
     result.kind_    = PtrRef;
     result.builder_ = &builder;
@@ -33,7 +33,7 @@ Var Var::create_ptr(IRBuilder& builder, Def ptr) {
     return result;
 }
 
-Var Var::create_agg(Var var, Def offset) {
+Var Var::create_agg(Var var, const Def* offset) {
     assert(var.kind() != Empty);
     if (var.use_lea())
         return create_ptr(*var.builder_, var.builder_->world().lea(var.def_, offset, offset->loc()));
@@ -51,7 +51,7 @@ bool Var::use_lea() const {
     return false;
 }
 
-Def Var::load(const Location& loc) const {
+const Def* Var::load(const Location& loc) const {
     switch (kind()) {
         case ImmutableValRef: return def_;
         case MutableValRef:   return builder_->cur_bb->get_value(handle_, Type(type_), name_);
@@ -61,7 +61,7 @@ Def Var::load(const Location& loc) const {
     }
 }
 
-void Var::store(Def val, const Location& loc) const {
+void Var::store(const Def* val, const Location& loc) const {
     switch (kind()) {
         case MutableValRef: builder_->cur_bb->set_value(handle_, val); return;
         case PtrRef:        builder_->store(def_, val, loc); return;
@@ -125,7 +125,7 @@ void IRBuilder::jump(JumpTarget& jt, const Location& loc) {
     }
 }
 
-void IRBuilder::branch(Def cond, JumpTarget& t, JumpTarget& f, const Location& loc) {
+void IRBuilder::branch(const Def* cond, JumpTarget& t, JumpTarget& f, const Location& loc) {
     if (is_reachable()) {
         if (auto lit = cond->isa<PrimLit>()) {
             jump(lit->value().get_bool() ? t : f, loc);
@@ -140,47 +140,47 @@ void IRBuilder::branch(Def cond, JumpTarget& t, JumpTarget& f, const Location& l
     }
 }
 
-Def IRBuilder::call(Def to, ArrayRef<Type> type_args, ArrayRef<Def> args, Type ret_type, const Location& loc) {
+const Def* IRBuilder::call(const Def* to, ArrayRef<Type> type_args, ArrayRef<const Def*> args, Type ret_type, const Location& loc) {
     if (is_reachable()) {
         auto p = cur_bb->call(to, type_args, args, ret_type, loc);
         cur_bb = p.first;
         return p.second;
     }
-    return Def();
+    return nullptr;
 }
 
-Def IRBuilder::get_mem() { return cur_bb->get_mem(); }
-void IRBuilder::set_mem(Def mem) { if (is_reachable()) cur_bb->set_mem(mem); }
+const Def* IRBuilder::get_mem() { return cur_bb->get_mem(); }
+void IRBuilder::set_mem(const Def* mem) { if (is_reachable()) cur_bb->set_mem(mem); }
 
-Def IRBuilder::create_frame(const Location& loc) {
+const Def* IRBuilder::create_frame(const Location& loc) {
     auto enter = world().enter(get_mem(), loc);
-    set_mem(world().extract(enter, 0, loc));
+    set_mem(world().extract(enter, 0u, loc));
     return world().extract(enter, 1, loc);
 }
 
-Def IRBuilder::alloc(Type type, Def extra, const Location& loc, const std::string& name) {
+const Def* IRBuilder::alloc(Type type, const Def* extra, const Location& loc, const std::string& name) {
     if (!extra)
         extra = world().literal_qu64(0, loc);
     auto alloc = world().alloc(type, get_mem(), extra, loc, name);
-    set_mem(world().extract(alloc, 0, loc));
+    set_mem(world().extract(alloc, 0u, loc));
     return world().extract(alloc, 1, loc);
 }
 
-Def IRBuilder::load(Def ptr, const Location& loc, const std::string& name) {
+const Def* IRBuilder::load(const Def* ptr, const Location& loc, const std::string& name) {
     auto load = world().load(get_mem(), ptr, loc, name);
-    set_mem(world().extract(load, 0, loc));
+    set_mem(world().extract(load, 0u, loc));
     return world().extract(load, 1, loc);
 }
 
-void IRBuilder::store(Def ptr, Def val, const Location& loc, const std::string& name) {
+void IRBuilder::store(const Def* ptr, const Def* val, const Location& loc, const std::string& name) {
     set_mem(world().store(get_mem(), ptr, val, loc, name));
 }
 
-Def IRBuilder::extract(Def agg, u32 index, const Location& loc, const std::string& name) {
+const Def* IRBuilder::extract(const Def* agg, u32 index, const Location& loc, const std::string& name) {
     return extract(agg, world().literal_qu32(index, loc), loc, name);
 }
 
-Def IRBuilder::extract(Def agg, Def index, const Location& loc, const std::string& name) {
+const Def* IRBuilder::extract(const Def* agg, const Def* index, const Location& loc, const std::string& name) {
     if (auto ld = Load::is_out_val(agg)) {
         if (ld->out_val_type()->use_lea())
             return load(world().lea(ld->ptr(), index, loc, ld->name), loc);

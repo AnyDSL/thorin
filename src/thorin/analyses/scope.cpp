@@ -26,7 +26,6 @@ Scope::Scope(Lambda* entry)
 Scope::~Scope() { cleanup(); }
 
 void Scope::run(Lambda* entry) {
-    assert(!entry->is_proxy());
     identify_scope(entry);
     build_in_scope();
     ++candidate_counter_;
@@ -50,16 +49,13 @@ const Scope& Scope::update() {
 }
 
 void Scope::identify_scope(Lambda* entry) {
-    std::queue<Def> queue;
+    std::queue<const Def*> queue;
     assert(!is_candidate(entry));
 
     auto insert_lambda = [&] (Lambda* lambda) {
-        assert(!lambda->is_proxy());
         for (auto param : lambda->params()) {
-            if (!param->is_proxy()) {
-                set_candidate(param);
-                queue.push(param);
-            }
+            set_candidate(param);
+            queue.push(param);
         }
 
         assert(std::find(lambdas_.begin(), lambdas_.end(), lambda) == lambdas_.end());
@@ -103,8 +99,8 @@ void Scope::verify() const {
 }
 
 void Scope::build_in_scope() {
-    std::queue<Def> queue;
-    auto enqueue = [&] (Def def) {
+    std::queue<const Def*> queue;
+    auto enqueue = [&] (const Def* def) {
         if (!def->isa_lambda() && is_candidate(def) && !in_scope_.contains(def)) {
             in_scope_.insert(def);
             queue.push(def);
@@ -112,10 +108,8 @@ void Scope::build_in_scope() {
     };
 
     for (auto lambda : lambdas()) {
-        for (auto param : lambda->params()) {
-            if (!param->is_proxy())
-                in_scope_.insert(param);
-        }
+        for (auto param : lambda->params())
+            in_scope_.insert(param);
         in_scope_.insert(lambda);
 
         for (auto op : lambda->ops())

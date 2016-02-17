@@ -159,7 +159,7 @@ Lambda* CodeGen::emit_reserve_shared(const Lambda* lambda, bool prefix) {
     return cont;
 }
 
-llvm::Value* CodeGen::emit_bitcast(Def val, Type dst_type) {
+llvm::Value* CodeGen::emit_bitcast(const Def* val, Type dst_type) {
     auto from = lookup(val);
     auto src_type = val->type();
     auto to = convert(dst_type);
@@ -364,7 +364,7 @@ void CodeGen::emit(int opt, bool debug) {
                     } else {
                         // put all first-order args into an array
                         std::vector<llvm::Value*> args;
-                        Def ret_arg;
+                        const Def* ret_arg;
                         for (auto arg : lambda->args()) {
                             if (arg->order() == 0) {
                                 if (!arg->is_mem())
@@ -496,7 +496,7 @@ void CodeGen::optimize(int opt) {
     }
 }
 
-llvm::Value* CodeGen::lookup(Def def) {
+llvm::Value* CodeGen::lookup(const Def* def) {
     if (auto primop = def->isa<PrimOp>()) {
         if (auto res = find(primops_, primop))
             return res;
@@ -526,7 +526,7 @@ llvm::AllocaInst* CodeGen::emit_alloca(llvm::Type* type, const std::string& name
     return alloca;
 }
 
-llvm::Value* CodeGen::emit(Def def) {
+llvm::Value* CodeGen::emit(const Def* def) {
     if (auto bin = def->isa<BinOp>()) {
         llvm::Value* lhs = lookup(bin->lhs());
         llvm::Value* rhs = lookup(bin->rhs());

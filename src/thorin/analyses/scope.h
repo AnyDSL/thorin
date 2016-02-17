@@ -48,7 +48,7 @@ public:
 
     const DefSet& in_scope() const { return in_scope_; }
     /// deprecated.
-    bool _contains(Def def) const { return in_scope_.contains(def); }
+    bool _contains(const Def* def) const { return in_scope_.contains(def); }
     // TODO fix this: recursion/parameters
     bool outer_contains(Lambda* lambda) const { return lambda->find_scope(this) != nullptr; }
     bool outer_contains(const Param* param) const { return outer_contains(param->lambda()); }
@@ -85,9 +85,9 @@ private:
     void cleanup();
     void run(Lambda* entry);
 
-    static bool is_candidate(Def def) { return def->candidate_ == candidate_counter_; }
-    static void set_candidate(Def def) { def->candidate_ = candidate_counter_; }
-    static void unset_candidate(Def def) { assert(is_candidate(def)); --def->candidate_; }
+    static bool is_candidate(const Def* def) { return def->candidate_ == candidate_counter_; }
+    static void set_candidate(const Def* def) { def->candidate_ = candidate_counter_; }
+    static void unset_candidate(const Def* def) { assert(is_candidate(def)); --def->candidate_; }
 
     void identify_scope(Lambda* entry);
     void build_in_scope();

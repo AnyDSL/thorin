@@ -7,13 +7,13 @@
 
 namespace thorin {
 
-std::vector<Def> free_vars(const Scope& scope) {
+std::vector<const Def*> free_vars(const Scope& scope) {
     DefSet vars;
-    std::queue<Def> queue;
+    std::queue<const Def*> queue;
     DefSet set;
 
     // now find all params not in scope
-    auto enqueue = [&] (Def def) {
+    auto enqueue = [&] (const Def* def) {
         if (!visit(set, def) && !def->is_const()) {
             if (scope._contains(def))
                 for (auto op : def->ops())
@@ -31,7 +31,7 @@ std::vector<Def> free_vars(const Scope& scope) {
             enqueue(pop(queue));
     }
 
-    return std::vector<Def>(vars.begin(), vars.end());
+    return std::vector<const Def*>(vars.begin(), vars.end());
 }
 
 }

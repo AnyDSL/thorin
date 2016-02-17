@@ -10,7 +10,7 @@ namespace thorin {
 
 class Mangler {
 public:
-    Mangler(const Scope& scope, ArrayRef<Type> type_args, ArrayRef<Def> args, ArrayRef<Def> lift)
+    Mangler(const Scope& scope, ArrayRef<Type> type_args, ArrayRef<const Def*> args, ArrayRef<const Def*> lift)
         : scope(scope)
         , type_args(type_args)
         , args(args)
@@ -22,7 +22,7 @@ public:
         assert(args.size() == oentry->num_params());
         assert(type_args.size() == oentry->num_type_params());
 
-        std::queue<Def> queue;
+        std::queue<const Def*> queue;
         for (auto def : lift)
             queue.push(def);
 
@@ -38,13 +38,13 @@ public:
     Lambda* mangle();
     void mangle_body(Lambda* olambda, Lambda* nlambda);
     Lambda* mangle_head(Lambda* olambda);
-    Def mangle(Def odef);
+    const Def* mangle(const Def* odef);
 
     const Scope& scope;
     Def2Def def2def;
     ArrayRef<Type> type_args;
-    ArrayRef<Def> args;
-    ArrayRef<Def> lift;
+    ArrayRef<const Def*> args;
+    ArrayRef<const Def*> lift;
     Type2Type type2type;
     DefSet in_scope;
     Lambda* oentry;
@@ -113,12 +113,12 @@ void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
             return nlambda->jump(mangle(lit->value().get_bool() ? olambda->arg(1) : olambda->arg(2)), {}, {}, olambda->jump_loc());
     }
 
-    Array<Def> nops(olambda->size());
+    Array<const Def*> nops(olambda->size());
     for (size_t i = 0, e = nops.size(); i != e; ++i)
         nops[i] = mangle(olambda->op(i));
 
-    ArrayRef<Def> nargs(nops.skip_front());         // new args of nlambda
-    Def ntarget = nops.front();                     // new target of nlambda
+    ArrayRef<const Def*> nargs(nops.skip_front());         // new args of nlambda
+    const Def* ntarget = nops.front();                     // new target of nlambda
 
     // specialize all type args
     Array<Type> ntype_args(olambda->type_args().size());
@@ -143,7 +143,7 @@ void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
     nlambda->jump(ntarget, ntype_args, nargs, olambda->jump_loc());
 }
 
-Def Mangler::mangle(Def odef) {
+const Def* Mangler::mangle(const Def* odef) {
     auto i = def2def.find(odef);
     if (i != def2def.end())
         return i->second;
@@ -162,7 +162,7 @@ Def Mangler::mangle(Def odef) {
         return def2def[param];
     } else {
         auto oprimop = odef->as<PrimOp>();
-        Array<Def> nops(oprimop->size());
+        Array<const Def*> nops(oprimop->size());
         for (size_t i = 0, e = oprimop->size(); i != e; ++i)
             nops[i] = mangle(oprimop->op(i));
         return def2def[oprimop] = oprimop->rebuild(nops);
@@ -171,7 +171,7 @@ Def Mangler::mangle(Def odef) {
 
 //------------------------------------------------------------------------------
 
-Lambda* mangle(const Scope& scope, ArrayRef<Type> type_args, ArrayRef<Def> args, ArrayRef<Def> lift) {
+Lambda* mangle(const Scope& scope, ArrayRef<Type> type_args, ArrayRef<const Def*> args, ArrayRef<const Def*> lift) {
     return Mangler(scope, type_args, args, lift).mangle();
 }
 

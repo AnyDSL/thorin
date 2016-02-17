@@ -6,7 +6,7 @@
 namespace thorin {
 
 Type import(World& to, Type);
-Def import(World& to, Def);
+const Def* import(World& to, const Def*);
 
 }
 

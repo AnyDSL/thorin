@@ -596,12 +596,14 @@ const Def* World::bitcast(Type to, const Def* from, const Location& loc, const s
  * aggregate operations
  */
 
-const Def* World::extract(const Def* agg, const Def* index, const Location& loc, const std::string& name) {
+
+template<class T>
+const Def* World::extract(const Def* agg, const T* index, const Location& loc, const std::string& name) {
     if (agg->isa<Bottom>())
         return bottom(Extract::extracted_type(agg, index), loc);
 
     if (auto aggregate = agg->isa<Aggregate>()) {
-        if (auto lit = index->isa<PrimLit>()) {
+        if (auto lit = index->template isa<PrimLit>()) {
             if (!agg->isa<IndefiniteArray>())
                 return aggregate->op(lit);
         }
@@ -617,14 +619,19 @@ const Def* World::extract(const Def* agg, const Def* index, const Location& loc,
     if (auto insert = agg->isa<Insert>()) {
         if (index == insert->index())
             return insert->value();
-        else if (index->isa<PrimLit>()) {
-            if (insert->index()->isa<PrimLit>())
+        else if (index->template isa<PrimLit>()) {
+            if (insert->index()->template isa<PrimLit>())
                 return extract(insert->agg(), index, loc, name);
         }
     }
 
     return cse(new Extract(agg, index, loc, name));
 }
+
+// this workaround is need in order to disambiguate extract(agg, 0, ...) from
+// extract(..., u32, ...) vs extract(..., const Def*, ...)
+template const Def* World::extract<Def>    (const Def*, const Def*,     const Location&, const std::string&); // instantiate
+template const Def* World::extract<PrimLit>(const Def*, const PrimLit*, const Location&, const std::string&); // methods
 
 const Def* World::insert(const Def* agg, const Def* index, const Def* value, const Location& loc, const std::string& name) {
     if (agg->isa<Bottom>()) {

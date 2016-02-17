@@ -157,8 +157,10 @@ public:
     }
     /// Splats \p arg to create a \p Vector with \p length.
     const Def* splat(const Def* arg, size_t length = 1, const std::string& name = "");
-    const Def* extract(const Def* tuple, const Def* index, const Location& loc, const std::string& name = "");
-    const Def* extract(const Def* tuple, u32 index, const Location& loc, const std::string& name = "") { return extract(tuple, literal_qu32(index, loc), loc, name); }
+    template<class T> const Def* extract(const Def* tuple, const T* index, const Location& loc, const std::string& name = "");
+    const Def* extract(const Def* tuple, u32 index, const Location& loc, const std::string& name = "") {
+        return extract(tuple, literal_qu32(index, loc), loc, name);
+    }
     const Def* insert(const Def* tuple, const Def* index, const Def* value, const Location& loc, const std::string& name = "");
     const Def* insert(const Def* tuple, u32 index, const Def* value, const Location& loc, const std::string& name = "") {
         return insert(tuple, literal_qu32(index, loc), value, loc, name);

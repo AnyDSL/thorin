@@ -154,7 +154,7 @@ void IRBuilder::set_mem(const Def* mem) { if (is_reachable()) cur_bb->set_mem(me
 
 const Def* IRBuilder::create_frame(const Location& loc) {
     auto enter = world().enter(get_mem(), loc);
-    set_mem(world().extract(enter, 0u, loc));
+    set_mem(world().extract(enter, 0, loc));
     return world().extract(enter, 1, loc);
 }
 
@@ -162,13 +162,13 @@ const Def* IRBuilder::alloc(Type type, const Def* extra, const Location& loc, co
     if (!extra)
         extra = world().literal_qu64(0, loc);
     auto alloc = world().alloc(type, get_mem(), extra, loc, name);
-    set_mem(world().extract(alloc, 0u, loc));
+    set_mem(world().extract(alloc, 0, loc));
     return world().extract(alloc, 1, loc);
 }
 
 const Def* IRBuilder::load(const Def* ptr, const Location& loc, const std::string& name) {
     auto load = world().load(get_mem(), ptr, loc, name);
-    set_mem(world().extract(load, 0u, loc));
+    set_mem(world().extract(load, 0, loc));
     return world().extract(load, 1, loc);
 }
 

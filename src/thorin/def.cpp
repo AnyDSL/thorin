@@ -98,7 +98,18 @@ bool Def::is_minus_zero() const {
 void Def::replace(const Def* with) const {
     assert(type() == with->type());
     if (this != with) {
-        assert(false && "TODO");
+        for (auto use : uses()) {
+            const_cast<Def*>(use.def())->unset_op(use.index());
+            const_cast<Def*>(use.def())->set_op(use.index(), with);
+        }
+
+        for (auto tracker : trackers_) {
+            tracker->def_ = with;
+            with->trackers_.emplace(tracker);
+        }
+
+        uses_.clear();
+        trackers_.clear();
     }
 }
 
@@ -126,6 +137,10 @@ std::ostream& Def::stream(std::ostream& out) const { return out << unique_name()
 
 std::ostream& operator << (std::ostream& os, const Def* def) { return def->stream(os); }
 std::ostream& operator << (std::ostream& os, Use use) { return use->stream(os); }
+
+//------------------------------------------------------------------------------
+
+
 
 //------------------------------------------------------------------------------
 

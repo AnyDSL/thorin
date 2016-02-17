@@ -19,38 +19,13 @@ namespace thorin {
 //------------------------------------------------------------------------------
 
 class Def;
+class Tracker;
 class Lambda;
 class PrimOp;
 class Use;
 class World;
 
 //------------------------------------------------------------------------------
-
-/**
- * This class acts as a proxy for \p Def pointers.
- * This proxy hides that a \p Def may have been replaced by another one.
- * It automatically forwards to the replaced node.
- * If in doubt use a \p Def instead of \p Def*.
- * You almost never have to use a \p Def* directly.
- */
-class Tracker {
-public:
-    Tracker()
-        : def_(nullptr)
-    {}
-    Tracker(const Def* node)
-        : def_(node)
-    {}
-
-    bool empty() const { return def_ == nullptr; }
-    const Def* operator *() const { return def_; }
-    bool operator == (const Def* other) const { return **this == other; }
-    operator const Def*() const { return **this; }
-    const Def* operator -> () const { return **this; }
-
-private:
-    mutable const Def* def_;
-};
 
 /**
  * References a user.
@@ -178,6 +153,7 @@ public:
     friend class Scope;
     friend class World;
     friend class Cleaner;
+    friend class Tracker;
 };
 
 namespace detail {
@@ -208,6 +184,73 @@ struct Hash<Array<const Def*>> {
 };
 
 //------------------------------------------------------------------------------
+
+/**
+ * This class acts as a proxy for \p Def pointers.
+ * This proxy hides that a \p Def may have been replaced by another one.
+ * It automatically forwards to the replaced node.
+ * If in doubt use a \p Def instead of \p Def*.
+ * You almost never have to use a \p Def* directly.
+ */
+class Tracker {
+public:
+    Tracker()
+        : def_(nullptr)
+    {}
+    Tracker(const Def* def)
+        : def_(def)
+    {
+        put(*this);
+    }
+    Tracker(const Tracker& other)
+        : def_(*other)
+    {
+        put(*this);
+    }
+    Tracker(Tracker&& other)
+        : def_(*other)
+    {
+        other.deregister(other);
+        other.def_ = nullptr;
+        put(*this);
+    }
+    ~Tracker() { deregister(*this); }
+
+    bool empty() const { return def_ == nullptr; }
+    const Def* operator *() const { return def_; }
+    bool operator == (const Def* other) const { return **this == other; }
+    operator const Def*() const { return **this; }
+    const Def* operator -> () const { return **this; }
+
+    Tracker& operator=(Tracker other) { swap(*this, other); return *this; }
+
+    friend void swap(Tracker& t1, Tracker& t2) {
+        using std::swap;
+
+        t1.update(t2);
+        t2.update(t1);
+        std::swap(t1.def_, t2.def_);
+    }
+
+private:
+    void put(Tracker& other) {
+        auto p = this->def_->trackers_.insert(&other);
+        assert(p.second && "couldn't insert tracker");
+    }
+
+    void deregister(Tracker& other) {
+        assert(this->def_->trackers_.count(&other) == 1 && "tracker not found");
+        this->def_->trackers_.erase(&other);
+    }
+
+    void update(Tracker& other) {
+        deregister(other);
+        put(other);
+    }
+
+    mutable const Def* def_;
+    friend void Def::replace(const Def*) const;
+};
 
 }
 

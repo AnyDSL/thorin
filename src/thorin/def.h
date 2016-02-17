@@ -214,14 +214,13 @@ public:
         other.def_ = nullptr;
         put(*this);
     }
-    ~Tracker() { deregister(*this); }
+    ~Tracker() { if (*this) deregister(*this); }
 
-    bool empty() const { return def_ == nullptr; }
     const Def* operator *() const { return def_; }
     bool operator == (const Def* other) const { return **this == other; }
-    operator const Def*() const { return **this; }
     const Def* operator -> () const { return **this; }
-
+    operator const Def*() const { return **this; }
+    explicit operator bool() { return def_; }
     Tracker& operator=(Tracker other) { swap(*this, other); return *this; }
 
     friend void swap(Tracker& t1, Tracker& t2) {
@@ -244,8 +243,10 @@ private:
     }
 
     void update(Tracker& other) {
-        deregister(other);
-        put(other);
+        if (*this && other) {
+            deregister(other);
+            put(other);
+        }
     }
 
     mutable const Def* def_;

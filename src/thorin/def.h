@@ -194,11 +194,13 @@ public:
         : def_(def)
     {
         put(*this);
+        verify();
     }
     Tracker(const Tracker& other)
         : def_(*other)
     {
         put(*this);
+        verify();
     }
     Tracker(Tracker&& other)
         : def_(*other)
@@ -208,11 +210,16 @@ public:
             other.def_ = nullptr;
             put(*this);
         }
+        verify();
     }
     ~Tracker() { if (*this) unregister(); }
 
+
     const Def* operator*() const { return def_; }
-    bool operator==(const Def* other) const { return **this == other; }
+    bool operator==(const Tracker& other) const { return this->def_ == other.def_; }
+    bool operator!=(const Tracker& other) const { return this->def_ != other.def_; }
+    bool operator==(const Def* def) const { return this->def_ == def; }
+    bool operator!=(const Def* def) const { return this->def_ != def; }
     const Def* operator->() const { return **this; }
     operator const Def*() const { return **this; }
     explicit operator bool() { return def_; }
@@ -221,32 +228,35 @@ public:
     friend void swap(Tracker& t1, Tracker& t2) {
         using std::swap;
 
-        if (t1) {
-            if (t2) {
-                t1.update(t2);
-                t2.update(t1);
+        if (t1 != t2) {
+            if (t1) {
+                if (t2) {
+                    t1.update(t2);
+                    t2.update(t1);
+                } else {
+                    t1.update(t2);
+                }
             } else {
-                t1.update(t2);
-            }
-        } else {
-            if (t2) {
+                assert(!t1 && t2);
                 t2.update(t1);
-            } else {
-                // do nothing
             }
-        }
 
-        std::swap(t1.def_, t2.def_);
+            std::swap(t1.def_, t2.def_);
+        } else {
+            t1.verify();
+            t2.verify();
+        }
     }
 
 private:
+    void verify() { assert(!def_ || def_->trackers_.contains(this)); }
     void put(Tracker& other) {
         auto p = this->def_->trackers_.insert(&other);
         assert(p.second && "couldn't insert tracker");
     }
 
     void unregister() {
-        assert(this->def_->trackers_.count(this) == 1 && "tracker not found");
+        assert(this->def_->trackers_.contains(this) && "tracker not found");
         this->def_->trackers_.erase(this);
     }
 

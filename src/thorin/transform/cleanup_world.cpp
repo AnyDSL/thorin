@@ -205,6 +205,9 @@ void Cleaner::within(const Def* def) {
 }
 
 void Cleaner::cleanup() {
+    for (const auto& p : world().trackers_)
+        assert(p.second.empty() && "there are still trackers before running cleanup");
+
     merge_lambdas();
     eliminate_params();
     unreachable_code_elimination();

@@ -103,13 +103,15 @@ void Def::replace(const Def* with) const {
             const_cast<Def*>(use.def())->set_op(use.index(), with);
         }
 
-        for (auto tracker : trackers_) {
+        auto& this_trackers = world().trackers(this);
+        auto& with_trackers = world().trackers(with);
+        for (auto tracker : this_trackers) {
             tracker->def_ = with;
-            with->trackers_.emplace(tracker);
+            with_trackers.emplace(tracker);
         }
 
         uses_.clear();
-        trackers_.clear();
+        this_trackers.clear();
     }
 }
 
@@ -137,5 +139,7 @@ std::ostream& Def::stream(std::ostream& out) const { return out << unique_name()
 
 std::ostream& operator << (std::ostream& os, const Def* def) { return def->stream(os); }
 std::ostream& operator << (std::ostream& os, Use use) { return use->stream(os); }
+
+HashSet<Tracker*>& Tracker::trackers(const Def* def) { return def->world().trackers_[def]; }
 
 }

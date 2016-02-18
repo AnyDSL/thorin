@@ -141,7 +141,6 @@ private:
     std::vector<const Def*> ops_;
     Type type_;
     mutable HashSet<Use, UseHash> uses_;
-    mutable HashSet<Tracker*> trackers_;
     const size_t gid_;
     mutable uint32_t candidate_ = 0;
 
@@ -249,15 +248,16 @@ public:
     }
 
 private:
-    void verify() { assert(!def_ || def_->trackers_.contains(this)); }
+    HashSet<Tracker*>& trackers(const Def* def);
+    void verify() { assert(!def_ || trackers(def_).contains(this)); }
     void put(Tracker& other) {
-        auto p = this->def_->trackers_.insert(&other);
+        auto p = trackers(def_).insert(&other);
         assert(p.second && "couldn't insert tracker");
     }
 
     void unregister() {
-        assert(this->def_->trackers_.contains(this) && "tracker not found");
-        this->def_->trackers_.erase(this);
+        assert(trackers(def_).contains(this) && "tracker not found");
+        trackers(def_).erase(this);
     }
 
     void update(Tracker& other) {

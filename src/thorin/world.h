@@ -228,6 +228,8 @@ public:
     void thorin() const;                                        ///< Dumps thorin to a file with an auto-generated file name.
 
 private:
+    HashSet<Tracker*>& trackers(const Def* def) { assert(def); return trackers_[def]; }
+
     const TypeNode* register_base(const TypeNode* type) {
         assert(type->gid_ == size_t(-1));
         type->gid_ = gid_++;
@@ -244,6 +246,8 @@ private:
     LambdaSet lambdas_;
     LambdaSet externals_;
     PrimOps primops_;
+    DefMap<HashSet<Tracker*>> trackers_;
+
     Types types_;
     std::vector<const TypeNode*> garbage_;
 #ifndef NDEBUG
@@ -275,6 +279,8 @@ private:
 
     friend class Cleaner;
     friend class Lambda;
+    friend class Tracker;
+    friend void Def::replace(const Def*) const;
 };
 
 }

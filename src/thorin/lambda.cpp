@@ -532,6 +532,11 @@ std::ostream& Lambda::stream_jump(std::ostream& os) const {
 void Lambda::dump_head() const { stream_head(std::cout) << endl; }
 void Lambda::dump_jump() const { stream_jump(std::cout) << endl; }
 
+void clear_value_numbering_table(World& world) {
+    for (auto lambda : world.lambdas())
+        lambda->clear_value_numbering_table();
+}
+
 //------------------------------------------------------------------------------
 
 }

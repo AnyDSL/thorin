@@ -333,6 +333,8 @@ struct Hash<Call> {
 
 void jump_to_cached_call(Lambda* src, Lambda* dst, const Call& call);
 
+void clear_value_numbering_table(World&);
+
 //------------------------------------------------------------------------------
 
 template<class To>

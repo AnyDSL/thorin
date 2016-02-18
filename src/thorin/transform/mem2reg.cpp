@@ -19,9 +19,6 @@ void mem2reg(const Scope& scope) {
     auto take_address = [&] (const Slot* slot) { slot2handle[slot] = size_t(-1); };
     auto is_address_taken = [&] (const Slot* slot) { return slot2handle[slot] == size_t(-1); };
 
-    for (auto lambda : scope)
-        lambda->clear_value_numbering_table();
-
     // unseal all lambdas ...
     for (auto lambda : scope) {
         lambda->set_parent(lambda);
@@ -102,6 +99,7 @@ next_primop:;
 void mem2reg(World& world) {
     critical_edge_elimination(world);
     Scope::for_each(world, [] (const Scope& scope) { mem2reg(scope); });
+    clear_value_numbering_table(world);
     world.cleanup();
     debug_verify(world);
 }

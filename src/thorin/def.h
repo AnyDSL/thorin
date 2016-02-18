@@ -185,13 +185,6 @@ struct Hash<Array<const Def*>> {
 
 //------------------------------------------------------------------------------
 
-/**
- * This class acts as a proxy for \p Def pointers.
- * This proxy hides that a \p Def may have been replaced by another one.
- * It automatically forwards to the replaced node.
- * If in doubt use a \p Def instead of \p Def*.
- * You almost never have to use a \p Def* directly.
- */
 class Tracker {
 public:
     Tracker()
@@ -210,15 +203,17 @@ public:
     Tracker(Tracker&& other)
         : def_(*other)
     {
-        other.deregister(other);
-        other.def_ = nullptr;
-        put(*this);
+        if (other) {
+            other.unregister();
+            other.def_ = nullptr;
+            put(*this);
+        }
     }
-    ~Tracker() { if (*this) deregister(*this); }
+    ~Tracker() { if (*this) unregister(); }
 
-    const Def* operator *() const { return def_; }
-    bool operator == (const Def* other) const { return **this == other; }
-    const Def* operator -> () const { return **this; }
+    const Def* operator*() const { return def_; }
+    bool operator==(const Def* other) const { return **this == other; }
+    const Def* operator->() const { return **this; }
     operator const Def*() const { return **this; }
     explicit operator bool() { return def_; }
     Tracker& operator=(Tracker other) { swap(*this, other); return *this; }
@@ -226,8 +221,21 @@ public:
     friend void swap(Tracker& t1, Tracker& t2) {
         using std::swap;
 
-        t1.update(t2);
-        t2.update(t1);
+        if (t1) {
+            if (t2) {
+                t1.update(t2);
+                t2.update(t1);
+            } else {
+                t1.update(t2);
+            }
+        } else {
+            if (t2) {
+                t2.update(t1);
+            } else {
+                // do nothing
+            }
+        }
+
         std::swap(t1.def_, t2.def_);
     }
 
@@ -237,16 +245,14 @@ private:
         assert(p.second && "couldn't insert tracker");
     }
 
-    void deregister(Tracker& other) {
-        assert(this->def_->trackers_.count(&other) == 1 && "tracker not found");
-        this->def_->trackers_.erase(&other);
+    void unregister() {
+        assert(this->def_->trackers_.count(this) == 1 && "tracker not found");
+        this->def_->trackers_.erase(this);
     }
 
     void update(Tracker& other) {
-        if (*this && other) {
-            deregister(other);
-            put(other);
-        }
+        unregister();
+        put(other);
     }
 
     mutable const Def* def_;

@@ -138,10 +138,4 @@ std::ostream& Def::stream(std::ostream& out) const { return out << unique_name()
 std::ostream& operator << (std::ostream& os, const Def* def) { return def->stream(os); }
 std::ostream& operator << (std::ostream& os, Use use) { return use->stream(os); }
 
-//------------------------------------------------------------------------------
-
-
-
-//------------------------------------------------------------------------------
-
 }

@@ -206,7 +206,7 @@ void Cleaner::within(const Def* def) {
 
 void Cleaner::cleanup() {
     for (const auto& p : world().trackers_)
-        assert(p.second.empty() && "there are still trackers before running cleanup");
+        assert(p.second.empty() && "there are still live trackers before running cleanup");
 
     merge_lambdas();
     eliminate_params();

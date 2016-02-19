@@ -10,6 +10,7 @@
 #include "thorin/type.h"
 #include "thorin/world.h"
 #include "thorin/util/queue.h"
+#include "thorin/util/log.h"
 
 namespace thorin {
 
@@ -96,6 +97,7 @@ bool Def::is_minus_zero() const {
 }
 
 void Def::replace(const Def* with) const {
+    DLOG("replace: % -> %", this, with);
     assert(type() == with->type());
     if (this != with) {
         for (auto use : uses()) {

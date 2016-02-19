@@ -22,7 +22,7 @@ void Def::set_op(size_t i, const Def* def) {
     assert(!op(i) && "already set");
     assert(def && "setting null pointer");
     ops_[i] = def;
-    assert(def->uses_.count(Use(i, this)) == 0);
+    assert(!def->uses_.contains(Use(i, this)));
     const auto& p = def->uses_.emplace(i, this);
     assert_unused(p.second);
 }
@@ -34,8 +34,9 @@ void Def::unregister_uses() const {
 
 void Def::unregister_use(size_t i) const {
     auto def = ops_[i];
-    assert(def->uses_.count(Use(i, this)) == 1);
+    assert( def->uses_.contains(Use(i, this)));
     def->uses_.erase(Use(i, this));
+    assert(!def->uses_.contains(Use(i, this)));
 }
 
 void Def::unset_op(size_t i) {

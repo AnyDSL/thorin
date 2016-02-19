@@ -325,7 +325,7 @@ std::pair<Lambda*, const Def*> Lambda::call(const Def* to, ArrayRef<Type> type_a
     jump(to, type_args, cargs, loc);
 
     // determine return value
-    const Def* ret;
+    const Def* ret = nullptr;
     if (pack) {
         Array<const Def*> defs(next->num_params()-1);
         auto p = next->params().skip_front();

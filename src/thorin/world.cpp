@@ -68,7 +68,7 @@ Array<Lambda*> World::copy_lambdas() const {
  */
 
 const Def* World::literal(PrimTypeKind kind, int64_t value, const Location& loc, size_t length) {
-    const Def* lit;
+    const Def* lit = nullptr;
     switch (kind) {
 #define THORIN_I_TYPE(T, M) case PrimType_##T:  lit = literal(T(value), loc, 1); break;
 #define THORIN_F_TYPE(T, M) THORIN_I_TYPE(T, M)

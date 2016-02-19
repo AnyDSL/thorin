@@ -364,7 +364,7 @@ void CodeGen::emit(int opt, bool debug) {
                     } else {
                         // put all first-order args into an array
                         std::vector<llvm::Value*> args;
-                        const Def* ret_arg;
+                        const Def* ret_arg = nullptr;
                         for (auto arg : lambda->args()) {
                             if (arg->order() == 0) {
                                 if (!arg->is_mem())

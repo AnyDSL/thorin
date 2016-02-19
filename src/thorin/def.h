@@ -43,7 +43,7 @@ public:
     const Def* def() const { return def_; }
     operator const Def*() const { return def_; }
     const Def* operator -> () const { return def_; }
-    bool operator == (Use other) { return this->def() == other.def() && this->index() == other.index(); }
+    bool operator== (Use other) const { return this->def() == other.def() && this->index() == other.index(); }
 
 private:
     size_t index_;

@@ -79,12 +79,12 @@ private:
     Def(const Def&);              ///< Do not copy-construct a \p Def.
 
 protected:
-    Def(size_t gid, NodeKind kind, Type type, size_t size, const Location& loc, const std::string& name)
+    Def(NodeKind kind, Type type, size_t size, const Location& loc, const std::string& name)
         : HasLocation(loc)
         , kind_(kind)
         , ops_(size)
         , type_(type)
-        , gid_(gid)
+        , gid_(gid_counter_++)
         , name(name)
     {}
     virtual ~Def() {}
@@ -135,6 +135,7 @@ public:
     template<class T> inline T primlit_value() const; // implementation in literal.h
     virtual const Def* rebuild() const { return this; }
     virtual std::ostream& stream(std::ostream&) const;
+    static size_t gid_counter() { return gid_counter_; }
 
 private:
     const NodeKind kind_;
@@ -143,6 +144,7 @@ private:
     mutable HashSet<Use, UseHash> uses_;
     const size_t gid_;
     mutable uint32_t candidate_ = 0;
+    static size_t gid_counter_;
 
 public:
     mutable std::string name; ///< Just do what ever you want with this field.

@@ -16,6 +16,8 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
+size_t Def::gid_counter_ = 1;
+
 void Def::set_op(size_t i, const Def* def) {
     assert(!op(i) && "already set");
     assert(def && "setting null pointer");

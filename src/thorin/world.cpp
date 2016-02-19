@@ -40,7 +40,6 @@ namespace thorin {
 
 World::World(std::string name)
     : name_(name)
-    , gid_(0)
     , tuple0_ (*unify(*join(new TupleTypeNode(*this, ArrayRef<Type>()))))
     , fn0_    (*unify(*join(new FnTypeNode   (*this, ArrayRef<Type>()))))
     , mem_    (*unify(*join(new MemTypeNode  (*this))))
@@ -784,8 +783,8 @@ const Def* World::hlt(const Def* def, const Location& loc, const std::string& na
  */
 
 Lambda* World::lambda(FnType fn, const Location& loc, CC cc, Intrinsic intrinsic, const std::string& name) {
-    THORIN_CHECK_BREAK(gid_)
-    auto l = new Lambda(gid_++, fn, loc, cc, intrinsic, true, name);
+    //THORIN_CHECK_BREAK(gid_)
+    auto l = new Lambda(fn, loc, cc, intrinsic, true, name);
     lambdas_.insert(l);
 
     size_t i = 0;
@@ -802,15 +801,15 @@ Lambda* World::lambda(FnType fn, const Location& loc, CC cc, Intrinsic intrinsic
 }
 
 Lambda* World::basicblock(const Location& loc, const std::string& name) {
-    THORIN_CHECK_BREAK(gid_)
-    auto bb = new Lambda(gid_++, fn_type(), loc, CC::C, Intrinsic::None, false, name);
+    //THORIN_CHECK_BREAK(gid_)
+    auto bb = new Lambda(fn_type(), loc, CC::C, Intrinsic::None, false, name);
     lambdas_.insert(bb);
     return bb;
 }
 
 const Param* World::param(Type type, Lambda* lambda, size_t index, const std::string& name) {
-    THORIN_CHECK_BREAK(gid_)
-    return new Param(gid_++, type, lambda, index, lambda->loc(), name);
+    //THORIN_CHECK_BREAK(gid_)
+    return new Param(type, lambda, index, lambda->loc(), name);
 }
 
 /*
@@ -842,12 +841,11 @@ const Def* World::cse_base(const PrimOp* primop) {
         delete primop;
         primop = *i;
     } else {
-        primop->set_gid(gid_++);
         const auto& p = primops_.insert(primop);
         assert_unused(p.second && "hash/equal broken");
     }
 
-    THORIN_CHECK_BREAK(primop->gid())
+    //THORIN_CHECK_BREAK(primop->gid())
     return primop;
 }
 

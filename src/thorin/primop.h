@@ -13,7 +13,7 @@ namespace thorin {
 class PrimOp : public Def {
 protected:
     PrimOp(NodeKind kind, Type type, ArrayRef<const Def*> args, const Location& loc, const std::string& name)
-        : Def(-1, kind, type ? type.unify() : nullptr, args.size(), loc, name)
+        : Def(kind, type ? type.unify() : nullptr, args.size(), loc, name)
         , is_outdated_(false)
     {
         for (size_t i = 0, e = size(); i != e; ++i)
@@ -46,7 +46,6 @@ protected:
 
 private:
     uint64_t hash() const { return hash_ == 0 ? hash_ = vhash() : hash_; }
-    void set_gid(size_t gid) const { const_cast<size_t&>(const_cast<PrimOp*>(this)->gid_) = gid; }
 
     mutable uint64_t hash_ = 0;
     mutable uint32_t live_ = 0;

@@ -139,7 +139,7 @@ protected:
         , world_(world)
         , kind_(kind)
         , args_(args.size())
-        , gid_(-1)
+        , gid_(gid_counter_++)
     {
         for (size_t i = 0, e = num_args(); i != e; ++i) {
             if (auto arg = args[i])
@@ -211,6 +211,8 @@ public:
     virtual bool use_lea() const { return false; }
     virtual std::ostream& stream(std::ostream&) const;
 
+    static size_t gid_counter() { return gid_counter_; }
+
 protected:
     Array<Type> specialize_args(Type2Type&) const;
 
@@ -226,6 +228,7 @@ private:
     mutable std::vector<TypeParam> type_params_;
     std::vector<Type> args_;
     mutable size_t gid_;
+    static size_t gid_counter_;
 
     friend class World;
 };

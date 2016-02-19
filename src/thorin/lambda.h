@@ -26,8 +26,8 @@ typedef std::vector<Lambda*> Lambdas;
  */
 class Param : public Def {
 private:
-    Param(size_t gid, Type type, Lambda* lambda, size_t index, const Location& loc, const std::string& name)
-        : Def(gid, Node_Param, type, 0, loc, name)
+    Param(Type type, Lambda* lambda, size_t index, const Location& loc, const std::string& name)
+        : Def(Node_Param, type, 0, loc, name)
         , lambda_(lambda)
         , index_(index)
     {}
@@ -100,8 +100,8 @@ enum class CC : uint8_t {
  */
 class Lambda : public Def {
 private:
-    Lambda(size_t gid, FnType fn, const Location& loc, CC cc, Intrinsic intrinsic, bool is_sealed, const std::string& name)
-        : Def(gid, Node_Lambda, fn, 0, loc, name)
+    Lambda(FnType fn, const Location& loc, CC cc, Intrinsic intrinsic, bool is_sealed, const std::string& name)
+        : Def(Node_Lambda, fn, 0, loc, name)
         , parent_(this)
         , cc_(cc)
         , intrinsic_(intrinsic)

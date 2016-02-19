@@ -206,7 +206,6 @@ public:
     Array<Lambda*> copy_lambdas() const;
     const LambdaSet& externals() const { return externals_; }
     const Types& types() const { return types_; }
-    size_t gid() const { return gid_; }
     bool empty() const { return lambdas().size() <= 2; } // TODO rework intrinsic stuff. 2 = branch + end_scope
 
     // other stuff
@@ -231,8 +230,6 @@ private:
     HashSet<Tracker*>& trackers(const Def* def) { assert(def); return trackers_[def]; }
 
     const TypeNode* register_base(const TypeNode* type) {
-        assert(type->gid_ == size_t(-1));
-        type->gid_ = gid_++;
         garbage_.push_back(type);
         return type;
     }
@@ -253,7 +250,6 @@ private:
 #ifndef NDEBUG
     HashSet<size_t> breakpoints_;
 #endif
-    size_t gid_;
     Lambda* branch_;
     Lambda* end_scope_;
 

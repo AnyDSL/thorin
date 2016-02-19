@@ -11,6 +11,8 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
+size_t TypeNode::gid_counter_ = 1;
+
 void TypeNode::bind(TypeParam type_param) const {
     assert(!type_param->is_unified());
     type_params_.push_back(type_param);

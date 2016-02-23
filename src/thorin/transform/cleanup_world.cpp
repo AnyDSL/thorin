@@ -179,10 +179,16 @@ void Cleaner::dead_code_elimination() {
 
 void Cleaner::verify_closedness() {
     auto check = [&](const Def* def) {
-        for (auto op : def->ops())
+        size_t i = 0;
+        for (auto op : def->ops()) {
             within(op);
-        for (auto use : def->uses_)
+            assert(op->uses_.find(Use(i++, def)) != op->uses_.end() && "can't find def in op's uses");
+        }
+
+        for (auto use : def->uses_) {
             within(use.def());
+            assert(use->op(use.index()) == def && "can't use doesn't point to def");
+        }
     };
 
     for (auto primop : world().primops())

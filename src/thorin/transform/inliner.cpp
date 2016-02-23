@@ -1,5 +1,6 @@
 #include "thorin/lambda.h"
 #include "thorin/world.h"
+#include "thorin/analyses/cfg.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/verify.h"
 #include "thorin/transform/mangle.h"
@@ -8,15 +9,11 @@ namespace thorin {
 
 void inliner(World& world) {
     Scope::for_each(world, [] (const Scope& scope) {
-        auto top = scope.entry();
-        if (!top->empty() && top->num_uses() <= 2) {
-            for (auto use : top->uses()) {
-                if (auto ulambda = use->isa_lambda()) {
-                    if (ulambda->to() == top) {
-                        if (!scope.outer_contains(ulambda))
-                            ulambda->jump(drop(scope, ulambda->type_args(), ulambda->args()), {}, {}, ulambda->jump_loc());
-                    }
-                }
+        for (auto n : scope.f_cfg().post_order()) {
+            auto lambda = n->lambda();
+            if (auto to_lambda = n->lambda()) {
+                if (to_lambda->num_uses() <= 2 && !scope.outer_contains(to_lambda))
+                    lambda->jump(drop(scope, lambda->type_args(), lambda->args()), {}, {}, lambda->jump_loc());
             }
         }
     });

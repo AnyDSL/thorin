@@ -216,6 +216,7 @@ void Cleaner::cleanup() {
 
     for (const auto& p : world().trackers_)
         assert(p.second.empty() && "there are still live trackers before running cleanup");
+    world().trackers_.clear();
 
     merge_lambdas();
     eliminate_params();

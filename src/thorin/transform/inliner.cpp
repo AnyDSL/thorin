@@ -8,6 +8,7 @@
 namespace thorin {
 
 void inliner(World& world) {
+#if 0
     Scope::for_each(world, [] (const Scope& scope) {
         for (auto n : scope.f_cfg().post_order()) {
             auto lambda = n->lambda();
@@ -19,6 +20,7 @@ void inliner(World& world) {
             }
         }
     });
+#endif
 
     debug_verify(world);
 }

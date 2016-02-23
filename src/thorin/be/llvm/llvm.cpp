@@ -668,18 +668,14 @@ llvm::Value* CodeGen::emit(const Def* def) {
                     return irbuilder_.CreateSIToFP(from, to);
                 return irbuilder_.CreateUIToFP(from, to);
             }
-            if (       (src->is_type_i() || src->is_bool())
-                    && (dst->is_type_i() || dst->is_bool())
-                    && (num_bits(src->primtype_kind()) > num_bits(dst->primtype_kind())))
-                return irbuilder_.CreateTrunc(from, to);
-            if (       (src->is_type_i() || src->is_bool())
-                    && (dst->is_type_s() || dst->is_bool())
-                    && (num_bits(src->primtype_kind()) < num_bits(dst->primtype_kind())))
-                return irbuilder_.CreateSExt(from, to);
-            if (       (src->is_type_i() || src->is_bool())
-                    && (dst->is_type_u() || dst->is_bool())
-                    && (num_bits(src->primtype_kind()) < num_bits(dst->primtype_kind())))
-                return irbuilder_.CreateZExt(from, to);
+
+            if (num_bits(src->primtype_kind()) > num_bits(dst->primtype_kind())) {
+                if (src->is_type_i() && (dst->is_type_i() || dst->is_bool()))
+                    return irbuilder_.CreateTrunc(from, to);
+            } else if (num_bits(src->primtype_kind()) < num_bits(dst->primtype_kind())) {
+                if ( src->is_type_s()                    && dst->is_type_i()) return irbuilder_.CreateSExt(from, to);
+                if ((src->is_type_u() || src->is_bool()) && dst->is_type_i()) return irbuilder_.CreateZExt(from, to);
+            }
 
             assert(false && "unsupported cast");
         }

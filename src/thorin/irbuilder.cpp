@@ -118,6 +118,22 @@ Lambda* JumpTarget::enter_unsealed(World& world) {
 
 //------------------------------------------------------------------------------
 
+Lambda* IRBuilder::lambda(const Location& loc, const std::string& name) {
+    return lambda(world().fn_type(), loc, CC::C, Intrinsic::None, name);
+}
+
+Lambda* IRBuilder::lambda(FnType fn, const Location& loc, CC cc, Intrinsic intrinsic, const std::string& name) {
+    auto l = world().lambda(fn, loc, cc, intrinsic, name);
+    if (fn->num_args() >= 1 && fn->args().front().isa<MemType>()) {
+        auto param = l->params().front();
+        l->set_mem(param);
+        if (param->name.empty())
+            param->name = "mem";
+    }
+
+    return l;
+}
+
 void IRBuilder::jump(JumpTarget& jt, const Location& loc) {
     if (is_reachable()) {
         cur_bb->jump(jt, loc);

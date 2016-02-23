@@ -143,6 +143,9 @@ public:
     const Def* call(const Def* to, ArrayRef<Type> type_args, ArrayRef<const Def*> args, Type ret_type, const Location& loc);
     const Def* get_mem();
     void set_mem(const Def* def);
+    Lambda* lambda(FnType fn, const Location& loc, CC cc = CC::C, Intrinsic intrinsic = Intrinsic::None, const std::string& name = "");
+    Lambda* lambda(FnType fn, const Location& loc, const std::string& name) { return lambda(fn, loc, CC::C, Intrinsic::None, name); }
+    Lambda* lambda(const Location& loc, const std::string& name);
 
     Lambda* cur_bb;
 

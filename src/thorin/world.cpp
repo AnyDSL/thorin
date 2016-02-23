@@ -791,10 +791,6 @@ Lambda* World::lambda(FnType fn, const Location& loc, CC cc, Intrinsic intrinsic
     for (auto arg : fn->args()) {
         auto p = param(arg, l, i++);
         l->params_.push_back(p);
-        if (arg.isa<MemType>()) {
-            l->set_mem(p);
-            p->name = "mem";
-        }
     }
 
     return l;

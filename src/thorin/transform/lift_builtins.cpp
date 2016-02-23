@@ -25,7 +25,8 @@ void lift_builtins(World& world) {
 #endif
         auto lifted = lift(scope, {}, vars);
 
-        for (auto use : cur->uses()) {
+        std::vector<Use> uses(cur->uses().begin(), cur->uses().end()); // TODO rewrite this
+        for (auto use : uses) {
             if (auto ulambda = use->isa_lambda()) {
                 if (auto to = ulambda->to()->isa_lambda()) {
                     if (to->is_intrinsic()) {

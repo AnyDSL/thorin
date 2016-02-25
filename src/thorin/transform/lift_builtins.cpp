@@ -32,11 +32,10 @@ void lift_builtins(World& world) {
                     if (to->is_intrinsic()) {
                         auto oops = ulambda->ops();
                         Array<const Def*> nops(oops.size() + vars.size());
-                        std::copy(oops.begin(), oops.end(), nops.begin());                                  // copy over old ops
+                        std::copy(vars.begin(), vars.end(), std::copy(oops.begin(), oops.end(), nops.begin())); // old ops + former free vars
                         assert(oops[use.index()] == cur);
-                        nops[use.index()] = world.global(lifted, lifted->loc(), false, lifted->name);       // update to new lifted lambda
-                        std::copy(vars.begin(), vars.end(), nops.begin() + oops.size());                    // append former free vars
-                        ulambda->jump(cur, ulambda->type_args(), nops.skip_front(), ulambda->jump_loc());   // set new args
+                        nops[use.index()] = world.global(lifted, lifted->loc(), false, lifted->name);           // update to new lifted lambda
+                        ulambda->jump(cur, ulambda->type_args(), nops.skip_front(), ulambda->jump_loc());       // set new args
                         // jump to new top-level dummy function
                         ulambda->update_to(world.lambda(ulambda->arg_fn_type(), to->loc(), to->cc(), to->intrinsic(), to->name));
                     }

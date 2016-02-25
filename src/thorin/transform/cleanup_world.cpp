@@ -214,11 +214,10 @@ void Cleaner::within(const Def* def) {
 }
 
 void Cleaner::cleanup() {
-    // TODO don't do that here
-    clear_value_numbering_table(world());
-
+#ifndef NDEBUG
     for (const auto& p : world().trackers_)
         assert(p.second.empty() && "there are still live trackers before running cleanup");
+#endif
     world().trackers_.clear();
 
     merge_lambdas();

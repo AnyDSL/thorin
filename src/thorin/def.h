@@ -194,14 +194,18 @@ public:
     Tracker(const Def* def)
         : def_(def)
     {
-        put(*this);
-        verify();
+        if (def) {
+            put(*this);
+            verify();
+        }
     }
     Tracker(const Tracker& other)
-        : def_(*other)
+        : def_(other)
     {
-        put(*this);
-        verify();
+        if (other) {
+            put(*this);
+            verify();
+        }
     }
     Tracker(Tracker&& other)
         : def_(*other)
@@ -210,8 +214,8 @@ public:
             other.unregister();
             other.def_ = nullptr;
             put(*this);
+            verify();
         }
-        verify();
     }
     ~Tracker() { if (*this) unregister(); }
 

@@ -67,12 +67,11 @@ const CFNode* Merger::dom_succ(const CFNode* n) {
 }
 
 void Merger::merge(const CFNode* n) {
-#if 0
     auto cur = n;
     for (auto next = dom_succ(cur); next != nullptr; cur = next, next = dom_succ(next)) {
         assert(cur->lambda()->num_args() == next->lambda()->num_params());
         for (size_t i = 0, e = cur->lambda()->num_args(); i != e; ++i)
-            Def(next->lambda()->param(i))->replace(cur->lambda()->arg(i));
+            next->lambda()->param(i)->replace(cur->lambda()->arg(i));
         cur->lambda()->destroy_body();
     }
 
@@ -81,7 +80,6 @@ void Merger::merge(const CFNode* n) {
 
     for (auto child : domtree.children(cur))
         merge(child);
-#endif
 }
 
 void Cleaner::merge_lambdas() {
@@ -89,40 +87,45 @@ void Cleaner::merge_lambdas() {
 }
 
 void Cleaner::eliminate_params() {
-#if 0
     for (auto olambda : world().copy_lambdas()) {
         std::vector<size_t> proxy_idx;
         std::vector<size_t> param_idx;
-        size_t i = 0;
-        for (auto param : olambda->params()) {
-            if (param->is_proxy())
-                proxy_idx.push_back(i++);
-            else
-                param_idx.push_back(i++);
-        }
 
-        if (!proxy_idx.empty()) {
-            auto nlambda = world().lambda(world().fn_type(olambda->type()->args().cut(proxy_idx)),
-                                            olambda->loc(), olambda->cc(), olambda->intrinsic(), olambda->name);
-            size_t j = 0;
-            for (auto i : param_idx) {
-                olambda->param(i)->replace(nlambda->param(j));
-                nlambda->param(j++)->name = olambda->param(i)->name;
+        if (!olambda->empty() && !world().is_external(olambda)) {
+            for (auto use : olambda->uses()) {
+                if (use.index() != 0 || !use->isa_lambda())
+                    goto next_lambda;
             }
 
-            nlambda->jump(olambda->to(), olambda->type_args(), olambda->args(), olambda->jump_loc());
-            olambda->destroy_body();
+            for (size_t i = 0, e = olambda->num_params(); i != e; ++i) {
+                auto param = olambda->param(i);
+                if (param->num_uses() == 0)
+                    proxy_idx.push_back(i);
+                else
+                    param_idx.push_back(i);
+            }
 
-            for (auto use : olambda->uses()) {
-                if (auto ulambda = use->isa_lambda()) {
-                    assert(use.index() == 0 && "deleted param of lambda used as argument");
+            if (!proxy_idx.empty()) {
+                auto nlambda = world().lambda(world().fn_type(olambda->type()->args().cut(proxy_idx)),
+                                            olambda->loc(), olambda->cc(), olambda->intrinsic(), olambda->name);
+                size_t j = 0;
+                for (auto i : param_idx) {
+                    olambda->param(i)->replace(nlambda->param(j));
+                    nlambda->param(j++)->name = olambda->param(i)->name;
+                }
+
+                nlambda->jump(olambda->to(), olambda->type_args(), olambda->args(), olambda->jump_loc());
+                olambda->destroy_body();
+
+                for (auto use : olambda->uses()) {
+                    auto ulambda = use->as_lambda();
+                    assert(use.index() == 0);
                     ulambda->jump(nlambda, ulambda->type_args(), ulambda->args().cut(proxy_idx), ulambda->jump_loc());
                 }
-                // else must be a dead 'select' primop
             }
         }
+next_lambda:;
     }
-#endif
 }
 
 void Cleaner::unreachable_code_elimination() {

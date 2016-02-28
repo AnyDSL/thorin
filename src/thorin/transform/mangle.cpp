@@ -82,8 +82,11 @@ Lambda* Mangler::mangle() {
         auto oparam = oentry->param(i);
         if (auto def = args[i])
             def2def[oparam] = def;
-        else
-            def2def[oparam] = nentry->param(j++);
+        else {
+            auto nparam = nentry->param(j++);
+            def2def[oparam] = nparam;
+            nparam->name = oparam->name;
+        }
     }
 
     for (auto def : lift)

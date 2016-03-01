@@ -24,8 +24,6 @@ SET ( SOURCES
     analyses/domtree.h
     analyses/free_vars.cpp
     analyses/free_vars.h
-    analyses/liveness.cpp
-    analyses/liveness.h
     analyses/looptree.cpp
     analyses/looptree.h
     analyses/schedule.cpp

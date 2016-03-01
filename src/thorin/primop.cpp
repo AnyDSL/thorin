@@ -288,6 +288,8 @@ const Def* PrimOp::rebuild(Def2Def& old2new) const {
                 ops[i] = op(i)->rebuild(old2new);
 
             auto def = rebuild(ops);
+            if (this == def)
+                is_outdated_ = false;
             return old2new[this] = def;
         } else
             return old2new[this] = this;

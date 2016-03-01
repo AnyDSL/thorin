@@ -279,15 +279,20 @@ const Def* PrimOp::out(size_t i) const {
     return world().extract(this, i, loc());
 }
 
-const Def* PrimOp::rebuild() const {
+const Def* PrimOp::rebuild(Def2Def& def2def) const {
     if (is_outdated()) {
-        Array<const Def*> ops(size());
-        for (size_t i = 0, e = size(); i != e; ++i)
-            ops[i] = op(i)->rebuild();
+        auto i = def2def.find(this);
+        if (i == def2def.end()) {
+            Array<const Def*> ops(size());
+            for (size_t i = 0, e = size(); i != e; ++i)
+                ops[i] = op(i)->rebuild();
 
-        auto def = rebuild(ops);
-        replace(def);
-        return def;
+            auto def = rebuild(ops);
+            def2def[this] = def;
+            return def;
+        } else {
+            return i->second;
+        }
     } else
         return this;
 }

@@ -218,7 +218,6 @@ void Cleaner::cleanup() {
     for (const auto& p : world().trackers_)
         assert(p.second.empty() && "there are still live trackers before running cleanup");
 #endif
-    world().trackers_.clear();
 
     merge_lambdas();
     eliminate_params();
@@ -253,6 +252,12 @@ void Cleaner::cleanup() {
     for (auto primop : world().primops())
         assert(!primop->is_outdated());
 #endif
+
+#ifndef NDEBUG
+    for (const auto& p : world().trackers_)
+        assert(p.second.empty() && "trackers needed during cleanup phase");
+#endif
+    world().trackers_.clear();
 
     debug_verify(world());
 }

@@ -79,8 +79,15 @@ Lambda* Lambda::update_op(size_t i, const Def* def) {
 }
 
 void Lambda::refresh() {
-    for (size_t i = 0, e = size(); i != e; ++i)
-        update_op(i, op(i)->rebuild());
+    for (auto op : ops()) {
+        if (op->is_outdated()) {
+            Array<const Def*> nops(size());
+            for (size_t i = 0, e = size(); i != e; ++i)
+                nops[i] = this->op(i)->rebuild();
+            jump(nops.front(), type_args(), nops.skip_front(), jump_loc());
+            return;
+        }
+    }
 }
 
 void Lambda::destroy_body() {

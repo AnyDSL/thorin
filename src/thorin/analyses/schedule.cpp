@@ -13,7 +13,6 @@
 namespace thorin {
 
 typedef DefMap<const CFNode*> Def2CFNode;
-typedef std::set<Use, UseLT> Uses;
 
 //------------------------------------------------------------------------------
 
@@ -43,7 +42,7 @@ public:
         topo_sort(*def2node);
     }
 
-    const Uses& uses(Def def) const { return def2uses_.find(def)->second; }
+    const Uses& uses(const Def* def) const { return def2uses_.find(def)->second; }
 
     void for_all_primops(std::function<void(const PrimOp*)> f) {
         for (const auto& p : def2uses_) {
@@ -52,8 +51,8 @@ public:
         }
     }
 
-    Range<filter_iterator<const Def*, std::function<bool(Def)>>> ops(Def def) {
-        std::function<bool(Def)> pred = [&](Def op) -> bool {
+    Range<filter_iterator<const Def* const*, std::function<bool(const Def*)>>> ops(const Def* def) {
+        std::function<bool(const Def*)> pred = [&](const Def* op) -> bool {
             return !op->isa_lambda() && def2uses_.find(op) != def2uses_.end();
         };
         return range(def->ops().begin(), def->ops().end(), pred);
@@ -63,8 +62,8 @@ public:
     void schedule_early() { for_all_primops([&](const PrimOp* primop) { schedule_early(primop); }); }
     void schedule_late()  { for_all_primops([&](const PrimOp* primop) { schedule_late (primop); }); }
     void schedule_smart() { for_all_primops([&](const PrimOp* primop) { schedule_smart(primop); }); }
-    void schedule_early(Def);
-    void schedule_late(Def);
+    void schedule_early(const Def*);
+    void schedule_late(const Def*);
     void schedule_smart(const PrimOp*);
     void topo_sort(Def2CFNode&);
 
@@ -81,10 +80,10 @@ private:
 };
 
 void Scheduler::compute_def2uses() {
-    std::queue<Def> queue;
+    std::queue<const Def*> queue;
     DefSet done;
 
-    auto enqueue = [&](Def def, size_t i, Def op) {
+    auto enqueue = [&](const Def* def, size_t i, const Def* op) {
         if (scope_._contains(op)) {
             auto p1 = def2uses_[op].emplace(i, def);
             assert_unused(p1.second);
@@ -107,7 +106,7 @@ void Scheduler::compute_def2uses() {
     }
 }
 
-void Scheduler::schedule_early(Def def) {
+void Scheduler::schedule_early(const Def* def) {
     if (!def2early_.contains(def)) {
         if (auto param = def->isa<Param>()) {
             def2early_[param] = cfg_[param->lambda()];
@@ -126,7 +125,7 @@ void Scheduler::schedule_early(Def def) {
     }
 }
 
-void Scheduler::schedule_late(Def def) {
+void Scheduler::schedule_late(const Def* def) {
     if (!def2late_.contains(def)) {
         if (auto lambda = def->isa_lambda()) {
             def2late_[lambda] = cfg_[lambda];
@@ -174,7 +173,7 @@ void Scheduler::topo_sort(Def2CFNode& def2node) {
         std::queue<const PrimOp*> queue;
         DefSet done;
 
-        auto inside = [&](Def def) {
+        auto inside = [&](const Def* def) {
             auto i = def2node.find(def);
             return i != def2node.end() && i->second == block.node();
         };
@@ -239,10 +238,10 @@ void Schedule::block_schedule() {
 void Schedule::verify() {
 #ifndef NDEBUG
     auto& domtree = cfg().domtree();
-    Schedule::Map<Def> block2mem(*this);
+    Schedule::Map<const Def*> block2mem(*this);
 
     for (auto& block : *this) {
-        Def mem = block.lambda()->mem_param();
+        const Def* mem = block.lambda()->mem_param();
         mem = mem ? mem : block2mem[(*this)[domtree.idom(block.node())]];
         for (auto primop : block) {
             if (auto memop = primop->isa<MemOp>()) {

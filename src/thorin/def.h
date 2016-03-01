@@ -54,6 +54,8 @@ struct UseHash {
     inline uint64_t operator () (Use use) const;
 };
 
+typedef HashSet<Use, UseHash> Uses;
+
 std::ostream& operator << (std::ostream&, const Def*);
 std::ostream& operator << (std::ostream&, Use);
 
@@ -108,7 +110,7 @@ public:
     Lambda* isa_lambda() const;
     bool is_const() const;
     void dump() const;
-    const HashSet<Use, UseHash>& uses() const { return uses_; }
+    const Uses& uses() const { return uses_; }
     size_t num_uses() const { return uses().size(); }
     size_t gid() const { return gid_; }
     std::string unique_name() const;
@@ -133,7 +135,9 @@ public:
     bool is_commutative() const { return thorin::is_commutative(kind()); }
     bool is_associative() const { return thorin::is_associative(kind()); }
     template<class T> inline T primlit_value() const; // implementation in literal.h
-    virtual const Def* rebuild() const { return this; }
+    const Def* rebuild() const { Def2Def def2def; return rebuild(def2def); }
+    virtual bool is_outdated() const { return false; }
+    virtual const Def* rebuild(Def2Def&) const { return this; }
     virtual std::ostream& stream(std::ostream&) const;
     static size_t gid_counter() { return gid_counter_; }
 
@@ -141,7 +145,7 @@ private:
     const NodeKind kind_;
     std::vector<const Def*> ops_;
     Type type_;
-    mutable HashSet<Use, UseHash> uses_;
+    mutable Uses uses_;
     const size_t gid_;
     mutable uint32_t candidate_ = 0;
     static size_t gid_counter_;

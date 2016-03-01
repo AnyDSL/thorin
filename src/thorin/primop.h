@@ -24,8 +24,8 @@ protected:
 
 public:
     const Def* out(size_t i) const;
-    bool is_outdated() const { return is_outdated_; }
-    virtual const Def* rebuild() const override;
+    virtual bool is_outdated() const override { return is_outdated_; }
+    virtual const Def* rebuild(Def2Def&) const override;
     const Def* rebuild(World& to, ArrayRef<const Def*> ops, Type type) const {
         assert(this->size() == ops.size());
         return vrebuild(to, ops, type);

@@ -459,8 +459,7 @@ void CodeGen::emit(int opt, bool debug) {
     llvm::verifyModule(*module_);
 #endif
     optimize(opt);
-    if (debug)
-        dibuilder_.finalize();
+    dibuilder_.finalize();
 
     {
         std::error_code EC;

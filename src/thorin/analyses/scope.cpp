@@ -169,8 +169,7 @@ template void Scope::for_each<true> (const World&, std::function<void(Scope&)>);
 template void Scope::for_each<false>(const World&, std::function<void(Scope&)>);
 
 std::ostream& Scope::stream(std::ostream& os) const {
-    Schedule schedule(*this);
-    for (auto& block : schedule) {
+    for (auto& block : schedule(*this)) {
         auto lambda = block.lambda();
         if (lambda->intrinsic() != Intrinsic::EndScope) {
             bool indent = lambda != entry();

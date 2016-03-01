@@ -72,6 +72,8 @@ private:
     friend class Scheduler;
 };
 
+inline Schedule schedule(const Scope& scope) { return Schedule(scope); }
+
 }
 
 #endif

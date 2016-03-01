@@ -258,10 +258,8 @@ void CCodeGen::emit() {
     // emit declarations
     Scope::for_each<false>(world(), [&] (const Scope& scope) {
         if (scope.entry() == world().branch()) return;
-        Schedule schedule(scope);
-
         // tuple declarations
-        for (auto& block : schedule) {
+        for (auto& block : schedule(scope)) {
             for (auto param : block.lambda()->params()) {
                 emit_aggop_decl(param->type());
                 insert(param->gid(), param->unique_name());

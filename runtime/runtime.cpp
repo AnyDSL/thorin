@@ -268,7 +268,6 @@ public:
     tbb::task* execute() {
         int32_t (*fun_ptr) (void*) = reinterpret_cast<int32_t (*) (void*)>(fun_);
         fun_ptr(args_);
-        set_ref_count(1);
         return nullptr;
     }
 
@@ -286,9 +285,11 @@ int32_t thorin_spawn_thread(void* args, void* fun) {
         id = task_pool.size();
     }
 
-    tbb::task* task = new (tbb::task::allocate_root()) RuntimeTask(args, fun);
-    tbb::task::spawn(*task);
-    task_pool[id] = task;
+    tbb::task* root = new (tbb::task::allocate_root()) RuntimeTask(args, fun);
+    root->set_ref_count(2);
+    tbb::task* child = new (root->allocate_child()) RuntimeTask(args, fun);
+    root->spawn(*child);
+    task_pool[id] = root;
     return id;
 }
 

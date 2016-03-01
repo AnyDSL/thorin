@@ -248,6 +248,33 @@ void Schedule::verify() {
 #endif
 }
 
+std::ostream& Schedule::stream(std::ostream& os) const {
+    for (auto& block : *this) {
+        auto lambda = block.lambda();
+        if (lambda->intrinsic() != Intrinsic::EndScope) {
+            bool indent = lambda != scope().entry();
+            if (indent)
+                os << up;
+            os << endl;
+            lambda->stream_head(os) << up_endl;
+            for (auto primop : block)
+                primop->stream_assignment(os);
+
+            lambda->stream_jump(os) << down_endl;
+            if (indent)
+                os << down;
+        }
+    }
+    return os << endl;
+}
+
+void Schedule::write_thorin(const char* filename) const { std::ofstream file(filename); stream(file); }
+
+void Schedule::thorin() const {
+    auto filename = world().name() + "_" + scope().entry()->unique_name() + ".thorin";
+    write_thorin(filename.c_str());
+}
+
 //------------------------------------------------------------------------------
 
 }

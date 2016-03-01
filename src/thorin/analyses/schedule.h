@@ -9,6 +9,8 @@ class PrimOp;
 
 class Schedule {
 public:
+    enum Kind { Early, Late, Smart };
+
     class Block {
     public:
         Block(const Block&) = delete;
@@ -45,9 +47,11 @@ public:
         : scope_(std::move(other.scope_))
         , indices_(std::move(other.indices_))
         , blocks_(std::move(other.blocks_))
+        , kind_(std::move(other.kind_))
     {}
-    explicit Schedule(const Scope& scope);
+    Schedule(const Scope&, Kind = Smart);
 
+    Kind kind() const { return kind_; }
     const Scope& scope() const { return scope_; }
     const CFA& cfa() const { return scope().cfa(); }
     const F_CFG& cfg() const { return scope().f_cfg(); }
@@ -68,11 +72,14 @@ private:
     const Scope& scope_;
     F_CFG::Map<size_t> indices_;
     Array<Block> blocks_;
+    Kind kind_;
 
     friend class Scheduler;
 };
 
-inline Schedule schedule(const Scope& scope) { return Schedule(scope); }
+inline Schedule schedule(const Scope& scope, Schedule::Kind kind = Schedule::Smart) {
+    return Schedule(scope, kind);
+}
 
 }
 

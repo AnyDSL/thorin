@@ -117,8 +117,8 @@ public:
                 delete q.second;
         }
 
-        for (auto p : def2sym_) delete p.second;
-        for (auto p : out2sym_) delete p.second;
+        for (const auto& p : def2sym_) delete p.second;
+        for (const auto& p : out2sym_) delete p.second;
     }
 
     void propagate_higher_order_values();

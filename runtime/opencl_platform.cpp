@@ -107,7 +107,7 @@ OpenCLPlatform::OpenCLPlatform(Runtime* runtime)
     cl_int err = clGetPlatformIDs(0, NULL, &num_platforms);
     checkErr(err, "clGetPlatformIDs()");
 
-    WLOG("Number of available OpenCL Platforms: %", num_platforms);
+    ILOG("Number of available OpenCL Platforms: %", num_platforms);
 
     cl_platform_id* platforms = new cl_platform_id[num_platforms];
 
@@ -120,11 +120,11 @@ OpenCLPlatform::OpenCLPlatform(Runtime* runtime)
 
         char buffer[1024];
         err  = clGetPlatformInfo(platforms[i], CL_PLATFORM_NAME, sizeof(buffer), &buffer, NULL);
-        WLOG("  Platform Name: %", buffer);
+        ILOG("  Platform Name: %", buffer);
         err |= clGetPlatformInfo(platforms[i], CL_PLATFORM_VENDOR, sizeof(buffer), &buffer, NULL);
-        WLOG("  Platform Vendor: %", buffer);
+        ILOG("  Platform Vendor: %", buffer);
         err |= clGetPlatformInfo(platforms[i], CL_PLATFORM_VERSION, sizeof(buffer), &buffer, NULL);
-        WLOG("  Platform Version: %", buffer);
+        ILOG("  Platform Version: %", buffer);
         checkErr(err, "clGetPlatformInfo()");
 
         err = clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, 0, NULL, &num_devices);
@@ -150,16 +150,16 @@ OpenCLPlatform::OpenCLPlatform(Runtime* runtime)
             if (dev_type & CL_DEVICE_TYPE_CUSTOM)      type_str  = "CL_DEVICE_TYPE_CUSTOM";
             #endif
             if (dev_type & CL_DEVICE_TYPE_DEFAULT)     type_str += "|CL_DEVICE_TYPE_DEFAULT";
-            WLOG("  (%) Device Name: % (%)", devices_.size(), buffer, type_str);
+            ILOG("  (%) Device Name: % (%)", devices_.size(), buffer, type_str);
             err |= clGetDeviceInfo(devices[j], CL_DEVICE_VENDOR, sizeof(buffer), &buffer, NULL);
             err |= clGetDeviceInfo(devices[j], CL_DEVICE_VENDOR_ID, sizeof(device_vendor_id), &device_vendor_id, NULL);
-            WLOG("      Device Vendor: %", buffer, " (ID: ", device_vendor_id, ")");
+            ILOG("      Device Vendor: %", buffer, " (ID: ", device_vendor_id, ")");
             err |= clGetDeviceInfo(devices[j], CL_DEVICE_VERSION, sizeof(buffer), &buffer, NULL);
-            WLOG("      Device OpenCL Version: %", buffer);
+            ILOG("      Device OpenCL Version: %", buffer);
             err |= clGetDeviceInfo(devices[j], CL_DRIVER_VERSION, sizeof(buffer), &buffer, NULL);
-            WLOG("      Device Driver Version: %", buffer);
+            ILOG("      Device Driver Version: %", buffer);
             err |= clGetDeviceInfo(devices[j], CL_DEVICE_EXTENSIONS, sizeof(buffer), &buffer, NULL);
-            //WLOG("      Device Extensions: %", buffer);
+            //ILOG("      Device Extensions: %", buffer);
             std::string extensions(buffer);
             bool has_spir = extensions.find("cl_khr_spir") != std::string::npos;
             std::string spir_version;
@@ -169,7 +169,7 @@ OpenCLPlatform::OpenCLPlatform(Runtime* runtime)
                 spir_version = "(Version: " + std::string(buffer) + ")";
             }
             #endif
-            WLOG("      Device SPIR Support: % %", has_spir, spir_version);
+            ILOG("      Device SPIR Support: % %", has_spir, spir_version);
 
             #ifdef CL_VERSION_2_0
             std::string svm_caps_str;
@@ -180,11 +180,11 @@ OpenCLPlatform::OpenCLPlatform(Runtime* runtime)
             if (svm_caps & CL_DEVICE_SVM_FINE_GRAIN_BUFFER)   svm_caps_str += " CL_DEVICE_SVM_FINE_GRAIN_BUFFER";
             if (svm_caps & CL_DEVICE_SVM_FINE_GRAIN_SYSTEM)   svm_caps_str += " CL_DEVICE_SVM_FINE_GRAIN_SYSTEM";
             if (svm_caps & CL_DEVICE_SVM_ATOMICS)             svm_caps_str += " CL_DEVICE_SVM_ATOMICS";
-            WLOG("      Device SVM capabilities:%", svm_caps_str);
+            ILOG("      Device SVM capabilities:%", svm_caps_str);
             #else
             cl_bool has_unified = false;
             err |= clGetDeviceInfo(devices[j], CL_DEVICE_HOST_UNIFIED_MEMORY, sizeof(has_unified), &has_unified, NULL);
-            WLOG("      Device Host Unified Memory: %", has_unified);
+            ILOG("      Device Host Unified Memory: %", has_unified);
             #endif
             checkErr(err, "clGetDeviceInfo()");
 
@@ -305,7 +305,7 @@ void OpenCLPlatform::load_kernel(device_id dev, const char* file, const char* na
             ELOG("Can't open % file '%'!", (is_binary ? "SPIR binary" : "OpenCL source"), name);
         }
 
-        WLOG("Compiling '%' on OpenCL device %", file, dev);
+        ILOG("Compiling '%' on OpenCL device %", file, dev);
 
         std::string cl_str(std::istreambuf_iterator<char>(src_file), (std::istreambuf_iterator<char>()));
         std::string options = "-cl-fast-relaxed-math";

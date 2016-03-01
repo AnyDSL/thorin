@@ -131,11 +131,11 @@ void Scheduler::schedule_late(Def def) {
         }
 
         auto primop = def->as<PrimOp>();
-        auto n = cfg().exit();
+        const CFNode* n = nullptr;
         for (auto use : uses(primop)) {
             schedule_late(use);
             auto m = def2late_[use];
-            n = domtree().lca(n, m);
+            n = n ? domtree().lca(n, m) : m;
         }
 
         def2late_[primop] = n;
@@ -193,14 +193,16 @@ void Scheduler::topo_sort() {
         };
 
         auto enqueue = [&](const PrimOp* primop) {
-            for (auto op : primop->ops()) {
-                if (inside(op) && !done.contains(op))
-                    return;
-            }
+            if (!done.contains(primop)) {
+                for (auto op : primop->ops()) {
+                    if (inside(op) && !done.contains(op))
+                        return;
+                }
 
-            queue.push(primop);
-            done.insert(primop);
-            primops.push_back(primop);
+                queue.push(primop);
+                done.insert(primop);
+                primops.push_back(primop);
+            }
         };
 
         for (auto primop : block)
@@ -231,6 +233,7 @@ Schedule::Schedule(const Scope& scope)
 {
     block_schedule();
     Scheduler(scope, *this);
+    verify();
 }
 
 void Schedule::block_schedule() {

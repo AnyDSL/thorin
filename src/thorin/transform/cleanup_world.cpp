@@ -224,7 +224,6 @@ void Cleaner::cleanup() {
     unreachable_code_elimination();
     dead_code_elimination();
 
-    // unlink dead primops from the rest
     for (auto primop : world().primops()) {
         if (!is_live(primop))
             primop->unregister_uses();
@@ -236,13 +235,11 @@ void Cleaner::cleanup() {
     verify_closedness();
 #endif
 
-    // delete dead primops
     for (auto primop : nprimops_) {
         if (!is_live(primop))
             delete primop;
     }
 
-    // delete unreachable lambdas
     for (auto lambda : nlambdas_) {
         if (!is_reachable(lambda))
             delete lambda;
@@ -251,9 +248,7 @@ void Cleaner::cleanup() {
 #ifndef NDEBUG
     for (auto primop : world().primops())
         assert(!primop->is_outdated());
-#endif
 
-#ifndef NDEBUG
     for (const auto& p : world().trackers_)
         assert(p.second.empty() && "trackers needed during cleanup phase");
 #endif

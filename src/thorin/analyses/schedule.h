@@ -77,9 +77,7 @@ private:
     friend class Scheduler;
 };
 
-inline Schedule schedule(const Scope& scope, Schedule::Kind kind = Schedule::Smart) {
-    return Schedule(scope, kind);
-}
+inline Schedule schedule(const Scope& scope, Schedule::Kind kind = Schedule::Smart) { return Schedule(scope, kind); }
 
 }
 

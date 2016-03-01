@@ -31,8 +31,7 @@ public:
         size_t index_;
 
         friend class Schedule;
-        friend Schedule schedule_late(const Scope&);
-        friend Schedule schedule_smart(const Scope&);
+        friend class Scheduler;
     };
 
     template<class Value>
@@ -63,19 +62,15 @@ public:
     const_iterator end() const { return blocks().end(); }
 
 private:
+    Block& operator [] (const CFNode* n) { return blocks_[indices_[n]]; }
     void block_schedule();
-    void append(const CFNode* n, const PrimOp* primop) { blocks_[indices_[n]].primops_.push_back(primop); }
 
     const Scope& scope_;
     F_CFG::Map<size_t> indices_;
     Array<Block> blocks_;
 
-    friend Schedule schedule_late(const Scope&);
-    friend Schedule schedule_smart(const Scope&);
+    friend class Scheduler;
 };
-
-Schedule schedule_late(const Scope&);
-Schedule schedule_smart(const Scope&);
 
 }
 

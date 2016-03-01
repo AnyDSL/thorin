@@ -258,7 +258,7 @@ void CCodeGen::emit() {
     // emit declarations
     Scope::for_each<false>(world(), [&] (const Scope& scope) {
         if (scope.entry() == world().branch()) return;
-        auto schedule = schedule_smart(scope);
+        Schedule schedule(scope);
 
         // tuple declarations
         for (auto& block : schedule) {
@@ -410,7 +410,7 @@ void CCodeGen::emit() {
             }
         }
 
-        auto schedule = schedule_smart(scope);
+        Schedule schedule(scope);
 
         // emit function arguments and phi nodes
         for (const auto& block : schedule) {

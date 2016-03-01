@@ -49,7 +49,8 @@ void mem2reg(const Scope& scope) {
         }
     }
 
-    for (const auto& block : schedule_late(scope)) {
+    Schedule schedule(scope);
+    for (const auto& block : schedule) {
         auto lambda = block.lambda();
         // search for slots/loads/stores from top to bottom and use set_value/get_value to install parameters
         for (auto primop : block) {

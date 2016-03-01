@@ -166,7 +166,7 @@ public:
         return visit_capturing_intrinsics([&] (Lambda* lambda) { return lambda->intrinsic() == intrinsic; });
     }
     void destroy_body();
-    void refresh();
+    void refresh(Def2Def&);
 
     std::ostream& stream_head(std::ostream&) const;
     std::ostream& stream_jump(std::ostream&) const;

@@ -232,19 +232,25 @@ void Schedule::verify() {
 #ifndef NDEBUG
     auto& domtree = cfg().domtree();
     Schedule::Map<const Def*> block2mem(*this);
+    bool error = false;
 
     for (auto& block : *this) {
         const Def* mem = block.lambda()->mem_param();
         mem = mem ? mem : block2mem[(*this)[domtree.idom(block.node())]];
         for (auto primop : block) {
             if (auto memop = primop->isa<MemOp>()) {
-                if (memop->mem() != mem)
-                    WLOG("incorrect schedule: % (current mem is %)", memop, mem);
+                if (memop->mem() != mem) {
+                    WLOG("incorrect schedule: % (current mem is %) - scope entry: %", memop, mem, scope_.entry());
+                    error = true;
+                }
                 mem = memop->out_mem();
             }
         }
         block2mem[block] = mem;
     }
+
+    if (error)
+        thorin();
 #endif
 }
 

@@ -100,7 +100,7 @@ bool Def::is_minus_zero() const {
 }
 
 void Def::replace(const Def* with) const {
-    WLOG("replace: % -> %", this, with);
+    DLOG("replace: % -> %", this, with);
     assert(type() == with->type());
     if (this != with) {
         std::queue<const PrimOp*> queue;

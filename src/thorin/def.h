@@ -135,7 +135,6 @@ public:
     bool is_commutative() const { return thorin::is_commutative(kind()); }
     bool is_associative() const { return thorin::is_associative(kind()); }
     template<class T> inline T primlit_value() const; // implementation in literal.h
-    const Def* rebuild() const { Def2Def def2def; return rebuild(def2def); }
     virtual bool is_outdated() const { return false; }
     virtual const Def* rebuild(Def2Def&) const { return this; }
     virtual std::ostream& stream(std::ostream&) const;
@@ -222,7 +221,6 @@ public:
         }
     }
     ~Tracker() { if (*this) unregister(); }
-
 
     const Def* operator*() const { return def_; }
     bool operator==(const Tracker& other) const { return this->def_ == other.def_; }

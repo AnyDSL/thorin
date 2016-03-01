@@ -31,6 +31,7 @@ private:
     World& world_;
     LambdaSet nlambdas_;
     World::PrimOps nprimops_;
+    Def2Def old2new_;
     static uint32_t counter_;
 };
 
@@ -131,7 +132,7 @@ next_lambda:;
 void Cleaner::unreachable_code_elimination() {
     std::queue<const Lambda*> queue;
     auto enqueue = [&] (Lambda* lambda) {
-        lambda->refresh();
+        lambda->refresh(old2new_);
         set_reachable(lambda);
         queue.push(lambda);
     };

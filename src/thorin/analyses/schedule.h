@@ -9,6 +9,8 @@ class PrimOp;
 
 class Schedule {
 public:
+    enum Kind { Early, Late, Smart };
+
     class Block {
     public:
         Block(const Block&) = delete;
@@ -31,8 +33,7 @@ public:
         size_t index_;
 
         friend class Schedule;
-        friend Schedule schedule_late(const Scope&);
-        friend Schedule schedule_smart(const Scope&);
+        friend class Scheduler;
     };
 
     template<class Value>
@@ -46,9 +47,11 @@ public:
         : scope_(std::move(other.scope_))
         , indices_(std::move(other.indices_))
         , blocks_(std::move(other.blocks_))
+        , kind_(std::move(other.kind_))
     {}
-    explicit Schedule(const Scope& scope);
+    Schedule(const Scope&, Kind = Smart);
 
+    Kind kind() const { return kind_; }
     const Scope& scope() const { return scope_; }
     const CFA& cfa() const { return scope().cfa(); }
     const F_CFG& cfg() const { return scope().f_cfg(); }
@@ -63,19 +66,20 @@ public:
     const_iterator end() const { return blocks().end(); }
 
 private:
+    Block& operator [] (const CFNode* n) { return blocks_[indices_[n]]; }
     void block_schedule();
-    void append(const CFNode* n, const PrimOp* primop) { blocks_[indices_[n]].primops_.push_back(primop); }
 
     const Scope& scope_;
     F_CFG::Map<size_t> indices_;
     Array<Block> blocks_;
+    Kind kind_;
 
-    friend Schedule schedule_late(const Scope&);
-    friend Schedule schedule_smart(const Scope&);
+    friend class Scheduler;
 };
 
-Schedule schedule_late(const Scope&);
-Schedule schedule_smart(const Scope&);
+inline Schedule schedule(const Scope& scope, Schedule::Kind kind = Schedule::Smart) {
+    return Schedule(scope, kind);
+}
 
 }
 

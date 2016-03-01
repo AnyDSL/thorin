@@ -258,7 +258,7 @@ void CodeGen::emit(int opt, bool debug) {
         assert(ret_param);
 
         BBMap bb2lambda;
-        auto schedule = schedule_smart(scope);
+        Schedule schedule(scope);
 
         for (const auto& block : schedule) {
             auto lambda = block.lambda();

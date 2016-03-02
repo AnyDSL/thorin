@@ -15,7 +15,6 @@ public:
         , type_args(type_args)
         , args(args)
         , lift(lift)
-        , in_scope(scope.in_scope()) // copy constructor
         , oentry(scope.entry())
     {
         assert(!oentry->empty());
@@ -23,14 +22,19 @@ public:
         assert(type_args.size() == oentry->num_type_params());
 
         std::queue<const Def*> queue;
+        auto enqueue = [&](const Def* def) {
+            if (!within(def)) {
+                defs_.insert(def);
+                queue.push(def);
+            }
+        };
+
         for (auto def : lift)
-            queue.push(def);
+            enqueue(def);
 
         while (!queue.empty()) {
-            for (auto use : pop(queue)->uses()) {
-                if (!use->isa_lambda() && !visit(in_scope, use))
-                    queue.push(use);
-            }
+            for (auto use : pop(queue)->uses())
+                enqueue(use);
         }
     }
 
@@ -39,6 +43,7 @@ public:
     void mangle_body(Lambda* olambda, Lambda* nlambda);
     Lambda* mangle_head(Lambda* olambda);
     const Def* mangle(const Def* odef);
+    bool within(const Def* def) { return scope.contains(def) || defs_.contains(def); }
 
     const Scope& scope;
     Def2Def def2def;
@@ -46,9 +51,9 @@ public:
     ArrayRef<const Def*> args;
     ArrayRef<const Def*> lift;
     Type2Type type2type;
-    DefSet in_scope;
     Lambda* oentry;
     Lambda* nentry;
+    DefSet defs_;
 };
 
 Lambda* Mangler::mangle() {
@@ -151,7 +156,7 @@ const Def* Mangler::mangle(const Def* odef) {
     if (i != def2def.end())
         return i->second;
 
-    if (!in_scope.contains(odef))
+    if (!within(odef))
         return odef;
 
     if (auto olambda = odef->isa_lambda()) {
@@ -159,7 +164,7 @@ const Def* Mangler::mangle(const Def* odef) {
         mangle_body(olambda, nlambda);
         return nlambda;
     } else if (auto param = odef->isa<Param>()) {
-        assert(in_scope.contains(param->lambda()));
+        assert(within(param->lambda()));
         mangle(param->lambda());
         assert(def2def.contains(param));
         return def2def[param];

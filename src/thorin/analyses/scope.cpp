@@ -27,7 +27,7 @@ Scope::~Scope() { cleanup(); }
 
 void Scope::run(Lambda* entry) {
     identify_scope(entry);
-    build_in_scope();
+    build_defs();
     ++candidate_counter_;
     verify();
 }
@@ -41,7 +41,7 @@ const Scope& Scope::update() {
     cleanup();
     auto e = entry();
     lambdas_.clear();
-    in_scope_.clear();
+    defs_.clear();
     cfa_.release();
     id_ = id_counter_++;
     run(e);
@@ -98,19 +98,19 @@ void Scope::verify() const {
 #endif
 }
 
-void Scope::build_in_scope() {
+void Scope::build_defs() {
     std::queue<const Def*> queue;
     auto enqueue = [&] (const Def* def) {
-        if (!def->isa_lambda() && is_candidate(def) && !in_scope_.contains(def)) {
-            in_scope_.insert(def);
+        if (!def->isa_lambda() && is_candidate(def) && !defs_.contains(def)) {
+            defs_.insert(def);
             queue.push(def);
         }
     };
 
     for (auto lambda : lambdas()) {
         for (auto param : lambda->params())
-            in_scope_.insert(param);
-        in_scope_.insert(lambda);
+            defs_.insert(param);
+        defs_.insert(lambda);
 
         for (auto op : lambda->ops())
             enqueue(op);
@@ -152,7 +152,7 @@ void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
 
         for (auto n : scope.f_cfg().reverse_post_order()) {
             for (auto succ : n->lambda()->succs()) {
-                if (!scope.outer_contains(succ))
+                if (!scope.contains(succ))
                     enqueue(succ);
             }
         }

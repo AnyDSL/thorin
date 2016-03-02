@@ -15,7 +15,7 @@ std::vector<const Def*> free_vars(const Scope& scope) {
     // now find all params not in scope
     auto enqueue = [&] (const Def* def) {
         if (!visit(set, def) && !def->is_const()) {
-            if (scope._contains(def))
+            if (scope.contains(def))
                 for (auto op : def->ops())
                     queue.push(op);
             else

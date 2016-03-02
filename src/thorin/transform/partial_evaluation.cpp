@@ -24,7 +24,7 @@ public:
     Lambda* postdom(Lambda*, const Scope&);
     Lambda* postdom(Lambda*);
     void enqueue(Lambda* lambda) {
-        if (top_scope().outer_contains(lambda)) {
+        if (top_scope().contains(lambda)) {
             auto p = visited_.insert(lambda);
             if (p.second)
                 queue_.push(lambda);

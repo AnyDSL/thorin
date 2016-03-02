@@ -60,7 +60,6 @@ static void lift_enters(const Scope& scope) {
     for (auto old_enter : enters) {
         for (auto use : old_enter->out_frame()->uses()) {
             auto slot = use->as<Slot>();
-            slot->dump();
             slot->replace(world.slot(slot->alloced_type(), frame, index++, slot->loc(), slot->name));
             assert(slot->num_uses() == 0);
         }

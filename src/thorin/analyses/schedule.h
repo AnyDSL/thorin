@@ -2,13 +2,16 @@
 #define THORIN_ANALYSES_SCHEDULE_H
 
 #include "thorin/analyses/cfg.h"
+#include "thorin/util/stream.h"
 
 namespace thorin {
 
 class PrimOp;
 
-class Schedule {
+class Schedule : public Streamable {
 public:
+    enum Kind { Early, Late, Smart };
+
     class Block {
     public:
         Block(const Block&) = delete;
@@ -31,8 +34,7 @@ public:
         size_t index_;
 
         friend class Schedule;
-        friend Schedule schedule_late(const Scope&);
-        friend Schedule schedule_smart(const Scope&);
+        friend class Scheduler;
     };
 
     template<class Value>
@@ -46,10 +48,13 @@ public:
         : scope_(std::move(other.scope_))
         , indices_(std::move(other.indices_))
         , blocks_(std::move(other.blocks_))
+        , kind_(std::move(other.kind_))
     {}
-    explicit Schedule(const Scope& scope);
+    Schedule(const Scope&, Kind = Smart);
 
+    Kind kind() const { return kind_; }
     const Scope& scope() const { return scope_; }
+    const World& world() const { return scope().world(); }
     const CFA& cfa() const { return scope().cfa(); }
     const F_CFG& cfg() const { return scope().f_cfg(); }
     ArrayRef<Block> blocks() const { return blocks_; }
@@ -58,24 +63,28 @@ public:
     static size_t index(const Block& block) { return block.index(); }
     void verify();
 
+    // Note that we don't use overloading for the following methods in order to have them accessible from gdb.
+    virtual std::ostream& stream(std::ostream&) const override;  ///< Streams thorin to file @p out.
+    void write_thorin(const char* filename) const;               ///< Dumps thorin to file with name @p filename.
+    void thorin() const;                                         ///< Dumps thorin to a file with an auto-generated file name.
+
     typedef ArrayRef<const Block>::const_iterator const_iterator;
     const_iterator begin() const { return blocks().begin(); }
     const_iterator end() const { return blocks().end(); }
 
 private:
+    Block& operator [] (const CFNode* n) { return blocks_[indices_[n]]; }
     void block_schedule();
-    void append(const CFNode* n, const PrimOp* primop) { blocks_[indices_[n]].primops_.push_back(primop); }
 
     const Scope& scope_;
     F_CFG::Map<size_t> indices_;
     Array<Block> blocks_;
+    Kind kind_;
 
-    friend Schedule schedule_late(const Scope&);
-    friend Schedule schedule_smart(const Scope&);
+    friend class Scheduler;
 };
 
-Schedule schedule_late(const Scope&);
-Schedule schedule_smart(const Scope&);
+inline Schedule schedule(const Scope& scope, Schedule::Kind kind = Schedule::Smart) { return Schedule(scope, kind); }
 
 }
 

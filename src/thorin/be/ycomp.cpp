@@ -311,8 +311,7 @@ void YCompGen::emit_scope(const Scope& scope) {
     up() << "title: \"scope" << scope.id() << "\"";
     newline() << "label: \"scope " << scope.id() << "\"";
     if (scheduled_) {
-        auto schedule = schedule_smart(scope);
-        for (auto& block : schedule)
+        for (auto& block : schedule(scope))
             emit_block(block);
     } else {
         for (auto lambda : scope)

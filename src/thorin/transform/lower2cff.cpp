@@ -25,7 +25,7 @@ void lower2cff(World& world) {
                     return scope.inner_contains(to) && !to->is_basicblock();
                 else {
                     if (top.contains(to))
-                        return !to->is_returning() && !scope.outer_contains(to);
+                        return !to->is_returning() && !scope.contains(to);
                     else
                         return !to->is_basicblock();
                 }

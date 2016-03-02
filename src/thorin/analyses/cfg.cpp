@@ -141,7 +141,7 @@ public:
     bool contains(const Param* param) { return contains(param->lambda()); }
 
     const CFNode* in_node(Lambda* lambda) {
-        assert(scope().outer_contains(lambda));
+        assert(scope().contains(lambda));
         if (auto in = find(cfa().nodes(), lambda))
             return in;
         auto in = cfa_.nodes_[lambda] = new CFNode(lambda);

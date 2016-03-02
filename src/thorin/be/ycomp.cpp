@@ -314,7 +314,7 @@ void YCompGen::emit_scope(const Scope& scope) {
     } else {
         for (auto lambda : scope)
             emit_lambda_graph(lambda);
-        for (auto def : scope.in_scope())
+        for (auto def : scope.defs())
            emit_def(def);
     }
     down() << "}";

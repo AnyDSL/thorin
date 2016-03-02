@@ -76,7 +76,7 @@ void Scheduler::compute_def2uses() {
     DefSet done;
 
     auto enqueue = [&](const Def* def, size_t i, const Def* op) {
-        if (scope_._contains(op)) {
+        if (scope_.contains(op)) {
             auto p1 = def2uses_[op].emplace(i, def);
             assert_unused(p1.second);
             auto p2 = done.insert(op);

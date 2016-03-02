@@ -147,7 +147,7 @@ void Def::dump() const {
     }
 }
 
-// this workaround is need in order to disambiguate def->op(0) from def->op(size_t) vs def->op(const Def*)
+// this workaround is needed in order to disambiguate def->op(0) from def->op(size_t) vs def->op(const Def*)
 template<class T> const Def* Def::op(const T* def) const { return op(def->template primlit_value<size_t>()); }
 template const Def* Def::op<Def>(const Def*) const;         // instantiate method
 template const Def* Def::op<PrimLit>(const PrimLit*) const; // instantiate method

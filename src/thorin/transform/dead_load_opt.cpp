@@ -7,7 +7,8 @@ namespace thorin {
 static void dead_load_opt(const Scope& scope) {
     for (auto n : scope.f_cfg().post_order()) {
         auto lambda = n->lambda();
-        Def mem;
+
+        Tracker mem;
         for (auto arg : lambda->args()) {
             if (arg->is_mem()) {
                 mem = arg;

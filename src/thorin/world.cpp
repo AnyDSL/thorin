@@ -40,7 +40,6 @@ namespace thorin {
 
 World::World(std::string name)
     : name_(name)
-    , gid_(0)
     , tuple0_ (*unify(*join(new TupleTypeNode(*this, ArrayRef<Type>()))))
     , fn0_    (*unify(*join(new FnTypeNode   (*this, ArrayRef<Type>()))))
     , mem_    (*unify(*join(new MemTypeNode  (*this))))
@@ -68,8 +67,8 @@ Array<Lambda*> World::copy_lambdas() const {
  * literals
  */
 
-Def World::literal(PrimTypeKind kind, int64_t value, const Location& loc, size_t length) {
-    Def lit;
+const Def* World::literal(PrimTypeKind kind, int64_t value, const Location& loc, size_t length) {
+    const Def* lit = nullptr;
     switch (kind) {
 #define THORIN_I_TYPE(T, M) case PrimType_##T:  lit = literal(T(value), loc, 1); break;
 #define THORIN_F_TYPE(T, M) THORIN_I_TYPE(T, M)
@@ -81,11 +80,11 @@ Def World::literal(PrimTypeKind kind, int64_t value, const Location& loc, size_t
     return splat(lit, length);
 }
 
-Def World::splat(Def arg, size_t length, const std::string& name) {
+const Def* World::splat(const Def* arg, size_t length, const std::string& name) {
     if (length == 1)
         return arg;
 
-    Array<Def> args(length);
+    Array<const Def*> args(length);
     std::fill(args.begin(), args.end(), arg);
     return vector(args, arg->loc(), name);
 }
@@ -94,7 +93,7 @@ Def World::splat(Def arg, size_t length, const std::string& name) {
  * arithops
  */
 
-Def World::binop(int kind, Def lhs, Def rhs, const Location& loc, const std::string& name) {
+const Def* World::binop(int kind, const Def* lhs, const Def* rhs, const Location& loc, const std::string& name) {
     if (is_arithop(kind))
         return arithop((ArithOpKind) kind, lhs, rhs, loc, name);
 
@@ -102,7 +101,7 @@ Def World::binop(int kind, Def lhs, Def rhs, const Location& loc, const std::str
     return cmp((CmpKind) kind, lhs, rhs, loc, name);
 }
 
-Def World::arithop(ArithOpKind kind, Def a, Def b, const Location& loc, const std::string& name) {
+const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const Location& loc, const std::string& name) {
     assert(a->type() == b->type());
     assert(a->type().as<PrimType>()->length() == b->type().as<PrimType>()->length());
     PrimTypeKind type = a->type().as<PrimType>()->primtype_kind();
@@ -114,7 +113,7 @@ Def World::arithop(ArithOpKind kind, Def a, Def b, const Location& loc, const st
 
     if (lvec && rvec) {
         size_t num = lvec->type().as<PrimType>()->length();
-        Array<Def> ops(num);
+        Array<const Def*> ops(num);
         for (size_t i = 0; i != num; ++i)
             ops[i] = arithop(kind, lvec->op(i), rvec->op(i), loc);
         return vector(ops, loc, name);
@@ -390,9 +389,9 @@ Def World::arithop(ArithOpKind kind, Def a, Def b, const Location& loc, const st
     return cse(new ArithOp(kind, a, b, loc, name));
 }
 
-Def World::arithop_not(Def def, const Location& loc) { return arithop_xor(allset(def->type(), loc, def->length()), def, loc); }
+const Def* World::arithop_not(const Def* def, const Location& loc) { return arithop_xor(allset(def->type(), loc, def->length()), def, loc); }
 
-Def World::arithop_minus(Def def, const Location& loc) {
+const Def* World::arithop_minus(const Def* def, const Location& loc) {
     switch (PrimTypeKind kind = def->type().as<PrimType>()->primtype_kind()) {
 #define THORIN_F_TYPE(T, M) \
         case PrimType_##T: \
@@ -408,7 +407,7 @@ Def World::arithop_minus(Def def, const Location& loc) {
  * compares
  */
 
-Def World::cmp(CmpKind kind, Def a, Def b, const Location& loc, const std::string& name) {
+const Def* World::cmp(CmpKind kind, const Def* a, const Def* b, const Location& loc, const std::string& name) {
     CmpKind oldkind = kind;
     switch (kind) {
         case Cmp_gt:  kind = Cmp_lt; break;
@@ -426,7 +425,7 @@ Def World::cmp(CmpKind kind, Def a, Def b, const Location& loc, const std::strin
 
     if (lvec && rvec) {
         size_t num = lvec->type().as<PrimType>()->length();
-        Array<Def> ops(num);
+        Array<const Def*> ops(num);
         for (size_t i = 0; i != num; ++i)
             ops[i] = cmp(kind, lvec->op(i), rvec->op(i), loc);
         return vector(ops, loc, name);
@@ -480,17 +479,17 @@ Def World::cmp(CmpKind kind, Def a, Def b, const Location& loc, const std::strin
  * casts
  */
 
-Def World::convert(Type to, Def from, const Location& loc, const std::string& name) {
+const Def* World::convert(Type to, const Def* from, const Location& loc, const std::string& name) {
     if (from->type().isa<PtrType>() && to.isa<PtrType>())
         return bitcast(to, from, loc, name);
     return cast(to, from, loc, name);
 }
 
-Def World::cast(Type to, Def from, const Location& loc, const std::string& name) {
+const Def* World::cast(Type to, const Def* from, const Location& loc, const std::string& name) {
     if (auto vec = from->isa<Vector>()) {
         size_t num = vec->length();
         auto to_vec = to.as<VectorType>();
-        Array<Def> ops(num);
+        Array<const Def*> ops(num);
         for (size_t i = 0; i != num; ++i)
             ops[i] = cast(to_vec->scalarize(), vec->op(i), loc);
         return vector(ops, loc, name);
@@ -573,7 +572,7 @@ Def World::cast(Type to, Def from, const Location& loc, const std::string& name)
     return cse(new Cast(to, from, loc, name));
 }
 
-Def World::bitcast(Type to, Def from, const Location& loc, const std::string& name) {
+const Def* World::bitcast(Type to, const Def* from, const Location& loc, const std::string& name) {
     if (auto other = from->isa<Bitcast>()) {
         if (to == other->type())
             return other;
@@ -582,7 +581,7 @@ Def World::bitcast(Type to, Def from, const Location& loc, const std::string& na
     if (auto vec = from->isa<Vector>()) {
         size_t num = vec->length();
         auto to_vec = to.as<VectorType>();
-        Array<Def> ops(num);
+        Array<const Def*> ops(num);
         for (size_t i = 0; i != num; ++i)
             ops[i] = bitcast(to_vec->scalarize(), vec->op(i), loc);
         return vector(ops, loc, name);
@@ -596,12 +595,14 @@ Def World::bitcast(Type to, Def from, const Location& loc, const std::string& na
  * aggregate operations
  */
 
-Def World::extract(Def agg, Def index, const Location& loc, const std::string& name) {
+
+template<class T>
+const Def* World::extract(const Def* agg, const T* index, const Location& loc, const std::string& name) {
     if (agg->isa<Bottom>())
         return bottom(Extract::extracted_type(agg, index), loc);
 
     if (auto aggregate = agg->isa<Aggregate>()) {
-        if (auto lit = index->isa<PrimLit>()) {
+        if (auto lit = index->template isa<PrimLit>()) {
             if (!agg->isa<IndefiniteArray>())
                 return aggregate->op(lit);
         }
@@ -617,8 +618,8 @@ Def World::extract(Def agg, Def index, const Location& loc, const std::string& n
     if (auto insert = agg->isa<Insert>()) {
         if (index == insert->index())
             return insert->value();
-        else if (index->isa<PrimLit>()) {
-            if (insert->index()->isa<PrimLit>())
+        else if (index->template isa<PrimLit>()) {
+            if (insert->index()->template isa<PrimLit>())
                 return extract(insert->agg(), index, loc, name);
         }
     }
@@ -626,24 +627,29 @@ Def World::extract(Def agg, Def index, const Location& loc, const std::string& n
     return cse(new Extract(agg, index, loc, name));
 }
 
-Def World::insert(Def agg, Def index, Def value, const Location& loc, const std::string& name) {
+// this workaround is need in order to disambiguate extract(agg, 0, ...) from
+// extract(..., u32, ...) vs extract(..., const Def*, ...)
+template const Def* World::extract<Def>    (const Def*, const Def*,     const Location&, const std::string&); // instantiate
+template const Def* World::extract<PrimLit>(const Def*, const PrimLit*, const Location&, const std::string&); // methods
+
+const Def* World::insert(const Def* agg, const Def* index, const Def* value, const Location& loc, const std::string& name) {
     if (agg->isa<Bottom>()) {
         if (value->isa<Bottom>())
             return agg;
 
         // build aggregate container and fill with bottom
         if (auto definite_array_type = agg->type().isa<DefiniteArrayType>()) {
-            Array<Def> args(definite_array_type->dim());
+            Array<const Def*> args(definite_array_type->dim());
             std::fill(args.begin(), args.end(), bottom(definite_array_type->elem_type(), loc));
             agg = definite_array(args, loc, agg->name);
         } else if (auto tuple_type = agg->type().isa<TupleType>()) {
-            Array<Def> args(tuple_type->num_args());
+            Array<const Def*> args(tuple_type->num_args());
             size_t i = 0;
             for (auto type : tuple_type->args())
                 args[i++] = bottom(type, loc);
             agg = tuple(args, loc, agg->name);
         } else if (auto struct_app_type = agg->type().isa<StructAppType>()) {
-            Array<Def> args(struct_app_type->num_elems());
+            Array<const Def*> args(struct_app_type->num_elems());
             size_t i = 0;
             for (auto type : struct_app_type->elems())
                 args[i++] = bottom(type, loc);
@@ -656,7 +662,7 @@ Def World::insert(Def agg, Def index, Def value, const Location& loc, const std:
     if (auto aggregate = agg->isa<Aggregate>()) {
         if (auto literal = index->isa<PrimLit>()) {
             if (!agg->isa<IndefiniteArray>()) {
-                Array<Def> args(agg->size());
+                Array<const Def*> args(agg->size());
                 std::copy(agg->ops().begin(), agg->ops().end(), args.begin());
                 args[literal->primlit_value<u64>()] = value;
                 return aggregate->rebuild(args);
@@ -667,7 +673,7 @@ Def World::insert(Def agg, Def index, Def value, const Location& loc, const std:
     return cse(new Insert(agg, index, value, loc, name));
 }
 
-Def World::select(Def cond, Def a, Def b, const Location& loc, const std::string& name) {
+const Def* World::select(const Def* cond, const Def* a, const Def* b, const Location& loc, const std::string& name) {
     if (cond->isa<Bottom>() || a->isa<Bottom>() || b->isa<Bottom>())
         return bottom(a->type(), loc);
 
@@ -689,7 +695,7 @@ Def World::select(Def cond, Def a, Def b, const Location& loc, const std::string
  * memory stuff
  */
 
-Def World::load(Def mem, Def ptr, const Location& loc, const std::string& name) {
+const Def* World::load(const Def* mem, const Def* ptr, const Location& loc, const std::string& name) {
     if (auto store = mem->isa<Store>())
         if (store->ptr() == ptr) {
             return tuple({mem, store->val()}, loc);
@@ -708,7 +714,7 @@ Def World::load(Def mem, Def ptr, const Location& loc, const std::string& name) 
     return cse(new Load(mem, ptr, loc, name));
 }
 
-Def World::store(Def mem, Def ptr, Def value, const Location& loc, const std::string& name) {
+const Def* World::store(const Def* mem, const Def* ptr, const Def* value, const Location& loc, const std::string& name) {
     if (value->isa<Bottom>())
         return mem;
 
@@ -727,28 +733,28 @@ Def World::store(Def mem, Def ptr, Def value, const Location& loc, const std::st
     return cse(new Store(mem, ptr, value, loc, name));
 }
 
-Def World::enter(Def mem, const Location& loc, const std::string& name) {
+const Def* World::enter(const Def* mem, const Location& loc, const std::string& name) {
     if (auto e = Enter::is_out_mem(mem))
         return e;
     return cse(new Enter(mem, loc, name));
 }
 
-Def World::slot(Type type, Def frame, size_t index, const Location& loc, const std::string& name) {
+const Def* World::slot(Type type, const Def* frame, size_t index, const Location& loc, const std::string& name) {
     return cse(new Slot(type, frame, index, loc, name));
 }
 
-Def World::alloc(Type type, Def mem, Def extra, const Location& loc, const std::string& name) {
+const Def* World::alloc(Type type, const Def* mem, const Def* extra, const Location& loc, const std::string& name) {
     return cse(new Alloc(type, mem, extra, loc, name));
 }
 
-Def World::global(Def init, const Location& loc, bool is_mutable, const std::string& name) {
+const Def* World::global(const Def* init, const Location& loc, bool is_mutable, const std::string& name) {
     return cse(new Global(init, is_mutable, loc, name));
 }
 
-Def World::global_immutable_string(const Location& loc, const std::string& str, const std::string& name) {
+const Def* World::global_immutable_string(const Location& loc, const std::string& str, const std::string& name) {
     size_t size = str.size() + 1;
 
-    Array<Def> str_array(size);
+    Array<const Def*> str_array(size);
     for (size_t i = 0; i != size-1; ++i)
         str_array[i] = literal_qu8(str[i], loc);
     str_array.back() = literal_qu8('\0', loc);
@@ -760,13 +766,13 @@ Def World::global_immutable_string(const Location& loc, const std::string& str, 
  * guided partial evaluation
  */
 
-Def World::run(Def def, const Location& loc, const std::string& name) {
+const Def* World::run(const Def* def, const Location& loc, const std::string& name) {
     if (auto run = def->isa<Run>()) return run;
     if (auto hlt = def->isa<Hlt>()) return hlt;
     return cse(new Run(def, loc, name));
 }
 
-Def World::hlt(Def def, const Location& loc, const std::string& name) {
+const Def* World::hlt(const Def* def, const Location& loc, const std::string& name) {
     if (auto hlt = def->isa<Hlt>()) return hlt;
     if (auto run = def->isa<Run>()) def = run->def();
     return cse(new Hlt(def, loc, name));
@@ -777,33 +783,30 @@ Def World::hlt(Def def, const Location& loc, const std::string& name) {
  */
 
 Lambda* World::lambda(FnType fn, const Location& loc, CC cc, Intrinsic intrinsic, const std::string& name) {
-    THORIN_CHECK_BREAK(gid_)
-    auto l = new Lambda(gid_++, fn, loc, cc, intrinsic, true, name);
+    auto l = new Lambda(fn, loc, cc, intrinsic, true, name);
+    THORIN_CHECK_BREAK(l->gid());
     lambdas_.insert(l);
 
     size_t i = 0;
     for (auto arg : fn->args()) {
         auto p = param(arg, l, i++);
         l->params_.push_back(p);
-        if (arg.isa<MemType>()) {
-            l->set_mem(p);
-            p->name = "mem";
-        }
     }
 
     return l;
 }
 
 Lambda* World::basicblock(const Location& loc, const std::string& name) {
-    THORIN_CHECK_BREAK(gid_)
-    auto bb = new Lambda(gid_++, fn_type(), loc, CC::C, Intrinsic::None, false, name);
+    auto bb = new Lambda(fn_type(), loc, CC::C, Intrinsic::None, false, name);
+    THORIN_CHECK_BREAK(bb->gid());
     lambdas_.insert(bb);
     return bb;
 }
 
 const Param* World::param(Type type, Lambda* lambda, size_t index, const std::string& name) {
-    THORIN_CHECK_BREAK(gid_)
-    return new Param(gid_++, type, lambda, index, lambda->loc(), name);
+    auto param = new Param(type, lambda, index, lambda->loc(), name);
+    THORIN_CHECK_BREAK(param->gid());
+    return param;
 }
 
 /*
@@ -828,19 +831,18 @@ const TypeNode* World::unify_base(const TypeNode* type) {
     }
 }
 
-const DefNode* World::cse_base(const PrimOp* primop) {
+const Def* World::cse_base(const PrimOp* primop) {
+    THORIN_CHECK_BREAK(primop->gid());
     auto i = primops_.find(primop);
     if (i != primops_.end()) {
         primop->unregister_uses();
         delete primop;
         primop = *i;
     } else {
-        primop->set_gid(gid_++);
         const auto& p = primops_.insert(primop);
         assert_unused(p.second && "hash/equal broken");
     }
 
-    THORIN_CHECK_BREAK(primop->gid())
     return primop;
 }
 

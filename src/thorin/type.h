@@ -139,7 +139,7 @@ protected:
         , world_(world)
         , kind_(kind)
         , args_(args.size())
-        , gid_(-1)
+        , gid_(gid_counter_++)
     {
         for (size_t i = 0, e = num_args(); i != e; ++i) {
             if (auto arg = args[i])
@@ -178,7 +178,7 @@ public:
     virtual Type instantiate(ArrayRef<Type>) const;
     Type instantiate(Type2Type&) const;
     Type specialize(Type2Type&) const;
-    Type elem(const Def& def) const;
+    Type elem(const Def*) const;
     Type rebuild(World& to, ArrayRef<Type> args) const {
         assert(num_args() == args.size());
         if (args.empty() && &world() == &to)
@@ -211,6 +211,8 @@ public:
     virtual bool use_lea() const { return false; }
     virtual std::ostream& stream(std::ostream&) const;
 
+    static size_t gid_counter() { return gid_counter_; }
+
 protected:
     Array<Type> specialize_args(Type2Type&) const;
 
@@ -226,6 +228,7 @@ private:
     mutable std::vector<TypeParam> type_params_;
     std::vector<Type> args_;
     mutable size_t gid_;
+    static size_t gid_counter_;
 
     friend class World;
 };
@@ -399,7 +402,7 @@ public:
     ArrayRef<Type> type_args() const { return args().skip_front(); }
     Type type_arg(size_t i) const { return type_args()[i]; }
     size_t num_type_args() const { return type_args().size(); }
-    Type elem(const Def& def) const { return TypeNode::elem(def); }
+    Type elem(const Def* def) const { return TypeNode::elem(def); }
     virtual Type elem(size_t i) const override;
     ArrayRef<Type> elems() const;
     size_t num_elems() const { return struct_abs_type()->num_args(); }

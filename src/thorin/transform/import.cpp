@@ -22,7 +22,7 @@ Type import(Type2Type& old2new, World& to, Type otype) {
     return ntype;
 }
 
-Def import(Type2Type& type_old2new, Def2Def& def_old2new, World& to, Def odef) {
+const Def* import(Type2Type& type_old2new, Def2Def& def_old2new, World& to, const Def* odef) {
     if (auto ndef = find(def_old2new, odef)) {
         assert(&ndef->world() == &to);
         return ndef;
@@ -55,7 +55,7 @@ Def import(Type2Type& type_old2new, Def2Def& def_old2new, World& to, Def odef) {
     }
 
     size_t size = odef->size();
-    Array<Def> nops(size);
+    Array<const Def*> nops(size);
     for (size_t i = 0; i != size; ++i) {
         nops[i] = import(type_old2new, def_old2new, to, odef->op(i));
         assert(&nops[i]->world() == &to);
@@ -80,7 +80,7 @@ Type import(World& to, Type otype) {
     return import(old2new, to, otype);
 }
 
-Def import(World& to, Def odef) {
+const Def* import(World& to, const Def* odef) {
     Def2Def def_old2new;
     Type2Type type_old2new;
     return import(type_old2new, def_old2new, to, odef);

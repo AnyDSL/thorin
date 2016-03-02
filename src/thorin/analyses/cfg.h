@@ -25,16 +25,16 @@ template<bool> class DomFrontierBase;
  */
 class CFNodeBase : public MagicCast<CFNodeBase>, public Streamable {
 public:
-    CFNodeBase(Def def)
+    CFNodeBase(const Def* def)
         : def_(def)
         , id_(id_counter_++)
     {}
 
     uint64_t id() const { return id_; }
-    Def def() const { return def_; }
+    const Def* def() const { return def_; }
 
 private:
-    Def def_;
+    const Def* def_;
     uint64_t id_;
     static uint32_t id_counter_;
 };
@@ -46,7 +46,7 @@ struct Hash<const CFNodeBase*> {
 
 class RealCFNode : public CFNodeBase {
 protected:
-    RealCFNode(Def def)
+    RealCFNode(const Def* def)
         : CFNodeBase(def)
     {}
 

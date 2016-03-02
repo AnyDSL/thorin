@@ -17,11 +17,11 @@ PrimLit::PrimLit(World& world, PrimTypeKind kind, Box box, const Location& loc, 
     , box_(box)
 {}
 
-Cmp::Cmp(CmpKind kind, Def lhs, Def rhs, const Location& loc, const std::string& name)
+Cmp::Cmp(CmpKind kind, const Def* lhs, const Def* rhs, const Location& loc, const std::string& name)
     : BinOp((NodeKind) kind, lhs->world().type_bool(lhs->type()->length()), lhs, rhs, loc, name)
 {}
 
-DefiniteArray::DefiniteArray(World& world, Type elem, ArrayRef<Def> args, const Location& loc, const std::string& name)
+DefiniteArray::DefiniteArray(World& world, Type elem, ArrayRef<const Def*> args, const Location& loc, const std::string& name)
     : Aggregate(Node_DefiniteArray, args, loc, name)
 {
     set_type(world.definite_array_type(elem, args.size()));
@@ -31,13 +31,13 @@ DefiniteArray::DefiniteArray(World& world, Type elem, ArrayRef<Def> args, const 
 #endif
 }
 
-IndefiniteArray::IndefiniteArray(World& world, Type elem, Def dim, const Location& loc, const std::string& name)
+IndefiniteArray::IndefiniteArray(World& world, Type elem, const Def* dim, const Location& loc, const std::string& name)
     : Aggregate(Node_IndefiniteArray, {dim}, loc, name)
 {
     set_type(world.indefinite_array_type(elem));
 }
 
-Tuple::Tuple(World& world, ArrayRef<Def> args, const Location& loc, const std::string& name)
+Tuple::Tuple(World& world, ArrayRef<const Def*> args, const Location& loc, const std::string& name)
     : Aggregate(Node_Tuple, args, loc, name)
 {
     Array<Type> elems(size());
@@ -47,7 +47,7 @@ Tuple::Tuple(World& world, ArrayRef<Def> args, const Location& loc, const std::s
     set_type(world.tuple_type(elems));
 }
 
-Vector::Vector(World& world, ArrayRef<Def> args, const Location& loc, const std::string& name)
+Vector::Vector(World& world, ArrayRef<const Def*> args, const Location& loc, const std::string& name)
     : Aggregate(Node_Vector, args, loc, name)
 {
     if (auto primtype = args.front()->type().isa<PrimType>()) {
@@ -60,7 +60,7 @@ Vector::Vector(World& world, ArrayRef<Def> args, const Location& loc, const std:
     }
 }
 
-LEA::LEA(Def ptr, Def index, const Location& loc, const std::string& name)
+LEA::LEA(const Def* ptr, const Def* index, const Location& loc, const std::string& name)
     : PrimOp(Node_LEA, Type(), {ptr, index}, loc, name)
 {
     auto& world = index->world();
@@ -76,35 +76,35 @@ LEA::LEA(Def ptr, Def index, const Location& loc, const std::string& name)
     }
 }
 
-Slot::Slot(Type type, Def frame, size_t index, const Location& loc, const std::string& name)
+Slot::Slot(Type type, const Def* frame, size_t index, const Location& loc, const std::string& name)
     : PrimOp(Node_Slot, type->world().ptr_type(type), {frame}, loc, name)
     , index_(index)
 {
     assert(frame->type().isa<FrameType>());
 }
 
-Global::Global(Def init, bool is_mutable, const Location& loc, const std::string& name)
+Global::Global(const Def* init, bool is_mutable, const Location& loc, const std::string& name)
     : PrimOp(Node_Global, init->type()->world().ptr_type(init->type()), {init}, loc, name)
     , is_mutable_(is_mutable)
 {
     assert(init->is_const());
 }
 
-Alloc::Alloc(Type type, Def mem, Def extra, const Location& loc, const std::string& name)
+Alloc::Alloc(Type type, const Def* mem, const Def* extra, const Location& loc, const std::string& name)
     : MemOp(Node_Alloc, nullptr, {mem, extra}, loc, name)
 {
     World& w = mem->world();
     set_type(w.tuple_type({w.mem_type(), w.ptr_type(type)}));
 }
 
-Load::Load(Def mem, Def ptr, const Location& loc, const std::string& name)
+Load::Load(const Def* mem, const Def* ptr, const Location& loc, const std::string& name)
     : Access(Node_Load, nullptr, {mem, ptr}, loc, name)
 {
     World& w = mem->world();
     set_type(w.tuple_type({w.mem_type(), ptr->type().as<PtrType>()->referenced_type()}));
 }
 
-Enter::Enter(Def mem, const Location& loc, const std::string& name)
+Enter::Enter(const Def* mem, const Location& loc, const std::string& name)
     : MemOp(Node_Enter, nullptr, {mem}, loc, name)
 {
     World& w = mem->world();
@@ -120,7 +120,7 @@ Enter::Enter(Def mem, const Location& loc, const std::string& name)
 uint64_t PrimOp::vhash() const {
     uint64_t seed = hash_combine(hash_combine(hash_begin((int) kind()), size()), type().unify()->gid());
     for (auto op : ops_)
-        seed = hash_combine(seed, op.node()->gid());
+        seed = hash_combine(seed, op->gid());
     return seed;
 }
 
@@ -136,7 +136,7 @@ uint64_t Slot::vhash() const { return hash_combine(PrimOp::vhash(), index()); }
 bool PrimOp::equal(const PrimOp* other) const {
     bool result = this->kind() == other->kind() && this->size() == other->size() && this->type() == other->type();
     for (size_t i = 0, e = size(); result && i != e; ++i)
-        result &= this->ops_[i].node() == other->ops_[i].node();
+        result &= this->ops_[i] == other->ops_[i];
     return result;
 }
 
@@ -156,42 +156,42 @@ bool Slot::equal(const PrimOp* other) const {
 
 // do not use any of PrimOp's type getters - during import we need to derive types from 't' in the new world 'to'
 
-Def ArithOp::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.arithop(arithop_kind(), ops[0], ops[1], loc(), name); }
-Def Bitcast::vrebuild(World& to, ArrayRef<Def> ops, Type t) const { return to.bitcast(t, ops[0], loc(), name); }
-Def Bottom ::vrebuild(World& to, ArrayRef<Def>,     Type t) const { return to.bottom(t, loc()); }
-Def Cast   ::vrebuild(World& to, ArrayRef<Def> ops, Type t) const { return to.cast(t, ops[0], loc(), name); }
-Def Cmp    ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.cmp(cmp_kind(), ops[0], ops[1], loc(), name); }
-Def Enter  ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.enter(ops[0], loc(), name); }
-Def Extract::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.extract(ops[0], ops[1], loc(), name); }
-Def Global ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.global(ops[0], loc(), is_mutable(), name); }
-Def Hlt    ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.hlt(ops[0], loc(), name); }
-Def Insert ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.insert(ops[0], ops[1], ops[2], loc(), name); }
-Def LEA    ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.lea(ops[0], ops[1], loc(), name); }
-Def Load   ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.load(ops[0], ops[1], loc(), name); }
-Def PrimLit::vrebuild(World& to, ArrayRef<Def>,     Type  ) const { return to.literal(primtype_kind(), value(), loc()); }
-Def Run    ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.run(ops[0], loc(), name); }
-Def Select ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.select(ops[0], ops[1], ops[2], loc(), name); }
-Def Store  ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.store(ops[0], ops[1], ops[2], loc(), name); }
-Def Tuple  ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.tuple(ops, loc(), name); }
-Def Vector ::vrebuild(World& to, ArrayRef<Def> ops, Type  ) const { return to.vector(ops, loc(), name); }
+const Def* ArithOp::vrebuild(World& to, ArrayRef<const Def*> ops, Type  ) const { return to.arithop(arithop_kind(), ops[0], ops[1], loc(), name); }
+const Def* Bitcast::vrebuild(World& to, ArrayRef<const Def*> ops, Type t) const { return to.bitcast(t, ops[0], loc(), name); }
+const Def* Bottom ::vrebuild(World& to, ArrayRef<const Def*>,     Type t) const { return to.bottom(t, loc()); }
+const Def* Cast   ::vrebuild(World& to, ArrayRef<const Def*> ops, Type t) const { return to.cast(t, ops[0], loc(), name); }
+const Def* Cmp    ::vrebuild(World& to, ArrayRef<const Def*> ops, Type  ) const { return to.cmp(cmp_kind(), ops[0], ops[1], loc(), name); }
+const Def* Enter  ::vrebuild(World& to, ArrayRef<const Def*> ops, Type  ) const { return to.enter(ops[0], loc(), name); }
+const Def* Extract::vrebuild(World& to, ArrayRef<const Def*> ops, Type  ) const { return to.extract(ops[0], ops[1], loc(), name); }
+const Def* Global ::vrebuild(World& to, ArrayRef<const Def*> ops, Type  ) const { return to.global(ops[0], loc(), is_mutable(), name); }
+const Def* Hlt    ::vrebuild(World& to, ArrayRef<const Def*> ops, Type  ) const { return to.hlt(ops[0], loc(), name); }
+const Def* Insert ::vrebuild(World& to, ArrayRef<const Def*> ops, Type  ) const { return to.insert(ops[0], ops[1], ops[2], loc(), name); }
+const Def* LEA    ::vrebuild(World& to, ArrayRef<const Def*> ops, Type  ) const { return to.lea(ops[0], ops[1], loc(), name); }
+const Def* Load   ::vrebuild(World& to, ArrayRef<const Def*> ops, Type  ) const { return to.load(ops[0], ops[1], loc(), name); }
+const Def* PrimLit::vrebuild(World& to, ArrayRef<const Def*>,     Type  ) const { return to.literal(primtype_kind(), value(), loc()); }
+const Def* Run    ::vrebuild(World& to, ArrayRef<const Def*> ops, Type  ) const { return to.run(ops[0], loc(), name); }
+const Def* Select ::vrebuild(World& to, ArrayRef<const Def*> ops, Type  ) const { return to.select(ops[0], ops[1], ops[2], loc(), name); }
+const Def* Store  ::vrebuild(World& to, ArrayRef<const Def*> ops, Type  ) const { return to.store(ops[0], ops[1], ops[2], loc(), name); }
+const Def* Tuple  ::vrebuild(World& to, ArrayRef<const Def*> ops, Type  ) const { return to.tuple(ops, loc(), name); }
+const Def* Vector ::vrebuild(World& to, ArrayRef<const Def*> ops, Type  ) const { return to.vector(ops, loc(), name); }
 
-Def Alloc::vrebuild(World& to, ArrayRef<Def> ops, Type t) const {
+const Def* Alloc::vrebuild(World& to, ArrayRef<const Def*> ops, Type t) const {
     return to.alloc(t.as<TupleType>()->arg(1).as<PtrType>()->referenced_type(), ops[0], ops[1], loc(), name);
 }
 
-Def Slot::vrebuild(World& to, ArrayRef<Def> ops, Type t) const {
+const Def* Slot::vrebuild(World& to, ArrayRef<const Def*> ops, Type t) const {
     return to.slot(t.as<PtrType>()->referenced_type(), ops[0], index(), loc(), name);
 }
 
-Def DefiniteArray::vrebuild(World& to, ArrayRef<Def> ops, Type t) const {
+const Def* DefiniteArray::vrebuild(World& to, ArrayRef<const Def*> ops, Type t) const {
     return to.definite_array(t.as<DefiniteArrayType>()->elem_type(), ops, loc(), name);
 }
 
-Def StructAgg::vrebuild(World& to, ArrayRef<Def> ops, Type t) const {
+const Def* StructAgg::vrebuild(World& to, ArrayRef<const Def*> ops, Type t) const {
     return to.struct_agg(t.as<StructAppType>(), ops, loc(), name);
 }
 
-Def IndefiniteArray::vrebuild(World& to, ArrayRef<Def> ops, Type t) const {
+const Def* IndefiniteArray::vrebuild(World& to, ArrayRef<const Def*> ops, Type t) const {
     return to.indefinite_array(t.as<IndefiniteArrayType>()->elem_type(), ops[0], loc(), name);
 }
 
@@ -238,7 +238,7 @@ std::ostream& PrimOp::stream(std::ostream& os) const {
         if (empty())
             return streamf(os, "% %", op_name(), type());
         else
-            return streamf(os, "(% % %)", type(), op_name(), stream_list(ops(), [&](Def def) { os << def; }));
+            return streamf(os, "(% % %)", type(), op_name(), stream_list(ops(), [&](const Def* def) { os << def; }));
     } else
         return os << unique_name();
 }
@@ -265,7 +265,7 @@ std::ostream& PrimLit::stream(std::ostream& os) const {
 std::ostream& Global::stream(std::ostream& os) const { return os << unique_name(); }
 
 std::ostream& PrimOp::stream_assignment(std::ostream& os) const {
-    return streamf(os, "% % = % %", type(), unique_name(), op_name(), stream_list(ops(), [&] (Def def) { os << def; })) << endl;
+    return streamf(os, "% % = % %", type(), unique_name(), op_name(), stream_list(ops(), [&] (const Def* def) { os << def; })) << endl;
 }
 
 //------------------------------------------------------------------------------
@@ -274,25 +274,30 @@ std::ostream& PrimOp::stream_assignment(std::ostream& os) const {
  * misc
  */
 
-Def PrimOp::out(size_t i) const {
+const Def* PrimOp::out(size_t i) const {
     assert(i < type().as<TupleType>()->num_args());
     return world().extract(this, i, loc());
 }
 
-Def PrimOp::rebuild() const {
-    if (is_outdated()) {
-        Array<Def> ops(size());
-        for (size_t i = 0, e = size(); i != e; ++i)
-            ops[i] = op(i)->rebuild();
+const Def* PrimOp::rebuild(Def2Def& old2new) const {
+    auto i = old2new.find(this);
+    if (i == old2new.end()) {
+        if (is_outdated()) {
+            Array<const Def*> ops(size());
+            for (size_t i = 0, e = size(); i != e; ++i)
+                ops[i] = op(i)->rebuild(old2new);
 
-        auto def = rebuild(ops);
-        replace(def);
-        return def;
+            auto def = rebuild(ops);
+            if (this == def)
+                is_outdated_ = false;
+            return old2new[this] = def;
+        } else
+            return old2new[this] = this;
     } else
-        return this;
+        return i->second;
 }
 
-Type Extract::extracted_type(Def agg, Def index) {
+Type Extract::extracted_type(const Def* agg, const Def* index) {
     if (auto tuple = agg->type().isa<TupleType>())
         return tuple->elem(index);
     else if (auto array = agg->type().isa<ArrayType>())

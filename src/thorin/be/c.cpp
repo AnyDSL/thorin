@@ -26,13 +26,13 @@ public:
     World& world() const { return world_; }
 
 private:
-    std::ostream& emit_aggop_defs(Def def);
+    std::ostream& emit_aggop_defs(const Def* def);
     std::ostream& emit_aggop_decl(Type);
-    std::ostream& emit_debug_info(Def def);
+    std::ostream& emit_debug_info(const Def* def);
     std::ostream& emit_addr_space(Type);
-    std::ostream& emit_bitcast(Def val, Def dst);
+    std::ostream& emit_bitcast(const Def* val, const Def* dst);
     std::ostream& emit_type(Type);
-    std::ostream& emit(Def def);
+    std::ostream& emit(const Def* def);
     bool lookup(size_t gid);
     std::ostream& insert(size_t gid, std::string str);
     std::string &get_name(size_t gid);
@@ -48,7 +48,7 @@ private:
 };
 
 
-std::ostream& CCodeGen::emit_debug_info(Def def) {
+std::ostream& CCodeGen::emit_debug_info(const Def* def) {
     if (debug_)
         return streamf(os, "#line % \"%\"", def->loc().begin().line(), def->loc().begin().filename()) << endl;
     return os;
@@ -141,7 +141,7 @@ std::ostream& CCodeGen::emit_type(Type type) {
 }
 
 
-std::ostream& CCodeGen::emit_aggop_defs(Def def) {
+std::ostream& CCodeGen::emit_aggop_defs(const Def* def) {
     if (lookup(def->gid()))
         return os;
 
@@ -220,7 +220,7 @@ std::ostream& CCodeGen::emit_aggop_decl(Type type) {
     return os;
 }
 
-std::ostream& CCodeGen::emit_bitcast(Def val, Def dst) {
+std::ostream& CCodeGen::emit_bitcast(const Def* val, const Def* dst) {
     auto dst_type = dst->type();
     os << "union { ";
     emit_addr_space(dst_type);
@@ -545,7 +545,7 @@ void CCodeGen::emit() {
                             os << ");";
                         };
 
-                        Def ret_arg = 0;
+                        const Def* ret_arg = 0;
                         for (auto arg : lambda->args()) {
                             // retrieve return argument
                             if (arg->order() != 0) {
@@ -597,7 +597,7 @@ void CCodeGen::emit() {
 }
 
 
-std::ostream& CCodeGen::emit(Def def) {
+std::ostream& CCodeGen::emit(const Def* def) {
     if (auto lambda = def->isa<Lambda>())
         return os << "goto l" << lambda->gid() << ";";
 
@@ -678,7 +678,7 @@ std::ostream& CCodeGen::emit(Def def) {
 
     // aggregate operations
     {
-        auto emit_access = [&] (Def def, Def index) -> std::ostream& {
+        auto emit_access = [&] (const Def* def, const Def* index) -> std::ostream& {
             if (def->type().isa<ArrayType>()) {
                 os << ".e[";
                 emit(index) << "]";

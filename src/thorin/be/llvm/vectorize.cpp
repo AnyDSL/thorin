@@ -56,7 +56,7 @@ Lambda* CodeGen::emit_vectorize_continuation(Lambda* lambda) {
         args[0] = counter; // loop index
         for (size_t i = 0; i < num_kernel_args; ++i) {
             // check target type
-            Def arg = lambda->arg(i + VEC_NUM_ARGS);
+            auto arg = lambda->arg(i + VEC_NUM_ARGS);
             auto llvm_arg = lookup(arg);
             if (arg->type().isa<PtrType>())
                 llvm_arg = irbuilder_.CreateBitCast(llvm_arg, simd_args[i + 1]);

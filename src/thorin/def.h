@@ -42,29 +42,29 @@ public:
     size_t index() const { return index_; }
     const Def* def() const { return def_; }
     operator const Def*() const { return def_; }
-    const Def* operator -> () const { return def_; }
-    bool operator== (Use other) const { return this->def() == other.def() && this->index() == other.index(); }
+    const Def* operator->() const { return def_; }
+    bool operator==(Use other) const { return this->def() == other.def() && this->index() == other.index(); }
 
 private:
     size_t index_;
     const Def* def_;
 };
 
+//------------------------------------------------------------------------------
+
 struct UseHash {
-    inline uint64_t operator () (Use use) const;
+    inline uint64_t operator()(Use use) const;
 };
 
 typedef HashSet<Use, UseHash> Uses;
-
-std::ostream& operator << (std::ostream&, const Def*);
-std::ostream& operator << (std::ostream&, Use);
-
-//------------------------------------------------------------------------------
 
 template<class To>
 using DefMap  = HashMap<const Def*, To, GIDHash<const Def*>, GIDEq<const Def*>>;
 using DefSet  = HashSet<const Def*, GIDHash<const Def*>, GIDEq<const Def*>>;
 using Def2Def = DefMap<const Def*>;
+
+std::ostream& operator<<(std::ostream&, const Def*);
+std::ostream& operator<<(std::ostream&, Use);
 
 //------------------------------------------------------------------------------
 
@@ -77,7 +77,7 @@ using Def2Def = DefMap<const Def*>;
  */
 class Def : public HasLocation, public MagicCast<Def>, public Streamable {
 private:
-    Def& operator = (const Def&); ///< Do not copy-assign a \p Def instance.
+    Def& operator=(const Def&); ///< Do not copy-assign a \p Def instance.
     Def(const Def&);              ///< Do not copy-construct a \p Def.
 
 protected:
@@ -163,29 +163,6 @@ public:
 namespace detail {
     inline std::ostream& stream(std::ostream& out, const Def* def) { return def->stream(out); }
 }
-
-//------------------------------------------------------------------------------
-
-uint64_t UseHash::operator () (Use use) const {
-    return hash_combine(hash_begin(use->gid()), use.index());
-}
-
-//------------------------------------------------------------------------------
-
-template<>
-struct Hash<ArrayRef<const Def*>> {
-    uint64_t operator () (ArrayRef<const Def*> defs) const {
-        uint64_t seed = hash_begin(defs.size());
-        for (auto def : defs)
-            seed = hash_combine(seed, def ? def->gid() : uint64_t(-1));
-        return seed;
-    }
-};
-
-template<>
-struct Hash<Array<const Def*>> {
-    uint64_t operator () (const Array<const Def*> defs) const { return Hash<ArrayRef<const Def*>>()(defs); }
-};
 
 //------------------------------------------------------------------------------
 
@@ -276,6 +253,29 @@ private:
     mutable const Def* def_;
     friend void Def::replace(const Def*) const;
 };
+
+//------------------------------------------------------------------------------
+
+uint64_t UseHash::operator()(Use use) const {
+    return hash_combine(hash_begin(use->gid()), use.index());
+}
+
+template<>
+struct Hash<ArrayRef<const Def*>> {
+    uint64_t operator()(ArrayRef<const Def*> defs) const {
+        uint64_t seed = hash_begin(defs.size());
+        for (auto def : defs)
+            seed = hash_combine(seed, def ? def->gid() : uint64_t(-1));
+        return seed;
+    }
+};
+
+template<>
+struct Hash<Array<const Def*>> {
+    uint64_t operator()(const Array<const Def*> defs) const { return Hash<ArrayRef<const Def*>>()(defs); }
+};
+
+//------------------------------------------------------------------------------
 
 }
 

@@ -59,9 +59,6 @@ public:
     }
 
     virtual std::ostream& stream(std::ostream&) const override;
-
-private:
-    const Def* def_;
 };
 
 class SymOutNode : public SymNode {

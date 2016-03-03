@@ -21,6 +21,7 @@ public:
         assert(args.size() == oentry->num_params());
         assert(type_args.size() == oentry->num_type_params());
 
+        // TODO correctly deal with lambdas here
         std::queue<const Def*> queue;
         auto enqueue = [&](const Def* def) {
             if (!within(def)) {

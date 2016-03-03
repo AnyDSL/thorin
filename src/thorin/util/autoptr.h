@@ -25,8 +25,8 @@ public:
     T* const* address() const { return &ptr_; }
     operator bool() const { return ptr_ != nullptr; }
     operator T*() const {return ptr_; }
-    T* operator -> () const { return ptr_; }
-    AutoPtr<T>& operator = (AutoPtr<T> other) { swap(*this, other); return *this; }
+    T* operator->() const { return ptr_; }
+    AutoPtr<T>& operator=(AutoPtr<T> other) { swap(*this, other); return *this; }
     friend void swap(AutoPtr<T>& a, AutoPtr<T>& b) { using std::swap; swap(a.ptr_, b.ptr_); }
 
 private:
@@ -53,8 +53,8 @@ public:
     T* const* address() const { return &ptr_; }
     operator bool() const { return ptr_ != nullptr; }
     operator T*() const {return get(); }
-    T* operator -> () const { return get(); }
-    SafePtr<T>& operator= (SafePtr<T> other) { swap(*this, other); return *this; }
+    T* operator->() const { return get(); }
+    SafePtr<T>& operator=(SafePtr<T> other) { swap(*this, other); return *this; }
     friend void swap(SafePtr<T>& a, SafePtr<T>& b) { using std::swap; swap(a.ptr_, b.ptr_); }
 
 private:

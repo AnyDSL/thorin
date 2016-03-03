@@ -15,7 +15,7 @@ public:
     void dump() const; ///< Uses @p stream in order to dump to @p std::cout.
 };
 
-std::ostream& operator << (std::ostream&, const Streamable*); ///< Use @p Streamable in C++ streams via @c operator<<.
+std::ostream& operator<<(std::ostream&, const Streamable*); ///< Use @p Streamable in C++ streams via @c operator<<.
 
 namespace detail {
     template<typename T> inline std::ostream& stream(std::ostream& os, T val) { return os << val; }
@@ -95,7 +95,7 @@ public:
 };
 
 template<class Emit, class List>
-std::ostream& operator << (std::ostream& os, StreamList<Emit, List> sl) {
+std::ostream& operator<<(std::ostream& os, StreamList<Emit, List> sl) {
     return stream_list(os, sl.list, sl.emit, "", "", sl.sep);
 }
 

@@ -34,14 +34,14 @@ public:
     using Set = IndexSet<Scope, Lambda*>;
 
     Scope(const Scope&) = delete;
-    Scope& operator= (Scope) = delete;
+    Scope& operator=(Scope) = delete;
 
     explicit Scope(Lambda* entry);
     ~Scope();
 
     const Scope& update();
     ArrayRef<Lambda*> lambdas() const { return lambdas_; }
-    Lambda* operator [] (size_t i) const { return lambdas_[i]; }
+    Lambda* operator[](size_t i) const { return lambdas_[i]; }
     Lambda* entry() const { return lambdas().front(); }
     Lambda* exit() const { return lambdas().back(); }
     ArrayRef<Lambda*> body() const { return lambdas().skip_front(); } ///< Like @p lambdas() but without \p entry()

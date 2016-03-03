@@ -3,9 +3,9 @@
 namespace thorin {
 
 static std::ostream& line_col(const Position& pos, std::ostream& os) { return os << pos.line() << " col " << pos.col(); }
-std::ostream& operator << (std::ostream& os, const Position& pos) { return line_col(pos, os << pos.filename() << ':'); }
+std::ostream& operator<<(std::ostream& os, const Position& pos) { return line_col(pos, os << pos.filename() << ':'); }
 
-std::ostream& operator << (std::ostream& os, const Location& loc) {
+std::ostream& operator<<(std::ostream& os, const Location& loc) {
     const Position& begin = loc.begin();
     const Position& end = loc.end();
 

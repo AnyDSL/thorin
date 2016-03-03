@@ -101,13 +101,13 @@ public:
     };
 
     LoopTree(const LoopTree&) = delete;
-    LoopTree& operator= (LoopTree) = delete;
+    LoopTree& operator=(LoopTree) = delete;
 
     explicit LoopTree(const CFG<forward>& cfg);
     static const LoopTree& create(const Scope& scope) { return scope.cfg<forward>().looptree(); }
     const CFG<forward>& cfg() const { return cfg_; }
     const Head* root() const { return root_; }
-    const Leaf* operator [] (const CFNode* n) const { return find(leaves_, n); }
+    const Leaf* operator[](const CFNode* n) const { return find(leaves_, n); }
     virtual void stream_ycomp(std::ostream& out) const override;
 
 private:

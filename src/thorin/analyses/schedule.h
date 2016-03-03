@@ -15,7 +15,7 @@ public:
     class Block {
     public:
         Block(const Block&) = delete;
-        Block& operator= (Block) = delete;
+        Block& operator=(Block) = delete;
 
         Block() {}
 
@@ -42,7 +42,7 @@ public:
     using Set = IndexSet<Schedule, const Block&>;
 
     Schedule(const Schedule&) = delete;
-    Schedule& operator= (Schedule) = delete;
+    Schedule& operator=(Schedule) = delete;
 
     Schedule(Schedule&& other)
         : scope_(std::move(other.scope_))
@@ -59,7 +59,7 @@ public:
     const F_CFG& cfg() const { return scope().f_cfg(); }
     ArrayRef<Block> blocks() const { return blocks_; }
     size_t size() const { return blocks_.size(); }
-    const Block& operator [] (const CFNode* n) const { return blocks_[indices_[n]]; }
+    const Block& operator[](const CFNode* n) const { return blocks_[indices_[n]]; }
     static size_t index(const Block& block) { return block.index(); }
     void verify();
 
@@ -73,7 +73,7 @@ public:
     const_iterator end() const { return blocks().end(); }
 
 private:
-    Block& operator [] (const CFNode* n) { return blocks_[indices_[n]]; }
+    Block& operator[](const CFNode* n) { return blocks_[indices_[n]]; }
     void block_schedule();
 
     const Scope& scope_;

@@ -16,7 +16,7 @@ template<bool forward>
 class DomTreeBase : public YComp {
 public:
     DomTreeBase(const DomTreeBase&) = delete;
-    DomTreeBase& operator= (DomTreeBase) = delete;
+    DomTreeBase& operator=(DomTreeBase) = delete;
 
     explicit DomTreeBase(const CFG<forward>& cfg)
         : YComp(cfg.scope(), forward ? "domtree" : "post_domtree")

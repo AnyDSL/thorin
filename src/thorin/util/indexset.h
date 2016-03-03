@@ -60,12 +60,12 @@ public:
         }
         return pos;
     }
-    reference operator[] (Key key) {
+    reference operator[](Key key) {
         auto i = indexer().index(key);
         assert(i != size_t(-1));
         return reference(bits_[i / 64u], i % 64u);
     }
-    bool operator[] (Key key) const { return (*const_cast<IndexSet<Indexer, Key>*>(this))[key]; }
+    bool operator[](Key key) const { return (*const_cast<IndexSet<Indexer, Key>*>(this))[key]; }
 
     /// Depending on @p flag this method either inserts (true) or removes (false) @p key and returns true if successful.
     template<bool flag>
@@ -87,10 +87,10 @@ public:
             this->bits_[i] = op(this->bits_[i], other.bits_[i]);
         return *this;
     }
-    IndexSet& operator &= (const IndexSet& other) { return transform(other, std::bit_and<uint64_t>()); }
-    IndexSet& operator |= (const IndexSet& other) { return transform(other, std::bit_or <uint64_t>()); }
-    IndexSet& operator ^= (const IndexSet& other) { return transform(other, std::bit_xor<uint64_t>()); }
-    IndexSet& operator = (IndexSet other) { swap(*this, other); return *this; }
+    IndexSet& operator&=(const IndexSet& other) { return transform(other, std::bit_and<uint64_t>()); }
+    IndexSet& operator|=(const IndexSet& other) { return transform(other, std::bit_or <uint64_t>()); }
+    IndexSet& operator^=(const IndexSet& other) { return transform(other, std::bit_xor<uint64_t>()); }
+    IndexSet& operator =(IndexSet other) { swap(*this, other); return *this; }
     friend void swap(IndexSet& set1, IndexSet& set2) {
         using std::swap;
         assert(&set1.indexer() == &set2.indexer());

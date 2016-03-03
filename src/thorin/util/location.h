@@ -99,8 +99,8 @@ protected:
 
 //------------------------------------------------------------------------------
 
-std::ostream& operator << (std::ostream& os, const Position& pos);
-std::ostream& operator << (std::ostream& os, const Location& loc);
+std::ostream& operator<<(std::ostream& os, const Position& pos);
+std::ostream& operator<<(std::ostream& os, const Location& loc);
 
 //------------------------------------------------------------------------------
 

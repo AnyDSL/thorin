@@ -26,15 +26,16 @@ struct GIDEq {
     bool operator()(T n1, T n2) const { return n1->gid() == n2->gid(); }
 };
 
-template<class To>
-using TypeMap    = HashMap<const Type*, To, GIDHash<const Type*>, GIDEq<const Type*>>;
-using TypeSet    = HashSet<const Type*, GIDHash<const Type*>, GIDEq<const Type*>>;
-using Type2Type  = TypeMap<const Type*>;
-using TypeParamSet = HashSet<const TypeParam*, GIDHash<const TypeParam*>, GIDEq<const TypeParam*>>;
+template<class Key, class Value>
+using GIDMap    = HashMap<const Key*, Value, GIDHash<const Key*>, GIDEq<const Key*>>;
+template<class Key>
+using GIDSet    = HashSet<const Key*, GIDHash<const Key*>, GIDEq<const Key*>>;
 
-//Type2Type type2type(const Type*, Types);
-//template<class T>
-//Type2Type type2type(const Type* type, Types args) { return type2type(*type, args); }
+template<class To>
+using TypeMap      = GIDMap<Type, To>;
+using TypeSet      = GIDSet<Type>;
+using Type2Type    = TypeMap<const Type*>;
+using TypeParamSet = GIDSet<TypeParam>;
 
 typedef ArrayRef<const Type*> Types;
 
@@ -117,8 +118,8 @@ public:
 
     virtual uint64_t hash() const;
     virtual bool equal(const Type*) const;
-    virtual bool is_closed() const;
-    virtual bool is_concrete() const;
+    virtual bool is_closed() const;   ///< Are all @p TypeParam%s bound?
+    virtual bool is_concrete() const; ///< A @p Type which does not depend on any @p TypePara%s.
     virtual const IndefiniteArrayType* is_indefinite() const;
     virtual bool use_lea() const { return false; }
     virtual std::ostream& stream(std::ostream&) const;

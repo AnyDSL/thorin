@@ -61,8 +61,8 @@ struct UseHash {
 typedef HashSet<Use, UseHash> Uses;
 
 template<class To>
-using DefMap  = HashMap<const Def*, To, GIDHash<const Def*>, GIDEq<const Def*>>;
-using DefSet  = HashSet<const Def*, GIDHash<const Def*>, GIDEq<const Def*>>;
+using DefMap  = GIDMap<Def, To>;
+using DefSet  = GIDSet<Def>;
 using Def2Def = DefMap<const Def*>;
 
 std::ostream& operator<<(std::ostream&, const Def*);

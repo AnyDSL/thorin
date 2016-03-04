@@ -813,6 +813,7 @@ const Param* World::param(const Type* type, Lambda* lambda, size_t index, const 
  * cse + unify
  */
 
+#if 0
 const Type* World::unify_base(const Type* type) {
     assert(type->is_closed());
     if (type->is_unified())
@@ -830,6 +831,7 @@ const Type* World::unify_base(const Type* type) {
         return type;
     }
 }
+#endif
 
 const Def* World::cse_base(const PrimOp* primop) {
     THORIN_CHECK_BREAK(primop->gid());

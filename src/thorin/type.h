@@ -48,8 +48,7 @@ protected:
     Type& operator=(const Type&) = delete;
 
     Type(World& world, NodeKind kind, Types args)
-        : representative_(nullptr)
-        , world_(world)
+        : world_(world)
         , kind_(kind)
         , args_(args.size())
         , gid_(gid_counter_++)
@@ -73,15 +72,12 @@ public:
     size_t num_type_params() const { return type_params().size(); }
     const Type* arg(size_t i) const { assert(i < args().size()); return args()[i]; }
     const TypeParam* type_param(size_t i) const { assert(i < type_params().size()); return type_params()[i]; }
-    void bind(const TypeParam*) const;
+    const Type* close(ArrayRef<const TypeParam*>) const;
     size_t num_args() const { return args_.size(); }
     bool is_polymorphic() const { return num_type_params() > 0; }
     bool empty() const { return args_.empty(); }
     void dump() const;
     World& world() const { return world_; }
-    const Type* representative() const { return representative_; }
-    bool is_unified() const { return representative_ != nullptr; }
-    const Type* unify() const;
     void free_type_params(TypeParamSet& bound, TypeParamSet& free) const;
     TypeParamSet free_type_params() const;
     size_t gid() const { return gid_; }
@@ -135,7 +131,6 @@ private:
     virtual const Type* vrebuild(World& to, Types args) const = 0;
     virtual const Type* vinstantiate(Type2Type&) const = 0;
 
-    mutable const Type* representative_;
     World& world_;
     NodeKind kind_;
     mutable std::vector<const TypeParam*> type_params_;
@@ -429,9 +424,9 @@ private:
     {}
 
 public:
-    const Type* bound_at() const { return bound_at_; }
+    const Type* binder() const { return binder_; }
     virtual bool equal(const Type*) const override;
-    virtual bool is_closed() const override { return bound_at_ != nullptr; }
+    virtual bool is_closed() const override { return binder_ != nullptr; }
     virtual bool is_concrete() const override { return false; }
 
     virtual std::ostream& stream(std::ostream&) const override;
@@ -440,13 +435,12 @@ private:
     virtual const Type* vrebuild(World& to, Types args) const override;
     virtual const Type* vinstantiate(Type2Type&) const override;
 
-    mutable const Type* bound_at_;
+    mutable const Type* binder_;
     mutable const TypeParam* equiv_;
     mutable std::string name_;
 
     friend bool Type::equal(const Type*) const;
-    friend void Type::bind(const TypeParam* type_param) const;
-    friend const Type* Type::unify() const;
+    friend const Type* Type::close(ArrayRef<const TypeParam*>) const;
     friend class World;
 };
 

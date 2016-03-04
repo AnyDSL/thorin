@@ -16,10 +16,11 @@ const Type* import(Type2Type& old2new, World& to, const Type* otype) {
     auto ntype = old2new[otype] = otype->rebuild(to, nargs);
     assert(&ntype->world() == &to);
 
+    Array<const TypeParam*> ntype_params(otype->num_type_params());
     for (size_t i = 0, e = otype->num_type_params(); i != e; ++i)
-        ntype->bind(import(old2new, to, otype->type_param(i))->as<TypeParam>());
+        ntype_params[i] = import(old2new, to, otype->type_param(i))->as<TypeParam>();
 
-    return ntype;
+    return ntype->close(ntype_params);
 }
 
 const Def* import(Type2Type& type_old2new, Def2Def& def_old2new, World& to, const Def* odef) {

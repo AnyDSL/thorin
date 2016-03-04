@@ -90,11 +90,13 @@ protected:
         , type_(type)
         , gid_(gid_counter_++)
         , name(name)
-    {}
+    {
+        assert(type->is_closed());
+    }
     virtual ~Def() {}
 
     void clear_type() { type_ = nullptr; }
-    void set_type(const Type* type) { type_ = type; }
+    void set_type(const Type* type) { assert(type->is_closed()); type_ = type; }
     void unregister_use(size_t i) const;
     void unregister_uses() const;
     void resize(size_t n) { ops_.resize(n, nullptr); }

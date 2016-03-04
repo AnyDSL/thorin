@@ -13,10 +13,19 @@ namespace thorin {
 
 size_t Type::gid_counter_ = 1;
 
-void Type::bind(const TypeParam* type_param) const {
-    assert(!type_param->is_unified());
-    type_params_.push_back(type_param);
-    type_param->bound_at_ = this;
+const Type* Type::close(ArrayRef<const TypeParam*> type_params) const {
+    assert(!is_closed() && type_params_.empty());
+
+    type_params_.resize(type_params.size());
+    for (size_t i = 0, e = type_params.size(); i != e; ++i) {
+            type_params_[i] = type_params[i];
+            type_params_[i]->binder_ = this;
+    }
+
+    assert(is_closed() && "you shall close types from inside out");
+
+    // TODO hash!!!
+    return this;
 }
 
 void Type::dump() const { std::cout << this << std::endl; }
@@ -324,16 +333,15 @@ const Type* Type::specialize(Type2Type& map) const {
     if (auto result = find(map, this))
         return result;
 
-    for (auto type_param : type_params()) {
-        assert(!map.contains(type_param));
-        map[type_param] = world().type_param();
+    Array<const TypeParam*> ntype_params(num_type_params());
+    for (size_t i = 0, e = num_type_params(); i != e; ++i) {
+        assert(!map.contains(type_param(i)));
+        auto ntype_param = world().type_param();
+        map[type_param(i)] = ntype_param;
+        ntype_params[i] = ntype_param;
     }
 
-    auto t = instantiate(map);
-    for (auto type_param : type_params())
-        t->bind(map[type_param]->as<TypeParam>());
-
-    return t;
+    return instantiate(map)->close(ntype_params);;
 }
 
 Array<const Type*> Type::specialize_args(Type2Type& map) const {

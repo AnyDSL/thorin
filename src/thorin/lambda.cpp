@@ -38,15 +38,15 @@ const Def* Lambda::to() const {
 }
 
 Lambda* Lambda::stub(Type2Type& type2type, const std::string& name) const {
-    Array<TypeParam> ntype_params(num_type_params());
+    Array<const TypeParam*> ntype_params(num_type_params());
 
     for (size_t i = 0, e = num_type_params(); i != e; ++i) {
         auto ntype_param = world().type_param();
         ntype_params[i] = ntype_param;
-        type2type[*type_param(i)] = *ntype_param;
+        type2type[type_param(i)] = ntype_param;
     }
 
-    auto fn_type = type()->specialize(type2type).as<FnType>();
+    auto fn_type = type()->specialize(type2type)->as<FnType>();
     for (auto ntype_param : ntype_params)
         fn_type->bind(ntype_param);
 
@@ -95,17 +95,17 @@ void Lambda::destroy_body() {
     resize(0);
 }
 
-FnType Lambda::arg_fn_type() const {
-    Array<Type> args(num_args());
+const FnType* Lambda::arg_fn_type() const {
+    Array<const Type*> args(num_args());
     for (size_t i = 0, e = num_args(); i != e; ++i)
         args[i] = arg(i)->type();
 
     return world().fn_type(args);
 }
 
-const Param* Lambda::append_param(Type param_type, const std::string& name) {
+const Param* Lambda::append_param(const Type* param_type, const std::string& name) {
     size_t size = type()->num_args();
-    Array<Type> args(size + 1);
+    Array<const Type*> args(size + 1);
     *std::copy(type()->args().begin(), type()->args().end(), args.begin()) = param_type;
     clear_type();
     set_type(param_type->world().fn_type(args));              // update type
@@ -249,13 +249,14 @@ Lambda::ScopeInfo* Lambda::find_scope(const Scope* scope) {
  * terminate
  */
 
-void Lambda::jump(const Def* to, Array<Type> type_args, ArrayRef<const Def*> args, const Location& loc) {
+// TODO can we get rid of this type_args copy here?
+void Lambda::jump(const Def* to, Array<const Type*> type_args, Defs args, const Location& loc) {
     jump_loc_ = loc;
     if (auto lambda = to->isa<Lambda>()) {
         switch (lambda->intrinsic()) {
             case Intrinsic::Bitcast: {
                 assert(type_args.size() == 2);
-                Type dst = type_args[0], src = type_args[1];
+                auto dst = type_args[0], src = type_args[1];
 
                 if (dst->is_concrete()) {
                     assert(args.size() == 3);
@@ -279,7 +280,7 @@ void Lambda::jump(const Def* to, Array<Type> type_args, ArrayRef<const Def*> arg
             }
             case Intrinsic::Select: {
                 assert(type_args.size() == 2);
-                Type type = type_args[1];
+                const Type* type = type_args[1];
 
                 if (type->is_concrete()) {
                     assert(args.size() == 5);
@@ -306,16 +307,16 @@ void Lambda::jump(const Def* to, Array<Type> type_args, ArrayRef<const Def*> arg
 
 void Lambda::branch(const Def* cond, const Def* t, const Def* f, const Location& loc) { return jump(world().branch(), {}, {cond, t, f}, loc); }
 
-std::pair<Lambda*, const Def*> Lambda::call(const Def* to, ArrayRef<Type> type_args, ArrayRef<const Def*> args, Type ret_type, const Location& loc) {
-    if (ret_type.empty()) {
+std::pair<Lambda*, const Def*> Lambda::call(const Def* to, Types type_args, Defs args, const Type* ret_type, const Location& loc) {
+    if (ret_type) {
         jump(to, type_args, args, loc);
         return std::make_pair(nullptr, nullptr);
     }
 
-    std::vector<Type> cont_args;
+    std::vector<const Type*> cont_args;
     cont_args.push_back(world().mem_type());
     bool pack = false;
-    if (auto tuple = ret_type.isa<TupleType>()) {
+    if (auto tuple = ret_type->isa<TupleType>()) {
         pack = true;
         for (auto arg : tuple->args())
             cont_args.push_back(arg);
@@ -347,7 +348,7 @@ std::pair<Lambda*, const Def*> Lambda::call(const Def* to, ArrayRef<Type> type_a
 }
 
 void jump_to_cached_call(Lambda* src, Lambda* dst, const Call& call) {
-    std::vector<Type> ntype_args;
+    std::vector<const Type*> ntype_args;
     for (size_t i = 0, e = src->num_type_args(); i != e; ++i) {
         if (!call.type_arg(i))
             ntype_args.push_back(src->type_arg(i));
@@ -380,7 +381,7 @@ const Def* Lambda::set_value(size_t handle, const Def* def) {
     return values_[handle] = def;
 }
 
-const Def* Lambda::get_value(size_t handle, Type type, const char* name) {
+const Def* Lambda::get_value(size_t handle, const Type* type, const char* name) {
     if (auto def = find_def(handle))
         return def;
 
@@ -449,7 +450,7 @@ void Lambda::seal() {
     todos_.clear();
 }
 
-const Def* Lambda::fix(size_t handle, size_t index, Type type, const char* name) {
+const Def* Lambda::fix(size_t handle, size_t index, const Type* type, const char* name) {
     auto param = this->param(index);
 
     assert(is_sealed() && "must be sealed");
@@ -529,7 +530,7 @@ std::ostream& Lambda::stream_jump(std::ostream& os) const {
         os << to();
 
         if (num_type_args())
-            os << '[' << stream_list(type_args(), [&](Type type) { os << type; }) << ']';
+            os << '[' << stream_list(type_args(), [&](const Type* type) { os << type; }) << ']';
 
         os << '(' << stream_list(args(), [&](const Def* def) { os << def; }) << ')';
     }

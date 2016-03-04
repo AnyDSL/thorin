@@ -26,7 +26,7 @@ typedef std::vector<Lambda*> Lambdas;
  */
 class Param : public Def {
 private:
-    Param(Type type, Lambda* lambda, size_t index, const Location& loc, const std::string& name)
+    Param(const Type* type, Lambda* lambda, size_t index, const Location& loc, const std::string& name)
         : Def(Node_Param, type, 0, loc, name)
         , lambda_(lambda)
         , index_(index)
@@ -52,7 +52,7 @@ public:
     Lambda* lambda() const { return lambda_; }
     size_t index() const { return index_; }
     std::vector<Peek> peek() const;
-    const Param* is_mem() const { return type().isa<MemType>() ? this : nullptr; }
+    const Param* is_mem() const { return type()->isa<MemType>() ? this : nullptr; }
 
 private:
     Lambda* const lambda_;
@@ -100,7 +100,7 @@ enum class CC : uint8_t {
  */
 class Lambda : public Def {
 private:
-    Lambda(FnType fn, const Location& loc, CC cc, Intrinsic intrinsic, bool is_sealed, const std::string& name)
+    Lambda(const FnType* fn, const Location& loc, CC cc, Intrinsic intrinsic, bool is_sealed, const std::string& name)
         : Def(Node_Lambda, fn, 0, loc, name)
         , parent_(this)
         , cc_(cc)
@@ -120,30 +120,30 @@ public:
     Lambda* update_to(const Def* def) { return update_op(0, def); }
     Lambda* update_op(size_t i, const Def* def);
     Lambda* update_arg(size_t i, const Def* def) { return update_op(i+1, def); }
-    const Param* append_param(Type type, const std::string& name = "");
+    const Param* append_param(const Type* type, const std::string& name = "");
     Lambdas direct_preds() const;
     Lambdas direct_succs() const;
     Lambdas indirect_preds() const;
     Lambdas indirect_succs() const;
     Lambdas preds() const;
     Lambdas succs() const;
-    ArrayRef<TypeParam> type_params() const { return type()->type_params(); }
-    TypeParam type_param(size_t i) const { return type_params()[i]; }
+    ArrayRef<const TypeParam*> type_params() const { return type()->type_params(); }
+    const TypeParam* type_param(size_t i) const { return type_params()[i]; }
     size_t num_type_params() const { return type_params().size(); }
     ArrayRef<const Param*> params() const { return params_; }
     Array<const Def*> params_as_defs() const;
     const Param* param(size_t i) const { assert(i < num_params()); return params_[i]; }
     const Param* mem_param() const;
     const Def* to() const;
-    ArrayRef<Type> type_args() const { return type_args_; }
-    Type type_arg(size_t i) const { return type_args_[i]; }
+    Types type_args() const { return type_args_; }
+    const Type* type_arg(size_t i) const { return type_args_[i]; }
     size_t num_type_args() const { return type_args_.size(); }
-    ArrayRef<const Def*> args() const { return empty() ? ArrayRef<const Def*>(0, 0) : ops().skip_front(); }
+    Defs args() const { return empty() ? Defs(0, 0) : ops().skip_front(); }
     const Def* arg(size_t i) const { return args()[i]; }
     const Location& jump_loc() const { return jump_loc_; }
-    FnType type() const { return Def::type().as<FnType>(); }
-    FnType to_fn_type() const { return to()->type().as<FnType>(); }
-    FnType arg_fn_type() const;
+    const FnType* type() const { return Def::type()->as<FnType>(); }
+    const FnType* to_fn_type() const { return to()->type()->as<FnType>(); }
+    const FnType* arg_fn_type() const;
     size_t num_args() const { return args().size(); }
     size_t num_params() const { return params().size(); }
     Intrinsic& intrinsic() { return intrinsic_; }
@@ -175,15 +175,15 @@ public:
 
     // terminate
 
-    void jump(const Def* to, Array<Type> type_args, ArrayRef<const Def*> args, const Location& loc);
+    void jump(const Def* to, Array<const Type*> type_args, Defs args, const Location& loc);
     void jump(JumpTarget&, const Location& loc);
     void branch(const Def* cond, const Def* t, const Def* f, const Location& loc);
-    std::pair<Lambda*, const Def*> call(const Def* to, ArrayRef<Type> type_args, ArrayRef<const Def*> args, Type ret_type, const Location& loc);
+    std::pair<Lambda*, const Def*> call(const Def* to, Types type_args, Defs args, const Type* ret_type, const Location& loc);
 
     // value numbering
 
     const Def* set_value(size_t handle, const Def* def);
-    const Def* get_value(size_t handle, Type type, const char* name = "");
+    const Def* get_value(size_t handle, const Type* type, const char* name = "");
     const Def* set_mem(const Def* def);
     const Def* get_mem();
     Lambda* parent() const { return parent_; }            ///< See @p parent_ for more information.
@@ -198,7 +198,7 @@ private:
     class Todo {
     public:
         Todo() {}
-        Todo(size_t handle, size_t index, Type type, const char* name)
+        Todo(size_t handle, size_t index, const Type* type, const char* name)
             : handle_(handle)
             , index_(index)
             , type_(type)
@@ -207,17 +207,17 @@ private:
 
         size_t handle() const { return handle_; }
         size_t index() const { return index_; }
-        Type type() const { return type_; }
+        const Type* type() const { return type_; }
         const char* name() const { return name_; }
 
     private:
         size_t handle_;
         size_t index_;
-        Type type_;
+        const Type* type_;
         const char* name_;
     };
 
-    const Def* fix(size_t handle, size_t index, Type type, const char* name);
+    const Def* fix(size_t handle, size_t index, const Type* type, const char* name);
     const Def* try_remove_trivial_param(const Param*);
     const Def* find_def(size_t handle);
     void increase_values(size_t handle) { if (handle >= values_.size()) values_.resize(handle+1); }
@@ -236,7 +236,7 @@ private:
     ScopeInfo* find_scope(const Scope*);
     ScopeInfo* register_scope(const Scope* scope) { scopes_.emplace_front(scope); return &scopes_.front(); }
     void unregister_scope(const Scope* scope) { scopes_.erase(list_iter(scope)); }
-    Array<Type> type_args_;
+    Array<const Type*> type_args_;
     Location jump_loc_;
 
     /**
@@ -267,11 +267,11 @@ private:
 };
 
 struct Call {
-    Call(ArrayRef<Type> type_args, Array<const Def*> ops)
+    Call(Types type_args, Array<const Def*> ops)
         : type_args_(type_args)
         , ops_(ops)
     {}
-    Call(Array<Type>&& type_args, Array<const Def*>&& ops)
+    Call(Array<const Type*>&& type_args, Array<const Def*>&& ops)
         : type_args_(std::move(type_args))
         , ops_(std::move(ops))
     {}
@@ -288,19 +288,19 @@ struct Call {
         , ops_(lambda->size())
     {}
 
-    ArrayRef<Type> type_args() const { return type_args_; }
+    Types type_args() const { return type_args_; }
     size_t num_type_args() const { return type_args().size(); }
-    Type type_arg(size_t i) const { return type_args_[i]; }
-    Type& type_arg(size_t i) { return type_args_[i]; }
+    const Type* type_arg(size_t i) const { return type_args_[i]; }
+    const Type*& type_arg(size_t i) { return type_args_[i]; }
 
-    ArrayRef<const Def*> ops() const { return ops_; }
+    Defs ops() const { return ops_; }
     size_t num_ops() const { return ops().size(); }
     const Def* op(size_t i) const { return ops_[i]; }
     const Def*& to(size_t i) { return ops_[i]; }
     const Def* to() const { return ops_.front(); }
     const Def*& to() { return ops_.front(); }
 
-    ArrayRef<const Def*> args() const { return ops_.skip_front(); }
+    Defs args() const { return ops_.skip_front(); }
     size_t num_args() const { return args().size(); }
     const Def* arg(size_t i) const { return args()[i]; }
     const Def*& arg(size_t i) { return ops_[i+1]; }
@@ -315,7 +315,7 @@ struct Call {
     }
 
 private:
-    Array<Type> type_args_;
+    Array<const Type*> type_args_;
     Array<const Def*> ops_;
 };
 

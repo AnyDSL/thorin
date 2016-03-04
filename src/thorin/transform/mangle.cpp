@@ -10,7 +10,7 @@ namespace thorin {
 
 class Mangler {
 public:
-    Mangler(const Scope& scope, ArrayRef<Type> type_args, ArrayRef<const Def*> args, ArrayRef<const Def*> lift)
+    Mangler(const Scope& scope, Types type_args, Defs args, Defs lift)
         : scope(scope)
         , type_args(type_args)
         , args(args)
@@ -48,9 +48,9 @@ public:
 
     const Scope& scope;
     Def2Def def2def;
-    ArrayRef<Type> type_args;
-    ArrayRef<const Def*> args;
-    ArrayRef<const Def*> lift;
+    Types type_args;
+    Defs args;
+    Defs lift;
     Type2Type type2type;
     Lambda* oentry;
     Lambda* nentry;
@@ -59,20 +59,20 @@ public:
 
 Lambda* Mangler::mangle() {
     // map type params
-    std::vector<TypeParam> type_params;
+    std::vector<const TypeParam*> type_params;
     for (size_t i = 0, e = oentry->num_type_params(); i != e; ++i) {
         auto otype_param = oentry->type_param(i);
         if (auto type = type_args[i])
-            type2type[*otype_param] = *type;
+            type2type[otype_param] = type;
         else {
             auto ntype_param = world().type_param();
             type_params.push_back(ntype_param);
-            type2type[*otype_param] = *ntype_param;
+            type2type[otype_param] = ntype_param;
         }
     }
 
     // create nentry - but first collect and specialize all param types
-    std::vector<Type> param_types;
+    std::vector<const Type*> param_types;
     for (size_t i = 0, e = oentry->num_params(); i != e; ++i) {
         if (args[i] == nullptr)
             param_types.push_back(oentry->param(i)->type()->specialize(type2type));
@@ -126,11 +126,11 @@ void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
     for (size_t i = 0, e = nops.size(); i != e; ++i)
         nops[i] = mangle(olambda->op(i));
 
-    ArrayRef<const Def*> nargs(nops.skip_front());         // new args of nlambda
+    Defs nargs(nops.skip_front());         // new args of nlambda
     const Def* ntarget = nops.front();                     // new target of nlambda
 
     // specialize all type args
-    Array<Type> ntype_args(olambda->type_args().size());
+    Array<const Type*> ntype_args(olambda->type_args().size());
     for (size_t i = 0, e = ntype_args.size(); i != e; ++i)
         ntype_args[i] = olambda->type_arg(i)->specialize(type2type);
 
@@ -180,7 +180,7 @@ const Def* Mangler::mangle(const Def* odef) {
 
 //------------------------------------------------------------------------------
 
-Lambda* mangle(const Scope& scope, ArrayRef<Type> type_args, ArrayRef<const Def*> args, ArrayRef<const Def*> lift) {
+Lambda* mangle(const Scope& scope, Types type_args, Defs args, Defs lift) {
     return Mangler(scope, type_args, args, lift).mangle();
 }
 

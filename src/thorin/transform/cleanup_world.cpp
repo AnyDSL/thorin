@@ -30,7 +30,7 @@ public:
 private:
     World& world_;
     LambdaSet nlambdas_;
-    World::PrimOps nprimops_;
+    World::PrimOpSet nprimops_;
     Def2Def old2new_;
     static uint32_t counter_;
 };

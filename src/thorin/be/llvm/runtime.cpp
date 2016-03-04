@@ -73,20 +73,20 @@ Lambda* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std:
         const auto target_val = code_gen.lookup(target_arg);
 
         // check device target
-        if (target_arg->type().isa<DefiniteArrayType>() ||
-            target_arg->type().isa<StructAppType>() ||
-            target_arg->type().isa<TupleType>()) {
+        if (target_arg->type()->isa<DefiniteArrayType>() ||
+            target_arg->type()->isa<StructAppType>() ||
+            target_arg->type()->isa<TupleType>()) {
             // definite array | struct | tuple
             auto alloca = code_gen.emit_alloca(target_val->getType(), target_arg->name);
             builder_.CreateStore(target_val, alloca);
             auto void_ptr = builder_.CreatePointerCast(alloca, builder_.getInt8PtrTy());
             // TODO: recurse over struct|tuple and check if it contains pointers
             set_kernel_arg_struct(target_device, i, void_ptr, target_val->getType());
-        } else if (target_arg->type().isa<PtrType>()) {
-            auto ptr = target_arg->type().as<PtrType>();
+        } else if (target_arg->type()->isa<PtrType>()) {
+            auto ptr = target_arg->type()->as<PtrType>();
             auto rtype = ptr->referenced_type();
 
-            if (!rtype.isa<ArrayType>()) {
+            if (!rtype->isa<ArrayType>()) {
                 ptr->dump();
                 ELOG("currently only pointers to arrays supported as kernel argument at '%'; argument has different type:", target_arg->loc());
             }

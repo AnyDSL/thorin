@@ -26,7 +26,7 @@ public:
 protected:
     void optimize(int opt);
 
-    llvm::Type* convert(Type);
+    llvm::Type* convert(const Type*);
     llvm::Value* emit(const Def*);
     llvm::Value* lookup(const Def*);
     llvm::AllocaInst* emit_alloca(llvm::Type*, const std::string&);
@@ -57,7 +57,7 @@ private:
     Lambda* emit_select(Lambda*);
     Lambda* emit_shuffle(Lambda*);
     Lambda* emit_reinterpret(Lambda*);
-    llvm::Value* emit_bitcast(const Def*, Type);
+    llvm::Value* emit_bitcast(const Def*, const Type*);
     virtual Lambda* emit_reserve(const Lambda*);
     void emit_result_phi(const Param*, llvm::Value*);
     void emit_vectorize(u32, llvm::Function*, llvm::CallInst*);

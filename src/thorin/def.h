@@ -25,6 +25,8 @@ class PrimOp;
 class Use;
 class World;
 
+typedef ArrayRef<const Def*> Defs;
+
 //------------------------------------------------------------------------------
 
 /**
@@ -81,7 +83,7 @@ private:
     Def(const Def&);              ///< Do not copy-construct a \p Def.
 
 protected:
-    Def(NodeKind kind, Type type, size_t size, const Location& loc, const std::string& name)
+    Def(NodeKind kind, const Type* type, size_t size, const Location& loc, const std::string& name)
         : HasLocation(loc)
         , kind_(kind)
         , ops_(size)
@@ -91,8 +93,8 @@ protected:
     {}
     virtual ~Def() {}
 
-    void clear_type() { type_.clear(); }
-    void set_type(Type type) { type_ = type; }
+    void clear_type() { type_ = nullptr; }
+    void set_type(const Type* type) { type_ = type; }
     void unregister_use(size_t i) const;
     void unregister_uses() const;
     void resize(size_t n) { ops_.resize(n, nullptr); }
@@ -105,7 +107,7 @@ public:
     void set_op(size_t i, const Def* def);
     void unset_op(size_t i);
     void unset_ops();
-    const Def* is_mem() const { return type().isa<MemType>() ? this : nullptr; }
+    const Def* is_mem() const { return type()->isa<MemType>() ? this : nullptr; }
     Lambda* as_lambda() const;
     Lambda* isa_lambda() const;
     bool is_const() const;
@@ -114,10 +116,10 @@ public:
     size_t num_uses() const { return uses().size(); }
     size_t gid() const { return gid_; }
     std::string unique_name() const;
-    Type type() const { return type_; }
+    const Type* type() const { return type_; }
     int order() const;
     World& world() const;
-    ArrayRef<const Def*> ops() const { return ops_; }
+    Defs ops() const { return ops_; }
     const Def* op(size_t i) const { assert(i < ops().size() && "index out of bounds"); return ops_[i]; }
     template<class T> const Def* op(const T* def) const;
     void replace(const Def*) const;
@@ -143,7 +145,7 @@ public:
 private:
     const NodeKind kind_;
     std::vector<const Def*> ops_;
-    Type type_;
+    const Type* type_;
     mutable Uses uses_;
     const size_t gid_;
     mutable uint32_t candidate_ = 0;
@@ -261,8 +263,8 @@ uint64_t UseHash::operator()(Use use) const {
 }
 
 template<>
-struct Hash<ArrayRef<const Def*>> {
-    uint64_t operator()(ArrayRef<const Def*> defs) const {
+struct Hash<Defs> {
+    uint64_t operator()(Defs defs) const {
         uint64_t seed = hash_begin(defs.size());
         for (auto def : defs)
             seed = hash_combine(seed, def ? def->gid() : uint64_t(-1));
@@ -272,7 +274,7 @@ struct Hash<ArrayRef<const Def*>> {
 
 template<>
 struct Hash<Array<const Def*>> {
-    uint64_t operator()(const Array<const Def*> defs) const { return Hash<ArrayRef<const Def*>>()(defs); }
+    uint64_t operator()(const Array<const Def*> defs) const { return Hash<Defs>()(defs); }
 };
 
 //------------------------------------------------------------------------------

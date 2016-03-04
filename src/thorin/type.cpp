@@ -30,6 +30,7 @@ const Type* Type::close(ArrayRef<const TypeParam*> type_params) const {
         type_params_[i]->closed_ = true;
     }
 
+    // recompute closedness
     std::stack<const Type*> stack;
     TypeSet done;
 
@@ -51,6 +52,7 @@ const Type* Type::close(ArrayRef<const TypeParam*> type_params) const {
             todo |= push(arg);
 
         if (!todo) {
+            type->closed_ = true;
             for (auto arg : type->args())
                 type->closed_ &= arg->is_closed();
             stack.pop();

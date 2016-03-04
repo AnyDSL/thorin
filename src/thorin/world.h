@@ -241,7 +241,6 @@ private:
     DefMap<HashSet<Tracker*>> trackers_;
 
     TypeSet types_;
-    std::vector<const Type*> garbage_;
 #ifndef NDEBUG
     HashSet<size_t> breakpoints_;
 #endif

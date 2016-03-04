@@ -52,9 +52,9 @@ World::World(std::string name)
 }
 
 World::~World() {
-    for (auto primop : primops_) delete primop;
     for (auto lambda : lambdas_) delete lambda;
-    for (auto type   : garbage_) delete type;
+    for (auto primop : primops_) delete primop;
+    for (auto type   : types_)   delete type;
 }
 
 Array<Lambda*> World::copy_lambdas() const {

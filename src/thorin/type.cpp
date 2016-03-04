@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <iostream>
 #include <sstream>
+#include <stack>
 
 #include "thorin/lambda.h"
 #include "thorin/world.h"
@@ -15,10 +16,10 @@ namespace thorin {
 size_t Type::gid_counter_ = 1;
 
 const Type* Type::close(ArrayRef<const TypeParam*> type_params) const {
-    if (type_params.empty()) {
-        assert(is_closed());
+    assert(THORIN_IMPLIES(is_closed(), type_params.empty()));
+
+    if (type_params.empty())
         return this;
-    }
 
     assert(!is_closed());
     type_params_.resize(type_params.size());
@@ -29,25 +30,34 @@ const Type* Type::close(ArrayRef<const TypeParam*> type_params) const {
         type_params_[i]->closed_ = true;
     }
 
-    std::queue<const Type*> queue;
+    std::stack<const Type*> stack;
+    TypeSet done;
 
-    auto enqueue = [&](const Type* type) {
-        assert(THORIN_IMPLIES(type->isa<TypeParam>(), type->is_closed()) && "you shall close types from inside out");
-
-        if (!type->is_closed()) {
-            type->closed_ = true;
-            queue.push(type);
+    auto push = [&](const Type* type) {
+        if (!type->is_closed() && !done.contains(type)) {
+            done.insert(type);
+            stack.push(type);
+            return true;
         }
+        return false;
     };
 
-    enqueue(this);
+    push(this);
 
-    while (!queue.empty()) {
-        for (auto arg : pop(queue)->args())
-            enqueue(arg);
+    while (!stack.empty()) {
+        auto type = stack.top();
+        bool todo = false;
+        for (auto arg : type->args())
+            todo |= push(arg);
+
+        if (!todo) {
+            for (auto arg : type->args())
+                type->closed_ &= arg->is_closed();
+            stack.pop();
+        }
     }
 
-    return world().unify(this);
+    return is_closed() ? world().unify(this) : this;
 }
 
 size_t Type::length() const { return as<VectorType>()->length(); }
@@ -114,7 +124,7 @@ const Type* IndefiniteArrayType::vrebuild(World& to, Types args) const { return 
 const Type* MemType            ::vrebuild(World& to, Types     ) const { return to.mem_type(); }
 const Type* PrimType           ::vrebuild(World& to, Types     ) const { return to.type(primtype_kind(), length()); }
 const Type* TupleType          ::vrebuild(World& to, Types args) const { return to.tuple_type(args); }
-const Type* TypeParam          ::vrebuild(World& to, Types     ) const { return to.type_param(); }
+const Type* TypeParam          ::vrebuild(World& to, Types     ) const { return to.type_param(name()); }
 
 const Type* PtrType::vrebuild(World& to, Types args) const {
     return to.ptr_type(args.front(), length(), device(), addr_space());
@@ -330,7 +340,7 @@ const Type* Type::specialize(Type2Type& map) const {
     Array<const TypeParam*> ntype_params(num_type_params());
     for (size_t i = 0, e = num_type_params(); i != e; ++i) {
         assert(!map.contains(type_param(i)));
-        auto ntype_param = world().type_param();
+        auto ntype_param = world().type_param(type_param(i)->name());
         map[type_param(i)] = ntype_param;
         ntype_params[i] = ntype_param;
     }

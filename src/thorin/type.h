@@ -419,15 +419,17 @@ private:
 
 class TypeParam : public Type {
 private:
-    TypeParam(World& world)
+    TypeParam(World& world, const std::string& name)
         : Type(world, Node_TypeParam, {})
         , equiv_(nullptr)
+        , name_(name)
     {
         closed_ = false;
     }
 
 public:
     const Type* binder() const { return binder_; }
+    const std::string& name() const { return name_; }
     virtual bool equal(const Type*) const override;
     virtual bool is_concrete() const override { return false; }
 
@@ -440,7 +442,7 @@ private:
 
     mutable const Type* binder_;
     mutable const TypeParam* equiv_;
-    mutable std::string name_;
+    std::string name_;
 
     friend bool Type::equal(const Type*) const;
     friend const Type* Type::close(ArrayRef<const TypeParam*>) const;

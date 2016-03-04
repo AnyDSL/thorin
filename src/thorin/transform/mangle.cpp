@@ -65,7 +65,7 @@ Lambda* Mangler::mangle() {
         if (auto type = type_args[i])
             type2type[otype_param] = type;
         else {
-            auto ntype_param = world().type_param();
+            auto ntype_param = world().type_param(otype_param->name());
             type_params.push_back(ntype_param);
             type2type[otype_param] = ntype_param;
         }

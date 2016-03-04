@@ -41,7 +41,7 @@ Lambda* Lambda::stub(Type2Type& type2type, const std::string& name) const {
     Array<const TypeParam*> ntype_params(num_type_params());
 
     for (size_t i = 0, e = num_type_params(); i != e; ++i) {
-        auto ntype_param = world().type_param();
+        auto ntype_param = world().type_param(type_param(i)->name());
         ntype_params[i] = ntype_param;
         type2type[type_param(i)] = ntype_param;
     }

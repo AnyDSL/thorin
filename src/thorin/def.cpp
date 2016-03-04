@@ -147,8 +147,8 @@ void Def::dump() const {
     }
 }
 
-// this workaround is needed in order to disambiguate def->op(0) from def->op(size_t) vs def->op(const Def*)
-template<class T> const Def* Def::op(const T* def) const { return op(def->template primlit_value<size_t>()); }
+// this workaround is needed in order to disambiguate def->op(0) from def->op(uint64_t) vs def->op(const Def*)
+template<class T> const Def* Def::op(const T* def) const { return op(def->template primlit_value<uint64_t>()); }
 template const Def* Def::op<Def>(const Def*) const;         // instantiate method
 template const Def* Def::op<PrimLit>(const PrimLit*) const; // instantiate method
 

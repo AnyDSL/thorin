@@ -7,12 +7,8 @@
 
 #include "thorin/enums.h"
 #include "thorin/type.h"
-#include "thorin/util/array.h"
 #include "thorin/util/autoptr.h"
-#include "thorin/util/cast.h"
-#include "thorin/util/hash.h"
 #include "thorin/util/location.h"
-#include "thorin/util/stream.h"
 
 namespace thorin {
 
@@ -91,7 +87,7 @@ protected:
         , gid_(gid_counter_++)
         , name(name)
     {
-        assert(type->is_closed());
+        assert(THORIN_IMPLIES(type, type->is_closed()));
     }
     virtual ~Def() {}
 
@@ -165,8 +161,13 @@ public:
 };
 
 namespace detail {
-    inline std::ostream& stream(std::ostream& out, const Def* def) { return def->stream(out); }
+    inline std::ostream& stream(std::ostream& os, const Def* def) { return def->stream(os); }
+    inline std::ostream& stream(std::ostream& os, const Type* type) { return type->stream(os); }
 }
+
+inline std::ostream& operator<<(std::ostream& os, const Def* def) { return def->stream(os); }
+inline std::ostream& operator<<(std::ostream& os, const Type* type) { return type->stream(os); }
+inline std::ostream& operator<<(std::ostream& os, Use use) { return use->stream(os); }
 
 //------------------------------------------------------------------------------
 

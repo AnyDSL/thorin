@@ -5,16 +5,17 @@
 #include "thorin/util/array.h"
 #include "thorin/util/cast.h"
 #include "thorin/util/hash.h"
+#include "thorin/util/stream.h"
 
 namespace thorin {
+
+//------------------------------------------------------------------------------
 
 class Def;
 class IndefiniteArrayType;
 class Type;
 class TypeParam;
 class World;
-
-//------------------------------------------------------------------------------
 
 template<class T>
 struct GIDHash {
@@ -35,14 +36,13 @@ template<class To>
 using TypeMap      = GIDMap<Type, To>;
 using TypeSet      = GIDSet<Type>;
 using Type2Type    = TypeMap<const Type*>;
-using TypeParamSet = GIDSet<TypeParam>;
 
 typedef ArrayRef<const Type*> Types;
 
 //------------------------------------------------------------------------------
 
 /// Base class for all \p Type%s.
-class Type : public MagicCast<Type> {
+class Type : public Streamable, public MagicCast<Type> {
 protected:
     Type(const Type&) = delete;
     Type& operator=(const Type&) = delete;
@@ -62,6 +62,7 @@ protected:
     void set(size_t i, const Type* type) {
         args_[i] = type;
         order_ = std::max(order_, type->order());
+        closed_ &= type->is_closed();
     }
 
 public:
@@ -76,10 +77,7 @@ public:
     size_t num_args() const { return args_.size(); }
     bool is_polymorphic() const { return num_type_params() > 0; }
     bool empty() const { return args_.empty(); }
-    void dump() const;
     World& world() const { return world_; }
-    void free_type_params(TypeParamSet& bound, TypeParamSet& free) const;
-    TypeParamSet free_type_params() const;
     size_t gid() const { return gid_; }
     int order() const { return order_; }
     /// Returns the vector length. Raises an assertion if this type is not a @p VectorType.
@@ -112,13 +110,14 @@ public:
     bool is_type_f() const { return thorin::is_type_f(kind()); }
     bool is_bool() const { return kind() == Node_PrimType_bool; }
 
-    virtual uint64_t hash() const;
+    uint64_t hash() const { return hash_ == 0 ? hash_ = vhash() : hash_; }
+    virtual uint64_t vhash() const;
     virtual bool equal(const Type*) const;
-    virtual bool is_closed() const;   ///< Are all @p TypeParam%s bound?
-    virtual bool is_concrete() const; ///< A @p Type which does not depend on any @p TypePara%s.
+    virtual bool is_closed() const { return closed_; }  ///< Are all @p TypeParam%s bound?
+    virtual bool is_concrete() const;                   ///< A @p Type which does not depend on any @p TypePara%s.
     virtual const IndefiniteArrayType* is_indefinite() const;
     virtual bool use_lea() const { return false; }
-    virtual std::ostream& stream(std::ostream&) const;
+    virtual std::ostream& stream(std::ostream&) const override;
 
     static size_t gid_counter() { return gid_counter_; }
 
@@ -126,6 +125,8 @@ protected:
     Array<const Type*> specialize_args(Type2Type&) const;
 
     int order_ = 0;
+    mutable bool closed_ = true;
+    mutable uint64_t hash_ = 0;
 
 private:
     virtual const Type* vrebuild(World& to, Types args) const = 0;
@@ -181,7 +182,7 @@ protected:
         , length_(length)
     {}
 
-    virtual uint64_t hash() const override { return hash_combine(Type::hash(), length()); }
+    virtual uint64_t vhash() const override { return hash_combine(Type::vhash(), length()); }
     virtual bool equal(const Type* other) const override {
         return Type::equal(other) && this->length() == other->as<VectorType>()->length();
     }
@@ -239,7 +240,7 @@ public:
     int32_t device() const { return device_; }
     bool is_host_device() const { return device_ == -1; }
 
-    virtual uint64_t hash() const override;
+    virtual uint64_t vhash() const override;
     virtual bool equal(const Type* other) const override;
 
     virtual std::ostream& stream(std::ostream&) const override;
@@ -272,7 +273,7 @@ private:
 public:
     const std::string& name() const { return name_; }
     void set(size_t i, const Type* type) const { const_cast<StructAbsType*>(this)->Type::set(i, type); }
-    virtual uint64_t hash() const override { return hash_value(this->gid()); }
+    virtual uint64_t vhash() const override { return hash_value(this->gid()); }
     virtual bool equal(const Type* other) const override { return this == other; }
     virtual const Type* instantiate(Types args) const override;
 
@@ -400,7 +401,7 @@ public:
     {}
 
     u64 dim() const { return dim_; }
-    virtual uint64_t hash() const override { return hash_combine(Type::hash(), dim()); }
+    virtual uint64_t vhash() const override { return hash_combine(Type::hash(), dim()); }
     virtual bool equal(const Type* other) const override {
         return Type::equal(other) && this->dim() == other->as<DefiniteArrayType>()->dim();
     }
@@ -421,17 +422,19 @@ private:
     TypeParam(World& world)
         : Type(world, Node_TypeParam, {})
         , equiv_(nullptr)
-    {}
+    {
+        closed_ = false;
+    }
 
 public:
     const Type* binder() const { return binder_; }
     virtual bool equal(const Type*) const override;
-    virtual bool is_closed() const override { return binder_ != nullptr; }
     virtual bool is_concrete() const override { return false; }
 
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
+    virtual uint64_t vhash() const override { return hash_value(gid()); }
     virtual const Type* vrebuild(World& to, Types args) const override;
     virtual const Type* vinstantiate(Type2Type&) const override;
 

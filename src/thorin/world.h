@@ -271,6 +271,7 @@ private:
     friend class Cleaner;
     friend class Lambda;
     friend class Tracker;
+    friend class Type;
     friend void Def::replace(const Def*) const;
 };
 

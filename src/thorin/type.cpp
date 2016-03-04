@@ -6,6 +6,7 @@
 
 #include "thorin/lambda.h"
 #include "thorin/world.h"
+#include "thorin/util/queue.h"
 
 namespace thorin {
 
@@ -14,21 +15,41 @@ namespace thorin {
 size_t Type::gid_counter_ = 1;
 
 const Type* Type::close(ArrayRef<const TypeParam*> type_params) const {
-    assert(!is_closed() && type_params_.empty());
-
-    type_params_.resize(type_params.size());
-    for (size_t i = 0, e = type_params.size(); i != e; ++i) {
-            type_params_[i] = type_params[i];
-            type_params_[i]->binder_ = this;
+    if (type_params.empty()) {
+        assert(is_closed());
+        return this;
     }
 
-    assert(is_closed() && "you shall close types from inside out");
+    assert(!is_closed());
+    type_params_.resize(type_params.size());
+    for (size_t i = 0, e = type_params.size(); i != e; ++i) {
+        assert(!type_params[i]->is_closed());
+        type_params_[i] = type_params[i];
+        type_params_[i]->binder_ = this;
+        type_params_[i]->closed_ = true;
+    }
 
-    // TODO hash!!!
-    return this;
+    std::queue<const Type*> queue;
+
+    auto enqueue = [&](const Type* type) {
+        assert(THORIN_IMPLIES(type->isa<TypeParam>(), type->is_closed()) && "you shall close types from inside out");
+
+        if (!type->is_closed()) {
+            type->closed_ = true;
+            queue.push(type);
+        }
+    };
+
+    enqueue(this);
+
+    while (!queue.empty()) {
+        for (auto arg : pop(queue)->args())
+            enqueue(arg);
+    }
+
+    return world().unify(this);
 }
 
-void Type::dump() const { std::cout << this << std::endl; }
 size_t Type::length() const { return as<VectorType>()->length(); }
 const Type* Type::elem(const Def* def) const { return elem(def->primlit_value<size_t>()); }
 
@@ -55,7 +76,15 @@ bool FnType::is_returning() const {
     return true;
 }
 
-#if 0
+static Type2Type type2type(const Type* type, Types args) {
+    assert(type->num_type_params() == args.size());
+    Type2Type map;
+    for (size_t i = 0, e = args.size(); i != e; ++i)
+        map[type->type_param(i)] = args[i];
+    assert(map.size() == args.size());
+    return map;
+}
+
 const Type* StructAppType::elem(size_t i) const {
     if (auto type = elem_cache_[i])
         return type;
@@ -65,7 +94,6 @@ const Type* StructAppType::elem(size_t i) const {
     auto map = type2type(struct_abs_type(), type_args());
     return elem_cache_[i] = type->specialize(map);
 }
-#endif
 
 Types StructAppType::elems() const {
     for (size_t i = 0; i < num_elems(); ++i)
@@ -110,14 +138,6 @@ const Type* StructAppType::vrebuild(World& to, Types args) const {
  * recursive properties
  */
 
-bool Type::is_closed() const {
-    for (auto arg : args()) {
-        if (!arg->is_closed())
-            return false;
-    }
-    return true;
-}
-
 const IndefiniteArrayType* Type::is_indefinite() const {
     if (!empty())
         return args().back()->is_indefinite();
@@ -126,22 +146,6 @@ const IndefiniteArrayType* Type::is_indefinite() const {
 
 const IndefiniteArrayType* IndefiniteArrayType::is_indefinite() const { return this; }
 
-TypeParamSet Type::free_type_params() const { TypeParamSet bound, free; free_type_params(bound, free); return free; }
-
-#if 0
-void Type::free_type_params(TypeParamSet& bound, TypeParamSet& free) const {
-    for (auto type_param : type_params())
-        bound.insert(type_param);
-
-    for (auto arg : args()) {
-        if (auto type_param = arg->isa<const TypeParam*>()) {
-            if (!bound.contains(type_param))
-                free.insert(type_param);
-        } else
-            arg->free_type_params(bound, free);
-    }
-}
-
 bool Type::is_concrete() const {
     for (auto arg : args()) {
         if (!arg->is_concrete())
@@ -149,7 +153,6 @@ bool Type::is_concrete() const {
     }
     return true;
 }
-#endif
 
 //------------------------------------------------------------------------------
 
@@ -157,14 +160,14 @@ bool Type::is_concrete() const {
  * hash
  */
 
-uint64_t Type::hash() const {
+uint64_t Type::vhash() const {
     uint64_t seed = hash_combine(hash_combine(hash_begin((int) kind()), num_args()), num_type_params());
     for (auto arg : args_)
         seed = hash_combine(seed, arg->hash());
     return seed;
 }
 
-uint64_t PtrType::hash() const {
+uint64_t PtrType::vhash() const {
     return hash_combine(hash_combine(VectorType::hash(), (uint64_t)device()), (uint64_t)addr_space());
 }
 
@@ -303,15 +306,6 @@ std::ostream& Type::stream(std::ostream& os) const {
 /*
  * specialize and instantiate
  */
-
-Type2Type type2type(const Type* type, Types args) {
-    assert(type->num_type_params() == args.size());
-    Type2Type map;
-    for (size_t i = 0, e = args.size(); i != e; ++i)
-        map[type->type_param(i)] = args[i];
-    assert(map.size() == args.size());
-    return map;
-}
 
 const Type* Type::instantiate(Types types) const {
     assert(types.size() == num_type_params());

@@ -813,25 +813,20 @@ const Param* World::param(const Type* type, Lambda* lambda, size_t index, const 
  * cse + unify
  */
 
-#if 0
 const Type* World::unify_base(const Type* type) {
-    assert(type->is_closed());
-    if (type->is_unified())
-        return type->representative();
+    if (type->is_closed()) {
+        auto i = types_.find(type);
+        if (i != types_.end()) {
+            delete type;
+            return *i;
+        }
 
-    auto i = types_.find(type);
-    if (i != types_.end()) {
-        auto representative = *i;
-        type->representative_ = representative;
-        return representative;
-    } else {
         const auto& p = types_.insert(type);
         assert_unused(p.second && "hash/equal broken");
-        type->representative_ = type;
         return type;
-    }
+    } else
+        return type;
 }
-#endif
 
 const Def* World::cse_base(const PrimOp* primop) {
     THORIN_CHECK_BREAK(primop->gid());
@@ -839,12 +834,11 @@ const Def* World::cse_base(const PrimOp* primop) {
     if (i != primops_.end()) {
         primop->unregister_uses();
         delete primop;
-        primop = *i;
-    } else {
-        const auto& p = primops_.insert(primop);
-        assert_unused(p.second && "hash/equal broken");
+        return *i;
     }
 
+    const auto& p = primops_.insert(primop);
+    assert_unused(p.second && "hash/equal broken");
     return primop;
 }
 

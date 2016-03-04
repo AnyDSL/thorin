@@ -307,7 +307,7 @@ void Lambda::jump(const Def* to, Array<const Type*> type_args, Defs args, const 
 void Lambda::branch(const Def* cond, const Def* t, const Def* f, const Location& loc) { return jump(world().branch(), {}, {cond, t, f}, loc); }
 
 std::pair<Lambda*, const Def*> Lambda::call(const Def* to, Types type_args, Defs args, const Type* ret_type, const Location& loc) {
-    if (ret_type) {
+    if (ret_type == nullptr) {
         jump(to, type_args, args, loc);
         return std::make_pair(nullptr, nullptr);
     }

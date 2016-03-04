@@ -186,12 +186,12 @@ public:
     Float operator* (Float other) const { return Float(this->data_ * other.data_); }
     Float operator/ (Float other) const { return Float(this->data_ / other.data_); }
     Float operator% (Float other) const { return Float(std::fmod(this->data_, other.data_)); }
-    bool  operator< (Float other) const { return Float(this->data_ < other.data_); }
-    bool  operator<=(Float other) const { return Float(this->data_ <=other.data_); }
-    bool  operator> (Float other) const { return Float(this->data_ > other.data_); }
-    bool  operator>=(Float other) const { return Float(this->data_ >=other.data_); }
-    bool  operator==(Float other) const { return Float(this->data_ ==other.data_); }
-    bool  operator!=(Float other) const { return Float(this->data_ !=other.data_); }
+    bool  operator< (Float other) const { return this->data_ < other.data_; }
+    bool  operator<=(Float other) const { return this->data_ <=other.data_; }
+    bool  operator> (Float other) const { return this->data_ > other.data_; }
+    bool  operator>=(Float other) const { return this->data_ >=other.data_; }
+    bool  operator==(Float other) const { return this->data_ ==other.data_; }
+    bool  operator!=(Float other) const { return this->data_ !=other.data_; }
     operator FT() const { return data_; }
     FT data() const { return data_; }
 

@@ -30,36 +30,36 @@ const Type* Type::close(ArrayRef<const TypeParam*> type_params) const {
         type_params_[i]->closed_ = true;
     }
 
-    // recompute closedness
-    std::stack<const Type*> stack;
-    TypeSet done;
+    Type2Type old2new;
+    auto result = close(old2new);
 
-    auto push = [&](const Type* type) {
-        if (!type->is_closed() && !done.contains(type)) {
-            done.insert(type);
-            stack.push(type);
-            return true;
-        }
-        return false;
-    };
-
-    push(this);
-
-    while (!stack.empty()) {
-        auto type = stack.top();
-        bool todo = false;
-        for (auto arg : type->args())
-            todo |= push(arg);
-
-        if (!todo) {
-            type->closed_ = true;
-            for (auto arg : type->args())
-                type->closed_ &= arg->is_closed();
-            stack.pop();
-        }
+    for (const auto& p : old2new) {
+        if (p.first != p.second)
+            delete p.first;
     }
 
-    return is_closed() ? world().unify(this) : this;
+    return result;
+}
+
+const Type* Type::close(Type2Type& old2new) const {
+    auto i = old2new.find(this);
+    if (i == old2new.end()) {
+        if (is_closed())
+            return old2new[this] = this;
+
+        bool closed = true;
+        Array<const Type*> nargs(num_args());
+        for (size_t i = 0, e = nargs.size(); i != e; ++i) {
+            auto narg = arg(i)->close(old2new);
+            assert(narg);
+            closed &= narg->is_closed();
+            if (!closed)
+                return old2new[this] = this;
+            nargs[i] = narg;
+        }
+        return old2new[this] = this->rebuild(nargs);
+    } else
+        return i->second;
 }
 
 size_t Type::length() const { return as<VectorType>()->length(); }
@@ -118,6 +118,13 @@ Types StructAppType::elems() const {
 /*
  * vrebuild
  */
+
+const Type* Type::rebuild(World& to, Types args) const {
+    assert(num_args() == args.size());
+    if (args.empty() && &world() == &to)
+        return this;
+    return vrebuild(to, args);
+}
 
 const Type* DefiniteArrayType  ::vrebuild(World& to, Types args) const { return to.definite_array_type(args[0], dim()); }
 const Type* FnType             ::vrebuild(World& to, Types args) const { return to.fn_type(args); }

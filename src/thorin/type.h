@@ -86,12 +86,7 @@ public:
     const Type* instantiate(Type2Type&) const;
     const Type* specialize(Type2Type&) const;
     const Type* elem(const Def*) const;
-    const Type* rebuild(World& to, Types args) const {
-        assert(num_args() == args.size());
-        if (args.empty() && &world() == &to)
-            return this;
-        return vrebuild(to, args);
-    }
+    const Type* rebuild(World& to, Types args) const;
     const Type* rebuild(Types args) const { return rebuild(world(), args); }
     virtual const Type* elem(size_t i) const { return arg(i); }
 
@@ -129,6 +124,7 @@ protected:
     mutable uint64_t hash_ = 0;
 
 private:
+    const Type* close(Type2Type&) const;
     virtual const Type* vrebuild(World& to, Types args) const = 0;
     virtual const Type* vinstantiate(Type2Type&) const = 0;
 

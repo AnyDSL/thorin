@@ -168,7 +168,7 @@ uint64_t Type::vhash() const {
 }
 
 uint64_t PtrType::vhash() const {
-    return hash_combine(hash_combine(VectorType::hash(), (uint64_t)device()), (uint64_t)addr_space());
+    return hash_combine(hash_combine(VectorType::vhash(), (uint64_t)device()), (uint64_t)addr_space());
 }
 
 //------------------------------------------------------------------------------

@@ -401,7 +401,7 @@ public:
     {}
 
     u64 dim() const { return dim_; }
-    virtual uint64_t vhash() const override { return hash_combine(Type::hash(), dim()); }
+    virtual uint64_t vhash() const override { return hash_combine(Type::vhash(), dim()); }
     virtual bool equal(const Type* other) const override {
         return Type::equal(other) && this->dim() == other->as<DefiniteArrayType>()->dim();
     }

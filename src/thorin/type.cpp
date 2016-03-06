@@ -7,7 +7,6 @@
 
 #include "thorin/lambda.h"
 #include "thorin/world.h"
-#include "thorin/util/queue.h"
 
 namespace thorin {
 
@@ -30,36 +29,35 @@ const Type* Type::close(ArrayRef<const TypeParam*> type_params) const {
         type_params_[i]->closed_ = true;
     }
 
-    Type2Type old2new;
-    auto result = close(old2new);
+    std::stack<const Type*> stack;
+    TypeSet done;
 
-    for (const auto& p : old2new) {
-        if (p.first != p.second)
-            delete p.first;
+    auto push = [&](const Type* type) {
+        if (!type->is_closed() && !done.contains(type)) {
+            stack.push(type);
+            return true;
+        }
+        return false;
+    };
+
+    push(this);
+
+    while (!stack.empty()) {
+        auto type = stack.top();
+
+        bool todo = false;
+        for (auto arg : type->args())
+            todo |= push(arg);
+
+        if (!todo) {
+            stack.pop();
+            type->closed_ = true;
+            for (size_t i = 0, e = type->num_args(); i != e && type->closed_; ++i)
+                type->closed_ &= type->arg(i)->is_closed();
+        }
     }
 
-    return result;
-}
-
-const Type* Type::close(Type2Type& old2new) const {
-    auto i = old2new.find(this);
-    if (i == old2new.end()) {
-        if (is_closed())
-            return old2new[this] = this;
-
-        bool closed = true;
-        Array<const Type*> nargs(num_args());
-        for (size_t i = 0, e = nargs.size(); i != e; ++i) {
-            auto narg = arg(i)->close(old2new);
-            assert(narg);
-            closed &= narg->is_closed();
-            if (!closed)
-                return old2new[this] = this;
-            nargs[i] = narg;
-        }
-        return old2new[this] = this->rebuild(nargs);
-    } else
-        return i->second;
+    return world().unify_base(this);
 }
 
 size_t Type::length() const { return as<VectorType>()->length(); }

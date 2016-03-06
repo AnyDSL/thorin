@@ -814,18 +814,23 @@ const Param* World::param(const Type* type, Lambda* lambda, size_t index, const 
  */
 
 const Type* World::unify_base(const Type* type) {
-    if (type->is_closed()) {
-        auto i = types_.find(type);
-        if (i != types_.end()) {
-            delete type;
-            return *i;
-        }
+    if (type->is_hashed() || !type->is_closed())
+        return type;
 
-        const auto& p = types_.insert(type);
-        assert_unused(p.second && "hash/equal broken");
+    for (auto& arg : const_cast<Type*>(type)->args_)
+        arg = unify_base(arg);
+
+    auto i = types_.find(type);
+    if (i != types_.end()) {
+        delete type;
+        type = *i;
+        type->hashed_ = true;
         return type;
-    } else
-        return type;
+    }
+
+    const auto& p = types_.insert(type);
+    assert_unused(p.second && "hash/equal broken");
+    return type;
 }
 
 const Def* World::cse_base(const PrimOp* primop) {

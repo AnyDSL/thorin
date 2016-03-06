@@ -76,6 +76,7 @@ public:
     const Type* close(ArrayRef<const TypeParam*>) const;
     size_t num_args() const { return args_.size(); }
     bool is_polymorphic() const { return num_type_params() > 0; }
+    bool is_hashed() const { return hashed_; }          ///< This @p Type is already recorded inside of @p World.
     bool empty() const { return args_.empty(); }
     World& world() const { return world_; }
     size_t gid() const { return gid_; }
@@ -105,11 +106,11 @@ public:
     bool is_type_f() const { return thorin::is_type_f(kind()); }
     bool is_bool() const { return kind() == Node_PrimType_bool; }
 
-    uint64_t hash() const { return hash_ == 0 ? hash_ = vhash() : hash_; }
+    uint64_t hash() const { return is_hashed() ? hash_ : hash_ = vhash(); }
     virtual uint64_t vhash() const;
     virtual bool equal(const Type*) const;
     virtual bool is_closed() const { return closed_; }  ///< Are all @p TypeParam%s bound?
-    virtual bool is_concrete() const;                   ///< A @p Type which does not depend on any @p TypePara%s.
+    virtual bool is_concrete() const;                   ///< This @p Type which does not depend on any @p TypePara%s.
     virtual const IndefiniteArrayType* is_indefinite() const;
     virtual bool use_lea() const { return false; }
     virtual std::ostream& stream(std::ostream&) const override;
@@ -120,11 +121,11 @@ protected:
     Array<const Type*> specialize_args(Type2Type&) const;
 
     int order_ = 0;
-    mutable bool closed_ = true;
     mutable uint64_t hash_ = 0;
+    mutable bool closed_ = true;
+    mutable bool hashed_ = false;
 
 private:
-    const Type* close(Type2Type&) const;
     virtual const Type* vrebuild(World& to, Types args) const = 0;
     virtual const Type* vinstantiate(Type2Type&) const = 0;
 
@@ -444,8 +445,6 @@ private:
     friend const Type* Type::close(ArrayRef<const TypeParam*>) const;
     friend class World;
 };
-
-//------------------------------------------------------------------------------
 
 std::ostream& stream_type_params(std::ostream& os, const Type* type);
 

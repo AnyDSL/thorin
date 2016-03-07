@@ -64,11 +64,12 @@ LEA::LEA(const Def* ptr, const Def* index, const Location& loc, const std::strin
     : PrimOp(Node_LEA, nullptr, {ptr, index}, loc, name)
 {
     auto& world = index->world();
-    if (auto tuple = referenced_type()->isa<TupleType>()) {
-        set_type(world.ptr_type(tuple->elem(index), type()->length(), type()->device(), type()->addr_space()));
-    } else if (auto array = referenced_type()->isa<ArrayType>()) {
-        set_type(world.ptr_type(array->elem_type(), type()->length(), type()->device(), type()->addr_space()));
-    } else if (auto struct_app = referenced_type()->isa<StructAppType>()) {
+    auto type = ptr_type();
+    if (auto tuple = ptr_referenced_type()->isa<TupleType>()) {
+        set_type(world.ptr_type(tuple->elem(index), type->length(), type->device(), type->addr_space()));
+    } else if (auto array = ptr_referenced_type()->isa<ArrayType>()) {
+        set_type(world.ptr_type(array->elem_type(), type->length(), type->device(), type->addr_space()));
+    } else if (auto struct_app = ptr_referenced_type()->isa<StructAppType>()) {
         set_type(world.ptr_type(struct_app->elem(index)));
     } else {
         THORIN_UNREACHABLE;

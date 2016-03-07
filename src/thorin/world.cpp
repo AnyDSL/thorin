@@ -64,6 +64,19 @@ Array<Lambda*> World::copy_lambdas() const {
 }
 
 /*
+ * types
+ */
+
+const StructAbsType* World::struct_abs_type(size_t size, const std::string& name) {
+    auto struct_abs_type = new StructAbsType(*this, size, name);
+    // just put it into the types_ set due to nominal typing
+    auto p = types_.insert(struct_abs_type);
+    assert_unused(p.second && "hash/equal broken");
+    struct_abs_type->hashed_ = true;
+    return struct_abs_type;
+}
+
+/*
  * literals
  */
 
@@ -595,7 +608,6 @@ const Def* World::bitcast(const Type* to, const Def* from, const Location& loc, 
  * aggregate operations
  */
 
-
 template<class T>
 const Def* World::extract(const Def* agg, const T* index, const Location& loc, const std::string& name) {
     if (agg->isa<Bottom>())
@@ -824,11 +836,13 @@ const Type* World::unify_base(const Type* type) {
     if (i != types_.end()) {
         delete type;
         type = *i;
+        assert(type->is_hashed());
         return type;
     }
 
     const auto& p = types_.insert(type);
     assert_unused(p.second && "hash/equal broken");
+    assert(!type->is_hashed());
     type->hashed_ = true;
     return type;
 }

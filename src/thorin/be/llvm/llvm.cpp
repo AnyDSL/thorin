@@ -870,10 +870,10 @@ llvm::Value* CodeGen::emit_store(const Store* store) {
 }
 
 llvm::Value* CodeGen::emit_lea(const LEA* lea) {
-    if (lea->referenced_type()->isa<TupleType>() || lea->referenced_type()->isa<StructAppType>())
+    if (lea->ptr_referenced_type()->isa<TupleType>() || lea->ptr_referenced_type()->isa<StructAppType>())
         return irbuilder_.CreateStructGEP(lookup(lea->ptr()), lea->index()->primlit_value<u32>());
 
-    assert(lea->referenced_type()->isa<ArrayType>());
+    assert(lea->ptr_referenced_type()->isa<ArrayType>());
     llvm::Value* args[2] = { irbuilder_.getInt64(0), lookup(lea->index()) };
     return irbuilder_.CreateInBoundsGEP(lookup(lea->ptr()), args);
 }

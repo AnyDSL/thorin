@@ -76,9 +76,7 @@ public:
     }
     const TupleType*           tuple_type() { return tuple0_; } ///< Returns unit, i.e., an empty @p TupleType.
     const TupleType*           tuple_type(Types args) { return unify(new TupleType(*this, args)); }
-    const StructAbsType*       struct_abs_type(size_t size, const std::string& name = "") {
-        return unify(new StructAbsType(*this, size, name));
-    }
+    const StructAbsType*       struct_abs_type(size_t size, const std::string& name = "");
     const StructAppType*       struct_app_type(const StructAbsType* struct_abs_type, Types args) {
         return unify(new StructAppType(struct_abs_type, args));
     }

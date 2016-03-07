@@ -808,17 +808,17 @@ std::ostream& CCodeGen::emit(const Def* def) {
 
     if (auto lea = def->isa<LEA>()) {
         if (is_texture_type(lea->type())) { // handle texture fetches
-            emit_type(lea->referenced_type()) << " " << lea->unique_name() << ";" << endl;
+            emit_type(lea->ptr_referenced_type()) << " " << lea->unique_name() << ";" << endl;
             os << lea->unique_name() << " = tex1Dfetch(";
             emit(lea->ptr()) << ", ";
             emit(lea->index()) << ");";
         } else {
-            if (lea->referenced_type()->isa<TupleType>() || lea->referenced_type()->isa<StructAppType>()) {
+            if (lea->ptr_referenced_type()->isa<TupleType>() || lea->ptr_referenced_type()->isa<StructAppType>()) {
                 emit_type(lea->type()) << " " << lea->unique_name() << ";" << endl;
                 os << lea->unique_name() << " = &";
                 emit(lea->ptr()) << "->e";
                 emit(lea->index()) << ";";
-            } else if (lea->referenced_type()->isa<DefiniteArrayType>()) {
+            } else if (lea->ptr_referenced_type()->isa<DefiniteArrayType>()) {
                 emit_type(lea->type()) << " " << lea->unique_name() << ";" << endl;
                 os << lea->unique_name() << " = &";
                 emit(lea->ptr()) << "->e[";

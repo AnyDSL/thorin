@@ -363,7 +363,8 @@ public:
     const Def* ptr() const { return op(0); }
     const Def* index() const { return op(1); }
     const PtrType* type() const { return PrimOp::type()->as<PtrType>(); }
-    const Type* referenced_type() const { return type()->referenced_type(); }  ///< Returns the type referenced by @p ptr().
+    const PtrType* ptr_type() const { return ptr()->type()->as<PtrType>(); }           ///< Returns the PtrType from @p ptr().
+    const Type* ptr_referenced_type() const { return ptr_type()->referenced_type(); }  ///< Returns the type referenced by @p ptr().
 
     friend class World;
 };

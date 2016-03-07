@@ -44,7 +44,7 @@ private:
     template<bool forward>
     std::ostream& emit_cfnode(const CFG<forward>&, const CFNode*);
 
-    std::ostream& emit_type(Type type) { return stream() << type; }
+    std::ostream& emit_type(const Type* type) { return stream() << type; }
     std::ostream& emit_name(const Def* def) { return stream() << def; }
 
     template<typename T, typename U>

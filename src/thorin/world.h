@@ -46,47 +46,47 @@ private:
     World& operator = (const World&); ///< Do not copy-assign a @p World instance.
     World(const World&);              ///< Do not copy-construct a @p World.
 
-    struct TypeHash { uint64_t operator () (const TypeNode* t) const { return t->hash(); } };
-    struct TypeEqual { bool operator () (const TypeNode* t1, const TypeNode* t2) const { return t1->equal(t2); } };
+    struct TypeHash { uint64_t operator () (const Type* t) const { return t->hash(); } };
+    struct TypeEqual { bool operator () (const Type* t1, const Type* t2) const { return t1->equal(t2); } };
 
 public:
-    typedef HashSet<const PrimOp*, PrimOpHash, PrimOpEqual> PrimOps;
-    typedef HashSet<const TypeNode*, TypeHash, TypeEqual> Types;
+    typedef HashSet<const PrimOp*, PrimOpHash, PrimOpEqual> PrimOpSet;
+    typedef HashSet<const Type*, TypeHash, TypeEqual> TypeSet;
 
     World(std::string name = "");
     ~World();
 
     // types
 
-#define THORIN_ALL_TYPE(T, M) PrimType type_##T(size_t length = 1) { \
-    return length == 1 ? PrimType(T##_) : join(new PrimTypeNode(*this, PrimType_##T, length)); \
+#define THORIN_ALL_TYPE(T, M) const PrimType* type_##T(size_t length = 1) { \
+    return length == 1 ? T##_ : new PrimType(*this, PrimType_##T, length); \
 }
 #include "thorin/tables/primtypetable.h"
 
     /// Get PrimType.
-    PrimType    type(PrimTypeKind kind, size_t length = 1) {
+    const PrimType*    type(PrimTypeKind kind, size_t length = 1) {
         size_t i = kind - Begin_PrimType;
         assert(i < (size_t) Num_PrimTypes);
-        return length == 1 ? PrimType(primtypes_[i]) : join(new PrimTypeNode(*this, kind, length));
+        return length == 1 ? primtypes_[i] : unify(new PrimType(*this, kind, length));
     }
-    MemType     mem_type() const { return MemType(mem_); }
-    FrameType   frame_type() const { return FrameType(frame_); }
-    PtrType     ptr_type(Type referenced_type, size_t length = 1, int32_t device = -1, AddressSpace addr_space = AddressSpace::Generic) {
-        return join(new PtrTypeNode(*this, referenced_type, length, device, addr_space));
+    const MemType*     mem_type() const { return mem_; }
+    const FrameType*   frame_type() const { return frame_; }
+    const PtrType*     ptr_type(const Type* referenced_type, size_t length = 1, int32_t device = -1, AddressSpace addr_space = AddressSpace::Generic) {
+        return unify(new PtrType(*this, referenced_type, length, device, addr_space));
     }
-    TupleType           tuple_type() { return tuple0_; } ///< Returns unit, i.e., an empty @p TupleType.
-    TupleType           tuple_type(ArrayRef<Type> args) { return join(new TupleTypeNode(*this, args)); }
-    StructAbsType       struct_abs_type(size_t size, const std::string& name = "") {
-        return join(new StructAbsTypeNode(*this, size, name));
+    const TupleType*           tuple_type() { return tuple0_; } ///< Returns unit, i.e., an empty @p TupleType.
+    const TupleType*           tuple_type(Types args) { return unify(new TupleType(*this, args)); }
+    const StructAbsType*       struct_abs_type(size_t size, const std::string& name = "");
+    const StructAppType*       struct_app_type(const StructAbsType* struct_abs_type, Types args) {
+        return unify(new StructAppType(struct_abs_type, args));
     }
-    StructAppType       struct_app_type(StructAbsType struct_abs_type, ArrayRef<Type> args) {
-        return join(new StructAppTypeNode(struct_abs_type, args));
+    const FnType*              fn_type() { return fn0_; }       ///< Returns an empty @p FnType.
+    const FnType*              fn_type(Types args, size_t num_type_params = 0) {
+        return unify(new FnType(*this, args, num_type_params));
     }
-    FnType              fn_type() { return fn0_; }       ///< Returns an empty @p FnType.
-    FnType              fn_type(ArrayRef<Type> args) { return join(new FnTypeNode(*this, args)); }
-    TypeParam           type_param() { return join(new TypeParamNode(*this)); }
-    DefiniteArrayType   definite_array_type(Type elem, u64 dim) { return join(new DefiniteArrayTypeNode(*this, elem, dim)); }
-    IndefiniteArrayType indefinite_array_type(Type elem) { return join(new IndefiniteArrayTypeNode(*this, elem)); }
+    const TypeParam*           type_param(const std::string& name) { return unify(new TypeParam(*this, name)); }
+    const DefiniteArrayType*   definite_array_type(const Type* elem, u64 dim) { return unify(new DefiniteArrayType(*this, elem, dim)); }
+    const IndefiniteArrayType* indefinite_array_type(const Type* elem) { return unify(new IndefiniteArrayType(*this, elem)); }
 
     // literals
 
@@ -98,12 +98,12 @@ public:
     template<class T>
     const Def* literal(T value, const Location& loc, size_t length = 1) { return literal(type2kind<T>::kind, Box(value), loc, length); }
     const Def* zero(PrimTypeKind kind, const Location& loc, size_t length = 1) { return literal(kind, 0, loc, length); }
-    const Def* zero(Type type, const Location& loc, size_t length = 1) { return zero(type.as<PrimType>()->primtype_kind(), loc, length); }
+    const Def* zero(const Type* type, const Location& loc, size_t length = 1) { return zero(type->as<PrimType>()->primtype_kind(), loc, length); }
     const Def* one(PrimTypeKind kind, const Location& loc, size_t length = 1) { return literal(kind, 1, loc, length); }
-    const Def* one(Type type, const Location& loc, size_t length = 1) { return one(type.as<PrimType>()->primtype_kind(), loc, length); }
+    const Def* one(const Type* type, const Location& loc, size_t length = 1) { return one(type->as<PrimType>()->primtype_kind(), loc, length); }
     const Def* allset(PrimTypeKind kind, const Location& loc, size_t length = 1) { return literal(kind, -1, loc, length); }
-    const Def* allset(Type type, const Location& loc, size_t length = 1) { return allset(type.as<PrimType>()->primtype_kind(), loc, length); }
-    const Def* bottom(Type type, const Location& loc, size_t length = 1) { return splat(cse(new Bottom(type, loc, "")), length); }
+    const Def* allset(const Type* type, const Location& loc, size_t length = 1) { return allset(type->as<PrimType>()->primtype_kind(), loc, length); }
+    const Def* bottom(const Type* type, const Location& loc, size_t length = 1) { return splat(cse(new Bottom(type, loc, "")), length); }
     const Def* bottom(PrimTypeKind kind, const Location& loc, size_t length = 1) { return bottom(type(kind), loc, length); }
 
     // arithops
@@ -130,28 +130,28 @@ public:
 
     // casts
 
-    const Def* convert(Type to, const Def* from, const Location& loc, const std::string& name = "");
-    const Def* cast(Type to, const Def* from, const Location& loc, const std::string& name = "");
-    const Def* bitcast(Type to, const Def* from, const Location& loc, const std::string& name = "");
+    const Def* convert(const Type* to, const Def* from, const Location& loc, const std::string& name = "");
+    const Def* cast(const Type* to, const Def* from, const Location& loc, const std::string& name = "");
+    const Def* bitcast(const Type* to, const Def* from, const Location& loc, const std::string& name = "");
 
     // aggregate operations
 
-    const Def* definite_array(Type elem, ArrayRef<const Def*> args, const Location& loc, const std::string& name = "") {
+    const Def* definite_array(const Type* elem, Defs args, const Location& loc, const std::string& name = "") {
         return cse(new DefiniteArray(*this, elem, args, loc, name));
     }
     /// Create definite_array with at least one element. The type of that element is the element type of the definite array.
-    const Def* definite_array(ArrayRef<const Def*> args, const Location& loc, const std::string& name = "") {
+    const Def* definite_array(Defs args, const Location& loc, const std::string& name = "") {
         assert(!args.empty());
         return definite_array(args.front()->type(), args, loc, name);
     }
-    const Def* indefinite_array(Type elem, const Def* dim, const Location& loc, const std::string& name = "") {
+    const Def* indefinite_array(const Type* elem, const Def* dim, const Location& loc, const std::string& name = "") {
         return cse(new IndefiniteArray(*this, elem, dim, loc, name));
     }
-    const Def* struct_agg(StructAppType struct_app_type, ArrayRef<const Def*> args, const Location& loc, const std::string& name = "") {
+    const Def* struct_agg(const StructAppType* struct_app_type, Defs args, const Location& loc, const std::string& name = "") {
         return cse(new StructAgg(struct_app_type, args, loc, name));
     }
-    const Def* tuple(ArrayRef<const Def*> args, const Location& loc, const std::string& name = "") { return cse(new Tuple(*this, args, loc, name)); }
-    const Def* vector(ArrayRef<const Def*> args, const Location& loc, const std::string& name = "") {
+    const Def* tuple(Defs args, const Location& loc, const std::string& name = "") { return cse(new Tuple(*this, args, loc, name)); }
+    const Def* vector(Defs args, const Location& loc, const std::string& name = "") {
         if (args.size() == 1) return args[0];
         return cse(new Vector(*this, args, loc, name));
     }
@@ -173,9 +173,9 @@ public:
     const Def* load(const Def* mem, const Def* ptr, const Location& loc, const std::string& name = "");
     const Def* store(const Def* mem, const Def* ptr, const Def* val, const Location& loc, const std::string& name = "");
     const Def* enter(const Def* mem, const Location& loc, const std::string& name = "");
-    const Def* slot(Type type, const Def* frame, size_t index, const Location& loc, const std::string& name = "");
-    const Def* alloc(Type type, const Def* mem, const Def* extra, const Location& loc, const std::string& name = "");
-    const Def* alloc(Type type, const Def* mem, const Location& loc, const std::string& name = "") { return alloc(type, mem, literal_qu64(0, loc), loc, name); }
+    const Def* slot(const Type* type, const Def* frame, size_t index, const Location& loc, const std::string& name = "");
+    const Def* alloc(const Type* type, const Def* mem, const Def* extra, const Location& loc, const std::string& name = "");
+    const Def* alloc(const Type* type, const Def* mem, const Location& loc, const std::string& name = "") { return alloc(type, mem, literal_qu64(0, loc), loc, name); }
     const Def* global(const Def* init, const Location& loc, bool is_mutable = true, const std::string& name = "");
     const Def* global_immutable_string(const Location& loc, const std::string& str, const std::string& name = "");
     const Def* lea(const Def* ptr, const Def* index, const Location& loc, const std::string& name = "") { return cse(new LEA(ptr, index, loc, name)); }
@@ -187,8 +187,8 @@ public:
 
     // lambdas
 
-    Lambda* lambda(FnType fn, const Location& loc, CC cc = CC::C, Intrinsic intrinsic = Intrinsic::None, const std::string& name = "");
-    Lambda* lambda(FnType fn, const Location& loc, const std::string& name) { return lambda(fn, loc, CC::C, Intrinsic::None, name); }
+    Lambda* lambda(const FnType* fn, const Location& loc, CC cc = CC::C, Intrinsic intrinsic = Intrinsic::None, const std::string& name = "");
+    Lambda* lambda(const FnType* fn, const Location& loc, const std::string& name) { return lambda(fn, loc, CC::C, Intrinsic::None, name); }
     Lambda* lambda(const Location& loc, const std::string& name) { return lambda(fn_type(), loc, CC::C, Intrinsic::None, name); }
     Lambda* basicblock(const Location& loc, const std::string& name = "");
     Lambda* branch() const { return branch_; }
@@ -201,11 +201,11 @@ public:
     // getters
 
     const std::string& name() const { return name_; }
-    const PrimOps& primops() const { return primops_; }
+    const PrimOpSet& primops() const { return primops_; }
     const LambdaSet& lambdas() const { return lambdas_; }
     Array<Lambda*> copy_lambdas() const;
     const LambdaSet& externals() const { return externals_; }
-    const Types& types() const { return types_; }
+    const TypeSet& types() const { return types_; }
     bool empty() const { return lambdas().size() <= 2; } // TODO rework intrinsic stuff. 2 = branch + end_scope
 
     // other stuff
@@ -218,8 +218,6 @@ public:
     void breakpoint(size_t number) { breakpoints_.insert(number); }
     const HashSet<size_t>& breakpoints() const { return breakpoints_; }
 #endif
-    const TypeNode* unify_base(const TypeNode*);
-    template<class T> Proxy<T> unify(const T* type) { return Proxy<T>(unify_base(type)->template as<T>()); }
 
     // Note that we don't use overloading for the following methods in order to have them accessible from gdb.
     virtual std::ostream& stream(std::ostream&) const override; ///< Streams thorin to file @p out.
@@ -229,24 +227,20 @@ public:
 private:
     HashSet<Tracker*>& trackers(const Def* def) { assert(def); return trackers_[def]; }
 
-    const TypeNode* register_base(const TypeNode* type) {
-        garbage_.push_back(type);
-        return type;
-    }
-    template<class T> Proxy<T> join(const T* t) { return Proxy<T>(register_base(t)->template as<T>()); }
     const Def* cse_base(const PrimOp*);
+    const Type* unify_base(const Type*);
     template<class T> const T* cse(const T* primop) { return cse_base(primop)->template as<T>(); }
+    template<class T> const T* unify(const T* type) { return unify_base(type)->template as<T>(); }
 
-    const Param* param(Type type, Lambda* lambda, size_t index, const std::string& name = "");
+    const Param* param(const Type* type, Lambda* lambda, size_t index, const std::string& name = "");
 
     std::string name_;
     LambdaSet lambdas_;
     LambdaSet externals_;
-    PrimOps primops_;
+    PrimOpSet primops_;
     DefMap<HashSet<Tracker*>> trackers_;
 
-    Types types_;
-    std::vector<const TypeNode*> garbage_;
+    TypeSet types_;
 #ifndef NDEBUG
     HashSet<size_t> breakpoints_;
 #endif
@@ -255,27 +249,28 @@ private:
 
     union {
         struct {
-            const TupleTypeNode* tuple0_;///< tuple().
-            const FnTypeNode*    fn0_;   ///< fn().
-            const MemTypeNode*   mem_;
-            const FrameTypeNode* frame_;
+            const TupleType* tuple0_;///< tuple().
+            const FnType*    fn0_;   ///< fn().
+            const MemType*   mem_;
+            const FrameType* frame_;
 
             union {
                 struct {
-#define THORIN_ALL_TYPE(T, M) const PrimTypeNode* T##_;
+#define THORIN_ALL_TYPE(T, M) const PrimType* T##_;
 #include "thorin/tables/primtypetable.h"
                 };
 
-                const PrimTypeNode* primtypes_[Num_PrimTypes];
+                const PrimType* primtypes_[Num_PrimTypes];
             };
         };
 
-        const TypeNode* keep_[Num_PrimTypes + 4];
+        const Type* keep_[Num_PrimTypes + 4];
     };
 
     friend class Cleaner;
     friend class Lambda;
     friend class Tracker;
+    friend class Type;
     friend void Def::replace(const Def*) const;
 };
 

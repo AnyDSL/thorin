@@ -156,11 +156,8 @@ World& Def::world() const { return type()->world(); }
 Lambda* Def::as_lambda() const { return const_cast<Lambda*>(scast<Lambda>(this)); }
 Lambda* Def::isa_lambda() const { return const_cast<Lambda*>(dcast<Lambda>(this)); }
 int Def::order() const { return type()->order(); }
-size_t Def::length() const { return type().as<VectorType>()->length(); }
+size_t Def::length() const { return type()->as<VectorType>()->length(); }
 std::ostream& Def::stream(std::ostream& out) const { return out << unique_name(); }
-
-std::ostream& operator << (std::ostream& os, const Def* def) { return def->stream(os); }
-std::ostream& operator << (std::ostream& os, Use use) { return use->stream(os); }
 
 HashSet<Tracker*>& Tracker::trackers(const Def* def) { return def->world().trackers_[def]; }
 

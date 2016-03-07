@@ -40,11 +40,11 @@ namespace thorin {
 
 World::World(std::string name)
     : name_(name)
-    , tuple0_ (*unify(*join(new TupleTypeNode(*this, ArrayRef<Type>()))))
-    , fn0_    (*unify(*join(new FnTypeNode   (*this, ArrayRef<Type>()))))
-    , mem_    (*unify(*join(new MemTypeNode  (*this))))
-    , frame_  (*unify(*join(new FrameTypeNode(*this))))
-#define THORIN_ALL_TYPE(T, M) ,T##_(*unify(*join(new PrimTypeNode(*this, PrimType_##T, 1))))
+    , tuple0_ (unify(new TupleType(*this, Types())))
+    , fn0_    (unify(new FnType   (*this, Types(), 0)))
+    , mem_    (unify(new MemType  (*this)))
+    , frame_  (unify(new FrameType(*this)))
+#define THORIN_ALL_TYPE(T, M) ,T##_(unify(new PrimType(*this, PrimType_##T, 1)))
 #include "thorin/tables/primtypetable.h"
 {
     branch_ = lambda(fn_type({type_bool(), fn_type(), fn_type()}), Location(), CC::C, Intrinsic::Branch, "br");
@@ -52,15 +52,28 @@ World::World(std::string name)
 }
 
 World::~World() {
-    for (auto primop : primops_) delete primop;
     for (auto lambda : lambdas_) delete lambda;
-    for (auto type   : garbage_) delete type;
+    for (auto primop : primops_) delete primop;
+    for (auto type   : types_)   delete type;
 }
 
 Array<Lambda*> World::copy_lambdas() const {
     Array<Lambda*> result(lambdas().size());
     std::copy(lambdas().begin(), lambdas().end(), result.begin());
     return result;
+}
+
+/*
+ * types
+ */
+
+const StructAbsType* World::struct_abs_type(size_t size, const std::string& name) {
+    auto struct_abs_type = new StructAbsType(*this, size, name);
+    // just put it into the types_ set due to nominal typing
+    auto p = types_.insert(struct_abs_type);
+    assert_unused(p.second && "hash/equal broken");
+    struct_abs_type->hashed_ = true;
+    return struct_abs_type;
 }
 
 /*
@@ -103,8 +116,8 @@ const Def* World::binop(int kind, const Def* lhs, const Def* rhs, const Location
 
 const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const Location& loc, const std::string& name) {
     assert(a->type() == b->type());
-    assert(a->type().as<PrimType>()->length() == b->type().as<PrimType>()->length());
-    PrimTypeKind type = a->type().as<PrimType>()->primtype_kind();
+    assert(a->type()->as<PrimType>()->length() == b->type()->as<PrimType>()->length());
+    PrimTypeKind type = a->type()->as<PrimType>()->primtype_kind();
 
     auto llit = a->isa<PrimLit>();
     auto rlit = b->isa<PrimLit>();
@@ -112,7 +125,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const Lo
     auto rvec = b->isa<Vector>();
 
     if (lvec && rvec) {
-        size_t num = lvec->type().as<PrimType>()->length();
+        size_t num = lvec->type()->as<PrimType>()->length();
         Array<const Def*> ops(num);
         for (size_t i = 0; i != num; ++i)
             ops[i] = arithop(kind, lvec->op(i), rvec->op(i), loc);
@@ -392,7 +405,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const Lo
 const Def* World::arithop_not(const Def* def, const Location& loc) { return arithop_xor(allset(def->type(), loc, def->length()), def, loc); }
 
 const Def* World::arithop_minus(const Def* def, const Location& loc) {
-    switch (PrimTypeKind kind = def->type().as<PrimType>()->primtype_kind()) {
+    switch (PrimTypeKind kind = def->type()->as<PrimType>()->primtype_kind()) {
 #define THORIN_F_TYPE(T, M) \
         case PrimType_##T: \
             return arithop_sub(literal_##T(-0.f, loc, def->length()), def, loc);
@@ -424,7 +437,7 @@ const Def* World::cmp(CmpKind kind, const Def* a, const Def* b, const Location& 
     auto  rvec = b->isa<Vector>();
 
     if (lvec && rvec) {
-        size_t num = lvec->type().as<PrimType>()->length();
+        size_t num = lvec->type()->as<PrimType>()->length();
         Array<const Def*> ops(num);
         for (size_t i = 0; i != num; ++i)
             ops[i] = cmp(kind, lvec->op(i), rvec->op(i), loc);
@@ -479,16 +492,16 @@ const Def* World::cmp(CmpKind kind, const Def* a, const Def* b, const Location& 
  * casts
  */
 
-const Def* World::convert(Type to, const Def* from, const Location& loc, const std::string& name) {
-    if (from->type().isa<PtrType>() && to.isa<PtrType>())
+const Def* World::convert(const Type* to, const Def* from, const Location& loc, const std::string& name) {
+    if (from->type()->isa<PtrType>() && to->isa<PtrType>())
         return bitcast(to, from, loc, name);
     return cast(to, from, loc, name);
 }
 
-const Def* World::cast(Type to, const Def* from, const Location& loc, const std::string& name) {
+const Def* World::cast(const Type* to, const Def* from, const Location& loc, const std::string& name) {
     if (auto vec = from->isa<Vector>()) {
         size_t num = vec->length();
-        auto to_vec = to.as<VectorType>();
+        auto to_vec = to->as<VectorType>();
         Array<const Def*> ops(num);
         for (size_t i = 0; i != num; ++i)
             ops[i] = cast(to_vec->scalarize(), vec->op(i), loc);
@@ -496,7 +509,7 @@ const Def* World::cast(Type to, const Def* from, const Location& loc, const std:
     }
 
     auto lit = from->isa<PrimLit>();
-    auto to_type = to.isa<PrimType>();
+    auto to_type = to->isa<PrimType>();
     if (lit && to_type) {
         Box box = lit->value();
 
@@ -572,7 +585,7 @@ const Def* World::cast(Type to, const Def* from, const Location& loc, const std:
     return cse(new Cast(to, from, loc, name));
 }
 
-const Def* World::bitcast(Type to, const Def* from, const Location& loc, const std::string& name) {
+const Def* World::bitcast(const Type* to, const Def* from, const Location& loc, const std::string& name) {
     if (auto other = from->isa<Bitcast>()) {
         if (to == other->type())
             return other;
@@ -580,7 +593,7 @@ const Def* World::bitcast(Type to, const Def* from, const Location& loc, const s
 
     if (auto vec = from->isa<Vector>()) {
         size_t num = vec->length();
-        auto to_vec = to.as<VectorType>();
+        auto to_vec = to->as<VectorType>();
         Array<const Def*> ops(num);
         for (size_t i = 0; i != num; ++i)
             ops[i] = bitcast(to_vec->scalarize(), vec->op(i), loc);
@@ -594,7 +607,6 @@ const Def* World::bitcast(Type to, const Def* from, const Location& loc, const s
 /*
  * aggregate operations
  */
-
 
 template<class T>
 const Def* World::extract(const Def* agg, const T* index, const Location& loc, const std::string& name) {
@@ -638,17 +650,17 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, con
             return agg;
 
         // build aggregate container and fill with bottom
-        if (auto definite_array_type = agg->type().isa<DefiniteArrayType>()) {
+        if (auto definite_array_type = agg->type()->isa<DefiniteArrayType>()) {
             Array<const Def*> args(definite_array_type->dim());
             std::fill(args.begin(), args.end(), bottom(definite_array_type->elem_type(), loc));
             agg = definite_array(args, loc, agg->name);
-        } else if (auto tuple_type = agg->type().isa<TupleType>()) {
+        } else if (auto tuple_type = agg->type()->isa<TupleType>()) {
             Array<const Def*> args(tuple_type->num_args());
             size_t i = 0;
             for (auto type : tuple_type->args())
                 args[i++] = bottom(type, loc);
             agg = tuple(args, loc, agg->name);
-        } else if (auto struct_app_type = agg->type().isa<StructAppType>()) {
+        } else if (auto struct_app_type = agg->type()->isa<StructAppType>()) {
             Array<const Def*> args(struct_app_type->num_elems());
             size_t i = 0;
             for (auto type : struct_app_type->elems())
@@ -724,7 +736,7 @@ const Def* World::store(const Def* mem, const Def* ptr, const Def* value, const 
     }
 
     if (auto insert = value->isa<Insert>()) {
-        if (ptr->type().as<PtrType>()->referenced_type()->use_lea()) {
+        if (ptr->type()->as<PtrType>()->referenced_type()->use_lea()) {
             auto peeled_store = store(mem, ptr, insert->agg(), loc);
             return store(peeled_store, lea(ptr, insert->index(), insert->loc(), insert->name), insert->value(), loc, name);
         }
@@ -739,11 +751,11 @@ const Def* World::enter(const Def* mem, const Location& loc, const std::string& 
     return cse(new Enter(mem, loc, name));
 }
 
-const Def* World::slot(Type type, const Def* frame, size_t index, const Location& loc, const std::string& name) {
+const Def* World::slot(const Type* type, const Def* frame, size_t index, const Location& loc, const std::string& name) {
     return cse(new Slot(type, frame, index, loc, name));
 }
 
-const Def* World::alloc(Type type, const Def* mem, const Def* extra, const Location& loc, const std::string& name) {
+const Def* World::alloc(const Type* type, const Def* mem, const Def* extra, const Location& loc, const std::string& name) {
     return cse(new Alloc(type, mem, extra, loc, name));
 }
 
@@ -782,7 +794,7 @@ const Def* World::hlt(const Def* def, const Location& loc, const std::string& na
  * lambdas
  */
 
-Lambda* World::lambda(FnType fn, const Location& loc, CC cc, Intrinsic intrinsic, const std::string& name) {
+Lambda* World::lambda(const FnType* fn, const Location& loc, CC cc, Intrinsic intrinsic, const std::string& name) {
     auto l = new Lambda(fn, loc, cc, intrinsic, true, name);
     THORIN_CHECK_BREAK(l->gid());
     lambdas_.insert(l);
@@ -803,7 +815,7 @@ Lambda* World::basicblock(const Location& loc, const std::string& name) {
     return bb;
 }
 
-const Param* World::param(Type type, Lambda* lambda, size_t index, const std::string& name) {
+const Param* World::param(const Type* type, Lambda* lambda, size_t index, const std::string& name) {
     auto param = new Param(type, lambda, index, lambda->loc(), name);
     THORIN_CHECK_BREAK(param->gid());
     return param;
@@ -813,22 +825,26 @@ const Param* World::param(Type type, Lambda* lambda, size_t index, const std::st
  * cse + unify
  */
 
-const TypeNode* World::unify_base(const TypeNode* type) {
-    assert(type->is_closed());
-    if (type->is_unified())
-        return type->representative();
+const Type* World::unify_base(const Type* type) {
+    if (type->is_hashed() || !type->is_closed())
+        return type;
+
+    for (auto& arg : const_cast<Type*>(type)->args_)
+        arg = unify_base(arg);
 
     auto i = types_.find(type);
     if (i != types_.end()) {
-        auto representative = *i;
-        type->representative_ = representative;
-        return representative;
-    } else {
-        const auto& p = types_.insert(type);
-        assert_unused(p.second && "hash/equal broken");
-        type->representative_ = type;
+        delete type;
+        type = *i;
+        assert(type->is_hashed());
         return type;
     }
+
+    const auto& p = types_.insert(type);
+    assert_unused(p.second && "hash/equal broken");
+    assert(!type->is_hashed());
+    type->hashed_ = true;
+    return type;
 }
 
 const Def* World::cse_base(const PrimOp* primop) {
@@ -837,12 +853,11 @@ const Def* World::cse_base(const PrimOp* primop) {
     if (i != primops_.end()) {
         primop->unregister_uses();
         delete primop;
-        primop = *i;
-    } else {
-        const auto& p = primops_.insert(primop);
-        assert_unused(p.second && "hash/equal broken");
+        return *i;
     }
 
+    const auto& p = primops_.insert(primop);
+    assert_unused(p.second && "hash/equal broken");
     return primop;
 }
 

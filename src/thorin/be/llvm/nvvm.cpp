@@ -41,16 +41,16 @@ NVVMCodeGen::NVVMCodeGen(World& world)
 //------------------------------------------------------------------------------
 
 static AddressSpace resolve_addr_space(const Def* def) {
-    if (auto ptr = def->type().isa<PtrType>())
+    if (auto ptr = def->type()->isa<PtrType>())
         return ptr->addr_space();
     return AddressSpace::Generic;
 }
 
 llvm::FunctionType* NVVMCodeGen::convert_fn_type(Lambda* lambda) {
     // skip non-global address-space parameters
-    std::vector<Type> types;
+    std::vector<const Type*> types;
     for (auto type : lambda->type()->args()) {
-        if (auto ptr = type.isa<PtrType>())
+        if (auto ptr = type->isa<PtrType>())
             if (ptr->addr_space() == AddressSpace::Texture)
                 continue;
         types.push_back(type);
@@ -70,7 +70,7 @@ void NVVMCodeGen::emit_function_decl_hook(Lambda* lambda, llvm::Function* f) {
     };
 
     const auto emit_texture_kernel_arg = [&](const Param* param) {
-        assert(param->type().as<PtrType>()->addr_space() == AddressSpace::Texture);
+        assert(param->type()->as<PtrType>()->addr_space() == AddressSpace::Texture);
         auto global = emit_global_variable(irbuilder_.getInt64Ty(), param->name, 1);
         metadata_[param] = append_metadata(global, "texture");
     };
@@ -79,7 +79,7 @@ void NVVMCodeGen::emit_function_decl_hook(Lambda* lambda, llvm::Function* f) {
 
     // check signature for texturing memory
     for (auto param : lambda->params()) {
-        if (auto ptr = param->type().isa<PtrType>()) {
+        if (auto ptr = param->type()->isa<PtrType>()) {
             switch (ptr->addr_space()) {
                 case AddressSpace::Texture:
                     emit_texture_kernel_arg(param);
@@ -142,10 +142,10 @@ llvm::Value* NVVMCodeGen::emit_store(const Store* store) {
     return CodeGen::emit_store(store);
 }
 
-static std::string get_texture_fetch_command(Type type) {
+static std::string get_texture_fetch_command(const Type* type) {
     std::stringstream fun_str;
     fun_str << "tex.1d.v4.";
-    switch (type.as<PrimType>()->primtype_kind()) {
+    switch (type->as<PrimType>()->primtype_kind()) {
         case PrimType_ps8:  case PrimType_qs8:
         case PrimType_pu8:  case PrimType_qu8:  fun_str << "s8";  break;
         case PrimType_ps16: case PrimType_qs16:
@@ -164,10 +164,10 @@ static std::string get_texture_fetch_command(Type type) {
     return fun_str.str();
 }
 
-static std::string get_texture_fetch_constraint(Type type) {
+static std::string get_texture_fetch_constraint(const Type* type) {
     std::stringstream constraint_str;
     char c;
-    switch (type.as<PrimType>()->primtype_kind()) {
+    switch (type->as<PrimType>()->primtype_kind()) {
         case PrimType_ps8:  case PrimType_qs8:
         case PrimType_pu8:  case PrimType_qu8:  c = 'c'; break;
         case PrimType_ps16: case PrimType_qs16:

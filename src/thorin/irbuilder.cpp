@@ -15,12 +15,12 @@ Var Var::create_val(IRBuilder& builder, const Def* val) {
     return result;
 }
 
-Var Var::create_mut(IRBuilder& builder, size_t handle, Type type, const char* name) {
+Var Var::create_mut(IRBuilder& builder, size_t handle, const Type* type, const char* name) {
     Var result;
     result.kind_    = MutableValRef;
     result.builder_ = &builder;
     result.handle_  = handle;
-    result.type_    = *type;
+    result.type_    = type;
     result.name_    = name;
     return result;
 }
@@ -47,14 +47,14 @@ Var Var::create_agg(Var var, const Def* offset) {
 
 bool Var::use_lea() const {
     if (kind() == PtrRef)
-        return def()->type().as<PtrType>()->referenced_type()->use_lea();
+        return def()->type()->as<PtrType>()->referenced_type()->use_lea();
     return false;
 }
 
 const Def* Var::load(const Location& loc) const {
     switch (kind()) {
         case ImmutableValRef: return def_;
-        case MutableValRef:   return builder_->cur_bb->get_value(handle_, Type(type_), name_);
+        case MutableValRef:   return builder_->cur_bb->get_value(handle_,type_, name_);
         case PtrRef:          return builder_->load(def_, loc);
         case AggRef:          return builder_->extract(var_->load(loc), def_, loc);
         default: THORIN_UNREACHABLE;
@@ -122,9 +122,9 @@ Lambda* IRBuilder::lambda(const Location& loc, const std::string& name) {
     return lambda(world().fn_type(), loc, CC::C, Intrinsic::None, name);
 }
 
-Lambda* IRBuilder::lambda(FnType fn, const Location& loc, CC cc, Intrinsic intrinsic, const std::string& name) {
+Lambda* IRBuilder::lambda(const FnType* fn, const Location& loc, CC cc, Intrinsic intrinsic, const std::string& name) {
     auto l = world().lambda(fn, loc, cc, intrinsic, name);
-    if (fn->num_args() >= 1 && fn->args().front().isa<MemType>()) {
+    if (fn->num_args() >= 1 && fn->args().front()->isa<MemType>()) {
         auto param = l->params().front();
         l->set_mem(param);
         if (param->name.empty())
@@ -156,7 +156,7 @@ void IRBuilder::branch(const Def* cond, JumpTarget& t, JumpTarget& f, const Loca
     }
 }
 
-const Def* IRBuilder::call(const Def* to, ArrayRef<Type> type_args, ArrayRef<const Def*> args, Type ret_type, const Location& loc) {
+const Def* IRBuilder::call(const Def* to, Types type_args, Defs args, const Type* ret_type, const Location& loc) {
     if (is_reachable()) {
         auto p = cur_bb->call(to, type_args, args, ret_type, loc);
         cur_bb = p.first;
@@ -174,7 +174,7 @@ const Def* IRBuilder::create_frame(const Location& loc) {
     return world().extract(enter, 1, loc);
 }
 
-const Def* IRBuilder::alloc(Type type, const Def* extra, const Location& loc, const std::string& name) {
+const Def* IRBuilder::alloc(const Type* type, const Def* extra, const Location& loc, const std::string& name) {
     if (!extra)
         extra = world().literal_qu64(0, loc);
     auto alloc = world().alloc(type, get_mem(), extra, loc, name);

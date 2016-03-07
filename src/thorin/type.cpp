@@ -16,17 +16,18 @@ size_t Type::gid_counter_ = 1;
 
 const Type* Type::close(ArrayRef<const TypeParam*> type_params) const {
     assert(THORIN_IMPLIES(is_closed(), type_params.empty()));
+    assert(num_type_params() == type_params.size());
 
     if (type_params.empty())
         return this;
 
     assert(!is_closed());
-    type_params_.resize(type_params.size());
-    for (size_t i = 0, e = type_params.size(); i != e; ++i) {
+    for (size_t i = 0, e = num_type_params(); i != e; ++i) {
         assert(!type_params[i]->is_closed());
         type_params_[i] = type_params[i];
         type_params_[i]->binder_ = this;
         type_params_[i]->closed_ = true;
+        type_params_[i]->index_ = i;
     }
 
     std::stack<const Type*> stack;
@@ -163,14 +164,6 @@ const IndefiniteArrayType* Type::is_indefinite() const {
 
 const IndefiniteArrayType* IndefiniteArrayType::is_indefinite() const { return this; }
 
-bool Type::is_concrete() const {
-    for (auto arg : args()) {
-        if (!arg->is_concrete())
-            return false;
-    }
-    return true;
-}
-
 //------------------------------------------------------------------------------
 
 /*
@@ -186,6 +179,11 @@ uint64_t Type::vhash() const {
 
 uint64_t PtrType::vhash() const {
     return hash_combine(hash_combine(VectorType::vhash(), (uint64_t)device()), (uint64_t)addr_space());
+}
+
+uint64_t TypeParam::vhash() const {
+    auto seed = hash_combine(hash_combine(hash_begin(int(kind())), index()), int(binder()->kind()));
+    return hash_combine(hash_combine(seed, binder()->num_type_params()), binder()->num_args());
 }
 
 //------------------------------------------------------------------------------
@@ -207,15 +205,15 @@ bool Type::equal(const Type* other) const {
         for (size_t i = 0, e = num_args(); result && i != e; ++i)
             result &= this->args_[i]->equal(other->args_[i]);
 
-        for (auto var : type_params())
-            var->equiv_ = nullptr;
+        for (auto type_param : type_params())
+            type_param->equiv_ = nullptr;
     }
 
     return result;
 }
 
 bool PtrType::equal(const Type* other) const {
-    if(!VectorType::equal(other))
+    if (!VectorType::equal(other))
         return false;
     auto ptr = other->as<PtrType>();
     return ptr->device() == device() && ptr->addr_space() == addr_space();

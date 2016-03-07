@@ -41,7 +41,7 @@ namespace thorin {
 World::World(std::string name)
     : name_(name)
     , tuple0_ (unify(new TupleType(*this, Types())))
-    , fn0_    (unify(new FnType   (*this, Types())))
+    , fn0_    (unify(new FnType   (*this, Types(), 0)))
     , mem_    (unify(new MemType  (*this)))
     , frame_  (unify(new FrameType(*this)))
 #define THORIN_ALL_TYPE(T, M) ,T##_(unify(new PrimType(*this, PrimType_##T, 1)))

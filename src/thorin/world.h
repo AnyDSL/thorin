@@ -81,7 +81,9 @@ public:
         return unify(new StructAppType(struct_abs_type, args));
     }
     const FnType*              fn_type() { return fn0_; }       ///< Returns an empty @p FnType.
-    const FnType*              fn_type(Types args) { return unify(new FnType(*this, args)); }
+    const FnType*              fn_type(Types args, size_t num_type_params = 0) {
+        return unify(new FnType(*this, args, num_type_params));
+    }
     const TypeParam*           type_param(const std::string& name) { return unify(new TypeParam(*this, name)); }
     const DefiniteArrayType*   definite_array_type(const Type* elem, u64 dim) { return unify(new DefiniteArrayType(*this, elem, dim)); }
     const IndefiniteArrayType* indefinite_array_type(const Type* elem) { return unify(new IndefiniteArrayType(*this, elem)); }

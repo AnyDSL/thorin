@@ -824,12 +824,12 @@ const Type* World::unify_base(const Type* type) {
     if (i != types_.end()) {
         delete type;
         type = *i;
-        type->hashed_ = true;
         return type;
     }
 
     const auto& p = types_.insert(type);
     assert_unused(p.second && "hash/equal broken");
+    type->hashed_ = true;
     return type;
 }
 

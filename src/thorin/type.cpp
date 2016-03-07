@@ -39,6 +39,7 @@ const Type* Type::close(ArrayRef<const TypeParam*> type_params) const {
 
     push(this);
 
+    // TODO this is potentially quadratic when closing n types
     while (!stack.empty()) {
         auto type = stack.top();
 

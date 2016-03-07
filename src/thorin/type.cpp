@@ -30,6 +30,7 @@ const Type* Type::close(ArrayRef<const TypeParam*> type_params) const {
 
     auto push = [&](const Type* type) {
         if (!type->is_closed() && !done.contains(type) && !type->isa<TypeParam>()) {
+            done.insert(type);
             stack.push(type);
             return true;
         }

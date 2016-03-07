@@ -29,7 +29,7 @@ const Type* Type::close(ArrayRef<const TypeParam*> type_params) const {
     TypeSet done;
 
     auto push = [&](const Type* type) {
-        if (!type->is_closed() && !done.contains(type)) {
+        if (!type->is_closed() && !done.contains(type) && !type->isa<TypeParam>()) {
             stack.push(type);
             return true;
         }

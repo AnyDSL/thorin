@@ -15,13 +15,8 @@ namespace thorin {
 size_t Type::gid_counter_ = 1;
 
 const Type* Type::close(ArrayRef<const TypeParam*> type_params) const {
-    assert(THORIN_IMPLIES(is_closed(), type_params.empty()));
     assert(num_type_params() == type_params.size());
 
-    if (type_params.empty())
-        return this;
-
-    assert(!is_closed());
     for (size_t i = 0, e = num_type_params(); i != e; ++i) {
         assert(!type_params[i]->is_closed());
         type_params_[i] = type_params[i];

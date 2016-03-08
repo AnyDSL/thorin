@@ -894,17 +894,16 @@ llvm::Type* CodeGen::convert(const Type* type) {
         case PrimType_pf64: case PrimType_qf64:                                         llvm_type = irbuilder_.getDoubleTy();break;
         case Node_PtrType: {
             auto ptr = type->as<PtrType>();
-            unsigned address_space;
+            unsigned addr_space;
             switch (ptr->addr_space()) {
-                case AddressSpace::Generic:  address_space = 0; break;
-                case AddressSpace::Global:   address_space = 1; break;
-                case AddressSpace::Texture:  address_space = 2; break;
-                case AddressSpace::Shared:   address_space = 3; break;
-                case AddressSpace::Constant: address_space = 4; break;
-                default:
-                    THORIN_UNREACHABLE;
+                case AddrSpace::Generic:  addr_space = 0; break;
+                case AddrSpace::Global:   addr_space = 1; break;
+                case AddrSpace::Texture:  addr_space = 2; break;
+                case AddrSpace::Shared:   addr_space = 3; break;
+                case AddrSpace::Constant: addr_space = 4; break;
+                default:                  THORIN_UNREACHABLE;
             }
-            llvm_type = llvm::PointerType::get(convert(ptr->referenced_type()), address_space);
+            llvm_type = llvm::PointerType::get(convert(ptr->referenced_type()), addr_space);
             break;
         }
         case Node_IndefiniteArrayType:

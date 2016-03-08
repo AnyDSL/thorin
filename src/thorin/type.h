@@ -211,7 +211,7 @@ private:
     friend class World;
 };
 
-enum class AddressSpace : uint32_t {
+enum class AddrSpace : uint32_t {
     Generic  = 0,
     Global   = 1,
     Texture  = 2,
@@ -222,7 +222,7 @@ enum class AddressSpace : uint32_t {
 /// Pointer type.
 class PtrType : public VectorType {
 private:
-    PtrType(World& world, const Type* referenced_type, size_t length, int32_t device, AddressSpace addr_space)
+    PtrType(World& world, const Type* referenced_type, size_t length, int32_t device, AddrSpace addr_space)
         : VectorType(world, Node_PtrType, {referenced_type}, length)
         , addr_space_(addr_space)
         , device_(device)
@@ -230,7 +230,7 @@ private:
 
 public:
     const Type* referenced_type() const { return arg(0); }
-    AddressSpace addr_space() const { return addr_space_; }
+    AddrSpace addr_space() const { return addr_space_; }
     int32_t device() const { return device_; }
     bool is_host_device() const { return device_ == -1; }
 
@@ -243,7 +243,7 @@ private:
     virtual const Type* vrebuild(World& to, Types args) const override;
     virtual const Type* vinstantiate(Type2Type&) const override;
 
-    AddressSpace addr_space_;
+    AddrSpace addr_space_;
     int32_t device_;
 
     friend class World;

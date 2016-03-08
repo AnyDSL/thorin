@@ -60,9 +60,9 @@ std::ostream& CCodeGen::emit_addr_space(const Type* type) {
         if (lang_==Lang::OPENCL) {
             switch (ptr->addr_space()) {
                 default:
-                case AddressSpace::Generic:                   break;
-                case AddressSpace::Global: os << "__global "; break;
-                case AddressSpace::Shared: os << "__local ";  break;
+                case AddrSpace::Generic:                   break;
+                case AddrSpace::Global: os << "__global "; break;
+                case AddrSpace::Shared: os << "__local ";  break;
             }
         }
     }
@@ -886,7 +886,7 @@ std::ostream& CCodeGen::insert(size_t gid, std::string str) {
 
 bool CCodeGen::is_texture_type(const Type* type) {
     if (auto ptr = type->isa<PtrType>()) {
-        if (ptr->addr_space()==AddressSpace::Texture) {
+        if (ptr->addr_space()==AddrSpace::Texture) {
             assert(lang_==Lang::CUDA && "Textures currently only supported in CUDA");
             return true;
         }

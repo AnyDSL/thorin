@@ -288,10 +288,10 @@ std::ostream& PtrType::stream(std::ostream& os) const {
     if (device() != -1)
         os << '[' << device() << ']';
     switch (addr_space()) {
-        case AddressSpace::Global:   os << "[Global]";   break;
-        case AddressSpace::Texture:  os << "[Tex]";      break;
-        case AddressSpace::Shared:   os << "[Shared]";   break;
-        case AddressSpace::Constant: os << "[Constant]"; break;
+        case AddrSpace::Global:   os << "[Global]";   break;
+        case AddrSpace::Texture:  os << "[Tex]";      break;
+        case AddrSpace::Shared:   os << "[Shared]";   break;
+        case AddrSpace::Constant: os << "[Constant]"; break;
         default: /* ignore unknown address space */      break;
     }
     return os;

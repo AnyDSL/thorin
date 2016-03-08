@@ -71,7 +71,7 @@ public:
     }
     const MemType*     mem_type() const { return mem_; }
     const FrameType*   frame_type() const { return frame_; }
-    const PtrType*     ptr_type(const Type* referenced_type, size_t length = 1, int32_t device = -1, AddressSpace addr_space = AddressSpace::Generic) {
+    const PtrType*     ptr_type(const Type* referenced_type, size_t length = 1, int32_t device = -1, AddrSpace addr_space = AddrSpace::Generic) {
         return unify(new PtrType(*this, referenced_type, length, device, addr_space));
     }
     const TupleType*           tuple_type() { return tuple0_; } ///< Returns unit, i.e., an empty @p TupleType.

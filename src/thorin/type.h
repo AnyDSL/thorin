@@ -22,15 +22,10 @@ struct GIDHash {
     uint64_t operator()(T n) const { return n->gid(); }
 };
 
-template<class T>
-struct GIDEq {
-    bool operator()(T n1, T n2) const { return n1->gid() == n2->gid(); }
-};
-
 template<class Key, class Value>
-using GIDMap    = HashMap<const Key*, Value, GIDHash<const Key*>, GIDEq<const Key*>>;
+using GIDMap    = HashMap<const Key*, Value, GIDHash<const Key*>>;
 template<class Key>
-using GIDSet    = HashSet<const Key*, GIDHash<const Key*>, GIDEq<const Key*>>;
+using GIDSet    = HashSet<const Key*, GIDHash<const Key*>>;
 
 template<class To>
 using TypeMap      = GIDMap<Type, To>;

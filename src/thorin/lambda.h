@@ -338,8 +338,8 @@ void clear_value_numbering_table(World&);
 //------------------------------------------------------------------------------
 
 template<class To>
-using LambdaMap     = HashMap<Lambda*, To, GIDHash<Lambda*>, GIDEq<Lambda*>>;
-using LambdaSet     = HashSet<Lambda*, GIDHash<Lambda*>, GIDEq<Lambda*>>;
+using LambdaMap     = HashMap<Lambda*, To, GIDHash<Lambda*>>;
+using LambdaSet     = HashSet<Lambda*, GIDHash<Lambda*>>;
 using Lambda2Lambda = LambdaMap<Lambda*>;
 
 //------------------------------------------------------------------------------

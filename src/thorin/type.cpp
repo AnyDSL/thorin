@@ -168,19 +168,18 @@ const IndefiniteArrayType* IndefiniteArrayType::is_indefinite() const { return t
  */
 
 uint64_t Type::vhash() const {
-    uint64_t seed = hash_combine(hash_combine(hash_begin((int) kind()), num_args()), num_type_params());
+    uint64_t seed = hash_combine(hash_begin((int) kind()), num_args(), num_type_params());
     for (auto arg : args_)
         seed = hash_combine(seed, arg->hash());
     return seed;
 }
 
 uint64_t PtrType::vhash() const {
-    return hash_combine(hash_combine(VectorType::vhash(), (uint64_t)device()), (uint64_t)addr_space());
+    return hash_combine(VectorType::vhash(), (uint64_t)device()), (uint64_t)addr_space();
 }
 
 uint64_t TypeParam::vhash() const {
-    auto seed = hash_combine(hash_combine(hash_begin(int(kind())), index()), int(binder()->kind()));
-    return hash_combine(hash_combine(seed, binder()->num_type_params()), binder()->num_args());
+    return hash_combine(hash_begin(int(kind())), index(), int(binder()->kind()), binder()->num_type_params(), binder()->num_args());
 }
 
 //------------------------------------------------------------------------------

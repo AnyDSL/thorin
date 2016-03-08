@@ -118,7 +118,7 @@ Enter::Enter(const Def* mem, const Location& loc, const std::string& name)
  */
 
 uint64_t PrimOp::vhash() const {
-    uint64_t seed = hash_combine(hash_combine(hash_begin((int) kind()), size()), type()->gid());
+    uint64_t seed = hash_combine(hash_begin((int) kind()), size(), type()->gid());
     for (auto op : ops_)
         seed = hash_combine(seed, op->gid());
     return seed;

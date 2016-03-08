@@ -190,8 +190,8 @@ uint64_t TypeParam::vhash() const {
  */
 
 bool Type::equal(const Type* other) const {
-    bool result = this->kind() == other->kind() && this->is_monomorphic() == other->is_monomorphic()
-        && this->num_args() == other->num_args() && this->num_type_params() == other->num_type_params();
+    bool result =  this->kind() == other->kind()     &&  this->is_monomorphic() == other->is_monomorphic()
+            && this->num_args() == other->num_args() && this->num_type_params() == other->num_type_params();
 
     if (result) {
         if (is_monomorphic()) {

@@ -70,7 +70,6 @@ public:
     size_t num_type_params() const { return type_params().size(); }
     const Type* arg(size_t i) const { assert(i < args().size()); return args()[i]; }
     const TypeParam* type_param(size_t i) const { assert(i < type_params().size()); return type_params()[i]; }
-    const Type* close(ArrayRef<const TypeParam*>) const;
     size_t num_args() const { return args_.size(); }
     bool is_hashed() const { return hashed_; }          ///< This @p Type is already recorded inside of @p World.
     bool empty() const { return args_.empty(); }
@@ -133,8 +132,11 @@ private:
     mutable size_t gid_;
     static size_t gid_counter_;
 
+    friend const Type* close(const Type*&, ArrayRef<const TypeParam*>);
     friend class World;
 };
+
+const Type* close(const Type*&, ArrayRef<const TypeParam*>);
 
 /// The type of the memory monad.
 class MemType : public Type {
@@ -440,7 +442,7 @@ private:
     mutable const TypeParam* equiv_ = nullptr;
 
     friend bool Type::equal(const Type*) const;
-    friend const Type* Type::close(ArrayRef<const TypeParam*>) const;
+    friend const Type* close(const Type*&, ArrayRef<const TypeParam*>);
     friend class World;
 };
 

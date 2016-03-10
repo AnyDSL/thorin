@@ -14,15 +14,15 @@ namespace thorin {
 
 size_t Type::gid_counter_ = 1;
 
-const Type* Type::close(ArrayRef<const TypeParam*> type_params) const {
-    assert(num_type_params() == type_params.size());
+const Type* close(const Type*& type, ArrayRef<const TypeParam*> type_params) {
+    assert(type->num_type_params() == type_params.size());
 
-    for (size_t i = 0, e = num_type_params(); i != e; ++i) {
+    for (size_t i = 0, e = type->num_type_params(); i != e; ++i) {
         assert(!type_params[i]->is_closed());
-        type_params_[i] = type_params[i];
-        type_params_[i]->binder_ = this;
-        type_params_[i]->closed_ = true;
-        type_params_[i]->index_ = i;
+        type->type_params_[i] = type_params[i];
+        type->type_params_[i]->binder_ = type;
+        type->type_params_[i]->closed_ = true;
+        type->type_params_[i]->index_ = i;
     }
 
     std::stack<const Type*> stack;
@@ -37,7 +37,7 @@ const Type* Type::close(ArrayRef<const TypeParam*> type_params) const {
         return false;
     };
 
-    push(this);
+    push(type);
 
     // TODO this is potentially quadratic when closing n types
     while (!stack.empty()) {
@@ -55,7 +55,7 @@ const Type* Type::close(ArrayRef<const TypeParam*> type_params) const {
         }
     }
 
-    return world().unify_base(this);
+    return type = type->world().unify_base(type);
 }
 
 size_t Type::length() const { return as<VectorType>()->length(); }
@@ -351,7 +351,8 @@ const Type* Type::specialize(Type2Type& map) const {
         ntype_params[i] = ntype_param;
     }
 
-    return instantiate(map)->close(ntype_params);;
+    auto type = instantiate(map);
+    return close(type, ntype_params);
 }
 
 Array<const Type*> Type::specialize_args(Type2Type& map) const {

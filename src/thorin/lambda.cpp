@@ -46,10 +46,10 @@ Lambda* Lambda::stub(Type2Type& type2type, const std::string& name) const {
         type2type[type_param(i)] = ntype_param;
     }
 
-    auto fn_type = type()->specialize(type2type)->as<FnType>();
-    fn_type->close(ntype_params);
+    auto fn_type = type()->specialize(type2type);
+    close(fn_type, ntype_params);
 
-    auto result = world().lambda(fn_type, loc(), cc(), intrinsic(), name);
+    auto result = world().lambda(fn_type->as<FnType>(), loc(), cc(), intrinsic(), name);
     for (size_t i = 0, e = num_params(); i != e; ++i)
         result->param(i)->name = param(i)->name;
 

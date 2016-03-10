@@ -78,9 +78,8 @@ Lambda* Mangler::mangle() {
             param_types.push_back(oentry->param(i)->type()->specialize(type2type));
     }
 
-    auto fn_type = (const Type*) world().fn_type(param_types);
-    close(fn_type, type_params);
-    nentry = world().lambda(fn_type->as<FnType>(), oentry->loc(), oentry->name);
+    auto fn_type = world().fn_type(param_types);
+    nentry = world().lambda(close(fn_type, type_params), oentry->loc(), oentry->name);
 
     // map value params
     def2def[oentry] = oentry;

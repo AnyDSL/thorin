@@ -132,11 +132,15 @@ private:
     mutable size_t gid_;
     static size_t gid_counter_;
 
-    friend const Type* close(const Type*&, ArrayRef<const TypeParam*>);
+    friend const Type* close_base(const Type*&, ArrayRef<const TypeParam*>);
     friend class World;
 };
 
-const Type* close(const Type*&, ArrayRef<const TypeParam*>);
+template<class T>
+const T* close(const T*& type, ArrayRef<const TypeParam*> type_param) {
+    static_assert(std::is_base_of<Type, T>::value, "T is not a base of thorin::Type");
+    return close_base((const Type*&) type, type_param)->template as<T>();
+}
 
 /// The type of the memory monad.
 class MemType : public Type {
@@ -442,7 +446,7 @@ private:
     mutable const TypeParam* equiv_ = nullptr;
 
     friend bool Type::equal(const Type*) const;
-    friend const Type* close(const Type*&, ArrayRef<const TypeParam*>);
+    friend const Type* close_base(const Type*&, ArrayRef<const TypeParam*>);
     friend class World;
 };
 

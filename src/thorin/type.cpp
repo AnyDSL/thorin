@@ -14,7 +14,7 @@ namespace thorin {
 
 size_t Type::gid_counter_ = 1;
 
-const Type* close(const Type*& type, ArrayRef<const TypeParam*> type_params) {
+const Type* close_base(const Type*& type, ArrayRef<const TypeParam*> type_params) {
     assert(type->num_type_params() == type_params.size());
 
     for (size_t i = 0, e = type->num_type_params(); i != e; ++i) {

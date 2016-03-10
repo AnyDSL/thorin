@@ -270,7 +270,7 @@ private:
     friend class Cleaner;
     friend class Lambda;
     friend class Tracker;
-    friend const Type* close(const Type*&, ArrayRef<const TypeParam*>);
+    friend const Type* close_base(const Type*&, ArrayRef<const TypeParam*>);
     friend void Def::replace(const Def*) const;
 };
 

@@ -106,7 +106,7 @@ void Cleaner::eliminate_params() {
                     param_idx.push_back(i);
             }
 
-            if (!proxy_idx.empty()) {
+            if (!proxy_idx.empty() && olambda->num_type_params() == 0) { // TODO do this for polymorphic functions, too
                 auto nlambda = world().lambda(world().fn_type(olambda->type()->args().cut(proxy_idx)),
                                             olambda->loc(), olambda->cc(), olambda->intrinsic(), olambda->name);
                 size_t j = 0;

@@ -37,7 +37,7 @@ std::ostream& streamf(std::ostream& os, const char* fmt, T val, Args... args) {
             return streamf(detail::stream(os, val), ++fmt, args...); // call even when *fmt == 0 to detect extra arguments
         os << *fmt++;
     }
-    return os;
+    throw std::invalid_argument("invalid format string for 'streamf': runaway arguments; use 'catch throw' in 'gdb'");
 }
 
 namespace detail {

@@ -14,6 +14,8 @@ SET ( SOURCES
     primop.h
     type.cpp
     type.h
+    typetable.cpp
+    typetable.h
     world.cpp
     world.h
     analyses/cfg.cpp

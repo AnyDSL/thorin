@@ -77,14 +77,14 @@ LEA::LEA(const Def* ptr, const Def* index, const Location& loc, const std::strin
 }
 
 Slot::Slot(const Type* type, const Def* frame, size_t index, const Location& loc, const std::string& name)
-    : PrimOp(Node_Slot, type->world().ptr_type(type), {frame}, loc, name)
+    : PrimOp(Node_Slot, type->typetable().ptr_type(type), {frame}, loc, name)
     , index_(index)
 {
     assert(frame->type()->isa<FrameType>());
 }
 
 Global::Global(const Def* init, bool is_mutable, const Location& loc, const std::string& name)
-    : PrimOp(Node_Global, init->type()->world().ptr_type(init->type()), {init}, loc, name)
+    : PrimOp(Node_Global, init->type()->typetable().ptr_type(init->type()), {init}, loc, name)
     , is_mutable_(is_mutable)
 {
     assert(init->is_const());

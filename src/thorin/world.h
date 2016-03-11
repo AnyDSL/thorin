@@ -9,7 +9,7 @@
 #include "thorin/enums.h"
 #include "thorin/lambda.h"
 #include "thorin/primop.h"
-#include "thorin/type.h"
+#include "thorin/typetable.h"
 #include "thorin/util/hash.h"
 #include "thorin/util/stream.h"
 
@@ -41,52 +41,16 @@ namespace thorin {
  *  All worlds are completely independent from each other.
  *  This is particular useful for multi-threading.
  */
-class World : public Streamable {
+class World : public TypeTable, public Streamable {
 private:
-    World& operator = (const World&); ///< Do not copy-assign a @p World instance.
-    World(const World&);              ///< Do not copy-construct a @p World.
-
     struct TypeHash { uint64_t operator () (const Type* t) const { return t->hash(); } };
     struct TypeEqual { bool operator () (const Type* t1, const Type* t2) const { return t1->equal(t2); } };
 
 public:
     typedef HashSet<const PrimOp*, PrimOpHash, PrimOpEqual> PrimOpSet;
-    typedef HashSet<const Type*, TypeHash, TypeEqual> TypeSet;
 
     World(std::string name = "");
     ~World();
-
-    // types
-
-#define THORIN_ALL_TYPE(T, M) const PrimType* type_##T(size_t length = 1) { \
-    return length == 1 ? T##_ : new PrimType(*this, PrimType_##T, length); \
-}
-#include "thorin/tables/primtypetable.h"
-
-    /// Get PrimType.
-    const PrimType*    type(PrimTypeKind kind, size_t length = 1) {
-        size_t i = kind - Begin_PrimType;
-        assert(i < (size_t) Num_PrimTypes);
-        return length == 1 ? primtypes_[i] : unify(new PrimType(*this, kind, length));
-    }
-    const MemType*     mem_type() const { return mem_; }
-    const FrameType*   frame_type() const { return frame_; }
-    const PtrType*     ptr_type(const Type* referenced_type, size_t length = 1, int32_t device = -1, AddrSpace addr_space = AddrSpace::Generic) {
-        return unify(new PtrType(*this, referenced_type, length, device, addr_space));
-    }
-    const TupleType*           tuple_type() { return tuple0_; } ///< Returns unit, i.e., an empty @p TupleType.
-    const TupleType*           tuple_type(Types args) { return unify(new TupleType(*this, args)); }
-    const StructAbsType*       struct_abs_type(size_t size, size_t num_type_params = 0, const std::string& name = "");
-    const StructAppType*       struct_app_type(const StructAbsType* struct_abs_type, Types args) {
-        return unify(new StructAppType(struct_abs_type, args));
-    }
-    const FnType*              fn_type() { return fn0_; }       ///< Returns an empty @p FnType.
-    const FnType*              fn_type(Types args, size_t num_type_params = 0) {
-        return unify(new FnType(*this, args, num_type_params));
-    }
-    const TypeParam*           type_param(const std::string& name) { return unify(new TypeParam(*this, name)); }
-    const DefiniteArrayType*   definite_array_type(const Type* elem, u64 dim) { return unify(new DefiniteArrayType(*this, elem, dim)); }
-    const IndefiniteArrayType* indefinite_array_type(const Type* elem) { return unify(new IndefiniteArrayType(*this, elem)); }
 
     // literals
 
@@ -205,7 +169,6 @@ public:
     const LambdaSet& lambdas() const { return lambdas_; }
     Array<Lambda*> copy_lambdas() const;
     const LambdaSet& externals() const { return externals_; }
-    const TypeSet& types() const { return types_; }
     bool empty() const { return lambdas().size() <= 2; } // TODO rework intrinsic stuff. 2 = branch + end_scope
 
     // other stuff
@@ -226,13 +189,9 @@ public:
 
 private:
     HashSet<Tracker*>& trackers(const Def* def) { assert(def); return trackers_[def]; }
-
-    const Def* cse_base(const PrimOp*);
-    const Type* unify_base(const Type*);
-    template<class T> const T* cse(const T* primop) { return cse_base(primop)->template as<T>(); }
-    template<class T> const T* unify(const T* type) { return unify_base(type)->template as<T>(); }
-
     const Param* param(const Type* type, Lambda* lambda, size_t index, const std::string& name = "");
+    const Def* cse_base(const PrimOp*);
+    template<class T> const T* cse(const T* primop) { return cse_base(primop)->template as<T>(); }
 
     std::string name_;
     LambdaSet lambdas_;
@@ -240,37 +199,15 @@ private:
     PrimOpSet primops_;
     DefMap<HashSet<Tracker*>> trackers_;
 
-    TypeSet types_;
 #ifndef NDEBUG
     HashSet<size_t> breakpoints_;
 #endif
     Lambda* branch_;
     Lambda* end_scope_;
 
-    union {
-        struct {
-            const TupleType* tuple0_;///< tuple().
-            const FnType*    fn0_;   ///< fn().
-            const MemType*   mem_;
-            const FrameType* frame_;
-
-            union {
-                struct {
-#define THORIN_ALL_TYPE(T, M) const PrimType* T##_;
-#include "thorin/tables/primtypetable.h"
-                };
-
-                const PrimType* primtypes_[Num_PrimTypes];
-            };
-        };
-
-        const Type* keep_[Num_PrimTypes + 4];
-    };
-
     friend class Cleaner;
     friend class Lambda;
     friend class Tracker;
-    friend const Type* close_base(const Type*&, ArrayRef<const TypeParam*>);
     friend void Def::replace(const Def*) const;
 };
 

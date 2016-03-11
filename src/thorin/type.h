@@ -15,7 +15,7 @@ class Def;
 class IndefiniteArrayType;
 class Type;
 class TypeParam;
-class World;
+class TypeTable;
 
 template<class T>
 struct GIDHash {
@@ -42,8 +42,8 @@ protected:
     Type(const Type&) = delete;
     Type& operator=(const Type&) = delete;
 
-    Type(World& world, NodeKind kind, Types args, size_t num_type_params = 0)
-        : world_(world)
+    Type(TypeTable& typetable, NodeKind kind, Types args, size_t num_type_params = 0)
+        : typetable_(typetable)
         , kind_(kind)
         , args_(args.size())
         , type_params_(num_type_params)
@@ -71,9 +71,9 @@ public:
     const Type* arg(size_t i) const { assert(i < args().size()); return args()[i]; }
     const TypeParam* type_param(size_t i) const { assert(i < type_params().size()); return type_params()[i]; }
     size_t num_args() const { return args_.size(); }
-    bool is_hashed() const { return hashed_; }          ///< This @p Type is already recorded inside of @p World.
+    bool is_hashed() const { return hashed_; }          ///< This @p Type is already recorded inside of @p TypeTable.
     bool empty() const { return args_.empty(); }
-    World& world() const { return world_; }
+    TypeTable& typetable() const { return typetable_; }
     size_t gid() const { return gid_; }
     int order() const { return order_; }
     bool is_closed() const { return closed_; }  ///< Are all @p TypeParam%s bound?
@@ -84,8 +84,8 @@ public:
     const Type* instantiate(Type2Type&) const;
     const Type* specialize(Type2Type&) const;
     const Type* elem(const Def*) const;
-    const Type* rebuild(World& to, Types args) const;
-    const Type* rebuild(Types args) const { return rebuild(world(), args); }
+    const Type* rebuild(TypeTable& to, Types args) const;
+    const Type* rebuild(Types args) const { return rebuild(typetable(), args); }
     virtual const Type* elem(size_t i) const { return arg(i); }
 
     bool is_primtype() const { return thorin::is_primtype(kind()); }
@@ -123,9 +123,9 @@ protected:
     mutable bool monomorphic_ = true;
 
 private:
-    virtual const Type* vrebuild(World& to, Types args) const = 0;
+    virtual const Type* vrebuild(TypeTable& to, Types args) const = 0;
 
-    World& world_;
+    TypeTable& typetable_;
     NodeKind kind_;
     Array<const Type*> args_;
     mutable Array<const TypeParam*> type_params_;
@@ -133,7 +133,7 @@ private:
     static size_t gid_counter_;
 
     friend const Type* close_base(const Type*&, ArrayRef<const TypeParam*>);
-    friend class World;
+    friend class TypeTable;
 };
 
 template<class T>
@@ -148,14 +148,14 @@ public:
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
-    MemType(World& world)
-        : Type(world, Node_MemType, {})
+    MemType(TypeTable& typetable)
+        : Type(typetable, Node_MemType, {})
     {}
 
-    virtual const Type* vrebuild(World& to, Types args) const override;
+    virtual const Type* vrebuild(TypeTable& to, Types args) const override;
     virtual const Type* vinstantiate(Type2Type&) const override;
 
-    friend class World;
+    friend class TypeTable;
 };
 
 /// The type of a stack frame.
@@ -164,21 +164,21 @@ public:
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
-    FrameType(World& world)
-        : Type(world, Node_FrameType, {})
+    FrameType(TypeTable& typetable)
+        : Type(typetable, Node_FrameType, {})
     {}
 
-    virtual const Type* vrebuild(World& to, Types args) const override;
+    virtual const Type* vrebuild(TypeTable& to, Types args) const override;
     virtual const Type* vinstantiate(Type2Type&) const override;
 
-    friend class World;
+    friend class TypeTable;
 };
 
 /// Base class for all SIMD types.
 class VectorType : public Type {
 protected:
-    VectorType(World& world, NodeKind kind, Types args, size_t length)
-        : Type(world, kind, args)
+    VectorType(TypeTable& typetable, NodeKind kind, Types args, size_t length)
+        : Type(typetable, kind, args)
         , length_(length)
     {}
 
@@ -201,8 +201,8 @@ private:
 /// Primitive type.
 class PrimType : public VectorType {
 private:
-    PrimType(World& world, PrimTypeKind kind, size_t length)
-        : VectorType(world, (NodeKind) kind, {}, length)
+    PrimType(TypeTable& typetable, PrimTypeKind kind, size_t length)
+        : VectorType(typetable, (NodeKind) kind, {}, length)
     {}
 
 public:
@@ -211,10 +211,10 @@ public:
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
-    virtual const Type* vrebuild(World& to, Types args) const override;
+    virtual const Type* vrebuild(TypeTable& to, Types args) const override;
     virtual const Type* vinstantiate(Type2Type&) const override;
 
-    friend class World;
+    friend class TypeTable;
 };
 
 enum class AddrSpace : uint32_t {
@@ -228,8 +228,8 @@ enum class AddrSpace : uint32_t {
 /// Pointer type.
 class PtrType : public VectorType {
 private:
-    PtrType(World& world, const Type* referenced_type, size_t length, int32_t device, AddrSpace addr_space)
-        : VectorType(world, Node_PtrType, {referenced_type}, length)
+    PtrType(TypeTable& typetable, const Type* referenced_type, size_t length, int32_t device, AddrSpace addr_space)
+        : VectorType(typetable, Node_PtrType, {referenced_type}, length)
         , addr_space_(addr_space)
         , device_(device)
     {}
@@ -246,13 +246,13 @@ public:
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
-    virtual const Type* vrebuild(World& to, Types args) const override;
+    virtual const Type* vrebuild(TypeTable& to, Types args) const override;
     virtual const Type* vinstantiate(Type2Type&) const override;
 
     AddrSpace addr_space_;
     int32_t device_;
 
-    friend class World;
+    friend class TypeTable;
 };
 
 /**
@@ -265,8 +265,8 @@ private:
  */
 class StructAbsType : public Type {
 private:
-    StructAbsType(World& world, size_t size, size_t num_type_params, const std::string& name)
-        : Type(world, Node_StructAbsType, Array<const Type*>(size), num_type_params)
+    StructAbsType(TypeTable& typetable, size_t size, size_t num_type_params, const std::string& name)
+        : Type(typetable, Node_StructAbsType, Array<const Type*>(size), num_type_params)
         , name_(name)
     {}
 
@@ -280,12 +280,12 @@ public:
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
-    virtual const Type* vrebuild(World& to, Types args) const override;
+    virtual const Type* vrebuild(TypeTable& to, Types args) const override;
     virtual const Type* vinstantiate(Type2Type&) const override { THORIN_UNREACHABLE; }
 
     std::string name_;
 
-    friend class World;
+    friend class TypeTable;
 };
 
 /**
@@ -297,7 +297,7 @@ private:
 class StructAppType : public Type {
 private:
     StructAppType(const StructAbsType* struct_abs_type, Types args)
-        : Type(struct_abs_type->world(), Node_StructAppType, Array<const Type*>(args.size() + 1))
+        : Type(struct_abs_type->typetable(), Node_StructAppType, Array<const Type*>(args.size() + 1))
         , struct_abs_type_(struct_abs_type)
         , elem_cache_(struct_abs_type->num_args())
     {
@@ -320,25 +320,25 @@ public:
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
-    virtual const Type* vrebuild(World& to, Types args) const override;
+    virtual const Type* vrebuild(TypeTable& to, Types args) const override;
     virtual const Type* vinstantiate(Type2Type&) const override;
 
     const StructAbsType* struct_abs_type_;
     mutable Array<const Type*> elem_cache_;
 
-    friend class World;
+    friend class TypeTable;
 };
 
 class TupleType : public Type {
 private:
-    TupleType(World& world, Types args)
-        : Type(world, Node_TupleType, args)
+    TupleType(TypeTable& typetable, Types args)
+        : Type(typetable, Node_TupleType, args)
     {}
 
     virtual const Type* vinstantiate(Type2Type&) const override;
-    virtual const Type* vrebuild(World& to, Types args) const override;
+    virtual const Type* vrebuild(TypeTable& to, Types args) const override;
 
-    friend class World;
+    friend class TypeTable;
 
 public:
     virtual std::ostream& stream(std::ostream&) const override;
@@ -346,8 +346,8 @@ public:
 
 class FnType : public Type {
 private:
-    FnType(World& world, Types args, size_t num_type_params)
-        : Type(world, Node_FnType, args, num_type_params)
+    FnType(TypeTable& typetable, Types args, size_t num_type_params)
+        : Type(typetable, Node_FnType, args, num_type_params)
     {
         ++order_;
     }
@@ -359,16 +359,16 @@ public:
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
-    virtual const Type* vrebuild(World& to, Types args) const override;
+    virtual const Type* vrebuild(TypeTable& to, Types args) const override;
     virtual const Type* vinstantiate(Type2Type&) const override;
 
-    friend class World;
+    friend class TypeTable;
 };
 
 class ArrayType : public Type {
 protected:
-    ArrayType(World& world, NodeKind kind, const Type* elem_type)
-        : Type(world, kind, {elem_type})
+    ArrayType(TypeTable& typetable, NodeKind kind, const Type* elem_type)
+        : Type(typetable, kind, {elem_type})
     {}
 
 public:
@@ -378,8 +378,8 @@ public:
 
 class IndefiniteArrayType : public ArrayType {
 public:
-    IndefiniteArrayType(World& world, const Type* elem_type)
-        : ArrayType(world, Node_IndefiniteArrayType, elem_type)
+    IndefiniteArrayType(TypeTable& typetable, const Type* elem_type)
+        : ArrayType(typetable, Node_IndefiniteArrayType, elem_type)
     {}
 
     virtual const IndefiniteArrayType* is_indefinite() const override;
@@ -387,16 +387,16 @@ public:
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
-    virtual const Type* vrebuild(World& to, Types args) const override;
+    virtual const Type* vrebuild(TypeTable& to, Types args) const override;
     virtual const Type* vinstantiate(Type2Type&) const override;
 
-    friend class World;
+    friend class TypeTable;
 };
 
 class DefiniteArrayType : public ArrayType {
 public:
-    DefiniteArrayType(World& world, const Type* elem_type, u64 dim)
-        : ArrayType(world, Node_DefiniteArrayType, elem_type)
+    DefiniteArrayType(TypeTable& typetable, const Type* elem_type, u64 dim)
+        : ArrayType(typetable, Node_DefiniteArrayType, elem_type)
         , dim_(dim)
     {}
 
@@ -409,18 +409,18 @@ public:
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
-    virtual const Type* vrebuild(World& to, Types args) const override;
+    virtual const Type* vrebuild(TypeTable& to, Types args) const override;
     virtual const Type* vinstantiate(Type2Type&) const override;
 
     u64 dim_;
 
-    friend class World;
+    friend class TypeTable;
 };
 
 class TypeParam : public Type {
 private:
-    TypeParam(World& world, const std::string& name)
-        : Type(world, Node_TypeParam, {})
+    TypeParam(TypeTable& typetable, const std::string& name)
+        : Type(typetable, Node_TypeParam, {})
         , name_(name)
     {
         closed_ = false;
@@ -437,7 +437,7 @@ public:
 
 private:
     virtual uint64_t vhash() const override;
-    virtual const Type* vrebuild(World& to, Types args) const override;
+    virtual const Type* vrebuild(TypeTable& to, Types args) const override;
     virtual const Type* vinstantiate(Type2Type&) const override;
 
     std::string name_;
@@ -447,7 +447,7 @@ private:
 
     friend bool Type::equal(const Type*) const;
     friend const Type* close_base(const Type*&, ArrayRef<const TypeParam*>);
-    friend class World;
+    friend class TypeTable;
 };
 
 std::ostream& stream_type_params(std::ostream& os, const Type* type);

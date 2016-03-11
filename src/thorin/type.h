@@ -338,10 +338,10 @@ private:
     virtual const Type* vinstantiate(Type2Type&) const override;
     virtual const Type* vrebuild(TypeTable& to, Types args) const override;
 
-    friend class TypeTable;
-
 public:
     virtual std::ostream& stream(std::ostream&) const override;
+
+    template<class> friend class TypeTableBase;
 };
 
 class FnType : public Type {

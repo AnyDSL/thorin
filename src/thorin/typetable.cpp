@@ -3,8 +3,7 @@
 namespace thorin {
 
 TypeTable::TypeTable()
-    : tuple0_ (unify(new TupleType(*this, Types())))
-    , fn0_    (unify(new FnType   (*this, Types(), 0)))
+    : fn0_    (unify(new FnType   (*this, Types(), 0)))
     , mem_    (unify(new MemType  (*this)))
     , frame_  (unify(new FrameType(*this)))
 #define THORIN_ALL_TYPE(T, M) \

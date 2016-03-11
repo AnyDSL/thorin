@@ -23,7 +23,7 @@ public:
     {}
     virtual ~TypeTableBase() { for (auto type : types_) delete type; }
 
-    const TypeParam* type_param(const std::string& name) { return unify(new TypeParam(typetable(), name)); }
+    const TypeParam* type_param(const char* name) { return unify(new TypeParam(typetable(), name)); }
     const TupleType* tuple_type(Types args) { return unify(new TupleType(typetable(), args)); }
     const TupleType* tuple_type() { return tuple0_; } ///< Returns unit, i.e., an empty @p TupleType.
 

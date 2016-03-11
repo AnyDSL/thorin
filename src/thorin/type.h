@@ -130,7 +130,7 @@ const T* close(const T*& type, ArrayRef<const TypeParam*> type_param) {
 
 class TypeParam : public Type {
 private:
-    TypeParam(TypeTable& typetable, const std::string& name)
+    TypeParam(TypeTable& typetable, const char* name)
         : Type(typetable, Node_TypeParam, {})
         , name_(name)
     {
@@ -139,7 +139,7 @@ private:
     }
 
 public:
-    const std::string& name() const { return name_; }
+    const char* name() const { return name_; }
     const Type* binder() const { return binder_; }
     size_t index() const { return index_; }
     virtual bool equal(const Type*) const override;
@@ -151,7 +151,7 @@ private:
     virtual const Type* vrebuild(TypeTable& to, Types args) const override;
     virtual const Type* vinstantiate(Type2Type&) const override;
 
-    std::string name_;
+    const char* name_;
     mutable const Type* binder_;
     mutable size_t index_;
     mutable const TypeParam* equiv_ = nullptr;

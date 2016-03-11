@@ -79,16 +79,13 @@ public:
     bool is_closed() const { return closed_; }  ///< Are all @p TypeParam%s bound?
     bool is_monomorphic() const { return monomorphic_; }        ///< Does this @p Type not depend on any @p TypeParam%s?.
     bool is_polymorphic() const { return !is_monomorphic(); }   ///< Does this @p Type depend on any @p TypeParam%s?.
-    size_t gid() const { return gid_; }
     int order() const { return order_; }
+    size_t gid() const { return gid_; }
 
     const Type* specialize(Type2Type&) const;
     const Type* instantiate(Type2Type&) const;
     virtual const Type* instantiate(Types) const;
     virtual const Type* vinstantiate(Type2Type&) const = 0;
-
-    const Type* elem(const Def*) const;
-    virtual const Type* elem(size_t i) const { return arg(i); }
 
     const Type* rebuild(TypeTable& to, Types args) const;
     const Type* rebuild(Types args) const { return rebuild(typetable(), args); }
@@ -367,9 +364,9 @@ public:
     Types type_args() const { return args().skip_front(); }
     const Type* type_arg(size_t i) const { return type_args()[i]; }
     size_t num_type_args() const { return type_args().size(); }
-    const Type* elem(const Def* def) const { return Type::elem(def); }
-    virtual const Type* elem(size_t i) const override;
+
     Types elems() const;
+    const Type* elem(size_t i) const;
     size_t num_elems() const { return struct_abs_type()->num_args(); }
 
     virtual std::ostream& stream(std::ostream&) const override;

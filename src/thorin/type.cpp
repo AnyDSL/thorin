@@ -59,8 +59,6 @@ const Type* close_base(const Type*& type, ArrayRef<const TypeParam*> type_params
     return type = type->typetable().unify_base(type);
 }
 
-const Type* Type::elem(const Def* def) const { return elem(primlit_value<size_t>(def)); }
-
 const VectorType* VectorType::scalarize() const {
     if (auto ptr = isa<PtrType>())
         return typetable().ptr_type(ptr->referenced_type());

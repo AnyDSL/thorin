@@ -66,11 +66,11 @@ LEA::LEA(const Def* ptr, const Def* index, const Location& loc, const std::strin
     auto& world = index->world();
     auto type = ptr_type();
     if (auto tuple = ptr_referenced_type()->isa<TupleType>()) {
-        set_type(world.ptr_type(tuple->elem(index), type->length(), type->device(), type->addr_space()));
+        set_type(world.ptr_type(get(tuple->args(), index), type->length(), type->device(), type->addr_space()));
     } else if (auto array = ptr_referenced_type()->isa<ArrayType>()) {
         set_type(world.ptr_type(array->elem_type(), type->length(), type->device(), type->addr_space()));
     } else if (auto struct_app = ptr_referenced_type()->isa<StructAppType>()) {
-        set_type(world.ptr_type(struct_app->elem(index)));
+        set_type(world.ptr_type(get(struct_app->elems(), index)));
     } else {
         THORIN_UNREACHABLE;
     }
@@ -299,13 +299,13 @@ const Def* PrimOp::rebuild(Def2Def& old2new) const {
 
 const Type* Extract::extracted_type(const Def* agg, const Def* index) {
     if (auto tuple = agg->type()->isa<TupleType>())
-        return tuple->elem(index);
+        return get(tuple->args(), index);
     else if (auto array = agg->type()->isa<ArrayType>())
         return array->elem_type();
     else if (auto vector = agg->type()->isa<VectorType>())
         return vector->scalarize();
     else if (auto struct_app = agg->type()->isa<StructAppType>())
-        return struct_app->elem(index);
+        return get(struct_app->elems(), index);
 
     THORIN_UNREACHABLE;
 }

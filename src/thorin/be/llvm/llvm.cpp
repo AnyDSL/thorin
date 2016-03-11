@@ -63,23 +63,23 @@ CodeGen::CodeGen(World& world, llvm::GlobalValue::LinkageTypes function_import_l
 Lambda* CodeGen::emit_intrinsic(Lambda* lambda) {
     Lambda* to = lambda->to()->as_lambda();
     switch (to->intrinsic()) {
-        case Intrinsic::Atomic:      return emit_atomic(lambda);
-        case Intrinsic::Select:      return emit_select(lambda);
-        case Intrinsic::Sizeof:      return emit_sizeof(lambda);
-        case Intrinsic::Shuffle:     return emit_shuffle(lambda);
-        case Intrinsic::Reserve:     return emit_reserve(lambda);
-        case Intrinsic::Bitcast:    return emit_reinterpret(lambda);
-        case Intrinsic::CUDA:        return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM, ".cu", lambda);
-        case Intrinsic::NVVM:        return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM, ".nvvm", lambda);
-        case Intrinsic::SPIR:        return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".spir.bc", lambda);
-        case Intrinsic::OpenCL:      return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".cl", lambda);
-        case Intrinsic::Parallel:    return emit_parallel(lambda);
-        case Intrinsic::Spawn:       return emit_spawn(lambda);
-        case Intrinsic::Sync:        return emit_sync(lambda);
+        case Intrinsic::Atomic:    return emit_atomic(lambda);
+        case Intrinsic::Select:    return emit_select(lambda);
+        case Intrinsic::Sizeof:    return emit_sizeof(lambda);
+        case Intrinsic::Shuffle:   return emit_shuffle(lambda);
+        case Intrinsic::Reserve:   return emit_reserve(lambda);
+        case Intrinsic::Bitcast:   return emit_reinterpret(lambda);
+        case Intrinsic::CUDA:      return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM, ".cu", lambda);
+        case Intrinsic::NVVM:      return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM, ".nvvm", lambda);
+        case Intrinsic::SPIR:      return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".spir.bc", lambda);
+        case Intrinsic::OpenCL:    return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".cl", lambda);
+        case Intrinsic::Parallel:  return emit_parallel(lambda);
+        case Intrinsic::Spawn:     return emit_spawn(lambda);
+        case Intrinsic::Sync:      return emit_sync(lambda);
 #ifdef WFV2_SUPPORT
-        case Intrinsic::Vectorize:   return emit_vectorize_continuation(lambda);
+        case Intrinsic::Vectorize: return emit_vectorize_continuation(lambda);
 #else
-        case Intrinsic::Vectorize:   throw std::runtime_error("rebuild with libWFV support");
+        case Intrinsic::Vectorize: throw std::runtime_error("rebuild with libWFV support");
 #endif
         default: THORIN_UNREACHABLE;
     }
@@ -534,7 +534,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
         if (auto cmp = bin->isa<Cmp>()) {
             auto type = cmp->lhs()->type();
-            if (type->is_type_s()) {
+            if (is_type_s(type)) {
                 switch (cmp->cmp_kind()) {
                     case Cmp_eq: return irbuilder_.CreateICmpEQ (lhs, rhs, name);
                     case Cmp_ne: return irbuilder_.CreateICmpNE (lhs, rhs, name);
@@ -543,7 +543,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
                     case Cmp_lt: return irbuilder_.CreateICmpSLT(lhs, rhs, name);
                     case Cmp_le: return irbuilder_.CreateICmpSLE(lhs, rhs, name);
                 }
-            } else if (type->is_type_u() || type->is_bool()) {
+            } else if (is_type_u(type) || is_bool(type)) {
                 switch (cmp->cmp_kind()) {
                     case Cmp_eq: return irbuilder_.CreateICmpEQ (lhs, rhs, name);
                     case Cmp_ne: return irbuilder_.CreateICmpNE (lhs, rhs, name);
@@ -552,7 +552,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
                     case Cmp_lt: return irbuilder_.CreateICmpULT(lhs, rhs, name);
                     case Cmp_le: return irbuilder_.CreateICmpULE(lhs, rhs, name);
                 }
-            } else if (type->is_type_pf()) {
+            } else if (is_type_pf(type)) {
                 switch (cmp->cmp_kind()) {
                     case Cmp_eq: return irbuilder_.CreateFCmpOEQ (lhs, rhs, name);
                     case Cmp_ne: return irbuilder_.CreateFCmpONE (lhs, rhs, name);
@@ -561,7 +561,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
                     case Cmp_lt: return irbuilder_.CreateFCmpOLT (lhs, rhs, name);
                     case Cmp_le: return irbuilder_.CreateFCmpOLE (lhs, rhs, name);
                 }
-            } else if (type->is_type_qf()) {
+            } else if (is_type_qf(type)) {
                 switch (cmp->cmp_kind()) {
                     case Cmp_eq: return irbuilder_.CreateFCmpUEQ(lhs, rhs, name);
                     case Cmp_ne: return irbuilder_.CreateFCmpUNE(lhs, rhs, name);
@@ -581,9 +581,9 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
         if (auto arithop = bin->isa<ArithOp>()) {
             auto type = arithop->type();
-            bool q = arithop->type()->is_type_q(); // quick? -> nsw/nuw/fast float
+            bool q = is_type_q(arithop->type()); // quick? -> nsw/nuw/fast float
 
-            if (type->is_type_f()) {
+            if (is_type_f(type)) {
                 switch (arithop->arithop_kind()) {
                     case ArithOp_add: return irbuilder_.CreateFAdd(lhs, rhs, name);
                     case ArithOp_sub: return irbuilder_.CreateFSub(lhs, rhs, name);
@@ -598,7 +598,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
                 }
             }
 
-            if (type->is_type_s() || type->is_bool()) {
+            if (is_type_s(type) || is_bool(type)) {
                 switch (arithop->arithop_kind()) {
                     case ArithOp_add: return irbuilder_.CreateAdd (lhs, rhs, name, false, q);
                     case ArithOp_sub: return irbuilder_.CreateSub (lhs, rhs, name, false, q);
@@ -612,7 +612,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
                     case ArithOp_shr: return irbuilder_.CreateAShr(lhs, rhs, name);
                 }
             }
-            if (type->is_type_u() || type->is_bool()) {
+            if (is_type_u(type) || is_bool(type)) {
                 switch (arithop->arithop_kind()) {
                     case ArithOp_add: return irbuilder_.CreateAdd (lhs, rhs, name, q, false);
                     case ArithOp_sub: return irbuilder_.CreateSub (lhs, rhs, name, q, false);
@@ -643,38 +643,38 @@ llvm::Value* CodeGen::emit(const Def* def) {
                 return irbuilder_.CreatePointerCast(from, to);
             }
             if (src_type->isa<PtrType>()) {
-                assert(dst_type->is_type_i() || dst_type->is_bool());
+                assert(is_type_i(dst_type) || is_bool(dst_type));
                 return irbuilder_.CreatePtrToInt(from, to);
             }
             if (dst_type->isa<PtrType>()) {
-                assert(src_type->is_type_i() || src_type->is_bool());
+                assert(is_type_i(src_type) || is_bool(src_type));
                 return irbuilder_.CreateIntToPtr(from, to);
             }
 
             auto src = src_type->as<PrimType>();
             auto dst = dst_type->as<PrimType>();
 
-            if (src->is_type_f() && dst->is_type_f()) {
+            if (is_type_f(src) && is_type_f(dst)) {
                 assert(num_bits(src->primtype_kind()) != num_bits(dst->primtype_kind()));
                 return irbuilder_.CreateFPCast(from, to);
             }
-            if (src->is_type_f()) {
-                if (dst->is_type_s())
+            if (is_type_f(src)) {
+                if (is_type_s(dst))
                     return irbuilder_.CreateFPToSI(from, to);
                 return irbuilder_.CreateFPToUI(from, to);
             }
-            if (dst->is_type_f()) {
-                if (src->is_type_s())
+            if (is_type_f(dst)) {
+                if (is_type_s(src))
                     return irbuilder_.CreateSIToFP(from, to);
                 return irbuilder_.CreateUIToFP(from, to);
             }
 
             if (num_bits(src->primtype_kind()) > num_bits(dst->primtype_kind())) {
-                if (src->is_type_i() && (dst->is_type_i() || dst->is_bool()))
+                if (is_type_i(src) && (is_type_i(dst) || is_bool(dst)))
                     return irbuilder_.CreateTrunc(from, to);
             } else if (num_bits(src->primtype_kind()) < num_bits(dst->primtype_kind())) {
-                if ( src->is_type_s()                    && dst->is_type_i()) return irbuilder_.CreateSExt(from, to);
-                if ((src->is_type_u() || src->is_bool()) && dst->is_type_i()) return irbuilder_.CreateZExt(from, to);
+                if ( is_type_s(src)                  && is_type_i(dst)) return irbuilder_.CreateSExt(from, to);
+                if ((is_type_u(src) || is_bool(src)) && is_type_i(dst)) return irbuilder_.CreateZExt(from, to);
             }
 
             assert(false && "unsupported cast");

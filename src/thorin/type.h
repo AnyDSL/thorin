@@ -87,21 +87,6 @@ public:
     const Type* rebuild(Types args) const { return rebuild(typetable(), args); }
     virtual const Type* elem(size_t i) const { return arg(i); }
 
-    bool is_primtype() const { return thorin::is_primtype(kind()); }
-    bool is_type_ps() const { return thorin::is_type_ps(kind()); }
-    bool is_type_pu() const { return thorin::is_type_pu(kind()); }
-    bool is_type_qs() const { return thorin::is_type_qs(kind()); }
-    bool is_type_qu() const { return thorin::is_type_qu(kind()); }
-    bool is_type_pf() const { return thorin::is_type_pf(kind()); }
-    bool is_type_qf() const { return thorin::is_type_qf(kind()); }
-    bool is_type_p() const { return thorin::is_type_p(kind()); }
-    bool is_type_q() const { return thorin::is_type_q(kind()); }
-    bool is_type_s() const { return thorin::is_type_s(kind()); }
-    bool is_type_u() const { return thorin::is_type_u(kind()); }
-    bool is_type_i() const { return thorin::is_type_i(kind()); }
-    bool is_type_f() const { return thorin::is_type_f(kind()); }
-    bool is_bool() const { return kind() == Node_PrimType_bool; }
-
     uint64_t hash() const { return is_hashed() ? hash_ : hash_ = vhash(); }
     virtual uint64_t vhash() const;
     virtual bool equal(const Type*) const;
@@ -266,6 +251,21 @@ private:
 
     friend class TypeTable;
 };
+
+inline bool is_primtype(const Type* t) { return thorin::is_primtype(t->kind()); }
+inline bool is_type_ps (const Type* t) { return thorin::is_type_ps (t->kind()); }
+inline bool is_type_pu (const Type* t) { return thorin::is_type_pu (t->kind()); }
+inline bool is_type_qs (const Type* t) { return thorin::is_type_qs (t->kind()); }
+inline bool is_type_qu (const Type* t) { return thorin::is_type_qu (t->kind()); }
+inline bool is_type_pf (const Type* t) { return thorin::is_type_pf (t->kind()); }
+inline bool is_type_qf (const Type* t) { return thorin::is_type_qf (t->kind()); }
+inline bool is_type_p  (const Type* t) { return thorin::is_type_p  (t->kind()); }
+inline bool is_type_q  (const Type* t) { return thorin::is_type_q  (t->kind()); }
+inline bool is_type_s  (const Type* t) { return thorin::is_type_s  (t->kind()); }
+inline bool is_type_u  (const Type* t) { return thorin::is_type_u  (t->kind()); }
+inline bool is_type_i  (const Type* t) { return thorin::is_type_i  (t->kind()); }
+inline bool is_type_f  (const Type* t) { return thorin::is_type_f  (t->kind()); }
+inline bool is_bool    (const Type* t) { return t->kind() == Node_PrimType_bool; }
 
 enum class AddrSpace : uint32_t {
     Generic  = 0,

@@ -355,7 +355,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const Lo
     }
 
     // normalize: try to reorder same ops to have the literal/vector on the left-most side
-    if (is_associative(kind) && a->type()->is_type_i()) {
+    if (is_associative(kind) && is_type_i(a->type())) {
         auto a_same = a->isa<ArithOp>() && a->as<ArithOp>()->arithop_kind() == kind ? a->as<ArithOp>() : nullptr;
         auto b_same = b->isa<ArithOp>() && b->as<ArithOp>()->arithop_kind() == kind ? b->as<ArithOp>() : nullptr;
         auto a_lhs_lv = a_same && (a_same->lhs()->isa<PrimLit>() || a_same->lhs()->isa<Vector>()) ? a_same->lhs() : nullptr;

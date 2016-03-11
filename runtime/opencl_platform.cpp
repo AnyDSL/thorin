@@ -153,7 +153,7 @@ OpenCLPlatform::OpenCLPlatform(Runtime* runtime)
             ILOG("  (%) Device Name: % (%)", devices_.size(), buffer, type_str);
             err |= clGetDeviceInfo(devices[j], CL_DEVICE_VENDOR, sizeof(buffer), &buffer, NULL);
             err |= clGetDeviceInfo(devices[j], CL_DEVICE_VENDOR_ID, sizeof(device_vendor_id), &device_vendor_id, NULL);
-            ILOG("      Device Vendor: %", buffer, " (ID: ", device_vendor_id, ")");
+            ILOG("      Device Vendor: % (ID: %)", buffer, device_vendor_id);
             err |= clGetDeviceInfo(devices[j], CL_DEVICE_VERSION, sizeof(buffer), &buffer, NULL);
             ILOG("      Device OpenCL Version: %", buffer);
             err |= clGetDeviceInfo(devices[j], CL_DRIVER_VERSION, sizeof(buffer), &buffer, NULL);

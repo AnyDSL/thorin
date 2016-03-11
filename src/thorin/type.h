@@ -42,7 +42,7 @@ protected:
     Type(const Type&) = delete;
     Type& operator=(const Type&) = delete;
 
-    Type(TypeTable& typetable, NodeKind kind, Types args, size_t num_type_params = 0)
+    Type(TypeTable& typetable, int kind, Types args, size_t num_type_params = 0)
         : typetable_(typetable)
         , kind_(kind)
         , args_(args.size())
@@ -63,7 +63,7 @@ protected:
     }
 
 public:
-    NodeKind kind() const { return kind_; }
+    int kind() const { return kind_; }
     Types args() const { return args_; }
     ArrayRef<const TypeParam*> type_params() const { return type_params_; }
     size_t num_type_params() const { return type_params().size(); }
@@ -109,7 +109,7 @@ private:
     virtual const Type* vrebuild(TypeTable& to, Types args) const = 0;
 
     TypeTable& typetable_;
-    NodeKind kind_;
+    int kind_;
     Array<const Type*> args_;
     mutable Array<const TypeParam*> type_params_;
     mutable size_t gid_;
@@ -212,7 +212,7 @@ private:
 /// Base class for all SIMD types.
 class VectorType : public Type {
 protected:
-    VectorType(TypeTable& typetable, NodeKind kind, Types args, size_t length)
+    VectorType(TypeTable& typetable, int kind, Types args, size_t length)
         : Type(typetable, kind, args)
         , length_(length)
     {}
@@ -237,7 +237,7 @@ private:
 class PrimType : public VectorType {
 private:
     PrimType(TypeTable& typetable, PrimTypeKind kind, size_t length)
-        : VectorType(typetable, (NodeKind) kind, {}, length)
+        : VectorType(typetable, (int) kind, {}, length)
     {}
 
 public:
@@ -404,7 +404,7 @@ private:
 
 class ArrayType : public Type {
 protected:
-    ArrayType(TypeTable& typetable, NodeKind kind, const Type* elem_type)
+    ArrayType(TypeTable& typetable, int kind, const Type* elem_type)
         : Type(typetable, kind, {elem_type})
     {}
 

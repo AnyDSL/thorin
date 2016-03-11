@@ -47,7 +47,7 @@ Var Var::create_agg(Var var, const Def* offset) {
 
 bool Var::use_lea() const {
     if (kind() == PtrRef)
-        return def()->type()->as<PtrType>()->referenced_type()->use_lea();
+        return thorin::use_lea(def()->type()->as<PtrType>()->referenced_type());
     return false;
 }
 
@@ -198,7 +198,7 @@ const Def* IRBuilder::extract(const Def* agg, u32 index, const Location& loc, co
 
 const Def* IRBuilder::extract(const Def* agg, const Def* index, const Location& loc, const std::string& name) {
     if (auto ld = Load::is_out_val(agg)) {
-        if (ld->out_val_type()->use_lea())
+        if (use_lea(ld->out_val_type()))
             return load(world().lea(ld->ptr(), index, loc, ld->name), loc);
     }
     return world().extract(agg, index, loc, name);

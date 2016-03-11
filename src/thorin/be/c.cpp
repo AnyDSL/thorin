@@ -117,7 +117,7 @@ std::ostream& CCodeGen::emit_type(const Type* type) {
         emit_type(ptr->referenced_type());
         os << '*';
         if (ptr->is_vector())
-            os << ptr->referenced_type()->length();
+            os << vector_length(ptr->referenced_type());
         return os;
     } else if (auto primtype = type->isa<PrimType>()) {
         switch (primtype->primtype_kind()) {

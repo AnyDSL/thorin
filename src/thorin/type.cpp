@@ -59,7 +59,6 @@ const Type* close_base(const Type*& type, ArrayRef<const TypeParam*> type_params
     return type = type->typetable().unify_base(type);
 }
 
-size_t Type::length() const { return as<VectorType>()->length(); }
 const Type* Type::elem(const Def* def) const { return elem(primlit_value<size_t>(def)); }
 
 const VectorType* VectorType::scalarize() const {
@@ -110,6 +109,18 @@ Types StructAppType::elems() const {
     return elem_cache_;
 }
 
+const IndefiniteArrayType* is_indefinite(const Type* type) {
+    if (auto indefinite_array_type = type->isa<IndefiniteArrayType>())
+        return indefinite_array_type;
+    if (!type->empty())
+        return is_indefinite(type->args().back());
+    return nullptr;
+}
+
+bool use_lea(const Type* type) {
+    return type->isa<StructAppType>() || type->isa<ArrayType>();
+}
+
 //------------------------------------------------------------------------------
 
 /*
@@ -147,20 +158,6 @@ const Type* StructAbsType::vrebuild(TypeTable& to, Types args) const {
 const Type* StructAppType::vrebuild(TypeTable& to, Types args) const {
     return to.struct_app_type(args[0]->as<StructAbsType>(), args.skip_front());
 }
-
-//------------------------------------------------------------------------------
-
-/*
- * recursive properties
- */
-
-const IndefiniteArrayType* Type::is_indefinite() const {
-    if (!empty())
-        return args().back()->is_indefinite();
-    return nullptr;
-}
-
-const IndefiniteArrayType* IndefiniteArrayType::is_indefinite() const { return this; }
 
 //------------------------------------------------------------------------------
 

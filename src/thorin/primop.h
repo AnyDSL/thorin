@@ -129,7 +129,7 @@ private:
     Select(const Def* cond, const Def* tval, const Def* fval, const Location& loc, const std::string& name)
         : PrimOp(Node_Select, tval->type(), {cond, tval, fval}, loc, name)
     {
-        assert(is_bool(cond->type()));
+        assert(is_type_bool(cond->type()));
         assert(tval->type() == fval->type() && "types of both values must be equal");
         assert(!tval->type()->isa<FnType>() && "must not be a function");
     }

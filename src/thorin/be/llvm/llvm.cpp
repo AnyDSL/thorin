@@ -543,7 +543,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
                     case Cmp_lt: return irbuilder_.CreateICmpSLT(lhs, rhs, name);
                     case Cmp_le: return irbuilder_.CreateICmpSLE(lhs, rhs, name);
                 }
-            } else if (is_type_u(type) || is_bool(type)) {
+            } else if (is_type_u(type) || is_type_bool(type)) {
                 switch (cmp->cmp_kind()) {
                     case Cmp_eq: return irbuilder_.CreateICmpEQ (lhs, rhs, name);
                     case Cmp_ne: return irbuilder_.CreateICmpNE (lhs, rhs, name);
@@ -598,7 +598,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
                 }
             }
 
-            if (is_type_s(type) || is_bool(type)) {
+            if (is_type_s(type) || is_type_bool(type)) {
                 switch (arithop->arithop_kind()) {
                     case ArithOp_add: return irbuilder_.CreateAdd (lhs, rhs, name, false, q);
                     case ArithOp_sub: return irbuilder_.CreateSub (lhs, rhs, name, false, q);
@@ -612,7 +612,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
                     case ArithOp_shr: return irbuilder_.CreateAShr(lhs, rhs, name);
                 }
             }
-            if (is_type_u(type) || is_bool(type)) {
+            if (is_type_u(type) || is_type_bool(type)) {
                 switch (arithop->arithop_kind()) {
                     case ArithOp_add: return irbuilder_.CreateAdd (lhs, rhs, name, q, false);
                     case ArithOp_sub: return irbuilder_.CreateSub (lhs, rhs, name, q, false);
@@ -643,11 +643,11 @@ llvm::Value* CodeGen::emit(const Def* def) {
                 return irbuilder_.CreatePointerCast(from, to);
             }
             if (src_type->isa<PtrType>()) {
-                assert(is_type_i(dst_type) || is_bool(dst_type));
+                assert(is_type_i(dst_type) || is_type_bool(dst_type));
                 return irbuilder_.CreatePtrToInt(from, to);
             }
             if (dst_type->isa<PtrType>()) {
-                assert(is_type_i(src_type) || is_bool(src_type));
+                assert(is_type_i(src_type) || is_type_bool(src_type));
                 return irbuilder_.CreateIntToPtr(from, to);
             }
 
@@ -670,11 +670,11 @@ llvm::Value* CodeGen::emit(const Def* def) {
             }
 
             if (num_bits(src->primtype_kind()) > num_bits(dst->primtype_kind())) {
-                if (is_type_i(src) && (is_type_i(dst) || is_bool(dst)))
+                if (is_type_i(src) && (is_type_i(dst) || is_type_bool(dst)))
                     return irbuilder_.CreateTrunc(from, to);
             } else if (num_bits(src->primtype_kind()) < num_bits(dst->primtype_kind())) {
-                if ( is_type_s(src)                  && is_type_i(dst)) return irbuilder_.CreateSExt(from, to);
-                if ((is_type_u(src) || is_bool(src)) && is_type_i(dst)) return irbuilder_.CreateZExt(from, to);
+                if ( is_type_s(src)                       && is_type_i(dst)) return irbuilder_.CreateSExt(from, to);
+                if ((is_type_u(src) || is_type_bool(src)) && is_type_i(dst)) return irbuilder_.CreateZExt(from, to);
             }
 
             assert(false && "unsupported cast");
@@ -805,7 +805,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto alloced_type = convert(alloc->alloced_type());
         llvm::CallInst* void_ptr;
         auto layout = llvm::DataLayout(module_->getDataLayout());
-        if (auto array = alloc->alloced_type()->is_indefinite()) {
+        if (auto array = is_indefinite(alloc->alloced_type())) {
             auto size = irbuilder_.CreateAdd(
                     irbuilder_.getInt64(layout.getTypeAllocSize(alloced_type)),
                     irbuilder_.CreateMul(irbuilder_.CreateIntCast(lookup(alloc->extra()), irbuilder_.getInt64Ty(), false),
@@ -978,9 +978,9 @@ multiple:
             THORIN_UNREACHABLE;
     }
 
-    if (type->length() == 1)
+    if (vector_length(type) == 1)
         return types_[type] = llvm_type;
-    return types_[type] = llvm::VectorType::get(llvm_type, type->length());
+    return types_[type] = llvm::VectorType::get(llvm_type, vector_length(type));
 }
 
 llvm::GlobalVariable* CodeGen::emit_global_variable(llvm::Type* type, const std::string& name, unsigned addr_space) {

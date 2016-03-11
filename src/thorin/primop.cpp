@@ -18,7 +18,7 @@ PrimLit::PrimLit(World& world, PrimTypeKind kind, Box box, const Location& loc, 
 {}
 
 Cmp::Cmp(CmpKind kind, const Def* lhs, const Def* rhs, const Location& loc, const std::string& name)
-    : BinOp((NodeKind) kind, lhs->world().type_bool(lhs->type()->length()), lhs, rhs, loc, name)
+    : BinOp((NodeKind) kind, lhs->world().type_bool(vector_length(lhs->type())), lhs, rhs, loc, name)
 {}
 
 DefiniteArray::DefiniteArray(World& world, const Type* elem, Defs args, const Location& loc, const std::string& name)

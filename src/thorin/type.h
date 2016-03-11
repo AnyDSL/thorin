@@ -64,35 +64,38 @@ protected:
 
 public:
     int kind() const { return kind_; }
-    Types args() const { return args_; }
-    ArrayRef<const TypeParam*> type_params() const { return type_params_; }
-    size_t num_type_params() const { return type_params().size(); }
-    const Type* arg(size_t i) const { assert(i < args().size()); return args()[i]; }
-    const TypeParam* type_param(size_t i) const { assert(i < type_params().size()); return type_params()[i]; }
-    size_t num_args() const { return args_.size(); }
-    bool is_hashed() const { return hashed_; }          ///< This @p Type is already recorded inside of @p TypeTable.
-    bool empty() const { return args_.empty(); }
     TypeTable& typetable() const { return typetable_; }
-    size_t gid() const { return gid_; }
-    int order() const { return order_; }
+
+    Types args() const { return args_; }
+    const Type* arg(size_t i) const { assert(i < args().size()); return args()[i]; }
+    size_t num_args() const { return args_.size(); }
+    bool empty() const { return args_.empty(); }
+
+    ArrayRef<const TypeParam*> type_params() const { return type_params_; }
+    const TypeParam* type_param(size_t i) const { assert(i < type_params().size()); return type_params()[i]; }
+    size_t num_type_params() const { return type_params().size(); }
+
+    bool is_hashed() const { return hashed_; }          ///< This @p Type is already recorded inside of @p TypeTable.
     bool is_closed() const { return closed_; }  ///< Are all @p TypeParam%s bound?
     bool is_monomorphic() const { return monomorphic_; }        ///< Does this @p Type not depend on any @p TypeParam%s?.
     bool is_polymorphic() const { return !is_monomorphic(); }   ///< Does this @p Type depend on any @p TypeParam%s?.
-    size_t length() const; ///< Returns the vector length. Raises an assertion if this type is not a @p VectorType.
-    virtual const Type* instantiate(Types) const;
-    const Type* instantiate(Type2Type&) const;
+    size_t gid() const { return gid_; }
+    int order() const { return order_; }
+
     const Type* specialize(Type2Type&) const;
+    const Type* instantiate(Type2Type&) const;
+    virtual const Type* instantiate(Types) const;
+    virtual const Type* vinstantiate(Type2Type&) const = 0;
+
     const Type* elem(const Def*) const;
+    virtual const Type* elem(size_t i) const { return arg(i); }
+
     const Type* rebuild(TypeTable& to, Types args) const;
     const Type* rebuild(Types args) const { return rebuild(typetable(), args); }
-    virtual const Type* elem(size_t i) const { return arg(i); }
 
     uint64_t hash() const { return is_hashed() ? hash_ : hash_ = vhash(); }
     virtual uint64_t vhash() const;
     virtual bool equal(const Type*) const;
-    virtual const IndefiniteArrayType* is_indefinite() const;
-    virtual bool use_lea() const { return false; }
-    virtual const Type* vinstantiate(Type2Type&) const = 0;
 
     static size_t gid_counter() { return gid_counter_; }
 
@@ -233,6 +236,9 @@ private:
     size_t length_;
 };
 
+/// Returns the vector length. Raises an assertion if this type is not a @p VectorType.
+inline size_t vector_length(const Type* type) { return type->as<VectorType>()->length(); }
+
 /// Primitive type.
 class PrimType : public VectorType {
 private:
@@ -252,20 +258,20 @@ private:
     friend class TypeTable;
 };
 
-inline bool is_primtype(const Type* t) { return thorin::is_primtype(t->kind()); }
-inline bool is_type_ps (const Type* t) { return thorin::is_type_ps (t->kind()); }
-inline bool is_type_pu (const Type* t) { return thorin::is_type_pu (t->kind()); }
-inline bool is_type_qs (const Type* t) { return thorin::is_type_qs (t->kind()); }
-inline bool is_type_qu (const Type* t) { return thorin::is_type_qu (t->kind()); }
-inline bool is_type_pf (const Type* t) { return thorin::is_type_pf (t->kind()); }
-inline bool is_type_qf (const Type* t) { return thorin::is_type_qf (t->kind()); }
-inline bool is_type_p  (const Type* t) { return thorin::is_type_p  (t->kind()); }
-inline bool is_type_q  (const Type* t) { return thorin::is_type_q  (t->kind()); }
-inline bool is_type_s  (const Type* t) { return thorin::is_type_s  (t->kind()); }
-inline bool is_type_u  (const Type* t) { return thorin::is_type_u  (t->kind()); }
-inline bool is_type_i  (const Type* t) { return thorin::is_type_i  (t->kind()); }
-inline bool is_type_f  (const Type* t) { return thorin::is_type_f  (t->kind()); }
-inline bool is_bool    (const Type* t) { return t->kind() == Node_PrimType_bool; }
+inline bool is_primtype (const Type* t) { return thorin::is_primtype(t->kind()); }
+inline bool is_type_ps  (const Type* t) { return thorin::is_type_ps (t->kind()); }
+inline bool is_type_pu  (const Type* t) { return thorin::is_type_pu (t->kind()); }
+inline bool is_type_qs  (const Type* t) { return thorin::is_type_qs (t->kind()); }
+inline bool is_type_qu  (const Type* t) { return thorin::is_type_qu (t->kind()); }
+inline bool is_type_pf  (const Type* t) { return thorin::is_type_pf (t->kind()); }
+inline bool is_type_qf  (const Type* t) { return thorin::is_type_qf (t->kind()); }
+inline bool is_type_p   (const Type* t) { return thorin::is_type_p  (t->kind()); }
+inline bool is_type_q   (const Type* t) { return thorin::is_type_q  (t->kind()); }
+inline bool is_type_s   (const Type* t) { return thorin::is_type_s  (t->kind()); }
+inline bool is_type_u   (const Type* t) { return thorin::is_type_u  (t->kind()); }
+inline bool is_type_i   (const Type* t) { return thorin::is_type_i  (t->kind()); }
+inline bool is_type_f   (const Type* t) { return thorin::is_type_f  (t->kind()); }
+inline bool is_type_bool(const Type* t) { return t->kind() == Node_PrimType_bool; }
 
 enum class AddrSpace : uint32_t {
     Generic  = 0,
@@ -365,7 +371,6 @@ public:
     virtual const Type* elem(size_t i) const override;
     Types elems() const;
     size_t num_elems() const { return struct_abs_type()->num_args(); }
-    virtual bool use_lea() const override { return true; }
 
     virtual std::ostream& stream(std::ostream&) const override;
 
@@ -410,7 +415,6 @@ protected:
 
 public:
     const Type* elem_type() const { return arg(0); }
-    virtual bool use_lea() const override { return true; }
 };
 
 class IndefiniteArrayType : public ArrayType {
@@ -418,8 +422,6 @@ public:
     IndefiniteArrayType(TypeTable& typetable, const Type* elem_type)
         : ArrayType(typetable, Node_IndefiniteArrayType, elem_type)
     {}
-
-    virtual const IndefiniteArrayType* is_indefinite() const override;
 
     virtual std::ostream& stream(std::ostream&) const override;
 
@@ -453,6 +455,9 @@ private:
 
     friend class TypeTable;
 };
+
+const IndefiniteArrayType* is_indefinite(const Type*);
+bool use_lea(const Type*);
 
 //------------------------------------------------------------------------------
 

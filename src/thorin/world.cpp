@@ -710,7 +710,7 @@ const Def* World::store(const Def* mem, const Def* ptr, const Def* value, const 
     }
 
     if (auto insert = value->isa<Insert>()) {
-        if (ptr->type()->as<PtrType>()->referenced_type()->use_lea()) {
+        if (use_lea(ptr->type()->as<PtrType>()->referenced_type())) {
             auto peeled_store = store(mem, ptr, insert->agg(), loc);
             return store(peeled_store, lea(ptr, insert->index(), insert->loc(), insert->name), insert->value(), loc, name);
         }

@@ -189,21 +189,18 @@ bool Type::equal(const Type* other) const {
             && this->num_args() == other->num_args() && this->num_type_params() == other->num_type_params();
 
     if (result) {
-        if (is_monomorphic()) {
-            for (size_t i = 0, e = num_args(); result && i != e; ++i)
-                result &= this->args_[i] == other->args_[i];
-        } else {
-            for (size_t i = 0, e = num_type_params(); result && i != e; ++i) {
-                assert(this->type_param(i)->equiv_ == nullptr);
-                this->type_param(i)->equiv_ = other->type_param(i);
-            }
-
-            for (size_t i = 0, e = num_args(); result && i != e; ++i)
-                result &= this->args_[i]->equal(other->args_[i]);
-
-            for (auto type_param : type_params())
-                type_param->equiv_ = nullptr;
+        for (size_t i = 0, e = num_type_params(); result && i != e; ++i) {
+            assert(this->type_param(i)->equiv_ == nullptr);
+            this->type_param(i)->equiv_ = other->type_param(i);
         }
+
+        for (size_t i = 0, e = num_args(); result && i != e; ++i)
+            result &= this->arg(i)->is_hashed()
+                ? this->arg(i) == other->arg(i)
+                : this->arg(i)->equal(other->arg(i));
+
+        for (auto type_param : type_params())
+            type_param->equiv_ = nullptr;
     }
 
     return result;

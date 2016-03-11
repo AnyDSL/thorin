@@ -109,6 +109,7 @@ public:
     virtual const IndefiniteArrayType* is_indefinite() const;
     virtual bool use_lea() const { return false; }
     virtual std::ostream& stream(std::ostream&) const override;
+    virtual const Type* vinstantiate(Type2Type&) const = 0;
 
     static size_t gid_counter() { return gid_counter_; }
 
@@ -123,7 +124,6 @@ protected:
 
 private:
     virtual const Type* vrebuild(World& to, Types args) const = 0;
-    virtual const Type* vinstantiate(Type2Type&) const = 0;
 
     World& world_;
     NodeKind kind_;

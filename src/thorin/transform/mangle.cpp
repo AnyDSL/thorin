@@ -173,7 +173,9 @@ const Def* Mangler::mangle(const Def* odef) {
         Array<const Def*> nops(oprimop->size());
         for (size_t i = 0, e = oprimop->size(); i != e; ++i)
             nops[i] = mangle(oprimop->op(i));
-        return def2def[oprimop] = oprimop->rebuild(nops);
+
+        auto type = oprimop->type()->vinstantiate(type2type);
+        return def2def[oprimop] = oprimop->rebuild(nops, type);
     }
 }
 

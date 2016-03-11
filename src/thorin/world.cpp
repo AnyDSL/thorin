@@ -67,8 +67,8 @@ Array<Lambda*> World::copy_lambdas() const {
  * types
  */
 
-const StructAbsType* World::struct_abs_type(size_t size, const std::string& name) {
-    auto struct_abs_type = new StructAbsType(*this, size, name);
+const StructAbsType* World::struct_abs_type(size_t size, size_t num_type_params, const std::string& name) {
+    auto struct_abs_type = new StructAbsType(*this, size, num_type_params, name);
     // just put it into the types_ set due to nominal typing
     auto p = types_.insert(struct_abs_type);
     assert_unused(p.second && "hash/equal broken");

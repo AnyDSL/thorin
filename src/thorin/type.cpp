@@ -123,7 +123,7 @@ const Type* Type::rebuild(World& to, Types args) const {
 }
 
 const Type* DefiniteArrayType  ::vrebuild(World& to, Types args) const { return to.definite_array_type(args[0], dim()); }
-const Type* FnType             ::vrebuild(World& to, Types args) const { return to.fn_type(args); }
+const Type* FnType             ::vrebuild(World& to, Types args) const { return to.fn_type(args, num_type_params()); }
 const Type* FrameType          ::vrebuild(World& to, Types     ) const { return to.frame_type(); }
 const Type* IndefiniteArrayType::vrebuild(World& to, Types args) const { return to.indefinite_array_type(args[0]); }
 const Type* MemType            ::vrebuild(World& to, Types     ) const { return to.mem_type(); }
@@ -137,7 +137,7 @@ const Type* PtrType::vrebuild(World& to, Types args) const {
 
 const Type* StructAbsType::vrebuild(World& to, Types args) const {
     // TODO how do we handle recursive types?
-    auto ntype = to.struct_abs_type(args.size());
+    auto ntype = to.struct_abs_type(args.size(), num_type_params());
     for (size_t i = 0, e = args.size(); i != e; ++i)
         ntype->set(i, args[i]);
     return ntype;

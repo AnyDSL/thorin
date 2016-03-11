@@ -265,8 +265,8 @@ private:
  */
 class StructAbsType : public Type {
 private:
-    StructAbsType(World& world, size_t size, const std::string& name)
-        : Type(world, Node_StructAbsType, Array<const Type*>(size))
+    StructAbsType(World& world, size_t size, size_t num_type_params, const std::string& name)
+        : Type(world, Node_StructAbsType, Array<const Type*>(size), num_type_params)
         , name_(name)
     {}
 

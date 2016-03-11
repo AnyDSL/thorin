@@ -64,7 +64,6 @@ protected:
 
 public:
     NodeKind kind() const { return kind_; }
-    bool is_corenode() const { return ::thorin::is_corenode(kind()); }
     Types args() const { return args_; }
     ArrayRef<const TypeParam*> type_params() const { return type_params_; }
     size_t num_type_params() const { return type_params().size(); }
@@ -108,7 +107,6 @@ public:
     virtual bool equal(const Type*) const;
     virtual const IndefiniteArrayType* is_indefinite() const;
     virtual bool use_lea() const { return false; }
-    virtual std::ostream& stream(std::ostream&) const override;
     virtual const Type* vinstantiate(Type2Type&) const = 0;
 
     static size_t gid_counter() { return gid_counter_; }

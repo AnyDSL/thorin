@@ -313,11 +313,6 @@ std::ostream& PrimType::stream(std::ostream& os) const {
     return os;
 }
 
-std::ostream& Type::stream(std::ostream& os) const {
-    assert(empty());
-    return os << "<NULL>";
-}
-
 //------------------------------------------------------------------------------
 
 /*

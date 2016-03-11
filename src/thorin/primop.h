@@ -113,6 +113,16 @@ private:
     friend class World;
 };
 
+template<class T>
+T primlit_value(const Def* def) {
+    auto lit = def->as<PrimLit>();
+    switch (lit->primtype_kind()) {
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit->value().get_##T();
+#include "thorin/tables/primtypetable.h"
+        default: THORIN_UNREACHABLE;
+    }
+}
+
 /// Akin to <tt>cond ? tval : fval</tt>.
 class Select : public PrimOp {
 private:
@@ -564,16 +574,6 @@ public:
 };
 
 //------------------------------------------------------------------------------
-
-template<class T>
-T Def::primlit_value() const {
-    const PrimLit* lit = this->as<PrimLit>();
-    switch (lit->primtype_kind()) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit->value().get_##T();
-#include "thorin/tables/primtypetable.h"
-        default: THORIN_UNREACHABLE;
-    }
-}
 
 template<int i, class T>
 const T* PrimOp::is_out(const Def* def) {

@@ -133,7 +133,7 @@ private:
     static size_t gid_counter_;
 
     friend const Type* close_base(const Type*&, ArrayRef<const TypeParam*>);
-    friend class TypeTable;
+    template<class> friend class TypeTableBase;
 };
 
 template<class T>
@@ -447,7 +447,7 @@ private:
 
     friend bool Type::equal(const Type*) const;
     friend const Type* close_base(const Type*&, ArrayRef<const TypeParam*>);
-    friend class TypeTable;
+    template<class> friend class TypeTableBase;
 };
 
 std::ostream& stream_type_params(std::ostream& os, const Type* type);

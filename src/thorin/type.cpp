@@ -6,6 +6,7 @@
 #include <stack>
 
 #include "thorin/lambda.h"
+#include "thorin/primop.h"
 #include "thorin/typetable.h"
 
 namespace thorin {
@@ -59,7 +60,7 @@ const Type* close_base(const Type*& type, ArrayRef<const TypeParam*> type_params
 }
 
 size_t Type::length() const { return as<VectorType>()->length(); }
-const Type* Type::elem(const Def* def) const { return elem(def->primlit_value<size_t>()); }
+const Type* Type::elem(const Def* def) const { return elem(primlit_value<size_t>(def)); }
 
 const VectorType* VectorType::scalarize() const {
     if (auto ptr = isa<PtrType>())

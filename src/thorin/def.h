@@ -134,7 +134,7 @@ public:
     bool is_div_or_rem()  const { return thorin::is_div_or_rem(kind()); }
     bool is_commutative() const { return thorin::is_commutative(kind()); }
     bool is_associative() const { return thorin::is_associative(kind()); }
-    template<class T> inline T primlit_value() const; // implementation in literal.h
+
     virtual bool is_outdated() const { return false; }
     virtual const Def* rebuild(Def2Def&) const { return this; }
     virtual std::ostream& stream(std::ostream&) const;

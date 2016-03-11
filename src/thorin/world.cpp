@@ -262,7 +262,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const Lo
             }
         }
 
-        if (rlit && rlit->primlit_value<uint64_t>() >= uint64_t(num_bits(type))) {
+        if (rlit && primlit_value<uint64_t>(rlit) >= uint64_t(num_bits(type))) {
             switch (kind) {
                 case ArithOp_shl:
                 case ArithOp_shr: return bottom(type, loc);
@@ -650,7 +650,7 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, con
             if (!agg->isa<IndefiniteArray>()) {
                 Array<const Def*> args(agg->size());
                 std::copy(agg->ops().begin(), agg->ops().end(), args.begin());
-                args[literal->primlit_value<u64>()] = value;
+                args[primlit_value<u64>(literal)] = value;
                 return aggregate->rebuild(args);
             }
         }

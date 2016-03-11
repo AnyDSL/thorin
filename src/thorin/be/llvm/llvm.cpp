@@ -758,7 +758,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
             if (extract->agg()->type()->isa<VectorType>())
                 return irbuilder_.CreateExtractElement(llvm_agg, llvm_idx);
             // tuple/struct
-            return irbuilder_.CreateExtractValue(llvm_agg, {aggop->index()->primlit_value<unsigned>()});
+            return irbuilder_.CreateExtractValue(llvm_agg, {primlit_value<unsigned>(aggop->index())});
         }
 
         auto insert = def->as<Insert>();
@@ -772,7 +772,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         if (insert->agg()->type()->isa<VectorType>())
             return irbuilder_.CreateInsertElement(llvm_agg, lookup(aggop->as<Insert>()->value()), llvm_idx);
         // tuple/struct
-        return irbuilder_.CreateInsertValue(llvm_agg, value, {aggop->index()->primlit_value<unsigned>()});
+        return irbuilder_.CreateInsertValue(llvm_agg, value, {primlit_value<unsigned>(aggop->index())});
     }
 
     if (auto primlit = def->isa<PrimLit>()) {
@@ -871,7 +871,7 @@ llvm::Value* CodeGen::emit_store(const Store* store) {
 
 llvm::Value* CodeGen::emit_lea(const LEA* lea) {
     if (lea->ptr_referenced_type()->isa<TupleType>() || lea->ptr_referenced_type()->isa<StructAppType>())
-        return irbuilder_.CreateStructGEP(lookup(lea->ptr()), lea->index()->primlit_value<u32>());
+        return irbuilder_.CreateStructGEP(lookup(lea->ptr()), primlit_value<u32>(lea->index()));
 
     assert(lea->ptr_referenced_type()->isa<ArrayType>());
     llvm::Value* args[2] = { irbuilder_.getInt64(0), lookup(lea->index()) };

@@ -5,22 +5,64 @@
 
 namespace thorin {
 
-class TypeTable {
+template<class TypeTable>
+class TypeTableBase {
+private:
+    TypeTable& typetable() { return *static_cast<TypeTable*>(this); }
+
 public:
     struct TypeHash { uint64_t operator () (const Type* t) const { return t->hash(); } };
     struct TypeEqual { bool operator () (const Type* t1, const Type* t2) const { return t1->equal(t2); } };
     typedef HashSet<const Type*, TypeHash, TypeEqual> TypeSet;
 
-    TypeTable& operator = (const TypeTable&);
-    TypeTable(const TypeTable&);
+    TypeTableBase& operator = (const TypeTableBase&);
+    TypeTableBase(const TypeTableBase&);
 
-    TypeTable();
-    virtual ~TypeTable();
+    TypeTableBase() {}
+    virtual ~TypeTableBase() { for (auto type : types_) delete type; }
+
+    const TypeParam* type_param(const std::string& name) { return unify(new TypeParam(typetable(), name)); }
+    const TypeSet& types() const { return types_; }
+
+protected:
+    const Type* unify_base(const Type* type) {
+        if (type->is_hashed() || !type->is_closed())
+            return type;
+
+        for (auto& arg : const_cast<Type*>(type)->args_)
+            arg = unify_base(arg);
+
+        auto i = types_.find(type);
+        if (i != types_.end()) {
+            delete type;
+            type = *i;
+            assert(type->is_hashed());
+            return type;
+        }
+
+        const auto& p = types_.insert(type);
+        assert_unused(p.second && "hash/equal broken");
+        assert(!type->is_hashed());
+        type->hashed_ = true;
+        return type;
+    }
+
+    template<class T> const T* unify(const T* type) { return unify_base(type)->template as<T>(); }
+
+    TypeSet types_;
+
+    friend const Type* close_base(const Type*&, ArrayRef<const TypeParam*>);
+};
+
+class TypeTable : public TypeTableBase<TypeTable> {
+public:
 
 #define THORIN_ALL_TYPE(T, M) const PrimType* type_##T(size_t length = 1) { \
     return length == 1 ? T##_ : new PrimType(*this, PrimType_##T, length); \
 }
 #include "thorin/tables/primtypetable.h"
+
+    TypeTable();
 
     /// Get PrimType.
     const PrimType*    type(PrimTypeKind kind, size_t length = 1) {
@@ -43,18 +85,12 @@ public:
     const FnType*              fn_type(Types args, size_t num_type_params = 0) {
         return unify(new FnType(*this, args, num_type_params));
     }
-    const TypeParam*           type_param(const std::string& name) { return unify(new TypeParam(*this, name)); }
     const DefiniteArrayType*   definite_array_type(const Type* elem, u64 dim) { return unify(new DefiniteArrayType(*this, elem, dim)); }
     const IndefiniteArrayType* indefinite_array_type(const Type* elem) { return unify(new IndefiniteArrayType(*this, elem)); }
 
     const TypeSet& types() const { return types_; }
 
 protected:
-    const Type* unify_base(const Type*);
-    template<class T> const T* unify(const T* type) { return unify_base(type)->template as<T>(); }
-
-    TypeSet types_;
-
     union {
         struct {
             const TupleType* tuple0_;///< tuple().
@@ -72,8 +108,6 @@ protected:
             };
         };
     };
-
-    friend const Type* close_base(const Type*&, ArrayRef<const TypeParam*>);
 };
 
 }

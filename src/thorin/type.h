@@ -140,6 +140,58 @@ const T* close(const T*& type, ArrayRef<const TypeParam*> type_param) {
     return close_base((const Type*&) type, type_param)->template as<T>();
 }
 
+class TypeParam : public Type {
+private:
+    TypeParam(TypeTable& typetable, const std::string& name)
+        : Type(typetable, Node_TypeParam, {})
+        , name_(name)
+    {
+        closed_ = false;
+        monomorphic_ = false;
+    }
+
+public:
+    const std::string& name() const { return name_; }
+    const Type* binder() const { return binder_; }
+    size_t index() const { return index_; }
+    virtual bool equal(const Type*) const override;
+
+    virtual std::ostream& stream(std::ostream&) const override;
+
+private:
+    virtual uint64_t vhash() const override;
+    virtual const Type* vrebuild(TypeTable& to, Types args) const override;
+    virtual const Type* vinstantiate(Type2Type&) const override;
+
+    std::string name_;
+    mutable const Type* binder_;
+    mutable size_t index_;
+    mutable const TypeParam* equiv_ = nullptr;
+
+    friend bool Type::equal(const Type*) const;
+    friend const Type* close_base(const Type*&, ArrayRef<const TypeParam*>);
+    template<class> friend class TypeTableBase;
+};
+
+std::ostream& stream_type_params(std::ostream& os, const Type* type);
+
+class TupleType : public Type {
+private:
+    TupleType(TypeTable& typetable, Types args)
+        : Type(typetable, Node_TupleType, args)
+    {}
+
+    virtual const Type* vinstantiate(Type2Type&) const override;
+    virtual const Type* vrebuild(TypeTable& to, Types args) const override;
+
+public:
+    virtual std::ostream& stream(std::ostream&) const override;
+
+    template<class> friend class TypeTableBase;
+};
+
+//------------------------------------------------------------------------------
+
 /// The type of the memory monad.
 class MemType : public Type {
 public:
@@ -327,21 +379,6 @@ private:
     friend class TypeTable;
 };
 
-class TupleType : public Type {
-private:
-    TupleType(TypeTable& typetable, Types args)
-        : Type(typetable, Node_TupleType, args)
-    {}
-
-    virtual const Type* vinstantiate(Type2Type&) const override;
-    virtual const Type* vrebuild(TypeTable& to, Types args) const override;
-
-public:
-    virtual std::ostream& stream(std::ostream&) const override;
-
-    template<class> friend class TypeTableBase;
-};
-
 class FnType : public Type {
 private:
     FnType(TypeTable& typetable, Types args, size_t num_type_params)
@@ -362,6 +399,8 @@ private:
 
     friend class TypeTable;
 };
+
+//------------------------------------------------------------------------------
 
 class ArrayType : public Type {
 protected:
@@ -414,41 +453,6 @@ private:
 
     friend class TypeTable;
 };
-
-class TypeParam : public Type {
-private:
-    TypeParam(TypeTable& typetable, const std::string& name)
-        : Type(typetable, Node_TypeParam, {})
-        , name_(name)
-    {
-        closed_ = false;
-        monomorphic_ = false;
-    }
-
-public:
-    const std::string& name() const { return name_; }
-    const Type* binder() const { return binder_; }
-    size_t index() const { return index_; }
-    virtual bool equal(const Type*) const override;
-
-    virtual std::ostream& stream(std::ostream&) const override;
-
-private:
-    virtual uint64_t vhash() const override;
-    virtual const Type* vrebuild(TypeTable& to, Types args) const override;
-    virtual const Type* vinstantiate(Type2Type&) const override;
-
-    std::string name_;
-    mutable const Type* binder_;
-    mutable size_t index_;
-    mutable const TypeParam* equiv_ = nullptr;
-
-    friend bool Type::equal(const Type*) const;
-    friend const Type* close_base(const Type*&, ArrayRef<const TypeParam*>);
-    template<class> friend class TypeTableBase;
-};
-
-std::ostream& stream_type_params(std::ostream& os, const Type* type);
 
 //------------------------------------------------------------------------------
 

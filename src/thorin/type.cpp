@@ -226,9 +226,14 @@ bool TypeParam::equal(const Type* other) const {
  */
 
 std::ostream& stream_type_params(std::ostream& os, const Type* type) {
-   if (type->num_type_params() != 0)
-       return stream_list(os, type->type_params(), [&](const TypeParam* type_param) { os << type_param; }, "[", "]");
-   return os;
+    if (type->num_type_params() == 0)
+        return os;
+    return stream_list(os, type->type_params(), [&](const TypeParam* type_param) {
+        if (type_param)
+            os << type_param;
+        else
+            os << "<null>";
+    }, "[", "]");
 }
 
 static std::ostream& stream_type_args(std::ostream& os, const Type* type) {

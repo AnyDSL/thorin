@@ -9,55 +9,15 @@
 #include "thorin/primop.h"
 #include "thorin/typetable.h"
 
+#define HENK_TABLE_NAME  typetable
+#define HENK_TABLE_NAME_ typetable_
+#define HENK_NAME_SPACE  thorin
+#define HENK_TABLE_TYPE  TypeTable
+#include "thorin/henk.cpp.h"
+
 namespace thorin {
 
 //------------------------------------------------------------------------------
-
-size_t Type::gid_counter_ = 1;
-
-const Type* close_base(const Type*& type, ArrayRef<const TypeParam*> type_params) {
-    assert(type->num_type_params() == type_params.size());
-
-    for (size_t i = 0, e = type->num_type_params(); i != e; ++i) {
-        assert(!type_params[i]->is_closed());
-        type->type_params_[i] = type_params[i];
-        type->type_params_[i]->binder_ = type;
-        type->type_params_[i]->closed_ = true;
-        type->type_params_[i]->index_ = i;
-    }
-
-    std::stack<const Type*> stack;
-    TypeSet done;
-
-    auto push = [&](const Type* type) {
-        if (!type->is_closed() && !done.contains(type) && !type->isa<TypeParam>()) {
-            done.insert(type);
-            stack.push(type);
-            return true;
-        }
-        return false;
-    };
-
-    push(type);
-
-    // TODO this is potentially quadratic when closing n types
-    while (!stack.empty()) {
-        auto type = stack.top();
-
-        bool todo = false;
-        for (auto arg : type->args())
-            todo |= push(arg);
-
-        if (!todo) {
-            stack.pop();
-            type->closed_ = true;
-            for (size_t i = 0, e = type->num_args(); i != e && type->closed_; ++i)
-                type->closed_ &= type->arg(i)->is_closed();
-        }
-    }
-
-    return type = type->typetable().unify_base(type);
-}
 
 const VectorType* VectorType::scalarize() const {
     if (auto ptr = isa<PtrType>())
@@ -163,19 +123,8 @@ const Type* StructAppType::vrebuild(TypeTable& to, Types args) const {
  * hash
  */
 
-uint64_t Type::vhash() const {
-    uint64_t seed = hash_combine(hash_begin((int) kind()), num_args(), num_type_params());
-    for (auto arg : args_)
-        seed = hash_combine(seed, arg->hash());
-    return seed;
-}
-
 uint64_t PtrType::vhash() const {
     return hash_combine(VectorType::vhash(), (uint64_t)device()), (uint64_t)addr_space();
-}
-
-uint64_t TypeParam::vhash() const {
-    return hash_combine(hash_begin(int(kind())), index(), int(binder()->kind()), binder()->num_type_params(), binder()->num_args());
 }
 
 //------------------------------------------------------------------------------
@@ -184,54 +133,11 @@ uint64_t TypeParam::vhash() const {
  * equal
  */
 
-bool Type::equal(const Type* other) const {
-    bool result =  this->kind() == other->kind()     &&  this->is_monomorphic() == other->is_monomorphic()
-            && this->num_args() == other->num_args() && this->num_type_params() == other->num_type_params();
-
-    if (result) {
-        if (is_monomorphic()) {
-            for (size_t i = 0, e = num_args(); result && i != e; ++i)
-                result &= this->args_[i] == other->args_[i];
-        } else {
-            for (size_t i = 0, e = num_type_params(); result && i != e; ++i) {
-                assert(this->type_param(i)->equiv_ == nullptr);
-                this->type_param(i)->equiv_ = other->type_param(i);
-            }
-
-            for (size_t i = 0, e = num_args(); result && i != e; ++i)
-                result &= this->args_[i]->equal(other->args_[i]);
-
-            for (auto type_param : type_params())
-                type_param->equiv_ = nullptr;
-        }
-        //for (size_t i = 0, e = num_type_params(); result && i != e; ++i) {
-            //assert(this->type_param(i)->equiv_ == nullptr);
-            //this->type_param(i)->equiv_ = other->type_param(i);
-        //}
-
-        //for (size_t i = 0, e = num_args(); result && i != e; ++i)
-            //result &= this->arg(i)->is_hashed()
-                //? this->arg(i) == other->arg(i)
-                //: this->arg(i)->equal(other->arg(i));
-
-        //for (auto type_param : type_params())
-            //type_param->equiv_ = nullptr;
-    }
-
-    return result;
-}
-
 bool PtrType::equal(const Type* other) const {
     if (!VectorType::equal(other))
         return false;
     auto ptr = other->as<PtrType>();
     return ptr->device() == device() && ptr->addr_space() == addr_space();
-}
-
-bool TypeParam::equal(const Type* other) const {
-    if (auto type_param = other->isa<TypeParam>())
-        return this->equiv_ == type_param;
-    return false;
 }
 
 //------------------------------------------------------------------------------

@@ -5,61 +5,6 @@
 
 namespace thorin {
 
-template<class TypeTable>
-class TypeTableBase {
-private:
-    TypeTable& typetable() { return *static_cast<TypeTable*>(this); }
-
-public:
-    struct TypeHash { uint64_t operator () (const Type* t) const { return t->hash(); } };
-    struct TypeEqual { bool operator () (const Type* t1, const Type* t2) const { return t1->equal(t2); } };
-    typedef HashSet<const Type*, TypeHash, TypeEqual> TypeSet;
-
-    TypeTableBase& operator = (const TypeTableBase&);
-    TypeTableBase(const TypeTableBase&);
-
-    TypeTableBase()
-        : tuple0_(unify(new TupleType(typetable(), Types())))
-    {}
-    virtual ~TypeTableBase() { for (auto type : types_) delete type; }
-
-    const TypeParam* type_param(const char* name) { return unify(new TypeParam(typetable(), name)); }
-    const TupleType* tuple_type(Types args) { return unify(new TupleType(typetable(), args)); }
-    const TupleType* tuple_type() { return tuple0_; } ///< Returns unit, i.e., an empty @p TupleType.
-
-    const TypeSet& types() const { return types_; }
-
-protected:
-    const Type* unify_base(const Type* type) {
-        if (type->is_hashed() || !type->is_closed())
-            return type;
-
-        for (auto& arg : const_cast<Type*>(type)->args_)
-            arg = unify_base(arg);
-
-        auto i = types_.find(type);
-        if (i != types_.end()) {
-            delete type;
-            type = *i;
-            assert(type->is_hashed());
-            return type;
-        }
-
-        const auto& p = types_.insert(type);
-        assert_unused(p.second && "hash/equal broken");
-        assert(!type->is_hashed());
-        type->hashed_ = true;
-        return type;
-    }
-
-    template<class T> const T* unify(const T* type) { return unify_base(type)->template as<T>(); }
-
-    TypeSet types_;
-    const TupleType* tuple0_;///< tuple().
-
-    friend const Type* close_base(const Type*&, ArrayRef<const TypeParam*>);
-};
-
 class TypeTable : public TypeTableBase<TypeTable> {
 public:
 

@@ -1,5 +1,3 @@
-namespace HENK_NAME_SPACE {
-
 size_t Type::gid_counter_ = 1;
 
 const Type* close_base(const Type*& type, ArrayRef<const TypeParam*> type_params) {
@@ -47,14 +45,15 @@ const Type* close_base(const Type*& type, ArrayRef<const TypeParam*> type_params
 }
 
 uint64_t Type::vhash() const {
-    uint64_t seed = hash_combine(hash_begin((int) kind()), num_args(), num_type_params());
+    uint64_t seed = thorin::hash_combine(thorin::hash_begin((int) kind()), num_args(), num_type_params());
     for (auto arg : args_)
-        seed = hash_combine(seed, arg->hash());
+        seed = thorin::hash_combine(seed, arg->hash());
     return seed;
 }
 
 uint64_t TypeParam::vhash() const {
-    return hash_combine(hash_begin(int(kind())), index(), int(binder()->kind()), binder()->num_type_params(), binder()->num_args());
+    return thorin::hash_combine(thorin::hash_begin(int(kind())), index(),
+                                int(binder()->kind()), binder()->num_type_params(), binder()->num_args());
 }
 
 bool Type::equal(const Type* other) const {
@@ -98,6 +97,4 @@ bool TypeParam::equal(const Type* other) const {
     if (auto type_param = other->isa<TypeParam>())
         return this->equiv_ == type_param;
     return false;
-}
-
 }

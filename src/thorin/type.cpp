@@ -9,15 +9,12 @@
 #include "thorin/primop.h"
 #include "thorin/typetable.h"
 
-#define HENK_TABLE_NAME  typetable
-#define HENK_TABLE_NAME_ typetable_
-#define HENK_NAME_SPACE  thorin
-#define HENK_TABLE_TYPE  TypeTable
-#include "thorin/henk.cpp.h"
-
 namespace thorin {
 
+#include "thorin/henk.cpp.h"
+
 //------------------------------------------------------------------------------
+
 
 const VectorType* VectorType::scalarize() const {
     if (auto ptr = isa<PtrType>())

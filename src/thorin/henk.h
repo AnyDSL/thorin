@@ -2,25 +2,12 @@
 #error "please define the type table name HENK_TABLE_NAME"
 #endif
 
-#ifndef HENK_TABLE_NAME_
-#error "please define the type table name HENK_TABLE_NAME_"
-#endif
-
-#ifndef HENK_NAME_SPACE
-#error "please define the namespace via HENK_NAME_SPACE"
-#endif
-
 #ifndef HENK_TABLE_TYPE
 #error "please define the type table type HENK_TABLE_TYPE"
 #endif
 
-#include "thorin/enums.h"
-#include "thorin/util/array.h"
-#include "thorin/util/cast.h"
-#include "thorin/util/hash.h"
-#include "thorin/util/stream.h"
-
-namespace HENK_NAME_SPACE {
+#define HENK_UNDERSCORE(N) N##_
+#define HENK_TABLE_NAME_ HENK_UNDERSCORE(HENK_TABLE_NAME)
 
 //------------------------------------------------------------------------------
 
@@ -34,21 +21,21 @@ struct GIDHash {
 };
 
 template<class Key, class Value>
-using GIDMap    = HashMap<const Key*, Value, GIDHash<const Key*>>;
+using GIDMap    = thorin::HashMap<const Key*, Value, GIDHash<const Key*>>;
 template<class Key>
-using GIDSet    = HashSet<const Key*, GIDHash<const Key*>>;
+using GIDSet    = thorin::HashSet<const Key*, GIDHash<const Key*>>;
 
 template<class To>
 using TypeMap      = GIDMap<Type, To>;
 using TypeSet      = GIDSet<Type>;
 using Type2Type    = TypeMap<const Type*>;
 
-typedef ArrayRef<const Type*> Types;
+typedef thorin::ArrayRef<const Type*> Types;
 
 //------------------------------------------------------------------------------
 
 /// Base class for all \p Type%s.
-class Type : public Streamable, public MagicCast<Type> {
+class Type : public thorin::Streamable, public thorin::MagicCast<Type> {
 protected:
     Type(const Type&) = delete;
     Type& operator=(const Type&) = delete;
@@ -68,9 +55,10 @@ protected:
 
     void set(size_t i, const Type* type) {
         args_[i] = type;
-        order_ = std::max(order_, type->order());
-        closed_ &= type->is_closed();
+        order_       = std::max(order_, type->order());
+        closed_      &= type->is_closed();
         monomorphic_ &= type->is_monomorphic();
+        known_       &= type->is_known();
     }
 
 public:
@@ -82,12 +70,13 @@ public:
     size_t num_args() const { return args_.size(); }
     bool empty() const { return args_.empty(); }
 
-    ArrayRef<const TypeParam*> type_params() const { return type_params_; }
+    thorin::ArrayRef<const TypeParam*> type_params() const { return type_params_; }
     const TypeParam* type_param(size_t i) const { assert(i < type_params().size()); return type_params()[i]; }
     size_t num_type_params() const { return type_params().size(); }
 
     bool is_hashed() const { return hashed_; }                ///< This @p Type is already recorded inside of @p HENK_TABLE_TYPE.
     bool is_closed() const { return closed_; }                ///< Are all @p TypeParam%s bound?
+    bool is_known()  const { return known_; }                 ///< Deos this @p Type depend on any @p UnknownType%s?
     bool is_monomorphic() const { return monomorphic_; }      ///< Does this @p Type not depend on any @p TypeParam%s?.
     bool is_polymorphic() const { return !is_monomorphic(); } ///< Does this @p Type depend on any @p TypeParam%s?.
     int order() const { return order_; }
@@ -108,12 +97,13 @@ public:
     static size_t gid_counter() { return gid_counter_; }
 
 protected:
-    Array<const Type*> specialize_args(Type2Type&) const;
+    thorin::Array<const Type*> specialize_args(Type2Type&) const;
 
     int order_ = 0;
     mutable uint64_t hash_ = 0;
-    mutable bool hashed_ = false;
-    mutable bool closed_ = true;
+    mutable bool hashed_      = false;
+    mutable bool closed_      = true;
+    mutable bool known_       = true;
     mutable bool monomorphic_ = true;
 
 private:
@@ -121,17 +111,17 @@ private:
 
     HENK_TABLE_TYPE& HENK_TABLE_NAME_;
     int kind_;
-    Array<const Type*> args_;
-    mutable Array<const TypeParam*> type_params_;
+    thorin::Array<const Type*> args_;
+    mutable thorin::Array<const TypeParam*> type_params_;
     mutable size_t gid_;
     static size_t gid_counter_;
 
-    friend const Type* close_base(const Type*&, ArrayRef<const TypeParam*>);
+    friend const Type* close_base(const Type*&, thorin::ArrayRef<const TypeParam*>);
     template<class> friend class TypeTableBase;
 };
 
 template<class T>
-const T* close(const T*& type, ArrayRef<const TypeParam*> type_param) {
+const T* close(const T*& type, thorin::ArrayRef<const TypeParam*> type_param) {
     static_assert(std::is_base_of<Type, T>::value, "T is not a base of thorin::Type");
     return close_base((const Type*&) type, type_param)->template as<T>();
 }
@@ -162,10 +152,12 @@ private:
     const char* name_;
     mutable const Type* binder_;
     mutable size_t index_;
+
+public: // HACK
     mutable const TypeParam* equiv_ = nullptr;
 
     friend bool Type::equal(const Type*) const;
-    friend const Type* close_base(const Type*&, ArrayRef<const TypeParam*>);
+    friend const Type* close_base(const Type*&, thorin::ArrayRef<const TypeParam*>);
     template<class> friend class TypeTableBase;
 };
 
@@ -196,19 +188,19 @@ private:
 public:
     struct TypeHash { uint64_t operator () (const Type* t) const { return t->hash(); } };
     struct TypeEqual { bool operator () (const Type* t1, const Type* t2) const { return t1->equal(t2); } };
-    typedef HashSet<const Type*, TypeHash, TypeEqual> TypeSet;
+    typedef thorin::HashSet<const Type*, TypeHash, TypeEqual> TypeSet;
 
     TypeTableBase& operator = (const TypeTableBase&);
     TypeTableBase(const TypeTableBase&);
 
     TypeTableBase()
-        : tuple0_(unify(new TupleType(HENK_TABLE_NAME(), Types())))
+        : unit_(unify(new TupleType(HENK_TABLE_NAME(), Types())))
     {}
     virtual ~TypeTableBase() { for (auto type : types_) delete type; }
 
     const TypeParam* type_param(const char* name) { return unify(new TypeParam(HENK_TABLE_NAME(), name)); }
     const TupleType* tuple_type(Types args) { return unify(new TupleType(HENK_TABLE_NAME(), args)); }
-    const TupleType* tuple_type() { return tuple0_; } ///< Returns unit, i.e., an empty @p TupleType.
+    const TupleType* unit() { return unit_; } ///< Returns unit, i.e., an empty @p TupleType.
 
     const TypeSet& types() const { return types_; }
 
@@ -238,15 +230,12 @@ protected:
     template<class T> const T* unify(const T* type) { return unify_base(type)->template as<T>(); }
 
     TypeSet types_;
-    const TupleType* tuple0_;///< tuple().
+    const TupleType* unit_; ///< tuple().
 
-    friend const Type* close_base(const Type*&, ArrayRef<const TypeParam*>);
+    friend const Type* close_base(const Type*&, thorin::ArrayRef<const TypeParam*>);
 };
 
 //------------------------------------------------------------------------------
 
-}
-
 #undef HENK_TABLE_NAME
-#undef HENK_TABLE_NAME_
 #undef HENK_TABLE_TYPE

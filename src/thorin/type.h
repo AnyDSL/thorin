@@ -7,13 +7,11 @@
 #include "thorin/util/hash.h"
 #include "thorin/util/stream.h"
 
+namespace thorin {
+
 #define HENK_TABLE_NAME  typetable
-#define HENK_TABLE_NAME_ typetable_
-#define HENK_NAME_SPACE  thorin
 #define HENK_TABLE_TYPE  TypeTable
 #include "thorin/henk.h"
-
-namespace thorin {
 
 //------------------------------------------------------------------------------
 

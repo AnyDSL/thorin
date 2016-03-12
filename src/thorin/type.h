@@ -75,10 +75,10 @@ public:
     const TypeParam* type_param(size_t i) const { assert(i < type_params().size()); return type_params()[i]; }
     size_t num_type_params() const { return type_params().size(); }
 
-    bool is_hashed() const { return hashed_; }          ///< This @p Type is already recorded inside of @p TypeTable.
-    bool is_closed() const { return closed_; }  ///< Are all @p TypeParam%s bound?
-    bool is_monomorphic() const { return monomorphic_; }        ///< Does this @p Type not depend on any @p TypeParam%s?.
-    bool is_polymorphic() const { return !is_monomorphic(); }   ///< Does this @p Type depend on any @p TypeParam%s?.
+    bool is_hashed() const { return hashed_; }                ///< This @p Type is already recorded inside of @p TypeTable.
+    bool is_closed() const { return closed_; }                ///< Are all @p TypeParam%s bound?
+    bool is_monomorphic() const { return monomorphic_; }      ///< Does this @p Type not depend on any @p TypeParam%s?.
+    bool is_polymorphic() const { return !is_monomorphic(); } ///< Does this @p Type depend on any @p TypeParam%s?.
     int order() const { return order_; }
     size_t gid() const { return gid_; }
 

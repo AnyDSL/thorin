@@ -2,9 +2,9 @@
 
 namespace thorin {
 
-const Type* import(Type2Type& old2new, TypeTable& to, const Type* otype) {
+const Type* import(Type2Type& old2new, World& to, const Type* otype) {
     if (auto ntype = find(old2new, otype)) {
-        assert(&ntype->typetable() == &to);
+        assert(&ntype->world() == &to);
         return ntype;
     }
 
@@ -14,7 +14,7 @@ const Type* import(Type2Type& old2new, TypeTable& to, const Type* otype) {
         nargs[i] = import(old2new, to, otype->arg(i));
 
     auto ntype = old2new[otype] = otype->rebuild(to, nargs);
-    assert(&ntype->typetable() == &to);
+    assert(&ntype->world() == &to);
 
     Array<const TypeParam*> ntype_params(otype->num_type_params());
     for (size_t i = 0, e = otype->num_type_params(); i != e; ++i)

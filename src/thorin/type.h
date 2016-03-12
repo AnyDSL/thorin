@@ -9,8 +9,8 @@
 
 namespace thorin {
 
-#define HENK_TABLE_NAME  typetable
-#define HENK_TABLE_TYPE  TypeTable
+#define HENK_TABLE_NAME world
+#define HENK_TABLE_TYPE World
 #include "thorin/henk.h"
 
 //------------------------------------------------------------------------------
@@ -21,14 +21,14 @@ public:
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
-    MemType(TypeTable& typetable)
-        : Type(typetable, Node_MemType, {})
+    MemType(World& world)
+        : Type(world, Node_MemType, {})
     {}
 
-    virtual const Type* vrebuild(TypeTable& to, Types args) const override;
+    virtual const Type* vrebuild(World& to, Types args) const override;
     virtual const Type* vinstantiate(Type2Type&) const override;
 
-    friend class TypeTable;
+    friend class World;
 };
 
 /// The type of a stack frame.
@@ -37,21 +37,21 @@ public:
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
-    FrameType(TypeTable& typetable)
-        : Type(typetable, Node_FrameType, {})
+    FrameType(World& world)
+        : Type(world, Node_FrameType, {})
     {}
 
-    virtual const Type* vrebuild(TypeTable& to, Types args) const override;
+    virtual const Type* vrebuild(World& to, Types args) const override;
     virtual const Type* vinstantiate(Type2Type&) const override;
 
-    friend class TypeTable;
+    friend class World;
 };
 
 /// Base class for all SIMD types.
 class VectorType : public Type {
 protected:
-    VectorType(TypeTable& typetable, int kind, Types args, size_t length)
-        : Type(typetable, kind, args)
+    VectorType(World& world, int kind, Types args, size_t length)
+        : Type(world, kind, args)
         , length_(length)
     {}
 
@@ -77,8 +77,8 @@ inline size_t vector_length(const Type* type) { return type->as<VectorType>()->l
 /// Primitive type.
 class PrimType : public VectorType {
 private:
-    PrimType(TypeTable& typetable, PrimTypeKind kind, size_t length)
-        : VectorType(typetable, (int) kind, {}, length)
+    PrimType(World& world, PrimTypeKind kind, size_t length)
+        : VectorType(world, (int) kind, {}, length)
     {}
 
 public:
@@ -87,10 +87,10 @@ public:
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
-    virtual const Type* vrebuild(TypeTable& to, Types args) const override;
+    virtual const Type* vrebuild(World& to, Types args) const override;
     virtual const Type* vinstantiate(Type2Type&) const override;
 
-    friend class TypeTable;
+    friend class World;
 };
 
 inline bool is_primtype (const Type* t) { return thorin::is_primtype(t->kind()); }
@@ -119,8 +119,8 @@ enum class AddrSpace : uint32_t {
 /// Pointer type.
 class PtrType : public VectorType {
 private:
-    PtrType(TypeTable& typetable, const Type* referenced_type, size_t length, int32_t device, AddrSpace addr_space)
-        : VectorType(typetable, Node_PtrType, {referenced_type}, length)
+    PtrType(World& world, const Type* referenced_type, size_t length, int32_t device, AddrSpace addr_space)
+        : VectorType(world, Node_PtrType, {referenced_type}, length)
         , addr_space_(addr_space)
         , device_(device)
     {}
@@ -137,13 +137,13 @@ public:
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
-    virtual const Type* vrebuild(TypeTable& to, Types args) const override;
+    virtual const Type* vrebuild(World& to, Types args) const override;
     virtual const Type* vinstantiate(Type2Type&) const override;
 
     AddrSpace addr_space_;
     int32_t device_;
 
-    friend class TypeTable;
+    friend class World;
 };
 
 /**
@@ -156,8 +156,8 @@ private:
  */
 class StructAbsType : public Type {
 private:
-    StructAbsType(TypeTable& typetable, size_t size, size_t num_type_params, const std::string& name)
-        : Type(typetable, Node_StructAbsType, Array<const Type*>(size), num_type_params)
+    StructAbsType(World& world, size_t size, size_t num_type_params, const std::string& name)
+        : Type(world, Node_StructAbsType, Array<const Type*>(size), num_type_params)
         , name_(name)
     {}
 
@@ -171,12 +171,12 @@ public:
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
-    virtual const Type* vrebuild(TypeTable& to, Types args) const override;
+    virtual const Type* vrebuild(World& to, Types args) const override;
     virtual const Type* vinstantiate(Type2Type&) const override { THORIN_UNREACHABLE; }
 
     std::string name_;
 
-    friend class TypeTable;
+    friend class World;
 };
 
 /**
@@ -188,7 +188,7 @@ private:
 class StructAppType : public Type {
 private:
     StructAppType(const StructAbsType* struct_abs_type, Types args)
-        : Type(struct_abs_type->typetable(), Node_StructAppType, Array<const Type*>(args.size() + 1))
+        : Type(struct_abs_type->world(), Node_StructAppType, Array<const Type*>(args.size() + 1))
         , struct_abs_type_(struct_abs_type)
         , elem_cache_(struct_abs_type->num_args())
     {
@@ -210,19 +210,19 @@ public:
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
-    virtual const Type* vrebuild(TypeTable& to, Types args) const override;
+    virtual const Type* vrebuild(World& to, Types args) const override;
     virtual const Type* vinstantiate(Type2Type&) const override;
 
     const StructAbsType* struct_abs_type_;
     mutable Array<const Type*> elem_cache_;
 
-    friend class TypeTable;
+    friend class World;
 };
 
 class FnType : public Type {
 private:
-    FnType(TypeTable& typetable, Types args, size_t num_type_params)
-        : Type(typetable, Node_FnType, args, num_type_params)
+    FnType(World& world, Types args, size_t num_type_params)
+        : Type(world, Node_FnType, args, num_type_params)
     {
         ++order_;
     }
@@ -234,18 +234,18 @@ public:
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
-    virtual const Type* vrebuild(TypeTable& to, Types args) const override;
+    virtual const Type* vrebuild(World& to, Types args) const override;
     virtual const Type* vinstantiate(Type2Type&) const override;
 
-    friend class TypeTable;
+    friend class World;
 };
 
 //------------------------------------------------------------------------------
 
 class ArrayType : public Type {
 protected:
-    ArrayType(TypeTable& typetable, int kind, const Type* elem_type)
-        : Type(typetable, kind, {elem_type})
+    ArrayType(World& world, int kind, const Type* elem_type)
+        : Type(world, kind, {elem_type})
     {}
 
 public:
@@ -254,23 +254,23 @@ public:
 
 class IndefiniteArrayType : public ArrayType {
 public:
-    IndefiniteArrayType(TypeTable& typetable, const Type* elem_type)
-        : ArrayType(typetable, Node_IndefiniteArrayType, elem_type)
+    IndefiniteArrayType(World& world, const Type* elem_type)
+        : ArrayType(world, Node_IndefiniteArrayType, elem_type)
     {}
 
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
-    virtual const Type* vrebuild(TypeTable& to, Types args) const override;
+    virtual const Type* vrebuild(World& to, Types args) const override;
     virtual const Type* vinstantiate(Type2Type&) const override;
 
-    friend class TypeTable;
+    friend class World;
 };
 
 class DefiniteArrayType : public ArrayType {
 public:
-    DefiniteArrayType(TypeTable& typetable, const Type* elem_type, u64 dim)
-        : ArrayType(typetable, Node_DefiniteArrayType, elem_type)
+    DefiniteArrayType(World& world, const Type* elem_type, u64 dim)
+        : ArrayType(world, Node_DefiniteArrayType, elem_type)
         , dim_(dim)
     {}
 
@@ -283,12 +283,12 @@ public:
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
-    virtual const Type* vrebuild(TypeTable& to, Types args) const override;
+    virtual const Type* vrebuild(World& to, Types args) const override;
     virtual const Type* vinstantiate(Type2Type&) const override;
 
     u64 dim_;
 
-    friend class TypeTable;
+    friend class World;
 };
 
 const IndefiniteArrayType* is_indefinite(const Type*);

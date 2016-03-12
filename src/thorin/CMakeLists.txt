@@ -6,6 +6,8 @@ SET ( SOURCES
     def.h
     enums.cpp
     enums.h
+    henk.cpp.h
+    henk.h
     irbuilder.cpp
     irbuilder.h
     lambda.cpp
@@ -14,8 +16,6 @@ SET ( SOURCES
     primop.h
     type.cpp
     type.h
-    typetable.cpp
-    typetable.h
     world.cpp
     world.h
     analyses/cfg.cpp

@@ -152,7 +152,7 @@ template<class T> const Def* Def::op(const T* def) const { return op(primlit_val
 template const Def* Def::op<Def>(const Def*) const;         // instantiate method
 template const Def* Def::op<PrimLit>(const PrimLit*) const; // instantiate method
 
-World& Def::world() const { return (World&) type()->typetable(); }
+World& Def::world() const { return type()->world(); }
 Lambda* Def::as_lambda() const { return const_cast<Lambda*>(scast<Lambda>(this)); }
 Lambda* Def::isa_lambda() const { return const_cast<Lambda*>(dcast<Lambda>(this)); }
 int Def::order() const { return type()->order(); }

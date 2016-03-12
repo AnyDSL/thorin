@@ -1,3 +1,7 @@
+#ifndef HENK_TABLE_NAME
+#error "please define the type table name HENK_TABLE_NAME"
+#endif
+
 size_t Type::gid_counter_ = 1;
 
 const Type* close_base(const Type*& type, ArrayRef<const TypeParam*> type_params) {
@@ -41,7 +45,7 @@ const Type* close_base(const Type*& type, ArrayRef<const TypeParam*> type_params
         }
     }
 
-    return type = type->typetable().unify_base(type);
+    return type = type->HENK_TABLE_NAME().unify_base(type);
 }
 
 uint64_t Type::vhash() const {
@@ -98,3 +102,5 @@ bool TypeParam::equal(const Type* other) const {
         return this->equiv_ == type_param;
     return false;
 }
+
+#undef HENK_TABLE_NAME

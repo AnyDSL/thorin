@@ -7,10 +7,11 @@
 
 #include "thorin/lambda.h"
 #include "thorin/primop.h"
-#include "thorin/typetable.h"
+#include "thorin/world.h"
 
 namespace thorin {
 
+#define HENK_TABLE_NAME world
 #include "thorin/henk.cpp.h"
 
 //------------------------------------------------------------------------------
@@ -18,8 +19,8 @@ namespace thorin {
 
 const VectorType* VectorType::scalarize() const {
     if (auto ptr = isa<PtrType>())
-        return typetable().ptr_type(ptr->referenced_type());
-    return typetable().type(as<PrimType>()->primtype_kind());
+        return world().ptr_type(ptr->referenced_type());
+    return world().type(as<PrimType>()->primtype_kind());
 }
 
 bool FnType::is_returning() const {
@@ -82,27 +83,27 @@ bool use_lea(const Type* type) {
  * vrebuild
  */
 
-const Type* Type::rebuild(TypeTable& to, Types args) const {
+const Type* Type::rebuild(World& to, Types args) const {
     assert(num_args() == args.size());
-    if (args.empty() && &typetable() == &to)
+    if (args.empty() && &world() == &to)
         return this;
     return vrebuild(to, args);
 }
 
-const Type* DefiniteArrayType  ::vrebuild(TypeTable& to, Types args) const { return to.definite_array_type(args[0], dim()); }
-const Type* FnType             ::vrebuild(TypeTable& to, Types args) const { return to.fn_type(args, num_type_params()); }
-const Type* FrameType          ::vrebuild(TypeTable& to, Types     ) const { return to.frame_type(); }
-const Type* IndefiniteArrayType::vrebuild(TypeTable& to, Types args) const { return to.indefinite_array_type(args[0]); }
-const Type* MemType            ::vrebuild(TypeTable& to, Types     ) const { return to.mem_type(); }
-const Type* PrimType           ::vrebuild(TypeTable& to, Types     ) const { return to.type(primtype_kind(), length()); }
-const Type* TupleType          ::vrebuild(TypeTable& to, Types args) const { return to.tuple_type(args); }
-const Type* TypeParam          ::vrebuild(TypeTable& to, Types     ) const { return to.type_param(name()); }
+const Type* DefiniteArrayType  ::vrebuild(World& to, Types args) const { return to.definite_array_type(args[0], dim()); }
+const Type* FnType             ::vrebuild(World& to, Types args) const { return to.fn_type(args, num_type_params()); }
+const Type* FrameType          ::vrebuild(World& to, Types     ) const { return to.frame_type(); }
+const Type* IndefiniteArrayType::vrebuild(World& to, Types args) const { return to.indefinite_array_type(args[0]); }
+const Type* MemType            ::vrebuild(World& to, Types     ) const { return to.mem_type(); }
+const Type* PrimType           ::vrebuild(World& to, Types     ) const { return to.type(primtype_kind(), length()); }
+const Type* TupleType          ::vrebuild(World& to, Types args) const { return to.tuple_type(args); }
+const Type* TypeParam          ::vrebuild(World& to, Types     ) const { return to.type_param(name()); }
 
-const Type* PtrType::vrebuild(TypeTable& to, Types args) const {
+const Type* PtrType::vrebuild(World& to, Types args) const {
     return to.ptr_type(args.front(), length(), device(), addr_space());
 }
 
-const Type* StructAbsType::vrebuild(TypeTable& to, Types args) const {
+const Type* StructAbsType::vrebuild(World& to, Types args) const {
     // TODO how do we handle recursive types?
     auto ntype = to.struct_abs_type(args.size(), num_type_params());
     for (size_t i = 0, e = args.size(); i != e; ++i)
@@ -110,7 +111,7 @@ const Type* StructAbsType::vrebuild(TypeTable& to, Types args) const {
     return ntype;
 }
 
-const Type* StructAppType::vrebuild(TypeTable& to, Types args) const {
+const Type* StructAppType::vrebuild(World& to, Types args) const {
     return to.struct_app_type(args[0]->as<StructAbsType>(), args.skip_front());
 }
 
@@ -257,7 +258,7 @@ const Type* Type::specialize(Type2Type& map) const {
     Array<const TypeParam*> ntype_params(num_type_params());
     for (size_t i = 0, e = num_type_params(); i != e; ++i) {
         assert(!map.contains(type_param(i)));
-        auto ntype_param = typetable().type_param(type_param(i)->name());
+        auto ntype_param = world().type_param(type_param(i)->name());
         map[type_param(i)] = ntype_param;
         ntype_params[i] = ntype_param;
     }
@@ -279,34 +280,34 @@ const Type* PrimType ::vinstantiate(Type2Type& map) const { return map[this] = t
 const Type* TypeParam::vinstantiate(Type2Type& map) const { return map[this] = this; }
 
 const Type* DefiniteArrayType::vinstantiate(Type2Type& map) const {
-    return map[this] = typetable().definite_array_type(elem_type()->specialize(map), dim());
+    return map[this] = world().definite_array_type(elem_type()->specialize(map), dim());
 }
 
 const Type* FnType::vinstantiate(Type2Type& map) const {
-    return map[this] = typetable().fn_type(specialize_args(map));
+    return map[this] = world().fn_type(specialize_args(map));
 }
 
 const Type* IndefiniteArrayType::vinstantiate(Type2Type& map) const {
-    return map[this] = typetable().indefinite_array_type(elem_type()->specialize(map));
+    return map[this] = world().indefinite_array_type(elem_type()->specialize(map));
 }
 
 const Type* PtrType::vinstantiate(Type2Type& map) const {
-    return map[this] = typetable().ptr_type(referenced_type()->specialize(map), length(), device(), addr_space());
+    return map[this] = world().ptr_type(referenced_type()->specialize(map), length(), device(), addr_space());
 }
 
 const Type* StructAbsType::instantiate(Types args) const {
-    return typetable().struct_app_type(this, args);
+    return world().struct_app_type(this, args);
 }
 
 const Type* StructAppType::vinstantiate(Type2Type& map) const {
     Array<const Type*> nargs(num_type_args());
     for (size_t i = 0, e = num_type_args(); i != e; ++i)
         nargs[i] = type_arg(i)->specialize(map);
-    return map[this] = typetable().struct_app_type(struct_abs_type(), nargs);
+    return map[this] = world().struct_app_type(struct_abs_type(), nargs);
 }
 
 const Type* TupleType::vinstantiate(Type2Type& map) const {
-    return map[this] = typetable().tuple_type(specialize_args(map));
+    return map[this] = world().tuple_type(specialize_args(map));
 }
 
 //------------------------------------------------------------------------------

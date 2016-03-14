@@ -73,7 +73,7 @@ void Lambda::refresh(Def2Def& old2new) {
             Array<const Def*> nops(size());
             for (size_t i = 0, e = size(); i != e; ++i)
                 nops[i] = this->op(i)->rebuild(old2new);
-            jump(nops.front(), type_args(), nops.skip_front(), jump_loc());
+            jump(nops.front(), nops.skip_front(), jump_loc());
             return;
         }
     }
@@ -85,8 +85,8 @@ void Lambda::destroy_body() {
 }
 
 const FnType* Lambda::arg_fn_type() const {
-    Array<const Type*> args(size());
-    for (size_t i = 0, e = size(); i != e; ++i)
+    Array<const Type*> args(num_args());
+    for (size_t i = 0, e = num_args(); i != e; ++i)
         args[i] = arg(i)->type();
 
     return world().fn_type(args);
@@ -238,45 +238,43 @@ Lambda::ScopeInfo* Lambda::find_scope(const Scope* scope) {
  * terminate
  */
 
-// TODO can we get rid of this type_args copy here?
-void Lambda::jump(const Def* to, Array<const Type*> type_args, Defs args, const Location& loc) {
+void Lambda::jump(const Def* to, Defs args, const Location& loc) {
     jump_loc_ = loc;
     if (auto lambda = to->isa<Lambda>()) {
         switch (lambda->intrinsic()) {
             case Intrinsic::Bitcast: {
-                assert(type_args.size() == 2);
-                auto dst = type_args[0], src = type_args[1];
+                //assert(type_args.size() == 2);
+                //auto dst = type_args[0], src = type_args[1];
 
-                if (dst->is_monomorphic()) {
-                    assert(args.size() == 3);
-                    auto mem = args[0], def = args[1], k = args[2];
-                    assert_unused(def->type() == src);
-                    return jump(k, {}, { mem, world().bitcast(dst, def, loc) }, loc);
-                }
-                break;
+                //if (dst->is_monomorphic()) {
+                    //assert(args.size() == 3);
+                    //auto mem = args[0], def = args[1], k = args[2];
+                    //assert_unused(def->type() == src);
+                    //return jump(k, {}, { mem, world().bitcast(dst, def, loc) }, loc);
+                //}
+                //break;
             }
             case Intrinsic::Branch: {
-                assert(type_args.empty());
                 assert(args.size() == 3);
                 auto cond = args[0], t = args[1], f = args[2];
                 if (auto lit = cond->isa<PrimLit>())
-                    return jump(lit->value().get_bool() ? t : f, {}, {}, loc);
+                    return jump(lit->value().get_bool() ? t : f, {}, loc);
                 if (t == f)
-                    return jump(t, {}, {}, loc);
+                    return jump(t, {}, loc);
                 if (cond->is_not())
                     return branch(cond->as<ArithOp>()->rhs(), f, t, loc);
                 break;
             }
             case Intrinsic::Select: {
-                assert(type_args.size() == 2);
-                const Type* type = type_args[1];
+                //assert(type_args.size() == 2);
+                //const Type* type = type_args[1];
 
-                if (type->is_monomorphic()) {
-                    assert(args.size() == 5);
-                    auto mem = args[0], cond = args[1], t = args[2], f = args[3], k = args[4];
-                    return jump(k, {}, { mem, world().select(cond, t, f, loc) }, loc);
-                }
-                break;
+                //if (type->is_monomorphic()) {
+                    //assert(args.size() == 5);
+                    //auto mem = args[0], cond = args[1], t = args[2], f = args[3], k = args[4];
+                    //return jump(k, {}, { mem, world().select(cond, t, f, loc) }, loc);
+                //}
+                //break;
             }
             default:
                 break;
@@ -290,15 +288,13 @@ void Lambda::jump(const Def* to, Array<const Type*> type_args, Defs args, const 
     size_t x = 1;
     for (auto arg : args)
         set_op(x++, arg);
-
-    swap(type_args_, type_args);
 }
 
-void Lambda::branch(const Def* cond, const Def* t, const Def* f, const Location& loc) { return jump(world().branch(), {}, {cond, t, f}, loc); }
+void Lambda::branch(const Def* cond, const Def* t, const Def* f, const Location& loc) { return jump(world().branch(), {cond, t, f}, loc); }
 
-std::pair<Lambda*, const Def*> Lambda::call(const Def* to, Types type_args, Defs args, const Type* ret_type, const Location& loc) {
+std::pair<Lambda*, const Def*> Lambda::call(const Def* to, Defs args, const Type* ret_type, const Location& loc) {
     if (ret_type == nullptr) {
-        jump(to, type_args, args, loc);
+        jump(to, args, loc);
         return std::make_pair(nullptr, nullptr);
     }
 
@@ -319,7 +315,7 @@ std::pair<Lambda*, const Def*> Lambda::call(const Def* to, Types type_args, Defs
     size_t csize = args.size() + 1;
     Array<const Def*> cargs(csize);
     *std::copy(args.begin(), args.end(), cargs.begin()) = next;
-    jump(to, type_args, cargs, loc);
+    jump(to, cargs, loc);
 
     // determine return value
     const Def* ret = nullptr;
@@ -337,19 +333,13 @@ std::pair<Lambda*, const Def*> Lambda::call(const Def* to, Types type_args, Defs
 }
 
 void jump_to_cached_call(Lambda* src, Lambda* dst, const Call& call) {
-    std::vector<const Type*> ntype_args;
-    for (size_t i = 0, e = src->num_type_args(); i != e; ++i) {
-        if (!call.type_arg(i))
-            ntype_args.push_back(src->type_arg(i));
-    }
-
     std::vector<const Def*> nargs;
-    for (size_t i = 0, e = src->size(); i != e; ++i) {
+    for (size_t i = 0, e = src->num_args(); i != e; ++i) {
         if (!call.arg(i))
             nargs.push_back(src->arg(i));
     }
 
-    src->jump(dst, ntype_args, nargs, src->jump_loc());
+    src->jump(dst, nargs, src->jump_loc());
     assert(src->arg_fn_type() == dst->type());
 }
 
@@ -451,7 +441,7 @@ const Def* Lambda::fix(size_t handle, size_t index, const Type* type, const char
         auto def = pred->get_value(handle, type, name);
 
         // make potentially room for the new arg
-        if (index >= pred->size())
+        if (index >= pred->num_args())
             pred->resize(index+2);
 
         assert(!pred->arg(index) && "already set");
@@ -488,7 +478,7 @@ const Def* Lambda::try_remove_trivial_param(const Param* param) {
         if (Lambda* lambda = use->isa_lambda()) {
             for (auto succ : lambda->succs()) {
                 size_t index = -1;
-                for (size_t i = 0, e = succ->size(); i != e; ++i) {
+                for (size_t i = 0, e = succ->num_args(); i != e; ++i) {
                     if (succ->arg(i) == use.def()) {
                         index = i;
                         break;
@@ -517,10 +507,6 @@ std::ostream& Lambda::stream_head(std::ostream& os) const {
 std::ostream& Lambda::stream_jump(std::ostream& os) const {
     if (!empty()) {
         os << to();
-
-        if (num_type_args())
-            os << '[' << stream_list(type_args(), [&](const Type* type) { os << type; }) << ']';
-
         os << '(' << stream_list(args(), [&](const Def* def) { os << def; }) << ')';
     }
     return os;

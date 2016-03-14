@@ -77,7 +77,7 @@ void Merger::merge(const CFNode* n) {
     }
 
     if (cur != n)
-        n->lambda()->jump(cur->lambda()->to(), cur->lambda()->type_args(), cur->lambda()->args(), cur->lambda()->jump_loc());
+        n->lambda()->jump(cur->lambda()->to(), cur->lambda()->args(), cur->lambda()->jump_loc());
 
     for (auto child : domtree.children(cur))
         merge(child);
@@ -115,13 +115,13 @@ void Cleaner::eliminate_params() {
                     nlambda->param(j++)->name = olambda->param(i)->name;
                 }
 
-                nlambda->jump(olambda->to(), olambda->type_args(), olambda->args(), olambda->jump_loc());
+                nlambda->jump(olambda->to(), olambda->args(), olambda->jump_loc());
                 olambda->destroy_body();
 
                 for (auto use : olambda->uses()) {
                     auto ulambda = use->as_lambda();
                     assert(use.index() == 0);
-                    ulambda->jump(nlambda, ulambda->type_args(), ulambda->args().cut(proxy_idx), ulambda->jump_loc());
+                    ulambda->jump(nlambda, ulambda->args().cut(proxy_idx), ulambda->jump_loc());
                 }
             }
         }

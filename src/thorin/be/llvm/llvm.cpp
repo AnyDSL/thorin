@@ -90,7 +90,7 @@ void CodeGen::emit_result_phi(const Param* param, llvm::Value* value) {
 }
 
 Lambda* CodeGen::emit_atomic(Lambda* lambda) {
-    assert(lambda->size() == 5 && "required arguments are missing");
+    assert(lambda->num_args() == 5 && "required arguments are missing");
     // atomic kind: Xchg Add Sub And Nand Or Xor Max Min
     u32 kind = lambda->arg(1)->as<PrimLit>()->qu32_value();
     auto ptr = lookup(lambda->arg(2));
@@ -105,7 +105,7 @@ Lambda* CodeGen::emit_atomic(Lambda* lambda) {
 }
 
 Lambda* CodeGen::emit_select(Lambda* lambda) {
-    assert(lambda->size() == 5 && "required arguments are missing");
+    assert(lambda->num_args() == 5 && "required arguments are missing");
     auto cond = lookup(lambda->arg(1));
     auto a = lookup(lambda->arg(2));
     auto b = lookup(lambda->arg(3));
@@ -117,17 +117,18 @@ Lambda* CodeGen::emit_select(Lambda* lambda) {
 }
 
 Lambda* CodeGen::emit_sizeof(Lambda* lambda) {
-    assert(lambda->size() == 2 && "required arguments are missing");
-    auto type = convert(lambda->type_arg(0));
-    auto cont = lambda->arg(1)->as_lambda();
-    auto layout = llvm::DataLayout(module_->getDataLayout());
-    auto call = irbuilder_.getInt32(layout.getTypeAllocSize(type));
-    emit_result_phi(cont->param(1), call);
-    return cont;
+    assert(lambda->num_args() == 2 && "required arguments are missing");
+    //auto type = convert(lambda->type_arg(0));
+    //auto cont = lambda->arg(1)->as_lambda();
+    //auto layout = llvm::DataLayout(module_->getDataLayout());
+    //auto call = irbuilder_.getInt32(layout.getTypeAllocSize(type));
+    //emit_result_phi(cont->param(1), call);
+    //return cont;
+    return nullptr;
 }
 
 Lambda* CodeGen::emit_shuffle(Lambda* lambda) {
-    assert(lambda->size() == 5 && "required arguments are missing");
+    assert(lambda->num_args() == 5 && "required arguments are missing");
     auto mask = lookup(lambda->arg(3));
     auto a = lookup(lambda->arg(1));
     auto b = lookup(lambda->arg(2));
@@ -144,7 +145,7 @@ Lambda* CodeGen::emit_reserve(const Lambda* lambda) {
 }
 
 Lambda* CodeGen::emit_reserve_shared(const Lambda* lambda, bool prefix) {
-    assert(lambda->size() == 3 && "required arguments are missing");
+    assert(lambda->num_args() == 3 && "required arguments are missing");
     if (!lambda->arg(1)->isa<PrimLit>())
         ELOG("reserve_shared: couldn't extract memory size at %", lambda->arg(1)->loc());
     auto num_elems = lambda->arg(1)->as<PrimLit>()->ps32_value();
@@ -169,7 +170,7 @@ llvm::Value* CodeGen::emit_bitcast(const Def* val, const Type* dst_type) {
 }
 
 Lambda* CodeGen::emit_reinterpret(Lambda* lambda) {
-    assert(lambda->size() == 3 && "required arguments are missing");
+    assert(lambda->num_args() == 3 && "required arguments are missing");
     auto cont = lambda->arg(2)->as_lambda();
     auto type = cont->param(1)->type();
     auto call = emit_bitcast(lambda->arg(1), type);
@@ -303,8 +304,8 @@ void CodeGen::emit(int opt, bool debug) {
             if (debug)
                 irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(lambda->jump_loc().begin().line(), lambda->jump_loc().begin().col(), discope));
             if (lambda->to() == ret_param) { // return
-                size_t size = lambda->size();
-                switch (size) {
+                size_t num_args = lambda->num_args();
+                switch (num_args) {
                     case 0: irbuilder_.CreateRetVoid(); break;
                     case 1:
                         if (lambda->arg(0)->is_mem())
@@ -322,8 +323,8 @@ void CodeGen::emit(int opt, bool debug) {
                         }
                         // FALLTHROUGH
                     default: {
-                        Array<llvm::Value*> values(size);
-                        Array<llvm::Type*> args(size);
+                        Array<llvm::Value*> values(num_args);
+                        Array<llvm::Type*> args(num_args);
 
                         size_t n = 0;
                         for (auto arg : lambda->args()) {
@@ -334,7 +335,7 @@ void CodeGen::emit(int opt, bool debug) {
                             }
                         }
 
-                        assert(n == size || n+1 == size);
+                        assert(n == num_args || n+1 == num_args);
                         values.shrink(n);
                         args.shrink(n);
                         llvm::Value* agg = llvm::UndefValue::get(llvm::StructType::get(context_, llvm_ref(args)));
@@ -725,10 +726,10 @@ llvm::Value* CodeGen::emit(const Def* def) {
         llvm::Value* llvm_agg = llvm::UndefValue::get(convert(agg->type()));
 
         if (def->isa<Vector>()) {
-            for (size_t i = 0, e = agg->ops().size(); i != e; ++i)
+            for (size_t i = 0, e = agg->size(); i != e; ++i)
                 llvm_agg = irbuilder_.CreateInsertElement(llvm_agg, lookup(agg->op(i)), irbuilder_.getInt32(i));
         } else {
-            for (size_t i = 0, e = agg->ops().size(); i != e; ++i)
+            for (size_t i = 0, e = agg->size(); i != e; ++i)
                 llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, lookup(agg->op(i)), { unsigned(i) });
         }
 
@@ -810,16 +811,10 @@ llvm::Value* CodeGen::emit(const Def* def) {
                     irbuilder_.getInt64(layout.getTypeAllocSize(alloced_type)),
                     irbuilder_.CreateMul(irbuilder_.CreateIntCast(lookup(alloc->extra()), irbuilder_.getInt64Ty(), false),
                                          irbuilder_.getInt64(layout.getTypeAllocSize(convert(array->elem_type())))));
-            llvm::Value* malloc_args[] = {
-                irbuilder_.getInt32(0),
-                size
-            };
+            llvm::Value* malloc_args[] = { irbuilder_.getInt32(0), size };
             void_ptr = irbuilder_.CreateCall(llvm_malloc, malloc_args);
         } else {
-            llvm::Value* malloc_args[] = {
-                irbuilder_.getInt32(0),
-                irbuilder_.getInt64(layout.getTypeAllocSize(alloced_type))
-            };
+            llvm::Value* malloc_args[] = { irbuilder_.getInt32(0), irbuilder_.getInt64(layout.getTypeAllocSize(alloced_type)) };
             void_ptr = irbuilder_.CreateCall(llvm_malloc, malloc_args);
         }
 

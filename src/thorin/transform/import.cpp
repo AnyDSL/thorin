@@ -63,13 +63,9 @@ const Def* import(Type2Type& type_old2new, Def2Def& def_old2new, World& to, cons
         return def_old2new[oprimop] = oprimop->rebuild(to, nops, ntype);
 
     auto olambda = odef->as_lambda();
-    Array<const Type*> ntype_args(olambda->type_args().size());
-    for (size_t i = 0, e = ntype_args.size(); i != e; ++i)
-        ntype_args[i] = import(type_old2new, to, olambda->type_arg(i));
-
     assert(nlambda && &nlambda->world() == &to);
     if (size > 0)
-        nlambda->jump(nops.front(), ntype_args, nops.skip_front(), olambda->jump_loc());
+        nlambda->jump(nops.front(), nops.skip_front(), olambda->jump_loc());
     return nlambda;
 }
 

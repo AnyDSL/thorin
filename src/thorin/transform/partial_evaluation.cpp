@@ -139,7 +139,7 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
                 all = false;
         }
 
-        Call call(cur->type_args(), ops);
+        Call call(ops);
 
         //DLOG("dst: %", dst);
         if (auto cached = find(cache_, call)) {             // check for cached version
@@ -158,7 +158,7 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
             cache_[call] = dropped;
             jump_to_cached_call(cur, dropped, call);
             if (all) {
-                cur->jump(dropped->to(), dropped->type_args(), dropped->args(), cur->jump_loc());
+                cur->jump(dropped->to(), dropped->args(), cur->jump_loc());
                 done_.erase(cur);
             } else
                 cur = dropped;

@@ -102,7 +102,7 @@ void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
 
     if (olambda->to() == world().branch()) {        // fold branch if possible
         if (auto lit = mangle(olambda->arg(0))->isa<PrimLit>())
-            return nlambda->jump(mangle(lit->value().get_bool() ? olambda->arg(1) : olambda->arg(2)), {}, {}, olambda->jump_loc());
+            return nlambda->jump(mangle(lit->value().get_bool() ? olambda->arg(1) : olambda->arg(2)), {}, olambda->jump_loc());
     }
 
     Array<const Def*> nops(olambda->size());
@@ -111,11 +111,6 @@ void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
 
     Defs nargs(nops.skip_front());         // new args of nlambda
     const Def* ntarget = nops.front();                     // new target of nlambda
-
-    // specialize all type args
-    Array<const Type*> ntype_args(olambda->type_args().size());
-    for (size_t i = 0, e = ntype_args.size(); i != e; ++i)
-        ntype_args[i] = olambda->type_arg(i)->specialize(type2type);
 
     // check whether we can optimize tail recursion
     if (ntarget == oentry) {
@@ -129,10 +124,10 @@ void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
         }
 
         if (substitute)
-            return nlambda->jump(nentry, ntype_args, nargs.cut(cut), olambda->jump_loc());
+            return nlambda->jump(nentry, nargs.cut(cut), olambda->jump_loc());
     }
 
-    nlambda->jump(ntarget, ntype_args, nargs, olambda->jump_loc());
+    nlambda->jump(ntarget, nargs, olambda->jump_loc());
 }
 
 const Def* Mangler::mangle(const Def* odef) {

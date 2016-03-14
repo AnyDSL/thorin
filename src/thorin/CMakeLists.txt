@@ -100,7 +100,6 @@ SET ( SOURCES
     util/printer.h
     util/push.h
     util/queue.h
-    util/stdlib.h
     util/stream.cpp
     util/stream.h
     util/types.h

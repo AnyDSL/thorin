@@ -4,6 +4,19 @@
 
 size_t Type::gid_counter_ = 1;
 
+Type::Type(HENK_TABLE_TYPE& HENK_TABLE_NAME, int kind, Types args, size_t num_type_params)
+    : HENK_TABLE_NAME_(HENK_TABLE_NAME)
+    , kind_(kind)
+    , args_(args.size())
+    , type_params_(num_type_params)
+    , gid_(gid_counter_++)
+{
+    for (size_t i = 0, e = num_args(); i != e; ++i) {
+        if (auto arg = args[i])
+            set(i, arg);
+    }
+}
+
 const Type* close_base(const Type*& type, ArrayRef<const TypeParam*> type_params) {
     assert(type->num_type_params() == type_params.size());
 

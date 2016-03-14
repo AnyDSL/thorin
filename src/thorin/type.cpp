@@ -12,6 +12,7 @@
 namespace thorin {
 
 #define HENK_TABLE_NAME world
+#define HENK_TABLE_TYPE World
 #include "thorin/henk.cpp.h"
 
 //------------------------------------------------------------------------------

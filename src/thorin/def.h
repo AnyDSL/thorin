@@ -79,16 +79,7 @@ private:
     Def(const Def&);              ///< Do not copy-construct a \p Def.
 
 protected:
-    Def(NodeKind kind, const Type* type, size_t size, const Location& loc, const std::string& name)
-        : HasLocation(loc)
-        , kind_(kind)
-        , ops_(size)
-        , type_(type)
-        , gid_(gid_counter_++)
-        , name(name)
-    {
-        assert(THORIN_IMPLIES(type, type->is_closed()));
-    }
+    Def(NodeKind kind, const Type* type, size_t size, const Location& loc, const std::string& name);
     virtual ~Def() {}
 
     void clear_type() { type_ = nullptr; }

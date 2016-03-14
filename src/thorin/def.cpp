@@ -18,6 +18,17 @@ namespace thorin {
 
 size_t Def::gid_counter_ = 1;
 
+Def::Def(NodeKind kind, const Type* type, size_t size, const Location& loc, const std::string& name)
+    : HasLocation(loc)
+    , kind_(kind)
+    , ops_(size)
+    , type_(type)
+    , gid_(gid_counter_++)
+    , name(name)
+{
+    assert(THORIN_IMPLIES(type, type->is_closed()));
+}
+
 void Def::set_op(size_t i, const Def* def) {
     assert(!op(i) && "already set");
     assert(def && "setting null pointer");

@@ -2,6 +2,14 @@
 #error "please define the type table name HENK_TABLE_NAME"
 #endif
 
+#ifndef HENK_TABLE_TYPE
+#error "please define the type table type HENK_TABLE_TYPE"
+#endif
+
+#ifndef HENK_STRUCT_UNIFIER_NAME
+#error "please define the name for HENK_STRUCT_UNIFIER_TYPE: HENK_STRUCT_UNIFIER_NAME"
+#endif
+
 size_t Type::gid_counter_ = 1;
 
 //------------------------------------------------------------------------------
@@ -68,8 +76,8 @@ bool TypeAbs::equal(const Type* other) const {
  * rebuild
  */
 
-const Type* StructType::vrebuild(World& to, Types args) const {
-    auto ntype = to.struct_type(name(), args.size());
+const Type* StructType::vrebuild(HENK_TABLE_TYPE& to, Types args) const {
+    auto ntype = to.struct_type(HENK_STRUCT_UNIFIER_NAME(), args.size());
     for (size_t i = 0, e = args.size(); i != e; ++i)
         const_cast<StructType*>(ntype)->set(i, args[i]);
     return ntype;
@@ -101,7 +109,7 @@ const Type* TypeTableBase<T>::unify_base(const Type* type) {
 }
 
 template<class T>
-const TypeAbs* TypeTableBase<T>::type_abs(const TypeParam*& type_param, const Type*& body) {
+const TypeAbs* TypeTableBase<T>::type_abs(const TypeParam* type_param, const Type* body) {
     assert(!type_param->is_closed());
 
     auto type_abs = type_param->type_abs_ = new TypeAbs(HENK_TABLE_NAME(), type_param, body);
@@ -144,5 +152,6 @@ template class TypeTableBase<HENK_TABLE_TYPE>;
 
 //------------------------------------------------------------------------------
 
+#undef HENK_STRUCT_UNIFIER_NAME
 #undef HENK_TABLE_NAME
 #undef HENK_TABLE_TYPE

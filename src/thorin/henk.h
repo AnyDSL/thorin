@@ -203,6 +203,7 @@ private:
 
 public:
     HENK_STRUCT_UNIFIER_TYPE HENK_STRUCT_UNIFIER_NAME() const { return HENK_STRUCT_UNIFIER_NAME_; }
+    void set(size_t i, const Type* type) const { return const_cast<StructType*>(this)->Type::set(i, type); }
 
 private:
     virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types args) const override;
@@ -239,7 +240,7 @@ public:
     virtual ~TypeTableBase() { for (auto type : types_) delete type; }
 
     const TypeParam* type_param(const char* name) { return unify(new TypeParam(HENK_TABLE_NAME(), name)); }
-    const TypeAbs* type_abs(const TypeParam*& type_param, const Type*& body);
+    const TypeAbs* type_abs(const TypeParam* type_param, const Type* body);
     const TupleType* tuple_type(Types args) { return unify(new TupleType(HENK_TABLE_NAME(), args)); }
     const TupleType* unit() { return unit_; } ///< Returns unit, i.e., an empty @p TupleType.
     const StructType* struct_type(HENK_STRUCT_UNIFIER_TYPE HENK_STRUCT_UNIFIER_NAME, size_t num_args) {

@@ -8,7 +8,7 @@ const Type* import(Type2Type& old2new, World& to, const Type* otype) {
         return ntype;
     }
 
-    size_t size = otype->num_args();
+    size_t size = otype->size();
     Array<const Type*> nargs(size);
     for (size_t i = 0; i != size; ++i)
         nargs[i] = import(old2new, to, otype->arg(i));
@@ -16,11 +16,8 @@ const Type* import(Type2Type& old2new, World& to, const Type* otype) {
     auto ntype = old2new[otype] = otype->rebuild(to, nargs);
     assert(&ntype->world() == &to);
 
-    Array<const TypeParam*> ntype_params(otype->num_type_params());
-    for (size_t i = 0, e = otype->num_type_params(); i != e; ++i)
-        ntype_params[i] = import(old2new, to, otype->type_param(i))->as<TypeParam>();
-
-    return close(ntype, ntype_params);
+    //return close(ntype, ntype_params);
+    return ntype;
 }
 
 const Def* import(Type2Type& type_old2new, Def2Def& def_old2new, World& to, const Def* odef) {

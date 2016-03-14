@@ -7,7 +7,7 @@ namespace thorin {
 static void verify_calls(World& world) {
     for (auto lambda : world.lambdas()) {
         if (!lambda->empty())
-            assert(lambda->to_fn_type()->num_args() == lambda->arg_fn_type()->num_args() && "argument/parameter mismatch");
+            assert(lambda->to_fn_type()->size() == lambda->arg_fn_type()->size() && "argument/parameter mismatch");
     }
 }
 

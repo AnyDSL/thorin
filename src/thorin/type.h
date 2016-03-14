@@ -146,83 +146,10 @@ private:
     friend class World;
 };
 
-/**
- * @brief A struct abstraction.
- *
- * Structs may be recursive via a pointer indirection (like in C or Java).
- * But unlike C, structs may be polymorphic.
- * A concrete instantiation of a struct abstraction is a struct application.
- * @see StructAppType
- */
-class StructAbsType : public Type {
-private:
-    StructAbsType(World& world, size_t size, size_t num_type_params, const std::string& name)
-        : Type(world, Node_StructAbsType, Array<const Type*>(size), num_type_params)
-        , name_(name)
-    {}
-
-public:
-    const std::string& name() const { return name_; }
-    void set(size_t i, const Type* type) const { const_cast<StructAbsType*>(this)->Type::set(i, type); }
-    virtual uint64_t vhash() const override { return hash_value(this->gid()); }
-    virtual bool equal(const Type* other) const override { return this == other; }
-    virtual const Type* instantiate(Types args) const override;
-
-    virtual std::ostream& stream(std::ostream&) const override;
-
-private:
-    virtual const Type* vrebuild(World& to, Types args) const override;
-    virtual const Type* vinstantiate(Type2Type&) const override { THORIN_UNREACHABLE; }
-
-    std::string name_;
-
-    friend class World;
-};
-
-/**
- * @brief A struct application.
- *
- * A concrete instantiation of a struct abstraction is a struct application.
- * @see StructAbsType.
- */
-class StructAppType : public Type {
-private:
-    StructAppType(const StructAbsType* struct_abs_type, Types args)
-        : Type(struct_abs_type->world(), Node_StructAppType, Array<const Type*>(args.size() + 1))
-        , struct_abs_type_(struct_abs_type)
-        , elem_cache_(struct_abs_type->num_args())
-    {
-        set(0, struct_abs_type);
-        for (size_t i = 0, e = args.size(); i != e; ++i)
-            set(i+1, args[i]);
-    }
-
-public:
-    const StructAbsType* struct_abs_type() const { return arg(0)->as<StructAbsType>(); }
-    Types type_args() const { return args().skip_front(); }
-    const Type* type_arg(size_t i) const { return type_args()[i]; }
-    size_t num_type_args() const { return type_args().size(); }
-
-    Types elems() const;
-    const Type* elem(size_t i) const;
-    size_t num_elems() const { return struct_abs_type()->num_args(); }
-
-    virtual std::ostream& stream(std::ostream&) const override;
-
-private:
-    virtual const Type* vrebuild(World& to, Types args) const override;
-    virtual const Type* vinstantiate(Type2Type&) const override;
-
-    const StructAbsType* struct_abs_type_;
-    mutable Array<const Type*> elem_cache_;
-
-    friend class World;
-};
-
 class FnType : public Type {
 private:
-    FnType(World& world, Types args, size_t num_type_params)
-        : Type(world, Node_FnType, args, num_type_params)
+    FnType(World& world, Types args)
+        : Type(world, Node_FnType, args)
     {
         ++order_;
     }

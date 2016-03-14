@@ -88,7 +88,7 @@ private:
     friend class World;
 };
 
-/// Data contructor for a @p PrimTypeNode.
+/// Data contructor for a @p PrimType.
 class PrimLit : public Literal {
 private:
     PrimLit(World& world, PrimTypeKind kind, Box box, const Location& loc, const std::string& name);
@@ -237,7 +237,7 @@ protected:
     {}
 };
 
-/// Data constructor for a \p DefiniteArrayTypeNode.
+/// Data constructor for a \p DefiniteArrayType.
 class DefiniteArray : public Aggregate {
 private:
     DefiniteArray(World& world, const Type* elem, Defs args, const Location& loc, const std::string& name);
@@ -251,7 +251,7 @@ public:
     friend class World;
 };
 
-/// Data constructor for an \p IndefiniteArrayTypeNode.
+/// Data constructor for an \p IndefiniteArrayType.
 class IndefiniteArray : public Aggregate {
 private:
     IndefiniteArray(World& world, const Type* elem, const Def* dim, const Location& loc, const std::string& name);
@@ -265,7 +265,7 @@ public:
     friend class World;
 };
 
-/// Data contructor for a @p TupleTypeNode.
+/// Data contructor for a @p TupleType.
 class Tuple : public Aggregate {
 private:
     Tuple(World& world, Defs args, const Location& loc, const std::string& name);
@@ -278,24 +278,24 @@ public:
     friend class World;
 };
 
-/// Data contructor for a @p StructAppTypeNode.
+/// Data contructor for a @p StructType.
 class StructAgg : public Aggregate {
 private:
-    StructAgg(const StructAppType* struct_app_type, Defs args, const Location& loc, const std::string& name)
+    StructAgg(const StructType* struct_type, Defs args, const Location& loc, const std::string& name)
         : Aggregate(Node_StructAgg, args, loc, name)
     {
 #ifndef NDEBUG
-        assert(struct_app_type->num_elems() == args.size());
+        assert(struct_type->size() == args.size());
         for (size_t i = 0, e = args.size(); i != e; ++i)
-            assert(struct_app_type->elem(i) == args[i]->type());
+            assert(struct_type->arg(i) == args[i]->type());
 #endif
-        set_type(struct_app_type);
+        set_type(struct_type);
     }
 
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
 
 public:
-    const StructAppType* type() const { return Aggregate::type()->as<StructAppType>(); }
+    const StructType* type() const { return Aggregate::type()->as<StructType>(); }
 
     friend class World;
 };

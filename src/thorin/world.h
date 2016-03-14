@@ -68,12 +68,8 @@ public:
                             size_t length = 1, int32_t device = -1, AddrSpace addr_space = AddrSpace::Generic) {
         return unify(new PtrType(*this, referenced_type, length, device, addr_space));
     }
-    const StructAbsType* struct_abs_type(size_t size, size_t num_type_params = 0, const std::string& name = "");
-    const StructAppType* struct_app_type(const StructAbsType* struct_abs_type, Types args) {
-        return unify(new StructAppType(struct_abs_type, args));
-    }
     const FnType* fn_type() { return fn0_; } ///< Returns an empty @p FnType.
-    const FnType* fn_type(Types args, size_t num_type_params = 0) { return unify(new FnType(*this, args, num_type_params)); }
+    const FnType* fn_type(Types args) { return unify(new FnType(*this, args)); }
     const DefiniteArrayType*   definite_array_type(const Type* elem, u64 dim) { return unify(new DefiniteArrayType(*this, elem, dim)); }
     const IndefiniteArrayType* indefinite_array_type(const Type* elem) { return unify(new IndefiniteArrayType(*this, elem)); }
 
@@ -136,8 +132,8 @@ public:
     const Def* indefinite_array(const Type* elem, const Def* dim, const Location& loc, const std::string& name = "") {
         return cse(new IndefiniteArray(*this, elem, dim, loc, name));
     }
-    const Def* struct_agg(const StructAppType* struct_app_type, Defs args, const Location& loc, const std::string& name = "") {
-        return cse(new StructAgg(struct_app_type, args, loc, name));
+    const Def* struct_agg(const StructType* struct_type, Defs args, const Location& loc, const std::string& name = "") {
+        return cse(new StructAgg(struct_type, args, loc, name));
     }
     const Def* tuple(Defs args, const Location& loc, const std::string& name = "") { return cse(new Tuple(*this, args, loc, name)); }
     const Def* vector(Defs args, const Location& loc, const std::string& name = "") {

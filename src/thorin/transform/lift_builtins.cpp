@@ -23,7 +23,7 @@ void lift_builtins(World& world) {
         for (auto var : vars)
             assert(var->order() == 0 && "creating a higher-order function");
 #endif
-        auto lifted = lift(scope, {}, vars);
+        auto lifted = lift(scope, vars);
 
         std::vector<Use> uses(cur->uses().begin(), cur->uses().end()); // TODO rewrite this
         for (auto use : uses) {

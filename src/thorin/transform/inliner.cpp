@@ -14,7 +14,7 @@ void inliner(World& world) {
             if (auto to_lambda = lambda->to()->isa_lambda()) {
                 if (!to_lambda->empty() && to_lambda->num_uses() <= 1 && !scope.contains(to_lambda)) {
                     Scope to_scope(to_lambda);
-                    lambda->jump(drop(to_scope, lambda->type_args(), lambda->args()), {}, {}, lambda->jump_loc());
+                    lambda->jump(drop(to_scope, lambda->args()), {}, {}, lambda->jump_loc());
                 }
             }
         }

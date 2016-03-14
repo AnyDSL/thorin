@@ -89,17 +89,15 @@ std::ostream& CCodeGen::emit_type(const Type* type) {
         }
         os << down << endl << "} tuple_" << tuple->gid() << ";";
         return os;
-    } else if (auto struct_abs = type->isa<StructAbsType>()) {
-        return os << struct_abs->name();
-    } else if (auto struct_app = type->isa<StructAppType>()) {
-        if (lookup(struct_app->gid()))
-            return os << get_name(struct_app->gid());
-        os << "typedef struct struct_" << struct_app->gid() << " {" << up;
-        for (size_t i = 0, e = struct_app->elems().size(); i != e; ++i) {
+    } else if (auto struct_type = type->isa<StructType>()) {
+        if (lookup(struct_type->gid()))
+            return os << get_name(struct_type->gid());
+        os << "typedef struct struct_" << struct_type->gid() << " {" << up;
+        for (size_t i = 0, e = struct_type->size(); i != e; ++i) {
             os << endl;
-            emit_type(struct_app->elem(i)) << " e" << i << ";";
+            emit_type(struct_type->arg(i)) << " e" << i << ";";
         }
-        os << down << endl << "} struct_" << struct_app->gid() << ";";
+        os << down << endl << "} struct_" << struct_type->gid() << ";";
         return os;
     } else if (type->isa<TypeParam>()) {
         THORIN_UNREACHABLE;
@@ -207,10 +205,10 @@ std::ostream& CCodeGen::emit_aggop_decl(const Type* type) {
     }
 
     // recurse into (multi-dimensional) struct
-    if (auto struct_app = type->isa<StructAppType>()) {
-        for (auto elem : struct_app->elems())
-            emit_aggop_decl(elem);
-        emit_type(struct_app) << endl;
+    if (auto struct_type = type->isa<StructType>()) {
+        for (auto arg : struct_type->args())
+            emit_aggop_decl(arg);
+        emit_type(struct_type) << endl;
         insert(type->gid(), "struct_" + std::to_string(type->gid()));
         return os;
     }
@@ -379,7 +377,7 @@ void CCodeGen::emit() {
                 if (i++ > 0) os << ", ";
                 if (lang_==Lang::OPENCL && lambda->is_external() &&
                     (param->type()->isa<DefiniteArrayType>() ||
-                     param->type()->isa<StructAppType>() ||
+                     param->type()->isa<StructType>() ||
                      param->type()->isa<TupleType>())) {
                     // structs are passed via buffer; the parameter is a pointer to this buffer
                     os << "__global ";
@@ -397,7 +395,7 @@ void CCodeGen::emit() {
             if (param->order() == 0 && !param->is_mem()) {
                 if (lang_==Lang::OPENCL && lambda->is_external() &&
                     (param->type()->isa<DefiniteArrayType>() ||
-                     param->type()->isa<StructAppType>() ||
+                     param->type()->isa<StructType>() ||
                      param->type()->isa<TupleType>())) {
                     // load struct from buffer
                     os << endl;
@@ -680,7 +678,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
             if (def->type()->isa<ArrayType>()) {
                 os << ".e[";
                 emit(index) << "]";
-            } else if (def->type()->isa<TupleType>() || def->type()->isa<StructAppType>()) {
+            } else if (def->type()->isa<TupleType>() || def->type()->isa<StructType>()) {
                 os << ".e";
                 emit(index);
             } else if (def->type()->isa<VectorType>()) {
@@ -813,7 +811,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
             emit(lea->ptr()) << ", ";
             emit(lea->index()) << ");";
         } else {
-            if (lea->ptr_referenced_type()->isa<TupleType>() || lea->ptr_referenced_type()->isa<StructAppType>()) {
+            if (lea->ptr_referenced_type()->isa<TupleType>() || lea->ptr_referenced_type()->isa<StructType>()) {
                 emit_type(lea->type()) << " " << lea->unique_name() << ";" << endl;
                 os << lea->unique_name() << " = &";
                 emit(lea->ptr()) << "->e";

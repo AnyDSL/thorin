@@ -69,8 +69,8 @@ LEA::LEA(const Def* ptr, const Def* index, const Location& loc, const std::strin
         set_type(world.ptr_type(get(tuple->args(), index), type->length(), type->device(), type->addr_space()));
     } else if (auto array = ptr_referenced_type()->isa<ArrayType>()) {
         set_type(world.ptr_type(array->elem_type(), type->length(), type->device(), type->addr_space()));
-    } else if (auto struct_app = ptr_referenced_type()->isa<StructAppType>()) {
-        set_type(world.ptr_type(get(struct_app->elems(), index)));
+    } else if (auto struct_type = ptr_referenced_type()->isa<StructType>()) {
+        set_type(world.ptr_type(get(struct_type->args(), index)));
     } else {
         THORIN_UNREACHABLE;
     }
@@ -188,7 +188,7 @@ const Def* DefiniteArray::vrebuild(World& to, Defs ops, const Type* t) const {
 }
 
 const Def* StructAgg::vrebuild(World& to, Defs ops, const Type* t) const {
-    return to.struct_agg(t->as<StructAppType>(), ops, loc(), name);
+    return to.struct_agg(t->as<StructType>(), ops, loc(), name);
 }
 
 const Def* IndefiniteArray::vrebuild(World& to, Defs ops, const Type* t) const {
@@ -275,7 +275,7 @@ std::ostream& PrimOp::stream_assignment(std::ostream& os) const {
  */
 
 const Def* PrimOp::out(size_t i) const {
-    assert(i < type()->as<TupleType>()->num_args());
+    assert(i < type()->as<TupleType>()->size());
     return world().extract(this, i, loc());
 }
 
@@ -304,8 +304,8 @@ const Type* Extract::extracted_type(const Def* agg, const Def* index) {
         return array->elem_type();
     else if (auto vector = agg->type()->isa<VectorType>())
         return vector->scalarize();
-    else if (auto struct_app = agg->type()->isa<StructAppType>())
-        return get(struct_app->elems(), index);
+    else if (auto struct_type = agg->type()->isa<StructType>())
+        return get(struct_type->args(), index);
 
     THORIN_UNREACHABLE;
 }

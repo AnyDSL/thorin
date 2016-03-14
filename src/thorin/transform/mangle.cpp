@@ -10,16 +10,14 @@ namespace thorin {
 
 class Mangler {
 public:
-    Mangler(const Scope& scope, Types type_args, Defs args, Defs lift)
+    Mangler(const Scope& scope, Defs args, Defs lift)
         : scope(scope)
-        , type_args(type_args)
         , args(args)
         , lift(lift)
         , oentry(scope.entry())
     {
         assert(!oentry->empty());
         assert(args.size() == oentry->num_params());
-        assert(type_args.size() == oentry->num_type_params());
 
         // TODO correctly deal with lambdas here
         std::queue<const Def*> queue;
@@ -48,7 +46,6 @@ public:
 
     const Scope& scope;
     Def2Def def2def;
-    Types type_args;
     Defs args;
     Defs lift;
     Type2Type type2type;
@@ -58,19 +55,6 @@ public:
 };
 
 Lambda* Mangler::mangle() {
-    // map type params
-    std::vector<const TypeParam*> type_params;
-    for (size_t i = 0, e = oentry->num_type_params(); i != e; ++i) {
-        auto otype_param = oentry->type_param(i);
-        if (auto type = type_args[i])
-            type2type[otype_param] = type;
-        else {
-            auto ntype_param = world().type_param(otype_param->name());
-            type_params.push_back(ntype_param);
-            type2type[otype_param] = ntype_param;
-        }
-    }
-
     // create nentry - but first collect and specialize all param types
     std::vector<const Type*> param_types;
     for (size_t i = 0, e = oentry->num_params(); i != e; ++i) {
@@ -79,7 +63,7 @@ Lambda* Mangler::mangle() {
     }
 
     auto fn_type = world().fn_type(param_types);
-    nentry = world().lambda(close(fn_type, type_params), oentry->loc(), oentry->name);
+    nentry = world().lambda(fn_type, oentry->loc(), oentry->name);
 
     // map value params
     def2def[oentry] = oentry;
@@ -181,13 +165,13 @@ const Def* Mangler::mangle(const Def* odef) {
 
 //------------------------------------------------------------------------------
 
-Lambda* mangle(const Scope& scope, Types type_args, Defs args, Defs lift) {
-    return Mangler(scope, type_args, args, lift).mangle();
+Lambda* mangle(const Scope& scope, Defs args, Defs lift) {
+    return Mangler(scope, args, lift).mangle();
 }
 
 Lambda* drop(const Call& call) {
     Scope scope(call.to()->as_lambda());
-    return drop(scope, call.type_args(), call.args());
+    return drop(scope, call.args());
 }
 
 //------------------------------------------------------------------------------

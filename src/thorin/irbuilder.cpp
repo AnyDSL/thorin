@@ -124,7 +124,7 @@ Lambda* IRBuilder::lambda(const Location& loc, const std::string& name) {
 
 Lambda* IRBuilder::lambda(const FnType* fn, const Location& loc, CC cc, Intrinsic intrinsic, const std::string& name) {
     auto l = world().lambda(fn, loc, cc, intrinsic, name);
-    if (fn->num_args() >= 1 && fn->args().front()->isa<MemType>()) {
+    if (fn->size() >= 1 && fn->args().front()->isa<MemType>()) {
         auto param = l->params().front();
         l->set_mem(param);
         if (param->name.empty())

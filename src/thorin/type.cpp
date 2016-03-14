@@ -12,6 +12,7 @@
 namespace thorin {
 
 #define HENK_TABLE_NAME world
+#define HENK_TABLE_TYPE World
 #include "thorin/henk.cpp.h"
 
 //------------------------------------------------------------------------------
@@ -40,6 +41,7 @@ bool FnType::is_returning() const {
     return true;
 }
 
+#if 0
 static Type2Type type2type(const Type* type, Types args) {
     assert(type->num_type_params() == args.size());
     Type2Type map;
@@ -48,22 +50,7 @@ static Type2Type type2type(const Type* type, Types args) {
     assert(map.size() == args.size());
     return map;
 }
-
-const Type* StructAppType::elem(size_t i) const {
-    if (auto type = elem_cache_[i])
-        return type;
-
-    assert(i < struct_abs_type()->num_args());
-    auto type = struct_abs_type()->arg(i);
-    auto map = type2type(struct_abs_type(), type_args());
-    return elem_cache_[i] = type->specialize(map);
-}
-
-Types StructAppType::elems() const {
-    for (size_t i = 0; i < num_elems(); ++i)
-        elem(i);
-    return elem_cache_;
-}
+#endif
 
 const IndefiniteArrayType* is_indefinite(const Type* type) {
     if (auto indefinite_array_type = type->isa<IndefiniteArrayType>())
@@ -73,9 +60,7 @@ const IndefiniteArrayType* is_indefinite(const Type* type) {
     return nullptr;
 }
 
-bool use_lea(const Type* type) {
-    return type->isa<StructAppType>() || type->isa<ArrayType>();
-}
+bool use_lea(const Type* type) { return type->isa<StructType>() || type->isa<ArrayType>(); }
 
 //------------------------------------------------------------------------------
 
@@ -84,14 +69,14 @@ bool use_lea(const Type* type) {
  */
 
 const Type* Type::rebuild(World& to, Types args) const {
-    assert(num_args() == args.size());
+    assert(size() == args.size());
     if (args.empty() && &world() == &to)
         return this;
     return vrebuild(to, args);
 }
 
 const Type* DefiniteArrayType  ::vrebuild(World& to, Types args) const { return to.definite_array_type(args[0], dim()); }
-const Type* FnType             ::vrebuild(World& to, Types args) const { return to.fn_type(args, num_type_params()); }
+const Type* FnType             ::vrebuild(World& to, Types args) const { return to.fn_type(args); }
 const Type* FrameType          ::vrebuild(World& to, Types     ) const { return to.frame_type(); }
 const Type* IndefiniteArrayType::vrebuild(World& to, Types args) const { return to.indefinite_array_type(args[0]); }
 const Type* MemType            ::vrebuild(World& to, Types     ) const { return to.mem_type(); }
@@ -101,18 +86,6 @@ const Type* TypeParam          ::vrebuild(World& to, Types     ) const { return 
 
 const Type* PtrType::vrebuild(World& to, Types args) const {
     return to.ptr_type(args.front(), length(), device(), addr_space());
-}
-
-const Type* StructAbsType::vrebuild(World& to, Types args) const {
-    // TODO how do we handle recursive types?
-    auto ntype = to.struct_abs_type(args.size(), num_type_params());
-    for (size_t i = 0, e = args.size(); i != e; ++i)
-        ntype->set(i, args[i]);
-    return ntype;
-}
-
-const Type* StructAppType::vrebuild(World& to, Types args) const {
-    return to.struct_app_type(args[0]->as<StructAbsType>(), args.skip_front());
 }
 
 //------------------------------------------------------------------------------
@@ -144,7 +117,9 @@ bool PtrType::equal(const Type* other) const {
  * stream
  */
 
-std::ostream& stream_type_params(std::ostream& os, const Type* type) {
+const Type* stream_type_params(std::ostream& os, const Type* type) {
+    return type; // TODO
+#if 0
     if (type->num_type_params() == 0)
         return os;
     return stream_list(os, type->type_params(), [&](const TypeParam* type_param) {
@@ -153,6 +128,7 @@ std::ostream& stream_type_params(std::ostream& os, const Type* type) {
         else
             os << "<null>";
     }, "[", "]");
+#endif
 }
 
 static std::ostream& stream_type_args(std::ostream& os, const Type* type) {
@@ -160,8 +136,8 @@ static std::ostream& stream_type_args(std::ostream& os, const Type* type) {
 }
 
 static std::ostream& stream_type_elems(std::ostream& os, const Type* type) {
-    if (auto struct_app = type->isa<StructAppType>())
-        return stream_list(os, struct_app->elems(), [&](const Type* type) { os << type; }, "{", "}");
+    if (auto struct_app = type->isa<StructType>())
+        return stream_list(os, struct_app->args(), [&](const Type* type) { os << type; }, "{", "}");
     return stream_type_args(os, type);
 }
 
@@ -179,18 +155,7 @@ std::ostream& TupleType::stream(std::ostream& os) const {
   return stream_type_args(os, this);
 }
 
-std::ostream& StructAbsType::stream(std::ostream& os) const {
-    os << name();
-    return stream_type_params(os, this);
-    // TODO emit args - but don't do this inline: structs may be recursive
-    //return emit_type_args(struct_abs);
-}
-
-std::ostream& StructAppType::stream(std::ostream& os) const {
-    os << this->struct_abs_type()->name();
-    return stream_type_elems(os, this);
-}
-
+std::ostream& StructType::stream(std::ostream& os) const { return os << name(); }
 std::ostream& TypeParam::stream(std::ostream& os) const { return os << name_; }
 std::ostream& IndefiniteArrayType::stream(std::ostream& os) const { return streamf(os, "[%]", elem_type()); }
 std::ostream& DefiniteArrayType::stream(std::ostream& os) const { return streamf(os, "[% x %]", dim(), elem_type()); }
@@ -235,6 +200,8 @@ std::ostream& PrimType::stream(std::ostream& os) const {
  * specialize and instantiate
  */
 
+#if 0
+
 const Type* Type::instantiate(Types types) const {
     assert(types.size() == num_type_params());
     Type2Type map;
@@ -268,8 +235,8 @@ const Type* Type::specialize(Type2Type& map) const {
 }
 
 Array<const Type*> Type::specialize_args(Type2Type& map) const {
-    Array<const Type*> result(num_args());
-    for (size_t i = 0, e = num_args(); i != e; ++i)
+    Array<const Type*> result(size());
+    for (size_t i = 0, e = size(); i != e; ++i)
         result[i] = arg(i)->specialize(map);
     return result;
 }
@@ -295,11 +262,7 @@ const Type* PtrType::vinstantiate(Type2Type& map) const {
     return map[this] = world().ptr_type(referenced_type()->specialize(map), length(), device(), addr_space());
 }
 
-const Type* StructAbsType::instantiate(Types args) const {
-    return world().struct_app_type(this, args);
-}
-
-const Type* StructAppType::vinstantiate(Type2Type& map) const {
+const Type* StructType::vinstantiate(Type2Type& map) const {
     Array<const Type*> nargs(num_type_args());
     for (size_t i = 0, e = num_type_args(); i != e; ++i)
         nargs[i] = type_arg(i)->specialize(map);
@@ -309,6 +272,7 @@ const Type* StructAppType::vinstantiate(Type2Type& map) const {
 const Type* TupleType::vinstantiate(Type2Type& map) const {
     return map[this] = world().tuple_type(specialize_args(map));
 }
+#endif
 
 //------------------------------------------------------------------------------
 

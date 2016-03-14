@@ -38,16 +38,8 @@ const Def* Lambda::to() const {
 }
 
 Lambda* Lambda::stub(Type2Type& type2type, const std::string& name) const {
-    Array<const TypeParam*> ntype_params(num_type_params());
-
-    for (size_t i = 0, e = num_type_params(); i != e; ++i) {
-        auto ntype_param = world().type_param(type_param(i)->name());
-        ntype_params[i] = ntype_param;
-        type2type[type_param(i)] = ntype_param;
-    }
-
     auto fn_type = type()->specialize(type2type)->as<FnType>();
-    auto result = world().lambda(close(fn_type, ntype_params), loc(), cc(), intrinsic(), name);
+    auto result = world().lambda(fn_type, loc(), cc(), intrinsic(), name);
     for (size_t i = 0, e = num_params(); i != e; ++i)
         result->param(i)->name = param(i)->name;
 
@@ -93,15 +85,15 @@ void Lambda::destroy_body() {
 }
 
 const FnType* Lambda::arg_fn_type() const {
-    Array<const Type*> args(num_args());
-    for (size_t i = 0, e = num_args(); i != e; ++i)
+    Array<const Type*> args(size());
+    for (size_t i = 0, e = size(); i != e; ++i)
         args[i] = arg(i)->type();
 
     return world().fn_type(args);
 }
 
 const Param* Lambda::append_param(const Type* param_type, const std::string& name) {
-    size_t size = type()->num_args();
+    size_t size = type()->size();
     Array<const Type*> args(size + 1);
     *std::copy(type()->args().begin(), type()->args().end(), args.begin()) = param_type;
     clear_type();
@@ -352,7 +344,7 @@ void jump_to_cached_call(Lambda* src, Lambda* dst, const Call& call) {
     }
 
     std::vector<const Def*> nargs;
-    for (size_t i = 0, e = src->num_args(); i != e; ++i) {
+    for (size_t i = 0, e = src->size(); i != e; ++i) {
         if (!call.arg(i))
             nargs.push_back(src->arg(i));
     }
@@ -459,7 +451,7 @@ const Def* Lambda::fix(size_t handle, size_t index, const Type* type, const char
         auto def = pred->get_value(handle, type, name);
 
         // make potentially room for the new arg
-        if (index >= pred->num_args())
+        if (index >= pred->size())
             pred->resize(index+2);
 
         assert(!pred->arg(index) && "already set");
@@ -496,7 +488,7 @@ const Def* Lambda::try_remove_trivial_param(const Param* param) {
         if (Lambda* lambda = use->isa_lambda()) {
             for (auto succ : lambda->succs()) {
                 size_t index = -1;
-                for (size_t i = 0, e = succ->num_args(); i != e; ++i) {
+                for (size_t i = 0, e = succ->size(); i != e; ++i) {
                     if (succ->arg(i) == use.def()) {
                         index = i;
                         break;

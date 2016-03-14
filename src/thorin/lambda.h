@@ -108,7 +108,7 @@ private:
         , is_sealed_(is_sealed)
         , is_visited_(false)
     {
-        params_.reserve(fn->num_args());
+        params_.reserve(fn->size());
     }
     virtual ~Lambda() { for (auto param : params()) delete param; }
 
@@ -127,9 +127,6 @@ public:
     Lambdas indirect_succs() const;
     Lambdas preds() const;
     Lambdas succs() const;
-    ArrayRef<const TypeParam*> type_params() const { return type()->type_params(); }
-    const TypeParam* type_param(size_t i) const { return type_params()[i]; }
-    size_t num_type_params() const { return type_params().size(); }
     ArrayRef<const Param*> params() const { return params_; }
     Array<const Def*> params_as_defs() const;
     const Param* param(size_t i) const { assert(i < num_params()); return params_[i]; }

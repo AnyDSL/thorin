@@ -90,7 +90,7 @@ void CodeGen::emit_result_phi(const Param* param, llvm::Value* value) {
 }
 
 Lambda* CodeGen::emit_atomic(Lambda* lambda) {
-    assert(lambda->num_args() == 5 && "required arguments are missing");
+    assert(lambda->size() == 5 && "required arguments are missing");
     // atomic kind: Xchg Add Sub And Nand Or Xor Max Min
     u32 kind = lambda->arg(1)->as<PrimLit>()->qu32_value();
     auto ptr = lookup(lambda->arg(2));
@@ -105,7 +105,7 @@ Lambda* CodeGen::emit_atomic(Lambda* lambda) {
 }
 
 Lambda* CodeGen::emit_select(Lambda* lambda) {
-    assert(lambda->num_args() == 5 && "required arguments are missing");
+    assert(lambda->size() == 5 && "required arguments are missing");
     auto cond = lookup(lambda->arg(1));
     auto a = lookup(lambda->arg(2));
     auto b = lookup(lambda->arg(3));
@@ -117,7 +117,7 @@ Lambda* CodeGen::emit_select(Lambda* lambda) {
 }
 
 Lambda* CodeGen::emit_sizeof(Lambda* lambda) {
-    assert(lambda->num_args() == 2 && "required arguments are missing");
+    assert(lambda->size() == 2 && "required arguments are missing");
     auto type = convert(lambda->type_arg(0));
     auto cont = lambda->arg(1)->as_lambda();
     auto layout = llvm::DataLayout(module_->getDataLayout());
@@ -127,7 +127,7 @@ Lambda* CodeGen::emit_sizeof(Lambda* lambda) {
 }
 
 Lambda* CodeGen::emit_shuffle(Lambda* lambda) {
-    assert(lambda->num_args() == 5 && "required arguments are missing");
+    assert(lambda->size() == 5 && "required arguments are missing");
     auto mask = lookup(lambda->arg(3));
     auto a = lookup(lambda->arg(1));
     auto b = lookup(lambda->arg(2));
@@ -144,7 +144,7 @@ Lambda* CodeGen::emit_reserve(const Lambda* lambda) {
 }
 
 Lambda* CodeGen::emit_reserve_shared(const Lambda* lambda, bool prefix) {
-    assert(lambda->num_args() == 3 && "required arguments are missing");
+    assert(lambda->size() == 3 && "required arguments are missing");
     if (!lambda->arg(1)->isa<PrimLit>())
         ELOG("reserve_shared: couldn't extract memory size at %", lambda->arg(1)->loc());
     auto num_elems = lambda->arg(1)->as<PrimLit>()->ps32_value();
@@ -169,7 +169,7 @@ llvm::Value* CodeGen::emit_bitcast(const Def* val, const Type* dst_type) {
 }
 
 Lambda* CodeGen::emit_reinterpret(Lambda* lambda) {
-    assert(lambda->num_args() == 3 && "required arguments are missing");
+    assert(lambda->size() == 3 && "required arguments are missing");
     auto cont = lambda->arg(2)->as_lambda();
     auto type = cont->param(1)->type();
     auto call = emit_bitcast(lambda->arg(1), type);
@@ -303,8 +303,8 @@ void CodeGen::emit(int opt, bool debug) {
             if (debug)
                 irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(lambda->jump_loc().begin().line(), lambda->jump_loc().begin().col(), discope));
             if (lambda->to() == ret_param) { // return
-                size_t num_args = lambda->num_args();
-                switch (num_args) {
+                size_t size = lambda->size();
+                switch (size) {
                     case 0: irbuilder_.CreateRetVoid(); break;
                     case 1:
                         if (lambda->arg(0)->is_mem())
@@ -322,8 +322,8 @@ void CodeGen::emit(int opt, bool debug) {
                         }
                         // FALLTHROUGH
                     default: {
-                        Array<llvm::Value*> values(num_args);
-                        Array<llvm::Type*> args(num_args);
+                        Array<llvm::Value*> values(size);
+                        Array<llvm::Type*> args(size);
 
                         size_t n = 0;
                         for (auto arg : lambda->args()) {
@@ -334,7 +334,7 @@ void CodeGen::emit(int opt, bool debug) {
                             }
                         }
 
-                        assert(n == num_args || n+1 == num_args);
+                        assert(n == size || n+1 == size);
                         values.shrink(n);
                         args.shrink(n);
                         llvm::Value* agg = llvm::UndefValue::get(llvm::StructType::get(context_, llvm_ref(args)));
@@ -870,7 +870,7 @@ llvm::Value* CodeGen::emit_store(const Store* store) {
 }
 
 llvm::Value* CodeGen::emit_lea(const LEA* lea) {
-    if (lea->ptr_referenced_type()->isa<TupleType>() || lea->ptr_referenced_type()->isa<StructAppType>())
+    if (lea->ptr_referenced_type()->isa<TupleType>() || lea->ptr_referenced_type()->isa<StructType>())
         return irbuilder_.CreateStructGEP(lookup(lea->ptr()), primlit_value<u32>(lea->index()));
 
     assert(lea->ptr_referenced_type()->isa<ArrayType>());
@@ -924,9 +924,9 @@ llvm::Type* CodeGen::convert(const Type* type) {
                     assert(!ret && "only one 'return' supported");
                     if (fn->empty())
                         ret = llvm::Type::getVoidTy(context_);
-                    else if (fn->num_args() == 1)
+                    else if (fn->size() == 1)
                         ret = fn->arg(0)->isa<MemType>() ? llvm::Type::getVoidTy(context_) : convert(fn->arg(0));
-                    else if (fn->num_args() == 2) {
+                    else if (fn->size() == 2) {
                         if (fn->arg(0)->isa<MemType>())
                             ret = convert(fn->arg(1));
                         else if (fn->arg(1)->isa<MemType>())
@@ -950,25 +950,22 @@ multiple:
             return types_[type] = llvm::FunctionType::get(ret, args, false);
         }
 
-        case Node_StructAbsType:
-            return types_[type] = llvm::StructType::create(context_);
-
-        case Node_StructAppType: {
-            auto struct_app = type->as<StructAppType>();
-            auto llvm_struct = llvm::cast<llvm::StructType>(convert(struct_app->struct_abs_type()));
-            assert(!types_.contains(struct_app) && "type already converted");
+        case Node_StructType: {
+            auto struct_type = type->as<StructType>();
+            auto llvm_struct = llvm::cast<llvm::StructType>(convert(struct_type));
+            assert(!types_.contains(struct_type) && "type already converted");
             // important: memoize before recursing into element types to avoid endless recursion
-            types_[struct_app] = llvm_struct;
-            Array<llvm::Type*> llvm_types(struct_app->num_elems());
+            types_[struct_type] = llvm_struct;
+            Array<llvm::Type*> llvm_types(struct_type->size());
             for (size_t i = 0, e = llvm_types.size(); i != e; ++i)
-                llvm_types[i] = convert(struct_app->elem(i));
+                llvm_types[i] = convert(struct_type->arg(i));
             llvm_struct->setBody(llvm_ref(llvm_types));
             return llvm_struct;
         }
 
         case Node_TupleType: {
             auto tuple = type->as<TupleType>();
-            Array<llvm::Type*> llvm_types(tuple->num_args());
+            Array<llvm::Type*> llvm_types(tuple->size());
             for (size_t i = 0, e = llvm_types.size(); i != e; ++i)
                 llvm_types[i] = convert(tuple->arg(i));
             return types_[tuple] = llvm::StructType::get(context_, llvm_ref(llvm_types));

@@ -40,7 +40,7 @@ namespace thorin {
 
 World::World(std::string name)
     : name_(name)
-    , fn0_    (unify(new FnType   (*this, Types(), 0)))
+    , fn0_    (unify(new FnType   (*this, Types())))
     , mem_    (unify(new MemType  (*this)))
     , frame_  (unify(new FrameType(*this)))
 #define THORIN_ALL_TYPE(T, M) \
@@ -54,15 +54,6 @@ World::World(std::string name)
 World::~World() {
     for (auto lambda : lambdas_) delete lambda;
     for (auto primop : primops_) delete primop;
-}
-
-const StructAbsType* World::struct_abs_type(size_t size, size_t num_type_params, const std::string& name) {
-    auto struct_abs_type = new StructAbsType(*this, size, num_type_params, name);
-    // just put it into the types_ set due to nominal typing
-    auto p = types_.insert(struct_abs_type);
-    assert_unused(p.second && "hash/equal broken");
-    struct_abs_type->hashed_ = true;
-    return struct_abs_type;
 }
 
 /*
@@ -644,17 +635,17 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, con
             std::fill(args.begin(), args.end(), bottom(definite_array_type->elem_type(), loc));
             agg = definite_array(args, loc, agg->name);
         } else if (auto tuple_type = agg->type()->isa<TupleType>()) {
-            Array<const Def*> args(tuple_type->num_args());
+            Array<const Def*> args(tuple_type->size());
             size_t i = 0;
             for (auto type : tuple_type->args())
                 args[i++] = bottom(type, loc);
             agg = tuple(args, loc, agg->name);
-        } else if (auto struct_app_type = agg->type()->isa<StructAppType>()) {
-            Array<const Def*> args(struct_app_type->num_elems());
+        } else if (auto struct_type = agg->type()->isa<StructType>()) {
+            Array<const Def*> args(struct_type->size());
             size_t i = 0;
-            for (auto type : struct_app_type->elems())
+            for (auto type : struct_type->args())
                 args[i++] = bottom(type, loc);
-            agg = struct_agg(struct_app_type, args, loc, agg->name);
+            agg = struct_agg(struct_type, args, loc, agg->name);
         }
 
     }
@@ -836,7 +827,7 @@ const Def* World::cse_base(const PrimOp* primop) {
 
 void World::destroy(Lambda* lambda) {
     assert(lambda->num_uses() == 0);
-    assert(lambda->num_args() == 0);
+    assert(lambda->size() == 0);
     lambda->destroy_body();
     lambdas_.erase(lambda);
     delete lambda;

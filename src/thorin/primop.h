@@ -88,7 +88,7 @@ private:
     friend class World;
 };
 
-/// Data contructor for a @p PrimTypeNode.
+/// Data constructor for a @p PrimTypeNode.
 class PrimLit : public Literal {
 private:
     PrimLit(World& world, PrimTypeKind kind, Box box, const Location& loc, const std::string& name);
@@ -265,7 +265,7 @@ public:
     friend class World;
 };
 
-/// Data contructor for a @p TupleTypeNode.
+/// Data constructor for a @p TupleTypeNode.
 class Tuple : public Aggregate {
 private:
     Tuple(World& world, Defs args, const Location& loc, const std::string& name);
@@ -278,7 +278,7 @@ public:
     friend class World;
 };
 
-/// Data contructor for a @p StructAppTypeNode.
+/// Data constructor for a @p StructAppTypeNode.
 class StructAgg : public Aggregate {
 private:
     StructAgg(const StructAppType* struct_app_type, Defs args, const Location& loc, const std::string& name)
@@ -300,7 +300,7 @@ public:
     friend class World;
 };
 
-/// Data contructor for a vector type.
+/// Data constructor for a vector type.
 class Vector : public Aggregate {
 private:
     Vector(World& world, Defs args, const Location& loc, const std::string& name);

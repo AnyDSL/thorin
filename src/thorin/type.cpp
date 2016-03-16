@@ -69,14 +69,16 @@ bool use_lea(const Type* type) { return type->isa<StructType>() || type->isa<Arr
  * vrebuild
  */
 
-//const Type* DefiniteArrayType  ::vrebuild(World& to, Types args) const { return to.definite_array_type(args[0], dim()); }
-//const Type* FnType             ::vrebuild(World& to, Types args) const { return to.fn_type(args); }
-//const Type* FrameType          ::vrebuild(World& to, Types     ) const { return to.frame_type(); }
-//const Type* IndefiniteArrayType::vrebuild(World& to, Types args) const { return to.indefinite_array_type(args[0]); }
-//const Type* MemType            ::vrebuild(World& to, Types     ) const { return to.mem_type(); }
-//const Type* PrimType           ::vrebuild(World& to, Types     ) const { return to.type(primtype_kind(), length()); }
-//const Type* TupleType          ::vrebuild(World& to, Types args) const { return to.tuple_type(args); }
-//const Type* PtrType::vrebuild(World& to, Types args) const { return to.ptr_type(args.front(), length(), device(), addr_space()); }
+const Type* DefiniteArrayType  ::vrebuild(World& to, Types args) const { return to.definite_array_type(args[0], dim()); }
+const Type* FnType             ::vrebuild(World& to, Types args) const { return to.fn_type(args); }
+const Type* FrameType          ::vrebuild(World& to, Types     ) const { return to.frame_type(); }
+const Type* IndefiniteArrayType::vrebuild(World& to, Types args) const { return to.indefinite_array_type(args[0]); }
+const Type* MemType            ::vrebuild(World& to, Types     ) const { return to.mem_type(); }
+const Type* PrimType           ::vrebuild(World& to, Types     ) const { return to.type(primtype_kind(), length()); }
+
+const Type* PtrType::vrebuild(World& to, Types args) const {
+    return to.ptr_type(args.front(), length(), device(), addr_space());
+}
 
 //------------------------------------------------------------------------------
 

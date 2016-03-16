@@ -29,6 +29,10 @@ uint64_t TypeParam::vhash() const {
     return thorin::hash_combine(thorin::hash_begin(int(kind())), int(type_abs()->kind()), type_abs()->size());
 }
 
+uint64_t StructType::vhash() const {
+    return thorin::hash_combine(thorin::hash_begin(int(kind())), int(kind()), int(size()), HENK_STRUCT_UNIFIER_NAME());
+}
+
 //------------------------------------------------------------------------------
 
 /*
@@ -67,6 +71,12 @@ bool TypeAbs::equal(const Type* other) const {
 
         return result;
     }
+    return false;
+}
+
+bool StructType::equal(const Type* other) const {
+    if (auto other_struct_type = other->isa<StructType>())
+        return this->HENK_STRUCT_UNIFIER_NAME() == other_struct_type->HENK_STRUCT_UNIFIER_NAME();
     return false;
 }
 

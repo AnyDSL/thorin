@@ -116,6 +116,7 @@ private:
     mutable size_t gid_;
     static size_t gid_counter_;
 
+    friend const TypeAbs* close(const TypeAbs*&, const Type*);
     template<class> friend class TypeTableBase;
 };
 
@@ -153,13 +154,10 @@ public: // HACK
 
 class TypeAbs : public Type {
 private:
-    TypeAbs(HENK_TABLE_TYPE& table, const TypeParam* type_param, const Type* body)
-        : Type(table, Node_TypeAbs, {body})
-    {
-        type_param_->type_abs_ = this;
-    }
+    TypeAbs(HENK_TABLE_TYPE& table, const char* name, const char* param_name);
 
 public:
+    const char* name() const { return name_; }
     const TypeParam* type_param() const { return type_param_; }
     const Type* body() const { return arg(0); }
     virtual std::ostream& stream(std::ostream&) const override;
@@ -170,6 +168,7 @@ private:
     virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types args) const override;
     virtual const Type* vspecialize(Type2Type&) const override;
 
+    const char* name_;
     const TypeParam* type_param_;
 
     template<class> friend class TypeTableBase;
@@ -235,8 +234,7 @@ public:
     {}
     virtual ~TypeTableBase() { for (auto type : types_) delete type; }
 
-    const TypeParam* type_param(const char* name) { return unify(new TypeParam(HENK_TABLE_NAME(), name)); }
-    const TypeAbs* type_abs(const TypeParam* type_param, const Type* body);
+    const TypeAbs* type_abs(const char* name, const char* param_name) { return new TypeAbs(HENK_TABLE_NAME(), name, param_name); }
     const TupleType* tuple_type(Types args) { return unify(new TupleType(HENK_TABLE_NAME(), args)); }
     const TupleType* unit() { return unit_; } ///< Returns unit, i.e., an empty @p TupleType.
     const StructType* struct_type(HENK_STRUCT_UNIFIER_TYPE HENK_STRUCT_UNIFIER_NAME, size_t num_args) {
@@ -245,6 +243,9 @@ public:
 
     const TypeSet& types() const { return types_; }
 
+private:
+    const TypeParam* type_param(const char* name) { return new TypeParam(HENK_TABLE_NAME(), name); }
+
 protected:
     const Type* unify_base(const Type* type);
     template<class T> const T* unify(const T* type) { return unify_base(type)->template as<T>(); }
@@ -252,7 +253,8 @@ protected:
     TypeSet types_;
     const TupleType* unit_; ///< tuple().
 
-    friend const Type* close_base(const Type*&, thorin::ArrayRef<const TypeParam*>);
+    friend const TypeAbs* close(const TypeAbs*&, const Type*);
+    friend class TypeAbs;
 };
 
 //------------------------------------------------------------------------------

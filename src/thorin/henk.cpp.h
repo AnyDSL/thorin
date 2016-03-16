@@ -14,6 +14,56 @@ size_t Type::gid_counter_ = 1;
 
 //------------------------------------------------------------------------------
 
+TypeAbs::TypeAbs(HENK_TABLE_TYPE& table, const char* name, const char* param_name)
+    : Type(table, Node_TypeAbs, {nullptr})
+    , name_(name)
+    , type_param_(table.type_param(param_name))
+{
+}
+
+const TypeAbs* close(const TypeAbs*& type_abs, const Type* body) {
+    assert(type_abs->body() == nullptr);
+    const_cast<TypeAbs*&>(type_abs)->args_[0] = body;
+
+    auto type_param = type_abs->type_param();
+    assert(!type_param->is_closed());
+    type_param->closed_ = true;
+
+    std::stack<const Type*> stack;
+    TypeSet done;
+
+    auto push = [&](const Type* type) {
+        if (!type->is_closed() && !done.contains(type) && !type->isa<TypeParam>()) {
+            done.insert(type);
+            stack.push(type);
+            return true;
+        }
+        return false;
+    };
+
+    push(body);
+
+    // TODO this is potentially quadratic when closing n types
+    while (!stack.empty()) {
+        auto type = stack.top();
+
+        bool todo = false;
+        for (auto arg : type->args())
+            todo |= push(arg);
+
+        if (!todo) {
+            stack.pop();
+            type->closed_ = true;
+            for (size_t i = 0, e = type->size(); i != e && type->closed_; ++i)
+                type->closed_ &= type->arg(i)->is_closed();
+        }
+    }
+
+    return type_abs->HENK_TABLE_NAME().unify(type_abs);
+}
+
+//------------------------------------------------------------------------------
+
 /*
  * hash
  */
@@ -25,8 +75,14 @@ uint64_t Type::vhash() const {
     return seed;
 }
 
+uint64_t TypeAbs::vhash() const {
+    // TODO better hash function
+    return thorin::hash_value(int(kind()));
+}
+
 uint64_t TypeParam::vhash() const {
-    return thorin::hash_combine(thorin::hash_begin(int(kind())), int(type_abs()->kind()), type_abs()->size());
+    // TODO better hash function
+    return thorin::hash_value(int(kind()));
 }
 
 uint64_t StructType::vhash() const {
@@ -101,7 +157,7 @@ const Type* StructType::vrebuild(HENK_TABLE_TYPE& to, Types args) const {
 }
 
 const Type* TupleType::vrebuild(HENK_TABLE_TYPE& to, Types args) const { return to.tuple_type(args); }
-const Type* TypeParam::vrebuild(HENK_TABLE_TYPE& to, Types     ) const { return to.type_param(name()); }
+const Type* TypeParam::vrebuild(HENK_TABLE_TYPE& to, Types     ) const { THORIN_UNREACHABLE; }
 const Type* TypeAbs  ::vrebuild(HENK_TABLE_TYPE& to, Types args) const { THORIN_UNREACHABLE; }
 
 //------------------------------------------------------------------------------
@@ -121,6 +177,11 @@ Array<const Type*> Type::specialize_args(Type2Type& map) const {
     for (size_t i = 0, e = size(); i != e; ++i)
         result[i] = arg(i)->specialize(map);
     return result;
+}
+
+const Type* TypeAbs::vspecialize(Type2Type& map) const {
+    //auto type_abs = HENK_TABLE_NAME().type_abs(
+    return map[this] = this;
 }
 
 const Type* TypeParam::vspecialize(Type2Type& map) const { return map[this] = this; }
@@ -156,46 +217,6 @@ const Type* TypeTableBase<T>::unify_base(const Type* type) {
     assert(!type->is_hashed());
     type->hashed_ = true;
     return type;
-}
-
-template<class T>
-const TypeAbs* TypeTableBase<T>::type_abs(const TypeParam* type_param, const Type* body) {
-    assert(!type_param->is_closed());
-
-    auto type_abs = type_param->type_abs_ = new TypeAbs(HENK_TABLE_NAME(), type_param, body);
-    type_param->closed_ = true;
-
-    std::stack<const Type*> stack;
-    TypeSet done;
-
-    auto push = [&](const Type* type) {
-        if (!type->is_closed() && !done.contains(type) && !type->isa<TypeParam>()) {
-            done.insert(type);
-            stack.push(type);
-            return true;
-        }
-        return false;
-    };
-
-    push(body);
-
-    // TODO this is potentially quadratic when closing n types
-    while (!stack.empty()) {
-        auto type = stack.top();
-
-        bool todo = false;
-        for (auto arg : type->args())
-            todo |= push(arg);
-
-        if (!todo) {
-            stack.pop();
-            type->closed_ = true;
-            for (size_t i = 0, e = type->size(); i != e && type->closed_; ++i)
-                type->closed_ &= type->arg(i)->is_closed();
-        }
-    }
-
-    return unify(type_abs);
 }
 
 template class TypeTableBase<HENK_TABLE_TYPE>;

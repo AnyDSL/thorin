@@ -109,6 +109,11 @@ bool PtrType::equal(const Type* other) const {
  * stream
  */
 
+std::ostream& TypeAbs::stream(std::ostream& os) const {
+    // TODO
+    return os << "type_abs";
+}
+
 const Type* stream_type_params(std::ostream& os, const Type* type) {
     return type; // TODO
 #if 0

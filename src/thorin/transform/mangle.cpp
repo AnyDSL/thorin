@@ -109,8 +109,8 @@ void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
     for (size_t i = 0, e = nops.size(); i != e; ++i)
         nops[i] = mangle(olambda->op(i));
 
-    Defs nargs(nops.skip_front());         // new args of nlambda
-    const Def* ntarget = nops.front();                     // new target of nlambda
+    Defs nargs(nops.skip_front()); // new args of nlambda
+    auto ntarget = nops.front();   // new target of nlambda
 
     // check whether we can optimize tail recursion
     if (ntarget == oentry) {
@@ -131,14 +131,11 @@ void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
 }
 
 const Def* Mangler::mangle(const Def* odef) {
-    auto i = def2def.find(odef);
-    if (i != def2def.end())
-        return i->second;
-
-    if (!within(odef))
+    if (auto ndef = find(def2def, odef))
+        return ndef;
+    else if (!within(odef))
         return odef;
-
-    if (auto olambda = odef->isa_lambda()) {
+    else if (auto olambda = odef->isa_lambda()) {
         auto nlambda = mangle_head(olambda);
         mangle_body(olambda, nlambda);
         return nlambda;
@@ -153,7 +150,7 @@ const Def* Mangler::mangle(const Def* odef) {
         for (size_t i = 0, e = oprimop->size(); i != e; ++i)
             nops[i] = mangle(oprimop->op(i));
 
-        auto type = oprimop->type()->vinstantiate(type2type);
+        auto type = oprimop->type()->specialize(type2type);
         return def2def[oprimop] = oprimop->rebuild(nops, type);
     }
 }

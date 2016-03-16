@@ -76,11 +76,51 @@ bool TypeAbs::equal(const Type* other) const {
  * rebuild
  */
 
+const Type* Type::rebuild(HENK_TABLE_TYPE& to, Types args) const {
+    assert(size() == args.size());
+    if (args.empty() && &HENK_TABLE_NAME() == &to)
+        return this;
+    return vrebuild(to, args);
+}
+
 const Type* StructType::vrebuild(HENK_TABLE_TYPE& to, Types args) const {
     auto ntype = to.struct_type(HENK_STRUCT_UNIFIER_NAME(), args.size());
     for (size_t i = 0, e = args.size(); i != e; ++i)
         const_cast<StructType*>(ntype)->set(i, args[i]);
     return ntype;
+}
+
+const Type* TupleType::vrebuild(HENK_TABLE_TYPE& to, Types args) const { return to.tuple_type(args); }
+const Type* TypeParam::vrebuild(HENK_TABLE_TYPE& to, Types     ) const { return to.type_param(name()); }
+const Type* TypeAbs  ::vrebuild(HENK_TABLE_TYPE& to, Types args) const { THORIN_UNREACHABLE; }
+
+//------------------------------------------------------------------------------
+
+/*
+ * specialize and instantiate
+ */
+
+const Type* Type::specialize(Type2Type& map) const {
+    if (auto result = find(map, this))
+        return result;
+    return vspecialize(map);
+}
+
+Array<const Type*> Type::specialize_args(Type2Type& map) const {
+    Array<const Type*> result(size());
+    for (size_t i = 0, e = size(); i != e; ++i)
+        result[i] = arg(i)->specialize(map);
+    return result;
+}
+
+const Type* TypeParam::vspecialize(Type2Type& map) const { return map[this] = this; }
+
+const Type* StructType::vspecialize(Type2Type& map) const {
+    assert(false && "TODO");
+}
+
+const Type* TupleType::vspecialize(Type2Type& map) const {
+    return map[this] = HENK_TABLE_NAME().tuple_type(specialize_args(map));
 }
 
 //------------------------------------------------------------------------------

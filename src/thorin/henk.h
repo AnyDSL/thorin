@@ -86,22 +86,18 @@ public:
     bool is_polymorphic() const { return !is_monomorphic(); } ///< Does this @p Type depend on any @p TypeParam%s?.
     int order() const { return order_; }
     size_t gid() const { return gid_; }
+    uint64_t hash() const { return is_hashed() ? hash_ : hash_ = vhash(); }
+    virtual bool equal(const Type*) const;
 
     const Type* specialize(Type2Type&) const;
-    const Type* instantiate(Type2Type&) const;
-    virtual const Type* instantiate(Types) const;
-    virtual const Type* vinstantiate(Type2Type&) const = 0;
-
     const Type* rebuild(HENK_TABLE_TYPE& to, Types args) const;
     const Type* rebuild(Types args) const { return rebuild(HENK_TABLE_NAME(), args); }
-
-    uint64_t hash() const { return is_hashed() ? hash_ : hash_ = vhash(); }
-    virtual uint64_t vhash() const;
-    virtual bool equal(const Type*) const;
 
     static size_t gid_counter() { return gid_counter_; }
 
 protected:
+    virtual uint64_t vhash() const;
+    virtual const Type* vspecialize(Type2Type&) const = 0;
     thorin::Array<const Type*> specialize_args(Type2Type&) const;
 
     int order_ = 0;
@@ -142,7 +138,7 @@ private:
     virtual uint64_t vhash() const override;
     virtual bool equal(const Type*) const override;
     virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types args) const override;
-    virtual const Type* vinstantiate(Type2Type&) const override;
+    virtual const Type* vspecialize(Type2Type&) const override;
 
     const char* name_;
     mutable const TypeAbs* type_abs_ = nullptr;
@@ -172,7 +168,7 @@ private:
     virtual uint64_t vhash() const override;
     virtual bool equal(const Type*) const override;
     virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types args) const override;
-    virtual const Type* vinstantiate(Type2Type&) const override;
+    virtual const Type* vspecialize(Type2Type&) const override;
 
     const TypeParam* type_param_;
 
@@ -185,7 +181,7 @@ private:
         : Type(table, Node_TupleType, args)
     {}
 
-    virtual const Type* vinstantiate(Type2Type&) const override;
+    virtual const Type* vspecialize(Type2Type&) const override;
     virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types args) const override;
 
 public:
@@ -207,7 +203,7 @@ public:
 
 private:
     virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types args) const override;
-    virtual const Type* vinstantiate(Type2Type&) const override;
+    virtual const Type* vspecialize(Type2Type&) const override;
     virtual uint64_t vhash() const override;
     virtual bool equal(const Type*) const override;
     virtual std::ostream& stream(std::ostream&) const override;

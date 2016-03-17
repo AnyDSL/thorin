@@ -19,6 +19,7 @@ TypeAbs::TypeAbs(HENK_TABLE_TYPE& table, const char* name, const char* param_nam
     , name_(name)
     , type_param_(table.type_param(param_name))
 {
+    type_param_->type_abs_ = this;
 }
 
 const TypeAbs* close(const TypeAbs*& type_abs, const Type* body) {
@@ -59,6 +60,7 @@ const TypeAbs* close(const TypeAbs*& type_abs, const Type* body) {
         }
     }
 
+    type_abs->HENK_TABLE_NAME().unify(type_abs->type_param());
     return type_abs->HENK_TABLE_NAME().unify(type_abs);
 }
 
@@ -180,7 +182,6 @@ const Type* TypeAbs::reduce(Types types) const {
     while (auto type_abs = type->isa<TypeAbs>()) {
         map[type_abs->type_param()] = types[i++];
         type = type_abs->body();
-
     }
 
     return type->specialize(map);

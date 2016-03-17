@@ -148,6 +148,7 @@ private:
 
 public: // HACK
     mutable const TypeParam* equiv_ = nullptr;
+    mutable const TypeParam* repl_  = nullptr;
 
     friend bool Type::equal(const Type*) const;
     friend class TypeAbs;
@@ -227,7 +228,7 @@ private:
 
 public:
     struct TypeHash { uint64_t operator () (const Type* t) const { return t->hash(); } };
-    struct TypeEqual { bool operator () (const Type* t1, const Type* t2) const { return t1->equal(t2); } };
+    struct TypeEqual { bool operator () (const Type* t1, const Type* t2) const { return t2->equal(t1); } };
     typedef thorin::HashSet<const Type*, TypeHash, TypeEqual> TypeSet;
 
     TypeTableBase& operator = (const TypeTableBase&);

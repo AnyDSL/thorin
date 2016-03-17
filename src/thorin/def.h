@@ -27,7 +27,7 @@ typedef ArrayRef<const Def*> Defs;
 
 /**
  * References a user.
- * A \p Def u which uses \p Def d as i^th operand is a \p Use with \p index_ i of \p Def d.
+ * A \p Def \c u which uses \p Def \c d as \c i^th operand is a \p Use with \p index_ \c i of \p Def \c d.
  */
 class Use {
 public:

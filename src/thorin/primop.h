@@ -115,9 +115,10 @@ private:
 
 template<class T>
 T primlit_value(const Def* def) {
+    static_assert(std::is_integral<T>::value, "only integral types supported");
     auto lit = def->as<PrimLit>();
     switch (lit->primtype_kind()) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit->value().get_##T();
+#define THORIN_I_TYPE(T, M) case PrimType_##T: return lit->value().get_##T();
 #include "thorin/tables/primtypetable.h"
         default: THORIN_UNREACHABLE;
     }

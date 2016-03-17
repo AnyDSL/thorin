@@ -69,19 +69,6 @@ const StructAbsType* World::struct_abs_type(size_t size, size_t num_type_params,
  * literals
  */
 
-const Def* World::literal(PrimTypeKind kind, int64_t value, const Location& loc, size_t length) {
-    const Def* lit = nullptr;
-    switch (kind) {
-#define THORIN_I_TYPE(T, M) case PrimType_##T:  lit = literal(T(value), loc, 1); break;
-#define THORIN_F_TYPE(T, M) THORIN_I_TYPE(T, M)
-#include "thorin/tables/primtypetable.h"
-                            case PrimType_bool: lit = literal(bool(value), loc, 1); break;
-            default: THORIN_UNREACHABLE;
-    }
-
-    return splat(lit, length);
-}
-
 const Def* World::splat(const Def* arg, size_t length, const std::string& name) {
     if (length == 1)
         return arg;

@@ -605,7 +605,7 @@ const Def* World::extract(const Def* agg, const T* index, const Location& loc, c
     if (auto aggregate = agg->isa<Aggregate>()) {
         if (auto lit = index->template isa<PrimLit>()) {
             if (!agg->isa<IndefiniteArray>())
-                return aggregate->op(lit);
+                return get(aggregate->ops(), lit);
         }
     }
 

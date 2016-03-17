@@ -166,6 +166,26 @@ const Type* TypeAbs  ::vrebuild(HENK_TABLE_TYPE& to, Types args) const { THORIN_
  * specialize and instantiate
  */
 
+const Type* TypeAbs::reduce(const Type* type) const {
+    Type2Type map;
+    map[type_param()] = type;
+    return body()->specialize(map);
+}
+
+const Type* TypeAbs::reduce(Types types) const {
+    Type2Type map;
+    size_t i = 0;
+
+    const Type* type = this;
+    while (auto type_abs = type->isa<TypeAbs>()) {
+        map[type_abs->type_param()] = types[i++];
+        type = type_abs->body();
+
+    }
+
+    return type->specialize(map);
+}
+
 const Type* Type::specialize(Type2Type& map) const {
     if (auto result = find(map, this))
         return result;

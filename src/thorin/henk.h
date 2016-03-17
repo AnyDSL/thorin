@@ -163,6 +163,8 @@ public:
     const TypeParam* type_param() const { return type_param_; }
     const Type* body() const { return arg(0); }
     virtual std::ostream& stream(std::ostream&) const override;
+    const Type* reduce(const Type*) const;
+    const Type* reduce(Types) const;
 
 private:
     virtual uint64_t vhash() const override;

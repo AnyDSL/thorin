@@ -7,10 +7,14 @@
 #include <ostream>
 #include <type_traits>
 
+#include <half.hpp>
+
 #include "thorin/util/cast.h"
 #include "thorin/util/hash.h"
 
 namespace thorin {
+
+using half_float::half;
 
 // This code assumes two-complement arithmetic for unsigned operations.
 // This is *implementation-defined* but *NOT* *undefined behavior*.
@@ -173,6 +177,11 @@ private:
     UT data_;
 };
 
+inline half        rem(half a, half b)               { return      fmod(a, b); }
+inline float       rem(float a, float b)             { return std::fmod(a, b); }
+inline double      rem(double a, double b)           { return std::fmod(a, b); }
+inline long double rem(long double a, long double b) { return std::fmod(a, b); }
+
 template<class FT, bool precise>
 class Float {
 public:
@@ -185,7 +194,7 @@ public:
     Float operator- (Float other) const { return Float(this->data_ - other.data_); }
     Float operator* (Float other) const { return Float(this->data_ * other.data_); }
     Float operator/ (Float other) const { return Float(this->data_ / other.data_); }
-    Float operator% (Float other) const { return Float(std::fmod(this->data_, other.data_)); }
+    Float operator% (Float other) const { return Float(rem(this->data_, other.data_)); }
     bool  operator< (Float other) const { return this->data_ < other.data_; }
     bool  operator<=(Float other) const { return this->data_ <=other.data_; }
     bool  operator> (Float other) const { return this->data_ > other.data_; }
@@ -199,30 +208,28 @@ private:
     FT data_;
 };
 
+template<class FT, bool precise>
+std::ostream& operator<<(std::ostream& os, const Float<FT, precise>& ft) { return os << ft.data(); }
+
 typedef  int8_t  s8; typedef  uint8_t  u8; typedef SInt< s8, true>  ps8; typedef UInt< u8, true>  pu8; typedef SInt< s8, false>  qs8; typedef UInt< u8, false>  qu8;
 typedef int16_t s16; typedef uint16_t u16; typedef SInt<s16, true> ps16; typedef UInt<u16, true> pu16; typedef SInt<s16, false> qs16; typedef UInt<u16, false> qu16;
 typedef int32_t s32; typedef uint32_t u32; typedef SInt<s32, true> ps32; typedef UInt<u32, true> pu32; typedef SInt<s32, false> qs32; typedef UInt<u32, false> qu32;
 typedef int64_t s64; typedef uint64_t u64; typedef SInt<s64, true> ps64; typedef UInt<u64, true> pu64; typedef SInt<s64, false> qs64; typedef UInt<u64, false> qu64;
 
+typedef half   f16; typedef Float<f16, true> pf16; typedef Float<f16, false> qf16;
 typedef float  f32; typedef Float<f32, true> pf32; typedef Float<f32, false> qf32;
 typedef double f64; typedef Float<f64, true> pf64; typedef Float<f64, false> qf64;
-
-// define literals - not yet supported by MSVC
-#if (__cplusplus >= 201103L) && !defined(_MSC_VER)
-#define THORIN_I_TYPE(T, M) inline T operator "" _##T(unsigned long long int val) { return T(val); }
-#define THORIN_F_TYPE(T, M) inline T operator "" _##T(long double            val) { return T(val); }
-#include "thorin/tables/primtypetable.h"
-#endif
 
 union Box {
 public:
     Box()        { reset(); }
-#define THORIN_ALL_TYPE(T, M) Box(T val) { reset(); M##_ = val; }
+#define THORIN_ALL_TYPE(T, M) Box(T val) { reset(); M##_ = (M)val; }
 #include "thorin/tables/primtypetable.h"
     Box( s8 val) { reset();  s8_ = val; } Box( u8 val) { reset();  u8_ = val; }
     Box(s16 val) { reset(); s16_ = val; } Box(u16 val) { reset(); u16_ = val; }
     Box(s32 val) { reset(); s32_ = val; } Box(u32 val) { reset(); u32_ = val; }
     Box(s64 val) { reset(); s64_ = val; } Box(u64 val) { reset(); u64_ = val; }
+    Box(f16 val) { reset(); f16_ = val; }
     Box(f32 val) { reset(); f32_ = val; }
     Box(f64 val) { reset(); f64_ = val; }
 
@@ -235,6 +242,7 @@ public:
     s16 get_s16() const { return s16_; } u16 get_u16() const { return u16_; }
     s32 get_s32() const { return s32_; } u32 get_u32() const { return u32_; }
     s64 get_s64() const { return s64_; } u64 get_u64() const { return u64_; }
+    f16 get_f16() const { return f16_; }
     f32 get_f32() const { return f32_; }
     f64 get_f64() const { return f64_; }
 
@@ -244,7 +252,7 @@ private:
     bool bool_;
     s8 s8_; s16 s16_; s32 s32_; s64 s64_;
     u8 u8_; u16 u16_; u32 u32_; u64 u64_;
-    f32 f32_; f64 f64_;
+    f16 f16_; f32 f32_; f64 f64_;
 };
 
 static_assert(sizeof(Box) == sizeof(uint64_t), "Box has incorrect size in bytes");

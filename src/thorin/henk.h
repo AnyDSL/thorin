@@ -120,6 +120,8 @@ private:
     template<class> friend class TypeTableBase;
 };
 
+const TypeAbs* close(const TypeAbs*&, const Type*);
+
 class TypeParam : public Type {
 private:
     TypeParam(HENK_TABLE_TYPE& table, const char* name)

@@ -79,7 +79,6 @@ public:
     const Def* literal_##T(T val, const Location& loc, size_t length = 1) { return literal(PrimType_##T, Box(val), loc, length); }
 #include "thorin/tables/primtypetable.h"
     const Def* literal(PrimTypeKind kind, Box box, const Location& loc, size_t length = 1) { return splat(cse(new PrimLit(*this, kind, box, loc, "")), length); }
-    const Def* literal(PrimTypeKind kind, int64_t value, const Location& loc, size_t length = 1);
     template<class T>
     const Def* literal(T value, const Location& loc, size_t length = 1) { return literal(type2kind<T>::kind, Box(value), loc, length); }
     const Def* zero(PrimTypeKind kind, const Location& loc, size_t length = 1) { return literal(kind, 0, loc, length); }

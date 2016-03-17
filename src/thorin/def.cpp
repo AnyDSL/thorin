@@ -18,6 +18,17 @@ namespace thorin {
 
 size_t Def::gid_counter_ = 1;
 
+Def::Def(NodeKind kind, const Type* type, size_t size, const Location& loc, const std::string& name)
+    : HasLocation(loc)
+    , kind_(kind)
+    , ops_(size)
+    , type_(type)
+    , gid_(gid_counter_++)
+    , name(name)
+{
+    assert(THORIN_IMPLIES(type, type->is_closed()));
+}
+
 void Def::set_op(size_t i, const Def* def) {
     assert(!op(i) && "already set");
     assert(def && "setting null pointer");
@@ -146,11 +157,6 @@ void Def::dump() const {
         std::cout << std::endl;
     }
 }
-
-// this workaround is needed in order to disambiguate def->op(0) from def->op(uint64_t) vs def->op(const Def*)
-template<class T> const Def* Def::op(const T* def) const { return op(primlit_value<uint64_t>(def)); }
-template const Def* Def::op<Def>(const Def*) const;         // instantiate method
-template const Def* Def::op<PrimLit>(const PrimLit*) const; // instantiate method
 
 World& Def::world() const { return type()->world(); }
 Lambda* Def::as_lambda() const { return const_cast<Lambda*>(scast<Lambda>(this)); }

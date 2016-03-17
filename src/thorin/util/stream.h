@@ -41,9 +41,9 @@ std::ostream& streamf(std::ostream& os, const char* fmt, T val, Args... args) {
 }
 
 namespace detail {
-	void inc_indent();
-	void dec_indent();
-	unsigned int get_indent();
+    void inc_indent();
+    void dec_indent();
+    unsigned int get_indent();
 }
 
 template <class charT, class traits>

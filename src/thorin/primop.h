@@ -88,7 +88,7 @@ private:
     friend class World;
 };
 
-/// Data contructor for a @p PrimType.
+/// Data constructor for a @p PrimType.
 class PrimLit : public Literal {
 private:
     PrimLit(World& world, PrimTypeKind kind, Box box, const Location& loc, const std::string& name);
@@ -115,9 +115,10 @@ private:
 
 template<class T>
 T primlit_value(const Def* def) {
+    static_assert(std::is_integral<T>::value, "only integral types supported");
     auto lit = def->as<PrimLit>();
     switch (lit->primtype_kind()) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit->value().get_##T();
+#define THORIN_I_TYPE(T, M) case PrimType_##T: return lit->value().get_##T();
 #include "thorin/tables/primtypetable.h"
         default: THORIN_UNREACHABLE;
     }
@@ -265,7 +266,7 @@ public:
     friend class World;
 };
 
-/// Data contructor for a @p TupleType.
+/// Data constructor for a @p TupleType.
 class Tuple : public Aggregate {
 private:
     Tuple(World& world, Defs args, const Location& loc, const std::string& name);
@@ -278,7 +279,7 @@ public:
     friend class World;
 };
 
-/// Data contructor for a @p StructType.
+/// Data constructor for a @p StructType.
 class StructAgg : public Aggregate {
 private:
     StructAgg(const StructType* struct_type, Defs args, const Location& loc, const std::string& name)
@@ -300,7 +301,7 @@ public:
     friend class World;
 };
 
-/// Data contructor for a vector type.
+/// Data constructor for a vector type.
 class Vector : public Aggregate {
 private:
     Vector(World& world, Defs args, const Location& loc, const std::string& name);

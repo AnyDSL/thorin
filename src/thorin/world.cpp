@@ -60,19 +60,6 @@ World::~World() {
  * literals
  */
 
-const Def* World::literal(PrimTypeKind kind, int64_t value, const Location& loc, size_t length) {
-    const Def* lit = nullptr;
-    switch (kind) {
-#define THORIN_I_TYPE(T, M) case PrimType_##T:  lit = literal(T(value), loc, 1); break;
-#define THORIN_F_TYPE(T, M) THORIN_I_TYPE(T, M)
-#include "thorin/tables/primtypetable.h"
-                            case PrimType_bool: lit = literal(bool(value), loc, 1); break;
-            default: THORIN_UNREACHABLE;
-    }
-
-    return splat(lit, length);
-}
-
 const Def* World::splat(const Def* arg, size_t length, const std::string& name) {
     if (length == 1)
         return arg;
@@ -596,7 +583,7 @@ const Def* World::extract(const Def* agg, const T* index, const Location& loc, c
     if (auto aggregate = agg->isa<Aggregate>()) {
         if (auto lit = index->template isa<PrimLit>()) {
             if (!agg->isa<IndefiniteArray>())
-                return aggregate->op(lit);
+                return get(aggregate->ops(), lit);
         }
     }
 

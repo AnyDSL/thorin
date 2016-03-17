@@ -79,16 +79,7 @@ private:
     Def(const Def&);              ///< Do not copy-construct a \p Def.
 
 protected:
-    Def(NodeKind kind, const Type* type, size_t size, const Location& loc, const std::string& name)
-        : HasLocation(loc)
-        , kind_(kind)
-        , ops_(size)
-        , type_(type)
-        , gid_(gid_counter_++)
-        , name(name)
-    {
-        assert(THORIN_IMPLIES(type, type->is_closed()));
-    }
+    Def(NodeKind kind, const Type* type, size_t size, const Location& loc, const std::string& name);
     virtual ~Def() {}
 
     void clear_type() { type_ = nullptr; }
@@ -119,7 +110,6 @@ public:
     World& world() const;
     Defs ops() const { return ops_; }
     const Def* op(size_t i) const { assert(i < ops().size() && "index out of bounds"); return ops_[i]; }
-    template<class T> const Def* op(const T* def) const;
     void replace(const Def*) const;
     size_t length() const; ///< Returns the vector length. Raises an assertion if type of this is not a \p VectorType.
     bool is_primlit(int val) const;

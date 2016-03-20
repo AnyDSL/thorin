@@ -20,6 +20,7 @@ inline __declspec(noreturn) void thorin_dummy_function() { abort(); }
 #endif
 
 // currently no better location for this
-#define THORIN_IMPLIES(a, b) (!(a) || ((a) && (b)))
+#define THORIN_IMPLIES(a, b) (!(a) || (b))
+#define THORIN_EQUIV(a, b) (!!((a) == !!(b)))
 
 #endif

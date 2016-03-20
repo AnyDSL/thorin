@@ -222,15 +222,22 @@ const Type* TypeTableBase<T>::unify_base(const Type* type) {
     if (type->is_hashed() || !type->is_closed())
         return type;
 
-    for (auto& arg : const_cast<Type*>(type)->args_)
-        arg = unify_base(arg);
-
     auto i = types_.find(type);
     if (i != types_.end()) {
-        delete type;
+        destroy(type);
         type = *i;
         assert(type->is_hashed());
         return type;
+    }
+
+    return insert(type);
+}
+
+template<class T>
+const Type* TypeTableBase<T>::insert(const Type* type) {
+    for (auto arg : type->args()) {
+        if (!arg->is_hashed())
+            insert(arg);
     }
 
     const auto& p = types_.insert(type);
@@ -238,6 +245,22 @@ const Type* TypeTableBase<T>::unify_base(const Type* type) {
     assert(!type->is_hashed());
     type->hashed_ = true;
     return type;
+}
+
+template<class T>
+void TypeTableBase<T>::destroy(const Type* type) {
+    thorin::HashSet<const Type*> done;
+    destroy(type, done);
+}
+
+template<class T>
+void TypeTableBase<T>::destroy(const Type* type, thorin::HashSet<const Type*>& done) {
+    if (!done.contains(type) && !type->is_hashed()) {
+        done.insert(type);
+        for (auto arg : type->args())
+            destroy(arg, done);
+        delete type;
+    }
 }
 
 template class TypeTableBase<HENK_TABLE_TYPE>;

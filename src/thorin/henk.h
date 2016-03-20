@@ -254,6 +254,9 @@ private:
 protected:
     const Type* unify_base(const Type* type);
     template<class T> const T* unify(const T* type) { return unify_base(type)->template as<T>(); }
+    const Type* insert(const Type*);
+    void destroy(const Type*);
+    void destroy(const Type*, thorin::HashSet<const Type*>& done);
 
     TypeSet types_;
     const TupleType* unit_; ///< tuple().

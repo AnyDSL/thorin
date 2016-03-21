@@ -159,8 +159,8 @@ const Type* StructType::vrebuild(HENK_TABLE_TYPE& to, Types args) const {
 }
 
 const Type* TupleType::vrebuild(HENK_TABLE_TYPE& to, Types args) const { return to.tuple_type(args); }
-const Type* TypeParam::vrebuild(HENK_TABLE_TYPE& to, Types     ) const { THORIN_UNREACHABLE; }
-const Type* TypeAbs  ::vrebuild(HENK_TABLE_TYPE& to, Types args) const { THORIN_UNREACHABLE; }
+const Type* TypeParam::vrebuild(HENK_TABLE_TYPE&,    Types     ) const { THORIN_UNREACHABLE; }
+const Type* TypeAbs  ::vrebuild(HENK_TABLE_TYPE&,    Types     ) const { THORIN_UNREACHABLE; }
 
 //------------------------------------------------------------------------------
 
@@ -207,7 +207,7 @@ const Type* TypeAbs::vspecialize(Type2Type& map) const {
 
 const Type* TypeParam::vspecialize(Type2Type& map) const { return map[this] = this; }
 
-const Type* StructType::vspecialize(Type2Type& map) const {
+const Type* StructType::vspecialize(Type2Type&) const {
     assert(false && "TODO");
 }
 

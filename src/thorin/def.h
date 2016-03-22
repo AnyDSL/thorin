@@ -16,7 +16,7 @@ namespace thorin {
 
 class Def;
 class Tracker;
-class Lambda;
+class Continuation;
 class PrimOp;
 class Use;
 class World;
@@ -71,7 +71,7 @@ std::ostream& operator<<(std::ostream&, Use);
  * These are:
  * - \p PrimOp%s
  * - \p Param%s and
- * - \p Lambda%s.
+ * - \p Continuation%s.
  */
 class Def : public HasLocation, public MagicCast<Def>, public Streamable {
 private:
@@ -97,8 +97,8 @@ public:
     void unset_op(size_t i);
     void unset_ops();
     const Def* is_mem() const { return type()->isa<MemType>() ? this : nullptr; }
-    Lambda* as_lambda() const;
-    Lambda* isa_lambda() const;
+    Continuation* as_continuation() const;
+    Continuation* isa_continuation() const;
     bool is_const() const;
     void dump() const;
     const Uses& uses() const { return uses_; }

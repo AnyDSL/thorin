@@ -7,7 +7,7 @@
 #include <string>
 
 #include "thorin/enums.h"
-#include "thorin/lambda.h"
+#include "thorin/continuation.h"
 #include "thorin/primop.h"
 #include "thorin/util/hash.h"
 #include "thorin/util/stream.h"
@@ -31,9 +31,9 @@ namespace thorin {
  *      - canonicalization of expressions
  *      - several local optimizations
  *
- *  @p PrimOp%s do not explicitly belong to a Lambda.
- *  Instead they either implicitly belong to a Lambda--when
- *  they (possibly via multiple levels of indirection) depend on a Lambda's Param--or they are dead.
+ *  @p PrimOp%s do not explicitly belong to a Continuation.
+ *  Instead they either implicitly belong to a Continuation--when
+ *  they (possibly via multiple levels of indirection) depend on a Continuation's Param--or they are dead.
  *  Use @p cleanup to remove dead code and unreachable code.
  *
  *  You can create several worlds.
@@ -169,14 +169,14 @@ public:
     const Def* run(const Def* def, const Location& loc, const std::string& name = "");
     const Def* hlt(const Def* def, const Location& loc, const std::string& name = "");
 
-    // lambdas
+    // continuations
 
-    Lambda* lambda(const FnType* fn, const Location& loc, CC cc = CC::C, Intrinsic intrinsic = Intrinsic::None, const std::string& name = "");
-    Lambda* lambda(const FnType* fn, const Location& loc, const std::string& name) { return lambda(fn, loc, CC::C, Intrinsic::None, name); }
-    Lambda* lambda(const Location& loc, const std::string& name) { return lambda(fn_type(), loc, CC::C, Intrinsic::None, name); }
-    Lambda* basicblock(const Location& loc, const std::string& name = "");
-    Lambda* branch() const { return branch_; }
-    Lambda* end_scope() const { return end_scope_; }
+    Continuation* continuation(const FnType* fn, const Location& loc, CC cc = CC::C, Intrinsic intrinsic = Intrinsic::None, const std::string& name = "");
+    Continuation* continuation(const FnType* fn, const Location& loc, const std::string& name) { return continuation(fn, loc, CC::C, Intrinsic::None, name); }
+    Continuation* continuation(const Location& loc, const std::string& name) { return continuation(fn_type(), loc, CC::C, Intrinsic::None, name); }
+    Continuation* basicblock(const Location& loc, const std::string& name = "");
+    Continuation* branch() const { return branch_; }
+    Continuation* end_scope() const { return end_scope_; }
 
     /// Performs dead code, unreachable code and unused type elimination.
     void cleanup();
@@ -186,17 +186,17 @@ public:
 
     const std::string& name() const { return name_; }
     const PrimOpSet& primops() const { return primops_; }
-    const LambdaSet& lambdas() const { return lambdas_; }
-    Array<Lambda*> copy_lambdas() const;
-    const LambdaSet& externals() const { return externals_; }
-    bool empty() const { return lambdas().size() <= 2; } // TODO rework intrinsic stuff. 2 = branch + end_scope
+    const ContinuationSet& continuations() const { return continuations_; }
+    Array<Continuation*> copy_continuations() const;
+    const ContinuationSet& externals() const { return externals_; }
+    bool empty() const { return continuations().size() <= 2; } // TODO rework intrinsic stuff. 2 = branch + end_scope
 
     // other stuff
 
-    void add_external(Lambda* lambda) { externals_.insert(lambda); }
-    void remove_external(Lambda* lambda) { externals_.erase(lambda); }
-    bool is_external(const Lambda* lambda) { return externals().contains(const_cast<Lambda*>(lambda)); }
-    void destroy(Lambda* lambda);
+    void add_external(Continuation* continuation) { externals_.insert(continuation); }
+    void remove_external(Continuation* continuation) { externals_.erase(continuation); }
+    bool is_external(const Continuation* continuation) { return externals().contains(const_cast<Continuation*>(continuation)); }
+    void destroy(Continuation* continuation);
 #ifndef NDEBUG
     void breakpoint(size_t number) { breakpoints_.insert(number); }
     const HashSet<size_t>& breakpoints() const { return breakpoints_; }
@@ -209,7 +209,7 @@ public:
 
 private:
     HashSet<Tracker*>& trackers(const Def* def) { assert(def); return trackers_[def]; }
-    const Param* param(const Type* type, Lambda* lambda, size_t index, const std::string& name = "");
+    const Param* param(const Type* type, Continuation* continuation, size_t index, const std::string& name = "");
     const Def* cse_base(const PrimOp*);
     template<class T> const T* cse(const T* primop) { return cse_base(primop)->template as<T>(); }
 
@@ -228,19 +228,19 @@ private:
         const PrimType* primtypes_[Num_PrimTypes];
     };
 
-    LambdaSet lambdas_;
-    LambdaSet externals_;
+    ContinuationSet continuations_;
+    ContinuationSet externals_;
     PrimOpSet primops_;
     DefMap<HashSet<Tracker*>> trackers_;
 
 #ifndef NDEBUG
     HashSet<size_t> breakpoints_;
 #endif
-    Lambda* branch_;
-    Lambda* end_scope_;
+    Continuation* branch_;
+    Continuation* end_scope_;
 
     friend class Cleaner;
-    friend class Lambda;
+    friend class Continuation;
     friend class Tracker;
     friend void Def::replace(const Def*) const;
 };

@@ -44,7 +44,7 @@ SPIRCodeGen::SPIRCodeGen(World& world)
 // Kernel code
 //------------------------------------------------------------------------------
 
-void SPIRCodeGen::emit_function_decl_hook(Lambda* lambda, llvm::Function* f) {
+void SPIRCodeGen::emit_function_decl_hook(Continuation* continuation, llvm::Function* f) {
     // append required metadata
     size_t num_params = f->arg_size() + 1;
     Array<llvm::Value*> annotation_values_addr_space(num_params);
@@ -73,7 +73,7 @@ void SPIRCodeGen::emit_function_decl_hook(Lambda* lambda, llvm::Function* f) {
         type_os.flush();
         annotation_values_type[index] = llvm::MDString::get(context_, type_string);
         annotation_values_type_qual[index] = llvm::MDString::get(context_, "");
-        annotation_values_name[index] = llvm::MDString::get(context_, lambda->param(index + 1)->name);
+        annotation_values_name[index] = llvm::MDString::get(context_, continuation->param(index + 1)->name);
     }
     llvm::Value* annotation_values_kernel[] = {
         f,
@@ -88,6 +88,6 @@ void SPIRCodeGen::emit_function_decl_hook(Lambda* lambda, llvm::Function* f) {
     kernels_md->addOperand(llvm::MDNode::get(context_, annotation_values_kernel));
 }
 
-Lambda* SPIRCodeGen::emit_reserve(const Lambda* lambda) { return emit_reserve_shared(lambda, true /* add kernel prefix */); }
+Continuation* SPIRCodeGen::emit_reserve(const Continuation* continuation) { return emit_reserve_shared(continuation, true /* add kernel prefix */); }
 
 }

@@ -19,7 +19,7 @@ public:
         assert(!oentry->empty());
         assert(args.size() == oentry->num_params());
 
-        // TODO correctly deal with lambdas here
+        // TODO correctly deal with continuations here
         std::queue<const Def*> queue;
         auto enqueue = [&](const Def* def) {
             if (!within(def)) {
@@ -38,9 +38,9 @@ public:
     }
 
     World& world() const { return scope.world(); }
-    Lambda* mangle();
-    void mangle_body(Lambda* olambda, Lambda* nlambda);
-    Lambda* mangle_head(Lambda* olambda);
+    Continuation* mangle();
+    void mangle_body(Continuation* ocontinuation, Continuation* ncontinuation);
+    Continuation* mangle_head(Continuation* ocontinuation);
     const Def* mangle(const Def* odef);
     bool within(const Def* def) { return scope.contains(def) || defs_.contains(def); }
 
@@ -49,8 +49,8 @@ public:
     Defs args;
     Defs lift;
     Type2Type type2type;
-    Lambda* oentry;
-    Lambda* nentry;
+    Continuation* oentry;
+    Continuation* nentry;
     DefSet defs_;
 };
 
@@ -85,29 +85,29 @@ Lambda* Mangler::mangle() {
     return nentry;
 }
 
-Lambda* Mangler::mangle_head(Lambda* olambda) {
-    assert(!def2def.contains(olambda));
-    assert(!olambda->empty());
-    Lambda* nlambda = olambda->stub(type2type, olambda->name);
-    def2def[olambda] = nlambda;
+Continuation* Mangler::mangle_head(Continuation* ocontinuation) {
+    assert(!def2def.contains(ocontinuation));
+    assert(!ocontinuation->empty());
+    Continuation* ncontinuation = ocontinuation->stub(type2type, ocontinuation->name);
+    def2def[ocontinuation] = ncontinuation;
 
-    for (size_t i = 0, e = olambda->num_params(); i != e; ++i)
-        def2def[olambda->param(i)] = nlambda->param(i);
+    for (size_t i = 0, e = ocontinuation->num_params(); i != e; ++i)
+        def2def[ocontinuation->param(i)] = ncontinuation->param(i);
 
-    return nlambda;
+    return ncontinuation;
 }
 
-void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
-    assert(!olambda->empty());
+void Mangler::mangle_body(Continuation* ocontinuation, Continuation* ncontinuation) {
+    assert(!ocontinuation->empty());
 
     if (olambda->to() == world().branch()) {        // fold branch if possible
         if (auto lit = mangle(olambda->arg(0))->isa<PrimLit>())
             return nlambda->jump(mangle(lit->value().get_bool() ? olambda->arg(1) : olambda->arg(2)), {}, olambda->jump_loc());
     }
 
-    Array<const Def*> nops(olambda->size());
+    Array<const Def*> nops(ocontinuation->size());
     for (size_t i = 0, e = nops.size(); i != e; ++i)
-        nops[i] = mangle(olambda->op(i));
+        nops[i] = mangle(ocontinuation->op(i));
 
     Defs nargs(nops.skip_front()); // new args of nlambda
     auto ntarget = nops.front();   // new target of nlambda
@@ -140,8 +140,8 @@ const Def* Mangler::mangle(const Def* odef) {
         mangle_body(olambda, nlambda);
         return nlambda;
     } else if (auto param = odef->isa<Param>()) {
-        assert(within(param->lambda()));
-        mangle(param->lambda());
+        assert(within(param->continuation()));
+        mangle(param->continuation());
         assert(def2def.contains(param));
         return def2def[param];
     } else {

@@ -1,4 +1,4 @@
-#include "thorin/lambda.h"
+#include "thorin/continuation.h"
 #include "thorin/world.h"
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/verify.h"
@@ -8,8 +8,8 @@
 namespace thorin {
 
 void lower2cff(World& world) {
-    HashMap<Call, Lambda*> cache;
-    LambdaSet top;
+    HashMap<Call, Continuation*> cache;
+    ContinuationSet top;
 
     bool local = true;
     for (bool todo = true; todo || local;) {
@@ -18,7 +18,7 @@ void lower2cff(World& world) {
         Scope::for_each(world, [&] (Scope& scope) {
             bool dirty = false;
 
-            auto is_bad = [&] (Lambda* to) {
+            auto is_bad = [&] (Continuation* to) {
                 if (to->empty())
                     return false;
                 if (local)
@@ -33,16 +33,16 @@ void lower2cff(World& world) {
 
             const auto& cfg = scope.f_cfg();
             for (auto n : cfg.post_order()) {
-                auto lambda = n->lambda();
-                if (auto to = lambda->to()->isa_lambda()) {
-                    if (is_bad(to)) {
-                        DLOG("bad: %", to);
+                auto continuation = n->continuation();
+                if (auto callee = continuation->callee()->isa_continuation()) {
+                    if (is_bad(callee)) {
+                        DLOG("bad: %", callee);
                         todo = dirty = true;
 
                         Call call(lambda);
                         call.to() = to;
                         for (size_t i = 0, e = call.num_args(); i != e; ++i)
-                            call.arg(i) = to->param(i)->order() > 0 ? lambda->arg(i) : nullptr;
+                            call.arg(i) = callee->param(i)->order() > 0 ? continuation->arg(i) : nullptr;
 
 
                         const auto& p = cache.emplace(call, nullptr);
@@ -50,7 +50,7 @@ void lower2cff(World& world) {
                         if (p.second)
                             target = drop(call); // use already dropped version as target
 
-                        jump_to_cached_call(lambda, target, call);
+                        jump_to_cached_call(continuation, target, call);
                     }
                 }
             }

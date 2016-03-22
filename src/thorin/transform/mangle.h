@@ -12,7 +12,7 @@ inline Lambda* drop(const Scope& scope, Defs args) {
     return mangle(scope, args, Array<const Def*>());
 }
 
-Lambda* drop(const Call&);
+Continuation* drop(const Call&);
 
 inline Lambda* lift(const Scope& scope, Defs defs) {
     return mangle(scope, Array<const Def*>(scope.entry()->num_params()), defs);

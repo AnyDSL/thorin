@@ -1,4 +1,4 @@
-#include "thorin/lambda.h"
+#include "thorin/continuation.h"
 #include "thorin/world.h"
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/scope.h"
@@ -7,8 +7,8 @@
 
 namespace thorin {
 
-static bool update_src(Lambda* src, Lambda* dst, const char* suffix) {
-    auto resolve = [&] (Lambda* dst) {
+static bool update_src(Continuation* src, Continuation* dst, const char* suffix) {
+    auto resolve = [&] (Continuation* dst) {
         auto resolver = dst->stub(dst->name + suffix);
         resolver->jump(dst, resolver->params_as_defs(), resolver->jump_loc());
         return resolver;
@@ -33,7 +33,7 @@ static void critical_edge_elimination(Scope& scope) {
             for (auto pred : cfg.preds(n)) {
                 if (cfg.num_succs(pred) != 1) {
                     DLOG("critical edge: % -> %", pred, n);
-                    dirty |= update_src(pred->lambda(), n->lambda(), "_crit");
+                    dirty |= update_src(pred->continuation(), n->continuation(), "_crit");
                 }
             }
         }
@@ -49,22 +49,22 @@ void critical_edge_elimination(World& world) {
     //      A(..., c)               B(..., c)
     // such edges are not really critical but we remove them here anyway as such situtions may cause trouble in some passes
 
-    std::vector<Lambda*> todo;
-    for (auto lambda : world.lambdas()) {
-        if (lambda->is_basicblock()) {
-            auto preds = lambda->preds();
+    std::vector<Continuation*> todo;
+    for (auto continuation : world.continuations()) {
+        if (continuation->is_basicblock()) {
+            auto preds = continuation->preds();
             if (preds.size() > 1) {
                 for (auto pred : preds) {
                     for (auto arg : pred->args()) {
-                        if (arg == lambda) {
-                            todo.push_back(lambda);
-                            goto next_lambda;
+                        if (arg == continuation) {
+                            todo.push_back(continuation);
+                            goto next_continuation;
                         }
                     }
                 }
             }
         }
-next_lambda:;
+next_continuation:;
     }
 
     for (auto dst : todo) {

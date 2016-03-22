@@ -4,7 +4,7 @@
 
 #include "thorin/def.h"
 #include "thorin/primop.h"
-#include "thorin/lambda.h"
+#include "thorin/continuation.h"
 #include "thorin/type.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/transform/cleanup_world.h"
@@ -47,12 +47,12 @@ World::World(std::string name)
     ,T##_(unify(new PrimType(*this, PrimType_##T, 1)))
 #include "thorin/tables/primtypetable.h"
 {
-    branch_ = lambda(fn_type({type_bool(), fn_type(), fn_type()}), Location(), CC::C, Intrinsic::Branch, "br");
-    end_scope_ = lambda(fn_type(), Location(), CC::C, Intrinsic::EndScope, "end_scope");
+    branch_ = continuation(fn_type({type_bool(), fn_type(), fn_type()}), Location(), CC::C, Intrinsic::Branch, "br");
+    end_scope_ = continuation(fn_type(), Location(), CC::C, Intrinsic::EndScope, "end_scope");
 }
 
 World::~World() {
-    for (auto lambda : lambdas_) delete lambda;
+    for (auto continuation : continuations_) delete continuation;
     for (auto primop : primops_) delete primop;
 }
 
@@ -764,13 +764,13 @@ const Def* World::hlt(const Def* def, const Location& loc, const std::string& na
 }
 
 /*
- * lambdas
+ * continuations
  */
 
-Lambda* World::lambda(const FnType* fn, const Location& loc, CC cc, Intrinsic intrinsic, const std::string& name) {
-    auto l = new Lambda(fn, loc, cc, intrinsic, true, name);
+Continuation* World::continuation(const FnType* fn, const Location& loc, CC cc, Intrinsic intrinsic, const std::string& name) {
+    auto l = new Continuation(fn, loc, cc, intrinsic, true, name);
     THORIN_CHECK_BREAK(l->gid());
-    lambdas_.insert(l);
+    continuations_.insert(l);
 
     size_t i = 0;
     for (auto arg : fn->args()) {
@@ -781,15 +781,15 @@ Lambda* World::lambda(const FnType* fn, const Location& loc, CC cc, Intrinsic in
     return l;
 }
 
-Lambda* World::basicblock(const Location& loc, const std::string& name) {
-    auto bb = new Lambda(fn_type(), loc, CC::C, Intrinsic::None, false, name);
+Continuation* World::basicblock(const Location& loc, const std::string& name) {
+    auto bb = new Continuation(fn_type(), loc, CC::C, Intrinsic::None, false, name);
     THORIN_CHECK_BREAK(bb->gid());
-    lambdas_.insert(bb);
+    continuations_.insert(bb);
     return bb;
 }
 
-const Param* World::param(const Type* type, Lambda* lambda, size_t index, const std::string& name) {
-    auto param = new Param(type, lambda, index, lambda->loc(), name);
+const Param* World::param(const Type* type, Continuation* continuation, size_t index, const std::string& name) {
+    auto param = new Param(type, continuation, index, continuation->loc(), name);
     THORIN_CHECK_BREAK(param->gid());
     return param;
 }
@@ -798,9 +798,9 @@ const Param* World::param(const Type* type, Lambda* lambda, size_t index, const 
  * misc
  */
 
-Array<Lambda*> World::copy_lambdas() const {
-    Array<Lambda*> result(lambdas().size());
-    std::copy(lambdas().begin(), lambdas().end(), result.begin());
+Array<Continuation*> World::copy_continuations() const {
+    Array<Continuation*> result(continuations().size());
+    std::copy(continuations().begin(), continuations().end(), result.begin());
     return result;
 }
 

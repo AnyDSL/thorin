@@ -29,27 +29,27 @@ const Def* import(Type2Type& type_old2new, Def2Def& def_old2new, World& to, cons
     auto ntype = import(type_old2new, to, odef->type());
 
     if (auto oparam = odef->isa<Param>()) {
-        import(type_old2new, def_old2new, to, oparam->lambda())->as_lambda();
+        import(type_old2new, def_old2new, to, oparam->continuation())->as_continuation();
         auto nparam = find(def_old2new, oparam);
         assert(nparam && &nparam->world() == &to);
         return nparam;
     }
 
-    Lambda* nlambda = nullptr;
-    if (auto olambda = odef->isa_lambda()) { // create stub in new world
+    Continuation* ncontinuation = nullptr;
+    if (auto ocontinuation = odef->isa_continuation()) { // create stub in new world
         // TODO maybe we want to deal with intrinsics in a more streamlined way
-        if (olambda == olambda->world().branch())
-            return def_old2new[olambda] = to.branch();
-        if (olambda == olambda->world().end_scope())
-            return def_old2new[olambda] = to.end_scope();
-        auto npi = import(type_old2new, to, olambda->type())->as<FnType>();
-        nlambda = to.lambda(npi, olambda->loc(), olambda->cc(), olambda->intrinsic(), olambda->name);
-        for (size_t i = 0, e = olambda->num_params(); i != e; ++i) {
-            nlambda->param(i)->name = olambda->param(i)->name;
-            def_old2new[olambda->param(i)] = nlambda->param(i);
+        if (ocontinuation == ocontinuation->world().branch())
+            return def_old2new[ocontinuation] = to.branch();
+        if (ocontinuation == ocontinuation->world().end_scope())
+            return def_old2new[ocontinuation] = to.end_scope();
+        auto npi = import(type_old2new, to, ocontinuation->type())->as<FnType>();
+        ncontinuation = to.continuation(npi, ocontinuation->loc(), ocontinuation->cc(), ocontinuation->intrinsic(), ocontinuation->name);
+        for (size_t i = 0, e = ocontinuation->num_params(); i != e; ++i) {
+            ncontinuation->param(i)->name = ocontinuation->param(i)->name;
+            def_old2new[ocontinuation->param(i)] = ncontinuation->param(i);
         }
 
-        def_old2new[olambda] = nlambda;
+        def_old2new[ocontinuation] = ncontinuation;
     }
 
     size_t size = odef->size();

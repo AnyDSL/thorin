@@ -128,6 +128,7 @@ std::ostream& CCodeGen::emit_type(const Type* type) {
             case PrimType_pu32: case PrimType_qu32: os << "unsigned int";     break;
             case PrimType_ps64: case PrimType_qs64: os << "long";             break;
             case PrimType_pu64: case PrimType_qu64: os << "unsigned long";    break;
+            case PrimType_pf16: case PrimType_qf16: os << "half";             break;
             case PrimType_pf32: case PrimType_qf32: os << "float";            break;
             case PrimType_pf64: case PrimType_qf64: os << "double";           break;
         }
@@ -248,6 +249,7 @@ void CCodeGen::emit() {
         os << "__device__ inline int gridDim_z() { return gridDim.z; }" << endl;
     }
     if (lang_==Lang::OPENCL) {
+        os << "#pragma OPENCL EXTENSION cl_khr_fp16 : enable" << endl;
         os << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable" << endl;
     }
 
@@ -762,6 +764,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
             case PrimType_pu32: case PrimType_qu32: os << primlit->pu32_value();                        break;
             case PrimType_ps64: case PrimType_qs64: os << primlit->ps64_value();                        break;
             case PrimType_pu64: case PrimType_qu64: os << primlit->pu64_value();                        break;
+            case PrimType_pf16: case PrimType_qf16: os << float_mode << primlit->pf16_value() << 'h';   break;
             case PrimType_pf32: case PrimType_qf32: os << float_mode << primlit->pf32_value() << 'f';   break;
             case PrimType_pf64: case PrimType_qf64: os << float_mode << primlit->pf64_value();          break;
         }

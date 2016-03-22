@@ -255,7 +255,7 @@ std::ostream& PrimLit::stream(std::ostream& os) const {
         case PrimType_pu8: return os << (unsigned) pu8_value();
         default:
             switch (kind) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return os << T##_value();
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return os << value().get_##M();
 #include "thorin/tables/primtypetable.h"
                 default: THORIN_UNREACHABLE;
             }

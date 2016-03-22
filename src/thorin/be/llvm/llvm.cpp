@@ -790,6 +790,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
             case PrimType_pu32: case PrimType_qu32: return irbuilder_.getInt32(box.get_u32());
             case PrimType_ps64: case PrimType_qs64: return irbuilder_.getInt64(box.get_s64());
             case PrimType_pu64: case PrimType_qu64: return irbuilder_.getInt64(box.get_u64());
+            case PrimType_pf16: case PrimType_qf16: return llvm::ConstantFP::get(llvm_type, box.get_f16());
             case PrimType_pf32: case PrimType_qf32: return llvm::ConstantFP::get(llvm_type, box.get_f32());
             case PrimType_pf64: case PrimType_qf64: return llvm::ConstantFP::get(llvm_type, box.get_f64());
         }
@@ -877,16 +878,20 @@ llvm::Type* CodeGen::convert(const Type* type) {
     if (auto llvm_type = thorin::find(types_, type))
         return llvm_type;
 
+    // wrapper for LLVM 3.4
+    auto getHalfTy = [&]() { return llvm::Type::getHalfTy(context_); };
+
     assert(!type->isa<MemType>());
     llvm::Type* llvm_type;
     switch (type->kind()) {
-        case PrimType_bool:                                                             llvm_type = irbuilder_. getInt1Ty(); break;
-        case PrimType_ps8:  case PrimType_qs8:  case PrimType_pu8:  case PrimType_qu8:  llvm_type = irbuilder_. getInt8Ty(); break;
-        case PrimType_ps16: case PrimType_qs16: case PrimType_pu16: case PrimType_qu16: llvm_type = irbuilder_.getInt16Ty(); break;
-        case PrimType_ps32: case PrimType_qs32: case PrimType_pu32: case PrimType_qu32: llvm_type = irbuilder_.getInt32Ty(); break;
-        case PrimType_ps64: case PrimType_qs64: case PrimType_pu64: case PrimType_qu64: llvm_type = irbuilder_.getInt64Ty(); break;
-        case PrimType_pf32: case PrimType_qf32:                                         llvm_type = irbuilder_.getFloatTy(); break;
-        case PrimType_pf64: case PrimType_qf64:                                         llvm_type = irbuilder_.getDoubleTy();break;
+        case PrimType_bool:                                                             llvm_type = irbuilder_. getInt1Ty();  break;
+        case PrimType_ps8:  case PrimType_qs8:  case PrimType_pu8:  case PrimType_qu8:  llvm_type = irbuilder_. getInt8Ty();  break;
+        case PrimType_ps16: case PrimType_qs16: case PrimType_pu16: case PrimType_qu16: llvm_type = irbuilder_.getInt16Ty();  break;
+        case PrimType_ps32: case PrimType_qs32: case PrimType_pu32: case PrimType_qu32: llvm_type = irbuilder_.getInt32Ty();  break;
+        case PrimType_ps64: case PrimType_qs64: case PrimType_pu64: case PrimType_qu64: llvm_type = irbuilder_.getInt64Ty();  break;
+        case PrimType_pf16: case PrimType_qf16:                                         llvm_type =             getHalfTy();  break;
+        case PrimType_pf32: case PrimType_qf32:                                         llvm_type = irbuilder_.getFloatTy();  break;
+        case PrimType_pf64: case PrimType_qf64:                                         llvm_type = irbuilder_.getDoubleTy(); break;
         case Node_PtrType: {
             auto ptr = type->as<PtrType>();
             unsigned addr_space;

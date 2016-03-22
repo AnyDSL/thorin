@@ -2,6 +2,7 @@
 #define THORIN_UTIL_STREAM_H
 
 #include <ostream>
+#include <stdexcept>
 
 namespace thorin {
 

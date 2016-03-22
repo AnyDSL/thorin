@@ -22,7 +22,7 @@
 
 class Type;
 class Lambda;
-class TypeParam;
+class DeBruijn;
 class HENK_TABLE_TYPE;
 
 template<class T>
@@ -80,10 +80,10 @@ public:
     bool empty() const { return args_.empty(); }
 
     bool is_hashed() const { return hashed_; }                ///< This @p Type is already recorded inside of @p HENK_TABLE_TYPE.
-    bool is_closed() const { return closed_; }                ///< Are all @p TypeParam%s bound?
+    bool is_closed() const { return closed_; }                ///< Are all @p DeBruijn%s bound?
     bool is_known()  const { return known_; }                 ///< Deos this @p Type depend on any @p UnknownType%s?
-    bool is_monomorphic() const { return monomorphic_; }      ///< Does this @p Type not depend on any @p TypeParam%s?.
-    bool is_polymorphic() const { return !is_monomorphic(); } ///< Does this @p Type depend on any @p TypeParam%s?.
+    bool is_monomorphic() const { return monomorphic_; }      ///< Does this @p Type not depend on any @p DeBruijn%s?.
+    bool is_polymorphic() const { return !is_monomorphic(); } ///< Does this @p Type depend on any @p DeBruijn%s?.
     int order() const { return order_; }
     size_t gid() const { return gid_; }
     uint64_t hash() const { return is_hashed() ? hash_ : hash_ = vhash(); }
@@ -122,50 +122,52 @@ private:
 
 const Lambda* close(const Lambda*&, const Type*);
 
-class TypeParam : public Type {
-private:
-    TypeParam(HENK_TABLE_TYPE& table, const char* name)
-        : Type(table, Node_TypeParam, {})
-        , name_(name)
-    {
-        closed_ = false;
-        monomorphic_ = false;
-    }
-
-public:
-    const char* name() const { return name_; }
-    const Lambda* lambda() const { return lambda_; }
-    virtual std::ostream& stream(std::ostream&) const override;
-
-private:
-    virtual uint64_t vhash() const override;
-    virtual bool equal(const Type*) const override;
-    virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types args) const override;
-    virtual const Type* vspecialize(Type2Type&) const override;
-
-    const char* name_;
-    mutable const Lambda* lambda_ = nullptr;
-
-public: // HACK
-    mutable const TypeParam* equiv_ = nullptr;
-    mutable const TypeParam* repl_  = nullptr;
-
-    friend bool Type::equal(const Type*) const;
-    friend class Lambda;
-    template<class> friend class TypeTableBase;
-};
-
 class Lambda : public Type {
 private:
-    Lambda(HENK_TABLE_TYPE& table, const char* name, const char* param_name);
+    Lambda(HENK_TABLE_TYPE& table, const char* name)
+        : Type(table, Node_Lambda, {nullptr})
+        , name_(name)
+    {}
 
 public:
     const char* name() const { return name_; }
-    const TypeParam* type_param() const { return type_param_; }
     const Type* body() const { return arg(0); }
     virtual std::ostream& stream(std::ostream&) const override;
     const Type* reduce(const Type*) const;
     const Type* reduce(Types) const;
+    const GIDSet<const DeBruijn>& de_bruijn_indices() const { return de_bruijn_indices_; }
+
+private:
+    virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types args) const override;
+    virtual const Type* vspecialize(Type2Type&) const override;
+
+    const char* name_;
+    mutable GIDSet<const DeBruijn> de_bruijn_indices_;
+
+public: // HACK
+    mutable const Lambda* repl_  = nullptr;
+
+    friend class DeBruijn;
+    template<class> friend class TypeTableBase;
+};
+
+class DeBruijn : public Type {
+private:
+    DeBruijn(const Lambda* lambda)
+        : Type(lambda->HENK_TABLE_NAME(), Node_DeBruijn, {})
+        , lambda_(lambda)
+    {
+        closed_ = false;
+        monomorphic_ = false;
+        auto p = lambda->de_bruijn_indices_.insert(this);
+        assert_unused(p.second);
+    }
+
+public:
+    const Lambda* lambda() const { return lambda_; }
+    int depth() const { return depth_; }
+    int index() const { return index_; }
+    virtual std::ostream& stream(std::ostream&) const override;
 
 private:
     virtual uint64_t vhash() const override;
@@ -173,9 +175,11 @@ private:
     virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types args) const override;
     virtual const Type* vspecialize(Type2Type&) const override;
 
-    const char* name_;
-    const TypeParam* type_param_;
+    const Lambda* lambda_;
+    mutable int depth_ = -1;
+    mutable int index_ = -1;
 
+    friend const Lambda* close(const Lambda*&, const Type*);
     template<class> friend class TypeTableBase;
 };
 
@@ -239,7 +243,8 @@ public:
     {}
     virtual ~TypeTableBase() { for (auto type : types_) delete type; }
 
-    const Lambda* lambda(const char* name, const char* param_name) { return new Lambda(HENK_TABLE_NAME(), name, param_name); }
+    const DeBruijn* de_bruijn(const Lambda* lambda) { return new DeBruijn(lambda); }
+    const Lambda* lambda(const char* name) { return new Lambda(HENK_TABLE_NAME(), name); }
     const TupleType* tuple_type(Types args) { return unify(new TupleType(HENK_TABLE_NAME(), args)); }
     const TupleType* unit() { return unit_; } ///< Returns unit, i.e., an empty @p TupleType.
     const StructType* struct_type(HENK_STRUCT_UNIFIER_TYPE HENK_STRUCT_UNIFIER_NAME, size_t num_args) {
@@ -247,9 +252,6 @@ public:
     }
 
     const TypeSet& types() const { return types_; }
-
-private:
-    const TypeParam* type_param(const char* name) { return new TypeParam(HENK_TABLE_NAME(), name); }
 
 protected:
     const Type* unify_base(const Type* type);

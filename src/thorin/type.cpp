@@ -142,7 +142,7 @@ std::ostream& TupleType::stream(std::ostream& os) const {
 }
 
 std::ostream& StructType::stream(std::ostream& os) const { return os << name(); }
-std::ostream& TypeParam::stream(std::ostream& os) const { return os << name_; }
+std::ostream& DeBruijn::stream(std::ostream& os) const { return streamf(os, "<%,%>", depth(), index()); }
 std::ostream& IndefiniteArrayType::stream(std::ostream& os) const { return streamf(os, "[%]", elem_type()); }
 std::ostream& DefiniteArrayType::stream(std::ostream& os) const { return streamf(os, "[% x %]", dim(), elem_type()); }
 

@@ -41,7 +41,7 @@
         // PrimType
         THORIN_AIR_NODE(Lambda, lambda)
         THORIN_AIR_NODE(FrameType, frame)
-        THORIN_AIR_NODE(TypeParam, type_param)
+        THORIN_AIR_NODE(DeBruijn, de_bruijn)
         THORIN_AIR_NODE(MemType, mem)
         THORIN_AIR_NODE(FnType, fn)
         THORIN_AIR_NODE(PtrType, ptr)

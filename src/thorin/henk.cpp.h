@@ -14,43 +14,41 @@ size_t Type::gid_counter_ = 1;
 
 //------------------------------------------------------------------------------
 
-Lambda::Lambda(HENK_TABLE_TYPE& table, const char* name, const char* param_name)
-    : Type(table, Node_Lambda, {nullptr})
-    , name_(name)
-    , type_param_(table.type_param(param_name))
-{
-    type_param_->lambda_ = this;
-}
-
 const Lambda* close(const Lambda*& lambda, const Type* body) {
     assert(lambda->body() == nullptr);
     const_cast<Lambda*&>(lambda)->set(0, body);
 
-    auto type_param = lambda->type_param();
-    assert(!type_param->is_closed());
-    type_param->closed_ = true;
-
     std::stack<const Type*> stack;
     TypeSet done;
 
-    auto push = [&](const Type* type) {
-        if (!type->is_closed() && !done.contains(type) && !type->isa<TypeParam>()) {
-            done.insert(type);
-            stack.push(type);
-            return true;
+    auto push = [&](int index, const Type* type) {
+        if (!type->is_closed() && !done.contains(type)) {
+            if (auto de_bruijn = type->isa<DeBruijn>()) {
+                if (de_bruijn->lambda() == lambda) {
+                    assert(de_bruijn->closed_ == false && de_bruijn->index_ == -1 && de_bruijn->depth_ == -1);
+                    de_bruijn->closed_ = true;
+                    de_bruijn->index_  = index;
+                    de_bruijn->depth_  = stack.size();
+                }
+                done.insert(de_bruijn);
+            } else {
+                done.insert(type);
+                stack.push(type);
+                return true;
+            }
         }
         return false;
     };
 
-    push(body);
+    push(0, lambda);
 
     // TODO this is potentially quadratic when closing n types
     while (!stack.empty()) {
         auto type = stack.top();
 
         bool todo = false;
-        for (auto arg : type->args())
-            todo |= push(arg);
+        for (size_t i = 0, e = type->size(); i != e; ++i)
+            todo |= push(i, type->arg(i));
 
         if (!todo) {
             stack.pop();
@@ -60,9 +58,10 @@ const Lambda* close(const Lambda*& lambda, const Type* body) {
         }
     }
 
-    auto& table = lambda->HENK_TABLE_NAME();
-    table.unify(lambda->type_param());
-    return table.unify(lambda);
+    for (auto de_bruijn : lambda->de_bruijn_indices())
+        assert(de_bruijn->is_closed());
+
+    return lambda->HENK_TABLE_NAME().unify(lambda);
 }
 
 //------------------------------------------------------------------------------
@@ -72,20 +71,14 @@ const Lambda* close(const Lambda*& lambda, const Type* body) {
  */
 
 uint64_t Type::vhash() const {
-    uint64_t seed = thorin::hash_combine(thorin::hash_begin((int) kind()), size());
+    uint64_t seed = thorin::hash_combine(thorin::hash_begin(int(kind())), size());
     for (auto arg : args_)
         seed = thorin::hash_combine(seed, arg->hash());
     return seed;
 }
 
-uint64_t Lambda::vhash() const {
-    // TODO better hash function
-    return thorin::hash_value(int(kind()));
-}
-
-uint64_t TypeParam::vhash() const {
-    // TODO better hash function
-    return thorin::hash_value(int(kind()));
+uint64_t DeBruijn::vhash() const {
+    return thorin::hash_combine(thorin::hash_begin(int(kind())), int(lambda()->kind()), depth(), index());
 }
 
 uint64_t StructType::vhash() const {
@@ -112,24 +105,10 @@ bool Type::equal(const Type* other) const {
     return result;
 }
 
-bool TypeParam::equal(const Type* other) const {
-    if (auto type_param = other->isa<TypeParam>())
-        return this->equiv_ == type_param;
-    return false;
-}
-
-bool Lambda::equal(const Type* other) const {
-    if (auto other_lambda = other->isa<Lambda>()) {
-        assert(this->type_param_->equiv_ == nullptr);
-        this->type_param_->equiv_ = other_lambda->type_param_;
-
-        bool result = this->body()->equal(other_lambda->body());
-
-        assert(this->type_param_->equiv_ == other_lambda->type_param_);
-        this->type_param_->equiv_ = nullptr;
-
-        return result;
-    }
+bool DeBruijn::equal(const Type* other) const {
+    if (auto de_bruijn = other->isa<DeBruijn>())
+        return this->lambda()->kind() == lambda()->kind()
+            && this->depth() == de_bruijn->depth() && this->index() == de_bruijn->index();
     return false;
 }
 
@@ -160,7 +139,7 @@ const Type* StructType::vrebuild(HENK_TABLE_TYPE& to, Types args) const {
 }
 
 const Type* TupleType::vrebuild(HENK_TABLE_TYPE& to, Types args) const { return to.tuple_type(args); }
-const Type* TypeParam::vrebuild(HENK_TABLE_TYPE&,    Types     ) const { THORIN_UNREACHABLE; }
+const Type* DeBruijn ::vrebuild(HENK_TABLE_TYPE&,    Types     ) const { THORIN_UNREACHABLE; }
 const Type* Lambda   ::vrebuild(HENK_TABLE_TYPE&,    Types     ) const { THORIN_UNREACHABLE; }
 
 //------------------------------------------------------------------------------
@@ -171,17 +150,22 @@ const Type* Lambda   ::vrebuild(HENK_TABLE_TYPE&,    Types     ) const { THORIN_
 
 const Type* Lambda::reduce(const Type* type) const {
     Type2Type map;
-    map[type_param()] = type;
+    for (auto de_bruijn : de_bruijn_indices_)
+        map[de_bruijn] = type;
     return body()->specialize(map);
 }
 
 const Type* Lambda::reduce(Types types) const {
     Type2Type map;
     size_t i = 0;
-
     const Type* type = this;
+
     while (auto lambda = type->isa<Lambda>()) {
-        map[lambda->type_param()] = types[i++];
+        auto arg = types[i++];
+        for (auto de_bruijn : lambda->de_bruijn_indices()) {
+            assert(de_bruijn->is_closed());
+            map[de_bruijn] = arg;
+        }
         type = lambda->body();
     }
 
@@ -206,7 +190,7 @@ const Type* Lambda::vspecialize(Type2Type& map) const {
     return map[this] = this;
 }
 
-const Type* TypeParam::vspecialize(Type2Type& map) const { return map[this] = this; }
+const Type* DeBruijn::vspecialize(Type2Type& map) const { return map[this] = this; }
 
 const Type* StructType::vspecialize(Type2Type&) const {
     assert(false && "TODO");

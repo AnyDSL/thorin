@@ -58,7 +58,7 @@ const Lambda* close(const Lambda*& lambda, const Type* body) {
         }
     }
 
-    for (auto de_bruijn : lambda->de_bruijn_indices())
+    for (auto de_bruijn : lambda->de_bruijns())
         assert(de_bruijn->is_closed());
 
     return lambda->HENK_TABLE_NAME().unify(lambda);
@@ -138,6 +138,7 @@ const Type* StructType::vrebuild(HENK_TABLE_TYPE& to, Types args) const {
     return ntype;
 }
 
+const Type* App      ::vrebuild(HENK_TABLE_TYPE& to, Types args) const { return to.app(args[0], args[1]); }
 const Type* TupleType::vrebuild(HENK_TABLE_TYPE& to, Types args) const { return to.tuple_type(args); }
 const Type* DeBruijn ::vrebuild(HENK_TABLE_TYPE&,    Types     ) const { THORIN_UNREACHABLE; }
 const Type* Lambda   ::vrebuild(HENK_TABLE_TYPE&,    Types     ) const { THORIN_UNREACHABLE; }
@@ -150,7 +151,7 @@ const Type* Lambda   ::vrebuild(HENK_TABLE_TYPE&,    Types     ) const { THORIN_
 
 const Type* Lambda::reduce(const Type* type) const {
     Type2Type map;
-    for (auto de_bruijn : de_bruijn_indices_)
+    for (auto de_bruijn : de_bruijns())
         map[de_bruijn] = type;
     return body()->specialize(map);
 }
@@ -162,7 +163,7 @@ const Type* Lambda::reduce(Types types) const {
 
     while (auto lambda = type->isa<Lambda>()) {
         auto arg = types[i++];
-        for (auto de_bruijn : lambda->de_bruijn_indices()) {
+        for (auto de_bruijn : lambda->de_bruijns()) {
             assert(de_bruijn->is_closed());
             map[de_bruijn] = arg;
         }
@@ -194,6 +195,11 @@ const Type* DeBruijn::vspecialize(Type2Type& map) const { return map[this] = thi
 
 const Type* StructType::vspecialize(Type2Type&) const {
     assert(false && "TODO");
+}
+
+const Type* App::vspecialize(Type2Type& map) const {
+    auto args = specialize_args(map);
+    return map[this] = HENK_TABLE_NAME().app(args[0], args[1]);
 }
 
 const Type* TupleType::vspecialize(Type2Type& map) const {

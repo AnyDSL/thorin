@@ -495,7 +495,7 @@ const Def* Continuation::try_remove_trivial_param(const Param* param) {
 
 std::ostream& Continuation::stream_head(std::ostream& os) const {
     os << unique_name();
-    stream_type_params(os, type());
+    //stream_type_params(os, type());
     stream_list(os, params(), [&](const Param* param) { streamf(os, "% %", param->type(), param); }, "(", ")");
     if (is_external())
         os << " extern ";

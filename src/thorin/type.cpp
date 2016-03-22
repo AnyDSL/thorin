@@ -98,53 +98,20 @@ bool PtrType::equal(const Type* other) const {
  * stream
  */
 
-std::ostream& Lambda::stream(std::ostream& os) const {
-    // TODO
-    return os << "lambda";
-}
-
-const Type* stream_type_params(std::ostream& os, const Type* type) {
-    return type; // TODO
-#if 0
-    if (type->num_type_params() == 0)
-        return os;
-    return stream_list(os, type->type_params(), [&](const TypeParam* type_param) {
-        if (type_param)
-            os << type_param;
-        else
-            os << "<null>";
-    }, "[", "]");
-#endif
-}
-
 static std::ostream& stream_type_args(std::ostream& os, const Type* type) {
    return stream_list(os, type->args(), [&](const Type* type) { os << type; }, "(", ")");
 }
 
-//static std::ostream& stream_type_elems(std::ostream& os, const Type* type) {
-    //if (auto struct_app = type->isa<StructType>())
-        //return stream_list(os, struct_app->args(), [&](const Type* type) { os << type; }, "{", "}");
-    //return stream_type_args(os, type);
-//}
-
-std::ostream& MemType::stream(std::ostream& os) const { return os << "mem"; }
-std::ostream& FrameType::stream(std::ostream& os) const { return os << "frame"; }
-
-std::ostream& FnType::stream(std::ostream& os) const {
-    os << "fn";
-    stream_type_params(os, this);
-    return stream_type_args(os, this);
-}
-
-std::ostream& TupleType::stream(std::ostream& os) const {
-  stream_type_params(os, this);
-  return stream_type_args(os, this);
-}
-
-std::ostream& StructType::stream(std::ostream& os) const { return os << name(); }
+std::ostream& App::stream(std::ostream& os) const { return streamf(os, "%[%]", callee(), arg()); }
 std::ostream& DeBruijn::stream(std::ostream& os) const { return streamf(os, "<%,%>", depth(), index()); }
-std::ostream& IndefiniteArrayType::stream(std::ostream& os) const { return streamf(os, "[%]", elem_type()); }
 std::ostream& DefiniteArrayType::stream(std::ostream& os) const { return streamf(os, "[% x %]", dim(), elem_type()); }
+std::ostream& FnType::stream(std::ostream& os) const { return stream_type_args(os << "fn", this); }
+std::ostream& FrameType::stream(std::ostream& os) const { return os << "frame"; }
+std::ostream& IndefiniteArrayType::stream(std::ostream& os) const { return streamf(os, "[%]", elem_type()); }
+std::ostream& Lambda::stream(std::ostream& os) const { return streamf(os, "[%].%", name(), body()); }
+std::ostream& MemType::stream(std::ostream& os) const { return os << "mem"; }
+std::ostream& StructType::stream(std::ostream& os) const { return os << name(); }
+std::ostream& TupleType::stream(std::ostream& os) const { return stream_type_args(os, this); }
 
 std::ostream& PtrType::stream(std::ostream& os) const {
     if (is_vector())

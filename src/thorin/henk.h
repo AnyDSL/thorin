@@ -133,14 +133,14 @@ public:
     virtual std::ostream& stream(std::ostream&) const override;
     const Type* reduce(const Type*) const;
     const Type* reduce(Types) const;
-    const GIDSet<const DeBruijn>& de_bruijn_indices() const { return de_bruijn_indices_; }
+    const GIDSet<const DeBruijn>& de_bruijns() const { return de_bruijns_; }
 
 private:
     virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types args) const override;
     virtual const Type* vspecialize(Type2Type&) const override;
 
     const char* name_;
-    mutable GIDSet<const DeBruijn> de_bruijn_indices_;
+    mutable GIDSet<const DeBruijn> de_bruijns_;
 
     friend class DeBruijn;
     template<class> friend class TypeTableBase;
@@ -150,13 +150,13 @@ const Lambda* close(const Lambda*&, const Type*);
 
 class DeBruijn : public Type {
 private:
-    DeBruijn(const Lambda* lambda)
-        : Type(lambda->HENK_TABLE_NAME(), Node_DeBruijn, {})
+    DeBruijn(HENK_TABLE_TYPE& table, const Lambda* lambda)
+        : Type(table, Node_DeBruijn, {})
         , lambda_(lambda)
     {
         closed_ = false;
         monomorphic_ = false;
-        auto p = lambda->de_bruijn_indices_.insert(this);
+        auto p = lambda->de_bruijns_.insert(this);
         assert_unused(p.second);
     }
 
@@ -177,6 +177,24 @@ private:
     mutable int index_ = -1;
 
     friend const Lambda* close(const Lambda*&, const Type*);
+    template<class> friend class TypeTableBase;
+};
+
+class App : public Type {
+private:
+    App(HENK_TABLE_TYPE& table, const Type* callee, const Type* arg)
+        : Type(table, Node_App, {callee, arg})
+    {}
+
+public:
+    const Type* callee() const { return Type::arg(0); }
+    const Type* arg() const { return Type::arg(1); }
+    virtual std::ostream& stream(std::ostream&) const override;
+    virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types args) const override;
+    virtual const Type* vspecialize(Type2Type&) const override;
+
+private:
+    const Type* cache_;
     template<class> friend class TypeTableBase;
 };
 
@@ -218,8 +236,6 @@ private:
     template<class> friend class TypeTableBase;
 };
 
-const Type* stream_type_params(std::ostream& os, const Type* type);
-
 //------------------------------------------------------------------------------
 
 template<class HENK_TABLE_TYPE>
@@ -240,8 +256,9 @@ public:
     {}
     virtual ~TypeTableBase() { for (auto type : types_) delete type; }
 
-    const DeBruijn* de_bruijn(const Lambda* lambda) { return new DeBruijn(lambda); }
+    const DeBruijn* de_bruijn(const Lambda* lambda) { return new DeBruijn(HENK_TABLE_NAME(), lambda); }
     const Lambda* lambda(const char* name) { return new Lambda(HENK_TABLE_NAME(), name); }
+    const Type* app(const Type* callee, const Type* arg) { return unify(new App(HENK_TABLE_NAME(), callee, arg)); }
     const TupleType* tuple_type(Types args) { return unify(new TupleType(HENK_TABLE_NAME(), args)); }
     const TupleType* unit() { return unit_; } ///< Returns unit, i.e., an empty @p TupleType.
     const StructType* struct_type(HENK_STRUCT_UNIFIER_TYPE HENK_STRUCT_UNIFIER_NAME, size_t num_args) {

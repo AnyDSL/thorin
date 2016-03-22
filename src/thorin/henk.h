@@ -194,7 +194,7 @@ public:
     virtual const Type* vspecialize(Type2Type&) const override;
 
 private:
-    const Type* cache_;
+    mutable const Type* cache_ = nullptr;
     template<class> friend class TypeTableBase;
 };
 
@@ -258,7 +258,7 @@ public:
 
     const DeBruijn* de_bruijn(const Lambda* lambda) { return new DeBruijn(HENK_TABLE_NAME(), lambda); }
     const Lambda* lambda(const char* name) { return new Lambda(HENK_TABLE_NAME(), name); }
-    const Type* app(const Type* callee, const Type* arg) { return unify(new App(HENK_TABLE_NAME(), callee, arg)); }
+    const Type* app(const Type* callee, const Type* arg);
     const TupleType* tuple_type(Types args) { return unify(new TupleType(HENK_TABLE_NAME(), args)); }
     const TupleType* unit() { return unit_; } ///< Returns unit, i.e., an empty @p TupleType.
     const StructType* struct_type(HENK_STRUCT_UNIFIER_TYPE HENK_STRUCT_UNIFIER_NAME, size_t num_args) {

@@ -209,6 +209,23 @@ const Type* TupleType::vspecialize(Type2Type& map) const {
 //------------------------------------------------------------------------------
 
 template<class T>
+const Type* TypeTableBase<T>::app(const Type* callee, const Type* arg) {
+    auto app = unify(new App(HENK_TABLE_NAME(), callee, arg));
+
+    if (app->is_hashed()) {
+        if (!app->cache_) {
+            if (auto lambda = app->callee()->template isa<Lambda>())
+                app->cache_ = lambda->reduce(app->arg());
+            else
+                app->cache_ = app;
+        }
+        return app->cache_;
+    }
+
+    return app;
+}
+
+template<class T>
 const Type* TypeTableBase<T>::unify_base(const Type* type) {
     if (type->is_hashed() || !type->is_closed())
         return type;

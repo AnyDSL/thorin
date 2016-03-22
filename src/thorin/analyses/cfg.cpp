@@ -334,7 +334,7 @@ void CFABuilder::run_cfa() {
         auto args = arg_nodes(cur_in);
 
         for (auto n : to_nodes(cur_in)) {
-            if (n->def()->type() != cur_continuation->to()->type())
+            if (n->def()->type() != cur_continuation->callee()->type())
                 continue;
 
             if (auto in = n->isa<CFNode>()) {

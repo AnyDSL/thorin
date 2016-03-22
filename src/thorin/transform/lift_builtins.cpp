@@ -28,16 +28,18 @@ void lift_builtins(World& world) {
         std::vector<Use> uses(cur->uses().begin(), cur->uses().end()); // TODO rewrite this
         for (auto use : uses) {
             if (auto ucontinuation = use->isa_continuation()) {
-                if (auto to = ucontinuation->to()->isa_continuation()) {
-                    if (to->is_intrinsic()) {
+                if (auto callee = ucontinuation->callee()->isa_continuation()) {
+                    if (callee->is_intrinsic()) {
                         auto oops = ucontinuation->ops();
                         Array<const Def*> nops(oops.size() + vars.size());
                         std::copy(vars.begin(), vars.end(), std::copy(oops.begin(), oops.end(), nops.begin())); // old ops + former free vars
                         assert(oops[use.index()] == cur);
                         nops[use.index()] = world.global(lifted, lifted->loc(), false, lifted->name);           // update to new lifted continuation
                         ucontinuation->jump(cur, ucontinuation->type_args(), nops.skip_front(), ucontinuation->jump_loc());       // set new args
+
                         // jump to new top-level dummy function
-                        ucontinuation->update_to(world.continuation(ucontinuation->arg_fn_type(), to->loc(), to->cc(), to->intrinsic(), to->name));
+                        auto ncontinuation = world.continuation(ucontinuation->arg_fn_type(), callee->loc(), callee->cc(), callee->intrinsic(), callee->name);
+                        ucontinuation->update_callee(ncontinuation);
                     }
                 }
             }

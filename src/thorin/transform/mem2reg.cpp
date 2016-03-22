@@ -32,7 +32,7 @@ void mem2reg(const Scope& scope) {
 
     // set parent pointers for functions passed to accelerator
     for (auto continuation : scope) {
-        if (auto to = continuation->to()->isa_continuation()) {
+        if (auto to = continuation->callee()->isa_continuation()) {
             if (to->is_accelerator()) {
                 for (auto arg : continuation->args()) {
                     if (auto acontinuation = arg->isa_continuation()) {

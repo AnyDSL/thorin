@@ -117,7 +117,7 @@ public:
     Continuation* stub(const std::string& name) const { Type2Type map; return stub(map, name); }
     Continuation* stub(Type2Type& type2type) const { return stub(type2type, name); }
     Continuation* stub(Type2Type& type2type, const std::string& name) const;
-    Continuation* update_to(const Def* def) { return update_op(0, def); }
+    Continuation* update_callee(const Def* def) { return update_op(0, def); }
     Continuation* update_op(size_t i, const Def* def);
     Continuation* update_arg(size_t i, const Def* def) { return update_op(i+1, def); }
     const Param* append_param(const Type* type, const std::string& name = "");
@@ -134,7 +134,7 @@ public:
     Array<const Def*> params_as_defs() const;
     const Param* param(size_t i) const { assert(i < num_params()); return params_[i]; }
     const Param* mem_param() const;
-    const Def* to() const;
+    const Def* callee() const;
     Types type_args() const { return type_args_; }
     const Type* type_arg(size_t i) const { return type_args_[i]; }
     size_t num_type_args() const { return type_args_.size(); }
@@ -142,7 +142,7 @@ public:
     const Def* arg(size_t i) const { return args()[i]; }
     const Location& jump_loc() const { return jump_loc_; }
     const FnType* type() const { return Def::type()->as<FnType>(); }
-    const FnType* to_fn_type() const { return to()->type()->as<FnType>(); }
+    const FnType* callee_fn_type() const { return callee()->type()->as<FnType>(); }
     const FnType* arg_fn_type() const;
     size_t num_args() const { return args().size(); }
     size_t num_params() const { return params().size(); }
@@ -296,9 +296,9 @@ struct Call {
     Defs ops() const { return ops_; }
     size_t num_ops() const { return ops().size(); }
     const Def* op(size_t i) const { return ops_[i]; }
-    const Def*& to(size_t i) { return ops_[i]; }
-    const Def* to() const { return ops_.front(); }
-    const Def*& to() { return ops_.front(); }
+    const Def*& callee(size_t i) { return ops_[i]; }
+    const Def* callee() const { return ops_.front(); }
+    const Def*& callee() { return ops_.front(); }
 
     Defs args() const { return ops_.skip_front(); }
     size_t num_args() const { return args().size(); }

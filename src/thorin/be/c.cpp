@@ -452,7 +452,7 @@ void CCodeGen::emit() {
             }
 
             // terminate bb
-            if (continuation->to() == ret_param) { // return
+            if (continuation->callee() == ret_param) { // return
                 size_t num_args = continuation->num_args();
                 os << "return ";
                 switch (num_args) {
@@ -476,7 +476,7 @@ void CCodeGen::emit() {
                         THORIN_UNREACHABLE;
                 }
                 os << ";";
-            } else if (continuation->to() == world().branch()) {
+            } else if (continuation->callee() == world().branch()) {
                 emit_debug_info(continuation->arg(0)); // TODO correct?
                 os << "if (";
                 emit(continuation->arg(0));
@@ -484,34 +484,34 @@ void CCodeGen::emit() {
                 emit(continuation->arg(1));
                 os << " else ";
                 emit(continuation->arg(2));
-            } else if (continuation->to()->isa<Bottom>()) {
+            } else if (continuation->callee()->isa<Bottom>()) {
                 os << "return ; // bottom: unreachable";
             } else {
-                Continuation* to_continuation = continuation->to()->as_continuation();
-                emit_debug_info(to_continuation);
+                Continuation* callee = continuation->callee()->as_continuation();
+                emit_debug_info(callee);
 
                 // emit inlined arrays/tuples/structs before the call operation
                 for (auto arg : continuation->args())
                     emit_aggop_defs(arg);
 
-                if (to_continuation->is_basicblock()) {   // ordinary jump
-                    assert(to_continuation->num_params()==continuation->num_args());
+                if (callee->is_basicblock()) {   // ordinary jump
+                    assert(callee->num_params()==continuation->num_args());
                     // store argument to phi nodes
-                    for (size_t i = 0, size = to_continuation->num_params(); i != size; ++i)
-                        if (!to_continuation->param(i)->is_mem()) {
-                            os << "p" << to_continuation->param(i)->unique_name() << " = ";
+                    for (size_t i = 0, size = callee->num_params(); i != size; ++i)
+                        if (!callee->param(i)->is_mem()) {
+                            os << "p" << callee->param(i)->unique_name() << " = ";
                             emit(continuation->arg(i)) << ";" << endl;
                         }
-                    emit(to_continuation);
+                    emit(callee);
                 } else {
-                    if (to_continuation->is_intrinsic()) {
-                        if (to_continuation->intrinsic() == Intrinsic::Bitcast) {
+                    if (callee->is_intrinsic()) {
+                        if (callee->intrinsic() == Intrinsic::Bitcast) {
                             auto cont = continuation->arg(2)->as_continuation();
                             emit_bitcast(continuation->arg(1), cont->param(1)) << endl;
                             // store argument to phi node
                             os << "p" << cont->param(1)->unique_name() << " = ";
                             emit(cont->param(1)) << ";";
-                        } else if (to_continuation->intrinsic() == Intrinsic::Reserve) {
+                        } else if (callee->intrinsic() == Intrinsic::Reserve) {
                             if (!continuation->arg(1)->isa<PrimLit>())
                                 ELOG("reserve_shared: couldn't extract memory size at %", continuation->arg(1)->loc());
 
@@ -523,16 +523,16 @@ void CCodeGen::emit() {
 
                             auto cont = continuation->arg(2)->as_continuation();
                             auto elem_type = cont->param(1)->type()->as<PtrType>()->referenced_type()->as<ArrayType>()->elem_type();
-                            emit_type(elem_type) << " " << to_continuation->name << continuation->gid() << "[";
+                            emit_type(elem_type) << " " << callee->name << continuation->gid() << "[";
                             emit(continuation->arg(1)) << "];" << endl;
                             // store argument to phi node
-                            os << "p" << cont->param(1)->unique_name() << " = " << to_continuation->name << continuation->gid() << ";";
+                            os << "p" << cont->param(1)->unique_name() << " = " << callee->name << continuation->gid() << ";";
                         } else {
                             THORIN_UNREACHABLE;
                         }
                     } else {
                         auto emit_call = [&] () {
-                            auto name = (to_continuation->is_external() || to_continuation->empty()) ? to_continuation->name : to_continuation->unique_name();
+                            auto name = (callee->is_external() || callee->empty()) ? callee->name : callee->unique_name();
                             os << name << "(";
                             // emit all first-order args
                             size_t i = 0;

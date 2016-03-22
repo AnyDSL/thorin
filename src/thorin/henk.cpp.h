@@ -24,7 +24,7 @@ TypeAbs::TypeAbs(HENK_TABLE_TYPE& table, const char* name, const char* param_nam
 
 const TypeAbs* close(const TypeAbs*& type_abs, const Type* body) {
     assert(type_abs->body() == nullptr);
-    const_cast<TypeAbs*&>(type_abs)->args_[0] = body;
+    const_cast<TypeAbs*&>(type_abs)->set(0, body);
 
     auto type_param = type_abs->type_param();
     assert(!type_param->is_closed());
@@ -60,8 +60,9 @@ const TypeAbs* close(const TypeAbs*& type_abs, const Type* body) {
         }
     }
 
-    type_abs->HENK_TABLE_NAME().unify(type_abs->type_param());
-    return type_abs->HENK_TABLE_NAME().unify(type_abs);
+    auto& table = type_abs->HENK_TABLE_NAME();
+    table.unify(type_abs->type_param());
+    return table.unify(type_abs);
 }
 
 //------------------------------------------------------------------------------

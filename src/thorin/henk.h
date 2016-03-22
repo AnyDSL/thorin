@@ -120,8 +120,6 @@ private:
     template<class> friend class TypeTableBase;
 };
 
-const Lambda* close(const Lambda*&, const Type*);
-
 class Lambda : public Type {
 private:
     Lambda(HENK_TABLE_TYPE& table, const char* name)
@@ -144,12 +142,11 @@ private:
     const char* name_;
     mutable GIDSet<const DeBruijn> de_bruijn_indices_;
 
-public: // HACK
-    mutable const Lambda* repl_  = nullptr;
-
     friend class DeBruijn;
     template<class> friend class TypeTableBase;
 };
+
+const Lambda* close(const Lambda*&, const Type*);
 
 class DeBruijn : public Type {
 private:

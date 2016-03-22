@@ -116,10 +116,10 @@ Continuation* CodeGen::emit_select(Continuation* continuation) {
     return cont;
 }
 
-Lambda* CodeGen::emit_sizeof(Lambda* lambda) {
-    assert(lambda->num_args() == 2 && "required arguments are missing");
-    //auto type = convert(lambda->type_arg(0));
-    //auto cont = lambda->arg(1)->as_lambda();
+Continuation* CodeGen::emit_sizeof(Continuation* continuation) {
+    assert(continuation->num_args() == 2 && "required arguments are missing");
+    //auto type = convert(continuation->type_arg(0));
+    //auto cont = continuation->arg(1)->as_continuation();
     //auto layout = llvm::DataLayout(module_->getDataLayout());
     //auto call = irbuilder_.getInt32(layout.getTypeAllocSize(type));
     //emit_result_phi(cont->param(1), call);

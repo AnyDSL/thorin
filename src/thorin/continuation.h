@@ -121,17 +121,17 @@ public:
     Continuation* update_op(size_t i, const Def* def);
     Continuation* update_arg(size_t i, const Def* def) { return update_op(i+1, def); }
     const Param* append_param(const Type* type, const std::string& name = "");
-    Lambdas direct_preds() const;
-    Lambdas direct_succs() const;
-    Lambdas indirect_preds() const;
-    Lambdas indirect_succs() const;
-    Lambdas preds() const;
-    Lambdas succs() const;
+    Continuations direct_preds() const;
+    Continuations direct_succs() const;
+    Continuations indirect_preds() const;
+    Continuations indirect_succs() const;
+    Continuations preds() const;
+    Continuations succs() const;
     ArrayRef<const Param*> params() const { return params_; }
     Array<const Def*> params_as_defs() const;
     const Param* param(size_t i) const { assert(i < num_params()); return params_[i]; }
     const Param* mem_param() const;
-    const Def* to() const;
+    const Def* callee() const;
     Defs args() const { return empty() ? Defs(0, 0) : ops().skip_front(); }
     const Def* arg(size_t i) const { return args()[i]; }
     const Location& jump_loc() const { return jump_loc_; }
@@ -169,10 +169,10 @@ public:
 
     // terminate
 
-    void jump(const Def* to, Defs args, const Location& loc);
+    void jump(const Def* callee, Defs args, const Location& loc);
     void jump(JumpTarget&, const Location& loc);
     void branch(const Def* cond, const Def* t, const Def* f, const Location& loc);
-    std::pair<Lambda*, const Def*> call(const Def* to, Defs args, const Type* ret_type, const Location& loc);
+    std::pair<Continuation*, const Def*> call(const Def* callee, Defs args, const Type* ret_type, const Location& loc);
 
     // value numbering
 
@@ -272,8 +272,8 @@ struct Call {
     Call(Call&& call)
         : ops_(std::move(call.ops_))
     {}
-    Call(const Lambda* lambda)
-        : ops_(lambda->size())
+    Call(const Continuation* continuation)
+        : ops_(continuation->size())
     {}
 
     Defs ops() const { return ops_; }

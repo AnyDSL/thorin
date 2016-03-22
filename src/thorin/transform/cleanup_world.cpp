@@ -77,7 +77,7 @@ void Merger::merge(const CFNode* n) {
     }
 
     if (cur != n)
-        n->lambda()->jump(cur->lambda()->to(), cur->lambda()->args(), cur->lambda()->jump_loc());
+        n->continuation()->jump(cur->continuation()->callee(), cur->continuation()->args(), cur->continuation()->jump_loc());
 
     for (auto child : domtree.children(cur))
         merge(child);
@@ -107,21 +107,21 @@ void Cleaner::eliminate_params() {
             }
 
             if (!proxy_idx.empty()) {
-                auto nlambda = world().lambda(world().fn_type(olambda->type()->args().cut(proxy_idx)),
-                                            olambda->loc(), olambda->cc(), olambda->intrinsic(), olambda->name);
+                auto ncontinuation = world().continuation(world().fn_type(ocontinuation->type()->args().cut(proxy_idx)),
+                                            ocontinuation->loc(), ocontinuation->cc(), ocontinuation->intrinsic(), ocontinuation->name);
                 size_t j = 0;
                 for (auto i : param_idx) {
                     ocontinuation->param(i)->replace(ncontinuation->param(j));
                     ncontinuation->param(j++)->name = ocontinuation->param(i)->name;
                 }
 
-                nlambda->jump(olambda->to(), olambda->args(), olambda->jump_loc());
-                olambda->destroy_body();
+                ncontinuation->jump(ocontinuation->callee(), ocontinuation->args(), ocontinuation->jump_loc());
+                ocontinuation->destroy_body();
 
                 for (auto use : ocontinuation->uses()) {
                     auto ucontinuation = use->as_continuation();
                     assert(use.index() == 0);
-                    ulambda->jump(nlambda, ulambda->args().cut(proxy_idx), ulambda->jump_loc());
+                    ucontinuation->jump(ncontinuation, ucontinuation->args().cut(proxy_idx), ucontinuation->jump_loc());
                 }
             }
         }

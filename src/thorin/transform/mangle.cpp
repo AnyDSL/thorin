@@ -54,7 +54,7 @@ public:
     DefSet defs_;
 };
 
-Lambda* Mangler::mangle() {
+Continuation* Mangler::mangle() {
     // create nentry - but first collect and specialize all param types
     std::vector<const Type*> param_types;
     for (size_t i = 0, e = oentry->num_params(); i != e; ++i) {
@@ -63,7 +63,7 @@ Lambda* Mangler::mangle() {
     }
 
     auto fn_type = world().fn_type(param_types);
-    nentry = world().lambda(fn_type, oentry->loc(), oentry->name);
+    nentry = world().continuation(fn_type, oentry->loc(), oentry->name);
 
     // map value params
     def2def[oentry] = oentry;
@@ -100,17 +100,17 @@ Continuation* Mangler::mangle_head(Continuation* ocontinuation) {
 void Mangler::mangle_body(Continuation* ocontinuation, Continuation* ncontinuation) {
     assert(!ocontinuation->empty());
 
-    if (olambda->to() == world().branch()) {        // fold branch if possible
-        if (auto lit = mangle(olambda->arg(0))->isa<PrimLit>())
-            return nlambda->jump(mangle(lit->value().get_bool() ? olambda->arg(1) : olambda->arg(2)), {}, olambda->jump_loc());
+    if (ocontinuation->callee() == world().branch()) {        // fold branch if possible
+        if (auto lit = mangle(ocontinuation->arg(0))->isa<PrimLit>())
+            return ncontinuation->jump(mangle(lit->value().get_bool() ? ocontinuation->arg(1) : ocontinuation->arg(2)), {}, ocontinuation->jump_loc());
     }
 
     Array<const Def*> nops(ocontinuation->size());
     for (size_t i = 0, e = nops.size(); i != e; ++i)
         nops[i] = mangle(ocontinuation->op(i));
 
-    Defs nargs(nops.skip_front()); // new args of nlambda
-    auto ntarget = nops.front();   // new target of nlambda
+    Defs nargs(nops.skip_front()); // new args of ncontinuation
+    auto ntarget = nops.front();   // new target of ncontinuation
 
     // check whether we can optimize tail recursion
     if (ntarget == oentry) {
@@ -124,10 +124,10 @@ void Mangler::mangle_body(Continuation* ocontinuation, Continuation* ncontinuati
         }
 
         if (substitute)
-            return nlambda->jump(nentry, nargs.cut(cut), olambda->jump_loc());
+            return ncontinuation->jump(nentry, nargs.cut(cut), ocontinuation->jump_loc());
     }
 
-    nlambda->jump(ntarget, nargs, olambda->jump_loc());
+    ncontinuation->jump(ntarget, nargs, ocontinuation->jump_loc());
 }
 
 const Def* Mangler::mangle(const Def* odef) {
@@ -135,10 +135,10 @@ const Def* Mangler::mangle(const Def* odef) {
         return ndef;
     else if (!within(odef))
         return odef;
-    else if (auto olambda = odef->isa_lambda()) {
-        auto nlambda = mangle_head(olambda);
-        mangle_body(olambda, nlambda);
-        return nlambda;
+    else if (auto ocontinuation = odef->isa_continuation()) {
+        auto ncontinuation = mangle_head(ocontinuation);
+        mangle_body(ocontinuation, ncontinuation);
+        return ncontinuation;
     } else if (auto param = odef->isa<Param>()) {
         assert(within(param->continuation()));
         mangle(param->continuation());
@@ -157,12 +157,12 @@ const Def* Mangler::mangle(const Def* odef) {
 
 //------------------------------------------------------------------------------
 
-Lambda* mangle(const Scope& scope, Defs args, Defs lift) {
+Continuation* mangle(const Scope& scope, Defs args, Defs lift) {
     return Mangler(scope, args, lift).mangle();
 }
 
-Lambda* drop(const Call& call) {
-    Scope scope(call.to()->as_lambda());
+Continuation* drop(const Call& call) {
+    Scope scope(call.callee()->as_continuation());
     return drop(scope, call.args());
 }
 

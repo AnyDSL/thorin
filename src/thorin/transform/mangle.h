@@ -6,19 +6,19 @@
 
 namespace thorin {
 
-Lambda* mangle(const Scope&, Defs args, Defs lift);
+Continuation* mangle(const Scope&, Defs args, Defs lift);
 
-inline Lambda* drop(const Scope& scope, Defs args) {
+inline Continuation* drop(const Scope& scope, Defs args) {
     return mangle(scope, args, Array<const Def*>());
 }
 
 Continuation* drop(const Call&);
 
-inline Lambda* lift(const Scope& scope, Defs defs) {
+inline Continuation* lift(const Scope& scope, Defs defs) {
     return mangle(scope, Array<const Def*>(scope.entry()->num_params()), defs);
 }
 
-inline Lambda* clone(const Scope& scope) {
+inline Continuation* clone(const Scope& scope) {
     return mangle(scope, Array<const Def*>(scope.entry()->num_params()), Defs());
 }
 

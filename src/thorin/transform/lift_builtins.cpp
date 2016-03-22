@@ -34,8 +34,8 @@ void lift_builtins(World& world) {
                         Array<const Def*> nops(oops.size() + vars.size());
                         std::copy(vars.begin(), vars.end(), std::copy(oops.begin(), oops.end(), nops.begin())); // old ops + former free vars
                         assert(oops[use.index()] == cur);
-                        nops[use.index()] = world.global(lifted, lifted->loc(), false, lifted->name);           // update to new lifted lambda
-                        ulambda->jump(cur, nops.skip_front(), ulambda->jump_loc());                             // set new args
+                        nops[use.index()] = world.global(lifted, lifted->loc(), false, lifted->name);           // update to new lifted continuation
+                        ucontinuation->jump(cur, nops.skip_front(), ucontinuation->jump_loc());                             // set new args
                         // jump to new top-level dummy function
                         auto ncontinuation = world.continuation(ucontinuation->arg_fn_type(), callee->loc(), callee->cc(), callee->intrinsic(), callee->name);
                         ucontinuation->update_callee(ncontinuation);

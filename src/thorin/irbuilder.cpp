@@ -86,7 +86,7 @@ Continuation* JumpTarget::untangle() {
         return continuation_;
     assert(continuation_);
     auto bb = world().basicblock(loc(), name_);
-    lambda_->jump(bb, {}, loc());
+    continuation_->jump(bb, {}, loc());
     first_ = false;
     return continuation_ = bb;
 }
@@ -122,8 +122,8 @@ Continuation* IRBuilder::continuation(const Location& loc, const std::string& na
     return continuation(world().fn_type(), loc, CC::C, Intrinsic::None, name);
 }
 
-Lambda* IRBuilder::lambda(const FnType* fn, const Location& loc, CC cc, Intrinsic intrinsic, const std::string& name) {
-    auto l = world().lambda(fn, loc, cc, intrinsic, name);
+Continuation* IRBuilder::continuation(const FnType* fn, const Location& loc, CC cc, Intrinsic intrinsic, const std::string& name) {
+    auto l = world().continuation(fn, loc, cc, intrinsic, name);
     if (fn->size() >= 1 && fn->args().front()->isa<MemType>()) {
         auto param = l->params().front();
         l->set_mem(param);

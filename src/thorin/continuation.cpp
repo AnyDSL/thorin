@@ -37,9 +37,9 @@ const Def* Continuation::callee() const {
     return empty() ? world().bottom(world().fn_type(), Location()) : op(0);
 }
 
-Lambda* Lambda::stub(Type2Type& type2type, const std::string& name) const {
+Continuation* Continuation::stub(Type2Type& type2type, const std::string& name) const {
     auto fn_type = type()->specialize(type2type)->as<FnType>();
-    auto result = world().lambda(fn_type, loc(), cc(), intrinsic(), name);
+    auto result = world().continuation(fn_type, loc(), cc(), intrinsic(), name);
     for (size_t i = 0, e = num_params(); i != e; ++i)
         result->param(i)->name = param(i)->name;
 
@@ -92,7 +92,7 @@ const FnType* Continuation::arg_fn_type() const {
     return world().fn_type(args);
 }
 
-const Param* Lambda::append_param(const Type* param_type, const std::string& name) {
+const Param* Continuation::append_param(const Type* param_type, const std::string& name) {
     size_t size = type()->size();
     Array<const Type*> args(size + 1);
     *std::copy(type()->args().begin(), type()->args().end(), args.begin()) = param_type;
@@ -238,7 +238,7 @@ Continuation::ScopeInfo* Continuation::find_scope(const Scope* scope) {
  * terminate
  */
 
-void Lambda::jump(const Def* to, Defs args, const Location& loc) {
+void Continuation::jump(const Def* to, Defs args, const Location& loc) {
     jump_loc_ = loc;
     if (auto continuation = to->isa<Continuation>()) {
         switch (continuation->intrinsic()) {
@@ -290,9 +290,9 @@ void Lambda::jump(const Def* to, Defs args, const Location& loc) {
         set_op(x++, arg);
 }
 
-void Lambda::branch(const Def* cond, const Def* t, const Def* f, const Location& loc) { return jump(world().branch(), {cond, t, f}, loc); }
+void Continuation::branch(const Def* cond, const Def* t, const Def* f, const Location& loc) { return jump(world().branch(), {cond, t, f}, loc); }
 
-std::pair<Lambda*, const Def*> Lambda::call(const Def* to, Defs args, const Type* ret_type, const Location& loc) {
+std::pair<Continuation*, const Def*> Continuation::call(const Def* to, Defs args, const Type* ret_type, const Location& loc) {
     if (ret_type == nullptr) {
         jump(to, args, loc);
         return std::make_pair(nullptr, nullptr);
@@ -332,7 +332,7 @@ std::pair<Lambda*, const Def*> Lambda::call(const Def* to, Defs args, const Type
     return std::make_pair(next, ret);
 }
 
-void jump_to_cached_call(Lambda* src, Lambda* dst, const Call& call) {
+void jump_to_cached_call(Continuation* src, Continuation* dst, const Call& call) {
     std::vector<const Def*> nargs;
     for (size_t i = 0, e = src->num_args(); i != e; ++i) {
         if (!call.arg(i))
@@ -506,7 +506,7 @@ std::ostream& Continuation::stream_head(std::ostream& os) const {
 
 std::ostream& Continuation::stream_jump(std::ostream& os) const {
     if (!empty()) {
-        os << to();
+        os << callee();
         os << '(' << stream_list(args(), [&](const Def* def) { os << def; }) << ')';
     }
     return os;

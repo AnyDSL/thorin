@@ -39,14 +39,14 @@ void lower2cff(World& world) {
                         DLOG("bad: %", callee);
                         todo = dirty = true;
 
-                        Call call(lambda);
-                        call.to() = to;
+                        Call call(continuation);
+                        call.callee() = callee;
                         for (size_t i = 0, e = call.num_args(); i != e; ++i)
                             call.arg(i) = callee->param(i)->order() > 0 ? continuation->arg(i) : nullptr;
 
 
                         const auto& p = cache.emplace(call, nullptr);
-                        Lambda*& target = p.first->second;
+                        Continuation*& target = p.first->second;
                         if (p.second)
                             target = drop(call); // use already dropped version as target
 

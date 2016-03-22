@@ -818,12 +818,12 @@ const Def* World::cse_base(const PrimOp* primop) {
     return primop;
 }
 
-void World::destroy(Lambda* lambda) {
-    assert(lambda->num_uses() == 0);
-    assert(lambda->size() == 0);
-    lambda->destroy_body();
-    lambdas_.erase(lambda);
-    delete lambda;
+void World::destroy(Continuation* continuation) {
+    assert(continuation->num_uses() == 0);
+    assert(continuation->size() == 0);
+    continuation->destroy_body();
+    continuations_.erase(continuation);
+    delete continuation;
 }
 
 /*

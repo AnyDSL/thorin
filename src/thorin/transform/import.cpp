@@ -62,11 +62,11 @@ const Def* import(Type2Type& type_old2new, Def2Def& def_old2new, World& to, cons
     if (auto oprimop = odef->isa<PrimOp>())
         return def_old2new[oprimop] = oprimop->rebuild(to, nops, ntype);
 
-    auto olambda = odef->as_lambda();
-    assert(nlambda && &nlambda->world() == &to);
+    auto ocontinuation = odef->as_continuation();
+    assert(ncontinuation && &ncontinuation->world() == &to);
     if (size > 0)
-        nlambda->jump(nops.front(), nops.skip_front(), olambda->jump_loc());
-    return nlambda;
+        ncontinuation->jump(nops.front(), nops.skip_front(), ocontinuation->jump_loc());
+    return ncontinuation;
 }
 
 const Type* import(World& to, const Type* otype) {

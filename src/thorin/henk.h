@@ -21,7 +21,7 @@
 //------------------------------------------------------------------------------
 
 class Type;
-class TypeAbs;
+class Lambda;
 class TypeParam;
 class HENK_TABLE_TYPE;
 
@@ -116,11 +116,11 @@ private:
     mutable size_t gid_;
     static size_t gid_counter_;
 
-    friend const TypeAbs* close(const TypeAbs*&, const Type*);
+    friend const Lambda* close(const Lambda*&, const Type*);
     template<class> friend class TypeTableBase;
 };
 
-const TypeAbs* close(const TypeAbs*&, const Type*);
+const Lambda* close(const Lambda*&, const Type*);
 
 class TypeParam : public Type {
 private:
@@ -134,7 +134,7 @@ private:
 
 public:
     const char* name() const { return name_; }
-    const TypeAbs* type_abs() const { return type_abs_; }
+    const Lambda* lambda() const { return lambda_; }
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
@@ -144,20 +144,20 @@ private:
     virtual const Type* vspecialize(Type2Type&) const override;
 
     const char* name_;
-    mutable const TypeAbs* type_abs_ = nullptr;
+    mutable const Lambda* lambda_ = nullptr;
 
 public: // HACK
     mutable const TypeParam* equiv_ = nullptr;
     mutable const TypeParam* repl_  = nullptr;
 
     friend bool Type::equal(const Type*) const;
-    friend class TypeAbs;
+    friend class Lambda;
     template<class> friend class TypeTableBase;
 };
 
-class TypeAbs : public Type {
+class Lambda : public Type {
 private:
-    TypeAbs(HENK_TABLE_TYPE& table, const char* name, const char* param_name);
+    Lambda(HENK_TABLE_TYPE& table, const char* name, const char* param_name);
 
 public:
     const char* name() const { return name_; }
@@ -239,7 +239,7 @@ public:
     {}
     virtual ~TypeTableBase() { for (auto type : types_) delete type; }
 
-    const TypeAbs* type_abs(const char* name, const char* param_name) { return new TypeAbs(HENK_TABLE_NAME(), name, param_name); }
+    const Lambda* lambda(const char* name, const char* param_name) { return new Lambda(HENK_TABLE_NAME(), name, param_name); }
     const TupleType* tuple_type(Types args) { return unify(new TupleType(HENK_TABLE_NAME(), args)); }
     const TupleType* unit() { return unit_; } ///< Returns unit, i.e., an empty @p TupleType.
     const StructType* struct_type(HENK_STRUCT_UNIFIER_TYPE HENK_STRUCT_UNIFIER_NAME, size_t num_args) {
@@ -261,8 +261,8 @@ protected:
     TypeSet types_;
     const TupleType* unit_; ///< tuple().
 
-    friend const TypeAbs* close(const TypeAbs*&, const Type*);
-    friend class TypeAbs;
+    friend const Lambda* close(const Lambda*&, const Type*);
+    friend class Lambda;
 };
 
 //------------------------------------------------------------------------------

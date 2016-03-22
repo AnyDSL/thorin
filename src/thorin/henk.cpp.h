@@ -14,19 +14,19 @@ size_t Type::gid_counter_ = 1;
 
 //------------------------------------------------------------------------------
 
-TypeAbs::TypeAbs(HENK_TABLE_TYPE& table, const char* name, const char* param_name)
-    : Type(table, Node_TypeAbs, {nullptr})
+Lambda::Lambda(HENK_TABLE_TYPE& table, const char* name, const char* param_name)
+    : Type(table, Node_Lambda, {nullptr})
     , name_(name)
     , type_param_(table.type_param(param_name))
 {
-    type_param_->type_abs_ = this;
+    type_param_->lambda_ = this;
 }
 
-const TypeAbs* close(const TypeAbs*& type_abs, const Type* body) {
-    assert(type_abs->body() == nullptr);
-    const_cast<TypeAbs*&>(type_abs)->set(0, body);
+const Lambda* close(const Lambda*& lambda, const Type* body) {
+    assert(lambda->body() == nullptr);
+    const_cast<Lambda*&>(lambda)->set(0, body);
 
-    auto type_param = type_abs->type_param();
+    auto type_param = lambda->type_param();
     assert(!type_param->is_closed());
     type_param->closed_ = true;
 
@@ -60,9 +60,9 @@ const TypeAbs* close(const TypeAbs*& type_abs, const Type* body) {
         }
     }
 
-    auto& table = type_abs->HENK_TABLE_NAME();
-    table.unify(type_abs->type_param());
-    return table.unify(type_abs);
+    auto& table = lambda->HENK_TABLE_NAME();
+    table.unify(lambda->type_param());
+    return table.unify(lambda);
 }
 
 //------------------------------------------------------------------------------
@@ -78,7 +78,7 @@ uint64_t Type::vhash() const {
     return seed;
 }
 
-uint64_t TypeAbs::vhash() const {
+uint64_t Lambda::vhash() const {
     // TODO better hash function
     return thorin::hash_value(int(kind()));
 }
@@ -118,14 +118,14 @@ bool TypeParam::equal(const Type* other) const {
     return false;
 }
 
-bool TypeAbs::equal(const Type* other) const {
-    if (auto other_type_abs = other->isa<TypeAbs>()) {
+bool Lambda::equal(const Type* other) const {
+    if (auto other_lambda = other->isa<Lambda>()) {
         assert(this->type_param_->equiv_ == nullptr);
-        this->type_param_->equiv_ = other_type_abs->type_param_;
+        this->type_param_->equiv_ = other_lambda->type_param_;
 
-        bool result = this->body()->equal(other_type_abs->body());
+        bool result = this->body()->equal(other_lambda->body());
 
-        assert(this->type_param_->equiv_ == other_type_abs->type_param_);
+        assert(this->type_param_->equiv_ == other_lambda->type_param_);
         this->type_param_->equiv_ = nullptr;
 
         return result;
@@ -161,7 +161,7 @@ const Type* StructType::vrebuild(HENK_TABLE_TYPE& to, Types args) const {
 
 const Type* TupleType::vrebuild(HENK_TABLE_TYPE& to, Types args) const { return to.tuple_type(args); }
 const Type* TypeParam::vrebuild(HENK_TABLE_TYPE&,    Types     ) const { THORIN_UNREACHABLE; }
-const Type* TypeAbs  ::vrebuild(HENK_TABLE_TYPE&,    Types     ) const { THORIN_UNREACHABLE; }
+const Type* Lambda   ::vrebuild(HENK_TABLE_TYPE&,    Types     ) const { THORIN_UNREACHABLE; }
 
 //------------------------------------------------------------------------------
 
@@ -169,20 +169,20 @@ const Type* TypeAbs  ::vrebuild(HENK_TABLE_TYPE&,    Types     ) const { THORIN_
  * specialize and instantiate
  */
 
-const Type* TypeAbs::reduce(const Type* type) const {
+const Type* Lambda::reduce(const Type* type) const {
     Type2Type map;
     map[type_param()] = type;
     return body()->specialize(map);
 }
 
-const Type* TypeAbs::reduce(Types types) const {
+const Type* Lambda::reduce(Types types) const {
     Type2Type map;
     size_t i = 0;
 
     const Type* type = this;
-    while (auto type_abs = type->isa<TypeAbs>()) {
-        map[type_abs->type_param()] = types[i++];
-        type = type_abs->body();
+    while (auto lambda = type->isa<Lambda>()) {
+        map[lambda->type_param()] = types[i++];
+        type = lambda->body();
     }
 
     return type->specialize(map);
@@ -201,8 +201,8 @@ Array<const Type*> Type::specialize_args(Type2Type& map) const {
     return result;
 }
 
-const Type* TypeAbs::vspecialize(Type2Type& map) const {
-    //auto type_abs = HENK_TABLE_NAME().type_abs(
+const Type* Lambda::vspecialize(Type2Type& map) const {
+    //auto lambda = HENK_TABLE_NAME().lambda(
     return map[this] = this;
 }
 

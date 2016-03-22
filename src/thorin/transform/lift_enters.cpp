@@ -14,8 +14,8 @@ static const Enter* find_enter(const Def* def) {
     return nullptr;
 }
 
-static void find_enters(Lambda* lambda, std::vector<const Enter*>& enters) {
-    if (auto param = lambda->mem_param()) {
+static void find_enters(Continuation* continuation, std::vector<const Enter*>& enters) {
+    if (auto param = continuation->mem_param()) {
         for (const Def* cur = param; cur;) {
             if (auto memop = cur->isa<MemOp>())
                 cur = memop->out_mem();
@@ -41,7 +41,7 @@ static void lift_enters(const Scope& scope) {
 
     for (auto n : scope.f_cfg().post_order()) {
         if (n != scope.f_cfg().entry())
-            find_enters(n->lambda(), enters);
+            find_enters(n->continuation(), enters);
     }
 
     auto mem_param = scope.entry()->mem_param();

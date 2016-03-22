@@ -4,13 +4,13 @@
 #include <memory>
 
 #include "thorin/def.h"
-#include "thorin/lambda.h"
+#include "thorin/continuation.h"
 #include "thorin/util/array.h"
 
 namespace thorin {
 
 class IRBuilder;
-class Lambda;
+class Continuation;
 class Slot;
 class World;
 
@@ -91,7 +91,7 @@ class JumpTarget : public HasLocation {
 public:
     JumpTarget(const Location& loc, const char* name = "")
         : HasLocation(loc)
-        , lambda_(nullptr)
+        , continuation_(nullptr)
         , first_(false)
         , name_(name)
     {}
@@ -100,21 +100,21 @@ public:
     ~JumpTarget();
 #endif
 
-    World& world() const { assert(lambda_); return lambda_->world(); }
-    void seal() { assert(lambda_); lambda_->seal(); }
+    World& world() const { assert(continuation_); return continuation_->world(); }
+    void seal() { assert(continuation_); continuation_->seal(); }
 
 private:
-    void jump_from(Lambda* bb);
-    Lambda* branch_to(World& world, const Location& loc);
-    Lambda* untangle();
-    Lambda* enter();
-    Lambda* enter_unsealed(World& world);
+    void jump_from(Continuation* bb);
+    Continuation* branch_to(World& world, const Location& loc);
+    Continuation* untangle();
+    Continuation* enter();
+    Continuation* enter_unsealed(World& world);
 
-    Lambda* lambda_;
+    Continuation* continuation_;
     bool first_;
     const char* name_;
 
-    friend void Lambda::jump(JumpTarget&, const Location&);
+    friend void Continuation::jump(JumpTarget&, const Location&);
     friend class IRBuilder;
 };
 
@@ -136,18 +136,18 @@ public:
     const Def* extract(const Def* agg, const Def* index, const Location& loc, const std::string& name = "");
     const Def* extract(const Def* agg, u32 index, const Location& loc, const std::string& name = "");
     void store(const Def* ptr, const Def* val, const Location& loc, const std::string& name = "");
-    Lambda* enter(JumpTarget& jt) { return cur_bb = jt.enter(); }
-    Lambda* enter_unsealed(JumpTarget& jt) { return cur_bb = jt.enter_unsealed(world_); }
+    Continuation* enter(JumpTarget& jt) { return cur_bb = jt.enter(); }
+    Continuation* enter_unsealed(JumpTarget& jt) { return cur_bb = jt.enter_unsealed(world_); }
     void jump(JumpTarget& jt, const Location& loc);
     void branch(const Def* cond, JumpTarget& t, JumpTarget& f, const Location& loc);
     const Def* call(const Def* to, Types type_args, Defs args, const Type* ret_type, const Location& loc);
     const Def* get_mem();
     void set_mem(const Def* def);
-    Lambda* lambda(const FnType* fn, const Location& loc, CC cc = CC::C, Intrinsic intrinsic = Intrinsic::None, const std::string& name = "");
-    Lambda* lambda(const FnType* fn, const Location& loc, const std::string& name) { return lambda(fn, loc, CC::C, Intrinsic::None, name); }
-    Lambda* lambda(const Location& loc, const std::string& name);
+    Continuation* continuation(const FnType* fn, const Location& loc, CC cc = CC::C, Intrinsic intrinsic = Intrinsic::None, const std::string& name = "");
+    Continuation* continuation(const FnType* fn, const Location& loc, const std::string& name) { return continuation(fn, loc, CC::C, Intrinsic::None, name); }
+    Continuation* continuation(const Location& loc, const std::string& name);
 
-    Lambda* cur_bb;
+    Continuation* cur_bb;
 
 protected:
     World& world_;

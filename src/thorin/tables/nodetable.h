@@ -3,7 +3,7 @@
 #endif
 
 // Def
-    THORIN_AIR_NODE(Lambda, lambda)
+    THORIN_AIR_NODE(Continuation, continuation)
     // PrimOp
         // Literal
             THORIN_AIR_NODE(Bottom, bottom)

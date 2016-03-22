@@ -23,8 +23,8 @@ std::vector<const Def*> free_vars(const Scope& scope) {
         }
     };
 
-    for (auto lambda : scope) {
-        for (auto op : lambda->ops())
+    for (auto continuation : scope) {
+        for (auto op : continuation->ops())
             enqueue(op);
 
         while (!queue.empty())

@@ -21,7 +21,7 @@ public:
         assert(args.size() == oentry->num_params());
         assert(type_args.size() == oentry->num_type_params());
 
-        // TODO correctly deal with lambdas here
+        // TODO correctly deal with continuations here
         std::queue<const Def*> queue;
         auto enqueue = [&](const Def* def) {
             if (!within(def)) {
@@ -40,9 +40,9 @@ public:
     }
 
     World& world() const { return scope.world(); }
-    Lambda* mangle();
-    void mangle_body(Lambda* olambda, Lambda* nlambda);
-    Lambda* mangle_head(Lambda* olambda);
+    Continuation* mangle();
+    void mangle_body(Continuation* ocontinuation, Continuation* ncontinuation);
+    Continuation* mangle_head(Continuation* ocontinuation);
     const Def* mangle(const Def* odef);
     bool within(const Def* def) { return scope.contains(def) || defs_.contains(def); }
 
@@ -52,12 +52,12 @@ public:
     Defs args;
     Defs lift;
     Type2Type type2type;
-    Lambda* oentry;
-    Lambda* nentry;
+    Continuation* oentry;
+    Continuation* nentry;
     DefSet defs_;
 };
 
-Lambda* Mangler::mangle() {
+Continuation* Mangler::mangle() {
     // map type params
     std::vector<const TypeParam*> type_params;
     for (size_t i = 0, e = oentry->num_type_params(); i != e; ++i) {
@@ -79,7 +79,7 @@ Lambda* Mangler::mangle() {
     }
 
     auto fn_type = world().fn_type(param_types);
-    nentry = world().lambda(close(fn_type, type_params), oentry->loc(), oentry->name);
+    nentry = world().continuation(close(fn_type, type_params), oentry->loc(), oentry->name);
 
     // map value params
     def2def[oentry] = oentry;
@@ -101,37 +101,37 @@ Lambda* Mangler::mangle() {
     return nentry;
 }
 
-Lambda* Mangler::mangle_head(Lambda* olambda) {
-    assert(!def2def.contains(olambda));
-    assert(!olambda->empty());
-    Lambda* nlambda = olambda->stub(type2type, olambda->name);
-    def2def[olambda] = nlambda;
+Continuation* Mangler::mangle_head(Continuation* ocontinuation) {
+    assert(!def2def.contains(ocontinuation));
+    assert(!ocontinuation->empty());
+    Continuation* ncontinuation = ocontinuation->stub(type2type, ocontinuation->name);
+    def2def[ocontinuation] = ncontinuation;
 
-    for (size_t i = 0, e = olambda->num_params(); i != e; ++i)
-        def2def[olambda->param(i)] = nlambda->param(i);
+    for (size_t i = 0, e = ocontinuation->num_params(); i != e; ++i)
+        def2def[ocontinuation->param(i)] = ncontinuation->param(i);
 
-    return nlambda;
+    return ncontinuation;
 }
 
-void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
-    assert(!olambda->empty());
+void Mangler::mangle_body(Continuation* ocontinuation, Continuation* ncontinuation) {
+    assert(!ocontinuation->empty());
 
-    if (olambda->to() == world().branch()) {        // fold branch if possible
-        if (auto lit = mangle(olambda->arg(0))->isa<PrimLit>())
-            return nlambda->jump(mangle(lit->value().get_bool() ? olambda->arg(1) : olambda->arg(2)), {}, {}, olambda->jump_loc());
+    if (ocontinuation->to() == world().branch()) {        // fold branch if possible
+        if (auto lit = mangle(ocontinuation->arg(0))->isa<PrimLit>())
+            return ncontinuation->jump(mangle(lit->value().get_bool() ? ocontinuation->arg(1) : ocontinuation->arg(2)), {}, {}, ocontinuation->jump_loc());
     }
 
-    Array<const Def*> nops(olambda->size());
+    Array<const Def*> nops(ocontinuation->size());
     for (size_t i = 0, e = nops.size(); i != e; ++i)
-        nops[i] = mangle(olambda->op(i));
+        nops[i] = mangle(ocontinuation->op(i));
 
-    Defs nargs(nops.skip_front());         // new args of nlambda
-    const Def* ntarget = nops.front();                     // new target of nlambda
+    Defs nargs(nops.skip_front());         // new args of ncontinuation
+    const Def* ntarget = nops.front();                     // new target of ncontinuation
 
     // specialize all type args
-    Array<const Type*> ntype_args(olambda->type_args().size());
+    Array<const Type*> ntype_args(ocontinuation->type_args().size());
     for (size_t i = 0, e = ntype_args.size(); i != e; ++i)
-        ntype_args[i] = olambda->type_arg(i)->specialize(type2type);
+        ntype_args[i] = ocontinuation->type_arg(i)->specialize(type2type);
 
     // check whether we can optimize tail recursion
     if (ntarget == oentry) {
@@ -145,10 +145,10 @@ void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
         }
 
         if (substitute)
-            return nlambda->jump(nentry, ntype_args, nargs.cut(cut), olambda->jump_loc());
+            return ncontinuation->jump(nentry, ntype_args, nargs.cut(cut), ocontinuation->jump_loc());
     }
 
-    nlambda->jump(ntarget, ntype_args, nargs, olambda->jump_loc());
+    ncontinuation->jump(ntarget, ntype_args, nargs, ocontinuation->jump_loc());
 }
 
 const Def* Mangler::mangle(const Def* odef) {
@@ -159,13 +159,13 @@ const Def* Mangler::mangle(const Def* odef) {
     if (!within(odef))
         return odef;
 
-    if (auto olambda = odef->isa_lambda()) {
-        auto nlambda = mangle_head(olambda);
-        mangle_body(olambda, nlambda);
-        return nlambda;
+    if (auto ocontinuation = odef->isa_continuation()) {
+        auto ncontinuation = mangle_head(ocontinuation);
+        mangle_body(ocontinuation, ncontinuation);
+        return ncontinuation;
     } else if (auto param = odef->isa<Param>()) {
-        assert(within(param->lambda()));
-        mangle(param->lambda());
+        assert(within(param->continuation()));
+        mangle(param->continuation());
         assert(def2def.contains(param));
         return def2def[param];
     } else {
@@ -181,12 +181,12 @@ const Def* Mangler::mangle(const Def* odef) {
 
 //------------------------------------------------------------------------------
 
-Lambda* mangle(const Scope& scope, Types type_args, Defs args, Defs lift) {
+Continuation* mangle(const Scope& scope, Types type_args, Defs args, Defs lift) {
     return Mangler(scope, type_args, args, lift).mangle();
 }
 
-Lambda* drop(const Call& call) {
-    Scope scope(call.to()->as_lambda());
+Continuation* drop(const Call& call) {
+    Scope scope(call.to()->as_continuation());
     return drop(scope, call.type_args(), call.args());
 }
 

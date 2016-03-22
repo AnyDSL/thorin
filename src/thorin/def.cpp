@@ -5,7 +5,7 @@
 #include <sstream>
 #include <stack>
 
-#include "thorin/lambda.h"
+#include "thorin/continuation.h"
 #include "thorin/primop.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
@@ -76,7 +76,7 @@ bool Def::is_const() const {
         }
     }
 
-    return true; // lambdas are always const
+    return true; // continuations are always const
 }
 
 bool Def::is_primlit(int val) const {
@@ -160,8 +160,8 @@ void Def::dump() const {
 }
 
 World& Def::world() const { return type()->world(); }
-Lambda* Def::as_lambda() const { return const_cast<Lambda*>(scast<Lambda>(this)); }
-Lambda* Def::isa_lambda() const { return const_cast<Lambda*>(dcast<Lambda>(this)); }
+Continuation* Def::as_continuation() const { return const_cast<Continuation*>(scast<Continuation>(this)); }
+Continuation* Def::isa_continuation() const { return const_cast<Continuation*>(dcast<Continuation>(this)); }
 int Def::order() const { return type()->order(); }
 size_t Def::length() const { return type()->as<VectorType>()->length(); }
 std::ostream& Def::stream(std::ostream& out) const { return out << unique_name(); }

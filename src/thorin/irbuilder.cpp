@@ -77,53 +77,53 @@ World& Var::world() const { return builder_->world(); }
 #ifndef NDEBUG
 #else
 JumpTarget::~JumpTarget() {
-    assert((!lambda_ || first_ || lambda_->is_sealed()) && "JumpTarget not sealed");
+    assert((!continuation_ || first_ || continuation_->is_sealed()) && "JumpTarget not sealed");
 }
 #endif
 
-Lambda* JumpTarget::untangle() {
+Continuation* JumpTarget::untangle() {
     if (!first_)
-        return lambda_;
-    assert(lambda_);
+        return continuation_;
+    assert(continuation_);
     auto bb = world().basicblock(loc(), name_);
-    lambda_->jump(bb, {}, {}, loc());
+    continuation_->jump(bb, {}, {}, loc());
     first_ = false;
-    return lambda_ = bb;
+    return continuation_ = bb;
 }
 
-void Lambda::jump(JumpTarget& jt, const Location& loc) {
-    if (!jt.lambda_) {
-        jt.lambda_ = this;
+void Continuation::jump(JumpTarget& jt, const Location& loc) {
+    if (!jt.continuation_) {
+        jt.continuation_ = this;
         jt.first_ = true;
     } else
         this->jump(jt.untangle(), {}, {}, loc);
 }
 
-Lambda* JumpTarget::branch_to(World& world, const Location& loc) {
-    auto bb = world.basicblock(loc, lambda_ ? name_ + std::string("_crit") : name_);
+Continuation* JumpTarget::branch_to(World& world, const Location& loc) {
+    auto bb = world.basicblock(loc, continuation_ ? name_ + std::string("_crit") : name_);
     bb->jump(*this, loc);
     bb->seal();
     return bb;
 }
 
-Lambda* JumpTarget::enter() {
-    if (lambda_ && !first_)
-        lambda_->seal();
-    return lambda_;
+Continuation* JumpTarget::enter() {
+    if (continuation_ && !first_)
+        continuation_->seal();
+    return continuation_;
 }
 
-Lambda* JumpTarget::enter_unsealed(World& world) {
-    return lambda_ ? untangle() : lambda_ = world.basicblock(loc(), name_);
+Continuation* JumpTarget::enter_unsealed(World& world) {
+    return continuation_ ? untangle() : continuation_ = world.basicblock(loc(), name_);
 }
 
 //------------------------------------------------------------------------------
 
-Lambda* IRBuilder::lambda(const Location& loc, const std::string& name) {
-    return lambda(world().fn_type(), loc, CC::C, Intrinsic::None, name);
+Continuation* IRBuilder::continuation(const Location& loc, const std::string& name) {
+    return continuation(world().fn_type(), loc, CC::C, Intrinsic::None, name);
 }
 
-Lambda* IRBuilder::lambda(const FnType* fn, const Location& loc, CC cc, Intrinsic intrinsic, const std::string& name) {
-    auto l = world().lambda(fn, loc, cc, intrinsic, name);
+Continuation* IRBuilder::continuation(const FnType* fn, const Location& loc, CC cc, Intrinsic intrinsic, const std::string& name) {
+    auto l = world().continuation(fn, loc, cc, intrinsic, name);
     if (fn->num_args() >= 1 && fn->args().front()->isa<MemType>()) {
         auto param = l->params().front();
         l->set_mem(param);

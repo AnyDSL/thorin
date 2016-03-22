@@ -7,12 +7,12 @@
 namespace thorin {
 
 void lift_builtins(World& world) {
-    std::vector<Lambda*> todo;
+    std::vector<Continuation*> todo;
     Scope::for_each(world, [&] (const Scope& scope) {
         for (auto n : scope.f_cfg().post_order()) {
-            auto lambda = n->lambda();
-            if (lambda->is_passed_to_accelerator() && !lambda->is_basicblock())
-                todo.push_back(lambda);
+            auto continuation = n->continuation();
+            if (continuation->is_passed_to_accelerator() && !continuation->is_basicblock())
+                todo.push_back(continuation);
         }
     });
 
@@ -27,17 +27,17 @@ void lift_builtins(World& world) {
 
         std::vector<Use> uses(cur->uses().begin(), cur->uses().end()); // TODO rewrite this
         for (auto use : uses) {
-            if (auto ulambda = use->isa_lambda()) {
-                if (auto to = ulambda->to()->isa_lambda()) {
+            if (auto ucontinuation = use->isa_continuation()) {
+                if (auto to = ucontinuation->to()->isa_continuation()) {
                     if (to->is_intrinsic()) {
-                        auto oops = ulambda->ops();
+                        auto oops = ucontinuation->ops();
                         Array<const Def*> nops(oops.size() + vars.size());
                         std::copy(vars.begin(), vars.end(), std::copy(oops.begin(), oops.end(), nops.begin())); // old ops + former free vars
                         assert(oops[use.index()] == cur);
-                        nops[use.index()] = world.global(lifted, lifted->loc(), false, lifted->name);           // update to new lifted lambda
-                        ulambda->jump(cur, ulambda->type_args(), nops.skip_front(), ulambda->jump_loc());       // set new args
+                        nops[use.index()] = world.global(lifted, lifted->loc(), false, lifted->name);           // update to new lifted continuation
+                        ucontinuation->jump(cur, ucontinuation->type_args(), nops.skip_front(), ucontinuation->jump_loc());       // set new args
                         // jump to new top-level dummy function
-                        ulambda->update_to(world.lambda(ulambda->arg_fn_type(), to->loc(), to->cc(), to->intrinsic(), to->name));
+                        ucontinuation->update_to(world.continuation(ucontinuation->arg_fn_type(), to->loc(), to->cc(), to->intrinsic(), to->name));
                     }
                 }
             }

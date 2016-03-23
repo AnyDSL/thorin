@@ -178,10 +178,10 @@ private:
     template<class> friend class TypeTableBase;
 };
 
-class App : public Type {
+class Application : public Type {
 private:
-    App(HENK_TABLE_TYPE& table, const Type* callee, const Type* arg)
-        : Type(table, Node_App, {callee, arg})
+    Application(HENK_TABLE_TYPE& table, const Type* callee, const Type* arg)
+        : Type(table, Node_Application, {callee, arg})
     {}
 
 public:
@@ -256,7 +256,7 @@ public:
 
     const DeBruijn* de_bruijn(const Lambda* lambda) { return new DeBruijn(HENK_TABLE_NAME(), lambda); }
     const Lambda* lambda(const char* name) { return new Lambda(HENK_TABLE_NAME(), name); }
-    const Type* app(const Type* callee, const Type* arg);
+    const Type* application(const Type* callee, const Type* arg);
     const TupleType* tuple_type(Types args) { return unify(new TupleType(HENK_TABLE_NAME(), args)); }
     const TupleType* unit() { return unit_; } ///< Returns unit, i.e., an empty @p TupleType.
     const StructType* struct_type(HENK_STRUCT_UNIFIER_TYPE HENK_STRUCT_UNIFIER_NAME, size_t num_args) {

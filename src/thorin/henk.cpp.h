@@ -136,10 +136,10 @@ const Type* StructType::vrebuild(HENK_TABLE_TYPE& to, Types args) const {
     return ntype;
 }
 
-const Type* App      ::vrebuild(HENK_TABLE_TYPE& to, Types args) const { return to.app(args[0], args[1]); }
-const Type* TupleType::vrebuild(HENK_TABLE_TYPE& to, Types args) const { return to.tuple_type(args); }
-const Type* DeBruijn ::vrebuild(HENK_TABLE_TYPE&,    Types     ) const { THORIN_UNREACHABLE; }
-const Type* Lambda   ::vrebuild(HENK_TABLE_TYPE&,    Types     ) const { THORIN_UNREACHABLE; }
+const Type* Application::vrebuild(HENK_TABLE_TYPE& to, Types args) const { return to.application(args[0], args[1]); }
+const Type* TupleType  ::vrebuild(HENK_TABLE_TYPE& to, Types args) const { return to.tuple_type(args); }
+const Type* DeBruijn   ::vrebuild(HENK_TABLE_TYPE&,    Types     ) const { THORIN_UNREACHABLE; }
+const Type* Lambda     ::vrebuild(HENK_TABLE_TYPE&,    Types     ) const { THORIN_UNREACHABLE; }
 
 //------------------------------------------------------------------------------
 
@@ -195,9 +195,9 @@ const Type* StructType::vspecialize(Type2Type&) const {
     assert(false && "TODO");
 }
 
-const Type* App::vspecialize(Type2Type& map) const {
+const Type* Application::vspecialize(Type2Type& map) const {
     auto args = specialize_args(map);
-    return map[this] = HENK_TABLE_NAME().app(args[0], args[1]);
+    return map[this] = HENK_TABLE_NAME().application(args[0], args[1]);
 }
 
 const Type* TupleType::vspecialize(Type2Type& map) const {
@@ -207,8 +207,8 @@ const Type* TupleType::vspecialize(Type2Type& map) const {
 //------------------------------------------------------------------------------
 
 template<class T>
-const Type* TypeTableBase<T>::app(const Type* callee, const Type* arg) {
-    auto app = unify(new App(HENK_TABLE_NAME(), callee, arg));
+const Type* TypeTableBase<T>::application(const Type* callee, const Type* arg) {
+    auto app = unify(new Application(HENK_TABLE_NAME(), callee, arg));
 
     if (app->is_hashed()) {
         if (!app->cache_) {

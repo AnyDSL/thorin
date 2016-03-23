@@ -21,7 +21,7 @@
 //------------------------------------------------------------------------------
 
 class Type;
-class Lambda;
+class Abstraction;
 class Var;
 class HENK_TABLE_TYPE;
 
@@ -116,39 +116,72 @@ private:
     mutable size_t gid_;
     static size_t gid_counter_;
 
-    friend const Lambda* close(const Lambda*&, const Type*);
+    friend const Abstraction* close(const Abstraction*, const Type*);
     template<class> friend class TypeTableBase;
 };
 
-class Lambda : public Type {
-private:
-    Lambda(HENK_TABLE_TYPE& table, const char* name)
-        : Type(table, Node_Lambda, {nullptr})
+class Abstraction : public Type {
+protected:
+    Abstraction(HENK_TABLE_TYPE& table, int kind, const char* name)
+        : Type(table, kind, {nullptr})
         , name_(name)
     {
         closed_ = false;
     }
-    Lambda(HENK_TABLE_TYPE& table, const Type* body, const char* name)
-        : Type(table, Node_Lambda, {body})
+    Abstraction(HENK_TABLE_TYPE& table, int kind, const Type* body, const char* name)
+        : Type(table, kind, {body})
         , name_(name)
     {}
 
 public:
     const char* name() const { return name_; }
     const Type* body() const { return arg(0); }
+
+private:
+    const char* name_;
+
+    friend class Var;
+};
+
+class Lambda : public Abstraction {
+private:
+    Lambda(HENK_TABLE_TYPE& table, const char* name)
+        : Abstraction(table, Node_Lambda, name)
+    {}
+    Lambda(HENK_TABLE_TYPE& table, const Type* body, const char* name)
+        : Abstraction(table, Node_Lambda, body, name)
+    {}
+
+public:
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
     virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types args) const override;
     virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
 
-    const char* name_;
-
-    friend class Var;
     template<class> friend class TypeTableBase;
 };
 
-const Lambda* close(const Lambda*&, const Type*);
+class Pi : public Abstraction {
+private:
+    Pi(HENK_TABLE_TYPE& table, const char* name)
+        : Abstraction(table, Node_Pi, name)
+    {}
+    Pi(HENK_TABLE_TYPE& table, const Type* body, const char* name)
+        : Abstraction(table, Node_Pi, body, name)
+    {}
+
+public:
+    virtual std::ostream& stream(std::ostream&) const override;
+
+private:
+    virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types args) const override;
+    virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
+
+    template<class> friend class TypeTableBase;
+};
+
+const Abstraction* close(const Abstraction*, const Type*);
 
 class Var : public Type {
 private:
@@ -159,9 +192,9 @@ private:
         assert(depth >= 0);
         monomorphic_ = false;
     }
-    Var(HENK_TABLE_TYPE& table, const Lambda* lambda)
+    Var(HENK_TABLE_TYPE& table, const Abstraction* abstraction)
         : Type(table, Node_Var, {})
-        , lambda_(lambda)
+        , abstraction_(abstraction)
     {
         closed_ = false;
         monomorphic_ = false;
@@ -172,7 +205,7 @@ public:
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
-    const Lambda* lambda() const { assert(!is_closed()); return lambda_; }
+    const Abstraction* abstraction() const { assert(!is_closed()); return abstraction_; }
 
     virtual uint64_t vhash() const override;
     virtual bool equal(const Type*) const override;
@@ -180,11 +213,11 @@ private:
     virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
 
     union {
-        const Lambda* lambda_;
+        const Abstraction* abstraction_;
         mutable int depth_;
     };
 
-    friend const Lambda* close(const Lambda*&, const Type*);
+    friend const Abstraction* close(const Abstraction*, const Type*);
     template<class> friend class TypeTableBase;
 };
 
@@ -264,10 +297,12 @@ public:
     {}
     virtual ~TypeTableBase() { for (auto type : types_) delete type; }
 
-    const Var* var(const Lambda* lambda) { return new Var(HENK_TABLE_NAME(), lambda); }
+    const Var* var(const Abstraction* abstraction) { return new Var(HENK_TABLE_NAME(), abstraction); }
     const Var* var(int depth) { return unify(new Var(HENK_TABLE_NAME(), depth)); }
     const Lambda* lambda(const char* name) { return new Lambda(HENK_TABLE_NAME(), name); }
     const Lambda* lambda(const Type* body, const char* name) { return unify(new Lambda(HENK_TABLE_NAME(), body, name)); }
+    const Pi* pi(const char* name) { return new Pi(HENK_TABLE_NAME(), name); }
+    const Pi* pi(const Type* body, const char* name) { return unify(new Pi(HENK_TABLE_NAME(), body, name)); }
     const Type* application(const Type* callee, const Type* arg);
     const TupleType* tuple_type(Types args) { return unify(new TupleType(HENK_TABLE_NAME(), args)); }
     const TupleType* unit() { return unit_; } ///< Returns unit, i.e., an empty @p TupleType.
@@ -287,7 +322,7 @@ protected:
     TypeSet types_;
     const TupleType* unit_; ///< tuple().
 
-    friend const Lambda* close(const Lambda*&, const Type*);
+    friend const Abstraction* close(const Abstraction*, const Type*);
     friend class Lambda;
 };
 

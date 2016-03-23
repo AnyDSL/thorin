@@ -14,9 +14,9 @@ size_t Type::gid_counter_ = 1;
 
 //------------------------------------------------------------------------------
 
-const Lambda* close(const Lambda*& lambda, const Type* body) {
-    assert(lambda->body() == nullptr);
-    const_cast<Lambda*&>(lambda)->set(0, body);
+const Abstraction* close(const Abstraction* abstraction, const Type* body) {
+    assert(abstraction->body() == nullptr);
+    const_cast<Abstraction*>(abstraction)->set(0, body);
 
     std::stack<const Type*> stack;
     TypeSet done;
@@ -25,13 +25,13 @@ const Lambda* close(const Lambda*& lambda, const Type* body) {
     auto push = [&](const Type* type) {
         if (!type->is_closed() && !done.contains(type)) {
             if (auto var = type->isa<Var>()) {
-                if (var->lambda() == lambda) {
+                if (var->abstraction() == abstraction) {
                     var->closed_ = true;
                     var->depth_  = depth;
                 }
                 done.insert(var);
             } else {
-                if (type->isa<Lambda>())
+                if (type->isa<Abstraction>())
                     ++depth;
                 done.insert(type);
                 stack.push(type);
@@ -41,7 +41,7 @@ const Lambda* close(const Lambda*& lambda, const Type* body) {
         return false;
     };
 
-    push(lambda);
+    push(abstraction);
 
     // TODO this is potentially quadratic when closing n types
     while (!stack.empty()) {
@@ -52,7 +52,7 @@ const Lambda* close(const Lambda*& lambda, const Type* body) {
             todo |= push(type->arg(i));
 
         if (!todo) {
-            if (type->isa<Lambda>())
+            if (type->isa<Abstraction>())
                 --depth;
             stack.pop();
             type->closed_ = true;
@@ -62,7 +62,7 @@ const Lambda* close(const Lambda*& lambda, const Type* body) {
     }
 
     assert(depth == 0);
-    return lambda->HENK_TABLE_NAME().unify(lambda);
+    return abstraction->HENK_TABLE_NAME().unify(abstraction);
 }
 
 //------------------------------------------------------------------------------
@@ -139,6 +139,7 @@ const Type* StructType::vrebuild(HENK_TABLE_TYPE& to, Types args) const {
 const Type* Application::vrebuild(HENK_TABLE_TYPE& to, Types args) const { return to.application(args[0], args[1]); }
 const Type* TupleType  ::vrebuild(HENK_TABLE_TYPE& to, Types args) const { return to.tuple_type(args); }
 const Type* Lambda     ::vrebuild(HENK_TABLE_TYPE& to, Types args) const { return to.lambda(args[0], name()); }
+const Type* Pi         ::vrebuild(HENK_TABLE_TYPE& to, Types args) const { return to.pi(args[0], name()); }
 const Type* Var        ::vrebuild(HENK_TABLE_TYPE& to, Types     ) const { return to.var(depth()); }
 
 //------------------------------------------------------------------------------
@@ -164,6 +165,10 @@ Array<const Type*> Type::reduce_args(int depth, const Type* type, Type2Type& map
 
 const Type* Lambda::vreduce(int depth, const Type* type, Type2Type& map) const {
     return HENK_TABLE_NAME().lambda(body()->reduce(depth+1, type, map), name());
+}
+
+const Type* Pi::vreduce(int depth, const Type* type, Type2Type& map) const {
+    return HENK_TABLE_NAME().pi(body()->reduce(depth+1, type, map), name());
 }
 
 const Type* Var::vreduce(int depth, const Type* type, Type2Type&) const {

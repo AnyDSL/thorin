@@ -40,6 +40,7 @@
     // Type
         // PrimType
         THORIN_AIR_NODE(Lambda, lambda)
+        THORIN_AIR_NODE(Pi, pi)
         THORIN_AIR_NODE(FrameType, frame)
         THORIN_AIR_NODE(Var, var)
         THORIN_AIR_NODE(Application, application)

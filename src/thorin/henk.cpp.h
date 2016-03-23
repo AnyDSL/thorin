@@ -204,14 +204,14 @@ const Type* TypeTableBase<T>::application(const Type* callee, const Type* arg) {
     auto application = unify(new Application(HENK_TABLE_NAME(), callee, arg));
 
     if (application->is_hashed()) {
-        if (!application->cache_) {
-            if (auto lambda = application->callee()->template isa<Lambda>()) {
-                Type2Type map;
-                application->cache_ = lambda->body()->reduce(1, arg, map);
-            } else
-                application->cache_ = application;
+        if (auto cache = application->cache_)
+            return cache;
+        if (auto lambda = application->callee()->template isa<Lambda>()) {
+            Type2Type map;
+            return application->cache_ = lambda->body()->reduce(1, arg, map);
+        } else {
+            return application->cache_ = application;
         }
-        return application->cache_;
     }
 
     return application;

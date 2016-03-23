@@ -132,7 +132,7 @@ public:
     const CFNode* exit() const { return exit_; }
 
     CFNodeSet nodes(const CFNode*, size_t i);
-    CFNodeSet to_nodes(const CFNode* in) { return in->continuation()->empty() ? CFNodeSet() : nodes(in, 0); }
+    CFNodeSet callee_nodes(const CFNode* in) { return in->continuation()->empty() ? CFNodeSet() : nodes(in, 0); }
     Array<CFNodeSet> arg_nodes(const CFNode*);
     bool contains(Continuation* continuation) { return scope().inner_contains(continuation); }
     bool contains(const Param* param) { return contains(param->continuation()); }
@@ -333,7 +333,7 @@ void CFABuilder::run_cfa() {
         auto cur_in = in_node(cur_continuation);
         auto args = arg_nodes(cur_in);
 
-        for (auto n : to_nodes(cur_in)) {
+        for (auto n : callee_nodes(cur_in)) {
             if (n->def()->type() != cur_continuation->callee()->type())
                 continue;
 
@@ -382,7 +382,7 @@ void CFABuilder::build_cfg() {
 
     while (!queue.empty()) {
         auto cur_in = pop(queue);
-        for (auto n : to_nodes(cur_in)) {
+        for (auto n : callee_nodes(cur_in)) {
             if (auto in = n->isa<CFNode>()) {
                 enqueue(in);
                 link(cur_in, in);

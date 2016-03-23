@@ -487,7 +487,7 @@ void CCodeGen::emit() {
             } else if (continuation->callee()->isa<Bottom>()) {
                 os << "return ; // bottom: unreachable";
             } else {
-                Continuation* callee = continuation->callee()->as_continuation();
+                auto callee = continuation->callee()->as_continuation();
                 emit_debug_info(callee);
 
                 // emit inlined arrays/tuples/structs before the call operation

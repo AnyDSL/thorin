@@ -125,7 +125,9 @@ private:
     Lambda(HENK_TABLE_TYPE& table, const char* name)
         : Type(table, Node_Lambda, {nullptr})
         , name_(name)
-    {}
+    {
+        closed_ = false;
+    }
     Lambda(HENK_TABLE_TYPE& table, const Type* body, const char* name)
         : Type(table, Node_Lambda, {body})
         , name_(name)

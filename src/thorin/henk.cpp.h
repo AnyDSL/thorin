@@ -98,17 +98,8 @@ bool Type::equal(const Type* other) const {
 
     if (result) {
         for (size_t i = 0, e = size(); result && i != e; ++i) {
-            //result &= this->arg(i)->is_hashed()
-                //? this->arg(i) == other->arg(i)
-                //: this->arg(i)->equal(other->arg(i));
-            bool asdf;
-            if (this->arg(i)->is_hashed())
-                asdf = this->arg(i) == other->arg(i);
-            else {
-                asdf = this->arg(i)->equal(other->arg(i));
-                WLOG("EQUAL");
-            }
-            result &= asdf;
+            assert(this->arg(i)->is_hashed() && other->arg(i)->is_hashed());
+            result &= this->arg(i) == other->arg(i);
         }
     }
 

@@ -147,8 +147,8 @@ const Type* StructType::vrebuild(HENK_TABLE_TYPE& to, Types args) const {
 
 const Type* Application::vrebuild(HENK_TABLE_TYPE& to, Types args) const { return to.application(args[0], args[1]); }
 const Type* TupleType  ::vrebuild(HENK_TABLE_TYPE& to, Types args) const { return to.tuple_type(args); }
-const Type* Var        ::vrebuild(HENK_TABLE_TYPE&,    Types     ) const { THORIN_UNREACHABLE; }
-const Type* Lambda     ::vrebuild(HENK_TABLE_TYPE&,    Types     ) const { THORIN_UNREACHABLE; }
+const Type* Lambda     ::vrebuild(HENK_TABLE_TYPE& to, Types args) const { return to.lambda(args[0], name()); }
+const Type* Var        ::vrebuild(HENK_TABLE_TYPE& to, Types     ) const { return to.var(depth()); }
 
 //------------------------------------------------------------------------------
 

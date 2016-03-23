@@ -154,7 +154,7 @@ private:
         : Type(table, Node_Var, {})
         , depth_(depth)
     {
-        // closed_ == true
+        assert(depth >= 0);
         monomorphic_ = false;
     }
     Var(HENK_TABLE_TYPE& table, const Lambda* lambda)

@@ -161,7 +161,7 @@ const Type* Type::reduce(int depth, const Type* type, Type2Type& map) const {
         return result;
     if (is_monomorphic())
         return this;
-    return vreduce(depth, type, map);
+    return map[this] = vreduce(depth, type, map);
 }
 
 Array<const Type*> Type::reduce_args(int depth, const Type* type, Type2Type& map) const {
@@ -175,11 +175,13 @@ const Type* Lambda::vreduce(int depth, const Type* type, Type2Type& map) const {
     return HENK_TABLE_NAME().lambda(body()->reduce(depth+1, type, map), name());
 }
 
-const Type* Var::vreduce(int depth, const Type* type, Type2Type& map) const {
+const Type* Var::vreduce(int depth, const Type* type, Type2Type&) const {
     if (this->depth() == depth)
-        return map[this] = type;
+        return type;
+    else if (this->depth() < depth)
+        return HENK_TABLE_NAME().var(depth-1);  // shift by one
     else
-        return HENK_TABLE_NAME().var(depth-1); // TODO free vars
+        return this;                            // this is a free variable - don't adjust
 }
 
 const Type* StructType::vreduce(int, const Type*, Type2Type&) const {
@@ -188,11 +190,11 @@ const Type* StructType::vreduce(int, const Type*, Type2Type&) const {
 
 const Type* Application::vreduce(int depth, const Type* type, Type2Type& map) const {
     auto args = reduce_args(depth, type, map);
-    return map.emplace(this, HENK_TABLE_NAME().application(args[0], args[1])).first->second;
+    return HENK_TABLE_NAME().application(args[0], args[1]);
 }
 
 const Type* TupleType::vreduce(int depth, const Type* type, Type2Type& map) const {
-    return map.emplace(this, HENK_TABLE_NAME().tuple_type(reduce_args(depth, type, map))).first->second;
+    return HENK_TABLE_NAME().tuple_type(reduce_args(depth, type, map));
 }
 
 //------------------------------------------------------------------------------

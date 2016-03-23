@@ -61,8 +61,8 @@ CodeGen::CodeGen(World& world, llvm::GlobalValue::LinkageTypes function_import_l
 {}
 
 Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
-    auto to = continuation->callee()->as_continuation();
-    switch (to->intrinsic()) {
+    auto callee = continuation->callee()->as_continuation();
+    switch (callee->intrinsic()) {
         case Intrinsic::Atomic:    return emit_atomic(continuation);
         case Intrinsic::Select:    return emit_select(continuation);
         case Intrinsic::Sizeof:    return emit_sizeof(continuation);

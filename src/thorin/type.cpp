@@ -150,27 +150,27 @@ std::ostream& PrimType::stream(std::ostream& os) const {
 //------------------------------------------------------------------------------
 
 /*
- * specialize
+ * reduce
  */
 
-const Type* FrameType::vspecialize(Type2Type& map) const { return map[this] = this; }
-const Type* MemType  ::vspecialize(Type2Type& map) const { return map[this] = this; }
-const Type* PrimType ::vspecialize(Type2Type& map) const { return map[this] = this; }
+const Type* FrameType::vreduce(Type2Type& map) const { return map[this] = this; }
+const Type* MemType  ::vreduce(Type2Type& map) const { return map[this] = this; }
+const Type* PrimType ::vreduce(Type2Type& map) const { return map[this] = this; }
 
-const Type* DefiniteArrayType::vspecialize(Type2Type& map) const {
-    return map[this] = world().definite_array_type(elem_type()->specialize(map), dim());
+const Type* DefiniteArrayType::vreduce(Type2Type& map) const {
+    return map[this] = world().definite_array_type(elem_type()->reduce(map), dim());
 }
 
-const Type* FnType::vspecialize(Type2Type& map) const {
-    return map[this] = world().fn_type(specialize_args(map));
+const Type* FnType::vreduce(Type2Type& map) const {
+    return map[this] = world().fn_type(reduce_args(map));
 }
 
-const Type* IndefiniteArrayType::vspecialize(Type2Type& map) const {
-    return map[this] = world().indefinite_array_type(elem_type()->specialize(map));
+const Type* IndefiniteArrayType::vreduce(Type2Type& map) const {
+    return map[this] = world().indefinite_array_type(elem_type()->reduce(map));
 }
 
-const Type* PtrType::vspecialize(Type2Type& map) const {
-    return map[this] = world().ptr_type(referenced_type()->specialize(map), length(), device(), addr_space());
+const Type* PtrType::vreduce(Type2Type& map) const {
+    return map[this] = world().ptr_type(referenced_type()->reduce(map), length(), device(), addr_space());
 }
 
 //------------------------------------------------------------------------------

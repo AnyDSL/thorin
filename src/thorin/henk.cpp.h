@@ -144,83 +144,68 @@ const Type* Lambda     ::vrebuild(HENK_TABLE_TYPE&,    Types     ) const { THORI
 //------------------------------------------------------------------------------
 
 /*
- * specialize and instantiate
+ * reduce
  */
 
-const Type* Lambda::reduce(const Type* type) const {
-    Type2Type map;
-    for (auto var : vars())
-        map[var] = type;
-    return body()->specialize(map);
-}
-
-const Type* Lambda::reduce(Types types) const {
-    Type2Type map;
-    size_t i = 0;
-    const Type* type = this;
-
-    while (auto lambda = type->isa<Lambda>()) {
-        auto arg = types[i++];
-        for (auto var : lambda->vars()) {
-            assert(var->is_closed());
-            map[var] = arg;
-        }
-        type = lambda->body();
-    }
-
-    return type->specialize(map);
-}
-
-const Type* Type::specialize(Type2Type& map) const {
+const Type* Type::reduce(Type2Type& map) const {
     if (auto result = find(map, this))
         return result;
-    return vspecialize(map);
+    if (is_monomorphic())
+        return this;
+    return vreduce(map);
 }
 
-Array<const Type*> Type::specialize_args(Type2Type& map) const {
+Array<const Type*> Type::reduce_args(Type2Type& map) const {
     Array<const Type*> result(size());
     for (size_t i = 0, e = size(); i != e; ++i)
-        result[i] = arg(i)->specialize(map);
+        result[i] = arg(i)->reduce(map);
     return result;
 }
 
-const Type* Lambda::vspecialize(Type2Type& map) const {
-    //auto lambda = HENK_TABLE_NAME().lambda(
-    return map[this] = this;
+const Type* Lambda::vreduce(Type2Type& map) const {
+    auto open = HENK_TABLE_NAME().lambda(name());
+    return map[this] = close(open, body()->reduce(map));
 }
 
-const Type* Var::vspecialize(Type2Type& map) const { return map[this] = this; }
+const Type* Var::vreduce(Type2Type& map) const {
+    auto i = map.find(lambda());
+    auto lambda = (i == map.end()) ? this->lambda() : i->second->template as<Lambda>();
+    return map[this] = HENK_TABLE_NAME().var(lambda);
+}
 
-const Type* StructType::vspecialize(Type2Type&) const {
+const Type* StructType::vreduce(Type2Type&) const {
     assert(false && "TODO");
 }
 
-const Type* Application::vspecialize(Type2Type& map) const {
-    auto args = specialize_args(map);
+const Type* Application::vreduce(Type2Type& map) const {
+    auto args = reduce_args(map);
     return map[this] = HENK_TABLE_NAME().application(args[0], args[1]);
 }
 
-const Type* TupleType::vspecialize(Type2Type& map) const {
-    return map[this] = HENK_TABLE_NAME().tuple_type(specialize_args(map));
+const Type* TupleType::vreduce(Type2Type& map) const {
+    return map[this] = HENK_TABLE_NAME().tuple_type(reduce_args(map));
 }
 
 //------------------------------------------------------------------------------
 
 template<class T>
 const Type* TypeTableBase<T>::application(const Type* callee, const Type* arg) {
-    auto app = unify(new Application(HENK_TABLE_NAME(), callee, arg));
+    auto application = unify(new Application(HENK_TABLE_NAME(), callee, arg));
 
-    if (app->is_hashed()) {
-        if (!app->cache_) {
-            if (auto lambda = app->callee()->template isa<Lambda>())
-                app->cache_ = lambda->reduce(app->arg());
-            else
-                app->cache_ = app;
+    if (application->is_hashed()) {
+        if (!application->cache_) {
+            if (auto lambda = application->callee()->template isa<Lambda>()) {
+                Type2Type map;
+                for (auto var : lambda->vars())
+                    map[var] = arg;
+                application->cache_ = lambda->body()->reduce(map);
+            } else
+                application->cache_ = application;
         }
-        return app->cache_;
+        return application->cache_;
     }
 
-    return app;
+    return application;
 }
 
 template<class T>

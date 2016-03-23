@@ -38,7 +38,7 @@ const Def* Continuation::callee() const {
 }
 
 Continuation* Continuation::stub(Type2Type& type2type, const std::string& name) const {
-    auto fn_type = type()->specialize(type2type)->as<FnType>();
+    auto fn_type = type()->reduce(type2type)->as<FnType>();
     auto result = world().continuation(fn_type, loc(), cc(), intrinsic(), name);
     for (size_t i = 0, e = num_params(); i != e; ++i)
         result->param(i)->name = param(i)->name;

@@ -28,7 +28,7 @@ private:
     {}
 
     virtual const Type* vrebuild(World& to, Types args) const override;
-    virtual const Type* vspecialize(Type2Type&) const override;
+    virtual const Type* vreduce(Type2Type&) const override;
 
     friend class World;
 };
@@ -44,7 +44,7 @@ private:
     {}
 
     virtual const Type* vrebuild(World& to, Types args) const override;
-    virtual const Type* vspecialize(Type2Type&) const override;
+    virtual const Type* vreduce(Type2Type&) const override;
 
     friend class World;
 };
@@ -90,7 +90,7 @@ public:
 
 private:
     virtual const Type* vrebuild(World& to, Types args) const override;
-    virtual const Type* vspecialize(Type2Type&) const override;
+    virtual const Type* vreduce(Type2Type&) const override;
 
     friend class World;
 };
@@ -140,7 +140,7 @@ public:
 
 private:
     virtual const Type* vrebuild(World& to, Types args) const override;
-    virtual const Type* vspecialize(Type2Type&) const override;
+    virtual const Type* vreduce(Type2Type&) const override;
 
     AddrSpace addr_space_;
     int32_t device_;
@@ -164,7 +164,7 @@ public:
 
 private:
     virtual const Type* vrebuild(World& to, Types args) const override;
-    virtual const Type* vspecialize(Type2Type&) const override;
+    virtual const Type* vreduce(Type2Type&) const override;
 
     friend class World;
 };
@@ -191,7 +191,7 @@ public:
 
 private:
     virtual const Type* vrebuild(World& to, Types args) const override;
-    virtual const Type* vspecialize(Type2Type&) const override;
+    virtual const Type* vreduce(Type2Type&) const override;
 
     friend class World;
 };
@@ -213,7 +213,7 @@ public:
 
 private:
     virtual const Type* vrebuild(World& to, Types args) const override;
-    virtual const Type* vspecialize(Type2Type&) const override;
+    virtual const Type* vreduce(Type2Type&) const override;
 
     u64 dim_;
 

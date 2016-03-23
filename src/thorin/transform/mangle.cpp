@@ -59,7 +59,7 @@ Continuation* Mangler::mangle() {
     std::vector<const Type*> param_types;
     for (size_t i = 0, e = oentry->num_params(); i != e; ++i) {
         if (args[i] == nullptr)
-            param_types.push_back(oentry->param(i)->type()->reduce(type2type));
+            param_types.emplace_back(oentry->param(i)->type()); // TODO reduce
     }
 
     auto fn_type = world().fn_type(param_types);
@@ -79,7 +79,7 @@ Continuation* Mangler::mangle() {
     }
 
     for (auto def : lift)
-        def2def[def] = nentry->append_param(def->type()->reduce(type2type));
+        def2def[def] = nentry->append_param(def->type()); // TODO reduce
 
     mangle_body(oentry, nentry);
     return nentry;
@@ -150,7 +150,7 @@ const Def* Mangler::mangle(const Def* odef) {
         for (size_t i = 0, e = oprimop->size(); i != e; ++i)
             nops[i] = mangle(oprimop->op(i));
 
-        auto type = oprimop->type()->reduce(type2type);
+        auto type = oprimop->type(); // TODO reduce
         return def2def[oprimop] = oprimop->rebuild(nops, type);
     }
 }

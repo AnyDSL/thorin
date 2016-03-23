@@ -153,24 +153,24 @@ std::ostream& PrimType::stream(std::ostream& os) const {
  * reduce
  */
 
-const Type* FrameType::vreduce(Type2Type& map) const { return map[this] = this; }
-const Type* MemType  ::vreduce(Type2Type& map) const { return map[this] = this; }
-const Type* PrimType ::vreduce(Type2Type& map) const { return map[this] = this; }
+const Type* FrameType::vreduce(int, const Type*, Type2Type& map) const { return map[this] = this; }
+const Type* MemType  ::vreduce(int, const Type*, Type2Type& map) const { return map[this] = this; }
+const Type* PrimType ::vreduce(int, const Type*, Type2Type& map) const { return map[this] = this; }
 
-const Type* DefiniteArrayType::vreduce(Type2Type& map) const {
-    return map[this] = world().definite_array_type(elem_type()->reduce(map), dim());
+const Type* DefiniteArrayType::vreduce(int depth, const Type* type, Type2Type& map) const {
+    return map.emplace(this, world().definite_array_type(elem_type()->reduce(depth, type, map), dim())).first->second;
 }
 
-const Type* FnType::vreduce(Type2Type& map) const {
-    return map[this] = world().fn_type(reduce_args(map));
+const Type* FnType::vreduce(int depth, const Type* type, Type2Type& map) const {
+    return map.emplace(this, world().fn_type(reduce_args(depth, type, map))).first->second;
 }
 
-const Type* IndefiniteArrayType::vreduce(Type2Type& map) const {
-    return map[this] = world().indefinite_array_type(elem_type()->reduce(map));
+const Type* IndefiniteArrayType::vreduce(int depth, const Type* type, Type2Type& map) const {
+    return map.emplace(this, world().indefinite_array_type(elem_type()->reduce(depth, type, map))).first->second;
 }
 
-const Type* PtrType::vreduce(Type2Type& map) const {
-    return map[this] = world().ptr_type(referenced_type()->reduce(map), length(), device(), addr_space());
+const Type* PtrType::vreduce(int depth, const Type* type, Type2Type& map) const {
+    return map.emplace(this, world().ptr_type(referenced_type()->reduce(depth, type, map), length(), device(), addr_space())).first->second;
 }
 
 //------------------------------------------------------------------------------

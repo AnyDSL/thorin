@@ -20,17 +20,19 @@ const Lambda* close(const Lambda*& lambda, const Type* body) {
 
     std::stack<const Type*> stack;
     TypeSet done;
+    int depth = 0;
 
     auto push = [&](const Type* type) {
         if (!type->is_closed() && !done.contains(type)) {
             if (auto var = type->isa<Var>()) {
                 if (var->lambda() == lambda) {
-                    assert(var->closed_ == false && var->depth_ == -1);
                     var->closed_ = true;
-                    var->depth_  = stack.size();
+                    var->depth_  = depth;
                 }
                 done.insert(var);
             } else {
+                if (type->isa<Lambda>())
+                    ++depth;
                 done.insert(type);
                 stack.push(type);
                 return true;
@@ -50,6 +52,8 @@ const Lambda* close(const Lambda*& lambda, const Type* body) {
             todo |= push(type->arg(i));
 
         if (!todo) {
+            if (type->isa<Lambda>())
+                --depth;
             stack.pop();
             type->closed_ = true;
             for (size_t i = 0, e = type->size(); i != e && type->closed_; ++i)
@@ -57,9 +61,7 @@ const Lambda* close(const Lambda*& lambda, const Type* body) {
         }
     }
 
-    for (auto var : lambda->vars())
-        assert(var->is_closed());
-
+    assert(depth == 0);
     return lambda->HENK_TABLE_NAME().unify(lambda);
 }
 
@@ -77,7 +79,7 @@ uint64_t Type::vhash() const {
 }
 
 uint64_t Var::vhash() const {
-    return thorin::hash_combine(thorin::hash_begin(int(kind())), int(lambda()->kind()), depth());
+    return thorin::hash_combine(thorin::hash_begin(int(kind())), depth());
 }
 
 uint64_t StructType::vhash() const {
@@ -95,19 +97,26 @@ bool Type::equal(const Type* other) const {
         && this->is_monomorphic() == other->is_monomorphic();
 
     if (result) {
-        for (size_t i = 0, e = size(); result && i != e; ++i)
-            result &= this->arg(i)->is_hashed()
-                ? this->arg(i) == other->arg(i)
-                : this->arg(i)->equal(other->arg(i));
+        for (size_t i = 0, e = size(); result && i != e; ++i) {
+            //result &= this->arg(i)->is_hashed()
+                //? this->arg(i) == other->arg(i)
+                //: this->arg(i)->equal(other->arg(i));
+            bool asdf;
+            if (this->arg(i)->is_hashed())
+                asdf = this->arg(i) == other->arg(i);
+            else {
+                asdf = this->arg(i)->equal(other->arg(i));
+                WLOG("EQUAL");
+            }
+            result &= asdf;
+        }
     }
 
     return result;
 }
 
 bool Var::equal(const Type* other) const {
-    if (auto var = other->isa<Var>())
-        return this->lambda()->kind() == lambda()->kind() && this->depth() == var->depth();
-    return false;
+    return other->isa<Var>() ? this->as<Var>()->depth() == other->as<Var>()->depth() : false;
 }
 
 bool StructType::equal(const Type* other) const {
@@ -147,43 +156,43 @@ const Type* Lambda     ::vrebuild(HENK_TABLE_TYPE&,    Types     ) const { THORI
  * reduce
  */
 
-const Type* Type::reduce(Type2Type& map) const {
+const Type* Type::reduce(int depth, const Type* type, Type2Type& map) const {
     if (auto result = find(map, this))
         return result;
     if (is_monomorphic())
         return this;
-    return vreduce(map);
+    return vreduce(depth, type, map);
 }
 
-Array<const Type*> Type::reduce_args(Type2Type& map) const {
+Array<const Type*> Type::reduce_args(int depth, const Type* type, Type2Type& map) const {
     Array<const Type*> result(size());
     for (size_t i = 0, e = size(); i != e; ++i)
-        result[i] = arg(i)->reduce(map);
+        result[i] = arg(i)->reduce(depth, type, map);
     return result;
 }
 
-const Type* Lambda::vreduce(Type2Type& map) const {
-    auto open = HENK_TABLE_NAME().lambda(name());
-    return map[this] = close(open, body()->reduce(map));
+const Type* Lambda::vreduce(int depth, const Type* type, Type2Type& map) const {
+    return HENK_TABLE_NAME().lambda(body()->reduce(depth+1, type, map), name());
 }
 
-const Type* Var::vreduce(Type2Type& map) const {
-    auto i = map.find(lambda());
-    auto lambda = (i == map.end()) ? this->lambda() : i->second->template as<Lambda>();
-    return map[this] = HENK_TABLE_NAME().var(lambda);
+const Type* Var::vreduce(int depth, const Type* type, Type2Type& map) const {
+    if (this->depth() == depth)
+        return map[this] = type;
+    else
+        return HENK_TABLE_NAME().var(depth-1); // TODO free vars
 }
 
-const Type* StructType::vreduce(Type2Type&) const {
+const Type* StructType::vreduce(int, const Type*, Type2Type&) const {
     assert(false && "TODO");
 }
 
-const Type* Application::vreduce(Type2Type& map) const {
-    auto args = reduce_args(map);
-    return map[this] = HENK_TABLE_NAME().application(args[0], args[1]);
+const Type* Application::vreduce(int depth, const Type* type, Type2Type& map) const {
+    auto args = reduce_args(depth, type, map);
+    return map.emplace(this, HENK_TABLE_NAME().application(args[0], args[1])).first->second;
 }
 
-const Type* TupleType::vreduce(Type2Type& map) const {
-    return map[this] = HENK_TABLE_NAME().tuple_type(reduce_args(map));
+const Type* TupleType::vreduce(int depth, const Type* type, Type2Type& map) const {
+    return map.emplace(this, HENK_TABLE_NAME().tuple_type(reduce_args(depth, type, map))).first->second;
 }
 
 //------------------------------------------------------------------------------
@@ -196,9 +205,7 @@ const Type* TypeTableBase<T>::application(const Type* callee, const Type* arg) {
         if (!application->cache_) {
             if (auto lambda = application->callee()->template isa<Lambda>()) {
                 Type2Type map;
-                for (auto var : lambda->vars())
-                    map[var] = arg;
-                application->cache_ = lambda->body()->reduce(map);
+                application->cache_ = lambda->body()->reduce(1, arg, map);
             } else
                 application->cache_ = application;
         }

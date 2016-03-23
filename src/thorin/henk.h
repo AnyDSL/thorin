@@ -89,7 +89,7 @@ public:
     uint64_t hash() const { return is_hashed() ? hash_ : hash_ = vhash(); }
     virtual bool equal(const Type*) const;
 
-    const Type* reduce(Type2Type&) const;
+    const Type* reduce(int, const Type*, Type2Type&) const;
     const Type* rebuild(HENK_TABLE_TYPE& to, Types args) const;
     const Type* rebuild(Types args) const { return rebuild(HENK_TABLE_NAME(), args); }
 
@@ -97,8 +97,8 @@ public:
 
 protected:
     virtual uint64_t vhash() const;
-    virtual const Type* vreduce(Type2Type&) const = 0;
-    thorin::Array<const Type*> reduce_args(Type2Type&) const;
+    virtual const Type* vreduce(int, const Type*, Type2Type&) const = 0;
+    thorin::Array<const Type*> reduce_args(int, const Type*, Type2Type&) const;
 
     mutable uint64_t hash_ = 0;
     int order_ = 0;
@@ -126,19 +126,21 @@ private:
         : Type(table, Node_Lambda, {nullptr})
         , name_(name)
     {}
+    Lambda(HENK_TABLE_TYPE& table, const Type* body, const char* name)
+        : Type(table, Node_Lambda, {body})
+        , name_(name)
+    {}
 
 public:
     const char* name() const { return name_; }
     const Type* body() const { return arg(0); }
     virtual std::ostream& stream(std::ostream&) const override;
-    const GIDSet<const Var>& vars() const { return vars_; }
 
 private:
     virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types args) const override;
-    virtual const Type* vreduce(Type2Type&) const override;
+    virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
 
     const char* name_;
-    mutable GIDSet<const Var> vars_;
 
     friend class Var;
     template<class> friend class TypeTableBase;
@@ -148,29 +150,37 @@ const Lambda* close(const Lambda*&, const Type*);
 
 class Var : public Type {
 private:
+    Var(HENK_TABLE_TYPE& table, int depth)
+        : Type(table, Node_Var, {})
+        , depth_(depth)
+    {
+        // closed_ == true
+        monomorphic_ = false;
+    }
     Var(HENK_TABLE_TYPE& table, const Lambda* lambda)
         : Type(table, Node_Var, {})
         , lambda_(lambda)
     {
         closed_ = false;
         monomorphic_ = false;
-        auto p = lambda->vars_.insert(this);
-        assert_unused(p.second);
     }
 
 public:
-    const Lambda* lambda() const { return lambda_; }
-    int depth() const { return depth_; }
+    int depth() const { assert(is_closed()); return depth_; }
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
+    const Lambda* lambda() const { assert(!is_closed()); return lambda_; }
+
     virtual uint64_t vhash() const override;
     virtual bool equal(const Type*) const override;
     virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types args) const override;
-    virtual const Type* vreduce(Type2Type&) const override;
+    virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
 
-    const Lambda* lambda_;
-    mutable int depth_ = -1;
+    union {
+        const Lambda* lambda_;
+        mutable int depth_;
+    };
 
     friend const Lambda* close(const Lambda*&, const Type*);
     template<class> friend class TypeTableBase;
@@ -187,7 +197,7 @@ public:
     const Type* arg() const { return Type::arg(1); }
     virtual std::ostream& stream(std::ostream&) const override;
     virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types args) const override;
-    virtual const Type* vreduce(Type2Type&) const override;
+    virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
 
 private:
     mutable const Type* cache_ = nullptr;
@@ -200,7 +210,7 @@ private:
         : Type(table, Node_TupleType, args)
     {}
 
-    virtual const Type* vreduce(Type2Type&) const override;
+    virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
     virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types args) const override;
 
 public:
@@ -222,7 +232,7 @@ public:
 
 private:
     virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types args) const override;
-    virtual const Type* vreduce(Type2Type&) const override;
+    virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
     virtual uint64_t vhash() const override;
     virtual bool equal(const Type*) const override;
     virtual std::ostream& stream(std::ostream&) const override;
@@ -253,7 +263,9 @@ public:
     virtual ~TypeTableBase() { for (auto type : types_) delete type; }
 
     const Var* var(const Lambda* lambda) { return new Var(HENK_TABLE_NAME(), lambda); }
+    const Var* var(int depth) { return unify(new Var(HENK_TABLE_NAME(), depth)); }
     const Lambda* lambda(const char* name) { return new Lambda(HENK_TABLE_NAME(), name); }
+    const Lambda* lambda(const Type* body, const char* name) { return unify(new Lambda(HENK_TABLE_NAME(), body, name)); }
     const Type* application(const Type* callee, const Type* arg);
     const TupleType* tuple_type(Types args) { return unify(new TupleType(HENK_TABLE_NAME(), args)); }
     const TupleType* unit() { return unit_; } ///< Returns unit, i.e., an empty @p TupleType.

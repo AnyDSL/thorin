@@ -6,6 +6,7 @@
 #include "thorin/util/cast.h"
 #include "thorin/util/hash.h"
 #include "thorin/util/stream.h"
+#include "thorin/util/log.h"
 
 namespace thorin {
 
@@ -28,7 +29,7 @@ private:
     {}
 
     virtual const Type* vrebuild(World& to, Types args) const override;
-    virtual const Type* vreduce(Type2Type&) const override;
+    virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
 
     friend class World;
 };
@@ -44,7 +45,7 @@ private:
     {}
 
     virtual const Type* vrebuild(World& to, Types args) const override;
-    virtual const Type* vreduce(Type2Type&) const override;
+    virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
 
     friend class World;
 };
@@ -90,7 +91,7 @@ public:
 
 private:
     virtual const Type* vrebuild(World& to, Types args) const override;
-    virtual const Type* vreduce(Type2Type&) const override;
+    virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
 
     friend class World;
 };
@@ -140,7 +141,7 @@ public:
 
 private:
     virtual const Type* vrebuild(World& to, Types args) const override;
-    virtual const Type* vreduce(Type2Type&) const override;
+    virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
 
     AddrSpace addr_space_;
     int32_t device_;
@@ -164,7 +165,7 @@ public:
 
 private:
     virtual const Type* vrebuild(World& to, Types args) const override;
-    virtual const Type* vreduce(Type2Type&) const override;
+    virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
 
     friend class World;
 };
@@ -191,7 +192,7 @@ public:
 
 private:
     virtual const Type* vrebuild(World& to, Types args) const override;
-    virtual const Type* vreduce(Type2Type&) const override;
+    virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
 
     friend class World;
 };
@@ -213,7 +214,7 @@ public:
 
 private:
     virtual const Type* vrebuild(World& to, Types args) const override;
-    virtual const Type* vreduce(Type2Type&) const override;
+    virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
 
     u64 dim_;
 

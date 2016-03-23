@@ -21,13 +21,12 @@ const Lambda* close(const Lambda*& lambda, const Type* body) {
     std::stack<const Type*> stack;
     TypeSet done;
 
-    auto push = [&](int index, const Type* type) {
+    auto push = [&](const Type* type) {
         if (!type->is_closed() && !done.contains(type)) {
             if (auto de_bruijn = type->isa<DeBruijn>()) {
                 if (de_bruijn->lambda() == lambda) {
-                    assert(de_bruijn->closed_ == false && de_bruijn->index_ == -1 && de_bruijn->depth_ == -1);
+                    assert(de_bruijn->closed_ == false && de_bruijn->depth_ == -1);
                     de_bruijn->closed_ = true;
-                    de_bruijn->index_  = index;
                     de_bruijn->depth_  = stack.size();
                 }
                 done.insert(de_bruijn);
@@ -40,7 +39,7 @@ const Lambda* close(const Lambda*& lambda, const Type* body) {
         return false;
     };
 
-    push(0, lambda);
+    push(lambda);
 
     // TODO this is potentially quadratic when closing n types
     while (!stack.empty()) {
@@ -48,7 +47,7 @@ const Lambda* close(const Lambda*& lambda, const Type* body) {
 
         bool todo = false;
         for (size_t i = 0, e = type->size(); i != e; ++i)
-            todo |= push(i, type->arg(i));
+            todo |= push(type->arg(i));
 
         if (!todo) {
             stack.pop();
@@ -78,7 +77,7 @@ uint64_t Type::vhash() const {
 }
 
 uint64_t DeBruijn::vhash() const {
-    return thorin::hash_combine(thorin::hash_begin(int(kind())), int(lambda()->kind()), depth(), index());
+    return thorin::hash_combine(thorin::hash_begin(int(kind())), int(lambda()->kind()), depth());
 }
 
 uint64_t StructType::vhash() const {
@@ -107,8 +106,7 @@ bool Type::equal(const Type* other) const {
 
 bool DeBruijn::equal(const Type* other) const {
     if (auto de_bruijn = other->isa<DeBruijn>())
-        return this->lambda()->kind() == lambda()->kind()
-            && this->depth() == de_bruijn->depth() && this->index() == de_bruijn->index();
+        return this->lambda()->kind() == lambda()->kind() && this->depth() == de_bruijn->depth();
     return false;
 }
 

@@ -163,7 +163,6 @@ private:
 public:
     const Lambda* lambda() const { return lambda_; }
     int depth() const { return depth_; }
-    int index() const { return index_; }
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
@@ -174,7 +173,6 @@ private:
 
     const Lambda* lambda_;
     mutable int depth_ = -1;
-    mutable int index_ = -1;
 
     friend const Lambda* close(const Lambda*&, const Type*);
     template<class> friend class TypeTableBase;

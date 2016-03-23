@@ -23,13 +23,13 @@ const Lambda* close(const Lambda*& lambda, const Type* body) {
 
     auto push = [&](const Type* type) {
         if (!type->is_closed() && !done.contains(type)) {
-            if (auto de_bruijn = type->isa<DeBruijn>()) {
-                if (de_bruijn->lambda() == lambda) {
-                    assert(de_bruijn->closed_ == false && de_bruijn->depth_ == -1);
-                    de_bruijn->closed_ = true;
-                    de_bruijn->depth_  = stack.size();
+            if (auto var = type->isa<Var>()) {
+                if (var->lambda() == lambda) {
+                    assert(var->closed_ == false && var->depth_ == -1);
+                    var->closed_ = true;
+                    var->depth_  = stack.size();
                 }
-                done.insert(de_bruijn);
+                done.insert(var);
             } else {
                 done.insert(type);
                 stack.push(type);
@@ -57,8 +57,8 @@ const Lambda* close(const Lambda*& lambda, const Type* body) {
         }
     }
 
-    for (auto de_bruijn : lambda->de_bruijns())
-        assert(de_bruijn->is_closed());
+    for (auto var : lambda->vars())
+        assert(var->is_closed());
 
     return lambda->HENK_TABLE_NAME().unify(lambda);
 }
@@ -76,7 +76,7 @@ uint64_t Type::vhash() const {
     return seed;
 }
 
-uint64_t DeBruijn::vhash() const {
+uint64_t Var::vhash() const {
     return thorin::hash_combine(thorin::hash_begin(int(kind())), int(lambda()->kind()), depth());
 }
 
@@ -104,9 +104,9 @@ bool Type::equal(const Type* other) const {
     return result;
 }
 
-bool DeBruijn::equal(const Type* other) const {
-    if (auto de_bruijn = other->isa<DeBruijn>())
-        return this->lambda()->kind() == lambda()->kind() && this->depth() == de_bruijn->depth();
+bool Var::equal(const Type* other) const {
+    if (auto var = other->isa<Var>())
+        return this->lambda()->kind() == lambda()->kind() && this->depth() == var->depth();
     return false;
 }
 
@@ -138,7 +138,7 @@ const Type* StructType::vrebuild(HENK_TABLE_TYPE& to, Types args) const {
 
 const Type* Application::vrebuild(HENK_TABLE_TYPE& to, Types args) const { return to.application(args[0], args[1]); }
 const Type* TupleType  ::vrebuild(HENK_TABLE_TYPE& to, Types args) const { return to.tuple_type(args); }
-const Type* DeBruijn   ::vrebuild(HENK_TABLE_TYPE&,    Types     ) const { THORIN_UNREACHABLE; }
+const Type* Var        ::vrebuild(HENK_TABLE_TYPE&,    Types     ) const { THORIN_UNREACHABLE; }
 const Type* Lambda     ::vrebuild(HENK_TABLE_TYPE&,    Types     ) const { THORIN_UNREACHABLE; }
 
 //------------------------------------------------------------------------------
@@ -149,8 +149,8 @@ const Type* Lambda     ::vrebuild(HENK_TABLE_TYPE&,    Types     ) const { THORI
 
 const Type* Lambda::reduce(const Type* type) const {
     Type2Type map;
-    for (auto de_bruijn : de_bruijns())
-        map[de_bruijn] = type;
+    for (auto var : vars())
+        map[var] = type;
     return body()->specialize(map);
 }
 
@@ -161,9 +161,9 @@ const Type* Lambda::reduce(Types types) const {
 
     while (auto lambda = type->isa<Lambda>()) {
         auto arg = types[i++];
-        for (auto de_bruijn : lambda->de_bruijns()) {
-            assert(de_bruijn->is_closed());
-            map[de_bruijn] = arg;
+        for (auto var : lambda->vars()) {
+            assert(var->is_closed());
+            map[var] = arg;
         }
         type = lambda->body();
     }
@@ -189,7 +189,7 @@ const Type* Lambda::vspecialize(Type2Type& map) const {
     return map[this] = this;
 }
 
-const Type* DeBruijn::vspecialize(Type2Type& map) const { return map[this] = this; }
+const Type* Var::vspecialize(Type2Type& map) const { return map[this] = this; }
 
 const Type* StructType::vspecialize(Type2Type&) const {
     assert(false && "TODO");

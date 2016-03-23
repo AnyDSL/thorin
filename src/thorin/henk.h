@@ -22,7 +22,7 @@
 
 class Type;
 class Lambda;
-class DeBruijn;
+class Var;
 class HENK_TABLE_TYPE;
 
 template<class T>
@@ -80,10 +80,10 @@ public:
     bool empty() const { return args_.empty(); }
 
     bool is_hashed() const { return hashed_; }                ///< This @p Type is already recorded inside of @p HENK_TABLE_TYPE.
-    bool is_closed() const { return closed_; }                ///< Are all @p DeBruijn%s bound?
+    bool is_closed() const { return closed_; }                ///< Are all @p Var%s bound?
     bool is_known()  const { return known_; }                 ///< Deos this @p Type depend on any @p UnknownType%s?
-    bool is_monomorphic() const { return monomorphic_; }      ///< Does this @p Type not depend on any @p DeBruijn%s?.
-    bool is_polymorphic() const { return !is_monomorphic(); } ///< Does this @p Type depend on any @p DeBruijn%s?.
+    bool is_monomorphic() const { return monomorphic_; }      ///< Does this @p Type not depend on any @p Var%s?.
+    bool is_polymorphic() const { return !is_monomorphic(); } ///< Does this @p Type depend on any @p Var%s?.
     int order() const { return order_; }
     size_t gid() const { return gid_; }
     uint64_t hash() const { return is_hashed() ? hash_ : hash_ = vhash(); }
@@ -133,30 +133,30 @@ public:
     virtual std::ostream& stream(std::ostream&) const override;
     const Type* reduce(const Type*) const;
     const Type* reduce(Types) const;
-    const GIDSet<const DeBruijn>& de_bruijns() const { return de_bruijns_; }
+    const GIDSet<const Var>& vars() const { return vars_; }
 
 private:
     virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types args) const override;
     virtual const Type* vspecialize(Type2Type&) const override;
 
     const char* name_;
-    mutable GIDSet<const DeBruijn> de_bruijns_;
+    mutable GIDSet<const Var> vars_;
 
-    friend class DeBruijn;
+    friend class Var;
     template<class> friend class TypeTableBase;
 };
 
 const Lambda* close(const Lambda*&, const Type*);
 
-class DeBruijn : public Type {
+class Var : public Type {
 private:
-    DeBruijn(HENK_TABLE_TYPE& table, const Lambda* lambda)
-        : Type(table, Node_DeBruijn, {})
+    Var(HENK_TABLE_TYPE& table, const Lambda* lambda)
+        : Type(table, Node_Var, {})
         , lambda_(lambda)
     {
         closed_ = false;
         monomorphic_ = false;
-        auto p = lambda->de_bruijns_.insert(this);
+        auto p = lambda->vars_.insert(this);
         assert_unused(p.second);
     }
 
@@ -254,7 +254,7 @@ public:
     {}
     virtual ~TypeTableBase() { for (auto type : types_) delete type; }
 
-    const DeBruijn* de_bruijn(const Lambda* lambda) { return new DeBruijn(HENK_TABLE_NAME(), lambda); }
+    const Var* var(const Lambda* lambda) { return new Var(HENK_TABLE_NAME(), lambda); }
     const Lambda* lambda(const char* name) { return new Lambda(HENK_TABLE_NAME(), name); }
     const Type* application(const Type* callee, const Type* arg);
     const TupleType* tuple_type(Types args) { return unify(new TupleType(HENK_TABLE_NAME(), args)); }

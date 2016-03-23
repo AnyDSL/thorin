@@ -61,7 +61,7 @@ CodeGen::CodeGen(World& world, llvm::GlobalValue::LinkageTypes function_import_l
 {}
 
 Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
-    Continuation* to = continuation->to()->as_continuation();
+    auto to = continuation->callee()->as_continuation();
     switch (to->intrinsic()) {
         case Intrinsic::Atomic:    return emit_atomic(continuation);
         case Intrinsic::Select:    return emit_select(continuation);
@@ -302,7 +302,7 @@ void CodeGen::emit(int opt, bool debug) {
             // terminate bb
             if (debug)
                 irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(continuation->jump_loc().begin().line(), continuation->jump_loc().begin().col(), discope));
-            if (continuation->to() == ret_param) { // return
+            if (continuation->callee() == ret_param) { // return
                 size_t num_args = continuation->num_args();
                 switch (num_args) {
                     case 0: irbuilder_.CreateRetVoid(); break;
@@ -346,19 +346,19 @@ void CodeGen::emit(int opt, bool debug) {
                         break;
                     }
                 }
-            } else if (continuation->to() == world().branch()) {
+            } else if (continuation->callee() == world().branch()) {
                 auto cond = lookup(continuation->arg(0));
                 auto tbb = bb2continuation[continuation->arg(1)->as_continuation()];
                 auto fbb = bb2continuation[continuation->arg(2)->as_continuation()];
                 irbuilder_.CreateCondBr(cond, tbb, fbb);
-            } else if (continuation->to()->isa<Bottom>()) {
+            } else if (continuation->callee()->isa<Bottom>()) {
                 irbuilder_.CreateUnreachable();
             } else {
-                auto to_continuation = continuation->to()->as_continuation();
-                if (to_continuation->is_basicblock())         // ordinary jump
-                    irbuilder_.CreateBr(bb2continuation[to_continuation]);
+                auto callee = continuation->callee()->as_continuation();
+                if (callee->is_basicblock())         // ordinary jump
+                    irbuilder_.CreateBr(bb2continuation[callee]);
                 else {
-                    if (to_continuation->is_intrinsic()) {
+                    if (callee->is_intrinsic()) {
                         auto ret_continuation = emit_intrinsic(continuation);
                         irbuilder_.CreateBr(bb2continuation[ret_continuation]);
                     } else {
@@ -374,11 +374,11 @@ void CodeGen::emit(int opt, bool debug) {
                                 ret_arg = arg;
                             }
                         }
-                        llvm::CallInst* call = irbuilder_.CreateCall(emit_function_decl(to_continuation), args);
+                        llvm::CallInst* call = irbuilder_.CreateCall(emit_function_decl(callee), args);
                         // set proper calling convention
-                        if (to_continuation->is_external()) {
+                        if (callee->is_external()) {
                             call->setCallingConv(kernel_calling_convention_);
-                        } else if (to_continuation->cc() == CC::Device) {
+                        } else if (callee->cc() == CC::Device) {
                             call->setCallingConv(device_calling_convention_);
                         } else {
                             call->setCallingConv(function_calling_convention_);

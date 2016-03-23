@@ -61,7 +61,7 @@ const CFNode* Merger::dom_succ(const CFNode* n) {
     const auto& children = domtree.children(n);
     if (succs.size() == 1 && children.size() == 1 && *succs.begin() == (*children.begin())) {
         auto continuation = (*succs.begin())->continuation();
-        if (continuation->num_uses() == 1 && continuation == n->continuation()->to())
+        if (continuation->num_uses() == 1 && continuation == n->continuation()->callee())
             return children.front();
     }
     return nullptr;
@@ -77,7 +77,7 @@ void Merger::merge(const CFNode* n) {
     }
 
     if (cur != n)
-        n->continuation()->jump(cur->continuation()->to(), cur->continuation()->type_args(), cur->continuation()->args(), cur->continuation()->jump_loc());
+        n->continuation()->jump(cur->continuation()->callee(), cur->continuation()->type_args(), cur->continuation()->args(), cur->continuation()->jump_loc());
 
     for (auto child : domtree.children(cur))
         merge(child);
@@ -115,7 +115,7 @@ void Cleaner::eliminate_params() {
                     ncontinuation->param(j++)->name = ocontinuation->param(i)->name;
                 }
 
-                ncontinuation->jump(ocontinuation->to(), ocontinuation->type_args(), ocontinuation->args(), ocontinuation->jump_loc());
+                ncontinuation->jump(ocontinuation->callee(), ocontinuation->type_args(), ocontinuation->args(), ocontinuation->jump_loc());
                 ocontinuation->destroy_body();
 
                 for (auto use : ocontinuation->uses()) {

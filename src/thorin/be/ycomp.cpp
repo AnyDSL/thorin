@@ -193,7 +193,7 @@ std::ostream& YCompGen::emit_continuation(const Continuation* continuation) {
         [&] { stream() << "λ "; emit_name(continuation); },
         [&] { emit_type(continuation->type()); });
     if (!continuation->empty()) {
-        write_edge(continuation->gid(), continuation->to()->gid(), true);
+        write_edge(continuation->gid(), continuation->callee()->gid(), true);
         int i = 0;
         for (auto def : continuation->args()) {
             write_edge(continuation->gid(), def->gid(), false, [&] { stream() << i++;});
@@ -228,13 +228,13 @@ std::ostream& YCompGen::emit_continuation_graph_continuation(const Continuation*
     if (!continuation->empty()) {
         write_node("cont"+std::to_string(continuation->gid()),
             [&] { stream() << "continue"; });
-        write_edge("cont"+std::to_string(continuation->gid()), continuation->to()->gid(), true);
+        write_edge("cont"+std::to_string(continuation->gid()), continuation->callee()->gid(), true);
         int i = 0;
         for (auto def : continuation->args()) {
             write_edge("cont"+std::to_string(continuation->gid()), def->gid(), false,
                 [&] { stream() << i++; });
         }
-        // write_edge(continuation->gid(), continuation->to()->gid(), true, [&] {;});
+        // write_edge(continuation->gid(), continuation->callee()->gid(), true, [&] {;});
         // int i = 0;
         // for (auto def : continuation->args()) {
         //     write_edge(continuation->gid(), def->gid(), false, [&] { stream() << i; i++; });

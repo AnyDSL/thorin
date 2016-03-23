@@ -33,7 +33,7 @@ std::vector<Param::Peek> Param::peek() const {
 
 //------------------------------------------------------------------------------
 
-const Def* Continuation::to() const {
+const Def* Continuation::callee() const {
     return empty() ? world().bottom(world().fn_type(), Location()) : op(0);
 }
 
@@ -159,7 +159,7 @@ static Continuations succs(const Continuation* continuation) {
 
     done.insert(continuation);
     if (direct && !continuation->empty())
-        enqueue(continuation->to());
+        enqueue(continuation->callee());
     if (indirect) {
         for (auto arg : continuation->args())
             enqueue(arg);
@@ -214,7 +214,7 @@ bool Continuation::visit_capturing_intrinsics(std::function<bool(Continuation*)>
     if (!is_intrinsic()) {
         for (auto use : uses()) {
             if (auto continuation = (use->isa<Global>() ? *use->uses().begin() : use)->isa<Continuation>()) // TODO make more robust
-                if (auto to = continuation->to()->isa_continuation())
+                if (auto to = continuation->callee()->isa_continuation())
                     if (to->is_intrinsic() && func(to))
                         return true;
         }
@@ -524,7 +524,7 @@ std::ostream& Continuation::stream_head(std::ostream& os) const {
 
 std::ostream& Continuation::stream_jump(std::ostream& os) const {
     if (!empty()) {
-        os << to();
+        os << callee();
 
         if (num_type_args())
             os << '[' << stream_list(type_args(), [&](const Type* type) { os << type; }) << ']';

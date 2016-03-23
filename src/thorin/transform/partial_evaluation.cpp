@@ -80,12 +80,12 @@ void PartialEvaluator::run() {
         auto continuation = pop(queue_);
 
         // due to the optimization below to eat up a call, we might see a new Run here
-        while (continuation->to()->isa<Run>()) {
-            auto cur = continuation->to();
+        while (continuation->callee()->isa<Run>()) {
+            auto cur = continuation->callee();
             init_cur_scope(continuation);
             eval(continuation, get_continuation(continuation));
             release_cur_scope();
-            if (cur == continuation->to())
+            if (cur == continuation->callee())
                 break;
         }
 
@@ -115,13 +115,13 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
         done_.insert(cur);
 
         Continuation* dst = nullptr;
-        if (auto run = cur->to()->isa<Run>()) {
+        if (auto run = cur->callee()->isa<Run>()) {
             dst = run->def()->isa_continuation();
-        } else if (cur->to()->isa<Hlt>()) {
+        } else if (cur->callee()->isa<Hlt>()) {
             cur = get_continuation(cur);
             continue;
         } else {
-            dst = cur->to()->isa_continuation();
+            dst = cur->callee()->isa_continuation();
         }
 
         if (dst == nullptr || dst->empty()) {
@@ -149,7 +149,7 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
         } else {                                            // no cached version found... create a new one
             auto dropped = drop(call);
 
-            if (dropped->to() == world().branch()) {
+            if (dropped->callee() == world().branch()) {
                 // TODO don't stupidly inline functions
                 // TODO also don't peel inside functions with incoming back-edges
             }
@@ -158,7 +158,7 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
             cache_[call] = dropped;
             jump_to_cached_call(cur, dropped, call);
             if (all) {
-                cur->jump(dropped->to(), dropped->type_args(), dropped->args(), cur->jump_loc());
+                cur->jump(dropped->callee(), dropped->type_args(), dropped->args(), cur->jump_loc());
                 done_.erase(cur);
             } else
                 cur = dropped;

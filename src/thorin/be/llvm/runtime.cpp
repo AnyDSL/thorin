@@ -48,7 +48,7 @@ enum {
 Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std::string& ext, Continuation* continuation) {
     // to-target is the desired kernel call
     // target(mem, device, (dim.x, dim.y, dim.z), (block.x, block.y, block.z), body, return, free_vars)
-    auto target = continuation->to()->as_continuation();
+    auto target = continuation->callee()->as_continuation();
     assert_unused(target->is_intrinsic());
     assert(continuation->num_args() >= ACC_NUM_ARGS && "required arguments are missing");
 

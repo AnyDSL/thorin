@@ -116,7 +116,7 @@ Continuation* Mangler::mangle_head(Continuation* ocontinuation) {
 void Mangler::mangle_body(Continuation* ocontinuation, Continuation* ncontinuation) {
     assert(!ocontinuation->empty());
 
-    if (ocontinuation->to() == world().branch()) {        // fold branch if possible
+    if (ocontinuation->callee() == world().branch()) {        // fold branch if possible
         if (auto lit = mangle(ocontinuation->arg(0))->isa<PrimLit>())
             return ncontinuation->jump(mangle(lit->value().get_bool() ? ocontinuation->arg(1) : ocontinuation->arg(2)), {}, {}, ocontinuation->jump_loc());
     }
@@ -186,7 +186,7 @@ Continuation* mangle(const Scope& scope, Types type_args, Defs args, Defs lift) 
 }
 
 Continuation* drop(const Call& call) {
-    Scope scope(call.to()->as_continuation());
+    Scope scope(call.callee()->as_continuation());
     return drop(scope, call.type_args(), call.args());
 }
 

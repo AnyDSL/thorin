@@ -25,7 +25,7 @@ enum {
 };
 
 Continuation* CodeGen::emit_vectorize_continuation(Continuation* continuation) {
-    auto target = continuation->to()->as_continuation();
+    auto target = continuation->callee()->as_continuation();
     assert_unused(target->intrinsic() == Intrinsic::Vectorize);
     assert(continuation->num_args() >= VEC_NUM_ARGS && "required arguments are missing");
 

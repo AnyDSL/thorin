@@ -16,7 +16,7 @@ class World;
 
 //------------------------------------------------------------------------------
 
-class Var {
+class Value {
 public:
     enum Kind {
         Empty,
@@ -26,7 +26,7 @@ public:
         AggRef,
     };
 
-    Var()
+    Value()
         : kind_(Empty)
         , builder_(nullptr)
         , handle_(-1)
@@ -34,25 +34,25 @@ public:
         , name_(nullptr)
         , def_(nullptr)
     {}
-    Var(const Var& var)
-        : kind_   (var.kind())
-        , builder_(var.builder_)
-        , handle_ (var.handle_)
-        , type_   (var.type_)
-        , name_   (var.name_)
-        , def_    (var.def_)
-        , var_    (var.var_ == nullptr ? nullptr : new Var(*var.var_))
+    Value(const Value& value)
+        : kind_   (value.kind())
+        , builder_(value.builder_)
+        , handle_ (value.handle_)
+        , type_   (value.type_)
+        , name_   (value.name_)
+        , def_    (value.def_)
+        , value_  (value.value_ == nullptr ? nullptr : new Value(*value.value_))
     {}
-    Var(Var&& var)
-        : Var()
+    Value(Value&& value)
+        : Value()
     {
-        swap(*this, var);
+        swap(*this, value);
     }
 
-    Var static create_val(IRBuilder&, const Def* val);
-    Var static create_mut(IRBuilder&, size_t handle, const Type* type, const char* name);
-    Var static create_ptr(IRBuilder&, const Def* ptr);
-    Var static create_agg(Var var, const Def* offset);
+    Value static create_val(IRBuilder&, const Def* val);
+    Value static create_mut(IRBuilder&, size_t handle, const Type* type, const char* name);
+    Value static create_ptr(IRBuilder&, const Def* ptr);
+    Value static create_agg(Value value, const Def* offset);
 
     Kind kind() const { return kind_; }
     IRBuilder* builder() const { return builder_; }
@@ -63,8 +63,8 @@ public:
     operator bool() { return kind() != Empty; }
     bool use_lea() const;
 
-    Var& operator= (Var other) { swap(*this, other); return *this; }
-    friend void swap(Var& v1, Var& v2) {
+    Value& operator= (Value other) { swap(*this, other); return *this; }
+    friend void swap(Value& v1, Value& v2) {
         using std::swap;
         swap(v1.kind_,    v2.kind_);
         swap(v1.builder_, v2.builder_);
@@ -72,7 +72,7 @@ public:
         swap(v1.type_,    v2.type_);
         swap(v1.name_,    v2.name_);
         swap(v1.def_,     v2.def_);
-        swap(v1.var_,     v2.var_);
+        swap(v1.value_,     v2.value_);
     }
 
 private:
@@ -82,7 +82,7 @@ private:
     const Type* type_;
     const char* name_;
     const Def* def_;
-    std::unique_ptr<Var> var_;
+    std::unique_ptr<Value> value_;
 };
 
 //------------------------------------------------------------------------------

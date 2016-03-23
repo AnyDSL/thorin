@@ -7,16 +7,16 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-Var Var::create_val(IRBuilder& builder, const Def* val) {
-    Var result;
+Value Value::create_val(IRBuilder& builder, const Def* val) {
+    Value result;
     result.kind_    = ImmutableValRef;
     result.builder_ = &builder;
     result.def_     = val;
     return result;
 }
 
-Var Var::create_mut(IRBuilder& builder, size_t handle, const Type* type, const char* name) {
-    Var result;
+Value Value::create_mut(IRBuilder& builder, size_t handle, const Type* type, const char* name) {
+    Value result;
     result.kind_    = MutableValRef;
     result.builder_ = &builder;
     result.handle_  = handle;
@@ -25,52 +25,52 @@ Var Var::create_mut(IRBuilder& builder, size_t handle, const Type* type, const c
     return result;
 }
 
-Var Var::create_ptr(IRBuilder& builder, const Def* ptr) {
-    Var result;
+Value Value::create_ptr(IRBuilder& builder, const Def* ptr) {
+    Value result;
     result.kind_    = PtrRef;
     result.builder_ = &builder;
     result.def_     = ptr;
     return result;
 }
 
-Var Var::create_agg(Var var, const Def* offset) {
-    assert(var.kind() != Empty);
-    if (var.use_lea())
-        return create_ptr(*var.builder_, var.builder_->world().lea(var.def_, offset, offset->loc()));
-    Var result;
+Value Value::create_agg(Value value, const Def* offset) {
+    assert(value.kind() != Empty);
+    if (value.use_lea())
+        return create_ptr(*value.builder_, value.builder_->world().lea(value.def_, offset, offset->loc()));
+    Value result;
     result.kind_    = AggRef;
-    result.builder_ = var.builder_;
-    result.var_.reset(new Var(var));
+    result.builder_ = value.builder_;
+    result.value_.reset(new Value(value));
     result.def_     = offset;
     return result;
 }
 
-bool Var::use_lea() const {
+bool Value::use_lea() const {
     if (kind() == PtrRef)
         return thorin::use_lea(def()->type()->as<PtrType>()->referenced_type());
     return false;
 }
 
-const Def* Var::load(const Location& loc) const {
+const Def* Value::load(const Location& loc) const {
     switch (kind()) {
         case ImmutableValRef: return def_;
         case MutableValRef:   return builder_->cur_bb->get_value(handle_,type_, name_);
         case PtrRef:          return builder_->load(def_, loc);
-        case AggRef:          return builder_->extract(var_->load(loc), def_, loc);
+        case AggRef:          return builder_->extract(value_->load(loc), def_, loc);
         default: THORIN_UNREACHABLE;
     }
 }
 
-void Var::store(const Def* val, const Location& loc) const {
+void Value::store(const Def* val, const Location& loc) const {
     switch (kind()) {
         case MutableValRef: builder_->cur_bb->set_value(handle_, val); return;
         case PtrRef:        builder_->store(def_, val, loc); return;
-        case AggRef:        var_->store(world().insert(var_->load(loc), def_, val, loc), loc); return;
+        case AggRef:        value_->store(world().insert(value_->load(loc), def_, val, loc), loc); return;
         default: THORIN_UNREACHABLE;
     }
 }
 
-World& Var::world() const { return builder_->world(); }
+World& Value::world() const { return builder_->world(); }
 
 //------------------------------------------------------------------------------
 

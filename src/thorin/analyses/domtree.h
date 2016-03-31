@@ -16,32 +16,37 @@ template<bool forward>
 class DomTreeBase : public YComp {
 public:
     DomTreeBase(const DomTreeBase&) = delete;
-    DomTreeBase& operator= (DomTreeBase) = delete;
+    DomTreeBase& operator=(DomTreeBase) = delete;
 
     explicit DomTreeBase(const CFG<forward>& cfg)
         : YComp(cfg.scope(), forward ? "domtree" : "post_domtree")
         , cfg_(cfg)
-        , idoms_(cfg)
         , children_(cfg)
+        , idoms_(cfg)
+        , depth_(cfg)
     {
         create();
+        depth(root(), 0);
     }
     static const DomTreeBase& create(const Scope& scope) { return scope.cfg<forward>().domtree(); }
 
     const CFG<forward>& cfg() const { return cfg_; }
     size_t index(const CFNode* n) const { return cfg().index(n); }
-    const CFNode* root() const { return *idoms_.begin(); }
     const std::vector<const CFNode*>& children(const CFNode* n) const { return children_[n]; }
+    const CFNode* root() const { return *idoms_.begin(); }
     const CFNode* idom(const CFNode* n) const { return idoms_[n]; }
+    int depth(const CFNode* n) const { return depth_[n]; }
     const CFNode* lca(const CFNode* i, const CFNode* j) const; ///< Returns the least common ancestor of @p i and @p j.
     virtual void stream_ycomp(std::ostream& out) const override;
 
 private:
     void create();
+    void depth(const CFNode* n, int i);
 
     const CFG<forward>& cfg_;
-    typename CFG<forward>::template Map<const CFNode*> idoms_;
     typename CFG<forward>::template Map<std::vector<const CFNode*>> children_;
+    typename CFG<forward>::template Map<const CFNode*> idoms_;
+    typename CFG<forward>::template Map<int> depth_;
 };
 
 typedef DomTreeBase<true>  DomTree;

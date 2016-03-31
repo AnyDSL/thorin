@@ -25,7 +25,7 @@ typedef thorin::HashSet<const CFNodeBase*> CFNodeSet;
 /// Any jumps targeting a @p Lambda or @p Param outside the @p CFA's underlying @p Scope target this node.
 class OutNode : public RealCFNode {
 public:
-    OutNode(const CFNode* context, Def def)
+    OutNode(const CFNode* context, const Def* def)
         : RealCFNode(def)
         , context_(context)
     {
@@ -45,23 +45,20 @@ private:
 
 class SymNode : public CFNodeBase {
 protected:
-    SymNode(Def def)
+    SymNode(const Def* def)
         : CFNodeBase(def)
     {}
 };
 
 class SymDefNode : public SymNode {
 public:
-    SymDefNode(Def def)
+    SymDefNode(const Def* def)
         : SymNode(def)
     {
         assert(def->isa<Param>() || def->isa<Lambda>());
     }
 
     virtual std::ostream& stream(std::ostream&) const override;
-
-private:
-    Def def_;
 };
 
 class SymOutNode : public SymNode {
@@ -117,8 +114,8 @@ public:
                 delete q.second;
         }
 
-        for (auto p : def2sym_) delete p.second;
-        for (auto p : out2sym_) delete p.second;
+        for (const auto& p : def2sym_) delete p.second;
+        for (const auto& p : out2sym_) delete p.second;
     }
 
     void propagate_higher_order_values();
@@ -141,7 +138,7 @@ public:
     bool contains(const Param* param) { return contains(param->lambda()); }
 
     const CFNode* in_node(Lambda* lambda) {
-        assert(scope().outer_contains(lambda));
+        assert(scope().contains(lambda));
         if (auto in = find(cfa().nodes(), lambda))
             return in;
         auto in = cfa_.nodes_[lambda] = new CFNode(lambda);
@@ -149,7 +146,7 @@ public:
         return in;
     }
 
-    const OutNode* out_node(const CFNode* in, Def def) {
+    const OutNode* out_node(const CFNode* in, const Def* def) {
         if (auto out = find(out_nodes_[in], def))
             return out;
         return out_nodes_[in][def] = new OutNode(in, def);
@@ -167,7 +164,7 @@ public:
         return out_node(in, sym->as<SymOutNode>()->out_node());
     }
 
-    const SymNode* sym_node(Def def) {
+    const SymNode* sym_node(const Def* def) {
         if (auto sym = find(def2sym_, def))
             return sym;
         return def2sym_[def] = new SymDefNode(def);
@@ -218,9 +215,9 @@ private:
 };
 
 void CFABuilder::propagate_higher_order_values() {
-    std::stack<Def> stack;
+    std::stack<const Def*> stack;
 
-    auto push = [&] (Def def) -> bool {
+    auto push = [&] (const Def* def) -> bool {
         if (def->order() > 0) {
             const auto& p = def2set_.emplace(def, DefSet());
             if (p.second) { // if first insert

@@ -6,6 +6,8 @@ SET ( SOURCES
     def.h
     enums.cpp
     enums.h
+    henk.cpp.h
+    henk.h
     irbuilder.cpp
     irbuilder.h
     lambda.cpp
@@ -24,8 +26,6 @@ SET ( SOURCES
     analyses/domtree.h
     analyses/free_vars.cpp
     analyses/free_vars.h
-    analyses/liveness.cpp
-    analyses/liveness.h
     analyses/looptree.cpp
     analyses/looptree.h
     analyses/schedule.cpp
@@ -100,7 +100,6 @@ SET ( SOURCES
     util/printer.h
     util/push.h
     util/queue.h
-    util/stdlib.h
     util/stream.cpp
     util/stream.h
     util/types.h

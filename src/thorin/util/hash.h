@@ -46,13 +46,16 @@ uint64_t hash_combine(uint64_t seed, T val) {
 template<class T>
 uint64_t hash_combine(uint64_t seed, T* val) { return hash_combine(seed, uintptr_t(val)); }
 
+template<class T, class... Args>
+uint64_t hash_combine(uint64_t seed, T val, Args... args) { return hash_combine(hash_combine(seed, val), args...); }
+
 template<class T>
 uint64_t hash_begin(T val) { return hash_combine(FNV1::offset, val); }
 inline uint64_t hash_begin() { return FNV1::offset; }
 
 template<class T>
 struct Hash {
-    uint64_t operator() (T val) const {
+    uint64_t operator()(T val) const {
         THORIN_SUPPORTED_HASH_TYPES
         if (std::is_signed<T>::value)
             return Hash<typename std::make_unsigned<T>::type>()(val);
@@ -68,7 +71,7 @@ uint64_t hash_value(T val) { return Hash<T>()(val); }
 
 template<class T>
 struct Hash<T*> {
-    uint64_t operator() (T* val) const { return Hash<uintptr_t>()(uintptr_t(val)); }
+    uint64_t operator()(T* val) const { return Hash<uintptr_t>()(uintptr_t(val)); }
 };
 
 //------------------------------------------------------------------------------
@@ -145,13 +148,13 @@ private:
 #endif
         {}
 
-        iterator_base& operator= (iterator_base other) { swap(*this, other); return *this; }
-        iterator_base& operator++ () { assert(this->table_->id_ == this->id_); node_ = move_to_valid(++node_); return *this; }
-        iterator_base operator++ (int) { assert(this->table_->id_ == this->id_); iterator_base res = *this; ++(*this); return res; }
-        reference operator* () const { assert(this->table_->id_ == this->id_); return (*node_)->value_; }
-        pointer operator-> () const { assert(this->table_->id_ == this->id_); return &(*node_)->value_; }
-        bool operator== (const iterator_base& other) { assert(this->table_ == other.table_ && this->id_ == other.id_ && this->table_->id_ == this->id_); return this->node_ == other.node_; }
-        bool operator!= (const iterator_base& other) { assert(this->table_ == other.table_ && this->id_ == other.id_ && this->table_->id_ == this->id_); return this->node_ != other.node_; }
+        iterator_base& operator=(iterator_base other) { swap(*this, other); return *this; }
+        iterator_base& operator++() { assert(this->table_->id_ == this->id_); node_ = move_to_valid(++node_); return *this; }
+        iterator_base operator++(int) { assert(this->table_->id_ == this->id_); iterator_base res = *this; ++(*this); return res; }
+        reference operator*() const { assert(this->table_->id_ == this->id_); return (*node_)->value_; }
+        pointer operator->() const { assert(this->table_->id_ == this->id_); return &(*node_)->value_; }
+        bool operator==(const iterator_base& other) { assert(this->table_ == other.table_ && this->id_ == other.id_ && this->table_->id_ == this->id_); return this->node_ == other.node_; }
+        bool operator!=(const iterator_base& other) { assert(this->table_ == other.table_ && this->id_ == other.id_ && this->table_->id_ == this->id_); return this->node_ != other.node_; }
         friend void swap(iterator_base& i1, iterator_base& i2) {
             using std::swap;
             swap(i1.node_,  i2.node_);
@@ -382,7 +385,7 @@ public:
         swap(table1.id_,            table2.id_);
 #endif
     }
-    HashTable& operator= (HashTable other) { swap(*this, other); return *this; }
+    HashTable& operator=(HashTable other) { swap(*this, other); return *this; }
 
 private:
 #ifndef NDEBUG
@@ -476,8 +479,8 @@ public:
         : Super(ilist, capacity, hash_function, key_eq)
     {}
 
-    mapped_type& operator[] (const key_type& key) { return Super::insert(value_type(key, T())).first->second; }
-    mapped_type& operator[] (key_type&& key) { return Super::insert(value_type(std::move(key), T())).first->second; }
+    mapped_type& operator[](const key_type& key) { return Super::insert(value_type(key, T())).first->second; }
+    mapped_type& operator[](key_type&& key) { return Super::insert(value_type(std::move(key), T())).first->second; }
 };
 
 //------------------------------------------------------------------------------

@@ -9,7 +9,7 @@ namespace thorin {
 
 class Scope;
 
-std::vector<Def> free_vars(const Scope&);
+std::vector<const Def*> free_vars(const Scope&);
 
 }
 

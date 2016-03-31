@@ -69,24 +69,24 @@ Lambda* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std:
     // check for source devices of all pointers
     const size_t num_kernel_args = lambda->num_args() - ACC_NUM_ARGS;
     for (size_t i = 0; i < num_kernel_args; ++i) {
-        Def target_arg = lambda->arg(i + ACC_NUM_ARGS);
+        auto target_arg = lambda->arg(i + ACC_NUM_ARGS);
         const auto target_val = code_gen.lookup(target_arg);
 
         // check device target
-        if (target_arg->type().isa<DefiniteArrayType>() ||
-            target_arg->type().isa<StructAppType>() ||
-            target_arg->type().isa<TupleType>()) {
+        if (target_arg->type()->isa<DefiniteArrayType>() ||
+            target_arg->type()->isa<StructAppType>() ||
+            target_arg->type()->isa<TupleType>()) {
             // definite array | struct | tuple
             auto alloca = code_gen.emit_alloca(target_val->getType(), target_arg->name);
             builder_.CreateStore(target_val, alloca);
             auto void_ptr = builder_.CreatePointerCast(alloca, builder_.getInt8PtrTy());
             // TODO: recurse over struct|tuple and check if it contains pointers
             set_kernel_arg_struct(target_device, i, void_ptr, target_val->getType());
-        } else if (target_arg->type().isa<PtrType>()) {
-            auto ptr = target_arg->type().as<PtrType>();
+        } else if (target_arg->type()->isa<PtrType>()) {
+            auto ptr = target_arg->type()->as<PtrType>();
             auto rtype = ptr->referenced_type();
 
-            if (!rtype.isa<ArrayType>()) {
+            if (!rtype->isa<ArrayType>()) {
                 ptr->dump();
                 ELOG("currently only pointers to arrays supported as kernel argument at '%'; argument has different type:", target_arg->loc());
             }
@@ -103,7 +103,7 @@ Lambda* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std:
     }
 
     // setup configuration and launch
-    const auto get_u32 = [&](Def def) { return builder_.CreateSExt(code_gen.lookup(def), builder_.getInt32Ty()); };
+    const auto get_u32 = [&](const Def* def) { return builder_.CreateSExt(code_gen.lookup(def), builder_.getInt32Ty()); };
     set_grid_size(target_device, get_u32(it_space->op(0)), get_u32(it_space->op(1)), get_u32(it_space->op(2)));
     set_block_size(target_device, get_u32(it_config->op(0)), get_u32(it_config->op(1)), get_u32(it_config->op(2)));
     launch_kernel(target_device);

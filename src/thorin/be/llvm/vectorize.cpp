@@ -41,7 +41,7 @@ Lambda* CodeGen::emit_vectorize_continuation(Lambda* lambda) {
     Array<llvm::Type*> simd_args(num_kernel_args + 1);
     simd_args[0] = irbuilder_.getInt32Ty(); // loop index
     for (size_t i = 0; i < num_kernel_args; ++i) {
-        Type type = lambda->arg(i + VEC_NUM_ARGS)->type();
+        auto type = lambda->arg(i + VEC_NUM_ARGS)->type();
         simd_args[i + 1] = convert(type);
     }
 
@@ -56,9 +56,9 @@ Lambda* CodeGen::emit_vectorize_continuation(Lambda* lambda) {
         args[0] = counter; // loop index
         for (size_t i = 0; i < num_kernel_args; ++i) {
             // check target type
-            Def arg = lambda->arg(i + VEC_NUM_ARGS);
+            auto arg = lambda->arg(i + VEC_NUM_ARGS);
             auto llvm_arg = lookup(arg);
-            if (arg->type().isa<PtrType>())
+            if (arg->type()->isa<PtrType>())
                 llvm_arg = irbuilder_.CreateBitCast(llvm_arg, simd_args[i + 1]);
             args[i + 1] = llvm_arg;
         }

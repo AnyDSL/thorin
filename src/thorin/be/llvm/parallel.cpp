@@ -26,7 +26,7 @@ Lambda* CodeGen::emit_parallel(Lambda* lambda) {
     Array<llvm::Type*> par_args(num_kernel_args + 1);
     par_args[0] = irbuilder_.getInt32Ty(); // loop index
     for (size_t i = 0; i < num_kernel_args; ++i) {
-        Type type = lambda->arg(i + PAR_NUM_ARGS)->type();
+        auto type = lambda->arg(i + PAR_NUM_ARGS)->type();
         par_args[i + 1] = convert(type);
     }
 
@@ -96,7 +96,7 @@ Lambda* CodeGen::emit_spawn(Lambda* lambda) {
     // build parallel-function signature
     Array<llvm::Type*> par_args(num_kernel_args);
     for (size_t i = 0; i < num_kernel_args; ++i) {
-        Type type = lambda->arg(i + SPAWN_NUM_ARGS)->type();
+        auto type = lambda->arg(i + SPAWN_NUM_ARGS)->type();
         par_args[i] = convert(type);
     }
 

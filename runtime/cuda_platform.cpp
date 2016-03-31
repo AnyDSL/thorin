@@ -69,14 +69,14 @@ CudaPlatform::CudaPlatform(Runtime* runtime)
     nvvmResult errNvvm = nvvmVersion(&nvvm_major, &nvvm_minor);
     checkErrNvvm(errNvvm, "nvvmVersion()");
 
-    WLOG("CUDA Driver Version %.%", driver_version/1000, (driver_version%100)/10);
+    ILOG("CUDA Driver Version %.%", driver_version/1000, (driver_version%100)/10);
     #if CUDA_VERSION >= 7000
     int nvrtc_major = 0, nvrtc_minor = 0;
     nvrtcResult errNvrtc = nvrtcVersion(&nvrtc_major, &nvrtc_minor);
     checkErrNvrtc(errNvrtc, "nvrtcVersion()");
-    WLOG("NVRTC Version %.%", nvrtc_major, nvrtc_minor);
+    ILOG("NVRTC Version %.%", nvrtc_major, nvrtc_minor);
     #endif
-    WLOG("NVVM Version %.%", nvvm_major, nvvm_minor);
+    ILOG("NVVM Version %.%", nvvm_major, nvvm_minor);
 
     devices_.resize(device_count);
 
@@ -93,7 +93,7 @@ CudaPlatform::CudaPlatform(Runtime* runtime)
         err = cuDeviceGetAttribute(&devices_[i].compute_minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, devices_[i].dev);
         checkErrDrv(err, "cuDeviceGetAttribute()");
 
-        WLOG("  (%) %, Compute capability: %.%", i, name, devices_[i].compute_major, devices_[i].compute_minor);
+        ILOG("  (%) %, Compute capability: %.%", i, name, devices_[i].compute_major, devices_[i].compute_minor);
 
         err = cuCtxCreate(&devices_[i].ctx, CU_CTX_MAP_HOST, devices_[i].dev);
         checkErrDrv(err, "cuCtxCreate()");
@@ -505,7 +505,7 @@ void CudaPlatform::create_module(device_id dev, const char* file_name, CUjit_tar
     void* option_values[]  = { (void*)error_log_buffer, (void*)(size_t)error_log_size, (void*)target_cc, (void*)(size_t)opt_level };
 
     // load ptx source
-    WLOG("Compiling '%' on CUDA device ", file_name, dev);
+    ILOG("Compiling '%' on CUDA device %", file_name, dev);
     CUmodule mod;
     CUresult err = cuModuleLoadDataEx(&mod, ptx, num_options, options, option_values);
     checkErrDrv(err, "cuModuleLoadDataEx()");

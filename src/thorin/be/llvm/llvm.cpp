@@ -63,23 +63,23 @@ CodeGen::CodeGen(World& world, llvm::GlobalValue::LinkageTypes function_import_l
 Lambda* CodeGen::emit_intrinsic(Lambda* lambda) {
     Lambda* to = lambda->to()->as_lambda();
     switch (to->intrinsic()) {
-        case Intrinsic::Atomic:      return emit_atomic(lambda);
-        case Intrinsic::Select:      return emit_select(lambda);
-        case Intrinsic::Sizeof:      return emit_sizeof(lambda);
-        case Intrinsic::Shuffle:     return emit_shuffle(lambda);
-        case Intrinsic::Reserve:     return emit_reserve(lambda);
-        case Intrinsic::Bitcast:    return emit_reinterpret(lambda);
-        case Intrinsic::CUDA:        return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM, ".cu", lambda);
-        case Intrinsic::NVVM:        return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM, ".nvvm", lambda);
-        case Intrinsic::SPIR:        return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".spir.bc", lambda);
-        case Intrinsic::OpenCL:      return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".cl", lambda);
-        case Intrinsic::Parallel:    return emit_parallel(lambda);
-        case Intrinsic::Spawn:       return emit_spawn(lambda);
-        case Intrinsic::Sync:        return emit_sync(lambda);
+        case Intrinsic::Atomic:    return emit_atomic(lambda);
+        case Intrinsic::Select:    return emit_select(lambda);
+        case Intrinsic::Sizeof:    return emit_sizeof(lambda);
+        case Intrinsic::Shuffle:   return emit_shuffle(lambda);
+        case Intrinsic::Reserve:   return emit_reserve(lambda);
+        case Intrinsic::Bitcast:   return emit_reinterpret(lambda);
+        case Intrinsic::CUDA:      return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM, ".cu", lambda);
+        case Intrinsic::NVVM:      return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM, ".nvvm", lambda);
+        case Intrinsic::SPIR:      return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".spir.bc", lambda);
+        case Intrinsic::OpenCL:    return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".cl", lambda);
+        case Intrinsic::Parallel:  return emit_parallel(lambda);
+        case Intrinsic::Spawn:     return emit_spawn(lambda);
+        case Intrinsic::Sync:      return emit_sync(lambda);
 #ifdef WFV2_SUPPORT
-        case Intrinsic::Vectorize:   return emit_vectorize_continuation(lambda);
+        case Intrinsic::Vectorize: return emit_vectorize_continuation(lambda);
 #else
-        case Intrinsic::Vectorize:   throw std::runtime_error("rebuild with libWFV support");
+        case Intrinsic::Vectorize: throw std::runtime_error("rebuild with libWFV support");
 #endif
         default: THORIN_UNREACHABLE;
     }
@@ -139,7 +139,7 @@ Lambda* CodeGen::emit_shuffle(Lambda* lambda) {
 }
 
 Lambda* CodeGen::emit_reserve(const Lambda* lambda) {
-    ELOG("reserve_shared: only allowed in device code", lambda->loc());
+    ELOG("reserve_shared: only allowed in device code at %", lambda->jump_loc());
     THORIN_UNREACHABLE;
 }
 
@@ -151,7 +151,7 @@ Lambda* CodeGen::emit_reserve_shared(const Lambda* lambda, bool prefix) {
     auto cont = lambda->arg(2)->as_lambda();
     auto type = convert(cont->param(1)->type());
     // construct array type
-    auto elem_type = cont->param(1)->type().as<PtrType>()->referenced_type().as<ArrayType>()->elem_type();
+    auto elem_type = cont->param(1)->type()->as<PtrType>()->referenced_type()->as<ArrayType>()->elem_type();
     auto smem_type = this->convert(lambda->world().definite_array_type(elem_type, num_elems));
     auto global = emit_global_variable(smem_type, (prefix ? entry_->name + "." : "") + lambda->unique_name(), 3);
     auto call = irbuilder_.CreatePointerCast(global, type);
@@ -159,11 +159,11 @@ Lambda* CodeGen::emit_reserve_shared(const Lambda* lambda, bool prefix) {
     return cont;
 }
 
-llvm::Value* CodeGen::emit_bitcast(Def val, Type dst_type) {
+llvm::Value* CodeGen::emit_bitcast(const Def* val, const Type* dst_type) {
     auto from = lookup(val);
     auto src_type = val->type();
     auto to = convert(dst_type);
-    if (src_type.isa<PtrType>() && dst_type.isa<PtrType>())
+    if (src_type->isa<PtrType>() && dst_type->isa<PtrType>())
         return irbuilder_.CreatePointerCast(from, to);
     return irbuilder_.CreateBitCast(from, to);
 }
@@ -258,7 +258,7 @@ void CodeGen::emit(int opt, bool debug) {
         assert(ret_param);
 
         BBMap bb2lambda;
-        auto schedule = schedule_smart(scope);
+        Schedule schedule(scope);
 
         for (const auto& block : schedule) {
             auto lambda = block.lambda();
@@ -281,6 +281,8 @@ void CodeGen::emit(int opt, bool debug) {
         auto oldStartBB = fct->begin();
         auto startBB = llvm::BasicBlock::Create(context_, fct->getName() + "_start", fct, oldStartBB);
         irbuilder_.SetInsertPoint(startBB);
+        if (debug)
+            irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(entry_->loc().begin().line(), entry_->loc().begin().col(), discope));
         emit_function_start(startBB, entry_);
         irbuilder_.CreateBr(oldStartBB);
 
@@ -298,6 +300,8 @@ void CodeGen::emit(int opt, bool debug) {
             }
 
             // terminate bb
+            if (debug)
+                irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(lambda->jump_loc().begin().line(), lambda->jump_loc().begin().col(), discope));
             if (lambda->to() == ret_param) { // return
                 size_t num_args = lambda->num_args();
                 switch (num_args) {
@@ -360,7 +364,7 @@ void CodeGen::emit(int opt, bool debug) {
                     } else {
                         // put all first-order args into an array
                         std::vector<llvm::Value*> args;
-                        Def ret_arg;
+                        const Def* ret_arg = nullptr;
                         for (auto arg : lambda->args()) {
                             if (arg->order() == 0) {
                                 if (!arg->is_mem())
@@ -492,7 +496,7 @@ void CodeGen::optimize(int opt) {
     }
 }
 
-llvm::Value* CodeGen::lookup(Def def) {
+llvm::Value* CodeGen::lookup(const Def* def) {
     if (auto primop = def->isa<PrimOp>()) {
         if (auto res = find(primops_, primop))
             return res;
@@ -522,7 +526,7 @@ llvm::AllocaInst* CodeGen::emit_alloca(llvm::Type* type, const std::string& name
     return alloca;
 }
 
-llvm::Value* CodeGen::emit(Def def) {
+llvm::Value* CodeGen::emit(const Def* def) {
     if (auto bin = def->isa<BinOp>()) {
         llvm::Value* lhs = lookup(bin->lhs());
         llvm::Value* rhs = lookup(bin->rhs());
@@ -530,7 +534,7 @@ llvm::Value* CodeGen::emit(Def def) {
 
         if (auto cmp = bin->isa<Cmp>()) {
             auto type = cmp->lhs()->type();
-            if (type->is_type_s()) {
+            if (is_type_s(type)) {
                 switch (cmp->cmp_kind()) {
                     case Cmp_eq: return irbuilder_.CreateICmpEQ (lhs, rhs, name);
                     case Cmp_ne: return irbuilder_.CreateICmpNE (lhs, rhs, name);
@@ -539,7 +543,7 @@ llvm::Value* CodeGen::emit(Def def) {
                     case Cmp_lt: return irbuilder_.CreateICmpSLT(lhs, rhs, name);
                     case Cmp_le: return irbuilder_.CreateICmpSLE(lhs, rhs, name);
                 }
-            } else if (type->is_type_u() || type->is_bool()) {
+            } else if (is_type_u(type) || is_type_bool(type)) {
                 switch (cmp->cmp_kind()) {
                     case Cmp_eq: return irbuilder_.CreateICmpEQ (lhs, rhs, name);
                     case Cmp_ne: return irbuilder_.CreateICmpNE (lhs, rhs, name);
@@ -548,7 +552,7 @@ llvm::Value* CodeGen::emit(Def def) {
                     case Cmp_lt: return irbuilder_.CreateICmpULT(lhs, rhs, name);
                     case Cmp_le: return irbuilder_.CreateICmpULE(lhs, rhs, name);
                 }
-            } else if (type->is_type_pf()) {
+            } else if (is_type_pf(type)) {
                 switch (cmp->cmp_kind()) {
                     case Cmp_eq: return irbuilder_.CreateFCmpOEQ (lhs, rhs, name);
                     case Cmp_ne: return irbuilder_.CreateFCmpONE (lhs, rhs, name);
@@ -557,7 +561,7 @@ llvm::Value* CodeGen::emit(Def def) {
                     case Cmp_lt: return irbuilder_.CreateFCmpOLT (lhs, rhs, name);
                     case Cmp_le: return irbuilder_.CreateFCmpOLE (lhs, rhs, name);
                 }
-            } else if (type->is_type_qf()) {
+            } else if (is_type_qf(type)) {
                 switch (cmp->cmp_kind()) {
                     case Cmp_eq: return irbuilder_.CreateFCmpUEQ(lhs, rhs, name);
                     case Cmp_ne: return irbuilder_.CreateFCmpUNE(lhs, rhs, name);
@@ -566,7 +570,7 @@ llvm::Value* CodeGen::emit(Def def) {
                     case Cmp_lt: return irbuilder_.CreateFCmpULT(lhs, rhs, name);
                     case Cmp_le: return irbuilder_.CreateFCmpULE(lhs, rhs, name);
                 }
-            } else if (type.isa<PtrType>()) {
+            } else if (type->isa<PtrType>()) {
                 switch (cmp->cmp_kind()) {
                     case Cmp_eq: return irbuilder_.CreateICmpEQ (lhs, rhs, name);
                     case Cmp_ne: return irbuilder_.CreateICmpNE (lhs, rhs, name);
@@ -577,9 +581,9 @@ llvm::Value* CodeGen::emit(Def def) {
 
         if (auto arithop = bin->isa<ArithOp>()) {
             auto type = arithop->type();
-            bool q = arithop->type()->is_type_q(); // quick? -> nsw/nuw/fast float
+            bool q = is_type_q(arithop->type()); // quick? -> nsw/nuw/fast float
 
-            if (type->is_type_f()) {
+            if (is_type_f(type)) {
                 switch (arithop->arithop_kind()) {
                     case ArithOp_add: return irbuilder_.CreateFAdd(lhs, rhs, name);
                     case ArithOp_sub: return irbuilder_.CreateFSub(lhs, rhs, name);
@@ -594,7 +598,7 @@ llvm::Value* CodeGen::emit(Def def) {
                 }
             }
 
-            if (type->is_type_s() || type->is_bool()) {
+            if (is_type_s(type) || is_type_bool(type)) {
                 switch (arithop->arithop_kind()) {
                     case ArithOp_add: return irbuilder_.CreateAdd (lhs, rhs, name, false, q);
                     case ArithOp_sub: return irbuilder_.CreateSub (lhs, rhs, name, false, q);
@@ -608,7 +612,7 @@ llvm::Value* CodeGen::emit(Def def) {
                     case ArithOp_shr: return irbuilder_.CreateAShr(lhs, rhs, name);
                 }
             }
-            if (type->is_type_u() || type->is_bool()) {
+            if (is_type_u(type) || is_type_bool(type)) {
                 switch (arithop->arithop_kind()) {
                     case ArithOp_add: return irbuilder_.CreateAdd (lhs, rhs, name, q, false);
                     case ArithOp_sub: return irbuilder_.CreateSub (lhs, rhs, name, q, false);
@@ -635,47 +639,43 @@ llvm::Value* CodeGen::emit(Def def) {
             return from;
 
         if (conv->isa<Cast>()) {
-            if (src_type.isa<PtrType>() && dst_type.isa<PtrType>()) {
+            if (src_type->isa<PtrType>() && dst_type->isa<PtrType>()) {
                 return irbuilder_.CreatePointerCast(from, to);
             }
-            if (src_type.isa<PtrType>()) {
-                assert(dst_type->is_type_i() || dst_type->is_bool());
+            if (src_type->isa<PtrType>()) {
+                assert(is_type_i(dst_type) || is_type_bool(dst_type));
                 return irbuilder_.CreatePtrToInt(from, to);
             }
-            if (dst_type.isa<PtrType>()) {
-                assert(src_type->is_type_i() || src_type->is_bool());
+            if (dst_type->isa<PtrType>()) {
+                assert(is_type_i(src_type) || is_type_bool(src_type));
                 return irbuilder_.CreateIntToPtr(from, to);
             }
 
-            auto src = src_type.as<PrimType>();
-            auto dst = dst_type.as<PrimType>();
+            auto src = src_type->as<PrimType>();
+            auto dst = dst_type->as<PrimType>();
 
-            if (src->is_type_f() && dst->is_type_f()) {
+            if (is_type_f(src) && is_type_f(dst)) {
                 assert(num_bits(src->primtype_kind()) != num_bits(dst->primtype_kind()));
                 return irbuilder_.CreateFPCast(from, to);
             }
-            if (src->is_type_f()) {
-                if (dst->is_type_s())
+            if (is_type_f(src)) {
+                if (is_type_s(dst))
                     return irbuilder_.CreateFPToSI(from, to);
                 return irbuilder_.CreateFPToUI(from, to);
             }
-            if (dst->is_type_f()) {
-                if (src->is_type_s())
+            if (is_type_f(dst)) {
+                if (is_type_s(src))
                     return irbuilder_.CreateSIToFP(from, to);
                 return irbuilder_.CreateUIToFP(from, to);
             }
-            if (       (src->is_type_i() || src->is_bool())
-                    && (dst->is_type_i() || dst->is_bool())
-                    && (num_bits(src->primtype_kind()) > num_bits(dst->primtype_kind())))
-                return irbuilder_.CreateTrunc(from, to);
-            if (       (src->is_type_i() || src->is_bool())
-                    && (dst->is_type_s() || dst->is_bool())
-                    && (num_bits(src->primtype_kind()) < num_bits(dst->primtype_kind())))
-                return irbuilder_.CreateSExt(from, to);
-            if (       (src->is_type_i() || src->is_bool())
-                    && (dst->is_type_u() || dst->is_bool())
-                    && (num_bits(src->primtype_kind()) < num_bits(dst->primtype_kind())))
-                return irbuilder_.CreateZExt(from, to);
+
+            if (num_bits(src->primtype_kind()) > num_bits(dst->primtype_kind())) {
+                if (is_type_i(src) && (is_type_i(dst) || is_type_bool(dst)))
+                    return irbuilder_.CreateTrunc(from, to);
+            } else if (num_bits(src->primtype_kind()) < num_bits(dst->primtype_kind())) {
+                if ( is_type_s(src)                       && is_type_i(dst)) return irbuilder_.CreateSExt(from, to);
+                if ((is_type_u(src) || is_type_bool(src)) && is_type_i(dst)) return irbuilder_.CreateZExt(from, to);
+            }
 
             assert(false && "unsupported cast");
         }
@@ -685,7 +685,7 @@ llvm::Value* CodeGen::emit(Def def) {
     }
 
     if (auto select = def->isa<Select>()) {
-        if (def->type().isa<FnType>())
+        if (def->type()->isa<FnType>())
             return nullptr;
 
         llvm::Value* cond = lookup(select->cond());
@@ -752,27 +752,27 @@ llvm::Value* CodeGen::emit(Def def) {
             if (auto memop = extract->agg()->isa<MemOp>())
                 return lookup(memop);
 
-            if (aggop->agg()->type().isa<ArrayType>())
+            if (aggop->agg()->type()->isa<ArrayType>())
                 return irbuilder_.CreateLoad(copy_to_alloca().second);
 
-            if (extract->agg()->type().isa<VectorType>())
+            if (extract->agg()->type()->isa<VectorType>())
                 return irbuilder_.CreateExtractElement(llvm_agg, llvm_idx);
             // tuple/struct
-            return irbuilder_.CreateExtractValue(llvm_agg, {aggop->index()->primlit_value<unsigned>()});
+            return irbuilder_.CreateExtractValue(llvm_agg, {primlit_value<unsigned>(aggop->index())});
         }
 
         auto insert = def->as<Insert>();
         auto value = lookup(insert->value());
 
-        if (insert->agg()->type().isa<ArrayType>()) {
+        if (insert->agg()->type()->isa<ArrayType>()) {
             auto p = copy_to_alloca();
             irbuilder_.CreateStore(lookup(aggop->as<Insert>()->value()), p.second);
             return irbuilder_.CreateLoad(p.first);
         }
-        if (insert->agg()->type().isa<VectorType>())
+        if (insert->agg()->type()->isa<VectorType>())
             return irbuilder_.CreateInsertElement(llvm_agg, lookup(aggop->as<Insert>()->value()), llvm_idx);
         // tuple/struct
-        return irbuilder_.CreateInsertValue(llvm_agg, value, {aggop->index()->primlit_value<unsigned>()});
+        return irbuilder_.CreateInsertValue(llvm_agg, value, {primlit_value<unsigned>(aggop->index())});
     }
 
     if (auto primlit = def->isa<PrimLit>()) {
@@ -789,6 +789,7 @@ llvm::Value* CodeGen::emit(Def def) {
             case PrimType_pu32: case PrimType_qu32: return irbuilder_.getInt32(box.get_u32());
             case PrimType_ps64: case PrimType_qs64: return irbuilder_.getInt64(box.get_s64());
             case PrimType_pu64: case PrimType_qu64: return irbuilder_.getInt64(box.get_u64());
+            case PrimType_pf16: case PrimType_qf16: return llvm::ConstantFP::get(llvm_type, box.get_f16());
             case PrimType_pf32: case PrimType_qf32: return llvm::ConstantFP::get(llvm_type, box.get_f32());
             case PrimType_pf64: case PrimType_qf64: return llvm::ConstantFP::get(llvm_type, box.get_f64());
         }
@@ -805,7 +806,7 @@ llvm::Value* CodeGen::emit(Def def) {
         auto alloced_type = convert(alloc->alloced_type());
         llvm::CallInst* void_ptr;
         auto layout = llvm::DataLayout(module_->getDataLayout());
-        if (auto array = alloc->alloced_type()->is_indefinite()) {
+        if (auto array = is_indefinite(alloc->alloced_type())) {
             auto size = irbuilder_.CreateAdd(
                     irbuilder_.getInt64(layout.getTypeAllocSize(alloced_type)),
                     irbuilder_.CreateMul(irbuilder_.CreateIntCast(lookup(alloc->extra()), irbuilder_.getInt64Ty(), false),
@@ -832,7 +833,7 @@ llvm::Value* CodeGen::emit(Def def) {
     if (def->isa<Enter>())               return nullptr;
 
     if (auto slot = def->isa<Slot>())
-        return irbuilder_.CreateAlloca(convert(slot->type().as<PtrType>()->referenced_type()), 0, slot->unique_name());
+        return irbuilder_.CreateAlloca(convert(slot->type()->as<PtrType>()->referenced_type()), 0, slot->unique_name());
 
     if (auto vector = def->isa<Vector>()) {
         llvm::Value* vec = llvm::UndefValue::get(convert(vector->type()));
@@ -870,67 +871,70 @@ llvm::Value* CodeGen::emit_store(const Store* store) {
 }
 
 llvm::Value* CodeGen::emit_lea(const LEA* lea) {
-    if (lea->ptr_referenced_type().isa<TupleType>() || lea->ptr_referenced_type().isa<StructAppType>())
-        return irbuilder_.CreateStructGEP(lookup(lea->ptr()), lea->index()->primlit_value<u32>());
+    if (lea->ptr_referenced_type()->isa<TupleType>() || lea->ptr_referenced_type()->isa<StructAppType>())
+        return irbuilder_.CreateStructGEP(lookup(lea->ptr()), primlit_value<u32>(lea->index()));
 
-    assert(lea->ptr_referenced_type().isa<ArrayType>());
+    assert(lea->ptr_referenced_type()->isa<ArrayType>());
     llvm::Value* args[2] = { irbuilder_.getInt64(0), lookup(lea->index()) };
     return irbuilder_.CreateInBoundsGEP(lookup(lea->ptr()), args);
 }
 
-llvm::Type* CodeGen::convert(Type type) {
-    if (auto ltype = thorin::find(types_, *type.unify()))
-        return ltype;
+llvm::Type* CodeGen::convert(const Type* type) {
+    if (auto llvm_type = thorin::find(types_, type))
+        return llvm_type;
 
-    assert(!type.isa<MemType>());
+    // wrapper for LLVM 3.4
+    auto getHalfTy = [&]() { return llvm::Type::getHalfTy(context_); };
+
+    assert(!type->isa<MemType>());
     llvm::Type* llvm_type;
     switch (type->kind()) {
-        case PrimType_bool:                                                             llvm_type = irbuilder_. getInt1Ty(); break;
-        case PrimType_ps8:  case PrimType_qs8:  case PrimType_pu8:  case PrimType_qu8:  llvm_type = irbuilder_. getInt8Ty(); break;
-        case PrimType_ps16: case PrimType_qs16: case PrimType_pu16: case PrimType_qu16: llvm_type = irbuilder_.getInt16Ty(); break;
-        case PrimType_ps32: case PrimType_qs32: case PrimType_pu32: case PrimType_qu32: llvm_type = irbuilder_.getInt32Ty(); break;
-        case PrimType_ps64: case PrimType_qs64: case PrimType_pu64: case PrimType_qu64: llvm_type = irbuilder_.getInt64Ty(); break;
-        case PrimType_pf32: case PrimType_qf32:                                         llvm_type = irbuilder_.getFloatTy(); break;
-        case PrimType_pf64: case PrimType_qf64:                                         llvm_type = irbuilder_.getDoubleTy();break;
+        case PrimType_bool:                                                             llvm_type = irbuilder_. getInt1Ty();  break;
+        case PrimType_ps8:  case PrimType_qs8:  case PrimType_pu8:  case PrimType_qu8:  llvm_type = irbuilder_. getInt8Ty();  break;
+        case PrimType_ps16: case PrimType_qs16: case PrimType_pu16: case PrimType_qu16: llvm_type = irbuilder_.getInt16Ty();  break;
+        case PrimType_ps32: case PrimType_qs32: case PrimType_pu32: case PrimType_qu32: llvm_type = irbuilder_.getInt32Ty();  break;
+        case PrimType_ps64: case PrimType_qs64: case PrimType_pu64: case PrimType_qu64: llvm_type = irbuilder_.getInt64Ty();  break;
+        case PrimType_pf16: case PrimType_qf16:                                         llvm_type =             getHalfTy();  break;
+        case PrimType_pf32: case PrimType_qf32:                                         llvm_type = irbuilder_.getFloatTy();  break;
+        case PrimType_pf64: case PrimType_qf64:                                         llvm_type = irbuilder_.getDoubleTy(); break;
         case Node_PtrType: {
-            auto ptr = type.as<PtrType>();
-            unsigned address_space;
+            auto ptr = type->as<PtrType>();
+            unsigned addr_space;
             switch (ptr->addr_space()) {
-                case AddressSpace::Generic:  address_space = 0; break;
-                case AddressSpace::Global:   address_space = 1; break;
-                case AddressSpace::Texture:  address_space = 2; break;
-                case AddressSpace::Shared:   address_space = 3; break;
-                case AddressSpace::Constant: address_space = 4; break;
-                default:
-                    THORIN_UNREACHABLE;
+                case AddrSpace::Generic:  addr_space = 0; break;
+                case AddrSpace::Global:   addr_space = 1; break;
+                case AddrSpace::Texture:  addr_space = 2; break;
+                case AddrSpace::Shared:   addr_space = 3; break;
+                case AddrSpace::Constant: addr_space = 4; break;
+                default:                  THORIN_UNREACHABLE;
             }
-            llvm_type = llvm::PointerType::get(convert(ptr->referenced_type()), address_space);
+            llvm_type = llvm::PointerType::get(convert(ptr->referenced_type()), addr_space);
             break;
         }
         case Node_IndefiniteArrayType:
-            return types_[*type] = llvm::ArrayType::get(convert(type.as<ArrayType>()->elem_type()), 0);
+            return types_[type] = llvm::ArrayType::get(convert(type->as<ArrayType>()->elem_type()), 0);
         case Node_DefiniteArrayType: {
-            auto array = type.as<DefiniteArrayType>();
-            return types_[*type] = llvm::ArrayType::get(convert(array->elem_type()), array->dim());
+            auto array = type->as<DefiniteArrayType>();
+            return types_[type] = llvm::ArrayType::get(convert(array->elem_type()), array->dim());
         }
         case Node_FnType: {
             // extract "return" type, collect all other types
-            auto fn = type.as<FnType>();
+            auto fn = type->as<FnType>();
             llvm::Type* ret = nullptr;
             std::vector<llvm::Type*> args;
             for (auto arg : fn->args()) {
-                if (arg.isa<MemType>())
+                if (arg->isa<MemType>())
                     continue;
-                if (auto fn = arg.isa<FnType>()) {
+                if (auto fn = arg->isa<FnType>()) {
                     assert(!ret && "only one 'return' supported");
                     if (fn->empty())
                         ret = llvm::Type::getVoidTy(context_);
                     else if (fn->num_args() == 1)
-                        ret = fn->arg(0).isa<MemType>() ? llvm::Type::getVoidTy(context_) : convert(fn->arg(0));
+                        ret = fn->arg(0)->isa<MemType>() ? llvm::Type::getVoidTy(context_) : convert(fn->arg(0));
                     else if (fn->num_args() == 2) {
-                        if (fn->arg(0).isa<MemType>())
+                        if (fn->arg(0)->isa<MemType>())
                             ret = convert(fn->arg(1));
-                        else if (fn->arg(1).isa<MemType>())
+                        else if (fn->arg(1)->isa<MemType>())
                             ret = convert(fn->arg(0));
                         else
                             goto multiple;
@@ -938,7 +942,7 @@ llvm::Type* CodeGen::convert(Type type) {
 multiple:
                         std::vector<llvm::Type*> args;
                         for (auto arg : fn->args()) {
-                            if (!arg.isa<MemType>())
+                            if (!arg->isa<MemType>())
                                 args.push_back(convert(arg));
                         }
                         ret = llvm::StructType::get(context_, args);
@@ -948,18 +952,18 @@ multiple:
             }
             assert(ret);
 
-            return types_[*type] = llvm::FunctionType::get(ret, args, false);
+            return types_[type] = llvm::FunctionType::get(ret, args, false);
         }
 
         case Node_StructAbsType:
-            return types_[*type] = llvm::StructType::create(context_);
+            return types_[type] = llvm::StructType::create(context_);
 
         case Node_StructAppType: {
-            auto struct_app = type.as<StructAppType>();
+            auto struct_app = type->as<StructAppType>();
             auto llvm_struct = llvm::cast<llvm::StructType>(convert(struct_app->struct_abs_type()));
-            assert(!types_.contains(*struct_app) && "type already converted");
+            assert(!types_.contains(struct_app) && "type already converted");
             // important: memoize before recursing into element types to avoid endless recursion
-            types_[*struct_app] = llvm_struct;
+            types_[struct_app] = llvm_struct;
             Array<llvm::Type*> llvm_types(struct_app->num_elems());
             for (size_t i = 0, e = llvm_types.size(); i != e; ++i)
                 llvm_types[i] = convert(struct_app->elem(i));
@@ -968,20 +972,20 @@ multiple:
         }
 
         case Node_TupleType: {
-            auto tuple = type.as<TupleType>();
+            auto tuple = type->as<TupleType>();
             Array<llvm::Type*> llvm_types(tuple->num_args());
             for (size_t i = 0, e = llvm_types.size(); i != e; ++i)
                 llvm_types[i] = convert(tuple->arg(i));
-            return types_[*tuple] = llvm::StructType::get(context_, llvm_ref(llvm_types));
+            return types_[tuple] = llvm::StructType::get(context_, llvm_ref(llvm_types));
         }
 
         default:
             THORIN_UNREACHABLE;
     }
 
-    if (type->length() == 1)
-        return types_[*type] = llvm_type;
-    return types_[*type] = llvm::VectorType::get(llvm_type, type->length());
+    if (vector_length(type) == 1)
+        return types_[type] = llvm_type;
+    return types_[type] = llvm::VectorType::get(llvm_type, vector_length(type));
 }
 
 llvm::GlobalVariable* CodeGen::emit_global_variable(llvm::Type* type, const std::string& name, unsigned addr_space) {

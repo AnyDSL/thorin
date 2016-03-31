@@ -3,26 +3,26 @@
 namespace thorin {
 
 static std::ostream& line_col(const Position& pos, std::ostream& os) { return os << pos.line() << " col " << pos.col(); }
-std::ostream& operator << (std::ostream& os, const Position& pos) { return line_col(pos, os << pos.filename() << ':'); }
+std::ostream& operator<<(std::ostream& os, const Position& pos) { return line_col(pos, os << pos.filename() << ':'); }
 
-std::ostream& operator << (std::ostream& os, const Location& loc) {
-    const Position& first = loc.begin();
+std::ostream& operator<<(std::ostream& os, const Location& loc) {
+    const Position& begin = loc.begin();
     const Position& end = loc.end();
 
-    if (first.filename() != end.filename())
-        return os << first << " - " << end;
+    if (begin.filename() != end.filename())
+        return os << begin << " - " << end;
 
-    os << first.filename() << ':';
+    os << begin.filename() << ':';
 
-    if (first.line() != end.line())
-        return line_col(end, line_col(first, os) << " - ");
+    if (begin.line() != end.line())
+        return line_col(end, line_col(begin, os) << " - ");
 
-    os << first.line() << " col ";
+    os << begin.line() << " col ";
 
-    if (first.col() != end.col())
-        return os << first.col() << " - " << end.col();
+    if (begin.col() != end.col())
+        return os << begin.col() << " - " << end.col();
 
-    return os << first.col();
+    return os << begin.col();
 }
 
 }

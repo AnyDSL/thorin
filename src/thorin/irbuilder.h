@@ -49,17 +49,17 @@ public:
         swap(*this, var);
     }
 
-    Var static create_val(IRBuilder&, Def val);
-    Var static create_mut(IRBuilder&, size_t handle, Type type, const char* name);
-    Var static create_ptr(IRBuilder&, Def ptr);
-    Var static create_agg(Var var, Def offset);
+    Var static create_val(IRBuilder&, const Def* val);
+    Var static create_mut(IRBuilder&, size_t handle, const Type* type, const char* name);
+    Var static create_ptr(IRBuilder&, const Def* ptr);
+    Var static create_agg(Var var, const Def* offset);
 
     Kind kind() const { return kind_; }
     IRBuilder* builder() const { return builder_; }
     World& world() const;
-    Def load(const Location& loc) const;
-    void store(Def val, const Location& loc) const;
-    Def def() const { return def_; }
+    const Def* load(const Location& loc) const;
+    void store(const Def* val, const Location& loc) const;
+    const Def* def() const { return def_; }
     operator bool() { return kind() != Empty; }
     bool use_lea() const;
 
@@ -79,18 +79,19 @@ private:
     Kind kind_;
     IRBuilder* builder_;
     size_t handle_;
-    const TypeNode* type_;
+    const Type* type_;
     const char* name_;
-    const DefNode* def_;
+    const Def* def_;
     std::unique_ptr<Var> var_;
 };
 
 //------------------------------------------------------------------------------
 
-class JumpTarget {
+class JumpTarget : public HasLocation {
 public:
-    JumpTarget(const char* name = "")
-        : lambda_(nullptr)
+    JumpTarget(const Location& loc, const char* name = "")
+        : HasLocation(loc)
+        , lambda_(nullptr)
         , first_(false)
         , name_(name)
     {}
@@ -107,13 +108,13 @@ private:
     Lambda* branch_to(World& world, const Location& loc);
     Lambda* untangle();
     Lambda* enter();
-    Lambda* enter_unsealed(World& world, const Location& loc);
+    Lambda* enter_unsealed(World& world);
 
     Lambda* lambda_;
     bool first_;
     const char* name_;
 
-    friend void Lambda::jump(JumpTarget&);
+    friend void Lambda::jump(JumpTarget&, const Location&);
     friend class IRBuilder;
 };
 
@@ -129,20 +130,22 @@ public:
     World& world() const { return world_; }
     bool is_reachable() const { return cur_bb != nullptr; }
     void set_unreachable() { cur_bb = nullptr; }
-    Def create_frame(const Location& loc);
-    Def alloc(Type type, Def extra, const Location& loc, const std::string& name = "");
-    Def load(Def ptr, const Location& loc, const std::string& name = "");
-    Def extract(Def agg, Def index, const Location& loc, const std::string& name = "");
-    Def extract(Def agg, u32 index, const Location& loc, const std::string& name = "");
-    void store(Def ptr, Def val, const Location& loc, const std::string& name = "");
+    const Def* create_frame(const Location& loc);
+    const Def* alloc(const Type* type, const Def* extra, const Location& loc, const std::string& name = "");
+    const Def* load(const Def* ptr, const Location& loc, const std::string& name = "");
+    const Def* extract(const Def* agg, const Def* index, const Location& loc, const std::string& name = "");
+    const Def* extract(const Def* agg, u32 index, const Location& loc, const std::string& name = "");
+    void store(const Def* ptr, const Def* val, const Location& loc, const std::string& name = "");
     Lambda* enter(JumpTarget& jt) { return cur_bb = jt.enter(); }
-    void enter(Lambda* lambda) { cur_bb = lambda; lambda->seal(); }
-    Lambda* enter_unsealed(JumpTarget& jt, const Location& loc) { return cur_bb = jt.enter_unsealed(world_, loc); }
-    void jump(JumpTarget& jt);
-    void branch(Def cond, JumpTarget& t, JumpTarget& f);
-    Def call(Def to, ArrayRef<Type> type_args, ArrayRef<Def> args, Type ret_type);
-    Def get_mem();
-    void set_mem(Def def);
+    Lambda* enter_unsealed(JumpTarget& jt) { return cur_bb = jt.enter_unsealed(world_); }
+    void jump(JumpTarget& jt, const Location& loc);
+    void branch(const Def* cond, JumpTarget& t, JumpTarget& f, const Location& loc);
+    const Def* call(const Def* to, Types type_args, Defs args, const Type* ret_type, const Location& loc);
+    const Def* get_mem();
+    void set_mem(const Def* def);
+    Lambda* lambda(const FnType* fn, const Location& loc, CC cc = CC::C, Intrinsic intrinsic = Intrinsic::None, const std::string& name = "");
+    Lambda* lambda(const FnType* fn, const Location& loc, const std::string& name) { return lambda(fn, loc, CC::C, Intrinsic::None, name); }
+    Lambda* lambda(const Location& loc, const std::string& name);
 
     Lambda* cur_bb;
 

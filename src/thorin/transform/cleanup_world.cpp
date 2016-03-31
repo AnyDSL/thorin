@@ -21,7 +21,7 @@ public:
     void unreachable_code_elimination();
     void dead_code_elimination();
     void verify_closedness();
-    void within(const DefNode*);
+    void within(const Def*);
     void set_live(const PrimOp* primop) { nprimops_.insert(primop); primop->live_ = counter_; }
     void set_reachable(Lambda* lambda)  { nlambdas_.insert(lambda); lambda->reachable_ = counter_; }
     static bool is_live(const PrimOp* primop) { return primop->live_ == counter_; }
@@ -30,7 +30,8 @@ public:
 private:
     World& world_;
     LambdaSet nlambdas_;
-    World::PrimOps nprimops_;
+    World::PrimOpSet nprimops_;
+    Def2Def old2new_;
     static uint32_t counter_;
 };
 
@@ -71,12 +72,12 @@ void Merger::merge(const CFNode* n) {
     for (auto next = dom_succ(cur); next != nullptr; cur = next, next = dom_succ(next)) {
         assert(cur->lambda()->num_args() == next->lambda()->num_params());
         for (size_t i = 0, e = cur->lambda()->num_args(); i != e; ++i)
-            Def(next->lambda()->param(i))->replace(cur->lambda()->arg(i));
+            next->lambda()->param(i)->replace(cur->lambda()->arg(i));
         cur->lambda()->destroy_body();
     }
 
     if (cur != n)
-        n->lambda()->jump(cur->lambda()->to(), cur->lambda()->type_args(), cur->lambda()->args());
+        n->lambda()->jump(cur->lambda()->to(), cur->lambda()->type_args(), cur->lambda()->args(), cur->lambda()->jump_loc());
 
     for (auto child : domtree.children(cur))
         merge(child);
@@ -90,41 +91,48 @@ void Cleaner::eliminate_params() {
     for (auto olambda : world().copy_lambdas()) {
         std::vector<size_t> proxy_idx;
         std::vector<size_t> param_idx;
-        size_t i = 0;
-        for (auto param : olambda->params()) {
-            if (param->is_proxy())
-                proxy_idx.push_back(i++);
-            else
-                param_idx.push_back(i++);
-        }
 
-        if (!proxy_idx.empty()) {
-            auto nlambda = world().lambda(world().fn_type(olambda->type()->args().cut(proxy_idx)),
-                                            olambda->loc(), olambda->cc(), olambda->intrinsic(), olambda->name);
-            size_t j = 0;
-            for (auto i : param_idx) {
-                olambda->param(i)->replace(nlambda->param(j));
-                nlambda->param(j++)->name = olambda->param(i)->name;
-            }
-
-            nlambda->jump(olambda->to(), olambda->type_args(), olambda->args());
-            olambda->destroy_body();
-
+        if (!olambda->empty() && !world().is_external(olambda)) {
             for (auto use : olambda->uses()) {
-                if (auto ulambda = use->isa_lambda()) {
-                    assert(use.index() == 0 && "deleted param of lambda used as argument");
-                    ulambda->jump(nlambda, ulambda->type_args(), ulambda->args().cut(proxy_idx));
+                if (use.index() != 0 || !use->isa_lambda())
+                    goto next_lambda;
+            }
+
+            for (size_t i = 0, e = olambda->num_params(); i != e; ++i) {
+                auto param = olambda->param(i);
+                if (param->num_uses() == 0)
+                    proxy_idx.push_back(i);
+                else
+                    param_idx.push_back(i);
+            }
+
+            if (!proxy_idx.empty() && olambda->num_type_params() == 0) { // TODO do this for polymorphic functions, too
+                auto nlambda = world().lambda(world().fn_type(olambda->type()->args().cut(proxy_idx)),
+                                            olambda->loc(), olambda->cc(), olambda->intrinsic(), olambda->name);
+                size_t j = 0;
+                for (auto i : param_idx) {
+                    olambda->param(i)->replace(nlambda->param(j));
+                    nlambda->param(j++)->name = olambda->param(i)->name;
                 }
-                // else must be a dead 'select' primop
+
+                nlambda->jump(olambda->to(), olambda->type_args(), olambda->args(), olambda->jump_loc());
+                olambda->destroy_body();
+
+                for (auto use : olambda->uses()) {
+                    auto ulambda = use->as_lambda();
+                    assert(use.index() == 0);
+                    ulambda->jump(nlambda, ulambda->type_args(), ulambda->args().cut(proxy_idx), ulambda->jump_loc());
+                }
             }
         }
+next_lambda:;
     }
 }
 
 void Cleaner::unreachable_code_elimination() {
     std::queue<const Lambda*> queue;
     auto enqueue = [&] (Lambda* lambda) {
-        lambda->refresh();
+        lambda->refresh(old2new_);
         set_reachable(lambda);
         queue.push(lambda);
     };
@@ -174,14 +182,17 @@ void Cleaner::dead_code_elimination() {
 }
 
 void Cleaner::verify_closedness() {
-    auto check = [&](const DefNode* def) {
-        within(def->representative_);
-        for (auto op : def->ops())
-            within(op.node());
-        for (auto use : def->uses_)
-            within(use.def().node());
-        for (auto r : def->representatives_of_)
-            within(r);
+    auto check = [&](const Def* def) {
+        size_t i = 0;
+        for (auto op : def->ops()) {
+            within(op);
+            assert(op->uses_.find(Use(i++, def)) != op->uses_.end() && "can't find def in op's uses");
+        }
+
+        for (auto use : def->uses_) {
+            within(use.def());
+            assert(use->op(use.index()) == def && "can't use doesn't point to def");
+        }
     };
 
     for (auto primop : world().primops())
@@ -193,7 +204,7 @@ void Cleaner::verify_closedness() {
     }
 }
 
-void Cleaner::within(const DefNode* def) {
+void Cleaner::within(const Def* def) {
     //assert(world.types().find(*def->type()) != world.types().end());
     if (auto primop = def->isa<PrimOp>()) {
         assert_unused(world().primops().find(primop) != world().primops().end());
@@ -204,26 +215,19 @@ void Cleaner::within(const DefNode* def) {
 }
 
 void Cleaner::cleanup() {
+#ifndef NDEBUG
+    for (const auto& p : world().trackers_)
+        assert(p.second.empty() && "there are still live trackers before running cleanup");
+#endif
+
     merge_lambdas();
     eliminate_params();
     unreachable_code_elimination();
     dead_code_elimination();
 
-    // unlink dead primops from the rest
     for (auto primop : world().primops()) {
-        if (!is_live(primop)) {
+        if (!is_live(primop))
             primop->unregister_uses();
-            primop->unlink_representative();
-        }
-    }
-
-    // unlink unreachable lambdas from the rest
-    for (auto lambda : world().lambdas()) {
-        if (!is_reachable(lambda)) {
-            for (auto param : lambda->params())
-                param->unlink_representative();
-            lambda->unlink_representative();
-        }
     }
 
     swap(world().primops_, nprimops_);
@@ -232,13 +236,11 @@ void Cleaner::cleanup() {
     verify_closedness();
 #endif
 
-    // delete dead primops
     for (auto primop : nprimops_) {
         if (!is_live(primop))
             delete primop;
     }
 
-    // delete unreachable lambdas
     for (auto lambda : nlambdas_) {
         if (!is_reachable(lambda))
             delete lambda;
@@ -247,7 +249,11 @@ void Cleaner::cleanup() {
 #ifndef NDEBUG
     for (auto primop : world().primops())
         assert(!primop->is_outdated());
+
+    for (const auto& p : world().trackers_)
+        assert(p.second.empty() && "trackers needed during cleanup phase");
 #endif
+    world().trackers_.clear();
 
     debug_verify(world());
 }

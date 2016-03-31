@@ -26,17 +26,17 @@ public:
     World& world() const { return world_; }
 
 private:
-    std::ostream& emit_aggop_defs(Def def);
-    std::ostream& emit_aggop_decl(Type);
-    std::ostream& emit_debug_info(Def def);
-    std::ostream& emit_addr_space(Type);
-    std::ostream& emit_bitcast(Def val, Def dst);
-    std::ostream& emit_type(Type);
-    std::ostream& emit(Def def);
+    std::ostream& emit_aggop_defs(const Def* def);
+    std::ostream& emit_aggop_decl(const Type*);
+    std::ostream& emit_debug_info(const Def* def);
+    std::ostream& emit_addr_space(const Type*);
+    std::ostream& emit_bitcast(const Def* val, const Def* dst);
+    std::ostream& emit_type(const Type*);
+    std::ostream& emit(const Def* def);
     bool lookup(size_t gid);
     std::ostream& insert(size_t gid, std::string str);
     std::string &get_name(size_t gid);
-    bool is_texture_type(Type type);
+    bool is_texture_type(const Type* type);
 
     World& world_;
     Lang lang_;
@@ -48,21 +48,21 @@ private:
 };
 
 
-std::ostream& CCodeGen::emit_debug_info(Def def) {
+std::ostream& CCodeGen::emit_debug_info(const Def* def) {
     if (debug_)
         return streamf(os, "#line % \"%\"", def->loc().begin().line(), def->loc().begin().filename()) << endl;
     return os;
 }
 
 
-std::ostream& CCodeGen::emit_addr_space(Type type) {
-    if (auto ptr = type.isa<PtrType>()) {
+std::ostream& CCodeGen::emit_addr_space(const Type* type) {
+    if (auto ptr = type->isa<PtrType>()) {
         if (lang_==Lang::OPENCL) {
             switch (ptr->addr_space()) {
                 default:
-                case AddressSpace::Generic:                   break;
-                case AddressSpace::Global: os << "__global "; break;
-                case AddressSpace::Shared: os << "__local ";  break;
+                case AddrSpace::Generic:                   break;
+                case AddrSpace::Global: os << "__global "; break;
+                case AddrSpace::Shared: os << "__local ";  break;
             }
         }
     }
@@ -70,16 +70,16 @@ std::ostream& CCodeGen::emit_addr_space(Type type) {
     return os;
 }
 
-std::ostream& CCodeGen::emit_type(Type type) {
-    if (type.empty()) {
+std::ostream& CCodeGen::emit_type(const Type* type) {
+    if (type == nullptr) {
         return os << "NULL";
-    } else if (type.isa<FrameType>()) {
+    } else if (type->isa<FrameType>()) {
         return os;
-    } else if (type.isa<MemType>()) {
+    } else if (type->isa<MemType>()) {
         return os << "void";
-    } else if (type.isa<FnType>()) {
+    } else if (type->isa<FnType>()) {
         THORIN_UNREACHABLE;
-    } else if (auto tuple = type.isa<TupleType>()) {
+    } else if (auto tuple = type->isa<TupleType>()) {
         if (lookup(tuple->gid()))
             return os << get_name(tuple->gid());
         os << "typedef struct tuple_" << tuple->gid() << " {" << up;
@@ -89,9 +89,9 @@ std::ostream& CCodeGen::emit_type(Type type) {
         }
         os << down << endl << "} tuple_" << tuple->gid() << ";";
         return os;
-    } else if (auto struct_abs = type.isa<StructAbsType>()) {
+    } else if (auto struct_abs = type->isa<StructAbsType>()) {
         return os << struct_abs->name();
-    } else if (auto struct_app = type.isa<StructAppType>()) {
+    } else if (auto struct_app = type->isa<StructAppType>()) {
         if (lookup(struct_app->gid()))
             return os << get_name(struct_app->gid());
         os << "typedef struct struct_" << struct_app->gid() << " {" << up;
@@ -101,25 +101,25 @@ std::ostream& CCodeGen::emit_type(Type type) {
         }
         os << down << endl << "} struct_" << struct_app->gid() << ";";
         return os;
-    } else if (type.isa<TypeParam>()) {
+    } else if (type->isa<TypeParam>()) {
         THORIN_UNREACHABLE;
-    } else if (auto array = type.isa<IndefiniteArrayType>()) {
+    } else if (auto array = type->isa<IndefiniteArrayType>()) {
         emit_type(array->elem_type());
         return os;
-    } else if (auto array = type.isa<DefiniteArrayType>()) { // DefArray is mapped to a struct
+    } else if (auto array = type->isa<DefiniteArrayType>()) { // DefArray is mapped to a struct
         if (lookup(array->gid()))
             return os << get_name(array->gid());
         os << "typedef struct array_" << array->gid() << " {" << up << endl;
         emit_type(array->elem_type()) << " e[" << array->dim() << "];";
         os << down << endl << "} array_" << array->gid() << ";";
         return os;
-    } else if (auto ptr = type.isa<PtrType>()) {
+    } else if (auto ptr = type->isa<PtrType>()) {
         emit_type(ptr->referenced_type());
         os << '*';
         if (ptr->is_vector())
-            os << ptr->referenced_type()->length();
+            os << vector_length(ptr->referenced_type());
         return os;
-    } else if (auto primtype = type.isa<PrimType>()) {
+    } else if (auto primtype = type->isa<PrimType>()) {
         switch (primtype->primtype_kind()) {
             case PrimType_bool:                     os << "bool";             break;
             case PrimType_ps8:  case PrimType_qs8:  os << "char";             break;
@@ -130,6 +130,7 @@ std::ostream& CCodeGen::emit_type(Type type) {
             case PrimType_pu32: case PrimType_qu32: os << "unsigned int";     break;
             case PrimType_ps64: case PrimType_qs64: os << "long";             break;
             case PrimType_pu64: case PrimType_qu64: os << "unsigned long";    break;
+            case PrimType_pf16: case PrimType_qf16: os << "half";             break;
             case PrimType_pf32: case PrimType_qf32: os << "float";            break;
             case PrimType_pf64: case PrimType_qf64: os << "double";           break;
         }
@@ -141,7 +142,7 @@ std::ostream& CCodeGen::emit_type(Type type) {
 }
 
 
-std::ostream& CCodeGen::emit_aggop_defs(Def def) {
+std::ostream& CCodeGen::emit_aggop_defs(const Def* def) {
     if (lookup(def->gid()))
         return os;
 
@@ -171,28 +172,26 @@ std::ostream& CCodeGen::emit_aggop_defs(Def def) {
 }
 
 
-std::ostream& CCodeGen::emit_aggop_decl(Type type) {
-    type.unify(); // make sure that we get the same id if types are equal
-
+std::ostream& CCodeGen::emit_aggop_decl(const Type* type) {
     if (lookup(type->gid()))
         return os;
 
-    if (auto ptr = type.isa<PtrType>()) {
+    if (auto ptr = type->isa<PtrType>()) {
         emit_aggop_decl(ptr->referenced_type());
         return os;
     }
-    if (auto array = type.isa<IndefiniteArrayType>()) {
+    if (auto array = type->isa<IndefiniteArrayType>()) {
         emit_aggop_decl(array->elem_type());
         return os;
     }
-    if (auto fn = type.isa<FnType>()) {
+    if (auto fn = type->isa<FnType>()) {
         for (auto type : fn->args())
             emit_aggop_decl(type);
         return os;
     }
 
     // recurse into (multi-dimensional) array
-    if (auto array = type.isa<DefiniteArrayType>()) {
+    if (auto array = type->isa<DefiniteArrayType>()) {
         emit_aggop_decl(array->elem_type());
         emit_type(array) << endl;
         insert(type->gid(), "array_" + std::to_string(type->gid()));
@@ -200,7 +199,7 @@ std::ostream& CCodeGen::emit_aggop_decl(Type type) {
     }
 
     // recurse into (multi-dimensional) tuple
-    if (auto tuple = type.isa<TupleType>()) {
+    if (auto tuple = type->isa<TupleType>()) {
         for (auto arg : tuple->args())
             emit_aggop_decl(arg);
         emit_type(tuple) << endl;
@@ -209,7 +208,7 @@ std::ostream& CCodeGen::emit_aggop_decl(Type type) {
     }
 
     // recurse into (multi-dimensional) struct
-    if (auto struct_app = type.isa<StructAppType>()) {
+    if (auto struct_app = type->isa<StructAppType>()) {
         for (auto elem : struct_app->elems())
             emit_aggop_decl(elem);
         emit_type(struct_app) << endl;
@@ -220,7 +219,7 @@ std::ostream& CCodeGen::emit_aggop_decl(Type type) {
     return os;
 }
 
-std::ostream& CCodeGen::emit_bitcast(Def val, Def dst) {
+std::ostream& CCodeGen::emit_bitcast(const Def* val, const Def* dst) {
     auto dst_type = dst->type();
     os << "union { ";
     emit_addr_space(dst_type);
@@ -252,16 +251,15 @@ void CCodeGen::emit() {
         os << "__device__ inline int gridDim_z() { return gridDim.z; }" << endl;
     }
     if (lang_==Lang::OPENCL) {
+        os << "#pragma OPENCL EXTENSION cl_khr_fp16 : enable" << endl;
         os << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable" << endl;
     }
 
     // emit declarations
     Scope::for_each<false>(world(), [&] (const Scope& scope) {
         if (scope.entry() == world().branch()) return;
-        auto schedule = schedule_smart(scope);
-
         // tuple declarations
-        for (auto& block : schedule) {
+        for (auto& block : schedule(scope)) {
             for (auto param : block.lambda()->params()) {
                 emit_aggop_decl(param->type());
                 insert(param->gid(), param->unique_name());
@@ -300,7 +298,7 @@ void CCodeGen::emit() {
             if (param->order() == 0 && !param->is_mem()) {
                 if (is_texture_type(param->type())) {
                     os << "texture<";
-                    emit_type(param->type().as<PtrType>()->referenced_type());
+                    emit_type(param->type()->as<PtrType>()->referenced_type());
                     os << ", cudaTextureType1D, cudaReadModeElementType> ";
                     os << param->name << ";" << endl;
                     insert(param->gid(), param->name);
@@ -313,7 +311,7 @@ void CCodeGen::emit() {
             return;
 
         // emit function declaration
-        auto ret_type = ret_param->type().as<FnType>()->args().back();
+        auto ret_type = ret_param->type()->as<FnType>()->args().back();
         auto name = (lambda->is_external() || lambda->empty()) ? lambda->name : lambda->unique_name();
         if (lang_==Lang::CUDA)
             os << "__device__ ";
@@ -362,7 +360,7 @@ void CCodeGen::emit() {
         }
         assert(ret_param);
 
-        auto ret_type = ret_param->type().as<FnType>()->args().back();
+        auto ret_type = ret_param->type()->as<FnType>()->args().back();
         auto name = (lambda->is_external() || lambda->empty()) ? lambda->name : lambda->unique_name();
         if (lambda->is_external()) {
             switch (lang_) {
@@ -382,9 +380,9 @@ void CCodeGen::emit() {
                 if (is_texture_type(param->type())) continue;
                 if (i++ > 0) os << ", ";
                 if (lang_==Lang::OPENCL && lambda->is_external() &&
-                    (param->type().isa<DefiniteArrayType>() ||
-                     param->type().isa<StructAppType>() ||
-                     param->type().isa<TupleType>())) {
+                    (param->type()->isa<DefiniteArrayType>() ||
+                     param->type()->isa<StructAppType>() ||
+                     param->type()->isa<TupleType>())) {
                     // structs are passed via buffer; the parameter is a pointer to this buffer
                     os << "__global ";
                     emit_type(param->type()) << " *" << param->unique_name() << "_";
@@ -400,9 +398,9 @@ void CCodeGen::emit() {
         for (auto param : lambda->params()) {
             if (param->order() == 0 && !param->is_mem()) {
                 if (lang_==Lang::OPENCL && lambda->is_external() &&
-                    (param->type().isa<DefiniteArrayType>() ||
-                     param->type().isa<StructAppType>() ||
-                     param->type().isa<TupleType>())) {
+                    (param->type()->isa<DefiniteArrayType>() ||
+                     param->type()->isa<StructAppType>() ||
+                     param->type()->isa<TupleType>())) {
                     // load struct from buffer
                     os << endl;
                     emit_type(param->type()) << " " << param->unique_name() << " = *" << param->unique_name() << "_;";
@@ -410,7 +408,7 @@ void CCodeGen::emit() {
             }
         }
 
-        auto schedule = schedule_smart(scope);
+        Schedule schedule(scope);
 
         // emit function arguments and phi nodes
         for (const auto& block : schedule) {
@@ -446,7 +444,7 @@ void CCodeGen::emit() {
 
             for (auto primop : block) {
                 // skip higher-order primops, stuff dealing with frames and all memory related stuff except stores
-                if (!primop->type().isa<FnType>() && !primop->type().isa<FrameType>()
+                if (!primop->type()->isa<FnType>() && !primop->type()->isa<FrameType>()
                         && (!primop->is_mem() || primop->isa<Store>())) {
                     emit_debug_info(primop);
                     emit(primop) << endl;
@@ -524,7 +522,7 @@ void CCodeGen::emit() {
                             }
 
                             auto cont = lambda->arg(2)->as_lambda();
-                            auto elem_type = cont->param(1)->type().as<PtrType>()->referenced_type().as<ArrayType>()->elem_type();
+                            auto elem_type = cont->param(1)->type()->as<PtrType>()->referenced_type()->as<ArrayType>()->elem_type();
                             emit_type(elem_type) << " " << to_lambda->name << lambda->gid() << "[";
                             emit(lambda->arg(1)) << "];" << endl;
                             // store argument to phi node
@@ -547,7 +545,7 @@ void CCodeGen::emit() {
                             os << ");";
                         };
 
-                        Def ret_arg = 0;
+                        const Def* ret_arg = 0;
                         for (auto arg : lambda->args()) {
                             // retrieve return argument
                             if (arg->order() != 0) {
@@ -599,7 +597,7 @@ void CCodeGen::emit() {
 }
 
 
-std::ostream& CCodeGen::emit(Def def) {
+std::ostream& CCodeGen::emit(const Def* def) {
     if (auto lambda = def->isa<Lambda>())
         return os << "goto l" << lambda->gid() << ";";
 
@@ -680,14 +678,14 @@ std::ostream& CCodeGen::emit(Def def) {
 
     // aggregate operations
     {
-        auto emit_access = [&] (Def def, Def index) -> std::ostream& {
-            if (def->type().isa<ArrayType>()) {
+        auto emit_access = [&] (const Def* def, const Def* index) -> std::ostream& {
+            if (def->type()->isa<ArrayType>()) {
                 os << ".e[";
                 emit(index) << "]";
-            } else if (def->type().isa<TupleType>() || def->type().isa<StructAppType>()) {
+            } else if (def->type()->isa<TupleType>() || def->type()->isa<StructAppType>()) {
                 os << ".e";
                 emit(index);
-            } else if (def->type().isa<VectorType>()) {
+            } else if (def->type()->isa<VectorType>()) {
                 if (index->is_primlit(0))
                     os << ".x";
                 else if (index->is_primlit(1))
@@ -728,7 +726,7 @@ std::ostream& CCodeGen::emit(Def def) {
             emit_aggop_defs(aggop->agg());
 
             if (auto extract = aggop->isa<Extract>()) {
-                if (extract->is_mem() || extract->type().isa<FrameType>())
+                if (extract->is_mem() || extract->type()->isa<FrameType>())
                     return os;
                 emit_type(aggop->type()) << " " << aggop->unique_name() << ";" << endl;
                 os << aggop->unique_name() << " = ";
@@ -768,6 +766,7 @@ std::ostream& CCodeGen::emit(Def def) {
             case PrimType_pu32: case PrimType_qu32: os << primlit->pu32_value();                        break;
             case PrimType_ps64: case PrimType_qs64: os << primlit->ps64_value();                        break;
             case PrimType_pu64: case PrimType_qu64: os << primlit->pu64_value();                        break;
+            case PrimType_pf16: case PrimType_qf16: os << float_mode << primlit->pf16_value() << 'h';   break;
             case PrimType_pf32: case PrimType_qf32: os << float_mode << primlit->pf32_value() << 'f';   break;
             case PrimType_pf64: case PrimType_qf64: os << float_mode << primlit->pf64_value();          break;
         }
@@ -817,12 +816,12 @@ std::ostream& CCodeGen::emit(Def def) {
             emit(lea->ptr()) << ", ";
             emit(lea->index()) << ");";
         } else {
-            if (lea->ptr_referenced_type().isa<TupleType>() || lea->ptr_referenced_type().isa<StructAppType>()) {
+            if (lea->ptr_referenced_type()->isa<TupleType>() || lea->ptr_referenced_type()->isa<StructAppType>()) {
                 emit_type(lea->type()) << " " << lea->unique_name() << ";" << endl;
                 os << lea->unique_name() << " = &";
                 emit(lea->ptr()) << "->e";
                 emit(lea->index()) << ";";
-            } else if (lea->ptr_referenced_type().isa<DefiniteArrayType>()) {
+            } else if (lea->ptr_referenced_type()->isa<DefiniteArrayType>()) {
                 emit_type(lea->type()) << " " << lea->unique_name() << ";" << endl;
                 os << lea->unique_name() << " = &";
                 emit(lea->ptr()) << "->e[";
@@ -888,9 +887,9 @@ std::ostream& CCodeGen::insert(size_t gid, std::string str) {
     return os;
 }
 
-bool CCodeGen::is_texture_type(Type type) {
-    if (auto ptr = type.isa<PtrType>()) {
-        if (ptr->addr_space()==AddressSpace::Texture) {
+bool CCodeGen::is_texture_type(const Type* type) {
+    if (auto ptr = type->isa<PtrType>()) {
+        if (ptr->addr_space()==AddrSpace::Texture) {
             assert(lang_==Lang::CUDA && "Textures currently only supported in CUDA");
             return true;
         }

@@ -24,7 +24,7 @@ public:
     Lambda* postdom(Lambda*, const Scope&);
     Lambda* postdom(Lambda*);
     void enqueue(Lambda* lambda) {
-        if (top_scope().outer_contains(lambda)) {
+        if (top_scope().contains(lambda)) {
             auto p = visited_.insert(lambda);
             if (p.second)
                 queue_.push(lambda);
@@ -126,7 +126,7 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
             continue;
         }
 
-        Array<Def> ops(cur->size());
+        Array<const Def*> ops(cur->size());
         ops.front() = dst;
         bool all = true;
         for (size_t i = 1, e = ops.size(); i != e; ++i) {
@@ -155,7 +155,7 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
             cache_[call] = dropped;
             jump_to_cached_call(cur, dropped, call);
             if (all) {
-                cur->jump(dropped->to(), dropped->type_args(), dropped->args());
+                cur->jump(dropped->to(), dropped->type_args(), dropped->args(), cur->jump_loc());
                 done_.erase(cur);
             } else
                 cur = dropped;
@@ -206,7 +206,7 @@ void partial_evaluation(World& world) {
     ILOG_SCOPE(eval(world));
 
     for (auto primop : world.primops()) {
-        if (auto evalop = Def(primop)->isa<EvalOp>())
+        if (auto evalop = primop->isa<EvalOp>())
             evalop->replace(evalop->begin());
     }
 }

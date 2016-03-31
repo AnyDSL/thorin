@@ -34,25 +34,23 @@ public:
     using Set = IndexSet<Scope, Lambda*>;
 
     Scope(const Scope&) = delete;
-    Scope& operator= (Scope) = delete;
+    Scope& operator=(Scope) = delete;
 
     explicit Scope(Lambda* entry);
     ~Scope();
 
     const Scope& update();
     ArrayRef<Lambda*> lambdas() const { return lambdas_; }
-    Lambda* operator [] (size_t i) const { return lambdas_[i]; }
+    Lambda* operator[](size_t i) const { return lambdas_[i]; }
     Lambda* entry() const { return lambdas().front(); }
     Lambda* exit() const { return lambdas().back(); }
     ArrayRef<Lambda*> body() const { return lambdas().skip_front(); } ///< Like @p lambdas() but without \p entry()
 
-    const DefSet& in_scope() const { return in_scope_; }
-    /// deprecated.
-    bool _contains(Def def) const { return in_scope_.contains(def); }
-    // TODO fix this: recursion/parameters
-    bool outer_contains(Lambda* lambda) const { return lambda->find_scope(this) != nullptr; }
-    bool outer_contains(const Param* param) const { return outer_contains(param->lambda()); }
-    bool inner_contains(Lambda* lambda) const { return lambda != entry() && outer_contains(lambda); }
+    const DefSet& defs() const { return defs_; }
+    bool contains(const Def* def) const { return defs_.contains(def); }
+    bool contains(Lambda* lambda) const { return lambda->find_scope(this) != nullptr; }
+    bool contains(const Param* param) const { return contains(param->lambda()); }
+    bool inner_contains(Lambda* lambda) const { return lambda != entry() && contains(lambda); }
     bool inner_contains(const Param* param) const { return inner_contains(param->lambda()); }
     size_t index(Lambda* lambda) const {
         if (auto info = lambda->find_scope(this))
@@ -85,15 +83,15 @@ private:
     void cleanup();
     void run(Lambda* entry);
 
-    static bool is_candidate(Def def) { return def->candidate_ == candidate_counter_; }
-    static void set_candidate(Def def) { def->candidate_ = candidate_counter_; }
-    static void unset_candidate(Def def) { assert(is_candidate(def)); --def->candidate_; }
+    static bool is_candidate(const Def* def) { return def->candidate_ == candidate_counter_; }
+    static void set_candidate(const Def* def) { def->candidate_ = candidate_counter_; }
+    static void unset_candidate(const Def* def) { assert(is_candidate(def)); --def->candidate_; }
 
     void identify_scope(Lambda* entry);
-    void build_in_scope();
+    void build_defs();
 
     World& world_;
-    DefSet in_scope_;
+    DefSet defs_;
     uint32_t id_;
     std::vector<Lambda*> lambdas_;
     mutable AutoPtr<const CFA> cfa_;

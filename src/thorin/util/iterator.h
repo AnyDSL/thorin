@@ -43,22 +43,20 @@ public:
     I end() const { return end_; }
     P predicate() const { return predicate_; }
 
-    filter_iterator& operator= (filter_iterator other) { swap(*this, other); return *this; }
-    filter_iterator& operator++ () {
+    filter_iterator& operator++() {
         assert(iterator_ != end_);
         ++iterator_;
         skip();
         return *this;
     }
-    filter_iterator operator++ (int) { filter_iterator res = *this; ++(*this); return res; }
-    reference operator* () const { return (reference) *iterator_; }
-    pointer operator-> () const { return (pointer) &*iterator_; }
-    bool operator== (const filter_iterator& other) { return this->iterator_ == other.iterator_; }
-    bool operator!= (const filter_iterator& other) { return this->iterator_ != other.iterator_; }
-    friend void swap(filter_iterator& i1, filter_iterator& i2) {
-        using std::swap;
-        swap(i1, i2);
-    }
+    filter_iterator operator++(int) { filter_iterator res = *this; ++(*this); return res; }
+    reference operator*() const { return (reference) *iterator_; }
+    pointer operator->() const { return (pointer) &*iterator_; }
+    bool operator==(const filter_iterator& other) { return this->iterator_ == other.iterator_; }
+    bool operator!=(const filter_iterator& other) { return this->iterator_ != other.iterator_; }
+    filter_iterator& operator=(filter_iterator other) { swap(*this, other); return *this; }
+
+    friend void swap(filter_iterator& i1, filter_iterator& i2) { using std::swap; swap(i1, i2); }
 
 private:
     void skip() {
@@ -70,8 +68,6 @@ private:
     I end_;
     P predicate_;
 };
-
-//------------------------------------------------------------------------------
 
 template<class I, class P>
 filter_iterator<I, P> make_filter(I begin, I end, P pred) { return filter_iterator<I, P>(begin, end, pred); }
@@ -93,10 +89,8 @@ private:
     I end_;
 };
 
-//------------------------------------------------------------------------------
-
 template<class I>
-Range<I> range(I begin, I end) { return Range<I>(begin, end); }
+auto range(I begin, I end) -> Range<I> { return Range<I>(begin, end); }
 
 template<class T>
 auto range(const T& t) -> Range<decltype(t.begin())> { return range(t.begin(), t.end()); }
@@ -105,13 +99,13 @@ template<class T>
 auto reverse_range(const T& t) -> Range<decltype(t.rbegin())> { return range(t.rbegin(), t.rend()); }
 
 template<class I, class P>
-Range<filter_iterator<I, P>> range(I begin, I end, P predicate) {
+auto  range(I begin, I end, P predicate) -> Range<filter_iterator<I, P>> {
     typedef filter_iterator<I, P> Filter;
     return range(Filter(begin, end, predicate), Filter(end, end, predicate));
 }
 
 template<class V, class I, class P>
-Range<filter_iterator<I, P, V>> range(I begin, I end, P predicate) {
+auto range(I begin, I end, P predicate) -> Range<filter_iterator<I, P, V>> {
     typedef filter_iterator<I, P, V> Filter;
     return range(Filter(begin, end, predicate), Filter(end, end, predicate));
 }

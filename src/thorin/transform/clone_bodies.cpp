@@ -25,7 +25,7 @@ void clone_bodies(World& world) {
                     ulambda->update_op(use.index(), nlambda);
                 else {
                     auto primop = use->as<PrimOp>();
-                    Array<Def> nops(primop->size());
+                    Array<const Def*> nops(primop->size());
                     std::copy(primop->ops().begin(), primop->ops().end(), nops.begin());
                     nops[use.index()] = nlambda;
                     primop->replace(primop->rebuild(nops));

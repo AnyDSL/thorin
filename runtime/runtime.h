@@ -116,17 +116,17 @@ public:
         if (plat_src == plat_dst) {
             // Copy from same platform
             platforms_[plat_src]->copy(dev_src, src, offset_src, dev_dst, dst, offset_dst, size);
-            WLOG("Copy between devices % and % on platform %", dev_src, dev_dst, plat_src);
+            ILOG("Copy between devices % and % on platform %", dev_src, dev_dst, plat_src);
         } else {
             // Copy from another platform
             if (plat_src == 0) {
                 // Source is the CPU platform
                 platforms_[plat_dst]->copy_from_host(src, offset_src, dev_dst, dst, offset_dst, size);
-                WLOG("Copy from host to device % on platform %", dev_dst, plat_dst);
+                ILOG("Copy from host to device % on platform %", dev_dst, plat_dst);
             } else if (plat_dst == 0) {
                 // Destination is the CPU platform
                 platforms_[plat_src]->copy_to_host(dev_src, src, offset_src, dst, offset_dst, size);
-                WLOG("Copy to host from device % on platform %", dev_src, plat_src);
+                ILOG("Copy to host from device % on platform %", dev_src, plat_src);
             } else {
                 ELOG("Cannot copy memory between different platforms");
             }

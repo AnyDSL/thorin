@@ -26,9 +26,8 @@ Scope::Scope(Lambda* entry)
 Scope::~Scope() { cleanup(); }
 
 void Scope::run(Lambda* entry) {
-    assert(!entry->is_proxy());
     identify_scope(entry);
-    build_in_scope();
+    build_defs();
     ++candidate_counter_;
     verify();
 }
@@ -42,7 +41,7 @@ const Scope& Scope::update() {
     cleanup();
     auto e = entry();
     lambdas_.clear();
-    in_scope_.clear();
+    defs_.clear();
     cfa_.release();
     id_ = id_counter_++;
     run(e);
@@ -50,16 +49,13 @@ const Scope& Scope::update() {
 }
 
 void Scope::identify_scope(Lambda* entry) {
-    std::queue<Def> queue;
+    std::queue<const Def*> queue;
     assert(!is_candidate(entry));
 
     auto insert_lambda = [&] (Lambda* lambda) {
-        assert(!lambda->is_proxy());
         for (auto param : lambda->params()) {
-            if (!param->is_proxy()) {
-                set_candidate(param);
-                queue.push(param);
-            }
+            set_candidate(param);
+            queue.push(param);
         }
 
         assert(std::find(lambdas_.begin(), lambdas_.end(), lambda) == lambdas_.end());
@@ -102,21 +98,19 @@ void Scope::verify() const {
 #endif
 }
 
-void Scope::build_in_scope() {
-    std::queue<Def> queue;
-    auto enqueue = [&] (Def def) {
-        if (!def->isa_lambda() && is_candidate(def) && !in_scope_.contains(def)) {
-            in_scope_.insert(def);
+void Scope::build_defs() {
+    std::queue<const Def*> queue;
+    auto enqueue = [&] (const Def* def) {
+        if (!def->isa_lambda() && is_candidate(def) && !defs_.contains(def)) {
+            defs_.insert(def);
             queue.push(def);
         }
     };
 
     for (auto lambda : lambdas()) {
-        for (auto param : lambda->params()) {
-            if (!param->is_proxy())
-                in_scope_.insert(param);
-        }
-        in_scope_.insert(lambda);
+        for (auto param : lambda->params())
+            defs_.insert(param);
+        defs_.insert(lambda);
 
         for (auto op : lambda->ops())
             enqueue(op);
@@ -158,7 +152,7 @@ void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
 
         for (auto n : scope.f_cfg().reverse_post_order()) {
             for (auto succ : n->lambda()->succs()) {
-                if (!scope.outer_contains(succ))
+                if (!scope.contains(succ))
                     enqueue(succ);
             }
         }
@@ -168,32 +162,8 @@ void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
 template void Scope::for_each<true> (const World&, std::function<void(Scope&)>);
 template void Scope::for_each<false>(const World&, std::function<void(Scope&)>);
 
-std::ostream& Scope::stream(std::ostream& os) const {
-    auto schedule = schedule_smart(*this);
-    for (auto& block : schedule) {
-        auto lambda = block.lambda();
-        if (lambda->intrinsic() != Intrinsic::EndScope) {
-            bool indent = lambda != entry();
-            if (indent)
-                os << up;
-            os << endl;
-            lambda->stream_head(os) << up_endl;
-            for (auto primop : block)
-                primop->stream_assignment(os);
-
-            lambda->stream_jump(os) << down_endl;
-            if (indent)
-                os << down;
-        }
-    }
-    return os << endl;
-}
-
-void Scope::write_thorin(const char* filename) const { std::ofstream file(filename); stream(file); }
-
-void Scope::thorin() const {
-    auto filename = world().name() + "_" + entry()->unique_name() + ".thorin";
-    write_thorin(filename.c_str());
-}
+std::ostream& Scope::stream(std::ostream& os) const { return schedule(*this).stream(os); }
+void Scope::write_thorin(const char* filename) const { return schedule(*this).write_thorin(filename); }
+void Scope::thorin() const { return schedule(*this).thorin(); }
 
 }

@@ -22,14 +22,14 @@ CFNodes CFG<forward>::empty_ = CFNodes();
 
 typedef thorin::HashSet<const CFNodeBase*> CFNodeSet;
 
-/// Any jumps targeting a @p Lambda or @p Param outside the @p CFA's underlying @p Scope target this node.
+/// Any jumps targeting a @p Continuation or @p Param outside the @p CFA's underlying @p Scope target this node.
 class OutNode : public RealCFNode {
 public:
     OutNode(const CFNode* context, const Def* def)
         : RealCFNode(def)
         , context_(context)
     {
-        assert(def->isa<Param>() || def->isa<Lambda>());
+        assert(def->isa<Param>() || def->isa<Continuation>());
     }
 
     const CFNode* context() const { return context_; }
@@ -55,7 +55,7 @@ public:
     SymDefNode(const Def* def)
         : SymNode(def)
     {
-        assert(def->isa<Param>() || def->isa<Lambda>());
+        assert(def->isa<Param>() || def->isa<Continuation>());
     }
 
     virtual std::ostream& stream(std::ostream&) const override;
@@ -80,7 +80,7 @@ void CFNode::link(const CFNode* other) const {
     other->preds_.emplace(this);
 }
 
-std::ostream& CFNode::stream(std::ostream& out) const { return streamf(out, "%", lambda()); }
+std::ostream& CFNode::stream(std::ostream& out) const { return streamf(out, "%", continuation()); }
 std::ostream& OutNode::stream(std::ostream& out) const { return streamf(out, "[Out: % (%)]", def(), context()); }
 std::ostream& SymDefNode::stream(std::ostream& out) const { return streamf(out, "[Sym: %]", def()); }
 std::ostream& SymOutNode::stream(std::ostream& out) const { return streamf(out, "[Sym: %]", out_node()); }
@@ -92,7 +92,7 @@ public:
     CFABuilder(CFA& cfa)
         : YComp(cfa.scope(), "cfa")
         , cfa_(cfa)
-        , lambda2param2nodes_(cfa.scope(), std::vector<CFNodeSet>(0))
+        , continuation2param2nodes_(cfa.scope(), std::vector<CFNodeSet>(0))
         , entry_(in_node(scope().entry()))
         , exit_ (in_node(scope().exit()))
     {
@@ -132,17 +132,17 @@ public:
     const CFNode* exit() const { return exit_; }
 
     CFNodeSet nodes(const CFNode*, size_t i);
-    CFNodeSet to_nodes(const CFNode* in) { return in->lambda()->empty() ? CFNodeSet() : nodes(in, 0); }
+    CFNodeSet callee_nodes(const CFNode* in) { return in->continuation()->empty() ? CFNodeSet() : nodes(in, 0); }
     Array<CFNodeSet> arg_nodes(const CFNode*);
-    bool contains(Lambda* lambda) { return scope().inner_contains(lambda); }
-    bool contains(const Param* param) { return contains(param->lambda()); }
+    bool contains(Continuation* continuation) { return scope().inner_contains(continuation); }
+    bool contains(const Param* param) { return contains(param->continuation()); }
 
-    const CFNode* in_node(Lambda* lambda) {
-        assert(scope().contains(lambda));
-        if (auto in = find(cfa().nodes(), lambda))
+    const CFNode* in_node(Continuation* continuation) {
+        assert(scope().contains(continuation));
+        if (auto in = find(cfa().nodes(), continuation))
             return in;
-        auto in = cfa_.nodes_[lambda] = new CFNode(lambda);
-        lambda2param2nodes_[lambda].resize(lambda->num_params()); // make room for params
+        auto in = cfa_.nodes_[continuation] = new CFNode(continuation);
+        continuation2param2nodes_[continuation].resize(continuation->num_params()); // make room for params
         return in;
     }
 
@@ -177,8 +177,8 @@ public:
     }
 
     CFNodeSet& param2nodes(const Param* param) {
-        in_node(param->lambda()); // alloc CFNode and make room in lambda2param2nodes_
-        return lambda2param2nodes_[param->lambda()][param->index()];
+        in_node(param->continuation()); // alloc CFNode and make room in continuation2param2nodes_
+        return continuation2param2nodes_[param->continuation()][param->index()];
     }
 
     void link(const RealCFNode* src, const RealCFNode* dst) {
@@ -202,7 +202,7 @@ public:
 
 private:
     CFA& cfa_;
-    Scope::Map<std::vector<CFNodeSet>> lambda2param2nodes_; ///< Maps param in scope to CFNodeSet.
+    Scope::Map<std::vector<CFNodeSet>> continuation2param2nodes_; ///< Maps param in scope to CFNodeSet.
     DefMap<DefSet> def2set_;
     HashMap<const RealCFNode*, HashSet<const RealCFNode*>> succs_;
     HashMap<const RealCFNode*, HashSet<const RealCFNode*>> preds_;
@@ -228,8 +228,8 @@ void CFABuilder::propagate_higher_order_values() {
         return false;
     };
 
-    for (auto lambda : scope()) {
-        for (auto op : lambda->ops()) {
+    for (auto continuation : scope()) {
+        for (auto op : continuation->ops()) {
             push(op);
 
             while (!stack.empty()) {
@@ -237,7 +237,7 @@ void CFABuilder::propagate_higher_order_values() {
                 assert(def->order() > 0);
                 auto& set = def2set_[def];
 
-                if (def->isa<Param>() || def->isa<Lambda>()) {
+                if (def->isa<Param>() || def->isa<Continuation>()) {
                     set.insert(def);
                     stack.pop();
                 } else {
@@ -271,23 +271,23 @@ void CFABuilder::propagate_higher_order_values() {
 
 CFNodeSet CFABuilder::nodes(const CFNode* in, size_t i) {
     CFNodeSet result;
-    auto cur_lambda = in->lambda();
-    auto op = cur_lambda->op(i);
+    auto cur_continuation = in->continuation();
+    auto op = cur_continuation->op(i);
 
     if (op->order() > 0) {
-        auto iter = def2set_.find(cur_lambda->op(i));
+        auto iter = def2set_.find(cur_continuation->op(i));
         assert(iter != def2set_.end());
 
         for (auto def : iter->second) {
             assert(def->order() > 0);
 
-            if (auto lambda = def->isa_lambda()) {
-                if (contains(lambda))
-                    result.insert(in_node(lambda));
+            if (auto continuation = def->isa_continuation()) {
+                if (contains(continuation))
+                    result.insert(in_node(continuation));
                 else if (i == 0)
-                    result.insert(out_node(in, lambda));
+                    result.insert(out_node(in, continuation));
                 else
-                    result.insert(sym_node(lambda));
+                    result.insert(sym_node(continuation));
             } else {
                 auto param = def->as<Param>();
                 if (contains(param)) {
@@ -322,51 +322,51 @@ CFNodeSet CFABuilder::nodes(const CFNode* in, size_t i) {
 }
 
 Array<CFNodeSet> CFABuilder::arg_nodes(const CFNode* in) {
-    Array<CFNodeSet> result(in->lambda()->num_args());
+    Array<CFNodeSet> result(in->continuation()->num_args());
     for (size_t i = 0; i != result.size(); ++i)
         result[i] = nodes(in, i+1); // shift by one due to args/ops discrepancy
     return result;
 }
 
 void CFABuilder::run_cfa() {
-    std::queue<Lambda*> queue;
+    std::queue<Continuation*> queue;
 
     auto enqueue = [&] (const CFNode* in) {
-        queue.push(in->lambda());
+        queue.push(in->continuation());
         in->f_index_ = CFNode::Unfresh;
     };
 
     enqueue(entry());
 
     while (!queue.empty()) {
-        auto cur_lambda = pop(queue);
-        auto cur_in = in_node(cur_lambda);
+        auto cur_continuation = pop(queue);
+        auto cur_in = in_node(cur_continuation);
         auto args = arg_nodes(cur_in);
 
-        for (auto n : to_nodes(cur_in)) {
-            if (n->def()->type() != cur_lambda->to()->type())
+        for (auto n : callee_nodes(cur_in)) {
+            if (n->def()->type() != cur_continuation->callee()->type())
                 continue;
 
             if (auto in = n->isa<CFNode>()) {
                 bool todo = in->f_index_ == CFNode::Fresh;
-                for (size_t i = 0; i != cur_lambda->num_args(); ++i) {
-                    if (in->lambda()->param(i)->order() > 0)
-                        todo |= lambda2param2nodes_[in->lambda()][i].insert_range(args[i]);
+                for (size_t i = 0; i != cur_continuation->num_args(); ++i) {
+                    if (in->continuation()->param(i)->order() > 0)
+                        todo |= continuation2param2nodes_[in->continuation()][i].insert_range(args[i]);
                 }
                 if (todo)
                     enqueue(in);
 
             } else {
                 auto out = n->as<OutNode>();
-                assert(in_node(cur_lambda) == out->context() && "OutNode's context does not match");
+                assert(in_node(cur_continuation) == out->context() && "OutNode's context does not match");
 
                 for (const auto& nodes : args) {
                     for (auto n : nodes) {
                         if (auto in = n->isa<CFNode>()) {
                             bool todo = in->f_index_ == CFNode::Fresh;
-                            for (size_t i = 0; i != in->lambda()->num_params(); ++i) {
-                                if (in->lambda()->param(i)->order() > 0)
-                                    todo |= lambda2param2nodes_[in->lambda()][i].insert(out).second;
+                            for (size_t i = 0; i != in->continuation()->num_params(); ++i) {
+                                if (in->continuation()->param(i)->order() > 0)
+                                    todo |= continuation2param2nodes_[in->continuation()][i].insert(out).second;
                             }
                             if (todo)
                                 enqueue(in);
@@ -392,7 +392,7 @@ void CFABuilder::build_cfg() {
 
     while (!queue.empty()) {
         auto cur_in = pop(queue);
-        for (auto n : to_nodes(cur_in)) {
+        for (auto n : callee_nodes(cur_in)) {
             if (auto in = n->isa<CFNode>()) {
                 enqueue(in);
                 link(cur_in, in);
@@ -435,7 +435,7 @@ void CFABuilder::unreachable_node_elimination() {
                 assert(p.second->f_index_ != CFNode::Reachable);
 #endif
             DLOG("removing: %", in);
-            cfa_.nodes_[in->lambda()] = nullptr;
+            cfa_.nodes_[in->continuation()] = nullptr;
             delete in;
         }
     }
@@ -573,7 +573,7 @@ void CFABuilder::verify() {
     bool error = false;
     for (auto in : cfa().nodes()) {
         if (in != entry() && in->preds_.size() == 0) {
-            WLOG("missing predecessors: %", in->lambda());
+            WLOG("missing predecessors: %", in->continuation());
             error = true;
         }
     }

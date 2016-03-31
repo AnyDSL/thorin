@@ -1,6 +1,6 @@
 #include "thorin/analyses/schedule.h"
 
-#include "thorin/lambda.h"
+#include "thorin/continuation.h"
 #include "thorin/primop.h"
 #include "thorin/world.h"
 #include "thorin/analyses/cfg.h"
@@ -86,8 +86,8 @@ void Scheduler::compute_def2uses() {
     };
 
     for (auto n : cfg_.reverse_post_order()) {
-        queue.push(n->lambda());
-        auto p = done.insert(n->lambda());
+        queue.push(n->continuation());
+        auto p = done.insert(n->continuation());
         assert_unused(p.second);
     }
 
@@ -101,12 +101,12 @@ void Scheduler::compute_def2uses() {
 void Scheduler::schedule_early(const Def* def) {
     if (!def2early_.contains(def)) {
         if (auto param = def->isa<Param>()) {
-            def2early_[param] = cfg_[param->lambda()];
+            def2early_[param] = cfg_[param->continuation()];
         } else {
             auto primop = def->as<PrimOp>();
             auto n = cfg_.entry();
             for (auto op : primop->ops()) {
-                if (!op->isa_lambda() && def2uses_.find(op) != def2uses_.end()) {
+                if (!op->isa_continuation() && def2uses_.find(op) != def2uses_.end()) {
                     schedule_early(op);
                     auto m = def2early_[op];
                     if (domtree_.depth(m) > domtree_.depth(n))
@@ -121,8 +121,8 @@ void Scheduler::schedule_early(const Def* def) {
 
 void Scheduler::schedule_late(const Def* def) {
     if (!def2late_.contains(def)) {
-        if (auto lambda = def->isa_lambda()) {
-            def2late_[lambda] = cfg_[lambda];
+        if (auto continuation = def->isa_continuation()) {
+            def2late_[continuation] = cfg_[continuation];
             return;
         }
 
@@ -235,7 +235,7 @@ void Schedule::verify() {
     bool error = false;
 
     for (auto& block : *this) {
-        const Def* mem = block.lambda()->mem_param();
+        const Def* mem = block.continuation()->mem_param();
         mem = mem ? mem : block2mem[(*this)[domtree.idom(block.node())]];
         for (auto primop : block) {
             if (auto memop = primop->isa<MemOp>()) {
@@ -256,17 +256,17 @@ void Schedule::verify() {
 
 std::ostream& Schedule::stream(std::ostream& os) const {
     for (auto& block : *this) {
-        auto lambda = block.lambda();
-        if (lambda->intrinsic() != Intrinsic::EndScope) {
-            bool indent = lambda != scope().entry();
+        auto continuation = block.continuation();
+        if (continuation->intrinsic() != Intrinsic::EndScope) {
+            bool indent = continuation != scope().entry();
             if (indent)
                 os << up;
             os << endl;
-            lambda->stream_head(os) << up_endl;
+            continuation->stream_head(os) << up_endl;
             for (auto primop : block)
                 primop->stream_assignment(os);
 
-            lambda->stream_jump(os) << down_endl;
+            continuation->stream_jump(os) << down_endl;
             if (indent)
                 os << down;
         }

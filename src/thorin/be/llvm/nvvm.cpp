@@ -46,19 +46,19 @@ static AddrSpace resolve_addr_space(const Def* def) {
     return AddrSpace::Generic;
 }
 
-llvm::FunctionType* NVVMCodeGen::convert_fn_type(Lambda* lambda) {
+llvm::FunctionType* NVVMCodeGen::convert_fn_type(Continuation* continuation) {
     // skip non-global address-space parameters
     std::vector<const Type*> types;
-    for (auto type : lambda->type()->args()) {
+    for (auto type : continuation->type()->args()) {
         if (auto ptr = type->isa<PtrType>())
             if (ptr->addr_space() == AddrSpace::Texture)
                 continue;
         types.push_back(type);
     }
-    return llvm::cast<llvm::FunctionType>(convert(lambda->world().fn_type(types)));
+    return llvm::cast<llvm::FunctionType>(convert(continuation->world().fn_type(types)));
 }
 
-void NVVMCodeGen::emit_function_decl_hook(Lambda* lambda, llvm::Function* f) {
+void NVVMCodeGen::emit_function_decl_hook(Continuation* continuation, llvm::Function* f) {
     // append required metadata
     auto annotation = module_->getOrInsertNamedMetadata("nvvm.annotations");
 
@@ -78,7 +78,7 @@ void NVVMCodeGen::emit_function_decl_hook(Lambda* lambda, llvm::Function* f) {
     append_metadata(f, "kernel");
 
     // check signature for texturing memory
-    for (auto param : lambda->params()) {
+    for (auto param : continuation->params()) {
         if (auto ptr = param->type()->isa<PtrType>()) {
             switch (ptr->addr_space()) {
                 case AddrSpace::Texture:
@@ -93,7 +93,7 @@ void NVVMCodeGen::emit_function_decl_hook(Lambda* lambda, llvm::Function* f) {
 }
 
 llvm::Value* NVVMCodeGen::map_param(llvm::Function*, llvm::Argument* arg, const Param* param) {
-    if (!param->lambda()->is_external())
+    if (!param->continuation()->is_external())
         return arg;
     else if (auto var = resolve_global_variable(param))
         return var;
@@ -110,12 +110,12 @@ llvm::Function* NVVMCodeGen::get_texture_handle_fun() {
     return llvm::cast<llvm::Function>(module_->getOrInsertFunction("llvm.nvvm.texsurf.handle.p1i64", type));
 }
 
-void NVVMCodeGen::emit_function_start(llvm::BasicBlock*, Lambda* lambda) {
-    if (!lambda->is_external())
+void NVVMCodeGen::emit_function_start(llvm::BasicBlock*, Continuation* continuation) {
+    if (!continuation->is_external())
         return;
     // kernel needs special setup code for the arguments
     auto texture_handle = get_texture_handle_fun();
-    for (auto param : lambda->params()) {
+    for (auto param : continuation->params()) {
         if (auto var = resolve_global_variable(param)) {
             auto md = metadata_.find(param);
             assert(md != metadata_.end());
@@ -214,7 +214,7 @@ llvm::Value* NVVMCodeGen::emit_lea(const LEA* lea) {
     }
 }
 
-Lambda* NVVMCodeGen::emit_reserve(const Lambda* lambda) { return emit_reserve_shared(lambda); }
+Continuation* NVVMCodeGen::emit_reserve(const Continuation* continuation) { return emit_reserve_shared(continuation); }
 
 llvm::GlobalVariable* NVVMCodeGen::resolve_global_variable(const Param* param) {
     if (resolve_addr_space(param) != AddrSpace::Global)

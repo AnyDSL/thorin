@@ -20,18 +20,18 @@ public:
 
     World& world() { return top_scope_.world(); }
     void run();
-    void eval(Lambda* begin, Lambda* end);
-    Lambda* postdom(Lambda*, const Scope&);
-    Lambda* postdom(Lambda*);
-    void enqueue(Lambda* lambda) {
-        if (top_scope().contains(lambda)) {
-            auto p = visited_.insert(lambda);
+    void eval(Continuation* begin, Continuation* end);
+    Continuation* postdom(Continuation*, const Scope&);
+    Continuation* postdom(Continuation*);
+    void enqueue(Continuation* continuation) {
+        if (top_scope().contains(continuation)) {
+            auto p = visited_.insert(continuation);
             if (p.second)
-                queue_.push(lambda);
+                queue_.push(continuation);
         }
     }
 
-    void init_cur_scope(Lambda* entry) {
+    void init_cur_scope(Continuation* entry) {
         cur_scope_ = new Scope(entry);
         cur_dirty_ = false;
     }
@@ -62,10 +62,10 @@ public:
 private:
     Scope* cur_scope_;
     Scope& top_scope_;
-    LambdaSet done_;
-    std::queue<Lambda*> queue_;
-    LambdaSet visited_;
-    HashMap<Call, Lambda*> cache_;
+    ContinuationSet done_;
+    std::queue<Continuation*> queue_;
+    ContinuationSet visited_;
+    HashMap<Call, Continuation*> cache_;
     bool cur_dirty_;
     bool top_dirty_ = false;
 };
@@ -74,24 +74,24 @@ void PartialEvaluator::run() {
     enqueue(top_scope().entry());
 
     while (!queue_.empty()) {
-        auto lambda = pop(queue_);
+        auto continuation = pop(queue_);
 
         // due to the optimization below to eat up a call, we might see a new Run here
-        while (lambda->to()->isa<Run>()) {
-            auto cur = lambda->to();
-            init_cur_scope(lambda);
-            eval(lambda, continuation(lambda));
+        while (continuation->callee()->isa<Run>()) {
+            auto cur = continuation->callee();
+            init_cur_scope(continuation);
+            eval(continuation, get_continuation(continuation));
             release_cur_scope();
-            if (cur == lambda->to())
+            if (cur == continuation->callee())
                 break;
         }
 
-        for (auto succ : top_scope().f_cfg().succs(lambda))
-            enqueue(succ->lambda());
+        for (auto succ : top_scope().f_cfg().succs(continuation))
+            enqueue(succ->continuation());
     }
 }
 
-void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
+void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
     if (end == nullptr)
         WLOG("no matching end: % at %", cur, cur->loc());
     else
@@ -118,7 +118,7 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
             cur = continuation(cur);
             continue;
         } else {
-            dst = cur->to()->isa_lambda();
+            dst = cur->callee()->isa_continuation();
         }
 
         if (dst == nullptr || dst->empty()) {
@@ -146,7 +146,7 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
         } else {                                            // no cached version found... create a new one
             auto dropped = drop(call);
 
-            if (dropped->to() == world().branch()) {
+            if (dropped->callee() == world().branch()) {
                 // TODO don't stupidly inline functions
                 // TODO also don't peel inside functions with incoming back-edges
             }
@@ -155,7 +155,7 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
             cache_[call] = dropped;
             jump_to_cached_call(cur, dropped, call);
             if (all) {
-                cur->jump(dropped->to(), dropped->type_args(), dropped->args(), cur->jump_loc());
+                cur->jump(dropped->callee(), dropped->type_args(), dropped->args(), cur->jump_loc());
                 done_.erase(cur);
             } else
                 cur = dropped;
@@ -168,9 +168,9 @@ void PartialEvaluator::eval(Lambda* cur, Lambda* end) {
     }
 }
 
-Lambda* PartialEvaluator::postdom(Lambda* cur) {
-    auto is_valid = [&] (Lambda* lambda) {
-        auto p = (lambda && !lambda->empty()) ? lambda : nullptr;
+Continuation* PartialEvaluator::postdom(Continuation* cur) {
+    auto is_valid = [&] (Continuation* continuation) {
+        auto p = (continuation && !continuation->empty()) ? continuation : nullptr;
         if (p)
             DLOG("postdom: % -> %", cur, p);
         return p;
@@ -188,10 +188,10 @@ Lambda* PartialEvaluator::postdom(Lambda* cur) {
     return nullptr;
 }
 
-Lambda* PartialEvaluator::postdom(Lambda* cur, const Scope& scope) {
+Continuation* PartialEvaluator::postdom(Continuation* cur, const Scope& scope) {
     const auto& postdomtree = scope.b_cfg().domtree();
     if (auto n = scope.cfa(cur))
-        return postdomtree.idom(n)->lambda();
+        return postdomtree.idom(n)->continuation();
     return nullptr;
 }
 

@@ -1,4 +1,4 @@
-#include "thorin/lambda.h"
+#include "thorin/continuation.h"
 #include "thorin/world.h"
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/verify.h"
@@ -12,8 +12,8 @@ enum class EvalState {
 };
 
 void lower2cff(World& world) {
-    HashMap<Call, Lambda*> cache;
-    LambdaSet top;
+    HashMap<Call, Continuation*> cache;
+    ContinuationSet top;
 
     bool local = true;
     for (bool todo = true; todo || local;) {
@@ -22,7 +22,7 @@ void lower2cff(World& world) {
         Scope::for_each(world, [&] (Scope& scope) {
             bool dirty = false;
 
-            auto is_bad = [&] (Lambda* to) {
+            auto is_bad = [&] (Continuation* to) {
                 if (to->empty())
                     return false;
                 if (local)
@@ -55,9 +55,9 @@ void lower2cff(World& world) {
                         DLOG("bad: %", to_lambda);
                         todo = dirty = true;
 
-                        Call call(lambda);
+                        Call call(continuation);
                         for (size_t i = 0, e = call.num_type_args(); i != e; ++i)
-                            call.type_arg(i) = lambda->type_arg(i);
+                            call.type_arg(i) = continuation->type_arg(i);
 
                         call.to() = to_lambda;
                         for (size_t i = 0, e = call.num_args(); i != e; ++i)
@@ -65,7 +65,7 @@ void lower2cff(World& world) {
 
 
                         const auto& p = cache.emplace(call, nullptr);
-                        Lambda*& target = p.first->second;
+                        Continuation*& target = p.first->second;
                         if (p.second) {
                             target = drop(call); // use already dropped version as target
                         }

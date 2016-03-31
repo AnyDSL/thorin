@@ -2,6 +2,8 @@ SET ( LIBRARY_NAME thorin )
 
 # get source files
 SET ( SOURCES
+    continuation.cpp
+    continuation.h
     def.cpp
     def.h
     enums.cpp
@@ -10,8 +12,6 @@ SET ( SOURCES
     henk.h
     irbuilder.cpp
     irbuilder.h
-    lambda.cpp
-    lambda.h
     primop.cpp
     primop.h
     type.cpp

@@ -45,31 +45,31 @@ enum {
     ACC_NUM_ARGS
 };
 
-Lambda* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std::string& ext, Lambda* lambda) {
+Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std::string& ext, Continuation* continuation) {
     // to-target is the desired kernel call
     // target(mem, device, (dim.x, dim.y, dim.z), (block.x, block.y, block.z), body, return, free_vars)
-    auto target = lambda->to()->as_lambda();
+    auto target = continuation->callee()->as_continuation();
     assert_unused(target->is_intrinsic());
-    assert(lambda->num_args() >= ACC_NUM_ARGS && "required arguments are missing");
+    assert(continuation->num_args() >= ACC_NUM_ARGS && "required arguments are missing");
 
     // arguments
-    auto target_device_id = code_gen.lookup(lambda->arg(ACC_ARG_DEVICE));
+    auto target_device_id = code_gen.lookup(continuation->arg(ACC_ARG_DEVICE));
     auto target_platform = builder_.getInt32(platform);
     auto target_device = builder_.CreateOr(target_platform, builder_.CreateShl(target_device_id, builder_.getInt32(4)));
-    auto it_space = lambda->arg(ACC_ARG_SPACE)->as<Tuple>();
-    auto it_config = lambda->arg(ACC_ARG_CONFIG)->as<Tuple>();
-    auto kernel = lambda->arg(ACC_ARG_BODY)->as<Global>()->init()->as<Lambda>();
+    auto it_space = continuation->arg(ACC_ARG_SPACE)->as<Tuple>();
+    auto it_config = continuation->arg(ACC_ARG_CONFIG)->as<Tuple>();
+    auto kernel = continuation->arg(ACC_ARG_BODY)->as<Global>()->init()->as<Continuation>();
 
     // load kernel
     auto kernel_name = builder_.CreateGlobalStringPtr(kernel->name);
-    auto file_name = builder_.CreateGlobalStringPtr(lambda->world().name() + ext);
+    auto file_name = builder_.CreateGlobalStringPtr(continuation->world().name() + ext);
     load_kernel(target_device, file_name, kernel_name);
 
     // fetch values and create external calls for initialization
     // check for source devices of all pointers
-    const size_t num_kernel_args = lambda->num_args() - ACC_NUM_ARGS;
+    const size_t num_kernel_args = continuation->num_args() - ACC_NUM_ARGS;
     for (size_t i = 0; i < num_kernel_args; ++i) {
-        auto target_arg = lambda->arg(i + ACC_NUM_ARGS);
+        auto target_arg = continuation->arg(i + ACC_NUM_ARGS);
         const auto target_val = code_gen.lookup(target_arg);
 
         // check device target
@@ -111,7 +111,7 @@ Lambda* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std:
     // synchronize
     synchronize(target_device);
 
-    return lambda->arg(ACC_ARG_RETURN)->as_lambda();
+    return continuation->arg(ACC_ARG_RETURN)->as_continuation();
 }
 
 llvm::Value* Runtime::set_grid_size(llvm::Value* device, llvm::Value* x, llvm::Value* y, llvm::Value* z) {

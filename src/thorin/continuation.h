@@ -1,5 +1,5 @@
-#ifndef THORIN_LAMBDA_H
-#define THORIN_LAMBDA_H
+#ifndef THORIN_CONTINUATION_H
+#define THORIN_CONTINUATION_H
 
 #include <list>
 #include <vector>
@@ -12,23 +12,23 @@
 namespace thorin {
 
 class JumpTarget;
-class Lambda;
+class Continuation;
 class Scope;
 
-typedef std::vector<Lambda*> Lambdas;
+typedef std::vector<Continuation*> Continuations;
 
 //------------------------------------------------------------------------------
 
 /**
- * @brief A parameter of a @p Lambda function.
+ * @brief A parameter of a @p Continuation function.
  *
- * A @p Param knows its @p lambda() it belongs to.
+ * A @p Param knows its @p continuation() it belongs to.
  */
 class Param : public Def {
 private:
-    Param(const Type* type, Lambda* lambda, size_t index, const Location& loc, const std::string& name)
+    Param(const Type* type, Continuation* continuation, size_t index, const Location& loc, const std::string& name)
         : Def(Node_Param, type, 0, loc, name)
-        , lambda_(lambda)
+        , continuation_(continuation)
         , index_(index)
     {}
 
@@ -36,30 +36,30 @@ public:
     class Peek {
     public:
         Peek() {}
-        Peek(const Def* def, Lambda* from)
+        Peek(const Def* def, Continuation* from)
             : def_(def)
             , from_(from)
         {}
 
         const Def* def() const { return def_; }
-        Lambda* from() const { return from_; }
+        Continuation* from() const { return from_; }
 
     private:
         const Def* def_;
-        Lambda* from_;
+        Continuation* from_;
     };
 
-    Lambda* lambda() const { return lambda_; }
+    Continuation* continuation() const { return continuation_; }
     size_t index() const { return index_; }
     std::vector<Peek> peek() const;
     const Param* is_mem() const { return type()->isa<MemType>() ? this : nullptr; }
 
 private:
-    Lambda* const lambda_;
+    Continuation* const continuation_;
     const size_t index_;
 
     friend class World;
-    friend class Lambda;
+    friend class Continuation;
 };
 
 //------------------------------------------------------------------------------
@@ -95,13 +95,13 @@ enum class CC : uint8_t {
 /**
  * @brief A function abstraction.
  *
- * A @p Lambda is always of function type @p FnTypeNode.
+ * A @p Continuation is always of function type @p FnTypeNode.
  * Each element of this function type is associated a properly typed @p Param - retrieved via @p params().
  */
-class Lambda : public Def {
+class Continuation : public Def {
 private:
-    Lambda(const FnType* fn, const Location& loc, CC cc, Intrinsic intrinsic, bool is_sealed, const std::string& name)
-        : Def(Node_Lambda, fn, 0, loc, name)
+    Continuation(const FnType* fn, const Location& loc, CC cc, Intrinsic intrinsic, bool is_sealed, const std::string& name)
+        : Def(Node_Continuation, fn, 0, loc, name)
         , parent_(this)
         , cc_(cc)
         , intrinsic_(intrinsic)
@@ -110,23 +110,23 @@ private:
     {
         params_.reserve(fn->num_args());
     }
-    virtual ~Lambda() { for (auto param : params()) delete param; }
+    virtual ~Continuation() { for (auto param : params()) delete param; }
 
 public:
-    Lambda* stub() const { Type2Type map; return stub(map); }
-    Lambda* stub(const std::string& name) const { Type2Type map; return stub(map, name); }
-    Lambda* stub(Type2Type& type2type) const { return stub(type2type, name); }
-    Lambda* stub(Type2Type& type2type, const std::string& name) const;
-    Lambda* update_to(const Def* def) { return update_op(0, def); }
-    Lambda* update_op(size_t i, const Def* def);
-    Lambda* update_arg(size_t i, const Def* def) { return update_op(i+1, def); }
+    Continuation* stub() const { Type2Type map; return stub(map); }
+    Continuation* stub(const std::string& name) const { Type2Type map; return stub(map, name); }
+    Continuation* stub(Type2Type& type2type) const { return stub(type2type, name); }
+    Continuation* stub(Type2Type& type2type, const std::string& name) const;
+    Continuation* update_callee(const Def* def) { return update_op(0, def); }
+    Continuation* update_op(size_t i, const Def* def);
+    Continuation* update_arg(size_t i, const Def* def) { return update_op(i+1, def); }
     const Param* append_param(const Type* type, const std::string& name = "");
-    Lambdas direct_preds() const;
-    Lambdas direct_succs() const;
-    Lambdas indirect_preds() const;
-    Lambdas indirect_succs() const;
-    Lambdas preds() const;
-    Lambdas succs() const;
+    Continuations direct_preds() const;
+    Continuations direct_succs() const;
+    Continuations indirect_preds() const;
+    Continuations indirect_succs() const;
+    Continuations preds() const;
+    Continuations succs() const;
     ArrayRef<const TypeParam*> type_params() const { return type()->type_params(); }
     const TypeParam* type_param(size_t i) const { return type_params()[i]; }
     size_t num_type_params() const { return type_params().size(); }
@@ -134,7 +134,7 @@ public:
     Array<const Def*> params_as_defs() const;
     const Param* param(size_t i) const { assert(i < num_params()); return params_[i]; }
     const Param* mem_param() const;
-    const Def* to() const;
+    const Def* callee() const;
     Types type_args() const { return type_args_; }
     const Type* type_arg(size_t i) const { return type_args_[i]; }
     size_t num_type_args() const { return type_args_.size(); }
@@ -142,7 +142,7 @@ public:
     const Def* arg(size_t i) const { return args()[i]; }
     const Location& jump_loc() const { return jump_loc_; }
     const FnType* type() const { return Def::type()->as<FnType>(); }
-    const FnType* to_fn_type() const { return to()->type()->as<FnType>(); }
+    const FnType* callee_fn_type() const { return callee()->type()->as<FnType>(); }
     const FnType* arg_fn_type() const;
     size_t num_args() const { return args().size(); }
     size_t num_params() const { return params().size(); }
@@ -150,7 +150,7 @@ public:
     Intrinsic intrinsic() const { return intrinsic_; }
     CC& cc() { return cc_; }
     CC cc() const { return cc_; }
-    void set_intrinsic(); ///< Sets @p intrinsic_ derived on this @p Lambda's @p name.
+    void set_intrinsic(); ///< Sets @p intrinsic_ derived on this @p Continuation's @p name.
     bool is_external() const;
     void make_external();
     void make_internal();
@@ -158,12 +158,12 @@ public:
     bool is_returning() const;
     bool is_intrinsic() const;
     bool is_accelerator() const;
-    bool visit_capturing_intrinsics(std::function<bool(Lambda*)> func) const;
+    bool visit_capturing_intrinsics(std::function<bool(Continuation*)> func) const;
     bool is_passed_to_accelerator() const {
-        return visit_capturing_intrinsics([&] (Lambda* lambda) { return lambda->is_accelerator(); });
+        return visit_capturing_intrinsics([&] (Continuation* continuation) { return continuation->is_accelerator(); });
     }
     bool is_passed_to_intrinsic(Intrinsic intrinsic) const {
-        return visit_capturing_intrinsics([&] (Lambda* lambda) { return lambda->intrinsic() == intrinsic; });
+        return visit_capturing_intrinsics([&] (Continuation* continuation) { return continuation->intrinsic() == intrinsic; });
     }
     void destroy_body();
     void refresh(Def2Def&);
@@ -178,7 +178,7 @@ public:
     void jump(const Def* to, Array<const Type*> type_args, Defs args, const Location& loc);
     void jump(JumpTarget&, const Location& loc);
     void branch(const Def* cond, const Def* t, const Def* f, const Location& loc);
-    std::pair<Lambda*, const Def*> call(const Def* to, Types type_args, Defs args, const Type* ret_type, const Location& loc);
+    std::pair<Continuation*, const Def*> call(const Def* to, Types type_args, Defs args, const Type* ret_type, const Location& loc);
 
     // value numbering
 
@@ -186,8 +186,8 @@ public:
     const Def* get_value(size_t handle, const Type* type, const char* name = "");
     const Def* set_mem(const Def* def);
     const Def* get_mem();
-    Lambda* parent() const { return parent_; }            ///< See @p parent_ for more information.
-    void set_parent(Lambda* parent) { parent_ = parent; } ///< See @p parent_ for more information.
+    Continuation* parent() const { return parent_; }            ///< See @p parent_ for more information.
+    void set_parent(Continuation* parent) { parent_ = parent; } ///< See @p parent_ for more information.
     void seal();
     bool is_sealed() const { return is_sealed_; }
     void unseal() { is_sealed_ = false; }
@@ -241,15 +241,15 @@ private:
 
     /**
      * There exist three cases to distinguish here.
-     * - @p parent_ == this: This @p Lambda is considered as a basic block, i.e.,
-     *                       SSA construction will propagate value through this @p Lambda's predecessors.
-     * - @p parent_ == nullptr: This @p Lambda is considered as top level function, i.e.,
+     * - @p parent_ == this: This @p Continuation is considered as a basic block, i.e.,
+     *                       SSA construction will propagate value through this @p Continuation's predecessors.
+     * - @p parent_ == nullptr: This @p Continuation is considered as top level function, i.e.,
      *                          SSA construction will stop propagate values here.
      *                          Any @p get_value which arrives here without finding a definition will return @p bottom.
-     * - otherwise: This @p Lambda is considered as function head nested in @p parent_.
+     * - otherwise: This @p Continuation is considered as function head nested in @p parent_.
      *              Any @p get_value which arrives here without finding a definition will recursively try to find one in @p parent_.
      */
-    Lambda* parent_;
+    Continuation* parent_;
     std::vector<const Param*> params_;
     std::list<ScopeInfo> scopes_;
     std::deque<Tracker> values_;
@@ -283,9 +283,9 @@ struct Call {
         : type_args_(std::move(call.type_args_))
         , ops_(std::move(call.ops_))
     {}
-    Call(const Lambda* lambda)
-        : type_args_(lambda->num_type_args())
-        , ops_(lambda->size())
+    Call(const Continuation* continuation)
+        : type_args_(continuation->num_type_args())
+        , ops_(continuation->size())
     {}
 
     Types type_args() const { return type_args_; }
@@ -296,9 +296,9 @@ struct Call {
     Defs ops() const { return ops_; }
     size_t num_ops() const { return ops().size(); }
     const Def* op(size_t i) const { return ops_[i]; }
-    const Def*& to(size_t i) { return ops_[i]; }
-    const Def* to() const { return ops_.front(); }
-    const Def*& to() { return ops_.front(); }
+    const Def*& callee(size_t i) { return ops_[i]; }
+    const Def* callee() const { return ops_.front(); }
+    const Def*& callee() { return ops_.front(); }
 
     Defs args() const { return ops_.skip_front(); }
     size_t num_args() const { return args().size(); }
@@ -331,16 +331,16 @@ struct Hash<Call> {
     }
 };
 
-void jump_to_cached_call(Lambda* src, Lambda* dst, const Call& call);
+void jump_to_cached_call(Continuation* src, Continuation* dst, const Call& call);
 
 void clear_value_numbering_table(World&);
 
 //------------------------------------------------------------------------------
 
 template<class To>
-using LambdaMap     = HashMap<Lambda*, To, GIDHash<Lambda*>>;
-using LambdaSet     = HashSet<Lambda*, GIDHash<Lambda*>>;
-using Lambda2Lambda = LambdaMap<Lambda*>;
+using ContinuationMap     = HashMap<Continuation*, To, GIDHash<Continuation*>>;
+using ContinuationSet     = HashSet<Continuation*, GIDHash<Continuation*>>;
+using Continuation2Continuation = ContinuationMap<Continuation*>;
 
 //------------------------------------------------------------------------------
 

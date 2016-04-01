@@ -57,7 +57,7 @@ public:
     }
 
     void mark_dirty() { top_dirty_ = cur_dirty_ = true; }
-    Lambda* continuation(Lambda* lambda) { return lambda->to()->as<EvalOp>()->end()->isa_lambda(); }
+    Continuation* get_continuation(Continuation* continuation) { return continuation->callee()->as<EvalOp>()->end()->isa_continuation(); }
 
 private:
     Scope* cur_scope_;
@@ -111,11 +111,11 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
 
         done_.insert(cur);
 
-        Lambda* dst = nullptr;
-        if (auto run = cur->to()->isa<Run>()) {
-            dst = run->begin()->isa_lambda();
-        } else if (cur->to()->isa<Hlt>()) {
-            cur = continuation(cur);
+        Continuation* dst = nullptr;
+        if (auto run = cur->callee()->isa<Run>()) {
+            dst = run->begin()->isa_continuation();
+        } else if (cur->callee()->isa<Hlt>()) {
+            cur = get_continuation(cur);
             continue;
         } else {
             dst = cur->callee()->isa_continuation();

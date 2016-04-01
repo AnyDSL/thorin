@@ -37,31 +37,31 @@ void lower2cff(World& world) {
 
             const auto& cfg = scope.f_cfg();
             for (auto n : cfg.post_order()) {
-                auto lambda = n->lambda();
-                auto to = lambda->to();
+                auto continuation = n->continuation();
+                auto callee = continuation->callee();
                 const Def* end;
                 EvalState state = EvalState::None;
                 Location loc;
 
-                if (auto evalop = to->isa<EvalOp>()) {
-                    to = evalop->begin();
+                if (auto evalop = callee->isa<EvalOp>()) {
+                    callee = evalop->begin();
                     end = evalop->end();
                     state = evalop->isa<Run>() ? EvalState::Run : EvalState::Hlt;
                     loc = evalop->loc();
                 }
 
-                if (auto to_lambda = to->isa_lambda()) {
-                    if (is_bad(to_lambda)) {
-                        DLOG("bad: %", to_lambda);
+                if (auto callee_continuation = callee->isa_continuation()) {
+                    if (is_bad(callee_continuation)) {
+                        DLOG("bad: %", callee_continuation);
                         todo = dirty = true;
 
                         Call call(continuation);
                         for (size_t i = 0, e = call.num_type_args(); i != e; ++i)
                             call.type_arg(i) = continuation->type_arg(i);
 
-                        call.to() = to_lambda;
+                        call.callee() = callee_continuation;
                         for (size_t i = 0, e = call.num_args(); i != e; ++i)
-                            call.arg(i) = to_lambda->param(i)->order() > 0 ? lambda->arg(i) : nullptr;
+                            call.arg(i) = callee_continuation->param(i)->order() > 0 ? continuation->arg(i) : nullptr;
 
 
                         const auto& p = cache.emplace(call, nullptr);
@@ -70,10 +70,10 @@ void lower2cff(World& world) {
                             target = drop(call); // use already dropped version as target
                         }
 
-                        jump_to_cached_call(lambda, target, call);
+                        jump_to_cached_call(continuation, target, call);
                         switch (state) {
-                            case EvalState::Run: lambda->update_to(world.run(lambda->to(), end, loc));
-                            case EvalState::Hlt: lambda->update_to(world.hlt(lambda->to(), end, loc));
+                            case EvalState::Run: continuation->update_callee(world.run(continuation->callee(), end, loc));
+                            case EvalState::Hlt: continuation->update_callee(world.hlt(continuation->callee(), end, loc));
                             default: break;
                         }
                     }

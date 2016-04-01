@@ -133,9 +133,9 @@ static Continuations preds(const Continuation* continuation) {
     while (!queue.empty()) {
         auto use = pop(queue);
         if (!use->isa<EvalOp>() || use.index() != 1) { // ignore evalop's end
-            if (auto lambda = use->isa_lambda()) {
+            if (auto continuation = use->isa_continuation()) {
                 if ((use.index() == 0 && direct) || (use.index() != 0 && indirect))
-                    preds.push_back(lambda);
+                    preds.push_back(continuation);
                 continue;
             }
 

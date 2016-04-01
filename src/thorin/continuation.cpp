@@ -292,7 +292,9 @@ void Continuation::jump(const Def* to, Defs args, const Location& loc) {
         set_op(x++, arg);
 }
 
-void Continuation::branch(const Def* cond, const Def* t, const Def* f, const Location& loc) { return jump(world().branch(), {cond, t, f}, loc); }
+void Continuation::branch(const Def* cond, const Def* t, const Def* f, const Location& loc) {
+    return jump(world().branch(), {cond, t, f}, loc);
+}
 
 std::pair<Continuation*, const Def*> Continuation::call(const Def* to, Defs args, const Type* ret_type, const Location& loc) {
     if (ret_type == nullptr) {

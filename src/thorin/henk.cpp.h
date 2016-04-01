@@ -14,6 +14,8 @@ size_t Type::gid_counter_ = 1;
 
 //------------------------------------------------------------------------------
 
+
+#if 0
 const Abstraction* close(const Abstraction* abstraction, const Type* body) {
     assert(abstraction->body() == nullptr);
     const_cast<Abstraction*>(abstraction)->set(0, body);
@@ -64,6 +66,7 @@ const Abstraction* close(const Abstraction* abstraction, const Type* body) {
     assert(depth == 0);
     return abstraction->HENK_TABLE_NAME().unify(abstraction);
 }
+#endif
 
 //------------------------------------------------------------------------------
 

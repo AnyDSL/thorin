@@ -174,10 +174,10 @@ const Type* Pi::vreduce(int depth, const Type* type, Type2Type& map) const {
 const Type* Var::vreduce(int depth, const Type* type, Type2Type&) const {
     if (this->depth() == depth)
         return type;
-    else if (this->depth() < depth)
-        return HENK_TABLE_NAME().var(depth-1);  // shift by one
+    else if (this->depth() > depth)
+        return HENK_TABLE_NAME().var(this->depth()-1);  // this is a free variable - shift by one
     else
-        return this;                            // this is a free variable - don't adjust
+        return this;                                    // this variable is not free - don't adjust
 }
 
 const Type* StructType::vreduce(int, const Type*, Type2Type&) const {

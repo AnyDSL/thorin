@@ -109,7 +109,6 @@ std::ostream& FnType             ::stream(std::ostream& os) const { return strea
 std::ostream& FrameType          ::stream(std::ostream& os) const { return os << "frame"; }
 std::ostream& IndefiniteArrayType::stream(std::ostream& os) const { return streamf(os, "[%]", elem_type()); }
 std::ostream& Lambda             ::stream(std::ostream& os) const { return streamf(os, "[%].%", name(), body()); }
-std::ostream& Pi                 ::stream(std::ostream& os) const { return streamf(os, "pi[%].%", name(), body()); }
 std::ostream& MemType            ::stream(std::ostream& os) const { return os << "mem"; }
 std::ostream& StructType         ::stream(std::ostream& os) const { return os << name(); }
 std::ostream& TupleType          ::stream(std::ostream& os) const { return stream_type_args(os, this); }

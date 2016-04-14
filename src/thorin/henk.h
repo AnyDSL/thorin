@@ -117,9 +117,6 @@ private:
     static size_t gid_counter_;
 
     template<class> friend class TypeTableBase;
-
-    //friend class Var;
-    //friend const Lambda* close(const Lambda*, const Type*);
 };
 
 class Lambda : public Type {
@@ -254,8 +251,6 @@ public:
     const Var* var(int depth) { return unify(new Var(HENK_TABLE_NAME(), depth)); }
     const Lambda* lambda(const char* name) { return new Lambda(HENK_TABLE_NAME(), name); }
     const Lambda* lambda(const Type* body, const char* name) { return unify(new Lambda(HENK_TABLE_NAME(), body, name)); }
-    //const Pi* pi(const char* name) { return new Pi(HENK_TABLE_NAME(), name); }
-    //const Pi* pi(const Type* body, const char* name) { return unify(new Pi(HENK_TABLE_NAME(), body, name)); }
     const Type* application(const Type* callee, const Type* arg);
     const TupleType* tuple_type(Types args) { return unify(new TupleType(HENK_TABLE_NAME(), args)); }
     const TupleType* unit() { return unit_; } ///< Returns unit, i.e., an empty @p TupleType.

@@ -6,8 +6,7 @@
 namespace thorin {
 
 /**
- * @brief A Dominance Frontier Graph.
- *
+ * A Dominance Frontier Graph.
  * The template parameter @p forward determines whether to compute
  * regular dominance frontiers or post-dominance frontiers (i.e. control dependence).
  * This template parameter is associated with @p CFG's @c forward parameter.

@@ -46,8 +46,7 @@ template<class L, class R>
 inline const L* dcast(const R* r) { return const_cast<const L*>(dcast<L, R>(const_cast<R*>(r))); }
 
 /**
- * @brief A bitcast.
- *
+ * A bitcast.
  * The bitcast requires both types to be of the same size.
  * Watch out for the order of the template parameters!
  */
@@ -60,8 +59,7 @@ inline L bcast(const R& from) {
 }
 
 /**
- * @brief Provides handy @p as and @p isa methods.
- *
+ * Provides handy @p as and @p isa methods.
  * Inherit from this class in order to use
  * @code
 Bar* bar = foo->as<Bar>();
@@ -84,15 +82,15 @@ public:
      * It is a program error (an assertion is raised) if this does not hold.
      */
     template<class To> To* as()  { return thorin::scast<To>(this); }
+
     /**
-     * @brief Acts as dynamic cast.
+     * Acts as dynamic cast.
      * @return @p this cast to @p To if @p this is a @p To, 0 otherwise.
      */
     template<class To> To* isa() { return thorin::dcast<To>(this); }
-    /// const version of @see MagicCast#as
-    template<class To> const To* as()  const { return thorin::scast<To>(this); }
-    /// const version of @see MagicCast#isa
-    template<class To> const To* isa() const { return thorin::dcast<To>(this); }
+
+    template<class To> const To* as()  const { return thorin::scast<To>(this); } ///< @c const version of @see MagicCast#as.
+    template<class To> const To* isa() const { return thorin::dcast<To>(this); } ///< @c const version of @see MagicCast#isa.
 };
 
 }

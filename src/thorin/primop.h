@@ -341,8 +341,7 @@ public:
 };
 
 /**
- * @brief Creates a new aggregate by inserting <tt>value</tt> at position <tt>index</tt> into <tt>agg</tt>.
- *
+ * Creates a new aggregate by inserting <tt>value</tt> at position <tt>index</tt> into <tt>agg</tt>.
  * @attention { This is a @em functional insert.
  *              The value <tt>agg</tt> remains untouched.
  *              The \p Insert itself is a \em new aggregate which contains the newly created <tt>value</tt>. }
@@ -362,8 +361,7 @@ public:
 };
 
 /**
- * @brief Load effective address.
- *
+ * Load effective address.
  * Takes a pointer <tt>ptr</tt> to an aggregate as input.
  * Then, the address to the <tt>index</tt>'th element is computed.
  * This yields a pointer to that element.
@@ -420,8 +418,7 @@ private:
 };
 
 /**
- * @brief A slot in a stack frame opend via @p Enter.
- *
+ * A slot in a stack frame opend via @p Enter.
  * A @p Slot yields a pointer to the given <tt>type</tt>.
  * Loads from this address yield @p Bottom if the frame has already been closed.
  */
@@ -446,8 +443,7 @@ private:
 };
 
 /**
- * @brief A global variable in the data segment.
- *
+ * A global variable in the data segment.
  * A @p Global may be mutable or immutable.
  */
 class Global : public PrimOp {

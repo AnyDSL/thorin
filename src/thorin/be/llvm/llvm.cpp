@@ -952,10 +952,12 @@ multiple:
 
         case Node_StructType: {
             auto struct_type = type->as<StructType>();
-            auto llvm_struct = llvm::cast<llvm::StructType>(convert(struct_type));
-            assert(!types_.contains(struct_type) && "type already converted");
+            auto llvm_struct = llvm::StructType::create(context_);
+
             // important: memoize before recursing into element types to avoid endless recursion
+            assert(!types_.contains(struct_type) && "type already converted");
             types_[struct_type] = llvm_struct;
+
             Array<llvm::Type*> llvm_types(struct_type->size());
             for (size_t i = 0, e = llvm_types.size(); i != e; ++i)
                 llvm_types[i] = convert(struct_type->arg(i));

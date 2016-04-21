@@ -6,12 +6,12 @@
 #error "please define the type table type HENK_TABLE_TYPE"
 #endif
 
-#ifndef HENK_STRUCT_UNIFIER_NAME
-#error "please define the name for HENK_STRUCT_UNIFIER_TYPE: HENK_STRUCT_UNIFIER_NAME"
+#ifndef HENK_STRUCT_EXTRA_NAME
+#error "please define the name for HENK_STRUCT_EXTRA_TYPE: HENK_STRUCT_EXTRA_NAME"
 #endif
 
-#ifndef HENK_STRUCT_UNIFIER_TYPE
-#error "please define the type to unify StructTypes HENK_STRUCT_UNIFIER_TYPE"
+#ifndef HENK_STRUCT_EXTRA_TYPE
+#error "please define the type to unify StructTypes HENK_STRUCT_EXTRA_TYPE"
 #endif
 
 size_t Type::gid_counter_ = 1;
@@ -133,7 +133,7 @@ const Type* Type::rebuild(HENK_TABLE_TYPE& to, Types args) const {
 }
 
 const Type* StructType::vrebuild(HENK_TABLE_TYPE& to, Types args) const {
-    auto ntype = to.struct_type(HENK_STRUCT_UNIFIER_NAME(), args.size());
+    auto ntype = to.struct_type(HENK_STRUCT_EXTRA_NAME(), args.size());
     for (size_t i = 0, e = args.size(); i != e; ++i)
         const_cast<StructType*>(ntype)->set(i, args[i]);
     return ntype;
@@ -178,8 +178,15 @@ const Type* Var::vreduce(int depth, const Type* type, Type2Type&) const {
         return this;                                    // this variable is not free - don't adjust
 }
 
-const Type* StructType::vreduce(int, const Type*, Type2Type&) const {
-    assert(false && "TODO");
+const Type* StructType::vreduce(int depth, const Type* type, Type2Type& map) const {
+    auto struct_type = HENK_TABLE_NAME().struct_type(HENK_STRUCT_EXTRA_NAME(), size());
+    map[this] = struct_type;
+    auto args = reduce_args(depth, type, map);
+
+    for (size_t i = 0, e = size(); i != e; ++i)
+        struct_type->set(i, args[i]);
+
+    return struct_type;
 }
 
 const Type* Application::vreduce(int depth, const Type* type, Type2Type& map) const {
@@ -194,8 +201,8 @@ const Type* TupleType::vreduce(int depth, const Type* type, Type2Type& map) cons
 //------------------------------------------------------------------------------
 
 template<class T>
-const StructType* TypeTableBase<T>::struct_type(HENK_STRUCT_UNIFIER_TYPE HENK_STRUCT_UNIFIER_NAME, size_t num_args) {
-    auto type = new StructType(HENK_TABLE_NAME(), HENK_STRUCT_UNIFIER_NAME, num_args);
+const StructType* TypeTableBase<T>::struct_type(HENK_STRUCT_EXTRA_TYPE HENK_STRUCT_EXTRA_NAME, size_t size) {
+    auto type = new StructType(HENK_TABLE_NAME(), HENK_STRUCT_EXTRA_NAME, size);
     const auto& p = types_.insert(type);
     assert_unused(p.second && "hash/equal broken");
     assert(!type->is_hashed());
@@ -271,7 +278,7 @@ template class TypeTableBase<HENK_TABLE_TYPE>;
 
 //------------------------------------------------------------------------------
 
-#undef HENK_STRUCT_UNIFIER_NAME
-#undef HENK_STRUCT_UNIFIER_TYPE
+#undef HENK_STRUCT_EXTRA_NAME
+#undef HENK_STRUCT_EXTRA_TYPE
 #undef HENK_TABLE_NAME
 #undef HENK_TABLE_TYPE

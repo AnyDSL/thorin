@@ -6,17 +6,17 @@
 #error "please define the type table type HENK_TABLE_TYPE"
 #endif
 
-#ifndef HENK_STRUCT_UNIFIER_TYPE
-#error "please define the type to unify StructTypes HENK_STRUCT_UNIFIER_TYPE"
+#ifndef HENK_STRUCT_EXTRA_TYPE
+#error "please define the type to unify StructTypes HENK_STRUCT_EXTRA_TYPE"
 #endif
 
-#ifndef HENK_STRUCT_UNIFIER_NAME
-#error "please define the name for HENK_STRUCT_UNIFIER_TYPE: HENK_STRUCT_UNIFIER_NAME"
+#ifndef HENK_STRUCT_EXTRA_NAME
+#error "please define the name for HENK_STRUCT_EXTRA_TYPE: HENK_STRUCT_EXTRA_NAME"
 #endif
 
 #define HENK_UNDERSCORE(N) N##_
 #define HENK_TABLE_NAME_          HENK_UNDERSCORE(HENK_TABLE_NAME)
-#define HENK_STRUCT_UNIFIER_NAME_ HENK_UNDERSCORE(HENK_STRUCT_UNIFIER_NAME)
+#define HENK_STRUCT_EXTRA_NAME_ HENK_UNDERSCORE(HENK_STRUCT_EXTRA_NAME)
 
 //------------------------------------------------------------------------------
 
@@ -207,13 +207,13 @@ public:
 
 class StructType : public Type {
 private:
-    StructType(HENK_TABLE_TYPE& table, HENK_STRUCT_UNIFIER_TYPE HENK_STRUCT_UNIFIER_NAME, size_t size)
+    StructType(HENK_TABLE_TYPE& table, HENK_STRUCT_EXTRA_TYPE HENK_STRUCT_EXTRA_NAME, size_t size)
         : Type(table, Node_StructType, thorin::Array<const Type*>(size))
-        , HENK_STRUCT_UNIFIER_NAME_(HENK_STRUCT_UNIFIER_NAME)
+        , HENK_STRUCT_EXTRA_NAME_(HENK_STRUCT_EXTRA_NAME)
     {}
 
 public:
-    HENK_STRUCT_UNIFIER_TYPE HENK_STRUCT_UNIFIER_NAME() const { return HENK_STRUCT_UNIFIER_NAME_; }
+    HENK_STRUCT_EXTRA_TYPE HENK_STRUCT_EXTRA_NAME() const { return HENK_STRUCT_EXTRA_NAME_; }
     void set(size_t i, const Type* type) const { return const_cast<StructType*>(this)->Type::set(i, type); }
 
 private:
@@ -223,7 +223,7 @@ private:
     virtual bool equal(const Type*) const override;
     virtual std::ostream& stream(std::ostream&) const override;
 
-    HENK_STRUCT_UNIFIER_TYPE HENK_STRUCT_UNIFIER_NAME_;
+    HENK_STRUCT_EXTRA_TYPE HENK_STRUCT_EXTRA_NAME_;
 
     template<class> friend class TypeTableBase;
 };
@@ -254,7 +254,7 @@ public:
     const Type* application(const Type* callee, const Type* arg);
     const TupleType* tuple_type(Types args) { return unify(new TupleType(HENK_TABLE_NAME(), args)); }
     const TupleType* unit() { return unit_; } ///< Returns unit, i.e., an empty @p TupleType.
-    const StructType* struct_type(HENK_STRUCT_UNIFIER_TYPE HENK_STRUCT_UNIFIER_NAME, size_t num_args);
+    const StructType* struct_type(HENK_STRUCT_EXTRA_TYPE HENK_STRUCT_EXTRA_NAME, size_t size);
 
     const TypeSet& types() const { return types_; }
 
@@ -274,7 +274,7 @@ protected:
 
 //------------------------------------------------------------------------------
 
-#undef HENK_STRUCT_UNIFIER_NAME
-#undef HENK_STRUCT_UNIFIER_TYPE
+#undef HENK_STRUCT_EXTRA_NAME
+#undef HENK_STRUCT_EXTRA_TYPE
 #undef HENK_TABLE_NAME
 #undef HENK_TABLE_TYPE

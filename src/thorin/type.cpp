@@ -11,8 +11,8 @@
 
 namespace thorin {
 
-#define HENK_STRUCT_UNIFIER_NAME name
-#define HENK_STRUCT_UNIFIER_TYPE const char*
+#define HENK_STRUCT_EXTRA_NAME name
+#define HENK_STRUCT_EXTRA_TYPE const char*
 #define HENK_TABLE_NAME world
 #define HENK_TABLE_TYPE World
 #include "thorin/henk.cpp.h"

@@ -10,6 +10,10 @@
 #error "please define the name for HENK_STRUCT_UNIFIER_TYPE: HENK_STRUCT_UNIFIER_NAME"
 #endif
 
+#ifndef HENK_STRUCT_UNIFIER_TYPE
+#error "please define the type to unify StructTypes HENK_STRUCT_UNIFIER_TYPE"
+#endif
+
 size_t Type::gid_counter_ = 1;
 
 //------------------------------------------------------------------------------
@@ -86,7 +90,7 @@ uint64_t Var::vhash() const {
 }
 
 uint64_t StructType::vhash() const {
-    return thorin::hash_combine(thorin::hash_begin(int(kind())), int(kind()), int(size()), HENK_STRUCT_UNIFIER_NAME());
+    return thorin::hash_combine(thorin::hash_begin(int(kind())), gid());
 }
 
 //------------------------------------------------------------------------------
@@ -113,11 +117,7 @@ bool Var::equal(const Type* other) const {
     return other->isa<Var>() ? this->as<Var>()->depth() == other->as<Var>()->depth() : false;
 }
 
-bool StructType::equal(const Type* other) const {
-    if (auto other_struct_type = other->isa<StructType>())
-        return this->HENK_STRUCT_UNIFIER_NAME() == other_struct_type->HENK_STRUCT_UNIFIER_NAME();
-    return false;
-}
+bool StructType::equal(const Type* other) const { return this == other; }
 
 //------------------------------------------------------------------------------
 
@@ -194,6 +194,16 @@ const Type* TupleType::vreduce(int depth, const Type* type, Type2Type& map) cons
 //------------------------------------------------------------------------------
 
 template<class T>
+const StructType* TypeTableBase<T>::struct_type(HENK_STRUCT_UNIFIER_TYPE HENK_STRUCT_UNIFIER_NAME, size_t num_args) {
+    auto type = new StructType(HENK_TABLE_NAME(), HENK_STRUCT_UNIFIER_NAME, num_args);
+    const auto& p = types_.insert(type);
+    assert_unused(p.second && "hash/equal broken");
+    assert(!type->is_hashed());
+    type->hashed_ = true;
+    return type;
+}
+
+template<class T>
 const Type* TypeTableBase<T>::application(const Type* callee, const Type* arg) {
     auto application = unify(new Application(HENK_TABLE_NAME(), callee, arg));
 
@@ -262,5 +272,6 @@ template class TypeTableBase<HENK_TABLE_TYPE>;
 //------------------------------------------------------------------------------
 
 #undef HENK_STRUCT_UNIFIER_NAME
+#undef HENK_STRUCT_UNIFIER_TYPE
 #undef HENK_TABLE_NAME
 #undef HENK_TABLE_TYPE

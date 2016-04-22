@@ -203,7 +203,7 @@ const Def* IndefiniteArray::vrebuild(World& to, Defs ops, const Type* t) const {
 
 const char* PrimOp::op_name() const {
     switch (kind()) {
-#define THORIN_AIR_NODE(op, abbr) case Node_##op: return #abbr;
+#define THORIN_NODE(op, abbr) case Node_##op: return #abbr;
 #include "thorin/tables/nodetable.h"
         default: THORIN_UNREACHABLE;
     }

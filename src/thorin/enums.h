@@ -10,7 +10,7 @@ namespace thorin {
 
 enum NodeKind {
 #define THORIN_GLUE(pre, next)
-#define THORIN_AIR_NODE(node, abbr) Node_##node,
+#define THORIN_NODE(node, abbr) Node_##node,
 #define THORIN_PRIMTYPE(T) Node_PrimType_##T,
 #define THORIN_ARITHOP(op) Node_##op,
 #define THORIN_CMP(op) Node_##op,
@@ -22,7 +22,7 @@ enum Markers {
     End_##pre, \
     Begin_##next = End_##pre, \
     zzz##Begin_##next = Begin_##next - 1,
-#define THORIN_AIR_NODE(node, abbr) zzzMarker_##node,
+#define THORIN_NODE(node, abbr) zzzMarker_##node,
 #define THORIN_PRIMTYPE(T) zzzMarker_PrimType_##T,
 #define THORIN_ARITHOP(op) zzzMarker_##op,
 #define THORIN_CMP(op) zzzMarker_##op,

@@ -113,6 +113,7 @@ std::ostream& Lambda             ::stream(std::ostream& os) const { return strea
 std::ostream& MemType            ::stream(std::ostream& os) const { return os << "mem"; }
 std::ostream& StructType         ::stream(std::ostream& os) const { return os << name(); }
 std::ostream& TupleType          ::stream(std::ostream& os) const { return stream_type_args(os, this); }
+std::ostream& TypeError          ::stream(std::ostream& os) const { return os << "<type error>"; }
 
 std::ostream& PtrType::stream(std::ostream& os) const {
     if (is_vector())

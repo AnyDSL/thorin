@@ -72,6 +72,8 @@ const Lambda* close(const Lambda* lambda, const Type* body) {
 }
 #endif
 
+const Type* Type::arg(size_t i) const { return i < size() ? args()[i] : HENK_TABLE_NAME().type_error(); }
+
 //------------------------------------------------------------------------------
 
 /*
@@ -143,6 +145,7 @@ const Type* Application::vrebuild(HENK_TABLE_TYPE& to, Types args) const { retur
 const Type* TupleType  ::vrebuild(HENK_TABLE_TYPE& to, Types args) const { return to.tuple_type(args); }
 const Type* Lambda     ::vrebuild(HENK_TABLE_TYPE& to, Types args) const { return to.lambda(args[0], name()); }
 const Type* Var        ::vrebuild(HENK_TABLE_TYPE& to, Types     ) const { return to.var(depth()); }
+const Type* TypeError  ::vrebuild(HENK_TABLE_TYPE&,    Types     ) const { return this; }
 
 //------------------------------------------------------------------------------
 
@@ -197,6 +200,8 @@ const Type* Application::vreduce(int depth, const Type* type, Type2Type& map) co
 const Type* TupleType::vreduce(int depth, const Type* type, Type2Type& map) const {
     return HENK_TABLE_NAME().tuple_type(reduce_args(depth, type, map));
 }
+
+const Type* TypeError::vreduce(int, const Type*, Type2Type&) const { return this; }
 
 //------------------------------------------------------------------------------
 

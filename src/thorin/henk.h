@@ -75,7 +75,7 @@ public:
     HENK_TABLE_TYPE& HENK_TABLE_NAME() const { return HENK_TABLE_NAME_; }
 
     Types args() const { return args_; }
-    const Type* arg(size_t i) const { assert(i < args().size()); return args()[i]; }
+    const Type* arg(size_t i) const;
     size_t size() const { return args_.size(); }
     bool empty() const { return args_.empty(); }
 
@@ -228,6 +228,22 @@ private:
     template<class> friend class TypeTableBase;
 };
 
+class TypeError : public Type {
+private:
+    TypeError(HENK_TABLE_TYPE& table)
+        : Type(table, Node_TypeError, {})
+    {}
+
+public:
+    virtual std::ostream& stream(std::ostream&) const override;
+
+private:
+    virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types args) const override;
+    virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
+
+    template<class> friend class TypeTableBase;
+};
+
 //------------------------------------------------------------------------------
 
 template<class HENK_TABLE_TYPE>
@@ -245,6 +261,7 @@ public:
 
     TypeTableBase()
         : unit_(unify(new TupleType(HENK_TABLE_NAME(), Types())))
+        , type_error_(unify(new TypeError(HENK_TABLE_NAME())))
     {}
     virtual ~TypeTableBase() { for (auto type : types_) delete type; }
 
@@ -255,6 +272,7 @@ public:
     const TupleType* tuple_type(Types args) { return unify(new TupleType(HENK_TABLE_NAME(), args)); }
     const TupleType* unit() { return unit_; } ///< Returns unit, i.e., an empty @p TupleType.
     const StructType* struct_type(HENK_STRUCT_EXTRA_TYPE HENK_STRUCT_EXTRA_NAME, size_t size);
+    const TypeError* type_error() { return type_error_; }
 
     const TypeSet& types() const { return types_; }
 
@@ -267,6 +285,7 @@ protected:
 
     TypeSet types_;
     const TupleType* unit_; ///< tuple().
+    const TypeError* type_error_;
 
     //friend const Lambda* close(const Lambda*, const Type*);
     friend class Lambda;

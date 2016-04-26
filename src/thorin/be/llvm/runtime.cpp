@@ -21,7 +21,7 @@ Runtime::Runtime(llvm::LLVMContext& context,
                  llvm::IRBuilder<>& builder)
     : target_(target)
     , builder_(builder)
-    , layout_(*target.getDataLayout())
+    , layout_(target.getDataLayout())
 {
     llvm::SMDiagnostic diag;
     runtime_ = llvm::parseIRFile(THORIN_RUNTIME_PLATFORMS "runtime.s", diag, context);

@@ -14,7 +14,7 @@
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Type.h>
 #include <llvm/IR/Verifier.h>
-#include <llvm/PassManager.h>
+#include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Support/Host.h>
 #include <llvm/Support/Path.h>
 #include <llvm/Support/raw_ostream.h>
@@ -84,7 +84,7 @@ Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
 }
 
 void CodeGen::emit_result_phi(const Param* param, llvm::Value* value) {
-    find(phis_, param)->addIncoming(value, irbuilder_.GetInsertBlock());
+    thorin::find(phis_, param)->addIncoming(value, irbuilder_.GetInsertBlock());
 }
 
 Continuation* CodeGen::emit_atomic(Continuation* continuation) {
@@ -119,7 +119,7 @@ Continuation* CodeGen::emit_sizeof(Continuation* continuation) {
     auto type = convert(continuation->type_arg(0));
     auto cont = continuation->arg(1)->as_continuation();
     auto layout = module_->getDataLayout();
-    auto call = irbuilder_.getInt32(layout->getTypeAllocSize(type));
+    auto call = irbuilder_.getInt32(layout.getTypeAllocSize(type));
     emit_result_phi(cont->param(1), call);
     return cont;
 }
@@ -180,7 +180,7 @@ llvm::FunctionType* CodeGen::convert_fn_type(Continuation* continuation) {
 }
 
 llvm::Function* CodeGen::emit_function_decl(Continuation* continuation) {
-    if (auto f = find(fcts_, continuation))
+    if (auto f = thorin::find(fcts_, continuation))
         return f;
 
     std::string name = (continuation->is_external() || continuation->empty()) ? continuation->name : continuation->unique_name();
@@ -231,17 +231,18 @@ void CodeGen::emit(int opt, bool debug) {
         assert(entry_->is_returning());
         llvm::Function* fct = emit_function_decl(entry_);
 
-        llvm::DISubprogram disub_program;
-        llvm::DIScope* discope = &dicompile_unit;
+        llvm::DISubprogram* disub_program;
+        llvm::DIScope* discope = dicompile_unit;
         if (debug) {
             auto src_file = llvm::sys::path::filename(entry_->loc().begin().filename());
             auto src_dir = llvm::sys::path::parent_path(entry_->loc().begin().filename());
             auto difile = dibuilder_.createFile(src_file, src_dir);
-            disub_program = dibuilder_.createFunction(llvm::DIDescriptor(difile), fct->getName(), fct->getName(), difile, entry_->loc().begin().line(),
-                                                      dibuilder_.createSubroutineType(difile, dibuilder_.getOrCreateTypeArray(llvm::ArrayRef<llvm::Metadata*>())),
+            disub_program = dibuilder_.createFunction(discope, fct->getName(), fct->getName(), difile, entry_->loc().begin().line(),
+                                                      dibuilder_.createSubroutineType(dibuilder_.getOrCreateTypeArray(llvm::ArrayRef<llvm::Metadata*>())),
                                                       false /* internal linkage */, true /* definition */, entry_->loc().begin().line(),
-                                                      llvm::DIDescriptor::FlagPrototyped /* Flags */, opt > 0, fct);
-            discope = &disub_program;
+                                                      llvm::DINode::FlagPrototyped /* Flags */, opt > 0);
+            fct->setSubprogram(disub_program);
+            discope = disub_program;
         }
 
         // map params
@@ -255,7 +256,7 @@ void CodeGen::emit(int opt, bool debug) {
                 auto value = map_param(fct, argv, param);
                 if (value == argv) {
                     arg->setName(param->unique_name()); // use param
-                    params_[param] = arg++;
+                    params_[param] = &*arg++;
                 } else {
                     params_[param] = value;             // use provided value
                 }
@@ -288,12 +289,12 @@ void CodeGen::emit(int opt, bool debug) {
         }
 
         auto oldStartBB = fct->begin();
-        auto startBB = llvm::BasicBlock::Create(context_, fct->getName() + "_start", fct, oldStartBB);
+        auto startBB = llvm::BasicBlock::Create(context_, fct->getName() + "_start", fct, &*oldStartBB);
         irbuilder_.SetInsertPoint(startBB);
         if (debug)
-            irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(entry_->loc().begin().line(), entry_->loc().begin().col(), *discope));
+            irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(entry_->loc().begin().line(), entry_->loc().begin().col(), discope));
         emit_function_start(startBB, entry_);
-        irbuilder_.CreateBr(oldStartBB);
+        irbuilder_.CreateBr(&*oldStartBB);
 
         for (auto& block : schedule) {
             auto continuation = block.continuation();
@@ -304,13 +305,13 @@ void CodeGen::emit(int opt, bool debug) {
 
             for (auto primop : block) {
                 if (debug)
-                    irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(primop->loc().begin().line(), primop->loc().begin().col(), *discope));
+                    irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(primop->loc().begin().line(), primop->loc().begin().col(), discope));
                 primops_[primop] = emit(primop);
             }
 
             // terminate bb
             if (debug)
-                irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(continuation->jump_loc().begin().line(), continuation->jump_loc().begin().col(), *discope));
+                irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(continuation->jump_loc().begin().line(), continuation->jump_loc().begin().col(), discope));
             if (continuation->callee() == ret_param) { // return
                 size_t num_args = continuation->num_args();
                 switch (num_args) {
@@ -485,7 +486,7 @@ void CodeGen::emit(int opt, bool debug) {
 void CodeGen::optimize(int opt) {
     if (opt != 0) {
         llvm::PassManagerBuilder pmbuilder;
-        llvm::PassManager pass_manager;
+        llvm::legacy::PassManager pass_manager;
         if (opt == -1) {
             pmbuilder.OptLevel = 2u;
             pmbuilder.SizeLevel = 1;
@@ -506,7 +507,7 @@ void CodeGen::optimize(int opt) {
 
 llvm::Value* CodeGen::lookup(const Def* def) {
     if (auto primop = def->isa<PrimOp>()) {
-        if (auto res = find(primops_, primop))
+        if (auto res = thorin::find(primops_, primop))
             return res;
         else
             return primops_[primop] = emit(def);
@@ -518,7 +519,7 @@ llvm::Value* CodeGen::lookup(const Def* def) {
             return i->second;
 
         assert(phis_.find(param) != phis_.end());
-        return find(phis_, param);
+        return thorin::find(phis_, param);
     }
 
     THORIN_UNREACHABLE;
@@ -816,9 +817,9 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto layout = module_->getDataLayout();
         if (auto array = is_indefinite(alloc->alloced_type())) {
             auto size = irbuilder_.CreateAdd(
-                    irbuilder_.getInt64(layout->getTypeAllocSize(alloced_type)),
+                    irbuilder_.getInt64(layout.getTypeAllocSize(alloced_type)),
                     irbuilder_.CreateMul(irbuilder_.CreateIntCast(lookup(alloc->extra()), irbuilder_.getInt64Ty(), false),
-                                         irbuilder_.getInt64(layout->getTypeAllocSize(convert(array->elem_type())))));
+                                         irbuilder_.getInt64(layout.getTypeAllocSize(convert(array->elem_type())))));
             llvm::Value* malloc_args[] = {
                 irbuilder_.getInt32(0),
                 size
@@ -827,7 +828,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         } else {
             llvm::Value* malloc_args[] = {
                 irbuilder_.getInt32(0),
-                irbuilder_.getInt64(layout->getTypeAllocSize(alloced_type))
+                irbuilder_.getInt64(layout.getTypeAllocSize(alloced_type))
             };
             void_ptr = irbuilder_.CreateCall(llvm_malloc, malloc_args);
         }
@@ -880,7 +881,7 @@ llvm::Value* CodeGen::emit_store(const Store* store) {
 
 llvm::Value* CodeGen::emit_lea(const LEA* lea) {
     if (lea->ptr_referenced_type()->isa<TupleType>() || lea->ptr_referenced_type()->isa<StructAppType>())
-        return irbuilder_.CreateStructGEP(lookup(lea->ptr()), primlit_value<u32>(lea->index()));
+        return irbuilder_.CreateStructGEP(convert(lea->ptr_referenced_type()), lookup(lea->ptr()), primlit_value<u32>(lea->index()));
 
     assert(lea->ptr_referenced_type()->isa<ArrayType>());
     llvm::Value* args[2] = { irbuilder_.getInt64(0), lookup(lea->index()) };
@@ -891,9 +892,6 @@ llvm::Type* CodeGen::convert(const Type* type) {
     if (auto llvm_type = thorin::find(types_, type))
         return llvm_type;
 
-    // wrapper for LLVM 3.4
-    auto getHalfTy = [&]() { return llvm::Type::getHalfTy(context_); };
-
     assert(!type->isa<MemType>());
     llvm::Type* llvm_type;
     switch (type->kind()) {
@@ -902,7 +900,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
         case PrimType_ps16: case PrimType_qs16: case PrimType_pu16: case PrimType_qu16: llvm_type = irbuilder_.getInt16Ty();  break;
         case PrimType_ps32: case PrimType_qs32: case PrimType_pu32: case PrimType_qu32: llvm_type = irbuilder_.getInt32Ty();  break;
         case PrimType_ps64: case PrimType_qs64: case PrimType_pu64: case PrimType_qu64: llvm_type = irbuilder_.getInt64Ty();  break;
-        case PrimType_pf16: case PrimType_qf16:                                         llvm_type =             getHalfTy();  break;
+        case PrimType_pf16: case PrimType_qf16:                                         llvm_type = irbuilder_.getHalfTy();   break;
         case PrimType_pf32: case PrimType_qf32:                                         llvm_type = irbuilder_.getFloatTy();  break;
         case PrimType_pf64: case PrimType_qf64:                                         llvm_type = irbuilder_.getDoubleTy(); break;
         case Node_PtrType: {

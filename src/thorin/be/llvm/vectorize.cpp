@@ -1,7 +1,7 @@
 #ifdef WFV2_SUPPORT
 #include "thorin/be/llvm/llvm.h"
 
-#include <llvm/PassManager.h>
+#include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/Transforms/Scalar.h>
 
@@ -76,7 +76,7 @@ Continuation* CodeGen::emit_vectorize_continuation(Continuation* continuation) {
 
 void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llvm::CallInst* simd_kernel_call) {
     // ensure proper loop forms
-    FunctionPassManager pm(module_.get());
+    legacy::FunctionPassManager pm(module_.get());
     pm.add(llvm::createLICMPass());
     pm.add(llvm::createLCSSAPass());
     pm.run(*kernel_func);

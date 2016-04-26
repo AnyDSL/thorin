@@ -245,7 +245,8 @@ void CudaPlatform::load_kernel(device_id dev, const char* file, const char* name
         CUfunction func;
         CUresult err = cuModuleGetFunction(&func, mod, name);
         if (err != CUDA_SUCCESS)
-            ELOG("Function '%' is not present in '%'", name, file);
+            ILOG("Function '%' is not present in '%'", name, file);
+        checkErrDrv(err, "cuModuleGetFunction()");
         func_map.emplace(name, func);
         devices_[dev].kernel = func;
     } else {

@@ -26,6 +26,8 @@ SET ( SOURCES
     analyses/domtree.h
     analyses/free_vars.cpp
     analyses/free_vars.h
+    analyses/free_params.cpp
+    analyses/free_params.h
     analyses/looptree.cpp
     analyses/looptree.h
     analyses/schedule.cpp

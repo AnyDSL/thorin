@@ -28,6 +28,7 @@ template<class T> class Array;
 template<class T>
 class ArrayRef {
 public:
+    typedef T value_type;
     typedef const T* const_iterator;
     typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
 
@@ -91,6 +92,12 @@ private:
 template<class T>
 class Array {
 public:
+    typedef T value_type;
+    typedef T* iterator;
+    typedef const T* const_iterator;
+    typedef std::reverse_iterator<iterator> reverse_iterator;
+    typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
+
     Array()
         : size_(0)
         , ptr_(nullptr)
@@ -144,11 +151,6 @@ public:
         std::copy(list.begin(), list.end(), ptr_);
     }
     ~Array() { delete[] ptr_; }
-
-    typedef T* iterator;
-    typedef const T* const_iterator;
-    typedef std::reverse_iterator<iterator> reverse_iterator;
-    typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
 
     iterator begin() { return ptr_; }
     iterator end() { return ptr_ + size_; }

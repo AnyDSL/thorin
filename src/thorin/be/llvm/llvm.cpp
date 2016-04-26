@@ -218,13 +218,14 @@ llvm::Function* CodeGen::emit_function_decl(Continuation* continuation) {
 }
 
 void CodeGen::emit(int opt, bool debug) {
+    llvm::DICompileUnit* dicompile_unit;
     if (debug) {
         module_->addModuleFlag(llvm::Module::Warning, "Debug Info Version", llvm::DEBUG_METADATA_VERSION);
         // Darwin only supports dwarf2
         if (llvm::Triple(llvm::sys::getProcessTriple()).isOSDarwin())
             module_->addModuleFlag(llvm::Module::Warning, "Dwarf Version", 2);
+        dicompile_unit = dibuilder_.createCompileUnit(llvm::dwarf::DW_LANG_C, world_.name(), llvm::StringRef(), "Impala", opt > 0, llvm::StringRef(), 0);
     }
-    auto dicompile_unit = dibuilder_.createCompileUnit(llvm::dwarf::DW_LANG_C, world_.name(), llvm::StringRef(), "Impala", opt > 0, llvm::StringRef(), 0);
 
     Scope::for_each(world_, [&] (const Scope& scope) {
         entry_ = scope.entry();
@@ -460,7 +461,8 @@ void CodeGen::emit(int opt, bool debug) {
     llvm::verifyModule(*module_);
 #endif
     optimize(opt);
-    dibuilder_.finalize();
+    if (debug)
+        dibuilder_.finalize();
 
     {
         std::error_code EC;

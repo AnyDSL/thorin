@@ -208,7 +208,7 @@ Array<T> ArrayRef<T>::cut(ArrayRef<size_t> indices, size_t reserve) const {
 
 template<class T, class U>
 auto concat(const T& a, const U& b) -> Array<typename T::value_type> {
-    Array<typename T::value_type> result(a.size(), b.size());
+    Array<typename T::value_type> result(a.size() + b.size());
     std::copy(b.begin(), b.end(), std::copy(a.begin(), a.end(), result.begin()));
     return result;
 }

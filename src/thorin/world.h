@@ -15,8 +15,7 @@
 namespace thorin {
 
 /**
- * @brief The World represents the whole program and manages creation and destruction of Thorin nodes.
- *
+ * The World represents the whole program and manages creation and destruction of Thorin nodes.
  * In particular, the following things are done by this class:
  *
  *  - @p Type unification: \n

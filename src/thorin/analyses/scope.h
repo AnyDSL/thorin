@@ -20,8 +20,7 @@ class CFA;
 class CFNode;
 
 /**
- * @brief A @p Scope represents a region of @p Continuation%s which are live from the view of an @p entry @p Continuation.
- *
+ * A @p Scope represents a region of @p Continuation%s which are live from the view of an @p entry @p Continuation.
  * Transitively, all user's of the @p entry's parameters are pooled into this @p Scope.
  * Use @p continuations() to retrieve a vector of @p Continuation%s in this @p Scope.
  * @p entry() will be first, @p exit() will be last.

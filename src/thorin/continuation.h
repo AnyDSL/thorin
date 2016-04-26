@@ -20,8 +20,7 @@ typedef std::vector<Continuation*> Continuations;
 //------------------------------------------------------------------------------
 
 /**
- * @brief A parameter of a @p Continuation function.
- *
+ * A parameter of a @p Continuation function.
  * A @p Param knows its @p continuation() it belongs to.
  */
 class Param : public Def {
@@ -93,8 +92,7 @@ enum class CC : uint8_t {
 
 
 /**
- * @brief A function abstraction.
- *
+ * A function abstraction.
  * A @p Continuation is always of function type @p FnTypeNode.
  * Each element of this function type is associated a properly typed @p Param - retrieved via @p params().
  */

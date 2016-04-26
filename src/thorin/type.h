@@ -147,8 +147,7 @@ private:
 };
 
 /**
- * @brief A struct abstraction.
- *
+ * A struct abstraction.
  * Structs may be recursive via a pointer indirection (like in C or Java).
  * But unlike C, structs may be polymorphic.
  * A concrete instantiation of a struct abstraction is a struct application.
@@ -180,8 +179,7 @@ private:
 };
 
 /**
- * @brief A struct application.
- *
+ * A struct application.
  * A concrete instantiation of a struct abstraction is a struct application.
  * @see StructAbsType.
  */

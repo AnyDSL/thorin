@@ -12,6 +12,7 @@ enum class EvalState {
 };
 
 void lower2cff(World& world) {
+    WLOG("lower2cff start");
     HashMap<Call, Continuation*> cache;
     ContinuationSet top;
 
@@ -92,6 +93,7 @@ void lower2cff(World& world) {
         }
     }
 
+    WLOG("lower2cff end");
     debug_verify(world);
     world.cleanup();
 }

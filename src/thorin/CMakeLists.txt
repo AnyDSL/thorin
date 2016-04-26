@@ -71,6 +71,8 @@ SET ( SOURCES
     transform/dead_load_opt.h
     transform/hoist_enters.cpp
     transform/hoist_enters.h
+    transform/higher_order_lifting.cpp
+    transform/higher_order_lifting.h
     transform/import.cpp
     transform/import.h
     transform/inliner.cpp

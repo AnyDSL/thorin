@@ -51,6 +51,7 @@ public:
     Types type_args;
     Defs args;
     Defs lift;
+    std::vector<const Param*> lifted_params;
     Type2Type type2type;
     Continuation* oentry;
     Continuation* nentry;
@@ -94,8 +95,11 @@ Continuation* Mangler::mangle() {
         }
     }
 
-    for (auto def : lift)
-        def2def[def] = nentry->append_param(def->type()->specialize(type2type));
+    for (auto def : lift) {
+        auto param = nentry->append_param(def->type()->specialize(type2type));
+        lifted_params.push_back(param);
+        def2def[def] = param;
+    }
 
     mangle_body(oentry, nentry);
     return nentry;
@@ -125,8 +129,8 @@ void Mangler::mangle_body(Continuation* ocontinuation, Continuation* ncontinuati
     for (size_t i = 0, e = nops.size(); i != e; ++i)
         nops[i] = mangle(ocontinuation->op(i));
 
-    Defs nargs(nops.skip_front());         // new args of ncontinuation
-    const Def* ntarget = nops.front();                     // new target of ncontinuation
+    Defs nargs(nops.skip_front());      // new args of ncontinuation
+    const Def* ntarget = nops.front();  // new target of ncontinuation
 
     // specialize all type args
     Array<const Type*> ntype_args(ocontinuation->type_args().size());
@@ -145,7 +149,7 @@ void Mangler::mangle_body(Continuation* ocontinuation, Continuation* ncontinuati
         }
 
         if (substitute)
-            return ncontinuation->jump(nentry, ntype_args, nargs.cut(cut), ocontinuation->jump_loc());
+            return ncontinuation->jump(nentry, ntype_args, concat(nargs.cut(cut), lifted_params), ocontinuation->jump_loc());
     }
 
     ncontinuation->jump(ntarget, ntype_args, nargs, ocontinuation->jump_loc());

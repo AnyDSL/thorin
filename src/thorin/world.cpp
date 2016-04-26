@@ -11,6 +11,7 @@
 #include "thorin/transform/clone_bodies.h"
 #include "thorin/transform/inliner.h"
 #include "thorin/transform/lift_builtins.h"
+#include "thorin/transform/higher_order_lifting.h"
 #include "thorin/transform/hoist_enters.h"
 #include "thorin/transform/lower2cff.h"
 #include "thorin/transform/mem2reg.h"
@@ -827,10 +828,7 @@ void World::cleanup() { cleanup_world(*this); }
 
 void World::opt() {
     cleanup();
-    lower2cff(*this);
-    clone_bodies(*this);
-    mem2reg(*this);
-    cleanup();
+    higher_order_lifting(*this);
     partial_evaluation(*this);
     cleanup();
     lower2cff(*this);

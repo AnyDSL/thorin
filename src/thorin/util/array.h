@@ -17,8 +17,7 @@ template<class T> class Array;
 //------------------------------------------------------------------------------
 
 /**
- * @brief A container-like wrapper for an array.
- *
+ * A container-like wrapper for an array.
  * The array may either stem from a C array, a <tt>std::vector</tt>, a <tt>std::initializer_list</tt>, an @p Array or another @p ArrayRef.
  * @p ArrayRef does <em>not</em> own the data and, thus, does not destroy any data.
  * Likewise, you must be carefull to not destroy data an @p ArrayRef is pointing to.
@@ -61,7 +60,7 @@ public:
     const_iterator end() const { return ptr_ + size_; }
     const_reverse_iterator rbegin() const { return const_reverse_iterator(end()); }
     const_reverse_iterator rend() const { return const_reverse_iterator(begin()); }
-    const T& operator [] (size_t i) const { assert(i < size() && "index out of bounds"); return *(ptr_ + i); }
+    const T& operator[](size_t i) const { assert(i < size() && "index out of bounds"); return *(ptr_ + i); }
     size_t size() const { return size_; }
     bool empty() const { return size_ == 0; }
     T const& front() const { assert(!empty()); return ptr_[0]; }
@@ -70,7 +69,7 @@ public:
     ArrayRef<T> skip_back(size_t num = 1) const { return ArrayRef<T>(ptr_, size() - num); }
     Array<T> cut(ArrayRef<size_t> indices, size_t reserve = 0) const;
     template<class Other>
-    bool operator == (const Other& other) const { return this->size() == other.size() && std::equal(begin(), end(), other.begin()); }
+    bool operator==(const Other& other) const { return this->size() == other.size() && std::equal(begin(), end(), other.begin()); }
 
 private:
     size_t size_;
@@ -81,8 +80,7 @@ private:
 
 
 /**
- * @brief A container for a heap-allocated array.
- *
+ * A container for a heap-allocated array.
  * This class is similar to <tt>std::vector</tt> with the following differences:
  *  - In contrast to std::vector, Array cannot grow dynamically.
  *    An @p Array may @p shrink, however.
@@ -161,8 +159,6 @@ public:
     const_reverse_iterator rbegin() const { return const_reverse_iterator(end()); }
     const_reverse_iterator rend() const { return const_reverse_iterator(begin()); }
 
-    T& operator [] (size_t i) { assert(i < size() && "index out of bounds"); return ptr_[i]; }
-    T const& operator [] (size_t i) const { assert(i < size() && "index out of bounds"); return ptr_[i]; }
     T& front() const { assert(!empty()); return ptr_[0]; }
     T& back()  const { assert(!empty()); return ptr_[size_ - 1]; }
     size_t size() const { return size_; }
@@ -170,18 +166,20 @@ public:
     ArrayRef<T> skip_front(size_t num = 1) const { return ArrayRef<T>(ptr_ + num, size() - num); }
     ArrayRef<T> skip_back(size_t num = 1) const { return ArrayRef<T>(ptr_, size() - num); }
     Array<T> cut(ArrayRef<size_t> indices, size_t reserve = 0) const { return ArrayRef<T>(*this).cut(indices, reserve); }
-    bool operator == (const Array<T>& other) const { return ArrayRef<T>(*this) == ArrayRef<T>(other); }
     void shrink(size_t newsize) { assert(newsize <= size_); size_ = newsize; }
     ArrayRef<T> ref() const { return ArrayRef<T>(ptr_, size_); }
     T* data() { return ptr_; }
     const T* data() const { return ptr_; }
+    T& operator[](size_t i) { assert(i < size() && "index out of bounds"); return ptr_[i]; }
+    T const& operator[](size_t i) const { assert(i < size() && "index out of bounds"); return ptr_[i]; }
+    bool operator==(const Array<T>& other) const { return ArrayRef<T>(*this) == ArrayRef<T>(other); }
+    Array<T>& operator=(Array<T> other) { swap(*this, other); return *this; }
 
     friend void swap(Array& a, Array& b) {
         using std::swap;
         swap(a.size_, b.size_);
         swap(a.ptr_,  b.ptr_);
     }
-    Array<T>& operator= (Array<T> other) { swap(*this, other); return *this; }
 
 private:
     size_t size_;
@@ -215,16 +213,14 @@ inline size_t hash_combine(size_t seed, thorin::ArrayRef<T> aref) {
     return seed;
 }
 
-//------------------------------------------------------------------------------
-
 template<class T>
 struct Hash<thorin::ArrayRef<T>> {
-    uint64_t operator () (thorin::ArrayRef<T> aref) const { return hash_combine(hash_begin(), aref); }
+    uint64_t operator()(thorin::ArrayRef<T> aref) const { return hash_combine(hash_begin(), aref); }
 };
 
 template<class T>
 struct Hash<thorin::Array<T>> {
-    uint64_t operator () (const thorin::Array<T>& array) const { return hash_value(array.ref()); }
+    uint64_t operator()(const thorin::Array<T>& array) const { return hash_value(array.ref()); }
 };
 
 //------------------------------------------------------------------------------

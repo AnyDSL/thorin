@@ -19,22 +19,21 @@ template<bool> class DomTreeBase;
 template<bool> class DomFrontierBase;
 
 /**
- * @brief A Control-Flow Node.
- *
+ * A Control-Flow Node.
  * Managed by @p CFA.
  */
 class CFNodeBase : public MagicCast<CFNodeBase>, public Streamable {
 public:
-    CFNodeBase(Def def)
+    CFNodeBase(const Def* def)
         : def_(def)
         , id_(id_counter_++)
     {}
 
     uint64_t id() const { return id_; }
-    Def def() const { return def_; }
+    const Def* def() const { return def_; }
 
 private:
-    Def def_;
+    const Def* def_;
     uint64_t id_;
     static uint32_t id_counter_;
 };
@@ -46,7 +45,7 @@ struct Hash<const CFNodeBase*> {
 
 class RealCFNode : public CFNodeBase {
 protected:
-    RealCFNode(Def def)
+    RealCFNode(const Def* def)
         : CFNodeBase(def)
     {}
 
@@ -72,11 +71,11 @@ typedef HashSet<const CFNode*> CFNodes;
 /// This node represents a @p CFNode within its underlying @p Scope.
 class CFNode : public RealCFNode {
 public:
-    CFNode(Lambda* lambda)
-        : RealCFNode(lambda)
+    CFNode(Continuation* continuation)
+        : RealCFNode(continuation)
     {}
 
-    Lambda* lambda() const { return def()->as_lambda(); }
+    Continuation* continuation() const { return def()->as_continuation(); }
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
@@ -95,8 +94,7 @@ private:
 //------------------------------------------------------------------------------
 
 /**
- * @brief Control Flow Analysis.
- *
+ * Control Flow Analysis.
  * This class maintains information obtained by local control-flow analysis run on a @p Scope.
  * See "Shallow Embedding of DSLs via Online Partial Evaluation", Leißa et.al. for details.
  */
@@ -113,11 +111,11 @@ public:
     const Scope::Map<const CFNode*>& nodes() const { return nodes_; }
     const F_CFG& f_cfg() const;
     const B_CFG& b_cfg() const;
-    const CFNode* operator [] (Lambda* lambda) const { return find(nodes_, lambda); }
+    const CFNode* operator [] (Continuation* continuation) const { return find(nodes_, continuation); }
 
 private:
-    const CFNodes& preds(Lambda* lambda) const { auto l = nodes_[lambda]; assert(l); return l->preds(); }
-    const CFNodes& succs(Lambda* lambda) const { auto l = nodes_[lambda]; assert(l); return l->succs(); }
+    const CFNodes& preds(Continuation* continuation) const { auto l = nodes_[continuation]; assert(l); return l->preds(); }
+    const CFNodes& succs(Continuation* continuation) const { auto l = nodes_[continuation]; assert(l); return l->succs(); }
     const CFNode* entry() const { return nodes_.array().front(); }
     const CFNode* exit() const { return nodes_.array().back(); }
 
@@ -134,8 +132,7 @@ private:
 //------------------------------------------------------------------------------
 
 /**
- * @brief A Control-Flow Graph.
- *
+ * A Control-Flow Graph.
  * A small wrapper for the information obtained by a @p CFA.
  * The template parameter @p forward determines the direction of the edges.
  * @c true means a conventional @p CFG.
@@ -160,12 +157,12 @@ public:
     size_t size() const { return cfa().size(); }
     const CFNodes& preds(const CFNode* n) const { return n ? (forward ? n->preds() : n->succs()) : empty_; }
     const CFNodes& succs(const CFNode* n) const { return n ? (forward ? n->succs() : n->preds()) : empty_; }
-    const CFNodes& preds(Lambda* lambda) const { return preds(cfa()[lambda]); }
-    const CFNodes& succs(Lambda* lambda) const { return succs(cfa()[lambda]); }
+    const CFNodes& preds(Continuation* continuation) const { return preds(cfa()[continuation]); }
+    const CFNodes& succs(Continuation* continuation) const { return succs(cfa()[continuation]); }
     size_t num_preds(const CFNode* n) const { return preds(n).size(); }
     size_t num_succs(const CFNode* n) const { return succs(n).size(); }
-    size_t num_preds(Lambda* lambda) const { return num_preds(cfa()[lambda]); }
-    size_t num_succs(Lambda* lambda) const { return num_succs(cfa()[lambda]); }
+    size_t num_preds(Continuation* continuation) const { return num_preds(cfa()[continuation]); }
+    size_t num_succs(Continuation* continuation) const { return num_succs(cfa()[continuation]); }
     const CFNode* entry() const { return forward ? cfa().entry() : cfa().exit();  }
     const CFNode* exit()  const { return forward ? cfa().exit()  : cfa().entry(); }
 
@@ -173,7 +170,7 @@ public:
     Range<ArrayRef<const CFNode*>::const_reverse_iterator> post_order() const { return reverse_range(rpo_.array()); }
     const CFNode* reverse_post_order(size_t i) const { return rpo_.array()[i]; }  ///< Maps from reverse post-order index to @p CFNode.
     const CFNode* post_order(size_t i) const { return rpo_.array()[size()-1-i]; } ///< Maps from post-order index to @p CFNode.
-    const CFNode* operator [] (Lambda* lambda) const { return cfa()[lambda]; }    ///< Maps from @p l to @p CFNode.
+    const CFNode* operator [] (Continuation* continuation) const { return cfa()[continuation]; }    ///< Maps from @p l to @p CFNode.
     const DomTreeBase<forward>& domtree() const;
     const LoopTree<forward>& looptree() const;
     const DomFrontierBase<forward>& domfrontier() const;

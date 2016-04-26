@@ -7,12 +7,12 @@
 namespace thorin {
 
 void lift_builtins(World& world) {
-    std::vector<Lambda*> todo;
+    std::vector<Continuation*> todo;
     Scope::for_each(world, [&] (const Scope& scope) {
         for (auto n : scope.f_cfg().post_order()) {
-            auto lambda = n->lambda();
-            if (lambda->is_passed_to_accelerator() && !lambda->is_basicblock())
-                todo.push_back(lambda);
+            auto continuation = n->continuation();
+            if (continuation->is_passed_to_accelerator() && !continuation->is_basicblock())
+                todo.push_back(continuation);
         }
     });
 
@@ -25,19 +25,21 @@ void lift_builtins(World& world) {
 #endif
         auto lifted = lift(scope, {}, vars);
 
-        for (auto use : cur->uses()) {
-            if (auto ulambda = use->isa_lambda()) {
-                if (auto to = ulambda->to()->isa_lambda()) {
-                    if (to->is_intrinsic()) {
-                        auto oops = ulambda->ops();
-                        Array<Def> nops(oops.size() + vars.size());
-                        std::copy(oops.begin(), oops.end(), nops.begin());                                  // copy over old ops
+        std::vector<Use> uses(cur->uses().begin(), cur->uses().end()); // TODO rewrite this
+        for (auto use : uses) {
+            if (auto ucontinuation = use->isa_continuation()) {
+                if (auto callee = ucontinuation->callee()->isa_continuation()) {
+                    if (callee->is_intrinsic()) {
+                        auto oops = ucontinuation->ops();
+                        Array<const Def*> nops(oops.size() + vars.size());
+                        std::copy(vars.begin(), vars.end(), std::copy(oops.begin(), oops.end(), nops.begin())); // old ops + former free vars
                         assert(oops[use.index()] == cur);
-                        nops[use.index()] = world.global(lifted, lifted->loc(), false, lifted->name);       // update to new lifted lambda
-                        std::copy(vars.begin(), vars.end(), nops.begin() + oops.size());                    // append former free vars
-                        ulambda->jump(cur, ulambda->type_args(), nops.skip_front(), ulambda->jump_loc());   // set new args
+                        nops[use.index()] = world.global(lifted, lifted->loc(), false, lifted->name);           // update to new lifted continuation
+                        ucontinuation->jump(cur, ucontinuation->type_args(), nops.skip_front(), ucontinuation->jump_loc());       // set new args
+
                         // jump to new top-level dummy function
-                        ulambda->update_to(world.lambda(ulambda->arg_fn_type(), to->loc(), to->cc(), to->intrinsic(), to->name));
+                        auto ncontinuation = world.continuation(ucontinuation->arg_fn_type(), callee->loc(), callee->cc(), callee->intrinsic(), callee->name);
+                        ucontinuation->update_callee(ncontinuation);
                     }
                 }
             }

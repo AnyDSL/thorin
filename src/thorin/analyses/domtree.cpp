@@ -42,6 +42,13 @@ outer_loop:;
 }
 
 template<bool forward>
+void DomTreeBase<forward>::depth(const CFNode* n, int i) {
+    depth_[n] = i;
+    for (auto child : children(n))
+        depth(child, i+1);
+}
+
+template<bool forward>
 const CFNode* DomTreeBase<forward>::lca(const CFNode* i, const CFNode* j) const {
     assert(i && j);
     while (index(i) != index(j)) {

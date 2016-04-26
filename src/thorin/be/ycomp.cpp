@@ -1,4 +1,4 @@
-#include "thorin/lambda.h"
+#include "thorin/continuation.h"
 #include "thorin/primop.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
@@ -28,24 +28,24 @@ private:
 
     static void EMIT_NOOP() { }
 
-    std::ostream& emit_operands(Def def);
-    std::ostream& emit_lambda_graph_begin(const Lambda*);
-    std::ostream& emit_lambda_graph_params(const Lambda*);
-    std::ostream& emit_lambda_graph_continuation(const Lambda*);
-    std::ostream& emit_lambda_graph_end();
+    std::ostream& emit_operands(const Def* def);
+    std::ostream& emit_continuation_graph_begin(const Continuation*);
+    std::ostream& emit_continuation_graph_params(const Continuation*);
+    std::ostream& emit_continuation_graph_continuation(const Continuation*);
+    std::ostream& emit_continuation_graph_end();
 
-    std::ostream& emit_def(Def);
+    std::ostream& emit_def(const Def*);
     std::ostream& emit_primop(const PrimOp*);
     std::ostream& emit_param(const Param*);
-    std::ostream& emit_lambda(const Lambda*);
-    std::ostream& emit_lambda_graph(const Lambda*);
+    std::ostream& emit_continuation(const Continuation*);
+    std::ostream& emit_continuation_graph(const Continuation*);
     std::ostream& emit_block(const Schedule::Block&);
 
     template<bool forward>
     std::ostream& emit_cfnode(const CFG<forward>&, const CFNode*);
 
-    std::ostream& emit_type(Type type) { return stream() << type; }
-    std::ostream& emit_name(Def def) { return stream() << def; }
+    std::ostream& emit_type(const Type* type) { return stream() << type; }
+    std::ostream& emit_name(const Def* def) { return stream() << def; }
 
     template<typename T, typename U>
     std::ostream& write_edge(T source, U target, bool control_flow,
@@ -61,26 +61,26 @@ private:
 //------------------------------------------------------------------------------
 
 
-std::ostream& YCompGen::emit_operands(Def def) {
+std::ostream& YCompGen::emit_operands(const Def* def) {
     int i = 0;
     Emitter emit_label = EMIT_NOOP;
     if (def->size() > 1) {
         emit_label = [&] { stream() << i++; };
     }
-    dump_list([&](Def operand) {
-            write_edge(def->gid(), operand->gid(), false, emit_label);
-        }, def->ops(), "", "", "");
+    dump_list([&](const Def* op) {
+        write_edge(def->gid(), op->gid(), false, emit_label);
+    }, def->ops(), "", "", "");
     return stream();
 }
 
-std::ostream& YCompGen::emit_def(Def def) {
+std::ostream& YCompGen::emit_def(const Def* def) {
     if (emitted_defs.contains(def)) {
         return stream();
     }
     if (auto primop = def->isa<PrimOp>()) {
         emit_primop(primop);
-    } else if (auto lambda = def->isa<Lambda>()) {
-        emit_lambda_graph(lambda);
+    } else if (auto continuation = def->isa<Continuation>()) {
+        emit_continuation_graph(continuation);
     } else if (auto param = def->isa<Param>()) {
         emit_param(param);
     } else {
@@ -100,9 +100,7 @@ std::ostream& YCompGen::emit_primop(const PrimOp* primop) {
     }
     emitted_defs.insert(primop);
     auto emit_label = [&] {
-        if (primop->is_proxy()) {
-            stream() << "<proxy>";
-        } else if (auto primlit = primop->isa<PrimLit>()) {
+        if (auto primlit = primop->isa<PrimLit>()) {
             auto kind = primlit->primtype_kind();
 
             // print i8 as ints
@@ -186,84 +184,84 @@ std::ostream& YCompGen::emit_param(const Param* param) {
     return stream();
 }
 
-std::ostream& YCompGen::emit_lambda(const Lambda* lambda) {
-    if (emitted_defs.contains(lambda)) {
+std::ostream& YCompGen::emit_continuation(const Continuation* continuation) {
+    if (emitted_defs.contains(continuation)) {
         return stream();
     }
-    emitted_defs.insert(lambda);
-    write_node(lambda->gid(),
-        [&] { stream() << "λ "; emit_name(lambda); },
-        [&] { emit_type(lambda->type()); });
-    if (!lambda->empty()) {
-        write_edge(lambda->gid(), lambda->to()->gid(), true);
+    emitted_defs.insert(continuation);
+    write_node(continuation->gid(),
+        [&] { stream() << "λ "; emit_name(continuation); },
+        [&] { emit_type(continuation->type()); });
+    if (!continuation->empty()) {
+        write_edge(continuation->gid(), continuation->callee()->gid(), true);
         int i = 0;
-        for (auto def : lambda->args()) {
-            write_edge(lambda->gid(), def->gid(), false, [&] { stream() << i++;});
+        for (auto def : continuation->args()) {
+            write_edge(continuation->gid(), def->gid(), false, [&] { stream() << i++;});
         }
     }
     return stream();
 }
 
-std::ostream& YCompGen::emit_lambda_graph_begin(const Lambda* lambda) {
+std::ostream& YCompGen::emit_continuation_graph_begin(const Continuation* continuation) {
     newline() << "graph: {";
-    up() << "title: \"" << lambda->gid() << "\"";
+    up() << "title: \"" << continuation->gid() << "\"";
     newline() << "label: \"λ ";
-    emit_name(lambda);
+    emit_name(continuation);
     stream() << "\"";
     newline() << "info1: \"";
-    emit_type(lambda->type());
+    emit_type(continuation->type());
 
-    if (lambda->is_external())
+    if (continuation->is_external())
         stream() << " extern";
-    if (lambda->cc() == CC::Device)
+    if (continuation->cc() == CC::Device)
         stream() << " device";
     return stream() << "\"";
 }
 
-std::ostream& YCompGen::emit_lambda_graph_params(const Lambda* lambda) {
-    for (auto param : lambda->params())
+std::ostream& YCompGen::emit_continuation_graph_params(const Continuation* continuation) {
+    for (auto param : continuation->params())
         emit_param(param);
     return stream();
 }
 
-std::ostream& YCompGen::emit_lambda_graph_continuation(const Lambda* lambda) {
-    if (!lambda->empty()) {
-        write_node("cont"+std::to_string(lambda->gid()),
+std::ostream& YCompGen::emit_continuation_graph_continuation(const Continuation* continuation) {
+    if (!continuation->empty()) {
+        write_node("cont"+std::to_string(continuation->gid()),
             [&] { stream() << "continue"; });
-        write_edge("cont"+std::to_string(lambda->gid()), lambda->to()->gid(), true);
+        write_edge("cont"+std::to_string(continuation->gid()), continuation->callee()->gid(), true);
         int i = 0;
-        for (auto def : lambda->args()) {
-            write_edge("cont"+std::to_string(lambda->gid()), def->gid(), false,
+        for (auto def : continuation->args()) {
+            write_edge("cont"+std::to_string(continuation->gid()), def->gid(), false,
                 [&] { stream() << i++; });
         }
-        // write_edge(lambda->gid(), lambda->to()->gid(), true, [&] {;});
+        // write_edge(continuation->gid(), continuation->callee()->gid(), true, [&] {;});
         // int i = 0;
-        // for (auto def : lambda->args()) {
-        //     write_edge(lambda->gid(), def->gid(), false, [&] { stream() << i; i++; });
+        // for (auto def : continuation->args()) {
+        //     write_edge(continuation->gid(), def->gid(), false, [&] { stream() << i; i++; });
         // }
     }
     return stream();
 }
 
-std::ostream& YCompGen::emit_lambda_graph_end() { return down() << "}"; }
+std::ostream& YCompGen::emit_continuation_graph_end() { return down() << "}"; }
 
 std::ostream& YCompGen::emit_block(const Schedule::Block& block) {
-    auto lambda = block.lambda();
-    emitted_defs.insert(lambda);
-    emit_lambda_graph_begin(lambda);
-    emit_lambda_graph_params(lambda);
-    emit_lambda_graph_continuation(lambda);
+    auto continuation = block.continuation();
+    emitted_defs.insert(continuation);
+    emit_continuation_graph_begin(continuation);
+    emit_continuation_graph_params(continuation);
+    emit_continuation_graph_continuation(continuation);
     for (auto primop : block)
         emit_primop(primop);
 
-    return emit_lambda_graph_end();
+    return emit_continuation_graph_end();
 }
-std::ostream& YCompGen::emit_lambda_graph(const Lambda* lambda) {
-    emitted_defs.insert(lambda);
-    emit_lambda_graph_begin(lambda);
-    emit_lambda_graph_params(lambda);
-    emit_lambda_graph_continuation(lambda);
-    return emit_lambda_graph_end();
+std::ostream& YCompGen::emit_continuation_graph(const Continuation* continuation) {
+    emitted_defs.insert(continuation);
+    emit_continuation_graph_begin(continuation);
+    emit_continuation_graph_params(continuation);
+    emit_continuation_graph_continuation(continuation);
+    return emit_continuation_graph_end();
 }
 
 template<bool forward>
@@ -311,13 +309,12 @@ void YCompGen::emit_scope(const Scope& scope) {
     up() << "title: \"scope" << scope.id() << "\"";
     newline() << "label: \"scope " << scope.id() << "\"";
     if (scheduled_) {
-        auto schedule = schedule_smart(scope);
-        for (auto& block : schedule)
+        for (auto& block : schedule(scope))
             emit_block(block);
     } else {
-        for (auto lambda : scope)
-            emit_lambda_graph(lambda);
-        for (auto def : scope.in_scope())
+        for (auto continuation : scope)
+            emit_continuation_graph(continuation);
+        for (auto def : scope.defs())
            emit_def(def);
     }
     down() << "}";

@@ -3,7 +3,7 @@
 #endif
 
 // Def
-    THORIN_AIR_NODE(Lambda, lambda)
+    THORIN_AIR_NODE(Continuation, continuation)
     // PrimOp
         // Literal
             THORIN_AIR_NODE(Bottom, bottom)
@@ -39,6 +39,7 @@
     THORIN_AIR_NODE(Param, param)
     // Type
         // PrimType
+        THORIN_AIR_NODE(TypeAbs, type_abs)
         THORIN_AIR_NODE(FrameType, frame)
         THORIN_AIR_NODE(TypeParam, type_param)
         THORIN_AIR_NODE(MemType, mem)

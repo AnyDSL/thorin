@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <fstream>
 
-#include "thorin/lambda.h"
+#include "thorin/continuation.h"
 #include "thorin/world.h"
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/domtree.h"
@@ -16,7 +16,7 @@ namespace thorin {
 uint32_t Scope::id_counter_ = 1;
 uint32_t Scope::candidate_counter_ = 1;
 
-Scope::Scope(Lambda* entry)
+Scope::Scope(Continuation* entry)
     : world_(entry->world())
     , id_(id_counter_++)
 {
@@ -25,100 +25,94 @@ Scope::Scope(Lambda* entry)
 
 Scope::~Scope() { cleanup(); }
 
-void Scope::run(Lambda* entry) {
-    assert(!entry->is_proxy());
+void Scope::run(Continuation* entry) {
     identify_scope(entry);
-    build_in_scope();
+    build_defs();
     ++candidate_counter_;
     verify();
 }
 
 void Scope::cleanup() {
-    for (auto lambda : lambdas())
-        lambda->unregister_scope(this);
+    for (auto continuation : continuations())
+        continuation->unregister_scope(this);
 }
 
 const Scope& Scope::update() {
     cleanup();
     auto e = entry();
-    lambdas_.clear();
-    in_scope_.clear();
+    continuations_.clear();
+    defs_.clear();
     cfa_.release();
     id_ = id_counter_++;
     run(e);
     return *this;
 }
 
-void Scope::identify_scope(Lambda* entry) {
-    std::queue<Def> queue;
+void Scope::identify_scope(Continuation* entry) {
+    std::queue<const Def*> queue;
     assert(!is_candidate(entry));
 
-    auto insert_lambda = [&] (Lambda* lambda) {
-        assert(!lambda->is_proxy());
-        for (auto param : lambda->params()) {
-            if (!param->is_proxy()) {
-                set_candidate(param);
-                queue.push(param);
-            }
+    auto insert_continuation = [&] (Continuation* continuation) {
+        for (auto param : continuation->params()) {
+            set_candidate(param);
+            queue.push(param);
         }
 
-        assert(std::find(lambdas_.begin(), lambdas_.end(), lambda) == lambdas_.end());
-        lambdas_.push_back(lambda);
+        assert(std::find(continuations_.begin(), continuations_.end(), continuation) == continuations_.end());
+        continuations_.push_back(continuation);
     };
 
-    insert_lambda(entry);
+    insert_continuation(entry);
     set_candidate(entry);
 
     while (!queue.empty()) {
         auto def = pop(queue);
         for (auto use : def->uses()) {
             if (!is_candidate(use)) {
-                if (auto ulambda = use->isa_lambda())
-                    insert_lambda(ulambda);
+                if (auto ucontinuation = use->isa_continuation())
+                    insert_continuation(ucontinuation);
                 set_candidate(use);
                 queue.push(use);
             }
         }
     }
 
-    lambdas_.push_back(world().end_scope());
+    continuations_.push_back(world().end_scope());
     set_candidate(world().end_scope());
 
     for (size_t i = 0, e = size(); i != e; ++i) {
-        auto lambda = lambdas_[i];
-        lambda->register_scope(this)->index = i;
-        assert(is_candidate(lambda));
+        auto continuation = continuations_[i];
+        continuation->register_scope(this)->index = i;
+        assert(is_candidate(continuation));
     }
-    assert(lambdas().front() == entry);
+    assert(continuations().front() == entry);
 }
 
 void Scope::verify() const {
 #ifndef NDEBUG
-    for (auto lambda : lambdas_) {
-        auto info = lambda->find_scope(this);
+    for (auto continuation : continuations_) {
+        auto info = continuation->find_scope(this);
         assert(info->scope == this);
-        assert((*this)[info->index] == lambda);
+        assert((*this)[info->index] == continuation);
     }
 #endif
 }
 
-void Scope::build_in_scope() {
-    std::queue<Def> queue;
-    auto enqueue = [&] (Def def) {
-        if (!def->isa_lambda() && is_candidate(def) && !in_scope_.contains(def)) {
-            in_scope_.insert(def);
+void Scope::build_defs() {
+    std::queue<const Def*> queue;
+    auto enqueue = [&] (const Def* def) {
+        if (!def->isa_continuation() && is_candidate(def) && !defs_.contains(def)) {
+            defs_.insert(def);
             queue.push(def);
         }
     };
 
-    for (auto lambda : lambdas()) {
-        for (auto param : lambda->params()) {
-            if (!param->is_proxy())
-                in_scope_.insert(param);
-        }
-        in_scope_.insert(lambda);
+    for (auto continuation : continuations()) {
+        for (auto param : continuation->params())
+            defs_.insert(param);
+        defs_.insert(continuation);
 
-        for (auto op : lambda->ops())
+        for (auto op : continuation->ops())
             enqueue(op);
 
         while (!queue.empty()) {
@@ -129,36 +123,36 @@ void Scope::build_in_scope() {
 }
 
 const CFA& Scope::cfa() const { return lazy_init(this, cfa_); }
-const CFNode* Scope::cfa(Lambda* lambda) const { return cfa()[lambda]; }
+const CFNode* Scope::cfa(Continuation* continuation) const { return cfa()[continuation]; }
 const F_CFG& Scope::f_cfg() const { return cfa().f_cfg(); }
 const B_CFG& Scope::b_cfg() const { return cfa().b_cfg(); }
 
 template<bool elide_empty>
 void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
-    LambdaSet done;
-    std::queue<Lambda*> queue;
+    ContinuationSet done;
+    std::queue<Continuation*> queue;
 
-    auto enqueue = [&] (Lambda* lambda) {
-        const auto& p = done.insert(lambda);
+    auto enqueue = [&] (Continuation* continuation) {
+        const auto& p = done.insert(continuation);
         if (p.second)
-            queue.push(lambda);
+            queue.push(continuation);
     };
 
-    for (auto lambda : world.externals()) {
-        assert(!lambda->empty() && "external must not be empty");
-        enqueue(lambda);
+    for (auto continuation : world.externals()) {
+        assert(!continuation->empty() && "external must not be empty");
+        enqueue(continuation);
     }
 
     while (!queue.empty()) {
-        auto lambda = pop(queue);
-        if (elide_empty && lambda->empty())
+        auto continuation = pop(queue);
+        if (elide_empty && continuation->empty())
             continue;
-        Scope scope(lambda);
+        Scope scope(continuation);
         f(scope);
 
         for (auto n : scope.f_cfg().reverse_post_order()) {
-            for (auto succ : n->lambda()->succs()) {
-                if (!scope.outer_contains(succ))
+            for (auto succ : n->continuation()->succs()) {
+                if (!scope.contains(succ))
                     enqueue(succ);
             }
         }
@@ -168,32 +162,8 @@ void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
 template void Scope::for_each<true> (const World&, std::function<void(Scope&)>);
 template void Scope::for_each<false>(const World&, std::function<void(Scope&)>);
 
-std::ostream& Scope::stream(std::ostream& os) const {
-    auto schedule = schedule_smart(*this);
-    for (auto& block : schedule) {
-        auto lambda = block.lambda();
-        if (lambda->intrinsic() != Intrinsic::EndScope) {
-            bool indent = lambda != entry();
-            if (indent)
-                os << up;
-            os << endl;
-            lambda->stream_head(os) << up_endl;
-            for (auto primop : block)
-                primop->stream_assignment(os);
-
-            lambda->stream_jump(os) << down_endl;
-            if (indent)
-                os << down;
-        }
-    }
-    return os << endl;
-}
-
-void Scope::write_thorin(const char* filename) const { std::ofstream file(filename); stream(file); }
-
-void Scope::thorin() const {
-    auto filename = world().name() + "_" + entry()->unique_name() + ".thorin";
-    write_thorin(filename.c_str());
-}
+std::ostream& Scope::stream(std::ostream& os) const { return schedule(*this).stream(os); }
+void Scope::write_thorin(const char* filename) const { return schedule(*this).write_thorin(filename); }
+void Scope::thorin() const { return schedule(*this).thorin(); }
 
 }

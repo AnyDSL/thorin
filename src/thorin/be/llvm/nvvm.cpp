@@ -40,25 +40,25 @@ NVVMCodeGen::NVVMCodeGen(World& world)
 // Kernel code
 //------------------------------------------------------------------------------
 
-static AddressSpace resolve_addr_space(Def def) {
-    if (auto ptr = def->type().isa<PtrType>())
+static AddrSpace resolve_addr_space(const Def* def) {
+    if (auto ptr = def->type()->isa<PtrType>())
         return ptr->addr_space();
-    return AddressSpace::Generic;
+    return AddrSpace::Generic;
 }
 
-llvm::FunctionType* NVVMCodeGen::convert_fn_type(Lambda* lambda) {
+llvm::FunctionType* NVVMCodeGen::convert_fn_type(Continuation* continuation) {
     // skip non-global address-space parameters
-    std::vector<Type> types;
-    for (auto type : lambda->type()->args()) {
-        if (auto ptr = type.isa<PtrType>())
-            if (ptr->addr_space() == AddressSpace::Texture)
+    std::vector<const Type*> types;
+    for (auto type : continuation->type()->args()) {
+        if (auto ptr = type->isa<PtrType>())
+            if (ptr->addr_space() == AddrSpace::Texture)
                 continue;
         types.push_back(type);
     }
-    return llvm::cast<llvm::FunctionType>(convert(lambda->world().fn_type(types)));
+    return llvm::cast<llvm::FunctionType>(convert(continuation->world().fn_type(types)));
 }
 
-void NVVMCodeGen::emit_function_decl_hook(Lambda* lambda, llvm::Function* f) {
+void NVVMCodeGen::emit_function_decl_hook(Continuation* continuation, llvm::Function* f) {
     // append required metadata
     auto annotation = module_->getOrInsertNamedMetadata("nvvm.annotations");
 
@@ -70,7 +70,7 @@ void NVVMCodeGen::emit_function_decl_hook(Lambda* lambda, llvm::Function* f) {
     };
 
     const auto emit_texture_kernel_arg = [&](const Param* param) {
-        assert(param->type().as<PtrType>()->addr_space() == AddressSpace::Texture);
+        assert(param->type()->as<PtrType>()->addr_space() == AddrSpace::Texture);
         auto global = emit_global_variable(irbuilder_.getInt64Ty(), param->name, 1);
         metadata_[param] = append_metadata(global, "texture");
     };
@@ -78,10 +78,10 @@ void NVVMCodeGen::emit_function_decl_hook(Lambda* lambda, llvm::Function* f) {
     append_metadata(f, "kernel");
 
     // check signature for texturing memory
-    for (auto param : lambda->params()) {
-        if (auto ptr = param->type().isa<PtrType>()) {
+    for (auto param : continuation->params()) {
+        if (auto ptr = param->type()->isa<PtrType>()) {
             switch (ptr->addr_space()) {
-                case AddressSpace::Texture:
+                case AddrSpace::Texture:
                     emit_texture_kernel_arg(param);
                     break;
                 default:
@@ -93,7 +93,7 @@ void NVVMCodeGen::emit_function_decl_hook(Lambda* lambda, llvm::Function* f) {
 }
 
 llvm::Value* NVVMCodeGen::map_param(llvm::Function*, llvm::Argument* arg, const Param* param) {
-    if (!param->lambda()->is_external())
+    if (!param->continuation()->is_external())
         return arg;
     else if (auto var = resolve_global_variable(param))
         return var;
@@ -110,12 +110,12 @@ llvm::Function* NVVMCodeGen::get_texture_handle_fun() {
     return llvm::cast<llvm::Function>(module_->getOrInsertFunction("llvm.nvvm.texsurf.handle.p1i64", type));
 }
 
-void NVVMCodeGen::emit_function_start(llvm::BasicBlock*, Lambda* lambda) {
-    if (!lambda->is_external())
+void NVVMCodeGen::emit_function_start(llvm::BasicBlock*, Continuation* continuation) {
+    if (!continuation->is_external())
         return;
     // kernel needs special setup code for the arguments
     auto texture_handle = get_texture_handle_fun();
-    for (auto param : lambda->params()) {
+    for (auto param : continuation->params()) {
         if (auto var = resolve_global_variable(param)) {
             auto md = metadata_.find(param);
             assert(md != metadata_.end());
@@ -128,7 +128,7 @@ void NVVMCodeGen::emit_function_start(llvm::BasicBlock*, Lambda* lambda) {
 
 llvm::Value* NVVMCodeGen::emit_load(const Load* load) {
     switch (resolve_addr_space(load->ptr())) {
-        case AddressSpace::Texture:
+        case AddrSpace::Texture:
             return irbuilder_.CreateExtractValue(lookup(load->ptr()), { unsigned(0) });
         default:
             // shared address space uses the same load functionality
@@ -137,15 +137,15 @@ llvm::Value* NVVMCodeGen::emit_load(const Load* load) {
 }
 
 llvm::Value* NVVMCodeGen::emit_store(const Store* store) {
-    assert(resolve_addr_space(store->ptr()) != AddressSpace::Texture &&
+    assert(resolve_addr_space(store->ptr()) != AddrSpace::Texture &&
             "Writes to textures are currently not supported");
     return CodeGen::emit_store(store);
 }
 
-static std::string get_texture_fetch_command(Type type) {
+static std::string get_texture_fetch_command(const Type* type) {
     std::stringstream fun_str;
     fun_str << "tex.1d.v4.";
-    switch (type.as<PrimType>()->primtype_kind()) {
+    switch (type->as<PrimType>()->primtype_kind()) {
         case PrimType_ps8:  case PrimType_qs8:
         case PrimType_pu8:  case PrimType_qu8:  fun_str << "s8";  break;
         case PrimType_ps16: case PrimType_qs16:
@@ -164,10 +164,10 @@ static std::string get_texture_fetch_command(Type type) {
     return fun_str.str();
 }
 
-static std::string get_texture_fetch_constraint(Type type) {
+static std::string get_texture_fetch_constraint(const Type* type) {
     std::stringstream constraint_str;
     char c;
-    switch (type.as<PrimType>()->primtype_kind()) {
+    switch (type->as<PrimType>()->primtype_kind()) {
         case PrimType_ps8:  case PrimType_qs8:
         case PrimType_pu8:  case PrimType_qu8:  c = 'c'; break;
         case PrimType_ps16: case PrimType_qs16:
@@ -189,7 +189,7 @@ static std::string get_texture_fetch_constraint(Type type) {
 
 llvm::Value* NVVMCodeGen::emit_lea(const LEA* lea) {
     switch (resolve_addr_space(lea->ptr())) {
-        case AddressSpace::Texture: {
+        case AddrSpace::Texture: {
             // sample for i32:
             // %tex_fetch = call { i32, i32, i32, i32 } asm sideeffect "tex.1d.v4.s32.s32 {$0,$1,$2,$3}, [$4, {$5,$6,$7,$8}];",
             // "=r,=r,=r,=r,l,r,r,r,r" (i64 %tex_ref, i32 %add, i32 0, i32 0, i32 0)
@@ -214,10 +214,10 @@ llvm::Value* NVVMCodeGen::emit_lea(const LEA* lea) {
     }
 }
 
-Lambda* NVVMCodeGen::emit_reserve(const Lambda* lambda) { return emit_reserve_shared(lambda); }
+Continuation* NVVMCodeGen::emit_reserve(const Continuation* continuation) { return emit_reserve_shared(continuation); }
 
 llvm::GlobalVariable* NVVMCodeGen::resolve_global_variable(const Param* param) {
-    if (resolve_addr_space(param) != AddressSpace::Global)
+    if (resolve_addr_space(param) != AddrSpace::Global)
         return module_->getGlobalVariable(param->name, true);
     return nullptr;
 }

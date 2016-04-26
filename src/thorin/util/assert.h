@@ -19,4 +19,7 @@ inline __declspec(noreturn) void thorin_dummy_function() { abort(); }
 #define assert_unused(x) ((void) (0 && (x)))
 #endif
 
+// currently no better location for this
+#define THORIN_IMPLIES(a, b) (!(a) || ((a) && (b)))
+
 #endif

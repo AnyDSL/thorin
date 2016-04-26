@@ -6,7 +6,7 @@
 
 namespace thorin {
 
-static const Enter* find_enter(Def def) {
+static const Enter* find_enter(const Def* def) {
     for (auto use : def->uses()) {
         if (auto enter = use->isa<Enter>())
             return enter;
@@ -14,16 +14,16 @@ static const Enter* find_enter(Def def) {
     return nullptr;
 }
 
-static void find_enters(Lambda* lambda, std::vector<const Enter*>& enters) {
-    if (auto param = lambda->mem_param()) {
-        for (Def cur = param; cur;) {
+static void find_enters(Continuation* continuation, std::vector<const Enter*>& enters) {
+    if (auto param = continuation->mem_param()) {
+        for (const Def* cur = param; cur;) {
             if (auto memop = cur->isa<MemOp>())
                 cur = memop->out_mem();
 
             if (auto enter = find_enter(cur))
                 enters.push_back(enter);
 
-            auto uses = cur->uses();
+            const auto& uses = cur->uses();
             cur = nullptr;
             for (auto use : uses) {
                 if (auto memop = use->isa<MemOp>()) {
@@ -41,7 +41,7 @@ static void lift_enters(const Scope& scope) {
 
     for (auto n : scope.f_cfg().post_order()) {
         if (n != scope.f_cfg().entry())
-            find_enters(n->lambda(), enters);
+            find_enters(n->continuation(), enters);
     }
 
     auto mem_param = scope.entry()->mem_param();
@@ -61,15 +61,9 @@ static void lift_enters(const Scope& scope) {
         for (auto use : old_enter->out_frame()->uses()) {
             auto slot = use->as<Slot>();
             slot->replace(world.slot(slot->alloced_type(), frame, index++, slot->loc(), slot->name));
+            assert(slot->num_uses() == 0);
         }
-        assert(!old_enter->is_proxy());
-        old_enter->out_mem()->replace(old_enter->mem());
     }
-
-#ifndef NDEBUG
-    for (auto old_enter : enters)
-        assert(old_enter->out_frame()->num_uses() == 0);
-#endif
 }
 
 void lift_enters(World& world) {

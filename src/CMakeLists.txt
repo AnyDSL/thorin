@@ -10,6 +10,13 @@ ELSE ()
     ADD_DEFINITIONS ( "-std=c++11 -Wall -Wunused" )
 ENDIF ()
 
+# check for Half library
+FIND_PACKAGE ( Half REQUIRED )
+IF ( HALF_FOUND )
+    MESSAGE ( STATUS "Building with Half library from ${HALF_INCLUDE_DIRS}." )
+    INCLUDE_DIRECTORIES ( ${HALF_INCLUDE_DIRS} )
+ENDIF ()
+
 # check for wfv2
 FIND_PACKAGE ( WFV2 QUIET )
 

@@ -15,8 +15,7 @@ namespace thorin {
 template<bool> class LoopTreeBuilder;
 
 /**
- * @brief Calculates a loop nesting forest rooted at @p root_.
- *
+ * Calculates a loop nesting forest rooted at @p root_.
  * The implementation uses Steensgard's algorithm.
  * Check out G. Ramalingam, "On Loops, Dominators, and Dominance Frontiers", 1999, for more information.
  */
@@ -26,8 +25,7 @@ public:
     class Head;
 
     /**
-    * @brief Represents a node of a loop nesting forest.
-    *
+    * Represents a node of a loop nesting forest.
     * Please refer to G. Ramalingam, "On Loops, Dominators, and Dominance Frontiers", 1999
     * for an introduction to loop nesting forests.
     * A @p Node consists of a set of header @p CFNode%s.
@@ -101,13 +99,13 @@ public:
     };
 
     LoopTree(const LoopTree&) = delete;
-    LoopTree& operator= (LoopTree) = delete;
+    LoopTree& operator=(LoopTree) = delete;
 
     explicit LoopTree(const CFG<forward>& cfg);
     static const LoopTree& create(const Scope& scope) { return scope.cfg<forward>().looptree(); }
     const CFG<forward>& cfg() const { return cfg_; }
     const Head* root() const { return root_; }
-    const Leaf* operator [] (const CFNode* n) const { return find(leaves_, n); }
+    const Leaf* operator[](const CFNode* n) const { return find(leaves_, n); }
     virtual void stream_ycomp(std::ostream& out) const override;
 
 private:

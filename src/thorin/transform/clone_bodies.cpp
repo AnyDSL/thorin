@@ -5,29 +5,29 @@
 namespace thorin {
 
 void clone_bodies(World& world) {
-    std::vector<Lambda*> todo;
+    std::vector<Continuation*> todo;
 
     // TODO this looks broken: I guess we should do that in post-order as in lift_builtins
-    for (auto lambda : world.copy_lambdas()) {
-        if (lambda->is_passed_to_accelerator())
-            todo.push_back(lambda);
+    for (auto continuation : world.copy_continuations()) {
+        if (continuation->is_passed_to_accelerator())
+            todo.push_back(continuation);
     }
 
-    for (auto lambda : todo) {
-        Scope scope(lambda);
+    for (auto continuation : todo) {
+        Scope scope(continuation);
         bool first = true;
-        for (auto use : lambda->uses()) {
+        for (auto use : continuation->uses()) {
             if (first) {
-                first = false; // re-use the initial lambda as first clone
+                first = false; // re-use the initial continuation as first clone
             } else {
-                auto nlambda = clone(scope);
-                if (auto ulambda = use->isa_lambda())
-                    ulambda->update_op(use.index(), nlambda);
+                auto ncontinuation = clone(scope);
+                if (auto ucontinuation = use->isa_continuation())
+                    ucontinuation->update_op(use.index(), ncontinuation);
                 else {
                     auto primop = use->as<PrimOp>();
-                    Array<Def> nops(primop->size());
+                    Array<const Def*> nops(primop->size());
                     std::copy(primop->ops().begin(), primop->ops().end(), nops.begin());
-                    nops[use.index()] = nlambda;
+                    nops[use.index()] = ncontinuation;
                     primop->replace(primop->rebuild(nops));
                 }
             }

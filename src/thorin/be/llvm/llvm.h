@@ -5,14 +5,14 @@
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Module.h>
 
-#include "thorin/lambda.h"
+#include "thorin/continuation.h"
 #include "thorin/be/llvm/runtime.h"
 
 namespace thorin {
 
 class World;
 
-typedef LambdaMap<llvm::BasicBlock*> BBMap;
+typedef ContinuationMap<llvm::BasicBlock*> BBMap;
 
 class CodeGen {
 protected:
@@ -25,15 +25,15 @@ public:
 protected:
     void optimize(int opt);
 
-    llvm::Type* convert(Type);
-    llvm::Value* emit(Def);
-    llvm::Value* lookup(Def);
+    llvm::Type* convert(const Type*);
+    llvm::Value* emit(const Def*);
+    llvm::Value* lookup(const Def*);
     llvm::AllocaInst* emit_alloca(llvm::Type*, const std::string&);
-    llvm::Function* emit_function_decl(Lambda*);
-    virtual void emit_function_decl_hook(Lambda*, llvm::Function*) {}
+    llvm::Function* emit_function_decl(Continuation*);
+    virtual void emit_function_decl_hook(Continuation*, llvm::Function*) {}
     virtual llvm::Value* map_param(llvm::Function*, llvm::Argument* a, const Param*) { return a; }
-    virtual void emit_function_start(llvm::BasicBlock*, Lambda*) {}
-    virtual llvm::FunctionType* convert_fn_type(Lambda*);
+    virtual void emit_function_start(llvm::BasicBlock*, Continuation*) {}
+    virtual llvm::FunctionType* convert_fn_type(Continuation*);
 
     virtual llvm::Value* emit_load(const Load*);
     virtual llvm::Value* emit_store(const Store*);
@@ -43,21 +43,21 @@ protected:
     virtual std::string get_output_name(const std::string& name) const = 0;
     virtual std::string get_binary_output_name(const std::string& name) const = 0;
     llvm::GlobalVariable* emit_global_variable(llvm::Type*, const std::string&, unsigned);
-    Lambda* emit_reserve_shared(const Lambda*, bool prefix=false);
+    Continuation* emit_reserve_shared(const Continuation*, bool prefix=false);
 
 private:
-    Lambda* emit_intrinsic(Lambda*);
-    Lambda* emit_parallel(Lambda*);
-    Lambda* emit_spawn(Lambda*);
-    Lambda* emit_sync(Lambda*);
-    Lambda* emit_vectorize_continuation(Lambda*);
-    Lambda* emit_atomic(Lambda*);
-    Lambda* emit_sizeof(Lambda*);
-    Lambda* emit_select(Lambda*);
-    Lambda* emit_shuffle(Lambda*);
-    Lambda* emit_reinterpret(Lambda*);
-    llvm::Value* emit_bitcast(Def, Type);
-    virtual Lambda* emit_reserve(const Lambda*);
+    Continuation* emit_intrinsic(Continuation*);
+    Continuation* emit_parallel(Continuation*);
+    Continuation* emit_spawn(Continuation*);
+    Continuation* emit_sync(Continuation*);
+    Continuation* emit_vectorize_continuation(Continuation*);
+    Continuation* emit_atomic(Continuation*);
+    Continuation* emit_sizeof(Continuation*);
+    Continuation* emit_select(Continuation*);
+    Continuation* emit_shuffle(Continuation*);
+    Continuation* emit_reinterpret(Continuation*);
+    llvm::Value* emit_bitcast(const Def*, const Type*);
+    virtual Continuation* emit_reserve(const Continuation*);
     void emit_result_phi(const Param*, llvm::Value*);
     void emit_vectorize(u32, llvm::Function*, llvm::CallInst*);
 
@@ -75,12 +75,12 @@ protected:
     HashMap<const Param*, llvm::Value*> params_;
     HashMap<const Param*, llvm::PHINode*> phis_;
     HashMap<const PrimOp*, llvm::Value*> primops_;
-    HashMap<Lambda*, llvm::Function*> fcts_;
+    HashMap<Continuation*, llvm::Function*> fcts_;
     TypeMap<llvm::Type*> types_;
     std::vector<std::tuple<u32, llvm::Function*, llvm::CallInst*>> wfv_todo_;
 
     AutoPtr<Runtime> runtime_;
-    Lambda* entry_ = nullptr;
+    Continuation* entry_ = nullptr;
 
     friend class Runtime;
 };

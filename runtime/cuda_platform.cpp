@@ -505,7 +505,7 @@ void CudaPlatform::create_module(device_id dev, const char* file_name, CUjit_tar
     void* option_values[]  = { (void*)error_log_buffer, (void*)(size_t)error_log_size, (void*)target_cc, (void*)(size_t)opt_level };
 
     // load ptx source
-    ILOG("Compiling '%' on CUDA device ", file_name, dev);
+    ILOG("Compiling '%' on CUDA device %", file_name, dev);
     CUmodule mod;
     CUresult err = cuModuleLoadDataEx(&mod, ptx, num_options, options, option_values);
     checkErrDrv(err, "cuModuleLoadDataEx()");

@@ -1,5 +1,4 @@
 #include <algorithm>
-#include <iostream>
 
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/free_params.h"

@@ -224,6 +224,10 @@ void CudaPlatform::load_kernel(device_id dev, const char* file, const char* name
             cuCtxPushCurrent(devices_[dev].ctx);
             compile_cuda(dev, file, target_cc);
             cuCtxPopCurrent(NULL);
+        } else if (ext && !strcmp(ext + 1, "ptx")) {
+            cuCtxPushCurrent(devices_[dev].ctx);
+            create_module(dev, file, target_cc, load_ptx(file).c_str());
+            cuCtxPopCurrent(NULL);
         } else {
             ELOG("Invalid kernel file extension");
         }
@@ -336,6 +340,14 @@ void CudaPlatform::copy_to_host(device_id dev_src, const void* src, int64_t offs
 
 int CudaPlatform::dev_count() {
     return devices_.size();
+}
+
+std::string CudaPlatform::load_ptx(const char* file_name) {
+    std::ifstream src_file(file_name);
+    if (!src_file.is_open())
+        ELOG("Cannot open PTX source file '%'", file_name);
+
+    return std::string(std::istreambuf_iterator<char>(src_file), (std::istreambuf_iterator<char>()));
 }
 
 void CudaPlatform::compile_nvvm(device_id dev, const char* file_name, CUjit_target target_cc) {
@@ -486,12 +498,7 @@ void CudaPlatform::compile_cuda(device_id dev, const char* file_name, CUjit_targ
         ELOG("Cannot run NVCC");
     }
 
-    std::ifstream src_file(ptx_filename);
-    if (!src_file.is_open())
-        ELOG("Cannot open PTX source file '%'", ptx_filename);
-
-    std::string src_string(std::istreambuf_iterator<char>(src_file), (std::istreambuf_iterator<char>()));
-    create_module(dev, file_name, target_cc, src_string.c_str());
+    create_module(dev, file_name, target_cc, load_ptx(ptx_filename.c_str()).c_str());
 }
 #endif
 

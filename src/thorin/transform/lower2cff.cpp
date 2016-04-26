@@ -7,10 +7,6 @@
 
 namespace thorin {
 
-enum class EvalState {
-    Run, Hlt, None
-};
-
 void lower2cff(World& world) {
     HashMap<Call, Continuation*> cache;
     ContinuationSet top;
@@ -38,30 +34,18 @@ void lower2cff(World& world) {
             const auto& cfg = scope.f_cfg();
             for (auto n : cfg.post_order()) {
                 auto continuation = n->continuation();
-                auto callee = continuation->callee();
-                const Def* end;
-                EvalState state = EvalState::None;
-                Location loc;
-
-                if (auto evalop = callee->isa<EvalOp>()) {
-                    callee = evalop->begin();
-                    end = evalop->end();
-                    state = evalop->isa<Run>() ? EvalState::Run : EvalState::Hlt;
-                    loc = evalop->loc();
-                }
-
-                if (auto callee_continuation = callee->isa_continuation()) {
-                    if (is_bad(callee_continuation)) {
-                        DLOG("bad: %", callee_continuation);
+                if (auto callee = continuation->callee()->isa_continuation()) {
+                    if (is_bad(callee)) {
+                        DLOG("bad: %", callee);
                         todo = dirty = true;
 
                         Call call(continuation);
                         for (size_t i = 0, e = call.num_type_args(); i != e; ++i)
                             call.type_arg(i) = continuation->type_arg(i);
 
-                        call.callee() = callee_continuation;
+                        call.callee() = callee;
                         for (size_t i = 0, e = call.num_args(); i != e; ++i)
-                            call.arg(i) = callee_continuation->param(i)->order() > 0 ? continuation->arg(i) : nullptr;
+                            call.arg(i) = callee->param(i)->order() > 0 ? continuation->arg(i) : nullptr;
 
 
                         const auto& p = cache.emplace(call, nullptr);
@@ -71,11 +55,6 @@ void lower2cff(World& world) {
                         }
 
                         jump_to_cached_call(continuation, target, call);
-                        switch (state) {
-                            case EvalState::Run: continuation->update_callee(world.run(continuation->callee(), end, loc));
-                            case EvalState::Hlt: continuation->update_callee(world.hlt(continuation->callee(), end, loc));
-                            default: break;
-                        }
                     }
                 }
             }

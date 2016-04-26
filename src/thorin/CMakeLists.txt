@@ -67,14 +67,14 @@ SET ( SOURCES
     transform/critical_edge_elimination.h
     transform/dead_load_opt.cpp
     transform/dead_load_opt.h
+    transform/hoist_enters.cpp
+    transform/hoist_enters.h
     transform/import.cpp
     transform/import.h
     transform/inliner.cpp
     transform/inliner.h
     transform/lift_builtins.cpp
     transform/lift_builtins.h
-    transform/lift_enters.cpp
-    transform/lift_enters.h
     transform/lower2cff.cpp
     transform/lower2cff.h
     transform/mangle.cpp

@@ -11,7 +11,7 @@
 #include "thorin/transform/clone_bodies.h"
 #include "thorin/transform/inliner.h"
 #include "thorin/transform/lift_builtins.h"
-#include "thorin/transform/lift_enters.h"
+#include "thorin/transform/hoist_enters.h"
 #include "thorin/transform/lower2cff.h"
 #include "thorin/transform/mem2reg.h"
 #include "thorin/transform/partial_evaluation.h"
@@ -838,7 +838,7 @@ void World::opt() {
     mem2reg(*this);
     lift_builtins(*this);
     inliner(*this);
-    lift_enters(*this);
+    hoist_enters(*this);
     dead_load_opt(*this);
     cleanup();
 }

@@ -45,7 +45,7 @@ enum {
     ACC_NUM_ARGS
 };
 
-Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std::string& ext, Continuation* continuation) {
+Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, Continuation* continuation) {
     // to-target is the desired kernel call
     // target(mem, device, (dim.x, dim.y, dim.z), (block.x, block.y, block.z), body, return, free_vars)
     auto target = continuation->callee()->as_continuation();
@@ -62,7 +62,7 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, cons
 
     // load kernel
     auto kernel_name = builder_.CreateGlobalStringPtr(kernel->name);
-    auto file_name = builder_.CreateGlobalStringPtr(continuation->world().name() + ext);
+    auto file_name = builder_.CreateGlobalStringPtr(continuation->world().name());
     load_kernel(target_device, file_name, kernel_name);
 
     // fetch values and create external calls for initialization

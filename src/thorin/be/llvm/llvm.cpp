@@ -67,10 +67,10 @@ Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
         case Intrinsic::Shuffle:   return emit_shuffle(continuation);
         case Intrinsic::Reserve:   return emit_reserve(continuation);
         case Intrinsic::Bitcast:   return emit_reinterpret(continuation);
-        case Intrinsic::CUDA:      return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM, ".cu", continuation);
-        case Intrinsic::NVVM:      return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM, ".nvvm", continuation);
-        case Intrinsic::SPIR:      return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".spir.bc", continuation);
-        case Intrinsic::OpenCL:    return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".cl", continuation);
+        case Intrinsic::CUDA:      return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM, continuation);
+        case Intrinsic::NVVM:      return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM, continuation);
+        case Intrinsic::SPIR:      return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, continuation);
+        case Intrinsic::OpenCL:    return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, continuation);
         case Intrinsic::Parallel:  return emit_parallel(continuation);
         case Intrinsic::Spawn:     return emit_spawn(continuation);
         case Intrinsic::Sync:      return emit_sync(continuation);
@@ -464,25 +464,13 @@ void CodeGen::emit(int opt, bool debug) {
     if (debug)
         dibuilder_.finalize();
 
-    {
-        std::error_code EC;
-        auto bc_name = get_binary_output_name(world_.name());
-        llvm::raw_fd_ostream out(bc_name, EC, llvm::sys::fs::F_None);
-        if (EC)
-            throw std::runtime_error("cannot write '" + bc_name + "': " + EC.message());
+    std::error_code EC;
+    auto ll_name = get_output_name(world_.name());
+    llvm::raw_fd_ostream out(ll_name, EC, llvm::sys::fs::F_Text);
+    if (EC)
+        throw std::runtime_error("cannot write '" + ll_name + "': " + EC.message());
 
-        llvm::WriteBitcodeToFile(module_.get(), out);
-    }
-
-    {
-        std::error_code EC;
-        auto ll_name = get_output_name(world_.name());
-        llvm::raw_fd_ostream out(ll_name, EC, llvm::sys::fs::F_Text);
-        if (EC)
-            throw std::runtime_error("cannot write '" + ll_name + "': " + EC.message());
-
-        module_->print(out, nullptr);
-    }
+    module_->print(out, nullptr);
 }
 
 void CodeGen::optimize(int opt) {

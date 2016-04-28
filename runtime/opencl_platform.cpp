@@ -94,9 +94,8 @@ std::string get_opencl_error_code_str(int error) {
 #define checkErr(err, name)  checkOpenCLErrors (err, name, __FILE__, __LINE__)
 
 void OpenCLPlatform::checkOpenCLErrors(cl_int err, const char* name, const char* file, const int line) {
-    if (err != CL_SUCCESS) {
+    if (err != CL_SUCCESS)
         ELOG("OpenCL API function % (%) [file %, line %]: %", name, err, file, line, get_opencl_error_code_str(err));
-    }
 }
 
 OpenCLPlatform::OpenCLPlatform(Runtime* runtime)
@@ -296,37 +295,33 @@ void OpenCLPlatform::load_kernel(device_id dev, const char* file, const char* na
     auto& prog_cache = devices_[dev].programs;
     auto prog_it = prog_cache.find(file);
     if (prog_it == prog_cache.end()) {
-        std::string spir_bc("spir.bc");
-        std::string file_str(file);
-        std::ifstream src_file(std::string(KERNEL_DIR) + file);
-        bool is_binary = file_str.compare(file_str.length() - spir_bc.length(), spir_bc.length(), spir_bc) == 0;
-
-        if (!src_file.is_open()) {
-            ELOG("Can't open % file '%'!", (is_binary ? "SPIR binary" : "OpenCL source"), name);
-        }
-
-        ILOG("Compiling '%' on OpenCL device %", file, dev);
-
-        std::string cl_str(std::istreambuf_iterator<char>(src_file), (std::istreambuf_iterator<char>()));
         std::string options = "-cl-fast-relaxed-math";
 
-        const size_t length = cl_str.length();
-        const char* c_str = cl_str.c_str();
-
-        if (is_binary) {
+        if (std::ifstream(std::string(file) + ".spir.bc").good()) {
+            std::ifstream src_file(std::string(KERNEL_DIR) + file + ".spir.bc");
+            std::string program_string(std::istreambuf_iterator<char>(src_file), (std::istreambuf_iterator<char>()));
+            const size_t program_length = program_string.length();
+            const char* program_c_str = program_string.c_str();
             options += " -x spir -spir-std=1.2";
-            program = clCreateProgramWithBinary(devices_[dev].ctx, 1, &devices_[dev].dev, &length, (const unsigned char**)&c_str, NULL, &err);
+            program = clCreateProgramWithBinary(devices_[dev].ctx, 1, &devices_[dev].dev, &program_length, (const unsigned char**)&program_c_str, NULL, &err);
             checkErr(err, "clCreateProgramWithBinary()");
-        } else {
+            ILOG("Compiling '%.spir.bc' on OpenCL device %", file, dev);
+        } else if (std::ifstream(std::string(file) + ".cl").good()) {
+            std::ifstream src_file(std::string(KERNEL_DIR) + file + ".cl");
+            std::string program_string(std::istreambuf_iterator<char>(src_file), (std::istreambuf_iterator<char>()));
+            const size_t program_length = program_string.length();
+            const char* program_c_str = program_string.c_str();
             options += " -cl-std=CL1.2";
-            program = clCreateProgramWithSource(devices_[dev].ctx, 1, (const char**)&c_str, &length, &err);
+            program = clCreateProgramWithSource(devices_[dev].ctx, 1, (const char**)&program_c_str, &program_length, &err);
             checkErr(err, "clCreateProgramWithSource()");
+            ILOG("Compiling '%.cl' on OpenCL device %", file, dev);
+        } else {
+            ELOG("Could not find kernel file '%'.[spir.bc|cl]", file);
         }
 
-        err = clBuildProgram(program, 0, NULL, options.c_str(), NULL, NULL);
-
         cl_build_status build_status;
-        clGetProgramBuildInfo(program, devices_[dev].dev, CL_PROGRAM_BUILD_STATUS, sizeof(build_status), &build_status, NULL);
+        err  = clBuildProgram(program, 0, NULL, options.c_str(), NULL, NULL);
+        err |= clGetProgramBuildInfo(program, devices_[dev].dev, CL_PROGRAM_BUILD_STATUS, sizeof(build_status), &build_status, NULL);
 
         if (build_status == CL_BUILD_ERROR || err != CL_SUCCESS) {
             // determine the size of the options and log

@@ -107,5 +107,5 @@ MACRO ( THORIN_RUNTIME_WRAP outfiles )
         DEPENDS ${_llfile} VERBATIM )
 
     SET_SOURCE_FILES_PROPERTIES ( ${_objfile} PROPERTIES EXTERNAL_OBJECT true GENERATED true LANGUAGE CXX )
-    SET ( ${outfiles} ${${outfiles}} ${_objfile} ${_bcfile} )
+    SET ( ${outfiles} ${${outfiles}} ${_objfile} ${_bcfile} ${_irfile} )
 ENDMACRO ()

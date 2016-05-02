@@ -6,6 +6,33 @@
 
 namespace thorin {
 
+class Mangler {
+public:
+    Mangler(const Scope& scope, Types type_args, Defs args, Defs lift);
+
+    const Scope& scope() const { return scope_; }
+    World& world() const { return scope_.world(); }
+    Continuation* mangle();
+    void mangle_body(Continuation* ocontinuation, Continuation* ncontinuation);
+    Continuation* mangle_head(Continuation* ocontinuation);
+    const Def* mangle(const Def* odef);
+    bool within(const Def* def) { return scope().contains(def) || defs_.contains(def); }
+    const Def* def2def(const Def* def) { return find(def2def_, def); }
+
+private:
+    const Scope& scope_;
+    Def2Def def2def_;
+    Types type_args_;
+    Defs args_;
+    Defs lift_;
+    std::vector<const Param*> lifted_params_; // TODO get rid of this
+    Type2Type type2type_;
+    Continuation* oentry_;
+    Continuation* nentry_;
+    DefSet defs_;
+};
+
+
 Continuation* mangle(const Scope&, Types type_args, Defs args, Defs lift);
 
 inline Continuation* drop(const Scope& scope, Types type_args, Defs args) {

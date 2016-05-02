@@ -8,111 +8,91 @@
 
 namespace thorin {
 
-class Mangler {
-public:
-    Mangler(const Scope& scope, Types type_args, Defs args, Defs lift)
-        : scope(scope)
-        , type_args(type_args)
-        , args(args)
-        , lift(lift)
-        , oentry(scope.entry())
-    {
-        assert(!oentry->empty());
-        assert(args.size() == oentry->num_params());
-        assert(type_args.size() == oentry->num_type_params());
+Mangler::Mangler(const Scope& scope, Types type_args, Defs args, Defs lift)
+    : scope_(scope)
+    , type_args_(type_args)
+    , args_(args)
+    , lift_(lift)
+    , oentry_(scope.entry())
+{
+    assert(!oentry_->empty());
+    assert(args.size() == oentry_->num_params());
+    assert(type_args.size() == oentry_->num_type_params());
 
-        // TODO correctly deal with continuations here
-        std::queue<const Def*> queue;
-        auto enqueue = [&](const Def* def) {
-            if (!within(def)) {
-                defs_.insert(def);
-                queue.push(def);
-            }
-        };
-
-        for (auto def : lift)
-            enqueue(def);
-
-        while (!queue.empty()) {
-            for (auto use : pop(queue)->uses())
-                enqueue(use);
+    // TODO correctly deal with continuations here
+    std::queue<const Def*> queue;
+    auto enqueue = [&](const Def* def) {
+        if (!within(def)) {
+            defs_.insert(def);
+            queue.push(def);
         }
+    };
+
+    for (auto def : lift)
+        enqueue(def);
+
+    while (!queue.empty()) {
+        for (auto use : pop(queue)->uses())
+            enqueue(use);
     }
+}
 
-    World& world() const { return scope.world(); }
-    Continuation* mangle();
-    void mangle_body(Continuation* ocontinuation, Continuation* ncontinuation);
-    Continuation* mangle_head(Continuation* ocontinuation);
-    const Def* mangle(const Def* odef);
-    bool within(const Def* def) { return scope.contains(def) || defs_.contains(def); }
-
-    const Scope& scope;
-    Def2Def def2def;
-    Types type_args;
-    Defs args;
-    Defs lift;
-    std::vector<const Param*> lifted_params;
-    Type2Type type2type;
-    Continuation* oentry;
-    Continuation* nentry;
-    DefSet defs_;
-};
 
 Continuation* Mangler::mangle() {
     // map type params
     std::vector<const TypeParam*> type_params;
-    for (size_t i = 0, e = oentry->num_type_params(); i != e; ++i) {
-        auto otype_param = oentry->type_param(i);
-        if (auto type = type_args[i])
-            type2type[otype_param] = type;
+    for (size_t i = 0, e = oentry_->num_type_params(); i != e; ++i) {
+        auto otype_param = oentry_->type_param(i);
+        if (auto type = type_args_[i])
+            type2type_[otype_param] = type;
         else {
             auto ntype_param = world().type_param(otype_param->name());
             type_params.push_back(ntype_param);
-            type2type[otype_param] = ntype_param;
+            type2type_[otype_param] = ntype_param;
         }
     }
 
-    // create nentry - but first collect and specialize all param types
+    // create nentry_ - but first collect and specialize all param types
     std::vector<const Type*> param_types;
-    for (size_t i = 0, e = oentry->num_params(); i != e; ++i) {
-        if (args[i] == nullptr)
-            param_types.push_back(oentry->param(i)->type()->specialize(type2type));
+    for (size_t i = 0, e = oentry_->num_params(); i != e; ++i) {
+        if (args_[i] == nullptr)
+            param_types.push_back(oentry_->param(i)->type()->specialize(type2type_));
     }
 
     auto fn_type = world().fn_type(param_types);
-    nentry = world().continuation(close(fn_type, type_params), oentry->loc(), oentry->name);
+    nentry_ = world().continuation(close(fn_type, type_params), oentry_->loc(), oentry_->name);
 
     // map value params
-    def2def[oentry] = oentry;
-    for (size_t i = 0, j = 0, e = oentry->num_params(); i != e; ++i) {
-        auto oparam = oentry->param(i);
-        if (auto def = args[i])
-            def2def[oparam] = def;
+    def2def_[oentry_] = oentry_;
+    for (size_t i = 0, j = 0, e = oentry_->num_params(); i != e; ++i) {
+        auto oparam = oentry_->param(i);
+        if (auto def = args_[i])
+            def2def_[oparam] = def;
         else {
-            auto nparam = nentry->param(j++);
-            def2def[oparam] = nparam;
+            auto nparam = nentry_->param(j++);
+            def2def_[oparam] = nparam;
             nparam->name = oparam->name;
         }
     }
 
-    for (auto def : lift) {
-        auto param = nentry->append_param(def->type()->specialize(type2type));
-        lifted_params.push_back(param);
-        def2def[def] = param;
+    for (auto def : lift_) {
+        auto param = nentry_->append_param(def->type()->specialize(type2type_));
+        lifted_params_.push_back(param);
+        def2def_[def] = param;
     }
 
-    mangle_body(oentry, nentry);
-    return nentry;
+    mangle_body(oentry_, nentry_);
+    return nentry_;
 }
 
 Continuation* Mangler::mangle_head(Continuation* ocontinuation) {
-    assert(!def2def.contains(ocontinuation));
+    assert(!def2def_.contains(ocontinuation));
     assert(!ocontinuation->empty());
-    Continuation* ncontinuation = ocontinuation->stub(type2type, ocontinuation->name);
-    def2def[ocontinuation] = ncontinuation;
+    Continuation* ncontinuation = ocontinuation->stub(type2type_, ocontinuation->name);
+    def2def_[ocontinuation] = ncontinuation;
 
     for (size_t i = 0, e = ocontinuation->num_params(); i != e; ++i)
-        def2def[ocontinuation->param(i)] = ncontinuation->param(i);
+        def2def_[ocontinuation->param(i)] = ncontinuation->param(i);
 
     return ncontinuation;
 }
@@ -135,29 +115,29 @@ void Mangler::mangle_body(Continuation* ocontinuation, Continuation* ncontinuati
     // specialize all type args
     Array<const Type*> ntype_args(ocontinuation->type_args().size());
     for (size_t i = 0, e = ntype_args.size(); i != e; ++i)
-        ntype_args[i] = ocontinuation->type_arg(i)->specialize(type2type);
+        ntype_args[i] = ocontinuation->type_arg(i)->specialize(type2type_);
 
     // check whether we can optimize tail recursion
-    if (ntarget == oentry) {
+    if (ntarget == oentry_) {
         std::vector<size_t> cut;
         bool substitute = true;
-        for (size_t i = 0, e = args.size(); i != e && substitute; ++i) {
-            if (auto def = args[i]) {
+        for (size_t i = 0, e = args_.size(); i != e && substitute; ++i) {
+            if (auto def = args_[i]) {
                 substitute &= def == nargs[i];
                 cut.push_back(i);
             }
         }
 
         if (substitute)
-            return ncontinuation->jump(nentry, ntype_args, concat(nargs.cut(cut), lifted_params), ocontinuation->jump_loc());
+            return ncontinuation->jump(nentry_, ntype_args, concat(nargs.cut(cut), lifted_params_), ocontinuation->jump_loc());
     }
 
     ncontinuation->jump(ntarget, ntype_args, nargs, ocontinuation->jump_loc());
 }
 
 const Def* Mangler::mangle(const Def* odef) {
-    auto i = def2def.find(odef);
-    if (i != def2def.end())
+    auto i = def2def_.find(odef);
+    if (i != def2def_.end())
         return i->second;
 
     if (!within(odef))
@@ -170,16 +150,16 @@ const Def* Mangler::mangle(const Def* odef) {
     } else if (auto param = odef->isa<Param>()) {
         assert(within(param->continuation()));
         mangle(param->continuation());
-        assert(def2def.contains(param));
-        return def2def[param];
+        assert(def2def_.contains(param));
+        return def2def_[param];
     } else {
         auto oprimop = odef->as<PrimOp>();
         Array<const Def*> nops(oprimop->size());
         for (size_t i = 0, e = oprimop->size(); i != e; ++i)
             nops[i] = mangle(oprimop->op(i));
 
-        auto type = oprimop->type()->vinstantiate(type2type);
-        return def2def[oprimop] = oprimop->rebuild(nops, type);
+        auto type = oprimop->type()->vinstantiate(type2type_);
+        return def2def_[oprimop] = oprimop->rebuild(nops, type);
     }
 }
 

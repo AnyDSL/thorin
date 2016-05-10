@@ -12,23 +12,25 @@ public:
 
     const Scope& scope() const { return scope_; }
     World& world() const { return scope_.world(); }
+    const Def* def2def(const Def* def) { return find(def2def_, def); }
     Continuation* mangle();
+    Continuation* old_entry() const { return old_entry_; }
+    Continuation* new_entry() const { return new_entry_; }
+
+private:
     void mangle_body(Continuation* ocontinuation, Continuation* ncontinuation);
     Continuation* mangle_head(Continuation* ocontinuation);
     const Def* mangle(const Def* odef);
     bool within(const Def* def) { return scope().contains(def) || defs_.contains(def); }
-    const Def* def2def(const Def* def) { return find(def2def_, def); }
 
-private:
     const Scope& scope_;
     Def2Def def2def_;
     Types type_args_;
     Defs args_;
     Defs lift_;
-    std::vector<const Param*> lifted_params_; // TODO get rid of this
     Type2Type type2type_;
-    Continuation* oentry_;
-    Continuation* nentry_;
+    Continuation* old_entry_;
+    Continuation* new_entry_;
     DefSet defs_;
 };
 

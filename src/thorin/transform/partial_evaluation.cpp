@@ -126,6 +126,8 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
             cur = postdom(cur);
             if (cur == nullptr)
                 return;
+            if (end == nullptr)
+                continue;
 
             const auto& postdomtree = top_scope().b_cfg().domtree();
             auto ncur = top_scope().cfa(cur);
@@ -134,7 +136,7 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
             assert(ncur != nullptr);
             if (nend == nullptr) {
                 WLOG("end became unreachable: %", end);
-                return;
+                continue;
             }
 
             for (auto i = nend; i != postdomtree.root(); i = postdomtree.idom(i)) {
@@ -142,7 +144,6 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
                     DLOG("overjumped end: %", cur);
                     return;
                 }
-
             }
 
             if (cur == end) {
@@ -175,10 +176,12 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
             Scope scope(call.callee()->as_continuation());
             Mangler mangler(scope, call.type_args(), call.args(), Defs());
             auto dropped = mangler.mangle();
-            if (auto nend = mangler.def2def(end)) {
-                if (end != nend) {
-                    DLOG("changed end: % -> %", end, nend);
-                    end = nend->as_continuation();
+            if (end != nullptr) {
+                if (auto nend = mangler.def2def(end)) {
+                    if (end != nend) {
+                        DLOG("changed end: % -> %", end, nend);
+                        end = nend->as_continuation();
+                    }
                 }
             }
 

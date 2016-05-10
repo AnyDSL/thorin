@@ -124,6 +124,8 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
 
         if (dst == nullptr || dst->empty()) {
             cur = postdom(cur);
+            if (cur == nullptr)
+                return;
 
             const auto& postdomtree = top_scope().b_cfg().domtree();
             auto ncur = top_scope().cfa(cur);

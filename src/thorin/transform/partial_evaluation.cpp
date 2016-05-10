@@ -126,8 +126,14 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
             cur = postdom(cur);
 
             const auto& postdomtree = top_scope().b_cfg().domtree();
-            auto nend = top_scope().cfa(end);
             auto ncur = top_scope().cfa(cur);
+            auto nend = top_scope().cfa(end);
+
+            assert(ncur != nullptr);
+            if (nend == nullptr) {
+                WLOG("end became unreachable: %", end);
+                return;
+            }
 
             for (auto i = nend; i != postdomtree.root(); i = postdomtree.idom(i)) {
                 if (i == ncur) {

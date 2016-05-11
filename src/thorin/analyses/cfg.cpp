@@ -334,17 +334,16 @@ void CFABuilder::run_cfa() {
         auto args = arg_nodes(cur_in);
 
         for (auto n : callee_nodes(cur_in)) {
-            if (n->def()->type() != cur_continuation->callee()->type())
-                continue;
-
             if (auto in = n->isa<CFNode>()) {
-                bool todo = in->f_index_ == CFNode::Fresh;
-                for (size_t i = 0; i != cur_continuation->num_args(); ++i) {
-                    if (in->continuation()->param(i)->order() > 0)
-                        todo |= continuation2param2nodes_[in->continuation()][i].insert_range(args[i]);
+                if (args.size() == in->continuation()->num_params()) {
+                    bool todo = in->f_index_ == CFNode::Fresh;
+                    for (size_t i = 0; i != cur_continuation->num_args(); ++i) {
+                        if (in->continuation()->param(i)->order() > 0)
+                            todo |= continuation2param2nodes_[in->continuation()][i].insert_range(args[i]);
+                    }
+                    if (todo)
+                        enqueue(in);
                 }
-                if (todo)
-                    enqueue(in);
 
             } else {
                 auto out = n->as<OutNode>();

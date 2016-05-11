@@ -51,15 +51,16 @@ private:
     bool use_16_ = false;
     bool debug_;
     std::ostream& os_;
-    std::ostringstream code_;
-    std::ostringstream decls_;
+    std::ostringstream func_impl_;
+    std::ostringstream func_decls_;
+    std::ostringstream type_decls_;
 };
 
 
 std::ostream& CCodeGen::emit_debug_info(const Def* def) {
     if (debug_)
-        return streamf(code_, "#line % \"%\"", def->loc().begin().line(), def->loc().begin().filename()) << endl;
-    return code_;
+        return streamf(func_impl_, "#line % \"%\"", def->loc().begin().line(), def->loc().begin().filename()) << endl;
+    return func_impl_;
 }
 
 
@@ -152,23 +153,23 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
 
 std::ostream& CCodeGen::emit_aggop_defs(const Def* def) {
     if (lookup(def))
-        return code_;
+        return func_impl_;
 
-    // recurse into (multi-dimensional) array
+    // look for nested array
     if (auto array = def->isa<DefiniteArray>()) {
         for (auto op : array->ops())
             emit_aggop_defs(op);
         if (lookup(def))
-            return code_;
+            return func_impl_;
         emit(array) << endl;
     }
 
-    // recurse into (multi-dimensional) tuple or struct
+    // look for nested struct
     if (auto agg = def->isa<Aggregate>()) {
         for (auto op : agg->ops())
             emit_aggop_defs(op);
         if (lookup(def))
-            return code_;
+            return func_impl_;
         emit(agg) << endl;
     }
 
@@ -176,166 +177,91 @@ std::ostream& CCodeGen::emit_aggop_defs(const Def* def) {
     if (auto conv = def->isa<Cast>())
         emit(conv) << endl;
 
-    return code_;
+    return func_impl_;
 }
 
 
 std::ostream& CCodeGen::emit_aggop_decl(const Type* type) {
     if (lookup(type))
-        return decls_;
+        return type_decls_;
 
-    if (auto ptr = type->isa<PtrType>()) {
+    // set indent to zero
+    auto indent = detail::get_indent();
+    while (detail::get_indent() != 0)
+        type_decls_ << down;
+
+    if (auto ptr = type->isa<PtrType>())
         emit_aggop_decl(ptr->referenced_type());
-        return decls_;
-    }
-    if (auto array = type->isa<IndefiniteArrayType>()) {
+
+    if (auto array = type->isa<IndefiniteArrayType>())
         emit_aggop_decl(array->elem_type());
-        return decls_;
-    }
-    if (auto fn = type->isa<FnType>()) {
+
+    if (auto fn = type->isa<FnType>())
         for (auto type : fn->args())
             emit_aggop_decl(type);
-        return decls_;
-    }
 
-    // recurse into (multi-dimensional) array
+    // look for nested array
     if (auto array = type->isa<DefiniteArrayType>()) {
         emit_aggop_decl(array->elem_type());
-        emit_type(decls_, array) << endl;
+        emit_type(type_decls_, array) << endl;
         insert(type, "array_" + std::to_string(type->gid()));
-        return decls_;
     }
 
-    // recurse into (multi-dimensional) tuple
+    // look for nested tuple
     if (auto tuple = type->isa<TupleType>()) {
         for (auto arg : tuple->args())
             emit_aggop_decl(arg);
-        emit_type(decls_, tuple) << endl;
+        emit_type(type_decls_, tuple) << endl;
         insert(type, "tuple_" + std::to_string(type->gid()));
-        return decls_;
     }
 
-    // recurse into (multi-dimensional) struct
+    // look for nested struct
     if (auto struct_app = type->isa<StructAppType>()) {
         for (auto elem : struct_app->elems())
             emit_aggop_decl(elem);
-        emit_type(decls_, struct_app) << endl;
+        emit_type(type_decls_, struct_app) << endl;
         insert(type, "struct_" + std::to_string(type->gid()));
-        return decls_;
     }
 
-    return decls_;
+    // restore indent
+    while (detail::get_indent() != indent)
+        type_decls_ << up;
+
+    return type_decls_;
 }
 
 std::ostream& CCodeGen::emit_bitcast(const Def* val, const Def* dst) {
     auto dst_type = dst->type();
-    code_ << "union { ";
-    emit_addr_space(code_, dst_type);
-    emit_type(code_, dst_type) << " dst; ";
-    emit_addr_space(code_, val->type());
-    emit_type(code_, val->type()) << " src; ";
-    code_ << "} u" << dst->unique_name() << ";" << endl;
-    code_ << "u" << dst->unique_name() << ".src = ";
+    func_impl_ << "union { ";
+    emit_addr_space(func_impl_, dst_type);
+    emit_type(func_impl_, dst_type) << " dst; ";
+    emit_addr_space(func_impl_, val->type());
+    emit_type(func_impl_, val->type()) << " src; ";
+    func_impl_ << "} u" << dst->unique_name() << ";" << endl;
+    func_impl_ << "u" << dst->unique_name() << ".src = ";
     emit(val) << ";" << endl;
-    code_ << dst->unique_name() << " = u" << dst->unique_name() << ".dst;";
+    func_impl_ << dst->unique_name() << " = u" << dst->unique_name() << ".dst;";
 
-    return code_;
+    return func_impl_;
 }
 
 void CCodeGen::emit() {
     if (lang_==Lang::CUDA) {
-        decls_ << "__device__ inline int threadIdx_x() { return threadIdx.x; }" << endl;
-        decls_ << "__device__ inline int threadIdx_y() { return threadIdx.y; }" << endl;
-        decls_ << "__device__ inline int threadIdx_z() { return threadIdx.z; }" << endl;
-        decls_ << "__device__ inline int blockIdx_x() { return blockIdx.x; }" << endl;
-        decls_ << "__device__ inline int blockIdx_y() { return blockIdx.y; }" << endl;
-        decls_ << "__device__ inline int blockIdx_z() { return blockIdx.z; }" << endl;
-        decls_ << "__device__ inline int blockDim_x() { return blockDim.x; }" << endl;
-        decls_ << "__device__ inline int blockDim_y() { return blockDim.y; }" << endl;
-        decls_ << "__device__ inline int blockDim_z() { return blockDim.z; }" << endl;
-        decls_ << "__device__ inline int gridDim_x() { return gridDim.x; }" << endl;
-        decls_ << "__device__ inline int gridDim_y() { return gridDim.y; }" << endl;
-        decls_ << "__device__ inline int gridDim_z() { return gridDim.z; }" << endl;
+        func_decls_ << "__device__ inline int threadIdx_x() { return threadIdx.x; }" << endl;
+        func_decls_ << "__device__ inline int threadIdx_y() { return threadIdx.y; }" << endl;
+        func_decls_ << "__device__ inline int threadIdx_z() { return threadIdx.z; }" << endl;
+        func_decls_ << "__device__ inline int blockIdx_x() { return blockIdx.x; }" << endl;
+        func_decls_ << "__device__ inline int blockIdx_y() { return blockIdx.y; }" << endl;
+        func_decls_ << "__device__ inline int blockIdx_z() { return blockIdx.z; }" << endl;
+        func_decls_ << "__device__ inline int blockDim_x() { return blockDim.x; }" << endl;
+        func_decls_ << "__device__ inline int blockDim_y() { return blockDim.y; }" << endl;
+        func_decls_ << "__device__ inline int blockDim_z() { return blockDim.z; }" << endl;
+        func_decls_ << "__device__ inline int gridDim_x() { return gridDim.x; }" << endl;
+        func_decls_ << "__device__ inline int gridDim_y() { return gridDim.y; }" << endl;
+        func_decls_ << "__device__ inline int gridDim_z() { return gridDim.z; }" << endl;
     }
 
-    // emit declarations
-    Scope::for_each<false>(world(), [&] (const Scope& scope) {
-        if (scope.entry() == world().branch()) return;
-        // tuple declarations
-        for (auto& block : schedule(scope)) {
-            for (auto param : block.continuation()->params()) {
-                emit_aggop_decl(param->type());
-                insert(param, param->unique_name());
-            }
-
-            for (auto primop : block) {
-                if (!primop->isa<MemOp>()) {
-                    emit_aggop_decl(primop->type());
-                    // search for inlined tuples/arrays
-                    if (auto aggop = primop->isa<AggOp>()) {
-                        if (!aggop->agg()->isa<MemOp>())
-                            emit_aggop_decl(aggop->agg()->type());
-                    }
-                }
-            }
-        }
-
-        // continuation declarations
-        auto continuation = scope.entry();
-        if (continuation->is_intrinsic())
-            return;
-
-        // retrieve return param
-        const Param *ret_param = nullptr;
-        for (auto param : continuation->params()) {
-            emit_aggop_decl(param->type());
-            if (param->order() != 0) {
-                assert(!ret_param);
-                ret_param = param;
-            }
-        }
-        assert(ret_param);
-
-        // emit texture declaration for CUDA
-        for (auto param : continuation->params()) {
-            if (param->order() == 0 && !param->is_mem()) {
-                if (is_texture_type(param->type())) {
-                    decls_ << "texture<";
-                    emit_type(decls_, param->type()->as<PtrType>()->referenced_type());
-                    decls_ << ", cudaTextureType1D, cudaReadModeElementType> ";
-                    decls_ << param->name << ";" << endl;
-                    insert(param, param->name);
-                }
-            }
-        }
-
-        // skip device functions and kernel entries (the kernel signature below is different)
-        if (continuation->cc() == CC::Device || continuation->is_external())
-            return;
-
-        // emit function declaration
-        auto ret_type = ret_param->type()->as<FnType>()->args().back();
-        auto name = (continuation->is_external() || continuation->empty()) ? continuation->name : continuation->unique_name();
-        if (lang_==Lang::CUDA)
-            decls_ << "__device__ ";
-        emit_addr_space(decls_, ret_type);
-        emit_type(decls_, ret_type) << " " << name << "(";
-        size_t i = 0;
-        for (auto param : continuation->params()) {
-            if (param->order() == 0 && !param->is_mem()) {
-                // skip arrays bound to texture memory
-                if (is_texture_type(param->type())) continue;
-                if (i++ > 0) decls_ << ", ";
-                emit_addr_space(decls_, param->type());
-                emit_type(decls_, param->type());
-                insert(param, param->unique_name());
-            }
-        }
-        decls_ << ");" << endl;
-    });
-    decls_ << endl;
-
-    // emit all globals
+    // emit all globals: do we have globals for CUDA/OpenCL ?
     for (auto primop : world().primops()) {
         if (auto global = primop->isa<Global>()) {
             emit_aggop_decl(global->type());
@@ -343,8 +269,11 @@ void CCodeGen::emit() {
         }
     }
 
-    // emit connected functions first
     Scope::for_each(world(), [&] (const Scope& scope) {
+        if (scope.entry() == world().branch())
+            return;
+
+        // continuation declarations
         auto continuation = scope.entry();
         if (continuation->is_intrinsic())
             return;
@@ -361,50 +290,78 @@ void CCodeGen::emit() {
         }
         assert(ret_param);
 
+        // emit function & its declaration
         auto ret_type = ret_param->type()->as<FnType>()->args().back();
         auto name = (continuation->is_external() || continuation->empty()) ? continuation->name : continuation->unique_name();
         if (continuation->is_external()) {
             switch (lang_) {
-                case Lang::C99:                         break;
-                case Lang::CUDA:   code_ << "__global__ "; break;
-                case Lang::OPENCL: code_ << "__kernel ";   break;
+                case Lang::C99:                                  break;
+                case Lang::CUDA:   func_decls_ << "__global__ ";
+                                   func_impl_  << "__global__ "; break;
+                case Lang::OPENCL: func_decls_ << "__kernel ";
+                                   func_impl_  << "__kernel ";   break;
             }
         } else {
-            if (lang_==Lang::CUDA) code_ << "__device__ ";
+            if (lang_==Lang::CUDA) {
+                func_decls_ << "__device__ ";
+                func_impl_  << "__device__ ";
+            }
         }
-        emit_type(code_, ret_type) << " " << name << "(";
+        emit_aggop_decl(ret_type);
+        emit_addr_space(func_decls_, ret_type);
+        emit_addr_space(func_impl_,  ret_type);
+        emit_type(func_decls_, ret_type) << " " << name << "(";
+        emit_type(func_impl_,  ret_type) << " " << name << "(";
         size_t i = 0;
         // emit and store all first-order params
         for (auto param : continuation->params()) {
             if (param->order() == 0 && !param->is_mem()) {
-                // skip arrays bound to texture memory
-                if (is_texture_type(param->type())) continue;
-                if (i++ > 0) code_ << ", ";
+                emit_aggop_decl(param->type());
+                if (is_texture_type(param->type())) {
+                    // emit texture declaration for CUDA
+                    type_decls_ << "texture<";
+                    emit_type(type_decls_, param->type()->as<PtrType>()->referenced_type());
+                    type_decls_ << ", cudaTextureType1D, cudaReadModeElementType> ";
+                    type_decls_ << param->name << ";" << endl;
+                    insert(param, param->name);
+                    // skip arrays bound to texture memory
+                    continue;
+                }
+                if (i++ > 0) {
+                    func_decls_ << ", ";
+                    func_impl_  << ", ";
+                }
+
                 if (lang_==Lang::OPENCL && continuation->is_external() &&
                     (param->type()->isa<DefiniteArrayType>() ||
                      param->type()->isa<StructAppType>() ||
                      param->type()->isa<TupleType>())) {
                     // structs are passed via buffer; the parameter is a pointer to this buffer
-                    code_ << "__global ";
-                    emit_type(code_, param->type()) << " *" << param->unique_name() << "_";
+                    func_decls_ << "__global ";
+                    func_impl_  << "__global ";
+                    emit_type(func_decls_, param->type()) << " *";
+                    emit_type(func_impl_,  param->type()) << " *" << param->unique_name() << "_";
                 } else {
-                    emit_addr_space(code_, param->type());
-                    emit_type(code_, param->type()) << " " << param->unique_name();
+                    emit_addr_space(func_decls_, param->type());
+                    emit_addr_space(func_impl_,  param->type());
+                    emit_type(func_decls_, param->type());
+                    emit_type(func_impl_,  param->type()) << " " << param->unique_name();
                 }
+                insert(param, param->unique_name());
             }
         }
-        code_ << ") {" << up;
+        func_decls_ << ");" << endl;
+        func_impl_  << ") {" << up;
 
-        // emit and store all first-order params
+        // OpenCL: load struct from buffer
         for (auto param : continuation->params()) {
             if (param->order() == 0 && !param->is_mem()) {
                 if (lang_==Lang::OPENCL && continuation->is_external() &&
                     (param->type()->isa<DefiniteArrayType>() ||
                      param->type()->isa<StructAppType>() ||
                      param->type()->isa<TupleType>())) {
-                    // load struct from buffer
-                    code_ << endl;
-                    emit_type(code_, param->type()) << " " << param->unique_name() << " = *" << param->unique_name() << "_;";
+                    func_impl_ << endl;
+                    emit_type(func_impl_, param->type()) << " " << param->unique_name() << " = *" << param->unique_name() << "_;";
                 }
             }
         }
@@ -413,15 +370,20 @@ void CCodeGen::emit() {
 
         // emit function arguments and phi nodes
         for (const auto& block : schedule) {
+            for (auto param : block.continuation()->params()) {
+                emit_aggop_decl(param->type());
+                insert(param, param->unique_name());
+            }
+
             auto continuation = block.continuation();
             if (scope.entry() != continuation) {
                 for (auto param : continuation->params()) {
                     if (!param->is_mem()) {
-                        code_ << endl;
-                        emit_addr_space(code_, param->type());
-                        emit_type(code_, param->type()) << "  " << param->unique_name() << ";" << endl;
-                        emit_addr_space(code_, param->type());
-                        emit_type(code_, param->type()) << " p" << param->unique_name() << ";";
+                        func_impl_ << endl;
+                        emit_addr_space(func_impl_, param->type());
+                        emit_type(func_impl_, param->type()) << "  " << param->unique_name() << ";" << endl;
+                        emit_addr_space(func_impl_, param->type());
+                        emit_type(func_impl_, param->type()) << " p" << param->unique_name() << ";";
                     }
                 }
             }
@@ -432,18 +394,28 @@ void CCodeGen::emit() {
             if (continuation->empty())
                 continue;
             assert(continuation == scope.entry() || continuation->is_basicblock());
-            code_ << endl;
+            func_impl_ << endl;
 
             // print label for the current basic block
             if (continuation != scope.entry()) {
-                code_ << "l" << continuation->gid() << ": ;" << up << endl;
+                func_impl_ << "l" << continuation->gid() << ": ;" << up << endl;
                 // load params from phi node
                 for (auto param : continuation->params())
                     if (!param->is_mem())
-                        code_ << param->unique_name() << " = p" << param->unique_name() << ";" << endl;
+                        func_impl_ << param->unique_name() << " = p" << param->unique_name() << ";" << endl;
             }
 
             for (auto primop : block) {
+                // struct/tuple/array declarations
+                if (!primop->isa<MemOp>()) {
+                    emit_aggop_decl(primop->type());
+                    // search for inlined tuples/arrays
+                    if (auto aggop = primop->isa<AggOp>()) {
+                        if (!aggop->agg()->isa<MemOp>())
+                            emit_aggop_decl(aggop->agg()->type());
+                    }
+                }
+
                 // skip higher-order primops, stuff dealing with frames and all memory related stuff except stores
                 if (!primop->type()->isa<FnType>() && !primop->type()->isa<FrameType>()
                         && (!primop->is_mem() || primop->isa<Store>())) {
@@ -455,7 +427,7 @@ void CCodeGen::emit() {
             // terminate bb
             if (continuation->callee() == ret_param) { // return
                 size_t num_args = continuation->num_args();
-                code_ << "return ";
+                func_impl_ << "return ";
                 switch (num_args) {
                     case 0: break;
                     case 1:
@@ -476,17 +448,17 @@ void CCodeGen::emit() {
                     default:
                         THORIN_UNREACHABLE;
                 }
-                code_ << ";";
+                func_impl_ << ";";
             } else if (continuation->callee() == world().branch()) {
                 emit_debug_info(continuation->arg(0)); // TODO correct?
-                code_ << "if (";
+                func_impl_ << "if (";
                 emit(continuation->arg(0));
-                code_ << ") ";
+                func_impl_ << ") ";
                 emit(continuation->arg(1));
-                code_ << " else ";
+                func_impl_ << " else ";
                 emit(continuation->arg(2));
             } else if (continuation->callee()->isa<Bottom>()) {
-                code_ << "return ; // bottom: unreachable";
+                func_impl_ << "return ; // bottom: unreachable";
             } else {
                 auto callee = continuation->callee()->as_continuation();
                 emit_debug_info(callee);
@@ -500,7 +472,7 @@ void CCodeGen::emit() {
                     // store argument to phi nodes
                     for (size_t i = 0, size = callee->num_params(); i != size; ++i)
                         if (!callee->param(i)->is_mem()) {
-                            code_ << "p" << callee->param(i)->unique_name() << " = ";
+                            func_impl_ << "p" << callee->param(i)->unique_name() << " = ";
                             emit(continuation->arg(i)) << ";" << endl;
                         }
                     emit(callee);
@@ -510,7 +482,7 @@ void CCodeGen::emit() {
                             auto cont = continuation->arg(2)->as_continuation();
                             emit_bitcast(continuation->arg(1), cont->param(1)) << endl;
                             // store argument to phi node
-                            code_ << "p" << cont->param(1)->unique_name() << " = ";
+                            func_impl_ << "p" << cont->param(1)->unique_name() << " = ";
                             emit(cont->param(1)) << ";";
                         } else if (callee->intrinsic() == Intrinsic::Reserve) {
                             if (!continuation->arg(1)->isa<PrimLit>())
@@ -518,33 +490,33 @@ void CCodeGen::emit() {
 
                             switch (lang_) {
                                 case Lang::C99:                            break;
-                                case Lang::CUDA:   code_ << "__shared__ "; break;
-                                case Lang::OPENCL: code_ << "__local ";    break;
+                                case Lang::CUDA:   func_impl_ << "__shared__ "; break;
+                                case Lang::OPENCL: func_impl_ << "__local ";    break;
                             }
 
                             auto cont = continuation->arg(2)->as_continuation();
                             auto elem_type = cont->param(1)->type()->as<PtrType>()->referenced_type()->as<ArrayType>()->elem_type();
-                            emit_type(code_, elem_type) << " " << callee->name << continuation->gid() << "[";
+                            emit_type(func_impl_, elem_type) << " " << callee->name << continuation->gid() << "[";
                             emit(continuation->arg(1)) << "];" << endl;
                             // store argument to phi node
-                            code_ << "p" << cont->param(1)->unique_name() << " = " << callee->name << continuation->gid() << ";";
+                            func_impl_ << "p" << cont->param(1)->unique_name() << " = " << callee->name << continuation->gid() << ";";
                         } else {
                             THORIN_UNREACHABLE;
                         }
                     } else {
                         auto emit_call = [&] () {
                             auto name = (callee->is_external() || callee->empty()) ? callee->name : callee->unique_name();
-                            code_ << name << "(";
+                            func_impl_ << name << "(";
                             // emit all first-order args
                             size_t i = 0;
                             for (auto arg : continuation->args()) {
                                 if (arg->order() == 0 && !arg->is_mem()) {
                                     if (i++ > 0)
-                                        code_ << ", ";
+                                        func_impl_ << ", ";
                                     emit(arg);
                                 }
                             }
-                            code_ << ");";
+                            func_impl_ << ");";
                         };
 
                         const Def* ret_arg = 0;
@@ -562,7 +534,7 @@ void CCodeGen::emit() {
                         }
 
                         if (ret_arg == ret_param) {     // call + return
-                            code_ << "return ";
+                            func_impl_ << "return ";
                             emit_call();
                         } else {                        // call + continuation
                             auto succ = ret_arg->as_continuation();
@@ -577,7 +549,7 @@ void CCodeGen::emit() {
 
                             if (param) {
                                 // store argument to phi node
-                                code_ << endl << "p" << succ->param(1)->unique_name() << " = ";
+                                func_impl_ << endl << "p" << succ->param(1)->unique_name() << " = ";
                                 emit(param) << ";";
                             }
                         }
@@ -585,10 +557,13 @@ void CCodeGen::emit() {
                 }
             }
             if (continuation != scope.entry())
-                code_ << down;
+                func_impl_ << down;
         }
-        code_ << down << endl << "}" << endl << endl;
+        func_impl_ << down << endl << "}" << endl << endl;
+        def2str_.clear();
     });
+    type_decls_ << endl;
+    func_decls_ << endl;
 
     type2str_.clear();
     def2str_.clear();
@@ -605,8 +580,9 @@ void CCodeGen::emit() {
     if (lang_==Lang::CUDA)
         os_ << "extern \"C\" {\n";
 
-    os_ << decls_.str();
-    os_ << code_.str();
+    os_ << type_decls_.str();
+    os_ << func_decls_.str();
+    os_ << func_impl_.str();
 
     if (lang_==Lang::CUDA)
         os_ << "}" << endl; // extern "C"
@@ -615,61 +591,61 @@ void CCodeGen::emit() {
 
 std::ostream& CCodeGen::emit(const Def* def) {
     if (auto continuation = def->isa<Continuation>())
-        return code_ << "goto l" << continuation->gid() << ";";
+        return func_impl_ << "goto l" << continuation->gid() << ";";
 
     if (lookup(def))
-        return code_ << get_name(def);
+        return func_impl_ << get_name(def);
 
     if (auto bin = def->isa<BinOp>()) {
         // emit definitions of inlined elements
         emit_aggop_defs(bin->lhs());
         emit_aggop_defs(bin->rhs());
-        emit_type(code_, bin->type()) << " " << bin->unique_name() << ";" << endl;
-        code_ << bin->unique_name() << " = ";
+        emit_type(func_impl_, bin->type()) << " " << bin->unique_name() << ";" << endl;
+        func_impl_ << bin->unique_name() << " = ";
         emit(bin->lhs());
         if (auto cmp = bin->isa<Cmp>()) {
             switch (cmp->cmp_kind()) {
-                case Cmp_eq: code_ << " == "; break;
-                case Cmp_ne: code_ << " != "; break;
-                case Cmp_gt: code_ << " > ";  break;
-                case Cmp_ge: code_ << " >= "; break;
-                case Cmp_lt: code_ << " < ";  break;
-                case Cmp_le: code_ << " <= "; break;
+                case Cmp_eq: func_impl_ << " == "; break;
+                case Cmp_ne: func_impl_ << " != "; break;
+                case Cmp_gt: func_impl_ << " > ";  break;
+                case Cmp_ge: func_impl_ << " >= "; break;
+                case Cmp_lt: func_impl_ << " < ";  break;
+                case Cmp_le: func_impl_ << " <= "; break;
             }
         }
 
         if (auto arithop = bin->isa<ArithOp>()) {
             switch (arithop->arithop_kind()) {
-                case ArithOp_add: code_ << " + ";  break;
-                case ArithOp_sub: code_ << " - ";  break;
-                case ArithOp_mul: code_ << " * ";  break;
-                case ArithOp_div: code_ << " / ";  break;
-                case ArithOp_rem: code_ << " % ";  break;
-                case ArithOp_and: code_ << " & ";  break;
-                case ArithOp_or:  code_ << " | ";  break;
-                case ArithOp_xor: code_ << " ^ ";  break;
-                case ArithOp_shl: code_ << " << "; break;
-                case ArithOp_shr: code_ << " >> "; break;
+                case ArithOp_add: func_impl_ << " + ";  break;
+                case ArithOp_sub: func_impl_ << " - ";  break;
+                case ArithOp_mul: func_impl_ << " * ";  break;
+                case ArithOp_div: func_impl_ << " / ";  break;
+                case ArithOp_rem: func_impl_ << " % ";  break;
+                case ArithOp_and: func_impl_ << " & ";  break;
+                case ArithOp_or:  func_impl_ << " | ";  break;
+                case ArithOp_xor: func_impl_ << " ^ ";  break;
+                case ArithOp_shl: func_impl_ << " << "; break;
+                case ArithOp_shr: func_impl_ << " >> "; break;
             }
         }
         emit(bin->rhs()) << ";";
         insert(def, def->unique_name());
-        return code_;
+        return func_impl_;
     }
 
     if (auto conv = def->isa<ConvOp>()) {
         if (conv->from()->type() == conv->type()) {
             insert(def, conv->from()->unique_name());
-            return code_;
+            return func_impl_;
         }
 
-        emit_addr_space(code_, conv->type());
-        emit_type(code_, conv->type()) << " " << conv->unique_name() << ";" << endl;
+        emit_addr_space(func_impl_, conv->type());
+        emit_type(func_impl_, conv->type()) << " " << conv->unique_name() << ";" << endl;
 
         if (conv->isa<Cast>()) {
-            code_ << conv->unique_name() << " = (";
-            emit_addr_space(code_, conv->type());
-            emit_type(code_, conv->type()) << ")";
+            func_impl_ << conv->unique_name() << " = (";
+            emit_addr_space(func_impl_, conv->type());
+            emit_type(func_impl_, conv->type()) << ")";
             emit(conv->from()) << ";";
         }
 
@@ -677,7 +653,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
             emit_bitcast(conv->from(), conv);
 
         insert(def, def->unique_name());
-        return code_;
+        return func_impl_;
     }
 
     if (auto array = def->isa<DefiniteArray>()) { // DefArray is mapped to a struct
@@ -685,44 +661,44 @@ std::ostream& CCodeGen::emit(const Def* def) {
         for (auto op : array->ops())
             emit_aggop_defs(op);
 
-        emit_type(code_, array->type()) << " " << array->unique_name() << ";";
+        emit_type(func_impl_, array->type()) << " " << array->unique_name() << ";";
         for (size_t i = 0, e = array->size(); i != e; ++i) {
-            code_ << endl;
+            func_impl_ << endl;
             if (array->op(i)->isa<Bottom>())
-                code_ << "//";
-            code_ << array->unique_name() << ".e[" << i << "] = ";
+                func_impl_ << "//";
+            func_impl_ << array->unique_name() << ".e[" << i << "] = ";
             emit(array->op(i)) << ";";
         }
         insert(def, def->unique_name());
-        return code_;
+        return func_impl_;
     }
 
     // aggregate operations
     {
         auto emit_access = [&] (const Def* def, const Def* index) -> std::ostream& {
             if (def->type()->isa<ArrayType>()) {
-                code_ << ".e[";
+                func_impl_ << ".e[";
                 emit(index) << "]";
             } else if (def->type()->isa<TupleType>() || def->type()->isa<StructAppType>()) {
-                code_ << ".e";
+                func_impl_ << ".e";
                 emit(index);
             } else if (def->type()->isa<VectorType>()) {
                 if (index->is_primlit(0))
-                    code_ << ".x";
+                    func_impl_ << ".x";
                 else if (index->is_primlit(1))
-                    code_ << ".y";
+                    func_impl_ << ".y";
                 else if (index->is_primlit(2))
-                    code_ << ".z";
+                    func_impl_ << ".z";
                 else if (index->is_primlit(3))
-                    code_ << ".w";
+                    func_impl_ << ".w";
                 else {
-                    code_ << ".s";
+                    func_impl_ << ".s";
                     emit(index);
                 }
             } else {
                 THORIN_UNREACHABLE;
             }
-            return code_;
+            return func_impl_;
         };
 
         if (auto agg = def->isa<Aggregate>()) {
@@ -731,17 +707,17 @@ std::ostream& CCodeGen::emit(const Def* def) {
             for (auto op : agg->ops())
                 emit_aggop_defs(op);
 
-            emit_type(code_, agg->type()) << " " << agg->unique_name() << ";";
+            emit_type(func_impl_, agg->type()) << " " << agg->unique_name() << ";";
             for (size_t i = 0, e = agg->ops().size(); i != e; ++i) {
-                code_ << endl;
+                func_impl_ << endl;
                 if (agg->op(i)->isa<Bottom>())
-                    code_ << "//";
-                code_ << agg->unique_name();
+                    func_impl_ << "//";
+                func_impl_ << agg->unique_name();
                 emit_access(def, world_.literal_qs32(i, def->loc())) << " = ";
                 emit(agg->op(i)) << ";";
             }
             insert(def, def->unique_name());
-            return code_;
+            return func_impl_;
         }
 
         if (auto aggop = def->isa<AggOp>()) {
@@ -749,9 +725,9 @@ std::ostream& CCodeGen::emit(const Def* def) {
 
             if (auto extract = aggop->isa<Extract>()) {
                 if (extract->is_mem() || extract->type()->isa<FrameType>())
-                    return code_;
-                emit_type(code_, aggop->type()) << " " << aggop->unique_name() << ";" << endl;
-                code_ << aggop->unique_name() << " = ";
+                    return func_impl_;
+                emit_type(func_impl_, aggop->type()) << " " << aggop->unique_name() << ";" << endl;
+                func_impl_ << aggop->unique_name() << " = ";
                 if (auto memop = extract->agg()->isa<MemOp>())
                     emit(memop) << ";";
                 else {
@@ -759,18 +735,18 @@ std::ostream& CCodeGen::emit(const Def* def) {
                     emit_access(aggop->agg(), aggop->index()) << ";";
                 }
                 insert(def, def->unique_name());
-                return code_;
+                return func_impl_;
             }
 
             auto ins = def->as<Insert>();
-            emit_type(code_, aggop->type()) << " " << aggop->unique_name() << ";" << endl;
-            code_ << aggop->unique_name() << " = ";
+            emit_type(func_impl_, aggop->type()) << " " << aggop->unique_name() << ";" << endl;
+            func_impl_ << aggop->unique_name() << " = ";
             emit(ins->agg()) << ";" << endl;
-            code_ << aggop->unique_name();
+            func_impl_ << aggop->unique_name();
             emit_access(def, ins->index()) << " = ";
             emit(ins->value()) << ";";
             insert(def, aggop->unique_name());
-            return code_;
+            return func_impl_;
         }
     }
 
@@ -781,35 +757,35 @@ std::ostream& CCodeGen::emit(const Def* def) {
         auto float_mode = lang_ == Lang::CUDA ? std::scientific : std::hexfloat;
 #endif
         switch (primlit->primtype_kind()) {
-            case PrimType_bool: code_ << (primlit->bool_value() ? "true" : "false");                     break;
-            case PrimType_ps8:  case PrimType_qs8:  code_ << (int) primlit->ps8_value();                 break;
-            case PrimType_pu8:  case PrimType_qu8:  code_ << (unsigned) primlit->pu8_value();            break;
-            case PrimType_ps16: case PrimType_qs16: code_ << primlit->ps16_value();                      break;
-            case PrimType_pu16: case PrimType_qu16: code_ << primlit->pu16_value();                      break;
-            case PrimType_ps32: case PrimType_qs32: code_ << primlit->ps32_value();                      break;
-            case PrimType_pu32: case PrimType_qu32: code_ << primlit->pu32_value();                      break;
-            case PrimType_ps64: case PrimType_qs64: code_ << primlit->ps64_value();                      break;
-            case PrimType_pu64: case PrimType_qu64: code_ << primlit->pu64_value();                      break;
-            case PrimType_pf16: case PrimType_qf16: code_ << float_mode << primlit->pf16_value() << 'h'; break;
-            case PrimType_pf32: case PrimType_qf32: code_ << float_mode << primlit->pf32_value() << 'f'; break;
-            case PrimType_pf64: case PrimType_qf64: code_ << float_mode << primlit->pf64_value();        break;
+            case PrimType_bool: func_impl_ << (primlit->bool_value() ? "true" : "false");                     break;
+            case PrimType_ps8:  case PrimType_qs8:  func_impl_ << (int) primlit->ps8_value();                 break;
+            case PrimType_pu8:  case PrimType_qu8:  func_impl_ << (unsigned) primlit->pu8_value();            break;
+            case PrimType_ps16: case PrimType_qs16: func_impl_ << primlit->ps16_value();                      break;
+            case PrimType_pu16: case PrimType_qu16: func_impl_ << primlit->pu16_value();                      break;
+            case PrimType_ps32: case PrimType_qs32: func_impl_ << primlit->ps32_value();                      break;
+            case PrimType_pu32: case PrimType_qu32: func_impl_ << primlit->pu32_value();                      break;
+            case PrimType_ps64: case PrimType_qs64: func_impl_ << primlit->ps64_value();                      break;
+            case PrimType_pu64: case PrimType_qu64: func_impl_ << primlit->pu64_value();                      break;
+            case PrimType_pf16: case PrimType_qf16: func_impl_ << float_mode << primlit->pf16_value() << 'h'; break;
+            case PrimType_pf32: case PrimType_qf32: func_impl_ << float_mode << primlit->pf32_value() << 'f'; break;
+            case PrimType_pf64: case PrimType_qf64: func_impl_ << float_mode << primlit->pf64_value();        break;
         }
-        return code_;
+        return func_impl_;
     }
 
     if (def->isa<Bottom>())
-        return code_ << "42 /* bottom */";
+        return func_impl_ << "42 /* bottom */";
 
     if (auto load = def->isa<Load>()) {
-        emit_type(code_, load->out_val()->type()) << " " << load->unique_name() << ";" << endl;
-        code_ << load->unique_name() << " = ";
+        emit_type(func_impl_, load->out_val()->type()) << " " << load->unique_name() << ";" << endl;
+        func_impl_ << load->unique_name() << " = ";
         // handle texture fetches
         if (!is_texture_type(load->ptr()->type()))
-            code_ << "*";
+            func_impl_ << "*";
         emit(load->ptr()) << ";";
 
         insert(def, def->unique_name());
-        return code_;
+        return func_impl_;
     }
 
     if (auto store = def->isa<Store>()) {
@@ -818,19 +794,19 @@ std::ostream& CCodeGen::emit(const Def* def) {
         emit(store->val()) << ";";
 
         insert(def, def->unique_name());
-        return code_;
+        return func_impl_;
     }
 
     if (auto slot = def->isa<Slot>()) {
-        emit_type(code_, slot->alloced_type()) << " " << slot->unique_name() << "_slot;" << endl;
-        emit_type(code_, slot->alloced_type()) << "* " << slot->unique_name() << ";" << endl;
-        code_ << slot->unique_name() << " = &" << slot->unique_name() << "_slot;";
+        emit_type(func_impl_, slot->alloced_type()) << " " << slot->unique_name() << "_slot;" << endl;
+        emit_type(func_impl_, slot->alloced_type()) << "* " << slot->unique_name() << ";" << endl;
+        func_impl_ << slot->unique_name() << " = &" << slot->unique_name() << "_slot;";
         insert(def, def->unique_name());
-        return code_;
+        return func_impl_;
     }
 
     if (def->isa<Enter>())
-        return code_;
+        return func_impl_;
 
     if (def->isa<Vector>()) {
         THORIN_UNREACHABLE;
@@ -838,59 +814,59 @@ std::ostream& CCodeGen::emit(const Def* def) {
 
     if (auto lea = def->isa<LEA>()) {
         if (is_texture_type(lea->type())) { // handle texture fetches
-            emit_type(code_, lea->ptr_referenced_type()) << " " << lea->unique_name() << ";" << endl;
-            code_ << lea->unique_name() << " = tex1Dfetch(";
+            emit_type(func_impl_, lea->ptr_referenced_type()) << " " << lea->unique_name() << ";" << endl;
+            func_impl_ << lea->unique_name() << " = tex1Dfetch(";
             emit(lea->ptr()) << ", ";
             emit(lea->index()) << ");";
         } else {
             if (lea->ptr_referenced_type()->isa<TupleType>() || lea->ptr_referenced_type()->isa<StructAppType>()) {
-                emit_type(code_, lea->type()) << " " << lea->unique_name() << ";" << endl;
-                code_ << lea->unique_name() << " = &";
+                emit_type(func_impl_, lea->type()) << " " << lea->unique_name() << ";" << endl;
+                func_impl_ << lea->unique_name() << " = &";
                 emit(lea->ptr()) << "->e";
                 emit(lea->index()) << ";";
             } else if (lea->ptr_referenced_type()->isa<DefiniteArrayType>()) {
-                emit_type(code_, lea->type()) << " " << lea->unique_name() << ";" << endl;
-                code_ << lea->unique_name() << " = &";
+                emit_type(func_impl_, lea->type()) << " " << lea->unique_name() << ";" << endl;
+                func_impl_ << lea->unique_name() << " = &";
                 emit(lea->ptr()) << "->e[";
                 emit(lea->index()) << "];";
             } else {
-                emit_addr_space(code_, lea->ptr()->type());
-                emit_type(code_, lea->type()) << " " << lea->unique_name() << ";" << endl;
-                code_ << lea->unique_name() << " = ";
+                emit_addr_space(func_impl_, lea->ptr()->type());
+                emit_type(func_impl_, lea->type()) << " " << lea->unique_name() << ";" << endl;
+                func_impl_ << lea->unique_name() << " = ";
                 emit(lea->ptr()) << " + ";
                 emit(lea->index()) << ";";
             }
         }
 
         insert(def, def->unique_name());
-        return code_;
+        return func_impl_;
     }
 
     if (auto global = def->isa<Global>()) {
         assert(!global->init()->isa_continuation() && "no global init continuation supported");
         switch (lang_) {
-            case Lang::C99:                            break;
-            case Lang::CUDA:   code_ << "__device__ "; break;
-            case Lang::OPENCL: code_ << "__constant "; break;
+            case Lang::C99:                                 break;
+            case Lang::CUDA:   func_impl_ << "__device__ "; break;
+            case Lang::OPENCL: func_impl_ << "__constant "; break;
         }
-        emit_type(code_, global->alloced_type()) << " " << global->unique_name() << "_slot";
+        emit_type(func_impl_, global->alloced_type()) << " " << global->unique_name() << "_slot";
         if (global->init()->isa<Bottom>()) {
-            code_ << ";";
+            func_impl_ << ";";
         } else {
-            code_ << " = ";
+            func_impl_ << " = ";
             emit(global->init()) << ";";
         }
-        code_ << endl;
+        func_impl_ << endl;
 
         switch (lang_) {
-            case Lang::C99:                            break;
-            case Lang::CUDA:   code_ << "__device__ "; break;
-            case Lang::OPENCL: code_ << "__constant "; break;
+            case Lang::C99:                                 break;
+            case Lang::CUDA:   func_impl_ << "__device__ "; break;
+            case Lang::OPENCL: func_impl_ << "__constant "; break;
         }
-        emit_type(code_, global->alloced_type()) << " *" << global->unique_name() << " = &" << global->unique_name() << "_slot;";
+        emit_type(func_impl_, global->alloced_type()) << " *" << global->unique_name() << " = &" << global->unique_name() << "_slot;";
 
         insert(def, def->unique_name());
-        return code_;
+        return func_impl_;
     }
 
     THORIN_UNREACHABLE;

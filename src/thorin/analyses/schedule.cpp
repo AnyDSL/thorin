@@ -99,10 +99,9 @@ void Scheduler::compute_def2uses() {
 }
 
 const CFNode* Scheduler::schedule_early(const Def* def) {
-    auto p = def2early_.emplace(def, nullptr);
-    auto& result = p.first->second;
-
-    if (p.second) {
+    if (auto& result = retrieve(def2early_, def))
+        return result;
+    else {
         if (auto param = def->isa<Param>()) {
             result = cfg_[param->continuation()];
         } else {
@@ -115,16 +114,14 @@ const CFNode* Scheduler::schedule_early(const Def* def) {
                 }
             }
         }
+        return result;
     }
-
-    return result;
 }
 
 const CFNode* Scheduler::schedule_late(const Def* def) {
-    auto p = def2late_.emplace(def, nullptr);
-    auto& result = p.first->second;
-
-    if (p.second) {
+    if (auto& result = retrieve(def2late_, def))
+        return result;
+    else {
         if (auto continuation = def->isa_continuation()) {
             result = cfg_[continuation];
         } else {
@@ -134,16 +131,14 @@ const CFNode* Scheduler::schedule_late(const Def* def) {
                 result = result ? domtree_.lca(result, n) : n;
             }
         }
+        return result;
     }
-
-    return result;
 }
 
 const CFNode* Scheduler::schedule_smart(const PrimOp* primop) {
-    auto p = def2smart_.emplace(primop, nullptr);
-    auto& result = p.first->second;
-
-    if (p.second) {
+    if (auto& result = retrieve(def2smart_, primop))
+        return result;
+    else {
         auto early = schedule_early(primop);
         auto late  = schedule_late (primop);
 
@@ -161,9 +156,8 @@ const CFNode* Scheduler::schedule_smart(const PrimOp* primop) {
                 }
             }
         }
+        return result;
     }
-
-    return result;
 }
 
 void Scheduler::topo_sort(Def2CFNode& def2node) {

@@ -489,15 +489,14 @@ T* find(const HashMap<Key, T*, Hasher, KeyEqual>& map, const typename HashMap<Ke
     return i == map.end() ? nullptr : i->second;
 }
 
-template<class Key, class Hasher, class KeyEqual, class Arg>
-bool visit(HashSet<Key, Hasher, KeyEqual>& set, const Arg& key) {
-    return !set.insert(key).second;
+template<class Key, class T, class Hasher, class KeyEqual>
+T*& retrieve(HashMap<Key, T*, Hasher, KeyEqual>& map, const typename HashMap<Key, T*, Hasher, KeyEqual>::key_type& key) {
+    return map.emplace(key, nullptr).first->second;
 }
 
 template<class Key, class Hasher, class KeyEqual, class Arg>
-void visit_first(HashSet<Key, Hasher, KeyEqual>& set, const Arg& key) {
-    assert(!set.contains(key));
-    visit(set, key);
+bool visit(HashSet<Key, Hasher, KeyEqual>& set, const Arg& key) {
+    return !set.insert(key).second;
 }
 
 //------------------------------------------------------------------------------

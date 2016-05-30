@@ -10,6 +10,7 @@ extern "device" {
     fn sqrtf(f32) -> f32;
     fn fabsf(f32) -> f32;
     fn tanf(f32) -> f32;
+    fn atanf(f32) -> f32;
     fn atan2f(f32, f32) -> f32;
     fn sinf(f32) -> f32;
     fn cosf(f32) -> f32;
@@ -28,6 +29,7 @@ extern "device" {
     fn sqrt(f64) -> f64;
     fn fabs(f64) -> f64;
     fn tan(f64) -> f64;
+    fn atan(f64) -> f64;
     fn atan2(f64, f64) -> f64;
     fn sin(f64) -> f64;
     fn cos(f64) -> f64;

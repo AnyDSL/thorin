@@ -2,6 +2,7 @@ extern "C" {
     fn asinf(f32) -> f32;
     fn acosf(f32) -> f32;
     fn tanf(f32) -> f32;
+    fn atanf(f32) -> f32;
     fn atan2f(f32, f32) -> f32;
     fn erff(f32) -> f32;
     fn fmodf(f32, f32) -> f32;
@@ -11,6 +12,7 @@ extern "C" {
     fn asin(f64) -> f64;
     fn acos(f64) -> f64;
     fn tan(f64) -> f64;
+    fn atan(f64) -> f64;
     fn atan2(f64, f64) -> f64;
     fn erf(f64) -> f64;
     fn fmod(f64, f64) -> f64;

@@ -276,6 +276,7 @@ extern "C" {
     fn "__nv_sqrtf"     sqrtf(f32) -> f32;
     fn "__nv_fabsf"     fabsf(f32) -> f32;
     fn "__nv_tanf"      tanf(f32) -> f32;
+    fn "__nv_atanf"     atanf(f32) -> f32;
     fn "__nv_atan2f"    atan2f(f32, f32) -> f32;
     fn "__nv_sinf"      sinf(f32) -> f32;
     fn "__nv_cosf"      cosf(f32) -> f32;
@@ -294,6 +295,7 @@ extern "C" {
     fn "__nv_sqrt"      sqrt(f64) -> f64;
     fn "__nv_fabs"      fabs(f64) -> f64;
     fn "__nv_tan"       tan(f64) -> f64;
+    fn "__nv_atan"      atan(f64) -> f64;
     fn "__nv_atan2"     atan2(f64, f64) -> f64;
     fn "__nv_sin"       sin(f64) -> f64;
     fn "__nv_cos"       cos(f64) -> f64;

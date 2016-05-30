@@ -18,6 +18,7 @@ extern "device" {
     fn "sqrt"       sqrtf(f32) -> f32;
     fn "fabs"       fabsf(f32) -> f32;
     fn "tan"        tanf(f32) -> f32;
+    fn "atan"       atanf(f32) -> f32;
     fn "atan2"      atan2f(f32, f32) -> f32;
     fn "sin"        sinf(f32) -> f32;
     fn "cos"        cosf(f32) -> f32;
@@ -37,6 +38,7 @@ extern "device" {
     fn "sqrt"       sqrt(f64) -> f64;
     fn "fabs"       fabs(f64) -> f64;
     fn "tan"        tan(f64) -> f64;
+    fn "atan"       atan(f64) -> f64;
     fn "atan2"      atan2(f64, f64) -> f64;
     fn "sin"        sin(f64) -> f64;
     fn "cos"        cos(f64) -> f64;

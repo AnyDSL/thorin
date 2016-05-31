@@ -20,7 +20,7 @@ const Type* import(Type2Type& old2new, World& to, const Type* otype) {
     for (size_t i = 0, e = otype->num_type_params(); i != e; ++i)
         ntype_params[i] = import(old2new, to, otype->type_param(i))->as<TypeParam>();
 
-    return close(ntype, ntype_params);
+    return old2new[otype] = close(ntype, ntype_params);
 }
 
 const Def* import(Type2Type& type_old2new, Def2Def& def_old2new, World& to, const Def* odef) {

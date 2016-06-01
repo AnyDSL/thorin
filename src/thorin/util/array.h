@@ -28,6 +28,7 @@ template<class T> class Array;
 template<class T>
 class ArrayRef {
 public:
+    typedef T value_type;
     typedef const T* const_iterator;
     typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
 
@@ -66,7 +67,9 @@ public:
     T const& front() const { assert(!empty()); return ptr_[0]; }
     T const& back()  const { assert(!empty()); return ptr_[size_ - 1]; }
     ArrayRef<T> skip_front(size_t num = 1) const { return ArrayRef<T>(ptr_ + num, size() - num); }
-    ArrayRef<T> skip_back(size_t num = 1) const { return ArrayRef<T>(ptr_, size() - num); }
+    ArrayRef<T> skip_back (size_t num = 1) const { return ArrayRef<T>(ptr_, size() - num); }
+    ArrayRef<T> get_first (size_t num = 1) const { assert(num <= size()); return ArrayRef<T>(ptr_, num); }
+    ArrayRef<T> get_last  (size_t num = 1) const { assert(num <= size()); return ArrayRef<T>(ptr_ + size() - num, num); }
     Array<T> cut(ArrayRef<size_t> indices, size_t reserve = 0) const;
     template<class Other>
     bool operator==(const Other& other) const { return this->size() == other.size() && std::equal(begin(), end(), other.begin()); }
@@ -91,6 +94,12 @@ private:
 template<class T>
 class Array {
 public:
+    typedef T value_type;
+    typedef T* iterator;
+    typedef const T* const_iterator;
+    typedef std::reverse_iterator<iterator> reverse_iterator;
+    typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
+
     Array()
         : size_(0)
         , ptr_(nullptr)
@@ -145,11 +154,6 @@ public:
     }
     ~Array() { delete[] ptr_; }
 
-    typedef T* iterator;
-    typedef const T* const_iterator;
-    typedef std::reverse_iterator<iterator> reverse_iterator;
-    typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
-
     iterator begin() { return ptr_; }
     iterator end() { return ptr_ + size_; }
     reverse_iterator rbegin() { return reverse_iterator(end()); }
@@ -164,7 +168,9 @@ public:
     size_t size() const { return size_; }
     bool empty() const { return size_ == 0; }
     ArrayRef<T> skip_front(size_t num = 1) const { return ArrayRef<T>(ptr_ + num, size() - num); }
-    ArrayRef<T> skip_back(size_t num = 1) const { return ArrayRef<T>(ptr_, size() - num); }
+    ArrayRef<T> skip_back (size_t num = 1) const { return ArrayRef<T>(ptr_, size() - num); }
+    ArrayRef<T> get_first (size_t num = 1) const { assert(num <= size()); return ArrayRef<T>(ptr_, num); }
+    ArrayRef<T> get_last  (size_t num = 1) const { assert(num <= size()); return ArrayRef<T>(ptr_ + size() - num, num); }
     Array<T> cut(ArrayRef<size_t> indices, size_t reserve = 0) const { return ArrayRef<T>(*this).cut(indices, reserve); }
     void shrink(size_t newsize) { assert(newsize <= size_); size_ = newsize; }
     ArrayRef<T> ref() const { return ArrayRef<T>(ptr_, size_); }
@@ -201,6 +207,13 @@ Array<T> ArrayRef<T>::cut(ArrayRef<size_t> indices, size_t reserve) const {
             result[r++] = (*this)[o];
     }
 
+    return result;
+}
+
+template<class T, class U>
+auto concat(const T& a, const U& b) -> Array<typename T::value_type> {
+    Array<typename T::value_type> result(a.size() + b.size());
+    std::copy(b.begin(), b.end(), std::copy(a.begin(), a.end(), result.begin()));
     return result;
 }
 

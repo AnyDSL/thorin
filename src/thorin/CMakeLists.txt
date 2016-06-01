@@ -26,6 +26,8 @@ SET ( SOURCES
     analyses/domtree.h
     analyses/free_vars.cpp
     analyses/free_vars.h
+    analyses/free_params.cpp
+    analyses/free_params.h
     analyses/looptree.cpp
     analyses/looptree.h
     analyses/schedule.cpp
@@ -67,14 +69,16 @@ SET ( SOURCES
     transform/critical_edge_elimination.h
     transform/dead_load_opt.cpp
     transform/dead_load_opt.h
+    transform/hoist_enters.cpp
+    transform/hoist_enters.h
+    transform/higher_order_lifting.cpp
+    transform/higher_order_lifting.h
     transform/import.cpp
     transform/import.h
     transform/inliner.cpp
     transform/inliner.h
     transform/lift_builtins.cpp
     transform/lift_builtins.h
-    transform/lift_enters.cpp
-    transform/lift_enters.h
     transform/lower2cff.cpp
     transform/lower2cff.h
     transform/mangle.cpp

@@ -57,6 +57,7 @@ public:
     }
 
     void mark_dirty() { top_dirty_ = cur_dirty_ = true; }
+    Continuation* get_continuation(Continuation* continuation) { return continuation->callee()->as<EvalOp>()->end()->isa_continuation(); }
 
 private:
     Scope* cur_scope_;
@@ -68,10 +69,6 @@ private:
     bool cur_dirty_;
     bool top_dirty_ = false;
 };
-
-static Continuation* get_continuation(Continuation* continuation) {
-    return continuation->num_args() != 0 ? continuation->args().back()->isa_continuation() : (Continuation*) nullptr;
-}
 
 void PartialEvaluator::run() {
     enqueue(top_scope().entry());
@@ -110,13 +107,14 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
         } else if (done_.contains(cur)) {
             DLOG("already done: %", cur);
             return;
-        }
+        } else
+            DLOG("cur: %", cur);
 
         done_.insert(cur);
 
         Continuation* dst = nullptr;
         if (auto run = cur->callee()->isa<Run>()) {
-            dst = run->def()->isa_continuation();
+            dst = run->begin()->isa_continuation();
         } else if (cur->callee()->isa<Hlt>()) {
             cur = get_continuation(cur);
             continue;
@@ -126,6 +124,32 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
 
         if (dst == nullptr || dst->empty()) {
             cur = postdom(cur);
+            if (cur == nullptr)
+                return;
+            if (end == nullptr)
+                continue;
+
+            const auto& postdomtree = top_scope().b_cfg().domtree();
+            auto ncur = top_scope().cfa(cur);
+            auto nend = top_scope().cfa(end);
+
+            assert(ncur != nullptr);
+            if (nend == nullptr) {
+                WLOG("end became unreachable: %", end);
+                continue;
+            }
+
+            for (auto i = nend; i != postdomtree.root(); i = postdomtree.idom(i)) {
+                if (i == ncur) {
+                    DLOG("overjumped end: %", cur);
+                    return;
+                }
+            }
+
+            if (cur == end) {
+                DLOG("end: %", end);
+                return;
+            }
             continue;
         }
 
@@ -141,13 +165,25 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
 
         Call call(cur->type_args(), ops);
 
-        //DLOG("dst: %", dst);
+        bool go_out = dst == end;
+        DLOG("dst: %", dst);
+
         if (auto cached = find(cache_, call)) {             // check for cached version
             jump_to_cached_call(cur, cached, call);
             DLOG("using cached call: %", cur);
             return;
         } else {                                            // no cached version found... create a new one
-            auto dropped = drop(call);
+            Scope scope(call.callee()->as_continuation());
+            Mangler mangler(scope, call.type_args(), call.args(), Defs());
+            auto dropped = mangler.mangle();
+            if (end != nullptr) {
+                if (auto nend = mangler.def2def(end)) {
+                    if (end != nend) {
+                        DLOG("changed end: % -> %", end, nend);
+                        end = nend->as_continuation();
+                    }
+                }
+            }
 
             if (dropped->callee() == world().branch()) {
                 // TODO don't stupidly inline functions
@@ -164,7 +200,7 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
                 cur = dropped;
         }
 
-        if (dst == end) {
+        if (dst == end || go_out) {
             DLOG("end: %", end);
             return;
         }
@@ -210,7 +246,7 @@ void partial_evaluation(World& world) {
 
     for (auto primop : world.primops()) {
         if (auto evalop = primop->isa<EvalOp>())
-            evalop->replace(evalop->def());
+            evalop->replace(evalop->begin());
     }
 }
 

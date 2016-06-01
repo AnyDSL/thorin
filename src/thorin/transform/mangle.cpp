@@ -39,9 +39,9 @@ public:
 
     World& world() const { return scope.world(); }
     Continuation* mangle();
-    void mangle_body(Continuation* ocontinuation, Continuation* ncontinuation);
-    Continuation* mangle_head(Continuation* ocontinuation);
-    const Def* mangle(const Def* odef);
+    void mangle_body(Continuation* old_continuation, Continuation* new_continuation);
+    Continuation* mangle_head(Continuation* old_continuation);
+    const Def* mangle(const Def* old_def);
     bool within(const Def* def) { return scope.contains(def) || defs_.contains(def); }
 
     const Scope& scope;
@@ -68,13 +68,13 @@ Continuation* Mangler::mangle() {
     // map value params
     def2def[oentry] = oentry;
     for (size_t i = 0, j = 0, e = oentry->num_params(); i != e; ++i) {
-        auto oparam = oentry->param(i);
+        auto old_param = oentry->param(i);
         if (auto def = args[i])
-            def2def[oparam] = def;
+            def2def[old_param] = def;
         else {
-            auto nparam = nentry->param(j++);
-            def2def[oparam] = nparam;
-            nparam->name = oparam->name;
+            auto new_param = nentry->param(j++);
+            def2def[old_param] = new_param;
+            new_param->name = old_param->name;
         }
     }
 
@@ -85,32 +85,32 @@ Continuation* Mangler::mangle() {
     return nentry;
 }
 
-Continuation* Mangler::mangle_head(Continuation* ocontinuation) {
-    assert(!def2def.contains(ocontinuation));
-    assert(!ocontinuation->empty());
-    Continuation* ncontinuation = ocontinuation->stub(type2type, ocontinuation->name);
-    def2def[ocontinuation] = ncontinuation;
+Continuation* Mangler::mangle_head(Continuation* old_continuation) {
+    assert(!def2def.contains(old_continuation));
+    assert(!old_continuation->empty());
+    Continuation* new_continuation = old_continuation->stub(type2type, old_continuation->name);
+    def2def[old_continuation] = new_continuation;
 
-    for (size_t i = 0, e = ocontinuation->num_params(); i != e; ++i)
-        def2def[ocontinuation->param(i)] = ncontinuation->param(i);
+    for (size_t i = 0, e = old_continuation->num_params(); i != e; ++i)
+        def2def[old_continuation->param(i)] = new_continuation->param(i);
 
-    return ncontinuation;
+    return new_continuation;
 }
 
-void Mangler::mangle_body(Continuation* ocontinuation, Continuation* ncontinuation) {
-    assert(!ocontinuation->empty());
+void Mangler::mangle_body(Continuation* old_continuation, Continuation* new_continuation) {
+    assert(!old_continuation->empty());
 
-    if (ocontinuation->callee() == world().branch()) {        // fold branch if possible
-        if (auto lit = mangle(ocontinuation->arg(0))->isa<PrimLit>())
-            return ncontinuation->jump(mangle(lit->value().get_bool() ? ocontinuation->arg(1) : ocontinuation->arg(2)), {}, ocontinuation->jump_loc());
+    if (old_continuation->callee() == world().branch()) {        // fold branch if possible
+        if (auto lit = mangle(old_continuation->arg(0))->isa<PrimLit>())
+            return new_continuation->jump(mangle(lit->value().get_bool() ? old_continuation->arg(1) : old_continuation->arg(2)), {}, old_continuation->jump_loc());
     }
 
-    Array<const Def*> nops(ocontinuation->size());
+    Array<const Def*> nops(old_continuation->size());
     for (size_t i = 0, e = nops.size(); i != e; ++i)
-        nops[i] = mangle(ocontinuation->op(i));
+        nops[i] = mangle(old_continuation->op(i));
 
-    Defs nargs(nops.skip_front()); // new args of ncontinuation
-    auto ntarget = nops.front();   // new target of ncontinuation
+    Defs nargs(nops.skip_front()); // new args of new_continuation
+    auto ntarget = nops.front();   // new target of new_continuation
 
     // check whether we can optimize tail recursion
     if (ntarget == oentry) {
@@ -124,34 +124,35 @@ void Mangler::mangle_body(Continuation* ocontinuation, Continuation* ncontinuati
         }
 
         if (substitute)
-            return ncontinuation->jump(nentry, nargs.cut(cut), ocontinuation->jump_loc());
+            return new_continuation->jump(nentry, nargs.cut(cut), old_continuation->jump_loc());
     }
 
-    ncontinuation->jump(ntarget, nargs, ocontinuation->jump_loc());
+    new_continuation->jump(ntarget, nargs, old_continuation->jump_loc());
 }
 
-const Def* Mangler::mangle(const Def* odef) {
-    if (auto ndef = find(def2def, odef))
-        return ndef;
-    else if (!within(odef))
-        return odef;
-    else if (auto ocontinuation = odef->isa_continuation()) {
-        auto ncontinuation = mangle_head(ocontinuation);
-        mangle_body(ocontinuation, ncontinuation);
-        return ncontinuation;
-    } else if (auto param = odef->isa<Param>()) {
+const Def* Mangler::mangle(const Def* old_def) {
+    if (auto new_def = find(def2def, old_def))
+        return new_def;
+    else if (!within(old_def))
+        return old_def;
+    else if (auto old_continuation = old_def->isa_continuation()) {
+
+        auto new_continuation = mangle_head(old_continuation);
+        mangle_body(old_continuation, new_continuation);
+        return new_continuation;
+    } else if (auto param = old_def->isa<Param>()) {
         assert(within(param->continuation()));
         mangle(param->continuation());
         assert(def2def.contains(param));
         return def2def[param];
     } else {
-        auto oprimop = odef->as<PrimOp>();
-        Array<const Def*> nops(oprimop->size());
-        for (size_t i = 0, e = oprimop->size(); i != e; ++i)
-            nops[i] = mangle(oprimop->op(i));
+        auto old_primop = old_def->as<PrimOp>();
+        Array<const Def*> nops(old_primop->size());
+        for (size_t i = 0, e = old_primop->size(); i != e; ++i)
+            nops[i] = mangle(old_primop->op(i));
 
-        auto type = oprimop->type(); // TODO reduce
-        return def2def[oprimop] = oprimop->rebuild(nops, type);
+        auto type = old_primop->type(); // TODO reduce
+        return def2def[old_primop] = old_primop->rebuild(nops, type);
     }
 }
 

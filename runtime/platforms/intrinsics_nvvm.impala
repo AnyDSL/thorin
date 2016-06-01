@@ -297,9 +297,9 @@ extern "C" {
     fn "__nv_sin"       sin(f64) -> f64;
     fn "__nv_cos"       cos(f64) -> f64;
     fn "__nv_tan"       tan(f64) -> f64;
-    fn "__nv_asin"      asinf(f32) -> f32;
-    fn "__nv_acos"      acosf(f32) -> f32;
-    fn "__nv_atan"      atanf(f32) -> f32;
+    fn "__nv_asin"      asin(f64) -> f64;
+    fn "__nv_acos"      acos(f64) -> f64;
+    fn "__nv_atan"      atan(f64) -> f64;
     fn "__nv_erf"       erf(f64) -> f64;
     fn "__nv_atan2"     atan2(f64, f64) -> f64;
     fn "__nv_fmod"      fmod(f64, f64) -> f64;

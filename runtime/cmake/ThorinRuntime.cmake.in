@@ -96,9 +96,8 @@ MACRO ( THORIN_RUNTIME_WRAP outfiles )
     IF ( "${TRW_BACKEND}" STREQUAL "spir" OR "${TRW_BACKEND}" STREQUAL "nvvm" )
         SET ( _irfile ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.${TRW_BACKEND} )
         SET ( _bcfile ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.${TRW_BACKEND}.bc )
-        ADD_CUSTOM_COMMAND ( OUTPUT ${_bcfile}
-            COMMAND ${LLVM_AS_BIN} ${_irfile}
-            DEPENDS ${_irfile} VERBATIM )
+        ADD_CUSTOM_COMMAND ( OUTPUT ${_bcfile} COMMAND ${LLVM_AS_BIN} ${_irfile} DEPENDS ${_irfile} VERBATIM )
+        SET_SOURCE_FILES_PROPERTIES ( ${_irfile} $_bcfile} PROPERTIES GENERATED true )
     ENDIF()
 
     # Run clang on the patched .ll file to get the .o

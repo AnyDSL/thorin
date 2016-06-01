@@ -35,7 +35,7 @@ static void find_enters(Continuation* continuation, std::vector<const Enter*>& e
     }
 }
 
-static void lift_enters(const Scope& scope) {
+static void hoist_enters(const Scope& scope) {
     World& world = scope.world();
     std::vector<const Enter*> enters;
 
@@ -66,9 +66,9 @@ static void lift_enters(const Scope& scope) {
     }
 }
 
-void lift_enters(World& world) {
+void hoist_enters(World& world) {
     world.cleanup();
-    Scope::for_each(world, [] (const Scope& scope) { lift_enters(scope); });
+    Scope::for_each(world, [] (const Scope& scope) { hoist_enters(scope); });
     world.cleanup();
     debug_verify(world);
 }

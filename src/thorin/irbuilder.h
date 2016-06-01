@@ -137,6 +137,7 @@ public:
     const Def* extract(const Def* agg, u32 index, const Location& loc, const std::string& name = "");
     void store(const Def* ptr, const Def* val, const Location& loc, const std::string& name = "");
     Continuation* enter(JumpTarget& jt) { return cur_bb = jt.enter(); }
+    void enter(Continuation* continuation) { cur_bb = continuation; continuation->seal(); }
     Continuation* enter_unsealed(JumpTarget& jt) { return cur_bb = jt.enter_unsealed(world_); }
     void jump(JumpTarget& jt, const Location& loc);
     void branch(const Def* cond, JumpTarget& t, JumpTarget& f, const Location& loc);

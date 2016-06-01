@@ -39,47 +39,23 @@ if rttype in ("nvvm", "spir"):
             for line in result:
                 f.write(line)
 
-if rttype in ("cuda"):
+if rttype in ("cuda", "opencl"):
     # we need to patch
     result = []
-    filename = basename+".cu"
+    if rttype == "cuda":
+        filename = basename+"."+"cu"
+    else:
+        filename = basename+"."+"cl"
     if os.path.isfile(filename):
         with open(filename) as f:
             for line in f:
                 # patch to opaque identity functions
-                m = re.match('^__device__ (.*) (magic_.*_id)\((.*)\);\n$', line)
+                m = re.match('^(.*) = (magic_.*_id)\((.*)\);\n$', line)
                 if m is not None:
-                    ty1, fname, ty2 = m.groups()
-                    assert ty1 == ty2, "Argument and return types of magic IDs must match"
+                    lhs, fname, arg = m.groups()
                     print("Patching magic ID {0}".format(fname))
                     # emit definition instead
-                    result.append('__device__ {0} {1}({0} name) {{\n'.format(ty1, fname))
-                    result.append('  return name;\n')
-                    result.append('}\n')
-                else:
-                    result.append(line)
-        # we have the patched thing, write it
-        with open(filename, "w") as f:
-            for line in result:
-                f.write(line)
-
-if rttype in ("opencl"):
-    # we need to patch
-    result = []
-    filename = basename+".cl"
-    if os.path.isfile(filename):
-        with open(filename) as f:
-            for line in f:
-                # patch to opaque identity functions
-                m = re.match('^(?!.*=)(.*) (magic_.*_id)\((.*)\);\n$', line)
-                if m is not None:
-                    ty1, fname, ty2 = m.groups()
-                    assert ty1 == ty2, "Argument and return types of magic IDs must match"
-                    print("Patching magic ID {0}".format(fname))
-                    # emit definition instead
-                    result.append('{0} {1}({0} name) {{\n'.format(ty1, fname))
-                    result.append('  return name;\n')
-                    result.append('}\n')
+                    result.append('{0} = {1};\n'.format(lhs, arg))
                 else:
                     result.append(line)
         # we have the patched thing, write it

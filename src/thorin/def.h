@@ -232,7 +232,7 @@ private:
     void verify() { assert(!def_ || trackers(def_).contains(this)); }
     void put(Tracker& other) {
         auto p = trackers(def_).insert(&other);
-        assert(p.second && "couldn't insert tracker");
+        assert_unused(p.second && "couldn't insert tracker");
     }
 
     void unregister() {

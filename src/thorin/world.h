@@ -15,8 +15,7 @@
 namespace thorin {
 
 /**
- * @brief The World represents the whole program and manages creation and destruction of Thorin nodes.
- *
+ * The World represents the whole program and manages creation and destruction of Thorin nodes.
  * In particular, the following things are done by this class:
  *
  *  - @p Type unification: \n
@@ -164,10 +163,14 @@ public:
     const Def* global_immutable_string(const Location& loc, const std::string& str, const std::string& name = "");
     const Def* lea(const Def* ptr, const Def* index, const Location& loc, const std::string& name = "") { return cse(new LEA(ptr, index, loc, name)); }
 
-    // misc
+    // guided partial evaluation
 
-    const Def* run(const Def* def, const Location& loc, const std::string& name = "");
-    const Def* hlt(const Def* def, const Location& loc, const std::string& name = "");
+    const Def* run(const Def* begin, const Def* end, const Location& loc, const std::string& name = "") {
+        return cse(new Run(begin, end, loc, name));
+    }
+    const Def* hlt(const Def* begin, const Def* end, const Location& loc, const std::string& name = "") {
+        return cse(new Hlt(begin, end, loc, name));
+    }
 
     // continuations
 

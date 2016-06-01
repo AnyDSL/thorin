@@ -19,8 +19,7 @@ template<bool> class DomTreeBase;
 template<bool> class DomFrontierBase;
 
 /**
- * @brief A Control-Flow Node.
- *
+ * A Control-Flow Node.
  * Managed by @p CFA.
  */
 class CFNodeBase : public MagicCast<CFNodeBase>, public Streamable {
@@ -95,8 +94,7 @@ private:
 //------------------------------------------------------------------------------
 
 /**
- * @brief Control Flow Analysis.
- *
+ * Control Flow Analysis.
  * This class maintains information obtained by local control-flow analysis run on a @p Scope.
  * See "Shallow Embedding of DSLs via Online Partial Evaluation", Leißa et.al. for details.
  */
@@ -134,8 +132,7 @@ private:
 //------------------------------------------------------------------------------
 
 /**
- * @brief A Control-Flow Graph.
- *
+ * A Control-Flow Graph.
  * A small wrapper for the information obtained by a @p CFA.
  * The template parameter @p forward determines the direction of the edges.
  * @c true means a conventional @p CFG.

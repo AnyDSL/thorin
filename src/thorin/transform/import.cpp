@@ -16,7 +16,6 @@ const Type* import(Type2Type& old2new, World& to, const Type* otype) {
     auto ntype = old2new[otype] = otype->rebuild(to, nargs);
     assert(&ntype->world() == &to);
 
-    //return close(ntype, ntype_params);
     return ntype;
 }
 

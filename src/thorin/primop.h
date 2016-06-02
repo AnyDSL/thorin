@@ -385,19 +385,20 @@ public:
 /// Base class for \p Run and \p Hlt.
 class EvalOp : public PrimOp {
 protected:
-    EvalOp(NodeKind kind, const Def* def, const Location& loc, const std::string& name)
-        : PrimOp(kind, def->type(), {def}, loc, name)
+    EvalOp(NodeKind kind, const Def* begin, const Def* end, const Location& loc, const std::string& name)
+        : PrimOp(kind, begin->type(), {begin, end}, loc, name)
     {}
 
 public:
-    const Def* def() const { return op(0); }
+    const Def* begin() const { return op(0); }
+    const Def* end() const { return op(1); }
 };
 
 /// Starts a partial evaluation run.
 class Run : public EvalOp {
 private:
-    Run(const Def* def, const Location& loc, const std::string& name)
-        : EvalOp(Node_Run, def, loc, name)
+    Run(const Def* begin, const Def* end, const Location& loc, const std::string& name)
+        : EvalOp(Node_Run, begin, end, loc, name)
     {}
 
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
@@ -408,8 +409,8 @@ private:
 /// Stops a partial evaluation run or hinders partial evaluation from specializing <tt>def</tt>.
 class Hlt : public EvalOp {
 private:
-    Hlt(const Def* def, const Location& loc, const std::string& name)
-        : EvalOp(Node_Hlt, def, loc, name)
+    Hlt(const Def* begin, const Def* end, const Location& loc, const std::string& name)
+        : EvalOp(Node_Hlt, begin, end, loc, name)
     {}
 
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;

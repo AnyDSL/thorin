@@ -164,12 +164,12 @@ const Def* Cmp    ::vrebuild(World& to, Defs ops, const Type*  ) const { return 
 const Def* Enter  ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.enter(ops[0], loc(), name); }
 const Def* Extract::vrebuild(World& to, Defs ops, const Type*  ) const { return to.extract(ops[0], ops[1], loc(), name); }
 const Def* Global ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.global(ops[0], loc(), is_mutable(), name); }
-const Def* Hlt    ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.hlt(ops[0], loc(), name); }
+const Def* Hlt    ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.hlt(ops[0], ops[1], loc(), name); }
 const Def* Insert ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.insert(ops[0], ops[1], ops[2], loc(), name); }
 const Def* LEA    ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.lea(ops[0], ops[1], loc(), name); }
 const Def* Load   ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.load(ops[0], ops[1], loc(), name); }
 const Def* PrimLit::vrebuild(World& to, Defs,     const Type*  ) const { return to.literal(primtype_kind(), value(), loc()); }
-const Def* Run    ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.run(ops[0], loc(), name); }
+const Def* Run    ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.run(ops[0], ops[1], loc(), name); }
 const Def* Select ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.select(ops[0], ops[1], ops[2], loc(), name); }
 const Def* Store  ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.store(ops[0], ops[1], ops[2], loc(), name); }
 const Def* Tuple  ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.tuple(ops, loc(), name); }

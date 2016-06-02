@@ -132,13 +132,15 @@ static Continuations preds(const Continuation* continuation) {
 
     while (!queue.empty()) {
         auto use = pop(queue);
-        if (auto continuation = use->isa_continuation()) {
-            if ((use.index() == 0 && direct) || (use.index() != 0 && indirect))
-                preds.push_back(continuation);
-            continue;
-        }
+        if (!use->isa<EvalOp>() || use.index() != 1) { // ignore evalop's end
+            if (auto continuation = use->isa_continuation()) {
+                if ((use.index() == 0 && direct) || (use.index() != 0 && indirect))
+                    preds.push_back(continuation);
+                continue;
+            }
 
-        enqueue(use);
+            enqueue(use);
+        }
     }
 
     return preds;
@@ -171,9 +173,14 @@ static Continuations succs(const Continuation* continuation) {
             succs.push_back(continuation);
             continue;
         }
-        for (auto op : def->ops()) {
-            if (op->order() >= 1)
-                enqueue(op);
+
+        if (auto evalop = def->isa<EvalOp>()) { // ignore evalop's end
+            enqueue(evalop->begin());
+        } else {
+            for (auto op : def->ops()) {
+                if (op->order() >= 1)
+                    enqueue(op);
+            }
         }
     }
 

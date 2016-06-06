@@ -24,10 +24,6 @@ inline int32_t make_device(Platform p, Device d) {
 
 template <typename T>
 class Array {
-    template <typename U> friend void copy(const Array<U>&, Array<U>&);
-    template <typename U> friend void copy(const Array<U>&, Array<U>&, int64_t);
-    template <typename U> friend void copy(const Array<U>&, int64_t, Array<U>&, int64_t, int64_t);
-
 public:
     Array()
         : dev_(0), size_(0), data_(nullptr)
@@ -77,6 +73,7 @@ public:
     const T* data() const { return data_; }
 
     int64_t size() const { return size_; }
+    int32_t device() const { return dev_; }
 
     const T& operator [] (int i) const { return data_[i]; }
     T& operator [] (int i) { return data_[i]; }
@@ -106,22 +103,22 @@ protected:
 
 template <typename T>
 void copy(const Array<T>& a, Array<T>& b) {
-    thorin_copy(a.dev_, (const void*)a.data_, 0,
-                b.dev_, (void*)b.data_, 0,
-                a.size_ * sizeof(T));
+    thorin_copy(a.device(), (const void*)a.data(), 0,
+                b.device(), (void*)b.data(), 0,
+                a.size() * sizeof(T));
 }
 
 template <typename T>
 void copy(const Array<T>& a, Array<T>& b, int64_t size) {
-    thorin_copy(a.dev_, (const void*)a.data_, 0,
-                b.dev_, (void*)b.data_, 0,
+    thorin_copy(a.device(), (const void*)a.data(), 0,
+                b.device(), (void*)b.data(), 0,
                 size * sizeof(T));
 }
 
 template <typename T>
 void copy(const Array<T>& a, int64_t offset_a, Array<T>& b, int64_t offset_b, int64_t size) {
-    thorin_copy(a.dev_, (const void*)a.data_, offset_a,
-                b.dev_, (void*)b.data_, offset_b,
+    thorin_copy(a.device(), (const void*)a.data(), offset_a,
+                b.device(), (void*)b.data(), offset_b,
                 size * sizeof(T));
 }
 

@@ -29,8 +29,11 @@ DefSet free_defs(const Scope& scope) {
                 }
             }
 
-            enqueue_ops(primop);
-        } else if (!scope.contains(def)) // must be param or primop
+            if (primop->isa<Bitcast>() && !scope.contains(primop)) // HACK for bitcasting pointer address spaces
+                result.emplace(primop);
+            else
+                enqueue_ops(primop);
+        } else if (!scope.contains(def))
             result.emplace(def);
 queue_next:;
     }

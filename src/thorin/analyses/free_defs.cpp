@@ -4,7 +4,7 @@
 
 namespace thorin {
 
-DefSet free_params(const Scope& scope) {
+DefSet free_defs(const Scope& scope) {
     DefSet result, done;
     std::queue<const Def*> queue;
 
@@ -23,14 +23,17 @@ DefSet free_params(const Scope& scope) {
         auto def = pop(queue);
         if (auto primop = def->isa<PrimOp>()) {
             for (auto op : primop->ops()) {
-                if ((op->type()->isa<MemType>() || op->type()->isa<FrameType>()) && !scope.contains(op)) {
+                if ((op->isa<MemOp>() || op->isa<Slot>()) && !scope.contains(op)) {
                     result.emplace(primop);
                     goto queue_next;
                 }
             }
 
-            enqueue_ops(primop);
-        } else if (!scope.contains(def)) // must be param or primop
+            if (primop->isa<Bitcast>() && !scope.contains(primop)) // HACK for bitcasting pointer address spaces
+                result.emplace(primop);
+            else
+                enqueue_ops(primop);
+        } else if (!scope.contains(def))
             result.emplace(def);
 queue_next:;
     }

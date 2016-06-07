@@ -35,12 +35,12 @@ void lift_builtins(World& world) {
             if (auto ucontinuation = use->isa_continuation()) {
                 if (auto callee = ucontinuation->callee()->isa_continuation()) {
                     if (callee->is_intrinsic()) {
-                        auto oops = ucontinuation->ops();
-                        Array<const Def*> nops(oops.size() + defs.size());
-                        std::copy(defs.begin(), defs.end(), std::copy(oops.begin(), oops.end(), nops.begin())); // old ops + former free defs
-                        assert(oops[use.index()] == cur);
-                        nops[use.index()] = world.global(lifted, lifted->loc(), false, lifted->name);           // update to new lifted continuation
-                        ucontinuation->jump(cur, ucontinuation->type_args(), nops.skip_front(), ucontinuation->jump_loc());       // set new args
+                        auto old_ops = ucontinuation->ops();
+                        Array<const Def*> new_ops(old_ops.size() + defs.size());
+                        std::copy(defs.begin(), defs.end(), std::copy(old_ops.begin(), old_ops.end(), new_ops.begin()));        // old ops + former free defs
+                        assert(old_ops[use.index()] == cur);
+                        new_ops[use.index()] = world.global(lifted, lifted->loc(), false, lifted->name);                        // update to new lifted continuation
+                        ucontinuation->jump(cur, ucontinuation->type_args(), new_ops.skip_front(), ucontinuation->jump_loc());  // set new args
 
                         // jump to new top-level dummy function
                         auto ncontinuation = world.continuation(ucontinuation->arg_fn_type(), callee->loc(), callee->cc(), callee->intrinsic(), callee->name);

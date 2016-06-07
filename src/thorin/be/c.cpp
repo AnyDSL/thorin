@@ -173,8 +173,8 @@ std::ostream& CCodeGen::emit_aggop_defs(const Def* def) {
         emit(agg) << endl;
     }
 
-    // argument is a cast
-    if (auto conv = def->isa<Cast>())
+    // argument is a cast or bitcast
+    if (auto conv = def->isa<ConvOp>())
         emit(conv) << endl;
 
     return func_impl_;
@@ -577,8 +577,11 @@ void CCodeGen::emit() {
             os_ << endl;
     }
 
-    if (lang_==Lang::CUDA)
+    if (lang_==Lang::CUDA) {
+        if (use_16_)
+            os_ << "#include <cuda_fp16.h>" << endl << endl;
         os_ << "extern \"C\" {\n";
+    }
 
     os_ << type_decls_.str();
     os_ << func_decls_.str();

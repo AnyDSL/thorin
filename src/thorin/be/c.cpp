@@ -173,8 +173,8 @@ std::ostream& CCodeGen::emit_aggop_defs(const Def* def) {
         emit(agg) << endl;
     }
 
-    // argument is a cast
-    if (auto conv = def->isa<Cast>())
+    // argument is a cast or bitcast
+    if (auto conv = def->isa<ConvOp>())
         emit(conv) << endl;
 
     return func_impl_;

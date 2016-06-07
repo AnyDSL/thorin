@@ -1,7 +1,7 @@
 #include <algorithm>
 
 #include "thorin/analyses/cfg.h"
-#include "thorin/analyses/free_params.h"
+#include "thorin/analyses/free_defs.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/util/log.h"
@@ -21,7 +21,7 @@ void higher_order_lifting(World& world) {
                 Scope cur(continuation);
                 std::vector<const Def*> defs;
 
-                for (auto def : free_params(cur)) {
+                for (auto def : free_defs(cur)) {
                     if (!def->isa<Continuation>() || !top.contains(def->as_continuation()))
                         defs.push_back(def);
                 }

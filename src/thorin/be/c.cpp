@@ -577,8 +577,11 @@ void CCodeGen::emit() {
             os_ << endl;
     }
 
-    if (lang_==Lang::CUDA)
+    if (lang_==Lang::CUDA) {
+        if (use_16_)
+            os_ << "#include <cuda_fp16.h>" << endl << endl;
         os_ << "extern \"C\" {\n";
+    }
 
     os_ << type_decls_.str();
     os_ << func_decls_.str();

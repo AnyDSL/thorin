@@ -18,12 +18,12 @@ void lift_builtins(World& world) {
 
     for (auto cur : todo) {
         Scope scope(cur);
-        auto vars = free_vars(scope);
+        auto defs = free_vars(scope);
 #ifndef NDEBUG
-        for (auto var : vars)
-            assert(var->order() == 0 && "creating a higher-order function");
+        for (auto def : defs)
+            assert(def->order() == 0 && "creating a higher-order function");
 #endif
-        auto lifted = lift(scope, vars);
+        auto lifted = lift(scope, defs);
 
         std::vector<Use> uses(cur->uses().begin(), cur->uses().end()); // TODO rewrite this
         for (auto use : uses) {
@@ -31,8 +31,8 @@ void lift_builtins(World& world) {
                 if (auto callee = ucontinuation->callee()->isa_continuation()) {
                     if (callee->is_intrinsic()) {
                         auto old_ops = ucontinuation->ops();
-                        Array<const Def*> new_ops(old_ops.size() + vars.size());
-                        std::copy(vars.begin(), vars.end(), std::copy(old_ops.begin(), old_ops.end(), new_ops.begin()));    // old ops + former free vars
+                        Array<const Def*> new_ops(old_ops.size() + defs.size());
+                        std::copy(defs.begin(), defs.end(), std::copy(old_ops.begin(), old_ops.end(), new_ops.begin()));    // old ops + former free defs
                         assert(old_ops[use.index()] == cur);
                         new_ops[use.index()] = world.global(lifted, lifted->loc(), false, lifted->name);                    // update to new lifted continuation
                         ucontinuation->jump(cur, new_ops.skip_front(), ucontinuation->jump_loc());                          // set new args

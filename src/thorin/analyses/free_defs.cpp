@@ -4,7 +4,7 @@
 
 namespace thorin {
 
-DefSet free_params(const Scope& scope) {
+DefSet free_defs(const Scope& scope) {
     DefSet result, done;
     std::queue<const Def*> queue;
 

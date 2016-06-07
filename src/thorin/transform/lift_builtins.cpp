@@ -18,8 +18,7 @@ void lift_builtins(World& world) {
 
     for (auto cur : todo) {
         Scope scope(cur);
-        auto param_set = free_params(scope);
-        Array<const Def*> params(param_set.begin(), param_set.end());
+        auto params = make_array(free_params(scope));
 #ifndef NDEBUG
         for (auto var : params)
             assert(var->order() == 0 && "creating a higher-order function");

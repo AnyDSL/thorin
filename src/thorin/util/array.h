@@ -217,6 +217,11 @@ auto concat(const T& a, const U& b) -> Array<typename T::value_type> {
     return result;
 }
 
+template<class T>
+Array<typename T::value_type> make_array(const T& container) {
+    return Array<typename T::value_type>(container.begin(), container.end());
+}
+
 //------------------------------------------------------------------------------
 
 template<class T>

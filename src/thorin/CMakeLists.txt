@@ -24,8 +24,6 @@ SET ( SOURCES
     analyses/domfrontier.h
     analyses/domtree.cpp
     analyses/domtree.h
-    analyses/free_vars.cpp
-    analyses/free_vars.h
     analyses/free_params.cpp
     analyses/free_params.h
     analyses/looptree.cpp

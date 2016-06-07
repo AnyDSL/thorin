@@ -104,8 +104,10 @@ void Mangler::mangle_body(Continuation* old_continuation, Continuation* new_cont
             }
         }
 
-        if (substitute)
-            return new_continuation->jump(new_entry(), nargs.cut(cut), old_continuation->jump_loc());
+        if (substitute) {
+            const auto& args = concat(nargs.cut(cut), new_entry()->params().get_back(lift_.size()));
+            return new_continuation->jump(new_entry(), args, old_continuation->jump_loc());
+        }
     }
 
     new_continuation->jump(ntarget, nargs, old_continuation->jump_loc());

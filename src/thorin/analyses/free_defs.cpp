@@ -23,7 +23,7 @@ DefSet free_defs(const Scope& scope) {
         auto def = pop(queue);
         if (auto primop = def->isa<PrimOp>()) {
             for (auto op : primop->ops()) {
-                if ((op->isa<MemOp>() || op->isa<Slot>()) && !scope.contains(op)) {
+                if ((op->type()->isa<MemType>() || op->type()->isa<FrameType>()) && !scope.contains(op)) {
                     result.emplace(primop);
                     goto queue_next;
                 }

@@ -38,7 +38,7 @@ void CudaPlatform::checkNvvmErrors(nvvmResult err, const char* name, const char*
         ELOG("NVVM API function % (%) [file %, line %]: %", name, err, file, line, nvvmGetErrorString(err));
 }
 
-#if CUDA_VERSION >= 7000
+#ifdef CUDA_NVRTC
 void CudaPlatform::checkNvrtcErrors(nvrtcResult err, const char* name, const char* file, const int line) {
     if (NVRTC_SUCCESS != err)
         ELOG("NVRTC API function % (%) [file %, line %]: %", name, err, file, line, nvrtcGetErrorString(err));
@@ -67,7 +67,7 @@ CudaPlatform::CudaPlatform(Runtime* runtime)
     checkErrNvvm(errNvvm, "nvvmVersion()");
 
     ILOG("CUDA Driver Version %.%", driver_version/1000, (driver_version%100)/10);
-    #if CUDA_VERSION >= 7000
+    #ifdef CUDA_NVRTC
     int nvrtc_major = 0, nvrtc_minor = 0;
     nvrtcResult errNvrtc = nvrtcVersion(&nvrtc_major, &nvrtc_minor);
     checkErrNvrtc(errNvrtc, "nvrtcVersion()");
@@ -429,7 +429,7 @@ void CudaPlatform::compile_nvvm(device_id dev, const std::string& filename, CUji
     create_module(dev, filename, target_cc, ptx.c_str());
 }
 
-#if CUDA_VERSION >= 7000
+#ifdef CUDA_NVRTC
 void CudaPlatform::compile_cuda(device_id dev, const std::string& filename, CUjit_target target_cc) {
     std::string cuda_filename = filename + ".cu";
     std::ifstream src_file(std::string(KERNEL_DIR) + cuda_filename);

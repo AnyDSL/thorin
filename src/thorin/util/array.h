@@ -68,8 +68,8 @@ public:
     T const& back()  const { assert(!empty()); return ptr_[size_ - 1]; }
     ArrayRef<T> skip_front(size_t num = 1) const { return ArrayRef<T>(ptr_ + num, size() - num); }
     ArrayRef<T> skip_back (size_t num = 1) const { return ArrayRef<T>(ptr_, size() - num); }
-    ArrayRef<T> get_first (size_t num = 1) const { assert(num <= size()); return ArrayRef<T>(ptr_, num); }
-    ArrayRef<T> get_last  (size_t num = 1) const { assert(num <= size()); return ArrayRef<T>(ptr_ + size() - num, num); }
+    ArrayRef<T> get_front (size_t num = 1) const { assert(num <= size()); return ArrayRef<T>(ptr_, num); }
+    ArrayRef<T> get_back  (size_t num = 1) const { assert(num <= size()); return ArrayRef<T>(ptr_ + size() - num, num); }
     Array<T> cut(ArrayRef<size_t> indices, size_t reserve = 0) const;
     template<class Other>
     bool operator==(const Other& other) const { return this->size() == other.size() && std::equal(begin(), end(), other.begin()); }
@@ -169,8 +169,8 @@ public:
     bool empty() const { return size_ == 0; }
     ArrayRef<T> skip_front(size_t num = 1) const { return ArrayRef<T>(ptr_ + num, size() - num); }
     ArrayRef<T> skip_back (size_t num = 1) const { return ArrayRef<T>(ptr_, size() - num); }
-    ArrayRef<T> get_first (size_t num = 1) const { assert(num <= size()); return ArrayRef<T>(ptr_, num); }
-    ArrayRef<T> get_last  (size_t num = 1) const { assert(num <= size()); return ArrayRef<T>(ptr_ + size() - num, num); }
+    ArrayRef<T> get_front (size_t num = 1) const { assert(num <= size()); return ArrayRef<T>(ptr_, num); }
+    ArrayRef<T> get_back  (size_t num = 1) const { assert(num <= size()); return ArrayRef<T>(ptr_ + size() - num, num); }
     Array<T> cut(ArrayRef<size_t> indices, size_t reserve = 0) const { return ArrayRef<T>(*this).cut(indices, reserve); }
     void shrink(size_t newsize) { assert(newsize <= size_); size_ = newsize; }
     ArrayRef<T> ref() const { return ArrayRef<T>(ptr_, size_); }
@@ -215,6 +215,11 @@ auto concat(const T& a, const U& b) -> Array<typename T::value_type> {
     Array<typename T::value_type> result(a.size() + b.size());
     std::copy(b.begin(), b.end(), std::copy(a.begin(), a.end(), result.begin()));
     return result;
+}
+
+template<class T>
+Array<typename T::value_type> make_array(const T& container) {
+    return Array<typename T::value_type>(container.begin(), container.end());
 }
 
 //------------------------------------------------------------------------------

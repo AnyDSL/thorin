@@ -39,7 +39,7 @@
     THORIN_NODE(Param, param)
     // Type
         // PrimType
-        THORIN_NODE(Application, application)
+        THORIN_NODE(App, app)
         THORIN_NODE(DefiniteArrayType, definite_array_type)
         THORIN_NODE(FnType, fn)
         THORIN_NODE(FrameType, frame)

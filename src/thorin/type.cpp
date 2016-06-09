@@ -103,7 +103,7 @@ static std::ostream& stream_type_args(std::ostream& os, const Type* type) {
    return stream_list(os, type->args(), [&](const Type* type) { os << type; }, "(", ")");
 }
 
-std::ostream& Application        ::stream(std::ostream& os) const { return streamf(os, "%[%]", callee(), arg()); }
+std::ostream& App                ::stream(std::ostream& os) const { return streamf(os, "%[%]", callee(), arg()); }
 std::ostream& Var                ::stream(std::ostream& os) const { return streamf(os, "<%>", depth()); }
 std::ostream& DefiniteArrayType  ::stream(std::ostream& os) const { return streamf(os, "[% x %]", dim(), elem_type()); }
 std::ostream& FnType             ::stream(std::ostream& os) const { return stream_type_args(os << "fn", this); }

@@ -141,11 +141,11 @@ const Type* StructType::vrebuild(HENK_TABLE_TYPE& to, Types args) const {
     return ntype;
 }
 
-const Type* Application::vrebuild(HENK_TABLE_TYPE& to, Types args) const { return to.application(args[0], args[1]); }
-const Type* TupleType  ::vrebuild(HENK_TABLE_TYPE& to, Types args) const { return to.tuple_type(args); }
-const Type* Lambda     ::vrebuild(HENK_TABLE_TYPE& to, Types args) const { return to.lambda(args[0], name()); }
-const Type* Var        ::vrebuild(HENK_TABLE_TYPE& to, Types     ) const { return to.var(depth()); }
-const Type* TypeError  ::vrebuild(HENK_TABLE_TYPE&,    Types     ) const { return this; }
+const Type* App      ::vrebuild(HENK_TABLE_TYPE& to, Types args) const { return to.app(args[0], args[1]); }
+const Type* TupleType::vrebuild(HENK_TABLE_TYPE& to, Types args) const { return to.tuple_type(args); }
+const Type* Lambda   ::vrebuild(HENK_TABLE_TYPE& to, Types args) const { return to.lambda(args[0], name()); }
+const Type* Var      ::vrebuild(HENK_TABLE_TYPE& to, Types     ) const { return to.var(depth()); }
+const Type* TypeError::vrebuild(HENK_TABLE_TYPE&,    Types     ) const { return this; }
 
 //------------------------------------------------------------------------------
 
@@ -192,9 +192,9 @@ const Type* StructType::vreduce(int depth, const Type* type, Type2Type& map) con
     return struct_type;
 }
 
-const Type* Application::vreduce(int depth, const Type* type, Type2Type& map) const {
+const Type* App::vreduce(int depth, const Type* type, Type2Type& map) const {
     auto args = reduce_args(depth, type, map);
-    return HENK_TABLE_NAME().application(args[0], args[1]);
+    return HENK_TABLE_NAME().app(args[0], args[1]);
 }
 
 const Type* TupleType::vreduce(int depth, const Type* type, Type2Type& map) const {
@@ -216,21 +216,21 @@ const StructType* TypeTableBase<T>::struct_type(HENK_STRUCT_EXTRA_TYPE HENK_STRU
 }
 
 template<class T>
-const Type* TypeTableBase<T>::application(const Type* callee, const Type* arg) {
-    auto application = unify(new Application(HENK_TABLE_NAME(), callee, arg));
+const Type* TypeTableBase<T>::app(const Type* callee, const Type* arg) {
+    auto app = unify(new App(HENK_TABLE_NAME(), callee, arg));
 
-    if (application->is_hashed()) {
-        if (auto cache = application->cache_)
+    if (app->is_hashed()) {
+        if (auto cache = app->cache_)
             return cache;
-        if (auto lambda = application->callee()->template isa<Lambda>()) {
+        if (auto lambda = app->callee()->template isa<Lambda>()) {
             Type2Type map;
-            return application->cache_ = lambda->body()->reduce(1, arg, map);
+            return app->cache_ = lambda->body()->reduce(1, arg, map);
         } else {
-            return application->cache_ = application;
+            return app->cache_ = app;
         }
     }
 
-    return application;
+    return app;
 }
 
 template<class T>

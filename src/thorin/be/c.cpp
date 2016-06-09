@@ -562,8 +562,6 @@ void CCodeGen::emit() {
         func_impl_ << down << endl << "}" << endl << endl;
         def2str_.clear();
     });
-    type_decls_ << endl;
-    func_decls_ << endl;
 
     type2str_.clear();
     def2str_.clear();
@@ -580,15 +578,17 @@ void CCodeGen::emit() {
     if (lang_==Lang::CUDA) {
         if (use_16_)
             os_ << "#include <cuda_fp16.h>" << endl << endl;
-        os_ << "extern \"C\" {\n";
+        os_ << "extern \"C\" {" << endl;
     }
 
-    os_ << type_decls_.str();
-    os_ << func_decls_.str();
+    if (!type_decls_.str().empty())
+        os_ << type_decls_.str() << endl;
+    if (!func_decls_.str().empty())
+        os_ << func_decls_.str() << endl;
     os_ << func_impl_.str();
 
     if (lang_==Lang::CUDA)
-        os_ << "}" << endl; // extern "C"
+        os_ << "}"; // extern "C"
 }
 
 
@@ -646,10 +646,24 @@ std::ostream& CCodeGen::emit(const Def* def) {
         emit_type(func_impl_, conv->type()) << " " << conv->unique_name() << ";" << endl;
 
         if (conv->isa<Cast>()) {
-            func_impl_ << conv->unique_name() << " = (";
-            emit_addr_space(func_impl_, conv->type());
-            emit_type(func_impl_, conv->type()) << ")";
-            emit(conv->from()) << ";";
+            auto from = conv->from()->type()->as<PrimType>();
+            auto to   = conv->type()->as<PrimType>();
+
+            func_impl_ << conv->unique_name() << " = ";
+
+            if (lang_==Lang::CUDA && from && (from->primtype_kind() == PrimType_pf16 || from->primtype_kind() == PrimType_qf16)) {
+                func_impl_ << "(";
+                emit_type(func_impl_, conv->type()) << ") __half2float(";
+                emit(conv->from()) << ");";
+            } else if (lang_==Lang::CUDA && to && (to->primtype_kind() == PrimType_pf16 || to->primtype_kind() == PrimType_qf16)) {
+                func_impl_ << "__float2half((float)";
+                emit(conv->from()) << ");";
+            } else {
+                func_impl_ << "(";
+                emit_addr_space(func_impl_, conv->type());
+                emit_type(func_impl_, conv->type()) << ")";
+                emit(conv->from()) << ";";
+            }
         }
 
         if (conv->isa<Bitcast>())
@@ -756,22 +770,24 @@ std::ostream& CCodeGen::emit(const Def* def) {
     if (auto primlit = def->isa<PrimLit>()) {
 #if __GNUC__ == 4 || (__GNUC__ == 5 && __GNUC_MINOR__ < 1)
         auto float_mode = std::scientific;
+        auto hs = "h"; auto fs = "f";
 #else
         auto float_mode = lang_ == Lang::CUDA ? std::scientific : std::hexfloat;
+        auto hs = ""; auto fs = "";
 #endif
         switch (primlit->primtype_kind()) {
-            case PrimType_bool: func_impl_ << (primlit->bool_value() ? "true" : "false");                     break;
-            case PrimType_ps8:  case PrimType_qs8:  func_impl_ << (int) primlit->ps8_value();                 break;
-            case PrimType_pu8:  case PrimType_qu8:  func_impl_ << (unsigned) primlit->pu8_value();            break;
-            case PrimType_ps16: case PrimType_qs16: func_impl_ << primlit->ps16_value();                      break;
-            case PrimType_pu16: case PrimType_qu16: func_impl_ << primlit->pu16_value();                      break;
-            case PrimType_ps32: case PrimType_qs32: func_impl_ << primlit->ps32_value();                      break;
-            case PrimType_pu32: case PrimType_qu32: func_impl_ << primlit->pu32_value();                      break;
-            case PrimType_ps64: case PrimType_qs64: func_impl_ << primlit->ps64_value();                      break;
-            case PrimType_pu64: case PrimType_qu64: func_impl_ << primlit->pu64_value();                      break;
-            case PrimType_pf16: case PrimType_qf16: func_impl_ << float_mode << primlit->pf16_value() << 'h'; break;
-            case PrimType_pf32: case PrimType_qf32: func_impl_ << float_mode << primlit->pf32_value() << 'f'; break;
-            case PrimType_pf64: case PrimType_qf64: func_impl_ << float_mode << primlit->pf64_value();        break;
+            case PrimType_bool: func_impl_ << (primlit->bool_value() ? "true" : "false");                    break;
+            case PrimType_ps8:  case PrimType_qs8:  func_impl_ << (int) primlit->ps8_value();                break;
+            case PrimType_pu8:  case PrimType_qu8:  func_impl_ << (unsigned) primlit->pu8_value();           break;
+            case PrimType_ps16: case PrimType_qs16: func_impl_ << primlit->ps16_value();                     break;
+            case PrimType_pu16: case PrimType_qu16: func_impl_ << primlit->pu16_value();                     break;
+            case PrimType_ps32: case PrimType_qs32: func_impl_ << primlit->ps32_value();                     break;
+            case PrimType_pu32: case PrimType_qu32: func_impl_ << primlit->pu32_value();                     break;
+            case PrimType_ps64: case PrimType_qs64: func_impl_ << primlit->ps64_value();                     break;
+            case PrimType_pu64: case PrimType_qu64: func_impl_ << primlit->pu64_value();                     break;
+            case PrimType_pf16: case PrimType_qf16: func_impl_ << float_mode << primlit->pf16_value() << hs; break;
+            case PrimType_pf32: case PrimType_qf32: func_impl_ << float_mode << primlit->pf32_value() << fs; break;
+            case PrimType_pf64: case PrimType_qf64: func_impl_ << float_mode << primlit->pf64_value();       break;
         }
         return func_impl_;
     }

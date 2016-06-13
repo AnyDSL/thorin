@@ -165,8 +165,9 @@ long long thorin_get_kernel_time() {
 }
 
 void thorin_print_char(char c)      { std::cout << c; }
-void thorin_print_int(int i)        { std::cout << i; }
-void thorin_print_long(long long l) { std::cout << l; }
+void thorin_print_short(int16_t s)  { std::cout << s; }
+void thorin_print_int(int32_t i)    { std::cout << i; }
+void thorin_print_long(int64_t l)   { std::cout << l; }
 void thorin_print_float(float f)    { std::cout << f; }
 void thorin_print_double(double d)  { std::cout << d; }
 void thorin_print_string(char* s)   { std::cout << s; }

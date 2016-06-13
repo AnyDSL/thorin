@@ -1,6 +1,7 @@
 #ifndef PLATFORM_H
 #define PLATFORM_H
 
+#include <cstdint>
 #include <string>
 
 #include "thorin/util/log.h"

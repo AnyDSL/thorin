@@ -17,9 +17,9 @@
 #endif
 
 #ifdef ENABLE_TBB
-#include "tbb/tbb.h"
-#include "tbb/parallel_for.h"
-#include "tbb/task_scheduler_init.h"
+#include <tbb/tbb.h>
+#include <tbb/parallel_for.h>
+#include <tbb/task_scheduler_init.h>
 #else
 #include <thread>
 #endif

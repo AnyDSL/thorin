@@ -15,7 +15,7 @@
     #error "CUDA 6.5 or higher required!"
 #endif
 
-#if CUDA_VERSION >= 7000
+#ifdef CUDA_NVRTC
 #include <nvrtc.h>
 #endif
 
@@ -77,9 +77,9 @@ protected:
 
     void checkCudaErrors(CUresult err, const char*, const char*, const int);
     void checkNvvmErrors(nvvmResult err, const char*, const char*, const int);
-#if CUDA_VERSION >= 7000
+    #ifdef CUDA_NVRTC
     void checkNvrtcErrors(nvrtcResult err, const char*, const char*, const int);
-#endif
+    #endif
 
     void compile_nvvm(device_id dev, const char* file_name, CUjit_target target_cc);
     void compile_cuda(device_id dev, const char* file_name, CUjit_target target_cc);

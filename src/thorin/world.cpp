@@ -725,10 +725,6 @@ const Def* World::enter(const Def* mem, const Location& loc, const std::string& 
     return cse(new Enter(mem, loc, name));
 }
 
-const Def* World::slot(const Type* type, const Def* frame, size_t index, const Location& loc, const std::string& name) {
-    return cse(new Slot(type, frame, index, loc, name));
-}
-
 const Def* World::alloc(const Type* type, const Def* mem, const Def* extra, const Location& loc, const std::string& name) {
     return cse(new Alloc(type, mem, extra, loc, name));
 }

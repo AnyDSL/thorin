@@ -17,6 +17,7 @@ extern "C" {
     fn thorin_get_kernel_time() -> i64;
 
     fn thorin_print_char(u8) -> ();
+    fn thorin_print_short(i16) -> ();
     fn thorin_print_int(i32) -> ();
     fn thorin_print_long(i64) -> ();
     fn thorin_print_float(f32) -> ();
@@ -67,6 +68,7 @@ fn copy_offset(a: Buffer, off_a: i32, b: Buffer, off_b: i32, size: i32) -> () {
 }
 
 fn print_char(c: u8) -> () { thorin_print_char(c) }
+fn print_short(s: i16) -> () { thorin_print_short(s) }
 fn print_int(i: i32) -> () { thorin_print_int(i) }
 fn print_long(l: i64) -> () { thorin_print_long(l) }
 fn print_float(f: f32) -> () { thorin_print_float(f) }

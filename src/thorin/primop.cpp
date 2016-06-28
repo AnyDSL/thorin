@@ -76,9 +76,8 @@ LEA::LEA(const Def* ptr, const Def* index, const Location& loc, const std::strin
     }
 }
 
-Slot::Slot(const Type* type, const Def* frame, size_t index, const Location& loc, const std::string& name)
+Slot::Slot(const Type* type, const Def* frame, const Location& loc, const std::string& name)
     : PrimOp(Node_Slot, type->world().ptr_type(type), {frame}, loc, name)
-    , index_(index)
 {
     assert(frame->type()->isa<FrameType>());
 }
@@ -125,7 +124,7 @@ uint64_t PrimOp::vhash() const {
 }
 
 uint64_t PrimLit::vhash() const { return hash_combine(Literal::vhash(), bcast<uint64_t, Box>(value())); }
-uint64_t Slot::vhash() const { return hash_combine(PrimOp::vhash(), index()); }
+uint64_t Slot::vhash() const { return hash_combine((int) kind(), gid()); }
 
 //------------------------------------------------------------------------------
 
@@ -144,9 +143,7 @@ bool PrimLit::equal(const PrimOp* other) const {
     return Literal::equal(other) ? this->value() == other->as<PrimLit>()->value() : false;
 }
 
-bool Slot::equal(const PrimOp* other) const {
-    return PrimOp::equal(other) ? this->index() == other->as<Slot>()->index() : false;
-}
+bool Slot::equal(const PrimOp* other) const { return this == other; }
 
 //------------------------------------------------------------------------------
 
@@ -171,6 +168,7 @@ const Def* Load   ::vrebuild(World& to, Defs ops, const Type*  ) const { return 
 const Def* PrimLit::vrebuild(World& to, Defs,     const Type*  ) const { return to.literal(primtype_kind(), value(), loc()); }
 const Def* Run    ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.run(ops[0], ops[1], loc(), name); }
 const Def* Select ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.select(ops[0], ops[1], ops[2], loc(), name); }
+const Def* Slot   ::vrebuild(World& to, Defs ops, const Type* t) const { return to.slot(t->as<PtrType>()->referenced_type(), ops[0], loc(), name); }
 const Def* Store  ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.store(ops[0], ops[1], ops[2], loc(), name); }
 const Def* Tuple  ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.tuple(ops, loc(), name); }
 const Def* Vector ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.vector(ops, loc(), name); }
@@ -179,9 +177,6 @@ const Def* Alloc::vrebuild(World& to, Defs ops, const Type* t) const {
     return to.alloc(t->as<TupleType>()->arg(1)->as<PtrType>()->referenced_type(), ops[0], ops[1], loc(), name);
 }
 
-const Def* Slot::vrebuild(World& to, Defs ops, const Type* t) const {
-    return to.slot(t->as<PtrType>()->referenced_type(), ops[0], index(), loc(), name);
-}
 
 const Def* DefiniteArray::vrebuild(World& to, Defs ops, const Type* t) const {
     return to.definite_array(t->as<DefiniteArrayType>()->elem_type(), ops, loc(), name);

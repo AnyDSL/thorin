@@ -7,7 +7,7 @@ namespace thorin {
 static void verify_calls(World& world) {
     for (auto continuation : world.continuations()) {
         if (!continuation->empty())
-            assert(continuation->callee_fn_type()->size() == continuation->arg_fn_type()->size() && "argument/parameter mismatch");
+            assert(continuation->callee_fn_type()->num_ops() == continuation->arg_fn_type()->num_ops() && "argument/parameter mismatch");
     }
 }
 

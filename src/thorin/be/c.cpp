@@ -102,7 +102,7 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
         if (lookup(struct_type))
             return os << get_name(struct_type);
         os << "typedef struct struct_" << struct_type->gid() << " {" << up;
-        for (size_t i = 0, e = struct_type->size(); i != e; ++i) {
+        for (size_t i = 0, e = struct_type->num_ops(); i != e; ++i) {
             os << endl;
             emit_type(os, struct_type->op(i)) << " e" << i << ";";
         }
@@ -677,7 +677,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
             emit_aggop_defs(op);
 
         emit_type(func_impl_, array->type()) << " " << array->unique_name() << ";";
-        for (size_t i = 0, e = array->size(); i != e; ++i) {
+        for (size_t i = 0, e = array->num_ops(); i != e; ++i) {
             func_impl_ << endl;
             if (array->op(i)->isa<Bottom>())
                 func_impl_ << "//";

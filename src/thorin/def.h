@@ -90,7 +90,7 @@ protected:
 
 public:
     NodeKind kind() const { return kind_; }
-    size_t size() const { return ops_.size(); }
+    size_t num_ops() const { return ops_.size(); }
     bool empty() const { return ops_.empty(); }
     void set_op(size_t i, const Def* def);
     void unset_op(size_t i);

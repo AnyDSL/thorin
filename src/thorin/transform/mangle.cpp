@@ -86,7 +86,7 @@ void Mangler::mangle_body(Continuation* old_continuation, Continuation* new_cont
             return new_continuation->jump(mangle(lit->value().get_bool() ? old_continuation->arg(1) : old_continuation->arg(2)), {}, old_continuation->jump_loc());
     }
 
-    Array<const Def*> nops(old_continuation->size());
+    Array<const Def*> nops(old_continuation->num_ops());
     for (size_t i = 0, e = nops.size(); i != e; ++i)
         nops[i] = mangle(old_continuation->op(i));
 
@@ -130,8 +130,8 @@ const Def* Mangler::mangle(const Def* old_def) {
         return def2def_[param];
     } else {
         auto old_primop = old_def->as<PrimOp>();
-        Array<const Def*> nops(old_primop->size());
-        for (size_t i = 0, e = old_primop->size(); i != e; ++i)
+        Array<const Def*> nops(old_primop->num_ops());
+        for (size_t i = 0, e = old_primop->num_ops(); i != e; ++i)
             nops[i] = mangle(old_primop->op(i));
 
         auto type = old_primop->type(); // TODO reduce

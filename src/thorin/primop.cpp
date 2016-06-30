@@ -26,7 +26,7 @@ DefiniteArray::DefiniteArray(World& world, const Type* elem, Defs args, const Lo
 {
     set_type(world.definite_array_type(elem, args.size()));
 #ifndef NDEBUG
-    for (size_t i = 0, e = size(); i != e; ++i)
+    for (size_t i = 0, e = num_ops(); i != e; ++i)
         assert(args[i]->type() == type()->elem_type());
 #endif
 }
@@ -40,8 +40,8 @@ IndefiniteArray::IndefiniteArray(World& world, const Type* elem, const Def* dim,
 Tuple::Tuple(World& world, Defs args, const Location& loc, const std::string& name)
     : Aggregate(Node_Tuple, args, loc, name)
 {
-    Array<const Type*> elems(size());
-    for (size_t i = 0, e = size(); i != e; ++i)
+    Array<const Type*> elems(num_ops());
+    for (size_t i = 0, e = num_ops(); i != e; ++i)
         elems[i] = args[i]->type();
 
     set_type(world.tuple_type(elems));
@@ -117,7 +117,7 @@ Enter::Enter(const Def* mem, const Location& loc, const std::string& name)
  */
 
 uint64_t PrimOp::vhash() const {
-    uint64_t seed = hash_combine(hash_begin((int) kind()), size(), type()->gid());
+    uint64_t seed = hash_combine(hash_begin((int) kind()), num_ops(), type()->gid());
     for (auto op : ops_)
         seed = hash_combine(seed, op->gid());
     return seed;
@@ -133,8 +133,8 @@ uint64_t Slot::vhash() const { return hash_combine((int) kind(), gid()); }
  */
 
 bool PrimOp::equal(const PrimOp* other) const {
-    bool result = this->kind() == other->kind() && this->size() == other->size() && this->type() == other->type();
-    for (size_t i = 0, e = size(); result && i != e; ++i)
+    bool result = this->kind() == other->kind() && this->num_ops() == other->num_ops() && this->type() == other->type();
+    for (size_t i = 0, e = num_ops(); result && i != e; ++i)
         result &= this->ops_[i] == other->ops_[i];
     return result;
 }
@@ -270,7 +270,7 @@ std::ostream& PrimOp::stream_assignment(std::ostream& os) const {
  */
 
 const Def* PrimOp::out(size_t i) const {
-    assert(i < type()->as<TupleType>()->size());
+    assert(i < type()->as<TupleType>()->num_ops());
     return world().extract(this, i, loc());
 }
 
@@ -278,8 +278,8 @@ const Def* PrimOp::rebuild(Def2Def& old2new) const {
     auto i = old2new.find(this);
     if (i == old2new.end()) {
         if (is_outdated()) {
-            Array<const Def*> ops(size());
-            for (size_t i = 0, e = size(); i != e; ++i)
+            Array<const Def*> ops(num_ops());
+            for (size_t i = 0, e = num_ops(); i != e; ++i)
                 ops[i] = op(i)->rebuild(old2new);
 
             auto def = rebuild(ops);

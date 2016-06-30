@@ -698,7 +698,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
     if (auto array = def->isa<DefiniteArray>()) {
         auto type = llvm::cast<llvm::ArrayType>(convert(array->type()));
         if (array->is_const()) {
-            size_t size = array->size();
+            size_t size = array->num_ops();
             Array<llvm::Constant*> vals(size);
             for (size_t i = 0; i != size; ++i)
                 vals[i] = llvm::cast<llvm::Constant>(emit(array->op(i)));
@@ -726,10 +726,10 @@ llvm::Value* CodeGen::emit(const Def* def) {
         llvm::Value* llvm_agg = llvm::UndefValue::get(convert(agg->type()));
 
         if (def->isa<Vector>()) {
-            for (size_t i = 0, e = agg->size(); i != e; ++i)
+            for (size_t i = 0, e = agg->num_ops(); i != e; ++i)
                 llvm_agg = irbuilder_.CreateInsertElement(llvm_agg, lookup(agg->op(i)), irbuilder_.getInt32(i));
         } else {
-            for (size_t i = 0, e = agg->size(); i != e; ++i)
+            for (size_t i = 0, e = agg->num_ops(); i != e; ++i)
                 llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, lookup(agg->op(i)), { unsigned(i) });
         }
 
@@ -832,7 +832,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
     if (auto vector = def->isa<Vector>()) {
         llvm::Value* vec = llvm::UndefValue::get(convert(vector->type()));
-        for (size_t i = 0, e = vector->size(); i != e; ++i)
+        for (size_t i = 0, e = vector->num_ops(); i != e; ++i)
             vec = irbuilder_.CreateInsertElement(vec, lookup(vector->op(i)), lookup(world_.literal_pu32(i, vector->loc())));
 
         return vec;
@@ -924,9 +924,9 @@ llvm::Type* CodeGen::convert(const Type* type) {
                     assert(!ret && "only one 'return' supported");
                     if (fn->empty())
                         ret = llvm::Type::getVoidTy(context_);
-                    else if (fn->size() == 1)
+                    else if (fn->num_ops() == 1)
                         ret = fn->op(0)->isa<MemType>() ? llvm::Type::getVoidTy(context_) : convert(fn->op(0));
-                    else if (fn->size() == 2) {
+                    else if (fn->num_ops() == 2) {
                         if (fn->op(0)->isa<MemType>())
                             ret = convert(fn->op(1));
                         else if (fn->op(1)->isa<MemType>())
@@ -958,7 +958,7 @@ multiple:
             assert(!types_.contains(struct_type) && "type already converted");
             types_[struct_type] = llvm_struct;
 
-            Array<llvm::Type*> llvm_types(struct_type->size());
+            Array<llvm::Type*> llvm_types(struct_type->num_ops());
             for (size_t i = 0, e = llvm_types.size(); i != e; ++i)
                 llvm_types[i] = convert(struct_type->op(i));
             llvm_struct->setBody(llvm_ref(llvm_types));
@@ -967,7 +967,7 @@ multiple:
 
         case Node_TupleType: {
             auto tuple = type->as<TupleType>();
-            Array<llvm::Type*> llvm_types(tuple->size());
+            Array<llvm::Type*> llvm_types(tuple->num_ops());
             for (size_t i = 0, e = llvm_types.size(); i != e; ++i)
                 llvm_types[i] = convert(tuple->op(i));
             return types_[tuple] = llvm::StructType::get(context_, llvm_ref(llvm_types));

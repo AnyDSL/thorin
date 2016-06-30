@@ -39,7 +39,7 @@ void Def::set_op(size_t i, const Def* def) {
 }
 
 void Def::unregister_uses() const {
-    for (size_t i = 0, e = size(); i != e; ++i)
+    for (size_t i = 0, e = num_ops(); i != e; ++i)
         unregister_use(i);
 }
 
@@ -57,7 +57,7 @@ void Def::unset_op(size_t i) {
 }
 
 void Def::unset_ops() {
-    for (size_t i = 0, e = size(); i != e; ++i)
+    for (size_t i = 0, e = num_ops(); i != e; ++i)
         unset_op(i);
 }
 

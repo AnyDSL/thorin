@@ -16,7 +16,7 @@ protected:
         : Def(kind, type, args.size(), loc, name)
         , is_outdated_(false)
     {
-        for (size_t i = 0, e = size(); i != e; ++i)
+        for (size_t i = 0, e = num_ops(); i != e; ++i)
             set_op(i, args[i]);
     }
 
@@ -27,7 +27,7 @@ public:
     virtual bool is_outdated() const override { return is_outdated_; }
     virtual const Def* rebuild(Def2Def&) const override;
     const Def* rebuild(World& to, Defs ops, const Type* type) const {
-        assert(this->size() == ops.size());
+        assert(this->num_ops() == ops.size());
         return vrebuild(to, ops, type);
     }
     const Def* rebuild(Defs ops) const { return rebuild(world(), ops, type()); }
@@ -286,7 +286,7 @@ private:
         : Aggregate(Node_StructAgg, args, loc, name)
     {
 #ifndef NDEBUG
-        assert(struct_type->size() == args.size());
+        assert(struct_type->num_ops() == args.size());
         for (size_t i = 0, e = args.size(); i != e; ++i)
             assert(struct_type->op(i) == args[i]->type());
 #endif

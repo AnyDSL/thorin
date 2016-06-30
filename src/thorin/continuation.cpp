@@ -72,8 +72,8 @@ Continuation* Continuation::update_op(size_t i, const Def* def) {
 void Continuation::refresh(Def2Def& old2new) {
     for (auto op : ops()) {
         if (op->is_outdated()) {
-            Array<const Def*> nops(size());
-            for (size_t i = 0, e = size(); i != e; ++i)
+            Array<const Def*> nops(num_ops());
+            for (size_t i = 0, e = num_ops(); i != e; ++i)
                 nops[i] = this->op(i)->rebuild(old2new);
             jump(nops.front(), nops.skip_front(), jump_loc());
             return;
@@ -95,7 +95,7 @@ const FnType* Continuation::arg_fn_type() const {
 }
 
 const Param* Continuation::append_param(const Type* param_type, const std::string& name) {
-    size_t size = type()->size();
+    size_t size = type()->num_ops();
     Array<const Type*> ops(size + 1);
     *std::copy(type()->ops().begin(), type()->ops().end(), ops.begin()) = param_type;
     clear_type();

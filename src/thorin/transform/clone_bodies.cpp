@@ -25,7 +25,7 @@ void clone_bodies(World& world) {
                     ucontinuation->update_op(use.index(), ncontinuation);
                 else {
                     auto primop = use->as<PrimOp>();
-                    Array<const Def*> nops(primop->size());
+                    Array<const Def*> nops(primop->num_ops());
                     std::copy(primop->ops().begin(), primop->ops().end(), nops.begin());
                     nops[use.index()] = ncontinuation;
                     primop->replace(primop->rebuild(nops));

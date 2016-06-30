@@ -8,7 +8,7 @@ const Type* import(Type2Type& old2new, World& to, const Type* otype) {
         return ntype;
     }
 
-    size_t size = otype->size();
+    size_t size = otype->num_ops();
     Array<const Type*> nops(size);
     for (size_t i = 0; i != size; ++i)
         nops[i] = import(old2new, to, otype->op(i));
@@ -51,7 +51,7 @@ const Def* import(Type2Type& type_old2new, Def2Def& def_old2new, World& to, cons
         def_old2new[ocontinuation] = ncontinuation;
     }
 
-    size_t size = odef->size();
+    size_t size = odef->num_ops();
     Array<const Def*> nops(size);
     for (size_t i = 0; i != size; ++i) {
         nops[i] = import(type_old2new, def_old2new, to, odef->op(i));

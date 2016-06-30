@@ -14,7 +14,7 @@ static bool update_src(Continuation* src, Continuation* dst, const char* suffix)
         return resolver;
     };
 
-    for (size_t i = 0, e = src->size(); i != e; ++i) {
+    for (size_t i = 0, e = src->num_ops(); i != e; ++i) {
         if (src->op(i) == dst) {
             src->update_op(i, resolve(dst));
             return true;

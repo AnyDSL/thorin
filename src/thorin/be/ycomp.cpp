@@ -64,7 +64,7 @@ private:
 std::ostream& YCompGen::emit_operands(const Def* def) {
     int i = 0;
     Emitter emit_label = EMIT_NOOP;
-    if (def->size() > 1) {
+    if (def->num_ops() > 1) {
         emit_label = [&] { stream() << i++; };
     }
     dump_list([&](const Def* op) {

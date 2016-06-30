@@ -106,7 +106,7 @@ private:
         , is_sealed_(is_sealed)
         , is_visited_(false)
     {
-        params_.reserve(fn->size());
+        params_.reserve(fn->num_ops());
     }
     virtual ~Continuation() { for (auto param : params()) delete param; }
 
@@ -271,7 +271,7 @@ struct Call {
         : ops_(std::move(call.ops_))
     {}
     Call(const Continuation* continuation)
-        : ops_(continuation->size())
+        : ops_(continuation->num_ops())
     {}
 
     Defs ops() const { return ops_; }

@@ -56,7 +56,7 @@ protected:
         , ops_(ops.size())
         , gid_(gid_counter_++)
     {
-        for (size_t i = 0, e = size(); i != e; ++i) {
+        for (size_t i = 0, e = num_ops(); i != e; ++i) {
             if (auto op = ops[i])
                 set(i, op);
         }
@@ -76,7 +76,7 @@ public:
 
     Types ops() const { return ops_; }
     const Type* op(size_t i) const;
-    size_t size() const { return ops_.size(); }
+    size_t num_ops() const { return ops_.size(); }
     bool empty() const { return ops_.empty(); }
 
     bool is_hashed() const { return hashed_; }                ///< This @p Type is already recorded inside of @p HENK_TABLE_TYPE.

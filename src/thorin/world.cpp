@@ -629,13 +629,13 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, con
             std::fill(args.begin(), args.end(), bottom(definite_array_type->elem_type(), loc));
             agg = definite_array(args, loc, agg->name);
         } else if (auto tuple_type = agg->type()->isa<TupleType>()) {
-            Array<const Def*> args(tuple_type->size());
+            Array<const Def*> args(tuple_type->num_ops());
             size_t i = 0;
             for (auto type : tuple_type->ops())
                 args[i++] = bottom(type, loc);
             agg = tuple(args, loc, agg->name);
         } else if (auto struct_type = agg->type()->isa<StructType>()) {
-            Array<const Def*> args(struct_type->size());
+            Array<const Def*> args(struct_type->num_ops());
             size_t i = 0;
             for (auto type : struct_type->ops())
                 args[i++] = bottom(type, loc);
@@ -648,7 +648,7 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, con
     if (auto aggregate = agg->isa<Aggregate>()) {
         if (auto literal = index->isa<PrimLit>()) {
             if (!agg->isa<IndefiniteArray>()) {
-                Array<const Def*> args(agg->size());
+                Array<const Def*> args(agg->num_ops());
                 std::copy(agg->ops().begin(), agg->ops().end(), args.begin());
                 args[primlit_value<u64>(literal)] = value;
                 return aggregate->rebuild(args);
@@ -801,7 +801,7 @@ const Def* World::cse_base(const PrimOp* primop) {
 
 void World::destroy(Continuation* continuation) {
     assert(continuation->num_uses() == 0);
-    assert(continuation->size() == 0);
+    assert(continuation->num_ops() == 0);
     continuation->destroy_body();
     continuations_.erase(continuation);
     delete continuation;

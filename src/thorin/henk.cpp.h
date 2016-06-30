@@ -54,7 +54,7 @@ const Lambda* close(const Lambda* lambda, const Type* body) {
         auto type = stack.top();
 
         bool todo = false;
-        for (size_t i = 0, e = type->size(); i != e; ++i)
+        for (size_t i = 0, e = type->num_ops(); i != e; ++i)
             todo |= push(type->op(i));
 
         if (!todo) {
@@ -62,7 +62,7 @@ const Lambda* close(const Lambda* lambda, const Type* body) {
                 --depth;
             stack.pop();
             type->closed_ = true;
-            for (size_t i = 0, e = type->size(); i != e && type->closed_; ++i)
+            for (size_t i = 0, e = type->num_ops(); i != e && type->closed_; ++i)
                 type->closed_ &= type->op(i)->is_closed();
         }
     }
@@ -72,7 +72,7 @@ const Lambda* close(const Lambda* lambda, const Type* body) {
 }
 #endif
 
-const Type* Type::op(size_t i) const { return i < size() ? ops()[i] : HENK_TABLE_NAME().type_error(); }
+const Type* Type::op(size_t i) const { return i < num_ops() ? ops()[i] : HENK_TABLE_NAME().type_error(); }
 
 //------------------------------------------------------------------------------
 
@@ -81,7 +81,7 @@ const Type* Type::op(size_t i) const { return i < size() ? ops()[i] : HENK_TABLE
  */
 
 uint64_t Type::vhash() const {
-    uint64_t seed = thorin::hash_combine(thorin::hash_begin(int(kind())), size());
+    uint64_t seed = thorin::hash_combine(thorin::hash_begin(int(kind())), num_ops());
     for (auto op : ops_)
         seed = thorin::hash_combine(seed, op->hash());
     return seed;
@@ -102,11 +102,11 @@ uint64_t StructType::vhash() const {
  */
 
 bool Type::equal(const Type* other) const {
-    bool result = this->kind() == other->kind() && this->size() == other->size()
+    bool result = this->kind() == other->kind() && this->num_ops() == other->num_ops()
         && this->is_monomorphic() == other->is_monomorphic();
 
     if (result) {
-        for (size_t i = 0, e = size(); result && i != e; ++i) {
+        for (size_t i = 0, e = num_ops(); result && i != e; ++i) {
             assert(this->op(i)->is_hashed() && other->op(i)->is_hashed());
             result &= this->op(i) == other->op(i);
         }
@@ -128,7 +128,7 @@ bool StructType::equal(const Type* other) const { return this == other; }
  */
 
 const Type* Type::rebuild(HENK_TABLE_TYPE& to, Types ops) const {
-    assert(size() == ops.size());
+    assert(num_ops() == ops.size());
     if (ops.empty() && &HENK_TABLE_NAME() == &to)
         return this;
     return vrebuild(to, ops);
@@ -162,8 +162,8 @@ const Type* Type::reduce(int depth, const Type* type, Type2Type& map) const {
 }
 
 Array<const Type*> Type::reduce_ops(int depth, const Type* type, Type2Type& map) const {
-    Array<const Type*> result(size());
-    for (size_t i = 0, e = size(); i != e; ++i)
+    Array<const Type*> result(num_ops());
+    for (size_t i = 0, e = num_ops(); i != e; ++i)
         result[i] = op(i)->reduce(depth, type, map);
     return result;
 }
@@ -182,11 +182,11 @@ const Type* Var::vreduce(int depth, const Type* type, Type2Type&) const {
 }
 
 const Type* StructType::vreduce(int depth, const Type* type, Type2Type& map) const {
-    auto struct_type = HENK_TABLE_NAME().struct_type(HENK_STRUCT_EXTRA_NAME(), size());
+    auto struct_type = HENK_TABLE_NAME().struct_type(HENK_STRUCT_EXTRA_NAME(), num_ops());
     map[this] = struct_type;
     auto ops = reduce_ops(depth, type, map);
 
-    for (size_t i = 0, e = size(); i != e; ++i)
+    for (size_t i = 0, e = num_ops(); i != e; ++i)
         struct_type->set(i, ops[i]);
 
     return struct_type;

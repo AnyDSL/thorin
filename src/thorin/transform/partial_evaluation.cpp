@@ -153,7 +153,7 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
             continue;
         }
 
-        Array<const Def*> ops(cur->size());
+        Array<const Def*> ops(cur->num_ops());
         ops.front() = dst;
         bool all = true;
         for (size_t i = 1, e = ops.size(); i != e; ++i) {

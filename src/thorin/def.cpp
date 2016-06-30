@@ -79,6 +79,8 @@ bool Def::is_const() const {
     return true; // continuations are always const
 }
 
+size_t vector_length(const Def* def) { return def->type()->as<VectorType>()->length(); }
+
 bool is_primlit(const Def* def, int val) {
     if (auto lit = def->isa<PrimLit>()) {
         switch (lit->primtype_kind()) {
@@ -162,8 +164,6 @@ void Def::dump() const {
 World& Def::world() const { return type()->world(); }
 Continuation* Def::as_continuation() const { return const_cast<Continuation*>(scast<Continuation>(this)); }
 Continuation* Def::isa_continuation() const { return const_cast<Continuation*>(dcast<Continuation>(this)); }
-int Def::order() const { return type()->order(); }
-size_t Def::length() const { return type()->as<VectorType>()->length(); }
 std::ostream& Def::stream(std::ostream& out) const { return out << unique_name(); }
 
 HashSet<Tracker*>& Tracker::trackers(const Def* def) { return def->world().trackers_[def]; }

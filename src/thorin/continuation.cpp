@@ -57,7 +57,7 @@ Array<const Def*> Continuation::params_as_defs() const {
 
 const Param* Continuation::mem_param() const {
     for (auto param : params()) {
-        if (param->is_mem())
+        if (is_mem(param))
             return param;
     }
     return nullptr;

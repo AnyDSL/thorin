@@ -370,13 +370,13 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const Lo
     return cse(new ArithOp(kind, a, b, loc, name));
 }
 
-const Def* World::arithop_not(const Def* def, const Location& loc) { return arithop_xor(allset(def->type(), loc, def->length()), def, loc); }
+const Def* World::arithop_not(const Def* def, const Location& loc) { return arithop_xor(allset(def->type(), loc, vector_length(def)), def, loc); }
 
 const Def* World::arithop_minus(const Def* def, const Location& loc) {
     switch (PrimTypeKind kind = def->type()->as<PrimType>()->primtype_kind()) {
 #define THORIN_F_TYPE(T, M) \
         case PrimType_##T: \
-            return arithop_sub(literal_##T(M(-0.f), loc, def->length()), def, loc);
+            return arithop_sub(literal_##T(M(-0.f), loc, vector_length(def)), def, loc);
 #include "thorin/tables/primtypetable.h"
         default:
             assert(is_type_i(kind));
@@ -468,7 +468,7 @@ const Def* World::convert(const Type* to, const Def* from, const Location& loc, 
 
 const Def* World::cast(const Type* to, const Def* from, const Location& loc, const std::string& name) {
     if (auto vec = from->isa<Vector>()) {
-        size_t num = vec->length();
+        size_t num = vector_length(vec);
         auto to_vec = to->as<VectorType>();
         Array<const Def*> ops(num);
         for (size_t i = 0; i != num; ++i)
@@ -566,7 +566,7 @@ const Def* World::bitcast(const Type* to, const Def* from, const Location& loc, 
     }
 
     if (auto vec = from->isa<Vector>()) {
-        size_t num = vec->length();
+        size_t num = vector_length(vec);
         auto to_vec = to->as<VectorType>();
         Array<const Def*> ops(num);
         for (size_t i = 0; i != num; ++i)

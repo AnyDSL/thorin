@@ -51,7 +51,6 @@ public:
     Continuation* continuation() const { return continuation_; }
     size_t index() const { return index_; }
     std::vector<Peek> peek() const;
-    const Param* is_mem() const { return type()->isa<MemType>() ? this : nullptr; }
 
 private:
     Continuation* const continuation_;

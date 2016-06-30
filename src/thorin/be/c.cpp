@@ -313,7 +313,7 @@ void CCodeGen::emit() {
         size_t i = 0;
         // emit and store all first-order params
         for (auto param : continuation->params()) {
-            if (param->order() == 0 && !param->is_mem()) {
+            if (param->order() == 0 && !is_mem(param)) {
                 emit_aggop_decl(param->type());
                 if (is_texture_type(param->type())) {
                     // emit texture declaration for CUDA
@@ -353,7 +353,7 @@ void CCodeGen::emit() {
 
         // OpenCL: load struct from buffer
         for (auto param : continuation->params()) {
-            if (param->order() == 0 && !param->is_mem()) {
+            if (param->order() == 0 && !is_mem(param)) {
                 if (lang_==Lang::OPENCL && continuation->is_external() &&
                     (param->type()->isa<DefiniteArrayType>() ||
                      param->type()->isa<StructType>() ||
@@ -376,7 +376,7 @@ void CCodeGen::emit() {
             auto continuation = block.continuation();
             if (scope.entry() != continuation) {
                 for (auto param : continuation->params()) {
-                    if (!param->is_mem()) {
+                    if (!is_mem(param)) {
                         func_impl_ << endl;
                         emit_addr_space(func_impl_, param->type());
                         emit_type(func_impl_, param->type()) << "  " << param->unique_name() << ";" << endl;
@@ -399,7 +399,7 @@ void CCodeGen::emit() {
                 func_impl_ << "l" << continuation->gid() << ": ;" << up << endl;
                 // load params from phi node
                 for (auto param : continuation->params())
-                    if (!param->is_mem())
+                    if (!is_mem(param))
                         func_impl_ << param->unique_name() << " = p" << param->unique_name() << ";" << endl;
             }
 
@@ -416,7 +416,7 @@ void CCodeGen::emit() {
 
                 // skip higher-order primops, stuff dealing with frames and all memory related stuff except stores
                 if (!primop->type()->isa<FnType>() && !primop->type()->isa<FrameType>()
-                        && (!primop->is_mem() || primop->isa<Store>())) {
+                        && (!is_mem(primop) || primop->isa<Store>())) {
                     emit_debug_info(primop);
                     emit(primop) << endl;
                 }
@@ -429,16 +429,16 @@ void CCodeGen::emit() {
                 switch (num_args) {
                     case 0: break;
                     case 1:
-                        if (continuation->arg(0)->is_mem())
+                        if (is_mem(continuation->arg(0)))
                             break;
                         else
                             emit(continuation->arg(0));
                         break;
                     case 2:
-                        if (continuation->arg(0)->is_mem()) {
+                        if (is_mem(continuation->arg(0))) {
                             emit(continuation->arg(1));
                             break;
-                        } else if (continuation->arg(1)->is_mem()) {
+                        } else if (is_mem(continuation->arg(1))) {
                             emit(continuation->arg(0));
                             break;
                         }
@@ -469,7 +469,7 @@ void CCodeGen::emit() {
                     assert(callee->num_params()==continuation->num_args());
                     // store argument to phi nodes
                     for (size_t i = 0, size = callee->num_params(); i != size; ++i)
-                        if (!callee->param(i)->is_mem()) {
+                        if (!is_mem(callee->param(i))) {
                             func_impl_ << "p" << callee->param(i)->unique_name() << " = ";
                             emit(continuation->arg(i)) << ";" << endl;
                         }
@@ -508,7 +508,7 @@ void CCodeGen::emit() {
                             // emit all first-order args
                             size_t i = 0;
                             for (auto arg : continuation->args()) {
-                                if (arg->order() == 0 && !arg->is_mem()) {
+                                if (arg->order() == 0 && !is_mem(arg)) {
                                     if (i++ > 0)
                                         func_impl_ << ", ";
                                     emit(arg);
@@ -525,7 +525,7 @@ void CCodeGen::emit() {
                                 ret_arg = arg;
                             }
                             // emit temporaries for args
-                            if (arg->order() == 0 && !arg->is_mem() &&
+                            if (arg->order() == 0 && !is_mem(arg) &&
                                 !lookup(arg) && !arg->isa<PrimLit>()) {
                                 emit(arg) << endl;
                             }
@@ -536,7 +536,7 @@ void CCodeGen::emit() {
                             emit_call();
                         } else {                        // call + continuation
                             auto succ = ret_arg->as_continuation();
-                            auto param = succ->param(0)->is_mem() ? nullptr : succ->param(0);
+                            auto param = is_mem(succ->param(0)) ? nullptr : succ->param(0);
                             if (param == nullptr && succ->num_params() == 2)
                                 param = succ->param(1);
 
@@ -740,7 +740,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
             emit_aggop_defs(aggop->agg());
 
             if (auto extract = aggop->isa<Extract>()) {
-                if (extract->is_mem() || extract->type()->isa<FrameType>())
+                if (is_mem(extract) || extract->type()->isa<FrameType>())
                     return func_impl_;
                 emit_type(func_impl_, aggop->type()) << " " << aggop->unique_name() << ";" << endl;
                 func_impl_ << aggop->unique_name() << " = ";

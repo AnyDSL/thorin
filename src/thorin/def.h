@@ -95,7 +95,6 @@ public:
     void set_op(size_t i, const Def* def);
     void unset_op(size_t i);
     void unset_ops();
-    const Def* is_mem() const { return type()->isa<MemType>() ? this : nullptr; }
     Continuation* as_continuation() const;
     Continuation* isa_continuation() const;
     bool is_const() const;
@@ -105,12 +104,11 @@ public:
     size_t gid() const { return gid_; }
     std::string unique_name() const;
     const Type* type() const { return type_; }
-    int order() const;
+    int order() const { return type()->order(); }
     World& world() const;
     Defs ops() const { return ops_; }
     const Def* op(size_t i) const { assert(i < ops().size() && "index out of bounds"); return ops_[i]; }
     void replace(const Def*) const;
-    size_t length() const; ///< Returns the vector length. Raises an assertion if type of this is not a \p VectorType.
 
     virtual bool is_outdated() const { return false; }
     virtual const Def* rebuild(Def2Def&) const { return this; }
@@ -137,8 +135,11 @@ public:
     friend class Tracker;
 };
 
+/// Returns the vector length. Raises an assertion if type of this is not a \p VectorType.
+size_t vector_length(const Def*); 
 bool is_primlit(const Def* def, int val);
 bool is_minus_zero(const Def* def);
+inline bool is_mem        (const Def* def) { return def->type()->isa<MemType>(); }
 inline bool is_zero       (const Def* def) { return is_primlit(def, 0); }
 inline bool is_one        (const Def* def) { return is_primlit(def, 1); }
 inline bool is_allset     (const Def* def) { return is_primlit(def, -1); }

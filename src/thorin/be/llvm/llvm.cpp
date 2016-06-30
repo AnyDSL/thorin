@@ -240,7 +240,7 @@ void CodeGen::emit(int opt, bool debug) {
         const Param* ret_param = nullptr;
         auto arg = fct->arg_begin();
         for (auto param : entry_->params()) {
-            if (param->is_mem())
+            if (is_mem(param))
                 continue;
             if (param->order() == 0) {
                 auto argv = &*arg;
@@ -270,7 +270,7 @@ void CodeGen::emit(int opt, bool debug) {
                 // create phi node stubs (for all continuations different from entry)
                 if (entry_ != continuation) {
                     for (auto param : continuation->params()) {
-                        if (!param->is_mem()) {
+                        if (!is_mem(param)) {
                             phis_[param] = llvm::PHINode::Create(convert(param->type()),
                                                                  (unsigned) param->peek().size(), param->name, bb);
                         }
@@ -308,16 +308,16 @@ void CodeGen::emit(int opt, bool debug) {
                 switch (num_args) {
                     case 0: irbuilder_.CreateRetVoid(); break;
                     case 1:
-                        if (continuation->arg(0)->is_mem())
+                        if (is_mem(continuation->arg(0)))
                             irbuilder_.CreateRetVoid();
                         else
                             irbuilder_.CreateRet(lookup(continuation->arg(0)));
                         break;
                     case 2:
-                        if (continuation->arg(0)->is_mem()) {
+                        if (is_mem(continuation->arg(0))) {
                             irbuilder_.CreateRet(lookup(continuation->arg(1)));
                             break;
-                        } else if (continuation->arg(1)->is_mem()) {
+                        } else if (is_mem(continuation->arg(1))) {
                             irbuilder_.CreateRet(lookup(continuation->arg(0)));
                             break;
                         }
@@ -328,7 +328,7 @@ void CodeGen::emit(int opt, bool debug) {
 
                         size_t n = 0;
                         for (auto arg : continuation->args()) {
-                            if (!arg->is_mem()) {
+                            if (!is_mem(arg)) {
                                 auto val = lookup(arg);
                                 values[n] = val;
                                 args[n++] = val->getType();
@@ -368,7 +368,7 @@ void CodeGen::emit(int opt, bool debug) {
                         const Def* ret_arg = nullptr;
                         for (auto arg : continuation->args()) {
                             if (arg->order() == 0) {
-                                if (!arg->is_mem())
+                                if (!is_mem(arg))
                                     args.push_back(lookup(arg));
                             } else {
                                 assert(!ret_arg);
@@ -396,18 +396,18 @@ void CodeGen::emit(int opt, bool debug) {
                                 case 1:
                                     param = succ->param(0);
                                     irbuilder_.CreateBr(bb2continuation[succ]);
-                                    if (!param->is_mem())
+                                    if (!is_mem(param))
                                         emit_result_phi(param, call);
                                     break;
                                 case 2:
                                     assert(succ->mem_param() && "no mem_param found for succ");
                                     param = succ->param(0);
-                                    param = param->is_mem() ? succ->param(1) : param;
+                                    param = is_mem(param) ? succ->param(1) : param;
                                     irbuilder_.CreateBr(bb2continuation[succ]);
                                     emit_result_phi(param, call);
                                     break;
                                 default: {
-                                    assert(succ->param(0)->is_mem());
+                                    assert(is_mem(succ->param(0)));
                                     auto tuple = succ->params().skip_front();
 
                                     Array<llvm::Value*> extracts(tuple.size());

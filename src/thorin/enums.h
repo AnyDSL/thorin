@@ -74,7 +74,6 @@ inline bool is_type_u(int kind) { return is_type_pu(kind) || is_type_qu(kind); }
 inline bool is_type_i(int kind) { return is_type_s (kind) || is_type_u (kind); }
 inline bool is_type_f(int kind) { return is_type_pf(kind) || is_type_qf(kind); }
 
-inline bool is_corenode(int kind){ return (int) Begin_AllNodes <= kind && kind < (int) End_AllNodes; }
 inline bool is_primtype(int kind){ return (int) Begin_PrimType <= kind && kind < (int) End_PrimType; }
 inline bool is_arithop(int kind) { return (int) Begin_ArithOp <= kind && kind < (int) End_ArithOp; }
 inline bool is_cmp(int kind)     { return (int) Begin_Cmp   <= kind && kind < (int) End_Cmp; }

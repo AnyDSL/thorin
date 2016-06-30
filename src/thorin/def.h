@@ -90,7 +90,6 @@ protected:
 
 public:
     NodeKind kind() const { return kind_; }
-    bool is_corenode() const { return ::thorin::is_corenode(kind()); }
     size_t size() const { return ops_.size(); }
     bool empty() const { return ops_.empty(); }
     void set_op(size_t i, const Def* def);

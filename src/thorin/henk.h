@@ -21,7 +21,6 @@
 //------------------------------------------------------------------------------
 
 class Type;
-class Lambda;
 class Var;
 class HENK_TABLE_TYPE;
 
@@ -79,9 +78,10 @@ public:
     size_t num_ops() const { return ops_.size(); }
     bool empty() const { return ops_.empty(); }
 
-    bool is_hashed() const { return hashed_; }                ///< This @p Type is already recorded inside of @p HENK_TABLE_TYPE.
-    bool is_closed() const { return closed_; }                ///< Are all @p Var%s bound?
-    bool is_known()  const { return known_; }                 ///< Deos this @p Type depend on any @p UnknownType%s?
+    bool is_nominal() const { return nominal_; }              ///< A nominal @p Type is always different from each other @p Type.
+    bool is_hashed()  const { return hashed_; }               ///< This @p Type is already recorded inside of @p HENK_TABLE_TYPE.
+    bool is_closed()  const { return closed_; }               ///< Are all @p Var%s bound?
+    bool is_known()   const { return known_; }                ///< Deos this @p Type depend on any @p UnknownType%s?
     bool is_monomorphic() const { return monomorphic_; }      ///< Does this @p Type not depend on any @p Var%s?.
     bool is_polymorphic() const { return !is_monomorphic(); } ///< Does this @p Type depend on any @p Var%s?.
     int order() const { return order_; }
@@ -106,6 +106,7 @@ protected:
     mutable bool closed_      = true;
     mutable bool known_       = true;
     mutable bool monomorphic_ = true;
+    mutable bool nominal_     = false;
 
 private:
     virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types ops) const = 0;
@@ -210,7 +211,9 @@ private:
     StructType(HENK_TABLE_TYPE& table, HENK_STRUCT_EXTRA_TYPE HENK_STRUCT_EXTRA_NAME, size_t size)
         : Type(table, Node_StructType, thorin::Array<const Type*>(size))
         , HENK_STRUCT_EXTRA_NAME_(HENK_STRUCT_EXTRA_NAME)
-    {}
+    {
+        nominal_ = true;
+    }
 
 public:
     HENK_STRUCT_EXTRA_TYPE HENK_STRUCT_EXTRA_NAME() const { return HENK_STRUCT_EXTRA_NAME_; }
@@ -219,8 +222,6 @@ public:
 private:
     virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types ops) const override;
     virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
-    virtual uint64_t vhash() const override;
-    virtual bool equal(const Type*) const override;
     virtual std::ostream& stream(std::ostream&) const override;
 
     HENK_STRUCT_EXTRA_TYPE HENK_STRUCT_EXTRA_NAME_;

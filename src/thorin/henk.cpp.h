@@ -81,6 +81,9 @@ const Type* Type::op(size_t i) const { return i < num_ops() ? ops()[i] : HENK_TA
  */
 
 uint64_t Type::vhash() const {
+    if (is_nominal())
+        return gid();
+
     uint64_t seed = thorin::hash_combine(thorin::hash_begin(int(kind())), num_ops());
     for (auto op : ops_)
         seed = thorin::hash_combine(seed, op->hash());
@@ -91,10 +94,6 @@ uint64_t Var::vhash() const {
     return thorin::hash_combine(thorin::hash_begin(int(kind())), depth());
 }
 
-uint64_t StructType::vhash() const {
-    return thorin::hash_combine(thorin::hash_begin(int(kind())), gid());
-}
-
 //------------------------------------------------------------------------------
 
 /*
@@ -102,6 +101,9 @@ uint64_t StructType::vhash() const {
  */
 
 bool Type::equal(const Type* other) const {
+    if (is_nominal())
+        return this == other;
+
     bool result = this->kind() == other->kind() && this->num_ops() == other->num_ops()
         && this->is_monomorphic() == other->is_monomorphic();
 
@@ -118,8 +120,6 @@ bool Type::equal(const Type* other) const {
 bool Var::equal(const Type* other) const {
     return other->isa<Var>() ? this->as<Var>()->depth() == other->as<Var>()->depth() : false;
 }
-
-bool StructType::equal(const Type* other) const { return this == other; }
 
 //------------------------------------------------------------------------------
 

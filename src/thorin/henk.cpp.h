@@ -144,8 +144,8 @@ const Type* StructType::vrebuild(HENK_TABLE_TYPE& to, Types ops) const {
 const Type* App      ::vrebuild(HENK_TABLE_TYPE& to, Types ops) const { return to.app(ops[0], ops[1]); }
 const Type* TupleType::vrebuild(HENK_TABLE_TYPE& to, Types ops) const { return to.tuple_type(ops); }
 const Type* Lambda   ::vrebuild(HENK_TABLE_TYPE& to, Types ops) const { return to.lambda(ops[0], name()); }
-const Type* Var      ::vrebuild(HENK_TABLE_TYPE& to, Types     ) const { return to.var(depth()); }
-const Type* TypeError::vrebuild(HENK_TABLE_TYPE&,    Types     ) const { return this; }
+const Type* Var      ::vrebuild(HENK_TABLE_TYPE& to, Types    ) const { return to.var(depth()); }
+const Type* TypeError::vrebuild(HENK_TABLE_TYPE&,    Types    ) const { return this; }
 
 //------------------------------------------------------------------------------
 

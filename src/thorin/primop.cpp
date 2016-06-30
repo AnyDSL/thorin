@@ -86,7 +86,7 @@ Global::Global(const Def* init, bool is_mutable, const Location& loc, const std:
     : PrimOp(Node_Global, init->type()->world().ptr_type(init->type()), {init}, loc, name)
     , is_mutable_(is_mutable)
 {
-    assert(init->is_const());
+    assert(is_const(init));
 }
 
 Alloc::Alloc(const Type* type, const Def* mem, const Def* extra, const Location& loc, const std::string& name)
@@ -229,7 +229,7 @@ const char* Global::op_name() const { return is_mutable() ? "global_mutable" : "
  */
 
 std::ostream& PrimOp::stream(std::ostream& os) const {
-    if (is_const()) {
+    if (is_const(this)) {
         if (empty())
             return streamf(os, "% %", op_name(), type());
         else

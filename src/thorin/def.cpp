@@ -67,11 +67,11 @@ std::string Def::unique_name() const {
     return oss.str();
 }
 
-bool Def::is_const() const {
-    if (isa<Param>()) return false;
-    if (isa<PrimOp>()) {
-        for (auto op : ops()) { // TODO slow because ops form a DAG not a tree
-            if (!op->is_const())
+bool is_const(const Def* def) {
+    if (def->isa<Param>()) return false;
+    if (def->isa<PrimOp>()) {
+        for (auto op : def->ops()) { // TODO slow because ops form a DAG not a tree
+            if (!is_const(op))
                 return false;
         }
     }
@@ -153,7 +153,7 @@ void Def::replace(const Def* with) const {
 
 void Def::dump() const {
     auto primop = this->isa<PrimOp>();
-    if (primop && !primop->is_const())
+    if (primop && !is_const(primop))
         primop->stream_assignment(std::cout);
     else {
         std::cout << this;

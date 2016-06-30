@@ -97,7 +97,6 @@ public:
     void unset_ops();
     Continuation* as_continuation() const;
     Continuation* isa_continuation() const;
-    bool is_const() const;
     void dump() const;
     const Uses& uses() const { return uses_; }
     size_t num_uses() const { return uses().size(); }
@@ -137,8 +136,9 @@ public:
 
 /// Returns the vector length. Raises an assertion if type of this is not a \p VectorType.
 size_t vector_length(const Def*); 
-bool is_primlit(const Def* def, int val);
-bool is_minus_zero(const Def* def);
+bool is_const(const Def*);
+bool is_primlit(const Def*, int);
+bool is_minus_zero(const Def*);
 inline bool is_mem        (const Def* def) { return def->type()->isa<MemType>(); }
 inline bool is_zero       (const Def* def) { return is_primlit(def, 0); }
 inline bool is_one        (const Def* def) { return is_primlit(def, 1); }

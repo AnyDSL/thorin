@@ -79,8 +79,8 @@ bool Def::is_const() const {
     return true; // continuations are always const
 }
 
-bool Def::is_primlit(int val) const {
-    if (auto lit = this->isa<PrimLit>()) {
+bool is_primlit(const Def* def, int val) {
+    if (auto lit = def->isa<PrimLit>()) {
         switch (lit->primtype_kind()) {
 #define THORIN_I_TYPE(T, M) case PrimType_##T: return lit->value().get_##T() == T(val);
 #include "thorin/tables/primtypetable.h"
@@ -88,9 +88,9 @@ bool Def::is_primlit(int val) const {
         }
     }
 
-    if (auto vector = this->isa<Vector>()) {
+    if (auto vector = def->isa<Vector>()) {
         for (auto op : vector->ops()) {
-            if (!op->is_primlit(val))
+            if (!is_primlit(op, val))
                 return false;
         }
         return true;
@@ -98,8 +98,8 @@ bool Def::is_primlit(int val) const {
     return false;
 }
 
-bool Def::is_minus_zero() const {
-    if (auto lit = this->isa<PrimLit>()) {
+bool is_minus_zero(const Def* def) {
+    if (auto lit = def->isa<PrimLit>()) {
         Box box = lit->value();
         switch (lit->primtype_kind()) {
 #define THORIN_I_TYPE(T, M) case PrimType_##T: return box.get_##M() == M(0);

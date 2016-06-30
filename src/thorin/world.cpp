@@ -189,12 +189,12 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const Lo
                 case ArithOp_or:  return a;
 
                 case ArithOp_div:
-                    if (b->is_zero())
+                    if (is_zero(b))
                         return bottom(type, loc);
                     return one(type, loc);
 
                 case ArithOp_rem:
-                    if (b->is_zero())
+                    if (is_zero(b))
                         return bottom(type, loc);
                     return zero(type, loc);
 
@@ -202,7 +202,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const Lo
             }
         }
 
-        if (a->is_zero()) {
+        if (is_zero(a)) {
             switch (kind) {
                 case ArithOp_mul:
                 case ArithOp_div:
@@ -219,14 +219,14 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const Lo
             }
         }
 
-        if (a->is_one()) {
+        if (is_one(a)) {
             switch (kind) {
                 case ArithOp_mul: return b;
                 default: break;
             }
         }
 
-        if (a->is_allset()) {
+        if (is_allset(a)) {
             switch (kind) {
                 case ArithOp_and: return b;
                 case ArithOp_or:  return llit; // allset
@@ -234,7 +234,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const Lo
             }
         }
 
-        if (b->is_zero()) {
+        if (is_zero(b)) {
             switch (kind) {
                 case ArithOp_div:
                 case ArithOp_rem: return bottom(type, loc);
@@ -246,7 +246,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const Lo
             }
         }
 
-        if (b->is_one()) {
+        if (is_one(b)) {
             switch (kind) {
                 case ArithOp_mul:
                 case ArithOp_div: return a;
@@ -265,8 +265,8 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const Lo
             }
         }
 
-        if (kind == ArithOp_xor && a->is_allset()) {    // is this a NOT
-            if (b->is_not())                            // do we have ~~x?
+        if (kind == ArithOp_xor && is_allset(a)) {    // is this a NOT
+            if (is_not(b))                            // do we have ~~x?
                 return b->as<ArithOp>()->rhs();
             if (auto cmp = b->isa<Cmp>())   // do we have ~(a cmp b)?
                 return this->cmp(negate(cmp->cmp_kind()), cmp->lhs(), cmp->rhs(), loc);
@@ -666,7 +666,7 @@ const Def* World::select(const Def* cond, const Def* a, const Def* b, const Loca
     if (auto lit = cond->isa<PrimLit>())
         return lit->value().get_bool() ? a : b;
 
-    if (cond->is_not()) {
+    if (is_not(cond)) {
         cond = cond->as<ArithOp>()->rhs();
         std::swap(a, b);
     }

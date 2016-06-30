@@ -111,18 +111,6 @@ public:
     const Def* op(size_t i) const { assert(i < ops().size() && "index out of bounds"); return ops_[i]; }
     void replace(const Def*) const;
     size_t length() const; ///< Returns the vector length. Raises an assertion if type of this is not a \p VectorType.
-    bool is_primlit(int val) const;
-    bool is_zero() const { return is_primlit(0); }
-    bool is_minus_zero() const;
-    bool is_one() const { return is_primlit(1); }
-    bool is_allset() const { return is_primlit(-1); }
-    bool is_bitop()       const { return thorin::is_bitop(kind()); }
-    bool is_shift()       const { return thorin::is_shift(kind()); }
-    bool is_not()         const { return kind() == Node_xor && op(0)->is_allset(); }
-    bool is_minus()       const { return kind() == Node_sub && op(0)->is_minus_zero(); }
-    bool is_div_or_rem()  const { return thorin::is_div_or_rem(kind()); }
-    bool is_commutative() const { return thorin::is_commutative(kind()); }
-    bool is_associative() const { return thorin::is_associative(kind()); }
 
     virtual bool is_outdated() const { return false; }
     virtual const Def* rebuild(Def2Def&) const { return this; }
@@ -148,6 +136,19 @@ public:
     friend class Cleaner;
     friend class Tracker;
 };
+
+bool is_primlit(const Def* def, int val);
+bool is_minus_zero(const Def* def);
+inline bool is_zero       (const Def* def) { return is_primlit(def, 0); }
+inline bool is_one        (const Def* def) { return is_primlit(def, 1); }
+inline bool is_allset     (const Def* def) { return is_primlit(def, -1); }
+inline bool is_bitop      (const Def* def) { return thorin::is_bitop(def->kind()); }
+inline bool is_shift      (const Def* def) { return thorin::is_shift(def->kind()); }
+inline bool is_not        (const Def* def) { return def->kind() == Node_xor && is_allset(def->op(0)); }
+inline bool is_minus      (const Def* def) { return def->kind() == Node_sub && is_minus_zero(def->op(0)); }
+inline bool is_div_or_rem (const Def* def) { return thorin::is_div_or_rem(def->kind()); }
+inline bool is_commutative(const Def* def) { return thorin::is_commutative(def->kind()); }
+inline bool is_associative(const Def* def) { return thorin::is_associative(def->kind()); }
 
 namespace detail {
     inline std::ostream& stream(std::ostream& os, const Def* def) { return def->stream(os); }

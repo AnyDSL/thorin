@@ -130,7 +130,7 @@ public:
     const Param* param(size_t i) const { assert(i < num_params()); return params_[i]; }
     const Param* mem_param() const;
     const Def* callee() const;
-    Defs args() const { return empty() ? Defs(0, 0) : ops().skip_front(); }
+    Defs args() const { return num_ops() == 0 ? Defs(0, 0) : ops().skip_front(); }
     const Def* arg(size_t i) const { return args()[i]; }
     const Location& jump_loc() const { return jump_loc_; }
     const FnType* type() const { return Def::type()->as<FnType>(); }

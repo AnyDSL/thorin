@@ -699,13 +699,13 @@ std::ostream& CCodeGen::emit(const Def* def) {
                 //os << ".e";
                 emit(index);
             } else if (def->type()->isa<VectorType>()) {
-                if (index->is_primlit(0))
+                if (is_primlit(index, 0))
                     func_impl_ << ".x";
-                else if (index->is_primlit(1))
+                else if (is_primlit(index, 1))
                     func_impl_ << ".y";
-                else if (index->is_primlit(2))
+                else if (is_primlit(index, 2))
                     func_impl_ << ".z";
-                else if (index->is_primlit(3))
+                else if (is_primlit(index, 3))
                     func_impl_ << ".w";
                 else {
                     func_impl_ << ".s";

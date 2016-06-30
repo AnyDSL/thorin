@@ -270,7 +270,7 @@ void Continuation::jump(const Def* to, Defs args, const Location& loc) {
                     return jump(lit->value().get_bool() ? t : f, {}, loc);
                 if (t == f)
                     return jump(t, {}, loc);
-                if (cond->is_not())
+                if (is_not(cond))
                     return branch(cond->as<ArithOp>()->rhs(), f, t, loc);
                 break;
             }

@@ -577,7 +577,7 @@ public:
 template<int i, class T>
 const T* PrimOp::is_out(const Def* def) {
     if (auto extract = def->isa<Extract>()) {
-        if (extract->index()->is_primlit(i)) {
+        if (is_primlit(extract->index(), i)) {
             if (auto res = extract->agg()->isa<T>())
                 return res;
         }

@@ -28,7 +28,7 @@ private:
         : Type(world, Node_MemType, {})
     {}
 
-    virtual const Type* vrebuild(World& to, Types args) const override;
+    virtual const Type* vrebuild(World& to, Types ops) const override;
     virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
 
     friend class World;
@@ -44,7 +44,7 @@ private:
         : Type(world, Node_FrameType, {})
     {}
 
-    virtual const Type* vrebuild(World& to, Types args) const override;
+    virtual const Type* vrebuild(World& to, Types ops) const override;
     virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
 
     friend class World;
@@ -53,8 +53,8 @@ private:
 /// Base class for all SIMD types.
 class VectorType : public Type {
 protected:
-    VectorType(World& world, int kind, Types args, size_t length)
-        : Type(world, kind, args)
+    VectorType(World& world, int kind, Types ops, size_t length)
+        : Type(world, kind, ops)
         , length_(length)
     {}
 
@@ -90,7 +90,7 @@ public:
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
-    virtual const Type* vrebuild(World& to, Types args) const override;
+    virtual const Type* vrebuild(World& to, Types ops) const override;
     virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
 
     friend class World;
@@ -129,7 +129,7 @@ private:
     {}
 
 public:
-    const Type* referenced_type() const { return arg(0); }
+    const Type* referenced_type() const { return op(0); }
     AddrSpace addr_space() const { return addr_space_; }
     int32_t device() const { return device_; }
     bool is_host_device() const { return device_ == -1; }
@@ -140,7 +140,7 @@ public:
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
-    virtual const Type* vrebuild(World& to, Types args) const override;
+    virtual const Type* vrebuild(World& to, Types ops) const override;
     virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
 
     AddrSpace addr_space_;
@@ -151,8 +151,8 @@ private:
 
 class FnType : public Type {
 private:
-    FnType(World& world, Types args)
-        : Type(world, Node_FnType, args)
+    FnType(World& world, Types ops)
+        : Type(world, Node_FnType, ops)
     {
         ++order_;
     }
@@ -164,7 +164,7 @@ public:
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
-    virtual const Type* vrebuild(World& to, Types args) const override;
+    virtual const Type* vrebuild(World& to, Types ops) const override;
     virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
 
     friend class World;
@@ -179,7 +179,7 @@ protected:
     {}
 
 public:
-    const Type* elem_type() const { return arg(0); }
+    const Type* elem_type() const { return op(0); }
 };
 
 class IndefiniteArrayType : public ArrayType {
@@ -191,7 +191,7 @@ public:
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
-    virtual const Type* vrebuild(World& to, Types args) const override;
+    virtual const Type* vrebuild(World& to, Types ops) const override;
     virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
 
     friend class World;
@@ -213,7 +213,7 @@ public:
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
-    virtual const Type* vrebuild(World& to, Types args) const override;
+    virtual const Type* vrebuild(World& to, Types ops) const override;
     virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
 
     u64 dim_;

@@ -50,20 +50,20 @@ protected:
     Type(const Type&) = delete;
     Type& operator=(const Type&) = delete;
 
-    Type(HENK_TABLE_TYPE& table, int kind, Types args)
+    Type(HENK_TABLE_TYPE& table, int kind, Types ops)
         : HENK_TABLE_NAME_(table)
         , kind_(kind)
-        , args_(args.size())
+        , ops_(ops.size())
         , gid_(gid_counter_++)
     {
         for (size_t i = 0, e = size(); i != e; ++i) {
-            if (auto arg = args[i])
-                set(i, arg);
+            if (auto op = ops[i])
+                set(i, op);
         }
     }
 
     void set(size_t i, const Type* type) {
-        args_[i] = type;
+        ops_[i] = type;
         order_       = std::max(order_, type->order());
         closed_      &= type->is_closed();
         monomorphic_ &= type->is_monomorphic();
@@ -74,10 +74,10 @@ public:
     int kind() const { return kind_; }
     HENK_TABLE_TYPE& HENK_TABLE_NAME() const { return HENK_TABLE_NAME_; }
 
-    Types args() const { return args_; }
-    const Type* arg(size_t i) const;
-    size_t size() const { return args_.size(); }
-    bool empty() const { return args_.empty(); }
+    Types ops() const { return ops_; }
+    const Type* op(size_t i) const;
+    size_t size() const { return ops_.size(); }
+    bool empty() const { return ops_.empty(); }
 
     bool is_hashed() const { return hashed_; }                ///< This @p Type is already recorded inside of @p HENK_TABLE_TYPE.
     bool is_closed() const { return closed_; }                ///< Are all @p Var%s bound?
@@ -90,15 +90,15 @@ public:
     virtual bool equal(const Type*) const;
 
     const Type* reduce(int, const Type*, Type2Type&) const;
-    const Type* rebuild(HENK_TABLE_TYPE& to, Types args) const;
-    const Type* rebuild(Types args) const { return rebuild(HENK_TABLE_NAME(), args); }
+    const Type* rebuild(HENK_TABLE_TYPE& to, Types ops) const;
+    const Type* rebuild(Types ops) const { return rebuild(HENK_TABLE_NAME(), ops); }
 
     static size_t gid_counter() { return gid_counter_; }
 
 protected:
     virtual uint64_t vhash() const;
     virtual const Type* vreduce(int, const Type*, Type2Type&) const = 0;
-    thorin::Array<const Type*> reduce_args(int, const Type*, Type2Type&) const;
+    thorin::Array<const Type*> reduce_ops(int, const Type*, Type2Type&) const;
 
     mutable uint64_t hash_ = 0;
     int order_ = 0;
@@ -108,11 +108,11 @@ protected:
     mutable bool monomorphic_ = true;
 
 private:
-    virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types args) const = 0;
+    virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types ops) const = 0;
 
     HENK_TABLE_TYPE& HENK_TABLE_NAME_;
     int kind_;
-    thorin::Array<const Type*> args_;
+    thorin::Array<const Type*> ops_;
     mutable size_t gid_;
     static size_t gid_counter_;
 
@@ -134,11 +134,11 @@ private:
 
 public:
     const char* name() const { return name_; }
-    const Type* body() const { return arg(0); }
+    const Type* body() const { return op(0); }
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
-    virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types args) const override;
+    virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types ops) const override;
     virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
 
     const char* name_;
@@ -164,7 +164,7 @@ public:
 private:
     virtual uint64_t vhash() const override;
     virtual bool equal(const Type*) const override;
-    virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types args) const override;
+    virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types ops) const override;
     virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
 
     int depth_;
@@ -179,10 +179,10 @@ private:
     {}
 
 public:
-    const Type* callee() const { return Type::arg(0); }
-    const Type* arg() const { return Type::arg(1); }
+    const Type* callee() const { return Type::op(0); }
+    const Type* arg() const { return Type::op(1); }
     virtual std::ostream& stream(std::ostream&) const override;
-    virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types args) const override;
+    virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types ops) const override;
     virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
 
 private:
@@ -192,12 +192,12 @@ private:
 
 class TupleType : public Type {
 private:
-    TupleType(HENK_TABLE_TYPE& table, Types args)
-        : Type(table, Node_TupleType, args)
+    TupleType(HENK_TABLE_TYPE& table, Types ops)
+        : Type(table, Node_TupleType, ops)
     {}
 
     virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
-    virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types args) const override;
+    virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types ops) const override;
 
 public:
     virtual std::ostream& stream(std::ostream&) const override;
@@ -217,7 +217,7 @@ public:
     void set(size_t i, const Type* type) const { return const_cast<StructType*>(this)->Type::set(i, type); }
 
 private:
-    virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types args) const override;
+    virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types ops) const override;
     virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
     virtual uint64_t vhash() const override;
     virtual bool equal(const Type*) const override;
@@ -238,7 +238,7 @@ public:
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
-    virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types args) const override;
+    virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types ops) const override;
     virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
 
     template<class> friend class TypeTableBase;
@@ -269,7 +269,7 @@ public:
     const Lambda* lambda(const char* name) { return new Lambda(HENK_TABLE_NAME(), name); }
     const Lambda* lambda(const Type* body, const char* name) { return unify(new Lambda(HENK_TABLE_NAME(), body, name)); }
     const Type* app(const Type* callee, const Type* arg);
-    const TupleType* tuple_type(Types args) { return unify(new TupleType(HENK_TABLE_NAME(), args)); }
+    const TupleType* tuple_type(Types ops) { return unify(new TupleType(HENK_TABLE_NAME(), ops)); }
     const TupleType* unit() { return unit_; } ///< Returns unit, i.e., an empty @p TupleType.
     const StructType* struct_type(HENK_STRUCT_EXTRA_TYPE HENK_STRUCT_EXTRA_NAME, size_t size);
     const TypeError* type_error() { return type_error_; }

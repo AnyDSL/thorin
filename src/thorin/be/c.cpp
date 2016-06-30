@@ -92,9 +92,9 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
         if (lookup(tuple))
             return os << get_name(tuple);
         os << "typedef struct tuple_" << tuple->gid() << " {" << up;
-        for (size_t i = 0, e = tuple->args().size(); i != e; ++i) {
+        for (size_t i = 0, e = tuple->ops().size(); i != e; ++i) {
             os << endl;
-            emit_type(os, tuple->arg(i)) << " e" << i << ";";
+            emit_type(os, tuple->op(i)) << " e" << i << ";";
         }
         os << down << endl << "} tuple_" << tuple->gid() << ";";
         return os;
@@ -104,7 +104,7 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
         os << "typedef struct struct_" << struct_type->gid() << " {" << up;
         for (size_t i = 0, e = struct_type->size(); i != e; ++i) {
             os << endl;
-            emit_type(os, struct_type->arg(i)) << " e" << i << ";";
+            emit_type(os, struct_type->op(i)) << " e" << i << ";";
         }
         os << down << endl << "} struct_" << struct_type->gid() << ";";
         return os;
@@ -195,7 +195,7 @@ std::ostream& CCodeGen::emit_aggop_decl(const Type* type) {
         emit_aggop_decl(array->elem_type());
 
     if (auto fn = type->isa<FnType>())
-        for (auto type : fn->args())
+        for (auto type : fn->ops())
             emit_aggop_decl(type);
 
     // look for nested array
@@ -207,16 +207,16 @@ std::ostream& CCodeGen::emit_aggop_decl(const Type* type) {
 
     // look for nested tuple
     if (auto tuple = type->isa<TupleType>()) {
-        for (auto arg : tuple->args())
-            emit_aggop_decl(arg);
+        for (auto op : tuple->ops())
+            emit_aggop_decl(op);
         emit_type(type_decls_, tuple) << endl;
         insert(type, "tuple_" + std::to_string(type->gid()));
     }
 
     // look for nested struct
     if (auto struct_type = type->isa<StructType>()) {
-        for (auto arg : struct_type->args())
-            emit_aggop_decl(arg);
+        for (auto op : struct_type->ops())
+            emit_aggop_decl(op);
         emit_type(type_decls_, struct_type) << endl;
         insert(type, "struct_" + std::to_string(type->gid()));
     }
@@ -289,7 +289,7 @@ void CCodeGen::emit() {
         assert(ret_param);
 
         // emit function & its declaration
-        auto ret_type = ret_param->type()->as<FnType>()->args().back();
+        auto ret_type = ret_param->type()->as<FnType>()->ops().back();
         auto name = (continuation->is_external() || continuation->empty()) ? continuation->name : continuation->unique_name();
         if (continuation->is_external()) {
             switch (lang_) {

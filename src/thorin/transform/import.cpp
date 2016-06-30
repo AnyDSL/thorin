@@ -9,11 +9,11 @@ const Type* import(Type2Type& old2new, World& to, const Type* otype) {
     }
 
     size_t size = otype->size();
-    Array<const Type*> nargs(size);
+    Array<const Type*> nops(size);
     for (size_t i = 0; i != size; ++i)
-        nargs[i] = import(old2new, to, otype->arg(i));
+        nops[i] = import(old2new, to, otype->op(i));
 
-    auto ntype = old2new[otype] = otype->rebuild(to, nargs);
+    auto ntype = old2new[otype] = otype->rebuild(to, nops);
     assert(&ntype->world() == &to);
 
     return ntype;

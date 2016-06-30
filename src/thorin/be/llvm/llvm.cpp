@@ -916,38 +916,38 @@ llvm::Type* CodeGen::convert(const Type* type) {
             // extract "return" type, collect all other types
             auto fn = type->as<FnType>();
             llvm::Type* ret = nullptr;
-            std::vector<llvm::Type*> args;
-            for (auto arg : fn->args()) {
-                if (arg->isa<MemType>())
+            std::vector<llvm::Type*> ops;
+            for (auto op : fn->ops()) {
+                if (op->isa<MemType>())
                     continue;
-                if (auto fn = arg->isa<FnType>()) {
+                if (auto fn = op->isa<FnType>()) {
                     assert(!ret && "only one 'return' supported");
                     if (fn->empty())
                         ret = llvm::Type::getVoidTy(context_);
                     else if (fn->size() == 1)
-                        ret = fn->arg(0)->isa<MemType>() ? llvm::Type::getVoidTy(context_) : convert(fn->arg(0));
+                        ret = fn->op(0)->isa<MemType>() ? llvm::Type::getVoidTy(context_) : convert(fn->op(0));
                     else if (fn->size() == 2) {
-                        if (fn->arg(0)->isa<MemType>())
-                            ret = convert(fn->arg(1));
-                        else if (fn->arg(1)->isa<MemType>())
-                            ret = convert(fn->arg(0));
+                        if (fn->op(0)->isa<MemType>())
+                            ret = convert(fn->op(1));
+                        else if (fn->op(1)->isa<MemType>())
+                            ret = convert(fn->op(0));
                         else
                             goto multiple;
                     } else {
 multiple:
-                        std::vector<llvm::Type*> args;
-                        for (auto arg : fn->args()) {
-                            if (!arg->isa<MemType>())
-                                args.push_back(convert(arg));
+                        std::vector<llvm::Type*> ops;
+                        for (auto op : fn->ops()) {
+                            if (!op->isa<MemType>())
+                                ops.push_back(convert(op));
                         }
-                        ret = llvm::StructType::get(context_, args);
+                        ret = llvm::StructType::get(context_, ops);
                     }
                 } else
-                    args.push_back(convert(arg));
+                    ops.push_back(convert(op));
             }
             assert(ret);
 
-            return types_[type] = llvm::FunctionType::get(ret, args, false);
+            return types_[type] = llvm::FunctionType::get(ret, ops, false);
         }
 
         case Node_StructType: {
@@ -960,7 +960,7 @@ multiple:
 
             Array<llvm::Type*> llvm_types(struct_type->size());
             for (size_t i = 0, e = llvm_types.size(); i != e; ++i)
-                llvm_types[i] = convert(struct_type->arg(i));
+                llvm_types[i] = convert(struct_type->op(i));
             llvm_struct->setBody(llvm_ref(llvm_types));
             return llvm_struct;
         }
@@ -969,7 +969,7 @@ multiple:
             auto tuple = type->as<TupleType>();
             Array<llvm::Type*> llvm_types(tuple->size());
             for (size_t i = 0, e = llvm_types.size(); i != e; ++i)
-                llvm_types[i] = convert(tuple->arg(i));
+                llvm_types[i] = convert(tuple->op(i));
             return types_[tuple] = llvm::StructType::get(context_, llvm_ref(llvm_types));
         }
 

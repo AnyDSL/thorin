@@ -96,10 +96,10 @@ const FnType* Continuation::arg_fn_type() const {
 
 const Param* Continuation::append_param(const Type* param_type, const std::string& name) {
     size_t size = type()->size();
-    Array<const Type*> args(size + 1);
-    *std::copy(type()->args().begin(), type()->args().end(), args.begin()) = param_type;
+    Array<const Type*> ops(size + 1);
+    *std::copy(type()->ops().begin(), type()->ops().end(), ops.begin()) = param_type;
     clear_type();
-    set_type(param_type->world().fn_type(args));              // update type
+    set_type(param_type->world().fn_type(ops));               // update type
     auto param = world().param(param_type, this, size, name); // append new param
     params_.push_back(param);
 
@@ -314,8 +314,8 @@ std::pair<Continuation*, const Def*> Continuation::call(const Def* to, Defs args
     bool pack = false;
     if (auto tuple = ret_type->isa<TupleType>()) {
         pack = true;
-        for (auto arg : tuple->args())
-            cont_args.push_back(arg);
+        for (auto op : tuple->ops())
+            cont_args.push_back(op);
     } else
         cont_args.push_back(ret_type);
 

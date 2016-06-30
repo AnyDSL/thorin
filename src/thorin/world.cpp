@@ -631,13 +631,13 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, con
         } else if (auto tuple_type = agg->type()->isa<TupleType>()) {
             Array<const Def*> args(tuple_type->size());
             size_t i = 0;
-            for (auto type : tuple_type->args())
+            for (auto type : tuple_type->ops())
                 args[i++] = bottom(type, loc);
             agg = tuple(args, loc, agg->name);
         } else if (auto struct_type = agg->type()->isa<StructType>()) {
             Array<const Def*> args(struct_type->size());
             size_t i = 0;
-            for (auto type : struct_type->args())
+            for (auto type : struct_type->ops())
                 args[i++] = bottom(type, loc);
             agg = struct_agg(struct_type, args, loc, agg->name);
         }
@@ -754,8 +754,8 @@ Continuation* World::continuation(const FnType* fn, const Location& loc, CC cc, 
     continuations_.insert(l);
 
     size_t i = 0;
-    for (auto arg : fn->args()) {
-        auto p = param(arg, l, i++);
+    for (auto op : fn->ops()) {
+        auto p = param(op, l, i++);
         l->params_.push_back(p);
     }
 

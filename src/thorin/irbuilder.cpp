@@ -124,7 +124,7 @@ Continuation* IRBuilder::continuation(const Location& loc, const std::string& na
 
 Continuation* IRBuilder::continuation(const FnType* fn, const Location& loc, CC cc, Intrinsic intrinsic, const std::string& name) {
     auto l = world().continuation(fn, loc, cc, intrinsic, name);
-    if (fn->size() >= 1 && fn->args().front()->isa<MemType>()) {
+    if (fn->size() >= 1 && fn->ops().front()->isa<MemType>()) {
         auto param = l->params().front();
         l->set_mem(param);
         if (param->name.empty())

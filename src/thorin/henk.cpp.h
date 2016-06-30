@@ -55,7 +55,7 @@ const Lambda* close(const Lambda* lambda, const Type* body) {
 
         bool todo = false;
         for (size_t i = 0, e = type->size(); i != e; ++i)
-            todo |= push(type->arg(i));
+            todo |= push(type->op(i));
 
         if (!todo) {
             if (type->isa<Lambda>())
@@ -63,7 +63,7 @@ const Lambda* close(const Lambda* lambda, const Type* body) {
             stack.pop();
             type->closed_ = true;
             for (size_t i = 0, e = type->size(); i != e && type->closed_; ++i)
-                type->closed_ &= type->arg(i)->is_closed();
+                type->closed_ &= type->op(i)->is_closed();
         }
     }
 
@@ -72,7 +72,7 @@ const Lambda* close(const Lambda* lambda, const Type* body) {
 }
 #endif
 
-const Type* Type::arg(size_t i) const { return i < size() ? args()[i] : HENK_TABLE_NAME().type_error(); }
+const Type* Type::op(size_t i) const { return i < size() ? ops()[i] : HENK_TABLE_NAME().type_error(); }
 
 //------------------------------------------------------------------------------
 
@@ -82,8 +82,8 @@ const Type* Type::arg(size_t i) const { return i < size() ? args()[i] : HENK_TAB
 
 uint64_t Type::vhash() const {
     uint64_t seed = thorin::hash_combine(thorin::hash_begin(int(kind())), size());
-    for (auto arg : args_)
-        seed = thorin::hash_combine(seed, arg->hash());
+    for (auto op : ops_)
+        seed = thorin::hash_combine(seed, op->hash());
     return seed;
 }
 
@@ -107,8 +107,8 @@ bool Type::equal(const Type* other) const {
 
     if (result) {
         for (size_t i = 0, e = size(); result && i != e; ++i) {
-            assert(this->arg(i)->is_hashed() && other->arg(i)->is_hashed());
-            result &= this->arg(i) == other->arg(i);
+            assert(this->op(i)->is_hashed() && other->op(i)->is_hashed());
+            result &= this->op(i) == other->op(i);
         }
     }
 
@@ -127,23 +127,23 @@ bool StructType::equal(const Type* other) const { return this == other; }
  * rebuild
  */
 
-const Type* Type::rebuild(HENK_TABLE_TYPE& to, Types args) const {
-    assert(size() == args.size());
-    if (args.empty() && &HENK_TABLE_NAME() == &to)
+const Type* Type::rebuild(HENK_TABLE_TYPE& to, Types ops) const {
+    assert(size() == ops.size());
+    if (ops.empty() && &HENK_TABLE_NAME() == &to)
         return this;
-    return vrebuild(to, args);
+    return vrebuild(to, ops);
 }
 
-const Type* StructType::vrebuild(HENK_TABLE_TYPE& to, Types args) const {
-    auto ntype = to.struct_type(HENK_STRUCT_EXTRA_NAME(), args.size());
-    for (size_t i = 0, e = args.size(); i != e; ++i)
-        const_cast<StructType*>(ntype)->set(i, args[i]);
+const Type* StructType::vrebuild(HENK_TABLE_TYPE& to, Types ops) const {
+    auto ntype = to.struct_type(HENK_STRUCT_EXTRA_NAME(), ops.size());
+    for (size_t i = 0, e = ops.size(); i != e; ++i)
+        const_cast<StructType*>(ntype)->set(i, ops[i]);
     return ntype;
 }
 
-const Type* App      ::vrebuild(HENK_TABLE_TYPE& to, Types args) const { return to.app(args[0], args[1]); }
-const Type* TupleType::vrebuild(HENK_TABLE_TYPE& to, Types args) const { return to.tuple_type(args); }
-const Type* Lambda   ::vrebuild(HENK_TABLE_TYPE& to, Types args) const { return to.lambda(args[0], name()); }
+const Type* App      ::vrebuild(HENK_TABLE_TYPE& to, Types ops) const { return to.app(ops[0], ops[1]); }
+const Type* TupleType::vrebuild(HENK_TABLE_TYPE& to, Types ops) const { return to.tuple_type(ops); }
+const Type* Lambda   ::vrebuild(HENK_TABLE_TYPE& to, Types ops) const { return to.lambda(ops[0], name()); }
 const Type* Var      ::vrebuild(HENK_TABLE_TYPE& to, Types     ) const { return to.var(depth()); }
 const Type* TypeError::vrebuild(HENK_TABLE_TYPE&,    Types     ) const { return this; }
 
@@ -161,10 +161,10 @@ const Type* Type::reduce(int depth, const Type* type, Type2Type& map) const {
     return map[this] = vreduce(depth, type, map);
 }
 
-Array<const Type*> Type::reduce_args(int depth, const Type* type, Type2Type& map) const {
+Array<const Type*> Type::reduce_ops(int depth, const Type* type, Type2Type& map) const {
     Array<const Type*> result(size());
     for (size_t i = 0, e = size(); i != e; ++i)
-        result[i] = arg(i)->reduce(depth, type, map);
+        result[i] = op(i)->reduce(depth, type, map);
     return result;
 }
 
@@ -184,21 +184,21 @@ const Type* Var::vreduce(int depth, const Type* type, Type2Type&) const {
 const Type* StructType::vreduce(int depth, const Type* type, Type2Type& map) const {
     auto struct_type = HENK_TABLE_NAME().struct_type(HENK_STRUCT_EXTRA_NAME(), size());
     map[this] = struct_type;
-    auto args = reduce_args(depth, type, map);
+    auto ops = reduce_ops(depth, type, map);
 
     for (size_t i = 0, e = size(); i != e; ++i)
-        struct_type->set(i, args[i]);
+        struct_type->set(i, ops[i]);
 
     return struct_type;
 }
 
 const Type* App::vreduce(int depth, const Type* type, Type2Type& map) const {
-    auto args = reduce_args(depth, type, map);
-    return HENK_TABLE_NAME().app(args[0], args[1]);
+    auto ops = reduce_ops(depth, type, map);
+    return HENK_TABLE_NAME().app(ops[0], ops[1]);
 }
 
 const Type* TupleType::vreduce(int depth, const Type* type, Type2Type& map) const {
-    return HENK_TABLE_NAME().tuple_type(reduce_args(depth, type, map));
+    return HENK_TABLE_NAME().tuple_type(reduce_ops(depth, type, map));
 }
 
 const Type* TypeError::vreduce(int, const Type*, Type2Type&) const { return this; }
@@ -216,15 +216,15 @@ const StructType* TypeTableBase<T>::struct_type(HENK_STRUCT_EXTRA_TYPE HENK_STRU
 }
 
 template<class T>
-const Type* TypeTableBase<T>::app(const Type* callee, const Type* arg) {
-    auto app = unify(new App(HENK_TABLE_NAME(), callee, arg));
+const Type* TypeTableBase<T>::app(const Type* callee, const Type* op) {
+    auto app = unify(new App(HENK_TABLE_NAME(), callee, op));
 
     if (app->is_hashed()) {
         if (auto cache = app->cache_)
             return cache;
         if (auto lambda = app->callee()->template isa<Lambda>()) {
             Type2Type map;
-            return app->cache_ = lambda->body()->reduce(1, arg, map);
+            return app->cache_ = lambda->body()->reduce(1, op, map);
         } else {
             return app->cache_ = app;
         }
@@ -251,9 +251,9 @@ const Type* TypeTableBase<T>::unify_base(const Type* type) {
 
 template<class T>
 const Type* TypeTableBase<T>::insert(const Type* type) {
-    for (auto arg : type->args()) {
-        if (!arg->is_hashed())
-            insert(arg);
+    for (auto op : type->ops()) {
+        if (!op->is_hashed())
+            insert(op);
     }
 
     const auto& p = types_.insert(type);
@@ -273,8 +273,8 @@ template<class T>
 void TypeTableBase<T>::destroy(const Type* type, thorin::HashSet<const Type*>& done) {
     if (!done.contains(type) && !type->is_hashed()) {
         done.insert(type);
-        for (auto arg : type->args())
-            destroy(arg, done);
+        for (auto op : type->ops())
+            destroy(op, done);
         delete type;
     }
 }

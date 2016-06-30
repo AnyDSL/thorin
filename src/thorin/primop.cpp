@@ -66,11 +66,11 @@ LEA::LEA(const Def* ptr, const Def* index, const Location& loc, const std::strin
     auto& world = index->world();
     auto type = ptr_type();
     if (auto tuple = ptr_referenced_type()->isa<TupleType>()) {
-        set_type(world.ptr_type(get(tuple->args(), index), type->length(), type->device(), type->addr_space()));
+        set_type(world.ptr_type(get(tuple->ops(), index), type->length(), type->device(), type->addr_space()));
     } else if (auto array = ptr_referenced_type()->isa<ArrayType>()) {
         set_type(world.ptr_type(array->elem_type(), type->length(), type->device(), type->addr_space()));
     } else if (auto struct_type = ptr_referenced_type()->isa<StructType>()) {
-        set_type(world.ptr_type(get(struct_type->args(), index)));
+        set_type(world.ptr_type(get(struct_type->ops(), index)));
     } else {
         THORIN_UNREACHABLE;
     }
@@ -174,7 +174,7 @@ const Def* Tuple  ::vrebuild(World& to, Defs ops, const Type*  ) const { return 
 const Def* Vector ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.vector(ops, loc(), name); }
 
 const Def* Alloc::vrebuild(World& to, Defs ops, const Type* t) const {
-    return to.alloc(t->as<TupleType>()->arg(1)->as<PtrType>()->referenced_type(), ops[0], ops[1], loc(), name);
+    return to.alloc(t->as<TupleType>()->op(1)->as<PtrType>()->referenced_type(), ops[0], ops[1], loc(), name);
 }
 
 
@@ -294,13 +294,13 @@ const Def* PrimOp::rebuild(Def2Def& old2new) const {
 
 const Type* Extract::extracted_type(const Def* agg, const Def* index) {
     if (auto tuple = agg->type()->isa<TupleType>())
-        return get(tuple->args(), index);
+        return get(tuple->ops(), index);
     else if (auto array = agg->type()->isa<ArrayType>())
         return array->elem_type();
     else if (auto vector = agg->type()->isa<VectorType>())
         return vector->scalarize();
     else if (auto struct_type = agg->type()->isa<StructType>())
-        return get(struct_type->args(), index);
+        return get(struct_type->ops(), index);
 
     THORIN_UNREACHABLE;
 }

@@ -28,8 +28,8 @@ const VectorType* VectorType::scalarize() const {
 
 bool FnType::is_returning() const {
     bool ret = false;
-    for (auto arg : args()) {
-        switch (arg->order()) {
+    for (auto op : ops()) {
+        switch (op->order()) {
             case 0: continue;
             case 1:
                 if (!ret) {
@@ -47,7 +47,7 @@ const IndefiniteArrayType* is_indefinite(const Type* type) {
     if (auto indefinite_array_type = type->isa<IndefiniteArrayType>())
         return indefinite_array_type;
     if (!type->empty())
-        return is_indefinite(type->args().back());
+        return is_indefinite(type->ops().back());
     return nullptr;
 }
 
@@ -59,15 +59,15 @@ bool use_lea(const Type* type) { return type->isa<StructType>() || type->isa<Arr
  * vrebuild
  */
 
-const Type* DefiniteArrayType  ::vrebuild(World& to, Types args) const { return to.definite_array_type(args[0], dim()); }
-const Type* FnType             ::vrebuild(World& to, Types args) const { return to.fn_type(args); }
+const Type* DefiniteArrayType  ::vrebuild(World& to, Types ops) const { return to.definite_array_type(ops[0], dim()); }
+const Type* FnType             ::vrebuild(World& to, Types ops) const { return to.fn_type(ops); }
 const Type* FrameType          ::vrebuild(World& to, Types     ) const { return to.frame_type(); }
-const Type* IndefiniteArrayType::vrebuild(World& to, Types args) const { return to.indefinite_array_type(args[0]); }
+const Type* IndefiniteArrayType::vrebuild(World& to, Types ops) const { return to.indefinite_array_type(ops[0]); }
 const Type* MemType            ::vrebuild(World& to, Types     ) const { return to.mem_type(); }
 const Type* PrimType           ::vrebuild(World& to, Types     ) const { return to.type(primtype_kind(), length()); }
 
-const Type* PtrType::vrebuild(World& to, Types args) const {
-    return to.ptr_type(args.front(), length(), device(), addr_space());
+const Type* PtrType::vrebuild(World& to, Types ops) const {
+    return to.ptr_type(ops.front(), length(), device(), addr_space());
 }
 
 //------------------------------------------------------------------------------
@@ -99,20 +99,20 @@ bool PtrType::equal(const Type* other) const {
  * stream
  */
 
-static std::ostream& stream_type_args(std::ostream& os, const Type* type) {
-   return stream_list(os, type->args(), [&](const Type* type) { os << type; }, "(", ")");
+static std::ostream& stream_type_ops(std::ostream& os, const Type* type) {
+   return stream_list(os, type->ops(), [&](const Type* type) { os << type; }, "(", ")");
 }
 
 std::ostream& App                ::stream(std::ostream& os) const { return streamf(os, "%[%]", callee(), arg()); }
 std::ostream& Var                ::stream(std::ostream& os) const { return streamf(os, "<%>", depth()); }
 std::ostream& DefiniteArrayType  ::stream(std::ostream& os) const { return streamf(os, "[% x %]", dim(), elem_type()); }
-std::ostream& FnType             ::stream(std::ostream& os) const { return stream_type_args(os << "fn", this); }
+std::ostream& FnType             ::stream(std::ostream& os) const { return stream_type_ops(os << "fn", this); }
 std::ostream& FrameType          ::stream(std::ostream& os) const { return os << "frame"; }
 std::ostream& IndefiniteArrayType::stream(std::ostream& os) const { return streamf(os, "[%]", elem_type()); }
 std::ostream& Lambda             ::stream(std::ostream& os) const { return streamf(os, "[%].%", name(), body()); }
 std::ostream& MemType            ::stream(std::ostream& os) const { return os << "mem"; }
 std::ostream& StructType         ::stream(std::ostream& os) const { return os << name(); }
-std::ostream& TupleType          ::stream(std::ostream& os) const { return stream_type_args(os, this); }
+std::ostream& TupleType          ::stream(std::ostream& os) const { return stream_type_ops(os, this); }
 std::ostream& TypeError          ::stream(std::ostream& os) const { return os << "<type error>"; }
 
 std::ostream& PtrType::stream(std::ostream& os) const {
@@ -164,7 +164,7 @@ const Type* DefiniteArrayType::vreduce(int depth, const Type* type, Type2Type& m
 }
 
 const Type* FnType::vreduce(int depth, const Type* type, Type2Type& map) const {
-    return world().fn_type(reduce_args(depth, type, map));
+    return world().fn_type(reduce_ops(depth, type, map));
 }
 
 const Type* IndefiniteArrayType::vreduce(int depth, const Type* type, Type2Type& map) const {

@@ -288,7 +288,7 @@ private:
 #ifndef NDEBUG
         assert(struct_type->size() == args.size());
         for (size_t i = 0, e = args.size(); i != e; ++i)
-            assert(struct_type->arg(i) == args[i]->type());
+            assert(struct_type->op(i) == args[i]->type());
 #endif
         set_type(struct_type);
     }
@@ -496,7 +496,7 @@ public:
     virtual bool has_multiple_outs() const override { return true; }
     const Def* out_ptr() const { return out(1); }
     const TupleType* type() const { return MemOp::type()->as<TupleType>(); }
-    const PtrType* out_ptr_type() const { return type()->arg(1)->as<PtrType>(); }
+    const PtrType* out_ptr_type() const { return type()->op(1)->as<PtrType>(); }
     const Type* alloced_type() const { return out_ptr_type()->referenced_type(); }
     static const Alloc* is_out_mem(const Def* def) { return is_out<0, Alloc>(def); }
     static const Alloc* is_out_ptr(const Def* def) { return is_out<1, Alloc>(def); }
@@ -529,7 +529,7 @@ public:
     virtual bool has_multiple_outs() const override { return true; }
     const Def* out_val() const { return out(1); }
     const TupleType* type() const { return MemOp::type()->as<TupleType>(); }
-    const Type* out_val_type() const { return type()->arg(1); }
+    const Type* out_val_type() const { return type()->op(1); }
     static const Load* is_out_mem(const Def* def) { return is_out<0, Load>(def); }
     static const Load* is_out_val(const Def* def) { return is_out<1, Load>(def); }
 

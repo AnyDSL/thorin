@@ -1,7 +1,6 @@
 #ifndef THORIN_DEF_H
 #define THORIN_DEF_H
 
-#include <set>
 #include <string>
 #include <vector>
 
@@ -135,7 +134,7 @@ public:
 };
 
 /// Returns the vector length. Raises an assertion if type of this is not a \p VectorType.
-size_t vector_length(const Def*); 
+size_t vector_length(const Def*);
 bool is_const(const Def*);
 bool is_primlit(const Def*, int);
 bool is_minus_zero(const Def*);

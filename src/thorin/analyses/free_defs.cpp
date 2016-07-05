@@ -23,9 +23,21 @@ DefSet free_defs(const Scope& scope) {
         auto def = pop(queue);
         if (auto primop = def->isa<PrimOp>()) {
             for (auto op : primop->ops()) {
-                if ((op->isa<MemOp>() || op->type()->isa<FrameType>() || op->isa<Bitcast>()) && !scope.contains(op)) {
+                if ((op->isa<MemOp>() || op->type()->isa<FrameType>()) && !scope.contains(op)) {
                     result.emplace(primop);
                     goto queue_next;
+                }
+            }
+
+            // HACK for bitcasting address spaces
+            if (auto bitcast = primop->isa<Bitcast>()) {
+                if (auto dst_ptr = bitcast->type()->isa<PtrType>()) {
+                    if (auto src_ptr = bitcast->from()->type()->isa<PtrType>()) {
+                        if (dst_ptr->addr_space() != src_ptr->addr_space()) {
+                            result.emplace(bitcast);
+                            goto queue_next;
+                        }
+                    }
                 }
             }
 

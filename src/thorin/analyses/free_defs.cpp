@@ -23,16 +23,13 @@ DefSet free_defs(const Scope& scope) {
         auto def = pop(queue);
         if (auto primop = def->isa<PrimOp>()) {
             for (auto op : primop->ops()) {
-                if ((op->isa<MemOp>() || op->type()->isa<FrameType>()) && !scope.contains(op)) {
+                if ((op->isa<MemOp>() || op->type()->isa<FrameType>() || op->isa<Bitcast>()) && !scope.contains(op)) {
                     result.emplace(primop);
                     goto queue_next;
                 }
             }
 
-            if (primop->isa<Bitcast>() && !scope.contains(primop)) // HACK for bitcasting pointer address spaces
-                result.emplace(primop);
-            else
-                enqueue_ops(primop);
+            enqueue_ops(primop);
         } else if (!scope.contains(def))
             result.emplace(def);
 queue_next:;

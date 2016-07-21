@@ -291,7 +291,8 @@ void CCodeGen::emit() {
         assert(ret_param);
 
         // emit function & its declaration
-        auto ret_type = ret_param->type()->as<FnType>()->args().back();
+        auto ret_param_fn_type = ret_param->type()->as<FnType>();
+        auto ret_type = ret_param_fn_type->num_args() > 2 ? world_.tuple_type(ret_param_fn_type->args().skip_front()) : ret_param_fn_type->args().back();
         auto name = (continuation->is_external() || continuation->empty()) ? continuation->name : continuation->unique_name();
         if (continuation->is_external()) {
             switch (lang_) {
@@ -427,28 +428,45 @@ void CCodeGen::emit() {
             // terminate bb
             if (continuation->callee() == ret_param) { // return
                 size_t num_args = continuation->num_args();
-                func_impl_ << "return ";
                 switch (num_args) {
                     case 0: break;
                     case 1:
-                        if (continuation->arg(0)->is_mem())
+                        if (continuation->arg(0)->is_mem()) {
+                            func_impl_ << "return ;";
                             break;
-                        else
-                            emit(continuation->arg(0));
+                        } else {
+                            func_impl_ << "return ";
+                            emit(continuation->arg(0)) << ";";
+                        }
                         break;
                     case 2:
                         if (continuation->arg(0)->is_mem()) {
-                            emit(continuation->arg(1));
+                            func_impl_ << "return ";
+                            emit(continuation->arg(1)) << ";";
                             break;
                         } else if (continuation->arg(1)->is_mem()) {
-                            emit(continuation->arg(0));
+                            func_impl_ << "return ";
+                            emit(continuation->arg(0)) << ";";
                             break;
                         }
                         // FALLTHROUGH
-                    default:
-                        THORIN_UNREACHABLE;
+                    default: {
+                        auto ret_param_fn_type = continuation->arg_fn_type();
+                        auto ret_type = world_.tuple_type(ret_param_fn_type->args().skip_front());
+                        auto ret_tuple_name = "ret_tuple" + std::to_string(continuation->gid());
+                        emit_aggop_decl(ret_type);
+                        emit_type(func_impl_, ret_type) << " " << ret_tuple_name << ";";
+
+                        auto tuple = continuation->args().skip_front();
+                        for (size_t i = 0, e = tuple.size(); i != e; ++i) {
+                            func_impl_ << endl << ret_tuple_name << ".e" << i << " = ";
+                            emit(tuple[i]) << ";";
+                        }
+
+                        func_impl_ << endl << "return " << ret_tuple_name << ";";
+                        break;
+                    }
                 }
-                func_impl_ << ";";
             } else if (continuation->callee() == world().branch()) {
                 emit_debug_info(continuation->arg(0)); // TODO correct?
                 func_impl_ << "if (";
@@ -504,8 +522,10 @@ void CCodeGen::emit() {
                             THORIN_UNREACHABLE;
                         }
                     } else {
-                        auto emit_call = [&] () {
+                        auto emit_call = [&] (const Param* param = nullptr) {
                             auto name = (callee->is_external() || callee->empty()) ? callee->name : callee->unique_name();
+                            if (param)
+                                emit(param) << " = ";
                             func_impl_ << name << "(";
                             // emit all first-order args
                             size_t i = 0;
@@ -517,19 +537,21 @@ void CCodeGen::emit() {
                                 }
                             }
                             func_impl_ << ");";
+                            if (param) {
+                                // store argument to phi node
+                                func_impl_ << endl << "p" << param->unique_name() << " = ";
+                                emit(param) << ";";
+                            }
                         };
 
                         const Def* ret_arg = 0;
                         for (auto arg : continuation->args()) {
-                            // retrieve return argument
-                            if (arg->order() != 0) {
+                            if (arg->order() == 0) {
+                                if (!arg->is_mem() && !lookup(arg) && !arg->isa<PrimLit>())
+                                    emit(arg) << endl; // emit temporaries for args
+                            } else {
                                 assert(!ret_arg);
                                 ret_arg = arg;
-                            }
-                            // emit temporaries for args
-                            if (arg->order() == 0 && !arg->is_mem() &&
-                                !lookup(arg) && !arg->isa<PrimLit>()) {
-                                emit(arg) << endl;
                             }
                         }
 
@@ -538,19 +560,39 @@ void CCodeGen::emit() {
                             emit_call();
                         } else {                        // call + continuation
                             auto succ = ret_arg->as_continuation();
-                            auto param = succ->param(0)->is_mem() ? nullptr : succ->param(0);
-                            if (param == nullptr && succ->num_params() == 2)
-                                param = succ->param(1);
+                            const Param* param = nullptr;
+                            switch (succ->num_params()) {
+                                case 0:
+                                    emit_call();
+                                    break;
+                                case 1:
+                                    param = succ->param(0)->is_mem();
+                                    if (param->is_mem())
+                                        param = nullptr;
+                                    emit_call(param);
+                                    break;
+                                case 2:
+                                    assert(succ->mem_param() && "no mem_param found for succ");
+                                    param = succ->param(0);
+                                    param = param->is_mem() ? succ->param(1) : param;
+                                    emit_call(param);
+                                    break;
+                                default: {
+                                    assert(succ->param(0)->is_mem());
+                                    auto ret_param_fn_type = ret_arg->type()->as<FnType>();
+                                    auto ret_type = world_.tuple_type(ret_param_fn_type->args().skip_front());
 
-                            if (param)
-                                emit(param) << " = ";
+                                    auto ret_tuple_name = "ret_tuple" + std::to_string(continuation->gid());
+                                    emit_aggop_decl(ret_type);
+                                    emit_type(func_impl_, ret_type) << " " << ret_tuple_name << ";" << endl << ret_tuple_name << " = ";
+                                    emit_call();
 
-                            emit_call();
-
-                            if (param) {
-                                // store argument to phi node
-                                func_impl_ << endl << "p" << succ->param(1)->unique_name() << " = ";
-                                emit(param) << ";";
+                                    // store arguments to phi node
+                                    auto tuple = succ->params().skip_front();
+                                    for (size_t i = 0, e = tuple.size(); i != e; ++i)
+                                        func_impl_ << endl << "p" << tuple[i]->unique_name() << " = " << ret_tuple_name << ".e" << i << ";";
+                                    break;
+                                }
                             }
                         }
                     }

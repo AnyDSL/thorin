@@ -18,60 +18,6 @@ size_t Type::gid_counter_ = 1;
 
 //------------------------------------------------------------------------------
 
-
-#if 0
-const Lambda* close(const Lambda* lambda, const Type* body) {
-    assert(lambda->body() == nullptr);
-    const_cast<Lambda*>(lambda)->set(0, body);
-
-    std::stack<const Type*> stack;
-    TypeSet done;
-    int depth = 0;
-
-    auto push = [&](const Type* type) {
-        if (!type->is_closed() && !done.contains(type)) {
-            if (auto var = type->isa<Var>()) {
-                if (var->lambda() == lambda) {
-                    var->closed_ = true;
-                    var->depth_  = depth;
-                }
-                done.insert(var);
-            } else {
-                if (type->isa<Lambda>())
-                    ++depth;
-                done.insert(type);
-                stack.push(type);
-                return true;
-            }
-        }
-        return false;
-    };
-
-    push(lambda);
-
-    // TODO this is potentially quadratic when closing n types
-    while (!stack.empty()) {
-        auto type = stack.top();
-
-        bool todo = false;
-        for (size_t i = 0, e = type->num_ops(); i != e; ++i)
-            todo |= push(type->op(i));
-
-        if (!todo) {
-            if (type->isa<Lambda>())
-                --depth;
-            stack.pop();
-            type->closed_ = true;
-            for (size_t i = 0, e = type->num_ops(); i != e && type->closed_; ++i)
-                type->closed_ &= type->op(i)->is_closed();
-        }
-    }
-
-    assert(depth == 0);
-    return lambda->HENK_TABLE_NAME().unify(lambda);
-}
-#endif
-
 const Type* Type::op(size_t i) const { return i < num_ops() ? ops()[i] : HENK_TABLE_NAME().type_error(); }
 
 //------------------------------------------------------------------------------
@@ -235,7 +181,7 @@ const Type* TypeTableBase<T>::app(const Type* callee, const Type* op) {
 
 template<class T>
 const Type* TypeTableBase<T>::unify_base(const Type* type) {
-    if (type->is_hashed() || !type->is_closed())
+    if (type->is_hashed())
         return type;
 
     auto i = types_.find(type);

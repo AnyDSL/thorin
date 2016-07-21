@@ -64,7 +64,6 @@ protected:
     void set(size_t i, const Type* type) {
         ops_[i] = type;
         order_       = std::max(order_, type->order());
-        closed_      &= type->is_closed();
         monomorphic_ &= type->is_monomorphic();
         known_       &= type->is_known();
     }
@@ -80,7 +79,6 @@ public:
 
     bool is_nominal() const { return nominal_; }              ///< A nominal @p Type is always different from each other @p Type.
     bool is_hashed()  const { return hashed_; }               ///< This @p Type is already recorded inside of @p HENK_TABLE_TYPE.
-    bool is_closed()  const { return closed_; }               ///< Are all @p Var%s bound?
     bool is_known()   const { return known_; }                ///< Deos this @p Type depend on any @p UnknownType%s?
     bool is_monomorphic() const { return monomorphic_; }      ///< Does this @p Type not depend on any @p Var%s?.
     bool is_polymorphic() const { return !is_monomorphic(); } ///< Does this @p Type depend on any @p Var%s?.
@@ -103,7 +101,6 @@ protected:
     mutable uint64_t hash_ = 0;
     int order_ = 0;
     mutable bool hashed_      = false;
-    mutable bool closed_      = true;
     mutable bool known_       = true;
     mutable bool monomorphic_ = true;
     mutable bool nominal_     = false;
@@ -122,12 +119,6 @@ private:
 
 class Lambda : public Type {
 private:
-    Lambda(HENK_TABLE_TYPE& table, const char* name)
-        : Type(table, Node_Lambda, {nullptr})
-        , name_(name)
-    {
-        closed_ = false;
-    }
     Lambda(HENK_TABLE_TYPE& table, const Type* body, const char* name)
         : Type(table, Node_Lambda, {body})
         , name_(name)
@@ -146,8 +137,6 @@ private:
 
     template<class> friend class TypeTableBase;
 };
-
-//const Lambda* close(const Lambda*, const Type*);
 
 class Var : public Type {
 private:
@@ -267,7 +256,6 @@ public:
     virtual ~TypeTableBase() { for (auto type : types_) delete type; }
 
     const Var* var(int depth) { return unify(new Var(HENK_TABLE_NAME(), depth)); }
-    const Lambda* lambda(const char* name) { return new Lambda(HENK_TABLE_NAME(), name); }
     const Lambda* lambda(const Type* body, const char* name) { return unify(new Lambda(HENK_TABLE_NAME(), body, name)); }
     const Type* app(const Type* callee, const Type* arg);
     const TupleType* tuple_type(Types ops) { return unify(new TupleType(HENK_TABLE_NAME(), ops)); }
@@ -288,7 +276,6 @@ protected:
     const TupleType* unit_; ///< tuple().
     const TypeError* type_error_;
 
-    //friend const Lambda* close(const Lambda*, const Type*);
     friend class Lambda;
 };
 

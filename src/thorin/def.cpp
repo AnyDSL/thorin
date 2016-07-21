@@ -25,9 +25,7 @@ Def::Def(NodeKind kind, const Type* type, size_t size, const Location& loc, cons
     , type_(type)
     , gid_(gid_counter_++)
     , name(name)
-{
-    assert(THORIN_IMPLIES(type, type->is_closed()));
-}
+{}
 
 void Def::set_op(size_t i, const Def* def) {
     assert(!op(i) && "already set");

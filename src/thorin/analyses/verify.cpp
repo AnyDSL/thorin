@@ -14,68 +14,6 @@ static void verify_calls(World& world) {
     }
 }
 
-#if 0
-static void detect_cycles(World& world) {
-    DefMap<Color> def2color;
-    std::stack<const Def*> stack;
-
-    for (auto continuation : world.continuations()) {
-        for (auto param : continuation->params())
-            def2color[param] = Black;
-        for (auto op : continuation->ops()) {
-            if (op->isa_continuation())
-                continue;
-
-            if (def2color.emplace(op, White).second) {
-                stack.push(op);
-
-                while (!stack.empty()) {
-                    bool todo = false;
-                    auto def = stack.top();
-                    assert(def->isa<PrimOp>() || def->isa<Param>());
-
-                    assert(def2color.contains(def));
-                    auto& color = def2color.find(def)->second;
-
-                    if (color == White) {
-                        if (auto param = def->isa<Param>()) {
-                            def = param->continuation();
-                            for (auto p : param->continuation()->params())
-                                def2color[p] = Black;
-                        }
-
-                        for (auto op : def->ops()) {
-                            if (op->isa_continuation())
-                                continue;
-
-                            if (def2color.emplace(op, White).second) {
-                                stack.push(op);
-                                todo = true;
-                                continue;
-                            }
-
-                            auto& color = def2color.find(op)->second;
-                            if (color == White) {
-                            } else if (color == Gray) {
-                                ELOG("detected cycle at %", op);
-                            } else { // color == Black
-                            }
-                        }
-                    }
-
-                    if (todo)
-                        color = Gray;
-                    else {
-                        color = Black;
-                        stack.pop();
-                    }
-                }
-            }
-        }
-    }
-}
-#endif
-
 class Cycles {
 public:
     enum Color {
@@ -89,7 +27,7 @@ public:
     World& world() { return world_; }
     void run();
     void analyze_call(const Continuation*);
-    void analyze(const Def*);
+    void analyze(ParamSet& params, const Def*);
 
 private:
     World& world_;
@@ -102,36 +40,58 @@ void Cycles::run() {
 }
 
 void Cycles::analyze_call(const Continuation* continuation) {
-    for (auto param : continuation->params()) {
-        def2color_[param] = Black; // TODO too relaxed?
-    }
+    auto p = def2color_.emplace(continuation, Black);
+    if (p.second) {
+        WLOG("%", continuation);
+        for (auto param : continuation->params())
+            def2color_[param] = Black;
 
-    for (auto op : continuation->ops())
-        analyze(op);
+        ParamSet params;
+        for (auto op : continuation->ops())
+            analyze(params, op);
+
+        for (auto param : params)
+            def2color_.emplace(param, Gray);
+
+        for (auto param : params)
+            analyze_call(param->continuation());
+
+        for (auto param : params) {
+            auto i = def2color_.find(param);
+            if (i != def2color_.end() && i->second == Gray)
+                def2color_.erase(i);
+        }
+    }
 }
 
-void Cycles::analyze(const Def* def) {
+void Cycles::analyze(ParamSet& params, const Def* def) {
     if (def->isa<Continuation>())
         return;
 
-    auto p = def2color_.emplace(def, Gray);
-    auto& color = p.first->second;
-
-    if (p.second) {
-        if (auto primop = def->isa<PrimOp>()) {
-            for (auto op : primop->ops())
-                analyze(op);
-        } else if (auto param = def->isa<Param>()) {
-            analyze_call(param->continuation());
-        } else if (def->isa<Continuation>())
-            return;
-    } else {
-        if (def->isa<Param>() && color == Gray)
-            WLOG("detected cycle at %", def);
-        // Black: do nothing
+    if (auto param = def->isa<Param>()) {
+        WLOG(">>> %", param);
+        auto i = def2color_.find(param);
+        if (i != def2color_.end()) {
+            auto color = i->second;
+            switch (color) {
+                case Gray:
+                    WLOG("alles karpott: %", param);
+                case Black:
+                    return;
+            }
+        }
+        params.emplace(param);
+        return;
     }
 
-    color = Black;
+    if (auto primop = def->isa<PrimOp>()) {
+        auto p = def2color_.emplace(def, Black);
+        if (p.second) {
+            WLOG(">>> %", primop);
+            for (auto op : primop->ops())
+                analyze(params, op);
+        } 
+    }
 }
 
 void verify(World& world) {

@@ -1,5 +1,3 @@
-#include <stack>
-
 #include "thorin/primop.h"
 #include "thorin/type.h"
 #include "thorin/world.h"

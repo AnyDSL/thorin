@@ -40,48 +40,40 @@ void Cycles::run() {
 }
 
 void Cycles::analyze_call(const Continuation* continuation) {
-    auto p = def2color_.emplace(continuation, Black);
-    if (p.second) {
+    if (def2color_.emplace(continuation, Gray).second) {
         ParamSet params;
         for (auto op : continuation->ops())
             analyze(params, continuation, op);
 
         for (auto param : params) {
-            auto p = def2color_.emplace(param, Gray);
-            assert(p.second);
-            analyze_call(param->continuation());
-            def2color_[param] = Black;
+            if (def2color_.emplace(param, Gray).second) {
+                analyze_call(param->continuation());
+                def2color_[param] = Black;
+            }
         }
+
+        def2color_[continuation] = Black;
+    } else {
+        if (def2color_[continuation] == Gray)
+            ELOG("detected cycle: %", continuation);
     }
 }
 
-void Cycles::analyze(ParamSet& params, const Continuation* cont, const Def* def) {
-    if (def->isa<Continuation>())
-        return;
-
-    if (auto param = def->isa<Param>()) {
-        if (param->continuation() != cont) {
+void Cycles::analyze(ParamSet& params, const Continuation* continuation, const Def* def) {
+    if (auto primop = def->isa<PrimOp>()) {
+        if (def2color_.emplace(def, Black).second) {
+            for (auto op : primop->ops())
+                analyze(params, continuation, op);
+        }
+    } else if (auto param = def->isa<Param>()) {
+        if (param->continuation() != continuation) {
             auto i = def2color_.find(param);
             if (i != def2color_.end()) {
-                auto color = i->second;
-                switch (color) {
-                    case Gray:
-                        ELOG("alles karpott: %", param);
-                    case Black:
-                        return;
-                }
+                if (i->second == Gray)
+                    ELOG("detected cycle induced by parameter: %", param);
+            } else
                 params.emplace(param);
-            }
         }
-        return;
-    }
-
-    if (auto primop = def->isa<PrimOp>()) {
-        auto p = def2color_.emplace(def, Black);
-        if (p.second) {
-            for (auto op : primop->ops())
-                analyze(params, cont, op);
-        } 
     }
 }
 

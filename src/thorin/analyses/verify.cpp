@@ -27,7 +27,7 @@ public:
     World& world() { return world_; }
     void run();
     void analyze_call(const Continuation*);
-    void analyze(ParamSet& params, const Def*);
+    void analyze(ParamSet& params, const Continuation*, const Def*);
 
 private:
     World& world_;
@@ -42,54 +42,45 @@ void Cycles::run() {
 void Cycles::analyze_call(const Continuation* continuation) {
     auto p = def2color_.emplace(continuation, Black);
     if (p.second) {
-        WLOG("%", continuation);
-        for (auto param : continuation->params())
-            def2color_[param] = Black;
-
         ParamSet params;
         for (auto op : continuation->ops())
-            analyze(params, op);
-
-        for (auto param : params)
-            def2color_.emplace(param, Gray);
-
-        for (auto param : params)
-            analyze_call(param->continuation());
+            analyze(params, continuation, op);
 
         for (auto param : params) {
-            auto i = def2color_.find(param);
-            if (i != def2color_.end() && i->second == Gray)
-                def2color_.erase(i);
+            auto p = def2color_.emplace(param, Gray);
+            assert(p.second);
+            analyze_call(param->continuation());
+            def2color_[param] = Black;
         }
     }
 }
 
-void Cycles::analyze(ParamSet& params, const Def* def) {
+void Cycles::analyze(ParamSet& params, const Continuation* cont, const Def* def) {
     if (def->isa<Continuation>())
         return;
 
     if (auto param = def->isa<Param>()) {
-        WLOG(">>> %", param);
-        auto i = def2color_.find(param);
-        if (i != def2color_.end()) {
-            auto color = i->second;
-            switch (color) {
-                case Gray:
-                    WLOG("alles karpott: %", param);
-                case Black:
-                    return;
+        if (param->continuation() != cont) {
+            auto i = def2color_.find(param);
+            if (i != def2color_.end()) {
+                auto color = i->second;
+                switch (color) {
+                    case Gray:
+                        ELOG("alles karpott: %", param);
+                    case Black:
+                        return;
+                }
+                params.emplace(param);
             }
         }
-        params.emplace(param);
         return;
     }
 
     if (auto primop = def->isa<PrimOp>()) {
         auto p = def2color_.emplace(def, Black);
         if (p.second) {
-            WLOG(">>> %", primop);
             for (auto op : primop->ops())
-                analyze(params, op);
+                analyze(params, cont, op);
         } 
     }
 }

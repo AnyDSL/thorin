@@ -314,8 +314,13 @@ void clear_value_numbering_table(World&);
 //------------------------------------------------------------------------------
 
 template<class To>
-using ContinuationMap     = HashMap<Continuation*, To, GIDHash<Continuation*>>;
-using ContinuationSet     = HashSet<Continuation*, GIDHash<Continuation*>>;
+using ParamMap     = HashMap<const Param*, To, GIDHash<const Param*>>;
+using ParamSet     = HashSet<const Param*, GIDHash<const Param*>>;
+using Param2Param  = ParamMap<const Param*>;
+
+template<class To>
+using ContinuationMap           = HashMap<Continuation*, To, GIDHash<Continuation*>>;
+using ContinuationSet           = HashSet<Continuation*, GIDHash<Continuation*>>;
 using Continuation2Continuation = ContinuationMap<Continuation*>;
 
 //------------------------------------------------------------------------------

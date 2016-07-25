@@ -164,6 +164,13 @@ long long thorin_get_kernel_time() {
     return thorin_kernel_time;
 }
 
+int32_t thorin_isinff(float x)    { return std::isinf(x); }
+int32_t thorin_isnanf(float x)    { return std::isnan(x); }
+int32_t thorin_isfinitef(float x) { return std::isfinite(x); }
+int64_t thorin_isinf(double x)    { return std::isinf(x); }
+int64_t thorin_isnan(double x)    { return std::isnan(x); }
+int64_t thorin_isfinite(double x) { return std::isfinite(x); }
+
 void thorin_print_char(char c)      { std::cout << c; }
 void thorin_print_short(int16_t s)  { std::cout << s; }
 void thorin_print_int(int32_t i)    { std::cout << i; }

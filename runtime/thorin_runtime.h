@@ -42,6 +42,13 @@ void thorin_random_seed(int32_t);
 long long thorin_get_micro_time();
 long long thorin_get_kernel_time();
 
+int32_t thorin_isinff(float);
+int32_t thorin_isnanf(float);
+int32_t thorin_isfinitef(float);
+int64_t thorin_isinf(double);
+int64_t thorin_isnan(double);
+int64_t thorin_isfinite(double);
+
 void thorin_print_char(char);
 void thorin_print_short(int16_t);
 void thorin_print_int(int32_t);

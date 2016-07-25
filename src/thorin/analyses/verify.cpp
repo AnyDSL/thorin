@@ -53,10 +53,8 @@ void Cycles::analyze_call(const Continuation* continuation) {
         }
 
         def2color_[continuation] = Black;
-    } else {
-        if (def2color_[continuation] == Gray)
-            ELOG("detected cycle: %", continuation);
-    }
+    } else if (def2color_[continuation] == Gray)
+        ELOG("detected cycle: %", continuation);
 }
 
 void Cycles::analyze(ParamSet& params, const Continuation* continuation, const Def* def) {

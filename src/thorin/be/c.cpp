@@ -478,6 +478,13 @@ void CCodeGen::emit() {
             } else if (continuation->callee()->isa<Bottom>()) {
                 func_impl_ << "return ; // bottom: unreachable";
             } else {
+                auto store_phi = [&] (const Def* param, const Def* arg) {
+                    if (arg->isa<Bottom>())
+                        func_impl_ << "// bottom: ";
+                    func_impl_ << "p" << param->unique_name() << " = ";
+                    emit(arg) << ";";
+                };
+
                 auto callee = continuation->callee()->as_continuation();
                 emit_debug_info(callee);
 
@@ -487,11 +494,10 @@ void CCodeGen::emit() {
 
                 if (callee->is_basicblock()) {   // ordinary jump
                     assert(callee->num_params()==continuation->num_args());
-                    // store argument to phi nodes
                     for (size_t i = 0, size = callee->num_params(); i != size; ++i)
                         if (!callee->param(i)->is_mem()) {
-                            func_impl_ << "p" << callee->param(i)->unique_name() << " = ";
-                            emit(continuation->arg(i)) << ";" << endl;
+                            store_phi(callee->param(i), continuation->arg(i));
+                            func_impl_ << endl;
                         }
                     emit(callee);
                 } else {
@@ -499,25 +505,23 @@ void CCodeGen::emit() {
                         if (callee->intrinsic() == Intrinsic::Bitcast) {
                             auto cont = continuation->arg(2)->as_continuation();
                             emit_bitcast(continuation->arg(1), cont->param(1)) << endl;
-                            // store argument to phi node
-                            func_impl_ << "p" << cont->param(1)->unique_name() << " = ";
-                            emit(cont->param(1)) << ";";
+                            store_phi(cont->param(1), continuation->arg(1));
                         } else if (callee->intrinsic() == Intrinsic::Reserve) {
                             if (!continuation->arg(1)->isa<PrimLit>())
                                 ELOG("reserve_shared: couldn't extract memory size at %", continuation->arg(1)->loc());
 
                             switch (lang_) {
-                                case Lang::C99:                            break;
+                                case Lang::C99:                                 break;
                                 case Lang::CUDA:   func_impl_ << "__shared__ "; break;
                                 case Lang::OPENCL: func_impl_ << "__local ";    break;
                             }
 
                             auto cont = continuation->arg(2)->as_continuation();
                             auto elem_type = cont->param(1)->type()->as<PtrType>()->referenced_type()->as<ArrayType>()->elem_type();
-                            emit_type(func_impl_, elem_type) << " " << callee->name << continuation->gid() << "[";
+                            emit_type(func_impl_, elem_type) << " " << continuation->arg(1)->unique_name() << "[";
                             emit(continuation->arg(1)) << "];" << endl;
-                            // store argument to phi node
-                            func_impl_ << "p" << cont->param(1)->unique_name() << " = " << callee->name << continuation->gid() << ";";
+                            insert(continuation->arg(1), continuation->arg(1)->unique_name());
+                            store_phi(cont->param(1), continuation->arg(1));
                         } else {
                             THORIN_UNREACHABLE;
                         }
@@ -538,9 +542,8 @@ void CCodeGen::emit() {
                             }
                             func_impl_ << ");";
                             if (param) {
-                                // store argument to phi node
-                                func_impl_ << endl << "p" << param->unique_name() << " = ";
-                                emit(param) << ";";
+                                func_impl_ << endl;
+                                store_phi(param, param);
                             }
                         };
 
@@ -724,7 +727,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
         for (size_t i = 0, e = array->size(); i != e; ++i) {
             func_impl_ << endl;
             if (array->op(i)->isa<Bottom>())
-                func_impl_ << "//";
+                func_impl_ << "// bottom: ";
             func_impl_ << array->unique_name() << ".e[" << i << "] = ";
             emit(array->op(i)) << ";";
         }
@@ -770,7 +773,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
             for (size_t i = 0, e = agg->ops().size(); i != e; ++i) {
                 func_impl_ << endl;
                 if (agg->op(i)->isa<Bottom>())
-                    func_impl_ << "//";
+                    func_impl_ << "// bottom: ";
                 func_impl_ << agg->unique_name();
                 emit_access(def, world_.literal_qs32(i, def->loc())) << " = ";
                 emit(agg->op(i)) << ";";
@@ -837,8 +840,11 @@ std::ostream& CCodeGen::emit(const Def* def) {
         return func_impl_;
     }
 
-    if (def->isa<Bottom>())
-        return func_impl_ << "42 /* bottom */";
+    if (auto bottom = def->isa<Bottom>()) {
+        emit_type(func_impl_, bottom->type()) << " " << bottom->unique_name() << "; // bottom";
+        insert(def, def->unique_name());
+        return func_impl_;
+    }
 
     if (auto load = def->isa<Load>()) {
         emit_type(func_impl_, load->out_val()->type()) << " " << load->unique_name() << ";" << endl;
@@ -915,7 +921,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
         }
         emit_type(func_impl_, global->alloced_type()) << " " << global->unique_name() << "_slot";
         if (global->init()->isa<Bottom>()) {
-            func_impl_ << ";";
+            func_impl_ << "; // bottom";
         } else {
             func_impl_ << " = ";
             emit(global->init()) << ";";

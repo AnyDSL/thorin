@@ -33,7 +33,7 @@ DefSet free_defs(const Scope& scope) {
             if (auto bitcast = primop->isa<Bitcast>()) {
                 if (auto dst_ptr = bitcast->type()->isa<PtrType>()) {
                     if (auto src_ptr = bitcast->from()->type()->isa<PtrType>()) {
-                        if (dst_ptr->addr_space() != src_ptr->addr_space()) {
+                        if (dst_ptr->referenced_type()->isa<IndefiniteArrayType>() && dst_ptr->addr_space() != src_ptr->addr_space()) {
                             result.emplace(bitcast);
                             goto queue_next;
                         }

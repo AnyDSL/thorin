@@ -14,7 +14,7 @@ static void verify_calls(World& world) {
             auto arg_fn_type = continuation->arg_fn_type();
             // TODO check type for equality - this is currently elided due to polymorphism
             if (callee_fn_type->num_args() != arg_fn_type->num_args()) {
-                ELOG("continuation % calls callee % with % arguments but callee expects % arguments", 
+                ELOG("continuation '%' calls callee '%' with '%' arguments but callee expects '%' arguments", 
                         continuation, continuation->callee(), callee_fn_type->num_args(), arg_fn_type->num_args());
             }
         }
@@ -25,7 +25,7 @@ static void verify_top_level(World& world) {
     Scope::for_each(world, [&] (const Scope& scope) {
         for (auto def : free_defs(scope)) {
             if (!def->isa_continuation())
-                ELOG("top-level continuation % got free def %", scope.entry(), def);
+                ELOG("top-level continuation '%' got free def '%' at location '%'", scope.entry(), def, def->loc());
         }
     });
 }
@@ -70,7 +70,7 @@ void Cycles::analyze_call(const Continuation* continuation) {
 
         def2color_[continuation] = Black;
     } else if (def2color_[continuation] == Gray)
-        ELOG("detected cycle: %", continuation);
+        ELOG("detected cycle: '%'", continuation);
 }
 
 void Cycles::analyze(ParamSet& params, const Continuation* continuation, const Def* def) {
@@ -84,7 +84,7 @@ void Cycles::analyze(ParamSet& params, const Continuation* continuation, const D
             auto i = def2color_.find(param);
             if (i != def2color_.end()) {
                 if (i->second == Gray)
-                    ELOG("detected cycle induced by parameter: %", param);
+                    ELOG("detected cycle induced by parameter: '%'", param);
             } else
                 params.emplace(param);
         }

@@ -365,6 +365,9 @@ void CudaPlatform::compile_nvvm(device_id dev, const std::string& filename, CUji
         case CU_TARGET_COMPUTE_50:
         #if CUDA_VERSION >= 7000
         case CU_TARGET_COMPUTE_52:
+        #ifdef CU_TARGET_COMPUTE_53
+        case CU_TARGET_COMPUTE_53:
+        #endif
         #endif
             libdevice_filename = "libdevice.compute_30.10.bc"; break;
         case CU_TARGET_COMPUTE_35:

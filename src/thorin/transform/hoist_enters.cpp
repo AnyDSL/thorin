@@ -53,14 +53,10 @@ static void hoist_enters(const Scope& scope) {
 
     auto frame = enter->out_frame();
 
-    size_t index = 0; // find max slot index
-    for (auto use : frame->uses())
-        index = std::max(index, use->as<Slot>()->index());
-
     for (auto old_enter : enters) {
         for (auto use : old_enter->out_frame()->uses()) {
             auto slot = use->as<Slot>();
-            slot->replace(world.slot(slot->alloced_type(), frame, index++, slot->loc(), slot->name));
+            slot->replace(world.slot(slot->alloced_type(), frame, slot->loc(), slot->name));
             assert(slot->num_uses() == 0);
         }
     }

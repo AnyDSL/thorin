@@ -425,11 +425,10 @@ private:
  */
 class Slot : public PrimOp {
 private:
-    Slot(const Type* type, const Def* frame, size_t index, const Location& loc, const std::string& name);
+    Slot(const Type* type, const Def* frame, const Location& loc, const std::string& name);
 
 public:
     const Def* frame() const { return op(0); }
-    size_t index() const { return index_; }
     const PtrType* type() const { return PrimOp::type()->as<PtrType>(); }
     const Type* alloced_type() const { return type()->referenced_type(); }
 
@@ -437,8 +436,6 @@ private:
     virtual uint64_t vhash() const override;
     virtual bool equal(const PrimOp* other) const override;
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
-
-    size_t index_;
 
     friend class World;
 };

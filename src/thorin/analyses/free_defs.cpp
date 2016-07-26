@@ -29,10 +29,19 @@ DefSet free_defs(const Scope& scope) {
                 }
             }
 
-            if (primop->isa<Bitcast>() && !scope.contains(primop)) // HACK for bitcasting pointer address spaces
-                result.emplace(primop);
-            else
-                enqueue_ops(primop);
+            // HACK for bitcasting address spaces
+            if (auto bitcast = primop->isa<Bitcast>()) {
+                if (auto dst_ptr = bitcast->type()->isa<PtrType>()) {
+                    if (auto src_ptr = bitcast->from()->type()->isa<PtrType>()) {
+                        if (dst_ptr->addr_space() != src_ptr->addr_space()) {
+                            result.emplace(bitcast);
+                            goto queue_next;
+                        }
+                    }
+                }
+            }
+
+            enqueue_ops(primop);
         } else if (!scope.contains(def))
             result.emplace(def);
 queue_next:;

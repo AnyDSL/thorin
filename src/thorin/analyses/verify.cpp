@@ -14,7 +14,7 @@ static void verify_calls(World& world) {
             auto arg_fn_type = continuation->arg_fn_type();
             // TODO check type for equality - this is currently elided due to polymorphism
             if (callee_fn_type->num_args() != arg_fn_type->num_args()) {
-                ELOG("continuation '%' calls callee '%' with '%' arguments but callee expects '%' arguments", 
+                ELOG("continuation '%' calls callee '%' with '%' arguments but callee expects '%' arguments",
                         continuation, continuation->callee(), callee_fn_type->num_args(), arg_fn_type->num_args());
             }
         }

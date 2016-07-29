@@ -386,27 +386,32 @@ const Def* Continuation::set_value(size_t handle, const Def* def) {
 }
 
 const Def* Continuation::get_value(size_t handle, const Type* type, const char* name) {
-    if (auto def = find_def(handle))
-        return def;
+    auto result = find_def(handle);
+    if (result)
+        goto return_result;
 
-    if (parent() != this) { // is a function head?
-        if (parent())
-            return parent()->get_value(handle, type, name);
+    if (top()) {
         goto return_bottom;
     } else {
         if (!is_sealed_) {
             auto param = append_param(type, name);
             todos_.emplace_back(handle, param->index(), type, name);
-            return set_value(handle, param);
+            result = set_value(handle, param);
+            goto return_result;
         }
 
         Continuations preds = this->preds();
         switch (preds.size()) {
-            case 0: goto return_bottom;
-            case 1: return set_value(handle, preds.front()->get_value(handle, type, name));
+            case 0:
+                goto return_bottom;
+            case 1:
+                result = set_value(handle, preds.front()->get_value(handle, type, name));
+                goto return_result;
             default: {
-                if (is_visited_)
-                    return set_value(handle, append_param(type, name)); // create param to break cycle
+                if (is_visited_) {
+                    result = set_value(handle, append_param(type, name)); // create param to break cycle
+                    goto return_result;
+                }
 
                 is_visited_ = true;
                 const Def* same = nullptr;
@@ -426,16 +431,21 @@ const Def* Continuation::get_value(size_t handle, const Type* type, const char* 
                 if (auto found = find_def(handle))
                     def = fix(handle, found->as<Param>()->index(), type, name);
 
-                if (same != (const Def*)-1)
-                    return same;
+                if (same != (const Def*)-1) {
+                    result = same;
+                    goto return_result;
+                }
 
-                if (def)
-                    return set_value(handle, def);
+                if (def) {
+                    result = set_value(handle, def);
+                    goto return_result;
+                }
 
                 auto param = append_param(type, name);
                 set_value(handle, param);
                 fix(handle, param->index(), type, name);
-                return param;
+                result = param;
+                goto return_result;
             }
         }
     }
@@ -443,6 +453,10 @@ const Def* Continuation::get_value(size_t handle, const Type* type, const char* 
 return_bottom:
     WLOG("'%' may be undefined at '%'", name, this->loc());
     return set_value(handle, world().bottom(type, Location()));
+
+return_result:
+    assert(result->type() == type);
+    return result;
 }
 
 void Continuation::seal() {

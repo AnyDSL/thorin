@@ -31,8 +31,6 @@ void mem2reg(const Scope& scope) {
     scope.entry()->seal();
 
     // set parent pointers for functions passed to accelerator
-    // TODO do we need this?
-#if 1
     for (auto continuation : scope) {
         if (auto callee = continuation->callee()->isa_continuation()) {
             if (callee->is_accelerator()) {
@@ -47,7 +45,6 @@ void mem2reg(const Scope& scope) {
             }
         }
     }
-#endif
 
     for (const auto& block : schedule(scope, Schedule::Late)) {
         auto continuation = block.continuation();

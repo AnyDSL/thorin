@@ -64,11 +64,7 @@ Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
     auto callee = continuation->callee()->as_continuation();
     switch (callee->intrinsic()) {
         case Intrinsic::Atomic:    return emit_atomic(continuation);
-        case Intrinsic::Select:    return emit_select(continuation);
-        case Intrinsic::Sizeof:    return emit_sizeof(continuation);
-        case Intrinsic::Shuffle:   return emit_shuffle(continuation);
         case Intrinsic::Reserve:   return emit_reserve(continuation);
-        case Intrinsic::Bitcast:   return emit_reinterpret(continuation);
         case Intrinsic::CUDA:      return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM, ".cu", continuation);
         case Intrinsic::NVVM:      return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM, ".nvvm", continuation);
         case Intrinsic::SPIR:      return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".spir.bc", continuation);
@@ -104,41 +100,6 @@ Continuation* CodeGen::emit_atomic(Continuation* continuation) {
     return cont;
 }
 
-Continuation* CodeGen::emit_select(Continuation* continuation) {
-    assert(continuation->num_args() == 5 && "required arguments are missing");
-    auto cond = lookup(continuation->arg(1));
-    auto a = lookup(continuation->arg(2));
-    auto b = lookup(continuation->arg(3));
-
-    auto cont = continuation->arg(4)->as_continuation();
-    auto call = irbuilder_.CreateSelect(cond, a, b);
-    emit_result_phi(cont->param(1), call);
-    return cont;
-}
-
-Continuation* CodeGen::emit_sizeof(Continuation* continuation) {
-    assert(continuation->num_args() == 2 && "required arguments are missing");
-    //auto type = convert(continuation->type_arg(0));
-    //auto cont = continuation->arg(1)->as_continuation();
-    //auto layout = llvm::DataLayout(module_->getDataLayout());
-    //auto call = irbuilder_.getInt32(layout.getTypeAllocSize(type));
-    //emit_result_phi(cont->param(1), call);
-    //return cont;
-    return nullptr;
-}
-
-Continuation* CodeGen::emit_shuffle(Continuation* continuation) {
-    assert(continuation->num_args() == 5 && "required arguments are missing");
-    auto mask = lookup(continuation->arg(3));
-    auto a = lookup(continuation->arg(1));
-    auto b = lookup(continuation->arg(2));
-
-    auto cont = continuation->arg(4)->as_continuation();
-    auto call = irbuilder_.CreateShuffleVector(a, b, mask);
-    emit_result_phi(cont->param(1), call);
-    return cont;
-}
-
 Continuation* CodeGen::emit_reserve(const Continuation* continuation) {
     ELOG("reserve_shared: only allowed in device code at %", continuation->jump_loc());
     THORIN_UNREACHABLE;
@@ -167,15 +128,6 @@ llvm::Value* CodeGen::emit_bitcast(const Def* val, const Type* dst_type) {
     if (src_type->isa<PtrType>() && dst_type->isa<PtrType>())
         return irbuilder_.CreatePointerCast(from, to);
     return irbuilder_.CreateBitCast(from, to);
-}
-
-Continuation* CodeGen::emit_reinterpret(Continuation* continuation) {
-    assert(continuation->num_args() == 3 && "required arguments are missing");
-    auto cont = continuation->arg(2)->as_continuation();
-    auto type = cont->param(1)->type();
-    auto call = emit_bitcast(continuation->arg(1), type);
-    emit_result_phi(cont->param(1), call);
-    return cont;
 }
 
 llvm::FunctionType* CodeGen::convert_fn_type(Continuation* continuation) {

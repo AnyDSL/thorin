@@ -500,11 +500,7 @@ void CCodeGen::emit() {
                     emit(callee);
                 } else {
                     if (callee->is_intrinsic()) {
-                        if (callee->intrinsic() == Intrinsic::Bitcast) {
-                            auto cont = continuation->arg(2)->as_continuation();
-                            emit_bitcast(continuation->arg(1), cont->param(1)) << endl;
-                            store_phi(cont->param(1), continuation->arg(1));
-                        } else if (callee->intrinsic() == Intrinsic::Reserve) {
+                        if (callee->intrinsic() == Intrinsic::Reserve) {
                             if (!continuation->arg(1)->isa<PrimLit>())
                                 ELOG("reserve_shared: couldn't extract memory size at %", continuation->arg(1)->loc());
 

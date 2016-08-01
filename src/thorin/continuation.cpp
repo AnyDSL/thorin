@@ -247,18 +247,6 @@ void Continuation::jump(const Def* to, Defs args, const Location& loc) {
     jump_loc_ = loc;
     if (auto continuation = to->isa<Continuation>()) {
         switch (continuation->intrinsic()) {
-            case Intrinsic::Bitcast: {
-                //assert(type_args.size() == 2);
-                //auto dst = type_args[0], src = type_args[1];
-
-                //if (dst->is_monomorphic()) {
-                    //assert(args.size() == 3);
-                    //auto mem = args[0], def = args[1], k = args[2];
-                    //assert_unused(def->type() == src);
-                    //return jump(k, {}, { mem, world().bitcast(dst, def, loc) }, loc);
-                //}
-                //break;
-            }
             case Intrinsic::Branch: {
                 assert(args.size() == 3);
                 auto cond = args[0], t = args[1], f = args[2];
@@ -269,17 +257,6 @@ void Continuation::jump(const Def* to, Defs args, const Location& loc) {
                 if (is_not(cond))
                     return branch(cond->as<ArithOp>()->rhs(), f, t, loc);
                 break;
-            }
-            case Intrinsic::Select: {
-                //assert(type_args.size() == 2);
-                //const Type* type = type_args[1];
-
-                //if (type->is_monomorphic()) {
-                    //assert(args.size() == 5);
-                    //auto mem = args[0], cond = args[1], t = args[2], f = args[3], k = args[4];
-                    //return jump(k, {}, { mem, world().select(cond, t, f, loc) }, loc);
-                //}
-                //break;
             }
             default:
                 break;

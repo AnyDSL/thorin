@@ -647,6 +647,12 @@ llvm::Value* CodeGen::emit(const Def* def) {
         return irbuilder_.CreateSelect(cond, tval, fval);
     }
 
+    if (auto size_of = def->isa<SizeOf>()) {
+        auto type = convert(size_of->of());
+        auto layout = llvm::DataLayout(module_->getDataLayout());
+        return irbuilder_.getInt32(layout.getTypeAllocSize(type));
+    }
+
     if (auto array = def->isa<DefiniteArray>()) {
         auto type = llvm::cast<llvm::ArrayType>(convert(array->type()));
         if (is_const(array)) {

@@ -17,6 +17,7 @@
             THORIN_NODE(Enter, enter)
             THORIN_NODE(Leave, leave)
         THORIN_NODE(Select, select)
+        THORIN_NODE(SizeOf, size_of)
         THORIN_NODE(Global, global)
         THORIN_NODE(Slot, slot)
         //THORIN_NODE(ArithOp)

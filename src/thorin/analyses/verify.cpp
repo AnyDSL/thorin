@@ -13,7 +13,7 @@ static void verify_calls(World& world) {
             auto callee_fn_type = continuation->callee_fn_type();
             auto arg_fn_type = continuation->arg_fn_type();
             if (callee_fn_type != arg_fn_type) {
-                ELOG("continuation '%' calls callee '%' of type '%' but call has type '%'", 
+                ELOG("continuation '%' calls '%' of type '%' but call has type '%'", 
                         continuation, continuation->callee(), callee_fn_type, arg_fn_type);
             }
         }

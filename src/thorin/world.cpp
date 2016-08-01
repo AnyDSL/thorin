@@ -460,10 +460,22 @@ const Def* World::cmp(CmpKind kind, const Def* a, const Def* b, const Location& 
  * casts
  */
 
-const Def* World::convert(const Type* to, const Def* from, const Location& loc, const std::string& name) {
-    if (from->type()->isa<PtrType>() && to->isa<PtrType>())
-        return bitcast(to, from, loc, name);
-    return cast(to, from, loc, name);
+const Def* World::convert(const Type* dst_type, const Def* src, const Location& loc, const std::string& name) {
+    if (dst_type == src->type())
+        return src;
+    if (src->type()->isa<PtrType>() && dst_type->isa<PtrType>())
+        return bitcast(dst_type, src, loc, name);
+    if (auto dst_tuple_type = dst_type->isa<TupleType>()) {
+        assert(dst_tuple_type->num_ops() == src->type()->as<TupleType>()->num_ops());
+
+        Array<const Def*> new_tuple(dst_tuple_type->num_ops());
+        for (size_t i = 0, e = new_tuple.size(); i != e; ++i)
+            new_tuple[i] = convert(dst_type->op(i), extract(src, i, loc, name), loc, name);
+
+        return tuple(new_tuple, loc, name);
+    }
+
+    return cast(dst_type, src, loc, name);
 }
 
 const Def* World::cast(const Type* to, const Def* from, const Location& loc, const std::string& name) {

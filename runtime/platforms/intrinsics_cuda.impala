@@ -48,6 +48,9 @@ extern "device" {
     fn fmin(f64, f64) -> f64;
     fn fmod(f64, f64) -> f64;
     fn floor(f64) -> f64;
+    fn "isinf"     isinf(f64) -> i32;
+    fn "isnan"     isnan(f64) -> i32;
+    fn "isfinite"  isfinite(f64) -> i32;
     fn "atomicAdd" atomic_add_global(&[1]i32, i32) -> i32;
     fn "atomicAdd" atomic_add_local(&[3]i32, i32) -> i32;
     fn "atomicMin" atomic_min_global(&[1]i32, i32) -> i32;

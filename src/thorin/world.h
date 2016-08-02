@@ -160,7 +160,7 @@ public:
     const Def* load(const Def* mem, const Def* ptr, const Location& loc, const std::string& name = "");
     const Def* store(const Def* mem, const Def* ptr, const Def* val, const Location& loc, const std::string& name = "");
     const Def* enter(const Def* mem, const Location& loc, const std::string& name = "");
-    const Def* slot(const Type* type, const Def* frame, size_t index, const Location& loc, const std::string& name = "");
+    const Def* slot(const Type* type, const Def* frame, const Location& loc, const std::string& name = "") { return cse(new Slot(type, frame, loc, name)); }
     const Def* alloc(const Type* type, const Def* mem, const Def* extra, const Location& loc, const std::string& name = "");
     const Def* alloc(const Type* type, const Def* mem, const Location& loc, const std::string& name = "") { return alloc(type, mem, literal_qu64(0, loc), loc, name); }
     const Def* global(const Def* init, const Location& loc, bool is_mutable = true, const std::string& name = "");

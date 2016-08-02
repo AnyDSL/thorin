@@ -291,7 +291,8 @@ void CCodeGen::emit() {
         assert(ret_param);
 
         // emit function & its declaration
-        auto ret_type = ret_param->type()->as<FnType>()->args().back();
+        auto ret_param_fn_type = ret_param->type()->as<FnType>();
+        auto ret_type = ret_param_fn_type->num_args() > 2 ? world_.tuple_type(ret_param_fn_type->args().skip_front()) : ret_param_fn_type->args().back();
         auto name = (continuation->is_external() || continuation->empty()) ? continuation->name : continuation->unique_name();
         if (continuation->is_external()) {
             switch (lang_) {
@@ -427,28 +428,45 @@ void CCodeGen::emit() {
             // terminate bb
             if (continuation->callee() == ret_param) { // return
                 size_t num_args = continuation->num_args();
-                func_impl_ << "return ";
                 switch (num_args) {
                     case 0: break;
                     case 1:
-                        if (continuation->arg(0)->is_mem())
+                        if (continuation->arg(0)->is_mem()) {
+                            func_impl_ << "return ;";
                             break;
-                        else
-                            emit(continuation->arg(0));
+                        } else {
+                            func_impl_ << "return ";
+                            emit(continuation->arg(0)) << ";";
+                        }
                         break;
                     case 2:
                         if (continuation->arg(0)->is_mem()) {
-                            emit(continuation->arg(1));
+                            func_impl_ << "return ";
+                            emit(continuation->arg(1)) << ";";
                             break;
                         } else if (continuation->arg(1)->is_mem()) {
-                            emit(continuation->arg(0));
+                            func_impl_ << "return ";
+                            emit(continuation->arg(0)) << ";";
                             break;
                         }
                         // FALLTHROUGH
-                    default:
-                        THORIN_UNREACHABLE;
+                    default: {
+                        auto ret_param_fn_type = continuation->arg_fn_type();
+                        auto ret_type = world_.tuple_type(ret_param_fn_type->args().skip_front());
+                        auto ret_tuple_name = "ret_tuple" + std::to_string(continuation->gid());
+                        emit_aggop_decl(ret_type);
+                        emit_type(func_impl_, ret_type) << " " << ret_tuple_name << ";";
+
+                        auto tuple = continuation->args().skip_front();
+                        for (size_t i = 0, e = tuple.size(); i != e; ++i) {
+                            func_impl_ << endl << ret_tuple_name << ".e" << i << " = ";
+                            emit(tuple[i]) << ";";
+                        }
+
+                        func_impl_ << endl << "return " << ret_tuple_name << ";";
+                        break;
+                    }
                 }
-                func_impl_ << ";";
             } else if (continuation->callee() == world().branch()) {
                 emit_debug_info(continuation->arg(0)); // TODO correct?
                 func_impl_ << "if (";
@@ -460,6 +478,13 @@ void CCodeGen::emit() {
             } else if (continuation->callee()->isa<Bottom>()) {
                 func_impl_ << "return ; // bottom: unreachable";
             } else {
+                auto store_phi = [&] (const Def* param, const Def* arg) {
+                    if (arg->isa<Bottom>())
+                        func_impl_ << "// bottom: ";
+                    func_impl_ << "p" << param->unique_name() << " = ";
+                    emit(arg) << ";";
+                };
+
                 auto callee = continuation->callee()->as_continuation();
                 emit_debug_info(callee);
 
@@ -469,11 +494,10 @@ void CCodeGen::emit() {
 
                 if (callee->is_basicblock()) {   // ordinary jump
                     assert(callee->num_params()==continuation->num_args());
-                    // store argument to phi nodes
                     for (size_t i = 0, size = callee->num_params(); i != size; ++i)
                         if (!callee->param(i)->is_mem()) {
-                            func_impl_ << "p" << callee->param(i)->unique_name() << " = ";
-                            emit(continuation->arg(i)) << ";" << endl;
+                            store_phi(callee->param(i), continuation->arg(i));
+                            func_impl_ << endl;
                         }
                     emit(callee);
                 } else {
@@ -481,31 +505,31 @@ void CCodeGen::emit() {
                         if (callee->intrinsic() == Intrinsic::Bitcast) {
                             auto cont = continuation->arg(2)->as_continuation();
                             emit_bitcast(continuation->arg(1), cont->param(1)) << endl;
-                            // store argument to phi node
-                            func_impl_ << "p" << cont->param(1)->unique_name() << " = ";
-                            emit(cont->param(1)) << ";";
+                            store_phi(cont->param(1), continuation->arg(1));
                         } else if (callee->intrinsic() == Intrinsic::Reserve) {
                             if (!continuation->arg(1)->isa<PrimLit>())
                                 ELOG("reserve_shared: couldn't extract memory size at %", continuation->arg(1)->loc());
 
                             switch (lang_) {
-                                case Lang::C99:                            break;
+                                case Lang::C99:                                 break;
                                 case Lang::CUDA:   func_impl_ << "__shared__ "; break;
                                 case Lang::OPENCL: func_impl_ << "__local ";    break;
                             }
 
                             auto cont = continuation->arg(2)->as_continuation();
                             auto elem_type = cont->param(1)->type()->as<PtrType>()->referenced_type()->as<ArrayType>()->elem_type();
-                            emit_type(func_impl_, elem_type) << " " << callee->name << continuation->gid() << "[";
+                            emit_type(func_impl_, elem_type) << " " << continuation->arg(1)->unique_name() << "[";
                             emit(continuation->arg(1)) << "];" << endl;
-                            // store argument to phi node
-                            func_impl_ << "p" << cont->param(1)->unique_name() << " = " << callee->name << continuation->gid() << ";";
+                            insert(continuation->arg(1), continuation->arg(1)->unique_name());
+                            store_phi(cont->param(1), continuation->arg(1));
                         } else {
                             THORIN_UNREACHABLE;
                         }
                     } else {
-                        auto emit_call = [&] () {
+                        auto emit_call = [&] (const Param* param = nullptr) {
                             auto name = (callee->is_external() || callee->empty()) ? callee->name : callee->unique_name();
+                            if (param)
+                                emit(param) << " = ";
                             func_impl_ << name << "(";
                             // emit all first-order args
                             size_t i = 0;
@@ -517,19 +541,20 @@ void CCodeGen::emit() {
                                 }
                             }
                             func_impl_ << ");";
+                            if (param) {
+                                func_impl_ << endl;
+                                store_phi(param, param);
+                            }
                         };
 
                         const Def* ret_arg = 0;
                         for (auto arg : continuation->args()) {
-                            // retrieve return argument
-                            if (arg->order() != 0) {
+                            if (arg->order() == 0) {
+                                if (!arg->is_mem() && !lookup(arg) && !arg->isa<PrimLit>())
+                                    emit(arg) << endl; // emit temporaries for args
+                            } else {
                                 assert(!ret_arg);
                                 ret_arg = arg;
-                            }
-                            // emit temporaries for args
-                            if (arg->order() == 0 && !arg->is_mem() &&
-                                !lookup(arg) && !arg->isa<PrimLit>()) {
-                                emit(arg) << endl;
                             }
                         }
 
@@ -538,19 +563,39 @@ void CCodeGen::emit() {
                             emit_call();
                         } else {                        // call + continuation
                             auto succ = ret_arg->as_continuation();
-                            auto param = succ->param(0)->is_mem() ? nullptr : succ->param(0);
-                            if (param == nullptr && succ->num_params() == 2)
-                                param = succ->param(1);
+                            const Param* param = nullptr;
+                            switch (succ->num_params()) {
+                                case 0:
+                                    emit_call();
+                                    break;
+                                case 1:
+                                    param = succ->param(0)->is_mem();
+                                    if (param->is_mem())
+                                        param = nullptr;
+                                    emit_call(param);
+                                    break;
+                                case 2:
+                                    assert(succ->mem_param() && "no mem_param found for succ");
+                                    param = succ->param(0);
+                                    param = param->is_mem() ? succ->param(1) : param;
+                                    emit_call(param);
+                                    break;
+                                default: {
+                                    assert(succ->param(0)->is_mem());
+                                    auto ret_param_fn_type = ret_arg->type()->as<FnType>();
+                                    auto ret_type = world_.tuple_type(ret_param_fn_type->args().skip_front());
 
-                            if (param)
-                                emit(param) << " = ";
+                                    auto ret_tuple_name = "ret_tuple" + std::to_string(continuation->gid());
+                                    emit_aggop_decl(ret_type);
+                                    emit_type(func_impl_, ret_type) << " " << ret_tuple_name << ";" << endl << ret_tuple_name << " = ";
+                                    emit_call();
 
-                            emit_call();
-
-                            if (param) {
-                                // store argument to phi node
-                                func_impl_ << endl << "p" << succ->param(1)->unique_name() << " = ";
-                                emit(param) << ";";
+                                    // store arguments to phi node
+                                    auto tuple = succ->params().skip_front();
+                                    for (size_t i = 0, e = tuple.size(); i != e; ++i)
+                                        func_impl_ << endl << "p" << tuple[i]->unique_name() << " = " << ret_tuple_name << ".e" << i << ";";
+                                    break;
+                                }
                             }
                         }
                     }
@@ -682,7 +727,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
         for (size_t i = 0, e = array->size(); i != e; ++i) {
             func_impl_ << endl;
             if (array->op(i)->isa<Bottom>())
-                func_impl_ << "//";
+                func_impl_ << "// bottom: ";
             func_impl_ << array->unique_name() << ".e[" << i << "] = ";
             emit(array->op(i)) << ";";
         }
@@ -728,7 +773,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
             for (size_t i = 0, e = agg->ops().size(); i != e; ++i) {
                 func_impl_ << endl;
                 if (agg->op(i)->isa<Bottom>())
-                    func_impl_ << "//";
+                    func_impl_ << "// bottom: ";
                 func_impl_ << agg->unique_name();
                 emit_access(def, world_.literal_qs32(i, def->loc())) << " = ";
                 emit(agg->op(i)) << ";";
@@ -770,30 +815,36 @@ std::ostream& CCodeGen::emit(const Def* def) {
     if (auto primlit = def->isa<PrimLit>()) {
 #if __GNUC__ == 4 || (__GNUC__ == 5 && __GNUC_MINOR__ < 1)
         auto float_mode = std::scientific;
-        auto hs = "h"; auto fs = "f";
+        auto fs = "f";
 #else
         auto float_mode = lang_ == Lang::CUDA ? std::scientific : std::hexfloat;
-        auto hs = ""; auto fs = "";
+        auto fs = "";
 #endif
+        auto hp = lang_ == Lang::CUDA ? "__float2half(" : "";
+        auto hs = lang_ == Lang::CUDA ? ")" : "h";
+
         switch (primlit->primtype_kind()) {
-            case PrimType_bool: func_impl_ << (primlit->bool_value() ? "true" : "false");                    break;
-            case PrimType_ps8:  case PrimType_qs8:  func_impl_ << (int) primlit->ps8_value();                break;
-            case PrimType_pu8:  case PrimType_qu8:  func_impl_ << (unsigned) primlit->pu8_value();           break;
-            case PrimType_ps16: case PrimType_qs16: func_impl_ << primlit->ps16_value();                     break;
-            case PrimType_pu16: case PrimType_qu16: func_impl_ << primlit->pu16_value();                     break;
-            case PrimType_ps32: case PrimType_qs32: func_impl_ << primlit->ps32_value();                     break;
-            case PrimType_pu32: case PrimType_qu32: func_impl_ << primlit->pu32_value();                     break;
-            case PrimType_ps64: case PrimType_qs64: func_impl_ << primlit->ps64_value();                     break;
-            case PrimType_pu64: case PrimType_qu64: func_impl_ << primlit->pu64_value();                     break;
-            case PrimType_pf16: case PrimType_qf16: func_impl_ << float_mode << primlit->pf16_value() << hs; break;
-            case PrimType_pf32: case PrimType_qf32: func_impl_ << float_mode << primlit->pf32_value() << fs; break;
-            case PrimType_pf64: case PrimType_qf64: func_impl_ << float_mode << primlit->pf64_value();       break;
+            case PrimType_bool: func_impl_ << (primlit->bool_value() ? "true" : "false");                          break;
+            case PrimType_ps8:  case PrimType_qs8:  func_impl_ << (int) primlit->ps8_value();                      break;
+            case PrimType_pu8:  case PrimType_qu8:  func_impl_ << (unsigned) primlit->pu8_value();                 break;
+            case PrimType_ps16: case PrimType_qs16: func_impl_ << primlit->ps16_value();                           break;
+            case PrimType_pu16: case PrimType_qu16: func_impl_ << primlit->pu16_value();                           break;
+            case PrimType_ps32: case PrimType_qs32: func_impl_ << primlit->ps32_value();                           break;
+            case PrimType_pu32: case PrimType_qu32: func_impl_ << primlit->pu32_value();                           break;
+            case PrimType_ps64: case PrimType_qs64: func_impl_ << primlit->ps64_value();                           break;
+            case PrimType_pu64: case PrimType_qu64: func_impl_ << primlit->pu64_value();                           break;
+            case PrimType_pf16: case PrimType_qf16: func_impl_ << float_mode << hp << primlit->pf16_value() << hs; break;
+            case PrimType_pf32: case PrimType_qf32: func_impl_ << float_mode << primlit->pf32_value() << fs;       break;
+            case PrimType_pf64: case PrimType_qf64: func_impl_ << float_mode << primlit->pf64_value();             break;
         }
         return func_impl_;
     }
 
-    if (def->isa<Bottom>())
-        return func_impl_ << "42 /* bottom */";
+    if (auto bottom = def->isa<Bottom>()) {
+        emit_type(func_impl_, bottom->type()) << " " << bottom->unique_name() << "; // bottom";
+        insert(def, def->unique_name());
+        return func_impl_;
+    }
 
     if (auto load = def->isa<Load>()) {
         emit_type(func_impl_, load->out_val()->type()) << " " << load->unique_name() << ";" << endl;
@@ -870,7 +921,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
         }
         emit_type(func_impl_, global->alloced_type()) << " " << global->unique_name() << "_slot";
         if (global->init()->isa<Bottom>()) {
-            func_impl_ << ";";
+            func_impl_ << "; // bottom";
         } else {
             func_impl_ << " = ";
             emit(global->init()) << ";";

@@ -47,6 +47,9 @@ extern "device" {
     fn "atan2"      atan2(f64, f64) -> f64;
     fn "fmod"       fmod(f64, f64) -> f64;
     fn "floor"      floor(f64) -> f64;
+    fn "isinf"      isinf(f64) -> i32;
+    fn "isnan"      isnan(f64) -> i32;
+    fn "isfinite"   isfinite(f64) -> i32;
     fn "fma"        fma(f64, f64, f64) -> f64;
     fn "mad"        mad(f64, f64, f64) -> f64;
     fn "copysignf"  copysignf(f32, f32) -> f32;

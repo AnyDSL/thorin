@@ -8,9 +8,9 @@ extern "C" {
     fn erff(f32) -> f32;
     fn fmodf(f32, f32) -> f32;
     fn atan2f(f32, f32) -> f32;
-    fn "isinf"    isinff_(f32) -> bool;
-    fn "isnan"    isnanf_(f32) -> bool;
-    fn "isfinite" isfinitef_(f32) -> bool;
+    fn "thorin_isinff"    isinff(f32) -> i32;
+    fn "thorin_isnanf"    isnanf(f32) -> i32;
+    fn "thorin_isfinitef" isfinitef(f32) -> i32;
     //fn sin(f64) -> f64;
     //fn cos(f64) -> f64;
     fn tan(f64) -> f64;
@@ -20,9 +20,9 @@ extern "C" {
     fn erf(f64) -> f64;
     fn fmod(f64, f64) -> f64;
     fn atan2(f64, f64) -> f64;
-    fn "isinf"    isinf_(f64) -> bool;
-    fn "isnan"    isnan_(f64) -> bool;
-    fn "isfinite" isfinite_(f64) -> bool;
+    fn "thorin_isinf"     isinf(f64) -> i32;
+    fn "thorin_isnan"     isnan(f64) -> i32;
+    fn "thorin_isfinite"  isfinite(f64) -> i32;
 }
 
 // kind: Xchg Add Sub And Nand Or Xor Max Min
@@ -31,13 +31,6 @@ fn atomic_add(a: &i32, b: i32) -> i32 { atomic(1u, a, b) }
 fn atomic_sub(a: &i32, b: i32) -> i32 { atomic(2u, a, b) }
 fn atomic_max(a: &i32, b: i32) -> i32 { atomic(7u, a, b) }
 fn atomic_min(a: &i32, b: i32) -> i32 { atomic(8u, a, b) }
-
-fn isinff(a: f32) -> i32 { if isinff_(a) { 1 } else { 0 } }
-fn isnanf(a: f32) -> i32 { if isnanf_(a) { 1 } else { 0 } }
-fn isfinitef(a: f32) -> i32 { if isfinitef_(a) { 1 } else { 0 } }
-fn isinf(a: f64) -> i64 { if isinf_(a) { 1i64 } else { 0i64 } }
-fn isnan(a: f64) -> i64 { if isnan_(a) { 1i64 } else { 0i64 } }
-fn isfinite(a: f64) -> i64 { if isfinite_(a) { 1i64 } else { 0i64 } }
 
 extern "device" {
     fn "llvm.exp.f32"      expf(f32) -> f32;

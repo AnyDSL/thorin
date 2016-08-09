@@ -1,15 +1,33 @@
 #include "thorin/primop.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
+#include "thorin/analyses/free_defs.h"
+#include "thorin/analyses/scope.h"
 #include "thorin/util/log.h"
 
 namespace thorin {
 
 static void verify_calls(World& world) {
     for (auto continuation : world.continuations()) {
-        if (!continuation->empty())
-            assert(continuation->callee_fn_type()->num_args() == continuation->arg_fn_type()->num_args() && "argument/parameter mismatch");
+        if (!continuation->empty()) {
+            auto callee_fn_type = continuation->callee_fn_type();
+            auto arg_fn_type = continuation->arg_fn_type();
+            // TODO check type for equality - this is currently elided due to polymorphism
+            if (callee_fn_type->num_args() != arg_fn_type->num_args()) {
+                ELOG("continuation '%' calls callee '%' with '%' arguments but callee expects '%' arguments",
+                        continuation, continuation->callee(), callee_fn_type->num_args(), arg_fn_type->num_args());
+            }
+        }
     }
+}
+
+static void verify_top_level(World& world) {
+    Scope::for_each(world, [&] (const Scope& scope) {
+        for (auto def : free_defs(scope)) {
+            if (!def->isa_continuation())
+                ELOG("top-level continuation '%' got free def '%' at location '%'", scope.entry(), def, def->loc());
+        }
+    });
 }
 
 class Cycles {
@@ -52,7 +70,7 @@ void Cycles::analyze_call(const Continuation* continuation) {
 
         def2color_[continuation] = Black;
     } else if (def2color_[continuation] == Gray)
-        ELOG("detected cycle: %", continuation);
+        ELOG("detected cycle: '%'", continuation);
 }
 
 void Cycles::analyze(ParamSet& params, const Continuation* continuation, const Def* def) {
@@ -66,7 +84,7 @@ void Cycles::analyze(ParamSet& params, const Continuation* continuation, const D
             auto i = def2color_.find(param);
             if (i != def2color_.end()) {
                 if (i->second == Gray)
-                    ELOG("detected cycle induced by parameter: %", param);
+                    ELOG("detected cycle induced by parameter: '%'", param);
             } else
                 params.emplace(param);
         }
@@ -75,6 +93,7 @@ void Cycles::analyze(ParamSet& params, const Continuation* continuation, const D
 
 void verify(World& world) {
     verify_calls(world);
+    verify_top_level(world);
     Cycles cycles(world);
     cycles.run();
 }

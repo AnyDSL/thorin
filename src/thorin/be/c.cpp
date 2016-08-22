@@ -819,7 +819,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
         auto fs = "f";
 #else
         auto float_mode = lang_ == Lang::CUDA ? std::scientific : std::hexfloat;
-        auto fs = "";
+        auto fs = lang_ == Lang::CUDA ? "f" : "";
 #endif
         auto hp = lang_ == Lang::CUDA ? "__float2half(" : "";
         auto hs = lang_ == Lang::CUDA ? ")" : "h";

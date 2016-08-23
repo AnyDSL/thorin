@@ -552,23 +552,14 @@ llvm::Value* CodeGen::emit(const Def* def) {
                     case Cmp_lt: return irbuilder_.CreateICmpULT(lhs, rhs, name);
                     case Cmp_le: return irbuilder_.CreateICmpULE(lhs, rhs, name);
                 }
-            } else if (is_type_pf(type)) {
+            } else if (is_type_f(type)) {
                 switch (cmp->cmp_kind()) {
-                    case Cmp_eq: return irbuilder_.CreateFCmpOEQ (lhs, rhs, name);
-                    case Cmp_ne: return irbuilder_.CreateFCmpONE (lhs, rhs, name);
-                    case Cmp_gt: return irbuilder_.CreateFCmpOGT (lhs, rhs, name);
-                    case Cmp_ge: return irbuilder_.CreateFCmpOGE (lhs, rhs, name);
-                    case Cmp_lt: return irbuilder_.CreateFCmpOLT (lhs, rhs, name);
-                    case Cmp_le: return irbuilder_.CreateFCmpOLE (lhs, rhs, name);
-                }
-            } else if (is_type_qf(type)) {
-                switch (cmp->cmp_kind()) {
-                    case Cmp_eq: return irbuilder_.CreateFCmpUEQ(lhs, rhs, name);
+                    case Cmp_eq: return irbuilder_.CreateFCmpOEQ(lhs, rhs, name);
                     case Cmp_ne: return irbuilder_.CreateFCmpUNE(lhs, rhs, name);
-                    case Cmp_gt: return irbuilder_.CreateFCmpUGT(lhs, rhs, name);
-                    case Cmp_ge: return irbuilder_.CreateFCmpUGE(lhs, rhs, name);
-                    case Cmp_lt: return irbuilder_.CreateFCmpULT(lhs, rhs, name);
-                    case Cmp_le: return irbuilder_.CreateFCmpULE(lhs, rhs, name);
+                    case Cmp_gt: return irbuilder_.CreateFCmpOGT(lhs, rhs, name);
+                    case Cmp_ge: return irbuilder_.CreateFCmpOGE(lhs, rhs, name);
+                    case Cmp_lt: return irbuilder_.CreateFCmpOLT(lhs, rhs, name);
+                    case Cmp_le: return irbuilder_.CreateFCmpOLE(lhs, rhs, name);
                 }
             } else if (type->isa<PtrType>()) {
                 switch (cmp->cmp_kind()) {

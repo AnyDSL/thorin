@@ -401,8 +401,8 @@ const Def* World::arithop_minus(const Def* def, const Location& loc) {
 const Def* World::cmp(CmpKind kind, const Def* a, const Def* b, const Location& loc, const std::string& name) {
     CmpKind oldkind = kind;
     switch (kind) {
-        case Cmp_gt:  kind = Cmp_lt; break;
-        case Cmp_ge:  kind = Cmp_le; break;
+        case Cmp_gt: kind = Cmp_lt; break;
+        case Cmp_ge: kind = Cmp_le; break;
         default: break;
     }
 
@@ -411,8 +411,8 @@ const Def* World::cmp(CmpKind kind, const Def* a, const Def* b, const Location& 
 
     auto llit = a->isa<PrimLit>();
     auto rlit = b->isa<PrimLit>();
-    auto  lvec = a->isa<Vector>();
-    auto  rvec = b->isa<Vector>();
+    auto lvec = a->isa<Vector>();
+    auto rvec = b->isa<Vector>();
 
     if (lvec && rvec) {
         size_t num = lvec->type()->as<PrimType>()->length();
@@ -427,7 +427,6 @@ const Def* World::cmp(CmpKind kind, const Def* a, const Def* b, const Location& 
         Box r = rlit->value();
         PrimTypeKind type = llit->primtype_kind();
 
-        // TODO unordered
         switch (kind) {
             case Cmp_eq:
                 switch (type) {
@@ -456,9 +455,9 @@ const Def* World::cmp(CmpKind kind, const Def* a, const Def* b, const Location& 
     if (a == b) {
         switch (kind) {
             case Cmp_lt:
-            case Cmp_ne:  return zero(type_bool(), loc);
+            case Cmp_ne: return zero(type_bool(), loc);
             case Cmp_le:
-            case Cmp_eq:  return one(type_bool(), loc);
+            case Cmp_eq: return one(type_bool(), loc);
             default: break;
         }
     }

@@ -5,6 +5,8 @@
 #include "thorin/analyses/verify.h"
 #include "thorin/transform/mangle.h"
 
+#define THRESHOLD 10
+
 namespace thorin {
 
 void inliner(World& world) {
@@ -18,6 +20,14 @@ void inliner(World& world) {
                 }
             }
         }
+    });
+
+    Scope::for_each(world, [] (const Scope& scope) {
+        if (scope.defs().size() < THRESHOLD)
+            for (const auto& use : scope.entry()->uses())
+                if (auto ucontinuation = use->isa_continuation())
+                    if (use.index() == 0)
+                        ucontinuation->jump(drop(scope, ucontinuation->type_args(), ucontinuation->args()), {}, {}, ucontinuation->jump_loc());
     });
 
     debug_verify(world);

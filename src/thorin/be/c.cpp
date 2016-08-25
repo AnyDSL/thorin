@@ -423,6 +423,14 @@ void CCodeGen::emit() {
                 }
             }
 
+            for (auto arg : continuation->args()) {
+                // emit definitions of inlined elements
+                emit_aggop_defs(arg);
+                // emit temporaries for arguments
+                if (arg->order() == 0 && !is_mem(arg) && !lookup(arg) && !arg->isa<PrimLit>())
+                    emit(arg) << endl;
+            }
+
             // terminate bb
             if (continuation->callee() == ret_param) { // return
                 size_t num_args = continuation->num_args();
@@ -486,10 +494,6 @@ void CCodeGen::emit() {
                 auto callee = continuation->callee()->as_continuation();
                 emit_debug_info(callee);
 
-                // emit inlined arrays/tuples/structs before the call operation
-                for (auto arg : continuation->args())
-                    emit_aggop_defs(arg);
-
                 if (callee->is_basicblock()) {   // ordinary jump
                     assert(callee->num_params()==continuation->num_args());
                     for (size_t i = 0, size = callee->num_params(); i != size; ++i)
@@ -543,10 +547,7 @@ void CCodeGen::emit() {
 
                         const Def* ret_arg = 0;
                         for (auto arg : continuation->args()) {
-                            if (arg->order() == 0) {
-                                if (!is_mem(arg) && !lookup(arg) && !arg->isa<PrimLit>())
-                                    emit(arg) << endl; // emit temporaries for args
-                            } else {
+                            if (arg->order() != 0) {
                                 assert(!ret_arg);
                                 ret_arg = arg;
                             }
@@ -814,7 +815,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
         auto fs = "f";
 #else
         auto float_mode = lang_ == Lang::CUDA ? std::scientific : std::hexfloat;
-        auto fs = "";
+        auto fs = lang_ == Lang::CUDA ? "f" : "";
 #endif
         auto hp = lang_ == Lang::CUDA ? "__float2half(" : "";
         auto hs = lang_ == Lang::CUDA ? ")" : "h";

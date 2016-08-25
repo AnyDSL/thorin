@@ -244,6 +244,18 @@ void CudaPlatform::load_kernel(device_id dev, const char* file, const char* name
             ELOG("Function '%' is not present in '%'", name, file);
         func_map.emplace(name, func);
         devices_[dev].kernel = func;
+        int regs, cmem, lmem, smem, threads;
+        err = cuFuncGetAttribute(&regs, CU_FUNC_ATTRIBUTE_NUM_REGS, func);
+        checkErrDrv(err, "cuFuncGetAttribute()");
+        err = cuFuncGetAttribute(&smem, CU_FUNC_ATTRIBUTE_SHARED_SIZE_BYTES, func);
+        checkErrDrv(err, "cuFuncGetAttribute()");
+        err = cuFuncGetAttribute(&cmem, CU_FUNC_ATTRIBUTE_CONST_SIZE_BYTES, func);
+        checkErrDrv(err, "cuFuncGetAttribute()");
+        err = cuFuncGetAttribute(&lmem, CU_FUNC_ATTRIBUTE_LOCAL_SIZE_BYTES, func);
+        checkErrDrv(err, "cuFuncGetAttribute()");
+        err = cuFuncGetAttribute(&threads, CU_FUNC_ATTRIBUTE_MAX_THREADS_PER_BLOCK, func);
+        checkErrDrv(err, "cuFuncGetAttribute()");
+        ILOG("Function '%' using % registers, % | % | % bytes shared | constant | local memory allowing up to % threads per block", name, regs, smem, cmem, lmem, threads);
     } else {
         devices_[dev].kernel = func_it->second;
     }

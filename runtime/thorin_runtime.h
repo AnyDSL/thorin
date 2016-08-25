@@ -45,9 +45,9 @@ long long thorin_get_kernel_time();
 int32_t thorin_isinff(float);
 int32_t thorin_isnanf(float);
 int32_t thorin_isfinitef(float);
-int64_t thorin_isinf(double);
-int64_t thorin_isnan(double);
-int64_t thorin_isfinite(double);
+int32_t thorin_isinf(double);
+int32_t thorin_isnan(double);
+int32_t thorin_isfinite(double);
 
 void thorin_print_char(char);
 void thorin_print_short(int16_t);

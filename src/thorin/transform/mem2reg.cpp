@@ -21,16 +21,18 @@ void mem2reg(const Scope& scope) {
 
     // unseal all continuations ...
     for (auto continuation : scope) {
-        continuation->set_parent(continuation);
+        continuation->set_top(false);
         continuation->unseal();
         assert(continuation->is_cleared());
     }
 
     // ... except top-level continuations
-    scope.entry()->set_parent(nullptr);
+    scope.entry()->set_top();
     scope.entry()->seal();
 
     // set parent pointers for functions passed to accelerator
+    // TODO do we need this?
+#if 1
     for (auto continuation : scope) {
         if (auto callee = continuation->callee()->isa_continuation()) {
             if (callee->is_accelerator()) {
@@ -38,13 +40,14 @@ void mem2reg(const Scope& scope) {
                     if (auto acontinuation = arg->isa_continuation()) {
                         if (!acontinuation->is_basicblock()) {
                             DLOG("% calls accelerator with %", continuation, acontinuation);
-                            acontinuation->set_parent(continuation);
+                            acontinuation->set_top();
                         }
                     }
                 }
             }
         }
     }
+#endif
 
     for (const auto& block : schedule(scope, Schedule::Late)) {
         auto continuation = block.continuation();
@@ -86,7 +89,7 @@ next_primop:;
         // seal successors of last continuation if applicable
         for (auto succ : cfg.succs(block.node())) {
             auto lsucc = succ->continuation();
-            if (lsucc->parent() != nullptr) {
+            if (!lsucc->top()) {
                 auto i = continuation2num.find(lsucc);
                 if (i == continuation2num.end())
                     i = continuation2num.emplace(lsucc, cfg.num_preds(succ)).first;

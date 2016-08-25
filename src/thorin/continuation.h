@@ -95,11 +95,11 @@ class Continuation : public Def {
 private:
     Continuation(const FnType* fn, const Location& loc, CC cc, Intrinsic intrinsic, bool is_sealed, const std::string& name)
         : Def(Node_Continuation, fn, 0, loc, name)
-        , parent_(this)
         , cc_(cc)
         , intrinsic_(intrinsic)
         , is_sealed_(is_sealed)
         , is_visited_(false)
+        , top_(false)
     {
         params_.reserve(fn->num_ops());
     }
@@ -173,8 +173,8 @@ public:
     const Def* get_value(size_t handle, const Type* type, const char* name = "");
     const Def* set_mem(const Def* def);
     const Def* get_mem();
-    Continuation* parent() const { return parent_; }            ///< See @p parent_ for more information.
-    void set_parent(Continuation* parent) { parent_ = parent; } ///< See @p parent_ for more information.
+    bool top() const { return top_; }
+    void set_top(bool top = true) { top_ = top; }
     void seal();
     bool is_sealed() const { return is_sealed_; }
     void unseal() { is_sealed_ = false; }
@@ -225,17 +225,6 @@ private:
     void unregister_scope(const Scope* scope) { scopes_.erase(list_iter(scope)); }
     Location jump_loc_;
 
-    /**
-     * There exist three cases to distinguish here.
-     * - @p parent_ == this: This @p Continuation is considered as a basic block, i.e.,
-     *                       SSA construction will propagate value through this @p Continuation's predecessors.
-     * - @p parent_ == nullptr: This @p Continuation is considered as top level function, i.e.,
-     *                          SSA construction will stop propagate values here.
-     *                          Any @p get_value which arrives here without finding a definition will return @p bottom.
-     * - otherwise: This @p Continuation is considered as function head nested in @p parent_.
-     *              Any @p get_value which arrives here without finding a definition will recursively try to find one in @p parent_.
-     */
-    Continuation* parent_;
     std::vector<const Param*> params_;
     std::list<ScopeInfo> scopes_;
     std::deque<Tracker> values_;
@@ -245,6 +234,7 @@ private:
     mutable uint32_t reachable_ = 0;
     bool is_sealed_  : 1;
     bool is_visited_ : 1;
+    bool top_        : 1;
 
     friend class Cleaner;
     friend class Scope;

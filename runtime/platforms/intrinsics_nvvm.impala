@@ -289,6 +289,7 @@ extern "C" {
     fn "__nv_fmaf"      madf(f32, f32, f32) -> f32;
     fn "__nv_isinff"    isinff(f32) -> i32;
     fn "__nv_isnanf"    isnanf(f32) -> i32;
+    fn "__nv_finitef"   isfinitef(f32) -> i32;
     fn "__nv_exp"       exp(f64) -> f64;
     fn "__nv_pow"       pow(f64, f64) -> f64;
     fn "__nv_rsqrt"     rsqrt(f64) -> f64;
@@ -306,6 +307,9 @@ extern "C" {
     fn "__nv_floor"     floor(f64) -> f64;
     fn "__nv_fma"       fma(f64, f64, f64) -> f64;
     fn "__nv_fma"       mad(f64, f64, f64) -> f64;
+    fn "__nv_isinfd"    isinf(f64) -> i32;
+    fn "__nv_isnand"    isnan(f64) -> i32;
+    fn "__nv_isfinited" isfinite(f64) -> i32;
     fn "__nv_copysignf" copysignf(f32, f32) -> f32;
     fn "__nv_copysign"  copysign(f64, f64) -> f64;
 }
@@ -348,8 +352,6 @@ fn atomic_add_global(a: &[1]i32, b: i32) -> i32 { atomic_global(1u, a, b) }
 fn atomic_add_local (a: &[3]i32, b: i32) -> i32 { atomic_local (1u, a, b) }
 fn atomic_min_global(a: &[1]i32, b: i32) -> i32 { atomic_global(8u, a, b) }
 fn atomic_min_local (a: &[3]i32, b: i32) -> i32 { atomic_local (8u, a, b) }
-
-fn isfinitef(a: f32) -> i32 { if isnanf(a) == 0 && isinff(a) == 0 { 1 } else { 0 } }
 
 fn fminf(a: f32, b: f32) -> f32 { nvvm_fmin_f(a, b) }
 fn fmaxf(a: f32, b: f32) -> f32 { nvvm_fmax_f(a, b) }

@@ -390,11 +390,7 @@ const Def* Continuation::get_value(size_t handle, const Type* type, const char* 
     if (result)
         goto return_result;
 
-    if (parent() != this) { // is a function head?
-        if (parent()) {
-            result = parent()->get_value(handle, type, name);
-            goto return_result;
-        }
+    if (top()) {
         goto return_bottom;
     } else {
         if (!is_sealed_) {
@@ -406,9 +402,9 @@ const Def* Continuation::get_value(size_t handle, const Type* type, const char* 
 
         Continuations preds = this->preds();
         switch (preds.size()) {
-            case 0: 
+            case 0:
                 goto return_bottom;
-            case 1: 
+            case 1:
                 result = set_value(handle, preds.front()->get_value(handle, type, name));
                 goto return_result;
             default: {

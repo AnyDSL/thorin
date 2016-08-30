@@ -210,6 +210,7 @@ void Continuation::set_intrinsic() {
     else if (name == "vectorize")      intrinsic_ = Intrinsic::Vectorize;
     else if (name == "reserve_shared") intrinsic_ = Intrinsic::Reserve;
     else if (name == "atomic")         intrinsic_ = Intrinsic::Atomic;
+    else if (name == "cmpxchg")        intrinsic_ = Intrinsic::CmpXchg;
     else if (name == "bitcast")        intrinsic_ = Intrinsic::Bitcast;
     else if (name == "select")         intrinsic_ = Intrinsic::Select;
     else if (name == "sizeof")         intrinsic_ = Intrinsic::Sizeof;
@@ -395,7 +396,6 @@ const Def* Continuation::get_value(size_t handle, const Type* type, const char* 
             result = parent()->get_value(handle, type, name);
             goto return_result;
         }
-        goto return_bottom;
     } else {
         if (!is_sealed_) {
             auto param = append_param(type, name);
@@ -406,9 +406,9 @@ const Def* Continuation::get_value(size_t handle, const Type* type, const char* 
 
         Continuations preds = this->preds();
         switch (preds.size()) {
-            case 0: 
+            case 0:
                 goto return_bottom;
-            case 1: 
+            case 1:
                 result = set_value(handle, preds.front()->get_value(handle, type, name));
                 goto return_result;
             default: {

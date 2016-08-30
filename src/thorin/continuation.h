@@ -77,6 +77,7 @@ enum class Intrinsic : uint8_t {
     _Accelerator_End,
     Reserve = _Accelerator_End, ///< Intrinsic memory reserve function
     Atomic,                     ///< Intrinsic atomic function
+    CmpXchg,                    ///< Intrinsic cmpxchg function
     Branch,                     ///< branch(cond, T, F).
     EndScope,                   ///< Dummy function which marks the end of a @p Scope.
     Bitcast,                    ///< Intrinsic for reinterpretation of one type as another one

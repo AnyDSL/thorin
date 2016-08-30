@@ -391,8 +391,11 @@ const Def* Continuation::get_value(size_t handle, const Type* type, const char* 
     if (result)
         goto return_result;
 
-    if (top()) {
-        goto return_bottom;
+    if (parent() != this) { // is a function head?
+        if (parent()) {
+            result = parent()->get_value(handle, type, name);
+            goto return_result;
+        }
     } else {
         if (!is_sealed_) {
             auto param = append_param(type, name);

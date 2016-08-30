@@ -204,6 +204,7 @@ void Continuation::set_intrinsic() {
     else if (name == "vectorize")      intrinsic_ = Intrinsic::Vectorize;
     else if (name == "reserve_shared") intrinsic_ = Intrinsic::Reserve;
     else if (name == "atomic")         intrinsic_ = Intrinsic::Atomic;
+    else if (name == "cmpxchg")        intrinsic_ = Intrinsic::CmpXchg;
     else assert(false && "unsupported thorin intrinsic");
 }
 
@@ -349,8 +350,11 @@ const Def* Continuation::get_value(size_t handle, const Type* type, const char* 
     if (result)
         goto return_result;
 
-    if (top()) {
-        goto return_bottom;
+    if (parent() != this) { // is a function head?
+        if (parent()) {
+            result = parent()->get_value(handle, type, name);
+            goto return_result;
+        }
     } else {
         if (!is_sealed_) {
             auto param = append_param(type, name);

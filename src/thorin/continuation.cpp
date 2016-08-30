@@ -210,6 +210,7 @@ void Continuation::set_intrinsic() {
     else if (name == "vectorize")      intrinsic_ = Intrinsic::Vectorize;
     else if (name == "reserve_shared") intrinsic_ = Intrinsic::Reserve;
     else if (name == "atomic")         intrinsic_ = Intrinsic::Atomic;
+    else if (name == "cmpxchg")        intrinsic_ = Intrinsic::CmpXchg;
     else if (name == "bitcast")        intrinsic_ = Intrinsic::Bitcast;
     else if (name == "select")         intrinsic_ = Intrinsic::Select;
     else if (name == "sizeof")         intrinsic_ = Intrinsic::Sizeof;

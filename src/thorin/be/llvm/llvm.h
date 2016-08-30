@@ -53,6 +53,7 @@ private:
     Continuation* emit_sync(Continuation*);
     Continuation* emit_vectorize_continuation(Continuation*);
     Continuation* emit_atomic(Continuation*);
+    Continuation* emit_cmpxchg(Continuation*);
     Continuation* emit_sizeof(Continuation*);
     Continuation* emit_select(Continuation*);
     Continuation* emit_shuffle(Continuation*);

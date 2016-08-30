@@ -64,6 +64,7 @@ Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
     auto callee = continuation->callee()->as_continuation();
     switch (callee->intrinsic()) {
         case Intrinsic::Atomic:    return emit_atomic(continuation);
+        case Intrinsic::CmpXchg:   return emit_cmpxchg(continuation);
         case Intrinsic::Select:    return emit_select(continuation);
         case Intrinsic::Sizeof:    return emit_sizeof(continuation);
         case Intrinsic::Shuffle:   return emit_shuffle(continuation);
@@ -95,11 +96,25 @@ Continuation* CodeGen::emit_atomic(Continuation* continuation) {
     u32 kind = continuation->arg(1)->as<PrimLit>()->qu32_value();
     auto ptr = lookup(continuation->arg(2));
     auto val = lookup(continuation->arg(3));
+    assert(is_type_i(continuation->arg(3)->type()) && "atomic only supported for integer types");
     assert(int(llvm::AtomicRMWInst::BinOp::Xchg) <= int(kind) && int(kind) <= int(llvm::AtomicRMWInst::BinOp::UMin) && "unsupported atomic");
     llvm::AtomicRMWInst::BinOp binop = (llvm::AtomicRMWInst::BinOp)kind;
 
     auto cont = continuation->arg(4)->as_continuation();
     auto call = irbuilder_.CreateAtomicRMW(binop, ptr, val, llvm::AtomicOrdering::SequentiallyConsistent, llvm::SynchronizationScope::CrossThread);
+    emit_result_phi(cont->param(1), call);
+    return cont;
+}
+
+Continuation* CodeGen::emit_cmpxchg(Continuation* continuation) {
+    assert(continuation->num_args() == 5 && "required arguments are missing");
+    auto ptr  = lookup(continuation->arg(1));
+    auto cmp  = lookup(continuation->arg(2));
+    auto val  = lookup(continuation->arg(3));
+    auto cont = continuation->arg(4)->as_continuation();
+    assert(is_type_i(continuation->arg(3)->type()) && "cmpxchg only supported for integer types");
+
+    auto call = irbuilder_.CreateAtomicCmpXchg(ptr, cmp, val, llvm::AtomicOrdering::SequentiallyConsistent, llvm::SynchronizationScope::CrossThread);
     emit_result_phi(cont->param(1), call);
     return cont;
 }

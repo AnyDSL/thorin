@@ -15,7 +15,8 @@ extern "thorin" {
     fn spawn(body: fn() -> ()) -> i32;
     fn sync(id: i32) -> ();
 
-    fn atomic(u32, &i32, i32) -> i32;
+    fn atomic[T](u32, &T, T) -> T; // only for integer data types
+    fn cmpxchg[T](&T, T, T) -> T;  // only for integer data types
 
     fn vectorize(vector_length: i32, lower: i32, upper: i32, body: fn(i32) -> ()) -> ();
 }

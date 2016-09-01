@@ -20,6 +20,7 @@ public:
     CCodeGen(World& world, std::ostream& stream, Lang lang, bool debug)
         : world_(world)
         , lang_(lang)
+        , fn_mem_(world.fn_type({world.mem_type()}))
         , debug_(debug)
         , os_(stream)
     {}
@@ -45,6 +46,7 @@ private:
 
     World& world_;
     Lang lang_;
+    const FnType* fn_mem_;
     TypeMap<std::string> type2str_;
     DefMap<std::string> def2str_;
     bool use_64_ = false;
@@ -560,8 +562,13 @@ void CCodeGen::emit() {
                         }
 
                         if (ret_arg == ret_param) {     // call + return
-                            func_impl_ << "return ";
-                            emit_call();
+                            if (ret_arg->type() == fn_mem_) {
+                                emit_call();
+                                func_impl_ << endl << "return ;";
+                            } else {
+                                func_impl_ << "return ";
+                                emit_call();
+                            }
                         } else {                        // call + continuation
                             auto succ = ret_arg->as_continuation();
                             const Param* param = nullptr;

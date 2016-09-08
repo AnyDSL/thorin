@@ -353,7 +353,10 @@ void CodeGen::emit(int opt, bool debug) {
                         }
 
                         if (ret_arg == ret_param) {     // call + return
-                            irbuilder_.CreateRet(call);
+                            if (call->getType()->isVoidTy())
+                                irbuilder_.CreateRetVoid();
+                            else
+                                irbuilder_.CreateRet(call);
                         } else {                        // call + continuation
                             auto succ = ret_arg->as_continuation();
                             const Param* param = nullptr;

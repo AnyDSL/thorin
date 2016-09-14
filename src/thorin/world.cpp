@@ -752,6 +752,14 @@ const Def* World::global_immutable_string(const Location& loc, const std::string
     return global(definite_array(str_array, loc), loc, false, name);
 }
 
+const Def* World::inl_asm(const Def* mem, std::vector<const Type*>& out_types, std::vector<const Def*>& inputs, const Location& loc) {
+    // TODO: more stuff?
+    // TODO: it would be nicer if the insertion happened in the Asm comstructor
+    inputs.insert(inputs.begin(), mem);
+
+    return cse(new Asm(mem, out_types, inputs, loc));
+}
+
 /*
  * lambdas
  */

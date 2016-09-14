@@ -166,6 +166,7 @@ public:
     const Def* global(const Def* init, const Location& loc, bool is_mutable = true, const std::string& name = "");
     const Def* global_immutable_string(const Location& loc, const std::string& str, const std::string& name = "");
     const Def* lea(const Def* ptr, const Def* index, const Location& loc, const std::string& name = "") { return cse(new LEA(ptr, index, loc, name)); }
+    const Def* inl_asm(const Def* mem, std::vector<const Type*>& out_types, std::vector<const Def*>& inputs, const Location& loc);
 
     // guided partial evaluation
 

@@ -110,6 +110,19 @@ Enter::Enter(const Def* mem, const Location& loc, const std::string& name)
     set_type(w.tuple_type({w.mem_type(), w.frame_type()}));
 }
 
+Asm::Asm(const Def* mem, std::vector<const Type*>& out_types, std::vector<const Def*>& inputs, const Location& loc)
+    : MemOp(Node_Asm, nullptr, inputs, loc, "inl_asm")
+{
+    // TODO: add mem to inputs here instead of inl_asm in world
+
+    World& w = mem->world();
+    out_types.insert(out_types.begin(), w.mem_type());
+    set_type(w.tuple_type(out_types));
+
+    // TODO more and check
+    // TODO check inputs, pass differently maybe
+}
+
 //------------------------------------------------------------------------------
 
 /*
@@ -177,6 +190,19 @@ const Def* Alloc::vrebuild(World& to, Defs ops, const Type* t) const {
     return to.alloc(t->as<TupleType>()->arg(1)->as<PtrType>()->referenced_type(), ops[0], ops[1], loc(), name);
 }
 
+const Def* Asm::vrebuild(World& to, Defs ops, const Type* t) const {
+    // TODO: try to improve this
+    std::vector<const Def*> inputs(ops.size() - 1);
+    for (auto i = ops.begin() + 1; i != ops.end(); i++)
+        inputs.push_back(*i);
+
+    auto args = t->args();
+    std::vector<const Type*> out_types(args.size());
+    for (auto i = args.begin() + 1; i != args.end(); i++)
+        out_types.push_back(*i);
+
+    return to.inl_asm(ops[0], out_types, inputs, loc());
+}
 
 const Def* DefiniteArray::vrebuild(World& to, Defs ops, const Type* t) const {
     return to.definite_array(t->as<DefiniteArrayType>()->elem_type(), ops, loc(), name);

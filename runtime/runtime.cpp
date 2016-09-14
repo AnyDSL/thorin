@@ -179,7 +179,7 @@ void thorin_print_float(float f)    { std::cout << f; }
 void thorin_print_double(double d)  { std::cout << d; }
 void thorin_print_string(char* s)   { std::cout << s; }
 
-#if defined(__APPLE__) && defined(__clang__) || defined(_MSC_VER)
+#if (defined (__clang__) && !__has_feature(cxx_thread_local)) || defined(_MSC_VER)
 #pragma message("Runtime random function is not thread-safe")
 static std::mt19937 std_gen;
 #else

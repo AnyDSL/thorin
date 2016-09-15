@@ -110,12 +110,19 @@ Enter::Enter(const Def* mem, const Location& loc, const std::string& name)
     set_type(w.tuple_type({w.mem_type(), w.frame_type()}));
 }
 
-Asm::Asm(const Def* mem, std::vector<const Type*>& out_types, std::vector<const Def*>& inputs, const Location& loc)
-    : MemOp(Node_Asm, nullptr, inputs, loc, "inl_asm")
-{
-    // TODO: add mem to inputs here instead of inl_asm in world
+template<class T>
+inline std::vector<T>& insert_front(std::vector<T>& vec, T& elem) {
+    vec.insert(vec.begin(), elem);
+    return vec;
+}
 
+Asm::Asm(const Def* mem, std::vector<const Type*>& out_types, std::vector<const Def*>& inputs, const Location& loc)
+    : MemOp(Node_Asm, nullptr, insert_front(inputs, mem), loc, "inl_asm")
+{
+    // TODO: can it be done nicer without two tuple types?
     World& w = mem->world();
+    out_val_type_ = w.tuple_type(out_types); // this tuple type is required for LLVM
+
     out_types.insert(out_types.begin(), w.mem_type());
     set_type(w.tuple_type(out_types));
 
@@ -193,13 +200,15 @@ const Def* Alloc::vrebuild(World& to, Defs ops, const Type* t) const {
 const Def* Asm::vrebuild(World& to, Defs ops, const Type* t) const {
     // TODO: try to improve this
     std::vector<const Def*> inputs(ops.size() - 1);
+    int j = 0;
     for (auto i = ops.begin() + 1; i != ops.end(); i++)
-        inputs.push_back(*i);
+        inputs[j++] = *i;
 
     auto args = t->args();
-    std::vector<const Type*> out_types(args.size());
+    std::vector<const Type*> out_types(args.size() - 1);
+    j = 0;
     for (auto i = args.begin() + 1; i != args.end(); i++)
-        out_types.push_back(*i);
+        out_types[j++] = *i;
 
     return to.inl_asm(ops[0], out_types, inputs, loc());
 }

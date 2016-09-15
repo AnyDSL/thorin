@@ -10,6 +10,7 @@
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/GlobalVariable.h>
+#include <llvm/IR/InlineAsm.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
@@ -839,6 +840,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
     if (auto load = def->isa<Load>())    return emit_load(load);
     if (auto store = def->isa<Store>())  return emit_store(store);
     if (auto lea = def->isa<LEA>())      return emit_lea(lea);
+    if (auto inl_asm = def->isa<Asm>())  return emit_asm(inl_asm);
     if (def->isa<Enter>())               return nullptr;
 
     if (auto slot = def->isa<Slot>())
@@ -886,6 +888,32 @@ llvm::Value* CodeGen::emit_lea(const LEA* lea) {
     assert(lea->ptr_referenced_type()->isa<ArrayType>());
     llvm::Value* args[2] = { irbuilder_.getInt64(0), lookup(lea->index()) };
     return irbuilder_.CreateInBoundsGEP(lookup(lea->ptr()), args);
+}
+
+llvm::Value* CodeGen::emit_asm(const Asm* inl_asm) {
+    llvm::Type *res_type = convert(inl_asm->out_val_type());
+
+    // TODO: better way to get the input params and types?
+    auto ops = inl_asm->ops();
+    auto op_size = ops.size() - 1;       // omit the mem type
+    auto input_params = new llvm::Value *[op_size];
+    auto param_types = new llvm::Type *[op_size];
+    int i = 0;
+    for (auto op_it = ops.begin() + 1; op_it != ops.end(); op_it++) {
+        input_params[i] = lookup(*op_it);
+        param_types[i] = convert((*op_it)->type());
+        i++;
+    }
+
+    llvm::FunctionType *fn_type = llvm::FunctionType::get(res_type, llvm::ArrayRef<llvm::Type *>(param_types, op_size), false);
+
+    auto asm_expr = llvm::InlineAsm::get(fn_type, /* StringRef AsmString */ "add $1 $$0;", /* StringRef Constraints */ "=r,r", /* bool hasSideEffects */ false /*, bool isAlignStack = false , AsmDialect asmDialect = AD_ATT */);
+    auto call = irbuilder_.CreateCall(asm_expr, llvm::ArrayRef<llvm::Value *>(input_params, op_size));
+
+    delete input_params;
+    delete param_types;
+
+    return call;
 }
 
 llvm::Type* CodeGen::convert(const Type* type) {

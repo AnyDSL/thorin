@@ -578,14 +578,15 @@ private:
 
 public:
     virtual bool has_multiple_outs() const override { return true; }
-    //const Def* out_val() const { return out(1); }
     const TupleType* type() const { return MemOp::type()->as<TupleType>(); }
-    //const Type* out_val_type() const { return type()->arg(1); }
+    const TupleType* out_val_type() const { return out_val_type_; }
     //static const Load* is_out_mem(const Def* def) { return is_out<0, Load>(def); }
     //static const Load* is_out_val(const Def* def) { return is_out<1, Load>(def); }
 
 private:
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
+
+    const TupleType *out_val_type_;
 
     friend class World;
 };

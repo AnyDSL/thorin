@@ -8,7 +8,7 @@
 #  Half_FOUND         - True if Half library is found
 
 SET(Half_DIR $ENV{Half_DIR} CACHE PATH "C++ library for half precision floating point arithmetics.")
-FIND_PATH(Half_INCLUDE_DIR NAMES half.hpp PATHS ${Half_DIR})
+FIND_PATH(Half_INCLUDE_DIR half.hpp PATHS ${Half_DIR})
 
 INCLUDE(FindPackageHandleStandardArgs)
 FIND_PACKAGE_HANDLE_STANDARD_ARGS(Half DEFAULT_MSG Half_INCLUDE_DIR)

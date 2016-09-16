@@ -891,7 +891,19 @@ llvm::Value* CodeGen::emit_lea(const LEA* lea) {
 }
 
 llvm::Value* CodeGen::emit_asm(const Asm* inl_asm) {
-    llvm::Type *res_type = convert(inl_asm->out_val_type());
+    const TupleType *out_type = inl_asm->out_val_type();
+    llvm::Type *res_type;
+    switch (out_type->num_args()) {
+        case 0:
+            res_type = llvm::Type::getVoidTy(context_);
+            break;
+        case 1:
+            res_type = convert(out_type->arg(0));
+            break;
+        default:
+            res_type = convert(inl_asm->out_val_type());
+            break;
+    }
 
     // TODO: better way to get the input params and types?
     auto ops = inl_asm->ops();
@@ -907,7 +919,7 @@ llvm::Value* CodeGen::emit_asm(const Asm* inl_asm) {
 
     llvm::FunctionType *fn_type = llvm::FunctionType::get(res_type, llvm::ArrayRef<llvm::Type *>(param_types, op_size), false);
 
-    auto asm_expr = llvm::InlineAsm::get(fn_type, /* StringRef AsmString */ "add $1 $$0;", /* StringRef Constraints */ "=r,r", /* bool hasSideEffects */ false /*, bool isAlignStack = false , AsmDialect asmDialect = AD_ATT */);
+    auto asm_expr = llvm::InlineAsm::get(fn_type, /* StringRef AsmString */ "add $1 $0", /* StringRef Constraints */ "=r,r", /* bool hasSideEffects */ false /*, bool isAlignStack = false , AsmDialect asmDialect = AD_ATT */);
     auto call = irbuilder_.CreateCall(asm_expr, llvm::ArrayRef<llvm::Value *>(input_params, op_size));
 
     delete input_params;

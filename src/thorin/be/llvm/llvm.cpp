@@ -919,7 +919,18 @@ llvm::Value* CodeGen::emit_asm(const Asm* inl_asm) {
 
     llvm::FunctionType *fn_type = llvm::FunctionType::get(res_type, llvm::ArrayRef<llvm::Type *>(param_types, op_size), false);
 
-    auto asm_expr = llvm::InlineAsm::get(fn_type, /* StringRef AsmString */ "add $1 $0", /* StringRef Constraints */ "=r,r", /* bool hasSideEffects */ false /*, bool isAlignStack = false , AsmDialect asmDialect = AD_ATT */);
+    std::string constraints;
+    for (auto con : inl_asm->out_constraints())
+        constraints += con + ",";
+    for (auto con : inl_asm->in_constraints())
+        constraints += con + ",";
+    constraints.pop_back();
+
+    std::string asm_template = inl_asm->asm_template();
+    std::replace(asm_template.begin(), asm_template.end(), '%', '$');
+
+    auto asm_expr = llvm::InlineAsm::get(fn_type, asm_template,
+            constraints, /* bool hasSideEffects */ false /*, bool isAlignStack = false , AsmDialect asmDialect = AD_ATT */);
     auto call = irbuilder_.CreateCall(asm_expr, llvm::ArrayRef<llvm::Value *>(input_params, op_size));
 
     delete input_params;

@@ -116,8 +116,11 @@ inline std::vector<T>& insert_front(std::vector<T>& vec, T& elem) {
     return vec;
 }
 
-Asm::Asm(const Def* mem, std::vector<const Type*>& out_types, std::vector<const Def*>& inputs, const Location& loc)
+Asm::Asm(const Def* mem, std::vector<const Type*>& out_types, std::vector<const Def*>& inputs, const Location& loc, std::string asm_template, std::vector<std::string> output_constraints, std::vector<std::string> input_constraints)
     : MemOp(Node_Asm, nullptr, insert_front(inputs, mem), loc, "inl_asm")
+    , template_(asm_template)
+    , output_constraints_(output_constraints)
+    , input_constraints_(input_constraints)
 {
     // TODO: can it be done nicer without two tuple types?
     World& w = mem->world();
@@ -210,7 +213,8 @@ const Def* Asm::vrebuild(World& to, Defs ops, const Type* t) const {
     for (auto i = args.begin() + 1; i != args.end(); i++)
         out_types[j++] = *i;
 
-    return to.inl_asm(ops[0], out_types, inputs, loc());
+    return to.inl_asm(ops[0], out_types, inputs, loc(), template_,
+            output_constraints_, input_constraints_);
 }
 
 const Def* DefiniteArray::vrebuild(World& to, Defs ops, const Type* t) const {

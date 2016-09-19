@@ -64,7 +64,7 @@ public:
     const F_CFG& f_cfg() const;
     const B_CFG& b_cfg() const;
     template<bool forward> const CFG<forward>& cfg() const;
-    void verify() const;
+    void verify(Continuation* entry) const;
 
     // Note that we don't use overloading for the following methods in order to have them accessible from gdb.
     virtual std::ostream& stream(std::ostream&) const override;  ///< Streams thorin to file @p out.
@@ -82,20 +82,12 @@ private:
     void cleanup();
     void run(Continuation* entry);
 
-    static bool is_candidate(const Def* def) { return def->candidate_ == candidate_counter_; }
-    static void set_candidate(const Def* def) { def->candidate_ = candidate_counter_; }
-    static void unset_candidate(const Def* def) { assert(is_candidate(def)); --def->candidate_; }
-
-    void identify_scope(Continuation* entry);
-    void build_defs();
-
     World& world_;
     DefSet defs_;
     uint32_t id_;
     std::vector<Continuation*> continuations_;
     mutable AutoPtr<const CFA> cfa_;
 
-    static uint32_t candidate_counter_;
     static uint32_t id_counter_;
 };
 

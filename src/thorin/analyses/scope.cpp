@@ -14,7 +14,6 @@
 namespace thorin {
 
 uint32_t Scope::id_counter_ = 1;
-uint32_t Scope::candidate_counter_ = 1;
 
 Scope::Scope(Continuation* entry)
     : world_(entry->world())
@@ -24,13 +23,6 @@ Scope::Scope(Continuation* entry)
 }
 
 Scope::~Scope() { cleanup(); }
-
-void Scope::run(Continuation* entry) {
-    identify_scope(entry);
-    build_defs();
-    ++candidate_counter_;
-    verify();
-}
 
 void Scope::cleanup() {
     for (auto continuation : continuations())
@@ -48,78 +40,55 @@ const Scope& Scope::update() {
     return *this;
 }
 
-void Scope::identify_scope(Continuation* entry) {
+void Scope::run(Continuation* entry) {
     std::queue<const Def*> queue;
-    assert(!is_candidate(entry));
 
-    auto insert_continuation = [&] (Continuation* continuation) {
-        for (auto param : continuation->params()) {
-            set_candidate(param);
-            queue.push(param);
+    auto enqueue = [&] (const Def* def) {
+        if (defs_.insert(def).second) {
+            queue.push(def);
+
+            if (auto continuation = def->isa_continuation()) {
+                continuations_.push_back(continuation);
+
+                for (auto param : continuation->params()) {
+                    auto p = defs_.insert(param);
+                    assert_unused(p.second);
+                    queue.push(param);
+                }
+            }
         }
-
-        assert(std::find(continuations_.begin(), continuations_.end(), continuation) == continuations_.end());
-        continuations_.push_back(continuation);
     };
 
-    insert_continuation(entry);
-    set_candidate(entry);
+    enqueue(entry);
 
     while (!queue.empty()) {
         auto def = pop(queue);
-        for (auto use : def->uses()) {
-            if (!is_candidate(use)) {
-                if (auto ucontinuation = use->isa_continuation())
-                    insert_continuation(ucontinuation);
-                set_candidate(use);
-                queue.push(use);
-            }
+        if (def != entry) {
+            for (auto use : def->uses())
+                enqueue(use);
         }
     }
 
-    continuations_.push_back(world().end_scope());
-    set_candidate(world().end_scope());
+    enqueue(world().end_scope());
 
-    for (size_t i = 0, e = size(); i != e; ++i) {
-        auto continuation = continuations_[i];
-        continuation->register_scope(this)->index = i;
-        assert(is_candidate(continuation));
-    }
-    assert(continuations().front() == entry);
+    for (size_t i = 0, e = size(); i != e; ++i)
+        continuations_[i]->register_scope(this)->index = i;
+
+    verify(entry);
 }
 
-void Scope::verify() const {
+void Scope::verify(Continuation* entry) const {
+    assert(continuations().front() == entry);
+    assert(continuations().back() == world().end_scope());
+
 #ifndef NDEBUG
     for (auto continuation : continuations_) {
         auto info = continuation->find_scope(this);
         assert(info->scope == this);
         assert((*this)[info->index] == continuation);
+        assert(defs_.contains(continuation));
     }
 #endif
-}
-
-void Scope::build_defs() {
-    std::queue<const Def*> queue;
-    auto enqueue = [&] (const Def* def) {
-        if (!def->isa_continuation() && is_candidate(def) && !defs_.contains(def)) {
-            defs_.insert(def);
-            queue.push(def);
-        }
-    };
-
-    for (auto continuation : continuations()) {
-        for (auto param : continuation->params())
-            defs_.insert(param);
-        defs_.insert(continuation);
-
-        for (auto op : continuation->ops())
-            enqueue(op);
-
-        while (!queue.empty()) {
-            for (auto op : pop(queue)->ops())
-                enqueue(op);
-        }
-    }
 }
 
 const CFA& Scope::cfa() const { return lazy_init(this, cfa_); }

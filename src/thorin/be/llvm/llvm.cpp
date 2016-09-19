@@ -924,7 +924,8 @@ llvm::Value* CodeGen::emit_asm(const Asm* inl_asm) {
         constraints += con + ",";
     for (auto con : inl_asm->in_constraints())
         constraints += con + ",";
-    constraints.pop_back();
+    if (constraints.size() > 0)
+        constraints.pop_back();
 
     std::string asm_template = inl_asm->asm_template();
     std::replace(asm_template.begin(), asm_template.end(), '%', '$');

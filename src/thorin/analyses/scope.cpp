@@ -48,6 +48,7 @@ void Scope::run(Continuation* entry) {
             queue.push(def);
 
             if (auto continuation = def->isa_continuation()) {
+                continuation->register_scope(this)->index = continuations_.size();
                 continuations_.push_back(continuation);
 
                 for (auto param : continuation->params()) {
@@ -70,25 +71,6 @@ void Scope::run(Continuation* entry) {
     }
 
     enqueue(world().end_scope());
-
-    for (size_t i = 0, e = size(); i != e; ++i)
-        continuations_[i]->register_scope(this)->index = i;
-
-    verify(entry);
-}
-
-void Scope::verify(Continuation* entry) const {
-    assert(continuations().front() == entry);
-    assert(continuations().back() == world().end_scope());
-
-#ifndef NDEBUG
-    for (auto continuation : continuations_) {
-        auto info = continuation->find_scope(this);
-        assert(info->scope == this);
-        assert((*this)[info->index] == continuation);
-        assert(defs_.contains(continuation));
-    }
-#endif
 }
 
 const CFA& Scope::cfa() const { return lazy_init(this, cfa_); }

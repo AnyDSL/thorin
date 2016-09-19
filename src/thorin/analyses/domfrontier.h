@@ -10,6 +10,7 @@ namespace thorin {
  * The template parameter @p forward determines whether to compute
  * regular dominance frontiers or post-dominance frontiers (i.e. control dependence).
  * This template parameter is associated with @p CFG's @c forward parameter.
+ * See Cooper et al, 2001. A Simple, Fast Dominance Algorithm: http://www.cs.rice.edu/~keith/EMBED/dom.pdf
  */
 template<bool forward>
 class DomFrontierBase : public YComp {

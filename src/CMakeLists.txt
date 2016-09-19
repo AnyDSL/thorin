@@ -12,9 +12,9 @@ ENDIF ()
 
 # check for Half library
 FIND_PACKAGE ( Half REQUIRED )
-IF ( HALF_FOUND )
-    MESSAGE ( STATUS "Building with Half library from ${HALF_INCLUDE_DIRS}." )
-    INCLUDE_DIRECTORIES ( ${HALF_INCLUDE_DIRS} )
+IF ( Half_FOUND )
+    MESSAGE ( STATUS "Building with Half library from ${Half_INCLUDE_DIRS}." )
+    INCLUDE_DIRECTORIES ( ${Half_INCLUDE_DIRS} )
 ENDIF ()
 
 # check for wfv2

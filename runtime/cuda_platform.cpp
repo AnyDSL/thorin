@@ -363,31 +363,20 @@ std::string CudaPlatform::load_ptx(const std::string& filename) {
 void CudaPlatform::compile_nvvm(device_id dev, const std::string& filename, CUjit_target target_cc) {
     // Select libdevice module according to documentation
     std::string libdevice_filename;
-    switch (target_cc) {
-        #if CUDA_VERSION == 6050
-        case CU_TARGET_COMPUTE_37:
-        #endif
-        default:
-            assert(false && "Unsupported compute capability");
-        case CU_TARGET_COMPUTE_20:
-        case CU_TARGET_COMPUTE_21:
-        case CU_TARGET_COMPUTE_32:
-            libdevice_filename = "libdevice.compute_20.10.bc"; break;
-        case CU_TARGET_COMPUTE_30:
-        case CU_TARGET_COMPUTE_50:
-        #if CUDA_VERSION >= 7000
-        case CU_TARGET_COMPUTE_52:
-        #ifdef CU_TARGET_COMPUTE_53
-        case CU_TARGET_COMPUTE_53:
-        #endif
-        #endif
-            libdevice_filename = "libdevice.compute_30.10.bc"; break;
-        case CU_TARGET_COMPUTE_35:
-        #if CUDA_VERSION >= 7000
-        case CU_TARGET_COMPUTE_37:
-        #endif
-            libdevice_filename = "libdevice.compute_35.10.bc"; break;
-    }
+    if (target_cc < 30)
+        libdevice_filename = "libdevice.compute_20.10.bc";
+    else if (target_cc == 30)
+        libdevice_filename = "libdevice.compute_30.10.bc";
+    else if (target_cc <  35)
+        libdevice_filename = "libdevice.compute_20.10.bc";
+    else if (target_cc <= 37)
+        libdevice_filename = "libdevice.compute_35.10.bc";
+    else if (target_cc <  50)
+        libdevice_filename = "libdevice.compute_30.10.bc";
+    else if (target_cc <= 53)
+        libdevice_filename = "libdevice.compute_50.10.bc";
+    else
+        libdevice_filename = "libdevice.compute_30.10.bc";
 
     std::ifstream libdevice_file(std::string(LIBDEVICE_DIR) + libdevice_filename);
     if (!libdevice_file.is_open())

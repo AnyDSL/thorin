@@ -354,19 +354,19 @@ void CudaPlatform::compile_nvvm(device_id dev, const char* file_name, CUjit_targ
     // Select libdevice module according to documentation
     std::string libdevice_file_name;
     if (target_cc < 30)
-        libdevice_filename = "libdevice.compute_20.10.bc";
+        libdevice_file_name = "libdevice.compute_20.10.bc";
     else if (target_cc == 30)
-        libdevice_filename = "libdevice.compute_30.10.bc";
+        libdevice_file_name = "libdevice.compute_30.10.bc";
     else if (target_cc <  35)
-        libdevice_filename = "libdevice.compute_20.10.bc";
+        libdevice_file_name = "libdevice.compute_20.10.bc";
     else if (target_cc <= 37)
-        libdevice_filename = "libdevice.compute_35.10.bc";
+        libdevice_file_name = "libdevice.compute_35.10.bc";
     else if (target_cc <  50)
-        libdevice_filename = "libdevice.compute_30.10.bc";
+        libdevice_file_name = "libdevice.compute_30.10.bc";
     else if (target_cc <= 53)
-        libdevice_filename = "libdevice.compute_50.10.bc";
+        libdevice_file_name = "libdevice.compute_50.10.bc";
     else
-        libdevice_filename = "libdevice.compute_30.10.bc";
+        libdevice_file_name = "libdevice.compute_30.10.bc";
 
     std::ifstream libdevice_file(std::string(LIBDEVICE_DIR) + libdevice_file_name);
     if (!libdevice_file.is_open())

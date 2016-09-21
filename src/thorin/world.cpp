@@ -752,10 +752,11 @@ const Def* World::global_immutable_string(const Location& loc, const std::string
     return global(definite_array(str_array, loc), loc, false, name);
 }
 
-const Def* World::inl_asm(const Def* mem, std::vector<const Type*>& out_types, std::vector<const Def*>& inputs, const Location& loc, std::string asm_template, std::vector<std::string> output_constraints, std::vector<std::string> input_constraints, std::vector<std::string> clobbers) {
+const Def* World::inl_asm(const Def* mem, std::vector<const Type*>& out_types, std::vector<const Def*>& inputs, const Location& loc, std::string asm_template, std::vector<std::string> output_constraints, std::vector<std::string> input_constraints, std::vector<std::string> clobbers, bool has_sideeffects, bool is_alignstack, bool is_inteldialect) {
     // TODO: more stuff?
     return cse(new Asm(mem, out_types, inputs, loc, asm_template, 
-                output_constraints, input_constraints, clobbers));
+                output_constraints, input_constraints, clobbers,
+                has_sideeffects, is_alignstack, is_inteldialect));
 }
 
 /*

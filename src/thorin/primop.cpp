@@ -116,12 +116,15 @@ inline std::vector<T>& insert_front(std::vector<T>& vec, T& elem) {
     return vec;
 }
 
-Asm::Asm(const Def* mem, std::vector<const Type*>& out_types, std::vector<const Def*>& inputs, const Location& loc, std::string asm_template, std::vector<std::string> output_constraints, std::vector<std::string> input_constraints, std::vector<std::string> clobbers)
+Asm::Asm(const Def* mem, std::vector<const Type*>& out_types, std::vector<const Def*>& inputs, const Location& loc, std::string asm_template, std::vector<std::string> output_constraints, std::vector<std::string> input_constraints, std::vector<std::string> clobbers, bool has_sideeffects, bool is_alignstack, bool is_inteldialect)
     : MemOp(Node_Asm, nullptr, insert_front(inputs, mem), loc, "inl_asm")
     , template_(asm_template)
     , output_constraints_(output_constraints)
     , input_constraints_(input_constraints)
     , clobbers_(clobbers)
+    , has_sideeffects_(has_sideeffects)
+    , is_alignstack_(is_alignstack)
+    , is_inteldialect_(is_inteldialect)
 {
     // TODO: can it be done nicer without two tuple types?
     World& w = mem->world();
@@ -215,7 +218,8 @@ const Def* Asm::vrebuild(World& to, Defs ops, const Type* t) const {
         out_types[j++] = *i;
 
     return to.inl_asm(ops[0], out_types, inputs, loc(), template_,
-            output_constraints_, input_constraints_, clobbers_);
+            output_constraints_, input_constraints_, clobbers_,
+            has_sideeffects_, is_alignstack_, is_inteldialect_);
 }
 
 const Def* DefiniteArray::vrebuild(World& to, Defs ops, const Type* t) const {

@@ -574,21 +574,22 @@ public:
 
 class Asm : public MemOp {
 private:
-    Asm(const Def* mem, std::vector<const Type*>& out_types, std::vector<const Def*>& inputs, const Location& loc, std::string asm_template, std::vector<std::string> output_constraints, std::vector<std::string> input_constraints);
+    Asm(const Def* mem, std::vector<const Type*>& out_types, std::vector<const Def*>& inputs, const Location& loc, std::string asm_template, std::vector<std::string> output_constraints, std::vector<std::string> input_constraints, std::string clobbers);
 
 public:
     virtual bool has_multiple_outs() const override { return true; }
     const TupleType* type() const { return MemOp::type()->as<TupleType>(); }
     const TupleType* out_val_type() const { return out_val_type_; }
-    const std::string asm_template() const { return template_; }
-    const std::vector<std::string> out_constraints() const { return output_constraints_; }
-    const std::vector<std::string> in_constraints() const { return input_constraints_; }
+    const std::string& asm_template() const { return template_; }
+    const std::vector<std::string>& out_constraints() const { return output_constraints_; }
+    const std::vector<std::string>& in_constraints() const { return input_constraints_; }
+    const std::string& clobbers() const { return clobbers_; }
 
 private:
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
 
     const TupleType *out_val_type_;
-    std::string template_;
+    std::string template_, clobbers_;
     std::vector<std::string> output_constraints_, input_constraints_;
 
     friend class World;

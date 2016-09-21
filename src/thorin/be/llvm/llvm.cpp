@@ -948,14 +948,12 @@ llvm::Value* CodeGen::emit_asm(const Asm* inl_asm) {
         constraints += con + ",";
     for (auto con : inl_asm->in_constraints())
         constraints += con + ",";
-
-    if (!inl_asm->clobbers().empty()) {
-        constraints += "~" + inl_asm->clobbers();
-    } else if (constraints.size() > 0)
+    for (auto clob : inl_asm->clobbers())
+        constraints += "~" + clob + ",";
+    if (constraints.size() > 0)
         constraints.pop_back();
 
     std::string asm_template = inl_asm->asm_template();
-    //std::replace(asm_template.begin(), asm_template.end(), '%', '$');
 
     auto asm_expr = llvm::InlineAsm::get(fn_type, asm_template,
             constraints, /* bool hasSideEffects */ false /*, bool isAlignStack = false , AsmDialect asmDialect = AD_ATT */);

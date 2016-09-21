@@ -116,12 +116,12 @@ inline std::vector<T>& insert_front(std::vector<T>& vec, T& elem) {
     return vec;
 }
 
-Asm::Asm(const Def* mem, std::vector<const Type*>& out_types, std::vector<const Def*>& inputs, const Location& loc, std::string asm_template, std::vector<std::string> output_constraints, std::vector<std::string> input_constraints, std::string clobbers)
+Asm::Asm(const Def* mem, std::vector<const Type*>& out_types, std::vector<const Def*>& inputs, const Location& loc, std::string asm_template, std::vector<std::string> output_constraints, std::vector<std::string> input_constraints, std::vector<std::string> clobbers)
     : MemOp(Node_Asm, nullptr, insert_front(inputs, mem), loc, "inl_asm")
     , template_(asm_template)
-    , clobbers_(clobbers)
     , output_constraints_(output_constraints)
     , input_constraints_(input_constraints)
+    , clobbers_(clobbers)
 {
     // TODO: can it be done nicer without two tuple types?
     World& w = mem->world();

@@ -759,9 +759,19 @@ llvm::Value* CodeGen::emit(const Def* def) {
         };
 
         if (auto extract = aggop->isa<Extract>()) {
+            // Asms with more than one output are MemOps and have tuple type
+            // and thus need their own rule here because the standard MemOp
+            // rule does not work
+            if (auto inl_asm = extract->agg()->isa<Asm>()) {
+                if (inl_asm->out_val_type()->num_args() > 1
+                        && primlit_value<unsigned>(aggop->index()) != 0)
+                    return irbuilder_.CreateExtractValue(llvm_agg,
+                            {primlit_value<unsigned>(aggop->index()) - 1});
+            }
+
             if (auto memop = extract->agg()->isa<MemOp>())
                 return lookup(memop);
-
+    
             if (aggop->agg()->type()->isa<ArrayType>())
                 return irbuilder_.CreateLoad(copy_to_alloca().second);
 
@@ -925,7 +935,7 @@ llvm::Value* CodeGen::emit_asm(const Asm* inl_asm) {
             res_type = convert(out_type->arg(0));
             break;
         default:
-            res_type = convert(inl_asm->out_val_type());
+            res_type = convert(out_type);
             break;
     }
 
@@ -953,6 +963,14 @@ llvm::Value* CodeGen::emit_asm(const Asm* inl_asm) {
         constraints += "~" + clob + ",";
     if (constraints.size() > 0)
         constraints.pop_back();
+
+    if (!llvm::InlineAsm::Verify(fn_type, constraints)) {
+        delete input_params;
+        delete param_types;
+        ELOG("Constraints and input and output types of inline assembly do not match at %", inl_asm->loc());
+        // TODO: nullptr ok?
+        return nullptr;
+    }
 
     std::string asm_template = inl_asm->asm_template();
 

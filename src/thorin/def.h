@@ -136,7 +136,6 @@ private:
     const Type* type_;
     mutable Uses uses_;
     const size_t gid_;
-    mutable uint32_t candidate_ = 0;
     static size_t gid_counter_;
 
 public:

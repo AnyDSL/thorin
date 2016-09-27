@@ -805,6 +805,7 @@ const Def* World::cse_base(const PrimOp* primop) {
     auto i = primops_.find(primop);
     if (i != primops_.end()) {
         primop->unregister_uses();
+        --Def::gid_counter_;
         delete primop;
         return *i;
     }

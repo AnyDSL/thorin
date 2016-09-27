@@ -132,9 +132,6 @@ Asm::Asm(const Def* mem, std::vector<const Type*>& out_types, std::vector<const 
 
     out_types.insert(out_types.begin(), w.mem_type());
     set_type(w.tuple_type(out_types));
-
-    // TODO more and check
-    // TODO check inputs, pass differently maybe
 }
 
 //------------------------------------------------------------------------------

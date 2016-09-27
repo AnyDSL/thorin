@@ -2,6 +2,9 @@
 #error "please define the type table name HENK_TABLE_NAME"
 #endif
 
+#define HENK_UNDERSCORE(N) THORIN_PASTER(N,_)
+#define HENK_TABLE_NAME_ HENK_UNDERSCORE(HENK_TABLE_NAME)
+
 size_t Type::gid_counter_ = 1;
 
 Type::Type(HENK_TABLE_TYPE& HENK_TABLE_NAME, int kind, Types args, size_t num_type_params)

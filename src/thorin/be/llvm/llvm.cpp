@@ -937,8 +937,8 @@ llvm::Value* CodeGen::emit_asm(const Asm* inl_asm) {
         constraints += con + ",";
     for (auto clob : inl_asm->clobbers())
         constraints += "~" + clob + ",";
-    if (constraints.size() > 0)
-        constraints.pop_back();
+    // clang always marks those registers as clobbered, so we will do as well
+    constraints += "~{dirflag},~{fpsr},~{flags}";
 
     if (!llvm::InlineAsm::Verify(fn_type, constraints)) {
         delete input_params;

@@ -274,24 +274,6 @@ const Def* PrimOp::out(size_t i) const {
     return world().extract(this, i, loc());
 }
 
-const Def* PrimOp::rebuild(Def2Def& old2new) const {
-    auto i = old2new.find(this);
-    if (i == old2new.end()) {
-        if (is_outdated()) {
-            Array<const Def*> ops(size());
-            for (size_t i = 0, e = size(); i != e; ++i)
-                ops[i] = op(i)->rebuild(old2new);
-
-            auto def = rebuild(ops);
-            if (this == def)
-                is_outdated_ = false;
-            return old2new[this] = def;
-        } else
-            return old2new[this] = this;
-    } else
-        return i->second;
-}
-
 const Type* Extract::extracted_type(const Def* agg, const Def* index) {
     if (auto tuple = agg->type()->isa<TupleType>())
         return get(tuple->args(), index);

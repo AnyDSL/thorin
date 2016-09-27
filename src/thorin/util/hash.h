@@ -445,6 +445,8 @@ public:
     HashSet(std::initializer_list<value_type> ilist, size_type capacity = Super::min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
         : Super(ilist, capacity, hash_function, key_eq)
     {}
+
+    friend void swap(HashSet& s1, HashSet& s2) { swap(static_cast<Super&>(s1), static_cast<Super&>(s2)); }
 };
 
 //------------------------------------------------------------------------------
@@ -479,6 +481,8 @@ public:
 
     mapped_type& operator[](const key_type& key) { return Super::insert(value_type(key, T())).first->second; }
     mapped_type& operator[](key_type&& key) { return Super::insert(value_type(std::move(key), T())).first->second; }
+
+    friend void swap(HashMap& m1, HashMap& m2) { swap(static_cast<Super&>(m1), static_cast<Super&>(m2)); }
 };
 
 //------------------------------------------------------------------------------

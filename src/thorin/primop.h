@@ -14,7 +14,6 @@ class PrimOp : public Def {
 protected:
     PrimOp(NodeKind kind, const Type* type, Defs args, const Location& loc, const std::string& name)
         : Def(kind, type, args.size(), loc, name)
-        , is_outdated_(false)
     {
         for (size_t i = 0, e = size(); i != e; ++i)
             set_op(i, args[i]);
@@ -24,8 +23,6 @@ protected:
 
 public:
     const Def* out(size_t i) const;
-    virtual bool is_outdated() const override { return is_outdated_; }
-    virtual const Def* rebuild(Def2Def&) const override;
     const Def* rebuild(World& to, Defs ops, const Type* type) const {
         assert(this->size() == ops.size());
         return vrebuild(to, ops, type);
@@ -48,8 +45,6 @@ private:
     uint64_t hash() const { return hash_ == 0 ? hash_ = vhash() : hash_; }
 
     mutable uint64_t hash_ = 0;
-    mutable uint32_t live_ = 0;
-    mutable bool is_outdated_ : 1;
 
     friend struct PrimOpHash;
     friend struct PrimOpEqual;

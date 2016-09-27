@@ -75,18 +75,6 @@ Continuation* Continuation::update_op(size_t i, const Def* def) {
     return this;
 }
 
-void Continuation::refresh(Def2Def& old2new) {
-    for (auto op : ops()) {
-        if (op->is_outdated()) {
-            Array<const Def*> nops(size());
-            for (size_t i = 0, e = size(); i != e; ++i)
-                nops[i] = this->op(i)->rebuild(old2new);
-            jump(nops.front(), type_args(), nops.skip_front(), jump_loc());
-            return;
-        }
-    }
-}
-
 void Continuation::destroy_body() {
     unset_ops();
     resize(0);

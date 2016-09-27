@@ -12,7 +12,6 @@ public:
     Cleaner(World& world)
         : world_(world)
     {}
-    ~Cleaner() { ++counter_; }
 
     World& world() { return world_; }
     void cleanup();
@@ -22,20 +21,13 @@ public:
     void dead_code_elimination();
     void verify_closedness();
     void within(const Def*);
-    void set_live(const PrimOp* primop) { nprimops_.insert(primop); primop->live_ = counter_; }
-    void set_reachable(Continuation* continuation)  { ncontinuations_.insert(continuation); continuation->reachable_ = counter_; }
-    static bool is_live(const PrimOp* primop) { return primop->live_ == counter_; }
-    static bool is_reachable(Continuation* continuation) { return continuation->reachable_ == counter_; }
 
 private:
     World& world_;
     ContinuationSet ncontinuations_;
     World::PrimOpSet nprimops_;
     Def2Def old2new_;
-    static uint32_t counter_;
 };
-
-uint32_t Cleaner::counter_ = 1;
 
 class Merger {
 public:
@@ -129,58 +121,6 @@ next_continuation:;
     }
 }
 
-void Cleaner::unreachable_code_elimination() {
-    std::queue<const Continuation*> queue;
-    auto enqueue = [&] (Continuation* continuation) {
-        continuation->refresh(old2new_);
-        set_reachable(continuation);
-        queue.push(continuation);
-    };
-
-    for (auto continuation : world().externals())
-        enqueue(continuation);
-    enqueue(world().branch());
-    enqueue(world().end_scope());
-
-    while (!queue.empty()) {
-        auto continuation = pop(queue);
-        for (auto succ : continuation->succs()) {
-            if (!is_reachable(succ))
-                enqueue(succ);
-        }
-    }
-
-    for (auto continuation : world().continuations()) {
-        if (!is_reachable(continuation))
-            continuation->destroy_body();
-    }
-}
-
-void Cleaner::dead_code_elimination() {
-    std::queue<const PrimOp*> queue;
-    auto enqueue = [&] (const PrimOp* primop) {
-        if (!is_live(primop)) {
-            set_live(primop);
-            queue.push(primop);
-        }
-    };
-
-    for (auto continuation : world().continuations()) {
-        for (auto op : continuation->ops()) {
-            if (auto primop = op->isa<PrimOp>())
-                enqueue(primop);
-        }
-    }
-
-    while (!queue.empty()) {
-        auto primop = pop(queue);
-        for (auto op : primop->ops()) {
-            if (auto primop = op->isa<PrimOp>())
-                enqueue(primop);
-        }
-    }
-}
-
 void Cleaner::verify_closedness() {
     auto check = [&](const Def* def) {
         size_t i = 0;
@@ -222,40 +162,20 @@ void Cleaner::cleanup() {
 
     merge_continuations();
     eliminate_params();
-    unreachable_code_elimination();
-    dead_code_elimination();
 
-    for (auto primop : world().primops()) {
-        if (!is_live(primop))
-            primop->unregister_uses();
+    {
+        World new_world(world().name());
+
+        Def2Def old2new;
+        Type2Type type_old2new;
+        for (auto external : world().externals())
+            import(new_world, type_old2new, old2new, external);
     }
 
-    swap(world().primops_, nprimops_);
-    swap(world().continuations_, ncontinuations_);
 #ifndef NDEBUG
     verify_closedness();
-#endif
-
-    for (auto primop : nprimops_) {
-        if (!is_live(primop))
-            delete primop;
-    }
-
-    for (auto continuation : ncontinuations_) {
-        if (!is_reachable(continuation))
-            delete continuation;
-    }
-
-#ifndef NDEBUG
-    for (auto primop : world().primops())
-        assert(!primop->is_outdated());
-
-    for (const auto& p : world().trackers_)
-        assert(p.second.empty() && "trackers needed during cleanup phase");
-#endif
-    world().trackers_.clear();
-
     debug_verify(world());
+#endif
 }
 
 void cleanup_world(World& world) { Cleaner(world).cleanup(); }

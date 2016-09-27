@@ -125,8 +125,6 @@ public:
     bool is_commutative() const { return thorin::is_commutative(kind()); }
     bool is_associative() const { return thorin::is_associative(kind()); }
 
-    virtual bool is_outdated() const { return false; }
-    virtual const Def* rebuild(Def2Def&) const { return this; }
     virtual std::ostream& stream(std::ostream&) const;
     static size_t gid_counter() { return gid_counter_; }
 

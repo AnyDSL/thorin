@@ -900,30 +900,6 @@ llvm::Value* CodeGen::emit_lea(const LEA* lea) {
     return irbuilder_.CreateInBoundsGEP(lookup(lea->ptr()), args);
 }
 
-// helper function to process the assembly template string
-// TODO: make the string conversion nicer and possibly do it in the parser
-// TODO: do we need the conversion or should we go Rust-style and just use LLVM's syntax?
-std::string convert_template(std::string& temp) {
-    std::string res;
-    for (size_t i = 0; i < temp.size(); i++) {
-        switch (temp[i]) {
-            case '$':
-                res += "$$";
-                break;
-            case '%':
-                if (i + 1 < temp.size() && temp[i + 1] == '%') {
-                    res += "%";
-                    i++;
-                } else
-                    res += "$";
-                break;
-            default:
-                res += temp[i];
-        }
-    }
-    return res;
-}
-
 llvm::Value* CodeGen::emit_asm(const Asm* inl_asm) {
     const TupleType *out_type = inl_asm->out_val_type();
     llvm::Type *res_type;

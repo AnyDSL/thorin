@@ -110,12 +110,13 @@ Enter::Enter(const Def* mem, const Location& loc, const std::string& name)
     set_type(w.tuple_type({w.mem_type(), w.frame_type()}));
 }
 
-Assembly::Assembly(const Type *type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, /*Flags flags, */ const Location& loc)
+Assembly::Assembly(const Type *type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, const Location& loc)
     : MemOp(Node_Asm, type, inputs, loc, "asm(\"" + asm_template + "\" : ...)")
     , template_(asm_template)
     , output_constraints_(output_constraints)
     , input_constraints_(input_constraints)
-    , clobbers_(clobbers) {}
+    , clobbers_(clobbers)
+    , flags_(flags) {}
 
 //------------------------------------------------------------------------------
 
@@ -186,8 +187,7 @@ const Def* Alloc::vrebuild(World& to, Defs ops, const Type* t) const {
 
 const Def* Assembly::vrebuild(World& to, Defs ops, const Type* t) const {
     return to.assembly(t, ops, template_, output_constraints_, input_constraints_,
-            clobbers_, /*has_sideeffects_, is_alignstack_, is_inteldialect_,*/
-            loc());
+            clobbers_, flags_, loc());
 }
 
 const Def* DefiniteArray::vrebuild(World& to, Defs ops, const Type* t) const {

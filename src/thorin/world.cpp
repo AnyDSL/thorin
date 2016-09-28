@@ -752,12 +752,12 @@ const Def* World::global_immutable_string(const Location& loc, const std::string
     return global(definite_array(str_array, loc), loc, false, name);
 }
 
-const Def* World::assembly(const Type* type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, /*Flags flags, */const Location& loc) {
+const Def* World::assembly(const Type* type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, const Location& loc) {
     return cse(new Assembly(type, inputs, asm_template, output_constraints,
-                input_constraints, clobbers, /*flags, */loc));
+                input_constraints, clobbers, flags, loc));
 }
 
-const Def* World::assembly(Types types, const Def* mem, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, /*Flags flags, */const Location& loc) {
+const Def* World::assembly(Types types, const Def* mem, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, const Location& loc) {
     
     World& w = mem->world();
     std::vector<const Type*> out_types;
@@ -772,7 +772,7 @@ const Def* World::assembly(Types types, const Def* mem, Defs inputs, std::string
 
     const TupleType* t = w.tuple_type(out_types);
     return assembly(t, input_ops, asm_template, output_constraints,
-            input_constraints, clobbers, /*flags, */loc);
+            input_constraints, clobbers, flags, loc);
 }
 
 /*

@@ -573,8 +573,15 @@ public:
 };
 
 class Assembly : public MemOp {
+public:
+    enum Flags {
+        HAS_SIDEEFFECTS = (1u << 0),
+        IS_ALIGNSTACK   = (1u << 1),
+        IS_INTELDIALECT = (1u << 2),
+    };
+
 private:
-    Assembly(const Type *type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, /*Flags flags, */const Location& loc);
+    Assembly(const Type *type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, const Location& loc);
 
 public:
     virtual bool has_multiple_outs() const override { return true; }
@@ -583,16 +590,16 @@ public:
     const ArrayRef<std::string> out_constraints() const { return output_constraints_; }
     const ArrayRef<std::string> in_constraints() const { return input_constraints_; }
     const ArrayRef<std::string> clobbers() const { return clobbers_; }
-    bool has_sideeffects() const { return has_sideeffects_; }
-    bool is_alignstack() const { return is_alignstack_; }
-    bool is_inteldialect() const { return is_inteldialect_; }
+    bool has_sideeffects() const { return flags_ & Assembly::Flags::HAS_SIDEEFFECTS; }
+    bool is_alignstack() const { return flags_ & Assembly::Flags::IS_ALIGNSTACK; }
+    bool is_inteldialect() const { return flags_ & Assembly::Flags::IS_INTELDIALECT; }
 
 private:
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
 
     std::string template_;
     Array<std::string> output_constraints_, input_constraints_, clobbers_;
-    bool has_sideeffects_, is_alignstack_, is_inteldialect_;
+    Assembly::Flags flags_;
 
     friend class World;
 };

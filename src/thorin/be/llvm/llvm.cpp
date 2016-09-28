@@ -937,15 +937,13 @@ llvm::Value* CodeGen::emit_asm(const Asm* inl_asm) {
         constraints += con + ",";
     for (auto clob : inl_asm->clobbers())
         constraints += "~" + clob + ",";
-    // clang always marks those registers as clobbered, so we will do as well
+    // clang always marks those registers as clobbered, so we will do so as well
     constraints += "~{dirflag},~{fpsr},~{flags}";
 
     if (!llvm::InlineAsm::Verify(fn_type, constraints)) {
         delete input_params;
         delete param_types;
         ELOG("Constraints and input and output types of inline assembly do not match at %", inl_asm->loc());
-        // TODO: nullptr ok?
-        return nullptr;
     }
 
     std::string asm_template = inl_asm->asm_template();

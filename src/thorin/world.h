@@ -221,6 +221,7 @@ public:
 #define THORIN_ALL_TYPE(T, M) \
         swap(w1.T##_,           w2.T##_);
 #include "thorin/tables/primtypetable.h"
+        swap(w1.fn0_,           w2.fn0_);
         swap(w1.mem_,           w2.mem_);
         swap(w1.frame_,         w2.frame_);
         swap(w1.continuations_, w2.continuations_);

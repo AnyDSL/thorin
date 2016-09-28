@@ -119,7 +119,7 @@ next_continuation:;
 }
 
 void Cleaner::rebuild() {
-    World new_world;
+    World new_world(world_.name());
     Def2Def old2new;
     Type2Type type_old2new;
 

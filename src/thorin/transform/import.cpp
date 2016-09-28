@@ -58,6 +58,15 @@ const Def* import(World& to, Type2Type& type_old2new, Def2Def& def_old2new, cons
 
         if (ocontinuation->is_external())
             ncontinuation->make_external();
+
+        if (ocontinuation->size() > 0 && ocontinuation->callee() == ocontinuation->world().branch()) {
+            auto cond = import(to, type_old2new, def_old2new, ocontinuation->arg(0));
+            if (auto lit = cond->isa<PrimLit>()) {
+                auto callee = import(to, type_old2new, def_old2new, lit->value().get_bool() ? ocontinuation->arg(1) : ocontinuation->arg(2));
+                ncontinuation->jump(callee, {}, {}, ocontinuation->jump_loc());
+                return ncontinuation;
+            }
+        }
     }
 
     size_t size = odef->size();

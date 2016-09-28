@@ -914,7 +914,6 @@ llvm::Value* CodeGen::emit_asm(const Assembly* assembly) {
             res_type = convert(assembly->out(1)->type());
             break;
         default:
-            //res_type = convert(out_type);
             // TODO: the llvm type that comes out of this is not added to the type_
             // map, can this be a problem?
             res_type = convert_tuple(out_type->args().begin(),
@@ -922,11 +921,10 @@ llvm::Value* CodeGen::emit_asm(const Assembly* assembly) {
             break;
     }
 
-    // TODO: better way to get the input params and types?
     auto ops = assembly->ops();
     auto op_size = ops.size() - 1;       // omit the mem type
-    auto input_params = new llvm::Value *[op_size];
-    auto param_types = new llvm::Type *[op_size];
+    auto input_params = std::vector<llvm::Value*>(op_size);
+    auto param_types = std::vector<llvm::Type*>(op_size);
     int i = 0;
     for (auto op_it = ops.begin() + 1; op_it != ops.end(); op_it++) {
         input_params[i] = lookup(*op_it);
@@ -934,8 +932,7 @@ llvm::Value* CodeGen::emit_asm(const Assembly* assembly) {
         i++;
     }
 
-    llvm::FunctionType *fn_type = llvm::FunctionType::get(res_type,
-            llvm::ArrayRef<llvm::Type *>(param_types, op_size), false);
+    llvm::FunctionType *fn_type = llvm::FunctionType::get(res_type, param_types, false);
 
     std::string constraints;
     for (auto con : assembly->out_constraints())
@@ -947,11 +944,8 @@ llvm::Value* CodeGen::emit_asm(const Assembly* assembly) {
     // clang always marks those registers as clobbered, so we will do so as well
     constraints += "~{dirflag},~{fpsr},~{flags}";
 
-    if (!llvm::InlineAsm::Verify(fn_type, constraints)) {
-        delete input_params;
-        delete param_types;
+    if (!llvm::InlineAsm::Verify(fn_type, constraints))
         ELOG("Constraints and input and output types of inline assembly do not match at %", assembly->loc());
-    }
 
     std::string asm_template = assembly->asm_template();
 
@@ -959,11 +953,7 @@ llvm::Value* CodeGen::emit_asm(const Assembly* assembly) {
             assembly->has_sideeffects(), assembly->is_alignstack(),
             assembly->is_inteldialect() ? llvm::InlineAsm::AsmDialect::AD_Intel :
                 llvm::InlineAsm::AsmDialect::AD_ATT);
-    auto call = irbuilder_.CreateCall(asm_expr,
-            llvm::ArrayRef<llvm::Value *>(input_params, op_size));
-
-    delete input_params;
-    delete param_types;
+    auto call = irbuilder_.CreateCall(asm_expr, input_params);
 
     return call;
 }

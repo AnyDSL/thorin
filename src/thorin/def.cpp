@@ -116,8 +116,10 @@ void Def::replace(const Def* with) const {
     assert(type() == with->type());
     if (this != with) {
         for (auto& use : uses()) {
-            const_cast<Def*>(use.def())->unset_op(use.index());
-            const_cast<Def*>(use.def())->set_op(use.index(), with);
+            auto def = const_cast<Def*>(use.def());
+            auto index = use.index();
+            def->unset_op(index);
+            def->set_op(index, with);
         }
 
         auto& this_trackers = world().trackers(this);

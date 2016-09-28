@@ -119,9 +119,11 @@ next_continuation:;
 }
 
 void Cleaner::rebuild() {
-    World new_world(world().name());
+    World new_world;
     Def2Def old2new;
     Type2Type type_old2new;
+
+    world_.swap_breakpoints(new_world);
 
     for (auto external : world().externals())
         import(new_world, type_old2new, old2new, external);

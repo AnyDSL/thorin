@@ -207,6 +207,7 @@ public:
 #ifndef NDEBUG
     void breakpoint(size_t number) { breakpoints_.insert(number); }
     const HashSet<size_t>& breakpoints() const { return breakpoints_; }
+    void swap_breakpoints(World& other) { swap(this->breakpoints_, other.breakpoints_); }
 #endif
 
     // Note that we don't use overloading for the following methods in order to have them accessible from gdb.

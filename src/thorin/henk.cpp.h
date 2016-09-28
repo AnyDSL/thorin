@@ -8,7 +8,7 @@
 size_t Type::gid_counter_ = 1;
 
 Type::Type(HENK_TABLE_TYPE& HENK_TABLE_NAME, int kind, Types args, size_t num_type_params)
-    : HENK_TABLE_NAME_(HENK_TABLE_NAME)
+    : HENK_TABLE_NAME_(&HENK_TABLE_NAME)
     , kind_(kind)
     , args_(args.size())
     , type_params_(num_type_params)

@@ -3,6 +3,7 @@
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/verify.h"
+#include "thorin/transform/import.h"
 #include "thorin/util/queue.h"
 
 namespace thorin {
@@ -17,16 +18,12 @@ public:
     void cleanup();
     void merge_continuations();
     void eliminate_params();
-    void unreachable_code_elimination();
-    void dead_code_elimination();
+    void rebuild();
     void verify_closedness();
     void within(const Def*);
 
 private:
     World& world_;
-    ContinuationSet ncontinuations_;
-    World::PrimOpSet nprimops_;
-    Def2Def old2new_;
 };
 
 class Merger {
@@ -99,8 +96,8 @@ void Cleaner::eliminate_params() {
             }
 
             if (!proxy_idx.empty() && ocontinuation->num_type_params() == 0) { // TODO do this for polymorphic functions, too
-                auto ncontinuation = world().continuation(world().fn_type(ocontinuation->type()->args().cut(proxy_idx)),
-                                            ocontinuation->loc(), ocontinuation->cc(), ocontinuation->intrinsic(), ocontinuation->name);
+                auto new_fn_type = world().fn_type(ocontinuation->type()->args().cut(proxy_idx));
+                auto ncontinuation = world().continuation(new_fn_type, ocontinuation->loc(), ocontinuation->cc(), ocontinuation->intrinsic(), ocontinuation->name);
                 size_t j = 0;
                 for (auto i : param_idx) {
                     ocontinuation->param(i)->replace(ncontinuation->param(j));
@@ -119,6 +116,17 @@ void Cleaner::eliminate_params() {
         }
 next_continuation:;
     }
+}
+
+void Cleaner::rebuild() {
+    World new_world(world().name());
+    Def2Def old2new;
+    Type2Type type_old2new;
+
+    for (auto external : world().externals())
+        import(new_world, type_old2new, old2new, external);
+
+    swap(world_, new_world);
 }
 
 void Cleaner::verify_closedness() {
@@ -145,11 +153,11 @@ void Cleaner::verify_closedness() {
 }
 
 void Cleaner::within(const Def* def) {
-    //assert(world.types().find(*def->type()) != world.types().end());
-    if (auto primop = def->isa<PrimOp>()) {
-        assert_unused(world().primops().find(primop) != world().primops().end());
-    } else if (auto continuation = def->isa_continuation())
-        assert_unused(world().continuations().find(continuation) != world().continuations().end());
+    assert(world().types().contains(def->type()));
+    if (auto primop = def->isa<PrimOp>())
+        assert_unused(world().primops().contains(primop));
+    else if (auto continuation = def->isa_continuation())
+        assert_unused(world().continuations().contains(continuation));
     else
         within(def->as<Param>()->continuation());
 }
@@ -162,15 +170,7 @@ void Cleaner::cleanup() {
 
     merge_continuations();
     eliminate_params();
-
-    {
-        World new_world(world().name());
-
-        Def2Def old2new;
-        Type2Type type_old2new;
-        for (auto external : world().externals())
-            import(new_world, type_old2new, old2new, external);
-    }
+    rebuild();
 
 #ifndef NDEBUG
     verify_closedness();

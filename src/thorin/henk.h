@@ -52,7 +52,7 @@ protected:
 
 public:
     int kind() const { return kind_; }
-    HENK_TABLE_TYPE& HENK_TABLE_NAME() const { return HENK_TABLE_NAME_; }
+    HENK_TABLE_TYPE& HENK_TABLE_NAME() const { return *HENK_TABLE_NAME_; }
 
     Types args() const { return args_; }
     const Type* arg(size_t i) const { assert(i < args().size()); return args()[i]; }
@@ -98,7 +98,7 @@ protected:
 private:
     virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types args) const = 0;
 
-    HENK_TABLE_TYPE& HENK_TABLE_NAME_;
+    mutable HENK_TABLE_TYPE* HENK_TABLE_NAME_;
     int kind_;
     thorin::Array<const Type*> args_;
     mutable thorin::Array<const TypeParam*> type_params_;
@@ -192,6 +192,21 @@ public:
     const TupleType* unit() { return unit_; } ///< Returns unit, i.e., an empty @p TupleType.
 
     const TypeSet& types() const { return types_; }
+
+    friend void swap(TypeTableBase& t1, TypeTableBase& t2) {
+        using std::swap;
+        swap(t1.types_, t2.types_);
+        swap(t1.unit_,  t2.unit_);
+
+        t1.fix();
+        t2.fix();
+    }
+
+private:
+    void fix() {
+        for (auto type : types_)
+            type->HENK_TABLE_NAME_ = &HENK_TABLE_NAME();
+    }
 
 protected:
     const Type* unify_base(const Type* type) {

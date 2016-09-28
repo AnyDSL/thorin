@@ -118,6 +118,12 @@ Assembly::Assembly(const Type *type, Defs inputs, std::string asm_template, Arra
     , clobbers_(clobbers)
     , flags_(flags) {}
 
+Assembly::Flags Assembly::get_flags(bool has_sideeffects, bool is_alignstack, bool is_inteldialect) {
+    return has_sideeffects ? Flags::HasSideEffects : Flags::NoFlag
+            | is_alignstack ? Flags::IsAlignStack : Flags::NoFlag
+            | is_inteldialect ? Flags::IsIntelDialect : Flags::NoFlag;
+}
+
 //------------------------------------------------------------------------------
 
 /*

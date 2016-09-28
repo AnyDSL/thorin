@@ -14,8 +14,8 @@
 #error "please define the name for HENK_STRUCT_EXTRA_TYPE: HENK_STRUCT_EXTRA_NAME"
 #endif
 
-#define HENK_UNDERSCORE(N) N##_
-#define HENK_TABLE_NAME_          HENK_UNDERSCORE(HENK_TABLE_NAME)
+#define HENK_UNDERSCORE(N) THORIN_PASTER(N,_)
+#define HENK_TABLE_NAME_ HENK_UNDERSCORE(HENK_TABLE_NAME)
 #define HENK_STRUCT_EXTRA_NAME_ HENK_UNDERSCORE(HENK_STRUCT_EXTRA_NAME)
 
 //------------------------------------------------------------------------------
@@ -50,7 +50,7 @@ protected:
     Type& operator=(const Type&) = delete;
 
     Type(HENK_TABLE_TYPE& table, int kind, Types ops)
-        : HENK_TABLE_NAME_(table)
+        : HENK_TABLE_NAME_(&table)
         , kind_(kind)
         , ops_(ops.size())
         , gid_(gid_counter_++)
@@ -70,7 +70,7 @@ protected:
 
 public:
     int kind() const { return kind_; }
-    HENK_TABLE_TYPE& HENK_TABLE_NAME() const { return HENK_TABLE_NAME_; }
+    HENK_TABLE_TYPE& HENK_TABLE_NAME() const { return *HENK_TABLE_NAME_; }
 
     Types ops() const { return ops_; }
     const Type* op(size_t i) const;
@@ -108,7 +108,7 @@ protected:
 private:
     virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types ops) const = 0;
 
-    HENK_TABLE_TYPE& HENK_TABLE_NAME_;
+    mutable HENK_TABLE_TYPE* HENK_TABLE_NAME_;
     int kind_;
     thorin::Array<const Type*> ops_;
     mutable size_t gid_;
@@ -264,6 +264,21 @@ public:
     const TypeError* type_error() { return type_error_; }
 
     const TypeSet& types() const { return types_; }
+
+    friend void swap(TypeTableBase& t1, TypeTableBase& t2) {
+        using std::swap;
+        swap(t1.types_, t2.types_);
+        swap(t1.unit_,  t2.unit_);
+
+        t1.fix();
+        t2.fix();
+    }
+
+private:
+    void fix() {
+        for (auto type : types_)
+            type->HENK_TABLE_NAME_ = &HENK_TABLE_NAME();
+    }
 
 protected:
     const Type* unify_base(const Type* type);

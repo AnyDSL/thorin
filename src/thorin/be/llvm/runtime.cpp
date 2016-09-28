@@ -24,7 +24,7 @@ Runtime::Runtime(llvm::LLVMContext& context,
     , layout_(new llvm::DataLayout(target_))
 {
     llvm::SMDiagnostic diag;
-    runtime_ = llvm::ParseIRFile(THORIN_RUNTIME_PLATFORMS "runtime.s", diag, context);
+    runtime_.reset(llvm::ParseIRFile(THORIN_RUNTIME_PLATFORMS "runtime.s", diag, context));
     if (runtime_ == nullptr)
         throw std::logic_error("runtime could not be loaded");
 }

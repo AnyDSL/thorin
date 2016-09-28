@@ -115,26 +115,11 @@ void Def::replace(const Def* with) const {
     DLOG("replace: % -> %", this, with);
     assert(type() == with->type());
     if (this != with) {
-        std::queue<const PrimOp*> queue;
-
-        auto enqueue = [&](const Def* def) {
-            if (auto primop = def->isa<PrimOp>()) {
-                if (!primop->is_outdated()) {
-                    queue.push(primop);
-                    primop->is_outdated_ = true;
-                }
-            }
-        };
-
-        for (auto use : uses()) {
-            const_cast<Def*>(use.def())->unset_op(use.index());
-            const_cast<Def*>(use.def())->set_op(use.index(), with);
-            enqueue(use);
-        }
-
-        while (!queue.empty()) {
-            for (auto use : pop(queue)->uses())
-                enqueue(use);
+        for (auto& use : uses()) {
+            auto def = const_cast<Def*>(use.def());
+            auto index = use.index();
+            def->unset_op(index);
+            def->set_op(index, with);
         }
 
         auto& this_trackers = world().trackers(this);

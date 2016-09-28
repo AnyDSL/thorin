@@ -108,8 +108,6 @@ public:
     const Def* op(size_t i) const { assert(i < ops().size() && "index out of bounds"); return ops_[i]; }
     void replace(const Def*) const;
 
-    virtual bool is_outdated() const { return false; }
-    virtual const Def* rebuild(Def2Def&) const { return this; }
     virtual std::ostream& stream(std::ostream&) const;
     static size_t gid_counter() { return gid_counter_; }
 

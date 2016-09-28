@@ -154,7 +154,6 @@ public:
         return visit_capturing_intrinsics([&] (Continuation* continuation) { return continuation->intrinsic() == intrinsic; });
     }
     void destroy_body();
-    void refresh(Def2Def&);
 
     std::ostream& stream_head(std::ostream&) const;
     std::ostream& stream_jump(std::ostream&) const;
@@ -243,7 +242,6 @@ private:
     std::vector<Todo> todos_;
     CC cc_;
     Intrinsic intrinsic_;
-    mutable uint32_t reachable_ = 0;
     bool is_sealed_  : 1;
     bool is_visited_ : 1;
 

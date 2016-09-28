@@ -14,9 +14,10 @@
 #error "please define the type to unify StructTypes HENK_STRUCT_EXTRA_TYPE"
 #endif
 
-size_t Type::gid_counter_ = 1;
+#define HENK_UNDERSCORE(N) THORIN_PASTER(N,_)
+#define HENK_TABLE_NAME_ HENK_UNDERSCORE(HENK_TABLE_NAME)
 
-//------------------------------------------------------------------------------
+size_t Type::gid_counter_ = 1;
 
 const Type* Type::op(size_t i) const { return i < num_ops() ? ops()[i] : HENK_TABLE_NAME().type_error(); }
 

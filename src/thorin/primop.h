@@ -572,18 +572,17 @@ public:
     friend class World;
 };
 
-class Asm : public MemOp {
+class Assembly : public MemOp {
 private:
-    Asm(const Def* mem, std::vector<const Type*>& out_types, std::vector<const Def*>& inputs, const Location& loc, std::string asm_template, std::vector<std::string> output_constraints, std::vector<std::string> input_constraints, std::vector<std::string> clobbers, bool has_sideeffects = false, bool is_alignstack = false, bool is_inteldialect = false);
+    Assembly(const Type *type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, /*Flags flags, */const Location& loc);
 
 public:
     virtual bool has_multiple_outs() const override { return true; }
     const TupleType* type() const { return MemOp::type()->as<TupleType>(); }
-    const TupleType* out_val_type() const { return out_val_type_; }
     const std::string& asm_template() const { return template_; }
-    const std::vector<std::string>& out_constraints() const { return output_constraints_; }
-    const std::vector<std::string>& in_constraints() const { return input_constraints_; }
-    const std::vector<std::string>& clobbers() const { return clobbers_; }
+    const ArrayRef<std::string> out_constraints() const { return output_constraints_; }
+    const ArrayRef<std::string> in_constraints() const { return input_constraints_; }
+    const ArrayRef<std::string> clobbers() const { return clobbers_; }
     bool has_sideeffects() const { return has_sideeffects_; }
     bool is_alignstack() const { return is_alignstack_; }
     bool is_inteldialect() const { return is_inteldialect_; }
@@ -591,9 +590,8 @@ public:
 private:
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
 
-    const TupleType *out_val_type_;
     std::string template_;
-    std::vector<std::string> output_constraints_, input_constraints_, clobbers_;
+    Array<std::string> output_constraints_, input_constraints_, clobbers_;
     bool has_sideeffects_, is_alignstack_, is_inteldialect_;
 
     friend class World;

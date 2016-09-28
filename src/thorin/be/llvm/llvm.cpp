@@ -759,11 +759,11 @@ llvm::Value* CodeGen::emit(const Def* def) {
         };
 
         if (auto extract = aggop->isa<Extract>()) {
-            // Asms with more than one output are MemOps and have tuple type
+            // Assemblys with more than two outputs are MemOps and have tuple type
             // and thus need their own rule here because the standard MemOp
             // rule does not work
-            if (auto inl_asm = extract->agg()->isa<Asm>()) {
-                if (inl_asm->out_val_type()->num_args() > 1
+            if (auto assembly = extract->agg()->isa<Assembly>()) {
+                if (assembly->type()->num_args() > 2
                         && primlit_value<unsigned>(aggop->index()) != 0)
                     return irbuilder_.CreateExtractValue(llvm_agg,
                             {primlit_value<unsigned>(aggop->index()) - 1});
@@ -847,11 +847,11 @@ llvm::Value* CodeGen::emit(const Def* def) {
         return irbuilder_.CreatePointerCast(void_ptr, convert(alloc->out_ptr_type()));
     }
 
-    if (auto load = def->isa<Load>())    return emit_load(load);
-    if (auto store = def->isa<Store>())  return emit_store(store);
-    if (auto lea = def->isa<LEA>())      return emit_lea(lea);
-    if (auto inl_asm = def->isa<Asm>())  return emit_asm(inl_asm);
-    if (def->isa<Enter>())               return nullptr;
+    if (auto load = def->isa<Load>())           return emit_load(load);
+    if (auto store = def->isa<Store>())         return emit_store(store);
+    if (auto lea = def->isa<LEA>())             return emit_lea(lea);
+    if (auto inl_asm = def->isa<Assembly>())    return emit_asm(inl_asm);
+    if (def->isa<Enter>())                      return nullptr;
 
     if (auto slot = def->isa<Slot>())
         return irbuilder_.CreateAlloca(convert(slot->type()->as<PtrType>()->referenced_type()), 0, slot->unique_name());
@@ -900,23 +900,30 @@ llvm::Value* CodeGen::emit_lea(const LEA* lea) {
     return irbuilder_.CreateInBoundsGEP(lookup(lea->ptr()), args);
 }
 
-llvm::Value* CodeGen::emit_asm(const Asm* inl_asm) {
-    const TupleType *out_type = inl_asm->out_val_type();
+llvm::Value* CodeGen::emit_asm(const Assembly* assembly) {
+    const TupleType *out_type = assembly->type();
     llvm::Type *res_type;
     switch (out_type->num_args()) {
         case 0:
+            THORIN_UNREACHABLE;
+            // there must always be the mem type as output
+        case 1:
             res_type = llvm::Type::getVoidTy(context_);
             break;
-        case 1:
-            res_type = convert(out_type->arg(0));
+        case 2:
+            res_type = convert(assembly->out(1)->type());
             break;
         default:
-            res_type = convert(out_type);
+            //res_type = convert(out_type);
+            // TODO: the llvm type that comes out of this is not added to the type_
+            // map, can this be a problem?
+            res_type = convert_tuple(out_type->args().begin(),
+                    out_type->args().end(), out_type->num_args());
             break;
     }
 
     // TODO: better way to get the input params and types?
-    auto ops = inl_asm->ops();
+    auto ops = assembly->ops();
     auto op_size = ops.size() - 1;       // omit the mem type
     auto input_params = new llvm::Value *[op_size];
     auto param_types = new llvm::Type *[op_size];
@@ -931,11 +938,11 @@ llvm::Value* CodeGen::emit_asm(const Asm* inl_asm) {
             llvm::ArrayRef<llvm::Type *>(param_types, op_size), false);
 
     std::string constraints;
-    for (auto con : inl_asm->out_constraints())
+    for (auto con : assembly->out_constraints())
         constraints += con + ",";
-    for (auto con : inl_asm->in_constraints())
+    for (auto con : assembly->in_constraints())
         constraints += con + ",";
-    for (auto clob : inl_asm->clobbers())
+    for (auto clob : assembly->clobbers())
         constraints += "~" + clob + ",";
     // clang always marks those registers as clobbered, so we will do so as well
     constraints += "~{dirflag},~{fpsr},~{flags}";
@@ -943,14 +950,14 @@ llvm::Value* CodeGen::emit_asm(const Asm* inl_asm) {
     if (!llvm::InlineAsm::Verify(fn_type, constraints)) {
         delete input_params;
         delete param_types;
-        ELOG("Constraints and input and output types of inline assembly do not match at %", inl_asm->loc());
+        ELOG("Constraints and input and output types of inline assembly do not match at %", assembly->loc());
     }
 
-    std::string asm_template = inl_asm->asm_template();
+    std::string asm_template = assembly->asm_template();
 
     auto asm_expr = llvm::InlineAsm::get(fn_type, asm_template, constraints,
-            inl_asm->has_sideeffects(), inl_asm->is_alignstack(),
-            inl_asm->is_inteldialect() ? llvm::InlineAsm::AsmDialect::AD_Intel :
+            assembly->has_sideeffects(), assembly->is_alignstack(),
+            assembly->is_inteldialect() ? llvm::InlineAsm::AsmDialect::AD_Intel :
                 llvm::InlineAsm::AsmDialect::AD_ATT);
     auto call = irbuilder_.CreateCall(asm_expr,
             llvm::ArrayRef<llvm::Value *>(input_params, op_size));
@@ -1055,10 +1062,8 @@ multiple:
 
         case Node_TupleType: {
             auto tuple = type->as<TupleType>();
-            Array<llvm::Type*> llvm_types(tuple->num_args());
-            for (size_t i = 0, e = llvm_types.size(); i != e; ++i)
-                llvm_types[i] = convert(tuple->arg(i));
-            return types_[tuple] = llvm::StructType::get(context_, llvm_ref(llvm_types));
+            return types_[tuple] = convert_tuple(tuple->args().begin(),
+                    tuple->args().end(), tuple->num_args());
         }
 
         default:
@@ -1068,6 +1073,14 @@ multiple:
     if (vector_length(type) == 1)
         return types_[type] = llvm_type;
     return types_[type] = llvm::VectorType::get(llvm_type, vector_length(type));
+}
+
+llvm::Type* CodeGen::convert_tuple(Types::const_iterator begin, Types::const_iterator end, size_t num_types) {
+    Array<llvm::Type*> llvm_types(num_types);
+    size_t i = 0;
+    for (auto iter = begin; iter != end; ++iter)
+        llvm_types[i++] = convert(*iter);
+    return llvm::StructType::get(context_, llvm_ref(llvm_types));
 }
 
 llvm::GlobalVariable* CodeGen::emit_global_variable(llvm::Type* type, const std::string& name, unsigned addr_space) {

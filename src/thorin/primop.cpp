@@ -110,29 +110,12 @@ Enter::Enter(const Def* mem, const Location& loc, const std::string& name)
     set_type(w.tuple_type({w.mem_type(), w.frame_type()}));
 }
 
-template<class T>
-inline std::vector<T>& insert_front(std::vector<T>& vec, T& elem) {
-    vec.insert(vec.begin(), elem);
-    return vec;
-}
-
-Asm::Asm(const Def* mem, std::vector<const Type*>& out_types, std::vector<const Def*>& inputs, const Location& loc, std::string asm_template, std::vector<std::string> output_constraints, std::vector<std::string> input_constraints, std::vector<std::string> clobbers, bool has_sideeffects, bool is_alignstack, bool is_inteldialect)
-    : MemOp(Node_Asm, nullptr, insert_front(inputs, mem), loc, "inl_asm")
+Assembly::Assembly(const Type *type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, /*Flags flags, */ const Location& loc)
+    : MemOp(Node_Asm, type, inputs, loc, "asm(\"" + asm_template + "\" : ...)")
     , template_(asm_template)
     , output_constraints_(output_constraints)
     , input_constraints_(input_constraints)
-    , clobbers_(clobbers)
-    , has_sideeffects_(has_sideeffects)
-    , is_alignstack_(is_alignstack)
-    , is_inteldialect_(is_inteldialect)
-{
-    // TODO: can it be done nicer without two tuple types?
-    World& w = mem->world();
-    out_val_type_ = w.tuple_type(out_types); // this tuple type is required for LLVM
-
-    out_types.insert(out_types.begin(), w.mem_type());
-    set_type(w.tuple_type(out_types));
-}
+    , clobbers_(clobbers) {}
 
 //------------------------------------------------------------------------------
 
@@ -201,22 +184,10 @@ const Def* Alloc::vrebuild(World& to, Defs ops, const Type* t) const {
     return to.alloc(t->as<TupleType>()->arg(1)->as<PtrType>()->referenced_type(), ops[0], ops[1], loc(), name);
 }
 
-const Def* Asm::vrebuild(World& to, Defs ops, const Type* t) const {
-    // TODO: try to improve this
-    std::vector<const Def*> inputs(ops.size() - 1);
-    int j = 0;
-    for (auto i = ops.begin() + 1; i != ops.end(); i++)
-        inputs[j++] = *i;
-
-    auto args = t->args();
-    std::vector<const Type*> out_types(args.size() - 1);
-    j = 0;
-    for (auto i = args.begin() + 1; i != args.end(); i++)
-        out_types[j++] = *i;
-
-    return to.inl_asm(ops[0], out_types, inputs, loc(), template_,
-            output_constraints_, input_constraints_, clobbers_,
-            has_sideeffects_, is_alignstack_, is_inteldialect_);
+const Def* Assembly::vrebuild(World& to, Defs ops, const Type* t) const {
+    return to.assembly(t, ops, template_, output_constraints_, input_constraints_,
+            clobbers_, /*has_sideeffects_, is_alignstack_, is_inteldialect_,*/
+            loc());
 }
 
 const Def* DefiniteArray::vrebuild(World& to, Defs ops, const Type* t) const {

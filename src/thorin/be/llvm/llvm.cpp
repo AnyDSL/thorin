@@ -10,6 +10,7 @@
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/GlobalVariable.h>
+#include <llvm/IR/InlineAsm.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
@@ -758,6 +759,13 @@ llvm::Value* CodeGen::emit(const Def* def) {
         };
 
         if (auto extract = aggop->isa<Extract>()) {
+            // Assemblys with more than two outputs are MemOps and have tuple type
+            // and thus need their own rule here because the standard MemOp rule does not work
+            if (auto assembly = extract->agg()->isa<Assembly>()) {
+                if (assembly->type()->num_args() > 2 && primlit_value<unsigned>(aggop->index()) != 0)
+                    return irbuilder_.CreateExtractValue(llvm_agg, {primlit_value<unsigned>(aggop->index()) - 1});
+            }
+
             if (auto memop = extract->agg()->isa<MemOp>())
                 return lookup(memop);
 
@@ -836,10 +844,11 @@ llvm::Value* CodeGen::emit(const Def* def) {
         return irbuilder_.CreatePointerCast(void_ptr, convert(alloc->out_ptr_type()));
     }
 
-    if (auto load = def->isa<Load>())    return emit_load(load);
-    if (auto store = def->isa<Store>())  return emit_store(store);
-    if (auto lea = def->isa<LEA>())      return emit_lea(lea);
-    if (def->isa<Enter>())               return nullptr;
+    if (auto load = def->isa<Load>())           return emit_load(load);
+    if (auto store = def->isa<Store>())         return emit_store(store);
+    if (auto lea = def->isa<LEA>())             return emit_lea(lea);
+    if (auto assembly = def->isa<Assembly>())   return emit_assembly(assembly);
+    if (def->isa<Enter>())                      return nullptr;
 
     if (auto slot = def->isa<Slot>())
         return irbuilder_.CreateAlloca(convert(slot->type()->as<PtrType>()->referenced_type()), 0, slot->unique_name());
@@ -886,6 +895,53 @@ llvm::Value* CodeGen::emit_lea(const LEA* lea) {
     assert(lea->ptr_referenced_type()->isa<ArrayType>());
     llvm::Value* args[2] = { irbuilder_.getInt64(0), lookup(lea->index()) };
     return irbuilder_.CreateInBoundsGEP(lookup(lea->ptr()), args);
+}
+
+llvm::Value* CodeGen::emit_assembly(const Assembly* assembly) {
+    const TupleType *out_type = assembly->type();
+    llvm::Type *res_type;
+    switch (out_type->num_args()) {
+        case 0:
+            THORIN_UNREACHABLE;
+            // there must always be the mem type as output
+        case 1:
+            res_type = llvm::Type::getVoidTy(context_);
+            break;
+        case 2:
+            res_type = convert(assembly->type()->arg(1));
+            break;
+        default:
+            res_type = convert(world().tuple_type(assembly->type()->args().skip_front()));
+            break;
+    }
+
+    size_t num_inputs = assembly->num_inputs();
+    auto input_values = Array<llvm::Value*>(num_inputs);
+    auto input_types = Array<llvm::Type*>(num_inputs);
+    for (size_t i = 0; i != num_inputs; ++i) {
+        input_values[i] = lookup(assembly->input(i));
+        input_types[i] = convert(assembly->input(i)->type());
+    }
+
+    auto *fn_type = llvm::FunctionType::get(res_type, llvm_ref(input_types), false);
+
+    std::string constraints;
+    for (auto con : assembly->out_constraints())
+        constraints += con + ",";
+    for (auto con : assembly->in_constraints())
+        constraints += con + ",";
+    for (auto clob : assembly->clobbers())
+        constraints += "~" + clob + ",";
+    // clang always marks those registers as clobbered, so we will do so as well
+    constraints += "~{dirflag},~{fpsr},~{flags}";
+
+    if (!llvm::InlineAsm::Verify(fn_type, constraints))
+        ELOG("Constraints and input and output types of inline assembly do not match at %", assembly->loc());
+
+    auto asm_expr = llvm::InlineAsm::get(fn_type, assembly->asm_template(), constraints,
+            assembly->has_sideeffects(), assembly->is_alignstack(),
+            assembly->is_inteldialect() ? llvm::InlineAsm::AsmDialect::AD_Intel : llvm::InlineAsm::AsmDialect::AD_ATT);
+    return irbuilder_.CreateCall(asm_expr, llvm_ref(input_values));
 }
 
 llvm::Type* CodeGen::convert(const Type* type) {

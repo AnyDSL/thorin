@@ -752,6 +752,22 @@ const Def* World::global_immutable_string(const Location& loc, const std::string
     return global(definite_array(str_array, loc), loc, false, name);
 }
 
+const Def* World::assembly(const Type* type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, const Location& loc) {
+    return cse(new Assembly(type, inputs, asm_template, output_constraints, input_constraints, clobbers, flags, loc));
+}
+
+const Def* World::assembly(Types types, const Def* mem, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, const Location& loc) {
+    Array<const Type*> output(types.size()+1);
+    std::copy(types.begin(), types.end(), output.begin()+1);
+    output.front() = mem_type();
+
+    Array<const Def*> ops(inputs.size()+1);
+    std::copy(inputs.begin(), inputs.end(), ops.begin()+1);
+    ops.front() = mem;
+
+    return assembly(tuple_type(output), ops, asm_template, output_constraints, input_constraints, clobbers, flags, loc);
+}
+
 /*
  * lambdas
  */

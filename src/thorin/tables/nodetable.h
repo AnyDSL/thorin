@@ -16,6 +16,7 @@
                 THORIN_AIR_NODE(Store, store)
             THORIN_AIR_NODE(Enter, enter)
             THORIN_AIR_NODE(Leave, leave)
+            THORIN_AIR_NODE(Assembly, asm)
         THORIN_AIR_NODE(Select, select)
         THORIN_AIR_NODE(Global, global)
         THORIN_AIR_NODE(Slot, slot)

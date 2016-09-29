@@ -917,7 +917,7 @@ llvm::Value* CodeGen::emit_asm(const Assembly* assembly) {
             // TODO: the llvm type that comes out of this is not added to the type_
             // map, can this be a problem?
             res_type = convert_tuple(out_type->args().begin() + 1,
-                    out_type->args().end(), out_type->num_args());
+                    out_type->args().end(), out_type->num_args() - 1);
             break;
     }
 

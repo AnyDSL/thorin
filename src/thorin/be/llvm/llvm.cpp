@@ -923,8 +923,8 @@ llvm::Value* CodeGen::emit_asm(const Assembly* assembly) {
 
     auto ops = assembly->ops();
     auto op_size = ops.size() - 1;       // omit the mem type
-    auto input_params = std::vector<llvm::Value*>(op_size);
-    auto param_types = std::vector<llvm::Type*>(op_size);
+    auto input_params = Array<llvm::Value*>(op_size);
+    auto param_types = Array<llvm::Type*>(op_size);
     int i = 0;
     for (auto op_it = ops.begin() + 1; op_it != ops.end(); op_it++) {
         input_params[i] = lookup(*op_it);
@@ -932,7 +932,8 @@ llvm::Value* CodeGen::emit_asm(const Assembly* assembly) {
         i++;
     }
 
-    llvm::FunctionType *fn_type = llvm::FunctionType::get(res_type, param_types, false);
+    llvm::FunctionType *fn_type = llvm::FunctionType::get(res_type,
+            llvm_ref(param_types), false);
 
     std::string constraints;
     for (auto con : assembly->out_constraints())
@@ -953,7 +954,7 @@ llvm::Value* CodeGen::emit_asm(const Assembly* assembly) {
             assembly->has_sideeffects(), assembly->is_alignstack(),
             assembly->is_inteldialect() ? llvm::InlineAsm::AsmDialect::AD_Intel :
                 llvm::InlineAsm::AsmDialect::AD_ATT);
-    auto call = irbuilder_.CreateCall(asm_expr, input_params);
+    auto call = irbuilder_.CreateCall(asm_expr, llvm_ref(input_params));
 
     return call;
 }

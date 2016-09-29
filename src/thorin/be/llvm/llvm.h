@@ -39,7 +39,7 @@ protected:
     virtual llvm::Value* emit_load(const Load*);
     virtual llvm::Value* emit_store(const Store*);
     virtual llvm::Value* emit_lea(const LEA*);
-    virtual llvm::Value* emit_asm(const Assembly* assembly);
+    virtual llvm::Value* emit_assembly(const Assembly* assembly);
 
     virtual std::string get_alloc_name() const = 0;
     virtual std::string get_output_name(const std::string& name) const = 0;
@@ -63,8 +63,6 @@ private:
     virtual Continuation* emit_reserve(const Continuation*);
     void emit_result_phi(const Param*, llvm::Value*);
     void emit_vectorize(u32, llvm::Function*, llvm::CallInst*);
-
-    llvm::Type* convert_tuple(Types::const_iterator begin, Types::const_iterator end, size_t num_types);
 
 protected:
     void create_loop(llvm::Value*, llvm::Value*, llvm::Value*, llvm::Function*, std::function<void(llvm::Value*)>);

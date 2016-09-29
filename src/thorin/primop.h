@@ -585,6 +585,9 @@ private:
     Assembly(const Type *type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Flags flags, const Location& loc);
 
 public:
+    Defs inputs() const { return ops().skip_front(); }
+    const Def* input(size_t i) const { return inputs()[i]; }
+    size_t num_inputs() const { return inputs().size(); }
     virtual bool has_multiple_outs() const override { return true; }
     const TupleType* type() const { return MemOp::type()->as<TupleType>(); }
     const std::string& asm_template() const { return template_; }

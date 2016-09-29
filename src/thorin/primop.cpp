@@ -187,8 +187,7 @@ const Def* Alloc::vrebuild(World& to, Defs ops, const Type* t) const {
 }
 
 const Def* Assembly::vrebuild(World& to, Defs ops, const Type* t) const {
-    return to.assembly(t, ops, template_, output_constraints_, input_constraints_,
-            clobbers_, flags_, loc());
+    return to.assembly(t, ops, template_, output_constraints_, input_constraints_, clobbers_, flags_, loc());
 }
 
 const Def* DefiniteArray::vrebuild(World& to, Defs ops, const Type* t) const {

@@ -920,6 +920,44 @@ std::ostream& CCodeGen::emit(const Def* def) {
         return func_impl_;
     }
 
+    if (auto asm_op = def->isa<Assembly>()) {
+        func_impl_ << "__asm__ ";
+        if (asm_op->has_sideeffects())
+            func_impl_ << "__volatile__ ";
+        // TODO: what about stack alignment and intel dialect?
+        func_impl_ << "(\"" << asm_op->asm_template() << "\"";
+    
+        // TODO: maybe wrap assertion up in num getter
+        // TODO: deduplicate by building a function that handles both cases
+        const char* separator = " : ";
+        auto out_constraints = asm_op->out_constraints();
+        for (size_t i = 0; i < out_constraints.size(); ++i) {
+            //emit_aggop_defs(asm_op->out(i + 1));
+            func_impl_ << separator << "\"" << out_constraints[i] << "\"(";
+            // TODO: this does not work, the outputs may not be used and may be
+            // removed from the Thorin IR, if they are still there they would
+            // be extracts which we also can't use to emit expressions
+            emit(asm_op->out(i + 1)) << ")";
+            separator = ", ";
+        }
+
+        separator = out_constraints.empty() ? " :: " : " : ";
+        auto in_constraints = asm_op->in_constraints();
+        for (size_t i = 0; i < in_constraints.size(); ++i) {
+            //emit_aggop_defs(asm_op->op(i + 1));
+            func_impl_ << separator << "\"" << in_constraints[i] << "\"(";
+            emit(asm_op->op(i + 1)) << ")";
+            separator = ", ";
+        }
+
+        separator = in_constraints.empty() ? out_constraints.empty() ? " ::: " : " :: " : " : ";
+        for (auto clob : asm_op->clobbers()) {
+            func_impl_ << separator << "\"" << clob << "\"";
+            separator = ", ";
+        }
+        return func_impl_ << ");";
+    }
+
     if (auto global = def->isa<Global>()) {
         assert(!global->init()->isa_continuation() && "no global init continuation supported");
         switch (lang_) {

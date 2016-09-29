@@ -594,18 +594,17 @@ public:
     const ArrayRef<std::string> out_constraints() const { return output_constraints_; }
     const ArrayRef<std::string> in_constraints() const { return input_constraints_; }
     const ArrayRef<std::string> clobbers() const { return clobbers_; }
-    bool has_sideeffects() const { return flags_ & Flags::HasSideEffects; }
-    bool is_alignstack() const { return flags_ & Flags::IsAlignStack; }
-    bool is_inteldialect() const { return flags_ & Flags::IsIntelDialect; }
-
-    static Flags get_flags(bool has_sideeffects, bool is_alignstack, bool is_inteldialect);
+    bool has_sideeffects() const { return flags_ & HasSideEffects; }
+    bool is_alignstack() const { return flags_ & IsAlignStack; }
+    bool is_inteldialect() const { return flags_ & IsIntelDialect; }
+    Flags flags() const { return flags_; }
 
 private:
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
 
     std::string template_;
     Array<std::string> output_constraints_, input_constraints_, clobbers_;
-    Assembly::Flags flags_;
+    Flags flags_;
 
     friend class World;
 };

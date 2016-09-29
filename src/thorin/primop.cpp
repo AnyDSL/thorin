@@ -110,19 +110,14 @@ Enter::Enter(const Def* mem, const Location& loc, const std::string& name)
     set_type(w.tuple_type({w.mem_type(), w.frame_type()}));
 }
 
-Assembly::Assembly(const Type *type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, const Location& loc)
-    : MemOp(Node_Asm, type, inputs, loc, "asm(\"" + asm_template + "\" : ...)")
+Assembly::Assembly(const Type *type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Flags flags, const Location& loc)
+    : MemOp(Node_Assembly, type, inputs, loc, "asm(\"" + asm_template + "\" : ...)")
     , template_(asm_template)
     , output_constraints_(output_constraints)
     , input_constraints_(input_constraints)
     , clobbers_(clobbers)
-    , flags_(flags) {}
-
-Assembly::Flags Assembly::get_flags(bool has_sideeffects, bool is_alignstack, bool is_inteldialect) {
-    return has_sideeffects ? Flags::HasSideEffects : Flags::NoFlag
-            | is_alignstack ? Flags::IsAlignStack : Flags::NoFlag
-            | is_inteldialect ? Flags::IsIntelDialect : Flags::NoFlag;
-}
+    , flags_(flags)
+{}
 
 //------------------------------------------------------------------------------
 
@@ -192,8 +187,7 @@ const Def* Alloc::vrebuild(World& to, Defs ops, const Type* t) const {
 }
 
 const Def* Assembly::vrebuild(World& to, Defs ops, const Type* t) const {
-    return to.assembly(t, ops, template_, output_constraints_, input_constraints_,
-            clobbers_, flags_, loc());
+    return to.assembly(t, ops, template_, output_constraints_, input_constraints_, clobbers_, flags_, loc());
 }
 
 const Def* DefiniteArray::vrebuild(World& to, Defs ops, const Type* t) const {

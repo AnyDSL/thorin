@@ -753,26 +753,19 @@ const Def* World::global_immutable_string(const Location& loc, const std::string
 }
 
 const Def* World::assembly(const Type* type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, const Location& loc) {
-    return cse(new Assembly(type, inputs, asm_template, output_constraints,
-                input_constraints, clobbers, flags, loc));
+    return cse(new Assembly(type, inputs, asm_template, output_constraints, input_constraints, clobbers, flags, loc));
 }
 
 const Def* World::assembly(Types types, const Def* mem, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, const Location& loc) {
-    
-    World& w = mem->world();
-    std::vector<const Type*> out_types;
-    out_types.insert(out_types.end(), w.mem_type());
-    if (types.size() > 0)
-        out_types.insert(out_types.end(), types.begin(), types.end());
+    Array<const Type*> output(types.size()+1);
+    std::copy(types.begin(), types.end(), output.begin()+1);
+    output.front() = mem_type();
 
-    std::vector<const Def*> input_ops;
-    input_ops.insert(input_ops.end(), mem);
-    if (inputs.size() > 0)
-        input_ops.insert(input_ops.end(), inputs.begin(), inputs.end());
+    Array<const Def*> ops(inputs.size()+1);
+    std::copy(inputs.begin(), inputs.end(), ops.begin()+1);
+    ops.front() = mem;
 
-    const TupleType* t = w.tuple_type(out_types);
-    return assembly(t, input_ops, asm_template, output_constraints,
-            input_constraints, clobbers, flags, loc);
+    return assembly(tuple_type(output), ops, asm_template, output_constraints, input_constraints, clobbers, flags, loc);
 }
 
 /*

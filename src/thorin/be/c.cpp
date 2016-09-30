@@ -796,6 +796,8 @@ std::ostream& CCodeGen::emit(const Def* def) {
             if (auto extract = aggop->isa<Extract>()) {
                 if (extract->is_mem() || extract->type()->isa<FrameType>())
                     return func_impl_;
+                assert(!extract->agg()->isa<Assembly>() && "The assembly node should already have emitted"
+                        " a mapping for this definition.");
                 emit_type(func_impl_, aggop->type()) << " " << aggop->unique_name() << ";" << endl;
                 func_impl_ << aggop->unique_name() << " = ";
                 if (auto memop = extract->agg()->isa<MemOp>())
@@ -921,35 +923,62 @@ std::ostream& CCodeGen::emit(const Def* def) {
     }
 
     if (auto asm_op = def->isa<Assembly>()) {
+        size_t out_size = asm_op->type()->num_args() - 1;
+        Array<std::string> outputs(out_size, "");
+        for (auto use : asm_op->uses()) {
+            // TODO: this way of figuring out what index an output belongs to
+            // is a bit cumbersome, is there a better way?
+            auto extract = use->as<Extract>();
+            size_t index = primlit_value<unsigned>(extract->index());
+            if (index == 0)
+                continue;   // skip the mem 
+
+            assert(outputs[index - 1] == "" && "Each use must belong to a unique index.");
+            auto name = extract->unique_name();
+            outputs[index - 1] = name;
+            emit_type(func_impl_, asm_op->type()->arg(index)) << " " << name << ";" << endl;
+            insert(extract, name);
+        }
+        // some outputs that were originally there might have been pruned because
+        // they are not used but we still need them as operands for the asm
+        // statement so we need to generate them here
+        for (size_t i = 0; i < out_size; ++i) {
+            if (outputs[i] == "") {
+                // TODO: is this a good way to construct unique names?
+                // we don't care about the output, we just need a name
+                // Would asm_op->unique_name() + "_" + i be better?
+                auto name = asm_op->out(i)->unique_name();
+                emit_type(func_impl_, asm_op->type()->arg(i + 1)) << " " << name << ";" << endl;
+                outputs[i] = name;
+            }
+        }
+
         func_impl_ << "__asm__ ";
         if (asm_op->has_sideeffects())
             func_impl_ << "__volatile__ ";
-        // TODO: what about stack alignment and intel dialect?
+        if (asm_op->is_alignstack() || asm_op->is_inteldialect())
+            WLOG("stack alignment and inteldialect flags unsupported for C output at %", asm_op->loc());
         func_impl_ << "(\"" << asm_op->asm_template() << "\"";
-    
-        // TODO: maybe wrap assertion up in num getter
-        // TODO: deduplicate by building a function that handles both cases
+   
+        // emit the outputs 
         const char* separator = " : ";
         auto out_constraints = asm_op->out_constraints();
         for (size_t i = 0; i < out_constraints.size(); ++i) {
-            //emit_aggop_defs(asm_op->out(i + 1));
-            func_impl_ << separator << "\"" << out_constraints[i] << "\"(";
-            // TODO: this does not work, the outputs may not be used and may be
-            // removed from the Thorin IR, if they are still there they would
-            // be extracts which we also can't use to emit expressions
-            emit(asm_op->out(i + 1)) << ")";
+            func_impl_ << separator << "\"" << out_constraints[i] << "\"("
+                << outputs[i] << ")";
             separator = ", ";
         }
 
+        // emit the inputs
         separator = out_constraints.empty() ? " :: " : " : ";
         auto in_constraints = asm_op->in_constraints();
         for (size_t i = 0; i < in_constraints.size(); ++i) {
-            //emit_aggop_defs(asm_op->op(i + 1));
             func_impl_ << separator << "\"" << in_constraints[i] << "\"(";
             emit(asm_op->op(i + 1)) << ")";
             separator = ", ";
         }
 
+        // emit the clobbers
         separator = in_constraints.empty() ? out_constraints.empty() ? " ::: " : " :: " : " : ";
         for (auto clob : asm_op->clobbers()) {
             func_impl_ << separator << "\"" << clob << "\"";

@@ -111,13 +111,22 @@ Enter::Enter(const Def* mem, const Location& loc, const std::string& name)
 }
 
 Assembly::Assembly(const Type *type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Flags flags, const Location& loc)
-    : MemOp(Node_Assembly, type, inputs, loc, "asm(\"" + asm_template + "\" : ...)")
+    : MemOp(Node_Assembly, type, inputs, loc, "")
     , template_(asm_template)
     , output_constraints_(output_constraints)
     , input_constraints_(input_constraints)
     , clobbers_(clobbers)
     , flags_(flags)
-{}
+{
+    name = "asm(\"" + asm_template + "\" : \"";
+    for (auto out_const : output_constraints)
+        name += out_const + ",";
+    for (auto in_const : input_constraints)
+        name += in_const + ",";
+    for (auto clob : clobbers)
+        name += "~" + clob + ",";
+    name += "\")";
+}
 
 //------------------------------------------------------------------------------
 

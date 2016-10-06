@@ -926,12 +926,10 @@ std::ostream& CCodeGen::emit(const Def* def) {
         size_t out_size = assembly->type()->num_args() - 1;
         Array<std::string> outputs(out_size, "");
         for (auto use : assembly->uses()) {
-            // TODO: this way of figuring out what index an output belongs to
-            // is a bit cumbersome, is there a better way?
             auto extract = use->as<Extract>();
             size_t index = primlit_value<unsigned>(extract->index());
             if (index == 0)
-                continue;   // skip the mem 
+                continue;   // skip the mem
 
             assert(outputs[index - 1] == "" && "Each use must belong to a unique index.");
             auto name = extract->unique_name();
@@ -955,8 +953,8 @@ std::ostream& CCodeGen::emit(const Def* def) {
         if (assembly->is_alignstack() || assembly->is_inteldialect())
             WLOG("stack alignment and inteldialect flags unsupported for C output at %", assembly->loc());
         func_impl_ << "(\"" << assembly->asm_template() << "\"";
-   
-        // emit the outputs 
+
+        // emit the outputs
         const char* separator = " : ";
         auto out_constraints = assembly->out_constraints();
         for (size_t i = 0; i < out_constraints.size(); ++i) {

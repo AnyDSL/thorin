@@ -359,15 +359,92 @@ fn fmin(a: f64, b: f64) -> f64 { nvvm_fmin_d(a, b) }
 fn fmax(a: f64, b: f64) -> f64 { nvvm_fmax_d(a, b) }
 
 extern "C" {
-    fn minmin(a: i32, b: i32, c: i32) -> i32;
-    fn maxmax(a: i32, b: i32, c: i32) -> i32;
-    fn minmax(a: i32, b: i32, c: i32) -> i32;
-    fn maxmin(a: i32, b: i32, c: i32) -> i32;
-    fn ldg_f32(&[1]f32) -> f32;
-    fn ldg_i32(&[1]i32) -> i32;
-    fn ldg4_f32(&simd[f32 * 4]) -> simd[f32 * 4];
-    fn ldg4_i32(&simd[i32 * 4]) -> simd[i32 * 4];
-    fn ballot(i32) -> i32;
+    //fn minmin(a: i32, b: i32, c: i32) -> i32;
+    //fn maxmax(a: i32, b: i32, c: i32) -> i32;
+    //fn minmax(a: i32, b: i32, c: i32) -> i32;
+    //fn maxmin(a: i32, b: i32, c: i32) -> i32;
+    //fn ldg_f32(&[1]f32) -> f32;
+    //fn ldg_i32(&[1]i32) -> i32;
+    //fn ldg4_f32(&simd[f32 * 4]) -> simd[f32 * 4];
+    //fn ldg4_i32(&simd[i32 * 4]) -> simd[i32 * 4];
+    //fn ballot(i32) -> i32;
+}
+
+fn minmin(a: i32, b: i32, c: i32) -> i32 {
+    let mut res: i32;
+    asm("vmin.s32.s32.s32.min $0, $1, $2, $3;"
+        : "=r"(res)
+        : "r"(a), "r"(b), "r"(c)
+    );
+    res
+}
+
+fn maxmax(a: i32, b: i32, c: i32) -> i32 {
+    let mut res: i32;
+    asm("vmax.s32.s32.s32.max $0, $1, $2, $3;"
+        : "=r"(res)
+        : "r"(a), "r"(b), "r"(c)
+    );
+    res
+}
+
+fn minmax(a: i32, b: i32, c: i32) -> i32 {
+    let mut res: i32;
+    asm("vmin.s32.s32.s32.max $0, $1, $2, $3;"
+        : "=r"(res)
+        : "r"(a), "r"(b), "r"(c)
+    );
+    res
+}
+
+fn maxmin(a: i32, b: i32, c: i32) -> i32 {
+    let mut res: i32;
+    asm("vmax.s32.s32.s32.min $0, $1, $2, $3;"
+        : "=r"(res)
+        : "r"(a), "r"(b), "r"(c)
+    );
+    res
+}
+
+fn ldg_f32(addr: &[1]f32) -> f32 {
+    let mut res: f32;
+    asm("ld.global.nc.f32 $0, [$1];" : "=f"(res) : "l"(addr));
+    res
+}
+
+fn ldg_i32(addr: &[1]i32) -> i32 {
+    let mut res: i32;
+    asm("ld.global.nc.i32 $0, [$1];" : "=f"(res) : "l"(addr));
+    res
+}
+
+fn ldg4_f32(addr: &simd[f32 * 4]) -> simd[f32 * 4] {
+    let mut res: simd[f32 * 4];
+    asm("ld.global.nc.v4.f32 {$0, $1, $2, $3}, [$4];"
+        : "=f"(res(0)), "=f"(res(1)), "=f"(res(2)), "=f"(res(3))
+        : "l"(addr)
+    );
+    res
+}
+
+fn ldg4_i32(addr: &simd[i32 * 4]) -> simd[i32 * 4] {
+    let mut res: simd[i32 * 4];
+    asm("ld.global.nc.v4.s32 {$0, $1, $2, $3}, [$4];"
+        : "=f"(res(0)), "=f"(res(1)), "=f"(res(2)), "=f"(res(3))
+        : "l"(addr)
+    );
+    res
+}
+
+fn ballot(a: i32) -> i32 {
+    let mut res: i32;
+    asm("{ .reg .pred %p1;"
+        "setp.ne.u32 %p1, $1, 0;"
+        "vote.ballot.b32 $0, %p1; }"
+        : "=r"(res)
+        : "r"(a)
+    );
+    res
 }
 
 fn popcount(i: i32) -> i32 { nvvm_popc_i(i) }

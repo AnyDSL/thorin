@@ -796,15 +796,15 @@ std::ostream& CCodeGen::emit(const Def* def) {
             if (auto extract = aggop->isa<Extract>()) {
                 if (extract->is_mem() || extract->type()->isa<FrameType>())
                     return func_impl_;
-                assert(!extract->agg()->isa<Assembly>() && "The assembly node should already have emitted"
-                        " a mapping for this definition.");
-                emit_type(func_impl_, aggop->type()) << " " << aggop->unique_name() << ";" << endl;
-                func_impl_ << aggop->unique_name() << " = ";
-                if (auto memop = extract->agg()->isa<MemOp>())
-                    emit(memop) << ";";
-                else {
-                    emit(aggop->agg());
-                    emit_access(aggop->agg(), aggop->index()) << ";";
+                if (!extract->agg()->isa<Assembly>()) { // extract is a nop for inline assembly
+                    emit_type(func_impl_, aggop->type()) << " " << aggop->unique_name() << ";" << endl;
+                    func_impl_ << aggop->unique_name() << " = ";
+                    if (auto memop = extract->agg()->isa<MemOp>())
+                        emit(memop) << ";";
+                    else {
+                        emit(aggop->agg());
+                        emit_access(aggop->agg(), aggop->index()) << ";";
+                    }
                 }
                 insert(def, def->unique_name());
                 return func_impl_;
@@ -937,7 +937,6 @@ std::ostream& CCodeGen::emit(const Def* def) {
             auto name = extract->unique_name();
             outputs[index - 1] = name;
             emit_type(func_impl_, asm_op->type()->arg(index)) << " " << name << ";" << endl;
-            insert(extract, name);
         }
         // some outputs that were originally there might have been pruned because
         // they are not used but we still need them as operands for the asm
@@ -953,7 +952,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
             }
         }
 
-        func_impl_ << "__asm__ ";
+        func_impl_ << "asm ";
         if (asm_op->has_sideeffects())
             func_impl_ << "__volatile__ ";
         if (asm_op->is_alignstack() || asm_op->is_inteldialect())

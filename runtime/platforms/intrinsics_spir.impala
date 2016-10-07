@@ -93,4 +93,3 @@ fn acc_dev() -> i32      { 1 }
 
 fn ldg_f32(a: &[1]f32) -> f32 { *a }
 fn ldg_i32(a: &[1]i32) -> i32 { *a }
-

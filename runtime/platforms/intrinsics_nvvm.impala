@@ -358,18 +358,6 @@ fn fmaxf(a: f32, b: f32) -> f32 { nvvm_fmax_f(a, b) }
 fn fmin(a: f64, b: f64) -> f64 { nvvm_fmin_d(a, b) }
 fn fmax(a: f64, b: f64) -> f64 { nvvm_fmax_d(a, b) }
 
-extern "C" {
-    //fn minmin(a: i32, b: i32, c: i32) -> i32;
-    //fn maxmax(a: i32, b: i32, c: i32) -> i32;
-    //fn minmax(a: i32, b: i32, c: i32) -> i32;
-    //fn maxmin(a: i32, b: i32, c: i32) -> i32;
-    //fn ldg_f32(&[1]f32) -> f32;
-    //fn ldg_i32(&[1]i32) -> i32;
-    //fn ldg4_f32(&simd[f32 * 4]) -> simd[f32 * 4];
-    //fn ldg4_i32(&simd[i32 * 4]) -> simd[i32 * 4];
-    //fn ballot(i32) -> i32;
-}
-
 fn minmin(a: i32, b: i32, c: i32) -> i32 {
     let mut res: i32;
     asm("vmin.s32.s32.s32.min $0, $1, $2, $3;"
@@ -448,4 +436,3 @@ fn ballot(a: i32) -> i32 {
 }
 
 fn popcount(i: i32) -> i32 { nvvm_popc_i(i) }
-

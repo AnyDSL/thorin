@@ -108,4 +108,3 @@ fn minmax(a: i32, b: i32, c: i32) -> i32 { max(min(a, b), c) }
 fn maxmin(a: i32, b: i32, c: i32) -> i32 { min(max(a, b), c) }
 fn madf(a: f32, b: f32, c: f32) -> f32 { fmaf(a, b, c) }
 fn mad(a: f64, b: f64, c: f64) -> f64 { fma(a, b, c) }
-

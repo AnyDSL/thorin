@@ -524,10 +524,11 @@ void CCodeGen::emit() {
 
                             auto cont = continuation->arg(2)->as_continuation();
                             auto elem_type = cont->param(1)->type()->as<PtrType>()->referenced_type()->as<ArrayType>()->elem_type();
-                            emit_type(func_impl_, elem_type) << " " << continuation->arg(1)->unique_name() << "[";
+                            auto name = "reserver_" + cont->param(1)->unique_name();
+                            emit_type(func_impl_, elem_type) << " " << name << "[";
                             emit(continuation->arg(1)) << "];" << endl;
-                            insert(continuation->arg(1), continuation->arg(1)->unique_name());
-                            store_phi(cont->param(1), continuation->arg(1));
+                            // store_phi:
+                            func_impl_ << "p" << cont->param(1)->unique_name() << " = " << name << ";";
                         } else {
                             THORIN_UNREACHABLE;
                         }

@@ -78,13 +78,12 @@ public:
     bool empty() const { return ops_.empty(); }
 
     bool is_nominal() const { return nominal_; }              ///< A nominal @p Type is always different from each other @p Type.
-    bool is_hashed()  const { return hashed_; }               ///< This @p Type is already recorded inside of @p HENK_TABLE_TYPE.
     bool is_known()   const { return known_; }                ///< Deos this @p Type depend on any @p UnknownType%s?
     bool is_monomorphic() const { return monomorphic_; }      ///< Does this @p Type not depend on any @p Var%s?.
     bool is_polymorphic() const { return !is_monomorphic(); } ///< Does this @p Type depend on any @p Var%s?.
     int order() const { return order_; }
     size_t gid() const { return gid_; }
-    uint64_t hash() const { return is_hashed() ? hash_ : hash_ = vhash(); }
+    uint64_t hash() const { return hash_ == 0 ? hash_ = vhash() : hash_; }
     virtual bool equal(const Type*) const;
 
     const Type* reduce(int, const Type*, Type2Type&) const;
@@ -100,7 +99,6 @@ protected:
 
     mutable uint64_t hash_ = 0;
     int order_ = 0;
-    mutable bool hashed_      = false;
     mutable bool known_       = true;
     mutable bool monomorphic_ = true;
     mutable bool nominal_     = false;
@@ -284,8 +282,6 @@ protected:
     const Type* unify_base(const Type* type);
     template<class T> const T* unify(const T* type) { return unify_base(type)->template as<T>(); }
     const Type* insert(const Type*);
-    void destroy(const Type*);
-    void destroy(const Type*, thorin::HashSet<const Type*>& done);
 
     TypeSet types_;
     const TupleType* unit_; ///< tuple().

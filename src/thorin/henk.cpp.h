@@ -55,10 +55,8 @@ bool Type::equal(const Type* other) const {
         && this->is_monomorphic() == other->is_monomorphic();
 
     if (result) {
-        for (size_t i = 0, e = num_ops(); result && i != e; ++i) {
-            assert(this->op(i)->is_hashed() && other->op(i)->is_hashed());
+        for (size_t i = 0, e = num_ops(); result && i != e; ++i)
             result &= this->op(i) == other->op(i);
-        }
     }
 
     return result;
@@ -157,8 +155,6 @@ const StructType* TypeTableBase<T>::struct_type(HENK_STRUCT_EXTRA_TYPE HENK_STRU
     auto type = new StructType(HENK_TABLE_NAME(), HENK_STRUCT_EXTRA_NAME, size);
     const auto& p = types_.insert(type);
     assert_unused(p.second && "hash/equal broken");
-    assert(!type->is_hashed());
-    type->hashed_ = true;
     return type;
 }
 
@@ -166,15 +162,13 @@ template<class T>
 const Type* TypeTableBase<T>::app(const Type* callee, const Type* op) {
     auto app = unify(new App(HENK_TABLE_NAME(), callee, op));
 
-    if (app->is_hashed()) {
-        if (auto cache = app->cache_)
-            return cache;
-        if (auto lambda = app->callee()->template isa<Lambda>()) {
-            Type2Type map;
-            return app->cache_ = lambda->body()->reduce(1, op, map);
-        } else {
-            return app->cache_ = app;
-        }
+    if (auto cache = app->cache_)
+        return cache;
+    if (auto lambda = app->callee()->template isa<Lambda>()) {
+        Type2Type map;
+        return app->cache_ = lambda->body()->reduce(1, op, map);
+    } else {
+        return app->cache_ = app;
     }
 
     return app;
@@ -182,14 +176,10 @@ const Type* TypeTableBase<T>::app(const Type* callee, const Type* op) {
 
 template<class T>
 const Type* TypeTableBase<T>::unify_base(const Type* type) {
-    if (type->is_hashed())
-        return type;
-
     auto i = types_.find(type);
     if (i != types_.end()) {
-        destroy(type);
+        delete type;
         type = *i;
-        assert(type->is_hashed());
         return type;
     }
 
@@ -198,32 +188,9 @@ const Type* TypeTableBase<T>::unify_base(const Type* type) {
 
 template<class T>
 const Type* TypeTableBase<T>::insert(const Type* type) {
-    for (auto op : type->ops()) {
-        if (!op->is_hashed())
-            insert(op);
-    }
-
     const auto& p = types_.insert(type);
     assert_unused(p.second && "hash/equal broken");
-    assert(!type->is_hashed());
-    type->hashed_ = true;
     return type;
-}
-
-template<class T>
-void TypeTableBase<T>::destroy(const Type* type) {
-    thorin::HashSet<const Type*> done;
-    destroy(type, done);
-}
-
-template<class T>
-void TypeTableBase<T>::destroy(const Type* type, thorin::HashSet<const Type*>& done) {
-    if (!done.contains(type) && !type->is_hashed()) {
-        done.insert(type);
-        for (auto op : type->ops())
-            destroy(op, done);
-        delete type;
-    }
 }
 
 template class TypeTableBase<HENK_TABLE_TYPE>;

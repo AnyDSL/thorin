@@ -7,8 +7,16 @@ const Type* import(World& to, Type2Type& old2new, const Type* otype) {
         assert(&ntype->world() == &to);
         return ntype;
     }
-
     size_t size = otype->num_ops();
+
+    if (auto struct_type = otype->isa<StructType>()) {
+        auto ntype = to.struct_type(struct_type->name(), struct_type->num_ops());
+        old2new[otype] = ntype;
+        for (size_t i = 0; i != size; ++i)
+            ntype->set(i, import(to, old2new, otype->op(i)));
+        return ntype;
+    }
+
     Array<const Type*> nops(size);
     for (size_t i = 0; i != size; ++i)
         nops[i] = import(to, old2new, otype->op(i));

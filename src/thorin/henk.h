@@ -65,7 +65,8 @@ protected:
         ops_[i] = type;
         order_       = std::max(order_, type->order());
         monomorphic_ &= type->is_monomorphic();
-        known_       &= type->is_known();
+        if (!is_nominal())
+            known_ &= type->is_known();
     }
 
 public:

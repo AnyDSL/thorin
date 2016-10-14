@@ -1,0 +1,16 @@
+-I/home/klaas/work/projects/anydsl/thorin/src
+-I/home/klaas/work/projects/anydsl/half/include
+-I/home/klaas/work/projects/anydsl/libwfv/include
+-I/home/klaas/work/projects/anydsl/llvm_install/include
+-DCOLORIZE_LOG
+-DLLVM_SUPPORT
+-DWFV2_SUPPORT
+-D__STDC_CONSTANT_MACROS
+-D__STDC_LIMIT_MACROS
+-Dthorin_EXPORTS
+-std=c++11
+-Wall
+-Wunused
+-DTHORIN_RUNTIME_PLATFORMS="/home/klaas/work/projects/anydsl/thorin/runtime/platforms/"
+-Wl,-soname,libthorin.so
+-Wl,-rpath,/home/klaas/work/projects/anydsl/thorin/build/lib:/home/klaas/work/projects/anydsl/libwfv/build/lib:/home/klaas/work/projects/anydsl/llvm_install/lib

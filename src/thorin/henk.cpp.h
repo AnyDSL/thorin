@@ -80,10 +80,8 @@ const Type* Type::rebuild(HENK_TABLE_TYPE& to, Types ops) const {
 }
 
 const Type* StructType::vrebuild(HENK_TABLE_TYPE& to, Types ops) const {
-    auto ntype = to.struct_type(HENK_STRUCT_EXTRA_NAME(), ops.size());
-    for (size_t i = 0, e = ops.size(); i != e; ++i)
-        const_cast<StructType*>(ntype)->set(i, ops[i]);
-    return ntype;
+    assert(this->ops() == ops);
+    return this;
 }
 
 const Type* App      ::vrebuild(HENK_TABLE_TYPE& to, Types ops) const { return to.app(ops[0], ops[1]); }

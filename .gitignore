@@ -6,6 +6,7 @@
 *.spir
 *.s
 *.out
+.clang_complete
 CMakeCache.txt
 CMakeFiles/
 build*

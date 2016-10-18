@@ -19,7 +19,9 @@ inline __declspec(noreturn) void thorin_dummy_function() { abort(); }
 #define assert_unused(x) ((void) (0 && (x)))
 #endif
 
-// currently no better location for this
+// currently no better location for these
 #define THORIN_IMPLIES(a, b) (!(a) || ((a) && (b)))
+// http://stackoverflow.com/questions/1489932/how-to-concatenate-twice-with-the-c-preprocessor-and-expand-a-macro-as-in-arg
+#define THORIN_PASTER(x,y) x ## y
 
 #endif

@@ -38,6 +38,7 @@ protected:
     virtual llvm::Value* emit_load(const Load*);
     virtual llvm::Value* emit_store(const Store*);
     virtual llvm::Value* emit_lea(const LEA*);
+    virtual llvm::Value* emit_assembly(const Assembly* assembly);
 
     virtual std::string get_alloc_name() const = 0;
     virtual std::string get_output_name(const std::string& name) const = 0;

@@ -6,7 +6,7 @@
 #error "please define the type table type HENK_TABLE_TYPE"
 #endif
 
-#define HENK_UNDERSCORE(N) N##_
+#define HENK_UNDERSCORE(N) THORIN_PASTER(N,_)
 #define HENK_TABLE_NAME_ HENK_UNDERSCORE(HENK_TABLE_NAME)
 
 //------------------------------------------------------------------------------

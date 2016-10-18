@@ -166,6 +166,8 @@ public:
     const Def* global(const Def* init, const Location& loc, bool is_mutable = true, const std::string& name = "");
     const Def* global_immutable_string(const Location& loc, const std::string& str, const std::string& name = "");
     const Def* lea(const Def* ptr, const Def* index, const Location& loc, const std::string& name = "") { return cse(new LEA(ptr, index, loc, name)); }
+    const Assembly* assembly(const Type* type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, const Location& loc);
+    const Assembly* assembly(Types types, const Def* mem, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, const Location& loc);
 
     // guided partial evaluation
 

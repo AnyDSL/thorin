@@ -70,7 +70,7 @@ Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
         case Intrinsic::Sizeof:    return emit_sizeof(continuation);
         case Intrinsic::Shuffle:   return emit_shuffle(continuation);
         case Intrinsic::Reserve:   return emit_reserve(continuation);
-        case Intrinsic::Bitcast:   return emit_reinterpret(continuation);
+        case Intrinsic::Bitcast:   assert(false && "bitcast should have been replaced");
         case Intrinsic::CUDA:      return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM, ".cu", continuation);
         case Intrinsic::NVVM:      return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM, ".nvvm", continuation);
         case Intrinsic::SPIR:      return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".spir.bc", continuation);

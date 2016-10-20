@@ -569,10 +569,14 @@ const Def* World::cast(const Type* to, const Def* from, const Location& loc, con
 }
 
 const Def* World::bitcast(const Type* to, const Def* from, const Location& loc, const std::string& name) {
-    if (auto other = from->isa<Bitcast>()) {
+    if (auto other = from->isa<Bitcast>())
         if (to == other->type())
             return other;
-    }
+
+    if (auto prim_to = to->isa<PrimType>())
+        if (auto prim_from = from->type()->isa<PrimType>())
+            if (num_bits(prim_from->primtype_kind()) != num_bits(prim_to->primtype_kind()))
+                ELOG("bitcast between primitive types of different size at %", loc);
 
     if (auto vec = from->isa<Vector>()) {
         size_t num = vec->length();

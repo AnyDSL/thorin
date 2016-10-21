@@ -53,7 +53,7 @@ public:
     // types
 
 #define THORIN_ALL_TYPE(T, M) \
-    const PrimType* type_##T(size_t length = 1) { return length == 1 ? T##_ : new PrimType(*this, PrimType_##T, length); }
+    const PrimType* type_##T(size_t length = 1) { return length == 1 ? T##_ : unify(new PrimType(*this, PrimType_##T, length)); }
 #include "thorin/tables/primtypetable.h"
 
     const PrimType* type(PrimTypeKind kind, size_t length = 1) {

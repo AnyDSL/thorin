@@ -571,10 +571,14 @@ const Def* World::cast(const Type* to, const Def* from, const Location& loc, con
 }
 
 const Def* World::bitcast(const Type* to, const Def* from, const Location& loc, const std::string& name) {
-    if (auto other = from->isa<Bitcast>()) {
+    if (auto other = from->isa<Bitcast>())
         if (to == other->type())
             return other;
-    }
+
+    if (auto prim_to = to->isa<PrimType>())
+        if (auto prim_from = from->type()->isa<PrimType>())
+            if (num_bits(prim_from->primtype_kind()) != num_bits(prim_to->primtype_kind()))
+                ELOG("bitcast between primitive types of different size at %", loc);
 
     if (auto vec = from->isa<Vector>()) {
         size_t num = vector_length(vec);
@@ -753,6 +757,22 @@ const Def* World::global_immutable_string(const Location& loc, const std::string
     str_array.back() = literal_qu8('\0', loc);
 
     return global(definite_array(str_array, loc), loc, false, name);
+}
+
+const Assembly* World::assembly(const Type* type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, const Location& loc) {
+    return cse(new Assembly(type, inputs, asm_template, output_constraints, input_constraints, clobbers, flags, loc))->as<Assembly>();;
+}
+
+const Assembly* World::assembly(Types types, const Def* mem, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, const Location& loc) {
+    Array<const Type*> output(types.size()+1);
+    std::copy(types.begin(), types.end(), output.begin()+1);
+    output.front() = mem_type();
+
+    Array<const Def*> ops(inputs.size()+1);
+    std::copy(inputs.begin(), inputs.end(), ops.begin()+1);
+    ops.front() = mem;
+
+    return assembly(tuple_type(output), ops, asm_template, output_constraints, input_constraints, clobbers, flags, loc);
 }
 
 /*

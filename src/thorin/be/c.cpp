@@ -518,10 +518,11 @@ void CCodeGen::emit() {
 
                             auto cont = continuation->arg(2)->as_continuation();
                             auto elem_type = cont->param(1)->type()->as<PtrType>()->referenced_type()->as<ArrayType>()->elem_type();
-                            emit_type(func_impl_, elem_type) << " " << continuation->arg(1)->unique_name() << "[";
+                            auto name = "reserver_" + cont->param(1)->unique_name();
+                            emit_type(func_impl_, elem_type) << " " << name << "[";
                             emit(continuation->arg(1)) << "];" << endl;
-                            insert(continuation->arg(1), continuation->arg(1)->unique_name());
-                            store_phi(cont->param(1), continuation->arg(1));
+                            // store_phi:
+                            func_impl_ << "p" << cont->param(1)->unique_name() << " = " << name << ";";
                         } else {
                             THORIN_UNREACHABLE;
                         }
@@ -792,13 +793,15 @@ std::ostream& CCodeGen::emit(const Def* def) {
             if (auto extract = aggop->isa<Extract>()) {
                 if (is_mem(extract) || extract->type()->isa<FrameType>())
                     return func_impl_;
-                emit_type(func_impl_, aggop->type()) << " " << aggop->unique_name() << ";" << endl;
-                func_impl_ << aggop->unique_name() << " = ";
-                if (auto memop = extract->agg()->isa<MemOp>())
-                    emit(memop) << ";";
-                else {
-                    emit(aggop->agg());
-                    emit_access(aggop->agg(), aggop->index()) << ";";
+                if (!extract->agg()->isa<Assembly>()) { // extract is a nop for inline assembly
+                    emit_type(func_impl_, aggop->type()) << " " << aggop->unique_name() << ";" << endl;
+                    func_impl_ << aggop->unique_name() << " = ";
+                    if (auto memop = extract->agg()->isa<MemOp>())
+                        emit(memop) << ";";
+                    else {
+                        emit(aggop->agg());
+                        emit_access(aggop->agg(), aggop->index()) << ";";
+                    }
                 }
                 insert(def, def->unique_name());
                 return func_impl_;
@@ -914,6 +917,65 @@ std::ostream& CCodeGen::emit(const Def* def) {
 
         insert(def, def->unique_name());
         return func_impl_;
+    }
+
+    if (auto assembly = def->isa<Assembly>()) {
+        size_t out_size = assembly->type()->num_ops() - 1;
+        Array<std::string> outputs(out_size, "");
+        for (auto use : assembly->uses()) {
+            auto extract = use->as<Extract>();
+            size_t index = primlit_value<unsigned>(extract->index());
+            if (index == 0)
+                continue;   // skip the mem
+
+            assert(outputs[index - 1] == "" && "Each use must belong to a unique index.");
+            auto name = extract->unique_name();
+            outputs[index - 1] = name;
+            emit_type(func_impl_, assembly->type()->op(index)) << " " << name << ";" << endl;
+        }
+        // some outputs that were originally there might have been pruned because
+        // they are not used but we still need them as operands for the asm
+        // statement so we need to generate them here
+        for (size_t i = 0; i < out_size; ++i) {
+            if (outputs[i] == "") {
+                auto name = assembly->unique_name() + "_" + std::to_string(i + 1);
+                emit_type(func_impl_, assembly->type()->op(i + 1)) << " " << name << ";" << endl;
+                outputs[i] = name;
+            }
+        }
+
+        func_impl_ << "asm ";
+        if (assembly->has_sideeffects())
+            func_impl_ << "volatile ";
+        if (assembly->is_alignstack() || assembly->is_inteldialect())
+            WLOG("stack alignment and inteldialect flags unsupported for C output at %", assembly->loc());
+        func_impl_ << "(\"" << assembly->asm_template() << "\"";
+
+        // emit the outputs
+        const char* separator = " : ";
+        auto out_constraints = assembly->out_constraints();
+        for (size_t i = 0; i < out_constraints.size(); ++i) {
+            func_impl_ << separator << "\"" << out_constraints[i] << "\"("
+                << outputs[i] << ")";
+            separator = ", ";
+        }
+
+        // emit the inputs
+        separator = out_constraints.empty() ? " :: " : " : ";
+        auto in_constraints = assembly->in_constraints();
+        for (size_t i = 0; i < in_constraints.size(); ++i) {
+            func_impl_ << separator << "\"" << in_constraints[i] << "\"(";
+            emit(assembly->op(i + 1)) << ")";
+            separator = ", ";
+        }
+
+        // emit the clobbers
+        separator = in_constraints.empty() ? out_constraints.empty() ? " ::: " : " :: " : " : ";
+        for (auto clob : assembly->clobbers()) {
+            func_impl_ << separator << "\"" << clob << "\"";
+            separator = ", ";
+        }
+        return func_impl_ << ");";
     }
 
     if (auto global = def->isa<Global>()) {

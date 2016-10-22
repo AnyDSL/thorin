@@ -115,6 +115,24 @@ Enter::Enter(const Def* mem, const Location& loc, const std::string& name)
     set_type(w.tuple_type({w.mem_type(), w.frame_type()}));
 }
 
+Assembly::Assembly(const Type *type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Flags flags, const Location& loc)
+    : MemOp(Node_Assembly, type, inputs, loc, "")
+    , template_(asm_template)
+    , output_constraints_(output_constraints)
+    , input_constraints_(input_constraints)
+    , clobbers_(clobbers)
+    , flags_(flags)
+{
+    name = "asm(\"" + asm_template + "\" : \"";
+    for (auto out_const : output_constraints)
+        name += out_const + ",";
+    for (auto in_const : input_constraints)
+        name += in_const + ",";
+    for (auto clob : clobbers)
+        name += "~" + clob + ",";
+    name += "\")";
+}
+
 //------------------------------------------------------------------------------
 
 /*
@@ -188,6 +206,9 @@ const Def* Alloc::vrebuild(World& to, Defs ops, const Type* t) const {
     return to.alloc(t->as<TupleType>()->op(1)->as<PtrType>()->referenced_type(), ops[0], ops[1], loc(), name);
 }
 
+const Def* Assembly::vrebuild(World& to, Defs ops, const Type* t) const {
+    return to.assembly(t, ops, template_, output_constraints_, input_constraints_, clobbers_, flags_, loc());
+}
 
 const Def* DefiniteArray::vrebuild(World& to, Defs ops, const Type* t) const {
     return to.definite_array(t->as<DefiniteArrayType>()->elem_type(), ops, loc(), name);

@@ -37,6 +37,7 @@
         THORIN_NODE(Hlt, hlt)
         THORIN_NODE(EndRun, end_run)
         THORIN_NODE(EndHlt, end_hlt)
+        THORIN_NODE(Assembly, asm)
     THORIN_NODE(Param, param)
     // Type
         // PrimType

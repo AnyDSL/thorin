@@ -53,7 +53,7 @@ public:
     // types
 
 #define THORIN_ALL_TYPE(T, M) \
-    const PrimType* type_##T(size_t length = 1) { return length == 1 ? T##_ : new PrimType(*this, PrimType_##T, length); }
+    const PrimType* type_##T(size_t length = 1) { return length == 1 ? T##_ : unify(new PrimType(*this, PrimType_##T, length)); }
 #include "thorin/tables/primtypetable.h"
 
     const PrimType* type(PrimTypeKind kind, size_t length = 1) {
@@ -67,12 +67,8 @@ public:
                             size_t length = 1, int32_t device = -1, AddrSpace addr_space = AddrSpace::Generic) {
         return unify(new PtrType(*this, referenced_type, length, device, addr_space));
     }
-    const StructAbsType* struct_abs_type(size_t size, size_t num_type_params = 0, const std::string& name = "");
-    const StructAppType* struct_app_type(const StructAbsType* struct_abs_type, Types args) {
-        return unify(new StructAppType(struct_abs_type, args));
-    }
     const FnType* fn_type() { return fn0_; } ///< Returns an empty @p FnType.
-    const FnType* fn_type(Types args, size_t num_type_params = 0) { return unify(new FnType(*this, args, num_type_params)); }
+    const FnType* fn_type(Types args) { return unify(new FnType(*this, args)); }
     const DefiniteArrayType*   definite_array_type(const Type* elem, u64 dim) { return unify(new DefiniteArrayType(*this, elem, dim)); }
     const IndefiniteArrayType* indefinite_array_type(const Type* elem) { return unify(new IndefiniteArrayType(*this, elem)); }
 
@@ -134,8 +130,8 @@ public:
     const Def* indefinite_array(const Type* elem, const Def* dim, const Location& loc, const std::string& name = "") {
         return cse(new IndefiniteArray(*this, elem, dim, loc, name));
     }
-    const Def* struct_agg(const StructAppType* struct_app_type, Defs args, const Location& loc, const std::string& name = "") {
-        return cse(new StructAgg(struct_app_type, args, loc, name));
+    const Def* struct_agg(const StructType* struct_type, Defs args, const Location& loc, const std::string& name = "") {
+        return cse(new StructAgg(struct_type, args, loc, name));
     }
     const Def* tuple(Defs args, const Location& loc, const std::string& name = "") { return cse(new Tuple(*this, args, loc, name)); }
     const Def* vector(Defs args, const Location& loc, const std::string& name = "") {
@@ -154,6 +150,7 @@ public:
     }
 
     const Def* select(const Def* cond, const Def* t, const Def* f, const Location& loc, const std::string& name = "");
+    const Def* size_of(const Def* def, const Location& loc, const std::string& name = "") { return cse(new SizeOf(def, loc, name)); }
 
     // memory stuff
 
@@ -209,12 +206,34 @@ public:
 #ifndef NDEBUG
     void breakpoint(size_t number) { breakpoints_.insert(number); }
     const HashSet<size_t>& breakpoints() const { return breakpoints_; }
+    void swap_breakpoints(World& other) { swap(this->breakpoints_, other.breakpoints_); }
 #endif
 
     // Note that we don't use overloading for the following methods in order to have them accessible from gdb.
     virtual std::ostream& stream(std::ostream&) const override; ///< Streams thorin to file @p out.
     void write_thorin(const char* filename) const;              ///< Dumps thorin to file with name @p filename.
     void thorin() const;                                        ///< Dumps thorin to a file with an auto-generated file name.
+
+    friend void swap(World& w1, World& w2) {
+        using std::swap;
+        swap(static_cast<TypeTableBase<World>&>(w1), static_cast<TypeTableBase<World>&>(w2));
+        swap(w1.name_,          w2.name_);
+#define THORIN_ALL_TYPE(T, M) \
+        swap(w1.T##_,           w2.T##_);
+#include "thorin/tables/primtypetable.h"
+        swap(w1.fn0_,           w2.fn0_);
+        swap(w1.mem_,           w2.mem_);
+        swap(w1.frame_,         w2.frame_);
+        swap(w1.continuations_, w2.continuations_);
+        swap(w1.externals_,     w2.externals_);
+        swap(w1.primops_,       w2.primops_);
+        swap(w1.trackers_,      w2.trackers_);
+        swap(w1.branch_,        w2.branch_);
+        swap(w1.end_scope_,     w2.end_scope_);
+#ifndef NDEBUG
+        swap(w1.breakpoints_,   w2.breakpoints_);
+#endif
+    }
 
 private:
     HashSet<Tracker*>& trackers(const Def* def) { assert(def); return trackers_[def]; }
@@ -223,11 +242,6 @@ private:
     template<class T> const T* cse(const T* primop) { return cse_base(primop)->template as<T>(); }
 
     std::string name_;
-
-    const FnType*    fn0_;   ///< fn().
-    const MemType*   mem_;
-    const FrameType* frame_;
-
     union {
         struct {
 #define THORIN_ALL_TYPE(T, M) const PrimType* T##_;
@@ -236,17 +250,18 @@ private:
 
         const PrimType* primtypes_[Num_PrimTypes];
     };
-
+    const FnType* fn0_;
+    const MemType* mem_;
+    const FrameType* frame_;
     ContinuationSet continuations_;
     ContinuationSet externals_;
     PrimOpSet primops_;
     DefMap<HashSet<Tracker*>> trackers_;
-
+    Continuation* branch_;
+    Continuation* end_scope_;
 #ifndef NDEBUG
     HashSet<size_t> breakpoints_;
 #endif
-    Continuation* branch_;
-    Continuation* end_scope_;
 
     friend class Cleaner;
     friend class Continuation;

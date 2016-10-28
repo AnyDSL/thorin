@@ -6,13 +6,22 @@
 #error "please define the type table type HENK_TABLE_TYPE"
 #endif
 
+#ifndef HENK_STRUCT_EXTRA_TYPE
+#error "please define the type to unify StructTypes HENK_STRUCT_EXTRA_TYPE"
+#endif
+
+#ifndef HENK_STRUCT_EXTRA_NAME
+#error "please define the name for HENK_STRUCT_EXTRA_TYPE: HENK_STRUCT_EXTRA_NAME"
+#endif
+
 #define HENK_UNDERSCORE(N) THORIN_PASTER(N,_)
 #define HENK_TABLE_NAME_ HENK_UNDERSCORE(HENK_TABLE_NAME)
+#define HENK_STRUCT_EXTRA_NAME_ HENK_UNDERSCORE(HENK_STRUCT_EXTRA_NAME)
 
 //------------------------------------------------------------------------------
 
 class Type;
-class TypeParam;
+class Var;
 class HENK_TABLE_TYPE;
 
 template<class T>
@@ -40,129 +49,186 @@ protected:
     Type(const Type&) = delete;
     Type& operator=(const Type&) = delete;
 
-    Type(HENK_TABLE_TYPE& HENK_TABLE_NAME, int kind, Types args, size_t num_type_params = 0);
+    Type(HENK_TABLE_TYPE& table, int kind, Types ops)
+        : HENK_TABLE_NAME_(&table)
+        , kind_(kind)
+        , ops_(ops.size())
+        , gid_(gid_counter_++)
+    {
+        for (size_t i = 0, e = num_ops(); i != e; ++i) {
+            if (auto op = ops[i])
+                set(i, op);
+        }
+    }
 
     void set(size_t i, const Type* type) {
-        args_[i] = type;
+        ops_[i] = type;
         order_       = std::max(order_, type->order());
-        closed_      &= type->is_closed();
         monomorphic_ &= type->is_monomorphic();
-        known_       &= type->is_known();
+        if (!is_nominal())
+            known_ &= type->is_known();
     }
 
 public:
     int kind() const { return kind_; }
-    HENK_TABLE_TYPE& HENK_TABLE_NAME() const { return HENK_TABLE_NAME_; }
+    HENK_TABLE_TYPE& HENK_TABLE_NAME() const { return *HENK_TABLE_NAME_; }
 
-    Types args() const { return args_; }
-    const Type* arg(size_t i) const { assert(i < args().size()); return args()[i]; }
-    size_t num_args() const { return args_.size(); }
-    bool empty() const { return args_.empty(); }
+    Types ops() const { return ops_; }
+    const Type* op(size_t i) const;
+    size_t num_ops() const { return ops_.size(); }
+    bool empty() const { return ops_.empty(); }
 
-    thorin::ArrayRef<const TypeParam*> type_params() const { return type_params_; }
-    const TypeParam* type_param(size_t i) const { assert(i < type_params().size()); return type_params()[i]; }
-    size_t num_type_params() const { return type_params().size(); }
-
-    bool is_hashed() const { return hashed_; }                ///< This @p Type is already recorded inside of @p HENK_TABLE_TYPE.
-    bool is_closed() const { return closed_; }                ///< Are all @p TypeParam%s bound?
-    bool is_known()  const { return known_; }                 ///< Deos this @p Type depend on any @p UnknownType%s?
-    bool is_monomorphic() const { return monomorphic_; }      ///< Does this @p Type not depend on any @p TypeParam%s?.
-    bool is_polymorphic() const { return !is_monomorphic(); } ///< Does this @p Type depend on any @p TypeParam%s?.
+    bool is_nominal() const { return nominal_; }              ///< A nominal @p Type is always different from each other @p Type.
+    bool is_known()   const { return known_; }                ///< Does this @p Type depend on any @p UnknownType%s?
+    bool is_monomorphic() const { return monomorphic_; }      ///< Does this @p Type not depend on any @p Var%s?.
+    bool is_polymorphic() const { return !is_monomorphic(); } ///< Does this @p Type depend on any @p Var%s?.
     int order() const { return order_; }
     size_t gid() const { return gid_; }
-
-    const Type* specialize(Type2Type&) const;
-    const Type* instantiate(Type2Type&) const;
-    virtual const Type* instantiate(Types) const;
-    virtual const Type* vinstantiate(Type2Type&) const = 0;
-
-    const Type* rebuild(HENK_TABLE_TYPE& to, Types args) const;
-    const Type* rebuild(Types args) const { return rebuild(HENK_TABLE_NAME(), args); }
-
-    uint64_t hash() const { return is_hashed() ? hash_ : hash_ = vhash(); }
-    virtual uint64_t vhash() const;
+    uint64_t hash() const { return hash_ == 0 ? hash_ = vhash() : hash_; }
     virtual bool equal(const Type*) const;
+
+    const Type* reduce(int, const Type*, Type2Type&) const;
+    const Type* rebuild(HENK_TABLE_TYPE& to, Types ops) const;
+    const Type* rebuild(Types ops) const { return rebuild(HENK_TABLE_NAME(), ops); }
 
     static size_t gid_counter() { return gid_counter_; }
 
 protected:
-    thorin::Array<const Type*> specialize_args(Type2Type&) const;
+    virtual uint64_t vhash() const;
+    virtual const Type* vreduce(int, const Type*, Type2Type&) const = 0;
+    thorin::Array<const Type*> reduce_ops(int, const Type*, Type2Type&) const;
 
-    int order_ = 0;
     mutable uint64_t hash_ = 0;
-    mutable bool hashed_      = false;
-    mutable bool closed_      = true;
+    int order_ = 0;
     mutable bool known_       = true;
     mutable bool monomorphic_ = true;
+    mutable bool nominal_     = false;
 
 private:
-    virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types args) const = 0;
+    virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types ops) const = 0;
 
-    HENK_TABLE_TYPE& HENK_TABLE_NAME_;
+    mutable HENK_TABLE_TYPE* HENK_TABLE_NAME_;
     int kind_;
-    thorin::Array<const Type*> args_;
-    mutable thorin::Array<const TypeParam*> type_params_;
+    thorin::Array<const Type*> ops_;
     mutable size_t gid_;
     static size_t gid_counter_;
 
-    friend const Type* close_base(const Type*&, thorin::ArrayRef<const TypeParam*>);
     template<class> friend class TypeTableBase;
 };
 
-template<class T>
-const T* close(const T*& type, thorin::ArrayRef<const TypeParam*> type_param) {
-    static_assert(std::is_base_of<Type, T>::value, "T is not a base of thorin::Type");
-    return close_base((const Type*&) type, type_param)->template as<T>();
-}
-
-class TypeParam : public Type {
+class Lambda : public Type {
 private:
-    TypeParam(HENK_TABLE_TYPE& HENK_TABLE_NAME, const char* name)
-        : Type(HENK_TABLE_NAME, Node_TypeParam, {})
+    Lambda(HENK_TABLE_TYPE& table, const Type* body, const char* name)
+        : Type(table, Node_Lambda, {body})
         , name_(name)
+    {}
+
+public:
+    const char* name() const { return name_; }
+    const Type* body() const { return op(0); }
+    virtual std::ostream& stream(std::ostream&) const override;
+
+private:
+    virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types ops) const override;
+    virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
+
+    const char* name_;
+
+    template<class> friend class TypeTableBase;
+};
+
+class Var : public Type {
+private:
+    Var(HENK_TABLE_TYPE& table, int depth)
+        : Type(table, Node_Var, {})
+        , depth_(depth)
     {
-        closed_ = false;
         monomorphic_ = false;
     }
 
 public:
-    const char* name() const { return name_; }
-    const Type* binder() const { return binder_; }
-    size_t index() const { return index_; }
-    virtual bool equal(const Type*) const override;
-
+    int depth() const { return depth_; }
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
     virtual uint64_t vhash() const override;
-    virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types args) const override;
-    virtual const Type* vinstantiate(Type2Type&) const override;
+    virtual bool equal(const Type*) const override;
+    virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types ops) const override;
+    virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
 
-    const char* name_;
-    mutable const Type* binder_;
-    mutable size_t index_;
+    int depth_;
 
-public: // HACK
-    mutable const TypeParam* equiv_ = nullptr;
-
-    friend bool Type::equal(const Type*) const;
-    friend const Type* close_base(const Type*&, thorin::ArrayRef<const TypeParam*>);
     template<class> friend class TypeTableBase;
 };
 
-std::ostream& stream_type_params(std::ostream& os, const Type* type);
+class App : public Type {
+private:
+    App(HENK_TABLE_TYPE& table, const Type* callee, const Type* arg)
+        : Type(table, Node_App, {callee, arg})
+    {}
+
+public:
+    const Type* callee() const { return Type::op(0); }
+    const Type* arg() const { return Type::op(1); }
+    virtual std::ostream& stream(std::ostream&) const override;
+    virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types ops) const override;
+    virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
+
+private:
+    mutable const Type* cache_ = nullptr;
+    template<class> friend class TypeTableBase;
+};
 
 class TupleType : public Type {
 private:
-    TupleType(HENK_TABLE_TYPE& HENK_TABLE_NAME, Types args)
-        : Type(HENK_TABLE_NAME, Node_TupleType, args)
+    TupleType(HENK_TABLE_TYPE& table, Types ops)
+        : Type(table, Node_TupleType, ops)
     {}
 
-    virtual const Type* vinstantiate(Type2Type&) const override;
-    virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types args) const override;
+    virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
+    virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types ops) const override;
 
 public:
     virtual std::ostream& stream(std::ostream&) const override;
+
+    template<class> friend class TypeTableBase;
+};
+
+class StructType : public Type {
+private:
+    StructType(HENK_TABLE_TYPE& table, HENK_STRUCT_EXTRA_TYPE HENK_STRUCT_EXTRA_NAME, size_t size)
+        : Type(table, Node_StructType, thorin::Array<const Type*>(size))
+        , HENK_STRUCT_EXTRA_NAME_(HENK_STRUCT_EXTRA_NAME)
+    {
+        nominal_ = true;
+    }
+
+public:
+    HENK_STRUCT_EXTRA_TYPE HENK_STRUCT_EXTRA_NAME() const { return HENK_STRUCT_EXTRA_NAME_; }
+    void set(size_t i, const Type* type) const { return const_cast<StructType*>(this)->Type::set(i, type); }
+
+private:
+    virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types ops) const override;
+    virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
+    virtual std::ostream& stream(std::ostream&) const override;
+
+    HENK_STRUCT_EXTRA_TYPE HENK_STRUCT_EXTRA_NAME_;
+
+    template<class> friend class TypeTableBase;
+};
+
+class TypeError : public Type {
+private:
+    TypeError(HENK_TABLE_TYPE& table)
+        : Type(table, Node_TypeError, {})
+    {}
+
+public:
+    virtual std::ostream& stream(std::ostream&) const override;
+
+private:
+    virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types ops) const override;
+    virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
 
     template<class> friend class TypeTableBase;
 };
@@ -175,56 +241,59 @@ private:
     HENK_TABLE_TYPE& HENK_TABLE_NAME() { return *static_cast<HENK_TABLE_TYPE*>(this); }
 
 public:
-    struct TypeHash { uint64_t operator () (const Type* t) const { return t->hash(); } };
-    struct TypeEqual { bool operator () (const Type* t1, const Type* t2) const { return t1->equal(t2); } };
+    struct TypeHash { uint64_t operator()(const Type* t) const { return t->hash(); } };
+    struct TypeEqual { bool operator()(const Type* t1, const Type* t2) const { return t2->equal(t1); } };
     typedef thorin::HashSet<const Type*, TypeHash, TypeEqual> TypeSet;
 
-    TypeTableBase& operator = (const TypeTableBase&);
+    TypeTableBase& operator=(const TypeTableBase&);
     TypeTableBase(const TypeTableBase&);
 
     TypeTableBase()
         : unit_(unify(new TupleType(HENK_TABLE_NAME(), Types())))
+        , type_error_(unify(new TypeError(HENK_TABLE_NAME())))
     {}
     virtual ~TypeTableBase() { for (auto type : types_) delete type; }
 
-    const TypeParam* type_param(const char* name) { return unify(new TypeParam(HENK_TABLE_NAME(), name)); }
-    const TupleType* tuple_type(Types args) { return unify(new TupleType(HENK_TABLE_NAME(), args)); }
+    const Var* var(int depth) { return unify(new Var(HENK_TABLE_NAME(), depth)); }
+    const Lambda* lambda(const Type* body, const char* name) { return unify(new Lambda(HENK_TABLE_NAME(), body, name)); }
+    const Type* app(const Type* callee, const Type* arg);
+    const TupleType* tuple_type(Types ops) { return unify(new TupleType(HENK_TABLE_NAME(), ops)); }
     const TupleType* unit() { return unit_; } ///< Returns unit, i.e., an empty @p TupleType.
+    const StructType* struct_type(HENK_STRUCT_EXTRA_TYPE HENK_STRUCT_EXTRA_NAME, size_t size);
+    const TypeError* type_error() { return type_error_; }
 
     const TypeSet& types() const { return types_; }
 
-protected:
-    const Type* unify_base(const Type* type) {
-        if (type->is_hashed() || !type->is_closed())
-            return type;
+    friend void swap(TypeTableBase& t1, TypeTableBase& t2) {
+        using std::swap;
+        swap(t1.types_, t2.types_);
+        swap(t1.unit_,  t2.unit_);
 
-        for (auto& arg : const_cast<Type*>(type)->args_)
-            arg = unify_base(arg);
-
-        auto i = types_.find(type);
-        if (i != types_.end()) {
-            delete type;
-            type = *i;
-            assert(type->is_hashed());
-            return type;
-        }
-
-        const auto& p = types_.insert(type);
-        assert_unused(p.second && "hash/equal broken");
-        assert(!type->is_hashed());
-        type->hashed_ = true;
-        return type;
+        t1.fix();
+        t2.fix();
     }
 
+private:
+    void fix() {
+        for (auto type : types_)
+            type->HENK_TABLE_NAME_ = &HENK_TABLE_NAME();
+    }
+
+protected:
+    const Type* unify_base(const Type* type);
     template<class T> const T* unify(const T* type) { return unify_base(type)->template as<T>(); }
+    const Type* insert(const Type*);
 
     TypeSet types_;
     const TupleType* unit_; ///< tuple().
+    const TypeError* type_error_;
 
-    friend const Type* close_base(const Type*&, thorin::ArrayRef<const TypeParam*>);
+    friend class Lambda;
 };
 
 //------------------------------------------------------------------------------
 
+#undef HENK_STRUCT_EXTRA_NAME
+#undef HENK_STRUCT_EXTRA_TYPE
 #undef HENK_TABLE_NAME
 #undef HENK_TABLE_TYPE

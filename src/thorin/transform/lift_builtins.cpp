@@ -28,7 +28,7 @@ void lift_builtins(World& world) {
             }
         }
 
-        auto lifted = lift(scope, {}, defs);
+        auto lifted = lift(scope, defs);
 
         std::vector<Use> uses(cur->uses().begin(), cur->uses().end()); // TODO rewrite this
         for (auto use : uses) {
@@ -37,10 +37,10 @@ void lift_builtins(World& world) {
                     if (callee->is_intrinsic()) {
                         auto old_ops = ucontinuation->ops();
                         Array<const Def*> new_ops(old_ops.size() + defs.size());
-                        std::copy(defs.begin(), defs.end(), std::copy(old_ops.begin(), old_ops.end(), new_ops.begin()));        // old ops + former free defs
+                        std::copy(defs.begin(), defs.end(), std::copy(old_ops.begin(), old_ops.end(), new_ops.begin()));    // old ops + former free defs
                         assert(old_ops[use.index()] == cur);
-                        new_ops[use.index()] = world.global(lifted, lifted->loc(), false, lifted->name);                        // update to new lifted continuation
-                        ucontinuation->jump(cur, ucontinuation->type_args(), new_ops.skip_front(), ucontinuation->jump_loc());  // set new args
+                        new_ops[use.index()] = world.global(lifted, lifted->loc(), false, lifted->name);                    // update to new lifted continuation
+                        ucontinuation->jump(cur, new_ops.skip_front(), ucontinuation->jump_loc());                          // set new args
 
                         // jump to new top-level dummy function
                         auto ncontinuation = world.continuation(ucontinuation->arg_fn_type(), callee->loc(), callee->cc(), callee->intrinsic(), callee->name);

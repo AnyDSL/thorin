@@ -9,6 +9,8 @@ namespace thorin {
 template<class T>
 class AutoPtr {
 public:
+    AutoPtr(const AutoPtr<T>&) = delete;
+
     AutoPtr(T* ptr = nullptr)
         : ptr_(ptr)
     {}
@@ -31,7 +33,6 @@ public:
 
 private:
     T* ptr_;
-    AutoPtr(const AutoPtr<T>& aptr); // forbid copy constructor
 };
 
 /// A simple wrapper around a usual pointer but initialized with nullptr and checked via assert if valid prior to dereferencing.

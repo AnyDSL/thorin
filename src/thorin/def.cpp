@@ -25,9 +25,7 @@ Def::Def(NodeKind kind, const Type* type, size_t size, const Location& loc, cons
     , type_(type)
     , gid_(gid_counter_++)
     , name(name)
-{
-    assert(THORIN_IMPLIES(type, type->is_closed()));
-}
+{}
 
 void Def::set_op(size_t i, const Def* def) {
     assert(!op(i) && "already set");
@@ -39,7 +37,7 @@ void Def::set_op(size_t i, const Def* def) {
 }
 
 void Def::unregister_uses() const {
-    for (size_t i = 0, e = size(); i != e; ++i)
+    for (size_t i = 0, e = num_ops(); i != e; ++i)
         unregister_use(i);
 }
 
@@ -57,7 +55,7 @@ void Def::unset_op(size_t i) {
 }
 
 void Def::unset_ops() {
-    for (size_t i = 0, e = size(); i != e; ++i)
+    for (size_t i = 0, e = num_ops(); i != e; ++i)
         unset_op(i);
 }
 
@@ -67,11 +65,11 @@ std::string Def::unique_name() const {
     return oss.str();
 }
 
-bool Def::is_const() const {
-    if (isa<Param>()) return false;
-    if (isa<PrimOp>()) {
-        for (auto op : ops()) { // TODO slow because ops form a DAG not a tree
-            if (!op->is_const())
+bool is_const(const Def* def) {
+    if (def->isa<Param>()) return false;
+    if (def->isa<PrimOp>()) {
+        for (auto op : def->ops()) { // TODO slow because ops form a DAG not a tree
+            if (!is_const(op))
                 return false;
         }
     }
@@ -79,8 +77,10 @@ bool Def::is_const() const {
     return true; // continuations are always const
 }
 
-bool Def::is_primlit(int val) const {
-    if (auto lit = this->isa<PrimLit>()) {
+size_t vector_length(const Def* def) { return def->type()->as<VectorType>()->length(); }
+
+bool is_primlit(const Def* def, int val) {
+    if (auto lit = def->isa<PrimLit>()) {
         switch (lit->primtype_kind()) {
 #define THORIN_I_TYPE(T, M) case PrimType_##T: return lit->value().get_##T() == T(val);
 #include "thorin/tables/primtypetable.h"
@@ -88,9 +88,9 @@ bool Def::is_primlit(int val) const {
         }
     }
 
-    if (auto vector = this->isa<Vector>()) {
+    if (auto vector = def->isa<Vector>()) {
         for (auto op : vector->ops()) {
-            if (!op->is_primlit(val))
+            if (!is_primlit(op, val))
                 return false;
         }
         return true;
@@ -98,8 +98,8 @@ bool Def::is_primlit(int val) const {
     return false;
 }
 
-bool Def::is_minus_zero() const {
-    if (auto lit = this->isa<PrimLit>()) {
+bool is_minus_zero(const Def* def) {
+    if (auto lit = def->isa<PrimLit>()) {
         Box box = lit->value();
         switch (lit->primtype_kind()) {
 #define THORIN_I_TYPE(T, M) case PrimType_##T: return box.get_##M() == M(0);
@@ -115,26 +115,11 @@ void Def::replace(const Def* with) const {
     DLOG("replace: % -> %", this, with);
     assert(type() == with->type());
     if (this != with) {
-        std::queue<const PrimOp*> queue;
-
-        auto enqueue = [&](const Def* def) {
-            if (auto primop = def->isa<PrimOp>()) {
-                if (!primop->is_outdated()) {
-                    queue.push(primop);
-                    primop->is_outdated_ = true;
-                }
-            }
-        };
-
-        for (auto use : uses()) {
-            const_cast<Def*>(use.def())->unset_op(use.index());
-            const_cast<Def*>(use.def())->set_op(use.index(), with);
-            enqueue(use);
-        }
-
-        while (!queue.empty()) {
-            for (auto use : pop(queue)->uses())
-                enqueue(use);
+        for (auto& use : uses()) {
+            auto def = const_cast<Def*>(use.def());
+            auto index = use.index();
+            def->unset_op(index);
+            def->set_op(index, with);
         }
 
         auto& this_trackers = world().trackers(this);
@@ -151,7 +136,7 @@ void Def::replace(const Def* with) const {
 
 void Def::dump() const {
     auto primop = this->isa<PrimOp>();
-    if (primop && !primop->is_const())
+    if (primop && !is_const(primop))
         primop->stream_assignment(std::cout);
     else {
         std::cout << this;
@@ -162,8 +147,6 @@ void Def::dump() const {
 World& Def::world() const { return type()->world(); }
 Continuation* Def::as_continuation() const { return const_cast<Continuation*>(scast<Continuation>(this)); }
 Continuation* Def::isa_continuation() const { return const_cast<Continuation*>(dcast<Continuation>(this)); }
-int Def::order() const { return type()->order(); }
-size_t Def::length() const { return type()->as<VectorType>()->length(); }
 std::ostream& Def::stream(std::ostream& out) const { return out << unique_name(); }
 
 HashSet<Tracker*>& Tracker::trackers(const Def* def) { return def->world().trackers_[def]; }

@@ -14,9 +14,8 @@ class PrimOp : public Def {
 protected:
     PrimOp(NodeKind kind, const Type* type, Defs args, const Location& loc, const std::string& name)
         : Def(kind, type, args.size(), loc, name)
-        , is_outdated_(false)
     {
-        for (size_t i = 0, e = size(); i != e; ++i)
+        for (size_t i = 0, e = num_ops(); i != e; ++i)
             set_op(i, args[i]);
     }
 
@@ -24,10 +23,8 @@ protected:
 
 public:
     const Def* out(size_t i) const;
-    virtual bool is_outdated() const override { return is_outdated_; }
-    virtual const Def* rebuild(Def2Def&) const override;
     const Def* rebuild(World& to, Defs ops, const Type* type) const {
-        assert(this->size() == ops.size());
+        assert(this->num_ops() == ops.size());
         return vrebuild(to, ops, type);
     }
     const Def* rebuild(Defs ops) const { return rebuild(world(), ops, type()); }
@@ -48,8 +45,6 @@ private:
     uint64_t hash() const { return hash_ == 0 ? hash_ = vhash() : hash_; }
 
     mutable uint64_t hash_ = 0;
-    mutable uint32_t live_ = 0;
-    mutable bool is_outdated_ : 1;
 
     friend struct PrimOpHash;
     friend struct PrimOpEqual;
@@ -88,7 +83,7 @@ private:
     friend class World;
 };
 
-/// Data constructor for a @p PrimTypeNode.
+/// Data constructor for a @p PrimType.
 class PrimLit : public Literal {
 private:
     PrimLit(World& world, PrimTypeKind kind, Box box, const Location& loc, const std::string& name);
@@ -127,7 +122,6 @@ T primlit_value(const Def* def) {
 template<class T>
 T get(ArrayRef<T> array, const Def* def) { return array[primlit_value<size_t>(def)]; }
 
-
 /// Akin to <tt>cond ? tval : fval</tt>.
 class Select : public PrimOp {
 private:
@@ -145,6 +139,17 @@ public:
     const Def* cond() const { return op(0); }
     const Def* tval() const { return op(1); }
     const Def* fval() const { return op(2); }
+
+    friend class World;
+};
+
+/// Get number of bytes needed for any value (including bottom) of a given @p Type.
+class SizeOf : public PrimOp {
+private:
+    SizeOf(const Def* def, const Location& loc, const std::string& name);
+
+private:
+    virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
 
     friend class World;
 };
@@ -238,7 +243,7 @@ protected:
     {}
 };
 
-/// Data constructor for a \p DefiniteArrayTypeNode.
+/// Data constructor for a \p DefiniteArrayType.
 class DefiniteArray : public Aggregate {
 private:
     DefiniteArray(World& world, const Type* elem, Defs args, const Location& loc, const std::string& name);
@@ -252,7 +257,7 @@ public:
     friend class World;
 };
 
-/// Data constructor for an \p IndefiniteArrayTypeNode.
+/// Data constructor for an \p IndefiniteArrayType.
 class IndefiniteArray : public Aggregate {
 private:
     IndefiniteArray(World& world, const Type* elem, const Def* dim, const Location& loc, const std::string& name);
@@ -266,7 +271,7 @@ public:
     friend class World;
 };
 
-/// Data constructor for a @p TupleTypeNode.
+/// Data constructor for a @p TupleType.
 class Tuple : public Aggregate {
 private:
     Tuple(World& world, Defs args, const Location& loc, const std::string& name);
@@ -279,24 +284,24 @@ public:
     friend class World;
 };
 
-/// Data constructor for a @p StructAppTypeNode.
+/// Data constructor for a @p StructType.
 class StructAgg : public Aggregate {
 private:
-    StructAgg(const StructAppType* struct_app_type, Defs args, const Location& loc, const std::string& name)
+    StructAgg(const StructType* struct_type, Defs args, const Location& loc, const std::string& name)
         : Aggregate(Node_StructAgg, args, loc, name)
     {
 #ifndef NDEBUG
-        assert(struct_app_type->num_elems() == args.size());
+        assert(struct_type->num_ops() == args.size());
         for (size_t i = 0, e = args.size(); i != e; ++i)
-            assert(struct_app_type->elem(i) == args[i]->type());
+            assert(struct_type->op(i) == args[i]->type());
 #endif
-        set_type(struct_app_type);
+        set_type(struct_type);
     }
 
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
 
 public:
-    const StructAppType* type() const { return Aggregate::type()->as<StructAppType>(); }
+    const StructType* type() const { return Aggregate::type()->as<StructType>(); }
 
     friend class World;
 };
@@ -496,7 +501,7 @@ public:
     virtual bool has_multiple_outs() const override { return true; }
     const Def* out_ptr() const { return out(1); }
     const TupleType* type() const { return MemOp::type()->as<TupleType>(); }
-    const PtrType* out_ptr_type() const { return type()->arg(1)->as<PtrType>(); }
+    const PtrType* out_ptr_type() const { return type()->op(1)->as<PtrType>(); }
     const Type* alloced_type() const { return out_ptr_type()->referenced_type(); }
     static const Alloc* is_out_mem(const Def* def) { return is_out<0, Alloc>(def); }
     static const Alloc* is_out_ptr(const Def* def) { return is_out<1, Alloc>(def); }
@@ -529,7 +534,7 @@ public:
     virtual bool has_multiple_outs() const override { return true; }
     const Def* out_val() const { return out(1); }
     const TupleType* type() const { return MemOp::type()->as<TupleType>(); }
-    const Type* out_val_type() const { return type()->arg(1); }
+    const Type* out_val_type() const { return type()->op(1); }
     static const Load* is_out_mem(const Def* def) { return is_out<0, Load>(def); }
     static const Load* is_out_val(const Def* def) { return is_out<1, Load>(def); }
 
@@ -619,7 +624,7 @@ inline Assembly::Flags operator&=(Assembly::Flags& lhs, Assembly::Flags rhs) { r
 template<int i, class T>
 const T* PrimOp::is_out(const Def* def) {
     if (auto extract = def->isa<Extract>()) {
-        if (extract->index()->is_primlit(i)) {
+        if (is_primlit(extract->index(), i)) {
             if (auto res = extract->agg()->isa<T>())
                 return res;
         }

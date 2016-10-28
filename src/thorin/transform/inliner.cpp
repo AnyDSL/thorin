@@ -15,8 +15,8 @@ void inliner(World& world) {
             auto continuation = n->continuation();
             if (auto callee = continuation->callee()->isa_continuation()) {
                 if (!callee->empty() && callee->num_uses() <= 1 && !scope.contains(callee)) {
-                    Scope to_scope(callee);
-                    continuation->jump(drop(to_scope, continuation->type_args(), continuation->args()), {}, {}, continuation->jump_loc());
+                    Scope callee_scope(callee);
+                    continuation->jump(drop(callee_scope, continuation->args()), {}, continuation->jump_loc());
                 }
             }
         }
@@ -27,7 +27,7 @@ void inliner(World& world) {
             for (const auto& use : scope.entry()->uses())
                 if (auto ucontinuation = use->isa_continuation())
                     if (use.index() == 0)
-                        ucontinuation->jump(drop(scope, ucontinuation->type_args(), ucontinuation->args()), {}, {}, ucontinuation->jump_loc());
+                        ucontinuation->jump(drop(scope, ucontinuation->args()), {}, ucontinuation->jump_loc());
     });
 
     debug_verify(world);

@@ -2,8 +2,8 @@
 #error "define THORIN_GLUE before including this file"
 #endif
 
-#ifndef THORIN_AIR_NODE
-#error "define THORIN_AIR_NODE before including this file"
+#ifndef THORIN_NODE
+#error "define THORIN_NODE before including this file"
 #endif
 
 #ifndef THORIN_PRIMTYPE
@@ -46,7 +46,7 @@
 #include "thorin/tables/cmptable.h"
 
 #undef THORIN_GLUE
-#undef THORIN_AIR_NODE
+#undef THORIN_NODE
 #undef THORIN_PRIMTYPE
 #undef THORIN_ARITHOP
 #undef THORIN_CMP

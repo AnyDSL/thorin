@@ -190,7 +190,7 @@ const Def* Load   ::vrebuild(World& to, Defs ops, const Type*  ) const { return 
 const Def* PrimLit::vrebuild(World& to, Defs,     const Type*  ) const { return to.literal(primtype_kind(), value(), loc()); }
 const Def* Run    ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.run(ops[0], ops[1], loc(), name); }
 const Def* Select ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.select(ops[0], ops[1], ops[2], loc(), name); }
-const Def* SizeOf ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.size_of(ops[0], loc(), name); }
+const Def* SizeOf ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.size_of(ops[0]->type(), loc(), name); }
 const Def* Slot   ::vrebuild(World& to, Defs ops, const Type* t) const { return to.slot(t->as<PtrType>()->referenced_type(), ops[0], loc(), name); }
 const Def* Store  ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.store(ops[0], ops[1], ops[2], loc(), name); }
 const Def* Tuple  ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.tuple(ops, loc(), name); }

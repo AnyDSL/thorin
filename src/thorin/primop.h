@@ -148,8 +148,10 @@ class SizeOf : public PrimOp {
 private:
     SizeOf(const Def* def, const Location& loc, const std::string& name);
 
-private:
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
+
+public:
+    const Type* of() const { return op(0)->type(); }
 
     friend class World;
 };

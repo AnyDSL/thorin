@@ -79,7 +79,7 @@ public:
     bool empty() const { return ops_.empty(); }
 
     bool is_nominal() const { return nominal_; }              ///< A nominal @p Type is always different from each other @p Type.
-    bool is_known()   const { return known_; }                ///< Deos this @p Type depend on any @p UnknownType%s?
+    bool is_known()   const { return known_; }                ///< Does this @p Type depend on any @p UnknownType%s?
     bool is_monomorphic() const { return monomorphic_; }      ///< Does this @p Type not depend on any @p Var%s?.
     bool is_polymorphic() const { return !is_monomorphic(); } ///< Does this @p Type depend on any @p Var%s?.
     int order() const { return order_; }

@@ -150,7 +150,7 @@ public:
     }
 
     const Def* select(const Def* cond, const Def* t, const Def* f, const Location& loc, const std::string& name = "");
-    const Def* size_of(const Type* of, const Location& loc, const std::string& name = "") { return cse(new SizeOf(of, loc, name)); }
+    const Def* size_of(const Def* def, const Location& loc, const std::string& name = "") { return cse(new SizeOf(def, loc, name)); }
 
     // memory stuff
 

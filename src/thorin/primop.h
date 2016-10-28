@@ -143,20 +143,13 @@ public:
     friend class World;
 };
 
-/// Get number of bytes needod for @p type.
+/// Get number of bytes needed for any value (including bottom) of a given @p Type.
 class SizeOf : public PrimOp {
 private:
-    SizeOf(const Type* type, const Location& loc, const std::string& name);
-
-public:
-    const Type* of() const { return of_; }
+    SizeOf(const Def* def, const Location& loc, const std::string& name);
 
 private:
-    virtual uint64_t vhash() const override;
-    virtual bool equal(const PrimOp* other) const override;
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
-
-    const Type* of_;
 
     friend class World;
 };

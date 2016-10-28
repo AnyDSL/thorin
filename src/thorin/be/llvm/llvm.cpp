@@ -658,7 +658,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
     }
 
     if (auto size_of = def->isa<SizeOf>()) {
-        auto type = convert(size_of->of());
+        auto type = convert(size_of->op(0)->type());
         auto layout = llvm::DataLayout(module_->getDataLayout());
         return irbuilder_.getInt32(layout.getTypeAllocSize(type));
     }

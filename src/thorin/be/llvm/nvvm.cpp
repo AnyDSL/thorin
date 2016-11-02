@@ -20,19 +20,19 @@
 namespace thorin {
 
 NVVMCodeGen::NVVMCodeGen(World& world)
-    : CodeGen(world, llvm::Function::ExternalLinkage, llvm::Function::ExternalLinkage, llvm::CallingConv::C, llvm::CallingConv::PTX_Device, llvm::CallingConv::PTX_Kernel)
+    : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::PTX_Device, llvm::CallingConv::PTX_Kernel)
 {
     auto triple = llvm::Triple(llvm::sys::getDefaultTargetTriple());
     if (triple.isArch32Bit()) {
         module_->setDataLayout("e-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v16:16:16-v32:32:32-v64:64:64-v128:128:128-n16:32:64");
-        module_->setTargetTriple("nvptx32-unknown-cuda");
+        module_->setTargetTriple("nvptx-nvidia-cuda");
     } else {
         module_->setDataLayout("e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v16:16:16-v32:32:32-v64:64:64-v128:128:128-n16:32:64");
-        module_->setTargetTriple("nvptx64-unknown-cuda");
+        module_->setTargetTriple("nvptx64-nvidia-cuda");
     }
     // nvvmir.version
     auto nvvmir_version_md = module_->getOrInsertNamedMetadata("nvvmir.version");
-    llvm::Value* annotation_values_12[] = { irbuilder_.getInt32(1), irbuilder_.getInt32(2) };
+    llvm::Metadata* annotation_values_12[] = { llvm::ConstantAsMetadata::get(irbuilder_.getInt64(1)), llvm::ConstantAsMetadata::get(irbuilder_.getInt64(2)) };
     nvvmir_version_md->addOperand(llvm::MDNode::get(context_, annotation_values_12));
 }
 
@@ -62,8 +62,8 @@ void NVVMCodeGen::emit_function_decl_hook(Continuation* continuation, llvm::Func
     // append required metadata
     auto annotation = module_->getOrInsertNamedMetadata("nvvm.annotations");
 
-    const auto append_metadata = [&](llvm::Value* target, const std::string &name) {
-        llvm::Value* annotation_values[] = { target, llvm::MDString::get(context_, name), irbuilder_.getInt64(1) };
+    const auto append_metadata = [&](llvm::Value* target, const std::string& name) {
+        llvm::Metadata* annotation_values[] = { llvm::ValueAsMetadata::get(target), llvm::MDString::get(context_, name), llvm::ConstantAsMetadata::get(irbuilder_.getInt64(1)) };
         llvm::MDNode* result = llvm::MDNode::get(context_, annotation_values);
         annotation->addOperand(result);
         return result;
@@ -120,7 +120,7 @@ void NVVMCodeGen::emit_function_start(llvm::BasicBlock*, Continuation* continuat
             auto md = metadata_.find(param);
             assert(md != metadata_.end());
             // require specific handle to be mapped to a parameter
-            llvm::Value* args[] = { md->second, var };
+            llvm::Value* args[] = { llvm::MetadataAsValue::get(context_, md->second), var };
             params_[param] = irbuilder_.CreateCall(texture_handle, args);
         }
     }

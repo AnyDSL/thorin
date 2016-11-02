@@ -1,7 +1,7 @@
 #ifdef WFV2_SUPPORT
 #include "thorin/be/llvm/llvm.h"
 
-#include <llvm/PassManager.h>
+#include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/Transforms/Scalar.h>
 
@@ -76,7 +76,7 @@ Continuation* CodeGen::emit_vectorize_continuation(Continuation* continuation) {
 
 void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llvm::CallInst* simd_kernel_call) {
     // ensure proper loop forms
-    FunctionPassManager pm(module_);
+    legacy::FunctionPassManager pm(module_.get());
     pm.add(llvm::createLICMPass());
     pm.add(llvm::createLCSSAPass());
     pm.run(*kernel_func);
@@ -84,7 +84,7 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
     // vectorize function
     auto kernel_simd_func = simd_kernel_call->getCalledFunction();
     kernel_simd_func->deleteBody();
-    WFVInterface::WFVInterface wfv(module_, &context_, kernel_func, kernel_simd_func, vector_length);
+    WFVInterface::WFVInterface wfv(module_.get(), &context_, kernel_func, kernel_simd_func, vector_length);
     wfv.addCommonMappings(true, true, true, true, false);
     auto loop_counter_argument = kernel_func->getArgumentList().begin();
     bool b_simd = wfv.addSIMDSemantics(*loop_counter_argument, false, true, false, true, false, true);

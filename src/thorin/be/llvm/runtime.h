@@ -15,7 +15,7 @@ class CodeGen;
 class Runtime {
 public:
     Runtime(llvm::LLVMContext& context,
-            llvm::Module* target,
+            llvm::Module& target,
             llvm::IRBuilder<>& builder);
 
     enum Platform {
@@ -50,14 +50,15 @@ public:
     /// Emits a call to thorin_sync_thread.
     llvm::Value* sync_thread(llvm::Value* id);
 
-    Continuation* emit_host_code(CodeGen &code_gen, Platform platform, const std::string& ext, Continuation*);
+    Continuation* emit_host_code(CodeGen &code_gen, Platform platform, Continuation* continuation);
 
 protected:
     llvm::Function* get(const char* name);
 
-    llvm::Module* target_;
+    llvm::Module& target_;
     llvm::IRBuilder<>& builder_;
-    std::unique_ptr<llvm::DataLayout> layout_;
+    const llvm::DataLayout& layout_;
+
     std::unique_ptr<llvm::Module> runtime_;
 };
 

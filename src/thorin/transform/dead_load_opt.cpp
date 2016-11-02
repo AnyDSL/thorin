@@ -10,7 +10,7 @@ static void dead_load_opt(const Scope& scope) {
 
         Tracker mem;
         for (auto arg : continuation->args()) {
-            if (arg->is_mem()) {
+            if (is_mem(arg)) {
                 mem = arg;
                 break;
             }

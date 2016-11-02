@@ -74,7 +74,7 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, Cont
 
         // check device target
         if (target_arg->type()->isa<DefiniteArrayType>() ||
-            target_arg->type()->isa<StructAppType>() ||
+            target_arg->type()->isa<StructType>() ||
             target_arg->type()->isa<TupleType>()) {
             // definite array | struct | tuple
             auto alloca = code_gen.emit_alloca(target_val->getType(), target_arg->name);

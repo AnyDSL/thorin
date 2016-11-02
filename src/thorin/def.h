@@ -1,7 +1,6 @@
 #ifndef THORIN_DEF_H
 #define THORIN_DEF_H
 
-#include <set>
 #include <string>
 #include <vector>
 
@@ -27,7 +26,7 @@ typedef ArrayRef<const Def*> Defs;
 
 /**
  * References a user.
- * A \p Def u which uses \p Def d as i^th operand is a \p Use with \p index_ i of \p Def d.
+ * A \p Def \c u which uses \p Def \c d as \c i^th operand is a \p Use with \p index_ \c i of \p Def \c d.
  */
 class Use {
 public:
@@ -83,50 +82,32 @@ protected:
     virtual ~Def() {}
 
     void clear_type() { type_ = nullptr; }
-    void set_type(const Type* type) { assert(type->is_closed()); type_ = type; }
+    void set_type(const Type* type) { type_ = type; }
     void unregister_use(size_t i) const;
     void unregister_uses() const;
     void resize(size_t n) { ops_.resize(n, nullptr); }
 
 public:
     NodeKind kind() const { return kind_; }
-    bool is_corenode() const { return ::thorin::is_corenode(kind()); }
-    size_t size() const { return ops_.size(); }
+    size_t num_ops() const { return ops_.size(); }
     bool empty() const { return ops_.empty(); }
     void set_op(size_t i, const Def* def);
     void unset_op(size_t i);
     void unset_ops();
-    const Def* is_mem() const { return type()->isa<MemType>() ? this : nullptr; }
     Continuation* as_continuation() const;
     Continuation* isa_continuation() const;
-    bool is_const() const;
     void dump() const;
     const Uses& uses() const { return uses_; }
     size_t num_uses() const { return uses().size(); }
     size_t gid() const { return gid_; }
     std::string unique_name() const;
     const Type* type() const { return type_; }
-    int order() const;
+    int order() const { return type()->order(); }
     World& world() const;
     Defs ops() const { return ops_; }
     const Def* op(size_t i) const { assert(i < ops().size() && "index out of bounds"); return ops_[i]; }
     void replace(const Def*) const;
-    size_t length() const; ///< Returns the vector length. Raises an assertion if type of this is not a \p VectorType.
-    bool is_primlit(int val) const;
-    bool is_zero() const { return is_primlit(0); }
-    bool is_minus_zero() const;
-    bool is_one() const { return is_primlit(1); }
-    bool is_allset() const { return is_primlit(-1); }
-    bool is_bitop()       const { return thorin::is_bitop(kind()); }
-    bool is_shift()       const { return thorin::is_shift(kind()); }
-    bool is_not()         const { return kind() == Node_xor && op(0)->is_allset(); }
-    bool is_minus()       const { return kind() == Node_sub && op(0)->is_minus_zero(); }
-    bool is_div_or_rem()  const { return thorin::is_div_or_rem(kind()); }
-    bool is_commutative() const { return thorin::is_commutative(kind()); }
-    bool is_associative() const { return thorin::is_associative(kind()); }
 
-    virtual bool is_outdated() const { return false; }
-    virtual const Def* rebuild(Def2Def&) const { return this; }
     virtual std::ostream& stream(std::ostream&) const;
     static size_t gid_counter() { return gid_counter_; }
 
@@ -148,6 +129,23 @@ public:
     friend class Cleaner;
     friend class Tracker;
 };
+
+/// Returns the vector length. Raises an assertion if type of this is not a \p VectorType.
+size_t vector_length(const Def*);
+bool is_const(const Def*);
+bool is_primlit(const Def*, int);
+bool is_minus_zero(const Def*);
+inline bool is_mem        (const Def* def) { return def->type()->isa<MemType>(); }
+inline bool is_zero       (const Def* def) { return is_primlit(def, 0); }
+inline bool is_one        (const Def* def) { return is_primlit(def, 1); }
+inline bool is_allset     (const Def* def) { return is_primlit(def, -1); }
+inline bool is_bitop      (const Def* def) { return thorin::is_bitop(def->kind()); }
+inline bool is_shift      (const Def* def) { return thorin::is_shift(def->kind()); }
+inline bool is_not        (const Def* def) { return def->kind() == Node_xor && is_allset(def->op(0)); }
+inline bool is_minus      (const Def* def) { return def->kind() == Node_sub && is_minus_zero(def->op(0)); }
+inline bool is_div_or_rem (const Def* def) { return thorin::is_div_or_rem(def->kind()); }
+inline bool is_commutative(const Def* def) { return thorin::is_commutative(def->kind()); }
+inline bool is_associative(const Def* def) { return thorin::is_associative(def->kind()); }
 
 namespace detail {
     inline std::ostream& stream(std::ostream& os, const Def* def) { return def->stream(os); }

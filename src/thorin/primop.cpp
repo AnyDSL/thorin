@@ -26,7 +26,7 @@ DefiniteArray::DefiniteArray(World& world, const Type* elem, Defs args, const Lo
 {
     set_type(world.definite_array_type(elem, args.size()));
 #ifndef NDEBUG
-    for (size_t i = 0, e = size(); i != e; ++i)
+    for (size_t i = 0, e = num_ops(); i != e; ++i)
         assert(args[i]->type() == type()->elem_type());
 #endif
 }
@@ -40,8 +40,8 @@ IndefiniteArray::IndefiniteArray(World& world, const Type* elem, const Def* dim,
 Tuple::Tuple(World& world, Defs args, const Location& loc, const std::string& name)
     : Aggregate(Node_Tuple, args, loc, name)
 {
-    Array<const Type*> elems(size());
-    for (size_t i = 0, e = size(); i != e; ++i)
+    Array<const Type*> elems(num_ops());
+    for (size_t i = 0, e = num_ops(); i != e; ++i)
         elems[i] = args[i]->type();
 
     set_type(world.tuple_type(elems));
@@ -66,15 +66,19 @@ LEA::LEA(const Def* ptr, const Def* index, const Location& loc, const std::strin
     auto& world = index->world();
     auto type = ptr_type();
     if (auto tuple = ptr_referenced_type()->isa<TupleType>()) {
-        set_type(world.ptr_type(get(tuple->args(), index), type->length(), type->device(), type->addr_space()));
+        set_type(world.ptr_type(get(tuple->ops(), index), type->length(), type->device(), type->addr_space()));
     } else if (auto array = ptr_referenced_type()->isa<ArrayType>()) {
         set_type(world.ptr_type(array->elem_type(), type->length(), type->device(), type->addr_space()));
-    } else if (auto struct_app = ptr_referenced_type()->isa<StructAppType>()) {
-        set_type(world.ptr_type(get(struct_app->elems(), index)));
+    } else if (auto struct_type = ptr_referenced_type()->isa<StructType>()) {
+        set_type(world.ptr_type(get(struct_type->ops(), index)));
     } else {
         THORIN_UNREACHABLE;
     }
 }
+
+SizeOf::SizeOf(const Def* def, const Location& loc, const std::string& name)
+    : PrimOp(Node_SizeOf, def->world().type_qs32(), {def}, loc, name)
+{}
 
 Slot::Slot(const Type* type, const Def* frame, const Location& loc, const std::string& name)
     : PrimOp(Node_Slot, type->world().ptr_type(type), {frame}, loc, name)
@@ -86,7 +90,7 @@ Global::Global(const Def* init, bool is_mutable, const Location& loc, const std:
     : PrimOp(Node_Global, init->type()->world().ptr_type(init->type()), {init}, loc, name)
     , is_mutable_(is_mutable)
 {
-    assert(init->is_const());
+    assert(is_const(init));
 }
 
 Alloc::Alloc(const Type* type, const Def* mem, const Def* extra, const Location& loc, const std::string& name)
@@ -135,7 +139,7 @@ Assembly::Assembly(const Type *type, Defs inputs, std::string asm_template, Arra
  */
 
 uint64_t PrimOp::vhash() const {
-    uint64_t seed = hash_combine(hash_begin((int) kind()), size(), type()->gid());
+    uint64_t seed = hash_combine(hash_begin((int) kind()), num_ops(), type()->gid());
     for (auto op : ops_)
         seed = hash_combine(seed, op->gid());
     return seed;
@@ -151,8 +155,8 @@ uint64_t Slot::vhash() const { return hash_combine((int) kind(), gid()); }
  */
 
 bool PrimOp::equal(const PrimOp* other) const {
-    bool result = this->kind() == other->kind() && this->size() == other->size() && this->type() == other->type();
-    for (size_t i = 0, e = size(); result && i != e; ++i)
+    bool result = this->kind() == other->kind() && this->num_ops() == other->num_ops() && this->type() == other->type();
+    for (size_t i = 0, e = num_ops(); result && i != e; ++i)
         result &= this->ops_[i] == other->ops_[i];
     return result;
 }
@@ -186,13 +190,14 @@ const Def* Load   ::vrebuild(World& to, Defs ops, const Type*  ) const { return 
 const Def* PrimLit::vrebuild(World& to, Defs,     const Type*  ) const { return to.literal(primtype_kind(), value(), loc()); }
 const Def* Run    ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.run(ops[0], ops[1], loc(), name); }
 const Def* Select ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.select(ops[0], ops[1], ops[2], loc(), name); }
+const Def* SizeOf ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.size_of(ops[0]->type(), loc(), name); }
 const Def* Slot   ::vrebuild(World& to, Defs ops, const Type* t) const { return to.slot(t->as<PtrType>()->referenced_type(), ops[0], loc(), name); }
 const Def* Store  ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.store(ops[0], ops[1], ops[2], loc(), name); }
 const Def* Tuple  ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.tuple(ops, loc(), name); }
 const Def* Vector ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.vector(ops, loc(), name); }
 
 const Def* Alloc::vrebuild(World& to, Defs ops, const Type* t) const {
-    return to.alloc(t->as<TupleType>()->arg(1)->as<PtrType>()->referenced_type(), ops[0], ops[1], loc(), name);
+    return to.alloc(t->as<TupleType>()->op(1)->as<PtrType>()->referenced_type(), ops[0], ops[1], loc(), name);
 }
 
 const Def* Assembly::vrebuild(World& to, Defs ops, const Type* t) const {
@@ -204,7 +209,7 @@ const Def* DefiniteArray::vrebuild(World& to, Defs ops, const Type* t) const {
 }
 
 const Def* StructAgg::vrebuild(World& to, Defs ops, const Type* t) const {
-    return to.struct_agg(t->as<StructAppType>(), ops, loc(), name);
+    return to.struct_agg(t->as<StructType>(), ops, loc(), name);
 }
 
 const Def* IndefiniteArray::vrebuild(World& to, Defs ops, const Type* t) const {
@@ -219,7 +224,7 @@ const Def* IndefiniteArray::vrebuild(World& to, Defs ops, const Type* t) const {
 
 const char* PrimOp::op_name() const {
     switch (kind()) {
-#define THORIN_AIR_NODE(op, abbr) case Node_##op: return #abbr;
+#define THORIN_NODE(op, abbr) case Node_##op: return #abbr;
 #include "thorin/tables/nodetable.h"
         default: THORIN_UNREACHABLE;
     }
@@ -250,7 +255,7 @@ const char* Global::op_name() const { return is_mutable() ? "global_mutable" : "
  */
 
 std::ostream& PrimOp::stream(std::ostream& os) const {
-    if (is_const()) {
+    if (is_const(this)) {
         if (empty())
             return streamf(os, "% %", op_name(), type());
         else
@@ -291,37 +296,19 @@ std::ostream& PrimOp::stream_assignment(std::ostream& os) const {
  */
 
 const Def* PrimOp::out(size_t i) const {
-    assert(i < type()->as<TupleType>()->num_args());
+    assert(i < type()->as<TupleType>()->num_ops());
     return world().extract(this, i, loc());
-}
-
-const Def* PrimOp::rebuild(Def2Def& old2new) const {
-    auto i = old2new.find(this);
-    if (i == old2new.end()) {
-        if (is_outdated()) {
-            Array<const Def*> ops(size());
-            for (size_t i = 0, e = size(); i != e; ++i)
-                ops[i] = op(i)->rebuild(old2new);
-
-            auto def = rebuild(ops);
-            if (this == def)
-                is_outdated_ = false;
-            return old2new[this] = def;
-        } else
-            return old2new[this] = this;
-    } else
-        return i->second;
 }
 
 const Type* Extract::extracted_type(const Def* agg, const Def* index) {
     if (auto tuple = agg->type()->isa<TupleType>())
-        return get(tuple->args(), index);
+        return get(tuple->ops(), index);
     else if (auto array = agg->type()->isa<ArrayType>())
         return array->elem_type();
     else if (auto vector = agg->type()->isa<VectorType>())
         return vector->scalarize();
-    else if (auto struct_app = agg->type()->isa<StructAppType>())
-        return get(struct_app->elems(), index);
+    else if (auto struct_type = agg->type()->isa<StructType>())
+        return get(struct_type->ops(), index);
 
     THORIN_UNREACHABLE;
 }

@@ -141,7 +141,7 @@ public:
     Continuation* enter_unsealed(JumpTarget& jt) { return cur_bb = jt.enter_unsealed(world_); }
     void jump(JumpTarget& jt, const Location& loc);
     void branch(const Def* cond, JumpTarget& t, JumpTarget& f, const Location& loc);
-    const Def* call(const Def* to, Types type_args, Defs args, const Type* ret_type, const Location& loc);
+    const Def* call(const Def* to, Defs args, const Type* ret_type, const Location& loc);
     const Def* get_mem();
     void set_mem(const Def* def);
     Continuation* continuation(const FnType* fn, const Location& loc, CC cc = CC::C, Intrinsic intrinsic = Intrinsic::None, const std::string& name = "");

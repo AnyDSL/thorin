@@ -64,7 +64,7 @@ private:
 std::ostream& YCompGen::emit_operands(const Def* def) {
     int i = 0;
     Emitter emit_label = EMIT_NOOP;
-    if (def->size() > 1) {
+    if (def->num_ops() > 1) {
         emit_label = [&] { stream() << i++; };
     }
     dump_list([&](const Def* op) {
@@ -122,7 +122,7 @@ std::ostream& YCompGen::emit_primop(const PrimOp* primop) {
         } else if (primop->isa<Global>()) {
             stream() << primop->op_name() << " ";
             emit_name(primop);
-        } else if (primop->is_const()) {
+        } else if (is_const(primop)) {
             if (primop->empty()) {
                 stream() << primop->op_name() << ' ';
                 emit_type(primop->type());

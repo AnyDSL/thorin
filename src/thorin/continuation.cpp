@@ -37,17 +37,11 @@ const Def* Continuation::callee() const {
     return empty() ? world().bottom(world().fn_type(), Location()) : op(0);
 }
 
-Continuation* Continuation::stub(Type2Type& type2type, const std::string& name) const {
-    Array<const TypeParam*> ntype_params(num_type_params());
-
-    for (size_t i = 0, e = num_type_params(); i != e; ++i) {
-        auto ntype_param = world().type_param(type_param(i)->name());
-        ntype_params[i] = ntype_param;
-        type2type[type_param(i)] = ntype_param;
-    }
-
-    auto fn_type = type()->specialize(type2type)->as<FnType>();
-    auto result = world().continuation(close(fn_type, ntype_params), loc(), cc(), intrinsic(), name);
+Continuation* Continuation::stub(Type2Type&, const std::string& name) const {
+    // TODO
+    //auto fn_type = type()->reduce(0, type2type)->as<FnType>();
+    auto fn_type = type();
+    auto result = world().continuation(fn_type, loc(), cc(), intrinsic(), name);
     for (size_t i = 0, e = num_params(); i != e; ++i)
         result->param(i)->name = param(i)->name;
 
@@ -63,7 +57,7 @@ Array<const Def*> Continuation::params_as_defs() const {
 
 const Param* Continuation::mem_param() const {
     for (auto param : params()) {
-        if (param->is_mem())
+        if (is_mem(param))
             return param;
     }
     return nullptr;
@@ -73,18 +67,6 @@ Continuation* Continuation::update_op(size_t i, const Def* def) {
     unset_op(i);
     set_op(i, def);
     return this;
-}
-
-void Continuation::refresh(Def2Def& old2new) {
-    for (auto op : ops()) {
-        if (op->is_outdated()) {
-            Array<const Def*> nops(size());
-            for (size_t i = 0, e = size(); i != e; ++i)
-                nops[i] = this->op(i)->rebuild(old2new);
-            jump(nops.front(), type_args(), nops.skip_front(), jump_loc());
-            return;
-        }
-    }
 }
 
 void Continuation::destroy_body() {
@@ -101,11 +83,11 @@ const FnType* Continuation::arg_fn_type() const {
 }
 
 const Param* Continuation::append_param(const Type* param_type, const std::string& name) {
-    size_t size = type()->num_args();
-    Array<const Type*> args(size + 1);
-    *std::copy(type()->args().begin(), type()->args().end(), args.begin()) = param_type;
+    size_t size = type()->num_ops();
+    Array<const Type*> ops(size + 1);
+    *std::copy(type()->ops().begin(), type()->ops().end(), ops.begin()) = param_type;
     clear_type();
-    set_type(param_type->world().fn_type(args));              // update type
+    set_type(param_type->world().fn_type(ops));               // update type
     auto param = world().param(param_type, this, size, name); // append new param
     params_.push_back(param);
 
@@ -211,10 +193,6 @@ void Continuation::set_intrinsic() {
     else if (name == "reserve_shared") intrinsic_ = Intrinsic::Reserve;
     else if (name == "atomic")         intrinsic_ = Intrinsic::Atomic;
     else if (name == "cmpxchg")        intrinsic_ = Intrinsic::CmpXchg;
-    else if (name == "bitcast")        intrinsic_ = Intrinsic::Bitcast;
-    else if (name == "select")         intrinsic_ = Intrinsic::Select;
-    else if (name == "sizeof")         intrinsic_ = Intrinsic::Sizeof;
-    else if (name == "shuffle")        intrinsic_ = Intrinsic::Shuffle;
     else assert(false && "unsupported thorin intrinsic");
 }
 
@@ -254,44 +232,19 @@ Continuation::ScopeInfo* Continuation::find_scope(const Scope* scope) {
  * terminate
  */
 
-// TODO can we get rid of this type_args copy here?
-void Continuation::jump(const Def* to, Array<const Type*> type_args, Defs args, const Location& loc) {
+void Continuation::jump(const Def* to, Defs args, const Location& loc) {
     jump_loc_ = loc;
     if (auto continuation = to->isa<Continuation>()) {
         switch (continuation->intrinsic()) {
-            case Intrinsic::Bitcast: {
-                assert(type_args.size() == 2);
-                auto dst = type_args[0], src = type_args[1];
-
-                if (dst->is_monomorphic()) {
-                    assert(args.size() == 3);
-                    auto mem = args[0], def = args[1], k = args[2];
-                    assert_unused(def->type() == src);
-                    return jump(k, {}, { mem, world().bitcast(dst, def, loc) }, loc);
-                }
-                break;
-            }
             case Intrinsic::Branch: {
-                assert(type_args.empty());
                 assert(args.size() == 3);
                 auto cond = args[0], t = args[1], f = args[2];
                 if (auto lit = cond->isa<PrimLit>())
-                    return jump(lit->value().get_bool() ? t : f, {}, {}, loc);
+                    return jump(lit->value().get_bool() ? t : f, {}, loc);
                 if (t == f)
-                    return jump(t, {}, {}, loc);
-                if (cond->is_not())
+                    return jump(t, {}, loc);
+                if (is_not(cond))
                     return branch(cond->as<ArithOp>()->rhs(), f, t, loc);
-                break;
-            }
-            case Intrinsic::Select: {
-                assert(type_args.size() == 2);
-                const Type* type = type_args[1];
-
-                if (type->is_monomorphic()) {
-                    assert(args.size() == 5);
-                    auto mem = args[0], cond = args[1], t = args[2], f = args[3], k = args[4];
-                    return jump(k, {}, { mem, world().select(cond, t, f, loc) }, loc);
-                }
                 break;
             }
             default:
@@ -306,15 +259,15 @@ void Continuation::jump(const Def* to, Array<const Type*> type_args, Defs args, 
     size_t x = 1;
     for (auto arg : args)
         set_op(x++, arg);
-
-    swap(type_args_, type_args);
 }
 
-void Continuation::branch(const Def* cond, const Def* t, const Def* f, const Location& loc) { return jump(world().branch(), {}, {cond, t, f}, loc); }
+void Continuation::branch(const Def* cond, const Def* t, const Def* f, const Location& loc) {
+    return jump(world().branch(), {cond, t, f}, loc);
+}
 
-std::pair<Continuation*, const Def*> Continuation::call(const Def* to, Types type_args, Defs args, const Type* ret_type, const Location& loc) {
+std::pair<Continuation*, const Def*> Continuation::call(const Def* to, Defs args, const Type* ret_type, const Location& loc) {
     if (ret_type == nullptr) {
-        jump(to, type_args, args, loc);
+        jump(to, args, loc);
         return std::make_pair(nullptr, nullptr);
     }
 
@@ -323,8 +276,8 @@ std::pair<Continuation*, const Def*> Continuation::call(const Def* to, Types typ
     bool pack = false;
     if (auto tuple = ret_type->isa<TupleType>()) {
         pack = true;
-        for (auto arg : tuple->args())
-            cont_args.push_back(arg);
+        for (auto op : tuple->ops())
+            cont_args.push_back(op);
     } else
         cont_args.push_back(ret_type);
 
@@ -335,7 +288,7 @@ std::pair<Continuation*, const Def*> Continuation::call(const Def* to, Types typ
     size_t csize = args.size() + 1;
     Array<const Def*> cargs(csize);
     *std::copy(args.begin(), args.end(), cargs.begin()) = next;
-    jump(to, type_args, cargs, loc);
+    jump(to, cargs, loc);
 
     // determine return value
     const Def* ret = nullptr;
@@ -353,19 +306,13 @@ std::pair<Continuation*, const Def*> Continuation::call(const Def* to, Types typ
 }
 
 void jump_to_cached_call(Continuation* src, Continuation* dst, const Call& call) {
-    std::vector<const Type*> ntype_args;
-    for (size_t i = 0, e = src->num_type_args(); i != e; ++i) {
-        if (!call.type_arg(i))
-            ntype_args.push_back(src->type_arg(i));
-    }
-
     std::vector<const Def*> nargs;
     for (size_t i = 0, e = src->num_args(); i != e; ++i) {
         if (!call.arg(i))
             nargs.push_back(src->arg(i));
     }
 
-    src->jump(dst, ntype_args, nargs, src->jump_loc());
+    src->jump(dst, nargs, src->jump_loc());
     assert(src->arg_fn_type() == dst->type());
 }
 
@@ -538,7 +485,7 @@ const Def* Continuation::try_remove_trivial_param(const Param* param) {
 
 std::ostream& Continuation::stream_head(std::ostream& os) const {
     os << unique_name();
-    stream_type_params(os, type());
+    //stream_type_params(os, type());
     stream_list(os, params(), [&](const Param* param) { streamf(os, "% %", param->type(), param); }, "(", ")");
     if (is_external())
         os << " extern ";
@@ -550,10 +497,6 @@ std::ostream& Continuation::stream_head(std::ostream& os) const {
 std::ostream& Continuation::stream_jump(std::ostream& os) const {
     if (!empty()) {
         os << callee();
-
-        if (num_type_args())
-            os << '[' << stream_list(type_args(), [&](const Type* type) { os << type; }) << ']';
-
         os << '(' << stream_list(args(), [&](const Def* def) { os << def; }) << ')';
     }
     return os;

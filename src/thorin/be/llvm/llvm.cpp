@@ -64,11 +64,7 @@ Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
     switch (callee->intrinsic()) {
         case Intrinsic::Atomic:    return emit_atomic(continuation);
         case Intrinsic::CmpXchg:   return emit_cmpxchg(continuation);
-        case Intrinsic::Select:    return emit_select(continuation);
-        case Intrinsic::Sizeof:    return emit_sizeof(continuation);
-        case Intrinsic::Shuffle:   return emit_shuffle(continuation);
         case Intrinsic::Reserve:   return emit_reserve(continuation);
-        case Intrinsic::Bitcast:   assert(false && "bitcast should have been replaced");
         case Intrinsic::CUDA:      return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM, continuation);
         case Intrinsic::NVVM:      return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM, continuation);
         case Intrinsic::SPIR:      return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, continuation);
@@ -121,40 +117,6 @@ Continuation* CodeGen::emit_cmpxchg(Continuation* continuation) {
     return cont;
 }
 
-Continuation* CodeGen::emit_select(Continuation* continuation) {
-    assert(continuation->num_args() == 5 && "required arguments are missing");
-    auto cond = lookup(continuation->arg(1));
-    auto a = lookup(continuation->arg(2));
-    auto b = lookup(continuation->arg(3));
-
-    auto cont = continuation->arg(4)->as_continuation();
-    auto call = irbuilder_.CreateSelect(cond, a, b);
-    emit_result_phi(cont->param(1), call);
-    return cont;
-}
-
-Continuation* CodeGen::emit_sizeof(Continuation* continuation) {
-    assert(continuation->num_args() == 2 && "required arguments are missing");
-    auto type = convert(continuation->type_arg(0));
-    auto cont = continuation->arg(1)->as_continuation();
-    auto layout = module_->getDataLayout();
-    auto call = irbuilder_.getInt32(layout.getTypeAllocSize(type));
-    emit_result_phi(cont->param(1), call);
-    return cont;
-}
-
-Continuation* CodeGen::emit_shuffle(Continuation* continuation) {
-    assert(continuation->num_args() == 5 && "required arguments are missing");
-    auto mask = lookup(continuation->arg(3));
-    auto a = lookup(continuation->arg(1));
-    auto b = lookup(continuation->arg(2));
-
-    auto cont = continuation->arg(4)->as_continuation();
-    auto call = irbuilder_.CreateShuffleVector(a, b, mask);
-    emit_result_phi(cont->param(1), call);
-    return cont;
-}
-
 Continuation* CodeGen::emit_reserve(const Continuation* continuation) {
     ELOG("reserve_shared: only allowed in device code at %", continuation->jump_loc());
     THORIN_UNREACHABLE;
@@ -183,15 +145,6 @@ llvm::Value* CodeGen::emit_bitcast(const Def* val, const Type* dst_type) {
     if (src_type->isa<PtrType>() && dst_type->isa<PtrType>())
         return irbuilder_.CreatePointerCast(from, to);
     return irbuilder_.CreateBitCast(from, to);
-}
-
-Continuation* CodeGen::emit_reinterpret(Continuation* continuation) {
-    assert(continuation->num_args() == 3 && "required arguments are missing");
-    auto cont = continuation->arg(2)->as_continuation();
-    auto type = cont->param(1)->type();
-    auto call = emit_bitcast(continuation->arg(1), type);
-    emit_result_phi(cont->param(1), call);
-    return cont;
 }
 
 llvm::FunctionType* CodeGen::convert_fn_type(Continuation* continuation) {
@@ -269,7 +222,7 @@ void CodeGen::emit(int opt, bool debug) {
         const Param* ret_param = nullptr;
         auto arg = fct->arg_begin();
         for (auto param : entry_->params()) {
-            if (param->is_mem())
+            if (is_mem(param))
                 continue;
             if (param->order() == 0) {
                 auto argv = &*arg;
@@ -299,7 +252,7 @@ void CodeGen::emit(int opt, bool debug) {
                 // create phi node stubs (for all continuations different from entry)
                 if (entry_ != continuation) {
                     for (auto param : continuation->params()) {
-                        if (!param->is_mem()) {
+                        if (!is_mem(param)) {
                             phis_[param] = llvm::PHINode::Create(convert(param->type()),
                                                                  (unsigned) param->peek().size(), param->name, bb);
                         }
@@ -337,16 +290,16 @@ void CodeGen::emit(int opt, bool debug) {
                 switch (num_args) {
                     case 0: irbuilder_.CreateRetVoid(); break;
                     case 1:
-                        if (continuation->arg(0)->is_mem())
+                        if (is_mem(continuation->arg(0)))
                             irbuilder_.CreateRetVoid();
                         else
                             irbuilder_.CreateRet(lookup(continuation->arg(0)));
                         break;
                     case 2:
-                        if (continuation->arg(0)->is_mem()) {
+                        if (is_mem(continuation->arg(0))) {
                             irbuilder_.CreateRet(lookup(continuation->arg(1)));
                             break;
-                        } else if (continuation->arg(1)->is_mem()) {
+                        } else if (is_mem(continuation->arg(1))) {
                             irbuilder_.CreateRet(lookup(continuation->arg(0)));
                             break;
                         }
@@ -357,7 +310,7 @@ void CodeGen::emit(int opt, bool debug) {
 
                         size_t n = 0;
                         for (auto arg : continuation->args()) {
-                            if (!arg->is_mem()) {
+                            if (!is_mem(arg)) {
                                 auto val = lookup(arg);
                                 values[n] = val;
                                 args[n++] = val->getType();
@@ -397,7 +350,7 @@ void CodeGen::emit(int opt, bool debug) {
                         const Def* ret_arg = nullptr;
                         for (auto arg : continuation->args()) {
                             if (arg->order() == 0) {
-                                if (!arg->is_mem())
+                                if (!is_mem(arg))
                                     args.push_back(lookup(arg));
                             } else {
                                 assert(!ret_arg);
@@ -428,18 +381,18 @@ void CodeGen::emit(int opt, bool debug) {
                                 case 1:
                                     param = succ->param(0);
                                     irbuilder_.CreateBr(bb2continuation[succ]);
-                                    if (!param->is_mem())
+                                    if (!is_mem(param))
                                         emit_result_phi(param, call);
                                     break;
                                 case 2:
                                     assert(succ->mem_param() && "no mem_param found for succ");
                                     param = succ->param(0);
-                                    param = param->is_mem() ? succ->param(1) : param;
+                                    param = is_mem(param) ? succ->param(1) : param;
                                     irbuilder_.CreateBr(bb2continuation[succ]);
                                     emit_result_phi(param, call);
                                     break;
                                 default: {
-                                    assert(succ->param(0)->is_mem());
+                                    assert(is_mem(succ->param(0)));
                                     auto tuple = succ->params().skip_front();
 
                                     Array<llvm::Value*> extracts(tuple.size());
@@ -706,10 +659,16 @@ llvm::Value* CodeGen::emit(const Def* def) {
         return irbuilder_.CreateSelect(cond, tval, fval);
     }
 
+    if (auto size_of = def->isa<SizeOf>()) {
+        auto type = convert(size_of->of());
+        auto layout = llvm::DataLayout(module_->getDataLayout());
+        return irbuilder_.getInt32(layout.getTypeAllocSize(type));
+    }
+
     if (auto array = def->isa<DefiniteArray>()) {
         auto type = llvm::cast<llvm::ArrayType>(convert(array->type()));
-        if (array->is_const()) {
-            size_t size = array->size();
+        if (is_const(array)) {
+            size_t size = array->num_ops();
             Array<llvm::Constant*> vals(size);
             for (size_t i = 0; i != size; ++i)
                 vals[i] = llvm::cast<llvm::Constant>(emit(array->op(i)));
@@ -737,10 +696,10 @@ llvm::Value* CodeGen::emit(const Def* def) {
         llvm::Value* llvm_agg = llvm::UndefValue::get(convert(agg->type()));
 
         if (def->isa<Vector>()) {
-            for (size_t i = 0, e = agg->ops().size(); i != e; ++i)
+            for (size_t i = 0, e = agg->num_ops(); i != e; ++i)
                 llvm_agg = irbuilder_.CreateInsertElement(llvm_agg, lookup(agg->op(i)), irbuilder_.getInt32(i));
         } else {
-            for (size_t i = 0, e = agg->ops().size(); i != e; ++i)
+            for (size_t i = 0, e = agg->num_ops(); i != e; ++i)
                 llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, lookup(agg->op(i)), { unsigned(i) });
         }
 
@@ -764,7 +723,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
             // Assemblys with more than two outputs are MemOps and have tuple type
             // and thus need their own rule here because the standard MemOp rule does not work
             if (auto assembly = extract->agg()->isa<Assembly>()) {
-                if (assembly->type()->num_args() > 2 && primlit_value<unsigned>(aggop->index()) != 0)
+                if (assembly->type()->num_ops() > 2 && primlit_value<unsigned>(aggop->index()) != 0)
                     return irbuilder_.CreateExtractValue(llvm_agg, {primlit_value<unsigned>(aggop->index()) - 1});
             }
 
@@ -830,16 +789,10 @@ llvm::Value* CodeGen::emit(const Def* def) {
                     irbuilder_.getInt64(layout.getTypeAllocSize(alloced_type)),
                     irbuilder_.CreateMul(irbuilder_.CreateIntCast(lookup(alloc->extra()), irbuilder_.getInt64Ty(), false),
                                          irbuilder_.getInt64(layout.getTypeAllocSize(convert(array->elem_type())))));
-            llvm::Value* malloc_args[] = {
-                irbuilder_.getInt32(0),
-                size
-            };
+            llvm::Value* malloc_args[] = { irbuilder_.getInt32(0), size };
             void_ptr = irbuilder_.CreateCall(llvm_malloc, malloc_args);
         } else {
-            llvm::Value* malloc_args[] = {
-                irbuilder_.getInt32(0),
-                irbuilder_.getInt64(layout.getTypeAllocSize(alloced_type))
-            };
+            llvm::Value* malloc_args[] = { irbuilder_.getInt32(0), irbuilder_.getInt64(layout.getTypeAllocSize(alloced_type)) };
             void_ptr = irbuilder_.CreateCall(llvm_malloc, malloc_args);
         }
 
@@ -857,7 +810,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
     if (auto vector = def->isa<Vector>()) {
         llvm::Value* vec = llvm::UndefValue::get(convert(vector->type()));
-        for (size_t i = 0, e = vector->size(); i != e; ++i)
+        for (size_t i = 0, e = vector->num_ops(); i != e; ++i)
             vec = irbuilder_.CreateInsertElement(vec, lookup(vector->op(i)), lookup(world_.literal_pu32(i, vector->loc())));
 
         return vec;
@@ -891,7 +844,7 @@ llvm::Value* CodeGen::emit_store(const Store* store) {
 }
 
 llvm::Value* CodeGen::emit_lea(const LEA* lea) {
-    if (lea->ptr_referenced_type()->isa<TupleType>() || lea->ptr_referenced_type()->isa<StructAppType>())
+    if (lea->ptr_referenced_type()->isa<TupleType>() || lea->ptr_referenced_type()->isa<StructType>())
         return irbuilder_.CreateStructGEP(convert(lea->ptr_referenced_type()), lookup(lea->ptr()), primlit_value<u32>(lea->index()));
 
     assert(lea->ptr_referenced_type()->isa<ArrayType>());
@@ -902,7 +855,7 @@ llvm::Value* CodeGen::emit_lea(const LEA* lea) {
 llvm::Value* CodeGen::emit_assembly(const Assembly* assembly) {
     const TupleType *out_type = assembly->type();
     llvm::Type *res_type;
-    switch (out_type->num_args()) {
+    switch (out_type->num_ops()) {
         case 0:
             THORIN_UNREACHABLE;
             // there must always be the mem type as output
@@ -910,10 +863,10 @@ llvm::Value* CodeGen::emit_assembly(const Assembly* assembly) {
             res_type = llvm::Type::getVoidTy(context_);
             break;
         case 2:
-            res_type = convert(assembly->type()->arg(1));
+            res_type = convert(assembly->type()->op(1));
             break;
         default:
-            res_type = convert(world().tuple_type(assembly->type()->args().skip_front()));
+            res_type = convert(world().tuple_type(assembly->type()->ops().skip_front()));
             break;
     }
 
@@ -985,61 +938,60 @@ llvm::Type* CodeGen::convert(const Type* type) {
             // extract "return" type, collect all other types
             auto fn = type->as<FnType>();
             llvm::Type* ret = nullptr;
-            std::vector<llvm::Type*> args;
-            for (auto arg : fn->args()) {
-                if (arg->isa<MemType>())
+            std::vector<llvm::Type*> ops;
+            for (auto op : fn->ops()) {
+                if (op->isa<MemType>())
                     continue;
-                if (auto fn = arg->isa<FnType>()) {
+                if (auto fn = op->isa<FnType>()) {
                     assert(!ret && "only one 'return' supported");
                     if (fn->empty())
                         ret = llvm::Type::getVoidTy(context_);
-                    else if (fn->num_args() == 1)
-                        ret = fn->arg(0)->isa<MemType>() ? llvm::Type::getVoidTy(context_) : convert(fn->arg(0));
-                    else if (fn->num_args() == 2) {
-                        if (fn->arg(0)->isa<MemType>())
-                            ret = convert(fn->arg(1));
-                        else if (fn->arg(1)->isa<MemType>())
-                            ret = convert(fn->arg(0));
+                    else if (fn->num_ops() == 1)
+                        ret = fn->op(0)->isa<MemType>() ? llvm::Type::getVoidTy(context_) : convert(fn->op(0));
+                    else if (fn->num_ops() == 2) {
+                        if (fn->op(0)->isa<MemType>())
+                            ret = convert(fn->op(1));
+                        else if (fn->op(1)->isa<MemType>())
+                            ret = convert(fn->op(0));
                         else
                             goto multiple;
                     } else {
 multiple:
-                        std::vector<llvm::Type*> args;
-                        for (auto arg : fn->args()) {
-                            if (!arg->isa<MemType>())
-                                args.push_back(convert(arg));
+                        std::vector<llvm::Type*> ops;
+                        for (auto op : fn->ops()) {
+                            if (!op->isa<MemType>())
+                                ops.push_back(convert(op));
                         }
-                        ret = llvm::StructType::get(context_, args);
+                        ret = llvm::StructType::get(context_, ops);
                     }
                 } else
-                    args.push_back(convert(arg));
+                    ops.push_back(convert(op));
             }
             assert(ret);
 
-            return types_[type] = llvm::FunctionType::get(ret, args, false);
+            return types_[type] = llvm::FunctionType::get(ret, ops, false);
         }
 
-        case Node_StructAbsType:
-            return types_[type] = llvm::StructType::create(context_);
+        case Node_StructType: {
+            auto struct_type = type->as<StructType>();
+            auto llvm_struct = llvm::StructType::create(context_);
 
-        case Node_StructAppType: {
-            auto struct_app = type->as<StructAppType>();
-            auto llvm_struct = llvm::cast<llvm::StructType>(convert(struct_app->struct_abs_type()));
-            assert(!types_.contains(struct_app) && "type already converted");
             // important: memoize before recursing into element types to avoid endless recursion
-            types_[struct_app] = llvm_struct;
-            Array<llvm::Type*> llvm_types(struct_app->num_elems());
+            assert(!types_.contains(struct_type) && "type already converted");
+            types_[struct_type] = llvm_struct;
+
+            Array<llvm::Type*> llvm_types(struct_type->num_ops());
             for (size_t i = 0, e = llvm_types.size(); i != e; ++i)
-                llvm_types[i] = convert(struct_app->elem(i));
+                llvm_types[i] = convert(struct_type->op(i));
             llvm_struct->setBody(llvm_ref(llvm_types));
             return llvm_struct;
         }
 
         case Node_TupleType: {
             auto tuple = type->as<TupleType>();
-            Array<llvm::Type*> llvm_types(tuple->num_args());
+            Array<llvm::Type*> llvm_types(tuple->num_ops());
             for (size_t i = 0, e = llvm_types.size(); i != e; ++i)
-                llvm_types[i] = convert(tuple->arg(i));
+                llvm_types[i] = convert(tuple->op(i));
             return types_[tuple] = llvm::StructType::get(context_, llvm_ref(llvm_types));
         }
 

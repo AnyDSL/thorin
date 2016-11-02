@@ -40,9 +40,6 @@ void lower2cff(World& world) {
                         todo = dirty = true;
 
                         Call call(continuation);
-                        for (size_t i = 0, e = call.num_type_args(); i != e; ++i)
-                            call.type_arg(i) = continuation->type_arg(i);
-
                         call.callee() = callee;
                         for (size_t i = 0, e = call.num_args(); i != e; ++i)
                             call.arg(i) = callee->param(i)->order() > 0 ? continuation->arg(i) : nullptr;
@@ -50,9 +47,8 @@ void lower2cff(World& world) {
 
                         const auto& p = cache.emplace(call, nullptr);
                         Continuation*& target = p.first->second;
-                        if (p.second) {
+                        if (p.second)
                             target = drop(call); // use already dropped version as target
-                        }
 
                         jump_to_cached_call(continuation, target, call);
                     }

@@ -1,11 +1,12 @@
 #ifndef THORIN_BE_LLVM_RUNTIME_H
 #define THORIN_BE_LLVM_RUNTIME_H
 
+#include <memory>
+
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Module.h>
 
 #include "thorin/world.h"
-#include "thorin/util/autoptr.h"
 
 namespace thorin {
 
@@ -57,6 +58,7 @@ protected:
     llvm::Module& target_;
     llvm::IRBuilder<>& builder_;
     const llvm::DataLayout& layout_;
+
     std::unique_ptr<llvm::Module> runtime_;
 };
 

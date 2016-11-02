@@ -51,7 +51,6 @@ public:
     Continuation* continuation() const { return continuation_; }
     size_t index() const { return index_; }
     std::vector<Peek> peek() const;
-    const Param* is_mem() const { return type()->isa<MemType>() ? this : nullptr; }
 
 private:
     Continuation* const continuation_;
@@ -80,10 +79,6 @@ enum class Intrinsic : uint8_t {
     CmpXchg,                    ///< Intrinsic cmpxchg function
     Branch,                     ///< branch(cond, T, F).
     EndScope,                   ///< Dummy function which marks the end of a @p Scope.
-    Bitcast,                    ///< Intrinsic for reinterpretation of one type as another one
-    Select,                     ///< Intrinsic vector 'select' function
-    Sizeof,                     ///< Sizeof intrinsic
-    Shuffle,                    ///< Intrinsic vector 'shuffle' function
 };
 
 enum class CC : uint8_t {
@@ -107,7 +102,7 @@ private:
         , is_sealed_(is_sealed)
         , is_visited_(false)
     {
-        params_.reserve(fn->num_args());
+        params_.reserve(fn->num_ops());
     }
     virtual ~Continuation() { for (auto param : params()) delete param; }
 
@@ -126,18 +121,12 @@ public:
     Continuations indirect_succs() const;
     Continuations preds() const;
     Continuations succs() const;
-    ArrayRef<const TypeParam*> type_params() const { return type()->type_params(); }
-    const TypeParam* type_param(size_t i) const { return type_params()[i]; }
-    size_t num_type_params() const { return type_params().size(); }
     ArrayRef<const Param*> params() const { return params_; }
     Array<const Def*> params_as_defs() const;
     const Param* param(size_t i) const { assert(i < num_params()); return params_[i]; }
     const Param* mem_param() const;
     const Def* callee() const;
-    Types type_args() const { return type_args_; }
-    const Type* type_arg(size_t i) const { return type_args_[i]; }
-    size_t num_type_args() const { return type_args_.size(); }
-    Defs args() const { return empty() ? Defs(0, 0) : ops().skip_front(); }
+    Defs args() const { return num_ops() == 0 ? Defs(0, 0) : ops().skip_front(); }
     const Def* arg(size_t i) const { return args()[i]; }
     const Location& jump_loc() const { return jump_loc_; }
     const FnType* type() const { return Def::type()->as<FnType>(); }
@@ -165,7 +154,6 @@ public:
         return visit_capturing_intrinsics([&] (Continuation* continuation) { return continuation->intrinsic() == intrinsic; });
     }
     void destroy_body();
-    void refresh(Def2Def&);
 
     std::ostream& stream_head(std::ostream&) const;
     std::ostream& stream_jump(std::ostream&) const;
@@ -174,10 +162,10 @@ public:
 
     // terminate
 
-    void jump(const Def* to, Array<const Type*> type_args, Defs args, const Location& loc);
+    void jump(const Def* callee, Defs args, const Location& loc);
     void jump(JumpTarget&, const Location& loc);
     void branch(const Def* cond, const Def* t, const Def* f, const Location& loc);
-    std::pair<Continuation*, const Def*> call(const Def* to, Types type_args, Defs args, const Type* ret_type, const Location& loc);
+    std::pair<Continuation*, const Def*> call(const Def* callee, Defs args, const Type* ret_type, const Location& loc);
 
     // value numbering
 
@@ -235,7 +223,6 @@ private:
     ScopeInfo* find_scope(const Scope*);
     ScopeInfo* register_scope(const Scope* scope) { scopes_.emplace_front(scope); return &scopes_.front(); }
     void unregister_scope(const Scope* scope) { scopes_.erase(list_iter(scope)); }
-    Array<const Type*> type_args_;
     Location jump_loc_;
 
     /**
@@ -255,7 +242,6 @@ private:
     std::vector<Todo> todos_;
     CC cc_;
     Intrinsic intrinsic_;
-    mutable uint32_t reachable_ = 0;
     bool is_sealed_  : 1;
     bool is_visited_ : 1;
 
@@ -266,31 +252,21 @@ private:
 };
 
 struct Call {
-    Call(Types type_args, Array<const Def*> ops)
-        : type_args_(type_args)
-        , ops_(ops)
+    Call(Array<const Def*> ops)
+        : ops_(ops)
     {}
-    Call(Array<const Type*>&& type_args, Array<const Def*>&& ops)
-        : type_args_(std::move(type_args))
-        , ops_(std::move(ops))
+    Call(Array<const Def*>&& ops)
+        : ops_(std::move(ops))
     {}
     Call(const Call& call)
-        : type_args_(call.type_args())
-        , ops_(call.ops())
+        : ops_(call.ops())
     {}
     Call(Call&& call)
-        : type_args_(std::move(call.type_args_))
-        , ops_(std::move(call.ops_))
+        : ops_(std::move(call.ops_))
     {}
     Call(const Continuation* continuation)
-        : type_args_(continuation->num_type_args())
-        , ops_(continuation->size())
+        : ops_(continuation->num_ops())
     {}
-
-    Types type_args() const { return type_args_; }
-    size_t num_type_args() const { return type_args().size(); }
-    const Type* type_arg(size_t i) const { return type_args_[i]; }
-    const Type*& type_arg(size_t i) { return type_args_[i]; }
 
     Defs ops() const { return ops_; }
     size_t num_ops() const { return ops().size(); }
@@ -304,17 +280,15 @@ struct Call {
     const Def* arg(size_t i) const { return args()[i]; }
     const Def*& arg(size_t i) { return ops_[i+1]; }
 
-    bool operator==(const Call& other) const { return this->type_args() == other.type_args() && this->ops() == other.ops(); }
+    bool operator==(const Call& other) const { return this->ops() == other.ops(); }
     Call& operator=(Call other) { swap(*this, other); return *this; }
 
     friend void swap(Call& call1, Call& call2) {
         using std::swap;
-        swap(call1.type_args_, call2.type_args_);
         swap(call1.ops_,       call2.ops_);
     }
 
 private:
-    Array<const Type*> type_args_;
     Array<const Def*> ops_;
 };
 
@@ -322,8 +296,6 @@ template<>
 struct Hash<Call> {
     uint64_t operator () (const Call& call) const {
         uint64_t seed = hash_begin();
-        for (auto type : call.type_args())
-            seed = hash_combine(seed, type ? type->gid() : 0);
         for (auto arg : call.ops())
             seed = hash_combine(seed,  arg ?  arg->gid() : 0);
         return seed;

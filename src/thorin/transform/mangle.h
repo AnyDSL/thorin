@@ -8,7 +8,7 @@ namespace thorin {
 
 class Mangler {
 public:
-    Mangler(const Scope& scope, Types type_args, Defs args, Defs lift);
+    Mangler(const Scope& scope, Defs args, Defs lift);
 
     const Scope& scope() const { return scope_; }
     World& world() const { return scope_.world(); }
@@ -25,7 +25,6 @@ private:
 
     const Scope& scope_;
     Def2Def def2def_;
-    Types type_args_;
     Defs args_;
     Defs lift_;
     Type2Type type2type_;
@@ -35,21 +34,20 @@ private:
 };
 
 
-Continuation* mangle(const Scope&, Types type_args, Defs args, Defs lift);
+Continuation* mangle(const Scope&, Defs args, Defs lift);
 
-inline Continuation* drop(const Scope& scope, Types type_args, Defs args) {
-    return mangle(scope, type_args, args, Array<const Def*>());
+inline Continuation* drop(const Scope& scope, Defs args) {
+    return mangle(scope, args, Array<const Def*>());
 }
 
 Continuation* drop(const Call&);
 
-inline Continuation* lift(const Scope& scope, Types type_args, Defs defs) {
-    return mangle(scope, type_args, Array<const Def*>(scope.entry()->num_params()), defs);
+inline Continuation* lift(const Scope& scope, Defs defs) {
+    return mangle(scope, Array<const Def*>(scope.entry()->num_params()), defs);
 }
 
 inline Continuation* clone(const Scope& scope) {
-    return mangle(scope, Array<const Type*>(scope.entry()->num_type_params()),
-                         Array<const Def*>(scope.entry()->num_params()), Defs());
+    return mangle(scope, Array<const Def*>(scope.entry()->num_params()), Defs());
 }
 
 }

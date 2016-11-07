@@ -298,8 +298,9 @@ public:
         --size_;
         delete *pos.node_;
         *pos.node_ = nullptr;
-        for (auto p = pos.node_, i = pos.node_+1, e = end_node(); i != e && (is_valid(i) || hash_function_(i->key()) == i - nodes_); ++i, ++p)
-            swap(*p, *i);
+        for (auto p = pos.node_, i = pos.node_+1, e = end_node();
+                i != e && (!is_valid(i) || (hash_function_((*i)->key()) & capacity_) != size_t(i - nodes_)); ++i, ++p)
+            std::swap(*p, *i);
         return iterator::skip(pos.node_, end_node(), this);
     }
     iterator erase(const_iterator first, const_iterator last) {

@@ -114,10 +114,7 @@ private:
         friend class HashTable;
     };
 
-    static Node* tombstone()       { return (Node*) -1; }
-    static Node* end_pointer()     { return (Node*)  1; }
-    static bool is_end(Node** p)   { return *p == end_pointer(); }
-    static bool is_valid(Node** p) { return *p != nullptr && *p != tombstone(); }
+    static bool is_valid(Node** p) { return *p != nullptr; }
 
     template<bool is_const>
     class iterator_base {
@@ -197,7 +194,6 @@ public:
 
     HashTable(size_type capacity = min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
         : capacity_(std::max(size_type(min_capacity), capacity))
-        , load_(0)
         , size_(0)
         , nodes_(alloc())
         , hash_function_(hash_function)
@@ -213,7 +209,6 @@ public:
     }
     HashTable(const HashTable& other)
         : capacity_(other.capacity_)
-        , load_(0)
         , size_(0)
         , nodes_(alloc())
         , hash_function_(other.hash_function_)
@@ -249,7 +244,6 @@ public:
     hasher hash_function() const { return hash_function_; }
     key_equal key_eq() const { return key_eq_; }
     size_type capacity() const { return capacity_; }
-    size_type load() const { return load_; }
     size_type size() const { return size_; }
     bool empty() const { return size() == 0; }
 
@@ -265,25 +259,18 @@ public:
             rehash(c2);
         else if (size_ > c4 + c2)
             rehash(capacity_*size_t(2));
-        else if (load_ > c4 + c2)
-            rehash(capacity_);  // free garbage (remove all tombstones)
 
-        Node** insert_pos = nullptr;
+        Node** insert_pos = nullptr; // TODO rework this
         auto& key = n->key();
-        for (uint64_t i = hash_function_(key), step = 0; true; i += ++step) {
+        for (uint64_t i = hash_function_(key); true; ++i) {
             size_t x = i & (capacity_-1);
             auto it = nodes_ + x;
             if (*it == nullptr) {
-                if (insert_pos == nullptr) {
+                if (insert_pos == nullptr)
                     insert_pos = it;
-                    ++load_;
-                }
                 ++size_;
                 *insert_pos = n;
                 return std::make_pair(iterator(insert_pos, end_node(), this), true);
-            } else if (*it == tombstone()) {
-                if (insert_pos == nullptr)
-                    insert_pos = it;
             } else if (key_eq_((*it)->key(), key)) {
                 delete n;
                 return std::make_pair(iterator(it, end_node(), this), false);
@@ -310,7 +297,9 @@ public:
         assert(is_valid(pos.node_) && pos != end());
         --size_;
         delete *pos.node_;
-        *pos.node_ = tombstone();
+        *pos.node_ = nullptr;
+        for (auto p = pos.node_, i = pos.node_+1, e = end_node(); i != e && (is_valid(i) || hash_function_(i->key()) == i - nodes_); ++i, ++p)
+            swap(*p, *i);
         return iterator::skip(pos.node_, end_node(), this);
     }
     iterator erase(const_iterator first, const_iterator last) {
@@ -328,7 +317,6 @@ public:
     void clear() {
         destroy();
         size_ = 0;
-        load_ = 0;
         capacity_ = min_capacity;
         nodes_ = alloc();
     }
@@ -338,13 +326,13 @@ public:
 #ifndef NDEBUG
         int old_id = id_;
 #endif
-        for (uint64_t i = hash_function_(key), step = 0; true; i += ++step) {
+        for (uint64_t i = hash_function_(key); true; ++i) {
             size_t x = i & (capacity_-1);
             auto it = nodes_ + x;
             if (*it == nullptr) {
                 assert(old_id == id());
                 return end();
-            } else if (*it != tombstone() && key_eq_((*it)->key(), key)) {
+            } else if (key_eq_((*it)->key(), key)) {
                 assert(old_id == id());
                 return iterator(it, end_node(), this);
             }
@@ -359,12 +347,11 @@ public:
         size_t old_capacity = capacity_;
         capacity_ = new_capacity;
         auto nodes = alloc();
-        load_ = size_;
 
         for (size_t i = 0; i != old_capacity; ++i) {
             if (is_valid(nodes_+i)) {
                 Node* old = nodes_[i];
-                for (uint64_t i = hash_function_(old->key()), step = 0; true; i += ++step) {
+                for (uint64_t i = hash_function_(old->key()); true; ++i) {
                     size_t x = i & (capacity_-1);
                     if (nodes[x] == nullptr) {
                         nodes[x] = old;
@@ -406,13 +393,11 @@ private:
     }
     Node** alloc() {
         assert(is_power_of_2(capacity_));
-        auto nodes = new Node*[capacity_+1](); // the last node serves as end
-        nodes[capacity_] = end_pointer();      // mark end as occupied
+        auto nodes = new Node*[capacity_]();
         return nodes;
     }
 
     size_type capacity_;
-    size_type load_;
     size_type size_;
     Node** nodes_;
     hasher hash_function_;

@@ -130,18 +130,21 @@ private:
 
 
 #ifndef NDEBUG
-        iterator_base(Node** node, const HashTable* table)
+        iterator_base(Node** node, Node** end, const HashTable* table)
             : node_(node)
+            , end_(end)
             , table_(table)
             , id_(table->id())
 #else
-        iterator_base(Node** node, const HashTable*)
+        iterator_base(Node** node, Node** end, const HashTable*)
             : node_(node)
+            , end_(end)
 #endif
         {}
 
         iterator_base(const iterator_base<false>& i)
             : node_(i.node_)
+            , end_(i.end_)
 #ifndef NDEBUG
             , table_(i.table_)
             , id_(i.id_)
@@ -149,7 +152,7 @@ private:
         {}
 
         iterator_base& operator=(iterator_base other) { swap(*this, other); return *this; }
-        iterator_base& operator++() { assert(this->table_->id_ == this->id_); node_ = move_to_valid(++node_); return *this; }
+        iterator_base& operator++() { assert(this->table_->id_ == this->id_); *this = skip(node_+1, end_, table_); return *this; }
         iterator_base operator++(int) { assert(this->table_->id_ == this->id_); iterator_base res = *this; ++(*this); return res; }
         reference operator*() const { assert(this->table_->id_ == this->id_); return (*node_)->value_; }
         pointer operator->() const { assert(this->table_->id_ == this->id_); return &(*node_)->value_; }
@@ -165,12 +168,14 @@ private:
         }
 
     private:
-        static Node** move_to_valid(Node** n) {
-            while (!is_valid(n) && !is_end(n)) ++n;
-            return n;
+        static iterator_base skip(Node** node, Node** end, const HashTable* table) {
+            while (!is_valid(node) && node != end)
+                ++node;
+            return iterator_base(node, end, table);
         }
 
         Node** node_;
+        Node** end_;
 #ifndef NDEBUG
         const HashTable* table_;
         int id_;
@@ -233,8 +238,8 @@ public:
     ~HashTable() { destroy(); }
 
     // iterators
-    iterator begin() { return iterator(iterator::move_to_valid(nodes_), this); }
-    iterator end() { auto n = nodes_ + capacity(); assert(is_end(n)); return iterator(n, this); }
+    iterator begin() { return iterator::skip(nodes_, end_node(), this); }
+    iterator end() { return iterator(end_node(), end_node(), this); }
     const_iterator begin() const { return const_iterator(const_cast<HashTable*>(this)->begin()); }
     const_iterator end() const { return const_iterator(const_cast<HashTable*>(this)->end()); }
     const_iterator cbegin() const { return begin(); }
@@ -275,13 +280,13 @@ public:
                 }
                 ++size_;
                 *insert_pos = n;
-                return std::make_pair(iterator(insert_pos, this), true);
+                return std::make_pair(iterator(insert_pos, end_node(), this), true);
             } else if (*it == tombstone()) {
                 if (insert_pos == nullptr)
                     insert_pos = it;
             } else if (key_eq_((*it)->key(), key)) {
                 delete n;
-                return std::make_pair(iterator(it, this), false);
+                return std::make_pair(iterator(it, end_node(), this), false);
             }
         }
     }
@@ -306,7 +311,7 @@ public:
         --size_;
         delete *pos.node_;
         *pos.node_ = tombstone();
-        return iterator(iterator::move_to_valid(pos.node_), this);
+        return iterator::skip(pos.node_, end_node(), this);
     }
     iterator erase(const_iterator first, const_iterator last) {
         for (auto i = first; i != last; ++i)
@@ -341,11 +346,11 @@ public:
                 return end();
             } else if (*it != tombstone() && key_eq_((*it)->key(), key)) {
                 assert(old_id == id());
-                return iterator(it, this);
+                return iterator(it, end_node(), this);
             }
         }
     }
-    const_iterator find(const key_type& key) const { return const_iterator(const_cast<HashTable*>(this)->find(key).node_, this); }
+    const_iterator find(const key_type& key) const { return const_iterator(const_cast<HashTable*>(this)->find(key).node_, end_node(), this); }
     size_type count(const key_type& key) const { return find(key) == end() ? 0 : 1; }
     bool contains(const key_type& key) const { return count(key) == 1; }
 
@@ -391,6 +396,7 @@ private:
 #ifndef NDEBUG
     int id() const { return id_; }
 #endif
+    Node** end_node() const { return nodes_ + capacity(); }
     void destroy() {
         for (size_t i = 0, e = capacity_; i != e; ++i) {
             if (is_valid(nodes_+i))

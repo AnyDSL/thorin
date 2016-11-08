@@ -32,19 +32,24 @@ class Use {
 public:
     Use() {}
     Use(size_t index, const Def* def)
-        : index_(index)
-        , def_(def)
+        : uptr_(reinterpret_cast<uintptr_t>(def) | (uintptr_t(index) << 48ull))
     {}
 
-    size_t index() const { return index_; }
-    const Def* def() const { return def_; }
-    operator const Def*() const { return def_; }
-    const Def* operator->() const { return def_; }
+    size_t index() const { return uptr_ >> 48ull; }
+    const Def* def() const {
+        // sign extend to make pointer canonical
+        return reinterpret_cast<const Def*>((iptr_  << 16) >> 16) ;
+    }
+    operator const Def*() const { return def(); }
+    const Def* operator->() const { return def(); }
     bool operator==(Use other) const { return this->def() == other.def() && this->index() == other.index(); }
 
 private:
-    size_t index_;
-    const Def* def_;
+    /// A tagged pointer: First 16bit is index, remaining 48bit is the actual pointer.
+    union {
+        uintptr_t uptr_;
+        intptr_t iptr_;
+    };
 };
 
 //------------------------------------------------------------------------------
@@ -249,7 +254,7 @@ private:
 //------------------------------------------------------------------------------
 
 uint64_t UseHash::operator()(Use use) const {
-    return hash_combine(hash_begin(use->gid()), use.index());
+    return uint64_t(use.index()) << 48ull | uint64_t(use->gid());
 }
 
 template<>

@@ -166,7 +166,7 @@ private:
 
     private:
         static iterator_base skip(Node** node, Node** end, const HashTable* table) {
-            while (!is_valid(node) && node != end)
+            while (node != end && !is_valid(node))
                 ++node;
             return iterator_base(node, end, table);
         }
@@ -190,10 +190,12 @@ public:
     typedef KeyEqual key_equal;
     typedef iterator_base<false> iterator;
     typedef iterator_base<true> const_iterator;
-    static const size_t min_capacity = 16;
+    enum {
+        min_capacity = 16
+    };
 
-    HashTable(size_type capacity = min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
-        : capacity_(std::max(size_type(min_capacity), capacity))
+    HashTable(size_t capacity = min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
+        : capacity_(std::max(size_t(min_capacity), capacity))
         , size_(0)
         , nodes_(alloc())
         , hash_function_(hash_function)
@@ -220,12 +222,12 @@ public:
             insert(other.begin(), other.end());
         }
     template<class InputIt>
-    HashTable(InputIt first, InputIt last, size_type capacity = min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
+    HashTable(InputIt first, InputIt last, size_t capacity = min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
         : HashTable(capacity, hash_function, key_eq)
     {
         insert(first, last);
     }
-    HashTable(std::initializer_list<value_type> ilist, size_type capacity = min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
+    HashTable(std::initializer_list<value_type> ilist, size_t capacity = min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
         : HashTable(capacity, hash_function, key_eq)
     {
         insert(ilist);
@@ -243,8 +245,8 @@ public:
     // getters
     hasher hash_function() const { return hash_function_; }
     key_equal key_eq() const { return key_eq_; }
-    size_type capacity() const { return capacity_; }
-    size_type size() const { return size_; }
+    size_t capacity() const { return capacity_; }
+    size_t size() const { return size_; }
     bool empty() const { return size() == 0; }
 
     // emplace/insert
@@ -253,17 +255,13 @@ public:
 #ifndef NDEBUG
         ++id_;
 #endif
-        auto n = new Node(args...);
-        auto c4 = capacity_/size_t(4), c2 = capacity_/size_t(2);
-        if (size_ < c4)
-            rehash(c2);
-        else if (size_ > c4 + c2)
-            rehash(capacity_*size_t(2));
+        rehash<true>();
 
         Node** insert_pos = nullptr; // TODO rework this
+        auto n = new Node(args...);
         auto& key = n->key();
         for (uint64_t i = hash_function_(key); true; ++i) {
-            size_t x = i & (capacity_-1);
+            size_t x = mod(i);
             auto it = nodes_ + x;
             if (*it == nullptr) {
                 if (insert_pos == nullptr)
@@ -289,26 +287,57 @@ public:
     void insert(std::initializer_list<value_type> ilist) { insert(ilist.begin(), ilist.end()); }
     template<class R> bool insert_range(const R& range) { return insert(range.begin(), range.end()); }
 
-    // erase
     iterator erase(const_iterator pos) {
         assert(pos.table_ == this && "iterator does not match to this table");
         assert(pos.id_ == id_ && "iterator used after emplace/insert");
         assert(!empty());
-        assert(is_valid(pos.node_) && pos != end());
+        assert(pos != end() && is_valid(pos.node_));
         --size_;
         delete *pos.node_;
         *pos.node_ = nullptr;
-        for (auto p = pos.node_, i = pos.node_+1, e = end_node();
-                i != e && (!is_valid(i) || (hash_function_((*i)->key()) & capacity_) != size_t(i - nodes_)); ++i, ++p)
-            std::swap(*p, *i);
+
+        if (!rehash<false>()) {
+            //for (size_t p = mod(pos.node_-nodes_), i = mod(pos.node_-nodes_+1);
+                    //is_valid(nodes_+i) && mod(hash_function_(nodes_[i]->key())) != i;
+                    //i = mod(i+1), p = mod(p+1))
+                //std::swap(*(nodes_+p), *(nodes_+i));
+            size_t p = mod(pos.node_-nodes_);
+            size_t i = mod(pos.node_-nodes_+1);
+
+            auto advance_nil = [&](size_t& i) {
+                while (is_valid(nodes_+i))
+                    i = mod(i+1);
+            };
+
+            auto advance_neq = [&](size_t& i) {
+                while (mod(hash_function_(nodes_[i]->key())) == i)
+                    i = mod(i+1);
+            };
+
+            while (true) {
+                if (!is_valid(nodes_+i))
+                    break;
+                if (mod(hash_function_(nodes_[i]->key())) != i) {
+                    std::swap(*(nodes_+p), *(nodes_+i));
+                    i = mod(i+1);
+                    p = mod(p+1);
+                }
+                advance(i);
+                advance(p);
+            }
+        }
+#ifndef NDEBUG
+        ++id_;
+#endif
         return iterator::skip(pos.node_, end_node(), this);
     }
     iterator erase(const_iterator first, const_iterator last) {
+        assert(false && "TODO: currently broken");
         for (auto i = first; i != last; ++i)
             erase(i);
         return last;
     }
-    size_type erase(const key_type& key) {
+    size_t erase(const key_type& key) {
         auto i = find(key);
         if (i == end())
             return 0;
@@ -322,13 +351,12 @@ public:
         nodes_ = alloc();
     }
 
-    // find
     iterator find(const key_type& key) {
 #ifndef NDEBUG
         int old_id = id_;
 #endif
         for (uint64_t i = hash_function_(key); true; ++i) {
-            size_t x = i & (capacity_-1);
+            size_t x = mod(i);
             auto it = nodes_ + x;
             if (*it == nullptr) {
                 assert(old_id == id());
@@ -340,12 +368,31 @@ public:
         }
     }
     const_iterator find(const key_type& key) const { return const_iterator(const_cast<HashTable*>(this)->find(key).node_, end_node(), this); }
-    size_type count(const key_type& key) const { return find(key) == end() ? 0 : 1; }
+    size_t count(const key_type& key) const { return find(key) == end() ? 0 : 1; }
     bool contains(const key_type& key) const { return count(key) == 1; }
 
-    void rehash(size_type new_capacity) {
-        new_capacity = std::max(size_type(min_capacity), new_capacity);
+    template<bool enlarge>
+    bool rehash() {
+        size_t c4 = capacity_/size_t(4);
+        size_t c2 = capacity_/size_t(2);
         size_t old_capacity = capacity_;
+        size_t new_capacity = capacity_;
+
+        if (!enlarge) {
+            if (size_ < c4) {
+                new_capacity = std::max(size_t(min_capacity), c2);
+                if (new_capacity != old_capacity)
+                    goto do_rehash;
+            }
+            return false;
+        }
+
+        if (size_ > c4 + c2)
+            new_capacity = capacity_*size_t(2);
+        else
+            return false;
+
+do_rehash:
         capacity_ = new_capacity;
         auto nodes = alloc();
 
@@ -353,7 +400,7 @@ public:
             if (is_valid(nodes_+i)) {
                 Node* old = nodes_[i];
                 for (uint64_t i = hash_function_(old->key()); true; ++i) {
-                    size_t x = i & (capacity_-1);
+                    size_t x = mod(i);
                     if (nodes[x] == nullptr) {
                         nodes[x] = old;
                         break;
@@ -364,6 +411,8 @@ public:
 
         std::swap(nodes, nodes_);
         delete[] nodes;
+
+        return true;
     }
 
     // copy/move stuff
@@ -384,6 +433,7 @@ private:
 #ifndef NDEBUG
     int id() const { return id_; }
 #endif
+    size_t mod(size_t i) const { return i & (capacity_-1); }
     Node** end_node() const { return nodes_ + capacity(); }
     void destroy() {
         for (size_t i = 0, e = capacity_; i != e; ++i) {
@@ -398,8 +448,8 @@ private:
         return nodes;
     }
 
-    size_type capacity_;
-    size_type size_;
+    size_t capacity_;
+    size_t size_;
     Node** nodes_;
     hasher hash_function_;
     key_equal key_eq_;
@@ -427,14 +477,14 @@ public:
     typedef typename Super::iterator iterator;
     typedef typename Super::const_iterator const_iterator;
 
-    HashSet(size_type capacity = Super::min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
+    HashSet(size_t capacity = Super::min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
         : Super(capacity, hash_function, key_eq)
     {}
     template<class InputIt>
-    HashSet(InputIt first, InputIt last, size_type capacity = Super::min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
+    HashSet(InputIt first, InputIt last, size_t capacity = Super::min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
         : Super(first, last, capacity, hash_function, key_eq)
     {}
-    HashSet(std::initializer_list<value_type> ilist, size_type capacity = Super::min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
+    HashSet(std::initializer_list<value_type> ilist, size_t capacity = Super::min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
         : Super(ilist, capacity, hash_function, key_eq)
     {}
 
@@ -460,14 +510,14 @@ public:
     typedef typename Super::iterator iterator;
     typedef typename Super::const_iterator const_iterator;
 
-    HashMap(size_type capacity = Super::min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
+    HashMap(size_t capacity = Super::min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
         : Super(capacity, hash_function, key_eq)
     {}
     template<class InputIt>
-    HashMap(InputIt first, InputIt last, size_type capacity = Super::min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
+    HashMap(InputIt first, InputIt last, size_t capacity = Super::min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
         : Super(first, last, capacity, hash_function, key_eq)
     {}
-    HashMap(std::initializer_list<value_type> ilist, size_type capacity = Super::min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
+    HashMap(std::initializer_list<value_type> ilist, size_t capacity = Super::min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
         : Super(ilist, capacity, hash_function, key_eq)
     {}
 

@@ -107,7 +107,7 @@ void Cleaner::eliminate_params() {
                 ncontinuation->jump(ocontinuation->callee(), ocontinuation->args(), ocontinuation->jump_loc());
                 ocontinuation->destroy_body();
 
-                for (auto use : ocontinuation->uses()) {
+                for (auto use : ocontinuation->copy_uses()) {
                     auto ucontinuation = use->as_continuation();
                     assert(use.index() == 0);
                     ucontinuation->jump(ncontinuation, ucontinuation->args().cut(proxy_idx), ucontinuation->jump_loc());

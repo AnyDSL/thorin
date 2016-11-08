@@ -115,7 +115,7 @@ void Def::replace(const Def* with) const {
     DLOG("replace: % -> %", this, with);
     assert(type() == with->type());
     if (this != with) {
-        for (auto& use : uses()) {
+        for (auto& use : copy_uses()) {
             auto def = const_cast<Def*>(use.def());
             auto index = use.index();
             def->unset_op(index);

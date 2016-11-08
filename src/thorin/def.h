@@ -98,6 +98,7 @@ public:
     Continuation* isa_continuation() const;
     void dump() const;
     const Uses& uses() const { return uses_; }
+    Array<Use> copy_uses() const { return Array<Use>(uses_.begin(), uses_.end()); }
     size_t num_uses() const { return uses().size(); }
     size_t gid() const { return gid_; }
     std::string unique_name() const;

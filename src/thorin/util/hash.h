@@ -257,18 +257,15 @@ public:
 #endif
         rehash<true>();
 
-        Node** insert_pos = nullptr; // TODO rework this
         auto n = new Node(args...);
         auto& key = n->key();
         for (uint64_t i = hash_function_(key); true; ++i) {
             size_t x = mod(i);
             auto it = nodes_ + x;
             if (*it == nullptr) {
-                if (insert_pos == nullptr)
-                    insert_pos = it;
                 ++size_;
-                *insert_pos = n;
-                return std::make_pair(iterator(insert_pos, end_node(), this), true);
+                *it = n;
+                return std::make_pair(iterator(it, end_node(), this), true);
             } else if (key_eq_((*it)->key(), key)) {
                 delete n;
                 return std::make_pair(iterator(it, end_node(), this), false);

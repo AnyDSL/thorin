@@ -91,7 +91,7 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
 
     rv::VectorShape res = rv::VectorShape::uni();
     rv::VectorShapeVec args;
-    args.push_back(rv::VectorShape::varying());
+    args.push_back(rv::VectorShape::strided(1, vector_length));
     for (auto it = std::next(loop_counter_arg), end = kernel_func->getArgumentList().end(); it != end; ++it) {
         args.push_back(rv::VectorShape::uni());
     }

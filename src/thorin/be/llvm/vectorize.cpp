@@ -87,9 +87,16 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
     simd_kernel_func->deleteBody();
 
     auto rv_info = new rv::RVInfo(module_.get(), &context_, kernel_func, simd_kernel_func, vector_length, -1, false, false, false, false, nullptr);
-    auto loop_counter_argument = kernel_func->getArgumentList().begin();
+    auto loop_counter_arg = kernel_func->getArgumentList().begin();
 
-    rv::VectorMapping target_mapping(kernel_func, simd_kernel_func, vector_length);
+    rv::VectorShape res = rv::VectorShape::uni();
+    rv::VectorShapeVec args;
+    args.push_back(rv::VectorShape::varying());
+    for (auto it = std::next(loop_counter_arg), end = kernel_func->getArgumentList().end(); it != end; ++it) {
+        args.push_back(rv::VectorShape::uni());
+    }
+
+    rv::VectorMapping target_mapping(kernel_func, simd_kernel_func, vector_length, -1, res, args);
     rv::VectorizationInfo vec_info(target_mapping);
 
     rv::VectorizerInterface vectorizer(*rv_info, kernel_func);
@@ -101,7 +108,7 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
     const bool useNEON  = false;
     const bool useAVX   = true;
     rv_info->addCommonMappings(useSSE, useSSE41, useSSE42, useAVX, useNEON);
-    rv_info->addSIMDSemantics(*loop_counter_argument, false, true, false, true, false, true);
+    rv_info->addSIMDSemantics(*loop_counter_arg, false, true, false, true, false, true);
 
     const llvm::DominatorTree dom_tree(*kernel_func);
     llvm::PostDominatorTree pdom_tree;
@@ -123,14 +130,14 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
     assert(mask_analysis);
 
     bool mask_ok = vectorizer.generateMasks(vec_info, *mask_analysis, loop_info);
-    assert(mask_ok);
+    assert_unused(mask_ok);
 
     bool linearize_ok = vectorizer.linearizeCFG(vec_info, *mask_analysis, loop_info, pdom_tree, dom_tree);
-    assert(linearize_ok);
+    assert_unused(linearize_ok);
 
     const llvm::DominatorTree new_dom_tree(*vec_info.getMapping().scalarFn); // Control conversion does not preserve the dominance tree
     bool vectorize_ok = vectorizer.vectorize(vec_info, new_dom_tree);
-    assert(vectorize_ok);
+    assert_unused(vectorize_ok);
 
     vectorizer.finalize();
 

@@ -75,13 +75,6 @@ Continuation* CodeGen::emit_vectorize_continuation(Continuation* continuation) {
     return continuation->arg(VEC_ARG_RETURN)->as_continuation();
 }
 
-static void normalize_function(llvm::Function& f) {
-  llvm::legacy::FunctionPassManager fpm(f.getParent());
-  fpm.add(llvm::createLoopSimplifyPass());
-  fpm.add(llvm::createLCSSAPass());
-  fpm.run(f);
-}
-
 void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llvm::CallInst* simd_kernel_call) {
     // ensure proper loop forms
     legacy::FunctionPassManager pm(module_.get());
@@ -94,26 +87,12 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
     simd_kernel_func->deleteBody();
 
     auto rv_info = new rv::RVInfo(module_.get(), &context_, kernel_func, simd_kernel_func, vector_length, -1, false, false, false, false, nullptr);
-
-    ValueToValueMapTy value_map;
-    auto kernel_copy = CloneFunction(kernel_func, value_map, false);
-    assert(kernel_copy);
-    kernel_copy->setCallingConv(kernel_func->getCallingConv());
-    kernel_copy->setAttributes(kernel_func->getAttributes());
-    kernel_copy->setAlignment(kernel_func->getAlignment());
-    kernel_copy->setLinkage(GlobalValue::InternalLinkage);
-    kernel_copy->setName(kernel_func->getName()+".vectorizer.tmp");
-    module_->getFunctionList().push_back(kernel_copy);
-
-    normalize_function(*kernel_copy);
-
-    auto loop_counter_argument = kernel_copy->getArgumentList().begin();
+    auto loop_counter_argument = kernel_func->getArgumentList().begin();
 
     rv::VectorMapping target_mapping(kernel_func, simd_kernel_func, vector_length);
-    target_mapping.scalarFn = kernel_copy;
     rv::VectorizationInfo vec_info(target_mapping);
 
-    rv::VectorizerInterface vectorizer(*rv_info, kernel_copy);
+    rv::VectorizerInterface vectorizer(*rv_info, kernel_func);
 
     // TODO: use parameters from command line
     const bool useSSE   = false;
@@ -124,19 +103,19 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
     rv_info->addCommonMappings(useSSE, useSSE41, useSSE42, useAVX, useNEON);
     rv_info->addSIMDSemantics(*loop_counter_argument, false, true, false, true, false, true);
 
-    const llvm::DominatorTree dom_tree(*kernel_copy);
+    const llvm::DominatorTree dom_tree(*kernel_func);
     llvm::PostDominatorTree pdom_tree;
-    pdom_tree.runOnFunction(*kernel_copy);
+    pdom_tree.runOnFunction(*kernel_func);
     llvm::LoopInfo loop_info(dom_tree);
 
     llvm::DFG dfg(dom_tree);
-    dfg.create(*kernel_copy);
+    dfg.create(*kernel_func);
 
     llvm::CDG cdg(*pdom_tree.DT);
-    cdg.create(*kernel_copy);
+    cdg.create(*kernel_func);
 
     LoopExitCanonicalizer canonicalizer(loop_info);
-    canonicalizer.canonicalize(*kernel_copy);
+    canonicalizer.canonicalize(*kernel_func);
 
     vectorizer.analyze(vec_info, cdg, dfg, loop_info, pdom_tree, dom_tree);
 
@@ -149,14 +128,13 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
     bool linearize_ok = vectorizer.linearizeCFG(vec_info, *mask_analysis, loop_info, pdom_tree, dom_tree);
     assert(linearize_ok);
 
-    const llvm::DominatorTree new_dom_tree(*vec_info.getMapping().scalarFn); // Control conversion does not preserve the domTree so we have to rebuild it for now
+    const llvm::DominatorTree new_dom_tree(*vec_info.getMapping().scalarFn); // Control conversion does not preserve the dominance tree
     bool vectorize_ok = vectorizer.vectorize(vec_info, new_dom_tree);
     assert(vectorize_ok);
 
     vectorizer.finalize();
 
     delete mask_analysis;
-    kernel_copy->eraseFromParent();
 
     // inline kernel
     llvm::InlineFunctionInfo info;

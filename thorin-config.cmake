@@ -31,6 +31,7 @@ FIND_PATH ( THORIN_LIBS_DIR
     NAMES
         ${THORIN_OUTPUT_LIBS}
     PATHS
+        ${THORIN_LIBS_DIR}
         ${THORIN_ROOT_DIR}/build_debug/lib
         ${THORIN_ROOT_DIR}/build_release/lib
         ${THORIN_ROOT_DIR}/build/lib
@@ -41,6 +42,7 @@ FIND_PATH ( THORIN_CMAKE_DIR
     NAMES
         ThorinRuntime.cmake
     PATHS
+        ${THORIN_CMAKE_DIR}
         ${THORIN_ROOT_DIR}/build_debug/cmake
         ${THORIN_ROOT_DIR}/build_release/cmake
         ${THORIN_ROOT_DIR}/build/cmake
@@ -49,6 +51,7 @@ FIND_PATH ( THORIN_RUNTIME_DIR
     NAMES
         cmake/ThorinRuntime.cmake.in platforms/intrinsics_thorin.impala
     PATHS
+        ${THORIN_RUNTIME_DIR}
         ${THORIN_ROOT_DIR}/runtime
 )
 

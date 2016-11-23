@@ -253,7 +253,9 @@ public:
         auto n = new Node(args...);
         auto& key = n->key();
 
-        rehash<true>();
+        if (size_ > capacity_/size_t(4) + capacity_/size_t(2))
+            rehash(capacity_*size_t(2));
+
         auto result = end();
         for (size_t i = desired_pos(key), distance = 0; true; i = mod(i+1), ++distance) {
             auto it = nodes_ + i;
@@ -290,7 +292,7 @@ public:
     void insert(std::initializer_list<value_type> ilist) { insert(ilist.begin(), ilist.end()); }
     template<class R> bool insert_range(const R& range) { return insert(range.begin(), range.end()); }
 
-    iterator erase(const_iterator pos) {
+    void erase(const_iterator pos) {
         assert(pos.table_ == this && "iterator does not match to this table");
         assert(pos.id_ == id_ && "iterator used after emplace/insert");
         assert(!empty());
@@ -299,8 +301,9 @@ public:
         delete *pos.node_;
         *pos.node_ = nullptr;
 
-        if (!rehash<false>()) {
-
+        if (capacity_ != min_capacity && size_ < capacity_/size_t(4))
+            rehash(capacity_/size_t(2));
+        else {
             size_t curr = pos.node_-nodes_;
             size_t next = mod(curr+1);
             while (true) {
@@ -315,14 +318,13 @@ public:
 #ifndef NDEBUG
         ++id_;
 #endif
-        return iterator(pos.node_, end_node(), this);
     }
-    iterator erase(const_iterator first, const_iterator last) {
-        assert(false && "TODO: currently broken");
+
+    void erase(const_iterator first, const_iterator last) {
         for (auto i = first; i != last; ++i)
             erase(i);
-        return last;
     }
+
     size_t erase(const key_type& key) {
         auto i = find(key);
         if (i == end())
@@ -330,6 +332,7 @@ public:
         erase(i);
         return 1;
     }
+
     void clear() {
         destroy();
         size_ = 0;
@@ -350,28 +353,8 @@ public:
     size_t count(const key_type& key) const { return find(key) == end() ? 0 : 1; }
     bool contains(const key_type& key) const { return count(key) == 1; }
 
-    template<bool enlarge>
-    bool rehash() {
-        size_t c4 = capacity_/size_t(4);
-        size_t c2 = capacity_/size_t(2);
-        size_t old_capacity = capacity_;
-        size_t new_capacity = capacity_;
-
-        if (!enlarge) {
-            if (size_ < c4) {
-                new_capacity = std::max(size_t(min_capacity), c2);
-                if (new_capacity != old_capacity)
-                    goto do_rehash;
-            }
-            return false;
-        }
-
-        if (size_ > c4 + c2)
-            new_capacity = capacity_*size_t(2);
-        else
-            return false;
-
-do_rehash:
+    void rehash(size_t new_capacity) {
+        auto old_capacity = capacity_;
         capacity_ = new_capacity;
         auto nodes = alloc();
 
@@ -400,8 +383,6 @@ do_rehash:
 
         std::swap(nodes, nodes_);
         delete[] nodes;
-
-        return true;
     }
 
     // copy/move stuff

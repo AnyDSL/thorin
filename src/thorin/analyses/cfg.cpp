@@ -416,17 +416,21 @@ void CFABuilder::unreachable_node_elimination() {
         if (in->f_index_ == CFNode::Reachable) {
             ++cfa_.size_;
 
+            std::vector<const Def*> remove;
             auto& out_nodes = out_nodes_[in];
-            for (auto i = out_nodes.begin(); i != out_nodes.end();) {
-                auto out = i->second;
-                if (out->f_index_ == CFNode::Reachable) {
-                    ++i;
+            for (const auto& p : out_nodes) {
+                if (p.second->f_index_ == CFNode::Reachable)
                     ++num_out_nodes_;
-                } else {
-                    DLOG("removing: %", out);
-                    i = out_nodes.erase(i);
-                    delete out;
-                }
+                else
+                    remove.push_back(p.first);
+            }
+
+            for (auto def : remove) {
+                auto i = out_nodes.find(def);
+                auto out = i->second;
+                DLOG("removing: %", out);
+                out_nodes.erase(i);
+                delete out;
             }
         } else {
 #ifndef NDEBUG

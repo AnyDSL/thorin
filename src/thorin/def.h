@@ -73,7 +73,11 @@ struct UseHash {
     inline uint64_t operator()(Use use) const;
 };
 
-typedef HashSet<Use, UseHash> Uses;
+struct UseSentinel {
+    inline Use operator()() { return Use(size_t(-1), (const Def*)(1)); }
+};
+
+typedef HashSet<Use, UseSentinel, UseHash> Uses;
 
 template<class To>
 using DefMap  = GIDMap<Def, To>;

@@ -252,6 +252,7 @@ private:
 };
 
 struct Call {
+    Call() {}
     Call(Array<const Def*> ops)
         : ops_(ops)
     {}
@@ -300,6 +301,10 @@ struct Hash<Call> {
             seed = hash_combine(seed,  arg ?  arg->gid() : 0);
         return seed;
     }
+};
+
+struct CallSentinel {
+    Call operator()() const { return Call(); }
 };
 
 void jump_to_cached_call(Continuation* src, Continuation* dst, const Call& call);

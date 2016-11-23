@@ -75,10 +75,21 @@ struct Hash<T*> {
     //uint64_t operator()(T* val) const { return hash_begin(uintptr_t(val)); }
 };
 
+template<class T>
+struct PtrSentinel {
+    static_assert(std::is_pointer<T>::value, "must be a pointer");
+    T operator()() const { return (T)(1); }
+};
+
+template<class T>
+struct MaxSentinel {
+    T operator()() const { return std::numeric_limits<T>::max(); }
+};
+
 //------------------------------------------------------------------------------
 
 /// Used internally for @p HashSet and @p HashMap.
-template<class Key, class T, class Hasher, class KeyEqual>
+template<class Key, class T, class Sentinel, class Hasher, class KeyEqual>
 class HashTable {
 private:
     class Node {
@@ -432,12 +443,12 @@ private:
  * This container is for the most part compatible with <tt>std::unordered_set</tt>.
  * We use our own implementation in order to have a consistent and deterministic behavior across different platforms.
  */
-template<class Key, class Hasher = Hash<Key>, class KeyEqual = std::equal_to<Key>>
-class HashSet : public HashTable<Key, void, Hasher, KeyEqual> {
+template<class Key, class Sentinel = PtrSentinel<Key>, class Hasher = Hash<Key>, class KeyEqual = std::equal_to<Key>>
+class HashSet : public HashTable<Key, void, Sentinel, Hasher, KeyEqual> {
 public:
     typedef Hasher hasher;
     typedef KeyEqual key_equal;
-    typedef HashTable<Key, void, Hasher, KeyEqual> Super;
+    typedef HashTable<Key, void, Sentinel, Hasher, KeyEqual> Super;
     typedef typename Super::key_type key_type;
     typedef typename Super::mapped_type mapped_type;
     typedef typename Super::value_type value_type;
@@ -463,12 +474,12 @@ public:
  * This container is for the most part compatible with <tt>std::unordered_map</tt>.
  * We use our own implementation in order to have a consistent and deterministic behavior across different platforms.
  */
-template<class Key, class T, class Hasher = Hash<Key>, class KeyEqual = std::equal_to<Key>>
-class HashMap : public HashTable<Key, T, Hasher, KeyEqual> {
+template<class Key, class T, class Sentinel = PtrSentinel<Key>, class Hasher = Hash<Key>, class KeyEqual = std::equal_to<Key>>
+class HashMap : public HashTable<Key, T, Sentinel, Hasher, KeyEqual> {
 public:
     typedef Hasher hasher;
     typedef KeyEqual key_equal;
-    typedef HashTable<Key, T, Hasher, KeyEqual> Super;
+    typedef HashTable<Key, T, Sentinel, Hasher, KeyEqual> Super;
     typedef typename Super::key_type key_type;
     typedef typename Super::mapped_type mapped_type;
     typedef typename Super::value_type value_type;

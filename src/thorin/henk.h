@@ -243,7 +243,7 @@ private:
 public:
     struct TypeHash { uint64_t operator()(const Type* t) const { return t->hash(); } };
     struct TypeEqual { bool operator()(const Type* t1, const Type* t2) const { return t2->equal(t1); } };
-    typedef thorin::HashSet<const Type*, TypeHash, TypeEqual> TypeSet;
+    typedef thorin::HashSet<const Type*, thorin::PtrSentinel<const Type*>, TypeHash, TypeEqual> TypeSet;
 
     TypeTableBase& operator=(const TypeTableBase&);
     TypeTableBase(const TypeTableBase&);

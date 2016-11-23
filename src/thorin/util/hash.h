@@ -72,6 +72,7 @@ uint64_t hash_value(T val) { return Hash<T>()(val); }
 template<class T>
 struct Hash<T*> {
     uint64_t operator()(T* val) const { return Hash<uintptr_t>()(uintptr_t(val)); }
+    //uint64_t operator()(T* val) const { return hash_begin(uintptr_t(val)); }
 };
 
 //------------------------------------------------------------------------------
@@ -194,12 +195,10 @@ public:
         min_capacity = 16
     };
 
-    HashTable(size_t capacity = min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
-        : capacity_(std::max(size_t(min_capacity), capacity))
+    HashTable()
+        : capacity_(min_capacity)
         , size_(0)
         , nodes_(alloc())
-        , hash_function_(hash_function)
-        , key_eq_(key_eq)
 #ifndef NDEBUG
         , id_(0)
 #endif
@@ -213,8 +212,6 @@ public:
         : capacity_(other.capacity_)
         , size_(0)
         , nodes_(alloc())
-        , hash_function_(other.hash_function_)
-        , key_eq_(other.key_eq_)
 #ifndef NDEBUG
         , id_(0)
 #endif
@@ -222,13 +219,13 @@ public:
             insert(other.begin(), other.end());
         }
     template<class InputIt>
-    HashTable(InputIt first, InputIt last, size_t capacity = min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
-        : HashTable(capacity, hash_function, key_eq)
+    HashTable(InputIt first, InputIt last)
+        : HashTable(capacity)
     {
         insert(first, last);
     }
-    HashTable(std::initializer_list<value_type> ilist, size_t capacity = min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
-        : HashTable(capacity, hash_function, key_eq)
+    HashTable(std::initializer_list<value_type> ilist)
+        : HashTable(capacity)
     {
         insert(ilist);
     }
@@ -243,8 +240,6 @@ public:
     const_iterator cend() const { return end(); }
 
     // getters
-    hasher hash_function() const { return hash_function_; }
-    key_equal key_eq() const { return key_eq_; }
     size_t capacity() const { return capacity_; }
     size_t size() const { return size_; }
     bool empty() const { return size() == 0; }
@@ -255,20 +250,31 @@ public:
 #ifndef NDEBUG
         ++id_;
 #endif
-        rehash<true>();
-
         auto n = new Node(args...);
         auto& key = n->key();
-        for (uint64_t i = hash_function_(key); true; ++i) {
-            size_t x = mod(i);
-            auto it = nodes_ + x;
+
+        rehash<true>();
+        auto result = end();
+        for (size_t i = desired_pos(key), distance = 0; true; i = mod(i+1), ++distance) {
+            auto it = nodes_ + i;
             if (*it == nullptr) {
                 ++size_;
                 *it = n;
-                return std::make_pair(iterator(it, end_node(), this), true);
-            } else if (key_eq_((*it)->key(), key)) {
+                if (result == end())
+                    result.node_ = it;
+                return std::make_pair(result, true);
+            } else if (result == end() && KeyEqual()((*it)->key(), key)) {
                 delete n;
                 return std::make_pair(iterator(it, end_node(), this), false);
+            } else {
+                // if the existing elem has probed less than us, then swap places with existing elem, and keep going to find another slot for that elem
+                size_t cur_distance = probe_distance(i);
+                if (cur_distance < distance) {
+                    if (result == end())
+                        result.node_ = it;
+                    distance = cur_distance;
+                    std::swap(*it, n);
+                }
             }
         }
     }
@@ -294,39 +300,22 @@ public:
         *pos.node_ = nullptr;
 
         if (!rehash<false>()) {
-            //for (size_t p = mod(pos.node_-nodes_), i = mod(pos.node_-nodes_+1);
-                    //is_valid(nodes_+i) && mod(hash_function_(nodes_[i]->key())) != i;
-                    //i = mod(i+1), p = mod(p+1))
-                //std::swap(*(nodes_+p), *(nodes_+i));
-            size_t p = mod(pos.node_-nodes_);
-            size_t i = mod(pos.node_-nodes_+1);
 
-            auto advance_nil = [&](size_t& i) {
-                while (is_valid(nodes_+i))
-                    i = mod(i+1);
-            };
-
-            auto advance_neq = [&](size_t& i) {
-                while (mod(hash_function_(nodes_[i]->key())) == i)
-                    i = mod(i+1);
-            };
-
+            size_t curr = pos.node_-nodes_;
+            size_t next = mod(curr+1);
             while (true) {
-                if (!is_valid(nodes_+i))
+                if (nodes_[next] == nullptr || probe_distance(next) == 0)
                     break;
-                if (mod(hash_function_(nodes_[i]->key())) != i) {
-                    std::swap(*(nodes_+p), *(nodes_+i));
-                    i = mod(i+1);
-                    p = mod(p+1);
-                }
-                advance(i);
-                advance(p);
-            }
+
+                std::swap(*(nodes_+curr), *(nodes_+next));
+                curr = next;
+                next = mod(next+1);
+            };
         }
 #ifndef NDEBUG
         ++id_;
 #endif
-        return iterator::skip(pos.node_, end_node(), this);
+        return iterator(pos.node_, end_node(), this);
     }
     iterator erase(const_iterator first, const_iterator last) {
         assert(false && "TODO: currently broken");
@@ -349,19 +338,12 @@ public:
     }
 
     iterator find(const key_type& key) {
-#ifndef NDEBUG
-        int old_id = id_;
-#endif
-        for (uint64_t i = hash_function_(key); true; ++i) {
-            size_t x = mod(i);
-            auto it = nodes_ + x;
-            if (*it == nullptr) {
-                assert(old_id == id());
+        for (size_t i = desired_pos(key); true; i = mod(i+1)) {
+            auto it = nodes_ + i;
+            if (*it == nullptr)
                 return end();
-            } else if (key_eq_((*it)->key(), key)) {
-                assert(old_id == id());
+            if (key_equal()((*it)->key(), key))
                 return iterator(it, end_node(), this);
-            }
         }
     }
     const_iterator find(const key_type& key) const { return const_iterator(const_cast<HashTable*>(this)->find(key).node_, end_node(), this); }
@@ -393,14 +375,24 @@ do_rehash:
         capacity_ = new_capacity;
         auto nodes = alloc();
 
+        auto mod = [&](size_t i) { return i & (new_capacity-1); };
+        auto desired_pos = [&](const key_type& key) { return mod(hasher()(key)); };
+        auto probe_distance = [&](size_t i) { return mod(i + new_capacity - desired_pos(nodes[i]->key())); };
+
         for (size_t i = 0; i != old_capacity; ++i) {
             if (is_valid(nodes_+i)) {
-                Node* old = nodes_[i];
-                for (uint64_t i = hash_function_(old->key()); true; ++i) {
-                    size_t x = mod(i);
-                    if (nodes[x] == nullptr) {
-                        nodes[x] = old;
+                auto old = nodes_[i];
+                for (size_t i = desired_pos(old->key()), distance = 0; true; i = mod(i+1), ++distance) {
+                    auto it = nodes + i;
+                    if (*it == nullptr) {
+                        nodes[i] = old;
                         break;
+                    } else {
+                        size_t cur_distance = probe_distance(i);
+                        if (cur_distance < distance) {
+                            distance = cur_distance;
+                            std::swap(*it, old);
+                        }
                     }
                 }
             }
@@ -418,8 +410,6 @@ do_rehash:
         swap(table1.capacity_,      table2.capacity_);
         swap(table1.size_,          table2.size_);
         swap(table1.nodes_,         table2.nodes_);
-        swap(table1.hash_function_, table2.hash_function_);
-        swap(table1.key_eq_,        table2.key_eq_);
 #ifndef NDEBUG
         swap(table1.id_,            table2.id_);
 #endif
@@ -431,6 +421,8 @@ private:
     int id() const { return id_; }
 #endif
     size_t mod(size_t i) const { return i & (capacity_-1); }
+    size_t desired_pos(const key_type& key) const { return mod(hasher()(key)); }
+    size_t probe_distance(size_t i) { return mod(i + capacity() - desired_pos(nodes_[i]->key())); }
     Node** end_node() const { return nodes_ + capacity(); }
     void destroy() {
         for (size_t i = 0, e = capacity_; i != e; ++i) {
@@ -448,8 +440,6 @@ private:
     size_t capacity_;
     size_t size_;
     Node** nodes_;
-    hasher hash_function_;
-    key_equal key_eq_;
 #ifndef NDEBUG
     int id_;
 #endif
@@ -474,15 +464,13 @@ public:
     typedef typename Super::iterator iterator;
     typedef typename Super::const_iterator const_iterator;
 
-    HashSet(size_t capacity = Super::min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
-        : Super(capacity, hash_function, key_eq)
-    {}
+    HashSet() {}
     template<class InputIt>
-    HashSet(InputIt first, InputIt last, size_t capacity = Super::min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
-        : Super(first, last, capacity, hash_function, key_eq)
+    HashSet(InputIt first, InputIt last)
+        : Super(first, last)
     {}
-    HashSet(std::initializer_list<value_type> ilist, size_t capacity = Super::min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
-        : Super(ilist, capacity, hash_function, key_eq)
+    HashSet(std::initializer_list<value_type> ilist)
+        : Super(ilist)
     {}
 
     friend void swap(HashSet& s1, HashSet& s2) { swap(static_cast<Super&>(s1), static_cast<Super&>(s2)); }
@@ -507,15 +495,15 @@ public:
     typedef typename Super::iterator iterator;
     typedef typename Super::const_iterator const_iterator;
 
-    HashMap(size_t capacity = Super::min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
-        : Super(capacity, hash_function, key_eq)
+    HashMap()
+        : Super()
     {}
     template<class InputIt>
-    HashMap(InputIt first, InputIt last, size_t capacity = Super::min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
-        : Super(first, last, capacity, hash_function, key_eq)
+    HashMap(InputIt first, InputIt last, size_t capacity = Super::min_capacity)
+        : Super(first, last)
     {}
-    HashMap(std::initializer_list<value_type> ilist, size_t capacity = Super::min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
-        : Super(ilist, capacity, hash_function, key_eq)
+    HashMap(std::initializer_list<value_type> ilist, size_t capacity = Super::min_capacity)
+        : Super(ilist, capacity)
     {}
 
     mapped_type& operator[](const key_type& key) { return Super::insert(value_type(key, T())).first->second; }

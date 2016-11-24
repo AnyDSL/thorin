@@ -161,17 +161,20 @@ public:
     typedef iterator_base<false> iterator;
     typedef iterator_base<true> const_iterator;
     enum {
-        min_capacity = 8
+        StackCapacity = 8,
+        MinCapacity = 16,
     };
 
     HashTable()
-        : capacity_(min_capacity)
+        : capacity_(StackCapacity)
         , size_(0)
-        , nodes_(alloc())
+        , nodes_(table_)
 #ifndef NDEBUG
         , id_(0)
 #endif
-    {}
+    {
+        fill(table_, StackCapacity);
+    }
 
     HashTable(HashTable&& other)
         : HashTable()
@@ -179,14 +182,16 @@ public:
         swap(*this, other);
     }
 
+    // TODO optimize this
     HashTable(const HashTable& other)
-        : capacity_(other.capacity_)
+        : capacity_(StackCapacity)
         , size_(0)
-        , nodes_(alloc())
+        , nodes_(table_)
 #ifndef NDEBUG
         , id_(0)
 #endif
     {
+        fill(table_, StackCapacity);
         insert(other.begin(), other.end());
     }
 
@@ -203,7 +208,10 @@ public:
         insert(ilist);
     }
 
-    ~HashTable() { destroy(); }
+    ~HashTable() {
+        if (capacity_ != StackCapacity)
+            delete[] nodes_;
+    }
 
     // iterators
     iterator begin() { return iterator::skip(nodes_, this); }
@@ -228,10 +236,7 @@ public:
         auto n = value_type(std::forward<Args>(args)...);
         auto& k = key(&n);
 
-        if (capacity_ == 0) {
-            capacity_ = min_capacity;
-            nodes_ = alloc();
-        } else if (size_ > capacity_/size_t(4) + capacity_/size_t(2))
+        if (size_ > capacity_/size_t(4) + capacity_/size_t(2))
             rehash(capacity_*size_t(2));
 
         auto result = end_ptr();
@@ -281,7 +286,7 @@ public:
         key(&empty) = H::sentinel();
         swap(*pos.ptr_, empty);
 
-        if (capacity_ != min_capacity && size_ < capacity_/size_t(4))
+        if (capacity_ > MinCapacity && size_ < capacity_/size_t(4))
             rehash(capacity_/size_t(2));
         else {
             size_t curr = pos.ptr_-nodes_;
@@ -314,10 +319,15 @@ public:
     }
 
     void clear() {
-        destroy();
         size_ = 0;
-        capacity_ = min_capacity;
-        nodes_ = alloc();
+
+        if (capacity_ != StackCapacity) {
+            delete[] nodes_;
+            nodes_ = table_;
+            capacity_ = StackCapacity;
+        }
+
+        fill(table_, StackCapacity);
     }
 
     iterator find(const key_type& k) {
@@ -362,17 +372,35 @@ public:
             }
         }
 
-        delete[] old_nodes;
+        if (old_capacity != StackCapacity)
+            delete[] old_nodes;
     }
 
     friend void swap(HashTable& t1, HashTable& t2) {
         using std::swap;
         swap(t1.capacity_, t2.capacity_);
         swap(t1.size_,     t2.size_);
-        swap(t1.nodes_,    t2.nodes_);
 #ifndef NDEBUG
         swap(t1.id_,       t2.id_);
 #endif
+        if (t1.on_heap()) {
+            if (t2.on_heap())
+                swap(t1.nodes_, t2.nodes_);
+            else {
+                t2.nodes_ = t1.nodes_;
+                move(t2.table_, t1.table_);
+                t1.nodes_ = t1.table_;
+            }
+        } else {
+            if (t2.on_heap()) {
+                t1.nodes_ = t2.nodes_;
+                move(t1.table_, t2.table_);
+                t2.nodes_ = t2.table_;
+            } else {
+                for (size_t i = 0; i != StackCapacity; ++i)
+                    swap(t1.table_[i], t2.table_[i]);
+            }
+        }
     }
 
     HashTable& operator=(HashTable other) { swap(*this, other); return *this; }
@@ -385,22 +413,29 @@ private:
     size_t desired_pos(const key_type& key) const { return mod(H::hash(key)); }
     size_t probe_distance(size_t i) { return mod(i + capacity() - desired_pos(key(nodes_+i))); }
     value_type* end_ptr() const { return nodes_ + capacity(); }
+    bool on_heap() const { return nodes_ != table_; }
 
     value_type* alloc() {
         assert(is_power_of_2(capacity_));
         auto nodes = new value_type[capacity_];
+        return fill(nodes, capacity_);
+    }
 
-        for (size_t i = 0, e = capacity_; i != e; ++i)
+    static value_type* fill(value_type* nodes, size_t size) {
+        for (size_t i = 0; i != size; ++i)
             key(nodes+i) = H::sentinel();
-
         return nodes;
     }
 
-    void destroy() { delete[] nodes_; }
+    static void move(value_type* src, value_type* dst) {
+        for (size_t i = 0; i != StackCapacity; ++i)
+            dst[i] = std::move(src[i]);
+    }
 
     uint32_t capacity_;
     uint32_t size_;
     value_type* nodes_;
+    value_type table_[StackCapacity];
 #ifndef NDEBUG
     int id_;
 #endif
@@ -456,11 +491,11 @@ public:
         : Super()
     {}
     template<class InputIt>
-    HashMap(InputIt first, InputIt last, size_t capacity = Super::min_capacity)
+    HashMap(InputIt first, InputIt last)
         : Super(first, last)
     {}
-    HashMap(std::initializer_list<value_type> ilist, size_t capacity = Super::min_capacity)
-        : Super(ilist, capacity)
+    HashMap(std::initializer_list<value_type> ilist)
+        : Super(ilist)
     {}
 
     mapped_type& operator[](const key_type& key) { return Super::insert(value_type(key, T())).first->second; }

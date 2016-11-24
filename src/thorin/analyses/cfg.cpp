@@ -134,7 +134,8 @@ public:
     const CFNode* exit() const { return exit_; }
 
     CFNodeSet nodes(const CFNode*, size_t i);
-    CFNodeSet callee_nodes(const CFNode* in) { return in->continuation()->empty() ? CFNodeSet() : nodes(in, 0); }
+    void nodes(CFNodeSet& result, const CFNode* in, size_t i);
+    CFNodeSet callee_nodes(const CFNode* in) { return in->continuation()->empty() ? empty_ : nodes(in, 0); }
     Array<CFNodeSet> arg_nodes(const CFNode*);
     bool contains(Continuation* continuation) { return scope().inner_contains(continuation); }
     bool contains(const Param* param) { return contains(param->continuation()); }
@@ -203,9 +204,11 @@ public:
     }
 
 private:
+    static CFNodeSet empty_;
+
     CFA& cfa_;
     Scope::Map<std::vector<CFNodeSet>> continuation2param2nodes_; ///< Maps param in scope to CFNodeSet.
-    DefMap<DefSet> def2set_;
+    std::map<const Def*, DefSet, GIDLt<const Def*>> def2set_;
     std::map<const RealCFNode*, HashSet<const RealCFNode*>> succs_;
     std::map<const RealCFNode*, HashSet<const RealCFNode*>> preds_;
     const CFNode* entry_;
@@ -215,6 +218,8 @@ private:
     mutable DefMap<const SymNode*> def2sym_;
     mutable HashMap<const OutNode*, const SymNode*> out2sym_;
 };
+
+CFNodeSet CFABuilder::empty_;
 
 void CFABuilder::propagate_higher_order_values() {
     std::stack<const Def*> stack;
@@ -271,8 +276,14 @@ void CFABuilder::propagate_higher_order_values() {
     }
 }
 
+
 CFNodeSet CFABuilder::nodes(const CFNode* in, size_t i) {
     CFNodeSet result;
+    nodes(result, in, i);
+    return result;
+}
+
+void CFABuilder::nodes(CFNodeSet& result, const CFNode* in, size_t i) {
     auto cur_continuation = in->continuation();
     auto op = cur_continuation->op(i);
 
@@ -319,14 +330,12 @@ CFNodeSet CFABuilder::nodes(const CFNode* in, size_t i) {
             }
         }
     }
-
-    return result;
 }
 
 Array<CFNodeSet> CFABuilder::arg_nodes(const CFNode* in) {
     Array<CFNodeSet> result(in->continuation()->num_args());
     for (size_t i = 0; i != result.size(); ++i)
-        result[i] = nodes(in, i+1); // shift by one due to args/ops discrepancy
+        nodes(result[i], in, i+1); // shift by one due to args/ops discrepancy
     return result;
 }
 

@@ -25,6 +25,11 @@ class Var;
 class HENK_TABLE_TYPE;
 
 template<class T>
+struct GIDLt {
+    bool operator()(T a, T b) { return a->gid() < b->gid(); }
+};
+
+template<class T>
 struct GIDHash {
     static uint64_t hash(T n) { return n->gid(); }
     static bool eq(T a, T b) { return a == b; }

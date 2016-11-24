@@ -81,13 +81,13 @@ public:
      * Use if you @em know that @p this is of type @p To.
      * It is a program error (an assertion is raised) if this does not hold.
      */
-    template<class To> To* as()  { return thorin::scast<To>(this); }
+    template<class To> To* as() { assert(this); return thorin::scast<To>(this); }
 
     /**
      * Acts as dynamic cast.
      * @return @p this cast to @p To if @p this is a @p To, 0 otherwise.
      */
-    template<class To> To* isa() { return thorin::dcast<To>(this); }
+    template<class To> To* isa() { assert(this); return thorin::dcast<To>(this); }
 
     template<class To> const To* as()  const { return thorin::scast<To>(this); } ///< @c const version of @see MagicCast#as.
     template<class To> const To* isa() const { return thorin::dcast<To>(this); } ///< @c const version of @see MagicCast#isa.

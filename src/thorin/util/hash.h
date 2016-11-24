@@ -75,63 +75,42 @@ struct Hash<T*> {
 template<class Key, class T, class H = Hash<Key>>
 class HashTable {
 private:
-    class Node {
-    private:
-        template<class Key_, class T_>
-        struct get_key { static Key_& get(std::pair<Key_, T_>& pair) { return pair.first; } };
+    template<class K, class V>
+    struct get_key { static K& get(std::pair<K, V>& pair) { return pair.first; } };
 
-        template<class Key_>
-        struct get_key<Key_, void> { static Key_& get(Key_& key) { return key; } };
+    template<class K>
+    struct get_key<K, void> { static K& get(K& key) { return key; } };
 
-        template<class Key_, class T_>
-        struct get_value { static T_& get(std::pair<Key_, T_>& pair) { return pair.second; } };
+    template<class K, class V>
+    struct get_value { static V& get(std::pair<K, V>& pair) { return pair.second; } };
 
-        template<class Key_>
-        struct get_value<Key_, void> { static Key_& get(Key_& key) { return key; } };
+    template<class K>
+    struct get_value<K, void> { static K& get(K& key) { return key; } };
 
-    public:
-        typedef Key key_type;
-        typedef typename std::conditional<std::is_void<T>::value, Key, T>::type mapped_type;
-        typedef typename std::conditional<std::is_void<T>::value, Key, std::pair<Key, T>>::type value_type;
+public:
+    typedef Key key_type;
+    typedef typename std::conditional<std::is_void<T>::value, Key, T>::type mapped_type;
+    typedef typename std::conditional<std::is_void<T>::value, Key, std::pair<Key, T>>::type value_type;
 
-        Node()
-            : value_() {
-            key() = H::sentinel();
-        }
+private:
+    static key_type& key(value_type* ptr) { return get_key<Key, T>::get(*ptr); }
+    static mapped_type& mapped(value_type* ptr) { return get_value<Key, T>::get(*ptr); }
+    static bool is_invalid(value_type* ptr) { return key(ptr) == H::sentinel(); }
+    bool is_invalid(size_t i) { return is_invalid(nodes_+i); }
 
-        template<class... Args>
-        Node(Args&&... args)
-            : value_(std::forward<Args>(args)...)
-        {}
-
-        key_type& key() { return get_key<Key, T>::get(value_); }
-        mapped_type& mapped() { return get_value<Key, T>::get(value_); }
-
-        friend void swap(Node& n1, Node& n2) {
-            using std::swap;
-            swap(n1.value_, n2.value_);
-        }
-
-        bool is_invalid() { return key() == H::sentinel(); }
-
-    private:
-        value_type value_;
-
-        friend class HashTable;
-    };
-
+private:
     template<bool is_const>
     class iterator_base {
     public:
+        typedef HashTable<Key, T, H>::value_type value_type;
         typedef std::ptrdiff_t difference_type;
-        typedef typename Node::value_type value_type;
         typedef typename std::conditional<is_const, const value_type&, value_type&>::type reference;
         typedef typename std::conditional<is_const, const value_type*, value_type*>::type pointer;
         typedef std::forward_iterator_tag iterator_category;
 
 
-        iterator_base(Node* node, const HashTable* table)
-            : node_(node)
+        iterator_base(value_type* ptr, const HashTable* table)
+            : ptr_(ptr)
             , table_(table)
 #ifndef NDEBUG
             , id_(table->id())
@@ -139,7 +118,7 @@ private:
         {}
 
         iterator_base(const iterator_base<false>& i)
-            : node_(i.node_)
+            : ptr_(i.ptr_)
             , table_(i.table_)
 #ifndef NDEBUG
             , id_(i.id_)
@@ -147,15 +126,15 @@ private:
         {}
 
         iterator_base& operator=(iterator_base other) { swap(*this, other); return *this; }
-        iterator_base& operator++() { assert(this->table_->id_ == this->id_); *this = skip(node_+1, table_); return *this; }
+        iterator_base& operator++() { assert(this->table_->id_ == this->id_); *this = skip(ptr_+1, table_); return *this; }
         iterator_base operator++(int) { assert(this->table_->id_ == this->id_); iterator_base res = *this; ++(*this); return res; }
-        reference operator*() const { assert(this->table_->id_ == this->id_); return node_->value_; }
-        pointer operator->() const { assert(this->table_->id_ == this->id_); return &node_->value_; }
-        bool operator==(const iterator_base& other) { assert(this->table_ == other.table_ && this->id_ == other.id_ && this->table_->id_ == this->id_); return this->node_ == other.node_; }
-        bool operator!=(const iterator_base& other) { assert(this->table_ == other.table_ && this->id_ == other.id_ && this->table_->id_ == this->id_); return this->node_ != other.node_; }
+        reference operator*() const { assert(this->table_->id_ == this->id_); return *ptr_; }
+        pointer operator->() const { assert(this->table_->id_ == this->id_); return ptr_; }
+        bool operator==(const iterator_base& other) { assert(this->table_ == other.table_ && this->id_ == other.id_ && this->table_->id_ == this->id_); return this->ptr_ == other.ptr_; }
+        bool operator!=(const iterator_base& other) { assert(this->table_ == other.table_ && this->id_ == other.id_ && this->table_->id_ == this->id_); return this->ptr_ != other.ptr_; }
         friend void swap(iterator_base& i1, iterator_base& i2) {
             using std::swap;
-            swap(i1.node_,  i2.node_);
+            swap(i1.ptr_,   i2.ptr_);
             swap(i1.table_, i2.table_);
 #ifndef NDEBUG
             swap(i1.id_,    i2.id_);
@@ -163,13 +142,13 @@ private:
         }
 
     private:
-        static iterator_base skip(Node* node, const HashTable* table) {
-            while (node != table->end_node() && node->is_invalid())
-                ++node;
-            return iterator_base(node, table);
+        static iterator_base skip(value_type* ptr, const HashTable* table) {
+            while (ptr != table->end_ptr() && is_invalid(ptr))
+                ++ptr;
+            return iterator_base(ptr, table);
         }
 
-        Node* node_;
+        value_type* ptr_;
         const HashTable* table_;
 #ifndef NDEBUG
         int id_;
@@ -178,9 +157,6 @@ private:
     };
 
 public:
-    typedef typename Node::key_type key_type;
-    typedef typename Node::mapped_type mapped_type;
-    typedef typename Node::value_type value_type;
     typedef std::size_t size_type;
     typedef iterator_base<false> iterator;
     typedef iterator_base<true> const_iterator;
@@ -231,7 +207,7 @@ public:
 
     // iterators
     iterator begin() { return iterator::skip(nodes_, this); }
-    iterator end() { return iterator(end_node(), this); }
+    iterator end() { return iterator(end_ptr(), this); }
     const_iterator begin() const { return const_iterator(const_cast<HashTable*>(this)->begin()); }
     const_iterator end() const { return const_iterator(const_cast<HashTable*>(this)->end()); }
     const_iterator cbegin() const { return begin(); }
@@ -249,8 +225,8 @@ public:
 #ifndef NDEBUG
         ++id_;
 #endif
-        auto n = Node(std::forward<Args>(args)...);
-        auto& key = n.key();
+        auto n = value_type(std::forward<Args>(args)...);
+        auto& k = key(&n);
 
         if (capacity_ == 0) {
             capacity_ = min_capacity;
@@ -258,19 +234,19 @@ public:
         } else if (size_ > capacity_/size_t(4) + capacity_/size_t(2))
             rehash(capacity_*size_t(2));
 
-        auto result = end_node();
-        for (size_t i = desired_pos(key), distance = 0; true; i = mod(i+1), ++distance) {
-            if (nodes_[i].is_invalid()) {
+        auto result = end_ptr();
+        for (size_t i = desired_pos(k), distance = 0; true; i = mod(i+1), ++distance) {
+            if (is_invalid(i)) {
                 ++size_;
                 swap(nodes_[i], n);
-                result = result == end_node() ? nodes_+i : result;
+                result = result == end_ptr() ? nodes_+i : result;
                 return std::make_pair(iterator(result, this), true);
-            } else if (result == end_node() && H::eq(nodes_[i].key(), key)) {
+            } else if (result == end_ptr() && H::eq(key(nodes_+i), k)) {
                 return std::make_pair(iterator(nodes_+i, this), false);
             } else {
                 size_t cur_distance = probe_distance(i);
                 if (cur_distance < distance) {
-                    result = result == end_node() ? nodes_+i : result;
+                    result = result == end_ptr() ? nodes_+i : result;
                     distance = cur_distance;
                     swap(nodes_[i], n);
                 }
@@ -299,18 +275,19 @@ public:
         assert(pos.table_ == this && "iterator does not match to this table");
         assert(pos.id_ == id_ && "iterator used after emplace/insert");
         assert(!empty());
-        assert(pos != end() && !pos.node_->is_invalid());
+        assert(pos != end() && !is_invalid(pos.ptr_));
         --size_;
-        Node empty;
-        swap(*pos.node_, empty);
+        value_type empty;
+        key(&empty) = H::sentinel();
+        swap(*pos.ptr_, empty);
 
         if (capacity_ != min_capacity && size_ < capacity_/size_t(4))
             rehash(capacity_/size_t(2));
         else {
-            size_t curr = pos.node_-nodes_;
+            size_t curr = pos.ptr_-nodes_;
             size_t next = mod(curr+1);
             while (true) {
-                if (nodes_[next].is_invalid() || probe_distance(next) == 0)
+                if (is_invalid(next) || probe_distance(next) == 0)
                     break;
 
                 swap(nodes_[curr], nodes_[next]);
@@ -343,19 +320,19 @@ public:
         nodes_ = alloc();
     }
 
-    iterator find(const key_type& key) {
+    iterator find(const key_type& k) {
         if (empty())
             return end();
 
-        for (size_t i = desired_pos(key); true; i = mod(i+1)) {
-            if (nodes_[i].is_invalid())
+        for (size_t i = desired_pos(k); true; i = mod(i+1)) {
+            if (is_invalid(i))
                 return end();
-            if (H::eq(nodes_[i].key(), key))
+            if (H::eq(key(nodes_+i), k))
                 return iterator(nodes_+i, this);
         }
     }
 
-    const_iterator find(const key_type& key) const { return const_iterator(const_cast<HashTable*>(this)->find(key).node_, this); }
+    const_iterator find(const key_type& key) const { return const_iterator(const_cast<HashTable*>(this)->find(key).ptr_, this); }
     size_t count(const key_type& key) const { return find(key) == end() ? 0 : 1; }
     bool contains(const key_type& key) const { return count(key) == 1; }
 
@@ -369,9 +346,9 @@ public:
 
         for (size_t i = 0; i != old_capacity; ++i) {
             auto& old = old_nodes[i];
-            if (!old.is_invalid()) {
-                for (size_t i = desired_pos(old.key()), distance = 0; true; i = mod(i+1), ++distance) {
-                    if (nodes_[i].is_invalid()) {
+            if (!is_invalid(&old)) {
+                for (size_t i = desired_pos(key(&old)), distance = 0; true; i = mod(i+1), ++distance) {
+                    if (is_invalid(i)) {
                         swap(nodes_[i], old);
                         break;
                     } else {
@@ -406,19 +383,24 @@ private:
 #endif
     size_t mod(size_t i) const { return i & (capacity_-1); }
     size_t desired_pos(const key_type& key) const { return mod(H::hash(key)); }
-    size_t probe_distance(size_t i) { return mod(i + capacity() - desired_pos(nodes_[i].key())); }
-    Node* end_node() const { return nodes_ + capacity(); }
+    size_t probe_distance(size_t i) { return mod(i + capacity() - desired_pos(key(nodes_+i))); }
+    value_type* end_ptr() const { return nodes_ + capacity(); }
 
-    Node* alloc() {
-        assert(capacity_ == 0 || is_power_of_2(capacity_));
-        return new Node[capacity_]();
+    value_type* alloc() {
+        assert(is_power_of_2(capacity_));
+        auto nodes = new value_type[capacity_];
+
+        for (size_t i = 0, e = capacity_; i != e; ++i)
+            key(nodes+i) = H::sentinel();
+
+        return nodes;
     }
 
     void destroy() { delete[] nodes_; }
 
     uint32_t capacity_;
     uint32_t size_;
-    Node* nodes_;
+    value_type* nodes_;
 #ifndef NDEBUG
     int id_;
 #endif

@@ -70,14 +70,12 @@ private:
 //------------------------------------------------------------------------------
 
 struct UseHash {
-    inline uint64_t operator()(Use use) const;
+    inline static uint64_t hash(Use use);
+    static bool eq(Use u1, Use u2) { return u1 == u2; }
+    static Use sentinel() { return Use(size_t(-1), (const Def*)(1)); }
 };
 
-struct UseSentinel {
-    inline Use operator()() { return Use(size_t(-1), (const Def*)(1)); }
-};
-
-typedef HashSet<Use, UseSentinel, UseHash> Uses;
+typedef HashSet<Use, UseHash> Uses;
 
 template<class To>
 using DefMap  = GIDMap<const Def*, To>;
@@ -273,7 +271,7 @@ private:
 
 //------------------------------------------------------------------------------
 
-uint64_t UseHash::operator()(Use use) const {
+uint64_t UseHash::hash(Use use) {
     return uint64_t(use.index()) << 48ull | uint64_t(use->gid());
 }
 

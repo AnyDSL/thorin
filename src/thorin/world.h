@@ -41,12 +41,16 @@ namespace thorin {
  *  This is particular useful for multi-threading.
  */
 class World : public TypeTableBase<World>, public Streamable {
-private:
-    struct TypeHash { uint64_t operator () (const Type* t) const { return t->hash(); } };
-    struct TypeEqual { bool operator () (const Type* t1, const Type* t2) const { return t1->equal(t2); } };
-
 public:
-    typedef HashSet<const PrimOp*, PtrSentinel<const PrimOp*>, PrimOpHash, PrimOpEqual> PrimOpSet;
+    typedef HashSet<const PrimOp*, PrimOpHash> PrimOpSet;
+
+    struct BreakHash {
+        static uint64_t hash(size_t i) { return i; }
+        static bool eq(size_t i1, size_t i2) { return i1 == i2; }
+        static size_t sentinel() { return size_t(-1); }
+    };
+
+    typedef HashSet<size_t, BreakHash> Breakpoints;
 
     World(std::string name = "");
     ~World();
@@ -206,7 +210,7 @@ public:
     void destroy(Continuation* continuation);
 #ifndef NDEBUG
     void breakpoint(size_t number) { breakpoints_.insert(number); }
-    const HashSet<size_t, MaxSentinel<size_t>>& breakpoints() const { return breakpoints_; }
+    const Breakpoints& breakpoints() const { return breakpoints_; }
     void swap_breakpoints(World& other) { swap(this->breakpoints_, other.breakpoints_); }
 #endif
 
@@ -266,7 +270,7 @@ private:
     Continuation* branch_;
     Continuation* end_scope_;
 #ifndef NDEBUG
-    HashSet<size_t, MaxSentinel<size_t>> breakpoints_;
+    Breakpoints breakpoints_;
 #endif
 
     friend class Cleaner;

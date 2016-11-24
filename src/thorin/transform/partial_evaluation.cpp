@@ -65,7 +65,7 @@ private:
     ContinuationSet done_;
     std::queue<Continuation*> queue_;
     ContinuationSet visited_;
-    HashMap<Call, Continuation*, CallSentinel> cache_;
+    HashMap<Call, Continuation*> cache_;
     bool cur_dirty_;
     bool top_dirty_ = false;
 };

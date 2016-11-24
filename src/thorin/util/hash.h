@@ -56,42 +56,20 @@ uint64_t hash_begin(T val) { return hash_combine(FNV1::offset, val); }
 inline uint64_t hash_begin() { return FNV1::offset; }
 
 template<class T>
-struct Hash {
-    uint64_t operator()(T val) const {
-        THORIN_SUPPORTED_HASH_TYPES
-        if (std::is_signed<T>::value)
-            return Hash<typename std::make_unsigned<T>::type>()(val);
-        assert(std::is_unsigned<T>::value);
-        if (sizeof(uint64_t) >= sizeof(T))
-            return val;
-        return hash_begin(val);
-    }
-};
-
-template<class T>
-uint64_t hash_value(T val) { return Hash<T>()(val); }
+struct Hash {};
 
 template<class T>
 struct Hash<T*> {
-    //uint64_t operator()(T* val) const { return Hash<uintptr_t>()(uintptr_t(val)); }
-    uint64_t operator()(T* val) const { return hash_begin(uintptr_t(val)); }
-};
-
-template<class T>
-struct PtrSentinel {
-    static_assert(std::is_pointer<T>::value, "must be a pointer");
-    T operator()() const { return (T)(1); }
-};
-
-template<class T>
-struct MaxSentinel {
-    T operator()() const { return std::numeric_limits<T>::max(); }
+    //uint64_t operator()(T* val) { return Hash<uintptr_t>()(uintptr_t(val)); }
+    static uint64_t hash(T* val) { return hash_begin(uintptr_t(val)); }
+    static bool eq(T* a, T* b) { return a == b; }
+    static constexpr T* sentinel() { return (T*)(1); }
 };
 
 //------------------------------------------------------------------------------
 
 /// Used internally for @p HashSet and @p HashMap.
-template<class Key, class T, class Sentinel, class Hasher, class KeyEqual>
+template<class Key, class T, class H = Hash<Key>>
 class HashTable {
 private:
     class Node {
@@ -115,8 +93,9 @@ private:
 
         Node()
             : value_() {
-            key() = Sentinel()();
+            key() = H::sentinel();
         }
+
         template<class... Args>
         Node(Args&&... args)
             : value_(std::forward<Args>(args)...)
@@ -130,7 +109,7 @@ private:
             swap(n1.value_, n2.value_);
         }
 
-        bool is_invalid() { return key() == Sentinel()(); }
+        bool is_invalid() { return key() == H::sentinel(); }
 
     private:
         value_type value_;
@@ -200,8 +179,6 @@ public:
     typedef typename Node::mapped_type mapped_type;
     typedef typename Node::value_type value_type;
     typedef std::size_t size_type;
-    typedef Hasher hasher;
-    typedef KeyEqual key_equal;
     typedef iterator_base<false> iterator;
     typedef iterator_base<true> const_iterator;
     enum {
@@ -285,7 +262,7 @@ public:
                 swap(nodes_[i], n);
                 result = result == end_node() ? nodes_+i : result;
                 return std::make_pair(iterator(result, this), true);
-            } else if (result == end_node() && KeyEqual()(nodes_[i].key(), key)) {
+            } else if (result == end_node() && H::eq(nodes_[i].key(), key)) {
                 return std::make_pair(iterator(nodes_+i, this), false);
             } else {
                 size_t cur_distance = probe_distance(i);
@@ -370,7 +347,7 @@ public:
         for (size_t i = desired_pos(key); true; i = mod(i+1)) {
             if (nodes_[i].is_invalid())
                 return end();
-            if (key_equal()(nodes_[i].key(), key))
+            if (H::eq(nodes_[i].key(), key))
                 return iterator(nodes_+i, this);
         }
     }
@@ -439,7 +416,7 @@ private:
     int id() const { return id_; }
 #endif
     size_t mod(size_t i) const { return i & (capacity_-1); }
-    size_t desired_pos(const key_type& key) const { return mod(hasher()(key)); }
+    size_t desired_pos(const key_type& key) const { return mod(H::hash(key)); }
     size_t probe_distance(size_t i) { return mod(i + capacity() - desired_pos(nodes_[i].key())); }
     Node* end_node() const { return nodes_ + capacity(); }
 
@@ -468,12 +445,10 @@ private:
  * This container is for the most part compatible with <tt>std::unordered_set</tt>.
  * We use our own implementation in order to have a consistent and deterministic behavior across different platforms.
  */
-template<class Key, class Sentinel = PtrSentinel<Key>, class Hasher = Hash<Key>, class KeyEqual = std::equal_to<Key>>
-class HashSet : public HashTable<Key, void, Sentinel, Hasher, KeyEqual> {
+template<class Key, class H = Hash<Key>>
+class HashSet : public HashTable<Key, void, H> {
 public:
-    typedef Hasher hasher;
-    typedef KeyEqual key_equal;
-    typedef HashTable<Key, void, Sentinel, Hasher, KeyEqual> Super;
+    typedef HashTable<Key, void, H> Super;
     typedef typename Super::key_type key_type;
     typedef typename Super::mapped_type mapped_type;
     typedef typename Super::value_type value_type;
@@ -499,12 +474,10 @@ public:
  * This container is for the most part compatible with <tt>std::unordered_map</tt>.
  * We use our own implementation in order to have a consistent and deterministic behavior across different platforms.
  */
-template<class Key, class T, class Sentinel = PtrSentinel<Key>, class Hasher = Hash<Key>, class KeyEqual = std::equal_to<Key>>
-class HashMap : public HashTable<Key, T, Sentinel, Hasher, KeyEqual> {
+template<class Key, class T, class H = Hash<Key>>
+class HashMap : public HashTable<Key, T, H> {
 public:
-    typedef Hasher hasher;
-    typedef KeyEqual key_equal;
-    typedef HashTable<Key, T, Sentinel, Hasher, KeyEqual> Super;
+    typedef HashTable<Key, T, H> Super;
     typedef typename Super::key_type key_type;
     typedef typename Super::mapped_type mapped_type;
     typedef typename Super::value_type value_type;
@@ -531,14 +504,14 @@ public:
 
 //------------------------------------------------------------------------------
 
-template<class Key, class T, class Sentinel, class Hasher, class KeyEqual>
-T* find(const HashMap<Key, T*, Sentinel, Hasher, KeyEqual>& map, const typename HashMap<Key, T*, Sentinel, Hasher, KeyEqual>::key_type& key) {
+template<class Key, class T, class H>
+T* find(const HashMap<Key, T*, H>& map, const typename HashMap<Key, T*, H>::key_type& key) {
     auto i = map.find(key);
     return i == map.end() ? nullptr : i->second;
 }
 
-template<class Key, class Sentinel, class Hasher, class KeyEqual, class Arg>
-bool visit(HashSet<Key, Sentinel, Hasher, KeyEqual>& set, const Arg& key) {
+template<class Key, class H, class Arg>
+bool visit(HashSet<Key, H>& set, const Arg& key) {
     return !set.insert(key).second;
 }
 

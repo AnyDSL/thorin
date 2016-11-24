@@ -296,16 +296,14 @@ private:
 
 template<>
 struct Hash<Call> {
-    uint64_t operator () (const Call& call) const {
+    static uint64_t hash(const Call& call) {
         uint64_t seed = hash_begin();
         for (auto arg : call.ops())
             seed = hash_combine(seed,  arg ?  arg->gid() : 0);
         return seed;
     }
-};
-
-struct CallSentinel {
-    Call operator()() const { return Call(); }
+    static bool eq(const Call& c1, const Call& c2) { return c1 == c2; }
+    static Call sentinel() { return Call(); }
 };
 
 void jump_to_cached_call(Continuation* src, Continuation* dst, const Call& call);

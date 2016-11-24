@@ -8,7 +8,7 @@
 namespace thorin {
 
 void lower2cff(World& world) {
-    HashMap<Call, Continuation*, CallSentinel> cache;
+    HashMap<Call, Continuation*> cache;
     ContinuationSet top;
 
     bool local = true;

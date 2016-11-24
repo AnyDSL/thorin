@@ -72,7 +72,7 @@ private:
 struct UseHash {
     inline static uint64_t hash(Use use);
     static bool eq(Use u1, Use u2) { return u1 == u2; }
-    static Use sentinel() { return Use(size_t(-1), (const Def*)(1)); }
+    static Use sentinel() { return Use(size_t(-1), (const Def*)(-1)); }
 };
 
 typedef HashSet<Use, UseHash> Uses;

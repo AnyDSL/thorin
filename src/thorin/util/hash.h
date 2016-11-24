@@ -209,9 +209,9 @@ public:
     };
 
     HashTable()
-        : capacity_(min_capacity)
+        : capacity_(0)
         , size_(0)
-        , nodes_(alloc())
+        , nodes_(dummy_)
 #ifndef NDEBUG
         , id_(0)
 #endif
@@ -247,7 +247,7 @@ public:
         insert(ilist);
     }
 
-    ~HashTable() { delete[] nodes_; }
+    ~HashTable() { destroy(); }
 
     // iterators
     iterator begin() { return iterator::skip(nodes_, this); }
@@ -272,7 +272,10 @@ public:
         auto n = Node(std::forward<Args>(args)...);
         auto& key = n.key();
 
-        if (size_ > capacity_/size_t(4) + capacity_/size_t(2))
+        if (capacity_ == 0) {
+            capacity_ = min_capacity;
+            nodes_ = alloc();
+        } else if (size_ > capacity_/size_t(4) + capacity_/size_t(2))
             rehash(capacity_*size_t(2));
 
         auto result = end_node();
@@ -280,18 +283,14 @@ public:
             if (nodes_[i].is_invalid()) {
                 ++size_;
                 swap(nodes_[i], n);
-                //result = result == end_node() ? nodes_+i : result;
-                if (result == end_node())
-                    result = nodes_+i;
+                result = result == end_node() ? nodes_+i : result;
                 return std::make_pair(iterator(result, this), true);
             } else if (result == end_node() && KeyEqual()(nodes_[i].key(), key)) {
                 return std::make_pair(iterator(nodes_+i, this), false);
             } else {
                 size_t cur_distance = probe_distance(i);
                 if (cur_distance < distance) {
-                    if (result == end_node())
-                        result = nodes_+i;
-                    //result = result == end_node() ? nodes_+i : result;
+                    result = result == end_node() ? nodes_+i : result;
                     distance = cur_distance;
                     swap(nodes_[i], n);
                 }
@@ -300,7 +299,7 @@ public:
     }
 
     std::pair<iterator, bool> insert(const value_type& value) { return emplace(value); }
-    std::pair<iterator, bool> insert(value_type&& value) { return emplace(value); }
+    std::pair<iterator, bool> insert(value_type&& value) { return emplace(std::move(value)); }
     void insert(std::initializer_list<value_type> ilist) { insert(ilist.begin(), ilist.end()); }
 
     template<class R>
@@ -358,13 +357,16 @@ public:
     }
 
     void clear() {
-        delete[] nodes_;
+        destroy();
         size_ = 0;
         capacity_ = min_capacity;
         nodes_ = alloc();
     }
 
     iterator find(const key_type& key) {
+        if (empty())
+            return end();
+
         for (size_t i = desired_pos(key); true; i = mod(i+1)) {
             if (nodes_[i].is_invalid())
                 return end();
@@ -403,14 +405,28 @@ public:
             }
         }
 
-        delete[] old_nodes;
+        if (old_nodes != dummy_)
+            delete[] old_nodes;
     }
 
     friend void swap(HashTable& t1, HashTable& t2) {
         using std::swap;
         swap(t1.capacity_, t2.capacity_);
         swap(t1.size_,     t2.size_);
-        swap(t1.nodes_,    t2.nodes_);
+
+        if (t1.nodes_ == t1.dummy_) {
+            if (t2.nodes_ == t2.dummy_) {
+                // do nothing
+            } else {
+                t1.nodes_ = t2.nodes_;
+                t2.nodes_ = t2.dummy_;
+            }
+        } else if (t2.nodes_ == t2.dummy_) {
+            t2.nodes_ = t1.nodes_;
+            t1.nodes_ = t1.dummy_;
+        } else {
+            swap(t1.nodes_,    t2.nodes_);
+        }
 #ifndef NDEBUG
         swap(t1.id_,       t2.id_);
 #endif
@@ -428,13 +444,19 @@ private:
     Node* end_node() const { return nodes_ + capacity(); }
 
     Node* alloc() {
-        assert(is_power_of_2(capacity_));
+        assert(capacity_ == 0 || is_power_of_2(capacity_));
         return new Node[capacity_]();
+    }
+
+    void destroy() {
+        if (nodes_ != dummy_)
+            delete[] nodes_;
     }
 
     uint32_t capacity_;
     uint32_t size_;
     Node* nodes_;
+    Node dummy_[0];
 #ifndef NDEBUG
     int id_;
 #endif

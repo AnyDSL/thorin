@@ -1,6 +1,7 @@
 #include "thorin/analyses/cfg.h"
 
 #include <fstream>
+#include <memory>
 #include <stack>
 
 #include "thorin/primop.h"
@@ -87,6 +88,28 @@ std::ostream& SymOutNode::stream(std::ostream& out) const { return streamf(out, 
 
 //------------------------------------------------------------------------------
 
+template<class T>
+struct Wrapper {
+    Wrapper()
+        : ptr_(std::make_unique<T>())
+    {}
+
+    operator T&() { return ptr_.get(); }
+    T& operator*() { return *ptr_.get(); }
+    T* operator->() { return ptr_.get(); }
+    operator const T&() const { return ptr_.get(); }
+    const T& operator*() const { return *ptr_.get(); }
+    const T* operator->() const { return ptr_.get(); }
+
+    friend void swap(Wrapper& w1, Wrapper& w2) {
+        using std::swap;
+        swap(w1.ptr_, w2.ptr_);
+    }
+
+private:
+    std::unique_ptr<T> ptr_;
+};
+
 class CFABuilder : public YComp {
 public:
     CFABuilder(CFA& cfa)
@@ -110,7 +133,7 @@ public:
 
     ~CFABuilder() {
         for (const auto& p : out_nodes_) {
-            for (const auto& q : p.second)
+            for (const auto& q : *p.second)
                 delete q.second;
         }
 
@@ -147,9 +170,9 @@ public:
     }
 
     const OutNode* out_node(const CFNode* in, const Def* def) {
-        if (auto out = find(out_nodes_[in], def))
+        if (auto out = find(*out_nodes_[in], def))
             return out;
-        return out_nodes_[in][def] = new OutNode(in, def);
+        return (*out_nodes_[in])[def] = new OutNode(in, def);
     }
 
     const OutNode* out_node(const CFNode* in, const OutNode* ancestor) {
@@ -187,8 +210,8 @@ public:
         assert(src->f_index_ == CFNode::Reachable || src->f_index_ == CFNode::Done);
         dst->f_index_ = src->f_index_;
 
-        const auto& p = succs_[src].insert(dst);
-        const auto& q = preds_[dst].insert(src);
+        const auto& p = succs_[src]->emplace(dst);
+        const auto& q = preds_[dst]->emplace(src);
 
         // recursively link ancestors
         if (p.second) {
@@ -204,12 +227,12 @@ private:
     CFA& cfa_;
     Scope::Map<std::vector<CFNodeSet>> continuation2param2nodes_; ///< Maps param in scope to CFNodeSet.
     DefMap<DefSet> def2set_;
-    HashMap<const RealCFNode*, HashSet<const RealCFNode*>> succs_;
-    HashMap<const RealCFNode*, HashSet<const RealCFNode*>> preds_;
+    HashMap<const RealCFNode*, Wrapper<HashSet<const RealCFNode*>>> succs_;
+    HashMap<const RealCFNode*, Wrapper<HashSet<const RealCFNode*>>> preds_;
     const CFNode* entry_;
     const CFNode* exit_;
     size_t num_out_nodes_ = 0;
-    mutable HashMap<const CFNode*, DefMap<const OutNode*>> out_nodes_;
+    mutable HashMap<const CFNode*, Wrapper<DefMap<const OutNode*>>> out_nodes_;
     mutable DefMap<const SymNode*> def2sym_;
     mutable HashMap<const OutNode*, const SymNode*> out2sym_;
 };
@@ -418,7 +441,7 @@ void CFABuilder::unreachable_node_elimination() {
 
             std::vector<const Def*> remove;
             auto& out_nodes = out_nodes_[in];
-            for (const auto& p : out_nodes) {
+            for (const auto& p : *out_nodes) {
                 if (p.second->f_index_ == CFNode::Reachable)
                     ++num_out_nodes_;
                 else
@@ -426,15 +449,15 @@ void CFABuilder::unreachable_node_elimination() {
             }
 
             for (auto def : remove) {
-                auto i = out_nodes.find(def);
+                auto i = out_nodes->find(def);
                 auto out = i->second;
                 DLOG("removing: %", out);
-                out_nodes.erase(i);
+                out_nodes->erase(i);
                 delete out;
             }
         } else {
 #ifndef NDEBUG
-            for (const auto& p : out_nodes_[in])
+            for (const auto& p : *out_nodes_[in])
                 assert(p.second->f_index_ != CFNode::Reachable);
 #endif
             DLOG("removing: %", in);
@@ -458,7 +481,7 @@ void CFABuilder::link_to_exit() {
         enqueue(n);
 
         while (!queue.empty()) {
-            for (auto pred : preds_[pop(queue)])
+            for (auto pred : *preds_[pop(queue)])
                 enqueue(pred);
         }
     };
@@ -494,7 +517,7 @@ void CFABuilder::link_to_exit() {
             auto n = backtrack_stack.top();
 
             bool todo = false;
-            for (auto succ : succs_[n])
+            for (auto succ : *succs_[n])
                 todo |= push(succ);
 
             if (!todo) {
@@ -527,7 +550,7 @@ void CFABuilder::link_to_exit() {
 
         if (n->f_index_ == CFNode::OnStackTodo) {
             n->f_index_ = CFNode::OnStackReady;
-            for (auto succ : succs_[n])
+            for (auto succ : *succs_[n])
                 push(succ);
         } else {
             if (n->b_index_ != CFNode::Done) {
@@ -551,7 +574,7 @@ void CFABuilder::transitive_cfg() {
 
     auto link_to_succs = [&] (const CFNode* src) {
         auto enqueue = [&] (const RealCFNode* n) {
-            for (auto succ : succs_.find(n)->second)
+            for (auto succ : *succs_.find(n)->second)
                 queue.push(succ);
         };
 
@@ -587,19 +610,20 @@ void CFABuilder::verify() {
     }
 }
 
-void CFABuilder::stream_ycomp(std::ostream& out) const {
+void CFABuilder::stream_ycomp(std::ostream& /*out*/) const {
     std::vector<const RealCFNode*> nodes(cfa().nodes().begin(), cfa().nodes().end());
     for (const auto& p : out_nodes_) {
-        for (const auto& q : p.second)
+        for (const auto& q : *p.second)
             nodes.push_back(q.second);
     }
 
-    auto succs = [&] (const RealCFNode* n) {
-        auto i = succs_.find(n);
-        return i != succs_.end() ? i->second : HashSet<const RealCFNode*>();
-    };
+    // TODO
+    //auto succs = [&] (const RealCFNode* n) {
+        //auto i = succs_.find(n);
+        //return i != succs_.end() ? i->second : Wrapper<HashSet<const RealCFNode*>>();
+    //};
 
-    thorin::ycomp(out, YCompOrientation::TopToBottom, scope(), range(nodes), succs);
+    //thorin::ycomp(out, YCompOrientation::TopToBottom, scope(), range(nodes), succs);
 }
 
 //------------------------------------------------------------------------------

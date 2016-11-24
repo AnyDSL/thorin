@@ -51,7 +51,7 @@ typedef thorin::ArrayRef<const Type*> Types;
 //------------------------------------------------------------------------------
 
 /// Base class for all \p Type%s.
-class Type : public thorin::Streamable, public thorin::MagicCast<Type> {
+class Type : public thorin::MagicCast<Type>, public thorin::Streamable {
 protected:
     Type(const Type&) = delete;
     Type& operator=(const Type&) = delete;

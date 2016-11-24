@@ -16,11 +16,9 @@ namespace thorin {
 
 // currently no better place to fit this
 /// Determines whether \p i is a power of two.
-inline size_t is_power_of_2(size_t i) { return ((i != 0) && !(i & (i - 1))); }
+constexpr size_t is_power_of_2(size_t i) { return ((i != 0) && !(i & (i - 1))); }
 
-constexpr unsigned log2(unsigned n, unsigned p = 0) {
-    return (n <= 1) ? p : log2(n / 2, p + 1);
-}
+constexpr unsigned log2(unsigned n, unsigned p = 0) { return (n <= 1) ? p : log2(n / 2, p + 1); }
 
 //------------------------------------------------------------------------------
 
@@ -30,17 +28,14 @@ struct FNV1 {
     static const uint64_t prime  = 1099511628211ull;
 };
 
-#define THORIN_SUPPORTED_HASH_TYPES \
-    static_assert(std::is_signed<T>::value || std::is_unsigned<T>::value, \
-            "please provide your own hash function; use hash_combine to create one");
-
 /// Returns a new hash by combining the hash @p seed with @p val.
 template<class T>
 uint64_t hash_combine(uint64_t seed, T val) {
-    THORIN_SUPPORTED_HASH_TYPES
+    static_assert(std::is_signed<T>::value || std::is_unsigned<T>::value, "please provide your own hash function");
+
     if (std::is_signed<T>::value)
         return hash_combine(seed, typename std::make_unsigned<T>::type(val));
-    assert(std::is_unsigned<T>::value);
+
     for (uint64_t i = 0; i < sizeof(T); ++i) {
         T octet = val & T(0xff); // extract lower 8 bits
         seed ^= octet;

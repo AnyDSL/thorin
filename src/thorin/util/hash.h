@@ -200,7 +200,7 @@ public:
     }
 
     ~HashTable() {
-        if (capacity_ != StackCapacity)
+        if (on_heap())
             delete[] nodes_;
     }
 
@@ -496,7 +496,7 @@ T* find(const HashMap<Key, T*, H>& map, const typename HashMap<Key, T*, H>::key_
 
 template<class Key, class H, class Arg>
 bool visit(HashSet<Key, H>& set, const Arg& key) {
-    return !set.insert(key).second;
+    return !set.emplace(key).second;
 }
 
 //------------------------------------------------------------------------------

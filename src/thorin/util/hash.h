@@ -366,11 +366,7 @@ public:
 
     friend void swap(HashTable& t1, HashTable& t2) {
         using std::swap;
-        swap(t1.capacity_, t2.capacity_);
-        swap(t1.size_,     t2.size_);
-#ifndef NDEBUG
-        swap(t1.id_,       t2.id_);
-#endif
+
         if (t1.on_heap()) {
             if (t2.on_heap())
                 swap(t1.nodes_, t2.nodes_);
@@ -387,6 +383,12 @@ public:
             } else
                 t1.array_.swap(t2.array_);
         }
+
+        swap(t1.capacity_, t2.capacity_);
+        swap(t1.size_,     t2.size_);
+#ifndef NDEBUG
+        swap(t1.id_,       t2.id_);
+#endif
     }
 
     HashTable& operator=(HashTable other) { swap(*this, other); return *this; }
@@ -399,7 +401,7 @@ private:
     size_t desired_pos(const key_type& key) const { return mod(H::hash(key)); }
     size_t probe_distance(size_t i) { return mod(i + capacity() - desired_pos(key(nodes_+i))); }
     value_type* end_ptr() const { return nodes_ + capacity(); }
-    bool on_heap() const { return nodes_ != array_.data(); }
+    bool on_heap() const { return capacity_ != StackCapacity; }
 
     value_type* alloc() {
         assert(is_power_of_2(capacity_));
@@ -441,9 +443,11 @@ public:
 
     HashSet() {}
     template<class InputIt>
+
     HashSet(InputIt first, InputIt last)
         : Super(first, last)
     {}
+
     HashSet(std::initializer_list<value_type> ilist)
         : Super(ilist)
     {}
@@ -471,10 +475,12 @@ public:
     HashMap()
         : Super()
     {}
+
     template<class InputIt>
     HashMap(InputIt first, InputIt last)
         : Super(first, last)
     {}
+
     HashMap(std::initializer_list<value_type> ilist)
         : Super(ilist)
     {}

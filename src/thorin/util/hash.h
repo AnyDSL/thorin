@@ -2,6 +2,7 @@
 #define THORIN_UTIL_HASH_H
 
 #include <algorithm>
+#include <array>
 #include <memory>
 #include <utility>
 #include <cassert>
@@ -160,12 +161,12 @@ public:
     HashTable()
         : capacity_(StackCapacity)
         , size_(0)
-        , nodes_(table_)
+        , nodes_(array_.data())
 #ifndef NDEBUG
         , id_(0)
 #endif
     {
-        fill(table_, StackCapacity);
+        fill(nodes_);
     }
 
     HashTable(HashTable&& other)
@@ -185,8 +186,8 @@ public:
             nodes_ = alloc();
             std::copy(other.nodes_, other.nodes_+capacity_, nodes_);
         } else {
-            nodes_ = table_;
-            std::copy(other.table_, other.table_+StackCapacity, table_);
+            nodes_ = array_.data();
+            array_ = other.array_;
         }
     }
 
@@ -310,11 +311,11 @@ public:
 
         if (on_heap()) {
             delete[] nodes_;
-            nodes_ = table_;
+            nodes_ = array_.data();
             capacity_ = StackCapacity;
         }
 
-        fill(table_, StackCapacity);
+        fill(nodes_);
     }
 
     iterator find(const key_type& k) {
@@ -374,19 +375,17 @@ public:
             if (t2.on_heap())
                 swap(t1.nodes_, t2.nodes_);
             else {
-                std::move(t2.table_, t2.table_+StackCapacity, t1.table_);
+                std::move(t2.array_.begin(), t2.array_.end(), t1.array_.begin());
                 t2.nodes_ = t1.nodes_;
-                t1.nodes_ = t1.table_;
+                t1.nodes_ = t1.array_.data();
             }
         } else {
             if (t2.on_heap()) {
-                std::move(t1.table_, t1.table_+StackCapacity, t2.table_);
+                std::move(t1.array_.begin(), t1.array_.end(), t2.array_.begin());
                 t1.nodes_ = t2.nodes_;
-                t2.nodes_ = t2.table_;
-            } else {
-                for (size_t i = 0; i != StackCapacity; ++i)
-                    swap(t1.table_[i], t2.table_[i]);
-            }
+                t2.nodes_ = t2.array_.data();
+            } else
+                t1.array_.swap(t2.array_);
         }
     }
 
@@ -400,16 +399,16 @@ private:
     size_t desired_pos(const key_type& key) const { return mod(H::hash(key)); }
     size_t probe_distance(size_t i) { return mod(i + capacity() - desired_pos(key(nodes_+i))); }
     value_type* end_ptr() const { return nodes_ + capacity(); }
-    bool on_heap() const { return nodes_ != table_; }
+    bool on_heap() const { return nodes_ != array_.data(); }
 
     value_type* alloc() {
         assert(is_power_of_2(capacity_));
         auto nodes = new value_type[capacity_];
-        return fill(nodes, capacity_);
+        return fill(nodes);
     }
 
-    static value_type* fill(value_type* nodes, size_t size) {
-        for (size_t i = 0; i != size; ++i)
+    value_type* fill(value_type* nodes) {
+        for (size_t i = 0, e = capacity_; i != e; ++i)
             key(nodes+i) = H::sentinel();
         return nodes;
     }
@@ -417,7 +416,7 @@ private:
     uint32_t capacity_;
     uint32_t size_;
     value_type* nodes_;
-    value_type table_[StackCapacity];
+    std::array<value_type, StackCapacity> array_;
 #ifndef NDEBUG
     int id_;
 #endif

@@ -81,12 +81,6 @@ private:
     template<class K>
     struct get_key<K, void> { static K& get(K& key) { return key; } };
 
-    template<class K, class V>
-    struct get_value { static V& get(std::pair<K, V>& pair) { return pair.second; } };
-
-    template<class K>
-    struct get_value<K, void> { static K& get(K& key) { return key; } };
-
 public:
     typedef Key key_type;
     typedef typename std::conditional<std::is_void<T>::value, Key, T>::type mapped_type;
@@ -94,7 +88,6 @@ public:
 
 private:
     static key_type& key(value_type* ptr) { return get_key<Key, T>::get(*ptr); }
-    static mapped_type& mapped(value_type* ptr) { return get_value<Key, T>::get(*ptr); }
     static bool is_invalid(value_type* ptr) { return key(ptr) == H::sentinel(); }
     bool is_invalid(size_t i) { return is_invalid(nodes_+i); }
 
@@ -107,7 +100,6 @@ private:
         typedef typename std::conditional<is_const, const value_type&, value_type&>::type reference;
         typedef typename std::conditional<is_const, const value_type*, value_type*>::type pointer;
         typedef std::forward_iterator_tag iterator_category;
-
 
         iterator_base(value_type* ptr, const HashTable* table)
             : ptr_(ptr)
@@ -182,17 +174,20 @@ public:
         swap(*this, other);
     }
 
-    // TODO optimize this
     HashTable(const HashTable& other)
-        : capacity_(StackCapacity)
-        , size_(0)
-        , nodes_(table_)
+        : capacity_(other.capacity_)
+        , size_(other.size_)
 #ifndef NDEBUG
         , id_(0)
 #endif
     {
-        fill(table_, StackCapacity);
-        insert(other.begin(), other.end());
+        if (other.on_heap()) {
+            nodes_ = alloc();
+            std::copy(other.nodes_, other.nodes_+capacity_, nodes_);
+        } else {
+            nodes_ = table_;
+            std::copy(other.table_, other.table_+StackCapacity, table_);
+        }
     }
 
     template<class InputIt>
@@ -289,16 +284,8 @@ public:
         if (capacity_ > MinCapacity && size_ < capacity_/size_t(4))
             rehash(capacity_/size_t(2));
         else {
-            size_t curr = pos.ptr_-nodes_;
-            size_t next = mod(curr+1);
-            while (true) {
-                if (is_invalid(next) || probe_distance(next) == 0)
-                    break;
-
+            for (size_t curr = pos.ptr_-nodes_, next = mod(curr+1); !is_invalid(next) && probe_distance(next) != 0; curr = next, next = mod(next+1))
                 swap(nodes_[curr], nodes_[next]);
-                curr = next;
-                next = mod(next+1);
-            };
         }
 #ifndef NDEBUG
         ++id_;
@@ -321,7 +308,7 @@ public:
     void clear() {
         size_ = 0;
 
-        if (capacity_ != StackCapacity) {
+        if (on_heap()) {
             delete[] nodes_;
             nodes_ = table_;
             capacity_ = StackCapacity;
@@ -387,14 +374,14 @@ public:
             if (t2.on_heap())
                 swap(t1.nodes_, t2.nodes_);
             else {
+                std::move(t2.table_, t2.table_+StackCapacity, t1.table_);
                 t2.nodes_ = t1.nodes_;
-                move(t2.table_, t1.table_);
                 t1.nodes_ = t1.table_;
             }
         } else {
             if (t2.on_heap()) {
+                std::move(t1.table_, t1.table_+StackCapacity, t2.table_);
                 t1.nodes_ = t2.nodes_;
-                move(t1.table_, t2.table_);
                 t2.nodes_ = t2.table_;
             } else {
                 for (size_t i = 0; i != StackCapacity; ++i)
@@ -425,11 +412,6 @@ private:
         for (size_t i = 0; i != size; ++i)
             key(nodes+i) = H::sentinel();
         return nodes;
-    }
-
-    static void move(value_type* src, value_type* dst) {
-        for (size_t i = 0; i != StackCapacity; ++i)
-            dst[i] = std::move(src[i]);
     }
 
     uint32_t capacity_;

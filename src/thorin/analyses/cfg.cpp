@@ -1,6 +1,7 @@
 #include "thorin/analyses/cfg.h"
 
 #include <fstream>
+#include <map>
 #include <memory>
 #include <stack>
 
@@ -88,28 +89,6 @@ std::ostream& SymOutNode::stream(std::ostream& out) const { return streamf(out, 
 
 //------------------------------------------------------------------------------
 
-template<class T>
-struct Wrapper {
-    Wrapper()
-        : ptr_(std::make_unique<T>())
-    {}
-
-    operator T&() { return ptr_.get(); }
-    T& operator*() { return *ptr_.get(); }
-    T* operator->() { return ptr_.get(); }
-    operator const T&() const { return ptr_.get(); }
-    const T& operator*() const { return *ptr_.get(); }
-    const T* operator->() const { return ptr_.get(); }
-
-    friend void swap(Wrapper& w1, Wrapper& w2) {
-        using std::swap;
-        swap(w1.ptr_, w2.ptr_);
-    }
-
-private:
-    std::unique_ptr<T> ptr_;
-};
-
 class CFABuilder : public YComp {
 public:
     CFABuilder(CFA& cfa)
@@ -133,7 +112,7 @@ public:
 
     ~CFABuilder() {
         for (const auto& p : out_nodes_) {
-            for (const auto& q : *p.second)
+            for (const auto& q : p.second)
                 delete q.second;
         }
 
@@ -170,14 +149,14 @@ public:
     }
 
     const OutNode* out_node(const CFNode* in, const Def* def) {
-        if (auto out = find(*out_nodes_[in], def))
+        if (auto out = find(out_nodes_[in], def))
             return out;
-        return (*out_nodes_[in])[def] = new OutNode(in, def);
+        return out_nodes_[in][def] = new OutNode(in, def);
     }
 
     const OutNode* out_node(const CFNode* in, const OutNode* ancestor) {
         auto out = out_node(in, ancestor->def());
-        out->ancestors_.insert(ancestor);
+        out->ancestors_.emplace(ancestor);
         return out;
     }
 
@@ -210,8 +189,8 @@ public:
         assert(src->f_index_ == CFNode::Reachable || src->f_index_ == CFNode::Done);
         dst->f_index_ = src->f_index_;
 
-        const auto& p = succs_[src]->emplace(dst);
-        const auto& q = preds_[dst]->emplace(src);
+        const auto& p = succs_[src].emplace(dst);
+        const auto& q = preds_[dst].emplace(src);
 
         // recursively link ancestors
         if (p.second) {
@@ -227,12 +206,12 @@ private:
     CFA& cfa_;
     Scope::Map<std::vector<CFNodeSet>> continuation2param2nodes_; ///< Maps param in scope to CFNodeSet.
     DefMap<DefSet> def2set_;
-    HashMap<const RealCFNode*, Wrapper<HashSet<const RealCFNode*>>> succs_;
-    HashMap<const RealCFNode*, Wrapper<HashSet<const RealCFNode*>>> preds_;
+    std::map<const RealCFNode*, HashSet<const RealCFNode*>> succs_;
+    std::map<const RealCFNode*, HashSet<const RealCFNode*>> preds_;
     const CFNode* entry_;
     const CFNode* exit_;
     size_t num_out_nodes_ = 0;
-    mutable HashMap<const CFNode*, Wrapper<DefMap<const OutNode*>>> out_nodes_;
+    mutable std::map<const CFNode*, DefMap<const OutNode*>> out_nodes_;
     mutable DefMap<const SymNode*> def2sym_;
     mutable HashMap<const OutNode*, const SymNode*> out2sym_;
 };
@@ -261,7 +240,7 @@ void CFABuilder::propagate_higher_order_values() {
                 auto& set = def2set_[def];
 
                 if (def->isa<Param>() || def->isa<Continuation>()) {
-                    set.insert(def);
+                    set.emplace(def);
                     stack.pop();
                 } else {
                     if (auto load = def->isa<Load>()) {
@@ -306,11 +285,11 @@ CFNodeSet CFABuilder::nodes(const CFNode* in, size_t i) {
 
             if (auto continuation = def->isa_continuation()) {
                 if (contains(continuation))
-                    result.insert(in_node(continuation));
+                    result.emplace(in_node(continuation));
                 else if (i == 0)
-                    result.insert(out_node(in, continuation));
+                    result.emplace(out_node(in, continuation));
                 else
-                    result.insert(sym_node(continuation));
+                    result.emplace(sym_node(continuation));
             } else {
                 auto param = def->as<Param>();
                 if (contains(param)) {
@@ -318,24 +297,24 @@ CFNodeSet CFABuilder::nodes(const CFNode* in, size_t i) {
                     for (auto n : set) {
                         if (auto sym = n->isa<SymNode>()) {
                             if (i == 0) {
-                                result.insert(out_node(in, sym));
+                                result.emplace(out_node(in, sym));
                                 continue;
                             }
                         } else if (auto out = n->isa<OutNode>()) {
                             if (i == 0)
-                                result.insert(out_node(in, out)); // create a new context
+                                result.emplace(out_node(in, out)); // create a new context
                             else
-                                result.insert(sym_node(out));
+                                result.emplace(sym_node(out));
                             continue;
                         }
 
-                        result.insert(n);
+                        result.emplace(n);
                     }
                 } else {
                     if (i == 0)
-                        result.insert(out_node(in, param));
+                        result.emplace(out_node(in, param));
                     else
-                        result.insert(sym_node(param));
+                        result.emplace(sym_node(param));
                 }
             }
         }
@@ -388,7 +367,7 @@ void CFABuilder::run_cfa() {
                             bool todo = in->f_index_ == CFNode::Fresh;
                             for (size_t i = 0; i != in->continuation()->num_params(); ++i) {
                                 if (in->continuation()->param(i)->order() > 0)
-                                    todo |= continuation2param2nodes_[in->continuation()][i].insert(out).second;
+                                    todo |= continuation2param2nodes_[in->continuation()][i].emplace(out).second;
                             }
                             if (todo)
                                 enqueue(in);
@@ -441,7 +420,7 @@ void CFABuilder::unreachable_node_elimination() {
 
             std::vector<const Def*> remove;
             auto& out_nodes = out_nodes_[in];
-            for (const auto& p : *out_nodes) {
+            for (const auto& p : out_nodes) {
                 if (p.second->f_index_ == CFNode::Reachable)
                     ++num_out_nodes_;
                 else
@@ -449,15 +428,15 @@ void CFABuilder::unreachable_node_elimination() {
             }
 
             for (auto def : remove) {
-                auto i = out_nodes->find(def);
+                auto i = out_nodes.find(def);
                 auto out = i->second;
                 DLOG("removing: %", out);
-                out_nodes->erase(i);
+                out_nodes.erase(i);
                 delete out;
             }
         } else {
 #ifndef NDEBUG
-            for (const auto& p : *out_nodes_[in])
+            for (const auto& p : out_nodes_[in])
                 assert(p.second->f_index_ != CFNode::Reachable);
 #endif
             DLOG("removing: %", in);
@@ -481,7 +460,7 @@ void CFABuilder::link_to_exit() {
         enqueue(n);
 
         while (!queue.empty()) {
-            for (auto pred : *preds_[pop(queue)])
+            for (auto pred : preds_[pop(queue)])
                 enqueue(pred);
         }
     };
@@ -517,7 +496,7 @@ void CFABuilder::link_to_exit() {
             auto n = backtrack_stack.top();
 
             bool todo = false;
-            for (auto succ : *succs_[n])
+            for (auto succ : succs_[n])
                 todo |= push(succ);
 
             if (!todo) {
@@ -550,7 +529,7 @@ void CFABuilder::link_to_exit() {
 
         if (n->f_index_ == CFNode::OnStackTodo) {
             n->f_index_ = CFNode::OnStackReady;
-            for (auto succ : *succs_[n])
+            for (auto succ : succs_[n])
                 push(succ);
         } else {
             if (n->b_index_ != CFNode::Done) {
@@ -574,7 +553,7 @@ void CFABuilder::transitive_cfg() {
 
     auto link_to_succs = [&] (const CFNode* src) {
         auto enqueue = [&] (const RealCFNode* n) {
-            for (auto succ : *succs_.find(n)->second)
+            for (auto succ : succs_.find(n)->second)
                 queue.push(succ);
         };
 
@@ -613,7 +592,7 @@ void CFABuilder::verify() {
 void CFABuilder::stream_ycomp(std::ostream& /*out*/) const {
     std::vector<const RealCFNode*> nodes(cfa().nodes().begin(), cfa().nodes().end());
     for (const auto& p : out_nodes_) {
-        for (const auto& q : *p.second)
+        for (const auto& q : p.second)
             nodes.push_back(q.second);
     }
 

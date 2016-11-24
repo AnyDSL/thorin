@@ -189,9 +189,9 @@ public:
     };
 
     HashTable()
-        : capacity_(0)
+        : capacity_(min_capacity)
         , size_(0)
-        , nodes_(dummy_)
+        , nodes_(alloc())
 #ifndef NDEBUG
         , id_(0)
 #endif
@@ -385,28 +385,14 @@ public:
             }
         }
 
-        if (old_nodes != dummy_)
-            delete[] old_nodes;
+        delete[] old_nodes;
     }
 
     friend void swap(HashTable& t1, HashTable& t2) {
         using std::swap;
         swap(t1.capacity_, t2.capacity_);
         swap(t1.size_,     t2.size_);
-
-        if (t1.nodes_ == t1.dummy_) {
-            if (t2.nodes_ == t2.dummy_) {
-                // do nothing
-            } else {
-                t1.nodes_ = t2.nodes_;
-                t2.nodes_ = t2.dummy_;
-            }
-        } else if (t2.nodes_ == t2.dummy_) {
-            t2.nodes_ = t1.nodes_;
-            t1.nodes_ = t1.dummy_;
-        } else {
-            swap(t1.nodes_,    t2.nodes_);
-        }
+        swap(t1.nodes_,    t2.nodes_);
 #ifndef NDEBUG
         swap(t1.id_,       t2.id_);
 #endif
@@ -428,15 +414,11 @@ private:
         return new Node[capacity_]();
     }
 
-    void destroy() {
-        if (nodes_ != dummy_)
-            delete[] nodes_;
-    }
+    void destroy() { delete[] nodes_; }
 
     uint32_t capacity_;
     uint32_t size_;
     Node* nodes_;
-    Node dummy_[0];
 #ifndef NDEBUG
     int id_;
 #endif

@@ -40,7 +40,9 @@ private:
 
 template<>
 struct Hash<const CFNodeBase*> {
-    uint64_t operator() (const CFNodeBase* n) const { return n->id(); }
+    static uint64_t hash(const CFNodeBase* n) { return n->id(); }
+    static bool eq(const CFNodeBase* a, const CFNodeBase* b) { return a == b; }
+    static const CFNodeBase* sentinel() { return (const CFNodeBase*)(1); }
 };
 
 class RealCFNode : public CFNodeBase {

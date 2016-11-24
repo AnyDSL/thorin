@@ -154,8 +154,6 @@ Continuation* Def::isa_continuation() const { return const_cast<Continuation*>(d
 std::ostream& Def::stream(std::ostream& out) const { return out << unique_name(); }
 
 HashSet<Tracker*>& Tracker::trackers(const Def* def) {
-    if (def->gid() == 16)
-        std::cout<< "asdf" << std::endl;
     return def->world().trackers_[def];
 }
 

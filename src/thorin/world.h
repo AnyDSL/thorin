@@ -242,8 +242,6 @@ public:
 
 private:
     HashSet<Tracker*>& trackers(const Def* def) {
-        if (def->gid() == 16)
-            std::cout<< "asdf" << std::endl;
         assert(def);
         return trackers_[def];
     }

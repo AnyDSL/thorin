@@ -17,6 +17,10 @@ namespace thorin {
 /// Determines whether \p i is a power of two.
 inline size_t is_power_of_2(size_t i) { return ((i != 0) && !(i & (i - 1))); }
 
+constexpr unsigned log2(unsigned n, unsigned p = 0) {
+    return (n <= 1) ? p : log2(n / 2, p + 1);
+}
+
 //------------------------------------------------------------------------------
 
 /// Magic numbers from http://www.isthe.com/chongo/tech/comp/fnv/index.html#FNV-param .
@@ -60,10 +64,9 @@ struct Hash {};
 
 template<class T>
 struct Hash<T*> {
-    //uint64_t operator()(T* val) { return Hash<uintptr_t>()(uintptr_t(val)); }
-    static uint64_t hash(T* val) { return hash_begin(uintptr_t(val)); }
+    static uint64_t hash(T* ptr) { return uintptr_t(ptr) >> uintptr_t(log2(alignof(T))); }
     static bool eq(T* a, T* b) { return a == b; }
-    static constexpr T* sentinel() { return (T*)(1); }
+    static T* sentinel() { return (T*)(1); }
 };
 
 //------------------------------------------------------------------------------

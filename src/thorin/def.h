@@ -153,6 +153,10 @@ public:
     friend class Tracker;
 };
 
+uint64_t UseHash::hash(Use use) {
+    return uint64_t(use.index() & 0x3) | uint64_t(use->gid()) << 2ull;
+}
+
 /// Returns the vector length. Raises an assertion if type of this is not a \p VectorType.
 size_t vector_length(const Def*);
 bool is_const(const Def*);
@@ -268,29 +272,6 @@ private:
     mutable const Def* def_;
     friend void Def::replace(const Def*) const;
 };
-
-//------------------------------------------------------------------------------
-
-uint64_t UseHash::hash(Use use) {
-    return uint64_t(use.index()) << 48ull | uint64_t(use->gid());
-}
-
-template<>
-struct Hash<Defs> {
-    uint64_t operator()(Defs defs) const {
-        uint64_t seed = hash_begin(defs.size());
-        for (auto def : defs)
-            seed = hash_combine(seed, def ? def->gid() : uint64_t(-1));
-        return seed;
-    }
-};
-
-template<>
-struct Hash<Array<const Def*>> {
-    uint64_t operator()(const Array<const Def*> defs) const { return Hash<Defs>()(defs); }
-};
-
-//------------------------------------------------------------------------------
 
 }
 

@@ -8,7 +8,7 @@
 namespace thorin {
 
 void lower2cff(World& world) {
-    HashMap<Call, Continuation*> cache;
+    HashMap<Call, Continuation*, CallSentinel> cache;
     ContinuationSet top;
 
     bool local = true;
@@ -43,7 +43,6 @@ void lower2cff(World& world) {
                         call.callee() = callee;
                         for (size_t i = 0, e = call.num_args(); i != e; ++i)
                             call.arg(i) = callee->param(i)->order() > 0 ? continuation->arg(i) : nullptr;
-
 
                         const auto& p = cache.emplace(call, nullptr);
                         Continuation*& target = p.first->second;

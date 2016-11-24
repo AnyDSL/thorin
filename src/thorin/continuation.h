@@ -283,6 +283,7 @@ struct Call {
 
     bool operator==(const Call& other) const { return this->ops() == other.ops(); }
     Call& operator=(Call other) { swap(*this, other); return *this; }
+    explicit operator bool() { return !ops_.empty(); }
 
     friend void swap(Call& call1, Call& call2) {
         using std::swap;
@@ -314,13 +315,13 @@ void clear_value_numbering_table(World&);
 //------------------------------------------------------------------------------
 
 template<class To>
-using ParamMap     = HashMap<const Param*, To, GIDHash<const Param*>>;
-using ParamSet     = HashSet<const Param*, GIDHash<const Param*>>;
+using ParamMap     = GIDMap<const Param*, To>;
+using ParamSet     = GIDSet<const Param*>;
 using Param2Param  = ParamMap<const Param*>;
 
 template<class To>
-using ContinuationMap           = HashMap<Continuation*, To, GIDHash<Continuation*>>;
-using ContinuationSet           = HashSet<Continuation*, GIDHash<Continuation*>>;
+using ContinuationMap           = GIDMap<Continuation*, To>;
+using ContinuationSet           = GIDSet<Continuation*>;
 using Continuation2Continuation = ContinuationMap<Continuation*>;
 
 //------------------------------------------------------------------------------

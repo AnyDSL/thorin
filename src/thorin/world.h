@@ -2,6 +2,7 @@
 #define THORIN_WORLD_H
 
 #include <cassert>
+#include <iostream>
 #include <functional>
 #include <initializer_list>
 #include <string>
@@ -236,7 +237,12 @@ public:
     }
 
 private:
-    HashSet<Tracker*>& trackers(const Def* def) { assert(def); return trackers_[def]; }
+    HashSet<Tracker*>& trackers(const Def* def) {
+        if (def->gid() == 16)
+            std::cout<< "asdf" << std::endl;
+        assert(def);
+        return trackers_[def];
+    }
     const Param* param(const Type* type, Continuation* continuation, size_t index, const std::string& name = "");
     const Def* cse_base(const PrimOp*);
     template<class T> const T* cse(const T* primop) { return cse_base(primop)->template as<T>(); }

@@ -30,14 +30,14 @@ struct GIDHash {
 };
 
 template<class Key, class Value>
-using GIDMap    = thorin::HashMap<const Key*, Value, GIDHash<const Key*>>;
+using GIDMap = thorin::HashMap<Key, Value, thorin::PtrSentinel<Key>, GIDHash<Key>>;
 template<class Key>
-using GIDSet    = thorin::HashSet<const Key*, GIDHash<const Key*>>;
+using GIDSet = thorin::HashSet<Key, thorin::PtrSentinel<Key>, GIDHash<Key>>;
 
 template<class To>
-using TypeMap      = GIDMap<Type, To>;
-using TypeSet      = GIDSet<Type>;
-using Type2Type    = TypeMap<const Type*>;
+using TypeMap   = GIDMap<const Type*, To>;
+using TypeSet   = GIDSet<const Type*>;
+using Type2Type = TypeMap<const Type*>;
 
 typedef thorin::ArrayRef<const Type*> Types;
 

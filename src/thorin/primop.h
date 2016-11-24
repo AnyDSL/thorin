@@ -637,8 +637,8 @@ const T* PrimOp::is_out(const Def* def) {
 //------------------------------------------------------------------------------
 
 template<class To>
-using PrimOpMap     = HashMap<const PrimOp*, To>;
-using PrimOpSet     = HashSet<const PrimOp*>;
+using PrimOpMap     = GIDMap<const PrimOp*, To>;
+using PrimOpSet     = GIDSet<const PrimOp*>;
 using PrimOp2PrimOp = PrimOpMap<const PrimOp*>;
 
 //------------------------------------------------------------------------------

@@ -122,9 +122,13 @@ void Def::replace(const Def* with) const {
             def->set_op(index, with);
         }
 
+        // make sure we don't get a re-hash
+        world().trackers(this);
+        world().trackers(with);
         auto& this_trackers = world().trackers(this);
         auto& with_trackers = world().trackers(with);
-        for (auto tracker : this_trackers) {
+
+        for (auto tracker : Array<Tracker*>(this_trackers.begin(), this_trackers.end())) {
             tracker->def_ = with;
             with_trackers.emplace(tracker);
         }
@@ -149,6 +153,10 @@ Continuation* Def::as_continuation() const { return const_cast<Continuation*>(sc
 Continuation* Def::isa_continuation() const { return const_cast<Continuation*>(dcast<Continuation>(this)); }
 std::ostream& Def::stream(std::ostream& out) const { return out << unique_name(); }
 
-HashSet<Tracker*>& Tracker::trackers(const Def* def) { return def->world().trackers_[def]; }
+HashSet<Tracker*>& Tracker::trackers(const Def* def) {
+    if (def->gid() == 16)
+        std::cout<< "asdf" << std::endl;
+    return def->world().trackers_[def];
+}
 
 }

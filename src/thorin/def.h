@@ -80,8 +80,8 @@ struct UseSentinel {
 typedef HashSet<Use, UseSentinel, UseHash> Uses;
 
 template<class To>
-using DefMap  = GIDMap<Def, To>;
-using DefSet  = GIDSet<Def>;
+using DefMap  = GIDMap<const Def*, To>;
+using DefSet  = GIDSet<const Def*>;
 using Def2Def = DefMap<const Def*>;
 
 std::ostream& operator<<(std::ostream&, const Def*);

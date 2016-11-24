@@ -598,20 +598,19 @@ void CFABuilder::verify() {
     }
 }
 
-void CFABuilder::stream_ycomp(std::ostream& /*out*/) const {
+void CFABuilder::stream_ycomp(std::ostream& out) const {
     std::vector<const RealCFNode*> nodes(cfa().nodes().begin(), cfa().nodes().end());
     for (const auto& p : out_nodes_) {
         for (const auto& q : p.second)
             nodes.push_back(q.second);
     }
 
-    // TODO
-    //auto succs = [&] (const RealCFNode* n) {
-        //auto i = succs_.find(n);
-        //return i != succs_.end() ? i->second : Wrapper<HashSet<const RealCFNode*>>();
-    //};
+    auto succs = [&] (const RealCFNode* n) {
+        auto i = succs_.find(n);
+        return i != succs_.end() ? i->second : HashSet<const RealCFNode*>();
+    };
 
-    //thorin::ycomp(out, YCompOrientation::TopToBottom, scope(), range(nodes), succs);
+    thorin::ycomp(out, YCompOrientation::TopToBottom, scope(), range(nodes), succs);
 }
 
 //------------------------------------------------------------------------------

@@ -18,7 +18,7 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-uint64_t CFNodeBase::id_counter_ = 1;
+size_t CFNodeBase::id_counter_ = 0;
 template<bool forward>
 CFNodes CFG<forward>::empty_ = CFNodes();
 
@@ -118,7 +118,6 @@ public:
 
         for (const auto& p : def2sym_) delete p.second;
         for (const auto& p : out2sym_) delete p.second;
-        CFNodeBase::id_counter_ = 1;
     }
 
     void propagate_higher_order_values();

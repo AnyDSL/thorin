@@ -34,10 +34,8 @@ public:
 
 private:
     const Def* def_;
-    uint64_t id_;
+    size_t id_;
     static uint64_t id_counter_;
-
-    friend class CFABuilder;
 };
 
 template<>

@@ -70,6 +70,11 @@ struct Hash<T*> {
 /// Used internally for @p HashSet and @p HashMap.
 template<class Key, class T, class H = Hash<Key>>
 class HashTable {
+public:
+    typedef Key key_type;
+    typedef typename std::conditional<std::is_void<T>::value, Key, T>::type mapped_type;
+    typedef typename std::conditional<std::is_void<T>::value, Key, std::pair<Key, T>>::type value_type;
+
 private:
     template<class K, class V>
     struct get_key { static K& get(std::pair<K, V>& pair) { return pair.first; } };
@@ -77,17 +82,11 @@ private:
     template<class K>
     struct get_key<K, void> { static K& get(K& key) { return key; } };
 
-public:
-    typedef Key key_type;
-    typedef typename std::conditional<std::is_void<T>::value, Key, T>::type mapped_type;
-    typedef typename std::conditional<std::is_void<T>::value, Key, std::pair<Key, T>>::type value_type;
-
-private:
     static key_type& key(value_type* ptr) { return get_key<Key, T>::get(*ptr); }
     static bool is_invalid(value_type* ptr) { return key(ptr) == H::sentinel(); }
     bool is_invalid(size_t i) { return is_invalid(nodes_+i); }
 
-private:
+public:
     template<bool is_const>
     class iterator_base {
     public:
@@ -113,13 +112,18 @@ private:
 #endif
         {}
 
+        inline void verify() const { assert(table_->id_ == id_); }
+        inline void verify(iterator_base i) const {
+            assert(table_ == i.table_ && id_ == i.id_);
+            verify();
+        }
         iterator_base& operator=(iterator_base other) { swap(*this, other); return *this; }
-        iterator_base& operator++() { assert(this->table_->id_ == this->id_); *this = skip(ptr_+1, table_); return *this; }
-        iterator_base operator++(int) { assert(this->table_->id_ == this->id_); iterator_base res = *this; ++(*this); return res; }
-        reference operator*() const { assert(this->table_->id_ == this->id_); return *ptr_; }
-        pointer operator->() const { assert(this->table_->id_ == this->id_); return ptr_; }
-        bool operator==(const iterator_base& other) { assert(this->table_ == other.table_ && this->id_ == other.id_ && this->table_->id_ == this->id_); return this->ptr_ == other.ptr_; }
-        bool operator!=(const iterator_base& other) { assert(this->table_ == other.table_ && this->id_ == other.id_ && this->table_->id_ == this->id_); return this->ptr_ != other.ptr_; }
+        iterator_base& operator++() { verify(); *this = skip(ptr_+1, table_); return *this; }
+        iterator_base operator++(int) { verify(); iterator_base res = *this; ++(*this); return res; }
+        reference operator*() const { verify(); return *ptr_; }
+        pointer operator->() const { verify(); return ptr_; }
+        bool operator==(const iterator_base& other) { verify(other); return this->ptr_ == other.ptr_; }
+        bool operator!=(const iterator_base& other) { verify(other); return this->ptr_ != other.ptr_; }
         friend void swap(iterator_base& i1, iterator_base& i2) {
             using std::swap;
             swap(i1.ptr_,   i2.ptr_);
@@ -144,7 +148,6 @@ private:
         friend class HashTable;
     };
 
-public:
     typedef std::size_t size_type;
     typedef iterator_base<false> iterator;
     typedef iterator_base<true> const_iterator;
@@ -261,15 +264,15 @@ public:
     bool insert(I begin, I end) {
         bool changed = false;
         for (auto i = begin; i != end; ++i)
-            changed |= insert(*i).second;
+            changed |= emplace_no_rehash(*i).second;
         return changed;
     }
 
     void erase(const_iterator pos) {
         using std::swap;
 
+        pos.verify();
         assert(pos.table_ == this && "iterator does not match to this table");
-        assert(pos.id_ == id_ && "iterator used after emplace/insert");
         assert(!empty());
         assert(pos != end() && !is_invalid(pos.ptr_));
         --size_;

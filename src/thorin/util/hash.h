@@ -15,10 +15,22 @@ namespace thorin {
 //------------------------------------------------------------------------------
 
 // currently no better place to fit this
-/// Determines whether \p i is a power of two.
+
+/// Determines whether @p i is a power of two.
 constexpr size_t is_power_of_2(size_t i) { return ((i != 0) && !(i & (i - 1))); }
 
 constexpr unsigned log2(unsigned n, unsigned p = 0) { return (n <= 1) ? p : log2(n / 2, p + 1); }
+
+constexpr uint32_t round_to_power_of_two(uint32_t i) {
+    i--;
+    i |= i >> 1;
+    i |= i >> 2;
+    i |= i >> 4;
+    i |= i >> 8;
+    i |= i >> 16;
+    i++;
+    return i;
+}
 
 //------------------------------------------------------------------------------
 
@@ -223,15 +235,21 @@ public:
     // emplace/insert
     template<class... Args>
     std::pair<iterator,bool> emplace(Args&&... args) {
+        if (size_ > capacity_/size_t(4) + capacity_/size_t(2))
+            rehash(capacity_*size_t(2));
+
+        return emplace_no_rehash(std::forward<Args>(args)...);
+    }
+
+    // emplace/insert
+    template<class... Args>
+    std::pair<iterator,bool> emplace_no_rehash(Args&&... args) {
         using std::swap;
 #ifndef NDEBUG
         ++id_;
 #endif
         auto n = value_type(std::forward<Args>(args)...);
         auto& k = key(&n);
-
-        if (size_ > capacity_/size_t(4) + capacity_/size_t(2))
-            rehash(capacity_*size_t(2));
 
         auto result = end_ptr();
         for (size_t i = desired_pos(k), distance = 0; true; i = mod(i+1), ++distance) {
@@ -262,6 +280,15 @@ public:
 
     template<class I>
     bool insert(I begin, I end) {
+        size_t s = size() + std::distance(begin, end);
+        size_t c = round_to_power_of_two(s);
+
+        if (s > c/size_t(4) + c/size_t(2))
+            c *= size_t(2);
+
+        if (c != capacity_)
+            rehash(c);
+
         bool changed = false;
         for (auto i = begin; i != end; ++i)
             changed |= emplace_no_rehash(*i).second;

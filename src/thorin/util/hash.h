@@ -21,7 +21,7 @@ constexpr size_t is_power_of_2(size_t i) { return ((i != 0) && !(i & (i - 1))); 
 
 constexpr unsigned log2(unsigned n, unsigned p = 0) { return (n <= 1) ? p : log2(n / 2, p + 1); }
 
-constexpr uint32_t round_to_power_of_two(uint32_t i) {
+constexpr uint32_t round_to_power_of_2(uint32_t i) {
     i--;
     i |= i >> 1;
     i |= i >> 2;
@@ -43,7 +43,8 @@ struct FNV1 {
 /// Returns a new hash by combining the hash @p seed with @p val.
 template<class T>
 uint64_t hash_combine(uint64_t seed, T val) {
-    static_assert(std::is_signed<T>::value || std::is_unsigned<T>::value, "please provide your own hash function");
+    static_assert(std::is_signed<T>::value || std::is_unsigned<T>::value,
+                  "please provide your own hash function");
 
     if (std::is_signed<T>::value)
         return hash_combine(seed, typename std::make_unsigned<T>::type(val));
@@ -61,7 +62,9 @@ template<class T>
 uint64_t hash_combine(uint64_t seed, T* val) { return hash_combine(seed, uintptr_t(val)); }
 
 template<class T, class... Args>
-uint64_t hash_combine(uint64_t seed, T val, Args... args) { return hash_combine(hash_combine(seed, val), args...); }
+uint64_t hash_combine(uint64_t seed, T val, Args&&... args) {
+    return hash_combine(hash_combine(seed, val), std::forward<Args>(args)...);
+}
 
 template<class T>
 uint64_t hash_begin(T val) { return hash_combine(FNV1::offset, val); }
@@ -281,7 +284,7 @@ public:
     template<class I>
     bool insert(I begin, I end) {
         size_t s = size() + std::distance(begin, end);
-        size_t c = round_to_power_of_two(s);
+        size_t c = round_to_power_of_2(s);
 
         if (s > c/size_t(4) + c/size_t(2))
             c *= size_t(2);
@@ -310,7 +313,8 @@ public:
         if (capacity_ > MinCapacity && size_ < capacity_/size_t(4))
             rehash(capacity_/size_t(2));
         else {
-            for (size_t curr = pos.ptr_-nodes_, next = mod(curr+1); !is_invalid(next) && probe_distance(next) != 0; curr = next, next = mod(next+1))
+            for (size_t curr = pos.ptr_-nodes_, next = mod(curr+1);
+                !is_invalid(next) && probe_distance(next) != 0; curr = next, next = mod(next+1))
                 swap(nodes_[curr], nodes_[next]);
         }
 #ifndef NDEBUG
@@ -355,7 +359,10 @@ public:
         }
     }
 
-    const_iterator find(const key_type& key) const { return const_iterator(const_cast<HashTable*>(this)->find(key).ptr_, this); }
+    const_iterator find(const key_type& key) const {
+        return const_iterator(const_cast<HashTable*>(this)->find(key).ptr_, this);
+    }
+
     size_t count(const key_type& key) const { return find(key) == end() ? 0 : 1; }
     bool contains(const key_type& key) const { return count(key) == 1; }
 
@@ -511,7 +518,9 @@ public:
     {}
 
     mapped_type& operator[](const key_type& key) { return Super::insert(value_type(key, T())).first->second; }
-    mapped_type& operator[](key_type&& key) { return Super::insert(value_type(std::move(key), T())).first->second; }
+    mapped_type& operator[](key_type&& key) {
+        return Super::insert(value_type(std::move(key), T())).first->second;
+    }
 
     friend void swap(HashMap& m1, HashMap& m2) { swap(static_cast<Super&>(m1), static_cast<Super&>(m2)); }
 };

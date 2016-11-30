@@ -8,7 +8,7 @@ namespace thorin {
 
 static void find_enters(std::deque<const Enter*>& enters, const Def* def) {
     if (auto enter = def->isa<Enter>())
-        enters.push_front(enter);
+        enters.push_back(enter);
 
     if (auto memop = def->isa<MemOp>())
         def = memop->out_mem();
@@ -28,18 +28,21 @@ static void hoist_enters(const Scope& scope) {
     World& world = scope.world();
     std::deque<const Enter*> enters;
 
-    // find enters from bottom up
-    for (auto n : scope.f_cfg().post_order())
+    for (auto n : scope.f_cfg().reverse_post_order())
         find_enters(enters, n->continuation());
 
-    if (enters.empty() || enters[0]->mem() != scope.entry()->mem_param())
-        return; // do nothing
+
+    if (enters.empty() || enters[0]->mem() != scope.entry()->mem_param()) {
+        WLOG("cannot optimize % - didn't find entry enter", scope.entry());
+        return;
+    }
 
     auto entry_enter = enters[0];
     auto frame = entry_enter->out_frame();
     enters.pop_front();
 
-    for (auto old_enter : enters) {
+    for (auto i = enters.rbegin(), e = enters.rend(); i != e; ++i) {
+        auto old_enter = *i;
         for (auto use : old_enter->out_frame()->uses()) {
             auto slot = use->as<Slot>();
             slot->replace(world.slot(slot->alloced_type(), frame, slot->loc(), slot->name));
@@ -47,8 +50,8 @@ static void hoist_enters(const Scope& scope) {
         }
     }
 
-    for (auto old_enter : enters)
-        old_enter->out_mem()->replace(old_enter->mem());
+    for (auto i = enters.rbegin(), e = enters.rend(); i != e; ++i)
+        (*i)->out_mem()->replace((*i)->mem());
 
     if (frame->num_uses() == 0)
         entry_enter->out_mem()->replace(entry_enter->mem());

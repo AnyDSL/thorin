@@ -7,7 +7,6 @@
 
 #include "thorin/def.h"
 #include "thorin/type.h"
-#include "thorin/util/autoptr.h"
 
 namespace thorin {
 

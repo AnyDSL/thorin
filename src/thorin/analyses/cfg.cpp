@@ -18,7 +18,7 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-size_t CFNodeBase::id_counter_ = 0;
+uint64_t CFNodeBase::id_counter_ = 0;
 template<bool forward>
 CFNodes CFG<forward>::empty_ = CFNodes();
 

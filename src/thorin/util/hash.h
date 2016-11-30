@@ -449,8 +449,8 @@ private:
 
     uint32_t capacity_;
     uint32_t size_;
-    value_type* nodes_;
     std::array<value_type, StackCapacity> array_;
+    value_type* nodes_;
 #ifndef NDEBUG
     int id_;
 #endif

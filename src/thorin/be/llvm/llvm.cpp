@@ -429,6 +429,8 @@ void CodeGen::emit(int opt, bool debug) {
     // emit vectorized code
     for (const auto& tuple : vec_todo_)
         emit_vectorize(std::get<0>(tuple), std::get<1>(tuple), std::get<2>(tuple));
+    // lower all mask intrinsics
+    rv::lowerPredicateIntrinsics(*module_);
     vec_todo_.clear();
 
     rv::lowerPredicateIntrinsics(*module_);

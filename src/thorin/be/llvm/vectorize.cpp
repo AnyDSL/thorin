@@ -6,7 +6,7 @@
 #include <llvm/Transforms/Scalar.h>
 
 #include <rv/rv.h>
-#include <rv/transforms/loopExitCanonicalizer.h>
+#include <rv/transform/loopExitCanonicalizer.h>
 #include <rv/analysis/maskAnalysis.h>
 
 #include "thorin/primop.h"

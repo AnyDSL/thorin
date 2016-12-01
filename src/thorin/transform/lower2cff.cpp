@@ -18,16 +18,16 @@ void lower2cff(World& world) {
         Scope::for_each(world, [&] (Scope& scope) {
             bool dirty = false;
 
-            auto is_bad = [&] (Continuation* to) {
-                if (to->empty())
+            auto is_bad = [&] (Continuation* callee) {
+                if (callee->empty())
                     return false;
                 if (local)
-                    return scope.inner_contains(to) && !to->is_basicblock();
+                    return scope.inner_contains(callee) && !callee->is_basicblock();
                 else {
-                    if (top.contains(to))
-                        return !to->is_returning() && !scope.contains(to);
+                    if (top.contains(callee))
+                        return !callee->is_returning() && !scope.contains(callee);
                     else
-                        return !to->is_basicblock();
+                        return !callee->is_basicblock();
                 }
             };
 

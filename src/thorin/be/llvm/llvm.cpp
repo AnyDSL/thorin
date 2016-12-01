@@ -1047,23 +1047,23 @@ void CodeGen::create_loop(llvm::Value* lower, llvm::Value* upper, llvm::Value* i
 //------------------------------------------------------------------------------
 
 void emit_llvm(World& world, int opt, bool debug) {
-    World cuda(world.name());
-    World nvvm(world.name());
-    World spir(world.name());
-    World opencl(world.name());
+    Importer cuda(world.name());
+    Importer nvvm(world.name());
+    Importer spir(world.name());
+    Importer opencl(world.name());
 
     // determine different parts of the world which need to be compiled differently
     Scope::for_each(world, [&] (const Scope& scope) {
         auto continuation = scope.entry();
         Continuation* imported = nullptr;
         if (continuation->is_passed_to_intrinsic(Intrinsic::CUDA))
-            imported = import(cuda, continuation)->as_continuation();
+            imported = cuda.import(continuation)->as_continuation();
         else if (continuation->is_passed_to_intrinsic(Intrinsic::NVVM))
-            imported = import(nvvm, continuation)->as_continuation();
+            imported = nvvm.import(continuation)->as_continuation();
         else if (continuation->is_passed_to_intrinsic(Intrinsic::SPIR))
-            imported = import(spir, continuation)->as_continuation();
+            imported = spir.import(continuation)->as_continuation();
         else if (continuation->is_passed_to_intrinsic(Intrinsic::OpenCL))
-            imported = import(opencl, continuation)->as_continuation();
+            imported = opencl.import(continuation)->as_continuation();
         else
             return;
 
@@ -1076,14 +1076,14 @@ void emit_llvm(World& world, int opt, bool debug) {
             imported->param(i)->name = continuation->param(i)->unique_name();
     });
 
-    if (!cuda.empty() || !nvvm.empty() || !spir.empty() || !opencl.empty())
+    if (!cuda.world().empty() || !nvvm.world().empty() || !spir.world().empty() || !opencl.world().empty())
         world.cleanup();
 
     CPUCodeGen(world).emit(opt, debug);
-    if (!cuda.  empty()) CUDACodeGen(cuda).emit(/*opt,*/ debug);
-    if (!nvvm.  empty()) NVVMCodeGen(nvvm).emit(opt, debug);
-    if (!spir.  empty()) SPIRCodeGen(spir).emit(opt, debug);
-    if (!opencl.empty()) OpenCLCodeGen(opencl).emit(/*opt,*/ debug);
+    if (!cuda.  world().empty()) CUDACodeGen  (cuda  .world()).emit(/*opt,*/ debug);
+    if (!nvvm.  world().empty()) NVVMCodeGen  (nvvm  .world()).emit(opt, debug);
+    if (!spir.  world().empty()) SPIRCodeGen  (spir  .world()).emit(opt, debug);
+    if (!opencl.world().empty()) OpenCLCodeGen(opencl.world()).emit(/*opt,*/ debug);
 }
 
 //------------------------------------------------------------------------------

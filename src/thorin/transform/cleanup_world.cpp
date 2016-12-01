@@ -118,18 +118,16 @@ next_continuation:;
 }
 
 void Cleaner::rebuild() {
-    World new_world(world_.name());
-    Def2Def old2new;
-    Type2Type type_old2new;
+    Importer importer(world_.name());
 
 #ifndef NDEBUG
-    world_.swap_breakpoints(new_world);
+    world_.swap_breakpoints(importer.world());
 #endif
 
     for (auto external : world().externals())
-        import(new_world, type_old2new, old2new, external);
+        importer.import(external);
 
-    swap(world_, new_world);
+    swap(importer.world(), world_);
 }
 
 void Cleaner::verify_closedness() {

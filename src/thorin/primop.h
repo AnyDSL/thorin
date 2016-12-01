@@ -47,18 +47,15 @@ private:
     mutable uint64_t hash_ = 0;
 
     friend struct PrimOpHash;
-    friend struct PrimOpEqual;
     friend class World;
     friend class Cleaner;
     friend void Def::replace(const Def*) const;
 };
 
 struct PrimOpHash {
-    uint64_t operator() (const PrimOp* o) const { return o->hash(); }
-};
-
-struct PrimOpEqual {
-    bool operator() (const PrimOp* o1, const PrimOp* o2) const { return o1->equal(o2); }
+    static uint64_t hash(const PrimOp* o) { return o->hash(); }
+    static bool eq(const PrimOp* o1, const PrimOp* o2) { return o1->equal(o2); }
+    static const PrimOp* sentinel() { return (const PrimOp*)(1); }
 };
 
 //------------------------------------------------------------------------------
@@ -465,7 +462,7 @@ public:
     std::ostream& stream(std::ostream&) const override;
 
 private:
-    virtual uint64_t vhash() const override { return hash_value(gid()); }
+    virtual uint64_t vhash() const override { return gid(); }
     virtual bool equal(const PrimOp* other) const override { return this == other; }
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
 
@@ -489,7 +486,7 @@ public:
     const Def* out_mem() const { return has_multiple_outs() ? out(0) : this; }
 
 private:
-    virtual uint64_t vhash() const override { return hash_value(gid()); }
+    virtual uint64_t vhash() const override { return gid(); }
     virtual bool equal(const PrimOp* other) const override { return this == other; }
 };
 
@@ -637,8 +634,8 @@ const T* PrimOp::is_out(const Def* def) {
 //------------------------------------------------------------------------------
 
 template<class To>
-using PrimOpMap     = HashMap<const PrimOp*, To>;
-using PrimOpSet     = HashSet<const PrimOp*>;
+using PrimOpMap     = GIDMap<const PrimOp*, To>;
+using PrimOpSet     = GIDSet<const PrimOp*>;
 using PrimOp2PrimOp = PrimOpMap<const PrimOp*>;
 
 //------------------------------------------------------------------------------

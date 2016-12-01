@@ -43,7 +43,6 @@
 #include "thorin/transform/import.h"
 #include "thorin/util/array.h"
 #include "thorin/util/log.h"
-#include "thorin/util/push.h"
 
 namespace thorin {
 
@@ -253,8 +252,8 @@ void CodeGen::emit(int opt, bool debug) {
                 if (entry_ != continuation) {
                     for (auto param : continuation->params()) {
                         if (!is_mem(param)) {
-                            phis_[param] = llvm::PHINode::Create(convert(param->type()),
-                                                                 (unsigned) param->peek().size(), param->name, bb);
+                            auto phi = llvm::PHINode::Create(convert(param->type()), (unsigned) param->peek().size(), param->name, bb);
+                            phis_[param] = phi;
                         }
                     }
                 }
@@ -279,7 +278,8 @@ void CodeGen::emit(int opt, bool debug) {
             for (auto primop : block) {
                 if (debug)
                     irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(primop->loc().begin().line(), primop->loc().begin().col(), discope));
-                primops_[primop] = emit(primop);
+                auto llvm_value = emit(primop);
+                primops_[primop] = llvm_value;
             }
 
             // terminate bb
@@ -474,8 +474,10 @@ llvm::Value* CodeGen::lookup(const Def* def) {
     if (auto primop = def->isa<PrimOp>()) {
         if (auto res = thorin::find(primops_, primop))
             return res;
-        else
-            return primops_[primop] = emit(def);
+        else {
+            auto llvm_value = emit(def);
+            return primops_[primop] = llvm_value;
+        }
     }
 
     if (auto param = def->isa<Param>()) {
@@ -928,11 +930,14 @@ llvm::Type* CodeGen::convert(const Type* type) {
             llvm_type = llvm::PointerType::get(convert(ptr->referenced_type()), addr_space);
             break;
         }
-        case Node_IndefiniteArrayType:
-            return types_[type] = llvm::ArrayType::get(convert(type->as<ArrayType>()->elem_type()), 0);
+        case Node_IndefiniteArrayType: {
+            llvm_type = llvm::ArrayType::get(convert(type->as<ArrayType>()->elem_type()), 0);
+            return types_[type] = llvm_type;
+        }
         case Node_DefiniteArrayType: {
             auto array = type->as<DefiniteArrayType>();
-            return types_[type] = llvm::ArrayType::get(convert(array->elem_type()), array->dim());
+            llvm_type = llvm::ArrayType::get(convert(array->elem_type()), array->dim());
+            return types_[type] = llvm_type;
         }
         case Node_FnType: {
             // extract "return" type, collect all other types
@@ -969,7 +974,8 @@ multiple:
             }
             assert(ret);
 
-            return types_[type] = llvm::FunctionType::get(ret, ops, false);
+            llvm_type = llvm::FunctionType::get(ret, ops, false);
+            return types_[type] = llvm_type;
         }
 
         case Node_StructType: {
@@ -992,7 +998,8 @@ multiple:
             Array<llvm::Type*> llvm_types(tuple->num_ops());
             for (size_t i = 0, e = llvm_types.size(); i != e; ++i)
                 llvm_types[i] = convert(tuple->op(i));
-            return types_[tuple] = llvm::StructType::get(context_, llvm_ref(llvm_types));
+            llvm_type = llvm::StructType::get(context_, llvm_ref(llvm_types));
+            return types_[tuple] = llvm_type;
         }
 
         default:
@@ -1001,7 +1008,9 @@ multiple:
 
     if (vector_length(type) == 1)
         return types_[type] = llvm_type;
-    return types_[type] = llvm::VectorType::get(llvm_type, vector_length(type));
+
+    llvm_type = llvm::VectorType::get(llvm_type, vector_length(type));
+    return types_[type] = llvm_type;
 }
 
 llvm::GlobalVariable* CodeGen::emit_global_variable(llvm::Type* type, const std::string& name, unsigned addr_space) {

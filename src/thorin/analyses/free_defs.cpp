@@ -1,6 +1,5 @@
 #include "thorin/primop.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/util/queue.h"
 
 namespace thorin {
 

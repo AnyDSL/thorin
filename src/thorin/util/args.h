@@ -118,7 +118,7 @@ struct Option : public OptionBase<Data, T, Option<Data, T>> {
         : OptionBase<Data, T, Option<T, Data>>(previous, param, domain, help, target, init)
     {}
 
-    typename OptionBase<Data, T, Option<T, Data>>::iterator handle_option(typename OptionBase<Data, T, Option<T, Data>>::iterator it) const {
+    typename OptionBase<Data, T, Option<T, Data>>::iterator handle_option(typename OptionBase<Data, T, Option<T, Data>>::iterator) const {
         assert(false && "illegal use of program option");
     }
 };

@@ -21,7 +21,8 @@ const Type* import(World& to, Type2Type& old2new, const Type* otype) {
     for (size_t i = 0; i != size; ++i)
         nops[i] = import(to, old2new, otype->op(i));
 
-    auto ntype = old2new[otype] = otype->rebuild(to, nops);
+    auto ntype = otype->rebuild(to, nops);
+    old2new[otype] = ntype;
     assert(&ntype->world() == &to);
 
     return ntype;
@@ -80,8 +81,10 @@ const Def* import(World& to, Type2Type& type_old2new, Def2Def& def_old2new, cons
         assert(&nops[i]->world() == &to);
     }
 
-    if (auto oprimop = odef->isa<PrimOp>())
-        return def_old2new[oprimop] = oprimop->rebuild(to, nops, ntype);
+    if (auto oprimop = odef->isa<PrimOp>()) {
+        auto nprimop = oprimop->rebuild(to, nops, ntype);
+        return def_old2new[oprimop] = nprimop;
+    }
 
     auto ocontinuation = odef->as_continuation();
     assert(ncontinuation && &ncontinuation->world() == &to);

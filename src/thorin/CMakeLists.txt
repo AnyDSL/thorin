@@ -88,7 +88,6 @@ SET ( SOURCES
     util/args.h
     util/array.h
     util/assert.h
-    util/autoptr.h
     util/cast.h
     util/hash.h
     util/indexmap.h
@@ -100,11 +99,10 @@ SET ( SOURCES
     util/log.h
     util/printer.cpp
     util/printer.h
-    util/push.h
-    util/queue.h
     util/stream.cpp
     util/stream.h
     util/types.h
+    util/utility.h
     util/ycomp.cpp
     util/ycomp.h
 )

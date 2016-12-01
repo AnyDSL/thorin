@@ -261,8 +261,6 @@ static_assert(sizeof(Box) == sizeof(uint64_t), "Box has incorrect size in bytes"
 #define THORIN_ALL_TYPE(T, M) template <> inline T Box::get<T>() { return M##_; }
 #include "thorin/tables/primtypetable.h"
 
-inline size_t hash_value(Box box) { return hash_value(bcast<u64, Box>(box)); }
-
 }
 
 #endif

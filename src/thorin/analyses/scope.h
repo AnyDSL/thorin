@@ -5,7 +5,6 @@
 
 #include "thorin/continuation.h"
 #include "thorin/util/array.h"
-#include "thorin/util/autoptr.h"
 #include "thorin/util/indexmap.h"
 #include "thorin/util/indexset.h"
 #include "thorin/util/stream.h"
@@ -85,7 +84,7 @@ private:
     DefSet defs_;
     uint32_t id_;
     std::vector<Continuation*> continuations_;
-    mutable AutoPtr<const CFA> cfa_;
+    mutable std::unique_ptr<const CFA> cfa_;
 
     static uint32_t id_counter_;
 };

@@ -25,26 +25,33 @@ class Var;
 class HENK_TABLE_TYPE;
 
 template<class T>
+struct GIDLt {
+    bool operator()(T a, T b) const { return a->gid() < b->gid(); }
+};
+
+template<class T>
 struct GIDHash {
-    uint64_t operator()(T n) const { return n->gid(); }
+    static uint64_t hash(T n) { return n->gid(); }
+    static bool eq(T a, T b) { return a == b; }
+    static T sentinel() { return T(1); }
 };
 
 template<class Key, class Value>
-using GIDMap    = thorin::HashMap<const Key*, Value, GIDHash<const Key*>>;
+using GIDMap = thorin::HashMap<Key, Value, GIDHash<Key>>;
 template<class Key>
-using GIDSet    = thorin::HashSet<const Key*, GIDHash<const Key*>>;
+using GIDSet = thorin::HashSet<Key, GIDHash<Key>>;
 
 template<class To>
-using TypeMap      = GIDMap<Type, To>;
-using TypeSet      = GIDSet<Type>;
-using Type2Type    = TypeMap<const Type*>;
+using TypeMap   = GIDMap<const Type*, To>;
+using TypeSet   = GIDSet<const Type*>;
+using Type2Type = TypeMap<const Type*>;
 
 typedef thorin::ArrayRef<const Type*> Types;
 
 //------------------------------------------------------------------------------
 
 /// Base class for all \p Type%s.
-class Type : public thorin::Streamable, public thorin::MagicCast<Type> {
+class Type : public thorin::MagicCast<Type>, public thorin::Streamable {
 protected:
     Type(const Type&) = delete;
     Type& operator=(const Type&) = delete;
@@ -231,9 +238,13 @@ private:
     HENK_TABLE_TYPE& HENK_TABLE_NAME() { return *static_cast<HENK_TABLE_TYPE*>(this); }
 
 public:
-    struct TypeHash { uint64_t operator()(const Type* t) const { return t->hash(); } };
-    struct TypeEqual { bool operator()(const Type* t1, const Type* t2) const { return t2->equal(t1); } };
-    typedef thorin::HashSet<const Type*, TypeHash, TypeEqual> TypeSet;
+    struct TypeHash {
+        static uint64_t hash(const Type* t) { return t->hash(); }
+        static bool eq(const Type* t1, const Type* t2) { return t2->equal(t1); }
+        static const Type* sentinel() { return (const Type*)(1); }
+    };
+
+    typedef thorin::HashSet<const Type*, TypeHash> TypeSet;
 
     TypeTableBase& operator=(const TypeTableBase&);
     TypeTableBase(const TypeTableBase&);

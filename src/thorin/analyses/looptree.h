@@ -6,7 +6,6 @@
 
 #include "thorin/analyses/cfg.h"
 #include "thorin/util/array.h"
-#include "thorin/util/autoptr.h"
 #include "thorin/util/cast.h"
 #include "thorin/util/ycomp.h"
 
@@ -61,14 +60,14 @@ public:
         {}
 
     public:
-        ArrayRef<Super*> children() const { return children_; }
-        const Super* child(size_t i) const { return children_[i]; }
+        ArrayRef<std::unique_ptr<Super>> children() const { return children_; }
+        const Super* child(size_t i) const { return children_[i].get(); }
         size_t num_children() const { return children().size(); }
         bool is_root() const { return Super::parent_ == 0; }
         virtual std::ostream& stream(std::ostream&) const override;
 
     private:
-        AutoVector<Super*> children_;
+        std::vector<std::unique_ptr<Super>> children_;
 
         friend class Node;
         friend class LoopTreeBuilder<forward>;
@@ -104,7 +103,7 @@ public:
     explicit LoopTree(const CFG<forward>& cfg);
     static const LoopTree& create(const Scope& scope) { return scope.cfg<forward>().looptree(); }
     const CFG<forward>& cfg() const { return cfg_; }
-    const Head* root() const { return root_; }
+    const Head* root() const { return root_.get(); }
     const Leaf* operator[](const CFNode* n) const { return find(leaves_, n); }
     virtual void stream_ycomp(std::ostream& out) const override;
 
@@ -112,14 +111,14 @@ private:
     static void get_nodes(std::vector<const Node *>& nodes, const Node* node) {
         nodes.push_back(node);
         if (auto head = node->template isa<Head>()) {
-            for (auto child : head->children())
-                get_nodes(nodes, child);
+            for (const auto& child : head->children())
+                get_nodes(nodes, child.get());
         }
     }
 
     const CFG<forward>& cfg_;
     typename CFG<forward>::template Map<Leaf*> leaves_;
-    AutoPtr<Head> root_;
+    std::unique_ptr<Head> root_;
 
     friend class LoopTreeBuilder<forward>;
 };

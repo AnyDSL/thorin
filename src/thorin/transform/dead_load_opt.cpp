@@ -16,17 +16,19 @@ static void dead_load_opt(const Scope& scope) {
             }
         }
 
-        while (true) {
-            if (auto memop = mem->isa<MemOp>()) {
-                if (memop->isa<Load>() || memop->isa<Enter>()) {
-                    if (memop->out(1)->num_uses() == 0)
-                        memop->out_mem()->replace(memop->mem());
-                }
-                mem = memop->mem();
-            } else if (auto extract = mem->isa<Extract>()) {
-                mem = extract->agg();
-            } else
-                break;
+        if (mem) {
+            while (true) {
+                if (auto memop = mem->isa<MemOp>()) {
+                    if (memop->isa<Load>() || memop->isa<Enter>()) {
+                        if (memop->out(1)->num_uses() == 0)
+                            memop->out_mem()->replace(memop->mem());
+                    }
+                    mem = memop->mem();
+                } else if (auto extract = mem->isa<Extract>()) {
+                    mem = extract->agg();
+                } else
+                    break;
+            }
         }
     }
 }

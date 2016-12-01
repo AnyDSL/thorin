@@ -7,7 +7,6 @@
 
 #include "thorin/def.h"
 #include "thorin/type.h"
-#include "thorin/util/autoptr.h"
 
 namespace thorin {
 
@@ -252,6 +251,7 @@ private:
 };
 
 struct Call {
+    Call() {}
     Call(Array<const Def*> ops)
         : ops_(ops)
     {}
@@ -282,6 +282,7 @@ struct Call {
 
     bool operator==(const Call& other) const { return this->ops() == other.ops(); }
     Call& operator=(Call other) { swap(*this, other); return *this; }
+    explicit operator bool() { return !ops_.empty(); }
 
     friend void swap(Call& call1, Call& call2) {
         using std::swap;
@@ -294,12 +295,14 @@ private:
 
 template<>
 struct Hash<Call> {
-    uint64_t operator () (const Call& call) const {
+    static uint64_t hash(const Call& call) {
         uint64_t seed = hash_begin();
         for (auto arg : call.ops())
             seed = hash_combine(seed,  arg ?  arg->gid() : 0);
         return seed;
     }
+    static bool eq(const Call& c1, const Call& c2) { return c1 == c2; }
+    static Call sentinel() { return Call(); }
 };
 
 void jump_to_cached_call(Continuation* src, Continuation* dst, const Call& call);
@@ -309,13 +312,13 @@ void clear_value_numbering_table(World&);
 //------------------------------------------------------------------------------
 
 template<class To>
-using ParamMap     = HashMap<const Param*, To, GIDHash<const Param*>>;
-using ParamSet     = HashSet<const Param*, GIDHash<const Param*>>;
+using ParamMap     = GIDMap<const Param*, To>;
+using ParamSet     = GIDSet<const Param*>;
 using Param2Param  = ParamMap<const Param*>;
 
 template<class To>
-using ContinuationMap           = HashMap<Continuation*, To, GIDHash<Continuation*>>;
-using ContinuationSet           = HashSet<Continuation*, GIDHash<Continuation*>>;
+using ContinuationMap           = GIDMap<Continuation*, To>;
+using ContinuationSet           = GIDSet<Continuation*>;
 using Continuation2Continuation = ContinuationMap<Continuation*>;
 
 //------------------------------------------------------------------------------

@@ -8,8 +8,6 @@
 #include <iterator>
 #include <vector>
 
-#include "thorin/util/hash.h"
-
 namespace thorin {
 
 template<class T> class Array;
@@ -221,25 +219,6 @@ template<class T>
 Array<typename T::value_type> make_array(const T& container) {
     return Array<typename T::value_type>(container.begin(), container.end());
 }
-
-//------------------------------------------------------------------------------
-
-//template<class T>
-//inline size_t hash_combine(size_t seed, thorin::ArrayRef<T> aref) {
-    //for (size_t i = 0, e = aref.size(); i != e; ++i)
-        //seed = hash_combine(seed, aref[i]);
-    //return seed;
-//}
-
-//template<class T>
-//struct Hash<thorin::ArrayRef<T>> {
-    //uint64_t operator()(thorin::ArrayRef<T> aref) const { return hash_combine(hash_begin(), aref); }
-//};
-
-//template<class T>
-//struct Hash<thorin::Array<T>> {
-    //uint64_t operator()(const thorin::Array<T>& array) const { return hash_value(array.ref()); }
-//};
 
 //------------------------------------------------------------------------------
 

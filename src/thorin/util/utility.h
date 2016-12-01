@@ -5,10 +5,6 @@
 #include <queue>
 #include <vector>
 
-#define THORIN_LNAME__(name, line) name##__##line
-#define THORIN_LNAME_(name, line)  THORIN_LNAME__(name, line)
-#define THORIN_LNAME(name)         THORIN_LNAME_(name, __LINE__)
-
 namespace thorin {
 
 /// Similar to \c std::unique_ptr<T> but some more convenience like cast operators and non-explicit constructors.
@@ -111,6 +107,10 @@ private:
 
 template<class T, class U>
 inline Push<T> push(T& t, U new_val) { return Push<T>(t, new_val); }
+
+#define THORIN_LNAME__(name, line) name##__##line
+#define THORIN_LNAME_(name, line)  THORIN_LNAME__(name, line)
+#define THORIN_LNAME(name)         THORIN_LNAME_(name, __LINE__)
 
 #define THORIN_PUSH(what, with) auto THORIN_LNAME(thorin_push) = thorin::push((what), (with))
 

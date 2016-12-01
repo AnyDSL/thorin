@@ -40,7 +40,7 @@
 #include "thorin/be/llvm/nvvm.h"
 #include "thorin/be/llvm/opencl.h"
 #include "thorin/be/llvm/spir.h"
-#include "thorin/transform/import.h"
+#include "thorin/transform/importer.h"
 #include "thorin/util/array.h"
 #include "thorin/util/log.h"
 

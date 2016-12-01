@@ -1,4 +1,4 @@
-#include "thorin/transform/import.h"
+#include "thorin/transform/importer.h"
 
 namespace thorin {
 

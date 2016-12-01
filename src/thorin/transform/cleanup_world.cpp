@@ -3,7 +3,7 @@
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/verify.h"
-#include "thorin/transform/import.h"
+#include "thorin/transform/importer.h"
 
 namespace thorin {
 

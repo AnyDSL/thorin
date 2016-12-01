@@ -25,23 +25,16 @@ class CFNodeBase : public MagicCast<CFNodeBase>, public Streamable {
 public:
     CFNodeBase(const Def* def)
         : def_(def)
-        , id_(id_counter_++)
+        , gid_(gid_counter_++)
     {}
 
-    uint64_t id() const { return id_; }
+    uint64_t gid() const { return gid_; }
     const Def* def() const { return def_; }
 
 private:
     const Def* def_;
-    size_t id_;
-    static uint64_t id_counter_;
-};
-
-template<>
-struct Hash<const CFNodeBase*> {
-    static uint64_t hash(const CFNodeBase* n) { return n->id(); }
-    static bool eq(const CFNodeBase* a, const CFNodeBase* b) { return a == b; }
-    static const CFNodeBase* sentinel() { return (const CFNodeBase*)(1); }
+    size_t gid_;
+    static uint64_t gid_counter_;
 };
 
 class RealCFNode : public CFNodeBase {
@@ -67,7 +60,7 @@ protected:
 };
 
 class CFNode;
-typedef HashSet<const CFNode*> CFNodes;
+typedef GIDSet<const CFNode*> CFNodes;
 
 /// This node represents a @p CFNode within its underlying @p Scope.
 class CFNode : public RealCFNode {

@@ -174,6 +174,9 @@ const Type* TypeTableBase<T>::app(const Type* callee, const Type* op) {
 
 template<class T>
 const Type* TypeTableBase<T>::unify_base(const Type* type) {
+    //if (type->gid() == 4424)
+        //asm("int3");
+    //WLOG("%, %, %", type->gid(), type->kind(), type->num_ops());
     auto i = types_.find(type);
     if (i != types_.end()) {
         delete type;

@@ -18,15 +18,19 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-uint64_t CFNodeBase::id_counter_ = 0;
+uint64_t CFNodeBase::gid_counter_ = 0;
 template<bool forward>
 CFNodes CFG<forward>::empty_ = CFNodes();
 
-typedef thorin::HashSet<const CFNodeBase*> CFNodeSet;
+typedef thorin::GIDSet<const CFNodeBase*> CFNodeSet;
+
+template<class Key, class Value>
+using GIDTreeMap = std::map<Key, Value, GIDLt<Key>>;
 
 /// Any jumps targeting a @p Continuation or @p Param outside the @p CFA's underlying @p Scope target this node.
 class OutNode : public RealCFNode {
 public:
+    typedef GIDSet<const OutNode*> Ancestors;
     OutNode(const CFNode* context, const Def* def)
         : RealCFNode(def)
         , context_(context)
@@ -35,12 +39,12 @@ public:
     }
 
     const CFNode* context() const { return context_; }
-    const HashSet<const OutNode*>& ancestors() const { return ancestors_; }
+    const Ancestors& ancestors() const { return ancestors_; }
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
     const CFNode* context_;
-    mutable HashSet<const OutNode*> ancestors_;
+    mutable Ancestors ancestors_;
 
     friend class CFABuilder;
 };
@@ -208,15 +212,15 @@ private:
 
     CFA& cfa_;
     Scope::Map<std::vector<CFNodeSet>> continuation2param2nodes_; ///< Maps param in scope to CFNodeSet.
-    std::map<const Def*, DefSet, GIDLt<const Def*>> def2set_;
-    std::map<const RealCFNode*, HashSet<const RealCFNode*>> succs_;
-    std::map<const RealCFNode*, HashSet<const RealCFNode*>> preds_;
+    GIDTreeMap<const Def*, DefSet> def2set_;
+    GIDTreeMap<const RealCFNode*, GIDSet<const RealCFNode*>> succs_;
+    GIDTreeMap<const RealCFNode*, GIDSet<const RealCFNode*>> preds_;
     const CFNode* entry_;
     const CFNode* exit_;
     size_t num_out_nodes_ = 0;
-    mutable std::map<const CFNode*, DefMap<const OutNode*>> out_nodes_;
+    mutable GIDTreeMap<const CFNode*, DefMap<const OutNode*>> out_nodes_;
     mutable DefMap<const SymNode*> def2sym_;
-    mutable HashMap<const OutNode*, const SymNode*> out2sym_;
+    mutable GIDMap<const OutNode*, const SymNode*> out2sym_;
 };
 
 CFNodeSet CFABuilder::empty_;
@@ -607,7 +611,7 @@ void CFABuilder::stream_ycomp(std::ostream& out) const {
 
     auto succs = [&] (const RealCFNode* n) {
         auto i = succs_.find(n);
-        return i != succs_.end() ? i->second : HashSet<const RealCFNode*>();
+        return i != succs_.end() ? i->second : GIDSet<const RealCFNode*>();
     };
 
     thorin::ycomp(out, YCompOrientation::TopToBottom, scope(), range(nodes), succs);

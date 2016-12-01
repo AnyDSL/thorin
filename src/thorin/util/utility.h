@@ -119,7 +119,7 @@ constexpr size_t is_power_of_2(size_t i) { return ((i != 0) && !(i & (i - 1))); 
 
 constexpr unsigned log2(unsigned n, unsigned p = 0) { return (n <= 1) ? p : log2(n / 2, p + 1); }
 
-constexpr uint32_t round_to_power_of_2(uint32_t i) {
+inline uint32_t round_to_power_of_2(uint32_t i) {
     i--;
     i |= i >> 1;
     i |= i >> 2;

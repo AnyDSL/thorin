@@ -817,7 +817,6 @@ Array<Continuation*> World::copy_continuations() const {
 }
 
 const Def* World::cse_base(const PrimOp* primop) {
-    //WLOG("%, %, %", primop->gid(), primop->kind(), primop->num_ops());
     THORIN_CHECK_BREAK(primop->gid());
     auto i = primops_.find(primop);
     if (i != primops_.end()) {

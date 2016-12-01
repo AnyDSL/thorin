@@ -61,7 +61,7 @@ void lower2cff(World& world) {
         });
 
         if (!todo && local) {
-            WLOG("switching to global mode");
+            DLOG("switching to global mode");
             local = false;
             todo = true;
         }

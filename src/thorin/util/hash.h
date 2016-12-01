@@ -115,21 +115,14 @@ public:
             assert(table_ == i.table_ && id_ == i.id_);
             verify();
         }
-        iterator_base& operator=(iterator_base other) { swap(*this, other); return *this; }
+
+        iterator_base& operator=(const iterator_base& other) = default;
         iterator_base& operator++() { verify(); *this = skip(ptr_+1, table_); return *this; }
         iterator_base operator++(int) { verify(); iterator_base res = *this; ++(*this); return res; }
         reference operator*() const { verify(); return *ptr_; }
         pointer operator->() const { verify(); return ptr_; }
         bool operator==(const iterator_base& other) { verify(other); return this->ptr_ == other.ptr_; }
         bool operator!=(const iterator_base& other) { verify(other); return this->ptr_ != other.ptr_; }
-        friend void swap(iterator_base& i1, iterator_base& i2) {
-            using std::swap;
-            swap(i1.ptr_,   i2.ptr_);
-            swap(i1.table_, i2.table_);
-#ifndef NDEBUG
-            swap(i1.id_,    i2.id_);
-#endif
-        }
 
     private:
         static iterator_base skip(value_type* ptr, const HashTable* table) {

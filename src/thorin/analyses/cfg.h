@@ -124,8 +124,8 @@ private:
     const Scope& scope_;
     Scope::Map<const CFNode*> nodes_;
     size_t size_ = 0;
-    mutable AutoPtr<const F_CFG> f_cfg_;
-    mutable AutoPtr<const B_CFG> b_cfg_;
+    mutable std::unique_ptr<const F_CFG> f_cfg_;
+    mutable std::unique_ptr<const B_CFG> b_cfg_;
 
     friend class CFABuilder;
     template<bool> friend class CFG;
@@ -186,9 +186,9 @@ private:
 
     const CFA& cfa_;
     Map<const CFNode*> rpo_;
-    mutable AutoPtr<const DomTreeBase<forward>> domtree_;
-    mutable AutoPtr<const LoopTree<forward>> looptree_;
-    mutable AutoPtr<const DomFrontierBase<forward>> domfrontier_;
+    mutable std::unique_ptr<const DomTreeBase<forward>> domtree_;
+    mutable std::unique_ptr<const LoopTree<forward>> looptree_;
+    mutable std::unique_ptr<const DomFrontierBase<forward>> domfrontier_;
 };
 
 //------------------------------------------------------------------------------

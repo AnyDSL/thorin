@@ -104,7 +104,7 @@ public:
     explicit LoopTree(const CFG<forward>& cfg);
     static const LoopTree& create(const Scope& scope) { return scope.cfg<forward>().looptree(); }
     const CFG<forward>& cfg() const { return cfg_; }
-    const Head* root() const { return root_; }
+    const Head* root() const { return root_.get(); }
     const Leaf* operator[](const CFNode* n) const { return find(leaves_, n); }
     virtual void stream_ycomp(std::ostream& out) const override;
 
@@ -119,7 +119,7 @@ private:
 
     const CFG<forward>& cfg_;
     typename CFG<forward>::template Map<Leaf*> leaves_;
-    AutoPtr<Head> root_;
+    std::unique_ptr<Head> root_;
 
     friend class LoopTreeBuilder<forward>;
 };

@@ -1,6 +1,7 @@
 #ifndef THORIN_AUTOPTR_HEADER
 #define THORIN_AUTOPTR_HEADER
 
+#include <memory>
 #include <vector>
 
 namespace thorin {
@@ -77,8 +78,8 @@ public:
 
 /// Use to initialize an \p AutoPtr in a lazy way.
 template<class This, class T>
-inline T& lazy_init(const This* self, AutoPtr<T>& ptr) {
-    return *(ptr ? ptr : ptr = new T(*self));
+inline T& lazy_init(const This* self, std::unique_ptr<T>& ptr) {
+    return *(ptr ? ptr : (ptr.reset(new T(*self)), ptr));
 }
 
 }

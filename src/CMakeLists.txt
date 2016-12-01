@@ -18,9 +18,9 @@ IF ( Half_FOUND )
 ENDIF ()
 
 # check for RV
-FIND_PACKAGE ( rv QUIET )
+FIND_PACKAGE ( RV QUIET )
 
-IF ( rv_FOUND )
+IF ( RV_FOUND )
     MESSAGE ( STATUS "Building with RV." )
     ADD_DEFINITIONS ( "-DRV_SUPPORT" )
     INCLUDE_DIRECTORIES ( ${RV_INCLUDE_DIR} )

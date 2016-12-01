@@ -109,7 +109,7 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
     const bool useAVX   = true;
     rv_info->addCommonMappings(useSSE, useSSE41, useSSE42, useAVX, useNEON);
 
-    const llvm::DominatorTree dom_tree(*kernel_func);
+    llvm::DominatorTree dom_tree(*kernel_func);
     llvm::PostDominatorTree pdom_tree;
     pdom_tree.runOnFunction(*kernel_func);
     llvm::LoopInfo loop_info(dom_tree);

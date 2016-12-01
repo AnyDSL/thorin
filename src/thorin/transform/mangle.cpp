@@ -4,20 +4,17 @@
 #include "thorin/type.h"
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/util/queue.h"
 
 namespace thorin {
 
-Mangler::Mangler(const Scope& scope, Types type_args, Defs args, Defs lift)
+Mangler::Mangler(const Scope& scope, Defs args, Defs lift)
     : scope_(scope)
-    , type_args_(type_args)
     , args_(args)
     , lift_(lift)
     , old_entry_(scope.entry())
 {
     assert(!old_entry()->empty());
     assert(args.size() == old_entry()->num_params());
-    assert(type_args.size() == old_entry()->num_type_params());
 
     // TODO correctly deal with continuations here
     std::queue<const Def*> queue;
@@ -37,30 +34,16 @@ Mangler::Mangler(const Scope& scope, Types type_args, Defs args, Defs lift)
     }
 }
 
-
 Continuation* Mangler::mangle() {
-    // map type params
-    std::vector<const TypeParam*> type_params;
-    for (size_t i = 0, e = old_entry()->num_type_params(); i != e; ++i) {
-        auto otype_param = old_entry()->type_param(i);
-        if (auto type = type_args_[i])
-            type2type_[otype_param] = type;
-        else {
-            auto ntype_param = world().type_param(otype_param->name());
-            type_params.push_back(ntype_param);
-            type2type_[otype_param] = ntype_param;
-        }
-    }
-
     // create new_entry - but first collect and specialize all param types
     std::vector<const Type*> param_types;
     for (size_t i = 0, e = old_entry()->num_params(); i != e; ++i) {
         if (args_[i] == nullptr)
-            param_types.push_back(old_entry()->param(i)->type()->specialize(type2type_));
+            param_types.emplace_back(old_entry()->param(i)->type()); // TODO reduce
     }
 
     auto fn_type = world().fn_type(param_types);
-    new_entry_ = world().continuation(close(fn_type, type_params), old_entry()->loc(), old_entry()->name);
+    new_entry_ = world().continuation(fn_type, old_entry()->loc(), old_entry()->name);
 
     // map value params
     def2def_[old_entry()] = old_entry();
@@ -75,10 +58,8 @@ Continuation* Mangler::mangle() {
         }
     }
 
-    for (auto def : lift_) {
-        auto param = new_entry()->append_param(def->type()->specialize(type2type_));
-        def2def_[def] = param;
-    }
+    for (auto def : lift_)
+        def2def_[def] = new_entry()->append_param(def->type()); // TODO reduce
 
     mangle_body(old_entry(), new_entry());
     return new_entry();
@@ -101,20 +82,15 @@ void Mangler::mangle_body(Continuation* old_continuation, Continuation* new_cont
 
     if (old_continuation->callee() == world().branch()) {        // fold branch if possible
         if (auto lit = mangle(old_continuation->arg(0))->isa<PrimLit>())
-            return new_continuation->jump(mangle(lit->value().get_bool() ? old_continuation->arg(1) : old_continuation->arg(2)), {}, {}, old_continuation->jump_loc());
+            return new_continuation->jump(mangle(lit->value().get_bool() ? old_continuation->arg(1) : old_continuation->arg(2)), {}, old_continuation->jump_loc());
     }
 
-    Array<const Def*> nops(old_continuation->size());
+    Array<const Def*> nops(old_continuation->num_ops());
     for (size_t i = 0, e = nops.size(); i != e; ++i)
         nops[i] = mangle(old_continuation->op(i));
 
-    Defs nargs(nops.skip_front());      // new args of new_continuation
-    const Def* ntarget = nops.front();  // new target of new_continuation
-
-    // specialize all type args
-    Array<const Type*> ntype_args(old_continuation->type_args().size());
-    for (size_t i = 0, e = ntype_args.size(); i != e; ++i)
-        ntype_args[i] = old_continuation->type_arg(i)->specialize(type2type_);
+    Defs nargs(nops.skip_front()); // new args of new_continuation
+    auto ntarget = nops.front();   // new target of new_continuation
 
     // check whether we can optimize tail recursion
     if (ntarget == old_entry()) {
@@ -129,22 +105,20 @@ void Mangler::mangle_body(Continuation* old_continuation, Continuation* new_cont
 
         if (substitute) {
             const auto& args = concat(nargs.cut(cut), new_entry()->params().get_back(lift_.size()));
-            return new_continuation->jump(new_entry(), ntype_args, args, old_continuation->jump_loc());
+            return new_continuation->jump(new_entry(), args, old_continuation->jump_loc());
         }
     }
 
-    new_continuation->jump(ntarget, ntype_args, nargs, old_continuation->jump_loc());
+    new_continuation->jump(ntarget, nargs, old_continuation->jump_loc());
 }
 
 const Def* Mangler::mangle(const Def* old_def) {
-    auto i = def2def_.find(old_def);
-    if (i != def2def_.end())
-        return i->second;
-
-    if (!within(old_def))
+    if (auto new_def = find(def2def_, old_def))
+        return new_def;
+    else if (!within(old_def))
         return old_def;
+    else if (auto old_continuation = old_def->isa_continuation()) {
 
-    if (auto old_continuation = old_def->isa_continuation()) {
         auto new_continuation = mangle_head(old_continuation);
         mangle_body(old_continuation, new_continuation);
         return new_continuation;
@@ -155,24 +129,24 @@ const Def* Mangler::mangle(const Def* old_def) {
         return def2def_[param];
     } else {
         auto old_primop = old_def->as<PrimOp>();
-        Array<const Def*> nops(old_primop->size());
-        for (size_t i = 0, e = old_primop->size(); i != e; ++i)
+        Array<const Def*> nops(old_primop->num_ops());
+        for (size_t i = 0, e = old_primop->num_ops(); i != e; ++i)
             nops[i] = mangle(old_primop->op(i));
 
-        auto type = old_primop->type()->vinstantiate(type2type_);
+        auto type = old_primop->type(); // TODO reduce
         return def2def_[old_primop] = old_primop->rebuild(nops, type);
     }
 }
 
 //------------------------------------------------------------------------------
 
-Continuation* mangle(const Scope& scope, Types type_args, Defs args, Defs lift) {
-    return Mangler(scope, type_args, args, lift).mangle();
+Continuation* mangle(const Scope& scope, Defs args, Defs lift) {
+    return Mangler(scope, args, lift).mangle();
 }
 
 Continuation* drop(const Call& call) {
     Scope scope(call.callee()->as_continuation());
-    return drop(scope, call.type_args(), call.args());
+    return drop(scope, call.args());
 }
 
 //------------------------------------------------------------------------------

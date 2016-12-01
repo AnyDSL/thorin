@@ -10,7 +10,7 @@
 namespace thorin {
 
 CUDACodeGen::CUDACodeGen(World& world)
-    : CodeGen(world, llvm::Function::ExternalLinkage, llvm::Function::ExternalLinkage, llvm::CallingConv::C, llvm::CallingConv::C, llvm::CallingConv::C)
+    : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::C, llvm::CallingConv::C)
 {}
 
 void CUDACodeGen::emit(bool debug) {

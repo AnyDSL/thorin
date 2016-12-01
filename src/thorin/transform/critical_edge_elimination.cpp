@@ -10,11 +10,11 @@ namespace thorin {
 static bool update_src(Continuation* src, Continuation* dst, const char* suffix) {
     auto resolve = [&] (Continuation* dst) {
         auto resolver = dst->stub(dst->name + suffix);
-        resolver->jump(dst, resolver->type_args(), resolver->params_as_defs(), resolver->jump_loc());
+        resolver->jump(dst, resolver->params_as_defs(), resolver->jump_loc());
         return resolver;
     };
 
-    for (size_t i = 0, e = src->size(); i != e; ++i) {
+    for (size_t i = 0, e = src->num_ops(); i != e; ++i) {
         if (src->op(i) == dst) {
             src->update_op(i, resolve(dst));
             return true;

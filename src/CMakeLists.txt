@@ -7,14 +7,14 @@ IF (MSVC)
     SET ( CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /wd4800 /wd4520" )
     SET ( CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /wd4800 /wd4520" )
 ELSE ()
-    ADD_DEFINITIONS ( "-std=c++11 -Wall -Wunused" )
+    ADD_DEFINITIONS ( "-std=c++14 -Wall -Wextra" )
 ENDIF ()
 
 # check for Half library
 FIND_PACKAGE ( Half REQUIRED )
-IF ( HALF_FOUND )
-    MESSAGE ( STATUS "Building with Half library from ${HALF_INCLUDE_DIRS}." )
-    INCLUDE_DIRECTORIES ( ${HALF_INCLUDE_DIRS} )
+IF ( Half_FOUND )
+    MESSAGE ( STATUS "Building with Half library from ${Half_INCLUDE_DIRS}." )
+    INCLUDE_DIRECTORIES ( ${Half_INCLUDE_DIRS} )
 ENDIF ()
 
 # check for wfv2
@@ -30,14 +30,14 @@ ELSE ()
 ENDIF ()
 
 # check for possible llvm extension
-FIND_PACKAGE ( LLVM QUIET )
+FIND_PACKAGE ( LLVM CONFIG QUIET )
 
 IF ( LLVM_FOUND )
-    MESSAGE ( STATUS "Building with LLVM ${LLVM_PACKAGE_VERSION}." )
+    MESSAGE ( STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}" )
+    MESSAGE ( STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}" )
     ADD_DEFINITIONS ( ${LLVM_DEFINITIONS} )
     ADD_DEFINITIONS ( "-DLLVM_SUPPORT" )
     INCLUDE_DIRECTORIES ( ${LLVM_INCLUDE_DIRS} )
-    LINK_DIRECTORIES ( ${LLVM_LIBRARY_DIRS} )
 ELSE ()
     MESSAGE ( STATUS "Building without LLVM. Specify LLVM_DIR to compile with LLVM." )
 ENDIF ()

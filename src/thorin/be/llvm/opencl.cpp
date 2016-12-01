@@ -11,7 +11,7 @@
 namespace thorin {
 
 OpenCLCodeGen::OpenCLCodeGen(World& world)
-    : CodeGen(world, llvm::Function::ExternalLinkage, llvm::Function::ExternalLinkage, llvm::CallingConv::C, llvm::CallingConv::C, llvm::CallingConv::C)
+    : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::C, llvm::CallingConv::C)
 {}
 
 void OpenCLCodeGen::emit(bool debug) {

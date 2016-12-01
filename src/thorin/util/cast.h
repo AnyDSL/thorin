@@ -18,8 +18,6 @@ namespace thorin {
  * Just read as <L, R> instead, i.e.,
  * L is the thing which is returned (the left-hand side of the function call),
  * R is the thing which goes in (the right-hand side of a call).
- *
- * NOTE: inline hint seems to be necessary -- at least on my current version of gcc
  */
 
 /// @c static_cast checked in debug version
@@ -74,23 +72,26 @@ if (Bar* bar = anydsl::dcast<Bar>(foo)) { ... }
 template<class Base>
 class MagicCast {
 public:
-    virtual ~MagicCast() {}
-
     /**
      * Acts as static cast -- checked for correctness in the debug version.
      * Use if you @em know that @p this is of type @p To.
      * It is a program error (an assertion is raised) if this does not hold.
      */
-    template<class To> To* as()  { return thorin::scast<To>(this); }
+    template<class To> To* as() { return thorin::scast<To>(static_cast<Base*>(this)); }
 
     /**
      * Acts as dynamic cast.
      * @return @p this cast to @p To if @p this is a @p To, 0 otherwise.
      */
-    template<class To> To* isa() { return thorin::dcast<To>(this); }
+    template<class To> To* isa() { return thorin::dcast<To>(static_cast<Base*>(this)); }
 
-    template<class To> const To* as()  const { return thorin::scast<To>(this); } ///< @c const version of @see MagicCast#as.
-    template<class To> const To* isa() const { return thorin::dcast<To>(this); } ///< @c const version of @see MagicCast#isa.
+    ///< @c const version of @see MagicCast#as.
+    template<class To>
+    const To* as()  const { return thorin::scast<To>(static_cast<const Base*>(this)); }
+
+    ///< @c const version of @see MagicCast#isa.
+    template<class To>
+    const To* isa() const { return thorin::dcast<To>(static_cast<const Base*>(this)); }
 };
 
 }

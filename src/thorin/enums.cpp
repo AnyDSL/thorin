@@ -3,7 +3,7 @@
 namespace thorin {
 
 #define THORIN_GLUE(pre, next)
-#define THORIN_AIR_NODE(node, abbr) static_assert(Node_##node == (NodeKind) zzzMarker_##node,             "NodeKind value not equal zzzMarker");
+#define THORIN_NODE(node, abbr) static_assert(Node_##node == (NodeKind) zzzMarker_##node,                 "NodeKind value not equal zzzMarker");
 #define THORIN_PRIMTYPE(T)          static_assert(Node_PrimType_##T == (NodeKind) zzzMarker_PrimType_##T, "NodeKind value not equal zzzMarker");
 #define THORIN_ARITHOP(op)          static_assert(Node_##op == (NodeKind) zzzMarker_##op,                 "NodeKind value not equal zzzMarker");
 #define THORIN_CMP(op)              static_assert(Node_##op == (NodeKind) zzzMarker_##op,                 "NodeKind value not equal zzzMarker");
@@ -13,7 +13,7 @@ const char* kind2str(NodeKind kind) {
     switch (kind) {
 #define THORIN_GLUE(pre, next)
 #define THORIN_PRIMTYPE(T)         case Node_PrimType_##T: return #T;
-#define THORIN_AIR_NODE(n, abbr)   case Node_##n: return #n;
+#define THORIN_NODE(n, abbr)   case Node_##n: return #n;
 #define THORIN_ARITHOP(n)          case Node_##n: return #n;
 #define THORIN_CMP(n)            case Node_##n: return #n;
 #include "thorin/tables/allnodes.h"

@@ -8,7 +8,6 @@
 #include "thorin/analyses/looptree.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/util/log.h"
-#include "thorin/util/queue.h"
 
 namespace thorin {
 
@@ -93,71 +92,74 @@ void Scheduler::compute_def2uses() {
 
     while (!queue.empty()) {
         auto def = pop(queue);
-        for (size_t i = 0, e = def->size(); i != e; ++i)
+        for (size_t i = 0, e = def->num_ops(); i != e; ++i)
             enqueue(def, i, def->op(i));
     }
 }
 
 const CFNode* Scheduler::schedule_early(const Def* def) {
-    if (auto& result = retrieve(def2early_, def))
-        return result;
-    else {
-        if (auto param = def->isa<Param>()) {
-            result = cfg_[param->continuation()];
-        } else {
-            result = cfg_.entry();
-            for (auto op : def->as<PrimOp>()->ops()) {
-                if (!op->isa_continuation() && def2uses_.find(op) != def2uses_.end()) {
-                    auto n = schedule_early(op);
-                    if (domtree_.depth(n) > domtree_.depth(result))
-                        result = n;
-                }
-            }
+    auto i = def2early_.find(def);
+    if (i != def2early_.end())
+        return i->second;
+
+    if (auto param = def->isa<Param>())
+        return def2early_[def] = cfg_[param->continuation()];
+
+    auto result = cfg_.entry();
+    for (auto op : def->as<PrimOp>()->ops()) {
+        if (!op->isa_continuation() && def2uses_.find(op) != def2uses_.end()) {
+            auto n = schedule_early(op);
+            if (domtree_.depth(n) > domtree_.depth(result))
+                result = n;
         }
-        return result;
     }
+
+    return def2early_[def] = result;
 }
 
 const CFNode* Scheduler::schedule_late(const Def* def) {
-    if (auto& result = retrieve(def2late_, def))
-        return result;
-    else {
-        if (auto continuation = def->isa_continuation()) {
-            result = cfg_[continuation];
-        } else {
-            auto primop = def->as<PrimOp>();
-            for (auto use : uses(primop)) {
-                auto n = schedule_late(use);
-                result = result ? domtree_.lca(result, n) : n;
-            }
-        }
-        return result;
+    auto i = def2late_.find(def);
+    if (i != def2late_.end())
+        return i->second;
+
+    if (auto continuation = def->isa_continuation())
+        return def2late_[def] = cfg_[continuation];
+
+    const CFNode* result = nullptr;
+    auto primop = def->as<PrimOp>();
+    for (auto use : uses(primop)) {
+        auto n = schedule_late(use);
+        result = result ? domtree_.lca(result, n) : n;
     }
+
+    return def2late_[def] = result;
 }
 
 const CFNode* Scheduler::schedule_smart(const PrimOp* primop) {
-    if (auto& result = retrieve(def2smart_, primop))
-        return result;
-    else {
-        auto early = schedule_early(primop);
-        auto late  = schedule_late (primop);
+    auto i = def2smart_.find(primop);
+    if (i != def2smart_.end())
+        return i->second;
 
-        if (primop->isa<Enter>() || primop->isa<Slot>() || Enter::is_out_mem(primop) || Enter::is_out_frame(primop))
-            result = early;
-        else {
-            result = late;
-            int depth = looptree_[late]->depth();
-            for (auto i = late; i != early;) {
-                i = domtree_.idom(i);
-                int cur_depth = looptree_[i]->depth();
-                if (cur_depth < depth) {
-                    result = i;
-                    depth = cur_depth;
-                }
+    auto early = schedule_early(primop);
+    auto late  = schedule_late (primop);
+
+    const CFNode* result;
+    if (primop->isa<Enter>() || primop->isa<Slot>() || Enter::is_out_mem(primop) || Enter::is_out_frame(primop))
+        result = early;
+    else {
+        result = late;
+        int depth = looptree_[late]->depth();
+        for (auto i = late; i != early;) {
+            i = domtree_.idom(i);
+            int cur_depth = looptree_[i]->depth();
+            if (cur_depth < depth) {
+                result = i;
+                depth = cur_depth;
             }
         }
-        return result;
     }
+
+    return def2smart_[primop] = result;
 }
 
 void Scheduler::topo_sort(Def2CFNode& def2node) {

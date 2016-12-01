@@ -6,7 +6,6 @@
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/util/autoptr.h"
 #include "thorin/util/log.h"
 #include "thorin/util/stream.h"
 #include "thorin/be/c.h"
@@ -20,6 +19,7 @@ public:
     CCodeGen(World& world, std::ostream& stream, Lang lang, bool debug)
         : world_(world)
         , lang_(lang)
+        , fn_mem_(world.fn_type({world.mem_type()}))
         , debug_(debug)
         , os_(stream)
     {}
@@ -45,6 +45,7 @@ private:
 
     World& world_;
     Lang lang_;
+    const FnType* fn_mem_;
     TypeMap<std::string> type2str_;
     DefMap<std::string> def2str_;
     bool use_64_ = false;
@@ -92,25 +93,23 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
         if (lookup(tuple))
             return os << get_name(tuple);
         os << "typedef struct tuple_" << tuple->gid() << " {" << up;
-        for (size_t i = 0, e = tuple->args().size(); i != e; ++i) {
+        for (size_t i = 0, e = tuple->ops().size(); i != e; ++i) {
             os << endl;
-            emit_type(os, tuple->arg(i)) << " e" << i << ";";
+            emit_type(os, tuple->op(i)) << " e" << i << ";";
         }
         os << down << endl << "} tuple_" << tuple->gid() << ";";
         return os;
-    } else if (auto struct_abs = type->isa<StructAbsType>()) {
-        return os << struct_abs->name();
-    } else if (auto struct_app = type->isa<StructAppType>()) {
-        if (lookup(struct_app))
-            return os << get_name(struct_app);
-        os << "typedef struct struct_" << struct_app->gid() << " {" << up;
-        for (size_t i = 0, e = struct_app->elems().size(); i != e; ++i) {
+    } else if (auto struct_type = type->isa<StructType>()) {
+        if (lookup(struct_type))
+            return os << get_name(struct_type);
+        os << "typedef struct struct_" << struct_type->gid() << " {" << up;
+        for (size_t i = 0, e = struct_type->num_ops(); i != e; ++i) {
             os << endl;
-            emit_type(os, struct_app->elem(i)) << " e" << i << ";";
+            emit_type(os, struct_type->op(i)) << " e" << i << ";";
         }
-        os << down << endl << "} struct_" << struct_app->gid() << ";";
+        os << down << endl << "} struct_" << struct_type->gid() << ";";
         return os;
-    } else if (type->isa<TypeParam>()) {
+    } else if (type->isa<Var>()) {
         THORIN_UNREACHABLE;
     } else if (auto array = type->isa<IndefiniteArrayType>()) {
         emit_type(os, array->elem_type());
@@ -197,7 +196,7 @@ std::ostream& CCodeGen::emit_aggop_decl(const Type* type) {
         emit_aggop_decl(array->elem_type());
 
     if (auto fn = type->isa<FnType>())
-        for (auto type : fn->args())
+        for (auto type : fn->ops())
             emit_aggop_decl(type);
 
     // look for nested array
@@ -209,17 +208,17 @@ std::ostream& CCodeGen::emit_aggop_decl(const Type* type) {
 
     // look for nested tuple
     if (auto tuple = type->isa<TupleType>()) {
-        for (auto arg : tuple->args())
-            emit_aggop_decl(arg);
+        for (auto op : tuple->ops())
+            emit_aggop_decl(op);
         emit_type(type_decls_, tuple) << endl;
         insert(type, "tuple_" + std::to_string(type->gid()));
     }
 
     // look for nested struct
-    if (auto struct_app = type->isa<StructAppType>()) {
-        for (auto elem : struct_app->elems())
-            emit_aggop_decl(elem);
-        emit_type(type_decls_, struct_app) << endl;
+    if (auto struct_type = type->isa<StructType>()) {
+        for (auto op : struct_type->ops())
+            emit_aggop_decl(op);
+        emit_type(type_decls_, struct_type) << endl;
         insert(type, "struct_" + std::to_string(type->gid()));
     }
 
@@ -292,7 +291,7 @@ void CCodeGen::emit() {
 
         // emit function & its declaration
         auto ret_param_fn_type = ret_param->type()->as<FnType>();
-        auto ret_type = ret_param_fn_type->num_args() > 2 ? world_.tuple_type(ret_param_fn_type->args().skip_front()) : ret_param_fn_type->args().back();
+        auto ret_type = ret_param_fn_type->num_ops() > 2 ? world_.tuple_type(ret_param_fn_type->ops().skip_front()) : ret_param_fn_type->ops().back();
         auto name = (continuation->is_external() || continuation->empty()) ? continuation->name : continuation->unique_name();
         if (continuation->is_external()) {
             switch (lang_) {
@@ -316,7 +315,7 @@ void CCodeGen::emit() {
         size_t i = 0;
         // emit and store all first-order params
         for (auto param : continuation->params()) {
-            if (param->order() == 0 && !param->is_mem()) {
+            if (param->order() == 0 && !is_mem(param)) {
                 emit_aggop_decl(param->type());
                 if (is_texture_type(param->type())) {
                     // emit texture declaration for CUDA
@@ -335,7 +334,7 @@ void CCodeGen::emit() {
 
                 if (lang_==Lang::OPENCL && continuation->is_external() &&
                     (param->type()->isa<DefiniteArrayType>() ||
-                     param->type()->isa<StructAppType>() ||
+                     param->type()->isa<StructType>() ||
                      param->type()->isa<TupleType>())) {
                     // structs are passed via buffer; the parameter is a pointer to this buffer
                     func_decls_ << "__global ";
@@ -356,10 +355,10 @@ void CCodeGen::emit() {
 
         // OpenCL: load struct from buffer
         for (auto param : continuation->params()) {
-            if (param->order() == 0 && !param->is_mem()) {
+            if (param->order() == 0 && !is_mem(param)) {
                 if (lang_==Lang::OPENCL && continuation->is_external() &&
                     (param->type()->isa<DefiniteArrayType>() ||
-                     param->type()->isa<StructAppType>() ||
+                     param->type()->isa<StructType>() ||
                      param->type()->isa<TupleType>())) {
                     func_impl_ << endl;
                     emit_type(func_impl_, param->type()) << " " << param->unique_name() << " = *" << param->unique_name() << "_;";
@@ -379,7 +378,7 @@ void CCodeGen::emit() {
             auto continuation = block.continuation();
             if (scope.entry() != continuation) {
                 for (auto param : continuation->params()) {
-                    if (!param->is_mem()) {
+                    if (!is_mem(param)) {
                         func_impl_ << endl;
                         emit_addr_space(func_impl_, param->type());
                         emit_type(func_impl_, param->type()) << "  " << param->unique_name() << ";" << endl;
@@ -402,7 +401,7 @@ void CCodeGen::emit() {
                 func_impl_ << "l" << continuation->gid() << ": ;" << up << endl;
                 // load params from phi node
                 for (auto param : continuation->params())
-                    if (!param->is_mem())
+                    if (!is_mem(param))
                         func_impl_ << param->unique_name() << " = p" << param->unique_name() << ";" << endl;
             }
 
@@ -419,10 +418,18 @@ void CCodeGen::emit() {
 
                 // skip higher-order primops, stuff dealing with frames and all memory related stuff except stores
                 if (!primop->type()->isa<FnType>() && !primop->type()->isa<FrameType>()
-                        && (!primop->is_mem() || primop->isa<Store>())) {
+                        && (!is_mem(primop) || primop->isa<Store>())) {
                     emit_debug_info(primop);
                     emit(primop) << endl;
                 }
+            }
+
+            for (auto arg : continuation->args()) {
+                // emit definitions of inlined elements
+                emit_aggop_defs(arg);
+                // emit temporaries for arguments
+                if (arg->order() == 0 && !is_mem(arg) && !lookup(arg) && !arg->isa<PrimLit>())
+                    emit(arg) << endl;
             }
 
             // terminate bb
@@ -431,7 +438,7 @@ void CCodeGen::emit() {
                 switch (num_args) {
                     case 0: break;
                     case 1:
-                        if (continuation->arg(0)->is_mem()) {
+                        if (is_mem(continuation->arg(0))) {
                             func_impl_ << "return ;";
                             break;
                         } else {
@@ -440,11 +447,11 @@ void CCodeGen::emit() {
                         }
                         break;
                     case 2:
-                        if (continuation->arg(0)->is_mem()) {
+                        if (is_mem(continuation->arg(0))) {
                             func_impl_ << "return ";
                             emit(continuation->arg(1)) << ";";
                             break;
-                        } else if (continuation->arg(1)->is_mem()) {
+                        } else if (is_mem(continuation->arg(1))) {
                             func_impl_ << "return ";
                             emit(continuation->arg(0)) << ";";
                             break;
@@ -452,7 +459,7 @@ void CCodeGen::emit() {
                         // FALLTHROUGH
                     default: {
                         auto ret_param_fn_type = continuation->arg_fn_type();
-                        auto ret_type = world_.tuple_type(ret_param_fn_type->args().skip_front());
+                        auto ret_type = world_.tuple_type(ret_param_fn_type->ops().skip_front());
                         auto ret_tuple_name = "ret_tuple" + std::to_string(continuation->gid());
                         emit_aggop_decl(ret_type);
                         emit_type(func_impl_, ret_type) << " " << ret_tuple_name << ";";
@@ -488,25 +495,17 @@ void CCodeGen::emit() {
                 auto callee = continuation->callee()->as_continuation();
                 emit_debug_info(callee);
 
-                // emit inlined arrays/tuples/structs before the call operation
-                for (auto arg : continuation->args())
-                    emit_aggop_defs(arg);
-
                 if (callee->is_basicblock()) {   // ordinary jump
                     assert(callee->num_params()==continuation->num_args());
                     for (size_t i = 0, size = callee->num_params(); i != size; ++i)
-                        if (!callee->param(i)->is_mem()) {
+                        if (!is_mem(callee->param(i))) {
                             store_phi(callee->param(i), continuation->arg(i));
                             func_impl_ << endl;
                         }
                     emit(callee);
                 } else {
                     if (callee->is_intrinsic()) {
-                        if (callee->intrinsic() == Intrinsic::Bitcast) {
-                            auto cont = continuation->arg(2)->as_continuation();
-                            emit_bitcast(continuation->arg(1), cont->param(1)) << endl;
-                            store_phi(cont->param(1), continuation->arg(1));
-                        } else if (callee->intrinsic() == Intrinsic::Reserve) {
+                        if (callee->intrinsic() == Intrinsic::Reserve) {
                             if (!continuation->arg(1)->isa<PrimLit>())
                                 ELOG("reserve_shared: couldn't extract memory size at %", continuation->arg(1)->loc());
 
@@ -518,10 +517,11 @@ void CCodeGen::emit() {
 
                             auto cont = continuation->arg(2)->as_continuation();
                             auto elem_type = cont->param(1)->type()->as<PtrType>()->referenced_type()->as<ArrayType>()->elem_type();
-                            emit_type(func_impl_, elem_type) << " " << continuation->arg(1)->unique_name() << "[";
+                            auto name = "reserver_" + cont->param(1)->unique_name();
+                            emit_type(func_impl_, elem_type) << " " << name << "[";
                             emit(continuation->arg(1)) << "];" << endl;
-                            insert(continuation->arg(1), continuation->arg(1)->unique_name());
-                            store_phi(cont->param(1), continuation->arg(1));
+                            // store_phi:
+                            func_impl_ << "p" << cont->param(1)->unique_name() << " = " << name << ";";
                         } else {
                             THORIN_UNREACHABLE;
                         }
@@ -534,7 +534,7 @@ void CCodeGen::emit() {
                             // emit all first-order args
                             size_t i = 0;
                             for (auto arg : continuation->args()) {
-                                if (arg->order() == 0 && !arg->is_mem()) {
+                                if (arg->order() == 0 && !is_mem(arg)) {
                                     if (i++ > 0)
                                         func_impl_ << ", ";
                                     emit(arg);
@@ -549,18 +549,20 @@ void CCodeGen::emit() {
 
                         const Def* ret_arg = 0;
                         for (auto arg : continuation->args()) {
-                            if (arg->order() == 0) {
-                                if (!arg->is_mem() && !lookup(arg) && !arg->isa<PrimLit>())
-                                    emit(arg) << endl; // emit temporaries for args
-                            } else {
+                            if (arg->order() != 0) {
                                 assert(!ret_arg);
                                 ret_arg = arg;
                             }
                         }
 
                         if (ret_arg == ret_param) {     // call + return
-                            func_impl_ << "return ";
-                            emit_call();
+                            if (ret_arg->type() == fn_mem_) {
+                                emit_call();
+                                func_impl_ << endl << "return ;";
+                            } else {
+                                func_impl_ << "return ";
+                                emit_call();
+                            }
                         } else {                        // call + continuation
                             auto succ = ret_arg->as_continuation();
                             const Param* param = nullptr;
@@ -569,21 +571,22 @@ void CCodeGen::emit() {
                                     emit_call();
                                     break;
                                 case 1:
-                                    param = succ->param(0)->is_mem();
-                                    if (param->is_mem())
+                                    // TODO this looks weird
+                                    param = is_mem(succ->param(0)) ? succ->param(0) : nullptr;
+                                    if (is_mem(param))
                                         param = nullptr;
                                     emit_call(param);
                                     break;
                                 case 2:
                                     assert(succ->mem_param() && "no mem_param found for succ");
                                     param = succ->param(0);
-                                    param = param->is_mem() ? succ->param(1) : param;
+                                    param = is_mem(param) ? succ->param(1) : param;
                                     emit_call(param);
                                     break;
                                 default: {
-                                    assert(succ->param(0)->is_mem());
+                                    assert(is_mem(succ->param(0)));
                                     auto ret_param_fn_type = ret_arg->type()->as<FnType>();
-                                    auto ret_type = world_.tuple_type(ret_param_fn_type->args().skip_front());
+                                    auto ret_type = world_.tuple_type(ret_param_fn_type->ops().skip_front());
 
                                     auto ret_tuple_name = "ret_tuple" + std::to_string(continuation->gid());
                                     emit_aggop_decl(ret_type);
@@ -724,7 +727,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
             emit_aggop_defs(op);
 
         emit_type(func_impl_, array->type()) << " " << array->unique_name() << ";";
-        for (size_t i = 0, e = array->size(); i != e; ++i) {
+        for (size_t i = 0, e = array->num_ops(); i != e; ++i) {
             func_impl_ << endl;
             if (array->op(i)->isa<Bottom>())
                 func_impl_ << "// bottom: ";
@@ -741,17 +744,18 @@ std::ostream& CCodeGen::emit(const Def* def) {
             if (def->type()->isa<ArrayType>()) {
                 func_impl_ << ".e[";
                 emit(index) << "]";
-            } else if (def->type()->isa<TupleType>() || def->type()->isa<StructAppType>()) {
-                func_impl_ << ".e";
+//<<<<<<< HEAD
+            //} else if (def->type()->isa<TupleType>() || def->type()->isa<StructType>()) {
+                //os << ".e";
                 emit(index);
             } else if (def->type()->isa<VectorType>()) {
-                if (index->is_primlit(0))
+                if (is_primlit(index, 0))
                     func_impl_ << ".x";
-                else if (index->is_primlit(1))
+                else if (is_primlit(index, 1))
                     func_impl_ << ".y";
-                else if (index->is_primlit(2))
+                else if (is_primlit(index, 2))
                     func_impl_ << ".z";
-                else if (index->is_primlit(3))
+                else if (is_primlit(index, 3))
                     func_impl_ << ".w";
                 else {
                     func_impl_ << ".s";
@@ -786,15 +790,17 @@ std::ostream& CCodeGen::emit(const Def* def) {
             emit_aggop_defs(aggop->agg());
 
             if (auto extract = aggop->isa<Extract>()) {
-                if (extract->is_mem() || extract->type()->isa<FrameType>())
+                if (is_mem(extract) || extract->type()->isa<FrameType>())
                     return func_impl_;
-                emit_type(func_impl_, aggop->type()) << " " << aggop->unique_name() << ";" << endl;
-                func_impl_ << aggop->unique_name() << " = ";
-                if (auto memop = extract->agg()->isa<MemOp>())
-                    emit(memop) << ";";
-                else {
-                    emit(aggop->agg());
-                    emit_access(aggop->agg(), aggop->index()) << ";";
+                if (!extract->agg()->isa<Assembly>()) { // extract is a nop for inline assembly
+                    emit_type(func_impl_, aggop->type()) << " " << aggop->unique_name() << ";" << endl;
+                    func_impl_ << aggop->unique_name() << " = ";
+                    if (auto memop = extract->agg()->isa<MemOp>())
+                        emit(memop) << ";";
+                    else {
+                        emit(aggop->agg());
+                        emit_access(aggop->agg(), aggop->index()) << ";";
+                    }
                 }
                 insert(def, def->unique_name());
                 return func_impl_;
@@ -818,7 +824,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
         auto fs = "f";
 #else
         auto float_mode = lang_ == Lang::CUDA ? std::scientific : std::hexfloat;
-        auto fs = "";
+        auto fs = lang_ == Lang::CUDA ? "f" : "";
 #endif
         auto hp = lang_ == Lang::CUDA ? "__float2half(" : "";
         auto hs = lang_ == Lang::CUDA ? ")" : "h";
@@ -889,7 +895,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
             emit(lea->ptr()) << ", ";
             emit(lea->index()) << ");";
         } else {
-            if (lea->ptr_referenced_type()->isa<TupleType>() || lea->ptr_referenced_type()->isa<StructAppType>()) {
+            if (lea->ptr_referenced_type()->isa<TupleType>() || lea->ptr_referenced_type()->isa<StructType>()) {
                 emit_type(func_impl_, lea->type()) << " " << lea->unique_name() << ";" << endl;
                 func_impl_ << lea->unique_name() << " = &";
                 emit(lea->ptr()) << "->e";
@@ -910,6 +916,65 @@ std::ostream& CCodeGen::emit(const Def* def) {
 
         insert(def, def->unique_name());
         return func_impl_;
+    }
+
+    if (auto assembly = def->isa<Assembly>()) {
+        size_t out_size = assembly->type()->num_ops() - 1;
+        Array<std::string> outputs(out_size, "");
+        for (auto use : assembly->uses()) {
+            auto extract = use->as<Extract>();
+            size_t index = primlit_value<unsigned>(extract->index());
+            if (index == 0)
+                continue;   // skip the mem
+
+            assert(outputs[index - 1] == "" && "Each use must belong to a unique index.");
+            auto name = extract->unique_name();
+            outputs[index - 1] = name;
+            emit_type(func_impl_, assembly->type()->op(index)) << " " << name << ";" << endl;
+        }
+        // some outputs that were originally there might have been pruned because
+        // they are not used but we still need them as operands for the asm
+        // statement so we need to generate them here
+        for (size_t i = 0; i < out_size; ++i) {
+            if (outputs[i] == "") {
+                auto name = assembly->unique_name() + "_" + std::to_string(i + 1);
+                emit_type(func_impl_, assembly->type()->op(i + 1)) << " " << name << ";" << endl;
+                outputs[i] = name;
+            }
+        }
+
+        func_impl_ << "asm ";
+        if (assembly->has_sideeffects())
+            func_impl_ << "volatile ";
+        if (assembly->is_alignstack() || assembly->is_inteldialect())
+            WLOG("stack alignment and inteldialect flags unsupported for C output at %", assembly->loc());
+        func_impl_ << "(\"" << assembly->asm_template() << "\"";
+
+        // emit the outputs
+        const char* separator = " : ";
+        auto out_constraints = assembly->out_constraints();
+        for (size_t i = 0; i < out_constraints.size(); ++i) {
+            func_impl_ << separator << "\"" << out_constraints[i] << "\"("
+                << outputs[i] << ")";
+            separator = ", ";
+        }
+
+        // emit the inputs
+        separator = out_constraints.empty() ? " :: " : " : ";
+        auto in_constraints = assembly->in_constraints();
+        for (size_t i = 0; i < in_constraints.size(); ++i) {
+            func_impl_ << separator << "\"" << in_constraints[i] << "\"(";
+            emit(assembly->op(i + 1)) << ")";
+            separator = ", ";
+        }
+
+        // emit the clobbers
+        separator = in_constraints.empty() ? out_constraints.empty() ? " ::: " : " :: " : " : ";
+        for (auto clob : assembly->clobbers()) {
+            func_impl_ << separator << "\"" << clob << "\"";
+            separator = ", ";
+        }
+        return func_impl_ << ");";
     }
 
     if (auto global = def->isa<Global>()) {

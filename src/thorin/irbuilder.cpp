@@ -86,7 +86,7 @@ Continuation* JumpTarget::untangle() {
         return continuation_;
     assert(continuation_);
     auto bb = world().basicblock(loc(), name_);
-    continuation_->jump(bb, {}, {}, loc());
+    continuation_->jump(bb, {}, loc());
     first_ = false;
     return continuation_ = bb;
 }
@@ -96,7 +96,7 @@ void Continuation::jump(JumpTarget& jt, const Location& loc) {
         jt.continuation_ = this;
         jt.first_ = true;
     } else
-        this->jump(jt.untangle(), {}, {}, loc);
+        this->jump(jt.untangle(), {}, loc);
 }
 
 Continuation* JumpTarget::branch_to(World& world, const Location& loc) {
@@ -124,7 +124,7 @@ Continuation* IRBuilder::continuation(const Location& loc, const std::string& na
 
 Continuation* IRBuilder::continuation(const FnType* fn, const Location& loc, CC cc, Intrinsic intrinsic, const std::string& name) {
     auto l = world().continuation(fn, loc, cc, intrinsic, name);
-    if (fn->num_args() >= 1 && fn->args().front()->isa<MemType>()) {
+    if (fn->num_ops() >= 1 && fn->ops().front()->isa<MemType>()) {
         auto param = l->params().front();
         l->set_mem(param);
         if (param->name.empty())
@@ -156,9 +156,9 @@ void IRBuilder::branch(const Def* cond, JumpTarget& t, JumpTarget& f, const Loca
     }
 }
 
-const Def* IRBuilder::call(const Def* to, Types type_args, Defs args, const Type* ret_type, const Location& loc) {
+const Def* IRBuilder::call(const Def* to, Defs args, const Type* ret_type, const Location& loc) {
     if (is_reachable()) {
-        auto p = cur_bb->call(to, type_args, args, ret_type, loc);
+        auto p = cur_bb->call(to, args, ret_type, loc);
         cur_bb = p.first;
         return p.second;
     }

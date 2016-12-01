@@ -5,7 +5,6 @@
 #include "thorin/transform/mangle.h"
 #include "thorin/util/hash.h"
 #include "thorin/util/log.h"
-#include "thorin/util/queue.h"
 
 namespace thorin {
 
@@ -153,7 +152,7 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
             continue;
         }
 
-        Array<const Def*> ops(cur->size());
+        Array<const Def*> ops(cur->num_ops());
         ops.front() = dst;
         bool all = true;
         for (size_t i = 1, e = ops.size(); i != e; ++i) {
@@ -163,7 +162,7 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
                 all = false;
         }
 
-        Call call(cur->type_args(), ops);
+        Call call(ops);
 
         bool go_out = dst == end;
         DLOG("dst: %", dst);
@@ -174,7 +173,7 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
             return;
         } else {                                            // no cached version found... create a new one
             Scope scope(call.callee()->as_continuation());
-            Mangler mangler(scope, call.type_args(), call.args(), Defs());
+            Mangler mangler(scope, call.args(), Defs());
             auto dropped = mangler.mangle();
             if (end != nullptr) {
                 if (auto nend = mangler.def2def(end)) {
@@ -194,7 +193,7 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
             cache_[call] = dropped;
             jump_to_cached_call(cur, dropped, call);
             if (all) {
-                cur->jump(dropped->callee(), dropped->type_args(), dropped->args(), cur->jump_loc());
+                cur->jump(dropped->callee(), dropped->args(), cur->jump_loc());
                 done_.erase(cur);
             } else
                 cur = dropped;

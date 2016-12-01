@@ -74,9 +74,9 @@ private:
         auto print_node = [&] (decltype(*range.begin()) node) {
             newline() << "node: { title: \"" << node << "_" << id << "\" label: \"" << node << "\" }";
 
-            for (auto succ : succs(node)) {
+            for (const auto& succ : succs(node)) {
                 newline() << "edge: { sourcename: \"" << node << "_" << id
-                          << "\" targetname: \"" << succ << "_" << id << "\" class: " << 16 << " }";
+                          << "\" targetname: \"" << &*succ << "_" << id << "\" class: " << 16 << " }";
             }
         };
 

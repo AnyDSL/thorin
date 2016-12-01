@@ -26,12 +26,12 @@ void higher_order_lifting(World& world) {
                         defs.push_back(def);
                 }
 
-                Scope lifted(lift(cur, {}, defs));
+                Scope lifted(lift(cur, defs));
 
-                for (auto use : continuation->uses()) {
+                for (auto use : continuation->copy_uses()) {
                     if (auto caller = use->isa_continuation()) {
                         if (use.index() == 0) {
-                            caller->jump(lifted.entry(), {}, concat(caller->args(), defs), caller->jump_loc());
+                            caller->jump(lifted.entry(), concat(caller->args(), defs), caller->jump_loc());
                             dirty = true;
                         }
                     }

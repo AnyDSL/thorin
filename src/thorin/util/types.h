@@ -88,8 +88,9 @@ public:
         if (other.data_ >= std::numeric_limits<ST>::digits+1 || other.is_neg())
             throw BottomException();
 
-        if (!wrap && (this->is_neg() || this->data_ > std::numeric_limits<ST>::max() >> other.data_))
-            throw BottomException();
+        // TODO: actually this is correct, but see: https://github.com/AnyDSL/impala/issues/34
+        //if (!wrap && (this->is_neg() || this->data_ > std::numeric_limits<ST>::max() >> other.data_))
+        //    throw BottomException();
 
         return ST(UT(this->data_) << UT(other.data_));
     }
@@ -259,8 +260,6 @@ static_assert(sizeof(Box) == sizeof(uint64_t), "Box has incorrect size in bytes"
 
 #define THORIN_ALL_TYPE(T, M) template <> inline T Box::get<T>() { return M##_; }
 #include "thorin/tables/primtypetable.h"
-
-inline size_t hash_value(Box box) { return hash_value(bcast<u64, Box>(box)); }
 
 }
 

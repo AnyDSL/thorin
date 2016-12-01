@@ -39,9 +39,13 @@ public:
                 Log::stream() << "  ";
             streamf(Log::stream(), fmt, args...);
             Log::stream() << std::endl;
-            if (level == Error)
-                std::abort();
         }
+    }
+
+    template<typename... Args>
+    [[noreturn]] static void error(const char* file, int line, const char* fmt, Args... args) {
+        log(Error, file, line, fmt, args...);
+        std::abort();
     }
 
 private:
@@ -59,7 +63,7 @@ private:
 #define MAYBE_LOG(level, ...) do {} while (false)
 #endif
 
-#define ELOG(...) ALWAYS_LOG(thorin::Log::Error, __VA_ARGS__)
+#define ELOG(...) thorin::Log::error(__FILE__, __LINE__, __VA_ARGS__)
 #define WLOG(...) ALWAYS_LOG(thorin::Log::Warn,  __VA_ARGS__)
 #define ILOG(...)  MAYBE_LOG(thorin::Log::Info,  __VA_ARGS__)
 #define DLOG(...)  MAYBE_LOG(thorin::Log::Debug, __VA_ARGS__)

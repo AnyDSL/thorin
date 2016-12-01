@@ -17,20 +17,20 @@
 namespace thorin {
 
 Runtime::Runtime(llvm::LLVMContext& context,
-                 llvm::Module* target,
+                 llvm::Module& target,
                  llvm::IRBuilder<>& builder)
     : target_(target)
     , builder_(builder)
-    , layout_(new llvm::DataLayout(target_))
+    , layout_(target.getDataLayout())
 {
     llvm::SMDiagnostic diag;
-    runtime_ = llvm::ParseIRFile(THORIN_RUNTIME_PLATFORMS "runtime.s", diag, context);
+    runtime_ = llvm::parseIRFile(THORIN_RUNTIME_PLATFORMS "runtime.s", diag, context);
     if (runtime_ == nullptr)
         throw std::logic_error("runtime could not be loaded");
 }
 
 llvm::Function* Runtime::get(const char* name) {
-    auto result = llvm::cast<llvm::Function>(target_->getOrInsertFunction(name, runtime_->getFunction(name)->getFunctionType()));
+    auto result = llvm::cast<llvm::Function>(target_.getOrInsertFunction(name, runtime_->getFunction(name)->getFunctionType()));
     assert(result != nullptr && "Required runtime function could not be resolved");
     return result;
 }
@@ -45,7 +45,7 @@ enum {
     ACC_NUM_ARGS
 };
 
-Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std::string& ext, Continuation* continuation) {
+Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, Continuation* continuation) {
     // to-target is the desired kernel call
     // target(mem, device, (dim.x, dim.y, dim.z), (block.x, block.y, block.z), body, return, free_vars)
     auto target = continuation->callee()->as_continuation();
@@ -62,7 +62,7 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, cons
 
     // load kernel
     auto kernel_name = builder_.CreateGlobalStringPtr(kernel->name);
-    auto file_name = builder_.CreateGlobalStringPtr(continuation->world().name() + ext);
+    auto file_name = builder_.CreateGlobalStringPtr(continuation->world().name());
     load_kernel(target_device, file_name, kernel_name);
 
     // fetch values and create external calls for initialization
@@ -74,7 +74,7 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, cons
 
         // check device target
         if (target_arg->type()->isa<DefiniteArrayType>() ||
-            target_arg->type()->isa<StructAppType>() ||
+            target_arg->type()->isa<StructType>() ||
             target_arg->type()->isa<TupleType>()) {
             // definite array | struct | tuple
             auto alloca = code_gen.emit_alloca(target_val->getType(), target_arg->name);
@@ -128,7 +128,7 @@ llvm::Value* Runtime::synchronize(llvm::Value* device) {
 }
 
 llvm::Value* Runtime::set_kernel_arg(llvm::Value* device, int arg, llvm::Value* mem, llvm::Type* type) {
-    llvm::Value* kernel_args[] = { device, builder_.getInt32(arg), mem, builder_.getInt32(layout_->getTypeAllocSize(type)) };
+    llvm::Value* kernel_args[] = { device, builder_.getInt32(arg), mem, builder_.getInt32(layout_.getTypeAllocSize(type)) };
     return builder_.CreateCall(get("thorin_set_kernel_arg"), kernel_args);
 }
 
@@ -138,7 +138,7 @@ llvm::Value* Runtime::set_kernel_arg_ptr(llvm::Value* device, int arg, llvm::Val
 }
 
 llvm::Value* Runtime::set_kernel_arg_struct(llvm::Value* device, int arg, llvm::Value* mem, llvm::Type* type) {
-    llvm::Value* kernel_args[] = { device, builder_.getInt32(arg), mem, builder_.getInt32(layout_->getTypeAllocSize(type)) };
+    llvm::Value* kernel_args[] = { device, builder_.getInt32(arg), mem, builder_.getInt32(layout_.getTypeAllocSize(type)) };
     return builder_.CreateCall(get("thorin_set_kernel_arg_struct"), kernel_args);
 }
 

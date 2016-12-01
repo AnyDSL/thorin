@@ -41,12 +41,12 @@ namespace thorin {
 
 World::World(std::string name)
     : name_(name)
-    , fn0_    (unify(new FnType   (*this, Types(), 0)))
-    , mem_    (unify(new MemType  (*this)))
-    , frame_  (unify(new FrameType(*this)))
 #define THORIN_ALL_TYPE(T, M) \
     ,T##_(unify(new PrimType(*this, PrimType_##T, 1)))
 #include "thorin/tables/primtypetable.h"
+    , fn0_    (unify(new FnType   (*this, {})))
+    , mem_    (unify(new MemType  (*this)))
+    , frame_  (unify(new FrameType(*this)))
 {
     branch_ = continuation(fn_type({type_bool(), fn_type(), fn_type()}), Location(), CC::C, Intrinsic::Branch, "br");
     end_scope_ = continuation(fn_type(), Location(), CC::C, Intrinsic::EndScope, "end_scope");
@@ -55,15 +55,6 @@ World::World(std::string name)
 World::~World() {
     for (auto continuation : continuations_) delete continuation;
     for (auto primop : primops_) delete primop;
-}
-
-const StructAbsType* World::struct_abs_type(size_t size, size_t num_type_params, const std::string& name) {
-    auto struct_abs_type = new StructAbsType(*this, size, num_type_params, name);
-    // just put it into the types_ set due to nominal typing
-    auto p = types_.insert(struct_abs_type);
-    assert_unused(p.second && "hash/equal broken");
-    struct_abs_type->hashed_ = true;
-    return struct_abs_type;
 }
 
 /*
@@ -198,12 +189,12 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const Lo
                 case ArithOp_or:  return a;
 
                 case ArithOp_div:
-                    if (b->is_zero())
+                    if (is_zero(b))
                         return bottom(type, loc);
                     return one(type, loc);
 
                 case ArithOp_rem:
-                    if (b->is_zero())
+                    if (is_zero(b))
                         return bottom(type, loc);
                     return zero(type, loc);
 
@@ -211,7 +202,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const Lo
             }
         }
 
-        if (a->is_zero()) {
+        if (is_zero(a)) {
             switch (kind) {
                 case ArithOp_mul:
                 case ArithOp_div:
@@ -228,14 +219,14 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const Lo
             }
         }
 
-        if (a->is_one()) {
+        if (is_one(a)) {
             switch (kind) {
                 case ArithOp_mul: return b;
                 default: break;
             }
         }
 
-        if (a->is_allset()) {
+        if (is_allset(a)) {
             switch (kind) {
                 case ArithOp_and: return b;
                 case ArithOp_or:  return llit; // allset
@@ -243,7 +234,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const Lo
             }
         }
 
-        if (b->is_zero()) {
+        if (is_zero(b)) {
             switch (kind) {
                 case ArithOp_div:
                 case ArithOp_rem: return bottom(type, loc);
@@ -255,7 +246,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const Lo
             }
         }
 
-        if (b->is_one()) {
+        if (is_one(b)) {
             switch (kind) {
                 case ArithOp_mul:
                 case ArithOp_div: return a;
@@ -274,8 +265,8 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const Lo
             }
         }
 
-        if (kind == ArithOp_xor && a->is_allset()) {    // is this a NOT
-            if (b->is_not())                            // do we have ~~x?
+        if (kind == ArithOp_xor && is_allset(a)) {    // is this a NOT
+            if (is_not(b))                            // do we have ~~x?
                 return b->as<ArithOp>()->rhs();
             if (auto cmp = b->isa<Cmp>())   // do we have ~(a cmp b)?
                 return this->cmp(negate(cmp->cmp_kind()), cmp->lhs(), cmp->rhs(), loc);
@@ -379,13 +370,13 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const Lo
     return cse(new ArithOp(kind, a, b, loc, name));
 }
 
-const Def* World::arithop_not(const Def* def, const Location& loc) { return arithop_xor(allset(def->type(), loc, def->length()), def, loc); }
+const Def* World::arithop_not(const Def* def, const Location& loc) { return arithop_xor(allset(def->type(), loc, vector_length(def)), def, loc); }
 
 const Def* World::arithop_minus(const Def* def, const Location& loc) {
     switch (PrimTypeKind kind = def->type()->as<PrimType>()->primtype_kind()) {
 #define THORIN_F_TYPE(T, M) \
         case PrimType_##T: \
-            return arithop_sub(literal_##T(M(-0.f), loc, def->length()), def, loc);
+            return arithop_sub(literal_##T(M(-0.f), loc, vector_length(def)), def, loc);
 #include "thorin/tables/primtypetable.h"
         default:
             assert(is_type_i(kind));
@@ -400,8 +391,8 @@ const Def* World::arithop_minus(const Def* def, const Location& loc) {
 const Def* World::cmp(CmpKind kind, const Def* a, const Def* b, const Location& loc, const std::string& name) {
     CmpKind oldkind = kind;
     switch (kind) {
-        case Cmp_gt:  kind = Cmp_lt; break;
-        case Cmp_ge:  kind = Cmp_le; break;
+        case Cmp_gt: kind = Cmp_lt; break;
+        case Cmp_ge: kind = Cmp_le; break;
         default: break;
     }
 
@@ -410,8 +401,8 @@ const Def* World::cmp(CmpKind kind, const Def* a, const Def* b, const Location& 
 
     auto llit = a->isa<PrimLit>();
     auto rlit = b->isa<PrimLit>();
-    auto  lvec = a->isa<Vector>();
-    auto  rvec = b->isa<Vector>();
+    auto lvec = a->isa<Vector>();
+    auto rvec = b->isa<Vector>();
 
     if (lvec && rvec) {
         size_t num = lvec->type()->as<PrimType>()->length();
@@ -426,7 +417,6 @@ const Def* World::cmp(CmpKind kind, const Def* a, const Def* b, const Location& 
         Box r = rlit->value();
         PrimTypeKind type = llit->primtype_kind();
 
-        // TODO unordered
         switch (kind) {
             case Cmp_eq:
                 switch (type) {
@@ -455,9 +445,9 @@ const Def* World::cmp(CmpKind kind, const Def* a, const Def* b, const Location& 
     if (a == b) {
         switch (kind) {
             case Cmp_lt:
-            case Cmp_ne:  return zero(type_bool(), loc);
+            case Cmp_ne: return zero(type_bool(), loc);
             case Cmp_le:
-            case Cmp_eq:  return one(type_bool(), loc);
+            case Cmp_eq: return one(type_bool(), loc);
             default: break;
         }
     }
@@ -469,15 +459,27 @@ const Def* World::cmp(CmpKind kind, const Def* a, const Def* b, const Location& 
  * casts
  */
 
-const Def* World::convert(const Type* to, const Def* from, const Location& loc, const std::string& name) {
-    if (from->type()->isa<PtrType>() && to->isa<PtrType>())
-        return bitcast(to, from, loc, name);
-    return cast(to, from, loc, name);
+const Def* World::convert(const Type* dst_type, const Def* src, const Location& loc, const std::string& name) {
+    if (dst_type == src->type())
+        return src;
+    if (src->type()->isa<PtrType>() && dst_type->isa<PtrType>())
+        return bitcast(dst_type, src, loc, name);
+    if (auto dst_tuple_type = dst_type->isa<TupleType>()) {
+        assert(dst_tuple_type->num_ops() == src->type()->as<TupleType>()->num_ops());
+
+        Array<const Def*> new_tuple(dst_tuple_type->num_ops());
+        for (size_t i = 0, e = new_tuple.size(); i != e; ++i)
+            new_tuple[i] = convert(dst_type->op(i), extract(src, i, loc, name), loc, name);
+
+        return tuple(new_tuple, loc, name);
+    }
+
+    return cast(dst_type, src, loc, name);
 }
 
 const Def* World::cast(const Type* to, const Def* from, const Location& loc, const std::string& name) {
     if (auto vec = from->isa<Vector>()) {
-        size_t num = vec->length();
+        size_t num = vector_length(vec);
         auto to_vec = to->as<VectorType>();
         Array<const Def*> ops(num);
         for (size_t i = 0; i != num; ++i)
@@ -569,13 +571,17 @@ const Def* World::cast(const Type* to, const Def* from, const Location& loc, con
 }
 
 const Def* World::bitcast(const Type* to, const Def* from, const Location& loc, const std::string& name) {
-    if (auto other = from->isa<Bitcast>()) {
+    if (auto other = from->isa<Bitcast>())
         if (to == other->type())
             return other;
-    }
+
+    if (auto prim_to = to->isa<PrimType>())
+        if (auto prim_from = from->type()->isa<PrimType>())
+            if (num_bits(prim_from->primtype_kind()) != num_bits(prim_to->primtype_kind()))
+                ELOG("bitcast between primitive types of different size at %", loc);
 
     if (auto vec = from->isa<Vector>()) {
-        size_t num = vec->length();
+        size_t num = vector_length(vec);
         auto to_vec = to->as<VectorType>();
         Array<const Def*> ops(num);
         for (size_t i = 0; i != num; ++i)
@@ -638,17 +644,17 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, con
             std::fill(args.begin(), args.end(), bottom(definite_array_type->elem_type(), loc));
             agg = definite_array(args, loc, agg->name);
         } else if (auto tuple_type = agg->type()->isa<TupleType>()) {
-            Array<const Def*> args(tuple_type->num_args());
+            Array<const Def*> args(tuple_type->num_ops());
             size_t i = 0;
-            for (auto type : tuple_type->args())
+            for (auto type : tuple_type->ops())
                 args[i++] = bottom(type, loc);
             agg = tuple(args, loc, agg->name);
-        } else if (auto struct_app_type = agg->type()->isa<StructAppType>()) {
-            Array<const Def*> args(struct_app_type->num_elems());
+        } else if (auto struct_type = agg->type()->isa<StructType>()) {
+            Array<const Def*> args(struct_type->num_ops());
             size_t i = 0;
-            for (auto type : struct_app_type->elems())
+            for (auto type : struct_type->ops())
                 args[i++] = bottom(type, loc);
-            agg = struct_agg(struct_app_type, args, loc, agg->name);
+            agg = struct_agg(struct_type, args, loc, agg->name);
         }
 
     }
@@ -657,7 +663,7 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, con
     if (auto aggregate = agg->isa<Aggregate>()) {
         if (auto literal = index->isa<PrimLit>()) {
             if (!agg->isa<IndefiniteArray>()) {
-                Array<const Def*> args(agg->size());
+                Array<const Def*> args(agg->num_ops());
                 std::copy(agg->ops().begin(), agg->ops().end(), args.begin());
                 args[primlit_value<u64>(literal)] = value;
                 return aggregate->rebuild(args);
@@ -675,7 +681,7 @@ const Def* World::select(const Def* cond, const Def* a, const Def* b, const Loca
     if (auto lit = cond->isa<PrimLit>())
         return lit->value().get_bool() ? a : b;
 
-    if (cond->is_not()) {
+    if (is_not(cond)) {
         cond = cond->as<ArithOp>()->rhs();
         std::swap(a, b);
     }
@@ -753,6 +759,22 @@ const Def* World::global_immutable_string(const Location& loc, const std::string
     return global(definite_array(str_array, loc), loc, false, name);
 }
 
+const Assembly* World::assembly(const Type* type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, const Location& loc) {
+    return cse(new Assembly(type, inputs, asm_template, output_constraints, input_constraints, clobbers, flags, loc))->as<Assembly>();;
+}
+
+const Assembly* World::assembly(Types types, const Def* mem, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, const Location& loc) {
+    Array<const Type*> output(types.size()+1);
+    std::copy(types.begin(), types.end(), output.begin()+1);
+    output.front() = mem_type();
+
+    Array<const Def*> ops(inputs.size()+1);
+    std::copy(inputs.begin(), inputs.end(), ops.begin()+1);
+    ops.front() = mem;
+
+    return assembly(tuple_type(output), ops, asm_template, output_constraints, input_constraints, clobbers, flags, loc);
+}
+
 /*
  * lambdas
  */
@@ -763,8 +785,8 @@ Continuation* World::continuation(const FnType* fn, const Location& loc, CC cc, 
     continuations_.insert(l);
 
     size_t i = 0;
-    for (auto arg : fn->args()) {
-        auto p = param(arg, l, i++);
+    for (auto op : fn->ops()) {
+        auto p = param(op, l, i++);
         l->params_.push_back(p);
     }
 
@@ -799,6 +821,7 @@ const Def* World::cse_base(const PrimOp* primop) {
     auto i = primops_.find(primop);
     if (i != primops_.end()) {
         primop->unregister_uses();
+        --Def::gid_counter_;
         delete primop;
         return *i;
     }
@@ -810,7 +833,7 @@ const Def* World::cse_base(const PrimOp* primop) {
 
 void World::destroy(Continuation* continuation) {
     assert(continuation->num_uses() == 0);
-    assert(continuation->num_args() == 0);
+    assert(continuation->num_ops() == 0);
     continuation->destroy_body();
     continuations_.erase(continuation);
     delete continuation;

@@ -21,13 +21,13 @@ void mem2reg(const Scope& scope) {
 
     // unseal all continuations ...
     for (auto continuation : scope) {
-        continuation->set_top(false);
+        continuation->set_parent(continuation);
         continuation->unseal();
         assert(continuation->is_cleared());
     }
 
     // ... except top-level continuations
-    scope.entry()->set_top();
+    scope.entry()->set_parent(nullptr);
     scope.entry()->seal();
 
     // set parent pointers for functions passed to accelerator
@@ -38,7 +38,7 @@ void mem2reg(const Scope& scope) {
                     if (auto acontinuation = arg->isa_continuation()) {
                         if (!acontinuation->is_basicblock()) {
                             DLOG("% calls accelerator with %", continuation, acontinuation);
-                            acontinuation->set_top();
+                            acontinuation->set_parent(continuation);
                         }
                     }
                 }
@@ -72,10 +72,12 @@ void mem2reg(const Scope& scope) {
                     if (auto slot = load->ptr()->isa<Slot>()) {
                         if (!is_address_taken(slot)) {
                             auto type = slot->type()->as<PtrType>()->referenced_type();
-                            done.insert(load->out_val());
-                            done.insert(load->out_mem());
-                            load->out_val()->replace(continuation->get_value(slot2handle[slot], type, slot->name.c_str()));
-                            load->out_mem()->replace(load->mem());
+                            auto out_val = load->out_val();
+                            auto out_mem = load->out_mem();
+                            done.insert(out_val);
+                            done.insert(out_mem);
+                            out_val->replace(continuation->get_value(slot2handle[slot], type, slot->name.c_str()));
+                            out_mem->replace(load->mem());
                         }
                     }
                 }
@@ -86,7 +88,7 @@ next_primop:;
         // seal successors of last continuation if applicable
         for (auto succ : cfg.succs(block.node())) {
             auto lsucc = succ->continuation();
-            if (!lsucc->top()) {
+            if (lsucc->parent() != nullptr) {
                 auto i = continuation2num.find(lsucc);
                 if (i == continuation2num.end())
                     i = continuation2num.emplace(lsucc, cfg.num_preds(succ)).first;

@@ -92,13 +92,12 @@ MACRO ( THORIN_RUNTIME_WRAP outfiles )
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         DEPENDS ${IMPALA_BIN} ${THORIN_LIBRARY} ${PYTHON_BIN} ${THORIN_RUNTIME_DIR}/post-patcher.py ${_impala_platform} ${_infiles} VERBATIM )
     
-    # Generate .bc files for SPIR
-    IF ( "${TRW_BACKEND}" STREQUAL "spir" )
-        SET ( _spirfile ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.spir )
-        SET ( _bcfile ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.spir.bc )
-        ADD_CUSTOM_COMMAND ( OUTPUT ${_bcfile}
-            COMMAND ${LLVM_AS_BIN} ${_spirfile}
-            DEPENDS ${_spirfile} VERBATIM )
+    # Generate .bc files for NVVM & SPIR
+    IF ( "${TRW_BACKEND}" STREQUAL "spir" OR "${TRW_BACKEND}" STREQUAL "nvvm" )
+        SET ( _irfile ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.${TRW_BACKEND} )
+        SET ( _bcfile ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.${TRW_BACKEND}.bc )
+        ADD_CUSTOM_COMMAND ( OUTPUT ${_bcfile} COMMAND ${LLVM_AS_BIN} ${_irfile} DEPENDS ${_irfile} VERBATIM )
+        SET_SOURCE_FILES_PROPERTIES ( ${_irfile} $_bcfile} PROPERTIES GENERATED true )
     ENDIF()
 
     # Run clang on the patched .ll file to get the .o
@@ -107,5 +106,5 @@ MACRO ( THORIN_RUNTIME_WRAP outfiles )
         DEPENDS ${_llfile} VERBATIM )
 
     SET_SOURCE_FILES_PROPERTIES ( ${_objfile} PROPERTIES EXTERNAL_OBJECT true GENERATED true LANGUAGE CXX )
-    SET ( ${outfiles} ${${outfiles}} ${_objfile} ${_bcfile} )
+    SET ( ${outfiles} ${${outfiles}} ${_objfile} ${_bcfile} ${_irfile} )
 ENDMACRO ()

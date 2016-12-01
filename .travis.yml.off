@@ -1,0 +1,30 @@
+language: python
+
+sudo: required
+dist: trusty
+
+cache: 
+  - ccache
+
+install:
+  - mkdir -p ~/cmake
+  - mkdir -p ~/work
+  
+  - cd ~/work
+  - git clone --branch=$TRAVIS_BRANCH https://github.com/AnyDSL/anydsl.git
+  
+  - cd anydsl
+  - bash scripts/install_cmake.sh ~/cmake/
+  - export PATH=~/cmake/bin:~/work/anydsl/llvm_install/bin:~/work/anydsl/impala/build/bin:$PATH
+  
+  - cp config.sh.template config.sh
+  - sed -i 's/BRANCH:=master/BRANCH:=$TRAVIS_BRANCH/g' config.sh
+  - sed -i 's/HTTPS:=false/HTTPS:=true/g' config.sh
+  - sed -i 's/FETCH_LLVM:=false/FETCH_LLVM:=true/g' config.sh
+  - cat config.sh
+  
+  - CXX=/home/travis/work/anydsl/llvm_install/bin/clang++ ./setup.sh
+
+script:
+  - cd impala/test/
+  - python run_tests.py .

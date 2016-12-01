@@ -81,9 +81,10 @@ protected:
     void checkNvrtcErrors(nvrtcResult err, const char*, const char*, const int);
     #endif
 
-    void compile_nvvm(device_id dev, const char* file_name, CUjit_target target_cc);
-    void compile_cuda(device_id dev, const char* file_name, CUjit_target target_cc);
-    void create_module(device_id dev, const char* file_name, CUjit_target target_cc, const void* ptx);
+    std::string load_ptx(const std::string& filename);
+    void compile_nvvm(device_id dev, const std::string& filename, CUjit_target target_cc);
+    void compile_cuda(device_id dev, const std::string& filename, CUjit_target target_cc);
+    void create_module(device_id dev, const std::string& filename, CUjit_target target_cc, const void* ptx);
 };
 
 #endif

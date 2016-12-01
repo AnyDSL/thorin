@@ -10,23 +10,25 @@ static void dead_load_opt(const Scope& scope) {
 
         Tracker mem;
         for (auto arg : continuation->args()) {
-            if (arg->is_mem()) {
+            if (is_mem(arg)) {
                 mem = arg;
                 break;
             }
         }
 
-        while (true) {
-            if (auto memop = mem->isa<MemOp>()) {
-                if (memop->isa<Load>() || memop->isa<Enter>()) {
-                    if (memop->out(1)->num_uses() == 0)
-                        memop->out_mem()->replace(memop->mem());
-                }
-                mem = memop->mem();
-            } else if (auto extract = mem->isa<Extract>()) {
-                mem = extract->agg();
-            } else
-                break;
+        if (mem) {
+            while (true) {
+                if (auto memop = mem->isa<MemOp>()) {
+                    if (memop->isa<Load>() || memop->isa<Enter>()) {
+                        if (memop->out(1)->num_uses() == 0)
+                            memop->out_mem()->replace(memop->mem());
+                    }
+                    mem = memop->mem();
+                } else if (auto extract = mem->isa<Extract>()) {
+                    mem = extract->agg();
+                } else
+                    break;
+            }
         }
     }
 }

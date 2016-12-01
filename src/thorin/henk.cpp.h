@@ -2,118 +2,200 @@
 #error "please define the type table name HENK_TABLE_NAME"
 #endif
 
+#ifndef HENK_TABLE_TYPE
+#error "please define the type table type HENK_TABLE_TYPE"
+#endif
+
+#ifndef HENK_STRUCT_EXTRA_NAME
+#error "please define the name for HENK_STRUCT_EXTRA_TYPE: HENK_STRUCT_EXTRA_NAME"
+#endif
+
+#ifndef HENK_STRUCT_EXTRA_TYPE
+#error "please define the type to unify StructTypes HENK_STRUCT_EXTRA_TYPE"
+#endif
+
+#define HENK_UNDERSCORE(N) THORIN_PASTER(N,_)
+#define HENK_TABLE_NAME_ HENK_UNDERSCORE(HENK_TABLE_NAME)
+
 size_t Type::gid_counter_ = 1;
 
-Type::Type(HENK_TABLE_TYPE& HENK_TABLE_NAME, int kind, Types args, size_t num_type_params)
-    : HENK_TABLE_NAME_(HENK_TABLE_NAME)
-    , kind_(kind)
-    , args_(args.size())
-    , type_params_(num_type_params)
-    , gid_(gid_counter_++)
-{
-    for (size_t i = 0, e = num_args(); i != e; ++i) {
-        if (auto arg = args[i])
-            set(i, arg);
-    }
-}
+const Type* Type::op(size_t i) const { return i < num_ops() ? ops()[i] : HENK_TABLE_NAME().type_error(); }
 
-const Type* close_base(const Type*& type, ArrayRef<const TypeParam*> type_params) {
-    assert(type->num_type_params() == type_params.size());
+//------------------------------------------------------------------------------
 
-    for (size_t i = 0, e = type->num_type_params(); i != e; ++i) {
-        assert(!type_params[i]->is_closed());
-        type->type_params_[i] = type_params[i];
-        type->type_params_[i]->binder_ = type;
-        type->type_params_[i]->closed_ = true;
-        type->type_params_[i]->index_ = i;
-    }
-
-    std::stack<const Type*> stack;
-    TypeSet done;
-
-    auto push = [&](const Type* type) {
-        if (!type->is_closed() && !done.contains(type) && !type->isa<TypeParam>()) {
-            done.insert(type);
-            stack.push(type);
-            return true;
-        }
-        return false;
-    };
-
-    push(type);
-
-    // TODO this is potentially quadratic when closing n types
-    while (!stack.empty()) {
-        auto type = stack.top();
-
-        bool todo = false;
-        for (auto arg : type->args())
-            todo |= push(arg);
-
-        if (!todo) {
-            stack.pop();
-            type->closed_ = true;
-            for (size_t i = 0, e = type->num_args(); i != e && type->closed_; ++i)
-                type->closed_ &= type->arg(i)->is_closed();
-        }
-    }
-
-    return type = type->HENK_TABLE_NAME().unify_base(type);
-}
+/*
+ * hash
+ */
 
 uint64_t Type::vhash() const {
-    uint64_t seed = thorin::hash_combine(thorin::hash_begin((int) kind()), num_args(), num_type_params());
-    for (auto arg : args_)
-        seed = thorin::hash_combine(seed, arg->hash());
+    if (is_nominal())
+        return gid();
+
+    uint64_t seed = thorin::hash_combine(thorin::hash_begin(int(kind())), num_ops());
+    for (auto op : ops_)
+        seed = thorin::hash_combine(seed, op->hash());
     return seed;
 }
 
-uint64_t TypeParam::vhash() const {
-    return thorin::hash_combine(thorin::hash_begin(int(kind())), index(),
-                                int(binder()->kind()), binder()->num_type_params(), binder()->num_args());
+uint64_t Var::vhash() const {
+    return thorin::hash_combine(thorin::hash_begin(int(kind())), depth());
 }
 
+//------------------------------------------------------------------------------
+
+/*
+ * equal
+ */
+
 bool Type::equal(const Type* other) const {
-    bool result =  this->kind() == other->kind()     &&  this->is_monomorphic() == other->is_monomorphic()
-            && this->num_args() == other->num_args() && this->num_type_params() == other->num_type_params();
+    if (is_nominal())
+        return this == other;
+
+    bool result = this->kind() == other->kind() && this->num_ops() == other->num_ops()
+        && this->is_monomorphic() == other->is_monomorphic();
 
     if (result) {
-        if (is_monomorphic()) {
-            for (size_t i = 0, e = num_args(); result && i != e; ++i)
-                result &= this->args_[i] == other->args_[i];
-        } else {
-            for (size_t i = 0, e = num_type_params(); result && i != e; ++i) {
-                assert(this->type_param(i)->equiv_ == nullptr);
-                this->type_param(i)->equiv_ = other->type_param(i);
-            }
-
-            for (size_t i = 0, e = num_args(); result && i != e; ++i)
-                result &= this->args_[i]->equal(other->args_[i]);
-
-            for (auto type_param : type_params())
-                type_param->equiv_ = nullptr;
-        }
-        //for (size_t i = 0, e = num_type_params(); result && i != e; ++i) {
-            //assert(this->type_param(i)->equiv_ == nullptr);
-            //this->type_param(i)->equiv_ = other->type_param(i);
-        //}
-
-        //for (size_t i = 0, e = num_args(); result && i != e; ++i)
-            //result &= this->arg(i)->is_hashed()
-                //? this->arg(i) == other->arg(i)
-                //: this->arg(i)->equal(other->arg(i));
-
-        //for (auto type_param : type_params())
-            //type_param->equiv_ = nullptr;
+        for (size_t i = 0, e = num_ops(); result && i != e; ++i)
+            result &= this->op(i) == other->op(i);
     }
 
     return result;
 }
 
-bool TypeParam::equal(const Type* other) const {
-    if (auto type_param = other->isa<TypeParam>())
-        return this->equiv_ == type_param;
-    return false;
+bool Var::equal(const Type* other) const {
+    return other->isa<Var>() ? this->as<Var>()->depth() == other->as<Var>()->depth() : false;
 }
 
+//------------------------------------------------------------------------------
+
+/*
+ * rebuild
+ */
+
+const Type* Type::rebuild(HENK_TABLE_TYPE& to, Types ops) const {
+    assert(num_ops() == ops.size());
+    if (ops.empty() && &HENK_TABLE_NAME() == &to)
+        return this;
+    return vrebuild(to, ops);
+}
+
+const Type* StructType::vrebuild(HENK_TABLE_TYPE&, Types ops) const {
+    assert(this->ops() == ops);
+    return this;
+}
+
+const Type* App      ::vrebuild(HENK_TABLE_TYPE& to, Types ops) const { return to.app(ops[0], ops[1]); }
+const Type* TupleType::vrebuild(HENK_TABLE_TYPE& to, Types ops) const { return to.tuple_type(ops); }
+const Type* Lambda   ::vrebuild(HENK_TABLE_TYPE& to, Types ops) const { return to.lambda(ops[0], name()); }
+const Type* Var      ::vrebuild(HENK_TABLE_TYPE& to, Types    ) const { return to.var(depth()); }
+const Type* TypeError::vrebuild(HENK_TABLE_TYPE&,    Types    ) const { return this; }
+
+//------------------------------------------------------------------------------
+
+/*
+ * reduce
+ */
+
+const Type* Type::reduce(int depth, const Type* type, Type2Type& map) const {
+    if (auto result = find(map, this))
+        return result;
+    if (is_monomorphic())
+        return this;
+    return map[this] = vreduce(depth, type, map);
+}
+
+Array<const Type*> Type::reduce_ops(int depth, const Type* type, Type2Type& map) const {
+    Array<const Type*> result(num_ops());
+    for (size_t i = 0, e = num_ops(); i != e; ++i)
+        result[i] = op(i)->reduce(depth, type, map);
+    return result;
+}
+
+const Type* Lambda::vreduce(int depth, const Type* type, Type2Type& map) const {
+    return HENK_TABLE_NAME().lambda(body()->reduce(depth+1, type, map), name());
+}
+
+const Type* Var::vreduce(int depth, const Type* type, Type2Type&) const {
+    if (this->depth() == depth)
+        return type;
+    else if (this->depth() > depth)
+        return HENK_TABLE_NAME().var(this->depth()-1);  // this is a free variable - shift by one
+    else
+        return this;                                    // this variable is not free - don't adjust
+}
+
+const Type* StructType::vreduce(int depth, const Type* type, Type2Type& map) const {
+    auto struct_type = HENK_TABLE_NAME().struct_type(HENK_STRUCT_EXTRA_NAME(), num_ops());
+    map[this] = struct_type;
+    auto ops = reduce_ops(depth, type, map);
+
+    for (size_t i = 0, e = num_ops(); i != e; ++i)
+        struct_type->set(i, ops[i]);
+
+    return struct_type;
+}
+
+const Type* App::vreduce(int depth, const Type* type, Type2Type& map) const {
+    auto ops = reduce_ops(depth, type, map);
+    return HENK_TABLE_NAME().app(ops[0], ops[1]);
+}
+
+const Type* TupleType::vreduce(int depth, const Type* type, Type2Type& map) const {
+    return HENK_TABLE_NAME().tuple_type(reduce_ops(depth, type, map));
+}
+
+const Type* TypeError::vreduce(int, const Type*, Type2Type&) const { return this; }
+
+//------------------------------------------------------------------------------
+
+template<class T>
+const StructType* TypeTableBase<T>::struct_type(HENK_STRUCT_EXTRA_TYPE HENK_STRUCT_EXTRA_NAME, size_t size) {
+    auto type = new StructType(HENK_TABLE_NAME(), HENK_STRUCT_EXTRA_NAME, size);
+    const auto& p = types_.insert(type);
+    assert_unused(p.second && "hash/equal broken");
+    return type;
+}
+
+template<class T>
+const Type* TypeTableBase<T>::app(const Type* callee, const Type* op) {
+    auto app = unify(new App(HENK_TABLE_NAME(), callee, op));
+
+    if (auto cache = app->cache_)
+        return cache;
+    if (auto lambda = app->callee()->template isa<Lambda>()) {
+        Type2Type map;
+        return app->cache_ = lambda->body()->reduce(1, op, map);
+    } else {
+        return app->cache_ = app;
+    }
+
+    return app;
+}
+
+template<class T>
+const Type* TypeTableBase<T>::unify_base(const Type* type) {
+    auto i = types_.find(type);
+    if (i != types_.end()) {
+        delete type;
+        type = *i;
+        return type;
+    }
+
+    return insert(type);
+}
+
+template<class T>
+const Type* TypeTableBase<T>::insert(const Type* type) {
+    const auto& p = types_.insert(type);
+    assert_unused(p.second && "hash/equal broken");
+    return type;
+}
+
+template class TypeTableBase<HENK_TABLE_TYPE>;
+
+//------------------------------------------------------------------------------
+
+#undef HENK_STRUCT_EXTRA_NAME
+#undef HENK_STRUCT_EXTRA_TYPE
 #undef HENK_TABLE_NAME
+#undef HENK_TABLE_TYPE

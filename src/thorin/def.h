@@ -1,13 +1,11 @@
 #ifndef THORIN_DEF_H
 #define THORIN_DEF_H
 
-#include <set>
 #include <string>
 #include <vector>
 
 #include "thorin/enums.h"
 #include "thorin/type.h"
-#include "thorin/util/autoptr.h"
 #include "thorin/util/location.h"
 
 namespace thorin {
@@ -27,11 +25,22 @@ typedef ArrayRef<const Def*> Defs;
 
 /**
  * References a user.
- * A \p Def u which uses \p Def d as i^th operand is a \p Use with \p index_ i of \p Def d.
+ * A \p Def \c u which uses \p Def \c d as \c i^th operand is a \p Use with \p index_ \c i of \p Def \c d.
  */
 class Use {
 public:
     Use() {}
+#if defined(__x86_64__) || (_M_X64)
+    Use(size_t index, const Def* def)
+        : uptr_(reinterpret_cast<uintptr_t>(def) | (uintptr_t(index) << 48ull))
+    {}
+
+    size_t index() const { return uptr_ >> 48ull; }
+    const Def* def() const {
+        // sign extend to make pointer canonical
+        return reinterpret_cast<const Def*>((iptr_  << 16) >> 16) ;
+    }
+#else
     Use(size_t index, const Def* def)
         : index_(index)
         , def_(def)
@@ -39,26 +48,37 @@ public:
 
     size_t index() const { return index_; }
     const Def* def() const { return def_; }
-    operator const Def*() const { return def_; }
-    const Def* operator->() const { return def_; }
+#endif
+    operator const Def*() const { return def(); }
+    const Def* operator->() const { return def(); }
     bool operator==(Use other) const { return this->def() == other.def() && this->index() == other.index(); }
 
 private:
+#if defined(__x86_64__) || (_M_X64)
+    /// A tagged pointer: First 16bit is index, remaining 48bit is the actual pointer.
+    union {
+        uintptr_t uptr_;
+        intptr_t iptr_;
+    };
+#else
     size_t index_;
     const Def* def_;
+#endif
 };
 
 //------------------------------------------------------------------------------
 
 struct UseHash {
-    inline uint64_t operator()(Use use) const;
+    inline static uint64_t hash(Use use);
+    static bool eq(Use u1, Use u2) { return u1 == u2; }
+    static Use sentinel() { return Use(size_t(-1), (const Def*)(-1)); }
 };
 
 typedef HashSet<Use, UseHash> Uses;
 
 template<class To>
-using DefMap  = GIDMap<Def, To>;
-using DefSet  = GIDSet<Def>;
+using DefMap  = GIDMap<const Def*, To>;
+using DefSet  = GIDSet<const Def*>;
 using Def2Def = DefMap<const Def*>;
 
 std::ostream& operator<<(std::ostream&, const Def*);
@@ -83,50 +103,33 @@ protected:
     virtual ~Def() {}
 
     void clear_type() { type_ = nullptr; }
-    void set_type(const Type* type) { assert(type->is_closed()); type_ = type; }
+    void set_type(const Type* type) { type_ = type; }
     void unregister_use(size_t i) const;
     void unregister_uses() const;
     void resize(size_t n) { ops_.resize(n, nullptr); }
 
 public:
     NodeKind kind() const { return kind_; }
-    bool is_corenode() const { return ::thorin::is_corenode(kind()); }
-    size_t size() const { return ops_.size(); }
+    size_t num_ops() const { return ops_.size(); }
     bool empty() const { return ops_.empty(); }
     void set_op(size_t i, const Def* def);
     void unset_op(size_t i);
     void unset_ops();
-    const Def* is_mem() const { return type()->isa<MemType>() ? this : nullptr; }
     Continuation* as_continuation() const;
     Continuation* isa_continuation() const;
-    bool is_const() const;
     void dump() const;
     const Uses& uses() const { return uses_; }
+    Array<Use> copy_uses() const { return Array<Use>(uses_.begin(), uses_.end()); }
     size_t num_uses() const { return uses().size(); }
     size_t gid() const { return gid_; }
     std::string unique_name() const;
     const Type* type() const { return type_; }
-    int order() const;
+    int order() const { return type()->order(); }
     World& world() const;
     Defs ops() const { return ops_; }
     const Def* op(size_t i) const { assert(i < ops().size() && "index out of bounds"); return ops_[i]; }
     void replace(const Def*) const;
-    size_t length() const; ///< Returns the vector length. Raises an assertion if type of this is not a \p VectorType.
-    bool is_primlit(int val) const;
-    bool is_zero() const { return is_primlit(0); }
-    bool is_minus_zero() const;
-    bool is_one() const { return is_primlit(1); }
-    bool is_allset() const { return is_primlit(-1); }
-    bool is_bitop()       const { return thorin::is_bitop(kind()); }
-    bool is_shift()       const { return thorin::is_shift(kind()); }
-    bool is_not()         const { return kind() == Node_xor && op(0)->is_allset(); }
-    bool is_minus()       const { return kind() == Node_sub && op(0)->is_minus_zero(); }
-    bool is_div_or_rem()  const { return thorin::is_div_or_rem(kind()); }
-    bool is_commutative() const { return thorin::is_commutative(kind()); }
-    bool is_associative() const { return thorin::is_associative(kind()); }
 
-    virtual bool is_outdated() const { return false; }
-    virtual const Def* rebuild(Def2Def&) const { return this; }
     virtual std::ostream& stream(std::ostream&) const;
     static size_t gid_counter() { return gid_counter_; }
 
@@ -136,7 +139,6 @@ private:
     const Type* type_;
     mutable Uses uses_;
     const size_t gid_;
-    mutable uint32_t candidate_ = 0;
     static size_t gid_counter_;
 
 public:
@@ -149,6 +151,27 @@ public:
     friend class Cleaner;
     friend class Tracker;
 };
+
+uint64_t UseHash::hash(Use use) {
+    return uint64_t(use.index() & 0x3) | uint64_t(use->gid()) << 2ull;
+}
+
+/// Returns the vector length. Raises an assertion if type of this is not a \p VectorType.
+size_t vector_length(const Def*);
+bool is_const(const Def*);
+bool is_primlit(const Def*, int);
+bool is_minus_zero(const Def*);
+inline bool is_mem        (const Def* def) { return def->type()->isa<MemType>(); }
+inline bool is_zero       (const Def* def) { return is_primlit(def, 0); }
+inline bool is_one        (const Def* def) { return is_primlit(def, 1); }
+inline bool is_allset     (const Def* def) { return is_primlit(def, -1); }
+inline bool is_bitop      (const Def* def) { return thorin::is_bitop(def->kind()); }
+inline bool is_shift      (const Def* def) { return thorin::is_shift(def->kind()); }
+inline bool is_not        (const Def* def) { return def->kind() == Node_xor && is_allset(def->op(0)); }
+inline bool is_minus      (const Def* def) { return def->kind() == Node_sub && is_minus_zero(def->op(0)); }
+inline bool is_div_or_rem (const Def* def) { return thorin::is_div_or_rem(def->kind()); }
+inline bool is_commutative(const Def* def) { return thorin::is_commutative(def->kind()); }
+inline bool is_associative(const Def* def) { return thorin::is_associative(def->kind()); }
 
 namespace detail {
     inline std::ostream& stream(std::ostream& os, const Def* def) { return def->stream(os); }
@@ -248,29 +271,6 @@ private:
     mutable const Def* def_;
     friend void Def::replace(const Def*) const;
 };
-
-//------------------------------------------------------------------------------
-
-uint64_t UseHash::operator()(Use use) const {
-    return hash_combine(hash_begin(use->gid()), use.index());
-}
-
-template<>
-struct Hash<Defs> {
-    uint64_t operator()(Defs defs) const {
-        uint64_t seed = hash_begin(defs.size());
-        for (auto def : defs)
-            seed = hash_combine(seed, def ? def->gid() : uint64_t(-1));
-        return seed;
-    }
-};
-
-template<>
-struct Hash<Array<const Def*>> {
-    uint64_t operator()(const Array<const Def*> defs) const { return Hash<Defs>()(defs); }
-};
-
-//------------------------------------------------------------------------------
 
 }
 

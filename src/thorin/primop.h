@@ -12,8 +12,8 @@ namespace thorin {
 /// Base class for all @p PrimOp%s.
 class PrimOp : public Def {
 protected:
-    PrimOp(NodeKind kind, const Type* type, Defs args, const Location& loc, const std::string& name)
-        : Def(kind, type, args.size(), loc, name)
+    PrimOp(NodeKind kind, const Type* type, Defs args, Debug dbg)
+        : Def(kind, type, args.size(), dbg)
     {
         for (size_t i = 0, e = num_ops(); i != e; ++i)
             set_op(i, args[i]);
@@ -63,16 +63,16 @@ struct PrimOpHash {
 /// Base class for all @p PrimOp%s without operands.
 class Literal : public PrimOp {
 protected:
-    Literal(NodeKind kind, const Type* type, const Location& loc, const std::string& name)
-        : PrimOp(kind, type, {}, loc, name)
+    Literal(NodeKind kind, const Type* type, Debug dbg)
+        : PrimOp(kind, type, {}, dbg)
     {}
 };
 
 /// This literal represents 'no value'.
 class Bottom : public Literal {
 private:
-    Bottom(const Type* type, const Location& loc, const std::string& name)
-        : Literal(Node_Bottom, type, loc, name)
+    Bottom(const Type* type, Debug dbg)
+        : Literal(Node_Bottom, type, dbg)
     {}
 
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
@@ -83,7 +83,7 @@ private:
 /// Data constructor for a @p PrimType.
 class PrimLit : public Literal {
 private:
-    PrimLit(World& world, PrimTypeKind kind, Box box, const Location& loc, const std::string& name);
+    PrimLit(World& world, PrimTypeKind kind, Box box, Debug dbg);
 
 public:
     Box value() const { return box_; }
@@ -122,8 +122,8 @@ T get(ArrayRef<T> array, const Def* def) { return array[primlit_value<size_t>(de
 /// Akin to <tt>cond ? tval : fval</tt>.
 class Select : public PrimOp {
 private:
-    Select(const Def* cond, const Def* tval, const Def* fval, const Location& loc, const std::string& name)
-        : PrimOp(Node_Select, tval->type(), {cond, tval, fval}, loc, name)
+    Select(const Def* cond, const Def* tval, const Def* fval, Debug dbg)
+        : PrimOp(Node_Select, tval->type(), {cond, tval, fval}, dbg)
     {
         assert(is_type_bool(cond->type()));
         assert(tval->type() == fval->type() && "types of both values must be equal");
@@ -143,7 +143,7 @@ public:
 /// Get number of bytes needed for any value (including bottom) of a given @p Type.
 class SizeOf : public PrimOp {
 private:
-    SizeOf(const Def* def, const Location& loc, const std::string& name);
+    SizeOf(const Def* def, Debug dbg);
 
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
 
@@ -156,8 +156,8 @@ public:
 /// Base class for all side-effect free binary \p PrimOp%s.
 class BinOp : public PrimOp {
 protected:
-    BinOp(NodeKind kind, const Type* type, const Def* lhs, const Def* rhs, const Location& loc, const std::string& name)
-        : PrimOp(kind, type, {lhs, rhs}, loc, name)
+    BinOp(NodeKind kind, const Type* type, const Def* lhs, const Def* rhs, Debug dbg)
+        : PrimOp(kind, type, {lhs, rhs}, dbg)
     {
         assert(lhs->type() == rhs->type() && "types are not equal");
     }
@@ -170,8 +170,8 @@ public:
 /// One of \p ArithOpKind arithmetic operation.
 class ArithOp : public BinOp {
 private:
-    ArithOp(ArithOpKind kind, const Def* lhs, const Def* rhs, const Location& loc, const std::string& name)
-        : BinOp((NodeKind) kind, lhs->type(), lhs, rhs, loc, name)
+    ArithOp(ArithOpKind kind, const Def* lhs, const Def* rhs, Debug dbg)
+        : BinOp((NodeKind) kind, lhs->type(), lhs, rhs, dbg)
     {}
 
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
@@ -187,7 +187,7 @@ public:
 /// One of \p CmpKind compare.
 class Cmp : public BinOp {
 private:
-    Cmp(CmpKind kind, const Def* lhs, const Def* rhs, const Location& loc, const std::string& name);
+    Cmp(CmpKind kind, const Def* lhs, const Def* rhs, Debug dbg);
 
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
 
@@ -202,8 +202,8 @@ public:
 /// Base class for @p Bitcast and @p Cast.
 class ConvOp : public PrimOp {
 protected:
-    ConvOp(NodeKind kind, const Def* from, const Type* to, const Location& loc, const std::string& name)
-        : PrimOp(kind, to, {from}, loc, name)
+    ConvOp(NodeKind kind, const Def* from, const Type* to, Debug dbg)
+        : PrimOp(kind, to, {from}, dbg)
     {}
 
 public:
@@ -213,8 +213,8 @@ public:
 /// Converts <tt>from</tt> to type <tt>to</tt>.
 class Cast : public ConvOp {
 private:
-    Cast(const Type* to, const Def* from, const Location& loc, const std::string& name)
-        : ConvOp(Node_Cast, from, to, loc, name)
+    Cast(const Type* to, const Def* from, Debug dbg)
+        : ConvOp(Node_Cast, from, to, dbg)
     {}
 
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
@@ -225,8 +225,8 @@ private:
 /// Reinterprets the bits of <tt>from</tt> as type <tt>to</tt>.
 class Bitcast : public ConvOp {
 private:
-    Bitcast(const Type* to, const Def* from, const Location& loc, const std::string& name)
-        : ConvOp(Node_Bitcast, from, to, loc, name)
+    Bitcast(const Type* to, const Def* from, Debug dbg)
+        : ConvOp(Node_Bitcast, from, to, dbg)
     {}
 
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
@@ -237,15 +237,15 @@ private:
 /// Base class for all aggregate data constructers.
 class Aggregate : public PrimOp {
 protected:
-    Aggregate(NodeKind kind, Defs args, const Location& loc, const std::string& name)
-        : PrimOp(kind, nullptr /*set later*/, args, loc, name)
+    Aggregate(NodeKind kind, Defs args, Debug dbg)
+        : PrimOp(kind, nullptr /*set later*/, args, dbg)
     {}
 };
 
 /// Data constructor for a \p DefiniteArrayType.
 class DefiniteArray : public Aggregate {
 private:
-    DefiniteArray(World& world, const Type* elem, Defs args, const Location& loc, const std::string& name);
+    DefiniteArray(World& world, const Type* elem, Defs args, Debug dbg);
 
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
 
@@ -259,7 +259,7 @@ public:
 /// Data constructor for an \p IndefiniteArrayType.
 class IndefiniteArray : public Aggregate {
 private:
-    IndefiniteArray(World& world, const Type* elem, const Def* dim, const Location& loc, const std::string& name);
+    IndefiniteArray(World& world, const Type* elem, const Def* dim, Debug dbg);
 
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
 
@@ -273,7 +273,7 @@ public:
 /// Data constructor for a @p TupleType.
 class Tuple : public Aggregate {
 private:
-    Tuple(World& world, Defs args, const Location& loc, const std::string& name);
+    Tuple(World& world, Defs args, Debug dbg);
 
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
 
@@ -286,8 +286,8 @@ public:
 /// Data constructor for a @p StructType.
 class StructAgg : public Aggregate {
 private:
-    StructAgg(const StructType* struct_type, Defs args, const Location& loc, const std::string& name)
-        : Aggregate(Node_StructAgg, args, loc, name)
+    StructAgg(const StructType* struct_type, Defs args, Debug dbg)
+        : Aggregate(Node_StructAgg, args, dbg)
     {
 #ifndef NDEBUG
         assert(struct_type->num_ops() == args.size());
@@ -308,7 +308,7 @@ public:
 /// Data constructor for a vector type.
 class Vector : public Aggregate {
 private:
-    Vector(World& world, Defs args, const Location& loc, const std::string& name);
+    Vector(World& world, Defs args, Debug dbg);
 
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
 
@@ -318,8 +318,8 @@ private:
 /// Base class for functional @p Insert and @p Extract.
 class AggOp : public PrimOp {
 protected:
-    AggOp(NodeKind kind, const Type* type, Defs args, const Location& loc, const std::string& name)
-        : PrimOp(kind, type, args, loc, name)
+    AggOp(NodeKind kind, const Type* type, Defs args, Debug dbg)
+        : PrimOp(kind, type, args, dbg)
     {}
 
 public:
@@ -332,8 +332,8 @@ public:
 /// Extracts from aggregate <tt>agg</tt> the element at position <tt>index</tt>.
 class Extract : public AggOp {
 private:
-    Extract(const Def* agg, const Def* index, const Location& loc, const std::string& name)
-        : AggOp(Node_Extract, extracted_type(agg, index), {agg, index}, loc, name)
+    Extract(const Def* agg, const Def* index, Debug dbg)
+        : AggOp(Node_Extract, extracted_type(agg, index), {agg, index}, dbg)
     {}
 
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
@@ -352,8 +352,8 @@ public:
  */
 class Insert : public AggOp {
 private:
-    Insert(const Def* agg, const Def* index, const Def* value, const Location& loc, const std::string& name)
-        : AggOp(Node_Insert, agg->type(), {agg, index, value}, loc, name)
+    Insert(const Def* agg, const Def* index, const Def* value, Debug dbg)
+        : AggOp(Node_Insert, agg->type(), {agg, index, value}, dbg)
     {}
 
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
@@ -372,7 +372,7 @@ public:
  */
 class LEA : public PrimOp {
 private:
-    LEA(const Def* ptr, const Def* index, const Location& loc, const std::string& name);
+    LEA(const Def* ptr, const Def* index, Debug dbg);
 
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
 
@@ -389,8 +389,8 @@ public:
 /// Base class for \p Run and \p Hlt.
 class EvalOp : public PrimOp {
 protected:
-    EvalOp(NodeKind kind, const Def* begin, const Def* end, const Location& loc, const std::string& name)
-        : PrimOp(kind, begin->type(), {begin, end}, loc, name)
+    EvalOp(NodeKind kind, const Def* begin, const Def* end, Debug dbg)
+        : PrimOp(kind, begin->type(), {begin, end}, dbg)
     {}
 
 public:
@@ -401,8 +401,8 @@ public:
 /// Starts a partial evaluation run.
 class Run : public EvalOp {
 private:
-    Run(const Def* begin, const Def* end, const Location& loc, const std::string& name)
-        : EvalOp(Node_Run, begin, end, loc, name)
+    Run(const Def* begin, const Def* end, Debug dbg)
+        : EvalOp(Node_Run, begin, end, dbg)
     {}
 
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
@@ -413,8 +413,8 @@ private:
 /// Stops a partial evaluation run or hinders partial evaluation from specializing <tt>def</tt>.
 class Hlt : public EvalOp {
 private:
-    Hlt(const Def* begin, const Def* end, const Location& loc, const std::string& name)
-        : EvalOp(Node_Hlt, begin, end, loc, name)
+    Hlt(const Def* begin, const Def* end, Debug dbg)
+        : EvalOp(Node_Hlt, begin, end, dbg)
     {}
 
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
@@ -429,7 +429,7 @@ private:
  */
 class Slot : public PrimOp {
 private:
-    Slot(const Type* type, const Def* frame, const Location& loc, const std::string& name);
+    Slot(const Type* type, const Def* frame, Debug dbg);
 
 public:
     const Def* frame() const { return op(0); }
@@ -450,7 +450,7 @@ private:
  */
 class Global : public PrimOp {
 private:
-    Global(const Def* init, bool is_mutable, const Location& loc, const std::string& name);
+    Global(const Def* init, bool is_mutable, Debug dbg);
 
 public:
     const Def* init() const { return op(0); }
@@ -474,8 +474,8 @@ private:
 /// Base class for all \p PrimOp%s taking and producing side-effects.
 class MemOp : public PrimOp {
 protected:
-    MemOp(NodeKind kind, const Type* type, Defs args, const Location& loc, const std::string& name)
-        : PrimOp(kind, type, args, loc, name)
+    MemOp(NodeKind kind, const Type* type, Defs args, Debug dbg)
+        : PrimOp(kind, type, args, dbg)
     {
         assert(mem()->type()->isa<MemType>());
         assert(args.size() >= 1);
@@ -493,7 +493,7 @@ private:
 /// Allocates memory on the heap.
 class Alloc : public MemOp {
 private:
-    Alloc(const Type* type, const Def* mem, const Def* extra, const Location& loc, const std::string& name);
+    Alloc(const Type* type, const Def* mem, const Def* extra, Debug dbg);
 
 public:
     const Def* extra() const { return op(1); }
@@ -514,8 +514,8 @@ private:
 /// Base class for @p Load and @p Store.
 class Access : public MemOp {
 protected:
-    Access(NodeKind kind, const Type* type, Defs args, const Location& loc, const std::string& name)
-        : MemOp(kind, type, args, loc, name)
+    Access(NodeKind kind, const Type* type, Defs args, Debug dbg)
+        : MemOp(kind, type, args, dbg)
     {
         assert(args.size() >= 2);
     }
@@ -527,7 +527,7 @@ public:
 /// Loads with current effect <tt>mem</tt> from <tt>ptr</tt> to produce a pair of a new effect and the loaded value.
 class Load : public Access {
 private:
-    Load(const Def* mem, const Def* ptr, const Location& loc, const std::string& name);
+    Load(const Def* mem, const Def* ptr, Debug dbg);
 
 public:
     virtual bool has_multiple_outs() const override { return true; }
@@ -546,8 +546,8 @@ private:
 /// Stores with current effect <tt>mem</tt> <tt>value</tt> into <tt>ptr</tt> while producing a new effect.
 class Store : public Access {
 private:
-    Store(const Def* mem, const Def* ptr, const Def* value, const Location& loc, const std::string& name)
-        : Access(Node_Store, mem->type(), {mem, ptr, value}, loc, name)
+    Store(const Def* mem, const Def* ptr, const Def* value, Debug dbg)
+        : Access(Node_Store, mem->type(), {mem, ptr, value}, dbg)
     {}
 
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
@@ -562,7 +562,7 @@ public:
 /// Creates a stack \p Frame with current effect <tt>mem</tt>.
 class Enter : public MemOp {
 private:
-    Enter(const Def* mem, const Location& loc, const std::string& name);
+    Enter(const Def* mem, Debug dbg);
 
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
 
@@ -586,7 +586,8 @@ public:
     };
 
 private:
-    Assembly(const Type *type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Flags flags, const Location& loc);
+    Assembly(const Type *type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints,
+             ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Flags flags, Debug dbg);
 
 public:
     Defs inputs() const { return ops().skip_front(); }

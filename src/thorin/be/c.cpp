@@ -292,7 +292,7 @@ void CCodeGen::emit() {
         // emit function & its declaration
         auto ret_param_fn_type = ret_param->type()->as<FnType>();
         auto ret_type = ret_param_fn_type->num_ops() > 2 ? world_.tuple_type(ret_param_fn_type->ops().skip_front()) : ret_param_fn_type->ops().back();
-        auto name = (continuation->is_external() || continuation->empty()) ? continuation->name : continuation->unique_name();
+        auto name = (continuation->is_external() || continuation->empty()) ? continuation->name() : continuation->unique_name();
         if (continuation->is_external()) {
             switch (lang_) {
                 case Lang::C99:                                  break;
@@ -322,8 +322,8 @@ void CCodeGen::emit() {
                     type_decls_ << "texture<";
                     emit_type(type_decls_, param->type()->as<PtrType>()->referenced_type());
                     type_decls_ << ", cudaTextureType1D, cudaReadModeElementType> ";
-                    type_decls_ << param->name << ";" << endl;
-                    insert(param, param->name);
+                    type_decls_ << param->name() << ";" << endl;
+                    insert(param, param->name());
                     // skip arrays bound to texture memory
                     continue;
                 }
@@ -527,7 +527,7 @@ void CCodeGen::emit() {
                         }
                     } else {
                         auto emit_call = [&] (const Param* param = nullptr) {
-                            auto name = (callee->is_external() || callee->empty()) ? callee->name : callee->unique_name();
+                            auto name = (callee->is_external() || callee->empty()) ? callee->name() : callee->unique_name();
                             if (param)
                                 emit(param) << " = ";
                             func_impl_ << name << "(";

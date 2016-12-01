@@ -2,6 +2,7 @@
 #define THORIN_UTIL_LOCATION_H
 
 #include <ostream>
+#include <string>
 
 namespace thorin {
 
@@ -39,7 +40,42 @@ protected:
     uint16_t front_line_ = 1, front_col_ = 1, back_line_ = 1, back_col_ = 1;
 };
 
+Location operator+(Location l1, Location l2);
 std::ostream& operator<<(std::ostream&, Location);
+
+class Debug : public Location {
+public:
+    Debug() = default;
+    Debug(Debug&&) = default;
+    Debug(const Debug&) = default;
+    Debug& operator=(const Debug&) = default;
+
+    Debug(Location location, std::string name)
+        : Location(location)
+        , name_(name)
+    {}
+
+    Debug(std::string name)
+        : name_(name)
+    {}
+
+    Debug(Location location)
+        : Location(location)
+    {}
+
+    const std::string& name() const { return name_; }
+
+    void set(std::string name) { name_ = name; }
+    void set(Location location) { *this = location; }
+
+private:
+    std::string name_;
+};
+
+Debug operator+(Debug dbg, const char* s);
+Debug operator+(Debug dbg, const std::string& s);
+Debug operator+(Debug d1, Debug d2);
+std::ostream& operator<<(std::ostream&, Debug);
 
 }
 

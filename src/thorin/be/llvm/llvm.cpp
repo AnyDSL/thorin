@@ -117,7 +117,7 @@ Continuation* CodeGen::emit_cmpxchg(Continuation* continuation) {
 }
 
 Continuation* CodeGen::emit_reserve(const Continuation* continuation) {
-    ELOG("reserve_shared: only allowed in device code at %", continuation->jump_location());
+    ELOG("reserve_shared: only allowed in device code at %", continuation->jump_debug());
     THORIN_UNREACHABLE;
 }
 
@@ -131,7 +131,7 @@ Continuation* CodeGen::emit_reserve_shared(const Continuation* continuation, boo
     // construct array type
     auto elem_type = cont->param(1)->type()->as<PtrType>()->referenced_type()->as<ArrayType>()->elem_type();
     auto smem_type = this->convert(continuation->world().definite_array_type(elem_type, num_elems));
-    auto global = emit_global_variable(smem_type, (prefix ? entry_->name + "." : "") + continuation->unique_name(), 3);
+    auto global = emit_global_variable(smem_type, (prefix ? entry_->name() + "." : "") + continuation->unique_name(), 3);
     auto call = irbuilder_.CreatePointerCast(global, type);
     emit_result_phi(cont->param(1), call);
     return cont;
@@ -154,7 +154,7 @@ llvm::Function* CodeGen::emit_function_decl(Continuation* continuation) {
     if (auto f = thorin::find(fcts_, continuation))
         return f;
 
-    std::string name = (continuation->is_external() || continuation->empty()) ? continuation->name : continuation->unique_name();
+    std::string name = (continuation->is_external() || continuation->empty()) ? continuation->name() : continuation->unique_name();
     auto f = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, convert_fn_type(continuation)));
 
 #ifdef _MSC_VER
@@ -246,13 +246,13 @@ void CodeGen::emit(int opt, bool debug) {
             auto continuation = block.continuation();
             // map all bb-like continuations to llvm bb stubs
             if (continuation->intrinsic() != Intrinsic::EndScope) {
-                auto bb = bb2continuation[continuation] = llvm::BasicBlock::Create(context_, continuation->name, fct);
+                auto bb = bb2continuation[continuation] = llvm::BasicBlock::Create(context_, continuation->name(), fct);
 
                 // create phi node stubs (for all continuations different from entry)
                 if (entry_ != continuation) {
                     for (auto param : continuation->params()) {
                         if (!is_mem(param)) {
-                            auto phi = llvm::PHINode::Create(convert(param->type()), (unsigned) param->peek().size(), param->name, bb);
+                            auto phi = llvm::PHINode::Create(convert(param->type()), (unsigned) param->peek().size(), param->name(), bb);
                             phis_[param] = phi;
                         }
                     }
@@ -284,7 +284,7 @@ void CodeGen::emit(int opt, bool debug) {
 
             // terminate bb
             if (debug)
-                irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(continuation->jump_location().front_line(), continuation->jump_location().front_col(), discope));
+                irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(continuation->jump_debug().front_line(), continuation->jump_debug().front_col(), discope));
             if (continuation->callee() == ret_param) { // return
                 size_t num_args = continuation->num_args();
                 switch (num_args) {
@@ -508,7 +508,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
     if (auto bin = def->isa<BinOp>()) {
         llvm::Value* lhs = lookup(bin->lhs());
         llvm::Value* rhs = lookup(bin->rhs());
-        std::string& name = bin->name;
+        const std::string& name = bin->name();
 
         if (auto cmp = bin->isa<Cmp>()) {
             auto type = cmp->lhs()->type();
@@ -679,13 +679,13 @@ llvm::Value* CodeGen::emit(const Def* def) {
             return llvm::ConstantArray::get(type, llvm_ref(vals));
         }
         WLOG("slow: alloca and loads/stores needed for definite array '%' at '%'", def, def->location());
-        auto alloca = emit_alloca(type, array->name);
+        auto alloca = emit_alloca(type, array->name());
 
         u64 i = 0;
         llvm::Value* args[2] = { irbuilder_.getInt64(0), nullptr };
         for (auto op : array->ops()) {
             args[1] = irbuilder_.getInt64(i++);
-            auto gep = irbuilder_.CreateInBoundsGEP(alloca, args, op->name);
+            auto gep = irbuilder_.CreateInBoundsGEP(alloca, args, op->name());
             irbuilder_.CreateStore(lookup(op), gep);
         }
 
@@ -715,7 +715,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto llvm_idx = lookup(aggop->index());
         auto copy_to_alloca = [&] () {
             WLOG("slow: alloca and loads/stores needed for aggregate '%' at '%'", def, def->location());
-            auto alloca = emit_alloca(llvm_agg->getType(), aggop->name);
+            auto alloca = emit_alloca(llvm_agg->getType(), aggop->name());
             irbuilder_.CreateStore(llvm_agg, alloca);
 
             llvm::Value* args[2] = { irbuilder_.getInt64(0), llvm_idx };
@@ -826,7 +826,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
             val = fcts_[continuation];
         else {
             auto llvm_type = convert(global->alloced_type());
-            auto var = llvm::cast<llvm::GlobalVariable>(module_->getOrInsertGlobal(global->name, llvm_type));
+            auto var = llvm::cast<llvm::GlobalVariable>(module_->getOrInsertGlobal(global->name(), llvm_type));
             if (global->init()->isa<Bottom>())
                 var->setInitializer(llvm::Constant::getNullValue(llvm_type)); // HACK
             else
@@ -1067,13 +1067,13 @@ void emit_llvm(World& world, int opt, bool debug) {
         else
             return;
 
-        imported->name = continuation->unique_name();
+        imported->debug().set(continuation->unique_name());
         imported->make_external();
-        continuation->name = continuation->unique_name();
+        continuation->debug().set(continuation->unique_name());
         continuation->destroy_body();
 
         for (size_t i = 0, e = continuation->num_params(); i != e; ++i)
-            imported->param(i)->name = continuation->param(i)->unique_name();
+            imported->param(i)->debug().set(continuation->param(i)->unique_name());
     });
 
     if (!cuda.world().empty() || !nvvm.world().empty() || !spir.world().empty() || !opencl.world().empty())

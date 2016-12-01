@@ -65,7 +65,7 @@ void Merger::merge(const CFNode* n) {
     }
 
     if (cur != n)
-        n->continuation()->jump(cur->continuation()->callee(), cur->continuation()->args(), cur->continuation()->jump_location());
+        n->continuation()->jump(cur->continuation()->callee(), cur->continuation()->args(), cur->continuation()->jump_debug());
 
     for (auto child : domtree.children(cur))
         merge(child);
@@ -96,20 +96,20 @@ void Cleaner::eliminate_params() {
 
             if (!proxy_idx.empty()) {
                 auto ncontinuation = world().continuation(world().fn_type(ocontinuation->type()->ops().cut(proxy_idx)),
-                                            ocontinuation->location(), ocontinuation->cc(), ocontinuation->intrinsic(), ocontinuation->name);
+                                            ocontinuation->cc(), ocontinuation->intrinsic(), ocontinuation->debug());
                 size_t j = 0;
                 for (auto i : param_idx) {
                     ocontinuation->param(i)->replace(ncontinuation->param(j));
-                    ncontinuation->param(j++)->name = ocontinuation->param(i)->name;
+                    ncontinuation->param(j++)->debug().set(ocontinuation->param(i)->name());
                 }
 
-                ncontinuation->jump(ocontinuation->callee(), ocontinuation->args(), ocontinuation->jump_location());
+                ncontinuation->jump(ocontinuation->callee(), ocontinuation->args(), ocontinuation->jump_debug());
                 ocontinuation->destroy_body();
 
                 for (auto use : ocontinuation->copy_uses()) {
                     auto ucontinuation = use->as_continuation();
                     assert(use.index() == 0);
-                    ucontinuation->jump(ncontinuation, ucontinuation->args().cut(proxy_idx), ucontinuation->jump_location());
+                    ucontinuation->jump(ncontinuation, ucontinuation->args().cut(proxy_idx), ucontinuation->jump_debug());
                 }
             }
         }

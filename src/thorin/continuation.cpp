@@ -33,16 +33,16 @@ std::vector<Param::Peek> Param::peek() const {
 //------------------------------------------------------------------------------
 
 const Def* Continuation::callee() const {
-    return empty() ? world().bottom(world().fn_type(), location()) : op(0);
+    return empty() ? world().bottom(world().fn_type(), debug()) : op(0);
 }
 
-Continuation* Continuation::stub(Type2Type&, const std::string& name) const {
+Continuation* Continuation::stub(Type2Type&, Debug dbg) const {
     // TODO
     //auto fn_type = type()->reduce(0, type2type)->as<FnType>();
     auto fn_type = type();
-    auto result = world().continuation(fn_type, location(), cc(), intrinsic(), name);
+    auto result = world().continuation(fn_type, cc(), intrinsic(), dbg);
     for (size_t i = 0, e = num_params(); i != e; ++i)
-        result->param(i)->name = param(i)->name;
+        result->param(i)->debug().set(param(i)->name());
 
     return result;
 }
@@ -181,17 +181,17 @@ bool Continuation::is_external() const { return world().is_external(this); }
 bool Continuation::is_intrinsic() const { return intrinsic_ != Intrinsic::None; }
 bool Continuation::is_accelerator() const { return Intrinsic::_Accelerator_Begin <= intrinsic_ && intrinsic_ < Intrinsic::_Accelerator_End; }
 void Continuation::set_intrinsic() {
-    if      (name == "cuda")           intrinsic_ = Intrinsic::CUDA;
-    else if (name == "nvvm")           intrinsic_ = Intrinsic::NVVM;
-    else if (name == "spir")           intrinsic_ = Intrinsic::SPIR;
-    else if (name == "opencl")         intrinsic_ = Intrinsic::OpenCL;
-    else if (name == "parallel")       intrinsic_ = Intrinsic::Parallel;
-    else if (name == "spawn")          intrinsic_ = Intrinsic::Spawn;
-    else if (name == "sync")           intrinsic_ = Intrinsic::Sync;
-    else if (name == "vectorize")      intrinsic_ = Intrinsic::Vectorize;
-    else if (name == "reserve_shared") intrinsic_ = Intrinsic::Reserve;
-    else if (name == "atomic")         intrinsic_ = Intrinsic::Atomic;
-    else if (name == "cmpxchg")        intrinsic_ = Intrinsic::CmpXchg;
+    if      (name() == "cuda")           intrinsic_ = Intrinsic::CUDA;
+    else if (name() == "nvvm")           intrinsic_ = Intrinsic::NVVM;
+    else if (name() == "spir")           intrinsic_ = Intrinsic::SPIR;
+    else if (name() == "opencl")         intrinsic_ = Intrinsic::OpenCL;
+    else if (name() == "parallel")       intrinsic_ = Intrinsic::Parallel;
+    else if (name() == "spawn")          intrinsic_ = Intrinsic::Spawn;
+    else if (name() == "sync")           intrinsic_ = Intrinsic::Sync;
+    else if (name() == "vectorize")      intrinsic_ = Intrinsic::Vectorize;
+    else if (name() == "reserve_shared") intrinsic_ = Intrinsic::Reserve;
+    else if (name() == "atomic")         intrinsic_ = Intrinsic::Atomic;
+    else if (name() == "cmpxchg")        intrinsic_ = Intrinsic::CmpXchg;
     else assert(false && "unsupported thorin intrinsic");
 }
 
@@ -231,19 +231,19 @@ Continuation::ScopeInfo* Continuation::find_scope(const Scope* scope) {
  * terminate
  */
 
-void Continuation::jump(const Def* callee, Defs args, const Location& location) {
-    jump_location_ = location;
+void Continuation::jump(const Def* callee, Defs args, Debug dbg) {
+    jump_debug_ = dbg;
     if (auto continuation = callee->isa<Continuation>()) {
         switch (continuation->intrinsic()) {
             case Intrinsic::Branch: {
                 assert(args.size() == 3);
                 auto cond = args[0], t = args[1], f = args[2];
                 if (auto lit = cond->isa<PrimLit>())
-                    return jump(lit->value().get_bool() ? t : f, {}, location);
+                    return jump(lit->value().get_bool() ? t : f, {}, dbg);
                 if (t == f)
-                    return jump(t, {}, location);
+                    return jump(t, {}, dbg);
                 if (is_not(cond))
-                    return branch(cond->as<ArithOp>()->rhs(), f, t, location);
+                    return branch(cond->as<ArithOp>()->rhs(), f, t, dbg);
                 break;
             }
             default:
@@ -260,13 +260,13 @@ void Continuation::jump(const Def* callee, Defs args, const Location& location) 
         set_op(x++, arg);
 }
 
-void Continuation::branch(const Def* cond, const Def* t, const Def* f, const Location& loc) {
-    return jump(world().branch(), {cond, t, f}, loc);
+void Continuation::branch(const Def* cond, const Def* t, const Def* f, Debug dbg) {
+    return jump(world().branch(), {cond, t, f}, dbg);
 }
 
-std::pair<Continuation*, const Def*> Continuation::call(const Def* callee, Defs args, const Type* ret_type, const Location& loc) {
+std::pair<Continuation*, const Def*> Continuation::call(const Def* callee, Defs args, const Type* ret_type, Debug dbg) {
     if (ret_type == nullptr) {
-        jump(callee, args, loc);
+        jump(callee, args, dbg);
         return std::make_pair(nullptr, nullptr);
     }
 
@@ -280,14 +280,14 @@ std::pair<Continuation*, const Def*> Continuation::call(const Def* callee, Defs 
     } else
         cont_args.push_back(ret_type);
 
-    auto next = world().continuation(world().fn_type(cont_args), callee->location(), name);
-    next->param(0)->name = "mem";
+    auto next = world().continuation(world().fn_type(cont_args), callee->debug());
+    next->param(0)->debug().set("mem");
 
     // create jump to next
     size_t csize = args.size() + 1;
     Array<const Def*> cargs(csize);
     *std::copy(args.begin(), args.end(), cargs.begin()) = next;
-    jump(callee, cargs, loc);
+    jump(callee, cargs, dbg);
 
     // determine return value
     const Def* ret = nullptr;
@@ -295,11 +295,11 @@ std::pair<Continuation*, const Def*> Continuation::call(const Def* callee, Defs 
         Array<const Def*> defs(next->num_params()-1);
         auto p = next->params().skip_front();
         std::copy(p.begin(), p.end(), defs.begin());
-        ret = world().tuple(defs, callee->location());
+        ret = world().tuple(defs, callee->debug());
 
     } else
         ret = next->param(1);
-    ret->name = callee->name;
+    ret->debug().set(callee->name());
 
     return std::make_pair(next, ret);
 }
@@ -311,7 +311,7 @@ void jump_to_cached_call(Continuation* src, Continuation* dst, const Call& call)
             nargs.push_back(src->arg(i));
     }
 
-    src->jump(dst, nargs, src->jump_location());
+    src->jump(dst, nargs, src->jump_debug());
     assert(src->arg_fn_type() == dst->type());
 }
 
@@ -402,7 +402,7 @@ const Def* Continuation::get_value(size_t handle, const Type* type, const char* 
 
 return_bottom:
     WLOG("'%' may be undefined at '%'", name, this->location());
-    return set_value(handle, world().bottom(type, Location()));
+    return set_value(handle, world().bottom(type));
 
 return_result:
     assert(result->type() == type);
@@ -461,7 +461,7 @@ const Def* Continuation::try_remove_trivial_param(const Param* param) {
     param->replace(same);
 
     for (auto peek : param->peek())
-        peek.from()->update_arg(index, world().bottom(param->type(), param->location()));
+        peek.from()->update_arg(index, world().bottom(param->type(), param->debug()));
 
     for (auto use : same->uses()) {
         if (Continuation* continuation = use->isa_continuation()) {

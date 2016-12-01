@@ -193,7 +193,7 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
             cache_[call] = dropped;
             jump_to_cached_call(cur, dropped, call);
             if (all) {
-                cur->jump(dropped->callee(), dropped->args(), cur->jump_location());
+                cur->jump(dropped->callee(), dropped->args(), cur->jump_debug());
                 done_.erase(cur);
             } else
                 cur = dropped;

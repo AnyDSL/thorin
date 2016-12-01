@@ -99,7 +99,7 @@ private:
     Def(const Def&);              ///< Do not copy-construct a \p Def.
 
 protected:
-    Def(NodeKind kind, const Type* type, size_t size, const Location& loc, const std::string& name);
+    Def(NodeKind kind, const Type* type, size_t size, Debug);
     virtual ~Def() {}
 
     void clear_type() { type_ = nullptr; }
@@ -110,7 +110,9 @@ protected:
 
 public:
     NodeKind kind() const { return kind_; }
-    Location location() const { return location_; }
+    Debug& debug() const { return debug_; }
+    Location location() const { return debug_; }
+    const std::string name() const { return debug().name(); }
     size_t num_ops() const { return ops_.size(); }
     bool empty() const { return ops_.empty(); }
     void set_op(size_t i, const Def* def);
@@ -140,14 +142,10 @@ private:
     const Type* type_;
     mutable Uses uses_;
     const size_t gid_;
-    Location location_;
+    mutable Debug debug_;
 
     static size_t gid_counter_;
 
-public:
-    mutable std::string name; ///< Just do what ever you want with this field.
-
-    friend class Defx;
     friend class PrimOp;
     friend class Scope;
     friend class World;

@@ -34,7 +34,6 @@ void lower2cff(World& world) {
             const auto& cfg = scope.f_cfg();
             for (auto n : cfg.post_order()) {
                 auto continuation = n->continuation();
-                continuation->dump();
                 if (auto callee = continuation->callee()->isa_continuation()) {
                     if (is_bad(callee)) {
                         DLOG("bad: %", callee);

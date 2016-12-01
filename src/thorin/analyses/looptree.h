@@ -6,7 +6,6 @@
 
 #include "thorin/analyses/cfg.h"
 #include "thorin/util/array.h"
-#include "thorin/util/autoptr.h"
 #include "thorin/util/cast.h"
 #include "thorin/util/ycomp.h"
 
@@ -61,14 +60,14 @@ public:
         {}
 
     public:
-        ArrayRef<Super*> children() const { return children_; }
-        const Super* child(size_t i) const { return children_[i]; }
+        ArrayRef<std::unique_ptr<Super>> children() const { return children_; }
+        const Super* child(size_t i) const { return children_[i].get(); }
         size_t num_children() const { return children().size(); }
         bool is_root() const { return Super::parent_ == 0; }
         virtual std::ostream& stream(std::ostream&) const override;
 
     private:
-        AutoVector<Super*> children_;
+        std::vector<std::unique_ptr<Super>> children_;
 
         friend class Node;
         friend class LoopTreeBuilder<forward>;
@@ -112,8 +111,8 @@ private:
     static void get_nodes(std::vector<const Node *>& nodes, const Node* node) {
         nodes.push_back(node);
         if (auto head = node->template isa<Head>()) {
-            for (auto child : head->children())
-                get_nodes(nodes, child);
+            for (const auto& child : head->children())
+                get_nodes(nodes, child.get());
         }
     }
 

@@ -888,7 +888,7 @@ llvm::Value* CodeGen::emit_assembly(const Assembly* assembly) {
     for (auto con : assembly->in_constraints())
         constraints += con + ",";
     for (auto clob : assembly->clobbers())
-        constraints += "~" + clob + ",";
+        constraints += "~{" + clob + "},";
     // clang always marks those registers as clobbered, so we will do so as well
     constraints += "~{dirflag},~{fpsr},~{flags}";
 

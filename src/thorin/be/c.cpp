@@ -60,7 +60,7 @@ private:
 
 std::ostream& CCodeGen::emit_debug_info(const Def* def) {
     if (debug_)
-        return streamf(func_impl_, "#line % \"%\"", def->loc().begin().line(), def->loc().begin().filename()) << endl;
+        return streamf(func_impl_, "#line % \"%\"", def->location().front_line(), def->location().filename()) << endl;
     return func_impl_;
 }
 
@@ -507,7 +507,7 @@ void CCodeGen::emit() {
                     if (callee->is_intrinsic()) {
                         if (callee->intrinsic() == Intrinsic::Reserve) {
                             if (!continuation->arg(1)->isa<PrimLit>())
-                                ELOG("reserve_shared: couldn't extract memory size at %", continuation->arg(1)->loc());
+                                ELOG("reserve_shared: couldn't extract memory size at %", continuation->arg(1)->location());
 
                             switch (lang_) {
                                 case Lang::C99:                                 break;
@@ -779,7 +779,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
                 if (agg->op(i)->isa<Bottom>())
                     func_impl_ << "// bottom: ";
                 func_impl_ << agg->unique_name();
-                emit_access(def, world_.literal_qs32(i, def->loc())) << " = ";
+                emit_access(def, world_.literal_qs32(i, def->location())) << " = ";
                 emit(agg->op(i)) << ";";
             }
             insert(def, def->unique_name());
@@ -947,7 +947,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
         if (assembly->has_sideeffects())
             func_impl_ << "volatile ";
         if (assembly->is_alignstack() || assembly->is_inteldialect())
-            WLOG("stack alignment and inteldialect flags unsupported for C output at %", assembly->loc());
+            WLOG("stack alignment and inteldialect flags unsupported for C output at %", assembly->location());
         func_impl_ << "(\"" << assembly->asm_template() << "\"";
 
         // emit the outputs

@@ -87,7 +87,7 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, Cont
             auto rtype = ptr->referenced_type();
 
             if (!rtype->isa<ArrayType>())
-                ELOG("currently only pointers to arrays supported as kernel argument at '%'; argument has different type: %", target_arg->loc(), ptr);
+                ELOG("currently only pointers to arrays supported as kernel argument at '%'; argument has different type: %", target_arg->location(), ptr);
 
             auto void_ptr = builder_.CreatePointerCast(target_val, builder_.getInt8PtrTy());
             set_kernel_arg_ptr(target_device, i, void_ptr);

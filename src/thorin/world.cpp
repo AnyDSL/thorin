@@ -67,7 +67,7 @@ const Def* World::splat(const Def* arg, size_t length, const std::string& name) 
 
     Array<const Def*> args(length);
     std::fill(args.begin(), args.end(), arg);
-    return vector(args, arg->loc(), name);
+    return vector(args, arg->location(), name);
 }
 
 /*
@@ -727,7 +727,7 @@ const Def* World::store(const Def* mem, const Def* ptr, const Def* value, const 
     if (auto insert = value->isa<Insert>()) {
         if (use_lea(ptr->type()->as<PtrType>()->referenced_type())) {
             auto peeled_store = store(mem, ptr, insert->agg(), loc);
-            return store(peeled_store, lea(ptr, insert->index(), insert->loc(), insert->name), insert->value(), loc, name);
+            return store(peeled_store, lea(ptr, insert->index(), insert->location(), insert->name), insert->value(), loc, name);
         }
     }
 
@@ -801,7 +801,7 @@ Continuation* World::basicblock(const Location& loc, const std::string& name) {
 }
 
 const Param* World::param(const Type* type, Continuation* continuation, size_t index, const std::string& name) {
-    auto param = new Param(type, continuation, index, continuation->loc(), name);
+    auto param = new Param(type, continuation, index, continuation->location(), name);
     THORIN_CHECK_BREAK(param->gid());
     return param;
 }

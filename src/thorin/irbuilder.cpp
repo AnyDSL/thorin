@@ -36,7 +36,7 @@ Value Value::create_ptr(IRBuilder& builder, const Def* ptr) {
 Value Value::create_agg(Value value, const Def* offset) {
     assert(value.kind() != Empty);
     if (value.use_lea())
-        return create_ptr(*value.builder_, value.builder_->world().lea(value.def_, offset, offset->loc()));
+        return create_ptr(*value.builder_, value.builder_->world().lea(value.def_, offset, offset->location()));
     Value result;
     result.kind_    = AggRef;
     result.builder_ = value.builder_;
@@ -85,8 +85,8 @@ Continuation* JumpTarget::untangle() {
     if (!first_)
         return continuation_;
     assert(continuation_);
-    auto bb = world().basicblock(loc(), name_);
-    continuation_->jump(bb, {}, loc());
+    auto bb = world().basicblock(location(), name_);
+    continuation_->jump(bb, {}, location());
     first_ = false;
     return continuation_ = bb;
 }
@@ -113,7 +113,7 @@ Continuation* JumpTarget::enter() {
 }
 
 Continuation* JumpTarget::enter_unsealed(World& world) {
-    return continuation_ ? untangle() : continuation_ = world.basicblock(loc(), name_);
+    return continuation_ ? untangle() : continuation_ = world.basicblock(location(), name_);
 }
 
 //------------------------------------------------------------------------------

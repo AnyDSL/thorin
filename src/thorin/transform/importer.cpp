@@ -51,7 +51,7 @@ const Def* Importer::import(const Def* odef) {
         if (ocontinuation == ocontinuation->world().end_scope())
             return def_old2new_[ocontinuation] = world().end_scope();
         auto npi = import(ocontinuation->type())->as<FnType>();
-        ncontinuation = world().continuation(npi, ocontinuation->loc(), ocontinuation->cc(), ocontinuation->intrinsic(), ocontinuation->name);
+        ncontinuation = world().continuation(npi, ocontinuation->location(), ocontinuation->cc(), ocontinuation->intrinsic(), ocontinuation->name);
         assert(&ncontinuation->world() == &world());
         assert(&npi->world() == &world());
         for (size_t i = 0, e = ocontinuation->num_params(); i != e; ++i) {
@@ -68,7 +68,7 @@ const Def* Importer::import(const Def* odef) {
             auto cond = import(ocontinuation->arg(0));
             if (auto lit = cond->isa<PrimLit>()) {
                 auto callee = import(lit->value().get_bool() ? ocontinuation->arg(1) : ocontinuation->arg(2));
-                ncontinuation->jump(callee, {}, ocontinuation->jump_loc());
+                ncontinuation->jump(callee, {}, ocontinuation->jump_location());
                 return ncontinuation;
             }
         }
@@ -89,7 +89,7 @@ const Def* Importer::import(const Def* odef) {
     auto ocontinuation = odef->as_continuation();
     assert(ncontinuation && &ncontinuation->world() == &world());
     if (size > 0)
-        ncontinuation->jump(nops.front(), nops.skip_front(), ocontinuation->jump_loc());
+        ncontinuation->jump(nops.front(), nops.skip_front(), ocontinuation->jump_location());
     return ncontinuation;
 }
 

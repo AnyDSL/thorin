@@ -175,45 +175,45 @@ bool Slot::equal(const PrimOp* other) const { return this == other; }
 
 // do not use any of PrimOp's type getters - during import we need to derive types from 't' in the new world 'to'
 
-const Def* ArithOp::vrebuild(World& to, Defs ops, const Type*  ) const { return to.arithop(arithop_kind(), ops[0], ops[1], loc(), name); }
-const Def* Bitcast::vrebuild(World& to, Defs ops, const Type* t) const { return to.bitcast(t, ops[0], loc(), name); }
-const Def* Bottom ::vrebuild(World& to, Defs,     const Type* t) const { return to.bottom(t, loc()); }
-const Def* Cast   ::vrebuild(World& to, Defs ops, const Type* t) const { return to.cast(t, ops[0], loc(), name); }
-const Def* Cmp    ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.cmp(cmp_kind(), ops[0], ops[1], loc(), name); }
-const Def* Enter  ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.enter(ops[0], loc(), name); }
-const Def* Extract::vrebuild(World& to, Defs ops, const Type*  ) const { return to.extract(ops[0], ops[1], loc(), name); }
-const Def* Global ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.global(ops[0], loc(), is_mutable(), name); }
-const Def* Hlt    ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.hlt(ops[0], ops[1], loc(), name); }
-const Def* Insert ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.insert(ops[0], ops[1], ops[2], loc(), name); }
-const Def* LEA    ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.lea(ops[0], ops[1], loc(), name); }
-const Def* Load   ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.load(ops[0], ops[1], loc(), name); }
-const Def* PrimLit::vrebuild(World& to, Defs,     const Type*  ) const { return to.literal(primtype_kind(), value(), loc()); }
-const Def* Run    ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.run(ops[0], ops[1], loc(), name); }
-const Def* Select ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.select(ops[0], ops[1], ops[2], loc(), name); }
-const Def* SizeOf ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.size_of(ops[0]->type(), loc(), name); }
-const Def* Slot   ::vrebuild(World& to, Defs ops, const Type* t) const { return to.slot(t->as<PtrType>()->referenced_type(), ops[0], loc(), name); }
-const Def* Store  ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.store(ops[0], ops[1], ops[2], loc(), name); }
-const Def* Tuple  ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.tuple(ops, loc(), name); }
-const Def* Vector ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.vector(ops, loc(), name); }
+const Def* ArithOp::vrebuild(World& to, Defs ops, const Type*  ) const { return to.arithop(arithop_kind(), ops[0], ops[1], location(), name); }
+const Def* Bitcast::vrebuild(World& to, Defs ops, const Type* t) const { return to.bitcast(t, ops[0], location(), name); }
+const Def* Bottom ::vrebuild(World& to, Defs,     const Type* t) const { return to.bottom(t, location()); }
+const Def* Cast   ::vrebuild(World& to, Defs ops, const Type* t) const { return to.cast(t, ops[0], location(), name); }
+const Def* Cmp    ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.cmp(cmp_kind(), ops[0], ops[1], location(), name); }
+const Def* Enter  ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.enter(ops[0], location(), name); }
+const Def* Extract::vrebuild(World& to, Defs ops, const Type*  ) const { return to.extract(ops[0], ops[1], location(), name); }
+const Def* Global ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.global(ops[0], location(), is_mutable(), name); }
+const Def* Hlt    ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.hlt(ops[0], ops[1], location(), name); }
+const Def* Insert ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.insert(ops[0], ops[1], ops[2], location(), name); }
+const Def* LEA    ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.lea(ops[0], ops[1], location(), name); }
+const Def* Load   ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.load(ops[0], ops[1], location(), name); }
+const Def* PrimLit::vrebuild(World& to, Defs,     const Type*  ) const { return to.literal(primtype_kind(), value(), location()); }
+const Def* Run    ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.run(ops[0], ops[1], location(), name); }
+const Def* Select ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.select(ops[0], ops[1], ops[2], location(), name); }
+const Def* SizeOf ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.size_of(ops[0]->type(), location(), name); }
+const Def* Slot   ::vrebuild(World& to, Defs ops, const Type* t) const { return to.slot(t->as<PtrType>()->referenced_type(), ops[0], location(), name); }
+const Def* Store  ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.store(ops[0], ops[1], ops[2], location(), name); }
+const Def* Tuple  ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.tuple(ops, location(), name); }
+const Def* Vector ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.vector(ops, location(), name); }
 
 const Def* Alloc::vrebuild(World& to, Defs ops, const Type* t) const {
-    return to.alloc(t->as<TupleType>()->op(1)->as<PtrType>()->referenced_type(), ops[0], ops[1], loc(), name);
+    return to.alloc(t->as<TupleType>()->op(1)->as<PtrType>()->referenced_type(), ops[0], ops[1], location(), name);
 }
 
 const Def* Assembly::vrebuild(World& to, Defs ops, const Type* t) const {
-    return to.assembly(t, ops, template_, output_constraints_, input_constraints_, clobbers_, flags_, loc());
+    return to.assembly(t, ops, template_, output_constraints_, input_constraints_, clobbers_, flags_, location());
 }
 
 const Def* DefiniteArray::vrebuild(World& to, Defs ops, const Type* t) const {
-    return to.definite_array(t->as<DefiniteArrayType>()->elem_type(), ops, loc(), name);
+    return to.definite_array(t->as<DefiniteArrayType>()->elem_type(), ops, location(), name);
 }
 
 const Def* StructAgg::vrebuild(World& to, Defs ops, const Type* t) const {
-    return to.struct_agg(t->as<StructType>(), ops, loc(), name);
+    return to.struct_agg(t->as<StructType>(), ops, location(), name);
 }
 
 const Def* IndefiniteArray::vrebuild(World& to, Defs ops, const Type* t) const {
-    return to.indefinite_array(t->as<IndefiniteArrayType>()->elem_type(), ops[0], loc(), name);
+    return to.indefinite_array(t->as<IndefiniteArrayType>()->elem_type(), ops[0], location(), name);
 }
 
 //------------------------------------------------------------------------------
@@ -297,7 +297,7 @@ std::ostream& PrimOp::stream_assignment(std::ostream& os) const {
 
 const Def* PrimOp::out(size_t i) const {
     assert(i < type()->as<TupleType>()->num_ops());
-    return world().extract(this, i, loc());
+    return world().extract(this, i, location());
 }
 
 const Type* Extract::extracted_type(const Def* agg, const Def* index) {

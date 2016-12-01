@@ -87,12 +87,10 @@ private:
 
 //------------------------------------------------------------------------------
 
-class JumpTarget : public HasLocation {
+class JumpTarget {
 public:
     JumpTarget(const Location& loc, const char* name = "")
-        : HasLocation(loc)
-        , continuation_(nullptr)
-        , first_(false)
+        : location_(loc)
         , name_(name)
     {}
 #ifndef NDEBUG
@@ -100,6 +98,7 @@ public:
     ~JumpTarget();
 #endif
 
+    Location location() const { return location_; }
     World& world() const { assert(continuation_); return continuation_->world(); }
     void seal() { assert(continuation_); continuation_->seal(); }
 
@@ -110,9 +109,10 @@ private:
     Continuation* enter();
     Continuation* enter_unsealed(World& world);
 
-    Continuation* continuation_;
-    bool first_;
+    Location location_;
     const char* name_;
+    Continuation* continuation_ = nullptr;
+    bool first_ = false;
 
     friend void Continuation::jump(JumpTarget&, const Location&);
     friend class IRBuilder;

@@ -18,11 +18,11 @@ namespace thorin {
 size_t Def::gid_counter_ = 1;
 
 Def::Def(NodeKind kind, const Type* type, size_t size, const Location& loc, const std::string& name)
-    : HasLocation(loc)
-    , kind_(kind)
+    : kind_(kind)
     , ops_(size)
     , type_(type)
     , gid_(gid_counter_++)
+    , location_(loc)
     , name(name)
 {}
 

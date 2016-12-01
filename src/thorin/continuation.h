@@ -127,7 +127,7 @@ public:
     const Def* callee() const;
     Defs args() const { return num_ops() == 0 ? Defs(0, 0) : ops().skip_front(); }
     const Def* arg(size_t i) const { return args()[i]; }
-    const Location& jump_loc() const { return jump_loc_; }
+    Location jump_location() const { return jump_location_; }
     const FnType* type() const { return Def::type()->as<FnType>(); }
     const FnType* callee_fn_type() const { return callee()->type()->as<FnType>(); }
     const FnType* arg_fn_type() const;
@@ -222,7 +222,7 @@ private:
     ScopeInfo* find_scope(const Scope*);
     ScopeInfo* register_scope(const Scope* scope) { scopes_.emplace_front(scope); return &scopes_.front(); }
     void unregister_scope(const Scope* scope) { scopes_.erase(list_iter(scope)); }
-    Location jump_loc_;
+    Location jump_location_;
 
     /**
      * There exist three cases to distinguish here.

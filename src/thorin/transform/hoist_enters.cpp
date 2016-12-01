@@ -45,7 +45,7 @@ static void hoist_enters(const Scope& scope) {
         auto old_enter = *i;
         for (auto use : old_enter->out_frame()->uses()) {
             auto slot = use->as<Slot>();
-            slot->replace(world.slot(slot->alloced_type(), frame, slot->loc(), slot->name));
+            slot->replace(world.slot(slot->alloced_type(), frame, slot->location(), slot->name));
             assert(slot->num_uses() == 0);
         }
     }

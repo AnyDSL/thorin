@@ -33,14 +33,14 @@ std::vector<Param::Peek> Param::peek() const {
 //------------------------------------------------------------------------------
 
 const Def* Continuation::callee() const {
-    return empty() ? world().bottom(world().fn_type(), Location()) : op(0);
+    return empty() ? world().bottom(world().fn_type(), location()) : op(0);
 }
 
 Continuation* Continuation::stub(Type2Type&, const std::string& name) const {
     // TODO
     //auto fn_type = type()->reduce(0, type2type)->as<FnType>();
     auto fn_type = type();
-    auto result = world().continuation(fn_type, loc(), cc(), intrinsic(), name);
+    auto result = world().continuation(fn_type, location(), cc(), intrinsic(), name);
     for (size_t i = 0, e = num_params(); i != e; ++i)
         result->param(i)->name = param(i)->name;
 
@@ -231,19 +231,19 @@ Continuation::ScopeInfo* Continuation::find_scope(const Scope* scope) {
  * terminate
  */
 
-void Continuation::jump(const Def* to, Defs args, const Location& loc) {
-    jump_loc_ = loc;
-    if (auto continuation = to->isa<Continuation>()) {
+void Continuation::jump(const Def* callee, Defs args, const Location& location) {
+    jump_location_ = location;
+    if (auto continuation = callee->isa<Continuation>()) {
         switch (continuation->intrinsic()) {
             case Intrinsic::Branch: {
                 assert(args.size() == 3);
                 auto cond = args[0], t = args[1], f = args[2];
                 if (auto lit = cond->isa<PrimLit>())
-                    return jump(lit->value().get_bool() ? t : f, {}, loc);
+                    return jump(lit->value().get_bool() ? t : f, {}, location);
                 if (t == f)
-                    return jump(t, {}, loc);
+                    return jump(t, {}, location);
                 if (is_not(cond))
-                    return branch(cond->as<ArithOp>()->rhs(), f, t, loc);
+                    return branch(cond->as<ArithOp>()->rhs(), f, t, location);
                 break;
             }
             default:
@@ -253,7 +253,7 @@ void Continuation::jump(const Def* to, Defs args, const Location& loc) {
 
     unset_ops();
     resize(args.size()+1);
-    set_op(0, to);
+    set_op(0, callee);
 
     size_t x = 1;
     for (auto arg : args)
@@ -264,9 +264,9 @@ void Continuation::branch(const Def* cond, const Def* t, const Def* f, const Loc
     return jump(world().branch(), {cond, t, f}, loc);
 }
 
-std::pair<Continuation*, const Def*> Continuation::call(const Def* to, Defs args, const Type* ret_type, const Location& loc) {
+std::pair<Continuation*, const Def*> Continuation::call(const Def* callee, Defs args, const Type* ret_type, const Location& loc) {
     if (ret_type == nullptr) {
-        jump(to, args, loc);
+        jump(callee, args, loc);
         return std::make_pair(nullptr, nullptr);
     }
 
@@ -280,14 +280,14 @@ std::pair<Continuation*, const Def*> Continuation::call(const Def* to, Defs args
     } else
         cont_args.push_back(ret_type);
 
-    auto next = world().continuation(world().fn_type(cont_args), to->loc(), name);
+    auto next = world().continuation(world().fn_type(cont_args), callee->location(), name);
     next->param(0)->name = "mem";
 
     // create jump to next
     size_t csize = args.size() + 1;
     Array<const Def*> cargs(csize);
     *std::copy(args.begin(), args.end(), cargs.begin()) = next;
-    jump(to, cargs, loc);
+    jump(callee, cargs, loc);
 
     // determine return value
     const Def* ret = nullptr;
@@ -295,11 +295,11 @@ std::pair<Continuation*, const Def*> Continuation::call(const Def* to, Defs args
         Array<const Def*> defs(next->num_params()-1);
         auto p = next->params().skip_front();
         std::copy(p.begin(), p.end(), defs.begin());
-        ret = world().tuple(defs, to->loc());
+        ret = world().tuple(defs, callee->location());
 
     } else
         ret = next->param(1);
-    ret->name = to->name;
+    ret->name = callee->name;
 
     return std::make_pair(next, ret);
 }
@@ -311,7 +311,7 @@ void jump_to_cached_call(Continuation* src, Continuation* dst, const Call& call)
             nargs.push_back(src->arg(i));
     }
 
-    src->jump(dst, nargs, src->jump_loc());
+    src->jump(dst, nargs, src->jump_location());
     assert(src->arg_fn_type() == dst->type());
 }
 
@@ -401,7 +401,7 @@ const Def* Continuation::get_value(size_t handle, const Type* type, const char* 
     }
 
 return_bottom:
-    WLOG("'%' may be undefined at '%'", name, this->loc());
+    WLOG("'%' may be undefined at '%'", name, this->location());
     return set_value(handle, world().bottom(type, Location()));
 
 return_result:
@@ -461,7 +461,7 @@ const Def* Continuation::try_remove_trivial_param(const Param* param) {
     param->replace(same);
 
     for (auto peek : param->peek())
-        peek.from()->update_arg(index, world().bottom(param->type(), param->loc()));
+        peek.from()->update_arg(index, world().bottom(param->type(), param->location()));
 
     for (auto use : same->uses()) {
         if (Continuation* continuation = use->isa_continuation()) {

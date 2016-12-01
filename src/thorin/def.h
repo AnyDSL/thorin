@@ -93,7 +93,7 @@ std::ostream& operator<<(std::ostream&, Use);
  * - \p Param%s and
  * - \p Continuation%s.
  */
-class Def : public HasLocation, public MagicCast<Def>, public Streamable {
+class Def : public MagicCast<Def>, public Streamable {
 private:
     Def& operator=(const Def&); ///< Do not copy-assign a \p Def instance.
     Def(const Def&);              ///< Do not copy-construct a \p Def.
@@ -110,6 +110,7 @@ protected:
 
 public:
     NodeKind kind() const { return kind_; }
+    Location location() const { return location_; }
     size_t num_ops() const { return ops_.size(); }
     bool empty() const { return ops_.empty(); }
     void set_op(size_t i, const Def* def);
@@ -139,6 +140,8 @@ private:
     const Type* type_;
     mutable Uses uses_;
     const size_t gid_;
+    Location location_;
+
     static size_t gid_counter_;
 
 public:

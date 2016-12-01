@@ -2,6 +2,7 @@
 #define THORIN_UTIL_ARRAY_H
 
 #include <algorithm>
+#include <cassert>
 #include <cstddef>
 #include <cstring>
 #include <initializer_list>

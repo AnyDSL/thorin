@@ -87,7 +87,6 @@ SET ( SOURCES
     transform/partial_evaluation.h
     util/args.h
     util/array.h
-    util/assert.h
     util/cast.h
     util/hash.h
     util/indexmap.h

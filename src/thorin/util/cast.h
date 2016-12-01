@@ -1,10 +1,9 @@
 #ifndef THORIN_UTIL_CAST_H
 #define THORIN_UTIL_CAST_H
 
-#include <cstring>
 #include <type_traits>
 
-#include "thorin/util/assert.h"
+#include "thorin/util/utility.h"
 
 namespace thorin {
 

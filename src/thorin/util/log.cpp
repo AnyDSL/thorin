@@ -1,5 +1,5 @@
 #include "thorin/util/log.h"
-#include "thorin/util/assert.h"
+#include "thorin/util/utility.h"
 
 // For colored output
 #ifdef _WIN32

@@ -5,7 +5,6 @@
 #include "thorin/transform/mangle.h"
 #include "thorin/util/hash.h"
 #include "thorin/util/log.h"
-#include "thorin/util/queue.h"
 
 namespace thorin {
 

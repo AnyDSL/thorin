@@ -79,7 +79,7 @@ protected:
     std::vector<std::tuple<u32, llvm::Function*, llvm::CallInst*>> vec_todo_;
 #endif
 
-    AutoPtr<Runtime> runtime_;
+    std::unique_ptr<Runtime> runtime_;
     Continuation* entry_ = nullptr;
 
     friend class Runtime;

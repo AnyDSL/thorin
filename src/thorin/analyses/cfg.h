@@ -5,7 +5,6 @@
 
 #include "thorin/analyses/scope.h"
 #include "thorin/util/array.h"
-#include "thorin/util/autoptr.h"
 #include "thorin/util/indexmap.h"
 #include "thorin/util/stream.h"
 #include "thorin/util/ycomp.h"
@@ -34,13 +33,15 @@ public:
 
 private:
     const Def* def_;
-    uint64_t id_;
-    static uint32_t id_counter_;
+    size_t id_;
+    static uint64_t id_counter_;
 };
 
 template<>
 struct Hash<const CFNodeBase*> {
-    uint64_t operator() (const CFNodeBase* n) const { return n->id(); }
+    static uint64_t hash(const CFNodeBase* n) { return n->id(); }
+    static bool eq(const CFNodeBase* a, const CFNodeBase* b) { return a == b; }
+    static const CFNodeBase* sentinel() { return (const CFNodeBase*)(1); }
 };
 
 class RealCFNode : public CFNodeBase {
@@ -122,8 +123,8 @@ private:
     const Scope& scope_;
     Scope::Map<const CFNode*> nodes_;
     size_t size_ = 0;
-    mutable AutoPtr<const F_CFG> f_cfg_;
-    mutable AutoPtr<const B_CFG> b_cfg_;
+    mutable std::unique_ptr<const F_CFG> f_cfg_;
+    mutable std::unique_ptr<const B_CFG> b_cfg_;
 
     friend class CFABuilder;
     template<bool> friend class CFG;
@@ -184,9 +185,9 @@ private:
 
     const CFA& cfa_;
     Map<const CFNode*> rpo_;
-    mutable AutoPtr<const DomTreeBase<forward>> domtree_;
-    mutable AutoPtr<const LoopTree<forward>> looptree_;
-    mutable AutoPtr<const DomFrontierBase<forward>> domfrontier_;
+    mutable std::unique_ptr<const DomTreeBase<forward>> domtree_;
+    mutable std::unique_ptr<const LoopTree<forward>> looptree_;
+    mutable std::unique_ptr<const DomFrontierBase<forward>> domfrontier_;
 };
 
 //------------------------------------------------------------------------------

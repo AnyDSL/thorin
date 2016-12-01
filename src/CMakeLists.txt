@@ -7,7 +7,7 @@ IF (MSVC)
     SET ( CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /wd4800 /wd4520" )
     SET ( CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /wd4800 /wd4520" )
 ELSE ()
-    ADD_DEFINITIONS ( "-std=c++11 -Wall -Wextra" )
+    ADD_DEFINITIONS ( "-std=c++14 -Wall -Wextra" )
 ENDIF ()
 
 # check for Half library

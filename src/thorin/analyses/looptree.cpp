@@ -69,7 +69,7 @@ private:
 
     bool is_leaf(const CFNode* n, size_t num) {
         if (num == 1) {
-            for (auto succ : cfg().succs(n)) {
+            for (const auto& succ : cfg().succs(n)) {
                 if (!is_head(succ) && n == succ)
                     return false;
             }
@@ -80,7 +80,7 @@ private:
 
     void push(const CFNode* n) {
         assert(set_.contains(n) && (states_[n] & OnStack) == 0);
-        stack_.push_back(n);
+        stack_.emplace_back(n);
         states_[n] |= OnStack;
     }
 
@@ -105,27 +105,29 @@ private:
 
 template<bool forward>
 void LoopTreeBuilder<forward>::build() {
-    for (auto n : cfg().reverse_post_order()) // clear all flags
+    for (const auto& n : cfg().reverse_post_order()) // clear all flags
         states_[n] = 0;
 
-    recurse(looptree_.root_ = new Head(nullptr, 0, std::vector<const CFNode*>(0)), {cfg().entry()}, 1);
+    auto head = new Head(nullptr, 0, std::vector<const CFNode*>(0));
+    looptree_.root_.reset(head);
+    recurse(head, {cfg().entry()}, 1);
 }
 
 template<bool forward>
 void LoopTreeBuilder<forward>::recurse(Head* parent, ArrayRef<const CFNode*> heads, int depth) {
     size_t cur_new_child = 0;
-    for (auto head : heads) {
+    for (const auto& head : heads) {
         set_.clear();
         walk_scc(head, parent, depth, 0);
 
         // now mark all newly found heads globally as head
         for (size_t e = parent->num_children(); cur_new_child != e; ++cur_new_child) {
-            for (auto head : parent->child(cur_new_child)->cf_nodes())
+            for (const auto& head : parent->child(cur_new_child)->cf_nodes())
                 states_[head] |= IsHead;
         }
     }
 
-    for (auto node : parent->children()) {
+    for (const auto& node : parent->children()) {
         if (auto new_parent = node->template isa<Head>())
             recurse(new_parent, new_parent->cf_nodes(), depth + 1);
     }
@@ -135,7 +137,7 @@ template<bool forward>
 int LoopTreeBuilder<forward>::walk_scc(const CFNode* cur, Head* parent, int depth, int scc_counter) {
     scc_counter = visit(cur, scc_counter);
 
-    for (auto succ : cfg().succs(cur)) {
+    for (const auto& succ : cfg().succs(cur)) {
         if (is_head(succ))
             continue; // this is a backedge
         if (!set_.contains(succ)) {
@@ -161,13 +163,13 @@ int LoopTreeBuilder<forward>::walk_scc(const CFNode* cur, Head* parent, int dept
             const CFNode* n = stack_[i];
 
             if (cfg().entry() == n)
-                heads.push_back(n); // entries are axiomatically heads
+                heads.emplace_back(n); // entries are axiomatically heads
             else {
-                for (auto pred : cfg().preds(n)) {
+                for (const auto& pred : cfg().preds(n)) {
                     // all backedges are also inducing heads
                     // but do not yet mark them globally as head -- we are still running through the SCC
                     if (!in_scc(pred)) {
-                        heads.push_back(n);
+                        heads.emplace_back(n);
                         break;
                     }
                 }
@@ -200,7 +202,7 @@ LoopTree<forward>::Node::Node(Head* parent, int depth, const std::vector<const C
     , depth_(depth)
 {
     if (parent_)
-        parent_->children_.push_back(this);
+        parent_->children_.emplace_back(this);
 }
 
 template<bool forward>
@@ -211,7 +213,7 @@ std::ostream& LoopTree<forward>::Leaf::stream(std::ostream& out) const {
 template<bool forward>
 std::ostream& LoopTree<forward>::Head::stream(std::ostream& out) const {
     out << "[";
-    for (auto head : this->cf_nodes()) // TODO use stream comma list - once it is there
+    for (const auto& head : this->cf_nodes()) // TODO use stream comma list - once it is there
         out << head << ", ";
     return out << "]";
 }
@@ -225,7 +227,7 @@ void LoopTree<forward>::stream_ycomp(std::ostream& out) const {
         [] (const Node* n) {
             if (auto head = n->template isa<Head>())
                 return range(head->children());
-            return range(ArrayRef<Node*>());
+            return range(ArrayRef<std::unique_ptr<Node>>());
         }
     );
 }

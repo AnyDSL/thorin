@@ -6,7 +6,6 @@
 
 #include "thorin/enums.h"
 #include "thorin/type.h"
-#include "thorin/util/autoptr.h"
 #include "thorin/util/location.h"
 
 namespace thorin {
@@ -70,14 +69,16 @@ private:
 //------------------------------------------------------------------------------
 
 struct UseHash {
-    inline uint64_t operator()(Use use) const;
+    inline static uint64_t hash(Use use);
+    static bool eq(Use u1, Use u2) { return u1 == u2; }
+    static Use sentinel() { return Use(size_t(-1), (const Def*)(-1)); }
 };
 
 typedef HashSet<Use, UseHash> Uses;
 
 template<class To>
-using DefMap  = GIDMap<Def, To>;
-using DefSet  = GIDSet<Def>;
+using DefMap  = GIDMap<const Def*, To>;
+using DefSet  = GIDSet<const Def*>;
 using Def2Def = DefMap<const Def*>;
 
 std::ostream& operator<<(std::ostream&, const Def*);
@@ -118,6 +119,7 @@ public:
     Continuation* isa_continuation() const;
     void dump() const;
     const Uses& uses() const { return uses_; }
+    Array<Use> copy_uses() const { return Array<Use>(uses_.begin(), uses_.end()); }
     size_t num_uses() const { return uses().size(); }
     size_t gid() const { return gid_; }
     std::string unique_name() const;
@@ -149,6 +151,10 @@ public:
     friend class Cleaner;
     friend class Tracker;
 };
+
+uint64_t UseHash::hash(Use use) {
+    return uint64_t(use.index() & 0x3) | uint64_t(use->gid()) << 2ull;
+}
 
 /// Returns the vector length. Raises an assertion if type of this is not a \p VectorType.
 size_t vector_length(const Def*);
@@ -265,29 +271,6 @@ private:
     mutable const Def* def_;
     friend void Def::replace(const Def*) const;
 };
-
-//------------------------------------------------------------------------------
-
-uint64_t UseHash::operator()(Use use) const {
-    return uint64_t(use.index()) << 48ull | uint64_t(use->gid());
-}
-
-template<>
-struct Hash<Defs> {
-    uint64_t operator()(Defs defs) const {
-        uint64_t seed = hash_begin(defs.size());
-        for (auto def : defs)
-            seed = hash_combine(seed, def ? def->gid() : uint64_t(-1));
-        return seed;
-    }
-};
-
-template<>
-struct Hash<Array<const Def*>> {
-    uint64_t operator()(const Array<const Def*> defs) const { return Hash<Defs>()(defs); }
-};
-
-//------------------------------------------------------------------------------
 
 }
 

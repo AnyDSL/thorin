@@ -6,7 +6,6 @@
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/util/autoptr.h"
 #include "thorin/util/log.h"
 #include "thorin/util/stream.h"
 #include "thorin/be/c.h"

@@ -7,30 +7,13 @@
 #include <utility>
 #include <cassert>
 #include <cstdint>
-#include <functional>
 #include <type_traits>
+
+#include "thorin/util/utility.h"
 
 namespace thorin {
 
 //------------------------------------------------------------------------------
-
-// currently no better place to fit this
-
-/// Determines whether @p i is a power of two.
-constexpr size_t is_power_of_2(size_t i) { return ((i != 0) && !(i & (i - 1))); }
-
-constexpr unsigned log2(unsigned n, unsigned p = 0) { return (n <= 1) ? p : log2(n / 2, p + 1); }
-
-constexpr uint32_t round_to_power_of_2(uint32_t i) {
-    i--;
-    i |= i >> 1;
-    i |= i >> 2;
-    i |= i >> 4;
-    i |= i >> 8;
-    i |= i >> 16;
-    i++;
-    return i;
-}
 
 //------------------------------------------------------------------------------
 

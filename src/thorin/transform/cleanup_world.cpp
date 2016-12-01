@@ -4,7 +4,6 @@
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/verify.h"
 #include "thorin/transform/import.h"
-#include "thorin/util/queue.h"
 
 namespace thorin {
 

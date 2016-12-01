@@ -6,7 +6,6 @@
 
 #include "thorin/enums.h"
 #include "thorin/type.h"
-#include "thorin/util/autoptr.h"
 #include "thorin/util/location.h"
 
 namespace thorin {

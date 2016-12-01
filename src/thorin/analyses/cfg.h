@@ -5,7 +5,6 @@
 
 #include "thorin/analyses/scope.h"
 #include "thorin/util/array.h"
-#include "thorin/util/autoptr.h"
 #include "thorin/util/indexmap.h"
 #include "thorin/util/stream.h"
 #include "thorin/util/ycomp.h"

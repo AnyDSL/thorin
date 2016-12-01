@@ -43,7 +43,6 @@
 #include "thorin/transform/import.h"
 #include "thorin/util/array.h"
 #include "thorin/util/log.h"
-#include "thorin/util/push.h"
 
 namespace thorin {
 

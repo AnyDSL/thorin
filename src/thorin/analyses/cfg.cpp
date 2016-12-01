@@ -12,7 +12,7 @@
 #include "thorin/analyses/scope.h"
 #include "thorin/be/ycomp.h"
 #include "thorin/util/log.h"
-#include "thorin/util/queue.h"
+#include "thorin/util/utility.h"
 
 namespace thorin {
 

@@ -744,9 +744,8 @@ std::ostream& CCodeGen::emit(const Def* def) {
             if (def->type()->isa<ArrayType>()) {
                 func_impl_ << ".e[";
                 emit(index) << "]";
-//<<<<<<< HEAD
-            //} else if (def->type()->isa<TupleType>() || def->type()->isa<StructType>()) {
-                //os << ".e";
+            } else if (def->type()->isa<TupleType>() || def->type()->isa<StructType>()) {
+                func_impl_ << ".e";
                 emit(index);
             } else if (def->type()->isa<VectorType>()) {
                 if (is_primlit(index, 0))

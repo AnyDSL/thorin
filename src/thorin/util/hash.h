@@ -15,8 +15,6 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-//------------------------------------------------------------------------------
-
 /// Magic numbers from http://www.isthe.com/chongo/tech/comp/fnv/index.html#FNV-param .
 struct FNV1 {
     static const uint64_t offset = 14695981039346656037ull;

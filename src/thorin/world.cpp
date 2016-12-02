@@ -48,8 +48,8 @@ World::World(std::string name)
     , mem_    (unify(new MemType  (*this)))
     , frame_  (unify(new FrameType(*this)))
 {
-    branch_ = continuation(fn_type({type_bool(), fn_type(), fn_type()}), Location(), CC::C, Intrinsic::Branch, "br");
-    end_scope_ = continuation(fn_type(), Location(), CC::C, Intrinsic::EndScope, "end_scope");
+    branch_ = continuation(fn_type({type_bool(), fn_type(), fn_type()}), CC::C, Intrinsic::Branch, {"br"});
+    end_scope_ = continuation(fn_type(), CC::C, Intrinsic::EndScope, {"end_scope"});
 }
 
 World::~World() {
@@ -61,28 +61,28 @@ World::~World() {
  * literals
  */
 
-const Def* World::splat(const Def* arg, size_t length, const std::string& name) {
+const Def* World::splat(const Def* arg, size_t length, Debug dbg) {
     if (length == 1)
         return arg;
 
     Array<const Def*> args(length);
     std::fill(args.begin(), args.end(), arg);
-    return vector(args, arg->loc(), name);
+    return vector(args, dbg);
 }
 
 /*
  * arithops
  */
 
-const Def* World::binop(int kind, const Def* lhs, const Def* rhs, const Location& loc, const std::string& name) {
+const Def* World::binop(int kind, const Def* lhs, const Def* rhs, Debug dbg) {
     if (is_arithop(kind))
-        return arithop((ArithOpKind) kind, lhs, rhs, loc, name);
+        return arithop((ArithOpKind) kind, lhs, rhs, dbg);
 
     assert(is_cmp(kind) && "must be a Cmp");
-    return cmp((CmpKind) kind, lhs, rhs, loc, name);
+    return cmp((CmpKind) kind, lhs, rhs, dbg);
 }
 
-const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const Location& loc, const std::string& name) {
+const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, Debug dbg) {
     assert(a->type() == b->type());
     assert(a->type()->as<PrimType>()->length() == b->type()->as<PrimType>()->length());
     PrimTypeKind type = a->type()->as<PrimType>()->primtype_kind();
@@ -96,8 +96,8 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const Lo
         size_t num = lvec->type()->as<PrimType>()->length();
         Array<const Def*> ops(num);
         for (size_t i = 0; i != num; ++i)
-            ops[i] = arithop(kind, lvec->op(i), rvec->op(i), loc);
-        return vector(ops, loc, name);
+            ops[i] = arithop(kind, lvec->op(i), rvec->op(i), dbg);
+        return vector(ops, dbg);
     }
 
     if (llit && rlit) {
@@ -108,65 +108,65 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const Lo
             switch (kind) {
                 case ArithOp_add:
                     switch (type) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal(type, Box(T(l.get_##T() + r.get_##T())), loc);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal(type, Box(T(l.get_##T() + r.get_##T())), dbg);
 #include "thorin/tables/primtypetable.h"
                     }
                 case ArithOp_sub:
                     switch (type) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal(type, Box(T(l.get_##T() - r.get_##T())), loc);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal(type, Box(T(l.get_##T() - r.get_##T())), dbg);
 #include "thorin/tables/primtypetable.h"
                     }
                 case ArithOp_mul:
                     switch (type) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal(type, Box(T(l.get_##T() * r.get_##T())), loc);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal(type, Box(T(l.get_##T() * r.get_##T())), dbg);
 #include "thorin/tables/primtypetable.h"
                     }
                 case ArithOp_div:
                     switch (type) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal(type, Box(T(l.get_##T() / r.get_##T())), loc);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal(type, Box(T(l.get_##T() / r.get_##T())), dbg);
 #include "thorin/tables/primtypetable.h"
                     }
                 case ArithOp_rem:
                     switch (type) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal(type, Box(T(l.get_##T() % r.get_##T())), loc);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal(type, Box(T(l.get_##T() % r.get_##T())), dbg);
 #include "thorin/tables/primtypetable.h"
                     }
                 case ArithOp_and:
                     switch (type) {
-#define THORIN_I_TYPE(T, M)    case PrimType_##T: return literal(type, Box(T(l.get_##T() & r.get_##T())), loc);
-#define THORIN_BOOL_TYPE(T, M) case PrimType_##T: return literal(type, Box(T(l.get_##T() & r.get_##T())), loc);
+#define THORIN_I_TYPE(T, M)    case PrimType_##T: return literal(type, Box(T(l.get_##T() & r.get_##T())), dbg);
+#define THORIN_BOOL_TYPE(T, M) case PrimType_##T: return literal(type, Box(T(l.get_##T() & r.get_##T())), dbg);
 #include "thorin/tables/primtypetable.h"
                         default: THORIN_UNREACHABLE;
                     }
                 case ArithOp_or:
                     switch (type) {
-#define THORIN_I_TYPE(T, M)    case PrimType_##T: return literal(type, Box(T(l.get_##T() | r.get_##T())), loc);
-#define THORIN_BOOL_TYPE(T, M) case PrimType_##T: return literal(type, Box(T(l.get_##T() | r.get_##T())), loc);
+#define THORIN_I_TYPE(T, M)    case PrimType_##T: return literal(type, Box(T(l.get_##T() | r.get_##T())), dbg);
+#define THORIN_BOOL_TYPE(T, M) case PrimType_##T: return literal(type, Box(T(l.get_##T() | r.get_##T())), dbg);
 #include "thorin/tables/primtypetable.h"
                         default: THORIN_UNREACHABLE;
                     }
                 case ArithOp_xor:
                     switch (type) {
-#define THORIN_I_TYPE(T, M)    case PrimType_##T: return literal(type, Box(T(l.get_##T() ^ r.get_##T())), loc);
-#define THORIN_BOOL_TYPE(T, M) case PrimType_##T: return literal(type, Box(T(l.get_##T() ^ r.get_##T())), loc);
+#define THORIN_I_TYPE(T, M)    case PrimType_##T: return literal(type, Box(T(l.get_##T() ^ r.get_##T())), dbg);
+#define THORIN_BOOL_TYPE(T, M) case PrimType_##T: return literal(type, Box(T(l.get_##T() ^ r.get_##T())), dbg);
 #include "thorin/tables/primtypetable.h"
                         default: THORIN_UNREACHABLE;
                     }
                 case ArithOp_shl:
                     switch (type) {
-#define THORIN_I_TYPE(T, M) case PrimType_##T: return literal(type, Box(T(l.get_##T() << r.get_##T())), loc);
+#define THORIN_I_TYPE(T, M) case PrimType_##T: return literal(type, Box(T(l.get_##T() << r.get_##T())), dbg);
 #include "thorin/tables/primtypetable.h"
                         default: THORIN_UNREACHABLE;
                     }
                 case ArithOp_shr:
                     switch (type) {
-#define THORIN_I_TYPE(T, M) case PrimType_##T: return literal(type, Box(T(l.get_##T() >> r.get_##T())), loc);
+#define THORIN_I_TYPE(T, M) case PrimType_##T: return literal(type, Box(T(l.get_##T() >> r.get_##T())), dbg);
 #include "thorin/tables/primtypetable.h"
                         default: THORIN_UNREACHABLE;
                     }
             }
         } catch (BottomException) {
-            return bottom(type, loc);
+            return bottom(type, dbg);
         }
     }
 
@@ -180,23 +180,23 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const Lo
     if (is_type_i(type)) {
         if (a == b) {
             switch (kind) {
-                case ArithOp_add: return arithop_mul(literal(type, 2, loc), a, loc);
+                case ArithOp_add: return arithop_mul(literal(type, 2, dbg), a, dbg);
 
                 case ArithOp_sub:
-                case ArithOp_xor: return zero(type, loc);
+                case ArithOp_xor: return zero(type, dbg);
 
                 case ArithOp_and:
                 case ArithOp_or:  return a;
 
                 case ArithOp_div:
                     if (is_zero(b))
-                        return bottom(type, loc);
-                    return one(type, loc);
+                        return bottom(type, dbg);
+                    return one(type, dbg);
 
                 case ArithOp_rem:
                     if (is_zero(b))
-                        return bottom(type, loc);
-                    return zero(type, loc);
+                        return bottom(type, dbg);
+                    return zero(type, dbg);
 
                 default: break;
             }
@@ -209,7 +209,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const Lo
                 case ArithOp_rem:
                 case ArithOp_and:
                 case ArithOp_shl:
-                case ArithOp_shr: return zero(type, loc);
+                case ArithOp_shr: return zero(type, dbg);
 
                 case ArithOp_add:
                 case ArithOp_or:
@@ -237,7 +237,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const Lo
         if (is_zero(b)) {
             switch (kind) {
                 case ArithOp_div:
-                case ArithOp_rem: return bottom(type, loc);
+                case ArithOp_rem: return bottom(type, dbg);
 
                 case ArithOp_shl:
                 case ArithOp_shr: return a;
@@ -250,7 +250,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const Lo
             switch (kind) {
                 case ArithOp_mul:
                 case ArithOp_div: return a;
-                case ArithOp_rem: return zero(type, loc);
+                case ArithOp_rem: return zero(type, dbg);
 
                 default: break;
             }
@@ -259,7 +259,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const Lo
         if (rlit && primlit_value<uint64_t>(rlit) >= uint64_t(num_bits(type))) {
             switch (kind) {
                 case ArithOp_shl:
-                case ArithOp_shr: return bottom(type, loc);
+                case ArithOp_shr: return bottom(type, dbg);
 
                 default: break;
             }
@@ -269,7 +269,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const Lo
             if (is_not(b))                            // do we have ~~x?
                 return b->as<ArithOp>()->rhs();
             if (auto cmp = b->isa<Cmp>())   // do we have ~(a cmp b)?
-                return this->cmp(negate(cmp->cmp_kind()), cmp->lhs(), cmp->rhs(), loc);
+                return this->cmp(negate(cmp->cmp_kind()), cmp->lhs(), cmp->rhs(), dbg);
         }
 
         auto lcmp = a->isa<Cmp>();
@@ -277,11 +277,11 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const Lo
 
         if (kind == ArithOp_or && lcmp && rcmp && lcmp->lhs() == rcmp->lhs() && lcmp->rhs() == rcmp->rhs()
                 && lcmp->cmp_kind() == negate(rcmp->cmp_kind()))
-                return literal_bool(true, loc);
+                return literal_bool(true, dbg);
 
         if (kind == ArithOp_and && lcmp && rcmp && lcmp->lhs() == rcmp->lhs() && lcmp->rhs() == rcmp->rhs()
                 && lcmp->cmp_kind() == negate(rcmp->cmp_kind()))
-                return literal_bool(false, loc);
+                return literal_bool(false, dbg);
 
         auto land = a->kind() == Node_and ? a->as<ArithOp>() : nullptr;
         auto rand = b->kind() == Node_and ? b->as<ArithOp>() : nullptr;
@@ -289,9 +289,9 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const Lo
         // distributivity (a and b) or (a and c)
         if (kind == ArithOp_or && land && rand) {
             if (land->lhs() == rand->lhs())
-                return arithop_and(land->lhs(), arithop_or(land->rhs(), rand->rhs(), loc), loc);
+                return arithop_and(land->lhs(), arithop_or(land->rhs(), rand->rhs(), dbg), dbg);
             if (land->rhs() == rand->rhs())
-                return arithop_and(land->rhs(), arithop_or(land->lhs(), rand->lhs(), loc), loc);
+                return arithop_and(land->rhs(), arithop_or(land->lhs(), rand->lhs(), dbg), dbg);
         }
 
         auto lor = a->kind() == Node_or ? a->as<ArithOp>() : nullptr;
@@ -300,9 +300,9 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const Lo
         // distributivity (a or b) and (a or c)
         if (kind == ArithOp_and && lor && ror) {
             if (lor->lhs() == ror->lhs())
-                return arithop_or(lor->lhs(), arithop_and(lor->rhs(), ror->rhs(), loc), loc);
+                return arithop_or(lor->lhs(), arithop_and(lor->rhs(), ror->rhs(), dbg), dbg);
             if (lor->rhs() == ror->rhs())
-                return arithop_or(lor->rhs(), arithop_and(lor->lhs(), ror->lhs(), loc), loc);
+                return arithop_or(lor->rhs(), arithop_and(lor->lhs(), ror->lhs(), dbg), dbg);
         }
 
         // absorption: a and (a or b) = a
@@ -332,18 +332,18 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const Lo
         if (kind == ArithOp_or) {
             if (lor && ror) {
                 if (lor->lhs() == ror->lhs())
-                    return arithop_or(lor->rhs(), ror->rhs(), loc);
+                    return arithop_or(lor->rhs(), ror->rhs(), dbg);
                 if (lor->rhs() == ror->rhs())
-                    return arithop_or(lor->lhs(), ror->lhs(), loc);
+                    return arithop_or(lor->lhs(), ror->lhs(), dbg);
             }
         }
 
         if (kind == ArithOp_and) {
             if (land && rand) {
                 if (land->lhs() == rand->lhs())
-                    return arithop_and(land->rhs(), rand->rhs(), loc);
+                    return arithop_and(land->rhs(), rand->rhs(), dbg);
                 if (land->rhs() == rand->rhs())
-                    return arithop_and(land->lhs(), rand->lhs(), loc);
+                    return arithop_and(land->lhs(), rand->lhs(), dbg);
             }
         }
     }
@@ -357,30 +357,30 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const Lo
 
         if (is_commutative(kind)) {
             if (a_lhs_lv && b_lhs_lv)
-                return arithop(kind, arithop(kind, a_lhs_lv, b_lhs_lv, loc), arithop(kind, a_same->rhs(), b_same->rhs(), loc), loc);
+                return arithop(kind, arithop(kind, a_lhs_lv, b_lhs_lv, dbg), arithop(kind, a_same->rhs(), b_same->rhs(), dbg), dbg);
             if ((llit || lvec) && b_lhs_lv)
-                return arithop(kind, arithop(kind, a, b_lhs_lv, loc), b_same->rhs(), loc);
+                return arithop(kind, arithop(kind, a, b_lhs_lv, dbg), b_same->rhs(), dbg);
             if (b_lhs_lv)
-                return arithop(kind, b_lhs_lv, arithop(kind, a, b_same->rhs(), loc), loc);
+                return arithop(kind, b_lhs_lv, arithop(kind, a, b_same->rhs(), dbg), dbg);
         }
         if (a_lhs_lv)
-            return arithop(kind, a_lhs_lv, arithop(kind, a_same->rhs(), b, loc), loc);
+            return arithop(kind, a_lhs_lv, arithop(kind, a_same->rhs(), b, dbg), dbg);
     }
 
-    return cse(new ArithOp(kind, a, b, loc, name));
+    return cse(new ArithOp(kind, a, b, dbg));
 }
 
-const Def* World::arithop_not(const Def* def, const Location& loc) { return arithop_xor(allset(def->type(), loc, vector_length(def)), def, loc); }
+const Def* World::arithop_not(const Def* def, Debug dbg) { return arithop_xor(allset(def->type(), dbg, vector_length(def)), def, dbg); }
 
-const Def* World::arithop_minus(const Def* def, const Location& loc) {
+const Def* World::arithop_minus(const Def* def, Debug dbg) {
     switch (PrimTypeKind kind = def->type()->as<PrimType>()->primtype_kind()) {
 #define THORIN_F_TYPE(T, M) \
         case PrimType_##T: \
-            return arithop_sub(literal_##T(M(-0.f), loc, vector_length(def)), def, loc);
+            return arithop_sub(literal_##T(M(-0.f), dbg, vector_length(def)), def, dbg);
 #include "thorin/tables/primtypetable.h"
         default:
             assert(is_type_i(kind));
-            return arithop_sub(zero(kind, loc), def, loc);
+            return arithop_sub(zero(kind, dbg), def, dbg);
     }
 }
 
@@ -388,7 +388,7 @@ const Def* World::arithop_minus(const Def* def, const Location& loc) {
  * compares
  */
 
-const Def* World::cmp(CmpKind kind, const Def* a, const Def* b, const Location& loc, const std::string& name) {
+const Def* World::cmp(CmpKind kind, const Def* a, const Def* b, Debug dbg) {
     CmpKind oldkind = kind;
     switch (kind) {
         case Cmp_gt: kind = Cmp_lt; break;
@@ -408,8 +408,8 @@ const Def* World::cmp(CmpKind kind, const Def* a, const Def* b, const Location& 
         size_t num = lvec->type()->as<PrimType>()->length();
         Array<const Def*> ops(num);
         for (size_t i = 0; i != num; ++i)
-            ops[i] = cmp(kind, lvec->op(i), rvec->op(i), loc);
-        return vector(ops, loc, name);
+            ops[i] = cmp(kind, lvec->op(i), rvec->op(i), dbg);
+        return vector(ops, dbg);
     }
 
     if (llit && rlit) {
@@ -420,22 +420,22 @@ const Def* World::cmp(CmpKind kind, const Def* a, const Def* b, const Location& 
         switch (kind) {
             case Cmp_eq:
                 switch (type) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_bool(l.get_##T() == r.get_##T(), loc);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_bool(l.get_##T() == r.get_##T(), dbg);
 #include "thorin/tables/primtypetable.h"
                 }
             case Cmp_ne:
                 switch (type) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_bool(l.get_##T() != r.get_##T(), loc);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_bool(l.get_##T() != r.get_##T(), dbg);
 #include "thorin/tables/primtypetable.h"
                 }
             case Cmp_lt:
                 switch (type) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_bool(l.get_##T() <  r.get_##T(), loc);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_bool(l.get_##T() <  r.get_##T(), dbg);
 #include "thorin/tables/primtypetable.h"
                 }
             case Cmp_le:
                 switch (type) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_bool(l.get_##T() <= r.get_##T(), loc);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_bool(l.get_##T() <= r.get_##T(), dbg);
 #include "thorin/tables/primtypetable.h"
                 }
             default: THORIN_UNREACHABLE;
@@ -445,46 +445,46 @@ const Def* World::cmp(CmpKind kind, const Def* a, const Def* b, const Location& 
     if (a == b) {
         switch (kind) {
             case Cmp_lt:
-            case Cmp_ne: return zero(type_bool(), loc);
+            case Cmp_ne: return zero(type_bool(), dbg);
             case Cmp_le:
-            case Cmp_eq: return one(type_bool(), loc);
+            case Cmp_eq: return one(type_bool(), dbg);
             default: break;
         }
     }
 
-    return cse(new Cmp(kind, a, b, loc, name));
+    return cse(new Cmp(kind, a, b, dbg));
 }
 
 /*
  * casts
  */
 
-const Def* World::convert(const Type* dst_type, const Def* src, const Location& loc, const std::string& name) {
+const Def* World::convert(const Type* dst_type, const Def* src, Debug dbg) {
     if (dst_type == src->type())
         return src;
     if (src->type()->isa<PtrType>() && dst_type->isa<PtrType>())
-        return bitcast(dst_type, src, loc, name);
+        return bitcast(dst_type, src, dbg);
     if (auto dst_tuple_type = dst_type->isa<TupleType>()) {
         assert(dst_tuple_type->num_ops() == src->type()->as<TupleType>()->num_ops());
 
         Array<const Def*> new_tuple(dst_tuple_type->num_ops());
         for (size_t i = 0, e = new_tuple.size(); i != e; ++i)
-            new_tuple[i] = convert(dst_type->op(i), extract(src, i, loc, name), loc, name);
+            new_tuple[i] = convert(dst_type->op(i), extract(src, i, dbg), dbg);
 
-        return tuple(new_tuple, loc, name);
+        return tuple(new_tuple, dbg);
     }
 
-    return cast(dst_type, src, loc, name);
+    return cast(dst_type, src, dbg);
 }
 
-const Def* World::cast(const Type* to, const Def* from, const Location& loc, const std::string& name) {
+const Def* World::cast(const Type* to, const Def* from, Debug dbg) {
     if (auto vec = from->isa<Vector>()) {
         size_t num = vector_length(vec);
         auto to_vec = to->as<VectorType>();
         Array<const Def*> ops(num);
         for (size_t i = 0; i != num; ++i)
-            ops[i] = cast(to_vec->scalarize(), vec->op(i), loc);
-        return vector(ops, loc, name);
+            ops[i] = cast(to_vec->scalarize(), vec->op(i), dbg);
+        return vector(ops, dbg);
     }
 
     auto lit = from->isa<PrimLit>();
@@ -495,82 +495,82 @@ const Def* World::cast(const Type* to, const Def* from, const Location& loc, con
         switch (lit->primtype_kind()) {
             case PrimType_bool:
                 switch (to_type->primtype_kind()) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_bool()), loc);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_bool()), dbg);
 #include "thorin/tables/primtypetable.h"
                 }
             case PrimType_ps8:
             case PrimType_qs8:
                 switch (to_type->primtype_kind()) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_s8()), loc);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_s8()), dbg);
 #include "thorin/tables/primtypetable.h"
                 }
             case PrimType_ps16:
             case PrimType_qs16:
                 switch (to_type->primtype_kind()) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_s16()), loc);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_s16()), dbg);
 #include "thorin/tables/primtypetable.h"
                 }
             case PrimType_ps32:
             case PrimType_qs32:
                 switch (to_type->primtype_kind()) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_s32()), loc);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_s32()), dbg);
 #include "thorin/tables/primtypetable.h"
                 }
             case PrimType_ps64:
             case PrimType_qs64:
                 switch (to_type->primtype_kind()) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_s64()), loc);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_s64()), dbg);
 #include "thorin/tables/primtypetable.h"
                 }
             case PrimType_pu8:
             case PrimType_qu8:
                 switch (to_type->primtype_kind()) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_u8()), loc);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_u8()), dbg);
 #include "thorin/tables/primtypetable.h"
                 }
             case PrimType_pu16:
             case PrimType_qu16:
                 switch (to_type->primtype_kind()) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_u16()), loc);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_u16()), dbg);
 #include "thorin/tables/primtypetable.h"
                 }
             case PrimType_pu32:
             case PrimType_qu32:
                 switch (to_type->primtype_kind()) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_u32()), loc);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_u32()), dbg);
 #include "thorin/tables/primtypetable.h"
                 }
             case PrimType_pu64:
             case PrimType_qu64:
                 switch (to_type->primtype_kind()) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_u64()), loc);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_u64()), dbg);
 #include "thorin/tables/primtypetable.h"
                 }
             case PrimType_pf16:
             case PrimType_qf16:
                 switch (to_type->primtype_kind()) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_f16()), loc);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_f16()), dbg);
 #include "thorin/tables/primtypetable.h"
                 }
             case PrimType_pf32:
             case PrimType_qf32:
                 switch (to_type->primtype_kind()) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_f32()), loc);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_f32()), dbg);
 #include "thorin/tables/primtypetable.h"
                 }
             case PrimType_pf64:
             case PrimType_qf64:
                 switch (to_type->primtype_kind()) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_f64()), loc);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_f64()), dbg);
 #include "thorin/tables/primtypetable.h"
                 }
         }
     }
 
-    return cse(new Cast(to, from, loc, name));
+    return cse(new Cast(to, from, dbg));
 }
 
-const Def* World::bitcast(const Type* to, const Def* from, const Location& loc, const std::string& name) {
+const Def* World::bitcast(const Type* to, const Def* from, Debug dbg) {
     if (auto other = from->isa<Bitcast>())
         if (to == other->type())
             return other;
@@ -578,19 +578,19 @@ const Def* World::bitcast(const Type* to, const Def* from, const Location& loc, 
     if (auto prim_to = to->isa<PrimType>())
         if (auto prim_from = from->type()->isa<PrimType>())
             if (num_bits(prim_from->primtype_kind()) != num_bits(prim_to->primtype_kind()))
-                ELOG("bitcast between primitive types of different size at %", loc);
+                ELOG("bitcast between primitive types of different size at %", dbg);
 
     if (auto vec = from->isa<Vector>()) {
         size_t num = vector_length(vec);
         auto to_vec = to->as<VectorType>();
         Array<const Def*> ops(num);
         for (size_t i = 0; i != num; ++i)
-            ops[i] = bitcast(to_vec->scalarize(), vec->op(i), loc);
-        return vector(ops, loc, name);
+            ops[i] = bitcast(to_vec->scalarize(), vec->op(i), dbg);
+        return vector(ops, dbg);
     }
 
     // TODO constant folding
-    return cse(new Bitcast(to, from, loc, name));
+    return cse(new Bitcast(to, from, dbg));
 }
 
 /*
@@ -598,9 +598,9 @@ const Def* World::bitcast(const Type* to, const Def* from, const Location& loc, 
  */
 
 template<class T>
-const Def* World::extract(const Def* agg, const T* index, const Location& loc, const std::string& name) {
+const Def* World::extract(const Def* agg, const T* index, Debug dbg) {
     if (agg->isa<Bottom>())
-        return bottom(Extract::extracted_type(agg, index), loc);
+        return bottom(Extract::extracted_type(agg, index), dbg);
 
     if (auto aggregate = agg->isa<Aggregate>()) {
         if (auto lit = index->template isa<PrimLit>()) {
@@ -621,19 +621,19 @@ const Def* World::extract(const Def* agg, const T* index, const Location& loc, c
             return insert->value();
         else if (index->template isa<PrimLit>()) {
             if (insert->index()->template isa<PrimLit>())
-                return extract(insert->agg(), index, loc, name);
+                return extract(insert->agg(), index, dbg);
         }
     }
 
-    return cse(new Extract(agg, index, loc, name));
+    return cse(new Extract(agg, index, dbg));
 }
 
 // this workaround is need in order to disambiguate extract(agg, 0, ...) from
 // extract(..., u32, ...) vs extract(..., const Def*, ...)
-template const Def* World::extract<Def>    (const Def*, const Def*,     const Location&, const std::string&); // instantiate
-template const Def* World::extract<PrimLit>(const Def*, const PrimLit*, const Location&, const std::string&); // methods
+template const Def* World::extract<Def>    (const Def*, const Def*,     Debug); // instantiate
+template const Def* World::extract<PrimLit>(const Def*, const PrimLit*, Debug); // methods
 
-const Def* World::insert(const Def* agg, const Def* index, const Def* value, const Location& loc, const std::string& name) {
+const Def* World::insert(const Def* agg, const Def* index, const Def* value, Debug dbg) {
     if (agg->isa<Bottom>()) {
         if (value->isa<Bottom>())
             return agg;
@@ -641,20 +641,20 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, con
         // build aggregate container and fill with bottom
         if (auto definite_array_type = agg->type()->isa<DefiniteArrayType>()) {
             Array<const Def*> args(definite_array_type->dim());
-            std::fill(args.begin(), args.end(), bottom(definite_array_type->elem_type(), loc));
-            agg = definite_array(args, loc, agg->name);
+            std::fill(args.begin(), args.end(), bottom(definite_array_type->elem_type(), dbg));
+            agg = definite_array(args, dbg);
         } else if (auto tuple_type = agg->type()->isa<TupleType>()) {
             Array<const Def*> args(tuple_type->num_ops());
             size_t i = 0;
             for (auto type : tuple_type->ops())
-                args[i++] = bottom(type, loc);
-            agg = tuple(args, loc, agg->name);
+                args[i++] = bottom(type, dbg);
+            agg = tuple(args, dbg);
         } else if (auto struct_type = agg->type()->isa<StructType>()) {
             Array<const Def*> args(struct_type->num_ops());
             size_t i = 0;
             for (auto type : struct_type->ops())
-                args[i++] = bottom(type, loc);
-            agg = struct_agg(struct_type, args, loc, agg->name);
+                args[i++] = bottom(type, dbg);
+            agg = struct_agg(struct_type, args, dbg);
         }
 
     }
@@ -671,12 +671,12 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, con
         }
     }
 
-    return cse(new Insert(agg, index, value, loc, name));
+    return cse(new Insert(agg, index, value, dbg));
 }
 
-const Def* World::select(const Def* cond, const Def* a, const Def* b, const Location& loc, const std::string& name) {
+const Def* World::select(const Def* cond, const Def* a, const Def* b, Debug dbg) {
     if (cond->isa<Bottom>() || a->isa<Bottom>() || b->isa<Bottom>())
-        return bottom(a->type(), loc);
+        return bottom(a->type(), dbg);
 
     if (auto lit = cond->isa<PrimLit>())
         return lit->value().get_bool() ? a : b;
@@ -689,17 +689,17 @@ const Def* World::select(const Def* cond, const Def* a, const Def* b, const Loca
     if (a == b)
         return a;
 
-    return cse(new Select(cond, a, b, loc, name));
+    return cse(new Select(cond, a, b, dbg));
 }
 
 /*
  * memory stuff
  */
 
-const Def* World::load(const Def* mem, const Def* ptr, const Location& loc, const std::string& name) {
+const Def* World::load(const Def* mem, const Def* ptr, Debug dbg) {
     if (auto store = mem->isa<Store>())
         if (store->ptr() == ptr) {
-            return tuple({mem, store->val()}, loc);
+            return tuple({mem, store->val()}, dbg);
     }
 
     if (auto global = ptr->isa<Global>()) {
@@ -712,10 +712,10 @@ const Def* World::load(const Def* mem, const Def* ptr, const Location& loc, cons
             return ld;
     }
 
-    return cse(new Load(mem, ptr, loc, name));
+    return cse(new Load(mem, ptr, dbg));
 }
 
-const Def* World::store(const Def* mem, const Def* ptr, const Def* value, const Location& loc, const std::string& name) {
+const Def* World::store(const Def* mem, const Def* ptr, const Def* value, Debug dbg) {
     if (value->isa<Bottom>())
         return mem;
 
@@ -726,44 +726,44 @@ const Def* World::store(const Def* mem, const Def* ptr, const Def* value, const 
 
     if (auto insert = value->isa<Insert>()) {
         if (use_lea(ptr->type()->as<PtrType>()->referenced_type())) {
-            auto peeled_store = store(mem, ptr, insert->agg(), loc);
-            return store(peeled_store, lea(ptr, insert->index(), insert->loc(), insert->name), insert->value(), loc, name);
+            auto peeled_store = store(mem, ptr, insert->agg(), dbg);
+            return store(peeled_store, lea(ptr, insert->index(), insert->debug()), insert->value(), dbg);
         }
     }
 
-    return cse(new Store(mem, ptr, value, loc, name));
+    return cse(new Store(mem, ptr, value, dbg));
 }
 
-const Def* World::enter(const Def* mem, const Location& loc, const std::string& name) {
+const Def* World::enter(const Def* mem, Debug dbg) {
     if (auto e = Enter::is_out_mem(mem))
         return e;
-    return cse(new Enter(mem, loc, name));
+    return cse(new Enter(mem, dbg));
 }
 
-const Def* World::alloc(const Type* type, const Def* mem, const Def* extra, const Location& loc, const std::string& name) {
-    return cse(new Alloc(type, mem, extra, loc, name));
+const Def* World::alloc(const Type* type, const Def* mem, const Def* extra, Debug dbg) {
+    return cse(new Alloc(type, mem, extra, dbg));
 }
 
-const Def* World::global(const Def* init, const Location& loc, bool is_mutable, const std::string& name) {
-    return cse(new Global(init, is_mutable, loc, name));
+const Def* World::global(const Def* init, bool is_mutable, Debug dbg) {
+    return cse(new Global(init, is_mutable, dbg));
 }
 
-const Def* World::global_immutable_string(const Location& loc, const std::string& str, const std::string& name) {
+const Def* World::global_immutable_string(const std::string& str, Debug dbg) {
     size_t size = str.size() + 1;
 
     Array<const Def*> str_array(size);
     for (size_t i = 0; i != size-1; ++i)
-        str_array[i] = literal_qu8(str[i], loc);
-    str_array.back() = literal_qu8('\0', loc);
+        str_array[i] = literal_qu8(str[i], dbg);
+    str_array.back() = literal_qu8('\0', dbg);
 
-    return global(definite_array(str_array, loc), loc, false, name);
+    return global(definite_array(str_array, dbg), false, dbg);
 }
 
-const Assembly* World::assembly(const Type* type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, const Location& loc) {
-    return cse(new Assembly(type, inputs, asm_template, output_constraints, input_constraints, clobbers, flags, loc))->as<Assembly>();;
+const Assembly* World::assembly(const Type* type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg) {
+    return cse(new Assembly(type, inputs, asm_template, output_constraints, input_constraints, clobbers, flags, dbg))->as<Assembly>();;
 }
 
-const Assembly* World::assembly(Types types, const Def* mem, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, const Location& loc) {
+const Assembly* World::assembly(Types types, const Def* mem, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg) {
     Array<const Type*> output(types.size()+1);
     std::copy(types.begin(), types.end(), output.begin()+1);
     output.front() = mem_type();
@@ -772,36 +772,36 @@ const Assembly* World::assembly(Types types, const Def* mem, Defs inputs, std::s
     std::copy(inputs.begin(), inputs.end(), ops.begin()+1);
     ops.front() = mem;
 
-    return assembly(tuple_type(output), ops, asm_template, output_constraints, input_constraints, clobbers, flags, loc);
+    return assembly(tuple_type(output), ops, asm_template, output_constraints, input_constraints, clobbers, flags, dbg);
 }
 
 /*
  * lambdas
  */
 
-Continuation* World::continuation(const FnType* fn, const Location& loc, CC cc, Intrinsic intrinsic, const std::string& name) {
-    auto l = new Continuation(fn, loc, cc, intrinsic, true, name);
+Continuation* World::continuation(const FnType* fn, CC cc, Intrinsic intrinsic, Debug dbg) {
+    auto l = new Continuation(fn, cc, intrinsic, true, dbg);
     THORIN_CHECK_BREAK(l->gid());
     continuations_.insert(l);
 
     size_t i = 0;
     for (auto op : fn->ops()) {
-        auto p = param(op, l, i++);
-        l->params_.push_back(p);
+        auto p = param(op, l, i++, dbg);
+        l->params_.emplace_back(p);
     }
 
     return l;
 }
 
-Continuation* World::basicblock(const Location& loc, const std::string& name) {
-    auto bb = new Continuation(fn_type(), loc, CC::C, Intrinsic::None, false, name);
+Continuation* World::basicblock(Debug dbg) {
+    auto bb = new Continuation(fn_type(), CC::C, Intrinsic::None, false, dbg);
     THORIN_CHECK_BREAK(bb->gid());
     continuations_.insert(bb);
     return bb;
 }
 
-const Param* World::param(const Type* type, Continuation* continuation, size_t index, const std::string& name) {
-    auto param = new Param(type, continuation, index, continuation->loc(), name);
+const Param* World::param(const Type* type, Continuation* continuation, size_t index, Debug dbg) {
+    auto param = new Param(type, continuation, index, dbg);
     THORIN_CHECK_BREAK(param->gid());
     return param;
 }

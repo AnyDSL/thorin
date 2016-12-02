@@ -24,8 +24,8 @@
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Transforms/IPO.h>
 
-#ifdef WFV2_SUPPORT
-#include <wfvInterface.h>
+#ifdef RV_SUPPORT
+#include <rv/rv.h>
 #endif
 
 #include "thorin/def.h"
@@ -40,7 +40,7 @@
 #include "thorin/be/llvm/nvvm.h"
 #include "thorin/be/llvm/opencl.h"
 #include "thorin/be/llvm/spir.h"
-#include "thorin/transform/import.h"
+#include "thorin/transform/importer.h"
 #include "thorin/util/array.h"
 #include "thorin/util/log.h"
 
@@ -71,10 +71,10 @@ Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
         case Intrinsic::Parallel:  return emit_parallel(continuation);
         case Intrinsic::Spawn:     return emit_spawn(continuation);
         case Intrinsic::Sync:      return emit_sync(continuation);
-#ifdef WFV2_SUPPORT
+#ifdef RV_SUPPORT
         case Intrinsic::Vectorize: return emit_vectorize_continuation(continuation);
 #else
-        case Intrinsic::Vectorize: throw std::runtime_error("rebuild with libWFV support");
+        case Intrinsic::Vectorize: throw std::runtime_error("rebuild with RV support");
 #endif
         default: THORIN_UNREACHABLE;
     }
@@ -117,21 +117,21 @@ Continuation* CodeGen::emit_cmpxchg(Continuation* continuation) {
 }
 
 Continuation* CodeGen::emit_reserve(const Continuation* continuation) {
-    ELOG("reserve_shared: only allowed in device code at %", continuation->jump_loc());
+    ELOG("reserve_shared: only allowed in device code at %", continuation->jump_debug());
     THORIN_UNREACHABLE;
 }
 
 Continuation* CodeGen::emit_reserve_shared(const Continuation* continuation, bool prefix) {
     assert(continuation->num_args() == 3 && "required arguments are missing");
     if (!continuation->arg(1)->isa<PrimLit>())
-        ELOG("reserve_shared: couldn't extract memory size at %", continuation->arg(1)->loc());
+        ELOG("reserve_shared: couldn't extract memory size at %", continuation->arg(1)->location());
     auto num_elems = continuation->arg(1)->as<PrimLit>()->ps32_value();
     auto cont = continuation->arg(2)->as_continuation();
     auto type = convert(cont->param(1)->type());
     // construct array type
     auto elem_type = cont->param(1)->type()->as<PtrType>()->referenced_type()->as<ArrayType>()->elem_type();
     auto smem_type = this->convert(continuation->world().definite_array_type(elem_type, num_elems));
-    auto global = emit_global_variable(smem_type, (prefix ? entry_->name + "." : "") + continuation->unique_name(), 3);
+    auto global = emit_global_variable(smem_type, (prefix ? entry_->name() + "." : "") + continuation->unique_name(), 3);
     auto call = irbuilder_.CreatePointerCast(global, type);
     emit_result_phi(cont->param(1), call);
     return cont;
@@ -154,7 +154,7 @@ llvm::Function* CodeGen::emit_function_decl(Continuation* continuation) {
     if (auto f = thorin::find(fcts_, continuation))
         return f;
 
-    std::string name = (continuation->is_external() || continuation->empty()) ? continuation->name : continuation->unique_name();
+    std::string name = (continuation->is_external() || continuation->empty()) ? continuation->name() : continuation->unique_name();
     auto f = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, convert_fn_type(continuation)));
 
 #ifdef _MSC_VER
@@ -206,12 +206,12 @@ void CodeGen::emit(int opt, bool debug) {
         llvm::DISubprogram* disub_program;
         llvm::DIScope* discope = dicompile_unit;
         if (debug) {
-            auto src_file = llvm::sys::path::filename(entry_->loc().begin().filename());
-            auto src_dir = llvm::sys::path::parent_path(entry_->loc().begin().filename());
+            auto src_file = llvm::sys::path::filename(entry_->location().filename());
+            auto src_dir = llvm::sys::path::parent_path(entry_->location().filename());
             auto difile = dibuilder_.createFile(src_file, src_dir);
-            disub_program = dibuilder_.createFunction(discope, fct->getName(), fct->getName(), difile, entry_->loc().begin().line(),
+            disub_program = dibuilder_.createFunction(discope, fct->getName(), fct->getName(), difile, entry_->location().front_line(),
                                                       dibuilder_.createSubroutineType(dibuilder_.getOrCreateTypeArray(llvm::ArrayRef<llvm::Metadata*>())),
-                                                      false /* internal linkage */, true /* definition */, entry_->loc().begin().line(),
+                                                      false /* internal linkage */, true /* definition */, entry_->location().front_line(),
                                                       llvm::DINode::FlagPrototyped /* Flags */, opt > 0);
             fct->setSubprogram(disub_program);
             discope = disub_program;
@@ -246,13 +246,13 @@ void CodeGen::emit(int opt, bool debug) {
             auto continuation = block.continuation();
             // map all bb-like continuations to llvm bb stubs
             if (continuation->intrinsic() != Intrinsic::EndScope) {
-                auto bb = bb2continuation[continuation] = llvm::BasicBlock::Create(context_, continuation->name, fct);
+                auto bb = bb2continuation[continuation] = llvm::BasicBlock::Create(context_, continuation->name(), fct);
 
                 // create phi node stubs (for all continuations different from entry)
                 if (entry_ != continuation) {
                     for (auto param : continuation->params()) {
                         if (!is_mem(param)) {
-                            auto phi = llvm::PHINode::Create(convert(param->type()), (unsigned) param->peek().size(), param->name, bb);
+                            auto phi = llvm::PHINode::Create(convert(param->type()), (unsigned) param->peek().size(), param->name(), bb);
                             phis_[param] = phi;
                         }
                     }
@@ -264,7 +264,7 @@ void CodeGen::emit(int opt, bool debug) {
         auto startBB = llvm::BasicBlock::Create(context_, fct->getName() + "_start", fct, &*oldStartBB);
         irbuilder_.SetInsertPoint(startBB);
         if (debug)
-            irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(entry_->loc().begin().line(), entry_->loc().begin().col(), discope));
+            irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(entry_->location().front_line(), entry_->location().front_col(), discope));
         emit_function_start(startBB, entry_);
         irbuilder_.CreateBr(&*oldStartBB);
 
@@ -277,14 +277,14 @@ void CodeGen::emit(int opt, bool debug) {
 
             for (auto primop : block) {
                 if (debug)
-                    irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(primop->loc().begin().line(), primop->loc().begin().col(), discope));
+                    irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(primop->location().front_line(), primop->location().front_col(), discope));
                 auto llvm_value = emit(primop);
                 primops_[primop] = llvm_value;
             }
 
             // terminate bb
             if (debug)
-                irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(continuation->jump_loc().begin().line(), continuation->jump_loc().begin().col(), discope));
+                irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(continuation->jump_debug().front_line(), continuation->jump_debug().front_col(), discope));
             if (continuation->callee() == ret_param) { // return
                 size_t num_args = continuation->num_args();
                 switch (num_args) {
@@ -425,11 +425,13 @@ void CodeGen::emit(int opt, bool debug) {
         primops_.clear();
     });
 
-#ifdef WFV2_SUPPORT
+#ifdef RV_SUPPORT
     // emit vectorized code
-    for (const auto& tuple : wfv_todo_)
+    for (const auto& tuple : vec_todo_)
         emit_vectorize(std::get<0>(tuple), std::get<1>(tuple), std::get<2>(tuple));
-    wfv_todo_.clear();
+    vec_todo_.clear();
+
+    rv::lowerPredicateIntrinsics(*module_);
 #endif
 
 #ifndef NDEBUG
@@ -506,7 +508,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
     if (auto bin = def->isa<BinOp>()) {
         llvm::Value* lhs = lookup(bin->lhs());
         llvm::Value* rhs = lookup(bin->rhs());
-        std::string& name = bin->name;
+        const std::string& name = bin->name();
 
         if (auto cmp = bin->isa<Cmp>()) {
             auto type = cmp->lhs()->type();
@@ -676,14 +678,14 @@ llvm::Value* CodeGen::emit(const Def* def) {
                 vals[i] = llvm::cast<llvm::Constant>(emit(array->op(i)));
             return llvm::ConstantArray::get(type, llvm_ref(vals));
         }
-        WLOG("slow: alloca and loads/stores needed for definite array '%' at '%'", def, def->loc());
-        auto alloca = emit_alloca(type, array->name);
+        WLOG("slow: alloca and loads/stores needed for definite array '%' at '%'", def, def->location());
+        auto alloca = emit_alloca(type, array->name());
 
         u64 i = 0;
         llvm::Value* args[2] = { irbuilder_.getInt64(0), nullptr };
         for (auto op : array->ops()) {
             args[1] = irbuilder_.getInt64(i++);
-            auto gep = irbuilder_.CreateInBoundsGEP(alloca, args, op->name);
+            auto gep = irbuilder_.CreateInBoundsGEP(alloca, args, op->name());
             irbuilder_.CreateStore(lookup(op), gep);
         }
 
@@ -712,8 +714,8 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto llvm_agg = lookup(aggop->agg());
         auto llvm_idx = lookup(aggop->index());
         auto copy_to_alloca = [&] () {
-            WLOG("slow: alloca and loads/stores needed for aggregate '%' at '%'", def, def->loc());
-            auto alloca = emit_alloca(llvm_agg->getType(), aggop->name);
+            WLOG("slow: alloca and loads/stores needed for aggregate '%' at '%'", def, def->location());
+            auto alloca = emit_alloca(llvm_agg->getType(), aggop->name());
             irbuilder_.CreateStore(llvm_agg, alloca);
 
             llvm::Value* args[2] = { irbuilder_.getInt64(0), llvm_idx };
@@ -813,7 +815,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
     if (auto vector = def->isa<Vector>()) {
         llvm::Value* vec = llvm::UndefValue::get(convert(vector->type()));
         for (size_t i = 0, e = vector->num_ops(); i != e; ++i)
-            vec = irbuilder_.CreateInsertElement(vec, lookup(vector->op(i)), lookup(world_.literal_pu32(i, vector->loc())));
+            vec = irbuilder_.CreateInsertElement(vec, lookup(vector->op(i)), lookup(world_.literal_pu32(i, vector->location())));
 
         return vec;
     }
@@ -824,7 +826,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
             val = fcts_[continuation];
         else {
             auto llvm_type = convert(global->alloced_type());
-            auto var = llvm::cast<llvm::GlobalVariable>(module_->getOrInsertGlobal(global->name, llvm_type));
+            auto var = llvm::cast<llvm::GlobalVariable>(module_->getOrInsertGlobal(global->name(), llvm_type));
             if (global->init()->isa<Bottom>())
                 var->setInitializer(llvm::Constant::getNullValue(llvm_type)); // HACK
             else
@@ -888,12 +890,12 @@ llvm::Value* CodeGen::emit_assembly(const Assembly* assembly) {
     for (auto con : assembly->in_constraints())
         constraints += con + ",";
     for (auto clob : assembly->clobbers())
-        constraints += "~" + clob + ",";
+        constraints += "~{" + clob + "},";
     // clang always marks those registers as clobbered, so we will do so as well
     constraints += "~{dirflag},~{fpsr},~{flags}";
 
     if (!llvm::InlineAsm::Verify(fn_type, constraints))
-        ELOG("Constraints and input and output types of inline assembly do not match at %", assembly->loc());
+        ELOG("Constraints and input and output types of inline assembly do not match at %", assembly->location());
 
     auto asm_expr = llvm::InlineAsm::get(fn_type, assembly->asm_template(), constraints,
             assembly->has_sideeffects(), assembly->is_alignstack(),
@@ -1045,43 +1047,43 @@ void CodeGen::create_loop(llvm::Value* lower, llvm::Value* upper, llvm::Value* i
 //------------------------------------------------------------------------------
 
 void emit_llvm(World& world, int opt, bool debug) {
-    World cuda(world.name());
-    World nvvm(world.name());
-    World spir(world.name());
-    World opencl(world.name());
+    Importer cuda(world.name());
+    Importer nvvm(world.name());
+    Importer spir(world.name());
+    Importer opencl(world.name());
 
     // determine different parts of the world which need to be compiled differently
     Scope::for_each(world, [&] (const Scope& scope) {
         auto continuation = scope.entry();
         Continuation* imported = nullptr;
         if (continuation->is_passed_to_intrinsic(Intrinsic::CUDA))
-            imported = import(cuda, continuation)->as_continuation();
+            imported = cuda.import(continuation)->as_continuation();
         else if (continuation->is_passed_to_intrinsic(Intrinsic::NVVM))
-            imported = import(nvvm, continuation)->as_continuation();
+            imported = nvvm.import(continuation)->as_continuation();
         else if (continuation->is_passed_to_intrinsic(Intrinsic::SPIR))
-            imported = import(spir, continuation)->as_continuation();
+            imported = spir.import(continuation)->as_continuation();
         else if (continuation->is_passed_to_intrinsic(Intrinsic::OpenCL))
-            imported = import(opencl, continuation)->as_continuation();
+            imported = opencl.import(continuation)->as_continuation();
         else
             return;
 
-        imported->name = continuation->unique_name();
+        imported->debug().set(continuation->unique_name());
         imported->make_external();
-        continuation->name = continuation->unique_name();
+        continuation->debug().set(continuation->unique_name());
         continuation->destroy_body();
 
         for (size_t i = 0, e = continuation->num_params(); i != e; ++i)
-            imported->param(i)->name = continuation->param(i)->unique_name();
+            imported->param(i)->debug().set(continuation->param(i)->unique_name());
     });
 
-    if (!cuda.empty() || !nvvm.empty() || !spir.empty() || !opencl.empty())
+    if (!cuda.world().empty() || !nvvm.world().empty() || !spir.world().empty() || !opencl.world().empty())
         world.cleanup();
 
     CPUCodeGen(world).emit(opt, debug);
-    if (!cuda.  empty()) CUDACodeGen(cuda).emit(/*opt,*/ debug);
-    if (!nvvm.  empty()) NVVMCodeGen(nvvm).emit(opt, debug);
-    if (!spir.  empty()) SPIRCodeGen(spir).emit(opt, debug);
-    if (!opencl.empty()) OpenCLCodeGen(opencl).emit(/*opt,*/ debug);
+    if (!cuda.  world().empty()) CUDACodeGen  (cuda  .world()).emit(/*opt,*/ debug);
+    if (!nvvm.  world().empty()) NVVMCodeGen  (nvvm  .world()).emit(opt, debug);
+    if (!spir.  world().empty()) SPIRCodeGen  (spir  .world()).emit(opt, debug);
+    if (!opencl.world().empty()) OpenCLCodeGen(opencl.world()).emit(/*opt,*/ debug);
 }
 
 //------------------------------------------------------------------------------

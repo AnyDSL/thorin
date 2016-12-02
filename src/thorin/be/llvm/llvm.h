@@ -75,7 +75,9 @@ protected:
     HashMap<const PrimOp*, llvm::Value*> primops_;
     HashMap<Continuation*, llvm::Function*> fcts_;
     TypeMap<llvm::Type*> types_;
-    std::vector<std::tuple<u32, llvm::Function*, llvm::CallInst*>> wfv_todo_;
+#ifdef RV_SUPPORT
+    std::vector<std::tuple<u32, llvm::Function*, llvm::CallInst*>> vec_todo_;
+#endif
 
     std::unique_ptr<Runtime> runtime_;
     Continuation* entry_ = nullptr;

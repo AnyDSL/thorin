@@ -1,108 +1,95 @@
 #ifndef THORIN_UTIL_LOCATION_H
 #define THORIN_UTIL_LOCATION_H
 
+#include <memory>
 #include <ostream>
+#include <string>
 
 namespace thorin {
 
 //------------------------------------------------------------------------------
 
-class Position {
-public:
-    Position()
-        : filename_(nullptr)
-        , line_(-1)
-        , col_(-1)
-    {}
-    Position(const char* filename, int line, int col)
-        : filename_(filename)
-        , line_(line)
-        , col_(col)
-    {}
-
-    const char* filename() const { return filename_ ? filename_ : "<unset>"; }
-    int line() const { return line_; }
-    int col() const { return col_; }
-    bool is_set() const { return filename_ != nullptr; }
-
-    void inc_line(int inc = 1) { line_ += inc; }
-    void dec_line(int dec = 1) { line_ -= dec; }
-    void inc_col(int inc = 1)  { col_ += inc; }
-    void dec_col(int dec = 1)  { col_ -= dec; }
-    void reset_col() { col_ = 1; }
-    void reset_line() { line_ = 1; }
-
-private:
-    const char* filename_;
-    int line_;
-    int col_;
-};
-
-//------------------------------------------------------------------------------
-
 class Location {
 public:
-    Location() {}
-    Location(const Position& begin, const Position& end)
-        : begin_(begin)
-        , end_(end)
-    {}
-    Location(const Position& begin)
-        : begin_(begin)
-        , end_(begin)
-    {}
-    Location(const char* filename, int line1, int col1, int line2, int col2)
-        : begin_(filename, line1, col1)
-        , end_(filename, line2, col2)
+    Location() = default;
+
+    Location(const char* filename, uint32_t front_line, uint32_t front_col, uint32_t back_line, uint32_t back_col)
+        : filename_(filename)
+        , front_line_(front_line)
+        , front_col_(front_col)
+        , back_line_(back_line)
+        , back_col_(back_col)
     {}
 
-    const Position& begin() const { return begin_; }
-    const Position& end() const { return end_; }
-    void set_begin(const Position& begin) { begin_ = begin; }
-    void set_end(const Position& end) { end_ = end; }
-    bool is_set() const { return begin().is_set() && end().is_set(); }
+    Location(const char* filename, uint32_t line, uint32_t col)
+        : Location(filename, line, col, line, col)
+    {}
+
+    Location(Location front, Location back)
+        : Location(front.filename(), front.front_line(), front.front_col(), back.back_line(), back.back_col())
+    {}
+
+    const char* filename() const { return filename_; }
+    uint32_t front_line() const { return front_line_; }
+    uint32_t front_col() const { return front_col_; }
+    uint32_t back_line() const { return back_line_; }
+    uint32_t back_col() const { return back_col_; }
+
+    Location front() const { return {filename_, front_line(), front_col(), front_line(), front_col()}; }
+    Location back() const { return {filename_, back_line(), back_col(), back_line(), back_col()}; }
+    bool is_set() const { return filename_ != nullptr; }
 
 protected:
-    Position begin_;
-    Position end_;
-
-    friend class HasLocation;
+    const char* filename_ = nullptr;
+    uint16_t front_line_ = 1, front_col_ = 1, back_line_ = 1, back_col_ = 1;
 };
 
-//------------------------------------------------------------------------------
+Location operator+(Location l1, Location l2);
+std::ostream& operator<<(std::ostream&, Location);
 
-class HasLocation {
+class Debug : public Location {
 public:
-    HasLocation() {}
-    HasLocation(const Position& pos)
-        : loc_(pos, pos)
-    {}
-    HasLocation(const Position& begin, const Position& end)
-        : loc_(begin, end)
-    {}
-    HasLocation(const Location& loc)
-        : loc_(loc)
+    Debug() = default;
+    Debug(Debug&&) = default;
+    Debug(const Debug&) = default;
+    Debug& operator=(const Debug&) = default;
+
+    Debug(Location location, std::shared_ptr<std::string> name)
+        : Location(location)
+        , name_(name)
     {}
 
-    const Location& loc() const  { return loc_; }
-    void set_begin(const Position& begin) { loc_.begin_ = begin; }
-    void set_end(const Position& end) { loc_.end_ = end; }
-    void set_loc(const Location& loc) { loc_ = loc; }
-    void set_loc(const Position& begin, const Position& end) { loc_.begin_ = begin; loc_.end_ = end; }
-    void set_loc(const char* filename, int line1, int col1, int line2, int col2) {
-        loc_ = Location(filename, line1, col1, line2, col2);
-    }
+    Debug(Location location, std::string name)
+        : Debug(location, std::make_shared<std::string>(name))
+    {}
 
-protected:
-    Location loc_;
+    Debug(std::shared_ptr<std::string> name)
+        : name_(name)
+    {}
+
+    Debug(std::string name)
+        : name_(std::make_shared<std::string>(name))
+    {}
+
+    Debug(Location location)
+        : Location(location)
+    {}
+
+    const std::string& name() const { return name_.get() ? *name_ : empty_; }
+
+    void set(std::shared_ptr<std::string> name) { name_= name; }
+    void set(std::string name) { name_ = std::make_shared<std::string>(name); }
+    void set(Location location) { *static_cast<Location*>(this) = location; }
+
+private:
+    std::shared_ptr<std::string> name_;
+    static const std::string empty_;
 };
 
-//------------------------------------------------------------------------------
-
-std::ostream& operator<<(std::ostream& os, const Position& pos);
-std::ostream& operator<<(std::ostream& os, const Location& loc);
-
-//------------------------------------------------------------------------------
+Debug operator+(Debug dbg, const char* s);
+Debug operator+(Debug dbg, const std::string& s);
+Debug operator+(Debug d1, Debug d2);
+std::ostream& operator<<(std::ostream&, Debug);
 
 }
 

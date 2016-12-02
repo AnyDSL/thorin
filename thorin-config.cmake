@@ -2,7 +2,7 @@
 # Once done this will define
 #
 # THORIN_INCLUDE_DIRS
-# THORIN_LIBRARIES (including dependencies to LLVM/WFV2)
+# THORIN_LIBRARIES (including dependencies to LLVM/RV)
 # THORIN_RUNTIME_DIR
 # THORIN_RUNTIME_LIBRARY
 # THORIN_CMAKE_DIR
@@ -17,7 +17,7 @@ LIST( APPEND CMAKE_MODULE_PATH "${THORIN_ROOT_DIR}" )
 LIST( APPEND CMAKE_MODULE_PATH "${THORIN_ROOT_DIR}/runtime/cmake/modules" )
 
 FIND_PACKAGE ( LLVM QUIET )
-FIND_PACKAGE ( WFV2 QUIET )
+FIND_PACKAGE ( RV QUIET )
 
 FUNCTION ( GENERATE_LIBRARY_NAMES OUT_VAR LIB )
     SET ( ${OUT_VAR} ${LIB}.lib ${LIB}.so ${LIB}.a ${LIB}.dll ${LIB}.dylib lib${LIB} lib${LIB}.so lib${LIB}.a lib${LIB}.dll lib${LIB}.dylib PARENT_SCOPE )

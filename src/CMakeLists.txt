@@ -17,16 +17,16 @@ IF ( Half_FOUND )
     INCLUDE_DIRECTORIES ( ${Half_INCLUDE_DIRS} )
 ENDIF ()
 
-# check for wfv2
-FIND_PACKAGE ( WFV2 QUIET )
+# check for RV
+FIND_PACKAGE ( RV QUIET )
 
-IF ( WFV2_FOUND )
-    MESSAGE ( STATUS "Building with WFV2." )
-    ADD_DEFINITIONS ( "-DWFV2_SUPPORT" )
-    INCLUDE_DIRECTORIES ( ${WFV2_INCLUDE_DIR} )
-    LINK_DIRECTORIES ( ${WFV2_LIBRARY_DIR} )
+IF ( RV_FOUND )
+    MESSAGE ( STATUS "Building with RV." )
+    ADD_DEFINITIONS ( "-DRV_SUPPORT" )
+    INCLUDE_DIRECTORIES ( ${RV_INCLUDE_DIR} )
+    LINK_DIRECTORIES ( ${RV_LIBRARY_DIR} )
 ELSE ()
-    MESSAGE ( STATUS "Building without WFV2. Specify WFV2_DIR to compile with WFV2." )
+    MESSAGE ( STATUS "Building without RV. Specify RV_DIR to compile with RV." )
 ENDIF ()
 
 # check for possible llvm extension

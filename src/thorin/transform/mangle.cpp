@@ -43,7 +43,7 @@ Continuation* Mangler::mangle() {
     }
 
     auto fn_type = world().fn_type(param_types);
-    new_entry_ = world().continuation(fn_type, old_entry()->loc(), old_entry()->name);
+    new_entry_ = world().continuation(fn_type, old_entry()->debug());
 
     // map value params
     def2def_[old_entry()] = old_entry();
@@ -54,7 +54,7 @@ Continuation* Mangler::mangle() {
         else {
             auto new_param = new_entry()->param(j++);
             def2def_[old_param] = new_param;
-            new_param->name = old_param->name;
+            new_param->debug().set(old_param->name());
         }
     }
 
@@ -68,7 +68,7 @@ Continuation* Mangler::mangle() {
 Continuation* Mangler::mangle_head(Continuation* old_continuation) {
     assert(!def2def_.contains(old_continuation));
     assert(!old_continuation->empty());
-    Continuation* new_continuation = old_continuation->stub(type2type_, old_continuation->name);
+    Continuation* new_continuation = old_continuation->stub(type2type_, old_continuation->debug());
     def2def_[old_continuation] = new_continuation;
 
     for (size_t i = 0, e = old_continuation->num_params(); i != e; ++i)
@@ -82,7 +82,7 @@ void Mangler::mangle_body(Continuation* old_continuation, Continuation* new_cont
 
     if (old_continuation->callee() == world().branch()) {        // fold branch if possible
         if (auto lit = mangle(old_continuation->arg(0))->isa<PrimLit>())
-            return new_continuation->jump(mangle(lit->value().get_bool() ? old_continuation->arg(1) : old_continuation->arg(2)), {}, old_continuation->jump_loc());
+            return new_continuation->jump(mangle(lit->value().get_bool() ? old_continuation->arg(1) : old_continuation->arg(2)), {}, old_continuation->jump_debug());
     }
 
     Array<const Def*> nops(old_continuation->num_ops());
@@ -105,11 +105,11 @@ void Mangler::mangle_body(Continuation* old_continuation, Continuation* new_cont
 
         if (substitute) {
             const auto& args = concat(nargs.cut(cut), new_entry()->params().get_back(lift_.size()));
-            return new_continuation->jump(new_entry(), args, old_continuation->jump_loc());
+            return new_continuation->jump(new_entry(), args, old_continuation->jump_debug());
         }
     }
 
-    new_continuation->jump(ntarget, nargs, old_continuation->jump_loc());
+    new_continuation->jump(ntarget, nargs, old_continuation->jump_debug());
 }
 
 const Def* Mangler::mangle(const Def* old_def) {

@@ -73,7 +73,7 @@ void SPIRCodeGen::emit_function_decl_hook(Continuation* continuation, llvm::Func
         type_os.flush();
         annotation_values_type[index] = llvm::MDString::get(context_, type_string);
         annotation_values_type_qual[index] = llvm::MDString::get(context_, "");
-        annotation_values_name[index] = llvm::MDString::get(context_, continuation->param(index + 1)->name);
+        annotation_values_name[index] = llvm::MDString::get(context_, continuation->param(index + 1)->name());
     }
     llvm::Metadata* annotation_values_kernel[] = {
         llvm::ValueAsMetadata::get(f),

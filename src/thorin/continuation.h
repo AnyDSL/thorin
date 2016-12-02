@@ -24,8 +24,8 @@ typedef std::vector<Continuation*> Continuations;
  */
 class Param : public Def {
 private:
-    Param(const Type* type, Continuation* continuation, size_t index, const Location& loc, const std::string& name)
-        : Def(Node_Param, type, 0, loc, name)
+    Param(const Type* type, Continuation* continuation, size_t index, Debug debug)
+        : Def(Node_Param, type, 0, debug)
         , continuation_(continuation)
         , index_(index)
     {}
@@ -93,8 +93,8 @@ enum class CC : uint8_t {
  */
 class Continuation : public Def {
 private:
-    Continuation(const FnType* fn, const Location& loc, CC cc, Intrinsic intrinsic, bool is_sealed, const std::string& name)
-        : Def(Node_Continuation, fn, 0, loc, name)
+    Continuation(const FnType* fn, CC cc, Intrinsic intrinsic, bool is_sealed, Debug debug)
+        : Def(Node_Continuation, fn, 0, debug)
         , parent_(this)
         , cc_(cc)
         , intrinsic_(intrinsic)
@@ -107,9 +107,9 @@ private:
 
 public:
     Continuation* stub() const { Type2Type map; return stub(map); }
-    Continuation* stub(const std::string& name) const { Type2Type map; return stub(map, name); }
-    Continuation* stub(Type2Type& type2type) const { return stub(type2type, name); }
-    Continuation* stub(Type2Type& type2type, const std::string& name) const;
+    Continuation* stub(Debug debug) const { Type2Type map; return stub(map, debug); }
+    Continuation* stub(Type2Type& type2type) const { return stub(type2type, debug()); }
+    Continuation* stub(Type2Type& type2type, Debug) const;
     Continuation* update_callee(const Def* def) { return update_op(0, def); }
     Continuation* update_op(size_t i, const Def* def);
     Continuation* update_arg(size_t i, const Def* def) { return update_op(i+1, def); }
@@ -127,7 +127,7 @@ public:
     const Def* callee() const;
     Defs args() const { return num_ops() == 0 ? Defs(0, 0) : ops().skip_front(); }
     const Def* arg(size_t i) const { return args()[i]; }
-    const Location& jump_loc() const { return jump_loc_; }
+    Debug& jump_debug() const { return jump_debug_; }
     const FnType* type() const { return Def::type()->as<FnType>(); }
     const FnType* callee_fn_type() const { return callee()->type()->as<FnType>(); }
     const FnType* arg_fn_type() const;
@@ -161,10 +161,10 @@ public:
 
     // terminate
 
-    void jump(const Def* callee, Defs args, const Location& loc);
-    void jump(JumpTarget&, const Location& loc);
-    void branch(const Def* cond, const Def* t, const Def* f, const Location& loc);
-    std::pair<Continuation*, const Def*> call(const Def* callee, Defs args, const Type* ret_type, const Location& loc);
+    void jump(const Def* callee, Defs args, Debug dbg = {});
+    void jump(JumpTarget&, Debug dbg = {});
+    void branch(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
+    std::pair<Continuation*, const Def*> call(const Def* callee, Defs args, const Type* ret_type, Debug dbg = {});
 
     // value numbering
 
@@ -222,7 +222,7 @@ private:
     ScopeInfo* find_scope(const Scope*);
     ScopeInfo* register_scope(const Scope* scope) { scopes_.emplace_front(scope); return &scopes_.front(); }
     void unregister_scope(const Scope* scope) { scopes_.erase(list_iter(scope)); }
-    Location jump_loc_;
+    mutable Debug jump_debug_;
 
     /**
      * There exist three cases to distinguish here.

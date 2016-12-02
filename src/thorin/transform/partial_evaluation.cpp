@@ -92,7 +92,7 @@ void PartialEvaluator::run() {
 
 void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
     if (end == nullptr)
-        WLOG("no matching end: % at %", cur, cur->loc());
+        WLOG("no matching end: % at %", cur, cur->location());
     else
         DLOG("eval: % -> %", cur, end);
 
@@ -193,7 +193,7 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
             cache_[call] = dropped;
             jump_to_cached_call(cur, dropped, call);
             if (all) {
-                cur->jump(dropped->callee(), dropped->args(), cur->jump_loc());
+                cur->jump(dropped->callee(), dropped->args(), cur->jump_debug());
                 done_.erase(cur);
             } else
                 cur = dropped;
@@ -222,7 +222,7 @@ Continuation* PartialEvaluator::postdom(Continuation* cur) {
     if (auto p = is_valid(postdom(cur, top_scope())))
         return p;
 
-    WLOG("no postdom found for % at %", cur, cur->loc());
+    WLOG("no postdom found for % at %", cur, cur->location());
     return nullptr;
 }
 

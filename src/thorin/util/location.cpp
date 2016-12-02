@@ -1,28 +1,35 @@
 #include "thorin/util/location.h"
+#include "thorin/util/stream.h"
 
 namespace thorin {
 
-static std::ostream& line_col(const Position& pos, std::ostream& os) { return os << pos.line() << " col " << pos.col(); }
-std::ostream& operator<<(std::ostream& os, const Position& pos) { return line_col(pos, os << pos.filename() << ':'); }
+const std::string Debug::empty_;
 
-std::ostream& operator<<(std::ostream& os, const Location& loc) {
-    const Position& begin = loc.begin();
-    const Position& end = loc.end();
+Location operator+(Location l1, Location l2) {
+    return {l1.filename(), l1.front_line(), l1.front_col(), l2.back_line(), l2.back_col()};
+}
 
-    if (begin.filename() != end.filename())
-        return os << begin << " - " << end;
+std::ostream& operator<<(std::ostream& os, Location l) {
+    os << l.filename() << ':';
 
-    os << begin.filename() << ':';
+    if (l.front_line() != l.back_line())
+        return streamf(os, "% col % - % col %", l.front_line(), l.front_col(), l.back_line(), l.back_col());
 
-    if (begin.line() != end.line())
-        return line_col(end, line_col(begin, os) << " - ");
+    if (l.front_col() != l.back_col())
+        return streamf(os, "% col % - %", l.front_line(), l.front_col(), l.back_col());
 
-    os << begin.line() << " col ";
+    return streamf(os, "% col %", l.front_line(), l.front_col());
+}
 
-    if (begin.col() != end.col())
-        return os << begin.col() << " - " << end.col();
+Debug operator+(Debug dbg, const char* s) { return {dbg, dbg.name() + s}; }
+Debug operator+(Debug dbg, const std::string& s) { return {dbg, dbg.name() + s}; }
 
-    return os << begin.col();
+Debug operator+(Debug d1, Debug d2) {
+    return {(Location)d1 + (Location)d2, d1.name() + std::string(".") + d2.name()};
+}
+
+std::ostream& operator<<(std::ostream& os, Debug dbg) {
+    return streamf(os, "{%, %}", (Location)dbg, dbg.name());
 }
 
 }

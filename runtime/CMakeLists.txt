@@ -50,7 +50,7 @@ ELSE ()
 ENDIF ()
 
 IF ( NOT MSVC )
-    ADD_DEFINITIONS ( "-std=c++11 -Wall -Wunused" )
+    ADD_DEFINITIONS ( "-std=c++14 -Wall -Wextra" )
 ENDIF ()
 
 ADD_DEFINITIONS ( ${RUNTIME_DEFINITIONS} )

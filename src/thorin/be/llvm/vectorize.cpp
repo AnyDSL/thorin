@@ -1,16 +1,17 @@
-#ifdef WFV2_SUPPORT
+#ifdef RV_SUPPORT
 #include "thorin/be/llvm/llvm.h"
 
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/Transforms/Scalar.h>
 
-#include <wfvInterface.h>
+#include <rv/rv.h>
+#include <rv/transforms/loopExitCanonicalizer.h>
+#include <rv/analysis/maskAnalysis.h>
 
 #include "thorin/primop.h"
 #include "thorin/util/log.h"
 #include "thorin/world.h"
-
 
 namespace thorin {
 
@@ -67,9 +68,9 @@ Continuation* CodeGen::emit_vectorize_continuation(Continuation* continuation) {
     });
 
     if (!continuation->arg(VEC_ARG_LENGTH)->isa<PrimLit>())
-        ELOG("vector length must be hard-coded at %", continuation->arg(VEC_ARG_LENGTH)->loc());
+        ELOG("vector length must be hard-coded at %", continuation->arg(VEC_ARG_LENGTH)->location());
     u32 vector_length_constant = continuation->arg(VEC_ARG_LENGTH)->as<PrimLit>()->qu32_value();
-    wfv_todo_.emplace_back(vector_length_constant, emit_function_decl(kernel), simd_kernel_call);
+    vec_todo_.emplace_back(vector_length_constant, emit_function_decl(kernel), simd_kernel_call);
 
     return continuation->arg(VEC_ARG_RETURN)->as_continuation();
 }
@@ -82,15 +83,64 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
     pm.run(*kernel_func);
 
     // vectorize function
-    auto kernel_simd_func = simd_kernel_call->getCalledFunction();
-    kernel_simd_func->deleteBody();
-    WFVInterface::WFVInterface wfv(module_.get(), &context_, kernel_func, kernel_simd_func, vector_length);
-    wfv.addCommonMappings(true, true, true, true, false);
-    auto loop_counter_argument = kernel_func->getArgumentList().begin();
-    bool b_simd = wfv.addSIMDSemantics(*loop_counter_argument, false, true, false, true, false, true);
-    assert_unused(b_simd && "simd semantics for vectorization failed");
-    bool b = wfv.run();
-    assert_unused(b && "vectorization failed");
+    auto simd_kernel_func = simd_kernel_call->getCalledFunction();
+    simd_kernel_func->deleteBody();
+
+    auto rv_info = new rv::RVInfo(module_.get(), &context_, kernel_func, simd_kernel_func, vector_length, -1, false, false, false, false, nullptr);
+    auto loop_counter_arg = kernel_func->getArgumentList().begin();
+
+    rv::VectorShape res = rv::VectorShape::uni();
+    rv::VectorShapeVec args;
+    args.push_back(rv::VectorShape::strided(1, vector_length));
+    for (auto it = std::next(loop_counter_arg), end = kernel_func->getArgumentList().end(); it != end; ++it) {
+        args.push_back(rv::VectorShape::uni());
+    }
+
+    rv::VectorMapping target_mapping(kernel_func, simd_kernel_func, vector_length, -1, res, args);
+    rv::VectorizationInfo vec_info(target_mapping);
+
+    rv::VectorizerInterface vectorizer(*rv_info, kernel_func);
+
+    // TODO: use parameters from command line
+    const bool useSSE   = false;
+    const bool useSSE41 = false;
+    const bool useSSE42 = false;
+    const bool useNEON  = false;
+    const bool useAVX   = true;
+    rv_info->addCommonMappings(useSSE, useSSE41, useSSE42, useAVX, useNEON);
+
+    llvm::DominatorTree dom_tree(*kernel_func);
+    llvm::PostDominatorTree pdom_tree;
+    pdom_tree.runOnFunction(*kernel_func);
+    llvm::LoopInfo loop_info(dom_tree);
+
+    llvm::DFG dfg(dom_tree);
+    dfg.create(*kernel_func);
+
+    llvm::CDG cdg(*pdom_tree.DT);
+    cdg.create(*kernel_func);
+
+    LoopExitCanonicalizer canonicalizer(loop_info);
+    canonicalizer.canonicalize(*kernel_func);
+
+    vectorizer.analyze(vec_info, cdg, dfg, loop_info, pdom_tree, dom_tree);
+
+    MaskAnalysis* mask_analysis = vectorizer.analyzeMasks(vec_info, loop_info);
+    assert(mask_analysis);
+
+    bool mask_ok = vectorizer.generateMasks(vec_info, *mask_analysis, loop_info);
+    assert_unused(mask_ok);
+
+    bool linearize_ok = vectorizer.linearizeCFG(vec_info, *mask_analysis, loop_info, pdom_tree, dom_tree);
+    assert_unused(linearize_ok);
+
+    const llvm::DominatorTree new_dom_tree(*vec_info.getMapping().scalarFn); // Control conversion does not preserve the dominance tree
+    bool vectorize_ok = vectorizer.vectorize(vec_info, new_dom_tree);
+    assert_unused(vectorize_ok);
+
+    vectorizer.finalize();
+
+    delete mask_analysis;
 
     // inline kernel
     llvm::InlineFunctionInfo info;

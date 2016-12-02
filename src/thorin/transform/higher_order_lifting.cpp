@@ -31,7 +31,7 @@ void higher_order_lifting(World& world) {
                 for (auto use : continuation->copy_uses()) {
                     if (auto caller = use->isa_continuation()) {
                         if (use.index() == 0) {
-                            caller->jump(lifted.entry(), concat(caller->args(), defs), caller->jump_loc());
+                            caller->jump(lifted.entry(), concat(caller->args(), defs), caller->jump_debug());
                             dirty = true;
                         }
                     }

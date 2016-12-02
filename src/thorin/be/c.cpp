@@ -60,7 +60,7 @@ private:
 
 std::ostream& CCodeGen::emit_debug_info(const Def* def) {
     if (debug_)
-        return streamf(func_impl_, "#line % \"%\"", def->loc().begin().line(), def->loc().begin().filename()) << endl;
+        return streamf(func_impl_, "#line % \"%\"", def->location().front_line(), def->location().filename()) << endl;
     return func_impl_;
 }
 
@@ -292,7 +292,7 @@ void CCodeGen::emit() {
         // emit function & its declaration
         auto ret_param_fn_type = ret_param->type()->as<FnType>();
         auto ret_type = ret_param_fn_type->num_ops() > 2 ? world_.tuple_type(ret_param_fn_type->ops().skip_front()) : ret_param_fn_type->ops().back();
-        auto name = (continuation->is_external() || continuation->empty()) ? continuation->name : continuation->unique_name();
+        auto name = (continuation->is_external() || continuation->empty()) ? continuation->name() : continuation->unique_name();
         if (continuation->is_external()) {
             switch (lang_) {
                 case Lang::C99:                                  break;
@@ -322,8 +322,8 @@ void CCodeGen::emit() {
                     type_decls_ << "texture<";
                     emit_type(type_decls_, param->type()->as<PtrType>()->referenced_type());
                     type_decls_ << ", cudaTextureType1D, cudaReadModeElementType> ";
-                    type_decls_ << param->name << ";" << endl;
-                    insert(param, param->name);
+                    type_decls_ << param->name() << ";" << endl;
+                    insert(param, param->name());
                     // skip arrays bound to texture memory
                     continue;
                 }
@@ -507,7 +507,7 @@ void CCodeGen::emit() {
                     if (callee->is_intrinsic()) {
                         if (callee->intrinsic() == Intrinsic::Reserve) {
                             if (!continuation->arg(1)->isa<PrimLit>())
-                                ELOG("reserve_shared: couldn't extract memory size at %", continuation->arg(1)->loc());
+                                ELOG("reserve_shared: couldn't extract memory size at %", continuation->arg(1)->location());
 
                             switch (lang_) {
                                 case Lang::C99:                                 break;
@@ -527,7 +527,7 @@ void CCodeGen::emit() {
                         }
                     } else {
                         auto emit_call = [&] (const Param* param = nullptr) {
-                            auto name = (callee->is_external() || callee->empty()) ? callee->name : callee->unique_name();
+                            auto name = (callee->is_external() || callee->empty()) ? callee->name() : callee->unique_name();
                             if (param)
                                 emit(param) << " = ";
                             func_impl_ << name << "(";
@@ -744,9 +744,8 @@ std::ostream& CCodeGen::emit(const Def* def) {
             if (def->type()->isa<ArrayType>()) {
                 func_impl_ << ".e[";
                 emit(index) << "]";
-//<<<<<<< HEAD
-            //} else if (def->type()->isa<TupleType>() || def->type()->isa<StructType>()) {
-                //os << ".e";
+            } else if (def->type()->isa<TupleType>() || def->type()->isa<StructType>()) {
+                func_impl_ << ".e";
                 emit(index);
             } else if (def->type()->isa<VectorType>()) {
                 if (is_primlit(index, 0))
@@ -779,7 +778,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
                 if (agg->op(i)->isa<Bottom>())
                     func_impl_ << "// bottom: ";
                 func_impl_ << agg->unique_name();
-                emit_access(def, world_.literal_qs32(i, def->loc())) << " = ";
+                emit_access(def, world_.literal_qs32(i, def->location())) << " = ";
                 emit(agg->op(i)) << ";";
             }
             insert(def, def->unique_name());
@@ -947,7 +946,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
         if (assembly->has_sideeffects())
             func_impl_ << "volatile ";
         if (assembly->is_alignstack() || assembly->is_inteldialect())
-            WLOG("stack alignment and inteldialect flags unsupported for C output at %", assembly->loc());
+            WLOG("stack alignment and inteldialect flags unsupported for C output at %", assembly->location());
         func_impl_ << "(\"" << assembly->asm_template() << "\"";
 
         // emit the outputs

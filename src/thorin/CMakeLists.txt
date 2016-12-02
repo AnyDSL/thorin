@@ -71,8 +71,8 @@ SET ( SOURCES
     transform/hoist_enters.h
     transform/higher_order_lifting.cpp
     transform/higher_order_lifting.h
-    transform/import.cpp
-    transform/import.h
+    transform/importer.cpp
+    transform/importer.h
     transform/inliner.cpp
     transform/inliner.h
     transform/lift_builtins.cpp
@@ -87,7 +87,6 @@ SET ( SOURCES
     transform/partial_evaluation.h
     util/args.h
     util/array.h
-    util/assert.h
     util/cast.h
     util/hash.h
     util/indexmap.h

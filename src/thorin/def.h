@@ -112,7 +112,7 @@ public:
     NodeKind kind() const { return kind_; }
     Debug& debug() const { return debug_; }
     Location location() const { return debug_; }
-    const std::string name() const { return debug().name(); }
+    const std::string& name() const { return debug().name(); }
     size_t num_ops() const { return ops_.size(); }
     bool empty() const { return ops_.empty(); }
     void set_op(size_t i, const Def* def);

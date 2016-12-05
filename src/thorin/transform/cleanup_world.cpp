@@ -119,6 +119,8 @@ next_continuation:;
 
 void Cleaner::rebuild() {
     Importer importer(world_.name());
+    importer.type_old2new_.rehash(world_.types_.capacity());
+    importer.def_old2new_.rehash(world_.primops().capacity());
 
 #ifndef NDEBUG
     world_.swap_breakpoints(importer.world());

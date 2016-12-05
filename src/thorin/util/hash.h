@@ -194,6 +194,9 @@ public:
     ~HashTable() {
         if (on_heap())
             delete[] nodes_;
+#ifndef NDEBUG
+        assert(num_misses_ <= num_inserts_ * 64 && "your hash function is garbage");
+#endif
     }
 
     // iterators
@@ -224,6 +227,7 @@ public:
         using std::swap;
 #ifndef NDEBUG
         ++id_;
+        ++num_inserts_;
 #endif
         auto n = value_type(std::forward<Args>(args)...);
         auto& k = key(&n);
@@ -238,6 +242,9 @@ public:
             } else if (result == end_ptr() && H::eq(key(nodes_+i), k)) {
                 return std::make_pair(iterator(nodes_+i, this), false);
             } else {
+#ifndef NDEBUG
+                ++num_misses_;
+#endif
                 size_t cur_distance = probe_distance(i);
                 if (cur_distance < distance) {
                     result = result == end_ptr() ? nodes_+i : result;
@@ -426,6 +433,8 @@ private:
     std::array<value_type, StackCapacity> array_;
     value_type* nodes_;
 #ifndef NDEBUG
+    int num_inserts_ = 0;
+    int num_misses_ = 0;
     int id_;
 #endif
 };

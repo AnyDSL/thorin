@@ -15,7 +15,7 @@ public:
     const Type* import(const Type*);
     const Def* import(const Def*);
 
-private:
+public:
     Type2Type type_old2new_;
     Def2Def def_old2new_;
     World world_;

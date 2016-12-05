@@ -5,6 +5,7 @@ namespace thorin {
 
 DefSet free_defs(const Scope& scope) {
     DefSet result, done;
+    done.rehash(scope.defs().capacity());
     std::queue<const Def*> queue;
 
     auto enqueue_ops = [&] (const Def* def) {

@@ -29,7 +29,7 @@ const Type* Type::op(size_t i) const { return i < num_ops() ? ops()[i] : HENK_TA
 
 uint64_t Type::vhash() const {
     if (is_nominal())
-        return gid();
+        return thorin::hash_begin(gid());
 
     uint64_t seed = thorin::hash_combine(thorin::hash_begin(int(kind())), num_ops());
     for (auto op : ops_)

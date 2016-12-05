@@ -195,7 +195,7 @@ public:
         if (on_heap())
             delete[] nodes_;
 #ifndef NDEBUG
-        assert(num_misses_ <= num_inserts_ * 64 && "your hash function is garbage");
+        assert(num_misses_ <= num_operations_ * 16 && "your hash function is garbage");
 #endif
     }
 
@@ -227,7 +227,7 @@ public:
         using std::swap;
 #ifndef NDEBUG
         ++id_;
-        ++num_inserts_;
+        ++num_operations_;
 #endif
         auto n = value_type(std::forward<Args>(args)...);
         auto& k = key(&n);
@@ -295,11 +295,14 @@ public:
             rehash(capacity_/size_t(2));
         else {
             for (size_t curr = pos.ptr_-nodes_, next = mod(curr+1);
-                !is_invalid(next) && probe_distance(next) != 0; curr = next, next = mod(next+1))
+                !is_invalid(next) && probe_distance(next) != 0; curr = next, next = mod(next+1)) {
                 swap(nodes_[curr], nodes_[next]);
+                ++num_misses_;
+            }
         }
 #ifndef NDEBUG
         ++id_;
+        ++num_operations_;
 #endif
     }
 
@@ -329,6 +332,9 @@ public:
     }
 
     iterator find(const key_type& k) {
+#ifndef NDEBUG
+        ++num_operations_;
+#endif
         if (empty())
             return end();
 
@@ -337,6 +343,9 @@ public:
                 return end();
             if (H::eq(key(nodes_+i), k))
                 return iterator(nodes_+i, this);
+#ifndef NDEBUG
+            ++num_misses_;
+#endif
         }
     }
 
@@ -350,6 +359,8 @@ public:
     void rehash(size_t new_capacity) {
         using std::swap;
 
+        assert(is_power_of_2(new_capacity));
+
         auto old_capacity = capacity_;
         capacity_ = new_capacity;
         auto old_nodes = alloc();
@@ -358,11 +369,13 @@ public:
         for (size_t i = 0; i != old_capacity; ++i) {
             auto& old = old_nodes[i];
             if (!is_invalid(&old)) {
+                ++num_operations_;
                 for (size_t i = desired_pos(key(&old)), distance = 0; true; i = mod(i+1), ++distance) {
                     if (is_invalid(i)) {
                         swap(nodes_[i], old);
                         break;
                     } else {
+                        ++num_misses_;
                         size_t cur_distance = probe_distance(i);
                         if (cur_distance < distance) {
                             distance = cur_distance;
@@ -433,7 +446,7 @@ private:
     std::array<value_type, StackCapacity> array_;
     value_type* nodes_;
 #ifndef NDEBUG
-    int num_inserts_ = 0;
+    int num_operations_ = 0;
     int num_misses_ = 0;
     int id_;
 #endif

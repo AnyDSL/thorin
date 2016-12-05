@@ -154,7 +154,7 @@ private:
 };
 
 uint64_t UseHash::hash(Use use) {
-    return uint64_t(use.index() & 0x3) | uint64_t(use->gid()) << 2ull;
+    return hash_begin(uint64_t(use.index()) << 48ull | uint64_t(use->gid()));
 }
 
 /// Returns the vector length. Raises an assertion if type of this is not a \p VectorType.

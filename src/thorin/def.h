@@ -112,7 +112,7 @@ public:
     NodeKind kind() const { return kind_; }
     Debug& debug() const { return debug_; }
     Location location() const { return debug_; }
-    const std::string name() const { return debug().name(); }
+    const std::string& name() const { return debug().name(); }
     size_t num_ops() const { return ops_.size(); }
     bool empty() const { return ops_.empty(); }
     void set_op(size_t i, const Def* def);
@@ -154,7 +154,7 @@ private:
 };
 
 uint64_t UseHash::hash(Use use) {
-    return uint64_t(use.index() & 0x3) | uint64_t(use->gid()) << 2ull;
+    return hash_begin(uint64_t(use.index()) << 48ull | uint64_t(use->gid()));
 }
 
 /// Returns the vector length. Raises an assertion if type of this is not a \p VectorType.

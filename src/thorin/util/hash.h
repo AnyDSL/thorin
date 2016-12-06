@@ -13,6 +13,8 @@
 
 namespace thorin {
 
+extern uint16_t g_hash_gid_counter;
+
 //------------------------------------------------------------------------------
 
 /// Magic numbers from http://www.isthe.com/chongo/tech/comp/fnv/index.html#FNV-param .
@@ -148,6 +150,7 @@ public:
     HashTable()
         : capacity_(StackCapacity)
         , size_(0)
+        , gid_(g_hash_gid_counter++)
         , nodes_(array_.data())
 #ifndef NDEBUG
         , id_(0)
@@ -165,6 +168,7 @@ public:
     HashTable(const HashTable& other)
         : capacity_(other.capacity_)
         , size_(other.size_)
+        , gid_(g_hash_gid_counter++)
 #ifndef NDEBUG
         , id_(0)
 #endif
@@ -180,13 +184,13 @@ public:
 
     template<class InputIt>
     HashTable(InputIt first, InputIt last)
-        : HashTable(capacity)
+        : HashTable()
     {
         insert(first, last);
     }
 
     HashTable(std::initializer_list<value_type> ilist)
-        : HashTable(capacity)
+        : HashTable()
     {
         insert(ilist);
     }
@@ -194,6 +198,9 @@ public:
     ~HashTable() {
         if (on_heap())
             delete[] nodes_;
+#ifndef NDEBUG
+        assert(num_misses_ <= num_operations_ * 10 && "your hash function is garbage");
+#endif
     }
 
     // iterators
@@ -224,6 +231,7 @@ public:
         using std::swap;
 #ifndef NDEBUG
         ++id_;
+        ++num_operations_;
 #endif
         auto n = value_type(std::forward<Args>(args)...);
         auto& k = key(&n);
@@ -238,6 +246,9 @@ public:
             } else if (result == end_ptr() && H::eq(key(nodes_+i), k)) {
                 return std::make_pair(iterator(nodes_+i, this), false);
             } else {
+#ifndef NDEBUG
+                ++num_misses_;
+#endif
                 size_t cur_distance = probe_distance(i);
                 if (cur_distance < distance) {
                     result = result == end_ptr() ? nodes_+i : result;
@@ -288,11 +299,16 @@ public:
             rehash(capacity_/size_t(2));
         else {
             for (size_t curr = pos.ptr_-nodes_, next = mod(curr+1);
-                !is_invalid(next) && probe_distance(next) != 0; curr = next, next = mod(next+1))
+                !is_invalid(next) && probe_distance(next) != 0; curr = next, next = mod(next+1)) {
                 swap(nodes_[curr], nodes_[next]);
+#ifndef NDEBUG
+                ++num_misses_;
+#endif
+            }
         }
 #ifndef NDEBUG
         ++id_;
+        ++num_operations_;
 #endif
     }
 
@@ -322,6 +338,9 @@ public:
     }
 
     iterator find(const key_type& k) {
+#ifndef NDEBUG
+        ++num_operations_;
+#endif
         if (empty())
             return end();
 
@@ -330,6 +349,9 @@ public:
                 return end();
             if (H::eq(key(nodes_+i), k))
                 return iterator(nodes_+i, this);
+#ifndef NDEBUG
+            ++num_misses_;
+#endif
         }
     }
 
@@ -343,6 +365,8 @@ public:
     void rehash(size_t new_capacity) {
         using std::swap;
 
+        assert(is_power_of_2(new_capacity));
+
         auto old_capacity = capacity_;
         capacity_ = new_capacity;
         auto old_nodes = alloc();
@@ -351,11 +375,17 @@ public:
         for (size_t i = 0; i != old_capacity; ++i) {
             auto& old = old_nodes[i];
             if (!is_invalid(&old)) {
+#ifndef NDEBUG
+                ++num_operations_;
+#endif
                 for (size_t i = desired_pos(key(&old)), distance = 0; true; i = mod(i+1), ++distance) {
                     if (is_invalid(i)) {
                         swap(nodes_[i], old);
                         break;
                     } else {
+#ifndef NDEBUG
+                        ++num_misses_;
+#endif
                         size_t cur_distance = probe_distance(i);
                         if (cur_distance < distance) {
                             distance = cur_distance;
@@ -392,6 +422,7 @@ public:
 
         swap(t1.capacity_, t2.capacity_);
         swap(t1.size_,     t2.size_);
+        swap(t1.gid_,      t2.gid_);
 #ifndef NDEBUG
         swap(t1.id_,       t2.id_);
 #endif
@@ -404,7 +435,7 @@ private:
     int id() const { return id_; }
 #endif
     size_t mod(size_t i) const { return i & (capacity_-1); }
-    size_t desired_pos(const key_type& key) const { return mod(H::hash(key)); }
+    size_t desired_pos(const key_type& key) const { return mod(hash_combine(H::hash(key), gid_)); }
     size_t probe_distance(size_t i) { return mod(i + capacity() - desired_pos(key(nodes_+i))); }
     value_type* end_ptr() const { return nodes_ + capacity(); }
     bool on_heap() const { return capacity_ != StackCapacity; }
@@ -423,9 +454,12 @@ private:
 
     uint32_t capacity_;
     uint32_t size_;
+    uint16_t gid_;
     std::array<value_type, StackCapacity> array_;
     value_type* nodes_;
 #ifndef NDEBUG
+    int num_operations_ = 0;
+    int num_misses_ = 0;
     int id_;
 #endif
 };

@@ -280,7 +280,7 @@ std::pair<Continuation*, const Def*> Continuation::call(const Def* callee, Defs 
     } else
         cont_args.push_back(ret_type);
 
-    auto next = world().continuation(world().fn_type(cont_args), callee->debug());
+    auto next = world().continuation(world().fn_type(cont_args), dbg);
     next->param(0)->debug().set("mem");
 
     // create jump to next

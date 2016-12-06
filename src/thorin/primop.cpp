@@ -140,9 +140,9 @@ Assembly::Assembly(const Type *type, Defs inputs, std::string asm_template, Arra
  */
 
 uint64_t PrimOp::vhash() const {
-    uint64_t seed = hash_combine(hash_begin((int) kind()), num_ops(), type()->gid());
+    uint64_t seed = hash_combine(hash_begin(uint8_t(kind())), uint16_t(type()->gid()));
     for (auto op : ops_)
-        seed = hash_combine(seed, op->gid());
+        seed = hash_combine(seed, uint16_t(op->gid()));
     return seed;
 }
 

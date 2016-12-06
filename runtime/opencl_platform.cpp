@@ -206,6 +206,7 @@ OpenCLPlatform::OpenCLPlatform(Runtime* runtime)
             checkErr(err, "clCreateContext()");
 
             // create command queue
+            dd.queue = NULL;
             #ifdef CL_VERSION_2_0
             if (cl_version_major >= 2) {
                 cl_queue_properties queue_props[3] = { CL_QUEUE_PROPERTIES, CL_QUEUE_PROFILING_ENABLE, 0 };
@@ -213,6 +214,10 @@ OpenCLPlatform::OpenCLPlatform(Runtime* runtime)
                 checkErr(err, "clCreateCommandQueueWithProperties()");
             }
             #endif
+            if (!dd.queue) {
+                dd.queue = clCreateCommandQueue(dd.ctx, dd.dev, CL_QUEUE_PROFILING_ENABLE, &err);
+                checkErr(err, "clCreateCommandQueue()");
+            }
         }
         delete[] devices;
     }

@@ -175,21 +175,23 @@ OpenCLPlatform::OpenCLPlatform(Runtime* runtime)
             #endif
             ILOG("      Device SPIR Support: % %", has_spir, spir_version);
 
+            std::string svm_caps_str = "none";
             #ifdef CL_VERSION_2_0
-            std::string svm_caps_str;
-            cl_device_svm_capabilities svm_caps;
-            err |= clGetDeviceInfo(devices[j], CL_DEVICE_SVM_CAPABILITIES, sizeof(svm_caps), &svm_caps, NULL);
-            if (svm_caps & CL_DEVICE_SVM_COARSE_GRAIN_BUFFER) svm_caps_str += " CL_DEVICE_SVM_COARSE_GRAIN_BUFFER";
-            else                                              svm_caps_str += " n/a";
-            if (svm_caps & CL_DEVICE_SVM_FINE_GRAIN_BUFFER)   svm_caps_str += " CL_DEVICE_SVM_FINE_GRAIN_BUFFER";
-            if (svm_caps & CL_DEVICE_SVM_FINE_GRAIN_SYSTEM)   svm_caps_str += " CL_DEVICE_SVM_FINE_GRAIN_SYSTEM";
-            if (svm_caps & CL_DEVICE_SVM_ATOMICS)             svm_caps_str += " CL_DEVICE_SVM_ATOMICS";
-            ILOG("      Device SVM capabilities:%", svm_caps_str);
-            #else
+            if (cl_version_major >= 2) {
+                cl_device_svm_capabilities svm_caps;
+                err |= clGetDeviceInfo(devices[j], CL_DEVICE_SVM_CAPABILITIES, sizeof(svm_caps), &svm_caps, NULL);
+                if (svm_caps & CL_DEVICE_SVM_COARSE_GRAIN_BUFFER) svm_caps_str = "CL_DEVICE_SVM_COARSE_GRAIN_BUFFER";
+                if (svm_caps & CL_DEVICE_SVM_FINE_GRAIN_BUFFER)   svm_caps_str += " CL_DEVICE_SVM_FINE_GRAIN_BUFFER";
+                if (svm_caps & CL_DEVICE_SVM_FINE_GRAIN_SYSTEM)   svm_caps_str += " CL_DEVICE_SVM_FINE_GRAIN_SYSTEM";
+                if (svm_caps & CL_DEVICE_SVM_ATOMICS)             svm_caps_str += " CL_DEVICE_SVM_ATOMICS";
+                checkErr(err, "clGetDeviceInfo()");
+            }
+            #endif
+            ILOG("      Device SVM capabilities: %", svm_caps_str);
+
             cl_bool has_unified = false;
             err |= clGetDeviceInfo(devices[j], CL_DEVICE_HOST_UNIFIED_MEMORY, sizeof(has_unified), &has_unified, NULL);
             ILOG("      Device Host Unified Memory: %", has_unified);
-            #endif
             checkErr(err, "clGetDeviceInfo()");
 
             auto dev = devices_.size();

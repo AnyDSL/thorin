@@ -301,7 +301,9 @@ public:
             for (size_t curr = pos.ptr_-nodes_, next = mod(curr+1);
                 !is_invalid(next) && probe_distance(next) != 0; curr = next, next = mod(next+1)) {
                 swap(nodes_[curr], nodes_[next]);
+#ifndef NDEBUG
                 ++num_misses_;
+#endif
             }
         }
 #ifndef NDEBUG
@@ -373,13 +375,17 @@ public:
         for (size_t i = 0; i != old_capacity; ++i) {
             auto& old = old_nodes[i];
             if (!is_invalid(&old)) {
+#ifndef NDEBUG
                 ++num_operations_;
+#endif
                 for (size_t i = desired_pos(key(&old)), distance = 0; true; i = mod(i+1), ++distance) {
                     if (is_invalid(i)) {
                         swap(nodes_[i], old);
                         break;
                     } else {
+#ifndef NDEBUG
                         ++num_misses_;
+#endif
                         size_t cur_distance = probe_distance(i);
                         if (cur_distance < distance) {
                             distance = cur_distance;

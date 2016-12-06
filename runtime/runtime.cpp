@@ -37,7 +37,10 @@
 #include "opencl_platform.h"
 #endif
 
-static Runtime runtime;
+Runtime& runtime() {
+    static Runtime* runtime = new Runtime();
+    return *runtime;
+}
 
 Runtime::Runtime() {
     thorin::Log::set(thorin::Log::Debug, &std::cout, false);
@@ -63,69 +66,69 @@ inline device_id to_device(int32_t m) {
 }
 
 void thorin_info(void) {
-    runtime.display_info(std::cout);
+    runtime().display_info(std::cout);
 }
 
 void* thorin_alloc(int32_t mask, int64_t size) {
-    return runtime.alloc(to_platform(mask), to_device(mask), size);
+    return runtime().alloc(to_platform(mask), to_device(mask), size);
 }
 
 void* thorin_alloc_host(int32_t mask, int64_t size) {
-    return runtime.alloc_host(to_platform(mask), to_device(mask), size);
+    return runtime().alloc_host(to_platform(mask), to_device(mask), size);
 }
 
 void* thorin_alloc_unified(int32_t mask, int64_t size) {
-    return runtime.alloc_unified(to_platform(mask), to_device(mask), size);
+    return runtime().alloc_unified(to_platform(mask), to_device(mask), size);
 }
 
 void* thorin_get_device_ptr(int32_t mask, void* ptr) {
-    return runtime.get_device_ptr(to_platform(mask), to_device(mask), ptr);
+    return runtime().get_device_ptr(to_platform(mask), to_device(mask), ptr);
 }
 
 void thorin_release(int32_t mask, void* ptr) {
-    runtime.release(to_platform(mask), to_device(mask), ptr);
+    runtime().release(to_platform(mask), to_device(mask), ptr);
 }
 
 void thorin_release_host(int32_t mask, void* ptr) {
-    runtime.release_host(to_platform(mask), to_device(mask), ptr);
+    runtime().release_host(to_platform(mask), to_device(mask), ptr);
 }
 
 void thorin_copy(int32_t mask_src, const void* src, int64_t offset_src,
                  int32_t mask_dst, void* dst, int64_t offset_dst, int64_t size) {
-    runtime.copy(to_platform(mask_src), to_device(mask_src), src, offset_src,
+    runtime().copy(to_platform(mask_src), to_device(mask_src), src, offset_src,
                  to_platform(mask_dst), to_device(mask_dst), dst, offset_dst, size);
 }
 
 void thorin_set_block_size(int32_t mask, int32_t x, int32_t y, int32_t z) {
-    runtime.set_block_size(to_platform(mask), to_device(mask), x, y, z);
+    runtime().set_block_size(to_platform(mask), to_device(mask), x, y, z);
 }
 
 void thorin_set_grid_size(int32_t mask, int32_t x, int32_t y, int32_t z) {
-    runtime.set_grid_size(to_platform(mask), to_device(mask), x, y, z);
+    runtime().set_grid_size(to_platform(mask), to_device(mask), x, y, z);
 }
 
 void thorin_set_kernel_arg(int32_t mask, int32_t arg, void* ptr, int32_t size) {
-    runtime.set_kernel_arg(to_platform(mask), to_device(mask), arg, ptr, size);
+    runtime().set_kernel_arg(to_platform(mask), to_device(mask), arg, ptr, size);
 }
 
 void thorin_set_kernel_arg_ptr(int32_t mask, int32_t arg, void* ptr) {
-    runtime.set_kernel_arg_ptr(to_platform(mask), to_device(mask), arg, ptr);
+    runtime().set_kernel_arg_ptr(to_platform(mask), to_device(mask), arg, ptr);
 }
 
 void thorin_set_kernel_arg_struct(int32_t mask, int32_t arg, void* ptr, int32_t size) {
-    runtime.set_kernel_arg_struct(to_platform(mask), to_device(mask), arg, ptr, size);
+    runtime().set_kernel_arg_struct(to_platform(mask), to_device(mask), arg, ptr, size);
 }
 
 void thorin_load_kernel(int32_t mask, const char* file, const char* name) {
-    runtime.load_kernel(to_platform(mask), to_device(mask), file, name);
+    runtime().load_kernel(to_platform(mask), to_device(mask), file, name);
 }
 
 void thorin_launch_kernel(int32_t mask) {
-    runtime.launch_kernel(to_platform(mask), to_device(mask));
+    runtime().launch_kernel(to_platform(mask), to_device(mask));
 }
 
 void thorin_synchronize(int32_t mask) {
-    runtime.synchronize(to_platform(mask), to_device(mask));
+    runtime().synchronize(to_platform(mask), to_device(mask));
 }
 
 #if _POSIX_VERSION >= 200112L || _XOPEN_SOURCE >= 600

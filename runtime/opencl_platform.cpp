@@ -138,6 +138,7 @@ OpenCLPlatform::OpenCLPlatform(Runtime* runtime)
             auto device = devices[j];
             cl_device_type dev_type;
             cl_uint device_vendor_id;
+            cl_uint cl_version_major, cl_version_minor;
 
             err  = clGetDeviceInfo(devices[j], CL_DEVICE_NAME, sizeof(buffer), &buffer, NULL);
             err |= clGetDeviceInfo(devices[j], CL_DEVICE_TYPE, sizeof(dev_type), &dev_type, NULL);
@@ -155,6 +156,10 @@ OpenCLPlatform::OpenCLPlatform(Runtime* runtime)
             ILOG("      Device Vendor: % (ID: %)", buffer, device_vendor_id);
             err |= clGetDeviceInfo(devices[j], CL_DEVICE_VERSION, sizeof(buffer), &buffer, NULL);
             ILOG("      Device OpenCL Version: %", buffer);
+            std::string version(buffer);
+            size_t sz;
+            cl_version_major = std::stoi(version.substr(7), &sz);
+            cl_version_minor = std::stoi(version.substr(7 + sz + 1));
             err |= clGetDeviceInfo(devices[j], CL_DRIVER_VERSION, sizeof(buffer), &buffer, NULL);
             ILOG("      Device Driver Version: %", buffer);
             err |= clGetDeviceInfo(devices[j], CL_DEVICE_EXTENSIONS, sizeof(buffer), &buffer, NULL);

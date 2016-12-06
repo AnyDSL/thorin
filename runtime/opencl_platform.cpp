@@ -206,12 +206,11 @@ OpenCLPlatform::OpenCLPlatform(Runtime* runtime)
 
             // create command queue
             #ifdef CL_VERSION_2_0
+            if (cl_version_major >= 2) {
             cl_queue_properties queue_props[3] = { CL_QUEUE_PROPERTIES, CL_QUEUE_PROFILING_ENABLE, 0 };
             devices_[dev].queue = clCreateCommandQueueWithProperties(devices_[dev].ctx, devices_[dev].dev, queue_props, &err);
             checkErr(err, "clCreateCommandQueueWithProperties()");
-            #else
-            devices_[dev].queue = clCreateCommandQueue(devices_[dev].ctx, devices_[dev].dev, CL_QUEUE_PROFILING_ENABLE, &err);
-            checkErr(err, "clCreateCommandQueue()");
+            }
             #endif
         }
         delete[] devices;

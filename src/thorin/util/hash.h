@@ -13,6 +13,8 @@
 
 namespace thorin {
 
+extern uint16_t g_hash_gid_counter;
+
 //------------------------------------------------------------------------------
 
 /// Magic numbers from http://www.isthe.com/chongo/tech/comp/fnv/index.html#FNV-param .
@@ -148,6 +150,7 @@ public:
     HashTable()
         : capacity_(StackCapacity)
         , size_(0)
+        , gid_(g_hash_gid_counter++)
         , nodes_(array_.data())
 #ifndef NDEBUG
         , id_(0)
@@ -165,6 +168,7 @@ public:
     HashTable(const HashTable& other)
         : capacity_(other.capacity_)
         , size_(other.size_)
+        , gid_(g_hash_gid_counter++)
 #ifndef NDEBUG
         , id_(0)
 #endif
@@ -180,13 +184,13 @@ public:
 
     template<class InputIt>
     HashTable(InputIt first, InputIt last)
-        : HashTable(capacity)
+        : HashTable()
     {
         insert(first, last);
     }
 
     HashTable(std::initializer_list<value_type> ilist)
-        : HashTable(capacity)
+        : HashTable()
     {
         insert(ilist);
     }
@@ -195,7 +199,7 @@ public:
         if (on_heap())
             delete[] nodes_;
 #ifndef NDEBUG
-        assert(num_misses_ <= num_operations_ * 16 && "your hash function is garbage");
+        assert(num_misses_ <= num_operations_ * 10 && "your hash function is garbage");
 #endif
     }
 
@@ -412,6 +416,7 @@ public:
 
         swap(t1.capacity_, t2.capacity_);
         swap(t1.size_,     t2.size_);
+        swap(t1.gid_,      t2.gid_);
 #ifndef NDEBUG
         swap(t1.id_,       t2.id_);
 #endif
@@ -424,7 +429,7 @@ private:
     int id() const { return id_; }
 #endif
     size_t mod(size_t i) const { return i & (capacity_-1); }
-    size_t desired_pos(const key_type& key) const { return mod(H::hash(key)); }
+    size_t desired_pos(const key_type& key) const { return mod(hash_combine(H::hash(key), gid_)); }
     size_t probe_distance(size_t i) { return mod(i + capacity() - desired_pos(key(nodes_+i))); }
     value_type* end_ptr() const { return nodes_ + capacity(); }
     bool on_heap() const { return capacity_ != StackCapacity; }
@@ -443,6 +448,7 @@ private:
 
     uint32_t capacity_;
     uint32_t size_;
+    uint16_t gid_;
     std::array<value_type, StackCapacity> array_;
     value_type* nodes_;
 #ifndef NDEBUG

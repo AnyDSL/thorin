@@ -194,22 +194,23 @@ OpenCLPlatform::OpenCLPlatform(Runtime* runtime)
             ILOG("      Device Host Unified Memory: %", has_unified);
             checkErr(err, "clGetDeviceInfo()");
 
-            auto dev = devices_.size();
-            devices_.resize(dev + 1);
-            devices_[dev].platform = platform;
-            devices_[dev].dev = device;
+            devices_.resize(devices_.size() + 1);
+            DeviceData& dd = devices_.back();
+
+            dd.platform = platform;
+            dd.dev = device;
 
             // create context
             cl_context_properties ctx_props[3] = { CL_CONTEXT_PLATFORM, (cl_context_properties)platform, 0 };
-            devices_[dev].ctx = clCreateContext(ctx_props, 1, &devices_[dev].dev, NULL, NULL, &err);
+            dd.ctx = clCreateContext(ctx_props, 1, &dd.dev, NULL, NULL, &err);
             checkErr(err, "clCreateContext()");
 
             // create command queue
             #ifdef CL_VERSION_2_0
             if (cl_version_major >= 2) {
-            cl_queue_properties queue_props[3] = { CL_QUEUE_PROPERTIES, CL_QUEUE_PROFILING_ENABLE, 0 };
-            devices_[dev].queue = clCreateCommandQueueWithProperties(devices_[dev].ctx, devices_[dev].dev, queue_props, &err);
-            checkErr(err, "clCreateCommandQueueWithProperties()");
+                cl_queue_properties queue_props[3] = { CL_QUEUE_PROPERTIES, CL_QUEUE_PROFILING_ENABLE, 0 };
+                dd.queue = clCreateCommandQueueWithProperties(dd.ctx, dd.dev, queue_props, &err);
+                checkErr(err, "clCreateCommandQueueWithProperties()");
             }
             #endif
         }

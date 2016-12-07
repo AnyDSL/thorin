@@ -75,7 +75,7 @@ public:
         : Location(location)
     {}
 
-    const std::string& name() const { return name_.get() ? *name_ : empty_; }
+    const std::string& name() const;
 
     void set(std::shared_ptr<std::string> name) { name_= name; }
     void set(std::string name) { name_ = std::make_shared<std::string>(name); }

@@ -5,6 +5,10 @@ namespace thorin {
 
 const std::string Debug::empty_;
 
+const std::string& Debug::name() const {
+    return name_.get() ? *name_ : empty_;
+}
+
 Location operator+(Location l1, Location l2) {
     return {l1.filename(), l1.front_line(), l1.front_col(), l2.back_line(), l2.back_col()};
 }

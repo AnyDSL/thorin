@@ -452,8 +452,8 @@ private:
         return nodes;
     }
 
-    uint32_t capacity_;
-    uint32_t size_;
+    size_t capacity_;
+    size_t size_;
     uint16_t gid_;
     std::array<value_type, StackCapacity> array_;
     value_type* nodes_;

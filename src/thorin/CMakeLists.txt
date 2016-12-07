@@ -88,6 +88,7 @@ SET ( SOURCES
     util/args.h
     util/array.h
     util/cast.h
+    util/hash.cpp
     util/hash.h
     util/indexmap.h
     util/indexset.h

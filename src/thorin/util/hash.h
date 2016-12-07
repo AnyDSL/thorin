@@ -13,7 +13,7 @@
 
 namespace thorin {
 
-extern uint16_t g_hash_gid_counter;
+uint16_t fetch_gid();
 
 //------------------------------------------------------------------------------
 
@@ -150,7 +150,7 @@ public:
     HashTable()
         : capacity_(StackCapacity)
         , size_(0)
-        , gid_(g_hash_gid_counter++)
+        , gid_(fetch_gid())
         , nodes_(array_.data())
 #ifndef NDEBUG
         , id_(0)
@@ -168,7 +168,7 @@ public:
     HashTable(const HashTable& other)
         : capacity_(other.capacity_)
         , size_(other.size_)
-        , gid_(g_hash_gid_counter++)
+        , gid_(fetch_gid())
 #ifndef NDEBUG
         , id_(0)
 #endif

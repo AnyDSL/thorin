@@ -13,8 +13,6 @@
 
 namespace thorin {
 
-uint16_t g_hash_gid_counter = 0;
-
 //------------------------------------------------------------------------------
 
 size_t Def::gid_counter_ = 1;

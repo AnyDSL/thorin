@@ -16,7 +16,7 @@ void clone_bodies(World& world) {
     for (auto continuation : todo) {
         Scope scope(continuation);
         bool first = true;
-        for (auto use : continuation->uses()) {
+        for (auto use : continuation->copy_uses()) {
             if (first) {
                 first = false; // re-use the initial continuation as first clone
             } else {

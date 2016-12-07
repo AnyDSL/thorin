@@ -199,7 +199,7 @@ public:
         if (on_heap())
             delete[] nodes_;
 #ifndef NDEBUG
-        assert(num_misses_ <= num_operations_ * 10 && "your hash function is garbage");
+        //assert(num_misses_ <= num_operations_ * 10 && "your hash function is garbage");
 #endif
     }
 

@@ -45,6 +45,30 @@ enum {
     ACC_NUM_ARGS
 };
 
+static bool contains_ptrtype(const Type* type) {
+    switch (type->kind()) {
+        case Node_PtrType:             return false;
+        case Node_IndefiniteArrayType: return contains_ptrtype(type->as<ArrayType>()->elem_type());
+        case Node_DefiniteArrayType:   return contains_ptrtype(type->as<DefiniteArrayType>()->elem_type());
+        case Node_FnType:              return false;
+        case Node_StructType: {
+            bool good = true;
+            auto struct_type = type->as<StructType>();
+            for (size_t i = 0, e = struct_type->num_ops(); i != e; ++i)
+                good &= contains_ptrtype(struct_type->op(i));
+            return good;
+        }
+        case Node_TupleType: {
+            bool good = true;
+            auto tuple = type->as<TupleType>();
+            for (size_t i = 0, e = tuple->num_ops(); i != e; ++i)
+                good &= contains_ptrtype(tuple->op(i));
+            return good;
+        }
+        default: return true;
+    }
+}
+
 Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, Continuation* continuation) {
     // to-target is the desired kernel call
     // target(mem, device, (dim.x, dim.y, dim.z), (block.x, block.y, block.z), body, return, free_vars)
@@ -80,7 +104,9 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, Cont
             auto alloca = code_gen.emit_alloca(target_val->getType(), target_arg->name());
             builder_.CreateStore(target_val, alloca);
             auto void_ptr = builder_.CreatePointerCast(alloca, builder_.getInt8PtrTy());
-            // TODO: recurse over struct|tuple and check if it contains pointers
+            // check if argument type contains pointers
+            if (!contains_ptrtype(target_arg->type()))
+                WLOG("argument % of aggregate type % at '%' contains pointer (not supported in OpenCL 1.2)\n", target_arg, target_arg->type(), target_arg->location());
             set_kernel_arg_struct(target_device, i, void_ptr, target_val->getType());
         } else if (target_arg->type()->isa<PtrType>()) {
             auto ptr = target_arg->type()->as<PtrType>();

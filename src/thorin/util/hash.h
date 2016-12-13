@@ -7,6 +7,7 @@
 #include <utility>
 #include <cassert>
 #include <cstdint>
+#include <iostream>
 #include <type_traits>
 
 #include "thorin/util/utility.h"

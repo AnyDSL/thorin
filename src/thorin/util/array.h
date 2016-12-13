@@ -6,12 +6,16 @@
 #include <cstddef>
 #include <cstring>
 #include <initializer_list>
+#include <iostream>
 #include <iterator>
 #include <vector>
 
+#include "thorin/util/stream.h"
+
 namespace thorin {
 
-template<class T> class Array;
+template<class T>
+class Array;
 
 //------------------------------------------------------------------------------
 
@@ -72,6 +76,7 @@ public:
     Array<T> cut(ArrayRef<size_t> indices, size_t reserve = 0) const;
     template<class Other>
     bool operator==(const Other& other) const { return this->size() == other.size() && std::equal(begin(), end(), other.begin()); }
+    void dump() const { stream_list(std::cout, *this, [&] (const auto& elem) { std::cout << elem; }, "{", "}\n"); }
 
 private:
     size_t size_;
@@ -179,6 +184,7 @@ public:
     T const& operator[](size_t i) const { assert(i < size() && "index out of bounds"); return ptr_[i]; }
     bool operator==(const Array<T>& other) const { return ArrayRef<T>(*this) == ArrayRef<T>(other); }
     Array<T>& operator=(Array<T> other) { swap(*this, other); return *this; }
+    void dump() const { ref().dump(); }
 
     friend void swap(Array& a, Array& b) {
         using std::swap;
@@ -217,11 +223,25 @@ auto concat(const T& a, const U& b) -> Array<typename T::value_type> {
 }
 
 template<class T>
+auto concat(const T& val, ArrayRef<T> a) -> Array<T> {
+    Array<T> result(a.size() + 1);
+    std::copy(a.begin(), a.end(), result.begin()+1);
+    result.front() = val;
+    return result;
+}
+
+template<class T>
+auto concat(ArrayRef<T> a, const T& val) -> Array<T> {
+    Array<T> result(a.size() + 1);
+    std::copy(a.begin(), a.end(), result.begin());
+    result.back() = val;
+    return result;
+}
+
+template<class T>
 Array<typename T::value_type> make_array(const T& container) {
     return Array<typename T::value_type>(container.begin(), container.end());
 }
-
-//------------------------------------------------------------------------------
 
 }
 

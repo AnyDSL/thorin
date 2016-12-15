@@ -69,39 +69,39 @@ inline Push<T> push(T& t, U new_val) { return Push<T>(t, new_val); }
 #define THORIN_PUSH(what, with) auto THORIN_LNAME(thorin_push) = thorin::push((what), (with))
 
 /**
- * A tagged pointer: first 16 bits is tag, remaining 48 bits is the actual pointer.
+ * A tagged pointer: first 16 bits is tag (index), remaining 48 bits is the actual pointer.
  * For non-x86_64 there is a fallback implementation.
  */
-template<class T>
+template<class T, class I = size_t>
 class TaggedPtr {
 public:
     TaggedPtr() {}
 #if defined(__x86_64__) || (_M_X64)
-    TaggedPtr(uint16_t tag, T* ptr)
-        : tag_(tag)
-        , ptr_(reinterpret_cast<int64_t>(ptr))
+    TaggedPtr(T* ptr, I index)
+        : ptr_(reinterpret_cast<int64_t>(ptr))
+        , index_(index)
     {}
 #else
-    TaggedPtr(uint16_t tag, T* ptr)
-        : tag_(tag)
-        , ptr_(ptr)
+    TaggedPtr(T* ptr, I index)
+        : ptr_(ptr)
+        , index_(index)
     {}
 #endif
 
     T* ptr() const { return reinterpret_cast<T*>(ptr_); }
     T* operator->() const { return ptr(); }
     operator T*() const { return ptr(); }
-    void tag(uint16_t tag) { tag_ = tag; }
-    uint16_t tag() const { return tag_; }
-    bool operator==(TaggedPtr other) const { return this->ptr() == other.ptr() && this->tag() == other.tag(); }
+    void index(I index) { index_ = index; }
+    I index() const { return index_; }
+    bool operator==(TaggedPtr other) const { return this->ptr() == other.ptr() && this->index() == other.index(); }
 
 private:
-    uint16_t tag_;
 #if defined(__x86_64__) || (_M_X64)
     int64_t ptr_ : 48; // sign extend to make pointer canonical
 #else
     T* ptr_;
 #endif
+    I index_;
 };
 
 //@{ bit fiddling

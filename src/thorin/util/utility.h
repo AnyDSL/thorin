@@ -5,6 +5,10 @@
 #include <memory>
 #include <queue>
 
+#ifdef _MSC_VER
+#include <intrin.h>
+#endif
+
 #ifndef _MSC_VER
 #define THORIN_UNREACHABLE do { assert(true && "unreachable"); abort(); } while(0)
 #else // _MSC_VER
@@ -64,6 +68,44 @@ inline Push<T> push(T& t, U new_val) { return Push<T>(t, new_val); }
 
 #define THORIN_PUSH(what, with) auto THORIN_LNAME(thorin_push) = thorin::push((what), (with))
 
+/**
+ * A tagged pointer: first 16 bits is tag (index), remaining 48 bits is the actual pointer.
+ * For non-x86_64 there is a fallback implementation.
+ */
+template<class T, class I = size_t>
+class TaggedPtr {
+public:
+    TaggedPtr() {}
+#if defined(__x86_64__) || (_M_X64)
+    TaggedPtr(T* ptr, I index)
+        : ptr_(reinterpret_cast<int64_t>(ptr))
+        , index_(index)
+    {}
+#else
+    TaggedPtr(T* ptr, I index)
+        : ptr_(ptr)
+        , index_(index)
+    {}
+#endif
+
+    T* ptr() const { return reinterpret_cast<T*>(ptr_); }
+    T* operator->() const { return ptr(); }
+    operator T*() const { return ptr(); }
+    void index(I index) { index_ = index; }
+    I index() const { return index_; }
+    bool operator==(TaggedPtr other) const { return this->ptr() == other.ptr() && this->index() == other.index(); }
+
+private:
+#if defined(__x86_64__) || (_M_X64)
+    int64_t ptr_ : 48; // sign extend to make pointer canonical
+#else
+    T* ptr_;
+#endif
+    I index_;
+};
+
+//@{ bit fiddling
+
 /// Determines whether @p i is a power of two.
 constexpr size_t is_power_of_2(size_t i) { return ((i != 0) && !(i & (i - 1))); }
 
@@ -80,6 +122,24 @@ inline T round_to_power_of_2(T i) {
     i++;
     return i;
 }
+
+inline size_t bitcount(uint64_t v) {
+#if defined(__GNUC__) | defined(__clang__)
+    return __builtin_popcountll(v);
+#elif defined(_MSC_VER)
+    return __popcnt64(v);
+#else
+    // see https://stackoverflow.com/questions/3815165/how-to-implement-bitcount-using-only-bitwise-operators
+    auto c = v - ((v >>  1ull)      & 0x5555555555555555ull);
+    c =          ((c >>  2ull)      & 0x3333333333333333ull) + (c & 0x3333333333333333ull);
+    c =          ((c >>  4ull) + c) & 0x0F0F0F0F0F0F0F0Full;
+    c =          ((c >>  8ull) + c) & 0x00FF00FF00FF00FFull;
+    c =          ((c >> 16ull) + c) & 0x0000FFFF0000FFFFull;
+    return       ((c >> 32ull) + c) & 0x00000000FFFFFFFFull;
+#endif
+}
+
+//@}
 
 }
 

@@ -81,9 +81,11 @@ MACRO ( THORIN_RUNTIME_WRAP outfiles )
     SET ( _clang_flags ${TRW_CLANG_FLAGS} $<$<CONFIG:Release>:${_clang_flags_RELEASE}>$<$<CONFIG:Debug>:${_clang_flags_DEBUG}> )
 
     # Generate .ll file and patch it
-    ADD_CUSTOM_COMMAND ( OUTPUT ${_llfile}
+    # Run clang on the patched .ll file to get the .o
+    ADD_CUSTOM_COMMAND ( OUTPUT ${_objfile}
         COMMAND ${IMPALA_BIN} ${_impala_flags} ${_infiles} ${_impala_platform}
         COMMAND ${PYTHON_BIN} ${THORIN_RUNTIME_DIR}/post-patcher.py ${TRW_BACKEND} ${_binary_basepath}/${_basename}
+        COMMAND ${CLANG_BIN} ${_clang_flags} -c -o ${_objfile} ${_llfile}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         DEPENDS ${IMPALA_BIN} ${THORIN_LIBRARY} ${PYTHON_BIN} ${THORIN_RUNTIME_DIR}/post-patcher.py ${_impala_platform} ${_infiles} VERBATIM )
     
@@ -94,11 +96,6 @@ MACRO ( THORIN_RUNTIME_WRAP outfiles )
         ADD_CUSTOM_COMMAND ( OUTPUT ${_bcfile} COMMAND ${LLVM_AS_BIN} ${_irfile} DEPENDS ${_irfile} VERBATIM )
         SET_SOURCE_FILES_PROPERTIES ( ${_irfile} $_bcfile} PROPERTIES GENERATED true )
     ENDIF()
-
-    # Run clang on the patched .ll file to get the .o
-    ADD_CUSTOM_COMMAND ( OUTPUT ${_objfile}
-        COMMAND ${CLANG_BIN} ${_clang_flags} -c -o ${_objfile} ${_llfile}
-        DEPENDS ${_llfile} VERBATIM )
 
     SET_SOURCE_FILES_PROPERTIES ( ${_objfile} PROPERTIES EXTERNAL_OBJECT true GENERATED true LANGUAGE CXX )
     SET ( ${outfiles} ${${outfiles}} ${_objfile} ${_bcfile} ${_irfile} )

@@ -63,8 +63,9 @@ MACRO ( THORIN_RUNTIME_WRAP outfiles )
 
     # Add all input files as one impala job
     GET_FILENAME_COMPONENT ( _basename ${_lastfile} NAME_WE )
-    SET ( _llfile ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.ll )
-    SET ( _objfile ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.o )
+    SET ( _binary_basepath ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR} )
+    SET ( _llfile ${_binary_basepath}/${_basename}.ll )
+    SET ( _objfile ${_binary_basepath}/${_basename}.o )
 
     SET ( _impala_platform
         ${THORIN_RUNTIME_DIR}/runtime.impala
@@ -73,7 +74,7 @@ MACRO ( THORIN_RUNTIME_WRAP outfiles )
 
     SET ( _impala_flags_RELEASE ${OPT_FLAGS_RELEASE} ${TRW_IMPALA_FLAGS_RELEASE})
     SET ( _impala_flags_DEBUG ${OPT_FLAGS_DEBUG} ${TRW_IMPALA_FLAGS_DEBUG})
-    SET ( _impala_flags -emit-llvm ${TRW_IMPALA_FLAGS} $<$<CONFIG:Release>:${_impala_flags_RELEASE}>$<$<CONFIG:Debug>:${_impala_flags_DEBUG}> )
+    SET ( _impala_flags -emit-llvm -o ${_binary_basepath}/${_basename} ${TRW_IMPALA_FLAGS} $<$<CONFIG:Release>:${_impala_flags_RELEASE}>$<$<CONFIG:Debug>:${_impala_flags_DEBUG}> )
 
     SET ( _clang_flags_RELEASE ${OPT_FLAGS_RELEASE} ${TRW_CLANG_FLAGS_RELEASE})
     SET ( _clang_flags_DEBUG ${OPT_FLAGS_DEBUG} ${TRW_CLANG_FLAGS_DEBUG})
@@ -81,8 +82,8 @@ MACRO ( THORIN_RUNTIME_WRAP outfiles )
 
     # Generate .ll file and patch it
     ADD_CUSTOM_COMMAND ( OUTPUT ${_llfile}
-        COMMAND ${IMPALA_BIN} ${_impala_platform} ${_infiles} ${_impala_flags}
-        COMMAND ${PYTHON_BIN} ${THORIN_RUNTIME_DIR}/post-patcher.py ${TRW_BACKEND} ${CMAKE_CURRENT_BINARY_DIR}/${_basename}
+        COMMAND ${IMPALA_BIN} ${_impala_flags} ${_infiles} ${_impala_platform}
+        COMMAND ${PYTHON_BIN} ${THORIN_RUNTIME_DIR}/post-patcher.py ${TRW_BACKEND} ${_binary_basepath}/${_basename}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         DEPENDS ${IMPALA_BIN} ${THORIN_LIBRARY} ${PYTHON_BIN} ${THORIN_RUNTIME_DIR}/post-patcher.py ${_impala_platform} ${_infiles} VERBATIM )
     

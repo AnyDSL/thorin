@@ -56,9 +56,9 @@ protected:
     Type(const Type&) = delete;
     Type& operator=(const Type&) = delete;
 
-    Type(HENK_TABLE_TYPE& table, int kind, Types ops)
+    Type(HENK_TABLE_TYPE& table, int tag, Types ops)
         : HENK_TABLE_NAME_(&table)
-        , kind_(kind)
+        , tag_(tag)
         , ops_(ops.size())
         , gid_(gid_counter_++)
     {
@@ -77,7 +77,7 @@ protected:
     }
 
 public:
-    int kind() const { return kind_; }
+    int tag() const { return tag_; }
     HENK_TABLE_TYPE& HENK_TABLE_NAME() const { return *HENK_TABLE_NAME_; }
 
     Types ops() const { return ops_; }
@@ -115,7 +115,7 @@ private:
     virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types ops) const = 0;
 
     mutable HENK_TABLE_TYPE* HENK_TABLE_NAME_;
-    int kind_;
+    int tag_;
     thorin::Array<const Type*> ops_;
     mutable size_t gid_;
     static size_t gid_counter_;

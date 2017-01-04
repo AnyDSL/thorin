@@ -46,7 +46,7 @@ enum {
 };
 
 static bool contains_ptrtype(const Type* type) {
-    switch (type->kind()) {
+    switch (type->tag()) {
         case Node_PtrType:             return false;
         case Node_IndefiniteArrayType: return contains_ptrtype(type->as<ArrayType>()->elem_type());
         case Node_DefiniteArrayType:   return contains_ptrtype(type->as<DefiniteArrayType>()->elem_type());

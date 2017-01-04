@@ -74,18 +74,18 @@ const Def* World::splat(const Def* arg, size_t length, Debug dbg) {
  * arithops
  */
 
-const Def* World::binop(int kind, const Def* lhs, const Def* rhs, Debug dbg) {
-    if (is_arithop(kind))
-        return arithop((ArithOpKind) kind, lhs, rhs, dbg);
+const Def* World::binop(int tag, const Def* lhs, const Def* rhs, Debug dbg) {
+    if (is_arithop(tag))
+        return arithop((ArithOpTag) tag, lhs, rhs, dbg);
 
-    assert(is_cmp(kind) && "must be a Cmp");
-    return cmp((CmpKind) kind, lhs, rhs, dbg);
+    assert(is_cmp(tag) && "must be a Cmp");
+    return cmp((CmpTag) tag, lhs, rhs, dbg);
 }
 
-const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, Debug dbg) {
+const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg) {
     assert(a->type() == b->type());
     assert(a->type()->as<PrimType>()->length() == b->type()->as<PrimType>()->length());
-    PrimTypeKind type = a->type()->as<PrimType>()->primtype_kind();
+    PrimTypeTag type = a->type()->as<PrimType>()->primtype_tag();
 
     auto llit = a->isa<PrimLit>();
     auto rlit = b->isa<PrimLit>();
@@ -96,7 +96,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, Debug db
         size_t num = lvec->type()->as<PrimType>()->length();
         Array<const Def*> ops(num);
         for (size_t i = 0; i != num; ++i)
-            ops[i] = arithop(kind, lvec->op(i), rvec->op(i), dbg);
+            ops[i] = arithop(tag, lvec->op(i), rvec->op(i), dbg);
         return vector(ops, dbg);
     }
 
@@ -105,7 +105,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, Debug db
         Box r = rlit->value();
 
         try {
-            switch (kind) {
+            switch (tag) {
                 case ArithOp_add:
                     switch (type) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal(type, Box(T(l.get_##T() + r.get_##T())), dbg);
@@ -171,7 +171,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, Debug db
     }
 
     // normalize: swap literal/vector to the left
-    if (is_commutative(kind) && (rlit || rvec)) {
+    if (is_commutative(tag) && (rlit || rvec)) {
         std::swap(a, b);
         std::swap(llit, rlit);
         std::swap(lvec, rvec);
@@ -179,7 +179,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, Debug db
 
     if (is_type_i(type)) {
         if (a == b) {
-            switch (kind) {
+            switch (tag) {
                 case ArithOp_add: return arithop_mul(literal(type, 2, dbg), a, dbg);
 
                 case ArithOp_sub:
@@ -203,7 +203,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, Debug db
         }
 
         if (is_zero(a)) {
-            switch (kind) {
+            switch (tag) {
                 case ArithOp_mul:
                 case ArithOp_div:
                 case ArithOp_rem:
@@ -220,14 +220,14 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, Debug db
         }
 
         if (is_one(a)) {
-            switch (kind) {
+            switch (tag) {
                 case ArithOp_mul: return b;
                 default: break;
             }
         }
 
         if (is_allset(a)) {
-            switch (kind) {
+            switch (tag) {
                 case ArithOp_and: return b;
                 case ArithOp_or:  return llit; // allset
                 default: break;
@@ -235,7 +235,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, Debug db
         }
 
         if (is_zero(b)) {
-            switch (kind) {
+            switch (tag) {
                 case ArithOp_div:
                 case ArithOp_rem: return bottom(type, dbg);
 
@@ -247,7 +247,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, Debug db
         }
 
         if (is_one(b)) {
-            switch (kind) {
+            switch (tag) {
                 case ArithOp_mul:
                 case ArithOp_div: return a;
                 case ArithOp_rem: return zero(type, dbg);
@@ -257,7 +257,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, Debug db
         }
 
         if (rlit && primlit_value<uint64_t>(rlit) >= uint64_t(num_bits(type))) {
-            switch (kind) {
+            switch (tag) {
                 case ArithOp_shl:
                 case ArithOp_shr: return bottom(type, dbg);
 
@@ -265,40 +265,40 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, Debug db
             }
         }
 
-        if (kind == ArithOp_xor && is_allset(a)) {    // is this a NOT
+        if (tag == ArithOp_xor && is_allset(a)) {    // is this a NOT
             if (is_not(b))                            // do we have ~~x?
                 return b->as<ArithOp>()->rhs();
             if (auto cmp = b->isa<Cmp>())   // do we have ~(a cmp b)?
-                return this->cmp(negate(cmp->cmp_kind()), cmp->lhs(), cmp->rhs(), dbg);
+                return this->cmp(negate(cmp->cmp_tag()), cmp->lhs(), cmp->rhs(), dbg);
         }
 
         auto lcmp = a->isa<Cmp>();
         auto rcmp = b->isa<Cmp>();
 
-        if (kind == ArithOp_or && lcmp && rcmp && lcmp->lhs() == rcmp->lhs() && lcmp->rhs() == rcmp->rhs()
-                && lcmp->cmp_kind() == negate(rcmp->cmp_kind()))
+        if (tag == ArithOp_or && lcmp && rcmp && lcmp->lhs() == rcmp->lhs() && lcmp->rhs() == rcmp->rhs()
+                && lcmp->cmp_tag() == negate(rcmp->cmp_tag()))
                 return literal_bool(true, dbg);
 
-        if (kind == ArithOp_and && lcmp && rcmp && lcmp->lhs() == rcmp->lhs() && lcmp->rhs() == rcmp->rhs()
-                && lcmp->cmp_kind() == negate(rcmp->cmp_kind()))
+        if (tag == ArithOp_and && lcmp && rcmp && lcmp->lhs() == rcmp->lhs() && lcmp->rhs() == rcmp->rhs()
+                && lcmp->cmp_tag() == negate(rcmp->cmp_tag()))
                 return literal_bool(false, dbg);
 
-        auto land = a->kind() == Node_and ? a->as<ArithOp>() : nullptr;
-        auto rand = b->kind() == Node_and ? b->as<ArithOp>() : nullptr;
+        auto land = a->tag() == Node_and ? a->as<ArithOp>() : nullptr;
+        auto rand = b->tag() == Node_and ? b->as<ArithOp>() : nullptr;
 
         // distributivity (a and b) or (a and c)
-        if (kind == ArithOp_or && land && rand) {
+        if (tag == ArithOp_or && land && rand) {
             if (land->lhs() == rand->lhs())
                 return arithop_and(land->lhs(), arithop_or(land->rhs(), rand->rhs(), dbg), dbg);
             if (land->rhs() == rand->rhs())
                 return arithop_and(land->rhs(), arithop_or(land->lhs(), rand->lhs(), dbg), dbg);
         }
 
-        auto lor = a->kind() == Node_or ? a->as<ArithOp>() : nullptr;
-        auto ror = b->kind() == Node_or ? b->as<ArithOp>() : nullptr;
+        auto lor = a->tag() == Node_or ? a->as<ArithOp>() : nullptr;
+        auto ror = b->tag() == Node_or ? b->as<ArithOp>() : nullptr;
 
         // distributivity (a or b) and (a or c)
-        if (kind == ArithOp_and && lor && ror) {
+        if (tag == ArithOp_and && lor && ror) {
             if (lor->lhs() == ror->lhs())
                 return arithop_or(lor->lhs(), arithop_and(lor->rhs(), ror->rhs(), dbg), dbg);
             if (lor->rhs() == ror->rhs())
@@ -306,7 +306,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, Debug db
         }
 
         // absorption: a and (a or b) = a
-        if (kind == ArithOp_and) {
+        if (tag == ArithOp_and) {
             if (ror) {
                 if (a == ror->lhs()) return ror->rhs();
                 if (a == ror->rhs()) return ror->lhs();
@@ -318,7 +318,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, Debug db
         }
 
         // absorption: a or (a and b) = a
-        if (kind == ArithOp_or) {
+        if (tag == ArithOp_or) {
             if (rand) {
                 if (a == rand->lhs()) return rand->rhs();
                 if (a == rand->rhs()) return rand->lhs();
@@ -329,7 +329,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, Debug db
             }
         }
 
-        if (kind == ArithOp_or) {
+        if (tag == ArithOp_or) {
             if (lor && ror) {
                 if (lor->lhs() == ror->lhs())
                     return arithop_or(lor->rhs(), ror->rhs(), dbg);
@@ -338,7 +338,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, Debug db
             }
         }
 
-        if (kind == ArithOp_and) {
+        if (tag == ArithOp_and) {
             if (land && rand) {
                 if (land->lhs() == rand->lhs())
                     return arithop_and(land->rhs(), rand->rhs(), dbg);
@@ -349,38 +349,38 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, Debug db
     }
 
     // normalize: try to reorder same ops to have the literal/vector on the left-most side
-    if (is_associative(kind) && is_type_i(a->type())) {
-        auto a_same = a->isa<ArithOp>() && a->as<ArithOp>()->arithop_kind() == kind ? a->as<ArithOp>() : nullptr;
-        auto b_same = b->isa<ArithOp>() && b->as<ArithOp>()->arithop_kind() == kind ? b->as<ArithOp>() : nullptr;
+    if (is_associative(tag) && is_type_i(a->type())) {
+        auto a_same = a->isa<ArithOp>() && a->as<ArithOp>()->arithop_tag() == tag ? a->as<ArithOp>() : nullptr;
+        auto b_same = b->isa<ArithOp>() && b->as<ArithOp>()->arithop_tag() == tag ? b->as<ArithOp>() : nullptr;
         auto a_lhs_lv = a_same && (a_same->lhs()->isa<PrimLit>() || a_same->lhs()->isa<Vector>()) ? a_same->lhs() : nullptr;
         auto b_lhs_lv = b_same && (b_same->lhs()->isa<PrimLit>() || b_same->lhs()->isa<Vector>()) ? b_same->lhs() : nullptr;
 
-        if (is_commutative(kind)) {
+        if (is_commutative(tag)) {
             if (a_lhs_lv && b_lhs_lv)
-                return arithop(kind, arithop(kind, a_lhs_lv, b_lhs_lv, dbg), arithop(kind, a_same->rhs(), b_same->rhs(), dbg), dbg);
+                return arithop(tag, arithop(tag, a_lhs_lv, b_lhs_lv, dbg), arithop(tag, a_same->rhs(), b_same->rhs(), dbg), dbg);
             if ((llit || lvec) && b_lhs_lv)
-                return arithop(kind, arithop(kind, a, b_lhs_lv, dbg), b_same->rhs(), dbg);
+                return arithop(tag, arithop(tag, a, b_lhs_lv, dbg), b_same->rhs(), dbg);
             if (b_lhs_lv)
-                return arithop(kind, b_lhs_lv, arithop(kind, a, b_same->rhs(), dbg), dbg);
+                return arithop(tag, b_lhs_lv, arithop(tag, a, b_same->rhs(), dbg), dbg);
         }
         if (a_lhs_lv)
-            return arithop(kind, a_lhs_lv, arithop(kind, a_same->rhs(), b, dbg), dbg);
+            return arithop(tag, a_lhs_lv, arithop(tag, a_same->rhs(), b, dbg), dbg);
     }
 
-    return cse(new ArithOp(kind, a, b, dbg));
+    return cse(new ArithOp(tag, a, b, dbg));
 }
 
 const Def* World::arithop_not(const Def* def, Debug dbg) { return arithop_xor(allset(def->type(), dbg, vector_length(def)), def, dbg); }
 
 const Def* World::arithop_minus(const Def* def, Debug dbg) {
-    switch (PrimTypeKind kind = def->type()->as<PrimType>()->primtype_kind()) {
+    switch (PrimTypeTag tag = def->type()->as<PrimType>()->primtype_tag()) {
 #define THORIN_F_TYPE(T, M) \
         case PrimType_##T: \
             return arithop_sub(literal_##T(M(-0.f), dbg, vector_length(def)), def, dbg);
 #include "thorin/tables/primtypetable.h"
         default:
-            assert(is_type_i(kind));
-            return arithop_sub(zero(kind, dbg), def, dbg);
+            assert(is_type_i(tag));
+            return arithop_sub(zero(tag, dbg), def, dbg);
     }
 }
 
@@ -388,15 +388,15 @@ const Def* World::arithop_minus(const Def* def, Debug dbg) {
  * compares
  */
 
-const Def* World::cmp(CmpKind kind, const Def* a, const Def* b, Debug dbg) {
-    CmpKind oldkind = kind;
-    switch (kind) {
-        case Cmp_gt: kind = Cmp_lt; break;
-        case Cmp_ge: kind = Cmp_le; break;
+const Def* World::cmp(CmpTag tag, const Def* a, const Def* b, Debug dbg) {
+    CmpTag oldtag = tag;
+    switch (tag) {
+        case Cmp_gt: tag = Cmp_lt; break;
+        case Cmp_ge: tag = Cmp_le; break;
         default: break;
     }
 
-    if (oldkind != kind)
+    if (oldtag != tag)
         std::swap(a, b);
 
     auto llit = a->isa<PrimLit>();
@@ -408,16 +408,16 @@ const Def* World::cmp(CmpKind kind, const Def* a, const Def* b, Debug dbg) {
         size_t num = lvec->type()->as<PrimType>()->length();
         Array<const Def*> ops(num);
         for (size_t i = 0; i != num; ++i)
-            ops[i] = cmp(kind, lvec->op(i), rvec->op(i), dbg);
+            ops[i] = cmp(tag, lvec->op(i), rvec->op(i), dbg);
         return vector(ops, dbg);
     }
 
     if (llit && rlit) {
         Box l = llit->value();
         Box r = rlit->value();
-        PrimTypeKind type = llit->primtype_kind();
+        PrimTypeTag type = llit->primtype_tag();
 
-        switch (kind) {
+        switch (tag) {
             case Cmp_eq:
                 switch (type) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_bool(l.get_##T() == r.get_##T(), dbg);
@@ -443,7 +443,7 @@ const Def* World::cmp(CmpKind kind, const Def* a, const Def* b, Debug dbg) {
     }
 
     if (a == b) {
-        switch (kind) {
+        switch (tag) {
             case Cmp_lt:
             case Cmp_ne: return zero(type_bool(), dbg);
             case Cmp_le:
@@ -452,7 +452,7 @@ const Def* World::cmp(CmpKind kind, const Def* a, const Def* b, Debug dbg) {
         }
     }
 
-    return cse(new Cmp(kind, a, b, dbg));
+    return cse(new Cmp(tag, a, b, dbg));
 }
 
 /*
@@ -492,75 +492,75 @@ const Def* World::cast(const Type* to, const Def* from, Debug dbg) {
     if (lit && to_type) {
         Box box = lit->value();
 
-        switch (lit->primtype_kind()) {
+        switch (lit->primtype_tag()) {
             case PrimType_bool:
-                switch (to_type->primtype_kind()) {
+                switch (to_type->primtype_tag()) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_bool()), dbg);
 #include "thorin/tables/primtypetable.h"
                 }
             case PrimType_ps8:
             case PrimType_qs8:
-                switch (to_type->primtype_kind()) {
+                switch (to_type->primtype_tag()) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_s8()), dbg);
 #include "thorin/tables/primtypetable.h"
                 }
             case PrimType_ps16:
             case PrimType_qs16:
-                switch (to_type->primtype_kind()) {
+                switch (to_type->primtype_tag()) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_s16()), dbg);
 #include "thorin/tables/primtypetable.h"
                 }
             case PrimType_ps32:
             case PrimType_qs32:
-                switch (to_type->primtype_kind()) {
+                switch (to_type->primtype_tag()) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_s32()), dbg);
 #include "thorin/tables/primtypetable.h"
                 }
             case PrimType_ps64:
             case PrimType_qs64:
-                switch (to_type->primtype_kind()) {
+                switch (to_type->primtype_tag()) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_s64()), dbg);
 #include "thorin/tables/primtypetable.h"
                 }
             case PrimType_pu8:
             case PrimType_qu8:
-                switch (to_type->primtype_kind()) {
+                switch (to_type->primtype_tag()) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_u8()), dbg);
 #include "thorin/tables/primtypetable.h"
                 }
             case PrimType_pu16:
             case PrimType_qu16:
-                switch (to_type->primtype_kind()) {
+                switch (to_type->primtype_tag()) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_u16()), dbg);
 #include "thorin/tables/primtypetable.h"
                 }
             case PrimType_pu32:
             case PrimType_qu32:
-                switch (to_type->primtype_kind()) {
+                switch (to_type->primtype_tag()) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_u32()), dbg);
 #include "thorin/tables/primtypetable.h"
                 }
             case PrimType_pu64:
             case PrimType_qu64:
-                switch (to_type->primtype_kind()) {
+                switch (to_type->primtype_tag()) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_u64()), dbg);
 #include "thorin/tables/primtypetable.h"
                 }
             case PrimType_pf16:
             case PrimType_qf16:
-                switch (to_type->primtype_kind()) {
+                switch (to_type->primtype_tag()) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_f16()), dbg);
 #include "thorin/tables/primtypetable.h"
                 }
             case PrimType_pf32:
             case PrimType_qf32:
-                switch (to_type->primtype_kind()) {
+                switch (to_type->primtype_tag()) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_f32()), dbg);
 #include "thorin/tables/primtypetable.h"
                 }
             case PrimType_pf64:
             case PrimType_qf64:
-                switch (to_type->primtype_kind()) {
+                switch (to_type->primtype_tag()) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_f64()), dbg);
 #include "thorin/tables/primtypetable.h"
                 }
@@ -577,7 +577,7 @@ const Def* World::bitcast(const Type* to, const Def* from, Debug dbg) {
 
     if (auto prim_to = to->isa<PrimType>())
         if (auto prim_from = from->type()->isa<PrimType>())
-            if (num_bits(prim_from->primtype_kind()) != num_bits(prim_to->primtype_kind()))
+            if (num_bits(prim_from->primtype_tag()) != num_bits(prim_to->primtype_tag()))
                 ELOG("bitcast between primitive types of different size at %", dbg);
 
     if (auto vec = from->isa<Vector>()) {

@@ -18,7 +18,7 @@ class World;
 
 class Value {
 public:
-    enum Kind {
+    enum Tag {
         Empty,
         ImmutableValRef,
         MutableValRef,
@@ -27,7 +27,7 @@ public:
     };
 
     Value()
-        : kind_(Empty)
+        : tag_(Empty)
         , builder_(nullptr)
         , handle_(-1)
         , type_(nullptr)
@@ -35,7 +35,7 @@ public:
         , def_(nullptr)
     {}
     Value(const Value& value)
-        : kind_   (value.kind())
+        : tag_   (value.tag())
         , builder_(value.builder_)
         , handle_ (value.handle_)
         , type_   (value.type_)
@@ -54,19 +54,19 @@ public:
     Value static create_ptr(IRBuilder&, const Def* ptr);
     Value static create_agg(Value value, const Def* offset);
 
-    Kind kind() const { return kind_; }
+    Tag tag() const { return tag_; }
     IRBuilder* builder() const { return builder_; }
     World& world() const;
     const Def* load(Debug) const;
     void store(const Def* val, Debug) const;
     const Def* def() const { return def_; }
-    operator bool() { return kind() != Empty; }
+    operator bool() { return tag() != Empty; }
     bool use_lea() const;
 
     Value& operator= (Value other) { swap(*this, other); return *this; }
     friend void swap(Value& v1, Value& v2) {
         using std::swap;
-        swap(v1.kind_,    v2.kind_);
+        swap(v1.tag_,    v2.tag_);
         swap(v1.builder_, v2.builder_);
         swap(v1.handle_,  v2.handle_);
         swap(v1.type_,    v2.type_);
@@ -76,7 +76,7 @@ public:
     }
 
 private:
-    Kind kind_;
+    Tag tag_;
     IRBuilder* builder_;
     size_t handle_;
     const Type* type_;

@@ -145,7 +145,7 @@ llvm::Value* NVVMCodeGen::emit_store(const Store* store) {
 static std::string get_texture_fetch_command(const Type* type) {
     std::stringstream fun_str;
     fun_str << "tex.1d.v4.";
-    switch (type->as<PrimType>()->primtype_kind()) {
+    switch (type->as<PrimType>()->primtype_tag()) {
         case PrimType_ps8:  case PrimType_qs8:
         case PrimType_pu8:  case PrimType_qu8:  fun_str << "s8";  break;
         case PrimType_ps16: case PrimType_qs16:
@@ -167,7 +167,7 @@ static std::string get_texture_fetch_command(const Type* type) {
 static std::string get_texture_fetch_constraint(const Type* type) {
     std::stringstream constraint_str;
     char c;
-    switch (type->as<PrimType>()->primtype_kind()) {
+    switch (type->as<PrimType>()->primtype_tag()) {
         case PrimType_ps8:  case PrimType_qs8:
         case PrimType_pu8:  case PrimType_qu8:  c = 'c'; break;
         case PrimType_ps16: case PrimType_qs16:

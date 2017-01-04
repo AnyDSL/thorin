@@ -12,7 +12,7 @@ namespace thorin {
  * All the casts use the order <L, R>.
  * This order may seem irritating at first glance, as you read <TO, FROM>.
  * This is solely for the reason, that C++ type deduction does not work the other way round.
- * However, for these kinds of cast you won't have to specify the template parameters explicitly anyway.
+ * However, for these tags of cast you won't have to specify the template parameters explicitly anyway.
  * Thus, you do not have to care except for the bitcast -- so be warned.
  * Just read as <L, R> instead, i.e.,
  * L is the thing which is returned (the left-hand side of the function call),

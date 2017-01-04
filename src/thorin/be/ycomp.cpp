@@ -101,19 +101,19 @@ std::ostream& YCompGen::emit_primop(const PrimOp* primop) {
     emitted_defs.insert(primop);
     auto emit_label = [&] {
         if (auto primlit = primop->isa<PrimLit>()) {
-            auto kind = primlit->primtype_kind();
+            auto tag = primlit->primtype_tag();
 
             // print i8 as ints
-            if (kind == PrimType_qs8)
+            if (tag == PrimType_qs8)
                 stream() << (int) primlit->qs8_value();
-            else if (kind == PrimType_ps8)
+            else if (tag == PrimType_ps8)
                 stream() << (int) primlit->ps8_value();
-            else if (kind == PrimType_qu8)
+            else if (tag == PrimType_qu8)
                 stream() << (unsigned) primlit->qu8_value();
-            else if (kind == PrimType_pu8)
+            else if (tag == PrimType_pu8)
                 stream() << (unsigned) primlit->pu8_value();
             else {
-                switch (kind) {
+                switch (tag) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: stream() << primlit->T##_value(); break;
 #include "thorin/tables/primtypetable.h"
                     default: THORIN_UNREACHABLE;

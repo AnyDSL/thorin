@@ -128,7 +128,7 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
             os << vector_length(ptr->referenced_type());
         return os;
     } else if (auto primtype = type->isa<PrimType>()) {
-        switch (primtype->primtype_kind()) {
+        switch (primtype->primtype_tag()) {
             case PrimType_bool:                     os << "bool";                   break;
             case PrimType_ps8:  case PrimType_qs8:  os << "char";                   break;
             case PrimType_pu8:  case PrimType_qu8:  os << "unsigned char";          break;
@@ -655,7 +655,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
         func_impl_ << bin->unique_name() << " = ";
         emit(bin->lhs());
         if (auto cmp = bin->isa<Cmp>()) {
-            switch (cmp->cmp_kind()) {
+            switch (cmp->cmp_tag()) {
                 case Cmp_eq: func_impl_ << " == "; break;
                 case Cmp_ne: func_impl_ << " != "; break;
                 case Cmp_gt: func_impl_ << " > ";  break;
@@ -666,7 +666,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
         }
 
         if (auto arithop = bin->isa<ArithOp>()) {
-            switch (arithop->arithop_kind()) {
+            switch (arithop->arithop_tag()) {
                 case ArithOp_add: func_impl_ << " + ";  break;
                 case ArithOp_sub: func_impl_ << " - ";  break;
                 case ArithOp_mul: func_impl_ << " * ";  break;
@@ -699,11 +699,11 @@ std::ostream& CCodeGen::emit(const Def* def) {
 
             func_impl_ << conv->unique_name() << " = ";
 
-            if (lang_==Lang::CUDA && from && (from->primtype_kind() == PrimType_pf16 || from->primtype_kind() == PrimType_qf16)) {
+            if (lang_==Lang::CUDA && from && (from->primtype_tag() == PrimType_pf16 || from->primtype_tag() == PrimType_qf16)) {
                 func_impl_ << "(";
                 emit_type(func_impl_, conv->type()) << ") __half2float(";
                 emit(conv->from()) << ");";
-            } else if (lang_==Lang::CUDA && to && (to->primtype_kind() == PrimType_pf16 || to->primtype_kind() == PrimType_qf16)) {
+            } else if (lang_==Lang::CUDA && to && (to->primtype_tag() == PrimType_pf16 || to->primtype_tag() == PrimType_qf16)) {
                 func_impl_ << "__float2half((float)";
                 emit(conv->from()) << ");";
             } else {
@@ -828,7 +828,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
         auto hp = lang_ == Lang::CUDA ? "__float2half(" : "";
         auto hs = lang_ == Lang::CUDA ? ")" : "h";
 
-        switch (primlit->primtype_kind()) {
+        switch (primlit->primtype_tag()) {
             case PrimType_bool: func_impl_ << (primlit->bool_value() ? "true" : "false");                          break;
             case PrimType_ps8:  case PrimType_qs8:  func_impl_ << (int) primlit->ps8_value();                      break;
             case PrimType_pu8:  case PrimType_qu8:  func_impl_ << (unsigned) primlit->pu8_value();                 break;

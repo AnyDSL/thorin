@@ -86,13 +86,13 @@ void CodeGen::emit_result_phi(const Param* param, llvm::Value* value) {
 
 Continuation* CodeGen::emit_atomic(Continuation* continuation) {
     assert(continuation->num_args() == 5 && "required arguments are missing");
-    // atomic kind: Xchg Add Sub And Nand Or Xor Max Min
-    u32 kind = continuation->arg(1)->as<PrimLit>()->qu32_value();
+    // atomic tag: Xchg Add Sub And Nand Or Xor Max Min
+    u32 tag = continuation->arg(1)->as<PrimLit>()->qu32_value();
     auto ptr = lookup(continuation->arg(2));
     auto val = lookup(continuation->arg(3));
     assert(is_type_i(continuation->arg(3)->type()) && "atomic only supported for integer types");
-    assert(int(llvm::AtomicRMWInst::BinOp::Xchg) <= int(kind) && int(kind) <= int(llvm::AtomicRMWInst::BinOp::UMin) && "unsupported atomic");
-    llvm::AtomicRMWInst::BinOp binop = (llvm::AtomicRMWInst::BinOp)kind;
+    assert(int(llvm::AtomicRMWInst::BinOp::Xchg) <= int(tag) && int(tag) <= int(llvm::AtomicRMWInst::BinOp::UMin) && "unsupported atomic");
+    llvm::AtomicRMWInst::BinOp binop = (llvm::AtomicRMWInst::BinOp)tag;
 
     auto cont = continuation->arg(4)->as_continuation();
     auto call = irbuilder_.CreateAtomicRMW(binop, ptr, val, llvm::AtomicOrdering::SequentiallyConsistent, llvm::SynchronizationScope::CrossThread);
@@ -513,7 +513,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         if (auto cmp = bin->isa<Cmp>()) {
             auto type = cmp->lhs()->type();
             if (is_type_s(type)) {
-                switch (cmp->cmp_kind()) {
+                switch (cmp->cmp_tag()) {
                     case Cmp_eq: return irbuilder_.CreateICmpEQ (lhs, rhs, name);
                     case Cmp_ne: return irbuilder_.CreateICmpNE (lhs, rhs, name);
                     case Cmp_gt: return irbuilder_.CreateICmpSGT(lhs, rhs, name);
@@ -522,7 +522,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
                     case Cmp_le: return irbuilder_.CreateICmpSLE(lhs, rhs, name);
                 }
             } else if (is_type_u(type) || is_type_bool(type)) {
-                switch (cmp->cmp_kind()) {
+                switch (cmp->cmp_tag()) {
                     case Cmp_eq: return irbuilder_.CreateICmpEQ (lhs, rhs, name);
                     case Cmp_ne: return irbuilder_.CreateICmpNE (lhs, rhs, name);
                     case Cmp_gt: return irbuilder_.CreateICmpUGT(lhs, rhs, name);
@@ -531,7 +531,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
                     case Cmp_le: return irbuilder_.CreateICmpULE(lhs, rhs, name);
                 }
             } else if (is_type_f(type)) {
-                switch (cmp->cmp_kind()) {
+                switch (cmp->cmp_tag()) {
                     case Cmp_eq: return irbuilder_.CreateFCmpOEQ(lhs, rhs, name);
                     case Cmp_ne: return irbuilder_.CreateFCmpUNE(lhs, rhs, name);
                     case Cmp_gt: return irbuilder_.CreateFCmpOGT(lhs, rhs, name);
@@ -540,7 +540,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
                     case Cmp_le: return irbuilder_.CreateFCmpOLE(lhs, rhs, name);
                 }
             } else if (type->isa<PtrType>()) {
-                switch (cmp->cmp_kind()) {
+                switch (cmp->cmp_tag()) {
                     case Cmp_eq: return irbuilder_.CreateICmpEQ (lhs, rhs, name);
                     case Cmp_ne: return irbuilder_.CreateICmpNE (lhs, rhs, name);
                     default: THORIN_UNREACHABLE;
@@ -553,7 +553,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
             bool q = is_type_q(arithop->type()); // quick? -> nsw/nuw/fast float
 
             if (is_type_f(type)) {
-                switch (arithop->arithop_kind()) {
+                switch (arithop->arithop_tag()) {
                     case ArithOp_add: return irbuilder_.CreateFAdd(lhs, rhs, name);
                     case ArithOp_sub: return irbuilder_.CreateFSub(lhs, rhs, name);
                     case ArithOp_mul: return irbuilder_.CreateFMul(lhs, rhs, name);
@@ -568,7 +568,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
             }
 
             if (is_type_s(type) || is_type_bool(type)) {
-                switch (arithop->arithop_kind()) {
+                switch (arithop->arithop_tag()) {
                     case ArithOp_add: return irbuilder_.CreateAdd (lhs, rhs, name, false, q);
                     case ArithOp_sub: return irbuilder_.CreateSub (lhs, rhs, name, false, q);
                     case ArithOp_mul: return irbuilder_.CreateMul (lhs, rhs, name, false, q);
@@ -582,7 +582,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
                 }
             }
             if (is_type_u(type) || is_type_bool(type)) {
-                switch (arithop->arithop_kind()) {
+                switch (arithop->arithop_tag()) {
                     case ArithOp_add: return irbuilder_.CreateAdd (lhs, rhs, name, q, false);
                     case ArithOp_sub: return irbuilder_.CreateSub (lhs, rhs, name, q, false);
                     case ArithOp_mul: return irbuilder_.CreateMul (lhs, rhs, name, q, false);
@@ -624,7 +624,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
             auto dst = dst_type->as<PrimType>();
 
             if (is_type_f(src) && is_type_f(dst)) {
-                assert(num_bits(src->primtype_kind()) != num_bits(dst->primtype_kind()));
+                assert(num_bits(src->primtype_tag()) != num_bits(dst->primtype_tag()));
                 return irbuilder_.CreateFPCast(from, to);
             }
             if (is_type_f(src)) {
@@ -638,10 +638,10 @@ llvm::Value* CodeGen::emit(const Def* def) {
                 return irbuilder_.CreateUIToFP(from, to);
             }
 
-            if (num_bits(src->primtype_kind()) > num_bits(dst->primtype_kind())) {
+            if (num_bits(src->primtype_tag()) > num_bits(dst->primtype_tag())) {
                 if (is_type_i(src) && (is_type_i(dst) || is_type_bool(dst)))
                     return irbuilder_.CreateTrunc(from, to);
-            } else if (num_bits(src->primtype_kind()) < num_bits(dst->primtype_kind())) {
+            } else if (num_bits(src->primtype_tag()) < num_bits(dst->primtype_tag())) {
                 if ( is_type_s(src)                       && is_type_i(dst)) return irbuilder_.CreateSExt(from, to);
                 if ((is_type_u(src) || is_type_bool(src)) && is_type_i(dst)) return irbuilder_.CreateZExt(from, to);
             }
@@ -761,7 +761,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         llvm::Type* llvm_type = convert(primlit->type());
         Box box = primlit->value();
 
-        switch (primlit->primtype_kind()) {
+        switch (primlit->primtype_tag()) {
             case PrimType_bool:                     return irbuilder_. getInt1(box.get_bool());
             case PrimType_ps8:  case PrimType_qs8:  return irbuilder_. getInt8(box. get_s8());
             case PrimType_pu8:  case PrimType_qu8:  return irbuilder_. getInt8(box. get_u8());
@@ -909,7 +909,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
 
     assert(!type->isa<MemType>());
     llvm::Type* llvm_type;
-    switch (type->kind()) {
+    switch (type->tag()) {
         case PrimType_bool:                                                             llvm_type = irbuilder_. getInt1Ty();  break;
         case PrimType_ps8:  case PrimType_qs8:  case PrimType_pu8:  case PrimType_qu8:  llvm_type = irbuilder_. getInt8Ty();  break;
         case PrimType_ps16: case PrimType_qs16: case PrimType_pu16: case PrimType_qu16: llvm_type = irbuilder_.getInt16Ty();  break;

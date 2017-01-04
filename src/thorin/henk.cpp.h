@@ -29,16 +29,16 @@ const Type* Type::op(size_t i) const { return i < num_ops() ? ops()[i] : HENK_TA
 
 uint64_t Type::vhash() const {
     if (is_nominal())
-        return thorin::hash_combine(thorin::hash_begin(uint8_t(kind())), ~uint16_t(gid()));
+        return thorin::hash_combine(thorin::hash_begin(uint8_t(tag())), ~uint16_t(gid()));
 
-    uint64_t seed = thorin::hash_begin(uint8_t(kind()));
+    uint64_t seed = thorin::hash_begin(uint8_t(tag()));
     for (auto op : ops_)
         seed = thorin::hash_combine(seed, uint16_t(op->gid()));
     return seed;
 }
 
 uint64_t Var::vhash() const {
-    return thorin::hash_combine(thorin::hash_begin(uint8_t(kind())), uint8_t(depth()));
+    return thorin::hash_combine(thorin::hash_begin(uint8_t(tag())), uint8_t(depth()));
 }
 
 //------------------------------------------------------------------------------
@@ -51,7 +51,7 @@ bool Type::equal(const Type* other) const {
     if (is_nominal())
         return this == other;
 
-    bool result = this->kind() == other->kind() && this->num_ops() == other->num_ops()
+    bool result = this->tag() == other->tag() && this->num_ops() == other->num_ops()
         && this->is_monomorphic() == other->is_monomorphic();
 
     if (result) {

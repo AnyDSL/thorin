@@ -9,7 +9,7 @@ namespace thorin {
 
 Value Value::create_val(IRBuilder& builder, const Def* val) {
     Value result;
-    result.kind_    = ImmutableValRef;
+    result.tag_     = ImmutableValRef;
     result.builder_ = &builder;
     result.def_     = val;
     return result;
@@ -17,7 +17,7 @@ Value Value::create_val(IRBuilder& builder, const Def* val) {
 
 Value Value::create_mut(IRBuilder& builder, size_t handle, const Type* type, const char* name) {
     Value result;
-    result.kind_    = MutableValRef;
+    result.tag_     = MutableValRef;
     result.builder_ = &builder;
     result.handle_  = handle;
     result.type_    = type;
@@ -27,18 +27,18 @@ Value Value::create_mut(IRBuilder& builder, size_t handle, const Type* type, con
 
 Value Value::create_ptr(IRBuilder& builder, const Def* ptr) {
     Value result;
-    result.kind_    = PtrRef;
+    result.tag_     = PtrRef;
     result.builder_ = &builder;
     result.def_     = ptr;
     return result;
 }
 
 Value Value::create_agg(Value value, const Def* offset) {
-    assert(value.kind() != Empty);
+    assert(value.tag() != Empty);
     if (value.use_lea())
         return create_ptr(*value.builder_, value.builder_->world().lea(value.def_, offset, offset->debug()));
     Value result;
-    result.kind_    = AggRef;
+    result.tag_    = AggRef;
     result.builder_ = value.builder_;
     result.value_.reset(new Value(value));
     result.def_     = offset;
@@ -46,13 +46,13 @@ Value Value::create_agg(Value value, const Def* offset) {
 }
 
 bool Value::use_lea() const {
-    if (kind() == PtrRef)
+    if (tag() == PtrRef)
         return thorin::use_lea(def()->type()->as<PtrType>()->referenced_type());
     return false;
 }
 
 const Def* Value::load(Debug dbg) const {
-    switch (kind()) {
+    switch (tag()) {
         case ImmutableValRef: return def_;
         case MutableValRef:   return builder_->cur_bb->get_value(handle_,type_, name_);
         case PtrRef:          return builder_->load(def_, dbg);
@@ -62,7 +62,7 @@ const Def* Value::load(Debug dbg) const {
 }
 
 void Value::store(const Def* val, Debug dbg) const {
-    switch (kind()) {
+    switch (tag()) {
         case MutableValRef: builder_->cur_bb->set_value(handle_, val); return;
         case PtrRef:        builder_->store(def_, val, dbg); return;
         case AggRef:        value_->store(world().insert(value_->load(dbg), def_, val, dbg), dbg); return;

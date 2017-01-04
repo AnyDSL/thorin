@@ -21,8 +21,8 @@ extern uint16_t g_hash_gid_counter;
 
 /// Magic numbers from http://www.isthe.com/chongo/tech/comp/fnv/index.html#FNV-param .
 struct FNV1 {
-    static const uint64_t offset = 14695981039346656037ull;
-    static const uint64_t prime  = 1099511628211ull;
+    static const uint64_t offset = UINT64_C(14695981039346656037);
+    static const uint64_t prime  = UINT64_C(1099511628211);
 };
 
 /// Returns a new hash by combining the hash @p seed with @p val.

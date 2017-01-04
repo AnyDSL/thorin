@@ -107,17 +107,18 @@ private:
 //@{ bit fiddling
 
 /// Determines whether @p i is a power of two.
-constexpr size_t is_power_of_2(size_t i) { return ((i != 0) && !(i & (i - 1))); }
+constexpr uint64_t is_power_of_2(uint64_t i) { return ((i != 0) && !(i & (i - 1))); }
 
-constexpr unsigned log2(unsigned n, unsigned p = 0) { return (n <= 1) ? p : log2(n / 2, p + 1); }
+constexpr uint64_t log2(uint64_t n, uint64_t p = 0) { return (n <= UINT64_C(1)) ? p : log2(n / UINT64_C(2), p + UINT64_C(1)); }
 
-constexpr uint32_t round_to_power_of_2(uint32_t i) {
+constexpr uint64_t round_to_power_of_2(uint64_t i) {
     i--;
-    i |= i >> 1;
-    i |= i >> 2;
-    i |= i >> 4;
-    i |= i >> 8;
-    i |= i >> 16;
+    i |= i >> UINT64_C( 1);
+    i |= i >> UINT64_C( 2);
+    i |= i >> UINT64_C( 4);
+    i |= i >> UINT64_C( 8);
+    i |= i >> UINT64_C(16);
+    i |= i >> UINT64_C(32);
     i++;
     return i;
 }
@@ -129,12 +130,12 @@ inline size_t bitcount(uint64_t v) {
     return __popcnt64(v);
 #else
     // see https://stackoverflow.com/questions/3815165/how-to-implement-bitcount-using-only-bitwise-operators
-    auto c = v - ((v >>  1ull)      & 0x5555555555555555ull);
-    c =          ((c >>  2ull)      & 0x3333333333333333ull) + (c & 0x3333333333333333ull);
-    c =          ((c >>  4ull) + c) & 0x0F0F0F0F0F0F0F0Full;
-    c =          ((c >>  8ull) + c) & 0x00FF00FF00FF00FFull;
-    c =          ((c >> 16ull) + c) & 0x0000FFFF0000FFFFull;
-    return       ((c >> 32ull) + c) & 0x00000000FFFFFFFFull;
+    auto c = v - ((v >> UINT64_C( 1))      & UINT64_C(0x5555555555555555));
+    c =          ((c >> UINT64_C( 2))      & UINT64_C(0x3333333333333333)) + (c & 0xUINT64_C(3333333333333333));
+    c =          ((c >> UINT64_C( 4)) + c) & UINT64_C(0x0F0F0F0F0F0F0F0F);
+    c =          ((c >> UINT64_C( 8)) + c) & UINT64_C(0x00FF00FF00FF00FF);
+    c =          ((c >> UINT64_C(16)) + c) & UINT64_C(0x0000FFFF0000FFFF);
+    return       ((c >> UINT64_C(32)) + c) & UINT64_C(0x00000000FFFFFFFF);
 #endif
 }
 

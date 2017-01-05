@@ -68,6 +68,8 @@ struct Hash<T*> {
 
 //------------------------------------------------------------------------------
 
+namespace detail {
+
 /// Used internally for @p HashSet and @p HashMap.
 template<class Key, class T, class H = Hash<Key>>
 class HashTable {
@@ -453,6 +455,8 @@ private:
 #endif
 };
 
+}
+
 //------------------------------------------------------------------------------
 
 /**
@@ -460,9 +464,9 @@ private:
  * We use our own implementation in order to have a consistent and deterministic behavior across different platforms.
  */
 template<class Key, class H = Hash<Key>>
-class HashSet : public HashTable<Key, void, H> {
+class HashSet : public detail::HashTable<Key, void, H> {
 public:
-    typedef HashTable<Key, void, H> Super;
+    typedef detail::HashTable<Key, void, H> Super;
     typedef typename Super::key_type key_type;
     typedef typename Super::mapped_type mapped_type;
     typedef typename Super::value_type value_type;
@@ -491,9 +495,9 @@ public:
  * We use our own implementation in order to have a consistent and deterministic behavior across different platforms.
  */
 template<class Key, class T, class H = Hash<Key>>
-class HashMap : public HashTable<Key, T, H> {
+class HashMap : public detail::HashTable<Key, T, H> {
 public:
-    typedef HashTable<Key, T, H> Super;
+    typedef detail::HashTable<Key, T, H> Super;
     typedef typename Super::key_type key_type;
     typedef typename Super::mapped_type mapped_type;
     typedef typename Super::value_type value_type;

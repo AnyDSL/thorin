@@ -205,20 +205,22 @@ public:
 #endif
     }
 
-    // iterators
+    //@{ getters
+    size_t capacity() const { return capacity_; }
+    size_t size() const { return size_; }
+    bool empty() const { return size() == 0; }
+    //@}
+
+    //@{ get begin/end iterators
     iterator begin() { return iterator::skip(nodes_, this); }
     iterator end() { return iterator(end_ptr(), this); }
     const_iterator begin() const { return const_iterator(const_cast<HashTable*>(this)->begin()); }
     const_iterator end() const { return const_iterator(const_cast<HashTable*>(this)->end()); }
     const_iterator cbegin() const { return begin(); }
     const_iterator cend() const { return end(); }
+    //@}
 
-    // getters
-    size_t capacity() const { return capacity_; }
-    size_t size() const { return size_; }
-    bool empty() const { return size() == 0; }
-
-    // emplace/insert
+    //@{ emplace/insert
     template<class... Args>
     std::pair<iterator,bool> emplace(Args&&... args) {
         if (size_ > capacity_/size_t(4) + capacity_/size_t(2))
@@ -227,7 +229,6 @@ public:
         return emplace_no_rehash(std::forward<Args>(args)...);
     }
 
-    // emplace/insert
     template<class... Args>
     std::pair<iterator,bool> emplace_no_rehash(Args&&... args) {
         using std::swap;
@@ -284,7 +285,9 @@ public:
             changed |= emplace_no_rehash(*i).second;
         return changed;
     }
+    //@}
 
+    //@{ erase
     void erase(const_iterator pos) {
         using std::swap;
 
@@ -326,19 +329,9 @@ public:
         erase(i);
         return 1;
     }
+    //@}
 
-    void clear() {
-        size_ = 0;
-
-        if (on_heap()) {
-            delete[] nodes_;
-            nodes_ = array_.data();
-            capacity_ = StackCapacity;
-        }
-
-        fill(nodes_);
-    }
-
+    //@{ find
     iterator find(const key_type& k) {
 #ifndef NDEBUG
         ++num_operations_;
@@ -351,14 +344,24 @@ public:
                 return end();
             if (H::eq(key(nodes_+i), k))
                 return iterator(nodes_+i, this);
-#ifndef NDEBUG
-            ++num_misses_;
-#endif
         }
     }
 
     const_iterator find(const key_type& key) const {
         return const_iterator(const_cast<HashTable*>(this)->find(key).ptr_, this);
+    }
+    //@}
+
+    void clear() {
+        size_ = 0;
+
+        if (on_heap()) {
+            delete[] nodes_;
+            nodes_ = array_.data();
+            capacity_ = StackCapacity;
+        }
+
+        fill(nodes_);
     }
 
     size_t count(const key_type& key) const { return find(key) == end() ? 0 : 1; }

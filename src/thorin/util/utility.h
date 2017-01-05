@@ -114,16 +114,16 @@ static_assert(sizeof(TaggedPtr<void*,int>) == 8, "a tagged ptr on x86_64 is supp
 /// Determines whether @p i is a power of two.
 constexpr uint64_t is_power_of_2(uint64_t i) { return ((i != 0) && !(i & (i - 1))); }
 
-constexpr uint64_t log2(uint64_t n, uint64_t p = 0) { return (n <= UINT64_C(1)) ? p : log2(n / UINT64_C(2), p + UINT64_C(1)); }
+constexpr uint64_t log2(uint64_t n, uint64_t p = 0) { return (n <= uint64_t(1)) ? p : log2(n / uint64_t(2), p + uint64_t(1)); }
 
 constexpr uint64_t round_to_power_of_2(uint64_t i) {
     i--;
-    i |= i >> UINT64_C( 1);
-    i |= i >> UINT64_C( 2);
-    i |= i >> UINT64_C( 4);
-    i |= i >> UINT64_C( 8);
-    i |= i >> UINT64_C(16);
-    i |= i >> UINT64_C(32);
+    i |= i >> uint64_t( 1);
+    i |= i >> uint64_t( 2);
+    i |= i >> uint64_t( 4);
+    i |= i >> uint64_t( 8);
+    i |= i >> uint64_t(16);
+    i |= i >> uint64_t(32);
     i++;
     return i;
 }
@@ -135,12 +135,12 @@ inline size_t bitcount(uint64_t v) {
     return __popcnt64(v);
 #else
     // see https://stackoverflow.com/questions/3815165/how-to-implement-bitcount-using-only-bitwise-operators
-    auto c = v - ((v >> UINT64_C( 1))      & UINT64_C(0x5555555555555555));
-    c =          ((c >> UINT64_C( 2))      & UINT64_C(0x3333333333333333)) + (c & 0xUINT64_C(3333333333333333));
-    c =          ((c >> UINT64_C( 4)) + c) & UINT64_C(0x0F0F0F0F0F0F0F0F);
-    c =          ((c >> UINT64_C( 8)) + c) & UINT64_C(0x00FF00FF00FF00FF);
-    c =          ((c >> UINT64_C(16)) + c) & UINT64_C(0x0000FFFF0000FFFF);
-    return       ((c >> UINT64_C(32)) + c) & UINT64_C(0x00000000FFFFFFFF);
+    auto c = v - ((v >> uint64_t( 1))      & uint64_t(0x5555555555555555));
+    c =          ((c >> uint64_t( 2))      & uint64_t(0x3333333333333333)) + (c & uint64_t(0x3333333333333333));
+    c =          ((c >> uint64_t( 4)) + c) & uint64_t(0x0F0F0F0F0F0F0F0F);
+    c =          ((c >> uint64_t( 8)) + c) & uint64_t(0x00FF00FF00FF00FF);
+    c =          ((c >> uint64_t(16)) + c) & uint64_t(0x0000FFFF0000FFFF);
+    return       ((c >> uint64_t(32)) + c) & uint64_t(0x00000000FFFFFFFF);
 #endif
 }
 

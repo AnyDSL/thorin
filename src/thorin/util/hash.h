@@ -10,6 +10,7 @@
 #include <iostream>
 #include <type_traits>
 
+#include "thorin/util/log.h"
 #include "thorin/util/utility.h"
 
 namespace thorin {
@@ -200,9 +201,6 @@ public:
     ~HashTable() {
         if (on_heap())
             delete[] nodes_;
-#ifndef NDEBUG
-        //assert(num_misses_ <= num_operations_ * 10 && "your hash function is garbage");
-#endif
     }
 
     //@{ getters
@@ -234,7 +232,6 @@ public:
         using std::swap;
 #ifndef NDEBUG
         ++id_;
-        ++num_operations_;
 #endif
         auto n = value_type(std::forward<Args>(args)...);
         auto& k = key(&n);
@@ -245,13 +242,15 @@ public:
                 ++size_;
                 swap(nodes_[i], n);
                 result = result == end_ptr() ? nodes_+i : result;
+#ifdef THORIN_DEBUG_HASH
+                auto dib = probe_distance(i);
+                if (dib > std::max(4, log2(capacity())))
+                    WLOG("you are using a poor hash function - distance to initial bucket/capacity: %/%", dib, capacity());
+#endif
                 return std::make_pair(iterator(result, this), true);
             } else if (result == end_ptr() && H::eq(key(nodes_+i), k)) {
                 return std::make_pair(iterator(nodes_+i, this), false);
             } else {
-#ifndef NDEBUG
-                ++num_misses_;
-#endif
                 size_t cur_distance = probe_distance(i);
                 if (cur_distance < distance) {
                     result = result == end_ptr() ? nodes_+i : result;
@@ -306,14 +305,10 @@ public:
             for (size_t curr = pos.ptr_-nodes_, next = mod(curr+1);
                 !is_invalid(next) && probe_distance(next) != 0; curr = next, next = mod(next+1)) {
                 swap(nodes_[curr], nodes_[next]);
-#ifndef NDEBUG
-                ++num_misses_;
-#endif
             }
         }
 #ifndef NDEBUG
         ++id_;
-        ++num_operations_;
 #endif
     }
 
@@ -333,9 +328,6 @@ public:
 
     //@{ find
     iterator find(const key_type& k) {
-#ifndef NDEBUG
-        ++num_operations_;
-#endif
         if (empty())
             return end();
 
@@ -380,17 +372,11 @@ public:
         for (size_t i = 0; i != old_capacity; ++i) {
             auto& old = old_nodes[i];
             if (!is_invalid(&old)) {
-#ifndef NDEBUG
-                ++num_operations_;
-#endif
                 for (size_t i = desired_pos(key(&old)), distance = 0; true; i = mod(i+1), ++distance) {
                     if (is_invalid(i)) {
                         swap(nodes_[i], old);
                         break;
                     } else {
-#ifndef NDEBUG
-                        ++num_misses_;
-#endif
                         size_t cur_distance = probe_distance(i);
                         if (cur_distance < distance) {
                             distance = cur_distance;
@@ -463,8 +449,6 @@ private:
     std::array<value_type, StackCapacity> array_;
     value_type* nodes_;
 #ifndef NDEBUG
-    int num_operations_ = 0;
-    int num_misses_ = 0;
     int id_;
 #endif
 };

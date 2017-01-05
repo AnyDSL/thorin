@@ -97,12 +97,17 @@ public:
 
 private:
 #if defined(__x86_64__) || (_M_X64)
-    int64_t ptr_ : 48; // sign extend to make pointer canonical
+    int64_t ptr_   : 48; // sign extend to make pointer canonical
+    I       index_ : 16;
 #else
     T* ptr_;
-#endif
     I index_;
+#endif
 };
+
+#if defined(__x86_64__) || (_M_X64)
+static_assert(sizeof(TaggedPtr<void*,int>) == 8, "a tagged ptr on x86_64 is supposed to be 8 bytes big");
+#endif
 
 //@{ bit fiddling
 

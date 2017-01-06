@@ -15,9 +15,6 @@
 
 namespace thorin {
 
-// HACK
-extern uint16_t g_hash_gid_counter;
-
 //------------------------------------------------------------------------------
 
 /// Magic numbers from http://www.isthe.com/chongo/tech/comp/fnv/index.html#FNV-param .
@@ -70,9 +67,23 @@ struct Hash<T*> {
 
 namespace detail {
 
+class HashTableBase {
+protected:
+    HashTableBase()
+        : gid_(gid_counter_++)
+    {}
+
+public:
+    uint16_t gid() const { return gid_; }
+
+private:
+    static uint16_t gid_counter_;
+    uint16_t gid_;
+};
+
 /// Used internally for @p HashSet and @p HashMap.
 template<class Key, class T, class H = Hash<Key>>
-class HashTable {
+class HashTable : public HashTableBase {
 public:
     typedef Key key_type;
     typedef typename std::conditional<std::is_void<T>::value, Key, T>::type mapped_type;
@@ -155,7 +166,6 @@ public:
     HashTable()
         : capacity_(StackCapacity)
         , size_(0)
-        , gid_(g_hash_gid_counter++)
         , nodes_(array_.data())
 #ifndef NDEBUG
         , id_(0)
@@ -173,7 +183,6 @@ public:
     HashTable(const HashTable& other)
         : capacity_(other.capacity_)
         , size_(other.size_)
-        , gid_(g_hash_gid_counter++)
 #ifndef NDEBUG
         , id_(0)
 #endif
@@ -396,6 +405,8 @@ public:
     friend void swap(HashTable& t1, HashTable& t2) {
         using std::swap;
 
+        swap(static_cast<HashTableBase&>(t1), static_cast<HashTableBase&>(t2));
+
         if (t1.on_heap()) {
             if (t2.on_heap())
                 swap(t1.nodes_, t2.nodes_);
@@ -415,7 +426,6 @@ public:
 
         swap(t1.capacity_, t2.capacity_);
         swap(t1.size_,     t2.size_);
-        swap(t1.gid_,      t2.gid_);
 #ifndef NDEBUG
         swap(t1.id_,       t2.id_);
 #endif
@@ -428,7 +438,7 @@ private:
     int id() const { return id_; }
 #endif
     size_t mod(size_t i) const { return i & (capacity_-1); }
-    size_t desired_pos(const key_type& key) const { return mod(hash_combine(H::hash(key), gid_)); }
+    size_t desired_pos(const key_type& key) const { return mod(hash_combine(H::hash(key), gid())); }
     size_t probe_distance(size_t i) { return mod(i + capacity() - desired_pos(key(nodes_+i))); }
     value_type* end_ptr() const { return nodes_ + capacity(); }
     bool on_heap() const { return capacity_ != StackCapacity; }
@@ -447,7 +457,6 @@ private:
 
     uint32_t capacity_;
     uint32_t size_;
-    uint16_t gid_;
     std::array<value_type, StackCapacity> array_;
     value_type* nodes_;
 #ifndef NDEBUG

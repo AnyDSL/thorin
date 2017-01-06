@@ -6,7 +6,8 @@
 #include <llvm/Transforms/Scalar.h>
 
 #include <rv/rv.h>
-#include <rv/transforms/loopExitCanonicalizer.h>
+#include <rv/sleefLibrary.h>
+#include <rv/transform/loopExitCanonicalizer.h>
 #include <rv/analysis/maskAnalysis.h>
 
 #include "thorin/primop.h"
@@ -91,9 +92,9 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
 
     rv::VectorShape res = rv::VectorShape::uni();
     rv::VectorShapeVec args;
-    args.push_back(rv::VectorShape::strided(1, vector_length));
+    args.push_back(rv::VectorShape::cont(vector_length));
     for (auto it = std::next(loop_counter_arg), end = kernel_func->getArgumentList().end(); it != end; ++it) {
-        args.push_back(rv::VectorShape::uni());
+        args.push_back(rv::VectorShape::uni(vector_length));
     }
 
     rv::VectorMapping target_mapping(kernel_func, simd_kernel_func, vector_length, -1, res, args);
@@ -101,13 +102,16 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
 
     rv::VectorizerInterface vectorizer(*rv_info, kernel_func);
 
+    llvm::TargetIRAnalysis ir_analysis;
+    llvm::TargetTransformInfo tti = ir_analysis.run(*kernel_func);
+    llvm::TargetLibraryAnalysis lib_analysis;
+    llvm::TargetLibraryInfo tli = lib_analysis.run(*kernel_func->getParent());
+    rv::PlatformInfo platform_info(&tti, &tli);
     // TODO: use parameters from command line
-    const bool useSSE   = false;
-    const bool useSSE41 = false;
-    const bool useSSE42 = false;
-    const bool useNEON  = false;
-    const bool useAVX   = true;
-    rv_info->addCommonMappings(useSSE, useSSE41, useSSE42, useAVX, useNEON);
+    const bool useSSE = false;
+    const bool useAVX = true;
+    const bool useAVX2 = false;
+    rv::addSleefMappings(useSSE, useAVX, useAVX2, platform_info);
 
     llvm::DominatorTree dom_tree(*kernel_func);
     llvm::PostDominatorTree pdom_tree;
@@ -135,7 +139,7 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
     assert_unused(linearize_ok);
 
     const llvm::DominatorTree new_dom_tree(*vec_info.getMapping().scalarFn); // Control conversion does not preserve the dominance tree
-    bool vectorize_ok = vectorizer.vectorize(vec_info, new_dom_tree);
+    bool vectorize_ok = vectorizer.vectorize(platform_info, vec_info, new_dom_tree);
     assert_unused(vectorize_ok);
 
     vectorizer.finalize();

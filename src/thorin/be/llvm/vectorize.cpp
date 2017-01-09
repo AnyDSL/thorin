@@ -107,7 +107,7 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
     const bool useSSE42 = false;
     const bool useNEON  = false;
     const bool useAVX   = true;
-    rv_info->addCommonMappings(useSSE, useSSE41, useSSE42, useAVX, useNEON);
+    // rv_info->addCommonMappings(useSSE, useSSE41, useSSE42, useAVX, useNEON); // FIXME use sleef instead
 
     llvm::DominatorTree dom_tree(*kernel_func);
     llvm::PostDominatorTree pdom_tree;
@@ -131,15 +131,20 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
     bool mask_ok = vectorizer.generateMasks(vec_info, *mask_analysis, loop_info);
     assert_unused(mask_ok);
 
+    TargetIRAnalysis irAnalysis;
+    TargetTransformInfo tti = irAnalysis.run(*kernel_func);
+    TargetLibraryAnalysis libAnalysis;
+    TargetLibraryInfo tli = libAnalysis.run(*kernel_func->getParent());
+    rv::PlatformInfo platInfo(&tti, &tli);
+
     bool linearize_ok = vectorizer.linearizeCFG(vec_info, *mask_analysis, loop_info, pdom_tree, dom_tree);
     assert_unused(linearize_ok);
 
-    const llvm::DominatorTree new_dom_tree(*vec_info.getMapping().scalarFn); // Control conversion does not preserve the dominance tree
-    bool vectorize_ok = vectorizer.vectorize(vec_info, new_dom_tree);
+    llvm::DominatorTree new_dom_tree(*vec_info.getMapping().scalarFn); // Control conversion does not preserve the dominance tree
+    bool vectorize_ok = vectorizer.vectorize(platInfo, vec_info, new_dom_tree);
     assert_unused(vectorize_ok);
 
     vectorizer.finalize();
-
     delete mask_analysis;
 
     // inline kernel

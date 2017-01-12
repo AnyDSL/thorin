@@ -68,9 +68,9 @@ public:
     }
     const MemType* mem_type() const { return mem_; }
     const FrameType* frame_type() const { return frame_; }
-    const PtrType* ptr_type(const Type* referenced_type,
+    const PtrType* ptr_type(const Type* pointee,
                             size_t length = 1, int32_t device = -1, AddrSpace addr_space = AddrSpace::Generic) {
-        return unify(new PtrType(*this, referenced_type, length, device, addr_space));
+        return unify(new PtrType(*this, pointee, length, device, addr_space));
     }
     const FnType* fn_type() { return fn0_; } ///< Returns an empty @p FnType.
     const FnType* fn_type(Types args) { return unify(new FnType(*this, args)); }

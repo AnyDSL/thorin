@@ -380,8 +380,8 @@ public:
     const Def* ptr() const { return op(0); }
     const Def* index() const { return op(1); }
     const PtrType* type() const { return PrimOp::type()->as<PtrType>(); }
-    const PtrType* ptr_type() const { return ptr()->type()->as<PtrType>(); }           ///< Returns the PtrType from @p ptr().
-    const Type* ptr_referenced_type() const { return ptr_type()->referenced_type(); }  ///< Returns the type referenced by @p ptr().
+    const PtrType* ptr_type() const { return ptr()->type()->as<PtrType>(); } ///< Returns the PtrType from @p ptr().
+    const Type* ptr_pointee() const { return ptr_type()->pointee(); }        ///< Returns the type referenced by @p ptr().
 
     friend class World;
 };
@@ -434,7 +434,7 @@ private:
 public:
     const Def* frame() const { return op(0); }
     const PtrType* type() const { return PrimOp::type()->as<PtrType>(); }
-    const Type* alloced_type() const { return type()->referenced_type(); }
+    const Type* alloced_type() const { return type()->pointee(); }
 
 private:
     virtual uint64_t vhash() const override;
@@ -456,7 +456,7 @@ public:
     const Def* init() const { return op(0); }
     bool is_mutable() const { return is_mutable_; }
     const PtrType* type() const { return PrimOp::type()->as<PtrType>(); }
-    const Type* alloced_type() const { return type()->referenced_type(); }
+    const Type* alloced_type() const { return type()->pointee(); }
     virtual const char* op_name() const override;
 
     std::ostream& stream(std::ostream&) const override;
@@ -501,7 +501,7 @@ public:
     const Def* out_ptr() const { return out(1); }
     const TupleType* type() const { return MemOp::type()->as<TupleType>(); }
     const PtrType* out_ptr_type() const { return type()->op(1)->as<PtrType>(); }
-    const Type* alloced_type() const { return out_ptr_type()->referenced_type(); }
+    const Type* alloced_type() const { return out_ptr_type()->pointee(); }
     static const Alloc* is_out_mem(const Def* def) { return is_out<0, Alloc>(def); }
     static const Alloc* is_out_ptr(const Def* def) { return is_out<1, Alloc>(def); }
 

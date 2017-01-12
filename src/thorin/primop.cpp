@@ -56,7 +56,7 @@ Vector::Vector(World& world, Defs args, Debug dbg)
     } else {
         auto ptr = args.front()->type()->as<PtrType>();
         assert(ptr->length() == 1);
-        set_type(world.ptr_type(ptr->referenced_type(), args.size()));
+        set_type(world.ptr_type(ptr->pointee(), args.size()));
     }
 }
 
@@ -65,11 +65,11 @@ LEA::LEA(const Def* ptr, const Def* index, Debug dbg)
 {
     auto& world = index->world();
     auto type = ptr_type();
-    if (auto tuple = ptr_referenced_type()->isa<TupleType>()) {
+    if (auto tuple = ptr_pointee()->isa<TupleType>()) {
         set_type(world.ptr_type(get(tuple->ops(), index), type->length(), type->device(), type->addr_space()));
-    } else if (auto array = ptr_referenced_type()->isa<ArrayType>()) {
+    } else if (auto array = ptr_pointee()->isa<ArrayType>()) {
         set_type(world.ptr_type(array->elem_type(), type->length(), type->device(), type->addr_space()));
-    } else if (auto struct_type = ptr_referenced_type()->isa<StructType>()) {
+    } else if (auto struct_type = ptr_pointee()->isa<StructType>()) {
         set_type(world.ptr_type(get(struct_type->ops(), index)));
     } else {
         THORIN_UNREACHABLE;
@@ -104,7 +104,7 @@ Load::Load(const Def* mem, const Def* ptr, Debug dbg)
     : Access(Node_Load, nullptr, {mem, ptr}, dbg)
 {
     World& w = mem->world();
-    set_type(w.tuple_type({w.mem_type(), ptr->type()->as<PtrType>()->referenced_type()}));
+    set_type(w.tuple_type({w.mem_type(), ptr->type()->as<PtrType>()->pointee()}));
 }
 
 Enter::Enter(const Def* mem, Debug dbg)
@@ -192,13 +192,13 @@ const Def* PrimLit::vrebuild(World& to, Defs,     const Type*  ) const { return 
 const Def* Run    ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.run(ops[0], ops[1], debug()); }
 const Def* Select ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.select(ops[0], ops[1], ops[2], debug()); }
 const Def* SizeOf ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.size_of(ops[0]->type(), debug()); }
-const Def* Slot   ::vrebuild(World& to, Defs ops, const Type* t) const { return to.slot(t->as<PtrType>()->referenced_type(), ops[0], debug()); }
+const Def* Slot   ::vrebuild(World& to, Defs ops, const Type* t) const { return to.slot(t->as<PtrType>()->pointee(), ops[0], debug()); }
 const Def* Store  ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.store(ops[0], ops[1], ops[2], debug()); }
 const Def* Tuple  ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.tuple(ops, debug()); }
 const Def* Vector ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.vector(ops, debug()); }
 
 const Def* Alloc::vrebuild(World& to, Defs ops, const Type* t) const {
-    return to.alloc(t->as<TupleType>()->op(1)->as<PtrType>()->referenced_type(), ops[0], ops[1], debug());
+    return to.alloc(t->as<TupleType>()->op(1)->as<PtrType>()->pointee(), ops[0], ops[1], debug());
 }
 
 const Def* Assembly::vrebuild(World& to, Defs ops, const Type* t) const {

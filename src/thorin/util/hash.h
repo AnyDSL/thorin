@@ -189,7 +189,7 @@ public:
     {
         if (other.on_heap()) {
             nodes_ = alloc();
-            std::copy(other.nodes_, other.nodes_+capacity_, nodes_);
+            std::copy_n(other.nodes_, capacity_, nodes_);
         } else {
             nodes_ = array_.data();
             array_ = other.array_;

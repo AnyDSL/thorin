@@ -129,7 +129,7 @@ Continuation* CodeGen::emit_reserve_shared(const Continuation* continuation, boo
     auto cont = continuation->arg(2)->as_continuation();
     auto type = convert(cont->param(1)->type());
     // construct array type
-    auto elem_type = cont->param(1)->type()->as<PtrType>()->referenced_type()->as<ArrayType>()->elem_type();
+    auto elem_type = cont->param(1)->type()->as<PtrType>()->pointee()->as<ArrayType>()->elem_type();
     auto smem_type = this->convert(continuation->world().definite_array_type(elem_type, num_elems));
     auto global = emit_global_variable(smem_type, (prefix ? entry_->name() + "." : "") + continuation->unique_name(), 3);
     auto call = irbuilder_.CreatePointerCast(global, type);
@@ -810,7 +810,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
     if (def->isa<Enter>())                      return nullptr;
 
     if (auto slot = def->isa<Slot>())
-        return irbuilder_.CreateAlloca(convert(slot->type()->as<PtrType>()->referenced_type()), 0, slot->unique_name());
+        return irbuilder_.CreateAlloca(convert(slot->type()->as<PtrType>()->pointee()), 0, slot->unique_name());
 
     if (auto vector = def->isa<Vector>()) {
         llvm::Value* vec = llvm::UndefValue::get(convert(vector->type()));
@@ -848,10 +848,10 @@ llvm::Value* CodeGen::emit_store(const Store* store) {
 }
 
 llvm::Value* CodeGen::emit_lea(const LEA* lea) {
-    if (lea->ptr_referenced_type()->isa<TupleType>() || lea->ptr_referenced_type()->isa<StructType>())
-        return irbuilder_.CreateStructGEP(convert(lea->ptr_referenced_type()), lookup(lea->ptr()), primlit_value<u32>(lea->index()));
+    if (lea->ptr_pointee()->isa<TupleType>() || lea->ptr_pointee()->isa<StructType>())
+        return irbuilder_.CreateStructGEP(convert(lea->ptr_pointee()), lookup(lea->ptr()), primlit_value<u32>(lea->index()));
 
-    assert(lea->ptr_referenced_type()->isa<ArrayType>());
+    assert(lea->ptr_pointee()->isa<ArrayType>());
     llvm::Value* args[2] = { irbuilder_.getInt64(0), lookup(lea->index()) };
     return irbuilder_.CreateInBoundsGEP(lookup(lea->ptr()), args);
 }
@@ -929,7 +929,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
                 case AddrSpace::Constant: addr_space = 4; break;
                 default:                  THORIN_UNREACHABLE;
             }
-            llvm_type = llvm::PointerType::get(convert(ptr->referenced_type()), addr_space);
+            llvm_type = llvm::PointerType::get(convert(ptr->pointee()), addr_space);
             break;
         }
         case Node_IndefiniteArrayType: {

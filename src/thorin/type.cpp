@@ -22,7 +22,7 @@ namespace thorin {
 
 const VectorType* VectorType::scalarize() const {
     if (auto ptr = isa<PtrType>())
-        return world().ptr_type(ptr->referenced_type());
+        return world().ptr_type(ptr->pointee());
     return world().type(as<PrimType>()->primtype_tag());
 }
 
@@ -118,7 +118,7 @@ std::ostream& TypeError          ::stream(std::ostream& os) const { return os <<
 std::ostream& PtrType::stream(std::ostream& os) const {
     if (is_vector())
         os << '<' << length() << " x ";
-    os << referenced_type() << '*';
+    os << pointee() << '*';
     if (is_vector())
         os << '>';
     if (device() != -1)
@@ -172,7 +172,7 @@ const Type* IndefiniteArrayType::vreduce(int depth, const Type* type, Type2Type&
 }
 
 const Type* PtrType::vreduce(int depth, const Type* type, Type2Type& map) const {
-    return world().ptr_type(referenced_type()->reduce(depth, type, map), length(), device(), addr_space());
+    return world().ptr_type(pointee()->reduce(depth, type, map), length(), device(), addr_space());
 }
 
 //------------------------------------------------------------------------------

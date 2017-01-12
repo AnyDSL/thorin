@@ -71,7 +71,7 @@ void mem2reg(const Scope& scope) {
                 } else if (auto load = primop->isa<Load>()) {
                     if (auto slot = load->ptr()->isa<Slot>()) {
                         if (!is_address_taken(slot)) {
-                            auto type = slot->type()->as<PtrType>()->referenced_type();
+                            auto type = slot->type()->as<PtrType>()->pointee();
                             auto out_val = load->out_val();
                             auto out_mem = load->out_mem();
                             done.insert(out_val);

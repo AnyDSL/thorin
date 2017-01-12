@@ -122,10 +122,10 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
         os << down << endl << "} array_" << array->gid() << ";";
         return os;
     } else if (auto ptr = type->isa<PtrType>()) {
-        emit_type(os, ptr->referenced_type());
+        emit_type(os, ptr->pointee());
         os << '*';
         if (ptr->is_vector())
-            os << vector_length(ptr->referenced_type());
+            os << vector_length(ptr->pointee());
         return os;
     } else if (auto primtype = type->isa<PrimType>()) {
         switch (primtype->primtype_tag()) {
@@ -190,7 +190,7 @@ std::ostream& CCodeGen::emit_aggop_decl(const Type* type) {
         type_decls_ << down;
 
     if (auto ptr = type->isa<PtrType>())
-        emit_aggop_decl(ptr->referenced_type());
+        emit_aggop_decl(ptr->pointee());
 
     if (auto array = type->isa<IndefiniteArrayType>())
         emit_aggop_decl(array->elem_type());
@@ -320,7 +320,7 @@ void CCodeGen::emit() {
                 if (is_texture_type(param->type())) {
                     // emit texture declaration for CUDA
                     type_decls_ << "texture<";
-                    emit_type(type_decls_, param->type()->as<PtrType>()->referenced_type());
+                    emit_type(type_decls_, param->type()->as<PtrType>()->pointee());
                     type_decls_ << ", cudaTextureType1D, cudaReadModeElementType> ";
                     type_decls_ << param->name() << ";" << endl;
                     insert(param, param->name());
@@ -516,7 +516,7 @@ void CCodeGen::emit() {
                             }
 
                             auto cont = continuation->arg(2)->as_continuation();
-                            auto elem_type = cont->param(1)->type()->as<PtrType>()->referenced_type()->as<ArrayType>()->elem_type();
+                            auto elem_type = cont->param(1)->type()->as<PtrType>()->pointee()->as<ArrayType>()->elem_type();
                             auto name = "reserver_" + cont->param(1)->unique_name();
                             emit_type(func_impl_, elem_type) << " " << name << "[";
                             emit(continuation->arg(1)) << "];" << endl;
@@ -889,17 +889,17 @@ std::ostream& CCodeGen::emit(const Def* def) {
 
     if (auto lea = def->isa<LEA>()) {
         if (is_texture_type(lea->type())) { // handle texture fetches
-            emit_type(func_impl_, lea->ptr_referenced_type()) << " " << lea->unique_name() << ";" << endl;
+            emit_type(func_impl_, lea->ptr_pointee()) << " " << lea->unique_name() << ";" << endl;
             func_impl_ << lea->unique_name() << " = tex1Dfetch(";
             emit(lea->ptr()) << ", ";
             emit(lea->index()) << ");";
         } else {
-            if (lea->ptr_referenced_type()->isa<TupleType>() || lea->ptr_referenced_type()->isa<StructType>()) {
+            if (lea->ptr_pointee()->isa<TupleType>() || lea->ptr_pointee()->isa<StructType>()) {
                 emit_type(func_impl_, lea->type()) << " " << lea->unique_name() << ";" << endl;
                 func_impl_ << lea->unique_name() << " = &";
                 emit(lea->ptr()) << "->e";
                 emit(lea->index()) << ";";
-            } else if (lea->ptr_referenced_type()->isa<DefiniteArrayType>()) {
+            } else if (lea->ptr_pointee()->isa<DefiniteArrayType>()) {
                 emit_type(func_impl_, lea->type()) << " " << lea->unique_name() << ";" << endl;
                 func_impl_ << lea->unique_name() << " = &";
                 emit(lea->ptr()) << "->e[";

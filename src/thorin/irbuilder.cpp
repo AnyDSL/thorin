@@ -47,7 +47,7 @@ Value Value::create_agg(Value value, const Def* offset) {
 
 bool Value::use_lea() const {
     if (tag() == PtrRef)
-        return thorin::use_lea(def()->type()->as<PtrType>()->referenced_type());
+        return thorin::use_lea(def()->type()->as<PtrType>()->pointee());
     return false;
 }
 

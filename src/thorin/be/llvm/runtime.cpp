@@ -110,7 +110,7 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, Cont
             set_kernel_arg_struct(target_device, i, void_ptr, target_val->getType());
         } else if (target_arg->type()->isa<PtrType>()) {
             auto ptr = target_arg->type()->as<PtrType>();
-            auto rtype = ptr->referenced_type();
+            auto rtype = ptr->pointee();
 
             if (!rtype->isa<ArrayType>())
                 ELOG("currently only pointers to arrays supported as kernel argument at '%'; argument has different type: %", target_arg->location(), ptr);

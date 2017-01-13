@@ -105,6 +105,18 @@ StreamList<Emit, List> stream_list(const List& list, Emit emit, const char* sep 
     return StreamList<Emit, List>(list, emit, sep);
 }
 
+#ifdef NDEBUG
+#   define assertmsg(condition, ...) static_cast<void>(0)
+#else
+#   define assertmsg(condition, ...) \
+    if (!(condition)) { \
+        std::cerr << "Assertion `" #condition "` failed in " << __FILE__ << ":" << __LINE__ << " "; \
+        streamf(std::cerr, __VA_ARGS__) << std::endl; \
+        std::abort(); \
+    } \
+    static_cast<void>(0)
+#endif
+
 }
 
 #endif

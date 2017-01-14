@@ -10,7 +10,6 @@
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/looptree.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/be/ycomp.h"
 #include "thorin/util/log.h"
 #include "thorin/util/utility.h"
 

@@ -7,7 +7,6 @@
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/util/iterator.h"
-#include "thorin/util/printer.h"
 #include "thorin/util/stream.h"
 
 namespace thorin {
@@ -37,13 +36,17 @@ enum YCompOrientation {
 static const char* YCompOrientation_Names[] = { "left_to_right", "right_to_left", "bottom_to_top", "top_to_bottom" };
 static_assert(sizeof(YCompOrientation_Names)/sizeof(char*) == YCompOrientation::Num, "Sizes do not match!");
 
-struct YCompConfig {
-    static int indentation;
-};
-
-template <typename I, typename SuccFct>
-class YCompScope : public Printer {
+template<class I, class SuccFct>
+class YCompScope {
 public:
+    YCompScope(std::ostream& ostream, YCompOrientation orientation)
+        : ostream_(ostream)
+    {
+        ostream << "graph: {" << up_endl;
+        ostream << "layoutalgorithm: compilergraph" << endl;
+        ostream << "orientation: " << YCompOrientation_Names[orientation];
+    }
+
     YCompScope(std::ostream& ostream, const Scope& scope, Range<I> range,
                SuccFct succs, YCompOrientation orientation)
         : YCompScope(ostream, orientation)
@@ -52,62 +55,52 @@ public:
     }
 
     ~YCompScope() {
-        down() << "}";
-        indent -= YCompConfig::indentation;
-        newline();
+        ostream() << down_endl << "}" << endl;
     }
+
+    std::ostream& ostream() { return ostream_; }
 
 private:
-    YCompScope(std::ostream& ostream, YCompOrientation orientation)
-            : Printer(ostream)
-    {
-        indent += YCompConfig::indentation;
-
-        newline() << "graph: {";
-        up() << "layoutalgorithm: compilergraph";
-        newline() << "orientation: " << YCompOrientation_Names[orientation];
-    }
-
     void addScope(const Scope& scope, Range<I> range, SuccFct succs) {
         auto id = scope.id();
 
         auto print_node = [&] (decltype(*range.begin()) node) {
-            newline() << "node: { title: \"" << node << "_" << id << "\" label: \"" << node << "\" }";
+            streamf(ostream(), "node: { title: \"%_%\" label: \"%\" }", node, id, node) << endl;
 
-            for (const auto& succ : succs(node)) {
-                newline() << "edge: { sourcename: \"" << node << "_" << id
-                          << "\" targetname: \"" << &*succ << "_" << id << "\" class: " << 16 << " }";
-            }
+            for (const auto& succ : succs(node))
+                streamf(ostream(), "edge: { sourcename: \"%_%\" targetname: \"%_%\" class: % }",
+                        node, id, &*succ, id, 16) << endl;
         };
 
         auto title = scope.entry()->unique_name();
-        newline() << "graph: {";
-        up() << "title: \"" << title << "\"";
-        newline() << "label: \"" << title << "\"";
+        ostream() << "graph: {" << up_endl;
+        ostream() << "title: \"" << title << "\"" << endl;
+        ostream() << "label: \"" << title << "\"" << endl;
 
         for (auto n : range)
             print_node(n);
 
-        down() << "}";
+        ostream() << down_endl << "}";
     }
+
+    std::ostream& ostream_;
 };
 
-template <typename I, typename S>
+template<class I, class S>
 YCompScope<I, S> ycomp(std::ostream& out, YCompOrientation o, const Scope& scope, Range<I> range, S succs) {
     return YCompScope<I, S>(out, scope, range, succs, o);
 }
 
 template<class G>
 void ycomp(std::ostream& out, World& world) {
-    out << "graph: {" <<  std::endl;
-    out << "    " << "graph: {" <<  std::endl;
-    out << "        " << "title: \"" << world.name() << '"' << std::endl;
-    out << "        " << "label: \"" << world.name() << '"' << std::endl;
-    YCompConfig::indentation = 2;
+    // TODO use up and down
+    out << "graph: {" <<  endl;
+    out << "    " << "graph: {" <<  endl;
+    out << "        " << "title: \"" << world.name() << '"' << endl;
+    out << "        " << "label: \"" << world.name() << '"' << endl;
     Scope::for_each(world, [&] (const Scope& scope) { G::create(scope).stream_ycomp(out); });
-    YCompConfig::indentation = 0;
-    out << "    " << '}' << std::endl;
-    out << '}' << std::endl;
+    out << "    " << '}' << endl;
+    out << '}' << endl;
 }
 
 //------------------------------------------------------------------------------

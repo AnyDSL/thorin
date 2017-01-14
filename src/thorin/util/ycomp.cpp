@@ -7,9 +7,6 @@
 
 namespace thorin {
 
-// TODO get rid of this global var
-int YCompConfig::indentation = 0;
-
 void YCompCommandLine::add(std::string graph, bool temp, std::string file) {
     graphs.push_back(graph);
     temps.push_back(temp);

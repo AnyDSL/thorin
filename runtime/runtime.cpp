@@ -190,7 +190,7 @@ static thread_local std::mt19937 std_gen;
 #endif
 static std::uniform_real_distribution<float> std_dist(0.0f, 1.0f);
 
-void thorin_random_seed(unsigned seed) {
+void thorin_random_seed(uint32_t seed) {
     std_gen.seed(seed);
 }
 

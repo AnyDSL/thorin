@@ -52,8 +52,6 @@ SET ( SOURCES
     be/llvm/spir.cpp
     be/llvm/spir.h
     be/llvm/vectorize.cpp
-    be/ycomp.cpp
-    be/ycomp.h
     tables/allnodes.h
     tables/arithoptable.h
     tables/cmptable.h
@@ -97,8 +95,6 @@ SET ( SOURCES
     util/location.h
     util/log.cpp
     util/log.h
-    util/printer.cpp
-    util/printer.h
     util/stream.cpp
     util/stream.h
     util/types.h

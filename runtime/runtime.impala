@@ -16,13 +16,13 @@ extern "C" {
     fn thorin_get_micro_time() -> i64;
     fn thorin_get_kernel_time() -> i64;
 
-    fn thorin_print_char(u8) -> ();
-    fn thorin_print_short(i16) -> ();
-    fn thorin_print_int(i32) -> ();
-    fn thorin_print_long(i64) -> ();
-    fn thorin_print_float(f32) -> ();
-    fn thorin_print_double(f64) -> ();
-    fn thorin_print_string(&[u8]) -> ();
+    fn "thorin_print_char"   print_char(u8) -> ();
+    fn "thorin_print_short"  print_short(i16) -> ();
+    fn "thorin_print_int"    print_int(i32) -> ();
+    fn "thorin_print_long"   print_long(i64) -> ();
+    fn "thorin_print_float"  print_float(f32) -> ();
+    fn "thorin_print_double" print_double(f64) -> ();
+    fn "thorin_print_string" print_string(&[u8]) -> ();
 }
 
 fn thorin_device(platform: i32, device: i32) -> i32 { platform | (device << 4) }
@@ -66,11 +66,3 @@ fn copy(a: Buffer, b: Buffer, size: i32) -> () {
 fn copy_offset(a: Buffer, off_a: i32, b: Buffer, off_b: i32, size: i32) -> () {
     thorin_copy(a.device, a.data as &i8, off_a as i64, b.device, b.data as &i8, off_b as i64, size as i64)
 }
-
-fn print_char(c: u8) -> () { thorin_print_char(c) }
-fn print_short(s: i16) -> () { thorin_print_short(s) }
-fn print_int(i: i32) -> () { thorin_print_int(i) }
-fn print_long(l: i64) -> () { thorin_print_long(l) }
-fn print_float(f: f32) -> () { thorin_print_float(f) }
-fn print_double(d: f64) -> () { thorin_print_double(d) }
-fn print_string(s: &[u8]) -> () { thorin_print_string(s) }

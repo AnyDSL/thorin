@@ -111,7 +111,8 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
     const bool useSSE = false;
     const bool useAVX = true;
     const bool useAVX2 = false;
-    rv::addSleefMappings(useSSE, useAVX, useAVX2, platform_info);
+    const bool impreciseFunctions = false;
+    rv::addSleefMappings(useSSE, useAVX, useAVX2, platform_info, impreciseFunctions);
 
     llvm::DominatorTree dom_tree(*kernel_func);
     llvm::PostDominatorTree pdom_tree;

@@ -37,7 +37,7 @@ void thorin_launch_kernel(int32_t);
 void thorin_synchronize(int32_t);
 
 float thorin_random_val();
-void thorin_random_seed(int32_t);
+void thorin_random_seed(uint32_t);
 
 long long thorin_get_micro_time();
 long long thorin_get_kernel_time();

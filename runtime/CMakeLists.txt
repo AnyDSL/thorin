@@ -50,7 +50,7 @@ ELSE ()
 ENDIF ()
 
 IF ( NOT MSVC )
-    ADD_DEFINITIONS ( "-std=c++14 -Wall -Wextra" )
+    ADD_DEFINITIONS ( "-Wall -Wextra" )
 ENDIF ()
 
 ADD_DEFINITIONS ( ${RUNTIME_DEFINITIONS} )
@@ -70,7 +70,7 @@ ADD_LIBRARY ( thorin_runtime
               ${OPENCL_PLATFORM} )
 
 TARGET_LINK_LIBRARIES ( thorin_runtime ${CONF_RUNTIME_LIBRARIES} )
+SET_TARGET_PROPERTIES ( thorin_runtime PROPERTIES CXX_STANDARD 14 CXX_STANDARD_REQUIRED ON )
 
 # Generate the ThorinRuntime.cmake file from the template
 CONFIGURE_FILE ( cmake/ThorinRuntime.cmake.in "${CMAKE_BINARY_DIR}/cmake/ThorinRuntime.cmake" @ONLY )
-

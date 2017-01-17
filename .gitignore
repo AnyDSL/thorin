@@ -11,5 +11,3 @@ CMakeFiles/
 build*
 html
 test/impala
-runtime/test/impala
-runtime/benchmarks/impala

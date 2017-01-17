@@ -157,8 +157,7 @@ public:
     {
         std::copy(list.begin(), list.end(), ptr_);
     }
-    template<class F>
-    Array(size_t size, F f)
+    Array(size_t size, std::function<T(size_t)> f)
         : Array(size)
     {
         for (size_t i = 0; i != size; ++i)
@@ -205,7 +204,6 @@ private:
     size_t size_;
     T* ptr_;
 };
-
 
 template<class T>
 Array<T> ArrayRef<T>::cut(ArrayRef<size_t> indices, size_t reserve) const {

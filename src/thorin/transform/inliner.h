@@ -5,6 +5,7 @@ namespace thorin {
 
 class World;
 
+void force_inline(Scope& scope, int threshold);
 void inliner(World& world);
 
 }

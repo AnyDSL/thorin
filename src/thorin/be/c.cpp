@@ -919,7 +919,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
 
     if (auto assembly = def->isa<Assembly>()) {
         size_t out_size = assembly->type()->num_ops() - 1;
-        Array<std::string> outputs(out_size, "");
+        Array<std::string> outputs(out_size, std::string(""));
         for (auto use : assembly->uses()) {
             auto extract = use->as<Extract>();
             size_t index = primlit_value<unsigned>(extract->index());

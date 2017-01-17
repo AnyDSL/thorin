@@ -8,6 +8,7 @@
 #include <initializer_list>
 #include <iostream>
 #include <iterator>
+#include <functional>
 #include <vector>
 
 #include "thorin/util/stream.h"
@@ -156,6 +157,14 @@ public:
     {
         std::copy(list.begin(), list.end(), ptr_);
     }
+    template<class F>
+    Array(size_t size, F f)
+        : Array(size)
+    {
+        for (size_t i = 0; i != size; ++i)
+            (*this)[i] = f(i);
+    }
+
     ~Array() { delete[] ptr_; }
 
     iterator begin() { return ptr_; }
@@ -196,6 +205,7 @@ private:
     size_t size_;
     T* ptr_;
 };
+
 
 template<class T>
 Array<T> ArrayRef<T>::cut(ArrayRef<size_t> indices, size_t reserve) const {

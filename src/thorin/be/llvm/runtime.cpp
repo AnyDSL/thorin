@@ -13,6 +13,7 @@
 #include "thorin/primop.h"
 #include "thorin/util/log.h"
 #include "thorin/be/llvm/llvm.h"
+#include "thorin/be/llvm/runtime.inc"
 
 namespace thorin {
 
@@ -24,7 +25,8 @@ Runtime::Runtime(llvm::LLVMContext& context,
     , layout_(target.getDataLayout())
 {
     llvm::SMDiagnostic diag;
-    runtime_ = llvm::parseIRFile(THORIN_RUNTIME_PLATFORMS "runtime.s", diag, context);
+    auto mem_buf = llvm::MemoryBuffer::getMemBuffer(runtime_definitions);
+    runtime_ = llvm::parseIR(*mem_buf.get(), diag, context);
     if (runtime_ == nullptr)
         throw std::logic_error("runtime could not be loaded");
 }

@@ -142,42 +142,42 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, Cont
 
 llvm::Value* Runtime::set_grid_size(llvm::Value* device, llvm::Value* x, llvm::Value* y, llvm::Value* z) {
     llvm::Value* grid_size_args[] = { device, x, y, z };
-    return builder_.CreateCall(get("thorin_set_grid_size"), grid_size_args);
+    return builder_.CreateCall(get("anydsl_set_grid_size"), grid_size_args);
 }
 
 llvm::Value* Runtime::set_block_size(llvm::Value* device, llvm::Value* x, llvm::Value* y, llvm::Value* z) {
     llvm::Value* block_size_args[] = { device, x, y, z };
-    return builder_.CreateCall(get("thorin_set_block_size"), block_size_args);
+    return builder_.CreateCall(get("anydsl_set_block_size"), block_size_args);
 }
 
 llvm::Value* Runtime::synchronize(llvm::Value* device) {
     llvm::Value* sync_args[] = { device };
-    return builder_.CreateCall(get("thorin_synchronize"), sync_args);
+    return builder_.CreateCall(get("anydsl_synchronize"), sync_args);
 }
 
 llvm::Value* Runtime::set_kernel_arg(llvm::Value* device, int arg, llvm::Value* mem, llvm::Type* type) {
     llvm::Value* kernel_args[] = { device, builder_.getInt32(arg), mem, builder_.getInt32(layout_.getTypeAllocSize(type)) };
-    return builder_.CreateCall(get("thorin_set_kernel_arg"), kernel_args);
+    return builder_.CreateCall(get("anydsl_set_kernel_arg"), kernel_args);
 }
 
 llvm::Value* Runtime::set_kernel_arg_ptr(llvm::Value* device, int arg, llvm::Value* ptr) {
     llvm::Value* kernel_args[] = { device, builder_.getInt32(arg), ptr };
-    return builder_.CreateCall(get("thorin_set_kernel_arg_ptr"), kernel_args);
+    return builder_.CreateCall(get("anydsl_set_kernel_arg_ptr"), kernel_args);
 }
 
 llvm::Value* Runtime::set_kernel_arg_struct(llvm::Value* device, int arg, llvm::Value* mem, llvm::Type* type) {
     llvm::Value* kernel_args[] = { device, builder_.getInt32(arg), mem, builder_.getInt32(layout_.getTypeAllocSize(type)) };
-    return builder_.CreateCall(get("thorin_set_kernel_arg_struct"), kernel_args);
+    return builder_.CreateCall(get("anydsl_set_kernel_arg_struct"), kernel_args);
 }
 
 llvm::Value* Runtime::load_kernel(llvm::Value* device, llvm::Value* file, llvm::Value* kernel) {
     llvm::Value* load_args[] = { device, file, kernel };
-    return builder_.CreateCall(get("thorin_load_kernel"), load_args);
+    return builder_.CreateCall(get("anydsl_load_kernel"), load_args);
 }
 
 llvm::Value* Runtime::launch_kernel(llvm::Value* device) {
     llvm::Value* launch_args[] = { device };
-    return builder_.CreateCall(get("thorin_launch_kernel"), launch_args);
+    return builder_.CreateCall(get("anydsl_launch_kernel"), launch_args);
 }
 
 llvm::Value* Runtime::parallel_for(llvm::Value* num_threads, llvm::Value* lower, llvm::Value* upper,
@@ -187,7 +187,7 @@ llvm::Value* Runtime::parallel_for(llvm::Value* num_threads, llvm::Value* lower,
         builder_.CreatePointerCast(closure_ptr, builder_.getInt8PtrTy()),
         builder_.CreatePointerCast(fun_ptr, builder_.getInt8PtrTy())
     };
-    return builder_.CreateCall(get("thorin_parallel_for"), parallel_args);
+    return builder_.CreateCall(get("anydsl_parallel_for"), parallel_args);
 }
 
 llvm::Value* Runtime::spawn_thread(llvm::Value* closure_ptr, llvm::Value* fun_ptr) {
@@ -195,11 +195,11 @@ llvm::Value* Runtime::spawn_thread(llvm::Value* closure_ptr, llvm::Value* fun_pt
         builder_.CreatePointerCast(closure_ptr, builder_.getInt8PtrTy()),
         builder_.CreatePointerCast(fun_ptr, builder_.getInt8PtrTy())
     };
-    return builder_.CreateCall(get("thorin_spawn_thread"), spawn_args);
+    return builder_.CreateCall(get("anydsl_spawn_thread"), spawn_args);
 }
 
 llvm::Value* Runtime::sync_thread(llvm::Value* id) {
-    return builder_.CreateCall(get("thorin_sync_thread"), id);
+    return builder_.CreateCall(get("anydsl_sync_thread"), id);
 }
 
 }

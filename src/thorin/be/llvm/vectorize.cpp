@@ -21,6 +21,7 @@ namespace thorin {
 enum {
     VEC_ARG_MEM,
     VEC_ARG_LENGTH,
+    VEC_ARG_ALIGN,
     VEC_ARG_LOWER,
     VEC_ARG_UPPER,
     VEC_ARG_BODY,
@@ -35,6 +36,7 @@ Continuation* CodeGen::emit_vectorize_continuation(Continuation* continuation) {
 
     // arguments
     auto vector_length = lookup(continuation->arg(VEC_ARG_LENGTH));
+    auto alignment = lookup(continuation->arg(VEC_ARG_ALIGN));
     auto lower = lookup(continuation->arg(VEC_ARG_LOWER));
     auto upper = lookup(continuation->arg(VEC_ARG_UPPER));
     auto kernel = continuation->arg(VEC_ARG_BODY)->as<Global>()->init()->as_continuation();
@@ -77,12 +79,13 @@ Continuation* CodeGen::emit_vectorize_continuation(Continuation* continuation) {
     if (!continuation->arg(VEC_ARG_LENGTH)->isa<PrimLit>())
         ELOG("vector length must be hard-coded at %", continuation->arg(VEC_ARG_LENGTH)->location());
     u32 vector_length_constant = continuation->arg(VEC_ARG_LENGTH)->as<PrimLit>()->qu32_value();
-    vec_todo_.emplace_back(vector_length_constant, emit_function_decl(kernel), simd_kernel_call);
+    u32 alignment_constant     = continuation->arg(VEC_ARG_ALIGN )->as<PrimLit>()->qu32_value();
+    vec_todo_.emplace_back(vector_length_constant, alignment_constant, emit_function_decl(kernel), simd_kernel_call);
 
     return continuation->arg(VEC_ARG_RETURN)->as_continuation();
 }
 
-void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llvm::CallInst* simd_kernel_call) {
+void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* kernel_func, llvm::CallInst* simd_kernel_call) {
     // ensure proper loop forms
     legacy::FunctionPassManager pm(module_.get());
     pm.add(llvm::createLICMPass());
@@ -96,11 +99,11 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
     auto rv_info = new rv::RVInfo(module_.get(), &context_, kernel_func, simd_kernel_func, vector_length, -1, false, false, false, false, nullptr);
     auto loop_counter_arg = kernel_func->getArgumentList().begin();
 
-    rv::VectorShape res = rv::VectorShape::uni();
+    rv::VectorShape res = rv::VectorShape::uni(alignment);
     rv::VectorShapeVec args;
-    args.push_back(rv::VectorShape::cont(vector_length));
+    args.push_back(rv::VectorShape::cont(alignment));
     for (auto it = std::next(loop_counter_arg), end = kernel_func->getArgumentList().end(); it != end; ++it) {
-        args.push_back(rv::VectorShape::uni(vector_length));
+        args.push_back(rv::VectorShape::uni(alignment));
     }
 
     rv::VectorMapping target_mapping(kernel_func, simd_kernel_func, vector_length, -1, res, args);

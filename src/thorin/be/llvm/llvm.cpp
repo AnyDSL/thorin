@@ -428,7 +428,7 @@ void CodeGen::emit(int opt, bool debug) {
 #ifdef RV_SUPPORT
     // emit vectorized code
     for (const auto& tuple : vec_todo_)
-        emit_vectorize(std::get<0>(tuple), std::get<1>(tuple), std::get<2>(tuple));
+        emit_vectorize(std::get<0>(tuple), std::get<1>(tuple), std::get<2>(tuple), std::get<3>(tuple));
     vec_todo_.clear();
 
     rv::lowerPredicateIntrinsics(*module_);

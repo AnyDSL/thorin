@@ -10,7 +10,7 @@ public:
     CPUCodeGen(World& world);
 
 protected:
-    virtual std::string get_alloc_name() const override { return "thorin_alloc"; }
+    virtual std::string get_alloc_name() const override { return "anydsl_alloc"; }
     virtual std::string get_output_name(const std::string& name) const override { return name + ".ll"; }
     virtual std::string get_binary_output_name(const std::string& name) const override { return name + ".bc"; }
 };

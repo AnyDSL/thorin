@@ -4,6 +4,8 @@
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/Transforms/Scalar.h>
+#include <llvm/Analysis/LoopInfo.h>
+#include <llvm/IR/Dominators.h>
 
 #include <rv/rv.h>
 #include <rv/sleefLibrary.h>
@@ -96,7 +98,6 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
     auto simd_kernel_func = simd_kernel_call->getCalledFunction();
     simd_kernel_func->deleteBody();
 
-    auto rv_info = new rv::RVInfo(module_.get(), &context_, kernel_func, simd_kernel_func, vector_length, -1, false, false, false, false, nullptr);
     auto loop_counter_arg = kernel_func->getArgumentList().begin();
 
     rv::VectorShape res = rv::VectorShape::uni(alignment);
@@ -109,19 +110,19 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
     rv::VectorMapping target_mapping(kernel_func, simd_kernel_func, vector_length, -1, res, args);
     rv::VectorizationInfo vec_info(target_mapping);
 
-    rv::VectorizerInterface vectorizer(*rv_info, kernel_func);
+    TargetIRAnalysis irAnalysis;
+    TargetTransformInfo tti = irAnalysis.run(*kernel_func);
+    TargetLibraryAnalysis libAnalysis;
+    TargetLibraryInfo tli = libAnalysis.run(*kernel_func->getParent());
+    rv::PlatformInfo platInfo(*module_.get(), &tti, &tli);
 
-    llvm::TargetIRAnalysis ir_analysis;
-    llvm::TargetTransformInfo tti = ir_analysis.run(*kernel_func);
-    llvm::TargetLibraryAnalysis lib_analysis;
-    llvm::TargetLibraryInfo tli = lib_analysis.run(*kernel_func->getParent());
-    rv::PlatformInfo platform_info(&tti, &tli);
     // TODO: use parameters from command line
     const bool useSSE = false;
     const bool useAVX = true;
     const bool useAVX2 = false;
     const bool impreciseFunctions = false;
-    rv::addSleefMappings(useSSE, useAVX, useAVX2, platform_info, impreciseFunctions);
+    rv::addSleefMappings(useSSE, useAVX, useAVX2, platInfo, impreciseFunctions);
+    rv::VectorizerInterface vectorizer(platInfo);
 
     llvm::DominatorTree dom_tree(*kernel_func);
     llvm::PostDominatorTree pdom_tree;
@@ -145,15 +146,14 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
     bool mask_ok = vectorizer.generateMasks(vec_info, *mask_analysis, loop_info);
     assert_unused(mask_ok);
 
-    bool linearize_ok = vectorizer.linearizeCFG(vec_info, *mask_analysis, loop_info, pdom_tree, dom_tree);
+    bool linearize_ok = vectorizer.linearizeCFG(vec_info, *mask_analysis, loop_info, dom_tree);
     assert_unused(linearize_ok);
 
-    const llvm::DominatorTree new_dom_tree(*vec_info.getMapping().scalarFn); // Control conversion does not preserve the dominance tree
-    bool vectorize_ok = vectorizer.vectorize(platform_info, vec_info, new_dom_tree);
+    llvm::DominatorTree new_dom_tree(*vec_info.getMapping().scalarFn); // Control conversion does not preserve the dominance tree
+    bool vectorize_ok = vectorizer.vectorize(vec_info, new_dom_tree);
     assert_unused(vectorize_ok);
 
-    vectorizer.finalize();
-
+    vectorizer.finalize(vec_info);
     delete mask_analysis;
 
     // inline kernel

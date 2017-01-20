@@ -7,7 +7,10 @@
 #include <ostream>
 #include <type_traits>
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmismatched-tags"
 #include <half.hpp>
+#pragma clang diagnostic pop
 
 #include "thorin/util/cast.h"
 #include "thorin/util/hash.h"

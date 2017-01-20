@@ -207,7 +207,7 @@ LoopTree<forward>::Node::Node(Head* parent, int depth, const std::vector<const C
 
 template<bool forward>
 std::ostream& LoopTree<forward>::Leaf::stream(std::ostream& out) const {
-    return streamf(out, "<% | dfs: %", cf_node(), index());
+    return streamf(out, "<{} | dfs: {}", cf_node(), index());
 }
 
 template<bool forward>

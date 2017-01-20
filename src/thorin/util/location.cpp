@@ -13,12 +13,12 @@ std::ostream& operator<<(std::ostream& os, Location l) {
     os << l.filename() << ':';
 
     if (l.front_line() != l.back_line())
-        return streamf(os, "% col % - % col %", l.front_line(), l.front_col(), l.back_line(), l.back_col());
+        return streamf(os, "{} col {} - {} col {}", l.front_line(), l.front_col(), l.back_line(), l.back_col());
 
     if (l.front_col() != l.back_col())
-        return streamf(os, "% col % - %", l.front_line(), l.front_col(), l.back_col());
+        return streamf(os, "{} col {} - {}", l.front_line(), l.front_col(), l.back_col());
 
-    return streamf(os, "% col %", l.front_line(), l.front_col());
+    return streamf(os, "{} col {}", l.front_line(), l.front_col());
 }
 
 Debug operator+(Debug dbg, const char* s) { return {dbg, dbg.name() + s}; }
@@ -29,7 +29,7 @@ Debug operator+(Debug d1, Debug d2) {
 }
 
 std::ostream& operator<<(std::ostream& os, Debug dbg) {
-    return streamf(os, "{%, %}", (Location)dbg, dbg.name());
+    return streamf(os, "{{{}, {}}}", (Location)dbg, dbg.name());
 }
 
 }

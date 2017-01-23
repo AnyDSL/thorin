@@ -52,9 +52,9 @@ public:
 
     Continuation* emit_host_code(CodeGen &code_gen, Platform platform, Continuation* continuation);
 
-protected:
     llvm::Function* get(const char* name);
 
+protected:
     llvm::Module& target_;
     llvm::IRBuilder<>& builder_;
     const llvm::DataLayout& layout_;

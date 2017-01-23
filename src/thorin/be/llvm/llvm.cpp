@@ -781,10 +781,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         return llvm::UndefValue::get(convert(bottom->type()));
 
     if (auto alloc = def->isa<Alloc>()) { // TODO factor this code
-        // TODO do this only once
-        auto llvm_malloc = llvm::cast<llvm::Function>(module_->getOrInsertFunction(
-                    get_alloc_name(), irbuilder_.getInt8PtrTy(), irbuilder_.getInt32Ty(), irbuilder_.getInt64Ty(), nullptr));
-        llvm_malloc->addAttribute(llvm::AttributeSet::ReturnIndex, llvm::Attribute::NoAlias);
+        auto llvm_malloc = runtime_->get(get_alloc_name().c_str());
         auto alloced_type = convert(alloc->alloced_type());
         llvm::CallInst* void_ptr;
         auto layout = module_->getDataLayout();

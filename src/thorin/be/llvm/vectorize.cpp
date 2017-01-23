@@ -38,7 +38,6 @@ Continuation* CodeGen::emit_vectorize_continuation(Continuation* continuation) {
 
     // arguments
     auto vector_length = lookup(continuation->arg(VEC_ARG_LENGTH));
-    auto alignment = lookup(continuation->arg(VEC_ARG_ALIGN));
     auto lower = lookup(continuation->arg(VEC_ARG_LOWER));
     auto upper = lookup(continuation->arg(VEC_ARG_UPPER));
     auto kernel = continuation->arg(VEC_ARG_BODY)->as<Global>()->init()->as_continuation();

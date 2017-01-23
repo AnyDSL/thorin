@@ -117,14 +117,14 @@ Continuation* CodeGen::emit_cmpxchg(Continuation* continuation) {
 }
 
 Continuation* CodeGen::emit_reserve(const Continuation* continuation) {
-    ELOG("reserve_shared: only allowed in device code at %", continuation->jump_debug());
+    ELOG("reserve_shared: only allowed in device code at {}", continuation->jump_debug());
     THORIN_UNREACHABLE;
 }
 
 Continuation* CodeGen::emit_reserve_shared(const Continuation* continuation, bool prefix) {
     assert(continuation->num_args() == 3 && "required arguments are missing");
     if (!continuation->arg(1)->isa<PrimLit>())
-        ELOG("reserve_shared: couldn't extract memory size at %", continuation->arg(1)->location());
+        ELOG("reserve_shared: couldn't extract memory size at {}", continuation->arg(1)->location());
     auto num_elems = continuation->arg(1)->as<PrimLit>()->ps32_value();
     auto cont = continuation->arg(2)->as_continuation();
     auto type = convert(cont->param(1)->type());
@@ -678,7 +678,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
                 vals[i] = llvm::cast<llvm::Constant>(emit(array->op(i)));
             return llvm::ConstantArray::get(type, llvm_ref(vals));
         }
-        WLOG("slow: alloca and loads/stores needed for definite array '%' at '%'", def, def->location());
+        WLOG("slow: alloca and loads/stores needed for definite array '{}' at '{}'", def, def->location());
         auto alloca = emit_alloca(type, array->name());
 
         u64 i = 0;
@@ -714,7 +714,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto llvm_agg = lookup(aggop->agg());
         auto llvm_idx = lookup(aggop->index());
         auto copy_to_alloca = [&] () {
-            WLOG("slow: alloca and loads/stores needed for aggregate '%' at '%'", def, def->location());
+            WLOG("slow: alloca and loads/stores needed for aggregate '{}' at '{}'", def, def->location());
             auto alloca = emit_alloca(llvm_agg->getType(), aggop->name());
             irbuilder_.CreateStore(llvm_agg, alloca);
 
@@ -895,7 +895,7 @@ llvm::Value* CodeGen::emit_assembly(const Assembly* assembly) {
     constraints += "~{dirflag},~{fpsr},~{flags}";
 
     if (!llvm::InlineAsm::Verify(fn_type, constraints))
-        ELOG("Constraints and input and output types of inline assembly do not match at %", assembly->location());
+        ELOG("Constraints and input and output types of inline assembly do not match at {}", assembly->location());
 
     auto asm_expr = llvm::InlineAsm::get(fn_type, assembly->asm_template(), constraints,
             assembly->has_sideeffects(), assembly->is_alignstack(),

@@ -37,7 +37,7 @@ void mem2reg(const Scope& scope) {
                 for (auto arg : continuation->args()) {
                     if (auto acontinuation = arg->isa_continuation()) {
                         if (!acontinuation->is_basicblock()) {
-                            DLOG("% calls accelerator with %", continuation, acontinuation);
+                            DLOG("{} calls accelerator with {}", continuation, acontinuation);
                             acontinuation->set_parent(continuation);
                         }
                     }

@@ -256,7 +256,7 @@ public:
 #ifdef THORIN_DEBUG_HASH
                 auto dib = probe_distance(i);
                 if (dib > std::max(4, log2(capacity())))
-                    WLOG("you are using a poor hash function - distance to initial bucket/capacity: %/%", dib, capacity());
+                    WLOG("you are using a poor hash function - distance to initial bucket/capacity: {}/{}", dib, capacity());
 #endif
                 return std::make_pair(iterator(result, this), true);
             } else if (result == end_ptr() && H::eq(key(nodes_+i), k)) {

@@ -108,14 +108,14 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, Cont
             auto void_ptr = builder_.CreatePointerCast(alloca, builder_.getInt8PtrTy());
             // check if argument type contains pointers
             if (!contains_ptrtype(target_arg->type()))
-                WLOG("argument % of aggregate type % at '%' contains pointer (not supported in OpenCL 1.2)\n", target_arg, target_arg->type(), target_arg->location());
+                WLOG("argument {} of aggregate type {} at '{}' contains pointer (not supported in OpenCL 1.2)\n", target_arg, target_arg->type(), target_arg->location());
             set_kernel_arg_struct(target_device, i, void_ptr, target_val->getType());
         } else if (target_arg->type()->isa<PtrType>()) {
             auto ptr = target_arg->type()->as<PtrType>();
             auto rtype = ptr->pointee();
 
             if (!rtype->isa<ArrayType>())
-                ELOG("currently only pointers to arrays supported as kernel argument at '%'; argument has different type: %", target_arg->location(), ptr);
+                ELOG("currently only pointers to arrays supported as kernel argument at '{}'; argument has different type: {}", target_arg->location(), ptr);
 
             auto void_ptr = builder_.CreatePointerCast(target_val, builder_.getInt8PtrTy());
             set_kernel_arg_ptr(target_device, i, void_ptr);

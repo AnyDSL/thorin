@@ -13,6 +13,7 @@
 #include "thorin/primop.h"
 #include "thorin/util/log.h"
 #include "thorin/be/llvm/llvm.h"
+#include "thorin/be/llvm/runtime.inc"
 
 namespace thorin {
 
@@ -24,7 +25,8 @@ Runtime::Runtime(llvm::LLVMContext& context,
     , layout_(target.getDataLayout())
 {
     llvm::SMDiagnostic diag;
-    runtime_ = llvm::parseIRFile(THORIN_RUNTIME_PLATFORMS "runtime.s", diag, context);
+    auto mem_buf = llvm::MemoryBuffer::getMemBuffer(runtime_definitions);
+    runtime_ = llvm::parseIR(*mem_buf.get(), diag, context);
     if (runtime_ == nullptr)
         throw std::logic_error("runtime could not be loaded");
 }
@@ -46,7 +48,7 @@ enum {
 };
 
 static bool contains_ptrtype(const Type* type) {
-    switch (type->kind()) {
+    switch (type->tag()) {
         case Node_PtrType:             return false;
         case Node_IndefiniteArrayType: return contains_ptrtype(type->as<ArrayType>()->elem_type());
         case Node_DefiniteArrayType:   return contains_ptrtype(type->as<DefiniteArrayType>()->elem_type());
@@ -106,14 +108,14 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, Cont
             auto void_ptr = builder_.CreatePointerCast(alloca, builder_.getInt8PtrTy());
             // check if argument type contains pointers
             if (!contains_ptrtype(target_arg->type()))
-                WLOG("argument % of aggregate type % at '%' contains pointer (not supported in OpenCL 1.2)\n", target_arg, target_arg->type(), target_arg->location());
+                WLOG("argument {} of aggregate type {} at '{}' contains pointer (not supported in OpenCL 1.2)\n", target_arg, target_arg->type(), target_arg->location());
             set_kernel_arg_struct(target_device, i, void_ptr, target_val->getType());
         } else if (target_arg->type()->isa<PtrType>()) {
             auto ptr = target_arg->type()->as<PtrType>();
-            auto rtype = ptr->referenced_type();
+            auto rtype = ptr->pointee();
 
             if (!rtype->isa<ArrayType>())
-                ELOG("currently only pointers to arrays supported as kernel argument at '%'; argument has different type: %", target_arg->location(), ptr);
+                ELOG("currently only pointers to arrays supported as kernel argument at '{}'; argument has different type: {}", target_arg->location(), ptr);
 
             auto void_ptr = builder_.CreatePointerCast(target_val, builder_.getInt8PtrTy());
             set_kernel_arg_ptr(target_device, i, void_ptr);
@@ -140,42 +142,42 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, Cont
 
 llvm::Value* Runtime::set_grid_size(llvm::Value* device, llvm::Value* x, llvm::Value* y, llvm::Value* z) {
     llvm::Value* grid_size_args[] = { device, x, y, z };
-    return builder_.CreateCall(get("thorin_set_grid_size"), grid_size_args);
+    return builder_.CreateCall(get("anydsl_set_grid_size"), grid_size_args);
 }
 
 llvm::Value* Runtime::set_block_size(llvm::Value* device, llvm::Value* x, llvm::Value* y, llvm::Value* z) {
     llvm::Value* block_size_args[] = { device, x, y, z };
-    return builder_.CreateCall(get("thorin_set_block_size"), block_size_args);
+    return builder_.CreateCall(get("anydsl_set_block_size"), block_size_args);
 }
 
 llvm::Value* Runtime::synchronize(llvm::Value* device) {
     llvm::Value* sync_args[] = { device };
-    return builder_.CreateCall(get("thorin_synchronize"), sync_args);
+    return builder_.CreateCall(get("anydsl_synchronize"), sync_args);
 }
 
 llvm::Value* Runtime::set_kernel_arg(llvm::Value* device, int arg, llvm::Value* mem, llvm::Type* type) {
     llvm::Value* kernel_args[] = { device, builder_.getInt32(arg), mem, builder_.getInt32(layout_.getTypeAllocSize(type)) };
-    return builder_.CreateCall(get("thorin_set_kernel_arg"), kernel_args);
+    return builder_.CreateCall(get("anydsl_set_kernel_arg"), kernel_args);
 }
 
 llvm::Value* Runtime::set_kernel_arg_ptr(llvm::Value* device, int arg, llvm::Value* ptr) {
     llvm::Value* kernel_args[] = { device, builder_.getInt32(arg), ptr };
-    return builder_.CreateCall(get("thorin_set_kernel_arg_ptr"), kernel_args);
+    return builder_.CreateCall(get("anydsl_set_kernel_arg_ptr"), kernel_args);
 }
 
 llvm::Value* Runtime::set_kernel_arg_struct(llvm::Value* device, int arg, llvm::Value* mem, llvm::Type* type) {
     llvm::Value* kernel_args[] = { device, builder_.getInt32(arg), mem, builder_.getInt32(layout_.getTypeAllocSize(type)) };
-    return builder_.CreateCall(get("thorin_set_kernel_arg_struct"), kernel_args);
+    return builder_.CreateCall(get("anydsl_set_kernel_arg_struct"), kernel_args);
 }
 
 llvm::Value* Runtime::load_kernel(llvm::Value* device, llvm::Value* file, llvm::Value* kernel) {
     llvm::Value* load_args[] = { device, file, kernel };
-    return builder_.CreateCall(get("thorin_load_kernel"), load_args);
+    return builder_.CreateCall(get("anydsl_load_kernel"), load_args);
 }
 
 llvm::Value* Runtime::launch_kernel(llvm::Value* device) {
     llvm::Value* launch_args[] = { device };
-    return builder_.CreateCall(get("thorin_launch_kernel"), launch_args);
+    return builder_.CreateCall(get("anydsl_launch_kernel"), launch_args);
 }
 
 llvm::Value* Runtime::parallel_for(llvm::Value* num_threads, llvm::Value* lower, llvm::Value* upper,
@@ -185,7 +187,7 @@ llvm::Value* Runtime::parallel_for(llvm::Value* num_threads, llvm::Value* lower,
         builder_.CreatePointerCast(closure_ptr, builder_.getInt8PtrTy()),
         builder_.CreatePointerCast(fun_ptr, builder_.getInt8PtrTy())
     };
-    return builder_.CreateCall(get("thorin_parallel_for"), parallel_args);
+    return builder_.CreateCall(get("anydsl_parallel_for"), parallel_args);
 }
 
 llvm::Value* Runtime::spawn_thread(llvm::Value* closure_ptr, llvm::Value* fun_ptr) {
@@ -193,11 +195,11 @@ llvm::Value* Runtime::spawn_thread(llvm::Value* closure_ptr, llvm::Value* fun_pt
         builder_.CreatePointerCast(closure_ptr, builder_.getInt8PtrTy()),
         builder_.CreatePointerCast(fun_ptr, builder_.getInt8PtrTy())
     };
-    return builder_.CreateCall(get("thorin_spawn_thread"), spawn_args);
+    return builder_.CreateCall(get("anydsl_spawn_thread"), spawn_args);
 }
 
 llvm::Value* Runtime::sync_thread(llvm::Value* id) {
-    return builder_.CreateCall(get("thorin_sync_thread"), id);
+    return builder_.CreateCall(get("anydsl_sync_thread"), id);
 }
 
 }

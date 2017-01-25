@@ -47,12 +47,14 @@ int Log::level2color(Level level) {
     THORIN_UNREACHABLE;
 }
 
-std::string Log::colorize(const std::string& str, int color) {
 #ifdef COLORIZE_LOG
+std::string Log::colorize(const std::string& str, int color) {
     if (isatty(fileno(stdout))) {
         const char c = '0' + color;
         return "\033[1;3" + (c + ('m' + str)) + "\033[0m";
     }
+#else
+std::string Log::colorize(const std::string& str, int) {
 #endif
     return str;
 }

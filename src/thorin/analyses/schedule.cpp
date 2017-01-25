@@ -27,7 +27,7 @@ public:
         compute_def2uses();
         Def2CFNode* def2node = nullptr;
 
-        switch (schedule.kind()) {
+        switch (schedule.tag()) {
             case Schedule::Early: schedule_early(); def2node = &def2early_; break;
             case Schedule::Late:  schedule_late();  def2node = &def2late_;  break;
             case Schedule::Smart: schedule_smart(); def2node = &def2smart_; break;
@@ -207,11 +207,11 @@ void Scheduler::topo_sort(Def2CFNode& def2node) {
 
 //------------------------------------------------------------------------------
 
-Schedule::Schedule(const Scope& scope, Kind kind)
+Schedule::Schedule(const Scope& scope, Tag tag)
     : scope_(scope)
     , indices_(cfg())
     , blocks_(cfa().size())
-    , kind_(kind)
+    , tag_(tag)
 {
     block_schedule();
     Scheduler(scope, *this);
@@ -242,7 +242,7 @@ void Schedule::verify() {
         for (auto primop : block) {
             if (auto memop = primop->isa<MemOp>()) {
                 if (memop->mem() != mem) {
-                    WLOG("incorrect schedule: % (current mem is %) - scope entry: %", memop, mem, scope_.entry());
+                    WLOG("incorrect schedule: {} (current mem is {}) - scope entry: {}", memop, mem, scope_.entry());
                     error = true;
                 }
                 mem = memop->out_mem();

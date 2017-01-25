@@ -8,6 +8,7 @@
 #include <initializer_list>
 #include <iostream>
 #include <iterator>
+#include <functional>
 #include <vector>
 
 #include "thorin/util/stream.h"
@@ -156,6 +157,13 @@ public:
     {
         std::copy(list.begin(), list.end(), ptr_);
     }
+    Array(size_t size, std::function<T(size_t)> f)
+        : Array(size)
+    {
+        for (size_t i = 0; i != size; ++i)
+            (*this)[i] = f(i);
+    }
+
     ~Array() { delete[] ptr_; }
 
     iterator begin() { return ptr_; }

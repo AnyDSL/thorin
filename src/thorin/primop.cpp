@@ -12,13 +12,13 @@ namespace thorin {
  * constructors
  */
 
-PrimLit::PrimLit(World& world, PrimTypeKind kind, Box box, Debug dbg)
-    : Literal((NodeKind) kind, world.type(kind), dbg)
+PrimLit::PrimLit(World& world, PrimTypeTag tag, Box box, Debug dbg)
+    : Literal((NodeTag) tag, world.type(tag), dbg)
     , box_(box)
 {}
 
-Cmp::Cmp(CmpKind kind, const Def* lhs, const Def* rhs, Debug dbg)
-    : BinOp((NodeKind) kind, lhs->world().type_bool(vector_length(lhs->type())), lhs, rhs, dbg)
+Cmp::Cmp(CmpTag tag, const Def* lhs, const Def* rhs, Debug dbg)
+    : BinOp((NodeTag) tag, lhs->world().type_bool(vector_length(lhs->type())), lhs, rhs, dbg)
 {}
 
 DefiniteArray::DefiniteArray(World& world, const Type* elem, Defs args, Debug dbg)
@@ -52,11 +52,11 @@ Vector::Vector(World& world, Defs args, Debug dbg)
 {
     if (auto primtype = args.front()->type()->isa<PrimType>()) {
         assert(primtype->length() == 1);
-        set_type(world.type(primtype->primtype_kind(), args.size()));
+        set_type(world.type(primtype->primtype_tag(), args.size()));
     } else {
         auto ptr = args.front()->type()->as<PtrType>();
         assert(ptr->length() == 1);
-        set_type(world.ptr_type(ptr->referenced_type(), args.size()));
+        set_type(world.ptr_type(ptr->pointee(), args.size()));
     }
 }
 
@@ -65,11 +65,11 @@ LEA::LEA(const Def* ptr, const Def* index, Debug dbg)
 {
     auto& world = index->world();
     auto type = ptr_type();
-    if (auto tuple = ptr_referenced_type()->isa<TupleType>()) {
+    if (auto tuple = ptr_pointee()->isa<TupleType>()) {
         set_type(world.ptr_type(get(tuple->ops(), index), type->length(), type->device(), type->addr_space()));
-    } else if (auto array = ptr_referenced_type()->isa<ArrayType>()) {
+    } else if (auto array = ptr_pointee()->isa<ArrayType>()) {
         set_type(world.ptr_type(array->elem_type(), type->length(), type->device(), type->addr_space()));
-    } else if (auto struct_type = ptr_referenced_type()->isa<StructType>()) {
+    } else if (auto struct_type = ptr_pointee()->isa<StructType>()) {
         set_type(world.ptr_type(get(struct_type->ops(), index)));
     } else {
         THORIN_UNREACHABLE;
@@ -104,7 +104,7 @@ Load::Load(const Def* mem, const Def* ptr, Debug dbg)
     : Access(Node_Load, nullptr, {mem, ptr}, dbg)
 {
     World& w = mem->world();
-    set_type(w.tuple_type({w.mem_type(), ptr->type()->as<PtrType>()->referenced_type()}));
+    set_type(w.tuple_type({w.mem_type(), ptr->type()->as<PtrType>()->pointee()}));
 }
 
 Enter::Enter(const Def* mem, Debug dbg)
@@ -140,14 +140,14 @@ Assembly::Assembly(const Type *type, Defs inputs, std::string asm_template, Arra
  */
 
 uint64_t PrimOp::vhash() const {
-    uint64_t seed = hash_combine(hash_begin(uint8_t(kind())), uint16_t(type()->gid()));
+    uint64_t seed = hash_combine(hash_begin(uint8_t(tag())), uint16_t(type()->gid()));
     for (auto op : ops_)
         seed = hash_combine(seed, uint16_t(op->gid()));
     return seed;
 }
 
 uint64_t PrimLit::vhash() const { return hash_combine(Literal::vhash(), bcast<uint64_t, Box>(value())); }
-uint64_t Slot::vhash() const { return hash_combine((int) kind(), gid()); }
+uint64_t Slot::vhash() const { return hash_combine((int) tag(), gid()); }
 
 //------------------------------------------------------------------------------
 
@@ -156,7 +156,7 @@ uint64_t Slot::vhash() const { return hash_combine((int) kind(), gid()); }
  */
 
 bool PrimOp::equal(const PrimOp* other) const {
-    bool result = this->kind() == other->kind() && this->num_ops() == other->num_ops() && this->type() == other->type();
+    bool result = this->tag() == other->tag() && this->num_ops() == other->num_ops() && this->type() == other->type();
     for (size_t i = 0, e = num_ops(); result && i != e; ++i)
         result &= this->ops_[i] == other->ops_[i];
     return result;
@@ -176,11 +176,11 @@ bool Slot::equal(const PrimOp* other) const { return this == other; }
 
 // do not use any of PrimOp's type getters - during import we need to derive types from 't' in the new world 'to'
 
-const Def* ArithOp::vrebuild(World& to, Defs ops, const Type*  ) const { return to.arithop(arithop_kind(), ops[0], ops[1], debug()); }
+const Def* ArithOp::vrebuild(World& to, Defs ops, const Type*  ) const { return to.arithop(arithop_tag(), ops[0], ops[1], debug()); }
 const Def* Bitcast::vrebuild(World& to, Defs ops, const Type* t) const { return to.bitcast(t, ops[0], debug()); }
 const Def* Bottom ::vrebuild(World& to, Defs,     const Type* t) const { return to.bottom(t, debug()); }
 const Def* Cast   ::vrebuild(World& to, Defs ops, const Type* t) const { return to.cast(t, ops[0], debug()); }
-const Def* Cmp    ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.cmp(cmp_kind(), ops[0], ops[1], debug()); }
+const Def* Cmp    ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.cmp(cmp_tag(), ops[0], ops[1], debug()); }
 const Def* Enter  ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.enter(ops[0], debug()); }
 const Def* Extract::vrebuild(World& to, Defs ops, const Type*  ) const { return to.extract(ops[0], ops[1], debug()); }
 const Def* Global ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.global(ops[0], is_mutable(), debug()); }
@@ -188,17 +188,17 @@ const Def* Hlt    ::vrebuild(World& to, Defs ops, const Type*  ) const { return 
 const Def* Insert ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.insert(ops[0], ops[1], ops[2], debug()); }
 const Def* LEA    ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.lea(ops[0], ops[1], debug()); }
 const Def* Load   ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.load(ops[0], ops[1], debug()); }
-const Def* PrimLit::vrebuild(World& to, Defs,     const Type*  ) const { return to.literal(primtype_kind(), value(), debug()); }
+const Def* PrimLit::vrebuild(World& to, Defs,     const Type*  ) const { return to.literal(primtype_tag(), value(), debug()); }
 const Def* Run    ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.run(ops[0], ops[1], debug()); }
 const Def* Select ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.select(ops[0], ops[1], ops[2], debug()); }
 const Def* SizeOf ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.size_of(ops[0]->type(), debug()); }
-const Def* Slot   ::vrebuild(World& to, Defs ops, const Type* t) const { return to.slot(t->as<PtrType>()->referenced_type(), ops[0], debug()); }
+const Def* Slot   ::vrebuild(World& to, Defs ops, const Type* t) const { return to.slot(t->as<PtrType>()->pointee(), ops[0], debug()); }
 const Def* Store  ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.store(ops[0], ops[1], ops[2], debug()); }
 const Def* Tuple  ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.tuple(ops, debug()); }
 const Def* Vector ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.vector(ops, debug()); }
 
 const Def* Alloc::vrebuild(World& to, Defs ops, const Type* t) const {
-    return to.alloc(t->as<TupleType>()->op(1)->as<PtrType>()->referenced_type(), ops[0], ops[1], debug());
+    return to.alloc(t->as<TupleType>()->op(1)->as<PtrType>()->pointee(), ops[0], ops[1], debug());
 }
 
 const Def* Assembly::vrebuild(World& to, Defs ops, const Type* t) const {
@@ -224,7 +224,7 @@ const Def* IndefiniteArray::vrebuild(World& to, Defs ops, const Type* t) const {
  */
 
 const char* PrimOp::op_name() const {
-    switch (kind()) {
+    switch (tag()) {
 #define THORIN_NODE(op, abbr) case Node_##op: return #abbr;
 #include "thorin/tables/nodetable.h"
         default: THORIN_UNREACHABLE;
@@ -232,7 +232,7 @@ const char* PrimOp::op_name() const {
 }
 
 const char* ArithOp::op_name() const {
-    switch (kind()) {
+    switch (tag()) {
 #define THORIN_ARITHOP(op) case ArithOp_##op: return #op;
 #include "thorin/tables/arithoptable.h"
         default: THORIN_UNREACHABLE;
@@ -240,7 +240,7 @@ const char* ArithOp::op_name() const {
 }
 
 const char* Cmp::op_name() const {
-    switch (kind()) {
+    switch (tag()) {
 #define THORIN_CMP(op) case Cmp_##op: return #op;
 #include "thorin/tables/cmptable.h"
         default: THORIN_UNREACHABLE;
@@ -258,25 +258,25 @@ const char* Global::op_name() const { return is_mutable() ? "global_mutable" : "
 std::ostream& PrimOp::stream(std::ostream& os) const {
     if (is_const(this)) {
         if (empty())
-            return streamf(os, "% %", op_name(), type());
+            return streamf(os, "{} {}", op_name(), type());
         else
-            return streamf(os, "(% % %)", type(), op_name(), stream_list(ops(), [&](const Def* def) { os << def; }));
+            return streamf(os, "({} {} {})", type(), op_name(), stream_list(ops(), [&](const Def* def) { os << def; }));
     } else
         return os << unique_name();
 }
 
 std::ostream& PrimLit::stream(std::ostream& os) const {
     os << type() << ' ';
-    auto kind = primtype_kind();
+    auto tag = primtype_tag();
 
     // print i8 as ints
-    switch (kind) {
+    switch (tag) {
         case PrimType_qs8: return os << (int) qs8_value();
         case PrimType_ps8: return os << (int) ps8_value();
         case PrimType_qu8: return os << (unsigned) qu8_value();
         case PrimType_pu8: return os << (unsigned) pu8_value();
         default:
-            switch (kind) {
+            switch (tag) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: return os << value().get_##M();
 #include "thorin/tables/primtypetable.h"
                 default: THORIN_UNREACHABLE;
@@ -287,7 +287,7 @@ std::ostream& PrimLit::stream(std::ostream& os) const {
 std::ostream& Global::stream(std::ostream& os) const { return os << unique_name(); }
 
 std::ostream& PrimOp::stream_assignment(std::ostream& os) const {
-    return streamf(os, "% % = % %", type(), unique_name(), op_name(), stream_list(ops(), [&] (const Def* def) { os << def; })) << endl;
+    return streamf(os, "{} {} = {} {}", type(), unique_name(), op_name(), stream_list(ops(), [&] (const Def* def) { os << def; })) << endl;
 }
 
 //------------------------------------------------------------------------------

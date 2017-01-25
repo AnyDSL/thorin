@@ -60,7 +60,7 @@ private:
 
 std::ostream& CCodeGen::emit_debug_info(const Def* def) {
     if (debug_)
-        return streamf(func_impl_, "#line % \"%\"", def->location().front_line(), def->location().filename()) << endl;
+        return streamf(func_impl_, "#line {} \"{}\"", def->location().front_line(), def->location().filename()) << endl;
     return func_impl_;
 }
 
@@ -122,13 +122,13 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
         os << down << endl << "} array_" << array->gid() << ";";
         return os;
     } else if (auto ptr = type->isa<PtrType>()) {
-        emit_type(os, ptr->referenced_type());
+        emit_type(os, ptr->pointee());
         os << '*';
         if (ptr->is_vector())
-            os << vector_length(ptr->referenced_type());
+            os << vector_length(ptr->pointee());
         return os;
     } else if (auto primtype = type->isa<PrimType>()) {
-        switch (primtype->primtype_kind()) {
+        switch (primtype->primtype_tag()) {
             case PrimType_bool:                     os << "bool";                   break;
             case PrimType_ps8:  case PrimType_qs8:  os << "char";                   break;
             case PrimType_pu8:  case PrimType_qu8:  os << "unsigned char";          break;
@@ -190,7 +190,7 @@ std::ostream& CCodeGen::emit_aggop_decl(const Type* type) {
         type_decls_ << down;
 
     if (auto ptr = type->isa<PtrType>())
-        emit_aggop_decl(ptr->referenced_type());
+        emit_aggop_decl(ptr->pointee());
 
     if (auto array = type->isa<IndefiniteArrayType>())
         emit_aggop_decl(array->elem_type());
@@ -320,7 +320,7 @@ void CCodeGen::emit() {
                 if (is_texture_type(param->type())) {
                     // emit texture declaration for CUDA
                     type_decls_ << "texture<";
-                    emit_type(type_decls_, param->type()->as<PtrType>()->referenced_type());
+                    emit_type(type_decls_, param->type()->as<PtrType>()->pointee());
                     type_decls_ << ", cudaTextureType1D, cudaReadModeElementType> ";
                     type_decls_ << param->name() << ";" << endl;
                     insert(param, param->name());
@@ -507,7 +507,7 @@ void CCodeGen::emit() {
                     if (callee->is_intrinsic()) {
                         if (callee->intrinsic() == Intrinsic::Reserve) {
                             if (!continuation->arg(1)->isa<PrimLit>())
-                                ELOG("reserve_shared: couldn't extract memory size at %", continuation->arg(1)->location());
+                                ELOG("reserve_shared: couldn't extract memory size at {}", continuation->arg(1)->location());
 
                             switch (lang_) {
                                 case Lang::C99:                                 break;
@@ -516,7 +516,7 @@ void CCodeGen::emit() {
                             }
 
                             auto cont = continuation->arg(2)->as_continuation();
-                            auto elem_type = cont->param(1)->type()->as<PtrType>()->referenced_type()->as<ArrayType>()->elem_type();
+                            auto elem_type = cont->param(1)->type()->as<PtrType>()->pointee()->as<ArrayType>()->elem_type();
                             auto name = "reserver_" + cont->param(1)->unique_name();
                             emit_type(func_impl_, elem_type) << " " << name << "[";
                             emit(continuation->arg(1)) << "];" << endl;
@@ -655,7 +655,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
         func_impl_ << bin->unique_name() << " = ";
         emit(bin->lhs());
         if (auto cmp = bin->isa<Cmp>()) {
-            switch (cmp->cmp_kind()) {
+            switch (cmp->cmp_tag()) {
                 case Cmp_eq: func_impl_ << " == "; break;
                 case Cmp_ne: func_impl_ << " != "; break;
                 case Cmp_gt: func_impl_ << " > ";  break;
@@ -666,12 +666,12 @@ std::ostream& CCodeGen::emit(const Def* def) {
         }
 
         if (auto arithop = bin->isa<ArithOp>()) {
-            switch (arithop->arithop_kind()) {
+            switch (arithop->arithop_tag()) {
                 case ArithOp_add: func_impl_ << " + ";  break;
                 case ArithOp_sub: func_impl_ << " - ";  break;
                 case ArithOp_mul: func_impl_ << " * ";  break;
                 case ArithOp_div: func_impl_ << " / ";  break;
-                case ArithOp_rem: func_impl_ << " % ";  break;
+                case ArithOp_rem: func_impl_ << " {} ";  break;
                 case ArithOp_and: func_impl_ << " & ";  break;
                 case ArithOp_or:  func_impl_ << " | ";  break;
                 case ArithOp_xor: func_impl_ << " ^ ";  break;
@@ -699,11 +699,11 @@ std::ostream& CCodeGen::emit(const Def* def) {
 
             func_impl_ << conv->unique_name() << " = ";
 
-            if (lang_==Lang::CUDA && from && (from->primtype_kind() == PrimType_pf16 || from->primtype_kind() == PrimType_qf16)) {
+            if (lang_==Lang::CUDA && from && (from->primtype_tag() == PrimType_pf16 || from->primtype_tag() == PrimType_qf16)) {
                 func_impl_ << "(";
                 emit_type(func_impl_, conv->type()) << ") __half2float(";
                 emit(conv->from()) << ");";
-            } else if (lang_==Lang::CUDA && to && (to->primtype_kind() == PrimType_pf16 || to->primtype_kind() == PrimType_qf16)) {
+            } else if (lang_==Lang::CUDA && to && (to->primtype_tag() == PrimType_pf16 || to->primtype_tag() == PrimType_qf16)) {
                 func_impl_ << "__float2half((float)";
                 emit(conv->from()) << ");";
             } else {
@@ -828,7 +828,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
         auto hp = lang_ == Lang::CUDA ? "__float2half(" : "";
         auto hs = lang_ == Lang::CUDA ? ")" : "h";
 
-        switch (primlit->primtype_kind()) {
+        switch (primlit->primtype_tag()) {
             case PrimType_bool: func_impl_ << (primlit->bool_value() ? "true" : "false");                          break;
             case PrimType_ps8:  case PrimType_qs8:  func_impl_ << (int) primlit->ps8_value();                      break;
             case PrimType_pu8:  case PrimType_qu8:  func_impl_ << (unsigned) primlit->pu8_value();                 break;
@@ -889,17 +889,17 @@ std::ostream& CCodeGen::emit(const Def* def) {
 
     if (auto lea = def->isa<LEA>()) {
         if (is_texture_type(lea->type())) { // handle texture fetches
-            emit_type(func_impl_, lea->ptr_referenced_type()) << " " << lea->unique_name() << ";" << endl;
+            emit_type(func_impl_, lea->ptr_pointee()) << " " << lea->unique_name() << ";" << endl;
             func_impl_ << lea->unique_name() << " = tex1Dfetch(";
             emit(lea->ptr()) << ", ";
             emit(lea->index()) << ");";
         } else {
-            if (lea->ptr_referenced_type()->isa<TupleType>() || lea->ptr_referenced_type()->isa<StructType>()) {
+            if (lea->ptr_pointee()->isa<TupleType>() || lea->ptr_pointee()->isa<StructType>()) {
                 emit_type(func_impl_, lea->type()) << " " << lea->unique_name() << ";" << endl;
                 func_impl_ << lea->unique_name() << " = &";
                 emit(lea->ptr()) << "->e";
                 emit(lea->index()) << ";";
-            } else if (lea->ptr_referenced_type()->isa<DefiniteArrayType>()) {
+            } else if (lea->ptr_pointee()->isa<DefiniteArrayType>()) {
                 emit_type(func_impl_, lea->type()) << " " << lea->unique_name() << ";" << endl;
                 func_impl_ << lea->unique_name() << " = &";
                 emit(lea->ptr()) << "->e[";
@@ -919,7 +919,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
 
     if (auto assembly = def->isa<Assembly>()) {
         size_t out_size = assembly->type()->num_ops() - 1;
-        Array<std::string> outputs(out_size, "");
+        Array<std::string> outputs(out_size, std::string(""));
         for (auto use : assembly->uses()) {
             auto extract = use->as<Extract>();
             size_t index = primlit_value<unsigned>(extract->index());
@@ -946,7 +946,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
         if (assembly->has_sideeffects())
             func_impl_ << "volatile ";
         if (assembly->is_alignstack() || assembly->is_inteldialect())
-            WLOG("stack alignment and inteldialect flags unsupported for C output at %", assembly->location());
+            WLOG("stack alignment and inteldialect flags unsupported for C output at {}", assembly->location());
         func_impl_ << "(\"" << assembly->asm_template() << "\"";
 
         // emit the outputs

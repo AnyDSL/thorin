@@ -3,6 +3,7 @@
 
 #include <ostream>
 #include <stdexcept>
+#include <type_traits>
 
 namespace thorin {
 
@@ -21,6 +22,22 @@ std::ostream& operator<<(std::ostream&, const Streamable*); ///< Use @p Streamab
 namespace detail {
     template<typename T> inline std::ostream& stream(std::ostream& os, T val) { return os << val; }
     template<> inline std::ostream& stream<const Streamable*>(std::ostream& os, const Streamable* s) { return s->stream(os); }
+
+    template<typename T>
+    const char* handle_fmt_specifier(std::ostream& os, const char* fmt, T val) {
+        fmt++; // skip opening brace {
+        char specifier = *fmt;
+        std::string spec_fmt;
+        while (*fmt && *fmt != '}') {
+            spec_fmt.push_back(*fmt++);
+        }
+        if (*fmt != '}')
+            throw std::invalid_argument("Unmatched closing brace } in format string.");
+        if (specifier == '}')
+            detail::stream(os, val);
+        // TODO possibly handle some format specifiers here that don't require major template trickery (e.g. floats)
+        return ++fmt;
+    }
 }
 
 /// Base case.
@@ -28,15 +45,32 @@ std::ostream& streamf(std::ostream& os, const char* fmt);
 
 /**
  * fprintf-like function which works on C++ @c std::ostream.
- * Each @c "%" in @p fmt corresponds to one vardiac argument in @p args.
+ * Each @c "{}" in @p fmt corresponds to one of the variadic arguments in @p args.
  * The type of the corresponding argument must either support @c operator<< for C++ @c std::ostream or inherit from @p Streamable.
  */
 template<typename T, typename... Args>
 std::ostream& streamf(std::ostream& os, const char* fmt, T val, Args... args) {
     while (*fmt) {
-        if (*fmt == '%')
-            return streamf(detail::stream(os, val), ++fmt, args...); // call even when *fmt == 0 to detect extra arguments
-        os << *fmt++;
+        auto next = fmt + 1;
+        if (*fmt == '{') {
+            if (*next == '{') {
+                os << '{';
+                fmt += 2;
+                continue;
+            }
+            fmt = detail::handle_fmt_specifier(os, fmt, val);
+            // call even when *fmt == 0 to detect extra arguments
+            return streamf(os, fmt, args...);
+        } else if (*fmt == '}') {
+            if (*next == '}') {
+                os << '}';
+                fmt += 2;
+                continue;
+            }
+            // TODO give exact position
+            throw std::invalid_argument("Unmatched/unescaped closing brace } in format string.");
+        } else
+            os << *fmt++;
     }
     throw std::invalid_argument("invalid format string for 'streamf': runaway arguments; use 'catch throw' in 'gdb'");
 }
@@ -104,6 +138,18 @@ template<class Emit, class List>
 StreamList<Emit, List> stream_list(const List& list, Emit emit, const char* sep = ", ") {
     return StreamList<Emit, List>(list, emit, sep);
 }
+
+#ifdef NDEBUG
+#   define assertf(condition, ...) static_cast<void>(0)
+#else
+#   define assertf(condition, ...)             \
+    if (!(condition)) { \
+        std::cerr << "Assertion '" #condition "' failed in " << __FILE__ << ":" << __LINE__ << " "; \
+        streamf(std::cerr, __VA_ARGS__) << std::endl; \
+        std::abort(); \
+    } \
+    static_cast<void>(0)
+#endif
 
 }
 

@@ -52,8 +52,6 @@ SET ( SOURCES
     be/llvm/spir.cpp
     be/llvm/spir.h
     be/llvm/vectorize.cpp
-    be/ycomp.cpp
-    be/ycomp.h
     tables/allnodes.h
     tables/arithoptable.h
     tables/cmptable.h
@@ -97,8 +95,6 @@ SET ( SOURCES
     util/location.h
     util/log.cpp
     util/log.h
-    util/printer.cpp
-    util/printer.h
     util/stream.cpp
     util/stream.h
     util/types.h
@@ -109,10 +105,6 @@ SET ( SOURCES
 
 # create lib
 GET_THORIN_DEPENDENCY_LIBS ( THORIN_LIBS )
-
-# set define for *.s file
-GET_FILENAME_COMPONENT ( THORIN_RUNTIME_PLATFORMS "${CMAKE_CURRENT_SOURCE_DIR}/../../runtime/platforms" ABSOLUTE )
-SET_SOURCE_FILES_PROPERTIES(be/llvm/runtime.cpp PROPERTIES COMPILE_DEFINITIONS THORIN_RUNTIME_PLATFORMS=\"${THORIN_RUNTIME_PLATFORMS}/\")
 
 ADD_LIBRARY ( ${LIBRARY_NAME} ${SOURCES} )
 TARGET_LINK_LIBRARIES ( ${LIBRARY_NAME} ${THORIN_LIBS} )

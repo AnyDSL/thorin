@@ -97,28 +97,34 @@ public:
 
 private:
 #if defined(__x86_64__) || (_M_X64)
-    int64_t ptr_ : 48; // sign extend to make pointer canonical
+    int64_t ptr_   : 48; // sign extend to make pointer canonical
+    int64_t index_ : 16;
 #else
     T* ptr_;
-#endif
     I index_;
+#endif
 };
+
+#if defined(__x86_64__) || (_M_X64)
+static_assert(sizeof(TaggedPtr<void*,int>) == 8, "a tagged ptr on x86_64 is supposed to be 8 bytes big");
+#endif
 
 //@{ bit fiddling
 
 /// Determines whether @p i is a power of two.
-constexpr size_t is_power_of_2(size_t i) { return ((i != 0) && !(i & (i - 1))); }
+constexpr uint64_t is_power_of_2(uint64_t i) { return ((i != 0) && !(i & (i - 1))); }
 
-constexpr unsigned log2(unsigned n, unsigned p = 0) { return (n <= 1) ? p : log2(n / 2, p + 1); }
+constexpr uint64_t log2(uint64_t n, uint64_t p = 0) { return (n <= uint64_t(1)) ? p : log2(n / uint64_t(2), p + uint64_t(1)); }
 
 template<typename T>
 inline T round_to_power_of_2(T i) {
     i--;
-    i |= i >> 1;
-    i |= i >> 2;
-    i |= i >> 4;
-    i |= i >> 8;
-    i |= i >> 16;
+    i |= i >> T( 1);
+    i |= i >> T( 2);
+    i |= i >> T( 4);
+    i |= i >> T( 8);
+    i |= i >> T(16);
+    i |= i >> T(32);
     i++;
     return i;
 }
@@ -130,12 +136,12 @@ inline size_t bitcount(uint64_t v) {
     return __popcnt64(v);
 #else
     // see https://stackoverflow.com/questions/3815165/how-to-implement-bitcount-using-only-bitwise-operators
-    auto c = v - ((v >>  1ull)      & 0x5555555555555555ull);
-    c =          ((c >>  2ull)      & 0x3333333333333333ull) + (c & 0x3333333333333333ull);
-    c =          ((c >>  4ull) + c) & 0x0F0F0F0F0F0F0F0Full;
-    c =          ((c >>  8ull) + c) & 0x00FF00FF00FF00FFull;
-    c =          ((c >> 16ull) + c) & 0x0000FFFF0000FFFFull;
-    return       ((c >> 32ull) + c) & 0x00000000FFFFFFFFull;
+    auto c = v - ((v >> uint64_t( 1))      & uint64_t(0x5555555555555555));
+    c =          ((c >> uint64_t( 2))      & uint64_t(0x3333333333333333)) + (c & uint64_t(0x3333333333333333));
+    c =          ((c >> uint64_t( 4)) + c) & uint64_t(0x0F0F0F0F0F0F0F0F);
+    c =          ((c >> uint64_t( 8)) + c) & uint64_t(0x00FF00FF00FF00FF);
+    c =          ((c >> uint64_t(16)) + c) & uint64_t(0x0000FFFF0000FFFF);
+    return       ((c >> uint64_t(32)) + c) & uint64_t(0x00000000FFFFFFFF);
 #endif
 }
 

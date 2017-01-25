@@ -10,7 +10,6 @@
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/looptree.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/be/ycomp.h"
 #include "thorin/util/log.h"
 #include "thorin/util/utility.h"
 
@@ -86,10 +85,10 @@ void CFNode::link(const CFNode* other) const {
     other->preds_.emplace(this);
 }
 
-std::ostream& CFNode::stream(std::ostream& out) const { return streamf(out, "%", continuation()); }
-std::ostream& OutNode::stream(std::ostream& out) const { return streamf(out, "[Out: % (%)]", def(), context()); }
-std::ostream& SymDefNode::stream(std::ostream& out) const { return streamf(out, "[Sym: %]", def()); }
-std::ostream& SymOutNode::stream(std::ostream& out) const { return streamf(out, "[Sym: %]", out_node()); }
+std::ostream& CFNode::stream(std::ostream& out) const { return streamf(out, "{}", continuation()); }
+std::ostream& OutNode::stream(std::ostream& out) const { return streamf(out, "[Out: {} ({})]", def(), context()); }
+std::ostream& SymDefNode::stream(std::ostream& out) const { return streamf(out, "[Sym: {}]", def()); }
+std::ostream& SymOutNode::stream(std::ostream& out) const { return streamf(out, "[Sym: {}]", out_node()); }
 
 //------------------------------------------------------------------------------
 
@@ -102,7 +101,7 @@ public:
         , entry_(in_node(scope().entry()))
         , exit_ (in_node(scope().exit()))
     {
-        ILOG("*** CFA: %", scope().entry());
+        ILOG("*** CFA: {}", scope().entry());
         ILOG_SCOPE(propagate_higher_order_values());
         ILOG_SCOPE(run_cfa());
         ILOG_SCOPE(build_cfg());
@@ -189,7 +188,7 @@ public:
     }
 
     void link(const RealCFNode* src, const RealCFNode* dst) {
-        DLOG("% -> %", src, dst);
+        DLOG("{} -> {}", src, dst);
 
         assert(src->f_index_ == CFNode::Reachable || src->f_index_ == CFNode::Done);
         dst->f_index_ = src->f_index_;
@@ -443,7 +442,7 @@ void CFABuilder::unreachable_node_elimination() {
             for (auto def : remove) {
                 auto i = out_nodes.find(def);
                 auto out = i->second;
-                DLOG("removing: %", out);
+                DLOG("removing: {}", out);
                 out_nodes.erase(i);
                 delete out;
             }
@@ -452,7 +451,7 @@ void CFABuilder::unreachable_node_elimination() {
             for (const auto& p : out_nodes_[in])
                 assert(p.second->f_index_ != CFNode::Reachable);
 #endif
-            DLOG("removing: %", in);
+            DLOG("removing: {}", in);
             cfa_.nodes_[in->continuation()] = nullptr;
             delete in;
         }
@@ -515,7 +514,7 @@ void CFABuilder::link_to_exit() {
             if (!todo) {
                 if (n->f_index_ == CFNode::OnStackTodo) {
                     candidate = n;
-                    DLOG("candidate: %", candidate);
+                    DLOG("candidate: {}", candidate);
                 }
                 backtrack_stack.pop();
             }
@@ -524,7 +523,7 @@ void CFABuilder::link_to_exit() {
         ++mark;
 
         if (candidate) { // reorder stack
-            DLOG("reorder for candidate: %", candidate);
+            DLOG("reorder for candidate: {}", candidate);
             auto i = std::find(stack.begin(), stack.end(), candidate);
             assert(i != stack.end());
             std::move(i+1, stack.end(), i);
@@ -549,7 +548,7 @@ void CFABuilder::link_to_exit() {
                 if (!backtrack()) {
                     n->f_index_ = CFNode::Done;
                     stack.pop_back();
-                    DLOG("unreachble from exit: %", n);
+                    DLOG("unreachble from exit: {}", n);
                     link(n, exit());
                     backwards_reachable(n);
                 }
@@ -591,7 +590,7 @@ void CFABuilder::verify() {
     bool error = false;
     for (auto in : cfa().nodes()) {
         if (in != entry() && in->preds_.size() == 0) {
-            WLOG("missing predecessors: %", in->continuation());
+            WLOG("missing predecessors: {}", in->continuation());
             error = true;
         }
     }

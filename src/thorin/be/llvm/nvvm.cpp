@@ -145,7 +145,7 @@ llvm::Value* NVVMCodeGen::emit_store(const Store* store) {
 static std::string get_texture_fetch_command(const Type* type) {
     std::stringstream fun_str;
     fun_str << "tex.1d.v4.";
-    switch (type->as<PrimType>()->primtype_kind()) {
+    switch (type->as<PrimType>()->primtype_tag()) {
         case PrimType_ps8:  case PrimType_qs8:
         case PrimType_pu8:  case PrimType_qu8:  fun_str << "s8";  break;
         case PrimType_ps16: case PrimType_qs16:
@@ -167,7 +167,7 @@ static std::string get_texture_fetch_command(const Type* type) {
 static std::string get_texture_fetch_constraint(const Type* type) {
     std::stringstream constraint_str;
     char c;
-    switch (type->as<PrimType>()->primtype_kind()) {
+    switch (type->as<PrimType>()->primtype_tag()) {
         case PrimType_ps8:  case PrimType_qs8:
         case PrimType_pu8:  case PrimType_qu8:  c = 'c'; break;
         case PrimType_ps16: case PrimType_qs16:
@@ -194,15 +194,15 @@ llvm::Value* NVVMCodeGen::emit_lea(const LEA* lea) {
             // %tex_fetch = call { i32, i32, i32, i32 } asm sideeffect "tex.1d.v4.s32.s32 {$0,$1,$2,$3}, [$4, {$5,$6,$7,$8}];",
             // "=r,=r,=r,=r,l,r,r,r,r" (i64 %tex_ref, i32 %add, i32 0, i32 0, i32 0)
             auto ptr_ty = lea->type();
-            auto llvm_ptr_ty = convert(ptr_ty->referenced_type());
+            auto llvm_ptr_ty = convert(ptr_ty->pointee());
             llvm::Type* struct_types[] = { llvm_ptr_ty, llvm_ptr_ty, llvm_ptr_ty, llvm_ptr_ty };
             auto ret_type = llvm::StructType::create(struct_types);
             llvm::Type* args[] = {
                 irbuilder_.getInt64Ty(),
                 irbuilder_.getInt32Ty(), irbuilder_.getInt32Ty(), irbuilder_.getInt32Ty(), irbuilder_.getInt32Ty() };
             auto type = llvm::FunctionType::get(ret_type, args, false);
-            auto fetch_command = get_texture_fetch_command(ptr_ty->referenced_type());
-            auto fetch_constraint = get_texture_fetch_constraint(ptr_ty->referenced_type());
+            auto fetch_command = get_texture_fetch_command(ptr_ty->pointee());
+            auto fetch_constraint = get_texture_fetch_constraint(ptr_ty->pointee());
             auto get_call = llvm::InlineAsm::get(type, fetch_command, fetch_constraint, false);
             llvm::Value* values[] = {
                 lookup(lea->ptr()), lookup(lea->index()),

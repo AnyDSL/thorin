@@ -9,6 +9,35 @@
 
 namespace thorin {
 
+void force_inline(Scope& scope, int threshold) {
+    for (bool todo = true; todo && threshold-- != 0;) {
+        todo = false;
+        for (auto n : scope.f_cfg().post_order()) {
+            auto continuation = n->continuation();
+            if (auto callee = continuation->callee()->isa_continuation()) {
+                if (!callee->empty() && !scope.contains(callee)) {
+                    Scope callee_scope(callee);
+                    continuation->jump(drop(callee_scope, continuation->args()), {}, continuation->jump_debug());
+                    todo = true;
+                }
+            }
+        }
+
+        if (todo)
+            scope.update();
+    }
+
+    for (auto n : scope.f_cfg().reverse_post_order()) {
+        auto continuation = n->continuation();
+        if (auto callee = continuation->callee()->isa_continuation()) {
+            if (!callee->empty() && !scope.contains(callee)) {
+                WLOG("couldn't inline {} at {}; continuation defined at {}",
+                     scope.entry(), continuation->jump_location(), callee->location());
+            }
+        }
+    }
+}
+
 void inliner(World& world) {
     Scope::for_each(world, [] (const Scope& scope) {
         for (auto n : scope.f_cfg().post_order()) {

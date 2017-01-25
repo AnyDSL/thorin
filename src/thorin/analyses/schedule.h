@@ -10,7 +10,7 @@ class PrimOp;
 
 class Schedule : public Streamable {
 public:
-    enum Kind { Early, Late, Smart };
+    enum Tag { Early, Late, Smart };
 
     class Block {
     public:
@@ -48,11 +48,11 @@ public:
         : scope_(std::move(other.scope_))
         , indices_(std::move(other.indices_))
         , blocks_(std::move(other.blocks_))
-        , kind_(std::move(other.kind_))
+        , tag_(std::move(other.tag_))
     {}
-    Schedule(const Scope&, Kind = Smart);
+    Schedule(const Scope&, Tag = Smart);
 
-    Kind kind() const { return kind_; }
+    Tag tag() const { return tag_; }
     const Scope& scope() const { return scope_; }
     const World& world() const { return scope().world(); }
     const CFA& cfa() const { return scope().cfa(); }
@@ -79,12 +79,12 @@ private:
     const Scope& scope_;
     F_CFG::Map<size_t> indices_;
     Array<Block> blocks_;
-    Kind kind_;
+    Tag tag_;
 
     friend class Scheduler;
 };
 
-inline Schedule schedule(const Scope& scope, Schedule::Kind kind = Schedule::Smart) { return Schedule(scope, kind); }
+inline Schedule schedule(const Scope& scope, Schedule::Tag tag = Schedule::Smart) { return Schedule(scope, tag); }
 
 }
 

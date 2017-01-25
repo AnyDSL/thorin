@@ -401,7 +401,7 @@ const Def* Continuation::get_value(size_t handle, const Type* type, const char* 
     }
 
 return_bottom:
-    WLOG("'%' may be undefined at '%'", name, this->location());
+    WLOG("'{}' may be undefined at '{}'", name, this->location());
     return set_value(handle, world().bottom(type));
 
 return_result:
@@ -485,7 +485,7 @@ const Def* Continuation::try_remove_trivial_param(const Param* param) {
 std::ostream& Continuation::stream_head(std::ostream& os) const {
     os << unique_name();
     //stream_type_params(os, type());
-    stream_list(os, params(), [&](const Param* param) { streamf(os, "% %", param->type(), param); }, "(", ")");
+    stream_list(os, params(), [&](const Param* param) { streamf(os, "{} {}", param->type(), param); }, "(", ")");
     if (is_external())
         os << " extern ";
     if (cc() == CC::Device)

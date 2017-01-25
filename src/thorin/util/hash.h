@@ -10,18 +10,17 @@
 #include <iostream>
 #include <type_traits>
 
+#include "thorin/util/log.h"
 #include "thorin/util/utility.h"
 
 namespace thorin {
-
-uint16_t fetch_gid();
 
 //------------------------------------------------------------------------------
 
 /// Magic numbers from http://www.isthe.com/chongo/tech/comp/fnv/index.html#FNV-param .
 struct FNV1 {
-    static const uint64_t offset = 14695981039346656037ull;
-    static const uint64_t prime  = 1099511628211ull;
+    static const uint64_t offset = UINT64_C(14695981039346656037);
+    static const uint64_t prime  = UINT64_C(1099511628211);
 };
 
 /// Returns a new hash by combining the hash @p seed with @p val.
@@ -66,9 +65,23 @@ struct Hash<T*> {
 
 //------------------------------------------------------------------------------
 
+namespace detail {
+
+class HashTableBase {
+protected:
+    HashTableBase();
+
+public:
+    uint16_t gid() const { return gid_; }
+
+private:
+    static uint16_t gid_counter_;
+    uint16_t gid_;
+};
+
 /// Used internally for @p HashSet and @p HashMap.
 template<class Key, class T, class H = Hash<Key>>
-class HashTable {
+class HashTable : public HashTableBase {
 public:
     typedef Key key_type;
     typedef typename std::conditional<std::is_void<T>::value, Key, T>::type mapped_type;
@@ -151,7 +164,6 @@ public:
     HashTable()
         : capacity_(StackCapacity)
         , size_(0)
-        , gid_(fetch_gid())
         , nodes_(array_.data())
 #ifndef NDEBUG
         , id_(0)
@@ -169,14 +181,13 @@ public:
     HashTable(const HashTable& other)
         : capacity_(other.capacity_)
         , size_(other.size_)
-        , gid_(fetch_gid())
 #ifndef NDEBUG
         , id_(0)
 #endif
     {
         if (other.on_heap()) {
             nodes_ = alloc();
-            std::copy(other.nodes_, other.nodes_+capacity_, nodes_);
+            std::copy_n(other.nodes_, capacity_, nodes_);
         } else {
             nodes_ = array_.data();
             array_ = other.array_;
@@ -199,25 +210,24 @@ public:
     ~HashTable() {
         if (on_heap())
             delete[] nodes_;
-#ifndef NDEBUG
-        //assert(num_misses_ <= num_operations_ * 10 && "your hash function is garbage");
-#endif
     }
 
-    // iterators
+    //@{ getters
+    size_t capacity() const { return capacity_; }
+    size_t size() const { return size_; }
+    bool empty() const { return size() == 0; }
+    //@}
+
+    //@{ get begin/end iterators
     iterator begin() { return iterator::skip(nodes_, this); }
     iterator end() { return iterator(end_ptr(), this); }
     const_iterator begin() const { return const_iterator(const_cast<HashTable*>(this)->begin()); }
     const_iterator end() const { return const_iterator(const_cast<HashTable*>(this)->end()); }
     const_iterator cbegin() const { return begin(); }
     const_iterator cend() const { return end(); }
+    //@}
 
-    // getters
-    size_t capacity() const { return capacity_; }
-    size_t size() const { return size_; }
-    bool empty() const { return size() == 0; }
-
-    // emplace/insert
+    //@{ emplace/insert
     template<class... Args>
     std::pair<iterator,bool> emplace(Args&&... args) {
         if (size_ > capacity_/size_t(4) + capacity_/size_t(2))
@@ -226,13 +236,11 @@ public:
         return emplace_no_rehash(std::forward<Args>(args)...);
     }
 
-    // emplace/insert
     template<class... Args>
     std::pair<iterator,bool> emplace_no_rehash(Args&&... args) {
         using std::swap;
 #ifndef NDEBUG
         ++id_;
-        ++num_operations_;
 #endif
         auto n = value_type(std::forward<Args>(args)...);
         auto& k = key(&n);
@@ -243,13 +251,15 @@ public:
                 ++size_;
                 swap(nodes_[i], n);
                 result = result == end_ptr() ? nodes_+i : result;
+#ifdef THORIN_DEBUG_HASH
+                auto dib = probe_distance(i);
+                if (dib > std::max(4, log2(capacity())))
+                    WLOG("you are using a poor hash function - distance to initial bucket/capacity: {}/{}", dib, capacity());
+#endif
                 return std::make_pair(iterator(result, this), true);
             } else if (result == end_ptr() && H::eq(key(nodes_+i), k)) {
                 return std::make_pair(iterator(nodes_+i, this), false);
             } else {
-#ifndef NDEBUG
-                ++num_misses_;
-#endif
                 size_t cur_distance = probe_distance(i);
                 if (cur_distance < distance) {
                     result = result == end_ptr() ? nodes_+i : result;
@@ -283,7 +293,9 @@ public:
             changed |= emplace_no_rehash(*i).second;
         return changed;
     }
+    //@}
 
+    //@{ erase
     void erase(const_iterator pos) {
         using std::swap;
 
@@ -302,14 +314,10 @@ public:
             for (size_t curr = pos.ptr_-nodes_, next = mod(curr+1);
                 !is_invalid(next) && probe_distance(next) != 0; curr = next, next = mod(next+1)) {
                 swap(nodes_[curr], nodes_[next]);
-#ifndef NDEBUG
-                ++num_misses_;
-#endif
             }
         }
 #ifndef NDEBUG
         ++id_;
-        ++num_operations_;
 #endif
     }
 
@@ -325,6 +333,25 @@ public:
         erase(i);
         return 1;
     }
+    //@}
+
+    //@{ find
+    iterator find(const key_type& k) {
+        if (empty())
+            return end();
+
+        for (size_t i = desired_pos(k); true; i = mod(i+1)) {
+            if (is_invalid(i))
+                return end();
+            if (H::eq(key(nodes_+i), k))
+                return iterator(nodes_+i, this);
+        }
+    }
+
+    const_iterator find(const key_type& key) const {
+        return const_iterator(const_cast<HashTable*>(this)->find(key).ptr_, this);
+    }
+    //@}
 
     void clear() {
         size_ = 0;
@@ -336,28 +363,6 @@ public:
         }
 
         fill(nodes_);
-    }
-
-    iterator find(const key_type& k) {
-#ifndef NDEBUG
-        ++num_operations_;
-#endif
-        if (empty())
-            return end();
-
-        for (size_t i = desired_pos(k); true; i = mod(i+1)) {
-            if (is_invalid(i))
-                return end();
-            if (H::eq(key(nodes_+i), k))
-                return iterator(nodes_+i, this);
-#ifndef NDEBUG
-            ++num_misses_;
-#endif
-        }
-    }
-
-    const_iterator find(const key_type& key) const {
-        return const_iterator(const_cast<HashTable*>(this)->find(key).ptr_, this);
     }
 
     size_t count(const key_type& key) const { return find(key) == end() ? 0 : 1; }
@@ -376,17 +381,11 @@ public:
         for (size_t i = 0; i != old_capacity; ++i) {
             auto& old = old_nodes[i];
             if (!is_invalid(&old)) {
-#ifndef NDEBUG
-                ++num_operations_;
-#endif
                 for (size_t i = desired_pos(key(&old)), distance = 0; true; i = mod(i+1), ++distance) {
                     if (is_invalid(i)) {
                         swap(nodes_[i], old);
                         break;
                     } else {
-#ifndef NDEBUG
-                        ++num_misses_;
-#endif
                         size_t cur_distance = probe_distance(i);
                         if (cur_distance < distance) {
                             distance = cur_distance;
@@ -403,6 +402,8 @@ public:
 
     friend void swap(HashTable& t1, HashTable& t2) {
         using std::swap;
+
+        swap(static_cast<HashTableBase&>(t1), static_cast<HashTableBase&>(t2));
 
         if (t1.on_heap()) {
             if (t2.on_heap())
@@ -423,7 +424,6 @@ public:
 
         swap(t1.capacity_, t2.capacity_);
         swap(t1.size_,     t2.size_);
-        swap(t1.gid_,      t2.gid_);
 #ifndef NDEBUG
         swap(t1.id_,       t2.id_);
 #endif
@@ -436,7 +436,7 @@ private:
     int id() const { return id_; }
 #endif
     size_t mod(size_t i) const { return i & (capacity_-1); }
-    size_t desired_pos(const key_type& key) const { return mod(hash_combine(H::hash(key), gid_)); }
+    size_t desired_pos(const key_type& key) const { return mod(hash_combine(H::hash(key), gid())); }
     size_t probe_distance(size_t i) { return mod(i + capacity() - desired_pos(key(nodes_+i))); }
     value_type* end_ptr() const { return nodes_ + capacity(); }
     bool on_heap() const { return capacity_ != StackCapacity; }
@@ -453,17 +453,16 @@ private:
         return nodes;
     }
 
-    size_t capacity_;
-    size_t size_;
-    uint16_t gid_;
+    uint32_t capacity_;
+    uint32_t size_;
     std::array<value_type, StackCapacity> array_;
     value_type* nodes_;
 #ifndef NDEBUG
-    int num_operations_ = 0;
-    int num_misses_ = 0;
     int id_;
 #endif
 };
+
+}
 
 //------------------------------------------------------------------------------
 
@@ -472,9 +471,9 @@ private:
  * We use our own implementation in order to have a consistent and deterministic behavior across different platforms.
  */
 template<class Key, class H = Hash<Key>>
-class HashSet : public HashTable<Key, void, H> {
+class HashSet : public detail::HashTable<Key, void, H> {
 public:
-    typedef HashTable<Key, void, H> Super;
+    typedef detail::HashTable<Key, void, H> Super;
     typedef typename Super::key_type key_type;
     typedef typename Super::mapped_type mapped_type;
     typedef typename Super::value_type value_type;
@@ -503,9 +502,9 @@ public:
  * We use our own implementation in order to have a consistent and deterministic behavior across different platforms.
  */
 template<class Key, class T, class H = Hash<Key>>
-class HashMap : public HashTable<Key, T, H> {
+class HashMap : public detail::HashTable<Key, T, H> {
 public:
-    typedef HashTable<Key, T, H> Super;
+    typedef detail::HashTable<Key, T, H> Super;
     typedef typename Super::key_type key_type;
     typedef typename Super::mapped_type mapped_type;
     typedef typename Super::value_type value_type;

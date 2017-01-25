@@ -61,16 +61,16 @@ public:
     const PrimType* type_##T(size_t length = 1) { return length == 1 ? T##_ : unify(new PrimType(*this, PrimType_##T, length)); }
 #include "thorin/tables/primtypetable.h"
 
-    const PrimType* type(PrimTypeKind kind, size_t length = 1) {
-        size_t i = kind - Begin_PrimType;
+    const PrimType* type(PrimTypeTag tag, size_t length = 1) {
+        size_t i = tag - Begin_PrimType;
         assert(i < (size_t) Num_PrimTypes);
-        return length == 1 ? primtypes_[i] : unify(new PrimType(*this, kind, length));
+        return length == 1 ? primtypes_[i] : unify(new PrimType(*this, tag, length));
     }
     const MemType* mem_type() const { return mem_; }
     const FrameType* frame_type() const { return frame_; }
-    const PtrType* ptr_type(const Type* referenced_type,
+    const PtrType* ptr_type(const Type* pointee,
                             size_t length = 1, int32_t device = -1, AddrSpace addr_space = AddrSpace::Generic) {
-        return unify(new PtrType(*this, referenced_type, length, device, addr_space));
+        return unify(new PtrType(*this, pointee, length, device, addr_space));
     }
     const FnType* fn_type() { return fn0_; } ///< Returns an empty @p FnType.
     const FnType* fn_type(Types args) { return unify(new FnType(*this, args)); }
@@ -82,25 +82,25 @@ public:
 #define THORIN_ALL_TYPE(T, M) \
     const Def* literal_##T(T val, Debug dbg, size_t length = 1) { return literal(PrimType_##T, Box(val), dbg, length); }
 #include "thorin/tables/primtypetable.h"
-    const Def* literal(PrimTypeKind kind, Box box, Debug dbg, size_t length = 1) { return splat(cse(new PrimLit(*this, kind, box, dbg)), length); }
+    const Def* literal(PrimTypeTag tag, Box box, Debug dbg, size_t length = 1) { return splat(cse(new PrimLit(*this, tag, box, dbg)), length); }
     template<class T>
-    const Def* literal(T value, Debug dbg = {}, size_t length = 1) { return literal(type2kind<T>::kind, Box(value), dbg, length); }
-    const Def* zero(PrimTypeKind kind, Debug dbg = {}, size_t length = 1) { return literal(kind, 0, dbg, length); }
-    const Def* zero(const Type* type, Debug dbg = {}, size_t length = 1) { return zero(type->as<PrimType>()->primtype_kind(), dbg, length); }
-    const Def* one(PrimTypeKind kind, Debug dbg = {}, size_t length = 1) { return literal(kind, 1, dbg, length); }
-    const Def* one(const Type* type, Debug dbg = {}, size_t length = 1) { return one(type->as<PrimType>()->primtype_kind(), dbg, length); }
-    const Def* allset(PrimTypeKind kind, Debug dbg = {}, size_t length = 1) { return literal(kind, -1, dbg, length); }
-    const Def* allset(const Type* type, Debug dbg = {}, size_t length = 1) { return allset(type->as<PrimType>()->primtype_kind(), dbg, length); }
+    const Def* literal(T value, Debug dbg = {}, size_t length = 1) { return literal(type2tag<T>::tag, Box(value), dbg, length); }
+    const Def* zero(PrimTypeTag tag, Debug dbg = {}, size_t length = 1) { return literal(tag, 0, dbg, length); }
+    const Def* zero(const Type* type, Debug dbg = {}, size_t length = 1) { return zero(type->as<PrimType>()->primtype_tag(), dbg, length); }
+    const Def* one(PrimTypeTag tag, Debug dbg = {}, size_t length = 1) { return literal(tag, 1, dbg, length); }
+    const Def* one(const Type* type, Debug dbg = {}, size_t length = 1) { return one(type->as<PrimType>()->primtype_tag(), dbg, length); }
+    const Def* allset(PrimTypeTag tag, Debug dbg = {}, size_t length = 1) { return literal(tag, -1, dbg, length); }
+    const Def* allset(const Type* type, Debug dbg = {}, size_t length = 1) { return allset(type->as<PrimType>()->primtype_tag(), dbg, length); }
     const Def* bottom(const Type* type, Debug dbg = {}, size_t length = 1) { return splat(cse(new Bottom(type, dbg)), length); }
-    const Def* bottom(PrimTypeKind kind, Debug dbg = {}, size_t length = 1) { return bottom(type(kind), dbg, length); }
+    const Def* bottom(PrimTypeTag tag, Debug dbg = {}, size_t length = 1) { return bottom(type(tag), dbg, length); }
 
     // arithops
 
     /// Creates an \p ArithOp or a \p Cmp.
-    const Def* binop(int kind, const Def* lhs, const Def* rhs, Debug dbg = {});
+    const Def* binop(int tag, const Def* lhs, const Def* rhs, Debug dbg = {});
     const Def* arithop_not(const Def* def, Debug dbg = {});
     const Def* arithop_minus(const Def* def, Debug dbg = {});
-    const Def* arithop(ArithOpKind kind, const Def* lhs, const Def* rhs, Debug dbg = {});
+    const Def* arithop(ArithOpTag tag, const Def* lhs, const Def* rhs, Debug dbg = {});
 #define THORIN_ARITHOP(OP) \
     const Def* arithop_##OP(const Def* lhs, const Def* rhs, Debug dbg = {}) { \
         return arithop(ArithOp_##OP, lhs, rhs, dbg); \
@@ -109,7 +109,7 @@ public:
 
     // compares
 
-    const Def* cmp(CmpKind kind, const Def* lhs, const Def* rhs, Debug dbg = {});
+    const Def* cmp(CmpTag tag, const Def* lhs, const Def* rhs, Debug dbg = {});
 #define THORIN_CMP(OP) \
     const Def* cmp_##OP(const Def* lhs, const Def* rhs, Debug dbg = {}) { \
         return cmp(Cmp_##OP, lhs, rhs, dbg);  \

@@ -1,12 +1,13 @@
-#include "hash.h"
+#include "thorin/util/hash.h"
 
 namespace thorin {
+    namespace detail {
 
-static uint16_t g_hash_gid_counter = 0;
+        uint16_t HashTableBase::gid_counter_ = 0;
 
-uint16_t fetch_gid() {
-    return g_hash_gid_counter++;
-}
+        HashTableBase::HashTableBase()
+            : gid_(gid_counter_++)
+        {}
 
-
+    }
 }

@@ -17,8 +17,8 @@ namespace thorin {
 
 size_t Def::gid_counter_ = 1;
 
-Def::Def(NodeKind kind, const Type* type, size_t size, Debug dbg)
-    : kind_(kind)
+Def::Def(NodeTag tag, const Type* type, size_t size, Debug dbg)
+    : tag_(tag)
     , ops_(size)
     , type_(type)
     , gid_(gid_counter_++)
@@ -79,7 +79,7 @@ size_t vector_length(const Def* def) { return def->type()->as<VectorType>()->len
 
 bool is_primlit(const Def* def, int val) {
     if (auto lit = def->isa<PrimLit>()) {
-        switch (lit->primtype_kind()) {
+        switch (lit->primtype_tag()) {
 #define THORIN_I_TYPE(T, M) case PrimType_##T: return lit->value().get_##T() == T(val);
 #include "thorin/tables/primtypetable.h"
             default: ; // FALLTHROUGH
@@ -99,7 +99,7 @@ bool is_primlit(const Def* def, int val) {
 bool is_minus_zero(const Def* def) {
     if (auto lit = def->isa<PrimLit>()) {
         Box box = lit->value();
-        switch (lit->primtype_kind()) {
+        switch (lit->primtype_tag()) {
 #define THORIN_I_TYPE(T, M) case PrimType_##T: return box.get_##M() == M(0);
 #define THORIN_F_TYPE(T, M) case PrimType_##T: return box.get_##M() == M(-0.0);
 #include "thorin/tables/primtypetable.h"
@@ -110,7 +110,7 @@ bool is_minus_zero(const Def* def) {
 }
 
 void Def::replace(const Def* with) const {
-    DLOG("replace: % -> %", this, with);
+    DLOG("replace: {} -> {}", this, with);
     assert(type() == with->type());
     if (this != with) {
         for (auto& use : copy_uses()) {

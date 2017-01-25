@@ -22,8 +22,8 @@ namespace thorin {
 
 const VectorType* VectorType::scalarize() const {
     if (auto ptr = isa<PtrType>())
-        return world().ptr_type(ptr->referenced_type());
-    return world().type(as<PrimType>()->primtype_kind());
+        return world().ptr_type(ptr->pointee());
+    return world().type(as<PrimType>()->primtype_tag());
 }
 
 bool FnType::is_returning() const {
@@ -64,7 +64,7 @@ const Type* FnType             ::vrebuild(World& to, Types ops) const { return t
 const Type* FrameType          ::vrebuild(World& to, Types     ) const { return to.frame_type(); }
 const Type* IndefiniteArrayType::vrebuild(World& to, Types ops) const { return to.indefinite_array_type(ops[0]); }
 const Type* MemType            ::vrebuild(World& to, Types     ) const { return to.mem_type(); }
-const Type* PrimType           ::vrebuild(World& to, Types     ) const { return to.type(primtype_kind(), length()); }
+const Type* PrimType           ::vrebuild(World& to, Types     ) const { return to.type(primtype_tag(), length()); }
 
 const Type* PtrType::vrebuild(World& to, Types ops) const {
     return to.ptr_type(ops.front(), length(), device(), addr_space());
@@ -103,13 +103,13 @@ static std::ostream& stream_type_ops(std::ostream& os, const Type* type) {
    return stream_list(os, type->ops(), [&](const Type* type) { os << type; }, "(", ")");
 }
 
-std::ostream& App                ::stream(std::ostream& os) const { return streamf(os, "%[%]", callee(), arg()); }
-std::ostream& Var                ::stream(std::ostream& os) const { return streamf(os, "<%>", depth()); }
-std::ostream& DefiniteArrayType  ::stream(std::ostream& os) const { return streamf(os, "[% x %]", dim(), elem_type()); }
+std::ostream& App                ::stream(std::ostream& os) const { return streamf(os, "{}[{}]", callee(), arg()); }
+std::ostream& Var                ::stream(std::ostream& os) const { return streamf(os, "<{}>", depth()); }
+std::ostream& DefiniteArrayType  ::stream(std::ostream& os) const { return streamf(os, "[{} x {}]", dim(), elem_type()); }
 std::ostream& FnType             ::stream(std::ostream& os) const { return stream_type_ops(os << "fn", this); }
 std::ostream& FrameType          ::stream(std::ostream& os) const { return os << "frame"; }
-std::ostream& IndefiniteArrayType::stream(std::ostream& os) const { return streamf(os, "[%]", elem_type()); }
-std::ostream& Lambda             ::stream(std::ostream& os) const { return streamf(os, "[%].%", name(), body()); }
+std::ostream& IndefiniteArrayType::stream(std::ostream& os) const { return streamf(os, "[{}]", elem_type()); }
+std::ostream& Lambda             ::stream(std::ostream& os) const { return streamf(os, "[{}].{}", name(), body()); }
 std::ostream& MemType            ::stream(std::ostream& os) const { return os << "mem"; }
 std::ostream& StructType         ::stream(std::ostream& os) const { return os << name(); }
 std::ostream& TupleType          ::stream(std::ostream& os) const { return stream_type_ops(os, this); }
@@ -118,7 +118,7 @@ std::ostream& TypeError          ::stream(std::ostream& os) const { return os <<
 std::ostream& PtrType::stream(std::ostream& os) const {
     if (is_vector())
         os << '<' << length() << " x ";
-    os << referenced_type() << '*';
+    os << pointee() << '*';
     if (is_vector())
         os << '>';
     if (device() != -1)
@@ -137,7 +137,7 @@ std::ostream& PrimType::stream(std::ostream& os) const {
     if (is_vector())
         os << "<" << length() << " x ";
 
-    switch (primtype_kind()) {
+    switch (primtype_tag()) {
 #define THORIN_ALL_TYPE(T, M) case Node_PrimType_##T: os << #T; break;
 #include "thorin/tables/primtypetable.h"
           default: THORIN_UNREACHABLE;
@@ -172,7 +172,7 @@ const Type* IndefiniteArrayType::vreduce(int depth, const Type* type, Type2Type&
 }
 
 const Type* PtrType::vreduce(int depth, const Type* type, Type2Type& map) const {
-    return world().ptr_type(referenced_type()->reduce(depth, type, map), length(), device(), addr_space());
+    return world().ptr_type(pointee()->reduce(depth, type, map), length(), device(), addr_space());
 }
 
 //------------------------------------------------------------------------------

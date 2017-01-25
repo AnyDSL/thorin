@@ -37,7 +37,12 @@ public:
 protected:
     virtual uint64_t vhash() const;
     virtual bool equal(const PrimOp* other) const;
-    virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const { return nullptr;  } //  = 0;
+#ifdef _MSC_VER
+    virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const { return nullptr; } //  = 0;
+#else  // _MSC_VER
+    virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const = 0;
+#endif // _MSC_VER
+
     /// Is @p def the @p i^th result of a @p T @p PrimOp?
     template<int i, class T> inline static const T* is_out(const Def* def);
 

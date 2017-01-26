@@ -597,8 +597,7 @@ const Def* World::bitcast(const Type* to, const Def* from, Debug dbg) {
  * aggregate operations
  */
 
-template<class T>
-const Def* World::extract(const Def* agg, const T* index, Debug dbg) {
+const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
     if (agg->isa<Bottom>())
         return bottom(Extract::extracted_type(agg, index), dbg);
 
@@ -627,11 +626,6 @@ const Def* World::extract(const Def* agg, const T* index, Debug dbg) {
 
     return cse(new Extract(agg, index, dbg));
 }
-
-// this workaround is need in order to disambiguate extract(agg, 0, ...) from
-// extract(..., u32, ...) vs extract(..., const Def*, ...)
-template const Def* World::extract<Def>    (const Def*, const Def*,     Debug); // instantiate
-template const Def* World::extract<PrimLit>(const Def*, const PrimLit*, Debug); // methods
 
 const Def* World::insert(const Def* agg, const Def* index, const Def* value, Debug dbg) {
     if (agg->isa<Bottom>()) {

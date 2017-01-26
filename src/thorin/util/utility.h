@@ -31,6 +31,12 @@ inline __declspec(noreturn) void thorin_dummy_function() { abort(); }
 
 namespace thorin {
 
+/**
+ * A @c size_t literal.
+ * Use @c 0_s to disambiguate @c 0 from @c nullptr.
+ */
+inline size_t operator""_s(unsigned long long int i) { return size_t(i); }
+
 /// Use to initialize an \p AutoPtr in a lazy way.
 template<class This, class T>
 inline T& lazy_init(const This* self, std::unique_ptr<T>& ptr) {

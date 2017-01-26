@@ -671,7 +671,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
                 case ArithOp_sub: func_impl_ << " - ";  break;
                 case ArithOp_mul: func_impl_ << " * ";  break;
                 case ArithOp_div: func_impl_ << " / ";  break;
-                case ArithOp_rem: func_impl_ << " {} ";  break;
+                case ArithOp_rem: func_impl_ << " % ";  break;
                 case ArithOp_and: func_impl_ << " & ";  break;
                 case ArithOp_or:  func_impl_ << " | ";  break;
                 case ArithOp_xor: func_impl_ << " ^ ";  break;

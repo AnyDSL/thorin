@@ -12,11 +12,7 @@ class Streamable {
 public:
     virtual ~Streamable() {}
 
-#ifdef _MSC_VER
-    virtual std::ostream& stream(std::ostream& os) const { return os; } // = 0;
-#else // _MSC_VER
     virtual std::ostream& stream(std::ostream& os) const = 0;
-#endif // _MSC_VER
     std::string to_string() const; ///< Uses @p stream and @c std::ostringstream to generate a @c std::string.
     void dump() const; ///< Uses @p stream in order to dump to @p std::cout.
 };

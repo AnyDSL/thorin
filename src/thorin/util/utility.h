@@ -116,15 +116,14 @@ constexpr uint64_t is_power_of_2(uint64_t i) { return ((i != 0) && !(i & (i - 1)
 
 constexpr uint64_t log2(uint64_t n, uint64_t p = 0) { return (n <= uint64_t(1)) ? p : log2(n / uint64_t(2), p + uint64_t(1)); }
 
-template<typename T>
-inline T round_to_power_of_2(T i) {
+inline uint64_t round_to_power_of_2(uint64_t i) {
     i--;
-    i |= i >> T( 1);
-    i |= i >> T( 2);
-    i |= i >> T( 4);
-    i |= i >> T( 8);
-    i |= i >> T(16);
-    i |= i >> T(32);
+    i |= i >> uint64_t( 1);
+    i |= i >> uint64_t( 2);
+    i |= i >> uint64_t( 4);
+    i |= i >> uint64_t( 8);
+    i |= i >> uint64_t(16);
+    i |= i >> uint64_t(32);
     i++;
     return i;
 }

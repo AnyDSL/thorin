@@ -27,6 +27,7 @@ FIND_PATH ( THORIN_LIBS_DIR
     NAMES
         ${THORIN_OUTPUT_LIBS}
     PATHS
+        ${THORIN_LIBS_DIR}
         ${THORIN_ROOT_DIR}/build_debug/lib
         ${THORIN_ROOT_DIR}/build_release/lib
         ${THORIN_ROOT_DIR}/build/lib

@@ -104,7 +104,7 @@ public:
 private:
 #if defined(__x86_64__) || (_M_X64)
     int64_t ptr_   : 48; // sign extend to make pointer canonical
-    I       index_ : 16;
+    int64_t index_ : 16;
 #else
     T* ptr_;
     I index_;
@@ -122,7 +122,7 @@ constexpr uint64_t is_power_of_2(uint64_t i) { return ((i != 0) && !(i & (i - 1)
 
 constexpr uint64_t log2(uint64_t n, uint64_t p = 0) { return (n <= uint64_t(1)) ? p : log2(n / uint64_t(2), p + uint64_t(1)); }
 
-constexpr uint64_t round_to_power_of_2(uint64_t i) {
+inline uint64_t round_to_power_of_2(uint64_t i) {
     i--;
     i |= i >> uint64_t( 1);
     i |= i >> uint64_t( 2);

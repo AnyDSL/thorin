@@ -19,6 +19,18 @@
 
 size_t Type::gid_counter_ = 1;
 
+Type::Type(HENK_TABLE_TYPE& table, int tag, Types ops)
+    : HENK_TABLE_NAME_(&table)
+    , tag_(tag)
+    , ops_(ops.size())
+    , gid_(gid_counter_++)
+{
+    for (size_t i = 0, e = num_ops(); i != e; ++i) {
+        if (auto op = ops[i])
+            set(i, op);
+    }
+}
+
 const Type* Type::op(size_t i) const { return i < num_ops() ? ops()[i] : HENK_TABLE_NAME().type_error(); }
 
 //------------------------------------------------------------------------------

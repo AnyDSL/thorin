@@ -12,7 +12,7 @@ class Streamable {
 public:
     virtual ~Streamable() {}
 
-    virtual std::ostream& stream(std::ostream&) const = 0;
+    virtual std::ostream& stream(std::ostream& os) const = 0;
     std::string to_string() const; ///< Uses @p stream and @c std::ostringstream to generate a @c std::string.
     void dump() const; ///< Uses @p stream in order to dump to @p std::cout.
 };

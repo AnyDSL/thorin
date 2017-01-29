@@ -23,6 +23,10 @@ void Log::set_stream(std::ostream* stream) { stream_ = stream; }
 void Log::set_min_level(Log::Level min_level) { min_level_ = min_level; }
 void Log::set_print_loc(bool print_loc) { print_loc_ = print_loc; }
 
+std::ostream* Log::get_stream() { return stream_; }
+Log::Level Log::get_min_level() { return min_level_; }
+bool Log::get_print_loc() { return print_loc_; }
+
 std::string Log::level2string(Level level) {
     switch (level) {
         case Error: return "E";

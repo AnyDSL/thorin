@@ -31,8 +31,8 @@ public:
 
     template<typename... Args>
     static void log(Level level, const char* file, int line, const char* fmt, Args... args) {
-        if (Log::stream_ && Log::min_level_ <= level) {
-            if (print_loc_)
+        if (Log::get_stream() && Log::get_min_level() <= level) {
+            if (Log::get_print_loc())
                 Log::stream() << colorize(level2string(level), level2color(level)) << ':'
                               << colorize(file, 7) << ':' << std::setw(4) << line << ": ";
             if (level == Debug)
@@ -49,6 +49,10 @@ public:
     }
 
 private:
+    static std::ostream* get_stream();
+    static Level get_min_level();
+    static bool get_print_loc();
+
     static std::ostream* stream_;
     static Level min_level_;
     static bool print_loc_;

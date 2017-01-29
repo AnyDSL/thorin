@@ -69,9 +69,7 @@ namespace detail {
 
 class HashTableBase {
 protected:
-    HashTableBase()
-        : gid_(gid_counter_++)
-    {}
+    HashTableBase();
 
 public:
     uint16_t gid() const { return gid_; }
@@ -104,7 +102,7 @@ public:
     template<bool is_const>
     class iterator_base {
     public:
-        typedef HashTable<Key, T, H>::value_type value_type;
+        typedef typename HashTable<Key, T, H>::value_type value_type;
         typedef std::ptrdiff_t difference_type;
         typedef typename std::conditional<is_const, const value_type&, value_type&>::type reference;
         typedef typename std::conditional<is_const, const value_type*, value_type*>::type pointer;

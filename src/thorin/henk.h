@@ -56,17 +56,7 @@ protected:
     Type(const Type&) = delete;
     Type& operator=(const Type&) = delete;
 
-    Type(HENK_TABLE_TYPE& table, int tag, Types ops)
-        : HENK_TABLE_NAME_(&table)
-        , tag_(tag)
-        , ops_(ops.size())
-        , gid_(gid_counter_++)
-    {
-        for (size_t i = 0, e = num_ops(); i != e; ++i) {
-            if (auto op = ops[i])
-                set(i, op);
-        }
-    }
+    Type(HENK_TABLE_TYPE& table, int tag, Types ops);
 
     void set(size_t i, const Type* type) {
         ops_[i] = type;

@@ -33,3 +33,5 @@ ADD_SUBDIRECTORY ( ${PROJ_SOURCE_DIR} )
 MESSAGE ( STATUS "Using Debug flags: ${CMAKE_CXX_FLAGS_DEBUG}" )
 MESSAGE ( STATUS "Using Release flags: ${CMAKE_CXX_FLAGS_RELEASE}" )
 MESSAGE ( STATUS "Build type: ${CMAKE_BUILD_TYPE}" )
+
+CONFIGURE_FILE ( "cmake/thorin-config.cmake.in" "share/thorin/cmake/thorin-config.cmake" @ONLY)

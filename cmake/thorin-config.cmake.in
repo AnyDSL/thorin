@@ -14,6 +14,10 @@ FIND_PATH (THORIN_DIR
         ${THORIN_DIR}
         $ENV{THORIN_DIR}
         ${CMAKE_CURRENT_LIST_DIR}
+        "@CMAKE_CURRENT_BINARY_DIR@"
+        "@CMAKE_INSTALL_PREFIX@"
+    PATH_SUFFIXES
+        share/thorin/cmake
 )
 
 FIND_PATH (THORIN_ROOT_DIR

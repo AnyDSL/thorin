@@ -48,6 +48,7 @@ private:
     const FnType* fn_mem_;
     TypeMap<std::string> type2str_;
     DefMap<std::string> def2str_;
+    DefMap<std::string> global2str_;
     bool use_64_ = false;
     bool use_16_ = false;
     bool debug_;
@@ -612,7 +613,7 @@ void CCodeGen::emit() {
     });
 
     type2str_.clear();
-    def2str_.clear();
+    global2str_.clear();
 
     if (lang_==Lang::OPENCL) {
         if (use_16_)
@@ -1009,8 +1010,12 @@ std::ostream& CCodeGen::emit(const Def* def) {
 bool CCodeGen::lookup(const Type* type) {
     return type2str_.contains(type);
 }
+
 bool CCodeGen::lookup(const Def* def) {
-    return def2str_.contains(def);
+    if (auto global = def->isa<Global>())
+        return global2str_.contains(global);
+    else
+        return def2str_.contains(def);
 }
 
 std::string& CCodeGen::get_name(const Type* type) {
@@ -1018,7 +1023,10 @@ std::string& CCodeGen::get_name(const Type* type) {
 }
 
 std::string& CCodeGen::get_name(const Def* def) {
-    return def2str_[def];
+    if (def->isa<Global>())
+        return global2str_[def];
+    else
+        return def2str_[def];
 }
 
 void CCodeGen::insert(const Type* type, std::string str) {
@@ -1026,7 +1034,10 @@ void CCodeGen::insert(const Type* type, std::string str) {
 }
 
 void CCodeGen::insert(const Def* def, std::string str) {
-    def2str_[def] = str;
+    if (def->isa<Global>())
+        global2str_[def] = str;
+    else
+        def2str_[def] = str;
 }
 
 bool CCodeGen::is_texture_type(const Type* type) {

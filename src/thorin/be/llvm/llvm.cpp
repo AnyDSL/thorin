@@ -817,23 +817,26 @@ llvm::Value* CodeGen::emit(const Def* def) {
         return vec;
     }
 
-    if (auto global = def->isa<Global>()) {
-        llvm::Value* val;
-        if (auto continuation = global->init()->isa_continuation())
-            val = fcts_[continuation];
-        else {
-            auto llvm_type = convert(global->alloced_type());
-            auto var = llvm::cast<llvm::GlobalVariable>(module_->getOrInsertGlobal(global->name(), llvm_type));
-            if (global->init()->isa<Bottom>())
-                var->setInitializer(llvm::Constant::getNullValue(llvm_type)); // HACK
-            else
-                var->setInitializer(llvm::cast<llvm::Constant>(emit(global->init())));
-            val = var;
-        }
-        return val;
-    }
+    if (auto global = def->isa<Global>())
+        return emit_global(global);
 
     THORIN_UNREACHABLE;
+}
+
+llvm::Value* CodeGen::emit_global(const Global* global) {
+    llvm::Value* val;
+    if (auto continuation = global->init()->isa_continuation())
+        val = fcts_[continuation];
+    else {
+        auto llvm_type = convert(global->alloced_type());
+        auto var = llvm::cast<llvm::GlobalVariable>(module_->getOrInsertGlobal(global->name(), llvm_type));
+        if (global->init()->isa<Bottom>())
+            var->setInitializer(llvm::Constant::getNullValue(llvm_type)); // HACK
+        else
+            var->setInitializer(llvm::cast<llvm::Constant>(emit(global->init())));
+        val = var;
+    }
+    return val;
 }
 
 llvm::Value* CodeGen::emit_load(const Load* load) {

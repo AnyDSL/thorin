@@ -41,6 +41,7 @@ private:
     void insert(const Def*, std::string);
     std::string& get_name(const Type*);
     std::string& get_name(const Def*);
+    const std::string get_lang() const;
     bool is_texture_type(const Type*);
 
     World& world_;
@@ -978,6 +979,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
     }
 
     if (auto global = def->isa<Global>()) {
+        WLOG("{}: Global variable '{}' at '{}' will not be synced with host.", get_lang(), global, global->location());
         assert(!global->init()->isa_continuation() && "no global init continuation supported");
         switch (lang_) {
             case Lang::C99:                                 break;
@@ -1027,6 +1029,15 @@ std::string& CCodeGen::get_name(const Def* def) {
         return global2str_[def];
     else
         return def2str_[def];
+}
+
+const std::string CCodeGen::get_lang() const {
+    switch (lang_) {
+        default:
+        case Lang::C99:    return "C99";
+        case Lang::CUDA:   return "CUDA";
+        case Lang::OPENCL: return "OpenCL";
+    }
 }
 
 void CCodeGen::insert(const Type* type, std::string str) {

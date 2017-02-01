@@ -126,6 +126,11 @@ void NVVMCodeGen::emit_function_start(llvm::BasicBlock*, Continuation* continuat
     }
 }
 
+llvm::Value* NVVMCodeGen::emit_global(const Global* global) {
+    WLOG("NVVM: Global variable '{}' at '{}' will not be synced with host.", global, global->location());
+    return CodeGen::emit_global(global);
+}
+
 llvm::Value* NVVMCodeGen::emit_load(const Load* load) {
     switch (resolve_addr_space(load->ptr())) {
         case AddrSpace::Texture:

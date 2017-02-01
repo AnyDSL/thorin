@@ -88,6 +88,11 @@ void SPIRCodeGen::emit_function_decl_hook(Continuation* continuation, llvm::Func
     kernels_md->addOperand(llvm::MDNode::get(context_, annotation_values_kernel));
 }
 
+llvm::Value* SPIRCodeGen::emit_global(const Global* global) {
+    WLOG("SPIR: Global variable '{}' at '{}' will not be synced with host.", global, global->location());
+    return CodeGen::emit_global(global);
+}
+
 Continuation* SPIRCodeGen::emit_reserve(const Continuation* continuation) { return emit_reserve_shared(continuation, true /* add kernel prefix */); }
 
 }

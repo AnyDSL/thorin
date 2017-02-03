@@ -24,23 +24,15 @@ public:
         OPENCL_PLATFORM
     };
 
-    /// Emits a call to anydsl_set_block_size.
-    llvm::Value* set_block_size(llvm::Value* device, llvm::Value* x, llvm::Value* y, llvm::Value* z);
-    /// Emits a call to anydsl_set_grid_size.
-    llvm::Value* set_grid_size(llvm::Value* device, llvm::Value* x, llvm::Value* y, llvm::Value* z);
     /// Emits a call to anydsl_synchronize.
     llvm::Value* synchronize(llvm::Value* device);
 
-    /// Emits a call to anydsl_set_kernel_arg.
-    llvm::Value* set_kernel_arg(llvm::Value* device, int arg, llvm::Value* ptr, llvm::Type* type);
-    /// Emits a call to anydsl_set_kernel_arg_ptr.
-    llvm::Value* set_kernel_arg_ptr(llvm::Value* device, int arg, llvm::Value* ptr);
-    /// Emits a call to anydsl_set_kernel_arg_struct.
-    llvm::Value* set_kernel_arg_struct(llvm::Value* device, int arg, llvm::Value* ptr, llvm::Type* type);
-    /// Emits a call to anydsl_load_kernel.
-    llvm::Value* load_kernel(llvm::Value* device, llvm::Value* file, llvm::Value* kernel);
     /// Emits a call to anydsl_launch_kernel.
-    llvm::Value* launch_kernel(llvm::Value* device);
+    llvm::Value* launch_kernel(llvm::Value* device,
+                               llvm::Value* file, llvm::Value* kernel,
+                               llvm::Value* grid, llvm::Value* block,
+                               llvm::Value* args, llvm::Value* sizes, llvm::Value* types,
+                               llvm::Value* num_args);
 
     /// Emits a call to anydsl_parallel_for.
     llvm::Value* parallel_for(llvm::Value* num_threads, llvm::Value* lower, llvm::Value* upper,

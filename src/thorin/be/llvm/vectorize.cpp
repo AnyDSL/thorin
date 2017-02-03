@@ -18,40 +18,42 @@
 
 namespace thorin {
 
-enum {
-    VEC_ARG_MEM,
-    VEC_ARG_LENGTH,
-    VEC_ARG_ALIGN,
-    VEC_ARG_LOWER,
-    VEC_ARG_UPPER,
-    VEC_ARG_BODY,
-    VEC_ARG_RETURN,
-    VEC_NUM_ARGS
+struct VectorizeArgs {
+    enum {
+        Mem = 0,
+        Length,
+        Align,
+        Lower,
+        Upper,
+        Body,
+        Return,
+        Num
+    };
 };
 
 Continuation* CodeGen::emit_vectorize_continuation(Continuation* continuation) {
     auto target = continuation->callee()->as_continuation();
     assert_unused(target->intrinsic() == Intrinsic::Vectorize);
-    assert(continuation->num_args() >= VEC_NUM_ARGS && "required arguments are missing");
+    assert(continuation->num_args() >= VectorizeArgs::Num && "required arguments are missing");
 
     // arguments
-    auto vector_length = lookup(continuation->arg(VEC_ARG_LENGTH));
-    auto alignment = lookup(continuation->arg(VEC_ARG_ALIGN));
-    auto lower = lookup(continuation->arg(VEC_ARG_LOWER));
-    auto upper = lookup(continuation->arg(VEC_ARG_UPPER));
-    auto kernel = continuation->arg(VEC_ARG_BODY)->as<Global>()->init()->as_continuation();
+    auto vector_length = lookup(continuation->arg(VectorizeArgs::Length));
+    auto alignment = lookup(continuation->arg(VectorizeArgs::Align));
+    auto lower = lookup(continuation->arg(VectorizeArgs::Lower));
+    auto upper = lookup(continuation->arg(VectorizeArgs::Upper));
+    auto kernel = continuation->arg(VectorizeArgs::Body)->as<Global>()->init()->as_continuation();
 
     static const int inline_threshold = 10;
     Scope scope(kernel);
     force_inline(scope, inline_threshold);
 
-    const size_t num_kernel_args = continuation->num_args() - VEC_NUM_ARGS;
+    const size_t num_kernel_args = continuation->num_args() - VectorizeArgs::Num;
 
     // build simd-function signature
     Array<llvm::Type*> simd_args(num_kernel_args + 1);
     simd_args[0] = irbuilder_.getInt32Ty(); // loop index
     for (size_t i = 0; i < num_kernel_args; ++i) {
-        auto type = continuation->arg(i + VEC_NUM_ARGS)->type();
+        auto type = continuation->arg(i + VectorizeArgs::Num)->type();
         simd_args[i + 1] = convert(type);
     }
 
@@ -66,7 +68,7 @@ Continuation* CodeGen::emit_vectorize_continuation(Continuation* continuation) {
         args[0] = counter; // loop index
         for (size_t i = 0; i < num_kernel_args; ++i) {
             // check target type
-            auto arg = continuation->arg(i + VEC_NUM_ARGS);
+            auto arg = continuation->arg(i + VectorizeArgs::Num);
             auto llvm_arg = lookup(arg);
             if (arg->type()->isa<PtrType>())
                 llvm_arg = irbuilder_.CreateBitCast(llvm_arg, simd_args[i + 1]);
@@ -76,13 +78,13 @@ Continuation* CodeGen::emit_vectorize_continuation(Continuation* continuation) {
         simd_kernel_call = irbuilder_.CreateCall(kernel_simd_func, llvm_ref(args));
     });
 
-    if (!continuation->arg(VEC_ARG_LENGTH)->isa<PrimLit>())
-        ELOG("vector length must be hard-coded at %", continuation->arg(VEC_ARG_LENGTH)->location());
-    u32 vector_length_constant = continuation->arg(VEC_ARG_LENGTH)->as<PrimLit>()->qu32_value();
-    u32 alignment_constant     = continuation->arg(VEC_ARG_ALIGN )->as<PrimLit>()->qu32_value();
+    if (!continuation->arg(VectorizeArgs::Length)->isa<PrimLit>())
+        ELOG("vector length must be hard-coded at %", continuation->arg(VectorizeArgs::Length)->location());
+    u32 vector_length_constant = continuation->arg(VectorizeArgs::Length)->as<PrimLit>()->qu32_value();
+    u32 alignment_constant     = continuation->arg(VectorizeArgs::Align )->as<PrimLit>()->qu32_value();
     vec_todo_.emplace_back(vector_length_constant, alignment_constant, emit_function_decl(kernel), simd_kernel_call);
 
-    return continuation->arg(VEC_ARG_RETURN)->as_continuation();
+    return continuation->arg(VectorizeArgs::Return)->as_continuation();
 }
 
 void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* kernel_func, llvm::CallInst* simd_kernel_call) {

@@ -37,14 +37,16 @@ llvm::Function* Runtime::get(const char* name) {
     return result;
 }
 
-enum {
-    ACC_ARG_MEM,
-    ACC_ARG_DEVICE,
-    ACC_ARG_SPACE,
-    ACC_ARG_CONFIG,
-    ACC_ARG_BODY,
-    ACC_ARG_RETURN,
-    ACC_NUM_ARGS
+struct LaunchArgs {
+    enum {
+        Mem = 0,
+        Device,
+        Space,
+        Config,
+        Body,
+        Return,
+        Num
+    };
 };
 
 static bool contains_ptrtype(const Type* type) {
@@ -76,40 +78,45 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, Cont
     // target(mem, device, (dim.x, dim.y, dim.z), (block.x, block.y, block.z), body, return, free_vars)
     auto target = continuation->callee()->as_continuation();
     assert_unused(target->is_intrinsic());
-    assert(continuation->num_args() >= ACC_NUM_ARGS && "required arguments are missing");
+    assert(continuation->num_args() >= LaunchArgs::Num && "required arguments are missing");
 
     // arguments
-    auto target_device_id = code_gen.lookup(continuation->arg(ACC_ARG_DEVICE));
+    auto target_device_id = code_gen.lookup(continuation->arg(LaunchArgs::Device));
     auto target_platform = builder_.getInt32(platform);
     auto target_device = builder_.CreateOr(target_platform, builder_.CreateShl(target_device_id, builder_.getInt32(4)));
-    auto it_space = continuation->arg(ACC_ARG_SPACE)->as<Tuple>();
-    auto it_config = continuation->arg(ACC_ARG_CONFIG)->as<Tuple>();
-    auto kernel = continuation->arg(ACC_ARG_BODY)->as<Global>()->init()->as<Continuation>();
+    auto it_space = continuation->arg(LaunchArgs::Space)->as<Tuple>();
+    auto it_config = continuation->arg(LaunchArgs::Config)->as<Tuple>();
+    auto kernel = continuation->arg(LaunchArgs::Body)->as<Global>()->init()->as<Continuation>();
 
-    // load kernel
     auto kernel_name = builder_.CreateGlobalStringPtr(kernel->name());
     auto file_name = builder_.CreateGlobalStringPtr(continuation->world().name());
-    load_kernel(target_device, file_name, kernel_name);
+    const size_t num_kernel_args = continuation->num_args() - LaunchArgs::Num;
 
-    // fetch values and create external calls for initialization
-    // check for source devices of all pointers
-    const size_t num_kernel_args = continuation->num_args() - ACC_NUM_ARGS;
+    // allocate argument pointers, sizes, and types
+    llvm::Value* args  = code_gen.emit_alloca(llvm::ArrayType::get(builder_.getInt8PtrTy(), num_kernel_args), "");
+    llvm::Value* sizes = code_gen.emit_alloca(llvm::ArrayType::get(builder_.getInt32Ty(),   num_kernel_args), "");
+    llvm::Value* types = code_gen.emit_alloca(llvm::ArrayType::get(builder_.getInt8Ty(),    num_kernel_args), "");
+
+    // fill array of arguments
     for (size_t i = 0; i < num_kernel_args; ++i) {
-        auto target_arg = continuation->arg(i + ACC_NUM_ARGS);
+        auto target_arg = continuation->arg(i + LaunchArgs::Num);
         const auto target_val = code_gen.lookup(target_arg);
 
-        // check device target
+        KernelArgType arg_type;
+        llvm::Value*  void_ptr;
         if (target_arg->type()->isa<DefiniteArrayType>() ||
             target_arg->type()->isa<StructType>() ||
             target_arg->type()->isa<TupleType>()) {
             // definite array | struct | tuple
             auto alloca = code_gen.emit_alloca(target_val->getType(), target_arg->name());
             builder_.CreateStore(target_val, alloca);
-            auto void_ptr = builder_.CreatePointerCast(alloca, builder_.getInt8PtrTy());
+
             // check if argument type contains pointers
             if (!contains_ptrtype(target_arg->type()))
                 WLOG("argument % of aggregate type % at '%' contains pointer (not supported in OpenCL 1.2)\n", target_arg, target_arg->type(), target_arg->location());
-            set_kernel_arg_struct(target_device, i, void_ptr, target_val->getType());
+
+            void_ptr = builder_.CreatePointerCast(alloca, builder_.getInt8PtrTy());
+            arg_type = KernelArgType::STRUCT;
         } else if (target_arg->type()->isa<PtrType>()) {
             auto ptr = target_arg->type()->as<PtrType>();
             auto rtype = ptr->pointee();
@@ -117,66 +124,75 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, Cont
             if (!rtype->isa<ArrayType>())
                 ELOG("currently only pointers to arrays supported as kernel argument at '%'; argument has different type: %", target_arg->location(), ptr);
 
-            auto void_ptr = builder_.CreatePointerCast(target_val, builder_.getInt8PtrTy());
-            set_kernel_arg_ptr(target_device, i, void_ptr);
+            auto alloca = code_gen.emit_alloca(builder_.getInt8PtrTy(), target_arg->name());
+            auto target_ptr = builder_.CreatePointerCast(target_val, builder_.getInt8PtrTy());
+            builder_.CreateStore(target_ptr, alloca);
+            void_ptr = builder_.CreatePointerCast(alloca, builder_.getInt8PtrTy()); 
+            arg_type = KernelArgType::PTR;
         } else {
             // normal variable
             auto alloca = code_gen.emit_alloca(target_val->getType(), target_arg->name());
             builder_.CreateStore(target_val, alloca);
-            auto void_ptr = builder_.CreatePointerCast(alloca, builder_.getInt8PtrTy());
-            set_kernel_arg(target_device, i, void_ptr, target_val->getType());
+
+            void_ptr = builder_.CreatePointerCast(alloca, builder_.getInt8PtrTy());
+            arg_type = KernelArgType::VAL;
         }
+
+        auto arg_ptr  = builder_.CreateInBoundsGEP(args,  llvm::ArrayRef<llvm::Value*>{builder_.getInt32(0), builder_.getInt32(i)});
+        auto size_ptr = builder_.CreateInBoundsGEP(sizes, llvm::ArrayRef<llvm::Value*>{builder_.getInt32(0), builder_.getInt32(i)});
+        auto type_ptr = builder_.CreateInBoundsGEP(types, llvm::ArrayRef<llvm::Value*>{builder_.getInt32(0), builder_.getInt32(i)});
+
+        builder_.CreateStore(void_ptr, arg_ptr);
+        builder_.CreateStore(builder_.getInt32(layout_.getTypeAllocSize(target_val->getType())), size_ptr);
+        builder_.CreateStore(builder_.getInt8((uint8_t)arg_type), type_ptr);
     }
 
-    // setup configuration and launch
+    // allocate arrays for the grid and block size
     const auto get_u32 = [&](const Def* def) { return builder_.CreateSExt(code_gen.lookup(def), builder_.getInt32Ty()); };
-    set_grid_size(target_device, get_u32(it_space->op(0)), get_u32(it_space->op(1)), get_u32(it_space->op(2)));
-    set_block_size(target_device, get_u32(it_config->op(0)), get_u32(it_config->op(1)), get_u32(it_config->op(2)));
-    launch_kernel(target_device);
 
-    // synchronize
+    llvm::Value* grid_array  = llvm::UndefValue::get(llvm::ArrayType::get(builder_.getInt32Ty(), 3));
+    grid_array = builder_.CreateInsertValue(grid_array, get_u32(it_space->op(0)), 0);
+    grid_array = builder_.CreateInsertValue(grid_array, get_u32(it_space->op(1)), 1);
+    grid_array = builder_.CreateInsertValue(grid_array, get_u32(it_space->op(2)), 2);
+    llvm::Value* grid_size = code_gen.emit_alloca(grid_array->getType(), "");
+    builder_.CreateStore(grid_array, grid_size);
+
+    llvm::Value* block_array = llvm::UndefValue::get(llvm::ArrayType::get(builder_.getInt32Ty(), 3));
+    block_array = builder_.CreateInsertValue(block_array, get_u32(it_config->op(0)), 0);
+    block_array = builder_.CreateInsertValue(block_array, get_u32(it_config->op(1)), 1);
+    block_array = builder_.CreateInsertValue(block_array, get_u32(it_config->op(2)), 2);
+    llvm::Value* block_size = code_gen.emit_alloca(block_array->getType(), "");
+    builder_.CreateStore(block_array, block_size);
+
+    llvm::ArrayRef<llvm::Value*> gep_first_elem{builder_.getInt32(0), builder_.getInt32(0)};
+    grid_size  = builder_.CreateInBoundsGEP(grid_size,  gep_first_elem);
+    block_size = builder_.CreateInBoundsGEP(block_size, gep_first_elem);
+    args       = builder_.CreateInBoundsGEP(args,       gep_first_elem);
+    sizes      = builder_.CreateInBoundsGEP(sizes,      gep_first_elem);
+    types      = builder_.CreateInBoundsGEP(types,      gep_first_elem);
+
+    launch_kernel(target_device,
+                  file_name, kernel_name,
+                  grid_size, block_size,
+                  args, sizes, types,
+                  builder_.getInt32(num_kernel_args));
+
     synchronize(target_device);
 
-    return continuation->arg(ACC_ARG_RETURN)->as_continuation();
-}
-
-llvm::Value* Runtime::set_grid_size(llvm::Value* device, llvm::Value* x, llvm::Value* y, llvm::Value* z) {
-    llvm::Value* grid_size_args[] = { device, x, y, z };
-    return builder_.CreateCall(get("anydsl_set_grid_size"), grid_size_args);
-}
-
-llvm::Value* Runtime::set_block_size(llvm::Value* device, llvm::Value* x, llvm::Value* y, llvm::Value* z) {
-    llvm::Value* block_size_args[] = { device, x, y, z };
-    return builder_.CreateCall(get("anydsl_set_block_size"), block_size_args);
+    return continuation->arg(LaunchArgs::Return)->as_continuation();
 }
 
 llvm::Value* Runtime::synchronize(llvm::Value* device) {
-    llvm::Value* sync_args[] = { device };
-    return builder_.CreateCall(get("anydsl_synchronize"), sync_args);
+    llvm::Value* synchronize_args[] = { device };
+    return builder_.CreateCall(get("anydsl_synchronize"), synchronize_args);
 }
 
-llvm::Value* Runtime::set_kernel_arg(llvm::Value* device, int arg, llvm::Value* mem, llvm::Type* type) {
-    llvm::Value* kernel_args[] = { device, builder_.getInt32(arg), mem, builder_.getInt32(layout_.getTypeAllocSize(type)) };
-    return builder_.CreateCall(get("anydsl_set_kernel_arg"), kernel_args);
-}
-
-llvm::Value* Runtime::set_kernel_arg_ptr(llvm::Value* device, int arg, llvm::Value* ptr) {
-    llvm::Value* kernel_args[] = { device, builder_.getInt32(arg), ptr };
-    return builder_.CreateCall(get("anydsl_set_kernel_arg_ptr"), kernel_args);
-}
-
-llvm::Value* Runtime::set_kernel_arg_struct(llvm::Value* device, int arg, llvm::Value* mem, llvm::Type* type) {
-    llvm::Value* kernel_args[] = { device, builder_.getInt32(arg), mem, builder_.getInt32(layout_.getTypeAllocSize(type)) };
-    return builder_.CreateCall(get("anydsl_set_kernel_arg_struct"), kernel_args);
-}
-
-llvm::Value* Runtime::load_kernel(llvm::Value* device, llvm::Value* file, llvm::Value* kernel) {
-    llvm::Value* load_args[] = { device, file, kernel };
-    return builder_.CreateCall(get("anydsl_load_kernel"), load_args);
-}
-
-llvm::Value* Runtime::launch_kernel(llvm::Value* device) {
-    llvm::Value* launch_args[] = { device };
+llvm::Value* Runtime::launch_kernel(llvm::Value* device,
+                                    llvm::Value* file, llvm::Value* kernel,
+                                    llvm::Value* grid, llvm::Value* block,
+                                    llvm::Value* args, llvm::Value* sizes, llvm::Value* types,
+                                    llvm::Value* num_args) {
+    llvm::Value* launch_args[] = { device, file, kernel, grid, block, args, sizes, types, num_args };
     return builder_.CreateCall(get("anydsl_launch_kernel"), launch_args);
 }
 

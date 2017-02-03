@@ -258,9 +258,9 @@ const char* Global::op_name() const { return is_mutable() ? "global_mutable" : "
 std::ostream& PrimOp::stream(std::ostream& os) const {
     if (is_const(this)) {
         if (empty())
-            return streamf(os, "% %", op_name(), type());
+            return streamf(os, "{} {}", op_name(), type());
         else
-            return streamf(os, "(% % %)", type(), op_name(), stream_list(ops(), [&](const Def* def) { os << def; }));
+            return streamf(os, "({} {} {})", type(), op_name(), stream_list(ops(), [&](const Def* def) { os << def; }));
     } else
         return os << unique_name();
 }
@@ -287,7 +287,7 @@ std::ostream& PrimLit::stream(std::ostream& os) const {
 std::ostream& Global::stream(std::ostream& os) const { return os << unique_name(); }
 
 std::ostream& PrimOp::stream_assignment(std::ostream& os) const {
-    return streamf(os, "% % = % %", type(), unique_name(), op_name(), stream_list(ops(), [&] (const Def* def) { os << def; })) << endl;
+    return streamf(os, "{} {} = {} {}", type(), unique_name(), op_name(), stream_list(ops(), [&] (const Def* def) { os << def; })) << endl;
 }
 
 //------------------------------------------------------------------------------

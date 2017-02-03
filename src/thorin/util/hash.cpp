@@ -1,3 +1,13 @@
 #include "thorin/util/hash.h"
 
-uint16_t thorin::detail::HashTableBase::gid_counter_ = 0;
+namespace thorin {
+    namespace detail {
+
+        uint16_t HashTableBase::gid_counter_ = 0;
+
+        HashTableBase::HashTableBase()
+            : gid_(gid_counter_++)
+        {}
+
+    }
+}

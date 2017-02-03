@@ -41,6 +41,7 @@ private:
     void insert(const Def*, std::string);
     std::string& get_name(const Type*);
     std::string& get_name(const Def*);
+    const std::string get_lang() const;
     bool is_texture_type(const Type*);
 
     World& world_;
@@ -48,6 +49,7 @@ private:
     const FnType* fn_mem_;
     TypeMap<std::string> type2str_;
     DefMap<std::string> def2str_;
+    DefMap<std::string> global2str_;
     bool use_64_ = false;
     bool use_16_ = false;
     bool debug_;
@@ -60,7 +62,7 @@ private:
 
 std::ostream& CCodeGen::emit_debug_info(const Def* def) {
     if (debug_)
-        return streamf(func_impl_, "#line % \"%\"", def->location().front_line(), def->location().filename()) << endl;
+        return streamf(func_impl_, "#line {} \"{}\"", def->location().front_line(), def->location().filename()) << endl;
     return func_impl_;
 }
 
@@ -507,7 +509,7 @@ void CCodeGen::emit() {
                     if (callee->is_intrinsic()) {
                         if (callee->intrinsic() == Intrinsic::Reserve) {
                             if (!continuation->arg(1)->isa<PrimLit>())
-                                ELOG("reserve_shared: couldn't extract memory size at %", continuation->arg(1)->location());
+                                ELOG("reserve_shared: couldn't extract memory size at {}", continuation->arg(1)->location());
 
                             switch (lang_) {
                                 case Lang::C99:                                 break;
@@ -612,7 +614,7 @@ void CCodeGen::emit() {
     });
 
     type2str_.clear();
-    def2str_.clear();
+    global2str_.clear();
 
     if (lang_==Lang::OPENCL) {
         if (use_16_)
@@ -946,7 +948,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
         if (assembly->has_sideeffects())
             func_impl_ << "volatile ";
         if (assembly->is_alignstack() || assembly->is_inteldialect())
-            WLOG("stack alignment and inteldialect flags unsupported for C output at %", assembly->location());
+            WLOG("stack alignment and inteldialect flags unsupported for C output at {}", assembly->location());
         func_impl_ << "(\"" << assembly->asm_template() << "\"";
 
         // emit the outputs
@@ -977,6 +979,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
     }
 
     if (auto global = def->isa<Global>()) {
+        WLOG("{}: Global variable '{}' at '{}' will not be synced with host.", get_lang(), global, global->location());
         assert(!global->init()->isa_continuation() && "no global init continuation supported");
         switch (lang_) {
             case Lang::C99:                                 break;
@@ -1009,8 +1012,12 @@ std::ostream& CCodeGen::emit(const Def* def) {
 bool CCodeGen::lookup(const Type* type) {
     return type2str_.contains(type);
 }
+
 bool CCodeGen::lookup(const Def* def) {
-    return def2str_.contains(def);
+    if (auto global = def->isa<Global>())
+        return global2str_.contains(global);
+    else
+        return def2str_.contains(def);
 }
 
 std::string& CCodeGen::get_name(const Type* type) {
@@ -1018,7 +1025,19 @@ std::string& CCodeGen::get_name(const Type* type) {
 }
 
 std::string& CCodeGen::get_name(const Def* def) {
-    return def2str_[def];
+    if (def->isa<Global>())
+        return global2str_[def];
+    else
+        return def2str_[def];
+}
+
+const std::string CCodeGen::get_lang() const {
+    switch (lang_) {
+        default:
+        case Lang::C99:    return "C99";
+        case Lang::CUDA:   return "CUDA";
+        case Lang::OPENCL: return "OpenCL";
+    }
 }
 
 void CCodeGen::insert(const Type* type, std::string str) {
@@ -1026,7 +1045,10 @@ void CCodeGen::insert(const Type* type, std::string str) {
 }
 
 void CCodeGen::insert(const Def* def, std::string str) {
-    def2str_[def] = str;
+    if (def->isa<Global>())
+        global2str_[def] = str;
+    else
+        def2str_[def] = str;
 }
 
 bool CCodeGen::is_texture_type(const Type* type) {

@@ -5,6 +5,7 @@
 #include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Analysis/LoopInfo.h>
+#include <llvm/IR/Dominators.h>
 
 #include <rv/rv.h>
 #include <rv/vectorizationInfo.h>
@@ -40,7 +41,6 @@ Continuation* CodeGen::emit_vectorize_continuation(Continuation* continuation) {
 
     // arguments
     auto vector_length = lookup(continuation->arg(VectorizeArgs::Length));
-    auto alignment = lookup(continuation->arg(VectorizeArgs::Align));
     auto lower = lookup(continuation->arg(VectorizeArgs::Lower));
     auto upper = lookup(continuation->arg(VectorizeArgs::Upper));
     auto kernel = continuation->arg(VectorizeArgs::Body)->as<Global>()->init()->as_continuation();
@@ -81,7 +81,7 @@ Continuation* CodeGen::emit_vectorize_continuation(Continuation* continuation) {
     });
 
     if (!continuation->arg(VectorizeArgs::Length)->isa<PrimLit>())
-        ELOG("vector length must be hard-coded at %", continuation->arg(VectorizeArgs::Length)->location());
+        ELOG("vector length must be hard-coded at {}", continuation->arg(VectorizeArgs::Length)->location());
     u32 vector_length_constant = continuation->arg(VectorizeArgs::Length)->as<PrimLit>()->qu32_value();
     u32 alignment_constant     = continuation->arg(VectorizeArgs::Align )->as<PrimLit>()->qu32_value();
     vec_todo_.emplace_back(vector_length_constant, alignment_constant, emit_function_decl(kernel), simd_kernel_call);
@@ -100,7 +100,6 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
     auto simd_kernel_func = simd_kernel_call->getCalledFunction();
     simd_kernel_func->deleteBody();
 
-    //auto rv_info = new rv::RVInfo(module_.get(), &context_, kernel_func, simd_kernel_func, vector_length, -1, false, false, false, false, nullptr);
     auto loop_counter_arg = kernel_func->getArgumentList().begin();
 
     rv::VectorShape res = rv::VectorShape::uni(alignment);
@@ -118,6 +117,7 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
     llvm::TargetLibraryAnalysis lib_analysis;
     llvm::TargetLibraryInfo tli = lib_analysis.run(*kernel_func->getParent());
     rv::PlatformInfo platform_info(*module_.get(), &tti, &tli);
+
     // TODO: use parameters from command line
     const bool useSSE = false;
     const bool useAVX = true;
@@ -143,7 +143,7 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
 
     vectorizer.analyze(vec_info, cdg, dfg, loop_info, pdom_tree, dom_tree);
 
-    MaskAnalysis* mask_analysis = vectorizer.analyzeMasks(vec_info, loop_info);
+    std::unique_ptr<MaskAnalysis> mask_analysis(vectorizer.analyzeMasks(vec_info, loop_info));
     assert(mask_analysis);
 
     bool mask_ok = vectorizer.generateMasks(vec_info, *mask_analysis, loop_info);
@@ -152,13 +152,11 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
     bool linearize_ok = vectorizer.linearizeCFG(vec_info, *mask_analysis, loop_info, dom_tree);
     assert_unused(linearize_ok);
 
-    const llvm::DominatorTree new_dom_tree(*vec_info.getMapping().scalarFn); // Control conversion does not preserve the dominance tree
+    llvm::DominatorTree new_dom_tree(*vec_info.getMapping().scalarFn); // Control conversion does not preserve the dominance tree
     bool vectorize_ok = vectorizer.vectorize(vec_info, new_dom_tree);
     assert_unused(vectorize_ok);
 
     vectorizer.finalize(vec_info);
-
-    delete mask_analysis;
 
     // inline kernel
     llvm::InlineFunctionInfo info;

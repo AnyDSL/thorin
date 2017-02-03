@@ -13,8 +13,6 @@
 
 namespace thorin {
 
-uint16_t g_hash_gid_counter = 0;
-
 //------------------------------------------------------------------------------
 
 size_t Def::gid_counter_ = 1;
@@ -112,7 +110,7 @@ bool is_minus_zero(const Def* def) {
 }
 
 void Def::replace(const Def* with) const {
-    DLOG("replace: % -> %", this, with);
+    DLOG("replace: {} -> {}", this, with);
     assert(type() == with->type());
     if (this != with) {
         for (auto& use : copy_uses()) {

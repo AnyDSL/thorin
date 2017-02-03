@@ -69,9 +69,7 @@ namespace detail {
 
 class HashTableBase {
 protected:
-    HashTableBase()
-        : gid_(gid_counter_++)
-    {}
+    HashTableBase();
 
 public:
     uint16_t gid() const { return gid_; }
@@ -104,7 +102,7 @@ public:
     template<bool is_const>
     class iterator_base {
     public:
-        typedef HashTable<Key, T, H>::value_type value_type;
+        typedef typename HashTable<Key, T, H>::value_type value_type;
         typedef std::ptrdiff_t difference_type;
         typedef typename std::conditional<is_const, const value_type&, value_type&>::type reference;
         typedef typename std::conditional<is_const, const value_type*, value_type*>::type pointer;
@@ -256,7 +254,7 @@ public:
 #ifdef THORIN_DEBUG_HASH
                 auto dib = probe_distance(i);
                 if (dib > std::max(4, log2(capacity())))
-                    WLOG("you are using a poor hash function - distance to initial bucket/capacity: %/%", dib, capacity());
+                    WLOG("you are using a poor hash function - distance to initial bucket/capacity: {}/{}", dib, capacity());
 #endif
                 return std::make_pair(iterator(result, this), true);
             } else if (result == end_ptr() && H::eq(key(nodes_+i), k)) {

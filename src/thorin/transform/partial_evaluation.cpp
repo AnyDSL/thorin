@@ -92,22 +92,22 @@ void PartialEvaluator::run() {
 
 void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
     if (end == nullptr)
-        WLOG("no matching end: % at %", cur, cur->location());
+        WLOG("no matching end: {} at {}", cur, cur->location());
     else
-        DLOG("eval: % -> %", cur, end);
+        DLOG("eval: {} -> {}", cur, end);
 
     while (true) {
         if (cur == nullptr) {
             WLOG("cur is nullptr");
             return;
         } else if (cur->empty()) {
-            WLOG("empty: %", cur);
+            WLOG("empty: {}", cur);
             return;
         } else if (done_.contains(cur)) {
-            DLOG("already done: %", cur);
+            DLOG("already done: {}", cur);
             return;
         } else
-            DLOG("cur: %", cur);
+            DLOG("cur: {}", cur);
 
         done_.insert(cur);
 
@@ -134,19 +134,19 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
 
             assert(ncur != nullptr);
             if (nend == nullptr) {
-                WLOG("end became unreachable: %", end);
+                WLOG("end became unreachable: {}", end);
                 continue;
             }
 
             for (auto i = nend; i != postdomtree.root(); i = postdomtree.idom(i)) {
                 if (i == ncur) {
-                    DLOG("overjumped end: %", cur);
+                    DLOG("overjumped end: {}", cur);
                     return;
                 }
             }
 
             if (cur == end) {
-                DLOG("end: %", end);
+                DLOG("end: {}", end);
                 return;
             }
             continue;
@@ -165,11 +165,11 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
         Call call(ops);
 
         bool go_out = dst == end;
-        DLOG("dst: %", dst);
+        DLOG("dst: {}", dst);
 
         if (auto cached = find(cache_, call)) {             // check for cached version
             jump_to_cached_call(cur, cached, call);
-            DLOG("using cached call: %", cur);
+            DLOG("using cached call: {}", cur);
             return;
         } else {                                            // no cached version found... create a new one
             Scope scope(call.callee()->as_continuation());
@@ -178,7 +178,7 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
             if (end != nullptr) {
                 if (auto nend = mangler.def2def(end)) {
                     if (end != nend) {
-                        DLOG("changed end: % -> %", end, nend);
+                        DLOG("changed end: {} -> {}", end, nend);
                         end = nend->as_continuation();
                     }
                 }
@@ -200,7 +200,7 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
         }
 
         if (dst == end || go_out) {
-            DLOG("end: %", end);
+            DLOG("end: {}", end);
             return;
         }
     }
@@ -210,7 +210,7 @@ Continuation* PartialEvaluator::postdom(Continuation* cur) {
     auto is_valid = [&] (Continuation* continuation) {
         auto p = (continuation && !continuation->empty()) ? continuation : nullptr;
         if (p)
-            DLOG("postdom: % -> %", cur, p);
+            DLOG("postdom: {} -> {}", cur, p);
         return p;
     };
 
@@ -222,7 +222,7 @@ Continuation* PartialEvaluator::postdom(Continuation* cur) {
     if (auto p = is_valid(postdom(cur, top_scope())))
         return p;
 
-    WLOG("no postdom found for % at %", cur, cur->location());
+    WLOG("no postdom found for {} at {}", cur, cur->location());
     return nullptr;
 }
 

@@ -35,6 +35,7 @@ protected:
     virtual void emit_function_start(llvm::BasicBlock*, Continuation*) {}
     virtual llvm::FunctionType* convert_fn_type(Continuation*);
 
+    virtual llvm::Value* emit_global(const Global*);
     virtual llvm::Value* emit_load(const Load*);
     virtual llvm::Value* emit_store(const Store*);
     virtual llvm::Value* emit_lea(const LEA*);

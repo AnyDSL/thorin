@@ -65,10 +65,10 @@ private:
         auto id = scope.id();
 
         auto print_node = [&] (decltype(*range.begin()) node) {
-            streamf(ostream(), "node: { title: \"%_%\" label: \"%\" }", node, id, node) << endl;
+            streamf(ostream(), "node: { title: \"{}_{}\" label: \"{}\" }", node, id, node) << endl;
 
             for (const auto& succ : succs(node))
-                streamf(ostream(), "edge: { sourcename: \"%_%\" targetname: \"%_%\" class: % }",
+                streamf(ostream(), "edge: { sourcename: \"{}_{}\" targetname: \"{}_{}\" class: {} }",
                         node, id, &*succ, id, 16) << endl;
         };
 

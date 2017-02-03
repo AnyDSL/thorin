@@ -103,13 +103,13 @@ static std::ostream& stream_type_ops(std::ostream& os, const Type* type) {
    return stream_list(os, type->ops(), [&](const Type* type) { os << type; }, "(", ")");
 }
 
-std::ostream& App                ::stream(std::ostream& os) const { return streamf(os, "%[%]", callee(), arg()); }
-std::ostream& Var                ::stream(std::ostream& os) const { return streamf(os, "<%>", depth()); }
-std::ostream& DefiniteArrayType  ::stream(std::ostream& os) const { return streamf(os, "[% x %]", dim(), elem_type()); }
+std::ostream& App                ::stream(std::ostream& os) const { return streamf(os, "{}[{}]", callee(), arg()); }
+std::ostream& Var                ::stream(std::ostream& os) const { return streamf(os, "<{}>", depth()); }
+std::ostream& DefiniteArrayType  ::stream(std::ostream& os) const { return streamf(os, "[{} x {}]", dim(), elem_type()); }
 std::ostream& FnType             ::stream(std::ostream& os) const { return stream_type_ops(os << "fn", this); }
 std::ostream& FrameType          ::stream(std::ostream& os) const { return os << "frame"; }
-std::ostream& IndefiniteArrayType::stream(std::ostream& os) const { return streamf(os, "[%]", elem_type()); }
-std::ostream& Lambda             ::stream(std::ostream& os) const { return streamf(os, "[%].%", name(), body()); }
+std::ostream& IndefiniteArrayType::stream(std::ostream& os) const { return streamf(os, "[{}]", elem_type()); }
+std::ostream& Lambda             ::stream(std::ostream& os) const { return streamf(os, "[{}].{}", name(), body()); }
 std::ostream& MemType            ::stream(std::ostream& os) const { return os << "mem"; }
 std::ostream& StructType         ::stream(std::ostream& os) const { return os << name(); }
 std::ostream& TupleType          ::stream(std::ostream& os) const { return stream_type_ops(os, this); }

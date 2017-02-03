@@ -242,7 +242,7 @@ void Schedule::verify() {
         for (auto primop : block) {
             if (auto memop = primop->isa<MemOp>()) {
                 if (memop->mem() != mem) {
-                    WLOG("incorrect schedule: % (current mem is %) - scope entry: %", memop, mem, scope_.entry());
+                    WLOG("incorrect schedule: {} (current mem is {}) - scope entry: {}", memop, mem, scope_.entry());
                     error = true;
                 }
                 mem = memop->out_mem();

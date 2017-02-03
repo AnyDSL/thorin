@@ -117,14 +117,14 @@ Continuation* CodeGen::emit_cmpxchg(Continuation* continuation) {
 }
 
 Continuation* CodeGen::emit_reserve(const Continuation* continuation) {
-    ELOG("reserve_shared: only allowed in device code at %", continuation->jump_debug());
+    ELOG("reserve_shared: only allowed in device code at {}", continuation->jump_debug());
     THORIN_UNREACHABLE;
 }
 
 Continuation* CodeGen::emit_reserve_shared(const Continuation* continuation, bool prefix) {
     assert(continuation->num_args() == 3 && "required arguments are missing");
     if (!continuation->arg(1)->isa<PrimLit>())
-        ELOG("reserve_shared: couldn't extract memory size at %", continuation->arg(1)->location());
+        ELOG("reserve_shared: couldn't extract memory size at {}", continuation->arg(1)->location());
     auto num_elems = continuation->arg(1)->as<PrimLit>()->ps32_value();
     auto cont = continuation->arg(2)->as_continuation();
     auto type = convert(cont->param(1)->type());
@@ -678,7 +678,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
                 vals[i] = llvm::cast<llvm::Constant>(emit(array->op(i)));
             return llvm::ConstantArray::get(type, llvm_ref(vals));
         }
-        WLOG("slow: alloca and loads/stores needed for definite array '%' at '%'", def, def->location());
+        WLOG("slow: alloca and loads/stores needed for definite array '{}' at '{}'", def, def->location());
         auto alloca = emit_alloca(type, array->name());
 
         u64 i = 0;
@@ -714,7 +714,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto llvm_agg = lookup(aggop->agg());
         auto llvm_idx = lookup(aggop->index());
         auto copy_to_alloca = [&] () {
-            WLOG("slow: alloca and loads/stores needed for aggregate '%' at '%'", def, def->location());
+            WLOG("slow: alloca and loads/stores needed for aggregate '{}' at '{}'", def, def->location());
             auto alloca = emit_alloca(llvm_agg->getType(), aggop->name());
             irbuilder_.CreateStore(llvm_agg, alloca);
 
@@ -781,10 +781,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         return llvm::UndefValue::get(convert(bottom->type()));
 
     if (auto alloc = def->isa<Alloc>()) { // TODO factor this code
-        // TODO do this only once
-        auto llvm_malloc = llvm::cast<llvm::Function>(module_->getOrInsertFunction(
-                    get_alloc_name(), irbuilder_.getInt8PtrTy(), irbuilder_.getInt32Ty(), irbuilder_.getInt64Ty(), nullptr));
-        llvm_malloc->addAttribute(llvm::AttributeSet::ReturnIndex, llvm::Attribute::NoAlias);
+        auto llvm_malloc = runtime_->get(get_alloc_name().c_str());
         auto alloced_type = convert(alloc->alloced_type());
         llvm::CallInst* void_ptr;
         auto layout = module_->getDataLayout();
@@ -820,23 +817,26 @@ llvm::Value* CodeGen::emit(const Def* def) {
         return vec;
     }
 
-    if (auto global = def->isa<Global>()) {
-        llvm::Value* val;
-        if (auto continuation = global->init()->isa_continuation())
-            val = fcts_[continuation];
-        else {
-            auto llvm_type = convert(global->alloced_type());
-            auto var = llvm::cast<llvm::GlobalVariable>(module_->getOrInsertGlobal(global->name(), llvm_type));
-            if (global->init()->isa<Bottom>())
-                var->setInitializer(llvm::Constant::getNullValue(llvm_type)); // HACK
-            else
-                var->setInitializer(llvm::cast<llvm::Constant>(emit(global->init())));
-            val = var;
-        }
-        return val;
-    }
+    if (auto global = def->isa<Global>())
+        return emit_global(global);
 
     THORIN_UNREACHABLE;
+}
+
+llvm::Value* CodeGen::emit_global(const Global* global) {
+    llvm::Value* val;
+    if (auto continuation = global->init()->isa_continuation())
+        val = fcts_[continuation];
+    else {
+        auto llvm_type = convert(global->alloced_type());
+        auto var = llvm::cast<llvm::GlobalVariable>(module_->getOrInsertGlobal(global->name(), llvm_type));
+        if (global->init()->isa<Bottom>())
+            var->setInitializer(llvm::Constant::getNullValue(llvm_type)); // HACK
+        else
+            var->setInitializer(llvm::cast<llvm::Constant>(emit(global->init())));
+        val = var;
+    }
+    return val;
 }
 
 llvm::Value* CodeGen::emit_load(const Load* load) {
@@ -895,7 +895,7 @@ llvm::Value* CodeGen::emit_assembly(const Assembly* assembly) {
     constraints += "~{dirflag},~{fpsr},~{flags}";
 
     if (!llvm::InlineAsm::Verify(fn_type, constraints))
-        ELOG("Constraints and input and output types of inline assembly do not match at %", assembly->location());
+        ELOG("Constraints and input and output types of inline assembly do not match at {}", assembly->location());
 
     auto asm_expr = llvm::InlineAsm::get(fn_type, assembly->asm_template(), constraints,
             assembly->has_sideeffects(), assembly->is_alignstack(),

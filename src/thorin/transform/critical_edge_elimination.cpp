@@ -21,7 +21,7 @@ static bool update_src(Continuation* src, Continuation* dst, const char* suffix)
         }
     }
 
-    DLOG("cannot remove critical edge % -> %", src, dst);
+    DLOG("cannot remove critical edge {} -> {}", src, dst);
     return false;
 }
 
@@ -32,7 +32,7 @@ static void critical_edge_elimination(Scope& scope) {
         if (cfg.num_preds(n) > 1) {
             for (auto pred : cfg.preds(n)) {
                 if (cfg.num_succs(pred) != 1) {
-                    DLOG("critical edge: % -> %", pred, n);
+                    DLOG("critical edge: {} -> {}", pred, n);
                     dirty |= update_src(pred->continuation(), n->continuation(), "_crit");
                 }
             }

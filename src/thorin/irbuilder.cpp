@@ -170,7 +170,7 @@ void IRBuilder::set_mem(const Def* mem) { if (is_reachable()) cur_bb->set_mem(me
 
 const Def* IRBuilder::create_frame(Debug dbg) {
     auto enter = world().enter(get_mem(), dbg);
-    set_mem(world().extract(enter, 0, dbg));
+    set_mem(world().extract(enter, 0_s, dbg));
     return world().extract(enter, 1, dbg);
 }
 
@@ -178,13 +178,13 @@ const Def* IRBuilder::alloc(const Type* type, const Def* extra, Debug dbg) {
     if (!extra)
         extra = world().literal_qu64(0, dbg);
     auto alloc = world().alloc(type, get_mem(), extra, dbg);
-    set_mem(world().extract(alloc, 0, dbg));
+    set_mem(world().extract(alloc, 0_s, dbg));
     return world().extract(alloc, 1, dbg);
 }
 
 const Def* IRBuilder::load(const Def* ptr, Debug dbg) {
     auto load = world().load(get_mem(), ptr, dbg);
-    set_mem(world().extract(load, 0, dbg));
+    set_mem(world().extract(load, 0_s, dbg));
     return world().extract(load, 1, dbg);
 }
 

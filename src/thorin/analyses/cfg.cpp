@@ -453,6 +453,7 @@ void CFABuilder::unreachable_node_elimination() {
 #endif
             DLOG("removing: {}", in);
             cfa_.nodes_[in->continuation()] = nullptr;
+            out_nodes_.erase(in);
             delete in;
         }
     }

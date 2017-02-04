@@ -848,7 +848,8 @@ std::ostream& CCodeGen::emit(const Def* def) {
     }
 
     if (auto bottom = def->isa<Bottom>()) {
-        emit_type(func_impl_, bottom->type()) << " " << bottom->unique_name() << "; // bottom";
+        func_impl_ << "// bottom: ";
+        emit_type(func_impl_, bottom->type()) << " " << bottom->unique_name() << ";";
         insert(def, def->unique_name());
         return func_impl_;
     }

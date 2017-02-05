@@ -131,7 +131,9 @@ Continuation* CodeGen::emit_reserve_shared(const Continuation* continuation, boo
     // construct array type
     auto elem_type = cont->param(1)->type()->as<PtrType>()->pointee()->as<ArrayType>()->elem_type();
     auto smem_type = this->convert(continuation->world().definite_array_type(elem_type, num_elems));
-    auto global = emit_global_variable(smem_type, (prefix ? entry_->name() + "." : "") + continuation->unique_name(), 3);
+    auto name = continuation->unique_name();
+    std::replace(name.begin(), name.end(), '.', '_');
+    auto global = emit_global_variable(smem_type, (prefix ? entry_->name() + "." : "") + name, 3);
     auto call = irbuilder_.CreatePointerCast(global, type);
     emit_result_phi(cont->param(1), call);
     return cont;

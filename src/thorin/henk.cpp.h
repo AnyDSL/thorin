@@ -113,7 +113,8 @@ const Type* Type::reduce(int depth, const Type* type, Type2Type& map) const {
         return result;
     if (is_monomorphic())
         return this;
-    return map[this] = vreduce(depth, type, map);
+    auto new_type = vreduce(depth, type, map);
+    return map[this] = new_type;
 }
 
 Array<const Type*> Type::reduce_ops(int depth, const Type* type, Type2Type& map) const {

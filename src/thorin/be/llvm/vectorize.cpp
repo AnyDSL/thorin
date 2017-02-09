@@ -143,7 +143,7 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
 
     vectorizer.analyze(vec_info, cdg, dfg, loop_info, pdom_tree, dom_tree);
 
-    std::unique_ptr<MaskAnalysis> mask_analysis(vectorizer.analyzeMasks(vec_info, loop_info));
+    std::unique_ptr<rv::MaskAnalysis> mask_analysis(vectorizer.analyzeMasks(vec_info, loop_info));
     assert(mask_analysis);
 
     bool mask_ok = vectorizer.generateMasks(vec_info, *mask_analysis, loop_info);

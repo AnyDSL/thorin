@@ -698,7 +698,7 @@ const Def* World::load(const Def* mem, const Def* ptr, Debug dbg) {
 
     if (auto global = ptr->isa<Global>()) {
         if (!global->is_mutable())
-            return global->init();
+            return tuple({mem, global->init()});
     }
 
     if (auto ld = Load::is_out_mem(mem)) {

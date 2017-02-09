@@ -125,10 +125,14 @@ public:
         {}
 
         inline void verify() const { assert(table_->id_ == id_); }
+#ifndef NDEBUG
         inline void verify(iterator_base i) const {
             assert(table_ == i.table_ && id_ == i.id_);
             verify();
         }
+#else
+        inline void verify(iterator_base) const {}
+#endif
 
         iterator_base& operator=(const iterator_base& other) = default;
         iterator_base& operator++() { verify(); *this = skip(ptr_+1, table_); return *this; }

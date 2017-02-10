@@ -116,7 +116,7 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, Cont
                 WLOG("argument {} of aggregate type {} at '{}' contains pointer (not supported in OpenCL 1.2)\n", target_arg, target_arg->type(), target_arg->location());
 
             void_ptr = builder_.CreatePointerCast(alloca, builder_.getInt8PtrTy());
-            arg_type = KernelArgType::STRUCT;
+            arg_type = KernelArgType::Struct;
         } else if (target_arg->type()->isa<PtrType>()) {
             auto ptr = target_arg->type()->as<PtrType>();
             auto rtype = ptr->pointee();
@@ -128,14 +128,14 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, Cont
             auto target_ptr = builder_.CreatePointerCast(target_val, builder_.getInt8PtrTy());
             builder_.CreateStore(target_ptr, alloca);
             void_ptr = builder_.CreatePointerCast(alloca, builder_.getInt8PtrTy()); 
-            arg_type = KernelArgType::PTR;
+            arg_type = KernelArgType::Ptr;
         } else {
             // normal variable
             auto alloca = code_gen.emit_alloca(target_val->getType(), target_arg->name());
             builder_.CreateStore(target_val, alloca);
 
             void_ptr = builder_.CreatePointerCast(alloca, builder_.getInt8PtrTy());
-            arg_type = KernelArgType::VAL;
+            arg_type = KernelArgType::Val;
         }
 
         auto arg_ptr  = builder_.CreateInBoundsGEP(args,  llvm::ArrayRef<llvm::Value*>{builder_.getInt32(0), builder_.getInt32(i)});

@@ -137,7 +137,7 @@ void Cleaner::verify_closedness() {
         size_t i = 0;
         for (auto op : def->ops()) {
             within(op);
-            assert(op->uses_.contains(Use(i++, def)) && "can't find def in op's uses");
+            assert_unused(op->uses_.contains(Use(i++, def)) && "can't find def in op's uses");
         }
 
         for (const auto& use : def->uses_) {

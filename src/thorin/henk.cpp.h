@@ -92,7 +92,7 @@ const Type* Type::rebuild(HENK_TABLE_TYPE& to, Types ops) const {
 }
 
 const Type* StructType::vrebuild(HENK_TABLE_TYPE&, Types ops) const {
-    assert(this->ops() == ops);
+    assert_unused(this->ops() == ops);
     return this;
 }
 

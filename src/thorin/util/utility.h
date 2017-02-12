@@ -37,6 +37,12 @@ namespace thorin {
  */
 inline size_t operator""_s(unsigned long long int i) { return size_t(i); }
 
+/// A @c uint32_t literal.
+inline size_t operator""_u32(unsigned long long int i) { return uint32_t(i); }
+
+/// A @c uint64_t literal.
+inline size_t operator""_u64(unsigned long long int i) { return uint64_t(i); }
+
 /// Use to initialize an \p AutoPtr in a lazy way.
 template<class This, class T>
 inline T& lazy_init(const This* self, std::unique_ptr<T>& ptr) {

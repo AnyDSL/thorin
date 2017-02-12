@@ -19,8 +19,8 @@ namespace thorin {
 
 /// Magic numbers from http://www.isthe.com/chongo/tech/comp/fnv/index.html#FNV-param .
 struct FNV1 {
-    static const uint64_t offset = UINT64_C(14695981039346656037);
-    static const uint64_t prime  = UINT64_C(1099511628211);
+    static const uint64_t offset = 14695981039346656037_u64;
+    static const uint64_t prime  = 1099511628211_u64;
 };
 
 /// Returns a new hash by combining the hash @p seed with @p val.
@@ -36,7 +36,7 @@ uint64_t hash_combine(uint64_t seed, T val) {
         T octet = val & T(0xff); // extract lower 8 bits
         seed ^= octet;
         seed *= FNV1::prime;
-        val = val >> uint64_t(8);
+        val = val >> 8_u64;
     }
     return seed;
 }

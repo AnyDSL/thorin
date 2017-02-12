@@ -35,13 +35,13 @@ namespace thorin {
  * A @c size_t literal.
  * Use @c 0_s to disambiguate @c 0 from @c nullptr.
  */
-inline size_t operator""_s(unsigned long long int i) { return size_t(i); }
+constexpr size_t operator""_s(unsigned long long int i) { return size_t(i); }
 
 /// A @c uint32_t literal.
-inline size_t operator""_u32(unsigned long long int i) { return uint32_t(i); }
+constexpr uint32_t operator""_u32(unsigned long long int i) { return uint32_t(i); }
 
 /// A @c uint64_t literal.
-inline size_t operator""_u64(unsigned long long int i) { return uint64_t(i); }
+constexpr uint64_t operator""_u64(unsigned long long int i) { return uint64_t(i); }
 
 /// Use to initialize an \p AutoPtr in a lazy way.
 template<class This, class T>
@@ -126,16 +126,16 @@ static_assert(sizeof(TaggedPtr<void*,int>) == 8, "a tagged ptr on x86_64 is supp
 /// Determines whether @p i is a power of two.
 constexpr uint64_t is_power_of_2(uint64_t i) { return ((i != 0) && !(i & (i - 1))); }
 
-constexpr uint64_t log2(uint64_t n, uint64_t p = 0) { return (n <= uint64_t(1)) ? p : log2(n / uint64_t(2), p + uint64_t(1)); }
+constexpr uint64_t log2(uint64_t n, uint64_t p = 0) { return (n <= 1_u64) ? p : log2(n / 2_u64, p + 1_u64); }
 
 inline uint64_t round_to_power_of_2(uint64_t i) {
     i--;
-    i |= i >> uint64_t( 1);
-    i |= i >> uint64_t( 2);
-    i |= i >> uint64_t( 4);
-    i |= i >> uint64_t( 8);
-    i |= i >> uint64_t(16);
-    i |= i >> uint64_t(32);
+    i |= i >>  1_u64;
+    i |= i >>  2_u64;
+    i |= i >>  4_u64;
+    i |= i >>  8_u64;
+    i |= i >> 16_u64;
+    i |= i >> 32_u64;
     i++;
     return i;
 }
@@ -147,12 +147,12 @@ inline size_t bitcount(uint64_t v) {
     return __popcnt64(v);
 #else
     // see https://stackoverflow.com/questions/3815165/how-to-implement-bitcount-using-only-bitwise-operators
-    auto c = v - ((v >> uint64_t( 1))      & uint64_t(0x5555555555555555));
-    c =          ((c >> uint64_t( 2))      & uint64_t(0x3333333333333333)) + (c & uint64_t(0x3333333333333333));
-    c =          ((c >> uint64_t( 4)) + c) & uint64_t(0x0F0F0F0F0F0F0F0F);
-    c =          ((c >> uint64_t( 8)) + c) & uint64_t(0x00FF00FF00FF00FF);
-    c =          ((c >> uint64_t(16)) + c) & uint64_t(0x0000FFFF0000FFFF);
-    return       ((c >> uint64_t(32)) + c) & uint64_t(0x00000000FFFFFFFF);
+    auto c = v - ((v >>  1_u64)      & 0x5555555555555555_u64);
+    c =          ((c >>  2_u64)      & 0x3333333333333333_u64) + (c & 0x3333333333333333_u64);
+    c =          ((c >>  4_u64) + c) & 0x0F0F0F0F0F0F0F0F_u64;
+    c =          ((c >>  8_u64) + c) & 0x00FF00FF00FF00FF_u64;
+    c =          ((c >> 16_u64) + c) & 0x0000FFFF0000FFFF_u64;
+    return       ((c >> 32_u64) + c) & 0x00000000FFFFFFFF_u64;
 #endif
 }
 

@@ -3,7 +3,6 @@
 *.cu
 *.ll
 *.nvvm
-*.spir
 *.s
 *.out
 CMakeCache.txt

@@ -39,7 +39,6 @@
 #include "thorin/be/llvm/cuda.h"
 #include "thorin/be/llvm/nvvm.h"
 #include "thorin/be/llvm/opencl.h"
-#include "thorin/be/llvm/spir.h"
 #include "thorin/transform/importer.h"
 #include "thorin/util/array.h"
 #include "thorin/util/log.h"
@@ -66,7 +65,6 @@ Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
         case Intrinsic::Reserve:   return emit_reserve(continuation);
         case Intrinsic::CUDA:      return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM, continuation);
         case Intrinsic::NVVM:      return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM, continuation);
-        case Intrinsic::SPIR:      return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, continuation);
         case Intrinsic::OpenCL:    return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, continuation);
         case Intrinsic::Parallel:  return emit_parallel(continuation);
         case Intrinsic::Spawn:     return emit_spawn(continuation);
@@ -121,7 +119,7 @@ Continuation* CodeGen::emit_reserve(const Continuation* continuation) {
     THORIN_UNREACHABLE;
 }
 
-Continuation* CodeGen::emit_reserve_shared(const Continuation* continuation, bool prefix) {
+Continuation* CodeGen::emit_reserve_shared(const Continuation* continuation) {
     assert(continuation->num_args() == 3 && "required arguments are missing");
     if (!continuation->arg(1)->isa<PrimLit>())
         ELOG("reserve_shared: couldn't extract memory size at {}", continuation->arg(1)->location());
@@ -134,8 +132,7 @@ Continuation* CodeGen::emit_reserve_shared(const Continuation* continuation, boo
     auto name = continuation->unique_name();
     // NVVM doesn't allow '.' in global identifier
     std::replace(name.begin(), name.end(), '.', '_');
-    // SPIR requires <kernel>.<name> as identifier
-    auto global = emit_global_variable(smem_type, (prefix ? entry_->name() + "." : "") + name, 3);
+    auto global = emit_global_variable(smem_type, name, 3);
     auto call = irbuilder_.CreatePointerCast(global, type);
     emit_result_phi(cont->param(1), call);
     return cont;
@@ -1053,7 +1050,6 @@ void CodeGen::create_loop(llvm::Value* lower, llvm::Value* upper, llvm::Value* i
 void emit_llvm(World& world, int opt, bool debug) {
     Importer cuda(world.name());
     Importer nvvm(world.name());
-    Importer spir(world.name());
     Importer opencl(world.name());
 
     // determine different parts of the world which need to be compiled differently
@@ -1064,8 +1060,6 @@ void emit_llvm(World& world, int opt, bool debug) {
             imported = cuda.import(continuation)->as_continuation();
         else if (continuation->is_passed_to_intrinsic(Intrinsic::NVVM))
             imported = nvvm.import(continuation)->as_continuation();
-        else if (continuation->is_passed_to_intrinsic(Intrinsic::SPIR))
-            imported = spir.import(continuation)->as_continuation();
         else if (continuation->is_passed_to_intrinsic(Intrinsic::OpenCL))
             imported = opencl.import(continuation)->as_continuation();
         else
@@ -1080,13 +1074,12 @@ void emit_llvm(World& world, int opt, bool debug) {
             imported->param(i)->debug().set(continuation->param(i)->unique_name());
     });
 
-    if (!cuda.world().empty() || !nvvm.world().empty() || !spir.world().empty() || !opencl.world().empty())
+    if (!cuda.world().empty() || !nvvm.world().empty() || !opencl.world().empty())
         world.cleanup();
 
     CPUCodeGen(world).emit(opt, debug);
     if (!cuda.  world().empty()) CUDACodeGen  (cuda  .world()).emit(/*opt,*/ debug);
     if (!nvvm.  world().empty()) NVVMCodeGen  (nvvm  .world()).emit(opt, debug);
-    if (!spir.  world().empty()) SPIRCodeGen  (spir  .world()).emit(opt, debug);
     if (!opencl.world().empty()) OpenCLCodeGen(opencl.world()).emit(/*opt,*/ debug);
 }
 

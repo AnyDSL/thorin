@@ -49,8 +49,6 @@ SET ( SOURCES
     be/llvm/parallel.cpp
     be/llvm/runtime.cpp
     be/llvm/runtime.h
-    be/llvm/spir.cpp
-    be/llvm/spir.h
     be/llvm/vectorize.cpp
     tables/allnodes.h
     tables/arithoptable.h

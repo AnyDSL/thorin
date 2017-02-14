@@ -47,6 +47,7 @@ SET ( SOURCES
     be/llvm/opencl.cpp
     be/llvm/opencl.h
     be/llvm/parallel.cpp
+    be/llvm/runtime.inc
     be/llvm/runtime.cpp
     be/llvm/runtime.h
     be/llvm/vectorize.cpp

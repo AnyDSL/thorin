@@ -4,7 +4,7 @@
 #include <stdexcept>
 
 #include <llvm/ADT/Triple.h>
-#include <llvm/Bitcode/ReaderWriter.h>
+#include <llvm/Bitcode/BitcodeWriter.h>
 #include <llvm/IR/Constant.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Function.h>
@@ -199,7 +199,7 @@ void CodeGen::emit(int opt, bool debug) {
         // Darwin only supports dwarf2
         if (llvm::Triple(llvm::sys::getProcessTriple()).isOSDarwin())
             module_->addModuleFlag(llvm::Module::Warning, "Dwarf Version", 2);
-        dicompile_unit = dibuilder_.createCompileUnit(llvm::dwarf::DW_LANG_C, world_.name(), llvm::StringRef(), "Impala", opt > 0, llvm::StringRef(), 0);
+        dicompile_unit = dibuilder_.createCompileUnit(llvm::dwarf::DW_LANG_C, dibuilder_.createFile(world_.name(), llvm::StringRef()), "Impala", opt > 0, llvm::StringRef(), 0);
     }
 
     Scope::for_each(world_, [&] (const Scope& scope) {

@@ -42,7 +42,10 @@ public:
     /// Emits a call to anydsl_sync_thread.
     llvm::Value* sync_thread(llvm::Value* id);
 
-    Continuation* emit_host_code(CodeGen &code_gen, Platform platform, Continuation* continuation);
+    Continuation* emit_host_code(CodeGen& code_gen,
+                                 Platform platform,
+                                 const std::string& ext,
+                                 Continuation* continuation);
 
     llvm::Function* get(const char* name);
 

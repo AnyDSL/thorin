@@ -73,7 +73,7 @@ static bool contains_ptrtype(const Type* type) {
     }
 }
 
-Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, Continuation* continuation) {
+Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std::string& ext, Continuation* continuation) {
     // to-target is the desired kernel call
     // target(mem, device, (dim.x, dim.y, dim.z), (block.x, block.y, block.z), body, return, free_vars)
     auto target = continuation->callee()->as_continuation();
@@ -89,7 +89,7 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, Cont
     auto kernel = continuation->arg(LaunchArgs::Body)->as<Global>()->init()->as<Continuation>();
 
     auto kernel_name = builder_.CreateGlobalStringPtr(kernel->name());
-    auto file_name = builder_.CreateGlobalStringPtr(continuation->world().name());
+    auto file_name = builder_.CreateGlobalStringPtr(continuation->world().name() + ext);
     const size_t num_kernel_args = continuation->num_args() - LaunchArgs::Num;
 
     // allocate argument pointers, sizes, and types

@@ -83,6 +83,7 @@ struct Range {
 
     I begin() const { return begin_; }
     I end() const { return end_; }
+    size_t distance() const { return std::distance(begin(), end()); }
 
 private:
     I begin_;

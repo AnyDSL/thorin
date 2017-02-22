@@ -61,10 +61,10 @@ bool use_lea(const Type* type) { return type->isa<StructType>() || type->isa<Arr
 
 const Type* DefiniteArrayType  ::vrebuild(World& to, Types ops) const { return to.definite_array_type(ops[0], dim()); }
 const Type* FnType             ::vrebuild(World& to, Types ops) const { return to.fn_type(ops); }
-const Type* FrameType          ::vrebuild(World& to, Types     ) const { return to.frame_type(); }
+const Type* FrameType          ::vrebuild(World& to, Types    ) const { return to.frame_type(); }
 const Type* IndefiniteArrayType::vrebuild(World& to, Types ops) const { return to.indefinite_array_type(ops[0]); }
-const Type* MemType            ::vrebuild(World& to, Types     ) const { return to.mem_type(); }
-const Type* PrimType           ::vrebuild(World& to, Types     ) const { return to.type(primtype_tag(), length()); }
+const Type* MemType            ::vrebuild(World& to, Types    ) const { return to.mem_type(); }
+const Type* PrimType           ::vrebuild(World& to, Types    ) const { return to.type(primtype_tag(), length()); }
 
 const Type* PtrType::vrebuild(World& to, Types ops) const {
     return to.ptr_type(ops.front(), length(), device(), addr_space());
@@ -113,7 +113,6 @@ std::ostream& Lambda             ::stream(std::ostream& os) const { return strea
 std::ostream& MemType            ::stream(std::ostream& os) const { return os << "mem"; }
 std::ostream& StructType         ::stream(std::ostream& os) const { return os << name(); }
 std::ostream& TupleType          ::stream(std::ostream& os) const { return stream_type_ops(os, this); }
-std::ostream& TypeError          ::stream(std::ostream& os) const { return os << "<type error>"; }
 
 std::ostream& PtrType::stream(std::ostream& os) const {
     if (is_vector())

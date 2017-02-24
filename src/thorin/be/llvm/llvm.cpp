@@ -462,7 +462,6 @@ void CodeGen::optimize(int opt) {
             pmbuilder.OptLevel = (unsigned) opt;
             pmbuilder.SizeLevel = 0u;
         }
-        pmbuilder.DisableUnitAtATime = true;
         if (opt == 3) {
             pass_manager.add(llvm::createFunctionInliningPass());
             pass_manager.add(llvm::createAggressiveDCEPass());

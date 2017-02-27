@@ -230,8 +230,8 @@ public:
 
     typedef thorin::HashSet<const Type*, TypeHash> TypeSet;
 
-    TypeTableBase& operator=(const TypeTableBase&);
-    TypeTableBase(const TypeTableBase&);
+    TypeTableBase& operator=(const TypeTableBase&) = delete;
+    TypeTableBase(const TypeTableBase&) = delete;
 
     TypeTableBase()
         : unit_(unify(new TupleType(HENK_TABLE_NAME(), Types())))

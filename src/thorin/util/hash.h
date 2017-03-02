@@ -175,13 +175,22 @@ public:
     {
         fill(nodes_);
     }
-
+    HashTable(size_t capacity)
+        : capacity_(std::max(capacity, size_t(StackCapacity)))
+        , size_(0)
+        , nodes_(new value_type[capacity_])
+#ifndef NDEBUG
+        , id_(0)
+#endif
+    {
+        assert(is_power_of_2(capacity));
+        fill(nodes_);
+    }
     HashTable(HashTable&& other)
         : HashTable()
     {
         swap(*this, other);
     }
-
     HashTable(const HashTable& other)
         : capacity_(other.capacity_)
         , size_(other.size_)
@@ -197,20 +206,17 @@ public:
             array_ = other.array_;
         }
     }
-
     template<class InputIt>
     HashTable(InputIt first, InputIt last)
         : HashTable()
     {
         insert(first, last);
     }
-
     HashTable(std::initializer_list<value_type> ilist)
         : HashTable()
     {
         insert(ilist);
     }
-
     ~HashTable() {
         if (on_heap())
             delete[] nodes_;
@@ -255,15 +261,7 @@ public:
                 ++size_;
                 swap(nodes_[i], n);
                 result = result == end_ptr() ? nodes_+i : result;
-#ifndef NDEBUG
-                auto dib = probe_distance(i);
-                if (dib > 2*log2(capacity())) {
-                    WLOG("poor hash function; element {} has distance {} with capacity {}", i, dib, capacity());
-                    for (size_t j = mod(i-dib); j != i; j = mod(j+1))
-                        WLOG("hash for element {}: {}", j, hash(j));
-                    WLOG("debug with: break {}:{}", __FILE__, __LINE__);
-                }
-#endif
+                debug(i);
                 return std::make_pair(iterator(result, this), true);
             } else if (result == end_ptr() && H::eq(key(nodes_+i), k)) {
                 return std::make_pair(iterator(nodes_+i, this), false);
@@ -401,6 +399,7 @@ public:
                             distance = cur_distance;
                             swap(nodes_[i], old);
                         }
+                        debug(i);
                     }
                 }
             }
@@ -444,6 +443,17 @@ public:
 private:
 #ifndef NDEBUG
     int id() const { return id_; }
+    void debug(size_t i) {
+        auto dib = probe_distance(i);
+        if (dib > 2*log2(capacity())) {
+            WLOG("poor hash function; element {} has distance {} with capacity {}", i, dib, capacity());
+            for (size_t j = mod(i-dib); j != i; j = mod(j+1))
+                WLOG("hash for element {}: {}", j, hash(j));
+            WLOG("debug with: break {}:{}", __FILE__, __LINE__);
+        }
+    }
+#else
+    void debug(size_t) {}
 #endif
     uint64_t hash(size_t i) { return H::hash(key(&nodes_[i])); } ///< just for debugging
     size_t mod(size_t i) const { return i & (capacity_-1); }
@@ -493,6 +503,9 @@ public:
     typedef typename Super::const_iterator const_iterator;
 
     HashSet() {}
+    HashSet(size_t capacity)
+        : Super(capacity)
+    {}
     template<class InputIt>
     HashSet(InputIt first, InputIt last)
         : Super(first, last)
@@ -526,12 +539,13 @@ public:
     HashMap()
         : Super()
     {}
-
+    HashMap(size_t capacity)
+        : Super(capacity)
+    {}
     template<class InputIt>
     HashMap(InputIt first, InputIt last)
         : Super(first, last)
     {}
-
     HashMap(std::initializer_list<value_type> ilist)
         : Super(ilist)
     {}

@@ -24,13 +24,13 @@ private:
     bool within(const Def* def) { return scope().contains(def) || defs_.contains(def); }
 
     const Scope& scope_;
-    Def2Def def2def_;
     Defs args_;
     Defs lift_;
     Type2Type type2type_;
     Continuation* old_entry_;
     Continuation* new_entry_;
     DefSet defs_;
+    Def2Def def2def_;
 };
 
 

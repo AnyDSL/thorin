@@ -77,7 +77,7 @@ const Type* PtrType::vrebuild(World& to, Types ops) const {
  */
 
 uint64_t PtrType::vhash() const {
-    return hash_combine(VectorType::vhash(), (uint64_t)device()), (uint64_t)addr_space();
+    return hash_combine(VectorType::vhash(), (uint64_t)device(), (uint64_t)addr_space());
 }
 
 //------------------------------------------------------------------------------

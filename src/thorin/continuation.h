@@ -297,8 +297,8 @@ private:
 template<>
 struct Hash<Call> {
     static uint64_t hash(const Call& call) {
-        uint64_t seed = hash_begin();
-        for (auto arg : call.ops())
+        uint64_t seed = hash_begin(call.callee()->gid());
+        for (auto arg : call.args())
             seed = hash_combine(seed,  arg ?  arg->gid() : 0);
         return seed;
     }

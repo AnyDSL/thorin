@@ -255,10 +255,14 @@ public:
                 ++size_;
                 swap(nodes_[i], n);
                 result = result == end_ptr() ? nodes_+i : result;
-#ifdef THORIN_DEBUG_HASH
+#ifndef NDEBUG
                 auto dib = probe_distance(i);
-                if (dib > std::max(4, log2(capacity())))
-                    WLOG("you are using a poor hash function - distance to initial bucket/capacity: {}/{}", dib, capacity());
+                if (dib > 2*log2(capacity())) {
+                    WLOG("poor hash function; element {} has distance {} with capacity {}", i, dib, capacity());
+                    for (size_t j = mod(i-dib); j != i; j = mod(j+1))
+                        WLOG("hash for element {}: {}", j, hash(j));
+                    WLOG("debug with: break {}:{}", __FILE__, __LINE__);
+                }
 #endif
                 return std::make_pair(iterator(result, this), true);
             } else if (result == end_ptr() && H::eq(key(nodes_+i), k)) {
@@ -441,6 +445,7 @@ private:
 #ifndef NDEBUG
     int id() const { return id_; }
 #endif
+    uint64_t hash(size_t i) { return H::hash(key(&nodes_[i])); } ///< just for debugging
     size_t mod(size_t i) const { return i & (capacity_-1); }
     size_t desired_pos(const key_type& key) const { return mod(hash_combine(H::hash(key), gid())); }
     size_t probe_distance(size_t i) { return mod(i + capacity() - desired_pos(key(nodes_+i))); }

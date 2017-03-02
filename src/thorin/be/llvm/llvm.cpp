@@ -432,7 +432,7 @@ void CodeGen::emit(int opt, bool debug) {
         emit_vectorize(std::get<0>(tuple), std::get<1>(tuple), std::get<2>(tuple), std::get<3>(tuple));
     vec_todo_.clear();
 
-    rv::lowerIntrinsics(*module_);
+    rv::lowerPredicateIntrinsics(*module_);
 #endif
 
 #ifndef NDEBUG

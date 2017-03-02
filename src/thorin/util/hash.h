@@ -234,8 +234,8 @@ public:
     //@{ emplace/insert
     template<class... Args>
     std::pair<iterator,bool> emplace(Args&&... args) {
-        if (size_ > capacity_/size_t(4) + capacity_/size_t(2))
-            rehash(capacity_*size_t(2));
+        if (size_ > capacity_/4_s + capacity_/2_s)
+            rehash(capacity_*2_s);
 
         return emplace_no_rehash(std::forward<Args>(args)...);
     }
@@ -286,8 +286,10 @@ public:
         size_t s = size() + std::distance(begin, end);
         size_t c = round_to_power_of_2(s);
 
-        if (s > c/size_t(4) + c/size_t(2))
-            c *= size_t(2);
+        if (s > c/4_s + c/2_s)
+            c *= 2_s;
+
+        c = std::max(c, size_t(capacity_));
 
         if (c != capacity_)
             rehash(c);
@@ -312,8 +314,8 @@ public:
         key(&empty) = H::sentinel();
         swap(*pos.ptr_, empty);
 
-        if (capacity_ > MinCapacity && size_ < capacity_/size_t(4))
-            rehash(capacity_/size_t(2));
+        if (capacity_ > MinCapacity && size_ < capacity_/4_s)
+            rehash(capacity_/2_s);
         else {
             for (size_t curr = pos.ptr_-nodes_, next = mod(curr+1);
                 !is_invalid(next) && probe_distance(next) != 0; curr = next, next = mod(next+1)) {

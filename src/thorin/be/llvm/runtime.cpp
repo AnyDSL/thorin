@@ -164,7 +164,7 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, cons
     llvm::Value* block_size = code_gen.emit_alloca(block_array->getType(), "");
     builder_.CreateStore(block_array, block_size);
 
-    llvm::ArrayRef<llvm::Value*> gep_first_elem{builder_.getInt32(0), builder_.getInt32(0)};
+    std::vector<llvm::Value*> gep_first_elem{builder_.getInt32(0), builder_.getInt32(0)};
     grid_size  = builder_.CreateInBoundsGEP(grid_size,  gep_first_elem);
     block_size = builder_.CreateInBoundsGEP(block_size, gep_first_elem);
     args       = builder_.CreateInBoundsGEP(args,       gep_first_elem);

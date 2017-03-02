@@ -448,7 +448,7 @@ private:
         if (dib > 2*log2(capacity())) {
             WLOG("poor hash function; element {} has distance {} with capacity {}", i, dib, capacity());
             for (size_t j = mod(i-dib); j != i; j = mod(j+1))
-                WLOG("hash for element {}: {}", j, hash(j));
+                WLOG("elem:desired_pos:hash: {}:{}:{}", j, desired_pos(key(&nodes_[j])), hash(j));
             WLOG("debug with: break {}:{}", __FILE__, __LINE__);
         }
     }

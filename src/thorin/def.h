@@ -70,8 +70,8 @@ private:
 
 struct UseHash {
     inline static uint64_t hash(Use use);
-    static bool eq(Use u1, Use u2) { return u1 == u2; }
-    static Use sentinel() { return Use(size_t(-1), (const Def*)(-1)); }
+    inline static bool eq(Use u1, Use u2) { return u1 == u2; }
+    inline static Use sentinel() { return Use(size_t(-1), (const Def*)(-1)); }
 };
 
 typedef HashSet<Use, UseHash> Uses;
@@ -154,7 +154,13 @@ private:
 };
 
 uint64_t UseHash::hash(Use use) {
-    return hash_begin(uint64_t(use.index()) << 48ull | uint64_t(use->gid()));
+    uint64_t h = uint64_t(use.index()) << 48_u64 | uint64_t(use->gid());
+    h ^= h >> 33_u64;
+    h *= 0xff51afd7ed558ccd_u64;
+    h ^= h >> 33_u64;
+    h *= 0xc4ceb9fe1a85ec53_u64;
+    h ^= h >> 33_u64;
+    return h;
 }
 
 /// Returns the vector length. Raises an assertion if type of this is not a \p VectorType.

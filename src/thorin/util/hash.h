@@ -33,10 +33,10 @@ uint64_t hash_combine(uint64_t seed, T val) {
         return hash_combine(seed, typename std::make_unsigned<T>::type(val));
 
     for (uint64_t i = 0; i < sizeof(T); ++i) {
-        T octet = val & T(0xff); // extract lower 8 bits
+        uint8_t octet = val & T(0xff); // extract lower 8 bits
         seed ^= octet;
         seed *= FNV1::prime;
-        val = val >> 8_u64;
+        val >>= 8_u64;
     }
     return seed;
 }
@@ -446,7 +446,7 @@ private:
     void debug(size_t i) {
         auto dib = probe_distance(i);
         if (dib > 2*log2(capacity())) {
-            WLOG("poor hash function; element {} has distance {} with capacity {}", i, dib, capacity());
+            WLOG("poor hash function; element {} has distance {} with size/capacity: {}/{}", i, dib, size(), capacity());
             for (size_t j = mod(i-dib); j != i; j = mod(j+1))
                 WLOG("elem:desired_pos:hash: {}:{}:{}", j, desired_pos(key(&nodes_[j])), hash(j));
             WLOG("debug with: break {}:{}", __FILE__, __LINE__);

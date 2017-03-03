@@ -187,7 +187,7 @@ public:
     HashTable(size_t capacity)
         : capacity_(std::max(capacity, size_t(StackCapacity)))
         , size_(0)
-        , nodes_(new value_type[capacity_])
+        , nodes_(on_heap() ? new value_type[capacity_] : array_.data())
 #ifndef NDEBUG
         , id_(0)
 #endif

@@ -240,7 +240,7 @@ public:
     //@{ emplace/insert
     template<class... Args>
     std::pair<iterator,bool> emplace(Args&&... args) {
-        if (size_ > capacity_/4_s + capacity_/2_s)
+        if (size_ >= capacity_/4_s + capacity_/2_s)
             rehash(capacity_*2_s);
 
         return emplace_no_rehash(std::forward<Args>(args)...);

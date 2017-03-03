@@ -63,6 +63,15 @@ struct Hash<T*> {
     static T* sentinel() { return (T*)(1); }
 };
 
+inline uint64_t murmur3(uint64_t h) {
+    h ^= h >> 33_u64;
+    h *= 0xff51afd7ed558ccd_u64;
+    h ^= h >> 33_u64;
+    h *= 0xc4ceb9fe1a85ec53_u64;
+    h ^= h >> 33_u64;
+    return h;
+}
+
 //------------------------------------------------------------------------------
 
 namespace detail {
@@ -445,7 +454,7 @@ private:
     int id() const { return id_; }
     void debug(size_t i) {
         auto dib = probe_distance(i);
-        if (dib > 2*log2(capacity())) {
+        if (dib > 2_s*log2(capacity())) {
             WLOG("poor hash function; element {} has distance {} with size/capacity: {}/{}", i, dib, size(), capacity());
             for (size_t j = mod(i-dib); j != i; j = mod(j+1))
                 WLOG("elem:desired_pos:hash: {}:{}:{}", j, desired_pos(key(&nodes_[j])), hash(j));

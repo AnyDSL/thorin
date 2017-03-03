@@ -487,7 +487,7 @@ public:
     const Def* out_mem() const { return has_multiple_outs() ? out(0) : this; }
 
 private:
-    virtual uint64_t vhash() const override { return hash_begin(gid()); }
+    virtual uint64_t vhash() const override { return murmur3(gid()); }
     virtual bool equal(const PrimOp* other) const override { return this == other; }
 };
 

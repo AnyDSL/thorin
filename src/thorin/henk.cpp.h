@@ -39,7 +39,7 @@ Type::Type(HENK_TABLE_TYPE& table, int tag, Types ops)
 
 uint64_t Type::vhash() const {
     if (is_nominal())
-        return thorin::hash_combine(thorin::hash_begin(uint8_t(tag())), ~uint16_t(gid()));
+        return thorin::murmur3(uint64_t(tag()) << uint64_t(56) | uint64_t(gid()));
 
     uint64_t seed = thorin::hash_begin(uint8_t(tag()));
     for (auto op : ops_)
@@ -48,7 +48,7 @@ uint64_t Type::vhash() const {
 }
 
 uint64_t Var::vhash() const {
-    return thorin::hash_combine(thorin::hash_begin(uint8_t(tag())), uint8_t(depth()));
+    return thorin::murmur3(uint64_t(tag()) << uint64_t(56) | uint8_t(depth()));
 }
 
 //------------------------------------------------------------------------------

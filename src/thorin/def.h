@@ -153,15 +153,7 @@ private:
     friend class Tracker;
 };
 
-uint64_t UseHash::hash(Use use) {
-    uint64_t h = uint64_t(use.index()) << 48_u64 | uint64_t(use->gid());
-    h ^= h >> 33_u64;
-    h *= 0xff51afd7ed558ccd_u64;
-    h ^= h >> 33_u64;
-    h *= 0xc4ceb9fe1a85ec53_u64;
-    h ^= h >> 33_u64;
-    return h;
-}
+uint64_t UseHash::hash(Use use) { return murmur3(uint64_t(use.index()) << 48_u64 | uint64_t(use->gid())); }
 
 /// Returns the vector length. Raises an assertion if type of this is not a \p VectorType.
 size_t vector_length(const Def*);

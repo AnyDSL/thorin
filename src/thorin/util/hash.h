@@ -33,10 +33,10 @@ uint64_t hash_combine(uint64_t seed, T val) {
         return hash_combine(seed, typename std::make_unsigned<T>::type(val));
 
     for (uint64_t i = 0; i < sizeof(T); ++i) {
-        T octet = val & T(0xff); // extract lower 8 bits
+        uint8_t octet = val & T(0xff); // extract lower 8 bits
         seed ^= octet;
         seed *= FNV1::prime;
-        val = val >> 8_u64;
+        val >>= 8_u64;
     }
     return seed;
 }
@@ -62,6 +62,15 @@ struct Hash<T*> {
     static bool eq(T* a, T* b) { return a == b; }
     static T* sentinel() { return (T*)(1); }
 };
+
+inline uint64_t murmur3(uint64_t h) {
+    h ^= h >> 33_u64;
+    h *= 0xff51afd7ed558ccd_u64;
+    h ^= h >> 33_u64;
+    h *= 0xc4ceb9fe1a85ec53_u64;
+    h ^= h >> 33_u64;
+    return h;
+}
 
 //------------------------------------------------------------------------------
 
@@ -178,7 +187,7 @@ public:
     HashTable(size_t capacity)
         : capacity_(std::max(capacity, size_t(StackCapacity)))
         , size_(0)
-        , nodes_(new value_type[capacity_])
+        , nodes_(on_heap() ? new value_type[capacity_] : array_.data())
 #ifndef NDEBUG
         , id_(0)
 #endif
@@ -240,7 +249,7 @@ public:
     //@{ emplace/insert
     template<class... Args>
     std::pair<iterator,bool> emplace(Args&&... args) {
-        if (size_ > capacity_/4_s + capacity_/2_s)
+        if (size_ >= capacity_/4_s + capacity_/2_s)
             rehash(capacity_*2_s);
 
         return emplace_no_rehash(std::forward<Args>(args)...);
@@ -445,10 +454,10 @@ private:
     int id() const { return id_; }
     void debug(size_t i) {
         auto dib = probe_distance(i);
-        if (dib > 2*log2(capacity())) {
-            WLOG("poor hash function; element {} has distance {} with capacity {}", i, dib, capacity());
+        if (dib > 2_s*log2(capacity())) {
+            WLOG("poor hash function; element {} has distance {} with size/capacity: {}/{}", i, dib, size(), capacity());
             for (size_t j = mod(i-dib); j != i; j = mod(j+1))
-                WLOG("hash for element {}: {}", j, hash(j));
+                WLOG("elem:desired_pos:hash: {}:{}:{}", j, desired_pos(key(&nodes_[j])), hash(j));
             WLOG("debug with: break {}:{}", __FILE__, __LINE__);
         }
     }

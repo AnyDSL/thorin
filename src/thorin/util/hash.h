@@ -25,15 +25,13 @@ struct FNV1 {
 
 /// Returns a new hash by combining the hash @p seed with @p val.
 template<class T>
-uint64_t hash_combine(uint64_t seed, T val) {
+uint64_t hash_combine(uint64_t seed, T v) {
     static_assert(std::is_signed<T>::value || std::is_unsigned<T>::value,
                   "please provide your own hash function");
 
-    if (std::is_signed<T>::value)
-        return hash_combine(seed, typename std::make_unsigned<T>::type(val));
-
+    uint64_t val = v;
     for (uint64_t i = 0; i < sizeof(T); ++i) {
-        uint8_t octet = val & T(0xff); // extract lower 8 bits
+        uint64_t octet = val & 0xff_u64; // extract lower 8 bits
         seed ^= octet;
         seed *= FNV1::prime;
         val >>= 8_u64;

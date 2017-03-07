@@ -296,6 +296,14 @@ std::ostream& PrimOp::stream_assignment(std::ostream& os) const {
  * misc
  */
 
+std::string DefiniteArray::as_string() const {
+    std::string res;
+    for (auto op : ops()) {
+        res += op->as<PrimLit>()->pu8_value();
+    }
+    return res;
+}
+
 const Def* PrimOp::out(size_t i) const {
     assert(i < type()->as<TupleType>()->num_ops());
     return world().extract(this, i, debug());

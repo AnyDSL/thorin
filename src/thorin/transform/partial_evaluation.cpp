@@ -121,6 +121,17 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
             dst = cur->callee()->isa_continuation();
         }
 
+        // pe_info calls are handled here
+        if (dst != nullptr && dst->intrinsic() == Intrinsic::PeInfo) {
+            assert(cur->arg(1)->type() == world().ptr_type(world().indefinite_array_type(world().type_pu8())));
+            auto msg = cur->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
+            Log::log(Log::Info, dst->location().filename(), dst->location().front_line(), "{}: {}", msg->as_string(), cur->arg(2));
+            auto next = cur->arg(3)->as_continuation();
+            cur->jump(next, { cur->arg(0) }, cur->jump_debug());
+            cur = next;
+            continue;
+        }
+
         if (dst == nullptr || dst->empty()) {
             cur = postdom(cur);
             if (cur == nullptr)
@@ -241,7 +252,7 @@ void eval(World& world) {
 
 void partial_evaluation(World& world) {
     world.cleanup();
-    ILOG_SCOPE(eval(world));
+    VLOG_SCOPE(eval(world));
 
     for (auto primop : world.primops()) {
         if (auto evalop = primop->isa<EvalOp>())

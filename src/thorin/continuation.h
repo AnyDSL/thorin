@@ -76,6 +76,7 @@ enum class Intrinsic : uint8_t {
     Atomic,                     ///< Intrinsic atomic function
     CmpXchg,                    ///< Intrinsic cmpxchg function
     Branch,                     ///< branch(cond, T, F).
+    PeInfo,                     ///< Partial evaluation debug info.
     EndScope,                   ///< Dummy function which marks the end of a @p Scope.
 };
 
@@ -252,6 +253,12 @@ private:
 };
 
 struct Call {
+    struct Hash {
+        static uint64_t hash(const Call& call) { return call.hash(); }
+        static bool eq(const Call& c1, const Call& c2) { return c1 == c2; }
+        static Call sentinel() { return Call(); }
+    };
+
     Call() {}
     Call(Array<const Def*> ops)
         : ops_(ops)
@@ -261,9 +268,11 @@ struct Call {
     {}
     Call(const Call& call)
         : ops_(call.ops())
+        , hash_(call.hash_)
     {}
     Call(Call&& call)
         : ops_(std::move(call.ops_))
+        , hash_(call.hash_)
     {}
     Call(const Continuation* continuation)
         : ops_(continuation->num_ops())
@@ -281,29 +290,29 @@ struct Call {
     const Def* arg(size_t i) const { return args()[i]; }
     const Def*& arg(size_t i) { return ops_[i+1]; }
 
+    uint64_t hash() const {
+        if (hash_ == 0) {
+            uint64_t hash_ = hash_begin();
+            for (auto op : ops())
+                hash_ = hash_combine(hash_, op ? op->gid() : 0);
+        }
+
+        return hash_;
+    }
+
     bool operator==(const Call& other) const { return this->ops() == other.ops(); }
     Call& operator=(Call other) { swap(*this, other); return *this; }
     explicit operator bool() { return !ops_.empty(); }
 
     friend void swap(Call& call1, Call& call2) {
         using std::swap;
-        swap(call1.ops_,       call2.ops_);
+        swap(call1.ops_,  call2.ops_);
+        swap(call1.hash_, call2.hash_);
     }
 
 private:
     Array<const Def*> ops_;
-};
-
-template<>
-struct Hash<Call> {
-    static uint64_t hash(const Call& call) {
-        uint64_t seed = hash_begin(call.callee()->gid());
-        for (auto arg : call.args())
-            seed = hash_combine(seed,  arg ?  arg->gid() : 0);
-        return seed;
-    }
-    static bool eq(const Call& c1, const Call& c2) { return c1 == c2; }
-    static Call sentinel() { return Call(); }
+    mutable uint64_t hash_ = 0;
 };
 
 void jump_to_cached_call(Continuation* src, Continuation* dst, const Call& call);
@@ -313,9 +322,9 @@ void clear_value_numbering_table(World&);
 //------------------------------------------------------------------------------
 
 template<class To>
-using ParamMap     = GIDMap<const Param*, To>;
-using ParamSet     = GIDSet<const Param*>;
-using Param2Param  = ParamMap<const Param*>;
+using ParamMap    = GIDMap<const Param*, To>;
+using ParamSet    = GIDSet<const Param*>;
+using Param2Param = ParamMap<const Param*>;
 
 template<class To>
 using ContinuationMap           = GIDMap<Continuation*, To>;

@@ -29,7 +29,7 @@ private:
     llvm::Function* get_texture_handle_fun();
     llvm::GlobalVariable* resolve_global_variable(const Param*);
 
-    HashMap<const Param*, llvm::MDNode*> metadata_;
+    ParamMap<llvm::MDNode*> metadata_;
 };
 
 }

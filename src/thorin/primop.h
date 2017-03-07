@@ -253,6 +253,7 @@ private:
 public:
     const DefiniteArrayType* type() const { return Aggregate::type()->as<DefiniteArrayType>(); }
     const Type* elem_type() const { return type()->elem_type(); }
+    std::string as_string() const;
 
     friend class World;
 };

@@ -183,13 +183,18 @@ inline std::ostream& operator<<(std::ostream& os, Use use) { return use->stream(
 
 //------------------------------------------------------------------------------
 
+class Tracker;
+typedef GIDSet<Tracker*> Trackers;
+
 class Tracker {
 public:
     Tracker()
         : def_(nullptr)
+        , gid_(gid_counter_++)
     {}
     Tracker(const Def* def)
         : def_(def)
+        , gid_(gid_counter_++)
     {
         if (def) {
             put(*this);
@@ -198,6 +203,7 @@ public:
     }
     Tracker(const Tracker& other)
         : def_(other)
+        , gid_(gid_counter_++)
     {
         if (other) {
             put(*this);
@@ -216,6 +222,7 @@ public:
     }
     ~Tracker() { if (*this) unregister(); }
 
+    size_t gid() const { return gid_; }
     const Def* operator*() const { return def_; }
     bool operator==(const Tracker& other) const { return this->def_ == other.def_; }
     bool operator!=(const Tracker& other) const { return this->def_ != other.def_; }
@@ -250,7 +257,7 @@ public:
     }
 
 private:
-    HashSet<Tracker*>& trackers(const Def* def);
+    Trackers& trackers(const Def* def);
     void verify() { assert(!def_ || trackers(def_).contains(this)); }
     void put(Tracker& other) {
         auto p = trackers(def_).insert(&other);
@@ -268,6 +275,8 @@ private:
     }
 
     mutable const Def* def_;
+    size_t gid_;
+    static size_t gid_counter_;
     friend void Def::replace(const Def*) const;
 };
 

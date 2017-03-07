@@ -13,7 +13,7 @@
 namespace thorin {
 
 bool Log::print_loc_ = true;
-Log::Level Log::min_level_ = Log::Info;
+Log::Level Log::min_level_ = Log::Error;
 std::ostream* Log::stream_ = nullptr;
 
 std::ostream& Log::stream() { return *stream_; }
@@ -29,20 +29,22 @@ bool Log::get_print_loc() { return print_loc_; }
 
 std::string Log::level2string(Level level) {
     switch (level) {
-        case Error: return "E";
-        case Warn:  return "W";
-        case Info:  return "I";
-        case Debug: return "D";
+        case Error:   return "E";
+        case Warn:    return "W";
+        case Info:    return "I";
+        case Verbose: return "V";
+        case Debug:   return "D";
     }
     THORIN_UNREACHABLE;
 }
 
 int Log::level2color(Level level) {
     switch (level) {
-        case Error: return 1;
-        case Warn:  return 3;
-        case Info:  return 2;
-        case Debug: return 4;
+        case Error:   return 1;
+        case Warn:    return 3;
+        case Info:    return 2;
+        case Verbose: return 4;
+        case Debug:   return 4;
     }
     THORIN_UNREACHABLE;
 }

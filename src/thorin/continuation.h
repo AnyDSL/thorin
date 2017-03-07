@@ -71,6 +71,7 @@ enum class Intrinsic : uint8_t {
     Spawn,                      ///< Internal Parallel-CPU-Backend.
     Sync,                       ///< Internal Parallel-CPU-Backend.
     Vectorize,                  ///< External vectorizer.
+    PeInfo,                     ///< Partial evaluation debug info.
     _Accelerator_End,
     Reserve = _Accelerator_End, ///< Intrinsic memory reserve function
     Atomic,                     ///< Intrinsic atomic function

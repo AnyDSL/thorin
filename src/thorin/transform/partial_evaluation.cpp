@@ -90,6 +90,14 @@ void PartialEvaluator::run() {
     }
 }
 
+inline std::string array_as_string(const DefiniteArray* def) {
+    std::string res;
+    for (auto op : def->ops()) {
+        res += op->as<PrimLit>()->pu8_value();
+    }
+    return res;
+}
+
 void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
     if (end == nullptr)
         WLOG("no matching end: {} at {}", cur, cur->location());
@@ -119,6 +127,17 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
             continue;
         } else {
             dst = cur->callee()->isa_continuation();
+        }
+
+        // pe_info calls are handled here
+        if (dst != nullptr && dst->intrinsic() == Intrinsic::PeInfo) {
+            auto msg = cur->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
+            assert(cur->arg(1)->type() == world().ptr_type(world().indefinite_array_type(world().type_pu8())));
+            WLOG("{}: {}", array_as_string(msg), cur->arg(2));
+            auto next = cur->arg(3)->as_continuation();
+            cur->jump(next, { cur->arg(0) }, cur->jump_debug());
+            cur = next;
+            continue;
         }
 
         if (dst == nullptr || dst->empty()) {

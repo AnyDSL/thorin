@@ -291,17 +291,13 @@ struct Call {
     const Def*& arg(size_t i) { return ops_[i+1]; }
 
     uint64_t hash() const {
-        if (hash_ != 0)
-            return hash_;
-
-        uint64_t seed = hash_begin();
-        uint32_t i = 0;
-        for (auto op : ops()) {
-            seed = hash_combine(seed, op ? op->gid() : i);
-            ++i;
+        if (hash_ == 0) {
+            uint64_t hash_ = hash_begin();
+            for (auto op : ops())
+                hash_ = hash_combine(hash_, op ? op->gid() : 0);
         }
 
-        return hash_ = seed;
+        return hash_;
     }
 
     bool operator==(const Call& other) const { return this->ops() == other.ops(); }

@@ -16,6 +16,7 @@ namespace thorin {
 //------------------------------------------------------------------------------
 
 size_t Def::gid_counter_ = 1;
+size_t Tracker::gid_counter_ = 1;
 
 Def::Def(NodeTag tag, const Type* type, size_t size, Debug dbg)
     : tag_(tag)
@@ -151,7 +152,7 @@ Continuation* Def::as_continuation() const { return const_cast<Continuation*>(sc
 Continuation* Def::isa_continuation() const { return const_cast<Continuation*>(dcast<Continuation>(this)); }
 std::ostream& Def::stream(std::ostream& out) const { return out << unique_name(); }
 
-HashSet<Tracker*>& Tracker::trackers(const Def* def) {
+Trackers& Tracker::trackers(const Def* def) {
     return def->world().trackers_[def];
 }
 

@@ -72,10 +72,10 @@ protected:
     llvm::CallingConv::ID function_calling_convention_;
     llvm::CallingConv::ID device_calling_convention_;
     llvm::CallingConv::ID kernel_calling_convention_;
-    HashMap<const Param*, llvm::Value*> params_;
-    HashMap<const Param*, llvm::PHINode*> phis_;
-    HashMap<const PrimOp*, llvm::Value*> primops_;
-    HashMap<Continuation*, llvm::Function*> fcts_;
+    ParamMap<llvm::Value*> params_;
+    ParamMap<llvm::PHINode*> phis_;
+    PrimOpMap<llvm::Value*> primops_;
+    ContinuationMap< llvm::Function*> fcts_;
     TypeMap<llvm::Type*> types_;
 #ifdef RV_SUPPORT
     std::vector<std::tuple<u32, u32, llvm::Function*, llvm::CallInst*>> vec_todo_;

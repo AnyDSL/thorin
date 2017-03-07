@@ -51,16 +51,6 @@ template<class T>
 uint64_t hash_begin(T val) { return hash_combine(FNV1::offset, val); }
 inline uint64_t hash_begin() { return FNV1::offset; }
 
-template<class T>
-struct Hash {};
-
-template<class T>
-struct Hash<T*> {
-    static uint64_t hash(T* ptr) { return uintptr_t(ptr) >> uintptr_t(log2(alignof(T))); }
-    static bool eq(T* a, T* b) { return a == b; }
-    static T* sentinel() { return (T*)(1); }
-};
-
 inline uint64_t murmur3(uint64_t h) {
     h ^= h >> 33_u64;
     h *= 0xff51afd7ed558ccd_u64;
@@ -87,7 +77,7 @@ private:
 };
 
 /// Used internally for @p HashSet and @p HashMap.
-template<class Key, class T, class H = Hash<Key>>
+template<class Key, class T, class H>
 class HashTable : public HashTableBase {
 public:
     typedef Key key_type;
@@ -498,7 +488,7 @@ private:
  * This container is for the most part compatible with <tt>std::unordered_set</tt>.
  * We use our own implementation in order to have a consistent and deterministic behavior across different platforms.
  */
-template<class Key, class H = Hash<Key>>
+template<class Key, class H = typename Key::Hash>
 class HashSet : public detail::HashTable<Key, void, H> {
 public:
     typedef detail::HashTable<Key, void, H> Super;
@@ -532,7 +522,7 @@ public:
  * This container is for the most part compatible with <tt>std::unordered_map</tt>.
  * We use our own implementation in order to have a consistent and deterministic behavior across different platforms.
  */
-template<class Key, class T, class H = Hash<Key>>
+template<class Key, class T, class H = typename Key::Hash>
 class HashMap : public detail::HashTable<Key, T, H> {
 public:
     typedef detail::HashTable<Key, T, H> Super;

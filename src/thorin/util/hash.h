@@ -488,6 +488,11 @@ private:
         *p = H::sentinel();
         return std::make_pair(iterator(i, this), false);
     }
+
+    void array_erase(const_iterator pos) {
+        std::move(array_.data(), array_.data()+size_, pos.ptr_);
+        ++size_;
+    }
     //@}
 
     value_type* alloc() {

@@ -101,15 +101,15 @@ public:
         , entry_(in_node(scope().entry()))
         , exit_ (in_node(scope().exit()))
     {
-        ILOG("*** CFA: {}", scope().entry());
-        ILOG_SCOPE(propagate_higher_order_values());
-        ILOG_SCOPE(run_cfa());
-        ILOG_SCOPE(build_cfg());
-        ILOG_SCOPE(unreachable_node_elimination());
-        ILOG_SCOPE(link_to_exit());
-        ILOG_SCOPE(transitive_cfg());
+        VLOG("*** CFA: {}", scope().entry());
+        VLOG_SCOPE(propagate_higher_order_values());
+        VLOG_SCOPE(run_cfa());
+        VLOG_SCOPE(build_cfg());
+        VLOG_SCOPE(unreachable_node_elimination());
+        VLOG_SCOPE(link_to_exit());
+        VLOG_SCOPE(transitive_cfg());
 #ifndef NDEBUG
-        ILOG_SCOPE(verify());
+        VLOG_SCOPE(verify());
 #endif
     }
 

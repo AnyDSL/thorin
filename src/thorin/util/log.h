@@ -16,7 +16,7 @@ class Log {
 
 public:
     enum Level {
-        Debug, Info, Warn, Error,
+        Debug, Verbose, Info, Warn, Error,
     };
 
     static std::ostream& stream();
@@ -68,13 +68,14 @@ private:
 #endif
 
 #define ELOG(...) thorin::Log::error(__FILE__, __LINE__, __VA_ARGS__)
-#define WLOG(...) ALWAYS_LOG(thorin::Log::Warn,  __VA_ARGS__)
-#define ILOG(...)  MAYBE_LOG(thorin::Log::Info,  __VA_ARGS__)
-#define DLOG(...)  MAYBE_LOG(thorin::Log::Debug, __VA_ARGS__)
-#define ILOG_SCOPE(s) { \
-    ILOG("*** BEGIN: " #s " {"); \
+#define WLOG(...) ALWAYS_LOG(thorin::Log::Warn,   __VA_ARGS__)
+#define ILOG(...) ALWAYS_LOG(thorin::Log::Info,   __VA_ARGS__)
+#define VLOG(...) MAYBE_LOG(thorin::Log::Verbose, __VA_ARGS__)
+#define DLOG(...) MAYBE_LOG(thorin::Log::Debug,   __VA_ARGS__)
+#define VLOG_SCOPE(s) { \
+    VLOG("*** BEGIN: " #s " {"); \
     (s); \
-    ILOG("}"); \
+    VLOG("}"); \
 }
 
 #endif

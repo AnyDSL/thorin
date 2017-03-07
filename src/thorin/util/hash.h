@@ -64,6 +64,7 @@ inline uint64_t murmur3(uint64_t h) {
 
 namespace detail {
 
+// TODO we can probably remove this again:
 class HashTableBase {
 protected:
     HashTableBase();
@@ -173,7 +174,7 @@ public:
         fill(nodes_);
     }
     HashTable(size_t capacity)
-        : capacity_(capacity < StackCapacity ? StackCapacity : std::max(capacity, size_t(MinCapacity)))
+        : capacity_(capacity < size_t(StackCapacity) ? size_t(StackCapacity) : std::max(capacity, size_t(MinCapacity)))
         , size_(0)
         , nodes_(on_heap() ? new value_type[capacity_] : array_.data())
 #ifndef NDEBUG
@@ -237,40 +238,16 @@ public:
     //@{ emplace/insert
     template<class... Args>
     std::pair<iterator,bool> emplace(Args&&... args) {
+        if (!on_heap() && size_ < capacity_)
+            return array_emplace(std::forward<Args>(args)...);
+
         if (size_ >= capacity_/4_s + capacity_/2_s)
             rehash(capacity_*2_s);
 
-        return emplace_no_rehash(std::forward<Args>(args)...);
-    }
-
-    template<class... Args>
-    std::pair<iterator,bool> emplace_no_rehash(Args&&... args) {
-        using std::swap;
 #ifndef NDEBUG
         ++id_;
 #endif
-        auto n = value_type(std::forward<Args>(args)...);
-        auto& k = key(&n);
-
-        auto result = end_ptr();
-        for (size_t i = desired_pos(k), distance = 0; true; i = mod(i+1), ++distance) {
-            if (is_invalid(i)) {
-                ++size_;
-                swap(nodes_[i], n);
-                result = result == end_ptr() ? nodes_+i : result;
-                debug(i);
-                return std::make_pair(iterator(result, this), true);
-            } else if (result == end_ptr() && H::eq(key(nodes_+i), k)) {
-                return std::make_pair(iterator(nodes_+i, this), false);
-            } else {
-                size_t cur_distance = probe_distance(i);
-                if (cur_distance < distance) {
-                    result = result == end_ptr() ? nodes_+i : result;
-                    distance = cur_distance;
-                    swap(nodes_[i], n);
-                }
-            }
-        }
+        return emplace_no_rehash(std::forward<Args>(args)...);
     }
 
     std::pair<iterator, bool> insert(const value_type& value) { return emplace(value); }
@@ -294,8 +271,17 @@ public:
             rehash(c);
 
         bool changed = false;
-        for (auto i = begin; i != end; ++i)
-            changed |= emplace_no_rehash(*i).second;
+        if (on_heap()) {
+            for (auto i = begin; i != end; ++i)
+                changed |= emplace_no_rehash(*i).second;
+        } else {
+            for (auto i = begin; i != end; ++i)
+                changed |= array_emplace(*i).second;
+        }
+
+#ifndef NDEBUG
+        ++id_;
+#endif
         return changed;
     }
     //@}
@@ -304,22 +290,26 @@ public:
     void erase(const_iterator pos) {
         using std::swap;
 
-        pos.verify();
-        assert(pos.table_ == this && "iterator does not match to this table");
-        assert(!empty());
-        assert(pos != end() && !is_invalid(pos.ptr_));
-        --size_;
-        value_type empty;
-        key(&empty) = H::sentinel();
-        swap(*pos.ptr_, empty);
+        if (on_heap()) {
+            pos.verify();
+            assert(pos.table_ == this && "iterator does not match to this table");
+            assert(!empty());
+            assert(pos != end() && !is_invalid(pos.ptr_));
+            --size_;
+            value_type empty;
+            key(&empty) = H::sentinel();
+            swap(*pos.ptr_, empty);
 
-        if (capacity_ > MinCapacity && size_ < capacity_/4_s)
-            rehash(capacity_/2_s);
-        else {
-            for (size_t curr = pos.ptr_-nodes_, next = mod(curr+1);
-                !is_invalid(next) && probe_distance(next) != 0; curr = next, next = mod(next+1)) {
-                swap(nodes_[curr], nodes_[next]);
+            if (capacity_ > MinCapacity && size_ < capacity_/4_s)
+                rehash(capacity_/2_s);
+            else {
+                for (size_t curr = pos.ptr_-nodes_, next = mod(curr+1);
+                    !is_invalid(next) && probe_distance(next) != 0; curr = next, next = mod(next+1)) {
+                    swap(nodes_[curr], nodes_[next]);
+                }
             }
+        } else {
+            array_erase(pos);
         }
 #ifndef NDEBUG
         ++id_;
@@ -383,7 +373,7 @@ public:
         assert(is_power_of_2(new_capacity));
 
         auto old_capacity = capacity_;
-        capacity_ = new_capacity;
+        capacity_ = std::max(new_capacity, size_t(MinCapacity));
         auto old_nodes = alloc();
         swap(old_nodes, nodes_);
 
@@ -442,6 +432,33 @@ public:
     HashTable& operator=(HashTable other) { swap(*this, other); return *this; }
 
 private:
+    template<class... Args>
+    std::pair<iterator,bool> emplace_no_rehash(Args&&... args) {
+        using std::swap;
+        auto n = value_type(std::forward<Args>(args)...);
+        auto& k = key(&n);
+
+        auto result = end_ptr();
+        for (size_t i = desired_pos(k), distance = 0; true; i = mod(i+1), ++distance) {
+            if (is_invalid(i)) {
+                ++size_;
+                swap(nodes_[i], n);
+                result = result == end_ptr() ? nodes_+i : result;
+                debug(i);
+                return std::make_pair(iterator(result, this), true);
+            } else if (result == end_ptr() && H::eq(key(nodes_+i), k)) {
+                return std::make_pair(iterator(nodes_+i, this), false);
+            } else {
+                size_t cur_distance = probe_distance(i);
+                if (cur_distance < distance) {
+                    result = result == end_ptr() ? nodes_+i : result;
+                    distance = cur_distance;
+                    swap(nodes_[i], n);
+                }
+            }
+        }
+    }
+
 #ifndef NDEBUG
     int id() const { return id_; }
     void debug(size_t i) {
@@ -485,13 +502,18 @@ private:
             ++size_;
             return std::make_pair(iterator(p, this), true);
         }
-        *p = H::sentinel();
-        return std::make_pair(iterator(i, this), false);
+        key(p) = H::sentinel();
+        return std::make_pair(iterator(i.ptr_, this), false);
     }
 
     void array_erase(const_iterator pos) {
-        std::move(array_.data(), array_.data()+size_, pos.ptr_);
-        ++size_;
+        using std::swap;
+
+        for (size_t i = std::distance(array_.data(), pos.ptr_), e = size_-1; i != e; ++i)
+            array_[i] = std::move(array_[i+1]);
+
+        key(array_.data()+size_) = H::sentinel();
+        --size_;
     }
     //@}
 

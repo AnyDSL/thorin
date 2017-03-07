@@ -171,7 +171,7 @@ public:
     typedef iterator_base<true> const_iterator;
     enum {
         StackCapacity = 8,
-        MinCapacity = 16,
+        MinCapacity = 32,
     };
 
     HashTable()
@@ -185,7 +185,7 @@ public:
         fill(nodes_);
     }
     HashTable(size_t capacity)
-        : capacity_(std::max(capacity, size_t(StackCapacity)))
+        : capacity_(capacity < StackCapacity ? StackCapacity : std::max(capacity, size_t(MinCapacity)))
         , size_(0)
         , nodes_(on_heap() ? new value_type[capacity_] : array_.data())
 #ifndef NDEBUG
@@ -354,15 +354,19 @@ public:
 
     //@{ find
     iterator find(const key_type& k) {
-        if (empty())
-            return end();
-
-        for (size_t i = desired_pos(k); true; i = mod(i+1)) {
-            if (is_invalid(i))
+        if (on_heap()) {
+            if (empty())
                 return end();
-            if (H::eq(key(nodes_+i), k))
-                return iterator(nodes_+i, this);
+
+            for (size_t i = desired_pos(k); true; i = mod(i+1)) {
+                if (is_invalid(i))
+                    return end();
+                if (H::eq(key(nodes_+i), k))
+                    return iterator(nodes_+i, this);
+            }
         }
+
+        return array_find(k);
     }
 
     const_iterator find(const key_type& key) const {
@@ -470,6 +474,33 @@ private:
     size_t probe_distance(size_t i) { return mod(i + capacity() - desired_pos(key(nodes_+i))); }
     value_type* end_ptr() const { return nodes_ + capacity(); }
     bool on_heap() const { return capacity_ != StackCapacity; }
+
+    //@{ array set
+    iterator array_find(const key_type& k) {
+        assert(!on_heap());
+        for (auto i = array_.data(), e = array_.data() + size_; i != e; ++i) {
+            if (H::eq(key(i), k))
+                return iterator(i, this);
+        }
+        return end();
+    }
+
+    template<class... Args>
+    std::pair<iterator,bool> array_emplace(Args&&... args) {
+#ifndef NDEBUG
+        ++id_;
+#endif
+        auto p = &array_[size_];
+        *p = value_type(std::forward<Args>(args)...);
+        auto i = array_find(key(p));
+        if (i == end()) {
+            ++size_;
+            return std::make_pair(iterator(p, this), true);
+        }
+        *p = H::sentinel();
+        return std::make_pair(iterator(i, this), false);
+    }
+    //@}
 
     value_type* alloc() {
         assert(is_power_of_2(capacity_));

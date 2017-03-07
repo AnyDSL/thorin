@@ -48,6 +48,7 @@ protected:
     Continuation* emit_reserve_shared(const Continuation*);
 
 private:
+    Continuation* emit_peinfo(Continuation*);
     Continuation* emit_intrinsic(Continuation*);
     Continuation* emit_parallel(Continuation*);
     Continuation* emit_spawn(Continuation*);

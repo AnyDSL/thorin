@@ -507,13 +507,11 @@ private:
     }
 
     void array_erase(const_iterator pos) {
-        using std::swap;
-
         for (size_t i = std::distance(array_.data(), pos.ptr_), e = size_-1; i != e; ++i)
             array_[i] = std::move(array_[i+1]);
 
-        key(array_.data()+size_) = H::sentinel();
         --size_;
+        key(array_.data()+size_) = H::sentinel();
     }
     //@}
 

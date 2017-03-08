@@ -125,7 +125,7 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
         if (dst != nullptr && dst->intrinsic() == Intrinsic::PeInfo) {
             assert(cur->arg(1)->type() == world().ptr_type(world().indefinite_array_type(world().type_pu8())));
             auto msg = cur->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
-            Log::log(Log::Info, dst->location().filename(), dst->location().front_line(), "{}: {}", msg->as_string(), cur->arg(2));
+            Log::log(Log::Info, dst->location().filename(), dst->location().front_line(), "pe_info: {}: {}", msg->as_string(), cur->arg(2));
             auto next = cur->arg(3)->as_continuation();
             cur->jump(next, { cur->arg(0) }, cur->jump_debug());
             cur = next;

@@ -146,8 +146,8 @@ public:
     typedef iterator_base<false> iterator;
     typedef iterator_base<true> const_iterator;
     enum {
-        StackCapacity = 8,
-        MinCapacity = 32,
+        StackCapacity = 4,
+        MinCapacity = 16,
     };
 
     HashTable()

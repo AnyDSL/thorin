@@ -292,7 +292,7 @@ struct Call {
 
     uint64_t hash() const {
         if (hash_ == 0) {
-            uint64_t hash_ = hash_begin();
+            hash_ = hash_begin();
             for (auto op : ops())
                 hash_ = hash_combine(hash_, op ? op->gid() : 0);
         }

@@ -4,6 +4,7 @@
 #include <iomanip>
 #include <cstdlib>
 #include <ostream>
+#include <sstream>
 
 #include "thorin/util/location.h"
 #include "thorin/util/stream.h"

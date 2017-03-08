@@ -64,22 +64,9 @@ inline uint64_t murmur3(uint64_t h) {
 
 namespace detail {
 
-// TODO we can probably remove this again:
-class HashTableBase {
-protected:
-    HashTableBase();
-
-public:
-    uint16_t gid() const { return gid_; }
-
-private:
-    static uint16_t gid_counter_;
-    uint16_t gid_;
-};
-
 /// Used internally for @p HashSet and @p HashMap.
 template<class Key, class T, class H>
-class HashTable : public HashTableBase {
+class HashTable {
 public:
     typedef Key key_type;
     typedef typename std::conditional<std::is_void<T>::value, Key, T>::type mapped_type;
@@ -403,8 +390,6 @@ public:
     friend void swap(HashTable& t1, HashTable& t2) {
         using std::swap;
 
-        swap(static_cast<HashTableBase&>(t1), static_cast<HashTableBase&>(t2));
-
         if (t1.on_heap()) {
             if (t2.on_heap())
                 swap(t1.nodes_, t2.nodes_);
@@ -475,7 +460,7 @@ private:
 #endif
     uint64_t hash(size_t i) { return H::hash(key(&nodes_[i])); } ///< just for debugging
     size_t mod(size_t i) const { return i & (capacity_-1); }
-    size_t desired_pos(const key_type& key) const { return mod(hash_combine(H::hash(key), gid())); }
+    size_t desired_pos(const key_type& key) const { return mod(H::hash(key)); }
     size_t probe_distance(size_t i) { return mod(i + capacity() - desired_pos(key(nodes_+i))); }
     value_type* end_ptr() const { return nodes_ + capacity(); }
     bool on_heap() const { return capacity_ != StackCapacity; }

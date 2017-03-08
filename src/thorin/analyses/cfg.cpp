@@ -253,7 +253,7 @@ void CFABuilder::propagate_higher_order_values() {
                 } else {
                     if (auto load = def->isa<Load>()) {
                         if (load->type()->order() >= 1)
-                            WLOG("higher-order load not yet supported");
+                            WLOG(load, "higher-order load not yet supported");
                     }
 
                     bool todo = false;
@@ -591,14 +591,14 @@ void CFABuilder::verify() {
     bool error = false;
     for (auto in : cfa().nodes()) {
         if (in != entry() && in->preds_.size() == 0) {
-            WLOG("missing predecessors: {}", in->continuation());
+            VLOG("missing predecessors: {}", in->continuation());
             error = true;
         }
     }
 
     if (error) {
         ycomp();
-        abort();
+        assert(false && "CFG not sound");
     }
 }
 

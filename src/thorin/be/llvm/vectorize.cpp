@@ -81,7 +81,7 @@ Continuation* CodeGen::emit_vectorize_continuation(Continuation* continuation) {
     });
 
     if (!continuation->arg(VectorizeArgs::Length)->isa<PrimLit>())
-        ELOG("vector length must be hard-coded at {}", continuation->arg(VectorizeArgs::Length)->location());
+        ELOG(continuation->arg(VectorizeArgs::Length), "vector length must be hard-coded");
     u32 vector_length_constant = continuation->arg(VectorizeArgs::Length)->as<PrimLit>()->qu32_value();
     u32 alignment_constant     = continuation->arg(VectorizeArgs::Align )->as<PrimLit>()->qu32_value();
     vec_todo_.emplace_back(vector_length_constant, alignment_constant, emit_function_decl(kernel), simd_kernel_call);

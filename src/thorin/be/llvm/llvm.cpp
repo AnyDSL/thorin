@@ -88,7 +88,7 @@ Continuation* CodeGen::emit_peinfo(Continuation* continuation) {
     assert(continuation->arg(1)->type() == world().ptr_type(world().indefinite_array_type(world().type_pu8())));
     auto msg = continuation->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
     auto callee = continuation->callee();
-    Log::log(Log::Info, callee->location().filename(), callee->location().front_line(), "pe_info not in PE mode: {}: {}", msg->as_string(), continuation->arg(2));
+    ILOG(callee, "pe_info not in PE mode: {}: {}", msg->as_string(), continuation->arg(2));
     auto next = continuation->arg(3)->as_continuation();
     return next;
 }
@@ -126,14 +126,14 @@ Continuation* CodeGen::emit_cmpxchg(Continuation* continuation) {
 }
 
 Continuation* CodeGen::emit_reserve(const Continuation* continuation) {
-    ELOG("reserve_shared: only allowed in device code at {}", continuation->jump_debug());
+    ELOG(&continuation->jump_debug(), "reserve_shared: only allowed in device code");
     THORIN_UNREACHABLE;
 }
 
 Continuation* CodeGen::emit_reserve_shared(const Continuation* continuation) {
     assert(continuation->num_args() == 3 && "required arguments are missing");
     if (!continuation->arg(1)->isa<PrimLit>())
-        ELOG("reserve_shared: couldn't extract memory size at {}", continuation->arg(1)->location());
+        ELOG(continuation->arg(1), "reserve_shared: couldn't extract memory size");
     auto num_elems = continuation->arg(1)->as<PrimLit>()->ps32_value();
     auto cont = continuation->arg(2)->as_continuation();
     auto type = convert(cont->param(1)->type());
@@ -689,7 +689,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
                 vals[i] = llvm::cast<llvm::Constant>(emit(array->op(i)));
             return llvm::ConstantArray::get(type, llvm_ref(vals));
         }
-        WLOG("slow: alloca and loads/stores needed for definite array '{}' at '{}'", def, def->location());
+        WLOG(def, "slow: alloca and loads/stores needed for definite array '{}'", def);
         auto alloca = emit_alloca(type, array->name());
 
         u64 i = 0;
@@ -725,7 +725,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto llvm_agg = lookup(aggop->agg());
         auto llvm_idx = lookup(aggop->index());
         auto copy_to_alloca = [&] () {
-            WLOG("slow: alloca and loads/stores needed for aggregate '{}' at '{}'", def, def->location());
+            WLOG(def, "slow: alloca and loads/stores needed for aggregate '{}'", def);
             auto alloca = emit_alloca(llvm_agg->getType(), aggop->name());
             irbuilder_.CreateStore(llvm_agg, alloca);
 
@@ -906,7 +906,7 @@ llvm::Value* CodeGen::emit_assembly(const Assembly* assembly) {
     constraints += "~{dirflag},~{fpsr},~{flags}";
 
     if (!llvm::InlineAsm::Verify(fn_type, constraints))
-        ELOG("Constraints and input and output types of inline assembly do not match at {}", assembly->location());
+        ELOG(assembly, "constraints and input and output types of inline assembly do not match");
 
     auto asm_expr = llvm::InlineAsm::get(fn_type, assembly->asm_template(), constraints,
             assembly->has_sideeffects(), assembly->is_alignstack(),

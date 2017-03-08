@@ -449,10 +449,10 @@ private:
     void debug(size_t i) {
         auto dib = probe_distance(i);
         if (dib > 2_s*log2(capacity())) {
-            WLOG("poor hash function; element {} has distance {} with size/capacity: {}/{}", i, dib, size(), capacity());
+            VLOG("poor hash function; element {} has distance {} with size/capacity: {}/{}", i, dib, size(), capacity());
             for (size_t j = mod(i-dib); j != i; j = mod(j+1))
-                WLOG("elem:desired_pos:hash: {}:{}:{}", j, desired_pos(key(&nodes_[j])), hash(j));
-            WLOG("debug with: break {}:{}", __FILE__, __LINE__);
+                VLOG("elem:desired_pos:hash: {}:{}:{}", j, desired_pos(key(&nodes_[j])), hash(j));
+            VLOG("debug with: break {}:{}", __FILE__, __LINE__);
         }
     }
 #else

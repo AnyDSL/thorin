@@ -140,15 +140,15 @@ StreamList<Emit, List> stream_list(const List& list, Emit emit, const char* sep 
 }
 
 #ifdef NDEBUG
-#   define assertf(condition, ...) static_cast<void>(0)
+#   define assertf(condition, ...) do { (void)sizeof(condition); } while (false)
 #else
-#   define assertf(condition, ...)             \
-    if (!(condition)) { \
-        std::cerr << "Assertion '" #condition "' failed in " << __FILE__ << ":" << __LINE__ << " "; \
-        streamf(std::cerr, __VA_ARGS__) << std::endl; \
-        std::abort(); \
-    } \
-    static_cast<void>(0)
+#   define assertf(condition, ...) do { \
+        if (!(condition)) { \
+            std::cerr << "Assertion '" #condition "' failed in " << __FILE__ << ":" << __LINE__ << " "; \
+            streamf(std::cerr, __VA_ARGS__) << std::endl; \
+            std::abort(); \
+        } \
+    } while (false)
 #endif
 
 }

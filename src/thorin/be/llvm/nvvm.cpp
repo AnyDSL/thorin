@@ -127,7 +127,7 @@ void NVVMCodeGen::emit_function_start(llvm::BasicBlock*, Continuation* continuat
 }
 
 llvm::Value* NVVMCodeGen::emit_global(const Global* global) {
-    WLOG("NVVM: Global variable '{}' at '{}' will not be synced with host.", global, global->location());
+    WLOG(global, "NVVM: Global variable '{}' will not be synced with host.", global);
     return CodeGen::emit_global(global);
 }
 

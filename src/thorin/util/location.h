@@ -76,7 +76,7 @@ public:
     {}
 
     const std::string& name() const;
-
+    Location location() { return *this; }
     void set(std::shared_ptr<std::string> name) { name_= name; }
     void set(std::string name) { name_ = std::make_shared<std::string>(name); }
     void set(Location location) { *static_cast<Location*>(this) = location; }

@@ -31,8 +31,7 @@ void force_inline(Scope& scope, int threshold) {
         auto continuation = n->continuation();
         if (auto callee = continuation->callee()->isa_continuation()) {
             if (!callee->empty() && !scope.contains(callee)) {
-                WLOG("couldn't inline {} at {}; continuation defined at {}",
-                     scope.entry(), continuation->jump_location(), callee->location());
+                WLOG(callee, "couldn't inline {} at {}", scope.entry(), continuation->jump_location());
             }
         }
     }

@@ -401,7 +401,7 @@ const Def* Continuation::get_value(size_t handle, const Type* type, const char* 
     }
 
 return_bottom:
-    WLOG("'{}' may be undefined at '{}'", name, this->location());
+    WLOG(this, "'{}' may be undefined", name);
     return set_value(handle, world().bottom(type));
 
 return_result:

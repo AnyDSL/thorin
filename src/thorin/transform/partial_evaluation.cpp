@@ -92,16 +92,16 @@ void PartialEvaluator::run() {
 
 void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
     if (end == nullptr)
-        WLOG("no matching end: {} at {}", cur, cur->location());
+        VLOG("no matching end: {} at {}", cur, cur->location());
     else
         DLOG("eval: {} -> {}", cur, end);
 
     while (true) {
         if (cur == nullptr) {
-            WLOG("cur is nullptr");
+            VLOG("cur is nullptr");
             return;
         } else if (cur->empty()) {
-            WLOG("empty: {}", cur);
+            VLOG("empty: {}", cur);
             return;
         } else if (done_.contains(cur)) {
             DLOG("already done: {}", cur);
@@ -125,7 +125,7 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
         if (dst != nullptr && dst->intrinsic() == Intrinsic::PeInfo) {
             assert(cur->arg(1)->type() == world().ptr_type(world().indefinite_array_type(world().type_pu8())));
             auto msg = cur->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
-            Log::log(Log::Info, dst->location().filename(), dst->location().front_line(), "pe_info: {}: {}", msg->as_string(), cur->arg(2));
+            ILOG(dst, "pe_info: {}: {}", msg->as_string(), cur->arg(2));
             auto next = cur->arg(3)->as_continuation();
             cur->jump(next, { cur->arg(0) }, cur->jump_debug());
             cur = next;
@@ -145,7 +145,7 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
 
             assert(ncur != nullptr);
             if (nend == nullptr) {
-                WLOG("end became unreachable: {}", end);
+                VLOG("end became unreachable: {}", end);
                 continue;
             }
 
@@ -233,7 +233,7 @@ Continuation* PartialEvaluator::postdom(Continuation* cur) {
     if (auto p = is_valid(postdom(cur, top_scope())))
         return p;
 
-    WLOG("no postdom found for {} at {}", cur, cur->location());
+    VLOG("no postdom found for {} at {}", cur, cur->location());
     return nullptr;
 }
 

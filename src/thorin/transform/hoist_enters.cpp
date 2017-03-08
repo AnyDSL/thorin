@@ -33,7 +33,7 @@ static void hoist_enters(const Scope& scope) {
 
 
     if (enters.empty() || enters[0]->mem() != scope.entry()->mem_param()) {
-        WLOG("cannot optimize {} - didn't find entry enter", scope.entry());
+        VLOG("cannot optimize {} - didn't find entry enter", scope.entry());
         return;
     }
 

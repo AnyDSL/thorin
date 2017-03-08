@@ -37,7 +37,12 @@ public:
 
     Cycles(World& world)
         : world_(world)
-    {}
+    {
+        size_t num = world.primops().size();
+        for (auto continuation : world.continuations())
+            num += 1 + continuation->num_params();
+        def2color_.rehash(round_to_power_of_2(num));
+    }
 
     World& world() { return world_; }
     void run();

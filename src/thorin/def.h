@@ -70,8 +70,8 @@ private:
 
 struct UseHash {
     inline static uint64_t hash(Use use);
-    static bool eq(Use u1, Use u2) { return u1 == u2; }
-    static Use sentinel() { return Use(size_t(-1), (const Def*)(-1)); }
+    inline static bool eq(Use u1, Use u2) { return u1 == u2; }
+    inline static Use sentinel() { return Use(size_t(-1), (const Def*)(-1)); }
 };
 
 typedef HashSet<Use, UseHash> Uses;
@@ -153,9 +153,7 @@ private:
     friend class Tracker;
 };
 
-uint64_t UseHash::hash(Use use) {
-    return hash_begin(uint64_t(use.index()) << 48ull | uint64_t(use->gid()));
-}
+uint64_t UseHash::hash(Use use) { return murmur3(uint64_t(use.index()) << 48_u64 | uint64_t(use->gid())); }
 
 /// Returns the vector length. Raises an assertion if type of this is not a \p VectorType.
 size_t vector_length(const Def*);
@@ -185,13 +183,18 @@ inline std::ostream& operator<<(std::ostream& os, Use use) { return use->stream(
 
 //------------------------------------------------------------------------------
 
+class Tracker;
+typedef GIDSet<Tracker*> Trackers;
+
 class Tracker {
 public:
     Tracker()
         : def_(nullptr)
+        , gid_(gid_counter_++)
     {}
     Tracker(const Def* def)
         : def_(def)
+        , gid_(gid_counter_++)
     {
         if (def) {
             put(*this);
@@ -200,6 +203,7 @@ public:
     }
     Tracker(const Tracker& other)
         : def_(other)
+        , gid_(gid_counter_++)
     {
         if (other) {
             put(*this);
@@ -218,6 +222,7 @@ public:
     }
     ~Tracker() { if (*this) unregister(); }
 
+    size_t gid() const { return gid_; }
     const Def* operator*() const { return def_; }
     bool operator==(const Tracker& other) const { return this->def_ == other.def_; }
     bool operator!=(const Tracker& other) const { return this->def_ != other.def_; }
@@ -252,7 +257,7 @@ public:
     }
 
 private:
-    HashSet<Tracker*>& trackers(const Def* def);
+    Trackers& trackers(const Def* def);
     void verify() { assert(!def_ || trackers(def_).contains(this)); }
     void put(Tracker& other) {
         auto p = trackers(def_).insert(&other);
@@ -270,6 +275,8 @@ private:
     }
 
     mutable const Def* def_;
+    size_t gid_;
+    static size_t gid_counter_;
     friend void Def::replace(const Def*) const;
 };
 

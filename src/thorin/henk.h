@@ -31,7 +31,7 @@ struct GIDLt {
 
 template<class T>
 struct GIDHash {
-    static uint64_t hash(T n) { return thorin::hash_begin(n->gid()); }
+    static uint64_t hash(T n) { return thorin::murmur3(n->gid()); }
     static bool eq(T a, T b) { return a == b; }
     static T sentinel() { return T(1); }
 };
@@ -230,8 +230,8 @@ public:
 
     typedef thorin::HashSet<const Type*, TypeHash> TypeSet;
 
-    TypeTableBase& operator=(const TypeTableBase&);
-    TypeTableBase(const TypeTableBase&);
+    TypeTableBase& operator=(const TypeTableBase&) = delete;
+    TypeTableBase(const TypeTableBase&) = delete;
 
     TypeTableBase()
         : unit_(unify(new TupleType(HENK_TABLE_NAME(), Types())))

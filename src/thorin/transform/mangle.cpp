@@ -12,9 +12,9 @@ Mangler::Mangler(const Scope& scope, Defs args, Defs lift)
     , args_(args)
     , lift_(lift)
     , old_entry_(scope.entry())
+    , defs_(scope.defs().capacity())
+    , def2def_(scope.defs().capacity())
 {
-    def2def_.rehash(scope.defs().capacity());
-    defs_.rehash(scope.defs().capacity());
     assert(!old_entry()->empty());
     assert(args.size() == old_entry()->num_params());
 

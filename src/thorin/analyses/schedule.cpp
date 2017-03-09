@@ -242,7 +242,7 @@ void Schedule::verify() {
         for (auto primop : block) {
             if (auto memop = primop->isa<MemOp>()) {
                 if (memop->mem() != mem) {
-                    WLOG("incorrect schedule: {} (current mem is {}) - scope entry: {}", memop, mem, scope_.entry());
+                    VLOG("incorrect schedule: {} (current mem is {}) - scope entry: {}", memop, mem, scope_.entry());
                     error = true;
                 }
                 mem = memop->out_mem();
@@ -251,8 +251,10 @@ void Schedule::verify() {
         block2mem[block] = mem;
     }
 
-    if (error)
+    if (error) {
         thorin();
+        assert(false && "memory not used in a linear way");
+    }
 #endif
 }
 

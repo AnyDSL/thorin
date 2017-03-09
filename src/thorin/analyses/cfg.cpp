@@ -101,15 +101,15 @@ public:
         , entry_(in_node(scope().entry()))
         , exit_ (in_node(scope().exit()))
     {
-        ILOG("*** CFA: {}", scope().entry());
-        ILOG_SCOPE(propagate_higher_order_values());
-        ILOG_SCOPE(run_cfa());
-        ILOG_SCOPE(build_cfg());
-        ILOG_SCOPE(unreachable_node_elimination());
-        ILOG_SCOPE(link_to_exit());
-        ILOG_SCOPE(transitive_cfg());
+        VLOG("*** CFA: {}", scope().entry());
+        VLOG_SCOPE(propagate_higher_order_values());
+        VLOG_SCOPE(run_cfa());
+        VLOG_SCOPE(build_cfg());
+        VLOG_SCOPE(unreachable_node_elimination());
+        VLOG_SCOPE(link_to_exit());
+        VLOG_SCOPE(transitive_cfg());
 #ifndef NDEBUG
-        ILOG_SCOPE(verify());
+        VLOG_SCOPE(verify());
 #endif
     }
 
@@ -253,7 +253,7 @@ void CFABuilder::propagate_higher_order_values() {
                 } else {
                     if (auto load = def->isa<Load>()) {
                         if (load->type()->order() >= 1)
-                            WLOG("higher-order load not yet supported");
+                            WLOG(load, "higher-order load not yet supported");
                     }
 
                     bool todo = false;
@@ -591,14 +591,14 @@ void CFABuilder::verify() {
     bool error = false;
     for (auto in : cfa().nodes()) {
         if (in != entry() && in->preds_.size() == 0) {
-            WLOG("missing predecessors: {}", in->continuation());
+            VLOG("missing predecessors: {}", in->continuation());
             error = true;
         }
     }
 
     if (error) {
         ycomp();
-        abort();
+        assert(false && "CFG not sound");
     }
 }
 

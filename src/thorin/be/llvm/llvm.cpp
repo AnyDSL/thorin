@@ -60,6 +60,7 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention
 Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
     auto callee = continuation->callee()->as_continuation();
     switch (callee->intrinsic()) {
+        case Intrinsic::PeInfo:    return emit_peinfo(continuation);
         case Intrinsic::Atomic:    return emit_atomic(continuation);
         case Intrinsic::CmpXchg:   return emit_cmpxchg(continuation);
         case Intrinsic::Reserve:   return emit_reserve(continuation);
@@ -80,6 +81,16 @@ Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
 
 void CodeGen::emit_result_phi(const Param* param, llvm::Value* value) {
     thorin::find(phis_, param)->addIncoming(value, irbuilder_.GetInsertBlock());
+}
+
+Continuation* CodeGen::emit_peinfo(Continuation* continuation) {
+    assert(continuation->num_args() == 4 && "required arguments are missing");
+    assert(continuation->arg(1)->type() == world().ptr_type(world().indefinite_array_type(world().type_pu8())));
+    auto msg = continuation->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
+    auto callee = continuation->callee();
+    ILOG(callee, "pe_info not in PE mode: {}: {}", msg->as_string(), continuation->arg(2));
+    auto next = continuation->arg(3)->as_continuation();
+    return next;
 }
 
 Continuation* CodeGen::emit_atomic(Continuation* continuation) {
@@ -115,14 +126,14 @@ Continuation* CodeGen::emit_cmpxchg(Continuation* continuation) {
 }
 
 Continuation* CodeGen::emit_reserve(const Continuation* continuation) {
-    ELOG("reserve_shared: only allowed in device code at {}", continuation->jump_debug());
+    ELOG(&continuation->jump_debug(), "reserve_shared: only allowed in device code");
     THORIN_UNREACHABLE;
 }
 
 Continuation* CodeGen::emit_reserve_shared(const Continuation* continuation) {
     assert(continuation->num_args() == 3 && "required arguments are missing");
     if (!continuation->arg(1)->isa<PrimLit>())
-        ELOG("reserve_shared: couldn't extract memory size at {}", continuation->arg(1)->location());
+        ELOG(continuation->arg(1), "reserve_shared: couldn't extract memory size");
     auto num_elems = continuation->arg(1)->as<PrimLit>()->ps32_value();
     auto cont = continuation->arg(2)->as_continuation();
     auto type = convert(cont->param(1)->type());
@@ -432,7 +443,7 @@ void CodeGen::emit(int opt, bool debug) {
         emit_vectorize(std::get<0>(tuple), std::get<1>(tuple), std::get<2>(tuple), std::get<3>(tuple));
     vec_todo_.clear();
 
-    rv::lowerPredicateIntrinsics(*module_);
+    rv::lowerIntrinsics(*module_);
 #endif
 
 #ifndef NDEBUG
@@ -462,7 +473,6 @@ void CodeGen::optimize(int opt) {
             pmbuilder.OptLevel = (unsigned) opt;
             pmbuilder.SizeLevel = 0u;
         }
-        pmbuilder.DisableUnitAtATime = true;
         if (opt == 3) {
             pass_manager.add(llvm::createFunctionInliningPass());
             pass_manager.add(llvm::createAggressiveDCEPass());
@@ -679,7 +689,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
                 vals[i] = llvm::cast<llvm::Constant>(emit(array->op(i)));
             return llvm::ConstantArray::get(type, llvm_ref(vals));
         }
-        WLOG("slow: alloca and loads/stores needed for definite array '{}' at '{}'", def, def->location());
+        WLOG(def, "slow: alloca and loads/stores needed for definite array '{}'", def);
         auto alloca = emit_alloca(type, array->name());
 
         u64 i = 0;
@@ -715,7 +725,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto llvm_agg = lookup(aggop->agg());
         auto llvm_idx = lookup(aggop->index());
         auto copy_to_alloca = [&] () {
-            WLOG("slow: alloca and loads/stores needed for aggregate '{}' at '{}'", def, def->location());
+            WLOG(def, "slow: alloca and loads/stores needed for aggregate '{}'", def);
             auto alloca = emit_alloca(llvm_agg->getType(), aggop->name());
             irbuilder_.CreateStore(llvm_agg, alloca);
 
@@ -896,7 +906,7 @@ llvm::Value* CodeGen::emit_assembly(const Assembly* assembly) {
     constraints += "~{dirflag},~{fpsr},~{flags}";
 
     if (!llvm::InlineAsm::Verify(fn_type, constraints))
-        ELOG("Constraints and input and output types of inline assembly do not match at {}", assembly->location());
+        ELOG(assembly, "constraints and input and output types of inline assembly do not match");
 
     auto asm_expr = llvm::InlineAsm::get(fn_type, assembly->asm_template(), constraints,
             assembly->has_sideeffects(), assembly->is_alignstack(),

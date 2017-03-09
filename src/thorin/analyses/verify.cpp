@@ -12,10 +12,8 @@ static void verify_calls(World& world) {
         if (!continuation->empty()) {
             auto callee_fn_type = continuation->callee_fn_type();
             auto arg_fn_type = continuation->arg_fn_type();
-            if (callee_fn_type != arg_fn_type) {
-                ELOG("continuation '{}' calls '{}' of type '{}' but call has type '{}'",
-                        continuation, continuation->callee(), callee_fn_type, arg_fn_type);
-            }
+            assertf(callee_fn_type == arg_fn_type, "continuation '{}' calls '{}' of type '{}' but call has type '{}'",
+                    continuation, continuation->callee(), callee_fn_type, arg_fn_type);
         }
     }
 }
@@ -23,8 +21,8 @@ static void verify_calls(World& world) {
 static void verify_top_level(World& world) {
     Scope::for_each(world, [&] (const Scope& scope) {
         for (auto def : free_defs(scope)) {
-            if (!def->isa_continuation())
-                ELOG("top-level continuation '{}' got free def '{}' at location '{}'", scope.entry(), def, def->location());
+            assertf(def->isa_continuation(), "top-level continuation '{}' got free def '{}' at location '{}'",
+                    scope.entry(), def, def->location());
         }
     });
 }
@@ -37,7 +35,12 @@ public:
 
     Cycles(World& world)
         : world_(world)
-    {}
+    {
+        size_t num = world.primops().size();
+        for (auto continuation : world.continuations())
+            num += 1 + continuation->num_params();
+        def2color_.rehash(round_to_power_of_2(num));
+    }
 
     World& world() { return world_; }
     void run();
@@ -68,8 +71,8 @@ void Cycles::analyze_call(const Continuation* continuation) {
         }
 
         def2color_[continuation] = Black;
-    } else if (def2color_[continuation] == Gray)
-        ELOG("detected cycle: '{}'", continuation);
+    } else
+        assertf(def2color_[continuation] != Gray, "detected cycle: '{}'", continuation);
 }
 
 void Cycles::analyze(ParamSet& params, const Continuation* continuation, const Def* def) {
@@ -81,10 +84,9 @@ void Cycles::analyze(ParamSet& params, const Continuation* continuation, const D
     } else if (auto param = def->isa<Param>()) {
         if (param->continuation() != continuation) {
             auto i = def2color_.find(param);
-            if (i != def2color_.end()) {
-                if (i->second == Gray)
-                    ELOG("detected cycle induced by parameter: '{}'", param);
-            } else
+            if (i != def2color_.end())
+                assertf(i->second != Gray, "detected cycle induced by parameter: '{}'", param);
+            else
                 params.emplace(param);
         }
     }

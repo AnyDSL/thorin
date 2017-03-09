@@ -578,7 +578,7 @@ const Def* World::bitcast(const Type* to, const Def* from, Debug dbg) {
     if (auto prim_to = to->isa<PrimType>())
         if (auto prim_from = from->type()->isa<PrimType>())
             if (num_bits(prim_from->primtype_tag()) != num_bits(prim_to->primtype_tag()))
-                ELOG("bitcast between primitive types of different size at {}", dbg);
+                ELOG(&dbg, "bitcast between primitive types of different size");
 
     if (auto vec = from->isa<Vector>()) {
         size_t num = vector_length(vec);

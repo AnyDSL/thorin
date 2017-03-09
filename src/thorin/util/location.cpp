@@ -19,6 +19,13 @@ std::ostream& operator<<(std::ostream& os, Location l) {
 #else // _MSC_VER
     os << l.filename() << ':';
 
+    if (l.front_col() == uint32_t(-1) || l.back_col() == uint32_t(-1)) {
+        if (l.front_line() != l.back_line())
+            return streamf(os, "{} - {}", l.front_line(), l.back_line());
+        else
+            return streamf(os, "{}", l.front_line());
+    }
+
     if (l.front_line() != l.back_line())
         return streamf(os, "{} col {} - {} col {}", l.front_line(), l.front_col(), l.back_line(), l.back_col());
 

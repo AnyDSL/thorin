@@ -4,7 +4,9 @@
 #include <iomanip>
 #include <cstdlib>
 #include <ostream>
+#include <sstream>
 
+#include "thorin/util/location.h"
 #include "thorin/util/stream.h"
 
 namespace thorin {
@@ -16,7 +18,7 @@ class Log {
 
 public:
     enum Level {
-        Debug, Info, Warn, Error,
+        Debug, Verbose, Info, Warn, Error,
     };
 
     static std::ostream& stream();
@@ -30,11 +32,13 @@ public:
     static std::string colorize(const std::string&, int);
 
     template<typename... Args>
-    static void log(Level level, const char* file, int line, const char* fmt, Args... args) {
+    static void log(Level level, Location location, const char* fmt, Args... args) {
         if (Log::get_stream() && Log::get_min_level() <= level) {
+            std::ostringstream oss;
+            oss << location;
             if (Log::get_print_loc())
                 Log::stream() << colorize(level2string(level), level2color(level)) << ':'
-                              << colorize(file, 7) << ':' << std::setw(4) << line << ": ";
+                              << colorize(oss.str(), 7) << ": ";
             if (level == Debug)
                 Log::stream() << "  ";
             streamf(Log::stream(), fmt, args...);
@@ -43,8 +47,8 @@ public:
     }
 
     template<typename... Args>
-    [[noreturn]] static void error(const char* file, int line, const char* fmt, Args... args) {
-        log(Error, file, line, fmt, args...);
+    [[noreturn]] static void error(Location location, const char* fmt, Args... args) {
+        log(Error, location, fmt, args...);
         std::abort();
     }
 
@@ -60,21 +64,22 @@ private:
 
 }
 
-#define ALWAYS_LOG(level, ...) thorin::Log::log((level), __FILE__, __LINE__, __VA_ARGS__)
+#define ALWAYS_LOG(level, ...) thorin::Log::log((level), __VA_ARGS__)
 #ifndef NDEBUG
 #define MAYBE_LOG(level, ...) ALWAYS_LOG(level, __VA_ARGS__)
 #else
 #define MAYBE_LOG(level, ...) do {} while (false)
 #endif
 
-#define ELOG(...) thorin::Log::error(__FILE__, __LINE__, __VA_ARGS__)
-#define WLOG(...) ALWAYS_LOG(thorin::Log::Warn,  __VA_ARGS__)
-#define ILOG(...)  MAYBE_LOG(thorin::Log::Info,  __VA_ARGS__)
-#define DLOG(...)  MAYBE_LOG(thorin::Log::Debug, __VA_ARGS__)
-#define ILOG_SCOPE(s) { \
-    ILOG("*** BEGIN: " #s " {"); \
+#define ELOG(def, ...) thorin::Log::error((def)->location(), __VA_ARGS__)
+#define WLOG(def, ...) ALWAYS_LOG(thorin::Log::Warn, (def)->location(), __VA_ARGS__)
+#define ILOG(def, ...) ALWAYS_LOG(thorin::Log::Info, (def)->location(), __VA_ARGS__)
+#define VLOG(...) MAYBE_LOG(thorin::Log::Verbose, Location(__FILE__, __LINE__, -1), __VA_ARGS__)
+#define DLOG(...) MAYBE_LOG(thorin::Log::Debug,   Location(__FILE__, __LINE__, -1), __VA_ARGS__)
+#define VLOG_SCOPE(s) { \
+    VLOG("*** BEGIN: " #s " {"); \
     (s); \
-    ILOG("}"); \
+    VLOG("}"); \
 }
 
 #endif

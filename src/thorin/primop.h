@@ -253,6 +253,7 @@ private:
 public:
     const DefiniteArrayType* type() const { return Aggregate::type()->as<DefiniteArrayType>(); }
     const Type* elem_type() const { return type()->elem_type(); }
+    std::string as_string() const;
 
     friend class World;
 };
@@ -487,7 +488,7 @@ public:
     const Def* out_mem() const { return has_multiple_outs() ? out(0) : this; }
 
 private:
-    virtual uint64_t vhash() const override { return gid(); }
+    virtual uint64_t vhash() const override { return murmur3(gid()); }
     virtual bool equal(const PrimOp* other) const override { return this == other; }
 };
 

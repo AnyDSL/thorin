@@ -497,7 +497,7 @@ void CCodeGen::emit() {
                     if (callee->is_intrinsic()) {
                         if (callee->intrinsic() == Intrinsic::Reserve) {
                             if (!continuation->arg(1)->isa<PrimLit>())
-                                ELOG("reserve_shared: couldn't extract memory size at {}", continuation->arg(1)->location());
+                                ELOG(continuation->arg(1), "reserve_shared: couldn't extract memory size");
 
                             switch (lang_) {
                                 case Lang::C99:                                 break;
@@ -512,6 +512,11 @@ void CCodeGen::emit() {
                             emit(continuation->arg(1)) << "];" << endl;
                             // store_phi:
                             func_impl_ << "p" << cont->param(1)->unique_name() << " = " << name << ";";
+                        } else if (callee->intrinsic() == Intrinsic::PeInfo) {
+                            assert(continuation->num_args() == 4 && "required arguments are missing");
+                            assert(continuation->arg(1)->type() == world().ptr_type(world().indefinite_array_type(world().type_pu8())));
+                            auto msg = continuation->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
+                            ILOG(callee, "pe_info not in PE mode: {}: {}", msg->as_string(), continuation->arg(2));
                         } else {
                             THORIN_UNREACHABLE;
                         }
@@ -950,7 +955,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
         if (assembly->has_sideeffects())
             func_impl_ << "volatile ";
         if (assembly->is_alignstack() || assembly->is_inteldialect())
-            WLOG("stack alignment and inteldialect flags unsupported for C output at {}", assembly->location());
+            WLOG(assembly, "stack alignment and inteldialect flags unsupported for C output");
         func_impl_ << "(\"" << assembly->asm_template() << "\"";
 
         // emit the outputs
@@ -981,7 +986,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
     }
 
     if (auto global = def->isa<Global>()) {
-        WLOG("{}: Global variable '{}' at '{}' will not be synced with host.", get_lang(), global, global->location());
+        WLOG(global, "{}: Global variable '{}' will not be synced with host.", get_lang(), global);
         assert(!global->init()->isa_continuation() && "no global init continuation supported");
         switch (lang_) {
             case Lang::C99:                                 break;

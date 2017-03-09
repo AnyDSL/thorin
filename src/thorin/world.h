@@ -239,7 +239,7 @@ public:
     }
 
 private:
-    HashSet<Tracker*>& trackers(const Def* def) {
+    Trackers& trackers(const Def* def) {
         assert(def);
         return trackers_[def];
     }
@@ -262,7 +262,7 @@ private:
     ContinuationSet continuations_;
     ContinuationSet externals_;
     PrimOpSet primops_;
-    DefMap<HashSet<Tracker*>> trackers_;
+    DefMap<Trackers> trackers_;
     Continuation* branch_;
     Continuation* end_scope_;
 #ifndef NDEBUG

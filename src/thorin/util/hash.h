@@ -68,7 +68,7 @@ namespace detail {
 template<class Key, class T, class H, size_t StackCapacity = 4>
 class HashTable {
 public:
-    static const size_t MinCapacity = StackCapacity*4;
+    enum { MinHeapCapacity = StackCapacity*4 };
     typedef Key key_type;
     typedef typename std::conditional<std::is_void<T>::value, Key, T>::type mapped_type;
     typedef typename std::conditional<std::is_void<T>::value, Key, std::pair<Key, T>>::type value_type;
@@ -158,7 +158,7 @@ public:
         fill(nodes_);
     }
     HashTable(size_t capacity)
-        : capacity_(capacity < StackCapacity ? StackCapacity : std::max(capacity, MinCapacity))
+        : capacity_(capacity < StackCapacity ? StackCapacity : std::max(capacity, size_t(MinHeapCapacity)))
         , size_(0)
         , nodes_(on_heap() ? new value_type[capacity_] : array_.data())
 #ifndef NDEBUG
@@ -284,7 +284,7 @@ public:
             key(&empty) = H::sentinel();
             swap(*pos.ptr_, empty);
 
-            if (capacity_ > MinCapacity && size_ < capacity_/4_s)
+            if (capacity_ > size_t(MinHeapCapacity) && size_ < capacity_/4_s)
                 rehash(capacity_/2_s);
             else {
                 for (size_t curr = pos.ptr_-nodes_, next = mod(curr+1);
@@ -357,7 +357,7 @@ public:
         assert(is_power_of_2(new_capacity));
 
         auto old_capacity = capacity_;
-        capacity_ = std::max(new_capacity, MinCapacity);
+        capacity_ = std::max(new_capacity, size_t(MinHeapCapacity));
         auto old_nodes = alloc();
         swap(old_nodes, nodes_);
 

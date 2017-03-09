@@ -74,7 +74,8 @@ struct UseHash {
     inline static Use sentinel() { return Use(size_t(-1), (const Def*)(-1)); }
 };
 
-typedef HashSet<Use, UseHash> Uses;
+// using a StackCapaicty of 8 covers almost 99% of all real-world use-lists
+typedef HashSet<Use, UseHash, 8> Uses;
 
 template<class To>
 using DefMap  = GIDMap<const Def*, To>;

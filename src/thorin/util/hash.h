@@ -65,9 +65,10 @@ inline uint64_t murmur3(uint64_t h) {
 namespace detail {
 
 /// Used internally for @p HashSet and @p HashMap.
-template<class Key, class T, class H>
+template<class Key, class T, class H, size_t StackCapacity = 4>
 class HashTable {
 public:
+    static const size_t MinCapacity = StackCapacity*4;
     typedef Key key_type;
     typedef typename std::conditional<std::is_void<T>::value, Key, T>::type mapped_type;
     typedef typename std::conditional<std::is_void<T>::value, Key, std::pair<Key, T>>::type value_type;
@@ -145,10 +146,6 @@ public:
     typedef std::size_t size_type;
     typedef iterator_base<false> iterator;
     typedef iterator_base<true> const_iterator;
-    enum {
-        StackCapacity = 4,
-        MinCapacity = 16,
-    };
 
     HashTable()
         : capacity_(StackCapacity)
@@ -161,7 +158,7 @@ public:
         fill(nodes_);
     }
     HashTable(size_t capacity)
-        : capacity_(capacity < size_t(StackCapacity) ? size_t(StackCapacity) : std::max(capacity, size_t(MinCapacity)))
+        : capacity_(capacity < StackCapacity ? StackCapacity : std::max(capacity, MinCapacity))
         , size_(0)
         , nodes_(on_heap() ? new value_type[capacity_] : array_.data())
 #ifndef NDEBUG
@@ -360,7 +357,7 @@ public:
         assert(is_power_of_2(new_capacity));
 
         auto old_capacity = capacity_;
-        capacity_ = std::max(new_capacity, size_t(MinCapacity));
+        capacity_ = std::max(new_capacity, MinCapacity);
         auto old_nodes = alloc();
         swap(old_nodes, nodes_);
 
@@ -529,7 +526,7 @@ private:
  * This container is for the most part compatible with <tt>std::unordered_set</tt>.
  * We use our own implementation in order to have a consistent and deterministic behavior across different platforms.
  */
-template<class Key, class H = typename Key::Hash>
+template<class Key, class H = typename Key::Hash, size_t StackCapacity = 4>
 class HashSet : public detail::HashTable<Key, void, H> {
 public:
     typedef detail::HashTable<Key, void, H> Super;
@@ -563,7 +560,7 @@ public:
  * This container is for the most part compatible with <tt>std::unordered_map</tt>.
  * We use our own implementation in order to have a consistent and deterministic behavior across different platforms.
  */
-template<class Key, class T, class H = typename Key::Hash>
+template<class Key, class T, class H = typename Key::Hash, size_t StackCapacity = 4>
 class HashMap : public detail::HashTable<Key, T, H> {
 public:
     typedef detail::HashTable<Key, T, H> Super;

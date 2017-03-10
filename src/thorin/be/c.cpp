@@ -826,18 +826,13 @@ std::ostream& CCodeGen::emit(const Def* def) {
     }
 
     if (auto primlit = def->isa<PrimLit>()) {
-#if __GNUC__ == 4 || (__GNUC__ == 5 && __GNUC_MINOR__ < 1)
-        auto float_mode = std::scientific;
-        auto fs = "f";
-#else
         auto float_mode = lang_ == Lang::CUDA ? std::scientific : std::hexfloat;
         auto fs = lang_ == Lang::CUDA ? "f" : "";
-#endif
         auto hp = lang_ == Lang::CUDA ? "__float2half(" : "";
         auto hs = lang_ == Lang::CUDA ? ")" : "h";
 
         switch (primlit->primtype_tag()) {
-            case PrimType_bool: func_impl_ << (primlit->bool_value() ? "true" : "false");                          break;
+            case PrimType_bool:                     func_impl_ << (primlit->bool_value() ? "true" : "false");      break;
             case PrimType_ps8:  case PrimType_qs8:  func_impl_ << (int) primlit->ps8_value();                      break;
             case PrimType_pu8:  case PrimType_qu8:  func_impl_ << (unsigned) primlit->pu8_value();                 break;
             case PrimType_ps16: case PrimType_qs16: func_impl_ << primlit->ps16_value();                           break;

@@ -1,29 +1,27 @@
 # Try to find Thorin library and include path.
 # Once done this will define
 #
-# THORIN_INCLUDE_DIRS
-# THORIN_LIBRARIES (including dependencies to LLVM/RV)
-# THORIN_FOUND
+# Thorin_INCLUDE_DIRS
+# Thorin_LIBRARIES (including dependencies to LLVM/RV)
+# Thorin_FOUND
 
-CMAKE_MINIMUM_REQUIRED ( VERSION 3.1 )
+cmake_minimum_required(VERSION 3.1)
 
-SET ( PROJ_NAME THORIN )
+find_path(THORIN_ROOT_DIR thorin-config.cmake PATHS ${THORIN_DIR} $ENV{THORIN_DIR})
+list(APPEND CMAKE_MODULE_PATH "${THORIN_ROOT_DIR}")
+list(APPEND CMAKE_MODULE_PATH "${THORIN_ROOT_DIR}/cmake/modules")
 
-FIND_PATH ( THORIN_ROOT_DIR thorin-config.cmake PATHS ${THORIN_DIR} $ENV{THORIN_DIR} )
-LIST( APPEND CMAKE_MODULE_PATH "${THORIN_ROOT_DIR}" )
-LIST( APPEND CMAKE_MODULE_PATH "${THORIN_ROOT_DIR}/cmake/modules" )
+find_package(LLVM QUIET)
+find_package(RV QUIET)
 
-FIND_PACKAGE ( LLVM QUIET )
-FIND_PACKAGE ( RV QUIET )
+function(generate_library_names OUT_VAR LIB)
+    set(${OUT_VAR} ${LIB}.lib ${LIB}.so ${LIB}.a ${LIB}.dll ${LIB}.dylib lib${LIB} lib${LIB}.so lib${LIB}.a lib${LIB}.dll lib${LIB}.dylib PARENT_SCOPE)
+endfunction()
 
-FUNCTION ( GENERATE_LIBRARY_NAMES OUT_VAR LIB )
-    SET ( ${OUT_VAR} ${LIB}.lib ${LIB}.so ${LIB}.a ${LIB}.dll ${LIB}.dylib lib${LIB} lib${LIB}.so lib${LIB}.a lib${LIB}.dll lib${LIB}.dylib PARENT_SCOPE )
-ENDFUNCTION ()
+generate_library_names(THORIN_OUTPUT_LIBS thorin)
 
-GENERATE_LIBRARY_NAMES ( THORIN_OUTPUT_LIBS thorin )
-
-FIND_PATH ( THORIN_INCLUDE_DIR NAMES thorin/world.h PATHS ${THORIN_ROOT_DIR}/src )
-FIND_PATH ( THORIN_LIBS_DIR
+find_path(THORIN_INCLUDE_DIR NAMES thorin/world.h PATHS ${THORIN_ROOT_DIR}/src)
+find_path(THORIN_LIBS_DIR
     NAMES
         ${THORIN_OUTPUT_LIBS}
     PATHS
@@ -35,15 +33,15 @@ FIND_PATH ( THORIN_LIBS_DIR
         ${CMAKE_CONFIGURATION_TYPES}
 )
 
-# Include AnyDSL specific stuff
-INCLUDE ( ${CMAKE_CURRENT_LIST_DIR}/thorin-shared.cmake )
-FIND_LIBRARY ( THORIN_LIBRARY NAMES ${THORIN_OUTPUT_LIBS} PATHS ${THORIN_LIBS_DIR} )
-GET_THORIN_DEPENDENCY_LIBS ( THORIN_TEMP_LIBS )
+# include AnyDSL specific stuff
+include(${CMAKE_CURRENT_LIST_DIR}/thorin-shared.cmake)
+find_library(THORIN_LIBRARY NAMES ${THORIN_OUTPUT_LIBS} PATHS ${THORIN_LIBS_DIR})
+get_thorin_dependency_libs(THORIN_TEMP_LIBS)
 
-SET ( THORIN_LIBRARIES ${THORIN_LIBRARY} ${THORIN_TEMP_LIBS} )
-SET ( THORIN_INCLUDE_DIRS ${THORIN_INCLUDE_DIR} )
+set(Thorin_LIBRARIES ${THORIN_LIBRARY} ${THORIN_TEMP_LIBS})
+set(Thorin_INCLUDE_DIRS ${THORIN_INCLUDE_DIR})
 
-INCLUDE ( FindPackageHandleStandardArgs )
-FIND_PACKAGE_HANDLE_STANDARD_ARGS ( THORIN DEFAULT_MSG THORIN_LIBRARY THORIN_INCLUDE_DIR )
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(Thorin DEFAULT_MSG THORIN_LIBRARY THORIN_INCLUDE_DIR)
 
-MARK_AS_ADVANCED ( THORIN_LIBRARY THORIN_INCLUDE_DIR THORIN_ROOT_DIR THORIN_LIBS_DIR )
+mark_as_advanced(THORIN_LIBRARY THORIN_INCLUDE_DIR THORIN_ROOT_DIR THORIN_LIBS_DIR)

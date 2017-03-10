@@ -1,7 +1,5 @@
-SET ( LIBRARY_NAME thorin )
-
 # get source files
-SET ( SOURCES
+set(SOURCES
     continuation.cpp
     continuation.h
     def.cpp
@@ -102,7 +100,6 @@ SET ( SOURCES
 )
 
 # create lib
-GET_THORIN_DEPENDENCY_LIBS ( THORIN_LIBS )
-
-ADD_LIBRARY ( ${LIBRARY_NAME} ${SOURCES} )
-TARGET_LINK_LIBRARIES ( ${LIBRARY_NAME} ${THORIN_LIBS} )
+get_thorin_dependency_libs(THORIN_LIBS)
+add_library(thorin ${SOURCES})
+target_link_libraries(thorin ${THORIN_LIBS})

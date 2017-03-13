@@ -153,7 +153,7 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
     assert_unused(linearize_ok);
 
     llvm::DominatorTree new_dom_tree(*vec_info.getMapping().scalarFn); // Control conversion does not preserve the dominance tree
-    bool vectorize_ok = vectorizer.vectorize(vec_info, new_dom_tree);
+    bool vectorize_ok = vectorizer.vectorize(vec_info, new_dom_tree, loop_info);
     assert_unused(vectorize_ok);
 
     vectorizer.finalize(vec_info);

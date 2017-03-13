@@ -77,9 +77,9 @@ private:
 #define VLOG(...) MAYBE_LOG(thorin::Log::Verbose, Location(__FILE__, __LINE__, -1), __VA_ARGS__)
 #define DLOG(...) MAYBE_LOG(thorin::Log::Debug,   Location(__FILE__, __LINE__, -1), __VA_ARGS__)
 #define VLOG_SCOPE(s) { \
-    VLOG("*** BEGIN: " #s " {"); \
+    VLOG("*** BEGIN: " #s " {{"); \
     (s); \
-    VLOG("}"); \
+    VLOG("}}"); \
 }
 
 #endif

@@ -299,7 +299,9 @@ std::ostream& PrimOp::stream_assignment(std::ostream& os) const {
 std::string DefiniteArray::as_string() const {
     std::string res;
     for (auto op : ops()) {
-        res += op->as<PrimLit>()->pu8_value();
+        auto c = op->as<PrimLit>()->pu8_value();
+        if (!c) break;
+        res += c;
     }
     return res;
 }

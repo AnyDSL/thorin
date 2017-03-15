@@ -11,6 +11,8 @@
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wmismatched-tags"
 #endif
+#define HALF_ROUND_STYLE 1
+#define HALF_ROUND_TIES_TO_EVEN 1
 #include <half.hpp>
 #ifdef __clang__
 #pragma clang diagnostic pop

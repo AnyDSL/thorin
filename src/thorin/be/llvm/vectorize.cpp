@@ -112,10 +112,12 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
     rv::VectorMapping target_mapping(kernel_func, simd_kernel_func, vector_length, -1, res, args);
     rv::VectorizationInfo vec_info(target_mapping);
 
+    llvm::FunctionAnalysisManager FAM;
+    llvm::ModuleAnalysisManager MAM;
     llvm::TargetIRAnalysis ir_analysis;
-    llvm::TargetTransformInfo tti = ir_analysis.run(*kernel_func);
+    llvm::TargetTransformInfo tti = ir_analysis.run(*kernel_func, FAM);
     llvm::TargetLibraryAnalysis lib_analysis;
-    llvm::TargetLibraryInfo tli = lib_analysis.run(*kernel_func->getParent());
+    llvm::TargetLibraryInfo tli = lib_analysis.run(*kernel_func->getParent(), MAM);
     rv::PlatformInfo platform_info(*module_.get(), &tti, &tli);
 
     // TODO: use parameters from command line
@@ -129,13 +131,13 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
 
     llvm::DominatorTree dom_tree(*kernel_func);
     llvm::PostDominatorTree pdom_tree;
-    pdom_tree.runOnFunction(*kernel_func);
+    pdom_tree.recalculate(*kernel_func);
     llvm::LoopInfo loop_info(dom_tree);
 
     llvm::DFG dfg(dom_tree);
     dfg.create(*kernel_func);
 
-    llvm::CDG cdg(*pdom_tree.DT);
+    llvm::CDG cdg(pdom_tree);
     cdg.create(*kernel_func);
 
     LoopExitCanonicalizer canonicalizer(loop_info);
@@ -153,7 +155,7 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
     assert_unused(linearize_ok);
 
     llvm::DominatorTree new_dom_tree(*vec_info.getMapping().scalarFn); // Control conversion does not preserve the dominance tree
-    bool vectorize_ok = vectorizer.vectorize(vec_info, new_dom_tree);
+    bool vectorize_ok = vectorizer.vectorize(vec_info, new_dom_tree, loop_info);
     assert_unused(vectorize_ok);
 
     vectorizer.finalize(vec_info);

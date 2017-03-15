@@ -39,18 +39,6 @@ void force_inline(Scope& scope, int threshold) {
 
 void inliner(World& world) {
     Scope::for_each(world, [] (const Scope& scope) {
-        for (auto n : scope.f_cfg().post_order()) {
-            auto continuation = n->continuation();
-            if (auto callee = continuation->callee()->isa_continuation()) {
-                if (!callee->empty() && callee->num_uses() <= 1 && !scope.contains(callee)) {
-                    Scope callee_scope(callee);
-                    continuation->jump(drop(callee_scope, continuation->args()), {}, continuation->jump_debug());
-                }
-            }
-        }
-    });
-
-    Scope::for_each(world, [] (const Scope& scope) {
         if (scope.defs().size() < THRESHOLD)
             for (const auto& use : scope.entry()->copy_uses())
                 if (auto ucontinuation = use->isa_continuation())

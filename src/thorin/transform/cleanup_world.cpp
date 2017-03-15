@@ -26,15 +26,12 @@ private:
 };
 
 void Cleaner::merge_continuations() {
-    auto continuations = world().continuations();
-    for (auto continuation : continuations) {
+    for (auto continuation : world().continuations()) {
         while (auto callee = continuation->callee()->isa_continuation()) {
             if (callee->num_uses() == 1 && !callee->empty() && !callee->is_external() && callee->order() == 1) {
                 for (size_t i = 0, e = continuation->num_args(); i != e; ++i)
                     callee->param(i)->replace(continuation->arg(i));
-                continuation->dump_jump();
                 continuation->jump(callee->callee(), callee->args(), callee->jump_debug());
-                continuation->dump_jump();
                 callee->destroy_body();
             } else
                 break;
@@ -138,9 +135,7 @@ void Cleaner::cleanup() {
         assert(p.second.empty() && "there are still live trackers before running cleanup");
 #endif
 
-    std::cout << "AAA" << std::endl;
     merge_continuations();
-    std::cout << "BBB" << std::endl;
     eliminate_params();
     rebuild();
 

@@ -29,7 +29,7 @@ static void critical_edge_elimination(Scope& scope) {
     bool dirty = false;
     const auto& cfg = scope.f_cfg();
     for (auto n : cfg.post_order()) {
-        if (cfg.num_preds(n) > 1) {
+        if (cfg.num_preds(n) > 1 && n->continuation()->order() == 1) {
             for (auto pred : cfg.preds(n)) {
                 if (cfg.num_succs(pred) != 1) {
                     DLOG("critical edge: {} -> {}", pred, n);

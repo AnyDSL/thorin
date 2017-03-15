@@ -2,6 +2,7 @@
 #define THORIN_UTIL_LOG_H
 
 #include <iomanip>
+#include <iostream>
 #include <cstdlib>
 #include <ostream>
 #include <sstream>
@@ -41,7 +42,7 @@ public:
                               << colorize(oss.str(), 7) << ": ";
             if (level == Debug)
                 Log::stream() << "  ";
-            streamf(Log::stream(), fmt, args...);
+            streamf(Log::stream(), fmt, std::forward<Args>(args)...);
             Log::stream() << std::endl;
         }
     }
@@ -61,6 +62,11 @@ private:
     static Level min_level_;
     static bool print_loc_;
 };
+
+template<typename... Args>
+std::ostream& outf(const char* fmt, Args... args) { return streamf(std::cout, fmt, std::forward<Args>(args)...); }
+template<typename... Args>
+std::ostream& errf(const char* fmt, Args... args) { return streamf(std::cerr, fmt, std::forward<Args>(args)...); }
 
 }
 

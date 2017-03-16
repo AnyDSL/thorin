@@ -54,6 +54,6 @@ set(Thorin_LIBRARIES ${THORIN_LIBRARY} ${THORIN_DEPS_LIBRARIES})
 set(Thorin_INCLUDE_DIRS ${THORIN_INCLUDE_DIR} ${THORIN_DEPS_INCLUDE_DIRS})
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(Thorin DEFAULT_MSG THORIN_LIBRARY THORIN_INCLUDE_DIR)
+find_package_handle_standard_args(Thorin DEFAULT_MSG THORIN_DIR THORIN_INCLUDE_DIR)
 
 mark_as_advanced(THORIN_LIBRARY THORIN_INCLUDE_DIR THORIN_ROOT_DIR)

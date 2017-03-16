@@ -12,8 +12,7 @@ find_path(THORIN_ROOT_DIR
     PATHS ${THORIN_DIR} $ENV{THORIN_DIR} ${THORIN_ROOT_DIR} "@CMAKE_CURRENT_SOURCE_DIR@" "@CMAKE_SOURCE_DIR@")
 list(APPEND CMAKE_MODULE_PATH "${THORIN_ROOT_DIR}/cmake/modules")
 
-# TODO: better would be to set Half_DIR here, but FindHalf.cmake overrides it
-find_path(Half_INCLUDE_DIR NAMES half.hpp PATHS ${Half_DIR} $ENV{Half_DIR} "@Half_DIR@" "@Half_INCLUDE_DIR@")
+find_path(Half_DIR NAMES half.hpp PATHS ${Half_DIR} $ENV{Half_DIR} "@Half_DIR@" "@Half_INCLUDE_DIR@")
 find_package(Half REQUIRED)
 
 find_path(LLVM_DIR LLVMConfig.cmake PATHS ${LLVM_DIR} $ENV{LLVM_DIR} "@LLVM_DIR@")

@@ -10,7 +10,7 @@ cmake_minimum_required(VERSION 3.1)
 find_path(THORIN_DIR
     NAMES thorin-config.cmake
     PATHS
-		${Thorin_DIR} ${AnyDSL_thorin_DIR} ${THORIN_DIR}
+        ${Thorin_DIR} ${AnyDSL_thorin_DIR} ${THORIN_DIR}
         $ENV{Thorin_DIR} $ENV{THORIN_DIR}
         ${CMAKE_CURRENT_LIST_DIR}
         "@CMAKE_CURRENT_BINARY_DIR@"

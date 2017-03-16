@@ -41,24 +41,22 @@ SET ( SOURCES
     tables/cmptable.h
     tables/nodetable.h
     tables/primtypetable.h
+    transform/acc_prepare.cpp
+    transform/acc_prepare.h
     transform/cleanup_world.cpp
     transform/cleanup_world.h
-    transform/clone_bodies.cpp
-    transform/clone_bodies.h
     transform/critical_edge_elimination.cpp
     transform/critical_edge_elimination.h
     transform/dead_load_opt.cpp
     transform/dead_load_opt.h
-    transform/hoist_enters.cpp
-    transform/hoist_enters.h
     transform/higher_order_lifting.cpp
     transform/higher_order_lifting.h
+    transform/hoist_enters.cpp
+    transform/hoist_enters.h
     transform/importer.cpp
     transform/importer.h
     transform/inliner.cpp
     transform/inliner.h
-    transform/lift_builtins.cpp
-    transform/lift_builtins.h
     transform/lower2cff.cpp
     transform/lower2cff.h
     transform/mangle.cpp

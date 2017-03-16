@@ -7,9 +7,10 @@
 
 namespace thorin {
 
-void lift_builtins(World& world) {
+void acc_prepare(World& world) {
     std::vector<Continuation*> todo;
     ContinuationSet do_force_inline;
+
     Scope::for_each(world, [&] (const Scope& scope) {
         for (auto n : scope.f_cfg().post_order()) {
             auto continuation = n->continuation();
@@ -20,6 +21,30 @@ void lift_builtins(World& world) {
             }
         }
     });
+
+    for (auto continuation : todo) {
+        Scope scope(continuation);
+        bool first = true;
+        for (auto use : continuation->copy_uses()) {
+            if (first) {
+                first = false; // re-use the initial continuation as first clone
+            } else {
+                auto ncontinuation = clone(scope);
+                todo.emplace_back(ncontinuation);
+                if (do_force_inline.contains(continuation))
+                    do_force_inline.emplace(ncontinuation);
+                if (auto ucontinuation = use->isa_continuation())
+                    ucontinuation->update_op(use.index(), ncontinuation);
+                else {
+                    auto primop = use->as<PrimOp>();
+                    Array<const Def*> nops(primop->num_ops());
+                    std::copy(primop->ops().begin(), primop->ops().end(), nops.begin());
+                    nops[use.index()] = ncontinuation;
+                    primop->replace(primop->rebuild(nops));
+                }
+            }
+        }
+    }
 
     static const int inline_threshold = 10;
     for (auto continuation : do_force_inline) {

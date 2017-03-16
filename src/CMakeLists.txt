@@ -9,10 +9,8 @@ endif()
 
 # check for Half library
 find_package(Half REQUIRED)
-if(Half_FOUND)
-    message(STATUS "Building with Half library from ${Half_INCLUDE_DIRS}.")
-    include_directories(${Half_INCLUDE_DIRS})
-endif()
+message(STATUS "Building with Half library from ${Half_INCLUDE_DIRS}.")
+include_directories(${Half_INCLUDE_DIRS})
 
 # check for RV
 find_package(RV QUIET)

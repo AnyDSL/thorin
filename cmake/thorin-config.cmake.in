@@ -40,17 +40,13 @@ if(NOT TARGET thorin)
 endif()
 set(THORIN_LIBRARY thorin)
 
-# add Thorin's (transitive) dependencies
-include(${THORIN_ROOT_DIR}/thorin-shared.cmake)
-get_thorin_dependency_libs(THORIN_DEPS_LIBRARIES)
-
 set(THORIN_DEPS_INCLUDE_DIRS
     ${Half_INCLUDE_DIRS}
     ${LLVM_INCLUDE_DIRS}
     ${RV_INCLUDE_DIR}
 )
 
-set(Thorin_LIBRARIES ${THORIN_LIBRARY} ${THORIN_DEPS_LIBRARIES})
+set(Thorin_LIBRARIES ${THORIN_LIBRARY})
 set(Thorin_INCLUDE_DIRS ${THORIN_INCLUDE_DIR} ${THORIN_DEPS_INCLUDE_DIRS})
 
 include(FindPackageHandleStandardArgs)

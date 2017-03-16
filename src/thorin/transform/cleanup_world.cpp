@@ -26,15 +26,19 @@ private:
 };
 
 void Cleaner::merge_continuations() {
-    for (auto continuation : world().continuations()) {
-        while (auto callee = continuation->callee()->isa_continuation()) {
-            if (callee->num_uses() == 1 && !callee->empty() && !callee->is_external() && callee->order() == 1) {
-                for (size_t i = 0, e = continuation->num_args(); i != e; ++i)
-                    callee->param(i)->replace(continuation->arg(i));
-                continuation->jump(callee->callee(), callee->args(), callee->jump_debug());
-                callee->destroy_body();
-            } else
-                break;
+    for (bool todo = true; todo; ++i) {
+        todo = false;
+        for (auto continuation : world().continuations()) {
+            while (auto callee = continuation->callee()->isa_continuation()) {
+                if (callee->num_uses() == 1 && !callee->empty() && !callee->is_external()) {
+                    for (size_t i = 0, e = continuation->num_args(); i != e; ++i)
+                        callee->param(i)->replace(continuation->arg(i));
+                    continuation->jump(callee->callee(), callee->args(), callee->jump_debug());
+                    callee->destroy_body();
+                    todo = true;
+                } else
+                    break;
+            }
         }
     }
 }

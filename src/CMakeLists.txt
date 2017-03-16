@@ -47,6 +47,5 @@ if(COLORIZE_OUTPUT)
 endif()
 
 # build thorin lib
-include(../thorin-shared.cmake)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 add_subdirectory(thorin)

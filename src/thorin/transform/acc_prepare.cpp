@@ -48,6 +48,7 @@ void acc_prepare(World& world) {
         }
     });
 
+    // clone each continuation that is passed to an accelerator for each of its use
     for (auto continuation : todo) {
         Scope scope(continuation);
         bool first = true;
@@ -83,12 +84,14 @@ void acc_prepare(World& world) {
         force_inline(scope, inline_threshold);
     }
 
-    for (auto cur : todo) {
-        Scope scope(cur);
+    // lambda-lift all continuations passed to accelerators
+    // and use a function pointer to the lifted continuation instead in the accelerator
+    for (auto continuation : todo) {
+        Scope scope(continuation);
 
-        // remove all continuations - they should be top-level functions and can thus be ignored
         std::vector<const Def*> defs;
         for (auto param : free_defs(scope)) {
+            // don't consider continuations - they should be top-level functions and can thus be ignored
             if (!param->isa_continuation()) {
                 assert(param->order() == 0 && "creating a higher-order function");
                 defs.push_back(param);
@@ -97,7 +100,7 @@ void acc_prepare(World& world) {
 
         auto lifted = lift(scope, defs);
 
-        std::vector<Use> uses(cur->uses().begin(), cur->uses().end()); // TODO rewrite this
+        std::vector<Use> uses(continuation->uses().begin(), continuation->uses().end()); // TODO rewrite this
         for (auto use : uses) {
             if (auto ucontinuation = use->isa_continuation()) {
                 if (auto callee = ucontinuation->callee()->isa_continuation()) {
@@ -105,9 +108,9 @@ void acc_prepare(World& world) {
                         auto old_ops = ucontinuation->ops();
                         Array<const Def*> new_ops(old_ops.size() + defs.size());
                         std::copy(defs.begin(), defs.end(), std::copy(old_ops.begin(), old_ops.end(), new_ops.begin()));    // old ops + former free defs
-                        assert(old_ops[use.index()] == cur);
+                        assert(old_ops[use.index()] == continuation);
                         new_ops[use.index()] = world.global(lifted, false, lifted->debug());                                // update to new lifted continuation
-                        ucontinuation->jump(cur, new_ops.skip_front(), ucontinuation->jump_debug());                        // set new args
+                        ucontinuation->jump(continuation, new_ops.skip_front(), ucontinuation->jump_debug());               // set new args
 
                         // jump to new top-level dummy function
                         auto ncontinuation = world.continuation(ucontinuation->arg_fn_type(), callee->cc(), callee->intrinsic(), callee->debug());

@@ -35,25 +35,10 @@ find_package(RV QUIET)
 
 find_path(THORIN_INCLUDE_DIR NAMES thorin/world.h PATHS ${THORIN_ROOT_DIR}/src)
 
-set(THORIN_LIBS_DIR "@CMAKE_LIBRARY_OUTPUT_DIRECTORY@" "@CMAKE_ARCHIVE_OUTPUT_DIRECTORY@") # TODO: additionally use install prefix
-find_library(THORIN_LIBRARY_RELEASE
-    NAMES thorin "@CMAKE_RELEASE_PREFIX@thorin@CMAKE_RELEASE_POSTFIX@"
-    PATHS ${THORIN_LIBS_DIR}
-    PATH_SUFFIXES Release
-)
-find_library(THORIN_LIBRARY_DEBUG
-    NAMES thorin "@CMAKE_DEBUG_PREFIX@thorin@CMAKE_DEBUG_POSTFIX@"
-    PATHS ${THORIN_LIBS_DIR}
-    PATH_SUFFIXES Debug
-)
-if(THORIN_LIBRARY_RELEASE STREQUAL THORIN_LIBRARY_DEBUG)
-    set(THORIN_LIBRARY ${THORIN_LIBRARY_RELEASE})
-else()
-    set(THORIN_LIBRARY
-        optimized ${THORIN_LIBRARY_RELEASE}
-        debug ${THORIN_LIBRARY_DEBUG}
-    )
+if(NOT TARGET thorin)
+    include(${THORIN_DIR}/thorin-exports.cmake)
 endif()
+set(THORIN_LIBRARY thorin)
 
 # add Thorin's (transitive) dependencies
 include(${THORIN_ROOT_DIR}/thorin-shared.cmake)
@@ -71,4 +56,4 @@ set(Thorin_INCLUDE_DIRS ${THORIN_INCLUDE_DIR} ${THORIN_DEPS_INCLUDE_DIRS})
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(Thorin DEFAULT_MSG THORIN_LIBRARY THORIN_INCLUDE_DIR)
 
-mark_as_advanced(THORIN_LIBRARY THORIN_INCLUDE_DIR THORIN_ROOT_DIR THORIN_LIBS_DIR)
+mark_as_advanced(THORIN_LIBRARY THORIN_INCLUDE_DIR THORIN_ROOT_DIR)

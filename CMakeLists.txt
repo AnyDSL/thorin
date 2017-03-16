@@ -10,7 +10,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 
-if(NOT CMAKE_BUILD_TYPE)
+if(CMAKE_BUILD_TYPE STREQUAL "")
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "Debug or Release" FORCE)
 endif()
 

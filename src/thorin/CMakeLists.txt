@@ -1,5 +1,5 @@
 # get source files
-set(SOURCES
+set(THORIN_SOURCES
     continuation.cpp
     continuation.h
     def.cpp
@@ -85,8 +85,7 @@ set(SOURCES
 )
 
 if(LLVM_FOUND)
-    set(SOURCES
-        ${SOURCES}
+    list(APPEND THORIN_SOURCES
         be/llvm/cpu.cpp
         be/llvm/cpu.h
         be/llvm/cuda.cpp
@@ -105,7 +104,7 @@ if(LLVM_FOUND)
     )
 endif()
 
+add_library(thorin ${THORIN_SOURCES})
 # create lib
 get_thorin_dependency_libs(THORIN_LIBS)
-add_library(thorin ${SOURCES})
 target_link_libraries(thorin ${THORIN_LIBS})

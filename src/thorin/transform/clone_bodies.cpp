@@ -4,6 +4,7 @@
 
 namespace thorin {
 
+// TODO merge this with lift_builtins
 void clone_bodies(World& world) {
     std::vector<Continuation*> todo;
 

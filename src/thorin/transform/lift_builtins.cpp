@@ -2,19 +2,30 @@
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/free_defs.h"
 #include "thorin/analyses/scope.h"
+#include "thorin/transform/inliner.h"
 #include "thorin/transform/mangle.h"
 
 namespace thorin {
 
 void lift_builtins(World& world) {
     std::vector<Continuation*> todo;
+    ContinuationSet do_force_inline;
     Scope::for_each(world, [&] (const Scope& scope) {
         for (auto n : scope.f_cfg().post_order()) {
             auto continuation = n->continuation();
-            if (continuation->is_passed_to_accelerator() && !continuation->is_basicblock())
+            if (continuation->is_passed_to_accelerator() && !continuation->is_basicblock()) {
                 todo.push_back(continuation);
+                if (continuation->is_passed_to_intrinsic(Intrinsic::Vectorize))
+                    do_force_inline.emplace(continuation);
+            }
         }
     });
+
+    static const int inline_threshold = 10;
+    for (auto continuation : do_force_inline) {
+        Scope scope(continuation);
+        force_inline(scope, inline_threshold);
+    }
 
     for (auto cur : todo) {
         Scope scope(cur);

@@ -1,4 +1,3 @@
-# get source files
 set(THORIN_SOURCES
     continuation.cpp
     continuation.h
@@ -105,6 +104,5 @@ if(LLVM_FOUND)
 endif()
 
 add_library(thorin ${THORIN_SOURCES})
-# create lib
 get_thorin_dependency_libs(THORIN_LIBS)
 target_link_libraries(thorin ${THORIN_LIBS})

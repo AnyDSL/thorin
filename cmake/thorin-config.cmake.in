@@ -7,6 +7,18 @@
 
 cmake_minimum_required(VERSION 3.1)
 
+find_path(THORIN_DIR
+    NAMES thorin-config.cmake
+    PATHS
+		${Thorin_DIR} ${AnyDSL_thorin_DIR} ${THORIN_DIR}
+        $ENV{Thorin_DIR} $ENV{THORIN_DIR}
+        ${CMAKE_CURRENT_LIST_DIR}
+        "@CMAKE_CURRENT_BINARY_DIR@"
+        "@CMAKE_INSTALL_PREFIX@"
+    PATH_SUFFIXES
+        share/thorin/cmake
+)
+
 find_path(THORIN_ROOT_DIR
     NAMES cmake/thorin-config.cmake.in src/thorin/world.h
     PATHS ${THORIN_DIR} $ENV{THORIN_DIR} ${THORIN_ROOT_DIR} "@CMAKE_CURRENT_SOURCE_DIR@" "@CMAKE_SOURCE_DIR@")

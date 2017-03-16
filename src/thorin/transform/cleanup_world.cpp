@@ -4,6 +4,7 @@
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/verify.h"
 #include "thorin/transform/importer.h"
+#include "thorin/transform/hoist_enters.h"
 
 namespace thorin {
 
@@ -25,54 +26,22 @@ private:
     World& world_;
 };
 
-class Merger {
-public:
-    Merger(const Scope& scope)
-        : scope(scope)
-        , cfg(scope.f_cfg())
-        , domtree(cfg.domtree())
-    {
-        merge(domtree.root());
-    }
-
-    void merge(const CFNode* n);
-    const CFNode* dom_succ(const CFNode* n);
-    World& world() { return scope.world(); }
-
-    const Scope& scope;
-    const F_CFG& cfg;
-    const DomTree& domtree;
-};
-
-const CFNode* Merger::dom_succ(const CFNode* n) {
-    const auto& succs = cfg.succs(n);
-    const auto& children = domtree.children(n);
-    if (succs.size() == 1 && children.size() == 1 && *succs.begin() == (*children.begin())) {
-        auto continuation = (*succs.begin())->continuation();
-        if (continuation->num_uses() == 1 && continuation == n->continuation()->callee())
-            return children.front();
-    }
-    return nullptr;
-}
-
-void Merger::merge(const CFNode* n) {
-    auto cur = n;
-    for (auto next = dom_succ(cur); next != nullptr; cur = next, next = dom_succ(next)) {
-        assert(cur->continuation()->num_args() == next->continuation()->num_params());
-        for (size_t i = 0, e = cur->continuation()->num_args(); i != e; ++i)
-            next->continuation()->param(i)->replace(cur->continuation()->arg(i));
-        cur->continuation()->destroy_body();
-    }
-
-    if (cur != n)
-        n->continuation()->jump(cur->continuation()->callee(), cur->continuation()->args(), cur->continuation()->jump_debug());
-
-    for (auto child : domtree.children(cur))
-        merge(child);
-}
-
 void Cleaner::merge_continuations() {
-    Scope::for_each(world(), [] (const Scope& scope) { Merger merger(scope); });
+    for (bool todo = true; todo;) {
+        todo = false;
+        for (auto continuation : world().continuations()) {
+            while (auto callee = continuation->callee()->isa_continuation()) {
+                if (callee->num_uses() == 1 && !callee->empty() && !callee->is_external()) {
+                    for (size_t i = 0, e = continuation->num_args(); i != e; ++i)
+                        callee->param(i)->replace(continuation->arg(i));
+                    continuation->jump(callee->callee(), callee->args(), callee->jump_debug());
+                    callee->destroy_body();
+                    todo = true;
+                } else
+                    break;
+            }
+        }
+    }
 }
 
 void Cleaner::eliminate_params() {
@@ -172,6 +141,9 @@ void Cleaner::cleanup() {
 #endif
 
     merge_continuations();
+    // TODO move this to World::opt as soon as the scheduler is able to correctly schedule enters/slots etc
+    //      when they are not in the scope entry
+    hoist_enters(world());
     eliminate_params();
     rebuild();
 

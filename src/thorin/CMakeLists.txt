@@ -34,21 +34,6 @@ set(SOURCES
     analyses/verify.h
     be/c.cpp
     be/c.h
-    be/llvm/cpu.cpp
-    be/llvm/cpu.h
-    be/llvm/cuda.cpp
-    be/llvm/cuda.h
-    be/llvm/llvm.cpp
-    be/llvm/llvm.h
-    be/llvm/nvvm.cpp
-    be/llvm/nvvm.h
-    be/llvm/opencl.cpp
-    be/llvm/opencl.h
-    be/llvm/parallel.cpp
-    be/llvm/runtime.inc
-    be/llvm/runtime.cpp
-    be/llvm/runtime.h
-    be/llvm/vectorize.cpp
     tables/allnodes.h
     tables/arithoptable.h
     tables/cmptable.h
@@ -98,6 +83,27 @@ set(SOURCES
     util/ycomp.cpp
     util/ycomp.h
 )
+
+if(LLVM_FOUND)
+    set(SOURCES
+        ${SOURCES}
+        be/llvm/cpu.cpp
+        be/llvm/cpu.h
+        be/llvm/cuda.cpp
+        be/llvm/cuda.h
+        be/llvm/llvm.cpp
+        be/llvm/llvm.h
+        be/llvm/nvvm.cpp
+        be/llvm/nvvm.h
+        be/llvm/opencl.cpp
+        be/llvm/opencl.h
+        be/llvm/parallel.cpp
+        be/llvm/runtime.inc
+        be/llvm/runtime.cpp
+        be/llvm/runtime.h
+        be/llvm/vectorize.cpp
+    )
+endif()
 
 # create lib
 get_thorin_dependency_libs(THORIN_LIBS)

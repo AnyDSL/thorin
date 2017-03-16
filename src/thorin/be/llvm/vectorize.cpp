@@ -16,7 +16,6 @@
 #include "thorin/primop.h"
 #include "thorin/util/log.h"
 #include "thorin/world.h"
-#include "thorin/transform/inliner.h"
 #include "thorin/analyses/scope.h"
 
 namespace thorin {
@@ -44,11 +43,6 @@ Continuation* CodeGen::emit_vectorize_continuation(Continuation* continuation) {
     auto lower = lookup(continuation->arg(VectorizeArgs::Lower));
     auto upper = lookup(continuation->arg(VectorizeArgs::Upper));
     auto kernel = continuation->arg(VectorizeArgs::Body)->as<Global>()->init()->as_continuation();
-
-    static const int inline_threshold = 10;
-    Scope scope(kernel);
-    force_inline(scope, inline_threshold);
-
     const size_t num_kernel_args = continuation->num_args() - VectorizeArgs::Num;
 
     // build simd-function signature
@@ -153,7 +147,7 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
     assert_unused(linearize_ok);
 
     llvm::DominatorTree new_dom_tree(*vec_info.getMapping().scalarFn); // Control conversion does not preserve the dominance tree
-    bool vectorize_ok = vectorizer.vectorize(vec_info, new_dom_tree);
+    bool vectorize_ok = vectorizer.vectorize(vec_info, new_dom_tree, loop_info);
     assert_unused(vectorize_ok);
 
     vectorizer.finalize(vec_info);

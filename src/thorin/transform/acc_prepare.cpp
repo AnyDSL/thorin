@@ -2,10 +2,36 @@
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/free_defs.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/transform/inliner.h"
 #include "thorin/transform/mangle.h"
 
 namespace thorin {
+
+static void force_inline(Scope& scope, int threshold) {
+    for (bool todo = true; todo && threshold-- != 0;) {
+        todo = false;
+        for (auto n : scope.f_cfg().post_order()) {
+            auto continuation = n->continuation();
+            if (auto callee = continuation->callee()->isa_continuation()) {
+                if (!callee->empty() && !scope.contains(callee)) {
+                    Scope callee_scope(callee);
+                    continuation->jump(drop(callee_scope, continuation->args()), {}, continuation->jump_debug());
+                    todo = true;
+                }
+            }
+        }
+
+        if (todo)
+            scope.update();
+    }
+
+    for (auto n : scope.f_cfg().reverse_post_order()) {
+        auto continuation = n->continuation();
+        if (auto callee = continuation->callee()->isa_continuation()) {
+            if (!callee->empty() && !scope.contains(callee))
+                WLOG(callee, "couldn't inline {} at {}", scope.entry(), continuation->jump_location());
+        }
+    }
+}
 
 void acc_prepare(World& world) {
     std::vector<Continuation*> todo;
@@ -30,12 +56,17 @@ void acc_prepare(World& world) {
                 first = false; // re-use the initial continuation as first clone
             } else {
                 auto ncontinuation = clone(scope);
-                todo.emplace_back(ncontinuation);
-                if (do_force_inline.contains(continuation))
-                    do_force_inline.emplace(ncontinuation);
-                if (auto ucontinuation = use->isa_continuation())
+                if (auto ucontinuation = use->isa_continuation()) {
                     ucontinuation->update_op(use.index(), ncontinuation);
-                else {
+
+                    if (auto callee = ucontinuation->callee()->isa_continuation()) {
+                        if (callee->is_accelerator()) {
+                            todo.emplace_back(ncontinuation);
+                            if (do_force_inline.contains(continuation))
+                                do_force_inline.emplace(ncontinuation);
+                        }
+                    }
+                } else {
                     auto primop = use->as<PrimOp>();
                     Array<const Def*> nops(primop->num_ops());
                     std::copy(primop->ops().begin(), primop->ops().end(), nops.begin());

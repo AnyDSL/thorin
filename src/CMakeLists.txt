@@ -36,7 +36,7 @@ else()
 endif()
 
 # check for colored terminal
-SET(COLOR_TTY_AVAILABLE TRUE)
+set(COLOR_TTY_AVAILABLE TRUE)
 if(WIN32)
     # Windows console does not support ANSI escape codes
     set(COLOR_TTY_AVAILABLE FALSE)

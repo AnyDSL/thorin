@@ -104,5 +104,11 @@ if(LLVM_FOUND)
 endif()
 
 add_library(thorin ${THORIN_SOURCES})
-get_thorin_dependency_libs(THORIN_LIBS)
-target_link_libraries(thorin ${THORIN_LIBS})
+
+if(LLVM_FOUND)
+    llvm_map_components_to_libnames(LLVM_LIBRARIES core mc native ipo irreader bitreader bitwriter scalaropts support target)
+    target_link_libraries(thorin ${LLVM_LIBRARIES})
+endif()
+if(RV_FOUND)
+    target_link_libraries(thorin ${RV_LIBRARIES})
+endif()

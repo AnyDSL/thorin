@@ -28,9 +28,8 @@ void force_inline(Scope& scope, int threshold) {
     for (auto n : scope.f_cfg().reverse_post_order()) {
         auto continuation = n->continuation();
         if (auto callee = continuation->callee()->isa_continuation()) {
-            if (!callee->empty() && !scope.contains(callee)) {
+            if (!callee->empty() && !scope.contains(callee))
                 WLOG(callee, "couldn't inline {} at {}", scope.entry(), continuation->jump_location());
-            }
         }
     }
 }

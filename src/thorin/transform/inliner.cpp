@@ -5,8 +5,6 @@
 #include "thorin/analyses/verify.h"
 #include "thorin/transform/mangle.h"
 
-#define THRESHOLD 10
-
 namespace thorin {
 
 void force_inline(Scope& scope, int threshold) {
@@ -38,8 +36,10 @@ void force_inline(Scope& scope, int threshold) {
 }
 
 void inliner(World& world) {
+    static const int factor = 4;
+    static const int offset = 4;
     Scope::for_each(world, [] (const Scope& scope) {
-        if (scope.defs().size() < THRESHOLD)
+        if (scope.defs().size() < scope.entry()->num_params() * factor + offset)
             for (const auto& use : scope.entry()->copy_uses())
                 if (auto ucontinuation = use->isa_continuation())
                     if (use.index() == 0)

@@ -26,7 +26,7 @@ private:
 };
 
 void Cleaner::merge_continuations() {
-    for (bool todo = true; todo; ++i) {
+    for (bool todo = true; todo;) {
         todo = false;
         for (auto continuation : world().continuations()) {
             while (auto callee = continuation->callee()->isa_continuation()) {

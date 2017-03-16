@@ -28,4 +28,4 @@ if(DEFINED CMAKE_BUILD_TYPE)
     message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 endif()
 
-configure_file("cmake/thorin-config.cmake.in" "share/thorin/cmake/thorin-config.cmake" @ONLY)
+configure_file(cmake/thorin-config.cmake.in ${CMAKE_BINARY_DIR}/share/thorin/cmake/thorin-config.cmake @ONLY)

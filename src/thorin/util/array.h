@@ -77,12 +77,20 @@ public:
     Array<T> cut(ArrayRef<size_t> indices, size_t reserve = 0) const;
     template<class Other>
     bool operator==(const Other& other) const { return this->size() == other.size() && std::equal(begin(), end(), other.begin()); }
-    void dump() const { stream_list(std::cout, *this, [&] (const auto& elem) { std::cout << elem; }, "{", "}\n"); }
+    void dump() const { stream(std::cout) << "\n"; }
+    std::ostream& stream(std::ostream& os) const {
+        return stream_list(os, *this, [&] (const auto& elem) { os << elem; }, "{", "}");
+    }
 
 private:
     size_t size_;
     const T* ptr_;
 };
+
+template<class T>
+std::ostream& operator<<(std::ostream& os, const ArrayRef<T> a) {
+    return a.stream(os);
+}
 
 //------------------------------------------------------------------------------
 

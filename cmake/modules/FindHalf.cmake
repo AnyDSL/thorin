@@ -8,7 +8,7 @@
 #  Half_FOUND         - True if Half library is found
 
 find_path(Half_DIR half.hpp PATHS ${Half_DIR} $ENV{Half_DIR} PATH_SUFFIXES include DOC "C++ library for half precision floating point arithmetics.")
-find_path(Half_INCLUDE_DIR half.hpp PATHS ${Half_DIR} ${Half_INCLUDE_DIR} PATH_SUFFIXES include)
+find_path(Half_INCLUDE_DIR half.hpp PATHS ${Half_DIR} PATH_SUFFIXES include)
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(Half DEFAULT_MSG Half_INCLUDE_DIR)

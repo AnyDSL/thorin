@@ -1,7 +1,4 @@
-SET ( LIBRARY_NAME thorin )
-
-# get source files
-SET ( SOURCES
+set(THORIN_SOURCES
     continuation.cpp
     continuation.h
     def.cpp
@@ -87,8 +84,7 @@ SET ( SOURCES
 )
 
 if(LLVM_FOUND)
-    set(SOURCES
-        ${SOURCES}
+    list(APPEND THORIN_SOURCES
         be/llvm/cpu.cpp
         be/llvm/cpu.h
         be/llvm/cuda.cpp
@@ -107,8 +103,12 @@ if(LLVM_FOUND)
     )
 endif()
 
-# create lib
-GET_THORIN_DEPENDENCY_LIBS ( THORIN_LIBS )
+add_library(thorin ${THORIN_SOURCES})
 
-ADD_LIBRARY ( ${LIBRARY_NAME} ${SOURCES} )
-TARGET_LINK_LIBRARIES ( ${LIBRARY_NAME} ${THORIN_LIBS} )
+if(LLVM_FOUND)
+    llvm_map_components_to_libnames(LLVM_LIBRARIES core mc native ipo irreader bitreader bitwriter scalaropts support target)
+    target_link_libraries(thorin ${LLVM_LIBRARIES})
+endif()
+if(RV_FOUND)
+    target_link_libraries(thorin ${RV_LIBRARIES})
+endif()

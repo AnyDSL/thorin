@@ -1,18 +1,17 @@
 # Provides Thorin library and include path.
 # Once done this will define
 #
-# THORIN_INCLUDE_DIRS (including dependencies to LLVM/RV/Half)
-# THORIN_LIBRARIES (including dependencies to LLVM/RV)
-# THORIN_FOUND
+# Thorin_INCLUDE_DIRS (including dependencies to LLVM/RV/Half)
+# Thorin_LIBRARIES (including dependencies to LLVM/RV)
+# Thorin_FOUND
 
-CMAKE_MINIMUM_REQUIRED ( VERSION 3.1 )
+cmake_minimum_required(VERSION 3.1)
 
-FIND_PATH (THORIN_DIR
-    NAMES
-        thorin-config.cmake
+find_path(THORIN_DIR
+    NAMES thorin-config.cmake
     PATHS
-        ${THORIN_DIR}
-        $ENV{THORIN_DIR}
+        ${Thorin_DIR} ${AnyDSL_thorin_DIR} ${THORIN_DIR}
+        $ENV{Thorin_DIR} $ENV{THORIN_DIR}
         ${CMAKE_CURRENT_LIST_DIR}
         "@CMAKE_CURRENT_BINARY_DIR@"
         "@CMAKE_INSTALL_PREFIX@"
@@ -20,87 +19,37 @@ FIND_PATH (THORIN_DIR
         share/thorin/cmake
 )
 
-FIND_PATH (THORIN_ROOT_DIR
-    NAMES
-        cmake/thorin-config.cmake.in
-        src/thorin/world.h
-    PATHS
-        ${THORIN_ROOT_DIR}
-        "@CMAKE_CURRENT_SOURCE_DIR@"
-        "@CMAKE_SOURCE_DIR@"
-)
+find_path(THORIN_ROOT_DIR
+    NAMES cmake/thorin-config.cmake.in src/thorin/world.h
+    PATHS ${THORIN_DIR} $ENV{THORIN_DIR} ${THORIN_ROOT_DIR} "@CMAKE_CURRENT_SOURCE_DIR@" "@CMAKE_SOURCE_DIR@")
+list(APPEND CMAKE_MODULE_PATH "${THORIN_ROOT_DIR}/cmake/modules")
 
-LIST( APPEND CMAKE_MODULE_PATH "${THORIN_ROOT_DIR}/cmake/modules" )
-# TODO: better would be to set Half_DIR here, but FindHalf.cmake overrides it
-FIND_PATH (Half_INCLUDE_DIR
-    NAMES
-        half.hpp
-    PATHS
-        ${Half_DIR}
-        $ENV{Half_DIR}
-        "@Half_DIR@"
-        "@Half_INCLUDE_DIR@"
-)
-FIND_PACKAGE ( Half REQUIRED )
+find_path(Half_DIR NAMES half.hpp PATHS ${Half_DIR} $ENV{Half_DIR} "@Half_DIR@" "@Half_INCLUDE_DIR@")
+find_package(Half REQUIRED)
 
-FIND_PATH (LLVM_DIR LLVMConfig.cmake
-    PATHS
-        ${LLVM_DIR}
-        $ENV{LLVM_DIR}
-        "@LLVM_DIR@"
-)
-FIND_PACKAGE ( LLVM QUIET )
+find_path(LLVM_DIR LLVMConfig.cmake PATHS ${LLVM_DIR} $ENV{LLVM_DIR} "@LLVM_DIR@")
+find_package(LLVM QUIET)
 
-FIND_PATH (RV_DIR rv-config.cmake
-    PATHS
-        ${RV_DIR}
-        $ENV{RV_DIR}
-        "@RV_DIR@"
-)
-FIND_PACKAGE ( RV QUIET )
+find_path(RV_DIR rv-config.cmake PATHS ${RV_DIR} $ENV{RV_DIR} "@RV_DIR@")
+find_package(RV QUIET)
 
+find_path(THORIN_INCLUDE_DIR NAMES thorin/world.h PATHS ${THORIN_ROOT_DIR}/src)
 
-FIND_PATH ( THORIN_INCLUDE_DIR NAMES thorin/world.h PATHS ${THORIN_ROOT_DIR}/src )
+if(NOT TARGET thorin)
+    include(${THORIN_DIR}/thorin-exports.cmake)
+endif()
+set(THORIN_LIBRARY thorin)
 
-SET (THORIN_LIBS_DIR
-    "${THORIN_DIR}/../../../@PROJ_LIBRARY_DIR@"
-    "@CMAKE_LIBRARY_OUTPUT_DIRECTORY@"
-    "@CMAKE_ARCHIVE_OUTPUT_DIRECTORY@"
-    # TODO: additionally use install prefix
-)
-FIND_LIBRARY ( THORIN_LIBRARY_RELEASE
-    NAMES thorin "@CMAKE_RELEASE_PREFIX@thorin@CMAKE_RELEASE_POSTFIX@"
-    PATHS ${THORIN_LIBS_DIR}
-    PATH_SUFFIXES Release
-)
-FIND_LIBRARY ( THORIN_LIBRARY_DEBUG
-    NAMES thorin "@CMAKE_DEBUG_PREFIX@thorin@CMAKE_DEBUG_POSTFIX@"
-    PATHS ${THORIN_LIBS_DIR}
-    PATH_SUFFIXES Debug
-)
-IF (THORIN_LIBRARY_RELEASE STREQUAL THORIN_LIBRARY_DEBUG)
-    SET ( THORIN_LIBRARY ${THORIN_LIBRARY_RELEASE})
-ELSE ()
-    SET ( THORIN_LIBRARY
-        optimized ${THORIN_LIBRARY_RELEASE}
-        debug ${THORIN_LIBRARY_DEBUG}
-    )
-ENDIF ()
-
-# add thorin's (transitive) dependencies
-INCLUDE ( ${THORIN_ROOT_DIR}/thorin-shared.cmake )
-GET_THORIN_DEPENDENCY_LIBS ( THORIN_DEPS_LIBRARIES )
-
-SET (THORIN_DEPS_INCLUDE_DIRS
+set(THORIN_DEPS_INCLUDE_DIRS
     ${Half_INCLUDE_DIRS}
     ${LLVM_INCLUDE_DIRS}
     ${RV_INCLUDE_DIR}
 )
 
-SET ( THORIN_LIBRARIES ${THORIN_LIBRARY} ${THORIN_DEPS_LIBRARIES} )
-SET ( THORIN_INCLUDE_DIRS ${THORIN_INCLUDE_DIR} ${THORIN_DEPS_INCLUDE_DIRS})
+set(Thorin_LIBRARIES ${THORIN_LIBRARY})
+set(Thorin_INCLUDE_DIRS ${THORIN_INCLUDE_DIR} ${THORIN_DEPS_INCLUDE_DIRS})
 
-INCLUDE ( FindPackageHandleStandardArgs )
-FIND_PACKAGE_HANDLE_STANDARD_ARGS ( THORIN DEFAULT_MSG THORIN_LIBRARY THORIN_INCLUDE_DIR )
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(Thorin DEFAULT_MSG THORIN_DIR THORIN_INCLUDE_DIR)
 
-MARK_AS_ADVANCED ( THORIN_LIBRARY THORIN_INCLUDE_DIR THORIN_ROOT_DIR THORIN_LIBS_DIR )
+mark_as_advanced(THORIN_LIBRARY THORIN_INCLUDE_DIR THORIN_ROOT_DIR)

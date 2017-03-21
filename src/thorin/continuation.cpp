@@ -462,8 +462,11 @@ const Def* Continuation::try_remove_trivial_param(const Param* param) {
     assert(same != nullptr);
     param->replace(same);
 
-    for (auto peek : param->peek())
-        peek.from()->update_arg(index, world().bottom(param->type(), param->debug()));
+    for (auto peek : param->peek()) {
+        auto continuation = peek.from();
+        continuation->unset_op(index+1);
+        continuation->set_op(index+1, world().bottom(param->type(), param->debug()));
+    }
 
     for (auto use : same->uses()) {
         if (Continuation* continuation = use->isa_continuation()) {

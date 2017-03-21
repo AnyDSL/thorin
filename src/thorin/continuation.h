@@ -106,13 +106,7 @@ private:
     virtual ~Continuation() { for (auto param : params()) delete param; }
 
 public:
-    Continuation* stub() const { Type2Type map; return stub(map); }
-    Continuation* stub(Debug debug) const { Type2Type map; return stub(map, debug); }
-    Continuation* stub(Type2Type& type2type) const { return stub(type2type, debug()); }
-    Continuation* stub(Type2Type& type2type, Debug) const;
-    Continuation* update_callee(const Def* def) { return update_op(0, def); }
-    Continuation* update_op(size_t i, const Def* def);
-    Continuation* update_arg(size_t i, const Def* def) { return update_op(i+1, def); }
+    Continuation* stub() const;
     const Param* append_param(const Type* type, const std::string& name = "");
     Continuations direct_preds() const;
     Continuations direct_succs() const;

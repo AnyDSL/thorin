@@ -65,11 +65,11 @@ void Cleaner::eliminate_params() {
 
             if (!proxy_idx.empty()) {
                 auto ncontinuation = world().continuation(world().fn_type(ocontinuation->type()->ops().cut(proxy_idx)),
-                                            ocontinuation->cc(), ocontinuation->intrinsic(), ocontinuation->debug());
+                                            ocontinuation->cc(), ocontinuation->intrinsic(), ocontinuation->debug_history());
                 size_t j = 0;
                 for (auto i : param_idx) {
                     ocontinuation->param(i)->replace(ncontinuation->param(j));
-                    ncontinuation->param(j++)->debug().set(ocontinuation->param(i)->name());
+                    ncontinuation->param(j++)->debug().set(ocontinuation->param(i)->debug_history());
                 }
 
                 ncontinuation->jump(ocontinuation->callee(), ocontinuation->args(), ocontinuation->jump_debug());
@@ -145,6 +145,7 @@ void Cleaner::cleanup() {
     //      when they are not in the scope entry
     hoist_enters(world());
     eliminate_params();
+    unreachable_code_elimination();
     rebuild();
 
 #ifndef NDEBUG

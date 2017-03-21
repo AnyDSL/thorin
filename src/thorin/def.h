@@ -111,6 +111,8 @@ protected:
 
 public:
     NodeTag tag() const { return tag_; }
+    /// In Debug build if World::enable_history is true, this thing keeps the gid to track a history of gid%s.
+    Debug debug_history() const;
     Debug& debug() const { return debug_; }
     Location location() const { return debug_; }
     const std::string& name() const { return debug().name(); }

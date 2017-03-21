@@ -36,13 +36,10 @@ const Def* Continuation::callee() const {
     return empty() ? world().bottom(world().fn_type(), debug()) : op(0);
 }
 
-Continuation* Continuation::stub(Type2Type&, Debug dbg) const {
-    // TODO
-    //auto fn_type = type()->reduce(0, type2type)->as<FnType>();
-    auto fn_type = type();
-    auto result = world().continuation(fn_type, cc(), intrinsic(), dbg);
+Continuation* Continuation::stub() const {
+    auto result = world().continuation(type(), cc(), intrinsic(), debug_history());
     for (size_t i = 0, e = num_params(); i != e; ++i)
-        result->param(i)->debug().set(param(i)->name());
+        result->param(i)->debug().set(param(i)->debug_history());
 
     return result;
 }

@@ -26,6 +26,14 @@ Def::Def(NodeTag tag, const Type* type, size_t size, Debug dbg)
     , debug_(dbg)
 {}
 
+Debug Def::debug_history() const {
+#ifndef NDEBUG
+    return world().track_history() ? Debug(location(), unique_name()) : debug();
+#else
+    return debug();
+#endif
+}
+
 void Def::set_op(size_t i, const Def* def) {
     assert(!op(i) && "already set");
     assert(def && "setting null pointer");

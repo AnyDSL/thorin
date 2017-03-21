@@ -17,6 +17,7 @@ public:
     World& world() { return world_; }
     void cleanup();
     void merge_continuations();
+    void unreachable_code_elimination();
     void eliminate_params();
     void rebuild();
     void verify_closedness();
@@ -83,6 +84,20 @@ void Cleaner::eliminate_params() {
             }
         }
 next_continuation:;
+    }
+}
+
+
+void Cleaner::unreachable_code_elimination() {
+    ContinuationSet reachable;
+    Scope::for_each(world(), [&] (const Scope& scope) {
+        for (auto n : scope.f_cfg().reverse_post_order())
+            reachable.emplace(n->continuation());
+    });
+
+    for (auto continuation : world().continuations()) {
+        if (!reachable.contains(continuation))
+            continuation->destroy_body();
     }
 }
 

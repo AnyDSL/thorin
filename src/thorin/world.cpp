@@ -8,9 +8,8 @@
 #include "thorin/type.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/transform/cleanup_world.h"
-#include "thorin/transform/clone_bodies.h"
 #include "thorin/transform/inliner.h"
-#include "thorin/transform/lift_builtins.h"
+#include "thorin/transform/acc_prepare.h"
 #include "thorin/transform/higher_order_lifting.h"
 #include "thorin/transform/lower2cff.h"
 #include "thorin/transform/mem2reg.h"
@@ -844,9 +843,8 @@ void World::opt() {
     partial_evaluation(*this);
     cleanup();
     lower2cff(*this);
-    clone_bodies(*this);
+    acc_prepare(*this);
     mem2reg(*this);
-    lift_builtins(*this);
     inliner(*this);
     dead_load_opt(*this);
     cleanup();

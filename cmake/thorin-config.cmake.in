@@ -27,11 +27,13 @@ list(APPEND CMAKE_MODULE_PATH "${THORIN_ROOT_DIR}/cmake/modules")
 find_path(Half_DIR NAMES half.hpp PATHS ${Half_DIR} $ENV{Half_DIR} "@Half_DIR@" "@Half_INCLUDE_DIR@")
 find_package(Half REQUIRED)
 
-find_path(LLVM_DIR LLVMConfig.cmake PATHS ${LLVM_DIR} $ENV{LLVM_DIR} "@LLVM_DIR@")
-find_package(LLVM QUIET)
+if(NOT @CMAKE_DISABLE_FIND_PACKAGE_LLVM@)
+    find_path(LLVM_DIR LLVMConfig.cmake PATHS ${LLVM_DIR} $ENV{LLVM_DIR} "@LLVM_DIR@")
+    find_package(LLVM QUIET)
 
-find_path(RV_DIR rv-config.cmake PATHS ${RV_DIR} $ENV{RV_DIR} "@RV_DIR@")
-find_package(RV QUIET)
+    find_path(RV_DIR rv-config.cmake PATHS ${RV_DIR} $ENV{RV_DIR} "@RV_DIR@")
+    find_package(RV QUIET)
+endif()
 
 find_path(THORIN_INCLUDE_DIR NAMES thorin/world.h PATHS ${THORIN_ROOT_DIR}/src)
 

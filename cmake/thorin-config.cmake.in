@@ -27,7 +27,7 @@ list(APPEND CMAKE_MODULE_PATH "${THORIN_ROOT_DIR}/cmake/modules")
 find_path(Half_DIR NAMES half.hpp PATHS ${Half_DIR} $ENV{Half_DIR} "@Half_DIR@" "@Half_INCLUDE_DIR@")
 find_package(Half REQUIRED)
 
-if(NOT @CMAKE_DISABLE_FIND_PACKAGE_LLVM@)
+if(NOT "@CMAKE_DISABLE_FIND_PACKAGE_LLVM@")
     find_path(LLVM_DIR LLVMConfig.cmake PATHS ${LLVM_DIR} $ENV{LLVM_DIR} "@LLVM_DIR@")
     find_package(LLVM QUIET)
 

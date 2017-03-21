@@ -62,12 +62,6 @@ const Param* Continuation::mem_param() const {
     return nullptr;
 }
 
-Continuation* Continuation::update_op(size_t i, const Def* def) {
-    unset_op(i);
-    set_op(i, def);
-    return this;
-}
-
 void Continuation::destroy_body() {
     unset_ops();
     resize(0);
@@ -258,6 +252,8 @@ void Continuation::jump(const Def* callee, Defs args, Debug dbg) {
     size_t x = 1;
     for (auto arg : args)
         set_op(x++, arg);
+
+    verify();
 }
 
 void Continuation::branch(const Def* cond, const Def* t, const Def* f, Debug dbg) {
@@ -312,7 +308,13 @@ void jump_to_cached_call(Continuation* src, Continuation* dst, const Call& call)
     }
 
     src->jump(dst, nargs, src->jump_debug());
-    assert(src->arg_fn_type() == dst->type());
+}
+
+Continuation* Continuation::update_op(size_t i, const Def* def) {
+    Array<const Def*> new_ops(ops());
+    new_ops[i] = def;
+    jump(new_ops.front(), new_ops.skip_front(), jump_location());
+    return this;
 }
 
 /*

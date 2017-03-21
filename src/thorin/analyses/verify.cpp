@@ -8,14 +8,8 @@
 namespace thorin {
 
 static void verify_calls(World& world) {
-    for (auto continuation : world.continuations()) {
-        if (!continuation->empty()) {
-            auto callee_fn_type = continuation->callee_fn_type();
-            auto arg_fn_type = continuation->arg_fn_type();
-            assertf(callee_fn_type == arg_fn_type, "continuation '{}' calls '{}' of type '{}' but call has type '{}'",
-                    continuation, continuation->callee(), callee_fn_type, arg_fn_type);
-        }
-    }
+    for (auto continuation : world.continuations())
+        continuation->verify();
 }
 
 static void verify_top_level(World& world) {

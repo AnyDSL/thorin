@@ -167,6 +167,20 @@ public:
     void jump(JumpTarget&, Debug dbg = {});
     void branch(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
     std::pair<Continuation*, const Def*> call(const Def* callee, Defs args, const Type* ret_type, Debug dbg = {});
+    void verify() const {
+#ifndef NDEBUG
+        if (auto continuation = callee()->isa<Continuation>()) {
+            if (!continuation->is_sealed())
+                return;
+        }
+        auto c = callee_fn_type();
+        auto a = arg_fn_type();
+        assertf(c == a, "continuation '{}' calls '{}' of type '{}' but call has type '{}'\n", this, callee(), c, a);
+#endif
+    }
+    Continuation* update_op(size_t i, const Def* def);
+    Continuation* update_callee(const Def* def) { return update_op(0, def); }
+    Continuation* update_arg(size_t i, const Def* def) { return update_op(i+1, def); }
 
     // value numbering
 

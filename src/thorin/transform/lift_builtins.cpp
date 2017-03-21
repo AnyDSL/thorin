@@ -51,11 +51,11 @@ void lift_builtins(World& world) {
                         std::copy(defs.begin(), defs.end(), std::copy(old_ops.begin(), old_ops.end(), new_ops.begin()));    // old ops + former free defs
                         assert(old_ops[use.index()] == cur);
                         new_ops[use.index()] = world.global(lifted, false, lifted->debug());                                // update to new lifted continuation
-                        ucontinuation->jump(cur, new_ops.skip_front(), ucontinuation->jump_debug());                        // set new args
 
-                        // jump to new top-level dummy function
-                        auto ncontinuation = world.continuation(ucontinuation->arg_fn_type(), callee->cc(), callee->intrinsic(), callee->debug());
-                        ucontinuation->update_callee(ncontinuation);
+                        // jump to new top-level dummy function with new args
+                        auto fn_type = world.fn_type(Array<const Type*>(new_ops.size()-1, [&] (auto i) { return new_ops[i+1]->type(); }));
+                        auto ncontinuation = world.continuation(fn_type, callee->cc(), callee->intrinsic(), callee->debug());
+                        ucontinuation->jump(ncontinuation, new_ops.skip_front(), ucontinuation->jump_debug());
                     }
                 }
             }

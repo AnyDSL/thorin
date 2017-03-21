@@ -36,7 +36,7 @@ void lower2cff(World& world) {
                 auto continuation = n->continuation();
                 if (auto callee = continuation->callee()->isa_continuation()) {
                     if (is_bad(callee)) {
-                        DLOG("bad: {}", callee);
+                        DLOG("bad: {} at {}", callee, callee->location());
                         todo = dirty = true;
 
                         Call call(continuation);

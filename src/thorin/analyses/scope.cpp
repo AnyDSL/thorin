@@ -33,7 +33,7 @@ const Scope& Scope::update() {
     auto e = entry();
     continuations_.clear();
     defs_.clear();
-    cfa_.release();
+    cfa_ = nullptr;
     id_ = id_counter_++;
     run(e);
     return *this;

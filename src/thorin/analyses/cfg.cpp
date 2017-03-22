@@ -344,51 +344,53 @@ Array<CFNodeSet> CFABuilder::arg_nodes(const CFNode* in) {
 
 void CFABuilder::run_cfa() {
     std::queue<Continuation*> queue;
+    ContinuationSet done;
 
     auto enqueue = [&] (const CFNode* in) {
-        queue.push(in->continuation());
-        in->f_index_ = CFNode::Unfresh;
+        if (done.emplace(in->continuation()).second)
+            queue.push(in->continuation());
     };
 
-    enqueue(entry());
+    for (bool todo = true; todo;) {
+        todo = false;
+        enqueue(entry());
 
-    while (!queue.empty()) {
-        auto cur_continuation = pop(queue);
-        DLOG("cur_continuation: {}", cur_continuation);
-        auto cur_in = in_node(cur_continuation);
-        auto args = arg_nodes(cur_in);
+        while (!queue.empty()) {
+            auto cur_continuation = pop(queue);
+            DLOG("cur_continuation: {}", cur_continuation);
+            auto cur_in = in_node(cur_continuation);
+            auto args = arg_nodes(cur_in);
 
-        for (auto n : callee_nodes(cur_in)) {
-            if (auto in = n->isa<CFNode>()) {
-                if (args.size() == in->continuation()->num_params()) {
-                    bool todo = in->f_index_ == CFNode::Fresh;
-                    for (size_t i = 0; i != cur_continuation->num_args(); ++i) {
-                        if (in->continuation()->param(i)->order() > 0)
-                            todo |= continuation2param2nodes_[in->continuation()][i].insert_range(args[i]);
-                    }
-                    if (todo)
+            for (auto n : callee_nodes(cur_in)) {
+                if (auto in = n->isa<CFNode>()) {
+                    if (args.size() == in->continuation()->num_params()) {
+                        for (size_t i = 0; i != cur_continuation->num_args(); ++i) {
+                            if (in->continuation()->param(i)->order() > 0)
+                                todo |= continuation2param2nodes_[in->continuation()][i].insert_range(args[i]);
+                        }
                         enqueue(in);
-                }
+                    }
 
-            } else {
-                auto out = n->as<OutNode>();
-                assert(in_node(cur_continuation) == out->context() && "OutNode's context does not match");
+                } else {
+                    auto out = n->as<OutNode>();
+                    assert(in_node(cur_continuation) == out->context() && "OutNode's context does not match");
 
-                for (const auto& nodes : args) {
-                    for (auto n : nodes) {
-                        if (auto in = n->isa<CFNode>()) {
-                            bool todo = in->f_index_ == CFNode::Fresh;
-                            for (size_t i = 0; i != in->continuation()->num_params(); ++i) {
-                                if (in->continuation()->param(i)->order() > 0)
-                                    todo |= continuation2param2nodes_[in->continuation()][i].emplace(out).second;
-                            }
-                            if (todo)
+                    for (const auto& nodes : args) {
+                        for (auto n : nodes) {
+                            if (auto in = n->isa<CFNode>()) {
+                                for (size_t i = 0; i != in->continuation()->num_params(); ++i) {
+                                    if (in->continuation()->param(i)->order() > 0)
+                                        todo |= continuation2param2nodes_[in->continuation()][i].emplace(out).second;
+                                }
                                 enqueue(in);
+                            }
                         }
                     }
                 }
             }
         }
+
+        done.clear();
     }
 }
 

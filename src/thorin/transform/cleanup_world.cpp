@@ -91,6 +91,7 @@ next_continuation:;
 void Cleaner::unreachable_code_elimination() {
     ContinuationSet reachable;
     Scope::for_each(world(), [&] (const Scope& scope) {
+        DLOG("scope: {}", scope.entry());
         for (auto n : scope.f_cfg().reverse_post_order())
             reachable.emplace(n->continuation());
     });

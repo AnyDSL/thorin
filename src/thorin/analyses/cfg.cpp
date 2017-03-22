@@ -354,6 +354,7 @@ void CFABuilder::run_cfa() {
 
     while (!queue.empty()) {
         auto cur_continuation = pop(queue);
+        DLOG("cur_continuation: {}", cur_continuation);
         auto cur_in = in_node(cur_continuation);
         auto args = arg_nodes(cur_in);
 

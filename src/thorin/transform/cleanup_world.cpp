@@ -17,6 +17,7 @@ public:
     World& world() { return world_; }
     void cleanup();
     void merge_continuations();
+    void eta_conversion();
     void unreachable_code_elimination();
     void eliminate_params();
     void rebuild();
@@ -40,6 +41,19 @@ void Cleaner::merge_continuations() {
                     todo = true;
                 } else
                     break;
+            }
+        }
+    }
+}
+
+void Cleaner::eta_conversion() {
+    for (bool todo = true; todo;) {
+        todo = false;
+        for (auto continuation : world().continuations()) {
+            if (!continuation->empty() && !continuation->is_external() && continuation->args() == continuation->params_as_defs()) {
+                continuation->replace(continuation->callee());
+                continuation->destroy_body();
+                todo = true;
             }
         }
     }
@@ -157,6 +171,7 @@ void Cleaner::cleanup() {
 #endif
 
     merge_continuations();
+    eta_conversion();
     // TODO move this to World::opt as soon as the scheduler is able to correctly schedule enters/slots etc
     //      when they are not in the scope entry
     hoist_enters(world());

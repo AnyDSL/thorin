@@ -154,7 +154,15 @@ const CFNode* Scheduler::schedule_smart(const PrimOp* primop) {
         result = late;
         int depth = looptree_[late]->depth();
         for (auto i = late; i != early;) {
-            i = domtree_.idom(i);
+            auto idom = domtree_.idom(i);
+
+            if (i == idom) {
+                WLOG(primop, "don't know where to put {} - using late postion {}", primop, late);
+                result = late;
+                break;
+            }
+
+            i = idom;
             int cur_depth = looptree_[i]->depth();
             if (cur_depth < depth) {
                 result = i;

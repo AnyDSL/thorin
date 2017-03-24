@@ -8,7 +8,7 @@
 
 cmake_minimum_required(VERSION 3.1)
 
-find_path(THORIN_DIR
+find_path(Thorin_DIR
     NAMES thorin-config.cmake
     PATHS
         ${Thorin_DIR} ${AnyDSL_thorin_DIR} ${THORIN_DIR}
@@ -22,7 +22,7 @@ find_path(THORIN_DIR
 
 find_path(THORIN_ROOT_DIR
     NAMES cmake/thorin-config.cmake.in src/thorin/world.h
-    PATHS ${THORIN_DIR} $ENV{THORIN_DIR} ${THORIN_ROOT_DIR} "@CMAKE_CURRENT_SOURCE_DIR@" "@CMAKE_SOURCE_DIR@")
+    PATHS ${Thorin_DIR} $ENV{Thorin_DIR} ${THORIN_ROOT_DIR} "@CMAKE_CURRENT_SOURCE_DIR@" "@CMAKE_SOURCE_DIR@")
 list(APPEND CMAKE_MODULE_PATH "${THORIN_ROOT_DIR}/cmake/modules")
 
 find_path(Half_DIR NAMES half.hpp PATHS ${Half_DIR} $ENV{Half_DIR} "@Half_DIR@" "@Half_INCLUDE_DIR@")
@@ -44,7 +44,7 @@ endif()
 find_path(THORIN_INCLUDE_DIR NAMES thorin/world.h PATHS ${THORIN_ROOT_DIR}/src)
 
 if(NOT TARGET thorin)
-    include(${THORIN_DIR}/thorin-exports.cmake)
+    include(${Thorin_DIR}/thorin-exports.cmake)
 endif()
 set(THORIN_LIBRARY thorin)
 
@@ -58,6 +58,6 @@ set(Thorin_LIBRARIES ${THORIN_LIBRARY})
 set(Thorin_INCLUDE_DIRS ${THORIN_INCLUDE_DIR} ${THORIN_DEPS_INCLUDE_DIRS})
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(Thorin DEFAULT_MSG THORIN_DIR THORIN_INCLUDE_DIR)
+find_package_handle_standard_args(Thorin DEFAULT_MSG Thorin_DIR THORIN_INCLUDE_DIR)
 
 mark_as_advanced(THORIN_LIBRARY THORIN_INCLUDE_DIR THORIN_ROOT_DIR)

@@ -94,6 +94,7 @@ void Scheduler::compute_def2uses() {
         auto def = pop(queue);
         for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
             // all reachable continuations have already been registered above
+            // NOTE we might still see references to unreahable continuations in the schedule
             if (!def->op(i)->isa<Continuation>())
                 enqueue(def, i, def->op(i));
         }

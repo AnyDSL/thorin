@@ -221,7 +221,6 @@ private:
     friend class World;
 };
 
-const IndefiniteArrayType* is_indefinite(const Type*);
 bool use_lea(const Type*);
 
 //------------------------------------------------------------------------------

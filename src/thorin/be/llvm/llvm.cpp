@@ -796,7 +796,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto alloced_type = convert(alloc->alloced_type());
         llvm::CallInst* void_ptr;
         auto layout = module_->getDataLayout();
-        if (auto array = is_indefinite(alloc->alloced_type())) {
+        if (auto array = alloc->alloced_type()->isa<IndefiniteArrayType>()) {
             auto size = irbuilder_.CreateAdd(
                     irbuilder_.getInt64(layout.getTypeAllocSize(alloced_type)),
                     irbuilder_.CreateMul(irbuilder_.CreateIntCast(lookup(alloc->extra()), irbuilder_.getInt64Ty(), false),

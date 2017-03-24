@@ -12,14 +12,9 @@ find_package(Half REQUIRED)
 message(STATUS "Building with Half library from ${Half_INCLUDE_DIRS}.")
 include_directories(${Half_INCLUDE_DIRS})
 
-# check for RV
-find_package(RV QUIET)
 if(RV_FOUND)
-    message(STATUS "Building with RV.")
     add_definitions("-DRV_SUPPORT")
     include_directories(${RV_INCLUDE_DIR})
-else()
-    message(STATUS "Building without RV. Specify RV_DIR to compile with RV.")
 endif()
 
 if(LLVM_FOUND)

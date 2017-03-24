@@ -29,6 +29,14 @@ else()
     message(STATUS "Building without LLVM. Specify LLVM_DIR to compile with LLVM.")
 endif()
 
+# check for RV
+find_package(RV QUIET)
+if(RV_FOUND)
+    message(STATUS "Building with RV.")
+else()
+    message(STATUS "Building without RV. Specify RV_DIR to compile with RV.")
+endif()
+
 add_subdirectory(src)
 
 message(STATUS "Using Debug flags: ${CMAKE_CXX_FLAGS_DEBUG}")

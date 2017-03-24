@@ -70,7 +70,7 @@ void Cleaner::eliminate_params() {
                 size_t j = 0;
                 for (auto i : param_idx) {
                     ocontinuation->param(i)->replace(ncontinuation->param(j));
-                    ncontinuation->param(j++)->debug().set(ocontinuation->param(i)->debug_history());
+                    ncontinuation->param(j++)->debug() = ocontinuation->param(i)->debug_history();
                 }
 
                 ncontinuation->jump(ocontinuation->callee(), ocontinuation->args(), ocontinuation->jump_debug());

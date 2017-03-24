@@ -39,7 +39,7 @@ const Def* Continuation::callee() const {
 Continuation* Continuation::stub() const {
     auto result = world().continuation(type(), cc(), intrinsic(), debug_history());
     for (size_t i = 0, e = num_params(); i != e; ++i)
-        result->param(i)->debug().set(param(i)->debug_history());
+        result->param(i)->debug() = param(i)->debug_history();
 
     return result;
 }

@@ -55,7 +55,7 @@ const Def* Importer::import(const Def* odef) {
         assert(&ncontinuation->world() == &world());
         assert(&npi->world() == &world());
         for (size_t i = 0, e = ocontinuation->num_params(); i != e; ++i) {
-            ncontinuation->param(i)->debug().set(ocontinuation->param(i)->debug_history());
+            ncontinuation->param(i)->debug() = ocontinuation->param(i)->debug_history();
             def_old2new_[ocontinuation->param(i)] = ncontinuation->param(i);
         }
 

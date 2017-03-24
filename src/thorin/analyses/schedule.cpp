@@ -92,8 +92,11 @@ void Scheduler::compute_def2uses() {
 
     while (!queue.empty()) {
         auto def = pop(queue);
-        for (size_t i = 0, e = def->num_ops(); i != e; ++i)
-            enqueue(def, i, def->op(i));
+        for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
+            // all reachable continuations have already been registered above
+            if (!def->op(i)->isa<Continuation>())
+                enqueue(def, i, def->op(i));
+        }
     }
 }
 

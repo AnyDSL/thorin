@@ -246,26 +246,18 @@ void Schedule::verify() {
 #ifndef NDEBUG
     auto& domtree = cfg().domtree();
     Schedule::Map<const Def*> block2mem(*this);
-    bool error = false;
 
     for (auto& block : *this) {
         const Def* mem = block.continuation()->mem_param();
         mem = mem ? mem : block2mem[(*this)[domtree.idom(block.node())]];
         for (auto primop : block) {
             if (auto memop = primop->isa<MemOp>()) {
-                if (memop->mem() != mem) {
-                    VLOG("incorrect schedule: {} (current mem is {}) - scope entry: {}", memop, mem, scope_.entry());
-                    error = true;
-                }
+                if (memop->mem() != mem)
+                    WLOG(memop, "incorrect schedule: {} (current mem is {}) - scope entry: {}", memop, mem, scope_.entry());
                 mem = memop->out_mem();
             }
         }
         block2mem[block] = mem;
-    }
-
-    if (error) {
-        thorin();
-        assert(false && "memory not used in a linear way");
     }
 #endif
 }

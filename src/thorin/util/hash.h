@@ -226,7 +226,7 @@ public:
             return array_emplace(std::forward<Args>(args)...);
 
         if (size_ >= capacity_/4_s + capacity_/2_s)
-            rehash(capacity_*2_s);
+            rehash(capacity_*4_s);
 
 #ifndef NDEBUG
         ++id_;
@@ -247,7 +247,7 @@ public:
         size_t c = round_to_power_of_2(s);
 
         if (s > c/4_s + c/2_s)
-            c *= 2_s;
+            c *= 4_s;
 
         c = std::max(c, size_t(capacity_));
 
@@ -284,8 +284,8 @@ public:
             key(&empty) = H::sentinel();
             swap(*pos.ptr_, empty);
 
-            if (capacity_ > size_t(MinHeapCapacity) && size_ < capacity_/4_s)
-                rehash(capacity_/2_s);
+            if (capacity_ > size_t(MinHeapCapacity) && size_ < capacity_/8_s)
+                rehash(capacity_/4_s);
             else {
                 for (size_t curr = pos.ptr_-nodes_, next = mod(curr+1);
                     !is_invalid(next) && probe_distance(next) != 0; curr = next, next = mod(next+1)) {

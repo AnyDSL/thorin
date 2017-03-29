@@ -50,7 +50,8 @@ void Cleaner::eta_conversion() {
     for (bool todo = true; todo;) {
         todo = false;
         for (auto continuation : world().continuations()) {
-            if (!continuation->empty() && !continuation->is_external() && continuation->args() == continuation->params_as_defs()) {
+            if (!continuation->empty() && continuation->callee()->isa<Param>()
+                    && !continuation->is_external() && continuation->args() == continuation->params_as_defs()) {
                 continuation->replace(continuation->callee());
                 continuation->destroy_body();
                 todo = true;

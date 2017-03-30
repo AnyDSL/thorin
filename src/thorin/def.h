@@ -75,7 +75,7 @@ struct UseHash {
 };
 
 // using a StackCapaicty of 8 covers almost 99% of all real-world use-lists
-typedef HashSet<Use, UseHash, 8> Uses;
+typedef HashSet<Use, UseHash> Uses;
 
 template<class To>
 using DefMap  = GIDMap<const Def*, To>;

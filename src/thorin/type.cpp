@@ -43,14 +43,6 @@ bool FnType::is_returning() const {
     return true;
 }
 
-const IndefiniteArrayType* is_indefinite(const Type* type) {
-    if (auto indefinite_array_type = type->isa<IndefiniteArrayType>())
-        return indefinite_array_type;
-    if (!type->empty())
-        return is_indefinite(type->ops().back());
-    return nullptr;
-}
-
 bool use_lea(const Type* type) { return type->isa<StructType>() || type->isa<ArrayType>(); }
 
 //------------------------------------------------------------------------------

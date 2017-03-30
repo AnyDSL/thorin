@@ -39,6 +39,7 @@
 #include "thorin/be/llvm/cuda.h"
 #include "thorin/be/llvm/nvvm.h"
 #include "thorin/be/llvm/opencl.h"
+#include "thorin/transform/codegen_prepare.h"
 #include "thorin/transform/importer.h"
 #include "thorin/util/array.h"
 #include "thorin/util/log.h"
@@ -1066,8 +1067,10 @@ void emit_llvm(World& world, int opt, bool debug) {
             imported->param(i)->debug().set(continuation->param(i)->unique_name());
     });
 
-    if (!cuda.world().empty() || !nvvm.world().empty() || !opencl.world().empty())
+    if (!cuda.world().empty() || !nvvm.world().empty() || !opencl.world().empty()) {
         world.cleanup();
+        codegen_prepare(world);
+    }
 
     CPUCodeGen(world).emit(opt, debug);
     if (!cuda.  world().empty()) CUDACodeGen  (cuda  .world()).emit(/*opt,*/ debug);

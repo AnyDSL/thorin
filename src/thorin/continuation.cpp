@@ -59,6 +59,17 @@ const Param* Continuation::mem_param() const {
     return nullptr;
 }
 
+const Param* Continuation::ret_param() const {
+    const Param* result = nullptr;
+    for (auto param : params()) {
+        if (param->order() >= 1) {
+            assertf(result == nullptr, "only one ret_param allowed");
+            result = param;
+        }
+    }
+    return result;
+}
+
 void Continuation::destroy_body() {
     unset_ops();
     resize(0);

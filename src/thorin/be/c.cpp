@@ -545,50 +545,41 @@ void CCodeGen::emit() {
                             }
                         }
 
-                        if (ret_arg == ret_param) {     // call + return
-                            if (ret_arg->type() == fn_mem_) {
+                        // must be call + continuation --- call + return has been removed by codegen_prepare
+                        auto succ = ret_arg->as_continuation();
+                        const Param* param = nullptr;
+                        switch (succ->num_params()) {
+                            case 0:
                                 emit_call();
-                                func_impl_ << endl << "return ;";
-                            } else {
-                                func_impl_ << "return ";
+                                break;
+                            case 1:
+                                // TODO this looks weird
+                                param = is_mem(succ->param(0)) ? succ->param(0) : nullptr;
+                                if (is_mem(param))
+                                    param = nullptr;
+                                emit_call(param);
+                                break;
+                            case 2:
+                                assert(succ->mem_param() && "no mem_param found for succ");
+                                param = succ->param(0);
+                                param = is_mem(param) ? succ->param(1) : param;
+                                emit_call(param);
+                                break;
+                            default: {
+                                assert(is_mem(succ->param(0)));
+                                auto ret_param_fn_type = ret_arg->type()->as<FnType>();
+                                auto ret_type = world_.tuple_type(ret_param_fn_type->ops().skip_front());
+
+                                auto ret_tuple_name = "ret_tuple" + std::to_string(continuation->gid());
+                                emit_aggop_decl(ret_type);
+                                emit_type(func_impl_, ret_type) << " " << ret_tuple_name << ";" << endl << ret_tuple_name << " = ";
                                 emit_call();
-                            }
-                        } else {                        // call + continuation
-                            auto succ = ret_arg->as_continuation();
-                            const Param* param = nullptr;
-                            switch (succ->num_params()) {
-                                case 0:
-                                    emit_call();
-                                    break;
-                                case 1:
-                                    // TODO this looks weird
-                                    param = is_mem(succ->param(0)) ? succ->param(0) : nullptr;
-                                    if (is_mem(param))
-                                        param = nullptr;
-                                    emit_call(param);
-                                    break;
-                                case 2:
-                                    assert(succ->mem_param() && "no mem_param found for succ");
-                                    param = succ->param(0);
-                                    param = is_mem(param) ? succ->param(1) : param;
-                                    emit_call(param);
-                                    break;
-                                default: {
-                                    assert(is_mem(succ->param(0)));
-                                    auto ret_param_fn_type = ret_arg->type()->as<FnType>();
-                                    auto ret_type = world_.tuple_type(ret_param_fn_type->ops().skip_front());
 
-                                    auto ret_tuple_name = "ret_tuple" + std::to_string(continuation->gid());
-                                    emit_aggop_decl(ret_type);
-                                    emit_type(func_impl_, ret_type) << " " << ret_tuple_name << ";" << endl << ret_tuple_name << " = ";
-                                    emit_call();
-
-                                    // store arguments to phi node
-                                    auto tuple = succ->params().skip_front();
-                                    for (size_t i = 0, e = tuple.size(); i != e; ++i)
-                                        func_impl_ << endl << "p" << tuple[i]->unique_name() << " = " << ret_tuple_name << ".e" << i << ";";
-                                    break;
-                                }
+                                // store arguments to phi node
+                                auto tuple = succ->params().skip_front();
+                                for (size_t i = 0, e = tuple.size(); i != e; ++i)
+                                    func_impl_ << endl << "p" << tuple[i]->unique_name() << " = " << ret_tuple_name << ".e" << i << ";";
+                                break;
                             }
                         }
                     }

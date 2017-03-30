@@ -358,53 +358,46 @@ void CodeGen::emit(int opt, bool debug) {
                                 ret_arg = arg;
                             }
                         }
+
                         llvm::CallInst* call = irbuilder_.CreateCall(emit_function_decl(callee), args);
-                        // set proper calling convention
-                        if (callee->is_external()) {
+                        if (callee->is_external())
                             call->setCallingConv(kernel_calling_convention_);
-                        } else if (callee->cc() == CC::Device) {
+                        else if (callee->cc() == CC::Device)
                             call->setCallingConv(device_calling_convention_);
-                        } else {
+                        else
                             call->setCallingConv(function_calling_convention_);
-                        }
 
-                        if (ret_arg == ret_param) {     // call + return
-                            if (call->getType()->isVoidTy())
-                                irbuilder_.CreateRetVoid();
-                            else
-                                irbuilder_.CreateRet(call);
-                        } else {                        // call + continuation
-                            auto succ = ret_arg->as_continuation();
-                            const Param* param = nullptr;
-                            switch (succ->num_params()) {
-                                case 0:
-                                    break;
-                                case 1:
-                                    param = succ->param(0);
-                                    irbuilder_.CreateBr(bb2continuation[succ]);
-                                    if (!is_mem(param))
-                                        emit_result_phi(param, call);
-                                    break;
-                                case 2:
-                                    assert(succ->mem_param() && "no mem_param found for succ");
-                                    param = succ->param(0);
-                                    param = is_mem(param) ? succ->param(1) : param;
-                                    irbuilder_.CreateBr(bb2continuation[succ]);
+                        // must be call + continuation --- call + return has been removed by codegen_prepare
+                        auto succ = ret_arg->as_continuation();
+                        const Param* param = nullptr;
+                        switch (succ->num_params()) {
+                            case 0:
+                                break;
+                            case 1:
+                                param = succ->param(0);
+                                irbuilder_.CreateBr(bb2continuation[succ]);
+                                if (!is_mem(param))
                                     emit_result_phi(param, call);
-                                    break;
-                                default: {
-                                    assert(is_mem(succ->param(0)));
-                                    auto tuple = succ->params().skip_front();
+                                break;
+                            case 2:
+                                assert(succ->mem_param() && "no mem_param found for succ");
+                                param = succ->param(0);
+                                param = is_mem(param) ? succ->param(1) : param;
+                                irbuilder_.CreateBr(bb2continuation[succ]);
+                                emit_result_phi(param, call);
+                                break;
+                            default: {
+                                assert(is_mem(succ->param(0)));
+                                auto tuple = succ->params().skip_front();
 
-                                    Array<llvm::Value*> extracts(tuple.size());
-                                    for (size_t i = 0, e = tuple.size(); i != e; ++i)
-                                        extracts[i] = irbuilder_.CreateExtractValue(call, unsigned(i));
+                                Array<llvm::Value*> extracts(tuple.size());
+                                for (size_t i = 0, e = tuple.size(); i != e; ++i)
+                                    extracts[i] = irbuilder_.CreateExtractValue(call, unsigned(i));
 
-                                    irbuilder_.CreateBr(bb2continuation[succ]);
-                                    for (size_t i = 0, e = tuple.size(); i != e; ++i)
-                                        emit_result_phi(tuple[i], extracts[i]);
-                                    break;
-                                }
+                                irbuilder_.CreateBr(bb2continuation[succ]);
+                                for (size_t i = 0, e = tuple.size(); i != e; ++i)
+                                    emit_result_phi(tuple[i], extracts[i]);
+                                break;
                             }
                         }
                     }

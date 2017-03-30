@@ -118,6 +118,7 @@ public:
     Array<const Def*> params_as_defs() const;
     const Param* param(size_t i) const { assert(i < num_params()); return params_[i]; }
     const Param* mem_param() const;
+    const Param* ret_param() const;
     const Def* callee() const;
     Defs args() const { return num_ops() == 0 ? Defs(0, 0) : ops().skip_front(); }
     const Def* arg(size_t i) const { return args()[i]; }

@@ -9,6 +9,7 @@
 #include "thorin/analyses/scope.h"
 #include "thorin/transform/cleanup_world.h"
 #include "thorin/transform/clone_bodies.h"
+#include "thorin/transform/codegen_prepare.h"
 #include "thorin/transform/inliner.h"
 #include "thorin/transform/lift_builtins.h"
 #include "thorin/transform/higher_order_lifting.h"
@@ -851,6 +852,7 @@ void World::opt() {
     hoist_enters(*this);
     dead_load_opt(*this);
     cleanup();
+    codegen_prepare(*this);
 }
 
 /*

@@ -512,11 +512,6 @@ void CCodeGen::emit() {
                             emit(continuation->arg(1)) << "];" << endl;
                             // store_phi:
                             func_impl_ << "p" << cont->param(1)->unique_name() << " = " << name << ";";
-                        } else if (callee->intrinsic() == Intrinsic::PeInfo) {
-                            assert(continuation->num_args() == 4 && "required arguments are missing");
-                            assert(continuation->arg(1)->type() == world().ptr_type(world().indefinite_array_type(world().type_pu8())));
-                            auto msg = continuation->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
-                            ILOG(callee, "pe_info not in PE mode: {}: {}", msg->as_string(), continuation->arg(2));
                         } else {
                             THORIN_UNREACHABLE;
                         }

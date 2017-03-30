@@ -90,6 +90,16 @@ void PartialEvaluator::run() {
     }
 }
 
+Continuation* eat_pe_info(Continuation* cur) {
+    World& world = cur->world();
+    assert(cur->arg(1)->type() == world.ptr_type(world.indefinite_array_type(world.type_pu8())));
+    auto msg = cur->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
+    ILOG(cur->callee(), "pe_info: {}: {}", msg->as_string(), cur->arg(2));
+    auto next = cur->arg(3)->as_continuation();
+    cur->jump(next, {cur->arg(0)}, cur->jump_debug());
+    return next;
+}
+
 void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
     if (end == nullptr)
         VLOG("no matching end: {} at {}", cur, cur->location());
@@ -123,12 +133,7 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
 
         // pe_info calls are handled here
         if (dst != nullptr && dst->intrinsic() == Intrinsic::PeInfo) {
-            assert(cur->arg(1)->type() == world().ptr_type(world().indefinite_array_type(world().type_pu8())));
-            auto msg = cur->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
-            ILOG(dst, "pe_info: {}: {}", msg->as_string(), cur->arg(2));
-            auto next = cur->arg(3)->as_continuation();
-            cur->jump(next, { cur->arg(0) }, cur->jump_debug());
-            cur = next;
+            cur = eat_pe_info(cur);
             continue;
         }
 
@@ -248,6 +253,15 @@ Continuation* PartialEvaluator::postdom(Continuation* cur, const Scope& scope) {
 
 void eval(World& world) {
     Scope::for_each(world, [&] (Scope& scope) { PartialEvaluator(scope).run(); });
+
+    for (auto continuation : world.continuations()) {
+        if (auto callee = continuation->callee()->isa<Continuation>()) {
+            if (callee->intrinsic() == Intrinsic::PeInfo) {
+                ILOG(callee, "pe_info NOT evaluated:");
+                eat_pe_info(continuation);
+            }
+        }
+    }
 }
 
 void partial_evaluation(World& world) {

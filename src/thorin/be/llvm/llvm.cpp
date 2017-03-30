@@ -60,7 +60,6 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention
 Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
     auto callee = continuation->callee()->as_continuation();
     switch (callee->intrinsic()) {
-        case Intrinsic::PeInfo:    return emit_peinfo(continuation);
         case Intrinsic::Atomic:    return emit_atomic(continuation);
         case Intrinsic::CmpXchg:   return emit_cmpxchg(continuation);
         case Intrinsic::Reserve:   return emit_reserve(continuation);
@@ -81,16 +80,6 @@ Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
 
 void CodeGen::emit_result_phi(const Param* param, llvm::Value* value) {
     thorin::find(phis_, param)->addIncoming(value, irbuilder_.GetInsertBlock());
-}
-
-Continuation* CodeGen::emit_peinfo(Continuation* continuation) {
-    assert(continuation->num_args() == 4 && "required arguments are missing");
-    assert(continuation->arg(1)->type() == world().ptr_type(world().indefinite_array_type(world().type_pu8())));
-    auto msg = continuation->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
-    auto callee = continuation->callee();
-    ILOG(callee, "pe_info not in PE mode: {}: {}", msg->as_string(), continuation->arg(2));
-    auto next = continuation->arg(3)->as_continuation();
-    return next;
 }
 
 Continuation* CodeGen::emit_atomic(Continuation* continuation) {

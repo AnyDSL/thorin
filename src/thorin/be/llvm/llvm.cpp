@@ -60,7 +60,6 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention
 Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
     auto callee = continuation->callee()->as_continuation();
     switch (callee->intrinsic()) {
-        case Intrinsic::PeInfo:    return emit_peinfo(continuation);
         case Intrinsic::Atomic:    return emit_atomic(continuation);
         case Intrinsic::CmpXchg:   return emit_cmpxchg(continuation);
         case Intrinsic::Reserve:   return emit_reserve(continuation);
@@ -81,16 +80,6 @@ Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
 
 void CodeGen::emit_result_phi(const Param* param, llvm::Value* value) {
     thorin::find(phis_, param)->addIncoming(value, irbuilder_.GetInsertBlock());
-}
-
-Continuation* CodeGen::emit_peinfo(Continuation* continuation) {
-    assert(continuation->num_args() == 4 && "required arguments are missing");
-    assert(continuation->arg(1)->type() == world().ptr_type(world().indefinite_array_type(world().type_pu8())));
-    auto msg = continuation->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
-    auto callee = continuation->callee();
-    ILOG(callee, "pe_info not in PE mode: {}: {}", msg->as_string(), continuation->arg(2));
-    auto next = continuation->arg(3)->as_continuation();
-    return next;
 }
 
 Continuation* CodeGen::emit_atomic(Continuation* continuation) {
@@ -369,53 +358,46 @@ void CodeGen::emit(int opt, bool debug) {
                                 ret_arg = arg;
                             }
                         }
+
                         llvm::CallInst* call = irbuilder_.CreateCall(emit_function_decl(callee), args);
-                        // set proper calling convention
-                        if (callee->is_external()) {
+                        if (callee->is_external())
                             call->setCallingConv(kernel_calling_convention_);
-                        } else if (callee->cc() == CC::Device) {
+                        else if (callee->cc() == CC::Device)
                             call->setCallingConv(device_calling_convention_);
-                        } else {
+                        else
                             call->setCallingConv(function_calling_convention_);
-                        }
 
-                        if (ret_arg == ret_param) {     // call + return
-                            if (call->getType()->isVoidTy())
-                                irbuilder_.CreateRetVoid();
-                            else
-                                irbuilder_.CreateRet(call);
-                        } else {                        // call + continuation
-                            auto succ = ret_arg->as_continuation();
-                            const Param* param = nullptr;
-                            switch (succ->num_params()) {
-                                case 0:
-                                    break;
-                                case 1:
-                                    param = succ->param(0);
-                                    irbuilder_.CreateBr(bb2continuation[succ]);
-                                    if (!is_mem(param))
-                                        emit_result_phi(param, call);
-                                    break;
-                                case 2:
-                                    assert(succ->mem_param() && "no mem_param found for succ");
-                                    param = succ->param(0);
-                                    param = is_mem(param) ? succ->param(1) : param;
-                                    irbuilder_.CreateBr(bb2continuation[succ]);
+                        // must be call + continuation --- call + return has been removed by codegen_prepare
+                        auto succ = ret_arg->as_continuation();
+                        const Param* param = nullptr;
+                        switch (succ->num_params()) {
+                            case 0:
+                                break;
+                            case 1:
+                                param = succ->param(0);
+                                irbuilder_.CreateBr(bb2continuation[succ]);
+                                if (!is_mem(param))
                                     emit_result_phi(param, call);
-                                    break;
-                                default: {
-                                    assert(is_mem(succ->param(0)));
-                                    auto tuple = succ->params().skip_front();
+                                break;
+                            case 2:
+                                assert(succ->mem_param() && "no mem_param found for succ");
+                                param = succ->param(0);
+                                param = is_mem(param) ? succ->param(1) : param;
+                                irbuilder_.CreateBr(bb2continuation[succ]);
+                                emit_result_phi(param, call);
+                                break;
+                            default: {
+                                assert(is_mem(succ->param(0)));
+                                auto tuple = succ->params().skip_front();
 
-                                    Array<llvm::Value*> extracts(tuple.size());
-                                    for (size_t i = 0, e = tuple.size(); i != e; ++i)
-                                        extracts[i] = irbuilder_.CreateExtractValue(call, unsigned(i));
+                                Array<llvm::Value*> extracts(tuple.size());
+                                for (size_t i = 0, e = tuple.size(); i != e; ++i)
+                                    extracts[i] = irbuilder_.CreateExtractValue(call, unsigned(i));
 
-                                    irbuilder_.CreateBr(bb2continuation[succ]);
-                                    for (size_t i = 0, e = tuple.size(); i != e; ++i)
-                                        emit_result_phi(tuple[i], extracts[i]);
-                                    break;
-                                }
+                                irbuilder_.CreateBr(bb2continuation[succ]);
+                                for (size_t i = 0, e = tuple.size(); i != e; ++i)
+                                    emit_result_phi(tuple[i], extracts[i]);
+                                break;
                             }
                         }
                     }

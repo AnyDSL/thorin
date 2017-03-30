@@ -104,7 +104,6 @@ void mem2reg(World& world) {
     Scope::for_each(world, [] (const Scope& scope) { mem2reg(scope); });
     clear_value_numbering_table(world);
     world.cleanup();
-    debug_verify(world);
 }
 
 }

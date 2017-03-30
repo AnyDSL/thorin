@@ -46,6 +46,7 @@ void Cleaner::merge_continuations() {
 }
 
 void Cleaner::eta_conversion() {
+    return;
     for (bool todo = true; todo;) {
         todo = false;
         for (auto continuation : world().continuations()) {

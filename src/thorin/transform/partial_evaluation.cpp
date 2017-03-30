@@ -258,6 +258,8 @@ void partial_evaluation(World& world) {
         if (auto evalop = primop->isa<EvalOp>())
             evalop->replace(evalop->begin());
     }
+
+    world.cleanup();
 }
 
 //------------------------------------------------------------------------------

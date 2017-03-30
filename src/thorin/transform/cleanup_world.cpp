@@ -4,7 +4,6 @@
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/verify.h"
 #include "thorin/transform/importer.h"
-#include "thorin/transform/hoist_enters.h"
 
 namespace thorin {
 
@@ -173,9 +172,6 @@ void Cleaner::cleanup() {
 
     merge_continuations();
     eta_conversion();
-    // TODO move this to World::opt as soon as the scheduler is able to correctly schedule enters/slots etc
-    //      when they are not in the scope entry
-    hoist_enters(world());
     eliminate_params();
     unreachable_code_elimination();
     rebuild();

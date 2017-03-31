@@ -56,6 +56,7 @@ public:
     }
 
     void mark_dirty() { top_dirty_ = cur_dirty_ = true; }
+    bool top_dirty() { return top_dirty_; }
     Continuation* get_continuation(Continuation* continuation) { return continuation->callee()->as<EvalOp>()->end()->isa_continuation(); }
 
 private:
@@ -252,15 +253,26 @@ Continuation* PartialEvaluator::postdom(Continuation* cur, const Scope& scope) {
 //------------------------------------------------------------------------------
 
 void eval(World& world) {
-    Scope::for_each(world, [&] (Scope& scope) { PartialEvaluator(scope).run(); });
+    Scope::for_each(world, [&] (Scope& scope) {
+        PartialEvaluator partial_evaluator(scope);
+        partial_evaluator.run();
+        if (partial_evaluator.top_dirty())
+            scope.update();
+    });
 
     Scope::for_each(world, [&] (Scope& scope) {
+        bool dirty = false;
         for (auto n : scope.f_cfg().reverse_post_order()) {
             auto continuation = n->continuation();
             if (auto callee = continuation->callee()->isa<Continuation>()) {
-                if (callee->intrinsic() == Intrinsic::PeInfo)
+                if (callee->intrinsic() == Intrinsic::PeInfo) {
                     eat_pe_info(continuation, false);
+                    dirty = true;
+                }
             }
+
+            if (dirty)
+                scope.update();
         }
     });
 }

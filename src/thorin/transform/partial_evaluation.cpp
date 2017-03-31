@@ -90,11 +90,11 @@ void PartialEvaluator::run() {
     }
 }
 
-Continuation* eat_pe_info(Continuation* cur) {
+Continuation* eat_pe_info(Continuation* cur, bool eval) {
     World& world = cur->world();
     assert(cur->arg(1)->type() == world.ptr_type(world.indefinite_array_type(world.type_pu8())));
     auto msg = cur->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
-    ILOG(cur->callee(), "pe_info: {}: {}", msg->as_string(), cur->arg(2));
+    ILOG(cur->callee(), "{}pe_info: {}: {}", eval ? "" : "NOT evaluated: ", msg->as_string(), cur->arg(2));
     auto next = cur->arg(3)->as_continuation();
     cur->jump(next, {cur->arg(0)}, cur->jump_debug());
     return next;
@@ -133,7 +133,7 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
 
         // pe_info calls are handled here
         if (dst != nullptr && dst->intrinsic() == Intrinsic::PeInfo) {
-            cur = eat_pe_info(cur);
+            cur = eat_pe_info(cur, true);
             continue;
         }
 
@@ -258,10 +258,8 @@ void eval(World& world) {
         for (auto n : scope.f_cfg().reverse_post_order()) {
             auto continuation = n->continuation();
             if (auto callee = continuation->callee()->isa<Continuation>()) {
-                if (callee->intrinsic() == Intrinsic::PeInfo) {
-                    ILOG(callee, "pe_info NOT evaluated:");
-                    eat_pe_info(continuation);
-                }
+                if (callee->intrinsic() == Intrinsic::PeInfo)
+                    eat_pe_info(continuation, false);
             }
         }
     });

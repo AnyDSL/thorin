@@ -83,13 +83,13 @@ const FnType* Continuation::arg_fn_type() const {
     return world().fn_type(args);
 }
 
-const Param* Continuation::append_param(const Type* param_type, const std::string& name) {
+const Param* Continuation::append_param(const Type* param_type, Debug dbg) {
     size_t size = type()->num_ops();
     Array<const Type*> ops(size + 1);
     *std::copy(type()->ops().begin(), type()->ops().end(), ops.begin()) = param_type;
     clear_type();
-    set_type(param_type->world().fn_type(ops));               // update type
-    auto param = world().param(param_type, this, size, name); // append new param
+    set_type(param_type->world().fn_type(ops));              // update type
+    auto param = world().param(param_type, this, size, dbg); // append new param
     params_.push_back(param);
 
     return param;
@@ -335,27 +335,27 @@ const Def* Continuation::find_def(size_t handle) {
 }
 
 const Def* Continuation::set_mem(const Def* def) { return set_value(0, def); }
-const Def* Continuation::get_mem() { return get_value(0, world().mem_type(), "mem"); }
+const Def* Continuation::get_mem() { return get_value(0, world().mem_type(), { "mem" }); }
 
 const Def* Continuation::set_value(size_t handle, const Def* def) {
     increase_values(handle);
     return values_[handle] = def;
 }
 
-const Def* Continuation::get_value(size_t handle, const Type* type, const char* name) {
+const Def* Continuation::get_value(size_t handle, const Type* type, Debug dbg) {
     auto result = find_def(handle);
     if (result)
         goto return_result;
 
     if (parent() != this) { // is a function head?
         if (parent()) {
-            result = parent()->get_value(handle, type, name);
+            result = parent()->get_value(handle, type, dbg);
             goto return_result;
         }
     } else {
         if (!is_sealed_) {
-            auto param = append_param(type, name);
-            todos_.emplace_back(handle, param->index(), type, name);
+            auto param = append_param(type, dbg);
+            todos_.emplace_back(handle, param->index(), type, dbg);
             result = set_value(handle, param);
             goto return_result;
         }
@@ -365,18 +365,18 @@ const Def* Continuation::get_value(size_t handle, const Type* type, const char* 
             case 0:
                 goto return_bottom;
             case 1:
-                result = set_value(handle, preds.front()->get_value(handle, type, name));
+                result = set_value(handle, preds.front()->get_value(handle, type, dbg));
                 goto return_result;
             default: {
                 if (is_visited_) {
-                    result = set_value(handle, append_param(type, name)); // create param to break cycle
+                    result = set_value(handle, append_param(type, dbg)); // create param to break cycle
                     goto return_result;
                 }
 
                 is_visited_ = true;
                 const Def* same = nullptr;
                 for (auto pred : preds) {
-                    auto def = pred->get_value(handle, type, name);
+                    auto def = pred->get_value(handle, type, dbg);
                     if (same && same != def) {
                         same = (const Def*)-1; // defs from preds are different
                         break;
@@ -389,7 +389,7 @@ const Def* Continuation::get_value(size_t handle, const Type* type, const char* 
                 // fix any params which may have been introduced to break the cycle above
                 const Def* def = nullptr;
                 if (auto found = find_def(handle))
-                    def = fix(handle, found->as<Param>()->index(), type, name);
+                    def = fix(handle, found->as<Param>()->index(), type, dbg);
 
                 if (same != (const Def*)-1) {
                     result = same;
@@ -401,9 +401,9 @@ const Def* Continuation::get_value(size_t handle, const Type* type, const char* 
                     goto return_result;
                 }
 
-                auto param = append_param(type, name);
+                auto param = append_param(type, dbg);
                 set_value(handle, param);
-                fix(handle, param->index(), type, name);
+                fix(handle, param->index(), type, dbg);
                 result = param;
                 goto return_result;
             }
@@ -411,7 +411,7 @@ const Def* Continuation::get_value(size_t handle, const Type* type, const char* 
     }
 
 return_bottom:
-    WLOG(this, "'{}' may be undefined", name);
+    WLOG(this, "'{}' may be undefined", dbg.name());
     return set_value(handle, world().bottom(type));
 
 return_result:
@@ -424,11 +424,11 @@ void Continuation::seal() {
     is_sealed_ = true;
 
     for (const auto& todo : todos_)
-        fix(todo.handle(), todo.index(), todo.type(), todo.name());
+        fix(todo.handle(), todo.index(), todo.type(), todo.debug());
     todos_.clear();
 }
 
-const Def* Continuation::fix(size_t handle, size_t index, const Type* type, const char* name) {
+const Def* Continuation::fix(size_t handle, size_t index, const Type* type, Debug dbg) {
     auto param = this->param(index);
 
     assert(is_sealed() && "must be sealed");
@@ -437,7 +437,7 @@ const Def* Continuation::fix(size_t handle, size_t index, const Type* type, cons
     for (auto pred : preds()) {
         assert(!pred->empty());
         assert(pred->direct_succs().size() == 1 && "critical edge");
-        auto def = pred->get_value(handle, type, name);
+        auto def = pred->get_value(handle, type, dbg);
 
         // make potentially room for the new arg
         if (index >= pred->num_args())

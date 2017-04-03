@@ -24,8 +24,8 @@ typedef std::vector<Continuation*> Continuations;
  */
 class Param : public Def {
 private:
-    Param(const Type* type, Continuation* continuation, size_t index, Debug debug)
-        : Def(Node_Param, type, 0, debug)
+    Param(const Type* type, Continuation* continuation, size_t index, Debug dbg)
+        : Def(Node_Param, type, 0, dbg)
         , continuation_(continuation)
         , index_(index)
     {}
@@ -93,8 +93,8 @@ enum class CC : uint8_t {
  */
 class Continuation : public Def {
 private:
-    Continuation(const FnType* fn, CC cc, Intrinsic intrinsic, bool is_sealed, Debug debug)
-        : Def(Node_Continuation, fn, 0, debug)
+    Continuation(const FnType* fn, CC cc, Intrinsic intrinsic, bool is_sealed, Debug dbg)
+        : Def(Node_Continuation, fn, 0, dbg)
         , parent_(this)
         , cc_(cc)
         , intrinsic_(intrinsic)
@@ -107,7 +107,7 @@ private:
 
 public:
     Continuation* stub() const;
-    const Param* append_param(const Type* type, const std::string& name = "");
+    const Param* append_param(const Type* type, Debug dbg = {});
     Continuations direct_preds() const;
     Continuations direct_succs() const;
     Continuations indirect_preds() const;
@@ -180,7 +180,7 @@ public:
     // value numbering
 
     const Def* set_value(size_t handle, const Def* def);
-    const Def* get_value(size_t handle, const Type* type, const char* name = "");
+    const Def* get_value(size_t handle, const Type* type, Debug dbg = {});
     const Def* set_mem(const Def* def);
     const Def* get_mem();
     Continuation* parent() const { return parent_; }            ///< See @p parent_ for more information.
@@ -195,26 +195,26 @@ private:
     class Todo {
     public:
         Todo() {}
-        Todo(size_t handle, size_t index, const Type* type, const char* name)
+        Todo(size_t handle, size_t index, const Type* type, Debug dbg)
             : handle_(handle)
             , index_(index)
             , type_(type)
-            , name_(name)
+            , debug_(dbg)
         {}
 
         size_t handle() const { return handle_; }
         size_t index() const { return index_; }
         const Type* type() const { return type_; }
-        const char* name() const { return name_; }
+        Debug debug() const { return debug_; }
 
     private:
         size_t handle_;
         size_t index_;
         const Type* type_;
-        const char* name_;
+        Debug debug_;
     };
 
-    const Def* fix(size_t handle, size_t index, const Type* type, const char* name);
+    const Def* fix(size_t handle, size_t index, const Type* type, Debug dbg);
     const Def* try_remove_trivial_param(const Param*);
     const Def* find_def(size_t handle);
     void increase_values(size_t handle) { if (handle >= values_.size()) values_.resize(handle+1); }

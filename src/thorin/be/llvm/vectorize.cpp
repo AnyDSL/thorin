@@ -116,7 +116,7 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
     const bool useSSE = false;
     const bool useAVX = true;
     const bool useAVX2 = false;
-    const bool impreciseFunctions = false;
+    const bool impreciseFunctions = true;
     rv::addSleefMappings(useSSE, useAVX, useAVX2, platform_info, impreciseFunctions);
 
     rv::VectorizerInterface vectorizer(platform_info);

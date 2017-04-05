@@ -150,7 +150,7 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
     bool vectorize_ok = vectorizer.vectorize(vec_info, new_dom_tree, loop_info);
     assert_unused(vectorize_ok);
 
-    vectorizer.finalize(vec_info);
+    vectorizer.finalize();
 
     // inline kernel
     llvm::InlineFunctionInfo info;

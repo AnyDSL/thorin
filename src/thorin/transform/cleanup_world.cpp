@@ -15,7 +15,6 @@ public:
 
     World& world() { return world_; }
     void cleanup();
-    void merge_continuations();
     void eta_conversion();
     void unreachable_code_elimination();
     void eliminate_params();
@@ -27,33 +26,28 @@ private:
     World& world_;
 };
 
-void Cleaner::merge_continuations() {
-    for (bool todo = true; todo;) {
-        todo = false;
-        for (auto continuation : world().continuations()) {
-            while (auto callee = continuation->callee()->isa_continuation()) {
-                if (callee->num_uses() == 1 && !callee->empty() && !callee->is_external()) {
-                    for (size_t i = 0, e = continuation->num_args(); i != e; ++i)
-                        callee->param(i)->replace(continuation->arg(i));
-                    continuation->jump(callee->callee(), callee->args(), callee->jump_debug());
-                    callee->destroy_body();
-                    todo = true;
-                } else
-                    break;
-            }
-        }
-    }
-}
-
 void Cleaner::eta_conversion() {
     for (bool todo = true; todo;) {
         todo = false;
         for (auto continuation : world().continuations()) {
-            if (!continuation->empty() && continuation->callee()->isa<Param>() && !continuation->is_external()
-                    && continuation->args() == continuation->params_as_defs()) {
-                continuation->replace(continuation->callee());
-                continuation->destroy_body();
-                todo = true;
+            if (!continuation->empty()) {
+                while (auto callee = continuation->callee()->isa_continuation()) {
+                    if (callee->num_uses() == 1 && !callee->empty() && !callee->is_external()) {
+                        for (size_t i = 0, e = continuation->num_args(); i != e; ++i)
+                            callee->param(i)->replace(continuation->arg(i));
+                        continuation->jump(callee->callee(), callee->args(), callee->jump_debug());
+                        callee->destroy_body();
+                        todo = true;
+                    } else
+                        break;
+                }
+
+                if (continuation->callee()->isa<Param>() && !continuation->is_external()
+                        && continuation->args() == continuation->params_as_defs()) {
+                    continuation->replace(continuation->callee());
+                    continuation->destroy_body();
+                    todo = true;
+                }
             }
         }
     }
@@ -173,7 +167,6 @@ void Cleaner::cleanup() {
 #endif
 
     eta_conversion();
-    merge_continuations();
     eliminate_params();
     unreachable_code_elimination();
     rebuild();

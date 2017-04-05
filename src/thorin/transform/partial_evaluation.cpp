@@ -135,6 +135,7 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
         // pe_info calls are handled here
         if (dst != nullptr && dst->intrinsic() == Intrinsic::PeInfo) {
             cur = eat_pe_info(cur, true);
+            mark_dirty();
             continue;
         }
 

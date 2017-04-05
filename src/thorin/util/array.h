@@ -40,25 +40,35 @@ public:
         : size_(0)
         , ptr_(nullptr)
     {}
-    ArrayRef(const ArrayRef<T>& ref)
-        : size_(ref.size_)
-        , ptr_(ref.ptr_)
-    {}
-    ArrayRef(const std::vector<T>& vector)
-       : size_(vector.size())
-       , ptr_(vector.data())
-    {}
     ArrayRef(const T* ptr, size_t size)
         : size_(size)
         , ptr_(ptr)
+    {}
+    template<size_t N>
+    ArrayRef(const T (&ptr)[N])
+        : size_(N)
+        , ptr_(ptr)
+    {}
+    ArrayRef(const ArrayRef<T>& ref)
+        : size_(ref.size_)
+        , ptr_(ref.ptr_)
     {}
     ArrayRef(const Array<T>& array)
         : size_(array.size())
         , ptr_(array.begin())
     {}
+    template<size_t N>
+    ArrayRef(const std::array<T, N>& array)
+        : size_(N)
+        , ptr_(array.data())
+    {}
     ArrayRef(std::initializer_list<T> list)
         : size_(std::distance(list.begin(), list.end()))
         , ptr_(list.begin())
+    {}
+    ArrayRef(const std::vector<T>& vector)
+       : size_(vector.size())
+       , ptr_(vector.data())
     {}
 
     const_iterator begin() const { return ptr_; }

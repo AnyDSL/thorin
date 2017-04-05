@@ -104,15 +104,17 @@ next_continuation:;
 
 void Cleaner::unreachable_code_elimination() {
     ContinuationSet reachable;
-    Scope::for_each(world(), [&] (const Scope& scope) {
+    Scope::for_each<false>(world(), [&] (const Scope& scope) {
         DLOG("scope: {}", scope.entry());
         for (auto n : scope.f_cfg().reverse_post_order())
             reachable.emplace(n->continuation());
     });
 
     for (auto continuation : world().continuations()) {
-        if (!reachable.contains(continuation))
+        if (!reachable.contains(continuation)) {
+            continuation->replace(world().bottom(continuation->type()));
             continuation->destroy_body();
+        }
     }
 }
 
@@ -170,8 +172,8 @@ void Cleaner::cleanup() {
         assert(p.second.empty() && "there are still live trackers before running cleanup");
 #endif
 
-    merge_continuations();
     eta_conversion();
+    merge_continuations();
     eliminate_params();
     unreachable_code_elimination();
     rebuild();

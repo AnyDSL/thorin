@@ -53,6 +53,22 @@ void Cleaner::eta_conversion() {
     }
 }
 
+void Cleaner::unreachable_code_elimination() {
+    ContinuationSet reachable;
+    Scope::for_each<false>(world(), [&] (const Scope& scope) {
+        DLOG("scope: {}", scope.entry());
+        for (auto n : scope.f_cfg().reverse_post_order())
+            reachable.emplace(n->continuation());
+    });
+
+    for (auto continuation : world().continuations()) {
+        if (!reachable.contains(continuation)) {
+            continuation->replace(world().bottom(continuation->type()));
+            continuation->destroy_body();
+        }
+    }
+}
+
 void Cleaner::eliminate_params() {
     for (auto ocontinuation : world().copy_continuations()) {
         std::vector<size_t> proxy_idx;
@@ -92,23 +108,6 @@ void Cleaner::eliminate_params() {
             }
         }
 next_continuation:;
-    }
-}
-
-
-void Cleaner::unreachable_code_elimination() {
-    ContinuationSet reachable;
-    Scope::for_each<false>(world(), [&] (const Scope& scope) {
-        DLOG("scope: {}", scope.entry());
-        for (auto n : scope.f_cfg().reverse_post_order())
-            reachable.emplace(n->continuation());
-    });
-
-    for (auto continuation : world().continuations()) {
-        if (!reachable.contains(continuation)) {
-            continuation->replace(world().bottom(continuation->type()));
-            continuation->destroy_body();
-        }
     }
 }
 
@@ -167,8 +166,8 @@ void Cleaner::cleanup() {
 #endif
 
     eta_conversion();
-    eliminate_params();
     unreachable_code_elimination();
+    eliminate_params();
     rebuild();
 
 #ifndef NDEBUG

@@ -280,6 +280,23 @@ void CodeGen::emit(int opt, bool debug) {
             for (auto primop : block) {
                 if (debug)
                     irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(primop->location().front_line(), primop->location().front_col(), discope));
+
+                if (primop->type()->order() >= 1) {
+                    bool from_match = true;
+                    for (auto& use : primop->uses()) {
+                        if (auto continuation = use.def()->isa<Continuation>()) {
+                            auto callee = continuation->callee()->isa<Continuation>();
+                            if (callee && callee->intrinsic() == Intrinsic::Match) continue;
+                        }
+                        from_match = false;
+                    }
+
+                    // ignore higher-order primops which come from a match intrinsic
+                    if (from_match) continue;
+
+                    THORIN_UNREACHABLE;
+                }
+
                 auto llvm_value = emit(primop);
                 primops_[primop] = llvm_value;
             }
@@ -336,6 +353,17 @@ void CodeGen::emit(int opt, bool debug) {
                 auto tbb = bb2continuation[continuation->arg(1)->as_continuation()];
                 auto fbb = bb2continuation[continuation->arg(2)->as_continuation()];
                 irbuilder_.CreateCondBr(cond, tbb, fbb);
+            } else if (continuation->callee()->isa<Continuation>() &&
+                       continuation->callee()->as<Continuation>()->intrinsic() == Intrinsic::Match) {
+                auto val = lookup(continuation->arg(0));
+                auto otherwise_bb = bb2continuation[continuation->arg(1)->as_continuation()];
+                auto match = irbuilder_.CreateSwitch(val, otherwise_bb, continuation->num_args() - 2);
+                for (size_t i = 2; i < continuation->num_args(); i++) {
+                    auto arg = continuation->arg(i)->as<Tuple>();
+                    auto case_const = cast<llvm::ConstantInt>(lookup(arg->op(0)));
+                    auto case_bb    = bb2continuation[arg->op(1)->as_continuation()];
+                    match->addCase(case_const, case_bb);
+                }
             } else if (continuation->callee()->isa<Bottom>()) {
                 irbuilder_.CreateUnreachable();
             } else {

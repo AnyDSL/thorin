@@ -155,6 +155,25 @@ void IRBuilder::branch(const Def* cond, JumpTarget& t, JumpTarget& f, Debug dbg)
     }
 }
 
+void IRBuilder::match(const Def* val, JumpTarget& otherwise, Defs patterns, Array<JumpTarget>& targets, Debug dbg) {
+    assert(patterns.size() == targets.size());
+    if (is_reachable()) {
+        if (patterns.size() == 0) return jump(otherwise, dbg);
+        if (auto lit = val->isa<PrimLit>()) {
+            for (size_t i = 0; i < patterns.size(); i++) {
+                if (patterns[i]->as<PrimLit>() == lit)
+                    return jump(targets[i], dbg);
+            }
+            return jump(otherwise, dbg);
+        }
+        Array<Continuation*> continuations(patterns.size());
+        for (size_t i = 0; i < patterns.size(); i++)
+            continuations[i] = targets[i].branch_to(world_, dbg);
+        cur_bb->match(val, otherwise.branch_to(world_, dbg), patterns, continuations, dbg);
+        set_unreachable();
+    }
+}
+
 const Def* IRBuilder::call(const Def* to, Defs args, const Type* ret_type, Debug dbg) {
     if (is_reachable()) {
         auto p = cur_bb->call(to, args, ret_type, dbg);

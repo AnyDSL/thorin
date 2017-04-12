@@ -788,6 +788,15 @@ Continuation* World::continuation(const FnType* fn, CC cc, Intrinsic intrinsic, 
     return l;
 }
 
+Continuation* World::match(const Type* type, size_t num_patterns) {
+    Array<const Type*> arg_types(num_patterns + 2);
+    arg_types[0] = type;
+    arg_types[1] = fn_type();
+    for (size_t i = 0; i < num_patterns; i++)
+        arg_types[i + 2] = tuple_type({type, fn_type()});
+    return continuation(fn_type(arg_types), CC::C, Intrinsic::Match, {"match"});
+}
+
 Continuation* World::basicblock(Debug dbg) {
     auto bb = new Continuation(fn_type(), CC::C, Intrinsic::None, false, dbg);
     THORIN_CHECK_BREAK(bb->gid());

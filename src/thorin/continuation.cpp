@@ -248,6 +248,16 @@ void Continuation::jump(const Def* callee, Defs args, Debug dbg) {
                     return branch(cond->as<ArithOp>()->rhs(), f, t, dbg);
                 break;
             }
+            case Intrinsic::Match:
+                if (args.size() == 2) return jump(args[1], {}, dbg);
+                if (auto lit = args[0]->isa<PrimLit>()) {
+                    for (size_t i = 0; i < args.size() - 2; i++) {
+                        if (world().extract(args[i + 2], 0_s)->as<PrimLit>() == lit)
+                            return jump(world().extract(args[i + 2], 1), {}, dbg);
+                    }
+                    return jump(args[1], {}, dbg);
+                }
+                break;
             default:
                 break;
         }
@@ -266,6 +276,18 @@ void Continuation::jump(const Def* callee, Defs args, Debug dbg) {
 
 void Continuation::branch(const Def* cond, const Def* t, const Def* f, Debug dbg) {
     return jump(world().branch(), {cond, t, f}, dbg);
+}
+
+void Continuation::match(const Def* val, Continuation* otherwise, Defs patterns, ArrayRef<Continuation*> continuations, Debug dbg) {
+    Array<const Def*> args(patterns.size() + 2);
+
+    args[0] = val;
+    args[1] = otherwise;
+    assert(patterns.size() == continuations.size());
+    for (size_t i = 0; i < patterns.size(); i++)
+        args[i + 2] = world().tuple({patterns[i], continuations[i]}, dbg);
+
+    return jump(world().match(val->type(), patterns.size()), args, dbg);
 }
 
 std::pair<Continuation*, const Def*> Continuation::call(const Def* callee, Defs args, const Type* ret_type, Debug dbg) {

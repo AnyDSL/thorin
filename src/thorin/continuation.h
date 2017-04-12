@@ -76,6 +76,7 @@ enum class Intrinsic : uint8_t {
     Atomic,                     ///< Intrinsic atomic function
     CmpXchg,                    ///< Intrinsic cmpxchg function
     Branch,                     ///< branch(cond, T, F).
+    Match,                      ///< match(val, otherwise, (case1, cont1), (case2, cont2), ...)
     PeInfo,                     ///< Partial evaluation debug info.
     EndScope,                   ///< Dummy function which marks the end of a @p Scope.
 };
@@ -161,6 +162,7 @@ public:
     void jump(const Def* callee, Defs args, Debug dbg = {});
     void jump(JumpTarget&, Debug dbg = {});
     void branch(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
+    void match(const Def* val, Continuation* otherwise, Defs patterns, ArrayRef<Continuation*> continuations, Debug dbg = {});
     std::pair<Continuation*, const Def*> call(const Def* callee, Defs args, const Type* ret_type, Debug dbg = {});
     void verify() const {
 #ifndef NDEBUG

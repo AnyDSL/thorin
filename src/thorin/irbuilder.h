@@ -85,7 +85,7 @@ private:
 
 class JumpTarget {
 public:
-    JumpTarget(Debug dbg)
+    JumpTarget(Debug dbg = {})
         : debug_(dbg)
     {}
 #ifndef NDEBUG
@@ -136,6 +136,7 @@ public:
     Continuation* enter_unsealed(JumpTarget& jt) { return cur_bb = jt.enter_unsealed(world_); }
     void jump(JumpTarget& jt, Debug dbg = {});
     void branch(const Def* cond, JumpTarget& t, JumpTarget& f, Debug dbg = {});
+    void match(const Def* val, JumpTarget& otherwise, Defs patterns, Array<JumpTarget>& targets, Debug dbg = {});
     const Def* call(const Def* to, Defs args, const Type* ret_type, Debug dbg = {});
     const Def* get_mem();
     void set_mem(const Def* def);

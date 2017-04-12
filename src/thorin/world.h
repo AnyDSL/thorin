@@ -185,6 +185,7 @@ public:
     Continuation* continuation(Debug dbg = {}) { return continuation(fn_type(), CC::C, Intrinsic::None, dbg); }
     Continuation* basicblock(Debug dbg = {});
     Continuation* branch() const { return branch_; }
+    Continuation* match(const Type* type, size_t num_patterns);
     Continuation* end_scope() const { return end_scope_; }
 
     /// Performs dead code, unreachable code and unused type elimination.

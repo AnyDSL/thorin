@@ -147,9 +147,9 @@ void IRBuilder::branch(const Def* cond, JumpTarget& t, JumpTarget& f, Debug dbg)
         } else if (&t == &f) {
             jump(t, dbg);
         } else {
-            auto tl = t.branch_to(world_, dbg);
-            auto fl = f.branch_to(world_, dbg);
-            cur_bb->branch(cond, tl, fl, dbg);
+            auto tc = t.branch_to(world_, dbg);
+            auto fc = f.branch_to(world_, dbg);
+            cur_bb->branch(cond, tc, fc, dbg);
             set_unreachable();
         }
     }

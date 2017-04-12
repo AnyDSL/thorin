@@ -161,7 +161,7 @@ uint64_t UseHash::hash(Use use) { return murmur3(uint64_t(use.index()) << 48_u64
 /// Returns the vector length. Raises an assertion if type of this is not a \p VectorType.
 size_t vector_length(const Def*);
 bool is_const(const Def*);
-bool is_primlit(const Def*, int);
+bool is_primlit(const Def*, int64_t);
 bool is_minus_zero(const Def*);
 inline bool is_mem        (const Def* def) { return def->type()->isa<MemType>(); }
 inline bool is_zero       (const Def* def) { return is_primlit(def, 0); }

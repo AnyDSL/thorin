@@ -178,7 +178,7 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
         std::swap(lvec, rvec);
     }
 
-    if (is_type_i(type)) {
+    if (is_type_i(type) || type == PrimType_bool) {
         if (a == b) {
             switch (tag) {
                 case ArithOp_add: return arithop_mul(literal(type, 2, dbg), a, dbg);
@@ -771,7 +771,7 @@ const Assembly* World::assembly(Types types, const Def* mem, Defs inputs, std::s
 }
 
 /*
- * lambdas
+ * continuations
  */
 
 Continuation* World::continuation(const FnType* fn, CC cc, Intrinsic intrinsic, Debug dbg) {

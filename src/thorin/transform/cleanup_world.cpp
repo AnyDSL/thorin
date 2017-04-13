@@ -166,9 +166,9 @@ void Cleaner::cleanup() {
 #endif
 
     eta_conversion();
-    unreachable_code_elimination();
     eliminate_params();
     rebuild();
+    unreachable_code_elimination();
 
 #ifndef NDEBUG
     verify_closedness();

@@ -88,6 +88,7 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
     legacy::FunctionPassManager pm(module_.get());
     pm.add(llvm::createLICMPass());
     pm.add(llvm::createLCSSAPass());
+    pm.add(createLowerSwitchPass());
     pm.run(*kernel_func);
 
     // vectorize function

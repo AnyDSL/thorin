@@ -37,15 +37,12 @@ void force_inline(Scope& scope, int threshold) {
 void inliner(World& world) {
     static const int factor = 4;
     static const int offset = 4;
-    Scope::for_each(world, [] (Scope& scope) {
+    Scope::for_each(world, [] (const Scope& scope) {
         if (scope.defs().size() < scope.entry()->num_params() * factor + offset) {
             for (const auto& use : scope.entry()->copy_uses()) {
                 if (auto ucontinuation = use->isa_continuation()) {
-                    if (use.index() == 0) {
+                    if (use.index() == 0 && !scope.contains(ucontinuation))
                         ucontinuation->jump(drop(scope, ucontinuation->args()), {}, ucontinuation->jump_debug());
-                        if (scope.contains(ucontinuation))
-                            scope.update();
-                    }
                 }
             }
         }

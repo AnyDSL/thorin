@@ -169,6 +169,7 @@ std::ostream& CCodeGen::emit_aggop_defs(const Def* def) {
 
     // look for nested struct
     if (auto agg = def->isa<Aggregate>()) {
+        if (is_from_match(agg)) return func_impl_;
         for (auto op : agg->ops())
             emit_aggop_defs(op);
         if (lookup(def))
@@ -397,6 +398,12 @@ void CCodeGen::emit() {
             }
 
             for (auto primop : block) {
+                if (primop->type()->order() >= 1) {
+                    // ignore higher-order primops which come from a match intrinsic
+                    if (is_from_match(primop)) continue;
+                    THORIN_UNREACHABLE;
+                }
+
                 // struct/tuple/array declarations
                 if (!primop->isa<MemOp>()) {
                     emit_aggop_decl(primop->type());
@@ -408,7 +415,9 @@ void CCodeGen::emit() {
                 }
 
                 // skip higher-order primops, stuff dealing with frames and all memory related stuff except stores
-                if (!primop->type()->isa<FnType>() && !primop->type()->isa<FrameType>() && (!is_mem(primop) || primop->isa<Store>())) {
+                if (!primop->type()->isa<FnType>() &&
+                    !primop->type()->isa<FrameType>() &&
+                    (!is_mem(primop) || primop->isa<Store>())) {
                     emit_debug_info(primop);
                     emit(primop) << endl;
                 }
@@ -472,6 +481,19 @@ void CCodeGen::emit() {
                 emit(continuation->arg(1));
                 func_impl_ << " else ";
                 emit(continuation->arg(2));
+            } else if (continuation->callee()->isa<Continuation>() &&
+                       continuation->callee()->as<Continuation>()->intrinsic() == Intrinsic::Match) {
+                func_impl_ << "switch (";
+                emit(continuation->arg(0)) << ") {" << up << endl;
+                for (size_t i = 2; i < continuation->num_args(); i++) {
+                    auto arg = continuation->arg(i)->as<Tuple>();
+                    func_impl_ << "case ";
+                    emit(arg->op(0)) << ": ";
+                    emit(arg->op(1)) << endl;
+                }
+                func_impl_ << "default: ";
+                emit(continuation->arg(1));
+                func_impl_ << down << endl << "}";
             } else if (continuation->callee()->isa<Bottom>()) {
                 func_impl_ << "return ; // bottom: unreachable";
             } else {

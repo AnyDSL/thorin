@@ -282,18 +282,8 @@ void CodeGen::emit(int opt, bool debug) {
                     irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(primop->location().front_line(), primop->location().front_col(), discope));
 
                 if (primop->type()->order() >= 1) {
-                    bool from_match = true;
-                    for (auto& use : primop->uses()) {
-                        if (auto continuation = use.def()->isa<Continuation>()) {
-                            auto callee = continuation->callee()->isa<Continuation>();
-                            if (callee && callee->intrinsic() == Intrinsic::Match) continue;
-                        }
-                        from_match = false;
-                    }
-
                     // ignore higher-order primops which come from a match intrinsic
-                    if (from_match) continue;
-
+                    if (is_from_match(primop)) continue;
                     THORIN_UNREACHABLE;
                 }
 

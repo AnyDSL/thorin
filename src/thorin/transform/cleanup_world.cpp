@@ -16,7 +16,7 @@ public:
     World& world() { return world_; }
     void cleanup();
     void eta_conversion();
-    void unreachable_code_elimination();
+    size_t unreachable_code_elimination();
     void eliminate_params();
     void rebuild();
     void verify_closedness();
@@ -53,7 +53,7 @@ void Cleaner::eta_conversion() {
     }
 }
 
-void Cleaner::unreachable_code_elimination() {
+size_t Cleaner::unreachable_code_elimination() {
     ContinuationSet reachable;
     Scope::for_each<false>(world(), [&] (const Scope& scope) {
         DLOG("scope: {}", scope.entry());
@@ -67,6 +67,8 @@ void Cleaner::unreachable_code_elimination() {
             continuation->destroy_body();
         }
     }
+
+    return reachable.size();
 }
 
 void Cleaner::eliminate_params() {
@@ -165,10 +167,14 @@ void Cleaner::cleanup() {
         assert(p.second.empty() && "there are still live trackers before running cleanup");
 #endif
 
-    eta_conversion();
-    unreachable_code_elimination();
-    eliminate_params();
-    rebuild();
+    size_t num = -1, old;
+    do {
+        old = num;
+        eta_conversion();
+        eliminate_params();
+        num = unreachable_code_elimination();
+        rebuild();
+    } while (num != old);
 
 #ifndef NDEBUG
     verify_closedness();

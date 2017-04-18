@@ -21,7 +21,7 @@ void lift_builtins(World& world) {
         }
     });
 
-    static const int inline_threshold = 10;
+    static const int inline_threshold = 4;
     for (auto continuation : do_force_inline) {
         Scope scope(continuation);
         force_inline(scope, inline_threshold);

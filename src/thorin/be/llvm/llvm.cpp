@@ -350,7 +350,7 @@ void CodeGen::emit(int opt, bool debug) {
                 auto match = irbuilder_.CreateSwitch(val, otherwise_bb, continuation->num_args() - 2);
                 for (size_t i = 2; i < continuation->num_args(); i++) {
                     auto arg = continuation->arg(i)->as<Tuple>();
-                    auto case_const = cast<llvm::ConstantInt>(lookup(arg->op(0)));
+                    auto case_const = llvm::cast<llvm::ConstantInt>(lookup(arg->op(0)));
                     auto case_bb    = bb2continuation[arg->op(1)->as_continuation()];
                     match->addCase(case_const, case_bb);
                 }

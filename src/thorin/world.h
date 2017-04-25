@@ -185,6 +185,7 @@ public:
     Continuation* continuation(Debug dbg = {}) { return continuation(fn_type(), CC::C, Intrinsic::None, dbg); }
     Continuation* basicblock(Debug dbg = {});
     Continuation* branch() const { return branch_; }
+    Continuation* match(const Type* type, size_t num_patterns);
     Continuation* end_scope() const { return end_scope_; }
 
     /// Performs dead code, unreachable code and unused type elimination.
@@ -210,6 +211,8 @@ public:
     void breakpoint(size_t number) { breakpoints_.insert(number); }
     const Breakpoints& breakpoints() const { return breakpoints_; }
     void swap_breakpoints(World& other) { swap(this->breakpoints_, other.breakpoints_); }
+    bool track_history() const { return track_history_; }
+    void enable_history(bool flag = true) { track_history_ = flag; }
 #endif
 
     // Note that we don't use overloading for the following methods in order to have them accessible from gdb.
@@ -267,6 +270,7 @@ private:
     Continuation* end_scope_;
 #ifndef NDEBUG
     Breakpoints breakpoints_;
+    bool track_history_ = false;
 #endif
 
     friend class Cleaner;

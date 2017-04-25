@@ -58,10 +58,8 @@ static void hoist_enters(const Scope& scope) {
 }
 
 void hoist_enters(World& world) {
-    world.cleanup();
     Scope::for_each(world, [] (const Scope& scope) { hoist_enters(scope); });
     world.cleanup();
-    debug_verify(world);
 }
 
 }

@@ -9,6 +9,7 @@
 #include "thorin/analyses/scope.h"
 #include "thorin/transform/cleanup_world.h"
 #include "thorin/transform/clone_bodies.h"
+#include "thorin/transform/codegen_prepare.h"
 #include "thorin/transform/inliner.h"
 #include "thorin/transform/lift_builtins.h"
 #include "thorin/transform/higher_order_lifting.h"
@@ -177,7 +178,7 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
         std::swap(lvec, rvec);
     }
 
-    if (is_type_i(type)) {
+    if (is_type_i(type) || type == PrimType_bool) {
         if (a == b) {
             switch (tag) {
                 case ArithOp_add: return arithop_mul(literal(type, 2, dbg), a, dbg);
@@ -770,7 +771,7 @@ const Assembly* World::assembly(Types types, const Def* mem, Defs inputs, std::s
 }
 
 /*
- * lambdas
+ * continuations
  */
 
 Continuation* World::continuation(const FnType* fn, CC cc, Intrinsic intrinsic, Debug dbg) {
@@ -785,6 +786,15 @@ Continuation* World::continuation(const FnType* fn, CC cc, Intrinsic intrinsic, 
     }
 
     return l;
+}
+
+Continuation* World::match(const Type* type, size_t num_patterns) {
+    Array<const Type*> arg_types(num_patterns + 2);
+    arg_types[0] = type;
+    arg_types[1] = fn_type();
+    for (size_t i = 0; i < num_patterns; i++)
+        arg_types[i + 2] = tuple_type({type, fn_type()});
+    return continuation(fn_type(arg_types), CC::C, Intrinsic::Match, {"match"});
 }
 
 Continuation* World::basicblock(Debug dbg) {
@@ -843,7 +853,6 @@ void World::opt() {
     cleanup();
     higher_order_lifting(*this);
     partial_evaluation(*this);
-    cleanup();
     lower2cff(*this);
     clone_bodies(*this);
     mem2reg(*this);
@@ -852,6 +861,7 @@ void World::opt() {
     hoist_enters(*this);
     dead_load_opt(*this);
     cleanup();
+    codegen_prepare(*this);
 }
 
 /*

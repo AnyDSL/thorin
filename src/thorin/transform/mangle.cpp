@@ -45,7 +45,7 @@ Continuation* Mangler::mangle() {
     }
 
     auto fn_type = world().fn_type(param_types);
-    new_entry_ = world().continuation(fn_type, old_entry()->debug());
+    new_entry_ = world().continuation(fn_type, old_entry()->debug_history());
 
     // map value params
     def2def_[old_entry()] = old_entry();
@@ -70,7 +70,7 @@ Continuation* Mangler::mangle() {
 Continuation* Mangler::mangle_head(Continuation* old_continuation) {
     assert(!def2def_.contains(old_continuation));
     assert(!old_continuation->empty());
-    Continuation* new_continuation = old_continuation->stub(type2type_, old_continuation->debug());
+    Continuation* new_continuation = old_continuation->stub();
     def2def_[old_continuation] = new_continuation;
 
     for (size_t i = 0, e = old_continuation->num_params(); i != e; ++i)

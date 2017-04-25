@@ -1,4 +1,5 @@
 #include "thorin/primop.h"
+#include "thorin/continuation.h"
 
 #include "thorin/type.h"
 #include "thorin/world.h"
@@ -299,7 +300,9 @@ std::ostream& PrimOp::stream_assignment(std::ostream& os) const {
 std::string DefiniteArray::as_string() const {
     std::string res;
     for (auto op : ops()) {
-        res += op->as<PrimLit>()->pu8_value();
+        auto c = op->as<PrimLit>()->pu8_value();
+        if (!c) break;
+        res += c;
     }
     return res;
 }
@@ -320,6 +323,18 @@ const Type* Extract::extracted_type(const Def* agg, const Def* index) {
         return get(struct_type->ops(), index);
 
     THORIN_UNREACHABLE;
+}
+
+bool is_from_match(const PrimOp* primop) {
+    bool from_match = true;
+    for (auto& use : primop->uses()) {
+        if (auto continuation = use.def()->isa<Continuation>()) {
+            auto callee = continuation->callee()->isa<Continuation>();
+            if (callee && callee->intrinsic() == Intrinsic::Match) continue;
+        }
+        from_match = false;
+    }
+    return from_match;
 }
 
 //------------------------------------------------------------------------------

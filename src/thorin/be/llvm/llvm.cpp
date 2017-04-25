@@ -39,6 +39,7 @@
 #include "thorin/be/llvm/cuda.h"
 #include "thorin/be/llvm/nvvm.h"
 #include "thorin/be/llvm/opencl.h"
+#include "thorin/transform/codegen_prepare.h"
 #include "thorin/transform/importer.h"
 #include "thorin/util/array.h"
 #include "thorin/util/log.h"
@@ -60,7 +61,6 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention
 Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
     auto callee = continuation->callee()->as_continuation();
     switch (callee->intrinsic()) {
-        case Intrinsic::PeInfo:    return emit_peinfo(continuation);
         case Intrinsic::Atomic:    return emit_atomic(continuation);
         case Intrinsic::CmpXchg:   return emit_cmpxchg(continuation);
         case Intrinsic::Reserve:   return emit_reserve(continuation);
@@ -81,16 +81,6 @@ Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
 
 void CodeGen::emit_result_phi(const Param* param, llvm::Value* value) {
     thorin::find(phis_, param)->addIncoming(value, irbuilder_.GetInsertBlock());
-}
-
-Continuation* CodeGen::emit_peinfo(Continuation* continuation) {
-    assert(continuation->num_args() == 4 && "required arguments are missing");
-    assert(continuation->arg(1)->type() == world().ptr_type(world().indefinite_array_type(world().type_pu8())));
-    auto msg = continuation->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
-    auto callee = continuation->callee();
-    ILOG(callee, "pe_info not in PE mode: {}: {}", msg->as_string(), continuation->arg(2));
-    auto next = continuation->arg(3)->as_continuation();
-    return next;
 }
 
 Continuation* CodeGen::emit_atomic(Continuation* continuation) {
@@ -290,6 +280,13 @@ void CodeGen::emit(int opt, bool debug) {
             for (auto primop : block) {
                 if (debug)
                     irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(primop->location().front_line(), primop->location().front_col(), discope));
+
+                if (primop->type()->order() >= 1) {
+                    // ignore higher-order primops which come from a match intrinsic
+                    if (is_from_match(primop)) continue;
+                    THORIN_UNREACHABLE;
+                }
+
                 auto llvm_value = emit(primop);
                 primops_[primop] = llvm_value;
             }
@@ -346,6 +343,17 @@ void CodeGen::emit(int opt, bool debug) {
                 auto tbb = bb2continuation[continuation->arg(1)->as_continuation()];
                 auto fbb = bb2continuation[continuation->arg(2)->as_continuation()];
                 irbuilder_.CreateCondBr(cond, tbb, fbb);
+            } else if (continuation->callee()->isa<Continuation>() &&
+                       continuation->callee()->as<Continuation>()->intrinsic() == Intrinsic::Match) {
+                auto val = lookup(continuation->arg(0));
+                auto otherwise_bb = bb2continuation[continuation->arg(1)->as_continuation()];
+                auto match = irbuilder_.CreateSwitch(val, otherwise_bb, continuation->num_args() - 2);
+                for (size_t i = 2; i < continuation->num_args(); i++) {
+                    auto arg = continuation->arg(i)->as<Tuple>();
+                    auto case_const = llvm::cast<llvm::ConstantInt>(lookup(arg->op(0)));
+                    auto case_bb    = bb2continuation[arg->op(1)->as_continuation()];
+                    match->addCase(case_const, case_bb);
+                }
             } else if (continuation->callee()->isa<Bottom>()) {
                 irbuilder_.CreateUnreachable();
             } else {
@@ -369,53 +377,46 @@ void CodeGen::emit(int opt, bool debug) {
                                 ret_arg = arg;
                             }
                         }
+
                         llvm::CallInst* call = irbuilder_.CreateCall(emit_function_decl(callee), args);
-                        // set proper calling convention
-                        if (callee->is_external()) {
+                        if (callee->is_external())
                             call->setCallingConv(kernel_calling_convention_);
-                        } else if (callee->cc() == CC::Device) {
+                        else if (callee->cc() == CC::Device)
                             call->setCallingConv(device_calling_convention_);
-                        } else {
+                        else
                             call->setCallingConv(function_calling_convention_);
-                        }
 
-                        if (ret_arg == ret_param) {     // call + return
-                            if (call->getType()->isVoidTy())
-                                irbuilder_.CreateRetVoid();
-                            else
-                                irbuilder_.CreateRet(call);
-                        } else {                        // call + continuation
-                            auto succ = ret_arg->as_continuation();
-                            const Param* param = nullptr;
-                            switch (succ->num_params()) {
-                                case 0:
-                                    break;
-                                case 1:
-                                    param = succ->param(0);
-                                    irbuilder_.CreateBr(bb2continuation[succ]);
-                                    if (!is_mem(param))
-                                        emit_result_phi(param, call);
-                                    break;
-                                case 2:
-                                    assert(succ->mem_param() && "no mem_param found for succ");
-                                    param = succ->param(0);
-                                    param = is_mem(param) ? succ->param(1) : param;
-                                    irbuilder_.CreateBr(bb2continuation[succ]);
+                        // must be call + continuation --- call + return has been removed by codegen_prepare
+                        auto succ = ret_arg->as_continuation();
+                        const Param* param = nullptr;
+                        switch (succ->num_params()) {
+                            case 0:
+                                break;
+                            case 1:
+                                param = succ->param(0);
+                                irbuilder_.CreateBr(bb2continuation[succ]);
+                                if (!is_mem(param))
                                     emit_result_phi(param, call);
-                                    break;
-                                default: {
-                                    assert(is_mem(succ->param(0)));
-                                    auto tuple = succ->params().skip_front();
+                                break;
+                            case 2:
+                                assert(succ->mem_param() && "no mem_param found for succ");
+                                param = succ->param(0);
+                                param = is_mem(param) ? succ->param(1) : param;
+                                irbuilder_.CreateBr(bb2continuation[succ]);
+                                emit_result_phi(param, call);
+                                break;
+                            default: {
+                                assert(is_mem(succ->param(0)));
+                                auto tuple = succ->params().skip_front();
 
-                                    Array<llvm::Value*> extracts(tuple.size());
-                                    for (size_t i = 0, e = tuple.size(); i != e; ++i)
-                                        extracts[i] = irbuilder_.CreateExtractValue(call, unsigned(i));
+                                Array<llvm::Value*> extracts(tuple.size());
+                                for (size_t i = 0, e = tuple.size(); i != e; ++i)
+                                    extracts[i] = irbuilder_.CreateExtractValue(call, unsigned(i));
 
-                                    irbuilder_.CreateBr(bb2continuation[succ]);
-                                    for (size_t i = 0, e = tuple.size(); i != e; ++i)
-                                        emit_result_phi(tuple[i], extracts[i]);
-                                    break;
-                                }
+                                irbuilder_.CreateBr(bb2continuation[succ]);
+                                for (size_t i = 0, e = tuple.size(); i != e; ++i)
+                                    emit_result_phi(tuple[i], extracts[i]);
+                                break;
                             }
                         }
                     }
@@ -796,7 +797,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto alloced_type = convert(alloc->alloced_type());
         llvm::CallInst* void_ptr;
         auto layout = module_->getDataLayout();
-        if (auto array = is_indefinite(alloc->alloced_type())) {
+        if (auto array = alloc->alloced_type()->isa<IndefiniteArrayType>()) {
             auto size = irbuilder_.CreateAdd(
                     irbuilder_.getInt64(layout.getTypeAllocSize(alloced_type)),
                     irbuilder_.CreateMul(irbuilder_.CreateIntCast(lookup(alloc->extra()), irbuilder_.getInt64Ty(), false),
@@ -1084,8 +1085,10 @@ void emit_llvm(World& world, int opt, bool debug) {
             imported->param(i)->debug().set(continuation->param(i)->unique_name());
     });
 
-    if (!cuda.world().empty() || !nvvm.world().empty() || !opencl.world().empty())
+    if (!cuda.world().empty() || !nvvm.world().empty() || !opencl.world().empty()) {
         world.cleanup();
+        codegen_prepare(world);
+    }
 
     CPUCodeGen(world).emit(opt, debug);
     if (!cuda.  world().empty()) CUDACodeGen  (cuda  .world()).emit(/*opt,*/ debug);

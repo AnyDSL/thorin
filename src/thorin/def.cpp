@@ -26,6 +26,14 @@ Def::Def(NodeTag tag, const Type* type, size_t size, Debug dbg)
     , debug_(dbg)
 {}
 
+Debug Def::debug_history() const {
+#ifndef NDEBUG
+    return world().track_history() ? Debug(location(), unique_name()) : debug();
+#else
+    return debug();
+#endif
+}
+
 void Def::set_op(size_t i, const Def* def) {
     assert(!op(i) && "already set");
     assert(def && "setting null pointer");
@@ -78,11 +86,12 @@ bool is_const(const Def* def) {
 
 size_t vector_length(const Def* def) { return def->type()->as<VectorType>()->length(); }
 
-bool is_primlit(const Def* def, int val) {
+bool is_primlit(const Def* def, int64_t val) {
     if (auto lit = def->isa<PrimLit>()) {
         switch (lit->primtype_tag()) {
 #define THORIN_I_TYPE(T, M) case PrimType_##T: return lit->value().get_##T() == T(val);
 #include "thorin/tables/primtypetable.h"
+            case PrimType_bool: return lit->value().get_bool() == bool(val);
             default: ; // FALLTHROUGH
         }
     }

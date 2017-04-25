@@ -74,6 +74,7 @@ struct UseHash {
     inline static Use sentinel() { return Use(size_t(-1), (const Def*)(-1)); }
 };
 
+// using a StackCapacity of 8 covers almost 99% of all real-world use-lists
 typedef HashSet<Use, UseHash> Uses;
 
 template<class To>
@@ -110,6 +111,8 @@ protected:
 
 public:
     NodeTag tag() const { return tag_; }
+    /// In Debug build if World::enable_history is true, this thing keeps the gid to track a history of gid%s.
+    Debug debug_history() const;
     Debug& debug() const { return debug_; }
     Location location() const { return debug_; }
     const std::string& name() const { return debug().name(); }
@@ -158,7 +161,7 @@ uint64_t UseHash::hash(Use use) { return murmur3(uint64_t(use.index()) << 48_u64
 /// Returns the vector length. Raises an assertion if type of this is not a \p VectorType.
 size_t vector_length(const Def*);
 bool is_const(const Def*);
-bool is_primlit(const Def*, int);
+bool is_primlit(const Def*, int64_t);
 bool is_minus_zero(const Def*);
 inline bool is_mem        (const Def* def) { return def->type()->isa<MemType>(); }
 inline bool is_zero       (const Def* def) { return is_primlit(def, 0); }

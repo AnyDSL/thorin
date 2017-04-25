@@ -13,17 +13,21 @@ void higher_order_lifting(World& world) {
     Scope::for_each<false>(world, [&](const Scope& scope) { top.emplace(scope.entry()); });
 
     Scope::for_each(world, [&](Scope& scope) {
+        DLOG("scope: {}", scope.entry());
         bool dirty = false;
 
         for (auto n : scope.f_cfg().post_order()) {
             auto continuation = n->continuation();
             if (continuation != scope.entry() && continuation->order() > 1) {
+                DLOG("lift: {}", continuation);
                 Scope cur(continuation);
                 std::vector<const Def*> defs;
 
                 for (auto def : free_defs(cur)) {
-                    if (!def->isa<Continuation>() || !top.contains(def->as_continuation()))
+                    if (!def->isa<Continuation>() || !top.contains(def->as_continuation())) {
+                        DLOG("free def: {}", def);
                         defs.push_back(def);
+                    }
                 }
 
                 Scope lifted(lift(cur, defs));

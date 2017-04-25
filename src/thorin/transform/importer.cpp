@@ -51,11 +51,11 @@ const Def* Importer::import(const Def* odef) {
         if (ocontinuation == ocontinuation->world().end_scope())
             return def_old2new_[ocontinuation] = world().end_scope();
         auto npi = import(ocontinuation->type())->as<FnType>();
-        ncontinuation = world().continuation(npi, ocontinuation->cc(), ocontinuation->intrinsic(), ocontinuation->debug());
+        ncontinuation = world().continuation(npi, ocontinuation->cc(), ocontinuation->intrinsic(), ocontinuation->debug_history());
         assert(&ncontinuation->world() == &world());
         assert(&npi->world() == &world());
         for (size_t i = 0, e = ocontinuation->num_params(); i != e; ++i) {
-            ncontinuation->param(i)->debug().set(ocontinuation->param(i)->name());
+            ncontinuation->param(i)->debug() = ocontinuation->param(i)->debug_history();
             def_old2new_[ocontinuation->param(i)] = ncontinuation->param(i);
         }
 

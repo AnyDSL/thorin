@@ -3,6 +3,7 @@
 
 namespace thorin {
 
+class Continuation;
 class World;
 
 void verify(World& world);

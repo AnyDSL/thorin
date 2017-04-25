@@ -15,13 +15,12 @@ Value Value::create_val(IRBuilder& builder, const Def* val) {
     return result;
 }
 
-Value Value::create_mut(IRBuilder& builder, size_t handle, const Type* type, const char* name) {
+Value Value::create_mut(IRBuilder& builder, size_t handle, const Type* type) {
     Value result;
     result.tag_     = MutableValRef;
     result.builder_ = &builder;
     result.handle_  = handle;
     result.type_    = type;
-    result.name_    = name;
     return result;
 }
 
@@ -54,7 +53,7 @@ bool Value::use_lea() const {
 const Def* Value::load(Debug dbg) const {
     switch (tag()) {
         case ImmutableValRef: return def_;
-        case MutableValRef:   return builder_->cur_bb->get_value(handle_,type_, name_);
+        case MutableValRef:   return builder_->cur_bb->get_value(handle_, type_, dbg);
         case PtrRef:          return builder_->load(def_, dbg);
         case AggRef:          return builder_->extract(value_->load(dbg), def_, dbg);
         default: THORIN_UNREACHABLE;
@@ -148,11 +147,30 @@ void IRBuilder::branch(const Def* cond, JumpTarget& t, JumpTarget& f, Debug dbg)
         } else if (&t == &f) {
             jump(t, dbg);
         } else {
-            auto tl = t.branch_to(world_, dbg);
-            auto fl = f.branch_to(world_, dbg);
-            cur_bb->branch(cond, tl, fl, dbg);
+            auto tc = t.branch_to(world_, dbg);
+            auto fc = f.branch_to(world_, dbg);
+            cur_bb->branch(cond, tc, fc, dbg);
             set_unreachable();
         }
+    }
+}
+
+void IRBuilder::match(const Def* val, JumpTarget& otherwise, Defs patterns, Array<JumpTarget>& targets, Debug dbg) {
+    assert(patterns.size() == targets.size());
+    if (is_reachable()) {
+        if (patterns.size() == 0) return jump(otherwise, dbg);
+        if (auto lit = val->isa<PrimLit>()) {
+            for (size_t i = 0; i < patterns.size(); i++) {
+                if (patterns[i]->as<PrimLit>() == lit)
+                    return jump(targets[i], dbg);
+            }
+            return jump(otherwise, dbg);
+        }
+        Array<Continuation*> continuations(patterns.size());
+        for (size_t i = 0; i < patterns.size(); i++)
+            continuations[i] = targets[i].branch_to(world_, dbg);
+        cur_bb->match(val, otherwise.branch_to(world_, dbg), patterns, continuations, dbg);
+        set_unreachable();
     }
 }
 

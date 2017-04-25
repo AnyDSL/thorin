@@ -76,7 +76,7 @@ void mem2reg(const Scope& scope) {
                             auto out_mem = load->out_mem();
                             done.insert(out_val);
                             done.insert(out_mem);
-                            out_val->replace(continuation->get_value(slot2handle[slot], type, slot->debug().name().c_str()));
+                            out_val->replace(continuation->get_value(slot2handle[slot], type, slot->debug()));
                             out_mem->replace(load->mem());
                         }
                     }
@@ -104,7 +104,6 @@ void mem2reg(World& world) {
     Scope::for_each(world, [] (const Scope& scope) { mem2reg(scope); });
     clear_value_numbering_table(world);
     world.cleanup();
-    debug_verify(world);
 }
 
 }

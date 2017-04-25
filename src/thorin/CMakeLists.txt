@@ -1,7 +1,4 @@
-SET ( LIBRARY_NAME thorin )
-
-# get source files
-SET ( SOURCES
+set(THORIN_SOURCES
     continuation.cpp
     continuation.h
     def.cpp
@@ -36,21 +33,6 @@ SET ( SOURCES
     analyses/verify.h
     be/c.cpp
     be/c.h
-    be/llvm/cpu.cpp
-    be/llvm/cpu.h
-    be/llvm/cuda.cpp
-    be/llvm/cuda.h
-    be/llvm/llvm.cpp
-    be/llvm/llvm.h
-    be/llvm/nvvm.cpp
-    be/llvm/nvvm.h
-    be/llvm/opencl.cpp
-    be/llvm/opencl.h
-    be/llvm/parallel.cpp
-    be/llvm/runtime.inc
-    be/llvm/runtime.cpp
-    be/llvm/runtime.h
-    be/llvm/vectorize.cpp
     tables/allnodes.h
     tables/arithoptable.h
     tables/cmptable.h
@@ -60,6 +42,8 @@ SET ( SOURCES
     transform/cleanup_world.h
     transform/clone_bodies.cpp
     transform/clone_bodies.h
+    transform/codegen_prepare.h
+    transform/codegen_prepare.cpp
     transform/critical_edge_elimination.cpp
     transform/critical_edge_elimination.h
     transform/dead_load_opt.cpp
@@ -101,8 +85,33 @@ SET ( SOURCES
     util/ycomp.h
 )
 
-# create lib
-GET_THORIN_DEPENDENCY_LIBS ( THORIN_LIBS )
+if(LLVM_FOUND)
+    list(APPEND THORIN_SOURCES
+        be/llvm/cpu.cpp
+        be/llvm/cpu.h
+        be/llvm/cuda.cpp
+        be/llvm/cuda.h
+        be/llvm/llvm.cpp
+        be/llvm/llvm.h
+        be/llvm/nvvm.cpp
+        be/llvm/nvvm.h
+        be/llvm/opencl.cpp
+        be/llvm/opencl.h
+        be/llvm/parallel.cpp
+        be/llvm/runtime.inc
+        be/llvm/runtime.cpp
+        be/llvm/runtime.h
+        be/llvm/vectorize.cpp
+    )
+endif()
 
-ADD_LIBRARY ( ${LIBRARY_NAME} ${SOURCES} )
-TARGET_LINK_LIBRARIES ( ${LIBRARY_NAME} ${THORIN_LIBS} )
+add_library(thorin ${THORIN_SOURCES})
+
+if(LLVM_FOUND)
+    llvm_map_components_to_libnames(LLVM_LIBRARIES core mc native ipo irreader bitreader bitwriter scalaropts support target)
+    target_link_libraries(thorin ${LLVM_LIBRARIES})
+endif()
+if(RV_FOUND)
+    get_rv_llvm_dependency_libs(LLVM_RV_LIBRARIES)
+    target_link_libraries(thorin ${LLVM_RV_LIBRARIES} ${RV_LIBRARIES})
+endif()

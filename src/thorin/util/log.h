@@ -2,6 +2,7 @@
 #define THORIN_UTIL_LOG_H
 
 #include <iomanip>
+#include <iostream>
 #include <cstdlib>
 #include <ostream>
 #include <sstream>
@@ -41,7 +42,7 @@ public:
                               << colorize(oss.str(), 7) << ": ";
             if (level == Debug)
                 Log::stream() << "  ";
-            streamf(Log::stream(), fmt, args...);
+            streamf(Log::stream(), fmt, std::forward<Args>(args)...);
             Log::stream() << std::endl;
         }
     }
@@ -62,6 +63,11 @@ private:
     static bool print_loc_;
 };
 
+template<typename... Args>
+std::ostream& outf(const char* fmt, Args... args) { return streamf(std::cout, fmt, std::forward<Args>(args)...); }
+template<typename... Args>
+std::ostream& errf(const char* fmt, Args... args) { return streamf(std::cerr, fmt, std::forward<Args>(args)...); }
+
 }
 
 #define ALWAYS_LOG(level, ...) thorin::Log::log((level), __VA_ARGS__)
@@ -72,14 +78,15 @@ private:
 #endif
 
 #define ELOG(def, ...) thorin::Log::error((def)->location(), __VA_ARGS__)
+#define ELOG_LOC(loc, ...) thorin::Log::error(loc, __VA_ARGS__)
 #define WLOG(def, ...) ALWAYS_LOG(thorin::Log::Warn, (def)->location(), __VA_ARGS__)
 #define ILOG(def, ...) ALWAYS_LOG(thorin::Log::Info, (def)->location(), __VA_ARGS__)
 #define VLOG(...) MAYBE_LOG(thorin::Log::Verbose, Location(__FILE__, __LINE__, -1), __VA_ARGS__)
 #define DLOG(...) MAYBE_LOG(thorin::Log::Debug,   Location(__FILE__, __LINE__, -1), __VA_ARGS__)
 #define VLOG_SCOPE(s) { \
-    VLOG("*** BEGIN: " #s " {"); \
+    VLOG("*** BEGIN: " #s " {{"); \
     (s); \
-    VLOG("}"); \
+    VLOG("}}"); \
 }
 
 #endif

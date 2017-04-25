@@ -31,7 +31,6 @@ public:
         , builder_(nullptr)
         , handle_(-1)
         , type_(nullptr)
-        , name_(nullptr)
         , def_(nullptr)
     {}
     Value(const Value& value)
@@ -39,7 +38,6 @@ public:
         , builder_(value.builder_)
         , handle_ (value.handle_)
         , type_   (value.type_)
-        , name_   (value.name_)
         , def_    (value.def_)
         , value_  (value.value_ == nullptr ? nullptr : new Value(*value.value_))
     {}
@@ -50,7 +48,7 @@ public:
     }
 
     Value static create_val(IRBuilder&, const Def* val);
-    Value static create_mut(IRBuilder&, size_t handle, const Type* type, const char* name);
+    Value static create_mut(IRBuilder&, size_t handle, const Type* type);
     Value static create_ptr(IRBuilder&, const Def* ptr);
     Value static create_agg(Value value, const Def* offset);
 
@@ -66,11 +64,10 @@ public:
     Value& operator= (Value other) { swap(*this, other); return *this; }
     friend void swap(Value& v1, Value& v2) {
         using std::swap;
-        swap(v1.tag_,    v2.tag_);
+        swap(v1.tag_,     v2.tag_);
         swap(v1.builder_, v2.builder_);
         swap(v1.handle_,  v2.handle_);
         swap(v1.type_,    v2.type_);
-        swap(v1.name_,    v2.name_);
         swap(v1.def_,     v2.def_);
         swap(v1.value_,   v2.value_);
     }
@@ -80,7 +77,6 @@ private:
     IRBuilder* builder_;
     size_t handle_;
     const Type* type_;
-    const char* name_;
     const Def* def_;
     std::unique_ptr<Value> value_;
 };
@@ -89,7 +85,7 @@ private:
 
 class JumpTarget {
 public:
-    JumpTarget(Debug dbg)
+    JumpTarget(Debug dbg = {})
         : debug_(dbg)
     {}
 #ifndef NDEBUG
@@ -140,6 +136,7 @@ public:
     Continuation* enter_unsealed(JumpTarget& jt) { return cur_bb = jt.enter_unsealed(world_); }
     void jump(JumpTarget& jt, Debug dbg = {});
     void branch(const Def* cond, JumpTarget& t, JumpTarget& f, Debug dbg = {});
+    void match(const Def* val, JumpTarget& otherwise, Defs patterns, Array<JumpTarget>& targets, Debug dbg = {});
     const Def* call(const Def* to, Defs args, const Type* ret_type, Debug dbg = {});
     const Def* get_mem();
     void set_mem(const Def* def);

@@ -15,7 +15,8 @@ public:
 
     World& world() { return world_; }
     void cleanup();
-    void merge_continuations();
+    void eta_conversion();
+    size_t unreachable_code_elimination();
     void eliminate_params();
     void rebuild();
     void verify_closedness();
@@ -25,54 +26,49 @@ private:
     World& world_;
 };
 
-class Merger {
-public:
-    Merger(const Scope& scope)
-        : scope(scope)
-        , cfg(scope.f_cfg())
-        , domtree(cfg.domtree())
-    {
-        merge(domtree.root());
+void Cleaner::eta_conversion() {
+    for (bool todo = true; todo;) {
+        todo = false;
+        for (auto continuation : world().continuations()) {
+            if (!continuation->empty()) {
+                while (auto callee = continuation->callee()->isa_continuation()) {
+                    if (callee->num_uses() == 1 && !callee->empty() && !callee->is_external()) {
+                        for (size_t i = 0, e = continuation->num_args(); i != e; ++i)
+                            callee->param(i)->replace(continuation->arg(i));
+                        continuation->jump(callee->callee(), callee->args(), callee->jump_debug());
+                        callee->destroy_body();
+                        todo = true;
+                    } else
+                        break;
+                }
+
+                if (continuation->callee()->isa<Param>() && !continuation->is_external()
+                        && continuation->args() == continuation->params_as_defs()) {
+                    continuation->replace(continuation->callee());
+                    continuation->destroy_body();
+                    todo = true;
+                }
+            }
+        }
     }
-
-    void merge(const CFNode* n);
-    const CFNode* dom_succ(const CFNode* n);
-    World& world() { return scope.world(); }
-
-    const Scope& scope;
-    const F_CFG& cfg;
-    const DomTree& domtree;
-};
-
-const CFNode* Merger::dom_succ(const CFNode* n) {
-    const auto& succs = cfg.succs(n);
-    const auto& children = domtree.children(n);
-    if (succs.size() == 1 && children.size() == 1 && *succs.begin() == (*children.begin())) {
-        auto continuation = (*succs.begin())->continuation();
-        if (continuation->num_uses() == 1 && continuation == n->continuation()->callee())
-            return children.front();
-    }
-    return nullptr;
 }
 
-void Merger::merge(const CFNode* n) {
-    auto cur = n;
-    for (auto next = dom_succ(cur); next != nullptr; cur = next, next = dom_succ(next)) {
-        assert(cur->continuation()->num_args() == next->continuation()->num_params());
-        for (size_t i = 0, e = cur->continuation()->num_args(); i != e; ++i)
-            next->continuation()->param(i)->replace(cur->continuation()->arg(i));
-        cur->continuation()->destroy_body();
+size_t Cleaner::unreachable_code_elimination() {
+    ContinuationSet reachable;
+    Scope::for_each<false>(world(), [&] (const Scope& scope) {
+        DLOG("scope: {}", scope.entry());
+        for (auto n : scope.f_cfg().reverse_post_order())
+            reachable.emplace(n->continuation());
+    });
+
+    for (auto continuation : world().continuations()) {
+        if (!reachable.contains(continuation)) {
+            continuation->replace(world().bottom(continuation->type()));
+            continuation->destroy_body();
+        }
     }
 
-    if (cur != n)
-        n->continuation()->jump(cur->continuation()->callee(), cur->continuation()->args(), cur->continuation()->jump_debug());
-
-    for (auto child : domtree.children(cur))
-        merge(child);
-}
-
-void Cleaner::merge_continuations() {
-    Scope::for_each(world(), [] (const Scope& scope) { Merger merger(scope); });
+    return reachable.size();
 }
 
 void Cleaner::eliminate_params() {
@@ -96,11 +92,11 @@ void Cleaner::eliminate_params() {
 
             if (!proxy_idx.empty()) {
                 auto ncontinuation = world().continuation(world().fn_type(ocontinuation->type()->ops().cut(proxy_idx)),
-                                            ocontinuation->cc(), ocontinuation->intrinsic(), ocontinuation->debug());
+                                            ocontinuation->cc(), ocontinuation->intrinsic(), ocontinuation->debug_history());
                 size_t j = 0;
                 for (auto i : param_idx) {
                     ocontinuation->param(i)->replace(ncontinuation->param(j));
-                    ncontinuation->param(j++)->debug().set(ocontinuation->param(i)->name());
+                    ncontinuation->param(j++)->debug() = ocontinuation->param(i)->debug_history();
                 }
 
                 ncontinuation->jump(ocontinuation->callee(), ocontinuation->args(), ocontinuation->jump_debug());
@@ -171,9 +167,14 @@ void Cleaner::cleanup() {
         assert(p.second.empty() && "there are still live trackers before running cleanup");
 #endif
 
-    merge_continuations();
-    eliminate_params();
-    rebuild();
+    size_t num = -1, old;
+    do {
+        old = num;
+        eta_conversion();
+        eliminate_params();
+        num = unreachable_code_elimination();
+        rebuild();
+    } while (num != old);
 
 #ifndef NDEBUG
     verify_closedness();

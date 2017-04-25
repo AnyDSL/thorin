@@ -44,7 +44,7 @@ public:
     {
         ostream << "graph: {" << up_endl;
         ostream << "layoutalgorithm: compilergraph" << endl;
-        ostream << "orientation: " << YCompOrientation_Names[orientation];
+        ostream << "orientation: " << YCompOrientation_Names[orientation] << endl;
     }
 
     YCompScope(std::ostream& ostream, const Scope& scope, Range<I> range,
@@ -65,11 +65,11 @@ private:
         auto id = scope.id();
 
         auto print_node = [&] (decltype(*range.begin()) node) {
-            streamf(ostream(), "node: { title: \"{}_{}\" label: \"{}\" }", node, id, node) << endl;
+            streamf(ostream(), "node: {{ title: \"{}_{}\" label: \"{}\" }}", node, id, node) << endl;
 
             for (const auto& succ : succs(node))
-                streamf(ostream(), "edge: { sourcename: \"{}_{}\" targetname: \"{}_{}\" class: {} }",
-                        node, id, &*succ, id, 16) << endl;
+                streamf(ostream(), "edge: {{ sourcename: \"{}_{}\" targetname: \"{}_{}\" class: {} }}",
+                        node, id, &*succ, id, 13) << endl; // 16
         };
 
         auto title = scope.entry()->unique_name();

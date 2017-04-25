@@ -32,7 +32,7 @@ namespace detail {
             spec_fmt.push_back(*fmt++);
         }
         if (*fmt != '}')
-            throw std::invalid_argument("Unmatched closing brace } in format string.");
+            throw std::invalid_argument("unmatched closing brace '}' in format string");
         if (specifier == '}')
             detail::stream(os, val);
         // TODO possibly handle some format specifiers here that don't require major template trickery (e.g. floats)
@@ -68,7 +68,7 @@ std::ostream& streamf(std::ostream& os, const char* fmt, T val, Args... args) {
                 continue;
             }
             // TODO give exact position
-            throw std::invalid_argument("Unmatched/unescaped closing brace } in format string.");
+            throw std::invalid_argument("nmatched/unescaped closing brace '}' in format string");
         } else
             os << *fmt++;
     }

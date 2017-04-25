@@ -24,8 +24,8 @@ typedef std::vector<Continuation*> Continuations;
  */
 class Param : public Def {
 private:
-    Param(const Type* type, Continuation* continuation, size_t index, Debug debug)
-        : Def(Node_Param, type, 0, debug)
+    Param(const Type* type, Continuation* continuation, size_t index, Debug dbg)
+        : Def(Node_Param, type, 0, dbg)
         , continuation_(continuation)
         , index_(index)
     {}
@@ -76,6 +76,7 @@ enum class Intrinsic : uint8_t {
     Atomic,                     ///< Intrinsic atomic function
     CmpXchg,                    ///< Intrinsic cmpxchg function
     Branch,                     ///< branch(cond, T, F).
+    Match,                      ///< match(val, otherwise, (case1, cont1), (case2, cont2), ...)
     PeInfo,                     ///< Partial evaluation debug info.
     EndScope,                   ///< Dummy function which marks the end of a @p Scope.
 };
@@ -93,8 +94,8 @@ enum class CC : uint8_t {
  */
 class Continuation : public Def {
 private:
-    Continuation(const FnType* fn, CC cc, Intrinsic intrinsic, bool is_sealed, Debug debug)
-        : Def(Node_Continuation, fn, 0, debug)
+    Continuation(const FnType* fn, CC cc, Intrinsic intrinsic, bool is_sealed, Debug dbg)
+        : Def(Node_Continuation, fn, 0, dbg)
         , parent_(this)
         , cc_(cc)
         , intrinsic_(intrinsic)
@@ -106,14 +107,8 @@ private:
     virtual ~Continuation() { for (auto param : params()) delete param; }
 
 public:
-    Continuation* stub() const { Type2Type map; return stub(map); }
-    Continuation* stub(Debug debug) const { Type2Type map; return stub(map, debug); }
-    Continuation* stub(Type2Type& type2type) const { return stub(type2type, debug()); }
-    Continuation* stub(Type2Type& type2type, Debug) const;
-    Continuation* update_callee(const Def* def) { return update_op(0, def); }
-    Continuation* update_op(size_t i, const Def* def);
-    Continuation* update_arg(size_t i, const Def* def) { return update_op(i+1, def); }
-    const Param* append_param(const Type* type, const std::string& name = "");
+    Continuation* stub() const;
+    const Param* append_param(const Type* type, Debug dbg = {});
     Continuations direct_preds() const;
     Continuations direct_succs() const;
     Continuations indirect_preds() const;
@@ -124,6 +119,7 @@ public:
     Array<const Def*> params_as_defs() const;
     const Param* param(size_t i) const { assert(i < num_params()); return params_[i]; }
     const Param* mem_param() const;
+    const Param* ret_param() const;
     const Def* callee() const;
     Defs args() const { return num_ops() == 0 ? Defs(0, 0) : ops().skip_front(); }
     const Def* arg(size_t i) const { return args()[i]; }
@@ -166,12 +162,27 @@ public:
     void jump(const Def* callee, Defs args, Debug dbg = {});
     void jump(JumpTarget&, Debug dbg = {});
     void branch(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
+    void match(const Def* val, Continuation* otherwise, Defs patterns, ArrayRef<Continuation*> continuations, Debug dbg = {});
     std::pair<Continuation*, const Def*> call(const Def* callee, Defs args, const Type* ret_type, Debug dbg = {});
+    void verify() const {
+#ifndef NDEBUG
+        if (auto continuation = callee()->isa<Continuation>()) {
+            if (!continuation->is_sealed())
+                return;
+        }
+        auto c = callee_fn_type();
+        auto a = arg_fn_type();
+        assertf(c == a, "continuation '{}' calls '{}' of type '{}' but call has type '{}'\n", this, callee(), c, a);
+#endif
+    }
+    Continuation* update_op(size_t i, const Def* def);
+    Continuation* update_callee(const Def* def) { return update_op(0, def); }
+    Continuation* update_arg(size_t i, const Def* def) { return update_op(i+1, def); }
 
     // value numbering
 
     const Def* set_value(size_t handle, const Def* def);
-    const Def* get_value(size_t handle, const Type* type, const char* name = "");
+    const Def* get_value(size_t handle, const Type* type, Debug dbg = {});
     const Def* set_mem(const Def* def);
     const Def* get_mem();
     Continuation* parent() const { return parent_; }            ///< See @p parent_ for more information.
@@ -186,26 +197,26 @@ private:
     class Todo {
     public:
         Todo() {}
-        Todo(size_t handle, size_t index, const Type* type, const char* name)
+        Todo(size_t handle, size_t index, const Type* type, Debug dbg)
             : handle_(handle)
             , index_(index)
             , type_(type)
-            , name_(name)
+            , debug_(dbg)
         {}
 
         size_t handle() const { return handle_; }
         size_t index() const { return index_; }
         const Type* type() const { return type_; }
-        const char* name() const { return name_; }
+        Debug debug() const { return debug_; }
 
     private:
         size_t handle_;
         size_t index_;
         const Type* type_;
-        const char* name_;
+        Debug debug_;
     };
 
-    const Def* fix(size_t handle, size_t index, const Type* type, const char* name);
+    const Def* fix(size_t handle, size_t index, const Type* type, Debug dbg);
     const Def* try_remove_trivial_param(const Param*);
     const Def* find_def(size_t handle);
     void increase_values(size_t handle) { if (handle >= values_.size()) values_.resize(handle+1); }

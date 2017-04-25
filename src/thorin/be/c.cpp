@@ -169,6 +169,7 @@ std::ostream& CCodeGen::emit_aggop_defs(const Def* def) {
 
     // look for nested struct
     if (auto agg = def->isa<Aggregate>()) {
+        if (is_from_match(agg)) return func_impl_;
         for (auto op : agg->ops())
             emit_aggop_defs(op);
         if (lookup(def))
@@ -397,6 +398,12 @@ void CCodeGen::emit() {
             }
 
             for (auto primop : block) {
+                if (primop->type()->order() >= 1) {
+                    // ignore higher-order primops which come from a match intrinsic
+                    if (is_from_match(primop)) continue;
+                    THORIN_UNREACHABLE;
+                }
+
                 // struct/tuple/array declarations
                 if (!primop->isa<MemOp>()) {
                     emit_aggop_decl(primop->type());
@@ -408,7 +415,9 @@ void CCodeGen::emit() {
                 }
 
                 // skip higher-order primops, stuff dealing with frames and all memory related stuff except stores
-                if (!primop->type()->isa<FnType>() && !primop->type()->isa<FrameType>() && (!is_mem(primop) || primop->isa<Store>())) {
+                if (!primop->type()->isa<FnType>() &&
+                    !primop->type()->isa<FrameType>() &&
+                    (!is_mem(primop) || primop->isa<Store>())) {
                     emit_debug_info(primop);
                     emit(primop) << endl;
                 }
@@ -472,6 +481,19 @@ void CCodeGen::emit() {
                 emit(continuation->arg(1));
                 func_impl_ << " else ";
                 emit(continuation->arg(2));
+            } else if (continuation->callee()->isa<Continuation>() &&
+                       continuation->callee()->as<Continuation>()->intrinsic() == Intrinsic::Match) {
+                func_impl_ << "switch (";
+                emit(continuation->arg(0)) << ") {" << up << endl;
+                for (size_t i = 2; i < continuation->num_args(); i++) {
+                    auto arg = continuation->arg(i)->as<Tuple>();
+                    func_impl_ << "case ";
+                    emit(arg->op(0)) << ": ";
+                    emit(arg->op(1)) << endl;
+                }
+                func_impl_ << "default: ";
+                emit(continuation->arg(1));
+                func_impl_ << down << endl << "}";
             } else if (continuation->callee()->isa<Bottom>()) {
                 func_impl_ << "return ; // bottom: unreachable";
             } else {
@@ -512,11 +534,6 @@ void CCodeGen::emit() {
                             emit(continuation->arg(1)) << "];" << endl;
                             // store_phi:
                             func_impl_ << "p" << cont->param(1)->unique_name() << " = " << name << ";";
-                        } else if (callee->intrinsic() == Intrinsic::PeInfo) {
-                            assert(continuation->num_args() == 4 && "required arguments are missing");
-                            assert(continuation->arg(1)->type() == world().ptr_type(world().indefinite_array_type(world().type_pu8())));
-                            auto msg = continuation->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
-                            ILOG(callee, "pe_info not in PE mode: {}: {}", msg->as_string(), continuation->arg(2));
                         } else {
                             THORIN_UNREACHABLE;
                         }
@@ -550,50 +567,41 @@ void CCodeGen::emit() {
                             }
                         }
 
-                        if (ret_arg == ret_param) {     // call + return
-                            if (ret_arg->type() == fn_mem_) {
+                        // must be call + continuation --- call + return has been removed by codegen_prepare
+                        auto succ = ret_arg->as_continuation();
+                        const Param* param = nullptr;
+                        switch (succ->num_params()) {
+                            case 0:
                                 emit_call();
-                                func_impl_ << endl << "return ;";
-                            } else {
-                                func_impl_ << "return ";
+                                break;
+                            case 1:
+                                // TODO this looks weird
+                                param = is_mem(succ->param(0)) ? succ->param(0) : nullptr;
+                                if (is_mem(param))
+                                    param = nullptr;
+                                emit_call(param);
+                                break;
+                            case 2:
+                                assert(succ->mem_param() && "no mem_param found for succ");
+                                param = succ->param(0);
+                                param = is_mem(param) ? succ->param(1) : param;
+                                emit_call(param);
+                                break;
+                            default: {
+                                assert(is_mem(succ->param(0)));
+                                auto ret_param_fn_type = ret_arg->type()->as<FnType>();
+                                auto ret_type = world_.tuple_type(ret_param_fn_type->ops().skip_front());
+
+                                auto ret_tuple_name = "ret_tuple" + std::to_string(continuation->gid());
+                                emit_aggop_decl(ret_type);
+                                emit_type(func_impl_, ret_type) << " " << ret_tuple_name << ";" << endl << ret_tuple_name << " = ";
                                 emit_call();
-                            }
-                        } else {                        // call + continuation
-                            auto succ = ret_arg->as_continuation();
-                            const Param* param = nullptr;
-                            switch (succ->num_params()) {
-                                case 0:
-                                    emit_call();
-                                    break;
-                                case 1:
-                                    // TODO this looks weird
-                                    param = is_mem(succ->param(0)) ? succ->param(0) : nullptr;
-                                    if (is_mem(param))
-                                        param = nullptr;
-                                    emit_call(param);
-                                    break;
-                                case 2:
-                                    assert(succ->mem_param() && "no mem_param found for succ");
-                                    param = succ->param(0);
-                                    param = is_mem(param) ? succ->param(1) : param;
-                                    emit_call(param);
-                                    break;
-                                default: {
-                                    assert(is_mem(succ->param(0)));
-                                    auto ret_param_fn_type = ret_arg->type()->as<FnType>();
-                                    auto ret_type = world_.tuple_type(ret_param_fn_type->ops().skip_front());
 
-                                    auto ret_tuple_name = "ret_tuple" + std::to_string(continuation->gid());
-                                    emit_aggop_decl(ret_type);
-                                    emit_type(func_impl_, ret_type) << " " << ret_tuple_name << ";" << endl << ret_tuple_name << " = ";
-                                    emit_call();
-
-                                    // store arguments to phi node
-                                    auto tuple = succ->params().skip_front();
-                                    for (size_t i = 0, e = tuple.size(); i != e; ++i)
-                                        func_impl_ << endl << "p" << tuple[i]->unique_name() << " = " << ret_tuple_name << ".e" << i << ";";
-                                    break;
-                                }
+                                // store arguments to phi node
+                                auto tuple = succ->params().skip_front();
+                                for (size_t i = 0, e = tuple.size(); i != e; ++i)
+                                    func_impl_ << endl << "p" << tuple[i]->unique_name() << " = " << ret_tuple_name << ".e" << i << ";";
+                                break;
                             }
                         }
                     }
@@ -826,18 +834,13 @@ std::ostream& CCodeGen::emit(const Def* def) {
     }
 
     if (auto primlit = def->isa<PrimLit>()) {
-#if __GNUC__ == 4 || (__GNUC__ == 5 && __GNUC_MINOR__ < 1)
-        auto float_mode = std::scientific;
-        auto fs = "f";
-#else
         auto float_mode = lang_ == Lang::CUDA ? std::scientific : std::hexfloat;
         auto fs = lang_ == Lang::CUDA ? "f" : "";
-#endif
         auto hp = lang_ == Lang::CUDA ? "__float2half(" : "";
         auto hs = lang_ == Lang::CUDA ? ")" : "h";
 
         switch (primlit->primtype_tag()) {
-            case PrimType_bool: func_impl_ << (primlit->bool_value() ? "true" : "false");                          break;
+            case PrimType_bool:                     func_impl_ << (primlit->bool_value() ? "true" : "false");      break;
             case PrimType_ps8:  case PrimType_qs8:  func_impl_ << (int) primlit->ps8_value();                      break;
             case PrimType_pu8:  case PrimType_qu8:  func_impl_ << (unsigned) primlit->pu8_value();                 break;
             case PrimType_ps16: case PrimType_qs16: func_impl_ << primlit->ps16_value();                           break;

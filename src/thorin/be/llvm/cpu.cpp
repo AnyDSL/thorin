@@ -19,7 +19,7 @@ CPUCodeGen::CPUCodeGen(World& world)
     auto target = llvm::TargetRegistry::lookupTarget(triple_str, error);
     assert(target && "can't create target for host architecture");
     llvm::TargetOptions options;
-    auto machine(target->createTargetMachine(triple_str, llvm::sys::getHostCPUName(), "" /* features */, options, llvm::None));
+    std::unique_ptr<llvm::TargetMachine> machine(target->createTargetMachine(triple_str, llvm::sys::getHostCPUName(), "" /* features */, options, llvm::None));
     module_->setDataLayout(machine->createDataLayout());
 }
 

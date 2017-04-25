@@ -27,8 +27,9 @@ std::ostream& operator<<(std::ostream& ostream, const Streamable* s) { return s-
 
 std::ostream& streamf(std::ostream& os, const char* fmt) {
     while (*fmt) {
+        auto next = fmt + 1;
         if (*fmt == '{') {
-            if (*(fmt+1) == '{') {
+            if (*next == '{') {
                 os << '{';
                 fmt += 2;
                 continue;
@@ -41,6 +42,14 @@ std::ostream& streamf(std::ostream& os, const char* fmt) {
             else
                 throw std::invalid_argument("invalid format string for 'streamf': missing closing brace and argument; use 'catch throw' in 'gdb'");
 
+        } else if (*fmt == '}') {
+            if (*next == '}') {
+                os << '}';
+                fmt += 2;
+                continue;
+            }
+            // TODO give exact position
+            throw std::invalid_argument("nmatched/unescaped closing brace '}' in format string");
         }
         os << *fmt++;
     }

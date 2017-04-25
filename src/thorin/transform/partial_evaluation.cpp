@@ -56,6 +56,7 @@ public:
     }
 
     void mark_dirty() { top_dirty_ = cur_dirty_ = true; }
+    bool top_dirty() { return top_dirty_; }
     Continuation* get_continuation(Continuation* continuation) { return continuation->callee()->as<EvalOp>()->end()->isa_continuation(); }
 
 private:
@@ -88,6 +89,16 @@ void PartialEvaluator::run() {
         for (auto succ : top_scope().f_cfg().succs(continuation))
             enqueue(succ->continuation());
     }
+}
+
+Continuation* eat_pe_info(Continuation* cur, bool eval) {
+    World& world = cur->world();
+    assert(cur->arg(1)->type() == world.ptr_type(world.indefinite_array_type(world.type_pu8())));
+    auto msg = cur->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
+    ILOG(cur->callee(), "{}pe_info: {}: {}", eval ? "" : "NOT evaluated: ", msg->as_string(), cur->arg(2));
+    auto next = cur->arg(3)->as_continuation();
+    cur->jump(next, {cur->arg(0)}, cur->jump_debug());
+    return next;
 }
 
 void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
@@ -123,12 +134,8 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
 
         // pe_info calls are handled here
         if (dst != nullptr && dst->intrinsic() == Intrinsic::PeInfo) {
-            assert(cur->arg(1)->type() == world().ptr_type(world().indefinite_array_type(world().type_pu8())));
-            auto msg = cur->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
-            ILOG(dst, "pe_info: {}: {}", msg->as_string(), cur->arg(2));
-            auto next = cur->arg(3)->as_continuation();
-            cur->jump(next, { cur->arg(0) }, cur->jump_debug());
-            cur = next;
+            cur = eat_pe_info(cur, true);
+            mark_dirty();
             continue;
         }
 
@@ -247,7 +254,28 @@ Continuation* PartialEvaluator::postdom(Continuation* cur, const Scope& scope) {
 //------------------------------------------------------------------------------
 
 void eval(World& world) {
-    Scope::for_each(world, [&] (Scope& scope) { PartialEvaluator(scope).run(); });
+    Scope::for_each(world, [&] (Scope& scope) {
+        PartialEvaluator partial_evaluator(scope);
+        partial_evaluator.run();
+        if (partial_evaluator.top_dirty())
+            scope.update();
+    });
+
+    Scope::for_each(world, [&] (Scope& scope) {
+        bool dirty = false;
+        for (auto n : scope.f_cfg().reverse_post_order()) {
+            auto continuation = n->continuation();
+            if (auto callee = continuation->callee()->isa<Continuation>()) {
+                if (callee->intrinsic() == Intrinsic::PeInfo) {
+                    eat_pe_info(continuation, false);
+                    dirty = true;
+                }
+            }
+
+            if (dirty)
+                scope.update();
+        }
+    });
 }
 
 void partial_evaluation(World& world) {
@@ -258,6 +286,8 @@ void partial_evaluation(World& world) {
         if (auto evalop = primop->isa<EvalOp>())
             evalop->replace(evalop->begin());
     }
+
+    world.cleanup();
 }
 
 //------------------------------------------------------------------------------

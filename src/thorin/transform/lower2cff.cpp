@@ -31,12 +31,11 @@ void lower2cff(World& world) {
                 }
             };
 
-            const auto& cfg = scope.f_cfg();
-            for (auto n : cfg.post_order()) {
+            for (auto n : scope.f_cfg().post_order()) {
                 auto continuation = n->continuation();
                 if (auto callee = continuation->callee()->isa_continuation()) {
                     if (is_bad(callee)) {
-                        DLOG("bad: {}", callee);
+                        DLOG("bad: {}: {} at {}", callee, callee->type(), callee->location());
                         todo = dirty = true;
 
                         Call call(continuation);

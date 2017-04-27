@@ -16,7 +16,7 @@ public:
     World& world() { return world_; }
     void cleanup();
     void eta_conversion();
-    size_t unreachable_code_elimination();
+    void unreachable_code_elimination();
     void eliminate_params();
     void rebuild();
     void verify_closedness();
@@ -24,6 +24,7 @@ public:
 
 private:
     World& world_;
+    bool todo_ = true;
 };
 
 void Cleaner::eta_conversion() {
@@ -37,7 +38,7 @@ void Cleaner::eta_conversion() {
                             callee->param(i)->replace(continuation->arg(i));
                         continuation->jump(callee->callee(), callee->args(), callee->jump_debug());
                         callee->destroy_body();
-                        todo = true;
+                        todo_ = todo = true;
                     } else
                         break;
                 }
@@ -46,14 +47,14 @@ void Cleaner::eta_conversion() {
                         && continuation->args() == continuation->params_as_defs()) {
                     continuation->replace(continuation->callee());
                     continuation->destroy_body();
-                    todo = true;
+                    todo_ = todo = true;
                 }
             }
         }
     }
 }
 
-size_t Cleaner::unreachable_code_elimination() {
+void Cleaner::unreachable_code_elimination() {
     ContinuationSet reachable;
     Scope::for_each<false>(world(), [&] (const Scope& scope) {
         DLOG("scope: {}", scope.entry());
@@ -126,6 +127,7 @@ void Cleaner::rebuild() {
         importer.import(external);
 
     swap(importer.world(), world_);
+    todo_ |= importer.todo();
 }
 
 void Cleaner::verify_closedness() {
@@ -167,14 +169,16 @@ void Cleaner::cleanup() {
         assert(p.second.empty() && "there are still live trackers before running cleanup");
 #endif
 
-    size_t num = -1, old;
-    do {
-        old = num;
+    int i = 0;
+    while (todo_) {
+        todo_ = false;
         eta_conversion();
         eliminate_params();
-        num = unreachable_code_elimination();
+        unreachable_code_elimination();
         rebuild();
-    } while (num != old);
+        ++i;
+    }
+    outf("{}\n", i);
 
 #ifndef NDEBUG
     verify_closedness();

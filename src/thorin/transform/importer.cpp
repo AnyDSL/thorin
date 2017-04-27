@@ -83,6 +83,7 @@ const Def* Importer::import(const Def* odef) {
 
     if (auto oprimop = odef->isa<PrimOp>()) {
         auto nprimop = oprimop->rebuild(world(), nops, ntype);
+        todo_ |= oprimop->tag() != oprimop->tag();
         return def_old2new_[oprimop] = nprimop;
     }
 

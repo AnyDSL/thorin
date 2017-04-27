@@ -171,13 +171,12 @@ void Cleaner::cleanup() {
 #endif
 
     int i = 0;
-    while (todo_) {
+    for (; todo_; ++i) {
         todo_ = false;
         eta_conversion();
         eliminate_params();
         unreachable_code_elimination();
         rebuild();
-        ++i;
     }
     DLOG("fixed-point reached after {} iterations", i);
 

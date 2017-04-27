@@ -107,9 +107,9 @@ void Cleaner::eliminate_params() {
                     assert(use.index() == 0);
                     ucontinuation->jump(ncontinuation, ucontinuation->args().cut(proxy_idx), ucontinuation->jump_debug());
                 }
-            }
 
-            todo_ = true;
+                todo_ = true;
+            }
         }
 next_continuation:;
     }
@@ -179,7 +179,7 @@ void Cleaner::cleanup() {
         rebuild();
         ++i;
     }
-    outf("{}\n", i);
+    DLOG("fixed-point reached after {} iterations", i);
 
 #ifndef NDEBUG
     verify_closedness();

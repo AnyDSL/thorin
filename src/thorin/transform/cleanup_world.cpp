@@ -63,13 +63,12 @@ void Cleaner::unreachable_code_elimination() {
     });
 
     for (auto continuation : world().continuations()) {
-        if (!reachable.contains(continuation)) {
+        if (!reachable.contains(continuation) && !continuation->empty()) {
             continuation->replace(world().bottom(continuation->type()));
             continuation->destroy_body();
+            todo_ = true;
         }
     }
-
-    return reachable.size();
 }
 
 void Cleaner::eliminate_params() {
@@ -109,6 +108,8 @@ void Cleaner::eliminate_params() {
                     ucontinuation->jump(ncontinuation, ucontinuation->args().cut(proxy_idx), ucontinuation->jump_debug());
                 }
             }
+
+            todo_ = true;
         }
 next_continuation:;
     }

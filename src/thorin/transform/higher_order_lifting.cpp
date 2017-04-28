@@ -16,8 +16,7 @@ void higher_order_lifting(World& world) {
         DLOG("scope: {}", scope.entry());
         bool dirty = false;
 
-        for (auto n : scope.f_cfg().post_order()) {
-            auto continuation = n->continuation();
+        for (auto continuation : scope.bottom_up()) {
             if (continuation != scope.entry() && continuation->order() > 1) {
                 DLOG("lift: {}", continuation);
                 Scope cur(continuation);

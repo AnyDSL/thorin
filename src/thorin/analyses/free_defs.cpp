@@ -15,7 +15,7 @@ DefSet free_defs(const Scope& scope) {
         }
     };
 
-    for (auto continuation : scope)
+    for (auto continuation : scope.top_down())
         enqueue_ops(continuation);
 
     while (!queue.empty()) {

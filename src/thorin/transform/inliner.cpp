@@ -10,8 +10,7 @@ namespace thorin {
 void force_inline(Scope& scope, int threshold) {
     for (bool todo = true; todo && threshold-- != 0;) {
         todo = false;
-        for (auto n : scope.f_cfg().post_order()) {
-            auto continuation = n->continuation();
+        for (auto continuation : scope.bottom_up()) {
             if (auto callee = continuation->callee()->isa_continuation()) {
                 if (!callee->empty() && !scope.contains(callee)) {
                     Scope callee_scope(callee);
@@ -25,8 +24,7 @@ void force_inline(Scope& scope, int threshold) {
             scope.update();
     }
 
-    for (auto n : scope.f_cfg().reverse_post_order()) {
-        auto continuation = n->continuation();
+    for (auto continuation : scope.top_down()) {
         if (auto callee = continuation->callee()->isa_continuation()) {
             if (!callee->empty() && !scope.contains(callee))
                 WLOG(callee, "couldn't inline {} at {}", scope.entry(), continuation->jump_location());

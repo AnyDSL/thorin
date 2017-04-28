@@ -5,9 +5,7 @@
 namespace thorin {
 
 static void dead_load_opt(const Scope& scope) {
-    for (auto n : scope.f_cfg().post_order()) {
-        auto continuation = n->continuation();
-
+    for (auto continuation : scope.bottom_up()) {
         Tracker mem;
         for (auto arg : continuation->args()) {
             if (is_mem(arg)) {

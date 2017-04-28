@@ -91,22 +91,22 @@ private:
 };
 
 template<class I>
-auto range(I begin, I end) -> Range<I> { return Range<I>(begin, end); }
+auto range(I begin, I end) { return Range<I>(begin, end); }
 
 template<class T>
-auto range(const T& t) -> Range<decltype(t.begin())> { return range(t.begin(), t.end()); }
+auto range(const T& t) { return range(t.begin(), t.end()); }
 
 template<class T>
-auto reverse_range(const T& t) -> Range<decltype(t.rbegin())> { return range(t.rbegin(), t.rend()); }
+auto reverse_range(const T& t) { return range(t.rbegin(), t.rend()); }
 
 template<class I, class P>
-auto  range(I begin, I end, P predicate) -> Range<filter_iterator<I, P>> {
+auto  range(I begin, I end, P predicate) {
     typedef filter_iterator<I, P> Filter;
     return range(Filter(begin, end, predicate), Filter(end, end, predicate));
 }
 
 template<class V, class I, class P>
-auto range(I begin, I end, P predicate) -> Range<filter_iterator<I, P, V>> {
+auto range(I begin, I end, P predicate) {
     typedef filter_iterator<I, P, V> Filter;
     return range(Filter(begin, end, predicate), Filter(end, end, predicate));
 }

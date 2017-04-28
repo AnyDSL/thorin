@@ -5,6 +5,7 @@
 
 #include "thorin/continuation.h"
 #include "thorin/util/array.h"
+#include "thorin/util/iterator.h"
 #include "thorin/util/stream.h"
 
 namespace thorin {
@@ -31,36 +32,54 @@ public:
     explicit Scope(Continuation* entry);
     ~Scope();
 
+    /// Invoke if you have modified sth in this Scope.
     const Scope& update();
-    ArrayRef<Continuation*> continuations() const { return continuations_; }
-    Continuation* operator[](size_t i) const { return continuations_[i]; }
+
+    World& world() const { return world_; }
+
+    //@{ get Continuation%s
     Continuation* entry() const { return continuations().front(); }
     Continuation* exit() const { return continuations().back(); }
+    ArrayRef<Continuation*> continuations() const { return continuations_; }
+    Continuation* operator[](size_t i) const { return continuations_[i]; }
+    size_t size() const { return continuations_.size(); }
     ArrayRef<Continuation*> body() const { return continuations().skip_front(); } ///< Like @p continuations() but without \p entry()
+    //@}
 
+    //@{ get Def%s contained in this Scope
     const DefSet& defs() const { return defs_; }
     bool contains(const Def* def) const { return defs_.contains(def); }
     bool inner_contains(Continuation* continuation) const { return continuation != entry() && contains(continuation); }
     bool inner_contains(const Param* param) const { return inner_contains(param->continuation()); }
-    size_t size() const { return continuations_.size(); }
-    World& world() const { return world_; }
+    //@}
+
+    //@{ traversal
+    auto top_down() const  { return range(continuations(). begin(), continuations(). end()); }
+    auto bottom_up() const { return range(continuations().rbegin(), continuations().rend()); }
+    //@}
+
+    //@{ get CFG
     const CFA& cfa() const;
     const CFNode* cfa(Continuation*) const;
     const F_CFG& f_cfg() const;
     const B_CFG& b_cfg() const;
     template<bool forward> const CFG<forward>& cfg() const;
+    //@}
 
+    //@{ dump
     // Note that we don't use overloading for the following methods in order to have them accessible from gdb.
     virtual std::ostream& stream(std::ostream&) const override;  ///< Streams thorin to file @p out.
     void write_thorin(const char* filename) const;               ///< Dumps thorin to file with name @p filename.
     void thorin() const;                                         ///< Dumps thorin to a file with an auto-generated file name.
+    //@}
 
-    typedef ArrayRef<Continuation*>::const_iterator const_iterator;
-    const_iterator begin() const { return continuations().begin(); }
-    const_iterator end() const { return continuations().end(); }
-
+    /**
+     * Transitively visits all @em reachable Scope%s in @p world that do not have free variables.
+     * We call these Scope%s @em top-level Scope%s.
+     * Select with @p elide_empty whether you want to visit trivial Scope%s of Continuation%s without body.
+     */
     template<bool elide_empty = true>
-    static void for_each(const World&, std::function<void(Scope&)>);
+    static void for_each(const World& world, std::function<void(Scope&)>);
 
 private:
     void run(Continuation* entry);

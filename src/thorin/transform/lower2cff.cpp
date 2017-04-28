@@ -31,8 +31,7 @@ void lower2cff(World& world) {
                 }
             };
 
-            for (auto n : scope.f_cfg().post_order()) {
-                auto continuation = n->continuation();
+            for (auto continuation : scope.bottom_up()) {
                 if (auto callee = continuation->callee()->isa_continuation()) {
                     if (is_bad(callee)) {
                         DLOG("bad: {}: {} at {}", callee, callee->type(), callee->location());

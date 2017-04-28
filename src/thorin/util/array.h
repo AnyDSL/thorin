@@ -242,14 +242,14 @@ Array<T> ArrayRef<T>::cut(ArrayRef<size_t> indices, size_t reserve) const {
 }
 
 template<class T, class U>
-auto concat(const T& a, const U& b) -> Array<typename T::value_type> {
+auto concat(const T& a, const U& b) {
     Array<typename T::value_type> result(a.size() + b.size());
     std::copy(b.begin(), b.end(), std::copy(a.begin(), a.end(), result.begin()));
     return result;
 }
 
 template<class T>
-auto concat(const T& val, ArrayRef<T> a) -> Array<T> {
+auto concat(const T& val, ArrayRef<T> a) {
     Array<T> result(a.size() + 1);
     std::copy(a.begin(), a.end(), result.begin()+1);
     result.front() = val;
@@ -257,7 +257,7 @@ auto concat(const T& val, ArrayRef<T> a) -> Array<T> {
 }
 
 template<class T>
-auto concat(ArrayRef<T> a, const T& val) -> Array<T> {
+auto concat(ArrayRef<T> a, const T& val) {
     Array<T> result(a.size() + 1);
     std::copy(a.begin(), a.end(), result.begin());
     result.back() = val;
@@ -265,7 +265,7 @@ auto concat(ArrayRef<T> a, const T& val) -> Array<T> {
 }
 
 template<class T>
-Array<typename T::value_type> make_array(const T& container) {
+auto make_array(const T& container) {
     return Array<typename T::value_type>(container.begin(), container.end());
 }
 

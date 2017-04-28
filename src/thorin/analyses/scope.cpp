@@ -22,7 +22,7 @@ Scope::~Scope() {}
 
 const Scope& Scope::update() {
     auto e = entry();
-    continuations_.clear();
+    top_down_.clear();
     defs_.clear();
     cfa_ = nullptr;
     run(e);
@@ -37,7 +37,7 @@ void Scope::run(Continuation* entry) {
             queue.push(def);
 
             if (auto continuation = def->isa_continuation()) {
-                continuations_.push_back(continuation);
+                top_down_.push_back(continuation);
 
                 for (auto param : continuation->params()) {
                     auto p = defs_.insert(param);

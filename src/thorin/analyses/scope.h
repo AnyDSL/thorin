@@ -20,9 +20,6 @@ class CFNode;
 /**
  * A @p Scope represents a region of @p Continuation%s which are live from the view of an @p entry @p Continuation.
  * Transitively, all user's of the @p entry's parameters are pooled into this @p Scope.
- * Use @p continuations() to retrieve a vector of @p Continuation%s in this @p Scope.
- * @p entry() will be first, @p exit() will be last.
- * @warning All other @p Continuation%s are in no particular order.
  */
 class Scope : public Streamable {
 public:
@@ -35,15 +32,16 @@ public:
     /// Invoke if you have modified sth in this Scope.
     const Scope& update();
 
+    //@{ misc getters
     World& world() const { return world_; }
+    Continuation* entry() const { return top_down().front(); }
+    Continuation* exit() const { return top_down().back(); }
+    size_t size() const { return top_down().size(); }
+    //@}
 
-    //@{ get Continuation%s
-    Continuation* entry() const { return continuations().front(); }
-    Continuation* exit() const { return continuations().back(); }
-    ArrayRef<Continuation*> continuations() const { return continuations_; }
-    Continuation* operator[](size_t i) const { return continuations_[i]; }
-    size_t size() const { return continuations_.size(); }
-    ArrayRef<Continuation*> body() const { return continuations().skip_front(); } ///< Like @p continuations() but without \p entry()
+    //@{ traversal
+    ArrayRef<Continuation*> top_down() const { return top_down_; }
+    auto bottom_up() const { return range(top_down().rbegin(), top_down().rend()); }
     //@}
 
     //@{ get Def%s contained in this Scope
@@ -51,11 +49,6 @@ public:
     bool contains(const Def* def) const { return defs_.contains(def); }
     bool inner_contains(Continuation* continuation) const { return continuation != entry() && contains(continuation); }
     bool inner_contains(const Param* param) const { return inner_contains(param->continuation()); }
-    //@}
-
-    //@{ traversal
-    auto top_down() const  { return range(continuations(). begin(), continuations(). end()); }
-    auto bottom_up() const { return range(continuations().rbegin(), continuations().rend()); }
     //@}
 
     //@{ get CFG
@@ -86,7 +79,7 @@ private:
 
     World& world_;
     DefSet defs_;
-    std::vector<Continuation*> continuations_;
+    std::vector<Continuation*> top_down_;
     mutable std::unique_ptr<const CFA> cfa_;
 };
 

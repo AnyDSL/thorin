@@ -5,8 +5,6 @@
 
 #include "thorin/continuation.h"
 #include "thorin/util/array.h"
-#include "thorin/util/indexmap.h"
-#include "thorin/util/indexset.h"
 #include "thorin/util/stream.h"
 
 namespace thorin {
@@ -27,10 +25,6 @@ class CFNode;
  */
 class Scope : public Streamable {
 public:
-    template<class Value>
-    using Map = IndexMap<Scope, Continuation*, Value>;
-    using Set = IndexSet<Scope, Continuation*>;
-
     Scope(const Scope&) = delete;
     Scope& operator=(Scope) = delete;
 
@@ -46,16 +40,8 @@ public:
 
     const DefSet& defs() const { return defs_; }
     bool contains(const Def* def) const { return defs_.contains(def); }
-    bool contains(Continuation* continuation) const { return continuation->find_scope(this) != nullptr; }
-    bool contains(const Param* param) const { return contains(param->continuation()); }
     bool inner_contains(Continuation* continuation) const { return continuation != entry() && contains(continuation); }
     bool inner_contains(const Param* param) const { return inner_contains(param->continuation()); }
-    size_t index(Continuation* continuation) const {
-        if (auto info = continuation->find_scope(this))
-            return info->index;
-        return size_t(-1);
-    }
-    uint32_t id() const { return id_; }
     size_t size() const { return continuations_.size(); }
     World& world() const { return world_; }
     const CFA& cfa() const;
@@ -77,16 +63,12 @@ public:
     static void for_each(const World&, std::function<void(Scope&)>);
 
 private:
-    void cleanup();
     void run(Continuation* entry);
 
     World& world_;
     DefSet defs_;
-    uint32_t id_;
     std::vector<Continuation*> continuations_;
     mutable std::unique_ptr<const CFA> cfa_;
-
-    static uint32_t id_counter_;
 };
 
 template<> inline const CFG< true>& Scope::cfg< true>() const { return f_cfg(); }

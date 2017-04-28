@@ -12,29 +12,19 @@
 
 namespace thorin {
 
-uint32_t Scope::id_counter_ = 1;
-
 Scope::Scope(Continuation* entry)
     : world_(entry->world())
-    , id_(id_counter_++)
 {
     run(entry);
 }
 
-Scope::~Scope() { cleanup(); }
-
-void Scope::cleanup() {
-    for (auto continuation : continuations())
-        continuation->unregister_scope(this);
-}
+Scope::~Scope() {}
 
 const Scope& Scope::update() {
-    cleanup();
     auto e = entry();
     continuations_.clear();
     defs_.clear();
     cfa_ = nullptr;
-    id_ = id_counter_++;
     run(e);
     return *this;
 }
@@ -47,7 +37,6 @@ void Scope::run(Continuation* entry) {
             queue.push(def);
 
             if (auto continuation = def->isa_continuation()) {
-                continuation->register_scope(this)->index = continuations_.size();
                 continuations_.push_back(continuation);
 
                 for (auto param : continuation->params()) {

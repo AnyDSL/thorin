@@ -212,23 +212,6 @@ bool Continuation::visit_capturing_intrinsics(std::function<bool(Continuation*)>
 bool Continuation::is_basicblock() const { return type()->is_basicblock(); }
 bool Continuation::is_returning() const { return type()->is_returning(); }
 
-std::list<Continuation::ScopeInfo>::iterator Continuation::list_iter(const Scope* scope) {
-    return std::find_if(scopes_.begin(), scopes_.end(), [&] (const ScopeInfo& info) {
-        return info.scope->id() == scope->id();
-    });
-}
-
-Continuation::ScopeInfo* Continuation::find_scope(const Scope* scope) {
-    auto i = list_iter(scope);
-    if (i != scopes_.end()) {
-        // heuristic: swap found node to front so current scope will be found as first element in list
-        if (i != scopes_.begin())
-            scopes_.splice(scopes_.begin(), scopes_, i);
-        return &scopes_.front();
-    } else
-        return nullptr;
-}
-
 /*
  * terminate
  */

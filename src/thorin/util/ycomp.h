@@ -62,14 +62,12 @@ public:
 
 private:
     void addScope(const Scope& scope, Range<I> range, SuccFct succs) {
-        auto id = scope.id();
-
         auto print_node = [&] (decltype(*range.begin()) node) {
-            streamf(ostream(), "node: {{ title: \"{}_{}\" label: \"{}\" }}", node, id, node) << endl;
+            streamf(ostream(), "node: {{ title: \"{}\" label: \"{}\" }}", node, node) << endl;
 
             for (const auto& succ : succs(node))
-                streamf(ostream(), "edge: {{ sourcename: \"{}_{}\" targetname: \"{}_{}\" class: {} }}",
-                        node, id, &*succ, id, 13) << endl; // 16
+                streamf(ostream(), "edge: {{ sourcename: \"{}\" targetname: \"{}\" class: {} }}",
+                        node, &*succ, 13) << endl; // 16
         };
 
         auto title = scope.entry()->unique_name();

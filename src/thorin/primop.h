@@ -32,7 +32,7 @@ public:
     virtual bool has_multiple_outs() const { return false; }
     virtual const char* op_name() const;
     virtual std::ostream& stream(std::ostream&) const override;
-    std::ostream& stream_assignment(std::ostream&) const;
+    virtual std::ostream& stream_assignment(std::ostream&) const;
 
 protected:
     virtual uint64_t vhash() const;
@@ -608,6 +608,7 @@ public:
 
 private:
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
+    virtual std::ostream& stream_assignment(std::ostream&) const override;
 
     std::string asm_template_;
     Array<std::string> output_constraints_, input_constraints_, clobbers_;

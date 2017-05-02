@@ -122,17 +122,7 @@ Assembly::Assembly(const Type *type, Defs inputs, std::string asm_template, Arra
     , input_constraints_(input_constraints)
     , clobbers_(clobbers)
     , flags_(flags)
-{
-    std::string name = "asm(\"" + asm_template + "\" : \"";
-    for (auto out_const : output_constraints)
-        name += out_const + ",";
-    for (auto in_const : input_constraints)
-        name += in_const + ",";
-    for (auto clob : clobbers)
-        name += "~" + clob + ",";
-    name += "\")";
-    debug().set(name);
-}
+{}
 
 //------------------------------------------------------------------------------
 
@@ -287,8 +277,17 @@ std::ostream& PrimLit::stream(std::ostream& os) const {
 
 std::ostream& Global::stream(std::ostream& os) const { return os << unique_name(); }
 
+
 std::ostream& PrimOp::stream_assignment(std::ostream& os) const {
     return streamf(os, "{} {} = {} {}", type(), unique_name(), op_name(), stream_list(ops(), [&] (const Def* def) { os << def; })) << endl;
+}
+
+std::ostream& Assembly::stream_assignment(std::ostream& os) const {
+    streamf(os, "{} {} = asm \"{}\"", type(), unique_name(), asm_template());
+    stream_list(os, output_constraints(), [&](const auto& output_constraint) { os << output_constraint; }, " : (", ")");
+    stream_list(os,  input_constraints(), [&](const auto&  input_constraint) { os <<  input_constraint; }, " : (", ")");
+    stream_list(os,           clobbers(), [&](const auto&           clobber) { os <<           clobber; }, " : (", ") ");
+    return stream_list(os,         ops(), [&](const Def*                def) { os <<               def; },    "(", ")");
 }
 
 //------------------------------------------------------------------------------

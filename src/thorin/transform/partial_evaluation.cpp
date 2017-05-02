@@ -139,6 +139,15 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
         done_.insert(cur);
 
         Continuation* dst = nullptr;
+
+        // pe_info & pe_known
+        if (dst != nullptr) {
+            bool ate_intrinsic;
+            std::tie(ate_intrinsic, dst) = eat_intrinsic(dst->intrinsic(), cur, true);
+            if (ate_intrinsic)
+                mark_dirty();
+        }
+
         if (auto run = cur->callee()->isa<Run>()) {
             dst = run->begin()->isa_continuation();
         } else if (cur->callee()->isa<Hlt>()) {
@@ -146,13 +155,6 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
             continue;
         } else {
             dst = cur->callee()->isa_continuation();
-        }
-
-        // pe_info & pe_known
-        if (dst != nullptr) {
-            bool ate_intrinsic;
-            std::tie(ate_intrinsic, dst) = eat_intrinsic(dst->intrinsic(), cur, true);
-            if (ate_intrinsic) mark_dirty();
         }
 
         if (dst == nullptr || dst->empty()) {

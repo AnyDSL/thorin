@@ -117,22 +117,12 @@ Enter::Enter(const Def* mem, Debug dbg)
 
 Assembly::Assembly(const Type *type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Flags flags, Debug dbg)
     : MemOp(Node_Assembly, type, inputs, dbg)
-    , template_(asm_template)
+    , asm_template_(asm_template)
     , output_constraints_(output_constraints)
     , input_constraints_(input_constraints)
     , clobbers_(clobbers)
     , flags_(flags)
-{
-    std::string name = "asm(\"" + asm_template + "\" : \"";
-    for (auto out_const : output_constraints)
-        name += out_const + ",";
-    for (auto in_const : input_constraints)
-        name += in_const + ",";
-    for (auto clob : clobbers)
-        name += "~" + clob + ",";
-    name += "\")";
-    debug().set(name);
-}
+{}
 
 //------------------------------------------------------------------------------
 
@@ -203,7 +193,7 @@ const Def* Alloc::vrebuild(World& to, Defs ops, const Type* t) const {
 }
 
 const Def* Assembly::vrebuild(World& to, Defs ops, const Type* t) const {
-    return to.assembly(t, ops, template_, output_constraints_, input_constraints_, clobbers_, flags_, debug());
+    return to.assembly(t, ops, asm_template(), output_constraints(), input_constraints(), clobbers(), flags(), debug());
 }
 
 const Def* DefiniteArray::vrebuild(World& to, Defs ops, const Type* t) const {
@@ -287,8 +277,17 @@ std::ostream& PrimLit::stream(std::ostream& os) const {
 
 std::ostream& Global::stream(std::ostream& os) const { return os << unique_name(); }
 
+
 std::ostream& PrimOp::stream_assignment(std::ostream& os) const {
     return streamf(os, "{} {} = {} {}", type(), unique_name(), op_name(), stream_list(ops(), [&] (const Def* def) { os << def; })) << endl;
+}
+
+std::ostream& Assembly::stream_assignment(std::ostream& os) const {
+    streamf(os, "{} {} = asm \"{}\"", type(), unique_name(), asm_template());
+    stream_list(os, output_constraints(), [&](const auto& output_constraint) { os << output_constraint; }, " : (", ")");
+    stream_list(os,  input_constraints(), [&](const auto&  input_constraint) { os <<  input_constraint; }, " : (", ")");
+    stream_list(os,           clobbers(), [&](const auto&           clobber) { os <<           clobber; }, " : (", ") ");
+    return stream_list(os,         ops(), [&](const Def*                def) { os <<               def; },    "(", ")") << endl;
 }
 
 //------------------------------------------------------------------------------

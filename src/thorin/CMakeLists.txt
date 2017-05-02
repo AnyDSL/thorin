@@ -70,6 +70,7 @@ set(THORIN_SOURCES
     util/array.h
     util/cast.h
     util/hash.h
+    util/hash.cpp
     util/indexmap.h
     util/indexset.h
     util/iterator.h

@@ -32,7 +32,7 @@ public:
     virtual bool has_multiple_outs() const { return false; }
     virtual const char* op_name() const;
     virtual std::ostream& stream(std::ostream&) const override;
-    std::ostream& stream_assignment(std::ostream&) const;
+    virtual std::ostream& stream_assignment(std::ostream&) const;
 
 protected:
     virtual uint64_t vhash() const;
@@ -597,9 +597,9 @@ public:
     size_t num_inputs() const { return inputs().size(); }
     virtual bool has_multiple_outs() const override { return true; }
     const TupleType* type() const { return MemOp::type()->as<TupleType>(); }
-    const std::string& asm_template() const { return template_; }
-    const ArrayRef<std::string> out_constraints() const { return output_constraints_; }
-    const ArrayRef<std::string> in_constraints() const { return input_constraints_; }
+    const std::string& asm_template() const { return asm_template_; }
+    const ArrayRef<std::string> output_constraints() const { return output_constraints_; }
+    const ArrayRef<std::string> input_constraints() const { return input_constraints_; }
     const ArrayRef<std::string> clobbers() const { return clobbers_; }
     bool has_sideeffects() const { return flags_ & HasSideEffects; }
     bool is_alignstack() const { return flags_ & IsAlignStack; }
@@ -608,8 +608,9 @@ public:
 
 private:
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
+    virtual std::ostream& stream_assignment(std::ostream&) const override;
 
-    std::string template_;
+    std::string asm_template_;
     Array<std::string> output_constraints_, input_constraints_, clobbers_;
     Flags flags_;
 

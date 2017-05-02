@@ -106,7 +106,7 @@ const Def* eat_pe_known(Continuation* cur, bool eval) {
     auto val = cur->arg(1);
     auto next = cur->arg(2);
     cur->jump(next, {cur->arg(0), world.literal(eval && is_const(val))}, cur->jump_debug());
-    return next;
+    return cur;
 }
 
 std::pair<bool, Continuation*> eat_intrinsic(Intrinsic intrinsic, Continuation* cur, bool eval) {
@@ -140,14 +140,6 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
 
         Continuation* dst = nullptr;
 
-        // pe_info & pe_known
-        if (dst != nullptr) {
-            bool ate_intrinsic;
-            std::tie(ate_intrinsic, dst) = eat_intrinsic(dst->intrinsic(), cur, true);
-            if (ate_intrinsic)
-                mark_dirty();
-        }
-
         if (auto run = cur->callee()->isa<Run>()) {
             dst = run->begin()->isa_continuation();
         } else if (cur->callee()->isa<Hlt>()) {
@@ -155,6 +147,19 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
             continue;
         } else {
             dst = cur->callee()->isa_continuation();
+        }
+
+        // PE intrinsics
+        if (dst != nullptr) {
+            Continuation* new_cur;
+            bool ate_intrinsic;
+            std::tie(ate_intrinsic, new_cur) = eat_intrinsic(dst->intrinsic(), cur, true);
+            if (ate_intrinsic) {
+                mark_dirty();
+                if (new_cur == cur) done_.erase(cur);
+                cur = new_cur ? new_cur : postdom(cur);
+                continue;
+            }
         }
 
         if (dst == nullptr || dst->empty()) {
@@ -271,6 +276,22 @@ Continuation* PartialEvaluator::postdom(Continuation* cur, const Scope& scope) {
 
 //------------------------------------------------------------------------------
 
+template <typename F>
+void eval_intrinsics(World& world, F f) {
+    Scope::for_each(world, [&] (Scope& scope) {
+        bool dirty = false;
+        for (auto n : scope.f_cfg().post_order()) {
+            auto continuation = n->continuation();
+            if (auto callee = continuation->callee()->isa<Continuation>()) {
+                dirty |= f(callee, continuation);
+            }
+        }
+
+        if (dirty)
+            scope.update();
+    });
+}
+
 void eval(World& world) {
     Scope::for_each(world, [&] (Scope& scope) {
         PartialEvaluator partial_evaluator(scope);
@@ -279,19 +300,22 @@ void eval(World& world) {
             scope.update();
     });
 
-    Scope::for_each(world, [&] (Scope& scope) {
-        bool dirty = false;
-        for (auto n : scope.f_cfg().post_order()) {
-            auto continuation = n->continuation();
-            if (auto callee = continuation->callee()->isa<Continuation>()) {
-                bool ate_intrinsic;
-                std::tie(ate_intrinsic, std::ignore) = eat_intrinsic(callee->intrinsic(), continuation, false);
-                dirty |= ate_intrinsic;
-            }
+    // Eat all pe_known calls
+    eval_intrinsics(world, [&] (auto callee, auto continuation) {
+        if (callee->intrinsic() == Intrinsic::PeKnown) {
+            eat_pe_known(continuation, false);
+            return true;
         }
+        return false;
+    });
 
-        if (dirty)
-            scope.update();
+    world.cleanup();
+
+    // Eat all other intrinsics
+    eval_intrinsics(world, [&] (auto callee, auto continuation) {
+        bool ate_intrinsic;
+        std::tie(ate_intrinsic, std::ignore) = eat_intrinsic(callee->intrinsic(), continuation, false);
+        return ate_intrinsic;
     });
 }
 

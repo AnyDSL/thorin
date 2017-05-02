@@ -64,6 +64,8 @@ void Cleaner::unreachable_code_elimination() {
 
     for (auto continuation : world().continuations()) {
         if (!reachable.contains(continuation) && !continuation->empty()) {
+            for (auto param : continuation->params())
+                param->replace(world().bottom(param->type()));
             continuation->replace(world().bottom(continuation->type()));
             continuation->destroy_body();
             todo_ = true;

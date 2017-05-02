@@ -6,6 +6,7 @@
 #include "thorin/analyses/scope.h"
 #include "thorin/util/array.h"
 #include "thorin/util/indexmap.h"
+#include "thorin/util/indexset.h"
 #include "thorin/util/stream.h"
 #include "thorin/util/ycomp.h"
 
@@ -102,19 +103,21 @@ public:
 
     const Scope& scope() const { return scope_; }
     size_t size() const { return size_; }
-    const Scope::Map<const CFNode*>& nodes() const { return nodes_; }
+    const ContinuationMap<const CFNode*>& nodes() const { return nodes_; }
     const F_CFG& f_cfg() const;
     const B_CFG& b_cfg() const;
     const CFNode* operator [] (Continuation* continuation) const { return find(nodes_, continuation); }
 
 private:
-    const CFNodes& preds(Continuation* continuation) const { auto l = nodes_[continuation]; assert(l); return l->preds(); }
-    const CFNodes& succs(Continuation* continuation) const { auto l = nodes_[continuation]; assert(l); return l->succs(); }
-    const CFNode* entry() const { return nodes_.array().front(); }
-    const CFNode* exit() const { return nodes_.array().back(); }
+    const CFNodes& preds(Continuation* continuation) const { auto cn = nodes_.find(continuation)->second; assert(cn); return cn->preds(); }
+    const CFNodes& succs(Continuation* continuation) const { auto cn = nodes_.find(continuation)->second; assert(cn); return cn->succs(); }
+    const CFNode* entry() const { return entry_; }
+    const CFNode* exit() const { return exit_; }
 
     const Scope& scope_;
-    Scope::Map<const CFNode*> nodes_;
+    ContinuationMap<const CFNode*> nodes_;
+    const CFNode* entry_;
+    const CFNode* exit_;
     size_t size_ = 0;
     mutable std::unique_ptr<const F_CFG> f_cfg_;
     mutable std::unique_ptr<const B_CFG> b_cfg_;

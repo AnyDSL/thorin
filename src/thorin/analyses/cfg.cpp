@@ -97,7 +97,6 @@ public:
     CFABuilder(CFA& cfa)
         : YComp(cfa.scope(), "cfa")
         , cfa_(cfa)
-        , continuation2param2nodes_(cfa.scope(), std::vector<CFNodeSet>(0))
         , entry_(in_node(scope().entry()))
         , exit_ (in_node(scope().exit()))
     {
@@ -210,7 +209,7 @@ private:
     static CFNodeSet empty_;
 
     CFA& cfa_;
-    Scope::Map<std::vector<CFNodeSet>> continuation2param2nodes_; ///< Maps param in scope to CFNodeSet.
+    ContinuationMap<std::vector<CFNodeSet>> continuation2param2nodes_; ///< Maps param in scope to CFNodeSet.
     GIDTreeMap<const Def*, DefSet> def2set_;
     GIDTreeMap<const RealCFNode*, GIDSet<const RealCFNode*>> succs_;
     GIDTreeMap<const RealCFNode*, GIDSet<const RealCFNode*>> preds_;
@@ -429,7 +428,9 @@ void CFABuilder::build_cfg() {
 }
 
 void CFABuilder::unreachable_node_elimination() {
-    for (auto in : cfa().nodes()) {
+    std::vector<const CFNode*> remove;
+    for (const auto& p : cfa().nodes()) {
+        auto in = p.second;
         if (in->f_index_ == CFNode::Reachable) {
             ++cfa_.size_;
 
@@ -454,11 +455,15 @@ void CFABuilder::unreachable_node_elimination() {
             for (const auto& p : out_nodes_[in])
                 assert(p.second->f_index_ != CFNode::Reachable);
 #endif
-            DLOG("removing: {}", in);
-            cfa_.nodes_[in->continuation()] = nullptr;
-            out_nodes_.erase(in);
-            delete in;
+            remove.emplace_back(in);
         }
+    }
+
+    for (auto in : remove) {
+        DLOG("removing: {}", in);
+        cfa_.nodes_.erase(in->continuation());
+        out_nodes_.erase(in);
+        delete in;
     }
 }
 
@@ -592,7 +597,8 @@ void CFABuilder::transitive_cfg() {
 
 void CFABuilder::verify() {
     bool error = false;
-    for (auto in : cfa().nodes()) {
+    for (const auto& p : cfa().nodes()) {
+        auto in = p.second;
         if (in != entry() && in->preds_.size() == 0) {
             VLOG("missing predecessors: {}", in->continuation());
             error = true;
@@ -606,7 +612,11 @@ void CFABuilder::verify() {
 }
 
 void CFABuilder::stream_ycomp(std::ostream& out) const {
-    std::vector<const RealCFNode*> nodes(cfa().nodes().begin(), cfa().nodes().end());
+    std::vector<const RealCFNode*> nodes;
+
+    for (const auto& p : cfa().nodes())
+        nodes.push_back(p.second);
+
     for (const auto& p : out_nodes_) {
         for (const auto& q : p.second)
             nodes.push_back(q.second);
@@ -624,13 +634,15 @@ void CFABuilder::stream_ycomp(std::ostream& out) const {
 
 CFA::CFA(const Scope& scope)
     : scope_(scope)
-    , nodes_(scope)
 {
     CFABuilder cfa(*this);
+    entry_ = cfa.entry();
+    exit_  = cfa.exit();
 }
 
 CFA::~CFA() {
-    for (auto n : nodes_.array()) delete n;
+    for (const auto& p : nodes_)
+        delete p.second;
 }
 
 const F_CFG& CFA::f_cfg() const { return lazy_init(this, f_cfg_); }

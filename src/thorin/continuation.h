@@ -221,20 +221,6 @@ private:
     const Def* find_def(size_t handle);
     void increase_values(size_t handle) { if (handle >= values_.size()) values_.resize(handle+1); }
 
-    struct ScopeInfo {
-        ScopeInfo(const Scope* scope)
-            : scope(scope)
-            , index(-1)
-        {}
-
-        const Scope* scope;
-        size_t index;
-    };
-
-    std::list<ScopeInfo>::iterator list_iter(const Scope*);
-    ScopeInfo* find_scope(const Scope*);
-    ScopeInfo* register_scope(const Scope* scope) { scopes_.emplace_front(scope); return &scopes_.front(); }
-    void unregister_scope(const Scope* scope) { scopes_.erase(list_iter(scope)); }
     mutable Debug jump_debug_;
 
     /**
@@ -249,7 +235,6 @@ private:
      */
     Continuation* parent_;
     std::vector<const Param*> params_;
-    std::list<ScopeInfo> scopes_;
     std::deque<Tracker> values_;
     std::vector<Todo> todos_;
     CC cc_;

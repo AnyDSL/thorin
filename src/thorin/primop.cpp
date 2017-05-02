@@ -287,7 +287,7 @@ std::ostream& Assembly::stream_assignment(std::ostream& os) const {
     stream_list(os, output_constraints(), [&](const auto& output_constraint) { os << output_constraint; }, " : (", ")");
     stream_list(os,  input_constraints(), [&](const auto&  input_constraint) { os <<  input_constraint; }, " : (", ")");
     stream_list(os,           clobbers(), [&](const auto&           clobber) { os <<           clobber; }, " : (", ") ");
-    return stream_list(os,         ops(), [&](const Def*                def) { os <<               def; },    "(", ")");
+    return stream_list(os,         ops(), [&](const Def*                def) { os <<               def; },    "(", ")") << endl;
 }
 
 //------------------------------------------------------------------------------

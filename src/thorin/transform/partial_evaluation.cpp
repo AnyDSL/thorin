@@ -91,14 +91,30 @@ void PartialEvaluator::run() {
     }
 }
 
-Continuation* eat_pe_info(Continuation* cur, bool eval) {
+const Def* eat_pe_info(Continuation* cur, bool eval) {
     World& world = cur->world();
     assert(cur->arg(1)->type() == world.ptr_type(world.indefinite_array_type(world.type_pu8())));
     auto msg = cur->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
     ILOG(cur->callee(), "{}pe_info: {}: {}", eval ? "" : "NOT evaluated: ", msg->as_string(), cur->arg(2));
-    auto next = cur->arg(3)->as_continuation();
+    auto next = cur->arg(3);
     cur->jump(next, {cur->arg(0)}, cur->jump_debug());
     return next;
+}
+
+const Def* eat_pe_known(Continuation* cur, bool eval) {
+    World& world = cur->world();
+    auto val = cur->arg(1);
+    auto next = cur->arg(2);
+    cur->jump(next, {cur->arg(0), world.literal(eval && is_const(val))}, cur->jump_debug());
+    return next;
+}
+
+std::pair<bool, Continuation*> eat_intrinsic(Intrinsic intrinsic, Continuation* cur, bool eval) {
+    switch (intrinsic) {
+        case Intrinsic::PeInfo:  return std::make_pair(true, eat_pe_info (cur, eval)->isa_continuation());
+        case Intrinsic::PeKnown: return std::make_pair(true, eat_pe_known(cur, eval)->isa_continuation());
+        default: return std::make_pair(false, nullptr);
+    }
 }
 
 void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
@@ -132,11 +148,11 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
             dst = cur->callee()->isa_continuation();
         }
 
-        // pe_info calls are handled here
-        if (dst != nullptr && dst->intrinsic() == Intrinsic::PeInfo) {
-            cur = eat_pe_info(cur, true);
-            mark_dirty();
-            continue;
+        // pe_info & pe_known
+        if (dst != nullptr) {
+            bool ate_intrinsic;
+            std::tie(ate_intrinsic, dst) = eat_intrinsic(dst->intrinsic(), cur, true);
+            if (ate_intrinsic) mark_dirty();
         }
 
         if (dst == nullptr || dst->empty()) {
@@ -263,18 +279,17 @@ void eval(World& world) {
 
     Scope::for_each(world, [&] (Scope& scope) {
         bool dirty = false;
-        for (auto n : scope.f_cfg().reverse_post_order()) {
+        for (auto n : scope.f_cfg().post_order()) {
             auto continuation = n->continuation();
             if (auto callee = continuation->callee()->isa<Continuation>()) {
-                if (callee->intrinsic() == Intrinsic::PeInfo) {
-                    eat_pe_info(continuation, false);
-                    dirty = true;
-                }
+                bool ate_intrinsic;
+                std::tie(ate_intrinsic, std::ignore) = eat_intrinsic(callee->intrinsic(), continuation, false);
+                dirty |= ate_intrinsic;
             }
-
-            if (dirty)
-                scope.update();
         }
+
+        if (dirty)
+            scope.update();
     });
 }
 

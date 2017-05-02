@@ -971,24 +971,24 @@ std::ostream& CCodeGen::emit(const Def* def) {
 
         // emit the outputs
         const char* separator = " : ";
-        auto out_constraints = assembly->out_constraints();
-        for (size_t i = 0; i < out_constraints.size(); ++i) {
-            func_impl_ << separator << "\"" << out_constraints[i] << "\"("
+        const auto& output_constraints = assembly->output_constraints();
+        for (size_t i = 0; i < output_constraints.size(); ++i) {
+            func_impl_ << separator << "\"" << output_constraints[i] << "\"("
                 << outputs[i] << ")";
             separator = ", ";
         }
 
         // emit the inputs
-        separator = out_constraints.empty() ? " :: " : " : ";
-        auto in_constraints = assembly->in_constraints();
-        for (size_t i = 0; i < in_constraints.size(); ++i) {
-            func_impl_ << separator << "\"" << in_constraints[i] << "\"(";
+        separator = output_constraints.empty() ? " :: " : " : ";
+        auto input_constraints = assembly->input_constraints();
+        for (size_t i = 0; i < input_constraints.size(); ++i) {
+            func_impl_ << separator << "\"" << input_constraints[i] << "\"(";
             emit(assembly->op(i + 1)) << ")";
             separator = ", ";
         }
 
         // emit the clobbers
-        separator = in_constraints.empty() ? out_constraints.empty() ? " ::: " : " :: " : " : ";
+        separator = input_constraints.empty() ? output_constraints.empty() ? " ::: " : " :: " : " : ";
         for (auto clob : assembly->clobbers()) {
             func_impl_ << separator << "\"" << clob << "\"";
             separator = ", ";

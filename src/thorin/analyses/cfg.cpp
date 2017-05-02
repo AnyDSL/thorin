@@ -428,6 +428,7 @@ void CFABuilder::build_cfg() {
 }
 
 void CFABuilder::unreachable_node_elimination() {
+    std::vector<const CFNode*> remove;
     for (const auto& p : cfa().nodes()) {
         auto in = p.second;
         if (in->f_index_ == CFNode::Reachable) {
@@ -454,11 +455,15 @@ void CFABuilder::unreachable_node_elimination() {
             for (const auto& p : out_nodes_[in])
                 assert(p.second->f_index_ != CFNode::Reachable);
 #endif
-            DLOG("removing: {}", in);
-            cfa_.nodes_[in->continuation()] = nullptr;
-            out_nodes_.erase(in);
-            delete in;
+            remove.emplace_back(in);
         }
+    }
+
+    for (auto in : remove) {
+        DLOG("removing: {}", in);
+        cfa_.nodes_.erase(in->continuation());
+        out_nodes_.erase(in);
+        delete in;
     }
 }
 

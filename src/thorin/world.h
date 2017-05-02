@@ -155,7 +155,7 @@ public:
     }
 
     const Def* select(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
-    const Def* size_of(const Type* type, Debug dbg = {}) { return cse(new SizeOf(bottom(type, dbg), dbg)); }
+    const Def* size_of(const Type* type, Debug dbg = {});
 
     // memory stuff
 

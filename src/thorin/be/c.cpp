@@ -169,7 +169,8 @@ std::ostream& CCodeGen::emit_aggop_defs(const Def* def) {
 
     // look for nested struct
     if (auto agg = def->isa<Aggregate>()) {
-        if (is_from_match(agg)) return func_impl_;
+        if (is_from_match(agg))
+            return func_impl_;
         for (auto op : agg->ops())
             emit_aggop_defs(op);
         if (lookup(def))
@@ -400,7 +401,8 @@ void CCodeGen::emit() {
             for (auto primop : block) {
                 if (primop->type()->order() >= 1) {
                     // ignore higher-order primops which come from a match intrinsic
-                    if (is_from_match(primop)) continue;
+                    if (is_from_match(primop))
+                        continue;
                     THORIN_UNREACHABLE;
                 }
 
@@ -734,6 +736,12 @@ std::ostream& CCodeGen::emit(const Def* def) {
         }
 
         insert(def, def_name);
+        return func_impl_;
+    }
+
+    if (auto size_of = def->isa<SizeOf>()) {
+        func_impl_ << "sizeof(";
+        emit_type(func_impl_, size_of->of()) << ")";
         return func_impl_;
     }
 

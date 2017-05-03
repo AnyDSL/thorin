@@ -91,29 +91,27 @@ void PartialEvaluator::run() {
     }
 }
 
-const Def* eat_pe_info(Continuation* cur, bool eval) {
+void eat_pe_info(Continuation* cur, bool eval) {
     World& world = cur->world();
     assert(cur->arg(1)->type() == world.ptr_type(world.indefinite_array_type(world.type_pu8())));
     auto msg = cur->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
     ILOG(cur->callee(), "{}pe_info: {}: {}", eval ? "" : "NOT evaluated: ", msg->as_string(), cur->arg(2));
     auto next = cur->arg(3);
     cur->jump(next, {cur->arg(0)}, cur->jump_debug());
-    return next;
 }
 
-const Def* eat_pe_known(Continuation* cur, bool eval) {
+void eat_pe_known(Continuation* cur, bool eval) {
     World& world = cur->world();
     auto val = cur->arg(1);
     auto next = cur->arg(2);
     cur->jump(next, {cur->arg(0), world.literal(eval && is_const(val))}, cur->jump_debug());
-    return cur;
 }
 
-std::pair<bool, Continuation*> eat_intrinsic(Intrinsic intrinsic, Continuation* cur, bool eval) {
+bool eat_intrinsic(Intrinsic intrinsic, Continuation* cur, bool eval) {
     switch (intrinsic) {
-        case Intrinsic::PeInfo:  return std::make_pair(true, eat_pe_info (cur, eval)->isa_continuation());
-        case Intrinsic::PeKnown: return std::make_pair(true, eat_pe_known(cur, eval)->isa_continuation());
-        default: return std::make_pair(false, nullptr);
+        case Intrinsic::PeInfo:  eat_pe_info (cur, eval); return true;
+        case Intrinsic::PeKnown: eat_pe_known(cur, eval); return true;
+        default: return false;
     }
 }
 
@@ -150,16 +148,10 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
         }
 
         // PE intrinsics
-        if (dst != nullptr) {
-            Continuation* new_cur;
-            bool ate_intrinsic;
-            std::tie(ate_intrinsic, new_cur) = eat_intrinsic(dst->intrinsic(), cur, true);
-            if (ate_intrinsic) {
-                mark_dirty();
-                if (new_cur == cur) done_.erase(cur);
-                cur = new_cur ? new_cur : postdom(cur);
-                continue;
-            }
+        if (dst != nullptr && eat_intrinsic(dst->intrinsic(), cur, true)) {
+            mark_dirty();
+            done_.erase(cur);
+            continue;
         }
 
         if (dst == nullptr || dst->empty()) {
@@ -313,9 +305,7 @@ void eval(World& world) {
 
     // Eat all other intrinsics
     eval_intrinsics(world, [&] (auto callee, auto continuation) {
-        bool ate_intrinsic;
-        std::tie(ate_intrinsic, std::ignore) = eat_intrinsic(callee->intrinsic(), continuation, false);
-        return ate_intrinsic;
+        return eat_intrinsic(callee->intrinsic(), continuation, false);
     });
 }
 

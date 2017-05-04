@@ -169,7 +169,8 @@ std::ostream& CCodeGen::emit_aggop_defs(const Def* def) {
 
     // look for nested struct
     if (auto agg = def->isa<Aggregate>()) {
-        if (is_from_match(agg)) return func_impl_;
+        if (is_from_match(agg))
+            return func_impl_;
         for (auto op : agg->ops())
             emit_aggop_defs(op);
         if (lookup(def))
@@ -400,7 +401,8 @@ void CCodeGen::emit() {
             for (auto primop : block) {
                 if (primop->type()->order() >= 1) {
                     // ignore higher-order primops which come from a match intrinsic
-                    if (is_from_match(primop)) continue;
+                    if (is_from_match(primop))
+                        continue;
                     THORIN_UNREACHABLE;
                 }
 
@@ -737,6 +739,12 @@ std::ostream& CCodeGen::emit(const Def* def) {
         return func_impl_;
     }
 
+    if (auto size_of = def->isa<SizeOf>()) {
+        func_impl_ << "sizeof(";
+        emit_type(func_impl_, size_of->of()) << ")";
+        return func_impl_;
+    }
+
     if (auto array = def->isa<DefiniteArray>()) { // DefArray is mapped to a struct
         // emit definitions of inlined elements
         for (auto op : array->ops())
@@ -963,24 +971,24 @@ std::ostream& CCodeGen::emit(const Def* def) {
 
         // emit the outputs
         const char* separator = " : ";
-        auto out_constraints = assembly->out_constraints();
-        for (size_t i = 0; i < out_constraints.size(); ++i) {
-            func_impl_ << separator << "\"" << out_constraints[i] << "\"("
+        const auto& output_constraints = assembly->output_constraints();
+        for (size_t i = 0; i < output_constraints.size(); ++i) {
+            func_impl_ << separator << "\"" << output_constraints[i] << "\"("
                 << outputs[i] << ")";
             separator = ", ";
         }
 
         // emit the inputs
-        separator = out_constraints.empty() ? " :: " : " : ";
-        auto in_constraints = assembly->in_constraints();
-        for (size_t i = 0; i < in_constraints.size(); ++i) {
-            func_impl_ << separator << "\"" << in_constraints[i] << "\"(";
+        separator = output_constraints.empty() ? " :: " : " : ";
+        auto input_constraints = assembly->input_constraints();
+        for (size_t i = 0; i < input_constraints.size(); ++i) {
+            func_impl_ << separator << "\"" << input_constraints[i] << "\"(";
             emit(assembly->op(i + 1)) << ")";
             separator = ", ";
         }
 
         // emit the clobbers
-        separator = in_constraints.empty() ? out_constraints.empty() ? " ::: " : " :: " : " : ";
+        separator = input_constraints.empty() ? output_constraints.empty() ? " ::: " : " :: " : " : ";
         for (auto clob : assembly->clobbers()) {
             func_impl_ << separator << "\"" << clob << "\"";
             separator = ", ";

@@ -1,11 +1,13 @@
 #ifndef THORIN_UTIL_HASH_H
 #define THORIN_UTIL_HASH_H
 
+#include <cassert>
+#include <cstring>
+
 #include <algorithm>
 #include <array>
 #include <memory>
 #include <utility>
-#include <cassert>
 #include <cstdint>
 #include <iostream>
 #include <type_traits>
@@ -59,6 +61,14 @@ inline uint64_t murmur3(uint64_t h) {
     h ^= h >> 33_u64;
     return h;
 }
+
+uint64_t hash(const char* s);
+
+struct StrHash {
+    static uint64_t hash(const char* s) { return thorin::hash(s); }
+    static bool eq(const char* s1, const char* s2) { return std::strcmp(s1, s2) == 0; }
+    static const char* sentinel() { return (const char*)(1); }
+};
 
 //------------------------------------------------------------------------------
 

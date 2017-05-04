@@ -91,14 +91,28 @@ void PartialEvaluator::run() {
     }
 }
 
-Continuation* eat_pe_info(Continuation* cur, bool eval) {
+void eat_pe_info(Continuation* cur, bool eval) {
     World& world = cur->world();
     assert(cur->arg(1)->type() == world.ptr_type(world.indefinite_array_type(world.type_pu8())));
     auto msg = cur->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
     ILOG(cur->callee(), "{}pe_info: {}: {}", eval ? "" : "NOT evaluated: ", msg->as_string(), cur->arg(2));
-    auto next = cur->arg(3)->as_continuation();
+    auto next = cur->arg(3);
     cur->jump(next, {cur->arg(0)}, cur->jump_debug());
-    return next;
+}
+
+void eat_pe_known(Continuation* cur, bool eval) {
+    World& world = cur->world();
+    auto val = cur->arg(1);
+    auto next = cur->arg(2);
+    cur->jump(next, {cur->arg(0), world.literal(eval && is_const(val))}, cur->jump_debug());
+}
+
+bool eat_intrinsic(Intrinsic intrinsic, Continuation* cur, bool eval) {
+    switch (intrinsic) {
+        case Intrinsic::PeInfo:  eat_pe_info (cur, eval); return true;
+        case Intrinsic::PeKnown: eat_pe_known(cur, eval); return true;
+        default: return false;
+    }
 }
 
 void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
@@ -123,6 +137,7 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
         done_.insert(cur);
 
         Continuation* dst = nullptr;
+
         if (auto run = cur->callee()->isa<Run>()) {
             dst = run->begin()->isa_continuation();
         } else if (cur->callee()->isa<Hlt>()) {
@@ -132,10 +147,10 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
             dst = cur->callee()->isa_continuation();
         }
 
-        // pe_info calls are handled here
-        if (dst != nullptr && dst->intrinsic() == Intrinsic::PeInfo) {
-            cur = eat_pe_info(cur, true);
+        // PE intrinsics
+        if (dst != nullptr && eat_intrinsic(dst->intrinsic(), cur, true)) {
             mark_dirty();
+            done_.erase(cur);
             continue;
         }
 
@@ -156,6 +171,11 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
                 continue;
             }
 
+            if (cur == end) {
+                DLOG("end: {}", end);
+                return;
+            }
+
             for (auto i = nend; i != postdomtree.root(); i = postdomtree.idom(i)) {
                 if (i == ncur) {
                     DLOG("overjumped end: {}", cur);
@@ -163,10 +183,6 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
                 }
             }
 
-            if (cur == end) {
-                DLOG("end: {}", end);
-                return;
-            }
             continue;
         }
 
@@ -253,6 +269,22 @@ Continuation* PartialEvaluator::postdom(Continuation* cur, const Scope& scope) {
 
 //------------------------------------------------------------------------------
 
+template <typename F>
+void eval_intrinsics(World& world, F f) {
+    Scope::for_each(world, [&] (Scope& scope) {
+        bool dirty = false;
+        for (auto n : scope.f_cfg().post_order()) {
+            auto continuation = n->continuation();
+            if (auto callee = continuation->callee()->isa<Continuation>()) {
+                dirty |= f(callee, continuation);
+            }
+        }
+
+        if (dirty)
+            scope.update();
+    });
+}
+
 void eval(World& world) {
     Scope::for_each(world, [&] (Scope& scope) {
         PartialEvaluator partial_evaluator(scope);
@@ -261,24 +293,24 @@ void eval(World& world) {
             scope.update();
     });
 
-    Scope::for_each(world, [&] (Scope& scope) {
-        bool dirty = false;
-        for (auto n : scope.f_cfg().reverse_post_order()) {
-            auto continuation = n->continuation();
-            if (auto callee = continuation->callee()->isa<Continuation>()) {
-                if (callee->intrinsic() == Intrinsic::PeInfo) {
-                    eat_pe_info(continuation, false);
-                    dirty = true;
-                }
-            }
-
-            if (dirty)
-                scope.update();
+    // Eat all pe_known calls
+    eval_intrinsics(world, [&] (auto callee, auto continuation) {
+        if (callee->intrinsic() == Intrinsic::PeKnown) {
+            eat_pe_known(continuation, false);
+            return true;
         }
+        return false;
+    });
+
+    world.cleanup();
+
+    // Eat all other intrinsics
+    eval_intrinsics(world, [&] (auto callee, auto continuation) {
+        return eat_intrinsic(callee->intrinsic(), continuation, false);
     });
 }
 
-void partial_evaluation(World& world) {
+void partial_evaluation(World& world, bool simple_pe) {
     world.cleanup();
     VLOG_SCOPE(eval(world));
 

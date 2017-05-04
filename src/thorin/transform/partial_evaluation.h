@@ -5,7 +5,7 @@ namespace thorin {
 
 class World;
 
-void partial_evaluation(World&);
+void partial_evaluation(World&, bool);
 
 }
 

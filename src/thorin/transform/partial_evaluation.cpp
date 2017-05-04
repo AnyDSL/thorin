@@ -171,6 +171,11 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
                 continue;
             }
 
+            if (cur == end) {
+                DLOG("end: {}", end);
+                return;
+            }
+
             for (auto i = nend; i != postdomtree.root(); i = postdomtree.idom(i)) {
                 if (i == ncur) {
                     DLOG("overjumped end: {}", cur);
@@ -178,10 +183,6 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
                 }
             }
 
-            if (cur == end) {
-                DLOG("end: {}", end);
-                return;
-            }
             continue;
         }
 

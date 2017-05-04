@@ -309,7 +309,7 @@ void eval(World& world) {
     });
 }
 
-void partial_evaluation(World& world) {
+void partial_evaluation(World& world, bool simple_pe) {
     world.cleanup();
     VLOG_SCOPE(eval(world));
 

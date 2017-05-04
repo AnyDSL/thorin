@@ -856,10 +856,10 @@ void World::destroy(Continuation* continuation) {
 
 void World::cleanup() { cleanup_world(*this); }
 
-void World::opt() {
+void World::opt(bool simple_pe) {
     cleanup();
     higher_order_lifting(*this);
-    partial_evaluation(*this);
+    partial_evaluation(*this, simple_pe);
     lower2cff(*this);
     clone_bodies(*this);
     mem2reg(*this);

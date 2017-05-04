@@ -190,7 +190,7 @@ public:
 
     /// Performs dead code, unreachable code and unused type elimination.
     void cleanup();
-    void opt();
+    void opt(bool simple_pe);
 
     // getters
 

@@ -897,9 +897,9 @@ llvm::Value* CodeGen::emit_assembly(const Assembly* assembly) {
     auto *fn_type = llvm::FunctionType::get(res_type, llvm_ref(input_types), false);
 
     std::string constraints;
-    for (auto con : assembly->out_constraints())
+    for (auto con : assembly->output_constraints())
         constraints += con + ",";
-    for (auto con : assembly->in_constraints())
+    for (auto con : assembly->input_constraints())
         constraints += con + ",";
     for (auto clob : assembly->clobbers())
         constraints += "~{" + clob + "},";

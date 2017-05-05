@@ -7,11 +7,11 @@ namespace thorin {
 
 class TreeBuilder {
 public:
-    TreeBuilder(Scope& scope)
+    TreeBuilder(const Scope& scope)
         : scope_(scope)
     {}
 
-    Scope& scope() { return scope_; }
+    const Scope& scope() { return scope_; }
     std::unique_ptr<const Nest::Node> run() {
         auto root = std::make_unique<const Nest::Node>(scope().entry(), nullptr, 0);
         for (auto continuation : scope().continuations())
@@ -22,7 +22,7 @@ public:
 private:
     const Nest::Node* def2node(const Def* def);
 
-    Scope& scope_;
+    const Scope& scope_;
     DefMap<const Nest::Node*> def2node_;
 };
 
@@ -40,6 +40,18 @@ const Nest::Node* TreeBuilder::def2node(const Def* def) {
     }
 
     return n;
+}
+
+//------------------------------------------------------------------------------
+
+Nest::Nest(const Scope& scope)
+    : scope_(scope)
+    , root_(run())
+    , top_down_(scope.size())
+{}
+
+std::unique_ptr<const Nest::Node> Nest::run() {
+    return TreeBuilder(scope()).run();
 }
 
 }

@@ -41,22 +41,18 @@ public:
         friend class NestBuilder;
     };
 
-    Nest(const Scope& scope)
-        : scope_(scope)
-        , root_(run())
-    {}
+    Nest(const Scope&);
 
-    //@{ traversal
-    ArrayRef<const Node*> top_down() const;// { return top_down_; }
+    const Scope& scope() const { return scope_; }
+    ArrayRef<const Node*> top_down() const { return top_down_; }
     auto bottom_up() const { return range(top_down().rbegin(), top_down().rend()); }
-    //@}
-
 
 private:
-    const Node* run();
+    std::unique_ptr<const Node> run();
 
     const Scope& scope_;
     std::unique_ptr<const Node> root_;
+    Array<const Node*> top_down_;
 };
 
 

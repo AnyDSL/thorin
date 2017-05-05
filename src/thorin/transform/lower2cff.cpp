@@ -1,6 +1,6 @@
 #include "thorin/continuation.h"
 #include "thorin/world.h"
-#include "thorin/analyses/cfg.h"
+#include "thorin/analyses/nest.h"
 #include "thorin/analyses/verify.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/util/log.h"
@@ -31,7 +31,9 @@ void lower2cff(World& world) {
                 }
             };
 
-            for (auto continuation : scope.bottom_up()) {
+            for (auto n : scope.nest().bottom_up()) {
+                auto continuation = n->continuation();
+
                 if (auto callee = continuation->callee()->isa_continuation()) {
                     if (is_bad(callee)) {
                         DLOG("bad: {}: {} at {}", callee, callee->type(), callee->location());

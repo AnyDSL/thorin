@@ -25,6 +25,8 @@ set(THORIN_SOURCES
     analyses/free_defs.h
     analyses/looptree.cpp
     analyses/looptree.h
+    analyses/nest.cpp
+    analyses/nest.h
     analyses/schedule.cpp
     analyses/schedule.h
     analyses/scope.cpp

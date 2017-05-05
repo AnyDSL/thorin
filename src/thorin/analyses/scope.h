@@ -16,6 +16,7 @@ typedef CFG<false> B_CFG;
 
 class CFA;
 class CFNode;
+class Nest;
 
 /**
  * A @p Scope represents a region of @p Continuation%s which are live from the view of an @p entry @p Continuation.
@@ -23,33 +24,6 @@ class CFNode;
  */
 class Scope : public Streamable {
 public:
-    class Node {
-    public:
-        Node(Continuation* continuation, const Node* parent, int depth)
-            : continuation_(continuation)
-            , parent_(parent)
-            , depth_(depth)
-        {}
-
-        Continuation* continuation() const { return continuation_; }
-        const Node* parant() const { return parent_; }
-        ArrayRef<std::unique_ptr<const Node>> children() const { return children_; }
-        int depth() const { return depth_; }
-
-    private:
-        const Node* bear(Continuation* continuation) const {
-            children_.emplace_back(std::make_unique<const Node>(continuation, this, depth() + 1));
-            return children_.back().get();
-        }
-
-        Continuation* continuation_;
-        const Node* parent_;
-        mutable std::vector<std::unique_ptr<const Node>> children_;
-        int depth_;
-
-        friend class TreeBuilder;
-    };
-
     Scope(const Scope&) = delete;
     Scope& operator=(Scope) = delete;
 
@@ -61,14 +35,16 @@ public:
 
     //@{ misc getters
     World& world() const { return world_; }
-    Continuation* entry() const { return top_down().front(); }
-    Continuation* exit() const { return top_down().back(); }
-    size_t size() const { return top_down().size(); }
-    //@}
-
-    //@{ traversal
-    ArrayRef<Continuation*> top_down() const { return top_down_; }
-    auto bottom_up() const { return range(top_down().rbegin(), top_down().rend()); }
+    Continuation* entry() const { return continuations_.front(); }
+    Continuation* exit() const { return continuations_.back(); }
+    size_t size() const { return continuations_.size(); }
+    /**
+     * All continuations in this Scope.
+     * entry is first, exit ist last.
+     * @attention { All other Continuation%s are in @em no special order. }
+     */
+    ArrayRef<Continuation*> continuations() const { return continuations_; }
+    const Nest& nest() const;
     //@}
 
     //@{ get Def%s contained in this Scope
@@ -107,10 +83,9 @@ private:
 
     World& world_;
     DefSet defs_;
-    std::vector<Continuation*> top_down_;
+    std::vector<Continuation*> continuations_;
+    mutable std::unique_ptr<const Nest> nest_;
     mutable std::unique_ptr<const CFA> cfa_;
-
-    friend class TreeBuilder;
 };
 
 template<> inline const CFG< true>& Scope::cfg< true>() const { return f_cfg(); }

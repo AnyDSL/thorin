@@ -1,5 +1,6 @@
 #include "thorin/primop.h"
 #include "thorin/analyses/scope.h"
+#include "thorin/analyses/nest.h"
 
 namespace thorin {
 
@@ -15,8 +16,8 @@ DefSet free_defs(const Scope& scope) {
         }
     };
 
-    for (auto continuation : scope.top_down())
-        enqueue_ops(continuation);
+    for (auto n : scope.nest().top_down())
+        enqueue_ops(n->continuation());
 
     while (!queue.empty()) {
         auto def = pop(queue);

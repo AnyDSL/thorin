@@ -1,11 +1,12 @@
 #include "thorin/primop.h"
-#include "thorin/analyses/cfg.h"
+#include "thorin/analyses/nest.h"
 #include "thorin/analyses/scope.h"
 
 namespace thorin {
 
 static void dead_load_opt(const Scope& scope) {
-    for (auto continuation : scope.bottom_up()) {
+    for (auto n : scope.nest().bottom_up()) {
+        auto continuation = n->continuation();
         Tracker mem;
         for (auto arg : continuation->args()) {
             if (is_mem(arg)) {

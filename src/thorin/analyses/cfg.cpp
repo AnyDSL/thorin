@@ -9,6 +9,7 @@
 #include "thorin/analyses/domfrontier.h"
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/looptree.h"
+#include "thorin/analyses/nest.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/util/log.h"
 #include "thorin/util/utility.h"
@@ -237,7 +238,8 @@ void CFABuilder::propagate_higher_order_values() {
         return false;
     };
 
-    for (auto continuation : scope().top_down()) {
+    for (auto n : scope().nest().top_down()) {
+        auto continuation = n->continuation();
         for (auto op : continuation->ops()) {
             push(op);
 

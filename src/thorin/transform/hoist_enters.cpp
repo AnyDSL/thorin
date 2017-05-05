@@ -1,6 +1,6 @@
 #include "thorin/primop.h"
 #include "thorin/world.h"
-#include "thorin/analyses/cfg.h"
+#include "thorin/analyses/nest.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/verify.h"
 
@@ -28,8 +28,8 @@ static void hoist_enters(const Scope& scope) {
     World& world = scope.world();
     std::deque<const Enter*> enters;
 
-    for (auto continuation : scope.top_down())
-        find_enters(enters, continuation);
+    for (auto n : scope.nest().top_down())
+        find_enters(enters, n->continuation());
 
 
     if (enters.empty() || enters[0]->mem() != scope.entry()->mem_param()) {

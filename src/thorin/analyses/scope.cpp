@@ -8,6 +8,7 @@
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/looptree.h"
+#include "thorin/analyses/nest.h"
 #include "thorin/analyses/schedule.h"
 
 namespace thorin {
@@ -22,8 +23,9 @@ Scope::~Scope() {}
 
 const Scope& Scope::update() {
     auto e = entry();
-    top_down_.clear();
+    continuations_.clear();
     defs_.clear();
+    nest_ = nullptr;
     cfa_ = nullptr;
     run(e);
     return *this;
@@ -37,7 +39,7 @@ void Scope::run(Continuation* entry) {
             queue.push(def);
 
             if (auto continuation = def->isa_continuation()) {
-                top_down_.push_back(continuation);
+                continuations_.emplace_back(continuation);
 
                 for (auto param : continuation->params()) {
                     auto p = defs_.insert(param);
@@ -61,43 +63,7 @@ void Scope::run(Continuation* entry) {
     enqueue(world().end_scope());
 }
 
-class TreeBuilder {
-public:
-    TreeBuilder(Scope& scope)
-        : scope_(scope)
-    {}
-
-    Scope& scope() { return scope_; }
-    std::unique_ptr<const Scope::Node> run() {
-        auto root = std::make_unique<const Scope::Node>(scope().entry(), nullptr, 0);
-        for (auto continuation : scope().top_down_)
-            def2node(continuation);
-        return root;
-    }
-
-private:
-    const Scope::Node* def2node(const Def* def);
-
-    Scope& scope_;
-    DefMap<const Scope::Node*> def2node_;
-};
-
-const Scope::Node* TreeBuilder::def2node(const Def* def) {
-    auto i = def2node_.find(def);
-    if (i != def2node_.end())
-        return i->second;
-
-    //if (auto param = def->isa<Param>())
-
-    auto n = def2node(def->ops().front());
-    for (auto op : def->ops().skip_front()) {
-        auto m = def2node(op);
-        n = n->depth() > m->depth() ? n : n;
-    }
-
-    return n;
-}
-
+const Nest& Scope::nest() const { return lazy_init(this, nest_); }
 const CFA& Scope::cfa() const { return lazy_init(this, cfa_); }
 const CFNode* Scope::cfa(Continuation* continuation) const { return cfa()[continuation]; }
 const F_CFG& Scope::f_cfg() const { return cfa().f_cfg(); }

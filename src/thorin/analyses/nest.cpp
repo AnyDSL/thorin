@@ -7,9 +7,9 @@
 
 namespace thorin {
 
-class TreeBuilder {
+class NestBuilder {
 public:
-    TreeBuilder(const Scope& scope)
+    NestBuilder(const Scope& scope)
         : scope_(scope)
     {}
 
@@ -28,7 +28,7 @@ private:
     DefMap<const Nest::Node*> def2node_;
 };
 
-const Nest::Node* TreeBuilder::def2node(const Def* def) {
+const Nest::Node* NestBuilder::def2node(const Def* def) {
     auto i = def2node_.find(def);
     if (i != def2node_.end())
         return i->second;
@@ -53,7 +53,7 @@ Nest::Nest(const Scope& scope)
 {}
 
 std::unique_ptr<const Nest::Node> Nest::run() {
-    auto root = TreeBuilder(scope()).run();
+    auto root = NestBuilder(scope()).run();
 
     // now build top-down order
     std::queue<const Node*> queue;

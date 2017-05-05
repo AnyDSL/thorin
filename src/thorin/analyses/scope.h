@@ -23,6 +23,33 @@ class CFNode;
  */
 class Scope : public Streamable {
 public:
+    class Node {
+    public:
+        Node(Continuation* continuation, const Node* parent, int depth)
+            : continuation_(continuation)
+            , parent_(parent)
+            , depth_(depth)
+        {}
+
+        Continuation* continuation() const { return continuation_; }
+        const Node* parant() const { return parent_; }
+        ArrayRef<std::unique_ptr<const Node>> children() const { return children_; }
+        int depth() const { return depth_; }
+
+    private:
+        const Node* bear(Continuation* continuation) const {
+            children_.emplace_back(std::make_unique<const Node>(continuation, this, depth() + 1));
+            return children_.back().get();
+        }
+
+        Continuation* continuation_;
+        const Node* parent_;
+        mutable std::vector<std::unique_ptr<const Node>> children_;
+        int depth_;
+
+        friend class TreeBuilder;
+    };
+
     Scope(const Scope&) = delete;
     Scope& operator=(Scope) = delete;
 
@@ -76,11 +103,14 @@ public:
 
 private:
     void run(Continuation* entry);
+    void nesting();
 
     World& world_;
     DefSet defs_;
     std::vector<Continuation*> top_down_;
     mutable std::unique_ptr<const CFA> cfa_;
+
+    friend class TreeBuilder;
 };
 
 template<> inline const CFG< true>& Scope::cfg< true>() const { return f_cfg(); }

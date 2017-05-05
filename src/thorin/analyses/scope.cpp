@@ -61,6 +61,43 @@ void Scope::run(Continuation* entry) {
     enqueue(world().end_scope());
 }
 
+class TreeBuilder {
+public:
+    TreeBuilder(Scope& scope)
+        : scope_(scope)
+    {}
+
+    Scope& scope() { return scope_; }
+    std::unique_ptr<const Scope::Node> run() {
+        auto root = std::make_unique<const Scope::Node>(scope().entry(), nullptr, 0);
+        for (auto continuation : scope().top_down_)
+            def2node(continuation);
+        return root;
+    }
+
+private:
+    const Scope::Node* def2node(const Def* def);
+
+    Scope& scope_;
+    DefMap<const Scope::Node*> def2node_;
+};
+
+const Scope::Node* TreeBuilder::def2node(const Def* def) {
+    auto i = def2node_.find(def);
+    if (i != def2node_.end())
+        return i->second;
+
+    //if (auto param = def->isa<Param>())
+
+    auto n = def2node(def->ops().front());
+    for (auto op : def->ops().skip_front()) {
+        auto m = def2node(op);
+        n = n->depth() > m->depth() ? n : n;
+    }
+
+    return n;
+}
+
 const CFA& Scope::cfa() const { return lazy_init(this, cfa_); }
 const CFNode* Scope::cfa(Continuation* continuation) const { return cfa()[continuation]; }
 const F_CFG& Scope::f_cfg() const { return cfa().f_cfg(); }

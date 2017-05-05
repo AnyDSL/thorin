@@ -3,7 +3,7 @@
 
 #include <memory>
 
-#include "thorin/util/array.h"
+#include "thorin/def.h"
 #include "thorin/util/iterator.h"
 
 namespace thorin {
@@ -38,7 +38,7 @@ public:
         mutable std::vector<std::unique_ptr<const Node>> children_;
         int depth_;
 
-        friend class NestBuilder;
+        friend class Nest;
     };
 
     Nest(const Scope&);
@@ -49,10 +49,12 @@ public:
 
 private:
     std::unique_ptr<const Node> run();
+    const Node* def2node(const Def*);
 
     const Scope& scope_;
-    std::unique_ptr<const Node> root_;
+    DefMap<const Nest::Node*> def2node_;
     Array<const Node*> top_down_;
+    std::unique_ptr<const Node> root_;
 };
 
 

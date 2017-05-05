@@ -7,53 +7,20 @@
 
 namespace thorin {
 
-class NestBuilder {
-public:
-    NestBuilder(const Scope& scope)
-        : scope_(scope)
-    {}
-
-    const Scope& scope() { return scope_; }
-    std::unique_ptr<const Nest::Node> run() {
-        auto root = std::make_unique<const Nest::Node>(scope().entry(), nullptr, 0);
-        for (auto continuation : scope().continuations())
-            def2node(continuation);
-        return root;
-    }
-
-private:
-    const Nest::Node* def2node(const Def* def);
-
-    const Scope& scope_;
-    DefMap<const Nest::Node*> def2node_;
-};
-
-const Nest::Node* NestBuilder::def2node(const Def* def) {
-    auto i = def2node_.find(def);
-    if (i != def2node_.end())
-        return i->second;
-
-    //if (auto param = def->isa<Param>())
-
-    auto n = def2node(def->ops().front());
-    for (auto op : def->ops().skip_front()) {
-        auto m = def2node(op);
-        n = n->depth() > m->depth() ? n : n;
-    }
-
-    return n;
-}
-
-//------------------------------------------------------------------------------
-
 Nest::Nest(const Scope& scope)
     : scope_(scope)
+    , def2node_(scope.defs().capacity())
+    , top_down_(scope.continuations().size())
     , root_(run())
-    , top_down_(scope.size())
 {}
 
 std::unique_ptr<const Nest::Node> Nest::run() {
-    auto root = NestBuilder(scope()).run();
+    auto root = std::make_unique<const Nest::Node>(scope().entry(), nullptr, 0);
+    def2node_[scope().entry()] = root.get();
+    def2node_[scope().exit()] = root->bear(scope().exit());
+
+    for (auto def : scope().defs())
+        def2node(def);
 
     // now build top-down order
     std::queue<const Node*> queue;
@@ -74,6 +41,35 @@ std::unique_ptr<const Nest::Node> Nest::run() {
 
     assert(i == top_down().size());
     return root;
+}
+
+const Nest::Node* Nest::def2node(const Def* def) {
+    auto i = def2node_.find(def);
+    if (i != def2node_.end())
+        return i->second;
+
+    // avoid cycles
+    if (auto continuation = def->isa_continuation())
+        def2node_[continuation] = nullptr;
+
+    const Node* n = nullptr;;
+    if (auto param = def->isa<Param>()) {
+        n = def2node(param->continuation());
+    } else {
+        for (auto op : def->ops()) {
+            if (scope().contains(op)) {
+                if (auto m = def2node(op))
+                    n = n ? (n->depth() > m->depth() ? n : n) : m;
+            }
+        }
+
+        assert(n != nullptr);
+
+        if (auto continuation = def->isa_continuation())
+            n = n->bear(continuation);
+    }
+
+    return def2node_[def] = n;
 }
 
 }

@@ -37,7 +37,6 @@ public:
     World& world() const { return world_; }
     Continuation* entry() const { return continuations_.front(); }
     Continuation* exit() const { return continuations_.back(); }
-    size_t size() const { return continuations_.size(); }
     /**
      * All continuations in this Scope.
      * entry is first, exit ist last.

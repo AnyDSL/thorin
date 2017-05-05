@@ -1,5 +1,7 @@
 #include "thorin/analyses/nest.h"
 
+#include <queue>
+
 #include "thorin/continuation.h"
 #include "thorin/analyses/scope.h"
 
@@ -51,7 +53,27 @@ Nest::Nest(const Scope& scope)
 {}
 
 std::unique_ptr<const Nest::Node> Nest::run() {
-    return TreeBuilder(scope()).run();
+    auto root = TreeBuilder(scope()).run();
+
+    // now build top-down order
+    std::queue<const Node*> queue;
+    size_t i = 0;
+
+    auto enqueue = [&](const Node* n) {
+        queue.push(n);
+        top_down_[i++] = n;
+    };
+
+    enqueue(root.get());
+
+    while (!queue.empty()) {
+        for (const auto& child : pop(queue)->children())
+            enqueue(child.get());
+    }
+
+
+    assert(i == top_down().size());
+    return root;
 }
 
 }

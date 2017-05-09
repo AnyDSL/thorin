@@ -38,28 +38,35 @@ std::unique_ptr<const Nest::Node> Nest::run() {
             enqueue(child.get());
     }
 
-
     assert(i == top_down().size());
     return root;
 }
 
-const Nest::Node* Nest::def2node(const Def* def) {
+const Node* Nest::def2node(const Node* n, const Def* def) {
     auto i = def2node_.find(def);
     if (i != def2node_.end())
         return i->second;
 
+    auto set = [&](const Node* n) {
+        if (auto continuation = def->isa_continuation()) {
+            def2node_[continuation] = n;
+            for (auto param : continuation->params())
+                def2node_[param] = n;
+        }
+    };
+
     // avoid cycles
-    if (auto continuation = def->isa_continuation())
-        def2node_[continuation] = nullptr;
+    set(nullptr);
 
     const Node* n = nullptr;;
     if (auto param = def->isa<Param>()) {
         n = def2node(param->continuation());
+        assert(n);
     } else {
         for (auto op : def->ops()) {
             if (scope().contains(op)) {
                 if (auto m = def2node(op))
-                    n = n ? (n->depth() > m->depth() ? n : n) : m;
+                    n = n ? (n->depth() > m->depth() ? n : m) : m;
             }
         }
 
@@ -67,6 +74,8 @@ const Nest::Node* Nest::def2node(const Def* def) {
 
         if (auto continuation = def->isa_continuation())
             n = n->bear(continuation);
+
+        set(n);
     }
 
     return def2node_[def] = n;

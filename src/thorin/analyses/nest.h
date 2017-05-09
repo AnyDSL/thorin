@@ -49,7 +49,8 @@ public:
 
 private:
     std::unique_ptr<const Node> run();
-    const Node* def2node(const Def*);
+    const Node* def2node(const Def* def) { return def2node(nullptr, def); }
+    const Node* def2node(const Node*, const Def*);
 
     const Scope& scope_;
     DefMap<const Nest::Node*> def2node_;

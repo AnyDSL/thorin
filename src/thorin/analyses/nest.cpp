@@ -42,7 +42,7 @@ std::unique_ptr<const Nest::Node> Nest::run() {
     return root;
 }
 
-const Node* Nest::def2node(const Node* n, const Def* def) {
+const Nest::Node* Nest::def2node(const Node* n, const Def* def) {
     auto i = def2node_.find(def);
     if (i != def2node_.end())
         return i->second;
@@ -58,7 +58,7 @@ const Node* Nest::def2node(const Node* n, const Def* def) {
     // avoid cycles
     set(nullptr);
 
-    const Node* n = nullptr;;
+    // const Node* n = nullptr;;
     if (auto param = def->isa<Param>()) {
         n = def2node(param->continuation());
         assert(n);

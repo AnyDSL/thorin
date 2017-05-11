@@ -53,7 +53,7 @@ private:
     const Node* def2node(const Node*, const Def*);
 
     const Scope& scope_;
-    DefMap<const Nest::Node*> def2node_;
+    DefMap<const Node*> def2node_;
     Array<const Node*> top_down_;
     std::unique_ptr<const Node> root_;
 };

@@ -238,8 +238,7 @@ void CFABuilder::propagate_higher_order_values() {
         return false;
     };
 
-    for (auto n : scope().nest().top_down()) {
-        auto continuation = n->continuation();
+    for (auto continuation : scope().continuations()) {
         for (auto op : continuation->ops()) {
             push(op);
 

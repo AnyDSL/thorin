@@ -40,7 +40,7 @@ std::unique_ptr<const Nest::Node> Nest::run() {
             enqueue(child.get());
     }
 
-    assert(i == top_down().size());
+    top_down_.shrink(i);
     return root;
 }
 
@@ -49,22 +49,21 @@ const Nest::Node* Nest::def2node(const Def* def) {
     if (i != def2node_.end())
         return i->second;
 
-    auto set = [&](const Node* n) {
-        if (auto continuation = def->isa_continuation()) {
-            def2node_[continuation] = n;
-            for (auto param : continuation->params())
-                def2node_[param] = n;
-        }
+    auto set_continuation = [&](const Node* n) {
+        auto continuation = def->as_continuation();
+        def2node_[continuation] = n;
+        for (auto param : continuation->params())
+            def2node_[param] = n;
     };
 
     // avoid cycles
-    set(nullptr);
+    if (def->isa<Continuation>())
+        set_continuation(nullptr);
 
     const Node* n = nullptr;;
-    if (auto param = def->isa<Param>()) {
+    if (auto param = def->isa<Param>())
         n = def2node(param->continuation());
-        assert(n);
-    } else {
+    else {
         for (auto use : def->uses()) {
             if (scope().contains(use)) {
                 if (auto m = def2node(use))
@@ -72,12 +71,10 @@ const Nest::Node* Nest::def2node(const Def* def) {
             }
         }
 
-        //assert(n != nullptr);
-
-        if (auto continuation = def->isa_continuation())
-            n = n->bear(continuation);
-
-        set(n);
+        if (auto continuation = def->isa_continuation()) {
+            n = n != nullptr ? n->bear(continuation) : nullptr;
+            set_continuation(n);
+        }
     }
 
     return def2node_[def] = n;

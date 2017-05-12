@@ -4,12 +4,10 @@
 #include <memory>
 
 #include "thorin/def.h"
+#include "thorin/continuation.h"
 #include "thorin/util/iterator.h"
 
 namespace thorin {
-
-class Continuation;
-class Scope;
 
 class Nest {
 public:
@@ -46,15 +44,17 @@ public:
     const Scope& scope() const { return scope_; }
     ArrayRef<const Node*> top_down() const { return top_down_; }
     auto bottom_up() const { return range(top_down().rbegin(), top_down().rend()); }
+    const Node* node(Continuation* continuation) const { auto i = map_.find(continuation); assert(i != map_.end()); return i->second; }
+    int depth(Continuation* continuation) const { return node(continuation)->depth(); }
 
 private:
     std::unique_ptr<const Node> run();
-    const Node* def2node(const Def* def) { return def2node(nullptr, def); }
-    const Node* def2node(const Node*, const Def*);
+    const Node* def2node(const Def*);
 
     const Scope& scope_;
     DefMap<const Node*> def2node_;
     Array<const Node*> top_down_;
+    ContinuationMap<const Node*> map_;
     std::unique_ptr<const Node> root_;
 };
 

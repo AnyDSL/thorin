@@ -11,6 +11,7 @@ Nest::Nest(const Scope& scope)
     : scope_(scope)
     , def2node_(scope.defs().capacity())
     , top_down_(scope.continuations().size())
+    , map_(round_to_power_of_2(scope.continuations().size()))
     , root_(run())
 {}
 
@@ -29,6 +30,7 @@ std::unique_ptr<const Nest::Node> Nest::run() {
     auto enqueue = [&](const Node* n) {
         queue.push(n);
         top_down_[i++] = n;
+        map_[n->continuation()] = n;
     };
 
     enqueue(root.get());
@@ -42,7 +44,7 @@ std::unique_ptr<const Nest::Node> Nest::run() {
     return root;
 }
 
-const Nest::Node* Nest::def2node(const Node* n, const Def* def) {
+const Nest::Node* Nest::def2node(const Def* def) {
     auto i = def2node_.find(def);
     if (i != def2node_.end())
         return i->second;
@@ -58,19 +60,19 @@ const Nest::Node* Nest::def2node(const Node* n, const Def* def) {
     // avoid cycles
     set(nullptr);
 
-    // const Node* n = nullptr;;
+    const Node* n = nullptr;;
     if (auto param = def->isa<Param>()) {
         n = def2node(param->continuation());
         assert(n);
     } else {
-        for (auto op : def->ops()) {
-            if (scope().contains(op)) {
-                if (auto m = def2node(op))
+        for (auto use : def->uses()) {
+            if (scope().contains(use)) {
+                if (auto m = def2node(use))
                     n = n ? (n->depth() > m->depth() ? n : m) : m;
             }
         }
 
-        assert(n != nullptr);
+        //assert(n != nullptr);
 
         if (auto continuation = def->isa_continuation())
             n = n->bear(continuation);

@@ -1,6 +1,6 @@
 #include "thorin/continuation.h"
 #include "thorin/world.h"
-#include "thorin/analyses/cfg.h"
+#include "thorin/analyses/nest.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/verify.h"
 #include "thorin/transform/mangle.h"
@@ -10,8 +10,9 @@ namespace thorin {
 void force_inline(Scope& scope, int threshold) {
     for (bool todo = true; todo && threshold-- != 0;) {
         todo = false;
-        for (auto n : scope.f_cfg().post_order()) {
+        for (auto n : scope.nest().bottom_up()) {
             auto continuation = n->continuation();
+
             if (auto callee = continuation->callee()->isa_continuation()) {
                 if (!callee->empty() && !scope.contains(callee)) {
                     Scope callee_scope(callee);
@@ -25,7 +26,7 @@ void force_inline(Scope& scope, int threshold) {
             scope.update();
     }
 
-    for (auto n : scope.f_cfg().reverse_post_order()) {
+    for (auto n : scope.nest().top_down()) {
         auto continuation = n->continuation();
         if (auto callee = continuation->callee()->isa_continuation()) {
             if (!callee->empty() && !scope.contains(callee))

@@ -20,7 +20,7 @@ void mem2reg(const Scope& scope) {
     auto is_address_taken = [&] (const Slot* slot) { return slot2handle[slot] == size_t(-1); };
 
     // unseal all continuations ...
-    for (auto continuation : scope) {
+    for (auto continuation : scope.continuations()) {
         continuation->set_parent(continuation);
         continuation->unseal();
         assert(continuation->is_cleared());
@@ -31,7 +31,7 @@ void mem2reg(const Scope& scope) {
     scope.entry()->seal();
 
     // set parent pointers for functions passed to accelerator
-    for (auto continuation : scope) {
+    for (auto continuation : scope.continuations()) {
         if (auto callee = continuation->callee()->isa_continuation()) {
             if (callee->is_accelerator()) {
                 for (auto arg : continuation->args()) {

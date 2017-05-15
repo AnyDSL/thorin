@@ -6,6 +6,7 @@
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/looptree.h"
+#include "thorin/analyses/nest.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/util/log.h"
 
@@ -266,16 +267,20 @@ std::ostream& Schedule::stream(std::ostream& os) const {
     for (auto& block : *this) {
         auto continuation = block.continuation();
         if (continuation->intrinsic() != Intrinsic::EndScope) {
-            bool indent = continuation != scope().entry();
-            if (indent)
+            // HACK
+            auto n = scope().nest().node(continuation);
+            const int depth = n ? n->depth() : 1;
+            for (int i = 0; i != depth; ++i)
                 os << up;
+
             os << endl;
             continuation->stream_head(os) << up_endl;
             for (auto primop : block)
                 primop->stream_assignment(os);
 
             continuation->stream_jump(os) << down_endl;
-            if (indent)
+
+            for (int i = 0; i != depth; ++i)
                 os << down;
         }
     }

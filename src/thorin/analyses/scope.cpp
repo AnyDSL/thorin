@@ -8,6 +8,7 @@
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/looptree.h"
+#include "thorin/analyses/nest.h"
 #include "thorin/analyses/schedule.h"
 
 namespace thorin {
@@ -24,6 +25,7 @@ const Scope& Scope::update() {
     auto e = entry();
     continuations_.clear();
     defs_.clear();
+    nest_ = nullptr;
     cfa_ = nullptr;
     run(e);
     return *this;
@@ -37,7 +39,7 @@ void Scope::run(Continuation* entry) {
             queue.push(def);
 
             if (auto continuation = def->isa_continuation()) {
-                continuations_.push_back(continuation);
+                continuations_.emplace_back(continuation);
 
                 for (auto param : continuation->params()) {
                     auto p = defs_.insert(param);
@@ -61,6 +63,7 @@ void Scope::run(Continuation* entry) {
     enqueue(world().end_scope());
 }
 
+const Nest& Scope::nest() const { return lazy_init(this, nest_); }
 const CFA& Scope::cfa() const { return lazy_init(this, cfa_); }
 const CFNode* Scope::cfa(Continuation* continuation) const { return cfa()[continuation]; }
 const F_CFG& Scope::f_cfg() const { return cfa().f_cfg(); }

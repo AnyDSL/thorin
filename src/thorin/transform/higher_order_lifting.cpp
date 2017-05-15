@@ -1,7 +1,7 @@
 #include <algorithm>
 
-#include "thorin/analyses/cfg.h"
 #include "thorin/analyses/free_defs.h"
+#include "thorin/analyses/nest.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/util/log.h"
@@ -16,8 +16,9 @@ void higher_order_lifting(World& world) {
         DLOG("scope: {}", scope.entry());
         bool dirty = false;
 
-        for (auto n : scope.f_cfg().post_order()) {
+        for (auto n : scope.nest().bottom_up()) {
             auto continuation = n->continuation();
+
             if (continuation != scope.entry() && continuation->order() > 1) {
                 DLOG("lift: {}", continuation);
                 Scope cur(continuation);

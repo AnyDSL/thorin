@@ -28,7 +28,7 @@ static void hoist_enters(const Scope& scope) {
     World& world = scope.world();
     std::deque<const Enter*> enters;
 
-    for (auto n : scope.nest().top_down())
+    for (auto n : scope.nest().bottom_up())
         find_enters(enters, n->continuation());
 
 

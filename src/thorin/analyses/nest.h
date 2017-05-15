@@ -44,7 +44,7 @@ public:
     const Scope& scope() const { return scope_; }
     ArrayRef<const Node*> top_down() const { return top_down_; }
     auto bottom_up() const { return range(top_down().rbegin(), top_down().rend()); }
-    const Node* node(Continuation* continuation) const { auto i = map_.find(continuation); assert(i != map_.end()); return i->second; }
+    const Node* node(Continuation* continuation) const { auto i = map_.find(continuation); /*assert(i != map_.end());*/ return i == map_.end() ? nullptr : i->second; }
     int depth(Continuation* continuation) const { return node(continuation)->depth(); }
 
 private:

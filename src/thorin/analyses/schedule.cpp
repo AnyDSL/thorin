@@ -267,7 +267,10 @@ std::ostream& Schedule::stream(std::ostream& os) const {
     for (auto& block : *this) {
         auto continuation = block.continuation();
         if (continuation->intrinsic() != Intrinsic::EndScope) {
-            for (int i = 0, e = scope().nest().depth(continuation); i != e; ++i)
+            // HACK
+            auto n = scope().nest().node(continuation);
+            const int depth = n ? n->depth() : 1;
+            for (int i = 0; i != depth; ++i)
                 os << up;
 
             os << endl;
@@ -277,7 +280,7 @@ std::ostream& Schedule::stream(std::ostream& os) const {
 
             continuation->stream_jump(os) << down_endl;
 
-            for (int i = 0, e = scope().nest().depth(continuation); i != e; ++i)
+            for (int i = 0; i != depth; ++i)
                 os << down;
         }
     }

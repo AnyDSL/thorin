@@ -89,7 +89,6 @@ std::ostream& CFNode::stream(std::ostream& out) const { return streamf(out, "{}"
 std::ostream& OutNode::stream(std::ostream& out) const { return streamf(out, "[Out: {} ({})]", def(), context()); }
 std::ostream& SymDefNode::stream(std::ostream& out) const { return streamf(out, "[Sym: {}]", def()); }
 std::ostream& SymOutNode::stream(std::ostream& out) const { return streamf(out, "[Sym: {}]", out_node()); }
-
 //------------------------------------------------------------------------------
 
 class CFABuilder : public YComp {
@@ -509,41 +508,26 @@ void CFABuilder::stream_ycomp(std::ostream& out) const {
 
 //------------------------------------------------------------------------------
 
-CFA::CFA(const Scope& scope)
+CFABase::CFABase(const Scope& scope)
     : scope_(scope)
-{
-    CFABuilder cfa(*this);
-    entry_ = cfa.entry();
-    exit_  = cfa.exit();
-}
+{}
 
-CFA::~CFA() {
+CFABase::~CFABase() {
     for (const auto& p : nodes_)
         delete p.second;
 }
 
-const F_CFG& CFA::f_cfg() const { return lazy_init(this, f_cfg_); }
-const B_CFG& CFA::b_cfg() const { return lazy_init(this, b_cfg_); }
+const F_CFG& CFABase::f_cfg() const { return lazy_init(this, f_cfg_); }
+const B_CFG& CFABase::b_cfg() const { return lazy_init(this, b_cfg_); }
 
-//------------------------------------------------------------------------------
-
-template<bool forward>
-CFG<forward>::CFG(const CFA& cfa)
-    : YComp(cfa.scope(), forward ? "f_cfg" : "b_cfg")
-    , cfa_(cfa)
-    , rpo_(*this)
+CFA::CFA(const Scope& scope)
+    : CFABase(scope)
 {
-    link_to_exit();
-#ifndef NDEBUG
-    verify();
-    assert(post_order_visit(entry(), size()) == 0);
-#else
-    post_order_visit(entry(), size());
-#endif
+    CFABuilder cfa(*this);
+    init();
 }
 
-template<bool forward>
-void CFG<forward>::link_to_exit() {
+void CFABase::link_to_exit() {
     CFNodeSet reachable;
     std::queue<const CFNode*> queue;
 
@@ -594,10 +578,9 @@ void CFG<forward>::link_to_exit() {
     }
 }
 
-template<bool forward>
-void CFG<forward>::verify() {
+void CFABase::verify() {
     bool error = false;
-    for (const auto& p : cfa().nodes()) {
+    for (const auto& p : nodes()) {
         auto in = p.second;
         if (in != entry() && in->preds_.size() == 0) {
             VLOG("missing predecessors: {}", in->continuation());
@@ -606,9 +589,25 @@ void CFG<forward>::verify() {
     }
 
     if (error) {
-        ycomp();
+        // TODO
+        //ycomp();
         assert(false && "CFG not sound");
     }
+}
+
+//------------------------------------------------------------------------------
+
+template<bool forward>
+CFG<forward>::CFG(const CFABase& cfa)
+    : YComp(cfa.scope(), forward ? "f_cfg" : "b_cfg")
+    , cfa_(cfa)
+    , rpo_(*this)
+{
+#ifndef NDEBUG
+    assert(post_order_visit(entry(), size()) == 0);
+#else
+    post_order_visit(entry(), size());
+#endif
 }
 
 template<bool forward>

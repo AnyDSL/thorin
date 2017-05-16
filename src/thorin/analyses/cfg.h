@@ -68,13 +68,13 @@ public:
 private:
     const CFNodes& preds() const { return preds_; }
     const CFNodes& succs() const { return succs_; }
+public: // HACK
     void link(const CFNode* other) const;
 
     mutable CFNodes preds_;
     mutable CFNodes succs_;
 
-    friend class CFA;
-    friend class CFABuilder;
+    friend class CFABase;
     template<bool> friend class CFG;
 };
 
@@ -82,16 +82,15 @@ private:
 
 /**
  * Control Flow Analysis.
- * This class maintains information obtained by local control-flow analysis run on a @p Scope.
- * See "Shallow Embedding of DSLs via Online Partial Evaluation", Leißa et.al. for details.
+ * Base class for all CFA aglorithms.
  */
-class CFA {
+class CFABase {
 public:
-    CFA(const CFA&) = delete;
-    CFA& operator= (CFA) = delete;
+    CFABase(const CFABase&) = delete;
+    CFABase& operator= (CFABase) = delete;
 
-    explicit CFA(const Scope& scope);
-    ~CFA();
+    explicit CFABase(const Scope& scope);
+    ~CFABase();
 
     const Scope& scope() const { return scope_; }
     size_t size() const { return size_; }
@@ -100,12 +99,23 @@ public:
     const B_CFG& b_cfg() const;
     const CFNode* operator [] (Continuation* continuation) const { return find(nodes_, continuation); }
 
+protected:
+    void init() {
+        entry_ = (*this)[scope().entry()];
+        exit_  = (*this)[scope().exit() ];
+        link_to_exit();
+        verify();
+    }
+
 private:
+    void link_to_exit();
+    void verify();
     const CFNodes& preds(Continuation* continuation) const { auto cn = nodes_.find(continuation)->second; assert(cn); return cn->preds(); }
     const CFNodes& succs(Continuation* continuation) const { auto cn = nodes_.find(continuation)->second; assert(cn); return cn->succs(); }
     const CFNode* entry() const { return entry_; }
     const CFNode* exit() const { return exit_; }
 
+public: // HACK
     const Scope& scope_;
     ContinuationMap<const CFNode*> nodes_;
     const CFNode* entry_;
@@ -114,8 +124,20 @@ private:
     mutable std::unique_ptr<const F_CFG> f_cfg_;
     mutable std::unique_ptr<const B_CFG> b_cfg_;
 
-    friend class CFABuilder;
     template<bool> friend class CFG;
+};
+
+/**
+ * Control Flow Analysis.
+ * This class maintains information obtained by local control-flow analysis run on a @p Scope.
+ * See "Shallow Embedding of DSLs via Online Partial Evaluation", Leißa et.al. for details.
+ */
+class CFA : public CFABase {
+public:
+    explicit CFA(const Scope& scope);
+
+
+    friend class CFABuilder;
 };
 
 //------------------------------------------------------------------------------
@@ -139,10 +161,10 @@ public:
     CFG(const CFG&) = delete;
     CFG& operator= (CFG) = delete;
 
-    explicit CFG(const CFA&);
+    explicit CFG(const CFABase&);
     static const CFG& create(const Scope& scope) { return scope.cfg<forward>(); }
 
-    const CFA& cfa() const { return cfa_; }
+    const CFABase& cfa() const { return cfa_; }
     size_t size() const { return cfa().size(); }
     const CFNodes& preds(const CFNode* n) const { return n ? (forward ? n->preds() : n->succs()) : empty_; }
     const CFNodes& succs(const CFNode* n) const { return n ? (forward ? n->succs() : n->preds()) : empty_; }
@@ -169,12 +191,10 @@ public:
 
 private:
     size_t post_order_visit(const CFNode* n, size_t i);
-    void link_to_exit();
-    void verify();
 
     static CFNodes empty_;
 
-    const CFA& cfa_;
+    const CFABase& cfa_;
     Map<const CFNode*> rpo_;
     mutable std::unique_ptr<const DomTreeBase<forward>> domtree_;
     mutable std::unique_ptr<const LoopTree<forward>> looptree_;

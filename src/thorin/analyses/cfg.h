@@ -68,13 +68,13 @@ public:
 private:
     const CFNodes& preds() const { return preds_; }
     const CFNodes& succs() const { return succs_; }
-public: // HACK
     void link(const CFNode* other) const;
 
     mutable CFNodes preds_;
     mutable CFNodes succs_;
 
     friend class CFABase;
+    friend class CFABuilder;
     template<bool> friend class CFG;
 };
 
@@ -100,12 +100,8 @@ public:
     const CFNode* operator [] (Continuation* continuation) const { return find(nodes_, continuation); }
 
 protected:
-    void init() {
-        entry_ = (*this)[scope().entry()];
-        exit_  = (*this)[scope().exit() ];
-        link_to_exit();
-        verify();
-    }
+    /// invoke in the derived class after everything else has been done
+    void init();
 
 private:
     void link_to_exit();
@@ -115,7 +111,6 @@ private:
     const CFNode* entry() const { return entry_; }
     const CFNode* exit() const { return exit_; }
 
-public: // HACK
     const Scope& scope_;
     ContinuationMap<const CFNode*> nodes_;
     const CFNode* entry_;
@@ -124,6 +119,7 @@ public: // HACK
     mutable std::unique_ptr<const F_CFG> f_cfg_;
     mutable std::unique_ptr<const B_CFG> b_cfg_;
 
+    friend class CFABuilder;
     template<bool> friend class CFG;
 };
 

@@ -517,6 +517,13 @@ CFABase::~CFABase() {
         delete p.second;
 }
 
+void CFABase::init() {
+    entry_ = (*this)[scope().entry()];
+    exit_  = (*this)[scope().exit() ];
+    link_to_exit();
+    verify();
+}
+
 const F_CFG& CFABase::f_cfg() const { return lazy_init(this, f_cfg_); }
 const B_CFG& CFABase::b_cfg() const { return lazy_init(this, b_cfg_); }
 

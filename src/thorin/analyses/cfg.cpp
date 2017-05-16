@@ -462,58 +462,6 @@ void CFABuilder::unreachable_node_elimination() {
     }
 }
 
-template<bool forward>
-void CFG<forward>::link_to_exit() {
-    CFNodeSet reachable;
-    std::queue<const CFNode*> queue;
-
-    auto backwards_reachable = [&] (const CFNode* n) {
-        auto enqueue = [&] (const CFNode* n) {
-            if (reachable.emplace(n).second)
-                queue.push(n);
-        };
-
-        enqueue(n);
-
-        while (!queue.empty()) {
-            for (auto pred : pop(queue)->preds())
-                enqueue(pred);
-        }
-    };
-
-    std::stack<const CFNode*> stack;
-    CFNodeSet on_stack;
-
-    auto push = [&] (const CFNode* n) {
-        if (on_stack.emplace(n).second) {
-            stack.push(n);
-            return true;
-        }
-
-        return false;
-    };
-
-    backwards_reachable(exit());
-    push(entry());
-
-    while (!stack.empty()) {
-        auto n = stack.top();
-
-        bool todo = false;
-        for (auto succ : n->succs())
-            todo |= push(succ);
-
-        if (!todo) {
-            if (!reachable.contains(n)) {
-                n->link(exit());
-                backwards_reachable(n);
-            }
-
-            stack.pop();
-        }
-    }
-}
-
 void CFABuilder::transitive_cfg() {
     std::queue<const RealCFNode*> queue;
 
@@ -537,23 +485,6 @@ void CFABuilder::transitive_cfg() {
     for (const auto& p : succs_) {
         if (auto in = p.first->isa<CFNode>())
             link_to_succs(in);
-    }
-}
-
-template<bool forward>
-void CFG<forward>::verify() {
-    bool error = false;
-    for (const auto& p : cfa().nodes()) {
-        auto in = p.second;
-        if (in != entry() && in->preds_.size() == 0) {
-            VLOG("missing predecessors: {}", in->continuation());
-            error = true;
-        }
-    }
-
-    if (error) {
-        ycomp();
-        assert(false && "CFG not sound");
     }
 }
 
@@ -609,6 +540,75 @@ CFG<forward>::CFG(const CFA& cfa)
 #else
     post_order_visit(entry(), size());
 #endif
+}
+
+template<bool forward>
+void CFG<forward>::link_to_exit() {
+    CFNodeSet reachable;
+    std::queue<const CFNode*> queue;
+
+    auto backwards_reachable = [&] (const CFNode* n) {
+        auto enqueue = [&] (const CFNode* n) {
+            if (reachable.emplace(n).second)
+                queue.push(n);
+        };
+
+        enqueue(n);
+
+        while (!queue.empty()) {
+            for (auto pred : pop(queue)->preds())
+                enqueue(pred);
+        }
+    };
+
+    std::stack<const CFNode*> stack;
+    CFNodeSet on_stack;
+
+    auto push = [&] (const CFNode* n) {
+        if (on_stack.emplace(n).second) {
+            stack.push(n);
+            return true;
+        }
+
+        return false;
+    };
+
+    backwards_reachable(exit());
+    push(entry());
+
+    while (!stack.empty()) {
+        auto n = stack.top();
+
+        bool todo = false;
+        for (auto succ : n->succs())
+            todo |= push(succ);
+
+        if (!todo) {
+            if (!reachable.contains(n)) {
+                n->link(exit());
+                backwards_reachable(n);
+            }
+
+            stack.pop();
+        }
+    }
+}
+
+template<bool forward>
+void CFG<forward>::verify() {
+    bool error = false;
+    for (const auto& p : cfa().nodes()) {
+        auto in = p.second;
+        if (in != entry() && in->preds_.size() == 0) {
+            VLOG("missing predecessors: {}", in->continuation());
+            error = true;
+        }
+    }
+
+    if (error) {
+        ycomp();
+        assert(false && "CFG not sound");
+    }
 }
 
 template<bool forward>

@@ -45,16 +45,8 @@ protected:
     {}
 
 protected:
-    static const size_t Fresh        = size_t(-1);
-    static const size_t Unfresh      = size_t(-2);
-    static const size_t Reachable    = size_t(-3);
-    static const size_t OnStackTodo  = size_t(-4);
-    static const size_t OnStackReady = size_t(-5);
-    static const size_t Done         = size_t(-6);
-    static const size_t Visited      = size_t(-7);
-
-    mutable size_t f_index_ = Fresh; ///< RPO index in a forward @p CFG.
-    mutable size_t b_index_ = Fresh; ///< RPO index in a backwards @p CFG.
+    mutable size_t f_index_ = -1; ///< RPO index in a forward @p CFG.
+    mutable size_t b_index_ = -1; ///< RPO index in a backwards @p CFG.
 
     friend class CFABuilder;
     template<bool> friend class CFG;
@@ -177,6 +169,9 @@ public:
 
 private:
     size_t post_order_visit(const CFNode* n, size_t i);
+    void link_to_exit();
+    void verify();
+
     static CFNodes empty_;
 
     const CFA& cfa_;

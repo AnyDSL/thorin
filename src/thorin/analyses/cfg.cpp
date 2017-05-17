@@ -614,35 +614,32 @@ CFA::CFA(const Scope& scope)
     };
 
     cfg_queue.push(scope.entry());
+    node(scope.entry());
+    node(scope.exit());
 
     while (!cfg_queue.empty()) {
-        auto src = node(pop(cfg_queue));
+        auto src = pop(cfg_queue);
+        std::queue<const Def*> queue;
+        DefSet done;
 
-        for (auto continuation : scope) {
-            std::queue<const Def*> queue;
-            DefSet done;
-
-            auto enqueue = [&] (const Def* def) {
-                if (scope.contains(def)) {
-                    if (auto dst = def->isa_continuation()) {
-                        cfg_enqueue(dst);
-                        src->link(node(dst));
-                    } else if (done.emplace(def).second)
-                        queue.push(def);
-                }
-            };
-
-            for (auto op : continuation->ops())
-                enqueue(op);
-
-            while (!queue.empty()) {
-                for (auto op : pop(queue)->ops())
-                    enqueue(op);
+        auto enqueue = [&] (const Def* def) {
+            if (scope.contains(def) && done.emplace(def).second) {
+                if (auto dst = def->isa_continuation()) {
+                    cfg_enqueue(dst);
+                    node(src)->link(node(dst));
+                } else
+                    queue.push(def);
             }
+        };
+
+        queue.push(src);
+
+        while (!queue.empty()) {
+            for (auto op : pop(queue)->ops())
+                enqueue(op);
         }
     }
 
-    node(scope.exit());
     init();
 }
 

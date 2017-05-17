@@ -86,7 +86,7 @@ void PartialEvaluator::run() {
                 break;
         }
 
-        for (auto succ : top_scope().f_cfg_smart().succs(continuation))
+        for (auto succ : top_scope().f_cfg().succs(continuation))
             enqueue(succ->continuation());
     }
 }
@@ -273,7 +273,7 @@ template <typename F>
 void eval_intrinsics(World& world, F f) {
     Scope::for_each(world, [&] (Scope& scope) {
         bool dirty = false;
-        for (auto n : scope.f_cfg_smart().post_order()) {
+        for (auto n : scope.f_cfg().post_order()) {
             auto continuation = n->continuation();
             if (auto callee = continuation->callee()->isa<Continuation>()) {
                 dirty |= f(callee, continuation);

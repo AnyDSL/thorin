@@ -75,6 +75,7 @@ private:
 
     friend class CFABase;
     friend class CFABuilder;
+    friend class CFA;
     template<bool> friend class CFG;
 };
 
@@ -93,7 +94,7 @@ public:
     ~CFABase();
 
     const Scope& scope() const { return scope_; }
-    size_t size() const { return size_; }
+    size_t size() const { return nodes().size(); }
     const ContinuationMap<const CFNode*>& nodes() const { return nodes_; }
     const F_CFG& f_cfg() const;
     const B_CFG& b_cfg() const;
@@ -115,12 +116,17 @@ private:
     ContinuationMap<const CFNode*> nodes_;
     const CFNode* entry_;
     const CFNode* exit_;
-    size_t size_ = 0;
     mutable std::unique_ptr<const F_CFG> f_cfg_;
     mutable std::unique_ptr<const B_CFG> b_cfg_;
 
     friend class CFABuilder;
+    friend class CFA;
     template<bool> friend class CFG;
+};
+
+class CFA : public CFABase {
+public:
+    explicit CFA(const Scope& scope);
 };
 
 /**
@@ -128,9 +134,9 @@ private:
  * This class maintains information obtained by local control-flow analysis run on a @p Scope.
  * See "Shallow Embedding of DSLs via Online Partial Evaluation", Leißa et.al. for details.
  */
-class CFA : public CFABase {
+class CFASmart : public CFABase {
 public:
-    explicit CFA(const Scope& scope);
+    explicit CFASmart(const Scope& scope);
 
 
     friend class CFABuilder;

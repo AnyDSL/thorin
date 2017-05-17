@@ -93,7 +93,7 @@ std::ostream& SymOutNode::stream(std::ostream& out) const { return streamf(out, 
 
 class CFABuilder : public YComp {
 public:
-    CFABuilder(CFA& cfa)
+    CFABuilder(CFASmart& cfa)
         : YComp(cfa.scope(), "cfa")
         , cfa_(cfa)
         , entry_(in_node(scope().entry()))
@@ -124,7 +124,7 @@ public:
     void transitive_cfg();
     virtual void stream_ycomp(std::ostream& out) const override;
 
-    const CFA& cfa() const { return cfa_; }
+    const CFASmart& cfa() const { return cfa_; }
     const CFNode* entry() const { return entry_; }
     const CFNode* exit() const { return exit_; }
 
@@ -201,7 +201,7 @@ public:
 private:
     static CFNodeSet empty_;
 
-    CFA& cfa_;
+    CFASmart& cfa_;
     ContinuationMap<std::vector<CFNodeSet>> continuation2param2nodes_; ///< Maps param in scope to CFNodeSet.
     GIDTreeMap<const Def*, DefSet> def2set_;
     GIDTreeMap<const RealCFNode*, GIDSet<const RealCFNode*>> succs_;
@@ -426,8 +426,6 @@ void CFABuilder::unreachable_node_elimination() {
     for (const auto& p : cfa().nodes()) {
         auto in = p.second;
         if (reachable_.contains(in)) {
-            ++cfa_.size_;
-
             std::vector<const Def*> remove;
             auto& out_nodes = out_nodes_[in];
             for (const auto& p : out_nodes) {
@@ -527,13 +525,6 @@ void CFABase::init() {
 const F_CFG& CFABase::f_cfg() const { return lazy_init(this, f_cfg_); }
 const B_CFG& CFABase::b_cfg() const { return lazy_init(this, b_cfg_); }
 
-CFA::CFA(const Scope& scope)
-    : CFABase(scope)
-{
-    CFABuilder cfa(*this);
-    init();
-}
-
 void CFABase::link_to_exit() {
     CFNodeSet reachable;
     std::queue<const CFNode*> queue;
@@ -600,6 +591,47 @@ void CFABase::verify() {
         //ycomp();
         assert(false && "CFG not sound");
     }
+}
+
+//------------------------------------------------------------------------------
+
+CFASmart::CFASmart(const Scope& scope)
+    : CFABase(scope)
+{
+    CFABuilder cfa(*this);
+    init();
+}
+
+CFA::CFA(const Scope& scope)
+    : CFABase(scope)
+{
+    for (auto continuation : scope)
+        nodes_[continuation] = new CFNode(continuation);
+
+    for (auto continuation : scope) {
+        auto src = nodes_[continuation];
+        std::queue<const Def*> queue;
+        DefSet done;
+
+        auto enqueue = [&] (const Def* def) {
+            if (scope.contains(def)) {
+                if (auto dst = def->isa_continuation())
+                    src->link(nodes_[dst]);
+                else if (done.emplace(def).second)
+                    queue.push(def);
+            }
+        };
+
+        for (auto op : continuation->ops())
+            enqueue(op);
+
+        while (!queue.empty()) {
+            for (auto op : pop(queue)->ops())
+                enqueue(op);
+        }
+    }
+
+    init();
 }
 
 //------------------------------------------------------------------------------

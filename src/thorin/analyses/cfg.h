@@ -167,7 +167,6 @@ public:
     CFG& operator= (CFG) = delete;
 
     explicit CFG(const CFABase&);
-    static const CFG& create(const Scope& scope) { return scope.cfg<forward>(); }
 
     const CFABase& cfa() const { return cfa_; }
     size_t size() const { return cfa().size(); }

@@ -89,18 +89,6 @@ YCompScope<I, S> ycomp(std::ostream& out, YCompOrientation o, const Scope& scope
     return YCompScope<I, S>(out, scope, range, succs, o);
 }
 
-template<class G>
-void ycomp(std::ostream& out, World& world) {
-    // TODO use up and down
-    out << "graph: {" <<  endl;
-    out << "    " << "graph: {" <<  endl;
-    out << "        " << "title: \"" << world.name() << '"' << endl;
-    out << "        " << "label: \"" << world.name() << '"' << endl;
-    Scope::for_each(world, [&] (const Scope& scope) { G::create(scope).stream_ycomp(out); });
-    out << "    " << '}' << endl;
-    out << '}' << endl;
-}
-
 //------------------------------------------------------------------------------
 
 class YComp {

@@ -127,6 +127,9 @@ private:
 class CFA : public CFABase {
 public:
     explicit CFA(const Scope& scope);
+
+private:
+    const CFNode* node(Continuation*);
 };
 
 /**

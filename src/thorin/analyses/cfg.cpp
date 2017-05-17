@@ -605,33 +605,52 @@ CFASmart::CFASmart(const Scope& scope)
 CFA::CFA(const Scope& scope)
     : CFABase(scope)
 {
-    for (auto continuation : scope)
-        nodes_[continuation] = new CFNode(continuation);
+    std::queue<Continuation*> cfg_queue;
+    ContinuationSet cfg_done;
 
-    for (auto continuation : scope) {
-        auto src = nodes_[continuation];
-        std::queue<const Def*> queue;
-        DefSet done;
+    auto cfg_enqueue = [&] (Continuation* continuation) {
+        if (cfg_done.emplace(continuation).second)
+            cfg_queue.push(continuation);
+    };
 
-        auto enqueue = [&] (const Def* def) {
-            if (scope.contains(def)) {
-                if (auto dst = def->isa_continuation())
-                    src->link(nodes_[dst]);
-                else if (done.emplace(def).second)
-                    queue.push(def);
-            }
-        };
+    cfg_queue.push(scope.entry());
 
-        for (auto op : continuation->ops())
-            enqueue(op);
+    while (!cfg_queue.empty()) {
+        auto src = node(pop(cfg_queue));
 
-        while (!queue.empty()) {
-            for (auto op : pop(queue)->ops())
+        for (auto continuation : scope) {
+            std::queue<const Def*> queue;
+            DefSet done;
+
+            auto enqueue = [&] (const Def* def) {
+                if (scope.contains(def)) {
+                    if (auto dst = def->isa_continuation()) {
+                        cfg_enqueue(dst);
+                        src->link(node(dst));
+                    } else if (done.emplace(def).second)
+                        queue.push(def);
+                }
+            };
+
+            for (auto op : continuation->ops())
                 enqueue(op);
+
+            while (!queue.empty()) {
+                for (auto op : pop(queue)->ops())
+                    enqueue(op);
+            }
         }
     }
 
+    node(scope.exit());
     init();
+}
+
+const CFNode* CFA::node(Continuation* continuation) {
+    auto& n = nodes_[continuation];
+    if (n == nullptr)
+        n = new CFNode(continuation);
+    return n;
 }
 
 //------------------------------------------------------------------------------

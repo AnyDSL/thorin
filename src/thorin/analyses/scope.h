@@ -14,6 +14,7 @@ typedef CFG<true>  F_CFG;
 typedef CFG<false> B_CFG;
 
 class CFA;
+class CFASmart;
 class CFNode;
 
 /**
@@ -31,34 +32,58 @@ public:
     explicit Scope(Continuation* entry);
     ~Scope();
 
+    /// Invoke if you have modified sth in this Scope.
     const Scope& update();
-    ArrayRef<Continuation*> continuations() const { return continuations_; }
-    Continuation* operator[](size_t i) const { return continuations_[i]; }
+
+    //@{ misc getters
+    World& world() const { return world_; }
     Continuation* entry() const { return continuations().front(); }
     Continuation* exit() const { return continuations().back(); }
-    ArrayRef<Continuation*> body() const { return continuations().skip_front(); } ///< Like @p continuations() but without \p entry()
+    /**
+     * All continuations in this Scope.
+     * entry is first, exit ist last.
+     * @attention { All other Continuation%s are in @em no special order. }
+     */
+    ArrayRef<Continuation*> continuations() const { return continuations_; }
+    //@}
 
+    //@{ get Def%s contained in this Scope
     const DefSet& defs() const { return defs_; }
     bool contains(const Def* def) const { return defs_.contains(def); }
     bool inner_contains(Continuation* continuation) const { return continuation != entry() && contains(continuation); }
     bool inner_contains(const Param* param) const { return inner_contains(param->continuation()); }
+    //@}
+
     size_t size() const { return continuations_.size(); }
-    World& world() const { return world_; }
+
+    //@{ simple CFA to construct a CFG
     const CFA& cfa() const;
-    const CFNode* cfa(Continuation*) const;
     const F_CFG& f_cfg() const;
     const B_CFG& b_cfg() const;
-    template<bool forward> const CFG<forward>& cfg() const;
+    //@}
 
+    //@{ @em smart CFA to construct a CFG
+    const CFASmart& cfa_smart() const;
+    const F_CFG& f_cfg_smart() const;
+    const B_CFG& b_cfg_smart() const;
+    //@}
+
+    //@{ dump
     // Note that we don't use overloading for the following methods in order to have them accessible from gdb.
     virtual std::ostream& stream(std::ostream&) const override;  ///< Streams thorin to file @p out.
     void write_thorin(const char* filename) const;               ///< Dumps thorin to file with name @p filename.
     void thorin() const;                                         ///< Dumps thorin to a file with an auto-generated file name.
+    //@}
 
     typedef ArrayRef<Continuation*>::const_iterator const_iterator;
     const_iterator begin() const { return continuations().begin(); }
     const_iterator end() const { return continuations().end(); }
 
+    /**
+     * Transitively visits all @em reachable Scope%s in @p world that do not have free variables.
+     * We call these Scope%s @em top-level Scope%s.
+     * Select with @p elide_empty whether you want to visit trivial Scope%s of Continuation%s without body.
+     */
     template<bool elide_empty = true>
     static void for_each(const World&, std::function<void(Scope&)>);
 
@@ -69,10 +94,8 @@ private:
     DefSet defs_;
     std::vector<Continuation*> continuations_;
     mutable std::unique_ptr<const CFA> cfa_;
+    mutable std::unique_ptr<const CFASmart> cfa_smart_;
 };
-
-template<> inline const CFG< true>& Scope::cfg< true>() const { return f_cfg(); }
-template<> inline const CFG<false>& Scope::cfg<false>() const { return b_cfg(); }
 
 }
 

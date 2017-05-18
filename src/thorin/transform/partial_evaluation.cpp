@@ -161,9 +161,9 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
             if (end == nullptr)
                 continue;
 
-            const auto& postdomtree = top_scope().b_cfg().domtree();
-            auto ncur = top_scope().cfa(cur);
-            auto nend = top_scope().cfa(end);
+            const auto& postdomtree = top_scope().b_cfg_smart().domtree();
+            auto ncur = top_scope().cfa_smart()[cur];
+            auto nend = top_scope().cfa_smart()[end];
 
             assert(ncur != nullptr);
             if (nend == nullptr) {
@@ -261,8 +261,8 @@ Continuation* PartialEvaluator::postdom(Continuation* cur) {
 }
 
 Continuation* PartialEvaluator::postdom(Continuation* cur, const Scope& scope) {
-    const auto& postdomtree = scope.b_cfg().domtree();
-    if (auto n = scope.cfa(cur))
+    const auto& postdomtree = scope.b_cfg_smart().domtree();
+    if (auto n = scope.cfa_smart()[cur])
         return postdomtree.idom(n)->continuation();
     return nullptr;
 }

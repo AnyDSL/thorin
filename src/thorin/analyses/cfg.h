@@ -45,16 +45,8 @@ protected:
     {}
 
 protected:
-    static const size_t Fresh        = size_t(-1);
-    static const size_t Unfresh      = size_t(-2);
-    static const size_t Reachable    = size_t(-3);
-    static const size_t OnStackTodo  = size_t(-4);
-    static const size_t OnStackReady = size_t(-5);
-    static const size_t Done         = size_t(-6);
-    static const size_t Visited      = size_t(-7);
-
-    mutable size_t f_index_ = Fresh; ///< RPO index in a forward @p CFG.
-    mutable size_t b_index_ = Fresh; ///< RPO index in a backwards @p CFG.
+    mutable size_t f_index_ = -1; ///< RPO index in a forward @p CFG.
+    mutable size_t b_index_ = -1; ///< RPO index in a backwards @p CFG.
 
     friend class CFABuilder;
     template<bool> friend class CFG;
@@ -81,8 +73,9 @@ private:
     mutable CFNodes preds_;
     mutable CFNodes succs_;
 
-    friend class CFA;
+    friend class CFABase;
     friend class CFABuilder;
+    friend class CFA;
     template<bool> friend class CFG;
 };
 
@@ -90,25 +83,30 @@ private:
 
 /**
  * Control Flow Analysis.
- * This class maintains information obtained by local control-flow analysis run on a @p Scope.
- * See "Shallow Embedding of DSLs via Online Partial Evaluation", Leißa et.al. for details.
+ * Base class for all CFA aglorithms.
  */
-class CFA {
+class CFABase {
 public:
-    CFA(const CFA&) = delete;
-    CFA& operator= (CFA) = delete;
+    CFABase(const CFABase&) = delete;
+    CFABase& operator= (CFABase) = delete;
 
-    explicit CFA(const Scope& scope);
-    ~CFA();
+    explicit CFABase(const Scope& scope);
+    ~CFABase();
 
     const Scope& scope() const { return scope_; }
-    size_t size() const { return size_; }
+    size_t size() const { return nodes().size(); }
     const ContinuationMap<const CFNode*>& nodes() const { return nodes_; }
     const F_CFG& f_cfg() const;
     const B_CFG& b_cfg() const;
     const CFNode* operator [] (Continuation* continuation) const { return find(nodes_, continuation); }
 
+protected:
+    /// invoke in the derived class after everything else has been done
+    void init();
+
 private:
+    void link_to_exit();
+    void verify();
     const CFNodes& preds(Continuation* continuation) const { auto cn = nodes_.find(continuation)->second; assert(cn); return cn->preds(); }
     const CFNodes& succs(Continuation* continuation) const { auto cn = nodes_.find(continuation)->second; assert(cn); return cn->succs(); }
     const CFNode* entry() const { return entry_; }
@@ -118,12 +116,33 @@ private:
     ContinuationMap<const CFNode*> nodes_;
     const CFNode* entry_;
     const CFNode* exit_;
-    size_t size_ = 0;
     mutable std::unique_ptr<const F_CFG> f_cfg_;
     mutable std::unique_ptr<const B_CFG> b_cfg_;
 
     friend class CFABuilder;
+    friend class CFA;
     template<bool> friend class CFG;
+};
+
+class CFA : public CFABase {
+public:
+    explicit CFA(const Scope& scope);
+
+private:
+    const CFNode* node(Continuation*);
+};
+
+/**
+ * Control Flow Analysis.
+ * This class maintains information obtained by local control-flow analysis run on a @p Scope.
+ * See "Shallow Embedding of DSLs via Online Partial Evaluation", Leißa et.al. for details.
+ */
+class CFASmart : public CFABase {
+public:
+    explicit CFASmart(const Scope& scope);
+
+
+    friend class CFABuilder;
 };
 
 //------------------------------------------------------------------------------
@@ -147,10 +166,9 @@ public:
     CFG(const CFG&) = delete;
     CFG& operator= (CFG) = delete;
 
-    explicit CFG(const CFA&);
-    static const CFG& create(const Scope& scope) { return scope.cfg<forward>(); }
+    explicit CFG(const CFABase&);
 
-    const CFA& cfa() const { return cfa_; }
+    const CFABase& cfa() const { return cfa_; }
     size_t size() const { return cfa().size(); }
     const CFNodes& preds(const CFNode* n) const { return n ? (forward ? n->preds() : n->succs()) : empty_; }
     const CFNodes& succs(const CFNode* n) const { return n ? (forward ? n->succs() : n->preds()) : empty_; }
@@ -177,9 +195,10 @@ public:
 
 private:
     size_t post_order_visit(const CFNode* n, size_t i);
+
     static CFNodes empty_;
 
-    const CFA& cfa_;
+    const CFABase& cfa_;
     Map<const CFNode*> rpo_;
     mutable std::unique_ptr<const DomTreeBase<forward>> domtree_;
     mutable std::unique_ptr<const LoopTree<forward>> looptree_;

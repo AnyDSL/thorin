@@ -101,7 +101,6 @@ public:
     LoopTree& operator=(LoopTree) = delete;
 
     explicit LoopTree(const CFG<forward>& cfg);
-    static const LoopTree& create(const Scope& scope) { return scope.cfg<forward>().looptree(); }
     const CFG<forward>& cfg() const { return cfg_; }
     const Head* root() const { return root_.get(); }
     const Leaf* operator[](const CFNode* n) const { return find(leaves_, n); }

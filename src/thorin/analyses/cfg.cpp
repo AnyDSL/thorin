@@ -89,12 +89,11 @@ std::ostream& CFNode::stream(std::ostream& out) const { return streamf(out, "{}"
 std::ostream& OutNode::stream(std::ostream& out) const { return streamf(out, "[Out: {} ({})]", def(), context()); }
 std::ostream& SymDefNode::stream(std::ostream& out) const { return streamf(out, "[Sym: {}]", def()); }
 std::ostream& SymOutNode::stream(std::ostream& out) const { return streamf(out, "[Sym: {}]", out_node()); }
-
 //------------------------------------------------------------------------------
 
 class CFABuilder : public YComp {
 public:
-    CFABuilder(CFA& cfa)
+    CFABuilder(CFASmart& cfa)
         : YComp(cfa.scope(), "cfa")
         , cfa_(cfa)
         , entry_(in_node(scope().entry()))
@@ -105,11 +104,7 @@ public:
         VLOG_SCOPE(run_cfa());
         VLOG_SCOPE(build_cfg());
         VLOG_SCOPE(unreachable_node_elimination());
-        VLOG_SCOPE(link_to_exit());
         VLOG_SCOPE(transitive_cfg());
-#ifndef NDEBUG
-        VLOG_SCOPE(verify());
-#endif
     }
 
     ~CFABuilder() {
@@ -126,12 +121,10 @@ public:
     void run_cfa();
     void build_cfg();
     void unreachable_node_elimination();
-    void link_to_exit();
     void transitive_cfg();
-    void verify();
     virtual void stream_ycomp(std::ostream& out) const override;
 
-    const CFA& cfa() const { return cfa_; }
+    const CFASmart& cfa() const { return cfa_; }
     const CFNode* entry() const { return entry_; }
     const CFNode* exit() const { return exit_; }
 
@@ -189,8 +182,8 @@ public:
     void link(const RealCFNode* src, const RealCFNode* dst) {
         DLOG("{} -> {}", src, dst);
 
-        assert(src->f_index_ == CFNode::Reachable || src->f_index_ == CFNode::Done);
-        dst->f_index_ = src->f_index_;
+        assert(reachable_.contains(src));
+        reachable_.emplace(dst);
 
         const auto& p = succs_[src].emplace(dst);
         const auto& q = preds_[dst].emplace(src);
@@ -208,7 +201,7 @@ public:
 private:
     static CFNodeSet empty_;
 
-    CFA& cfa_;
+    CFASmart& cfa_;
     ContinuationMap<std::vector<CFNodeSet>> continuation2param2nodes_; ///< Maps param in scope to CFNodeSet.
     GIDTreeMap<const Def*, DefSet> def2set_;
     GIDTreeMap<const RealCFNode*, GIDSet<const RealCFNode*>> succs_;
@@ -219,6 +212,7 @@ private:
     mutable GIDTreeMap<const CFNode*, DefMap<const OutNode*>> out_nodes_;
     mutable DefMap<const SymNode*> def2sym_;
     mutable GIDMap<const OutNode*, const SymNode*> out2sym_;
+    CFNodeSet reachable_;
 };
 
 CFNodeSet CFABuilder::empty_;
@@ -397,13 +391,13 @@ void CFABuilder::build_cfg() {
     std::queue<const CFNode*> queue;
 
     auto enqueue = [&] (const CFNode* in) {
-        if (in->f_index_ != CFNode::Reachable) {
+        if (!reachable_.contains(in))
             queue.push(in);
-        }
     };
 
     queue.push(entry());
-    entry()->f_index_ = exit()->f_index_ = CFNode::Reachable;
+    reachable_.emplace(entry());
+    reachable_.emplace(exit());
 
     while (!queue.empty()) {
         auto cur_in = pop(queue);
@@ -431,13 +425,11 @@ void CFABuilder::unreachable_node_elimination() {
     std::vector<const CFNode*> remove;
     for (const auto& p : cfa().nodes()) {
         auto in = p.second;
-        if (in->f_index_ == CFNode::Reachable) {
-            ++cfa_.size_;
-
+        if (reachable_.contains(in)) {
             std::vector<const Def*> remove;
             auto& out_nodes = out_nodes_[in];
             for (const auto& p : out_nodes) {
-                if (p.second->f_index_ == CFNode::Reachable)
+                if (reachable_.contains(p.second))
                     ++num_out_nodes_;
                 else
                     remove.push_back(p.first);
@@ -453,7 +445,7 @@ void CFABuilder::unreachable_node_elimination() {
         } else {
 #ifndef NDEBUG
             for (const auto& p : out_nodes_[in])
-                assert(p.second->f_index_ != CFNode::Reachable);
+                assert(reachable_.contains(p.second));
 #endif
             remove.emplace_back(in);
         }
@@ -467,114 +459,12 @@ void CFABuilder::unreachable_node_elimination() {
     }
 }
 
-void CFABuilder::link_to_exit() {
-    auto backwards_reachable = [&] (const RealCFNode* n) {
-        std::queue<const RealCFNode*> queue;
-
-        auto enqueue = [&] (const RealCFNode* n) {
-            if (n->b_index_ != CFNode::Done) {
-                n->b_index_ = CFNode::Done;
-                queue.push(n);
-            }
-        };
-
-        enqueue(n);
-
-        while (!queue.empty()) {
-            for (auto pred : preds_[pop(queue)])
-                enqueue(pred);
-        }
-    };
-
-    std::vector<const RealCFNode*> stack;
-
-    auto push = [&] (const RealCFNode* n) {
-        if (n->f_index_ == CFNode::Reachable) {
-            n->f_index_ = CFNode::OnStackTodo;
-            stack.push_back(n);
-        }
-    };
-
-    auto backtrack = [&] () {
-        static size_t mark = 0;
-        std::stack<const RealCFNode*> backtrack_stack;
-        const RealCFNode* candidate = nullptr;
-
-        auto push = [&] (const RealCFNode* n) {
-            assert(int(n->b_index_) >= -1 || n->b_index_ == CFNode::Done);
-
-            if ((n->f_index_ == CFNode::OnStackTodo || n->f_index_ == CFNode::OnStackReady) && n->b_index_ != mark) {
-                n->b_index_ = mark;
-                backtrack_stack.push(n);
-                return true;
-            }
-            return false;
-        };
-
-        backtrack_stack.push(stack.back());
-
-        while (!backtrack_stack.empty()) {
-            auto n = backtrack_stack.top();
-
-            bool todo = false;
-            for (auto succ : succs_[n])
-                todo |= push(succ);
-
-            if (!todo) {
-                if (n->f_index_ == CFNode::OnStackTodo) {
-                    candidate = n;
-                    DLOG("candidate: {}", candidate);
-                }
-                backtrack_stack.pop();
-            }
-        }
-
-        ++mark;
-
-        if (candidate) { // reorder stack
-            DLOG("reorder for candidate: {}", candidate);
-            auto i = std::find(stack.begin(), stack.end(), candidate);
-            assert(i != stack.end());
-            std::move(i+1, stack.end(), i);
-            stack.back() = candidate;
-            return true;
-        }
-        return false;
-    };
-
-    backwards_reachable(exit());
-    push(entry());
-
-    while (!stack.empty()) {
-        auto n = stack.back();
-
-        if (n->f_index_ == CFNode::OnStackTodo) {
-            n->f_index_ = CFNode::OnStackReady;
-            for (auto succ : succs_[n])
-                push(succ);
-        } else {
-            if (n->b_index_ != CFNode::Done) {
-                if (!backtrack()) {
-                    n->f_index_ = CFNode::Done;
-                    stack.pop_back();
-                    DLOG("unreachble from exit: {}", n);
-                    link(n, exit());
-                    backwards_reachable(n);
-                }
-            } else {
-                n->f_index_ = CFNode::Done;
-                stack.pop_back();
-            }
-        }
-    }
-}
-
 void CFABuilder::transitive_cfg() {
     std::queue<const RealCFNode*> queue;
 
     auto link_to_succs = [&] (const CFNode* src) {
         auto enqueue = [&] (const RealCFNode* n) {
-            for (auto succ : succs_.find(n)->second)
+            for (auto succ : succs_[n])
                 queue.push(succ);
         };
 
@@ -592,22 +482,6 @@ void CFABuilder::transitive_cfg() {
     for (const auto& p : succs_) {
         if (auto in = p.first->isa<CFNode>())
             link_to_succs(in);
-    }
-}
-
-void CFABuilder::verify() {
-    bool error = false;
-    for (const auto& p : cfa().nodes()) {
-        auto in = p.second;
-        if (in != entry() && in->preds_.size() == 0) {
-            VLOG("missing predecessors: {}", in->continuation());
-            error = true;
-        }
-    }
-
-    if (error) {
-        ycomp();
-        assert(false && "CFG not sound");
     }
 }
 
@@ -632,26 +506,161 @@ void CFABuilder::stream_ycomp(std::ostream& out) const {
 
 //------------------------------------------------------------------------------
 
-CFA::CFA(const Scope& scope)
+CFABase::CFABase(const Scope& scope)
     : scope_(scope)
-{
-    CFABuilder cfa(*this);
-    entry_ = cfa.entry();
-    exit_  = cfa.exit();
-}
+{}
 
-CFA::~CFA() {
+CFABase::~CFABase() {
     for (const auto& p : nodes_)
         delete p.second;
 }
 
-const F_CFG& CFA::f_cfg() const { return lazy_init(this, f_cfg_); }
-const B_CFG& CFA::b_cfg() const { return lazy_init(this, b_cfg_); }
+void CFABase::init() {
+    entry_ = (*this)[scope().entry()];
+    exit_  = (*this)[scope().exit() ];
+    link_to_exit();
+    verify();
+}
+
+const F_CFG& CFABase::f_cfg() const { return lazy_init(this, f_cfg_); }
+const B_CFG& CFABase::b_cfg() const { return lazy_init(this, b_cfg_); }
+
+void CFABase::link_to_exit() {
+    CFNodeSet reachable;
+    std::queue<const CFNode*> queue;
+
+    // first, link all nodes without succs to exit
+    for (auto p : nodes()) {
+        auto n = p.second;
+        if (n != exit() && n->succs().empty())
+            n->link(exit());
+    }
+
+    auto backwards_reachable = [&] (const CFNode* n) {
+        auto enqueue = [&] (const CFNode* n) {
+            if (reachable.emplace(n).second)
+                queue.push(n);
+        };
+
+        enqueue(n);
+
+        while (!queue.empty()) {
+            for (auto pred : pop(queue)->preds())
+                enqueue(pred);
+        }
+    };
+
+    std::stack<const CFNode*> stack;
+    CFNodeSet on_stack;
+
+    auto push = [&] (const CFNode* n) {
+        if (on_stack.emplace(n).second) {
+            stack.push(n);
+            return true;
+        }
+
+        return false;
+    };
+
+    backwards_reachable(exit());
+    push(entry());
+
+    while (!stack.empty()) {
+        auto n = stack.top();
+
+        bool todo = false;
+        for (auto succ : n->succs())
+            todo |= push(succ);
+
+        if (!todo) {
+            if (!reachable.contains(n)) {
+                n->link(exit());
+                backwards_reachable(n);
+            }
+
+            stack.pop();
+        }
+    }
+}
+
+void CFABase::verify() {
+    bool error = false;
+    for (const auto& p : nodes()) {
+        auto in = p.second;
+        if (in != entry() && in->preds_.size() == 0) {
+            VLOG("missing predecessors: {}", in->continuation());
+            error = true;
+        }
+    }
+
+    if (error) {
+        // TODO
+        //ycomp();
+        assert(false && "CFG not sound");
+    }
+}
+
+//------------------------------------------------------------------------------
+
+CFASmart::CFASmart(const Scope& scope)
+    : CFABase(scope)
+{
+    CFABuilder cfa(*this);
+    init();
+}
+
+CFA::CFA(const Scope& scope)
+    : CFABase(scope)
+{
+    std::queue<Continuation*> cfg_queue;
+    ContinuationSet cfg_done;
+
+    auto cfg_enqueue = [&] (Continuation* continuation) {
+        if (cfg_done.emplace(continuation).second)
+            cfg_queue.push(continuation);
+    };
+
+    cfg_queue.push(scope.entry());
+    node(scope.entry());
+    node(scope.exit());
+
+    while (!cfg_queue.empty()) {
+        auto src = pop(cfg_queue);
+        std::queue<const Def*> queue;
+        DefSet done;
+
+        auto enqueue = [&] (const Def* def) {
+            if (def->order() > 0 && scope.contains(def) && done.emplace(def).second) {
+                if (auto dst = def->isa_continuation()) {
+                    cfg_enqueue(dst);
+                    node(src)->link(node(dst));
+                } else
+                    queue.push(def);
+            }
+        };
+
+        queue.push(src);
+
+        while (!queue.empty()) {
+            for (auto op : pop(queue)->ops())
+                enqueue(op);
+        }
+    }
+
+    init();
+}
+
+const CFNode* CFA::node(Continuation* continuation) {
+    auto& n = nodes_[continuation];
+    if (n == nullptr)
+        n = new CFNode(continuation);
+    return n;
+}
 
 //------------------------------------------------------------------------------
 
 template<bool forward>
-CFG<forward>::CFG(const CFA& cfa)
+CFG<forward>::CFG(const CFABase& cfa)
     : YComp(cfa.scope(), forward ? "f_cfg" : "b_cfg")
     , cfa_(cfa)
     , rpo_(*this)
@@ -666,11 +675,10 @@ CFG<forward>::CFG(const CFA& cfa)
 template<bool forward>
 size_t CFG<forward>::post_order_visit(const CFNode* n, size_t i) {
     auto& n_index = forward ? n->f_index_ : n->b_index_;
-    assert(n_index == CFNode::Done);
-    n_index = CFNode::Visited;
+    n_index = size_t(-2);
 
     for (auto succ : succs(n)) {
-        if (index(succ) == CFNode::Done)
+        if (index(succ) == size_t(-1))
             i = post_order_visit(succ, i);
     }
 

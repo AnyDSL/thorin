@@ -27,7 +27,6 @@ public:
         create();
         depth(root(), 0);
     }
-    static const DomTreeBase& create(const Scope& scope) { return scope.cfg<forward>().domtree(); }
 
     const CFG<forward>& cfg() const { return cfg_; }
     size_t index(const CFNode* n) const { return cfg().index(n); }

@@ -26,7 +26,6 @@ public:
     {
         create();
     }
-    static const DomFrontierBase& create(const Scope& scope) { return scope.cfg<forward>().domfrontier(); }
 
     const CFG<forward>& cfg() const { return cfg_; }
     const std::vector<const CFNode*>& preds(const CFNode* n) const { return preds_[n]; }

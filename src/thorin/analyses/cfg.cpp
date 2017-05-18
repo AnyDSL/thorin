@@ -529,6 +529,13 @@ void CFABase::link_to_exit() {
     CFNodeSet reachable;
     std::queue<const CFNode*> queue;
 
+    // first, link all nodes without succs to exit
+    for (auto p : nodes()) {
+        auto n = p.second;
+        if (n != exit() && n->succs().empty())
+            n->link(exit());
+    }
+
     auto backwards_reachable = [&] (const CFNode* n) {
         auto enqueue = [&] (const CFNode* n) {
             if (reachable.emplace(n).second)

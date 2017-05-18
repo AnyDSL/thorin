@@ -170,8 +170,8 @@ public:
 
     const CFABase& cfa() const { return cfa_; }
     size_t size() const { return cfa().size(); }
-    const CFNodes& preds(const CFNode* n) const { return n ? (forward ? n->preds() : n->succs()) : empty_; }
-    const CFNodes& succs(const CFNode* n) const { return n ? (forward ? n->succs() : n->preds()) : empty_; }
+    const CFNodes& preds(const CFNode* n) const;
+    const CFNodes& succs(const CFNode* n) const;
     const CFNodes& preds(Continuation* continuation) const { return preds(cfa()[continuation]); }
     const CFNodes& succs(Continuation* continuation) const { return succs(cfa()[continuation]); }
     size_t num_preds(const CFNode* n) const { return preds(n).size(); }

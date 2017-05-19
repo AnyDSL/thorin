@@ -10,8 +10,9 @@ namespace thorin {
 
 class PartialEvaluator {
 public:
-    PartialEvaluator(Scope& top_scope)
+    PartialEvaluator(Scope& top_scope, bool simple)
         : top_scope_(top_scope)
+        , simple_(simple)
     {}
     ~PartialEvaluator() {
         top_scope(); // trigger update if dirty
@@ -57,6 +58,7 @@ public:
 
     void mark_dirty() { top_dirty_ = cur_dirty_ = true; }
     bool top_dirty() { return top_dirty_; }
+    bool is_simple() const { return simple_; }
     Continuation* get_continuation(Continuation* continuation) { return continuation->callee()->as<EvalOp>()->end()->isa_continuation(); }
 
 private:
@@ -68,6 +70,7 @@ private:
     HashMap<Call, Continuation*> cache_;
     bool cur_dirty_;
     bool top_dirty_ = false;
+    bool simple_;
 };
 
 void PartialEvaluator::run() {
@@ -155,15 +158,19 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
         }
 
         if (dst == nullptr || dst->empty()) {
+            if (is_simple()) {
+                DLOG("bail out for simple PE");
+                return;
+            }
             cur = postdom(cur);
             if (cur == nullptr)
                 return;
             if (end == nullptr)
                 continue;
 
-            const auto& postdomtree = top_scope().b_cfg().domtree();
-            auto ncur = top_scope().cfa(cur);
-            auto nend = top_scope().cfa(end);
+            const auto& postdomtree = top_scope().b_cfg_smart().domtree();
+            auto ncur = top_scope().cfa_smart()[cur];
+            auto nend = top_scope().cfa_smart()[end];
 
             assert(ncur != nullptr);
             if (nend == nullptr) {
@@ -261,8 +268,8 @@ Continuation* PartialEvaluator::postdom(Continuation* cur) {
 }
 
 Continuation* PartialEvaluator::postdom(Continuation* cur, const Scope& scope) {
-    const auto& postdomtree = scope.b_cfg().domtree();
-    if (auto n = scope.cfa(cur))
+    const auto& postdomtree = scope.b_cfg_smart().domtree();
+    if (auto n = scope.cfa_smart()[cur])
         return postdomtree.idom(n)->continuation();
     return nullptr;
 }
@@ -285,9 +292,9 @@ void eval_intrinsics(World& world, F f) {
     });
 }
 
-void eval(World& world) {
+void eval(World& world, bool simple) {
     Scope::for_each(world, [&] (Scope& scope) {
-        PartialEvaluator partial_evaluator(scope);
+        PartialEvaluator partial_evaluator(scope, simple);
         partial_evaluator.run();
         if (partial_evaluator.top_dirty())
             scope.update();
@@ -310,9 +317,9 @@ void eval(World& world) {
     });
 }
 
-void partial_evaluation(World& world, bool simple_pe) {
+void partial_evaluation(World& world, bool simple) {
     world.cleanup();
-    VLOG_SCOPE(eval(world));
+    VLOG_SCOPE(eval(world, simple));
 
     for (auto primop : world.primops()) {
         if (auto evalop = primop->isa<EvalOp>())

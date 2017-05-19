@@ -1,11 +1,14 @@
 #ifdef RV_SUPPORT
 #include "thorin/be/llvm/llvm.h"
 
+#include <llvm/IR/Dominators.h>
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Analysis/LoopInfo.h>
-#include <llvm/IR/Dominators.h>
+#include <llvm/Analysis/ScalarEvolution.h>
+#include <llvm/Analysis/MemoryDependenceAnalysis.h>
+#include <llvm/Passes/PassBuilder.h>
 
 #include <rv/rv.h>
 #include <rv/vectorizationInfo.h>
@@ -109,6 +112,11 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
 
     llvm::FunctionAnalysisManager FAM;
     llvm::ModuleAnalysisManager MAM;
+
+    llvm::PassBuilder PB;
+    PB.registerFunctionAnalyses(FAM);
+    PB.registerModuleAnalyses(MAM);
+
     llvm::TargetIRAnalysis ir_analysis;
     llvm::TargetTransformInfo tti = ir_analysis.run(*kernel_func, FAM);
     llvm::TargetLibraryAnalysis lib_analysis;
@@ -135,6 +143,12 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
     llvm::CDG cdg(pdom_tree);
     cdg.create(*kernel_func);
 
+    llvm::ScalarEvolutionAnalysis SEA;
+    auto SE = SEA.run(*kernel_func, FAM);
+
+    llvm::MemoryDependenceAnalysis MDA;
+    auto MD = MDA.run(*kernel_func, FAM);
+
     LoopExitCanonicalizer canonicalizer(loop_info);
     canonicalizer.canonicalize(*kernel_func);
 
@@ -150,7 +164,7 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
     assert_unused(linearize_ok);
 
     llvm::DominatorTree new_dom_tree(*vec_info.getMapping().scalarFn); // Control conversion does not preserve the dominance tree
-    bool vectorize_ok = vectorizer.vectorize(vec_info, new_dom_tree, loop_info);
+    bool vectorize_ok = vectorizer.vectorize(vec_info, new_dom_tree, loop_info, SE, MD, nullptr);
     assert_unused(vectorize_ok);
 
     vectorizer.finalize();

@@ -70,7 +70,7 @@ private:
                         node, &*succ, 13) << endl; // 16
         };
 
-        auto title = scope.entry()->unique_name();
+        auto title = scope.entry()->unique_name() + ".scope";
         ostream() << "graph: {" << up_endl;
         ostream() << "title: \"" << title << "\"" << endl;
         ostream() << "label: \"" << title << "\"" << endl;

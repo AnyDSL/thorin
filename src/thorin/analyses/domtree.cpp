@@ -6,9 +6,6 @@ template<bool forward>
 void DomTreeBase<forward>::create() {
     // Cooper et al, 2001. A Simple, Fast Dominance Algorithm. http://www.cs.rice.edu/~keith/EMBED/dom.pdf
 
-    // map entry's initial idom to itself
-    idoms_[cfg().entry()] = cfg().entry();
-
     // all others' idom are set to their first found dominating pred
     for (auto n : cfg().reverse_post_order().skip_front()) {
         for (auto pred : cfg().preds(n)) {

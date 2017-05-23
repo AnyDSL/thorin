@@ -162,6 +162,7 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
                 DLOG("bail out for simple PE");
                 return;
             }
+            auto old = cur;
             cur = postdom(cur);
             if (cur == nullptr)
                 return;
@@ -169,6 +170,7 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
                 continue;
 
             const auto& postdomtree = top_scope().b_cfg_smart().domtree();
+            auto nold = top_scope().cfa_smart()[old];
             auto ncur = top_scope().cfa_smart()[cur];
             auto nend = top_scope().cfa_smart()[end];
 
@@ -183,8 +185,8 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
                 return;
             }
 
-            for (auto i = nend; i != postdomtree.root(); i = postdomtree.idom(i)) {
-                if (i == ncur) {
+            for (auto i = nold; i != ncur; i = postdomtree.idom(i)) {
+                if (i == nend) {
                     DLOG("overjumped end: {}", cur);
                     return;
                 }

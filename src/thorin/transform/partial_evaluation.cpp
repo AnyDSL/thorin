@@ -64,6 +64,7 @@ public:
 private:
     Scope* cur_scope_;
     Scope& top_scope_;
+    const CFASmart* cfa_;
     ContinuationSet done_;
     std::queue<Continuation*> queue_;
     ContinuationSet visited_;
@@ -162,15 +163,16 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
                 DLOG("bail out for simple PE");
                 return;
             }
+            auto old = cur;
             cur = postdom(cur);
             if (cur == nullptr)
                 return;
             if (end == nullptr)
                 continue;
 
-            const auto& postdomtree = top_scope().b_cfg_smart().domtree();
-            auto ncur = top_scope().cfa_smart()[cur];
-            auto nend = top_scope().cfa_smart()[end];
+            auto nold = (*cfa_)[old];
+            auto ncur = (*cfa_)[cur];
+            auto nend = (*cfa_)[end];
 
             assert(ncur != nullptr);
             if (nend == nullptr) {
@@ -183,8 +185,8 @@ void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
                 return;
             }
 
-            for (auto i = nend; i != postdomtree.root(); i = postdomtree.idom(i)) {
-                if (i == ncur) {
+            for (auto i = nold; i != ncur; i = cfa_->b_cfg().domtree().idom(i)) {
+                if (i == nend) {
                     DLOG("overjumped end: {}", cur);
                     return;
                 }
@@ -268,9 +270,9 @@ Continuation* PartialEvaluator::postdom(Continuation* cur) {
 }
 
 Continuation* PartialEvaluator::postdom(Continuation* cur, const Scope& scope) {
-    const auto& postdomtree = scope.b_cfg_smart().domtree();
+    cfa_ = &scope.cfa_smart();
     if (auto n = scope.cfa_smart()[cur])
-        return postdomtree.idom(n)->continuation();
+        return cfa_->b_cfg().domtree().idom(n)->continuation();
     return nullptr;
 }
 

@@ -75,6 +75,7 @@ enum class Intrinsic : uint8_t {
     Reserve = _Accelerator_End, ///< Intrinsic memory reserve function
     Atomic,                     ///< Intrinsic atomic function
     CmpXchg,                    ///< Intrinsic cmpxchg function
+    Undef,                      ///< Intrinsic undef function
     Branch,                     ///< branch(cond, T, F).
     Match,                      ///< match(val, otherwise, (case1, cont1), (case2, cont2), ...)
     PeInfo,                     ///< Partial evaluation debug info.

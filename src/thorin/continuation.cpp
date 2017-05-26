@@ -195,6 +195,7 @@ void Continuation::set_intrinsic() {
     else if (name() == "reserve_shared") intrinsic_ = Intrinsic::Reserve;
     else if (name() == "atomic")         intrinsic_ = Intrinsic::Atomic;
     else if (name() == "cmpxchg")        intrinsic_ = Intrinsic::CmpXchg;
+    else if (name() == "undef")          intrinsic_ = Intrinsic::Undef;
     else assert(false && "unsupported thorin intrinsic");
 }
 

@@ -82,7 +82,7 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, cons
 
     // arguments
     auto target_device_id = code_gen.lookup(continuation->arg(LaunchArgs::Device));
-    auto target_platform = builder_.getInt32(platform);
+    auto target_platform = builder_.getInt32(platform + 1);
     auto target_device = builder_.CreateOr(target_platform, builder_.CreateShl(target_device_id, builder_.getInt32(4)));
     auto it_space = continuation->arg(LaunchArgs::Space)->as<Tuple>();
     auto it_config = continuation->arg(LaunchArgs::Config)->as<Tuple>();

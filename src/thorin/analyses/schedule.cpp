@@ -244,7 +244,8 @@ void Schedule::verify() {
 
     for (auto& block : *this) {
         const Def* mem = block.continuation()->mem_param();
-        mem = mem ? mem : block2mem[(*this)[domtree.idom(block.node())]];
+        auto idom = block.continuation() != scope().entry() ? domtree.idom(block.node()) : block.node();
+        mem = mem ? mem : block2mem[(*this)[idom]];
         for (auto primop : block) {
             if (auto memop = primop->isa<MemOp>()) {
                 if (memop->mem() != mem)

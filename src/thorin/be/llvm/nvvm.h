@@ -23,7 +23,6 @@ protected:
     virtual Continuation* emit_reserve(const Continuation*) override;
     virtual std::string get_alloc_name() const override { return "malloc"; }
     virtual std::string get_output_name(const std::string& name) const override { return name + ".nvvm"; }
-    virtual std::string get_binary_output_name(const std::string& name) const override { return name + ".nvvm.bc"; }
 
 private:
     llvm::Function* get_texture_handle_fun();

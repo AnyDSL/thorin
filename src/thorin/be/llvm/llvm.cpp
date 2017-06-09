@@ -122,7 +122,7 @@ Continuation* CodeGen::emit_reserve(const Continuation* continuation) {
     THORIN_UNREACHABLE;
 }
 
-Continuation* CodeGen::emit_reserve_shared(const Continuation* continuation) {
+Continuation* CodeGen::emit_reserve_shared(const Continuation* continuation, bool init_undef) {
     assert(continuation->num_args() == 3 && "required arguments are missing");
     if (!continuation->arg(1)->isa<PrimLit>())
         ELOG(continuation->arg(1), "reserve_shared: couldn't extract memory size");
@@ -135,7 +135,7 @@ Continuation* CodeGen::emit_reserve_shared(const Continuation* continuation) {
     auto name = continuation->unique_name();
     // NVVM doesn't allow '.' in global identifier
     std::replace(name.begin(), name.end(), '.', '_');
-    auto global = emit_global_variable(smem_type, name, 3);
+    auto global = emit_global_variable(smem_type, name, 3, init_undef);
     auto call = irbuilder_.CreatePointerCast(global, type);
     emit_result_phi(cont->param(1), call);
     return cont;
@@ -1029,10 +1029,9 @@ multiple:
     return types_[type] = llvm_type;
 }
 
-llvm::GlobalVariable* CodeGen::emit_global_variable(llvm::Type* type, const std::string& name, unsigned addr_space) {
-    return new llvm::GlobalVariable(*module_, type, false,
-            llvm::GlobalValue::InternalLinkage, llvm::Constant::getNullValue(type), name,
-            nullptr, llvm::GlobalVariable::NotThreadLocal, addr_space);
+llvm::GlobalVariable* CodeGen::emit_global_variable(llvm::Type* type, const std::string& name, unsigned addr_space, bool init_undef) {
+    auto init = init_undef ? llvm::UndefValue::get(type) : llvm::Constant::getNullValue(type);
+    return new llvm::GlobalVariable(*module_, type, false, llvm::GlobalValue::InternalLinkage, init, name, nullptr, llvm::GlobalVariable::NotThreadLocal, addr_space);
 }
 
 void CodeGen::create_loop(llvm::Value* lower, llvm::Value* upper, llvm::Value* increment, llvm::Function* entry, std::function<void(llvm::Value*)> fun) {

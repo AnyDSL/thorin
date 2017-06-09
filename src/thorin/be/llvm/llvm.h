@@ -43,8 +43,8 @@ protected:
 
     virtual std::string get_alloc_name() const = 0;
     virtual std::string get_output_name(const std::string& name) const = 0;
-    llvm::GlobalVariable* emit_global_variable(llvm::Type*, const std::string&, unsigned);
-    Continuation* emit_reserve_shared(const Continuation*);
+    llvm::GlobalVariable* emit_global_variable(llvm::Type*, const std::string&, unsigned, bool=false);
+    Continuation* emit_reserve_shared(const Continuation*, bool=false);
 
 private:
     Continuation* emit_peinfo(Continuation*);

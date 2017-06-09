@@ -21,6 +21,6 @@ llvm::Value* AMDGPUCodeGen::emit_global(const Global* global) {
     return CodeGen::emit_global(global);
 }
 
-Continuation* AMDGPUCodeGen::emit_reserve(const Continuation* continuation) { return emit_reserve_shared(continuation); }
+Continuation* AMDGPUCodeGen::emit_reserve(const Continuation* continuation) { return emit_reserve_shared(continuation, true); }
 
 }

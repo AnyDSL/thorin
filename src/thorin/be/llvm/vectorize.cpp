@@ -154,14 +154,8 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
 
     vectorizer.analyze(vec_info, cdg, dfg, loop_info, pdom_tree, dom_tree);
 
-    std::unique_ptr<rv::MaskAnalysis> mask_analysis(vectorizer.analyzeMasks(vec_info, loop_info));
-    assert(mask_analysis);
-
-    bool mask_ok = vectorizer.generateMasks(vec_info, *mask_analysis, loop_info);
-    assert_unused(mask_ok);
-
-    bool linearize_ok = vectorizer.linearizeCFG(vec_info, *mask_analysis, loop_info, dom_tree);
-    assert_unused(linearize_ok);
+    bool lin_ok = vectorizer.linearize(vec_info, cdg, dfg, loop_info, pdom_tree, dom_tree);
+    assert_unused(lin_ok);
 
     llvm::DominatorTree new_dom_tree(*vec_info.getMapping().scalarFn); // Control conversion does not preserve the dominance tree
     bool vectorize_ok = vectorizer.vectorize(vec_info, new_dom_tree, loop_info, SE, MD, nullptr);

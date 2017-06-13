@@ -35,6 +35,7 @@
 #include "thorin/world.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
+#include "thorin/be/llvm/amdgpu.h"
 #include "thorin/be/llvm/cpu.h"
 #include "thorin/be/llvm/cuda.h"
 #include "thorin/be/llvm/nvvm.h"
@@ -67,6 +68,7 @@ Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
         case Intrinsic::CUDA:      return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM,   ".cu",   continuation);
         case Intrinsic::NVVM:      return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM,   ".nvvm", continuation);
         case Intrinsic::OpenCL:    return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".cl",   continuation);
+        case Intrinsic::AMDGPU:    return runtime_->emit_host_code(*this, Runtime::AMDGPU_PLATFORM, ".gcn",  continuation);
         case Intrinsic::Parallel:  return emit_parallel(continuation);
         case Intrinsic::Spawn:     return emit_spawn(continuation);
         case Intrinsic::Sync:      return emit_sync(continuation);
@@ -120,7 +122,7 @@ Continuation* CodeGen::emit_reserve(const Continuation* continuation) {
     THORIN_UNREACHABLE;
 }
 
-Continuation* CodeGen::emit_reserve_shared(const Continuation* continuation) {
+Continuation* CodeGen::emit_reserve_shared(const Continuation* continuation, bool init_undef) {
     assert(continuation->num_args() == 3 && "required arguments are missing");
     if (!continuation->arg(1)->isa<PrimLit>())
         ELOG(continuation->arg(1), "reserve_shared: couldn't extract memory size");
@@ -133,7 +135,7 @@ Continuation* CodeGen::emit_reserve_shared(const Continuation* continuation) {
     auto name = continuation->unique_name();
     // NVVM doesn't allow '.' in global identifier
     std::replace(name.begin(), name.end(), '.', '_');
-    auto global = emit_global_variable(smem_type, name, 3);
+    auto global = emit_global_variable(smem_type, name, 3, init_undef);
     auto call = irbuilder_.CreatePointerCast(global, type);
     emit_result_phi(cont->param(1), call);
     return cont;
@@ -1027,10 +1029,9 @@ multiple:
     return types_[type] = llvm_type;
 }
 
-llvm::GlobalVariable* CodeGen::emit_global_variable(llvm::Type* type, const std::string& name, unsigned addr_space) {
-    return new llvm::GlobalVariable(*module_, type, false,
-            llvm::GlobalValue::InternalLinkage, llvm::Constant::getNullValue(type), name,
-            nullptr, llvm::GlobalVariable::NotThreadLocal, addr_space);
+llvm::GlobalVariable* CodeGen::emit_global_variable(llvm::Type* type, const std::string& name, unsigned addr_space, bool init_undef) {
+    auto init = init_undef ? llvm::UndefValue::get(type) : llvm::Constant::getNullValue(type);
+    return new llvm::GlobalVariable(*module_, type, false, llvm::GlobalValue::InternalLinkage, init, name, nullptr, llvm::GlobalVariable::NotThreadLocal, addr_space);
 }
 
 void CodeGen::create_loop(llvm::Value* lower, llvm::Value* upper, llvm::Value* increment, llvm::Function* entry, std::function<void(llvm::Value*)> fun) {
@@ -1062,6 +1063,7 @@ void emit_llvm(World& world, int opt, bool debug) {
     Importer cuda(world.name());
     Importer nvvm(world.name());
     Importer opencl(world.name());
+    Importer amdgpu(world.name());
 
     // determine different parts of the world which need to be compiled differently
     Scope::for_each(world, [&] (const Scope& scope) {
@@ -1073,6 +1075,8 @@ void emit_llvm(World& world, int opt, bool debug) {
             imported = nvvm.import(continuation)->as_continuation();
         else if (continuation->is_passed_to_intrinsic(Intrinsic::OpenCL))
             imported = opencl.import(continuation)->as_continuation();
+        else if (continuation->is_passed_to_intrinsic(Intrinsic::AMDGPU))
+            imported = amdgpu.import(continuation)->as_continuation();
         else
             return;
 
@@ -1085,7 +1089,7 @@ void emit_llvm(World& world, int opt, bool debug) {
             imported->param(i)->debug().set(continuation->param(i)->unique_name());
     });
 
-    if (!cuda.world().empty() || !nvvm.world().empty() || !opencl.world().empty()) {
+    if (!cuda.world().empty() || !nvvm.world().empty() || !amdgpu.world().empty() || !opencl.world().empty()) {
         world.cleanup();
         codegen_prepare(world);
     }
@@ -1094,6 +1098,7 @@ void emit_llvm(World& world, int opt, bool debug) {
     if (!cuda.  world().empty()) CUDACodeGen  (cuda  .world()).emit(/*opt,*/ debug);
     if (!nvvm.  world().empty()) NVVMCodeGen  (nvvm  .world()).emit(opt, debug);
     if (!opencl.world().empty()) OpenCLCodeGen(opencl.world()).emit(/*opt,*/ debug);
+    if (!amdgpu.world().empty()) AMDGPUCodeGen(amdgpu.world()).emit(opt, debug);
 }
 
 //------------------------------------------------------------------------------

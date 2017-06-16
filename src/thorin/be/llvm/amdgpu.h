@@ -12,6 +12,7 @@ public:
     AMDGPUCodeGen(World& world);
 
 protected:
+    virtual unsigned convert_addr_space(const AddrSpace) override;
     virtual llvm::Value* emit_global(const Global*) override;
     virtual Continuation* emit_reserve(const Continuation*) override;
     virtual std::string get_alloc_name() const override { return "malloc"; }

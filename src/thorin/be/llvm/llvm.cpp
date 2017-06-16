@@ -917,6 +917,17 @@ llvm::Value* CodeGen::emit_assembly(const Assembly* assembly) {
     return irbuilder_.CreateCall(asm_expr, llvm_ref(input_values));
 }
 
+unsigned CodeGen::convert_addr_space(const AddrSpace addr_space) {
+    switch (addr_space) {
+        case AddrSpace::Generic:  return 0;
+        case AddrSpace::Global:   return 1;
+        case AddrSpace::Texture:  return 2;
+        case AddrSpace::Shared:   return 3;
+        case AddrSpace::Constant: return 4;
+        default:                  THORIN_UNREACHABLE;
+    }
+}
+
 llvm::Type* CodeGen::convert(const Type* type) {
     if (auto llvm_type = thorin::find(types_, type))
         return llvm_type;
@@ -934,16 +945,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
         case PrimType_pf64: case PrimType_qf64:                                         llvm_type = irbuilder_.getDoubleTy(); break;
         case Node_PtrType: {
             auto ptr = type->as<PtrType>();
-            unsigned addr_space;
-            switch (ptr->addr_space()) {
-                case AddrSpace::Generic:  addr_space = 0; break;
-                case AddrSpace::Global:   addr_space = 1; break;
-                case AddrSpace::Texture:  addr_space = 2; break;
-                case AddrSpace::Shared:   addr_space = 3; break;
-                case AddrSpace::Constant: addr_space = 4; break;
-                default:                  THORIN_UNREACHABLE;
-            }
-            llvm_type = llvm::PointerType::get(convert(ptr->pointee()), addr_space);
+            llvm_type = llvm::PointerType::get(convert(ptr->pointee()), convert_addr_space(ptr->addr_space()));
             break;
         }
         case Node_IndefiniteArrayType: {

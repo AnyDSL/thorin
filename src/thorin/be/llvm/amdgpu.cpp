@@ -16,6 +16,17 @@ AMDGPUCodeGen::AMDGPUCodeGen(World& world)
 // Kernel code
 //------------------------------------------------------------------------------
 
+unsigned AMDGPUCodeGen::convert_addr_space(const AddrSpace addr_space) {
+    switch (addr_space) {
+        case AddrSpace::Generic:
+        case AddrSpace::Global:   return 1;
+        case AddrSpace::Texture:  return 2;
+        case AddrSpace::Shared:   return 3;
+        case AddrSpace::Constant: return 4;
+        default:                  THORIN_UNREACHABLE;
+    }
+}
+
 llvm::Value* AMDGPUCodeGen::emit_global(const Global* global) {
     WLOG(global, "AMDGPU: Global variable '{}' will not be synced with host.", global);
     return CodeGen::emit_global(global);

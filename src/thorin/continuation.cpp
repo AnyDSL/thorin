@@ -197,7 +197,7 @@ void Continuation::set_intrinsic() {
     else if (name() == "atomic")         intrinsic_ = Intrinsic::Atomic;
     else if (name() == "cmpxchg")        intrinsic_ = Intrinsic::CmpXchg;
     else if (name() == "undef")          intrinsic_ = Intrinsic::Undef;
-    else assert(false && "unsupported thorin intrinsic");
+    else ELOG(this, "unsupported thorin intrinsic");
 }
 
 bool Continuation::visit_capturing_intrinsics(std::function<bool(Continuation*)> func) const {

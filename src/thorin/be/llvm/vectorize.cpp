@@ -15,6 +15,7 @@
 #include <rv/sleefLibrary.h>
 #include <rv/transform/loopExitCanonicalizer.h>
 #include <rv/analysis/maskAnalysis.h>
+#include <rv/passes.h>
 
 #include "thorin/primop.h"
 #include "thorin/util/log.h"
@@ -92,6 +93,7 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
     pm.add(llvm::createLICMPass());
     pm.add(llvm::createLCSSAPass());
     pm.add(llvm::createLowerSwitchPass());
+    pm.add(rv::createCNSPass()); // make all loops reducible
     pm.run(*kernel_func);
 
     // vectorize function

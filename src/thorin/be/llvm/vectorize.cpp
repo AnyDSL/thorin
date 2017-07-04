@@ -90,10 +90,10 @@ Continuation* CodeGen::emit_vectorize_continuation(Continuation* continuation) {
 void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* kernel_func, llvm::CallInst* simd_kernel_call) {
     // ensure proper loop forms
     legacy::FunctionPassManager pm(module_.get());
+    pm.add(rv::createCNSPass()); // make all loops reducible (has to run first!)
     pm.add(llvm::createLICMPass());
     pm.add(llvm::createLCSSAPass());
     pm.add(llvm::createLowerSwitchPass());
-    pm.add(rv::createCNSPass()); // make all loops reducible
     pm.run(*kernel_func);
 
     // vectorize function

@@ -127,13 +127,15 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
     rv::PlatformInfo platform_info(*module_.get(), &tti, &tli);
 
     // TODO: use parameters from command line
-    const bool useSSE = false;
-    const bool useAVX = true;
-    const bool useAVX2 = false;
+    rv::Config config;
+    config.useSSE = true;
+    config.useAVX = true;
+    config.useAVX2 = true;
     const bool impreciseFunctions = true;
-    rv::addSleefMappings(useSSE, useAVX, useAVX2, platform_info, impreciseFunctions);
 
-    rv::VectorizerInterface vectorizer(platform_info);
+    rv::addSleefMappings(config, platform_info, impreciseFunctions);
+
+    rv::VectorizerInterface vectorizer(platform_info, config);
 
     llvm::DominatorTree dom_tree(*kernel_func);
     llvm::PostDominatorTree pdom_tree;

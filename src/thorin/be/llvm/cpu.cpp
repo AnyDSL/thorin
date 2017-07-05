@@ -28,6 +28,7 @@ CPUCodeGen::CPUCodeGen(World& world)
 
   } else if (name == "a53") {
     llvm::InitializeAllTargets();
+    llvm::InitializeAllTargetMCs();
     auto triple_str = "aarch64-unknown-linux-gnu";
     auto cpu_name = "cortex-a53";
 

@@ -157,7 +157,7 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
     LoopExitCanonicalizer canonicalizer(loop_info);
     canonicalizer.canonicalize(*kernel_func);
 
-    vectorizer.analyze(vec_info, cdg, dfg, loop_info, pdom_tree, dom_tree);
+    vectorizer.analyze(vec_info, cdg, dfg, loop_info);
 
     bool lin_ok = vectorizer.linearize(vec_info, cdg, dfg, loop_info, pdom_tree, dom_tree);
     assert_unused(lin_ok);

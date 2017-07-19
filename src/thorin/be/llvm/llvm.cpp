@@ -87,14 +87,14 @@ void CodeGen::emit_result_phi(const Param* param, llvm::Value* value) {
 
 Continuation* CodeGen::emit_atomic(Continuation* continuation) {
     assert(continuation->num_args() == 5 && "required arguments are missing");
+    if (!is_type_i(continuation->arg(3)->type()))
+        ELOG(continuation->arg(3), "atomic only supported for integer types");
     // atomic tag: Xchg Add Sub And Nand Or Xor Max Min
     u32 tag = continuation->arg(1)->as<PrimLit>()->qu32_value();
     auto ptr = lookup(continuation->arg(2));
     auto val = lookup(continuation->arg(3));
-    assert(is_type_i(continuation->arg(3)->type()) && "atomic only supported for integer types");
     assert(int(llvm::AtomicRMWInst::BinOp::Xchg) <= int(tag) && int(tag) <= int(llvm::AtomicRMWInst::BinOp::UMin) && "unsupported atomic");
-    llvm::AtomicRMWInst::BinOp binop = (llvm::AtomicRMWInst::BinOp)tag;
-
+    auto binop = (llvm::AtomicRMWInst::BinOp)tag;
     auto cont = continuation->arg(4)->as_continuation();
     auto call = irbuilder_.CreateAtomicRMW(binop, ptr, val, llvm::AtomicOrdering::SequentiallyConsistent, llvm::SynchronizationScope::CrossThread);
     emit_result_phi(cont->param(1), call);
@@ -103,12 +103,12 @@ Continuation* CodeGen::emit_atomic(Continuation* continuation) {
 
 Continuation* CodeGen::emit_cmpxchg(Continuation* continuation) {
     assert(continuation->num_args() == 5 && "required arguments are missing");
+    if (!is_type_i(continuation->arg(3)->type()))
+        ELOG(continuation->arg(3), "cmpxchg only supported for integer types");
     auto ptr  = lookup(continuation->arg(1));
     auto cmp  = lookup(continuation->arg(2));
     auto val  = lookup(continuation->arg(3));
     auto cont = continuation->arg(4)->as_continuation();
-    assert(is_type_i(continuation->arg(3)->type()) && "cmpxchg only supported for integer types");
-
     auto call = irbuilder_.CreateAtomicCmpXchg(ptr, cmp, val, llvm::AtomicOrdering::SequentiallyConsistent, llvm::AtomicOrdering::SequentiallyConsistent, llvm::SynchronizationScope::CrossThread);
     auto loaded  = irbuilder_.CreateExtractValue(call, unsigned(0));
     auto success = irbuilder_.CreateExtractValue(call, unsigned(1));

@@ -156,8 +156,15 @@ const CFNode* Scheduler::schedule_smart(const PrimOp* primop) {
         for (auto i = late; i != early;) {
             auto idom = domtree_.idom(i);
             assert(i != idom);
-
             i = idom;
+
+            // HACK this should actually never occur
+            if (i == nullptr) {
+                WLOG(primop, "don't know where to put {}", primop);
+                result = late;
+                break;
+            }
+
             int cur_depth = looptree_[i]->depth();
             if (cur_depth < depth) {
                 result = i;

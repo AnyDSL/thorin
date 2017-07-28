@@ -46,6 +46,28 @@ void mem2reg(const Scope& scope) {
         }
     }
 
+    // TODO deal with lea
+    // mark slots used via loads/stores inside of higher-order continuations as 'address taken'
+    for (auto n : cfg.reverse_post_order().skip_front()) {
+        auto continuation = n->continuation();
+        if (continuation->order() > 1) {
+            Scope scope(continuation);
+            for (auto def : scope.defs()) {
+                if (auto load = def->isa<Load>()) {
+                    if (auto slot = load->ptr()->isa<Slot>()) {
+                        ILOG(slot, "{} used in the scope of the higher-order continuation {} via load {}", slot, continuation, load);
+                        take_address(slot);
+                    }
+                } else if (auto store = def->isa<Store>()) {
+                    if (auto slot = store->ptr()->isa<Slot>()) {
+                        ILOG(slot, "{} used in the scope of the higher-order continuation {} via store {}", slot, continuation, store);
+                        take_address(slot);
+                    }
+                }
+            }
+        }
+    }
+
     for (const auto& block : schedule(scope, Schedule::Late)) {
         auto continuation = block.continuation();
         // search for slots/loads/stores from top to bottom and use set_value/get_value to install parameters
@@ -59,7 +81,10 @@ void mem2reg(const Scope& scope) {
                             goto next_primop;
                         }
                     }
-                    slot2handle[slot] = cur_handle++;
+
+                    if (!slot2handle.contains(slot))
+                        slot2handle[slot] = cur_handle++;
+
                 } else if (auto store = primop->isa<Store>()) {
                     if (auto slot = store->ptr()->isa<Slot>()) {
                         if (!is_address_taken(slot)) {

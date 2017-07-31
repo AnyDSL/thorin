@@ -94,7 +94,7 @@ void Scheduler::compute_def2uses() {
         auto def = pop(queue);
         for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
             // all reachable continuations have already been registered above
-            // NOTE we might still see references to unreahable continuations in the schedule
+            // NOTE we might still see references to unreachable continuations in the schedule
             if (!def->op(i)->isa<Continuation>())
                 enqueue(def, i, def->op(i));
         }
@@ -156,8 +156,15 @@ const CFNode* Scheduler::schedule_smart(const PrimOp* primop) {
         for (auto i = late; i != early;) {
             auto idom = domtree_.idom(i);
             assert(i != idom);
-
             i = idom;
+
+            // HACK this should actually never occur
+            if (i == nullptr) {
+                WLOG(primop, "don't know where to put {}", primop);
+                result = late;
+                break;
+            }
+
             int cur_depth = looptree_[i]->depth();
             if (cur_depth < depth) {
                 result = i;
@@ -244,7 +251,8 @@ void Schedule::verify() {
 
     for (auto& block : *this) {
         const Def* mem = block.continuation()->mem_param();
-        mem = mem ? mem : block2mem[(*this)[domtree.idom(block.node())]];
+        auto idom = block.continuation() != scope().entry() ? domtree.idom(block.node()) : block.node();
+        mem = mem ? mem : block2mem[(*this)[idom]];
         for (auto primop : block) {
             if (auto memop = primop->isa<MemOp>()) {
                 if (memop->mem() != mem)

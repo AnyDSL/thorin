@@ -33,7 +33,7 @@ public:
     ~Scope();
 
     /// Invoke if you have modified sth in this Scope.
-    const Scope& update();
+    Scope& update();
 
     //@{ misc getters
     World& world() const { return world_; }

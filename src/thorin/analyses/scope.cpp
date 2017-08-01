@@ -20,7 +20,7 @@ Scope::Scope(Continuation* entry)
 
 Scope::~Scope() {}
 
-const Scope& Scope::update() {
+Scope& Scope::update() {
     auto e = entry();
     continuations_.clear();
     defs_.clear();

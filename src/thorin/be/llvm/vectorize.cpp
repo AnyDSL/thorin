@@ -175,6 +175,8 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
     // remove vectorized function
     if (simd_kernel_func->hasNUses(0))
         simd_kernel_func->eraseFromParent();
+    else
+        simd_kernel_func->addFnAttr(Attribute::AlwaysInline);
 }
 
 }

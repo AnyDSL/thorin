@@ -129,8 +129,9 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
     // TODO: use parameters from command line
     rv::Config config;
     config.useSSE = true;
-    config.useAVX = true;
+    config.useAVX = false; // workaround for intrinsic ISA-precedence bug
     config.useAVX2 = true;
+    config.useSLEEF = true;
     const bool impreciseFunctions = true;
 
     rv::addSleefMappings(config, platform_info, impreciseFunctions);

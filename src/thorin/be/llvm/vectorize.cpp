@@ -9,12 +9,12 @@
 #include <llvm/Analysis/ScalarEvolution.h>
 #include <llvm/Analysis/MemoryDependenceAnalysis.h>
 #include <llvm/Passes/PassBuilder.h>
+#include <llvm/IR/LegacyPassManager.h>
 
 #include <rv/rv.h>
 #include <rv/vectorizationInfo.h>
 #include <rv/sleefLibrary.h>
 #include <rv/transform/loopExitCanonicalizer.h>
-#include <rv/analysis/maskAnalysis.h>
 #include <rv/passes.h>
 
 #include "thorin/primop.h"
@@ -89,7 +89,7 @@ Continuation* CodeGen::emit_vectorize_continuation(Continuation* continuation) {
 
 void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* kernel_func, llvm::CallInst* simd_kernel_call) {
     // ensure proper loop forms
-    legacy::FunctionPassManager pm(module_.get());
+    llvm::legacy::FunctionPassManager pm(module_.get());
     pm.add(rv::createCNSPass()); // make all loops reducible (has to run first!)
     pm.add(llvm::createPromoteMemoryToRegisterPass()); // CNSPass relies on mem2reg for now
     pm.add(llvm::createLICMPass());
@@ -177,7 +177,7 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
     if (simd_kernel_func->hasNUses(0))
         simd_kernel_func->eraseFromParent();
     else
-        simd_kernel_func->addFnAttr(Attribute::AlwaysInline);
+        simd_kernel_func->addFnAttr(llvm::Attribute::AlwaysInline);
 }
 
 }

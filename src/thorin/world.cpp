@@ -574,9 +574,14 @@ const Def* World::cast(const Type* to, const Def* from, Debug dbg) {
 const Def* World::bitcast(const Type* to, const Def* from, Debug dbg) {
     if (from->type() == to) return from;
 
-    if (auto other = from->isa<Bitcast>())
-        if (to == other->type())
-            return other;
+    if (auto other = from->isa<Bitcast>()) {
+        // reduce bitcast chains
+        do {
+            if (to == other->type())
+                return other;
+            other = other->op(0)->isa<Bitcast>();
+        } while (other);
+    }
 
     if (auto prim_to = to->isa<PrimType>())
         if (auto prim_from = from->type()->isa<PrimType>())

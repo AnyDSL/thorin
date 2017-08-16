@@ -14,9 +14,18 @@
 #error "please define the name for HENK_STRUCT_EXTRA_TYPE: HENK_STRUCT_EXTRA_NAME"
 #endif
 
+#ifndef HENK_ENUM_EXTRA_NAME
+#error "please define the name for HENK_ENUM_EXTRA_TYPE: HENK_ENUM_EXTRA_NAME"
+#endif
+
+#ifndef HENK_ENUM_EXTRA_TYPE
+#error "please define the type to unify EnumTypes HENK_ENUM_EXTRA_TYPE"
+#endif
+
 #define HENK_UNDERSCORE(N) THORIN_PASTER(N,_)
 #define HENK_TABLE_NAME_ HENK_UNDERSCORE(HENK_TABLE_NAME)
 #define HENK_STRUCT_EXTRA_NAME_ HENK_UNDERSCORE(HENK_STRUCT_EXTRA_NAME)
+#define HENK_ENUM_EXTRA_NAME_ HENK_UNDERSCORE(HENK_ENUM_EXTRA_NAME)
 
 //------------------------------------------------------------------------------
 
@@ -214,6 +223,29 @@ private:
     template<class> friend class TypeTableBase;
 };
 
+class EnumType : public Type {
+private:
+    EnumType(HENK_TABLE_TYPE& table, HENK_ENUM_EXTRA_TYPE HENK_ENUM_EXTRA_NAME, size_t size)
+        : Type(table, Node_EnumType, thorin::Array<const Type*>(size))
+        , HENK_ENUM_EXTRA_NAME_(HENK_ENUM_EXTRA_NAME)
+    {
+        nominal_ = true;
+    }
+
+public:
+    HENK_ENUM_EXTRA_TYPE HENK_ENUM_EXTRA_NAME() const { return HENK_ENUM_EXTRA_NAME_; }
+    void set(size_t i, const Type* type) const { return const_cast<EnumType*>(this)->Type::set(i, type); }
+
+private:
+    virtual const Type* vrebuild(HENK_TABLE_TYPE& to, Types ops) const override;
+    virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
+    virtual std::ostream& stream(std::ostream&) const override;
+
+    HENK_ENUM_EXTRA_TYPE HENK_ENUM_EXTRA_NAME_;
+
+    template<class> friend class TypeTableBase;
+};
+
 //------------------------------------------------------------------------------
 
 template<class HENK_TABLE_TYPE>
@@ -244,6 +276,7 @@ public:
     const TupleType* tuple_type(Types ops) { return unify(new TupleType(HENK_TABLE_NAME(), ops)); }
     const TupleType* unit() { return unit_; } ///< Returns unit, i.e., an empty @p TupleType.
     const StructType* struct_type(HENK_STRUCT_EXTRA_TYPE HENK_STRUCT_EXTRA_NAME, size_t size);
+    const EnumType* enum_type(HENK_ENUM_EXTRA_TYPE HENK_ENUM_EXTRA_NAME, size_t size);
     const TypeSet& types() const { return types_; }
 
     friend void swap(TypeTableBase& t1, TypeTableBase& t2) {
@@ -276,5 +309,7 @@ protected:
 
 #undef HENK_STRUCT_EXTRA_NAME
 #undef HENK_STRUCT_EXTRA_TYPE
+#undef HENK_ENUM_EXTRA_NAME
+#undef HENK_ENUM_EXTRA_TYPE
 #undef HENK_TABLE_NAME
 #undef HENK_TABLE_TYPE

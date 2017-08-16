@@ -14,6 +14,14 @@
 #error "please define the type to unify StructTypes HENK_STRUCT_EXTRA_TYPE"
 #endif
 
+#ifndef HENK_ENUM_EXTRA_NAME
+#error "please define the name for HENK_ENUM_EXTRA_TYPE: HENK_ENUM_EXTRA_NAME"
+#endif
+
+#ifndef HENK_ENUM_EXTRA_TYPE
+#error "please define the type to unify EnumTypes HENK_ENUM_EXTRA_TYPE"
+#endif
+
 #define HENK_UNDERSCORE(N) THORIN_PASTER(N,_)
 #define HENK_TABLE_NAME_ HENK_UNDERSCORE(HENK_TABLE_NAME)
 
@@ -94,6 +102,11 @@ const Type* StructType::vrebuild(HENK_TABLE_TYPE&, Types ops) const {
     return this;
 }
 
+const Type* EnumType::vrebuild(HENK_TABLE_TYPE&, Types ops) const {
+    assert_unused(this->ops() == ops);
+    return this;
+}
+
 const Type* App      ::vrebuild(HENK_TABLE_TYPE& to, Types ops) const { return to.app(ops[0], ops[1]); }
 const Type* TupleType::vrebuild(HENK_TABLE_TYPE& to, Types ops) const { return to.tuple_type(ops); }
 const Type* Lambda   ::vrebuild(HENK_TABLE_TYPE& to, Types ops) const { return to.lambda(ops[0], name()); }
@@ -145,6 +158,17 @@ const Type* StructType::vreduce(int depth, const Type* type, Type2Type& map) con
     return struct_type;
 }
 
+const Type* EnumType::vreduce(int depth, const Type* type, Type2Type& map) const {
+    auto enum_type = HENK_TABLE_NAME().enum_type(HENK_ENUM_EXTRA_NAME(), num_ops());
+    map[this] = enum_type;
+    auto ops = reduce_ops(depth, type, map);
+
+    for (size_t i = 0, e = num_ops(); i != e; ++i)
+        enum_type->set(i, ops[i]);
+
+    return enum_type;
+}
+
 const Type* App::vreduce(int depth, const Type* type, Type2Type& map) const {
     auto ops = reduce_ops(depth, type, map);
     return HENK_TABLE_NAME().app(ops[0], ops[1]);
@@ -159,6 +183,14 @@ const Type* TupleType::vreduce(int depth, const Type* type, Type2Type& map) cons
 template<class T>
 const StructType* TypeTableBase<T>::struct_type(HENK_STRUCT_EXTRA_TYPE HENK_STRUCT_EXTRA_NAME, size_t size) {
     auto type = new StructType(HENK_TABLE_NAME(), HENK_STRUCT_EXTRA_NAME, size);
+    const auto& p = types_.insert(type);
+    assert_unused(p.second && "hash/equal broken");
+    return type;
+}
+
+template<class T>
+const EnumType* TypeTableBase<T>::enum_type(HENK_ENUM_EXTRA_TYPE HENK_ENUM_EXTRA_NAME, size_t size) {
+    auto type = new EnumType(HENK_TABLE_NAME(), HENK_ENUM_EXTRA_NAME, size);
     const auto& p = types_.insert(type);
     assert_unused(p.second && "hash/equal broken");
     return type;
@@ -205,5 +237,7 @@ template class TypeTableBase<HENK_TABLE_TYPE>;
 
 #undef HENK_STRUCT_EXTRA_NAME
 #undef HENK_STRUCT_EXTRA_TYPE
+#undef HENK_ENUM_EXTRA_NAME
+#undef HENK_ENUM_EXTRA_TYPE
 #undef HENK_TABLE_NAME
 #undef HENK_TABLE_TYPE

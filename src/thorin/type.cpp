@@ -13,6 +13,8 @@ namespace thorin {
 
 #define HENK_STRUCT_EXTRA_NAME name
 #define HENK_STRUCT_EXTRA_TYPE const char*
+#define HENK_ENUM_EXTRA_NAME name
+#define HENK_ENUM_EXTRA_TYPE const char*
 #define HENK_TABLE_NAME world
 #define HENK_TABLE_TYPE World
 #include "thorin/henk.cpp.h"
@@ -104,6 +106,7 @@ std::ostream& IndefiniteArrayType::stream(std::ostream& os) const { return strea
 std::ostream& Lambda             ::stream(std::ostream& os) const { return streamf(os, "[{}].{}", name(), body()); }
 std::ostream& MemType            ::stream(std::ostream& os) const { return os << "mem"; }
 std::ostream& StructType         ::stream(std::ostream& os) const { return os << name(); }
+std::ostream& EnumType           ::stream(std::ostream& os) const { return os << name(); }
 std::ostream& TupleType          ::stream(std::ostream& os) const { return stream_type_ops(os, this); }
 
 std::ostream& PtrType::stream(std::ostream& os) const {

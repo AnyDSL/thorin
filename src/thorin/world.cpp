@@ -572,6 +572,8 @@ const Def* World::cast(const Type* to, const Def* from, Debug dbg) {
 }
 
 const Def* World::bitcast(const Type* to, const Def* from, Debug dbg) {
+    if (from->type() == to) return from;
+
     if (auto other = from->isa<Bitcast>())
         if (to == other->type())
             return other;

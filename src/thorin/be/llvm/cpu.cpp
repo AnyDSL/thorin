@@ -13,20 +13,9 @@ CPUCodeGen::CPUCodeGen(World& world)
     : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::C, llvm::CallingConv::C)
 {
   char * arch = getenv("THORIN_ARCH");
-  auto name = arch ? std::string(arch) : "";
+  auto name = arch ? std::string(arch) : "host";
 
-  if (name == "host") {
-    llvm::InitializeNativeTarget();
-    auto triple_str = llvm::sys::getDefaultTargetTriple();
-    module_->setTargetTriple(triple_str);
-    std::string error;
-    auto target = llvm::TargetRegistry::lookupTarget(triple_str, error);
-    assert(target && "can't create target for host architecture");
-    llvm::TargetOptions options;
-    std::unique_ptr<llvm::TargetMachine> machine(target->createTargetMachine(triple_str, llvm::sys::getHostCPUName(), "" /* features */, options, llvm::None));
-    module_->setDataLayout(machine->createDataLayout());
-
-  } else if (name == "a53") {
+  if (name == "a53") {
     llvm::InitializeAllTargets();
     llvm::InitializeAllTargetMCs();
     auto triple_str = "aarch64-unknown-linux-gnu";
@@ -35,11 +24,23 @@ CPUCodeGen::CPUCodeGen(World& world)
     module_->setTargetTriple(triple_str);
     std::string error;
     auto target = llvm::TargetRegistry::lookupTarget(triple_str, error);
-    assert(target && "can't create target for host architecture");
+    assert(target && "can't create target for Cortex-A53 architecture");
     llvm::TargetOptions options;
     std::unique_ptr<llvm::TargetMachine> machine(target->createTargetMachine(triple_str, cpu_name, "" /* features */, options, llvm::None));
     module_->setDataLayout(machine->createDataLayout());
+    return;
   }
+
+  // default config (native target)
+  llvm::InitializeNativeTarget();
+  auto triple_str = llvm::sys::getDefaultTargetTriple();
+  module_->setTargetTriple(triple_str);
+  std::string error;
+  auto target = llvm::TargetRegistry::lookupTarget(triple_str, error);
+  assert(target && "can't create target for host architecture");
+  llvm::TargetOptions options;
+  std::unique_ptr<llvm::TargetMachine> machine(target->createTargetMachine(triple_str, llvm::sys::getHostCPUName(), "" /* features */, options, llvm::None));
+  module_->setDataLayout(machine->createDataLayout());
 }
 
 }

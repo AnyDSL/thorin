@@ -46,6 +46,7 @@ void mem2reg(const Scope& scope) {
         }
     }
 
+    // TODO deal with lea
     // mark slots used via stores inside of higher-order continuations as 'address taken'
     for (auto n : cfg.reverse_post_order().skip_front()) {
         auto continuation = n->continuation();

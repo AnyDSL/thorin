@@ -113,7 +113,7 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, cons
 
             // check if argument type contains pointers
             if (!contains_ptrtype(target_arg->type()))
-                WLOG(target_arg, "argument {} of aggregate type {} contains pointer (not supported in OpenCL 1.2)", target_arg, target_arg->type());
+                WLOG(target_arg, "argument '{}' of aggregate type '{}' contains pointer (not supported in OpenCL 1.2)", target_arg, target_arg->type());
 
             void_ptr = builder_.CreatePointerCast(alloca, builder_.getInt8PtrTy());
             arg_type = KernelArgType::Struct;

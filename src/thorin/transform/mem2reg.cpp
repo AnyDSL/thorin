@@ -47,20 +47,15 @@ void mem2reg(const Scope& scope) {
     }
 
     // TODO deal with lea
-    // mark slots used via loads/stores inside of higher-order continuations as 'address taken'
+    // mark slots used via stores inside of higher-order continuations as 'address taken'
     for (auto n : cfg.reverse_post_order().skip_front()) {
         auto continuation = n->continuation();
         if (continuation->order() > 1) {
             Scope scope(continuation);
             for (auto def : scope.defs()) {
-                if (auto load = def->isa<Load>()) {
-                    if (auto slot = load->ptr()->isa<Slot>()) {
-                        ILOG(slot, "{} used in the scope of the higher-order continuation {} via load {}", slot, continuation, load);
-                        take_address(slot);
-                    }
-                } else if (auto store = def->isa<Store>()) {
+                if (auto store = def->isa<Store>()) {
                     if (auto slot = store->ptr()->isa<Slot>()) {
-                        ILOG(slot, "{} used in the scope of the higher-order continuation {} via store {}", slot, continuation, store);
+                        DLOG("{} used in the scope of the higher-order continuation {} via store {}", slot, continuation, store);
                         take_address(slot);
                     }
                 }

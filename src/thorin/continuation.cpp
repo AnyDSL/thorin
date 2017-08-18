@@ -419,7 +419,7 @@ const Def* Continuation::get_value(size_t handle, const Type* type, Debug dbg) {
     }
 
 return_bottom:
-    WLOG(this, "'{}' may be undefined", dbg.name());
+    WLOG(&dbg, "'{}' may be undefined", dbg.name());
     return set_value(handle, world().bottom(type));
 
 return_result:

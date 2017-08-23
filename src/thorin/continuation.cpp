@@ -283,13 +283,7 @@ std::pair<Continuation*, const Def*> Continuation::call(const Def* callee, Defs 
 
     std::vector<const Type*> cont_args;
     cont_args.push_back(world().mem_type());
-    bool pack = false;
-    if (auto tuple = ret_type->isa<TupleType>()) {
-        pack = true;
-        for (auto op : tuple->ops())
-            cont_args.push_back(op);
-    } else
-        cont_args.push_back(ret_type);
+    cont_args.push_back(ret_type);
 
     auto next = world().continuation(world().fn_type(cont_args), dbg);
     next->param(0)->debug().set("mem");
@@ -302,14 +296,7 @@ std::pair<Continuation*, const Def*> Continuation::call(const Def* callee, Defs 
 
     // determine return value
     const Def* ret = nullptr;
-    if (pack) {
-        Array<const Def*> defs(next->num_params()-1);
-        auto p = next->params().skip_front();
-        std::copy(p.begin(), p.end(), defs.begin());
-        ret = world().tuple(defs, callee->debug());
-
-    } else
-        ret = next->param(1);
+    ret = next->param(1);
     ret->debug().set(callee->name());
 
     return std::make_pair(next, ret);

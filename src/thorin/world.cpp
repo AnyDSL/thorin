@@ -12,6 +12,7 @@
 #include "thorin/transform/codegen_prepare.h"
 #include "thorin/transform/inliner.h"
 #include "thorin/transform/lift_builtins.h"
+#include "thorin/transform/flatten_tuples.h"
 #include "thorin/transform/higher_order_lifting.h"
 #include "thorin/transform/hoist_enters.h"
 #include "thorin/transform/lower2cff.h"
@@ -865,6 +866,7 @@ void World::cleanup() { cleanup_world(*this); }
 
 void World::opt(bool simple_pe) {
     cleanup();
+    flatten_tuples(*this);
     higher_order_lifting(*this);
     partial_evaluation(*this, simple_pe);
     lower2cff(*this);

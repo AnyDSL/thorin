@@ -32,6 +32,7 @@ void Cleaner::eta_conversion() {
         todo = false;
         for (auto continuation : world().continuations()) {
             if (!continuation->empty()) {
+                // eat calls to known continuations that are only used once
                 while (auto callee = continuation->callee()->isa_continuation()) {
                     if (callee->num_uses() == 1 && !callee->empty() && !callee->is_external()) {
                         for (size_t i = 0, e = continuation->num_args(); i != e; ++i)
@@ -43,11 +44,51 @@ void Cleaner::eta_conversion() {
                         break;
                 }
 
-                if (continuation->callee()->isa<Param>() && !continuation->is_external()
-                        && continuation->args() == continuation->params_as_defs()) {
-                    continuation->replace(continuation->callee());
-                    continuation->destroy_body();
-                    todo_ = todo = true;
+                // try to subsume continuations which call a parameter with that parameter
+                if (auto param = continuation->callee()->isa<Param>()) {
+                    if (!continuation->is_external() && continuation->num_args() == continuation->num_params()) {
+                        if (continuation->args() == continuation->params_as_defs()) {
+                            continuation->replace(continuation->callee());
+                            continuation->destroy_body();
+                            todo_ = todo = true;
+                            continue;
+                        }
+
+                        // build the permutation of the arguments
+                        Array<size_t> perm(continuation->num_args());
+                        bool is_permutation = true;
+                        for (size_t i = 0, e = continuation->num_args(); i != e; ++i)  {
+                            auto param_it = std::find(continuation->args().begin(), continuation->args().end(), continuation->param(i));
+                            if (param_it == continuation->args().end())
+                                is_permutation = false;
+
+                            perm[i] = param_it - continuation->args().begin();
+                        }
+                        // check that the array is a valid permutation
+                        if (is_permutation) {
+                            Array<bool> seen(continuation->num_args());
+                            std::fill(seen.begin(), seen.end(), false);
+                            for (auto i : perm) {
+                                is_permutation &= seen[i] == false;
+                                seen[i] = true;
+                            }
+                        }
+                        if (!is_permutation) continue;
+
+                        // for every use of the continuation at a call site,
+                        // permute the arguments and call the parameter instead
+                        for (auto use : continuation->copy_uses()) {
+                            auto ucontinuation = use->isa_continuation();
+                            if (ucontinuation && use.index() == 0) {
+                                Array<const Def*> new_args(ucontinuation->num_args());
+                                for (size_t i = 0, e = ucontinuation->num_args(); i != e; ++i) {
+                                    new_args[i] = ucontinuation->arg(perm[i]);
+                                }
+                                ucontinuation->jump(param, new_args, ucontinuation->jump_debug());
+                                todo_ = todo = true;
+                            }
+                        }
+                    }
                 }
             }
         }

@@ -373,35 +373,39 @@ void CodeGen::emit(int opt, bool debug) {
 
                         // must be call + continuation --- call + return has been removed by codegen_prepare
                         auto succ = ret_arg->as_continuation();
-                        const Param* param = nullptr;
-                        switch (succ->num_params()) {
-                            case 0:
-                                break;
-                            case 1:
-                                param = succ->param(0);
-                                irbuilder_.CreateBr(bb2continuation[succ]);
-                                if (!is_mem(param))
-                                    emit_result_phi(param, call);
-                                break;
-                            case 2:
-                                assert(succ->mem_param() && "no mem_param found for succ");
-                                param = succ->param(0);
-                                param = is_mem(param) ? succ->param(1) : param;
-                                irbuilder_.CreateBr(bb2continuation[succ]);
-                                emit_result_phi(param, call);
-                                break;
-                            default: {
-                                assert(is_mem(succ->param(0)));
-                                auto tuple = succ->params().skip_front();
 
-                                Array<llvm::Value*> extracts(tuple.size());
-                                for (size_t i = 0, e = tuple.size(); i != e; ++i)
-                                    extracts[i] = irbuilder_.CreateExtractValue(call, unsigned(i));
+                        size_t n = 0;
+                        const Param* last_param = nullptr;
+                        for (auto param : succ->params()) {
+                            if (is_mem(param) || param->type() == world().unit())
+                                continue;
+                            last_param = param;
+                            n++;
+                        }
 
-                                irbuilder_.CreateBr(bb2continuation[succ]);
-                                for (size_t i = 0, e = tuple.size(); i != e; ++i)
-                                    emit_result_phi(tuple[i], extracts[i]);
-                                break;
+                        if (n == 0) {
+                            irbuilder_.CreateBr(bb2continuation[succ]);
+                        } else if (n == 1) {
+                            irbuilder_.CreateBr(bb2continuation[succ]);
+                            emit_result_phi(last_param, call);
+                        } else {
+                            Array<llvm::Value*> extracts(n);
+                            for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
+                                auto param = succ->param(i);
+                                if (is_mem(param) || param->type() == world().unit())
+                                    continue;
+                                extracts[j] = irbuilder_.CreateExtractValue(call, unsigned(j));
+                                j++;
+                            }
+
+                            irbuilder_.CreateBr(bb2continuation[succ]);
+
+                            for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
+                                auto param = succ->param(i);
+                                if (is_mem(param) || param->type() == world().unit())
+                                    continue;
+                                emit_result_phi(param, extracts[j]);
+                                j++;
                             }
                         }
                     }

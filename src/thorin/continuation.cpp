@@ -236,9 +236,9 @@ void Continuation::jump(const Def* callee, Defs args, Debug dbg) {
             case Intrinsic::Match:
                 if (args.size() == 2) return jump(args[1], {}, dbg);
                 if (auto lit = args[0]->isa<PrimLit>()) {
-                    for (size_t i = 0; i < args.size() - 2; i++) {
-                        if (world().extract(args[i + 2], 0_s)->as<PrimLit>() == lit)
-                            return jump(world().extract(args[i + 2], 1), {}, dbg);
+                    for (size_t i = 2; i < args.size(); i++) {
+                        if (world().extract(args[i], 0_s)->as<PrimLit>() == lit)
+                            return jump(world().extract(args[i], 1), {}, dbg);
                     }
                     return jump(args[1], {}, dbg);
                 }

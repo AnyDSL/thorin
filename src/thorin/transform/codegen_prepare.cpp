@@ -1,4 +1,5 @@
 #include "thorin/world.h"
+#include "thorin/transform/flatten_tuples.h"
 #include "thorin/analyses/scope.h"
 
 namespace thorin {

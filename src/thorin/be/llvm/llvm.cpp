@@ -253,7 +253,7 @@ void CodeGen::emit(int opt, bool debug) {
                 // create phi node stubs (for all continuations different from entry)
                 if (entry_ != continuation) {
                     for (auto param : continuation->params()) {
-                        if (!is_mem(param)) {
+                        if (!is_mem(param) && param->type() != world().unit()) {
                             auto phi = llvm::PHINode::Create(convert(param->type()), (unsigned) param->peek().size(), param->name(), bb);
                             phis_[param] = phi;
                         }
@@ -296,37 +296,23 @@ void CodeGen::emit(int opt, bool debug) {
                 irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(continuation->jump_debug().front_line(), continuation->jump_debug().front_col(), discope));
             if (continuation->callee() == ret_param) { // return
                 size_t num_args = continuation->num_args();
-                switch (num_args) {
-                    case 0: irbuilder_.CreateRetVoid(); break;
-                    case 1:
-                        if (is_mem(continuation->arg(0)))
-                            irbuilder_.CreateRetVoid();
-                        else
-                            irbuilder_.CreateRet(lookup(continuation->arg(0)));
-                        break;
-                    case 2:
-                        if (is_mem(continuation->arg(0))) {
-                            irbuilder_.CreateRet(lookup(continuation->arg(1)));
-                            break;
-                        } else if (is_mem(continuation->arg(1))) {
-                            irbuilder_.CreateRet(lookup(continuation->arg(0)));
-                            break;
-                        }
-                        // FALLTHROUGH
-                    default: {
-                        Array<llvm::Value*> values(num_args);
-                        Array<llvm::Type*> args(num_args);
+                if (num_args == 0) irbuilder_.CreateRetVoid();
+                else {
+                    Array<llvm::Value*> values(num_args);
+                    Array<llvm::Type*> args(num_args);
 
-                        size_t n = 0;
-                        for (auto arg : continuation->args()) {
-                            if (!is_mem(arg)) {
-                                auto val = lookup(arg);
-                                values[n] = val;
-                                args[n++] = val->getType();
-                            }
+                    size_t n = 0;
+                    for (auto arg : continuation->args()) {
+                        if (!is_mem(arg) && arg->type() != world().unit()) {
+                            auto val = lookup(arg);
+                            values[n] = val;
+                            args[n++] = val->getType();
                         }
+                    }
 
-                        assert(n == num_args || n+1 == num_args);
+                    if (n == 0) irbuilder_.CreateRetVoid();
+                    else if (n == 1) irbuilder_.CreateRet(values[0]);
+                    else {
                         values.shrink(n);
                         args.shrink(n);
                         llvm::Value* agg = llvm::UndefValue::get(llvm::StructType::get(context_, llvm_ref(args)));
@@ -335,7 +321,6 @@ void CodeGen::emit(int opt, bool debug) {
                             agg = irbuilder_.CreateInsertValue(agg, values[i], { unsigned(i) });
 
                         irbuilder_.CreateRet(agg);
-                        break;
                     }
                 }
             } else if (continuation->callee() == world().branch()) {
@@ -959,30 +944,17 @@ llvm::Type* CodeGen::convert(const Type* type) {
             llvm::Type* ret = nullptr;
             std::vector<llvm::Type*> ops;
             for (auto op : fn->ops()) {
-                if (op->isa<MemType>())
-                    continue;
+                if (op->isa<MemType>() || op == world().unit()) continue;
                 if (auto fn = op->isa<FnType>()) {
                     assert(!ret && "only one 'return' supported");
-                    if (fn->empty())
-                        ret = llvm::Type::getVoidTy(context_);
-                    else if (fn->num_ops() == 1)
-                        ret = fn->op(0)->isa<MemType>() ? llvm::Type::getVoidTy(context_) : convert(fn->op(0));
-                    else if (fn->num_ops() == 2) {
-                        if (fn->op(0)->isa<MemType>())
-                            ret = convert(fn->op(1));
-                        else if (fn->op(1)->isa<MemType>())
-                            ret = convert(fn->op(0));
-                        else
-                            goto multiple;
-                    } else {
-multiple:
-                        std::vector<llvm::Type*> ops;
-                        for (auto op : fn->ops()) {
-                            if (!op->isa<MemType>())
-                                ops.push_back(convert(op));
-                        }
-                        ret = llvm::StructType::get(context_, ops);
+                    std::vector<llvm::Type*> ret_types;
+                    for (auto fn_op : fn->ops()) {
+                        if (fn_op->isa<MemType>() || fn_op == world().unit()) continue;
+                        ret_types.push_back(convert(fn_op));
                     }
+                    if (ret_types.size() == 0)      ret = llvm::Type::getVoidTy(context_);
+                    else if (ret_types.size() == 1) ret = ret_types.back();
+                    else                            ret = llvm::StructType::get(context_, ops);
                 } else
                     ops.push_back(convert(op));
             }

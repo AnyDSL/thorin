@@ -34,8 +34,23 @@ static Continuation* try_inline(Continuation* cont, Array<const Def*>& args, boo
     return cont;
 }
 
-// Wraps around a def, flattening tuples passed as parameters
+// Wraps around a def, flattening tuples passed as parameters (dual of unwrap)
 static Continuation* wrap_def(const Def* old_def, const FnType* new_type, bool no_inline) {
+    // Transform:
+    //
+    // old_def(a: T, b: (U, V), c: fn (W, (X, Y))):
+    //     ...
+    //
+    // into:
+    //
+    // new_cont(a: T, b: U, c: V, d: fn (W, X, Y)):
+    //     old_def(a, (b, c), unwrap_d)
+    //
+    //     unwrap_d(a: W, b: (X, Y)):
+    //         e = extract(b, 0)
+    //         f = extract(b, 1)
+    //         d(a, (e, f))
+
     auto& world = old_def->world();
     auto old_type = old_def->type()->as<FnType>();
     auto new_cont = world.continuation(new_type, old_def->debug());
@@ -50,9 +65,10 @@ static Continuation* wrap_def(const Def* old_def, const FnType* new_type, bool n
             call_args[i + 1] = world.tuple(tuple_args);
         } else if (auto fn_type = op->isa<FnType>()) {
             auto fn_param = new_cont->param(j++);
-            if (fn_param->type() != op) {
+            // no need to unwrap if the types are identical
+            if (fn_param->type() != op)
                 call_args[i + 1] = unwrap_def(fn_param, fn_type, no_inline);
-            } else
+            else
                 call_args[i + 1] = fn_param;
         } else {
             call_args[i + 1] = new_cont->param(j++);
@@ -63,8 +79,23 @@ static Continuation* wrap_def(const Def* old_def, const FnType* new_type, bool n
     return try_inline(new_cont, call_args, no_inline);
 }
 
-// Unwrap a def, flattening tuples passed as arguments
+// Unwrap a def, flattening tuples passed as arguments (dual of wrap)
 static Continuation* unwrap_def(const Def* new_def, const FnType* old_type, bool no_inline) {
+    // Transform:
+    //
+    // new_def(a: T, b: U, c: V, d: fn (W, X, Y)):
+    //     ...
+    //
+    // into:
+    //
+    // old_cont(a: T, b: (U, V), d: fn (W, (X, Y))):
+    //     e = extract(b, 0)
+    //     f = extract(b, 1)
+    //     new_def(a, e, f, wrap_d)
+    //
+    //     wrap_d(a: W, b: X, c: Y):
+    //         d(a, (b, c))
+
     auto& world = new_def->world();
     auto new_type = new_def->type()->as<FnType>();
     auto old_cont = world.continuation(old_type, new_def->debug());
@@ -77,6 +108,7 @@ static Continuation* unwrap_def(const Def* new_def, const FnType* old_type, bool
                 call_args[j++] = world.extract(param, k);
         } else if (auto fn_type = param->type()->isa<FnType>()) {
             auto new_fn_type = new_type->op(j - 1)->as<FnType>();
+            // no need to wrap if the types are identical
             if (fn_type != new_fn_type)
                 call_args[j++] = wrap_def(param, new_fn_type, no_inline);
             else
@@ -110,7 +142,10 @@ void flatten_tuples(World& world) {
 
                 Array<const Def*> args(ucont->num_args() + 1);
                 for (size_t i = 0, e = ucont->num_args(); i != e; ++i) args[i + 1] = ucont->arg(i);
+                // unwrap the new continuation, but do not inline at the call site
                 args[0] = unwrap_def(new_cont, cont->type(), true);
+
+                // inline the unwrapped continuation
                 try_inline(ucont, args, false);
 
                 todo = true;

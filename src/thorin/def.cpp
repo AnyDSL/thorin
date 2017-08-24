@@ -72,6 +72,10 @@ std::string Def::unique_name() const {
     return oss.str();
 }
 
+bool is_unit(const Def* def) {
+    return def->type() == def->world().unit();
+}
+
 bool is_const(const Def* def) {
     if (def->isa<Param>()) return false;
     if (def->isa<PrimOp>()) {

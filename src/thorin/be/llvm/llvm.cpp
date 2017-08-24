@@ -223,7 +223,7 @@ void CodeGen::emit(int opt, bool debug) {
         const Param* ret_param = nullptr;
         auto arg = fct->arg_begin();
         for (auto param : entry_->params()) {
-            if (is_mem(param))
+            if (is_mem(param) || is_unit(param))
                 continue;
             if (param->order() == 0) {
                 auto argv = &*arg;
@@ -253,7 +253,7 @@ void CodeGen::emit(int opt, bool debug) {
                 // create phi node stubs (for all continuations different from entry)
                 if (entry_ != continuation) {
                     for (auto param : continuation->params()) {
-                        if (!is_mem(param) && param->type() != world().unit()) {
+                        if (!is_mem(param) && !is_unit(param)) {
                             auto phi = llvm::PHINode::Create(convert(param->type()), (unsigned) param->peek().size(), param->name(), bb);
                             phis_[param] = phi;
                         }
@@ -303,7 +303,7 @@ void CodeGen::emit(int opt, bool debug) {
 
                     size_t n = 0;
                     for (auto arg : continuation->args()) {
-                        if (!is_mem(arg) && arg->type() != world().unit()) {
+                        if (!is_mem(arg) && !is_unit(arg)) {
                             auto val = lookup(arg);
                             values[n] = val;
                             args[n++] = val->getType();
@@ -355,7 +355,7 @@ void CodeGen::emit(int opt, bool debug) {
                         const Def* ret_arg = nullptr;
                         for (auto arg : continuation->args()) {
                             if (arg->order() == 0) {
-                                if (!is_mem(arg))
+                                if (!is_mem(arg) && !is_unit(arg))
                                     args.push_back(lookup(arg));
                             } else {
                                 assert(!ret_arg);
@@ -392,7 +392,7 @@ void CodeGen::emit(int opt, bool debug) {
                             Array<llvm::Value*> extracts(n);
                             for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
                                 auto param = succ->param(i);
-                                if (is_mem(param) || param->type() == world().unit())
+                                if (is_mem(param) || is_unit(param))
                                     continue;
                                 extracts[j] = irbuilder_.CreateExtractValue(call, unsigned(j));
                                 j++;
@@ -402,7 +402,7 @@ void CodeGen::emit(int opt, bool debug) {
 
                             for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
                                 auto param = succ->param(i);
-                                if (is_mem(param) || param->type() == world().unit())
+                                if (is_mem(param) || is_unit(param))
                                     continue;
                                 emit_result_phi(param, extracts[j]);
                                 j++;

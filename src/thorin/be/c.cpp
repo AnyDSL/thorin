@@ -289,28 +289,16 @@ void CCodeGen::emit() {
         if (continuation->is_external()) {
             auto config = kernel_config_.find(continuation);
             switch (lang_) {
-                case Lang::C99:                                  break;
+                case Lang::C99:    break;
                 case Lang::CUDA:   func_decls_ << "__global__ ";
                                    func_impl_  << "__global__ ";
-                                   if (config != kernel_config_.end()) {
-                                       std::string launch_bounds = "__launch_bounds__ (" +
-                                           std::to_string(std::get<0>(config->second)) + " * " +
-                                           std::to_string(std::get<1>(config->second)) + " * " +
-                                           std::to_string(std::get<2>(config->second)) + ") ";
-                                       func_decls_ << launch_bounds;
-                                       func_impl_  << launch_bounds;
-                                   }
+                                   if (config != kernel_config_.end())
+                                       func_impl_ << "__launch_bounds__ (" << std::get<0>(config->second) << " * " << std::get<1>(config->second) << " * " << std::get<2>(config->second) << ") ";
                                    break;
                 case Lang::OPENCL: func_decls_ << "__kernel ";
                                    func_impl_  << "__kernel ";
-                                   if (config != kernel_config_.end()) {
-                                       std::string reqd_work_group_size = "__attribute__((reqd_work_group_size(" +
-                                           std::to_string(std::get<0>(config->second)) + ", " +
-                                           std::to_string(std::get<1>(config->second)) + ", " +
-                                           std::to_string(std::get<2>(config->second)) + "))) ";
-                                       func_decls_ << reqd_work_group_size;
-                                       func_impl_  << reqd_work_group_size;
-                                   }
+                                   if (config != kernel_config_.end())
+                                       func_impl_ << "__attribute__((reqd_work_group_size(" << std::get<0>(config->second) << ", " << std::get<1>(config->second) << ", " << std::get<2>(config->second) << "))) ";
                                    break;
             }
         } else {

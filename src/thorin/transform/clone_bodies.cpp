@@ -10,7 +10,7 @@ void clone_bodies(World& world) {
 
     // TODO this looks broken: I guess we should do that in post-order as in lift_builtins
     for (auto continuation : world.copy_continuations()) {
-        if (continuation->is_passed_to_accelerator())
+        if (is_passed_to_accelerator(continuation))
             todo.push_back(continuation);
     }
 

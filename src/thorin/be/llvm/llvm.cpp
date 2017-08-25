@@ -1043,11 +1043,11 @@ void emit_llvm(World& world, int opt, bool debug) {
     Scope::for_each(world, [&] (const Scope& scope) {
         auto continuation = scope.entry();
         Continuation* imported = nullptr;
-        if (continuation->is_passed_to_intrinsic(Intrinsic::CUDA))
+        if (is_passed_to_intrinsic(continuation, Intrinsic::CUDA))
             imported = cuda.import(continuation)->as_continuation();
-        else if (continuation->is_passed_to_intrinsic(Intrinsic::NVVM))
+        else if (is_passed_to_intrinsic(continuation, Intrinsic::NVVM))
             imported = nvvm.import(continuation)->as_continuation();
-        else if (continuation->is_passed_to_intrinsic(Intrinsic::OpenCL))
+        else if (is_passed_to_intrinsic(continuation, Intrinsic::OpenCL))
             imported = opencl.import(continuation)->as_continuation();
         else
             return;

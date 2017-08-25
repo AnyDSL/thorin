@@ -145,13 +145,6 @@ public:
     bool is_returning() const;
     bool is_intrinsic() const;
     bool is_accelerator() const;
-    bool visit_capturing_intrinsics(std::function<bool(Continuation*)> func) const;
-    bool is_passed_to_accelerator() const {
-        return visit_capturing_intrinsics([&] (Continuation* continuation) { return continuation->is_accelerator(); });
-    }
-    bool is_passed_to_intrinsic(Intrinsic intrinsic) const {
-        return visit_capturing_intrinsics([&] (Continuation* continuation) { return continuation->intrinsic() == intrinsic; });
-    }
     void destroy_body();
 
     std::ostream& stream_head(std::ostream&) const;
@@ -249,6 +242,11 @@ private:
     friend class CFA;
     friend class World;
 };
+
+bool visit_capturing_intrinsics(Continuation*, std::function<bool(Continuation*)> func);
+bool visit_uses(Continuation*, std::function<bool(Continuation*)> func);
+bool is_passed_to_accelerator(Continuation*);
+bool is_passed_to_intrinsic(Continuation*, Intrinsic);
 
 struct Call {
     struct Hash {

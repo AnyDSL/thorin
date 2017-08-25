@@ -12,6 +12,18 @@ namespace thorin {
 
 class CodeGen;
 
+struct LaunchArgs {
+    enum {
+        Mem = 0,
+        Device,
+        Space,
+        Config,
+        Body,
+        Return,
+        Num
+    };
+};
+
 class Runtime {
 public:
     Runtime(llvm::LLVMContext& context,

@@ -7,7 +7,7 @@ namespace thorin {
 
 class OpenCLCodeGen : public CodeGen {
 public:
-    OpenCLCodeGen(World& world);
+    OpenCLCodeGen(World& world, const Cont2Config&);
 
     void emit(bool debug);
 

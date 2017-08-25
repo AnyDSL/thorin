@@ -16,8 +16,9 @@ namespace thorin {
 
 class CCodeGen {
 public:
-    CCodeGen(World& world, std::ostream& stream, Lang lang, bool debug)
+    CCodeGen(World& world, const Cont2Config& kernel_config, std::ostream& stream, Lang lang, bool debug)
         : world_(world)
+        , kernel_config_(kernel_config)
         , lang_(lang)
         , fn_mem_(world.fn_type({world.mem_type()}))
         , debug_(debug)
@@ -45,6 +46,7 @@ private:
     bool is_texture_type(const Type*);
 
     World& world_;
+    const Cont2Config& kernel_config_;
     Lang lang_;
     const FnType* fn_mem_;
     TypeMap<std::string> type2str_;
@@ -285,12 +287,31 @@ void CCodeGen::emit() {
         auto ret_type = ret_param_fn_type->num_ops() > 2 ? world_.tuple_type(ret_param_fn_type->ops().skip_front()) : ret_param_fn_type->ops().back();
         auto name = (continuation->is_external() || continuation->empty()) ? continuation->name() : continuation->unique_name();
         if (continuation->is_external()) {
+            auto config = kernel_config_.find(continuation);
             switch (lang_) {
                 case Lang::C99:                                  break;
                 case Lang::CUDA:   func_decls_ << "__global__ ";
-                                   func_impl_  << "__global__ "; break;
+                                   func_impl_  << "__global__ ";
+                                   if (config != kernel_config_.end()) {
+                                       std::string launch_bounds = "__launch_bounds__ (" +
+                                           std::to_string(std::get<0>(config->second)) + " * " +
+                                           std::to_string(std::get<1>(config->second)) + " * " +
+                                           std::to_string(std::get<2>(config->second)) + ") ";
+                                       func_decls_ << launch_bounds;
+                                       func_impl_  << launch_bounds;
+                                   }
+                                   break;
                 case Lang::OPENCL: func_decls_ << "__kernel ";
-                                   func_impl_  << "__kernel ";   break;
+                                   func_impl_  << "__kernel ";
+                                   if (config != kernel_config_.end()) {
+                                       std::string reqd_work_group_size = "__attribute__((reqd_work_group_size(" +
+                                           std::to_string(std::get<0>(config->second)) + ", " +
+                                           std::to_string(std::get<1>(config->second)) + ", " +
+                                           std::to_string(std::get<2>(config->second)) + "))) ";
+                                       func_decls_ << reqd_work_group_size;
+                                       func_impl_  << reqd_work_group_size;
+                                   }
+                                   break;
             }
         } else {
             if (lang_==Lang::CUDA) {
@@ -1093,7 +1114,7 @@ bool CCodeGen::is_texture_type(const Type* type) {
 
 //------------------------------------------------------------------------------
 
-void emit_c(World& world, std::ostream& stream, Lang lang, bool debug) { CCodeGen(world, stream, lang, debug).emit(); }
+void emit_c(World& world, const Cont2Config& kernel_config, std::ostream& stream, Lang lang, bool debug) { CCodeGen(world, kernel_config, stream, lang, debug).emit(); }
 
 //------------------------------------------------------------------------------
 

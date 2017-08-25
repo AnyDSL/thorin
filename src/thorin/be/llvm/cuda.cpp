@@ -9,8 +9,8 @@
 
 namespace thorin {
 
-CUDACodeGen::CUDACodeGen(World& world)
-    : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::C, llvm::CallingConv::C)
+CUDACodeGen::CUDACodeGen(World& world, const Cont2Config& kernel_config)
+    : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::C, llvm::CallingConv::C, kernel_config)
 {}
 
 void CUDACodeGen::emit(bool debug) {
@@ -18,7 +18,7 @@ void CUDACodeGen::emit(bool debug) {
     std::ofstream file(name);
     if (!file.is_open())
         throw std::runtime_error("cannot write '" + name + "': " + strerror(errno));
-    thorin::emit_c(world_, file, Lang::CUDA, debug);
+    thorin::emit_c(world_, kernel_config_, file, Lang::CUDA, debug);
 }
 
 }

@@ -9,7 +9,7 @@ class Load;
 
 class NVVMCodeGen : public CodeGen {
 public:
-    NVVMCodeGen(World& world);
+    NVVMCodeGen(World& world, const Cont2Config&);
 
 protected:
     virtual void emit_function_decl_hook(Continuation*, llvm::Function*) override;

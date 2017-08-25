@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <iostream>
 
+#include "thorin/be/llvm/llvm.h"
+
 namespace thorin {
 
 class World;
@@ -14,7 +16,7 @@ enum class Lang : uint8_t {
     OPENCL  ///< Flag for OpenCL
 };
 
-void emit_c(World&, std::ostream& stream, Lang lang, bool debug);
+void emit_c(World&, const Cont2Config& kernel_config, std::ostream& stream, Lang lang, bool debug);
 
 }
 

@@ -843,7 +843,7 @@ const Def* World::try_fold_aggregate(const Aggregate* agg) {
         } else
             return agg;
     }
-    return from ? from : agg;
+    return from && from->type() == agg->type() ? from : agg;
 }
 
 Array<Continuation*> World::copy_continuations() const {

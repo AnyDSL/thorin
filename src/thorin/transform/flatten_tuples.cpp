@@ -1,6 +1,7 @@
 #include "thorin/continuation.h"
 #include "thorin/world.h"
 #include "thorin/transform/mangle.h"
+#include "thorin/analyses/verify.h"
 #include "thorin/util/log.h"
 
 #include <limits>
@@ -42,6 +43,18 @@ static Continuation* try_inline(Continuation* cont, Array<const Def*>& args) {
         jump(cont, args);
     }
     return cont;
+}
+
+static void inline_calls(Continuation* cont) {
+    for (auto use : cont->copy_uses()) {
+        auto ucont = use->isa_continuation();
+        if (!ucont || use.index() != 0) continue;
+
+        Array<const Def*> args(ucont->num_args() + 1);
+        for (size_t i = 0, e = ucont->num_args(); i != e; ++i) args[i + 1] = ucont->arg(i);
+        args[0] = ucont->callee();
+        try_inline(ucont, args);
+    }
 }
 
 // Wraps around a def, flattening tuples passed as parameters (dual of unwrap)
@@ -151,53 +164,59 @@ static Continuation* unwrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def*
 static void flatten_tuples(World& world, size_t max_tuple_size) {
     // flatten tuples passed as arguments to functions
     bool todo = true;
+    Def2Def wrapped, unwrapped;
+    DefSet unwrapped_codom;
+
+    world.dump();
 
     while (todo) {
         todo = false;
 
-        Def2Def wrapped, unwrapped;
+        for (auto pair : unwrapped) unwrapped_codom.emplace(pair.second);
+
         for (auto cont : world.copy_continuations()) {
             // do not change the signature of intrinsic/external functions
-            if (cont->is_intrinsic() || cont->is_external() || is_passed_to_accelerator(cont)) continue;
+            if (cont->empty() ||
+                cont->is_intrinsic() ||
+                cont->is_external() ||
+                is_passed_to_accelerator(cont))
+                continue;
 
             auto new_type = wrapped_type(cont->type(), max_tuple_size)->as<FnType>();
             if (new_type == cont->type()) continue;
 
+            // do not transform continuations multiple times
+            if (wrapped.contains(cont) || unwrapped_codom.contains(cont)) continue;
+
             // generate a version of that continuation that operates without tuples
-            auto new_cont = cont->empty()
-                ? world.continuation(new_type, cont->debug())
-                : wrap_def(wrapped, unwrapped, cont, new_type, max_tuple_size);
-            auto old_cont = unwrap_def(wrapped, unwrapped, new_cont, cont->type(), max_tuple_size);
+            wrap_def(wrapped, unwrapped, cont, new_type, max_tuple_size);
 
-            // inline call sites of the old continuation
-            for (auto use : cont->copy_uses()) {
-                auto ucont = use->isa_continuation();
-                if (!ucont || use.index() != 0) continue;
+            todo = true;
 
-                Array<const Def*> args(ucont->num_args() + 1);
-                for (size_t i = 0, e = ucont->num_args(); i != e; ++i) args[i + 1] = ucont->arg(i);
-                args[0] = old_cont;
-                // inline the unwrapped continuation
-                try_inline(ucont, args);
-
-                todo = true;
-            }
-
-            // replaces other uses so that the old version can be eliminated
-            cont->replace(old_cont);
-
-            if (cont->empty()) {
-                // empty continuations are either intrinsics or extern functions
-                new_cont->intrinsic() = cont->intrinsic();
-                new_cont->cc() = cont->cc();
-                if (cont->is_external()) new_cont->make_external();
-            }
-
-            DLOG("flattened: {}", cont);
+            DLOG("flattened {}", cont);
         }
 
-        world.cleanup();
+        // remove original versions of wrapped functions
+        auto wrapped_copy = wrapped;
+        for (auto wrap_pair : wrapped_copy) {
+            auto def = wrap_pair.first;
+            if (def->empty()) continue;
+
+            auto new_cont = wrap_pair.second->as_continuation();
+            auto old_cont = unwrap_def(wrapped, unwrapped, new_cont, def->type()->as<FnType>(), max_tuple_size);
+
+            def->replace(old_cont);
+            if (auto cont = def->isa_continuation())
+                cont->destroy_body();
+        }
     }
+
+    for (auto unwrap_pair : unwrapped)
+        inline_calls(unwrap_pair.second->as_continuation());
+
+    debug_verify(world);
+
+    world.cleanup();
 }
 
 void flatten_tuples(World& world) {

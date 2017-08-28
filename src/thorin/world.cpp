@@ -883,9 +883,9 @@ void World::cleanup() { cleanup_world(*this); }
 
 void World::opt(bool simple_pe) {
     cleanup();
-    flatten_tuples(*this);
     higher_order_lifting(*this);
     partial_evaluation(*this, simple_pe);
+    flatten_tuples(*this);
     lower2cff(*this);
     clone_bodies(*this);
     mem2reg(*this);

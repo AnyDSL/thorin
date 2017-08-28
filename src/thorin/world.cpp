@@ -829,6 +829,23 @@ const Param* World::param(const Type* type, Continuation* continuation, size_t i
  * misc
  */
 
+const Def* World::try_fold_aggregate(const Aggregate* agg) {
+    const Def* from = nullptr;
+    for (size_t i = 0, e = agg->num_ops(); i != e; ++i) {
+        auto arg = agg->op(i);
+        if (auto extract = arg->isa<Extract>()) {
+            if (from && extract->agg() != from) return agg;
+
+            auto literal = extract->index()->isa<PrimLit>();
+            if (!literal || literal->value().get_u64() != u64(i)) return agg;
+
+            from = extract->agg();
+        } else
+            return agg;
+    }
+    return from ? from : agg;
+}
+
 Array<Continuation*> World::copy_continuations() const {
     Array<Continuation*> result(continuations().size());
     std::copy(continuations().begin(), continuations().end(), result.begin());

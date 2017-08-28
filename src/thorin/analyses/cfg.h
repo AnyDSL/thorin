@@ -81,9 +81,9 @@ private:
     const CFNode* node(Continuation*);
 
     const Scope& scope_;
+    ContinuationMap<const CFNode*> nodes_;
     const CFNode* entry_;
     const CFNode* exit_;
-    ContinuationMap<const CFNode*> nodes_;
     mutable std::unique_ptr<const F_CFG> f_cfg_;
     mutable std::unique_ptr<const B_CFG> b_cfg_;
 

@@ -30,8 +30,8 @@ std::ostream& CFNode::stream(std::ostream& out) const { return streamf(out, "{}"
 
 CFA::CFA(const Scope& scope)
     : scope_(scope)
-    , entry_((*this)[scope.entry()])
-    , exit_ ((*this)[scope.exit() ])
+    , entry_(node(scope.entry()))
+    , exit_ (node(scope.exit() ))
 {
     std::queue<Continuation*> cfg_queue;
     ContinuationSet cfg_done;
@@ -42,8 +42,6 @@ CFA::CFA(const Scope& scope)
     };
 
     cfg_queue.push(scope.entry());
-    node(scope.entry());
-    node(scope.exit());
 
     while (!cfg_queue.empty()) {
         auto src = pop(cfg_queue);
@@ -201,6 +199,11 @@ void CFG<forward>::stream_ycomp(std::ostream& out) const {
         [&] (const CFNode* n) { return range(succs(n)); }
     );
 }
+
+
+// TODO remove this
+template<bool forward>
+CFNodes CFG<forward>::empty_ = CFNodes();
 
 template<bool forward> const CFNodes& CFG<forward>::preds(const CFNode* n) const { return n ? (forward ? n->preds() : n->succs()) : empty_; }
 template<bool forward> const CFNodes& CFG<forward>::succs(const CFNode* n) const { return n ? (forward ? n->succs() : n->preds()) : empty_; }

@@ -33,10 +33,8 @@
         THORIN_NODE(Extract, extract)
         THORIN_NODE(Insert, insert)
         THORIN_NODE(LEA, lea)
-        THORIN_NODE(Run, run)
         THORIN_NODE(Hlt, hlt)
-        THORIN_NODE(EndRun, end_run)
-        THORIN_NODE(EndHlt, end_hlt)
+        THORIN_NODE(Known, known)
         THORIN_NODE(Assembly, asm)
     THORIN_NODE(Param, param)
     // Type

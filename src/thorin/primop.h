@@ -403,6 +403,21 @@ public:
     friend class World;
 };
 
+/// Evaluates to @c true, if @p def is a literal.
+class Known : public PrimOp {
+private:
+    Known(const Def* def, Debug dbg)
+        : PrimOp(Node_Known, def->type(), {def}, dbg)
+    {}
+
+    virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
+
+public:
+    const Def* def() const { return op(0); }
+
+    friend class World;
+};
+
 /**
  * A slot in a stack frame opend via @p Enter.
  * A @p Slot yields a pointer to the given <tt>type</tt>.

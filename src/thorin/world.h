@@ -121,7 +121,6 @@ public:
     const Def* convert(const Type* to, const Def* from, Debug dbg = {});
     const Def* cast(const Type* to, const Def* from, Debug dbg = {});
     const Def* bitcast(const Type* to, const Def* from, Debug dbg = {});
-    const Def* hlt(const Def* def, Debug dbg = {}) { return cse(new Hlt(def, dbg)); }
 
     // aggregate operations
 
@@ -173,6 +172,11 @@ public:
                              ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg = {});
     const Assembly* assembly(Types types, const Def* mem, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints,
                              ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg = {});
+
+    // partial evaluation related stuff
+
+    const Def* hlt(const Def* def, Debug dbg = {}) { return cse(new Hlt(def, dbg)); }
+    const Def* known(const Def* def, Debug dbg = {});
 
     // continuations
 

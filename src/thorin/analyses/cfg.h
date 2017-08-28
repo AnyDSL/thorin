@@ -141,8 +141,6 @@ public:
 private:
     size_t post_order_visit(const CFNode* n, size_t i);
 
-    static CFNodes empty_;
-
     const CFA& cfa_;
     Map<const CFNode*> rpo_;
     mutable std::unique_ptr<const DomTreeBase<forward>> domtree_;

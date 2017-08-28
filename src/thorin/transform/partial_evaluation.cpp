@@ -106,11 +106,7 @@ void partial_evaluation(World& world) {
     world.cleanup();
     VLOG_SCOPE(eval(world));
 
-    for (auto primop : world.primops()) {
-        if (auto hlt = primop->isa<Hlt>())
-            hlt->replace(hlt->def());
-    }
-
+    world.pe_done();
     world.cleanup();
 }
 

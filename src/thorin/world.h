@@ -175,7 +175,7 @@ public:
 
     // partial evaluation related stuff
 
-    const Def* hlt(const Def* def, Debug dbg = {}) { return cse(new Hlt(def, dbg)); }
+    const Def* hlt(const Def* def, Debug dbg = {});
     const Def* known(const Def* def, Debug dbg = {});
 
     // continuations
@@ -203,6 +203,7 @@ public:
 
     // other stuff
 
+    void pe_done() { pe_done_ = true; }
     void add_external(Continuation* continuation) { externals_.insert(continuation); }
     void remove_external(Continuation* continuation) { externals_.erase(continuation); }
     bool is_external(const Continuation* continuation) { return externals().contains(const_cast<Continuation*>(continuation)); }
@@ -269,6 +270,7 @@ private:
     DefMap<Trackers> trackers_;
     Continuation* branch_;
     Continuation* end_scope_;
+    bool pe_done_ = false;
 #ifndef NDEBUG
     Breakpoints breakpoints_;
     bool track_history_ = false;

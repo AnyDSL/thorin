@@ -788,9 +788,17 @@ const Assembly* World::assembly(Types types, const Def* mem, Defs inputs, std::s
  * partial evaluation related stuff
  */
 
+const Def* World::hlt(const Def* def, Debug dbg) {
+    if (pe_done_)
+        return def;
+    return cse(new Hlt(def, dbg));
+}
+
 const Def* World::known(const Def* def, Debug dbg) {
     if (is_const(def))
         return literal_bool(true, dbg);
+    if (pe_done_)
+        return literal_bool(false, dbg);
     return cse(new Known(def, dbg));
 }
 

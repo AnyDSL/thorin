@@ -14,7 +14,6 @@ typedef CFG<true>  F_CFG;
 typedef CFG<false> B_CFG;
 
 class CFA;
-class CFASmart;
 class CFNode;
 
 /**
@@ -62,12 +61,6 @@ public:
     const B_CFG& b_cfg() const;
     //@}
 
-    //@{ @em smart CFA to construct a CFG
-    const CFASmart& cfa_smart() const;
-    const F_CFG& f_cfg_smart() const;
-    const B_CFG& b_cfg_smart() const;
-    //@}
-
     //@{ dump
     // Note that we don't use overloading for the following methods in order to have them accessible from gdb.
     virtual std::ostream& stream(std::ostream&) const override;  ///< Streams thorin to file @p out.
@@ -94,7 +87,6 @@ private:
     DefSet defs_;
     std::vector<Continuation*> continuations_;
     mutable std::unique_ptr<const CFA> cfa_;
-    mutable std::unique_ptr<const CFASmart> cfa_smart_;
 };
 
 }

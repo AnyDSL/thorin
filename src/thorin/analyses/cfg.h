@@ -18,80 +18,51 @@ template<bool> class LoopTree;
 template<bool> class DomTreeBase;
 template<bool> class DomFrontierBase;
 
+typedef GIDSet<const CFNode*> CFNodes;
+
 /**
  * A Control-Flow Node.
  * Managed by @p CFA.
  */
-class CFNodeBase : public MagicCast<CFNodeBase>, public Streamable {
+class CFNode : public MagicCast<CFNode>, public Streamable {
 public:
-    CFNodeBase(const Def* def)
-        : def_(def)
+    CFNode(Continuation* continuation)
+        : continuation_(continuation)
         , gid_(gid_counter_++)
     {}
 
     uint64_t gid() const { return gid_; }
-    const Def* def() const { return def_; }
-
-private:
-    const Def* def_;
-    size_t gid_;
-    static uint64_t gid_counter_;
-};
-
-class RealCFNode : public CFNodeBase {
-protected:
-    RealCFNode(const Def* def)
-        : CFNodeBase(def)
-    {}
-
-protected:
-    mutable size_t f_index_ = -1; ///< RPO index in a forward @p CFG.
-    mutable size_t b_index_ = -1; ///< RPO index in a backwards @p CFG.
-
-    friend class CFABuilder;
-    template<bool> friend class CFG;
-};
-
-class CFNode;
-typedef GIDSet<const CFNode*> CFNodes;
-
-/// This node represents a @p CFNode within its underlying @p Scope.
-class CFNode : public RealCFNode {
-public:
-    CFNode(Continuation* continuation)
-        : RealCFNode(continuation)
-    {}
-
-    Continuation* continuation() const { return def()->as_continuation(); }
-    virtual std::ostream& stream(std::ostream&) const override;
+    Continuation* continuation() const { return continuation_; }
+    std::ostream& stream(std::ostream& os) const override;
 
 private:
     const CFNodes& preds() const { return preds_; }
     const CFNodes& succs() const { return succs_; }
     void link(const CFNode* other) const;
 
+    mutable size_t f_index_ = -1; ///< RPO index in a forward @p CFG.
+    mutable size_t b_index_ = -1; ///< RPO index in a backwards @p CFG.
+
+    Continuation* continuation_;
+    size_t gid_;
+    static uint64_t gid_counter_;
     mutable CFNodes preds_;
     mutable CFNodes succs_;
 
-    friend class CFABase;
-    friend class CFABuilder;
     friend class CFA;
     template<bool> friend class CFG;
 };
 
 //------------------------------------------------------------------------------
 
-/**
- * Control Flow Analysis.
- * Base class for all CFA aglorithms.
- */
-class CFABase {
+/// Control Flow Analysis.
+class CFA {
 public:
-    CFABase(const CFABase&) = delete;
-    CFABase& operator= (CFABase) = delete;
+    CFA(const CFA&) = delete;
+    CFA& operator= (CFA) = delete;
 
-    explicit CFABase(const Scope& scope);
-    ~CFABase();
+    explicit CFA(const Scope& scope);
+    ~CFA();
 
     const Scope& scope() const { return scope_; }
     size_t size() const { return nodes().size(); }
@@ -100,10 +71,6 @@ public:
     const B_CFG& b_cfg() const;
     const CFNode* operator [] (Continuation* continuation) const { return find(nodes_, continuation); }
 
-protected:
-    /// invoke in the derived class after everything else has been done
-    void init();
-
 private:
     void link_to_exit();
     void verify();
@@ -111,38 +78,16 @@ private:
     const CFNodes& succs(Continuation* continuation) const { auto cn = nodes_.find(continuation)->second; assert(cn); return cn->succs(); }
     const CFNode* entry() const { return entry_; }
     const CFNode* exit() const { return exit_; }
+    const CFNode* node(Continuation*);
 
     const Scope& scope_;
-    ContinuationMap<const CFNode*> nodes_;
     const CFNode* entry_;
     const CFNode* exit_;
+    ContinuationMap<const CFNode*> nodes_;
     mutable std::unique_ptr<const F_CFG> f_cfg_;
     mutable std::unique_ptr<const B_CFG> b_cfg_;
 
-    friend class CFABuilder;
-    friend class CFA;
     template<bool> friend class CFG;
-};
-
-class CFA : public CFABase {
-public:
-    explicit CFA(const Scope& scope);
-
-private:
-    const CFNode* node(Continuation*);
-};
-
-/**
- * Control Flow Analysis.
- * This class maintains information obtained by local control-flow analysis run on a @p Scope.
- * See "Shallow Embedding of DSLs via Online Partial Evaluation", Leißa et.al. for details.
- */
-class CFASmart : public CFABase {
-public:
-    explicit CFASmart(const Scope& scope);
-
-
-    friend class CFABuilder;
 };
 
 //------------------------------------------------------------------------------
@@ -166,9 +111,9 @@ public:
     CFG(const CFG&) = delete;
     CFG& operator= (CFG) = delete;
 
-    explicit CFG(const CFABase&);
+    explicit CFG(const CFA&);
 
-    const CFABase& cfa() const { return cfa_; }
+    const CFA& cfa() const { return cfa_; }
     size_t size() const { return cfa().size(); }
     const CFNodes& preds(const CFNode* n) const;
     const CFNodes& succs(const CFNode* n) const;
@@ -189,7 +134,7 @@ public:
     const DomTreeBase<forward>& domtree() const;
     const LoopTree<forward>& looptree() const;
     const DomFrontierBase<forward>& domfrontier() const;
-    virtual void stream_ycomp(std::ostream& out) const override;
+    void stream_ycomp(std::ostream& out) const override;
 
     static size_t index(const CFNode* n) { return forward ? n->f_index_ : n->b_index_; }
 
@@ -198,7 +143,7 @@ private:
 
     static CFNodes empty_;
 
-    const CFABase& cfa_;
+    const CFA& cfa_;
     Map<const CFNode*> rpo_;
     mutable std::unique_ptr<const DomTreeBase<forward>> domtree_;
     mutable std::unique_ptr<const LoopTree<forward>> looptree_;

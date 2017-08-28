@@ -121,6 +121,7 @@ public:
     const Def* convert(const Type* to, const Def* from, Debug dbg = {});
     const Def* cast(const Type* to, const Def* from, Debug dbg = {});
     const Def* bitcast(const Type* to, const Def* from, Debug dbg = {});
+    const Def* hlt(const Def* def, Debug dbg = {}) { return cse(new Hlt(def, dbg)); }
 
     // aggregate operations
 
@@ -173,11 +174,6 @@ public:
     const Assembly* assembly(Types types, const Def* mem, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints,
                              ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg = {});
 
-    // guided partial evaluation
-
-    const Def* run(const Def* begin, const Def* end, Debug dbg = {}) { return cse(new Run(begin, end, dbg)); }
-    const Def* hlt(const Def* begin, const Def* end, Debug dbg = {}) { return cse(new Hlt(begin, end, dbg)); }
-
     // continuations
 
     Continuation* continuation(const FnType* fn, CC cc = CC::C, Intrinsic intrinsic = Intrinsic::None, Debug dbg = {});
@@ -190,7 +186,7 @@ public:
 
     /// Performs dead code, unreachable code and unused type elimination.
     void cleanup();
-    void opt(bool simple_pe);
+    void opt();
 
     // getters
 

@@ -15,7 +15,6 @@
 #include "thorin/transform/flatten_tuples.h"
 #include "thorin/transform/higher_order_lifting.h"
 #include "thorin/transform/hoist_enters.h"
-#include "thorin/transform/lower2cff.h"
 #include "thorin/transform/mem2reg.h"
 #include "thorin/transform/partial_evaluation.h"
 #include "thorin/transform/dead_load_opt.h"
@@ -881,12 +880,11 @@ void World::destroy(Continuation* continuation) {
 
 void World::cleanup() { cleanup_world(*this); }
 
-void World::opt(bool simple_pe) {
+void World::opt() {
     cleanup();
     flatten_tuples(*this);
     higher_order_lifting(*this);
-    partial_evaluation(*this, simple_pe);
-    lower2cff(*this);
+    partial_evaluation(*this);
     clone_bodies(*this);
     mem2reg(*this);
     lift_builtins(*this);

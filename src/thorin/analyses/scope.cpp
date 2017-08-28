@@ -25,7 +25,6 @@ Scope& Scope::update() {
     continuations_.clear();
     defs_.clear();
     cfa_ = nullptr;
-    cfa_smart_ = nullptr;
     run(e);
     return *this;
 }
@@ -65,10 +64,6 @@ void Scope::run(Continuation* entry) {
 const CFA& Scope::cfa() const { return lazy_init(this, cfa_); }
 const F_CFG& Scope::f_cfg() const { return cfa().f_cfg(); }
 const B_CFG& Scope::b_cfg() const { return cfa().b_cfg(); }
-
-const CFASmart& Scope::cfa_smart() const { return lazy_init(this, cfa_smart_); }
-const F_CFG& Scope::f_cfg_smart() const { return cfa_smart().f_cfg(); }
-const B_CFG& Scope::b_cfg_smart() const { return cfa_smart().b_cfg(); }
 
 template<bool elide_empty>
 void Scope::for_each(const World& world, std::function<void(Scope&)> f) {

@@ -388,38 +388,17 @@ public:
     friend class World;
 };
 
-/// Base class for \p Run and \p Hlt.
-class EvalOp : public PrimOp {
-protected:
-    EvalOp(NodeTag tag, const Def* begin, const Def* end, Debug dbg)
-        : PrimOp(tag, begin->type(), {begin, end}, dbg)
+/// Casts the underlying @p def to a dynamic value during @p partial_evaluation.
+class Hlt : public PrimOp {
+private:
+    Hlt(const Def* def, Debug dbg)
+        : PrimOp(Node_Hlt, def->type(), {def}, dbg)
     {}
+
+    virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
 
 public:
-    const Def* begin() const { return op(0); }
-    const Def* end() const { return op(1); }
-};
-
-/// Starts a partial evaluation run.
-class Run : public EvalOp {
-private:
-    Run(const Def* begin, const Def* end, Debug dbg)
-        : EvalOp(Node_Run, begin, end, dbg)
-    {}
-
-    virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
-
-    friend class World;
-};
-
-/// Stops a partial evaluation run or hinders partial evaluation from specializing <tt>def</tt>.
-class Hlt : public EvalOp {
-private:
-    Hlt(const Def* begin, const Def* end, Debug dbg)
-        : EvalOp(Node_Hlt, begin, end, dbg)
-    {}
-
-    virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
+    const Def* def() const { return op(0); }
 
     friend class World;
 };

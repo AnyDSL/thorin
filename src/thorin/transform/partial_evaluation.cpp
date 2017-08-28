@@ -1,7 +1,6 @@
 #include "thorin/primop.h"
 #include "thorin/world.h"
 #include "thorin/analyses/cfg.h"
-#include "thorin/analyses/domtree.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/util/hash.h"
 #include "thorin/util/log.h"
@@ -10,89 +9,32 @@ namespace thorin {
 
 class PartialEvaluator {
 public:
-    PartialEvaluator(Scope& top_scope, bool simple)
-        : top_scope_(top_scope)
-        , simple_(simple)
+    PartialEvaluator(Scope& scope)
+        : scope_(scope)
     {}
     ~PartialEvaluator() {
-        top_scope(); // trigger update if dirty
+        scope(); // trigger update if dirty
     }
 
-    World& world() { return top_scope_.world(); }
+    World& world() { return scope_.world(); }
+    Scope& scope() {
+        if (dirty_) {
+            scope_.update();
+            dirty_ = false;
+        }
+        return scope_;
+    }
+
     void run();
-    void eval(Continuation* begin, Continuation* end);
-    Continuation* postdom(Continuation*, const Scope&);
-    Continuation* postdom(Continuation*);
-    void enqueue(Continuation* continuation) {
-        if (top_scope().contains(continuation)) {
-            auto p = visited_.insert(continuation);
-            if (p.second)
-                queue_.push(continuation);
-        }
-    }
-
-    void init_cur_scope(Continuation* entry) {
-        cur_scope_ = new Scope(entry);
-        cur_dirty_ = false;
-    }
-
-    void release_cur_scope() {
-        delete cur_scope_;
-    }
-
-    const Scope& cur_scope() {
-        if (cur_dirty_) {
-            cur_dirty_ = false;
-            return cur_scope_->update();
-        }
-        return *cur_scope_;
-    }
-
-    const Scope& top_scope() {
-        if (top_dirty_) {
-            top_dirty_ = false;
-            return top_scope_.update();
-        }
-        return top_scope_;
-    }
-
-    void mark_dirty() { top_dirty_ = cur_dirty_ = true; }
-    bool top_dirty() { return top_dirty_; }
-    bool is_simple() const { return simple_; }
-    Continuation* get_continuation(Continuation* continuation) { return continuation->callee()->as<EvalOp>()->end()->isa_continuation(); }
 
 private:
-    Scope* cur_scope_;
-    Scope& top_scope_;
-    const CFASmart* cfa_;
-    ContinuationSet done_;
-    std::queue<Continuation*> queue_;
-    ContinuationSet visited_;
+    Scope& scope_;
     HashMap<Call, Continuation*> cache_;
-    bool cur_dirty_;
-    bool top_dirty_ = false;
-    bool simple_;
+    bool dirty_ = false;
 };
 
 void PartialEvaluator::run() {
-    enqueue(top_scope().entry());
-
-    while (!queue_.empty()) {
-        auto continuation = pop(queue_);
-
-        // due to the optimization below to eat up a call, we might see a new Run here
-        while (continuation->callee()->isa<Run>()) {
-            auto cur = continuation->callee();
-            init_cur_scope(continuation);
-            eval(continuation, get_continuation(continuation));
-            release_cur_scope();
-            if (cur == continuation->callee())
-                break;
-        }
-
-        for (auto succ : top_scope().f_cfg().succs(continuation))
-            enqueue(succ->continuation());
-    }
+    // TODO
 }
 
 void eat_pe_info(Continuation* cur, bool eval) {
@@ -119,163 +61,6 @@ bool eat_intrinsic(Intrinsic intrinsic, Continuation* cur, bool eval) {
     }
 }
 
-void PartialEvaluator::eval(Continuation* cur, Continuation* end) {
-    if (end == nullptr)
-        VLOG("no matching end: {} at {}", cur, cur->location());
-    else
-        DLOG("eval: {} -> {}", cur, end);
-
-    while (true) {
-        if (cur == nullptr) {
-            VLOG("cur is nullptr");
-            return;
-        } else if (cur->empty()) {
-            VLOG("empty: {}", cur);
-            return;
-        } else if (done_.contains(cur)) {
-            DLOG("already done: {}", cur);
-            return;
-        } else
-            DLOG("cur: {}", cur);
-
-        done_.insert(cur);
-
-        Continuation* dst = nullptr;
-
-        if (auto run = cur->callee()->isa<Run>()) {
-            dst = run->begin()->isa_continuation();
-        } else if (cur->callee()->isa<Hlt>()) {
-            cur = get_continuation(cur);
-            continue;
-        } else {
-            dst = cur->callee()->isa_continuation();
-        }
-
-        // PE intrinsics
-        if (dst != nullptr && eat_intrinsic(dst->intrinsic(), cur, true)) {
-            mark_dirty();
-            done_.erase(cur);
-            continue;
-        }
-
-        if (dst == nullptr || dst->empty()) {
-            if (is_simple()) {
-                DLOG("bail out for simple PE");
-                return;
-            }
-            auto old = cur;
-            cur = postdom(cur);
-            if (cur == nullptr)
-                return;
-            if (end == nullptr)
-                continue;
-
-            auto nold = (*cfa_)[old];
-            auto ncur = (*cfa_)[cur];
-            auto nend = (*cfa_)[end];
-
-            assert(ncur != nullptr);
-            if (nend == nullptr) {
-                VLOG("end became unreachable: {}", end);
-                continue;
-            }
-
-            if (cur == end) {
-                DLOG("end: {}", end);
-                return;
-            }
-
-            for (auto i = nold; i != ncur; i = cfa_->b_cfg().domtree().idom(i)) {
-                if (i == nend) {
-                    DLOG("overjumped end: {}", cur);
-                    return;
-                }
-            }
-
-            continue;
-        }
-
-        Array<const Def*> ops(cur->num_ops());
-        ops.front() = dst;
-        bool all = true;
-        for (size_t i = 1, e = ops.size(); i != e; ++i) {
-            if (!cur->op(i)->isa<Hlt>())
-                ops[i] = cur->op(i);
-            else
-                all = false;
-        }
-
-        Call call(ops);
-
-        bool go_out = dst == end;
-        DLOG("dst: {}", dst);
-
-        if (auto cached = find(cache_, call)) {             // check for cached version
-            jump_to_cached_call(cur, cached, call);
-            DLOG("using cached call: {}", cur);
-            return;
-        } else {                                            // no cached version found... create a new one
-            Scope scope(call.callee()->as_continuation());
-            Mangler mangler(scope, call.args(), Defs());
-            auto dropped = mangler.mangle();
-            if (end != nullptr) {
-                if (auto nend = mangler.def2def(end)) {
-                    if (end != nend) {
-                        DLOG("changed end: {} -> {}", end, nend);
-                        end = nend->as_continuation();
-                    }
-                }
-            }
-
-            if (dropped->callee() == world().branch()) {
-                // TODO don't stupidly inline functions
-                // TODO also don't peel inside functions with incoming back-edges
-            }
-
-            mark_dirty();
-            cache_[call] = dropped;
-            jump_to_cached_call(cur, dropped, call);
-            if (all) {
-                cur->jump(dropped->callee(), dropped->args(), cur->jump_debug());
-                done_.erase(cur);
-            } else
-                cur = dropped;
-        }
-
-        if (dst == end || go_out) {
-            DLOG("end: {}", end);
-            return;
-        }
-    }
-}
-
-Continuation* PartialEvaluator::postdom(Continuation* cur) {
-    auto is_valid = [&] (Continuation* continuation) {
-        auto p = (continuation && !continuation->empty()) ? continuation : nullptr;
-        if (p)
-            DLOG("postdom: {} -> {}", cur, p);
-        return p;
-    };
-
-    if (top_scope_.entry() != cur_scope_->entry()) {
-        if (auto p = is_valid(postdom(cur, cur_scope())))
-            return p;
-    }
-
-    if (auto p = is_valid(postdom(cur, top_scope())))
-        return p;
-
-    VLOG("no postdom found for {} at {}", cur, cur->location());
-    return nullptr;
-}
-
-Continuation* PartialEvaluator::postdom(Continuation* cur, const Scope& scope) {
-    cfa_ = &scope.cfa_smart();
-    if (auto n = scope.cfa_smart()[cur])
-        return cfa_->b_cfg().domtree().idom(n)->continuation();
-    return nullptr;
-}
-
 //------------------------------------------------------------------------------
 
 template <typename F>
@@ -294,12 +79,10 @@ void eval_intrinsics(World& world, F f) {
     });
 }
 
-void eval(World& world, bool simple) {
+void eval(World& world) {
     Scope::for_each(world, [&] (Scope& scope) {
-        PartialEvaluator partial_evaluator(scope, simple);
+        PartialEvaluator partial_evaluator(scope);
         partial_evaluator.run();
-        if (partial_evaluator.top_dirty())
-            scope.update();
     });
 
     // Eat all pe_known calls
@@ -319,13 +102,13 @@ void eval(World& world, bool simple) {
     });
 }
 
-void partial_evaluation(World& world, bool simple) {
+void partial_evaluation(World& world) {
     world.cleanup();
-    VLOG_SCOPE(eval(world, simple));
+    VLOG_SCOPE(eval(world));
 
     for (auto primop : world.primops()) {
-        if (auto evalop = primop->isa<EvalOp>())
-            evalop->replace(evalop->begin());
+        if (auto hlt = primop->isa<Hlt>())
+            hlt->replace(hlt->def());
     }
 
     world.cleanup();

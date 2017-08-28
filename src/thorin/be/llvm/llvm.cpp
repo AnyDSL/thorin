@@ -959,7 +959,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
                     }
                     if (ret_types.size() == 0)      ret = llvm::Type::getVoidTy(context_);
                     else if (ret_types.size() == 1) ret = ret_types.back();
-                    else                            ret = llvm::StructType::get(context_, ops);
+                    else                            ret = llvm::StructType::get(context_, ret_types);
                 } else
                     ops.push_back(convert(op));
             }

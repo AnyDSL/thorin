@@ -377,7 +377,7 @@ void CodeGen::emit(int opt, bool debug) {
                         size_t n = 0;
                         const Param* last_param = nullptr;
                         for (auto param : succ->params()) {
-                            if (is_mem(param) || param->type() == world().unit())
+                            if (is_mem(param) || is_unit(param))
                                 continue;
                             last_param = param;
                             n++;

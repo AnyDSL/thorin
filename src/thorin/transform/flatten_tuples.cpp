@@ -214,9 +214,8 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
     for (auto unwrap_pair : unwrapped)
         inline_calls(unwrap_pair.second->as_continuation());
 
-    debug_verify(world);
-
     world.cleanup();
+    debug_verify(world);
 }
 
 void flatten_tuples(World& world) {

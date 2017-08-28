@@ -7,7 +7,7 @@ namespace thorin {
 
 class CPUCodeGen : public CodeGen {
 public:
-    CPUCodeGen(World& world);
+    CPUCodeGen(World& world, const Cont2Config&);
 
 protected:
     virtual std::string get_alloc_name() const override { return "anydsl_alloc"; }

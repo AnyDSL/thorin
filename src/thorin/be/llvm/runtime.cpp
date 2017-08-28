@@ -37,18 +37,6 @@ llvm::Function* Runtime::get(const char* name) {
     return result;
 }
 
-struct LaunchArgs {
-    enum {
-        Mem = 0,
-        Device,
-        Space,
-        Config,
-        Body,
-        Return,
-        Num
-    };
-};
-
 static bool contains_ptrtype(const Type* type) {
     switch (type->tag()) {
         case Node_PtrType:             return false;

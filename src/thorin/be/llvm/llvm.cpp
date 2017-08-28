@@ -46,7 +46,7 @@
 
 namespace thorin {
 
-CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention, llvm::CallingConv::ID device_calling_convention, llvm::CallingConv::ID kernel_calling_convention)
+CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention, llvm::CallingConv::ID device_calling_convention, llvm::CallingConv::ID kernel_calling_convention, const Cont2Config& kernel_config)
     : world_(world)
     , context_()
     , module_(new llvm::Module(world.name(), context_))
@@ -55,6 +55,7 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention
     , function_calling_convention_(function_calling_convention)
     , device_calling_convention_(device_calling_convention)
     , kernel_calling_convention_(kernel_calling_convention)
+    , kernel_config_(kernel_config)
     , runtime_(new Runtime(context_, *module_.get(), irbuilder_))
 {}
 
@@ -1038,16 +1039,17 @@ void emit_llvm(World& world, int opt, bool debug) {
     Importer cuda(world.name());
     Importer nvvm(world.name());
     Importer opencl(world.name());
+    Cont2Config kernel_config;
 
     // determine different parts of the world which need to be compiled differently
     Scope::for_each(world, [&] (const Scope& scope) {
         auto continuation = scope.entry();
         Continuation* imported = nullptr;
-        if (continuation->is_passed_to_intrinsic(Intrinsic::CUDA))
+        if (is_passed_to_intrinsic(continuation, Intrinsic::CUDA))
             imported = cuda.import(continuation)->as_continuation();
-        else if (continuation->is_passed_to_intrinsic(Intrinsic::NVVM))
+        else if (is_passed_to_intrinsic(continuation, Intrinsic::NVVM))
             imported = nvvm.import(continuation)->as_continuation();
-        else if (continuation->is_passed_to_intrinsic(Intrinsic::OpenCL))
+        else if (is_passed_to_intrinsic(continuation, Intrinsic::OpenCL))
             imported = opencl.import(continuation)->as_continuation();
         else
             return;
@@ -1059,6 +1061,16 @@ void emit_llvm(World& world, int opt, bool debug) {
 
         for (size_t i = 0, e = continuation->num_params(); i != e; ++i)
             imported->param(i)->debug().set(continuation->param(i)->unique_name());
+
+        visit_uses(continuation, [&] (Continuation* use) {
+            auto it_config = use->arg(LaunchArgs::Config)->as<Tuple>();
+            if (it_config->op(0)->isa<PrimLit>() && it_config->op(1)->isa<PrimLit>() && it_config->op(2)->isa<PrimLit>()) {
+                auto p = kernel_config.emplace(imported, std::tuple<int, int, int>{ it_config->op(0)->as<PrimLit>()->qu32_value().data(), it_config->op(1)->as<PrimLit>()->qu32_value().data(), it_config->op(2)->as<PrimLit>()->qu32_value().data() } );
+                assert_unused(p.second && "expected only single entry");
+            }
+            return false;
+        });
+
     });
 
     if (!cuda.world().empty() || !nvvm.world().empty() || !opencl.world().empty()) {
@@ -1066,10 +1078,10 @@ void emit_llvm(World& world, int opt, bool debug) {
         codegen_prepare(world);
     }
 
-    CPUCodeGen(world).emit(opt, debug);
-    if (!cuda.  world().empty()) CUDACodeGen  (cuda  .world()).emit(/*opt,*/ debug);
-    if (!nvvm.  world().empty()) NVVMCodeGen  (nvvm  .world()).emit(opt, debug);
-    if (!opencl.world().empty()) OpenCLCodeGen(opencl.world()).emit(/*opt,*/ debug);
+    CPUCodeGen(world, kernel_config).emit(opt, debug);
+    if (!cuda.  world().empty()) CUDACodeGen  (cuda  .world(), kernel_config).emit(/*opt,*/ debug);
+    if (!nvvm.  world().empty()) NVVMCodeGen  (nvvm  .world(), kernel_config).emit(opt, debug);
+    if (!opencl.world().empty()) OpenCLCodeGen(opencl.world(), kernel_config).emit(/*opt,*/ debug);
 }
 
 //------------------------------------------------------------------------------

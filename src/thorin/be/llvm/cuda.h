@@ -7,7 +7,7 @@ namespace thorin {
 
 class CUDACodeGen : public CodeGen {
 public:
-    CUDACodeGen(World& world);
+    CUDACodeGen(World& world, const Cont2Config&);
 
     void emit(bool debug);
 

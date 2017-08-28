@@ -10,8 +10,8 @@
 
 namespace thorin {
 
-OpenCLCodeGen::OpenCLCodeGen(World& world)
-    : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::C, llvm::CallingConv::C)
+OpenCLCodeGen::OpenCLCodeGen(World& world, const Cont2Config& kernel_config)
+    : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::C, llvm::CallingConv::C, kernel_config)
 {}
 
 void OpenCLCodeGen::emit(bool debug) {
@@ -19,7 +19,7 @@ void OpenCLCodeGen::emit(bool debug) {
     std::ofstream file(name);
     if (!file.is_open())
         throw std::runtime_error("cannot write '" + name + "': " + strerror(errno));
-    thorin::emit_c(world_, file, Lang::OPENCL, debug);
+    thorin::emit_c(world_, kernel_config_, file, Lang::OPENCL, debug);
 }
 
 }

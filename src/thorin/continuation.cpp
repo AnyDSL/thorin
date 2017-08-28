@@ -199,18 +199,6 @@ void Continuation::set_intrinsic() {
     else ELOG(this, "unsupported thorin intrinsic");
 }
 
-bool Continuation::visit_capturing_intrinsics(std::function<bool(Continuation*)> func) const {
-    if (!is_intrinsic()) {
-        for (auto use : uses()) {
-            if (auto continuation = (use->isa<Global>() ? *use->uses().begin() : use)->isa<Continuation>()) // TODO make more robust
-                if (auto callee = continuation->callee()->isa_continuation())
-                    if (callee->is_intrinsic() && func(callee))
-                        return true;
-        }
-    }
-    return false;
-}
-
 bool Continuation::is_basicblock() const { return type()->is_basicblock(); }
 bool Continuation::is_returning() const { return type()->is_returning(); }
 
@@ -511,11 +499,42 @@ std::ostream& Continuation::stream_jump(std::ostream& os) const {
 void Continuation::dump_head() const { stream_head(std::cout) << endl; }
 void Continuation::dump_jump() const { stream_jump(std::cout) << endl; }
 
+//------------------------------------------------------------------------------
+
+bool visit_uses(Continuation* cont, std::function<bool(Continuation*)> func) {
+    if (!cont->is_intrinsic()) {
+        for (auto use : cont->uses()) {
+            if (auto continuation = (use->isa<Global>() ? *use->uses().begin() : use)->isa_continuation()) // TODO make more robust
+                if (func(continuation))
+                        return true;
+        }
+    }
+    return false;
+}
+
+bool visit_capturing_intrinsics(Continuation* cont, std::function<bool(Continuation*)> func) {
+    if (!cont->is_intrinsic()) {
+        for (auto use : cont->uses()) {
+            if (auto continuation = (use->isa<Global>() ? *use->uses().begin() : use)->isa_continuation()) // TODO make more robust
+                if (auto callee = continuation->callee()->isa_continuation())
+                    if (callee->is_intrinsic() && func(callee))
+                        return true;
+        }
+    }
+    return false;
+}
+
+bool is_passed_to_accelerator(Continuation* cont) {
+    return visit_capturing_intrinsics(cont, [&] (Continuation* continuation) { return continuation->is_accelerator(); });
+}
+
+bool is_passed_to_intrinsic(Continuation* cont, Intrinsic intrinsic) {
+    return visit_capturing_intrinsics(cont, [&] (Continuation* continuation) { return continuation->intrinsic() == intrinsic; });
+}
+
 void clear_value_numbering_table(World& world) {
     for (auto continuation : world.continuations())
         continuation->clear_value_numbering_table();
 }
-
-//------------------------------------------------------------------------------
 
 }

@@ -167,8 +167,6 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
     Def2Def wrapped, unwrapped;
     DefSet unwrapped_codom;
 
-    world.dump();
-
     while (todo) {
         todo = false;
 

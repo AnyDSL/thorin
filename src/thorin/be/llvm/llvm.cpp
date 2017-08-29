@@ -1036,9 +1036,9 @@ void CodeGen::create_loop(llvm::Value* lower, llvm::Value* upper, llvm::Value* i
 //------------------------------------------------------------------------------
 
 void emit_llvm(World& world, int opt, bool debug) {
-    Importer cuda(world.name());
-    Importer nvvm(world.name());
-    Importer opencl(world.name());
+    Importer cuda(world);
+    Importer nvvm(world);
+    Importer opencl(world);
     Cont2Config kernel_config;
 
     // determine different parts of the world which need to be compiled differently

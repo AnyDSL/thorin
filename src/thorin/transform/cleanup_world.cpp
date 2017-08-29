@@ -159,7 +159,7 @@ next_continuation:;
 }
 
 void Cleaner::rebuild() {
-    Importer importer(world_.name());
+    Importer importer(world_);
     importer.type_old2new_.rehash(world_.types_.capacity());
     importer.def_old2new_.rehash(world_.primops().capacity());
 

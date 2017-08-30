@@ -901,7 +901,7 @@ void World::cleanup() { cleanup_world(*this); }
 void World::opt() {
     cleanup();
     higher_order_lifting(*this);
-    partial_evaluation(*this);
+    partial_evaluation(*this, simple_pe);
     flatten_tuples(*this);
     clone_bodies(*this);
     mem2reg(*this);

@@ -55,7 +55,7 @@ void Scope::run(Continuation* entry) {
         auto def = pop(queue);
         if (def != entry) {
             for (auto use : def->uses()) {
-                if (use.index() == 0 || !use->isa<EvalOp>())
+                if (use.index() == 0 || !use->isa<Run>())
                     enqueue(use);
             }
         }

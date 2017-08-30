@@ -77,6 +77,11 @@ LEA::LEA(const Def* ptr, const Def* index, Debug dbg)
     }
 }
 
+
+Known::Known(const Def* def, Debug dbg)
+    : PrimOp(Node_Known, def->world().type_bool(), {def}, dbg)
+{}
+
 SizeOf::SizeOf(const Def* def, Debug dbg)
     : PrimOp(Node_SizeOf, def->world().type_qs32(), {def}, dbg)
 {}

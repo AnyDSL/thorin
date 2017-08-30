@@ -406,9 +406,7 @@ public:
 /// Evaluates to @c true, if @p def is a literal.
 class Known : public PrimOp {
 private:
-    Known(const Def* def, Debug dbg)
-        : PrimOp(Node_Known, def->type(), {def}, dbg)
-    {}
+    Known(const Def* def, Debug dbg);
 
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
 

@@ -188,7 +188,6 @@ void eval(World& world) {
 
 void partial_evaluation(World& world) {
     world.cleanup();
-    world.dump();
     VLOG_SCOPE(eval(world));
 
     world.mark_pe_done();

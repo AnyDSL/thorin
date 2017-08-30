@@ -78,6 +78,7 @@ bool is_unit(const Def* def) {
 
 bool is_const(const Def* def) {
     if (def->isa<Param>()) return false;
+    if (def->isa<Hlt>()) return false;
     if (def->isa<PrimOp>()) {
         for (auto op : def->ops()) { // TODO slow because ops form a DAG not a tree
             if (!is_const(op))

@@ -795,10 +795,10 @@ const Def* World::hlt(const Def* def, Debug dbg) {
 }
 
 const Def* World::known(const Def* def, Debug dbg) {
+    if (pe_done_ || def->isa<Hlt>())
+        return literal_bool(false, dbg);
     if (is_const(def))
         return literal_bool(true, dbg);
-    if (pe_done_)
-        return literal_bool(false, dbg);
     return cse(new Known(def, dbg));
 }
 

@@ -59,10 +59,10 @@ DefSet free_defs(Continuation* entry) {
 bool has_free_vars(Continuation* entry) {
     for (auto def : free_defs(entry)) {
         if (!def->isa_continuation())
-            return false;
+            return true;
     }
 
-    return true;
+    return false;
 }
 
 }

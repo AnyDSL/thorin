@@ -72,6 +72,12 @@ const Def* Importer::import(const Def* odef) {
                 return ncontinuation;
             }
         }
+
+        auto old_profile = ocontinuation->pe_profile();
+        Array<const Def*> new_profile(old_profile.size());
+        for (size_t i = 0, e = old_profile.size(); i != e; ++i)
+            new_profile[i] = import(old_profile[i]);
+        ncontinuation->set_pe_profile(new_profile);
     }
 
     size_t size = odef->num_ops();

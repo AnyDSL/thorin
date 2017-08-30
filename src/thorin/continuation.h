@@ -173,6 +173,13 @@ public:
     Continuation* update_op(size_t i, const Def* def);
     Continuation* update_callee(const Def* def) { return update_op(0, def); }
     Continuation* update_arg(size_t i, const Def* def) { return update_op(i+1, def); }
+    void set_pe_profile(Defs defs) {
+        assertf(defs.empty() || num_params() == defs.size(), "expected {} - got {}", num_params(), defs.size());
+        pe_profile_ = defs;
+    }
+    Defs pe_profile() const { return pe_profile_; }
+    const Def* pe_profile(size_t i) const { return pe_profile_[i]; }
+
 
     // value numbering
 
@@ -230,6 +237,7 @@ private:
      */
     Continuation* parent_;
     std::vector<const Param*> params_;
+    Array<const Def*> pe_profile_; ///< used during @p partial_evaluation
     std::deque<Tracker> values_;
     std::vector<Todo> todos_;
     CC cc_;

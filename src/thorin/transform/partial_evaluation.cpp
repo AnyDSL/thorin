@@ -1,6 +1,7 @@
 #include "thorin/primop.h"
 #include "thorin/world.h"
 #include "thorin/analyses/cfg.h"
+#include "thorin/analyses/free_defs.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/util/hash.h"
 #include "thorin/util/log.h"
@@ -33,8 +34,91 @@ private:
     bool dirty_ = false;
 };
 
+class CondEval {
+public:
+    CondEval(Continuation* callee, Defs args)
+        : callee_(callee)
+        , args_(args)
+    {
+        assert(callee->pe_profile().size() == args.size());
+        assert(callee->num_params() == args.size());
+
+        for (size_t i = 0, e = args.size(); i != e; ++i)
+            old2new_[callee->param(i)] = args[i];
+    }
+
+    const Def* instantiate(const Def* odef) {
+        if (auto ndef = find(old2new_, odef))
+            return ndef;
+
+        if (auto oprimop = odef->isa<PrimOp>()) {
+            Array<const Def*> nops(oprimop->num_ops());
+            for (size_t i = 0; i != oprimop->num_ops(); ++i)
+                nops[i] = instantiate(odef->op(i));
+
+            auto nprimop = oprimop->rebuild(nops);
+            return old2new_[oprimop] = nprimop;
+        }
+
+        return old2new_[odef] = odef;
+    }
+
+    bool eval(size_t i) {
+        // the only higher order parameter that is allowed is a single 1st-order paramter of a top-level continuation
+        // all other paramters need specializtion (lower2cff)
+        auto order = callee_->param(i)->order();
+        if (order >= 2 || (order == 1 && (!callee_->is_returning() || !has_free_vars(callee_)))) {
+            DLOG("bad param({}) {} of continuation {}", i, callee_->param(i), callee_);
+            return true;
+        }
+
+        return is_one(instantiate(callee_->pe_profile(i))) ? true : false;
+    }
+
+private:
+    Continuation* callee_;
+    Defs args_;
+    Def2Def old2new_;
+};
+
 void PartialEvaluator::run() {
-    // TODO
+    for (bool todo = true; todo;) {
+        todo = false;
+        for (auto n : scope().f_cfg().reverse_post_order()) {
+            auto continuation = n->continuation();
+
+            if (auto callee = continuation->callee()->isa_continuation()) {
+                if (callee->pe_profile().empty())
+                    continue;
+
+                Call call(continuation);
+                call.callee() = callee;
+                bool fold = false;
+
+                CondEval cond_eval(callee, continuation->args());
+                for (size_t i = 0, e = call.num_args(); i != e; ++i) {
+                    if (cond_eval.eval(i)) {
+                        call.arg(i) = continuation->arg(i);
+                        fold = true;
+                    } else
+                        call.arg(i) = nullptr;
+                }
+
+                if (fold) {
+                    const auto& p = cache_.emplace(call, nullptr);
+                    Continuation*& target = p.first->second;
+                    // create new specialization if not found in cache
+                    if (p.second)
+                        target = drop(call);
+
+                    jump_to_cached_call(continuation, target, call);
+
+                    dirty_ = todo = true;
+                    break;
+                }
+            }
+        }
+    }
 }
 
 void eat_pe_info(Continuation* cur, bool eval) {
@@ -104,6 +188,7 @@ void eval(World& world) {
 
 void partial_evaluation(World& world) {
     world.cleanup();
+    world.dump();
     VLOG_SCOPE(eval(world));
 
     world.mark_pe_done();

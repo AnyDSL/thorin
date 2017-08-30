@@ -51,4 +51,18 @@ queue_next:;
     return result;
 }
 
+DefSet free_defs(Continuation* entry) {
+    Scope scope(entry);
+    return free_defs(scope);
+}
+
+bool has_free_vars(Continuation* entry) {
+    for (auto def : free_defs(entry)) {
+        if (!def->isa_continuation())
+            return false;
+    }
+
+    return true;
+}
+
 }

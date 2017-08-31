@@ -109,7 +109,7 @@ void PartialEvaluator::run() {
                     target = drop(call);
 
                 if (fold) {
-                    jump_to_cached_call(continuation, target, call);
+                    jump_to_dropped_call(continuation, target, call);
                     todo = true;
                 }
             }

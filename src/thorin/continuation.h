@@ -319,7 +319,7 @@ private:
     mutable uint64_t hash_ = 0;
 };
 
-void jump_to_cached_call(Continuation* src, Continuation* dst, const Call& call);
+void jump_to_dropped_call(Continuation* src, Continuation* dst, const Call& call);
 
 void clear_value_numbering_table(World&);
 

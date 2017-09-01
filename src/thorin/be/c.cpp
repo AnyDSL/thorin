@@ -113,7 +113,7 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
             os << endl;
             emit_type(os, struct_type->op(i)) << " e" << i << ";";
         }
-        os << down << endl << "} struct_" << struct_type->gid() << ";";
+        os << down << endl << "} struct_" << struct_type->name() << "_" << struct_type->gid() << ";";
         return os;
     } else if (type->isa<Var>()) {
         THORIN_UNREACHABLE;
@@ -227,7 +227,7 @@ std::ostream& CCodeGen::emit_aggop_decl(const Type* type) {
         for (auto op : struct_type->ops())
             emit_aggop_decl(op);
         emit_type(type_decls_, struct_type) << endl;
-        insert(type, "struct_" + std::to_string(type->gid()));
+        insert(type, "struct_" + std::string(struct_type->name()) + "_" + std::to_string(type->gid()));
     }
 
     // restore indent

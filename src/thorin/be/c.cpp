@@ -98,7 +98,7 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
     } else if (auto tuple = type->isa<TupleType>()) {
         if (lookup(tuple))
             return os << get_name(tuple);
-        os << "typedef struct tuple_" << tuple->gid() << " {" << up;
+        os << "typedef struct {" << up;
         for (size_t i = 0, e = tuple->ops().size(); i != e; ++i) {
             os << endl;
             emit_type(os, tuple->op(i)) << " e" << i << ";";
@@ -108,7 +108,7 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
     } else if (auto struct_type = type->isa<StructType>()) {
         if (lookup(struct_type))
             return os << get_name(struct_type);
-        os << "typedef struct struct_" << struct_type->gid() << " {" << up;
+        os << "typedef struct {" << up;
         for (size_t i = 0, e = struct_type->num_ops(); i != e; ++i) {
             os << endl;
             emit_type(os, struct_type->op(i)) << " e" << i << ";";
@@ -123,7 +123,7 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
     } else if (auto array = type->isa<DefiniteArrayType>()) { // DefArray is mapped to a struct
         if (lookup(array))
             return os << get_name(array);
-        os << "typedef struct array_" << array->gid() << " {" << up << endl;
+        os << "typedef struct {" << up << endl;
         emit_type(os, array->elem_type()) << " e[" << array->dim() << "];";
         os << down << endl << "} array_" << array->gid() << ";";
         return os;

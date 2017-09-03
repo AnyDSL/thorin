@@ -278,7 +278,7 @@ std::pair<Continuation*, const Def*> Continuation::call(const Def* callee, Defs 
     return std::make_pair(next, ret);
 }
 
-void jump_to_cached_call(Continuation* src, Continuation* dst, const Call& call) {
+void jump_to_dropped_call(Continuation* src, Continuation* dst, const Call& call) {
     std::vector<const Def*> nargs;
     for (size_t i = 0, e = src->num_args(); i != e; ++i) {
         if (!call.arg(i))

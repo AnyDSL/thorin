@@ -64,6 +64,7 @@ void Cleaner::eta_conversion() {
 
                             perm[i] = param_it - continuation->args().begin();
                         }
+
                         // check that the array is a valid permutation
                         if (is_permutation) {
                             Array<bool> seen(continuation->num_args());
@@ -73,7 +74,9 @@ void Cleaner::eta_conversion() {
                                 seen[i] = true;
                             }
                         }
-                        if (!is_permutation) continue;
+
+                        if (!is_permutation)
+                            continue;
 
                         // for every use of the continuation at a call site,
                         // permute the arguments and call the parameter instead
@@ -159,7 +162,7 @@ next_continuation:;
 }
 
 void Cleaner::rebuild() {
-    Importer importer(world_.name());
+    Importer importer(world_);
     importer.type_old2new_.rehash(world_.types_.capacity());
     importer.def_old2new_.rehash(world_.primops().capacity());
 

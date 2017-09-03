@@ -203,7 +203,8 @@ public:
 
     // other stuff
 
-    void pe_done() { pe_done_ = true; }
+    void mark_pe_done(bool flag = true) { pe_done_ = flag; }
+    bool is_pe_done() const { return pe_done_; }
     void add_external(Continuation* continuation) { externals_.insert(continuation); }
     void remove_external(Continuation* continuation) { externals_.erase(continuation); }
     bool is_external(const Continuation* continuation) { return externals().contains(const_cast<Continuation*>(continuation)); }
@@ -237,8 +238,10 @@ public:
         swap(w1.trackers_,      w2.trackers_);
         swap(w1.branch_,        w2.branch_);
         swap(w1.end_scope_,     w2.end_scope_);
+        swap(w1.pe_done_,       w2.pe_done_);
 #ifndef NDEBUG
         swap(w1.breakpoints_,   w2.breakpoints_);
+        swap(w1.track_history_, w2.track_history_);
 #endif
     }
 

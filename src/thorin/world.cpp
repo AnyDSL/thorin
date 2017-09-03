@@ -795,10 +795,10 @@ const Def* World::hlt(const Def* def, Debug dbg) {
 }
 
 const Def* World::known(const Def* def, Debug dbg) {
+    if (pe_done_ || def->isa<Hlt>())
+        return literal_bool(false, dbg);
     if (is_const(def))
         return literal_bool(true, dbg);
-    if (pe_done_)
-        return literal_bool(false, dbg);
     return cse(new Known(def, dbg));
 }
 
@@ -900,9 +900,9 @@ void World::cleanup() { cleanup_world(*this); }
 
 void World::opt() {
     cleanup();
-    flatten_tuples(*this);
     higher_order_lifting(*this);
     partial_evaluation(*this);
+    flatten_tuples(*this);
     clone_bodies(*this);
     mem2reg(*this);
     lift_builtins(*this);

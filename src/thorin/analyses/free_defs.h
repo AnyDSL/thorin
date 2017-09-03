@@ -8,6 +8,11 @@ namespace thorin {
 class Scope;
 
 DefSet free_defs(const Scope&);
+DefSet free_defs(Continuation* entry);
+
+
+/// Returns @c true if @p entry has @p free_defs that are @em not @p Continuation%s.
+bool has_free_vars(Continuation* entry);
 
 }
 

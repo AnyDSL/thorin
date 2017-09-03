@@ -1056,7 +1056,7 @@ void emit_llvm(World& world, int opt, bool debug) {
             imported = nvvm.import(continuation)->as_continuation();
         else if (is_passed_to_intrinsic(continuation, Intrinsic::OpenCL))
             imported = opencl.import(continuation)->as_continuation();
-        else if (continuation->is_passed_to_intrinsic(Intrinsic::AMDGPU))
+        else if (is_passed_to_intrinsic(continuation, Intrinsic::AMDGPU))
             imported = amdgpu.import(continuation)->as_continuation();
         else
             return;

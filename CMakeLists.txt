@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.1 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.4.3 FATAL_ERROR)
 
 project(Thorin)
 
@@ -25,16 +25,15 @@ find_package(LLVM CONFIG QUIET)
 if(LLVM_FOUND)
     message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
     message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
+    # check for RV
+    find_package(RV)
+    if(RV_FOUND)
+        message(STATUS "Building with RV from LLVM installation.")
+    else()
+        message(STATUS "Building without RV. Install RV as part of LLVM.")
+    endif()
 else()
-    message(STATUS "Building without LLVM. Specify LLVM_DIR to compile with LLVM.")
-endif()
-
-# check for RV
-find_package(RV QUIET)
-if(RV_FOUND)
-    message(STATUS "Building with RV.")
-else()
-    message(STATUS "Building without RV. Specify RV_DIR to compile with RV.")
+    message(STATUS "Building without LLVM and RV. Specify LLVM_DIR to compile with LLVM.")
 endif()
 
 add_subdirectory(src)

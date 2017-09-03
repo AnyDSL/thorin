@@ -3,7 +3,7 @@
 #include <sstream>
 #include <stdexcept>
 
-#include <llvm/Bitcode/ReaderWriter.h>
+#include <llvm/Bitcode/BitcodeReader.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Type.h>
 #include <llvm/IRReader/IRReader.h>

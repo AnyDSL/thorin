@@ -4,7 +4,7 @@
 #include <stdexcept>
 
 #include <llvm/ADT/Triple.h>
-#include <llvm/Bitcode/ReaderWriter.h>
+#include <llvm/Bitcode/BitcodeWriter.h>
 #include <llvm/IR/Constant.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Function.h>
@@ -35,6 +35,7 @@
 #include "thorin/world.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
+#include "thorin/be/llvm/amdgpu.h"
 #include "thorin/be/llvm/cpu.h"
 #include "thorin/be/llvm/cuda.h"
 #include "thorin/be/llvm/nvvm.h"
@@ -68,6 +69,7 @@ Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
         case Intrinsic::CUDA:      return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM,   ".cu",   continuation);
         case Intrinsic::NVVM:      return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM,   ".nvvm", continuation);
         case Intrinsic::OpenCL:    return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".cl",   continuation);
+        case Intrinsic::AMDGPU:    return runtime_->emit_host_code(*this, Runtime::AMDGPU_PLATFORM, ".gcn",  continuation);
         case Intrinsic::Parallel:  return emit_parallel(continuation);
         case Intrinsic::Spawn:     return emit_spawn(continuation);
         case Intrinsic::Sync:      return emit_sync(continuation);
@@ -86,14 +88,14 @@ void CodeGen::emit_result_phi(const Param* param, llvm::Value* value) {
 
 Continuation* CodeGen::emit_atomic(Continuation* continuation) {
     assert(continuation->num_args() == 5 && "required arguments are missing");
+    if (!is_type_i(continuation->arg(3)->type()))
+        ELOG(continuation->arg(3), "atomic only supported for integer types");
     // atomic tag: Xchg Add Sub And Nand Or Xor Max Min
     u32 tag = continuation->arg(1)->as<PrimLit>()->qu32_value();
     auto ptr = lookup(continuation->arg(2));
     auto val = lookup(continuation->arg(3));
-    assert(is_type_i(continuation->arg(3)->type()) && "atomic only supported for integer types");
     assert(int(llvm::AtomicRMWInst::BinOp::Xchg) <= int(tag) && int(tag) <= int(llvm::AtomicRMWInst::BinOp::UMin) && "unsupported atomic");
-    llvm::AtomicRMWInst::BinOp binop = (llvm::AtomicRMWInst::BinOp)tag;
-
+    auto binop = (llvm::AtomicRMWInst::BinOp)tag;
     auto cont = continuation->arg(4)->as_continuation();
     auto call = irbuilder_.CreateAtomicRMW(binop, ptr, val, llvm::AtomicOrdering::SequentiallyConsistent, llvm::SynchronizationScope::CrossThread);
     emit_result_phi(cont->param(1), call);
@@ -102,12 +104,12 @@ Continuation* CodeGen::emit_atomic(Continuation* continuation) {
 
 Continuation* CodeGen::emit_cmpxchg(Continuation* continuation) {
     assert(continuation->num_args() == 5 && "required arguments are missing");
+    if (!is_type_i(continuation->arg(3)->type()))
+        ELOG(continuation->arg(3), "cmpxchg only supported for integer types");
     auto ptr  = lookup(continuation->arg(1));
     auto cmp  = lookup(continuation->arg(2));
     auto val  = lookup(continuation->arg(3));
     auto cont = continuation->arg(4)->as_continuation();
-    assert(is_type_i(continuation->arg(3)->type()) && "cmpxchg only supported for integer types");
-
     auto call = irbuilder_.CreateAtomicCmpXchg(ptr, cmp, val, llvm::AtomicOrdering::SequentiallyConsistent, llvm::AtomicOrdering::SequentiallyConsistent, llvm::SynchronizationScope::CrossThread);
     auto loaded  = irbuilder_.CreateExtractValue(call, unsigned(0));
     auto success = irbuilder_.CreateExtractValue(call, unsigned(1));
@@ -121,7 +123,7 @@ Continuation* CodeGen::emit_reserve(const Continuation* continuation) {
     THORIN_UNREACHABLE;
 }
 
-Continuation* CodeGen::emit_reserve_shared(const Continuation* continuation) {
+Continuation* CodeGen::emit_reserve_shared(const Continuation* continuation, bool init_undef) {
     assert(continuation->num_args() == 3 && "required arguments are missing");
     if (!continuation->arg(1)->isa<PrimLit>())
         ELOG(continuation->arg(1), "reserve_shared: couldn't extract memory size");
@@ -134,7 +136,7 @@ Continuation* CodeGen::emit_reserve_shared(const Continuation* continuation) {
     auto name = continuation->unique_name();
     // NVVM doesn't allow '.' in global identifier
     std::replace(name.begin(), name.end(), '.', '_');
-    auto global = emit_global_variable(smem_type, name, 3);
+    auto global = emit_global_variable(smem_type, name, 3, init_undef);
     auto call = irbuilder_.CreatePointerCast(global, type);
     emit_result_phi(cont->param(1), call);
     return cont;
@@ -198,7 +200,7 @@ void CodeGen::emit(int opt, bool debug) {
         // Darwin only supports dwarf2
         if (llvm::Triple(llvm::sys::getProcessTriple()).isOSDarwin())
             module_->addModuleFlag(llvm::Module::Warning, "Dwarf Version", 2);
-        dicompile_unit = dibuilder_.createCompileUnit(llvm::dwarf::DW_LANG_C, world_.name(), llvm::StringRef(), "Impala", opt > 0, llvm::StringRef(), 0);
+        dicompile_unit = dibuilder_.createCompileUnit(llvm::dwarf::DW_LANG_C, dibuilder_.createFile(world_.name(), llvm::StringRef()), "Impala", opt > 0, llvm::StringRef(), 0);
     }
 
     Scope::for_each(world_, [&] (const Scope& scope) {
@@ -905,6 +907,17 @@ llvm::Value* CodeGen::emit_assembly(const Assembly* assembly) {
     return irbuilder_.CreateCall(asm_expr, llvm_ref(input_values));
 }
 
+unsigned CodeGen::convert_addr_space(const AddrSpace addr_space) {
+    switch (addr_space) {
+        case AddrSpace::Generic:  return 0;
+        case AddrSpace::Global:   return 1;
+        case AddrSpace::Texture:  return 2;
+        case AddrSpace::Shared:   return 3;
+        case AddrSpace::Constant: return 4;
+        default:                  THORIN_UNREACHABLE;
+    }
+}
+
 llvm::Type* CodeGen::convert(const Type* type) {
     if (auto llvm_type = thorin::find(types_, type))
         return llvm_type;
@@ -922,16 +935,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
         case PrimType_pf64: case PrimType_qf64:                                         llvm_type = irbuilder_.getDoubleTy(); break;
         case Node_PtrType: {
             auto ptr = type->as<PtrType>();
-            unsigned addr_space;
-            switch (ptr->addr_space()) {
-                case AddrSpace::Generic:  addr_space = 0; break;
-                case AddrSpace::Global:   addr_space = 1; break;
-                case AddrSpace::Texture:  addr_space = 2; break;
-                case AddrSpace::Shared:   addr_space = 3; break;
-                case AddrSpace::Constant: addr_space = 4; break;
-                default:                  THORIN_UNREACHABLE;
-            }
-            llvm_type = llvm::PointerType::get(convert(ptr->pointee()), addr_space);
+            llvm_type = llvm::PointerType::get(convert(ptr->pointee()), convert_addr_space(ptr->addr_space()));
             break;
         }
         case Node_IndefiniteArrayType: {
@@ -1004,10 +1008,9 @@ llvm::Type* CodeGen::convert(const Type* type) {
     return types_[type] = llvm_type;
 }
 
-llvm::GlobalVariable* CodeGen::emit_global_variable(llvm::Type* type, const std::string& name, unsigned addr_space) {
-    return new llvm::GlobalVariable(*module_, type, false,
-            llvm::GlobalValue::InternalLinkage, llvm::Constant::getNullValue(type), name,
-            nullptr, llvm::GlobalVariable::NotThreadLocal, addr_space);
+llvm::GlobalVariable* CodeGen::emit_global_variable(llvm::Type* type, const std::string& name, unsigned addr_space, bool init_undef) {
+    auto init = init_undef ? llvm::UndefValue::get(type) : llvm::Constant::getNullValue(type);
+    return new llvm::GlobalVariable(*module_, type, false, llvm::GlobalValue::InternalLinkage, init, name, nullptr, llvm::GlobalVariable::NotThreadLocal, addr_space);
 }
 
 void CodeGen::create_loop(llvm::Value* lower, llvm::Value* upper, llvm::Value* increment, llvm::Function* entry, std::function<void(llvm::Value*)> fun) {
@@ -1039,6 +1042,8 @@ void emit_llvm(World& world, int opt, bool debug) {
     Importer cuda(world.name());
     Importer nvvm(world.name());
     Importer opencl(world.name());
+    Importer amdgpu(world.name());
+
     Cont2Config kernel_config;
 
     // determine different parts of the world which need to be compiled differently
@@ -1051,6 +1056,8 @@ void emit_llvm(World& world, int opt, bool debug) {
             imported = nvvm.import(continuation)->as_continuation();
         else if (is_passed_to_intrinsic(continuation, Intrinsic::OpenCL))
             imported = opencl.import(continuation)->as_continuation();
+        else if (continuation->is_passed_to_intrinsic(Intrinsic::AMDGPU))
+            imported = amdgpu.import(continuation)->as_continuation();
         else
             return;
 
@@ -1073,7 +1080,7 @@ void emit_llvm(World& world, int opt, bool debug) {
 
     });
 
-    if (!cuda.world().empty() || !nvvm.world().empty() || !opencl.world().empty()) {
+    if (!cuda.world().empty() || !nvvm.world().empty() || !amdgpu.world().empty() || !opencl.world().empty()) {
         world.cleanup();
         codegen_prepare(world);
     }
@@ -1082,6 +1089,7 @@ void emit_llvm(World& world, int opt, bool debug) {
     if (!cuda.  world().empty()) CUDACodeGen  (cuda  .world(), kernel_config).emit(/*opt,*/ debug);
     if (!nvvm.  world().empty()) NVVMCodeGen  (nvvm  .world(), kernel_config).emit(opt, debug);
     if (!opencl.world().empty()) OpenCLCodeGen(opencl.world(), kernel_config).emit(/*opt,*/ debug);
+    if (!amdgpu.world().empty()) AMDGPUCodeGen(amdgpu.world(), kernel_config).emit(opt, debug);
 }
 
 //------------------------------------------------------------------------------

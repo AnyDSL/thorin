@@ -173,6 +173,7 @@ void Continuation::set_intrinsic() {
     if      (name() == "cuda")           intrinsic_ = Intrinsic::CUDA;
     else if (name() == "nvvm")           intrinsic_ = Intrinsic::NVVM;
     else if (name() == "opencl")         intrinsic_ = Intrinsic::OpenCL;
+    else if (name() == "amdgpu")         intrinsic_ = Intrinsic::AMDGPU;
     else if (name() == "parallel")       intrinsic_ = Intrinsic::Parallel;
     else if (name() == "spawn")          intrinsic_ = Intrinsic::Spawn;
     else if (name() == "sync")           intrinsic_ = Intrinsic::Sync;

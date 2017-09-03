@@ -33,7 +33,8 @@ public:
     enum Platform {
         CPU_PLATFORM,
         CUDA_PLATFORM,
-        OPENCL_PLATFORM
+        OPENCL_PLATFORM,
+        AMDGPU_PLATFORM
     };
 
     /// Emits a call to anydsl_synchronize.

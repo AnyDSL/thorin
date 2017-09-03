@@ -36,7 +36,6 @@ if(Thorin_HAS_LLVM_SUPPORT)
     find_package(LLVM CONFIG QUIET)
 
     if(Thorin_HAS_RV_SUPPORT)
-        find_path(RV_DIR rv-config.cmake PATHS ${RV_DIR} $ENV{RV_DIR} "@RV_DIR@")
         find_package(RV QUIET)
     endif()
 endif()

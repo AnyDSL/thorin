@@ -31,6 +31,7 @@ protected:
     llvm::Value* lookup(const Def*);
     llvm::AllocaInst* emit_alloca(llvm::Type*, const std::string&);
     llvm::Function* emit_function_decl(Continuation*);
+    virtual unsigned convert_addr_space(const AddrSpace);
     virtual void emit_function_decl_hook(Continuation*, llvm::Function*) {}
     virtual llvm::Value* map_param(llvm::Function*, llvm::Argument* a, const Param*) { return a; }
     virtual void emit_function_start(llvm::BasicBlock*, Continuation*) {}
@@ -44,8 +45,8 @@ protected:
 
     virtual std::string get_alloc_name() const = 0;
     virtual std::string get_output_name(const std::string& name) const = 0;
-    llvm::GlobalVariable* emit_global_variable(llvm::Type*, const std::string&, unsigned);
-    Continuation* emit_reserve_shared(const Continuation*);
+    llvm::GlobalVariable* emit_global_variable(llvm::Type*, const std::string&, unsigned, bool=false);
+    Continuation* emit_reserve_shared(const Continuation*, bool=false);
 
 private:
     Continuation* emit_peinfo(Continuation*);

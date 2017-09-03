@@ -94,6 +94,8 @@ if(LLVM_FOUND)
         be/llvm/cuda.h
         be/llvm/llvm.cpp
         be/llvm/llvm.h
+        be/llvm/amdgpu.cpp
+        be/llvm/amdgpu.h
         be/llvm/nvvm.cpp
         be/llvm/nvvm.h
         be/llvm/opencl.cpp
@@ -109,10 +111,9 @@ endif()
 add_library(thorin ${THORIN_SOURCES})
 
 if(LLVM_FOUND)
-    llvm_map_components_to_libnames(LLVM_LIBRARIES core mc native ipo irreader bitreader bitwriter scalaropts support target)
+    llvm_map_components_to_libnames(LLVM_LIBRARIES core mc native ipo irreader bitreader bitwriter scalaropts support target passes)
     target_link_libraries(thorin ${LLVM_LIBRARIES})
 endif()
 if(RV_FOUND)
-    get_rv_llvm_dependency_libs(LLVM_RV_LIBRARIES)
-    target_link_libraries(thorin ${LLVM_RV_LIBRARIES} ${RV_LIBRARIES})
+    target_link_libraries(thorin ${RV_LIBRARIES})
 endif()

@@ -14,7 +14,7 @@ include_directories(${Half_INCLUDE_DIRS})
 
 if(RV_FOUND)
     add_definitions("-DRV_SUPPORT")
-    include_directories(${RV_INCLUDE_DIR})
+    include_directories(${RV_INCLUDE_DIRS})
 endif()
 
 if(LLVM_FOUND)

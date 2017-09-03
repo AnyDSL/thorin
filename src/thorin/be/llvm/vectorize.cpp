@@ -1,17 +1,21 @@
 #ifdef RV_SUPPORT
 #include "thorin/be/llvm/llvm.h"
 
+#include <llvm/IR/Dominators.h>
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Analysis/LoopInfo.h>
-#include <llvm/IR/Dominators.h>
+#include <llvm/Analysis/ScalarEvolution.h>
+#include <llvm/Analysis/MemoryDependenceAnalysis.h>
+#include <llvm/Passes/PassBuilder.h>
+#include <llvm/IR/LegacyPassManager.h>
 
 #include <rv/rv.h>
 #include <rv/vectorizationInfo.h>
 #include <rv/sleefLibrary.h>
 #include <rv/transform/loopExitCanonicalizer.h>
-#include <rv/analysis/maskAnalysis.h>
+#include <rv/passes.h>
 
 #include "thorin/primop.h"
 #include "thorin/util/log.h"
@@ -85,10 +89,12 @@ Continuation* CodeGen::emit_vectorize_continuation(Continuation* continuation) {
 
 void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* kernel_func, llvm::CallInst* simd_kernel_call) {
     // ensure proper loop forms
-    legacy::FunctionPassManager pm(module_.get());
+    llvm::legacy::FunctionPassManager pm(module_.get());
+    pm.add(rv::createCNSPass()); // make all loops reducible (has to run first!)
+    pm.add(llvm::createPromoteMemoryToRegisterPass()); // CNSPass relies on mem2reg for now
     pm.add(llvm::createLICMPass());
     pm.add(llvm::createLCSSAPass());
-    pm.add(createLowerSwitchPass());
+    pm.add(llvm::createLowerSwitchPass());
     pm.run(*kernel_func);
 
     // vectorize function
@@ -107,48 +113,58 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
     rv::VectorMapping target_mapping(kernel_func, simd_kernel_func, vector_length, -1, res, args);
     rv::VectorizationInfo vec_info(target_mapping);
 
+    llvm::FunctionAnalysisManager FAM;
+    llvm::ModuleAnalysisManager MAM;
+
+    llvm::PassBuilder PB;
+    PB.registerFunctionAnalyses(FAM);
+    PB.registerModuleAnalyses(MAM);
+
     llvm::TargetIRAnalysis ir_analysis;
-    llvm::TargetTransformInfo tti = ir_analysis.run(*kernel_func);
+    llvm::TargetTransformInfo tti = ir_analysis.run(*kernel_func, FAM);
     llvm::TargetLibraryAnalysis lib_analysis;
-    llvm::TargetLibraryInfo tli = lib_analysis.run(*kernel_func->getParent());
+    llvm::TargetLibraryInfo tli = lib_analysis.run(*kernel_func->getParent(), MAM);
     rv::PlatformInfo platform_info(*module_.get(), &tti, &tli);
 
     // TODO: use parameters from command line
-    const bool useSSE = false;
-    const bool useAVX = true;
-    const bool useAVX2 = false;
+    rv::Config config;
+    config.useSSE = true;
+    config.useAVX = false; // workaround for intrinsic ISA-precedence bug
+    config.useAVX2 = true;
+    config.useSLEEF = true;
     const bool impreciseFunctions = true;
-    rv::addSleefMappings(useSSE, useAVX, useAVX2, platform_info, impreciseFunctions);
 
-    rv::VectorizerInterface vectorizer(platform_info);
+    rv::addSleefMappings(config, platform_info, impreciseFunctions);
+
+    rv::VectorizerInterface vectorizer(platform_info, config);
 
     llvm::DominatorTree dom_tree(*kernel_func);
     llvm::PostDominatorTree pdom_tree;
-    pdom_tree.runOnFunction(*kernel_func);
+    pdom_tree.recalculate(*kernel_func);
     llvm::LoopInfo loop_info(dom_tree);
 
     llvm::DFG dfg(dom_tree);
     dfg.create(*kernel_func);
 
-    llvm::CDG cdg(*pdom_tree.DT);
+    llvm::CDG cdg(pdom_tree);
     cdg.create(*kernel_func);
+
+    llvm::ScalarEvolutionAnalysis SEA;
+    auto SE = SEA.run(*kernel_func, FAM);
+
+    llvm::MemoryDependenceAnalysis MDA;
+    auto MD = MDA.run(*kernel_func, FAM);
 
     LoopExitCanonicalizer canonicalizer(loop_info);
     canonicalizer.canonicalize(*kernel_func);
 
-    vectorizer.analyze(vec_info, cdg, dfg, loop_info, pdom_tree, dom_tree);
+    vectorizer.analyze(vec_info, cdg, dfg, loop_info);
 
-    std::unique_ptr<rv::MaskAnalysis> mask_analysis(vectorizer.analyzeMasks(vec_info, loop_info));
-    assert(mask_analysis);
-
-    bool mask_ok = vectorizer.generateMasks(vec_info, *mask_analysis, loop_info);
-    assert_unused(mask_ok);
-
-    bool linearize_ok = vectorizer.linearizeCFG(vec_info, *mask_analysis, loop_info, dom_tree);
-    assert_unused(linearize_ok);
+    bool lin_ok = vectorizer.linearize(vec_info, cdg, dfg, loop_info, pdom_tree, dom_tree);
+    assert_unused(lin_ok);
 
     llvm::DominatorTree new_dom_tree(*vec_info.getMapping().scalarFn); // Control conversion does not preserve the dominance tree
-    bool vectorize_ok = vectorizer.vectorize(vec_info, new_dom_tree, loop_info);
+    bool vectorize_ok = vectorizer.vectorize(vec_info, new_dom_tree, loop_info, SE, MD, nullptr);
     assert_unused(vectorize_ok);
 
     vectorizer.finalize();
@@ -156,6 +172,12 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
     // inline kernel
     llvm::InlineFunctionInfo info;
     llvm::InlineFunction(simd_kernel_call, info);
+
+    // remove vectorized function
+    if (simd_kernel_func->hasNUses(0))
+        simd_kernel_func->eraseFromParent();
+    else
+        simd_kernel_func->addFnAttr(llvm::Attribute::AlwaysInline);
 }
 
 }

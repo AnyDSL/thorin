@@ -10,20 +10,22 @@ namespace thorin {
 
 class PartialEvaluator {
 public:
-    PartialEvaluator(Scope& scope)
-        : scope_(scope)
+    PartialEvaluator(World& world)
+        : world_(world)
     {}
-    ~PartialEvaluator() {
-        scope(); // trigger update if dirty
+
+    World& world() { return world_; }
+    void run();
+    void enqueue(Continuation* continuation) {
+        if (done_.emplace(continuation).second)
+            queue_.push(continuation);
     }
 
-    World& world() { return scope_.world(); }
-    Scope& scope() { return scope_; }
-    void run();
-
 private:
-    Scope& scope_;
+    World& world_;
     HashMap<Call, Continuation*> cache_;
+    ContinuationSet done_;
+    std::queue<Continuation*> queue_;
 };
 
 class CondEval {
@@ -79,15 +81,14 @@ private:
 };
 
 void PartialEvaluator::run() {
-    for (bool todo = true; todo;) {
-        todo = false;
-        for (auto n : scope().f_cfg().post_order()) {
-            auto continuation = n->continuation();
+    for (auto external : world().externals())
+        enqueue(external);
 
-            if (auto callee = continuation->callee()->isa_continuation()) {
-                if (callee->empty())
-                    continue;
+    while (!queue_.empty()) {
+        auto continuation = pop(queue_);
 
+        if (auto callee = continuation->callee()->isa_continuation()) {
+            if (!callee->empty()) {
                 Call call(continuation);
                 call.callee() = callee;
 
@@ -108,15 +109,13 @@ void PartialEvaluator::run() {
                 if (p.second)
                     target = drop(call);
 
-                if (fold) {
+                if (fold)
                     jump_to_dropped_call(continuation, target, call);
-                    todo = true;
-                }
             }
         }
 
-        if (todo)
-            scope().update();
+        for (auto succ : continuation->succs())
+            enqueue(succ);
     }
 }
 
@@ -163,11 +162,9 @@ void eval_intrinsics(World& world, F f) {
 }
 
 void eval(World& world) {
-    Scope::for_each(world, [&] (Scope& scope) {
-        PartialEvaluator partial_evaluator(scope);
-        partial_evaluator.run();
-    });
+    PartialEvaluator(world).run();
 
+#if 0
     // Eat all pe_known calls
     eval_intrinsics(world, [&] (auto callee, auto continuation) {
         if (callee->intrinsic() == Intrinsic::PeKnown) {
@@ -177,12 +174,11 @@ void eval(World& world) {
         return false;
     });
 
-    world.cleanup();
-
     // Eat all other intrinsics
     eval_intrinsics(world, [&] (auto callee, auto continuation) {
         return eat_intrinsic(callee->intrinsic(), continuation, false);
     });
+#endif
 }
 
 void partial_evaluation(World& world) {

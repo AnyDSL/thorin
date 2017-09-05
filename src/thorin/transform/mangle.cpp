@@ -7,6 +7,22 @@
 
 namespace thorin {
 
+const Def* Rewriter::instantiate(const Def* odef) {
+    if (auto ndef = find(old2new, odef))
+        return ndef;
+
+    if (auto oprimop = odef->isa<PrimOp>()) {
+        Array<const Def*> nops(oprimop->num_ops());
+        for (size_t i = 0; i != oprimop->num_ops(); ++i)
+            nops[i] = instantiate(odef->op(i));
+
+        auto nprimop = oprimop->rebuild(nops);
+        return old2new[oprimop] = nprimop;
+    }
+
+    return old2new[odef] = odef;
+}
+
 Mangler::Mangler(const Scope& scope, Defs args, Defs lift)
     : scope_(scope)
     , args_(args)

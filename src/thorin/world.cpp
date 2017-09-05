@@ -802,6 +802,12 @@ const Def* World::known(const Def* def, Debug dbg) {
     return cse(new Known(def, dbg));
 }
 
+const Def* World::run(const Def* cond, const Def* def, Debug dbg) {
+    if (pe_done_ || is_zero(cond))
+        return def;
+    return cse(new Run(cond, def, dbg));
+}
+
 /*
  * continuations
  */

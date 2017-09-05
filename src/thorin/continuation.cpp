@@ -5,6 +5,7 @@
 #include "thorin/type.h"
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
+#include "thorin/transform/mangle.h"
 #include "thorin/util/log.h"
 
 namespace thorin {
@@ -30,9 +31,21 @@ const Def* Continuation::callee() const {
 }
 
 Continuation* Continuation::stub() const {
+    Rewriter rewriter;
+
     auto result = world().continuation(type(), cc(), intrinsic(), debug_history());
-    for (size_t i = 0, e = num_params(); i != e; ++i)
+    for (size_t i = 0, e = num_params(); i != e; ++i) {
         result->param(i)->debug() = param(i)->debug_history();
+        rewriter.old2new[param(i)] = result->param(i);
+    }
+
+    if (!pe_profile().empty()) {
+        Array<const Def*> new_pe_profile(num_params());
+        for (size_t i = 0, e = num_params(); i != e; ++i)
+            new_pe_profile[i] = rewriter.instantiate(pe_profile(i));
+
+        result->set_pe_profile(new_pe_profile);
+    }
 
     return result;
 }

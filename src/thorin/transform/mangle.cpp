@@ -63,6 +63,21 @@ Continuation* Mangler::mangle() {
     for (auto def : lift_)
         def2def_[def] = new_entry()->append_param(def->type()); // TODO reduce
 
+    // mangle pe_profile
+    if (!old_entry()->pe_profile().empty()) {
+        Array<const Def*> new_pe_profile(new_entry()->num_params());
+        size_t j = 0;
+        for (size_t i = 0, e = old_entry()->num_params(); i != e; ++i) {
+            if (args_[i] == nullptr)
+                new_pe_profile[j++] = mangle(old_entry()->pe_profile(i));
+        }
+
+        for (size_t e = new_entry()->num_params(); j != e; ++j)
+            new_pe_profile[j] = world().literal_bool(false, Debug{});
+
+        new_entry()->set_pe_profile(new_pe_profile);
+    }
+
     mangle_body(old_entry(), new_entry());
     return new_entry();
 }

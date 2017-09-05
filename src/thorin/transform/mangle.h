@@ -6,6 +6,11 @@
 
 namespace thorin {
 
+struct Rewriter {
+    const Def* instantiate(const Def* odef);
+    Def2Def old2new;
+};
+
 class Mangler {
 public:
     Mangler(const Scope& scope, Defs args, Defs lift);

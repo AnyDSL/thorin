@@ -147,6 +147,10 @@ void partial_evaluation(World& world) {
     VLOG_SCOPE(PartialEvaluator(world).run());
 
     world.mark_pe_done();
+
+    for (auto continuation : world.continuations())
+        continuation->destroy_pe_profile();
+
     world.cleanup();
 }
 

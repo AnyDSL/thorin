@@ -111,10 +111,7 @@ Continuation* CodeGen::emit_cmpxchg(Continuation* continuation) {
     auto val  = lookup(continuation->arg(3));
     auto cont = continuation->arg(4)->as_continuation();
     auto call = irbuilder_.CreateAtomicCmpXchg(ptr, cmp, val, llvm::AtomicOrdering::SequentiallyConsistent, llvm::AtomicOrdering::SequentiallyConsistent, llvm::SynchronizationScope::CrossThread);
-    auto loaded  = irbuilder_.CreateExtractValue(call, unsigned(0));
-    auto success = irbuilder_.CreateExtractValue(call, unsigned(1));
-    emit_result_phi(cont->param(1), loaded);
-    emit_result_phi(cont->param(2), success);
+    emit_result_phi(cont->param(1), call);
     return cont;
 }
 

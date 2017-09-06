@@ -145,7 +145,8 @@ void Cleaner::eliminate_params() {
                     ncontinuation->param(j++)->debug() = ocontinuation->param(i)->debug_history();
                 }
 
-                ncontinuation->set_pe_profile(ocontinuation->pe_profile().cut(proxy_idx));
+                if (!ocontinuation->pe_profile().empty())
+                    ncontinuation->set_pe_profile(ocontinuation->pe_profile().cut(proxy_idx));
                 ncontinuation->jump(ocontinuation->callee(), ocontinuation->args(), ocontinuation->jump_debug());
                 ocontinuation->destroy_body();
 

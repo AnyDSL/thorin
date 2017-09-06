@@ -485,6 +485,8 @@ std::ostream& Continuation::stream_head(std::ostream& os) const {
         os << " extern ";
     if (cc() == CC::Device)
         os << " device ";
+    if (!pe_profile().empty())
+        os << " @(" << stream_list(pe_profile(), [&](const Def* def) { os << def; }) << ')';
     return os;
 }
 

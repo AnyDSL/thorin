@@ -59,8 +59,8 @@ public:
     }
 
     bool eval(size_t i) {
-        // the only higher order parameter that is allowed is a single 1st-order paramter of a top-level continuation
-        // all other paramters need specializtion (lower2cff)
+        // the only higher order parameter that is allowed is a single 1st-order parameter of a top-level continuation
+        // all other parameters need specialization (lower2cff)
         auto order = callee_->param(i)->order();
         if (order >= 2 || (order == 1 && (!callee_->is_returning() || has_free_vars(callee_)))) {
             DLOG("bad param({}) {} of continuation {}", i, callee_->param(i), callee_);

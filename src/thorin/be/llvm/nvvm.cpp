@@ -19,8 +19,8 @@
 
 namespace thorin {
 
-NVVMCodeGen::NVVMCodeGen(World& world)
-    : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::PTX_Device, llvm::CallingConv::PTX_Kernel)
+NVVMCodeGen::NVVMCodeGen(World& world, const Cont2Config& kernel_config)
+    : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::PTX_Device, llvm::CallingConv::PTX_Kernel, kernel_config)
 {
     auto triple = llvm::Triple(llvm::sys::getDefaultTargetTriple());
     if (triple.isArch32Bit()) {

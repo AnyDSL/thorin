@@ -12,6 +12,7 @@
 #include "thorin/transform/codegen_prepare.h"
 #include "thorin/transform/inliner.h"
 #include "thorin/transform/lift_builtins.h"
+#include "thorin/transform/flatten_tuples.h"
 #include "thorin/transform/higher_order_lifting.h"
 #include "thorin/transform/hoist_enters.h"
 #include "thorin/transform/lower2cff.h"
@@ -828,6 +829,23 @@ const Param* World::param(const Type* type, Continuation* continuation, size_t i
  * misc
  */
 
+const Def* World::try_fold_aggregate(const Aggregate* agg) {
+    const Def* from = nullptr;
+    for (size_t i = 0, e = agg->num_ops(); i != e; ++i) {
+        auto arg = agg->op(i);
+        if (auto extract = arg->isa<Extract>()) {
+            if (from && extract->agg() != from) return agg;
+
+            auto literal = extract->index()->isa<PrimLit>();
+            if (!literal || literal->value().get_u64() != u64(i)) return agg;
+
+            from = extract->agg();
+        } else
+            return agg;
+    }
+    return from && from->type() == agg->type() ? from : agg;
+}
+
 Array<Continuation*> World::copy_continuations() const {
     Array<Continuation*> result(continuations().size());
     std::copy(continuations().begin(), continuations().end(), result.begin());
@@ -867,6 +885,7 @@ void World::opt(bool simple_pe) {
     cleanup();
     higher_order_lifting(*this);
     partial_evaluation(*this, simple_pe);
+    flatten_tuples(*this);
     lower2cff(*this);
     clone_bodies(*this);
     mem2reg(*this);

@@ -13,9 +13,9 @@ void lift_builtins(World& world) {
     Scope::for_each(world, [&] (const Scope& scope) {
         for (auto n : scope.f_cfg().post_order()) {
             auto continuation = n->continuation();
-            if (continuation->is_passed_to_accelerator() && !continuation->is_basicblock()) {
+            if (is_passed_to_accelerator(continuation) && !continuation->is_basicblock()) {
                 todo.push_back(continuation);
-                if (continuation->is_passed_to_intrinsic(Intrinsic::Vectorize))
+                if (is_passed_to_intrinsic(continuation, Intrinsic::Vectorize))
                     do_force_inline.emplace(continuation);
             }
         }

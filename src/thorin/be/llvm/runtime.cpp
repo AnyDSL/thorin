@@ -37,18 +37,6 @@ llvm::Function* Runtime::get(const char* name) {
     return result;
 }
 
-struct LaunchArgs {
-    enum {
-        Mem = 0,
-        Device,
-        Space,
-        Config,
-        Body,
-        Return,
-        Num
-    };
-};
-
 static bool contains_ptrtype(const Type* type) {
     switch (type->tag()) {
         case Node_PtrType:             return false;
@@ -177,14 +165,7 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, cons
                   args, sizes, types,
                   builder_.getInt32(num_kernel_args));
 
-    synchronize(target_device);
-
     return continuation->arg(LaunchArgs::Return)->as_continuation();
-}
-
-llvm::Value* Runtime::synchronize(llvm::Value* device) {
-    llvm::Value* synchronize_args[] = { device };
-    return builder_.CreateCall(get("anydsl_synchronize"), synchronize_args);
 }
 
 llvm::Value* Runtime::launch_kernel(llvm::Value* device,

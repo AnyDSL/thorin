@@ -13,10 +13,11 @@ namespace thorin {
 class World;
 
 typedef ContinuationMap<llvm::BasicBlock*> BBMap;
+typedef ContinuationMap<std::tuple<int, int, int>> Cont2Config;
 
 class CodeGen {
 protected:
-    CodeGen(World& world, llvm::CallingConv::ID function_calling_convention, llvm::CallingConv::ID device_calling_convention, llvm::CallingConv::ID kernel_calling_convention);
+    CodeGen(World& world, llvm::CallingConv::ID function_calling_convention, llvm::CallingConv::ID device_calling_convention, llvm::CallingConv::ID kernel_calling_convention, const Cont2Config& kernel_config);
 
 public:
     World& world() const { return world_; }
@@ -72,6 +73,7 @@ protected:
     llvm::CallingConv::ID function_calling_convention_;
     llvm::CallingConv::ID device_calling_convention_;
     llvm::CallingConv::ID kernel_calling_convention_;
+    const Cont2Config& kernel_config_;
     ParamMap<llvm::Value*> params_;
     ParamMap<llvm::PHINode*> phis_;
     PrimOpMap<llvm::Value*> primops_;

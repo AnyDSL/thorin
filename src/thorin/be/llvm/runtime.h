@@ -12,6 +12,18 @@ namespace thorin {
 
 class CodeGen;
 
+struct LaunchArgs {
+    enum {
+        Mem = 0,
+        Device,
+        Space,
+        Config,
+        Body,
+        Return,
+        Num
+    };
+};
+
 class Runtime {
 public:
     Runtime(llvm::LLVMContext& context,
@@ -24,9 +36,6 @@ public:
         OPENCL_PLATFORM,
         AMDGPU_PLATFORM
     };
-
-    /// Emits a call to anydsl_synchronize.
-    llvm::Value* synchronize(llvm::Value* device);
 
     /// Emits a call to anydsl_launch_kernel.
     llvm::Value* launch_kernel(llvm::Value* device,

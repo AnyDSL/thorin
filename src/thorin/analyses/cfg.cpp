@@ -642,8 +642,13 @@ CFA::CFA(const Scope& scope)
         queue.push(src);
 
         while (!queue.empty()) {
-            for (auto op : pop(queue)->ops())
-                enqueue(op);
+            auto def = pop(queue);
+            if (auto evalop = def->isa<EvalOp>()) {
+                enqueue(evalop->begin()); // ignore end
+            } else {
+                for (auto op : def->ops())
+                    enqueue(op);
+            }
         }
     }
 

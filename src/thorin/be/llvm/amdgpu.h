@@ -9,7 +9,7 @@ class Load;
 
 class AMDGPUCodeGen : public CodeGen {
 public:
-    AMDGPUCodeGen(World& world);
+    AMDGPUCodeGen(World& world, const Cont2Config&);
 
 protected:
     virtual unsigned convert_addr_space(const AddrSpace) override;

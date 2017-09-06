@@ -47,7 +47,7 @@
 
 namespace thorin {
 
-CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention, llvm::CallingConv::ID device_calling_convention, llvm::CallingConv::ID kernel_calling_convention)
+CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention, llvm::CallingConv::ID device_calling_convention, llvm::CallingConv::ID kernel_calling_convention, const Cont2Config& kernel_config)
     : world_(world)
     , context_()
     , module_(new llvm::Module(world.name(), context_))
@@ -56,6 +56,7 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention
     , function_calling_convention_(function_calling_convention)
     , device_calling_convention_(device_calling_convention)
     , kernel_calling_convention_(kernel_calling_convention)
+    , kernel_config_(kernel_config)
     , runtime_(new Runtime(context_, *module_.get(), irbuilder_))
 {}
 
@@ -225,7 +226,7 @@ void CodeGen::emit(int opt, bool debug) {
         const Param* ret_param = nullptr;
         auto arg = fct->arg_begin();
         for (auto param : entry_->params()) {
-            if (is_mem(param))
+            if (is_mem(param) || is_unit(param))
                 continue;
             if (param->order() == 0) {
                 auto argv = &*arg;
@@ -255,7 +256,7 @@ void CodeGen::emit(int opt, bool debug) {
                 // create phi node stubs (for all continuations different from entry)
                 if (entry_ != continuation) {
                     for (auto param : continuation->params()) {
-                        if (!is_mem(param)) {
+                        if (!is_mem(param) && !is_unit(param)) {
                             auto phi = llvm::PHINode::Create(convert(param->type()), (unsigned) param->peek().size(), param->name(), bb);
                             phis_[param] = phi;
                         }
@@ -298,37 +299,23 @@ void CodeGen::emit(int opt, bool debug) {
                 irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(continuation->jump_debug().front_line(), continuation->jump_debug().front_col(), discope));
             if (continuation->callee() == ret_param) { // return
                 size_t num_args = continuation->num_args();
-                switch (num_args) {
-                    case 0: irbuilder_.CreateRetVoid(); break;
-                    case 1:
-                        if (is_mem(continuation->arg(0)))
-                            irbuilder_.CreateRetVoid();
-                        else
-                            irbuilder_.CreateRet(lookup(continuation->arg(0)));
-                        break;
-                    case 2:
-                        if (is_mem(continuation->arg(0))) {
-                            irbuilder_.CreateRet(lookup(continuation->arg(1)));
-                            break;
-                        } else if (is_mem(continuation->arg(1))) {
-                            irbuilder_.CreateRet(lookup(continuation->arg(0)));
-                            break;
-                        }
-                        // FALLTHROUGH
-                    default: {
-                        Array<llvm::Value*> values(num_args);
-                        Array<llvm::Type*> args(num_args);
+                if (num_args == 0) irbuilder_.CreateRetVoid();
+                else {
+                    Array<llvm::Value*> values(num_args);
+                    Array<llvm::Type*> args(num_args);
 
-                        size_t n = 0;
-                        for (auto arg : continuation->args()) {
-                            if (!is_mem(arg)) {
-                                auto val = lookup(arg);
-                                values[n] = val;
-                                args[n++] = val->getType();
-                            }
+                    size_t n = 0;
+                    for (auto arg : continuation->args()) {
+                        if (!is_mem(arg) && !is_unit(arg)) {
+                            auto val = lookup(arg);
+                            values[n] = val;
+                            args[n++] = val->getType();
                         }
+                    }
 
-                        assert(n == num_args || n+1 == num_args);
+                    if (n == 0) irbuilder_.CreateRetVoid();
+                    else if (n == 1) irbuilder_.CreateRet(values[0]);
+                    else {
                         values.shrink(n);
                         args.shrink(n);
                         llvm::Value* agg = llvm::UndefValue::get(llvm::StructType::get(context_, llvm_ref(args)));
@@ -337,7 +324,6 @@ void CodeGen::emit(int opt, bool debug) {
                             agg = irbuilder_.CreateInsertValue(agg, values[i], { unsigned(i) });
 
                         irbuilder_.CreateRet(agg);
-                        break;
                     }
                 }
             } else if (continuation->callee() == world().branch()) {
@@ -372,7 +358,7 @@ void CodeGen::emit(int opt, bool debug) {
                         const Def* ret_arg = nullptr;
                         for (auto arg : continuation->args()) {
                             if (arg->order() == 0) {
-                                if (!is_mem(arg))
+                                if (!is_mem(arg) && !is_unit(arg))
                                     args.push_back(lookup(arg));
                             } else {
                                 assert(!ret_arg);
@@ -390,35 +376,39 @@ void CodeGen::emit(int opt, bool debug) {
 
                         // must be call + continuation --- call + return has been removed by codegen_prepare
                         auto succ = ret_arg->as_continuation();
-                        const Param* param = nullptr;
-                        switch (succ->num_params()) {
-                            case 0:
-                                break;
-                            case 1:
-                                param = succ->param(0);
-                                irbuilder_.CreateBr(bb2continuation[succ]);
-                                if (!is_mem(param))
-                                    emit_result_phi(param, call);
-                                break;
-                            case 2:
-                                assert(succ->mem_param() && "no mem_param found for succ");
-                                param = succ->param(0);
-                                param = is_mem(param) ? succ->param(1) : param;
-                                irbuilder_.CreateBr(bb2continuation[succ]);
-                                emit_result_phi(param, call);
-                                break;
-                            default: {
-                                assert(is_mem(succ->param(0)));
-                                auto tuple = succ->params().skip_front();
 
-                                Array<llvm::Value*> extracts(tuple.size());
-                                for (size_t i = 0, e = tuple.size(); i != e; ++i)
-                                    extracts[i] = irbuilder_.CreateExtractValue(call, unsigned(i));
+                        size_t n = 0;
+                        const Param* last_param = nullptr;
+                        for (auto param : succ->params()) {
+                            if (is_mem(param) || is_unit(param))
+                                continue;
+                            last_param = param;
+                            n++;
+                        }
 
-                                irbuilder_.CreateBr(bb2continuation[succ]);
-                                for (size_t i = 0, e = tuple.size(); i != e; ++i)
-                                    emit_result_phi(tuple[i], extracts[i]);
-                                break;
+                        if (n == 0) {
+                            irbuilder_.CreateBr(bb2continuation[succ]);
+                        } else if (n == 1) {
+                            irbuilder_.CreateBr(bb2continuation[succ]);
+                            emit_result_phi(last_param, call);
+                        } else {
+                            Array<llvm::Value*> extracts(n);
+                            for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
+                                auto param = succ->param(i);
+                                if (is_mem(param) || is_unit(param))
+                                    continue;
+                                extracts[j] = irbuilder_.CreateExtractValue(call, unsigned(j));
+                                j++;
+                            }
+
+                            irbuilder_.CreateBr(bb2continuation[succ]);
+
+                            for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
+                                auto param = succ->param(i);
+                                if (is_mem(param) || is_unit(param))
+                                    continue;
+                                emit_result_phi(param, extracts[j]);
+                                j++;
                             }
                         }
                     }
@@ -963,30 +953,17 @@ llvm::Type* CodeGen::convert(const Type* type) {
             llvm::Type* ret = nullptr;
             std::vector<llvm::Type*> ops;
             for (auto op : fn->ops()) {
-                if (op->isa<MemType>())
-                    continue;
+                if (op->isa<MemType>() || op == world().unit()) continue;
                 if (auto fn = op->isa<FnType>()) {
                     assert(!ret && "only one 'return' supported");
-                    if (fn->empty())
-                        ret = llvm::Type::getVoidTy(context_);
-                    else if (fn->num_ops() == 1)
-                        ret = fn->op(0)->isa<MemType>() ? llvm::Type::getVoidTy(context_) : convert(fn->op(0));
-                    else if (fn->num_ops() == 2) {
-                        if (fn->op(0)->isa<MemType>())
-                            ret = convert(fn->op(1));
-                        else if (fn->op(1)->isa<MemType>())
-                            ret = convert(fn->op(0));
-                        else
-                            goto multiple;
-                    } else {
-multiple:
-                        std::vector<llvm::Type*> ops;
-                        for (auto op : fn->ops()) {
-                            if (!op->isa<MemType>())
-                                ops.push_back(convert(op));
-                        }
-                        ret = llvm::StructType::get(context_, ops);
+                    std::vector<llvm::Type*> ret_types;
+                    for (auto fn_op : fn->ops()) {
+                        if (fn_op->isa<MemType>() || fn_op == world().unit()) continue;
+                        ret_types.push_back(convert(fn_op));
                     }
+                    if (ret_types.size() == 0)      ret = llvm::Type::getVoidTy(context_);
+                    else if (ret_types.size() == 1) ret = ret_types.back();
+                    else                            ret = llvm::StructType::get(context_, ret_types);
                 } else
                     ops.push_back(convert(op));
             }
@@ -1066,18 +1043,19 @@ void emit_llvm(World& world, int opt, bool debug) {
     Importer nvvm(world.name());
     Importer opencl(world.name());
     Importer amdgpu(world.name());
+    Cont2Config kernel_config;
 
     // determine different parts of the world which need to be compiled differently
     Scope::for_each(world, [&] (const Scope& scope) {
         auto continuation = scope.entry();
         Continuation* imported = nullptr;
-        if (continuation->is_passed_to_intrinsic(Intrinsic::CUDA))
+        if (is_passed_to_intrinsic(continuation, Intrinsic::CUDA))
             imported = cuda.import(continuation)->as_continuation();
-        else if (continuation->is_passed_to_intrinsic(Intrinsic::NVVM))
+        else if (is_passed_to_intrinsic(continuation, Intrinsic::NVVM))
             imported = nvvm.import(continuation)->as_continuation();
-        else if (continuation->is_passed_to_intrinsic(Intrinsic::OpenCL))
+        else if (is_passed_to_intrinsic(continuation, Intrinsic::OpenCL))
             imported = opencl.import(continuation)->as_continuation();
-        else if (continuation->is_passed_to_intrinsic(Intrinsic::AMDGPU))
+        else if (is_passed_to_intrinsic(continuation, Intrinsic::AMDGPU))
             imported = amdgpu.import(continuation)->as_continuation();
         else
             return;
@@ -1089,6 +1067,16 @@ void emit_llvm(World& world, int opt, bool debug) {
 
         for (size_t i = 0, e = continuation->num_params(); i != e; ++i)
             imported->param(i)->debug().set(continuation->param(i)->unique_name());
+
+        visit_uses(continuation, [&] (Continuation* use) {
+            auto it_config = use->arg(LaunchArgs::Config)->as<Tuple>();
+            if (it_config->op(0)->isa<PrimLit>() && it_config->op(1)->isa<PrimLit>() && it_config->op(2)->isa<PrimLit>()) {
+                auto p = kernel_config.emplace(imported, std::tuple<int, int, int>{ it_config->op(0)->as<PrimLit>()->qu32_value().data(), it_config->op(1)->as<PrimLit>()->qu32_value().data(), it_config->op(2)->as<PrimLit>()->qu32_value().data() } );
+                assert_unused(p.second && "expected only single entry");
+            }
+            return false;
+        });
+
     });
 
     if (!cuda.world().empty() || !nvvm.world().empty() || !amdgpu.world().empty() || !opencl.world().empty()) {
@@ -1096,11 +1084,11 @@ void emit_llvm(World& world, int opt, bool debug) {
         codegen_prepare(world);
     }
 
-    CPUCodeGen(world).emit(opt, debug);
-    if (!cuda.  world().empty()) CUDACodeGen  (cuda  .world()).emit(/*opt,*/ debug);
-    if (!nvvm.  world().empty()) NVVMCodeGen  (nvvm  .world()).emit(opt, debug);
-    if (!opencl.world().empty()) OpenCLCodeGen(opencl.world()).emit(/*opt,*/ debug);
-    if (!amdgpu.world().empty()) AMDGPUCodeGen(amdgpu.world()).emit(opt, debug);
+    CPUCodeGen(world, kernel_config).emit(opt, debug);
+    if (!cuda.  world().empty()) CUDACodeGen  (cuda  .world(), kernel_config).emit(/*opt,*/ debug);
+    if (!nvvm.  world().empty()) NVVMCodeGen  (nvvm  .world(), kernel_config).emit(opt, debug);
+    if (!opencl.world().empty()) OpenCLCodeGen(opencl.world(), kernel_config).emit(/*opt,*/ debug);
+    if (!amdgpu.world().empty()) AMDGPUCodeGen(amdgpu.world(), kernel_config).emit(opt, debug);
 }
 
 //------------------------------------------------------------------------------

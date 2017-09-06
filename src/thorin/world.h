@@ -125,7 +125,7 @@ public:
     // aggregate operations
 
     const Def* definite_array(const Type* elem, Defs args, Debug dbg = {}) {
-        return cse(new DefiniteArray(*this, elem, args, dbg));
+        return try_fold_aggregate(cse(new DefiniteArray(*this, elem, args, dbg)));
     }
     /// Create definite_array with at least one element. The type of that element is the element type of the definite array.
     const Def* definite_array(Defs args, Debug dbg = {}) {
@@ -136,12 +136,12 @@ public:
         return cse(new IndefiniteArray(*this, elem, dim, dbg));
     }
     const Def* struct_agg(const StructType* struct_type, Defs args, Debug dbg = {}) {
-        return cse(new StructAgg(struct_type, args, dbg));
+        return try_fold_aggregate(cse(new StructAgg(struct_type, args, dbg)));
     }
-    const Def* tuple(Defs args, Debug dbg = {}) { return cse(new Tuple(*this, args, dbg)); }
+    const Def* tuple(Defs args, Debug dbg = {}) { return try_fold_aggregate(cse(new Tuple(*this, args, dbg))); }
     const Def* vector(Defs args, Debug dbg = {}) {
         if (args.size() == 1) return args[0];
-        return cse(new Vector(*this, args, dbg));
+        return try_fold_aggregate(cse(new Vector(*this, args, dbg)));
     }
     /// Splats \p arg to create a \p Vector with \p length.
     const Def* splat(const Def* arg, size_t length = 1, Debug dbg = {});
@@ -247,6 +247,7 @@ private:
         return trackers_[def];
     }
     const Param* param(const Type* type, Continuation* continuation, size_t index, Debug dbg);
+    const Def* try_fold_aggregate(const Aggregate*);
     const Def* cse_base(const PrimOp*);
     template<class T> const T* cse(const T* primop) { return cse_base(primop)->template as<T>(); }
 

@@ -20,6 +20,7 @@ public:
         if (done_.emplace(continuation).second)
             queue_.push(continuation);
     }
+    void eat_pe_info(Continuation*);
 
 private:
     World& world_;
@@ -59,8 +60,8 @@ public:
     }
 
     bool eval(size_t i) {
-        // the only higher order parameter that is allowed is a single 1st-order paramter of a top-level continuation
-        // all other paramters need specializtion (lower2cff)
+        // the only higher order parameter that is allowed is a single 1st-order parameter of a top-level continuation
+        // all other parameters need specialization (lower2cff)
         auto order = callee_->param(i)->order();
         if (order >= 2 || (order == 1 && (!callee_->is_returning() || has_free_vars(callee_)))) {
             DLOG("bad param({}) {} of continuation {}", i, callee_->param(i), callee_);
@@ -80,6 +81,17 @@ private:
     Def2Def old2new_;
 };
 
+void PartialEvaluator::eat_pe_info(Continuation* cur) {
+    assert(cur->arg(1)->type() == world().ptr_type(world().indefinite_array_type(world().type_pu8())));
+    auto msg = cur->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
+    ILOG(cur->callee(), "pe_info: {}: {}", msg->as_string(), cur->arg(2));
+    auto next = cur->arg(3);
+    cur->jump(next, {cur->arg(0), world().tuple({})}, cur->jump_debug());
+
+    // always re-insert into queue because we've change cur's jump
+    queue_.push(cur);
+}
+
 void PartialEvaluator::run() {
     for (auto external : world().externals())
         enqueue(external);
@@ -88,6 +100,11 @@ void PartialEvaluator::run() {
         auto continuation = pop(queue_);
 
         if (auto callee = continuation->callee()->isa_continuation()) {
+            if (callee->intrinsic() == Intrinsic::PeInfo) {
+                eat_pe_info(continuation);
+                continue;
+            }
+
             if (!callee->empty()) {
                 Call call(continuation);
                 call.callee() = callee;
@@ -119,71 +136,11 @@ void PartialEvaluator::run() {
     }
 }
 
-void eat_pe_info(Continuation* cur, bool eval) {
-    World& world = cur->world();
-    assert(cur->arg(1)->type() == world.ptr_type(world.indefinite_array_type(world.type_pu8())));
-    auto msg = cur->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
-    ILOG(cur->callee(), "{}pe_info: {}: {}", eval ? "" : "NOT evaluated: ", msg->as_string(), cur->arg(2));
-    auto next = cur->arg(3);
-    cur->jump(next, {cur->arg(0), world.tuple({})}, cur->jump_debug());
-}
-
-void eat_pe_known(Continuation* cur, bool eval) {
-    World& world = cur->world();
-    auto val = cur->arg(1);
-    auto next = cur->arg(2);
-    cur->jump(next, {cur->arg(0), world.literal(eval && is_const(val))}, cur->jump_debug());
-}
-
-bool eat_intrinsic(Intrinsic intrinsic, Continuation* cur, bool eval) {
-    switch (intrinsic) {
-        case Intrinsic::PeInfo:  eat_pe_info (cur, eval); return true;
-        case Intrinsic::PeKnown: eat_pe_known(cur, eval); return true;
-        default: return false;
-    }
-}
-
 //------------------------------------------------------------------------------
-
-template <typename F>
-void eval_intrinsics(World& world, F f) {
-    Scope::for_each(world, [&] (Scope& scope) {
-        bool dirty = false;
-        for (auto n : scope.f_cfg().post_order()) {
-            auto continuation = n->continuation();
-            if (auto callee = continuation->callee()->isa<Continuation>()) {
-                dirty |= f(callee, continuation);
-            }
-        }
-
-        if (dirty)
-            scope.update();
-    });
-}
-
-void eval(World& world) {
-    PartialEvaluator(world).run();
-
-#if 0
-    // Eat all pe_known calls
-    eval_intrinsics(world, [&] (auto callee, auto continuation) {
-        if (callee->intrinsic() == Intrinsic::PeKnown) {
-            eat_pe_known(continuation, false);
-            return true;
-        }
-        return false;
-    });
-
-    // Eat all other intrinsics
-    eval_intrinsics(world, [&] (auto callee, auto continuation) {
-        return eat_intrinsic(callee->intrinsic(), continuation, false);
-    });
-#endif
-}
 
 void partial_evaluation(World& world) {
     world.cleanup();
-    VLOG_SCOPE(eval(world));
+    VLOG_SCOPE(PartialEvaluator(world).run());
 
     world.mark_pe_done();
     world.cleanup();

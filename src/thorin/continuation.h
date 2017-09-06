@@ -176,6 +176,7 @@ public:
         assertf(defs.empty() || num_params() == defs.size(), "expected {} - got {}", num_params(), defs.size());
         pe_profile_ = defs;
     }
+    void set_all_true_pe_profile();
     void destroy_pe_profile() { pe_profile_.shrink(0); }
     Defs pe_profile() const { return pe_profile_; }
     const Def* pe_profile(size_t i) const { return pe_profile_[i]; }

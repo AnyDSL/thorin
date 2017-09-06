@@ -417,6 +417,26 @@ public:
 };
 
 /**
+ * If a call gets a @p Run primop as argument whose @p cond is @c true,
+ * this argument will be specialized into the callee during @p partial_evaluation if applicalbale.
+ * Otherwise, this @p PrimOp valuates to @p def.
+ */
+class Run : public PrimOp {
+private:
+    Run(const Def* cond, const Def* def, Debug dbg)
+        : PrimOp(Node_Run, def->type(), {cond, def}, dbg)
+    {}
+
+    virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
+
+public:
+    const Def* cond() const { return op(0); }
+    const Def* def() const { return op(1); }
+
+    friend class World;
+};
+
+/**
  * A slot in a stack frame opend via @p Enter.
  * A @p Slot yields a pointer to the given <tt>type</tt>.
  * Loads from this address yield @p Bottom if the frame has already been closed.

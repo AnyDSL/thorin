@@ -191,7 +191,6 @@ void Continuation::set_intrinsic() {
     else if (name() == "sync")           intrinsic_ = Intrinsic::Sync;
     else if (name() == "vectorize")      intrinsic_ = Intrinsic::Vectorize;
     else if (name() == "pe_info")        intrinsic_ = Intrinsic::PeInfo;
-    else if (name() == "pe_known")       intrinsic_ = Intrinsic::PeKnown;
     else if (name() == "reserve_shared") intrinsic_ = Intrinsic::Reserve;
     else if (name() == "atomic")         intrinsic_ = Intrinsic::Atomic;
     else if (name() == "cmpxchg")        intrinsic_ = Intrinsic::CmpXchg;

@@ -37,9 +37,6 @@ public:
         AMDGPU_PLATFORM
     };
 
-    /// Emits a call to anydsl_synchronize.
-    llvm::Value* synchronize(llvm::Value* device);
-
     /// Emits a call to anydsl_launch_kernel.
     llvm::Value* launch_kernel(llvm::Value* device,
                                llvm::Value* file, llvm::Value* kernel,

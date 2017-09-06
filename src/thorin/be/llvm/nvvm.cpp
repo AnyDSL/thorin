@@ -62,8 +62,8 @@ void NVVMCodeGen::emit_function_decl_hook(Continuation* continuation, llvm::Func
     // append required metadata
     auto annotation = module_->getOrInsertNamedMetadata("nvvm.annotations");
 
-    const auto append_metadata = [&](llvm::Value* target, const std::string& name) {
-        llvm::Metadata* annotation_values[] = { llvm::ValueAsMetadata::get(target), llvm::MDString::get(context_, name), llvm::ConstantAsMetadata::get(irbuilder_.getInt64(1)) };
+    const auto append_metadata = [&](llvm::Value* target, const std::string& name, const int val) {
+        llvm::Metadata* annotation_values[] = { llvm::ValueAsMetadata::get(target), llvm::MDString::get(context_, name), llvm::ConstantAsMetadata::get(irbuilder_.getInt64(val)) };
         llvm::MDNode* result = llvm::MDNode::get(context_, annotation_values);
         annotation->addOperand(result);
         return result;
@@ -72,10 +72,17 @@ void NVVMCodeGen::emit_function_decl_hook(Continuation* continuation, llvm::Func
     const auto emit_texture_kernel_arg = [&](const Param* param) {
         assert(param->type()->as<PtrType>()->addr_space() == AddrSpace::Texture);
         auto global = emit_global_variable(irbuilder_.getInt64Ty(), param->name(), 1);
-        metadata_[param] = append_metadata(global, "texture");
+        metadata_[param] = append_metadata(global, "texture", 1);
     };
 
-    append_metadata(f, "kernel");
+    append_metadata(f, "kernel", 1);
+
+    auto config = kernel_config_.find(continuation);
+    if (config != kernel_config_.end()) {
+        append_metadata(f, "maxntidx", std::get<0>(config->second));
+        append_metadata(f, "maxntidy", std::get<1>(config->second));
+        append_metadata(f, "maxntidz", std::get<2>(config->second));
+    }
 
     // check signature for texturing memory
     for (auto param : continuation->params()) {

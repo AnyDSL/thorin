@@ -16,6 +16,17 @@ AMDGPUCodeGen::AMDGPUCodeGen(World& world, const Cont2Config& kernel_config)
 // Kernel code
 //------------------------------------------------------------------------------
 
+void AMDGPUCodeGen::emit_function_decl_hook(Continuation* continuation, llvm::Function* f) {
+    auto config = kernel_config_.find(continuation);
+    if (config != kernel_config_.end()) {
+        Array<llvm::Metadata*> annotation_values_wgsize(3);
+        annotation_values_wgsize[0] = llvm::ConstantAsMetadata::get(irbuilder_.getInt32(std::get<0>(config->second)));
+        annotation_values_wgsize[1] = llvm::ConstantAsMetadata::get(irbuilder_.getInt32(std::get<1>(config->second)));
+        annotation_values_wgsize[2] = llvm::ConstantAsMetadata::get(irbuilder_.getInt32(std::get<2>(config->second)));
+        f->setMetadata(llvm::StringRef("reqd_work_group_size"),  llvm::MDNode::get(context_, llvm_ref(annotation_values_wgsize)));
+    }
+}
+
 unsigned AMDGPUCodeGen::convert_addr_space(const AddrSpace addr_space) {
     switch (addr_space) {
         case AddrSpace::Generic:

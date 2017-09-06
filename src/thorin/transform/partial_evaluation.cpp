@@ -133,6 +133,11 @@ void PartialEvaluator::run() {
                     if (cond_eval.eval(i)) {
                         call.arg(i) = continuation->arg(i);
                         fold = true;
+
+                        if (auto arg_cont = continuation->arg(i)->isa_continuation()) {
+                            if (arg_cont->num_uses() == 1)
+                                arg_cont->set_all_true_pe_profile();
+                        }
                     } else
                         call.arg(i) = nullptr;
                 }

@@ -170,6 +170,10 @@ static Continuations succs(const Continuation* continuation) {
     return succs;
 }
 
+void Continuation::set_all_true_pe_profile() {
+    pe_profile_ = Array<const Def*>(num_params(), [&](size_t) { return world().literal_bool(true, Debug{}); });
+}
+
 Continuations Continuation::preds() const { return thorin::preds<true, true>(this); }
 Continuations Continuation::succs() const { return thorin::succs<true, true>(this); }
 Continuations Continuation::direct_preds() const { return thorin::preds<true, false>(this); }

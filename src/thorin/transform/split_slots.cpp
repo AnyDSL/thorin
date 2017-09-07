@@ -34,7 +34,7 @@ static void split(const Slot* slot) {
         } else if (auto store = use->isa<Store>()) {
             auto in_mem = store->op(0);
             for (size_t i = 0, e = dim; i != e; ++i) {
-                auto elem = world.extract(store->op(1), i, store->debug());
+                auto elem = world.extract(store->op(2), i, store->debug());
                 in_mem = world.store(in_mem, elem_slot(i), elem, store->debug());
             }
             store->replace(in_mem);
@@ -42,9 +42,9 @@ static void split(const Slot* slot) {
             auto in_mem = load->op(0);
             auto array = world.bottom(array_type, load->debug());
             for (size_t i = 0, e = dim; i != e; ++i) {
-                auto load_tuple = world.load(in_mem, elem_slot(i), load->debug());
-                auto elem = world.extract(load_tuple, 1, load->debug());
-                in_mem = world.extract(load_tuple, 1, load->debug());
+                auto tuple = world.load(in_mem, elem_slot(i), load->debug());
+                auto elem = world.extract(tuple, 1_u32, load->debug());
+                in_mem = world.extract(tuple, 0_u32, load->debug());
                 array = world.insert(array, i, elem, load->debug());
             }
             load->replace(world.tuple({ in_mem, array }, load->debug()));

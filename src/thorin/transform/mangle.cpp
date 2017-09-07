@@ -147,9 +147,32 @@ void Mangler::mangle_body(Continuation* old_continuation, Continuation* new_cont
     assert(!old_continuation->empty());
     new_continuations_.emplace_back(new_continuation);
 
-    if (old_continuation->callee() == world().branch()) {        // fold branch if possible
-        if (auto lit = mangle(old_continuation->arg(0))->isa<PrimLit>())
-            return new_continuation->jump(mangle(lit->value().get_bool() ? old_continuation->arg(1) : old_continuation->arg(2)), {}, old_continuation->jump_debug());
+    // fold branch and match
+    // TODO find a way to factor this out in continuation.cpp
+    if (auto callee = old_continuation->callee()->isa_continuation()) {
+        switch (callee->intrinsic()) {
+            case Intrinsic::Branch: {
+                if (auto lit = mangle(old_continuation->arg(0))->isa<PrimLit>()) {
+                    auto cont = lit->value().get_bool() ? old_continuation->arg(1) : old_continuation->arg(2);
+                    return new_continuation->jump(mangle(cont), {}, old_continuation->jump_debug());
+                }
+                break;
+            }
+            case Intrinsic::Match:
+                if (old_continuation->num_args() == 2)
+                    return new_continuation->jump(mangle(old_continuation->arg(1)), {}, old_continuation->jump_debug());
+
+                if (auto lit = mangle(old_continuation->arg(0))->isa<PrimLit>()) {
+                    for (size_t i = 2; i < old_continuation->num_args(); i++) {
+                        auto new_arg = mangle(old_continuation->arg(i));
+                        if (world().extract(new_arg, 0_s)->as<PrimLit>() == lit)
+                            return new_continuation->jump(world().extract(new_arg, 1), {}, old_continuation->jump_debug());
+                    }
+                }
+                break;
+            default:
+                break;
+        }
     }
 
     Array<const Def*> nops(old_continuation->num_ops());

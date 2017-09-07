@@ -1064,7 +1064,7 @@ void emit_llvm(World& world, int opt, bool debug) {
 
     if (!cuda.world().empty() || !nvvm.world().empty() || !opencl.world().empty()) {
         auto get_kernel_configs = [&](Importer& importer) {
-            importer.world().opt();
+            importer.world().opt(false);
             auto externals = importer.world().externals();
             for (auto continuation : kernels) {
                 visit_uses(continuation, [&] (Continuation* use) {

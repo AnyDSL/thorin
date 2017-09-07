@@ -1041,6 +1041,7 @@ void emit_llvm(World& world, int opt, bool debug) {
     Importer opencl(world.name());
     Importer amdgpu(world.name());
     Cont2Config kernel_config;
+    std::vector<Continuation*> kernels;
 
     // determine different parts of the world which need to be compiled differently
     Scope::for_each(world, [&] (const Scope& scope) {
@@ -1060,23 +1061,41 @@ void emit_llvm(World& world, int opt, bool debug) {
         imported->debug().set(continuation->unique_name());
         imported->make_external();
         continuation->debug().set(continuation->unique_name());
-        continuation->destroy_body();
 
         for (size_t i = 0, e = continuation->num_params(); i != e; ++i)
             imported->param(i)->debug().set(continuation->param(i)->unique_name());
 
-        visit_uses(continuation, [&] (Continuation* use) {
-            auto it_config = use->arg(LaunchArgs::Config)->as<Tuple>();
-            if (it_config->op(0)->isa<PrimLit>() && it_config->op(1)->isa<PrimLit>() && it_config->op(2)->isa<PrimLit>()) {
-                auto p = kernel_config.emplace(imported, std::tuple<int, int, int>{ it_config->op(0)->as<PrimLit>()->qu32_value().data(), it_config->op(1)->as<PrimLit>()->qu32_value().data(), it_config->op(2)->as<PrimLit>()->qu32_value().data() } );
-                assert_unused(p.second && "expected only single entry");
-            }
-            return false;
-        });
-
+        kernels.push_back(continuation);
     });
 
-    if (!cuda.world().empty() || !nvvm.world().empty() || !amdgpu.world().empty() || !opencl.world().empty()) {
+    if (!cuda.world().empty() || !nvvm.world().empty() || !opencl.world().empty() || !amdgpu.world().empty()) {
+        auto get_kernel_configs = [&](Importer& importer) {
+            importer.world().opt(false);
+            auto externals = importer.world().externals();
+            for (auto continuation : kernels) {
+                visit_uses(continuation, [&] (Continuation* use) {
+                    auto it_config = use->arg(LaunchArgs::Config)->as<Tuple>();
+                    if (it_config->op(0)->isa<PrimLit>() && it_config->op(1)->isa<PrimLit>() && it_config->op(2)->isa<PrimLit>()) {
+                        Continuation* imported = nullptr;
+                        for (auto external : externals)
+                            if (external->name() == continuation->name())
+                                imported = external;
+                        if (imported) {
+                            auto p = kernel_config.emplace(imported, std::tuple<int, int, int>{ it_config->op(0)->as<PrimLit>()->qu32_value().data(), it_config->op(1)->as<PrimLit>()->qu32_value().data(), it_config->op(2)->as<PrimLit>()->qu32_value().data() } );
+                            assert_unused(p.second && "expected only single entry");
+                        }
+                    }
+                    return false;
+                });
+                continuation->destroy_body();
+            }
+        };
+
+        get_kernel_configs(cuda);
+        get_kernel_configs(nvvm);
+        get_kernel_configs(opencl);
+        get_kernel_configs(amdgpu);
+
         world.cleanup();
         codegen_prepare(world);
     }

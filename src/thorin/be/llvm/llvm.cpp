@@ -1075,6 +1075,10 @@ void emit_llvm(World& world, int opt, bool debug) {
         codegen_prepare(world);
     }
 
+    cuda.world().opt();
+    nvvm.world().opt();
+    opencl.world().opt();
+
     CPUCodeGen(world, kernel_config).emit(opt, debug);
     if (!cuda.  world().empty()) CUDACodeGen  (cuda  .world(), kernel_config).emit(/*opt,*/ debug);
     if (!nvvm.  world().empty()) NVVMCodeGen  (nvvm  .world(), kernel_config).emit(opt, debug);

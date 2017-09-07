@@ -76,7 +76,7 @@ protected:
     ParamMap<llvm::Value*> params_;
     ParamMap<llvm::PHINode*> phis_;
     PrimOpMap<llvm::Value*> primops_;
-    ContinuationMap< llvm::Function*> fcts_;
+    ContinuationMap<llvm::Function*> fcts_;
     TypeMap<llvm::Type*> types_;
 #ifdef RV_SUPPORT
     std::vector<std::tuple<u32, u32, llvm::Function*, llvm::CallInst*>> vec_todo_;

@@ -88,7 +88,7 @@ void split_slots(World& world) {
     bool todo = true;
     while (todo) {
         todo = false;
-        Scope::for_each(world, [&] (const Scope& scope) { todo = split_slots(scope); });
+        Scope::for_each(world, [&] (const Scope& scope) { todo |= split_slots(scope); });
         world.cleanup();
     }
 }

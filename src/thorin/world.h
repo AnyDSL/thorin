@@ -146,7 +146,7 @@ public:
     /// Splats \p arg to create a \p Vector with \p length.
     const Def* splat(const Def* arg, size_t length = 1, Debug dbg = {});
     const Def* extract(const Def* tuple, const Def* index, Debug dbg = {});
-    const Def* extract(const Def* tuple, size_t index, Debug dbg = {}) {
+    const Def* extract(const Def* tuple, u32 index, Debug dbg = {}) {
         return extract(tuple, literal_qu32(index, dbg), dbg);
     }
     const Def* insert(const Def* tuple, const Def* index, const Def* value, Debug dbg = {});

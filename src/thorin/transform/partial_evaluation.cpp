@@ -62,10 +62,6 @@ public:
     }
 
     bool eval(size_t i) {
-        // always fold lone wolves
-        if (callee_->num_uses() == 1)
-            return true;
-
         // the only higher order parameter that is allowed is a single 1st-order parameter of a top-level continuation
         // all other parameters need specialization (lower2cff)
         auto order = callee_->param(i)->order();

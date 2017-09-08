@@ -66,6 +66,8 @@ set(THORIN_SOURCES
     transform/mem2reg.h
     transform/partial_evaluation.cpp
     transform/partial_evaluation.h
+    transform/split_slots.cpp
+    transform/split_slots.h
     util/args.h
     util/array.h
     util/cast.h

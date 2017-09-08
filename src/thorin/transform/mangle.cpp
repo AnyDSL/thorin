@@ -95,6 +95,39 @@ Continuation* Mangler::mangle() {
     }
 
     mangle_body(old_entry(), new_entry());
+
+    if (!lift_.empty())
+        return new_entry();
+
+    // this is the eat-up-return trick
+    // if the new continuations only contains one call to one of its arguments - eat up this call, too
+    ContinuationSet rets;
+    for (auto arg : args_) {
+        if (arg && arg->isa_continuation())
+            rets.emplace(arg->as_continuation());
+    }
+
+    if (rets.empty())
+        return new_entry();
+
+    Continuation* fold = nullptr;
+    for (auto new_continuation : new_continuations_) {
+        if (auto callee = new_continuation->callee()->isa_continuation()) {
+            if (rets.contains(callee)) {
+                if (fold == nullptr)
+                    fold = new_continuation;
+                else
+                    return new_entry(); // more then one "returns"
+            }
+        }
+    }
+
+    if (fold != nullptr) {
+        Scope s(fold->callee()->as_continuation());
+        auto dropped = drop(s, fold->args());
+        fold->jump(dropped, {}, fold->jump_debug());
+    }
+
     return new_entry();
 }
 
@@ -112,10 +145,34 @@ Continuation* Mangler::mangle_head(Continuation* old_continuation) {
 
 void Mangler::mangle_body(Continuation* old_continuation, Continuation* new_continuation) {
     assert(!old_continuation->empty());
+    new_continuations_.emplace_back(new_continuation);
 
-    if (old_continuation->callee() == world().branch()) {        // fold branch if possible
-        if (auto lit = mangle(old_continuation->arg(0))->isa<PrimLit>())
-            return new_continuation->jump(mangle(lit->value().get_bool() ? old_continuation->arg(1) : old_continuation->arg(2)), {}, old_continuation->jump_debug());
+    // fold branch and match
+    // TODO find a way to factor this out in continuation.cpp
+    if (auto callee = old_continuation->callee()->isa_continuation()) {
+        switch (callee->intrinsic()) {
+            case Intrinsic::Branch: {
+                if (auto lit = mangle(old_continuation->arg(0))->isa<PrimLit>()) {
+                    auto cont = lit->value().get_bool() ? old_continuation->arg(1) : old_continuation->arg(2);
+                    return new_continuation->jump(mangle(cont), {}, old_continuation->jump_debug());
+                }
+                break;
+            }
+            case Intrinsic::Match:
+                if (old_continuation->num_args() == 2)
+                    return new_continuation->jump(mangle(old_continuation->arg(1)), {}, old_continuation->jump_debug());
+
+                if (auto lit = mangle(old_continuation->arg(0))->isa<PrimLit>()) {
+                    for (size_t i = 2; i < old_continuation->num_args(); i++) {
+                        auto new_arg = mangle(old_continuation->arg(i));
+                        if (world().extract(new_arg, 0_s)->as<PrimLit>() == lit)
+                            return new_continuation->jump(world().extract(new_arg, 1), {}, old_continuation->jump_debug());
+                    }
+                }
+                break;
+            default:
+                break;
+        }
     }
 
     Array<const Def*> nops(old_continuation->num_ops());
@@ -151,7 +208,6 @@ const Def* Mangler::mangle(const Def* old_def) {
     else if (!within(old_def))
         return old_def;
     else if (auto old_continuation = old_def->isa_continuation()) {
-
         auto new_continuation = mangle_head(old_continuation);
         mangle_body(old_continuation, new_continuation);
         return new_continuation;

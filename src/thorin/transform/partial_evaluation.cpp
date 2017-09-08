@@ -22,6 +22,20 @@ public:
     }
     void eat_pe_info(Continuation*);
 
+    bool used_once(Continuation* k) {
+        int i = 0;
+        Scope::for_each(world(), [&](const Scope& scope) {
+            for (const auto p : scope.cfa().nodes()) {
+                if (p.first == k) {
+                    if (++i > 1)
+                        return;
+                }
+            }
+        });
+
+        return i == 1;
+    }
+
 private:
     World& world_;
     HashMap<Call, Continuation*> cache_;
@@ -99,7 +113,7 @@ void PartialEvaluator::eat_pe_info(Continuation* cur) {
     auto next = cur->arg(3);
     cur->jump(next, {cur->arg(0), world().tuple({})}, cur->jump_debug());
 
-    // always re-insert into queue because we've change cur's jump
+    // always re-insert into queue because we've changed cur's jump
     queue_.push(cur);
 }
 
@@ -133,14 +147,19 @@ void PartialEvaluator::run() {
                         call.arg(i) = nullptr;
                 }
 
-                const auto& p = cache_.emplace(call, nullptr);
-                Continuation*& target = p.first->second;
-                // create new specialization if not found in cache
-                if (p.second)
-                    target = drop(call);
+                if (fold) {
+                    const auto& p = cache_.emplace(call, nullptr);
+                    Continuation*& target = p.first->second;
+                    // create new specialization if not found in cache
+                    if (p.second)
+                        target = drop(call);
 
-                if (fold)
                     jump_to_dropped_call(continuation, target, call);
+                } else if (used_once(callee)) {
+                    Scope s(callee);
+                    auto target = drop(s, continuation->args());
+                    continuation->jump(target, {}, continuation->jump_debug());
+                }
             }
         }
 

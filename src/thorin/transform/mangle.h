@@ -36,7 +36,6 @@ private:
     Continuation* new_entry_;
     DefSet defs_;
     Def2Def def2def_;
-    std::vector<Continuation*> new_continuations_;
 };
 
 

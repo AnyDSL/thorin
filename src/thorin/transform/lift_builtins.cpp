@@ -8,26 +8,30 @@
 namespace thorin {
 
 void lift_builtins(World& world) {
-    std::vector<Continuation*> todo;
-    ContinuationSet do_force_inline;
-    Scope::for_each(world, [&] (const Scope& scope) {
-        for (auto n : scope.f_cfg().post_order()) {
-            auto continuation = n->continuation();
-            if (is_passed_to_accelerator(continuation) && !continuation->is_basicblock()) {
-                todo.push_back(continuation);
-                if (is_passed_to_intrinsic(continuation, Intrinsic::Vectorize))
-                    do_force_inline.emplace(continuation);
+    while (true) {
+        Continuation* cur = nullptr;
+        Scope::for_each(world, [&] (const Scope& scope) {
+            if (cur) return;
+            for (auto n : scope.f_cfg().post_order()) {
+                auto continuation = n->continuation();
+                if (continuation != scope.entry() &&
+                    !continuation->is_basicblock() &&
+                    is_passed_to_accelerator(continuation)) {
+                    assert(continuation->parent() && "should be nested");
+                    cur = continuation;
+                    break;
+                }
             }
+        });
+
+        if (!cur) break;
+
+        static const int inline_threshold = 4;
+        if (is_passed_to_intrinsic(cur, Intrinsic::Vectorize)) {
+            Scope scope(cur);
+            force_inline(scope, inline_threshold);
         }
-    });
 
-    static const int inline_threshold = 4;
-    for (auto continuation : do_force_inline) {
-        Scope scope(continuation);
-        force_inline(scope, inline_threshold);
-    }
-
-    for (auto cur : todo) {
         Scope scope(cur);
 
         // remove all continuations - they should be top-level functions and can thus be ignored
@@ -40,9 +44,7 @@ void lift_builtins(World& world) {
         }
 
         auto lifted = lift(scope, defs);
-
-        std::vector<Use> uses(cur->uses().begin(), cur->uses().end()); // TODO rewrite this
-        for (auto use : uses) {
+        for (auto use : cur->copy_uses()) {
             if (auto ucontinuation = use->isa_continuation()) {
                 if (auto callee = ucontinuation->callee()->isa_continuation()) {
                     if (callee->is_intrinsic()) {
@@ -60,6 +62,8 @@ void lift_builtins(World& world) {
                 }
             }
         }
+
+        world.cleanup();
     }
 }
 

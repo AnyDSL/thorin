@@ -23,13 +23,6 @@ public:
     void eat_pe_info(Continuation*);
 
     bool used_once(Continuation* k) {
-        if (k->num_uses() == 1)
-            return true;
-
-        // for now, only consider basic block
-        if (!k->is_basicblock())
-            return false;
-
         int i = 0;
         Scope::for_each(world(), [&](const Scope& scope) {
             for (const auto p : scope.cfa().nodes()) {

@@ -1069,7 +1069,7 @@ void emit_llvm(World& world, int opt, bool debug) {
         kernels.push_back(continuation);
     });
 
-    if (!cuda.world().empty() || !nvvm.world().empty() || !amdgpu.world().empty() || !opencl.world().empty()) {
+    if (!cuda.world().empty() || !nvvm.world().empty() || !opencl.world().empty() || !amdgpu.world().empty()) {
         auto get_kernel_configs = [&](Importer& importer) {
             importer.world().opt();
             auto externals = importer.world().externals();
@@ -1099,6 +1099,7 @@ void emit_llvm(World& world, int opt, bool debug) {
         get_kernel_configs(cuda);
         get_kernel_configs(nvvm);
         get_kernel_configs(opencl);
+        get_kernel_configs(amdgpu);
 
         world.cleanup();
         codegen_prepare(world);

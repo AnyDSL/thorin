@@ -12,6 +12,7 @@ public:
     AMDGPUCodeGen(World& world, const Cont2Config&);
 
 protected:
+    virtual void emit_function_decl_hook(Continuation*, llvm::Function*) override;
     virtual unsigned convert_addr_space(const AddrSpace) override;
     virtual llvm::Value* emit_global(const Global*) override;
     virtual Continuation* emit_reserve(const Continuation*) override;

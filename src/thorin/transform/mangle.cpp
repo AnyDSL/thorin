@@ -122,7 +122,7 @@ Continuation* Mangler::mangle() {
         }
     }
 
-    if (fold != nullptr) {
+    if (fold != nullptr && !fold->callee()->empty()) {
         Scope s(fold->callee()->as_continuation());
         auto dropped = drop(s, fold->args());
         fold->jump(dropped, {}, fold->jump_debug());

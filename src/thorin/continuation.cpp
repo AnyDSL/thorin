@@ -88,7 +88,7 @@ const Param* Continuation::append_param(const Type* param_type, Debug dbg) {
     Array<const Type*> ops(size + 1);
     *std::copy(type()->ops().begin(), type()->ops().end(), ops.begin()) = param_type;
     clear_type();
-    set_type(param_type->world().fn_type(ops));              // update type
+    set_type(param_type->table().fn_type(ops));              // update type
     auto param = world().param(param_type, this, size, dbg); // append new param
     params_.push_back(param);
 

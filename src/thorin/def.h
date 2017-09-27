@@ -94,7 +94,7 @@ std::ostream& operator<<(std::ostream&, Use);
  * - \p Param%s and
  * - \p Continuation%s.
  */
-class Def : public MagicCast<Def>, public Streamable {
+class Def : public RuntimeCast<Def>, public Streamable {
 private:
     Def& operator=(const Def&); ///< Do not copy-assign a \p Def instance.
     Def(const Def&);              ///< Do not copy-construct a \p Def.

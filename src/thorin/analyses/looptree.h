@@ -32,7 +32,7 @@ public:
     * The root node is a @p Head without any CFNode%s but further @p Node children and @p depth_ -1.
     * Thus, the forest is pooled into a tree.
     */
-    class Node : public MagicCast<Node>, public Streamable {
+    class Node : public RuntimeCast<Node>, public Streamable {
     protected:
         Node(Head* parent, int depth, const std::vector<const CFNode*>&);
 

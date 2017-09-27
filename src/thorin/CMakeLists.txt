@@ -5,8 +5,6 @@ set(THORIN_SOURCES
     def.h
     enums.cpp
     enums.h
-    henk.cpp.h
-    henk.h
     irbuilder.cpp
     irbuilder.h
     primop.cpp
@@ -86,6 +84,7 @@ set(THORIN_SOURCES
     util/utility.h
     util/ycomp.cpp
     util/ycomp.h
+    util/type_table.h
 )
 
 if(LLVM_FOUND)

@@ -160,7 +160,7 @@ void Def::dump() const {
     }
 }
 
-World& Def::world() const { return type()->world(); }
+World& Def::world() const { return *static_cast<World*>(&type()->table()); }
 Continuation* Def::as_continuation() const { return const_cast<Continuation*>(scast<Continuation>(this)); }
 Continuation* Def::isa_continuation() const { return const_cast<Continuation*>(dcast<Continuation>(this)); }
 std::ostream& Def::stream(std::ostream& out) const { return out << unique_name(); }

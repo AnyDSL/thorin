@@ -43,12 +43,6 @@ namespace thorin {
 
 World::World(std::string name)
     : name_(name)
-#define THORIN_ALL_TYPE(T, M) \
-    ,T##_(unify(new PrimType(*this, PrimType_##T, 1)))
-#include "thorin/tables/primtypetable.h"
-    , fn0_    (unify(new FnType   (*this, {})))
-    , mem_    (unify(new MemType  (*this)))
-    , frame_  (unify(new FrameType(*this)))
 {
     branch_ = continuation(fn_type({type_bool(), fn_type(), fn_type()}), CC::C, Intrinsic::Branch, {"br"});
     end_scope_ = continuation(fn_type(), CC::C, Intrinsic::EndScope, {"end_scope"});

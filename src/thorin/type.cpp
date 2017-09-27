@@ -11,21 +11,66 @@
 
 namespace thorin {
 
-#define HENK_STRUCT_EXTRA_NAME name
-#define HENK_STRUCT_EXTRA_TYPE const char*
-#define HENK_ENUM_EXTRA_NAME name
-#define HENK_ENUM_EXTRA_TYPE const char*
-#define HENK_TABLE_NAME world
-#define HENK_TABLE_TYPE World
-#include "thorin/henk.cpp.h"
+//------------------------------------------------------------------------------
+
+/*
+ * vrebuild
+ */
+
+const Type* StructType::vrebuild(TypeTable&, Types ops) const {
+    assert_unused(this->ops() == ops);
+    return this;
+}
+
+const Type* App                ::vrebuild(TypeTable& to, Types ops) const { return to.app(ops[0], ops[1]); }
+const Type* TupleType          ::vrebuild(TypeTable& to, Types ops) const { return to.tuple_type(ops); }
+const Type* Lambda             ::vrebuild(TypeTable& to, Types ops) const { return to.lambda(ops[0], name()); }
+const Type* Var                ::vrebuild(TypeTable& to, Types    ) const { return to.var(depth()); }
+const Type* DefiniteArrayType  ::vrebuild(TypeTable& to, Types ops) const { return to.definite_array_type(ops[0], dim()); }
+const Type* FnType             ::vrebuild(TypeTable& to, Types ops) const { return to.fn_type(ops); }
+const Type* FrameType          ::vrebuild(TypeTable& to, Types    ) const { return to.frame_type(); }
+const Type* IndefiniteArrayType::vrebuild(TypeTable& to, Types ops) const { return to.indefinite_array_type(ops[0]); }
+const Type* MemType            ::vrebuild(TypeTable& to, Types    ) const { return to.mem_type(); }
+const Type* PrimType           ::vrebuild(TypeTable& to, Types    ) const { return to.type(primtype_tag(), length()); }
+
+const Type* PtrType::vrebuild(TypeTable& to, Types ops) const {
+    return to.ptr_type(ops.front(), length(), device(), addr_space());
+}
 
 //------------------------------------------------------------------------------
 
+/*
+ * reduce
+ */
+
+const Type* Lambda::vreduce(int depth, const Type* type, Type2Type& map) const {
+    return table().lambda(body()->reduce(depth+1, type, map), name());
+}
+
+const Type* Var::vreduce(int depth, const Type* type, Type2Type&) const {
+    if (this->depth() == depth)
+        return type;
+    else if (this->depth() > depth)
+        return table().var(this->depth()-1);  // this is a free variable - shift by one
+    else
+        return this;                          // this variable is not free - don't adjust
+}
+
+const Type* StructType::vreduce(int depth, const Type* type, Type2Type& map) const {
+    auto struct_type = table().struct_type(name(), num_ops());
+    map[this] = struct_type;
+    for (size_t i = 0, e = num_ops(); i != e; ++i)
+        struct_type->set(i, op(i)->reduce(depth, type, map));
+
+    return struct_type;
+}
+
+//------------------------------------------------------------------------------
 
 const VectorType* VectorType::scalarize() const {
     if (auto ptr = isa<PtrType>())
-        return world().ptr_type(ptr->pointee());
-    return world().type(as<PrimType>()->primtype_tag());
+        return table().ptr_type(ptr->pointee());
+    return table().type(as<PrimType>()->primtype_tag());
 }
 
 bool FnType::is_returning() const {
@@ -50,23 +95,6 @@ bool use_lea(const Type* type) { return type->isa<StructType>() || type->isa<Arr
 //------------------------------------------------------------------------------
 
 /*
- * vrebuild
- */
-
-const Type* DefiniteArrayType  ::vrebuild(World& to, Types ops) const { return to.definite_array_type(ops[0], dim()); }
-const Type* FnType             ::vrebuild(World& to, Types ops) const { return to.fn_type(ops); }
-const Type* FrameType          ::vrebuild(World& to, Types    ) const { return to.frame_type(); }
-const Type* IndefiniteArrayType::vrebuild(World& to, Types ops) const { return to.indefinite_array_type(ops[0]); }
-const Type* MemType            ::vrebuild(World& to, Types    ) const { return to.mem_type(); }
-const Type* PrimType           ::vrebuild(World& to, Types    ) const { return to.type(primtype_tag(), length()); }
-
-const Type* PtrType::vrebuild(World& to, Types ops) const {
-    return to.ptr_type(ops.front(), length(), device(), addr_space());
-}
-
-//------------------------------------------------------------------------------
-
-/*
  * hash
  */
 
@@ -74,11 +102,19 @@ uint64_t PtrType::vhash() const {
     return hash_combine(VectorType::vhash(), (uint64_t)device(), (uint64_t)addr_space());
 }
 
+uint64_t Var::vhash() const {
+    return murmur3(uint64_t(tag()) << uint64_t(56) | uint8_t(depth()));
+}
+
 //------------------------------------------------------------------------------
 
 /*
  * equal
  */
+
+bool Var::equal(const Type* other) const {
+    return other->isa<Var>() ? this->as<Var>()->depth() == other->as<Var>()->depth() : false;
+}
 
 bool PtrType::equal(const Type* other) const {
     if (!VectorType::equal(other))
@@ -106,7 +142,6 @@ std::ostream& IndefiniteArrayType::stream(std::ostream& os) const { return strea
 std::ostream& Lambda             ::stream(std::ostream& os) const { return streamf(os, "[{}].{}", name(), body()); }
 std::ostream& MemType            ::stream(std::ostream& os) const { return os << "mem"; }
 std::ostream& StructType         ::stream(std::ostream& os) const { return os << name(); }
-std::ostream& EnumType           ::stream(std::ostream& os) const { return os << name(); }
 std::ostream& TupleType          ::stream(std::ostream& os) const { return stream_type_ops(os, this); }
 
 std::ostream& PtrType::stream(std::ostream& os) const {
@@ -145,28 +180,36 @@ std::ostream& PrimType::stream(std::ostream& os) const {
 
 //------------------------------------------------------------------------------
 
-/*
- * reduce
- */
+TypeTable::TypeTable()
+    : unit_ (unify(new TupleType(*this, Types())))
+    , fn0_  (unify(new FnType   (*this, {})))
+    , mem_  (unify(new MemType  (*this)))
+    , frame_(unify(new FrameType(*this)))
+#define THORIN_ALL_TYPE(T, M) \
+    , T##_(unify(new PrimType(*this, PrimType_##T, 1)))
+#include "thorin/tables/primtypetable.h"
+{}
 
-const Type* FrameType::vreduce(int, const Type*, Type2Type&) const { return this; }
-const Type* MemType  ::vreduce(int, const Type*, Type2Type&) const { return this; }
-const Type* PrimType ::vreduce(int, const Type*, Type2Type&) const { return this; }
-
-const Type* DefiniteArrayType::vreduce(int depth, const Type* type, Type2Type& map) const {
-    return world().definite_array_type(elem_type()->reduce(depth, type, map), dim());
+const StructType* TypeTable::struct_type(const char* name, size_t size) {
+    auto type = new StructType(*this, name, size);
+    const auto& p = types_.insert(type);
+    assert_unused(p.second && "hash/equal broken");
+    return type;
 }
 
-const Type* FnType::vreduce(int depth, const Type* type, Type2Type& map) const {
-    return world().fn_type(reduce_ops(depth, type, map));
-}
+const Type* TypeTable::app(const Type* callee, const Type* op) {
+    auto app = unify(new App(*this, callee, op));
 
-const Type* IndefiniteArrayType::vreduce(int depth, const Type* type, Type2Type& map) const {
-    return world().indefinite_array_type(elem_type()->reduce(depth, type, map));
-}
+    if (auto cache = app->cache_)
+        return cache;
+    if (auto lambda = app->callee()->template isa<Lambda>()) {
+        Type2Type map;
+        return app->cache_ = lambda->body()->reduce(1, op, map);
+    } else {
+        return app->cache_ = app;
+    }
 
-const Type* PtrType::vreduce(int depth, const Type* type, Type2Type& map) const {
-    return world().ptr_type(pointee()->reduce(depth, type, map), length(), device(), addr_space());
+    return app;
 }
 
 //------------------------------------------------------------------------------

@@ -40,7 +40,7 @@ namespace thorin {
  *  All worlds are completely independent from each other.
  *  This is particular useful for multi-threading.
  */
-class World : public TypeTableBase<World>, public Streamable {
+class World : public TypeTable, public Streamable {
 public:
     typedef HashSet<const PrimOp*, PrimOpHash> PrimOpSet;
 
@@ -54,28 +54,6 @@ public:
 
     World(std::string name = "");
     ~World();
-
-    // types
-
-#define THORIN_ALL_TYPE(T, M) \
-    const PrimType* type_##T(size_t length = 1) { return length == 1 ? T##_ : unify(new PrimType(*this, PrimType_##T, length)); }
-#include "thorin/tables/primtypetable.h"
-
-    const PrimType* type(PrimTypeTag tag, size_t length = 1) {
-        size_t i = tag - Begin_PrimType;
-        assert(i < (size_t) Num_PrimTypes);
-        return length == 1 ? primtypes_[i] : unify(new PrimType(*this, tag, length));
-    }
-    const MemType* mem_type() const { return mem_; }
-    const FrameType* frame_type() const { return frame_; }
-    const PtrType* ptr_type(const Type* pointee,
-                            size_t length = 1, int32_t device = -1, AddrSpace addr_space = AddrSpace::Generic) {
-        return unify(new PtrType(*this, pointee, length, device, addr_space));
-    }
-    const FnType* fn_type() { return fn0_; } ///< Returns an empty @p FnType.
-    const FnType* fn_type(Types args) { return unify(new FnType(*this, args)); }
-    const DefiniteArrayType*   definite_array_type(const Type* elem, u64 dim) { return unify(new DefiniteArrayType(*this, elem, dim)); }
-    const IndefiniteArrayType* indefinite_array_type(const Type* elem) { return unify(new IndefiniteArrayType(*this, elem)); }
 
     // literals
 
@@ -222,20 +200,15 @@ public:
 
     friend void swap(World& w1, World& w2) {
         using std::swap;
-        swap(static_cast<TypeTableBase<World>&>(w1), static_cast<TypeTableBase<World>&>(w2));
+        swap(static_cast<TypeTable&>(w1), static_cast<TypeTable&>(w2));
         swap(w1.name_,          w2.name_);
-#define THORIN_ALL_TYPE(T, M) \
-        swap(w1.T##_,           w2.T##_);
-#include "thorin/tables/primtypetable.h"
-        swap(w1.fn0_,           w2.fn0_);
-        swap(w1.mem_,           w2.mem_);
-        swap(w1.frame_,         w2.frame_);
         swap(w1.continuations_, w2.continuations_);
         swap(w1.externals_,     w2.externals_);
         swap(w1.primops_,       w2.primops_);
         swap(w1.trackers_,      w2.trackers_);
         swap(w1.branch_,        w2.branch_);
         swap(w1.end_scope_,     w2.end_scope_);
+
 #ifndef NDEBUG
         swap(w1.breakpoints_,   w2.breakpoints_);
 #endif
@@ -252,17 +225,6 @@ private:
     template<class T> const T* cse(const T* primop) { return cse_base(primop)->template as<T>(); }
 
     std::string name_;
-    union {
-        struct {
-#define THORIN_ALL_TYPE(T, M) const PrimType* T##_;
-#include "thorin/tables/primtypetable.h"
-        };
-
-        const PrimType* primtypes_[Num_PrimTypes];
-    };
-    const FnType* fn0_;
-    const MemType* mem_;
-    const FrameType* frame_;
     ContinuationSet continuations_;
     ContinuationSet externals_;
     PrimOpSet primops_;

@@ -22,7 +22,7 @@ template<bool> class DomFrontierBase;
  * A Control-Flow Node.
  * Managed by @p CFA.
  */
-class CFNodeBase : public MagicCast<CFNodeBase>, public Streamable {
+class CFNodeBase : public RuntimeCast<CFNodeBase>, public Streamable {
 public:
     CFNodeBase(const Def* def)
         : def_(def)

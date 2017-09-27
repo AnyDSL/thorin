@@ -1027,6 +1027,19 @@ std::ostream& CCodeGen::emit(const Def* def) {
         return func_impl_;
     }
 
+    if (auto select = def->isa<Select>()) {
+        emit_aggop_defs(select->cond());
+        emit_aggop_defs(select->tval());
+        emit_aggop_defs(select->fval());
+        emit_type(func_impl_, select->type()) << " " << def_name << ";" << endl;
+        func_impl_ << def_name << " = ";
+        emit(select->cond()) << " ? ";
+        emit(select->tval()) << " : ";
+        emit(select->fval()) << ";";
+        insert(def, def_name);
+        return func_impl_;
+    }
+
     THORIN_UNREACHABLE;
 }
 

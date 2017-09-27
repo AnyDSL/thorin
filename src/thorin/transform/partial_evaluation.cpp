@@ -101,7 +101,7 @@ void eat_pe_info(Continuation* cur, bool eval) {
     auto msg = cur->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
     ILOG(cur->callee(), "{}pe_info: {}: {}", eval ? "" : "NOT evaluated: ", msg->as_string(), cur->arg(2));
     auto next = cur->arg(3);
-    cur->jump(next, {cur->arg(0), world.tuple({})}, cur->jump_debug());
+    cur->jump(next, {cur->arg(0)}, cur->jump_debug());
 }
 
 void eat_pe_known(Continuation* cur, bool eval) {

@@ -483,6 +483,12 @@ const Def* World::cast(const Type* to, const Def* from, Debug dbg) {
         return vector(ops, dbg);
     }
 
+    if (auto variant = from->isa<Variant>()) {
+        if (variant->op(0)->type() != to)
+            ELOG(&dbg, "variant downcast not possible");
+        return variant->op(0);
+    }
+
     auto lit = from->isa<PrimLit>();
     auto to_type = to->isa<PrimType>();
     if (lit && to_type) {

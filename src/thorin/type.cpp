@@ -24,6 +24,7 @@ const Type* StructType::vrebuild(TypeTable&, Types ops) const {
 
 const Type* App                ::vrebuild(TypeTable& to, Types ops) const { return to.app(ops[0], ops[1]); }
 const Type* TupleType          ::vrebuild(TypeTable& to, Types ops) const { return to.tuple_type(ops); }
+const Type* VariantType        ::vrebuild(TypeTable& to, Types ops) const { return to.variant_type(ops); }
 const Type* Lambda             ::vrebuild(TypeTable& to, Types ops) const { return to.lambda(ops[0], name()); }
 const Type* Var                ::vrebuild(TypeTable& to, Types    ) const { return to.var(depth()); }
 const Type* DefiniteArrayType  ::vrebuild(TypeTable& to, Types ops) const { return to.definite_array_type(ops[0], dim()); }
@@ -142,6 +143,7 @@ std::ostream& IndefiniteArrayType::stream(std::ostream& os) const { return strea
 std::ostream& Lambda             ::stream(std::ostream& os) const { return streamf(os, "[{}].{}", name(), body()); }
 std::ostream& MemType            ::stream(std::ostream& os) const { return os << "mem"; }
 std::ostream& StructType         ::stream(std::ostream& os) const { return os << name(); }
+std::ostream& VariantType        ::stream(std::ostream& os) const { return stream_type_ops(os << "variant ", this); }
 std::ostream& TupleType          ::stream(std::ostream& os) const { return stream_type_ops(os, this); }
 
 std::ostream& PtrType::stream(std::ostream& os) const {

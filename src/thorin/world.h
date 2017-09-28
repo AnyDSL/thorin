@@ -117,6 +117,7 @@ public:
         return try_fold_aggregate(cse(new StructAgg(struct_type, args, dbg)));
     }
     const Def* tuple(Defs args, Debug dbg = {}) { return try_fold_aggregate(cse(new Tuple(*this, args, dbg))); }
+    const Def* variant(const VariantType* variant_type, const Def* value, Debug dbg = {}) { return cse(new Variant(variant_type, value, dbg)); }
     const Def* vector(Defs args, Debug dbg = {}) {
         if (args.size() == 1) return args[0];
         return try_fold_aggregate(cse(new Vector(*this, args, dbg)));

@@ -122,6 +122,22 @@ private:
     friend class TypeTable;
 };
 
+/// The type of a variant (structurally typed).
+class VariantType : public Type {
+private:
+    VariantType(TypeTable& table, Types ops)
+        : Type(table, Node_VariantType, ops)
+    {
+        assert(std::adjacent_find(ops.begin(), ops.end()) == ops.end());
+    }
+
+private:
+    virtual const Type* vrebuild(TypeTable& to, Types ops) const override;
+    virtual std::ostream& stream(std::ostream&) const override;
+
+    friend class TypeTable;
+};
+
 /// The type of the memory monad.
 class MemType : public Type {
 public:
@@ -334,6 +350,7 @@ public:
     const TupleType* tuple_type(Types ops) { return unify(new TupleType(*this, ops)); }
     const TupleType* unit() { return unit_; } ///< Returns unit, i.e., an empty @p TupleType.
     const StructType* struct_type(const char* name, size_t size);
+    const VariantType* variant_type(Types ops) { return unify(new VariantType(*this, ops)); }
 
 #define THORIN_ALL_TYPE(T, M) \
     const PrimType* type_##T(size_t length = 1) { return type(PrimType_##T, length); }

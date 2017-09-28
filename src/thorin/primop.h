@@ -366,6 +366,24 @@ public:
     friend class World;
 };
 
+/// Data constructor for a @p VariantType.
+class Variant : public PrimOp {
+private:
+    Variant(const VariantType* variant_type, const Def* value, Debug dbg)
+        : PrimOp(Node_Variant, variant_type, {value}, dbg)
+    {
+        assert(std::find(variant_type->ops().begin(), variant_type->ops().end(), value->type()) != variant_type->ops().end());
+        set_type(variant_type);
+    }
+
+    virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
+
+public:
+    const VariantType* type() const { return PrimOp::type()->as<VariantType>(); }
+
+    friend class World;
+};
+
 /**
  * Load effective address.
  * Takes a pointer <tt>ptr</tt> to an aggregate as input.

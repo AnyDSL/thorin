@@ -143,7 +143,7 @@ std::ostream& IndefiniteArrayType::stream(std::ostream& os) const { return strea
 std::ostream& Lambda             ::stream(std::ostream& os) const { return streamf(os, "[{}].{}", name(), body()); }
 std::ostream& MemType            ::stream(std::ostream& os) const { return os << "mem"; }
 std::ostream& StructType         ::stream(std::ostream& os) const { return os << name(); }
-std::ostream& VariantType        ::stream(std::ostream& os) const { return stream_type_ops(os << "variant ", this); }
+std::ostream& VariantType        ::stream(std::ostream& os) const { return stream_type_ops(os << "variant", this); }
 std::ostream& TupleType          ::stream(std::ostream& os) const { return stream_type_ops(os, this); }
 
 std::ostream& PtrType::stream(std::ostream& os) const {

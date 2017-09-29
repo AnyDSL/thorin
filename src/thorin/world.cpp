@@ -474,6 +474,9 @@ const Def* World::convert(const Type* dst_type, const Def* src, Debug dbg) {
 }
 
 const Def* World::cast(const Type* to, const Def* from, Debug dbg) {
+    if (from->isa<Bottom>())
+        return bottom(to);
+
     if (auto vec = from->isa<Vector>()) {
         size_t num = vector_length(vec);
         auto to_vec = to->as<VectorType>();

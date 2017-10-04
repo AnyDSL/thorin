@@ -205,11 +205,6 @@ void Cleaner::within(const Def* def) {
 }
 
 void Cleaner::cleanup() {
-#ifndef NDEBUG
-    for (const auto& p : world().trackers_)
-        assert(p.second.empty() && "there are still live trackers before running cleanup");
-#endif
-
     int i = 0;
     for (; todo_; ++i) {
         todo_ = false;

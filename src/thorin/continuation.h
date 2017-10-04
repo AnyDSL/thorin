@@ -231,7 +231,7 @@ private:
      */
     Continuation* parent_;
     std::vector<const Param*> params_;
-    std::deque<Tracker> values_;
+    std::vector<Tracker> values_;
     std::vector<Todo> todos_;
     CC cc_;
     Intrinsic intrinsic_;

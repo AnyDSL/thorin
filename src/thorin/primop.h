@@ -50,7 +50,7 @@ private:
     friend struct PrimOpHash;
     friend class World;
     friend class Cleaner;
-    friend void Def::replace(const Def*) const;
+    friend void Def::replace(Tracker) const;
 };
 
 struct PrimOpHash {

@@ -209,7 +209,6 @@ public:
         swap(w1.continuations_, w2.continuations_);
         swap(w1.externals_,     w2.externals_);
         swap(w1.primops_,       w2.primops_);
-        swap(w1.trackers_,      w2.trackers_);
         swap(w1.branch_,        w2.branch_);
         swap(w1.end_scope_,     w2.end_scope_);
         swap(w1.pe_done_,       w2.pe_done_);
@@ -221,10 +220,6 @@ public:
     }
 
 private:
-    Trackers& trackers(const Def* def) {
-        assert(def);
-        return trackers_[def];
-    }
     const Param* param(const Type* type, Continuation* continuation, size_t index, Debug dbg);
     const Def* try_fold_aggregate(const Aggregate*);
     const Def* cse_base(const PrimOp*);
@@ -234,7 +229,6 @@ private:
     ContinuationSet continuations_;
     ContinuationSet externals_;
     PrimOpSet primops_;
-    DefMap<Trackers> trackers_;
     Continuation* branch_;
     Continuation* end_scope_;
     bool pe_done_ = false;
@@ -245,8 +239,7 @@ private:
 
     friend class Cleaner;
     friend class Continuation;
-    friend class Tracker;
-    friend void Def::replace(const Def*) const;
+    friend void Def::replace(Tracker) const;
 };
 
 }

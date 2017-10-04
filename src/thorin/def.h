@@ -12,10 +12,10 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-class Def;
-class Tracker;
 class Continuation;
+class Def;
 class PrimOp;
+class Tracker;
 class Use;
 class World;
 
@@ -134,7 +134,8 @@ public:
     World& world() const;
     Defs ops() const { return ops_; }
     const Def* op(size_t i) const { assert(i < ops().size() && "index out of bounds"); return ops_[i]; }
-    void replace(const Def*) const;
+    void replace(Tracker) const;
+    bool is_representative() const { return representative_ != nullptr; }
 
     virtual std::ostream& stream(std::ostream&) const;
     static size_t gid_counter() { return gid_counter_; }
@@ -143,17 +144,41 @@ private:
     const NodeTag tag_;
     std::vector<const Def*> ops_;
     const Type* type_;
+    mutable const Def* representative_ = nullptr;
     mutable Uses uses_;
     const size_t gid_;
     mutable Debug debug_;
 
     static size_t gid_counter_;
 
+    friend class Cleaner;
     friend class PrimOp;
     friend class Scope;
-    friend class World;
-    friend class Cleaner;
     friend class Tracker;
+    friend class World;
+};
+
+class Tracker {
+public:
+    Tracker()
+        : def_(nullptr)
+    {}
+    Tracker(const Def* def)
+        : def_(def)
+    {}
+
+    operator const Def*() { return def(); }
+    const Def* operator->() { return def(); }
+    const Def* def() {
+        if (def_ != nullptr) {
+            while (auto repr = def_->representative_)
+                def_ = repr;
+        }
+        return def_;
+    }
+
+private:
+    const Def* def_;
 };
 
 uint64_t UseHash::hash(Use use) { return murmur3(uint64_t(use.index()) << 48_u64 | uint64_t(use->gid())); }
@@ -186,103 +211,6 @@ inline std::ostream& operator<<(std::ostream& os, const Type* type) { return typ
 inline std::ostream& operator<<(std::ostream& os, Use use) { return use->stream(os); }
 
 //------------------------------------------------------------------------------
-
-class Tracker;
-typedef GIDSet<Tracker*> Trackers;
-
-class Tracker {
-public:
-    Tracker()
-        : def_(nullptr)
-        , gid_(gid_counter_++)
-    {}
-    Tracker(const Def* def)
-        : def_(def)
-        , gid_(gid_counter_++)
-    {
-        if (def) {
-            put(*this);
-            verify();
-        }
-    }
-    Tracker(const Tracker& other)
-        : def_(other)
-        , gid_(gid_counter_++)
-    {
-        if (other) {
-            put(*this);
-            verify();
-        }
-    }
-    Tracker(Tracker&& other)
-        : def_(*other)
-    {
-        if (other) {
-            other.unregister();
-            other.def_ = nullptr;
-            put(*this);
-            verify();
-        }
-    }
-    ~Tracker() { if (*this) unregister(); }
-
-    size_t gid() const { return gid_; }
-    const Def* operator*() const { return def_; }
-    bool operator==(const Tracker& other) const { return this->def_ == other.def_; }
-    bool operator!=(const Tracker& other) const { return this->def_ != other.def_; }
-    bool operator==(const Def* def) const { return this->def_ == def; }
-    bool operator!=(const Def* def) const { return this->def_ != def; }
-    const Def* operator->() const { return **this; }
-    operator const Def*() const { return **this; }
-    explicit operator bool() { return def_; }
-    Tracker& operator=(Tracker other) { swap(*this, other); return *this; }
-
-    friend void swap(Tracker& t1, Tracker& t2) {
-        using std::swap;
-
-        if (t1 != t2) {
-            if (t1) {
-                if (t2) {
-                    t1.update(t2);
-                    t2.update(t1);
-                } else {
-                    t1.update(t2);
-                }
-            } else {
-                assert(!t1 && t2);
-                t2.update(t1);
-            }
-
-            std::swap(t1.def_, t2.def_);
-        } else {
-            t1.verify();
-            t2.verify();
-        }
-    }
-
-private:
-    Trackers& trackers(const Def* def);
-    void verify() { assert(!def_ || trackers(def_).contains(this)); }
-    void put(Tracker& other) {
-        auto p = trackers(def_).insert(&other);
-        assert_unused(p.second && "couldn't insert tracker");
-    }
-
-    void unregister() {
-        assert(trackers(def_).contains(this) && "tracker not found");
-        trackers(def_).erase(this);
-    }
-
-    void update(Tracker& other) {
-        unregister();
-        put(other);
-    }
-
-    mutable const Def* def_;
-    size_t gid_;
-    static size_t gid_counter_;
-    friend void Def::replace(const Def*) const;
-};
 
 }
 

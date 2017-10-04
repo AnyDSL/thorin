@@ -28,9 +28,10 @@ const Type* Importer::import(const Type* otype) {
     return ntype;
 }
 
-const Def* Importer::import(const Def* odef) {
+const Def* Importer::import(Tracker odef) {
     if (auto ndef = find(def_old2new_, odef)) {
         assert(&ndef->world() == &world_);
+        assert(!ndef->is_representative());
         return ndef;
     }
 
@@ -40,6 +41,7 @@ const Def* Importer::import(const Def* odef) {
         import(oparam->continuation())->as_continuation();
         auto nparam = find(def_old2new_, oparam);
         assert(nparam && &nparam->world() == &world_);
+        assert(!nparam->is_representative());
         return nparam;
     }
 
@@ -69,6 +71,8 @@ const Def* Importer::import(const Def* odef) {
             if (auto lit = cond->isa<PrimLit>()) {
                 auto callee = import(lit->value().get_bool() ? ocontinuation->arg(1) : ocontinuation->arg(2));
                 ncontinuation->jump(callee, {}, ocontinuation->jump_debug());
+
+                assert(!ncontinuation->is_representative());
                 return ncontinuation;
             }
         }
@@ -90,6 +94,7 @@ const Def* Importer::import(const Def* odef) {
     if (auto oprimop = odef->isa<PrimOp>()) {
         auto nprimop = oprimop->rebuild(world(), nops, ntype);
         todo_ |= oprimop->tag() != oprimop->tag();
+        assert(!nprimop->is_representative());
         return def_old2new_[oprimop] = nprimop;
     }
 
@@ -97,6 +102,7 @@ const Def* Importer::import(const Def* odef) {
     assert(ncontinuation && &ncontinuation->world() == &world());
     if (size > 0)
         ncontinuation->jump(nops.front(), nops.skip_front(), ocontinuation->jump_debug());
+    assert(!ncontinuation->is_representative());
     return ncontinuation;
 }
 

@@ -99,7 +99,7 @@ void PartialEvaluator::eat_pe_info(Continuation* cur) {
     auto next = cur->arg(3);
     cur->jump(next, {cur->arg(0)}, cur->jump_debug());
 
-    // always re-insert into queue because we've change cur's jump
+    // always re-insert into queue because we've changed cur's jump
     queue_.push(cur);
 }
 

@@ -126,6 +126,8 @@ bool is_minus_zero(const Def* def) {
 void Def::replace(Tracker with) const {
     DLOG("replace: {} -> {}", this, with);
     assert(type() == with->type());
+    assert(!is_replaced());
+
     if (this != with) {
         for (auto& use : copy_uses()) {
             auto def = const_cast<Def*>(use.def());
@@ -135,9 +137,7 @@ void Def::replace(Tracker with) const {
         }
 
         uses_.clear();
-
-        assert(representative_ == nullptr);
-        representative_ = with;
+        substitute_ = with;
     }
 }
 

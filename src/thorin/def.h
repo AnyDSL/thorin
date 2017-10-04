@@ -135,7 +135,7 @@ public:
     Defs ops() const { return ops_; }
     const Def* op(size_t i) const { assert(i < ops().size() && "index out of bounds"); return ops_[i]; }
     void replace(Tracker) const;
-    bool is_representative() const { return representative_ != nullptr; }
+    bool is_replaced() const { return substitute_ != nullptr; }
 
     virtual std::ostream& stream(std::ostream&) const;
     static size_t gid_counter() { return gid_counter_; }
@@ -144,7 +144,7 @@ private:
     const NodeTag tag_;
     std::vector<const Def*> ops_;
     const Type* type_;
-    mutable const Def* representative_ = nullptr;
+    mutable const Def* substitute_ = nullptr;
     mutable Uses uses_;
     const size_t gid_;
     mutable Debug debug_;
@@ -171,7 +171,7 @@ public:
     const Def* operator->() { return def(); }
     const Def* def() {
         if (def_ != nullptr) {
-            while (auto repr = def_->representative_)
+            while (auto repr = def_->substitute_)
                 def_ = repr;
         }
         return def_;

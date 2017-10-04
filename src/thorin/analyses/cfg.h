@@ -24,7 +24,7 @@ typedef GIDSet<const CFNode*> CFNodes;
  * A Control-Flow Node.
  * Managed by @p CFA.
  */
-class CFNode : public MagicCast<CFNode>, public Streamable {
+class CFNode : public RuntimeCast<CFNode>, public Streamable {
 public:
     CFNode(Continuation* continuation)
         : continuation_(continuation)

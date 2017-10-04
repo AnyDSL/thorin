@@ -97,7 +97,7 @@ void PartialEvaluator::eat_pe_info(Continuation* cur) {
     auto msg = cur->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
     ILOG(cur->callee(), "pe_info: {}: {}", msg->as_string(), cur->arg(2));
     auto next = cur->arg(3);
-    cur->jump(next, {cur->arg(0), world().tuple({})}, cur->jump_debug());
+    cur->jump(next, {cur->arg(0)}, cur->jump_debug());
 
     // always re-insert into queue because we've change cur's jump
     queue_.push(cur);

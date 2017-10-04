@@ -609,6 +609,14 @@ llvm::Value* CodeGen::emit(const Def* def) {
             return from;
 
         if (conv->isa<Cast>()) {
+            if (src_type->isa<VariantType>()) {
+                auto ptr_type = llvm::PointerType::get(to, 0);
+                auto alloca = irbuilder_.CreateAlloca(from->getType());
+                auto casted_ptr = irbuilder_.CreateBitCast(alloca, ptr_type);
+                irbuilder_.CreateStore(from, alloca);
+                return irbuilder_.CreateLoad(casted_ptr);
+            }
+
             if (src_type->isa<PtrType>() && dst_type->isa<PtrType>()) {
                 return irbuilder_.CreatePointerCast(from, to);
             }
@@ -756,6 +764,15 @@ llvm::Value* CodeGen::emit(const Def* def) {
             return irbuilder_.CreateInsertElement(llvm_agg, lookup(aggop->as<Insert>()->value()), llvm_idx);
         // tuple/struct
         return irbuilder_.CreateInsertValue(llvm_agg, value, {primlit_value<unsigned>(aggop->index())});
+    }
+
+    if (auto variant = def->isa<Variant>()) {
+        auto value = lookup(variant->op(0));
+        auto ptr_type = llvm::PointerType::get(value->getType(), 0);
+        auto alloca = irbuilder_.CreateAlloca(convert(variant->type()));
+        auto casted_ptr = irbuilder_.CreateBitCast(alloca, ptr_type);
+        irbuilder_.CreateStore(value, casted_ptr);
+        return irbuilder_.CreateLoad(alloca);
     }
 
     if (auto primlit = def->isa<PrimLit>()) {
@@ -992,6 +1009,14 @@ llvm::Type* CodeGen::convert(const Type* type) {
                 llvm_types[i] = convert(tuple->op(i));
             llvm_type = llvm::StructType::get(context_, llvm_ref(llvm_types));
             return types_[tuple] = llvm_type;
+        }
+
+        case Node_VariantType: {
+            auto layout = module_->getDataLayout();
+            uint64_t max_size = 0;
+            for (auto op : type->ops())
+                max_size = std::max(max_size, layout.getTypeAllocSize(convert(op)));
+            return llvm::ArrayType::get(irbuilder_.getInt8Ty(), max_size);
         }
 
         default:

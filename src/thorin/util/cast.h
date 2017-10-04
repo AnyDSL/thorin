@@ -64,12 +64,12 @@ if (Bar* bar = foo->isa<Bar>()) { ... }
  * @endcode
  * instead of more combersume
  * @code
-Bar* bar = anydsl::scast<Bar>(foo);
-if (Bar* bar = anydsl::dcast<Bar>(foo)) { ... }
+Bar* bar = thorin::scast<Bar>(foo);
+if (Bar* bar = thorin::dcast<Bar>(foo)) { ... }
  * @endcode
  */
 template<class Base>
-class MagicCast {
+class RuntimeCast {
 public:
     /**
      * Acts as static cast -- checked for correctness in the debug version.
@@ -84,11 +84,11 @@ public:
      */
     template<class To> To* isa() { return thorin::dcast<To>(static_cast<Base*>(this)); }
 
-    ///< @c const version of @see MagicCast#as.
+    ///< @c const version of @see RuntimeCast#as.
     template<class To>
     const To* as()  const { return thorin::scast<To>(static_cast<const Base*>(this)); }
 
-    ///< @c const version of @see MagicCast#isa.
+    ///< @c const version of @see RuntimeCast#isa.
     template<class To>
     const To* isa() const { return thorin::dcast<To>(static_cast<const Base*>(this)); }
 };

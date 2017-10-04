@@ -43,12 +43,6 @@ namespace thorin {
 
 World::World(std::string name)
     : name_(name)
-#define THORIN_ALL_TYPE(T, M) \
-    ,T##_(unify(new PrimType(*this, PrimType_##T, 1)))
-#include "thorin/tables/primtypetable.h"
-    , fn0_    (unify(new FnType   (*this, {})))
-    , mem_    (unify(new MemType  (*this)))
-    , frame_  (unify(new FrameType(*this)))
 {
     branch_ = continuation(fn_type({type_bool(), fn_type(), fn_type()}), CC::C, Intrinsic::Branch, {"br"});
     end_scope_ = continuation(fn_type(), CC::C, Intrinsic::EndScope, {"end_scope"});
@@ -480,6 +474,9 @@ const Def* World::convert(const Type* dst_type, const Def* src, Debug dbg) {
 }
 
 const Def* World::cast(const Type* to, const Def* from, Debug dbg) {
+    if (from->isa<Bottom>())
+        return bottom(to);
+
     if (auto vec = from->isa<Vector>()) {
         size_t num = vector_length(vec);
         auto to_vec = to->as<VectorType>();
@@ -487,6 +484,12 @@ const Def* World::cast(const Type* to, const Def* from, Debug dbg) {
         for (size_t i = 0; i != num; ++i)
             ops[i] = cast(to_vec->scalarize(), vec->op(i), dbg);
         return vector(ops, dbg);
+    }
+
+    if (auto variant = from->isa<Variant>()) {
+        if (variant->op(0)->type() != to)
+            ELOG(&dbg, "variant downcast not possible");
+        return variant->op(0);
     }
 
     auto lit = from->isa<PrimLit>();

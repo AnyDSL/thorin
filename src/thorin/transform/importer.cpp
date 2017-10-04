@@ -4,7 +4,7 @@ namespace thorin {
 
 const Type* Importer::import(const Type* otype) {
     if (auto ntype = find(type_old2new_, otype)) {
-        assert(&ntype->world() == &world_);
+        assert(&ntype->table() == &world_);
         return ntype;
     }
     size_t size = otype->num_ops();
@@ -23,7 +23,7 @@ const Type* Importer::import(const Type* otype) {
 
     auto ntype = otype->rebuild(world_, nops);
     type_old2new_[otype] = ntype;
-    assert(&ntype->world() == &world_);
+    assert(&ntype->table() == &world_);
 
     return ntype;
 }
@@ -53,7 +53,7 @@ const Def* Importer::import(const Def* odef) {
         auto npi = import(ocontinuation->type())->as<FnType>();
         ncontinuation = world().continuation(npi, ocontinuation->cc(), ocontinuation->intrinsic(), ocontinuation->debug_history());
         assert(&ncontinuation->world() == &world());
-        assert(&npi->world() == &world());
+        assert(&npi->table() == &world());
         for (size_t i = 0, e = ocontinuation->num_params(); i != e; ++i) {
             ncontinuation->param(i)->debug() = ocontinuation->param(i)->debug_history();
             def_old2new_[ocontinuation->param(i)] = ncontinuation->param(i);

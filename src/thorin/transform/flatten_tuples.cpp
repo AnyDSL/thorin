@@ -27,7 +27,7 @@ static const Type* wrapped_type(const FnType* fn_type, size_t max_tuple_size) {
             nops.push_back(op);
         }
     }
-    return fn_type->world().fn_type(nops);
+    return fn_type->table().fn_type(nops);
 }
 
 static Continuation* jump(Continuation* cont, Array<const Def*>& args) {

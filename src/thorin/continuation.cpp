@@ -94,7 +94,7 @@ const Param* Continuation::append_param(const Type* param_type, Debug dbg) {
     Array<const Type*> ops(size + 1);
     *std::copy(type()->ops().begin(), type()->ops().end(), ops.begin()) = param_type;
     clear_type();
-    set_type(param_type->world().fn_type(ops));              // update type
+    set_type(param_type->table().fn_type(ops));              // update type
     auto param = world().param(param_type, this, size, dbg); // append new param
     params_.push_back(param);
 
@@ -275,7 +275,14 @@ std::pair<Continuation*, const Def*> Continuation::call(const Def* callee, Defs 
 
     std::vector<const Type*> cont_args;
     cont_args.push_back(world().mem_type());
-    cont_args.push_back(ret_type);
+
+    // if the return type is a tuple, flatten it
+    auto tuple = ret_type->isa<TupleType>();
+    if (tuple) {
+        for (auto op : tuple->ops())
+            cont_args.push_back(op);
+    } else
+        cont_args.push_back(ret_type);
 
     auto next = world().continuation(world().fn_type(cont_args), dbg);
     next->param(0)->debug().set("mem");
@@ -288,7 +295,13 @@ std::pair<Continuation*, const Def*> Continuation::call(const Def* callee, Defs 
 
     // determine return value
     const Def* ret = nullptr;
-    ret = next->param(1);
+    if (tuple) {
+        Array<const Def*> params(next->num_params() - 1);
+        for (size_t i = 1, e = next->num_params(); i != e; ++i)
+            params[i - 1] = next->param(i);
+        ret = world().tuple(params);
+    } else
+        ret = next->param(1);
     ret->debug().set(callee->name());
 
     return std::make_pair(next, ret);

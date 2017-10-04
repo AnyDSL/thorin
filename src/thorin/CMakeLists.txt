@@ -5,8 +5,6 @@ set(THORIN_SOURCES
     def.h
     enums.cpp
     enums.h
-    henk.cpp.h
-    henk.h
     irbuilder.cpp
     irbuilder.h
     primop.cpp
@@ -86,6 +84,7 @@ set(THORIN_SOURCES
     util/utility.h
     util/ycomp.cpp
     util/ycomp.h
+    util/type_table.h
 )
 
 if(LLVM_FOUND)
@@ -117,5 +116,6 @@ if(LLVM_FOUND)
     target_link_libraries(thorin ${LLVM_LIBRARIES})
 endif()
 if(RV_FOUND)
-    target_link_libraries(thorin ${RV_LIBRARIES})
+    llvm_map_components_to_libnames(RV_LLVM_LIBS core analysis irreader support transformutils)
+    target_link_libraries(thorin ${RV_LIBRARIES} ${RV_LLVM_LIBS})
 endif()

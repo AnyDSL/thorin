@@ -87,13 +87,13 @@ SizeOf::SizeOf(const Def* def, Debug dbg)
 {}
 
 Slot::Slot(const Type* type, const Def* frame, Debug dbg)
-    : PrimOp(Node_Slot, type->world().ptr_type(type), {frame}, dbg)
+    : PrimOp(Node_Slot, type->table().ptr_type(type), {frame}, dbg)
 {
     assert(frame->type()->isa<FrameType>());
 }
 
 Global::Global(const Def* init, bool is_mutable, Debug dbg)
-    : PrimOp(Node_Global, init->type()->world().ptr_type(init->type()), {init}, dbg)
+    : PrimOp(Node_Global, init->type()->table().ptr_type(init->type()), {init}, dbg)
     , is_mutable_(is_mutable)
 {
     assert(is_const(init));
@@ -192,6 +192,7 @@ const Def* SizeOf ::vrebuild(World& to, Defs ops, const Type*  ) const { return 
 const Def* Slot   ::vrebuild(World& to, Defs ops, const Type* t) const { return to.slot(t->as<PtrType>()->pointee(), ops[0], debug()); }
 const Def* Store  ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.store(ops[0], ops[1], ops[2], debug()); }
 const Def* Tuple  ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.tuple(ops, debug()); }
+const Def* Variant::vrebuild(World& to, Defs ops, const Type* t) const { return to.variant(t->as<VariantType>(), ops[0], debug()); }
 const Def* Vector ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.vector(ops, debug()); }
 
 const Def* Alloc::vrebuild(World& to, Defs ops, const Type* t) const {

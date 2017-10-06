@@ -39,6 +39,7 @@ public:
         , domain_(domain)
         , help_(help)
     {}
+    virtual ~BasicOption() {}
 
     T* target() const { return target_; }
     const std::string& param() const { return param_; }

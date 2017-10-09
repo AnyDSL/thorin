@@ -910,8 +910,8 @@ void World::cleanup() { cleanup_world(*this); }
 
 void World::opt() {
     cleanup();
-    higher_order_lifting(*this);
-    partial_evaluation(*this);
+    //higher_order_lifting(*this);
+    //partial_evaluation(*this);
     flatten_tuples(*this);
     clone_bodies(*this);
     split_slots(*this);

@@ -4,6 +4,7 @@
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/verify.h"
 #include "thorin/transform/importer.h"
+#include "thorin/transform/partial_evaluation.h"
 
 namespace thorin {
 
@@ -214,8 +215,18 @@ void Cleaner::cleanup() {
         eliminate_params();
         unreachable_code_elimination();
         rebuild();
+        if (!world().is_pe_done())
+            todo_ |= partial_evaluation(world_);
     }
+
     DLOG("fixed-point reached after {} iterations", i);
+
+    if (!world().is_pe_done()) {
+        world().mark_pe_done();
+        for (auto continuation : world().continuations())
+            continuation->destroy_pe_profile();
+        cleanup();
+    }
 
 #ifndef NDEBUG
     verify_closedness();

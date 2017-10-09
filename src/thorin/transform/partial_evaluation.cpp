@@ -15,7 +15,7 @@ public:
     {}
 
     World& world() { return world_; }
-    void run();
+    bool run();
     void enqueue(Continuation* continuation) {
         if (done_.emplace(continuation).second)
             queue_.push(continuation);
@@ -103,7 +103,9 @@ void PartialEvaluator::eat_pe_info(Continuation* cur) {
     queue_.push(cur);
 }
 
-void PartialEvaluator::run() {
+bool PartialEvaluator::run() {
+    bool todo = false;
+
     for (auto external : world().externals()) {
         enqueue(external);
         top_level_[external] = true;
@@ -133,35 +135,30 @@ void PartialEvaluator::run() {
                         call.arg(i) = nullptr;
                 }
 
-                const auto& p = cache_.emplace(call, nullptr);
-                Continuation*& target = p.first->second;
-                // create new specialization if not found in cache
-                if (p.second)
-                    target = drop(call);
+                if (fold) {
+                    const auto& p = cache_.emplace(call, nullptr);
+                    Continuation*& target = p.first->second;
+                    // create new specialization if not found in cache
+                    if (p.second) {
+                        target = drop(call);
+                        todo = true;
+                    }
 
-                if (fold)
                     jump_to_dropped_call(continuation, target, call);
+                }
             }
         }
 
         for (auto succ : continuation->succs())
             enqueue(succ);
     }
+
+    return todo;
 }
 
 //------------------------------------------------------------------------------
 
-void partial_evaluation(World& world) {
-    world.cleanup();
-    VLOG_SCOPE(PartialEvaluator(world).run());
-
-    world.mark_pe_done();
-
-    for (auto continuation : world.continuations())
-        continuation->destroy_pe_profile();
-
-    world.cleanup();
-}
+bool partial_evaluation(World& world) { return PartialEvaluator(world).run(); }
 
 //------------------------------------------------------------------------------
 

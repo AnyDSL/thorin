@@ -478,6 +478,19 @@ llvm::Value* CodeGen::lookup(const Def* def) {
         if (auto res = thorin::find(primops_, primop))
             return res;
         else {
+            // we emit all Thorin constants in the entry block, since they are not part of the schedule
+            if (is_const(primop)) {
+                auto bb = irbuilder_.GetInsertBlock();
+                auto fn = bb->getParent();
+                auto& entry = fn->getEntryBlock();
+
+                auto ip = irbuilder_.saveAndClearIP();
+                irbuilder_.SetInsertPoint(&entry, entry.begin());
+                auto llvm_value = emit(primop);
+                irbuilder_.restoreIP(ip);
+                return primops_[primop] = llvm_value;
+            }
+
             auto llvm_value = emit(def);
             return primops_[primop] = llvm_value;
         }

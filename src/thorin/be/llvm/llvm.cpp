@@ -623,11 +623,13 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
         if (conv->isa<Cast>()) {
             if (src_type->isa<VariantType>()) {
+                WLOG(def, "slow: alloca and loads/stores needed for variant cast '{}'", def);
                 auto ptr_type = llvm::PointerType::get(to, 0);
-                auto alloca = irbuilder_.CreateAlloca(from->getType());
-                auto casted_ptr = irbuilder_.CreateBitCast(alloca, ptr_type);
-                irbuilder_.CreateStore(from, alloca);
-                return irbuilder_.CreateLoad(casted_ptr);
+                return create_tmp_alloca(from->getType(), [&] (auto alloca) {
+                    auto casted_ptr = irbuilder_.CreateBitCast(alloca, ptr_type);
+                    irbuilder_.CreateStore(from, alloca);
+                    return irbuilder_.CreateLoad(casted_ptr);
+                });
             }
 
             if (src_type->isa<PtrType>() && dst_type->isa<PtrType>()) {
@@ -782,10 +784,11 @@ llvm::Value* CodeGen::emit(const Def* def) {
     if (auto variant = def->isa<Variant>()) {
         auto value = lookup(variant->op(0));
         auto ptr_type = llvm::PointerType::get(value->getType(), 0);
-        auto alloca = irbuilder_.CreateAlloca(convert(variant->type()));
-        auto casted_ptr = irbuilder_.CreateBitCast(alloca, ptr_type);
-        irbuilder_.CreateStore(value, casted_ptr);
-        return irbuilder_.CreateLoad(alloca);
+        return create_tmp_alloca(convert(variant->type()), [&] (auto alloca) {
+            auto casted_ptr = irbuilder_.CreateBitCast(alloca, ptr_type);
+            irbuilder_.CreateStore(value, casted_ptr);
+            return irbuilder_.CreateLoad(alloca);
+        });
     }
 
     if (auto primlit = def->isa<PrimLit>()) {
@@ -1069,6 +1072,31 @@ void CodeGen::create_loop(llvm::Value* lower, llvm::Value* upper, llvm::Value* i
     loop_counter->addIncoming(irbuilder_.CreateAdd(loop_counter, increment), body);
     irbuilder_.CreateBr(head);
     irbuilder_.SetInsertPoint(exit);
+}
+
+llvm::Value* CodeGen::create_tmp_alloca(llvm::Type* type, std::function<llvm::Value* (llvm::AllocaInst*)> fun) {
+    // emit the alloca in the entry block
+    auto bb = irbuilder_.GetInsertBlock();
+    auto fn = bb->getParent();
+    auto& entry = fn->getEntryBlock();
+    auto ip = irbuilder_.saveAndClearIP();
+    irbuilder_.SetInsertPoint(&entry, entry.begin());
+    auto alloca = irbuilder_.CreateAlloca(type);
+    irbuilder_.restoreIP(ip);
+
+    // mark the lifetime of the alloca
+    auto lifetime_start = llvm::Intrinsic::getDeclaration(module_.get(), llvm::Intrinsic::lifetime_start);
+    auto lifetime_end   = llvm::Intrinsic::getDeclaration(module_.get(), llvm::Intrinsic::lifetime_end);
+    auto addr_space = alloca->getType()->getPointerAddressSpace();
+    auto void_cast = irbuilder_.CreateBitCast(alloca, llvm::PointerType::get(irbuilder_.getInt8Ty(), addr_space));
+
+    auto layout = llvm::DataLayout(module_->getDataLayout());
+    auto size = irbuilder_.getInt64(layout.getTypeAllocSize(type));
+
+    irbuilder_.CreateCall(lifetime_start, { size, void_cast });
+    auto result = fun(alloca);
+    irbuilder_.CreateCall(lifetime_end, { size, void_cast });
+    return result;
 }
 
 //------------------------------------------------------------------------------

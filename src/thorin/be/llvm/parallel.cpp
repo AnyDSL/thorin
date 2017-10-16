@@ -37,7 +37,7 @@ Continuation* CodeGen::emit_parallel(Continuation* continuation) {
         closure = irbuilder_.CreateInsertValue(closure, lookup(continuation->arg(i + PAR_NUM_ARGS)), unsigned(i));
 
     // allocate closure object and write values into it
-    auto ptr = irbuilder_.CreateAlloca(closure_type, nullptr);
+    auto ptr = emit_alloca(closure_type, "parallel_closure");
     irbuilder_.CreateStore(closure, ptr, false);
 
     // create wrapper function and call the runtime

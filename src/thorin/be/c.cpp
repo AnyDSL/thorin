@@ -87,6 +87,9 @@ std::ostream& CCodeGen::emit_addr_space(std::ostream& os, const Type* type) {
 }
 
 std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
+    if (lookup(type))
+        return os << get_name(type);
+
     if (type == nullptr) {
         return os << "NULL";
     } else if (type->isa<FrameType>()) {
@@ -96,8 +99,6 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
     } else if (type->isa<FnType>()) {
         THORIN_UNREACHABLE;
     } else if (auto tuple = type->isa<TupleType>()) {
-        if (lookup(tuple))
-            return os << get_name(tuple);
         os << "typedef struct {" << up;
         for (size_t i = 0, e = tuple->ops().size(); i != e; ++i) {
             os << endl;
@@ -105,9 +106,15 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
         }
         os << down << endl << "} tuple_" << tuple->gid() << ";";
         return os;
+    } else if (auto variant = type->isa<VariantType>()) {
+        os << "union variant_" << variant->gid() << " {" << up;
+        for (size_t i = 0, e = variant->ops().size(); i != e; ++i) {
+            os << endl;
+            emit_type(os, variant->op(i)) << " " << variant->op(i) << ";";
+        }
+        os << down << endl << "};";
+        return os;
     } else if (auto struct_type = type->isa<StructType>()) {
-        if (lookup(struct_type))
-            return os << get_name(struct_type);
         os << "typedef struct {" << up;
         for (size_t i = 0, e = struct_type->num_ops(); i != e; ++i) {
             os << endl;
@@ -121,8 +128,6 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
         emit_type(os, array->elem_type());
         return os;
     } else if (auto array = type->isa<DefiniteArrayType>()) { // DefArray is mapped to a struct
-        if (lookup(array))
-            return os << get_name(array);
         os << "typedef struct {" << up << endl;
         emit_type(os, array->elem_type()) << " e[" << array->dim() << "];";
         os << down << endl << "} array_" << array->gid() << ";";
@@ -171,13 +176,20 @@ std::ostream& CCodeGen::emit_aggop_defs(const Def* def) {
 
     // look for nested struct
     if (auto agg = def->isa<Aggregate>()) {
-        if (is_from_match(agg))
-            return func_impl_;
         for (auto op : agg->ops())
             emit_aggop_defs(op);
         if (lookup(def))
             return func_impl_;
         emit(agg) << endl;
+    }
+
+    // look for nested variants
+    if (auto variant = def->isa<Variant>()) {
+        for (auto op : variant->ops())
+            emit_aggop_defs(op);
+        if (lookup(def))
+            return func_impl_;
+        emit(variant) << endl;
     }
 
     // argument is a cast or bitcast
@@ -228,6 +240,14 @@ std::ostream& CCodeGen::emit_aggop_decl(const Type* type) {
             emit_aggop_decl(op);
         emit_type(type_decls_, struct_type) << endl;
         insert(type, "struct_" + std::string(struct_type->name()) + "_" + std::to_string(type->gid()));
+    }
+
+    // look for nested variants
+    if (auto variant = type->isa<VariantType>()) {
+        for (auto op : variant->ops())
+            emit_aggop_decl(op);
+        emit_type(type_decls_, variant) << endl;
+        insert(type, "union variant_" + std::to_string(type->gid()));
     }
 
     // restore indent
@@ -696,42 +716,48 @@ std::ostream& CCodeGen::emit(const Def* def) {
     }
 
     if (auto conv = def->isa<ConvOp>()) {
-        if (conv->from()->type() == conv->type()) {
+        auto src_type = conv->from()->type();
+        auto dst_type = conv->type();
+
+        if (src_type == dst_type) {
             insert(def, var_name(conv->from()));
             return func_impl_;
         }
 
-        emit_addr_space(func_impl_, conv->type());
-        emit_type(func_impl_, conv->type()) << " " << def_name << ";" << endl;
+        emit_addr_space(func_impl_, dst_type);
+        emit_type(func_impl_, dst_type) << " " << def_name << ";" << endl;
 
         if (conv->isa<Cast>()) {
-            auto from = conv->from()->type()->as<PrimType>();
-            auto to   = conv->type()->as<PrimType>();
-
             func_impl_ << def_name << " = ";
 
-            if (lang_==Lang::CUDA && from && (from->primtype_tag() == PrimType_pf16 || from->primtype_tag() == PrimType_qf16)) {
-                func_impl_ << "(";
-                emit_type(func_impl_, conv->type()) << ") __half2float(";
-                emit(conv->from()) << ");";
-            } else if (lang_==Lang::CUDA && to && (to->primtype_tag() == PrimType_pf16 || to->primtype_tag() == PrimType_qf16)) {
-                func_impl_ << "__float2half((float)";
-                emit(conv->from()) << ");";
+            if (src_type->isa<VariantType>()) {
+                emit(conv->from()) << "." << dst_type << ";";
             } else {
-                func_impl_ << "(";
-                emit_addr_space(func_impl_, conv->type());
-                emit_type(func_impl_, conv->type()) << ")";
-                emit(conv->from()) << ";";
+                auto from = src_type->as<PrimType>();
+                auto to   = dst_type->as<PrimType>();
+
+                if (lang_==Lang::CUDA && from && (from->primtype_tag() == PrimType_pf16 || from->primtype_tag() == PrimType_qf16)) {
+                    func_impl_ << "(";
+                    emit_type(func_impl_, dst_type) << ") __half2float(";
+                    emit(conv->from()) << ");";
+                } else if (lang_==Lang::CUDA && to && (to->primtype_tag() == PrimType_pf16 || to->primtype_tag() == PrimType_qf16)) {
+                    func_impl_ << "__float2half((float)";
+                    emit(conv->from()) << ");";
+                } else {
+                    func_impl_ << "(";
+                    emit_addr_space(func_impl_, dst_type);
+                    emit_type(func_impl_, dst_type) << ")";
+                    emit(conv->from()) << ";";
+                }
             }
         }
 
         if (conv->isa<Bitcast>()) {
-            auto dst_type = conv->type();
             func_impl_ << "union { ";
             emit_addr_space(func_impl_, dst_type);
             emit_type(func_impl_, dst_type) << " dst; ";
-            emit_addr_space(func_impl_, conv->from()->type());
-            emit_type(func_impl_, conv->from()->type()) << " src; ";
+            emit_addr_space(func_impl_, src_type);
+            emit_type(func_impl_, src_type) << " src; ";
             func_impl_ << "} u" << def_name << ";" << endl;
             func_impl_ << "u" << def_name << ".src = ";
             emit(conv->from()) << ";" << endl;
@@ -864,6 +890,14 @@ std::ostream& CCodeGen::emit(const Def* def) {
             case PrimType_pf32: case PrimType_qf32: func_impl_ << float_mode << primlit->pf32_value() << fs;       break;
             case PrimType_pf64: case PrimType_qf64: func_impl_ << float_mode << primlit->pf64_value();             break;
         }
+        return func_impl_;
+    }
+
+    if (auto variant = def->isa<Variant>()) {
+        emit_type(func_impl_, variant->type()) << " " << def_name << ";" << endl;
+        func_impl_ << def_name << "." << variant->op(0)->type() << " = ";
+        emit(variant->op(0)) << ";";
+        insert(def, def_name);
         return func_impl_;
     }
 

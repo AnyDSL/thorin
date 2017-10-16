@@ -1076,13 +1076,7 @@ void CodeGen::create_loop(llvm::Value* lower, llvm::Value* upper, llvm::Value* i
 
 llvm::Value* CodeGen::create_tmp_alloca(llvm::Type* type, std::function<llvm::Value* (llvm::AllocaInst*)> fun) {
     // emit the alloca in the entry block
-    auto bb = irbuilder_.GetInsertBlock();
-    auto fn = bb->getParent();
-    auto& entry = fn->getEntryBlock();
-    auto ip = irbuilder_.saveAndClearIP();
-    irbuilder_.SetInsertPoint(&entry, entry.begin());
-    auto alloca = irbuilder_.CreateAlloca(type);
-    irbuilder_.restoreIP(ip);
+    auto alloca = emit_alloca(type, "tmp_alloca");
 
     // mark the lifetime of the alloca
     auto lifetime_start = llvm::Intrinsic::getDeclaration(module_.get(), llvm::Intrinsic::lifetime_start);

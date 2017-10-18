@@ -525,22 +525,18 @@ bool visit_uses(Continuation* cont, std::function<bool(Continuation*)> func) {
         for (auto use : cont->uses()) {
             if (auto continuation = (use->isa<Global>() ? *use->uses().begin() : use)->isa_continuation()) // TODO make more robust
                 if (func(continuation))
-                        return true;
+                    return true;
         }
     }
     return false;
 }
 
 bool visit_capturing_intrinsics(Continuation* cont, std::function<bool(Continuation*)> func) {
-    if (!cont->is_intrinsic()) {
-        for (auto use : cont->uses()) {
-            if (auto continuation = (use->isa<Global>() ? *use->uses().begin() : use)->isa_continuation()) // TODO make more robust
-                if (auto callee = continuation->callee()->isa_continuation())
-                    if (callee->is_intrinsic() && func(callee))
-                        return true;
-        }
-    }
-    return false;
+    return visit_uses(cont, [&] (auto continuation) {
+        if (auto callee = continuation->callee()->isa_continuation())
+            return callee->is_intrinsic() && func(callee);
+        return false;
+    });
 }
 
 bool is_passed_to_accelerator(Continuation* cont) {

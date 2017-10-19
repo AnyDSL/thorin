@@ -618,9 +618,6 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto dst_type = conv->type();
         auto to = convert(dst_type);
 
-        if (from->getType() == to)
-            return from;
-
         if (conv->isa<Cast>()) {
             if (auto variant_type = src_type->isa<VariantType>()) {
                 auto bits = compute_variant_bits(variant_type);

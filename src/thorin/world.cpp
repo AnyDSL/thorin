@@ -477,6 +477,9 @@ const Def* World::cast(const Type* to, const Def* from, Debug dbg) {
     if (from->isa<Bottom>())
         return bottom(to);
 
+    if (from->type() == to)
+        return from;
+
     if (auto vec = from->isa<Vector>()) {
         size_t num = vector_length(vec);
         auto to_vec = to->as<VectorType>();
@@ -576,7 +579,11 @@ const Def* World::cast(const Type* to, const Def* from, Debug dbg) {
 }
 
 const Def* World::bitcast(const Type* to, const Def* from, Debug dbg) {
-    if (from->type() == to) return from;
+    if (from->isa<Bottom>())
+        return bottom(to);
+
+    if (from->type() == to)
+        return from;
 
     if (auto other = from->isa<Bitcast>()) {
         // reduce bitcast chains

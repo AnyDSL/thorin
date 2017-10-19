@@ -719,11 +719,6 @@ std::ostream& CCodeGen::emit(const Def* def) {
         auto src_type = conv->from()->type();
         auto dst_type = conv->type();
 
-        if (src_type == dst_type) {
-            insert(def, var_name(conv->from()));
-            return func_impl_;
-        }
-
         emit_addr_space(func_impl_, dst_type);
         emit_type(func_impl_, dst_type) << " " << def_name << ";" << endl;
 

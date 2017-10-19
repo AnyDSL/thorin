@@ -16,7 +16,6 @@ public:
     World& world() { return world_; }
     void cleanup();
     void eta_conversion();
-    void unreachable_code_elimination();
     void eliminate_params();
     void rebuild();
     void verify_closedness();
@@ -88,25 +87,6 @@ void Cleaner::eta_conversion() {
                     }
                 }
             }
-        }
-    }
-}
-
-void Cleaner::unreachable_code_elimination() {
-    ContinuationSet reachable;
-    Scope::for_each<false>(world(), [&] (const Scope& scope) {
-        DLOG("scope: {}", scope.entry());
-        for (auto n : scope.f_cfg().reverse_post_order())
-            reachable.emplace(n->continuation());
-    });
-
-    for (auto continuation : world().continuations()) {
-        if (!reachable.contains(continuation) && !continuation->empty()) {
-            for (auto param : continuation->params())
-                param->replace(world().bottom(param->type()));
-            continuation->replace(world().bottom(continuation->type()));
-            continuation->destroy_body();
-            todo_ = true;
         }
     }
 }
@@ -212,7 +192,6 @@ void Cleaner::cleanup() {
         todo_ = false;
         eta_conversion();
         eliminate_params();
-        unreachable_code_elimination();
         rebuild();
     }
     DLOG("fixed-point reached after {} iterations", i);

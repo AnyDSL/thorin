@@ -192,9 +192,8 @@ std::ostream& CCodeGen::emit_aggop_defs(const Def* def) {
         emit(variant) << endl;
     }
 
-    // argument is a cast or bitcast
-    if (auto conv = def->isa<ConvOp>())
-        emit(conv) << endl;
+    if (def->isa<ConvOp>() || def->isa<Bottom>())
+        emit(def) << endl;
 
     return func_impl_;
 }
@@ -529,8 +528,6 @@ void CCodeGen::emit() {
                 func_impl_ << "return ; // bottom: unreachable";
             } else {
                 auto store_phi = [&] (const Def* param, const Def* arg) {
-                    if (arg->isa<Bottom>())
-                        func_impl_ << "// bottom: ";
                     func_impl_ << "p" << param->unique_name() << " = ";
                     emit(arg) << ";";
                 };
@@ -716,6 +713,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
     }
 
     if (auto conv = def->isa<ConvOp>()) {
+        emit_aggop_defs(conv->from());
         auto src_type = conv->from()->type();
         auto dst_type = conv->type();
 
@@ -777,8 +775,6 @@ std::ostream& CCodeGen::emit(const Def* def) {
         emit_type(func_impl_, array->type()) << " " << def_name << ";";
         for (size_t i = 0, e = array->num_ops(); i != e; ++i) {
             func_impl_ << endl;
-            if (array->op(i)->isa<Bottom>())
-                func_impl_ << "// bottom: ";
             func_impl_ << def_name << ".e[" << i << "] = ";
             emit(array->op(i)) << ";";
         }
@@ -823,8 +819,6 @@ std::ostream& CCodeGen::emit(const Def* def) {
             emit_type(func_impl_, agg->type()) << " " << def_name << ";";
             for (size_t i = 0, e = agg->ops().size(); i != e; ++i) {
                 func_impl_ << endl;
-                if (agg->op(i)->isa<Bottom>())
-                    func_impl_ << "// bottom: ";
                 func_impl_ << def_name;
                 emit_access(def, world_.literal_qs32(i, def->location())) << " = ";
                 emit(agg->op(i)) << ";";
@@ -897,8 +891,8 @@ std::ostream& CCodeGen::emit(const Def* def) {
     }
 
     if (auto bottom = def->isa<Bottom>()) {
-        func_impl_ << "// bottom: ";
-        emit_type(func_impl_, bottom->type()) << " " << def_name << ";";
+        emit_addr_space(func_impl_, bottom->type());
+        emit_type(func_impl_, bottom->type()) << " " << def_name << "; // bottom";
         insert(def, def_name);
         return func_impl_;
     }

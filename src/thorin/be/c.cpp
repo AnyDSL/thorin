@@ -945,6 +945,8 @@ std::ostream& CCodeGen::emit(const Def* def) {
     }
 
     if (auto lea = def->isa<LEA>()) {
+        emit_aggop_defs(lea->ptr());
+        emit_aggop_defs(lea->index());
         if (is_texture_type(lea->type())) { // handle texture fetches
             emit_type(func_impl_, lea->ptr_pointee()) << " " << def_name << ";" << endl;
             func_impl_ << def_name << " = tex1Dfetch(";

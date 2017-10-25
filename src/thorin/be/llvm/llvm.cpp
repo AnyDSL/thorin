@@ -618,18 +618,22 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto dst_type = conv->type();
         auto to = convert(dst_type);
 
-        if (from->getType() == to)
-            return from;
-
         if (conv->isa<Cast>()) {
-            if (src_type->isa<VariantType>()) {
-                WLOG(def, "slow: alloca and loads/stores needed for variant cast '{}'", def);
-                auto ptr_type = llvm::PointerType::get(to, 0);
-                return create_tmp_alloca(from->getType(), [&] (auto alloca) {
-                    auto casted_ptr = irbuilder_.CreateBitCast(alloca, ptr_type);
-                    irbuilder_.CreateStore(from, alloca);
-                    return irbuilder_.CreateLoad(casted_ptr);
-                });
+            if (auto variant_type = src_type->isa<VariantType>()) {
+                auto bits = compute_variant_bits(variant_type);
+                if (bits != 0) {
+                    auto value_bits = to->getPrimitiveSizeInBits();
+                    auto trunc = irbuilder_.CreateTrunc(from, irbuilder_.getIntNTy(value_bits));
+                    return irbuilder_.CreateBitCast(trunc, to);
+                } else {
+                    WLOG(def, "slow: alloca and loads/stores needed for variant cast '{}'", def);
+                    auto ptr_type = llvm::PointerType::get(to, 0);
+                    return create_tmp_alloca(from->getType(), [&] (auto alloca) {
+                        auto casted_ptr = irbuilder_.CreateBitCast(alloca, ptr_type);
+                        irbuilder_.CreateStore(from, alloca);
+                        return irbuilder_.CreateLoad(casted_ptr);
+                    });
+                }
             }
 
             if (src_type->isa<PtrType>() && dst_type->isa<PtrType>()) {
@@ -782,13 +786,20 @@ llvm::Value* CodeGen::emit(const Def* def) {
     }
 
     if (auto variant = def->isa<Variant>()) {
+        auto bits = compute_variant_bits(variant->type());
         auto value = lookup(variant->op(0));
-        auto ptr_type = llvm::PointerType::get(value->getType(), 0);
-        return create_tmp_alloca(convert(variant->type()), [&] (auto alloca) {
-            auto casted_ptr = irbuilder_.CreateBitCast(alloca, ptr_type);
-            irbuilder_.CreateStore(value, casted_ptr);
-            return irbuilder_.CreateLoad(alloca);
-        });
+        if (bits != 0) {
+            auto value_bits = value->getType()->getPrimitiveSizeInBits();
+            auto bitcast = irbuilder_.CreateBitCast(value, irbuilder_.getIntNTy(value_bits));
+            return irbuilder_.CreateZExt(bitcast, irbuilder_.getIntNTy(bits));
+        } else {
+            auto ptr_type = llvm::PointerType::get(value->getType(), 0);
+            return create_tmp_alloca(convert(variant->type()), [&] (auto alloca) {
+                auto casted_ptr = irbuilder_.CreateBitCast(alloca, ptr_type);
+                irbuilder_.CreateStore(value, casted_ptr);
+                return irbuilder_.CreateLoad(alloca);
+            });
+        }
     }
 
     if (auto primlit = def->isa<PrimLit>()) {
@@ -948,6 +959,15 @@ unsigned CodeGen::convert_addr_space(const AddrSpace addr_space) {
     }
 }
 
+unsigned CodeGen::compute_variant_bits(const VariantType* variant) {
+    unsigned bits = 0;
+    for (auto op : variant->ops()) {
+        bits = std::max(bits, convert(op)->getPrimitiveSizeInBits());
+        if (bits == 0) return 0;
+    }
+    return bits;
+}
+
 llvm::Type* CodeGen::convert(const Type* type) {
     if (auto llvm_type = thorin::find(types_, type))
         return llvm_type;
@@ -1028,11 +1048,16 @@ llvm::Type* CodeGen::convert(const Type* type) {
         }
 
         case Node_VariantType: {
-            auto layout = module_->getDataLayout();
-            uint64_t max_size = 0;
-            for (auto op : type->ops())
-                max_size = std::max(max_size, layout.getTypeAllocSize(convert(op)));
-            return llvm::ArrayType::get(irbuilder_.getInt8Ty(), max_size);
+            auto bits = compute_variant_bits(type->as<VariantType>());
+            if (bits != 0) {
+                return irbuilder_.getIntNTy(bits);
+            } else {
+                auto layout = module_->getDataLayout();
+                uint64_t max_size = 0;
+                for (auto op : type->ops())
+                    max_size = std::max(max_size, layout.getTypeAllocSize(convert(op)));
+                return llvm::ArrayType::get(irbuilder_.getInt8Ty(), max_size);
+            }
         }
 
         default:

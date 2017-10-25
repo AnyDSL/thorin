@@ -14,13 +14,13 @@ include_directories(${Half_INCLUDE_DIRS})
 
 if(RV_FOUND)
     add_definitions("-DRV_SUPPORT")
-    include_directories(${RV_INCLUDE_DIRS})
+    include_directories(SYSTEM ${RV_INCLUDE_DIRS})
 endif()
 
 if(LLVM_FOUND)
     add_definitions(${LLVM_DEFINITIONS})
     add_definitions("-DLLVM_SUPPORT")
-    include_directories(${LLVM_INCLUDE_DIRS})
+    include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
 endif()
 
 # check for colored terminal

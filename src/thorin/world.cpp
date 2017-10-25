@@ -477,6 +477,9 @@ const Def* World::cast(const Type* to, const Def* from, Debug dbg) {
     if (from->isa<Bottom>())
         return bottom(to);
 
+    if (from->type() == to)
+        return from;
+
     if (auto vec = from->isa<Vector>()) {
         size_t num = vector_length(vec);
         auto to_vec = to->as<VectorType>();
@@ -576,7 +579,11 @@ const Def* World::cast(const Type* to, const Def* from, Debug dbg) {
 }
 
 const Def* World::bitcast(const Type* to, const Def* from, Debug dbg) {
-    if (from->type() == to) return from;
+    if (from->isa<Bottom>())
+        return bottom(to);
+
+    if (from->type() == to)
+        return from;
 
     if (auto other = from->isa<Bitcast>()) {
         // reduce bitcast chains
@@ -587,10 +594,15 @@ const Def* World::bitcast(const Type* to, const Def* from, Debug dbg) {
         } while (other);
     }
 
-    if (auto prim_to = to->isa<PrimType>())
-        if (auto prim_from = from->type()->isa<PrimType>())
-            if (num_bits(prim_from->primtype_tag()) != num_bits(prim_to->primtype_tag()))
-                ELOG(&dbg, "bitcast between primitive types of different size");
+    auto prim_to = to->isa<PrimType>();
+    auto prim_from = from->type()->isa<PrimType>();
+    if (prim_to && prim_from) {
+        if (num_bits(prim_from->primtype_tag()) != num_bits(prim_to->primtype_tag()))
+            ELOG(&dbg, "bitcast between primitive types of different size");
+        // constant folding
+        if (auto lit = from->isa<PrimLit>())
+            return literal(prim_to->primtype_tag(), lit->value(), dbg);
+    }
 
     if (auto vec = from->isa<Vector>()) {
         size_t num = vector_length(vec);
@@ -601,7 +613,6 @@ const Def* World::bitcast(const Type* to, const Def* from, Debug dbg) {
         return vector(ops, dbg);
     }
 
-    // TODO constant folding
     return cse(new Bitcast(to, from, dbg));
 }
 

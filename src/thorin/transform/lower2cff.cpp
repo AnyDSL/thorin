@@ -38,7 +38,7 @@ void lower2cff(World& world) {
                         DLOG("bad: {}: {} at {}", callee, callee->type(), callee->location());
                         todo = dirty = true;
 
-                        Call call(continuation);
+                        Call call(continuation->num_ops());
                         call.callee() = callee;
                         for (size_t i = 0, e = call.num_args(); i != e; ++i)
                             call.arg(i) = callee->param(i)->order() > 0 ? continuation->arg(i) : nullptr;

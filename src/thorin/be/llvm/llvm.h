@@ -52,6 +52,7 @@ protected:
 private:
     Continuation* emit_peinfo(Continuation*);
     Continuation* emit_intrinsic(Continuation*);
+    Continuation* emit_hls(Continuation*);
     Continuation* emit_parallel(Continuation*);
     Continuation* emit_spawn(Continuation*);
     Continuation* emit_sync(Continuation*);

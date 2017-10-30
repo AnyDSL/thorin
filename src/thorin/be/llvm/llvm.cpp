@@ -71,7 +71,7 @@ Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
         case Intrinsic::NVVM:      return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM,   ".nvvm", continuation);
         case Intrinsic::OpenCL:    return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".cl",   continuation);
         case Intrinsic::AMDGPU:    return runtime_->emit_host_code(*this, Runtime::HSA_PLATFORM,    ".gcn",  continuation);
-        case Intrinsic::HLS:       return runtime_->emit_host_code(*this, Runtime::HLS_PLATFORM,    ".hls",  continuation);
+        case Intrinsic::HLS:       return emit_hls(continuation);
         case Intrinsic::Parallel:  return emit_parallel(continuation);
         case Intrinsic::Spawn:     return emit_spawn(continuation);
         case Intrinsic::Sync:      return emit_sync(continuation);
@@ -82,6 +82,24 @@ Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
 #endif
         default: THORIN_UNREACHABLE;
     }
+}
+
+Continuation* CodeGen::emit_hls(Continuation* continuation) {
+    std::vector<llvm::Value*> args(continuation->num_args()-3);
+    Continuation* ret = nullptr;
+    for (size_t i = 2, j = 0; i < continuation->num_args(); ++i) {
+        if (auto cont = continuation->arg(i)->isa_continuation()) {
+            ret = cont;
+            continue;
+        }
+        args[j++] = emit(continuation->arg(i));
+    }
+    auto callee = continuation->arg(1)->as<Global>()->init()->as_continuation();
+    callee->make_external();
+    callee->destroy_body(); // safe to do, has already been imported
+    irbuilder_.CreateCall(emit_function_decl(callee), args);
+    assert(ret);
+    return ret;
 }
 
 void CodeGen::emit_result_phi(const Param* param, llvm::Value* value) {
@@ -1158,7 +1176,7 @@ void emit_llvm(World& world, int opt, bool debug) {
         kernels.push_back(continuation);
     });
 
-    if (!cuda.world().empty() || !nvvm.world().empty() || !opencl.world().empty() || !amdgpu.world().empty() || !hls.world().empty()) {
+    if (!cuda.world().empty() || !nvvm.world().empty() || !opencl.world().empty() || !amdgpu.world().empty()) {
         auto get_kernel_configs = [&](Importer& importer) {
             importer.world().opt(false);
             auto externals = importer.world().externals();
@@ -1185,7 +1203,6 @@ void emit_llvm(World& world, int opt, bool debug) {
         get_kernel_configs(nvvm);
         get_kernel_configs(opencl);
         get_kernel_configs(amdgpu);
-        get_kernel_configs(hls);
 
         world.cleanup();
         codegen_prepare(world);

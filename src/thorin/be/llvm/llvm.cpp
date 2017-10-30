@@ -38,6 +38,7 @@
 #include "thorin/be/llvm/amdgpu.h"
 #include "thorin/be/llvm/cpu.h"
 #include "thorin/be/llvm/cuda.h"
+#include "thorin/be/llvm/hls.h"
 #include "thorin/be/llvm/nvvm.h"
 #include "thorin/be/llvm/opencl.h"
 #include "thorin/transform/codegen_prepare.h"
@@ -70,6 +71,7 @@ Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
         case Intrinsic::NVVM:      return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM,   ".nvvm", continuation);
         case Intrinsic::OpenCL:    return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".cl",   continuation);
         case Intrinsic::AMDGPU:    return runtime_->emit_host_code(*this, Runtime::HSA_PLATFORM,    ".gcn",  continuation);
+        case Intrinsic::HLS:       return runtime_->emit_host_code(*this, Runtime::HLS_PLATFORM,    ".hls",  continuation);
         case Intrinsic::Parallel:  return emit_parallel(continuation);
         case Intrinsic::Spawn:     return emit_spawn(continuation);
         case Intrinsic::Sync:      return emit_sync(continuation);
@@ -1125,6 +1127,7 @@ void emit_llvm(World& world, int opt, bool debug) {
     Importer nvvm(world.name());
     Importer opencl(world.name());
     Importer amdgpu(world.name());
+    Importer hls(world.name());
     Cont2Config kernel_config;
     std::vector<Continuation*> kernels;
 
@@ -1140,6 +1143,8 @@ void emit_llvm(World& world, int opt, bool debug) {
             imported = opencl.import(continuation)->as_continuation();
         else if (is_passed_to_intrinsic(continuation, Intrinsic::AMDGPU))
             imported = amdgpu.import(continuation)->as_continuation();
+        else if (is_passed_to_intrinsic(continuation, Intrinsic::HLS))
+            imported = hls.import(continuation)->as_continuation();
         else
             return;
 
@@ -1153,7 +1158,7 @@ void emit_llvm(World& world, int opt, bool debug) {
         kernels.push_back(continuation);
     });
 
-    if (!cuda.world().empty() || !nvvm.world().empty() || !opencl.world().empty() || !amdgpu.world().empty()) {
+    if (!cuda.world().empty() || !nvvm.world().empty() || !opencl.world().empty() || !amdgpu.world().empty() || !hls.world().empty()) {
         auto get_kernel_configs = [&](Importer& importer) {
             importer.world().opt(false);
             auto externals = importer.world().externals();
@@ -1180,6 +1185,7 @@ void emit_llvm(World& world, int opt, bool debug) {
         get_kernel_configs(nvvm);
         get_kernel_configs(opencl);
         get_kernel_configs(amdgpu);
+        get_kernel_configs(hls);
 
         world.cleanup();
         codegen_prepare(world);
@@ -1190,6 +1196,7 @@ void emit_llvm(World& world, int opt, bool debug) {
     if (!nvvm.  world().empty()) NVVMCodeGen  (nvvm  .world(), kernel_config).emit(opt, debug);
     if (!opencl.world().empty()) OpenCLCodeGen(opencl.world(), kernel_config).emit(/*opt,*/ debug);
     if (!amdgpu.world().empty()) AMDGPUCodeGen(amdgpu.world(), kernel_config).emit(opt, debug);
+    if (!hls.   world().empty()) HLSCodeGen   (hls   .world(), kernel_config).emit(/*opt,*/ debug);
 }
 
 //------------------------------------------------------------------------------

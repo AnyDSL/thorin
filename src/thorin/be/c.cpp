@@ -308,7 +308,7 @@ void CCodeGen::emit() {
         if (continuation->is_external()) {
             auto config = kernel_config_.find(continuation);
             switch (lang_) {
-                case Lang::C99:    break;
+                default: break;
                 case Lang::CUDA:   func_decls_ << "__global__ ";
                                    func_impl_  << "__global__ ";
                                    if (config != kernel_config_.end())
@@ -550,7 +550,7 @@ void CCodeGen::emit() {
                                 ELOG(continuation->arg(1), "reserve_shared: couldn't extract memory size");
 
                             switch (lang_) {
-                                case Lang::C99:                                 break;
+                                default:                                        break;
                                 case Lang::CUDA:   func_impl_ << "__shared__ "; break;
                                 case Lang::OPENCL: func_impl_ << "__local ";    break;
                             }
@@ -649,12 +649,10 @@ void CCodeGen::emit() {
             os_ << endl;
     }
 
-    if (lang_==Lang::CUDA) {
-        if (use_16_)
-            os_ << "#include <cuda_fp16.h>" << endl << endl;
-    }
+    if (lang_==Lang::CUDA && use_16_)
+        os_ << "#include <cuda_fp16.h>" << endl << endl;
 
-    if (lang_==Lang::CUDA || lang_==Lang::C99)
+    if (lang_==Lang::CUDA || lang_==Lang::HLS)
         os_ << "extern \"C\" {" << endl;
 
     if (!type_decls_.str().empty())
@@ -663,7 +661,7 @@ void CCodeGen::emit() {
         os_ << func_decls_.str() << endl;
     os_ << func_impl_.str();
 
-    if (lang_==Lang::CUDA || lang_==Lang::C99)
+    if (lang_==Lang::CUDA || lang_==Lang::HLS)
         os_ << "}"; // extern "C"
 }
 
@@ -1030,7 +1028,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
         WLOG(global, "{}: Global variable '{}' will not be synced with host.", get_lang(), global);
         assert(!global->init()->isa_continuation() && "no global init continuation supported");
         switch (lang_) {
-            case Lang::C99:                                 break;
+            default:                                        break;
             case Lang::CUDA:   func_impl_ << "__device__ "; break;
             case Lang::OPENCL: func_impl_ << "__constant "; break;
         }
@@ -1044,7 +1042,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
         func_impl_ << endl;
 
         switch (lang_) {
-            case Lang::C99:                                 break;
+            default:                                        break;
             case Lang::CUDA:   func_impl_ << "__device__ "; break;
             case Lang::OPENCL: func_impl_ << "__constant "; break;
         }
@@ -1106,6 +1104,7 @@ const std::string CCodeGen::get_lang() const {
     switch (lang_) {
         default:
         case Lang::C99:    return "C99";
+        case Lang::HLS:    return "HLS";
         case Lang::CUDA:   return "CUDA";
         case Lang::OPENCL: return "OpenCL";
     }

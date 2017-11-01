@@ -18,7 +18,7 @@ void HLSCodeGen::emit(bool debug) {
     std::ofstream file(name);
     if (!file.is_open())
         throw std::runtime_error("cannot write '" + name + "': " + strerror(errno));
-    thorin::emit_c(world_, kernel_config_, file, Lang::C99, debug);
+    thorin::emit_c(world_, kernel_config_, file, Lang::HLS, debug);
 }
 
 }

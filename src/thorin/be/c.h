@@ -13,6 +13,7 @@ typedef ContinuationMap<std::tuple<int, int, int>> Cont2Config;
 
 enum class Lang : uint8_t {
     C99,    ///< Flag for C99
+    HLS,    ///< Flag for HLS
     CUDA,   ///< Flag for CUDA
     OPENCL  ///< Flag for OpenCL
 };

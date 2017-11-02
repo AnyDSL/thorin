@@ -309,16 +309,22 @@ void CCodeGen::emit() {
             auto config = kernel_config_.find(continuation);
             switch (lang_) {
                 default: break;
-                case Lang::CUDA:   func_decls_ << "__global__ ";
-                                   func_impl_  << "__global__ ";
-                                   if (config != kernel_config_.end())
-                                       func_impl_ << "__launch_bounds__ (" << std::get<0>(config->second) << " * " << std::get<1>(config->second) << " * " << std::get<2>(config->second) << ") ";
-                                   break;
-                case Lang::OPENCL: func_decls_ << "__kernel ";
-                                   func_impl_  << "__kernel ";
-                                   if (config != kernel_config_.end())
-                                       func_impl_ << "__attribute__((reqd_work_group_size(" << std::get<0>(config->second) << ", " << std::get<1>(config->second) << ", " << std::get<2>(config->second) << "))) ";
-                                   break;
+                case Lang::CUDA:
+                   func_decls_ << "__global__ ";
+                   func_impl_  << "__global__ ";
+                   if (config != kernel_config_.end()) {
+                       auto block = config->second->as<GPUKernelConfig>()->block_size();
+                       func_impl_ << "__launch_bounds__ (" << std::get<0>(block) << " * " << std::get<1>(block) << " * " << std::get<2>(block) << ") ";
+                   }
+                   break;
+                case Lang::OPENCL:
+                   func_decls_ << "__kernel ";
+                   func_impl_  << "__kernel ";
+                   if (config != kernel_config_.end()) {
+                       auto block = config->second->as<GPUKernelConfig>()->block_size();
+                       func_impl_ << "__attribute__((reqd_work_group_size(" << std::get<0>(block) << ", " << std::get<1>(block) << ", " << std::get<2>(block) << "))) ";
+                   }
+                   break;
             }
         } else {
             if (lang_==Lang::CUDA) {
@@ -362,6 +368,18 @@ void CCodeGen::emit() {
                     func_impl_  << "__global ";
                     emit_type(func_decls_, param->type()) << " *";
                     emit_type(func_impl_,  param->type()) << " *" << param->unique_name() << "_";
+                } else if (lang_==Lang::HLS && continuation->is_external() && param->type()->isa<PtrType>()) {
+                    auto config_it = kernel_config_.find(continuation);
+                    assert(config_it != kernel_config_.end());
+                    auto array_size = config_it->second->as<HLSKernelConfig>()->param_size(param);
+                    assert(array_size > 0);
+                    auto ptr_type = param->type()->as<PtrType>();
+                    auto prim_type = ptr_type->pointee()->isa<PrimType>();
+                    if (auto array_type = ptr_type->pointee()->isa<ArrayType>())
+                        prim_type = array_type->elem_type()->isa<PrimType>();
+                    assert(prim_type);
+                    emit_type(func_decls_, prim_type) << "[" << array_size << "]";
+                    emit_type(func_impl_,  prim_type) << " " << param->unique_name() << "[" << array_size << "]";
                 } else {
                     emit_addr_space(func_decls_, param->type());
                     emit_addr_space(func_impl_,  param->type());

@@ -4,12 +4,12 @@
 #include <cstdint>
 #include <iostream>
 
-#include "thorin/continuation.h"
+#include "thorin/world.h"
+#include "thorin/be/kernel_config.h"
 
 namespace thorin {
 
 class World;
-typedef ContinuationMap<std::tuple<int, int, int>> Cont2Config;
 
 enum class Lang : uint8_t {
     C99,    ///< Flag for C99

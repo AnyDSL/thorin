@@ -28,6 +28,7 @@ private:
     llvm::Function* get_texture_handle_fun();
     llvm::GlobalVariable* resolve_global_variable(const Param*);
 
+    const Cont2Config& kernel_config_;
     ParamMap<llvm::MDNode*> metadata_;
 };
 

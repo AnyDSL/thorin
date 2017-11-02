@@ -18,6 +18,8 @@ protected:
     virtual Continuation* emit_reserve(const Continuation*) override;
     virtual std::string get_alloc_name() const override { return "malloc"; }
     virtual std::string get_output_name(const std::string& name) const override { return name + ".amdgpu"; }
+
+    const Cont2Config& kernel_config_;
 };
 
 }

@@ -20,7 +20,8 @@
 namespace thorin {
 
 NVVMCodeGen::NVVMCodeGen(World& world, const Cont2Config& kernel_config)
-    : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::PTX_Device, llvm::CallingConv::PTX_Kernel, kernel_config)
+    : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::PTX_Device, llvm::CallingConv::PTX_Kernel)
+    , kernel_config_(kernel_config)
 {
     auto triple = llvm::Triple(llvm::sys::getDefaultTargetTriple());
     if (triple.isArch32Bit()) {
@@ -79,9 +80,10 @@ void NVVMCodeGen::emit_function_decl_hook(Continuation* continuation, llvm::Func
 
     auto config = kernel_config_.find(continuation);
     if (config != kernel_config_.end()) {
-        append_metadata(f, "maxntidx", std::get<0>(config->second));
-        append_metadata(f, "maxntidy", std::get<1>(config->second));
-        append_metadata(f, "maxntidz", std::get<2>(config->second));
+        auto block = config->second->as<GPUKernelConfig>()->block_size();
+        append_metadata(f, "maxntidx", std::get<0>(block));
+        append_metadata(f, "maxntidy", std::get<1>(block));
+        append_metadata(f, "maxntidz", std::get<2>(block));
     }
 
     // check signature for texturing memory

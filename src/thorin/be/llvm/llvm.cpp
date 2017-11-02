@@ -48,7 +48,7 @@
 
 namespace thorin {
 
-CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention, llvm::CallingConv::ID device_calling_convention, llvm::CallingConv::ID kernel_calling_convention, const Cont2Config& kernel_config)
+CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention, llvm::CallingConv::ID device_calling_convention, llvm::CallingConv::ID kernel_calling_convention)
     : world_(world)
     , context_()
     , module_(new llvm::Module(world.name(), context_))
@@ -57,7 +57,6 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention
     , function_calling_convention_(function_calling_convention)
     , device_calling_convention_(device_calling_convention)
     , kernel_calling_convention_(kernel_calling_convention)
-    , kernel_config_(kernel_config)
     , runtime_(new Runtime(context_, *module_.get(), irbuilder_))
 {}
 
@@ -96,7 +95,6 @@ Continuation* CodeGen::emit_hls(Continuation* continuation) {
     }
     auto callee = continuation->arg(1)->as<Global>()->init()->as_continuation();
     callee->make_external();
-    callee->destroy_body(); // safe to do, has already been imported
     irbuilder_.CreateCall(emit_function_decl(callee), args);
     assert(ret);
     return ret;
@@ -1140,6 +1138,59 @@ llvm::Value* CodeGen::create_tmp_alloca(llvm::Type* type, std::function<llvm::Va
 
 //------------------------------------------------------------------------------
 
+static void get_kernel_configs(Importer& importer,
+    const std::vector<Continuation*>& kernels,
+    Cont2Config& kernel_config,
+    std::function<KernelConfig* (Continuation*, Continuation*)> use_callback)
+{
+    importer.world().opt(false);
+
+    auto externals = importer.world().externals();
+    for (auto continuation : kernels) {
+        // recover the imported continuation (lost after the call to opt)
+        Continuation* imported = nullptr;
+        for (auto external : externals) {
+            if (external->name() == continuation->name())
+                imported = external;
+        }
+        if (!imported) continue;
+
+        visit_uses(continuation, [&] (Continuation* use) {
+            auto config = use_callback(use, imported);
+            if (config) {
+                auto p = kernel_config.emplace(imported, config);
+                assert_unused(p.second && "single kernel config entry expected");
+            }
+            return false;
+        });
+
+        continuation->destroy_body();
+    }
+}
+
+static uint64_t get_alloc_size(const Def* def) {
+    // look through casts
+    while (auto conv_op = def->isa<ConvOp>())
+        def = conv_op->op(0);
+
+    auto param = def->isa<Param>();
+    if (!param) return 0;
+
+    auto ret = param->continuation();
+    if (ret->num_uses() != 1) return 0;
+
+    auto use = *(ret->uses().begin());
+    auto call = use.def()->isa_continuation();
+    if (!call || use.index() == 0) return 0;
+
+    auto callee = call->callee();
+    if (callee->name() != "anydsl_alloc") return 0;
+
+    // signature: anydsl_alloc(mem, i32, i64, fn(mem, &[i8]))
+    auto size = call->arg(2)->isa<PrimLit>();
+    return size ? static_cast<uint64_t>(size->value().get_qu64()) : 0_u64;
+}
+
 void emit_llvm(World& world, int opt, bool debug) {
     Importer cuda(world.name());
     Importer nvvm(world.name());
@@ -1173,42 +1224,65 @@ void emit_llvm(World& world, int opt, bool debug) {
         for (size_t i = 0, e = continuation->num_params(); i != e; ++i)
             imported->param(i)->debug().set(continuation->param(i)->unique_name());
 
-        kernels.push_back(continuation);
+        kernels.emplace_back(continuation);
     });
 
-    if (!cuda.world().empty() || !nvvm.world().empty() || !opencl.world().empty() || !amdgpu.world().empty()) {
-        auto get_kernel_configs = [&](Importer& importer) {
-            importer.world().opt(false);
-            auto externals = importer.world().externals();
-            for (auto continuation : kernels) {
-                visit_uses(continuation, [&] (Continuation* use) {
-                    auto it_config = use->arg(LaunchArgs::Config)->as<Tuple>();
-                    if (it_config->op(0)->isa<PrimLit>() && it_config->op(1)->isa<PrimLit>() && it_config->op(2)->isa<PrimLit>()) {
-                        Continuation* imported = nullptr;
-                        for (auto external : externals)
-                            if (external->name() == continuation->name())
-                                imported = external;
-                        if (imported) {
-                            auto p = kernel_config.emplace(imported, std::tuple<int, int, int>{ it_config->op(0)->as<PrimLit>()->qu32_value().data(), it_config->op(1)->as<PrimLit>()->qu32_value().data(), it_config->op(2)->as<PrimLit>()->qu32_value().data() } );
-                            assert_unused(p.second && "expected only single entry");
-                        }
-                    }
-                    return false;
+    // get the GPU kernel configurations
+    if (!cuda.world().empty()   ||
+        !nvvm.world().empty()   ||
+        !opencl.world().empty() ||
+        !amdgpu.world().empty()) {
+        auto get_gpu_config = [&] (Continuation* use, Continuation* /* imported */) -> GPUKernelConfig* {
+            auto it_config = use->arg(LaunchArgs::Config)->as<Tuple>();
+            if (it_config->op(0)->isa<PrimLit>() &&
+                it_config->op(1)->isa<PrimLit>() &&
+                it_config->op(2)->isa<PrimLit>()) {
+                return new GPUKernelConfig(std::tuple<int, int, int> {
+                    it_config->op(0)->as<PrimLit>()->qu32_value().data(),
+                    it_config->op(1)->as<PrimLit>()->qu32_value().data(),
+                    it_config->op(2)->as<PrimLit>()->qu32_value().data()
                 });
-                continuation->destroy_body();
             }
+            return nullptr;
         };
-
-        get_kernel_configs(cuda);
-        get_kernel_configs(nvvm);
-        get_kernel_configs(opencl);
-        get_kernel_configs(amdgpu);
-
-        world.cleanup();
-        codegen_prepare(world);
+        get_kernel_configs(cuda, kernels, kernel_config, get_gpu_config);
+        get_kernel_configs(nvvm, kernels, kernel_config, get_gpu_config);
+        get_kernel_configs(opencl, kernels, kernel_config, get_gpu_config);
+        get_kernel_configs(amdgpu, kernels, kernel_config, get_gpu_config);
     }
 
-    CPUCodeGen(world, kernel_config).emit(opt, debug);
+    // get the HLS kernel configurations
+    if (!hls.world().empty()) {
+        auto get_hls_config = [&] (Continuation* use, Continuation* imported) -> HLSKernelConfig* {
+            HLSKernelConfig::Param2Size param_sizes;
+            for (size_t i = 3, e = use->num_args(); i != e; ++i ) {
+                auto arg = use->arg(i);
+                auto ptr_type = arg->type()->isa<PtrType>();
+                if (!ptr_type) continue;
+                auto size = get_alloc_size(arg);
+                if (size == 0)
+                    ELOG(arg, "array size is not known at compile time");
+                auto prim_type = ptr_type->pointee()->isa<PrimType>();
+                if (!prim_type) {
+                    if (auto array_type = ptr_type->pointee()->isa<ArrayType>())
+                        prim_type = array_type->elem_type()->isa<PrimType>();
+                }
+                if (!prim_type)
+                    ELOG(arg, "only pointers to arrays of primitive types are supported");
+                auto num_elems = size / (num_bits(prim_type->primtype_tag()) / 8);
+                // imported has type: fn (mem, fn (mem), ...)
+                param_sizes.emplace(imported->param(i - 3 + 2), num_elems);
+            }
+            return new HLSKernelConfig(param_sizes);
+        };
+        get_kernel_configs(hls, kernels, kernel_config, get_hls_config);
+    }
+
+    world.cleanup();
+    codegen_prepare(world);
+
+    CPUCodeGen(world).emit(opt, debug);
+
     if (!cuda.  world().empty()) CUDACodeGen  (cuda  .world(), kernel_config).emit(/*opt,*/ debug);
     if (!nvvm.  world().empty()) NVVMCodeGen  (nvvm  .world(), kernel_config).emit(opt, debug);
     if (!opencl.world().empty()) OpenCLCodeGen(opencl.world(), kernel_config).emit(/*opt,*/ debug);

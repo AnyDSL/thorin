@@ -14,6 +14,8 @@ public:
 protected:
     virtual std::string get_alloc_name() const { THORIN_UNREACHABLE; /*alloc not supported in OpenCL*/; }
     virtual std::string get_output_name(const std::string& name) const { return name + ".cl"; }
+
+    const Cont2Config& kernel_config_;
 };
 
 }

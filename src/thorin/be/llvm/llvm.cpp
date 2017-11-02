@@ -690,6 +690,9 @@ llvm::Value* CodeGen::emit(const Def* def) {
             } else if (num_bits(src->primtype_tag()) < num_bits(dst->primtype_tag())) {
                 if ( is_type_s(src)                       && is_type_i(dst)) return irbuilder_.CreateSExt(from, to);
                 if ((is_type_u(src) || is_type_bool(src)) && is_type_i(dst)) return irbuilder_.CreateZExt(from, to);
+            } else if (is_type_i(src) && is_type_i(dst)) {
+                assert(num_bits(src->primtype_tag()) == num_bits(dst->primtype_tag()));
+                return from;
             }
 
             assert(false && "unsupported cast");

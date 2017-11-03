@@ -7,17 +7,17 @@
 
 #include "thorin/continuation.h"
 #include "thorin/be/llvm/runtime.h"
+#include "thorin/be/kernel_config.h"
 
 namespace thorin {
 
 class World;
 
 typedef ContinuationMap<llvm::BasicBlock*> BBMap;
-typedef ContinuationMap<std::tuple<int, int, int>> Cont2Config;
 
 class CodeGen {
 protected:
-    CodeGen(World& world, llvm::CallingConv::ID function_calling_convention, llvm::CallingConv::ID device_calling_convention, llvm::CallingConv::ID kernel_calling_convention, const Cont2Config& kernel_config);
+    CodeGen(World& world, llvm::CallingConv::ID function_calling_convention, llvm::CallingConv::ID device_calling_convention, llvm::CallingConv::ID kernel_calling_convention);
 
 public:
     World& world() const { return world_; }
@@ -26,6 +26,7 @@ public:
 protected:
     void optimize(int opt);
 
+    unsigned compute_variant_bits(const VariantType*);
     llvm::Type* convert(const Type*);
     llvm::Value* emit(const Def*);
     llvm::Value* lookup(const Def*);
@@ -51,6 +52,7 @@ protected:
 private:
     Continuation* emit_peinfo(Continuation*);
     Continuation* emit_intrinsic(Continuation*);
+    Continuation* emit_hls(Continuation*);
     Continuation* emit_parallel(Continuation*);
     Continuation* emit_spawn(Continuation*);
     Continuation* emit_sync(Continuation*);
@@ -64,6 +66,7 @@ private:
 
 protected:
     void create_loop(llvm::Value*, llvm::Value*, llvm::Value*, llvm::Function*, std::function<void(llvm::Value*)>);
+    llvm::Value* create_tmp_alloca(llvm::Type*, std::function<llvm::Value* (llvm::AllocaInst*)>);
 
     World& world_;
     llvm::LLVMContext context_;
@@ -73,7 +76,6 @@ protected:
     llvm::CallingConv::ID function_calling_convention_;
     llvm::CallingConv::ID device_calling_convention_;
     llvm::CallingConv::ID kernel_calling_convention_;
-    const Cont2Config& kernel_config_;
     ParamMap<llvm::Value*> params_;
     ParamMap<llvm::PHINode*> phis_;
     PrimOpMap<llvm::Value*> primops_;

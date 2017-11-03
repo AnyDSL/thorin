@@ -95,6 +95,8 @@ if(LLVM_FOUND)
         be/llvm/cpu.h
         be/llvm/cuda.cpp
         be/llvm/cuda.h
+        be/llvm/hls.cpp
+        be/llvm/hls.h
         be/llvm/llvm.cpp
         be/llvm/llvm.h
         be/llvm/amdgpu.cpp

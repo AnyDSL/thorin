@@ -68,6 +68,7 @@ enum class Intrinsic : uint8_t {
     NVVM,                       ///< Internal NNVM-Backend.
     OpenCL,                     ///< Internal OpenCL-Backend.
     AMDGPU,                     ///< Internal AMDGPU-Backend.
+    HLS,                        ///< Internal HLS-Backend.
     Parallel,                   ///< Internal Parallel-CPU-Backend.
     Spawn,                      ///< Internal Parallel-CPU-Backend.
     Sync,                       ///< Internal Parallel-CPU-Backend.
@@ -280,8 +281,8 @@ struct Call {
         : ops_(std::move(call.ops_))
         , hash_(call.hash_)
     {}
-    Call(const Continuation* continuation)
-        : ops_(continuation->num_ops())
+    Call(size_t num_ops)
+        : ops_(num_ops)
     {}
 
     Defs ops() const { return ops_; }

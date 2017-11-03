@@ -78,7 +78,7 @@ void Cleaner::eta_conversion() {
                             auto ucontinuation = use->isa_continuation();
                             if (ucontinuation && use.index() == 0) {
                                 Array<const Def*> new_args(perm.size());
-                                for (size_t i = 0, e = ucontinuation->num_args(); i != e; ++i) {
+                                for (size_t i = 0, e = perm.size(); i != e; ++i) {
                                     new_args[i] = ucontinuation->arg(perm[i]);
                                 }
                                 ucontinuation->jump(param, new_args, ucontinuation->jump_debug());

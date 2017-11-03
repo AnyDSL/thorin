@@ -427,7 +427,7 @@ private:
     template<class... Args>
     std::pair<iterator,bool> emplace_no_rehash(Args&&... args) {
         using std::swap;
-        auto n = value_type(std::forward<Args>(args)...);
+        value_type n(std::forward<Args>(args)...);
         auto& k = key(&n);
 
         auto result = end_ptr();
@@ -484,11 +484,13 @@ private:
 
     template<class... Args>
     std::pair<iterator,bool> array_emplace(Args&&... args) {
+        using std::swap;
 #ifndef NDEBUG
         ++id_;
 #endif
+        value_type n(std::forward<Args>(args)...);
         auto p = &array_[size_];
-        *p = value_type(std::forward<Args>(args)...);
+        swap(*p, n);
         auto i = array_find(key(p));
         if (i == end()) {
             ++size_;

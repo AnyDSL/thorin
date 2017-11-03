@@ -105,7 +105,7 @@ bool PartialEvaluator::run() {
             }
 
             if (!callee->empty()) {
-                Call call(continuation);
+                Call call(continuation->num_ops());
                 call.callee() = callee;
 
                 bool fold = false;

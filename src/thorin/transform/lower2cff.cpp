@@ -48,7 +48,7 @@ void lower2cff(World& world) {
                         if (p.second)
                             target = drop(call); // use already dropped version as target
 
-                        jump_to_cached_call(continuation, target, call);
+                        jump_to_dropped_call(continuation, target, call);
                     }
                 }
             }

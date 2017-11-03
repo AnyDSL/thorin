@@ -87,6 +87,9 @@ std::ostream& CCodeGen::emit_addr_space(std::ostream& os, const Type* type) {
 }
 
 std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
+    if (lookup(type))
+        return os << get_name(type);
+
     if (type == nullptr) {
         return os << "NULL";
     } else if (type->isa<FrameType>()) {
@@ -96,8 +99,6 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
     } else if (type->isa<FnType>()) {
         THORIN_UNREACHABLE;
     } else if (auto tuple = type->isa<TupleType>()) {
-        if (lookup(tuple))
-            return os << get_name(tuple);
         os << "typedef struct {" << up;
         for (size_t i = 0, e = tuple->ops().size(); i != e; ++i) {
             os << endl;
@@ -105,9 +106,15 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
         }
         os << down << endl << "} tuple_" << tuple->gid() << ";";
         return os;
+    } else if (auto variant = type->isa<VariantType>()) {
+        os << "union variant_" << variant->gid() << " {" << up;
+        for (size_t i = 0, e = variant->ops().size(); i != e; ++i) {
+            os << endl;
+            emit_type(os, variant->op(i)) << " " << variant->op(i) << ";";
+        }
+        os << down << endl << "};";
+        return os;
     } else if (auto struct_type = type->isa<StructType>()) {
-        if (lookup(struct_type))
-            return os << get_name(struct_type);
         os << "typedef struct {" << up;
         for (size_t i = 0, e = struct_type->num_ops(); i != e; ++i) {
             os << endl;
@@ -121,8 +128,6 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
         emit_type(os, array->elem_type());
         return os;
     } else if (auto array = type->isa<DefiniteArrayType>()) { // DefArray is mapped to a struct
-        if (lookup(array))
-            return os << get_name(array);
         os << "typedef struct {" << up << endl;
         emit_type(os, array->elem_type()) << " e[" << array->dim() << "];";
         os << down << endl << "} array_" << array->gid() << ";";
@@ -171,8 +176,6 @@ std::ostream& CCodeGen::emit_aggop_defs(const Def* def) {
 
     // look for nested struct
     if (auto agg = def->isa<Aggregate>()) {
-        if (is_from_match(agg))
-            return func_impl_;
         for (auto op : agg->ops())
             emit_aggop_defs(op);
         if (lookup(def))
@@ -180,9 +183,17 @@ std::ostream& CCodeGen::emit_aggop_defs(const Def* def) {
         emit(agg) << endl;
     }
 
-    // argument is a cast or bitcast
-    if (auto conv = def->isa<ConvOp>())
-        emit(conv) << endl;
+    // look for nested variants
+    if (auto variant = def->isa<Variant>()) {
+        for (auto op : variant->ops())
+            emit_aggop_defs(op);
+        if (lookup(def))
+            return func_impl_;
+        emit(variant) << endl;
+    }
+
+    if (def->isa<ConvOp>() || def->isa<Bottom>())
+        emit(def) << endl;
 
     return func_impl_;
 }
@@ -228,6 +239,14 @@ std::ostream& CCodeGen::emit_aggop_decl(const Type* type) {
             emit_aggop_decl(op);
         emit_type(type_decls_, struct_type) << endl;
         insert(type, "struct_" + std::string(struct_type->name()) + "_" + std::to_string(type->gid()));
+    }
+
+    // look for nested variants
+    if (auto variant = type->isa<VariantType>()) {
+        for (auto op : variant->ops())
+            emit_aggop_decl(op);
+        emit_type(type_decls_, variant) << endl;
+        insert(type, "union variant_" + std::to_string(type->gid()));
     }
 
     // restore indent
@@ -289,17 +308,23 @@ void CCodeGen::emit() {
         if (continuation->is_external()) {
             auto config = kernel_config_.find(continuation);
             switch (lang_) {
-                case Lang::C99:    break;
-                case Lang::CUDA:   func_decls_ << "__global__ ";
-                                   func_impl_  << "__global__ ";
-                                   if (config != kernel_config_.end())
-                                       func_impl_ << "__launch_bounds__ (" << std::get<0>(config->second) << " * " << std::get<1>(config->second) << " * " << std::get<2>(config->second) << ") ";
-                                   break;
-                case Lang::OPENCL: func_decls_ << "__kernel ";
-                                   func_impl_  << "__kernel ";
-                                   if (config != kernel_config_.end())
-                                       func_impl_ << "__attribute__((reqd_work_group_size(" << std::get<0>(config->second) << ", " << std::get<1>(config->second) << ", " << std::get<2>(config->second) << "))) ";
-                                   break;
+                default: break;
+                case Lang::CUDA:
+                   func_decls_ << "__global__ ";
+                   func_impl_  << "__global__ ";
+                   if (config != kernel_config_.end()) {
+                       auto block = config->second->as<GPUKernelConfig>()->block_size();
+                       func_impl_ << "__launch_bounds__ (" << std::get<0>(block) << " * " << std::get<1>(block) << " * " << std::get<2>(block) << ") ";
+                   }
+                   break;
+                case Lang::OPENCL:
+                   func_decls_ << "__kernel ";
+                   func_impl_  << "__kernel ";
+                   if (config != kernel_config_.end()) {
+                       auto block = config->second->as<GPUKernelConfig>()->block_size();
+                       func_impl_ << "__attribute__((reqd_work_group_size(" << std::get<0>(block) << ", " << std::get<1>(block) << ", " << std::get<2>(block) << "))) ";
+                   }
+                   break;
             }
         } else {
             if (lang_==Lang::CUDA) {
@@ -343,6 +368,18 @@ void CCodeGen::emit() {
                     func_impl_  << "__global ";
                     emit_type(func_decls_, param->type()) << " *";
                     emit_type(func_impl_,  param->type()) << " *" << param->unique_name() << "_";
+                } else if (lang_==Lang::HLS && continuation->is_external() && param->type()->isa<PtrType>()) {
+                    auto config_it = kernel_config_.find(continuation);
+                    assert(config_it != kernel_config_.end());
+                    auto array_size = config_it->second->as<HLSKernelConfig>()->param_size(param);
+                    assert(array_size > 0);
+                    auto ptr_type = param->type()->as<PtrType>();
+                    auto prim_type = ptr_type->pointee()->isa<PrimType>();
+                    if (auto array_type = ptr_type->pointee()->isa<ArrayType>())
+                        prim_type = array_type->elem_type()->isa<PrimType>();
+                    assert(prim_type);
+                    emit_type(func_decls_, prim_type) << "[" << array_size << "]";
+                    emit_type(func_impl_,  prim_type) << " " << param->unique_name() << "[" << array_size << "]";
                 } else {
                     emit_addr_space(func_decls_, param->type());
                     emit_addr_space(func_impl_,  param->type());
@@ -509,8 +546,6 @@ void CCodeGen::emit() {
                 func_impl_ << "return ; // bottom: unreachable";
             } else {
                 auto store_phi = [&] (const Def* param, const Def* arg) {
-                    if (arg->isa<Bottom>())
-                        func_impl_ << "// bottom: ";
                     func_impl_ << "p" << param->unique_name() << " = ";
                     emit(arg) << ";";
                 };
@@ -533,7 +568,7 @@ void CCodeGen::emit() {
                                 ELOG(continuation->arg(1), "reserve_shared: couldn't extract memory size");
 
                             switch (lang_) {
-                                case Lang::C99:                                 break;
+                                default:                                        break;
                                 case Lang::CUDA:   func_impl_ << "__shared__ "; break;
                                 case Lang::OPENCL: func_impl_ << "__local ";    break;
                             }
@@ -632,11 +667,11 @@ void CCodeGen::emit() {
             os_ << endl;
     }
 
-    if (lang_==Lang::CUDA) {
-        if (use_16_)
-            os_ << "#include <cuda_fp16.h>" << endl << endl;
+    if (lang_==Lang::CUDA && use_16_)
+        os_ << "#include <cuda_fp16.h>" << endl << endl;
+
+    if (lang_==Lang::CUDA || lang_==Lang::HLS)
         os_ << "extern \"C\" {" << endl;
-    }
 
     if (!type_decls_.str().empty())
         os_ << type_decls_.str() << endl;
@@ -644,7 +679,7 @@ void CCodeGen::emit() {
         os_ << func_decls_.str() << endl;
     os_ << func_impl_.str();
 
-    if (lang_==Lang::CUDA)
+    if (lang_==Lang::CUDA || lang_==Lang::HLS)
         os_ << "}"; // extern "C"
 }
 
@@ -696,42 +731,44 @@ std::ostream& CCodeGen::emit(const Def* def) {
     }
 
     if (auto conv = def->isa<ConvOp>()) {
-        if (conv->from()->type() == conv->type()) {
-            insert(def, var_name(conv->from()));
-            return func_impl_;
-        }
+        emit_aggop_defs(conv->from());
+        auto src_type = conv->from()->type();
+        auto dst_type = conv->type();
 
-        emit_addr_space(func_impl_, conv->type());
-        emit_type(func_impl_, conv->type()) << " " << def_name << ";" << endl;
+        emit_addr_space(func_impl_, dst_type);
+        emit_type(func_impl_, dst_type) << " " << def_name << ";" << endl;
 
         if (conv->isa<Cast>()) {
-            auto from = conv->from()->type()->as<PrimType>();
-            auto to   = conv->type()->as<PrimType>();
-
             func_impl_ << def_name << " = ";
 
-            if (lang_==Lang::CUDA && from && (from->primtype_tag() == PrimType_pf16 || from->primtype_tag() == PrimType_qf16)) {
-                func_impl_ << "(";
-                emit_type(func_impl_, conv->type()) << ") __half2float(";
-                emit(conv->from()) << ");";
-            } else if (lang_==Lang::CUDA && to && (to->primtype_tag() == PrimType_pf16 || to->primtype_tag() == PrimType_qf16)) {
-                func_impl_ << "__float2half((float)";
-                emit(conv->from()) << ");";
+            if (src_type->isa<VariantType>()) {
+                emit(conv->from()) << "." << dst_type << ";";
             } else {
-                func_impl_ << "(";
-                emit_addr_space(func_impl_, conv->type());
-                emit_type(func_impl_, conv->type()) << ")";
-                emit(conv->from()) << ";";
+                auto from = src_type->as<PrimType>();
+                auto to   = dst_type->as<PrimType>();
+
+                if (lang_==Lang::CUDA && from && (from->primtype_tag() == PrimType_pf16 || from->primtype_tag() == PrimType_qf16)) {
+                    func_impl_ << "(";
+                    emit_type(func_impl_, dst_type) << ") __half2float(";
+                    emit(conv->from()) << ");";
+                } else if (lang_==Lang::CUDA && to && (to->primtype_tag() == PrimType_pf16 || to->primtype_tag() == PrimType_qf16)) {
+                    func_impl_ << "__float2half((float)";
+                    emit(conv->from()) << ");";
+                } else {
+                    func_impl_ << "(";
+                    emit_addr_space(func_impl_, dst_type);
+                    emit_type(func_impl_, dst_type) << ")";
+                    emit(conv->from()) << ";";
+                }
             }
         }
 
         if (conv->isa<Bitcast>()) {
-            auto dst_type = conv->type();
             func_impl_ << "union { ";
             emit_addr_space(func_impl_, dst_type);
             emit_type(func_impl_, dst_type) << " dst; ";
-            emit_addr_space(func_impl_, conv->from()->type());
-            emit_type(func_impl_, conv->from()->type()) << " src; ";
+            emit_addr_space(func_impl_, src_type);
+            emit_type(func_impl_, src_type) << " src; ";
             func_impl_ << "} u" << def_name << ";" << endl;
             func_impl_ << "u" << def_name << ".src = ";
             emit(conv->from()) << ";" << endl;
@@ -756,8 +793,6 @@ std::ostream& CCodeGen::emit(const Def* def) {
         emit_type(func_impl_, array->type()) << " " << def_name << ";";
         for (size_t i = 0, e = array->num_ops(); i != e; ++i) {
             func_impl_ << endl;
-            if (array->op(i)->isa<Bottom>())
-                func_impl_ << "// bottom: ";
             func_impl_ << def_name << ".e[" << i << "] = ";
             emit(array->op(i)) << ";";
         }
@@ -802,8 +837,6 @@ std::ostream& CCodeGen::emit(const Def* def) {
             emit_type(func_impl_, agg->type()) << " " << def_name << ";";
             for (size_t i = 0, e = agg->ops().size(); i != e; ++i) {
                 func_impl_ << endl;
-                if (agg->op(i)->isa<Bottom>())
-                    func_impl_ << "// bottom: ";
                 func_impl_ << def_name;
                 emit_access(def, world_.literal_qs32(i, def->location())) << " = ";
                 emit(agg->op(i)) << ";";
@@ -867,9 +900,17 @@ std::ostream& CCodeGen::emit(const Def* def) {
         return func_impl_;
     }
 
+    if (auto variant = def->isa<Variant>()) {
+        emit_type(func_impl_, variant->type()) << " " << def_name << ";" << endl;
+        func_impl_ << def_name << "." << variant->op(0)->type() << " = ";
+        emit(variant->op(0)) << ";";
+        insert(def, def_name);
+        return func_impl_;
+    }
+
     if (auto bottom = def->isa<Bottom>()) {
-        func_impl_ << "// bottom: ";
-        emit_type(func_impl_, bottom->type()) << " " << def_name << ";";
+        emit_addr_space(func_impl_, bottom->type());
+        emit_type(func_impl_, bottom->type()) << " " << def_name << "; // bottom";
         insert(def, def_name);
         return func_impl_;
     }
@@ -911,6 +952,8 @@ std::ostream& CCodeGen::emit(const Def* def) {
     }
 
     if (auto lea = def->isa<LEA>()) {
+        emit_aggop_defs(lea->ptr());
+        emit_aggop_defs(lea->index());
         if (is_texture_type(lea->type())) { // handle texture fetches
             emit_type(func_impl_, lea->ptr_pointee()) << " " << def_name << ";" << endl;
             func_impl_ << def_name << " = tex1Dfetch(";
@@ -1003,7 +1046,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
         WLOG(global, "{}: Global variable '{}' will not be synced with host.", get_lang(), global);
         assert(!global->init()->isa_continuation() && "no global init continuation supported");
         switch (lang_) {
-            case Lang::C99:                                 break;
+            default:                                        break;
             case Lang::CUDA:   func_impl_ << "__device__ "; break;
             case Lang::OPENCL: func_impl_ << "__constant "; break;
         }
@@ -1017,7 +1060,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
         func_impl_ << endl;
 
         switch (lang_) {
-            case Lang::C99:                                 break;
+            default:                                        break;
             case Lang::CUDA:   func_impl_ << "__device__ "; break;
             case Lang::OPENCL: func_impl_ << "__constant "; break;
         }
@@ -1079,6 +1122,7 @@ const std::string CCodeGen::get_lang() const {
     switch (lang_) {
         default:
         case Lang::C99:    return "C99";
+        case Lang::HLS:    return "HLS";
         case Lang::CUDA:   return "CUDA";
         case Lang::OPENCL: return "OpenCL";
     }

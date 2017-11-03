@@ -14,6 +14,8 @@ public:
 protected:
     virtual std::string get_alloc_name() const { return "malloc"; }
     virtual std::string get_output_name(const std::string& name) const { return name + ".cu"; }
+
+    const Cont2Config& kernel_config_;
 };
 
 }

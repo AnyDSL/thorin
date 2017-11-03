@@ -11,7 +11,8 @@
 namespace thorin {
 
 OpenCLCodeGen::OpenCLCodeGen(World& world, const Cont2Config& kernel_config)
-    : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::C, llvm::CallingConv::C, kernel_config)
+    : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::C, llvm::CallingConv::C)
+    , kernel_config_(kernel_config)
 {}
 
 void OpenCLCodeGen::emit(bool debug) {

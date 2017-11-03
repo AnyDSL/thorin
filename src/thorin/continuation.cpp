@@ -191,6 +191,7 @@ void Continuation::set_intrinsic() {
     else if (name() == "nvvm")           intrinsic_ = Intrinsic::NVVM;
     else if (name() == "opencl")         intrinsic_ = Intrinsic::OpenCL;
     else if (name() == "amdgpu")         intrinsic_ = Intrinsic::AMDGPU;
+    else if (name() == "hls")            intrinsic_ = Intrinsic::HLS;
     else if (name() == "parallel")       intrinsic_ = Intrinsic::Parallel;
     else if (name() == "spawn")          intrinsic_ = Intrinsic::Spawn;
     else if (name() == "sync")           intrinsic_ = Intrinsic::Sync;
@@ -525,22 +526,18 @@ bool visit_uses(Continuation* cont, std::function<bool(Continuation*)> func) {
         for (auto use : cont->uses()) {
             if (auto continuation = (use->isa<Global>() ? *use->uses().begin() : use)->isa_continuation()) // TODO make more robust
                 if (func(continuation))
-                        return true;
+                    return true;
         }
     }
     return false;
 }
 
 bool visit_capturing_intrinsics(Continuation* cont, std::function<bool(Continuation*)> func) {
-    if (!cont->is_intrinsic()) {
-        for (auto use : cont->uses()) {
-            if (auto continuation = (use->isa<Global>() ? *use->uses().begin() : use)->isa_continuation()) // TODO make more robust
-                if (auto callee = continuation->callee()->isa_continuation())
-                    if (callee->is_intrinsic() && func(callee))
-                        return true;
-        }
-    }
-    return false;
+    return visit_uses(cont, [&] (auto continuation) {
+        if (auto callee = continuation->callee()->isa_continuation())
+            return callee->is_intrinsic() && func(callee);
+        return false;
+    });
 }
 
 bool is_passed_to_accelerator(Continuation* cont) {

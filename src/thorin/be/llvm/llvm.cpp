@@ -38,6 +38,7 @@
 #include "thorin/be/llvm/amdgpu.h"
 #include "thorin/be/llvm/cpu.h"
 #include "thorin/be/llvm/cuda.h"
+#include "thorin/be/llvm/hls.h"
 #include "thorin/be/llvm/nvvm.h"
 #include "thorin/be/llvm/opencl.h"
 #include "thorin/transform/codegen_prepare.h"
@@ -47,7 +48,7 @@
 
 namespace thorin {
 
-CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention, llvm::CallingConv::ID device_calling_convention, llvm::CallingConv::ID kernel_calling_convention, const Cont2Config& kernel_config)
+CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention, llvm::CallingConv::ID device_calling_convention, llvm::CallingConv::ID kernel_calling_convention)
     : world_(world)
     , context_()
     , module_(new llvm::Module(world.name(), context_))
@@ -56,7 +57,6 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention
     , function_calling_convention_(function_calling_convention)
     , device_calling_convention_(device_calling_convention)
     , kernel_calling_convention_(kernel_calling_convention)
-    , kernel_config_(kernel_config)
     , runtime_(new Runtime(context_, *module_.get(), irbuilder_))
 {}
 
@@ -69,7 +69,8 @@ Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
         case Intrinsic::CUDA:      return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM,   ".cu",   continuation);
         case Intrinsic::NVVM:      return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM,   ".nvvm", continuation);
         case Intrinsic::OpenCL:    return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".cl",   continuation);
-        case Intrinsic::AMDGPU:    return runtime_->emit_host_code(*this, Runtime::AMDGPU_PLATFORM, ".gcn",  continuation);
+        case Intrinsic::AMDGPU:    return runtime_->emit_host_code(*this, Runtime::HSA_PLATFORM,    ".gcn",  continuation);
+        case Intrinsic::HLS:       return emit_hls(continuation);
         case Intrinsic::Parallel:  return emit_parallel(continuation);
         case Intrinsic::Spawn:     return emit_spawn(continuation);
         case Intrinsic::Sync:      return emit_sync(continuation);
@@ -80,6 +81,23 @@ Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
 #endif
         default: THORIN_UNREACHABLE;
     }
+}
+
+Continuation* CodeGen::emit_hls(Continuation* continuation) {
+    std::vector<llvm::Value*> args(continuation->num_args()-3);
+    Continuation* ret = nullptr;
+    for (size_t i = 2, j = 0; i < continuation->num_args(); ++i) {
+        if (auto cont = continuation->arg(i)->isa_continuation()) {
+            ret = cont;
+            continue;
+        }
+        args[j++] = emit(continuation->arg(i));
+    }
+    auto callee = continuation->arg(1)->as<Global>()->init()->as_continuation();
+    callee->make_external();
+    irbuilder_.CreateCall(emit_function_decl(callee), args);
+    assert(ret);
+    return ret;
 }
 
 void CodeGen::emit_result_phi(const Param* param, llvm::Value* value) {
@@ -478,6 +496,19 @@ llvm::Value* CodeGen::lookup(const Def* def) {
         if (auto res = thorin::find(primops_, primop))
             return res;
         else {
+            // we emit all Thorin constants in the entry block, since they are not part of the schedule
+            if (is_const(primop)) {
+                auto bb = irbuilder_.GetInsertBlock();
+                auto fn = bb->getParent();
+                auto& entry = fn->getEntryBlock();
+
+                auto ip = irbuilder_.saveAndClearIP();
+                irbuilder_.SetInsertPoint(&entry, entry.begin());
+                auto llvm_value = emit(primop);
+                irbuilder_.restoreIP(ip);
+                return primops_[primop] = llvm_value;
+            }
+
             auto llvm_value = emit(def);
             return primops_[primop] = llvm_value;
         }
@@ -605,16 +636,22 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto dst_type = conv->type();
         auto to = convert(dst_type);
 
-        if (from->getType() == to)
-            return from;
-
         if (conv->isa<Cast>()) {
-            if (src_type->isa<VariantType>()) {
-                auto ptr_type = llvm::PointerType::get(to, 0);
-                auto alloca = irbuilder_.CreateAlloca(from->getType());
-                auto casted_ptr = irbuilder_.CreateBitCast(alloca, ptr_type);
-                irbuilder_.CreateStore(from, alloca);
-                return irbuilder_.CreateLoad(casted_ptr);
+            if (auto variant_type = src_type->isa<VariantType>()) {
+                auto bits = compute_variant_bits(variant_type);
+                if (bits != 0) {
+                    auto value_bits = to->getPrimitiveSizeInBits();
+                    auto trunc = irbuilder_.CreateTrunc(from, irbuilder_.getIntNTy(value_bits));
+                    return irbuilder_.CreateBitCast(trunc, to);
+                } else {
+                    WLOG(def, "slow: alloca and loads/stores needed for variant cast '{}'", def);
+                    auto ptr_type = llvm::PointerType::get(to, 0);
+                    return create_tmp_alloca(from->getType(), [&] (auto alloca) {
+                        auto casted_ptr = irbuilder_.CreateBitCast(alloca, ptr_type);
+                        irbuilder_.CreateStore(from, alloca);
+                        return irbuilder_.CreateLoad(casted_ptr);
+                    });
+                }
             }
 
             if (src_type->isa<PtrType>() && dst_type->isa<PtrType>()) {
@@ -653,6 +690,9 @@ llvm::Value* CodeGen::emit(const Def* def) {
             } else if (num_bits(src->primtype_tag()) < num_bits(dst->primtype_tag())) {
                 if ( is_type_s(src)                       && is_type_i(dst)) return irbuilder_.CreateSExt(from, to);
                 if ((is_type_u(src) || is_type_bool(src)) && is_type_i(dst)) return irbuilder_.CreateZExt(from, to);
+            } else if (is_type_i(src) && is_type_i(dst)) {
+                assert(num_bits(src->primtype_tag()) == num_bits(dst->primtype_tag()));
+                return from;
             }
 
             assert(false && "unsupported cast");
@@ -767,12 +807,20 @@ llvm::Value* CodeGen::emit(const Def* def) {
     }
 
     if (auto variant = def->isa<Variant>()) {
+        auto bits = compute_variant_bits(variant->type());
         auto value = lookup(variant->op(0));
-        auto ptr_type = llvm::PointerType::get(value->getType(), 0);
-        auto alloca = irbuilder_.CreateAlloca(convert(variant->type()));
-        auto casted_ptr = irbuilder_.CreateBitCast(alloca, ptr_type);
-        irbuilder_.CreateStore(value, casted_ptr);
-        return irbuilder_.CreateLoad(alloca);
+        if (bits != 0) {
+            auto value_bits = value->getType()->getPrimitiveSizeInBits();
+            auto bitcast = irbuilder_.CreateBitCast(value, irbuilder_.getIntNTy(value_bits));
+            return irbuilder_.CreateZExt(bitcast, irbuilder_.getIntNTy(bits));
+        } else {
+            auto ptr_type = llvm::PointerType::get(value->getType(), 0);
+            return create_tmp_alloca(convert(variant->type()), [&] (auto alloca) {
+                auto casted_ptr = irbuilder_.CreateBitCast(alloca, ptr_type);
+                irbuilder_.CreateStore(value, casted_ptr);
+                return irbuilder_.CreateLoad(alloca);
+            });
+        }
     }
 
     if (auto primlit = def->isa<PrimLit>()) {
@@ -932,6 +980,15 @@ unsigned CodeGen::convert_addr_space(const AddrSpace addr_space) {
     }
 }
 
+unsigned CodeGen::compute_variant_bits(const VariantType* variant) {
+    unsigned bits = 0;
+    for (auto op : variant->ops()) {
+        bits = std::max(bits, convert(op)->getPrimitiveSizeInBits());
+        if (bits == 0) return 0;
+    }
+    return bits;
+}
+
 llvm::Type* CodeGen::convert(const Type* type) {
     if (auto llvm_type = thorin::find(types_, type))
         return llvm_type;
@@ -1012,11 +1069,16 @@ llvm::Type* CodeGen::convert(const Type* type) {
         }
 
         case Node_VariantType: {
-            auto layout = module_->getDataLayout();
-            uint64_t max_size = 0;
-            for (auto op : type->ops())
-                max_size = std::max(max_size, layout.getTypeAllocSize(convert(op)));
-            return llvm::ArrayType::get(irbuilder_.getInt8Ty(), max_size);
+            auto bits = compute_variant_bits(type->as<VariantType>());
+            if (bits != 0) {
+                return irbuilder_.getIntNTy(bits);
+            } else {
+                auto layout = module_->getDataLayout();
+                uint64_t max_size = 0;
+                for (auto op : type->ops())
+                    max_size = std::max(max_size, layout.getTypeAllocSize(convert(op)));
+                return llvm::ArrayType::get(irbuilder_.getInt8Ty(), max_size);
+            }
         }
 
         default:
@@ -1058,14 +1120,86 @@ void CodeGen::create_loop(llvm::Value* lower, llvm::Value* upper, llvm::Value* i
     irbuilder_.SetInsertPoint(exit);
 }
 
+llvm::Value* CodeGen::create_tmp_alloca(llvm::Type* type, std::function<llvm::Value* (llvm::AllocaInst*)> fun) {
+    // emit the alloca in the entry block
+    auto alloca = emit_alloca(type, "tmp_alloca");
+
+    // mark the lifetime of the alloca
+    auto lifetime_start = llvm::Intrinsic::getDeclaration(module_.get(), llvm::Intrinsic::lifetime_start);
+    auto lifetime_end   = llvm::Intrinsic::getDeclaration(module_.get(), llvm::Intrinsic::lifetime_end);
+    auto addr_space = alloca->getType()->getPointerAddressSpace();
+    auto void_cast = irbuilder_.CreateBitCast(alloca, llvm::PointerType::get(irbuilder_.getInt8Ty(), addr_space));
+
+    auto layout = llvm::DataLayout(module_->getDataLayout());
+    auto size = irbuilder_.getInt64(layout.getTypeAllocSize(type));
+
+    irbuilder_.CreateCall(lifetime_start, { size, void_cast });
+    auto result = fun(alloca);
+    irbuilder_.CreateCall(lifetime_end, { size, void_cast });
+    return result;
+}
+
 //------------------------------------------------------------------------------
 
-void emit_llvm(World& world, int opt, bool debug) {
-    Importer cuda(world);
-    Importer nvvm(world);
-    Importer opencl(world);
-    Importer amdgpu(world);
+static void get_kernel_configs(Importer& importer,
+    const std::vector<Continuation*>& kernels,
+    Cont2Config& kernel_config,
+    std::function<KernelConfig* (Continuation*, Continuation*)> use_callback)
+{
+    importer.world().opt(false);
 
+    auto externals = importer.world().externals();
+    for (auto continuation : kernels) {
+        // recover the imported continuation (lost after the call to opt)
+        Continuation* imported = nullptr;
+        for (auto external : externals) {
+            if (external->name() == continuation->name())
+                imported = external;
+        }
+        if (!imported) continue;
+
+        visit_uses(continuation, [&] (Continuation* use) {
+            auto config = use_callback(use, imported);
+            if (config) {
+                auto p = kernel_config.emplace(imported, config);
+                assert_unused(p.second && "single kernel config entry expected");
+            }
+            return false;
+        });
+
+        continuation->destroy_body();
+    }
+}
+
+static uint64_t get_alloc_size(const Def* def) {
+    // look through casts
+    while (auto conv_op = def->isa<ConvOp>())
+        def = conv_op->op(0);
+
+    auto param = def->isa<Param>();
+    if (!param) return 0;
+
+    auto ret = param->continuation();
+    if (ret->num_uses() != 1) return 0;
+
+    auto use = *(ret->uses().begin());
+    auto call = use.def()->isa_continuation();
+    if (!call || use.index() == 0) return 0;
+
+    auto callee = call->callee();
+    if (callee->name() != "anydsl_alloc") return 0;
+
+    // signature: anydsl_alloc(mem, i32, i64, fn(mem, &[i8]))
+    auto size = call->arg(2)->isa<PrimLit>();
+    return size ? static_cast<uint64_t>(size->value().get_qu64()) : 0_u64;
+}
+
+void emit_llvm(World& world, int opt, bool debug) {
+    Importer cuda(world.name());
+    Importer nvvm(world.name());
+    Importer opencl(world.name());
+    Importer amdgpu(world.name());
+    Importer hls(world.name());
     Cont2Config kernel_config;
     std::vector<Continuation*> kernels;
 
@@ -1081,6 +1215,8 @@ void emit_llvm(World& world, int opt, bool debug) {
             imported = opencl.import(continuation)->as_continuation();
         else if (is_passed_to_intrinsic(continuation, Intrinsic::AMDGPU))
             imported = amdgpu.import(continuation)->as_continuation();
+        else if (is_passed_to_intrinsic(continuation, Intrinsic::HLS))
+            imported = hls.import(continuation)->as_continuation();
         else
             return;
 
@@ -1091,50 +1227,70 @@ void emit_llvm(World& world, int opt, bool debug) {
         for (size_t i = 0, e = continuation->num_params(); i != e; ++i)
             imported->param(i)->debug().set(continuation->param(i)->unique_name());
 
-        kernels.push_back(continuation);
+        kernels.emplace_back(continuation);
     });
 
-    if (!cuda.world().empty() || !nvvm.world().empty() || !opencl.world().empty() || !amdgpu.world().empty()) {
-        auto get_kernel_configs = [&](Importer& importer) {
-            importer.world().opt();
-            auto externals = importer.world().externals();
-            for (auto continuation : kernels) {
-                visit_uses(continuation, [&] (Continuation* use) {
-                    auto it_config = use->arg(LaunchArgs::Config)->as<Tuple>();
-                    if (it_config->op(0)->isa<PrimLit>() && it_config->op(1)->isa<PrimLit>() && it_config->op(2)->isa<PrimLit>()) {
-                        Continuation* imported = nullptr;
-                        for (auto external : externals)
-                            if (external->name() == continuation->name())
-                                imported = external;
-                        if (imported) {
-                            auto p = kernel_config.emplace(imported, std::tuple<int, int, int> {
-                                it_config->op(0)->as<PrimLit>()->qu32_value().data(),
-                                it_config->op(1)->as<PrimLit>()->qu32_value().data(),
-                                it_config->op(2)->as<PrimLit>()->qu32_value().data()
-                            });
-                            assert_unused(p.second && "expected only single entry");
-                        }
-                    }
-                    return false;
+    // get the GPU kernel configurations
+    if (!cuda.world().empty()   ||
+        !nvvm.world().empty()   ||
+        !opencl.world().empty() ||
+        !amdgpu.world().empty()) {
+        auto get_gpu_config = [&] (Continuation* use, Continuation* /* imported */) -> GPUKernelConfig* {
+            auto it_config = use->arg(LaunchArgs::Config)->as<Tuple>();
+            if (it_config->op(0)->isa<PrimLit>() &&
+                it_config->op(1)->isa<PrimLit>() &&
+                it_config->op(2)->isa<PrimLit>()) {
+                return new GPUKernelConfig(std::tuple<int, int, int> {
+                    it_config->op(0)->as<PrimLit>()->qu32_value().data(),
+                    it_config->op(1)->as<PrimLit>()->qu32_value().data(),
+                    it_config->op(2)->as<PrimLit>()->qu32_value().data()
                 });
-                continuation->destroy_body();
             }
+            return nullptr;
         };
-
-        get_kernel_configs(cuda);
-        get_kernel_configs(nvvm);
-        get_kernel_configs(opencl);
-        get_kernel_configs(amdgpu);
-
-        world.cleanup();
-        codegen_prepare(world);
+        get_kernel_configs(cuda, kernels, kernel_config, get_gpu_config);
+        get_kernel_configs(nvvm, kernels, kernel_config, get_gpu_config);
+        get_kernel_configs(opencl, kernels, kernel_config, get_gpu_config);
+        get_kernel_configs(amdgpu, kernels, kernel_config, get_gpu_config);
     }
 
-    CPUCodeGen(world, kernel_config).emit(opt, debug);
+    // get the HLS kernel configurations
+    if (!hls.world().empty()) {
+        auto get_hls_config = [&] (Continuation* use, Continuation* imported) -> HLSKernelConfig* {
+            HLSKernelConfig::Param2Size param_sizes;
+            for (size_t i = 3, e = use->num_args(); i != e; ++i ) {
+                auto arg = use->arg(i);
+                auto ptr_type = arg->type()->isa<PtrType>();
+                if (!ptr_type) continue;
+                auto size = get_alloc_size(arg);
+                if (size == 0)
+                    ELOG(arg, "array size is not known at compile time");
+                auto prim_type = ptr_type->pointee()->isa<PrimType>();
+                if (!prim_type) {
+                    if (auto array_type = ptr_type->pointee()->isa<ArrayType>())
+                        prim_type = array_type->elem_type()->isa<PrimType>();
+                }
+                if (!prim_type)
+                    ELOG(arg, "only pointers to arrays of primitive types are supported");
+                auto num_elems = size / (num_bits(prim_type->primtype_tag()) / 8);
+                // imported has type: fn (mem, fn (mem), ...)
+                param_sizes.emplace(imported->param(i - 3 + 2), num_elems);
+            }
+            return new HLSKernelConfig(param_sizes);
+        };
+        get_kernel_configs(hls, kernels, kernel_config, get_hls_config);
+    }
+
+    world.cleanup();
+    codegen_prepare(world);
+
+    CPUCodeGen(world).emit(opt, debug);
+
     if (!cuda.  world().empty()) CUDACodeGen  (cuda  .world(), kernel_config).emit(/*opt,*/ debug);
     if (!nvvm.  world().empty()) NVVMCodeGen  (nvvm  .world(), kernel_config).emit(opt, debug);
     if (!opencl.world().empty()) OpenCLCodeGen(opencl.world(), kernel_config).emit(/*opt,*/ debug);
     if (!amdgpu.world().empty()) AMDGPUCodeGen(amdgpu.world(), kernel_config).emit(opt, debug);
+    if (!hls.   world().empty()) HLSCodeGen   (hls   .world(), kernel_config).emit(/*opt,*/ debug);
 }
 
 //------------------------------------------------------------------------------

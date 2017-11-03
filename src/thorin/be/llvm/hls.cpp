@@ -1,4 +1,4 @@
-#include "thorin/be/llvm/cuda.h"
+#include "thorin/be/llvm/hls.h"
 
 #include <fstream>
 #include <stdexcept>
@@ -9,17 +9,17 @@
 
 namespace thorin {
 
-CUDACodeGen::CUDACodeGen(World& world, const Cont2Config& kernel_config)
+HLSCodeGen::HLSCodeGen(World& world, const Cont2Config& kernel_config)
     : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::C, llvm::CallingConv::C)
     , kernel_config_(kernel_config)
 {}
 
-void CUDACodeGen::emit(bool debug) {
+void HLSCodeGen::emit(bool debug) {
     auto name = get_output_name(world_.name());
     std::ofstream file(name);
     if (!file.is_open())
         throw std::runtime_error("cannot write '" + name + "': " + strerror(errno));
-    thorin::emit_c(world_, kernel_config_, file, Lang::CUDA, debug);
+    thorin::emit_c(world_, kernel_config_, file, Lang::HLS, debug);
 }
 
 }

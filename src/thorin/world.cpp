@@ -13,7 +13,6 @@
 #include "thorin/transform/inliner.h"
 #include "thorin/transform/lift_builtins.h"
 #include "thorin/transform/flatten_tuples.h"
-#include "thorin/transform/higher_order_lifting.h"
 #include "thorin/transform/hoist_enters.h"
 #include "thorin/transform/split_slots.h"
 #include "thorin/transform/mem2reg.h"

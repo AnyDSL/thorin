@@ -64,13 +64,15 @@ public:
     bool eval(size_t i) {
         // the only higher order parameter that is allowed is a single 1st-order parameter of a top-level continuation
         // all other parameters need specialization (lower2cff)
-        auto order = callee_->param(i)->order();
-        if (order >= 2 || (order == 1 && (!callee_->is_returning() || !is_top_level(callee_)))) {
-            DLOG("bad param({}) {} of continuation {}", i, callee_->param(i), callee_);
-            return true;
-        }
+        //auto order = callee_->param(i)->order();
+        //if (order >= 2 || (order == 1 && (!callee_->is_returning() || !is_top_level(callee_)))) {
+            //DLOG("bad param({}) {} of continuation {}", i, callee_->param(i), callee_);
+            //return true;
+        //}
 
-        return is_one(instantiate(pe_profile(i))) ? true : false;
+
+        return callee_->num_uses() == 1 || is_one(instantiate(pe_profile(i)));
+        //return  is_one(instantiate(pe_profile(i)));
     }
 
     const Def* pe_profile(size_t i) {
@@ -94,13 +96,18 @@ private:
 
 void PartialEvaluator::eat_pe_info(Continuation* cur) {
     assert(cur->arg(1)->type() == world().ptr_type(world().indefinite_array_type(world().type_pu8())));
-    auto msg = cur->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
-    ILOG(cur->callee(), "pe_info: {}: {}", msg->as_string(), cur->arg(2));
     auto next = cur->arg(3);
-    cur->jump(next, {cur->arg(0)}, cur->jump_debug());
 
-    // always re-insert into queue because we've changed cur's jump
-    queue_.push(cur);
+    if (is_const(cur->arg(2))) {
+        auto msg = cur->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
+        ILOG(cur->callee(), "pe_info: {}: {}", msg->as_string(), cur->arg(2));
+        cur->jump(next, {cur->arg(0)}, cur->jump_debug());
+
+        // always re-insert into queue because we've changed cur's jump
+        queue_.push(cur);
+    } else {
+        queue_.push(next->as_continuation());
+    }
 }
 
 bool PartialEvaluator::run() {
@@ -158,7 +165,12 @@ bool PartialEvaluator::run() {
 
 //------------------------------------------------------------------------------
 
-bool partial_evaluation(World& world) { return PartialEvaluator(world).run(); }
+bool partial_evaluation(World& world) {
+    VLOG("start pe");
+    auto res = PartialEvaluator(world).run();
+    VLOG("end pe");
+    return res;
+}
 
 //------------------------------------------------------------------------------
 

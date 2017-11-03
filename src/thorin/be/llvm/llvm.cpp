@@ -1146,7 +1146,7 @@ static void get_kernel_configs(Importer& importer,
     Cont2Config& kernel_config,
     std::function<KernelConfig* (Continuation*, Continuation*)> use_callback)
 {
-    importer.world().opt(false);
+    importer.world().opt();
 
     auto externals = importer.world().externals();
     for (auto continuation : kernels) {
@@ -1195,11 +1195,11 @@ static uint64_t get_alloc_size(const Def* def) {
 }
 
 void emit_llvm(World& world, int opt, bool debug) {
-    Importer cuda(world.name());
-    Importer nvvm(world.name());
-    Importer opencl(world.name());
-    Importer amdgpu(world.name());
-    Importer hls(world.name());
+    Importer cuda(world);
+    Importer nvvm(world);
+    Importer opencl(world);
+    Importer amdgpu(world);
+    Importer hls(world);
     Cont2Config kernel_config;
     std::vector<Continuation*> kernels;
 

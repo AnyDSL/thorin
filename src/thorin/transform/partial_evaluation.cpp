@@ -27,15 +27,13 @@ private:
     HashMap<Call, Continuation*> cache_;
     ContinuationSet done_;
     std::queue<Continuation*> queue_;
-    ContinuationMap<bool> top_level_;
 };
 
 class CondEval {
 public:
-    CondEval(Continuation* callee, Defs args, ContinuationMap<bool>& top_level)
+    CondEval(Continuation* callee, Defs args)
         : callee_(callee)
         , args_(args)
-        , top_level_(top_level)
     {
         assert(callee->pe_profile().empty() || callee->pe_profile().size() == args.size());
         assert(callee->num_params() == args.size());
@@ -62,36 +60,17 @@ public:
     }
 
     bool eval(size_t i) {
-        // the only higher order parameter that is allowed is a single 1st-order parameter of a top-level continuation
-        // all other parameters need specialization (lower2cff)
-        //auto order = callee_->param(i)->order();
-        //if (order >= 2 || (order == 1 && (!callee_->is_returning() || !is_top_level(callee_)))) {
-            //DLOG("bad param({}) {} of continuation {}", i, callee_->param(i), callee_);
-            //return true;
-        //}
-
-
-        return callee_->num_uses() == 1 || is_one(instantiate(pe_profile(i)));
-        //return  is_one(instantiate(pe_profile(i)));
+        return (callee_->num_uses() == 1 && !callee_->is_external()) || is_one(instantiate(pe_profile(i)));
     }
 
     const Def* pe_profile(size_t i) {
         return callee_->pe_profile().empty() ? world().literal_bool(false, {}) : callee_->pe_profile(i);
     }
 
-    bool is_top_level(Continuation* continuation) {
-        auto p = top_level_.emplace(continuation, true);
-        if (p.second && has_free_vars(callee_))
-            return p.first->second = false;
-
-        return p.first->second;
-    }
-
 private:
     Continuation* callee_;
     Defs args_;
     Def2Def old2new_;
-    ContinuationMap<bool> top_level_;
 };
 
 void PartialEvaluator::eat_pe_info(Continuation* cur) {
@@ -113,10 +92,8 @@ void PartialEvaluator::eat_pe_info(Continuation* cur) {
 bool PartialEvaluator::run() {
     bool todo = false;
 
-    for (auto external : world().externals()) {
+    for (auto external : world().externals())
         enqueue(external);
-        top_level_[external] = true;
-    }
 
     while (!queue_.empty()) {
         auto continuation = pop(queue_);
@@ -132,7 +109,7 @@ bool PartialEvaluator::run() {
                 call.callee() = callee;
 
                 bool fold = false;
-                CondEval cond_eval(callee, continuation->args(), top_level_);
+                CondEval cond_eval(callee, continuation->args());
 
                 for (size_t i = 0, e = call.num_args(); i != e; ++i) {
                     if (cond_eval.eval(i)) {

@@ -58,6 +58,8 @@ set(THORIN_SOURCES
     transform/inliner.h
     transform/lift_builtins.cpp
     transform/lift_builtins.h
+    transform/lower2cff.cpp
+    transform/lower2cff.h
     transform/mangle.cpp
     transform/mangle.h
     transform/mem2reg.cpp

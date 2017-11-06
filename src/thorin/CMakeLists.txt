@@ -50,8 +50,6 @@ set(THORIN_SOURCES
     transform/hoist_enters.h
     transform/flatten_tuples.cpp
     transform/flatten_tuples.h
-    transform/higher_order_lifting.cpp
-    transform/higher_order_lifting.h
     transform/importer.cpp
     transform/importer.h
     transform/inliner.cpp

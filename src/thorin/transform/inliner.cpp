@@ -39,9 +39,11 @@ void inliner(World& world) {
     static const int offset = 4;
     Scope::for_each(world, [] (const Scope& scope) {
         if (scope.defs().size() < scope.entry()->num_params() * factor + offset) {
+            DLOG("inline: {}", scope.entry());
             for (const auto& use : scope.entry()->copy_uses()) {
                 if (auto ucontinuation = use->isa_continuation()) {
                     if (use.index() == 0 && !scope.contains(ucontinuation))
+                        DLOG("- here: {}", ucontinuation);
                         ucontinuation->jump(drop(scope, ucontinuation->args()), {}, ucontinuation->jump_debug());
                 }
             }

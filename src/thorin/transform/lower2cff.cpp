@@ -8,6 +8,7 @@
 namespace thorin {
 
 void lower2cff(World& world) {
+    VLOG("start lower2cff");
     HashMap<Call, Continuation*> cache;
     ContinuationSet top;
 
@@ -65,6 +66,7 @@ void lower2cff(World& world) {
         }
     }
 
+    VLOG("end lower2cff");
     debug_verify(world);
     world.cleanup();
 }

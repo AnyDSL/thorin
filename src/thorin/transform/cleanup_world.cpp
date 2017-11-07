@@ -188,8 +188,10 @@ void Cleaner::within(const Def* def) {
 }
 
 void Cleaner::cleanup() {
+    VLOG("start cleanup");
     int i = 0;
     for (; todo_; ++i) {
+        VLOG("iteration: {}", i);
         todo_ = false;
         eta_conversion();
         eliminate_params();
@@ -198,8 +200,6 @@ void Cleaner::cleanup() {
             todo_ |= partial_evaluation(world_);
     }
 
-    DLOG("fixed-point reached after {} iterations", i);
-
     if (!world().is_pe_done()) {
         world().mark_pe_done();
         for (auto continuation : world().continuations())
@@ -207,6 +207,7 @@ void Cleaner::cleanup() {
         cleanup();
     }
 
+    VLOG("end cleanup");
 #ifndef NDEBUG
     verify_closedness();
     debug_verify(world());

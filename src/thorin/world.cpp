@@ -736,6 +736,26 @@ const Def* World::load(const Def* mem, const Def* ptr, Debug dbg) {
             return ld;
     }
 
+    if (auto slot = ptr->isa<Slot>()) {
+        // are all users loads and stores *from* this slot (use.index() == 1)?
+        // calls or stores that store this slot somewhere else would require more analysis
+        for (auto use : slot->uses()) {
+            if (use.index() != 1 || (!use->isa<Load>() && !use->isa<Store>())) {
+                goto no_opt;
+            }
+        }
+        auto cur = mem;
+        while (!cur->isa<Param>()) {
+            if (auto store = cur->isa<Store>())
+                if (store->ptr() == slot)
+                    return tuple({mem, store->val()}, dbg);
+            if (cur->isa<Extract>())
+                cur = cur->op(0);
+            else if (cur->isa<MemOp>())
+                cur = cur->as<MemOp>()->mem();
+        }
+    }
+no_opt:
     return cse(new Load(mem, ptr, dbg));
 }
 

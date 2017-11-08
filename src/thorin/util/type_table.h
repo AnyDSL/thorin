@@ -179,7 +179,7 @@ uint64_t TypeBase<TypeTable>::vhash() const {
 
     uint64_t seed = thorin::hash_begin(uint8_t(tag()));
     for (auto op : ops_)
-        seed = thorin::hash_combine(seed, uint16_t(op->gid()));
+        seed = thorin::hash_combine(seed, uint32_t(op->gid()));
     return seed;
 }
 

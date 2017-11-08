@@ -722,9 +722,8 @@ const Def* World::size_of(const Type* type, Debug dbg) {
 
 const Def* World::load(const Def* mem, const Def* ptr, Debug dbg) {
     if (auto store = mem->isa<Store>())
-        if (store->ptr() == ptr) {
+        if (store->ptr() == ptr)
             return tuple({mem, store->val()}, dbg);
-    }
 
     if (auto global = ptr->isa<Global>()) {
         if (!global->is_mutable())
@@ -739,23 +738,22 @@ const Def* World::load(const Def* mem, const Def* ptr, Debug dbg) {
     if (auto slot = ptr->isa<Slot>()) {
         // are all users loads and stores *from* this slot (use.index() == 1)?
         // calls or stores that store this slot somewhere else would require more analysis
-        for (auto use : slot->uses()) {
-            if (use.index() != 1 || (!use->isa<Load>() && !use->isa<Store>())) {
-                goto no_opt;
+        if (std::all_of(slot->uses().begin(), slot->uses().end(), [&] (auto use) {
+                    return use.index() == 1 && (use->template isa<Load>() || use->template isa<Store>()); })) {
+            auto cur = mem;
+            while (!cur->isa<Param>()) {
+                if (auto store = cur->isa<Store>())
+                    if (store->ptr() == slot)
+                        return tuple({mem, store->val()}, dbg);
+                if (cur->isa<Extract>())
+                    cur = cur->op(0);
+                else if (cur->isa<MemOp>())
+                    cur = cur->as<MemOp>()->mem();
+                else
+                    THORIN_UNREACHABLE;
             }
         }
-        auto cur = mem;
-        while (!cur->isa<Param>()) {
-            if (auto store = cur->isa<Store>())
-                if (store->ptr() == slot)
-                    return tuple({mem, store->val()}, dbg);
-            if (cur->isa<Extract>())
-                cur = cur->op(0);
-            else if (cur->isa<MemOp>())
-                cur = cur->as<MemOp>()->mem();
-        }
     }
-no_opt:
     return cse(new Load(mem, ptr, dbg));
 }
 
@@ -775,6 +773,35 @@ const Def* World::store(const Def* mem, const Def* ptr, const Def* value, Debug 
         }
     }
 
+    if (auto slot = ptr->isa<Slot>()) {
+        // are all users stores *to* this slot (use.index() == 1)?
+        // other users may happen in other branches and then we can't update a previous store
+        if (std::all_of(slot->uses().begin(), slot->uses().end(), [&] (auto use) {
+                    return use.index() == 1 && use->template isa<Store>(); })) {
+            auto cur = mem;
+            while (!cur->isa<Param>()) {
+                if (auto st = cur->isa<Store>()) {
+                    if (st->ptr() == slot) {
+                        if (value == st->val())
+                            return st;
+                        else {
+                            auto new_store = cse(new Store(st->mem(), slot, value, dbg));
+                            st->replace(new_store);
+                            if (cur != mem)
+                                return mem;
+                            return new_store;
+                        }
+                    }
+                }
+                if (cur->isa<Extract>())
+                    cur = cur->op(0);
+                else if (cur->isa<MemOp>())
+                    cur = cur->as<MemOp>()->mem();
+                else
+                    THORIN_UNREACHABLE;
+            }
+        }
+    }
     return cse(new Store(mem, ptr, value, dbg));
 }
 

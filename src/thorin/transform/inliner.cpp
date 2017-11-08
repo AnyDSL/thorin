@@ -42,9 +42,10 @@ void inliner(World& world) {
             DLOG("inline: {}", scope.entry());
             for (const auto& use : scope.entry()->copy_uses()) {
                 if (auto ucontinuation = use->isa_continuation()) {
-                    if (use.index() == 0 && !scope.contains(ucontinuation))
+                    if (use.index() == 0 && !scope.contains(ucontinuation)) {
                         DLOG("- here: {}", ucontinuation);
                         ucontinuation->jump(drop(scope, ucontinuation->args()), {}, ucontinuation->jump_debug());
+                    }
                 }
             }
         }

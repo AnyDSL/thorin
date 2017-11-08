@@ -35,23 +35,59 @@ void force_inline(Scope& scope, int threshold) {
 }
 
 void inliner(World& world) {
+    VLOG("start inliner");
+
     static const int factor = 4;
     static const int offset = 4;
-    Scope::for_each(world, [] (const Scope& scope) {
-        if (scope.defs().size() < scope.entry()->num_params() * factor + offset) {
-            DLOG("inline: {}", scope.entry());
-            for (const auto& use : scope.entry()->copy_uses()) {
-                if (auto ucontinuation = use->isa_continuation()) {
-                    if (use.index() == 0 && !scope.contains(ucontinuation)) {
-                        DLOG("- here: {}", ucontinuation);
-                        ucontinuation->jump(drop(scope, ucontinuation->args()), {}, ucontinuation->jump_debug());
-                    }
+
+    ContinuationMap<std::unique_ptr<Scope>> continuation2scope;
+
+    auto get_scope = [&] (Continuation* continuation) -> Scope* {
+        auto i = continuation2scope.find(continuation);
+        if (i == continuation2scope.end())
+            i = continuation2scope.emplace(continuation, std::make_unique<Scope>(continuation)).first;
+        return i->second.get();
+    };
+
+    auto is_candidate = [&] (Continuation* continuation) -> Scope* {
+        if (!continuation->empty() && continuation->order() > 1) {
+            auto scope = get_scope(continuation);
+            if (scope->defs().size() < scope->entry()->num_params() * factor + offset)
+                return scope;
+        }
+        return nullptr;
+    };
+
+    ContinuationMap<int> counter;
+
+    Scope::for_each(world, [&] (Scope& scope) {
+        bool dirty = false;
+        for (auto n : scope.f_cfg().post_order()) {
+            auto continuation = n->continuation();
+            if (auto callee = continuation->callee()->isa_continuation()) {
+                if (callee == scope.entry())
+                    continue; // don't inline recursive calls
+                DLOG("callee: {}", callee);
+                if (auto callee_scope = is_candidate(callee)) {
+                    auto cnt = counter[callee]++;
+                    DLOG("- {}: here: {}", cnt, continuation);
+                    continuation->jump(drop(*callee_scope, continuation->args()), {}, continuation->jump_debug());
+                    dirty = true;
                 }
             }
         }
+
+        if (dirty) {
+            scope.update();
+
+            if (auto s = get_scope(scope.entry()))
+                s->update();
+        }
     });
 
+    VLOG("stop inliner");
     debug_verify(world);
+    world.cleanup();
 }
 
 }

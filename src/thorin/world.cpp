@@ -773,35 +773,6 @@ const Def* World::store(const Def* mem, const Def* ptr, const Def* value, Debug 
         }
     }
 
-    if (auto slot = ptr->isa<Slot>()) {
-        // are all users stores *to* this slot (use.index() == 1)?
-        // other users may happen in other branches and then we can't update a previous store
-        if (std::all_of(slot->uses().begin(), slot->uses().end(), [&] (auto use) {
-                    return use.index() == 1 && use->template isa<Store>(); })) {
-            auto cur = mem;
-            while (!cur->isa<Param>()) {
-                if (auto st = cur->isa<Store>()) {
-                    if (st->ptr() == slot) {
-                        if (value == st->val())
-                            return st;
-                        else {
-                            auto new_store = cse(new Store(st->mem(), slot, value, dbg));
-                            st->replace(new_store);
-                            if (cur != mem)
-                                return mem;
-                            return new_store;
-                        }
-                    }
-                }
-                if (cur->isa<Extract>())
-                    cur = cur->op(0);
-                else if (cur->isa<MemOp>())
-                    cur = cur->as<MemOp>()->mem();
-                else
-                    THORIN_UNREACHABLE;
-            }
-        }
-    }
     return cse(new Store(mem, ptr, value, dbg));
 }
 

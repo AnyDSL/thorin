@@ -19,6 +19,8 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
+void debug_hash();
+
 /// Magic numbers from http://www.isthe.com/chongo/tech/comp/fnv/index.html#FNV-param .
 struct FNV1 {
     static const uint64_t offset = 14695981039346656037_u64;
@@ -459,7 +461,7 @@ private:
             VLOG("poor hash function; element {} has distance {} with size/capacity: {}/{}", i, dib, size(), capacity());
             for (size_t j = mod(i-dib); j != i; j = mod(j+1))
                 VLOG("elem:desired_pos:hash: {}:{}:{}", j, desired_pos(key(&nodes_[j])), hash(j));
-            VLOG("debug with: break {}:{}", __FILE__, __LINE__);
+            debug_hash();
         }
     }
 #else

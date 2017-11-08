@@ -9,4 +9,8 @@ uint64_t hash(const char* s) {
     return seed;
 }
 
+void debug_hash() {
+    VLOG("debug with: break {}:{}", __FILE__, __LINE__);
+}
+
 }

@@ -494,7 +494,7 @@ public:
     std::ostream& stream(std::ostream&) const override;
 
 private:
-    virtual uint64_t vhash() const override { return gid(); }
+    virtual uint64_t vhash() const override { return murmur3(gid()); }
     virtual bool equal(const PrimOp* other) const override { return this == other; }
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
 

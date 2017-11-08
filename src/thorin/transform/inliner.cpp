@@ -58,8 +58,6 @@ void inliner(World& world) {
         return nullptr;
     };
 
-    ContinuationMap<int> counter;
-
     Scope::for_each(world, [&] (Scope& scope) {
         bool dirty = false;
         for (auto n : scope.f_cfg().post_order()) {
@@ -69,8 +67,7 @@ void inliner(World& world) {
                     continue; // don't inline recursive calls
                 DLOG("callee: {}", callee);
                 if (auto callee_scope = is_candidate(callee)) {
-                    auto cnt = counter[callee]++;
-                    DLOG("- {}: here: {}", cnt, continuation);
+                    DLOG("- here: {}", continuation);
                     continuation->jump(drop(*callee_scope, continuation->args()), {}, continuation->jump_debug());
                     dirty = true;
                 }

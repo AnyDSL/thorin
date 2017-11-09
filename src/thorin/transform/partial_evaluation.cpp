@@ -84,8 +84,8 @@ void PartialEvaluator::eat_pe_info(Continuation* cur) {
 
         // always re-insert into queue because we've changed cur's jump
         queue_.push(cur);
-    } else {
-        queue_.push(next->as_continuation());
+    } else if (auto continuation = next->isa_continuation()) {
+        queue_.push(continuation);
     }
 }
 

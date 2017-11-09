@@ -764,15 +764,24 @@ std::ostream& CCodeGen::emit(const Def* def) {
         }
 
         if (conv->isa<Bitcast>()) {
-            func_impl_ << "union { ";
-            emit_addr_space(func_impl_, dst_type);
-            emit_type(func_impl_, dst_type) << " dst; ";
-            emit_addr_space(func_impl_, src_type);
-            emit_type(func_impl_, src_type) << " src; ";
-            func_impl_ << "} u" << def_name << ";" << endl;
-            func_impl_ << "u" << def_name << ".src = ";
-            emit(conv->from()) << ";" << endl;
-            func_impl_ << def_name << " = u" << def_name << ".dst;";
+            auto src_ptr = src_type->isa<PtrType>();
+            auto dst_ptr = dst_type->isa<PtrType>();
+            if (src_ptr && dst_ptr && src_ptr->addr_space() == dst_ptr->addr_space()) {
+                func_impl_ << def_name << " = (";
+                emit_addr_space(func_impl_, dst_type);
+                emit_type(func_impl_, dst_type) << ")";
+                emit(conv->from()) << ";";
+            } else {
+                func_impl_ << "union { ";
+                emit_addr_space(func_impl_, dst_type);
+                emit_type(func_impl_, dst_type) << " dst; ";
+                emit_addr_space(func_impl_, src_type);
+                emit_type(func_impl_, src_type) << " src; ";
+                func_impl_ << "} u" << def_name << ";" << endl;
+                func_impl_ << "u" << def_name << ".src = ";
+                emit(conv->from()) << ";" << endl;
+                func_impl_ << def_name << " = u" << def_name << ".dst;";
+            }
         }
 
         insert(def, def_name);

@@ -735,38 +735,6 @@ const Def* World::load(const Def* mem, const Def* ptr, Debug dbg) {
             return ld;
     }
 
-    if (auto lea = ptr->isa<LEA>()) {
-        if (auto slot = lea->ptr()->isa<Slot>()) {
-            if (std::all_of(slot->uses().begin(), slot->uses().end(), [&] (auto use) {
-                        return (use.index() == 0 && use->template isa<LEA>())
-                            || (use.index() == 1 && (use->template isa<Store>() || use->template isa<Load>())); })) {
-                auto index = lea->index();
-                auto cur = mem;
-                while (!cur->isa<Param>()) {
-                    if (auto store = cur->isa<Store>()) {
-                        if (store->ptr() == slot) {
-                            auto val = extract(store->val(), index, dbg);
-                            return tuple({mem, val}, dbg);
-                        } else if (store->ptr() == lea) {
-                            return tuple({mem, store->val()}, dbg);
-                        } else if (auto other_lea = store->ptr()->isa<LEA>()) {
-                            if (other_lea->ptr() == slot) {
-                                if (!other_lea->index()->isa<PrimLit>())
-                                    break; // don't analyze whether the other index can not alias our index
-                            }
-                        }
-                    }
-                    if (cur->isa<Extract>())
-                        cur = cur->op(0);
-                    else if (cur->isa<MemOp>())
-                        cur = cur->as<MemOp>()->mem();
-                    else
-                        THORIN_UNREACHABLE;
-                }
-            }
-        }
-    }
-
     if (auto slot = ptr->isa<Slot>()) {
         // are all users loads and stores *from* this slot (use.index() == 1)?
         // calls or stores that store this slot somewhere else would require more analysis

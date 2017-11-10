@@ -21,8 +21,11 @@ public:
     void rebuild();
     void verify_closedness();
     void within(const Def*);
+    void clean_pe_infos();
 
 private:
+    void cleanup_fix_point();
+    void clean_pe_info(std::queue<Continuation*>, Continuation*);
     World& world_;
     bool todo_ = true;
 };
@@ -187,8 +190,48 @@ void Cleaner::within(const Def* def) {
         within(def->as<Param>()->continuation());
 }
 
-void Cleaner::cleanup() {
-    VLOG("start cleanup");
+void Cleaner::clean_pe_info(std::queue<Continuation*> queue, Continuation* cur) {
+    assert(cur->arg(1)->type() == world().ptr_type(world().indefinite_array_type(world().type_pu8())));
+    auto next = cur->arg(3);
+    auto msg = cur->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
+
+    assert(!is_const(cur->arg(2)));
+    ILOG(cur->callee(), "pe_info not evaluated: {}: {}", msg->as_string(), cur->arg(2));
+    cur->jump(next, {cur->arg(0)}, cur->jump_debug());
+    todo_ = true;
+
+    // always re-insert into queue because we've changed cur's jump
+    queue.push(cur);
+}
+
+void Cleaner::clean_pe_infos() {
+    VLOG("cleaning remaining pe_infos");
+    std::queue<Continuation*> queue;
+    ContinuationSet done;
+    auto enqueue = [&](Continuation* continuation) {
+        if (done.emplace(continuation).second)
+            queue.push(continuation);
+    };
+    for (auto external : world().externals()) {
+        enqueue(external);
+    }
+
+    while (!queue.empty()) {
+        auto continuation = pop(queue);
+
+        if (auto callee = continuation->callee()->isa_continuation()) {
+            if (callee->intrinsic() == Intrinsic::PeInfo) {
+                clean_pe_info(queue, continuation);
+                continue;
+            }
+        }
+
+        for (auto succ : continuation->succs())
+            enqueue(succ);
+    }
+}
+
+void Cleaner::cleanup_fix_point() {
     int i = 0;
     for (; todo_; ++i) {
         VLOG("iteration: {}", i);
@@ -198,13 +241,21 @@ void Cleaner::cleanup() {
         rebuild();
         if (!world().is_pe_done())
             todo_ |= partial_evaluation(world_);
+        else
+            clean_pe_infos();
     }
+}
+
+void Cleaner::cleanup() {
+    VLOG("start cleanup");
+    cleanup_fix_point();
 
     if (!world().is_pe_done()) {
         world().mark_pe_done();
         for (auto continuation : world().continuations())
             continuation->destroy_pe_profile();
-        cleanup();
+        todo_ = true;
+        cleanup_fix_point();
     }
 
     VLOG("end cleanup");

@@ -182,7 +182,7 @@ const Def* Extract::vrebuild(World& to, Defs ops, const Type*  ) const { return 
 const Def* Global ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.global(ops[0], is_mutable(), debug()); }
 const Def* Hlt    ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.hlt(ops[0], debug()); }
 const Def* Known  ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.known(ops[0], debug()); }
-const Def* Run    ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.run(ops[0], ops[1], debug()); }
+const Def* Run    ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.run(ops[0], debug()); }
 const Def* Insert ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.insert(ops[0], ops[1], ops[2], debug()); }
 const Def* LEA    ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.lea(ops[0], ops[1], debug()); }
 const Def* Load   ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.load(ops[0], ops[1], debug()); }

@@ -156,7 +156,7 @@ public:
 
     const Def* hlt(const Def* def, Debug dbg = {});
     const Def* known(const Def* def, Debug dbg = {});
-    const Def* run(const Def* cond, const Def* def, Debug dbg = {});
+    const Def* run(const Def* def, Debug dbg = {});
 
     // continuations
 

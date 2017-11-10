@@ -98,7 +98,15 @@ bool PartialEvaluator::run() {
     while (!queue_.empty()) {
         auto continuation = pop(queue_);
 
-        if (auto callee = continuation->callee()->isa_continuation()) {
+        bool force_fold = false;
+        auto callee_def = continuation->callee();
+
+        if (auto run = continuation->callee()->isa<Run>()) {
+            force_fold = true;
+            callee_def = run->def();
+        }
+
+        if (auto callee = callee_def->isa_continuation()) {
             if (callee->intrinsic() == Intrinsic::PeInfo) {
                 eat_pe_info(continuation);
                 continue;
@@ -108,11 +116,11 @@ bool PartialEvaluator::run() {
                 Call call(continuation->num_ops());
                 call.callee() = callee;
 
-                bool fold = false;
                 CondEval cond_eval(callee, continuation->args());
 
+                bool fold = false;
                 for (size_t i = 0, e = call.num_args(); i != e; ++i) {
-                    if (cond_eval.eval(i)) {
+                    if (force_fold || cond_eval.eval(i)) {
                         call.arg(i) = continuation->arg(i);
                         fold = true;
                     } else

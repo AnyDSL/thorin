@@ -435,21 +435,19 @@ public:
 };
 
 /**
- * If a call gets a @p Run primop as argument whose @p cond is @c true,
- * this argument will be specialized into the callee during @p partial_evaluation if applicalbale.
- * Otherwise, this @p PrimOp valuates to @p def.
+ * If a continuation typed def is wrapped in @p Run primop, it will be specialized into a callee whenever it is called.
+ * Otherwise, this @p PrimOp evaluates to @p def.
  */
 class Run : public PrimOp {
 private:
-    Run(const Def* cond, const Def* def, Debug dbg)
-        : PrimOp(Node_Run, def->type(), {cond, def}, dbg)
+    Run(const Def* def, Debug dbg)
+        : PrimOp(Node_Run, def->type(), {def}, dbg)
     {}
 
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
 
 public:
-    const Def* cond() const { return op(0); }
-    const Def* def() const { return op(1); }
+    const Def* def() const { return op(0); }
 
     friend class World;
 };

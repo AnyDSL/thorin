@@ -12,12 +12,13 @@ class PartialEvaluator {
 public:
     PartialEvaluator(World& world)
         : world_(world)
+        , boundary_(Def::gid_counter())
     {}
 
     World& world() { return world_; }
     bool run();
     void enqueue(Continuation* continuation) {
-        if (done_.emplace(continuation).second)
+        if (continuation->gid() < boundary_ && done_.emplace(continuation).second)
             queue_.push(continuation);
     }
     void eat_pe_info(Continuation*);
@@ -27,6 +28,7 @@ private:
     HashMap<Call, Continuation*> cache_;
     ContinuationSet done_;
     std::queue<Continuation*> queue_;
+    size_t boundary_;
 };
 
 class CondEval {

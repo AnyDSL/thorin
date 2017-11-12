@@ -136,6 +136,7 @@ bool PartialEvaluator::run() {
                         todo = true;
                     }
 
+                    DLOG("fold branch in {} at {}", continuation, continuation->jump_location());
                     jump_to_dropped_call(continuation, target, call);
                 }
             }

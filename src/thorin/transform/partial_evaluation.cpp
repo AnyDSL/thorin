@@ -12,12 +12,13 @@ class PartialEvaluator {
 public:
     PartialEvaluator(World& world)
         : world_(world)
+        , boundary_(Def::gid_counter())
     {}
 
     World& world() { return world_; }
     bool run();
     void enqueue(Continuation* continuation) {
-        if (done_.emplace(continuation).second)
+        if (continuation->gid() < boundary_ && done_.emplace(continuation).second)
             queue_.push(continuation);
     }
     void eat_pe_info(Continuation*);
@@ -28,6 +29,7 @@ private:
     ContinuationSet done_;
     std::queue<Continuation*> queue_;
     ContinuationMap<bool> top_level_;
+    size_t boundary_;
 };
 
 class CondEval {
@@ -74,10 +76,6 @@ public:
             //return  is_one(instantiate(pe_profile(i)));
     }
 
-    //bool eval(size_t i) {
-        //return (callee_->num_uses() == 1 && !callee_->is_external()) || is_one(instantiate(pe_profile(i)));
-    //}
-
     const Def* pe_profile(size_t i) {
         return callee_->pe_profile().empty() ? world().literal_bool(false, {}) : callee_->pe_profile(i);
     }
@@ -89,6 +87,7 @@ public:
 
             return p.first->second;
     }
+
 private:
     Continuation* callee_;
     Defs args_;

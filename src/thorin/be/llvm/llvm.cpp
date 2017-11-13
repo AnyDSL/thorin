@@ -1144,7 +1144,7 @@ llvm::Value* CodeGen::create_tmp_alloca(llvm::Type* type, std::function<llvm::Va
 static void get_kernel_configs(Importer& importer,
     const std::vector<Continuation*>& kernels,
     Cont2Config& kernel_config,
-    std::function<KernelConfig* (Continuation*, Continuation*)> use_callback)
+    std::function<std::unique_ptr<KernelConfig> (Continuation*, Continuation*)> use_callback)
 {
     importer.world().opt();
 
@@ -1159,7 +1159,7 @@ static void get_kernel_configs(Importer& importer,
         if (!imported) continue;
 
         visit_uses(continuation, [&] (Continuation* use) {
-            auto config = use_callback(use, imported);
+            std::unique_ptr<KernelConfig> config = use_callback(use, imported);
             if (config) {
                 auto p = kernel_config.emplace(imported, config);
                 assert_unused(p.second && "single kernel config entry expected");
@@ -1235,12 +1235,12 @@ void emit_llvm(World& world, int opt, bool debug) {
         !nvvm.world().empty()   ||
         !opencl.world().empty() ||
         !amdgpu.world().empty()) {
-        auto get_gpu_config = [&] (Continuation* use, Continuation* /* imported */) -> GPUKernelConfig* {
+        auto get_gpu_config = [&] (Continuation* use, Continuation* /* imported */) -> std::unique_ptr<GPUKernelConfig> {
             auto it_config = use->arg(LaunchArgs::Config)->as<Tuple>();
             if (it_config->op(0)->isa<PrimLit>() &&
                 it_config->op(1)->isa<PrimLit>() &&
                 it_config->op(2)->isa<PrimLit>()) {
-                return new GPUKernelConfig(std::tuple<int, int, int> {
+                return std::make_unique<GPUKernelConfig>(std::tuple<int, int, int> {
                     it_config->op(0)->as<PrimLit>()->qu32_value().data(),
                     it_config->op(1)->as<PrimLit>()->qu32_value().data(),
                     it_config->op(2)->as<PrimLit>()->qu32_value().data()
@@ -1256,7 +1256,7 @@ void emit_llvm(World& world, int opt, bool debug) {
 
     // get the HLS kernel configurations
     if (!hls.world().empty()) {
-        auto get_hls_config = [&] (Continuation* use, Continuation* imported) -> HLSKernelConfig* {
+        auto get_hls_config = [&] (Continuation* use, Continuation* imported) -> std::unique_ptr<HLSKernelConfig> {
             HLSKernelConfig::Param2Size param_sizes;
             for (size_t i = 3, e = use->num_args(); i != e; ++i ) {
                 auto arg = use->arg(i);
@@ -1276,7 +1276,7 @@ void emit_llvm(World& world, int opt, bool debug) {
                 // imported has type: fn (mem, fn (mem), ...)
                 param_sizes.emplace(imported->param(i - 3 + 2), num_elems);
             }
-            return new HLSKernelConfig(param_sizes);
+            return std::make_unique<HLSKernelConfig>(param_sizes);
         };
         get_kernel_configs(hls, kernels, kernel_config, get_hls_config);
     }

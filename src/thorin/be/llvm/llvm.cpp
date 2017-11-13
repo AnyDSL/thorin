@@ -1161,7 +1161,7 @@ static void get_kernel_configs(Importer& importer,
         visit_uses(continuation, [&] (Continuation* use) {
             std::unique_ptr<KernelConfig> config = use_callback(use, imported);
             if (config) {
-                auto p = kernel_config.emplace(imported, config);
+                auto p = kernel_config.emplace(imported, std::move(config));
                 assert_unused(p.second && "single kernel config entry expected");
             }
             return false;

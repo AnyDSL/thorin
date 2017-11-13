@@ -1159,7 +1159,7 @@ static void get_kernel_configs(Importer& importer,
         if (!imported) continue;
 
         visit_uses(continuation, [&] (Continuation* use) {
-            std::unique_ptr<KernelConfig> config = use_callback(use, imported);
+            auto config = use_callback(use, imported);
             if (config) {
                 auto p = kernel_config.emplace(imported, std::move(config));
                 assert_unused(p.second && "single kernel config entry expected");
@@ -1235,7 +1235,7 @@ void emit_llvm(World& world, int opt, bool debug) {
         !nvvm.world().empty()   ||
         !opencl.world().empty() ||
         !amdgpu.world().empty()) {
-        auto get_gpu_config = [&] (Continuation* use, Continuation* /* imported */) -> std::unique_ptr<GPUKernelConfig> {
+        auto get_gpu_config = [&] (Continuation* use, Continuation* /* imported */) {
             auto it_config = use->arg(LaunchArgs::Config)->as<Tuple>();
             if (it_config->op(0)->isa<PrimLit>() &&
                 it_config->op(1)->isa<PrimLit>() &&
@@ -1246,7 +1246,7 @@ void emit_llvm(World& world, int opt, bool debug) {
                     it_config->op(2)->as<PrimLit>()->qu32_value().data()
                 });
             }
-            return nullptr;
+            return std::unique_ptr<GPUKernelConfig>{};
         };
         get_kernel_configs(cuda, kernels, kernel_config, get_gpu_config);
         get_kernel_configs(nvvm, kernels, kernel_config, get_gpu_config);
@@ -1256,7 +1256,7 @@ void emit_llvm(World& world, int opt, bool debug) {
 
     // get the HLS kernel configurations
     if (!hls.world().empty()) {
-        auto get_hls_config = [&] (Continuation* use, Continuation* imported) -> std::unique_ptr<HLSKernelConfig> {
+        auto get_hls_config = [&] (Continuation* use, Continuation* imported) {
             HLSKernelConfig::Param2Size param_sizes;
             for (size_t i = 3, e = use->num_args(); i != e; ++i ) {
                 auto arg = use->arg(i);

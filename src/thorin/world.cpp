@@ -12,11 +12,9 @@
 #include "thorin/transform/codegen_prepare.h"
 #include "thorin/transform/dead_load_opt.h"
 #include "thorin/transform/flatten_tuples.h"
-#include "thorin/transform/higher_order_lifting.h"
 #include "thorin/transform/hoist_enters.h"
 #include "thorin/transform/inliner.h"
 #include "thorin/transform/lift_builtins.h"
-#include "thorin/transform/lower2cff.h"
 #include "thorin/transform/mem2reg.h"
 #include "thorin/transform/partial_evaluation.h"
 #include "thorin/transform/split_slots.h"
@@ -941,8 +939,6 @@ void World::cleanup() { cleanup_world(*this); }
 void World::opt() {
     cleanup();
     flatten_tuples(*this);
-    higher_order_lifting(*this);
-    lower2cff(*this);
     clone_bodies(*this);
     split_slots(*this);
     mem2reg(*this);

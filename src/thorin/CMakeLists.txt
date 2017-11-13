@@ -50,16 +50,12 @@ set(THORIN_SOURCES
     transform/hoist_enters.h
     transform/flatten_tuples.cpp
     transform/flatten_tuples.h
-    transform/higher_order_lifting.cpp
-    transform/higher_order_lifting.h
     transform/importer.cpp
     transform/importer.h
     transform/inliner.cpp
     transform/inliner.h
     transform/lift_builtins.cpp
     transform/lift_builtins.h
-    transform/lower2cff.cpp
-    transform/lower2cff.h
     transform/mangle.cpp
     transform/mangle.h
     transform/mem2reg.cpp

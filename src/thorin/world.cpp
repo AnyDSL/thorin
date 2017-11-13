@@ -909,9 +909,10 @@ Array<Continuation*> World::copy_continuations() const {
 }
 
 const Def* World::cse_base(const PrimOp* primop) {
-    THORIN_CHECK_BREAK(primop->gid());
     auto i = primops_.find(primop);
-    if (i != primops_.end()) {
+    if (i == primops_.end()) {
+        THORIN_CHECK_BREAK(primop->gid());
+    } else {
         primop->unregister_uses();
         --Def::gid_counter_;
         delete primop;

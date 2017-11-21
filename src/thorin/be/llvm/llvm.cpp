@@ -1171,23 +1171,30 @@ static void get_kernel_configs(Importer& importer,
     }
 }
 
-static uint64_t get_alloc_size(const Def* def) {
+static const Continuation* get_alloc_call(const Def* def) {
     // look through casts
     while (auto conv_op = def->isa<ConvOp>())
         def = conv_op->op(0);
 
     auto param = def->isa<Param>();
-    if (!param) return 0;
+    if (!param) return nullptr;
 
     auto ret = param->continuation();
-    if (ret->num_uses() != 1) return 0;
+    if (ret->num_uses() != 1) return nullptr;
 
     auto use = *(ret->uses().begin());
     auto call = use.def()->isa_continuation();
-    if (!call || use.index() == 0) return 0;
+    if (!call || use.index() == 0) return nullptr;
 
     auto callee = call->callee();
-    if (callee->name() != "anydsl_alloc") return 0;
+    if (callee->name() != "anydsl_alloc") return nullptr;
+
+    return call;
+}
+
+static uint64_t get_alloc_size(const Def* def) {
+    auto call = get_alloc_call(def);
+    if (!call) return 0;
 
     // signature: anydsl_alloc(mem, i32, i64, fn(mem, &[i8]))
     auto size = call->arg(2)->isa<PrimLit>();
@@ -1236,6 +1243,18 @@ void emit_llvm(World& world, int opt, bool debug) {
         !opencl.world().empty() ||
         !amdgpu.world().empty()) {
         auto get_gpu_config = [&] (Continuation* use, Continuation* /* imported */) {
+            // determine whether or not this kernel use restrict pointers
+            bool has_restrict = true;
+            DefSet allocs;
+            for (size_t i = LaunchArgs::Num, e = use->num_args(); has_restrict && i != e; ++i) {
+                auto arg = use->arg(i);
+                if (!arg->type()->isa<PtrType>()) continue;
+                auto alloc = get_alloc_call(arg);
+                if (!alloc) has_restrict = false;
+                auto p = allocs.insert(alloc);
+                has_restrict &= p.second;
+            }
+
             auto it_config = use->arg(LaunchArgs::Config)->as<Tuple>();
             if (it_config->op(0)->isa<PrimLit>() &&
                 it_config->op(1)->isa<PrimLit>() &&
@@ -1244,7 +1263,7 @@ void emit_llvm(World& world, int opt, bool debug) {
                     it_config->op(0)->as<PrimLit>()->qu32_value().data(),
                     it_config->op(1)->as<PrimLit>()->qu32_value().data(),
                     it_config->op(2)->as<PrimLit>()->qu32_value().data()
-                });
+                }, has_restrict);
             }
             return std::unique_ptr<GPUKernelConfig>{};
         };
@@ -1258,7 +1277,7 @@ void emit_llvm(World& world, int opt, bool debug) {
     if (!hls.world().empty()) {
         auto get_hls_config = [&] (Continuation* use, Continuation* imported) {
             HLSKernelConfig::Param2Size param_sizes;
-            for (size_t i = 3, e = use->num_args(); i != e; ++i ) {
+            for (size_t i = 3, e = use->num_args(); i != e; ++i) {
                 auto arg = use->arg(i);
                 auto ptr_type = arg->type()->isa<PtrType>();
                 if (!ptr_type) continue;

@@ -15,14 +15,17 @@ typedef ContinuationMap<std::unique_ptr<KernelConfig>> Cont2Config;
 
 class GPUKernelConfig : public KernelConfig {
 public:
-    GPUKernelConfig(std::tuple<int, int, int> block)
-        : block_(block)
+    GPUKernelConfig(std::tuple<int, int, int> block, bool has_restrict = false)
+        : block_(block), has_restrict_(has_restrict)
     {}
 
     std::tuple<int, int, int> block_size() const { return block_; }
 
+    bool has_restrict() const { return has_restrict_; }
+
 private:
     std::tuple<int, int, int> block_;
+    bool has_restrict_;
 };
 
 class HLSKernelConfig : public KernelConfig {

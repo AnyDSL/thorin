@@ -359,7 +359,15 @@ void CCodeGen::emit() {
                     func_impl_  << ", ";
                 }
 
-                if (lang_==Lang::OPENCL && continuation->is_external() &&
+                // get the kernel launch config
+                KernelConfig* config = nullptr;
+                if (continuation->is_external()) {
+                    auto config_it = kernel_config_.find(continuation);
+                    assert(config_it != kernel_config_.end());
+                    config = config_it->second.get();
+                }
+
+                if (lang_ == Lang::OPENCL && continuation->is_external() &&
                     (param->type()->isa<DefiniteArrayType>() ||
                      param->type()->isa<StructType>() ||
                      param->type()->isa<TupleType>())) {
@@ -368,10 +376,8 @@ void CCodeGen::emit() {
                     func_impl_  << "__global ";
                     emit_type(func_decls_, param->type()) << " *";
                     emit_type(func_impl_,  param->type()) << " *" << param->unique_name() << "_";
-                } else if (lang_==Lang::HLS && continuation->is_external() && param->type()->isa<PtrType>()) {
-                    auto config_it = kernel_config_.find(continuation);
-                    assert(config_it != kernel_config_.end());
-                    auto array_size = config_it->second->as<HLSKernelConfig>()->param_size(param);
+                } else if (lang_ == Lang::HLS && continuation->is_external() && param->type()->isa<PtrType>()) {
+                    auto array_size = config->as<HLSKernelConfig>()->param_size(param);
                     assert(array_size > 0);
                     auto ptr_type = param->type()->as<PtrType>();
                     auto prim_type = ptr_type->pointee()->isa<PrimType>();
@@ -381,10 +387,17 @@ void CCodeGen::emit() {
                     emit_type(func_decls_, prim_type) << "[" << array_size << "]";
                     emit_type(func_impl_,  prim_type) << " " << param->unique_name() << "[" << array_size << "]";
                 } else {
+                    std::string qualifier;
+                    // add restrict qualifier when possible
+                    if ((lang_ == Lang::OPENCL || lang_ == Lang::CUDA) &&
+                        config && config->as<GPUKernelConfig>()->has_restrict() &&
+                        param->type()->isa<PtrType>()) {
+                        qualifier = lang_ == Lang::CUDA ? " __restrict" : " restrict";
+                    }
                     emit_addr_space(func_decls_, param->type());
                     emit_addr_space(func_impl_,  param->type());
-                    emit_type(func_decls_, param->type());
-                    emit_type(func_impl_,  param->type()) << " " << param->unique_name();
+                    emit_type(func_decls_, param->type()) << qualifier;
+                    emit_type(func_impl_,  param->type()) << qualifier << " " << param->unique_name();
                 }
                 insert(param, param->unique_name());
             }

@@ -1243,7 +1243,7 @@ void emit_llvm(World& world, int opt, bool debug) {
         !opencl.world().empty() ||
         !amdgpu.world().empty()) {
         auto get_gpu_config = [&] (Continuation* use, Continuation* /* imported */) {
-            // determine whether or not this kernel use restrict pointers
+            // determine whether or not this kernel uses restrict pointers
             bool has_restrict = true;
             DefSet allocs;
             for (size_t i = LaunchArgs::Num, e = use->num_args(); has_restrict && i != e; ++i) {

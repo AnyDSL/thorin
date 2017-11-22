@@ -132,6 +132,7 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
     config.useAVX = false; // workaround for intrinsic ISA-precedence bug
     config.useAVX2 = true;
     config.useSLEEF = true;
+    config.enableIRPolish = true;
     const bool impreciseFunctions = true;
 
     rv::addSleefMappings(config, platform_info, impreciseFunctions);

@@ -593,6 +593,10 @@ void CCodeGen::emit() {
                             emit(continuation->arg(1)) << "];" << endl;
                             // store_phi:
                             func_impl_ << "p" << cont->param(1)->unique_name() << " = " << name << ";";
+                            if (lang_ == Lang::HLS)
+                                func_impl_ << endl
+                                           << "#pragma HLS dependence variable=" << name << " inter false" << endl
+                                           << "#pragma HLS data_pack  variable=" << name;
                         } else {
                             THORIN_UNREACHABLE;
                         }

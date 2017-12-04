@@ -1265,7 +1265,7 @@ void emit_llvm(World& world, int opt, bool debug) {
                     it_config->op(2)->as<PrimLit>()->qu32_value().data()
                 }, has_restrict);
             }
-            return std::unique_ptr<GPUKernelConfig>{};
+            return std::make_unique<GPUKernelConfig>(std::tuple<int, int, int> { -1, -1, -1 }, has_restrict);
         };
         get_kernel_configs(cuda, kernels, kernel_config, get_gpu_config);
         get_kernel_configs(nvvm, kernels, kernel_config, get_gpu_config);

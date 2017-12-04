@@ -314,7 +314,8 @@ void CCodeGen::emit() {
                    func_impl_  << "__global__ ";
                    if (config != kernel_config_.end()) {
                        auto block = config->second->as<GPUKernelConfig>()->block_size();
-                       func_impl_ << "__launch_bounds__ (" << std::get<0>(block) << " * " << std::get<1>(block) << " * " << std::get<2>(block) << ") ";
+                       if (std::get<0>(block) > 0 && std::get<1>(block) > 0 && std::get<2>(block) > 0)
+                           func_impl_ << "__launch_bounds__ (" << std::get<0>(block) << " * " << std::get<1>(block) << " * " << std::get<2>(block) << ") ";
                    }
                    break;
                 case Lang::OPENCL:
@@ -322,7 +323,8 @@ void CCodeGen::emit() {
                    func_impl_  << "__kernel ";
                    if (config != kernel_config_.end()) {
                        auto block = config->second->as<GPUKernelConfig>()->block_size();
-                       func_impl_ << "__attribute__((reqd_work_group_size(" << std::get<0>(block) << ", " << std::get<1>(block) << ", " << std::get<2>(block) << "))) ";
+                       if (std::get<0>(block) > 0 && std::get<1>(block) > 0 && std::get<2>(block) > 0)
+                           func_impl_ << "__attribute__((reqd_work_group_size(" << std::get<0>(block) << ", " << std::get<1>(block) << ", " << std::get<2>(block) << "))) ";
                    }
                    break;
             }

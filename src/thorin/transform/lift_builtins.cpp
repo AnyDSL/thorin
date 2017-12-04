@@ -13,13 +13,17 @@ void lift_builtins(World& world) {
         Scope::for_each(world, [&] (const Scope& scope) {
             if (cur) return;
             for (auto n : scope.f_cfg().post_order()) {
-                auto continuation = n->continuation();
-                if (continuation != scope.entry() &&
-                    !continuation->is_basicblock() &&
-                    is_passed_to_accelerator(continuation)) {
-                    assert(continuation->parent() && "should be nested");
-                    cur = continuation;
-                    break;
+                if (auto callee = n->continuation()->callee()->isa_continuation()) {
+                    if (callee->is_accelerator()) {
+                        for (auto arg : n->continuation()->args()) {
+                            if (auto cont = arg->isa_continuation()) {
+                                if (!cont->is_basicblock()) {
+                                    cur = cont;
+                                    break;
+                                }
+                            }
+                        }
+                    }
                 }
             }
         });

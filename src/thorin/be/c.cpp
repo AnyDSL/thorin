@@ -814,16 +814,15 @@ std::ostream& CCodeGen::emit(const Def* def) {
     }
 
     if (auto array = def->isa<DefiniteArray>()) { // DefArray is mapped to a struct
+        emit_aggop_decl(def->type());
         // emit definitions of inlined elements
         for (auto op : array->ops())
             emit_aggop_defs(op);
 
-        emit_type(func_impl_, array->type()) << " " << def_name << ";";
-        for (size_t i = 0, e = array->num_ops(); i != e; ++i) {
-            func_impl_ << endl;
-            func_impl_ << def_name << ".e[" << i << "] = ";
-            emit(array->op(i)) << ";";
-        }
+        emit_type(func_impl_, array->type()) << " " << def_name << " = { { ";
+        for (size_t i = 0, e = array->num_ops(); i != e; ++i)
+            emit(array->op(i)) << ", ";
+        func_impl_ << "} };";
         insert(def, def_name);
         return func_impl_;
     }
@@ -857,18 +856,18 @@ std::ostream& CCodeGen::emit(const Def* def) {
         };
 
         if (auto agg = def->isa<Aggregate>()) {
-            assert(def->isa<Tuple>() || def->isa<StructAgg>() || def->isa<Vector>());
+            emit_aggop_decl(def->type());
+            assert(def->isa<Tuple>() || def->isa<StructAgg>());
             // emit definitions of inlined elements
             for (auto op : agg->ops())
                 emit_aggop_defs(op);
 
-            emit_type(func_impl_, agg->type()) << " " << def_name << ";";
+            emit_type(func_impl_, agg->type()) << " " << def_name << " = { " << up;
             for (size_t i = 0, e = agg->ops().size(); i != e; ++i) {
                 func_impl_ << endl;
-                func_impl_ << def_name;
-                emit_access(def, world_.literal_qs32(i, def->location())) << " = ";
-                emit(agg->op(i)) << ";";
+                emit(agg->op(i)) << ",";
             }
+            func_impl_ << down << endl << "};";
             insert(def, def_name);
             return func_impl_;
         }
@@ -1078,8 +1077,11 @@ std::ostream& CCodeGen::emit(const Def* def) {
             case Lang::CUDA:   func_impl_ << "__device__ "; break;
             case Lang::OPENCL: func_impl_ << "__constant "; break;
         }
+        bool bottom = global->init()->isa<Bottom>();
+        if (!bottom)
+            emit(global->init()) << endl;
         emit_type(func_impl_, global->alloced_type()) << " " << def_name << "_slot";
-        if (global->init()->isa<Bottom>()) {
+        if (bottom) {
             func_impl_ << "; // bottom";
         } else {
             func_impl_ << " = ";

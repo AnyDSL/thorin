@@ -340,6 +340,7 @@ void CCodeGen::emit() {
         emit_type(func_decls_, ret_type) << " " << name << "(";
         emit_type(func_impl_,  ret_type) << " " << name << "(";
         size_t i = 0;
+        std::string hls_pragmas;
         // emit and store all first-order params
         for (auto param : continuation->params()) {
             if (is_mem(param) || is_unit(param))
@@ -382,12 +383,13 @@ void CCodeGen::emit() {
                     auto array_size = config->as<HLSKernelConfig>()->param_size(param);
                     assert(array_size > 0);
                     auto ptr_type = param->type()->as<PtrType>();
-                    auto prim_type = ptr_type->pointee()->isa<PrimType>();
-                    if (auto array_type = ptr_type->pointee()->isa<ArrayType>())
-                        prim_type = array_type->elem_type()->isa<PrimType>();
-                    assert(prim_type);
-                    emit_type(func_decls_, prim_type) << "[" << array_size << "]";
-                    emit_type(func_impl_,  prim_type) << " " << param->unique_name() << "[" << array_size << "]";
+                    auto elem_type = ptr_type->pointee();
+                    if (auto array_type = elem_type->isa<ArrayType>())
+                        elem_type = array_type->elem_type();
+                    emit_type(func_decls_, elem_type) << "[" << array_size << "]";
+                    emit_type(func_impl_,  elem_type) << " " << param->unique_name() << "[" << array_size << "]";
+                    if (elem_type->isa<StructType>() || elem_type->isa<DefiniteArrayType>())
+                        hls_pragmas += "#pragma HLS data_pack variable=" + param->unique_name() + " struct_level\n";
                 } else {
                     std::string qualifier;
                     // add restrict qualifier when possible
@@ -406,6 +408,8 @@ void CCodeGen::emit() {
         }
         func_decls_ << ");" << endl;
         func_impl_  << ") {" << up;
+        if (!hls_pragmas.empty())
+            func_impl_ << down << endl << hls_pragmas << up;
 
         // OpenCL: load struct from buffer
         for (auto param : continuation->params()) {

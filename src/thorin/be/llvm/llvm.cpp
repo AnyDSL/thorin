@@ -1284,14 +1284,22 @@ void emit_llvm(World& world, int opt, bool debug) {
                 auto size = get_alloc_size(arg);
                 if (size == 0)
                     ELOG(arg, "array size is not known at compile time");
-                auto prim_type = ptr_type->pointee()->isa<PrimType>();
-                if (!prim_type) {
-                    if (auto array_type = ptr_type->pointee()->isa<ArrayType>())
-                        prim_type = array_type->elem_type()->isa<PrimType>();
+                auto elem_type = ptr_type->pointee();
+                size_t multiplier = 1;
+                if (!elem_type->isa<PrimType>()) {
+                    if (auto array_type = elem_type->isa<ArrayType>())
+                        elem_type = array_type->elem_type();
                 }
+                if (!elem_type->isa<PrimType>()) {
+                    if (auto def_array_type = elem_type->isa<DefiniteArrayType>()) {
+                        elem_type = def_array_type->elem_type();
+                        multiplier = def_array_type->dim();
+                    }
+                }
+                auto prim_type = elem_type->isa<PrimType>();
                 if (!prim_type)
                     ELOG(arg, "only pointers to arrays of primitive types are supported");
-                auto num_elems = size / (num_bits(prim_type->primtype_tag()) / 8);
+                auto num_elems = size / (multiplier * num_bits(prim_type->primtype_tag()) / 8);
                 // imported has type: fn (mem, fn (mem), ...)
                 param_sizes.emplace(imported->param(i - 3 + 2), num_elems);
             }

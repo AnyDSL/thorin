@@ -243,7 +243,9 @@ private:
         : VectorType(table, Node_PtrType, {pointee}, length)
         , addr_space_(addr_space)
         , device_(device)
-    {}
+    {
+        order_ = 0;
+    }
 
 public:
     const Type* pointee() const { return op(0); }

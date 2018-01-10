@@ -9,6 +9,7 @@
 #include "thorin/analyses/scope.h"
 #include "thorin/transform/cleanup_world.h"
 #include "thorin/transform/clone_bodies.h"
+#include "thorin/transform/closure_conversion.h"
 #include "thorin/transform/codegen_prepare.h"
 #include "thorin/transform/dead_load_opt.h"
 #include "thorin/transform/flatten_tuples.h"
@@ -943,9 +944,10 @@ void World::opt() {
     split_slots(*this);
     mem2reg(*this);
     lift_builtins(*this);
-    inliner(*this);
+    //inliner(*this);
     hoist_enters(*this);
     dead_load_opt(*this);
+    closure_conversion(*this);
     cleanup();
     codegen_prepare(*this);
 }

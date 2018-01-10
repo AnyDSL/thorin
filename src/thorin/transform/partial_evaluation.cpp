@@ -81,11 +81,11 @@ public:
     }
 
     bool is_top_level(Continuation* continuation) {
-            auto p = top_level_.emplace(continuation, true);
-            if (p.second && has_free_vars(callee_))
-                return p.first->second = false;
+        auto p = top_level_.emplace(continuation, true);
+        if (p.second && has_free_vars(callee_))
+            return p.first->second = false;
 
-            return p.first->second;
+        return p.first->second;
     }
 
 private:

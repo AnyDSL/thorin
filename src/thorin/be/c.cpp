@@ -870,10 +870,12 @@ std::ostream& CCodeGen::emit(const Def* def) {
         for (auto op : array->ops())
             emit_aggop_defs(op);
 
-        emit_type(func_impl_, array->type()) << " " << def_name << " = { { ";
+        emit_type(func_impl_, array->type()) << " " << def_name << ";" << endl << "{" << endl;
+        emit_type(func_impl_, array->type()) << " " << def_name << "_tmp = { { ";
         for (size_t i = 0, e = array->num_ops(); i != e; ++i)
             emit(array->op(i)) << ", ";
-        func_impl_ << "} };";
+        func_impl_ << "} };" << endl;
+        func_impl_ << " " << def_name << " = " << def_name << "_tmp;" << endl << "}" << endl;
         insert(def, def_name);
         return func_impl_;
     }
@@ -913,12 +915,14 @@ std::ostream& CCodeGen::emit(const Def* def) {
             for (auto op : agg->ops())
                 emit_aggop_defs(op);
 
-            emit_type(func_impl_, agg->type()) << " " << def_name << " = { " << up;
+            emit_type(func_impl_, agg->type()) << " " << def_name << ";" << endl << "{" << endl;
+            emit_type(func_impl_, agg->type()) << " " << def_name << "_tmp = { " << up;
             for (size_t i = 0, e = agg->ops().size(); i != e; ++i) {
                 func_impl_ << endl;
                 emit(agg->op(i)) << ",";
             }
-            func_impl_ << down << endl << "};";
+            func_impl_ << down << endl << "};" << endl;
+            func_impl_ << " " << def_name << " = " << def_name << "_tmp;" << endl << "}" << endl;
             insert(def, def_name);
             return func_impl_;
         }

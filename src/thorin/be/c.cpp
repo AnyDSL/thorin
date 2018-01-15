@@ -11,6 +11,7 @@
 #include "thorin/be/c.h"
 
 #include <sstream>
+#include <type_traits>
 
 namespace thorin {
 
@@ -35,6 +36,10 @@ private:
     std::ostream& emit_addr_space(std::ostream&, const Type*);
     std::ostream& emit_type(std::ostream&, const Type*);
     std::ostream& emit(const Def*);
+
+    template <typename T, typename IsInfFn, typename IsNanFn>
+    std::ostream& emit_float(T, IsInfFn, IsNanFn);
+
     bool lookup(const Type*);
     bool lookup(const Def*);
     void insert(const Type*, std::string);
@@ -69,7 +74,6 @@ std::ostream& CCodeGen::emit_debug_info(const Def* def) {
         return streamf(func_impl_, "#line {} \"{}\"", def->location().front_line(), def->location().filename()) << endl;
     return func_impl_;
 }
-
 
 std::ostream& CCodeGen::emit_addr_space(std::ostream& os, const Type* type) {
     if (auto ptr = type->isa<PtrType>()) {
@@ -160,7 +164,6 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
     THORIN_UNREACHABLE;
 }
 
-
 std::ostream& CCodeGen::emit_aggop_defs(const Def* def) {
     if (lookup(def) || is_unit(def))
         return func_impl_;
@@ -197,7 +200,6 @@ std::ostream& CCodeGen::emit_aggop_defs(const Def* def) {
 
     return func_impl_;
 }
-
 
 std::ostream& CCodeGen::emit_aggop_decl(const Type* type) {
     if (lookup(type) || type == world().unit())
@@ -706,6 +708,51 @@ void CCodeGen::emit() {
         os_ << "}"; // extern "C"
 }
 
+template <typename T, typename IsInfFn, typename IsNanFn>
+std::ostream& CCodeGen::emit_float(T t, IsInfFn is_inf, IsNanFn is_nan) {
+    auto float_mode = lang_ == Lang::CUDA ? std::scientific : std::hexfloat;
+    const char* suf = "", * pref = "";
+
+    if (lang_ == Lang::CUDA) {
+        if (std::is_same<T, half>::value) {
+            pref = "__float2half(";
+            suf  = ")";
+        } else if (std::is_same<T, float>::value) {
+            suf  = "f";
+        }
+    } else if (std::is_same<T, half>::value) {
+        suf = "h";
+    }
+
+    auto emit_nn = [&] (std::string def, std::string cuda, std::string opencl) {
+        switch (lang_) {
+            default:           func_impl_ << def;    break;
+            case Lang::CUDA:   func_impl_ << cuda;   break;
+            case Lang::OPENCL: func_impl_ << opencl; break;
+        }
+    };
+
+    if (is_inf(t)) {
+        if (std::is_same<T, half>::value) {
+            emit_nn("std::numeric_limits<half>::infinity()", "__short_as_half(0x7c00)", "as_half(0x7c00)");
+        } else if (std::is_same<T, float>::value) {
+            emit_nn("std::numeric_limits<float>::infinity()", "__int_as_float(0x7f800000)", "as_float(0x7f800000)");
+        } else {
+            emit_nn("std::numeric_limits<double>::infinity()", "__longlong_as_double(0x7ff0000000000000LL)", "as_double(0x7ff0000000000000LL)");
+        }
+    } else if (is_nan(t)) {
+        if (std::is_same<T, half>::value) {
+            emit_nn("nan(\"\")", "__short_as_half(0x7fff)", "as_half(0x7fff)");
+        } else if (std::is_same<T, float>::value) {
+            emit_nn("nan(\"\")", "__int_as_float(0x7fffffff)", "as_float(0x7fffffff)");
+        } else {
+            emit_nn("nan(\"\")", "__longlong_as_double(0x7fffffffffffffffLL)", "as_double(0x7fffffffffffffffLL)");
+        }
+    } else {
+        func_impl_ << float_mode << pref << t << suf;
+    }
+    return func_impl_;
+}
 
 std::ostream& CCodeGen::emit(const Def* def) {
     if (auto continuation = def->isa<Continuation>())
@@ -909,11 +956,6 @@ std::ostream& CCodeGen::emit(const Def* def) {
     }
 
     if (auto primlit = def->isa<PrimLit>()) {
-        auto float_mode = lang_ == Lang::CUDA ? std::scientific : std::hexfloat;
-        auto fs = lang_ == Lang::CUDA ? "f" : "";
-        auto hp = lang_ == Lang::CUDA ? "__float2half(" : "";
-        auto hs = lang_ == Lang::CUDA ? ")" : "h";
-
         switch (primlit->primtype_tag()) {
             case PrimType_bool:                     func_impl_ << (primlit->bool_value() ? "true" : "false");      break;
             case PrimType_ps8:  case PrimType_qs8:  func_impl_ << (int) primlit->ps8_value();                      break;
@@ -924,9 +966,15 @@ std::ostream& CCodeGen::emit(const Def* def) {
             case PrimType_pu32: case PrimType_qu32: func_impl_ << primlit->pu32_value();                           break;
             case PrimType_ps64: case PrimType_qs64: func_impl_ << primlit->ps64_value();                           break;
             case PrimType_pu64: case PrimType_qu64: func_impl_ << primlit->pu64_value();                           break;
-            case PrimType_pf16: case PrimType_qf16: func_impl_ << float_mode << hp << primlit->pf16_value() << hs; break;
-            case PrimType_pf32: case PrimType_qf32: func_impl_ << float_mode << primlit->pf32_value() << fs;       break;
-            case PrimType_pf64: case PrimType_qf64: func_impl_ << float_mode << primlit->pf64_value();             break;
+            case PrimType_pf16: case PrimType_qf16: emit_float<half>(primlit->pf16_value(),
+                                                                     static_cast<bool (*)(half)>(half_float::isinf),
+                                                                     static_cast<bool (*)(half)>(half_float::isnan)); break;
+            case PrimType_pf32: case PrimType_qf32: emit_float<float>(primlit->pf32_value(),
+                                                                      static_cast<bool (*)(float)>(std::isinf),
+                                                                      static_cast<bool (*)(float)>(std::isnan));      break;
+            case PrimType_pf64: case PrimType_qf64: emit_float<double>(primlit->pf64_value(),
+                                                                       static_cast<bool (*)(double)>(std::isinf),
+                                                                       static_cast<bool (*)(double)>(std::isnan));    break;
         }
         return func_impl_;
     }

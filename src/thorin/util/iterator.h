@@ -74,6 +74,58 @@ filter_iterator<I, P> make_filter(I begin, I end, P pred) { return filter_iterat
 
 //------------------------------------------------------------------------------
 
+template<class I, class OutT, class F>
+class map_iterator {
+public:
+    typedef typename std::iterator_traits<I>::difference_type difference_type;
+    typedef OutT value_type;
+    typedef OutT& reference;
+    typedef OutT* pointer;
+    typedef std::forward_iterator_tag iterator_category;
+
+    map_iterator(I iterator, I end, F function)
+        : iterator_(iterator)
+        , end_(end)
+        , function_(function)
+    {}
+    map_iterator(const map_iterator& other)
+        : iterator_(other.iterator())
+        , end_(other.end())
+        , function_(other.function())
+    {}
+    map_iterator(map_iterator&& other)
+        : iterator_(std::move(other.iterator_))
+        , end_(std::move(other.end_))
+        , function_(std::move(other.function_))
+    {}
+
+    I iterator() const { return iterator_; }
+    I end() const { return end_; }
+    F function() const { return function_; }
+
+    map_iterator& operator++() {
+        assert(iterator_ != end_);
+        ++iterator_;
+        return *this;
+    }
+    map_iterator operator++(int) { map_iterator res = *this; ++(*this); return res; }
+    value_type operator*() const { return function_(*iterator_); }
+    pointer operator->() const { return (pointer) &function_(*iterator_); }
+    bool operator==(const map_iterator& other) { return this->iterator_ == other.iterator_; }
+    bool operator!=(const map_iterator& other) { return this->iterator_ != other.iterator_; }
+    map_iterator& operator=(map_iterator other) { swap(*this, other); return *this; }
+
+    friend void swap(map_iterator& i1, map_iterator& i2) { using std::swap; swap(i1, i2); }
+
+private:
+
+    I iterator_;
+    I end_;
+    F function_;
+};
+
+//------------------------------------------------------------------------------
+
 template<class I>
 struct Range {
     Range(I begin, I end)
@@ -109,6 +161,12 @@ template<class V, class I, class P>
 auto range(I begin, I end, P predicate) -> Range<filter_iterator<I, P, V>> {
     typedef filter_iterator<I, P, V> Filter;
     return range(Filter(begin, end, predicate), Filter(end, end, predicate));
+}
+
+template<class I, class F>
+auto map_range(I begin, I end, F function) -> Range<map_iterator<I, decltype(function(*begin)), F>> {
+    typedef map_iterator<I, decltype(function(*begin)), F> Map;
+    return range(Map(begin, end, function), Map(end, end, function));
 }
 
 //------------------------------------------------------------------------------

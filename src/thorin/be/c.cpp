@@ -10,6 +10,7 @@
 #include "thorin/util/stream.h"
 #include "thorin/be/c.h"
 
+#include <cmath>
 #include <sstream>
 #include <type_traits>
 
@@ -971,14 +972,14 @@ std::ostream& CCodeGen::emit(const Def* def) {
             case PrimType_ps64: case PrimType_qs64: func_impl_ << primlit->ps64_value();                           break;
             case PrimType_pu64: case PrimType_qu64: func_impl_ << primlit->pu64_value();                           break;
             case PrimType_pf16: case PrimType_qf16: emit_float<half>(primlit->pf16_value(),
-                                                                     static_cast<bool (*)(half)>(half_float::isinf),
-                                                                     static_cast<bool (*)(half)>(half_float::isnan)); break;
+                                                                     [](half v) { return half_float::isinf(v); },
+                                                                     [](half v) { return half_float::isnan(v); }); break;
             case PrimType_pf32: case PrimType_qf32: emit_float<float>(primlit->pf32_value(),
-                                                                      static_cast<bool (*)(float)>(std::isinf),
-                                                                      static_cast<bool (*)(float)>(std::isnan));      break;
+                                                                      [](float v) { return std::isinf(v); },
+                                                                      [](float v) { return std::isnan(v); });      break;
             case PrimType_pf64: case PrimType_qf64: emit_float<double>(primlit->pf64_value(),
-                                                                       static_cast<bool (*)(double)>(std::isinf),
-                                                                       static_cast<bool (*)(double)>(std::isnan));    break;
+                                                                       [](double v) { return std::isinf(v); },
+                                                                       [](double v) { return std::isnan(v); });    break;
         }
         return func_impl_;
     }

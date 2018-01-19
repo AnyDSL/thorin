@@ -269,6 +269,11 @@ Array<typename T::value_type> make_array(const T& container) {
     return Array<typename T::value_type>(container.begin(), container.end());
 }
 
+template<class T>
+std::ostream& operator<<(std::ostream& os, const Array<T>& a) {
+    return os << ArrayRef<T>(a);
+}
+
 }
 
 #endif

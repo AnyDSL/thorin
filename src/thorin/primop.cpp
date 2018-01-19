@@ -192,6 +192,7 @@ const Def* SizeOf ::vrebuild(World& to, Defs ops, const Type*  ) const { return 
 const Def* Slot   ::vrebuild(World& to, Defs ops, const Type* t) const { return to.slot(t->as<PtrType>()->pointee(), ops[0], debug()); }
 const Def* Store  ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.store(ops[0], ops[1], ops[2], debug()); }
 const Def* Tuple  ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.tuple(ops, debug()); }
+const Def* Closure::vrebuild(World& to, Defs ops, const Type* t) const { return to.closure(t->as<ClosureType>(), ops[0], ops[1], debug()); }
 const Def* Variant::vrebuild(World& to, Defs ops, const Type* t) const { return to.variant(t->as<VariantType>(), ops[0], debug()); }
 const Def* Vector ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.vector(ops, debug()); }
 

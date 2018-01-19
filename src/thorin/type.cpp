@@ -29,6 +29,7 @@ const Type* Lambda             ::vrebuild(TypeTable& to, Types ops) const { retu
 const Type* Var                ::vrebuild(TypeTable& to, Types    ) const { return to.var(depth()); }
 const Type* DefiniteArrayType  ::vrebuild(TypeTable& to, Types ops) const { return to.definite_array_type(ops[0], dim()); }
 const Type* FnType             ::vrebuild(TypeTable& to, Types ops) const { return to.fn_type(ops); }
+const Type* ClosureType        ::vrebuild(TypeTable& to, Types ops) const { return to.closure_type(ops); }
 const Type* FrameType          ::vrebuild(TypeTable& to, Types    ) const { return to.frame_type(); }
 const Type* IndefiniteArrayType::vrebuild(TypeTable& to, Types ops) const { return to.indefinite_array_type(ops[0]); }
 const Type* MemType            ::vrebuild(TypeTable& to, Types    ) const { return to.mem_type(); }
@@ -138,6 +139,7 @@ std::ostream& App                ::stream(std::ostream& os) const { return strea
 std::ostream& Var                ::stream(std::ostream& os) const { return streamf(os, "<{}>", depth()); }
 std::ostream& DefiniteArrayType  ::stream(std::ostream& os) const { return streamf(os, "[{} x {}]", dim(), elem_type()); }
 std::ostream& FnType             ::stream(std::ostream& os) const { return stream_type_ops(os << "fn", this); }
+std::ostream& ClosureType        ::stream(std::ostream& os) const { return stream_type_ops(os << "closure", this); }
 std::ostream& FrameType          ::stream(std::ostream& os) const { return os << "frame"; }
 std::ostream& IndefiniteArrayType::stream(std::ostream& os) const { return streamf(os, "[{}]", elem_type()); }
 std::ostream& Lambda             ::stream(std::ostream& os) const { return streamf(os, "[{}].{}", name(), body()); }

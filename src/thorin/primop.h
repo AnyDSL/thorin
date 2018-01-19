@@ -285,6 +285,38 @@ public:
     friend class World;
 };
 
+/// Data constructor for a @p ClosureType.
+class Closure : public Aggregate {
+private:
+    Closure(const ClosureType* closure_type, const Def* fn, const Def* env, Debug dbg)
+        : Aggregate(Node_Closure, {fn, env}, dbg)
+    {
+        set_type(closure_type);
+    }
+
+    virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
+
+    friend class World;
+};
+
+/// Data constructor for a @p VariantType.
+class Variant : public PrimOp {
+private:
+    Variant(const VariantType* variant_type, const Def* value, Debug dbg)
+        : PrimOp(Node_Variant, variant_type, {value}, dbg)
+    {
+        assert(std::find(variant_type->ops().begin(), variant_type->ops().end(), value->type()) != variant_type->ops().end());
+        set_type(variant_type);
+    }
+
+    virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
+
+public:
+    const VariantType* type() const { return PrimOp::type()->as<VariantType>(); }
+
+    friend class World;
+};
+
 /// Data constructor for a @p StructType.
 class StructAgg : public Aggregate {
 private:
@@ -307,7 +339,7 @@ public:
     friend class World;
 };
 
-/// Data constructor for a vector type.
+/// Data constructor for a @p VectorType.
 class Vector : public Aggregate {
 private:
     Vector(World& world, Defs args, Debug dbg);
@@ -362,24 +394,6 @@ private:
 
 public:
     const Def* value() const { return op(2); }
-
-    friend class World;
-};
-
-/// Data constructor for a @p VariantType.
-class Variant : public PrimOp {
-private:
-    Variant(const VariantType* variant_type, const Def* value, Debug dbg)
-        : PrimOp(Node_Variant, variant_type, {value}, dbg)
-    {
-        assert(std::find(variant_type->ops().begin(), variant_type->ops().end(), value->type()) != variant_type->ops().end());
-        set_type(variant_type);
-    }
-
-    virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
-
-public:
-    const VariantType* type() const { return PrimOp::type()->as<VariantType>(); }
 
     friend class World;
 };

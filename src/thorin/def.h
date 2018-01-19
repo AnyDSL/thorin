@@ -96,8 +96,8 @@ std::ostream& operator<<(std::ostream&, Use);
  */
 class Def : public RuntimeCast<Def>, public Streamable {
 private:
-    Def& operator=(const Def&); ///< Do not copy-assign a \p Def instance.
-    Def(const Def&);              ///< Do not copy-construct a \p Def.
+    Def& operator=(const Def&) = delete;
+    Def(const Def&) = delete;
 
 protected:
     Def(NodeTag tag, const Type* type, size_t size, Debug);

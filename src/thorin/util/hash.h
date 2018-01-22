@@ -110,7 +110,7 @@ public:
             : ptr_(ptr)
             , table_(table)
 #ifndef NDEBUG
-            , id_(table->id())
+            , id_(table->id_)
 #endif
         {}
 
@@ -453,8 +453,7 @@ private:
         }
     }
 
-#ifndef NDEBUG
-    int id() const { return id_; }
+#ifdef THORIN_PROFILE
     void debug(size_t i) {
         auto dib = probe_distance(i);
         if (dib > 2_s*log2(capacity())) {

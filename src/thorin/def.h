@@ -121,6 +121,7 @@ public:
     void set_op(size_t i, const Def* def);
     void unset_op(size_t i);
     void unset_ops();
+    bool contains_continuation() const { return contains_continuation_; }
     Continuation* as_continuation() const;
     Continuation* isa_continuation() const;
     void dump() const;
@@ -146,10 +147,13 @@ private:
     const Type* type_;
     mutable const Def* substitute_ = nullptr;
     mutable Uses uses_;
-    const size_t gid_;
     mutable Debug debug_;
+    const size_t gid_ : sizeof(size_t) * 8 - 1;
 
     static size_t gid_counter_;
+    
+protected:
+    bool contains_continuation_;
 
     friend class Cleaner;
     friend class PrimOp;

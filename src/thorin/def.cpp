@@ -21,8 +21,9 @@ Def::Def(NodeTag tag, const Type* type, size_t size, Debug dbg)
     : tag_(tag)
     , ops_(size)
     , type_(type)
-    , gid_(gid_counter_++)
     , debug_(dbg)
+    , gid_(gid_counter_++)
+    , contains_continuation_(false)
 {}
 
 Debug Def::debug_history() const {
@@ -37,6 +38,7 @@ void Def::set_op(size_t i, const Def* def) {
     assert(!op(i) && "already set");
     assert(def && "setting null pointer");
     ops_[i] = def;
+    contains_continuation_ |= def->contains_continuation();
     assert(!def->uses_.contains(Use(i, this)));
     const auto& p = def->uses_.emplace(i, this);
     assert_unused(p.second);

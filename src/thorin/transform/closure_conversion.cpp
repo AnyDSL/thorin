@@ -61,13 +61,17 @@ public:
 
     const Def* convert(const Def* def, bool as_callee = false) {
         if (new_defs_.count(def)) def = new_defs_[def];
-        if (def->order() <= (as_callee ? 2 : 1)) return def;
+        if (def->order() <= 1)
+            return def;
 
         if (auto primop = def->isa<PrimOp>()) {
             Array<const Def*> ops(primop->ops());
             for (auto& op : ops) op = convert(op);
             return new_defs_[def] = primop->rebuild(ops, convert(primop->type()));
         } else if (auto continuation = def->isa_continuation()) {
+            if (continuation->empty())
+                return continuation;
+
             convert_call(continuation, continuation->callee(), continuation->args(), continuation->jump_debug());
             if (as_callee)
                 return continuation;
@@ -76,7 +80,7 @@ public:
 
             // lift the continuation from its scope
             Scope scope(continuation);
-            auto def_set = free_defs(scope);
+            auto def_set = free_defs(scope, false);
             Array<const Def*> free_vars(def_set.begin(), def_set.end());
             auto filtered_out = std::remove_if(free_vars.begin(), free_vars.end(), [] (const Def* def) {
                 assert(!is_mem(def));

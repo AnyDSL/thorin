@@ -42,6 +42,14 @@ public:
             auto new_continuation = pair.second;
             convert_call(new_continuation, old_continuation->callee(), old_continuation->args(), old_continuation->jump_debug());
         }
+
+        // remove old continuations
+        for (auto pair : converted) {
+            if (pair.second != pair.first) {
+                pair.first->destroy_body();
+                pair.first->make_internal();
+            }
+        }
     }
 
     void convert_call(Continuation* continuation, const Def* callee, Defs args, Debug dbg) {
@@ -51,10 +59,9 @@ public:
         continuation->jump(convert(callee, true), new_args, dbg);
     }
 
-    const Def* convert(const Def* def, bool as_callee = false) { 
-        if (new_defs_.count(def)) return new_defs_[def];
-        if (def->type()->order() == 0)
-            return new_defs_[def] = def;
+    const Def* convert(const Def* def, bool as_callee = false) {
+        if (new_defs_.count(def)) def = new_defs_[def];
+        if (def->order() <= (as_callee ? 2 : 1)) return def;
 
         if (auto primop = def->isa<PrimOp>()) {
             Array<const Def*> ops(primop->ops());
@@ -65,12 +72,16 @@ public:
             if (as_callee)
                 return continuation;
 
+            WLOG(continuation, "slow: closure generated for '{}'", continuation);
+
             // lift the continuation from its scope
             Scope scope(continuation);
             auto def_set = free_defs(scope);
             Array<const Def*> free_vars(def_set.begin(), def_set.end());
             auto filtered_out = std::remove_if(free_vars.begin(), free_vars.end(), [] (const Def* def) {
-                return def->isa_continuation();
+                assert(!is_mem(def));
+                auto continuation = def->isa_continuation();
+                return continuation && (continuation->empty() || continuation->is_intrinsic());
             });
             free_vars.shrink(filtered_out - free_vars.begin());
             auto lifted = lift(scope, free_vars);
@@ -80,7 +91,7 @@ public:
             for (size_t i = 0, e = free_vars.size(); i != e; ++i)
                 env_ops[i] = free_vars[i]->type();
             const Type* env_type = world_.tuple_type(env_ops);
-            
+
             // create a wrapper that takes a pointer to the environment
             size_t env_param_index = continuation->num_params();
             Array<const Type*> wrapper_param_types(env_param_index + 1);
@@ -112,7 +123,7 @@ public:
             auto closure_type = convert(continuation->type());
             return world_.closure(closure_type->as<ClosureType>(), wrapper, world_.tuple(free_vars));
         }
-        return new_defs_[def] = def;
+        THORIN_UNREACHABLE;
     }
 
     // convert functions to function pointers

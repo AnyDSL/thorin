@@ -21,6 +21,10 @@ DefSet free_defs(const Scope& scope) {
     while (!queue.empty()) {
         auto def = pop(queue);
         if (auto primop = def->isa<PrimOp>()) {
+            if (primop->type()->isa<ClosureType>()) {
+                queue.push(primop->op(1));
+                goto queue_next;
+            }
             for (auto op : primop->ops()) {
                 if ((op->isa<MemOp>() || op->type()->isa<FrameType>()) && !scope.contains(op)) {
                     result.emplace(primop);

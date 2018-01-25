@@ -164,7 +164,7 @@ static Continuations succs(const Continuation* continuation) {
         }
 
         for (auto op : def->ops()) {
-            if (op->order() >= 1)
+            //if (op->order() >= 1)
                 enqueue(op);
         }
     }

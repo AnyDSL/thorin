@@ -9,6 +9,7 @@
 #include "thorin/analyses/scope.h"
 #include "thorin/transform/cleanup_world.h"
 #include "thorin/transform/clone_bodies.h"
+#include "thorin/transform/closure_conversion.h"
 #include "thorin/transform/codegen_prepare.h"
 #include "thorin/transform/dead_load_opt.h"
 #include "thorin/transform/flatten_tuples.h"
@@ -734,6 +735,13 @@ const Def* World::load(const Def* mem, const Def* ptr, Debug dbg) {
             return ld;
     }
 
+    if (auto tuple_type = ptr->type()->as<PtrType>()->pointee()->isa<TupleType>()) {
+        // loading an empty tuple can only result in an empty tuple
+        if (tuple_type->num_ops() == 0) {
+            return tuple({mem, tuple({}, dbg)});
+        }
+    }
+
     if (auto slot = ptr->isa<Slot>()) {
         // are all users loads and stores *from* this slot (use.index() == 1)?
         // calls or stores that store this slot somewhere else would require more analysis
@@ -946,6 +954,7 @@ void World::opt() {
     inliner(*this);
     hoist_enters(*this);
     dead_load_opt(*this);
+    closure_conversion(*this);
     cleanup();
     codegen_prepare(*this);
 }

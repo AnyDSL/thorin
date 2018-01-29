@@ -3,7 +3,7 @@
 
 namespace thorin {
 
-DefSet free_defs(const Scope& scope) {
+DefSet free_defs(const Scope& scope, bool include_closures) {
     DefSet result, done(scope.defs().capacity());
     std::queue<const Def*> queue;
 
@@ -21,6 +21,11 @@ DefSet free_defs(const Scope& scope) {
     while (!queue.empty()) {
         auto def = pop(queue);
         if (auto primop = def->isa<PrimOp>()) {
+            if (!include_closures && primop->isa<Closure>()) {
+                result.emplace(primop);
+                queue.push(primop->op(1));
+                goto queue_next;
+            }
             for (auto op : primop->ops()) {
                 if ((op->isa<MemOp>() || op->type()->isa<FrameType>()) && !scope.contains(op)) {
                     result.emplace(primop);
@@ -53,7 +58,7 @@ queue_next:;
 
 DefSet free_defs(Continuation* entry) {
     Scope scope(entry);
-    return free_defs(scope);
+    return free_defs(scope, true);
 }
 
 bool has_free_vars(Continuation* entry) {

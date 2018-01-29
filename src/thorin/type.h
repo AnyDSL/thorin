@@ -266,9 +266,9 @@ private:
 };
 
 class FnType : public Type {
-private:
-    FnType(TypeTable& table, Types ops)
-        : Type(table, Node_FnType, ops)
+protected:
+    FnType(TypeTable& table, Types ops, int tag = Node_FnType)
+        : Type(table, tag, ops)
     {
         ++order_;
     }
@@ -281,6 +281,27 @@ public:
 
 private:
     virtual const Type* vrebuild(TypeTable& to, Types ops) const override;
+
+    friend class TypeTable;
+};
+
+class ClosureType : public FnType {
+private:
+    ClosureType(TypeTable& table, Types ops)
+        : FnType(table, ops, Node_ClosureType)
+    {
+        inner_order_ = order_;
+        order_ = 0;
+    }
+
+public:
+    int inner_order() const { return inner_order_; }
+    
+    virtual const Type* vrebuild(TypeTable& to, Types ops) const override;
+    virtual std::ostream& stream(std::ostream&) const override;
+
+private:
+    int inner_order_;
 
     friend class TypeTable;
 };
@@ -349,8 +370,8 @@ public:
 
     const TupleType* tuple_type(Types ops) { return unify(new TupleType(*this, ops)); }
     const TupleType* unit() { return unit_; } ///< Returns unit, i.e., an empty @p TupleType.
-    const StructType* struct_type(const char* name, size_t size);
     const VariantType* variant_type(Types ops) { return unify(new VariantType(*this, ops)); }
+    const StructType* struct_type(const char* name, size_t size);
 
 #define THORIN_ALL_TYPE(T, M) \
     const PrimType* type_##T(size_t length = 1) { return type(PrimType_##T, length); }
@@ -368,6 +389,7 @@ public:
     }
     const FnType* fn_type() { return fn0_; } ///< Returns an empty @p FnType.
     const FnType* fn_type(Types args) { return unify(new FnType(*this, args)); }
+    const ClosureType* closure_type(Types args) { return unify(new ClosureType(*this, args)); } 
     const DefiniteArrayType*   definite_array_type(const Type* elem, u64 dim) { return unify(new DefiniteArrayType(*this, elem, dim)); }
     const IndefiniteArrayType* indefinite_array_type(const Type* elem) { return unify(new IndefiniteArrayType(*this, elem)); }
 

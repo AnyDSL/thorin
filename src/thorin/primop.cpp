@@ -192,6 +192,7 @@ const Def* SizeOf ::vrebuild(World& to, Defs ops, const Type*  ) const { return 
 const Def* Slot   ::vrebuild(World& to, Defs ops, const Type* t) const { return to.slot(t->as<PtrType>()->pointee(), ops[0], debug()); }
 const Def* Store  ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.store(ops[0], ops[1], ops[2], debug()); }
 const Def* Tuple  ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.tuple(ops, debug()); }
+const Def* Closure::vrebuild(World& to, Defs ops, const Type* t) const { return to.closure(t->as<ClosureType>(), ops[0], ops[1], debug()); }
 const Def* Variant::vrebuild(World& to, Defs ops, const Type* t) const { return to.variant(t->as<VariantType>(), ops[0], debug()); }
 const Def* Vector ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.vector(ops, debug()); }
 
@@ -341,6 +342,24 @@ bool is_from_match(const PrimOp* primop) {
         from_match = false;
     }
     return from_match;
+}
+
+bool Closure::is_thin() const {
+    return op(1)->type()->isa<PrimType>() ||
+           op(1)->type()->isa<PtrType>()  ||
+           (op(1)->type()->isa<TupleType>() && op(1)->type()->num_ops() == 0);
+}
+
+const VariantType* Closure::environment_type(World& world) {
+    std::vector<const Type*> env_ops;
+#define THORIN_ALL_TYPE(T, M) env_ops.push_back(world.type_##T());
+#include "thorin/tables/primtypetable.h"
+    env_ops.push_back(environment_ptr_type(world));
+    return world.variant_type(env_ops);
+}
+
+const PtrType* Closure::environment_ptr_type(World& world) {
+    return world.ptr_type(world.type_pu8());
 }
 
 //------------------------------------------------------------------------------

@@ -361,71 +361,87 @@ void CodeGen::emit(int opt, bool debug) {
             } else if (continuation->callee()->isa<Bottom>()) {
                 irbuilder_.CreateUnreachable();
             } else {
-                auto callee = continuation->callee()->as_continuation();
-                if (callee->is_basicblock())         // ordinary jump
-                    irbuilder_.CreateBr(bb2continuation[callee]);
-                else {
-                    if (callee->is_intrinsic()) {
+                auto callee = continuation->callee();
+                bool terminated = false;
+                if (auto callee_continuation = callee->isa_continuation()) {
+                    if (callee_continuation->is_basicblock()) {
+                        // ordinary jump
+                        irbuilder_.CreateBr(bb2continuation[callee_continuation]);
+                        terminated = true;
+                    } else if (callee_continuation->is_intrinsic()) {
+                        // intrinsic call
                         auto ret_continuation = emit_intrinsic(continuation);
                         irbuilder_.CreateBr(bb2continuation[ret_continuation]);
-                    } else {
-                        // put all first-order args into an array
-                        std::vector<llvm::Value*> args;
-                        const Def* ret_arg = nullptr;
-                        for (auto arg : continuation->args()) {
-                            if (arg->order() == 0) {
-                                if (!is_mem(arg) && !is_unit(arg))
-                                    args.push_back(lookup(arg));
-                            } else {
-                                assert(!ret_arg);
-                                ret_arg = arg;
-                            }
-                        }
+                        terminated = true;
+                    }
+                }
 
-                        llvm::CallInst* call = irbuilder_.CreateCall(emit_function_decl(callee), args);
-                        if (callee->is_external())
+                // function/closure call
+                if (!terminated) {
+                    // put all first-order args into an array
+                    std::vector<llvm::Value*> args;
+                    const Def* ret_arg = nullptr;
+                    for (auto arg : continuation->args()) {
+                        if (arg->order() == 0) {
+                            if (!is_mem(arg) && !is_unit(arg))
+                                args.push_back(lookup(arg));
+                        } else {
+                            assert(!ret_arg);
+                            ret_arg = arg;
+                        }
+                    }
+
+                    llvm::CallInst* call = nullptr;
+                    if (auto callee_continuation = callee->isa_continuation()) {
+                        call = irbuilder_.CreateCall(emit_function_decl(callee_continuation), args);
+                        if (callee_continuation->is_external())
                             call->setCallingConv(kernel_calling_convention_);
-                        else if (callee->cc() == CC::Device)
+                        else if (callee_continuation->cc() == CC::Device)
                             call->setCallingConv(device_calling_convention_);
                         else
                             call->setCallingConv(function_calling_convention_);
+                    } else {
+                        // must be a closure
+                        auto closure = lookup(callee);
+                        args.push_back(irbuilder_.CreateExtractValue(closure, 1));
+                        call = irbuilder_.CreateCall(irbuilder_.CreateExtractValue(closure, 0), args);
+                    }
 
-                        // must be call + continuation --- call + return has been removed by codegen_prepare
-                        auto succ = ret_arg->as_continuation();
+                    // must be call + continuation --- call + return has been removed by codegen_prepare
+                    auto succ = ret_arg->as_continuation();
 
-                        size_t n = 0;
-                        const Param* last_param = nullptr;
-                        for (auto param : succ->params()) {
+                    size_t n = 0;
+                    const Param* last_param = nullptr;
+                    for (auto param : succ->params()) {
+                        if (is_mem(param) || is_unit(param))
+                            continue;
+                        last_param = param;
+                        n++;
+                    }
+
+                    if (n == 0) {
+                        irbuilder_.CreateBr(bb2continuation[succ]);
+                    } else if (n == 1) {
+                        irbuilder_.CreateBr(bb2continuation[succ]);
+                        emit_result_phi(last_param, call);
+                    } else {
+                        Array<llvm::Value*> extracts(n);
+                        for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
+                            auto param = succ->param(i);
                             if (is_mem(param) || is_unit(param))
                                 continue;
-                            last_param = param;
-                            n++;
+                            extracts[j] = irbuilder_.CreateExtractValue(call, unsigned(j));
+                            j++;
                         }
 
-                        if (n == 0) {
-                            irbuilder_.CreateBr(bb2continuation[succ]);
-                        } else if (n == 1) {
-                            irbuilder_.CreateBr(bb2continuation[succ]);
-                            emit_result_phi(last_param, call);
-                        } else {
-                            Array<llvm::Value*> extracts(n);
-                            for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
-                                auto param = succ->param(i);
-                                if (is_mem(param) || is_unit(param))
-                                    continue;
-                                extracts[j] = irbuilder_.CreateExtractValue(call, unsigned(j));
-                                j++;
-                            }
+                        irbuilder_.CreateBr(bb2continuation[succ]);
 
-                            irbuilder_.CreateBr(bb2continuation[succ]);
-
-                            for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
-                                auto param = succ->param(i);
-                                if (is_mem(param) || is_unit(param))
-                                    continue;
-                                emit_result_phi(param, extracts[j]);
-                                j++;
-                            }
+                        for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
+                            auto param = succ->param(i);
+                            if (is_mem(param) || is_unit(param))
+                                continue;
+                            emit_result_phi(param, extracts[j]);
+                            j++;
                         }
                     }
                 }
@@ -523,6 +539,9 @@ llvm::Value* CodeGen::lookup(const Def* def) {
         assert(phis_.find(param) != phis_.end());
         return thorin::find(phis_, param);
     }
+
+    if (auto continuation = def->isa_continuation())
+        return emit_function_decl(continuation);
 
     THORIN_UNREACHABLE;
 }
@@ -746,12 +765,21 @@ llvm::Value* CodeGen::emit(const Def* def) {
         return llvm::UndefValue::get(convert(array->type()));
 
     if (auto agg = def->isa<Aggregate>()) {
-        assert(def->isa<Tuple>() || def->isa<StructAgg>() || def->isa<Vector>());
+        assert(def->isa<Tuple>() || def->isa<StructAgg>() || def->isa<Vector>() || def->isa<Closure>());
         llvm::Value* llvm_agg = llvm::UndefValue::get(convert(agg->type()));
 
         if (def->isa<Vector>()) {
             for (size_t i = 0, e = agg->num_ops(); i != e; ++i)
                 llvm_agg = irbuilder_.CreateInsertElement(llvm_agg, lookup(agg->op(i)), irbuilder_.getInt32(i));
+        } else if (auto closure = def->isa<Closure>()) {
+            if (!closure->is_thin())
+                ELOG(def, "cannot create an enviroment for closure '{}'", def);
+            auto closure_fn = irbuilder_.CreatePointerCast(lookup(agg->op(0)), llvm_agg->getType()->getStructElementType(0));
+            const Def* env = agg->op(1)->type() == world_.unit()
+                ? world_.bottom(Closure::environment_type(world_))
+                : world_.variant(Closure::environment_type(world_), agg->op(1));
+            llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, closure_fn, 0);
+            llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, emit(env), 1);
         } else {
             for (size_t i = 0, e = agg->num_ops(); i != e; ++i)
                 llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, lookup(agg->op(i)), { unsigned(i) });
@@ -1019,6 +1047,8 @@ llvm::Type* CodeGen::convert(const Type* type) {
             llvm_type = llvm::ArrayType::get(convert(array->elem_type()), array->dim());
             return types_[type] = llvm_type;
         }
+
+        case Node_ClosureType:
         case Node_FnType: {
             // extract "return" type, collect all other types
             auto fn = type->as<FnType>();
@@ -1041,7 +1071,16 @@ llvm::Type* CodeGen::convert(const Type* type) {
             }
             assert(ret);
 
-            llvm_type = llvm::FunctionType::get(ret, ops, false);
+            if (type->tag() == Node_FnType) {
+                auto llvm_type = llvm::FunctionType::get(ret, ops, false);
+                return types_[type] = llvm_type;
+            }
+
+            auto env_type = convert(Closure::environment_type(world_));
+            ops.push_back(env_type);
+            auto fn_type = llvm::FunctionType::get(ret, ops, false);
+            auto ptr_type = llvm::PointerType::get(fn_type, 0);
+            llvm_type = llvm::StructType::get(context_, { ptr_type, env_type });
             return types_[type] = llvm_type;
         }
 

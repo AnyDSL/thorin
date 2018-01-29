@@ -86,7 +86,9 @@ const FnType* Continuation::arg_fn_type() const {
     for (size_t i = 0, e = num_args(); i != e; ++i)
         args[i] = arg(i)->type();
 
-    return world().fn_type(args);
+    return callee()->type()->isa<ClosureType>()
+        ? world().closure_type(args)->as<FnType>()
+        : world().fn_type(args);
 }
 
 const Param* Continuation::append_param(const Type* param_type, Debug dbg) {
@@ -162,7 +164,7 @@ static Continuations succs(const Continuation* continuation) {
         }
 
         for (auto op : def->ops()) {
-            if (op->order() >= 1)
+            if (op->contains_continuation())
                 enqueue(op);
         }
     }

@@ -7,7 +7,7 @@ namespace thorin {
 
 class Scope;
 
-DefSet free_defs(const Scope&);
+DefSet free_defs(const Scope&, bool include_closures = true);
 DefSet free_defs(Continuation* entry);
 
 

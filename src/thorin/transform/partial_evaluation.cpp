@@ -64,16 +64,16 @@ public:
     }
 
     bool eval(size_t i) {
-            // the only higher order parameter that is allowed is a single 1st-order parameter of a top-level continuation
-            // all other parameters need specialization (lower2cff)
-            auto order = callee_->param(i)->order();
-            if (order >= 2 || (order == 1 && (!callee_->is_returning() || !is_top_level(callee_)))) {
-                DLOG("bad param({}) {} of continuation {}", i, callee_->param(i), callee_);
-                return true;
-            }
+        // the only higher order parameter that is allowed is a single 1st-order parameter of a top-level continuation
+        // all other parameters need specialization (lower2cff)
+        auto order = callee_->param(i)->order();
+        if (order >= 2 || (order == 1 && (!callee_->is_returning() || !is_top_level(callee_)))) {
+            DLOG("bad param({}) {} of continuation {}", i, callee_->param(i), callee_);
+            return true;
+        }
 
-            return callee_->num_uses() == 1 || is_one(instantiate(pe_profile(i)));
-            //return  is_one(instantiate(pe_profile(i)));
+        return callee_->num_uses() == 1 || is_one(instantiate(pe_profile(i)));
+        //return is_one(instantiate(pe_profile(i)));
     }
 
     const Def* pe_profile(size_t i) {

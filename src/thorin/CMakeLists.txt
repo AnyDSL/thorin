@@ -40,6 +40,8 @@ set(THORIN_SOURCES
     transform/cleanup_world.h
     transform/clone_bodies.cpp
     transform/clone_bodies.h
+    transform/closure_conversion.cpp
+    transform/closure_conversion.h
     transform/codegen_prepare.h
     transform/codegen_prepare.cpp
     transform/critical_edge_elimination.cpp

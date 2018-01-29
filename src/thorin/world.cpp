@@ -951,7 +951,7 @@ void World::opt() {
     split_slots(*this);
     mem2reg(*this);
     lift_builtins(*this);
-    //inliner(*this);
+    inliner(*this);
     hoist_enters(*this);
     dead_load_opt(*this);
     closure_conversion(*this);

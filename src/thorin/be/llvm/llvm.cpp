@@ -660,9 +660,9 @@ llvm::Value* CodeGen::emit(const Def* def) {
             if (auto variant_type = src_type->isa<VariantType>()) {
                 auto bits = compute_variant_bits(variant_type);
                 if (bits != 0) {
-                    auto value_bits = to->getPrimitiveSizeInBits();
+                    auto value_bits = compute_variant_op_bits(dst_type);
                     auto trunc = irbuilder_.CreateTrunc(from, irbuilder_.getIntNTy(value_bits));
-                    return irbuilder_.CreateBitCast(trunc, to);
+                    return irbuilder_.CreateBitOrPointerCast(trunc, to);
                 } else {
                     WLOG(def, "slow: alloca and loads/stores needed for variant cast '{}'", def);
                     auto ptr_type = llvm::PointerType::get(to, 0);
@@ -845,8 +845,8 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto bits = compute_variant_bits(variant->type());
         auto value = lookup(variant->op(0));
         if (bits != 0) {
-            auto value_bits = value->getType()->getPrimitiveSizeInBits();
-            auto bitcast = irbuilder_.CreateBitCast(value, irbuilder_.getIntNTy(value_bits));
+            auto value_bits = compute_variant_op_bits(variant->op(0)->type());
+            auto bitcast = irbuilder_.CreateBitOrPointerCast(value, irbuilder_.getIntNTy(value_bits));
             return irbuilder_.CreateZExt(bitcast, irbuilder_.getIntNTy(bits));
         } else {
             auto ptr_type = llvm::PointerType::get(value->getType(), 0);
@@ -1016,13 +1016,21 @@ unsigned CodeGen::convert_addr_space(const AddrSpace addr_space) {
 }
 
 unsigned CodeGen::compute_variant_bits(const VariantType* variant) {
-    unsigned bits = 0;
+    unsigned total_bits = 0;
     for (auto op : variant->ops()) {
-        auto prim_bits = convert(op)->getPrimitiveSizeInBits();
-        if (prim_bits == 0) return 0;
-        bits = std::max(bits, prim_bits);
+        auto type_bits = compute_variant_op_bits(op);
+        if (type_bits == 0) return 0;
+        total_bits = std::max(total_bits, type_bits);
     }
-    return bits;
+    return total_bits;
+}
+
+unsigned CodeGen::compute_variant_op_bits(const Type* type) {
+    auto llvm_type = convert(type);
+    auto layout = module_->getDataLayout();
+    if (llvm_type->isPointerTy() || llvm_type->isIntegerTy())
+        return layout.getTypeAllocSize(llvm_type);
+    return 0;
 }
 
 llvm::Type* CodeGen::convert(const Type* type) {

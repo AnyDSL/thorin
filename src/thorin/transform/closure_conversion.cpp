@@ -34,7 +34,10 @@ public:
                 new_continuation->jump(continuation->callee(), continuation->args(), continuation->jump_debug());
                 converted.emplace_back(continuation, new_continuation);
             } else {
-                converted.emplace_back(continuation, continuation);
+                // prevent conversion of calls to vectorize() or cuda()
+                if (!continuation->callee()->isa_continuation() ||
+                    !continuation->callee()->as_continuation()->is_intrinsic())
+                    converted.emplace_back(continuation, continuation);
             }
         }
 

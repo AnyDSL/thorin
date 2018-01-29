@@ -91,26 +91,50 @@ public:
             auto lifted = lift(scope, free_vars);
 
             // get the environment type
-            Array<const Type*> env_ops(free_vars.size());
-            for (size_t i = 0, e = free_vars.size(); i != e; ++i)
-                env_ops[i] = free_vars[i]->type();
-            const Type* env_type = world_.tuple_type(env_ops);
+            const Type* env_type = nullptr;
+            bool thin_env = false;
+            if (free_vars.size() == 1 &&
+                (free_vars[0]->type()->isa<PrimType>() ||
+                 free_vars[0]->type()->isa<PtrType>())) {
+                // optimization: if the environment fits within a pointer or
+                // primitive type, pass it by value.
+                env_type = free_vars[0]->type();
+                thin_env  = true;
+            } else {
+                Array<const Type*> env_ops(free_vars.size());
+                for (size_t i = 0, e = free_vars.size(); i != e; ++i)
+                    env_ops[i] = free_vars[i]->type();
+                env_type = world_.tuple_type(env_ops);
+            }
 
             // create a wrapper that takes a pointer to the environment
             size_t env_param_index = continuation->num_params();
             Array<const Type*> wrapper_param_types(env_param_index + 1);
             for (size_t i = 0, e = continuation->num_params(); i != e; ++i)
                 wrapper_param_types[i] = continuation->param(i)->type();
-            wrapper_param_types.back() = world_.ptr_type(env_type);
+            wrapper_param_types.back() = Closure::environment_type(world_);
             auto wrapper_type = world_.fn_type(wrapper_param_types);
             auto wrapper = world_.continuation(wrapper_type, continuation->debug());
 
-            // make the wrapper load the pointer and pass each
-            // variable of the environment to the lifted continuation
-            auto loaded_env = world_.load(wrapper->mem_param(), wrapper->param(env_param_index));
-            auto env = world_.extract(loaded_env, 1_u32);
-            auto new_mem = world_.extract(loaded_env, 0_u32);
             Array<const Def*> wrapper_args(lifted->num_params());
+            const Def* new_mem = wrapper->mem_param();
+            if (thin_env) {
+                if (free_vars[0]->type()->isa<PtrType>()) {
+                    auto env_ptr = world_.cast(Closure::environment_ptr_type(world_), wrapper->param(env_param_index));
+                    wrapper_args[env_param_index] = world_.bitcast(free_vars[0]->type(), env_ptr);
+                } else {
+                    wrapper_args[env_param_index] = world_.cast(free_vars[0]->type(), wrapper->param(env_param_index));
+                }
+            } else {
+                // make the wrapper load the pointer and pass each
+                // variable of the environment to the lifted continuation
+                auto env_ptr = world_.cast(Closure::environment_ptr_type(world_), wrapper->param(env_param_index));
+                auto loaded_env = world_.load(wrapper->mem_param(), world_.bitcast(world_.ptr_type(env_type), env_ptr));
+                auto env = world_.extract(loaded_env, 1_u32);
+                new_mem = world_.extract(loaded_env, 0_u32);
+                for (size_t i = 0, e = free_vars.size(); i != e; ++i)
+                    wrapper_args[env_param_index + i] = world_.extract(env, i);
+            }
             for (size_t i = 0, e = continuation->num_params(); i != e; ++i) {
                 auto param = wrapper->param(i);
                 if (param->type()->isa<MemType>()) {
@@ -120,12 +144,10 @@ public:
                     wrapper_args[i] = wrapper->param(i);
                 }
             }
-            for (size_t i = 0, e = free_vars.size(); i != e; ++i)
-                wrapper_args[continuation->num_params() + i] = world_.extract(env, i);
             wrapper->jump(lifted, wrapper_args);
 
             auto closure_type = convert(continuation->type());
-            return world_.closure(closure_type->as<ClosureType>(), wrapper, world_.tuple(free_vars));
+            return world_.closure(closure_type->as<ClosureType>(), wrapper, thin_env ? free_vars[0] : world_.tuple(free_vars));
         }
         THORIN_UNREACHABLE;
     }

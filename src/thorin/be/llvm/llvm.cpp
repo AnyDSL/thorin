@@ -771,10 +771,15 @@ llvm::Value* CodeGen::emit(const Def* def) {
         if (def->isa<Vector>()) {
             for (size_t i = 0, e = agg->num_ops(); i != e; ++i)
                 llvm_agg = irbuilder_.CreateInsertElement(llvm_agg, lookup(agg->op(i)), irbuilder_.getInt32(i));
-        } else if (def->isa<Closure>()) {
+        } else if (auto closure = def->isa<Closure>()) {
+            if (!closure->is_thin())
+                ELOG(def, "cannot create an enviroment for closure '{}'", def);
             auto closure_fn = irbuilder_.CreatePointerCast(lookup(agg->op(0)), llvm_agg->getType()->getStructElementType(0));
+            const Def* env = agg->op(1)->type() == world_.unit()
+                ? world_.bottom(Closure::environment_type(world_))
+                : world_.variant(Closure::environment_type(world_), agg->op(1));
             llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, closure_fn, 0);
-            // TODO: env
+            llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, emit(env), 1);
         } else {
             for (size_t i = 0, e = agg->num_ops(); i != e; ++i)
                 llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, lookup(agg->op(i)), { unsigned(i) });
@@ -1071,7 +1076,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
                 return types_[type] = llvm_type;
             }
 
-            auto env_type = llvm::PointerType::get(irbuilder_.getInt8Ty(), 0);
+            auto env_type = convert(Closure::environment_type(world_));
             ops.push_back(env_type);
             auto fn_type = llvm::FunctionType::get(ret, ops, false);
             auto ptr_type = llvm::PointerType::get(fn_type, 0);

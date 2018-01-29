@@ -39,9 +39,8 @@ public:
         }
 
         // convert the calls to each continuation
-        for (auto pair : converted) {
+        for (auto pair : converted)
             convert_jump(pair.second);
-        }
 
         // remove old continuations
         for (auto pair : converted) {

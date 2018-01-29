@@ -30,6 +30,8 @@ public:
                 for (size_t i = 0, e = continuation->num_params(); i != e; ++i)
                     new_defs_[continuation->param(i)] = new_continuation->param(i);
                 new_defs_[continuation] = new_continuation;
+                // copy existing call from old continuation
+                new_continuation->jump(continuation->callee(), continuation->args(), continuation->jump_debug());
                 converted.emplace_back(continuation, new_continuation);
             } else {
                 converted.emplace_back(continuation, continuation);
@@ -38,9 +40,7 @@ public:
 
         // convert the calls to each continuation
         for (auto pair : converted) {
-            auto old_continuation = pair.first;
-            auto new_continuation = pair.second;
-            convert_call(new_continuation, old_continuation->callee(), old_continuation->args(), old_continuation->jump_debug());
+            convert_jump(pair.second);
         }
 
         // remove old continuations
@@ -52,11 +52,11 @@ public:
         }
     }
 
-    void convert_call(Continuation* continuation, const Def* callee, Defs args, Debug dbg) {
-        Array<const Def*> new_args(args.size());
-        for (size_t i = 0, e = args.size(); i != e; ++i)
-            new_args[i] = convert(args[i]);
-        continuation->jump(convert(callee, true), new_args, dbg);
+    void convert_jump(Continuation* continuation) {
+        Array<const Def*> new_args(continuation->num_args());
+        for (size_t i = 0, e = continuation->num_args(); i != e; ++i)
+            new_args[i] = convert(continuation->arg(i));
+        continuation->jump(convert(continuation->callee(), true), new_args, continuation->jump_debug());
     }
 
     const Def* convert(const Def* def, bool as_callee = false) {
@@ -71,8 +71,7 @@ public:
         } else if (auto continuation = def->isa_continuation()) {
             if (continuation->empty())
                 return continuation;
-
-            convert_call(continuation, continuation->callee(), continuation->args(), continuation->jump_debug());
+            convert_jump(continuation);
             if (as_callee)
                 return continuation;
 

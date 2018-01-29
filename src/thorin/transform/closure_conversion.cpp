@@ -147,7 +147,7 @@ public:
             wrapper->jump(lifted, wrapper_args);
 
             auto closure_type = convert(continuation->type());
-            return world_.closure(closure_type->as<ClosureType>(), wrapper, thin_env ? free_vars[0] : world_.tuple(free_vars));
+            return world_.closure(closure_type->as<ClosureType>(), wrapper, thin_env ? free_vars[0] : world_.tuple(free_vars), continuation->debug());
         }
         THORIN_UNREACHABLE;
     }

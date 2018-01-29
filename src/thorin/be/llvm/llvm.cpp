@@ -1027,9 +1027,13 @@ unsigned CodeGen::compute_variant_bits(const VariantType* variant) {
 
 unsigned CodeGen::compute_variant_op_bits(const Type* type) {
     auto llvm_type = convert(type);
+    auto bits = llvm_type->getPrimitiveSizeInBits();
+    if (bits != 0) return bits;
     auto layout = module_->getDataLayout();
-    if (llvm_type->isPointerTy() || llvm_type->isIntegerTy())
-        return layout.getTypeAllocSize(llvm_type);
+    if (llvm_type->isPointerTy() ||
+        llvm_type->isFloatTy()   ||
+        llvm_type->isIntegerTy())
+        return layout.getTypeSizeInBits(llvm_type);
     return 0;
 }
 

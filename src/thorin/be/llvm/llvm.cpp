@@ -775,9 +775,15 @@ llvm::Value* CodeGen::emit(const Def* def) {
             if (!closure->is_thin())
                 ELOG(def, "cannot create an enviroment for closure '{}', type '{}' is too large", def, agg->op(1)->type());
             auto closure_fn = irbuilder_.CreatePointerCast(lookup(agg->op(0)), llvm_agg->getType()->getStructElementType(0));
-            const Def* env = agg->op(1)->type() == world_.unit()
-                ? world_.bottom(Closure::environment_type(world_))
-                : world_.variant(Closure::environment_type(world_), agg->op(1));
+            const Def* env = nullptr;
+            if (agg->op(1)->type() == world_.unit()) {
+                env = world_.bottom(Closure::environment_type(world_));
+            } else {
+                auto val = agg->op(1);
+                if (val->type()->isa<PtrType>())
+                    val = world_.bitcast(Closure::environment_ptr_type(world_), val);
+                env = world_.variant(Closure::environment_type(world_), val);
+            }
             llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, closure_fn, 0);
             llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, emit(env), 1);
         } else {
@@ -1012,8 +1018,9 @@ unsigned CodeGen::convert_addr_space(const AddrSpace addr_space) {
 unsigned CodeGen::compute_variant_bits(const VariantType* variant) {
     unsigned bits = 0;
     for (auto op : variant->ops()) {
-        bits = std::max(bits, convert(op)->getPrimitiveSizeInBits());
-        if (bits == 0) return 0;
+        auto prim_bits = convert(op)->getPrimitiveSizeInBits();
+        if (prim_bits == 0) return 0;
+        bits = std::max(bits, prim_bits);
     }
     return bits;
 }

@@ -735,6 +735,13 @@ const Def* World::load(const Def* mem, const Def* ptr, Debug dbg) {
             return ld;
     }
 
+    if (auto tuple_type = ptr->type()->as<PtrType>()->pointee()->isa<TupleType>()) {
+        // loading an empty tuple can only result in an empty tuple
+        if (tuple_type->num_ops() == 0) {
+            return tuple({mem, tuple({}, dbg)});
+        }
+    }
+
     if (auto slot = ptr->isa<Slot>()) {
         // are all users loads and stores *from* this slot (use.index() == 1)?
         // calls or stores that store this slot somewhere else would require more analysis

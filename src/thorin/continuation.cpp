@@ -103,8 +103,7 @@ const Param* Continuation::append_param(const Type* param_type, Debug dbg) {
     return param;
 }
 
-template<bool direct, bool indirect>
-static Continuations preds(const Continuation* continuation) {
+Continuations Continuation::preds() const {
     std::vector<Continuation*> preds;
     std::queue<Use> queue;
     DefSet done;
@@ -118,14 +117,13 @@ static Continuations preds(const Continuation* continuation) {
         }
     };
 
-    done.insert(continuation);
-    enqueue(continuation);
+    done.insert(this);
+    enqueue(this);
 
     while (!queue.empty()) {
         auto use = pop(queue);
         if (auto continuation = use->isa_continuation()) {
-            if ((use.index() == 0 && direct) || (use.index() != 0 && indirect))
-                preds.push_back(continuation);
+            preds.push_back(continuation);
             continue;
         }
 
@@ -135,8 +133,7 @@ static Continuations preds(const Continuation* continuation) {
     return preds;
 }
 
-template<bool direct, bool indirect>
-static Continuations succs(const Continuation* continuation) {
+Continuations Continuation::succs() const {
     std::vector<Continuation*> succs;
     std::queue<const Def*> queue;
     DefSet done;
@@ -148,13 +145,12 @@ static Continuations succs(const Continuation* continuation) {
         }
     };
 
-    done.insert(continuation);
-    if (direct && !continuation->empty())
-        enqueue(continuation->callee());
-    if (indirect) {
-        for (auto arg : continuation->args())
-            enqueue(arg);
-    }
+    done.insert(this);
+    if (!empty())
+        enqueue(callee());
+
+    for (auto arg : args())
+        enqueue(arg);
 
     while (!queue.empty()) {
         auto def = pop(queue);
@@ -175,13 +171,6 @@ static Continuations succs(const Continuation* continuation) {
 void Continuation::set_all_true_pe_profile() {
     pe_profile_ = Array<const Def*>(num_params(), [&](size_t) { return world().literal_bool(true, Debug{}); });
 }
-
-Continuations Continuation::preds() const { return thorin::preds<true, true>(this); }
-Continuations Continuation::succs() const { return thorin::succs<true, true>(this); }
-Continuations Continuation::direct_preds() const { return thorin::preds<true, false>(this); }
-Continuations Continuation::direct_succs() const { return thorin::succs<true, false>(this); }
-Continuations Continuation::indirect_preds() const { return thorin::preds<false, true>(this); }
-Continuations Continuation::indirect_succs() const { return thorin::succs<false, true>(this); }
 
 void Continuation::make_external() { return world().add_external(this); }
 void Continuation::make_internal() { return world().remove_external(this); }
@@ -438,7 +427,7 @@ const Def* Continuation::fix(size_t handle, size_t index, const Type* type, Debu
 
     for (auto pred : preds()) {
         assert(!pred->empty());
-        assert(pred->direct_succs().size() == 1 && "critical edge");
+        //assert(pred->direct_succs().size() == 1 && "critical edge");
         auto def = pred->get_value(handle, type, dbg);
 
         // make potentially room for the new arg

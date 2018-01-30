@@ -113,10 +113,6 @@ private:
 public:
     Continuation* stub() const;
     const Param* append_param(const Type* type, Debug dbg = {});
-    Continuations direct_preds() const;
-    Continuations direct_succs() const;
-    Continuations indirect_preds() const;
-    Continuations indirect_succs() const;
     Continuations preds() const;
     Continuations succs() const;
     ArrayRef<const Param*> params() const { return params_; }

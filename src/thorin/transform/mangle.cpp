@@ -113,7 +113,6 @@ Continuation* Mangler::mangle_head(Continuation* old_continuation) {
 
 void Mangler::mangle_body(Continuation* old_continuation, Continuation* new_continuation) {
     assert(!old_continuation->empty());
-    new_continuations_.emplace_back(new_continuation);
 
     // fold branch and match
     // TODO find a way to factor this out in continuation.cpp

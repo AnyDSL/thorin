@@ -930,14 +930,6 @@ const Def* World::cse_base(const PrimOp* primop) {
     return primop;
 }
 
-void World::destroy(Continuation* continuation) {
-    assert(continuation->num_uses() == 0);
-    assert(continuation->num_ops() == 0);
-    continuation->destroy_body();
-    continuations_.erase(continuation);
-    delete continuation;
-}
-
 /*
  * optimizations
  */

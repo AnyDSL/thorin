@@ -4,6 +4,7 @@
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/verify.h"
 #include "thorin/transform/mangle.h"
+#include "thorin/util/log.h"
 
 namespace thorin {
 

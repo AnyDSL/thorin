@@ -1,4 +1,5 @@
 #include "thorin/util/hash.h"
+#include "thorin/util/log.h"
 
 namespace thorin {
 

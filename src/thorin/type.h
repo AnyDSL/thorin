@@ -3,6 +3,7 @@
 
 #include "thorin/enums.h"
 #include "thorin/util/type_table.h"
+#include "thorin/util/symbol.h"
 
 namespace thorin {
 
@@ -101,7 +102,7 @@ public:
 /// The type of a structure (nominally typed).
 class StructType : public Type {
 private:
-    StructType(TypeTable& table, const char* name, size_t size)
+    StructType(TypeTable& table, Symbol name, size_t size)
         : Type(table, Node_StructType, thorin::Array<const Type*>(size))
         , name_(name)
     {
@@ -109,7 +110,7 @@ private:
     }
 
 public:
-    const char* name() const { return name_; }
+    Symbol name() const { return name_; }
     void set(size_t i, const Type* type) const { return const_cast<StructType*>(this)->Type::set(i, type); }
 
 private:
@@ -117,7 +118,7 @@ private:
     virtual const Type* vreduce(int, const Type*, Type2Type&) const override;
     virtual std::ostream& stream(std::ostream&) const override;
 
-    const char* name_;
+    Symbol name_;
 
     friend class TypeTable;
 };
@@ -296,7 +297,7 @@ private:
 
 public:
     int inner_order() const { return inner_order_; }
-    
+
     virtual const Type* vrebuild(TypeTable& to, Types ops) const override;
     virtual std::ostream& stream(std::ostream&) const override;
 
@@ -371,7 +372,7 @@ public:
     const TupleType* tuple_type(Types ops) { return unify(new TupleType(*this, ops)); }
     const TupleType* unit() { return unit_; } ///< Returns unit, i.e., an empty @p TupleType.
     const VariantType* variant_type(Types ops) { return unify(new VariantType(*this, ops)); }
-    const StructType* struct_type(const char* name, size_t size);
+    const StructType* struct_type(Symbol name, size_t size);
 
 #define THORIN_ALL_TYPE(T, M) \
     const PrimType* type_##T(size_t length = 1) { return type(PrimType_##T, length); }
@@ -389,7 +390,7 @@ public:
     }
     const FnType* fn_type() { return fn0_; } ///< Returns an empty @p FnType.
     const FnType* fn_type(Types args) { return unify(new FnType(*this, args)); }
-    const ClosureType* closure_type(Types args) { return unify(new ClosureType(*this, args)); } 
+    const ClosureType* closure_type(Types args) { return unify(new ClosureType(*this, args)); }
     const DefiniteArrayType*   definite_array_type(const Type* elem, u64 dim) { return unify(new DefiniteArrayType(*this, elem, dim)); }
     const IndefiniteArrayType* indefinite_array_type(const Type* elem) { return unify(new IndefiniteArrayType(*this, elem)); }
 

@@ -194,7 +194,7 @@ TypeTable::TypeTable()
 #include "thorin/tables/primtypetable.h"
 {}
 
-const StructType* TypeTable::struct_type(const char* name, size_t size) {
+const StructType* TypeTable::struct_type(Symbol name, size_t size) {
     auto type = new StructType(*this, name, size);
     const auto& p = types_.insert(type);
     assert_unused(p.second && "hash/equal broken");

@@ -76,7 +76,7 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, cons
     auto it_config = continuation->arg(LaunchArgs::Config)->as<Tuple>();
     auto kernel = continuation->arg(LaunchArgs::Body)->as<Global>()->init()->as<Continuation>();
 
-    auto kernel_name = builder_.CreateGlobalStringPtr(kernel->name());
+    auto kernel_name = builder_.CreateGlobalStringPtr(kernel->name().str());
     auto file_name = builder_.CreateGlobalStringPtr(continuation->world().name() + ext);
     const size_t num_kernel_args = continuation->num_args() - LaunchArgs::Num;
 
@@ -96,7 +96,7 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, cons
             target_arg->type()->isa<StructType>() ||
             target_arg->type()->isa<TupleType>()) {
             // definite array | struct | tuple
-            auto alloca = code_gen.emit_alloca(target_val->getType(), target_arg->name());
+            auto alloca = code_gen.emit_alloca(target_val->getType(), target_arg->name().str());
             builder_.CreateStore(target_val, alloca);
 
             // check if argument type contains pointers
@@ -112,14 +112,14 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, cons
             if (!rtype->isa<ArrayType>())
                 ELOG(target_arg, "currently only pointers to arrays supported as kernel argument; argument has different type: {}", ptr);
 
-            auto alloca = code_gen.emit_alloca(builder_.getInt8PtrTy(), target_arg->name());
+            auto alloca = code_gen.emit_alloca(builder_.getInt8PtrTy(), target_arg->name().str());
             auto target_ptr = builder_.CreatePointerCast(target_val, builder_.getInt8PtrTy());
             builder_.CreateStore(target_ptr, alloca);
-            void_ptr = builder_.CreatePointerCast(alloca, builder_.getInt8PtrTy()); 
+            void_ptr = builder_.CreatePointerCast(alloca, builder_.getInt8PtrTy());
             arg_type = KernelArgType::Ptr;
         } else {
             // normal variable
-            auto alloca = code_gen.emit_alloca(target_val->getType(), target_arg->name());
+            auto alloca = code_gen.emit_alloca(target_val->getType(), target_arg->name().str());
             builder_.CreateStore(target_val, alloca);
 
             void_ptr = builder_.CreatePointerCast(alloca, builder_.getInt8PtrTy());

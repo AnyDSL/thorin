@@ -5,6 +5,7 @@
 #include "thorin/analyses/verify.h"
 #include "thorin/transform/importer.h"
 #include "thorin/transform/partial_evaluation.h"
+#include "thorin/util/log.h"
 
 namespace thorin {
 

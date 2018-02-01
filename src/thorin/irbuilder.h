@@ -94,7 +94,7 @@ public:
 #endif
 
     const Debug& debug() const { return debug_; }
-    const std::string& name() const { return debug().name(); }
+    Symbol name() const { return debug().name(); }
     World& world() const { assert(continuation_); return continuation_->world(); }
     void seal() { assert(continuation_); continuation_->seal(); }
 

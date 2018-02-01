@@ -1,9 +1,10 @@
 #ifndef THORIN_UTIL_LOCATION_H
 #define THORIN_UTIL_LOCATION_H
 
-#include <memory>
 #include <ostream>
 #include <string>
+
+#include "thorin/util/symbol.h"
 
 namespace thorin {
 
@@ -54,41 +55,31 @@ public:
     Debug(const Debug&) = default;
     Debug& operator=(const Debug&) = default;
 
-    Debug(Location location, std::shared_ptr<std::string> name)
+    Debug(Location location, Symbol name)
         : Location(location)
         , name_(name)
     {}
-
-    Debug(Location location, std::string name)
-        : Debug(location, std::make_shared<std::string>(name))
-    {}
-
-    Debug(std::shared_ptr<std::string> name)
+    Debug(Symbol name)
         : name_(name)
     {}
-
-    Debug(std::string name)
-        : name_(std::make_shared<std::string>(name))
-    {}
-
     Debug(Location location)
         : Location(location)
     {}
 
-    const std::string& name() const;
+    Symbol name() const { return name_; }
     Location location() { return *this; }
-    void set(std::shared_ptr<std::string> name) { name_= name; }
-    void set(std::string name) { name_ = std::make_shared<std::string>(name); }
+    void set(Symbol name) { name_= name; }
     void set(Location location) { *static_cast<Location*>(this) = location; }
 
 private:
-    std::shared_ptr<std::string> name_;
-    static const std::string empty_;
+    Symbol name_;
 };
 
-Debug operator+(Debug dbg, const char* s);
-Debug operator+(Debug dbg, const std::string& s);
+inline Debug operator+(Debug dbg, Symbol s)             { return {dbg, dbg.name() + s}; }
+inline Debug operator+(Debug dbg, const char* s)        { return {dbg, dbg.name() + s}; }
+inline Debug operator+(Debug dbg, const std::string& s) { return {dbg, dbg.name() + s}; }
 Debug operator+(Debug d1, Debug d2);
+
 std::ostream& operator<<(std::ostream&, Debug);
 
 }

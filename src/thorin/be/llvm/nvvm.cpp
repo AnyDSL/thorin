@@ -16,6 +16,7 @@
 
 #include "thorin/primop.h"
 #include "thorin/world.h"
+#include "thorin/util/log.h"
 
 namespace thorin {
 
@@ -72,7 +73,7 @@ void NVVMCodeGen::emit_function_decl_hook(Continuation* continuation, llvm::Func
 
     const auto emit_texture_kernel_arg = [&](const Param* param) {
         assert(param->type()->as<PtrType>()->addr_space() == AddrSpace::Texture);
-        auto global = emit_global_variable(irbuilder_.getInt64Ty(), param->name(), 1);
+        auto global = emit_global_variable(irbuilder_.getInt64Ty(), param->name().str(), 1);
         metadata_[param] = append_metadata(global, "texture", 1);
     };
 
@@ -232,7 +233,7 @@ Continuation* NVVMCodeGen::emit_reserve(const Continuation* continuation) { retu
 
 llvm::GlobalVariable* NVVMCodeGen::resolve_global_variable(const Param* param) {
     if (resolve_addr_space(param) != AddrSpace::Global)
-        return module_->getGlobalVariable(param->name(), true);
+        return module_->getGlobalVariable(param->name().str(), true);
     return nullptr;
 }
 

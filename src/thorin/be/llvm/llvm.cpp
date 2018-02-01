@@ -175,7 +175,7 @@ llvm::Function* CodeGen::emit_function_decl(Continuation* continuation) {
     if (auto f = thorin::find(fcts_, continuation))
         return f;
 
-    std::string name = (continuation->is_external() || continuation->empty()) ? continuation->name() : continuation->unique_name();
+    std::string name = (continuation->is_external() || continuation->empty()) ? continuation->name().str() : continuation->unique_name();
     auto f = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, convert_fn_type(continuation)));
 
 #ifdef _MSC_VER
@@ -267,13 +267,13 @@ void CodeGen::emit(int opt, bool debug) {
             auto continuation = block.continuation();
             // map all bb-like continuations to llvm bb stubs
             if (continuation->intrinsic() != Intrinsic::EndScope) {
-                auto bb = bb2continuation[continuation] = llvm::BasicBlock::Create(context_, continuation->name(), fct);
+                auto bb = bb2continuation[continuation] = llvm::BasicBlock::Create(context_, continuation->name().c_str(), fct);
 
                 // create phi node stubs (for all continuations different from entry)
                 if (entry_ != continuation) {
                     for (auto param : continuation->params()) {
                         if (!is_mem(param) && !is_unit(param)) {
-                            auto phi = llvm::PHINode::Create(convert(param->type()), (unsigned) param->peek().size(), param->name(), bb);
+                            auto phi = llvm::PHINode::Create(convert(param->type()), (unsigned) param->peek().size(), param->name().c_str(), bb);
                             phis_[param] = phi;
                         }
                     }
@@ -560,7 +560,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
     if (auto bin = def->isa<BinOp>()) {
         llvm::Value* lhs = lookup(bin->lhs());
         llvm::Value* rhs = lookup(bin->rhs());
-        const std::string& name = bin->name();
+        const char* name = bin->name().c_str();
 
         if (auto cmp = bin->isa<Cmp>()) {
             auto type = cmp->lhs()->type();
@@ -748,13 +748,13 @@ llvm::Value* CodeGen::emit(const Def* def) {
             return llvm::ConstantArray::get(type, llvm_ref(vals));
         }
         WLOG(def, "slow: alloca and loads/stores needed for definite array '{}'", def);
-        auto alloca = emit_alloca(type, array->name());
+        auto alloca = emit_alloca(type, array->name().str());
 
         u64 i = 0;
         llvm::Value* args[2] = { irbuilder_.getInt64(0), nullptr };
         for (auto op : array->ops()) {
             args[1] = irbuilder_.getInt64(i++);
-            auto gep = irbuilder_.CreateInBoundsGEP(alloca, args, op->name());
+            auto gep = irbuilder_.CreateInBoundsGEP(alloca, args, op->name().c_str());
             irbuilder_.CreateStore(lookup(op), gep);
         }
 
@@ -799,7 +799,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto llvm_idx = lookup(aggop->index());
         auto copy_to_alloca = [&] () {
             WLOG(def, "slow: alloca and loads/stores needed for aggregate '{}'", def);
-            auto alloca = emit_alloca(llvm_agg->getType(), aggop->name());
+            auto alloca = emit_alloca(llvm_agg->getType(), aggop->name().str());
             irbuilder_.CreateStore(llvm_agg, alloca);
 
             llvm::Value* args[2] = { irbuilder_.getInt64(0), llvm_idx };
@@ -930,7 +930,7 @@ llvm::Value* CodeGen::emit_global(const Global* global) {
         val = fcts_[continuation];
     else {
         auto llvm_type = convert(global->alloced_type());
-        auto var = llvm::cast<llvm::GlobalVariable>(module_->getOrInsertGlobal(global->name(), llvm_type));
+        auto var = llvm::cast<llvm::GlobalVariable>(module_->getOrInsertGlobal(global->name().c_str(), llvm_type));
         if (global->init()->isa<Bottom>())
             var->setInitializer(llvm::Constant::getNullValue(llvm_type)); // HACK
         else

@@ -3,6 +3,7 @@
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/verify.h"
+#include "thorin/util/log.h"
 
 namespace thorin {
 

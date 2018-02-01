@@ -12,7 +12,6 @@
 #include <iostream>
 #include <type_traits>
 
-#include "thorin/util/log.h"
 #include "thorin/util/utility.h"
 
 namespace thorin {
@@ -457,9 +456,10 @@ private:
     void debug(size_t i) {
         auto dib = probe_distance(i);
         if (dib > 2_s*log2(capacity())) {
-            VLOG("poor hash function; element {} has distance {} with size/capacity: {}/{}", i, dib, size(), capacity());
+            // don't use LOG here - this results in a header dependency hell
+            printf("poor hash function; element %zu has distance %zu with size/capacity: %zu/%zu\n", i, dib, size(), capacity());
             for (size_t j = mod(i-dib); j != i; j = mod(j+1))
-                VLOG("elem:desired_pos:hash: {}:{}:{}", j, desired_pos(key(&nodes_[j])), hash(j));
+                printf("elem:desired_pos:hash: %zu:%zu:%zu\n", j, desired_pos(key(&nodes_[j])), hash(j));
             debug_hash();
         }
     }

@@ -99,7 +99,7 @@ void Continuation::jump(JumpTarget& jt, Debug dbg) {
 }
 
 Continuation* JumpTarget::branch_to(World& world, Debug dbg) {
-    auto bb = world.basicblock(dbg + (continuation_ ? name() + std::string("_crit") : name()));
+    auto bb = world.basicblock(dbg + (continuation_ ? name() + Symbol("_crit") : name()));
     bb->jump(*this, dbg);
     bb->seal();
     return bb;

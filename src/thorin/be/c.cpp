@@ -41,6 +41,7 @@ private:
     template <typename T, typename IsInfFn, typename IsNanFn>
     std::ostream& emit_float(T, IsInfFn, IsNanFn);
 
+    // TODO use Symbol instead of std::string
     bool lookup(const Type*);
     bool lookup(const Def*);
     void insert(const Type*, std::string);
@@ -241,7 +242,7 @@ std::ostream& CCodeGen::emit_aggop_decl(const Type* type) {
         for (auto op : struct_type->ops())
             emit_aggop_decl(op);
         emit_type(type_decls_, struct_type) << endl;
-        insert(type, "struct_" + std::string(struct_type->name()) + "_" + std::to_string(type->gid()));
+        insert(type, "struct_" + struct_type->name().str() + "_" + std::to_string(type->gid()));
     }
 
     // look for nested variants
@@ -356,7 +357,7 @@ void CCodeGen::emit() {
                     emit_type(type_decls_, param->type()->as<PtrType>()->pointee());
                     type_decls_ << ", cudaTextureType1D, cudaReadModeElementType> ";
                     type_decls_ << param->name() << ";" << endl;
-                    insert(param, param->name());
+                    insert(param, param->name().str());
                     // skip arrays bound to texture memory
                     continue;
                 }

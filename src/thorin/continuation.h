@@ -125,7 +125,7 @@ public:
     const Def* arg(size_t i) const { return args()[i]; }
     Debug& jump_debug() const { return jump_debug_; }
     Location jump_location() const { return jump_debug(); }
-    const std::string& jump_name() const { return jump_debug().name(); }
+    Symbol jump_name() const { return jump_debug().name(); }
     const FnType* type() const { return Def::type()->as<FnType>(); }
     const FnType* callee_fn_type() const { return callee()->type()->as<FnType>(); }
     const FnType* arg_fn_type() const;

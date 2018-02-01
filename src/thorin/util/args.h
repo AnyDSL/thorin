@@ -2,6 +2,7 @@
 #define THORIN_UTILS_H
 
 #include <cassert>
+#include <iomanip>
 #include <iostream>
 #include <iterator>
 #include <vector>

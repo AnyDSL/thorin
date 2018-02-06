@@ -34,10 +34,7 @@ public:
                 new_continuation->jump(continuation->callee(), continuation->args(), continuation->jump_debug());
                 converted.emplace_back(continuation, new_continuation);
             } else {
-                // prevent conversion of calls to vectorize() or cuda()
-                if (!continuation->callee()->isa_continuation() ||
-                    !continuation->callee()->as_continuation()->is_intrinsic())
-                    converted.emplace_back(continuation, continuation);
+                converted.emplace_back(continuation, continuation);
             }
         }
 
@@ -55,10 +52,14 @@ public:
     }
 
     void convert_jump(Continuation* continuation) {
-        Array<const Def*> new_args(continuation->num_args());
-        for (size_t i = 0, e = continuation->num_args(); i != e; ++i)
-            new_args[i] = convert(continuation->arg(i));
-        continuation->jump(convert(continuation->callee(), true), new_args, continuation->jump_debug());
+        // prevent conversion of calls to vectorize() or cuda()
+        if (!continuation->callee()->isa_continuation() ||
+            !continuation->callee()->as_continuation()->is_intrinsic()) {
+            Array<const Def*> new_args(continuation->num_args());
+            for (size_t i = 0, e = continuation->num_args(); i != e; ++i)
+                new_args[i] = convert(continuation->arg(i));
+            continuation->jump(convert(continuation->callee(), true), new_args, continuation->jump_debug());
+        }
     }
 
     const Def* convert(const Def* def, bool as_callee = false) {

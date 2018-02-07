@@ -1,16 +1,16 @@
 #ifndef THORIN_UTIL_HASH_H
 #define THORIN_UTIL_HASH_H
 
-#include <cassert>
-#include <cstring>
-
 #include <algorithm>
 #include <array>
-#include <memory>
-#include <utility>
+#include <cassert>
+#include <cinttypes>
 #include <cstdint>
+#include <cstring>
 #include <iostream>
+#include <memory>
 #include <type_traits>
+#include <utility>
 
 #include "thorin/util/utility.h"
 
@@ -459,7 +459,7 @@ private:
             // don't use LOG here - this results in a header dependency hell
             printf("poor hash function; element %zu has distance %zu with size/capacity: %zu/%zu\n", i, dib, size(), capacity());
             for (size_t j = mod(i-dib); j != i; j = mod(j+1))
-                printf("elem:desired_pos:hash: %zu:%zu:%llu\n", j, desired_pos(key(&nodes_[j])), hash(j));
+                printf("elem:desired_pos:hash: %zu:%zu:%" PRIu64 "\n", j, desired_pos(key(&nodes_[j])), hash(j));
             debug_hash();
         }
     }

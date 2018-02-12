@@ -115,7 +115,7 @@ Continuation* CodeGen::emit_atomic(Continuation* continuation) {
     assert(int(llvm::AtomicRMWInst::BinOp::Xchg) <= int(tag) && int(tag) <= int(llvm::AtomicRMWInst::BinOp::UMin) && "unsupported atomic");
     auto binop = (llvm::AtomicRMWInst::BinOp)tag;
     auto cont = continuation->arg(4)->as_continuation();
-    auto call = irbuilder_.CreateAtomicRMW(binop, ptr, val, llvm::AtomicOrdering::SequentiallyConsistent, llvm::SynchronizationScope::CrossThread);
+    auto call = irbuilder_.CreateAtomicRMW(binop, ptr, val, llvm::AtomicOrdering::SequentiallyConsistent, llvm::SyncScope::System);
     emit_result_phi(cont->param(1), call);
     return cont;
 }
@@ -128,7 +128,7 @@ Continuation* CodeGen::emit_cmpxchg(Continuation* continuation) {
     auto cmp  = lookup(continuation->arg(2));
     auto val  = lookup(continuation->arg(3));
     auto cont = continuation->arg(4)->as_continuation();
-    auto call = irbuilder_.CreateAtomicCmpXchg(ptr, cmp, val, llvm::AtomicOrdering::SequentiallyConsistent, llvm::AtomicOrdering::SequentiallyConsistent, llvm::SynchronizationScope::CrossThread);
+    auto call = irbuilder_.CreateAtomicCmpXchg(ptr, cmp, val, llvm::AtomicOrdering::SequentiallyConsistent, llvm::AtomicOrdering::SequentiallyConsistent, llvm::SyncScope::System);
     emit_result_phi(cont->param(1), irbuilder_.CreateExtractValue(call, 0));
     emit_result_phi(cont->param(2), irbuilder_.CreateExtractValue(call, 1));
     return cont;
@@ -548,11 +548,12 @@ llvm::Value* CodeGen::lookup(const Def* def) {
 
 llvm::AllocaInst* CodeGen::emit_alloca(llvm::Type* type, const std::string& name) {
     auto entry = &irbuilder_.GetInsertBlock()->getParent()->getEntryBlock();
+    auto layout = llvm::DataLayout(module_->getDataLayout());
     llvm::AllocaInst* alloca;
     if (entry->empty())
-        alloca = new llvm::AllocaInst(type, nullptr, name, entry);
+        alloca = new llvm::AllocaInst(type, layout.getAllocaAddrSpace(), nullptr, name, entry);
     else
-        alloca = new llvm::AllocaInst(type, nullptr, name, entry->getFirstNonPHIOrDbg());
+        alloca = new llvm::AllocaInst(type, layout.getAllocaAddrSpace(), nullptr, name, entry->getFirstNonPHIOrDbg());
     return alloca;
 }
 

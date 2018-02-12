@@ -16,6 +16,7 @@
 #include <rv/sleefLibrary.h>
 #include <rv/transform/loopExitCanonicalizer.h>
 #include <rv/passes.h>
+#include <rv/analysis/DFG.h>
 
 #include "thorin/primop.h"
 #include "thorin/util/log.h"
@@ -101,12 +102,12 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
     auto simd_kernel_func = simd_kernel_call->getCalledFunction();
     simd_kernel_func->deleteBody();
 
-    auto loop_counter_arg = kernel_func->getArgumentList().begin();
+    auto loop_counter_arg = kernel_func->arg_begin();
 
     rv::VectorShape res = rv::VectorShape::uni(alignment);
     rv::VectorShapeVec args;
     args.push_back(rv::VectorShape::cont(alignment));
-    for (auto it = std::next(loop_counter_arg), end = kernel_func->getArgumentList().end(); it != end; ++it) {
+    for (auto it = std::next(loop_counter_arg), end = kernel_func->arg_end(); it != end; ++it) {
         args.push_back(rv::VectorShape::uni(alignment));
     }
 
@@ -160,10 +161,10 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
       pdom_tree.recalculate(*kernel_func);
       llvm::LoopInfo loop_info(dom_tree);
 
-      llvm::DFG dfg(dom_tree);
+      rv::DFG dfg(dom_tree);
       dfg.create(*kernel_func);
 
-      llvm::CDG cdg(pdom_tree);
+      rv::CDG cdg(pdom_tree);
       cdg.create(*kernel_func);
 
       llvm::ScalarEvolutionAnalysis SEA;

@@ -126,49 +126,66 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
     llvm::TargetLibraryInfo tli = lib_analysis.run(*kernel_func->getParent(), MAM);
     rv::PlatformInfo platform_info(*module_.get(), &tti, &tli);
 
-    // TODO: use parameters from command line
-    rv::Config config;
-    config.useSSE = true;
-    config.useAVX = false; // workaround for intrinsic ISA-precedence bug
-    config.useAVX2 = true;
-    config.useSLEEF = true;
-    config.enableIRPolish = true;
-    const bool impreciseFunctions = true;
+    if (vector_length == 1) {
+      llvm::ValueToValueMapTy argMap;
+      auto itCalleeArgs = simd_kernel_func->args().begin();
+      auto itSourceArgs = kernel_func->args().begin();
+      auto endSourceArgs = kernel_func->args().end();
 
-    rv::addSleefMappings(config, platform_info, impreciseFunctions);
+      for (; itSourceArgs != endSourceArgs; ++itCalleeArgs, ++itSourceArgs) {
+        argMap[&*itSourceArgs] = &*itCalleeArgs;
+      }
 
-    rv::VectorizerInterface vectorizer(platform_info, config);
+      llvm::SmallVector<llvm::ReturnInst*,4> retVec;
+      llvm::CloneFunctionInto(simd_kernel_func, kernel_func, argMap, false, retVec);
 
-    llvm::DominatorTree dom_tree(*kernel_func);
-    llvm::PostDominatorTree pdom_tree;
-    pdom_tree.recalculate(*kernel_func);
-    llvm::LoopInfo loop_info(dom_tree);
+      // lower mask intrinsics for scalar code (vector_length == 1)
+      rv::lowerIntrinsics(*simd_kernel_func);
+    } else {
+      // TODO: use parameters from command line
+      rv::Config config;
+      config.useSSE = true;
+      config.useAVX = false; // workaround for intrinsic ISA-precedence bug
+      config.useAVX2 = true;
+      config.useSLEEF = true;
+      config.enableIRPolish = true;
+      const bool impreciseFunctions = true;
 
-    llvm::DFG dfg(dom_tree);
-    dfg.create(*kernel_func);
+      rv::addSleefMappings(config, platform_info, impreciseFunctions);
 
-    llvm::CDG cdg(pdom_tree);
-    cdg.create(*kernel_func);
+      rv::VectorizerInterface vectorizer(platform_info, config);
 
-    llvm::ScalarEvolutionAnalysis SEA;
-    auto SE = SEA.run(*kernel_func, FAM);
+      llvm::DominatorTree dom_tree(*kernel_func);
+      llvm::PostDominatorTree pdom_tree;
+      pdom_tree.recalculate(*kernel_func);
+      llvm::LoopInfo loop_info(dom_tree);
 
-    llvm::MemoryDependenceAnalysis MDA;
-    auto MD = MDA.run(*kernel_func, FAM);
+      llvm::DFG dfg(dom_tree);
+      dfg.create(*kernel_func);
 
-    LoopExitCanonicalizer canonicalizer(loop_info);
-    canonicalizer.canonicalize(*kernel_func);
+      llvm::CDG cdg(pdom_tree);
+      cdg.create(*kernel_func);
 
-    vectorizer.analyze(vec_info, cdg, dfg, loop_info);
+      llvm::ScalarEvolutionAnalysis SEA;
+      auto SE = SEA.run(*kernel_func, FAM);
 
-    bool lin_ok = vectorizer.linearize(vec_info, cdg, dfg, loop_info, pdom_tree, dom_tree);
-    assert_unused(lin_ok);
+      llvm::MemoryDependenceAnalysis MDA;
+      auto MD = MDA.run(*kernel_func, FAM);
 
-    llvm::DominatorTree new_dom_tree(*vec_info.getMapping().scalarFn); // Control conversion does not preserve the dominance tree
-    bool vectorize_ok = vectorizer.vectorize(vec_info, new_dom_tree, loop_info, SE, MD, nullptr);
-    assert_unused(vectorize_ok);
+      LoopExitCanonicalizer canonicalizer(loop_info);
+      canonicalizer.canonicalize(*kernel_func);
 
-    vectorizer.finalize();
+      vectorizer.analyze(vec_info, cdg, dfg, loop_info);
+
+      bool lin_ok = vectorizer.linearize(vec_info, cdg, dfg, loop_info, pdom_tree, dom_tree);
+      assert_unused(lin_ok);
+
+      llvm::DominatorTree new_dom_tree(*vec_info.getMapping().scalarFn); // Control conversion does not preserve the dominance tree
+      bool vectorize_ok = vectorizer.vectorize(vec_info, new_dom_tree, loop_info, SE, MD, nullptr);
+      assert_unused(vectorize_ok);
+
+      vectorizer.finalize();
+    }
 
     // inline kernel
     llvm::InlineFunctionInfo info;

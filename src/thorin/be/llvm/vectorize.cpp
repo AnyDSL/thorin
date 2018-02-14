@@ -16,6 +16,7 @@
 #include <rv/sleefLibrary.h>
 #include <rv/transform/loopExitCanonicalizer.h>
 #include <rv/passes.h>
+#include <rv/session.h>
 #include <rv/analysis/DFG.h>
 
 #include "thorin/primop.h"
@@ -91,11 +92,7 @@ Continuation* CodeGen::emit_vectorize_continuation(Continuation* continuation) {
 void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* kernel_func, llvm::CallInst* simd_kernel_call) {
     // ensure proper loop forms
     llvm::legacy::FunctionPassManager pm(module_.get());
-    pm.add(rv::createCNSPass()); // make all loops reducible (has to run first!)
-    pm.add(llvm::createPromoteMemoryToRegisterPass()); // CNSPass relies on mem2reg for now
-    pm.add(llvm::createLICMPass());
-    pm.add(llvm::createLCSSAPass());
-    pm.add(llvm::createLowerSwitchPass());
+    rv::addNormalizationPasses(pm);
     pm.run(*kernel_func);
 
     // vectorize function
@@ -144,28 +141,18 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
       rv::lowerIntrinsics(*simd_kernel_func);
     } else {
       // TODO: use parameters from command line
-      rv::Config config;
-      config.useSSE = true;
-      config.useAVX = false; // workaround for intrinsic ISA-precedence bug
-      config.useAVX2 = true;
-      config.useSLEEF = true;
-      config.enableIRPolish = true;
+      rv::VectorISA vec_isa;
+      vec_isa.hasSSE = true;
+      vec_isa.hasAVX = false; // workaround for intrinsic ISA-precedence bug
+      vec_isa.hasAVX2 = true;
       const bool impreciseFunctions = true;
 
-      rv::addSleefMappings(config, platform_info, impreciseFunctions);
-
-      rv::VectorizerInterface vectorizer(platform_info, config);
+      rv::addSleefMappings(vec_isa, platform_info, impreciseFunctions);
 
       llvm::DominatorTree dom_tree(*kernel_func);
       llvm::PostDominatorTree pdom_tree;
       pdom_tree.recalculate(*kernel_func);
       llvm::LoopInfo loop_info(dom_tree);
-
-      rv::DFG dfg(dom_tree);
-      dfg.create(*kernel_func);
-
-      rv::CDG cdg(pdom_tree);
-      cdg.create(*kernel_func);
 
       llvm::ScalarEvolutionAnalysis SEA;
       auto SE = SEA.run(*kernel_func, FAM);
@@ -176,16 +163,10 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
       LoopExitCanonicalizer canonicalizer(loop_info);
       canonicalizer.canonicalize(*kernel_func);
 
-      vectorizer.analyze(vec_info, cdg, dfg, loop_info);
-
-      bool lin_ok = vectorizer.linearize(vec_info, cdg, dfg, loop_info, pdom_tree, dom_tree);
-      assert_unused(lin_ok);
-
-      llvm::DominatorTree new_dom_tree(*vec_info.getMapping().scalarFn); // Control conversion does not preserve the dominance tree
-      bool vectorize_ok = vectorizer.vectorize(vec_info, new_dom_tree, loop_info, SE, MD, nullptr);
-      assert_unused(vectorize_ok);
-
-      vectorizer.finalize();
+      rv::Session session(platform_info, dom_tree, pdom_tree, loop_info, SE, MD, nullptr);
+      llvm::ValueToValueMapTy vecInstMap;
+      rv::OptConfig opt_config;
+      session.run(vec_info, opt_config, &vecInstMap);
     }
 
     // inline kernel

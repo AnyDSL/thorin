@@ -125,48 +125,52 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
     rv::PlatformInfo platform_info(*module_.get(), &tti, &tli);
 
     if (vector_length == 1) {
-      llvm::ValueToValueMapTy argMap;
-      auto itCalleeArgs = simd_kernel_func->args().begin();
-      auto itSourceArgs = kernel_func->args().begin();
-      auto endSourceArgs = kernel_func->args().end();
+        llvm::ValueToValueMapTy argMap;
+        auto itCalleeArgs = simd_kernel_func->args().begin();
+        auto itSourceArgs = kernel_func->args().begin();
+        auto endSourceArgs = kernel_func->args().end();
 
-      for (; itSourceArgs != endSourceArgs; ++itCalleeArgs, ++itSourceArgs) {
-        argMap[&*itSourceArgs] = &*itCalleeArgs;
-      }
+        for (; itSourceArgs != endSourceArgs; ++itCalleeArgs, ++itSourceArgs) {
+            argMap[&*itSourceArgs] = &*itCalleeArgs;
+        }
 
-      llvm::SmallVector<llvm::ReturnInst*,4> retVec;
-      llvm::CloneFunctionInto(simd_kernel_func, kernel_func, argMap, false, retVec);
+        llvm::SmallVector<llvm::ReturnInst*,4> retVec;
+        llvm::CloneFunctionInto(simd_kernel_func, kernel_func, argMap, false, retVec);
 
-      // lower mask intrinsics for scalar code (vector_length == 1)
-      rv::lowerIntrinsics(*simd_kernel_func);
+        // lower mask intrinsics for scalar code (vector_length == 1)
+        rv::lowerIntrinsics(*simd_kernel_func);
     } else {
-      // TODO: use parameters from command line
-      rv::VectorISA vec_isa;
-      vec_isa.hasSSE = true;
-      vec_isa.hasAVX = false; // workaround for intrinsic ISA-precedence bug
-      vec_isa.hasAVX2 = true;
-      const bool impreciseFunctions = true;
+        // TODO: use parameters from command line
+        rv::VectorISA vec_isa;
+        vec_isa.hasSSE = true;
+        vec_isa.hasAVX = false; // workaround for intrinsic ISA-precedence bug
+        vec_isa.hasAVX2 = true;
+        const bool impreciseFunctions = true;
+        platform_info.setVectorISA(vec_isa);
 
-      rv::addSleefMappings(vec_isa, platform_info, impreciseFunctions);
+        rv::addSleefMappings(vec_isa, platform_info, impreciseFunctions);
 
-      llvm::DominatorTree dom_tree(*kernel_func);
-      llvm::PostDominatorTree pdom_tree;
-      pdom_tree.recalculate(*kernel_func);
-      llvm::LoopInfo loop_info(dom_tree);
+        llvm::DominatorTree dom_tree(*kernel_func);
+        llvm::PostDominatorTree pdom_tree;
+        pdom_tree.recalculate(*kernel_func);
+        llvm::LoopInfo loop_info(dom_tree);
 
-      llvm::ScalarEvolutionAnalysis SEA;
-      auto SE = SEA.run(*kernel_func, FAM);
+        llvm::ScalarEvolutionAnalysis SEA;
+        auto SE = SEA.run(*kernel_func, FAM);
 
-      llvm::MemoryDependenceAnalysis MDA;
-      auto MD = MDA.run(*kernel_func, FAM);
+        llvm::MemoryDependenceAnalysis MDA;
+        auto MD = MDA.run(*kernel_func, FAM);
 
-      LoopExitCanonicalizer canonicalizer(loop_info);
-      canonicalizer.canonicalize(*kernel_func);
+        LoopExitCanonicalizer canonicalizer(loop_info);
+        canonicalizer.canonicalize(*kernel_func);
 
-      rv::Session session(platform_info, dom_tree, pdom_tree, loop_info, SE, MD, nullptr);
-      llvm::ValueToValueMapTy vecInstMap;
-      rv::OptConfig opt_config;
-      session.run(vec_info, opt_config, &vecInstMap);
+        rv::Session session(platform_info, dom_tree, pdom_tree, loop_info, SE, MD, nullptr);
+        llvm::ValueToValueMapTy vecInstMap;
+        rv::OptConfig opt_config;
+        opt_config.enableSplitAllocas = true;
+        opt_config.enableFixPoint = true;
+        opt_config.enableIRPolish = true;
+        session.run(vec_info, opt_config, &vecInstMap);
     }
 
     // inline kernel

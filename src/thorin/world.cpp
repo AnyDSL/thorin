@@ -626,8 +626,12 @@ const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
 
     if (auto aggregate = agg->isa<Aggregate>()) {
         if (auto lit = index->template isa<PrimLit>()) {
-            if (!agg->isa<IndefiniteArray>())
-                return get(aggregate->ops(), lit);
+            if (!agg->isa<IndefiniteArray>()) {
+                if (primlit_value<u64>(lit) < aggregate->num_ops())
+                    return get(aggregate->ops(), lit);
+                else
+                    return bottom(Extract::extracted_type(agg, index), dbg);
+            }
         }
     }
 
@@ -673,17 +677,19 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, Deb
                 args[i++] = bottom(type, dbg);
             agg = struct_agg(struct_type, args, dbg);
         }
-
     }
 
     // TODO double-check
     if (auto aggregate = agg->isa<Aggregate>()) {
-        if (auto literal = index->isa<PrimLit>()) {
+        if (auto lit = index->isa<PrimLit>()) {
             if (!agg->isa<IndefiniteArray>()) {
-                Array<const Def*> args(agg->num_ops());
-                std::copy(agg->ops().begin(), agg->ops().end(), args.begin());
-                args[primlit_value<u64>(literal)] = value;
-                return aggregate->rebuild(args);
+                if (primlit_value<u64>(lit) < aggregate->num_ops()) {
+                    Array<const Def*> args(agg->num_ops());
+                    std::copy(agg->ops().begin(), agg->ops().end(), args.begin());
+                    args[primlit_value<u64>(lit)] = value;
+                    return aggregate->rebuild(args);
+                } else
+                    return bottom(agg->type(), dbg);
             }
         }
     }

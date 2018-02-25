@@ -92,6 +92,14 @@ std::ostream& CCodeGen::emit_addr_space(std::ostream& os, const Type* type) {
     return os;
 }
 
+inline bool is_string_type(const Type* type) {
+    if (auto array = type->isa<DefiniteArrayType>())
+        if (auto primtype = array->elem_type()->isa<PrimType>())
+            if (primtype->primtype_tag() == PrimType_pu8)
+                return true;
+    return false;
+}
+
 std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
     if (lookup(type))
         return os << get_name(type);
@@ -207,6 +215,9 @@ std::ostream& CCodeGen::emit_aggop_decl(const Type* type) {
     if (lookup(type) || type == world().unit())
         return type_decls_;
 
+    if (is_string_type(type))
+        return type_decls_;
+
     // set indent to zero
     auto indent = detail::get_indent();
     while (detail::get_indent() != 0)
@@ -276,9 +287,12 @@ void CCodeGen::emit() {
         func_decls_ << "__device__ inline int gridDim_z() { return gridDim.z; }" << endl;
     }
 
-    // emit all globals: do we have globals for CUDA/OpenCL ?
+    // emit all globals
     for (auto primop : world().primops()) {
         if (auto global = primop->isa<Global>()) {
+            // skip strings as they are emitted inline
+            if (is_string_type(global->init()->type()))
+                continue;
             emit_aggop_decl(global->type());
             emit(global) << endl;
         }
@@ -807,6 +821,17 @@ std::ostream& CCodeGen::emit(const Def* def) {
         auto src_type = conv->from()->type();
         auto dst_type = conv->type();
 
+        // string handling: bitcast [n*pu8]* -> [pu8]*
+        if (conv->isa<Bitcast>() && conv->from()->isa<Global>() && is_string_type(conv->from()->as<Global>()->init()->type())) {
+            auto dst_ptr = dst_type->isa<PtrType>();
+            if (dst_ptr && dst_ptr->pointee()->isa<IndefiniteArrayType>()) {
+                emit(conv->from());
+                insert(def, get_name(conv->from()));
+                func_impl_ << "// skipped string bitcast";
+                return func_impl_;
+            }
+        }
+
         emit_addr_space(func_impl_, dst_type);
         emit_type(func_impl_, dst_type) << " " << def_name << ";" << endl;
 
@@ -1128,8 +1153,25 @@ std::ostream& CCodeGen::emit(const Def* def) {
     }
 
     if (auto global = def->isa<Global>()) {
-        WLOG(global, "{}: Global variable '{}' will not be synced with host.", get_lang(), global);
         assert(!global->init()->isa_continuation() && "no global init continuation supported");
+
+        // string handling
+        if (auto str_array = global->init()->isa<DefiniteArray>()) {
+            if (str_array->ops().back()->as<PrimLit>()->pu8_value() == pu8(0)) {
+                if (auto primtype = str_array->elem_type()->isa<PrimType>()) {
+                    if (primtype->primtype_tag() == PrimType_pu8) {
+                        std::string str = "\"";
+                        for (auto op : str_array->ops().skip_back())
+                            str += op->as<PrimLit>()->pu8_value();
+                        str += '"';
+                        insert(def, str);
+                        return func_impl_;
+                    }
+                }
+            }
+        }
+
+        WLOG(global, "{}: Global variable '{}' will not be synced with host.", get_lang(), global);
         switch (lang_) {
             default:                                        break;
             case Lang::CUDA:   func_impl_ << "__device__ "; break;
@@ -1202,7 +1244,7 @@ std::string& CCodeGen::get_name(const Def* def) {
 
 const std::string CCodeGen::var_name(const Def* def) {
     if (def->isa<PrimOp>() && is_const(def))
-            return def->unique_name() + "_" + std::to_string(primop_counter++);
+        return def->unique_name() + "_" + std::to_string(primop_counter++);
     else
         return def->unique_name();
 }

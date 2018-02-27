@@ -126,8 +126,8 @@ void Cleaner::eliminate_params() {
                     ncontinuation->param(j++)->debug() = ocontinuation->param(i)->debug_history();
                 }
 
-                if (!ocontinuation->pe_profile().empty())
-                    ncontinuation->set_pe_profile(ocontinuation->pe_profile().cut(proxy_idx));
+                if (!ocontinuation->filter().empty())
+                    ncontinuation->set_filter(ocontinuation->filter().cut(proxy_idx));
                 ncontinuation->jump(ocontinuation->callee(), ocontinuation->args(), ocontinuation->jump_debug());
                 ocontinuation->destroy_body();
 
@@ -256,7 +256,7 @@ void Cleaner::cleanup() {
     if (!world().is_pe_done()) {
         world().mark_pe_done();
         for (auto continuation : world().continuations())
-            continuation->destroy_pe_profile();
+            continuation->destroy_filter();
         todo_ = true;
         cleanup_fix_point();
     }

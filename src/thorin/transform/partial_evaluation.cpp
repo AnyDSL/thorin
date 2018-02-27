@@ -39,7 +39,7 @@ public:
         , args_(args)
         , top_level_(top_level)
     {
-        assert(callee->pe_profile().empty() || callee->pe_profile().size() == args.size());
+        assert(callee->filter().empty() || callee->filter().size() == args.size());
         assert(callee->num_params() == args.size());
 
         for (size_t i = 0, e = args.size(); i != e; ++i)
@@ -72,12 +72,12 @@ public:
             return true;
         }
 
-        return callee_->num_uses() == 1 || is_one(instantiate(pe_profile(i)));
-        //return is_one(instantiate(pe_profile(i)));
+        return callee_->num_uses() == 1 || is_one(instantiate(filter(i)));
+        //return is_one(instantiate(filter(i)));
     }
 
-    const Def* pe_profile(size_t i) {
-        return callee_->pe_profile().empty() ? world().literal_bool(false, {}) : callee_->pe_profile(i);
+    const Def* filter(size_t i) {
+        return callee_->filter().empty() ? world().literal_bool(false, {}) : callee_->filter(i);
     }
 
     bool is_top_level(Continuation* continuation) {

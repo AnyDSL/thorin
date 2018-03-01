@@ -209,7 +209,7 @@ llvm::Function* CodeGen::emit_function_decl(Continuation* continuation) {
     return fcts_[continuation] = f;
 }
 
-void CodeGen::emit(int opt, bool debug) {
+llvm::Module* CodeGen::emit(int opt, bool debug, bool print) {
     llvm::DICompileUnit* dicompile_unit;
     if (debug) {
         module_->addModuleFlag(llvm::Module::Warning, "Debug Info Version", llvm::DEBUG_METADATA_VERSION);
@@ -478,13 +478,16 @@ void CodeGen::emit(int opt, bool debug) {
     if (debug)
         dibuilder_.finalize();
 
-    std::error_code EC;
-    auto ll_name = get_output_name(world_.name());
-    llvm::raw_fd_ostream out(ll_name, EC, llvm::sys::fs::F_Text);
-    if (EC)
-        throw std::runtime_error("cannot write '" + ll_name + "': " + EC.message());
+    if (print) {
+        std::error_code EC;
+        auto ll_name = get_output_name(world_.name());
+        llvm::raw_fd_ostream out(ll_name, EC, llvm::sys::fs::F_Text);
+        if (EC)
+            throw std::runtime_error("cannot write '" + ll_name + "': " + EC.message());
 
-    module_->print(out, nullptr);
+        module_->print(out, nullptr);
+    }
+    return module_.get();
 }
 
 void CodeGen::optimize(int opt) {

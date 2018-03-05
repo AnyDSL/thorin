@@ -208,8 +208,7 @@ llvm::Function* CodeGen::emit_function_decl(Continuation* continuation) {
 
     return fcts_[continuation] = f;
 }
-
-llvm::Module* CodeGen::emit(int opt, bool debug, bool print) {
+std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug, bool print) {
     llvm::DICompileUnit* dicompile_unit;
     if (debug) {
         module_->addModuleFlag(llvm::Module::Warning, "Debug Info Version", llvm::DEBUG_METADATA_VERSION);
@@ -487,7 +486,7 @@ llvm::Module* CodeGen::emit(int opt, bool debug, bool print) {
 
         module_->print(out, nullptr);
     }
-    return module_.get();
+    return module_;
 }
 
 void CodeGen::optimize(int opt) {

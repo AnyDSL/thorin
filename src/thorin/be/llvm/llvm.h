@@ -21,7 +21,7 @@ protected:
 
 public:
     World& world() const { return world_; }
-    llvm::Module* emit(int opt, bool debug, bool print = true);
+    std::unique_ptr<llvm::Module>& emit(int opt, bool debug, bool print = true);
 
 protected:
     void optimize(int opt);

@@ -11,9 +11,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 option(THORIN_PROFILE "profile complexity in thorin::HashTable - only works in Debug build" ON)
 
-if(THORIN_PROFILE)
-    add_definitions(-DTHORIN_PROFILE)
-endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "")
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "Debug or Release" FORCE)
@@ -48,6 +45,18 @@ message(STATUS "Using Release flags: ${CMAKE_CXX_FLAGS_RELEASE}")
 if(DEFINED CMAKE_BUILD_TYPE)
     message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 endif()
+
+# configure thorin preprocessor definitions
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(THORIN_ENABLE_CHECKS TRUE)
+endif()
+if(THORIN_PROFILE)
+    set(THORIN_ENABLE_PROFILING TRUE)
+endif()
+if (RV_FOUND)
+    set(THORIN_ENABLE_RV TRUE)
+endif()
+configure_file(src/thorin/config.h.in ${CMAKE_SOURCE_DIR}/src/thorin/config.h @ONLY)
 
 export(TARGETS thorin FILE ${CMAKE_BINARY_DIR}/share/thorin/cmake/thorin-exports.cmake)
 configure_file(cmake/thorin-config.cmake.in ${CMAKE_BINARY_DIR}/share/thorin/cmake/thorin-config.cmake @ONLY)

@@ -1,3 +1,4 @@
+#include "thorin/config.h"
 #include "thorin/world.h"
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/scope.h"
@@ -149,7 +150,7 @@ void Cleaner::rebuild() {
     importer.type_old2new_.rehash(world_.types_.capacity());
     importer.def_old2new_.rehash(world_.primops().capacity());
 
-#ifndef NDEBUG
+#if THORIN_ENABLE_CHECKS
     world_.swap_breakpoints(importer.world());
 #endif
 
@@ -262,7 +263,7 @@ void Cleaner::cleanup() {
     }
 
     VLOG("end cleanup");
-#ifndef NDEBUG
+#if THORIN_ENABLE_CHECKS
     verify_closedness();
     debug_verify(world());
 #endif

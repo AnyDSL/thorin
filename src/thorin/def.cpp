@@ -27,7 +27,7 @@ Def::Def(NodeTag tag, const Type* type, size_t size, Debug dbg)
 {}
 
 Debug Def::debug_history() const {
-#ifndef NDEBUG
+#if THORIN_ENABLE_CHECKS
     return world().track_history() ? Debug(location(), unique_name()) : debug();
 #else
     return debug();
@@ -158,7 +158,7 @@ Continuation* Def::as_continuation() const { return const_cast<Continuation*>(sc
 Continuation* Def::isa_continuation() const { return const_cast<Continuation*>(dcast<Continuation>(this)); }
 std::ostream& Def::stream(std::ostream& out) const { return out << unique_name(); }
 
-#ifndef NDEBUG
+#if THORIN_ENABLE_CHECKS
 void force_use_dump() {
     Defs defs;
     defs.dump();

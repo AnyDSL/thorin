@@ -5,6 +5,7 @@
 #include <vector>
 #include <queue>
 
+#include "thorin/config.h"
 #include "thorin/def.h"
 #include "thorin/type.h"
 
@@ -158,7 +159,7 @@ public:
     void match(const Def* val, Continuation* otherwise, Defs patterns, ArrayRef<Continuation*> continuations, Debug dbg = {});
     std::pair<Continuation*, const Def*> call(const Def* callee, Defs args, const Type* ret_type, Debug dbg = {});
     void verify() const {
-#ifndef NDEBUG
+#if THORIN_ENABLE_CHECKS
         if (auto continuation = callee()->isa<Continuation>()) {
             if (!continuation->is_sealed())
                 return;

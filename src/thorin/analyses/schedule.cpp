@@ -1,5 +1,6 @@
 #include "thorin/analyses/schedule.h"
 
+#include "thorin/config.h"
 #include "thorin/continuation.h"
 #include "thorin/primop.h"
 #include "thorin/world.h"
@@ -245,7 +246,7 @@ void Schedule::block_schedule() {
 }
 
 void Schedule::verify() {
-#ifndef NDEBUG
+#if THORIN_ENABLE_CHECKS
     auto& domtree = cfg().domtree();
     Schedule::Map<const Def*> block2mem(*this);
 

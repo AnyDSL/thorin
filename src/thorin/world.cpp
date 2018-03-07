@@ -28,7 +28,7 @@
 #define THORIN_BREAK { int* __p__ = nullptr; *__p__ = 42; }
 #endif
 
-#ifndef NDEBUG
+#if THORIN_ENABLE_CHECKS
 #define THORIN_CHECK_BREAK(gid) \
     if (breakpoints_.find((gid)) != breakpoints_.end()) { THORIN_BREAK }
 #else

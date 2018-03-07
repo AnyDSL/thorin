@@ -5,6 +5,7 @@
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Module.h>
 
+#include "thorin/config.h"
 #include "thorin/continuation.h"
 #include "thorin/be/llvm/runtime.h"
 #include "thorin/be/kernel_config.h"
@@ -82,7 +83,7 @@ protected:
     PrimOpMap<llvm::Value*> primops_;
     ContinuationMap<llvm::Function*> fcts_;
     TypeMap<llvm::Type*> types_;
-#ifdef RV_SUPPORT
+#if THORIN_ENABLE_RV
     std::vector<std::tuple<u32, u32, llvm::Function*, llvm::CallInst*>> vec_todo_;
 #endif
 

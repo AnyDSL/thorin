@@ -73,8 +73,7 @@ World& Value::world() const { return builder_->world(); }
 
 //------------------------------------------------------------------------------
 
-#ifndef NDEBUG
-#else
+#if THORIN_ENABLE_CHECKS
 JumpTarget::~JumpTarget() {
     assert((!continuation_ || first_ || continuation_->is_sealed()) && "JumpTarget not sealed");
 }

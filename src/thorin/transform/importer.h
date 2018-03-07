@@ -2,6 +2,7 @@
 #define THORIN_TRANSFORM_IMPORT_H
 
 #include "thorin/world.h"
+#include "thorin/config.h"
 
 namespace thorin {
 
@@ -12,7 +13,7 @@ public:
     {
         if  (src.is_pe_done())
             world_.mark_pe_done();
-#ifndef NDEBUG
+#if THORIN_ENABLE_CHECKS
         if (src.track_history())
             world_.enable_history(true);
 #endif

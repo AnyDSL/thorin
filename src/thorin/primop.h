@@ -1,6 +1,7 @@
 #ifndef THORIN_PRIMOP_H
 #define THORIN_PRIMOP_H
 
+#include "thorin/config.h"
 #include "thorin/def.h"
 #include "thorin/enums.h"
 #include "thorin/util/hash.h"
@@ -328,7 +329,7 @@ private:
     StructAgg(const StructType* struct_type, Defs args, Debug dbg)
         : Aggregate(Node_StructAgg, args, dbg)
     {
-#ifndef NDEBUG
+#if THORIN_ENABLE_CHECKS
         assert(struct_type->num_ops() == args.size());
         for (size_t i = 0, e = args.size(); i != e; ++i)
             assert(struct_type->op(i) == args[i]->type());

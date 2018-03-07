@@ -12,6 +12,7 @@
 #include "thorin/primop.h"
 #include "thorin/util/hash.h"
 #include "thorin/util/stream.h"
+#include "thorin/config.h"
 
 namespace thorin {
 
@@ -189,7 +190,7 @@ public:
     void add_external(Continuation* continuation) { externals_.insert(continuation); }
     void remove_external(Continuation* continuation) { externals_.erase(continuation); }
     bool is_external(const Continuation* continuation) { return externals().contains(const_cast<Continuation*>(continuation)); }
-#ifndef NDEBUG
+#if THORIN_ENABLE_CHECKS
     void breakpoint(size_t number) { breakpoints_.insert(number); }
     const Breakpoints& breakpoints() const { return breakpoints_; }
     void swap_breakpoints(World& other) { swap(this->breakpoints_, other.breakpoints_); }
@@ -213,7 +214,7 @@ public:
         swap(w1.end_scope_,     w2.end_scope_);
         swap(w1.pe_done_,       w2.pe_done_);
 
-#ifndef NDEBUG
+#if THORIN_ENABLE_CHECKS
         swap(w1.breakpoints_,   w2.breakpoints_);
         swap(w1.track_history_, w2.track_history_);
 #endif
@@ -232,7 +233,7 @@ private:
     Continuation* branch_;
     Continuation* end_scope_;
     bool pe_done_ = false;
-#ifndef NDEBUG
+#if THORIN_ENABLE_CHECKS
     Breakpoints breakpoints_;
     bool track_history_ = false;
 #endif

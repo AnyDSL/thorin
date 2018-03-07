@@ -205,9 +205,6 @@ std::ostream& CCodeGen::emit_aggop_defs(const Def* def) {
         emit(variant) << endl;
     }
 
-    if (def->isa<ConvOp>() || def->isa<Bottom>())
-        emit(def) << endl;
-
     return func_impl_;
 }
 

@@ -171,11 +171,8 @@ CFG<forward>::CFG(const CFA& cfa)
     , cfa_(cfa)
     , rpo_(*this)
 {
-#ifndef NDEBUG
-    assert(post_order_visit(entry(), size()) == 0);
-#else
-    post_order_visit(entry(), size());
-#endif
+    auto index = post_order_visit(entry(), size());
+    assert_unused(index == 0);
 }
 
 template<bool forward>

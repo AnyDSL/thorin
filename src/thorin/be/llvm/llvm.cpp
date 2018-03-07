@@ -24,7 +24,8 @@
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Transforms/IPO.h>
 
-#ifdef RV_SUPPORT
+#include "thorin/config.h"
+#if THORIN_ENABLE_RV
 #include <rv/rv.h>
 #endif
 
@@ -74,7 +75,7 @@ Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
         case Intrinsic::Parallel:  return emit_parallel(continuation);
         case Intrinsic::Spawn:     return emit_spawn(continuation);
         case Intrinsic::Sync:      return emit_sync(continuation);
-#ifdef RV_SUPPORT
+#if THORIN_ENABLE_RV
         case Intrinsic::Vectorize: return emit_vectorize_continuation(continuation);
 #else
         case Intrinsic::Vectorize: throw std::runtime_error("rebuild with RV support");
@@ -208,8 +209,7 @@ llvm::Function* CodeGen::emit_function_decl(Continuation* continuation) {
 
     return fcts_[continuation] = f;
 }
-
-void CodeGen::emit(int opt, bool debug) {
+std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug, bool print) {
     llvm::DICompileUnit* dicompile_unit;
     if (debug) {
         module_->addModuleFlag(llvm::Module::Warning, "Debug Info Version", llvm::DEBUG_METADATA_VERSION);
@@ -462,7 +462,7 @@ void CodeGen::emit(int opt, bool debug) {
         primops_.clear();
     });
 
-#ifdef RV_SUPPORT
+#if THORIN_ENABLE_RV
     // emit vectorized code
     for (const auto& tuple : vec_todo_)
         emit_vectorize(std::get<0>(tuple), std::get<1>(tuple), std::get<2>(tuple), std::get<3>(tuple));
@@ -471,20 +471,23 @@ void CodeGen::emit(int opt, bool debug) {
     rv::lowerIntrinsics(*module_);
 #endif
 
-#ifndef NDEBUG
+#if THORIN_ENABLE_CHECKS
     llvm::verifyModule(*module_);
 #endif
     optimize(opt);
     if (debug)
         dibuilder_.finalize();
 
-    std::error_code EC;
-    auto ll_name = get_output_name(world_.name());
-    llvm::raw_fd_ostream out(ll_name, EC, llvm::sys::fs::F_Text);
-    if (EC)
-        throw std::runtime_error("cannot write '" + ll_name + "': " + EC.message());
+    if (print) {
+        std::error_code EC;
+        auto ll_name = get_output_name(world_.name());
+        llvm::raw_fd_ostream out(ll_name, EC, llvm::sys::fs::F_Text);
+        if (EC)
+            throw std::runtime_error("cannot write '" + ll_name + "': " + EC.message());
 
-    module_->print(out, nullptr);
+        module_->print(out, nullptr);
+    }
+    return module_;
 }
 
 void CodeGen::optimize(int opt) {

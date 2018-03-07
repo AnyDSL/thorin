@@ -1,4 +1,6 @@
-#ifdef RV_SUPPORT
+#include "thorin/config.h"
+
+#if THORIN_ENABLE_RV
 #include "thorin/be/llvm/llvm.h"
 
 #include <llvm/IR/Dominators.h>

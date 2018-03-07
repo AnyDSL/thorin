@@ -39,12 +39,12 @@ Continuation* Continuation::stub() const {
         rewriter.old2new[param(i)] = result->param(i);
     }
 
-    if (!pe_profile().empty()) {
-        Array<const Def*> new_pe_profile(num_params());
+    if (!filter().empty()) {
+        Array<const Def*> new_filter(num_params());
         for (size_t i = 0, e = num_params(); i != e; ++i)
-            new_pe_profile[i] = rewriter.instantiate(pe_profile(i));
+            new_filter[i] = rewriter.instantiate(filter(i));
 
-        result->set_pe_profile(new_pe_profile);
+        result->set_filter(new_filter);
     }
 
     return result;
@@ -168,8 +168,8 @@ Continuations Continuation::succs() const {
     return succs;
 }
 
-void Continuation::set_all_true_pe_profile() {
-    pe_profile_ = Array<const Def*>(num_params(), [&](size_t) { return world().literal_bool(true, Debug{}); });
+void Continuation::set_all_true_filter() {
+    filter_ = Array<const Def*>(num_params(), [&](size_t) { return world().literal_bool(true, Debug{}); });
 }
 
 void Continuation::make_external() { return world().add_external(this); }
@@ -494,8 +494,8 @@ std::ostream& Continuation::stream_head(std::ostream& os) const {
         os << " extern ";
     if (cc() == CC::Device)
         os << " device ";
-    if (!pe_profile().empty())
-        os << " @(" << stream_list(pe_profile(), [&](const Def* def) { os << def; }) << ')';
+    if (!filter().empty())
+        os << " @(" << stream_list(filter(), [&](const Def* def) { os << def; }) << ')';
     return os;
 }
 

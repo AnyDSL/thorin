@@ -77,11 +77,11 @@ const Def* Importer::import(Tracker odef) {
             }
         }
 
-        auto old_profile = ocontinuation->pe_profile();
+        auto old_profile = ocontinuation->filter();
         Array<const Def*> new_profile(old_profile.size());
         for (size_t i = 0, e = old_profile.size(); i != e; ++i)
             new_profile[i] = import(old_profile[i]);
-        ncontinuation->set_pe_profile(new_profile);
+        ncontinuation->set_filter(new_profile);
     }
 
     size_t size = odef->num_ops();

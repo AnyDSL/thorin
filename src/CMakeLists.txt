@@ -13,7 +13,6 @@ message(STATUS "Building with Half library from ${Half_INCLUDE_DIRS}.")
 include_directories(${Half_INCLUDE_DIRS})
 
 if(RV_FOUND)
-    add_definitions("-DRV_SUPPORT")
     include_directories(SYSTEM ${RV_INCLUDE_DIRS})
 endif()
 

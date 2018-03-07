@@ -1,6 +1,7 @@
 #include "thorin/primop.h"
 #include "thorin/continuation.h"
 
+#include "thorin/config.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
 #include "thorin/util/array.h"
@@ -26,7 +27,7 @@ DefiniteArray::DefiniteArray(World& world, const Type* elem, Defs args, Debug db
     : Aggregate(Node_DefiniteArray, args, dbg)
 {
     set_type(world.definite_array_type(elem, args.size()));
-#ifndef NDEBUG
+#if THORIN_ENABLE_CHECKS
     for (size_t i = 0, e = num_ops(); i != e; ++i)
         assert(args[i]->type() == type()->elem_type());
 #endif

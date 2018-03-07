@@ -88,8 +88,7 @@ public:
     JumpTarget(Debug dbg = {})
         : debug_(dbg)
     {}
-#ifndef NDEBUG
-#else
+#if THORIN_ENABLE_CHECKS
     ~JumpTarget();
 #endif
 

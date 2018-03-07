@@ -12,6 +12,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "thorin/config.h"
 #include "thorin/util/utility.h"
 
 namespace thorin {
@@ -108,7 +109,7 @@ public:
         iterator_base(value_type* ptr, const HashTable* table)
             : ptr_(ptr)
             , table_(table)
-#ifndef NDEBUG
+#if THORIN_ENABLE_CHECKS
             , id_(table->id_)
 #endif
         {}
@@ -116,13 +117,13 @@ public:
         iterator_base(const iterator_base<false>& i)
             : ptr_(i.ptr_)
             , table_(i.table_)
-#ifndef NDEBUG
+#if THORIN_ENABLE_CHECKS
             , id_(i.id_)
 #endif
         {}
 
         inline void verify() const { assert(table_->id_ == id_); }
-#ifndef NDEBUG
+#if THORIN_ENABLE_CHECKS
         inline void verify(iterator_base i) const {
             assert(table_ == i.table_ && id_ == i.id_);
             verify();
@@ -148,7 +149,7 @@ public:
 
         value_type* ptr_;
         const HashTable* table_;
-#ifndef NDEBUG
+#if THORIN_ENABLE_CHECKS
         int id_;
 #endif
         friend class HashTable;
@@ -162,7 +163,7 @@ public:
         : capacity_(StackCapacity)
         , size_(0)
         , nodes_(array_.data())
-#ifndef NDEBUG
+#if THORIN_ENABLE_CHECKS
         , id_(0)
 #endif
     {
@@ -172,7 +173,7 @@ public:
         : capacity_(capacity < StackCapacity ? StackCapacity : std::max(capacity, size_t(MinHeapCapacity)))
         , size_(0)
         , nodes_(on_heap() ? new value_type[capacity_] : array_.data())
-#ifndef NDEBUG
+#if THORIN_ENABLE_CHECKS
         , id_(0)
 #endif
     {
@@ -187,7 +188,7 @@ public:
     HashTable(const HashTable& other)
         : capacity_(other.capacity_)
         , size_(other.size_)
-#ifndef NDEBUG
+#if THORIN_ENABLE_CHECKS
         , id_(0)
 #endif
     {
@@ -239,7 +240,7 @@ public:
         if (size_ >= capacity_/4_s + capacity_/2_s)
             rehash(capacity_*4_s);
 
-#ifndef NDEBUG
+#if THORIN_ENABLE_CHECKS
         ++id_;
 #endif
         return emplace_no_rehash(std::forward<Args>(args)...);
@@ -274,7 +275,7 @@ public:
                 changed |= array_emplace(*i).second;
         }
 
-#ifndef NDEBUG
+#if THORIN_ENABLE_CHECKS
         ++id_;
 #endif
         return changed;
@@ -306,7 +307,7 @@ public:
         } else {
             array_erase(pos);
         }
-#ifndef NDEBUG
+#if THORIN_ENABLE_CHECKS
         ++id_;
 #endif
     }
@@ -417,7 +418,7 @@ public:
 
         swap(t1.capacity_, t2.capacity_);
         swap(t1.size_,     t2.size_);
-#ifndef NDEBUG
+#if THORIN_ENABLE_CHECKS
         swap(t1.id_,       t2.id_);
 #endif
     }
@@ -452,7 +453,7 @@ private:
         }
     }
 
-#ifdef THORIN_PROFILE
+#if THORIN_ENABLE_PROFILING
     void debug(size_t i) {
         auto dib = probe_distance(i);
         if (dib > 2_s*log2(capacity())) {
@@ -486,7 +487,7 @@ private:
     template<class... Args>
     std::pair<iterator,bool> array_emplace(Args&&... args) {
         using std::swap;
-#ifndef NDEBUG
+#if THORIN_ENABLE_CHECKS
         ++id_;
 #endif
         value_type n(std::forward<Args>(args)...);
@@ -526,7 +527,7 @@ private:
     uint32_t size_;
     std::array<value_type, StackCapacity> array_;
     value_type* nodes_;
-#ifndef NDEBUG
+#if THORIN_ENABLE_CHECKS
     int id_;
 #endif
 };

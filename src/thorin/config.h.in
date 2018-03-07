@@ -1,0 +1,8 @@
+#ifndef THORIN_CONFIG_H
+#define THORIN_CONFIG_H
+
+#cmakedefine01 THORIN_ENABLE_CHECKS
+#cmakedefine01 THORIN_ENABLE_PROFILING
+#cmakedefine01 THORIN_ENABLE_RV
+
+#endif

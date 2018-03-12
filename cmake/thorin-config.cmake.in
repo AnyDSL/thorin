@@ -11,19 +11,18 @@ cmake_minimum_required(VERSION 3.1)
 find_path(Thorin_DIR
     NAMES thorin-config.cmake
     PATHS
-        ${Thorin_DIR} ${AnyDSL_thorin_DIR} ${THORIN_DIR}
-        $ENV{Thorin_DIR} $ENV{THORIN_DIR}
+        ${Thorin_DIR} ${AnyDSL_thorin_DIR} $ENV{Thorin_DIR}
         ${CMAKE_CURRENT_LIST_DIR}
         "@CMAKE_CURRENT_BINARY_DIR@"
         "@CMAKE_INSTALL_PREFIX@"
     PATH_SUFFIXES
-        share/thorin/cmake
+        share/anydsl/cmake
 )
 
-find_path(THORIN_ROOT_DIR
+find_path(Thorin_ROOT_DIR
     NAMES cmake/thorin-config.cmake.in src/thorin/world.h
-    PATHS ${Thorin_DIR} $ENV{Thorin_DIR} ${THORIN_ROOT_DIR} "@CMAKE_CURRENT_SOURCE_DIR@" "@CMAKE_SOURCE_DIR@")
-list(APPEND CMAKE_MODULE_PATH "${THORIN_ROOT_DIR}/cmake/modules")
+    PATHS ${Thorin_DIR} $ENV{Thorin_DIR} ${Thorin_ROOT_DIR} "@CMAKE_CURRENT_SOURCE_DIR@" "@CMAKE_SOURCE_DIR@")
+list(APPEND CMAKE_MODULE_PATH "${Thorin_ROOT_DIR}/cmake/modules")
 
 find_path(Half_DIR NAMES half.hpp PATHS ${Half_DIR} $ENV{Half_DIR} "@Half_DIR@" "@Half_INCLUDE_DIR@")
 find_package(Half REQUIRED)
@@ -40,25 +39,25 @@ if(Thorin_HAS_LLVM_SUPPORT)
     endif()
 endif()
 
-find_path(THORIN_INCLUDE_DIR NAMES thorin/world.h PATHS ${THORIN_ROOT_DIR}/src)
+find_path(Thorin_INCLUDE_DIR NAMES thorin/world.h PATHS ${Thorin_ROOT_DIR}/src)
 
 if(NOT TARGET thorin)
     include(${Thorin_DIR}/thorin-exports.cmake)
 endif()
-set(THORIN_LIBRARY thorin)
+set(Thorin_LIBRARY thorin)
 
-set(THORIN_DEPS_INCLUDE_DIRS ${Half_INCLUDE_DIRS})
+set(Thorin_DEPS_INCLUDE_DIRS ${Half_INCLUDE_DIRS})
 if(LLVM_FOUND)
-    list(APPEND THORIN_DEPS_INCLUDE_DIRS ${LLVM_INCLUDE_DIRS})
+    list(APPEND Thorin_DEPS_INCLUDE_DIRS ${LLVM_INCLUDE_DIRS})
 endif(LLVM_FOUND)
 if(RV_FOUND)
-    list(APPEND THORIN_DEPS_INCLUDE_DIRS ${RV_INCLUDE_DIRS})
+    list(APPEND Thorin_DEPS_INCLUDE_DIRS ${RV_INCLUDE_DIRS})
 endif(RV_FOUND)
 
-set(Thorin_LIBRARIES ${THORIN_LIBRARY})
-set(Thorin_INCLUDE_DIRS ${THORIN_INCLUDE_DIR} ${THORIN_DEPS_INCLUDE_DIRS})
+set(Thorin_LIBRARIES ${Thorin_LIBRARY})
+set(Thorin_INCLUDE_DIRS ${Thorin_INCLUDE_DIR} ${Thorin_DEPS_INCLUDE_DIRS})
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(Thorin DEFAULT_MSG Thorin_DIR THORIN_INCLUDE_DIR)
+find_package_handle_standard_args(Thorin DEFAULT_MSG Thorin_DIR Thorin_INCLUDE_DIR)
 
-mark_as_advanced(THORIN_LIBRARY THORIN_INCLUDE_DIR THORIN_ROOT_DIR)
+mark_as_advanced(Thorin_LIBRARY Thorin_INCLUDE_DIR Thorin_ROOT_DIR)

@@ -163,6 +163,8 @@ llvm::Value* CodeGen::emit_bitcast(const Def* val, const Type* dst_type) {
     auto from = lookup(val);
     auto src_type = val->type();
     auto to = convert(dst_type);
+    if (from->getType()->isAggregateType() || to->isAggregateType())
+        ELOG(val, "bitcast from or to aggregate types not allowed: bitcast from '{}' to '{}'", src_type, dst_type);
     if (src_type->isa<PtrType>() && dst_type->isa<PtrType>())
         return irbuilder_.CreatePointerCast(from, to);
     return irbuilder_.CreateBitCast(from, to);

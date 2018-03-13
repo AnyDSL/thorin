@@ -58,5 +58,5 @@ if (RV_FOUND)
 endif()
 configure_file(src/thorin/config.h.in ${CMAKE_SOURCE_DIR}/src/thorin/config.h @ONLY)
 
-export(TARGETS thorin FILE ${CMAKE_BINARY_DIR}/share/thorin/cmake/thorin-exports.cmake)
-configure_file(cmake/thorin-config.cmake.in ${CMAKE_BINARY_DIR}/share/thorin/cmake/thorin-config.cmake @ONLY)
+export(TARGETS thorin FILE ${CMAKE_BINARY_DIR}/share/anydsl/cmake/thorin-exports.cmake)
+configure_file(cmake/thorin-config.cmake.in ${CMAKE_BINARY_DIR}/share/anydsl/cmake/thorin-config.cmake @ONLY)

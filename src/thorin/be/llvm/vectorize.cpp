@@ -152,11 +152,6 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
 
         rv::addSleefMappings(vec_isa, platform_info, impreciseFunctions);
 
-        llvm::DominatorTree dom_tree(*kernel_func);
-        llvm::PostDominatorTree pdom_tree;
-        pdom_tree.recalculate(*kernel_func);
-        llvm::LoopInfo loop_info(dom_tree);
-
         LoopExitCanonicalizer canonicalizer(loop_info);
         canonicalizer.canonicalize(*kernel_func);
 

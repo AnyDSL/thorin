@@ -82,9 +82,11 @@ void NVVMCodeGen::emit_function_decl_hook(Continuation* continuation, llvm::Func
     auto config = kernel_config_.find(continuation);
     if (config != kernel_config_.end()) {
         auto block = config->second->as<GPUKernelConfig>()->block_size();
-        append_metadata(f, "maxntidx", std::get<0>(block));
-        append_metadata(f, "maxntidy", std::get<1>(block));
-        append_metadata(f, "maxntidz", std::get<2>(block));
+        if (std::get<0>(block) > 0 && std::get<1>(block) > 0 && std::get<2>(block) > 0) {
+            append_metadata(f, "maxntidx", std::get<0>(block));
+            append_metadata(f, "maxntidy", std::get<1>(block));
+            append_metadata(f, "maxntidz", std::get<2>(block));
+        }
     }
 
     // check signature for texturing memory

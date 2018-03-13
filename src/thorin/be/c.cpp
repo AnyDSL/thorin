@@ -205,9 +205,6 @@ std::ostream& CCodeGen::emit_aggop_defs(const Def* def) {
         emit(variant) << endl;
     }
 
-    if (def->isa<ConvOp>() || def->isa<Bottom>())
-        emit(def) << endl;
-
     return func_impl_;
 }
 
@@ -825,9 +822,9 @@ std::ostream& CCodeGen::emit(const Def* def) {
         if (conv->isa<Bitcast>() && conv->from()->isa<Global>() && is_string_type(conv->from()->as<Global>()->init()->type())) {
             auto dst_ptr = dst_type->isa<PtrType>();
             if (dst_ptr && dst_ptr->pointee()->isa<IndefiniteArrayType>()) {
+                func_impl_ << "// skipped string bitcast: ";
                 emit(conv->from());
                 insert(def, get_name(conv->from()));
-                func_impl_ << "// skipped string bitcast";
                 return func_impl_;
             }
         }

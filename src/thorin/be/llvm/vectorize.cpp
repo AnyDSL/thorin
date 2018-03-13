@@ -157,16 +157,10 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
         pdom_tree.recalculate(*kernel_func);
         llvm::LoopInfo loop_info(dom_tree);
 
-        llvm::ScalarEvolutionAnalysis SEA;
-        auto SE = SEA.run(*kernel_func, FAM);
-
-        llvm::MemoryDependenceAnalysis MDA;
-        auto MD = MDA.run(*kernel_func, FAM);
-
         LoopExitCanonicalizer canonicalizer(loop_info);
         canonicalizer.canonicalize(*kernel_func);
 
-        rv::Session session(platform_info, dom_tree, pdom_tree, loop_info, SE, MD, nullptr);
+        rv::Session session(platform_info, FAM, nullptr);
         llvm::ValueToValueMapTy vecInstMap;
         rv::OptConfig opt_config;
         opt_config.enableSplitAllocas = true;

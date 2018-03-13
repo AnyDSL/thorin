@@ -152,6 +152,7 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
 
         rv::addSleefMappings(vec_isa, platform_info, impreciseFunctions);
 
+        auto& loop_info = FAM.getResult<llvm::LoopAnalysis>(*kernel_func);
         LoopExitCanonicalizer canonicalizer(loop_info);
         canonicalizer.canonicalize(*kernel_func);
 

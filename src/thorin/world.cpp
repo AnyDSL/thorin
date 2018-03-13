@@ -751,8 +751,8 @@ const Def* World::load(const Def* mem, const Def* ptr, Debug dbg) {
     if (auto slot = ptr->isa<Slot>()) {
         // are all users loads and stores *from* this slot (use.index() == 1)?
         // calls or stores that store this slot somewhere else would require more analysis
-        if (std::all_of(slot->uses().begin(), slot->uses().end(), [&] (auto use) {
-                    return use.index() == 1 && (use->template isa<Load>() || use->template isa<Store>()); })) {
+        if (std::all_of(slot->uses().begin(), slot->uses().end(), [&] (const Use& use) {
+                    return use.index() == 1 && (use->isa<Load>() || use->isa<Store>()); })) {
             auto cur = mem;
             while (!cur->isa<Param>()) {
                 if (auto store = cur->isa<Store>())

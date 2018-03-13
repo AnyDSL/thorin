@@ -777,7 +777,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
                 llvm_agg = irbuilder_.CreateInsertElement(llvm_agg, lookup(agg->op(i)), irbuilder_.getInt32(i));
         } else if (auto closure = def->isa<Closure>()) {
             if (!closure->is_thin())
-                ELOG(def, "cannot create an enviroment for closure '{}', type '{}' is too large", def, agg->op(1)->type());
+                ELOG(def, "cannot create an environment for closure '{}', type '{}' is too large", def, agg->op(1)->type());
             auto closure_fn = irbuilder_.CreatePointerCast(lookup(agg->op(0)), llvm_agg->getType()->getStructElementType(0));
             const Def* env = nullptr;
             if (agg->op(1)->type() == world_.unit()) {

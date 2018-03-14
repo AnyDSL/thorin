@@ -72,7 +72,7 @@ public:
             return true;
         }
 
-        return callee_->num_uses() == 1 || is_one(instantiate(filter(i)));
+        return (!callee_->is_external() && callee_->num_uses() == 1) || is_one(instantiate(filter(i)));
         //return is_one(instantiate(filter(i)));
     }
 

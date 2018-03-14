@@ -210,8 +210,8 @@ namespace detail {
     inline std::ostream& stream(std::ostream& os, const Type* type) { return type->stream(os); }
 }
 
-inline std::ostream& operator<<(std::ostream& os, const Def* def) { return def->stream(os); }
-inline std::ostream& operator<<(std::ostream& os, const Type* type) { return type->stream(os); }
+inline std::ostream& operator<<(std::ostream& os, const Def* def) { return def == nullptr ? os << "nullptr" : def->stream(os); }
+inline std::ostream& operator<<(std::ostream& os, const Type* type) { return type == nullptr ? os << "nullptr" : type->stream(os); }
 inline std::ostream& operator<<(std::ostream& os, Use use) { return use->stream(os); }
 
 //------------------------------------------------------------------------------

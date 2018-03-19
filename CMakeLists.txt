@@ -38,8 +38,6 @@ else()
     message(STATUS "Building without LLVM and RV. Specify LLVM_DIR to compile with LLVM.")
 endif()
 
-add_subdirectory(src)
-
 message(STATUS "Using Debug flags: ${CMAKE_CXX_FLAGS_DEBUG}")
 message(STATUS "Using Release flags: ${CMAKE_CXX_FLAGS_RELEASE}")
 if(DEFINED CMAKE_BUILD_TYPE)
@@ -56,7 +54,10 @@ endif()
 if (RV_FOUND)
     set(THORIN_ENABLE_RV TRUE)
 endif()
-configure_file(src/thorin/config.h.in ${CMAKE_SOURCE_DIR}/src/thorin/config.h @ONLY)
+configure_file(src/thorin/config.h.in ${CMAKE_BINARY_DIR}/include/thorin/config.h @ONLY)
+include_directories(${CMAKE_BINARY_DIR}/include)
+
+add_subdirectory(src)
 
 export(TARGETS thorin FILE ${CMAKE_BINARY_DIR}/share/anydsl/cmake/thorin-exports.cmake)
 configure_file(cmake/thorin-config.cmake.in ${CMAKE_BINARY_DIR}/share/anydsl/cmake/thorin-config.cmake @ONLY)

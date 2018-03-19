@@ -40,13 +40,23 @@ if(Thorin_HAS_LLVM_SUPPORT)
 endif()
 
 find_path(Thorin_INCLUDE_DIR NAMES thorin/world.h PATHS ${Thorin_ROOT_DIR}/src)
+find_path(Thorin_CONFIG_DIR NAMES thorin/config.h
+    PATHS
+        ${Thorin_DIR} ${AnyDSL_thorin_DIR} $ENV{Thorin_DIR}
+        ${CMAKE_CURRENT_LIST_DIR}
+        "@CMAKE_CURRENT_BINARY_DIR@"
+        "@CMAKE_INSTALL_PREFIX@"
+    PATH_SUFFIXES
+        include
+        ../../../include
+)
 
 if(NOT TARGET thorin)
     include(${Thorin_DIR}/thorin-exports.cmake)
 endif()
 set(Thorin_LIBRARY thorin)
 
-set(Thorin_DEPS_INCLUDE_DIRS ${Half_INCLUDE_DIRS})
+set(Thorin_DEPS_INCLUDE_DIRS ${Half_INCLUDE_DIRS} ${Thorin_CONFIG_DIR})
 if(LLVM_FOUND)
     list(APPEND Thorin_DEPS_INCLUDE_DIRS ${LLVM_INCLUDE_DIRS})
 endif(LLVM_FOUND)
@@ -60,4 +70,4 @@ set(Thorin_INCLUDE_DIRS ${Thorin_INCLUDE_DIR} ${Thorin_DEPS_INCLUDE_DIRS})
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(Thorin DEFAULT_MSG Thorin_DIR Thorin_INCLUDE_DIR)
 
-mark_as_advanced(Thorin_LIBRARY Thorin_INCLUDE_DIR Thorin_ROOT_DIR)
+mark_as_advanced(Thorin_LIBRARY Thorin_INCLUDE_DIR Thorin_CONFIG_DIR Thorin_ROOT_DIR)

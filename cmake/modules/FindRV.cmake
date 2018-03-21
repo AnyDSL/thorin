@@ -5,9 +5,21 @@
 #  RV_LIBRARIES     - where to find RV library
 #  RV_FOUND         - True if RV library is found
 
-find_path(RV_INCLUDE_DIR      rv.h     PATHS ${LLVM_INCLUDE_DIRS} PATH_SUFFIXES rv)
-find_library(RV_LIBRARY       RV       PATHS ${LLVM_LIBRARY_DIRS})
-find_library(RV_SLEEF_LIBRARY gensleef PATHS ${LLVM_LIBRARY_DIRS})
+find_path(RV_INCLUDE_DIR  rv.h
+    PATHS
+        ${LLVM_INCLUDE_DIRS}
+        ${LLVM_BUILD_MAIN_SRC_DIR}/tools/rv/include
+    PATH_SUFFIXES rv)
+if(TARGET RV)
+    set(RV_LIBRARY RV)
+else()
+    find_library(RV_LIBRARY       RV       PATHS ${LLVM_LIBRARY_DIRS})
+endif()
+if(TARGET gensleef)
+    set(RV_SLEEF_LIBRARY gensleef)
+else()
+    find_library(RV_SLEEF_LIBRARY gensleef PATHS ${LLVM_LIBRARY_DIRS})
+endif()
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(RV DEFAULT_MSG RV_INCLUDE_DIR RV_LIBRARY)

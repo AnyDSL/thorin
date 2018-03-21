@@ -5,11 +5,10 @@
 #  RV_LIBRARIES     - where to find RV library
 #  RV_FOUND         - True if RV library is found
 
-find_path(RV_INCLUDE_DIR  rv.h
+find_path(RV_INCLUDE_DIR rv/rv.h
     PATHS
         ${LLVM_INCLUDE_DIRS}
-        ${LLVM_BUILD_MAIN_SRC_DIR}/tools/rv/include
-    PATH_SUFFIXES rv)
+        ${LLVM_BUILD_MAIN_SRC_DIR}/tools/rv/include)
 if(TARGET RV)
     set(RV_LIBRARY RV)
 else()

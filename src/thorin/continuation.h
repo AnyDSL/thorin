@@ -73,6 +73,10 @@ enum class Intrinsic : uint8_t {
     Parallel,                   ///< Internal Parallel-CPU-Backend.
     Spawn,                      ///< Internal Parallel-CPU-Backend.
     Sync,                       ///< Internal Parallel-CPU-Backend.
+    CreateGraph,                ///< Internal Flow-Graph-Backend.
+    CreateTask,                 ///< Internal Flow-Graph-Backend.
+    CreateEdge,                 ///< Internal Flow-Graph-Backend.
+    ExecuteGraph,               ///< Internal Flow-Graph-Backend.
     Vectorize,                  ///< External vectorizer.
     _Accelerator_End,
     Reserve = _Accelerator_End, ///< Intrinsic memory reserve function

@@ -10,5 +10,9 @@ namespace thorin {
         declare void @anydsl_parallel_for(i32, i32, i32, i8*, i8*);
         declare i32  @anydsl_spawn_thread(i8*, i8*);
         declare void @anydsl_sync_thread(i32);
+        declare i32  @anydsl_create_graph();
+        declare i32  @anydsl_create_task(i32, { i8*, i64 });
+        declare void @anydsl_create_edge(i32, i32);
+        declare void @anydsl_execute_graph(i32, i32);
     )";
 }

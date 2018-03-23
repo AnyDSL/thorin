@@ -13,6 +13,7 @@
 #include "thorin/transform/codegen_prepare.h"
 #include "thorin/transform/dead_load_opt.h"
 #include "thorin/transform/flatten_tuples.h"
+#include "thorin/transform/rewrite_flow_graphs.h"
 #include "thorin/transform/hoist_enters.h"
 #include "thorin/transform/inliner.h"
 #include "thorin/transform/lift_builtins.h"
@@ -948,13 +949,14 @@ void World::opt() {
     clone_bodies(*this);
     split_slots(*this);
     mem2reg(*this);
+    closure_conversion(*this);
     lift_builtins(*this);
     inliner(*this);
     hoist_enters(*this);
     dead_load_opt(*this);
-    closure_conversion(*this);
     cleanup();
     codegen_prepare(*this);
+    rewrite_flow_graphs(*this);
 }
 
 /*

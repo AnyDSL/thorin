@@ -19,7 +19,8 @@ public:
         // create a new continuation for every continuation taking a function as parameter
         std::vector<std::pair<Continuation*, Continuation*>> converted;
         for (auto continuation : world_.copy_continuations()) {
-            if (continuation->empty() || continuation->is_intrinsic()) {
+            // do not convert empty continuations or intrinsics, except graph intrinsics
+            if ((continuation->empty() || continuation->is_intrinsic()) && !is_graph_intrinsic(continuation)) {
                 new_defs_[continuation] = continuation;
                 continue;
             }
@@ -27,13 +28,18 @@ public:
             auto new_type = world_.fn_type(convert(continuation->type())->ops());
             if (new_type != continuation->type()) {
                 auto new_continuation = world_.continuation(new_type->as<FnType>(), continuation->debug());
-                for (size_t i = 0, e = continuation->num_params(); i != e; ++i)
-                    new_defs_[continuation->param(i)] = new_continuation->param(i);
+                if (continuation->is_intrinsic())
+                    new_continuation->set_intrinsic();
+
                 new_defs_[continuation] = new_continuation;
-                // copy existing call from old continuation
-                new_continuation->jump(continuation->callee(), continuation->args(), continuation->jump_debug());
-                converted.emplace_back(continuation, new_continuation);
-            } else {
+                if (!continuation->empty()) {
+                    for (size_t i = 0, e = continuation->num_params(); i != e; ++i)
+                        new_defs_[continuation->param(i)] = new_continuation->param(i);
+                    // copy existing call from old continuation
+                    new_continuation->jump(continuation->callee(), continuation->args(), continuation->jump_debug());
+                    converted.emplace_back(continuation, new_continuation);
+                }
+            } else if (!continuation->empty()) {
                 converted.emplace_back(continuation, continuation);
             }
         }
@@ -52,9 +58,9 @@ public:
     }
 
     void convert_jump(Continuation* continuation) {
-        // prevent conversion of calls to vectorize() or cuda()
-        if (!continuation->callee()->isa_continuation() ||
-            !continuation->callee()->as_continuation()->is_intrinsic()) {
+        // prevent conversion of calls to vectorize() or cuda(), but allow graph intrinsics
+        auto callee = continuation->callee()->isa_continuation();
+        if (!callee || !callee->is_intrinsic() || is_graph_intrinsic(callee)) {
             Array<const Def*> new_args(continuation->num_args());
             for (size_t i = 0, e = continuation->num_args(); i != e; ++i)
                 new_args[i] = convert(continuation->arg(i));
@@ -187,6 +193,13 @@ public:
             return new_types_[type] = new_type;
         else
             return new_types_[type] = world_.closure_type(new_type->ops());
+    }
+
+    bool is_graph_intrinsic(const Continuation* cont) {
+        return cont->intrinsic() == Intrinsic::CreateTask  ||
+               cont->intrinsic() == Intrinsic::CreateGraph ||
+               cont->intrinsic() == Intrinsic::CreateEdge  ||
+               cont->intrinsic() == Intrinsic::ExecuteGraph;
     }
 
 private:

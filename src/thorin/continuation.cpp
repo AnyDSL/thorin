@@ -178,20 +178,24 @@ bool Continuation::is_external() const { return world().is_external(this); }
 bool Continuation::is_intrinsic() const { return intrinsic_ != Intrinsic::None; }
 bool Continuation::is_accelerator() const { return Intrinsic::_Accelerator_Begin <= intrinsic_ && intrinsic_ < Intrinsic::_Accelerator_End; }
 void Continuation::set_intrinsic() {
-    if      (name() == "cuda")           intrinsic_ = Intrinsic::CUDA;
-    else if (name() == "nvvm")           intrinsic_ = Intrinsic::NVVM;
-    else if (name() == "opencl")         intrinsic_ = Intrinsic::OpenCL;
-    else if (name() == "amdgpu")         intrinsic_ = Intrinsic::AMDGPU;
-    else if (name() == "hls")            intrinsic_ = Intrinsic::HLS;
-    else if (name() == "parallel")       intrinsic_ = Intrinsic::Parallel;
-    else if (name() == "spawn")          intrinsic_ = Intrinsic::Spawn;
-    else if (name() == "sync")           intrinsic_ = Intrinsic::Sync;
-    else if (name() == "vectorize")      intrinsic_ = Intrinsic::Vectorize;
-    else if (name() == "pe_info")        intrinsic_ = Intrinsic::PeInfo;
-    else if (name() == "reserve_shared") intrinsic_ = Intrinsic::Reserve;
-    else if (name() == "atomic")         intrinsic_ = Intrinsic::Atomic;
-    else if (name() == "cmpxchg")        intrinsic_ = Intrinsic::CmpXchg;
-    else if (name() == "undef")          intrinsic_ = Intrinsic::Undef;
+    if      (name() == "cuda")                 intrinsic_ = Intrinsic::CUDA;
+    else if (name() == "nvvm")                 intrinsic_ = Intrinsic::NVVM;
+    else if (name() == "opencl")               intrinsic_ = Intrinsic::OpenCL;
+    else if (name() == "amdgpu")               intrinsic_ = Intrinsic::AMDGPU;
+    else if (name() == "hls")                  intrinsic_ = Intrinsic::HLS;
+    else if (name() == "parallel")             intrinsic_ = Intrinsic::Parallel;
+    else if (name() == "spawn")                intrinsic_ = Intrinsic::Spawn;
+    else if (name() == "sync")                 intrinsic_ = Intrinsic::Sync;
+    else if (name() == "anydsl_create_graph")  intrinsic_ = Intrinsic::CreateGraph;
+    else if (name() == "anydsl_create_task")   intrinsic_ = Intrinsic::CreateTask;
+    else if (name() == "anydsl_create_edge")   intrinsic_ = Intrinsic::CreateEdge;
+    else if (name() == "anydsl_execute_graph") intrinsic_ = Intrinsic::ExecuteGraph;
+    else if (name() == "vectorize")            intrinsic_ = Intrinsic::Vectorize;
+    else if (name() == "pe_info")              intrinsic_ = Intrinsic::PeInfo;
+    else if (name() == "reserve_shared")       intrinsic_ = Intrinsic::Reserve;
+    else if (name() == "atomic")               intrinsic_ = Intrinsic::Atomic;
+    else if (name() == "cmpxchg")              intrinsic_ = Intrinsic::CmpXchg;
+    else if (name() == "undef")                intrinsic_ = Intrinsic::Undef;
     else ELOG(this, "unsupported thorin intrinsic");
 }
 

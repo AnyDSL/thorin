@@ -1079,7 +1079,8 @@ llvm::Type* CodeGen::convert(const Type* type) {
             std::vector<llvm::Type*> ops;
             for (auto op : fn->ops()) {
                 if (op->isa<MemType>() || op == world().unit()) continue;
-                if (auto fn = op->isa<FnType>()) {
+                auto fn = op->isa<FnType>();
+                if (fn && !op->isa<ClosureType>()) {
                     assert(!ret && "only one 'return' supported");
                     std::vector<llvm::Type*> ret_types;
                     for (auto fn_op : fn->ops()) {

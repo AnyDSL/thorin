@@ -936,7 +936,7 @@ llvm::Value* CodeGen::emit_global(const Global* global) {
         val = fcts_[continuation];
     else {
         auto llvm_type = convert(global->alloced_type());
-        auto var = llvm::cast<llvm::GlobalVariable>(module_->getOrInsertGlobal(global->name().c_str(), llvm_type));
+        auto var = llvm::cast<llvm::GlobalVariable>(module_->getOrInsertGlobal(global->unique_name().c_str(), llvm_type));
         if (global->init()->isa<Bottom>())
             var->setInitializer(llvm::Constant::getNullValue(llvm_type)); // HACK
         else

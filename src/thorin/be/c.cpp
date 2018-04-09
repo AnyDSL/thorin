@@ -205,6 +205,10 @@ std::ostream& CCodeGen::emit_aggop_defs(const Def* def) {
         emit(variant) << endl;
     }
 
+    // emit declarations for bottom - required for nested data structures
+    if (def->isa<Bottom>())
+        emit(def) << endl;
+
     return func_impl_;
 }
 

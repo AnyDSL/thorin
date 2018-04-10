@@ -216,9 +216,6 @@ std::ostream& CCodeGen::emit_aggop_decl(const Type* type) {
     if (lookup(type) || type == world().unit())
         return type_decls_;
 
-    if (is_string_type(type))
-        return type_decls_;
-
     // set indent to zero
     auto indent = detail::get_indent();
     while (detail::get_indent() != 0)

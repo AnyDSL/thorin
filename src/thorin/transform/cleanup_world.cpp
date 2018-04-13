@@ -236,32 +236,34 @@ void Cleaner::clean_pe_infos() {
 }
 
 void Cleaner::cleanup_fix_point() {
-    int i = 0;
-    for (; todo_; ++i) {
-        VLOG("iteration: {}", i);
-        todo_ = false;
-        eta_conversion();
-        eliminate_params();
-        rebuild();
-        if (!world().is_pe_done())
-            todo_ |= partial_evaluation(world_);
-        else
-            clean_pe_infos();
+    bool needs_pe_cleanup = !world().is_pe_done();
+
+    int pe_runs = 0;
+    do {
+        int i = 0;
+        for (; todo_; ++i) {
+            VLOG("iteration: {}", i);
+            todo_ = false;
+            eta_conversion();
+            eliminate_params();
+            rebuild();
+        }
+
+        VLOG("pe run: {}", pe_runs++);
+        world().mark_pe_done(!partial_evaluation(world_));
+    } while (!world().is_pe_done());
+
+    if (needs_pe_cleanup) {
+        clean_pe_infos();
+        for (auto continuation : world().continuations())
+            continuation->destroy_filter();
+        cleanup_fix_point();
     }
 }
 
 void Cleaner::cleanup() {
     VLOG("start cleanup");
     cleanup_fix_point();
-
-    if (!world().is_pe_done()) {
-        world().mark_pe_done();
-        for (auto continuation : world().continuations())
-            continuation->destroy_filter();
-        todo_ = true;
-        cleanup_fix_point();
-    }
-
     VLOG("end cleanup");
 #if THORIN_ENABLE_CHECKS
     verify_closedness();

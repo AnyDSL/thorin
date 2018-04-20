@@ -205,14 +205,15 @@ std::ostream& CCodeGen::emit_aggop_defs(const Def* def) {
         emit(variant) << endl;
     }
 
+    // emit declarations for bottom - required for nested data structures
+    if (def->isa<Bottom>())
+        emit(def) << endl;
+
     return func_impl_;
 }
 
 std::ostream& CCodeGen::emit_aggop_decl(const Type* type) {
     if (lookup(type) || type == world().unit())
-        return type_decls_;
-
-    if (is_string_type(type))
         return type_decls_;
 
     // set indent to zero

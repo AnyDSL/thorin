@@ -393,6 +393,9 @@ const Def* World::cmp(CmpTag tag, const Def* a, const Def* b, Debug dbg) {
         default: break;
     }
 
+    if (a->isa<Bottom>() || b->isa<Bottom>())
+        return bottom(type_bool(), dbg);
+
     if (oldtag != tag)
         std::swap(a, b);
 
@@ -728,9 +731,14 @@ const Def* World::size_of(const Type* type, Debug dbg) {
  */
 
 const Def* World::load(const Def* mem, const Def* ptr, Debug dbg) {
-    if (auto store = mem->isa<Store>())
+    if (auto store = mem->isa<Store>()) {
         if (store->ptr() == ptr)
             return tuple({mem, store->val()}, dbg);
+        if (auto lea = ptr->isa<LEA>()) {
+            if (lea->ptr() == store->ptr())
+                return tuple({mem, extract(store->val(), lea->index())}, dbg);
+        }
+    }
 
     if (auto global = ptr->isa<Global>()) {
         if (!global->is_mutable())
@@ -778,6 +786,10 @@ const Def* World::store(const Def* mem, const Def* ptr, const Def* value, Debug 
     if (auto st = mem->isa<Store>()) {
         if (ptr == st->ptr() && value == st->val())
             return st;
+        if (auto lea = ptr->isa<LEA>()) {
+            if (lea->ptr() == st->ptr() && is_const(st->val()) && is_const(lea->index()))
+                return store(st->mem(), lea->ptr(), insert(st->val(), lea->index(), value), dbg);
+        }
     }
 
     if (auto insert = value->isa<Insert>()) {

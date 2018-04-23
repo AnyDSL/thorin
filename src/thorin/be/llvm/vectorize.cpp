@@ -93,7 +93,6 @@ Continuation* CodeGen::emit_vectorize_continuation(Continuation* continuation) {
 void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* kernel_func, llvm::CallInst* simd_kernel_call) {
     // ensure proper loop forms
     llvm::legacy::FunctionPassManager pm(module_.get());
-    pm.add(llvm::createInstructionCombiningPass());
     pm.add(llvm::createSCCPPass());
     pm.add(rv::createCNSPass()); // make all loops reducible (has to run first!)
     pm.add(llvm::createPromoteMemoryToRegisterPass()); // CNSPass relies on mem2reg for now

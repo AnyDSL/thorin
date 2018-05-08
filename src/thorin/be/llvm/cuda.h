@@ -12,7 +12,7 @@ public:
     void emit(std::ostream& stream, int opt, bool debug) override;
 
 protected:
-    virtual std::string get_alloc_name() const { return "malloc"; }
+    virtual std::string get_alloc_name() const override { return "malloc"; }
 
     const Cont2Config& kernel_config_;
 };

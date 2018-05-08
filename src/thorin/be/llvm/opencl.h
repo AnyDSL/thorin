@@ -12,7 +12,7 @@ public:
     void emit(std::ostream& stream, int opt, bool debug) override;
 
 protected:
-    virtual std::string get_alloc_name() const { THORIN_UNREACHABLE; /*alloc not supported in OpenCL*/; }
+    virtual std::string get_alloc_name() const override { THORIN_UNREACHABLE; /*alloc not supported in OpenCL*/; }
 
     const Cont2Config& kernel_config_;
 };

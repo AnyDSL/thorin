@@ -18,7 +18,7 @@
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Support/Host.h>
 #include <llvm/Support/Path.h>
-#include <llvm/Support/raw_ostream.h>
+#include <llvm/Support/raw_os_ostream.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
 #include <llvm/Transforms/Scalar.h>
@@ -43,7 +43,6 @@
 #include "thorin/be/llvm/nvvm.h"
 #include "thorin/be/llvm/opencl.h"
 #include "thorin/transform/codegen_prepare.h"
-#include "thorin/transform/importer.h"
 #include "thorin/util/array.h"
 #include "thorin/util/log.h"
 
@@ -211,7 +210,7 @@ llvm::Function* CodeGen::emit_function_decl(Continuation* continuation) {
 
     return fcts_[continuation] = f;
 }
-std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug, bool print) {
+std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
     llvm::DICompileUnit* dicompile_unit;
     if (debug) {
         module_->addModuleFlag(llvm::Module::Warning, "Debug Info Version", llvm::DEBUG_METADATA_VERSION);
@@ -480,16 +479,12 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug, bool print) {
     if (debug)
         dibuilder_.finalize();
 
-    if (print) {
-        std::error_code EC;
-        auto ll_name = get_output_name(world_.name());
-        llvm::raw_fd_ostream out(ll_name, EC, llvm::sys::fs::F_Text);
-        if (EC)
-            throw std::runtime_error("cannot write '" + ll_name + "': " + EC.message());
-
-        module_->print(out, nullptr);
-    }
     return module_;
+}
+
+void CodeGen::emit(std::ostream& stream, int opt, bool debug) {
+    llvm::raw_os_ostream llvm_stream(stream);
+    emit(opt, debug)->print(llvm_stream, nullptr);
 }
 
 void CodeGen::optimize(int opt) {
@@ -1265,15 +1260,13 @@ static uint64_t get_alloc_size(const Def* def) {
     return size ? static_cast<uint64_t>(size->value().get_qu64()) : 0_u64;
 }
 
-void emit_llvm(World& world, int opt, bool debug) {
-    Importer cuda(world);
-    Importer nvvm(world);
-    Importer opencl(world);
-    Importer amdgpu(world);
-    Importer hls(world);
-    Cont2Config kernel_config;
-    std::vector<Continuation*> kernels;
-
+Backends::Backends(World& world)
+    : cuda(world)
+    , nvvm(world)
+    , opencl(world)
+    , amdgpu(world)
+    , hls(world)
+{
     // determine different parts of the world which need to be compiled differently
     Scope::for_each(world, [&] (const Scope& scope) {
         auto continuation = scope.entry();
@@ -1375,13 +1368,13 @@ void emit_llvm(World& world, int opt, bool debug) {
     world.cleanup();
     codegen_prepare(world);
 
-    CPUCodeGen(world).emit(opt, debug);
+    cpu_cg = std::make_unique<CPUCodeGen>(world);
 
-    if (!cuda.  world().empty()) CUDACodeGen  (cuda  .world(), kernel_config).emit(/*opt,*/ debug);
-    if (!nvvm.  world().empty()) NVVMCodeGen  (nvvm  .world(), kernel_config).emit(opt, debug);
-    if (!opencl.world().empty()) OpenCLCodeGen(opencl.world(), kernel_config).emit(/*opt,*/ debug);
-    if (!amdgpu.world().empty()) AMDGPUCodeGen(amdgpu.world(), kernel_config).emit(opt, debug);
-    if (!hls.   world().empty()) HLSCodeGen   (hls   .world(), kernel_config).emit(/*opt,*/ debug);
+    if (!nvvm.  world().empty()) nvvm_cg   = std::make_unique<NVVMCodeGen  >(nvvm  .world(), kernel_config);
+    if (!amdgpu.world().empty()) amdgpu_cg = std::make_unique<AMDGPUCodeGen>(amdgpu.world(), kernel_config);
+    if (!cuda.  world().empty()) cuda_cg   = std::make_unique<CUDACodeGen  >(cuda  .world(), kernel_config);
+    if (!opencl.world().empty()) opencl_cg = std::make_unique<OpenCLCodeGen>(opencl.world(), kernel_config);
+    if (!hls.   world().empty()) hls_cg    = std::make_unique<HLSCodeGen   >(hls   .world(), kernel_config);
 }
 
 //------------------------------------------------------------------------------

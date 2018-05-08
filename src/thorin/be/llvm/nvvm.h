@@ -22,7 +22,6 @@ protected:
     virtual llvm::Value* emit_lea(const LEA*) override;
     virtual Continuation* emit_reserve(const Continuation*) override;
     virtual std::string get_alloc_name() const override { return "malloc"; }
-    virtual std::string get_output_name(const std::string& name) const override { return name + ".nvvm"; }
 
 private:
     llvm::Function* get_texture_handle_fun();

@@ -15,12 +15,8 @@ OpenCLCodeGen::OpenCLCodeGen(World& world, const Cont2Config& kernel_config)
     , kernel_config_(kernel_config)
 {}
 
-void OpenCLCodeGen::emit(bool debug) {
-    auto name = get_output_name(world_.name());
-    std::ofstream file(name);
-    if (!file.is_open())
-        throw std::runtime_error("cannot write '" + name + "': " + strerror(errno));
-    thorin::emit_c(world_, kernel_config_, file, Lang::OPENCL, debug);
+void OpenCLCodeGen::emit(std::ostream& stream, int /*opt*/, bool debug) {
+    thorin::emit_c(world_, kernel_config_, stream, Lang::OPENCL, debug);
 }
 
 }

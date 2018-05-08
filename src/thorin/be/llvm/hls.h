@@ -9,11 +9,10 @@ class HLSCodeGen : public CodeGen {
 public:
     HLSCodeGen(World& world, const Cont2Config&);
 
-    void emit(bool debug);
+    void emit(std::ostream& stream, int opt, bool debug) override;
 
 protected:
     virtual std::string get_alloc_name() const { THORIN_UNREACHABLE; /*alloc not supported in HLS*/; }
-    virtual std::string get_output_name(const std::string& name) const { return name + ".hls"; }
 
     const Cont2Config& kernel_config_;
 };

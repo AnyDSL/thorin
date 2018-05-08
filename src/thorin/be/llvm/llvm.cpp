@@ -463,6 +463,9 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
         primops_.clear();
     });
 
+    if (debug)
+        dibuilder_.finalize();
+
 #if THORIN_ENABLE_RV
     // emit vectorized code
     for (const auto& tuple : vec_todo_)
@@ -476,8 +479,6 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
     llvm::verifyModule(*module_);
 #endif
     optimize(opt);
-    if (debug)
-        dibuilder_.finalize();
 
     return module_;
 }

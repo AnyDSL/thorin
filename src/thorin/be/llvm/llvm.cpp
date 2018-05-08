@@ -464,6 +464,9 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug, bool print) {
         primops_.clear();
     });
 
+    if (debug)
+        dibuilder_.finalize();
+
 #if THORIN_ENABLE_RV
     // emit vectorized code
     for (const auto& tuple : vec_todo_)
@@ -477,8 +480,6 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug, bool print) {
     llvm::verifyModule(*module_);
 #endif
     optimize(opt);
-    if (debug)
-        dibuilder_.finalize();
 
     if (print) {
         std::error_code EC;

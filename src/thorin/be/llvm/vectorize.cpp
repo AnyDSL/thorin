@@ -7,6 +7,7 @@
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/Transforms/Scalar.h>
+#include <llvm/Transforms/Utils.h>
 #include <llvm/Analysis/LoopInfo.h>
 #include <llvm/Analysis/ScalarEvolution.h>
 #include <llvm/Analysis/MemoryDependenceAnalysis.h>
@@ -19,6 +20,7 @@
 #include <rv/transform/loopExitCanonicalizer.h>
 #include <rv/passes.h>
 #include <rv/analysis/DFG.h>
+#include <rv/region/FunctionRegion.h>
 
 #include "thorin/primop.h"
 #include "thorin/util/log.h"
@@ -115,7 +117,9 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
     }
 
     rv::VectorMapping target_mapping(kernel_func, simd_kernel_func, vector_length, -1, res, args);
-    rv::VectorizationInfo vec_info(target_mapping);
+    rv::FunctionRegion funcRegion(*kernel_func);
+    rv::Region funcRegionWrapper(funcRegion);
+    rv::VectorizationInfo vec_info(funcRegionWrapper, target_mapping);
 
     llvm::FunctionAnalysisManager FAM;
     llvm::ModuleAnalysisManager MAM;

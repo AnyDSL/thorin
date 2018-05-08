@@ -13,6 +13,7 @@
 #include <llvm/Analysis/MemoryDependenceAnalysis.h>
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/IR/LegacyPassManager.h>
+#include <llvm/IR/Verifier.h>
 
 #include <rv/rv.h>
 #include <rv/vectorizationInfo.h>
@@ -93,6 +94,13 @@ Continuation* CodeGen::emit_vectorize_continuation(Continuation* continuation) {
 }
 
 void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* kernel_func, llvm::CallInst* simd_kernel_call) {
+    bool broken = llvm::verifyModule(*module_.get(), &llvm::errs());
+    if (broken) {
+      module_->dump();
+      llvm::errs() << "Broken module:\n";
+      abort();
+    }
+
     // ensure proper loop forms
     llvm::legacy::FunctionPassManager pm(module_.get());
     pm.add(llvm::createSCCPPass());

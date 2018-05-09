@@ -9,11 +9,10 @@ class CUDACodeGen : public CodeGen {
 public:
     CUDACodeGen(World& world, const Cont2Config&);
 
-    void emit(bool debug);
+    void emit(std::ostream& stream, int opt, bool debug) override;
 
 protected:
-    virtual std::string get_alloc_name() const { return "malloc"; }
-    virtual std::string get_output_name(const std::string& name) const { return name + ".cu"; }
+    virtual std::string get_alloc_name() const override { return "malloc"; }
 
     const Cont2Config& kernel_config_;
 };

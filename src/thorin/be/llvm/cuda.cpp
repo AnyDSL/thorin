@@ -14,12 +14,8 @@ CUDACodeGen::CUDACodeGen(World& world, const Cont2Config& kernel_config)
     , kernel_config_(kernel_config)
 {}
 
-void CUDACodeGen::emit(bool debug) {
-    auto name = get_output_name(world_.name());
-    std::ofstream file(name);
-    if (!file.is_open())
-        throw std::runtime_error("cannot write '" + name + "': " + strerror(errno));
-    thorin::emit_c(world_, kernel_config_, file, Lang::CUDA, debug);
+void CUDACodeGen::emit(std::ostream& stream, int /*opt*/, bool debug) {
+    thorin::emit_c(world_, kernel_config_, stream, Lang::CUDA, debug);
 }
 
 }

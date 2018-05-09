@@ -9,6 +9,7 @@
 #include "thorin/continuation.h"
 #include "thorin/be/llvm/runtime.h"
 #include "thorin/be/kernel_config.h"
+#include "thorin/transform/importer.h"
 
 namespace thorin {
 
@@ -22,7 +23,8 @@ protected:
 
 public:
     World& world() const { return world_; }
-    std::unique_ptr<llvm::Module>& emit(int opt, bool debug, bool print = true);
+    std::unique_ptr<llvm::Module>& emit(int opt, bool debug);
+    virtual void emit(std::ostream& stream, int opt, bool debug);
 
 protected:
     void optimize(int opt);
@@ -47,7 +49,6 @@ protected:
     virtual llvm::Value* emit_assembly(const Assembly* assembly);
 
     virtual std::string get_alloc_name() const = 0;
-    virtual std::string get_output_name(const std::string& name) const = 0;
     llvm::GlobalVariable* emit_global_variable(llvm::Type*, const std::string&, unsigned, bool=false);
     Continuation* emit_reserve_shared(const Continuation*, bool=false);
 
@@ -98,7 +99,25 @@ protected:
 template<class T>
 llvm::ArrayRef<T> llvm_ref(const Array<T>& array) { return llvm::ArrayRef<T>(array.begin(), array.end()); }
 
-void emit_llvm(World& world, int opt, bool debug);
+struct Backends {
+    Backends(World& world);
+
+    Cont2Config kernel_config;
+    std::vector<Continuation*> kernels;
+
+    Importer cuda;
+    Importer nvvm;
+    Importer opencl;
+    Importer amdgpu;
+    Importer hls;
+
+    std::unique_ptr<CodeGen> cpu_cg;
+    std::unique_ptr<CodeGen> cuda_cg;
+    std::unique_ptr<CodeGen> opencl_cg;
+    std::unique_ptr<CodeGen> hls_cg;
+    std::unique_ptr<CodeGen> amdgpu_cg;
+    std::unique_ptr<CodeGen> nvvm_cg;
+};
 
 } // namespace thorin
 

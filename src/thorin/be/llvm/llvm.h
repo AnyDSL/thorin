@@ -22,6 +22,8 @@ protected:
     CodeGen(World& world, llvm::CallingConv::ID function_calling_convention, llvm::CallingConv::ID device_calling_convention, llvm::CallingConv::ID kernel_calling_convention);
 
 public:
+    virtual ~CodeGen() {}
+
     World& world() const { return world_; }
     std::unique_ptr<llvm::Module>& emit(int opt, bool debug);
     virtual void emit(std::ostream& stream, int opt, bool debug);

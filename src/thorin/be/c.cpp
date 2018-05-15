@@ -456,13 +456,13 @@ void CCodeGen::emit() {
             auto continuation = block.continuation();
             if (scope.entry() != continuation) {
                 for (auto param : continuation->params()) {
-                    if (is_mem(param) || is_unit(param))
-                        continue;
-                    func_impl_ << endl;
-                    emit_addr_space(func_impl_, param->type());
-                    emit_type(func_impl_, param->type()) << "  " << param->unique_name() << ";" << endl;
-                    emit_addr_space(func_impl_, param->type());
-                    emit_type(func_impl_, param->type()) << " p" << param->unique_name() << ";";
+                    if (!is_mem(param) && !is_unit(param)) {
+                        func_impl_ << endl;
+                        emit_addr_space(func_impl_, param->type());
+                        emit_type(func_impl_, param->type()) << "  " << param->unique_name() << ";" << endl;
+                        emit_addr_space(func_impl_, param->type());
+                        emit_type(func_impl_, param->type()) << " p" << param->unique_name() << ";";
+                    }
                 }
             }
         }

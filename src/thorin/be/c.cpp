@@ -62,6 +62,7 @@ private:
     DefMap<std::string> primop2str_;
     bool use_64_ = false;
     bool use_16_ = false;
+    bool use_channels_ = false;
     bool debug_;
     int primop_counter = 0;
     std::ostream& os_;
@@ -135,6 +136,8 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
             emit_type(os, struct_type->op(i)) << " e" << i << ";";
         }
         os << down << endl << "} struct_" << struct_type->name() << "_" << struct_type->gid() << ";";
+        if (struct_type->name().str().find("channel_") != std::string::npos)
+            use_channels_ = true;
         return os;
     } else if (type->isa<Var>()) {
         THORIN_UNREACHABLE;
@@ -698,11 +701,13 @@ void CCodeGen::emit() {
     global2str_.clear();
 
     if (lang_==Lang::OPENCL) {
+        if (use_channels_)
+            os_ << "#pragma OPENCL EXTENSION cl_intel_channels : enable" << endl;
         if (use_16_)
             os_ << "#pragma OPENCL EXTENSION cl_khr_fp16 : enable" << endl;
         if (use_64_)
             os_ << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable" << endl;
-        if (use_16_ || use_64_)
+        if (use_channels_ || use_16_ || use_64_)
             os_ << endl;
     }
 

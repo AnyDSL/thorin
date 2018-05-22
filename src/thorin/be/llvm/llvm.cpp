@@ -520,10 +520,12 @@ llvm::Value* CodeGen::lookup(const Def* def) {
                 auto fn = bb->getParent();
                 auto& entry = fn->getEntryBlock();
 
+                auto dbg = irbuilder_.getCurrentDebugLocation();
                 auto ip = irbuilder_.saveAndClearIP();
                 irbuilder_.SetInsertPoint(&entry, entry.begin());
                 auto llvm_value = emit(primop);
                 irbuilder_.restoreIP(ip);
+                irbuilder_.SetCurrentDebugLocation(dbg);
                 return primops_[primop] = llvm_value;
             }
 

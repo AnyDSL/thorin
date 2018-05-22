@@ -1227,7 +1227,7 @@ static void get_kernel_configs(Importer& importer,
                 assert_unused(p.second && "single kernel config entry expected");
             }
             return false;
-        });
+        }, true);
 
         continuation->destroy_body();
     }

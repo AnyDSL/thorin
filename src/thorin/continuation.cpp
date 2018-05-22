@@ -516,10 +516,11 @@ void Continuation::dump_jump() const { stream_jump(std::cout) << endl; }
 
 //------------------------------------------------------------------------------
 
-bool visit_uses(Continuation* cont, std::function<bool(Continuation*)> func) {
+bool visit_uses(Continuation* cont, std::function<bool(Continuation*)> func, bool include_globals) {
     if (!cont->is_intrinsic()) {
         for (auto use : cont->uses()) {
-            if (auto continuation = (use->isa<Global>() ? *use->uses().begin() : use)->isa_continuation()) // TODO make more robust
+            auto def = include_globals && use->isa<Global>() ? use->uses().begin()->def() : use.def();
+            if (auto continuation = def->isa_continuation())
                 if (func(continuation))
                     return true;
         }
@@ -527,20 +528,20 @@ bool visit_uses(Continuation* cont, std::function<bool(Continuation*)> func) {
     return false;
 }
 
-bool visit_capturing_intrinsics(Continuation* cont, std::function<bool(Continuation*)> func) {
+bool visit_capturing_intrinsics(Continuation* cont, std::function<bool(Continuation*)> func, bool include_globals) {
     return visit_uses(cont, [&] (auto continuation) {
         if (auto callee = continuation->callee()->isa_continuation())
             return callee->is_intrinsic() && func(callee);
         return false;
-    });
+    }, include_globals);
 }
 
-bool is_passed_to_accelerator(Continuation* cont) {
-    return visit_capturing_intrinsics(cont, [&] (Continuation* continuation) { return continuation->is_accelerator(); });
+bool is_passed_to_accelerator(Continuation* cont, bool include_globals) {
+    return visit_capturing_intrinsics(cont, [&] (Continuation* continuation) { return continuation->is_accelerator(); }, include_globals);
 }
 
-bool is_passed_to_intrinsic(Continuation* cont, Intrinsic intrinsic) {
-    return visit_capturing_intrinsics(cont, [&] (Continuation* continuation) { return continuation->intrinsic() == intrinsic; });
+bool is_passed_to_intrinsic(Continuation* cont, Intrinsic intrinsic, bool include_globals) {
+    return visit_capturing_intrinsics(cont, [&] (Continuation* continuation) { return continuation->intrinsic() == intrinsic; }, include_globals);
 }
 
 void clear_value_numbering_table(World& world) {

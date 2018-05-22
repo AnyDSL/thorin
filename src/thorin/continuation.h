@@ -256,10 +256,10 @@ private:
     friend class World;
 };
 
-bool visit_capturing_intrinsics(Continuation*, std::function<bool(Continuation*)> func);
-bool visit_uses(Continuation*, std::function<bool(Continuation*)> func);
-bool is_passed_to_accelerator(Continuation*);
-bool is_passed_to_intrinsic(Continuation*, Intrinsic);
+bool visit_uses(Continuation*, std::function<bool(Continuation*)>, bool include_globals);
+bool visit_capturing_intrinsics(Continuation*, std::function<bool(Continuation*)>, bool include_globals = true);
+bool is_passed_to_accelerator(Continuation*, bool include_globals = true);
+bool is_passed_to_intrinsic(Continuation*, Intrinsic, bool include_globals = true);
 
 struct Call {
     struct Hash {

@@ -34,8 +34,8 @@ NVVMCodeGen::NVVMCodeGen(World& world, const Cont2Config& kernel_config)
     }
     // nvvmir.version
     auto nvvmir_version_md = module_->getOrInsertNamedMetadata("nvvmir.version");
-    llvm::Metadata* annotation_values_12[] = { llvm::ConstantAsMetadata::get(irbuilder_.getInt64(1)), llvm::ConstantAsMetadata::get(irbuilder_.getInt64(2)) };
-    nvvmir_version_md->addOperand(llvm::MDNode::get(context_, annotation_values_12));
+    llvm::Metadata* annotation_values_15[] = { llvm::ConstantAsMetadata::get(irbuilder_.getInt64(1)), llvm::ConstantAsMetadata::get(irbuilder_.getInt64(5)) };
+    nvvmir_version_md->addOperand(llvm::MDNode::get(context_, annotation_values_15));
 }
 
 //------------------------------------------------------------------------------

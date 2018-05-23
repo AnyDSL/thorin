@@ -560,6 +560,27 @@ llvm::AllocaInst* CodeGen::emit_alloca(llvm::Type* type, const std::string& name
     return alloca;
 }
 
+llvm::Value* CodeGen::emit_alloc(const Type* type, const Def* extra) {
+    auto llvm_malloc = runtime_->get(get_alloc_name().c_str());
+    auto alloced_type = convert(type);
+    llvm::CallInst* void_ptr;
+    auto layout = module_->getDataLayout();
+    if (auto array = type->isa<IndefiniteArrayType>()) {
+        assert(extra);
+        auto size = irbuilder_.CreateAdd(
+                irbuilder_.getInt64(layout.getTypeAllocSize(alloced_type)),
+                irbuilder_.CreateMul(irbuilder_.CreateIntCast(lookup(extra), irbuilder_.getInt64Ty(), false),
+                                     irbuilder_.getInt64(layout.getTypeAllocSize(convert(array->elem_type())))));
+        llvm::Value* malloc_args[] = { irbuilder_.getInt32(0), size };
+        void_ptr = irbuilder_.CreateCall(llvm_malloc, malloc_args);
+    } else {
+        llvm::Value* malloc_args[] = { irbuilder_.getInt32(0), irbuilder_.getInt64(layout.getTypeAllocSize(alloced_type)) };
+        void_ptr = irbuilder_.CreateCall(llvm_malloc, malloc_args);
+    }
+
+    return irbuilder_.CreatePointerCast(void_ptr, llvm::PointerType::get(alloced_type, 0));
+}
+
 llvm::Value* CodeGen::emit(const Def* def) {
     if (auto bin = def->isa<BinOp>()) {
         llvm::Value* lhs = lookup(bin->lhs());
@@ -776,20 +797,25 @@ llvm::Value* CodeGen::emit(const Def* def) {
             for (size_t i = 0, e = agg->num_ops(); i != e; ++i)
                 llvm_agg = irbuilder_.CreateInsertElement(llvm_agg, lookup(agg->op(i)), irbuilder_.getInt32(i));
         } else if (auto closure = def->isa<Closure>()) {
-            if (!closure->is_thin())
-                ELOG(def, "cannot create an environment for closure '{}', type '{}' is too large", def, agg->op(1)->type());
             auto closure_fn = irbuilder_.CreatePointerCast(lookup(agg->op(0)), llvm_agg->getType()->getStructElementType(0));
-            const Def* env = nullptr;
-            if (agg->op(1)->type() == world_.unit()) {
-                env = world_.bottom(Closure::environment_type(world_));
+            auto val = agg->op(1);
+            llvm::Value* env = nullptr;
+            if (closure->is_thin()) {
+                if (val->type() == world_.unit()) {
+                    env = emit(world_.bottom(Closure::environment_type(world_)));
+                } else {
+                    if (val->type()->isa<PtrType>())
+                        val = world_.bitcast(Closure::environment_ptr_type(world_), val);
+                    env = emit(world_.variant(Closure::environment_type(world_), val));
+                }
             } else {
-                auto val = agg->op(1);
-                if (val->type()->isa<PtrType>())
-                    val = world_.bitcast(Closure::environment_ptr_type(world_), val);
-                env = world_.variant(Closure::environment_type(world_), val);
+                WLOG(def, "closure '{}' is leaking memory, type '{}' is too large", def, agg->op(1)->type());
+                auto alloc = emit_alloc(val->type(), nullptr);
+                irbuilder_.CreateStore(emit(val), alloc);
+                env = irbuilder_.CreatePtrToInt(alloc, convert(Closure::environment_type(world_)));
             }
             llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, closure_fn, 0);
-            llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, emit(env), 1);
+            llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, env, 1);
         } else {
             for (size_t i = 0, e = agg->num_ops(); i != e; ++i)
                 llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, lookup(agg->op(i)), { unsigned(i) });
@@ -885,24 +911,8 @@ llvm::Value* CodeGen::emit(const Def* def) {
     if (auto bottom = def->isa<Bottom>())
         return llvm::UndefValue::get(convert(bottom->type()));
 
-    if (auto alloc = def->isa<Alloc>()) { // TODO factor this code
-        auto llvm_malloc = runtime_->get(get_alloc_name().c_str());
-        auto alloced_type = convert(alloc->alloced_type());
-        llvm::CallInst* void_ptr;
-        auto layout = module_->getDataLayout();
-        if (auto array = alloc->alloced_type()->isa<IndefiniteArrayType>()) {
-            auto size = irbuilder_.CreateAdd(
-                    irbuilder_.getInt64(layout.getTypeAllocSize(alloced_type)),
-                    irbuilder_.CreateMul(irbuilder_.CreateIntCast(lookup(alloc->extra()), irbuilder_.getInt64Ty(), false),
-                                         irbuilder_.getInt64(layout.getTypeAllocSize(convert(array->elem_type())))));
-            llvm::Value* malloc_args[] = { irbuilder_.getInt32(0), size };
-            void_ptr = irbuilder_.CreateCall(llvm_malloc, malloc_args);
-        } else {
-            llvm::Value* malloc_args[] = { irbuilder_.getInt32(0), irbuilder_.getInt64(layout.getTypeAllocSize(alloced_type)) };
-            void_ptr = irbuilder_.CreateCall(llvm_malloc, malloc_args);
-        }
-
-        return irbuilder_.CreatePointerCast(void_ptr, convert(alloc->out_ptr_type()));
+    if (auto alloc = def->isa<Alloc>()) {
+        return emit_alloc(alloc->alloced_type(), alloc->extra());
     }
 
     if (auto load = def->isa<Load>())           return emit_load(load);

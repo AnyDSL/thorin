@@ -20,7 +20,6 @@
 #include <rv/sleefLibrary.h>
 #include <rv/transform/loopExitCanonicalizer.h>
 #include <rv/passes.h>
-#include <rv/analysis/DFG.h>
 #include <rv/region/FunctionRegion.h>
 
 #include "thorin/primop.h"
@@ -175,13 +174,6 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
         llvm::PostDominatorTree pdom_tree;
         pdom_tree.recalculate(*kernel_func);
         llvm::LoopInfo loop_info(dom_tree);
-
-        rv::DFG dfg(dom_tree);
-        dfg.create(*kernel_func);
-
-        rv::CDG cdg(pdom_tree);
-        cdg.create(*kernel_func);
-
         llvm::ScalarEvolutionAnalysis SEA;
         auto SE = SEA.run(*kernel_func, FAM);
 
@@ -191,9 +183,9 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
         LoopExitCanonicalizer canonicalizer(loop_info);
         canonicalizer.canonicalize(*kernel_func);
 
-        vectorizer.analyze(vec_info, cdg, dfg, loop_info);
+        vectorizer.analyze(vec_info, dom_tree, pdom_tree, loop_info);
 
-        bool lin_ok = vectorizer.linearize(vec_info, cdg, dfg, loop_info, pdom_tree, dom_tree);
+        bool lin_ok = vectorizer.linearize(vec_info, dom_tree, pdom_tree, loop_info);
         assert_unused(lin_ok);
 
         llvm::DominatorTree new_dom_tree(*vec_info.getMapping().scalarFn); // Control conversion does not preserve the dominance tree

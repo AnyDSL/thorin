@@ -232,7 +232,7 @@ typedef double f64; typedef Float<f64, true> pf64; typedef Float<f64, false> qf6
 
 union Box {
 public:
-    Box()        { reset(); }
+    Box() : u64_() {}
 #define THORIN_ALL_TYPE(T, M) Box(T val) { reset(); M##_ = (M)val; }
 #include "thorin/tables/primtypetable.h"
     Box( s8 val) { reset();  s8_ = val; } Box( u8 val) { reset();  u8_ = val; }
@@ -257,7 +257,7 @@ public:
     f64 get_f64() const { return f64_; }
 
 private:
-    void reset() { memset(this, 0, sizeof(Box)); }
+    void reset() { *this = Box(); }
 
     bool bool_;
     s8 s8_; s16 s16_; s32 s32_; s64 s64_;

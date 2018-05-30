@@ -107,26 +107,31 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
                     switch (type) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal(type, Box(T(l.get_##T() + r.get_##T())), dbg);
 #include "thorin/tables/primtypetable.h"
+                        default: THORIN_UNREACHABLE;
                     }
                 case ArithOp_sub:
                     switch (type) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal(type, Box(T(l.get_##T() - r.get_##T())), dbg);
 #include "thorin/tables/primtypetable.h"
+                        default: THORIN_UNREACHABLE;
                     }
                 case ArithOp_mul:
                     switch (type) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal(type, Box(T(l.get_##T() * r.get_##T())), dbg);
 #include "thorin/tables/primtypetable.h"
+                        default: THORIN_UNREACHABLE;
                     }
                 case ArithOp_div:
                     switch (type) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal(type, Box(T(l.get_##T() / r.get_##T())), dbg);
 #include "thorin/tables/primtypetable.h"
+                        default: THORIN_UNREACHABLE;
                     }
                 case ArithOp_rem:
                     switch (type) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal(type, Box(T(l.get_##T() % r.get_##T())), dbg);
 #include "thorin/tables/primtypetable.h"
+                        default: THORIN_UNREACHABLE;
                     }
                 case ArithOp_and:
                     switch (type) {
@@ -422,21 +427,25 @@ const Def* World::cmp(CmpTag tag, const Def* a, const Def* b, Debug dbg) {
                 switch (type) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_bool(l.get_##T() == r.get_##T(), dbg);
 #include "thorin/tables/primtypetable.h"
+                    default: THORIN_UNREACHABLE;
                 }
             case Cmp_ne:
                 switch (type) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_bool(l.get_##T() != r.get_##T(), dbg);
 #include "thorin/tables/primtypetable.h"
+                    default: THORIN_UNREACHABLE;
                 }
             case Cmp_lt:
                 switch (type) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_bool(l.get_##T() <  r.get_##T(), dbg);
 #include "thorin/tables/primtypetable.h"
+                    default: THORIN_UNREACHABLE;
                 }
             case Cmp_le:
                 switch (type) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_bool(l.get_##T() <= r.get_##T(), dbg);
 #include "thorin/tables/primtypetable.h"
+                    default: THORIN_UNREACHABLE;
                 }
             default: THORIN_UNREACHABLE;
         }
@@ -509,72 +518,84 @@ const Def* World::cast(const Type* to, const Def* from, Debug dbg) {
                 switch (to_type->primtype_tag()) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_bool()), dbg);
 #include "thorin/tables/primtypetable.h"
+                    default: THORIN_UNREACHABLE;
                 }
             case PrimType_ps8:
             case PrimType_qs8:
                 switch (to_type->primtype_tag()) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_s8()), dbg);
 #include "thorin/tables/primtypetable.h"
+                    default: THORIN_UNREACHABLE;
                 }
             case PrimType_ps16:
             case PrimType_qs16:
                 switch (to_type->primtype_tag()) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_s16()), dbg);
 #include "thorin/tables/primtypetable.h"
+                    default: THORIN_UNREACHABLE;
                 }
             case PrimType_ps32:
             case PrimType_qs32:
                 switch (to_type->primtype_tag()) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_s32()), dbg);
 #include "thorin/tables/primtypetable.h"
+                    default: THORIN_UNREACHABLE;
                 }
             case PrimType_ps64:
             case PrimType_qs64:
                 switch (to_type->primtype_tag()) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_s64()), dbg);
 #include "thorin/tables/primtypetable.h"
+                    default: THORIN_UNREACHABLE;
                 }
             case PrimType_pu8:
             case PrimType_qu8:
                 switch (to_type->primtype_tag()) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_u8()), dbg);
 #include "thorin/tables/primtypetable.h"
+                    default: THORIN_UNREACHABLE;
                 }
             case PrimType_pu16:
             case PrimType_qu16:
                 switch (to_type->primtype_tag()) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_u16()), dbg);
 #include "thorin/tables/primtypetable.h"
+                    default: THORIN_UNREACHABLE;
                 }
             case PrimType_pu32:
             case PrimType_qu32:
                 switch (to_type->primtype_tag()) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_u32()), dbg);
 #include "thorin/tables/primtypetable.h"
+                    default: THORIN_UNREACHABLE;
                 }
             case PrimType_pu64:
             case PrimType_qu64:
                 switch (to_type->primtype_tag()) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_u64()), dbg);
 #include "thorin/tables/primtypetable.h"
+                    default: THORIN_UNREACHABLE;
                 }
             case PrimType_pf16:
             case PrimType_qf16:
                 switch (to_type->primtype_tag()) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_f16()), dbg);
 #include "thorin/tables/primtypetable.h"
+                    default: THORIN_UNREACHABLE;
                 }
             case PrimType_pf32:
             case PrimType_qf32:
                 switch (to_type->primtype_tag()) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_f32()), dbg);
 #include "thorin/tables/primtypetable.h"
+                    default: THORIN_UNREACHABLE;
                 }
             case PrimType_pf64:
             case PrimType_qf64:
                 switch (to_type->primtype_tag()) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(M(box.get_f64()), dbg);
 #include "thorin/tables/primtypetable.h"
+                    default: THORIN_UNREACHABLE;
                 }
         }
     }

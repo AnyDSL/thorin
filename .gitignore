@@ -10,3 +10,4 @@ CMakeFiles/
 build*
 html
 test/impala
+src/thorin/config.h

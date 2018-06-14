@@ -120,7 +120,7 @@ endif()
 add_library(thorin ${THORIN_SOURCES})
 
 if(LLVM_FOUND)
-    llvm_map_components_to_libnames(LLVM_LIBRARIES core mc native ipo irreader bitreader bitwriter scalaropts support target passes NVPTX)
+    llvm_map_components_to_libnames(LLVM_LIBRARIES all)
     target_link_libraries(thorin ${LLVM_LIBRARIES})
 endif()
 if(RV_FOUND)

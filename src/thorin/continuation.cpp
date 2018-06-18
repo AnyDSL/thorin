@@ -179,7 +179,6 @@ bool Continuation::is_intrinsic() const { return intrinsic_ != Intrinsic::None; 
 bool Continuation::is_accelerator() const { return Intrinsic::_Accelerator_Begin <= intrinsic_ && intrinsic_ < Intrinsic::_Accelerator_End; }
 void Continuation::set_intrinsic() {
     if      (name() == "cuda")                 intrinsic_ = Intrinsic::CUDA;
-    else if (name() == "nvptx")                intrinsic_ = Intrinsic::NVPTX;
     else if (name() == "nvvm")                 intrinsic_ = Intrinsic::NVVM;
     else if (name() == "opencl")               intrinsic_ = Intrinsic::OpenCL;
     else if (name() == "amdgpu")               intrinsic_ = Intrinsic::AMDGPU;

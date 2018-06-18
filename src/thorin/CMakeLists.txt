@@ -103,8 +103,6 @@ if(LLVM_FOUND)
         be/llvm/llvm.h
         be/llvm/amdgpu.cpp
         be/llvm/amdgpu.h
-        be/llvm/nvptx.cpp
-        be/llvm/nvptx.h
         be/llvm/nvvm.cpp
         be/llvm/nvvm.h
         be/llvm/opencl.cpp

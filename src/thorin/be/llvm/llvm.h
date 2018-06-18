@@ -109,7 +109,6 @@ struct Backends {
     std::vector<Continuation*> kernels;
 
     Importer cuda;
-    Importer nvptx;
     Importer nvvm;
     Importer opencl;
     Importer amdgpu;
@@ -117,7 +116,6 @@ struct Backends {
 
     std::unique_ptr<CodeGen> cpu_cg;
     std::unique_ptr<CodeGen> cuda_cg;
-    std::unique_ptr<CodeGen> nvptx_cg;
     std::unique_ptr<CodeGen> nvvm_cg;
     std::unique_ptr<CodeGen> opencl_cg;
     std::unique_ptr<CodeGen> amdgpu_cg;

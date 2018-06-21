@@ -12,14 +12,14 @@ find_package(Half REQUIRED)
 message(STATUS "Building with Half library from ${Half_INCLUDE_DIRS}.")
 include_directories(${Half_INCLUDE_DIRS})
 
-if(RV_FOUND)
-    include_directories(SYSTEM ${RV_INCLUDE_DIRS})
-endif()
-
 if(LLVM_FOUND)
     add_definitions(${LLVM_DEFINITIONS})
     add_definitions("-DLLVM_SUPPORT")
     include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
+endif()
+
+if(RV_FOUND)
+    include_directories(SYSTEM ${RV_INCLUDE_DIRS})
 endif()
 
 # check for colored terminal

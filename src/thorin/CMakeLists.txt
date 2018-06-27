@@ -103,8 +103,6 @@ if(LLVM_FOUND)
         be/llvm/llvm.h
         be/llvm/amdgpu.cpp
         be/llvm/amdgpu.h
-        be/llvm/nvptx.cpp
-        be/llvm/nvptx.h
         be/llvm/nvvm.cpp
         be/llvm/nvvm.h
         be/llvm/opencl.cpp
@@ -120,10 +118,9 @@ endif()
 add_library(thorin ${THORIN_SOURCES})
 
 if(LLVM_FOUND)
-    llvm_map_components_to_libnames(LLVM_LIBRARIES core mc native ipo irreader bitreader bitwriter scalaropts support target passes NVPTX)
+    llvm_map_components_to_libnames(LLVM_LIBRARIES all)
     target_link_libraries(thorin ${LLVM_LIBRARIES})
 endif()
 if(RV_FOUND)
-    llvm_map_components_to_libnames(RV_LLVM_LIBS core analysis irreader support transformutils)
-    target_link_libraries(thorin ${RV_LIBRARIES} ${RV_LLVM_LIBS})
+    target_link_libraries(thorin ${RV_LIBRARIES})
 endif()

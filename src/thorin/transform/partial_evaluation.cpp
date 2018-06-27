@@ -1,6 +1,5 @@
 #include "thorin/primop.h"
 #include "thorin/world.h"
-#include "thorin/analyses/cfg.h"
 #include "thorin/analyses/free_defs.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/util/hash.h"

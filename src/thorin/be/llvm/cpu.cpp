@@ -1,6 +1,7 @@
 #include "thorin/be/llvm/cpu.h"
 
-#include <llvm/ADT/Triple.h>
+#include <cstdlib>
+
 #include <llvm/Support/Host.h>
 #include <llvm/Support/TargetRegistry.h>
 #include <llvm/Support/TargetSelect.h>
@@ -14,13 +15,25 @@ CPUCodeGen::CPUCodeGen(World& world)
 {
     llvm::InitializeNativeTarget();
     auto triple_str = llvm::sys::getDefaultTargetTriple();
-    module_->setTargetTriple(triple_str);
+    auto cpu_str    = llvm::sys::getHostCPUName();
+
+    char* target_triple = std::getenv("ANYDSL_TARGET_TRIPLE");
+    char* target_cpu    = std::getenv("ANYDSL_TARGET_CPU");
+
+    if (target_triple && target_cpu) {
+        llvm::InitializeAllTargets();
+        llvm::InitializeAllTargetMCs();
+        triple_str = target_triple;
+        cpu_str    = target_cpu;
+    }
+
     std::string error;
     auto target = llvm::TargetRegistry::lookupTarget(triple_str, error);
-    assert(target && "can't create target for host architecture");
+    assert(target && "can't create target for target architecture");
     llvm::TargetOptions options;
-    std::unique_ptr<llvm::TargetMachine> machine(target->createTargetMachine(triple_str, llvm::sys::getHostCPUName(), "" /* features */, options, llvm::None));
+    std::unique_ptr<llvm::TargetMachine> machine(target->createTargetMachine(triple_str, cpu_str, "" /* features */, options, llvm::None));
     module_->setDataLayout(machine->createDataLayout());
+    module_->setTargetTriple(triple_str);
 }
 
 }

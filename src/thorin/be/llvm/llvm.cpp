@@ -40,7 +40,6 @@
 #include "thorin/be/llvm/cpu.h"
 #include "thorin/be/llvm/cuda.h"
 #include "thorin/be/llvm/hls.h"
-#include "thorin/be/llvm/nvptx.h"
 #include "thorin/be/llvm/nvvm.h"
 #include "thorin/be/llvm/opencl.h"
 #include "thorin/transform/codegen_prepare.h"
@@ -67,11 +66,10 @@ Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
         case Intrinsic::Atomic:    return emit_atomic(continuation);
         case Intrinsic::CmpXchg:   return emit_cmpxchg(continuation);
         case Intrinsic::Reserve:   return emit_reserve(continuation);
-        case Intrinsic::CUDA:      return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM,   ".cu",   continuation);
-        case Intrinsic::NVPTX:     return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM,   ".ptx",  continuation);
-        case Intrinsic::NVVM:      return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM,   ".nvvm", continuation);
-        case Intrinsic::OpenCL:    return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".cl",   continuation);
-        case Intrinsic::AMDGPU:    return runtime_->emit_host_code(*this, Runtime::HSA_PLATFORM,    ".gcn",  continuation);
+        case Intrinsic::CUDA:      return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM,   ".cu",     continuation);
+        case Intrinsic::NVVM:      return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM,   ".nvvm",   continuation);
+        case Intrinsic::OpenCL:    return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".cl",     continuation);
+        case Intrinsic::AMDGPU:    return runtime_->emit_host_code(*this, Runtime::HSA_PLATFORM,    ".amdgpu", continuation);
         case Intrinsic::HLS:       return emit_hls(continuation);
         case Intrinsic::Parallel:  return emit_parallel(continuation);
         case Intrinsic::Spawn:     return emit_spawn(continuation);
@@ -1277,7 +1275,6 @@ static uint64_t get_alloc_size(const Def* def) {
 
 Backends::Backends(World& world)
     : cuda(world)
-    , nvptx(world)
     , nvvm(world)
     , opencl(world)
     , amdgpu(world)
@@ -1289,8 +1286,6 @@ Backends::Backends(World& world)
         Continuation* imported = nullptr;
         if (is_passed_to_intrinsic(continuation, Intrinsic::CUDA))
             imported = cuda.import(continuation)->as_continuation();
-        else if (is_passed_to_intrinsic(continuation, Intrinsic::NVPTX))
-            imported = nvptx.import(continuation)->as_continuation();
         else if (is_passed_to_intrinsic(continuation, Intrinsic::NVVM))
             imported = nvvm.import(continuation)->as_continuation();
         else if (is_passed_to_intrinsic(continuation, Intrinsic::OpenCL))
@@ -1314,7 +1309,6 @@ Backends::Backends(World& world)
 
     // get the GPU kernel configurations
     if (!cuda.world().empty()   ||
-        !nvptx.world().empty()  ||
         !nvvm.world().empty()   ||
         !opencl.world().empty() ||
         !amdgpu.world().empty()) {
@@ -1344,7 +1338,6 @@ Backends::Backends(World& world)
             return std::make_unique<GPUKernelConfig>(std::tuple<int, int, int> { -1, -1, -1 }, has_restrict);
         };
         get_kernel_configs(cuda,   kernels, kernel_config, get_gpu_config);
-        get_kernel_configs(nvptx,  kernels, kernel_config, get_gpu_config);
         get_kernel_configs(nvvm,   kernels, kernel_config, get_gpu_config);
         get_kernel_configs(opencl, kernels, kernel_config, get_gpu_config);
         get_kernel_configs(amdgpu, kernels, kernel_config, get_gpu_config);
@@ -1391,7 +1384,6 @@ Backends::Backends(World& world)
     cpu_cg = std::make_unique<CPUCodeGen>(world);
 
     if (!cuda.  world().empty()) cuda_cg   = std::make_unique<CUDACodeGen  >(cuda  .world(), kernel_config);
-    if (!nvptx. world().empty()) nvptx_cg  = std::make_unique<NVPTXCodeGen >(nvptx .world(), kernel_config);
     if (!nvvm.  world().empty()) nvvm_cg   = std::make_unique<NVVMCodeGen  >(nvvm  .world(), kernel_config);
     if (!opencl.world().empty()) opencl_cg = std::make_unique<OpenCLCodeGen>(opencl.world(), kernel_config);
     if (!amdgpu.world().empty()) amdgpu_cg = std::make_unique<AMDGPUCodeGen>(amdgpu.world(), kernel_config);

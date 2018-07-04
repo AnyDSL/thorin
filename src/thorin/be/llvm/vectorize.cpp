@@ -163,9 +163,9 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
         config.useAVX2 = true;
         config.useSLEEF = true;
         config.enableIRPolish = true;
-        const bool impreciseFunctions = true;
+        const bool allowImprecise = true;
 
-        rv::addSleefMappings(config, platform_info, impreciseFunctions);
+        rv::addSleefResolver(config, platform_info, allowImprecise);
 
         rv::VectorizerInterface vectorizer(platform_info, config);
 

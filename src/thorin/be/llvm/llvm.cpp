@@ -836,6 +836,14 @@ llvm::Value* CodeGen::emit(const Def* def) {
             auto gep = irbuilder_.CreateInBoundsGEP(alloca, args);
             return std::make_pair(alloca, gep);
         };
+        auto copy_to_alloca_or_global = [&] () -> llvm::Value* {
+            if (auto constant = llvm::dyn_cast<llvm::Constant>(llvm_agg)) {
+                auto global = llvm::cast<llvm::GlobalVariable>(module_->getOrInsertGlobal(aggop->agg()->unique_name().c_str(), llvm_agg->getType()));
+                global->setInitializer(constant);
+                return irbuilder_.CreateInBoundsGEP(global, { irbuilder_.getInt64(0), llvm_idx });
+            }
+            return copy_to_alloca().second;
+        };
 
         if (auto extract = aggop->isa<Extract>()) {
             // Assemblys with more than two outputs are MemOps and have tuple type
@@ -849,7 +857,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
                 return lookup(memop);
 
             if (aggop->agg()->type()->isa<ArrayType>())
-                return irbuilder_.CreateLoad(copy_to_alloca().second);
+                return irbuilder_.CreateLoad(copy_to_alloca_or_global());
 
             if (extract->agg()->type()->isa<VectorType>())
                 return irbuilder_.CreateExtractElement(llvm_agg, llvm_idx);

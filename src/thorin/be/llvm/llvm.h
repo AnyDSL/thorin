@@ -68,7 +68,7 @@ private:
     llvm::Value* emit_bitcast(const Def*, const Type*);
     virtual Continuation* emit_reserve(const Continuation*);
     void emit_result_phi(const Param*, llvm::Value*);
-    void emit_vectorize(u32, u32, llvm::Function*, llvm::CallInst*);
+    void emit_vectorize(u32, llvm::Function*, llvm::CallInst*);
 
 protected:
     void create_loop(llvm::Value*, llvm::Value*, llvm::Value*, llvm::Function*, std::function<void(llvm::Value*)>);
@@ -88,7 +88,7 @@ protected:
     ContinuationMap<llvm::Function*> fcts_;
     TypeMap<llvm::Type*> types_;
 #if THORIN_ENABLE_RV
-    std::vector<std::tuple<u32, u32, llvm::Function*, llvm::CallInst*>> vec_todo_;
+    std::vector<std::tuple<u32, llvm::Function*, llvm::CallInst*>> vec_todo_;
 #endif
 
     std::unique_ptr<Runtime> runtime_;

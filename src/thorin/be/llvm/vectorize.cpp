@@ -32,9 +32,6 @@ struct VectorizeArgs {
     enum {
         Mem = 0,
         Length,
-        Align,
-        Lower,
-        Upper,
         Body,
         Return,
         Num
@@ -47,9 +44,6 @@ Continuation* CodeGen::emit_vectorize_continuation(Continuation* continuation) {
     assert(continuation->num_args() >= VectorizeArgs::Num && "required arguments are missing");
 
     // arguments
-    auto vector_length = lookup(continuation->arg(VectorizeArgs::Length));
-    auto lower = lookup(continuation->arg(VectorizeArgs::Lower));
-    auto upper = lookup(continuation->arg(VectorizeArgs::Upper));
     auto kernel = continuation->arg(VectorizeArgs::Body)->as<Global>()->init()->as_continuation();
     const size_t num_kernel_args = continuation->num_args() - VectorizeArgs::Num;
 
@@ -65,33 +59,27 @@ Continuation* CodeGen::emit_vectorize_continuation(Continuation* continuation) {
     auto kernel_simd_func = (llvm::Function*)module_->getOrInsertFunction(kernel->unique_name() + "_vectorize", simd_type);
 
     // build iteration loop and wire the calls
-    llvm::CallInst* simd_kernel_call;
-    auto llvm_entry = emit_function_decl(entry_);
-    create_loop(lower, upper, vector_length, llvm_entry, [&](llvm::Value* counter) {
-        Array<llvm::Value*> args(num_kernel_args + 1);
-        args[0] = counter; // loop index
-        for (size_t i = 0; i < num_kernel_args; ++i) {
-            // check target type
-            auto arg = continuation->arg(i + VectorizeArgs::Num);
-            auto llvm_arg = lookup(arg);
-            if (arg->type()->isa<PtrType>())
-                llvm_arg = irbuilder_.CreateBitCast(llvm_arg, simd_args[i + 1]);
-            args[i + 1] = llvm_arg;
-        }
-        // call new function
-        simd_kernel_call = irbuilder_.CreateCall(kernel_simd_func, llvm_ref(args));
-    });
+    Array<llvm::Value*> args(num_kernel_args + 1);
+    args[0] = irbuilder_.getInt32(0);
+    for (size_t i = 0; i < num_kernel_args; ++i) {
+        // check target type
+        auto arg = continuation->arg(i + VectorizeArgs::Num);
+        auto llvm_arg = lookup(arg);
+        if (arg->type()->isa<PtrType>())
+            llvm_arg = irbuilder_.CreateBitCast(llvm_arg, simd_args[i + 1]);
+        args[i + 1] = llvm_arg;
+    }
+    auto simd_kernel_call = irbuilder_.CreateCall(kernel_simd_func, llvm_ref(args));
 
     if (!continuation->arg(VectorizeArgs::Length)->isa<PrimLit>())
-        ELOG(continuation->arg(VectorizeArgs::Length), "vector length must be hard-coded");
+        ELOG(continuation->arg(VectorizeArgs::Length), "vector length must be known at compile-time");
     u32 vector_length_constant = continuation->arg(VectorizeArgs::Length)->as<PrimLit>()->qu32_value();
-    u32 alignment_constant     = continuation->arg(VectorizeArgs::Align )->as<PrimLit>()->qu32_value();
-    vec_todo_.emplace_back(vector_length_constant, alignment_constant, emit_function_decl(kernel), simd_kernel_call);
+    vec_todo_.emplace_back(vector_length_constant, emit_function_decl(kernel), simd_kernel_call);
 
     return continuation->arg(VectorizeArgs::Return)->as_continuation();
 }
 
-void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* kernel_func, llvm::CallInst* simd_kernel_call) {
+void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llvm::CallInst* simd_kernel_call) {
     bool broken = llvm::verifyModule(*module_.get(), &llvm::errs());
     if (broken) {
       module_->dump();
@@ -115,6 +103,7 @@ void CodeGen::emit_vectorize(u32 vector_length, u32 alignment, llvm::Function* k
 
     auto loop_counter_arg = kernel_func->arg_begin();
 
+    auto alignment = 1; // Be conservative and assume alignment of one byte
     rv::VectorShape res = rv::VectorShape::uni(alignment);
     rv::VectorShapeVec args;
     args.push_back(rv::VectorShape::cont(alignment));

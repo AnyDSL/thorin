@@ -469,7 +469,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
 #if THORIN_ENABLE_RV
     // emit vectorized code
     for (const auto& tuple : vec_todo_)
-        emit_vectorize(std::get<0>(tuple), std::get<1>(tuple), std::get<2>(tuple), std::get<3>(tuple));
+        emit_vectorize(std::get<0>(tuple), std::get<1>(tuple), std::get<2>(tuple));
     vec_todo_.clear();
 
     rv::lowerIntrinsics(*module_);

@@ -7,6 +7,13 @@
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/Transforms/Scalar.h>
+
+#include <llvm/Config/llvm-config.h>
+
+#if LLVM_VERSION_MAJOR ==  7
+#include <llvm/Transforms/Utils.h>
+#endif
+
 #include <llvm/Analysis/LoopInfo.h>
 #include <llvm/Analysis/ScalarEvolution.h>
 #include <llvm/Analysis/MemoryDependenceAnalysis.h>

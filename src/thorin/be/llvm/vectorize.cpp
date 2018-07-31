@@ -101,7 +101,6 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
     pm.add(llvm::createPromoteMemoryToRegisterPass()); // CNSPass relies on mem2reg for now
     pm.add(llvm::createLICMPass());
     pm.add(llvm::createLCSSAPass());
-    pm.add(llvm::createLowerSwitchPass());
     pm.run(*kernel_func);
 
     // vectorize function

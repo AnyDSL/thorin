@@ -10,7 +10,7 @@
 
 #include <llvm/Config/llvm-config.h>
 
-#if LLVM_VERSION_MAJOR ==  7
+#if LLVM_VERSION_MAJOR >=  7
 #include <llvm/Transforms/Utils.h>
 #endif
 

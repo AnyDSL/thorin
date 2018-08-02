@@ -96,6 +96,7 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
 
     // ensure proper loop forms
     llvm::legacy::FunctionPassManager pm(module_.get());
+    pm.add(llvm::createSROAPass());
     pm.add(llvm::createSCCPPass());
     pm.add(rv::createCNSPass()); // make all loops reducible (has to run first!)
     pm.add(llvm::createPromoteMemoryToRegisterPass()); // CNSPass relies on mem2reg for now
@@ -112,7 +113,7 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
     auto alignment = 1; // Be conservative and assume alignment of one byte
     rv::VectorShape res = rv::VectorShape::uni(alignment);
     rv::VectorShapeVec args;
-    args.push_back(rv::VectorShape::cont(alignment));
+    args.push_back(rv::VectorShape::cont(vector_length));
     for (auto it = std::next(loop_counter_arg), end = kernel_func->arg_end(); it != end; ++it) {
         args.push_back(rv::VectorShape::uni(alignment));
     }

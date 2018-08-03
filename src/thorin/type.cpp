@@ -79,17 +79,16 @@ bool FnType::is_returning() const {
     bool ret = false;
     for (auto op : ops()) {
         switch (op->order()) {
-            case 0: continue;
             case 1:
                 if (!ret) {
                     ret = true;
                     continue;
-                } // else fall-through
-            default:
+                }
                 return false;
+            default: continue;
         }
     }
-    return true;
+    return ret;
 }
 
 bool use_lea(const Type* type) { return type->isa<StructType>() || type->isa<ArrayType>(); }

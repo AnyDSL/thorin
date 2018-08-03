@@ -9,8 +9,9 @@ namespace thorin {
 
 class PartialEvaluator {
 public:
-    PartialEvaluator(World& world)
+    PartialEvaluator(World& world, bool lower2cff)
         : world_(world)
+        , lower2cff_(lower2cff)
         , boundary_(Def::gid_counter())
     {}
 
@@ -24,6 +25,7 @@ public:
 
 private:
     World& world_;
+    bool lower2cff_;
     HashMap<Call, Continuation*> cache_;
     ContinuationSet done_;
     std::queue<Continuation*> queue_;
@@ -62,11 +64,11 @@ public:
         return old2new_[odef] = odef;
     }
 
-    bool eval(size_t i) {
+    bool eval(size_t i, bool lower2cff) {
         // the only higher order parameter that is allowed is a single 1st-order parameter of a top-level continuation
         // all other parameters need specialization (lower2cff)
         auto order = callee_->param(i)->order();
-        if (order >= 2 || (order == 1 && (!callee_->is_returning() || !is_top_level(callee_)))) {
+        if (order >= 2 || (order == 1 && (!callee_->is_returning() || (!is_top_level(callee_) && lower2cff)))) {
             DLOG("bad param({}) {} of continuation {}", i, callee_->param(i), callee_);
             return true;
         }
@@ -143,7 +145,7 @@ bool PartialEvaluator::run() {
 
                 bool fold = false;
                 for (size_t i = 0, e = call.num_args(); i != e; ++i) {
-                    if (force_fold || cond_eval.eval(i)) {
+                    if (force_fold || cond_eval.eval(i, lower2cff_)) {
                         call.arg(i) = continuation->arg(i);
                         fold = true;
                     } else
@@ -173,9 +175,9 @@ bool PartialEvaluator::run() {
 
 //------------------------------------------------------------------------------
 
-bool partial_evaluation(World& world) {
+bool partial_evaluation(World& world, bool lower2cff) {
     VLOG("start pe");
-    auto res = PartialEvaluator(world).run();
+    auto res = PartialEvaluator(world, lower2cff).run();
     VLOG("end pe");
     return res;
 }

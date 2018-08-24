@@ -56,7 +56,7 @@ void inliner(World& world) {
             if (scope->defs().size() < scope->entry()->num_params() * factor + offset) {
                 // check that the function is not recursive to prevent inliner from peeling loops
                 for (auto& use : continuation->uses()) {
-                    // note that there was an edge from parameter to continuation,
+                    // note that if there was an edge from parameter to continuation,
                     // we would need to check if the use is a parameter here.
                     if (scope->contains(use.def()))
                         return nullptr;

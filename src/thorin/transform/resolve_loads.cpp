@@ -66,9 +66,9 @@ static const Def* remove_bitcasts(const Def* ptr) {
 }
 
 static std::pair<const Def*, size_t> find_slot(DefMap<bool>& safe_slots, const Def* ptr, size_t depth = 0) {
-    ptr = remove_bitcasts(ptr);
     if (ptr->isa<Slot>() && is_safe_slot(safe_slots, ptr)) return std::make_pair(ptr, depth);
     if (auto lea = ptr->isa<LEA>()) return find_slot(safe_slots, lea->ptr(), depth + 1);
+    if (auto bitcast = ptr->isa<Bitcast>()) return find_slot(safe_slots, bitcast->from(), depth);
     return std::make_pair(nullptr, 0);
 }
 

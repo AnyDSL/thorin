@@ -10,10 +10,8 @@ static void replace_ptr_uses(const Def* ptr) {
             store->replace(store->mem());
         } else if (use->isa<Load>()) {
             assert(false);
-        } else if (use->isa<LEA>()) {
-            replace_ptr_uses(use.def());
-        } else if (use->isa<Bitcast>()) {
-            replace_ptr_uses(use.def());
+        } else if (use->isa<LEA>() || use->isa<Bitcast>()) {
+            replace_ptr_uses(use);
         } else {
             assert(false);
         }

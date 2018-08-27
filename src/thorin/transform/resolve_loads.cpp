@@ -131,7 +131,8 @@ static const Def* try_resolve_load(DefMap<bool>& safe_slots, const Def* def, con
             }
             parent = load ? load->as<Def>() : store;
         } else if (auto enter = Enter::is_out_mem(mem_op->mem())) {
-            // TODO: Solve undefined allocs (need to inspect the frame)
+            if (slot->isa<Slot>() && Enter::is_out_frame(slot->as<Slot>()->frame()) == enter)
+                return world.bottom(target_load->type()->as<TupleType>()->op(1));
             parent = enter;
         } else {
             return nullptr;
@@ -172,6 +173,7 @@ static bool resolve_loads(DefMap<bool>& safe_slots, const Scope& scope) {
 bool resolve_loads(World& world) {
     DefMap<bool> safe_slots;
     bool todo = false;
+
     Scope::for_each(world, [&] (const Scope& scope) {
         todo |= resolve_loads(safe_slots, scope);
     });

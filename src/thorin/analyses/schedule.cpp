@@ -174,6 +174,8 @@ const CFNode* Scheduler::schedule_smart(const PrimOp* primop) {
         }
     }
 
+    if (primop->isa<Enter>() || Enter::is_out_mem(primop) || Enter::is_out_frame(primop)) result = late;
+
     return def2smart_[primop] = result;
 }
 

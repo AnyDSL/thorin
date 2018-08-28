@@ -1,5 +1,4 @@
 #include "thorin/analyses/scope.h"
-#include "thorin/analyses/schedule.h"
 #include "thorin/world.h"
 
 namespace thorin {
@@ -143,26 +142,24 @@ static const Def* try_resolve_load(DefMap<bool>& safe_slots, const Def* def, con
 static bool resolve_loads(DefMap<bool>& safe_slots, const Scope& scope) {
     auto& world = scope.world();
     bool todo = false;
-    for (const auto& block : schedule(scope, Schedule::Late)) {
-        for (auto primop : block) {
-            // Compute whether this slot is safe to transform
-            auto slot = primop->isa<Slot>();
-            if (slot) {
-                is_safe_slot(safe_slots, slot);
-                continue;
-            }
+    for (const auto& def : scope.defs()) {
+        // Compute whether this slot is safe to transform
+        auto slot = def->isa<Slot>();
+        if (slot) {
+            is_safe_slot(safe_slots, slot);
+            continue;
+        }
 
-            auto load = primop->isa<Load>();
-            if (!load)
-                continue;
-            // Reolve loads that are from a safe slot
-            auto slot_depth = find_slot(safe_slots, load->ptr());
-            if (!slot_depth.first)
-                continue;
-            if (auto value = try_resolve_load(safe_slots, load, load, slot_depth.first, slot_depth.second)) {
-                load->replace(world.tuple({ load->mem(), value }, load->debug()));
-                todo = true;
-            }
+        auto load = def->isa<Load>();
+        if (!load)
+            continue;
+        // Reolve loads that are from a safe slot
+        auto slot_depth = find_slot(safe_slots, load->ptr());
+        if (!slot_depth.first)
+            continue;
+        if (auto value = try_resolve_load(safe_slots, load, load, slot_depth.first, slot_depth.second)) {
+            load->replace(world.tuple({ load->mem(), value }, load->debug()));
+            todo = true;
         }
     }
     return todo;

@@ -243,6 +243,7 @@ void Cleaner::cleanup_fix_point() {
         todo_ = false;
         eta_conversion();
         eliminate_params();
+        rebuild(); // resolve replaced defs before going to resolve_loads
         todo_ |= resolve_loads(world());
         rebuild();
         if (!world().is_pe_done())

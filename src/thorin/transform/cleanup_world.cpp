@@ -5,6 +5,7 @@
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/verify.h"
 #include "thorin/transform/importer.h"
+#include "thorin/transform/resolve_loads.h"
 #include "thorin/transform/partial_evaluation.h"
 #include "thorin/util/log.h"
 
@@ -242,6 +243,8 @@ void Cleaner::cleanup_fix_point() {
         todo_ = false;
         eta_conversion();
         eliminate_params();
+        rebuild(); // resolve replaced defs before going to resolve_loads
+        todo_ |= resolve_loads(world());
         rebuild();
         if (!world().is_pe_done())
             todo_ |= partial_evaluation(world_);

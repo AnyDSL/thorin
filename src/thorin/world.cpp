@@ -613,9 +613,10 @@ const Def* World::bitcast(const Type* to, const Def* from, Debug dbg) {
     if (auto other = from->isa<Bitcast>()) {
         // reduce bitcast chains
         do {
-            if (to == other->type())
-                return other;
-            other = other->op(0)->isa<Bitcast>();
+            auto value = other->from();
+            if (to == value->type())
+                return value;
+            other = value->isa<Bitcast>();
         } while (other);
     }
 
@@ -978,6 +979,7 @@ void World::cleanup() { cleanup_world(*this); }
 
 void World::opt() {
     cleanup();
+    while (partial_evaluation(*this, true)); // lower2cff
     flatten_tuples(*this);
     clone_bodies(*this);
     split_slots(*this);

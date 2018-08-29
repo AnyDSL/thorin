@@ -96,8 +96,8 @@ void mem2reg(const Scope& scope) {
                             auto out_mem = load->out_mem();
                             done.insert(out_val);
                             done.insert(out_mem);
-                            out_val->replace(continuation->get_value(slot2handle[slot], type, slot->debug()));
-                            out_mem->replace(load->mem());
+                            auto tuple = scope.world().tuple({load->mem(), continuation->get_value(slot2handle[slot], type, slot->debug())});
+                            load->replace(tuple);
                         }
                     }
                 }

@@ -60,6 +60,7 @@ public:
     void convert_jump(Continuation* continuation) {
         // prevent conversion of calls to vectorize() or cuda(), but allow graph intrinsics
         auto callee = continuation->callee()->isa_continuation();
+        if (callee == continuation) return;
         if (!callee || !callee->is_intrinsic() || is_graph_intrinsic(callee)) {
             Array<const Def*> new_args(continuation->num_args());
             for (size_t i = 0, e = continuation->num_args(); i != e; ++i)
@@ -168,6 +169,14 @@ public:
         if (new_types_.count(type)) return new_types_[type];
         if (type->order() <= 1) return type;
         Array<const Type*> ops(type->ops());
+
+        const Type* new_type = nullptr;
+        if (type->isa<StructType>()) {
+            // struct types cannot be rebuilt and need to be put in the map first to avoid infinite recursion
+            new_type = world_.struct_type(type->as<StructType>()->name(), ops.size());
+            new_types_[type] = new_type;
+        }
+
         // accept one parameter of order 1 (the return continuation) for function types
         bool ret = !type->isa<FnType>();
         for (auto& op : ops) {
@@ -179,13 +188,11 @@ public:
                 op = world_.fn_type(op->ops());
             }
         }
-        const Type* new_type = nullptr;
+
         if (type->isa<StructType>()) {
-            // struct types cannot be rebuilt 
-            auto struct_type =  world_.struct_type(type->as<StructType>()->name(), ops.size());
+            auto struct_type = new_type->as<StructType>();
             for (size_t i = 0, e = ops.size(); i != e; ++i)
                 struct_type->set(i, ops[i]);
-            new_type = struct_type;
         } else {
             new_type = type->rebuild(ops);
         }

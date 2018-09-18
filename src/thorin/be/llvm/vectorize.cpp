@@ -23,7 +23,7 @@
 
 #include <rv/rv.h>
 #include <rv/vectorizationInfo.h>
-#include <rv/sleefLibrary.h>
+#include <rv/resolver/resolvers.h>
 #include <rv/transform/loopExitCanonicalizer.h>
 #include <rv/passes.h>
 #include <rv/region/FunctionRegion.h>

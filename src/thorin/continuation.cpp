@@ -196,7 +196,7 @@ void Continuation::set_intrinsic() {
     else if (name() == "atomic")               intrinsic_ = Intrinsic::Atomic;
     else if (name() == "cmpxchg")              intrinsic_ = Intrinsic::CmpXchg;
     else if (name() == "undef")                intrinsic_ = Intrinsic::Undef;
-    else ELOG(this, "unsupported thorin intrinsic");
+    else ELOG("unsupported thorin intrinsic");
 }
 
 bool Continuation::is_basicblock() const { return type()->is_basicblock(); }
@@ -406,7 +406,7 @@ const Def* Continuation::get_value(size_t handle, const Type* type, Debug dbg) {
     }
 
 return_bottom:
-    WLOG(&dbg, "'{}' may be undefined", dbg.name());
+    WDEF(&dbg, "'{}' may be undefined", dbg.name());
     return set_value(handle, world().bottom(type));
 
 return_result:

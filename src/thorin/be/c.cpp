@@ -603,7 +603,7 @@ void CCodeGen::emit() {
                     if (callee->is_intrinsic()) {
                         if (callee->intrinsic() == Intrinsic::Reserve) {
                             if (!continuation->arg(1)->isa<PrimLit>())
-                                ELOG(continuation->arg(1), "reserve_shared: couldn't extract memory size");
+                                EDEF(continuation->arg(1), "reserve_shared: couldn't extract memory size");
 
                             switch (lang_) {
                                 default:                                        break;
@@ -1125,7 +1125,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
         if (assembly->has_sideeffects())
             func_impl_ << "volatile ";
         if (assembly->is_alignstack() || assembly->is_inteldialect())
-            WLOG(assembly, "stack alignment and inteldialect flags unsupported for C output");
+            WDEF(assembly, "stack alignment and inteldialect flags unsupported for C output");
         func_impl_ << "(\"" << assembly->asm_template() << "\"";
 
         // emit the outputs
@@ -1174,7 +1174,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
             }
         }
 
-        WLOG(global, "{}: Global variable '{}' will not be synced with host.", get_lang(), global);
+        WDEF(global, "{}: Global variable '{}' will not be synced with host", get_lang(), global);
         switch (lang_) {
             default:                                        break;
             case Lang::CUDA:   func_impl_ << "__device__ "; break;

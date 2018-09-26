@@ -106,7 +106,7 @@ void PartialEvaluator::eat_pe_info(Continuation* cur) {
 
     if (is_const(cur->arg(2))) {
         auto msg = cur->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
-        ILOG(cur->callee(), "pe_info: {}: {}", msg->as_string(), cur->arg(2));
+        IDEF(cur->callee(), "pe_info: {}: {}", msg->as_string(), cur->arg(2));
         cur->jump(next, {cur->arg(0)}, cur->jump_debug());
 
         // always re-insert into queue because we've changed cur's jump

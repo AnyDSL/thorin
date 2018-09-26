@@ -85,7 +85,7 @@ public:
             if (as_callee)
                 return continuation;
 
-            WLOG(continuation, "slow: closure generated for '{}'", continuation);
+            WLOG("slow: closure generated for '{}'", continuation);
 
             // lift the continuation from its scope
             Scope scope(continuation);

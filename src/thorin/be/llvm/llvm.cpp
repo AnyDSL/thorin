@@ -107,7 +107,7 @@ void CodeGen::emit_result_phi(const Param* param, llvm::Value* value) {
 Continuation* CodeGen::emit_atomic(Continuation* continuation) {
     assert(continuation->num_args() == 5 && "required arguments are missing");
     if (!is_type_i(continuation->arg(3)->type()))
-        ELOG(continuation->arg(3), "atomic only supported for integer types");
+        EDEF(continuation->arg(3), "atomic only supported for integer types");
     // atomic tag: Xchg Add Sub And Nand Or Xor Max Min
     u32 tag = continuation->arg(1)->as<PrimLit>()->qu32_value();
     auto ptr = lookup(continuation->arg(2));
@@ -123,7 +123,7 @@ Continuation* CodeGen::emit_atomic(Continuation* continuation) {
 Continuation* CodeGen::emit_cmpxchg(Continuation* continuation) {
     assert(continuation->num_args() == 5 && "required arguments are missing");
     if (!is_type_i(continuation->arg(3)->type()))
-        ELOG(continuation->arg(3), "cmpxchg only supported for integer types");
+        EDEF(continuation->arg(3), "cmpxchg only supported for integer types");
     auto ptr  = lookup(continuation->arg(1));
     auto cmp  = lookup(continuation->arg(2));
     auto val  = lookup(continuation->arg(3));
@@ -135,14 +135,14 @@ Continuation* CodeGen::emit_cmpxchg(Continuation* continuation) {
 }
 
 Continuation* CodeGen::emit_reserve(const Continuation* continuation) {
-    ELOG(&continuation->jump_debug(), "reserve_shared: only allowed in device code");
+    EDEF(&continuation->jump_debug(), "reserve_shared: only allowed in device code");
     THORIN_UNREACHABLE;
 }
 
 Continuation* CodeGen::emit_reserve_shared(const Continuation* continuation, bool init_undef) {
     assert(continuation->num_args() == 3 && "required arguments are missing");
     if (!continuation->arg(1)->isa<PrimLit>())
-        ELOG(continuation->arg(1), "reserve_shared: couldn't extract memory size");
+        EDEF(continuation->arg(1), "reserve_shared: couldn't extract memory size");
     auto num_elems = continuation->arg(1)->as<PrimLit>()->ps32_value();
     auto cont = continuation->arg(2)->as_continuation();
     auto type = convert(cont->param(1)->type());
@@ -163,7 +163,7 @@ llvm::Value* CodeGen::emit_bitcast(const Def* val, const Type* dst_type) {
     auto src_type = val->type();
     auto to = convert(dst_type);
     if (from->getType()->isAggregateType() || to->isAggregateType())
-        ELOG(val, "bitcast from or to aggregate types not allowed: bitcast from '{}' to '{}'", src_type, dst_type);
+        EDEF(val, "bitcast from or to aggregate types not allowed: bitcast from '{}' to '{}'", src_type, dst_type);
     if (src_type->isa<PtrType>() && dst_type->isa<PtrType>())
         return irbuilder_.CreatePointerCast(from, to);
     return irbuilder_.CreateBitCast(from, to);
@@ -689,7 +689,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
                     auto trunc = irbuilder_.CreateTrunc(from, irbuilder_.getIntNTy(value_bits));
                     return irbuilder_.CreateBitOrPointerCast(trunc, to);
                 } else {
-                    WLOG(def, "slow: alloca and loads/stores needed for variant cast '{}'", def);
+                    WDEF(def, "slow: alloca and loads/stores needed for variant cast '{}'", def);
                     auto ptr_type = llvm::PointerType::get(to, 0);
                     return create_tmp_alloca(from->getType(), [&] (auto alloca) {
                         auto casted_ptr = irbuilder_.CreateBitCast(alloca, ptr_type);
@@ -772,7 +772,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
                 vals[i] = llvm::cast<llvm::Constant>(emit(array->op(i)));
             return llvm::ConstantArray::get(type, llvm_ref(vals));
         }
-        WLOG(def, "slow: alloca and loads/stores needed for definite array '{}'", def);
+        WDEF(def, "slow: alloca and loads/stores needed for definite array '{}'", def);
         auto alloca = emit_alloca(type, array->name().str());
 
         u64 i = 0;
@@ -809,7 +809,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
                     env = emit(world_.variant(Closure::environment_type(world_), val));
                 }
             } else {
-                WLOG(def, "closure '{}' is leaking memory, type '{}' is too large", def, agg->op(1)->type());
+                WDEF(def, "closure '{}' is leaking memory, type '{}' is too large", def, agg->op(1)->type());
                 auto alloc = emit_alloc(val->type(), nullptr);
                 irbuilder_.CreateStore(emit(val), alloc);
                 env = irbuilder_.CreatePtrToInt(alloc, convert(Closure::environment_type(world_)));
@@ -828,7 +828,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto llvm_agg = lookup(aggop->agg());
         auto llvm_idx = lookup(aggop->index());
         auto copy_to_alloca = [&] () {
-            WLOG(def, "slow: alloca and loads/stores needed for aggregate '{}'", def);
+            WDEF(def, "slow: alloca and loads/stores needed for aggregate '{}'", def);
             auto alloca = emit_alloca(llvm_agg->getType(), aggop->name().str());
             irbuilder_.CreateStore(llvm_agg, alloca);
 
@@ -1018,7 +1018,7 @@ llvm::Value* CodeGen::emit_assembly(const Assembly* assembly) {
     constraints += "~{dirflag},~{fpsr},~{flags}";
 
     if (!llvm::InlineAsm::Verify(fn_type, constraints))
-        ELOG(assembly, "constraints and input and output types of inline assembly do not match");
+        EDEF(assembly, "constraints and input and output types of inline assembly do not match");
 
     auto asm_expr = llvm::InlineAsm::get(fn_type, assembly->asm_template(), constraints,
             assembly->has_sideeffects(), assembly->is_alignstack(),
@@ -1361,7 +1361,7 @@ Backends::Backends(World& world)
                 if (!ptr_type) continue;
                 auto size = get_alloc_size(arg);
                 if (size == 0)
-                    ELOG(arg, "array size is not known at compile time");
+                    EDEF(arg, "array size is not known at compile time");
                 auto elem_type = ptr_type->pointee();
                 size_t multiplier = 1;
                 if (!elem_type->isa<PrimType>()) {
@@ -1376,7 +1376,7 @@ Backends::Backends(World& world)
                 }
                 auto prim_type = elem_type->isa<PrimType>();
                 if (!prim_type)
-                    ELOG(arg, "only pointers to arrays of primitive types are supported");
+                    EDEF(arg, "only pointers to arrays of primitive types are supported");
                 auto num_elems = size / (multiplier * num_bits(prim_type->primtype_tag()) / 8);
                 // imported has type: fn (mem, fn (mem), ...)
                 param_sizes.emplace(imported->param(i - 3 + 2), num_elems);

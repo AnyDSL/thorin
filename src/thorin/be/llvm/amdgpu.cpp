@@ -44,7 +44,7 @@ unsigned AMDGPUCodeGen::convert_addr_space(const AddrSpace addr_space) {
 }
 
 llvm::Value* AMDGPUCodeGen::emit_global(const Global* global) {
-    WLOG(global, "AMDGPU: Global variable '{}' will not be synced with host.", global);
+    WDEF(global, "AMDGPU: Global variable '{}' will not be synced with host", global);
     return CodeGen::emit_global(global);
 }
 

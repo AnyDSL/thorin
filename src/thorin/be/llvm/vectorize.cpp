@@ -79,7 +79,7 @@ Continuation* CodeGen::emit_vectorize_continuation(Continuation* continuation) {
     auto simd_kernel_call = irbuilder_.CreateCall(kernel_simd_func, llvm_ref(args));
 
     if (!continuation->arg(VectorizeArgs::Length)->isa<PrimLit>())
-        ELOG(continuation->arg(VectorizeArgs::Length), "vector length must be known at compile-time");
+        EDEF(continuation->arg(VectorizeArgs::Length), "vector length must be known at compile-time");
     u32 vector_length_constant = continuation->arg(VectorizeArgs::Length)->as<PrimLit>()->qu32_value();
     vec_todo_.emplace_back(vector_length_constant, emit_function_decl(kernel), simd_kernel_call);
 

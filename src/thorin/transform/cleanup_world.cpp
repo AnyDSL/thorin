@@ -201,7 +201,7 @@ void Cleaner::clean_pe_info(std::queue<Continuation*> queue, Continuation* cur) 
     auto msg = cur->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
 
     assert(!is_const(cur->arg(2)));
-    ILOG(cur->callee(), "pe_info not constant: {}: {}", msg->as_string(), cur->arg(2));
+    IDEF(cur->callee(), "pe_info not constant: {}: {}", msg->as_string(), cur->arg(2));
     cur->jump(next, {cur->arg(0)}, cur->jump_debug());
     todo_ = true;
 

@@ -504,7 +504,7 @@ const Def* World::cast(const Type* to, const Def* from, Debug dbg) {
 
     if (auto variant = from->isa<Variant>()) {
         if (variant->op(0)->type() != to)
-            ELOG(&dbg, "variant downcast not possible");
+            ELOG("variant downcast not possible");
         return variant->op(0);
     }
 
@@ -624,7 +624,7 @@ const Def* World::bitcast(const Type* to, const Def* from, Debug dbg) {
     auto prim_from = from->type()->isa<PrimType>();
     if (prim_to && prim_from) {
         if (num_bits(prim_from->primtype_tag()) != num_bits(prim_to->primtype_tag()))
-            ELOG(&dbg, "bitcast between primitive types of different size");
+            ELOG("bitcast between primitive types of different size");
         // constant folding
         if (auto lit = from->isa<PrimLit>())
             return literal(prim_to->primtype_tag(), lit->value(), dbg);

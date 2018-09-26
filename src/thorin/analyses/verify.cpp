@@ -15,8 +15,8 @@ static void verify_top_level(World& world) {
     Scope::for_each(world, [&] (const Scope& scope) {
         if (scope.has_free_params()) {
             for (auto param : scope.free_params())
-                WLOG(param, "top-level continuation '{}' got free param '{}' at", scope.entry(), param);
-            ELOG(scope.entry(), "here");
+                ELOG("top-level continuation '{}' got free param '{}' at", scope.entry(), param);
+            ELOG("here: {}", scope.entry());
         }
     });
 }

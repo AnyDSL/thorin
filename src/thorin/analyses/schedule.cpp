@@ -161,7 +161,7 @@ const CFNode* Scheduler::schedule_smart(const PrimOp* primop) {
 
             // HACK this should actually never occur
             if (i == nullptr) {
-                WLOG(primop, "don't know where to put {}", primop);
+                WLOG("don't know where to put {}", primop);
                 result = late;
                 break;
             }
@@ -257,7 +257,7 @@ void Schedule::verify() {
         for (auto primop : block) {
             if (auto memop = primop->isa<MemOp>()) {
                 if (memop->mem() != mem)
-                    WLOG(memop, "incorrect schedule: {} (current mem is {}) - scope entry: {}", memop, mem, scope_.entry());
+                    WLOG("incorrect schedule: {} (current mem is {}) - scope entry: {}", memop, mem, scope_.entry());
                 mem = memop->out_mem();
             }
         }

@@ -56,6 +56,22 @@ T pop(std::queue<T>& queue) {
     return val;
 }
 
+template<class Set, class T = typename Set::value_type>
+class unique_queue {
+public:
+    void push(T val) {
+        if (done_.emplace(val).second)
+            queue_.emplace(val);
+    }
+
+    bool empty() const { return queue_.empty(); }
+    T pop() { return thorin::pop(queue_); }
+
+private:
+    Set done_;
+    std::queue<T> queue_;
+};
+
 template<class T>
 struct Push {
     Push(T& t, T new_val)

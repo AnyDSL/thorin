@@ -67,22 +67,15 @@ const B_CFG& Scope::b_cfg() const { return cfa().b_cfg(); }
 
 template<bool elide_empty>
 void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
-    ContinuationSet done;
-    std::queue<Continuation*> queue;
-
-    auto enqueue = [&] (Continuation* continuation) {
-        const auto& p = done.insert(continuation);
-        if (p.second)
-            queue.push(continuation);
-    };
+    unique_queue<ContinuationSet> queue;
 
     for (auto continuation : world.externals()) {
         assert(!continuation->empty() && "external must not be empty");
-        enqueue(continuation);
+        queue.push(continuation);
     }
 
     while (!queue.empty()) {
-        auto continuation = pop(queue);
+        auto continuation = queue.pop();
         if (elide_empty && continuation->empty())
             continue;
         Scope scope(continuation);
@@ -91,7 +84,7 @@ void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
         for (auto n : scope.f_cfg().reverse_post_order()) {
             for (auto succ : n->continuation()->succs()) {
                 if (!scope.contains(succ))
-                    enqueue(succ);
+                    queue.push(succ);
             }
         }
     }

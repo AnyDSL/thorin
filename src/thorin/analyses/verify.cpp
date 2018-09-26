@@ -1,7 +1,6 @@
 #include "thorin/primop.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
-#include "thorin/analyses/free_defs.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/util/log.h"
 
@@ -14,9 +13,10 @@ static void verify_calls(World& world) {
 
 static void verify_top_level(World& world) {
     Scope::for_each(world, [&] (const Scope& scope) {
-        for (auto def : free_defs(scope)) {
-            assertf(def->isa_continuation(), "top-level continuation '{}' got free def '{}' at location '{}'",
-                    scope.entry(), def, def->location());
+        if (scope.has_free_params()) {
+            for (auto param : scope.free_params())
+                WLOG(param, "top-level continuation '{}' got free param '{}' at", scope.entry(), param);
+            ELOG(scope.entry(), "here");
         }
     });
 }

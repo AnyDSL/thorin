@@ -3,6 +3,7 @@
 
 namespace thorin {
 
+// TODO get rid of this mess
 DefSet free_defs(const Scope& scope, bool include_closures) {
     DefSet result, done(scope.defs().capacity());
     std::queue<const Def*> queue;
@@ -59,15 +60,6 @@ queue_next:;
 DefSet free_defs(Continuation* entry) {
     Scope scope(entry);
     return free_defs(scope, true);
-}
-
-bool has_free_vars(Continuation* entry) {
-    for (auto def : free_defs(entry)) {
-        if (!def->isa_continuation())
-            return true;
-    }
-
-    return false;
 }
 
 }

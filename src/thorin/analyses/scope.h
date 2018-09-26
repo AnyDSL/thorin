@@ -49,8 +49,12 @@ public:
     //@{ get Def%s contained in this Scope
     const DefSet& defs() const { return defs_; }
     bool contains(const Def* def) const { return defs_.contains(def); }
-    bool inner_contains(Continuation* continuation) const { return continuation != entry() && contains(continuation); }
-    bool inner_contains(const Param* param) const { return inner_contains(param->continuation()); }
+    /// All @p Def%s referenced but @em not contained in this @p Scope.
+    const DefSet& free() const;
+    /// All @p Param%s that appear free in this @p Scope.
+    const ParamSet& free_params() const;
+    /// Are there any free @p Param%s within this @p Scope.
+    bool has_free_params() const { return !free_params().empty(); }
     //@}
 
     size_t size() const { return continuations_.size(); }
@@ -86,6 +90,8 @@ private:
     World& world_;
     DefSet defs_;
     std::vector<Continuation*> continuations_;
+    mutable std::unique_ptr<DefSet> free_;
+    mutable std::unique_ptr<ParamSet> free_params_;
     mutable std::unique_ptr<const CFA> cfa_;
 };
 

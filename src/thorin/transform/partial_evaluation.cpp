@@ -1,6 +1,5 @@
 #include "thorin/primop.h"
 #include "thorin/world.h"
-#include "thorin/analyses/free_defs.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/util/hash.h"
 #include "thorin/util/log.h"
@@ -81,9 +80,14 @@ public:
         return callee_->filter().empty() ? world().literal_bool(false, {}) : callee_->filter(i);
     }
 
+    bool has_free_params(Continuation* continuation) {
+        Scope scope(continuation);
+        return scope.has_free_params();
+    }
+
     bool is_top_level(Continuation* continuation) {
         auto p = top_level_.emplace(continuation, true);
-        if (p.second && has_free_vars(callee_))
+        if (p.second && has_free_params(callee_))
             return p.first->second = false;
 
         return p.first->second;

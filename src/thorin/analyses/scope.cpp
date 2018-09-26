@@ -24,7 +24,9 @@ Scope& Scope::update() {
     auto e = entry();
     continuations_.clear();
     defs_.clear();
-    cfa_ = nullptr;
+    free_        = nullptr;
+    free_params_ = nullptr;
+    cfa_         = nullptr;
     run(e);
     return *this;
 }
@@ -61,30 +63,78 @@ void Scope::run(Continuation* entry) {
     enqueue(world().end_scope());
 }
 
+const DefSet& Scope::free() const {
+    if (!free_) {
+        free_ = std::make_unique<DefSet>();
+
+        for (auto def : defs_) {
+            for (auto op : def->ops()) {
+                if (!contains(op))
+                    free_->emplace(op);
+            }
+        }
+    }
+
+    return *free_;
+}
+
+const ParamSet& Scope::free_params() const {
+    if (!free_) {
+        free_params_ = std::make_unique<ParamSet>();
+        unique_queue<DefSet> queue;
+
+        auto enqueue = [&](const Def* def) {
+            if (auto param = def->isa<Param>())
+                free_params_->emplace(param);
+            else if (def->isa<Continuation>())
+                return;
+            else
+                queue.push(def);
+        };
+
+        for (auto def : free())
+            enqueue(def);
+
+        while (!queue.empty()) {
+            for (auto op : queue.pop()->ops())
+                enqueue(op);
+        }
+    }
+
+    return *free_params_;
+}
+
 const CFA& Scope::cfa() const { return lazy_init(this, cfa_); }
 const F_CFG& Scope::f_cfg() const { return cfa().f_cfg(); }
 const B_CFG& Scope::b_cfg() const { return cfa().b_cfg(); }
 
 template<bool elide_empty>
 void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
-    unique_queue<ContinuationSet> queue;
+    unique_queue<ContinuationSet> continuation_queue;
 
     for (auto continuation : world.externals()) {
         assert(!continuation->empty() && "external must not be empty");
-        queue.push(continuation);
+        continuation_queue.push(continuation);
     }
 
-    while (!queue.empty()) {
-        auto continuation = queue.pop();
+    while (!continuation_queue.empty()) {
+        auto continuation = continuation_queue.pop();
         if (elide_empty && continuation->empty())
             continue;
         Scope scope(continuation);
         f(scope);
 
-        for (auto n : scope.f_cfg().reverse_post_order()) {
-            for (auto succ : n->continuation()->succs()) {
-                if (!scope.contains(succ))
-                    queue.push(succ);
+        unique_queue<DefSet> def_queue;
+        for (auto def : scope.free())
+            def_queue.push(def);
+
+        while (!def_queue.empty()) {
+            auto def = def_queue.pop();
+            if (auto continuation = def->isa_continuation())
+                continuation_queue.push(continuation);
+            else {
+                for (auto op : def->ops())
+                    def_queue.push(op);
             }
         }
     }

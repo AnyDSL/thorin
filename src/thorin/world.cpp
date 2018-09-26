@@ -646,12 +646,29 @@ const Def* World::bitcast(const Type* to, const Def* from, Debug dbg) {
  * aggregate operations
  */
 
+static bool fold_1_tuple(const Type* type, const Def* index) {
+    if (auto lit = index->isa<PrimLit>()) {
+        if (primlit_value<u64>(lit) == 0
+                && !type->isa<ArrayType>()
+                && !type->isa<StructType>()
+                && !type->isa<TupleType>()) {
+            if (auto prim_type = type->isa<PrimType>())
+                return prim_type->length() == 1;
+            return true;
+        }
+    }
+    return false;
+}
+
 const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
     if (agg->isa<Bottom>())
         return bottom(Extract::extracted_type(agg, index), dbg);
 
+    if (fold_1_tuple(agg->type(), index))
+        return agg;
+
     if (auto aggregate = agg->isa<Aggregate>()) {
-        if (auto lit = index->template isa<PrimLit>()) {
+        if (auto lit = index->isa<PrimLit>()) {
             if (!agg->isa<IndefiniteArray>()) {
                 if (primlit_value<u64>(lit) < aggregate->num_ops())
                     return get(aggregate->ops(), lit);
@@ -705,6 +722,9 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, Deb
         }
     }
 
+    if (fold_1_tuple(agg->type(), index))
+        return value;
+
     // TODO double-check
     if (auto aggregate = agg->isa<Aggregate>()) {
         if (auto lit = index->isa<PrimLit>()) {
@@ -721,6 +741,13 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, Deb
     }
 
     return cse(new Insert(agg, index, value, dbg));
+}
+
+const Def* World::lea(const Def* ptr, const Def* index, Debug dbg) {
+    if (fold_1_tuple(ptr->type()->as<PtrType>()->pointee(), index))
+        return ptr;
+
+    return cse(new LEA(ptr, index, dbg));
 }
 
 const Def* World::select(const Def* cond, const Def* a, const Def* b, Debug dbg) {

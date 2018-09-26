@@ -316,7 +316,7 @@ std::string DefiniteArray::as_string() const {
 }
 
 const Def* PrimOp::out(size_t i) const {
-    assert(i < type()->as<TupleType>()->num_ops());
+    assert(i == 0 || i < type()->as<TupleType>()->num_ops());
     return world().extract(this, i, debug());
 }
 

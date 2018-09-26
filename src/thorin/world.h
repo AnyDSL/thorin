@@ -117,7 +117,7 @@ public:
     const Def* struct_agg(const StructType* struct_type, Defs args, Debug dbg = {}) {
         return try_fold_aggregate(cse(new StructAgg(struct_type, args, dbg)));
     }
-    const Def* tuple(Defs args, Debug dbg = {}) { return try_fold_aggregate(cse(new Tuple(*this, args, dbg))); }
+    const Def* tuple(Defs args, Debug dbg = {}) { return args.size() == 1 ? args.front() : try_fold_aggregate(cse(new Tuple(*this, args, dbg))); }
     const Def* variant(const VariantType* variant_type, const Def* value, Debug dbg = {}) { return cse(new Variant(variant_type, value, dbg)); }
     const Def* closure(const ClosureType* closure_type, const Def* fn, const Def* env, Debug dbg = {}) { return cse(new Closure(closure_type, fn, env, dbg)); }
     const Def* vector(Defs args, Debug dbg = {}) {
@@ -148,7 +148,7 @@ public:
     const Def* alloc(const Type* type, const Def* mem, Debug dbg = {}) { return alloc(type, mem, literal_qu64(0, dbg), dbg); }
     const Def* global(const Def* init, bool is_mutable = true, Debug dbg = {});
     const Def* global_immutable_string(const std::string& str, Debug dbg = {});
-    const Def* lea(const Def* ptr, const Def* index, Debug dbg) { return cse(new LEA(ptr, index, dbg)); }
+    const Def* lea(const Def* ptr, const Def* index, Debug dbg);
     const Assembly* assembly(const Type* type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints,
                              ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg = {});
     const Assembly* assembly(Types types, const Def* mem, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints,

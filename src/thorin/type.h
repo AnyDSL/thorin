@@ -369,7 +369,7 @@ public:
     const Lambda* lambda(const Type* body, const char* name) { return unify(new Lambda(*this, body, name)); }
     const Type* app(const Type* callee, const Type* arg);
 
-    const TupleType* tuple_type(Types ops) { return unify(new TupleType(*this, ops)); }
+    const Type* tuple_type(Types ops) { return ops.size() == 1 ? ops.front() : unify(new TupleType(*this, ops)); }
     const TupleType* unit() { return unit_; } ///< Returns unit, i.e., an empty @p TupleType.
     const VariantType* variant_type(Types ops) { return unify(new VariantType(*this, ops)); }
     const StructType* struct_type(Symbol name, size_t size);

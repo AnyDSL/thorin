@@ -78,16 +78,21 @@ bool is_unit(const Def* def) {
 }
 
 bool is_const(const Def* def) {
-    if (def->isa<Param>()) return false;
-    if (def->isa<Hlt>()) return false;
-    if (def->isa<PrimOp>()) {
-        for (auto op : def->ops()) { // TODO slow because ops form a DAG not a tree
-            if (!is_const(op))
-                return false;
+    unique_stack<DefSet> stack;
+    stack.push(def);
+
+    while (!stack.empty()) {
+        auto def = stack.pop();
+        if (def->isa<Param>()) return false;
+        if (def->isa<Hlt>()) return false;
+        if (def->isa<PrimOp>()) {
+            for (auto op : def->ops())
+                stack.push(op);
         }
+        // continuations are always const
     }
 
-    return true; // continuations are always const
+    return true;
 }
 
 size_t vector_length(const Def* def) { return def->type()->as<VectorType>()->length(); }

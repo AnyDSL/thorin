@@ -180,9 +180,10 @@ bool PartialEvaluator::run() {
 //------------------------------------------------------------------------------
 
 bool partial_evaluation(World& world, bool lower2cff) {
-    VLOG("start pe");
+    auto name = lower2cff ? "lower2cff" : "partial_evaluation";
+    VLOG("start {}", name);
     auto res = PartialEvaluator(world, lower2cff).run();
-    VLOG("end pe");
+    VLOG("end {}", name);
     return res;
 }
 

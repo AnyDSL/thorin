@@ -3,8 +3,10 @@
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/domtree.h"
+#include "thorin/analyses/scope.h"
 #include "thorin/analyses/verify.h"
 #include "thorin/transform/importer.h"
+#include "thorin/transform/mangle.h"
 #include "thorin/transform/resolve_loads.h"
 #include "thorin/transform/partial_evaluation.h"
 #include "thorin/util/log.h"
@@ -19,6 +21,7 @@ public:
 
     World& world() { return world_; }
     void cleanup();
+    void eliminate_tail_rec();
     void eta_conversion();
     void eliminate_params();
     void rebuild();
@@ -32,6 +35,65 @@ private:
     World& world_;
     bool todo_ = true;
 };
+
+void Cleaner::eliminate_tail_rec() {
+    Scope::for_each(world_, [&](Scope& scope) {
+        auto entry = scope.entry();
+
+        bool only_tail_calls = true;
+        bool recursive = false;
+        for (auto use : entry->uses()) {
+            if (scope.contains(use)) {
+                if (use.index() != 0 || !use->isa<Continuation>()) {
+                    only_tail_calls = false;
+                    break;
+                } else {
+                    recursive = true;
+                }
+            }
+        }
+
+        if (recursive && only_tail_calls) {
+            auto n = entry->num_params();
+            Array<const Def*> args(n);
+
+            for (size_t i = 0; i != n; ++i) {
+                args[i] = entry->param(i);
+
+                for (auto use : entry->uses()) {
+                    if (scope.contains(use)) {
+                        auto arg = use->as_continuation()->arg(i);
+                        if (!arg->isa<Bottom>() && arg != args[i]) {
+                            args[i] = nullptr;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            std::vector<const Def*> new_args;
+
+            for (size_t i = 0; i != n; ++i) {
+                if (args[i] == nullptr) {
+                    new_args.emplace_back(entry->param(i));
+                    if (entry->param(i)->order() != 0) {
+                        // the resulting function wouldn't be of first order so examine next scope
+                        return;
+                    }
+                }
+            }
+
+            if (new_args.size() != n) {
+                DLOG("tail recursive: {}", entry);
+                auto dropped = drop(scope, args);
+
+                entry->jump(dropped, new_args);
+                todo_ = true;
+                scope.update();
+            }
+        }
+    });
+}
 
 void Cleaner::eta_conversion() {
     for (bool todo = true; todo;) {
@@ -241,6 +303,8 @@ void Cleaner::cleanup_fix_point() {
     for (; todo_; ++i) {
         VLOG("iteration: {}", i);
         todo_ = false;
+        if (world_.is_pe_done())
+            eliminate_tail_rec();
         eta_conversion();
         eliminate_params();
         rebuild(); // resolve replaced defs before going to resolve_loads

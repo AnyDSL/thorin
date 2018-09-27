@@ -15,17 +15,21 @@ static bool is_graph_type(const Type* type) {
     return false;
 }
 
-static bool has_task_or_graph_type(const Type* type) {
-    if (is_task_type(type) || is_graph_type(type))
-        return true;
-    bool contains = false;
-    for (auto op : type->ops()) {
-        if (has_task_or_graph_type(op)) {
-            contains = true;
-            break;
+static bool has_task_or_graph_type(TypeMap<bool>& cache, const Type* type) {
+    if (cache.emplace(type, false).second) {
+        if (is_task_type(type) || is_graph_type(type))
+            return cache[type] = true;
+        bool contains = false;
+        for (auto op : type->ops()) {
+            if (has_task_or_graph_type(cache, op)) {
+                contains = true;
+                break;
+            }
         }
+        return cache[type] = contains;
     }
-    return contains;
+
+    return cache[type];
 }
 
 static const Type* task_type(World& world) {
@@ -83,11 +87,12 @@ static void rewrite_def(const Def* def, Rewriter& rewriter) {
 void rewrite_flow_graphs(World& world) {
     Rewriter rewriter;
     std::vector<std::pair<Continuation*, Continuation*>> transformed;
+    TypeMap<bool> cache;
 
     for (auto cont : world.copy_continuations()) {
         bool transform = false;
         for (auto param : cont->params()) {
-            if (has_task_or_graph_type(param->type())) {
+            if (has_task_or_graph_type(cache, param->type())) {
                 transform = true;
                 break;
             }

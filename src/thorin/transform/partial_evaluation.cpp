@@ -64,10 +64,13 @@ public:
     }
 
     bool eval(size_t i, bool lower2cff) {
-        // the only higher order parameter that is allowed is a single 1st-order parameter of a top-level continuation
+        // the only higher order parameter that is allowed is a single 1st-order fn-parameter of a top-level continuation
         // all other parameters need specialization (lower2cff)
         auto order = callee_->param(i)->order();
-        if (order >= 2 || (order == 1 && (!callee_->is_returning() || (!is_top_level(callee_) && lower2cff)))) {
+        if (lower2cff)
+            if(order >= 2 || (order == 1
+                        && (!callee_->param(i)->type()->isa<FnType>()
+                            || (!callee_->is_returning() || (!is_top_level(callee_)))))) {
             DLOG("bad param({}) {} of continuation {}", i, callee_->param(i), callee_);
             return true;
         }
@@ -87,10 +90,30 @@ public:
 
     bool is_top_level(Continuation* continuation) {
         auto p = top_level_.emplace(continuation, true);
-        if (p.second && has_free_params(callee_))
-            return p.first->second = false;
+        if (!p.second)
+            return p.first->second;
 
-        return p.first->second;
+        Scope scope(continuation);
+        unique_queue<DefSet> queue;
+
+        for (auto def : scope.free())
+            queue.push(def);
+
+        while (!queue.empty()) {
+            auto def = queue.pop();
+
+            if (def->isa<Param>())
+                return top_level_[continuation] = false;
+            if (auto free_cn = def->isa_continuation()) {
+                if (!is_top_level(free_cn))
+                    return top_level_[continuation] = false;
+            } else {
+                for (auto op : def->ops())
+                    queue.push(op);
+            }
+        }
+
+        return top_level_[continuation] = true;
     }
 
 private:
@@ -166,6 +189,13 @@ bool PartialEvaluator::run() {
                     }
 
                     jump_to_dropped_call(continuation, target, call);
+
+                    if (lower2cff_ && fold) {
+                        // re-examine next iteration:
+                        // maybe the specialization is not top-level anymore which might need further specialization
+                        queue_.push(continuation);
+                        continue;
+                    }
                 }
             }
         }
@@ -180,9 +210,10 @@ bool PartialEvaluator::run() {
 //------------------------------------------------------------------------------
 
 bool partial_evaluation(World& world, bool lower2cff) {
-    VLOG("start pe");
+    auto name = lower2cff ? "lower2cff" : "partial_evaluation";
+    VLOG("start {}", name);
     auto res = PartialEvaluator(world, lower2cff).run();
-    VLOG("end pe");
+    VLOG("end {}", name);
     return res;
 }
 

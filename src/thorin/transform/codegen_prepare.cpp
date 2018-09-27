@@ -1,10 +1,13 @@
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
+#include "thorin/util/log.h"
 
 namespace thorin {
 
 void codegen_prepare(World& world) {
+    VLOG("start codegen_prepare");
     Scope::for_each(world, [&](Scope& scope) {
+        DLOG("scope: {}", scope.entry());
         bool dirty = false;
         auto ret_param = scope.entry()->ret_param();
         auto ret_cont = world.continuation(ret_param->type()->as<FnType>(), ret_param->debug());
@@ -22,6 +25,7 @@ void codegen_prepare(World& world) {
         if (dirty)
             scope.update();
     });
+    VLOG("end codegen_prepare");
 }
 
 }

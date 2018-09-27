@@ -3,6 +3,7 @@
 
 #include <cassert>
 #include <memory>
+#include <stack>
 #include <queue>
 
 #ifdef _MSC_VER
@@ -50,15 +51,42 @@ inline T& lazy_init(const This* self, std::unique_ptr<T>& ptr) {
 }
 
 template<class T>
+T pop(std::stack<T>& stack) {
+    auto val = stack.top();
+    stack.pop();
+    return val;
+}
+
+template<class T>
 T pop(std::queue<T>& queue) {
     auto val = queue.front();
     queue.pop();
     return val;
 }
 
-template<class Set, class T = typename Set::value_type>
+template<class Set>
+class unique_stack {
+public:
+    typedef typename Set::value_type T;
+
+    void push(T val) {
+        if (done_.emplace(val).second)
+            stack_.emplace(val);
+    }
+
+    bool empty() const { return stack_.empty(); }
+    T pop() { return thorin::pop(stack_); }
+
+private:
+    Set done_;
+    std::stack<T> stack_;
+};
+
+template<class Set>
 class unique_queue {
 public:
+    typedef typename Set::value_type T;
+
     void push(T val) {
         if (done_.emplace(val).second)
             queue_.emplace(val);

@@ -16,8 +16,10 @@ DefSet free_defs(const Scope& scope, bool include_closures) {
         }
     };
 
-    for (auto continuation : scope)
-        enqueue_ops(continuation);
+    for (auto def : scope.defs()) {
+        if (auto continuation = def->isa_continuation())
+            enqueue_ops(continuation);
+    }
 
     while (!queue.empty()) {
         auto def = pop(queue);

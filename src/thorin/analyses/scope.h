@@ -19,7 +19,6 @@ class CFNode;
 /**
  * A @p Scope represents a region of @p Continuation%s which are live from the view of an @p entry @p Continuation.
  * Transitively, all user's of the @p entry's parameters are pooled into this @p Scope.
- * Use @p continuations() to retrieve a vector of @p Continuation%s in this @p Scope.
  * @p entry() will be first, @p exit() will be last.
  * @warning All other @p Continuation%s are in no particular order.
  */
@@ -36,14 +35,8 @@ public:
 
     //@{ misc getters
     World& world() const { return world_; }
-    Continuation* entry() const { return continuations().front(); }
-    Continuation* exit() const { return continuations().back(); }
-    /**
-     * All continuations in this Scope.
-     * entry is first, exit ist last.
-     * @attention { All other Continuation%s are in @em no special order. }
-     */
-    ArrayRef<Continuation*> continuations() const { return continuations_; }
+    Continuation* entry() const { return entry_; }
+    Continuation* exit() const { return exit_; }
     //@}
 
     //@{ get Def%s contained in this Scope
@@ -56,8 +49,6 @@ public:
     /// Are there any free @p Param%s within this @p Scope.
     bool has_free_params() const { return !free_params().empty(); }
     //@}
-
-    size_t size() const { return continuations_.size(); }
 
     //@{ simple CFA to construct a CFG
     const CFA& cfa() const;
@@ -72,10 +63,6 @@ public:
     void thorin() const;                                         ///< Dumps thorin to a file with an auto-generated file name.
     //@}
 
-    typedef ArrayRef<Continuation*>::const_iterator const_iterator;
-    const_iterator begin() const { return continuations().begin(); }
-    const_iterator end() const { return continuations().end(); }
-
     /**
      * Transitively visits all @em reachable Scope%s in @p world that do not have free variables.
      * We call these Scope%s @em top-level Scope%s.
@@ -85,11 +72,12 @@ public:
     static void for_each(const World&, std::function<void(Scope&)>);
 
 private:
-    void run(Continuation* entry);
+    void run();
 
     World& world_;
     DefSet defs_;
-    std::vector<Continuation*> continuations_;
+    Continuation* entry_ = nullptr;
+    Continuation* exit_ = nullptr;
     mutable std::unique_ptr<DefSet> free_;
     mutable std::unique_ptr<ParamSet> free_params_;
     mutable std::unique_ptr<const CFA> cfa_;

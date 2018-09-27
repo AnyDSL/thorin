@@ -14,24 +14,24 @@ namespace thorin {
 
 Scope::Scope(Continuation* entry)
     : world_(entry->world())
+    , entry_(entry)
+    , exit_(world().end_scope())
 {
-    run(entry);
+    run();
 }
 
 Scope::~Scope() {}
 
 Scope& Scope::update() {
-    auto e = entry();
-    continuations_.clear();
     defs_.clear();
     free_        = nullptr;
     free_params_ = nullptr;
     cfa_         = nullptr;
-    run(e);
+    run();
     return *this;
 }
 
-void Scope::run(Continuation* entry) {
+void Scope::run() {
     std::queue<const Def*> queue;
 
     auto enqueue = [&] (const Def* def) {
@@ -39,8 +39,6 @@ void Scope::run(Continuation* entry) {
             queue.push(def);
 
             if (auto continuation = def->isa_continuation()) {
-                continuations_.push_back(continuation);
-
                 for (auto param : continuation->params()) {
                     auto p = defs_.insert(param);
                     assert_unused(p.second);
@@ -50,17 +48,17 @@ void Scope::run(Continuation* entry) {
         }
     };
 
-    enqueue(entry);
+    enqueue(entry_);
 
     while (!queue.empty()) {
         auto def = pop(queue);
-        if (def != entry) {
+        if (def != entry_) {
             for (auto use : def->uses())
                 enqueue(use);
         }
     }
 
-    enqueue(world().end_scope());
+    enqueue(exit_);
 }
 
 const DefSet& Scope::free() const {

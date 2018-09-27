@@ -150,7 +150,7 @@ void Def::replace(Tracker with) const {
 
 void Def::dump() const {
     auto primop = this->isa<PrimOp>();
-    if (primop && !is_const(primop))
+    if (primop && primop->num_ops() > 1)
         primop->stream_assignment(std::cout);
     else {
         std::cout << this;

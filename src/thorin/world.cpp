@@ -801,6 +801,10 @@ const Def* World::load(const Def* mem, const Def* ptr, Debug dbg) {
     return cse(new Load(mem, ptr, dbg));
 }
 
+bool is_agg_const(const Def* def) {
+    return def->isa<DefiniteArray>() || def->isa<StructAgg>() || def->isa<Tuple>();
+}
+
 const Def* World::store(const Def* mem, const Def* ptr, const Def* value, Debug dbg) {
     if (value->isa<Bottom>())
         return mem;
@@ -809,7 +813,7 @@ const Def* World::store(const Def* mem, const Def* ptr, const Def* value, Debug 
         if (ptr == st->ptr() && value == st->val())
             return st;
         if (auto lea = ptr->isa<LEA>()) {
-            if (lea->ptr() == st->ptr() && is_const(st->val()) && is_const(lea->index()))
+            if (lea->ptr() == st->ptr() && is_agg_const(st->val()) && lea->index()->isa<PrimLit>())
                 return store(st->mem(), lea->ptr(), insert(st->val(), lea->index(), value), dbg);
         }
     }

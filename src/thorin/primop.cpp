@@ -256,7 +256,7 @@ const char* Global::op_name() const { return is_mutable() ? "global_mutable" : "
  */
 
 std::ostream& PrimOp::stream(std::ostream& os) const {
-    if (num_ops() > 1) {
+    if (is_const(this)) {
         if (empty())
             return streamf(os, "{} {}", op_name(), type());
         else

@@ -33,8 +33,12 @@ Continuation* CodeGen::emit_parallel(Continuation* continuation) {
     // fetch values and create a unified struct which contains all values (closure)
     auto closure_type = convert(world_.tuple_type(continuation->arg_fn_type()->ops().skip_front(PAR_NUM_ARGS)));
     llvm::Value* closure = llvm::UndefValue::get(closure_type);
-    for (size_t i = 0; i < num_kernel_args; ++i)
-        closure = irbuilder_.CreateInsertValue(closure, lookup(continuation->arg(i + PAR_NUM_ARGS)), unsigned(i));
+    if (num_kernel_args != 1) {
+        for (size_t i = 0; i < num_kernel_args; ++i)
+            closure = irbuilder_.CreateInsertValue(closure, lookup(continuation->arg(i + PAR_NUM_ARGS)), unsigned(i));
+    } else {
+            closure = lookup(continuation->arg(PAR_NUM_ARGS));
+    }
 
     // allocate closure object and write values into it
     auto ptr = emit_alloca(closure_type, "parallel_closure");
@@ -58,8 +62,12 @@ Continuation* CodeGen::emit_parallel(Continuation* continuation) {
     auto load_ptr = irbuilder_.CreateBitCast(&*wrapper_args, llvm::PointerType::get(closure_type, 0));
     auto val = irbuilder_.CreateLoad(load_ptr);
     std::vector<llvm::Value*> target_args(num_kernel_args + 1);
-    for (size_t i = 0; i < num_kernel_args; ++i)
-        target_args[i + 1] = irbuilder_.CreateExtractValue(val, { unsigned(i) });
+    if (num_kernel_args != 1) {
+        for (size_t i = 0; i < num_kernel_args; ++i)
+            target_args[i + 1] = irbuilder_.CreateExtractValue(val, { unsigned(i) });
+    } else {
+            target_args[1] = val;
+    }
 
     // create loop iterating over range:
     // for (int i=lower; i<upper; ++i)

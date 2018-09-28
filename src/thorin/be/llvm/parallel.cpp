@@ -37,7 +37,7 @@ Continuation* CodeGen::emit_parallel(Continuation* continuation) {
         for (size_t i = 0; i < num_kernel_args; ++i)
             closure = irbuilder_.CreateInsertValue(closure, lookup(continuation->arg(i + PAR_NUM_ARGS)), unsigned(i));
     } else {
-            closure = lookup(continuation->arg(PAR_NUM_ARGS));
+        closure = lookup(continuation->arg(PAR_NUM_ARGS));
     }
 
     // allocate closure object and write values into it
@@ -66,7 +66,7 @@ Continuation* CodeGen::emit_parallel(Continuation* continuation) {
         for (size_t i = 0; i < num_kernel_args; ++i)
             target_args[i + 1] = irbuilder_.CreateExtractValue(val, { unsigned(i) });
     } else {
-            target_args[1] = val;
+        target_args[1] = val;
     }
 
     // create loop iterating over range:

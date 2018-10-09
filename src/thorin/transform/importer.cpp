@@ -56,11 +56,8 @@ const Def* Importer::import(Tracker odef) {
         ncontinuation = world().continuation(npi, ocontinuation->cc(), ocontinuation->intrinsic(), ocontinuation->debug_history());
         assert(&ncontinuation->world() == &world());
         assert(&npi->table() == &world());
-        for (size_t i = 0, e = ocontinuation->num_params(); i != e; ++i) {
-            ncontinuation->param(i)->debug() = ocontinuation->param(i)->debug_history();
-            def_old2new_[ocontinuation->param(i)] = ncontinuation->param(i);
-        }
-
+        ncontinuation->param()->debug() = ocontinuation->param()->debug_history();
+        def_old2new_[ocontinuation->param()] = ncontinuation->param();
         def_old2new_[ocontinuation] = ncontinuation;
 
         if (ocontinuation->is_external())
@@ -77,11 +74,7 @@ const Def* Importer::import(Tracker odef) {
             }
         }
 
-        auto old_profile = ocontinuation->filter();
-        Array<const Def*> new_profile(old_profile.size());
-        for (size_t i = 0, e = old_profile.size(); i != e; ++i)
-            new_profile[i] = import(old_profile[i]);
-        ncontinuation->set_filter(new_profile);
+        ncontinuation->set_filter(import(ocontinuation->filter()));
     }
 
     size_t size = odef->num_ops();

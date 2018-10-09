@@ -11,7 +11,7 @@ static bool update_src(Continuation* src, Continuation* dst, const char* suffix)
     auto resolve = [&] (Continuation* dst) {
         auto resolver = dst->stub();
         dst->debug().set(dst->name() + suffix);
-        resolver->jump(dst, resolver->params_as_defs(), resolver->jump_debug());
+        resolver->jump(dst, resolver->param(), resolver->jump_debug());
         return resolver;
     };
 

@@ -11,7 +11,7 @@ void codegen_prepare(World& world) {
         bool dirty = false;
         auto ret_param = scope.entry()->ret_param();
         auto ret_cont = world.continuation(ret_param->type()->as<FnType>(), ret_param->debug());
-        ret_cont->jump(ret_param, ret_cont->params_as_defs(), ret_param->debug());
+        ret_cont->jump(ret_param, ret_cont->param(), ret_param->debug());
 
         for (auto use : ret_param->copy_uses()) {
             if (auto ucontinuation = use->isa_continuation()) {

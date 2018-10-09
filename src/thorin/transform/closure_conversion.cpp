@@ -8,6 +8,7 @@
 #include "thorin/util/log.h"
 
 namespace thorin {
+#if 0
 
 class ClosureConversion {
 public:
@@ -219,5 +220,7 @@ private:
 void closure_conversion(World& world) {
     ClosureConversion(world).run();
 }
+
+#endif
 
 }

@@ -310,15 +310,7 @@ void CCodeGen::emit() {
 
         assert(continuation->is_returning());
 
-        // retrieve return param
-        const Param* ret_param = nullptr;
-        for (auto param : continuation->params()) {
-            if (param->order() != 0) {
-                assert(!ret_param);
-                ret_param = param;
-            }
-        }
-        assert(ret_param);
+        auto ret_param = continuation->ret_param();
 
         // emit function & its declaration
         auto ret_param_fn_type = ret_param->type()->as<FnType>();
@@ -358,7 +350,7 @@ void CCodeGen::emit() {
         emit_addr_space(func_impl_,  ret_type);
         emit_type(func_decls_, ret_type) << " " << name << "(";
         emit_type(func_impl_,  ret_type) << " " << name << "(";
-        size_t i = 0;
+        size_t fi = 0;
         std::string hls_pragmas;
         // emit and store all first-order params
         for (auto param : continuation->params()) {
@@ -376,7 +368,7 @@ void CCodeGen::emit() {
                     // skip arrays bound to texture memory
                     continue;
                 }
-                if (i++ > 0) {
+                if (fi++ > 0) {
                     func_decls_ << ", ";
                     func_impl_  << ", ";
                 }
@@ -481,9 +473,10 @@ void CCodeGen::emit() {
             if (continuation != scope.entry()) {
                 func_impl_ << "l" << continuation->gid() << ": ;" << up << endl;
                 // load params from phi node
-                for (auto param : continuation->params())
+                for (auto param : continuation->params()) {
                     if (!is_mem(param) && !is_unit(param))
                         func_impl_ << param->unique_name() << " = p" << param->unique_name() << ";" << endl;
+                }
             }
 
             for (auto primop : block) {
@@ -626,16 +619,16 @@ void CCodeGen::emit() {
                             THORIN_UNREACHABLE;
                         }
                     } else {
-                        auto emit_call = [&] (const Param* param = nullptr) {
+                        auto emit_call = [&] (const Def* param = nullptr) {
                             auto name = (callee->is_external() || callee->empty()) ? callee->name() : callee->unique_name();
                             if (param)
                                 emit(param) << " = ";
                             func_impl_ << name << "(";
                             // emit all first-order args
-                            size_t i = 0;
+                            size_t fi = 0;
                             for (auto arg : continuation->args()) {
                                 if (arg->order() == 0 && !(is_mem(arg) || is_unit(arg))) {
-                                    if (i++ > 0)
+                                    if (fi++ > 0)
                                         func_impl_ << ", ";
                                     emit(arg);
                                 }
@@ -660,7 +653,7 @@ void CCodeGen::emit() {
                         size_t num_params = succ->num_params();
 
                         size_t n = 0;
-                        Array<const Param*> values(num_params);
+                        Array<const Def*> values(num_params);
                         Array<const Type*> types(num_params);
                         for (auto param : succ->params()) {
                             if (!is_mem(param) && !is_unit(param)) {

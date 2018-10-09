@@ -56,7 +56,7 @@ static const Type* rewrite_type(World& world, const Type* type) {
 
 static void rewrite_jump(Continuation* old_cont, Continuation* new_cont, Rewriter& rewriter) {
     Array<const Def*> args(old_cont->num_args());
-    for (size_t i = 0; i< old_cont->num_args(); ++i)
+    for (size_t i = 0; i < old_cont->num_args(); ++i)
         args[i] = rewriter.instantiate(old_cont->arg(i));
 
     auto callee = rewriter.instantiate(old_cont->callee());
@@ -112,11 +112,9 @@ void rewrite_flow_graphs(World& world) {
         }
     }
 
-    for (auto pair : transformed) {
-        for (auto param : pair.second->params()) {
-            for (auto use : param->uses())
-                rewrite_def(use.def(), rewriter);
-        }
+    for (auto p : transformed) {
+        for (auto use : p.second->param()->uses())
+            rewrite_def(use.def(), rewriter);
     }
 
     for (auto pair : transformed)

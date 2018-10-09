@@ -120,6 +120,8 @@ Continuation* IRBuilder::continuation(Debug dbg) {
     return continuation(world().fn_type(), CC::C, Intrinsic::None, dbg);
 }
 
+// TODO
+#if 0
 Continuation* IRBuilder::continuation(const FnType* fn, CC cc, Intrinsic intrinsic, Debug dbg) {
     auto l = world().continuation(fn, cc, intrinsic, dbg);
     if (fn->num_ops() >= 1 && fn->ops().front()->isa<MemType>()) {
@@ -131,6 +133,7 @@ Continuation* IRBuilder::continuation(const FnType* fn, CC cc, Intrinsic intrins
 
     return l;
 }
+#endif
 
 void IRBuilder::jump(JumpTarget& jt, Debug dbg) {
     if (is_reachable()) {

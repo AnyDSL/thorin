@@ -34,7 +34,8 @@ void mem2reg(const Scope& scope) {
     for (auto continuation : scope) {
         if (auto callee = continuation->callee()->isa_continuation()) {
             if (callee->is_accelerator()) {
-                for (auto arg : continuation->args()) {
+                for (size_t i = 0, e = continuation->num_args(); i != e; ++i) {
+                    auto arg = continuation->arg(i);
                     if (auto acontinuation = arg->isa_continuation()) {
                         if (!acontinuation->is_basicblock()) {
                             DLOG("{} calls accelerator with {}", continuation, acontinuation);

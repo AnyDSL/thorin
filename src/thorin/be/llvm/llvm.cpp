@@ -100,7 +100,7 @@ Continuation* CodeGen::emit_hls(Continuation* continuation) {
     return ret;
 }
 
-void CodeGen::emit_result_phi(const Param* param, llvm::Value* value) {
+void CodeGen::emit_result_phi(const Def* param, llvm::Value* value) {
     thorin::find(phis_, param)->addIncoming(value, irbuilder_.GetInsertBlock());
 }
 
@@ -240,7 +240,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
         }
 
         // map params
-        const Param* ret_param = nullptr;
+        const Def* ret_param = nullptr;
         auto arg = fct->arg_begin();
         for (auto param : entry_->params()) {
             if (is_mem(param) || is_unit(param))
@@ -274,7 +274,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                 if (entry_ != continuation) {
                     for (auto param : continuation->params()) {
                         if (!is_mem(param) && !is_unit(param)) {
-                            auto phi = llvm::PHINode::Create(convert(param->type()), (unsigned) param->peek().size(), param->name().c_str(), bb);
+                            auto phi = llvm::PHINode::Create(convert(param->type()), (unsigned) peek(param).size(), param->name().c_str(), bb);
                             phis_[param] = phi;
                         }
                     }
@@ -412,12 +412,12 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                     auto succ = ret_arg->as_continuation();
 
                     size_t n = 0;
-                    const Param* last_param = nullptr;
+                    const Def* last_param = nullptr;
                     for (auto param : succ->params()) {
                         if (is_mem(param) || is_unit(param))
                             continue;
                         last_param = param;
-                        n++;
+                        ++n;
                     }
 
                     if (n == 0) {
@@ -454,8 +454,8 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
             auto param = p.first;
             auto phi = p.second;
 
-            for (const auto& peek : param->peek())
-                phi->addIncoming(lookup(peek.def()), bb2continuation[peek.from()]);
+            for (auto&& p : peek(param))
+                phi->addIncoming(lookup(p.def()), bb2continuation[p.from()]);
         }
 
         params_.clear();

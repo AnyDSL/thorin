@@ -2,6 +2,7 @@
 
 #include <iostream>
 
+#include "thorin/primop.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
@@ -12,12 +13,26 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-std::vector<Param::Peek> Param::peek() const {
+Continuation* get_param_continuation(const Def* def) {
+    if (auto extract = def->isa<Extract>())
+        return extract->agg()->as<Param>()->continuation();
+    return def->as<Param>()->continuation();
+}
+
+size_t get_param_index(const Def* def) {
+    if (auto extract = def->isa<Extract>())
+        return primlit_value<u64>(extract->index()->as<PrimLit>());
+    assert(def->isa<Param>());
+    return 0;
+}
+
+std::vector<Peek> peek(const Def* param) {
     std::vector<Peek> peeks;
-    for (auto use : continuation()->uses()) {
+    size_t index = get_param_index(param);
+    for (auto use : get_param_continuation(param)->uses()) {
         if (auto pred = use->isa_continuation()) {
             if (use.index() == 0)
-                peeks.emplace_back(pred->arg(index()), pred);
+                peeks.emplace_back(pred->arg(index), pred);
         }
     }
 
@@ -34,43 +49,87 @@ Continuation* Continuation::stub() const {
     Rewriter rewriter;
 
     auto result = world().continuation(type(), cc(), intrinsic(), debug_history());
-    for (size_t i = 0, e = num_params(); i != e; ++i) {
-        result->param(i)->debug() = param(i)->debug_history();
-        rewriter.old2new[param(i)] = result->param(i);
-    }
+    result->param()->debug() = param()->debug_history();
+    rewriter.old2new[param()] = result->param();
 
-    if (!filter().empty()) {
-        Array<const Def*> new_filter(num_params());
-        for (size_t i = 0, e = num_params(); i != e; ++i)
-            new_filter[i] = rewriter.instantiate(filter(i));
-
+    if (filter_ != nullptr) {
+        auto new_filter = rewriter.instantiate(filter_);
         result->set_filter(new_filter);
     }
 
     return result;
 }
 
-Array<const Def*> Continuation::params_as_defs() const {
-    Array<const Def*> params(num_params());
-    for (size_t i = 0, e = num_params(); i != e; ++i)
+size_t Continuation::num_params() const {
+    if (auto tuple_type = param()->type()->isa<TupleType>())
+        return tuple_type->num_ops();
+    return 1;
+}
+
+const Def* Continuation::param(size_t i) const {
+    if (param()->type()->isa<TupleType>())
+        return world().extract(param(), i);
+    return param();
+}
+
+Array<const Def*> Continuation::params() const {
+    size_t n = num_params();
+    Array<const Def*> params(n);
+    for (size_t i = 0; i != n; ++i)
         params[i] = param(i);
     return params;
 }
 
-const Param* Continuation::mem_param() const {
-    for (auto param : params()) {
-        if (is_mem(param))
-            return param;
+Array<const Def*> Continuation::args() const {
+    size_t n = num_args();
+    Array<const Def*> args(n);
+    for (size_t i = 0; i != n; ++i)
+        args[i] = arg(i);
+    return args;
+}
+
+size_t Continuation::num_args() const {
+    if (auto tuple_type = arg()->type()->isa<TupleType>())
+        return tuple_type->num_ops();
+    return 1;
+}
+
+const Def* Continuation::arg(size_t i) const {
+    if (arg()->type()->isa<TupleType>())
+        return world().extract(arg(), i);
+    return arg();
+}
+
+// TODO get rid off this
+size_t Call::num_args() const {
+    if (auto tuple_type = arg()->type()->isa<TupleType>())
+        return tuple_type->num_ops();
+    return 1;
+}
+
+// TODO get rid off this
+const Def* Call::arg(size_t i) const {
+    if (arg()->type()->isa<TupleType>())
+        return callee()->world().extract(arg(), i);
+    return arg();
+}
+
+const Def* Continuation::mem_param() const {
+    for (size_t i = 0, e = num_params(); i != e; ++i) {
+        auto p = param(i);
+        if (is_mem(p))
+            return p;
     }
     return nullptr;
 }
 
-const Param* Continuation::ret_param() const {
-    const Param* result = nullptr;
-    for (auto param : params()) {
-        if (param->order() >= 1) {
+const Def* Continuation::ret_param() const {
+    const Def* result = nullptr;
+    for (size_t i = 0, e = num_params(); i != e; ++i) {
+        auto p = param(i);
+        if (p->order() >= 1) {
             assertf(result == nullptr, "only one ret_param allowed");
-            result = param;
+            result = p;
         }
     }
     return result;
@@ -82,15 +141,13 @@ void Continuation::destroy_body() {
 }
 
 const FnType* Continuation::arg_fn_type() const {
-    Array<const Type*> args(num_args());
-    for (size_t i = 0, e = num_args(); i != e; ++i)
-        args[i] = arg(i)->type();
-
     return callee()->type()->isa<ClosureType>()
-        ? world().closure_type(args)->as<FnType>()
-        : world().fn_type(args);
+        ? world().closure_type(arg()->type())->as<FnType>()
+        : world().fn_type(arg()->type());
 }
 
+// TODO
+#if 0
 const Param* Continuation::append_param(const Type* param_type, Debug dbg) {
     size_t size = type()->num_ops();
     Array<const Type*> ops(size + 1);
@@ -102,6 +159,7 @@ const Param* Continuation::append_param(const Type* param_type, Debug dbg) {
 
     return param;
 }
+#endif
 
 Continuations Continuation::preds() const {
     std::vector<Continuation*> preds;
@@ -149,8 +207,7 @@ Continuations Continuation::succs() const {
     if (!empty())
         enqueue(callee());
 
-    for (auto arg : args())
-        enqueue(arg);
+    enqueue(arg());
 
     while (!queue.empty()) {
         auto def = pop(queue);
@@ -168,9 +225,11 @@ Continuations Continuation::succs() const {
     return succs;
 }
 
+#if 0
 void Continuation::set_all_true_filter() {
     filter_ = Array<const Def*>(num_params(), [&](size_t) { return world().literal_bool(true, Debug{}); });
 }
+#endif
 
 void Continuation::make_external() { return world().add_external(this); }
 void Continuation::make_internal() { return world().remove_external(this); }
@@ -263,6 +322,7 @@ void Continuation::match(const Def* val, Continuation* otherwise, Defs patterns,
     return jump(world().match(val->type(), patterns.size()), args, dbg);
 }
 
+#if 0
 std::pair<Continuation*, const Def*> Continuation::call(const Def* callee, Defs args, const Type* ret_type, Debug dbg) {
     if (ret_type == nullptr) {
         jump(callee, args, dbg);
@@ -302,11 +362,12 @@ std::pair<Continuation*, const Def*> Continuation::call(const Def* callee, Defs 
 
     return std::make_pair(next, ret);
 }
+#endif
 
 void jump_to_dropped_call(Continuation* src, Continuation* dst, const Call& call) {
     std::vector<const Def*> nargs;
     for (size_t i = 0, e = src->num_args(); i != e; ++i) {
-        if (!call.arg(i))
+        if (!call.arg(i)->isa<Top>())
             nargs.push_back(src->arg(i));
     }
 
@@ -350,7 +411,7 @@ const Def* Continuation::get_value(size_t handle, const Type* type, Debug dbg) {
     } else {
         if (!is_sealed_) {
             auto param = append_param(type, dbg);
-            todos_.emplace_back(handle, param->index(), type, dbg);
+            todos_.emplace_back(handle, get_param_index(param), type, dbg);
             result = set_value(handle, param);
             goto return_result;
         }
@@ -384,7 +445,7 @@ const Def* Continuation::get_value(size_t handle, const Type* type, Debug dbg) {
                 // fix any params which may have been introduced to break the cycle above
                 const Def* def = nullptr;
                 if (auto found = find_def(handle))
-                    def = fix(handle, found->as<Param>()->index(), type, dbg);
+                    def = fix(handle, get_param_index(found->as<Param>()), type, dbg);
 
                 if (same != (const Def*)-1) {
                     result = same;
@@ -398,7 +459,7 @@ const Def* Continuation::get_value(size_t handle, const Type* type, Debug dbg) {
 
                 auto param = append_param(type, dbg);
                 set_value(handle, param);
-                fix(handle, param->index(), type, dbg);
+                fix(handle, get_param_index(param), type, dbg);
                 result = param;
                 goto return_result;
             }
@@ -427,7 +488,7 @@ const Def* Continuation::fix(size_t handle, size_t index, const Type* type, Debu
     auto param = this->param(index);
 
     assert(is_sealed() && "must be sealed");
-    assert(index == param->index());
+    //assert(index == param->index());
 
     for (auto pred : preds()) {
         assert(!pred->empty());
@@ -445,8 +506,9 @@ const Def* Continuation::fix(size_t handle, size_t index, const Type* type, Debu
     return try_remove_trivial_param(param);
 }
 
-const Def* Continuation::try_remove_trivial_param(const Param* param) {
-    assert(param->continuation() == this);
+#if 0
+const Def* Continuation::try_remove_trivial_param(const Def* param) {
+    //assert(param->continuation() == this);
     assert(is_sealed() && "must be sealed");
 
     Continuations preds = this->preds();
@@ -489,24 +551,23 @@ const Def* Continuation::try_remove_trivial_param(const Param* param) {
 
     return same;
 }
+#endif
 
 std::ostream& Continuation::stream_head(std::ostream& os) const {
     os << unique_name();
-    //stream_type_params(os, type());
-    stream_list(os, params(), [&](const Param* param) { streamf(os, "{} {}", param->type(), param); }, "(", ")");
+    streamf(os, "{} {}", param()->type(), param());
     if (is_external())
         os << " extern ";
     if (cc() == CC::Device)
         os << " device ";
-    if (!filter().empty())
-        os << " @(" << stream_list(filter(), [&](const Def* def) { os << def; }) << ')';
+    if (filter())
+        streamf(os, " @({})", filter());
     return os;
 }
 
 std::ostream& Continuation::stream_jump(std::ostream& os) const {
     if (!empty()) {
-        os << callee();
-        os << '(' << stream_list(args(), [&](const Def* def) { os << def; }) << ')';
+        streamf(os, "{} {}", callee(), arg());
     }
     return os;
 }

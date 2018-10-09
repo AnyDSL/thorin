@@ -8,6 +8,7 @@
 
 namespace thorin {
 
+#if 0
 static Continuation*   wrap_def(Def2Def&, Def2Def&, const Def*, const FnType*, size_t);
 static Continuation* unwrap_def(Def2Def&, Def2Def&, const Def*, const FnType*, size_t);
 
@@ -219,5 +220,7 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
 void flatten_tuples(World& world) {
     flatten_tuples(world, std::numeric_limits<size_t>::max());
 }
+
+#endif
 
 }

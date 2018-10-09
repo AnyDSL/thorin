@@ -5,6 +5,7 @@
 #include "thorin/util/log.h"
 
 namespace thorin {
+#if 0
 
 class PartialEvaluator {
 public:
@@ -218,5 +219,7 @@ bool partial_evaluation(World& world, bool lower2cff) {
 }
 
 //------------------------------------------------------------------------------
+
+#endif
 
 }

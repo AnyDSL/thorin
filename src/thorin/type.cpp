@@ -28,8 +28,8 @@ const Type* VariantType        ::vrebuild(TypeTable& to, Types ops) const { retu
 const Type* Lambda             ::vrebuild(TypeTable& to, Types ops) const { return to.lambda(ops[0], name()); }
 const Type* Var                ::vrebuild(TypeTable& to, Types    ) const { return to.var(depth()); }
 const Type* DefiniteArrayType  ::vrebuild(TypeTable& to, Types ops) const { return to.definite_array_type(ops[0], dim()); }
-const Type* FnType             ::vrebuild(TypeTable& to, Types ops) const { return to.fn_type(ops); }
-const Type* ClosureType        ::vrebuild(TypeTable& to, Types ops) const { return to.closure_type(ops); }
+const Type* FnType             ::vrebuild(TypeTable& to, Types ops) const { return to.fn_type(ops[0]); }
+const Type* ClosureType        ::vrebuild(TypeTable& to, Types ops) const { return to.closure_type(ops[0]); }
 const Type* FrameType          ::vrebuild(TypeTable& to, Types    ) const { return to.frame_type(); }
 const Type* IndefiniteArrayType::vrebuild(TypeTable& to, Types ops) const { return to.indefinite_array_type(ops[0]); }
 const Type* MemType            ::vrebuild(TypeTable& to, Types    ) const { return to.mem_type(); }

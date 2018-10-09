@@ -41,7 +41,7 @@ protected:
     llvm::Function* emit_function_decl(Continuation*);
     virtual unsigned convert_addr_space(const AddrSpace);
     virtual void emit_function_decl_hook(Continuation*, llvm::Function*) {}
-    virtual llvm::Value* map_param(llvm::Function*, llvm::Argument* a, const Param*) { return a; }
+    virtual llvm::Value* map_param(llvm::Function*, llvm::Argument* a, const Def*) { return a; }
     virtual void emit_function_start(llvm::BasicBlock*, Continuation*) {}
     virtual llvm::FunctionType* convert_fn_type(Continuation*);
 
@@ -67,7 +67,7 @@ private:
     Continuation* emit_cmpxchg(Continuation*);
     llvm::Value* emit_bitcast(const Def*, const Type*);
     virtual Continuation* emit_reserve(const Continuation*);
-    void emit_result_phi(const Param*, llvm::Value*);
+    void emit_result_phi(const Def*, llvm::Value*);
     void emit_vectorize(u32, llvm::Function*, llvm::CallInst*);
 
 protected:
@@ -82,8 +82,8 @@ protected:
     llvm::CallingConv::ID function_calling_convention_;
     llvm::CallingConv::ID device_calling_convention_;
     llvm::CallingConv::ID kernel_calling_convention_;
-    ParamMap<llvm::Value*> params_;
-    ParamMap<llvm::PHINode*> phis_;
+    DefMap<llvm::Value*> params_;
+    DefMap<llvm::PHINode*> phis_;
     PrimOpMap<llvm::Value*> primops_;
     ContinuationMap<llvm::Function*> fcts_;
     TypeMap<llvm::Type*> types_;

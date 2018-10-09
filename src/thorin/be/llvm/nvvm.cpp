@@ -48,6 +48,8 @@ static AddrSpace resolve_addr_space(const Def* def) {
     return AddrSpace::Generic;
 }
 
+#if 0
+// TODO
 llvm::FunctionType* NVVMCodeGen::convert_fn_type(Continuation* continuation) {
     // skip non-global address-space parameters
     std::vector<const Type*> types;
@@ -59,6 +61,7 @@ llvm::FunctionType* NVVMCodeGen::convert_fn_type(Continuation* continuation) {
     }
     return llvm::cast<llvm::FunctionType>(convert(continuation->world().fn_type(types)));
 }
+#endif
 
 void NVVMCodeGen::emit_function_decl_hook(Continuation* continuation, llvm::Function* f) {
     // append required metadata
@@ -71,7 +74,7 @@ void NVVMCodeGen::emit_function_decl_hook(Continuation* continuation, llvm::Func
         return result;
     };
 
-    const auto emit_texture_kernel_arg = [&](const Param* param) {
+    const auto emit_texture_kernel_arg = [&](const Def* param) {
         assert(param->type()->as<PtrType>()->addr_space() == AddrSpace::Texture);
         auto global = emit_global_variable(irbuilder_.getInt64Ty(), param->name().str(), 1);
         metadata_[param] = append_metadata(global, "texture", 1);
@@ -104,8 +107,8 @@ void NVVMCodeGen::emit_function_decl_hook(Continuation* continuation, llvm::Func
     }
 }
 
-llvm::Value* NVVMCodeGen::map_param(llvm::Function*, llvm::Argument* arg, const Param* param) {
-    if (!param->continuation()->is_external())
+llvm::Value* NVVMCodeGen::map_param(llvm::Function*, llvm::Argument* arg, const Def* param) {
+    if (!get_param_continuation(param)->is_external())
         return arg;
     else if (auto var = resolve_global_variable(param))
         return var;
@@ -233,7 +236,7 @@ llvm::Value* NVVMCodeGen::emit_lea(const LEA* lea) {
 
 Continuation* NVVMCodeGen::emit_reserve(const Continuation* continuation) { return emit_reserve_shared(continuation); }
 
-llvm::GlobalVariable* NVVMCodeGen::resolve_global_variable(const Param* param) {
+llvm::GlobalVariable* NVVMCodeGen::resolve_global_variable(const Def* param) {
     if (resolve_addr_space(param) != AddrSpace::Global)
         return module_->getGlobalVariable(param->name().str(), true);
     return nullptr;

@@ -7,6 +7,7 @@
     // PrimOp
         // Literal
             THORIN_NODE(Bottom, bottom)
+            THORIN_NODE(Top, top)
             THORIN_NODE(MemBlob, mem_blob)
             THORIN_NODE(BlobPtr, mem_blob)
         // MemOp

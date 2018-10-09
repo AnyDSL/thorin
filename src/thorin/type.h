@@ -268,13 +268,14 @@ private:
 
 class FnType : public Type {
 protected:
-    FnType(TypeTable& table, Types ops, int tag = Node_FnType)
-        : Type(table, tag, ops)
+    FnType(TypeTable& table, const Type* domain, int tag = Node_FnType)
+        : Type(table, tag, {domain})
     {
         ++order_;
     }
 
 public:
+    const Type* domain() const { return op(0); }
     bool is_basicblock() const { return order() == 1; }
     bool is_returning() const;
 
@@ -288,8 +289,8 @@ private:
 
 class ClosureType : public FnType {
 private:
-    ClosureType(TypeTable& table, Types ops)
-        : FnType(table, ops, Node_ClosureType)
+    ClosureType(TypeTable& table, const Type* domain)
+        : FnType(table, {domain}, Node_ClosureType)
     {
         inner_order_ = order_;
         order_ = 0;
@@ -389,8 +390,8 @@ public:
         return unify(new PtrType(*this, pointee, length, device, addr_space));
     }
     const FnType* fn_type() { return fn0_; } ///< Returns an empty @p FnType.
-    const FnType* fn_type(Types args) { return unify(new FnType(*this, args)); }
-    const ClosureType* closure_type(Types args) { return unify(new ClosureType(*this, args)); }
+    const FnType* fn_type(const Type* domain) { return unify(new FnType(*this, domain)); }
+    const ClosureType* closure_type(const Type* domain) { return unify(new ClosureType(*this, domain)); }
     const DefiniteArrayType*   definite_array_type(const Type* elem, u64 dim) { return unify(new DefiniteArrayType(*this, elem, dim)); }
     const IndefiniteArrayType* indefinite_array_type(const Type* elem) { return unify(new IndefiniteArrayType(*this, elem)); }
 

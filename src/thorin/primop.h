@@ -82,6 +82,17 @@ private:
     friend class World;
 };
 
+class Top : public Literal {
+private:
+    Top(const Type* type, Debug dbg)
+        : Literal(Node_Top, type, dbg)
+    {}
+
+    virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
+
+    friend class World;
+};
+
 /// Data constructor for a @p PrimType.
 class PrimLit : public Literal {
 private:
@@ -383,6 +394,8 @@ public:
 
     friend class World;
 };
+
+size_t get_param_index(const Def* def);
 
 /**
  * Creates a new aggregate by inserting <tt>value</tt> at position <tt>index</tt> into <tt>agg</tt>.

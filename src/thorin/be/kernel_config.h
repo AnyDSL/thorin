@@ -30,12 +30,12 @@ private:
 
 class HLSKernelConfig : public KernelConfig {
 public:
-    typedef GIDMap<const Param*, uint32_t> Param2Size;
+    typedef DefMap<uint32_t> Param2Size;
     HLSKernelConfig(const Param2Size& param_sizes)
         : param_sizes_(param_sizes)
     {}
 
-    uint32_t param_size(const Param* param) const {
+    uint32_t param_size(const Def* param) const {
         auto it = param_sizes_.find(param);
         if (it != param_sizes_.end())
             return it->second;

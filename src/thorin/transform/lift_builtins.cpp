@@ -6,6 +6,7 @@
 #include "thorin/transform/mangle.h"
 
 namespace thorin {
+#if 0
 
 void lift_builtins(World& world) {
     while (true) {
@@ -64,5 +65,6 @@ void lift_builtins(World& world) {
         world.cleanup();
     }
 }
+#endif
 
 }

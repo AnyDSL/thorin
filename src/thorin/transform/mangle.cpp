@@ -6,6 +6,7 @@
 #include "thorin/analyses/scope.h"
 
 namespace thorin {
+#if 0
 
 const Def* Rewriter::instantiate(const Def* odef) {
     if (auto ndef = find(old2new, odef))
@@ -207,4 +208,5 @@ Continuation* drop(const Call& call) {
 
 //------------------------------------------------------------------------------
 
+#endif
 }

@@ -96,6 +96,8 @@ void Cleaner::eliminate_tail_rec() {
 }
 
 void Cleaner::eta_conversion() {
+    // TODO
+#if 0
     for (bool todo = true; todo;) {
         todo = false;
         for (auto continuation : world().continuations()) {
@@ -118,7 +120,7 @@ void Cleaner::eta_conversion() {
                     if (param->continuation() == continuation || continuation->is_external())
                         continue;
 
-                    if (continuation->args() == continuation->params_as_defs()) {
+                    if (continuation->arg() == continuation->param()) {
                         continuation->replace(continuation->callee());
                         continuation->destroy_body();
                         todo_ = todo = true;
@@ -160,8 +162,10 @@ void Cleaner::eta_conversion() {
             }
         }
     }
+#endif
 }
 
+#if 0
 void Cleaner::eliminate_params() {
     for (auto ocontinuation : world().copy_continuations()) {
         std::vector<size_t> proxy_idx;
@@ -207,6 +211,7 @@ void Cleaner::eliminate_params() {
 next_continuation:;
     }
 }
+#endif
 
 void Cleaner::rebuild() {
     Importer importer(world_);
@@ -242,8 +247,7 @@ void Cleaner::verify_closedness() {
         check(primop);
     for (auto continuation : world().continuations()) {
         check(continuation);
-        for (auto param : continuation->params())
-            check(param);
+        check(continuation->param());
     }
 }
 

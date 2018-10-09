@@ -32,6 +32,7 @@ Scope& Scope::update() {
 }
 
 void Scope::run(Continuation* entry) {
+    // TODO use unique_queue
     std::queue<const Def*> queue;
 
     auto enqueue = [&] (const Def* def) {
@@ -41,11 +42,9 @@ void Scope::run(Continuation* entry) {
             if (auto continuation = def->isa_continuation()) {
                 continuations_.push_back(continuation);
 
-                for (auto param : continuation->params()) {
-                    auto p = defs_.insert(param);
-                    assert_unused(p.second);
-                    queue.push(param);
-                }
+                auto p = defs_.insert(continuation->param());
+                assert_unused(p.second);
+                queue.push(continuation->param());
             }
         }
     };

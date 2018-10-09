@@ -14,6 +14,25 @@ namespace thorin {
 //------------------------------------------------------------------------------
 
 /*
+ * misc
+ */
+
+const TupleType* merge_tuple_type(const Type* a, const Type* b) {
+    auto x = a->isa<TupleType>();
+    auto y = b->isa<TupleType>();
+    auto& w = a->table();
+
+    if ( x &&  y) return w.tuple_type(concat(x->ops(), y->ops()));
+    if ( x && !y) return w.tuple_type(concat(x->ops(), b));
+    if (!x &&  y) return w.tuple_type(concat(a,        y->ops()));
+
+    assert(!x && !y);
+    return w.tuple_type({a, b});
+}
+
+//------------------------------------------------------------------------------
+
+/*
  * vrebuild
  */
 

@@ -305,6 +305,19 @@ std::ostream& Assembly::stream_assignment(std::ostream& os) const {
  * misc
  */
 
+const Tuple* merge_tuple(const Def* a, const Def* b) {
+    auto x = a->isa<Tuple>();
+    auto y = b->isa<Tuple>();
+    auto& w = a->world();
+
+    if ( x &&  y) return w.tuple(concat(x->ops(), y->ops()))->as<Tuple>();
+    if ( x && !y) return w.tuple(concat(x->ops(), b       ))->as<Tuple>();
+    if (!x &&  y) return w.tuple(concat(a,        y->ops()))->as<Tuple>();
+
+    assert(!x && !y);
+    return w.tuple({a, b})->as<Tuple>();
+}
+
 std::string DefiniteArray::as_string() const {
     std::string res;
     for (auto op : ops()) {

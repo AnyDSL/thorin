@@ -99,6 +99,8 @@ public:
     friend class TypeTable;
 };
 
+const TupleType* merge_tuple_type(const Type*, const Type*);
+
 /// The type of a structure (nominally typed).
 class StructType : public Type {
 private:
@@ -390,6 +392,7 @@ public:
         return unify(new PtrType(*this, pointee, length, device, addr_space));
     }
     const FnType* fn_type() { return fn0_; } ///< Returns an empty @p FnType.
+    const FnType* fn_type(Types domain) { return fn_type(tuple_type(domain)); }
     const FnType* fn_type(const Type* domain) { return unify(new FnType(*this, domain)); }
     const ClosureType* closure_type(const Type* domain) { return unify(new ClosureType(*this, domain)); }
     const DefiniteArrayType*   definite_array_type(const Type* elem, u64 dim) { return unify(new DefiniteArrayType(*this, elem, dim)); }

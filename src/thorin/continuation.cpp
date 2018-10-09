@@ -506,13 +506,12 @@ const Def* Continuation::fix(size_t handle, size_t index, const Type* type, Debu
     return try_remove_trivial_param(param);
 }
 
-#if 0
 const Def* Continuation::try_remove_trivial_param(const Def* param) {
     //assert(param->continuation() == this);
     assert(is_sealed() && "must be sealed");
 
     Continuations preds = this->preds();
-    size_t index = param->index();
+    size_t index = get_param_index(param);
 
     // find Horspool-like phis
     const Def* same = nullptr;
@@ -527,8 +526,8 @@ const Def* Continuation::try_remove_trivial_param(const Def* param) {
     assert(same != nullptr);
     param->replace(same);
 
-    for (auto peek : param->peek()) {
-        auto continuation = peek.from();
+    for (auto p : peek(param)) {
+        auto continuation = p.from();
         continuation->unset_op(index+1);
         continuation->set_op(index+1, world().bottom(param->type(), param->debug()));
     }
@@ -551,7 +550,6 @@ const Def* Continuation::try_remove_trivial_param(const Def* param) {
 
     return same;
 }
-#endif
 
 std::ostream& Continuation::stream_head(std::ostream& os) const {
     os << unique_name();

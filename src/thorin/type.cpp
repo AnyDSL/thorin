@@ -22,12 +22,12 @@ const TupleType* merge_tuple_type(const Type* a, const Type* b) {
     auto y = b->isa<TupleType>();
     auto& w = a->table();
 
-    if ( x &&  y) return w.tuple_type(concat(x->ops(), y->ops()));
-    if ( x && !y) return w.tuple_type(concat(x->ops(), b));
-    if (!x &&  y) return w.tuple_type(concat(a,        y->ops()));
+    if ( x &&  y) return w.tuple_type(concat(x->ops(), y->ops()))->as<TupleType>();
+    if ( x && !y) return w.tuple_type(concat(x->ops(), b       ))->as<TupleType>();
+    if (!x &&  y) return w.tuple_type(concat(a,        y->ops()))->as<TupleType>();
 
     assert(!x && !y);
-    return w.tuple_type({a, b});
+    return w.tuple_type({a, b})->as<TupleType>();
 }
 
 //------------------------------------------------------------------------------

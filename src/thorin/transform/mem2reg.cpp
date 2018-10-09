@@ -20,10 +20,12 @@ void mem2reg(const Scope& scope) {
     auto is_address_taken = [&] (const Slot* slot) { return slot2handle[slot] == size_t(-1); };
 
     // unseal all continuations ...
-    for (auto continuation : scope) {
-        continuation->set_parent(continuation);
-        continuation->unseal();
-        assert(continuation->is_cleared());
+    for (auto def : scope.defs()) {
+        if (auto continuation = def->isa_continuation()) {
+            continuation->set_parent(continuation);
+            continuation->unseal();
+            assert(continuation->is_cleared());
+        }
     }
 
     // ... except top-level continuations
@@ -31,15 +33,16 @@ void mem2reg(const Scope& scope) {
     scope.entry()->seal();
 
     // set parent pointers for functions passed to accelerator
-    for (auto continuation : scope) {
-        if (auto callee = continuation->callee()->isa_continuation()) {
-            if (callee->is_accelerator()) {
-                for (size_t i = 0, e = continuation->num_args(); i != e; ++i) {
-                    auto arg = continuation->arg(i);
-                    if (auto acontinuation = arg->isa_continuation()) {
-                        if (!acontinuation->is_basicblock()) {
-                            DLOG("{} calls accelerator with {}", continuation, acontinuation);
-                            acontinuation->set_parent(continuation);
+    for (auto def : scope.defs()) {
+        if (auto continuation = def->isa_continuation()) {
+            if (auto callee = continuation->callee()->isa_continuation()) {
+                if (callee->is_accelerator()) {
+                    for (auto arg : continuation->args()) {
+                        if (auto acontinuation = arg->isa_continuation()) {
+                            if (!acontinuation->is_basicblock()) {
+                                DLOG("{} calls accelerator with {}", continuation, acontinuation);
+                                acontinuation->set_parent(continuation);
+                            }
                         }
                     }
                 }

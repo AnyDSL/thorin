@@ -980,21 +980,16 @@ llvm::Value* CodeGen::emit_lea(const LEA* lea) {
 }
 
 llvm::Value* CodeGen::emit_assembly(const Assembly* assembly) {
-    const TupleType *out_type = assembly->type();
-    llvm::Type *res_type;
-    switch (out_type->num_ops()) {
-        case 0:
-            THORIN_UNREACHABLE;
-            // there must always be the mem type as output
-        case 1:
-            res_type = llvm::Type::getVoidTy(context_);
-            break;
-        case 2:
+    auto out_type = assembly->type();
+    llvm::Type* res_type;
+
+    if (out_type->isa<TupleType>()) {
+        if (out_type->num_ops() == 2)
             res_type = convert(assembly->type()->op(1));
-            break;
-        default:
+        else
             res_type = convert(world().tuple_type(assembly->type()->ops().skip_front()));
-            break;
+    } else {
+        res_type = llvm::Type::getVoidTy(context_);
     }
 
     size_t num_inputs = assembly->num_inputs();
@@ -1005,7 +1000,7 @@ llvm::Value* CodeGen::emit_assembly(const Assembly* assembly) {
         input_types[i] = convert(assembly->input(i)->type());
     }
 
-    auto *fn_type = llvm::FunctionType::get(res_type, llvm_ref(input_types), false);
+    auto fn_type = llvm::FunctionType::get(res_type, llvm_ref(input_types), false);
 
     std::string constraints;
     for (auto con : assembly->output_constraints())

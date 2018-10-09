@@ -659,7 +659,6 @@ public:
     const Def* input(size_t i) const { return inputs()[i]; }
     size_t num_inputs() const { return inputs().size(); }
     virtual bool has_multiple_outs() const override { return true; }
-    const TupleType* type() const { return MemOp::type()->as<TupleType>(); }
     const std::string& asm_template() const { return asm_template_; }
     const ArrayRef<std::string> output_constraints() const { return output_constraints_; }
     const ArrayRef<std::string> input_constraints() const { return input_constraints_; }

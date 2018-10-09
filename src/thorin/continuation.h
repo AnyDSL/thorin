@@ -115,7 +115,7 @@ private:
 
 public:
     Continuation* stub() const;
-    const Param* append_param(const Type* type, Debug dbg = {});
+    const Def* append_param(const Type* type, Debug dbg = {});
     Continuations preds() const;
     Continuations succs() const;
     const Param* param() const { return param_; }

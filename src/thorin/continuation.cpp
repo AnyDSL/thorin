@@ -146,20 +146,13 @@ const FnType* Continuation::arg_fn_type() const {
         : world().fn_type(arg()->type());
 }
 
-// TODO
-#if 0
-const Param* Continuation::append_param(const Type* param_type, Debug dbg) {
-    size_t size = type()->num_ops();
-    Array<const Type*> ops(size + 1);
-    *std::copy(type()->ops().begin(), type()->ops().end(), ops.begin()) = param_type;
+const Def* Continuation::append_param(const Type* param_type, Debug dbg) {
     clear_type();
-    set_type(param_type->table().fn_type(ops));              // update type
-    auto param = world().param(param_type, this, size, dbg); // append new param
-    params_.push_back(param);
-
-    return param;
+    set_type(param_type->table().fn_type(merge_tuple_type(type()->domain(), param_type)));
+    auto p = params().back();
+    p->debug() = dbg;
+    return p;
 }
-#endif
 
 Continuations Continuation::preds() const {
     std::vector<Continuation*> preds;

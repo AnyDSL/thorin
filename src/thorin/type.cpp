@@ -204,7 +204,7 @@ std::ostream& PrimType::stream(std::ostream& os) const {
 
 TypeTable::TypeTable()
     : unit_ (unify(new TupleType(*this, Types())))
-    , fn0_  (unify(new FnType   (*this, {})))
+    , fn0_  (unify(new FnType   (*this, unit_)))
     , mem_  (unify(new MemType  (*this)))
     , frame_(unify(new FrameType(*this)))
 #define THORIN_ALL_TYPE(T, M) \

@@ -168,9 +168,11 @@ public:
             if (!continuation->is_sealed())
                 return;
         }
-        auto c = callee_fn_type();
-        auto a = arg_fn_type();
-        assertf(c == a, "continuation '{}' calls '{}' of type '{}' but call has type '{}'\n", this, callee(), c, a);
+        if (!empty()) {
+            auto c = callee_fn_type();
+            auto a = arg_fn_type();
+            assertf(c == a, "continuation '{}' calls '{}' of type '{}' but call has type '{}'\n", this, callee(), c, a);
+        }
 #endif
     }
     Continuation* update_op(size_t i, const Def* def);

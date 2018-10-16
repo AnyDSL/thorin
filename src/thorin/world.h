@@ -222,7 +222,7 @@ public:
     }
 
 private:
-    const Param* param(const Type* type, Continuation* continuation, size_t index, Debug dbg);
+    const Param* param(const Type* type, Continuation* continuation, Debug dbg);
     const Def* try_fold_aggregate(const Aggregate*);
     const Def* cse_base(const PrimOp*);
     template<class T> const T* cse(const T* primop) { return cse_base(primop)->template as<T>(); }

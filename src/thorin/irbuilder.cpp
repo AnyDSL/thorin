@@ -120,19 +120,19 @@ Continuation* IRBuilder::continuation(Debug dbg) {
     return continuation(world().fn_type(), CC::C, Intrinsic::None, dbg);
 }
 
-#if 0
 Continuation* IRBuilder::continuation(const FnType* fn, CC cc, Intrinsic intrinsic, Debug dbg) {
     auto l = world().continuation(fn, cc, intrinsic, dbg);
-    if (fn->num_ops() >= 1 && fn->ops().front()->isa<MemType>()) {
-        auto param = l->params().front();
-        l->set_mem(param);
-        if (param->debug().name().empty())
-            param->debug().set("mem");
+    if (auto tuple_type = fn->domain()->isa<TupleType>()) {
+        if (tuple_type->num_ops() >= 1 && tuple_type->ops().front()->isa<MemType>()) {
+            auto param = l->params().front();
+            l->set_mem(param);
+            if (param->debug().name().empty())
+                param->debug().set("mem");
+        }
     }
 
     return l;
 }
-#endif
 
 void IRBuilder::jump(JumpTarget& jt, Debug dbg) {
     if (is_reachable()) {

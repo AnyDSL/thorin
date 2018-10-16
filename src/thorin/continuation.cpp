@@ -278,12 +278,17 @@ bool Continuation::is_returning() const { return type()->is_returning(); }
  */
 
 void Continuation::jump(const Def* callee, Defs args, Debug dbg) {
+    jump(callee, world().tuple(args), dbg);
+}
+
+void Continuation::jump(const Def* callee, const Def* arg, Debug dbg) {
     jump_debug_ = dbg;
     if (auto continuation = callee->isa<Continuation>()) {
         switch (continuation->intrinsic()) {
             case Intrinsic::Branch: {
-                assert(args.size() == 3);
-                auto cond = args[0], t = args[1], f = args[2];
+                auto cond = world().extract(arg, 0_s);
+                auto t    = world().extract(arg, 1_s);
+                auto f    = world().extract(arg, 2_s);
                 if (auto lit = cond->isa<PrimLit>())
                     return jump(lit->value().get_bool() ? t : f, {}, dbg);
                 if (t == f)
@@ -292,7 +297,8 @@ void Continuation::jump(const Def* callee, Defs args, Debug dbg) {
                     return branch(cond->as<ArithOp>()->rhs(), f, t, dbg);
                 break;
             }
-            case Intrinsic::Match:
+            case Intrinsic::Match: {
+                auto args = arg->as<Tuple>()->ops();
                 if (args.size() == 2) return jump(args[1], {}, dbg);
                 if (auto lit = args[0]->isa<PrimLit>()) {
                     for (size_t i = 2; i < args.size(); i++) {
@@ -302,19 +308,15 @@ void Continuation::jump(const Def* callee, Defs args, Debug dbg) {
                     return jump(args[1], {}, dbg);
                 }
                 break;
+            }
             default:
                 break;
         }
     }
 
     unset_ops();
-    resize(args.size()+1);
     set_op(0, callee);
-
-    size_t x = 1;
-    for (auto arg : args)
-        set_op(x++, arg);
-
+    set_op(1, arg);
     verify();
 }
 

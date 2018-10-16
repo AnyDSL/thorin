@@ -924,21 +924,14 @@ const Def* World::run(const Def* def, Debug dbg) {
  * continuations
  */
 
-#if 0
 Continuation* World::continuation(const FnType* fn, CC cc, Intrinsic intrinsic, Debug dbg) {
     auto l = new Continuation(fn, cc, intrinsic, true, dbg);
     THORIN_CHECK_BREAK(l->gid());
     continuations_.insert(l);
-
-    size_t i = 0;
-    for (auto op : fn->ops()) {
-        auto p = param(op, l, i++, dbg);
-        l->params_.emplace_back(p);
-    }
+    l->param_ = param(fn->domain(), l, dbg);
 
     return l;
 }
-#endif
 
 Continuation* World::match(const Type* type, size_t num_patterns) {
     Array<const Type*> arg_types(num_patterns + 2);
@@ -956,7 +949,7 @@ Continuation* World::basicblock(Debug dbg) {
     return bb;
 }
 
-const Param* World::param(const Type* type, Continuation* continuation, size_t index, Debug dbg) {
+const Param* World::param(const Type* type, Continuation* continuation, Debug dbg) {
     auto param = new Param(type, continuation, dbg);
     THORIN_CHECK_BREAK(param->gid());
     return param;

@@ -48,8 +48,6 @@ static AddrSpace resolve_addr_space(const Def* def) {
     return AddrSpace::Generic;
 }
 
-#if 0
-// TODO
 llvm::FunctionType* NVVMCodeGen::convert_fn_type(Continuation* continuation) {
     // skip non-global address-space parameters
     std::vector<const Type*> types;
@@ -61,7 +59,6 @@ llvm::FunctionType* NVVMCodeGen::convert_fn_type(Continuation* continuation) {
     }
     return llvm::cast<llvm::FunctionType>(convert(continuation->world().fn_type(types)));
 }
-#endif
 
 void NVVMCodeGen::emit_function_decl_hook(Continuation* continuation, llvm::Function* f) {
     // append required metadata

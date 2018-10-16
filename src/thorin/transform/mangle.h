@@ -40,24 +40,18 @@ private:
 
 Continuation* mangle(const Scope&, Defs args, Defs lift);
 
-Continuation* drop(const Scope& scope, const Def* arg);
-
 inline Continuation* drop(const Scope& scope, Defs args) {
     return mangle(scope, args, Array<const Def*>());
 }
 
 Continuation* drop(const Call&);
 
-inline Continuation* lift(const Scope& /*scope*/, Defs /*defs*/) {
-    // TODO
-    //return mangle(scope, Array<const Def*>(scope.entry()->num_params()), defs);
-    return nullptr;
+inline Continuation* lift(const Scope& scope, Defs defs) {
+    return mangle(scope, Array<const Def*>(scope.entry()->num_params()), defs);
 }
 
-inline Continuation* clone(const Scope& /*scope*/) {
-    // TODO
-    //return mangle(scope, Array<const Def*>(scope.entry()->num_params()), Defs());
-    return nullptr;
+inline Continuation* clone(const Scope& scope) {
+    return mangle(scope, Array<const Def*>(scope.entry()->num_params()), Defs());
 }
 
 }

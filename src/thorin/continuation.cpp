@@ -41,6 +41,10 @@ std::vector<Peek> peek(const Def* param) {
 
 //------------------------------------------------------------------------------
 
+void Continuation::set_filter(Defs filter) {
+    set_filter(world().tuple(filter));
+}
+
 const Def* Continuation::callee() const {
     return empty() ? world().bottom(world().fn_type(), debug()) : op(0);
 }
@@ -100,6 +104,12 @@ const Def* Continuation::arg(size_t i) const {
     return arg();
 }
 
+const Def* Continuation::filter(size_t i) const {
+    if (filter()->type()->isa<TupleType>())
+        return world().extract(filter(), i);
+    return filter();
+}
+
 // TODO get rid off this
 size_t Call::num_args() const {
     if (auto tuple_type = arg()->type()->isa<TupleType>())
@@ -112,6 +122,15 @@ const Def* Call::arg(size_t i) const {
     if (arg()->type()->isa<TupleType>())
         return callee()->world().extract(arg(), i);
     return arg();
+}
+
+// TODO get rid off this
+Array<const Def*> Call::args() const {
+    size_t n = num_args();
+    Array<const Def*> args(n);
+    for (size_t i = 0; i != n; ++i)
+        args[i] = arg(i);
+    return args;
 }
 
 const Def* Continuation::mem_param() const {

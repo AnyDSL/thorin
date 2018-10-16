@@ -177,6 +177,7 @@ public:
     Continuation* update_callee(const Def* def) { return update_op(0, def); }
     Continuation* update_arg(size_t i, const Def* def) { return update_op(i+1, def); }
     void set_filter(const Def* filter) { filter_ = filter; }
+    void set_filter(Defs filter);
     void set_all_true_filter();
     void destroy_filter() { filter_ = 0; }
     const Def* filter() const { return filter_; }
@@ -278,8 +279,9 @@ struct Call {
     const Def* callee() const { return callee_; }
     const Def*& callee() { return callee_; }
     const Def* arg() const { return arg_; }
-    size_t num_args() const;
     const Def* arg(size_t i) const;
+    size_t num_args() const;
+    Array<const Def*> args() const;
 
     uint64_t hash() const {
         if (hash_ == 0) {

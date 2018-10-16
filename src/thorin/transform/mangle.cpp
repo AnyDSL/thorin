@@ -6,7 +6,6 @@
 #include "thorin/analyses/scope.h"
 
 namespace thorin {
-#if 0
 
 const Def* Rewriter::instantiate(const Def* odef) {
     if (auto ndef = find(old2new, odef))
@@ -81,7 +80,7 @@ Continuation* Mangler::mangle() {
         def2def_[def] = new_entry()->append_param(def->type()); // TODO reduce
 
     // mangle filter
-    if (!old_entry()->filter().empty()) {
+    if (old_entry()->filter() != nullptr) {
         Array<const Def*> new_filter(new_entry()->num_params());
         size_t j = 0;
         for (size_t i = 0, e = old_entry()->num_params(); i != e; ++i) {
@@ -208,5 +207,4 @@ Continuation* drop(const Call& call) {
 
 //------------------------------------------------------------------------------
 
-#endif
 }

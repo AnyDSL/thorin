@@ -180,7 +180,7 @@ public:
     void set_all_true_filter();
     void destroy_filter() { filter_ = 0; }
     const Def* filter() const { return filter_; }
-    //const Def* filter(size_t i) const { return filter_[i]; }
+    const Def* filter(size_t i) const;
 
     // value numbering
 

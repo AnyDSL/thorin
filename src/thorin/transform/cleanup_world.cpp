@@ -96,8 +96,6 @@ void Cleaner::eliminate_tail_rec() {
 }
 
 void Cleaner::eta_conversion() {
-    // TODO
-#if 0
     for (bool todo = true; todo;) {
         todo = false;
         for (auto continuation : world().continuations()) {
@@ -162,10 +160,8 @@ void Cleaner::eta_conversion() {
             }
         }
     }
-#endif
 }
 
-#if 0
 void Cleaner::eliminate_params() {
     for (auto ocontinuation : world().copy_continuations()) {
         std::vector<size_t> proxy_idx;
@@ -194,8 +190,14 @@ void Cleaner::eliminate_params() {
                     ncontinuation->param(j++)->debug() = ocontinuation->param(i)->debug_history();
                 }
 
-                if (!ocontinuation->filter().empty())
-                    ncontinuation->set_filter(ocontinuation->filter().cut(proxy_idx));
+                if (ocontinuation->filter() != nullptr) {
+                    Array<const Def*> new_filter(param_idx.size());
+                    size_t i = 0;
+                    for (auto j : param_idx)
+                        new_filter[i++] = ocontinuation->filter(param_idx[j]);
+
+                    ncontinuation->set_filter(world().tuple(new_filter));
+                }
                 ncontinuation->jump(ocontinuation->callee(), ocontinuation->args(), ocontinuation->jump_debug());
                 ocontinuation->destroy_body();
 
@@ -211,7 +213,6 @@ void Cleaner::eliminate_params() {
 next_continuation:;
     }
 }
-#endif
 
 void Cleaner::rebuild() {
     Importer importer(world_);

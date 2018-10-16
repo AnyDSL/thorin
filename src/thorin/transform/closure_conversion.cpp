@@ -8,7 +8,6 @@
 #include "thorin/util/log.h"
 
 namespace thorin {
-#if 0
 
 class ClosureConversion {
 public:
@@ -200,7 +199,7 @@ public:
         if (new_type->order() <= 1)
             return new_types_[type] = new_type;
         else
-            return new_types_[type] = world_.closure_type(new_type->ops());
+            return new_types_[type] = world_.closure_type(new_type);
     }
 
     bool is_graph_intrinsic(const Continuation* cont) {
@@ -220,7 +219,5 @@ private:
 void closure_conversion(World& world) {
     ClosureConversion(world).run();
 }
-
-#endif
 
 }

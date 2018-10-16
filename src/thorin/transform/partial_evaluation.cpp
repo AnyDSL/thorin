@@ -5,7 +5,6 @@
 #include "thorin/util/log.h"
 
 namespace thorin {
-#if 0
 
 class PartialEvaluator {
 public:
@@ -40,7 +39,7 @@ public:
         , args_(args)
         , top_level_(top_level)
     {
-        assert(callee->filter().empty() || callee->filter().size() == args.size());
+        //assert(callee->filter().empty() || callee->filter().size() == args.size());
         assert(callee->num_params() == args.size());
 
         for (size_t i = 0, e = args.size(); i != e; ++i)
@@ -81,7 +80,7 @@ public:
     }
 
     const Def* filter(size_t i) {
-        return callee_->filter().empty() ? world().literal_bool(false, {}) : callee_->filter(i);
+        return callee_->filter() == nullptr ? world().literal_bool(false, {}) : callee_->filter(i);
     }
 
     bool has_free_params(Continuation* continuation) {
@@ -166,21 +165,22 @@ bool PartialEvaluator::run() {
             }
 
             if (!callee->empty()) {
-                Call call(continuation->num_ops());
-                call.callee() = callee;
+                size_t num_args = continuation->num_args();
+                Array<const Def*> args(num_args);
 
                 CondEval cond_eval(callee, continuation->args(), top_level_);
 
                 bool fold = false;
-                for (size_t i = 0, e = call.num_args(); i != e; ++i) {
+                for (size_t i = 0; i != num_args; ++i) {
                     if (force_fold || cond_eval.eval(i, lower2cff_)) {
-                        call.arg(i) = continuation->arg(i);
+                        args[i] = continuation->arg(i);
                         fold = true;
                     } else
-                        call.arg(i) = nullptr;
+                        args[i] = nullptr;
                 }
 
                 if (fold) {
+                    Call call(callee, world().tuple(args));
                     const auto& p = cache_.emplace(call, nullptr);
                     Continuation*& target = p.first->second;
                     // create new specialization if not found in cache
@@ -219,7 +219,5 @@ bool partial_evaluation(World& world, bool lower2cff) {
 }
 
 //------------------------------------------------------------------------------
-
-#endif
 
 }

@@ -334,7 +334,6 @@ void Continuation::match(const Def* val, Continuation* otherwise, Defs patterns,
     return jump(world().match(val->type(), patterns.size()), args, dbg);
 }
 
-#if 0
 std::pair<Continuation*, const Def*> Continuation::call(const Def* callee, Defs args, const Type* ret_type, Debug dbg) {
     if (ret_type == nullptr) {
         jump(callee, args, dbg);
@@ -374,7 +373,6 @@ std::pair<Continuation*, const Def*> Continuation::call(const Def* callee, Defs 
 
     return std::make_pair(next, ret);
 }
-#endif
 
 void jump_to_dropped_call(Continuation* src, Continuation* dst, const Call& call) {
     std::vector<const Def*> nargs;

@@ -8,7 +8,6 @@
 
 namespace thorin {
 
-#if 0
 static Continuation*   wrap_def(Def2Def&, Def2Def&, const Def*, const FnType*, size_t);
 static Continuation* unwrap_def(Def2Def&, Def2Def&, const Def*, const FnType*, size_t);
 
@@ -38,7 +37,8 @@ static Continuation* jump(Continuation* cont, Array<const Def*>& args) {
 
 static Continuation* try_inline(Continuation* cont, Array<const Def*>& args) {
     if (args[0]->isa_continuation()) {
-        auto dropped = drop(Call(args));
+        Call call(args.front(), cont->world().tuple(args.skip_front()));
+        auto dropped = drop(call);
         cont->jump(dropped->callee(), dropped->args(), args[0]->debug());
     } else {
         jump(cont, args);
@@ -220,7 +220,5 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
 void flatten_tuples(World& world) {
     flatten_tuples(world, std::numeric_limits<size_t>::max());
 }
-
-#endif
 
 }

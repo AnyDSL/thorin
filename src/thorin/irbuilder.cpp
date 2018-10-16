@@ -120,7 +120,6 @@ Continuation* IRBuilder::continuation(Debug dbg) {
     return continuation(world().fn_type(), CC::C, Intrinsic::None, dbg);
 }
 
-// TODO
 #if 0
 Continuation* IRBuilder::continuation(const FnType* fn, CC cc, Intrinsic intrinsic, Debug dbg) {
     auto l = world().continuation(fn, cc, intrinsic, dbg);

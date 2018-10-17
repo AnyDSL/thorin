@@ -210,6 +210,7 @@ llvm::Function* CodeGen::emit_function_decl(Continuation* continuation) {
 
     return fcts_[continuation] = f;
 }
+
 std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
     llvm::DICompileUnit* dicompile_unit;
     if (debug) {
@@ -301,9 +302,27 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                 if (debug)
                     irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(primop->location().front_line(), primop->location().front_col(), discope));
 
+                if (auto p = thorin::find(phis_,   primop)) { primops_[primop] = p; continue; }
+                if (auto p = thorin::find(params_, primop)) { primops_[primop] = p; continue; }
+
+                // ignore tuple arguments for continuations
+                if (auto tuple = primop->isa<Tuple>()) {
+                    bool ignore = false;
+                    for (auto use : tuple->uses()) {
+                        ignore |= use->isa<Continuation>() != nullptr;
+                    }
+
+                    if (ignore) continue;
+                }
+
+                if (auto extract = primop->isa<Extract>()) {
+                    if (extract->agg()->isa<Param>() && is_mem(extract))
+                        continue;
+                }
+
                 if (primop->type()->order() >= 1) {
-                    // ignore higher-order primops which come from a match intrinsic
-                    if (is_from_match(primop)) continue;
+                    // ignore higher-order primops which stem from a branch/match intrinsic
+                    if (is_from_branch_or_match(primop)) continue;
                     THORIN_UNREACHABLE;
                 }
 
@@ -534,15 +553,6 @@ llvm::Value* CodeGen::lookup(const Def* def) {
         }
     }
 
-    if (auto param = def->isa<Param>()) {
-        auto i = params_.find(param);
-        if (i != params_.end())
-            return i->second;
-
-        assert(phis_.find(param) != phis_.end());
-        return thorin::find(phis_, param);
-    }
-
     if (auto continuation = def->isa_continuation())
         return emit_function_decl(continuation);
 
@@ -582,6 +592,9 @@ llvm::Value* CodeGen::emit_alloc(const Type* type, const Def* extra) {
 }
 
 llvm::Value* CodeGen::emit(const Def* def) {
+    if (auto p = thorin::find(phis_,   def)) return p;
+    if (auto p = thorin::find(params_, def)) return p;
+
     if (auto bin = def->isa<BinOp>()) {
         llvm::Value* lhs = lookup(bin->lhs());
         llvm::Value* rhs = lookup(bin->rhs());
@@ -1087,33 +1100,33 @@ llvm::Type* CodeGen::convert(const Type* type) {
             // extract "return" type, collect all other types
             auto fn = type->as<FnType>();
             llvm::Type* ret = nullptr;
-            std::vector<llvm::Type*> ops;
-            for (auto op : fn->ops()) {
-                if (op->isa<MemType>() || op == world().unit()) continue;
-                auto fn = op->isa<FnType>();
-                if (fn && !op->isa<ClosureType>()) {
+            std::vector<llvm::Type*> domains;
+            for (auto domain : fn->domains()) {
+                if (domain->isa<MemType>() || domain == world().unit()) continue;
+                auto fn = domain->isa<FnType>();
+                if (fn && !domain->isa<ClosureType>()) {
                     assert(!ret && "only one 'return' supported");
                     std::vector<llvm::Type*> ret_types;
-                    for (auto fn_op : fn->ops()) {
-                        if (fn_op->isa<MemType>() || fn_op == world().unit()) continue;
-                        ret_types.push_back(convert(fn_op));
+                    for (auto fn_domain : fn->domains()) {
+                        if (fn_domain->isa<MemType>() || fn_domain == world().unit()) continue;
+                        ret_types.push_back(convert(fn_domain));
                     }
                     if (ret_types.size() == 0)      ret = llvm::Type::getVoidTy(context_);
                     else if (ret_types.size() == 1) ret = ret_types.back();
                     else                            ret = llvm::StructType::get(context_, ret_types);
                 } else
-                    ops.push_back(convert(op));
+                    domains.push_back(convert(domain));
             }
             assert(ret);
 
             if (type->tag() == Node_FnType) {
-                auto llvm_type = llvm::FunctionType::get(ret, ops, false);
+                auto llvm_type = llvm::FunctionType::get(ret, domains, false);
                 return types_[type] = llvm_type;
             }
 
             auto env_type = convert(Closure::environment_type(world_));
-            ops.push_back(env_type);
-            auto fn_type = llvm::FunctionType::get(ret, ops, false);
+            domains.push_back(env_type);
+            auto fn_type = llvm::FunctionType::get(ret, domains, false);
             auto ptr_type = llvm::PointerType::get(fn_type, 0);
             llvm_type = llvm::StructType::get(context_, { ptr_type, env_type });
             return types_[type] = llvm_type;

@@ -30,6 +30,26 @@ const Type* merge_tuple_type(const Type* a, const Type* b) {
     return w.tuple_type({a, b});
 }
 
+Array<const Type*> FnType::domains() const {
+    size_t n = num_domains();
+    Array<const Type*> domains(n);
+    for (size_t i = 0; i != n; ++i)
+        domains[i] = domain(i);
+    return domains;
+}
+
+size_t FnType::num_domains() const {
+    if (auto tuple_type = domain()->isa<TupleType>())
+        return tuple_type->num_ops();
+    return 1;
+}
+
+const Type* FnType::domain(size_t i) const {
+    if (auto tuple_type = domain()->isa<TupleType>())
+        return tuple_type->op(i);
+    return domain();
+}
+
 //------------------------------------------------------------------------------
 
 /*

@@ -706,7 +706,7 @@ using PrimOp2PrimOp = PrimOpMap<const PrimOp*>;
 
 //------------------------------------------------------------------------------
 
-bool is_from_match(const PrimOp*);
+bool is_from_branch_or_match(const PrimOp*);
 
 //------------------------------------------------------------------------------
 

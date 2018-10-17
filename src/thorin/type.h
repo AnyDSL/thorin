@@ -278,6 +278,9 @@ protected:
 
 public:
     const Type* domain() const { return op(0); }
+    size_t num_domains() const;
+    Array<const Type*> domains() const;
+    const Type* domain(size_t i) const;
     bool is_basicblock() const { return order() == 1; }
     bool is_returning() const;
 

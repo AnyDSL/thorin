@@ -482,7 +482,7 @@ void CCodeGen::emit() {
             for (auto primop : block) {
                 if (primop->type()->order() >= 1) {
                     // ignore higher-order primops which come from a match intrinsic
-                    if (is_from_match(primop))
+                    if (is_from_branch_or_match(primop))
                         continue;
                     THORIN_UNREACHABLE;
                 }

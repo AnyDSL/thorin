@@ -84,7 +84,7 @@ Continuation* JumpTarget::untangle() {
         return continuation_;
     assert(continuation_);
     auto bb = world().basicblock(debug());
-    continuation_->jump(bb, {}, debug());
+    continuation_->jump(bb, world().tuple({}), debug());
     first_ = false;
     return continuation_ = bb;
 }
@@ -94,7 +94,7 @@ void Continuation::jump(JumpTarget& jt, Debug dbg) {
         jt.continuation_ = this;
         jt.first_ = true;
     } else
-        this->jump(jt.untangle(), {}, dbg);
+        this->jump(jt.untangle(), world().tuple({}), dbg);
 }
 
 Continuation* JumpTarget::branch_to(World& world, Debug dbg) {

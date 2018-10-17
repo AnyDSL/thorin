@@ -297,7 +297,7 @@ public:
     friend class World;
 };
 
-const Tuple* merge_tuple(const Def*, const Def*);
+const Def* merge_tuple(const Def*, const Def*);
 
 /// Data constructor for a @p ClosureType.
 class Closure : public Aggregate {

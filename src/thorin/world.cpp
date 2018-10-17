@@ -944,6 +944,7 @@ Continuation* World::match(const Type* type, size_t num_patterns) {
 
 Continuation* World::basicblock(Debug dbg) {
     auto bb = new Continuation(fn_type(), CC::C, Intrinsic::None, false, dbg);
+    bb->param_ = param(bb->type()->domain(), bb, dbg);
     THORIN_CHECK_BREAK(bb->gid());
     continuations_.insert(bb);
     return bb;

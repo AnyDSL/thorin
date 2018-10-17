@@ -99,7 +99,7 @@ public:
     friend class TypeTable;
 };
 
-const TupleType* merge_tuple_type(const Type*, const Type*);
+const Type* merge_tuple_type(const Type*, const Type*);
 
 /// The type of a structure (nominally typed).
 class StructType : public Type {

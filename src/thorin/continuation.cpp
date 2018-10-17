@@ -166,8 +166,10 @@ const FnType* Continuation::arg_fn_type() const {
 }
 
 const Def* Continuation::append_param(const Type* param_type, Debug dbg) {
+    assert(param_);
+    auto old_domain = type()->domain();
     clear_type();
-    set_type(param_type->table().fn_type(merge_tuple_type(type()->domain(), param_type)));
+    set_type(param_type->table().fn_type(merge_tuple_type(old_domain, param_type)));
     auto p = params().back();
     p->debug() = dbg;
     return p;
@@ -315,6 +317,7 @@ void Continuation::jump(const Def* callee, const Def* arg, Debug dbg) {
     }
 
     unset_ops();
+    resize(2); // TODO remove this
     set_op(0, callee);
     set_op(1, arg);
     verify();

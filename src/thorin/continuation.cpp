@@ -169,8 +169,11 @@ const Def* Continuation::append_param(const Type* param_type, Debug dbg) {
     assert(param_);
     auto old_domain = type()->domain();
     clear_type();
-    set_type(param_type->table().fn_type(merge_tuple_type(old_domain, param_type)));
-    auto p = params().back();
+    auto new_domain = merge_tuple_type(old_domain, param_type);
+    set_type(param_type->table().fn_type(new_domain));
+    delete param_;
+    param_ = world().param(new_domain, this, dbg);
+    auto p = num_params() == 0 ? param() : params().back();
     p->debug() = dbg;
     return p;
 }
@@ -218,10 +221,10 @@ Continuations Continuation::succs() const {
     };
 
     done.insert(this);
-    if (!empty())
+    if (!empty()) {
         enqueue(callee());
-
-    enqueue(arg());
+        enqueue(arg());
+    }
 
     while (!queue.empty()) {
         auto def = pop(queue);
@@ -390,9 +393,9 @@ void jump_to_dropped_call(Continuation* src, Continuation* dst, const Call& call
 }
 
 Continuation* Continuation::update_op(size_t i, const Def* def) {
-    Array<const Def*> new_ops(ops());
+    std::array<const Def*, 2> new_ops = {callee(), arg()};
     new_ops[i] = def;
-    jump(new_ops.front(), new_ops.skip_front(), jump_location());
+    jump(new_ops[0], new_ops[1], jump_location());
     return this;
 }
 
@@ -510,12 +513,10 @@ const Def* Continuation::fix(size_t handle, size_t index, const Type* type, Debu
         //assert(pred->direct_succs().size() == 1 && "critical edge");
         auto def = pred->get_value(handle, type, dbg);
 
-        // make potentially room for the new arg
-        if (index >= pred->num_args())
-            pred->resize(index+2);
-
-        assert(!pred->arg(index) && "already set");
-        pred->set_op(index + 1, def);
+        auto pred_args = pred->args();
+        Array<const Def*> new_args(pred_args.size()+1);
+        *std::copy(pred_args.begin(), pred_args.end(), new_args.begin()) = def;
+        pred->jump(pred->callee(), new_args, pred->jump_location());
     }
 
     return try_remove_trivial_param(param);
@@ -543,8 +544,8 @@ const Def* Continuation::try_remove_trivial_param(const Def* param) {
 
     for (auto p : peek(param)) {
         auto continuation = p.from();
-        continuation->unset_op(index+1);
-        continuation->set_op(index+1, world().bottom(param->type(), param->debug()));
+        auto new_arg = world().insert(continuation->arg(), index, world().bottom(param->type(), param->debug()));
+        continuation->update_arg(new_arg);
     }
 
     for (auto use : same->uses()) {

@@ -13,6 +13,7 @@ void codegen_prepare(World& world) {
         auto ret_cont = world.continuation(ret_param->type()->as<FnType>(), ret_param->debug());
         ret_cont->jump(ret_param, ret_cont->param(), ret_param->debug());
 
+        // TODO broken with new tuple handling
         for (auto use : ret_param->copy_uses()) {
             if (auto ucontinuation = use->isa_continuation()) {
                 if (use.index() != 0) {

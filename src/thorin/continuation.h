@@ -176,8 +176,8 @@ public:
 #endif
     }
     Continuation* update_op(size_t i, const Def* def);
-    Continuation* update_callee(const Def* def) { return update_op(0, def); }
-    Continuation* update_arg(size_t i, const Def* def) { return update_op(i+1, def); }
+    Continuation* update_callee(const Def* callee) { return update_op(0, callee); }
+    Continuation* update_arg(const Def* arg) { return update_op(1, arg); }
     void set_filter(const Def* filter) { filter_ = filter; }
     void set_filter(Defs filter);
     void set_all_true_filter();

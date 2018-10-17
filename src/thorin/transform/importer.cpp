@@ -74,7 +74,8 @@ const Def* Importer::import(Tracker odef) {
             }
         }
 
-        ncontinuation->set_filter(import(ocontinuation->filter()));
+        if (ocontinuation->filter()) // TODO remove this if
+            ncontinuation->set_filter(import(ocontinuation->filter()));
     }
 
     size_t size = odef->num_ops();

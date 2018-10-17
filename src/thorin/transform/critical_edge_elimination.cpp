@@ -15,6 +15,7 @@ static bool update_src(Continuation* src, Continuation* dst, const char* suffix)
         return resolver;
     };
 
+    // TODO this is broken with new tuple handling
     for (size_t i = 0, e = src->num_ops(); i != e; ++i) {
         if (src->op(i) == dst) {
             src->update_op(i, resolve(dst));

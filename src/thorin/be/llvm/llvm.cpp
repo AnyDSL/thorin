@@ -278,7 +278,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                         auto phi = (is_mem(param) || is_unit(param))
                                  ? nullptr
                                  : llvm::PHINode::Create(convert(param->type()), (unsigned) peek(param).size(), param->name().c_str(), bb);
-                            phis_[param] = phi;
+                        phis_[param] = phi;
                     }
                 }
             }
@@ -303,6 +303,11 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                 if (debug)
                     irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(primop->location().front_line(), primop->location().front_col(), discope));
 
+                auto i = phis_.  find(primop);
+                auto j = params_.find(primop);
+                if (i != phis_.  end()) continue;
+                if (j != params_.end()) continue;
+
                 // ignore tuple arguments for continuations
                 if (auto tuple = primop->isa<Tuple>()) {
                     bool ignore = false;
@@ -311,10 +316,6 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                     }
 
                     if (ignore) continue;
-                }
-
-                if (auto extract = primop->isa<Extract>()) {
-                    if (extract->agg()->isa<Param>()) continue;
                 }
 
                 if (primop->type()->order() >= 1) {
@@ -592,9 +593,6 @@ llvm::Value* CodeGen::emit_alloc(const Type* type, const Def* extra) {
 }
 
 llvm::Value* CodeGen::emit(const Def* def) {
-    if (auto p = thorin::find(phis_,   def)) return p;
-    if (auto p = thorin::find(params_, def)) return p;
-
     if (auto bin = def->isa<BinOp>()) {
         llvm::Value* lhs = lookup(bin->lhs());
         llvm::Value* rhs = lookup(bin->rhs());

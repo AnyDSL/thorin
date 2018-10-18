@@ -176,8 +176,8 @@ static std::ostream& stream_type_ops(std::ostream& os, const Type* type) {
 std::ostream& App                ::stream(std::ostream& os) const { return streamf(os, "{}[{}]", callee(), arg()); }
 std::ostream& Var                ::stream(std::ostream& os) const { return streamf(os, "<{}>", depth()); }
 std::ostream& DefiniteArrayType  ::stream(std::ostream& os) const { return streamf(os, "[{} x {}]", dim(), elem_type()); }
-std::ostream& FnType             ::stream(std::ostream& os) const { return stream_type_ops(os << "fn", this); }
-std::ostream& ClosureType        ::stream(std::ostream& os) const { return stream_type_ops(os << "closure", this); }
+std::ostream& FnType             ::stream(std::ostream& os) const { return streamf(os, "fn {}", domain()); }
+std::ostream& ClosureType        ::stream(std::ostream& os) const { return streamf(os, "closure {}", domain()); }
 std::ostream& FrameType          ::stream(std::ostream& os) const { return os << "frame"; }
 std::ostream& IndefiniteArrayType::stream(std::ostream& os) const { return streamf(os, "[{}]", elem_type()); }
 std::ostream& Lambda             ::stream(std::ostream& os) const { return streamf(os, "[{}].{}", name(), body()); }

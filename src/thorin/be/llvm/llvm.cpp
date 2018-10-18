@@ -316,8 +316,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                 }
 
                 if (auto extract = primop->isa<Extract>()) {
-                    if (extract->agg()->isa<Param>() && is_mem(extract))
-                        continue;
+                    if (extract->agg()->isa<Param>()) continue;
                 }
 
                 if (primop->type()->order() >= 1) {

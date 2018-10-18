@@ -244,9 +244,9 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
         const Def* ret_param = nullptr;
         auto arg = fct->arg_begin();
         for (auto param : entry_->params()) {
-            if (is_mem(param) || is_unit(param))
-                continue;
-            if (param->order() == 0) {
+            if (is_mem(param) || is_unit(param)) {
+                params_[param] = nullptr;
+            } else if (param->order() == 0) {
                 auto argv = &*arg;
                 auto value = map_param(fct, argv, param);
                 if (value == argv) {
@@ -258,6 +258,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
             } else {
                 assert(!ret_param);
                 ret_param = param;
+                params_[param] = nullptr;
             }
         }
         assert(ret_param);
@@ -274,10 +275,10 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                 // create phi node stubs (for all continuations different from entry)
                 if (entry_ != continuation) {
                     for (auto param : continuation->params()) {
-                        if (!is_mem(param) && !is_unit(param)) {
-                            auto phi = llvm::PHINode::Create(convert(param->type()), (unsigned) peek(param).size(), param->name().c_str(), bb);
+                        auto phi = (is_mem(param) || is_unit(param))
+                                 ? nullptr
+                                 : llvm::PHINode::Create(convert(param->type()), (unsigned) peek(param).size(), param->name().c_str(), bb);
                             phis_[param] = phi;
-                        }
                     }
                 }
             }
@@ -302,9 +303,6 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                 if (debug)
                     irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(primop->location().front_line(), primop->location().front_col(), discope));
 
-                if (auto p = thorin::find(phis_,   primop)) { primops_[primop] = p; continue; }
-                if (auto p = thorin::find(params_, primop)) { primops_[primop] = p; continue; }
-
                 // ignore tuple arguments for continuations
                 if (auto tuple = primop->isa<Tuple>()) {
                     bool ignore = false;
@@ -325,8 +323,8 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                     THORIN_UNREACHABLE;
                 }
 
-                auto llvm_value = emit(primop);
-                primops_[primop] = llvm_value;
+                if (auto llvm_value = emit(primop))
+                    primops_[primop] = llvm_value;
             }
 
             // terminate bb
@@ -528,6 +526,9 @@ void CodeGen::optimize(int opt) {
 }
 
 llvm::Value* CodeGen::lookup(const Def* def) {
+    if (auto p = thorin::find(phis_,   def)) return p;
+    if (auto p = thorin::find(params_, def)) return p;
+
     if (auto primop = def->isa<PrimOp>()) {
         if (auto res = thorin::find(primops_, primop))
             return res;

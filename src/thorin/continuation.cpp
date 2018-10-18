@@ -173,7 +173,7 @@ const Def* Continuation::append_param(const Type* param_type, Debug dbg) {
     set_type(param_type->table().fn_type(new_domain));
     delete param_;
     param_ = world().param(new_domain, this, dbg);
-    auto p = num_params() == 0 ? param() : params().back();
+    auto p = params().back();
     p->debug() = dbg;
     return p;
 }

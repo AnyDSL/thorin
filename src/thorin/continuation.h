@@ -288,7 +288,7 @@ struct Call {
     uint64_t hash() const {
         if (hash_ == 0) {
             hash_ = hash_begin(callee());
-            hash_ = hash_combine(hash_, arg());
+            hash_ = hash_combine(hash_, arg()->gid());
         }
         return hash_;
     }

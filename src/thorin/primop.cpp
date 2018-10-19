@@ -343,8 +343,10 @@ const Type* Extract::extracted_type(const Def* agg, const Def* index) {
         return vector->scalarize();
     else if (auto struct_type = agg->type()->isa<StructType>())
         return get(struct_type->ops(), index);
-
-    THORIN_UNREACHABLE;
+    else {
+        assert(index->as<PrimLit>()->value().get_u64() == 0);
+        return agg->type();
+    }
 }
 
 bool is_from_branch_or_match(const PrimOp* primop) {

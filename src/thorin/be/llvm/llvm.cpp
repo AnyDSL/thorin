@@ -304,8 +304,8 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                     irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(primop->location().front_line(), primop->location().front_col(), discope));
 
                 auto i = phis_.  find(primop);
-                auto j = params_.find(primop);
                 if (i != phis_.  end()) continue;
+                auto j = params_.find(primop);
                 if (j != params_.end()) continue;
 
                 // ignore tuple arguments for continuations
@@ -468,11 +468,11 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
 
         // add missing arguments to phis_
         for (const auto& p : phis_) {
-            auto param = p.first;
-            auto phi = p.second;
-
-            for (auto&& p : peek(param))
-                phi->addIncoming(lookup(p.def()), bb2continuation[p.from()]);
+            if (auto phi = p.second) {
+                auto param = p.first;
+                for (auto&& p : peek(param))
+                    phi->addIncoming(lookup(p.def()), bb2continuation[p.from()]);
+            }
         }
 
         params_.clear();
@@ -527,8 +527,10 @@ void CodeGen::optimize(int opt) {
 }
 
 llvm::Value* CodeGen::lookup(const Def* def) {
-    if (auto p = thorin::find(phis_,   def)) return p;
-    if (auto p = thorin::find(params_, def)) return p;
+    auto i = phis_.  find(def);
+    if (i != phis_.  end()) return i->second;
+    auto j = params_.find(def);
+    if (j != params_.end()) return j->second;
 
     if (auto primop = def->isa<PrimOp>()) {
         if (auto res = thorin::find(primops_, primop))

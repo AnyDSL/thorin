@@ -176,7 +176,7 @@ bool PartialEvaluator::run() {
                         args[i] = continuation->arg(i);
                         fold = true;
                     } else
-                        args[i] = nullptr;
+                        args[i] = world().top(callee->param(i)->type());
                 }
 
                 if (fold) {

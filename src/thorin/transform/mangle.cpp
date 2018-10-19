@@ -56,7 +56,7 @@ Continuation* Mangler::mangle() {
     // create new_entry - but first collect and specialize all param types
     std::vector<const Type*> param_types;
     for (size_t i = 0, e = old_entry()->num_params(); i != e; ++i) {
-        if (args_[i] == nullptr)
+        if (args_[i]->isa<Top>())
             param_types.emplace_back(old_entry()->param(i)->type()); // TODO reduce
     }
 
@@ -84,7 +84,7 @@ Continuation* Mangler::mangle() {
         Array<const Def*> new_filter(new_entry()->num_params());
         size_t j = 0;
         for (size_t i = 0, e = old_entry()->num_params(); i != e; ++i) {
-            if (args_[i] == nullptr)
+            if (args_[i]->isa<Top>())
                 new_filter[j++] = mangle(old_entry()->filter(i));
         }
 
@@ -121,19 +121,19 @@ void Mangler::mangle_body(Continuation* old_continuation, Continuation* new_cont
             case Intrinsic::Branch: {
                 if (auto lit = mangle(old_continuation->arg(0))->isa<PrimLit>()) {
                     auto cont = lit->value().get_bool() ? old_continuation->arg(1) : old_continuation->arg(2);
-                    return new_continuation->jump(mangle(cont), {}, old_continuation->jump_debug());
+                    return new_continuation->jump(mangle(cont), Defs{}, old_continuation->jump_debug());
                 }
                 break;
             }
             case Intrinsic::Match:
                 if (old_continuation->num_args() == 2)
-                    return new_continuation->jump(mangle(old_continuation->arg(1)), {}, old_continuation->jump_debug());
+                    return new_continuation->jump(mangle(old_continuation->arg(1)), Defs{}, old_continuation->jump_debug());
 
                 if (auto lit = mangle(old_continuation->arg(0))->isa<PrimLit>()) {
                     for (size_t i = 2; i < old_continuation->num_args(); i++) {
                         auto new_arg = mangle(old_continuation->arg(i));
                         if (world().extract(new_arg, 0_s)->as<PrimLit>() == lit)
-                            return new_continuation->jump(world().extract(new_arg, 1), {}, old_continuation->jump_debug());
+                            return new_continuation->jump(world().extract(new_arg, 1), Defs{}, old_continuation->jump_debug());
                     }
                 }
                 break;

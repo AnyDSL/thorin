@@ -71,9 +71,9 @@ size_t Continuation::num_params() const {
 }
 
 const Def* Continuation::param(size_t i) const {
-    if (param()->type()->isa<TupleType>())
+    //if (param()->type()->isa<TupleType>())
         return world().extract(param(), i);
-    return param();
+    //return param();
 }
 
 Array<const Def*> Continuation::params() const {
@@ -171,8 +171,8 @@ const Def* Continuation::append_param(const Type* param_type, Debug dbg) {
     clear_type();
     auto new_domain = merge_tuple_type(old_domain, param_type);
     set_type(param_type->table().fn_type(new_domain));
-    delete param_;
-    param_ = world().param(new_domain, this, dbg);
+    const_cast<Param*>(param_)->clear_type();         // HACK
+    const_cast<Param*>(param_)->set_type(new_domain); // HACK
     auto p = params().back();
     p->debug() = dbg;
     return p;
@@ -295,22 +295,22 @@ void Continuation::jump(const Def* callee, const Def* arg, Debug dbg) {
                 auto t    = world().extract(arg, 1_s);
                 auto f    = world().extract(arg, 2_s);
                 if (auto lit = cond->isa<PrimLit>())
-                    return jump(lit->value().get_bool() ? t : f, {}, dbg);
+                    return jump(lit->value().get_bool() ? t : f, Defs{}, dbg);
                 if (t == f)
-                    return jump(t, {}, dbg);
+                    return jump(t, Defs{}, dbg);
                 if (is_not(cond))
                     return branch(cond->as<ArithOp>()->rhs(), f, t, dbg);
                 break;
             }
             case Intrinsic::Match: {
                 auto args = arg->as<Tuple>()->ops();
-                if (args.size() == 2) return jump(args[1], {}, dbg);
+                if (args.size() == 2) return jump(args[1], Defs{}, dbg);
                 if (auto lit = args[0]->isa<PrimLit>()) {
                     for (size_t i = 2; i < args.size(); i++) {
                         if (world().extract(args[i], 0_s)->as<PrimLit>() == lit)
-                            return jump(world().extract(args[i], 1), {}, dbg);
+                            return jump(world().extract(args[i], 1), Defs{}, dbg);
                     }
-                    return jump(args[1], {}, dbg);
+                    return jump(args[1], Defs{}, dbg);
                 }
                 break;
             }
@@ -385,7 +385,7 @@ std::pair<Continuation*, const Def*> Continuation::call(const Def* callee, Defs 
 void jump_to_dropped_call(Continuation* src, Continuation* dst, const Call& call) {
     std::vector<const Def*> nargs;
     for (size_t i = 0, e = src->num_args(); i != e; ++i) {
-        if (!call.arg(i)->isa<Top>())
+        if (call.arg(i)->isa<Top>())
             nargs.push_back(src->arg(i));
     }
 

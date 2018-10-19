@@ -16,7 +16,7 @@ void force_inline(Scope& scope, int threshold) {
             if (auto callee = continuation->callee()->isa_continuation()) {
                 if (!callee->empty() && !scope.contains(callee)) {
                     Scope callee_scope(callee);
-                    continuation->jump(drop(callee_scope, continuation->args()), {}, continuation->jump_debug());
+                    continuation->jump(drop(callee_scope, continuation->args()), Defs{}, continuation->jump_debug());
                     todo = true;
                 }
             }
@@ -77,7 +77,7 @@ void inliner(World& world) {
                 DLOG("callee: {}", callee);
                 if (auto callee_scope = is_candidate(callee)) {
                     DLOG("- here: {}", continuation);
-                    continuation->jump(drop(*callee_scope, continuation->args()), {}, continuation->jump_debug());
+                    continuation->jump(drop(*callee_scope, continuation->args()), Defs{}, continuation->jump_debug());
                     dirty = true;
                 }
             }

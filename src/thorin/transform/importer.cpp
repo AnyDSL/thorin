@@ -67,7 +67,7 @@ const Def* Importer::import(Tracker odef) {
             auto cond = import(ocontinuation->arg(0));
             if (auto lit = cond->isa<PrimLit>()) {
                 auto callee = import(lit->value().get_bool() ? ocontinuation->arg(1) : ocontinuation->arg(2));
-                ncontinuation->jump(callee, {}, ocontinuation->jump_debug());
+                ncontinuation->jump(callee, Defs{}, ocontinuation->jump_debug());
 
                 assert(!ncontinuation->is_replaced());
                 return ncontinuation;

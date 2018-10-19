@@ -664,7 +664,7 @@ const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
     if (agg->isa<Bottom>())
         return bottom(Extract::extracted_type(agg, index), dbg);
 
-    if (fold_1_tuple(agg->type(), index))
+    if (!agg->isa<Param>() /*HACK*/ && fold_1_tuple(agg->type(), index))
         return agg;
 
     if (auto aggregate = agg->isa<Aggregate>()) {

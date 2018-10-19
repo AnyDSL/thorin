@@ -175,8 +175,9 @@ bool PartialEvaluator::run() {
                     if (force_fold || cond_eval.eval(i, lower2cff_)) {
                         args[i] = continuation->arg(i);
                         fold = true;
-                    } else
+                    } else {
                         args[i] = world().top(callee->param(i)->type());
+                    }
                 }
 
                 if (fold) {

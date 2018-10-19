@@ -287,6 +287,7 @@ struct Call {
 
     uint64_t hash() const {
         if (hash_ == 0) {
+            assert(callee_ && arg_);
             hash_ = hash_begin(callee());
             hash_ = hash_combine(hash_, arg()->gid());
         }
@@ -304,8 +305,8 @@ struct Call {
     }
 
 private:
-    const Def* callee_;
-    const Def* arg_;
+    const Def* callee_ = nullptr;
+    const Def* arg_ = nullptr;
     mutable uint64_t hash_ = 0;
 };
 

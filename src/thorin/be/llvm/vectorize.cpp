@@ -118,7 +118,15 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
         args.push_back(rv::VectorShape::uni(alignment));
     }
 
-    rv::VectorMapping target_mapping(kernel_func, simd_kernel_func, vector_length, -1, res, args);
+    rv::VectorMapping target_mapping(
+        kernel_func,
+        simd_kernel_func,
+        vector_length,
+        -1,
+        res,
+        args,
+        rv::CallPredicateMode::SafeWithoutPredicate);
+
     rv::FunctionRegion funcRegion(*kernel_func);
     rv::Region funcRegionWrapper(funcRegion);
     rv::VectorizationInfo vec_info(funcRegionWrapper, target_mapping);
@@ -152,16 +160,11 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
         // lower mask intrinsics for scalar code (vector_length == 1)
         rv::lowerIntrinsics(*simd_kernel_func);
     } else {
-        // TODO: use parameters from command line
-        rv::Config config;
-        config.useSSE = true;
-        config.useAVX = false; // workaround for intrinsic ISA-precedence bug
-        config.useAVX2 = true;
-        config.useSLEEF = true;
+        rv::Config config = rv::Config::createForFunction(*kernel_func);
         config.enableIRPolish = true;
 
-        const unsigned maxULPError = 35; // allow vector math with imprecision up to 3.5 ULP
-        rv::addSleefResolver(config, platform_info, maxULPError);
+        config.maxULPErrorBound = 35; // allow vector math with imprecision up to 3.5 ULP
+        rv::addSleefResolver(config, platform_info);
 
         rv::VectorizerInterface vectorizer(platform_info, config);
 

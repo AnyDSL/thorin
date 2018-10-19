@@ -806,6 +806,8 @@ const Def* World::load(const Def* mem, const Def* ptr, Debug dbg) {
         }
     }
 
+    // not so sure whether this is correct
+#if 0
     if (auto slot = ptr->isa<Slot>()) {
         // are all users loads and stores *from* this slot (use.index() == 1)?
         // calls or stores that store this slot somewhere else would require more analysis
@@ -825,6 +827,7 @@ const Def* World::load(const Def* mem, const Def* ptr, Debug dbg) {
             }
         }
     }
+#endif
     return cse(new Load(mem, ptr, dbg));
 }
 

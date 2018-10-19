@@ -506,11 +506,10 @@ const Def* Continuation::fix(size_t handle, size_t index, const Type* type, Debu
     auto param = this->param(index);
 
     assert(is_sealed() && "must be sealed");
-    //assert(index == param->index());
+    assert(index == get_param_index(param));
 
     for (auto pred : preds()) {
         assert(!pred->empty());
-        //assert(pred->direct_succs().size() == 1 && "critical edge");
         auto def = pred->get_value(handle, type, dbg);
 
         auto pred_args = pred->args();
@@ -523,7 +522,7 @@ const Def* Continuation::fix(size_t handle, size_t index, const Type* type, Debu
 }
 
 const Def* Continuation::try_remove_trivial_param(const Def* param) {
-    //assert(param->continuation() == this);
+    assert(get_param_continuation(param) == this);
     assert(is_sealed() && "must be sealed");
 
     Continuations preds = this->preds();

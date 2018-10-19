@@ -103,6 +103,11 @@ static const Def* insert_from_leas(const Def* value, const Def* elem, const Def*
 
 static const Def* try_resolve_load(DefMap<bool>& safe_slots, const Def* def, const Load* target_load, const Def* slot, size_t depth) {
     auto& world = def->world();
+
+    // Immutable globals can be immediately resolved
+    if (auto global = slot->isa<Global>())
+        return extract_from_leas(global->init(), target_load->ptr(), depth);
+
     while (true) {
         auto mem_op = def->isa<MemOp>();
         if (!mem_op)

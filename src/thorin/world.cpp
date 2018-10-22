@@ -925,7 +925,7 @@ const Def* World::run(const Def* def, Debug dbg) {
  */
 
 Continuation* World::continuation(const FnType* fn, CC cc, Intrinsic intrinsic, Debug dbg) {
-    auto l = new Continuation(fn, cc, intrinsic, true, dbg);
+    auto l = new Continuation(fn, cc, intrinsic, dbg);
     THORIN_CHECK_BREAK(l->gid());
     continuations_.insert(l);
 
@@ -948,7 +948,7 @@ Continuation* World::match(const Type* type, size_t num_patterns) {
 }
 
 Continuation* World::basicblock(Debug dbg) {
-    auto bb = new Continuation(fn_type(), CC::C, Intrinsic::None, false, dbg);
+    auto bb = new Continuation(fn_type(), CC::C, Intrinsic::None, dbg);
     THORIN_CHECK_BREAK(bb->gid());
     continuations_.insert(bb);
     return bb;

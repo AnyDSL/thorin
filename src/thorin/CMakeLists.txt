@@ -5,8 +5,6 @@ set(THORIN_SOURCES
     def.h
     enums.cpp
     enums.h
-    irbuilder.cpp
-    irbuilder.h
     primop.cpp
     primop.h
     type.cpp

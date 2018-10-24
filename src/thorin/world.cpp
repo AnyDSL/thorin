@@ -947,13 +947,6 @@ Continuation* World::match(const Type* type, size_t num_patterns) {
     return continuation(fn_type(arg_types), CC::C, Intrinsic::Match, {"match"});
 }
 
-Continuation* World::basicblock(Debug dbg) {
-    auto bb = new Continuation(fn_type(), CC::C, Intrinsic::None, dbg);
-    THORIN_CHECK_BREAK(bb->gid());
-    continuations_.insert(bb);
-    return bb;
-}
-
 const Param* World::param(const Type* type, Continuation* continuation, size_t index, Debug dbg) {
     auto param = new Param(type, continuation, index, dbg);
     THORIN_CHECK_BREAK(param->gid());

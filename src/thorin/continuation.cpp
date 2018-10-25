@@ -263,46 +263,6 @@ void Continuation::match(const Def* val, Continuation* otherwise, Defs patterns,
     return jump(world().match(val->type(), patterns.size()), args, dbg);
 }
 
-std::pair<Continuation*, const Def*> Continuation::call(const Def* callee, Defs args, const Type* ret_type, Debug dbg) {
-    if (ret_type == nullptr) {
-        jump(callee, args, dbg);
-        return std::make_pair(nullptr, nullptr);
-    }
-
-    std::vector<const Type*> cont_args;
-    cont_args.push_back(world().mem_type());
-
-    // if the return type is a tuple, flatten it
-    auto tuple = ret_type->isa<TupleType>();
-    if (tuple) {
-        for (auto op : tuple->ops())
-            cont_args.push_back(op);
-    } else
-        cont_args.push_back(ret_type);
-
-    auto next = world().continuation(world().fn_type(cont_args), dbg);
-    next->param(0)->debug().set("mem");
-
-    // create jump to next
-    size_t csize = args.size() + 1;
-    Array<const Def*> cargs(csize);
-    *std::copy(args.begin(), args.end(), cargs.begin()) = next;
-    jump(callee, cargs, dbg);
-
-    // determine return value
-    const Def* ret = nullptr;
-    if (tuple) {
-        Array<const Def*> params(next->num_params() - 1);
-        for (size_t i = 1, e = next->num_params(); i != e; ++i)
-            params[i - 1] = next->param(i);
-        ret = world().tuple(params);
-    } else
-        ret = next->param(1);
-    ret->debug().set(callee->name());
-
-    return std::make_pair(next, ret);
-}
-
 void jump_to_dropped_call(Continuation* src, Continuation* dst, const Call& call) {
     std::vector<const Def*> nargs;
     for (size_t i = 0, e = src->num_args(); i != e; ++i) {

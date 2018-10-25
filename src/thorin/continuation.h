@@ -157,7 +157,7 @@ public:
     void jump(const Def* callee, Defs args, Debug dbg = {});
     void branch(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
     void match(const Def* val, Continuation* otherwise, Defs patterns, ArrayRef<Continuation*> continuations, Debug dbg = {});
-    std::pair<Continuation*, const Def*> call(const Def* callee, Defs args, const Type* ret_type, Debug dbg = {});
+    //std::pair<Continuation*, const Def*> call(const Def* callee, Defs args, const Type* ret_type, Debug dbg = {});
     void verify() const {
 #if THORIN_ENABLE_CHECKS
         auto c = callee_fn_type();

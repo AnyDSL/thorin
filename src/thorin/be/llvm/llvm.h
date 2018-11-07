@@ -4,6 +4,7 @@
 #include <llvm/IR/DIBuilder.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Module.h>
+#include <llvm/Target/TargetMachine.h>
 
 #include "thorin/config.h"
 #include "thorin/continuation.h"
@@ -76,6 +77,7 @@ protected:
 
     World& world_;
     llvm::LLVMContext context_;
+    std::unique_ptr<llvm::TargetMachine> machine_;
     std::unique_ptr<llvm::Module> module_;
     llvm::IRBuilder<> irbuilder_;
     llvm::DIBuilder dibuilder_;

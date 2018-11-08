@@ -129,7 +129,7 @@ static const Def* try_resolve_load(DefMap<bool>& safe_slots, const Def* def, con
                     const Def* value = try_resolve_load(safe_slots, store, target_load, slot, depth);
                     if (!value)
                         return nullptr;
-                    return insert_from_leas(value, store->ptr(), store->val(), parent_depth - depth);
+                    return insert_from_leas(value, store->val(), store->ptr(), parent_depth - depth);
                 }
             }
             parent = load ? load->as<Def>() : store;
@@ -180,7 +180,7 @@ bool resolve_loads(World& world) {
     });
     // Remove slots that only have stores
     for (auto& pair : safe_slots) {
-        if (!pair.second) continue;        
+        if (!pair.second) continue;
         if (are_ptr_uses_safe(pair.first, false)) {
             replace_ptr_uses(pair.first);
             todo = true;

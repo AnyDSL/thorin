@@ -160,8 +160,11 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
         // lower mask intrinsics for scalar code (vector_length == 1)
         rv::lowerIntrinsics(*simd_kernel_func);
     } else {
-        rv::Config config = rv::Config::createDefaultConfig();
-        config.enableIRPolish = true;
+        // Annotate kernel function
+        kernel_func->removeFnAttr("target-features");
+        kernel_func->addFnAttr("target-features", machine_->getTargetFeatureString());
+        rv::Config config = rv::Config::createForFunction(*kernel_func);
+        config.enableIRPolish = config.useAVX2;
 
         config.maxULPErrorBound = 35; // allow vector math with imprecision up to 3.5 ULP
         rv::addSleefResolver(config, platform_info);

@@ -84,22 +84,51 @@ static inline bool is_pointer_prefix(const Def* ptr1, size_t depth1, const Def* 
     return remove_bitcasts(find_base_ptr(dir ? ptr2 : ptr1, dir ? depth2 - depth1 : depth1 - depth2)) == remove_bitcasts(dir ? ptr1 : ptr2);
 }
 
-
 static const Def* extract_from_leas(const Def* value, const Def* ptr, size_t depth) {
     if (depth == 0)
         return value;
     ptr = remove_bitcasts(ptr);
     auto& world = value->world();
-    return world.extract(extract_from_leas(value, ptr->as<LEA>()->ptr(), depth - 1), ptr->as<LEA>()->index());
+    auto lea = ptr->as<LEA>();
+    return world.extract(extract_from_leas(value, lea->ptr(), depth - 1), lea->index());
 }
 
+/*
+ * we need to transform this:
+ * [3*[2*int]]* p2 = lea p1, 7
+ * [2*int]*     p3 = lea p2, 2
+ * int*         p4 = lea p2, 1
+ *                   store p3, 42
+ * to this:
+ * [3*[2*int]]  x2 = extract(x1, 7)
+ * [2*int]      x3 = extract(x2, 2)
+ * [2*int]      x4 = insert(x3, 1, 42)
+ * [3*[2*int]]  x5 = insert(x2, 2, x4)
+ * X            x6 = insert(x1, 7, x5)
+ */
 static const Def* insert_from_leas(const Def* value, const Def* elem, const Def* ptr, size_t depth) {
-    if (depth == 0)
-        return elem;
+    assert(depth != 0);
     ptr = remove_bitcasts(ptr);
+    auto lea = ptr->as<LEA>();
     auto& world = value->world();
-    const Def* extracts = extract_from_leas(value, ptr->as<LEA>()->ptr(), depth - 1);
-    return world.insert(extracts, ptr->as<LEA>()->index(), insert_from_leas(value, elem, ptr->as<LEA>()->ptr(), depth - 1));
+    auto e = extract_from_leas(value, lea->ptr(), depth - 1);
+
+    std::deque<const Def*> extracts;
+    extracts.emplace_back(e);
+    while (auto extract = e->isa<Extract>()) {
+        extracts.emplace_front(extract);
+        e = extract->agg();
+    }
+
+    const Def* insert;
+    for (size_t i = 0; i != depth; ++i) {
+        insert = world.insert(extracts[i], lea->index(), elem);
+        ptr = lea->ptr();
+        ptr = remove_bitcasts(ptr);
+        lea = ptr->isa<LEA>();
+    }
+
+    return insert;
 }
 
 static const Def* try_resolve_load(DefMap<bool>& safe_slots, const Def* def, const Load* target_load, const Def* slot, size_t depth) {

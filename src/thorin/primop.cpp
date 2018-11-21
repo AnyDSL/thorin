@@ -73,6 +73,8 @@ LEA::LEA(const Def* ptr, const Def* index, Debug dbg)
         set_type(world.ptr_type(array->elem_type(), type->length(), type->device(), type->addr_space()));
     } else if (auto struct_type = ptr_pointee()->isa<StructType>()) {
         set_type(world.ptr_type(get(struct_type->ops(), index)));
+    } else if (auto prim_type = ptr_pointee()->isa<PrimType>()) {
+        set_type(world.ptr_type(prim_type));
     } else {
         THORIN_UNREACHABLE;
     }

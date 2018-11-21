@@ -12,6 +12,7 @@
 #include "thorin/transform/closure_conversion.h"
 #include "thorin/transform/codegen_prepare.h"
 #include "thorin/transform/dead_load_opt.h"
+#include "thorin/transform/deep_copy.h"
 #include "thorin/transform/flatten_tuples.h"
 #include "thorin/transform/rewrite_flow_graphs.h"
 #include "thorin/transform/hoist_enters.h"
@@ -1021,6 +1022,7 @@ void World::opt() {
     hoist_enters(*this);
     dead_load_opt(*this);
     cleanup();
+    deep_copy(*this);
     codegen_prepare(*this);
     rewrite_flow_graphs(*this);
 }

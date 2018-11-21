@@ -48,6 +48,8 @@ set(THORIN_SOURCES
     transform/critical_edge_elimination.h
     transform/dead_load_opt.cpp
     transform/dead_load_opt.h
+    transform/deep_copy.cpp
+    transform/deep_copy.h
     transform/hoist_enters.cpp
     transform/hoist_enters.h
     transform/flatten_tuples.cpp

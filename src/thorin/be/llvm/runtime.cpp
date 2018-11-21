@@ -132,8 +132,16 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, cons
         auto align_ptr = builder_.CreateInBoundsGEP(aligns, llvm::ArrayRef<llvm::Value*>{builder_.getInt32(0), builder_.getInt32(i)});
         auto type_ptr  = builder_.CreateInBoundsGEP(types,  llvm::ArrayRef<llvm::Value*>{builder_.getInt32(0), builder_.getInt32(i)});
 
+        auto size = layout_.getTypeStoreSize(target_val->getType());
+        if (auto struct_type = llvm::dyn_cast<llvm::StructType>(target_val->getType())) {
+            // In the case of a structure, do not include the padding at the end in the size
+            auto last_elem   = struct_type->getStructNumElements() - 1;
+            auto last_offset = layout_.getStructLayout(struct_type)->getElementOffset(last_elem);
+            size = last_offset + layout_.getTypeStoreSize(struct_type->getStructElementType(last_elem));
+        }
+
         builder_.CreateStore(void_ptr, arg_ptr);
-        builder_.CreateStore(builder_.getInt32(layout_.getTypeStoreSize(target_val->getType())), size_ptr);
+        builder_.CreateStore(builder_.getInt32(size), size_ptr);
         builder_.CreateStore(builder_.getInt32(layout_.getABITypeAlignment(target_val->getType())), align_ptr);
         builder_.CreateStore(builder_.getInt8((uint8_t)arg_type), type_ptr);
     }

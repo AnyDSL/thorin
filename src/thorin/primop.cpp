@@ -74,7 +74,8 @@ LEA::LEA(const Def* ptr, const Def* index, Debug dbg)
     } else if (auto struct_type = ptr_pointee()->isa<StructType>()) {
         set_type(world.ptr_type(get(struct_type->ops(), index)));
     } else if (auto prim_type = ptr_pointee()->isa<PrimType>()) {
-        set_type(world.ptr_type(prim_type));
+        assert(prim_type->length() > 1);
+        set_type(world.ptr_type(world.type(prim_type->primtype_tag())));
     } else {
         THORIN_UNREACHABLE;
     }

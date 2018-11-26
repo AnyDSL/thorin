@@ -108,27 +108,28 @@ static const Def* extract_from_leas(const Def* value, const Def* ptr, size_t dep
  */
 static const Def* insert_from_leas(const Def* value, const Def* elem, const Def* ptr, size_t depth) {
     assert(depth != 0);
-    ptr = remove_bitcasts(ptr);
-    auto lea = ptr->as<LEA>();
     auto& world = value->world();
-    auto e = extract_from_leas(value, lea->ptr(), depth - 1);
+    Array<const LEA*> leas(depth);
+    Array<const Def*> extracts(depth);  // front is 'value', all others are extracts
+    Array<const Def*> inserts(depth);
 
-    std::deque<const Def*> extracts;
-    extracts.emplace_back(e);
-    while (auto extract = e->isa<Extract>()) {
-        extracts.emplace_front(extract);
-        e = extract->agg();
-    }
-
-    const Def* insert;
-    for (size_t i = 0; i != depth; ++i) {
-        insert = world.insert(extracts[i], lea->index(), elem);
-        ptr = lea->ptr();
+    for (size_t i = depth; i-- != 0;) {     // i = ]depth, 0]
         ptr = remove_bitcasts(ptr);
-        lea = ptr->isa<LEA>();
+        auto lea = ptr->as<LEA>();
+        leas[i] = lea;
+        ptr = lea->ptr();
     }
 
-    return insert;
+    extracts[0] = value;
+    for (size_t i = 1; i != depth; ++i)     // i = [1, depth[
+        extracts[i] = world.extract(extracts[i-1], leas[i-1]->index());
+
+    for (size_t i = 0; i != depth; ++i) {   // i = [0, depth[
+        size_t j = depth - i - 1;           // j = ]depth, 0]
+        elem = inserts[i] = world.insert(extracts[j], leas[j]->index(), elem);
+    }
+
+    return inserts.back();
 }
 
 static const Def* try_resolve_load(DefMap<bool>& safe_slots, const Def* def, const Load* target_load, const Def* slot, size_t depth) {

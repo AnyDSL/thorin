@@ -149,9 +149,12 @@ const CFNode* Scheduler::schedule_smart(const PrimOp* primop) {
     auto late  = schedule_late (primop);
 
     const CFNode* result;
-    if (primop->isa<Enter>() || primop->isa<Slot>() || Enter::is_out_mem(primop) || Enter::is_out_frame(primop))
+    /*
+    if (primop->isa<Enter>() || primop->isa<Slot>() || Enter::is_out_mem(primop) || Enter::is_out_frame(primop)) {
         result = early;
-    else {
+    */
+    if (false) {
+    } else {
         result = late;
         int depth = looptree_[late]->depth();
         for (auto i = late; i != early;) {

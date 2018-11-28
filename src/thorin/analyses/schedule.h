@@ -85,6 +85,7 @@ private:
 };
 
 inline Schedule schedule(const Scope& scope, Schedule::Tag tag = Schedule::Smart) { return Schedule(scope, tag); }
+void verify_mem(World& );
 
 }
 

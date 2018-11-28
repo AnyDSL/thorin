@@ -780,49 +780,10 @@ const Def* World::size_of(const Type* type, Debug dbg) {
  */
 
 const Def* World::load(const Def* mem, const Def* ptr, Debug dbg) {
-    if (auto store = mem->isa<Store>()) {
-        if (store->ptr() == ptr)
-            return tuple({mem, store->val()}, dbg);
-        if (auto lea = ptr->isa<LEA>()) {
-            if (lea->ptr() == store->ptr())
-                return tuple({mem, extract(store->val(), lea->index())}, dbg);
-        }
-    }
-
-    if (auto global = ptr->isa<Global>()) {
-        if (!global->is_mutable())
-            return tuple({mem, global->init()});
-    }
-
-    if (auto ld = Load::is_out_mem(mem)) {
-        if (ptr == ld->ptr())
-            return ld;
-    }
-
     if (auto tuple_type = ptr->type()->as<PtrType>()->pointee()->isa<TupleType>()) {
         // loading an empty tuple can only result in an empty tuple
         if (tuple_type->num_ops() == 0) {
             return tuple({mem, tuple({}, dbg)});
-        }
-    }
-
-    if (auto slot = ptr->isa<Slot>()) {
-        // are all users loads and stores *from* this slot (use.index() == 1)?
-        // calls or stores that store this slot somewhere else would require more analysis
-        if (std::all_of(slot->uses().begin(), slot->uses().end(), [&] (const Use& use) {
-                    return use.index() == 1 && (use->template isa<Load>() || use->template isa<Store>()); })) {
-            auto cur = mem;
-            while (!cur->isa<Param>()) {
-                if (auto store = cur->isa<Store>())
-                    if (store->ptr() == slot)
-                        return tuple({mem, store->val()}, dbg);
-                if (cur->isa<Extract>())
-                    cur = cur->op(0);
-                else if (cur->isa<MemOp>())
-                    cur = cur->as<MemOp>()->mem();
-                else
-                    THORIN_UNREACHABLE;
-            }
         }
     }
     return cse(new Load(mem, ptr, dbg));
@@ -835,23 +796,6 @@ bool is_agg_const(const Def* def) {
 const Def* World::store(const Def* mem, const Def* ptr, const Def* value, Debug dbg) {
     if (value->isa<Bottom>())
         return mem;
-
-    if (auto st = mem->isa<Store>()) {
-        if (ptr == st->ptr() && value == st->val())
-            return st;
-        if (auto lea = ptr->isa<LEA>()) {
-            if (lea->ptr() == st->ptr() && is_agg_const(st->val()) && lea->index()->isa<PrimLit>())
-                return store(st->mem(), lea->ptr(), insert(st->val(), lea->index(), value), dbg);
-        }
-    }
-
-    if (auto insert = value->isa<Insert>()) {
-        if (use_lea(ptr->type()->as<PtrType>()->pointee())) {
-            auto peeled_store = store(mem, ptr, insert->agg(), dbg);
-            return store(peeled_store, lea(ptr, insert->index(), insert->debug()), insert->value(), dbg);
-        }
-    }
-
     return cse(new Store(mem, ptr, value, dbg));
 }
 

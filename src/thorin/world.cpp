@@ -952,11 +952,11 @@ void World::opt() {
     clone_bodies(*this);
     split_slots(*this);
     closure_conversion(*this);
-    mem2reg(*this);
+    //mem2reg(*this);
     lift_builtins(*this);
     inliner(*this);
     hoist_enters(*this);
-    dead_load_opt(*this);
+    //dead_load_opt(*this);
     cleanup();
     codegen_prepare(*this);
     rewrite_flow_graphs(*this);

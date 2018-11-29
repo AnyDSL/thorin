@@ -143,17 +143,19 @@ public:
         }
     }
 
-    static bool contains_top(const Def* def) {
+    bool contains_top(const Def* def) {
+        if (is_top_.contains(def))
+            return is_top_[def];
         if (def->isa<Top>()) {
-            return true;
+            return is_top_[def] = true;
         } else if (auto primop = def->isa<PrimOp>()) {
             for (auto op : primop->ops()) {
                 if (contains_top(op))
-                    return true;
+                    return is_top_[def] = true;
             }
-            return false;
+            return is_top_[def] = false;
         } else {
-            return false;
+            return is_top_[def] = false;
         }
     }
 
@@ -214,6 +216,7 @@ public:
 private:
     bool todo_;
     World& world_;
+    DefMap<bool> is_top_;
     DefMap<bool> safe_slots_;
 };
 

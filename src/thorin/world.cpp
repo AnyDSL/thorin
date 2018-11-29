@@ -67,6 +67,17 @@ const Def* World::splat(const Def* arg, size_t length, Debug dbg) {
     return vector(args, dbg);
 }
 
+const Def* World::allset(PrimTypeTag tag, Debug dbg, size_t length) {
+    switch (tag) {
+#define THORIN_I_TYPE(T, M) \
+    case PrimType_##T: return literal(PrimType_##T, Box(~T(0)), dbg, length);
+#define THORIN_BOOL_TYPE(T, M) \
+    case PrimType_##T: return literal(PrimType_##T, Box(true), dbg, length);
+#include "thorin/tables/primtypetable.h"
+        default: THORIN_UNREACHABLE;
+    }
+}
+
 /*
  * arithops
  */

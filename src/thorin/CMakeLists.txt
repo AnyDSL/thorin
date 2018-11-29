@@ -42,8 +42,6 @@ set(THORIN_SOURCES
     transform/closure_conversion.h
     transform/codegen_prepare.h
     transform/codegen_prepare.cpp
-    transform/critical_edge_elimination.cpp
-    transform/critical_edge_elimination.h
     transform/dead_load_opt.cpp
     transform/dead_load_opt.h
     transform/hoist_enters.cpp
@@ -60,8 +58,6 @@ set(THORIN_SOURCES
     transform/mangle.h
     transform/resolve_loads.cpp
     transform/resolve_loads.h
-    transform/mem2reg.cpp
-    transform/mem2reg.h
     transform/partial_evaluation.cpp
     transform/partial_evaluation.h
     transform/rewrite_flow_graphs.cpp

@@ -171,19 +171,6 @@ public:
         return nullptr;
     }
 
-    static const Def* remove_bitcasts(const Def* ptr) {
-        while (true) {
-            if (auto bitcast = ptr->isa<Bitcast>()) {
-                ptr = bitcast->from();
-                continue;
-            } else if (auto lea = ptr->isa<LEA>()) {
-                ptr = lea->rebuild({ remove_bitcasts(lea->ptr()), lea->index() });
-            }
-            break;
-        }
-        return ptr;
-    }
-
     static void replace_ptr_uses(const Def* ptr) {
         for (auto& use : ptr->uses()) {
             if (auto store = use->isa<Store>()) {

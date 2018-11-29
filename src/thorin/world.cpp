@@ -698,26 +698,28 @@ const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
 }
 
 const Def* World::insert(const Def* agg, const Def* index, const Def* value, Debug dbg) {
-    if (agg->isa<Bottom>()) {
+    if (agg->isa<Bottom>() || agg->isa<Top>()) {
         if (value->isa<Bottom>())
             return agg;
 
         // build aggregate container and fill with bottom
         if (auto definite_array_type = agg->type()->isa<DefiniteArrayType>()) {
             Array<const Def*> args(definite_array_type->dim());
-            std::fill(args.begin(), args.end(), bottom(definite_array_type->elem_type(), dbg));
+            auto elem_type = definite_array_type->elem_type();
+            auto elem = agg->isa<Bottom>() ? bottom(elem_type, dbg) : top(elem_type, dbg);
+            std::fill(args.begin(), args.end(), elem);
             agg = definite_array(args, dbg);
         } else if (auto tuple_type = agg->type()->isa<TupleType>()) {
             Array<const Def*> args(tuple_type->num_ops());
             size_t i = 0;
             for (auto type : tuple_type->ops())
-                args[i++] = bottom(type, dbg);
+                args[i++] = agg->isa<Bottom>() ? bottom(type, dbg) : top(type, dbg);
             agg = tuple(args, dbg);
         } else if (auto struct_type = agg->type()->isa<StructType>()) {
             Array<const Def*> args(struct_type->num_ops());
             size_t i = 0;
             for (auto type : struct_type->ops())
-                args[i++] = bottom(type, dbg);
+                args[i++] = agg->isa<Bottom>() ? bottom(type, dbg) : top(type, dbg);
             agg = struct_agg(struct_type, args, dbg);
         }
     }

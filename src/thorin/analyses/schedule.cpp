@@ -149,11 +149,9 @@ const CFNode* Scheduler::schedule_smart(const PrimOp* primop) {
     auto late  = schedule_late (primop);
 
     const CFNode* result;
-    /*
     if (primop->isa<Enter>() || primop->isa<Slot>() || Enter::is_out_mem(primop) || Enter::is_out_frame(primop)) {
+        // Place allocas early for LLVM
         result = early;
-    */
-    if (false) {
     } else {
         result = late;
         int depth = looptree_[late]->depth();

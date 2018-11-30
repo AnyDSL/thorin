@@ -967,7 +967,7 @@ void World::opt() {
     lift_builtins(*this);
     inliner(*this);
     hoist_enters(*this);
-    //dead_load_opt(*this);
+    dead_load_opt(*this);
     cleanup();
     codegen_prepare(*this);
     rewrite_flow_graphs(*this);

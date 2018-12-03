@@ -14,25 +14,32 @@ CPUCodeGen::CPUCodeGen(World& world)
     : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::C, llvm::CallingConv::C)
 {
     llvm::InitializeNativeTarget();
-    auto triple_str = llvm::sys::getDefaultTargetTriple();
-    auto cpu_str    = llvm::sys::getHostCPUName();
+    auto triple_str   = llvm::sys::getDefaultTargetTriple();
+    auto cpu_str      = llvm::sys::getHostCPUName();
+    std::string features_str;
+    llvm::StringMap<bool> features;
+    llvm::sys::getHostCPUFeatures(features);
+    for (auto& feature : features)
+        features_str += (feature.getValue() ? "+" : "-") + feature.getKey().str() + ",";
 
-    char* target_triple = std::getenv("ANYDSL_TARGET_TRIPLE");
-    char* target_cpu    = std::getenv("ANYDSL_TARGET_CPU");
+    char* target_triple   = std::getenv("ANYDSL_TARGET_TRIPLE");
+    char* target_cpu      = std::getenv("ANYDSL_TARGET_CPU");
+    char* target_features = std::getenv("ANYDSL_TARGET_FEATURES");
 
     if (target_triple && target_cpu) {
         llvm::InitializeAllTargets();
         llvm::InitializeAllTargetMCs();
-        triple_str = target_triple;
-        cpu_str    = target_cpu;
+        triple_str   = target_triple;
+        cpu_str      = target_cpu;
+        features_str = target_features ? target_features : "";
     }
 
     std::string error;
     auto target = llvm::TargetRegistry::lookupTarget(triple_str, error);
     assert(target && "can't create target for target architecture");
     llvm::TargetOptions options;
-    std::unique_ptr<llvm::TargetMachine> machine(target->createTargetMachine(triple_str, cpu_str, "" /* features */, options, llvm::None));
-    module_->setDataLayout(machine->createDataLayout());
+    machine_.reset(target->createTargetMachine(triple_str, cpu_str, features_str, options, llvm::None));
+    module_->setDataLayout(machine_->createDataLayout());
     module_->setTargetTriple(triple_str);
 }
 

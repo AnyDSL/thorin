@@ -943,7 +943,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
     if (def->isa<Enter>())                      return nullptr;
 
     if (auto slot = def->isa<Slot>())
-        return irbuilder_.CreateAlloca(convert(slot->type()->as<PtrType>()->pointee()), 0, slot->unique_name());
+        return emit_alloca(convert(slot->type()->as<PtrType>()->pointee()), slot->unique_name());
 
     if (auto vector = def->isa<Vector>()) {
         llvm::Value* vec = llvm::UndefValue::get(convert(vector->type()));

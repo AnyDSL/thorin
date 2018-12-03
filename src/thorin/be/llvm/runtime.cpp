@@ -81,9 +81,10 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, cons
     const size_t num_kernel_args = continuation->num_args() - LaunchArgs::Num;
 
     // allocate argument pointers, sizes, and types
-    llvm::Value* args  = code_gen.emit_alloca(llvm::ArrayType::get(builder_.getInt8PtrTy(), num_kernel_args), "");
-    llvm::Value* sizes = code_gen.emit_alloca(llvm::ArrayType::get(builder_.getInt32Ty(),   num_kernel_args), "");
-    llvm::Value* types = code_gen.emit_alloca(llvm::ArrayType::get(builder_.getInt8Ty(),    num_kernel_args), "");
+    llvm::Value* args   = code_gen.emit_alloca(llvm::ArrayType::get(builder_.getInt8PtrTy(), num_kernel_args), "args");
+    llvm::Value* sizes  = code_gen.emit_alloca(llvm::ArrayType::get(builder_.getInt32Ty(),   num_kernel_args), "sizes");
+    llvm::Value* aligns = code_gen.emit_alloca(llvm::ArrayType::get(builder_.getInt32Ty(),   num_kernel_args), "aligns");
+    llvm::Value* types  = code_gen.emit_alloca(llvm::ArrayType::get(builder_.getInt8Ty(),    num_kernel_args), "types");
 
     // fill array of arguments
     for (size_t i = 0; i < num_kernel_args; ++i) {
@@ -126,12 +127,22 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, cons
             arg_type = KernelArgType::Val;
         }
 
-        auto arg_ptr  = builder_.CreateInBoundsGEP(args,  llvm::ArrayRef<llvm::Value*>{builder_.getInt32(0), builder_.getInt32(i)});
-        auto size_ptr = builder_.CreateInBoundsGEP(sizes, llvm::ArrayRef<llvm::Value*>{builder_.getInt32(0), builder_.getInt32(i)});
-        auto type_ptr = builder_.CreateInBoundsGEP(types, llvm::ArrayRef<llvm::Value*>{builder_.getInt32(0), builder_.getInt32(i)});
+        auto arg_ptr   = builder_.CreateInBoundsGEP(args,   llvm::ArrayRef<llvm::Value*>{builder_.getInt32(0), builder_.getInt32(i)});
+        auto size_ptr  = builder_.CreateInBoundsGEP(sizes,  llvm::ArrayRef<llvm::Value*>{builder_.getInt32(0), builder_.getInt32(i)});
+        auto align_ptr = builder_.CreateInBoundsGEP(aligns, llvm::ArrayRef<llvm::Value*>{builder_.getInt32(0), builder_.getInt32(i)});
+        auto type_ptr  = builder_.CreateInBoundsGEP(types,  llvm::ArrayRef<llvm::Value*>{builder_.getInt32(0), builder_.getInt32(i)});
+
+        auto size = layout_.getTypeStoreSize(target_val->getType());
+        if (auto struct_type = llvm::dyn_cast<llvm::StructType>(target_val->getType())) {
+            // In the case of a structure, do not include the padding at the end in the size
+            auto last_elem   = struct_type->getStructNumElements() - 1;
+            auto last_offset = layout_.getStructLayout(struct_type)->getElementOffset(last_elem);
+            size = last_offset + layout_.getTypeStoreSize(struct_type->getStructElementType(last_elem));
+        }
 
         builder_.CreateStore(void_ptr, arg_ptr);
-        builder_.CreateStore(builder_.getInt32(layout_.getTypeAllocSize(target_val->getType())), size_ptr);
+        builder_.CreateStore(builder_.getInt32(size), size_ptr);
+        builder_.CreateStore(builder_.getInt32(layout_.getABITypeAlignment(target_val->getType())), align_ptr);
         builder_.CreateStore(builder_.getInt8((uint8_t)arg_type), type_ptr);
     }
 
@@ -157,12 +168,13 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, cons
     block_size = builder_.CreateInBoundsGEP(block_size, gep_first_elem);
     args       = builder_.CreateInBoundsGEP(args,       gep_first_elem);
     sizes      = builder_.CreateInBoundsGEP(sizes,      gep_first_elem);
+    aligns     = builder_.CreateInBoundsGEP(aligns,     gep_first_elem);
     types      = builder_.CreateInBoundsGEP(types,      gep_first_elem);
 
     launch_kernel(target_device,
                   file_name, kernel_name,
                   grid_size, block_size,
-                  args, sizes, types,
+                  args, sizes, aligns, types,
                   builder_.getInt32(num_kernel_args));
 
     return continuation->arg(LaunchArgs::Return)->as_continuation();
@@ -171,9 +183,9 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, cons
 llvm::Value* Runtime::launch_kernel(llvm::Value* device,
                                     llvm::Value* file, llvm::Value* kernel,
                                     llvm::Value* grid, llvm::Value* block,
-                                    llvm::Value* args, llvm::Value* sizes, llvm::Value* types,
+                                    llvm::Value* args, llvm::Value* sizes, llvm::Value* aligns, llvm::Value* types,
                                     llvm::Value* num_args) {
-    llvm::Value* launch_args[] = { device, file, kernel, grid, block, args, sizes, types, num_args };
+    llvm::Value* launch_args[] = { device, file, kernel, grid, block, args, sizes, aligns, types, num_args };
     return builder_.CreateCall(get("anydsl_launch_kernel"), launch_args);
 }
 

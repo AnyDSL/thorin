@@ -7,6 +7,7 @@
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/Transforms/Scalar.h>
+#include <llvm/Transforms/IPO.h>
 
 #include <llvm/Config/llvm-config.h>
 
@@ -96,7 +97,9 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
 
     // ensure proper loop forms
     llvm::legacy::FunctionPassManager pm(module_.get());
+    pm.add(llvm::createCFGSimplificationPass());
     pm.add(llvm::createSROAPass());
+    pm.add(llvm::createEarlyCSEPass());
     pm.add(llvm::createSCCPPass());
     pm.add(rv::createCNSPass()); // make all loops reducible (has to run first!)
     pm.add(llvm::createPromoteMemoryToRegisterPass()); // CNSPass relies on mem2reg for now
@@ -160,8 +163,11 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
         // lower mask intrinsics for scalar code (vector_length == 1)
         rv::lowerIntrinsics(*simd_kernel_func);
     } else {
+        // Annotate kernel function
+        kernel_func->removeFnAttr("target-features");
+        kernel_func->addFnAttr("target-features", machine_->getTargetFeatureString());
         rv::Config config = rv::Config::createForFunction(*kernel_func);
-        config.enableIRPolish = true;
+        config.enableIRPolish = config.useAVX2;
 
         config.maxULPErrorBound = 35; // allow vector math with imprecision up to 3.5 ULP
         rv::addSleefResolver(config, platform_info);

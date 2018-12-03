@@ -17,7 +17,6 @@
 #include "thorin/transform/hoist_enters.h"
 #include "thorin/transform/inliner.h"
 #include "thorin/transform/lift_builtins.h"
-#include "thorin/transform/mem2reg.h"
 #include "thorin/transform/partial_evaluation.h"
 #include "thorin/transform/split_slots.h"
 #include "thorin/util/array.h"
@@ -65,6 +64,17 @@ const Def* World::splat(const Def* arg, size_t length, Debug dbg) {
     Array<const Def*> args(length);
     std::fill(args.begin(), args.end(), arg);
     return vector(args, dbg);
+}
+
+const Def* World::allset(PrimTypeTag tag, Debug dbg, size_t length) {
+    switch (tag) {
+#define THORIN_I_TYPE(T, M) \
+    case PrimType_##T: return literal(PrimType_##T, Box(~T(0)), dbg, length);
+#define THORIN_BOOL_TYPE(T, M) \
+    case PrimType_##T: return literal(PrimType_##T, Box(true), dbg, length);
+#include "thorin/tables/primtypetable.h"
+        default: THORIN_UNREACHABLE;
+    }
 }
 
 /*
@@ -698,26 +708,28 @@ const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
 }
 
 const Def* World::insert(const Def* agg, const Def* index, const Def* value, Debug dbg) {
-    if (agg->isa<Bottom>()) {
+    if (agg->isa<Bottom>() || agg->isa<Top>()) {
         if (value->isa<Bottom>())
             return agg;
 
         // build aggregate container and fill with bottom
         if (auto definite_array_type = agg->type()->isa<DefiniteArrayType>()) {
             Array<const Def*> args(definite_array_type->dim());
-            std::fill(args.begin(), args.end(), bottom(definite_array_type->elem_type(), dbg));
+            auto elem_type = definite_array_type->elem_type();
+            auto elem = agg->isa<Bottom>() ? bottom(elem_type, dbg) : top(elem_type, dbg);
+            std::fill(args.begin(), args.end(), elem);
             agg = definite_array(args, dbg);
         } else if (auto tuple_type = agg->type()->isa<TupleType>()) {
             Array<const Def*> args(tuple_type->num_ops());
             size_t i = 0;
             for (auto type : tuple_type->ops())
-                args[i++] = bottom(type, dbg);
+                args[i++] = agg->isa<Bottom>() ? bottom(type, dbg) : top(type, dbg);
             agg = tuple(args, dbg);
         } else if (auto struct_type = agg->type()->isa<StructType>()) {
             Array<const Def*> args(struct_type->num_ops());
             size_t i = 0;
             for (auto type : struct_type->ops())
-                args[i++] = bottom(type, dbg);
+                args[i++] = agg->isa<Bottom>() ? bottom(type, dbg) : top(type, dbg);
             agg = struct_agg(struct_type, args, dbg);
         }
     }
@@ -780,54 +792,12 @@ const Def* World::size_of(const Type* type, Debug dbg) {
  */
 
 const Def* World::load(const Def* mem, const Def* ptr, Debug dbg) {
-    if (auto store = mem->isa<Store>()) {
-        if (store->ptr() == ptr)
-            return tuple({mem, store->val()}, dbg);
-        if (auto lea = ptr->isa<LEA>()) {
-            if (lea->ptr() == store->ptr())
-                return tuple({mem, extract(store->val(), lea->index())}, dbg);
-        }
-    }
-
-    if (auto global = ptr->isa<Global>()) {
-        if (!global->is_mutable())
-            return tuple({mem, global->init()});
-    }
-
-    if (auto ld = Load::is_out_mem(mem)) {
-        if (ptr == ld->ptr())
-            return ld;
-    }
-
     if (auto tuple_type = ptr->type()->as<PtrType>()->pointee()->isa<TupleType>()) {
         // loading an empty tuple can only result in an empty tuple
         if (tuple_type->num_ops() == 0) {
             return tuple({mem, tuple({}, dbg)});
         }
     }
-
-    // not so sure whether this is correct
-#if 0
-    if (auto slot = ptr->isa<Slot>()) {
-        // are all users loads and stores *from* this slot (use.index() == 1)?
-        // calls or stores that store this slot somewhere else would require more analysis
-        if (std::all_of(slot->uses().begin(), slot->uses().end(), [&] (const Use& use) {
-                    return use.index() == 1 && (use->template isa<Load>() || use->template isa<Store>()); })) {
-            auto cur = mem;
-            while (!cur->isa<Param>()) {
-                if (auto store = cur->isa<Store>())
-                    if (store->ptr() == slot)
-                        return tuple({mem, store->val()}, dbg);
-                if (cur->isa<Extract>())
-                    cur = cur->op(0);
-                else if (cur->isa<MemOp>())
-                    cur = cur->as<MemOp>()->mem();
-                else
-                    THORIN_UNREACHABLE;
-            }
-        }
-    }
-#endif
     return cse(new Load(mem, ptr, dbg));
 }
 
@@ -838,23 +808,6 @@ bool is_agg_const(const Def* def) {
 const Def* World::store(const Def* mem, const Def* ptr, const Def* value, Debug dbg) {
     if (value->isa<Bottom>())
         return mem;
-
-    if (auto st = mem->isa<Store>()) {
-        if (ptr == st->ptr() && value == st->val())
-            return st;
-        if (auto lea = ptr->isa<LEA>()) {
-            if (lea->ptr() == st->ptr() && is_agg_const(st->val()) && lea->index()->isa<PrimLit>())
-                return store(st->mem(), lea->ptr(), insert(st->val(), lea->index(), value), dbg);
-        }
-    }
-
-    if (auto insert = value->isa<Insert>()) {
-        if (use_lea(ptr->type()->as<PtrType>()->pointee())) {
-            auto peeled_store = store(mem, ptr, insert->agg(), dbg);
-            return store(peeled_store, lea(ptr, insert->index(), insert->debug()), insert->value(), dbg);
-        }
-    }
-
     return cse(new Store(mem, ptr, value, dbg));
 }
 
@@ -928,7 +881,7 @@ const Def* World::run(const Def* def, Debug dbg) {
  */
 
 Continuation* World::continuation(const FnType* fn, CC cc, Intrinsic intrinsic, Debug dbg) {
-    auto l = new Continuation(fn, cc, intrinsic, true, dbg);
+    auto l = new Continuation(fn, cc, intrinsic, dbg);
     THORIN_CHECK_BREAK(l->gid());
     continuations_.insert(l);
     l->param_ = param(fn->domain(), l, dbg);
@@ -943,14 +896,6 @@ Continuation* World::match(const Type* type, size_t num_patterns) {
     for (size_t i = 0; i < num_patterns; i++)
         arg_types[i + 2] = tuple_type({type, fn_type()});
     return continuation(fn_type(tuple_type(arg_types)), CC::C, Intrinsic::Match, {"match"});
-}
-
-Continuation* World::basicblock(Debug dbg) {
-    auto bb = new Continuation(fn_type(), CC::C, Intrinsic::None, false, dbg);
-    bb->param_ = param(bb->type()->domain(), bb, dbg);
-    THORIN_CHECK_BREAK(bb->gid());
-    continuations_.insert(bb);
-    return bb;
 }
 
 const Param* World::param(const Type* type, Continuation* continuation, Debug dbg) {
@@ -1013,8 +958,12 @@ void World::opt() {
     //flatten_tuples(*this);
     clone_bodies(*this);
     split_slots(*this);
+<<<<<<< HEAD
     //closure_conversion(*this);
     mem2reg(*this);
+=======
+    closure_conversion(*this);
+>>>>>>> mem2reg
     lift_builtins(*this);
     inliner(*this);
     hoist_enters(*this);

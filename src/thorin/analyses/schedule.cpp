@@ -149,9 +149,10 @@ const CFNode* Scheduler::schedule_smart(const PrimOp* primop) {
     auto late  = schedule_late (primop);
 
     const CFNode* result;
-    if (primop->isa<Enter>() || primop->isa<Slot>() || Enter::is_out_mem(primop) || Enter::is_out_frame(primop))
+    if (primop->isa<Enter>() || primop->isa<Slot>() || Enter::is_out_mem(primop) || Enter::is_out_frame(primop)) {
+        // Place allocas early for LLVM
         result = early;
-    else {
+    } else {
         result = late;
         int depth = looptree_[late]->depth();
         for (auto i = late; i != early;) {
@@ -247,6 +248,7 @@ void Schedule::block_schedule() {
 
 void Schedule::verify() {
 #if THORIN_ENABLE_CHECKS
+    bool ok = true;
     auto& domtree = cfg().domtree();
     Schedule::Map<const Def*> block2mem(*this);
 
@@ -256,13 +258,17 @@ void Schedule::verify() {
         mem = mem ? mem : block2mem[(*this)[idom]];
         for (auto primop : block) {
             if (auto memop = primop->isa<MemOp>()) {
-                if (memop->mem() != mem)
-                    WLOG("incorrect schedule: {} (current mem is {}) - scope entry: {}", memop, mem, scope_.entry());
+                if (memop->mem() != mem) {
+                    WLOG("incorrect schedule: {} @ '{}'; current mem is {} @ '{}') - scope entry: {}", memop, memop->location(), mem, mem->location(), scope_.entry());
+                    ok = false;
+                }
                 mem = memop->out_mem();
             }
         }
         block2mem[block] = mem;
     }
+
+    assert(ok && "incorrectly wired or scheduled memory operations");
 #endif
 }
 
@@ -294,5 +300,9 @@ void Schedule::thorin() const {
 }
 
 //------------------------------------------------------------------------------
+
+void verify_mem(World& world) {
+    Scope::for_each(world, [&](const Scope& scope) { schedule(scope); });
+}
 
 }

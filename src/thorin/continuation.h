@@ -11,7 +11,6 @@
 
 namespace thorin {
 
-class JumpTarget;
 class Continuation;
 class Scope;
 
@@ -101,12 +100,10 @@ enum class CC : uint8_t {
  */
 class Continuation : public Def {
 private:
-    Continuation(const FnType* fn, CC cc, Intrinsic intrinsic, bool is_sealed, Debug dbg)
+    Continuation(const FnType* fn, CC cc, Intrinsic intrinsic, Debug dbg)
         : Def(Node_Continuation, fn, 0, dbg)
-        , parent_(this)
         , cc_(cc)
         , intrinsic_(intrinsic)
-        , is_sealed_(is_sealed)
         , is_visited_(false)
     {
         contains_continuation_ = true;
@@ -158,10 +155,8 @@ public:
 
     void jump(const Def* callee, const Def* arg, Debug dbg = {});
     void jump(const Def* callee, Defs args, Debug dbg = {});
-    void jump(JumpTarget&, Debug dbg = {});
     void branch(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
     void match(const Def* val, Continuation* otherwise, Defs patterns, ArrayRef<Continuation*> continuations, Debug dbg = {});
-    std::pair<Continuation*, const Def*> call(const Def* callee, Defs args, const Type* ret_type, Debug dbg = {});
     void verify() const {
 #if THORIN_ENABLE_CHECKS
         if (auto continuation = callee()->isa<Continuation>()) {
@@ -181,69 +176,15 @@ public:
     void set_filter(const Def* filter) { filter_ = filter; }
     void set_filter(Defs filter);
     void set_all_true_filter();
-    void destroy_filter() { filter_ = 0; }
-    const Def* filter() const { return filter_; }
-    const Def* filter(size_t i) const;
-
-    // value numbering
-
-    const Def* set_value(size_t handle, const Def* def);
-    const Def* get_value(size_t handle, const Type* type, Debug dbg = {});
-    const Def* set_mem(const Def* def);
-    const Def* get_mem();
-    Continuation* parent() const { return parent_; }            ///< See @p parent_ for more information.
-    void set_parent(Continuation* parent) { parent_ = parent; } ///< See @p parent_ for more information.
-    void seal();
-    bool is_sealed() const { return is_sealed_; }
-    void unseal() { is_sealed_ = false; }
-    void clear_value_numbering_table() { values_.clear(); }
-    bool is_cleared() { return values_.empty(); }
+    void destroy_filter() { filter_.shrink(0); }
+    Defs filter() const { return filter_; }
+    const Def* filter(size_t i) const { return filter_[i]; }
 
 private:
-    class Todo {
-    public:
-        Todo() {}
-        Todo(size_t handle, size_t index, const Type* type, Debug dbg)
-            : handle_(handle)
-            , index_(index)
-            , type_(type)
-            , debug_(dbg)
-        {}
-
-        size_t handle() const { return handle_; }
-        size_t index() const { return index_; }
-        const Type* type() const { return type_; }
-        Debug debug() const { return debug_; }
-
-    private:
-        size_t handle_;
-        size_t index_;
-        const Type* type_;
-        Debug debug_;
-    };
-
-    const Def* fix(size_t handle, size_t index, const Type* type, Debug dbg);
-    const Def* try_remove_trivial_param(const Def*);
-    const Def* find_def(size_t handle);
-    void increase_values(size_t handle) { if (handle >= values_.size()) values_.resize(handle+1); }
-
     mutable Debug jump_debug_;
 
-    /**
-     * There exist three cases to distinguish here.
-     * - @p parent_ == this: This @p Continuation is considered as a basic block, i.e.,
-     *                       SSA construction will propagate value through this @p Continuation's predecessors.
-     * - @p parent_ == nullptr: This @p Continuation is considered as top level function, i.e.,
-     *                          SSA construction will stop propagate values here.
-     *                          Any @p get_value which arrives here without finding a definition will return @p bottom.
-     * - otherwise: This @p Continuation is considered as function head nested in @p parent_.
-     *              Any @p get_value which arrives here without finding a definition will recursively try to find one in @p parent_.
-     */
-    Continuation* parent_;
-    const Param* param_;
-    const Def* filter_ = nullptr; // TODO make this an op
-    std::deque<Tracker> values_;
-    std::vector<Todo> todos_;
+    std::vector<const Param*> params_;
+    Array<const Def*> filter_; ///< used during @p partial_evaluation
     CC cc_;
     Intrinsic intrinsic_;
     bool is_sealed_  : 1;
@@ -311,8 +252,6 @@ private:
 };
 
 void jump_to_dropped_call(Continuation* src, Continuation* dst, const Call& call);
-
-void clear_value_numbering_table(World&);
 
 //------------------------------------------------------------------------------
 

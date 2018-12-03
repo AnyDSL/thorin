@@ -82,6 +82,7 @@ private:
     friend class World;
 };
 
+/// This literal represents 'any value'.
 class Top : public Literal {
 private:
     Top(const Type* type, Debug dbg)

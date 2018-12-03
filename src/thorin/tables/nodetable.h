@@ -6,7 +6,6 @@
     THORIN_NODE(Continuation, continuation)
     // PrimOp
         // Literal
-            THORIN_NODE(Top, top)
             THORIN_NODE(Bottom, bottom)
             THORIN_NODE(Top, top)
             THORIN_NODE(MemBlob, mem_blob)

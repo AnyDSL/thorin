@@ -159,10 +159,6 @@ public:
     void match(const Def* val, Continuation* otherwise, Defs patterns, ArrayRef<Continuation*> continuations, Debug dbg = {});
     void verify() const {
 #if THORIN_ENABLE_CHECKS
-        if (auto continuation = callee()->isa<Continuation>()) {
-            if (!continuation->is_sealed())
-                return;
-        }
         if (!empty()) {
             auto c = callee_fn_type();
             auto a = arg_fn_type();
@@ -176,15 +172,15 @@ public:
     void set_filter(const Def* filter) { filter_ = filter; }
     void set_filter(Defs filter);
     void set_all_true_filter();
-    void destroy_filter() { filter_.shrink(0); }
-    Defs filter() const { return filter_; }
-    const Def* filter(size_t i) const { return filter_[i]; }
+    void destroy_filter() { filter_ = nullptr; }
+    const Def* filter() const { return filter_; }
+    const Def* filter(size_t i) const;
 
 private:
     mutable Debug jump_debug_;
 
-    std::vector<const Param*> params_;
-    Array<const Def*> filter_; ///< used during @p partial_evaluation
+    const Param* param_ = nullptr;
+    const Def* filter_; // TODO make this an op
     CC cc_;
     Intrinsic intrinsic_;
     bool is_sealed_  : 1;

@@ -958,12 +958,7 @@ void World::opt() {
     //flatten_tuples(*this);
     clone_bodies(*this);
     split_slots(*this);
-<<<<<<< HEAD
     //closure_conversion(*this);
-    mem2reg(*this);
-=======
-    closure_conversion(*this);
->>>>>>> mem2reg
     lift_builtins(*this);
     inliner(*this);
     hoist_enters(*this);

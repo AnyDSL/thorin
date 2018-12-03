@@ -73,7 +73,7 @@ private:
 
 
 std::ostream& CCodeGen::emit_debug_info(const Def* def) {
-    if (debug_)
+    if (debug_ && def->location().filename())
         return streamf(func_impl_, "#line {} \"{}\"", def->location().front_line(), def->location().filename()) << endl;
     return func_impl_;
 }

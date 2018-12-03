@@ -52,7 +52,7 @@ public:
                 if (i == n - 1) {
                     mem = process_use(*it, mapping);
                 } else {
-                    Def2Def split_mapping;
+                    Def2Def split_mapping = mapping;
                     auto next_mem = process_use(*it, split_mapping);
                     resolve_loads(next_mem, split_mapping);
                 }

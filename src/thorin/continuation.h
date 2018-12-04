@@ -179,7 +179,7 @@ private:
     mutable Debug jump_debug_;
 
     const Param* param_ = nullptr;
-    const Def* filter_; // TODO make this an op
+    const Def* filter_ = nullptr; // TODO make this an op
     CC cc_;
     Intrinsic intrinsic_;
 

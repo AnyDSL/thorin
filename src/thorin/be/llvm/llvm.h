@@ -30,7 +30,7 @@ public:
     virtual void emit(std::ostream& stream, int opt, bool debug);
 
 protected:
-    void optimize(int opt);
+    virtual void optimize(int opt);
 
     unsigned compute_variant_bits(const VariantType*);
     unsigned compute_variant_op_bits(const Type*);

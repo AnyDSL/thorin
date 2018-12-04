@@ -116,31 +116,36 @@ public:
     }
 
     const Def* extract_from_slot(const Def* ptr, const Def* slot_value, Debug dbg) {
-        const Def* value = slot_value;
+        while (auto bitcast = ptr->isa<Bitcast>())
+            ptr = bitcast->from();
+        if (auto lea = ptr->isa<LEA>())
+            return world_.extract(extract_from_slot(lea->ptr(), slot_value, dbg), lea->index(), dbg);
+        return slot_value;
+    }
+
+    const Def* insert_to_slot(const Def* ptr, const Def* slot_value, const Def* insert_value, Debug dbg) {
+        std::vector<const Def*> indices;
         while (true) {
             if (auto bitcast = ptr->isa<Bitcast>()) {
                 ptr = bitcast->from();
             } else if (auto lea = ptr->isa<LEA>()) {
-                value = world_.extract(value, lea->index(), dbg);
+                indices.push_back(lea->index());
                 ptr = lea->ptr();
             } else {
                 break;
             }
         }
-        return value;
-    }
-
-    const Def* insert_to_slot(const Def* ptr, const Def* slot_value, const Def* insert_value, Debug dbg) {
-        while (auto bitcast = ptr->isa<Bitcast>()) {
-            ptr = bitcast->from();
-        }
-        if (auto lea = ptr->isa<LEA>()) {
-            auto elem     = world_.extract(slot_value, lea->index(), dbg);
-            auto new_elem = insert_to_slot(lea->ptr(), elem, insert_value, dbg);
-            return world_.insert(slot_value, lea->index(), new_elem);
-        } else {
+        size_t n = indices.size();
+        if (n == 0)
             return insert_value;
-        }
+        std::vector<const Def*> values(n + 1);
+        values[n] = slot_value;
+        values[0] = insert_value;
+        for (size_t i = n - 1; i > 0; --i)
+            values[i] = world_.extract(values[i + 1], indices[i], dbg);
+        for (size_t i = 1; i <= n; ++i)
+            values[i] = world_.insert(values[i], indices[i - 1], values[i - 1], dbg);
+        return values[n];
     }
 
     bool contains_top(const Def* def) {

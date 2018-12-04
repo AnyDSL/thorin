@@ -673,6 +673,8 @@ static bool fold_1_tuple(const Type* type, const Def* index) {
 const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
     if (agg->isa<Bottom>())
         return bottom(Extract::extracted_type(agg, index), dbg);
+    if (agg->isa<Top>())
+        return top(Extract::extracted_type(agg, index), dbg);
 
     if (fold_1_tuple(agg->type(), index))
         return agg;

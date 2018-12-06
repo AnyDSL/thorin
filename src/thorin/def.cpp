@@ -38,6 +38,20 @@ Def::Def(NodeTag tag, const Type* type, Defs ops, Debug dbg)
         set_op(i, ops[i]);
 }
 
+uint64_t Def::vhash() const {
+    uint64_t seed = hash_combine(hash_begin(uint8_t(tag())), uint32_t(type()->gid()));
+    for (auto op : ops_)
+        seed = hash_combine(seed, uint32_t(op->gid()));
+    return seed;
+}
+
+bool Def::equal(const Def* other) const {
+    bool result = this->tag() == other->tag() && this->num_ops() == other->num_ops() && this->type() == other->type();
+    for (size_t i = 0, e = num_ops(); result && i != e; ++i)
+        result &= this->ops_[i] == other->ops_[i];
+    return result;
+}
+
 Debug Def::debug_history() const {
 #if THORIN_ENABLE_CHECKS
     return world().track_history() ? Debug(location(), unique_name()) : debug();

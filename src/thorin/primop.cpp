@@ -133,13 +133,6 @@ Assembly::Assembly(const Type *type, Defs inputs, std::string asm_template, Arra
  * hash
  */
 
-uint64_t PrimOp::vhash() const {
-    uint64_t seed = hash_combine(hash_begin(uint8_t(tag())), uint32_t(type()->gid()));
-    for (auto op : ops_)
-        seed = hash_combine(seed, uint32_t(op->gid()));
-    return seed;
-}
-
 uint64_t PrimLit::vhash() const { return hash_combine(Literal::vhash(), bcast<uint64_t, Box>(value())); }
 uint64_t Slot::vhash() const { return hash_combine((int) tag(), gid()); }
 
@@ -149,18 +142,11 @@ uint64_t Slot::vhash() const { return hash_combine((int) tag(), gid()); }
  * equal
  */
 
-bool PrimOp::equal(const PrimOp* other) const {
-    bool result = this->tag() == other->tag() && this->num_ops() == other->num_ops() && this->type() == other->type();
-    for (size_t i = 0, e = num_ops(); result && i != e; ++i)
-        result &= this->ops_[i] == other->ops_[i];
-    return result;
-}
-
-bool PrimLit::equal(const PrimOp* other) const {
+bool PrimLit::equal(const Def* other) const {
     return Literal::equal(other) ? this->value() == other->as<PrimLit>()->value() : false;
 }
 
-bool Slot::equal(const PrimOp* other) const { return this == other; }
+bool Slot::equal(const Def* other) const { return this == other; }
 
 //------------------------------------------------------------------------------
 

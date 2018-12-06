@@ -49,8 +49,7 @@ World::World(std::string name)
 }
 
 World::~World() {
-    for (auto continuation : continuations_) delete continuation;
-    for (auto primop : primops_) delete primop;
+    for (auto def : defs_) delete def;
 }
 
 /*
@@ -927,25 +926,30 @@ const Def* World::try_fold_aggregate(const Aggregate* agg) {
     return from && from->type() == agg->type() ? from : agg;
 }
 
-Array<Continuation*> World::copy_continuations() const {
-    Array<Continuation*> result(continuations().size());
-    std::copy(continuations().begin(), continuations().end(), result.begin());
+std::vector<Continuation*> World::copy_continuations() const {
+    std::vector<Continuation*> result;
+
+    for (auto def : defs_) {
+        if (auto continuation = def->isa_continuation())
+            result.emplace_back(continuation);
+    }
+
     return result;
 }
 
-const Def* World::cse_base(const PrimOp* primop) {
-    THORIN_CHECK_BREAK(primop->gid());
-    auto i = primops_.find(primop);
-    if (i != primops_.end()) {
-        primop->unregister_uses();
+const Def* World::cse_base(const Def* def) {
+    THORIN_CHECK_BREAK(def->gid());
+    auto i = defs_.find(def);
+    if (i != defs_.end()) {
+        def->unregister_uses();
         --Def::gid_counter_;
-        delete primop;
+        delete def;
         return *i;
     }
 
-    const auto& p = primops_.insert(primop);
+    const auto& p = defs_.insert(def);
     assert_unused(p.second && "hash/equal broken");
-    return primop;
+    return def;
 }
 
 /*

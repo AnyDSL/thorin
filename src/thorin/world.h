@@ -43,7 +43,13 @@ namespace thorin {
  */
 class World : public TypeTable, public Streamable {
 public:
-    typedef HashSet<const PrimOp*, PrimOpHash> PrimOpSet;
+    struct DefHash {
+        static uint64_t hash(const Def* def) { return def->hash(); }
+        static bool eq(const Def* def1, const Def* def2) { return def1->equal(def2); }
+        static const Def* sentinel() { return (const Def*)(1); }
+    };
+
+    typedef HashSet<const PrimOp*, DefHash> DefSet;
 
     struct BreakHash {
         static uint64_t hash(size_t i) { return i; }
@@ -177,11 +183,9 @@ public:
     // getters
 
     const std::string& name() const { return name_; }
-    const PrimOpSet& primops() const { return primops_; }
-    const ContinuationSet& continuations() const { return continuations_; }
-    Array<Continuation*> copy_continuations() const;
+    const DefSet& defs() const { return defs_; }
+    std::vector<Continuation*> copy_continuations() const;
     const ContinuationSet& externals() const { return externals_; }
-    bool empty() const { return continuations().size() <= 2; } // TODO rework intrinsic stuff. 2 = branch + end_scope
 
     // other stuff
 
@@ -207,9 +211,8 @@ public:
         using std::swap;
         swap(static_cast<TypeTable&>(w1), static_cast<TypeTable&>(w2));
         swap(w1.name_,          w2.name_);
-        swap(w1.continuations_, w2.continuations_);
         swap(w1.externals_,     w2.externals_);
-        swap(w1.primops_,       w2.primops_);
+        swap(w1.defs_,          w2.defs_);
         swap(w1.branch_,        w2.branch_);
         swap(w1.end_scope_,     w2.end_scope_);
         swap(w1.pe_done_,       w2.pe_done_);
@@ -227,9 +230,8 @@ private:
     template<class T> const T* cse(const T* primop) { return cse_base(primop)->template as<T>(); }
 
     std::string name_;
-    ContinuationSet continuations_;
     ContinuationSet externals_;
-    PrimOpSet primops_;
+    DefSet defs_;
     Continuation* branch_;
     Continuation* end_scope_;
     bool pe_done_ = false;

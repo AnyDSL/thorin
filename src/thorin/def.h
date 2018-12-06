@@ -6,6 +6,7 @@
 
 #include "thorin/enums.h"
 #include "thorin/type.h"
+#include "thorin/util/hash.h"
 #include "thorin/util/location.h"
 
 namespace thorin {
@@ -139,6 +140,8 @@ public:
     void replace(Tracker) const;
     bool is_replaced() const { return substitute_ != nullptr; }
 
+    virtual uint64_t vhash() const;
+    virtual bool equal(const Def* other) const;
     virtual std::ostream& stream(std::ostream&) const;
     static size_t gid_counter() { return gid_counter_; }
 
@@ -156,6 +159,12 @@ private:
 protected:
     bool contains_continuation_;
 
+private:
+    uint64_t hash() const { return hash_ == 0 ? hash_ = vhash() : hash_; }
+
+    mutable uint64_t hash_ = 0;
+
+    friend struct DefHash;
     friend class Cleaner;
     friend class PrimOp;
     friend class Scope;

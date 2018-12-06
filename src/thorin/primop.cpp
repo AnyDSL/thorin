@@ -24,9 +24,8 @@ Cmp::Cmp(CmpTag tag, const Def* lhs, const Def* rhs, Debug dbg)
 {}
 
 DefiniteArray::DefiniteArray(World& world, const Type* elem, Defs args, Debug dbg)
-    : Aggregate(Node_DefiniteArray, args, dbg)
+    : Aggregate(Node_DefiniteArray, world.definite_array_type(elem, args.size()), args, dbg)
 {
-    set_type(world.definite_array_type(elem, args.size()));
 #if THORIN_ENABLE_CHECKS
     for (size_t i = 0, e = num_ops(); i != e; ++i)
         assert(args[i]->type() == type()->elem_type());
@@ -34,52 +33,57 @@ DefiniteArray::DefiniteArray(World& world, const Type* elem, Defs args, Debug db
 }
 
 IndefiniteArray::IndefiniteArray(World& world, const Type* elem, const Def* dim, Debug dbg)
-    : Aggregate(Node_IndefiniteArray, {dim}, dbg)
-{
-    set_type(world.indefinite_array_type(elem));
+    : Aggregate(Node_IndefiniteArray, world.indefinite_array_type(elem), {dim}, dbg)
+{}
+
+static const Type* infer_tuple_type(World& world, Defs ops) {
+    Array<const Type*> elems(ops.size());
+    for (size_t i = 0, e = ops.size(); i != e; ++i)
+        elems[i] = ops[i]->type();
+
+    return world.tuple_type(elems);
 }
 
 Tuple::Tuple(World& world, Defs args, Debug dbg)
-    : Aggregate(Node_Tuple, args, dbg)
-{
-    Array<const Type*> elems(num_ops());
-    for (size_t i = 0, e = num_ops(); i != e; ++i)
-        elems[i] = args[i]->type();
+    : Aggregate(Node_Tuple, infer_tuple_type(world, args), args, dbg)
+{}
 
-    set_type(world.tuple_type(elems));
+static const Type* infer_vector_type(World& world, Defs args) {
+    if (auto primtype = args.front()->type()->isa<PrimType>()) {
+        assert(primtype->length() == 1);
+        return world.type(primtype->primtype_tag(), args.size());
+    }
+
+    auto ptr = args.front()->type()->as<PtrType>();
+    assert(ptr->length() == 1);
+    return world.ptr_type(ptr->pointee(), args.size());
 }
 
 Vector::Vector(World& world, Defs args, Debug dbg)
-    : Aggregate(Node_Vector, args, dbg)
-{
-    if (auto primtype = args.front()->type()->isa<PrimType>()) {
-        assert(primtype->length() == 1);
-        set_type(world.type(primtype->primtype_tag(), args.size()));
-    } else {
-        auto ptr = args.front()->type()->as<PtrType>();
-        assert(ptr->length() == 1);
-        set_type(world.ptr_type(ptr->pointee(), args.size()));
-    }
-}
+    : Aggregate(Node_Vector, infer_vector_type(world, args), args, dbg)
+{}
 
-LEA::LEA(const Def* ptr, const Def* index, Debug dbg)
-    : PrimOp(Node_LEA, nullptr, {ptr, index}, dbg)
-{
-    auto& world = index->world();
-    auto type = ptr_type();
-    if (auto tuple = ptr_pointee()->isa<TupleType>()) {
-        set_type(world.ptr_type(get(tuple->ops(), index), type->length(), type->device(), type->addr_space()));
-    } else if (auto array = ptr_pointee()->isa<ArrayType>()) {
-        set_type(world.ptr_type(array->elem_type(), type->length(), type->device(), type->addr_space()));
-    } else if (auto struct_type = ptr_pointee()->isa<StructType>()) {
-        set_type(world.ptr_type(get(struct_type->ops(), index)));
-    } else if (auto prim_type = ptr_pointee()->isa<PrimType>()) {
+static const Type* infer_lea_type(World& world, const Def* ptr, const Def* index) {
+    auto ptr_type = ptr->type()->as<PtrType>();
+    auto ptr_pointee = ptr_type->pointee();
+
+    if (auto tuple = ptr_pointee->isa<TupleType>()) {
+        return world.ptr_type(get(tuple->ops(), index), ptr_type->length(), ptr_type->device(), ptr_type->addr_space());
+    } else if (auto array = ptr_pointee->isa<ArrayType>()) {
+        return world.ptr_type(array->elem_type(), ptr_type->length(), ptr_type->device(), ptr_type->addr_space());
+    } else if (auto struct_type = ptr_pointee->isa<StructType>()) {
+        return world.ptr_type(get(struct_type->ops(), index));
+    } else if (auto prim_type = ptr_pointee->isa<PrimType>()) {
         assert(prim_type->length() > 1);
-        set_type(world.ptr_type(world.type(prim_type->primtype_tag())));
+        return world.ptr_type(world.type(prim_type->primtype_tag()));
     } else {
         THORIN_UNREACHABLE;
     }
 }
+
+LEA::LEA(const Def* ptr, const Def* index, Debug dbg)
+    : PrimOp(Node_LEA, infer_lea_type(ptr->world(), ptr, index), {ptr, index}, dbg)
+{}
 
 Known::Known(const Def* def, Debug dbg)
     : PrimOp(Node_Known, def->world().type_bool(), {def}, dbg)
@@ -103,25 +107,16 @@ Global::Global(const Def* init, bool is_mutable, Debug dbg)
 }
 
 Alloc::Alloc(const Type* type, const Def* mem, const Def* extra, Debug dbg)
-    : MemOp(Node_Alloc, nullptr, {mem, extra}, dbg)
-{
-    World& w = mem->world();
-    set_type(w.tuple_type({w.mem_type(), w.ptr_type(type)}));
-}
+    : MemOp(Node_Alloc, mem->world().tuple_type({mem->world().mem_type(), mem->world().ptr_type(type)}), {mem, extra}, dbg)
+{}
 
 Load::Load(const Def* mem, const Def* ptr, Debug dbg)
-    : Access(Node_Load, nullptr, {mem, ptr}, dbg)
-{
-    World& w = mem->world();
-    set_type(w.tuple_type({w.mem_type(), ptr->type()->as<PtrType>()->pointee()}));
-}
+    : Access(Node_Load, mem->world().tuple_type({mem->world().mem_type(), ptr->type()->as<PtrType>()->pointee()}), {mem, ptr}, dbg)
+{}
 
 Enter::Enter(const Def* mem, Debug dbg)
-    : MemOp(Node_Enter, nullptr, {mem}, dbg)
-{
-    World& w = mem->world();
-    set_type(w.tuple_type({w.mem_type(), w.frame_type()}));
-}
+    : MemOp(Node_Enter, mem->world().tuple_type({mem->world().mem_type(), mem->world().frame_type()}), {mem}, dbg)
+{}
 
 Assembly::Assembly(const Type *type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Flags flags, Debug dbg)
     : MemOp(Node_Assembly, type, inputs, dbg)
@@ -260,7 +255,7 @@ const char* Global::op_name() const { return is_mutable() ? "global_mutable" : "
 
 std::ostream& PrimOp::stream(std::ostream& os) const {
     if (is_const(this)) {
-        if (empty())
+        if (num_ops() == 0)
             return streamf(os, "{} {}", op_name(), type());
         else
             return streamf(os, "({} {} {})", type(), op_name(), stream_list(ops(), [&](const Def* def) { os << def; }));

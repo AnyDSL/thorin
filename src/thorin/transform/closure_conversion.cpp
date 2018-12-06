@@ -20,7 +20,7 @@ public:
         std::vector<std::pair<Continuation*, Continuation*>> converted;
         for (auto continuation : world_.copy_continuations()) {
             // do not convert empty continuations or intrinsics, except graph intrinsics
-            if ((continuation->empty() || continuation->is_intrinsic()) && !is_graph_intrinsic(continuation)) {
+            if ((continuation->is_empty() || continuation->is_intrinsic()) && !is_graph_intrinsic(continuation)) {
                 new_defs_[continuation] = continuation;
                 continue;
             }
@@ -32,14 +32,14 @@ public:
                     new_continuation->set_intrinsic();
 
                 new_defs_[continuation] = new_continuation;
-                if (!continuation->empty()) {
+                if (!continuation->is_empty()) {
                     for (size_t i = 0, e = continuation->num_params(); i != e; ++i)
                         new_defs_[continuation->param(i)] = new_continuation->param(i);
                     // copy existing call from old continuation
                     new_continuation->jump(continuation->callee(), continuation->args(), continuation->jump_debug());
                     converted.emplace_back(continuation, new_continuation);
                 }
-            } else if (!continuation->empty()) {
+            } else if (!continuation->is_empty()) {
                 converted.emplace_back(continuation, continuation);
             }
         }
@@ -79,7 +79,7 @@ public:
             for (auto& op : ops) op = convert(op);
             return new_defs_[def] = primop->rebuild(ops, convert(primop->type()));
         } else if (auto continuation = def->isa_continuation()) {
-            if (continuation->empty())
+            if (continuation->is_empty())
                 return continuation;
             convert_jump(continuation);
             if (as_callee)
@@ -94,7 +94,7 @@ public:
             auto filtered_out = std::remove_if(free_vars.begin(), free_vars.end(), [] (const Def* def) {
                 assert(!is_mem(def));
                 auto continuation = def->isa_continuation();
-                return continuation && (continuation->empty() || continuation->is_intrinsic());
+                return continuation && (continuation->is_empty() || continuation->is_intrinsic());
             });
             free_vars.shrink(filtered_out - free_vars.begin());
             auto lifted = lift(scope, free_vars);

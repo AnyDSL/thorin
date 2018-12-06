@@ -120,11 +120,8 @@ void rewrite_flow_graphs(World& world) {
     for (auto pair : transformed)
         rewrite_jump(pair.second, pair.first, rewriter);
 
-    for (auto cont : world.continuations()) {
-        if (cont->empty())
-            continue;
+    for (auto cont : world.continuations())
         rewrite_jump(cont, cont, rewriter);
-    }
 
     world.cleanup();
 }

@@ -31,7 +31,7 @@ Mangler::Mangler(const Scope& scope, Defs args, Defs lift)
     , defs_(scope.defs().capacity())
     , def2def_(scope.defs().capacity())
 {
-    assert(!old_entry()->empty());
+    assert(!old_entry()->is_empty());
     assert(args.size() == old_entry()->num_params());
 
     // TODO correctly deal with continuations here
@@ -101,7 +101,7 @@ Continuation* Mangler::mangle() {
 
 Continuation* Mangler::mangle_head(Continuation* old_continuation) {
     assert(!def2def_.contains(old_continuation));
-    assert(!old_continuation->empty());
+    assert(!old_continuation->is_empty());
     Continuation* new_continuation = old_continuation->stub();
     def2def_[old_continuation] = new_continuation;
 
@@ -112,7 +112,7 @@ Continuation* Mangler::mangle_head(Continuation* old_continuation) {
 }
 
 void Mangler::mangle_body(Continuation* old_continuation, Continuation* new_continuation) {
-    assert(!old_continuation->empty());
+    assert(!old_continuation->is_empty());
 
     // fold branch and match
     // TODO find a way to factor this out in continuation.cpp

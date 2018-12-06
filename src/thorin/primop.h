@@ -13,14 +13,9 @@ namespace thorin {
 /// Base class for all @p PrimOp%s.
 class PrimOp : public Def {
 protected:
-    PrimOp(NodeTag tag, const Type* type, Defs args, Debug dbg)
-        : Def(tag, type, args.size(), dbg)
-    {
-        for (size_t i = 0, e = num_ops(); i != e; ++i)
-            set_op(i, args[i]);
-    }
-
-    void set_type(const Type* type) { type_ = type; }
+    PrimOp(NodeTag tag, const Type* type, Defs ops, Debug dbg)
+        : Def(tag, type, ops, dbg)
+    {}
 
 public:
     const Def* out(size_t i) const;
@@ -251,8 +246,8 @@ private:
 /// Base class for all aggregate data constructers.
 class Aggregate : public PrimOp {
 protected:
-    Aggregate(NodeTag tag, Defs args, Debug dbg)
-        : PrimOp(tag, nullptr /*set later*/, args, dbg)
+    Aggregate(NodeTag tag, const Type* type, Defs args, Debug dbg)
+        : PrimOp(tag, type, args, dbg)
     {}
 };
 
@@ -304,10 +299,8 @@ const Def* merge_tuple(const Def*, const Def*);
 class Closure : public Aggregate {
 private:
     Closure(const ClosureType* closure_type, const Def* fn, const Def* env, Debug dbg)
-        : Aggregate(Node_Closure, {fn, env}, dbg)
-    {
-        set_type(closure_type);
-    }
+        : Aggregate(Node_Closure, closure_type, {fn, env}, dbg)
+    {}
 
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
 
@@ -326,7 +319,6 @@ private:
         : PrimOp(Node_Variant, variant_type, {value}, dbg)
     {
         assert(std::find(variant_type->ops().begin(), variant_type->ops().end(), value->type()) != variant_type->ops().end());
-        set_type(variant_type);
     }
 
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
@@ -341,14 +333,13 @@ public:
 class StructAgg : public Aggregate {
 private:
     StructAgg(const StructType* struct_type, Defs args, Debug dbg)
-        : Aggregate(Node_StructAgg, args, dbg)
+        : Aggregate(Node_StructAgg, struct_type, args, dbg)
     {
 #if THORIN_ENABLE_CHECKS
         assert(struct_type->num_ops() == args.size());
         for (size_t i = 0, e = args.size(); i != e; ++i)
             assert(struct_type->op(i) == args[i]->type());
 #endif
-        set_type(struct_type);
     }
 
     virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;

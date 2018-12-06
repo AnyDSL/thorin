@@ -315,7 +315,7 @@ void CCodeGen::emit() {
         // emit function & its declaration
         auto ret_param_fn_type = ret_param->type()->as<FnType>();
         auto ret_type = ret_param_fn_type->num_ops() > 2 ? world_.tuple_type(ret_param_fn_type->ops().skip_front()) : ret_param_fn_type->ops().back();
-        auto name = (continuation->is_external() || continuation->empty()) ? continuation->name() : continuation->unique_name();
+        auto name = (continuation->is_external() || continuation->is_empty()) ? continuation->name() : continuation->unique_name();
         if (continuation->is_external()) {
             auto config = kernel_config_.find(continuation);
             switch (lang_) {
@@ -464,7 +464,7 @@ void CCodeGen::emit() {
 
         for (const auto& block : schedule) {
             auto continuation = block.continuation();
-            if (continuation->empty())
+            if (continuation->is_empty())
                 continue;
             assert(continuation == scope.entry() || continuation->is_basicblock());
             func_impl_ << endl;
@@ -620,7 +620,7 @@ void CCodeGen::emit() {
                         }
                     } else {
                         auto emit_call = [&] (const Def* param = nullptr) {
-                            auto name = (callee->is_external() || callee->empty()) ? callee->name() : callee->unique_name();
+                            auto name = (callee->is_external() || callee->is_empty()) ? callee->name() : callee->unique_name();
                             if (param)
                                 emit(param) << " = ";
                             func_impl_ << name << "(";

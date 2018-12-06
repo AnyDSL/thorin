@@ -26,6 +26,18 @@ Def::Def(NodeTag tag, const Type* type, size_t size, Debug dbg)
     , contains_continuation_(false)
 {}
 
+Def::Def(NodeTag tag, const Type* type, Defs ops, Debug dbg)
+    : tag_(tag)
+    , ops_(ops.size())
+    , type_(type)
+    , debug_(dbg)
+    , gid_(gid_counter_++)
+    , contains_continuation_(false)
+{
+    for (size_t i = 0, e = ops.size(); i != e; ++i)
+        set_op(i, ops[i]);
+}
+
 Debug Def::debug_history() const {
 #if THORIN_ENABLE_CHECKS
     return world().track_history() ? Debug(location(), unique_name()) : debug();

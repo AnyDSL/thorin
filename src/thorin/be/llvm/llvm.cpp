@@ -177,7 +177,7 @@ llvm::Function* CodeGen::emit_function_decl(Continuation* continuation) {
     if (auto f = thorin::find(fcts_, continuation))
         return f;
 
-    std::string name = (continuation->is_external() || continuation->empty()) ? continuation->name().str() : continuation->unique_name();
+    std::string name = (continuation->is_external() || continuation->is_empty()) ? continuation->name().str() : continuation->unique_name();
     auto f = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, convert_fn_type(continuation)));
 
 #ifdef _MSC_VER
@@ -192,7 +192,7 @@ llvm::Function* CodeGen::emit_function_decl(Continuation* continuation) {
 #endif
 
     // set linkage
-    if (continuation->empty() || continuation->is_external())
+    if (continuation->is_empty() || continuation->is_external())
         f->setLinkage(llvm::Function::ExternalLinkage);
     else
         f->setLinkage(llvm::Function::InternalLinkage);

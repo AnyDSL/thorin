@@ -111,13 +111,13 @@ void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
     unique_queue<ContinuationSet> continuation_queue;
 
     for (auto continuation : world.externals()) {
-        assert(!continuation->empty() && "external must not be empty");
+        assert(!continuation->is_empty() && "external must not be empty");
         continuation_queue.push(continuation);
     }
 
     while (!continuation_queue.empty()) {
         auto continuation = continuation_queue.pop();
-        if (elide_empty && continuation->empty())
+        if (elide_empty && continuation->is_empty())
             continue;
         Scope scope(continuation);
         f(scope);

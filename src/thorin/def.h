@@ -100,6 +100,9 @@ private:
     Def(const Def&) = delete;
 
 protected:
+    /// Constructor for a @em structural Def.
+    Def(NodeTag tag, const Type* type, Defs ops, Debug);
+    /// Constructor for a @em nominal Def.
     Def(NodeTag tag, const Type* type, size_t size, Debug);
     virtual ~Def() {}
 
@@ -107,7 +110,6 @@ protected:
     void set_type(const Type* type) { type_ = type; }
     void unregister_use(size_t i) const;
     void unregister_uses() const;
-    void resize(size_t n) { ops_.resize(n, nullptr); }
 
 public:
     NodeTag tag() const { return tag_; }
@@ -117,7 +119,6 @@ public:
     Location location() const { return debug_; }
     Symbol name() const { return debug().name(); }
     size_t num_ops() const { return ops_.size(); }
-    bool empty() const { return ops_.empty(); }
     void set_op(size_t i, const Def* def);
     void unset_op(size_t i);
     void unset_ops();
@@ -143,7 +144,7 @@ public:
 
 private:
     const NodeTag tag_;
-    std::vector<const Def*> ops_;
+    Array<const Def*> ops_;
     const Type* type_;
     mutable const Def* substitute_ = nullptr;
     mutable Uses uses_;

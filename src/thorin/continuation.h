@@ -93,20 +93,13 @@ enum class CC : uint8_t {
     Device,     ///< Device calling convention. These are special functions only available on a particular device.
 };
 
-
 /**
  * A function abstraction.
  * A @p Continuation is always of function type @p FnTypeNode.
  */
 class Continuation : public Def {
 private:
-    Continuation(const FnType* fn, CC cc, Intrinsic intrinsic, Debug dbg)
-        : Def(Node_Continuation, fn, 0, dbg)
-        , cc_(cc)
-        , intrinsic_(intrinsic)
-    {
-        contains_continuation_ = true;
-    }
+    Continuation(const FnType* fn, CC cc, Intrinsic intrinsic, Debug dbg);
     virtual ~Continuation() { delete param_; }
 
 public:
@@ -120,7 +113,8 @@ public:
     Array<const Def*> params() const;
     const Def* mem_param() const;
     const Def* ret_param() const;
-    const Def* callee() const;
+    const Def* callee() const { return op(0); }
+    bool is_empty() const;
     const Def* arg() const { return op(1); }
     size_t num_args() const;
     Array<const Def*> args() const;
@@ -158,11 +152,9 @@ public:
     void match(const Def* val, Continuation* otherwise, Defs patterns, ArrayRef<Continuation*> continuations, Debug dbg = {});
     void verify() const {
 #if THORIN_ENABLE_CHECKS
-        if (!empty()) {
-            auto c = callee_fn_type();
-            auto a = arg_fn_type();
-            assertf(c == a, "continuation '{}' calls '{}' of type '{}' but call has type '{}'\n", this, callee(), c, a);
-        }
+        auto c = callee_fn_type();
+        auto a = arg_fn_type();
+        assertf(c == a, "continuation '{}' calls '{}' of type '{}' but call has type '{}'\n", this, callee(), c, a);
 #endif
     }
     Continuation* update_op(size_t i, const Def* def);

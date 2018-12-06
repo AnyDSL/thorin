@@ -6,11 +6,6 @@
 
 namespace thorin {
 
-static void verify_calls(World& world) {
-    for (auto continuation : world.continuations())
-        continuation->verify();
-}
-
 static void verify_top_level(World& world) {
     Scope::for_each(world, [&] (const Scope& scope) {
         if (scope.has_free_params()) {
@@ -87,7 +82,6 @@ void Cycles::analyze(ParamSet& params, const Continuation* continuation, const D
 }
 
 void verify(World& world) {
-    verify_calls(world);
     verify_top_level(world);
     Cycles cycles(world);
     cycles.run();

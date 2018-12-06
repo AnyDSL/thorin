@@ -175,7 +175,7 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
 
         for (auto cont : world.copy_continuations()) {
             // do not change the signature of intrinsic/external functions
-            if (cont->empty() ||
+            if (cont->is_empty() ||
                 cont->is_intrinsic() ||
                 cont->is_external() ||
                 is_passed_to_accelerator(cont))
@@ -199,7 +199,7 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
         auto wrapped_copy = wrapped;
         for (auto wrap_pair : wrapped_copy) {
             auto def = wrap_pair.first;
-            if (def->empty()) continue;
+            if (def->num_ops() == 0) continue;
 
             auto new_cont = wrap_pair.second->as_continuation();
             auto old_cont = unwrap_def(wrapped, unwrapped, new_cont, def->type()->as<FnType>(), max_tuple_size);

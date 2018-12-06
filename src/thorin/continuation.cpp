@@ -41,12 +41,20 @@ std::vector<Peek> peek(const Def* param) {
 
 //------------------------------------------------------------------------------
 
-void Continuation::set_filter(Defs filter) {
-    set_filter(world().tuple(filter));
+Continuation::Continuation(const FnType* fn, CC cc, Intrinsic intrinsic, Debug dbg)
+    : Def(Node_Continuation, fn, 2, dbg)
+    , cc_(cc)
+    , intrinsic_(intrinsic)
+{
+    set_op(0, world().top(world().fn_type()));
+    set_op(1, world().tuple({}));
+    contains_continuation_ = true;
 }
 
-const Def* Continuation::callee() const {
-    return empty() ? world().bottom(world().fn_type(), debug()) : op(0);
+bool Continuation::is_empty() const { return callee()->isa<Top>(); }
+
+void Continuation::set_filter(Defs filter) {
+    set_filter(world().tuple(filter));
 }
 
 Continuation* Continuation::stub() const {
@@ -156,7 +164,8 @@ const Def* Continuation::ret_param() const {
 
 void Continuation::destroy_body() {
     unset_ops();
-    resize(0);
+    set_op(0, world().top(world().fn_type()));
+    set_op(1, world().tuple({}));
 }
 
 const FnType* Continuation::arg_fn_type() const {
@@ -221,10 +230,8 @@ Continuations Continuation::succs() const {
     };
 
     done.insert(this);
-    if (!empty()) {
-        enqueue(callee());
-        enqueue(arg());
-    }
+    enqueue(callee());
+    enqueue(arg());
 
     while (!queue.empty()) {
         auto def = pop(queue);
@@ -320,7 +327,6 @@ void Continuation::jump(const Def* callee, const Def* arg, Debug dbg) {
     }
 
     unset_ops();
-    resize(2); // TODO remove this
     set_op(0, callee);
     set_op(1, arg);
     verify();
@@ -372,10 +378,7 @@ std::ostream& Continuation::stream_head(std::ostream& os) const {
 }
 
 std::ostream& Continuation::stream_jump(std::ostream& os) const {
-    if (!empty()) {
-        streamf(os, "{} {}", callee(), arg());
-    }
-    return os;
+    return streamf(os, "{} {}", callee(), arg());
 }
 
 void Continuation::dump_head() const { stream_head(std::cout) << endl; }

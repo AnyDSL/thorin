@@ -164,7 +164,7 @@ bool PartialEvaluator::run() {
                 continue;
             }
 
-            if (!callee->empty()) {
+            if (!callee->is_empty()) {
                 size_t num_args = continuation->num_args();
                 Array<const Def*> args(num_args);
 

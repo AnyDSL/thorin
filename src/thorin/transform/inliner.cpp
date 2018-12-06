@@ -14,7 +14,7 @@ void force_inline(Scope& scope, int threshold) {
         for (auto n : scope.f_cfg().post_order()) {
             auto continuation = n->continuation();
             if (auto callee = continuation->callee()->isa_continuation()) {
-                if (!callee->empty() && !scope.contains(callee)) {
+                if (!callee->is_empty() && !scope.contains(callee)) {
                     Scope callee_scope(callee);
                     continuation->jump(drop(callee_scope, continuation->args()), Defs{}, continuation->jump_debug());
                     todo = true;
@@ -29,7 +29,7 @@ void force_inline(Scope& scope, int threshold) {
     for (auto n : scope.f_cfg().reverse_post_order()) {
         auto continuation = n->continuation();
         if (auto callee = continuation->callee()->isa_continuation()) {
-            if (!callee->empty() && !scope.contains(callee))
+            if (!callee->is_empty() && !scope.contains(callee))
                 WLOG("couldn't inline {} at {} within scope of {}", callee, continuation->jump_location(), scope.entry());
         }
     }
@@ -51,7 +51,7 @@ void inliner(World& world) {
     };
 
     auto is_candidate = [&] (Continuation* continuation) -> Scope* {
-        if (!continuation->empty() && continuation->order() > 1) {
+        if (!continuation->is_empty() && continuation->order() > 1) {
             auto scope = get_scope(continuation);
             if (scope->defs().size() < scope->entry()->num_params() * factor + offset) {
                 // check that the function is not recursive to prevent inliner from peeling loops

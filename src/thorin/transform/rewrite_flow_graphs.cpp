@@ -120,8 +120,10 @@ void rewrite_flow_graphs(World& world) {
     for (auto pair : transformed)
         rewrite_jump(pair.second, pair.first, rewriter);
 
-    for (auto cont : world.continuations())
-        rewrite_jump(cont, cont, rewriter);
+    for (auto def : world.defs()) {
+        if (auto lam = def->isa_continuation())
+            rewrite_jump(lam, lam, rewriter);
+    }
 
     world.cleanup();
 }

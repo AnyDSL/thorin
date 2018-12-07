@@ -98,7 +98,11 @@ void Cleaner::eliminate_tail_rec() {
 void Cleaner::eta_conversion() {
     for (bool todo = true; todo;) {
         todo = false;
-        for (auto continuation : world().continuations()) {
+
+        for (auto def : world().defs()) {
+            auto continuation = def->isa_continuation();
+            if (continuation == nullptr) continue;
+
             // eat calls to known continuations that are only used once
             while (auto callee = continuation->callee()->isa_continuation()) {
                 if (callee->num_uses() == 1 && !callee->is_empty() && !callee->is_external()) {
@@ -223,7 +227,7 @@ next_continuation:;
 void Cleaner::rebuild() {
     Importer importer(world_);
     importer.type_old2new_.rehash(world_.types_.capacity());
-    importer.def_old2new_.rehash(world_.primops().capacity());
+    importer.def_old2new_.rehash(world_.defs().capacity());
 
 #if THORIN_ENABLE_CHECKS
     world_.swap_breakpoints(importer.world());
@@ -250,22 +254,13 @@ void Cleaner::verify_closedness() {
         }
     };
 
-    for (auto primop : world().primops())
-        check(primop);
-    for (auto continuation : world().continuations()) {
-        check(continuation);
-        check(continuation->param());
-    }
+    for (auto def : world().defs())
+        check(def);
 }
 
 void Cleaner::within(const Def* def) {
     assert(world().types().contains(def->type()));
-    if (auto primop = def->isa<PrimOp>())
-        assert_unused(world().primops().contains(primop));
-    else if (auto continuation = def->isa_continuation())
-        assert_unused(world().continuations().contains(continuation));
-    else
-        within(def->as<Param>()->continuation());
+    assert_unused(world().defs().contains(def));
 }
 
 void Cleaner::clean_pe_info(std::queue<Continuation*> queue, Continuation* cur) {
@@ -334,8 +329,8 @@ void Cleaner::cleanup() {
 
     if (!world().is_pe_done()) {
         world().mark_pe_done();
-        for (auto continuation : world().continuations())
-            continuation->destroy_filter();
+        //for (auto continuation : world().continuations())
+            //continuation->destroy_filter();
         todo_ = true;
         cleanup_fix_point();
     }

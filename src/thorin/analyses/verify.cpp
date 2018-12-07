@@ -16,6 +16,8 @@ static void verify_top_level(World& world) {
     });
 }
 
+#if 0
+
 class Cycles {
 public:
     enum Color {
@@ -80,11 +82,12 @@ void Cycles::analyze(ParamSet& params, const Continuation* continuation, const D
         }
     }
 }
+#endif
 
 void verify(World& world) {
     verify_top_level(world);
-    Cycles cycles(world);
-    cycles.run();
+    //Cycles cycles(world);
+    //cycles.run();
 }
 
 }

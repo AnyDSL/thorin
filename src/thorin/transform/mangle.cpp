@@ -76,8 +76,9 @@ Continuation* Mangler::mangle() {
         }
     }
 
-    for (auto def : lift_)
-        def2def_[def] = new_entry()->append_param(def->type()); // TODO reduce
+    // TODO lifting
+    //for (auto def : lift_)
+        //def2def_[def] = new_entry()->append_param(def->type()); // TODO reduce
 
     // mangle filter
     if (old_entry()->filter() != nullptr) {

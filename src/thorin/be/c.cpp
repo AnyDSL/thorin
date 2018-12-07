@@ -289,8 +289,8 @@ void CCodeGen::emit() {
     }
 
     // emit all globals
-    for (auto primop : world().primops()) {
-        if (auto global = primop->isa<Global>()) {
+    for (auto def : world().defs()) {
+        if (auto global = def->isa<Global>()) {
             // skip strings as they are emitted inline
             if (is_string_type(global->init()->type()))
                 continue;

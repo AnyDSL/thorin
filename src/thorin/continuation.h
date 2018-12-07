@@ -12,32 +12,11 @@
 namespace thorin {
 
 class Continuation;
-class Scope;
+class Param;
 
 typedef std::vector<Continuation*> Continuations;
 
 //------------------------------------------------------------------------------
-
-/**
- * A parameter of a @p Continuation function.
- * A @p Param knows its @p continuation() it belongs to.
- */
-class Param : public Def {
-private:
-    Param(const Type* type, Continuation* continuation, Debug dbg)
-        : Def(Node_Param, type, 0, dbg)
-        , continuation_(continuation)
-    {}
-
-public:
-    Continuation* continuation() const { return continuation_; }
-
-private:
-    Continuation* const continuation_;
-
-    friend class World;
-    friend class Continuation;
-};
 
 class Peek {
 public:
@@ -100,31 +79,48 @@ enum class CC : uint8_t {
 class Continuation : public Def {
 private:
     Continuation(const FnType* fn, CC cc, Intrinsic intrinsic, Debug dbg);
-    virtual ~Continuation() { delete param_; }
 
 public:
-    Continuation* stub() const;
-    const Def* append_param(const Type* type, Debug dbg = {});
-    Continuations preds() const;
-    Continuations succs() const;
-    const Param* param() const { return param_; }
+    //@{ operands
+    const Def* filter() const { return op(0); }
+    const Def* filter(size_t i) const;
+    const Def* callee() const { return op(1); }
+    const Def* arg() const { return op(2); }
+    const Def* arg(size_t i) const;
+    Array<const Def*> args() const;
+    size_t num_args() const;
+    //@}
+
+    //@{ params
+    const Param* param(Debug dbg = {}) const;
     size_t num_params() const;
-    const Def* param(size_t i) const;
+    const Def* param(size_t i, Debug dbg = {}) const;
     Array<const Def*> params() const;
     const Def* mem_param() const;
     const Def* ret_param() const;
-    const Def* callee() const { return op(0); }
+    //@}
+
+    //@{ setters
+    void set_filter(const Def* filter) { update_op(0, filter); }
+    void set_filter(Defs filter);
+    void set_all_true_filter();
+    void destroy_filter();
+    //@}
+
+    //@{ type
+    const FnType* type() const { return Def::type()->as<FnType>(); }
+    const Type* domain() const { return type()->domain(); }
+    const FnType* callee_fn_type() const { return callee()->type()->as<FnType>(); }
+    const FnType* arg_fn_type() const;
+    //@}
+
+    Continuation* stub() const;
+    Continuations preds() const;
+    Continuations succs() const;
     bool is_empty() const;
-    const Def* arg() const { return op(1); }
-    size_t num_args() const;
-    Array<const Def*> args() const;
-    const Def* arg(size_t i) const;
     Debug& jump_debug() const { return jump_debug_; }
     Location jump_location() const { return jump_debug(); }
     Symbol jump_name() const { return jump_debug().name(); }
-    const FnType* type() const { return Def::type()->as<FnType>(); }
-    const FnType* callee_fn_type() const { return callee()->type()->as<FnType>(); }
-    const FnType* arg_fn_type() const;
     Intrinsic& intrinsic() { return intrinsic_; }
     Intrinsic intrinsic() const { return intrinsic_; }
     CC& cc() { return cc_; }
@@ -157,27 +153,39 @@ public:
         assertf(c == a, "continuation '{}' calls '{}' of type '{}' but call has type '{}'\n", this, callee(), c, a);
 #endif
     }
-    Continuation* update_op(size_t i, const Def* def);
-    Continuation* update_callee(const Def* callee) { return update_op(0, callee); }
-    Continuation* update_arg(const Def* arg) { return update_op(1, arg); }
-    void set_filter(const Def* filter) { filter_ = filter; }
-    void set_filter(Defs filter);
-    void set_all_true_filter();
-    void destroy_filter() { filter_ = nullptr; }
-    const Def* filter() const { return filter_; }
-    const Def* filter(size_t i) const;
+
+    // TODO remove this once we have a proper App node
+    void update_op(size_t i, const Def* def);
+    void update_callee(const Def* callee) { update_op(0, callee); }
+    void update_arg(const Def* arg) { update_op(1, arg); }
 
 private:
     mutable Debug jump_debug_;
 
-    const Param* param_ = nullptr;
-    const Def* filter_ = nullptr; // TODO make this an op
     CC cc_;
     Intrinsic intrinsic_;
 
     friend class Cleaner;
     friend class Scope;
     friend class CFA;
+    friend class World;
+};
+
+/**
+ * A parameter of a @p Continuation function.
+ * A @p Param's op isits @p continuation() it belongs to.
+ */
+class Param : public Def {
+private:
+    Param(const Type* type, const Continuation* continuation, Debug dbg)
+        : Def(Node_Param, type, Defs{continuation}, dbg)
+    {
+        assert(continuation->is_nominal());
+    }
+
+public:
+    Continuation* continuation() const { return op(0)->as_continuation(); }
+
     friend class World;
 };
 

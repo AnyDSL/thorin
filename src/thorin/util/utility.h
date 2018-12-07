@@ -17,6 +17,12 @@ inline __declspec(noreturn) void thorin_dummy_function() { abort(); }
 #define THORIN_UNREACHABLE do { assert(true && "unreachable"); thorin_dummy_function(); } while(0)
 #endif
 
+#if (defined(__clang__) || defined(__GNUC__)) && (defined(__x86_64__) || defined(__i386__))
+#define THORIN_BREAK asm("int3");
+#else
+#define THORIN_BREAK { int* __p__ = nullptr; *__p__ = 42; }
+#endif
+
 #ifndef NDEBUG
 #define THORIN_CALL_ONCE do { static bool once = true; assert(once); once=false; } while(0)
 #define assert_unused(x) assert(x)

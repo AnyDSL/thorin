@@ -22,19 +22,6 @@
 #include "thorin/util/array.h"
 #include "thorin/util/log.h"
 
-#if (defined(__clang__) || defined(__GNUC__)) && (defined(__x86_64__) || defined(__i386__))
-#define THORIN_BREAK asm("int3");
-#else
-#define THORIN_BREAK { int* __p__ = nullptr; *__p__ = 42; }
-#endif
-
-#if THORIN_ENABLE_CHECKS
-#define THORIN_CHECK_BREAK(gid) \
-    if (breakpoints_.find((gid)) != breakpoints_.end()) { THORIN_BREAK }
-#else
-#define THORIN_CHECK_BREAK(gid) {}
-#endif
-
 namespace thorin {
 
 /*
@@ -378,7 +365,7 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
             return arithop(tag, a_lhs_lv, arithop(tag, a_same->rhs(), b, dbg), dbg);
     }
 
-    return cse(new ArithOp(tag, a, b, dbg));
+    return unify(new ArithOp(tag, a, b, dbg));
 }
 
 const Def* World::arithop_not(const Def* def, Debug dbg) { return arithop_xor(allset(def->type(), dbg, vector_length(def)), def, dbg); }
@@ -470,7 +457,7 @@ const Def* World::cmp(CmpTag tag, const Def* a, const Def* b, Debug dbg) {
         }
     }
 
-    return cse(new Cmp(tag, a, b, dbg));
+    return unify(new Cmp(tag, a, b, dbg));
 }
 
 /*
@@ -609,7 +596,7 @@ const Def* World::cast(const Type* to, const Def* from, Debug dbg) {
         }
     }
 
-    return cse(new Cast(to, from, dbg));
+    return unify(new Cast(to, from, dbg));
 }
 
 const Def* World::bitcast(const Type* to, const Def* from, Debug dbg) {
@@ -648,7 +635,7 @@ const Def* World::bitcast(const Type* to, const Def* from, Debug dbg) {
         return vector(ops, dbg);
     }
 
-    return cse(new Bitcast(to, from, dbg));
+    return unify(new Bitcast(to, from, dbg));
 }
 
 /*
@@ -705,7 +692,7 @@ const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
         }
     }
 
-    return cse(new Extract(agg, index, dbg));
+    return unify(new Extract(agg, index, dbg));
 }
 
 const Def* World::insert(const Def* agg, const Def* index, const Def* value, Debug dbg) {
@@ -753,14 +740,14 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, Deb
         }
     }
 
-    return cse(new Insert(agg, index, value, dbg));
+    return unify(new Insert(agg, index, value, dbg));
 }
 
 const Def* World::lea(const Def* ptr, const Def* index, Debug dbg) {
     if (fold_1_tuple(ptr->type()->as<PtrType>()->pointee(), index))
         return ptr;
 
-    return cse(new LEA(ptr, index, dbg));
+    return unify(new LEA(ptr, index, dbg));
 }
 
 const Def* World::select(const Def* cond, const Def* a, const Def* b, Debug dbg) {
@@ -778,14 +765,14 @@ const Def* World::select(const Def* cond, const Def* a, const Def* b, Debug dbg)
     if (a == b)
         return a;
 
-    return cse(new Select(cond, a, b, dbg));
+    return unify(new Select(cond, a, b, dbg));
 }
 
 const Def* World::size_of(const Type* type, Debug dbg) {
     if (auto ptype = type->isa<PrimType>())
         return literal(qs32(num_bits(ptype->primtype_tag()) / 8), dbg);
 
-    return cse(new SizeOf(bottom(type, dbg), dbg));
+    return unify(new SizeOf(bottom(type, dbg), dbg));
 }
 
 /*
@@ -799,7 +786,7 @@ const Def* World::load(const Def* mem, const Def* ptr, Debug dbg) {
             return tuple({mem, tuple({}, dbg)});
         }
     }
-    return cse(new Load(mem, ptr, dbg));
+    return unify(new Load(mem, ptr, dbg));
 }
 
 bool is_agg_const(const Def* def) {
@@ -809,21 +796,21 @@ bool is_agg_const(const Def* def) {
 const Def* World::store(const Def* mem, const Def* ptr, const Def* value, Debug dbg) {
     if (value->isa<Bottom>())
         return mem;
-    return cse(new Store(mem, ptr, value, dbg));
+    return unify(new Store(mem, ptr, value, dbg));
 }
 
 const Def* World::enter(const Def* mem, Debug dbg) {
     if (auto e = Enter::is_out_mem(mem))
         return e;
-    return cse(new Enter(mem, dbg));
+    return unify(new Enter(mem, dbg));
 }
 
 const Def* World::alloc(const Type* type, const Def* mem, const Def* extra, Debug dbg) {
-    return cse(new Alloc(type, mem, extra, dbg));
+    return unify(new Alloc(type, mem, extra, dbg));
 }
 
 const Def* World::global(const Def* init, bool is_mutable, Debug dbg) {
-    return cse(new Global(init, is_mutable, dbg));
+    return unify(new Global(init, is_mutable, dbg));
 }
 
 const Def* World::global_immutable_string(const std::string& str, Debug dbg) {
@@ -838,7 +825,7 @@ const Def* World::global_immutable_string(const std::string& str, Debug dbg) {
 }
 
 const Assembly* World::assembly(const Type* type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg) {
-    return cse(new Assembly(type, inputs, asm_template, output_constraints, input_constraints, clobbers, flags, dbg))->as<Assembly>();;
+    return unify(new Assembly(type, inputs, asm_template, output_constraints, input_constraints, clobbers, flags, dbg))->as<Assembly>();;
 }
 
 const Assembly* World::assembly(Types types, const Def* mem, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg) {
@@ -860,7 +847,7 @@ const Assembly* World::assembly(Types types, const Def* mem, Defs inputs, std::s
 const Def* World::hlt(const Def* def, Debug dbg) {
     if (pe_done_)
         return def;
-    return cse(new Hlt(def, dbg));
+    return unify(new Hlt(def, dbg));
 }
 
 const Def* World::known(const Def* def, Debug dbg) {
@@ -868,27 +855,18 @@ const Def* World::known(const Def* def, Debug dbg) {
         return literal_bool(false, dbg);
     if (is_const(def))
         return literal_bool(true, dbg);
-    return cse(new Known(def, dbg));
+    return unify(new Known(def, dbg));
 }
 
 const Def* World::run(const Def* def, Debug dbg) {
     if (pe_done_)
         return def;
-    return cse(new Run(def, dbg));
+    return unify(new Run(def, dbg));
 }
 
 /*
  * continuations
  */
-
-Continuation* World::continuation(const FnType* fn, CC cc, Intrinsic intrinsic, Debug dbg) {
-    auto l = new Continuation(fn, cc, intrinsic, dbg);
-    THORIN_CHECK_BREAK(l->gid());
-    continuations_.insert(l);
-    l->param_ = param(fn->domain(), l, dbg);
-
-    return l;
-}
 
 Continuation* World::match(const Type* type, size_t num_patterns) {
     Array<const Type*> arg_types(num_patterns + 2);
@@ -897,12 +875,6 @@ Continuation* World::match(const Type* type, size_t num_patterns) {
     for (size_t i = 0; i < num_patterns; i++)
         arg_types[i + 2] = tuple_type({type, fn_type()});
     return continuation(fn_type(tuple_type(arg_types)), CC::C, Intrinsic::Match, {"match"});
-}
-
-const Param* World::param(const Type* type, Continuation* continuation, Debug dbg) {
-    auto param = new Param(type, continuation, dbg);
-    THORIN_CHECK_BREAK(param->gid());
-    return param;
 }
 
 /*
@@ -937,21 +909,6 @@ std::vector<Continuation*> World::copy_continuations() const {
     return result;
 }
 
-const Def* World::cse_base(const Def* def) {
-    THORIN_CHECK_BREAK(def->gid());
-    auto i = defs_.find(def);
-    if (i != defs_.end()) {
-        def->unregister_uses();
-        --Def::gid_counter_;
-        delete def;
-        return *i;
-    }
-
-    const auto& p = defs_.insert(def);
-    assert_unused(p.second && "hash/equal broken");
-    return def;
-}
-
 /*
  * optimizations
  */
@@ -981,7 +938,7 @@ void World::opt() {
 std::ostream& World::stream(std::ostream& os) const {
     os << "module '" << name() << "'\n\n";
 
-    for (auto primop : primops()) {
+    for (auto primop : defs()) {
         if (auto global = primop->isa<Global>())
             global->stream_assignment(os);
     }

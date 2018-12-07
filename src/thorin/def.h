@@ -122,8 +122,9 @@ public:
     size_t num_ops() const { return ops_.size(); }
     void set_op(size_t i, const Def* def);
     void unset_op(size_t i);
-    void unset_ops();
+    void update_op(size_t i, const Def* def) { unset_op(i); set_op(i, def); }
     bool contains_continuation() const { return contains_continuation_; }
+    bool is_nominal() const { return nominal_; }
     Continuation* as_continuation() const;
     Continuation* isa_continuation() const;
     void dump() const;
@@ -152,12 +153,13 @@ private:
     mutable const Def* substitute_ = nullptr;
     mutable Uses uses_;
     mutable Debug debug_;
-    const size_t gid_ : sizeof(size_t) * 8 - 1;
+    const size_t gid_ : 32;
+    unsigned nominal_ : 1;
 
     static size_t gid_counter_;
 
 protected:
-    bool contains_continuation_;
+    unsigned contains_continuation_ : 1;
 
 private:
     uint64_t hash() const { return hash_ == 0 ? hash_ = vhash() : hash_; }

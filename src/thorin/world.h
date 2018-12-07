@@ -49,7 +49,7 @@ public:
         static const Def* sentinel() { return (const Def*)(1); }
     };
 
-    typedef HashSet<const PrimOp*, DefHash> DefSet;
+    typedef HashSet<const Def*, DefHash> DefSet;
 
     struct BreakHash {
         static uint64_t hash(size_t i) { return i; }
@@ -62,12 +62,14 @@ public:
     World(std::string name = "");
     ~World();
 
+    bool empty() { return externals().empty(); }
+
     // literals
 
 #define THORIN_ALL_TYPE(T, M) \
-    const Def* literal_##T(T val, Debug dbg, size_t length = 1) { return literal(PrimType_##T, Box(val), dbg, length); }
+    const Def* literal_##T(T val, Debug dbg = {}, size_t length = 1) { return literal(PrimType_##T, Box(val), dbg, length); }
 #include "thorin/tables/primtypetable.h"
-    const Def* literal(PrimTypeTag tag, Box box, Debug dbg, size_t length = 1) { return splat(cse(new PrimLit(*this, tag, box, dbg)), length); }
+    const Def* literal(PrimTypeTag tag, Box box, Debug dbg, size_t length = 1) { return splat(unify(new PrimLit(*this, tag, box, dbg)), length); }
     template<class T>
     const Def* literal(T value, Debug dbg = {}, size_t length = 1) { return literal(type2tag<T>::tag, Box(value), dbg, length); }
     const Def* zero(PrimTypeTag tag, Debug dbg = {}, size_t length = 1) { return literal(tag, 0, dbg, length); }
@@ -76,8 +78,8 @@ public:
     const Def* one(const Type* type, Debug dbg = {}, size_t length = 1) { return one(type->as<PrimType>()->primtype_tag(), dbg, length); }
     const Def* allset(PrimTypeTag tag, Debug dbg = {}, size_t length = 1);
     const Def* allset(const Type* type, Debug dbg = {}, size_t length = 1) { return allset(type->as<PrimType>()->primtype_tag(), dbg, length); }
-    const Def* top   (const Type* type, Debug dbg = {}, size_t length = 1) { return splat(cse(new Top(type, dbg)), length); }
-    const Def* bottom(const Type* type, Debug dbg = {}, size_t length = 1) { return splat(cse(new Bottom(type, dbg)), length); }
+    const Def* top   (const Type* type, Debug dbg = {}, size_t length = 1) { return splat(unify(new Top(type, dbg)), length); }
+    const Def* bottom(const Type* type, Debug dbg = {}, size_t length = 1) { return splat(unify(new Bottom(type, dbg)), length); }
     const Def* bottom(PrimTypeTag tag, Debug dbg = {}, size_t length = 1) { return bottom(type(tag), dbg, length); }
 
     // arithops
@@ -111,7 +113,7 @@ public:
     // aggregate operations
 
     const Def* definite_array(const Type* elem, Defs args, Debug dbg = {}) {
-        return try_fold_aggregate(cse(new DefiniteArray(*this, elem, args, dbg)));
+        return try_fold_aggregate(unify(new DefiniteArray(*this, elem, args, dbg)));
     }
     /// Create definite_array with at least one element. The type of that element is the element type of the definite array.
     const Def* definite_array(Defs args, Debug dbg = {}) {
@@ -119,17 +121,17 @@ public:
         return definite_array(args.front()->type(), args, dbg);
     }
     const Def* indefinite_array(const Type* elem, const Def* dim, Debug dbg = {}) {
-        return cse(new IndefiniteArray(*this, elem, dim, dbg));
+        return unify(new IndefiniteArray(*this, elem, dim, dbg));
     }
     const Def* struct_agg(const StructType* struct_type, Defs args, Debug dbg = {}) {
-        return try_fold_aggregate(cse(new StructAgg(struct_type, args, dbg)));
+        return try_fold_aggregate(unify(new StructAgg(struct_type, args, dbg)));
     }
-    const Def* tuple(Defs args, Debug dbg = {}) { return args.size() == 1 ? args.front() : try_fold_aggregate(cse(new Tuple(*this, args, dbg))); }
-    const Def* variant(const VariantType* variant_type, const Def* value, Debug dbg = {}) { return cse(new Variant(variant_type, value, dbg)); }
-    const Def* closure(const ClosureType* closure_type, const Def* fn, const Def* env, Debug dbg = {}) { return cse(new Closure(closure_type, fn, env, dbg)); }
+    const Def* tuple(Defs args, Debug dbg = {}) { return args.size() == 1 ? args.front() : try_fold_aggregate(unify(new Tuple(*this, args, dbg))); }
+    const Def* variant(const VariantType* variant_type, const Def* value, Debug dbg = {}) { return unify(new Variant(variant_type, value, dbg)); }
+    const Def* closure(const ClosureType* closure_type, const Def* fn, const Def* env, Debug dbg = {}) { return unify(new Closure(closure_type, fn, env, dbg)); }
     const Def* vector(Defs args, Debug dbg = {}) {
         if (args.size() == 1) return args[0];
-        return try_fold_aggregate(cse(new Vector(*this, args, dbg)));
+        return try_fold_aggregate(unify(new Vector(*this, args, dbg)));
     }
     /// Splats \p arg to create a \p Vector with \p length.
     const Def* splat(const Def* arg, size_t length = 1, Debug dbg = {});
@@ -150,7 +152,7 @@ public:
     const Def* load(const Def* mem, const Def* ptr, Debug dbg = {});
     const Def* store(const Def* mem, const Def* ptr, const Def* val, Debug dbg = {});
     const Def* enter(const Def* mem, Debug dbg = {});
-    const Def* slot(const Type* type, const Def* frame, Debug dbg = {}) { return cse(new Slot(type, frame, dbg)); }
+    const Def* slot(const Type* type, const Def* frame, Debug dbg = {}) { return unify(new Slot(type, frame, dbg)); }
     const Def* alloc(const Type* type, const Def* mem, const Def* extra, Debug dbg = {});
     const Def* alloc(const Type* type, const Def* mem, Debug dbg = {}) { return alloc(type, mem, literal_qu64(0, dbg), dbg); }
     const Def* global(const Def* init, bool is_mutable = true, Debug dbg = {});
@@ -169,7 +171,10 @@ public:
 
     // continuations
 
-    Continuation* continuation(const FnType* fn, CC cc = CC::C, Intrinsic intrinsic = Intrinsic::None, Debug dbg = {});
+    const Param* param(Continuation* continuation, Debug dbg) { return unify(new Param(continuation->domain(), continuation, dbg)); }
+    Continuation* continuation(const FnType* fn, CC cc = CC::C, Intrinsic intrinsic = Intrinsic::None, Debug dbg = {}) {
+        return insert(new Continuation(fn, cc, intrinsic, dbg));
+    }
     Continuation* continuation(const FnType* fn, Debug dbg = {}) { return continuation(fn, CC::C, Intrinsic::None, dbg); }
     Continuation* continuation(Debug dbg = {}) { return continuation(fn_type(), CC::C, Intrinsic::None, dbg); }
     Continuation* branch() const { return branch_; }
@@ -224,10 +229,35 @@ public:
     }
 
 private:
-    const Param* param(const Type* type, Continuation* continuation, Debug dbg);
     const Def* try_fold_aggregate(const Aggregate*);
-    const Def* cse_base(const PrimOp*);
-    template<class T> const T* cse(const T* primop) { return cse_base(primop)->template as<T>(); }
+
+    template<class T>
+    T* insert(T* def) {
+#ifndef NDEBUG
+        if (breakpoints_.contains(def->gid())) THORIN_BREAK;
+#endif
+        auto p = defs_.emplace(def);
+        assert_unused(p.second);
+        return def;
+    }
+
+    template<class T>
+    const T* unify(const T* def) {
+
+#ifndef NDEBUG
+        if (breakpoints_.contains(def->gid())) THORIN_BREAK;
+#endif
+        assert(!def->is_nominal());
+        auto&& p = defs_.emplace(def);
+        if (p.second) {
+            //def->finalize();
+            return static_cast<const T*>(def);
+        }
+
+        def->unregister_uses();
+        delete def;
+        return static_cast<const T*>(*p.first);
+    }
 
     std::string name_;
     ContinuationSet externals_;

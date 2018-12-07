@@ -23,6 +23,7 @@ Def::Def(NodeTag tag, const Type* type, size_t size, Debug dbg)
     , type_(type)
     , debug_(dbg)
     , gid_(gid_counter_++)
+    , nominal_(true)
     , contains_continuation_(false)
 {}
 
@@ -32,6 +33,7 @@ Def::Def(NodeTag tag, const Type* type, Defs ops, Debug dbg)
     , type_(type)
     , debug_(dbg)
     , gid_(gid_counter_++)
+    , nominal_(false)
     , contains_continuation_(false)
 {
     for (size_t i = 0, e = ops.size(); i != e; ++i)
@@ -86,11 +88,6 @@ void Def::unset_op(size_t i) {
     assert(ops_[i] && "must be set");
     unregister_use(i);
     ops_[i] = nullptr;
-}
-
-void Def::unset_ops() {
-    for (size_t i = 0, e = num_ops(); i != e; ++i)
-        unset_op(i);
 }
 
 std::string Def::unique_name() const {
@@ -165,8 +162,7 @@ void Def::replace(Tracker with) const {
         for (auto& use : copy_uses()) {
             auto def = const_cast<Def*>(use.def());
             auto index = use.index();
-            def->unset_op(index);
-            def->set_op(index, with);
+            def->update_op(index, with);
         }
 
         uses_.clear();

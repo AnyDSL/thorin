@@ -5,7 +5,6 @@
 #include "thorin/primop.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
-#include "thorin/analyses/scope.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/util/log.h"
 
@@ -42,13 +41,18 @@ std::vector<Peek> peek(const Def* param) {
 //------------------------------------------------------------------------------
 
 Continuation::Continuation(const FnType* fn, CC cc, Intrinsic intrinsic, Debug dbg)
-    : Def(Node_Continuation, fn, 2, dbg)
+    : Def(Node_Continuation, fn, 3, dbg)
     , cc_(cc)
     , intrinsic_(intrinsic)
 {
-    set_op(0, world().top(world().fn_type()));
-    set_op(1, world().tuple({}));
+    set_op(0, world().literal_bool(false));
+    set_op(1, world().top(world().fn_type()));
+    set_op(2, world().tuple({}));
     contains_continuation_ = true;
+}
+
+const Param* Continuation::param(Debug dbg) const {
+    return world().param(this->as_continuation(), dbg);
 }
 
 bool Continuation::is_empty() const { return callee()->isa<Top>(); }
@@ -58,18 +62,7 @@ void Continuation::set_filter(Defs filter) {
 }
 
 Continuation* Continuation::stub() const {
-    Rewriter rewriter;
-
-    auto result = world().continuation(type(), cc(), intrinsic(), debug_history());
-    result->param()->debug() = param()->debug_history();
-    rewriter.old2new[param()] = result->param();
-
-    if (filter_ != nullptr) {
-        auto new_filter = rewriter.instantiate(filter_);
-        result->set_filter(new_filter);
-    }
-
-    return result;
+    return world().continuation(type(), cc(), intrinsic(), debug_history());
 }
 
 size_t Continuation::num_params() const {
@@ -78,9 +71,9 @@ size_t Continuation::num_params() const {
     return 1;
 }
 
-const Def* Continuation::param(size_t i) const {
+const Def* Continuation::param(size_t i, Debug dbg) const {
     //if (param()->type()->isa<TupleType>())
-        return world().extract(param(), i);
+        return world().extract(param(), i, dbg);
     //return param();
 }
 
@@ -162,29 +155,20 @@ const Def* Continuation::ret_param() const {
     return result;
 }
 
+void Continuation::destroy_filter() {
+    update_op(0, world().literal_bool(false));
+}
+
 void Continuation::destroy_body() {
-    unset_ops();
-    set_op(0, world().top(world().fn_type()));
-    set_op(1, world().tuple({}));
+    update_op(0, world().literal_bool(false));
+    update_op(1, world().top(world().fn_type()));
+    update_op(2, world().tuple({}));
 }
 
 const FnType* Continuation::arg_fn_type() const {
     return callee()->type()->isa<ClosureType>()
         ? world().closure_type(arg()->type())->as<FnType>()
         : world().fn_type(arg()->type());
-}
-
-const Def* Continuation::append_param(const Type* param_type, Debug dbg) {
-    assert(param_);
-    auto old_domain = type()->domain();
-    clear_type();
-    auto new_domain = merge_tuple_type(old_domain, param_type);
-    set_type(param_type->table().fn_type(new_domain));
-    const_cast<Param*>(param_)->clear_type();         // HACK
-    const_cast<Param*>(param_)->set_type(new_domain); // HACK
-    auto p = params().back();
-    p->debug() = dbg;
-    return p;
 }
 
 Continuations Continuation::preds() const {
@@ -326,9 +310,8 @@ void Continuation::jump(const Def* callee, const Def* arg, Debug dbg) {
         }
     }
 
-    unset_ops();
-    set_op(0, callee);
-    set_op(1, arg);
+    update_op(1, callee);
+    update_op(2, arg);
     verify();
 }
 
@@ -358,11 +341,12 @@ void jump_to_dropped_call(Continuation* src, Continuation* dst, const Call& call
     src->jump(dst, nargs, src->jump_debug());
 }
 
-Continuation* Continuation::update_op(size_t i, const Def* def) {
+void Continuation::update_op(size_t i, const Def* def) {
+    if (i == 0)
+        return Def::update_op(i, def);
     std::array<const Def*, 2> new_ops = {callee(), arg()};
     new_ops[i] = def;
     jump(new_ops[0], new_ops[1], jump_location());
-    return this;
 }
 
 std::ostream& Continuation::stream_head(std::ostream& os) const {

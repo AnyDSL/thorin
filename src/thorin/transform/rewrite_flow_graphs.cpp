@@ -76,7 +76,7 @@ static void rewrite_def(const Def* def, Rewriter& rewriter) {
         Array<const Def*> ops(def->num_ops());
         for (size_t i = 0; i < def->num_ops(); ++i)
             ops[i] = rewriter.instantiate(def->op(i));
-        rewriter.old2new[primop] = primop->rebuild(ops, new_type);
+        rewriter.old2new[primop] = primop->rebuild(new_type, ops);
         for (auto use : primop->uses())
             rewrite_def(use.def(), rewriter);
     } else {

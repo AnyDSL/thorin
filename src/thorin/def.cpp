@@ -17,37 +17,20 @@ namespace thorin {
 
 size_t Def::gid_counter_ = 1;
 
-Def::Def(NodeTag tag, const Type* type, size_t size, Debug dbg)
-    : tag_(tag)
-    , ops_(size)
-    , type_(type)
-    , debug_(dbg)
-    , gid_(gid_counter_++)
-    , nominal_(true)
-    , contains_continuation_(false)
-{}
-
-Def::Def(NodeTag tag, const Type* type, Defs ops, Debug dbg)
-    : tag_(tag)
-    , ops_(ops.size())
-    , type_(type)
-    , debug_(dbg)
-    , gid_(gid_counter_++)
-    , nominal_(false)
-    , contains_continuation_(false)
-{
-    for (size_t i = 0, e = ops.size(); i != e; ++i)
-        set_op(i, ops[i]);
-}
-
 uint64_t Def::vhash() const {
-    uint64_t seed = hash_combine(hash_begin(uint8_t(tag())), uint32_t(type()->gid()));
-    for (auto op : ops_)
-        seed = hash_combine(seed, uint32_t(op->gid()));
+    if (is_nominal())
+        return murmur3(gid());
+
+    uint64_t seed = hash_combine(hash_begin((uint8_t) tag()), type()->gid());
+    for (auto op : ops())
+        seed = hash_combine(seed, op->gid());
     return seed;
 }
 
 bool Def::equal(const Def* other) const {
+    if (this->is_nominal() || other->is_nominal())
+        return this == other;
+
     bool result = this->tag() == other->tag() && this->num_ops() == other->num_ops() && this->type() == other->type();
     for (size_t i = 0, e = num_ops(); result && i != e; ++i)
         result &= this->ops_[i] == other->ops_[i];

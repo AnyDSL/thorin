@@ -40,6 +40,10 @@ std::vector<Peek> peek(const Def* param) {
 
 //------------------------------------------------------------------------------
 
+const Def* Param::vrebuild(World& to, const Type*, Defs ops) const { return to.param(ops[0]->as_continuation(), debug()); }
+
+//------------------------------------------------------------------------------
+
 Continuation::Continuation(const FnType* fn, CC cc, Intrinsic intrinsic, Debug dbg)
     : Def(Node_Continuation, fn, 3, dbg)
     , cc_(cc)
@@ -61,8 +65,9 @@ void Continuation::set_filter(Defs filter) {
     set_filter(world().tuple(filter));
 }
 
-Continuation* Continuation::stub() const {
-    return world().continuation(type(), cc(), intrinsic(), debug_history());
+
+Def* Continuation::vstub(World& to, const Type* type) const {
+    return to.continuation(type->as<FnType>(), cc(), intrinsic(), debug_history());
 }
 
 size_t Continuation::num_params() const {
@@ -310,8 +315,8 @@ void Continuation::jump(const Def* callee, const Def* arg, Debug dbg) {
         }
     }
 
-    update_op(1, callee);
-    update_op(2, arg);
+    Def::update_op(1, callee);
+    Def::update_op(2, arg);
     verify();
 }
 

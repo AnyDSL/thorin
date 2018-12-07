@@ -114,7 +114,9 @@ public:
     const FnType* arg_fn_type() const;
     //@}
 
-    Continuation* stub() const;
+    Def* vstub(World&, const Type*) const override;
+    const Def* vrebuild(World&, const Type*, Defs) const override { THORIN_UNREACHABLE; }
+
     Continuations preds() const;
     Continuations succs() const;
     bool is_empty() const;
@@ -185,6 +187,7 @@ private:
 
 public:
     Continuation* continuation() const { return op(0)->as_continuation(); }
+    const Def* vrebuild(World&, const Type*, Defs) const override;
 
     friend class World;
 };

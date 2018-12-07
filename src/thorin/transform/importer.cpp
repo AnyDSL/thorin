@@ -2,11 +2,26 @@
 
 namespace thorin {
 
+Importer::Importer(World& src)
+    : world_(src.name())
+{
+    if  (src.is_pe_done())
+        world_.mark_pe_done();
+#if THORIN_ENABLE_CHECKS
+    if (src.track_history())
+        world_.enable_history(true);
+#endif
+
+    def_old2new_[src.branch()]    = world().branch();
+    def_old2new_[src.end_scope()] = world().end_scope();
+}
+
 const Type* Importer::import(const Type* otype) {
     if (auto ntype = find(type_old2new_, otype)) {
         assert(&ntype->table() == &world_);
         return ntype;
     }
+
     size_t size = otype->num_ops();
 
     if (auto struct_type = otype->isa<StructType>()) {
@@ -37,45 +52,10 @@ const Def* Importer::import(Tracker odef) {
 
     auto ntype = import(odef->type());
 
-    if (auto oparam = odef->isa<Param>()) {
-        import(oparam->continuation())->as_continuation();
-        auto nparam = find(def_old2new_, oparam);
-        assert(nparam && &nparam->world() == &world_);
-        assert(!nparam->is_replaced());
-        return nparam;
-    }
-
-    Continuation* ncontinuation = nullptr;
-    if (auto ocontinuation = odef->isa_continuation()) { // create stub in new world
-        // TODO maybe we want to deal with intrinsics in a more streamlined way
-        if (ocontinuation == ocontinuation->world().branch())
-            return def_old2new_[ocontinuation] = world().branch();
-        if (ocontinuation == ocontinuation->world().end_scope())
-            return def_old2new_[ocontinuation] = world().end_scope();
-        auto npi = import(ocontinuation->type())->as<FnType>();
-        ncontinuation = world().continuation(npi, ocontinuation->cc(), ocontinuation->intrinsic(), ocontinuation->debug_history());
-        assert(&ncontinuation->world() == &world());
-        assert(&npi->table() == &world());
-        ncontinuation->param()->debug() = ocontinuation->param()->debug_history();
-        def_old2new_[ocontinuation->param()] = ncontinuation->param();
-        def_old2new_[ocontinuation] = ncontinuation;
-
-        if (ocontinuation->is_external())
-            ncontinuation->make_external();
-
-        if (ocontinuation->num_ops() > 0 && ocontinuation->callee() == ocontinuation->world().branch()) {
-            auto cond = import(ocontinuation->arg(0));
-            if (auto lit = cond->isa<PrimLit>()) {
-                auto callee = import(lit->value().get_bool() ? ocontinuation->arg(1) : ocontinuation->arg(2));
-                ncontinuation->jump(callee, Defs{}, ocontinuation->jump_debug());
-
-                assert(!ncontinuation->is_replaced());
-                return ncontinuation;
-            }
-        }
-
-        if (ocontinuation->filter()) // TODO remove this if
-            ncontinuation->set_filter(import(ocontinuation->filter()));
+    const Def* ndef = nullptr;
+    if (odef->is_nominal()) {
+        ndef = odef->vstub(world_, ntype);
+        def_old2new_[odef] = ndef;
     }
 
     size_t size = odef->num_ops();
@@ -85,19 +65,16 @@ const Def* Importer::import(Tracker odef) {
         assert(&nops[i]->world() == &world());
     }
 
-    if (auto oprimop = odef->isa<PrimOp>()) {
-        auto nprimop = oprimop->rebuild(world(), nops, ntype);
-        todo_ |= oprimop->tag() != oprimop->tag();
-        assert(!nprimop->is_replaced());
-        return def_old2new_[oprimop] = nprimop;
+    if (ndef) {
+        for (size_t i = 0; i != size; ++i)
+            const_cast<Def*>(ndef)->update_op(i, nops[i]); // TODO use set_op here
+    } else {
+        ndef = odef->vrebuild(world_, ntype, nops);
+        def_old2new_[odef] = ndef;
     }
 
-    auto ocontinuation = odef->as_continuation();
-    assert(ncontinuation && &ncontinuation->world() == &world());
-    if (size > 0)
-        ncontinuation->jump(nops.front(), nops.skip_front(), ocontinuation->jump_debug());
-    assert(!ncontinuation->is_replaced());
-    return ncontinuation;
+    assert(&ndef->world() == &world());
+    return ndef;
 }
 
 }

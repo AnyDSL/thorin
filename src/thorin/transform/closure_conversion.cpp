@@ -77,7 +77,7 @@ public:
         if (auto primop = def->isa<PrimOp>()) {
             Array<const Def*> ops(primop->ops());
             for (auto& op : ops) op = convert(op);
-            return new_defs_[def] = primop->rebuild(ops, convert(primop->type()));
+            return new_defs_[def] = primop->rebuild(convert(primop->type()), ops);
         } else if (auto continuation = def->isa_continuation()) {
             if (continuation->is_empty())
                 return continuation;

@@ -102,9 +102,28 @@ private:
 
 protected:
     /// Constructor for a @em structural Def.
-    Def(NodeTag tag, const Type* type, Defs ops, Debug);
+    Def(NodeTag tag, const Type* type, Defs ops, Debug dbg)
+        : tag_(tag)
+        , ops_(ops.size())
+        , type_(type)
+        , debug_(dbg)
+        , gid_(gid_counter_++)
+        , nominal_(false)
+        , contains_continuation_(false)
+    {
+        for (size_t i = 0, e = ops.size(); i != e; ++i)
+            set_op(i, ops[i]);
+    }
     /// Constructor for a @em nominal Def.
-    Def(NodeTag tag, const Type* type, size_t size, Debug);
+    Def(NodeTag tag, const Type* type, size_t size, Debug dbg)
+        : tag_(tag)
+        , ops_(size)
+        , type_(type)
+        , debug_(dbg)
+        , gid_(gid_counter_++)
+        , nominal_(true)
+        , contains_continuation_(false)
+    {}
     virtual ~Def() {}
 
     void clear_type() { type_ = nullptr; }
@@ -140,6 +159,15 @@ public:
     const Def* op(size_t i) const { assert(i < ops().size() && "index out of bounds"); return ops_[i]; }
     void replace(Tracker) const;
     bool is_replaced() const { return substitute_ != nullptr; }
+
+    //@{ rebuild/stub
+    virtual const Def* vrebuild(World&, const Type*, Defs) const = 0;
+    const Def* rebuild(const Type* type, Defs ops) const { return vrebuild(world(), type, ops); }
+    const Def* rebuild(Defs ops) const { return vrebuild(world(), type(), ops); }
+    virtual Def* vstub(World&, const Type*) const { THORIN_UNREACHABLE; }
+    Def* stub(const Type* type) const { return vstub(world(), type); }
+    Def* stub() const { return vstub(world(), type()); }
+    //@}
 
     virtual uint64_t vhash() const;
     virtual bool equal(const Def* other) const;

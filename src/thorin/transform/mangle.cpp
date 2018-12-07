@@ -103,7 +103,7 @@ Continuation* Mangler::mangle() {
 Continuation* Mangler::mangle_head(Continuation* old_continuation) {
     assert(!def2def_.contains(old_continuation));
     assert(!old_continuation->is_empty());
-    Continuation* new_continuation = old_continuation->stub();
+    Continuation* new_continuation = old_continuation->stub()->as_continuation();
     def2def_[old_continuation] = new_continuation;
 
     for (size_t i = 0, e = old_continuation->num_params(); i != e; ++i)
@@ -190,8 +190,8 @@ const Def* Mangler::mangle(const Def* old_def) {
         for (size_t i = 0, e = old_primop->num_ops(); i != e; ++i)
             nops[i] = mangle(old_primop->op(i));
 
-        auto type = old_primop->type(); // TODO reduce
-        return def2def_[old_primop] = old_primop->rebuild(nops, type);
+        auto type = old_primop->type();
+        return def2def_[old_primop] = old_primop->rebuild(type, nops);
     }
 }
 

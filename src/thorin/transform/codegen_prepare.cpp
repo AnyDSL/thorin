@@ -15,8 +15,8 @@ void codegen_prepare(World& world) {
 
         for (auto use : ret_param->copy_uses()) {
             if (auto ucontinuation = use->isa_continuation()) {
-                if (use.index() != 0) {
-                    assert(use.index() == 1);
+                if (use.index() != 1) {
+                    assert(use.index() == 2);
                     ucontinuation->update_arg(ret_cont);
                     dirty = true;
                 }

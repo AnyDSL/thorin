@@ -12,18 +12,9 @@ public:
 
     bool resolve_loads() {
         todo_ = false;
-
         Scope::for_each(world_, [&] (const Scope& scope) {
             resolve_loads(scope);
         });
-        // Remove slots that only have stores
-        for (auto& pair : safe_slots_) {
-            if (!pair.second) continue;
-            if (are_ptr_uses_safe(pair.first, false)) {
-                replace_ptr_uses(pair.first);
-                todo_ = true;
-            }
-        }
         return todo_;
     }
 
@@ -79,12 +70,16 @@ public:
             return load->out_mem();
         } else if (auto store = mem_use->isa<Store>()) {
             // Try to find the slot corresponding to this store
-            auto slot = find_slot(store->ptr());
+            auto slot = find_slot(store->ptr(), false);
             if (slot) {
-                // If the slot has been found and is safe, try to find a value for it
-                auto slot_value = get_value(slot, mapping);
-                auto stored_value = insert_to_slot(store->ptr(), slot_value, store->val(), store->debug());
-                mapping[slot] = stored_value;
+                if (only_stores(slot)) {
+                    store->replace(store->mem());
+                } else {
+                    // If the slot has been found and is safe, try to find a value for it
+                    auto slot_value = get_value(slot, mapping);
+                    auto stored_value = insert_to_slot(store->ptr(), slot_value, store->val(), store->debug());
+                    mapping[slot] = stored_value;
+                }
             }
             return store->out_mem();
         } else if (auto enter = mem_use->isa<Enter>()) {
@@ -92,9 +87,8 @@ public:
             auto frame = enter->out_frame();
             for (auto use : frame->uses()) {
                 // All the slots allocated at that point contain bottom
-                auto slot = use->isa<Slot>();
-                if (slot && is_safe_slot(slot))
-                    mapping[slot] = world_.bottom(slot->type()->as<PtrType>()->pointee());
+                assert(use->isa<Slot>());
+                mapping[use.def()] = world_.bottom(use->type()->as<PtrType>()->pointee());
             }
             return enter->out_mem();
         } else {
@@ -148,81 +142,127 @@ public:
         return values[n];
     }
 
-    bool contains_top(const Def* def) {
-        if (is_top_.contains(def))
-            return is_top_[def];
+    static bool is_safe_bitcast(const Bitcast* bitcast) {
+        // Support cast between pointers to definite and indefinite arrays
+        auto ptr_to   = bitcast->type()->isa<PtrType>();
+        auto ptr_from = bitcast->from()->type()->isa<PtrType>();
+        if (!ptr_to || !ptr_from)
+            return false;
+        auto array_to   = ptr_to->pointee()->isa<IndefiniteArrayType>();
+        auto array_from = ptr_from->pointee()->isa<DefiniteArrayType>();
+        if (!array_to || !array_from)
+            return false;
+        if (array_to->elem_type() != array_from->elem_type())
+            return false;
+        return true;
+    }
+
+#define CACHED(name, ...) \
+private: \
+    DefMap<bool> name##_; \
+public: \
+    bool name##_uncached(const Def* def) { \
+        __VA_ARGS__ \
+    } \
+    bool name(const Def* def) { \
+        auto it = name##_.find(def); \
+        if (it != name##_.end()) \
+            return it->second; \
+        auto val = name##_uncached(def); \
+        name##_[def] = val; \
+        return val; \
+    }
+
+    CACHED(contains_top, {
         if (def->isa<Top>()) {
-            return is_top_[def] = true;
+            return true;
         } else if (auto primop = def->isa<PrimOp>()) {
             for (auto op : primop->ops()) {
                 if (contains_top(op))
-                    return is_top_[def] = true;
+                    return true;
             }
-            return is_top_[def] = false;
+            return false;
         } else {
-            return is_top_[def] = false;
+            return false;
         }
-    }
+    })
 
-    bool is_safe_slot(const Def* slot) {
-        assert(slot->isa<Slot>());
-        if (safe_slots_.contains(slot)) return safe_slots_[slot];
-        return safe_slots_[slot] = are_ptr_uses_safe(slot);
-    }
-
-    const Def* find_slot(const Def* ptr) {
-        if (ptr->isa<Slot>() && is_safe_slot(ptr)) return ptr;
-        if (ptr->isa<Global>() && !ptr->as<Global>()->is_mutable()) return ptr;
-        if (auto lea = ptr->isa<LEA>()) return find_slot(lea->ptr());
-        if (auto bitcast = ptr->isa<Bitcast>()) return find_slot(bitcast->from());
-        return nullptr;
-    }
-
-    static void replace_ptr_uses(const Def* ptr) {
-        for (auto& use : ptr->uses()) {
-            if (auto store = use->isa<Store>()) {
-                store->replace(store->mem());
-            } else if (use->isa<Load>()) {
-                assert(false);
-            } else if (use->isa<LEA>() || use->isa<Bitcast>()) {
-                replace_ptr_uses(use);
-            } else {
-                assert(false);
-            }
-        }
-    }
-
-    static bool are_ptr_uses_safe(const Def* ptr, bool allow_load = true) {
-        for (auto& use : ptr->uses()) {
+    CACHED(safe_ptr, {
+        // All uses have to be transitively load/store/lea/bitcast
+        for (auto& use : def->uses()) {
             if (use->isa<Store>()) {
                 if (use.index() != 1) return false;
             } else if (use->isa<LEA>()) {
-                if (!are_ptr_uses_safe(use.def(), allow_load)) return false;
+                if (!safe_ptr(use.def())) return false;
             } else if (auto bitcast = use->isa<Bitcast>()) {
-                // Support cast between pointers to definite and indefinite arrays
-                auto ptr_to   = bitcast->type()->isa<PtrType>();
-                auto ptr_from = bitcast->from()->type()->isa<PtrType>();
-                if (!ptr_to || !ptr_from)
-                    return false;
-                auto array_to   = ptr_to->pointee()->isa<IndefiniteArrayType>();
-                auto array_from = ptr_from->pointee()->isa<DefiniteArrayType>();
-                if (!array_to || !array_from)
-                    return false;
-                if (array_to->elem_type() != array_from->elem_type())
-                    return false;
-                if (!are_ptr_uses_safe(use.def(), allow_load)) return false;
-            } else if (!allow_load || !use->isa<Load>()) {
+                if (!is_safe_bitcast(bitcast) || !safe_ptr(use.def())) return false;
+            } else if (!use->isa<Load>()) {
                 return false;
             }
         }
         return true;
+    })
+
+    CACHED(partially_safe_ptr, {
+        // All uses have to be load/store/lea/bitcast but do not recurse past one lea level
+        for (auto& use : def->uses()) {
+            if (use->isa<Store>()) {
+                if (use.index() != 1) return false;
+            } else if (auto bitcast = use->isa<Bitcast>()) {
+                if (!is_safe_bitcast(bitcast) || !partially_safe_ptr(use.def())) return false;
+            } else if (!use->isa<Load>() && !use->isa<LEA>()) {
+                return false;
+            }
+        }
+        return true;
+    })
+
+    CACHED(only_stores, {
+        // All uses have to be transitively  store/lea/bitcast
+        for (auto& use : def->uses()) {
+            if (use->isa<Store>()) {
+                if (use.index() != 1) return false;
+            } else if (auto bitcast = use->isa<Bitcast>()) {
+                if (!is_safe_bitcast(bitcast) || !only_stores(use.def())) return false;
+            } else if (use->isa<LEA>()) {
+                if (!only_stores(use.def())) return false;
+            } else {
+                return false;
+            }
+        }
+        return true;
+    })
+
+#undef CACHED
+
+    const Def* find_slot(const Def* ptr, bool must_be_safe = true) {
+        const Def* first = ptr;
+        while (true) {
+            while (auto bitcast = ptr->isa<Bitcast>())
+                ptr = bitcast->from();
+            if (ptr->isa<Global>() && !ptr->as<Global>()->is_mutable())
+                return ptr;
+            // If first == ptr, we are looking at the pointed value.
+            // In that case, we need to make sure the pointer does not escape.
+            // Otherwise, we only need to make sure that the enclosing object is not escaping,
+            // but we do not have to care about its *other* children.
+            auto safe = first == ptr ? safe_ptr(ptr) : partially_safe_ptr(ptr);
+            if (must_be_safe && !safe)
+                break;
+            if (ptr->isa<Slot>())
+                return ptr;
+            if (auto lea = ptr->isa<LEA>()) {
+                ptr = lea->ptr();
+                continue;
+            }
+            break;
+        }
+        return nullptr;
     }
 
 private:
     bool todo_;
     World& world_;
-    DefMap<bool> is_top_;
-    DefMap<bool> safe_slots_;
 };
 
 bool resolve_loads(World& world) {

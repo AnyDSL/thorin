@@ -105,7 +105,6 @@ private:
         : Def(Node_Continuation, fn, 0, dbg)
         , cc_(cc)
         , intrinsic_(intrinsic)
-        , is_visited_(false)
     {
         params_.reserve(fn->num_ops());
         contains_continuation_ = true;
@@ -183,8 +182,6 @@ private:
     Array<const Def*> filter_; ///< used during @p partial_evaluation
     CC cc_;
     Intrinsic intrinsic_;
-    bool is_sealed_  : 1;
-    bool is_visited_ : 1;
 
     friend class Cleaner;
     friend class Scope;

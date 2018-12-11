@@ -26,6 +26,7 @@ public:
     virtual ~CodeGen() {}
 
     World& world() const { return world_; }
+    std::unique_ptr<llvm::LLVMContext>& context() { return context_; }
     std::unique_ptr<llvm::Module>& emit(int opt, bool debug);
     virtual void emit(std::ostream& stream, int opt, bool debug);
 
@@ -76,7 +77,7 @@ protected:
     llvm::Value* create_tmp_alloca(llvm::Type*, std::function<llvm::Value* (llvm::AllocaInst*)>);
 
     World& world_;
-    llvm::LLVMContext context_;
+    std::unique_ptr<llvm::LLVMContext> context_;
     std::unique_ptr<llvm::TargetMachine> machine_;
     std::unique_ptr<llvm::Module> module_;
     llvm::IRBuilder<> irbuilder_;

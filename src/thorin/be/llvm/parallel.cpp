@@ -54,7 +54,7 @@ Continuation* CodeGen::emit_parallel(Continuation* continuation) {
 
     // set insert point to the wrapper function
     auto old_bb = irbuilder_.GetInsertBlock();
-    auto bb = llvm::BasicBlock::Create(context_, wrapper_name, wrapper);
+    auto bb = llvm::BasicBlock::Create(*context_, wrapper_name, wrapper);
     irbuilder_.SetInsertPoint(bb);
 
     // extract all arguments from the closure
@@ -128,7 +128,7 @@ Continuation* CodeGen::emit_spawn(Continuation* continuation) {
 
     // set insert point to the wrapper function
     auto old_bb = irbuilder_.GetInsertBlock();
-    auto bb = llvm::BasicBlock::Create(context_, wrapper_name, wrapper);
+    auto bb = llvm::BasicBlock::Create(*context_, wrapper_name, wrapper);
     irbuilder_.SetInsertPoint(bb);
 
     // extract all arguments from the closure

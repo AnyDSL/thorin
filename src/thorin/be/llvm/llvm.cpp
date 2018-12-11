@@ -50,14 +50,14 @@ namespace thorin {
 
 CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention, llvm::CallingConv::ID device_calling_convention, llvm::CallingConv::ID kernel_calling_convention)
     : world_(world)
-    , context_()
-    , module_(new llvm::Module(world.name(), context_))
-    , irbuilder_(context_)
+    , context_(new llvm::LLVMContext())
+    , module_(new llvm::Module(world.name(), *context_))
+    , irbuilder_(*context_)
     , dibuilder_(*module_.get())
     , function_calling_convention_(function_calling_convention)
     , device_calling_convention_(device_calling_convention)
     , kernel_calling_convention_(kernel_calling_convention)
-    , runtime_(new Runtime(context_, *module_.get(), irbuilder_))
+    , runtime_(new Runtime(*context_, *module_.get(), irbuilder_))
 {}
 
 Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
@@ -268,7 +268,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
             auto continuation = block.continuation();
             // map all bb-like continuations to llvm bb stubs
             if (continuation->intrinsic() != Intrinsic::EndScope) {
-                auto bb = bb2continuation[continuation] = llvm::BasicBlock::Create(context_, continuation->name().c_str(), fct);
+                auto bb = bb2continuation[continuation] = llvm::BasicBlock::Create(*context_, continuation->name().c_str(), fct);
 
                 // create phi node stubs (for all continuations different from entry)
                 if (entry_ != continuation) {
@@ -283,7 +283,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
         }
 
         auto oldStartBB = fct->begin();
-        auto startBB = llvm::BasicBlock::Create(context_, fct->getName() + "_start", fct, &*oldStartBB);
+        auto startBB = llvm::BasicBlock::Create(*context_, fct->getName() + "_start", fct, &*oldStartBB);
         irbuilder_.SetInsertPoint(startBB);
         if (debug)
             irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(entry_->location().front_line(), entry_->location().front_col(), discope));
@@ -335,7 +335,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                     else {
                         values.shrink(n);
                         args.shrink(n);
-                        llvm::Value* agg = llvm::UndefValue::get(llvm::StructType::get(context_, llvm_ref(args)));
+                        llvm::Value* agg = llvm::UndefValue::get(llvm::StructType::get(*context_, llvm_ref(args)));
 
                         for (size_t i = 0; i != n; ++i)
                             agg = irbuilder_.CreateInsertValue(agg, values[i], { unsigned(i) });
@@ -989,7 +989,7 @@ llvm::Value* CodeGen::emit_assembly(const Assembly* assembly) {
         else
             res_type = convert(world().tuple_type(assembly->type()->ops().skip_front()));
     } else {
-        res_type = llvm::Type::getVoidTy(context_);
+        res_type = llvm::Type::getVoidTy(*context_);
     }
 
     size_t num_inputs = assembly->num_inputs();
@@ -1098,9 +1098,9 @@ llvm::Type* CodeGen::convert(const Type* type) {
                         if (fn_op->isa<MemType>() || fn_op == world().unit()) continue;
                         ret_types.push_back(convert(fn_op));
                     }
-                    if (ret_types.size() == 0)      ret = llvm::Type::getVoidTy(context_);
+                    if (ret_types.size() == 0)      ret = llvm::Type::getVoidTy(*context_);
                     else if (ret_types.size() == 1) ret = ret_types.back();
-                    else                            ret = llvm::StructType::get(context_, ret_types);
+                    else                            ret = llvm::StructType::get(*context_, ret_types);
                 } else
                     ops.push_back(convert(op));
             }
@@ -1115,13 +1115,13 @@ llvm::Type* CodeGen::convert(const Type* type) {
             ops.push_back(env_type);
             auto fn_type = llvm::FunctionType::get(ret, ops, false);
             auto ptr_type = llvm::PointerType::get(fn_type, 0);
-            llvm_type = llvm::StructType::get(context_, { ptr_type, env_type });
+            llvm_type = llvm::StructType::get(*context_, { ptr_type, env_type });
             return types_[type] = llvm_type;
         }
 
         case Node_StructType: {
             auto struct_type = type->as<StructType>();
-            auto llvm_struct = llvm::StructType::create(context_);
+            auto llvm_struct = llvm::StructType::create(*context_);
 
             // important: memoize before recursing into element types to avoid endless recursion
             assert(!types_.contains(struct_type) && "type already converted");
@@ -1139,7 +1139,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
             Array<llvm::Type*> llvm_types(tuple->num_ops());
             for (size_t i = 0, e = llvm_types.size(); i != e; ++i)
                 llvm_types[i] = convert(tuple->op(i));
-            llvm_type = llvm::StructType::get(context_, llvm_ref(llvm_types));
+            llvm_type = llvm::StructType::get(*context_, llvm_ref(llvm_types));
             return types_[tuple] = llvm_type;
         }
 
@@ -1173,9 +1173,9 @@ llvm::GlobalVariable* CodeGen::emit_global_variable(llvm::Type* type, const std:
 }
 
 void CodeGen::create_loop(llvm::Value* lower, llvm::Value* upper, llvm::Value* increment, llvm::Function* entry, std::function<void(llvm::Value*)> fun) {
-    auto head = llvm::BasicBlock::Create(context_, "head", entry);
-    auto body = llvm::BasicBlock::Create(context_, "body", entry);
-    auto exit = llvm::BasicBlock::Create(context_, "exit", entry);
+    auto head = llvm::BasicBlock::Create(*context_, "head", entry);
+    auto body = llvm::BasicBlock::Create(*context_, "body", entry);
+    auto exit = llvm::BasicBlock::Create(*context_, "exit", entry);
     // create loop phi and connect init value
     auto loop_counter = llvm::PHINode::Create(irbuilder_.getInt32Ty(), 2U, "parallel_loop_phi", head);
     loop_counter->addIncoming(lower, irbuilder_.GetInsertBlock());

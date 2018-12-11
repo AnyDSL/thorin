@@ -27,7 +27,7 @@ void AMDGPUCodeGen::emit_function_decl_hook(Continuation* continuation, llvm::Fu
             annotation_values_wgsize[0] = llvm::ConstantAsMetadata::get(irbuilder_.getInt32(std::get<0>(block)));
             annotation_values_wgsize[1] = llvm::ConstantAsMetadata::get(irbuilder_.getInt32(std::get<1>(block)));
             annotation_values_wgsize[2] = llvm::ConstantAsMetadata::get(irbuilder_.getInt32(std::get<2>(block)));
-            f->setMetadata(llvm::StringRef("reqd_work_group_size"),  llvm::MDNode::get(context_, llvm_ref(annotation_values_wgsize)));
+            f->setMetadata(llvm::StringRef("reqd_work_group_size"),  llvm::MDNode::get(*context_, llvm_ref(annotation_values_wgsize)));
         }
     }
 }

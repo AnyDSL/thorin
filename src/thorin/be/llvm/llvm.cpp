@@ -4,7 +4,6 @@
 #include <stdexcept>
 
 #include <llvm/ADT/Triple.h>
-#include <llvm/Bitcode/BitcodeWriter.h>
 #include <llvm/IR/Constant.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Function.h>

@@ -11,7 +11,6 @@
 #include <llvm/IR/InlineAsm.h>
 #include <llvm/IRReader/IRReader.h>
 #include <llvm/Support/Host.h>
-#include <llvm/Support/raw_ostream.h>
 #include <llvm/Support/SourceMgr.h>
 
 #include "thorin/primop.h"

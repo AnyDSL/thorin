@@ -30,7 +30,7 @@ std::vector<Peek> peek(const Def* param) {
     size_t index = get_param_index(param);
     for (auto use : get_param_continuation(param)->uses()) {
         if (auto pred = use->isa_continuation()) {
-            if (use.index() == 0)
+            if (use.index() == 1) // is it an arg of pred?
                 peeks.emplace_back(pred->arg(index), pred);
         }
     }

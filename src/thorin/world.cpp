@@ -918,14 +918,14 @@ void World::cleanup() { cleanup_world(*this); }
 void World::opt() {
     cleanup();
     while (partial_evaluation(*this, true)); // lower2cff
-    //flatten_tuples(*this);
+    flatten_tuples(*this);
     clone_bodies(*this);
     split_slots(*this);
     //closure_conversion(*this);
     lift_builtins(*this);
     inliner(*this);
     hoist_enters(*this);
-    dead_load_opt(*this);
+    //dead_load_opt(*this);
     cleanup();
     codegen_prepare(*this);
     rewrite_flow_graphs(*this);

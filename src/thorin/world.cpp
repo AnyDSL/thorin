@@ -9,7 +9,6 @@
 #include "thorin/analyses/scope.h"
 #include "thorin/transform/cleanup_world.h"
 #include "thorin/transform/clone_bodies.h"
-#include "thorin/transform/closure_conversion.h"
 #include "thorin/transform/codegen_prepare.h"
 #include "thorin/transform/dead_load_opt.h"
 #include "thorin/transform/flatten_tuples.h"
@@ -31,8 +30,8 @@ namespace thorin {
 World::World(std::string name)
     : name_(name)
 {
-    branch_ = continuation(fn_type(tuple_type({type_bool(), fn_type(), fn_type()})), CC::C, Intrinsic::Branch, {"br"});
-    end_scope_ = continuation(fn_type(), CC::C, Intrinsic::EndScope, {"end_scope"});
+    branch_ = continuation(cn(tuple_type({type_bool(), cn(), cn()})), CC::C, Intrinsic::Branch, {"br"});
+    end_scope_ = continuation(cn(), CC::C, Intrinsic::EndScope, {"end_scope"});
 }
 
 World::~World() {
@@ -871,10 +870,10 @@ const Def* World::run(const Def* def, Debug dbg) {
 Continuation* World::match(const Type* type, size_t num_patterns) {
     Array<const Type*> arg_types(num_patterns + 2);
     arg_types[0] = type;
-    arg_types[1] = fn_type();
+    arg_types[1] = cn();
     for (size_t i = 0; i < num_patterns; i++)
-        arg_types[i + 2] = tuple_type({type, fn_type()});
-    return continuation(fn_type(tuple_type(arg_types)), CC::C, Intrinsic::Match, {"match"});
+        arg_types[i + 2] = tuple_type({type, cn()});
+    return continuation(cn(tuple_type(arg_types)), CC::C, Intrinsic::Match, {"match"});
 }
 
 /*

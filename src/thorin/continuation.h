@@ -78,7 +78,7 @@ enum class CC : uint8_t {
  */
 class Continuation : public Def {
 private:
-    Continuation(const FnType* fn, CC cc, Intrinsic intrinsic, Debug dbg);
+    Continuation(const Pi* pi, CC cc, Intrinsic intrinsic, Debug dbg);
 
 public:
     //@{ operands
@@ -108,10 +108,9 @@ public:
     //@}
 
     //@{ type
-    const FnType* type() const { return Def::type()->as<FnType>(); }
+    const Pi* type() const { return Def::type()->as<Pi>(); }
     const Type* domain() const { return type()->domain(); }
-    const FnType* callee_fn_type() const { return callee()->type()->as<FnType>(); }
-    const FnType* arg_fn_type() const;
+    const Type* codomain() const { return type()->codomain(); }
     //@}
 
     Def* vstub(World&, const Type*) const override;
@@ -150,9 +149,9 @@ public:
     void match(const Def* val, Continuation* otherwise, Defs patterns, ArrayRef<Continuation*> continuations, Debug dbg = {});
     void verify() const {
 #if THORIN_ENABLE_CHECKS
-        auto c = callee_fn_type();
-        auto a = arg_fn_type();
-        assertf(c == a, "continuation '{}' calls '{}' of type '{}' but call has type '{}'\n", this, callee(), c, a);
+        //auto c = callee_fn_type();
+        //auto a = arg_fn_type();
+        //assertf(c == a, "continuation '{}' calls '{}' of type '{}' but call has type '{}'\n", this, callee(), c, a);
 #endif
     }
 
@@ -206,62 +205,18 @@ private:
 public:
     const Def* callee() const { return op(0); }
     const Def* arg() const { return op(1); }
+
+
+    size_t num_args() const;
+    const Def* arg(size_t i) const;
+    Array<const Def*> args() const;
+
     const Def* vrebuild(World&, const Type*, Defs) const override;
 
     friend class World;
 };
 
-struct Call {
-    struct Hash {
-        static uint64_t hash(const Call& call) { return call.hash(); }
-        static bool eq(const Call& c1, const Call& c2) { return c1 == c2; }
-        static Call sentinel() { return Call(); }
-    };
-
-    Call() {}
-    Call(const Def* callee, const Def* arg)
-        : callee_(callee)
-        , arg_(arg)
-    {}
-    Call(const Call& call)
-        : callee_(call.callee())
-        , arg_(call.arg())
-        , hash_(call.hash_)
-    {}
-
-    const Def* callee() const { return callee_; }
-    const Def*& callee() { return callee_; }
-    const Def* arg() const { return arg_; }
-    const Def* arg(size_t i) const;
-    size_t num_args() const;
-    Array<const Def*> args() const;
-
-    uint64_t hash() const {
-        if (hash_ == 0) {
-            assert(callee_ && arg_);
-            hash_ = hash_begin(callee());
-            hash_ = hash_combine(hash_, arg()->gid());
-        }
-        return hash_;
-    }
-
-    bool operator==(const Call& other) const { return this->callee() == other.callee() && this->arg() == other.arg(); }
-    Call& operator=(Call other) { swap(*this, other); return *this; }
-
-    friend void swap(Call& call1, Call& call2) {
-        using std::swap;
-        swap(call1.callee_,  call2.callee_);
-        swap(call1.arg_,     call2.arg_);
-        swap(call1.hash_,    call2.hash_);
-    }
-
-private:
-    const Def* callee_ = nullptr;
-    const Def* arg_ = nullptr;
-    mutable uint64_t hash_ = 0;
-};
-
-void jump_to_dropped_call(Continuation* src, Continuation* dst, const Call& call);
+//void jump_to_dropped_call(Continuation* src, Continuation* dst, const Call& call);
 
 //------------------------------------------------------------------------------
 

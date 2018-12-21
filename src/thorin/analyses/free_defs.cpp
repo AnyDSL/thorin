@@ -4,7 +4,7 @@
 namespace thorin {
 
 // TODO get rid of this mess
-DefSet free_defs(const Scope& scope, bool include_closures) {
+DefSet free_defs(const Scope& scope, bool /*include_closures*/) {
     DefSet result, done(scope.defs().capacity());
     std::queue<const Def*> queue;
 
@@ -24,11 +24,13 @@ DefSet free_defs(const Scope& scope, bool include_closures) {
     while (!queue.empty()) {
         auto def = pop(queue);
         if (auto primop = def->isa<PrimOp>()) {
+#if 0
             if (!include_closures && primop->isa<Closure>()) {
                 result.emplace(primop);
                 queue.push(primop->op(1));
                 goto queue_next;
             }
+#endif
             for (auto op : primop->ops()) {
                 if ((op->isa<MemOp>() || op->type()->isa<FrameType>()) && !scope.contains(op)) {
                     result.emplace(primop);

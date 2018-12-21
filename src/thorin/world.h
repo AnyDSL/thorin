@@ -128,7 +128,6 @@ public:
     }
     const Def* tuple(Defs args, Debug dbg = {}) { return args.size() == 1 ? args.front() : try_fold_aggregate(unify(new Tuple(*this, args, dbg))); }
     const Def* variant(const VariantType* variant_type, const Def* value, Debug dbg = {}) { return unify(new Variant(variant_type, value, dbg)); }
-    const Def* closure(const ClosureType* closure_type, const Def* fn, const Def* env, Debug dbg = {}) { return unify(new Closure(closure_type, fn, env, dbg)); }
     const Def* vector(Defs args, Debug dbg = {}) {
         if (args.size() == 1) return args[0];
         return try_fold_aggregate(unify(new Vector(*this, args, dbg)));
@@ -172,14 +171,15 @@ public:
     // continuations
 
     const Param* param(Continuation* continuation, Debug dbg) { return unify(new Param(continuation->domain(), continuation, dbg)); }
-    Continuation* continuation(const FnType* fn, CC cc = CC::C, Intrinsic intrinsic = Intrinsic::None, Debug dbg = {}) {
-        return insert(new Continuation(fn, cc, intrinsic, dbg));
+    Continuation* continuation(const Pi* cn, CC cc = CC::C, Intrinsic intrinsic = Intrinsic::None, Debug dbg = {}) {
+        return insert(new Continuation(cn, cc, intrinsic, dbg));
     }
-    Continuation* continuation(const FnType* fn, Debug dbg = {}) { return continuation(fn, CC::C, Intrinsic::None, dbg); }
-    Continuation* continuation(Debug dbg = {}) { return continuation(fn_type(), CC::C, Intrinsic::None, dbg); }
+    Continuation* continuation(const Pi* cn, Debug dbg = {}) { return continuation(cn, CC::C, Intrinsic::None, dbg); }
+    Continuation* continuation(Debug dbg = {}) { return continuation(cn(), CC::C, Intrinsic::None, dbg); }
     Continuation* branch() const { return branch_; }
     Continuation* match(const Type* type, size_t num_patterns);
     Continuation* end_scope() const { return end_scope_; }
+    const Def* app(const Def* callee, const Def* arg);
 
     /// Performs dead code, unreachable code and unused type elimination.
     void cleanup();

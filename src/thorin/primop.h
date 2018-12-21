@@ -114,7 +114,7 @@ private:
     {
         assert(is_type_bool(cond->type()));
         assert(tval->type() == fval->type() && "types of both values must be equal");
-        assert(!tval->type()->isa<FnType>() && "must not be a function");
+        assert(!tval->type()->isa<Pi>() && "must not be a function");
     }
 
     virtual const Def* vrebuild(World& to, const Type* type, Defs ops) const override;
@@ -272,23 +272,6 @@ public:
 };
 
 const Def* merge_tuple(const Def*, const Def*);
-
-/// Data constructor for a @p ClosureType.
-class Closure : public Aggregate {
-private:
-    Closure(const ClosureType* closure_type, const Def* fn, const Def* env, Debug dbg)
-        : Aggregate(Node_Closure, closure_type, {fn, env}, dbg)
-    {}
-
-    virtual const Def* vrebuild(World& to, const Type* type, Defs ops) const override;
-
-public:
-    bool is_thin() const;
-    static const VariantType* environment_type(World&);
-    static const PtrType*     environment_ptr_type(World&);
-
-    friend class World;
-};
 
 /// Data constructor for a @p VariantType.
 class Variant : public PrimOp {

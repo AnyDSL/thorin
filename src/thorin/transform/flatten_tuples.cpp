@@ -8,26 +8,26 @@
 
 namespace thorin {
 
-static Continuation*   wrap_def(Def2Def&, Def2Def&, const Def*, const FnType*, size_t);
-static Continuation* unwrap_def(Def2Def&, Def2Def&, const Def*, const FnType*, size_t);
+static Continuation*   wrap_def(Def2Def&, Def2Def&, const Def*, const Pi*, size_t);
+static Continuation* unwrap_def(Def2Def&, Def2Def&, const Def*, const Pi*, size_t);
 
 // Computes the type of the wrapped function
-static const Type* wrapped_type(const FnType* fn_type, size_t max_tuple_size) {
+static const Type* wrapped_type(const Pi* cn, size_t max_tuple_size) {
     std::vector<const Type*> nops;
-    for (auto op : fn_type->ops()) {
+    for (auto op : cn->ops()) {
         if (auto tuple_type = op->isa<TupleType>()) {
             if (tuple_type->num_ops() <= max_tuple_size) {
                 for (auto arg : tuple_type->ops())
                     nops.push_back(arg);
             } else
                 nops.push_back(op);
-        } else if (auto op_fn_type = op->isa<FnType>()) {
-            nops.push_back(wrapped_type(op_fn_type, max_tuple_size));
+        } else if (auto op_cn = op->isa<Pi>()) {
+            nops.push_back(wrapped_type(op_cn, max_tuple_size));
         } else {
             nops.push_back(op);
         }
     }
-    return fn_type->table().fn_type(nops);
+    return cn->table().cn(nops);
 }
 
 static Continuation* jump(Continuation* cont, Array<const Def*>& args) {
@@ -35,6 +35,7 @@ static Continuation* jump(Continuation* cont, Array<const Def*>& args) {
     return cont;
 }
 
+#if 0
 static Continuation* try_inline(Continuation* cont, Array<const Def*>& args) {
     if (args[0]->isa_continuation()) {
         Call call(args.front(), cont->world().tuple(args.skip_front()));
@@ -45,6 +46,7 @@ static Continuation* try_inline(Continuation* cont, Array<const Def*>& args) {
     }
     return cont;
 }
+#endif
 
 static void inline_calls(Continuation* cont) {
     for (auto use : cont->copy_uses()) {
@@ -59,7 +61,7 @@ static void inline_calls(Continuation* cont) {
 }
 
 // Wraps around a def, flattening tuples passed as parameters (dual of unwrap)
-static Continuation* wrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* old_def, const FnType* new_type, size_t max_tuple_size) {
+static Continuation* wrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* old_def, const Pi* new_type, size_t max_tuple_size) {
     // Transform:
     //
     // old_def(a: T, b: (U, V), c: fn (W, (X, Y))):
@@ -78,7 +80,7 @@ static Continuation* wrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* o
     if (wrapped.contains(old_def)) return wrapped[old_def]->as_continuation();
 
     auto& world = old_def->world();
-    auto old_type = old_def->type()->as<FnType>();
+    auto old_type = old_def->type()->as<Pi>();
     auto new_cont = world.continuation(new_type, old_def->debug());
     Array<const Def*> call_args(old_type->num_ops() + 1);
 
@@ -94,11 +96,11 @@ static Continuation* wrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* o
                 call_args[i + 1] = world.tuple(tuple_args);
             } else
                 call_args[i + 1] = new_cont->param(j++);
-        } else if (auto fn_type = op->isa<FnType>()) {
+        } else if (auto cn = op->isa<Pi>()) {
             auto fn_param = new_cont->param(j++);
             // no need to unwrap if the types are identical
             if (fn_param->type() != op)
-                call_args[i + 1] = unwrap_def(wrapped, unwrapped, fn_param, fn_type, max_tuple_size);
+                call_args[i + 1] = unwrap_def(wrapped, unwrapped, fn_param, cn, max_tuple_size);
             else
                 call_args[i + 1] = fn_param;
         } else {
@@ -112,7 +114,7 @@ static Continuation* wrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* o
 }
 
 // Unwrap a def, flattening tuples passed as arguments (dual of wrap)
-static Continuation* unwrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* new_def, const FnType* old_type, size_t max_tuple_size) {
+static Continuation* unwrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* new_def, const Pi* old_type, size_t max_tuple_size) {
     // Transform:
     //
     // new_def(a: T, b: U, c: V, d: fn (W, X, Y)):
@@ -131,7 +133,7 @@ static Continuation* unwrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def*
     if (unwrapped.contains(new_def)) return unwrapped[new_def]->as_continuation();
 
     auto& world = new_def->world();
-    auto new_type = new_def->type()->as<FnType>();
+    auto new_type = new_def->type()->as<Pi>();
     auto old_cont = world.continuation(old_type, new_def->debug());
     Array<const Def*> call_args(new_type->num_ops() + 1);
 
@@ -145,11 +147,11 @@ static Continuation* unwrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def*
                     call_args[j++] = world.extract(param, k);
             } else
                 call_args[j++] = param;
-        } else if (auto fn_type = param->type()->isa<FnType>()) {
-            auto new_fn_type = new_type->op(j - 1)->as<FnType>();
+        } else if (auto cn = param->type()->isa<Pi>()) {
+            auto new_cn = new_type->op(j - 1)->as<Pi>();
             // no need to wrap if the types are identical
-            if (fn_type != new_fn_type)
-                call_args[j++] = wrap_def(wrapped, unwrapped, param, new_fn_type, max_tuple_size);
+            if (cn != new_cn)
+                call_args[j++] = wrap_def(wrapped, unwrapped, param, new_cn, max_tuple_size);
             else
                 call_args[j++] = param;
         } else {
@@ -181,7 +183,7 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
                 is_passed_to_accelerator(cont))
                 continue;
 
-            auto new_type = wrapped_type(cont->type(), max_tuple_size)->as<FnType>();
+            auto new_type = wrapped_type(cont->type(), max_tuple_size)->as<Pi>();
             if (new_type == cont->type()) continue;
 
             // do not transform continuations multiple times
@@ -202,7 +204,7 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
             if (def->num_ops() == 0) continue;
 
             auto new_cont = wrap_pair.second->as_continuation();
-            auto old_cont = unwrap_def(wrapped, unwrapped, new_cont, def->type()->as<FnType>(), max_tuple_size);
+            auto old_cont = unwrap_def(wrapped, unwrapped, new_cont, def->type()->as<Pi>(), max_tuple_size);
 
             def->replace(old_cont);
             if (auto cont = def->isa_continuation())

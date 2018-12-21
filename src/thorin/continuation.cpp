@@ -44,14 +44,13 @@ const Def* Param::vrebuild(World& to, const Type*, Defs ops) const { return to.p
 
 //------------------------------------------------------------------------------
 
-Continuation::Continuation(const FnType* fn, CC cc, Intrinsic intrinsic, Debug dbg)
-    : Def(Node_Continuation, fn, 3, dbg)
+Continuation::Continuation(const Pi* pi, CC cc, Intrinsic intrinsic, Debug dbg)
+    : Def(Node_Continuation, pi, 2, dbg)
     , cc_(cc)
     , intrinsic_(intrinsic)
 {
     set_op(0, world().literal_bool(false));
-    set_op(1, world().top(world().fn_type()));
-    set_op(2, world().tuple({}));
+    set_op(1, world().top(pi->codomain()));
     contains_continuation_ = true;
 }
 
@@ -67,7 +66,7 @@ void Continuation::set_filter(Defs filter) {
 
 
 Def* Continuation::vstub(World& to, const Type* type) const {
-    return to.continuation(type->as<FnType>(), cc(), intrinsic(), debug_history());
+    return to.continuation(type->as<Pi>(), cc(), intrinsic(), debug_history());
 }
 
 size_t Continuation::num_params() const {
@@ -117,21 +116,21 @@ const Def* Continuation::filter(size_t i) const {
 }
 
 // TODO get rid off this
-size_t Call::num_args() const {
+size_t App::num_args() const {
     if (auto tuple_type = arg()->type()->isa<TupleType>())
         return tuple_type->num_ops();
     return 1;
 }
 
 // TODO get rid off this
-const Def* Call::arg(size_t i) const {
+const Def* App::arg(size_t i) const {
     if (arg()->type()->isa<TupleType>())
         return callee()->world().extract(arg(), i);
     return arg();
 }
 
 // TODO get rid off this
-Array<const Def*> Call::args() const {
+Array<const Def*> App::args() const {
     size_t n = num_args();
     Array<const Def*> args(n);
     for (size_t i = 0; i != n; ++i)
@@ -166,15 +165,15 @@ void Continuation::destroy_filter() {
 
 void Continuation::destroy_body() {
     update_op(0, world().literal_bool(false));
-    update_op(1, world().top(world().fn_type()));
+    update_op(1, world().top(world().cn()));
     update_op(2, world().tuple({}));
 }
 
-const FnType* Continuation::arg_fn_type() const {
-    return callee()->type()->isa<ClosureType>()
-        ? world().closure_type(arg()->type())->as<FnType>()
-        : world().fn_type(arg()->type());
+#if 0
+const Pi* Continuation::arg_pi() const {
+    return world().pi(arg()->type());
 }
+#endif
 
 Continuations Continuation::preds() const {
     std::vector<Continuation*> preds;
@@ -336,6 +335,7 @@ void Continuation::match(const Def* val, Continuation* otherwise, Defs patterns,
     return jump(world().match(val->type(), patterns.size()), args, dbg);
 }
 
+#if 0
 void jump_to_dropped_call(Continuation* src, Continuation* dst, const Call& call) {
     std::vector<const Def*> nargs;
     for (size_t i = 0, e = src->num_args(); i != e; ++i) {
@@ -345,6 +345,7 @@ void jump_to_dropped_call(Continuation* src, Continuation* dst, const Call& call
 
     src->jump(dst, nargs, src->jump_debug());
 }
+#endif
 
 void Continuation::update_op(size_t i, const Def* def) {
     if (i == 0)

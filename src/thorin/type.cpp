@@ -30,7 +30,7 @@ const Type* merge_tuple_type(const Type* a, const Type* b) {
     return w.tuple_type({a, b});
 }
 
-Array<const Type*> FnType::domains() const {
+Array<const Type*> Pi::domains() const {
     size_t n = num_domains();
     Array<const Type*> domains(n);
     for (size_t i = 0; i != n; ++i)
@@ -38,13 +38,13 @@ Array<const Type*> FnType::domains() const {
     return domains;
 }
 
-size_t FnType::num_domains() const {
+size_t Pi::num_domains() const {
     if (auto tuple_type = domain()->isa<TupleType>())
         return tuple_type->num_ops();
     return 1;
 }
 
-const Type* FnType::domain(size_t i) const {
+const Type* Pi::domain(size_t i) const {
     if (auto tuple_type = domain()->isa<TupleType>())
         return tuple_type->op(i);
     return domain();
@@ -67,11 +67,11 @@ const Type* VariantType        ::vrebuild(TypeTable& to, Types ops) const { retu
 const Type* Lambda             ::vrebuild(TypeTable& to, Types ops) const { return to.lambda(ops[0], name()); }
 const Type* Var                ::vrebuild(TypeTable& to, Types    ) const { return to.var(depth()); }
 const Type* DefiniteArrayType  ::vrebuild(TypeTable& to, Types ops) const { return to.definite_array_type(ops[0], dim()); }
-const Type* FnType             ::vrebuild(TypeTable& to, Types ops) const { return to.fn_type(ops[0]); }
-const Type* ClosureType        ::vrebuild(TypeTable& to, Types ops) const { return to.closure_type(ops[0]); }
+const Type* Pi                 ::vrebuild(TypeTable& to, Types ops) const { return to.pi(ops[0], ops[1]); }
 const Type* FrameType          ::vrebuild(TypeTable& to, Types    ) const { return to.frame_type(); }
 const Type* IndefiniteArrayType::vrebuild(TypeTable& to, Types ops) const { return to.indefinite_array_type(ops[0]); }
 const Type* MemType            ::vrebuild(TypeTable& to, Types    ) const { return to.mem_type(); }
+const Type* BottomType         ::vrebuild(TypeTable& to, Types    ) const { return to.bottom_type(); }
 const Type* PrimType           ::vrebuild(TypeTable& to, Types    ) const { return to.type(primtype_tag(), length()); }
 
 const Type* PtrType::vrebuild(TypeTable& to, Types ops) const {
@@ -114,7 +114,7 @@ const VectorType* VectorType::scalarize() const {
     return table().type(as<PrimType>()->primtype_tag());
 }
 
-bool FnType::is_returning() const {
+bool Pi::is_returning() const {
     bool ret = false;
     for (auto op : ops()) {
         switch (op->order()) {
@@ -176,8 +176,6 @@ static std::ostream& stream_type_ops(std::ostream& os, const Type* type) {
 std::ostream& App_               ::stream(std::ostream& os) const { return streamf(os, "{}[{}]", callee(), arg()); }
 std::ostream& Var                ::stream(std::ostream& os) const { return streamf(os, "<{}>", depth()); }
 std::ostream& DefiniteArrayType  ::stream(std::ostream& os) const { return streamf(os, "[{} x {}]", dim(), elem_type()); }
-std::ostream& FnType             ::stream(std::ostream& os) const { return streamf(os, "fn {}", domain()); }
-std::ostream& ClosureType        ::stream(std::ostream& os) const { return streamf(os, "closure {}", domain()); }
 std::ostream& FrameType          ::stream(std::ostream& os) const { return os << "frame"; }
 std::ostream& IndefiniteArrayType::stream(std::ostream& os) const { return streamf(os, "[{}]", elem_type()); }
 std::ostream& Lambda             ::stream(std::ostream& os) const { return streamf(os, "[{}].{}", name(), body()); }
@@ -185,6 +183,12 @@ std::ostream& MemType            ::stream(std::ostream& os) const { return os <<
 std::ostream& StructType         ::stream(std::ostream& os) const { return os << name(); }
 std::ostream& VariantType        ::stream(std::ostream& os) const { return stream_type_ops(os << "variant", this); }
 std::ostream& TupleType          ::stream(std::ostream& os) const { return stream_type_ops(os, this); }
+
+std::ostream& Pi::stream(std::ostream& os) const {
+    return is_cn()
+        ? streamf(os, "cn {}", domain())
+        : streamf(os, "Π{} -> {}", domain(), codomain());
+}
 
 std::ostream& PtrType::stream(std::ostream& os) const {
     if (is_vector())
@@ -224,7 +228,8 @@ std::ostream& PrimType::stream(std::ostream& os) const {
 
 TypeTable::TypeTable()
     : unit_ (unify(new TupleType(*this, Types())))
-    , fn0_  (unify(new FnType   (*this, unit_)))
+    , bottom_type_ (unify(new BottomType (*this)))
+    , cn0_  (unify(new Pi   (*this, unit_, bottom_type_)))
     , mem_  (unify(new MemType  (*this)))
     , frame_(unify(new FrameType(*this)))
 #define THORIN_ALL_TYPE(T, M) \

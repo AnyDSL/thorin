@@ -192,8 +192,8 @@ void Cleaner::eliminate_params() {
                     assert(proxy_idx.size() == 1 && proxy_idx[0] == 0);
                     new_domain = world().tuple_type({});
                 }
-                auto fn_type = world().fn_type(new_domain);
-                auto ncontinuation = world().continuation(fn_type, ocontinuation->cc(), ocontinuation->intrinsic(), ocontinuation->debug_history());
+                auto cn = world().cn(new_domain);
+                auto ncontinuation = world().continuation(cn, ocontinuation->cc(), ocontinuation->intrinsic(), ocontinuation->debug_history());
                 size_t j = 0;
                 for (auto i : param_idx) {
                     ocontinuation->param(i)->replace(ncontinuation->param(j));

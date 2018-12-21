@@ -125,6 +125,20 @@ private:
     friend class TypeTable;
 };
 
+class BottomType : public Type {
+public:
+    virtual std::ostream& stream(std::ostream&) const override;
+
+private:
+    BottomType(TypeTable& table)
+        : Type(table, Node_BottomType, {})
+    {}
+
+    virtual const Type* vrebuild(TypeTable& to, Types ops) const override;
+
+    friend class TypeTable;
+};
+
 /// The type of a variant (structurally typed).
 class VariantType : public Type {
 private:
@@ -268,19 +282,23 @@ private:
     friend class TypeTable;
 };
 
-class FnType : public Type {
+class Pi : public Type {
 protected:
-    FnType(TypeTable& table, const Type* domain, int tag = Node_FnType)
-        : Type(table, tag, {domain})
+    Pi(TypeTable& table, const Type* domain, const Type* codomain)
+        : Type(table, Node_Pi, {domain, codomain})
     {
         ++order_;
     }
 
 public:
     const Type* domain() const { return op(0); }
+    const Type* codomain() const { return op(1); }
+    const Type* is_cn() const { return codomain()->isa<BottomType>(); }
+
     size_t num_domains() const;
     Array<const Type*> domains() const;
     const Type* domain(size_t i) const;
+
     bool is_basicblock() const { return order() == 1; }
     bool is_returning() const;
 
@@ -288,27 +306,6 @@ public:
 
 private:
     virtual const Type* vrebuild(TypeTable& to, Types ops) const override;
-
-    friend class TypeTable;
-};
-
-class ClosureType : public FnType {
-private:
-    ClosureType(TypeTable& table, const Type* domain)
-        : FnType(table, {domain}, Node_ClosureType)
-    {
-        inner_order_ = order_;
-        order_ = 0;
-    }
-
-public:
-    int inner_order() const { return inner_order_; }
-
-    virtual const Type* vrebuild(TypeTable& to, Types ops) const override;
-    virtual std::ostream& stream(std::ostream&) const override;
-
-private:
-    int inner_order_;
 
     friend class TypeTable;
 };
@@ -388,16 +385,19 @@ public:
         assert(i < (size_t) Num_PrimTypes);
         return length == 1 ? primtypes_[i] : unify(new PrimType(*this, tag, length));
     }
+    const BottomType* bottom_type() { return bottom_type_; }
     const MemType* mem_type() const { return mem_; }
     const FrameType* frame_type() const { return frame_; }
     const PtrType* ptr_type(const Type* pointee,
                             size_t length = 1, int32_t device = -1, AddrSpace addr_space = AddrSpace::Generic) {
         return unify(new PtrType(*this, pointee, length, device, addr_space));
     }
-    const FnType* fn_type() { return fn0_; } ///< Returns an empty @p FnType.
-    const FnType* fn_type(Types domain) { return fn_type(tuple_type(domain)); }
-    const FnType* fn_type(const Type* domain) { return unify(new FnType(*this, domain)); }
-    const ClosureType* closure_type(const Type* domain) { return unify(new ClosureType(*this, domain)); }
+    const Pi* cn() { return cn0_; } ///< Returns an empty @p Pi.
+    const Pi* cn(Types domain) { return cn(tuple_type(domain)); }
+    const Pi* cn(const Type* domain) { return unify(new Pi(*this, domain, bottom_type())); }
+
+    const Pi* pi(Types domain, const Type* codomain) { return pi(tuple_type(domain), codomain); }
+    const Pi* pi(const Type* domain, const Type* codomain) { return unify(new Pi(*this, domain, codomain)); }
     const DefiniteArrayType*   definite_array_type(const Type* elem, u64 dim) { return unify(new DefiniteArrayType(*this, elem, dim)); }
     const IndefiniteArrayType* indefinite_array_type(const Type* elem) { return unify(new IndefiniteArrayType(*this, elem)); }
 
@@ -405,7 +405,8 @@ public:
         using std::swap;
         swap(t1.types_, t2.types_);
         swap(t1.unit_,  t2.unit_);
-        swap(t1.fn0_,   t2.fn0_);
+        swap(t1.cn0_,   t2.cn0_);
+        swap(t1.bottom_type_,   t2.bottom_type_);
         swap(t1.mem_,   t2.mem_);
         swap(t1.frame_, t2.frame_);
 #define THORIN_ALL_TYPE(T, M) \
@@ -424,7 +425,8 @@ private:
 
 private:
     const TupleType* unit_; ///< tuple().
-    const FnType* fn0_;
+    const BottomType* bottom_type_;
+    const Pi* cn0_;
     const MemType* mem_;
     const FrameType* frame_;
     union {

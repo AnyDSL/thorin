@@ -68,10 +68,10 @@ private:
 };
 
 /// Type application.
-class App : public Type {
+class App_ : public Type {
 private:
-    App(TypeTable& table, const Type* callee, const Type* arg)
-        : Type(table, Node_App, {callee, arg})
+    App_(TypeTable& table, const Type* callee, const Type* arg)
+        : Type(table, Node_App_, {callee, arg})
     {}
 
 public:
@@ -373,7 +373,7 @@ public:
 
     const Var* var(int depth) { return unify(new Var(*this, depth)); }
     const Lambda* lambda(const Type* body, const char* name) { return unify(new Lambda(*this, body, name)); }
-    const Type* app(const Type* callee, const Type* arg);
+    const Type* app_(const Type* callee, const Type* arg);
 
     const Type* tuple_type(Types ops) { return ops.size() == 1 ? ops.front() : unify(new TupleType(*this, ops)); }
     const TupleType* unit() { return unit_; } ///< Returns unit, i.e., an empty @p TupleType.

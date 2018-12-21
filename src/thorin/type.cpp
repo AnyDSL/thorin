@@ -61,7 +61,7 @@ const Type* StructType::vrebuild(TypeTable&, Types ops) const {
     return this;
 }
 
-const Type* App                ::vrebuild(TypeTable& to, Types ops) const { return to.app(ops[0], ops[1]); }
+const Type* App_               ::vrebuild(TypeTable& to, Types ops) const { return to.app_(ops[0], ops[1]); }
 const Type* TupleType          ::vrebuild(TypeTable& to, Types ops) const { return to.tuple_type(ops); }
 const Type* VariantType        ::vrebuild(TypeTable& to, Types ops) const { return to.variant_type(ops); }
 const Type* Lambda             ::vrebuild(TypeTable& to, Types ops) const { return to.lambda(ops[0], name()); }
@@ -173,7 +173,7 @@ static std::ostream& stream_type_ops(std::ostream& os, const Type* type) {
    return stream_list(os, type->ops(), [&](const Type* type) { os << type; }, "(", ")");
 }
 
-std::ostream& App                ::stream(std::ostream& os) const { return streamf(os, "{}[{}]", callee(), arg()); }
+std::ostream& App_               ::stream(std::ostream& os) const { return streamf(os, "{}[{}]", callee(), arg()); }
 std::ostream& Var                ::stream(std::ostream& os) const { return streamf(os, "<{}>", depth()); }
 std::ostream& DefiniteArrayType  ::stream(std::ostream& os) const { return streamf(os, "[{} x {}]", dim(), elem_type()); }
 std::ostream& FnType             ::stream(std::ostream& os) const { return streamf(os, "fn {}", domain()); }
@@ -239,8 +239,8 @@ const StructType* TypeTable::struct_type(Symbol name, size_t size) {
     return type;
 }
 
-const Type* TypeTable::app(const Type* callee, const Type* op) {
-    auto app = unify(new App(*this, callee, op));
+const Type* TypeTable::app_(const Type* callee, const Type* op) {
+    auto app = unify(new App_(*this, callee, op));
 
     if (auto cache = app->cache_)
         return cache;

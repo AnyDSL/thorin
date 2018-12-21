@@ -197,6 +197,20 @@ bool visit_capturing_intrinsics(Continuation*, std::function<bool(Continuation*)
 bool is_passed_to_accelerator(Continuation*, bool include_globals = true);
 bool is_passed_to_intrinsic(Continuation*, Intrinsic, bool include_globals = true);
 
+class App : public Def {
+private:
+    App(const Type* type, const Def* callee, const Def* arg, Debug dbg)
+        : Def(Node_App, type, {callee, arg}, dbg)
+    {}
+
+public:
+    const Def* callee() const { return op(0); }
+    const Def* arg() const { return op(1); }
+    const Def* vrebuild(World&, const Type*, Defs) const override;
+
+    friend class World;
+};
+
 struct Call {
     struct Hash {
         static uint64_t hash(const Call& call) { return call.hash(); }

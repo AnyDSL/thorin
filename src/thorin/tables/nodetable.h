@@ -44,6 +44,7 @@
     // Type
         // PrimType
         THORIN_NODE(App, app)
+        THORIN_NODE(App_, app)
         THORIN_NODE(DefiniteArrayType, definite_array_type)
         THORIN_NODE(FnType, fn)
         THORIN_NODE(ClosureType, closure_type)

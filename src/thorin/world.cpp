@@ -38,6 +38,11 @@ World::~World() {
     for (auto def : defs_) delete def;
 }
 
+const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
+    auto pi = callee->type()->as<Pi>();
+    return unify(new App(pi->codomain(), callee, arg, dbg));
+}
+
 /*
  * literals
  */

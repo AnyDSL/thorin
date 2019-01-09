@@ -180,6 +180,7 @@ std::ostream& FrameType          ::stream(std::ostream& os) const { return os <<
 std::ostream& IndefiniteArrayType::stream(std::ostream& os) const { return streamf(os, "[{}]", elem_type()); }
 std::ostream& Lambda             ::stream(std::ostream& os) const { return streamf(os, "[{}].{}", name(), body()); }
 std::ostream& MemType            ::stream(std::ostream& os) const { return os << "mem"; }
+std::ostream& BottomType         ::stream(std::ostream& os) const { return os << "bottom_type"; }
 std::ostream& StructType         ::stream(std::ostream& os) const { return os << name(); }
 std::ostream& VariantType        ::stream(std::ostream& os) const { return stream_type_ops(os << "variant", this); }
 std::ostream& TupleType          ::stream(std::ostream& os) const { return stream_type_ops(os, this); }

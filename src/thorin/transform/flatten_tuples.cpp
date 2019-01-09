@@ -1,4 +1,3 @@
-#if 0
 #include "thorin/continuation.h"
 #include "thorin/world.h"
 #include "thorin/transform/mangle.h"
@@ -36,18 +35,16 @@ static Continuation* jump(Continuation* cont, Array<const Def*>& args) {
     return cont;
 }
 
-#if 0
 static Continuation* try_inline(Continuation* cont, Array<const Def*>& args) {
     if (args[0]->isa_continuation()) {
-        Call call(args.front(), cont->world().tuple(args.skip_front()));
-        auto dropped = drop(call);
+        auto app = cont->world().app(args.front(), cont->world().tuple(args.skip_front()))->as<App>();
+        auto dropped = drop(app);
         cont->jump(dropped->callee(), dropped->args(), args[0]->debug());
     } else {
         jump(cont, args);
     }
     return cont;
 }
-#endif
 
 static void inline_calls(Continuation* cont) {
     for (auto use : cont->copy_uses()) {
@@ -225,4 +222,3 @@ void flatten_tuples(World& world) {
 }
 
 }
-#endif

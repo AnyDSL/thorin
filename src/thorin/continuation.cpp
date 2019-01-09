@@ -41,6 +41,7 @@ std::vector<Peek> peek(const Def* param) {
 //------------------------------------------------------------------------------
 
 const Def* Param::vrebuild(World& to, const Type*, Defs ops) const { return to.param(ops[0]->as_continuation(), debug()); }
+const Def* App  ::vrebuild(World& to, const Type*, Defs ops) const { return to.app  (ops[0], ops[1], debug()); }
 
 //------------------------------------------------------------------------------
 
@@ -335,17 +336,15 @@ void Continuation::match(const Def* val, Continuation* otherwise, Defs patterns,
     return jump(world().match(val->type(), patterns.size()), args, dbg);
 }
 
-#if 0
-void jump_to_dropped_call(Continuation* src, Continuation* dst, const Call& call) {
+void jump_to_dropped_app(Continuation* src, Continuation* dst, const App* app) {
     std::vector<const Def*> nargs;
     for (size_t i = 0, e = src->num_args(); i != e; ++i) {
-        if (call.arg(i)->isa<Top>())
+        if (app->arg(i)->isa<Top>())
             nargs.push_back(src->arg(i));
     }
 
     src->jump(dst, nargs, src->jump_debug());
 }
-#endif
 
 void Continuation::update_op(size_t i, const Def* def) {
     if (i == 0)

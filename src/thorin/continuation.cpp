@@ -46,12 +46,14 @@ const Def* App  ::vrebuild(World& to, const Type*, Defs ops) const { return to.a
 //------------------------------------------------------------------------------
 
 Continuation::Continuation(const Pi* pi, CC cc, Intrinsic intrinsic, Debug dbg)
-    : Def(Node_Continuation, pi, 2, dbg)
+    : Def(Node_Continuation, pi, 3, dbg)
     , cc_(cc)
     , intrinsic_(intrinsic)
 {
     set_op(0, world().literal_bool(false));
-    set_op(1, world().top(pi->codomain()));
+    set_op(1, world().top(world().cn()));
+    set_op(2, world().tuple({}));
+
     contains_continuation_ = true;
 }
 

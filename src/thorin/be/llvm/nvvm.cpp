@@ -57,7 +57,7 @@ llvm::FunctionType* NVVMCodeGen::convert_fn_type(Continuation* continuation) {
                 continue;
         types.push_back(type);
     }
-    return llvm::cast<llvm::FunctionType>(convert(continuation->world().fn_type(types)));
+    return llvm::cast<llvm::FunctionType>(convert(continuation->world().cn(types)));
 }
 
 void NVVMCodeGen::emit_function_decl_hook(Continuation* continuation, llvm::Function* f) {

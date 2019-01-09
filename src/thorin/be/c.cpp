@@ -22,7 +22,6 @@ public:
         : world_(world)
         , kernel_config_(kernel_config)
         , lang_(lang)
-        , fn_mem_(world.fn_type({world.mem_type()}))
         , debug_(debug)
         , os_(stream)
     {}
@@ -55,7 +54,6 @@ private:
     World& world_;
     const Cont2Config& kernel_config_;
     Lang lang_;
-    const FnType* fn_mem_;
     TypeMap<std::string> type2str_;
     DefMap<std::string> def2str_;
     DefMap<std::string> global2str_;
@@ -111,7 +109,7 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
         return os;
     } else if (type->isa<MemType>() || type == world().unit()) {
         return os << "void";
-    } else if (type->isa<FnType>()) {
+    } else if (type->isa<Pi>()) {
         THORIN_UNREACHABLE;
     } else if (auto tuple = type->isa<TupleType>()) {
         os << "typedef struct {" << up;
@@ -230,9 +228,11 @@ std::ostream& CCodeGen::emit_aggop_decl(const Type* type) {
     if (auto array = type->isa<IndefiniteArrayType>())
         emit_aggop_decl(array->elem_type());
 
-    if (auto fn = type->isa<FnType>())
-        for (auto type : fn->ops())
+    if (auto pi = type->isa<Pi>()) {
+        assert(pi->is_cn());
+        for (auto type : pi->domains()) // TODO remove loop
             emit_aggop_decl(type);
+    }
 
     // look for nested array
     if (auto array = type->isa<DefiniteArrayType>()) {
@@ -313,8 +313,8 @@ void CCodeGen::emit() {
         auto ret_param = continuation->ret_param();
 
         // emit function & its declaration
-        auto ret_param_fn_type = ret_param->type()->as<FnType>();
-        auto ret_type = ret_param_fn_type->num_ops() > 2 ? world_.tuple_type(ret_param_fn_type->ops().skip_front()) : ret_param_fn_type->ops().back();
+        auto ret_param_cn_type = ret_param->type()->as<Pi>();
+        auto ret_type = ret_param_cn_type->num_ops() > 2 ? world_.tuple_type(ret_param_cn_type->ops().skip_front()) : ret_param_cn_type->ops().back();
         auto name = (continuation->is_external() || continuation->is_empty()) ? continuation->name() : continuation->unique_name();
         if (continuation->is_external()) {
             auto config = kernel_config_.find(continuation);
@@ -498,7 +498,7 @@ void CCodeGen::emit() {
                 }
 
                 // skip higher-order primops, stuff dealing with frames and all memory related stuff except stores
-                if (primop->type()->isa<FnType>() || primop->type()->isa<FrameType>() || ((is_mem(primop) || is_unit(primop)) && !primop->isa<Store>()))
+                if (primop->type()->isa<Pi>() || primop->type()->isa<FrameType>() || ((is_mem(primop) || is_unit(primop)) && !primop->isa<Store>()))
                     continue;
 
                 emit_debug_info(primop);

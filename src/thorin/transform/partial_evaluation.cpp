@@ -25,7 +25,7 @@ public:
 private:
     World& world_;
     bool lower2cff_;
-    HashMap<Call, Continuation*> cache_;
+    AppMap<Continuation*> cache_;
     ContinuationSet done_;
     std::queue<Continuation*> queue_;
     ContinuationMap<bool> top_level_;
@@ -69,8 +69,8 @@ public:
         auto order = callee_->param(i)->order();
         if (lower2cff)
             if(order >= 2 || (order == 1
-                        && (!callee_->param(i)->type()->isa<FnType>()
-                            || (!callee_->is_returning() || (!is_top_level(callee_)))))) {
+                        && (!callee_->param(i)->type()->isa<Pi>()
+                        || (!callee_->is_returning() || (!is_top_level(callee_)))))) {
             DLOG("bad param({}) {} of continuation {}", i, callee_->param(i), callee_);
             return true;
         }
@@ -181,16 +181,16 @@ bool PartialEvaluator::run() {
                 }
 
                 if (fold) {
-                    Call call(callee, world().tuple(args));
-                    const auto& p = cache_.emplace(call, nullptr);
+                    auto app = world().app(callee, args)->as<App>();
+                    const auto& p = cache_.emplace(app, nullptr);
                     Continuation*& target = p.first->second;
                     // create new specialization if not found in cache
                     if (p.second) {
-                        target = drop(call);
+                        target = drop(app);
                         todo = true;
                     }
 
-                    jump_to_dropped_call(continuation, target, call);
+                    jump_to_dropped_app(continuation, target, app);
 
                     if (lower2cff_ && fold) {
                         // re-examine next iteration:

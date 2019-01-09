@@ -60,8 +60,8 @@ Continuation* Mangler::mangle() {
             param_types.emplace_back(old_entry()->param(i)->type()); // TODO reduce
     }
 
-    auto fn_type = world().fn_type(param_types);
-    new_entry_ = world().continuation(fn_type, old_entry()->debug_history());
+    auto pi = world().cn(param_types);
+    new_entry_ = world().continuation(pi, old_entry()->debug_history());
 
     // map value params
     def2def_[old_entry()] = old_entry();
@@ -201,9 +201,9 @@ Continuation* mangle(const Scope& scope, Defs args, Defs lift) {
     return Mangler(scope, args, lift).mangle();
 }
 
-Continuation* drop(const Call& call) {
-    Scope scope(call.callee()->as_continuation());
-    return drop(scope, call.args());
+Continuation* drop(const App* app) {
+    Scope scope(app->callee()->as_continuation());
+    return drop(scope, app->args());
 }
 
 //------------------------------------------------------------------------------

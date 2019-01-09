@@ -216,9 +216,14 @@ public:
     friend class World;
 };
 
-//void jump_to_dropped_call(Continuation* src, Continuation* dst, const Call& call);
+void jump_to_dropped_app(Continuation* src, Continuation* dst, const App*);
 
 //------------------------------------------------------------------------------
+
+template<class To>
+using AppMap  = GIDMap<const App*, To>;
+using AppSet  = GIDSet<const App*>;
+using App2App = AppMap<const App*>;
 
 template<class To>
 using ParamMap    = GIDMap<const Param*, To>;

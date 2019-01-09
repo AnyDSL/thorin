@@ -53,8 +53,8 @@ void lift_builtins(World& world) {
                         new_ops[use.index()] = world.global(lifted, false, lifted->debug());                                // update to new lifted continuation
 
                         // jump to new top-level dummy function with new args
-                        auto fn_type = world.fn_type(Array<const Type*>(new_ops.size()-1, [&] (auto i) { return new_ops[i+1]->type(); }));
-                        auto ncontinuation = world.continuation(fn_type, callee->cc(), callee->intrinsic(), callee->debug());
+                        auto cn = world.cn(Array<const Type*>(new_ops.size()-1, [&] (auto i) { return new_ops[i+1]->type(); }));
+                        auto ncontinuation = world.continuation(cn, callee->cc(), callee->intrinsic(), callee->debug());
                         ucontinuation->jump(ncontinuation, new_ops.skip_front(), ucontinuation->jump_debug());
                     }
                 }

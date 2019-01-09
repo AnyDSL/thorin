@@ -179,7 +179,8 @@ public:
     Continuation* branch() const { return branch_; }
     Continuation* match(const Type* type, size_t num_patterns);
     Continuation* end_scope() const { return end_scope_; }
-    const Def* app(const Def* callee, const Def* arg);
+    const Def* app(const Def* callee, const Def* arg, Debug dbg = {});
+    const Def* app(const Def* callee, Defs args, Debug dbg = {}) { return app(callee, tuple(args), dbg); }
 
     /// Performs dead code, unreachable code and unused type elimination.
     void cleanup();

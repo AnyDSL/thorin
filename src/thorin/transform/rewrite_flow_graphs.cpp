@@ -100,7 +100,7 @@ void rewrite_flow_graphs(World& world) {
         if (!transform)
             continue;
 
-        auto new_cont = world.continuation(rewrite_type(world, cont->type())->as<FnType>(), cont->debug());
+        auto new_cont = world.continuation(rewrite_type(world, cont->type())->as<Pi>(), cont->debug());
         if (cont->is_external())
             new_cont->make_external();
         rewriter.old2new[cont] = new_cont;

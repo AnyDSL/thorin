@@ -42,7 +42,7 @@ static bool contains_ptrtype(const Type* type) {
         case Node_PtrType:             return false;
         case Node_IndefiniteArrayType: return contains_ptrtype(type->as<ArrayType>()->elem_type());
         case Node_DefiniteArrayType:   return contains_ptrtype(type->as<DefiniteArrayType>()->elem_type());
-        case Node_FnType:              return false;
+        case Node_Pi:                  return false;
         case Node_StructType: {
             bool good = true;
             auto struct_type = type->as<StructType>();

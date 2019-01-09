@@ -761,7 +761,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
     }
 
     if (auto select = def->isa<Select>()) {
-        if (def->type()->isa<FnType>())
+        if (def->type()->isa<Pi>())
             return nullptr;
 
         llvm::Value* cond = lookup(select->cond());
@@ -803,32 +803,12 @@ llvm::Value* CodeGen::emit(const Def* def) {
         return llvm::UndefValue::get(convert(array->type()));
 
     if (auto agg = def->isa<Aggregate>()) {
-        assert(def->isa<Tuple>() || def->isa<StructAgg>() || def->isa<Vector>() || def->isa<Closure>());
+        assert(def->isa<Tuple>() || def->isa<StructAgg>() || def->isa<Vector>());
         llvm::Value* llvm_agg = llvm::UndefValue::get(convert(agg->type()));
 
         if (def->isa<Vector>()) {
             for (size_t i = 0, e = agg->num_ops(); i != e; ++i)
                 llvm_agg = irbuilder_.CreateInsertElement(llvm_agg, lookup(agg->op(i)), irbuilder_.getInt32(i));
-        } else if (auto closure = def->isa<Closure>()) {
-            auto closure_fn = irbuilder_.CreatePointerCast(lookup(agg->op(0)), llvm_agg->getType()->getStructElementType(0));
-            auto val = agg->op(1);
-            llvm::Value* env = nullptr;
-            if (closure->is_thin()) {
-                if (val->type() == world_.unit()) {
-                    env = emit(world_.bottom(Closure::environment_type(world_)));
-                } else {
-                    if (val->type()->isa<PtrType>())
-                        val = world_.bitcast(Closure::environment_ptr_type(world_), val);
-                    env = emit(world_.variant(Closure::environment_type(world_), val));
-                }
-            } else {
-                WDEF(def, "closure '{}' is leaking memory, type '{}' is too large", def, agg->op(1)->type());
-                auto alloc = emit_alloc(val->type(), nullptr);
-                irbuilder_.CreateStore(emit(val), alloc);
-                env = irbuilder_.CreatePtrToInt(alloc, convert(Closure::environment_type(world_)));
-            }
-            llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, closure_fn, 0);
-            llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, env, 1);
         } else {
             for (size_t i = 0, e = agg->num_ops(); i != e; ++i)
                 llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, lookup(agg->op(i)), { unsigned(i) });
@@ -1095,21 +1075,22 @@ llvm::Type* CodeGen::convert(const Type* type) {
             return types_[type] = llvm_type;
         }
 
-        case Node_ClosureType:
-        case Node_FnType: {
+        case Node_Pi: {
             // extract "return" type, collect all other types
-            auto fn = type->as<FnType>();
+            auto cn = type->as<Pi>();
+            assert(cn->is_cn());
             llvm::Type* ret = nullptr;
             std::vector<llvm::Type*> domains;
-            for (auto domain : fn->domains()) {
+            for (auto domain : cn->domains()) {
                 if (domain->isa<MemType>() || domain == world().unit()) continue;
-                auto fn = domain->isa<FnType>();
-                if (fn && !domain->isa<ClosureType>()) {
+                auto cn = domain->isa<Pi>();
+                assert(cn->is_cn());
+                if (cn) {
                     assert(!ret && "only one 'return' supported");
                     std::vector<llvm::Type*> ret_types;
-                    for (auto fn_domain : fn->domains()) {
-                        if (fn_domain->isa<MemType>() || fn_domain == world().unit()) continue;
-                        ret_types.push_back(convert(fn_domain));
+                    for (auto cn_domain : cn->domains()) {
+                        if (cn_domain->isa<MemType>() || cn_domain == world().unit()) continue;
+                        ret_types.push_back(convert(cn_domain));
                     }
                     if (ret_types.size() == 0)      ret = llvm::Type::getVoidTy(context_);
                     else if (ret_types.size() == 1) ret = ret_types.back();
@@ -1119,16 +1100,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
             }
             assert(ret);
 
-            if (type->tag() == Node_FnType) {
-                auto llvm_type = llvm::FunctionType::get(ret, domains, false);
-                return types_[type] = llvm_type;
-            }
-
-            auto env_type = convert(Closure::environment_type(world_));
-            domains.push_back(env_type);
-            auto fn_type = llvm::FunctionType::get(ret, domains, false);
-            auto ptr_type = llvm::PointerType::get(fn_type, 0);
-            llvm_type = llvm::StructType::get(context_, { ptr_type, env_type });
+            auto llvm_type = llvm::FunctionType::get(ret, domains, false);
             return types_[type] = llvm_type;
         }
 

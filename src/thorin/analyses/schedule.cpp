@@ -34,29 +34,27 @@ public:
             case Schedule::Smart: schedule_smart(); def2node = &def2smart_; break;
         }
 
-        for (const auto& p : *def2node) {
-            if (auto primop = p.first->isa<PrimOp>())
-                schedule[p.second].primops_.push_back(primop);
-        }
+        for (const auto& p : *def2node)
+            schedule[p.second].defs_.push_back(p.first);
 
         topo_sort(*def2node);
     }
 
-    void for_all_primops(std::function<void(const PrimOp*)> f) {
+    void for_all_defs(std::function<void(const Def*)> f) {
         for (const auto& p : def2uses_) {
-            if (auto primop = p.first->isa<PrimOp>())
-                f(primop);
+            if (!p.first->isa<Lam>())
+                f(p.first);
         }
     }
 
     const Uses& uses(const Def* def) const { return def2uses_.find(def)->second; }
     void compute_def2uses();
-    void schedule_early() { for_all_primops([&](const PrimOp* primop) { schedule_early(primop); }); }
-    void schedule_late()  { for_all_primops([&](const PrimOp* primop) { schedule_late (primop); }); }
-    void schedule_smart() { for_all_primops([&](const PrimOp* primop) { schedule_smart(primop); }); }
+    void schedule_early() { for_all_defs([&](const Def* def) { schedule_early(def); }); }
+    void schedule_late()  { for_all_defs([&](const Def* def) { schedule_late (def); }); }
+    void schedule_smart() { for_all_defs([&](const Def* def) { schedule_smart(def); }); }
     const CFNode* schedule_early(const Def*);
     const CFNode* schedule_late(const Def*);
-    const CFNode* schedule_smart(const PrimOp*);
+    const CFNode* schedule_smart(const Def*);
     void topo_sort(Def2CFNode&);
 
 private:
@@ -107,12 +105,11 @@ const CFNode* Scheduler::schedule_early(const Def* def) {
     if (i != def2early_.end())
         return i->second;
 
-    if (auto param = def->isa<Param>())
-        return def2early_[def] = cfg_[param->lam()];
+    if (auto lam = def->isa_lam()) return cfg_[lam];
 
     auto result = cfg_.entry();
-    for (auto op : def->as<PrimOp>()->ops()) {
-        if (!op->isa_lam() && def2uses_.find(op) != def2uses_.end()) {
+    for (auto op : def->ops()) {
+        if (def2uses_.contains(op)) {
             auto n = schedule_early(op);
             if (domtree_.depth(n) > domtree_.depth(result))
                 result = n;
@@ -127,12 +124,10 @@ const CFNode* Scheduler::schedule_late(const Def* def) {
     if (i != def2late_.end())
         return i->second;
 
-    if (auto lam = def->isa_lam())
-        return def2late_[def] = cfg_[lam];
+    if (auto lam = def->isa_lam()) return cfg_[lam];
 
     const CFNode* result = nullptr;
-    auto primop = def->as<PrimOp>();
-    for (auto use : uses(primop)) {
+    for (auto use : uses(def)) {
         auto n = schedule_late(use);
         result = result ? domtree_.lca(result, n) : n;
     }
@@ -140,16 +135,16 @@ const CFNode* Scheduler::schedule_late(const Def* def) {
     return def2late_[def] = result;
 }
 
-const CFNode* Scheduler::schedule_smart(const PrimOp* primop) {
-    auto i = def2smart_.find(primop);
+const CFNode* Scheduler::schedule_smart(const Def* def) {
+    auto i = def2smart_.find(def);
     if (i != def2smart_.end())
         return i->second;
 
-    auto early = schedule_early(primop);
-    auto late  = schedule_late (primop);
+    auto early = schedule_early(def);
+    auto late  = schedule_late (def);
 
     const CFNode* result;
-    if (primop->isa<Enter>() || primop->isa<Slot>() || Enter::is_out_mem(primop) || Enter::is_out_frame(primop)) {
+    if (def->isa<Enter>() || def->isa<Slot>() || Enter::is_out_mem(def) || Enter::is_out_frame(def)) {
         // Place allocas early for LLVM
         result = early;
     } else {
@@ -162,7 +157,7 @@ const CFNode* Scheduler::schedule_smart(const PrimOp* primop) {
 
             // HACK this should actually never occur
             if (i == nullptr) {
-                WLOG("don't know where to put {}", primop);
+                WLOG("don't know where to put {}", def);
                 result = late;
                 break;
             }
@@ -175,13 +170,13 @@ const CFNode* Scheduler::schedule_smart(const PrimOp* primop) {
         }
     }
 
-    return def2smart_[primop] = result;
+    return def2smart_[def] = result;
 }
 
 void Scheduler::topo_sort(Def2CFNode& def2node) {
     for (auto& block : schedule_.blocks_) {
-        std::vector<const PrimOp*> primops;
-        std::queue<const PrimOp*> queue;
+        std::vector<const Def*> defs;
+        std::queue<const Def*> queue;
         DefSet done;
 
         auto inside = [&](const Def* def) {
@@ -189,35 +184,35 @@ void Scheduler::topo_sort(Def2CFNode& def2node) {
             return i != def2node.end() && i->second == block.node();
         };
 
-        auto enqueue = [&](const PrimOp* primop) {
-            if (!done.contains(primop)) {
-                for (auto op : primop->ops()) {
+        auto enqueue = [&](const Def* def) {
+            if (!done.contains(def)) {
+                for (auto op : def->ops()) {
                     if (inside(op) && !done.contains(op))
                         return;
                 }
 
-                queue.push(primop);
-                done.emplace(primop);
-                primops.push_back(primop);
+                queue.push(def);
+                done.emplace(def);
+                defs.push_back(def);
             }
         };
 
-        for (auto primop : block)
-            enqueue(primop);
+        for (auto def : block)
+            enqueue(def);
 
         while (!queue.empty()) {
-            auto primop = pop(queue);
+            auto def = pop(queue);
 
-            for (auto use : uses(primop)) {
-                if (auto primop = use->isa<PrimOp>()) {
-                    if (inside(primop))
-                        enqueue(primop);
+            for (auto use : uses(def)) {
+                if (auto def = use->isa<Def>()) {
+                    if (inside(def))
+                        enqueue(def);
                 }
             }
         }
 
-        assert(block.primops_.size() == primops.size());
-        swap(block.primops_, primops);
+        assert(block.defs_.size() == defs.size());
+        swap(block.defs_, defs);
     }
 }
 
@@ -256,8 +251,8 @@ void Schedule::verify() {
         const Def* mem = block.lam()->mem_param();
         auto idom = block.lam() != scope().entry() ? domtree.idom(block.node()) : block.node();
         mem = mem ? mem : block2mem[(*this)[idom]];
-        for (auto primop : block) {
-            if (auto memop = primop->isa<MemOp>()) {
+        for (auto def : block) {
+            if (auto memop = def->isa<MemOp>()) {
                 if (memop->mem() != mem) {
                     WLOG("incorrect schedule: {} @ '{}'; current mem is {} @ '{}') - scope entry: {}", memop, memop->location(), mem, mem->location(), scope_.entry());
                     ok = false;
@@ -281,8 +276,8 @@ std::ostream& Schedule::stream(std::ostream& os) const {
                 os << up;
             os << endl;
             lam->stream_head(os) << up_endl;
-            for (auto primop : block)
-                primop->stream_assignment(os);
+            for (auto def : block)
+                def->stream_assignment(os);
 
             lam->stream_body(os) << down_endl;
             if (indent)

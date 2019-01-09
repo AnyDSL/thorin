@@ -86,7 +86,7 @@ protected:
     llvm::CallingConv::ID kernel_calling_convention_;
     DefMap<llvm::Value*> params_;
     DefMap<llvm::PHINode*> phis_;
-    PrimOpMap<llvm::Value*> primops_;
+    DefMap<llvm::Value*> defs_;
     LamMap<llvm::Function*> fcts_;
     TypeMap<llvm::Type*> types_;
 #if THORIN_ENABLE_RV

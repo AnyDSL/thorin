@@ -19,9 +19,7 @@ protected:
 public:
     const Def* out(size_t i) const;
     virtual bool has_multiple_outs() const { return false; }
-    virtual const char* op_name() const;
     virtual std::ostream& stream(std::ostream&) const override;
-    virtual std::ostream& stream_assignment(std::ostream&) const;
 
 protected:
 
@@ -659,7 +657,7 @@ using PrimOp2PrimOp = PrimOpMap<const PrimOp*>;
 
 //------------------------------------------------------------------------------
 
-bool is_from_branch_or_match(const PrimOp*);
+bool is_from_branch_or_match(const Def*);
 
 //------------------------------------------------------------------------------
 

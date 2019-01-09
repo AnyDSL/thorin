@@ -299,17 +299,17 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
             assert(lam == entry_ || lam->is_basicblock());
             irbuilder_.SetInsertPoint(bb2lam[lam]);
 
-            for (auto primop : block) {
+            for (auto def : block) {
                 if (debug)
-                    irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(primop->location().front_line(), primop->location().front_col(), discope));
+                    irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(def->location().front_line(), def->location().front_col(), discope));
 
-                auto i = phis_.  find(primop);
+                auto i = phis_.  find(def);
                 if (i != phis_.  end()) continue;
-                auto j = params_.find(primop);
+                auto j = params_.find(def);
                 if (j != params_.end()) continue;
 
                 // ignore tuple arguments for lams
-                if (auto tuple = primop->isa<Tuple>()) {
+                if (auto tuple = def->isa<Tuple>()) {
                     bool ignore = false;
                     for (auto use : tuple->uses()) {
                         ignore |= use->isa<Lam>() != nullptr;
@@ -318,14 +318,14 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                     if (ignore) continue;
                 }
 
-                if (primop->type()->order() >= 1) {
-                    // ignore higher-order primops which stem from a branch/match intrinsic
-                    if (is_from_branch_or_match(primop)) continue;
+                if (def->type()->order() >= 1) {
+                    // ignore higher-order defs which stem from a branch/match intrinsic
+                    if (is_from_branch_or_match(def)) continue;
                     THORIN_UNREACHABLE;
                 }
 
-                if (auto llvm_value = emit(primop))
-                    primops_[primop] = llvm_value;
+                if (auto llvm_value = emit(def))
+                    defs_[def] = llvm_value;
             }
 
             // terminate bb
@@ -477,7 +477,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
 
         params_.clear();
         phis_.clear();
-        primops_.clear();
+        defs_.clear();
     });
 
     if (debug)
@@ -532,34 +532,30 @@ llvm::Value* CodeGen::lookup(const Def* def) {
     auto j = params_.find(def);
     if (j != params_.end()) return j->second;
 
-    if (auto primop = def->isa<PrimOp>()) {
-        if (auto res = thorin::find(primops_, primop))
-            return res;
-        else {
-            // we emit all Thorin constants in the entry block, since they are not part of the schedule
-            if (is_const(primop)) {
-                auto bb = irbuilder_.GetInsertBlock();
-                auto fn = bb->getParent();
-                auto& entry = fn->getEntryBlock();
-
-                auto dbg = irbuilder_.getCurrentDebugLocation();
-                auto ip = irbuilder_.saveAndClearIP();
-                irbuilder_.SetInsertPoint(&entry, entry.begin());
-                auto llvm_value = emit(primop);
-                irbuilder_.restoreIP(ip);
-                irbuilder_.SetCurrentDebugLocation(dbg);
-                return primops_[primop] = llvm_value;
-            }
-
-            auto llvm_value = emit(def);
-            return primops_[primop] = llvm_value;
-        }
-    }
-
     if (auto lam = def->isa_lam())
         return emit_function_decl(lam);
 
-    THORIN_UNREACHABLE;
+    if (auto res = thorin::find(defs_, def))
+        return res;
+    else {
+        // we emit all Thorin constants in the entry block, since they are not part of the schedule
+        if (is_const(def)) {
+            auto bb = irbuilder_.GetInsertBlock();
+            auto fn = bb->getParent();
+            auto& entry = fn->getEntryBlock();
+
+            auto dbg = irbuilder_.getCurrentDebugLocation();
+            auto ip = irbuilder_.saveAndClearIP();
+            irbuilder_.SetInsertPoint(&entry, entry.begin());
+            auto llvm_value = emit(def);
+            irbuilder_.restoreIP(ip);
+            irbuilder_.SetCurrentDebugLocation(dbg);
+            return defs_[def] = llvm_value;
+        }
+
+        auto llvm_value = emit(def);
+        return defs_[def] = llvm_value;
+    }
 }
 
 llvm::AllocaInst* CodeGen::emit_alloca(llvm::Type* type, const std::string& name) {

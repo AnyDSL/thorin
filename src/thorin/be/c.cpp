@@ -479,30 +479,30 @@ void CCodeGen::emit() {
                 }
             }
 
-            for (auto primop : block) {
-                if (primop->type()->order() >= 1) {
+            for (auto def : block) {
+                if (def->type()->order() >= 1) {
                     // ignore higher-order primops which come from a match intrinsic
-                    if (is_from_branch_or_match(primop))
+                    if (is_from_branch_or_match(def))
                         continue;
                     THORIN_UNREACHABLE;
                 }
 
                 // struct/tuple/array declarations
-                if (!primop->isa<MemOp>()) {
-                    emit_aggop_decl(primop->type());
+                if (!def->isa<MemOp>()) {
+                    emit_aggop_decl(def->type());
                     // search for inlined tuples/arrays
-                    if (auto aggop = primop->isa<AggOp>()) {
+                    if (auto aggop = def->isa<AggOp>()) {
                         if (!aggop->agg()->isa<MemOp>())
                             emit_aggop_decl(aggop->agg()->type());
                     }
                 }
 
-                // skip higher-order primops, stuff dealing with frames and all memory related stuff except stores
-                if (primop->type()->isa<Pi>() || primop->type()->isa<FrameType>() || ((is_mem(primop) || is_unit(primop)) && !primop->isa<Store>()))
+                // skip higher-order def, stuff dealing with frames and all memory related stuff except stores
+                if (def->type()->isa<Pi>() || def->type()->isa<FrameType>() || ((is_mem(def) || is_unit(def)) && !def->isa<Store>()))
                     continue;
 
-                emit_debug_info(primop);
-                emit(primop) << endl;
+                emit_debug_info(def);
+                emit(def) << endl;
             }
 
             for (auto arg : lam->app()->args()) {

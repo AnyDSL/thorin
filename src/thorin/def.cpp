@@ -168,6 +168,10 @@ Lam* Def::as_lam() const { return const_cast<Lam*>(scast<Lam>(this)); }
 Lam* Def::isa_lam() const { return const_cast<Lam*>(dcast<Lam>(this)); }
 std::ostream& Def::stream(std::ostream& out) const { return out << unique_name(); }
 
+std::ostream& Def::stream_assignment(std::ostream& os) const {
+    return streamf(os, "{} {} = {} {}", type(), unique_name(), op_name(), stream_list(ops(), [&] (const Def* def) { os << def; })) << endl;
+}
+
 #if THORIN_ENABLE_CHECKS
 void force_use_dump() {
     Defs defs;

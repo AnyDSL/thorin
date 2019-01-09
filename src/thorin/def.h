@@ -171,7 +171,9 @@ public:
 
     virtual uint64_t vhash() const;
     virtual bool equal(const Def* other) const;
+    virtual const char* op_name() const;
     virtual std::ostream& stream(std::ostream&) const;
+    virtual std::ostream& stream_assignment(std::ostream&) const;
     static size_t gid_counter() { return gid_counter_; }
 
 private:

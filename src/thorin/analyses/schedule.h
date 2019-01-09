@@ -6,8 +6,6 @@
 
 namespace thorin {
 
-class PrimOp;
-
 class Schedule : public Streamable {
 public:
     enum Tag { Early, Late, Smart };
@@ -21,16 +19,16 @@ public:
 
         const CFNode* node() const { return node_; }
         Lam* lam() const { return node()->lam(); }
-        ArrayRef<const PrimOp*> primops() const { return primops_; }
+        ArrayRef<const Def*> defs() const { return defs_; }
         size_t index() const { return index_; }
 
-        typedef ArrayRef<const PrimOp*>::const_iterator const_iterator;
-        const_iterator begin() const { return primops().begin(); }
-        const_iterator end() const { return primops().end(); }
+        typedef ArrayRef<const Def*>::const_iterator const_iterator;
+        const_iterator begin() const { return defs().begin(); }
+        const_iterator end() const { return defs().end(); }
 
     private:
         const CFNode* node_;
-        std::vector<const PrimOp*> primops_;
+        std::vector<const Def*> defs_;
         size_t index_;
 
         friend class Schedule;

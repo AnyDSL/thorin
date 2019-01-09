@@ -218,8 +218,8 @@ using ParamSet    = GIDSet<const Param*>;
 using Param2Param = ParamMap<const Param*>;
 
 template<class To>
-using LamMap           = GIDMap<Lam*, To>;
-using LamSet           = GIDSet<Lam*>;
+using LamMap  = GIDMap<Lam*, To>;
+using LamSet  = GIDSet<Lam*>;
 using Lam2Lam = LamMap<Lam*>;
 
 //------------------------------------------------------------------------------

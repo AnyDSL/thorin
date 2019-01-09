@@ -48,13 +48,12 @@ const Def* App  ::vrebuild(World& to, const Type*, Defs ops) const { return to.a
 //------------------------------------------------------------------------------
 
 Lam::Lam(const Pi* pi, CC cc, Intrinsic intrinsic, Debug dbg)
-    : Def(Node_Lam, pi, 3, dbg)
+    : Def(Node_Lam, pi, 2, dbg)
     , cc_(cc)
     , intrinsic_(intrinsic)
 {
     set_op(0, world().literal_bool(false));
-    set_op(1, world().top(world().cn()));
-    set_op(2, world().tuple({}));
+    set_op(1, world().top(pi->codomain()));
 
     contains_lam_ = true;
 }
@@ -147,8 +146,7 @@ void Lam::destroy_filter() {
 
 void Lam::destroy_body() {
     update_op(0, world().literal_bool(false));
-    update_op(1, world().top(world().cn()));
-    update_op(2, world().tuple({}));
+    update_op(1, world().top(type()->codomain()));
 }
 
 #if 0
@@ -294,8 +292,7 @@ void Lam::app(const Def* callee, const Def* arg, Debug dbg) {
         }
     }
 
-    Def::update_op(1, callee);
-    Def::update_op(2, arg);
+    Def::update_op(1, world().app(callee, arg, dbg));
     verify();
 }
 

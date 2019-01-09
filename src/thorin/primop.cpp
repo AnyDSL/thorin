@@ -206,7 +206,7 @@ const Def* IndefiniteArray::vrebuild(World& to, const Type* t, Defs ops) const {
  * op_name
  */
 
-const char* PrimOp::op_name() const {
+const char* Def::op_name() const {
     switch (tag()) {
 #define THORIN_NODE(op, abbr) case Node_##op: return #abbr;
 #include "thorin/tables/nodetable.h"
@@ -269,11 +269,6 @@ std::ostream& PrimLit::stream(std::ostream& os) const {
 
 std::ostream& Global::stream(std::ostream& os) const { return os << unique_name(); }
 
-
-std::ostream& PrimOp::stream_assignment(std::ostream& os) const {
-    return streamf(os, "{} {} = {} {}", type(), unique_name(), op_name(), stream_list(ops(), [&] (const Def* def) { os << def; })) << endl;
-}
-
 std::ostream& Assembly::stream_assignment(std::ostream& os) const {
     streamf(os, "{} {} = asm \"{}\"", type(), unique_name(), asm_template());
     stream_list(os, output_constraints(), [&](const auto& output_constraint) { os << output_constraint; }, " : (", ")");
@@ -331,9 +326,9 @@ const Type* Extract::extracted_type(const Def* agg, const Def* index) {
     }
 }
 
-bool is_from_branch_or_match(const PrimOp* primop) {
+bool is_from_branch_or_match(const Def* def) {
     bool from_match = true;
-    for (auto& use : primop->uses()) {
+    for (auto& use : def->uses()) {
         if (auto lam = use.def()->isa<Lam>()) {
             if (auto app = lam->body()->isa<App>()) {
                 auto callee = app->callee()->isa<Lam>();

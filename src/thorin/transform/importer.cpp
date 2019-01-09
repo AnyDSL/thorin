@@ -68,9 +68,9 @@ const Def* Importer::import(Tracker odef) {
     if (ndef) {
         for (size_t i = 0; i != size; ++i)
             const_cast<Def*>(ndef)->update_op(i, nops[i]); // TODO use set_op here
-        if (auto ocontinuation = odef->isa<Continuation>()) { // TODO do sth smarter here
-            if (ocontinuation->is_external())
-                ndef->as_continuation()->make_external();
+        if (auto olam = odef->isa<Lam>()) { // TODO do sth smarter here
+            if (olam->is_external())
+                ndef->as_lam()->make_external();
         }
     } else {
         ndef = odef->vrebuild(world_, ntype, nops);

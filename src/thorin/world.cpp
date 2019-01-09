@@ -4,7 +4,7 @@
 
 #include "thorin/def.h"
 #include "thorin/primop.h"
-#include "thorin/continuation.h"
+#include "thorin/lam.h"
 #include "thorin/type.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/transform/cleanup_world.h"
@@ -30,8 +30,8 @@ namespace thorin {
 World::World(std::string name)
     : name_(name)
 {
-    branch_ = continuation(cn(tuple_type({type_bool(), cn(), cn()})), CC::C, Intrinsic::Branch, {"br"});
-    end_scope_ = continuation(cn(), CC::C, Intrinsic::EndScope, {"end_scope"});
+    branch_ = lam(cn(tuple_type({type_bool(), cn(), cn()})), CC::C, Intrinsic::Branch, {"br"});
+    end_scope_ = lam(cn(), CC::C, Intrinsic::EndScope, {"end_scope"});
 }
 
 World::~World() {
@@ -869,16 +869,16 @@ const Def* World::run(const Def* def, Debug dbg) {
 }
 
 /*
- * continuations
+ * lams
  */
 
-Continuation* World::match(const Type* type, size_t num_patterns) {
+Lam* World::match(const Type* type, size_t num_patterns) {
     Array<const Type*> arg_types(num_patterns + 2);
     arg_types[0] = type;
     arg_types[1] = cn();
     for (size_t i = 0; i < num_patterns; i++)
         arg_types[i + 2] = tuple_type({type, cn()});
-    return continuation(cn(tuple_type(arg_types)), CC::C, Intrinsic::Match, {"match"});
+    return lam(cn(tuple_type(arg_types)), CC::C, Intrinsic::Match, {"match"});
 }
 
 /*
@@ -902,12 +902,12 @@ const Def* World::try_fold_aggregate(const Aggregate* agg) {
     return from && from->type() == agg->type() ? from : agg;
 }
 
-std::vector<Continuation*> World::copy_continuations() const {
-    std::vector<Continuation*> result;
+std::vector<Lam*> World::copy_lams() const {
+    std::vector<Lam*> result;
 
     for (auto def : defs_) {
-        if (auto continuation = def->isa_continuation())
-            result.emplace_back(continuation);
+        if (auto lam = def->isa_lam())
+            result.emplace_back(lam);
     }
 
     return result;

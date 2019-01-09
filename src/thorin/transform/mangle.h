@@ -18,13 +18,13 @@ public:
     const Scope& scope() const { return scope_; }
     World& world() const { return scope_.world(); }
     const Def* def2def(const Def* def) { return find(def2def_, def); }
-    Continuation* mangle();
-    Continuation* old_entry() const { return old_entry_; }
-    Continuation* new_entry() const { return new_entry_; }
+    Lam* mangle();
+    Lam* old_entry() const { return old_entry_; }
+    Lam* new_entry() const { return new_entry_; }
 
 private:
-    void mangle_body(Continuation* ocontinuation, Continuation* ncontinuation);
-    Continuation* mangle_head(Continuation* ocontinuation);
+    void mangle_body(Lam* olam, Lam* nlam);
+    Lam* mangle_head(Lam* olam);
     const Def* mangle(const Def* odef);
     bool within(const Def* def) { return scope().contains(def) || defs_.contains(def); }
 
@@ -32,25 +32,25 @@ private:
     Defs args_;
     Defs lift_;
     Type2Type type2type_;
-    Continuation* old_entry_;
-    Continuation* new_entry_;
+    Lam* old_entry_;
+    Lam* new_entry_;
     DefSet defs_;
     Def2Def def2def_;
 };
 
-Continuation* mangle(const Scope&, Defs args, Defs lift);
+Lam* mangle(const Scope&, Defs args, Defs lift);
 
-inline Continuation* drop(const Scope& scope, Defs args) {
+inline Lam* drop(const Scope& scope, Defs args) {
     return mangle(scope, args, Array<const Def*>());
 }
 
-Continuation* drop(const App*);
+Lam* drop(const App*);
 
-inline Continuation* lift(const Scope& scope, Defs defs) {
+inline Lam* lift(const Scope& scope, Defs defs) {
     return mangle(scope, Array<const Def*>(scope.entry()->num_params()), defs);
 }
 
-inline Continuation* clone(const Scope& scope) {
+inline Lam* clone(const Scope& scope) {
     return mangle(scope, Array<const Def*>(scope.entry()->num_params()), Defs());
 }
 

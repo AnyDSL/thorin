@@ -1,4 +1,4 @@
-#include "thorin/continuation.h"
+#include "thorin/lam.h"
 #include "thorin/primop.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
@@ -303,21 +303,21 @@ void CCodeGen::emit() {
         if (scope.entry() == world().branch())
             return;
 
-        // continuation declarations
-        auto continuation = scope.entry();
-        if (continuation->is_intrinsic())
+        // lam declarations
+        auto lam = scope.entry();
+        if (lam->is_intrinsic())
             return;
 
-        assert(continuation->is_returning());
+        assert(lam->is_returning());
 
-        auto ret_param = continuation->ret_param();
+        auto ret_param = lam->ret_param();
 
         // emit function & its declaration
         auto ret_param_cn_type = ret_param->type()->as<Pi>();
         auto ret_type = ret_param_cn_type->num_ops() > 2 ? world_.tuple_type(ret_param_cn_type->ops().skip_front()) : ret_param_cn_type->ops().back();
-        auto name = (continuation->is_external() || continuation->is_empty()) ? continuation->name() : continuation->unique_name();
-        if (continuation->is_external()) {
-            auto config = kernel_config_.find(continuation);
+        auto name = (lam->is_external() || lam->is_empty()) ? lam->name() : lam->unique_name();
+        if (lam->is_external()) {
+            auto config = kernel_config_.find(lam);
             switch (lang_) {
                 default: break;
                 case Lang::CUDA:
@@ -353,7 +353,7 @@ void CCodeGen::emit() {
         size_t fi = 0;
         std::string hls_pragmas;
         // emit and store all first-order params
-        for (auto param : continuation->params()) {
+        for (auto param : lam->params()) {
             if (is_mem(param) || is_unit(param))
                 continue;
             if (param->order() == 0) {
@@ -375,13 +375,13 @@ void CCodeGen::emit() {
 
                 // get the kernel launch config
                 KernelConfig* config = nullptr;
-                if (continuation->is_external()) {
-                    auto config_it = kernel_config_.find(continuation);
+                if (lam->is_external()) {
+                    auto config_it = kernel_config_.find(lam);
                     assert(config_it != kernel_config_.end());
                     config = config_it->second.get();
                 }
 
-                if (lang_ == Lang::OPENCL && continuation->is_external() &&
+                if (lang_ == Lang::OPENCL && lam->is_external() &&
                     (param->type()->isa<DefiniteArrayType>() ||
                      param->type()->isa<StructType>() ||
                      param->type()->isa<TupleType>())) {
@@ -390,7 +390,7 @@ void CCodeGen::emit() {
                     func_impl_  << "__global ";
                     emit_type(func_decls_, param->type()) << " *";
                     emit_type(func_impl_,  param->type()) << " *" << param->unique_name() << "_";
-                } else if (lang_ == Lang::HLS && continuation->is_external() && param->type()->isa<PtrType>()) {
+                } else if (lang_ == Lang::HLS && lam->is_external() && param->type()->isa<PtrType>()) {
                     auto array_size = config->as<HLSKernelConfig>()->param_size(param);
                     assert(array_size > 0);
                     auto ptr_type = param->type()->as<PtrType>();
@@ -423,11 +423,11 @@ void CCodeGen::emit() {
             func_impl_ << down << endl << hls_pragmas << up;
 
         // OpenCL: load struct from buffer
-        for (auto param : continuation->params()) {
+        for (auto param : lam->params()) {
             if (is_mem(param) || is_unit(param))
                 continue;
             if (param->order() == 0) {
-                if (lang_==Lang::OPENCL && continuation->is_external() &&
+                if (lang_==Lang::OPENCL && lam->is_external() &&
                     (param->type()->isa<DefiniteArrayType>() ||
                      param->type()->isa<StructType>() ||
                      param->type()->isa<TupleType>())) {
@@ -441,16 +441,16 @@ void CCodeGen::emit() {
 
         // emit function arguments and phi nodes
         for (const auto& block : schedule) {
-            for (auto param : block.continuation()->params()) {
+            for (auto param : block.lam()->params()) {
                 if (is_mem(param) || is_unit(param))
                     continue;
                 emit_aggop_decl(param->type());
                 insert(param, param->unique_name());
             }
 
-            auto continuation = block.continuation();
-            if (scope.entry() != continuation) {
-                for (auto param : continuation->params()) {
+            auto lam = block.lam();
+            if (scope.entry() != lam) {
+                for (auto param : lam->params()) {
                     if (!is_mem(param) && !is_unit(param)) {
                         func_impl_ << endl;
                         emit_addr_space(func_impl_, param->type());
@@ -463,17 +463,17 @@ void CCodeGen::emit() {
         }
 
         for (const auto& block : schedule) {
-            auto continuation = block.continuation();
-            if (continuation->is_empty())
+            auto lam = block.lam();
+            if (lam->is_empty())
                 continue;
-            assert(continuation == scope.entry() || continuation->is_basicblock());
+            assert(lam == scope.entry() || lam->is_basicblock());
             func_impl_ << endl;
 
             // print label for the current basic block
-            if (continuation != scope.entry()) {
-                func_impl_ << "l" << continuation->gid() << ": ;" << up << endl;
+            if (lam != scope.entry()) {
+                func_impl_ << "l" << lam->gid() << ": ;" << up << endl;
                 // load params from phi node
-                for (auto param : continuation->params()) {
+                for (auto param : lam->params()) {
                     if (!is_mem(param) && !is_unit(param))
                         func_impl_ << param->unique_name() << " = p" << param->unique_name() << ";" << endl;
                 }
@@ -505,7 +505,7 @@ void CCodeGen::emit() {
                 emit(primop) << endl;
             }
 
-            for (auto arg : continuation->args()) {
+            for (auto arg : lam->app()->args()) {
                 // emit definitions of inlined elements
                 emit_aggop_defs(arg);
 
@@ -517,15 +517,15 @@ void CCodeGen::emit() {
             }
 
             // terminate bb
-            if (continuation->callee() == ret_param) { // return
-                size_t num_args = continuation->num_args();
+            if (lam->app()->callee() == ret_param) { // return
+                size_t num_args = lam->app()->num_args();
                 if (num_args == 0) func_impl_ << "return ;";
                 else {
                     Array<const Def*> values(num_args);
                     Array<const Type*> types(num_args);
 
                     size_t n = 0;
-                    for (auto arg : continuation->args()) {
+                    for (auto arg : lam->app()->args()) {
                         if (!is_mem(arg) && !is_unit(arg)) {
                             values[n] = arg;
                             types[n] = arg->type();
@@ -540,7 +540,7 @@ void CCodeGen::emit() {
                     } else {
                         types.shrink(n);
                         auto ret_type = world_.tuple_type(types);
-                        auto ret_tuple_name = "ret_tuple" + std::to_string(continuation->gid());
+                        auto ret_tuple_name = "ret_tuple" + std::to_string(lam->gid());
                         emit_aggop_decl(ret_type);
                         emit_type(func_impl_, ret_type) << " " << ret_tuple_name << ";";
 
@@ -552,28 +552,28 @@ void CCodeGen::emit() {
                         func_impl_ << endl << "return " << ret_tuple_name << ";";
                     }
                 }
-            } else if (continuation->callee() == world().branch()) {
-                emit_debug_info(continuation->arg(0)); // TODO correct?
+            } else if (lam->app()->callee() == world().branch()) {
+                emit_debug_info(lam->app()->arg(0)); // TODO correct?
                 func_impl_ << "if (";
-                emit(continuation->arg(0));
+                emit(lam->app()->arg(0));
                 func_impl_ << ") ";
-                emit(continuation->arg(1));
+                emit(lam->app()->arg(1));
                 func_impl_ << " else ";
-                emit(continuation->arg(2));
-            } else if (continuation->callee()->isa<Continuation>() &&
-                       continuation->callee()->as<Continuation>()->intrinsic() == Intrinsic::Match) {
+                emit(lam->app()->arg(2));
+            } else if (lam->app()->callee()->isa<Lam>() &&
+                       lam->app()->callee()->as<Lam>()->intrinsic() == Intrinsic::Match) {
                 func_impl_ << "switch (";
-                emit(continuation->arg(0)) << ") {" << up << endl;
-                for (size_t i = 2; i < continuation->num_args(); i++) {
-                    auto arg = continuation->arg(i)->as<Tuple>();
+                emit(lam->app()->arg(0)) << ") {" << up << endl;
+                for (size_t i = 2; i < lam->app()->num_args(); i++) {
+                    auto arg = lam->app()->arg(i)->as<Tuple>();
                     func_impl_ << "case ";
                     emit(arg->op(0)) << ": ";
                     emit(arg->op(1)) << endl;
                 }
                 func_impl_ << "default: ";
-                emit(continuation->arg(1));
+                emit(lam->app()->arg(1));
                 func_impl_ << down << endl << "}";
-            } else if (continuation->callee()->isa<Bottom>()) {
+            } else if (lam->app()->callee()->isa<Bottom>()) {
                 func_impl_ << "return ; // bottom: unreachable";
             } else {
                 auto store_phi = [&] (const Def* param, const Def* arg) {
@@ -581,22 +581,22 @@ void CCodeGen::emit() {
                     emit(arg) << ";";
                 };
 
-                auto callee = continuation->callee()->as_continuation();
+                auto callee = lam->app()->callee()->as_lam();
                 emit_debug_info(callee);
 
                 if (callee->is_basicblock()) {   // ordinary jump
-                    assert(callee->num_params()==continuation->num_args());
+                    assert(callee->num_params()==lam->app()->num_args());
                     for (size_t i = 0, size = callee->num_params(); i != size; ++i)
                         if (!is_mem(callee->param(i)) && !is_unit(callee->param(i))) {
-                            store_phi(callee->param(i), continuation->arg(i));
+                            store_phi(callee->param(i), lam->app()->arg(i));
                             func_impl_ << endl;
                         }
                     emit(callee);
                 } else {
                     if (callee->is_intrinsic()) {
                         if (callee->intrinsic() == Intrinsic::Reserve) {
-                            if (!continuation->arg(1)->isa<PrimLit>())
-                                EDEF(continuation->arg(1), "reserve_shared: couldn't extract memory size");
+                            if (!lam->app()->arg(1)->isa<PrimLit>())
+                                EDEF(lam->app()->arg(1), "reserve_shared: couldn't extract memory size");
 
                             switch (lang_) {
                                 default:                                        break;
@@ -604,13 +604,13 @@ void CCodeGen::emit() {
                                 case Lang::OPENCL: func_impl_ << "__local ";    break;
                             }
 
-                            auto cont = continuation->arg(2)->as_continuation();
-                            auto elem_type = cont->param(1)->type()->as<PtrType>()->pointee()->as<ArrayType>()->elem_type();
-                            auto name = "reserver_" + cont->param(1)->unique_name();
+                            auto l = lam->app()->arg(2)->as_lam();
+                            auto elem_type = lam->param(1)->type()->as<PtrType>()->pointee()->as<ArrayType>()->elem_type();
+                            auto name = "reserver_" + lam->param(1)->unique_name();
                             emit_type(func_impl_, elem_type) << " " << name << "[";
-                            emit(continuation->arg(1)) << "];" << endl;
+                            emit(lam->app()->arg(1)) << "];" << endl;
                             // store_phi:
-                            func_impl_ << "p" << cont->param(1)->unique_name() << " = " << name << ";";
+                            func_impl_ << "p" << l->param(1)->unique_name() << " = " << name << ";";
                             if (lang_ == Lang::HLS)
                                 func_impl_ << endl
                                            << "#pragma HLS dependence variable=" << name << " inter false" << endl
@@ -626,7 +626,7 @@ void CCodeGen::emit() {
                             func_impl_ << name << "(";
                             // emit all first-order args
                             size_t fi = 0;
-                            for (auto arg : continuation->args()) {
+                            for (auto arg : lam->app()->args()) {
                                 if (arg->order() == 0 && !(is_mem(arg) || is_unit(arg))) {
                                     if (fi++ > 0)
                                         func_impl_ << ", ";
@@ -641,15 +641,15 @@ void CCodeGen::emit() {
                         };
 
                         const Def* ret_arg = 0;
-                        for (auto arg : continuation->args()) {
+                        for (auto arg : lam->app()->args()) {
                             if (arg->order() != 0) {
                                 assert(!ret_arg);
                                 ret_arg = arg;
                             }
                         }
 
-                        // must be call + continuation --- call + return has been removed by codegen_prepare
-                        auto succ = ret_arg->as_continuation();
+                        // must be call + lam --- call + return has been removed by codegen_prepare
+                        auto succ = ret_arg->as_lam();
                         size_t num_params = succ->num_params();
 
                         size_t n = 0;
@@ -670,7 +670,7 @@ void CCodeGen::emit() {
                         else {
                             types.shrink(n);
                             auto ret_type = world_.tuple_type(types);
-                            auto ret_tuple_name = "ret_tuple" + std::to_string(continuation->gid());
+                            auto ret_tuple_name = "ret_tuple" + std::to_string(lam->gid());
                             emit_aggop_decl(ret_type);
                             emit_type(func_impl_, ret_type) << " " << ret_tuple_name << ";" << endl << ret_tuple_name << " = ";
                             emit_call();
@@ -682,7 +682,7 @@ void CCodeGen::emit() {
                     }
                 }
             }
-            if (continuation != scope.entry())
+            if (lam != scope.entry())
                 func_impl_ << down;
             primop2str_.clear();
         }
@@ -767,8 +767,8 @@ std::ostream& CCodeGen::emit_float(T t, IsInfFn is_inf, IsNanFn is_nan) {
 }
 
 std::ostream& CCodeGen::emit(const Def* def) {
-    if (auto continuation = def->isa<Continuation>())
-        return func_impl_ << "goto l" << continuation->gid() << ";";
+    if (auto lam = def->isa<Lam>())
+        return func_impl_ << "goto l" << lam->gid() << ";";
 
     if (lookup(def))
         return func_impl_ << get_name(def);
@@ -1149,7 +1149,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
     }
 
     if (auto global = def->isa<Global>()) {
-        assert(!global->init()->isa_continuation() && "no global init continuation supported");
+        assert(!global->init()->isa_lam() && "no global init lam supported");
 
         // string handling
         if (auto str_array = global->init()->isa<DefiniteArray>()) {

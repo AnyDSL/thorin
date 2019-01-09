@@ -61,24 +61,24 @@ static bool contains_ptrtype(const Type* type) {
     }
 }
 
-Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std::string& ext, Continuation* continuation) {
+Lam* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std::string& ext, Lam* lam) {
     // to-target is the desired kernel call
     // target(mem, device, (dim.x, dim.y, dim.z), (block.x, block.y, block.z), body, return, free_vars)
-    auto target = continuation->callee()->as_continuation();
+    auto target = lam->callee()->as_lam();
     assert_unused(target->is_intrinsic());
-    assert(continuation->num_args() >= LaunchArgs::Num && "required arguments are missing");
+    assert(lam->num_args() >= LaunchArgs::Num && "required arguments are missing");
 
     // arguments
-    auto target_device_id = code_gen.lookup(continuation->arg(LaunchArgs::Device));
+    auto target_device_id = code_gen.lookup(lam->arg(LaunchArgs::Device));
     auto target_platform = builder_.getInt32(platform);
     auto target_device = builder_.CreateOr(target_platform, builder_.CreateShl(target_device_id, builder_.getInt32(4)));
-    auto it_space = continuation->arg(LaunchArgs::Space)->as<Tuple>();
-    auto it_config = continuation->arg(LaunchArgs::Config)->as<Tuple>();
-    auto kernel = continuation->arg(LaunchArgs::Body)->as<Global>()->init()->as<Continuation>();
+    auto it_space = lam->arg(LaunchArgs::Space)->as<Tuple>();
+    auto it_config = lam->arg(LaunchArgs::Config)->as<Tuple>();
+    auto kernel = lam->arg(LaunchArgs::Body)->as<Global>()->init()->as<Lam>();
 
     auto kernel_name = builder_.CreateGlobalStringPtr(kernel->name().str());
-    auto file_name = builder_.CreateGlobalStringPtr(continuation->world().name() + ext);
-    const size_t num_kernel_args = continuation->num_args() - LaunchArgs::Num;
+    auto file_name = builder_.CreateGlobalStringPtr(lam->world().name() + ext);
+    const size_t num_kernel_args = lam->num_args() - LaunchArgs::Num;
 
     // allocate argument pointers, sizes, and types
     llvm::Value* args   = code_gen.emit_alloca(llvm::ArrayType::get(builder_.getInt8PtrTy(), num_kernel_args), "args");
@@ -88,7 +88,7 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, cons
 
     // fill array of arguments
     for (size_t i = 0; i < num_kernel_args; ++i) {
-        auto target_arg = continuation->arg(i + LaunchArgs::Num);
+        auto target_arg = lam->arg(i + LaunchArgs::Num);
         const auto target_val = code_gen.lookup(target_arg);
 
         KernelArgType arg_type;
@@ -177,7 +177,7 @@ Continuation* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, cons
                   args, sizes, aligns, types,
                   builder_.getInt32(num_kernel_args));
 
-    return continuation->arg(LaunchArgs::Return)->as_continuation();
+    return lam->arg(LaunchArgs::Return)->as_lam();
 }
 
 llvm::Value* Runtime::launch_kernel(llvm::Value* device,

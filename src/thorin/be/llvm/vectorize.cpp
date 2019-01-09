@@ -46,20 +46,20 @@ struct VectorizeArgs {
     };
 };
 
-Continuation* CodeGen::emit_vectorize_continuation(Continuation* continuation) {
-    auto target = continuation->callee()->as_continuation();
+Lam* CodeGen::emit_vectorize_lam(Lam* lam) {
+    auto target = lam->callee()->as_lam();
     assert_unused(target->intrinsic() == Intrinsic::Vectorize);
-    assert(continuation->num_args() >= VectorizeArgs::Num && "required arguments are missing");
+    assert(lam->num_args() >= VectorizeArgs::Num && "required arguments are missing");
 
     // arguments
-    auto kernel = continuation->arg(VectorizeArgs::Body)->as<Global>()->init()->as_continuation();
-    const size_t num_kernel_args = continuation->num_args() - VectorizeArgs::Num;
+    auto kernel = lam->arg(VectorizeArgs::Body)->as<Global>()->init()->as_lam();
+    const size_t num_kernel_args = lam->num_args() - VectorizeArgs::Num;
 
     // build simd-function signature
     Array<llvm::Type*> simd_args(num_kernel_args + 1);
     simd_args[0] = irbuilder_.getInt32Ty(); // loop index
     for (size_t i = 0; i < num_kernel_args; ++i) {
-        auto type = continuation->arg(i + VectorizeArgs::Num)->type();
+        auto type = lam->arg(i + VectorizeArgs::Num)->type();
         simd_args[i + 1] = convert(type);
     }
 
@@ -71,7 +71,7 @@ Continuation* CodeGen::emit_vectorize_continuation(Continuation* continuation) {
     args[0] = irbuilder_.getInt32(0);
     for (size_t i = 0; i < num_kernel_args; ++i) {
         // check target type
-        auto arg = continuation->arg(i + VectorizeArgs::Num);
+        auto arg = lam->arg(i + VectorizeArgs::Num);
         auto llvm_arg = lookup(arg);
         if (arg->type()->isa<PtrType>())
             llvm_arg = irbuilder_.CreateBitCast(llvm_arg, simd_args[i + 1]);
@@ -79,12 +79,12 @@ Continuation* CodeGen::emit_vectorize_continuation(Continuation* continuation) {
     }
     auto simd_kernel_call = irbuilder_.CreateCall(kernel_simd_func, llvm_ref(args));
 
-    if (!continuation->arg(VectorizeArgs::Length)->isa<PrimLit>())
-        EDEF(continuation->arg(VectorizeArgs::Length), "vector length must be known at compile-time");
-    u32 vector_length_constant = continuation->arg(VectorizeArgs::Length)->as<PrimLit>()->qu32_value();
+    if (!lam->arg(VectorizeArgs::Length)->isa<PrimLit>())
+        EDEF(lam->arg(VectorizeArgs::Length), "vector length must be known at compile-time");
+    u32 vector_length_constant = lam->arg(VectorizeArgs::Length)->as<PrimLit>()->qu32_value();
     vec_todo_.emplace_back(vector_length_constant, emit_function_decl(kernel), simd_kernel_call);
 
-    return continuation->arg(VectorizeArgs::Return)->as_continuation();
+    return lam->arg(VectorizeArgs::Return)->as_lam();
 }
 
 void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llvm::CallInst* simd_kernel_call) {

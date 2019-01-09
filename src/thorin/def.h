@@ -13,7 +13,7 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-class Continuation;
+class Lam;
 class Def;
 class PrimOp;
 class Tracker;
@@ -93,7 +93,7 @@ std::ostream& operator<<(std::ostream&, Use);
  * These are:
  * - \p PrimOp%s
  * - \p Param%s and
- * - \p Continuation%s.
+ * - \p Lam%s.
  */
 class Def : public RuntimeCast<Def>, public Streamable {
 private:
@@ -109,7 +109,7 @@ protected:
         , debug_(dbg)
         , gid_(gid_counter_++)
         , nominal_(false)
-        , contains_continuation_(false)
+        , contains_lam_(false)
     {
         for (size_t i = 0, e = ops.size(); i != e; ++i)
             set_op(i, ops[i]);
@@ -122,7 +122,7 @@ protected:
         , debug_(dbg)
         , gid_(gid_counter_++)
         , nominal_(true)
-        , contains_continuation_(false)
+        , contains_lam_(false)
     {}
     virtual ~Def() {}
 
@@ -142,10 +142,10 @@ public:
     void set_op(size_t i, const Def* def);
     void unset_op(size_t i);
     void update_op(size_t i, const Def* def) { unset_op(i); set_op(i, def); }
-    bool contains_continuation() const { return contains_continuation_; }
+    bool contains_lam() const { return contains_lam_; }
     bool is_nominal() const { return nominal_; }
-    Continuation* as_continuation() const;
-    Continuation* isa_continuation() const;
+    Lam* as_lam() const;
+    Lam* isa_lam() const;
     void dump() const;
     const Uses& uses() const { return uses_; }
     Array<Use> copy_uses() const { return Array<Use>(uses_.begin(), uses_.end()); }
@@ -187,7 +187,7 @@ private:
     static size_t gid_counter_;
 
 protected:
-    unsigned contains_continuation_ : 1;
+    unsigned contains_lam_ : 1;
 
 private:
     uint64_t hash() const { return hash_ == 0 ? hash_ = vhash() : hash_; }

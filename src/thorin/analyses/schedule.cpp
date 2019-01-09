@@ -1,7 +1,7 @@
 #include "thorin/analyses/schedule.h"
 
 #include "thorin/config.h"
-#include "thorin/continuation.h"
+#include "thorin/lam.h"
 #include "thorin/primop.h"
 #include "thorin/world.h"
 #include "thorin/analyses/cfg.h"
@@ -86,17 +86,17 @@ void Scheduler::compute_def2uses() {
     };
 
     for (auto n : cfg_.reverse_post_order()) {
-        queue.push(n->continuation());
-        auto p = done.emplace(n->continuation());
+        queue.push(n->lam());
+        auto p = done.emplace(n->lam());
         assert_unused(p.second);
     }
 
     while (!queue.empty()) {
         auto def = pop(queue);
         for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
-            // all reachable continuations have already been registered above
-            // NOTE we might still see references to unreachable continuations in the schedule
-            if (!def->op(i)->isa<Continuation>())
+            // all reachable lams have already been registered above
+            // NOTE we might still see references to unreachable lams in the schedule
+            if (!def->op(i)->isa<Lam>())
                 enqueue(def, i, def->op(i));
         }
     }
@@ -108,11 +108,11 @@ const CFNode* Scheduler::schedule_early(const Def* def) {
         return i->second;
 
     if (auto param = def->isa<Param>())
-        return def2early_[def] = cfg_[param->continuation()];
+        return def2early_[def] = cfg_[param->lam()];
 
     auto result = cfg_.entry();
     for (auto op : def->as<PrimOp>()->ops()) {
-        if (!op->isa_continuation() && def2uses_.find(op) != def2uses_.end()) {
+        if (!op->isa_lam() && def2uses_.find(op) != def2uses_.end()) {
             auto n = schedule_early(op);
             if (domtree_.depth(n) > domtree_.depth(result))
                 result = n;
@@ -127,8 +127,8 @@ const CFNode* Scheduler::schedule_late(const Def* def) {
     if (i != def2late_.end())
         return i->second;
 
-    if (auto continuation = def->isa_continuation())
-        return def2late_[def] = cfg_[continuation];
+    if (auto lam = def->isa_lam())
+        return def2late_[def] = cfg_[lam];
 
     const CFNode* result = nullptr;
     auto primop = def->as<PrimOp>();
@@ -253,8 +253,8 @@ void Schedule::verify() {
     Schedule::Map<const Def*> block2mem(*this);
 
     for (auto& block : *this) {
-        const Def* mem = block.continuation()->mem_param();
-        auto idom = block.continuation() != scope().entry() ? domtree.idom(block.node()) : block.node();
+        const Def* mem = block.lam()->mem_param();
+        auto idom = block.lam() != scope().entry() ? domtree.idom(block.node()) : block.node();
         mem = mem ? mem : block2mem[(*this)[idom]];
         for (auto primop : block) {
             if (auto memop = primop->isa<MemOp>()) {
@@ -274,17 +274,17 @@ void Schedule::verify() {
 
 std::ostream& Schedule::stream(std::ostream& os) const {
     for (auto& block : *this) {
-        auto continuation = block.continuation();
-        if (continuation->intrinsic() != Intrinsic::EndScope) {
-            bool indent = continuation != scope().entry();
+        auto lam = block.lam();
+        if (lam->intrinsic() != Intrinsic::EndScope) {
+            bool indent = lam != scope().entry();
             if (indent)
                 os << up;
             os << endl;
-            continuation->stream_head(os) << up_endl;
+            lam->stream_head(os) << up_endl;
             for (auto primop : block)
                 primop->stream_assignment(os);
 
-            continuation->stream_jump(os) << down_endl;
+            lam->stream_body(os) << down_endl;
             if (indent)
                 os << down;
         }

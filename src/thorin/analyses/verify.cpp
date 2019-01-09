@@ -10,7 +10,7 @@ static void verify_top_level(World& world) {
     Scope::for_each(world, [&] (const Scope& scope) {
         if (scope.has_free_params()) {
             for (auto param : scope.free_params())
-                ELOG("top-level continuation '{}' got free param '{}' belonging to continuation {}", scope.entry(), param, param->continuation());
+                ELOG("top-level lam '{}' got free param '{}' belonging to lam {}", scope.entry(), param, param->lam());
             ELOG("here: {}", scope.entry());
         }
     });
@@ -28,15 +28,15 @@ public:
         : world_(world)
     {
         size_t num = world.primops().size();
-        for (auto continuation : world.continuations())
-            num += 1 + continuation->num_params();
+        for (auto lam : world.lams())
+            num += 1 + lam->num_params();
         def2color_.rehash(round_to_power_of_2(num));
     }
 
     World& world() { return world_; }
     void run();
-    void analyze_call(const Continuation*);
-    void analyze(ParamSet& params, const Continuation*, const Def*);
+    void analyze_call(const Lam*);
+    void analyze(ParamSet& params, const Lam*, const Def*);
 
 private:
     World& world_;
@@ -44,36 +44,36 @@ private:
 };
 
 void Cycles::run() {
-    for (auto continuation : world().continuations())
-        analyze_call(continuation);
+    for (auto lam : world().lams())
+        analyze_call(lam);
 }
 
-void Cycles::analyze_call(const Continuation* continuation) {
-    if (def2color_.emplace(continuation, Gray).second) {
+void Cycles::analyze_call(const Lam* lam) {
+    if (def2color_.emplace(lam, Gray).second) {
         ParamSet params;
-        for (auto op : continuation->ops())
-            analyze(params, continuation, op);
+        for (auto op : lam->ops())
+            analyze(params, lam, op);
 
         for (auto param : params) {
             if (def2color_.emplace(param, Gray).second) {
-                analyze_call(param->continuation());
+                analyze_call(param->lam());
                 def2color_[param] = Black;
             }
         }
 
-        def2color_[continuation] = Black;
+        def2color_[lam] = Black;
     } else
-        assertf(def2color_[continuation] != Gray, "detected cycle: '{}'", continuation);
+        assertf(def2color_[lam] != Gray, "detected cycle: '{}'", lam);
 }
 
-void Cycles::analyze(ParamSet& params, const Continuation* continuation, const Def* def) {
+void Cycles::analyze(ParamSet& params, const Lam* lam, const Def* def) {
     if (auto primop = def->isa<PrimOp>()) {
         if (def2color_.emplace(def, Black).second) {
             for (auto op : primop->ops())
-                analyze(params, continuation, op);
+                analyze(params, lam, op);
         }
     } else if (auto param = def->isa<Param>()) {
-        if (param->continuation() != continuation) {
+        if (param->lam() != lam) {
             auto i = def2color_.find(param);
             if (i != def2color_.end())
                 assertf(i->second != Gray, "detected cycle induced by parameter: '{}'", param);

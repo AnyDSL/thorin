@@ -1,5 +1,5 @@
 #include "thorin/primop.h"
-#include "thorin/continuation.h"
+#include "thorin/lam.h"
 
 #include "thorin/config.h"
 #include "thorin/type.h"
@@ -334,9 +334,11 @@ const Type* Extract::extracted_type(const Def* agg, const Def* index) {
 bool is_from_branch_or_match(const PrimOp* primop) {
     bool from_match = true;
     for (auto& use : primop->uses()) {
-        if (auto continuation = use.def()->isa<Continuation>()) {
-            auto callee = continuation->callee()->isa<Continuation>();
-            if (callee && (callee->intrinsic() == Intrinsic::Branch || callee->intrinsic() == Intrinsic::Match)) continue;
+        if (auto lam = use.def()->isa<Lam>()) {
+            if (auto app = lam->body()->isa<App>()) {
+                auto callee = app->callee()->isa<Lam>();
+                if (callee && (callee->intrinsic() == Intrinsic::Branch || callee->intrinsic() == Intrinsic::Match)) continue;
+            }
         }
         from_match = false;
     }

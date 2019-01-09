@@ -31,7 +31,7 @@ public:
 
 private:
     void cleanup_fix_point();
-    void clean_pe_info(std::queue<Continuation*>, Continuation*);
+    void clean_pe_info(std::queue<Lam*>, Lam*);
     World& world_;
     bool todo_ = true;
 };
@@ -44,7 +44,7 @@ void Cleaner::eliminate_tail_rec() {
         bool recursive = false;
         for (auto use : entry->uses()) {
             if (scope.contains(use)) {
-                if (use.index() != 0 || !use->isa<Continuation>()) {
+                if (use.index() != 0 || !use->isa<Lam>()) {
                     only_tail_calls = false;
                     break;
                 } else {
@@ -62,7 +62,7 @@ void Cleaner::eliminate_tail_rec() {
 
                 for (auto use : entry->uses()) {
                     if (scope.contains(use)) {
-                        auto arg = use->as_continuation()->arg(i);
+                        auto arg = use->as_lam()->app()->arg(i);
                         if (!arg->isa<Bottom>() && arg != args[i]) {
                             args[i] = nullptr;
                             break;
@@ -87,7 +87,7 @@ void Cleaner::eliminate_tail_rec() {
                 DLOG("tail recursive: {}", entry);
                 auto dropped = drop(scope, args);
 
-                entry->jump(dropped, new_args);
+                entry->app(dropped, new_args);
                 todo_ = true;
                 scope.update();
             }
@@ -96,87 +96,90 @@ void Cleaner::eliminate_tail_rec() {
 }
 
 void Cleaner::eta_conversion() {
+#if 0
     for (bool todo = true; todo;) {
         todo = false;
 
         for (auto def : world().defs()) {
-            auto continuation = def->isa_continuation();
-            if (continuation == nullptr) continue;
+            auto lam = def->isa_lam();
+            if (lam == nullptr) continue;
 
-            // eat calls to known continuations that are only used once
-            while (auto callee = continuation->callee()->isa_continuation()) {
+            // eat calls to known lams that are only used once
+            while (auto callee = lam->app()->callee()->isa_lam()) {
                 if (callee->num_uses() == 1 && !callee->is_empty() && !callee->is_external()) {
-                    for (size_t i = 0, e = continuation->num_args(); i != e; ++i)
-                        callee->param(i)->replace(continuation->arg(i));
-                    continuation->jump(callee->callee(), callee->args(), callee->jump_debug());
+                    for (size_t i = 0, e = lam->num_args(); i != e; ++i)
+                        callee->param(i)->replace(lam->arg(i));
+                    lam->jump(callee->callee(), callee->args(), callee->jump_debug());
                     callee->destroy_body();
                     todo_ = todo = true;
                 } else
                     break;
             }
 
-            // try to subsume continuations which call a parameter
-            // (that is free within that continuation) with that parameter
-            if (auto param = continuation->callee()->isa<Param>()) {
-                if (param->continuation() == continuation || continuation->is_external())
+            // try to subsume lams which call a parameter
+            // (that is free within that lam) with that parameter
+            if (auto param = lam->callee()->isa<Param>()) {
+                if (param->lam() == lam || lam->is_external())
                     continue;
 
-                if (continuation->arg() == continuation->param()) {
-                    continuation->replace(continuation->callee());
-                    continuation->destroy_body();
+                if (lam->arg() == lam->param()) {
+                    lam->replace(lam->callee());
+                    lam->destroy_body();
                     todo_ = todo = true;
                     continue;
                 }
 
                 // build the permutation of the arguments
-                Array<size_t> perm(continuation->num_args());
+                Array<size_t> perm(lam->num_args());
                 bool is_permutation = true;
-                for (size_t i = 0, e = continuation->num_args(); i != e; ++i)  {
-                    auto param_it = std::find(continuation->params().begin(),
-                                                continuation->params().end(),
-                                                continuation->arg(i));
+                for (size_t i = 0, e = lam->num_args(); i != e; ++i)  {
+                    auto param_it = std::find(lam->params().begin(),
+                                                lam->params().end(),
+                                                lam->arg(i));
 
-                    if (param_it == continuation->params().end()) {
+                    if (param_it == lam->params().end()) {
                         is_permutation = false;
                         break;
                     }
 
-                    perm[i] = param_it - continuation->params().begin();
+                    perm[i] = param_it - lam->params().begin();
                 }
 
                 if (!is_permutation) continue;
 
-                // for every use of the continuation at a call site,
+                // for every use of the lam at a call site,
                 // permute the arguments and call the parameter instead
-                for (auto use : continuation->copy_uses()) {
-                    auto ucontinuation = use->isa_continuation();
-                    if (ucontinuation && use.index() == 0) {
+                for (auto use : lam->copy_uses()) {
+                    auto ulam = use->isa_lam();
+                    if (ulam && use.index() == 0) {
                         Array<const Def*> new_args(perm.size());
                         for (size_t i = 0, e = perm.size(); i != e; ++i) {
-                            new_args[i] = ucontinuation->arg(perm[i]);
+                            new_args[i] = ulam->arg(perm[i]);
                         }
-                        ucontinuation->jump(param, new_args, ucontinuation->jump_debug());
+                        ulam->jump(param, new_args, ulam->jump_debug());
                         todo_ = todo = true;
                     }
                 }
             }
         }
     }
+#endif
 }
 
 void Cleaner::eliminate_params() {
-    for (auto ocontinuation : world().copy_continuations()) {
+#if 0
+    for (auto olam : world().copy_lams()) {
         std::vector<size_t> proxy_idx;
         std::vector<size_t> param_idx;
 
-        if (!ocontinuation->is_empty() && !world().is_external(ocontinuation)) {
-            for (auto use : ocontinuation->uses()) {
-                if (use.index() != 0 || !use->isa_continuation())
-                    goto next_continuation;
+        if (!olam->is_empty() && !world().is_external(olam)) {
+            for (auto use : olam->uses()) {
+                if (use.index() != 0 || !use->isa_lam())
+                    goto next_lam;
             }
 
-            for (size_t i = 0, e = ocontinuation->num_params(); i != e; ++i) {
-                auto param = ocontinuation->param(i);
+            for (size_t i = 0, e = olam->num_params(); i != e; ++i) {
+                auto param = olam->param(i);
                 if (param->num_uses() == 0)
                     proxy_idx.push_back(i);
                 else
@@ -184,7 +187,7 @@ void Cleaner::eliminate_params() {
             }
 
             if (!proxy_idx.empty()) {
-                auto old_domain = ocontinuation->type()->domain();
+                auto old_domain = olam->type()->domain();
                 const Type* new_domain;
                 if (auto tuple_type = old_domain->isa<TupleType>())
                     new_domain = world().tuple_type(tuple_type->ops().cut(proxy_idx));
@@ -193,35 +196,36 @@ void Cleaner::eliminate_params() {
                     new_domain = world().tuple_type({});
                 }
                 auto cn = world().cn(new_domain);
-                auto ncontinuation = world().continuation(cn, ocontinuation->cc(), ocontinuation->intrinsic(), ocontinuation->debug_history());
+                auto nlam = world().lam(cn, olam->cc(), olam->intrinsic(), olam->debug_history());
                 size_t j = 0;
                 for (auto i : param_idx) {
-                    ocontinuation->param(i)->replace(ncontinuation->param(j));
-                    ncontinuation->param(j++)->debug() = ocontinuation->param(i)->debug_history();
+                    olam->param(i)->replace(nlam->param(j));
+                    nlam->param(j++)->debug() = olam->param(i)->debug_history();
                 }
 
-                if (ocontinuation->filter() != nullptr) {
+                if (olam->filter() != nullptr) {
                     Array<const Def*> new_filter(param_idx.size());
                     size_t i = 0;
                     for (auto j : param_idx)
-                        new_filter[i++] = ocontinuation->filter(param_idx[j]);
+                        new_filter[i++] = olam->filter(param_idx[j]);
 
-                    ncontinuation->set_filter(world().tuple(new_filter));
+                    nlam->set_filter(world().tuple(new_filter));
                 }
-                ncontinuation->jump(ocontinuation->callee(), ocontinuation->args(), ocontinuation->jump_debug());
-                ocontinuation->destroy_body();
+                nlam->jump(olam->callee(), olam->args(), olam->jump_debug());
+                olam->destroy_body();
 
-                for (auto use : ocontinuation->copy_uses()) {
-                    auto ucontinuation = use->as_continuation();
+                for (auto use : olam->copy_uses()) {
+                    auto ulam = use->as_lam();
                     assert(use.index() == 0);
-                    ucontinuation->jump(ncontinuation, ucontinuation->args().cut(proxy_idx), ucontinuation->jump_debug());
+                    ulam->jump(nlam, ulam->args().cut(proxy_idx), ulam->jump_debug());
                 }
 
                 todo_ = true;
             }
         }
-next_continuation:;
+next_lam:;
     }
+#endif
 }
 
 void Cleaner::rebuild() {
@@ -263,14 +267,14 @@ void Cleaner::within(const Def* def) {
     assert_unused(world().defs().contains(def));
 }
 
-void Cleaner::clean_pe_info(std::queue<Continuation*> queue, Continuation* cur) {
-    assert(cur->arg(1)->type() == world().ptr_type(world().indefinite_array_type(world().type_pu8())));
-    auto next = cur->arg(3);
-    auto msg = cur->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
+void Cleaner::clean_pe_info(std::queue<Lam*> queue, Lam* cur) {
+    assert(cur->app()->arg(1)->type() == world().ptr_type(world().indefinite_array_type(world().type_pu8())));
+    auto next = cur->app()->arg(3);
+    auto msg = cur->app()->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
 
-    assert(!is_const(cur->arg(2)));
-    IDEF(cur->callee(), "pe_info not constant: {}: {}", msg->as_string(), cur->arg(2));
-    cur->jump(next, {cur->arg(0)}, cur->jump_debug());
+    assert(!is_const(cur->app()->arg(2)));
+    IDEF(cur->app()->callee(), "pe_info not constant: {}: {}", msg->as_string(), cur->app()->arg(2));
+    cur->app(next, {cur->app()->arg(0)}, cur->app()->debug());
     todo_ = true;
 
     // always re-insert into queue because we've changed cur's jump
@@ -279,27 +283,27 @@ void Cleaner::clean_pe_info(std::queue<Continuation*> queue, Continuation* cur) 
 
 void Cleaner::clean_pe_infos() {
     VLOG("cleaning remaining pe_infos");
-    std::queue<Continuation*> queue;
-    ContinuationSet done;
-    auto enqueue = [&](Continuation* continuation) {
-        if (done.emplace(continuation).second)
-            queue.push(continuation);
+    std::queue<Lam*> queue;
+    LamSet done;
+    auto enqueue = [&](Lam* lam) {
+        if (done.emplace(lam).second)
+            queue.push(lam);
     };
     for (auto external : world().externals()) {
         enqueue(external);
     }
 
     while (!queue.empty()) {
-        auto continuation = pop(queue);
+        auto lam = pop(queue);
 
-        if (auto callee = continuation->callee()->isa_continuation()) {
+        if (auto callee = lam->app()->callee()->isa_lam()) {
             if (callee->intrinsic() == Intrinsic::PeInfo) {
-                clean_pe_info(queue, continuation);
+                clean_pe_info(queue, lam);
                 continue;
             }
         }
 
-        for (auto succ : continuation->succs())
+        for (auto succ : lam->succs())
             enqueue(succ);
     }
 }
@@ -329,8 +333,8 @@ void Cleaner::cleanup() {
 
     if (!world().is_pe_done()) {
         world().mark_pe_done();
-        //for (auto continuation : world().continuations())
-            //continuation->destroy_filter();
+        //for (auto lam : world().lams())
+            //lam->destroy_filter();
         todo_ = true;
         cleanup_fix_point();
     }

@@ -1,4 +1,4 @@
-#include "thorin/continuation.h"
+#include "thorin/lam.h"
 
 #include <iostream>
 
@@ -12,10 +12,10 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-Continuation* get_param_continuation(const Def* def) {
+Lam* get_param_lam(const Def* def) {
     if (auto extract = def->isa<Extract>())
-        return extract->agg()->as<Param>()->continuation();
-    return def->as<Param>()->continuation();
+        return extract->agg()->as<Param>()->lam();
+    return def->as<Param>()->lam();
 }
 
 size_t get_param_index(const Def* def) {
@@ -28,10 +28,12 @@ size_t get_param_index(const Def* def) {
 std::vector<Peek> peek(const Def* param) {
     std::vector<Peek> peeks;
     size_t index = get_param_index(param);
-    for (auto use : get_param_continuation(param)->uses()) {
-        if (auto pred = use->isa_continuation()) {
-            if (use.index() == 1) // is it an arg of pred?
-                peeks.emplace_back(pred->arg(index), pred);
+    for (auto use : get_param_lam(param)->uses()) {
+        if (auto pred = use->isa_lam()) {
+            if (auto app = pred->app()) {
+                if (use.index() == 1) // is it an arg of pred?
+                    peeks.emplace_back(app->arg(index), pred);
+            }
         }
     }
 
@@ -40,13 +42,13 @@ std::vector<Peek> peek(const Def* param) {
 
 //------------------------------------------------------------------------------
 
-const Def* Param::vrebuild(World& to, const Type*, Defs ops) const { return to.param(ops[0]->as_continuation(), debug()); }
+const Def* Param::vrebuild(World& to, const Type*, Defs ops) const { return to.param(ops[0]->as_lam(), debug()); }
 const Def* App  ::vrebuild(World& to, const Type*, Defs ops) const { return to.app  (ops[0], ops[1], debug()); }
 
 //------------------------------------------------------------------------------
 
-Continuation::Continuation(const Pi* pi, CC cc, Intrinsic intrinsic, Debug dbg)
-    : Def(Node_Continuation, pi, 3, dbg)
+Lam::Lam(const Pi* pi, CC cc, Intrinsic intrinsic, Debug dbg)
+    : Def(Node_Lam, pi, 3, dbg)
     , cc_(cc)
     , intrinsic_(intrinsic)
 {
@@ -54,37 +56,37 @@ Continuation::Continuation(const Pi* pi, CC cc, Intrinsic intrinsic, Debug dbg)
     set_op(1, world().top(world().cn()));
     set_op(2, world().tuple({}));
 
-    contains_continuation_ = true;
+    contains_lam_ = true;
 }
 
-const Param* Continuation::param(Debug dbg) const {
-    return world().param(this->as_continuation(), dbg);
+const Param* Lam::param(Debug dbg) const {
+    return world().param(this->as_lam(), dbg);
 }
 
-bool Continuation::is_empty() const { return callee()->isa<Top>(); }
+bool Lam::is_empty() const { return body()->isa<Top>(); }
 
-void Continuation::set_filter(Defs filter) {
+void Lam::set_filter(Defs filter) {
     set_filter(world().tuple(filter));
 }
 
 
-Def* Continuation::vstub(World& to, const Type* type) const {
-    return to.continuation(type->as<Pi>(), cc(), intrinsic(), debug_history());
+Def* Lam::vstub(World& to, const Type* type) const {
+    return to.lam(type->as<Pi>(), cc(), intrinsic(), debug_history());
 }
 
-size_t Continuation::num_params() const {
+size_t Lam::num_params() const {
     if (auto tuple_type = param()->type()->isa<TupleType>())
         return tuple_type->num_ops();
     return 1;
 }
 
-const Def* Continuation::param(size_t i, Debug dbg) const {
+const Def* Lam::param(size_t i, Debug dbg) const {
     //if (param()->type()->isa<TupleType>())
         return world().extract(param(), i, dbg);
     //return param();
 }
 
-Array<const Def*> Continuation::params() const {
+Array<const Def*> Lam::params() const {
     size_t n = num_params();
     Array<const Def*> params(n);
     for (size_t i = 0; i != n; ++i)
@@ -92,47 +94,24 @@ Array<const Def*> Continuation::params() const {
     return params;
 }
 
-Array<const Def*> Continuation::args() const {
-    size_t n = num_args();
-    Array<const Def*> args(n);
-    for (size_t i = 0; i != n; ++i)
-        args[i] = arg(i);
-    return args;
-}
-
-size_t Continuation::num_args() const {
-    if (auto tuple_type = arg()->type()->isa<TupleType>())
-        return tuple_type->num_ops();
-    return 1;
-}
-
-const Def* Continuation::arg(size_t i) const {
-    if (arg()->type()->isa<TupleType>())
-        return world().extract(arg(), i);
-    return arg();
-}
-
-const Def* Continuation::filter(size_t i) const {
+const Def* Lam::filter(size_t i) const {
     if (filter()->type()->isa<TupleType>())
         return world().extract(filter(), i);
     return filter();
 }
 
-// TODO get rid off this
 size_t App::num_args() const {
     if (auto tuple_type = arg()->type()->isa<TupleType>())
         return tuple_type->num_ops();
     return 1;
 }
 
-// TODO get rid off this
 const Def* App::arg(size_t i) const {
     if (arg()->type()->isa<TupleType>())
         return callee()->world().extract(arg(), i);
     return arg();
 }
 
-// TODO get rid off this
 Array<const Def*> App::args() const {
     size_t n = num_args();
     Array<const Def*> args(n);
@@ -141,7 +120,7 @@ Array<const Def*> App::args() const {
     return args;
 }
 
-const Def* Continuation::mem_param() const {
+const Def* Lam::mem_param() const {
     for (size_t i = 0, e = num_params(); i != e; ++i) {
         auto p = param(i);
         if (is_mem(p))
@@ -150,7 +129,7 @@ const Def* Continuation::mem_param() const {
     return nullptr;
 }
 
-const Def* Continuation::ret_param() const {
+const Def* Lam::ret_param() const {
     const Def* result = nullptr;
     for (size_t i = 0, e = num_params(); i != e; ++i) {
         auto p = param(i);
@@ -162,24 +141,24 @@ const Def* Continuation::ret_param() const {
     return result;
 }
 
-void Continuation::destroy_filter() {
+void Lam::destroy_filter() {
     update_op(0, world().literal_bool(false));
 }
 
-void Continuation::destroy_body() {
+void Lam::destroy_body() {
     update_op(0, world().literal_bool(false));
     update_op(1, world().top(world().cn()));
     update_op(2, world().tuple({}));
 }
 
 #if 0
-const Pi* Continuation::arg_pi() const {
+const Pi* Lam::arg_pi() const {
     return world().pi(arg()->type());
 }
 #endif
 
-Continuations Continuation::preds() const {
-    std::vector<Continuation*> preds;
+Lams Lam::preds() const {
+    std::vector<Lam*> preds;
     std::queue<Use> queue;
     DefSet done;
 
@@ -197,8 +176,8 @@ Continuations Continuation::preds() const {
 
     while (!queue.empty()) {
         auto use = pop(queue);
-        if (auto continuation = use->isa_continuation()) {
-            preds.push_back(continuation);
+        if (auto lam = use->isa_lam()) {
+            preds.push_back(lam);
             continue;
         }
 
@@ -208,8 +187,8 @@ Continuations Continuation::preds() const {
     return preds;
 }
 
-Continuations Continuation::succs() const {
-    std::vector<Continuation*> succs;
+Lams Lam::succs() const {
+    std::vector<Lam*> succs;
     std::queue<const Def*> queue;
     DefSet done;
 
@@ -221,18 +200,17 @@ Continuations Continuation::succs() const {
     };
 
     done.insert(this);
-    enqueue(callee());
-    enqueue(arg());
+    enqueue(body());
 
     while (!queue.empty()) {
         auto def = pop(queue);
-        if (auto continuation = def->isa_continuation()) {
-            succs.push_back(continuation);
+        if (auto lam = def->isa_lam()) {
+            succs.push_back(lam);
             continue;
         }
 
         for (auto op : def->ops()) {
-            if (op->contains_continuation())
+            if (op->contains_lam())
                 enqueue(op);
         }
     }
@@ -241,17 +219,17 @@ Continuations Continuation::succs() const {
 }
 
 #if 0
-void Continuation::set_all_true_filter() {
+void Lam::set_all_true_filter() {
     filter_ = Array<const Def*>(num_params(), [&](size_t) { return world().literal_bool(true, Debug{}); });
 }
 #endif
 
-void Continuation::make_external() { return world().add_external(this); }
-void Continuation::make_internal() { return world().remove_external(this); }
-bool Continuation::is_external() const { return world().is_external(this); }
-bool Continuation::is_intrinsic() const { return intrinsic_ != Intrinsic::None; }
-bool Continuation::is_accelerator() const { return Intrinsic::_Accelerator_Begin <= intrinsic_ && intrinsic_ < Intrinsic::_Accelerator_End; }
-void Continuation::set_intrinsic() {
+void Lam::make_external() { return world().add_external(this); }
+void Lam::make_internal() { return world().remove_external(this); }
+bool Lam::is_external() const { return world().is_external(this); }
+bool Lam::is_intrinsic() const { return intrinsic_ != Intrinsic::None; }
+bool Lam::is_accelerator() const { return Intrinsic::_Accelerator_Begin <= intrinsic_ && intrinsic_ < Intrinsic::_Accelerator_End; }
+void Lam::set_intrinsic() {
     if      (name() == "cuda")                 intrinsic_ = Intrinsic::CUDA;
     else if (name() == "nvvm")                 intrinsic_ = Intrinsic::NVVM;
     else if (name() == "opencl")               intrinsic_ = Intrinsic::OpenCL;
@@ -273,42 +251,41 @@ void Continuation::set_intrinsic() {
     else ELOG("unsupported thorin intrinsic");
 }
 
-bool Continuation::is_basicblock() const { return type()->is_basicblock(); }
-bool Continuation::is_returning() const { return type()->is_returning(); }
+bool Lam::is_basicblock() const { return type()->is_basicblock(); }
+bool Lam::is_returning() const { return type()->is_returning(); }
 
 /*
  * terminate
  */
 
-void Continuation::jump(const Def* callee, Defs args, Debug dbg) {
-    jump(callee, world().tuple(args), dbg);
+void Lam::app(const Def* callee, Defs args, Debug dbg) {
+    app(callee, world().tuple(args), dbg);
 }
 
-void Continuation::jump(const Def* callee, const Def* arg, Debug dbg) {
-    jump_debug_ = dbg;
-    if (auto continuation = callee->isa<Continuation>()) {
-        switch (continuation->intrinsic()) {
+void Lam::app(const Def* callee, const Def* arg, Debug dbg) {
+    if (auto lam = callee->isa<Lam>()) {
+        switch (lam->intrinsic()) {
             case Intrinsic::Branch: {
                 auto cond = world().extract(arg, 0_s);
                 auto t    = world().extract(arg, 1_s);
                 auto f    = world().extract(arg, 2_s);
                 if (auto lit = cond->isa<PrimLit>())
-                    return jump(lit->value().get_bool() ? t : f, Defs{}, dbg);
+                    return app(lit->value().get_bool() ? t : f, Defs{}, dbg);
                 if (t == f)
-                    return jump(t, Defs{}, dbg);
+                    return app(t, Defs{}, dbg);
                 if (is_not(cond))
                     return branch(cond->as<ArithOp>()->rhs(), f, t, dbg);
                 break;
             }
             case Intrinsic::Match: {
                 auto args = arg->as<Tuple>()->ops();
-                if (args.size() == 2) return jump(args[1], Defs{}, dbg);
+                if (args.size() == 2) return app(args[1], Defs{}, dbg);
                 if (auto lit = args[0]->isa<PrimLit>()) {
                     for (size_t i = 2; i < args.size(); i++) {
                         if (world().extract(args[i], 0_s)->as<PrimLit>() == lit)
-                            return jump(world().extract(args[i], 1), Defs{}, dbg);
+                            return app(world().extract(args[i], 1), Defs{}, dbg);
                     }
-                    return jump(args[1], Defs{}, dbg);
+                    return app(args[1], Defs{}, dbg);
                 }
                 break;
             }
@@ -322,41 +299,34 @@ void Continuation::jump(const Def* callee, const Def* arg, Debug dbg) {
     verify();
 }
 
-void Continuation::branch(const Def* cond, const Def* t, const Def* f, Debug dbg) {
-    return jump(world().branch(), {cond, t, f}, dbg);
+void Lam::branch(const Def* cond, const Def* t, const Def* f, Debug dbg) {
+    return app(world().branch(), {cond, t, f}, dbg);
 }
 
-void Continuation::match(const Def* val, Continuation* otherwise, Defs patterns, ArrayRef<Continuation*> continuations, Debug dbg) {
+void Lam::match(const Def* val, Lam* otherwise, Defs patterns, ArrayRef<Lam*> lams, Debug dbg) {
     Array<const Def*> args(patterns.size() + 2);
 
     args[0] = val;
     args[1] = otherwise;
-    assert(patterns.size() == continuations.size());
+    assert(patterns.size() == lams.size());
     for (size_t i = 0; i < patterns.size(); i++)
-        args[i + 2] = world().tuple({patterns[i], continuations[i]}, dbg);
+        args[i + 2] = world().tuple({patterns[i], lams[i]}, dbg);
 
-    return jump(world().match(val->type(), patterns.size()), args, dbg);
+    return app(world().match(val->type(), patterns.size()), args, dbg);
 }
 
-void jump_to_dropped_app(Continuation* src, Continuation* dst, const App* app) {
+void app_to_dropped_app(Lam* src, Lam* dst, const App* app) {
     std::vector<const Def*> nargs;
-    for (size_t i = 0, e = src->num_args(); i != e; ++i) {
+    auto src_app = src->body()->as<App>();
+    for (size_t i = 0, e = src_app->num_args(); i != e; ++i) {
         if (app->arg(i)->isa<Top>())
-            nargs.push_back(src->arg(i));
+            nargs.push_back(src_app->arg(i));
     }
 
-    src->jump(dst, nargs, src->jump_debug());
+    src->app(dst, nargs, src_app->debug());
 }
 
-void Continuation::update_op(size_t i, const Def* def) {
-    if (i == 0)
-        return Def::update_op(i, def);
-    std::array<const Def*, 2> new_ops = {callee(), arg()};
-    new_ops[i] = def;
-    jump(new_ops[0], new_ops[1], jump_location());
-}
-
-std::ostream& Continuation::stream_head(std::ostream& os) const {
+std::ostream& Lam::stream_head(std::ostream& os) const {
     os << unique_name();
     streamf(os, "{} {}", param()->type(), param());
     if (is_external())
@@ -368,41 +338,41 @@ std::ostream& Continuation::stream_head(std::ostream& os) const {
     return os;
 }
 
-std::ostream& Continuation::stream_jump(std::ostream& os) const {
-    return streamf(os, "{} {}", callee(), arg());
+std::ostream& Lam::stream_body(std::ostream& os) const {
+    return streamf(os, "{}", body());
 }
 
-void Continuation::dump_head() const { stream_head(std::cout) << endl; }
-void Continuation::dump_jump() const { stream_jump(std::cout) << endl; }
+void Lam::dump_head() const { stream_head(std::cout) << endl; }
+void Lam::dump_body() const { stream_body(std::cout) << endl; }
 
 //------------------------------------------------------------------------------
 
-bool visit_uses(Continuation* cont, std::function<bool(Continuation*)> func, bool include_globals) {
-    if (!cont->is_intrinsic()) {
-        for (auto use : cont->uses()) {
+bool visit_uses(Lam* lam, std::function<bool(Lam*)> func, bool include_globals) {
+    if (!lam->is_intrinsic()) {
+        for (auto use : lam->uses()) {
             auto def = include_globals && use->isa<Global>() ? use->uses().begin()->def() : use.def();
-            if (auto continuation = def->isa_continuation())
-                if (func(continuation))
+            if (auto lam = def->isa_lam())
+                if (func(lam))
                     return true;
         }
     }
     return false;
 }
 
-bool visit_capturing_intrinsics(Continuation* cont, std::function<bool(Continuation*)> func, bool include_globals) {
-    return visit_uses(cont, [&] (auto continuation) {
-        if (auto callee = continuation->callee()->isa_continuation())
+bool visit_capturing_intrinsics(Lam* lam, std::function<bool(Lam*)> func, bool include_globals) {
+    return visit_uses(lam, [&] (auto lam) {
+        if (auto callee = lam->app()->callee()->isa_lam())
             return callee->is_intrinsic() && func(callee);
         return false;
     }, include_globals);
 }
 
-bool is_passed_to_accelerator(Continuation* cont, bool include_globals) {
-    return visit_capturing_intrinsics(cont, [&] (Continuation* continuation) { return continuation->is_accelerator(); }, include_globals);
+bool is_passed_to_accelerator(Lam* lam, bool include_globals) {
+    return visit_capturing_intrinsics(lam, [&] (Lam* lam) { return lam->is_accelerator(); }, include_globals);
 }
 
-bool is_passed_to_intrinsic(Continuation* cont, Intrinsic intrinsic, bool include_globals) {
-    return visit_capturing_intrinsics(cont, [&] (Continuation* continuation) { return continuation->intrinsic() == intrinsic; }, include_globals);
+bool is_passed_to_intrinsic(Lam* lam, Intrinsic intrinsic, bool include_globals) {
+    return visit_capturing_intrinsics(lam, [&] (Lam* lam) { return lam->intrinsic() == intrinsic; }, include_globals);
 }
 
 }

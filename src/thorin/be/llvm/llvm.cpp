@@ -30,7 +30,7 @@
 #endif
 
 #include "thorin/def.h"
-#include "thorin/continuation.h"
+#include "thorin/lam.h"
 #include "thorin/primop.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
@@ -60,22 +60,22 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention
     , runtime_(new Runtime(context_, *module_.get(), irbuilder_))
 {}
 
-Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
-    auto callee = continuation->callee()->as_continuation();
+Lam* CodeGen::emit_intrinsic(Lam* lam) {
+    auto callee = lam->app()->callee()->as_lam();
     switch (callee->intrinsic()) {
-        case Intrinsic::Atomic:    return emit_atomic(continuation);
-        case Intrinsic::CmpXchg:   return emit_cmpxchg(continuation);
-        case Intrinsic::Reserve:   return emit_reserve(continuation);
-        case Intrinsic::CUDA:      return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM,   ".cu",     continuation);
-        case Intrinsic::NVVM:      return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM,   ".nvvm",   continuation);
-        case Intrinsic::OpenCL:    return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".cl",     continuation);
-        case Intrinsic::AMDGPU:    return runtime_->emit_host_code(*this, Runtime::HSA_PLATFORM,    ".amdgpu", continuation);
-        case Intrinsic::HLS:       return emit_hls(continuation);
-        case Intrinsic::Parallel:  return emit_parallel(continuation);
-        case Intrinsic::Spawn:     return emit_spawn(continuation);
-        case Intrinsic::Sync:      return emit_sync(continuation);
+        case Intrinsic::Atomic:    return emit_atomic(lam);
+        case Intrinsic::CmpXchg:   return emit_cmpxchg(lam);
+        case Intrinsic::Reserve:   return emit_reserve(lam);
+        case Intrinsic::CUDA:      return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM,   ".cu",     lam);
+        case Intrinsic::NVVM:      return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM,   ".nvvm",   lam);
+        case Intrinsic::OpenCL:    return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".cl",     lam);
+        case Intrinsic::AMDGPU:    return runtime_->emit_host_code(*this, Runtime::HSA_PLATFORM,    ".amdgpu", lam);
+        case Intrinsic::HLS:       return emit_hls(lam);
+        case Intrinsic::Parallel:  return emit_parallel(lam);
+        case Intrinsic::Spawn:     return emit_spawn(lam);
+        case Intrinsic::Sync:      return emit_sync(lam);
 #if THORIN_ENABLE_RV
-        case Intrinsic::Vectorize: return emit_vectorize_continuation(continuation);
+        case Intrinsic::Vectorize: return emit_vectorize_lam(lam);
 #else
         case Intrinsic::Vectorize: throw std::runtime_error("rebuild with RV support");
 #endif
@@ -83,17 +83,17 @@ Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
     }
 }
 
-Continuation* CodeGen::emit_hls(Continuation* continuation) {
-    std::vector<llvm::Value*> args(continuation->num_args()-3);
-    Continuation* ret = nullptr;
-    for (size_t i = 2, j = 0; i < continuation->num_args(); ++i) {
-        if (auto cont = continuation->arg(i)->isa_continuation()) {
-            ret = cont;
+Lam* CodeGen::emit_hls(Lam* lam) {
+    std::vector<llvm::Value*> args(lam->num_args()-3);
+    Lam* ret = nullptr;
+    for (size_t i = 2, j = 0; i < lam->num_args(); ++i) {
+        if (auto lam = lam->app()->arg(i)->isa_lam()) {
+            ret = lam;
             continue;
         }
-        args[j++] = emit(continuation->arg(i));
+        args[j++] = emit(lam->app()->arg(i));
     }
-    auto callee = continuation->arg(1)->as<Global>()->init()->as_continuation();
+    auto callee = lam->app()->arg(1)->as<Global>()->init()->as_lam();
     callee->make_external();
     irbuilder_.CreateCall(emit_function_decl(callee), args);
     assert(ret);
@@ -104,58 +104,58 @@ void CodeGen::emit_result_phi(const Def* param, llvm::Value* value) {
     thorin::find(phis_, param)->addIncoming(value, irbuilder_.GetInsertBlock());
 }
 
-Continuation* CodeGen::emit_atomic(Continuation* continuation) {
-    assert(continuation->num_args() == 5 && "required arguments are missing");
-    if (!is_type_i(continuation->arg(3)->type()))
-        EDEF(continuation->arg(3), "atomic only supported for integer types");
+Lam* CodeGen::emit_atomic(Lam* lam) {
+    assert(lam->num_args() == 5 && "required arguments are missing");
+    if (!is_type_i(lam->app()->arg(3)->type()))
+        EDEF(lam->app()->arg(3), "atomic only supported for integer types");
     // atomic tag: Xchg Add Sub And Nand Or Xor Max Min
-    u32 tag = continuation->arg(1)->as<PrimLit>()->qu32_value();
-    auto ptr = lookup(continuation->arg(2));
-    auto val = lookup(continuation->arg(3));
+    u32 tag = lam->app()->arg(1)->as<PrimLit>()->qu32_value();
+    auto ptr = lookup(lam->app()->arg(2));
+    auto val = lookup(lam->app()->arg(3));
     assert(int(llvm::AtomicRMWInst::BinOp::Xchg) <= int(tag) && int(tag) <= int(llvm::AtomicRMWInst::BinOp::UMin) && "unsupported atomic");
     auto binop = (llvm::AtomicRMWInst::BinOp)tag;
-    auto cont = continuation->arg(4)->as_continuation();
+    auto lam = lam->app()->arg(4)->as_lam();
     auto call = irbuilder_.CreateAtomicRMW(binop, ptr, val, llvm::AtomicOrdering::SequentiallyConsistent, llvm::SyncScope::System);
-    emit_result_phi(cont->param(1), call);
-    return cont;
+    emit_result_phi(lam->param(1), call);
+    return lam;
 }
 
-Continuation* CodeGen::emit_cmpxchg(Continuation* continuation) {
-    assert(continuation->num_args() == 5 && "required arguments are missing");
-    if (!is_type_i(continuation->arg(3)->type()))
-        EDEF(continuation->arg(3), "cmpxchg only supported for integer types");
-    auto ptr  = lookup(continuation->arg(1));
-    auto cmp  = lookup(continuation->arg(2));
-    auto val  = lookup(continuation->arg(3));
-    auto cont = continuation->arg(4)->as_continuation();
+Lam* CodeGen::emit_cmpxchg(Lam* lam) {
+    assert(lam->num_args() == 5 && "required arguments are missing");
+    if (!is_type_i(lam->app()->arg(3)->type()))
+        EDEF(lam->app()->arg(3), "cmpxchg only supported for integer types");
+    auto ptr  = lookup(lam->app()->arg(1));
+    auto cmp  = lookup(lam->app()->arg(2));
+    auto val  = lookup(lam->app()->arg(3));
+    auto lam = lam->app()->arg(4)->as_lam();
     auto call = irbuilder_.CreateAtomicCmpXchg(ptr, cmp, val, llvm::AtomicOrdering::SequentiallyConsistent, llvm::AtomicOrdering::SequentiallyConsistent, llvm::SyncScope::System);
-    emit_result_phi(cont->param(1), irbuilder_.CreateExtractValue(call, 0));
-    emit_result_phi(cont->param(2), irbuilder_.CreateExtractValue(call, 1));
-    return cont;
+    emit_result_phi(lam->param(1), irbuilder_.CreateExtractValue(call, 0));
+    emit_result_phi(lam->param(2), irbuilder_.CreateExtractValue(call, 1));
+    return lam;
 }
 
-Continuation* CodeGen::emit_reserve(const Continuation* continuation) {
-    EDEF(&continuation->jump_debug(), "reserve_shared: only allowed in device code");
+Lam* CodeGen::emit_reserve(const Lam* lam) {
+    EDEF(&lam->jump_debug(), "reserve_shared: only allowed in device code");
     THORIN_UNREACHABLE;
 }
 
-Continuation* CodeGen::emit_reserve_shared(const Continuation* continuation, bool init_undef) {
-    assert(continuation->num_args() == 3 && "required arguments are missing");
-    if (!continuation->arg(1)->isa<PrimLit>())
-        EDEF(continuation->arg(1), "reserve_shared: couldn't extract memory size");
-    auto num_elems = continuation->arg(1)->as<PrimLit>()->ps32_value();
-    auto cont = continuation->arg(2)->as_continuation();
-    auto type = convert(cont->param(1)->type());
+Lam* CodeGen::emit_reserve_shared(const Lam* lam, bool init_undef) {
+    assert(lam->num_args() == 3 && "required arguments are missing");
+    if (!lam->app()->arg(1)->isa<PrimLit>())
+        EDEF(lam->app()->arg(1), "reserve_shared: couldn't extract memory size");
+    auto num_elems = lam->app()->arg(1)->as<PrimLit>()->ps32_value();
+    auto lam = lam->app()->arg(2)->as_lam();
+    auto type = convert(lam->param(1)->type());
     // construct array type
-    auto elem_type = cont->param(1)->type()->as<PtrType>()->pointee()->as<ArrayType>()->elem_type();
-    auto smem_type = this->convert(continuation->world().definite_array_type(elem_type, num_elems));
-    auto name = continuation->unique_name();
+    auto elem_type = lam->param(1)->type()->as<PtrType>()->pointee()->as<ArrayType>()->elem_type();
+    auto smem_type = this->convert(lam->world().definite_array_type(elem_type, num_elems));
+    auto name = lam->unique_name();
     // NVVM doesn't allow '.' in global identifier
     std::replace(name.begin(), name.end(), '.', '_');
     auto global = emit_global_variable(smem_type, name, 3, init_undef);
     auto call = irbuilder_.CreatePointerCast(global, type);
-    emit_result_phi(cont->param(1), call);
-    return cont;
+    emit_result_phi(lam->param(1), call);
+    return lam;
 }
 
 llvm::Value* CodeGen::emit_bitcast(const Def* val, const Type* dst_type) {
@@ -169,46 +169,46 @@ llvm::Value* CodeGen::emit_bitcast(const Def* val, const Type* dst_type) {
     return irbuilder_.CreateBitCast(from, to);
 }
 
-llvm::FunctionType* CodeGen::convert_fn_type(Continuation* continuation) {
-    return llvm::cast<llvm::FunctionType>(convert(continuation->type()));
+llvm::FunctionType* CodeGen::convert_fn_type(Lam* lam) {
+    return llvm::cast<llvm::FunctionType>(convert(lam->type()));
 }
 
-llvm::Function* CodeGen::emit_function_decl(Continuation* continuation) {
-    if (auto f = thorin::find(fcts_, continuation))
+llvm::Function* CodeGen::emit_function_decl(Lam* lam) {
+    if (auto f = thorin::find(fcts_, lam))
         return f;
 
-    std::string name = (continuation->is_external() || continuation->is_empty()) ? continuation->name().str() : continuation->unique_name();
-    auto f = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, convert_fn_type(continuation)));
+    std::string name = (lam->is_external() || lam->is_empty()) ? lam->name().str() : lam->unique_name();
+    auto f = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, convert_fn_type(lam)));
 
 #ifdef _MSC_VER
     // set dll storage class for MSVC
     if (!entry_ && llvm::Triple(llvm::sys::getProcessTriple()).isOSWindows()) {
-        if (continuation->empty()) {
+        if (lam->empty()) {
             f->setDLLStorageClass(llvm::GlobalValue::DLLImportStorageClass);
-        } else if (continuation->is_external()) {
+        } else if (lam->is_external()) {
             f->setDLLStorageClass(llvm::GlobalValue::DLLExportStorageClass);
         }
     }
 #endif
 
     // set linkage
-    if (continuation->is_empty() || continuation->is_external())
+    if (lam->is_empty() || lam->is_external())
         f->setLinkage(llvm::Function::ExternalLinkage);
     else
         f->setLinkage(llvm::Function::InternalLinkage);
 
     // set calling convention
-    if (continuation->is_external()) {
+    if (lam->is_external()) {
         f->setCallingConv(kernel_calling_convention_);
-        emit_function_decl_hook(continuation, f);
+        emit_function_decl_hook(lam, f);
     } else {
-        if (continuation->cc() == CC::Device)
+        if (lam->cc() == CC::Device)
             f->setCallingConv(device_calling_convention_);
         else
             f->setCallingConv(function_calling_convention_);
     }
 
-    return fcts_[continuation] = f;
+    return fcts_[lam] = f;
 }
 
 std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
@@ -242,7 +242,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
 
         // map params
         const Def* ret_param = nullptr;
-        auto arg = fct->arg_begin();
+        auto arg = fct->app()->arg_begin();
         for (auto param : entry_->params()) {
             if (is_mem(param) || is_unit(param)) {
                 params_[param] = nullptr;
@@ -263,18 +263,18 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
         }
         assert(ret_param);
 
-        BBMap bb2continuation;
+        BBMap bb2lam;
         Schedule schedule(scope);
 
         for (const auto& block : schedule) {
-            auto continuation = block.continuation();
-            // map all bb-like continuations to llvm bb stubs
-            if (continuation->intrinsic() != Intrinsic::EndScope) {
-                auto bb = bb2continuation[continuation] = llvm::BasicBlock::Create(context_, continuation->name().c_str(), fct);
+            auto lam = block.lam();
+            // map all bb-like lams to llvm bb stubs
+            if (lam->intrinsic() != Intrinsic::EndScope) {
+                auto bb = bb2lam[lam] = llvm::BasicBlock::Create(context_, lam->name().c_str(), fct);
 
-                // create phi node stubs (for all continuations different from entry)
-                if (entry_ != continuation) {
-                    for (auto param : continuation->params()) {
+                // create phi node stubs (for all lams different from entry)
+                if (entry_ != lam) {
+                    for (auto param : lam->params()) {
                         auto phi = (is_mem(param) || is_unit(param))
                                  ? nullptr
                                  : llvm::PHINode::Create(convert(param->type()), (unsigned) peek(param).size(), param->name().c_str(), bb);
@@ -293,11 +293,11 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
         irbuilder_.CreateBr(&*oldStartBB);
 
         for (auto& block : schedule) {
-            auto continuation = block.continuation();
-            if (continuation->intrinsic() == Intrinsic::EndScope)
+            auto lam = block.lam();
+            if (lam->intrinsic() == Intrinsic::EndScope)
                 continue;
-            assert(continuation == entry_ || continuation->is_basicblock());
-            irbuilder_.SetInsertPoint(bb2continuation[continuation]);
+            assert(lam == entry_ || lam->is_basicblock());
+            irbuilder_.SetInsertPoint(bb2lam[lam]);
 
             for (auto primop : block) {
                 if (debug)
@@ -308,11 +308,11 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                 auto j = params_.find(primop);
                 if (j != params_.end()) continue;
 
-                // ignore tuple arguments for continuations
+                // ignore tuple arguments for lams
                 if (auto tuple = primop->isa<Tuple>()) {
                     bool ignore = false;
                     for (auto use : tuple->uses()) {
-                        ignore |= use->isa<Continuation>() != nullptr;
+                        ignore |= use->isa<Lam>() != nullptr;
                     }
 
                     if (ignore) continue;
@@ -330,16 +330,16 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
 
             // terminate bb
             if (debug)
-                irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(continuation->jump_debug().front_line(), continuation->jump_debug().front_col(), discope));
-            if (continuation->callee() == ret_param) { // return
-                size_t num_args = continuation->num_args();
+                irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(lam->jump_debug().front_line(), lam->jump_debug().front_col(), discope));
+            if (lam->app()->callee() == ret_param) { // return
+                size_t num_args = lam->num_args();
                 if (num_args == 0) irbuilder_.CreateRetVoid();
                 else {
                     Array<llvm::Value*> values(num_args);
                     Array<llvm::Type*> args(num_args);
 
                     size_t n = 0;
-                    for (auto arg : continuation->args()) {
+                    for (auto arg : lam->app()->args()) {
                         if (!is_mem(arg) && !is_unit(arg)) {
                             auto val = lookup(arg);
                             values[n] = val;
@@ -360,36 +360,36 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                         irbuilder_.CreateRet(agg);
                     }
                 }
-            } else if (continuation->callee() == world().branch()) {
-                auto cond = lookup(continuation->arg(0));
-                auto tbb = bb2continuation[continuation->arg(1)->as_continuation()];
-                auto fbb = bb2continuation[continuation->arg(2)->as_continuation()];
+            } else if (lam->app()->callee() == world().branch()) {
+                auto cond = lookup(lam->app()->arg(0));
+                auto tbb = bb2lam[lam->app()->arg(1)->as_lam()];
+                auto fbb = bb2lam[lam->app()->arg(2)->as_lam()];
                 irbuilder_.CreateCondBr(cond, tbb, fbb);
-            } else if (continuation->callee()->isa<Continuation>() &&
-                       continuation->callee()->as<Continuation>()->intrinsic() == Intrinsic::Match) {
-                auto val = lookup(continuation->arg(0));
-                auto otherwise_bb = bb2continuation[continuation->arg(1)->as_continuation()];
-                auto match = irbuilder_.CreateSwitch(val, otherwise_bb, continuation->num_args() - 2);
-                for (size_t i = 2; i < continuation->num_args(); i++) {
-                    auto arg = continuation->arg(i)->as<Tuple>();
+            } else if (lam->app()->callee()->isa<Lam>() &&
+                       lam->app()->callee()->as<Lam>()->intrinsic() == Intrinsic::Match) {
+                auto val = lookup(lam->app()->arg(0));
+                auto otherwise_bb = bb2lam[lam->app()->arg(1)->as_lam()];
+                auto match = irbuilder_.CreateSwitch(val, otherwise_bb, lam->num_args() - 2);
+                for (size_t i = 2; i < lam->num_args(); i++) {
+                    auto arg = lam->app()->arg(i)->as<Tuple>();
                     auto case_const = llvm::cast<llvm::ConstantInt>(lookup(arg->op(0)));
-                    auto case_bb    = bb2continuation[arg->op(1)->as_continuation()];
+                    auto case_bb    = bb2lam[arg->op(1)->as_lam()];
                     match->addCase(case_const, case_bb);
                 }
-            } else if (continuation->callee()->isa<Bottom>()) {
+            } else if (lam->app()->callee()->isa<Bottom>()) {
                 irbuilder_.CreateUnreachable();
             } else {
-                auto callee = continuation->callee();
+                auto callee = lam->app()->callee();
                 bool terminated = false;
-                if (auto callee_continuation = callee->isa_continuation()) {
-                    if (callee_continuation->is_basicblock()) {
+                if (auto callee_lam = callee->isa_lam()) {
+                    if (callee_lam->is_basicblock()) {
                         // ordinary jump
-                        irbuilder_.CreateBr(bb2continuation[callee_continuation]);
+                        irbuilder_.CreateBr(bb2lam[callee_lam]);
                         terminated = true;
-                    } else if (callee_continuation->is_intrinsic()) {
+                    } else if (callee_lam->is_intrinsic()) {
                         // intrinsic call
-                        auto ret_continuation = emit_intrinsic(continuation);
-                        irbuilder_.CreateBr(bb2continuation[ret_continuation]);
+                        auto ret_lam = emit_intrinsic(lam);
+                        irbuilder_.CreateBr(bb2lam[ret_lam]);
                         terminated = true;
                     }
                 }
@@ -399,7 +399,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                     // put all first-order args into an array
                     std::vector<llvm::Value*> args;
                     const Def* ret_arg = nullptr;
-                    for (auto arg : continuation->args()) {
+                    for (auto arg : lam->app()->args()) {
                         if (arg->order() == 0) {
                             if (!is_mem(arg) && !is_unit(arg))
                                 args.push_back(lookup(arg));
@@ -410,11 +410,11 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                     }
 
                     llvm::CallInst* call = nullptr;
-                    if (auto callee_continuation = callee->isa_continuation()) {
-                        call = irbuilder_.CreateCall(emit_function_decl(callee_continuation), args);
-                        if (callee_continuation->is_external())
+                    if (auto callee_lam = callee->isa_lam()) {
+                        call = irbuilder_.CreateCall(emit_function_decl(callee_lam), args);
+                        if (callee_lam->is_external())
                             call->setCallingConv(kernel_calling_convention_);
-                        else if (callee_continuation->cc() == CC::Device)
+                        else if (callee_lam->cc() == CC::Device)
                             call->setCallingConv(device_calling_convention_);
                         else
                             call->setCallingConv(function_calling_convention_);
@@ -425,8 +425,8 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                         call = irbuilder_.CreateCall(irbuilder_.CreateExtractValue(closure, 0), args);
                     }
 
-                    // must be call + continuation --- call + return has been removed by codegen_prepare
-                    auto succ = ret_arg->as_continuation();
+                    // must be call + lam --- call + return has been removed by codegen_prepare
+                    auto succ = ret_arg->as_lam();
 
                     size_t n = 0;
                     const Def* last_param = nullptr;
@@ -438,9 +438,9 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                     }
 
                     if (n == 0) {
-                        irbuilder_.CreateBr(bb2continuation[succ]);
+                        irbuilder_.CreateBr(bb2lam[succ]);
                     } else if (n == 1) {
-                        irbuilder_.CreateBr(bb2continuation[succ]);
+                        irbuilder_.CreateBr(bb2lam[succ]);
                         emit_result_phi(last_param, call);
                     } else {
                         Array<llvm::Value*> extracts(n);
@@ -452,7 +452,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                             j++;
                         }
 
-                        irbuilder_.CreateBr(bb2continuation[succ]);
+                        irbuilder_.CreateBr(bb2lam[succ]);
 
                         for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
                             auto param = succ->param(i);
@@ -471,7 +471,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
             if (auto phi = p.second) {
                 auto param = p.first;
                 for (auto&& p : peek(param))
-                    phi->addIncoming(lookup(p.def()), bb2continuation[p.from()]);
+                    phi->addIncoming(lookup(p.def()), bb2lam[p.from()]);
             }
         }
 
@@ -556,8 +556,8 @@ llvm::Value* CodeGen::lookup(const Def* def) {
         }
     }
 
-    if (auto continuation = def->isa_continuation())
-        return emit_function_decl(continuation);
+    if (auto lam = def->isa_lam())
+        return emit_function_decl(lam);
 
     THORIN_UNREACHABLE;
 }
@@ -941,8 +941,8 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
 llvm::Value* CodeGen::emit_global(const Global* global) {
     llvm::Value* val;
-    if (auto continuation = global->init()->isa_continuation())
-        val = fcts_[continuation];
+    if (auto lam = global->init()->isa_lam())
+        val = fcts_[lam];
     else {
         auto llvm_type = convert(global->alloced_type());
         auto var = llvm::cast<llvm::GlobalVariable>(module_->getOrInsertGlobal(global->unique_name().c_str(), llvm_type));
@@ -1202,23 +1202,23 @@ llvm::Value* CodeGen::create_tmp_alloca(llvm::Type* type, std::function<llvm::Va
 //------------------------------------------------------------------------------
 
 static void get_kernel_configs(Importer& importer,
-    const std::vector<Continuation*>& kernels,
+    const std::vector<Lam*>& kernels,
     Cont2Config& kernel_config,
-    std::function<std::unique_ptr<KernelConfig> (Continuation*, Continuation*)> use_callback)
+    std::function<std::unique_ptr<KernelConfig> (Lam*, Lam*)> use_callback)
 {
     importer.world().opt();
 
     auto externals = importer.world().externals();
-    for (auto continuation : kernels) {
-        // recover the imported continuation (lost after the call to opt)
-        Continuation* imported = nullptr;
+    for (auto lam : kernels) {
+        // recover the imported lam (lost after the call to opt)
+        Lam* imported = nullptr;
         for (auto external : externals) {
-            if (external->name() == continuation->name())
+            if (external->name() == lam->name())
                 imported = external;
         }
         if (!imported) continue;
 
-        visit_uses(continuation, [&] (Continuation* use) {
+        visit_uses(lam, [&] (Lam* use) {
             auto config = use_callback(use, imported);
             if (config) {
                 auto p = kernel_config.emplace(imported, std::move(config));
@@ -1227,11 +1227,11 @@ static void get_kernel_configs(Importer& importer,
             return false;
         }, true);
 
-        continuation->destroy_body();
+        lam->destroy_body();
     }
 }
 
-static const Continuation* get_alloc_call(const Def* def) {
+static const Lam* get_alloc_call(const Def* def) {
     // look through casts
     while (auto conv_op = def->isa<ConvOp>())
         def = conv_op->op(0);
@@ -1239,14 +1239,14 @@ static const Continuation* get_alloc_call(const Def* def) {
     auto param = def->isa<Param>();
     if (!param) return nullptr;
 
-    auto ret = param->continuation();
+    auto ret = param->lam();
     if (ret->num_uses() != 1) return nullptr;
 
     auto use = *(ret->uses().begin());
-    auto call = use.def()->isa_continuation();
+    auto call = use.def()->isa_lam();
     if (!call || use.index() == 0) return nullptr;
 
-    auto callee = call->callee();
+    auto callee = call->app()->callee();
     if (callee->name() != "anydsl_alloc") return nullptr;
 
     return call;
@@ -1257,7 +1257,7 @@ static uint64_t get_alloc_size(const Def* def) {
     if (!call) return 0;
 
     // signature: anydsl_alloc(mem, i32, i64, fn(mem, &[i8]))
-    auto size = call->arg(2)->isa<PrimLit>();
+    auto size = call->app()->arg(2)->isa<PrimLit>();
     return size ? static_cast<uint64_t>(size->value().get_qu64()) : 0_u64;
 }
 
@@ -1270,29 +1270,29 @@ Backends::Backends(World& world)
 {
     // determine different parts of the world which need to be compiled differently
     Scope::for_each(world, [&] (const Scope& scope) {
-        auto continuation = scope.entry();
-        Continuation* imported = nullptr;
-        if (is_passed_to_intrinsic(continuation, Intrinsic::CUDA))
-            imported = cuda.import(continuation)->as_continuation();
-        else if (is_passed_to_intrinsic(continuation, Intrinsic::NVVM))
-            imported = nvvm.import(continuation)->as_continuation();
-        else if (is_passed_to_intrinsic(continuation, Intrinsic::OpenCL))
-            imported = opencl.import(continuation)->as_continuation();
-        else if (is_passed_to_intrinsic(continuation, Intrinsic::AMDGPU))
-            imported = amdgpu.import(continuation)->as_continuation();
-        else if (is_passed_to_intrinsic(continuation, Intrinsic::HLS))
-            imported = hls.import(continuation)->as_continuation();
+        auto lam = scope.entry();
+        Lam* imported = nullptr;
+        if (is_passed_to_intrinsic(lam, Intrinsic::CUDA))
+            imported = cuda.import(lam)->as_lam();
+        else if (is_passed_to_intrinsic(lam, Intrinsic::NVVM))
+            imported = nvvm.import(lam)->as_lam();
+        else if (is_passed_to_intrinsic(lam, Intrinsic::OpenCL))
+            imported = opencl.import(lam)->as_lam();
+        else if (is_passed_to_intrinsic(lam, Intrinsic::AMDGPU))
+            imported = amdgpu.import(lam)->as_lam();
+        else if (is_passed_to_intrinsic(lam, Intrinsic::HLS))
+            imported = hls.import(lam)->as_lam();
         else
             return;
 
-        imported->debug().set(continuation->unique_name());
+        imported->debug().set(lam->unique_name());
         imported->make_external();
-        continuation->debug().set(continuation->unique_name());
+        lam->debug().set(lam->unique_name());
 
-        for (size_t i = 0, e = continuation->num_params(); i != e; ++i)
-            imported->param(i)->debug().set(continuation->param(i)->unique_name());
+        for (size_t i = 0, e = lam->num_params(); i != e; ++i)
+            imported->param(i)->debug().set(lam->param(i)->unique_name());
 
-        kernels.emplace_back(continuation);
+        kernels.emplace_back(lam);
     });
 
     // get the GPU kernel configurations
@@ -1300,12 +1300,12 @@ Backends::Backends(World& world)
         !nvvm.world().empty()   ||
         !opencl.world().empty() ||
         !amdgpu.world().empty()) {
-        auto get_gpu_config = [&] (Continuation* use, Continuation* /* imported */) {
+        auto get_gpu_config = [&] (Lam* use, Lam* /* imported */) {
             // determine whether or not this kernel uses restrict pointers
             bool has_restrict = true;
             DefSet allocs;
             for (size_t i = LaunchArgs::Num, e = use->num_args(); has_restrict && i != e; ++i) {
-                auto arg = use->arg(i);
+                auto arg = use->app()->arg(i);
                 if (!arg->type()->isa<PtrType>()) continue;
                 auto alloc = get_alloc_call(arg);
                 if (!alloc) has_restrict = false;
@@ -1313,7 +1313,7 @@ Backends::Backends(World& world)
                 has_restrict &= p.second;
             }
 
-            auto it_config = use->arg(LaunchArgs::Config)->as<Tuple>();
+            auto it_config = use->app()->arg(LaunchArgs::Config)->as<Tuple>();
             if (it_config->op(0)->isa<PrimLit>() &&
                 it_config->op(1)->isa<PrimLit>() &&
                 it_config->op(2)->isa<PrimLit>()) {
@@ -1333,10 +1333,10 @@ Backends::Backends(World& world)
 
     // get the HLS kernel configurations
     if (!hls.world().empty()) {
-        auto get_hls_config = [&] (Continuation* use, Continuation* imported) {
+        auto get_hls_config = [&] (Lam* use, Lam* imported) {
             HLSKernelConfig::Param2Size param_sizes;
             for (size_t i = 3, e = use->num_args(); i != e; ++i) {
-                auto arg = use->arg(i);
+                auto arg = use->app()->arg(i);
                 auto ptr_type = arg->type()->isa<PtrType>();
                 if (!ptr_type) continue;
                 auto size = get_alloc_size(arg);

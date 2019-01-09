@@ -24,7 +24,7 @@ void CFNode::link(const CFNode* other) const {
     other->preds_.emplace(this);
 }
 
-std::ostream& CFNode::stream(std::ostream& out) const { return streamf(out, "{}", continuation()); }
+std::ostream& CFNode::stream(std::ostream& out) const { return streamf(out, "{}", lam()); }
 
 //------------------------------------------------------------------------------
 
@@ -33,12 +33,12 @@ CFA::CFA(const Scope& scope)
     , entry_(node(scope.entry()))
     , exit_ (node(scope.exit() ))
 {
-    std::queue<Continuation*> cfg_queue;
-    ContinuationSet cfg_done;
+    std::queue<Lam*> cfg_queue;
+    LamSet cfg_done;
 
-    auto cfg_enqueue = [&] (Continuation* continuation) {
-        if (cfg_done.emplace(continuation).second)
-            cfg_queue.push(continuation);
+    auto cfg_enqueue = [&] (Lam* lam) {
+        if (cfg_done.emplace(lam).second)
+            cfg_queue.push(lam);
     };
 
     cfg_queue.push(scope.entry());
@@ -50,7 +50,7 @@ CFA::CFA(const Scope& scope)
 
         auto enqueue = [&] (const Def* def) {
             if (def->order() > 0 && scope.contains(def) && done.emplace(def).second) {
-                if (auto dst = def->isa_continuation()) {
+                if (auto dst = def->isa_lam()) {
                     cfg_enqueue(dst);
                     node(src)->link(node(dst));
                 } else
@@ -71,10 +71,10 @@ CFA::CFA(const Scope& scope)
     verify();
 }
 
-const CFNode* CFA::node(Continuation* continuation) {
-    auto& n = nodes_[continuation];
+const CFNode* CFA::node(Lam* lam) {
+    auto& n = nodes_[lam];
     if (n == nullptr)
-        n = new CFNode(continuation);
+        n = new CFNode(lam);
     return n;
 }
 
@@ -151,7 +151,7 @@ void CFA::verify() {
     for (const auto& p : nodes()) {
         auto in = p.second;
         if (in != entry() && in->preds_.size() == 0) {
-            VLOG("missing predecessors: {}", in->continuation());
+            VLOG("missing predecessors: {}", in->lam());
             error = true;
         }
     }

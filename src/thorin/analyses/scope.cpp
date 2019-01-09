@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <fstream>
 
-#include "thorin/continuation.h"
+#include "thorin/lam.h"
 #include "thorin/world.h"
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/domtree.h"
@@ -12,7 +12,7 @@
 
 namespace thorin {
 
-Scope::Scope(Continuation* entry)
+Scope::Scope(Lam* entry)
     : world_(entry->world())
     , entry_(entry)
     , exit_(world().end_scope())
@@ -39,8 +39,8 @@ void Scope::run() {
         if (defs_.insert(def).second) {
             queue.push(def);
 
-            if (auto continuation = def->isa_continuation()) {
-                auto param = continuation->param();
+            if (auto lam = def->isa_lam()) {
+                auto param = lam->param();
                 auto p = defs_.insert(param);
                 assert_unused(p.second);
                 queue.push(param);
@@ -84,7 +84,7 @@ const ParamSet& Scope::free_params() const {
         auto enqueue = [&](const Def* def) {
             if (auto param = def->isa<Param>())
                 free_params_->emplace(param);
-            else if (def->isa<Continuation>())
+            else if (def->isa<Lam>())
                 return;
             else
                 queue.push(def);
@@ -108,18 +108,18 @@ const B_CFG& Scope::b_cfg() const { return cfa().b_cfg(); }
 
 template<bool elide_empty>
 void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
-    unique_queue<ContinuationSet> continuation_queue;
+    unique_queue<LamSet> lam_queue;
 
-    for (auto continuation : world.externals()) {
-        assert(!continuation->is_empty() && "external must not be empty");
-        continuation_queue.push(continuation);
+    for (auto lam : world.externals()) {
+        assert(!lam->is_empty() && "external must not be empty");
+        lam_queue.push(lam);
     }
 
-    while (!continuation_queue.empty()) {
-        auto continuation = continuation_queue.pop();
-        if (elide_empty && continuation->is_empty())
+    while (!lam_queue.empty()) {
+        auto lam = lam_queue.pop();
+        if (elide_empty && lam->is_empty())
             continue;
-        Scope scope(continuation);
+        Scope scope(lam);
         f(scope);
 
         unique_queue<DefSet> def_queue;
@@ -128,8 +128,8 @@ void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
 
         while (!def_queue.empty()) {
             auto def = def_queue.pop();
-            if (auto continuation = def->isa_continuation())
-                continuation_queue.push(continuation);
+            if (auto lam = def->isa_lam())
+                lam_queue.push(lam);
             else {
                 for (auto op : def->ops())
                     def_queue.push(op);

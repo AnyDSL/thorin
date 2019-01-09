@@ -8,7 +8,7 @@
 #include <string>
 
 #include "thorin/enums.h"
-#include "thorin/continuation.h"
+#include "thorin/lam.h"
 #include "thorin/primop.h"
 #include "thorin/util/hash.h"
 #include "thorin/util/stream.h"
@@ -32,9 +32,9 @@ namespace thorin {
  *      - canonicalization of expressions
  *      - several local optimizations
  *
- *  @p PrimOp%s do not explicitly belong to a Continuation.
- *  Instead they either implicitly belong to a Continuation--when
- *  they (possibly via multiple levels of indirection) depend on a Continuation's Param--or they are dead.
+ *  @p PrimOp%s do not explicitly belong to a Lam.
+ *  Instead they either implicitly belong to a Lam--when
+ *  they (possibly via multiple levels of indirection) depend on a Lam's Param--or they are dead.
  *  Use @p cleanup to remove dead code and unreachable code.
  *
  *  You can create several worlds.
@@ -168,17 +168,17 @@ public:
     const Def* known(const Def* def, Debug dbg = {});
     const Def* run(const Def* def, Debug dbg = {});
 
-    // continuations
+    // lams
 
-    const Param* param(Continuation* continuation, Debug dbg) { return unify(new Param(continuation->domain(), continuation, dbg)); }
-    Continuation* continuation(const Pi* cn, CC cc = CC::C, Intrinsic intrinsic = Intrinsic::None, Debug dbg = {}) {
-        return insert(new Continuation(cn, cc, intrinsic, dbg));
+    const Param* param(Lam* lam, Debug dbg) { return unify(new Param(lam->domain(), lam, dbg)); }
+    Lam* lam(const Pi* cn, CC cc = CC::C, Intrinsic intrinsic = Intrinsic::None, Debug dbg = {}) {
+        return insert(new Lam(cn, cc, intrinsic, dbg));
     }
-    Continuation* continuation(const Pi* cn, Debug dbg = {}) { return continuation(cn, CC::C, Intrinsic::None, dbg); }
-    Continuation* continuation(Debug dbg = {}) { return continuation(cn(), CC::C, Intrinsic::None, dbg); }
-    Continuation* branch() const { return branch_; }
-    Continuation* match(const Type* type, size_t num_patterns);
-    Continuation* end_scope() const { return end_scope_; }
+    Lam* lam(const Pi* cn, Debug dbg = {}) { return lam(cn, CC::C, Intrinsic::None, dbg); }
+    Lam* lam(Debug dbg = {}) { return lam(cn(), CC::C, Intrinsic::None, dbg); }
+    Lam* branch() const { return branch_; }
+    Lam* match(const Type* type, size_t num_patterns);
+    Lam* end_scope() const { return end_scope_; }
     const Def* app(const Def* callee, const Def* arg, Debug dbg = {});
     const Def* app(const Def* callee, Defs args, Debug dbg = {}) { return app(callee, tuple(args), dbg); }
 
@@ -190,16 +190,16 @@ public:
 
     const std::string& name() const { return name_; }
     const DefSet& defs() const { return defs_; }
-    std::vector<Continuation*> copy_continuations() const;
-    const ContinuationSet& externals() const { return externals_; }
+    std::vector<Lam*> copy_lams() const;
+    const LamSet& externals() const { return externals_; }
 
     // other stuff
 
     void mark_pe_done(bool flag = true) { pe_done_ = flag; }
     bool is_pe_done() const { return pe_done_; }
-    void add_external(Continuation* continuation) { externals_.insert(continuation); }
-    void remove_external(Continuation* continuation) { externals_.erase(continuation); }
-    bool is_external(const Continuation* continuation) { return externals().contains(const_cast<Continuation*>(continuation)); }
+    void add_external(Lam* lam) { externals_.insert(lam); }
+    void remove_external(Lam* lam) { externals_.erase(lam); }
+    bool is_external(const Lam* lam) { return externals().contains(const_cast<Lam*>(lam)); }
 #if THORIN_ENABLE_CHECKS
     void breakpoint(size_t number) { breakpoints_.insert(number); }
     const Breakpoints& breakpoints() const { return breakpoints_; }
@@ -261,10 +261,10 @@ private:
     }
 
     std::string name_;
-    ContinuationSet externals_;
+    LamSet externals_;
     DefSet defs_;
-    Continuation* branch_;
-    Continuation* end_scope_;
+    Lam* branch_;
+    Lam* end_scope_;
     bool pe_done_ = false;
 #if THORIN_ENABLE_CHECKS
     Breakpoints breakpoints_;
@@ -272,7 +272,7 @@ private:
 #endif
 
     friend class Cleaner;
-    friend class Continuation;
+    friend class Lam;
     friend void Def::replace(Tracker) const;
 };
 

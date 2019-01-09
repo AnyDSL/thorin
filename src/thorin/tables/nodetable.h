@@ -3,7 +3,7 @@
 #endif
 
 // Def
-    THORIN_NODE(Continuation, continuation)
+    THORIN_NODE(Lam, lam)
     // PrimOp
         // Literal
             THORIN_NODE(Bottom, bottom)

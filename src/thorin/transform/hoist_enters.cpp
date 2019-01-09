@@ -20,8 +20,8 @@ static void find_enters(std::deque<const Enter*>& enters, const Def* def) {
     }
 }
 
-static void find_enters(std::deque<const Enter*>& enters, Continuation* continuation) {
-    if (auto mem_param = continuation->mem_param())
+static void find_enters(std::deque<const Enter*>& enters, Lam* lam) {
+    if (auto mem_param = lam->mem_param())
         find_enters(enters, mem_param);
 }
 
@@ -30,7 +30,7 @@ static void hoist_enters(const Scope& scope) {
     std::deque<const Enter*> enters;
 
     for (auto n : scope.f_cfg().reverse_post_order())
-        find_enters(enters, n->continuation());
+        find_enters(enters, n->lam());
 
 
     if (enters.empty() || enters[0]->mem() != scope.entry()->mem_param()) {

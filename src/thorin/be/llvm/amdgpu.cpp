@@ -18,8 +18,8 @@ AMDGPUCodeGen::AMDGPUCodeGen(World& world, const Cont2Config& kernel_config)
 // Kernel code
 //------------------------------------------------------------------------------
 
-void AMDGPUCodeGen::emit_function_decl_hook(Continuation* continuation, llvm::Function* f) {
-    auto config = kernel_config_.find(continuation);
+void AMDGPUCodeGen::emit_function_decl_hook(Lam* lam, llvm::Function* f) {
+    auto config = kernel_config_.find(lam);
     if (config != kernel_config_.end()) {
         auto block = config->second->as<GPUKernelConfig>()->block_size();
         if (std::get<0>(block) > 0 && std::get<1>(block) > 0 && std::get<2>(block) > 0) {
@@ -48,6 +48,6 @@ llvm::Value* AMDGPUCodeGen::emit_global(const Global* global) {
     return CodeGen::emit_global(global);
 }
 
-Continuation* AMDGPUCodeGen::emit_reserve(const Continuation* continuation) { return emit_reserve_shared(continuation, true); }
+Lam* AMDGPUCodeGen::emit_reserve(const Lam* lam) { return emit_reserve_shared(lam, true); }
 
 }

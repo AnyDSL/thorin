@@ -5,7 +5,7 @@
 #include <sstream>
 #include <stack>
 
-#include "thorin/continuation.h"
+#include "thorin/lam.h"
 #include "thorin/primop.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
@@ -49,7 +49,7 @@ void Def::set_op(size_t i, const Def* def) {
     assert(!op(i) && "already set");
     assert(def && "setting null pointer");
     ops_[i] = def;
-    contains_continuation_ |= def->contains_continuation();
+    contains_lam_ |= def->contains_lam();
     assert(!def->uses_.contains(Use(i, this)));
     const auto& p = def->uses_.emplace(i, this);
     assert_unused(p.second);
@@ -95,7 +95,7 @@ bool is_const(const Def* def) {
             for (auto op : def->ops())
                 stack.push(op);
         }
-        // continuations are always const
+        // lams are always const
     }
 
     return true;
@@ -164,8 +164,8 @@ void Def::dump() const {
 }
 
 World& Def::world() const { return *static_cast<World*>(&type()->table()); }
-Continuation* Def::as_continuation() const { return const_cast<Continuation*>(scast<Continuation>(this)); }
-Continuation* Def::isa_continuation() const { return const_cast<Continuation*>(dcast<Continuation>(this)); }
+Lam* Def::as_lam() const { return const_cast<Lam*>(scast<Lam>(this)); }
+Lam* Def::isa_lam() const { return const_cast<Lam*>(dcast<Lam>(this)); }
 std::ostream& Def::stream(std::ostream& out) const { return out << unique_name(); }
 
 #if THORIN_ENABLE_CHECKS

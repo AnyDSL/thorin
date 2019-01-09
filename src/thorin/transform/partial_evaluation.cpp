@@ -16,25 +16,25 @@ public:
 
     World& world() { return world_; }
     bool run();
-    void enqueue(Continuation* continuation) {
-        if (continuation->gid() < 2 * boundary_ && done_.emplace(continuation).second)
-            queue_.push(continuation);
+    void enqueue(Lam* lam) {
+        if (lam->gid() < 2 * boundary_ && done_.emplace(lam).second)
+            queue_.push(lam);
     }
-    void eat_pe_info(Continuation*);
+    void eat_pe_info(Lam*);
 
 private:
     World& world_;
     bool lower2cff_;
-    AppMap<Continuation*> cache_;
-    ContinuationSet done_;
-    std::queue<Continuation*> queue_;
-    ContinuationMap<bool> top_level_;
+    AppMap<Lam*> cache_;
+    LamSet done_;
+    std::queue<Lam*> queue_;
+    LamMap<bool> top_level_;
     size_t boundary_;
 };
 
 class CondEval {
 public:
-    CondEval(Continuation* callee, Defs args, ContinuationMap<bool>& top_level)
+    CondEval(Lam* callee, Defs args, LamMap<bool>& top_level)
         : callee_(callee)
         , args_(args)
         , top_level_(top_level)
@@ -64,14 +64,14 @@ public:
     }
 
     bool eval(size_t i, bool lower2cff) {
-        // the only higher order parameter that is allowed is a single 1st-order fn-parameter of a top-level continuation
+        // the only higher order parameter that is allowed is a single 1st-order fn-parameter of a top-level lam
         // all other parameters need specialization (lower2cff)
         auto order = callee_->param(i)->order();
         if (lower2cff)
             if(order >= 2 || (order == 1
                         && (!callee_->param(i)->type()->isa<Pi>()
                         || (!callee_->is_returning() || (!is_top_level(callee_)))))) {
-            DLOG("bad param({}) {} of continuation {}", i, callee_->param(i), callee_);
+            DLOG("bad param({}) {} of lam {}", i, callee_->param(i), callee_);
             return true;
         }
 
@@ -83,17 +83,17 @@ public:
         return callee_->filter() == nullptr ? world().literal_bool(false, {}) : callee_->filter(i);
     }
 
-    bool has_free_params(Continuation* continuation) {
-        Scope scope(continuation);
+    bool has_free_params(Lam* lam) {
+        Scope scope(lam);
         return scope.has_free_params();
     }
 
-    bool is_top_level(Continuation* continuation) {
-        auto p = top_level_.emplace(continuation, true);
+    bool is_top_level(Lam* lam) {
+        auto p = top_level_.emplace(lam, true);
         if (!p.second)
             return p.first->second;
 
-        Scope scope(continuation);
+        Scope scope(lam);
         unique_queue<DefSet> queue;
 
         for (auto def : scope.free())
@@ -103,39 +103,39 @@ public:
             auto def = queue.pop();
 
             if (def->isa<Param>())
-                return top_level_[continuation] = false;
-            if (auto free_cn = def->isa_continuation()) {
+                return top_level_[lam] = false;
+            if (auto free_cn = def->isa_lam()) {
                 if (!is_top_level(free_cn))
-                    return top_level_[continuation] = false;
+                    return top_level_[lam] = false;
             } else {
                 for (auto op : def->ops())
                     queue.push(op);
             }
         }
 
-        return top_level_[continuation] = true;
+        return top_level_[lam] = true;
     }
 
 private:
-    Continuation* callee_;
+    Lam* callee_;
     Defs args_;
     Def2Def old2new_;
-    ContinuationMap<bool>& top_level_;
+    LamMap<bool>& top_level_;
 };
 
-void PartialEvaluator::eat_pe_info(Continuation* cur) {
-    assert(cur->arg(1)->type() == world().ptr_type(world().indefinite_array_type(world().type_pu8())));
-    auto next = cur->arg(3);
+void PartialEvaluator::eat_pe_info(Lam* cur) {
+    assert(cur->app()->arg(1)->type() == world().ptr_type(world().indefinite_array_type(world().type_pu8())));
+    auto next = cur->app()->arg(3);
 
-    if (is_const(cur->arg(2))) {
-        auto msg = cur->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
-        IDEF(cur->callee(), "pe_info: {}: {}", msg->as_string(), cur->arg(2));
-        cur->jump(next, {cur->arg(0)}, cur->jump_debug());
+    if (is_const(cur->app()->arg(2))) {
+        auto msg = cur->app()->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
+        IDEF(cur->app()->callee(), "pe_info: {}: {}", msg->as_string(), cur->app()->arg(2));
+        cur->app(next, {cur->app()->arg(0)}, cur->app()->debug());
 
         // always re-insert into queue because we've changed cur's jump
         queue_.push(cur);
-    } else if (auto continuation = next->isa_continuation()) {
-        queue_.push(continuation);
+    } else if (auto lam = next->isa_lam()) {
+        queue_.push(lam);
     }
 }
 
@@ -148,32 +148,32 @@ bool PartialEvaluator::run() {
     }
 
     while (!queue_.empty()) {
-        auto continuation = pop(queue_);
+        auto lam = pop(queue_);
 
         bool force_fold = false;
-        auto callee_def = continuation->callee();
+        auto callee_def = lam->app()->callee();
 
-        if (auto run = continuation->callee()->isa<Run>()) {
+        if (auto run = lam->app()->callee()->isa<Run>()) {
             force_fold = true;
             callee_def = run->def();
         }
 
-        if (auto callee = callee_def->isa_continuation()) {
+        if (auto callee = callee_def->isa_lam()) {
             if (callee->intrinsic() == Intrinsic::PeInfo) {
-                eat_pe_info(continuation);
+                eat_pe_info(lam);
                 continue;
             }
 
             if (!callee->is_empty()) {
-                size_t num_args = continuation->num_args();
+                size_t num_args = lam->app()->num_args();
                 Array<const Def*> args(num_args);
 
-                CondEval cond_eval(callee, continuation->args(), top_level_);
+                CondEval cond_eval(callee, lam->app()->args(), top_level_);
 
                 bool fold = false;
                 for (size_t i = 0; i != num_args; ++i) {
                     if (force_fold || cond_eval.eval(i, lower2cff_)) {
-                        args[i] = continuation->arg(i);
+                        args[i] = lam->app()->arg(i);
                         fold = true;
                     } else {
                         args[i] = world().top(callee->param(i)->type());
@@ -183,26 +183,26 @@ bool PartialEvaluator::run() {
                 if (fold) {
                     auto app = world().app(callee, args)->as<App>();
                     const auto& p = cache_.emplace(app, nullptr);
-                    Continuation*& target = p.first->second;
+                    Lam*& target = p.first->second;
                     // create new specialization if not found in cache
                     if (p.second) {
                         target = drop(app);
                         todo = true;
                     }
 
-                    jump_to_dropped_app(continuation, target, app);
+                    jump_to_dropped_app(lam, target, app);
 
                     if (lower2cff_ && fold) {
                         // re-examine next iteration:
                         // maybe the specialization is not top-level anymore which might need further specialization
-                        queue_.push(continuation);
+                        queue_.push(lam);
                         continue;
                     }
                 }
             }
         }
 
-        for (auto succ : continuation->succs())
+        for (auto succ : lam->succs())
             enqueue(succ);
     }
 

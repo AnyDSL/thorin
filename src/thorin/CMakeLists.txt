@@ -1,10 +1,10 @@
 set(THORIN_SOURCES
-    continuation.cpp
-    continuation.h
     def.cpp
     def.h
     enums.cpp
     enums.h
+    lam.cpp
+    lam.h
     primop.cpp
     primop.h
     type.cpp

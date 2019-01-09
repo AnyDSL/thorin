@@ -9,14 +9,14 @@ namespace thorin {
 
 void lift_builtins(World& world) {
     while (true) {
-        Continuation* cur = nullptr;
+        Lam* cur = nullptr;
         Scope::for_each(world, [&] (const Scope& scope) {
             if (cur) return;
             for (auto n : scope.f_cfg().post_order()) {
-                if (n->continuation()->order() <= 1)
+                if (n->lam()->order() <= 1)
                     continue;
-                if (is_passed_to_accelerator(n->continuation(), false)) {
-                    cur = n->continuation();
+                if (is_passed_to_accelerator(n->lam(), false)) {
+                    cur = n->lam();
                     break;
                 }
             }
@@ -32,10 +32,10 @@ void lift_builtins(World& world) {
 
         Scope scope(cur);
 
-        // remove all continuations - they should be top-level functions and can thus be ignored
+        // remove all lams - they should be top-level functions and can thus be ignored
         std::vector<const Def*> defs;
         for (auto param : free_defs(scope)) {
-            if (!param->isa_continuation()) {
+            if (!param->isa_lam()) {
                 assert(param->order() == 0 && "creating a higher-order function");
                 defs.push_back(param);
             }
@@ -43,19 +43,19 @@ void lift_builtins(World& world) {
 
         auto lifted = lift(scope, defs);
         for (auto use : cur->copy_uses()) {
-            if (auto ucontinuation = use->isa_continuation()) {
-                if (auto callee = ucontinuation->callee()->isa_continuation()) {
+            if (auto ulam = use->isa_lam()) {
+                if (auto callee = ulam->app()->callee()->isa_lam()) {
                     if (callee->is_intrinsic()) {
-                        auto old_ops = ucontinuation->ops();
+                        auto old_ops = ulam->ops();
                         Array<const Def*> new_ops(old_ops.size() + defs.size());
                         std::copy(defs.begin(), defs.end(), std::copy(old_ops.begin(), old_ops.end(), new_ops.begin()));    // old ops + former free defs
                         assert(old_ops[use.index()] == cur);
-                        new_ops[use.index()] = world.global(lifted, false, lifted->debug());                                // update to new lifted continuation
+                        new_ops[use.index()] = world.global(lifted, false, lifted->debug());                                // update to new lifted lam
 
                         // jump to new top-level dummy function with new args
                         auto cn = world.cn(Array<const Type*>(new_ops.size()-1, [&] (auto i) { return new_ops[i+1]->type(); }));
-                        auto ncontinuation = world.continuation(cn, callee->cc(), callee->intrinsic(), callee->debug());
-                        ucontinuation->jump(ncontinuation, new_ops.skip_front(), ucontinuation->jump_debug());
+                        auto nlam = world.lam(cn, callee->cc(), callee->intrinsic(), callee->debug());
+                        ulam->app(nlam, new_ops.skip_front(), ulam->app()->debug());
                     }
                 }
             }

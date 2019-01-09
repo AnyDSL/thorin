@@ -29,8 +29,8 @@ public:
 
     void resolve_loads(const Scope& scope) {
         for (auto node : scope.f_cfg().reverse_post_order()) {
-            auto continuation = node->continuation();
-            for (auto param : continuation->params()) {
+            auto lam = node->lam();
+            for (auto param : lam->params()) {
                 if (param->type()->isa<MemType>()) {
                     Def2Def mapping;
                     resolve_loads(param, mapping);

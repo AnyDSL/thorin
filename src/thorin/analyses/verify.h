@@ -5,7 +5,7 @@
 
 namespace thorin {
 
-class Continuation;
+class Lam;
 class World;
 
 void verify(World& world);

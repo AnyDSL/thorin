@@ -1,4 +1,4 @@
-#include "thorin/continuation.h"
+#include "thorin/lam.h"
 #include "thorin/world.h"
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/scope.h"
@@ -12,12 +12,14 @@ void force_inline(Scope& scope, int threshold) {
     for (bool todo = true; todo && threshold-- != 0;) {
         todo = false;
         for (auto n : scope.f_cfg().post_order()) {
-            auto continuation = n->continuation();
-            if (auto callee = continuation->callee()->isa_continuation()) {
-                if (!callee->is_empty() && !scope.contains(callee)) {
-                    Scope callee_scope(callee);
-                    continuation->jump(drop(callee_scope, continuation->args()), Defs{}, continuation->jump_debug());
-                    todo = true;
+            auto lam = n->lam();
+            if (auto app = lam->app()) {
+                if (auto callee = app->callee()->isa_lam()) {
+                    if (!callee->is_empty() && !scope.contains(callee)) {
+                        Scope callee_scope(callee);
+                        lam->app(drop(callee_scope, app->args()), Defs{}, app->debug());
+                        todo = true;
+                    }
                 }
             }
         }
@@ -27,10 +29,12 @@ void force_inline(Scope& scope, int threshold) {
     }
 
     for (auto n : scope.f_cfg().reverse_post_order()) {
-        auto continuation = n->continuation();
-        if (auto callee = continuation->callee()->isa_continuation()) {
-            if (!callee->is_empty() && !scope.contains(callee))
-                WLOG("couldn't inline {} at {} within scope of {}", callee, continuation->jump_location(), scope.entry());
+        auto lam = n->lam();
+        if (auto app = lam->app()) {
+            if (auto callee = app->callee()->isa_lam()) {
+                if (!callee->is_empty() && !scope.contains(callee))
+                    WLOG("couldn't inline {} at {} within scope of {}", callee, app->location(), scope.entry());
+            }
         }
     }
 }
@@ -41,22 +45,22 @@ void inliner(World& world) {
     static const int factor = 4;
     static const int offset = 4;
 
-    ContinuationMap<std::unique_ptr<Scope>> continuation2scope;
+    LamMap<std::unique_ptr<Scope>> lam2scope;
 
-    auto get_scope = [&] (Continuation* continuation) -> Scope* {
-        auto i = continuation2scope.find(continuation);
-        if (i == continuation2scope.end())
-            i = continuation2scope.emplace(continuation, std::make_unique<Scope>(continuation)).first;
+    auto get_scope = [&] (Lam* lam) -> Scope* {
+        auto i = lam2scope.find(lam);
+        if (i == lam2scope.end())
+            i = lam2scope.emplace(lam, std::make_unique<Scope>(lam)).first;
         return i->second.get();
     };
 
-    auto is_candidate = [&] (Continuation* continuation) -> Scope* {
-        if (!continuation->is_empty() && continuation->order() > 1) {
-            auto scope = get_scope(continuation);
+    auto is_candidate = [&] (Lam* lam) -> Scope* {
+        if (!lam->is_empty() && lam->order() > 1) {
+            auto scope = get_scope(lam);
             if (scope->defs().size() < scope->entry()->num_params() * factor + offset) {
                 // check that the function is not recursive to prevent inliner from peeling loops
-                for (auto& use : continuation->uses()) {
-                    // note that if there was an edge from parameter to continuation,
+                for (auto& use : lam->uses()) {
+                    // note that if there was an edge from parameter to lam,
                     // we would need to check if the use is a parameter here.
                     if (scope->contains(use.def()))
                         return nullptr;
@@ -70,14 +74,14 @@ void inliner(World& world) {
     Scope::for_each(world, [&] (Scope& scope) {
         bool dirty = false;
         for (auto n : scope.f_cfg().post_order()) {
-            auto continuation = n->continuation();
-            if (auto callee = continuation->callee()->isa_continuation()) {
+            auto lam = n->lam();
+            if (auto callee = lam->app()->callee()->isa_lam()) {
                 if (callee == scope.entry())
                     continue; // don't inline recursive calls
                 DLOG("callee: {}", callee);
                 if (auto callee_scope = is_candidate(callee)) {
-                    DLOG("- here: {}", continuation);
-                    continuation->jump(drop(*callee_scope, continuation->args()), Defs{}, continuation->jump_debug());
+                    DLOG("- here: {}", lam);
+                    lam->app(drop(*callee_scope, lam->app()->args()), Defs{}, lam->app()->debug());
                     dirty = true;
                 }
             }

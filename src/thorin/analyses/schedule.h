@@ -20,7 +20,7 @@ public:
         Block() {}
 
         const CFNode* node() const { return node_; }
-        Continuation* continuation() const { return node()->continuation(); }
+        Lam* lam() const { return node()->lam(); }
         ArrayRef<const PrimOp*> primops() const { return primops_; }
         size_t index() const { return index_; }
 

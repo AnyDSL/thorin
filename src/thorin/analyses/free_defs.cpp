@@ -17,8 +17,8 @@ DefSet free_defs(const Scope& scope, bool /*include_closures*/) {
     };
 
     for (auto def : scope.defs()) {
-        if (auto continuation = def->isa_continuation())
-            enqueue_ops(continuation);
+        if (auto lam = def->isa_lam())
+            enqueue_ops(lam);
     }
 
     while (!queue.empty()) {
@@ -61,7 +61,7 @@ queue_next:;
     return result;
 }
 
-DefSet free_defs(Continuation* entry) {
+DefSet free_defs(Lam* entry) {
     Scope scope(entry);
     return free_defs(scope, true);
 }

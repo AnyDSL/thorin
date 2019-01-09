@@ -54,17 +54,17 @@ static const Type* rewrite_type(World& world, const Type* type) {
     return type->rebuild(world, new_ops);
 }
 
-static void rewrite_jump(Continuation* old_cont, Continuation* new_cont, Rewriter& rewriter) {
-    Array<const Def*> args(old_cont->num_args());
-    for (size_t i = 0; i < old_cont->num_args(); ++i)
-        args[i] = rewriter.instantiate(old_cont->arg(i));
+static void rewrite_jump(Lam* old_lam, Lam* new_lam, Rewriter& rewriter) {
+    Array<const Def*> args(old_lam->app()->num_args());
+    for (size_t i = 0; i < old_lam->app()->num_args(); ++i)
+        args[i] = rewriter.instantiate(old_lam->app()->arg(i));
 
-    auto callee = rewriter.instantiate(old_cont->callee());
-    new_cont->jump(callee, args, old_cont->jump_debug());
+    auto callee = rewriter.instantiate(old_lam->app()->callee());
+    new_lam->app(callee, args, old_lam->app()->debug());
 }
 
 static void rewrite_def(const Def* def, Rewriter& rewriter) {
-    if (rewriter.old2new.count(def) || def->isa_continuation())
+    if (rewriter.old2new.count(def) || def->isa_lam())
         return;
 
     for (auto op : def->ops())
@@ -86,12 +86,12 @@ static void rewrite_def(const Def* def, Rewriter& rewriter) {
 
 void rewrite_flow_graphs(World& world) {
     Rewriter rewriter;
-    std::vector<std::pair<Continuation*, Continuation*>> transformed;
+    std::vector<std::pair<Lam*, Lam*>> transformed;
     TypeMap<bool> cache;
 
-    for (auto cont : world.copy_continuations()) {
+    for (auto lam : world.copy_lams()) {
         bool transform = false;
-        for (auto param : cont->params()) {
+        for (auto param : lam->params()) {
             if (has_task_or_graph_type(cache, param->type())) {
                 transform = true;
                 break;
@@ -100,15 +100,15 @@ void rewrite_flow_graphs(World& world) {
         if (!transform)
             continue;
 
-        auto new_cont = world.continuation(rewrite_type(world, cont->type())->as<Pi>(), cont->debug());
-        if (cont->is_external())
-            new_cont->make_external();
-        rewriter.old2new[cont] = new_cont;
+        auto new_lam = world.lam(rewrite_type(world, lam->type())->as<Pi>(), lam->debug());
+        if (lam->is_external())
+            new_lam->make_external();
+        rewriter.old2new[lam] = new_lam;
 
-        if (!cont->is_intrinsic()) {
-            for (size_t i = 0; i < cont->num_params(); ++i)
-                rewriter.old2new[cont->param(i)] = new_cont->param(i);
-            transformed.emplace_back(new_cont, cont);
+        if (!lam->is_intrinsic()) {
+            for (size_t i = 0; i < lam->num_params(); ++i)
+                rewriter.old2new[lam->param(i)] = new_lam->param(i);
+            transformed.emplace_back(new_lam, lam);
         }
     }
 
@@ -120,7 +120,7 @@ void rewrite_flow_graphs(World& world) {
     for (auto pair : transformed)
         rewrite_jump(pair.second, pair.first, rewriter);
 
-    for (auto lam : world.copy_continuations())
+    for (auto lam : world.copy_lams())
         rewrite_jump(lam, lam, rewriter);
 
     world.cleanup();

@@ -423,7 +423,7 @@ public:
 };
 
 /**
- * If a continuation typed def is wrapped in @p Run primop, it will be specialized into a callee whenever it is called.
+ * If a lam typed def is wrapped in @p Run primop, it will be specialized into a callee whenever it is called.
  * Otherwise, this @p PrimOp evaluates to @p def.
  */
 class Run : public PrimOp {

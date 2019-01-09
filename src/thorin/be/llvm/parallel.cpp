@@ -20,7 +20,7 @@ Lam* CodeGen::emit_parallel(Lam* lam) {
     auto upper = lookup(lam->app()->arg(PAR_ARG_UPPER));
     auto kernel = lam->app()->arg(PAR_ARG_BODY)->as<Global>()->init()->as_lam();
 
-    const size_t num_kernel_args = lam->num_args() - PAR_NUM_ARGS;
+    const size_t num_kernel_args = lam->app()->num_args() - PAR_NUM_ARGS;
 
     // build parallel-function signature
     Array<llvm::Type*> par_args(num_kernel_args + 1);
@@ -58,7 +58,7 @@ Lam* CodeGen::emit_parallel(Lam* lam) {
     irbuilder_.SetInsertPoint(bb);
 
     // extract all arguments from the closure
-    auto wrapper_args = wrapper->app()->arg_begin();
+    auto wrapper_args = wrapper->arg_begin();
     auto load_ptr = irbuilder_.CreateBitCast(&*wrapper_args, llvm::PointerType::get(closure_type, 0));
     auto val = irbuilder_.CreateLoad(load_ptr);
     std::vector<llvm::Value*> target_args(num_kernel_args + 1);
@@ -97,22 +97,22 @@ enum {
 };
 
 Lam* CodeGen::emit_spawn(Lam* lam) {
-    assert(lam->num_args() >= SPAWN_NUM_ARGS && "required arguments are missing");
-    auto kernel = lam->arg(SPAWN_ARG_BODY)->as<Global>()->init()->as_lam();
-    const size_t num_kernel_args = lam->num_args() - SPAWN_NUM_ARGS;
+    assert(lam->app()->num_args() >= SPAWN_NUM_ARGS && "required arguments are missing");
+    auto kernel = lam->app()->arg(SPAWN_ARG_BODY)->as<Global>()->init()->as_lam();
+    const size_t num_kernel_args = lam->app()->num_args() - SPAWN_NUM_ARGS;
 
     // build parallel-function signature
     Array<llvm::Type*> par_args(num_kernel_args);
     for (size_t i = 0; i < num_kernel_args; ++i) {
-        auto type = lam->arg(i + SPAWN_NUM_ARGS)->type();
+        auto type = lam->app()->arg(i + SPAWN_NUM_ARGS)->type();
         par_args[i] = convert(type);
     }
 
     // fetch values and create a unified struct which contains all values (closure)
-    auto closure_type = convert(world_.tuple_type(lam->arg()->type()->as<TupleType>()->ops().skip_front(SPAWN_NUM_ARGS)));
+    auto closure_type = convert(world_.tuple_type(lam->app()->arg()->type()->as<TupleType>()->ops().skip_front(SPAWN_NUM_ARGS)));
     llvm::Value* closure = llvm::UndefValue::get(closure_type);
     for (size_t i = 0; i < num_kernel_args; ++i)
-        closure = irbuilder_.CreateInsertValue(closure, lookup(lam->arg(i + SPAWN_NUM_ARGS)), unsigned(i));
+        closure = irbuilder_.CreateInsertValue(closure, lookup(lam->app()->arg(i + SPAWN_NUM_ARGS)), unsigned(i));
 
     // allocate closure object and write values into it
     auto ptr = irbuilder_.CreateAlloca(closure_type, nullptr);
@@ -149,9 +149,9 @@ Lam* CodeGen::emit_spawn(Lam* lam) {
     irbuilder_.SetInsertPoint(old_bb);
 
     // bind parameter of lam to received handle
-    auto lam = lam->arg(SPAWN_ARG_RETURN)->as_lam();
-    emit_result_phi(lam->param(1), call);
-    return lam;
+    auto l = lam->app()->arg(SPAWN_ARG_RETURN)->as_lam();
+    emit_result_phi(l->param(1), call);
+    return l;
 }
 
 enum {
@@ -162,10 +162,10 @@ enum {
 };
 
 Lam* CodeGen::emit_sync(Lam* lam) {
-    assert(lam->num_args() == SYNC_NUM_ARGS && "wrong number of arguments");
-    auto id = lookup(lam->arg(SYNC_ARG_ID));
+    assert(lam->app()->num_args() == SYNC_NUM_ARGS && "wrong number of arguments");
+    auto id = lookup(lam->app()->arg(SYNC_ARG_ID));
     runtime_->sync_thread(id);
-    return lam->arg(SYNC_ARG_RETURN)->as_lam();
+    return lam->app()->arg(SYNC_ARG_RETURN)->as_lam();
 }
 
 }

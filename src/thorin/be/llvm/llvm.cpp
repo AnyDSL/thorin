@@ -84,11 +84,11 @@ Lam* CodeGen::emit_intrinsic(Lam* lam) {
 }
 
 Lam* CodeGen::emit_hls(Lam* lam) {
-    std::vector<llvm::Value*> args(lam->num_args()-3);
+    std::vector<llvm::Value*> args(lam->app()->num_args()-3);
     Lam* ret = nullptr;
-    for (size_t i = 2, j = 0; i < lam->num_args(); ++i) {
-        if (auto lam = lam->app()->arg(i)->isa_lam()) {
-            ret = lam;
+    for (size_t i = 2, j = 0; i < lam->app()->num_args(); ++i) {
+        if (auto l = lam->app()->arg(i)->isa_lam()) {
+            ret = l;
             continue;
         }
         args[j++] = emit(lam->app()->arg(i));
@@ -105,7 +105,7 @@ void CodeGen::emit_result_phi(const Def* param, llvm::Value* value) {
 }
 
 Lam* CodeGen::emit_atomic(Lam* lam) {
-    assert(lam->num_args() == 5 && "required arguments are missing");
+    assert(lam->app()->num_args() == 5 && "required arguments are missing");
     if (!is_type_i(lam->app()->arg(3)->type()))
         EDEF(lam->app()->arg(3), "atomic only supported for integer types");
     // atomic tag: Xchg Add Sub And Nand Or Xor Max Min
@@ -114,48 +114,48 @@ Lam* CodeGen::emit_atomic(Lam* lam) {
     auto val = lookup(lam->app()->arg(3));
     assert(int(llvm::AtomicRMWInst::BinOp::Xchg) <= int(tag) && int(tag) <= int(llvm::AtomicRMWInst::BinOp::UMin) && "unsupported atomic");
     auto binop = (llvm::AtomicRMWInst::BinOp)tag;
-    auto lam = lam->app()->arg(4)->as_lam();
+    auto l = lam->app()->arg(4)->as_lam();
     auto call = irbuilder_.CreateAtomicRMW(binop, ptr, val, llvm::AtomicOrdering::SequentiallyConsistent, llvm::SyncScope::System);
-    emit_result_phi(lam->param(1), call);
-    return lam;
+    emit_result_phi(l->param(1), call);
+    return l;
 }
 
 Lam* CodeGen::emit_cmpxchg(Lam* lam) {
-    assert(lam->num_args() == 5 && "required arguments are missing");
+    assert(lam->app()->num_args() == 5 && "required arguments are missing");
     if (!is_type_i(lam->app()->arg(3)->type()))
         EDEF(lam->app()->arg(3), "cmpxchg only supported for integer types");
     auto ptr  = lookup(lam->app()->arg(1));
     auto cmp  = lookup(lam->app()->arg(2));
     auto val  = lookup(lam->app()->arg(3));
-    auto lam = lam->app()->arg(4)->as_lam();
+    auto l = lam->app()->arg(4)->as_lam();
     auto call = irbuilder_.CreateAtomicCmpXchg(ptr, cmp, val, llvm::AtomicOrdering::SequentiallyConsistent, llvm::AtomicOrdering::SequentiallyConsistent, llvm::SyncScope::System);
-    emit_result_phi(lam->param(1), irbuilder_.CreateExtractValue(call, 0));
-    emit_result_phi(lam->param(2), irbuilder_.CreateExtractValue(call, 1));
-    return lam;
+    emit_result_phi(l->param(1), irbuilder_.CreateExtractValue(call, 0));
+    emit_result_phi(l->param(2), irbuilder_.CreateExtractValue(call, 1));
+    return l;
 }
 
 Lam* CodeGen::emit_reserve(const Lam* lam) {
-    EDEF(&lam->jump_debug(), "reserve_shared: only allowed in device code");
+    EDEF(&lam->app()->debug(), "reserve_shared: only allowed in device code");
     THORIN_UNREACHABLE;
 }
 
 Lam* CodeGen::emit_reserve_shared(const Lam* lam, bool init_undef) {
-    assert(lam->num_args() == 3 && "required arguments are missing");
+    assert(lam->app()->num_args() == 3 && "required arguments are missing");
     if (!lam->app()->arg(1)->isa<PrimLit>())
         EDEF(lam->app()->arg(1), "reserve_shared: couldn't extract memory size");
     auto num_elems = lam->app()->arg(1)->as<PrimLit>()->ps32_value();
-    auto lam = lam->app()->arg(2)->as_lam();
+    auto l = lam->app()->arg(2)->as_lam();
     auto type = convert(lam->param(1)->type());
     // construct array type
-    auto elem_type = lam->param(1)->type()->as<PtrType>()->pointee()->as<ArrayType>()->elem_type();
+    auto elem_type = l->param(1)->type()->as<PtrType>()->pointee()->as<ArrayType>()->elem_type();
     auto smem_type = this->convert(lam->world().definite_array_type(elem_type, num_elems));
     auto name = lam->unique_name();
     // NVVM doesn't allow '.' in global identifier
     std::replace(name.begin(), name.end(), '.', '_');
     auto global = emit_global_variable(smem_type, name, 3, init_undef);
     auto call = irbuilder_.CreatePointerCast(global, type);
-    emit_result_phi(lam->param(1), call);
-    return lam;
+    emit_result_phi(l->param(1), call);
+    return l;
 }
 
 llvm::Value* CodeGen::emit_bitcast(const Def* val, const Type* dst_type) {
@@ -242,7 +242,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
 
         // map params
         const Def* ret_param = nullptr;
-        auto arg = fct->app()->arg_begin();
+        auto arg = fct->arg_begin();
         for (auto param : entry_->params()) {
             if (is_mem(param) || is_unit(param)) {
                 params_[param] = nullptr;
@@ -330,9 +330,9 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
 
             // terminate bb
             if (debug)
-                irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(lam->jump_debug().front_line(), lam->jump_debug().front_col(), discope));
+                irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(lam->app()->debug().front_line(), lam->app()->debug().front_col(), discope));
             if (lam->app()->callee() == ret_param) { // return
-                size_t num_args = lam->num_args();
+                size_t num_args = lam->app()->num_args();
                 if (num_args == 0) irbuilder_.CreateRetVoid();
                 else {
                     Array<llvm::Value*> values(num_args);
@@ -369,8 +369,8 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                        lam->app()->callee()->as<Lam>()->intrinsic() == Intrinsic::Match) {
                 auto val = lookup(lam->app()->arg(0));
                 auto otherwise_bb = bb2lam[lam->app()->arg(1)->as_lam()];
-                auto match = irbuilder_.CreateSwitch(val, otherwise_bb, lam->num_args() - 2);
-                for (size_t i = 2; i < lam->num_args(); i++) {
+                auto match = irbuilder_.CreateSwitch(val, otherwise_bb, lam->app()->num_args() - 2);
+                for (size_t i = 2; i < lam->app()->num_args(); i++) {
                     auto arg = lam->app()->arg(i)->as<Tuple>();
                     auto case_const = llvm::cast<llvm::ConstantInt>(lookup(arg->op(0)));
                     auto case_bb    = bb2lam[arg->op(1)->as_lam()];
@@ -1304,7 +1304,7 @@ Backends::Backends(World& world)
             // determine whether or not this kernel uses restrict pointers
             bool has_restrict = true;
             DefSet allocs;
-            for (size_t i = LaunchArgs::Num, e = use->num_args(); has_restrict && i != e; ++i) {
+            for (size_t i = LaunchArgs::Num, e = use->app()->num_args(); has_restrict && i != e; ++i) {
                 auto arg = use->app()->arg(i);
                 if (!arg->type()->isa<PtrType>()) continue;
                 auto alloc = get_alloc_call(arg);
@@ -1335,7 +1335,7 @@ Backends::Backends(World& world)
     if (!hls.world().empty()) {
         auto get_hls_config = [&] (Lam* use, Lam* imported) {
             HLSKernelConfig::Param2Size param_sizes;
-            for (size_t i = 3, e = use->num_args(); i != e; ++i) {
+            for (size_t i = 3, e = use->app()->num_args(); i != e; ++i) {
                 auto arg = use->app()->arg(i);
                 auto ptr_type = arg->type()->isa<PtrType>();
                 if (!ptr_type) continue;

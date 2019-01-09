@@ -190,7 +190,7 @@ bool PartialEvaluator::run() {
                         todo = true;
                     }
 
-                    jump_to_dropped_app(lam, target, app);
+                    app_to_dropped_app(lam, target, app);
 
                     if (lower2cff_ && fold) {
                         // re-examine next iteration:

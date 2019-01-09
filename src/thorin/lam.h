@@ -203,7 +203,7 @@ bool visit_capturing_intrinsics(Lam*, std::function<bool(Lam*)>, bool include_gl
 bool is_passed_to_accelerator(Lam*, bool include_globals = true);
 bool is_passed_to_intrinsic(Lam*, Intrinsic, bool include_globals = true);
 
-void jump_to_dropped_app(Lam* src, Lam* dst, const App*);
+void app_to_dropped_app(Lam* src, Lam* dst, const App*);
 
 //------------------------------------------------------------------------------
 

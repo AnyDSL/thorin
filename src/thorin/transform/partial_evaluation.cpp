@@ -150,10 +150,14 @@ bool PartialEvaluator::run() {
     while (!queue_.empty()) {
         auto lam = pop(queue_);
 
-        bool force_fold = false;
-        auto callee_def = lam->app()->callee();
+        auto app = lam->app();
+        if (app == nullptr) continue;
 
-        if (auto run = lam->app()->callee()->isa<Run>()) {
+        bool force_fold = false;
+        auto callee_def = app->callee();
+
+
+        if (auto run = app->callee()->isa<Run>()) {
             force_fold = true;
             callee_def = run->def();
         }
@@ -165,15 +169,15 @@ bool PartialEvaluator::run() {
             }
 
             if (!callee->is_empty()) {
-                size_t num_args = lam->app()->num_args();
+                size_t num_args = app->num_args();
                 Array<const Def*> args(num_args);
 
-                CondEval cond_eval(callee, lam->app()->args(), top_level_);
+                CondEval cond_eval(callee, app->args(), top_level_);
 
                 bool fold = false;
                 for (size_t i = 0; i != num_args; ++i) {
                     if (force_fold || cond_eval.eval(i, lower2cff_)) {
-                        args[i] = lam->app()->arg(i);
+                        args[i] = app->arg(i);
                         fold = true;
                     } else {
                         args[i] = world().top(callee->param(i)->type());

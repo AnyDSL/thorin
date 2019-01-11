@@ -270,13 +270,14 @@ void Cleaner::within(const Def* def) {
 }
 
 void Cleaner::clean_pe_info(std::queue<Lam*> queue, Lam* cur) {
-    assert(cur->app()->arg(1)->type() == world().ptr_type(world().indefinite_array_type(world().type_pu8())));
-    auto next = cur->app()->arg(3);
-    auto msg = cur->app()->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
+    auto app = cur->app();
+    assert(app->arg(1)->type() == world().ptr_type(world().indefinite_array_type(world().type_pu8())));
+    auto next = app->arg(3);
+    auto msg = app->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
 
-    assert(!is_const(cur->app()->arg(2)));
-    IDEF(cur->app()->callee(), "pe_info not constant: {}: {}", msg->as_string(), cur->app()->arg(2));
-    cur->app(next, {cur->app()->arg(0)}, cur->app()->debug());
+    assert(!is_const(app->arg(2)));
+    IDEF(app->callee(), "pe_info not constant: {}: {}", msg->as_string(), app->arg(2));
+    cur->app(next, {app->arg(0)}, app->debug());
     todo_ = true;
 
     // always re-insert into queue because we've changed cur's jump
@@ -298,10 +299,12 @@ void Cleaner::clean_pe_infos() {
     while (!queue.empty()) {
         auto lam = pop(queue);
 
-        if (auto callee = lam->app()->callee()->isa_lam()) {
-            if (callee->intrinsic() == Intrinsic::PeInfo) {
-                clean_pe_info(queue, lam);
-                continue;
+        if (auto app = lam->app()) {
+            if (auto callee = app->callee()->isa_lam()) {
+                if (callee->intrinsic() == Intrinsic::PeInfo) {
+                    clean_pe_info(queue, lam);
+                    continue;
+                }
             }
         }
 

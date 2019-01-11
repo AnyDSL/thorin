@@ -37,6 +37,7 @@ private:
 };
 
 void Cleaner::eliminate_tail_rec() {
+#if 0
     Scope::for_each(world_, [&](Scope& scope) {
         auto entry = scope.entry();
 
@@ -93,6 +94,7 @@ void Cleaner::eliminate_tail_rec() {
             }
         }
     });
+#endif
 }
 
 void Cleaner::eta_conversion() {

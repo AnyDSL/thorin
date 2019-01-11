@@ -40,6 +40,7 @@ World::~World() {
 
 const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
     auto pi = callee->type()->as<Pi>();
+    assertf(pi->domain() == arg->type(), "'{}' is if of type '{}' but calls '{}' of type '{}'\n", this, callee, pi, arg, arg->type());
     return unify(new App(pi->codomain(), callee, arg, dbg));
 }
 

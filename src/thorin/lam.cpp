@@ -293,7 +293,6 @@ void Lam::app(const Def* callee, const Def* arg, Debug dbg) {
     }
 
     Def::update_op(1, world().app(callee, arg, dbg));
-    verify();
 }
 
 void Lam::branch(const Def* cond, const Def* t, const Def* f, Debug dbg) {

@@ -161,13 +161,6 @@ public:
     void app(const Def* callee, Defs args, Debug dbg = {});
     void branch(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
     void match(const Def* val, Lam* otherwise, Defs patterns, ArrayRef<Lam*> lams, Debug dbg = {});
-    void verify() const {
-#if THORIN_ENABLE_CHECKS
-        //auto c = callee_fn_type();
-        //auto a = arg_fn_type();
-        //assertf(c == a, "lam '{}' calls '{}' of type '{}' but call has type '{}'\n", this, callee(), c, a);
-#endif
-    }
 
 private:
     CC cc_;

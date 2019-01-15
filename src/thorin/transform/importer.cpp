@@ -12,39 +12,12 @@ Importer::Importer(World& src)
         world_.enable_history(true);
 #endif
 
-    def_old2new_[src.branch()]    = world().branch();
-    def_old2new_[src.end_scope()] = world().end_scope();
-}
-
-const Type* Importer::import(const Type* otype) {
-    if (auto ntype = find(type_old2new_, otype)) {
-        assert(&ntype->table() == &world_);
-        return ntype;
-    }
-
-    size_t size = otype->num_ops();
-
-    if (auto struct_type = otype->isa<StructType>()) {
-        auto ntype = world_.struct_type(struct_type->name(), struct_type->num_ops());
-        type_old2new_[otype] = ntype;
-        for (size_t i = 0; i != size; ++i)
-            ntype->set(i, import(otype->op(i)));
-        return ntype;
-    }
-
-    Array<const Type*> nops(size);
-    for (size_t i = 0; i != size; ++i)
-        nops[i] = import(otype->op(i));
-
-    auto ntype = otype->rebuild(world_, nops);
-    type_old2new_[otype] = ntype;
-    assert(&ntype->table() == &world_);
-
-    return ntype;
+    old2new_[src.branch()]    = world().branch();
+    old2new_[src.end_scope()] = world().end_scope();
 }
 
 const Def* Importer::import(Tracker odef) {
-    if (auto ndef = find(def_old2new_, odef)) {
+    if (auto ndef = find(old2new_, odef)) {
         assert(&ndef->world() == &world_);
         assert(!ndef->is_replaced());
         return ndef;
@@ -55,7 +28,7 @@ const Def* Importer::import(Tracker odef) {
     const Def* ndef = nullptr;
     if (odef->is_nominal()) {
         ndef = odef->vstub(world_, ntype);
-        def_old2new_[odef] = ndef;
+        old2new_[odef] = ndef;
     }
 
     size_t size = odef->num_ops();
@@ -74,7 +47,7 @@ const Def* Importer::import(Tracker odef) {
         }
     } else {
         ndef = odef->vrebuild(world_, ntype, nops);
-        def_old2new_[odef] = ndef;
+        old2new_[odef] = ndef;
     }
 
     assert(&ndef->world() == &world());

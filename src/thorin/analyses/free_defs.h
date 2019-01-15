@@ -1,7 +1,7 @@
 #ifndef THORIN_ANALYSES_FREE_DEFS_H
 #define THORIN_ANALYSES_FREE_DEFS_H
 
-#include "thorin/lam.h"
+#include "thorin/def.h"
 
 namespace thorin {
 

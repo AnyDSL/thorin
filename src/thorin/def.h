@@ -459,6 +459,18 @@ using LamMap  = GIDMap<Lam*, To>;
 using LamSet  = GIDSet<Lam*>;
 using Lam2Lam = LamMap<Lam*>;
 
+bool visit_capturing_intrinsics(Lam* lam, std::function<bool(Lam*)> func, bool include_globals);
+
+inline bool is_passed_to_accelerator(Lam* lam, bool include_globals = true) {
+    return visit_capturing_intrinsics(lam, [&] (Lam* lam) { return lam->is_accelerator(); }, include_globals);
+}
+
+inline bool is_passed_to_intrinsic(Lam* lam, Intrinsic intrinsic, bool include_globals = true) {
+    return visit_capturing_intrinsics(lam, [&] (Lam* lam) { return lam->intrinsic() == intrinsic; }, include_globals);
+}
+
+void app_to_dropped_app(Lam* src, Lam* dst, const App* app);
+
 class Peek {
 public:
     Peek() {}

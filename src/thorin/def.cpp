@@ -140,14 +140,6 @@ bool visit_capturing_intrinsics(Lam* lam, std::function<bool(Lam*)> func, bool i
     }, include_globals);
 }
 
-bool is_passed_to_accelerator(Lam* lam, bool include_globals) {
-    return visit_capturing_intrinsics(lam, [&] (Lam* lam) { return lam->is_accelerator(); }, include_globals);
-}
-
-bool is_passed_to_intrinsic(Lam* lam, Intrinsic intrinsic, bool include_globals) {
-    return visit_capturing_intrinsics(lam, [&] (Lam* lam) { return lam->intrinsic() == intrinsic; }, include_globals);
-}
-
 const Def* merge_sigma(const Def* a, const Def* b) {
     auto x = a->isa<Sigma>();
     auto y = b->isa<Sigma>();

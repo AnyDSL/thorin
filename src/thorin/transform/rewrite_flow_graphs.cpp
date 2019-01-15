@@ -1,6 +1,8 @@
 #include "thorin/transform/mangle.h"
 #include "thorin/world.h"
 
+#if 0
+
 namespace thorin {
 
 static bool is_task_type(const Type* type) {
@@ -127,3 +129,4 @@ void rewrite_flow_graphs(World& world) {
 }
 
 }
+#endif

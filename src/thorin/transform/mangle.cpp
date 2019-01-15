@@ -1,7 +1,6 @@
 #include "thorin/transform/mangle.h"
 
 #include "thorin/primop.h"
-#include "thorin/type.h"
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
 
@@ -54,7 +53,7 @@ Mangler::Mangler(const Scope& scope, Defs args, Defs lift)
 
 Lam* Mangler::mangle() {
     // create new_entry - but first collect and specialize all param types
-    std::vector<const Type*> param_types;
+    std::vector<const Def*> param_types;
     for (size_t i = 0, e = old_entry()->num_params(); i != e; ++i) {
         if (args_[i]->isa<Top>())
             param_types.emplace_back(old_entry()->param(i)->type()); // TODO reduce

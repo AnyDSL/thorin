@@ -50,7 +50,7 @@ const Pi* World::pi(const Def* domain, const Def* codomain) {
 }
 
 const Def* World::tuple_type(const Def* type, Defs ops, Debug dbg = {}) {
-    return ops.size() == 1 ? ops.front() : unify(new TupleType(type, ops, dbg));
+    return ops.size() == 1 ? ops.front() : unify(new Sigma(type, ops, dbg));
 }
 
 /*
@@ -483,8 +483,8 @@ const Def* World::convert(const Type* dst_type, const Def* src, Debug dbg) {
         return src;
     if (src->type()->isa<PtrType>() && dst_type->isa<PtrType>())
         return bitcast(dst_type, src, dbg);
-    if (auto dst_tuple_type = dst_type->isa<TupleType>()) {
-        assert(dst_tuple_type->num_ops() == src->type()->as<TupleType>()->num_ops());
+    if (auto dst_tuple_type = dst_type->isa<Sigma>()) {
+        assert(dst_tuple_type->num_ops() == src->type()->as<Sigma>()->num_ops());
 
         Array<const Def*> new_tuple(dst_tuple_type->num_ops());
         for (size_t i = 0, e = new_tuple.size(); i != e; ++i)
@@ -660,8 +660,7 @@ static bool fold_1_tuple(const Type* type, const Def* index) {
     if (auto lit = index->isa<PrimLit>()) {
         if (primlit_value<u64>(lit) == 0
                 && !type->isa<ArrayType>()
-                && !type->isa<StructType>()
-                && !type->isa<TupleType>()) {
+                && !type->isa<Sigma>()) {
             if (auto prim_type = type->isa<PrimType>())
                 return prim_type->length() == 1;
             return true;
@@ -721,18 +720,12 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, Deb
             auto elem = agg->isa<Bottom>() ? bottom(elem_type, dbg) : top(elem_type, dbg);
             std::fill(args.begin(), args.end(), elem);
             agg = definite_array(args, dbg);
-        } else if (auto tuple_type = agg->type()->isa<TupleType>()) {
+        } else if (auto tuple_type = agg->type()->isa<Sigma>()) {
             Array<const Def*> args(tuple_type->num_ops());
             size_t i = 0;
             for (auto type : tuple_type->ops())
                 args[i++] = agg->isa<Bottom>() ? bottom(type, dbg) : top(type, dbg);
             agg = tuple(args, dbg);
-        } else if (auto struct_type = agg->type()->isa<StructType>()) {
-            Array<const Def*> args(struct_type->num_ops());
-            size_t i = 0;
-            for (auto type : struct_type->ops())
-                args[i++] = agg->isa<Bottom>() ? bottom(type, dbg) : top(type, dbg);
-            agg = struct_agg(struct_type, args, dbg);
         }
     }
 
@@ -794,7 +787,7 @@ const Def* World::size_of(const Type* type, Debug dbg) {
  */
 
 const Def* World::load(const Def* mem, const Def* ptr, Debug dbg) {
-    if (auto tuple_type = ptr->type()->as<PtrType>()->pointee()->isa<TupleType>()) {
+    if (auto tuple_type = ptr->type()->as<PtrType>()->pointee()->isa<Sigma>()) {
         // loading an empty tuple can only result in an empty tuple
         if (tuple_type->num_ops() == 0) {
             return tuple({mem, tuple({}, dbg)});
@@ -804,7 +797,7 @@ const Def* World::load(const Def* mem, const Def* ptr, Debug dbg) {
 }
 
 bool is_agg_const(const Def* def) {
-    return def->isa<DefiniteArray>() || def->isa<StructAgg>() || def->isa<Tuple>();
+    return def->isa<DefiniteArray>() || def->isa<Tuple>();
 }
 
 const Def* World::store(const Def* mem, const Def* ptr, const Def* value, Debug dbg) {

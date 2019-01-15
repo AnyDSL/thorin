@@ -522,44 +522,28 @@ private:
     const Def* def_;
 };
 
-/// Type of a tuple (structurally typed).
-class TupleType : public Def {
+class Sigma : public Def {
 private:
-    TupleType(const Def* type, Defs ops, Debug dbg)
-        : Def(Node_TupleType, type, ops, dbg)
+    Sigma(const Def* type, Defs ops, Debug dbg)
+        : Def(Node_Sigma, type, ops, dbg)
     {}
-
-public:
-    virtual const Def* vrebuild(World& to, const Def*, Defs ops) const override;
-    virtual std::ostream& stream(std::ostream&) const override;
-
-    friend class World;
-};
-
-const Def* merge_tuple_type(const Def*, const Def*);
-
-/// The type of a structure (nominally typed).
-class StructType : public Def {
-private:
-    StructType(const Def* type, Symbol name, size_t size, Debug dbg)
-        : Def(Node_StructType, type, size, dbg)
-        , name_(name)
+    Sigma(const Def* type, size_t size, Debug dbg)
+        : Def(Node_Sigma, type, size, dbg)
     {
         nominal_ = true;
     }
 
 public:
-    Symbol name() const { return name_; }
-    void set(size_t i, const Def* type) const { return const_cast<StructType*>(this)->Def::set_op(i, type); }
+    void set(size_t i, const Def* type) const { assert(is_nominal()); const_cast<StructType*>(this)->Def::set_op(i, type); }
 
-private:
     virtual const Def* vrebuild(World& to, const Def*, Defs ops) const override;
     virtual std::ostream& stream(std::ostream&) const override;
 
-    Symbol name_;
-
     friend class World;
 };
+
+const Def* merge_sigma(const Def*, const Def*);
+
 
 /// The type of a variant (structurally typed).
 class VariantType : public Def {

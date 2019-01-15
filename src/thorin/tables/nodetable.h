@@ -10,8 +10,6 @@
         // Literal
             THORIN_NODE(Bottom, bottom)
             THORIN_NODE(Top, top)
-            THORIN_NODE(MemBlob, mem_blob)
-            THORIN_NODE(BlobPtr, mem_blob)
         // MemOp
             THORIN_NODE(Alloc, alloc)
             // Access
@@ -34,7 +32,6 @@
         THORIN_NODE(Variant, variant)
         THORIN_NODE(StructAgg, struct_agg)
         THORIN_NODE(Vector, vector)
-        THORIN_NODE(Closure, closure)
         THORIN_NODE(Extract, extract)
         THORIN_NODE(Insert, insert)
         THORIN_NODE(LEA, lea)
@@ -47,16 +44,13 @@
         // PrimType
         THORIN_NODE(App, app)
         THORIN_NODE(DefiniteArrayType, definite_array_type)
-        THORIN_NODE(Pi, pi)
-        THORIN_NODE(ClosureType, closure_type)
+        THORIN_NODE(Pi, Π)
         THORIN_NODE(FrameType, frame)
         THORIN_NODE(IndefiniteArrayType, indefinite_array_type)
         THORIN_NODE(MemType, mem)
         THORIN_NODE(PtrType, ptr)
-        THORIN_NODE(StructType, struct_type)
-        THORIN_NODE(VariantType, variant_type)
-        THORIN_NODE(EnumType, enum_type)
-        THORIN_NODE(TupleType, tuple_type)
+        THORIN_NODE(Sigma, Σ)
+        THORIN_NODE(Variant, ∪)
         THORIN_NODE(Var, var)
 
 #undef THORIN_NODE

@@ -70,8 +70,8 @@ public:
     const Var* var(const Def* type, u64 index, Debug dbg = {}) { return unify(new Var(type, index, dbg)); }
     const Def* tuple_type(const Def* type, Defs ops, Debug dbg = {});
     const Def* tuple_type(Defs ops, Debug dbg = {}) { return tuple_type(star(), ops, dbg); }
-    const TupleType* unit() { return unit_; } ///< Returns unit, i.e., an empty @p TupleType.
-    const VariantType* variant_type(const Def* type, Defs ops, Debug dbg = {}) { return unify(new VariantType(type, ops, dbg)); }
+    const Sigma* unit() { return unit_; } ///< Returns unit, i.e., an empty @p Sigma.
+    const Variant* variant(const Def* type, Defs ops, Debug dbg = {}) { return unify(new Variant(type, ops, dbg)); }
     const StructType* struct_type(Symbol name, size_t size);
 
 #define THORIN_ALL_TYPE(T, M) \
@@ -158,9 +158,6 @@ public:
     const Def* indefinite_array(const Def* elem, const Def* dim, Debug dbg = {}) {
         return unify(new IndefiniteArray(*this, elem, dim, dbg));
     }
-    const Def* struct_agg(const StructType* struct_type, Defs args, Debug dbg = {}) {
-        return try_fold_aggregate(unify(new StructAgg(struct_type, args, dbg)));
-    }
     const Def* tuple(Defs args, Debug dbg = {}) { return args.size() == 1 ? args.front() : try_fold_aggregate(unify(new Tuple(*this, args, dbg))); }
     const Def* variant(const VariantType* variant_type, const Def* value, Debug dbg = {}) { return unify(new Variant(variant_type, value, dbg)); }
     const Def* vector(Defs args, Debug dbg = {}) {
@@ -205,12 +202,17 @@ public:
 
     // lams
 
-    const Param* param(Lam* lam, Debug dbg) { return unify(new Param(lam->domain(), lam, dbg)); }
-    Lam* lam(const Pi* cn, CC cc = CC::C, Intrinsic intrinsic = Intrinsic::None, Debug dbg = {}) {
-        return insert(new Lam(cn, cc, intrinsic, dbg));
-    }
+    const Param* param(Lam* lam, Debug dbg = {}) { return unify(new Param(lam->domain(), lam, dbg)); }
+    /// @defgroup nominal @p Lam%bdas
+    //@{
+    Lam* lam(const Pi* cn, CC cc = CC::C, Intrinsic intrinsic = Intrinsic::None, Debug dbg = {}) { return insert(new Lam(cn, cc, intrinsic, dbg)); }
     Lam* lam(const Pi* cn, Debug dbg = {}) { return lam(cn, CC::C, Intrinsic::None, dbg); }
     Lam* lam(Debug dbg = {}) { return lam(cn(), CC::C, Intrinsic::None, dbg); }
+    //@}
+    /// @defgroup structural @p Lam%bdas
+    const Lam* lam(const Def* domain, const Def* filter, const Def* body, Debug dbg);
+    const Lam* lam(const Def* domain, const Def* body, Debug dbg) { return lam(domain, literal_bool(true, Debug()), body, dbg); }
+    //@{
     Lam* branch() const { return branch_; }
     Lam* match(const Def* type, size_t num_patterns);
     Lam* end_scope() const { return end_scope_; }
@@ -315,7 +317,7 @@ private:
     bool track_history_ = false;
 #endif
     const Kind* star_;
-    const TupleType* unit_; ///< tuple().
+    const Sigma* unit_; ///< tuple().
     const Bottom* bottom_;
     const Pi* cn0_;
     const MemType* mem_;

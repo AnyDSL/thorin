@@ -58,19 +58,18 @@ const Def* Pi::domain(size_t i) const {
 
 const Def* StructType::vrebuild(World&, const Def*, Defs) const { THORIN_UNREACHABLE; }
 
-const Def* Lam                ::vrebuild(World& to, const Def*, Defs ops) const { assert(!is_nominal()); return to.lam(ops[0], name()); }
-
-const Def* App                ::vrebuild(World& to, const Def*, Defs ops) const { return to.app_(ops[0], ops[1]); }
-const Def* TupleType          ::vrebuild(World& to, const Def*, Defs ops) const { return to.tuple_type(ops); }
-const Def* VariantType        ::vrebuild(World& to, const Def*, Defs ops) const { return to.variant_type(ops); }
-const Def* Var                ::vrebuild(World& to, const Def*, Defs    ) const { return to.var(depth()); }
-const Def* DefiniteArrayType  ::vrebuild(World& to, const Def*, Defs ops) const { return to.definite_array_type(ops[0], dim()); }
-const Def* Pi                 ::vrebuild(World& to, const Def*, Defs ops) const { return to.pi(ops[0], ops[1]); }
-const Def* FrameType          ::vrebuild(World& to, const Def*, Defs    ) const { return to.frame_type(); }
-const Def* IndefiniteArrayType::vrebuild(World& to, const Def*, Defs ops) const { return to.indefinite_array_type(ops[0]); }
-const Def* MemType            ::vrebuild(World& to, const Def*, Defs    ) const { return to.mem_type(); }
-const Def* BottomType         ::vrebuild(World& to, const Def*, Defs    ) const { return to.bottom_type(); }
-const Def* PrimType           ::vrebuild(World& to, const Def*, Defs    ) const { return to.type(primtype_tag(), length()); }
+const Def* Lam                ::vrebuild(World& to, const Def* t, Defs ops) const { assert(!is_nominal()); return to.lam(t->as<Pi>(), ops[0], debug()); }
+const Def* App                ::vrebuild(World& to, const Def*  , Defs ops) const { return to.app(ops[0], ops[1], debug()); }
+const Def* TupleType          ::vrebuild(World& to, const Def*  , Defs ops) const { return to.tuple_type(ops, debug()); }
+const Def* VariantType        ::vrebuild(World& to, const Def*  , Defs ops) const { return to.variant_type(ops, debug()); }
+const Def* Var                ::vrebuild(World& to, const Def*  , Defs    ) const { return to.var(depth(), debug()); }
+const Def* DefiniteArrayType  ::vrebuild(World& to, const Def*  , Defs ops) const { return to.definite_array_type(ops[0], dim(), debug()); }
+const Def* Pi                 ::vrebuild(World& to, const Def*  , Defs ops) const { return to.pi(ops[0], ops[1], debug()); }
+const Def* FrameType          ::vrebuild(World& to, const Def*  , Defs    ) const { return to.frame_type(debug()); }
+const Def* IndefiniteArrayType::vrebuild(World& to, const Def*  , Defs ops) const { return to.indefinite_array_type(ops[0], debug()); }
+const Def* MemType            ::vrebuild(World& to, const Def*  , Defs    ) const { return to.mem_type(debug()); }
+const Def* BottomType         ::vrebuild(World& to, const Def*  , Defs    ) const { return to.bottom_type(debug()); }
+const Def* PrimType           ::vrebuild(World& to, const Def*  , Defs    ) const { return to.type(primtype_tag(), length(), debug()); }
 
 const Def* PtrType::vrebuild(World& to, const Def*, Defs ops) const {
     return to.ptr_type(ops.front(), length(), device(), addr_space());

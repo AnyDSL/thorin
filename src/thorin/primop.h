@@ -232,7 +232,7 @@ public:
     friend class World;
 };
 
-/// Data constructor for a @p TupleType.
+/// Data constructor for a @p Sigma.
 class Tuple : public Aggregate {
 private:
     Tuple(World& world, Defs args, Debug dbg);
@@ -240,7 +240,7 @@ private:
     virtual const Def* vrebuild(World& to, const Def* type, Defs ops) const override;
 
 public:
-    const TupleType* type() const { return Aggregate::type()->as<TupleType>(); }
+    const Sigma* type() const { return Aggregate::type()->as<Sigma>(); }
 
     friend class World;
 };
@@ -260,27 +260,6 @@ private:
 
 public:
     const VariantType* type() const { return PrimOp::type()->as<VariantType>(); }
-
-    friend class World;
-};
-
-/// Data constructor for a @p StructType.
-class StructAgg : public Aggregate {
-private:
-    StructAgg(const StructType* struct_type, Defs args, Debug dbg)
-        : Aggregate(Node_StructAgg, struct_type, args, dbg)
-    {
-#if THORIN_ENABLE_CHECKS
-        assert(struct_type->num_ops() == args.size());
-        for (size_t i = 0, e = args.size(); i != e; ++i)
-            assert(struct_type->op(i) == args[i]->type());
-#endif
-    }
-
-    virtual const Def* vrebuild(World& to, const Def* type, Defs ops) const override;
-
-public:
-    const StructType* type() const { return Aggregate::type()->as<StructType>(); }
 
     friend class World;
 };
@@ -491,7 +470,7 @@ public:
     const Def* extra() const { return op(1); }
     virtual bool has_multiple_outs() const override { return true; }
     const Def* out_ptr() const { return out(1); }
-    const TupleType* type() const { return MemOp::type()->as<TupleType>(); }
+    const Sigma* type() const { return MemOp::type()->as<Sigma>(); }
     const PtrType* out_ptr_type() const { return type()->op(1)->as<PtrType>(); }
     const Def* alloced_type() const { return out_ptr_type()->pointee(); }
     static const Alloc* is_out_mem(const Def* def) { return is_out<0, Alloc>(def); }
@@ -524,7 +503,7 @@ private:
 public:
     virtual bool has_multiple_outs() const override { return true; }
     const Def* out_val() const { return out(1); }
-    const TupleType* type() const { return MemOp::type()->as<TupleType>(); }
+    const Sigma* type() const { return MemOp::type()->as<Sigma>(); }
     const Def* out_val_type() const { return type()->op(1); }
     static const Load* is_out_mem(const Def* def) { return is_out<0, Load>(def); }
     static const Load* is_out_val(const Def* def) { return is_out<1, Load>(def); }
@@ -559,7 +538,7 @@ private:
     virtual const Def* vrebuild(World& to, const Def* type, Defs ops) const override;
 
 public:
-    const TupleType* type() const { return MemOp::type()->as<TupleType>(); }
+    const Sigma* type() const { return MemOp::type()->as<Sigma>(); }
     virtual bool has_multiple_outs() const override { return true; }
     const Def* out_frame() const { return out(1); }
     static const Enter* is_out_mem(const Def* def) { return is_out<0, Enter>(def); }

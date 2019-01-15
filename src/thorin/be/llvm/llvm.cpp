@@ -976,7 +976,7 @@ llvm::Value* CodeGen::emit_assembly(const Assembly* assembly) {
         if (out_type->num_ops() == 2)
             res_type = convert(assembly->type()->op(1));
         else
-            res_type = convert(world().tuple_type(assembly->type()->ops().skip_front()));
+            res_type = convert(world().sigma(assembly->type()->ops().skip_front()));
     } else {
         res_type = llvm::Type::getVoidTy(context_);
     }

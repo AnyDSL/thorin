@@ -36,16 +36,16 @@ IndefiniteArray::IndefiniteArray(World& world, const Def* elem, const Def* dim, 
     : Aggregate(Node_IndefiniteArray, world.indefinite_array_type(elem), {dim}, dbg)
 {}
 
-static const Def* infer_tuple_type(World& world, Defs ops) {
+static const Def* infer_sigma(World& world, Defs ops) {
     Array<const Def*> elems(ops.size());
     for (size_t i = 0, e = ops.size(); i != e; ++i)
         elems[i] = ops[i]->type();
 
-    return world.tuple_type(elems);
+    return world.sigma(elems);
 }
 
 Tuple::Tuple(World& world, Defs args, Debug dbg)
-    : Aggregate(Node_Tuple, infer_tuple_type(world, args), args, dbg)
+    : Aggregate(Node_Tuple, infer_sigma(world, args), args, dbg)
 {}
 
 static const Def* infer_vector_type(World& world, Defs args) {
@@ -67,12 +67,10 @@ static const Def* infer_lea_type(World& world, const Def* ptr, const Def* index)
     auto ptr_type = ptr->type()->as<PtrType>();
     auto ptr_pointee = ptr_type->pointee();
 
-    if (auto tuple = ptr_pointee->isa<TupleType>()) {
-        return world.ptr_type(get(tuple->ops(), index), ptr_type->length(), ptr_type->device(), ptr_type->addr_space());
+    if (auto sigma = ptr_pointee->isa<Sigma>()) {
+        return world.ptr_type(get(sigma->ops(), index), ptr_type->length(), ptr_type->device(), ptr_type->addr_space());
     } else if (auto array = ptr_pointee->isa<ArrayType>()) {
         return world.ptr_type(array->elem_type(), ptr_type->length(), ptr_type->device(), ptr_type->addr_space());
-    } else if (auto struct_type = ptr_pointee->isa<StructType>()) {
-        return world.ptr_type(get(struct_type->ops(), index));
     } else if (auto prim_type = ptr_pointee->isa<PrimType>()) {
         assert(prim_type->length() > 1);
         return world.ptr_type(world.type(prim_type->primtype_tag()));
@@ -107,15 +105,15 @@ Global::Global(const Def* init, bool is_mutable, Debug dbg)
 }
 
 Alloc::Alloc(const Def* type, const Def* mem, const Def* extra, Debug dbg)
-    : MemOp(Node_Alloc, mem->world().tuple_type({mem->world().mem_type(), mem->world().ptr_type(type)}), {mem, extra}, dbg)
+    : MemOp(Node_Alloc, mem->world().sigma({mem->world().mem_type(), mem->world().ptr_type(type)}), {mem, extra}, dbg)
 {}
 
 Load::Load(const Def* mem, const Def* ptr, Debug dbg)
-    : Access(Node_Load, mem->world().tuple_type({mem->world().mem_type(), ptr->type()->as<PtrType>()->pointee()}), {mem, ptr}, dbg)
+    : Access(Node_Load, mem->world().sigma({mem->world().mem_type(), ptr->type()->as<PtrType>()->pointee()}), {mem, ptr}, dbg)
 {}
 
 Enter::Enter(const Def* mem, Debug dbg)
-    : MemOp(Node_Enter, mem->world().tuple_type({mem->world().mem_type(), mem->world().frame_type()}), {mem}, dbg)
+    : MemOp(Node_Enter, mem->world().sigma({mem->world().mem_type(), mem->world().frame_type()}), {mem}, dbg)
 {}
 
 Assembly::Assembly(const Def *type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Flags flags, Debug dbg)
@@ -181,7 +179,7 @@ const Def* Variant::vrebuild(World& to, const Def* t, Defs ops) const { return t
 const Def* Vector ::vrebuild(World& to, const Def*  , Defs ops) const { return to.vector(ops, debug()); }
 
 const Def* Alloc::vrebuild(World& to, const Def* t, Defs ops) const {
-    return to.alloc(t->as<TupleType>()->op(1)->as<PtrType>()->pointee(), ops[0], ops[1], debug());
+    return to.alloc(t->as<Sigma>()->op(1)->as<PtrType>()->pointee(), ops[0], ops[1], debug());
 }
 
 const Def* Assembly::vrebuild(World& to, const Def* t, Defs ops) const {
@@ -190,10 +188,6 @@ const Def* Assembly::vrebuild(World& to, const Def* t, Defs ops) const {
 
 const Def* DefiniteArray::vrebuild(World& to, const Def* t, Defs ops) const {
     return to.definite_array(t->as<DefiniteArrayType>()->elem_type(), ops, debug());
-}
-
-const Def* StructAgg::vrebuild(World& to, const Def* t, Defs ops) const {
-    return to.struct_agg(t->as<StructType>(), ops, debug());
 }
 
 const Def* IndefiniteArray::vrebuild(World& to, const Def* t, Defs ops) const {
@@ -307,19 +301,17 @@ std::string DefiniteArray::as_string() const {
 }
 
 const Def* PrimOp::out(size_t i) const {
-    assert(i == 0 || i < type()->as<TupleType>()->num_ops());
+    assert(i == 0 || i < type()->as<Sigma>()->num_ops());
     return world().extract(this, i, debug());
 }
 
 const Def* Extract::extracted_type(const Def* agg, const Def* index) {
-    if (auto tuple = agg->type()->isa<TupleType>())
-        return get(tuple->ops(), index);
+    if (auto sigma = agg->type()->isa<Sigma>())
+        return get(sigma->ops(), index);
     else if (auto array = agg->type()->isa<ArrayType>())
         return array->elem_type();
     else if (auto vector = agg->type()->isa<VectorType>())
         return vector->scalarize();
-    else if (auto struct_type = agg->type()->isa<StructType>())
-        return get(struct_type->ops(), index);
     else {
         assert(index->as<PrimLit>()->value().get_u64() == 0);
         return agg->type();

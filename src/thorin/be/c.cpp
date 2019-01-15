@@ -111,14 +111,6 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
         return os << "void";
     } else if (type->isa<Pi>()) {
         THORIN_UNREACHABLE;
-    } else if (auto tuple = type->isa<TupleType>()) {
-        os << "typedef struct {" << up;
-        for (size_t i = 0, e = tuple->ops().size(); i != e; ++i) {
-            os << endl;
-            emit_type(os, tuple->op(i)) << " e" << i << ";";
-        }
-        os << down << endl << "} tuple_" << tuple->gid() << ";";
-        return os;
     } else if (auto variant = type->isa<VariantType>()) {
         os << "union variant_" << variant->gid() << " {" << up;
         for (size_t i = 0, e = variant->ops().size(); i != e; ++i) {
@@ -127,14 +119,14 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
         }
         os << down << endl << "};";
         return os;
-    } else if (auto struct_type = type->isa<StructType>()) {
+    } else if (auto sigma = type->isa<Sigma>()) {
         os << "typedef struct {" << up;
-        for (size_t i = 0, e = struct_type->num_ops(); i != e; ++i) {
+        for (size_t i = 0, e = sigma->num_ops(); i != e; ++i) {
             os << endl;
-            emit_type(os, struct_type->op(i)) << " e" << i << ";";
+            emit_type(os, sigma->op(i)) << " e" << i << ";";
         }
-        os << down << endl << "} struct_" << struct_type->name() << "_" << struct_type->gid() << ";";
-        if (struct_type->name().str().find("channel_") != std::string::npos)
+        os << down << endl << "} " << sigma->unique_name() << ";";
+        if (sigma->name().str().find("channel_") != std::string::npos)
             use_channels_ = true;
         return os;
     } else if (type->isa<Var>()) {
@@ -241,20 +233,12 @@ std::ostream& CCodeGen::emit_aggop_decl(const Type* type) {
         insert(type, "array_" + std::to_string(type->gid()));
     }
 
-    // look for nested tuple
-    if (auto tuple = type->isa<TupleType>()) {
-        for (auto op : tuple->ops())
+    // look for nested sigma
+    if (auto sigma = type->isa<Sigma>()) {
+        for (auto op : sigma->ops())
             emit_aggop_decl(op);
-        emit_type(type_decls_, tuple) << endl;
-        insert(type, "tuple_" + std::to_string(type->gid()));
-    }
-
-    // look for nested struct
-    if (auto struct_type = type->isa<StructType>()) {
-        for (auto op : struct_type->ops())
-            emit_aggop_decl(op);
-        emit_type(type_decls_, struct_type) << endl;
-        insert(type, "struct_" + struct_type->name().str() + "_" + std::to_string(type->gid()));
+        emit_type(type_decls_, sigma) << endl;
+        insert(type, sigma->unique_name());
     }
 
     // look for nested variants
@@ -314,7 +298,7 @@ void CCodeGen::emit() {
 
         // emit function & its declaration
         auto ret_param_cn_type = ret_param->type()->as<Pi>();
-        auto ret_type = ret_param_cn_type->num_ops() > 2 ? world_.tuple_type(ret_param_cn_type->ops().skip_front()) : ret_param_cn_type->ops().back();
+        auto ret_type = ret_param_cn_type->num_ops() > 2 ? world_.sigma(ret_param_cn_type->ops().skip_front()) : ret_param_cn_type->ops().back();
         auto name = (lam->is_external() || lam->is_empty()) ? lam->name() : lam->unique_name();
         if (lam->is_external()) {
             auto config = kernel_config_.find(lam);
@@ -383,8 +367,7 @@ void CCodeGen::emit() {
 
                 if (lang_ == Lang::OPENCL && lam->is_external() &&
                     (param->type()->isa<DefiniteArrayType>() ||
-                     param->type()->isa<StructType>() ||
-                     param->type()->isa<TupleType>())) {
+                     param->type()->isa<>(Sigma))) {
                     // structs are passed via buffer; the parameter is a pointer to this buffer
                     func_decls_ << "__global ";
                     func_impl_  << "__global ";
@@ -399,7 +382,7 @@ void CCodeGen::emit() {
                         elem_type = array_type->elem_type();
                     emit_type(func_decls_, elem_type) << "[" << array_size << "]";
                     emit_type(func_impl_,  elem_type) << " " << param->unique_name() << "[" << array_size << "]";
-                    if (elem_type->isa<StructType>() || elem_type->isa<DefiniteArrayType>())
+                    if (elem_type->isa<Sigma>() || elem_type->isa<DefiniteArrayType>())
                         hls_pragmas += "#pragma HLS data_pack variable=" + param->unique_name() + " struct_level\n";
                 } else {
                     std::string qualifier;
@@ -429,8 +412,7 @@ void CCodeGen::emit() {
             if (param->order() == 0) {
                 if (lang_==Lang::OPENCL && lam->is_external() &&
                     (param->type()->isa<DefiniteArrayType>() ||
-                     param->type()->isa<StructType>() ||
-                     param->type()->isa<TupleType>())) {
+                     param->type()->isa<Sigma>())) {
                     func_impl_ << endl;
                     emit_type(func_impl_, param->type()) << " " << param->unique_name() << " = *" << param->unique_name() << "_;";
                 }
@@ -539,7 +521,7 @@ void CCodeGen::emit() {
                         emit(values[0]) << ";";
                     } else {
                         types.shrink(n);
-                        auto ret_type = world_.tuple_type(types);
+                        auto ret_type = world_.sigma(types);
                         auto ret_tuple_name = "ret_tuple" + std::to_string(lam->gid());
                         emit_aggop_decl(ret_type);
                         emit_type(func_impl_, ret_type) << " " << ret_tuple_name << ";";
@@ -669,7 +651,7 @@ void CCodeGen::emit() {
                             emit_call(values[0]);
                         else {
                             types.shrink(n);
-                            auto ret_type = world_.tuple_type(types);
+                            auto ret_type = world_.sigma(types);
                             auto ret_tuple_name = "ret_tuple" + std::to_string(lam->gid());
                             emit_aggop_decl(ret_type);
                             emit_type(func_impl_, ret_type) << " " << ret_tuple_name << ";" << endl << ret_tuple_name << " = ";
@@ -909,7 +891,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
             if (def->type()->isa<ArrayType>()) {
                 func_impl_ << ".e[";
                 emit(index) << "]";
-            } else if (def->type()->isa<TupleType>() || def->type()->isa<StructType>()) {
+            } else if (def->type()->isa<Sigma>()) {
                 func_impl_ << ".e";
                 emit(index);
             } else if (def->type()->isa<VectorType>()) {
@@ -1066,7 +1048,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
             emit(lea->ptr()) << ", ";
             emit(lea->index()) << ");";
         } else {
-            if (lea->ptr_pointee()->isa<TupleType>() || lea->ptr_pointee()->isa<StructType>()) {
+            if (lea->ptr_pointee()->isa<Sigma>()) {
                 emit_type(func_impl_, lea->type()) << " " << def_name << ";" << endl;
                 func_impl_ << def_name << " = &";
                 emit(lea->ptr()) << "->e";

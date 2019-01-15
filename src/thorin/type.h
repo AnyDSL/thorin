@@ -100,7 +100,7 @@ public:
     friend class TypeTable;
 };
 
-const Type* merge_tuple_type(const Type*, const Type*);
+const Type* merge_sigma(const Type*, const Type*);
 
 /// The type of a structure (nominally typed).
 class StructType : public Type {
@@ -360,8 +360,6 @@ private:
     friend class TypeTable;
 };
 
-bool use_lea(const Type*);
-
 //------------------------------------------------------------------------------
 
 /// Container for all types. Types are hashed and can be compared using pointer equality.
@@ -373,7 +371,7 @@ public:
     const Lambda* lambda(const Type* body, const char* name) { return unify(new Lambda(*this, body, name)); }
     const Type* app_(const Type* callee, const Type* arg);
 
-    const Type* tuple_type(Types ops) { return ops.size() == 1 ? ops.front() : unify(new TupleType(*this, ops)); }
+    const Type* sigma(Types ops) { return ops.size() == 1 ? ops.front() : unify(new TupleType(*this, ops)); }
     const TupleType* unit() { return unit_; } ///< Returns unit, i.e., an empty @p TupleType.
     const VariantType* variant_type(Types ops) { return unify(new VariantType(*this, ops)); }
     const StructType* struct_type(Symbol name, size_t size);
@@ -394,10 +392,10 @@ public:
         return unify(new PtrType(*this, pointee, length, device, addr_space));
     }
     const Pi* cn() { return cn0_; } ///< Returns an empty @p Pi.
-    const Pi* cn(Types domain) { return cn(tuple_type(domain)); }
+    const Pi* cn(Types domain) { return cn(sigma(domain)); }
     const Pi* cn(const Type* domain) { return unify(new Pi(*this, domain, bottom_type())); }
 
-    const Pi* pi(Types domain, const Type* codomain) { return pi(tuple_type(domain), codomain); }
+    const Pi* pi(Types domain, const Type* codomain) { return pi(sigma(domain), codomain); }
     const Pi* pi(const Type* domain, const Type* codomain) { return unify(new Pi(*this, domain, codomain)); }
     const DefiniteArrayType*   definite_array_type(const Type* elem, u64 dim) { return unify(new DefiniteArrayType(*this, elem, dim)); }
     const IndefiniteArrayType* indefinite_array_type(const Type* elem) { return unify(new IndefiniteArrayType(*this, elem)); }

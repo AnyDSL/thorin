@@ -17,17 +17,17 @@ namespace thorin {
  * misc
  */
 
-const Def* merge_tuple_type(const Def* a, const Def* b) {
-    auto x = a->isa<TupleType>();
-    auto y = b->isa<TupleType>();
+const Def* merge_sigma(const Def* a, const Def* b) {
+    auto x = a->isa<Sigma>();
+    auto y = b->isa<Sigma>();
     auto& w = a->world();
 
-    if ( x &&  y) return w.tuple_type(concat(x->ops(), y->ops()));
-    if ( x && !y) return w.tuple_type(concat(x->ops(), b       ));
-    if (!x &&  y) return w.tuple_type(concat(a,        y->ops()));
+    if ( x &&  y) return w.sigma(concat(x->ops(), y->ops()));
+    if ( x && !y) return w.sigma(concat(x->ops(), b       ));
+    if (!x &&  y) return w.sigma(concat(a,        y->ops()));
 
     assert(!x && !y);
-    return w.tuple_type({a, b});
+    return w.sigma({a, b});
 }
 
 Array<const Def*> Pi::domains() const {
@@ -39,14 +39,14 @@ Array<const Def*> Pi::domains() const {
 }
 
 size_t Pi::num_domains() const {
-    if (auto tuple_type = domain()->isa<TupleType>())
-        return tuple_type->num_ops();
+    if (auto sigma = domain()->isa<Sigma>())
+        return sigma->num_ops();
     return 1;
 }
 
 const Def* Pi::domain(size_t i) const {
-    if (auto tuple_type = domain()->isa<TupleType>())
-        return tuple_type->op(i);
+    if (auto sigma = domain()->isa<Sigma>())
+        return sigma->op(i);
     return domain();
 }
 
@@ -56,19 +56,16 @@ const Def* Pi::domain(size_t i) const {
  * vrebuild
  */
 
-const Def* StructType::vrebuild(World&, const Def*, Defs) const { THORIN_UNREACHABLE; }
-
-const Def* Lam                ::vrebuild(World& to, const Def* t, Defs ops) const { assert(!is_nominal()); return to.lam(t->as<Pi>(), ops[0], debug()); }
+const Def* Lam                ::vrebuild(World& to, const Def* t, Defs ops) const { assert(!is_nominal()); return to.lam(t->as<Pi>(), ops[0], ops[1], debug()); }
+const Def* Sigma              ::vrebuild(World& to, const Def* t, Defs ops) const { assert(!is_nominal()); return to.sigma(t, ops, debug()); }
 const Def* App                ::vrebuild(World& to, const Def*  , Defs ops) const { return to.app(ops[0], ops[1], debug()); }
-const Def* TupleType          ::vrebuild(World& to, const Def*  , Defs ops) const { return to.tuple_type(ops, debug()); }
-const Def* VariantType        ::vrebuild(World& to, const Def*  , Defs ops) const { return to.variant_type(ops, debug()); }
-const Def* Var                ::vrebuild(World& to, const Def*  , Defs    ) const { return to.var(depth(), debug()); }
+const Def* VariantType        ::vrebuild(World& to, const Def* t, Defs ops) const { return to.variant_type(t, ops, debug()); }
+const Def* Var                ::vrebuild(World& to, const Def* t, Defs    ) const { return to.var(t, index(), debug()); }
 const Def* DefiniteArrayType  ::vrebuild(World& to, const Def*  , Defs ops) const { return to.definite_array_type(ops[0], dim(), debug()); }
 const Def* Pi                 ::vrebuild(World& to, const Def*  , Defs ops) const { return to.pi(ops[0], ops[1], debug()); }
-const Def* FrameType          ::vrebuild(World& to, const Def*  , Defs    ) const { return to.frame_type(debug()); }
+const Def* FrameType          ::vrebuild(World& to, const Def*  , Defs    ) const { return to.frame_type(); }
 const Def* IndefiniteArrayType::vrebuild(World& to, const Def*  , Defs ops) const { return to.indefinite_array_type(ops[0], debug()); }
-const Def* MemType            ::vrebuild(World& to, const Def*  , Defs    ) const { return to.mem_type(debug()); }
-const Def* BottomType         ::vrebuild(World& to, const Def*  , Defs    ) const { return to.bottom_type(debug()); }
+const Def* MemType            ::vrebuild(World& to, const Def*  , Defs    ) const { return to.mem_type(); }
 const Def* PrimType           ::vrebuild(World& to, const Def*  , Defs    ) const { return to.type(primtype_tag(), length(), debug()); }
 
 const Def* PtrType::vrebuild(World& to, const Def*, Defs ops) const {
@@ -79,8 +76,8 @@ const Def* PtrType::vrebuild(World& to, const Def*, Defs ops) const {
 
 const VectorType* VectorType::scalarize() const {
     if (auto ptr = isa<PtrType>())
-        return table().ptr_type(ptr->pointee());
-    return table().type(as<PrimType>()->primtype_tag());
+        return world().ptr_type(ptr->pointee());
+    return world().type(as<PrimType>()->primtype_tag());
 }
 
 bool Pi::is_returning() const {
@@ -99,8 +96,6 @@ bool Pi::is_returning() const {
     return ret;
 }
 
-bool use_lea(const Def* type) { return type->isa<StructType>() || type->isa<ArrayType>(); }
-
 //------------------------------------------------------------------------------
 
 /*
@@ -111,9 +106,7 @@ uint64_t PtrType::vhash() const {
     return hash_combine(VectorType::vhash(), (uint64_t)device(), (uint64_t)addr_space());
 }
 
-uint64_t Var::vhash() const {
-    return murmur3(uint64_t(tag()) << uint64_t(56) | uint8_t(depth()));
-}
+uint64_t Var::vhash() const { return hash_combine(Def::vhash(), index()); }
 
 //------------------------------------------------------------------------------
 
@@ -121,9 +114,7 @@ uint64_t Var::vhash() const {
  * equal
  */
 
-bool Var::equal(const Def* other) const {
-    return other->isa<Var>() ? this->as<Var>()->depth() == other->as<Var>()->depth() : false;
-}
+bool Var::equal(const Def* other) const { return Def::equal(other) && this->index() == other->as<Var>()->index(); }
 
 bool PtrType::equal(const Def* other) const {
     if (!VectorType::equal(other))
@@ -142,17 +133,23 @@ static std::ostream& stream_type_ops(std::ostream& os, const Def* type) {
    return stream_list(os, type->ops(), [&](const Def* type) { os << type; }, "(", ")");
 }
 
-std::ostream& App_               ::stream(std::ostream& os) const { return streamf(os, "{}[{}]", callee(), arg()); }
-std::ostream& Var                ::stream(std::ostream& os) const { return streamf(os, "<{}>", depth()); }
+std::ostream& BottomType         ::stream(std::ostream& os) const { return os << "bottom_type"; }
 std::ostream& DefiniteArrayType  ::stream(std::ostream& os) const { return streamf(os, "[{} x {}]", dim(), elem_type()); }
 std::ostream& FrameType          ::stream(std::ostream& os) const { return os << "frame"; }
 std::ostream& IndefiniteArrayType::stream(std::ostream& os) const { return streamf(os, "[{}]", elem_type()); }
-std::ostream& Lambda             ::stream(std::ostream& os) const { return streamf(os, "[{}].{}", name(), body()); }
 std::ostream& MemType            ::stream(std::ostream& os) const { return os << "mem"; }
-std::ostream& BottomType         ::stream(std::ostream& os) const { return os << "bottom_type"; }
-std::ostream& StructType         ::stream(std::ostream& os) const { return os << name(); }
+std::ostream& Var                ::stream(std::ostream& os) const { return streamf(os, "<{}:{}>", index(), type()); }
 std::ostream& VariantType        ::stream(std::ostream& os) const { return stream_type_ops(os << "variant", this); }
-std::ostream& TupleType          ::stream(std::ostream& os) const { return stream_type_ops(os, this); }
+
+std::ostream& Lam::stream(std::ostream& os) const {
+    if (is_nominal())
+    return streamf(os, "[{}].{}", name(), body());
+}
+
+std::ostream& Sigma::stream(std::ostream& os) const {
+    if (is_nominal()) return os << unique_name();
+    return stream_list(os, type->ops(), [&](const Def* type) { os << type; }, "[", "]");
+}
 
 std::ostream& Pi::stream(std::ostream& os) const {
     return is_cn()

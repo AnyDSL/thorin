@@ -15,9 +15,9 @@ static Lam* unwrap_def(Def2Def&, Def2Def&, const Def*, const Pi*, size_t);
 static const Type* wrapped_type(const Pi* cn, size_t max_tuple_size) {
     std::vector<const Type*> nops;
     for (auto op : cn->ops()) {
-        if (auto tuple_type = op->isa<TupleType>()) {
-            if (tuple_type->num_ops() <= max_tuple_size) {
-                for (auto arg : tuple_type->ops())
+        if (auto sigma = op->isa<TupleType>()) {
+            if (sigma->num_ops() <= max_tuple_size) {
+                for (auto arg : sigma->ops())
                     nops.push_back(arg);
             } else
                 nops.push_back(op);
@@ -86,10 +86,10 @@ static Lam* wrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* old_def, c
 
     for (size_t i = 0, j = 0, e = old_type->num_ops(); i != e; ++i) {
         auto op = old_type->op(i);
-        if (auto tuple_type = op->isa<TupleType>()) {
-            if (tuple_type->num_ops() <= max_tuple_size) {
-                Array<const Def*> tuple_args(tuple_type->num_ops());
-                for (size_t k = 0, e = tuple_type->num_ops(); k != e; ++k)
+        if (auto sigma = op->isa<TupleType>()) {
+            if (sigma->num_ops() <= max_tuple_size) {
+                Array<const Def*> tuple_args(sigma->num_ops());
+                for (size_t k = 0, e = sigma->num_ops(); k != e; ++k)
                     tuple_args[k] = new_lam->param(j++);
                 call_args[i + 1] = world.tuple(tuple_args);
             } else
@@ -139,9 +139,9 @@ static Lam* unwrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* new_def,
 
     for (size_t i = 0, j = 1, e = old_lam->num_params(); i != e; ++i) {
         auto param = old_lam->param(i);
-        if (auto tuple_type = param->type()->isa<TupleType>()) {
-            if (tuple_type->num_ops() <= max_tuple_size) {
-                for (size_t k = 0, e = tuple_type->num_ops(); k != e; ++k)
+        if (auto sigma = param->type()->isa<TupleType>()) {
+            if (sigma->num_ops() <= max_tuple_size) {
+                for (size_t k = 0, e = sigma->num_ops(); k != e; ++k)
                     call_args[j++] = world.extract(param, k);
             } else
                 call_args[j++] = param;

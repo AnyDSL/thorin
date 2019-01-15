@@ -64,15 +64,17 @@ public:
 
     bool empty() { return externals().empty(); }
 
-    // types
-
     const Kind* star() { return star_; }
     const Var* var(const Def* type, u64 index, Debug dbg = {}) { return unify(new Var(type, index, dbg)); }
-    const Def* tuple_type(const Def* type, Defs ops, Debug dbg = {});
-    const Def* tuple_type(Defs ops, Debug dbg = {}) { return tuple_type(star(), ops, dbg); }
+    const VariantType* variant_type(const Def* type, Defs ops, Debug dbg = {}) { return unify(new VariantType(type, ops, dbg)); }
+
+    ///@defgroup @p Sigma%s
+    //@{
     const Sigma* unit() { return unit_; } ///< Returns unit, i.e., an empty @p Sigma.
-    const Variant* variant(const Def* type, Defs ops, Debug dbg = {}) { return unify(new Variant(type, ops, dbg)); }
-    const StructType* struct_type(Symbol name, size_t size);
+    const Def* sigma(const Def* type, Defs ops, Debug dbg = {});
+    const Def* sigma(Defs ops, Debug dbg = {}) { return sigma(star(), ops, dbg); }
+    Sigma* sigma(size_t size, Debug dbg = {});
+    //@}
 
 #define THORIN_ALL_TYPE(T, M) \
     const PrimType* type_##T(size_t length = 1) { return type(PrimType_##T, length); }
@@ -88,12 +90,17 @@ public:
                             size_t length = 1, int32_t device = -1, AddrSpace addr_space = AddrSpace::Generic, Debug dbg = {}) {
         return unify(new PtrType(star(), pointee, length, device, addr_space, dbg));
     }
-    const Pi* cn() { return cn0_; } ///< Returns an empty @p Pi.
-    const Pi* cn(Defs domains) { return cn(tuple_type(domains)); }
+    ///@defgroup @p Pi%s
+    //@{
+    const Pi* pi(Defs domain, const Def* codomain, Debug dbg = {}) { return pi(sigma(domain), codomain, dbg); }
+    const Pi* pi(const Def* domain, const Def* codomain, Debug dbg = {});
+    ///@defgroup continuation types - Pi types with codomain @p Bottom
+    //@{
+    const Pi* cn(Defs domains) { return cn(sigma(domains)); }
     const Pi* cn(const Def* domain) { return pi(domain, bottom()); }
+    //@}
+    //@}
 
-    const Pi* pi(Defs domain, const Def* codomain) { return pi(tuple_type(domain), codomain); }
-    const Pi* pi(const Def* domain, const Def* codomain);
     const DefiniteArrayType*   definite_array_type(const Def* elem, u64 dim, Debug dbg = {}) { return unify(new DefiniteArrayType(star(), elem, dim, dbg)); }
     const IndefiniteArrayType* indefinite_array_type(const Def* elem, Debug dbg = {}) { return unify(new IndefiniteArrayType(star(), elem, dbg)); }
 
@@ -207,7 +214,6 @@ public:
     //@{
     Lam* lam(const Pi* cn, CC cc = CC::C, Intrinsic intrinsic = Intrinsic::None, Debug dbg = {}) { return insert(new Lam(cn, cc, intrinsic, dbg)); }
     Lam* lam(const Pi* cn, Debug dbg = {}) { return lam(cn, CC::C, Intrinsic::None, dbg); }
-    Lam* lam(Debug dbg = {}) { return lam(cn(), CC::C, Intrinsic::None, dbg); }
     //@}
     /// @defgroup structural @p Lam%bdas
     const Lam* lam(const Def* domain, const Def* filter, const Def* body, Debug dbg);
@@ -259,7 +265,6 @@ public:
         swap(w1.end_scope_, w2.end_scope_);
         swap(w1.pe_done_,   w2.pe_done_);
         swap(w1.unit_,      w2.unit_);
-        swap(w1.cn0_,       w2.cn0_);
         swap(w1.bottom_,    w2.bottom_);
         swap(w1.mem_,       w2.mem_);
         swap(w1.frame_,     w2.frame_);
@@ -319,7 +324,6 @@ private:
     const Kind* star_;
     const Sigma* unit_; ///< tuple().
     const Bottom* bottom_;
-    const Pi* cn0_;
     const MemType* mem_;
     const FrameType* frame_;
     union {

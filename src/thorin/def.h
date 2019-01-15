@@ -534,7 +534,7 @@ private:
     }
 
 public:
-    void set(size_t i, const Def* type) const { assert(is_nominal()); const_cast<StructType*>(this)->Def::set_op(i, type); }
+    void set(size_t i, const Def* type) const { assert(is_nominal()); const_cast<Sigma*>(this)->Def::set_op(i, type); }
 
     virtual const Def* vrebuild(World& to, const Def*, Defs ops) const override;
     virtual std::ostream& stream(std::ostream&) const override;

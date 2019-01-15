@@ -30,7 +30,7 @@ namespace thorin {
 World::World(std::string name)
     : name_(name)
 {
-    branch_ = lam(cn(tuple_type({type_bool(), cn(), cn()})), CC::C, Intrinsic::Branch, {"br"});
+    branch_ = lam(cn(sigma({type_bool(), cn(), cn()})), CC::C, Intrinsic::Branch, {"br"});
     end_scope_ = lam(cn(), CC::C, Intrinsic::EndScope, {"end_scope"});
 }
 
@@ -49,7 +49,7 @@ const Pi* World::pi(const Def* domain, const Def* codomain) {
     return unify(new Pi(type, domain, codomain));
 }
 
-const Def* World::tuple_type(const Def* type, Defs ops, Debug dbg = {}) {
+const Def* World::sigma(const Def* type, Defs ops, Debug dbg = {}) {
     return ops.size() == 1 ? ops.front() : unify(new Sigma(type, ops, dbg));
 }
 
@@ -483,10 +483,10 @@ const Def* World::convert(const Type* dst_type, const Def* src, Debug dbg) {
         return src;
     if (src->type()->isa<PtrType>() && dst_type->isa<PtrType>())
         return bitcast(dst_type, src, dbg);
-    if (auto dst_tuple_type = dst_type->isa<Sigma>()) {
-        assert(dst_tuple_type->num_ops() == src->type()->as<Sigma>()->num_ops());
+    if (auto dst_sigma = dst_type->isa<Sigma>()) {
+        assert(dst_sigma->num_ops() == src->type()->as<Sigma>()->num_ops());
 
-        Array<const Def*> new_tuple(dst_tuple_type->num_ops());
+        Array<const Def*> new_tuple(dst_sigma->num_ops());
         for (size_t i = 0, e = new_tuple.size(); i != e; ++i)
             new_tuple[i] = convert(dst_type->op(i), extract(src, i, dbg), dbg);
 
@@ -689,13 +689,6 @@ const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
         }
     }
 
-    // TODO this doesn't work:
-    // we have to use the current mem which is not necessarily ld->out_mem()
-    //if (auto ld = Load::is_out_val(agg)) {
-        //if (ld->out_val_type()->use_lea())
-            //return extract(load(ld->out_mem(), lea(ld->ptr(), index, ld->name), name), 1);
-    //}
-
     if (auto insert = agg->isa<Insert>()) {
         if (index == insert->index())
             return insert->value();
@@ -720,10 +713,10 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, Deb
             auto elem = agg->isa<Bottom>() ? bottom(elem_type, dbg) : top(elem_type, dbg);
             std::fill(args.begin(), args.end(), elem);
             agg = definite_array(args, dbg);
-        } else if (auto tuple_type = agg->type()->isa<Sigma>()) {
-            Array<const Def*> args(tuple_type->num_ops());
+        } else if (auto sigma = agg->type()->isa<Sigma>()) {
+            Array<const Def*> args(sigma->num_ops());
             size_t i = 0;
-            for (auto type : tuple_type->ops())
+            for (auto type : sigma->ops())
                 args[i++] = agg->isa<Bottom>() ? bottom(type, dbg) : top(type, dbg);
             agg = tuple(args, dbg);
         }
@@ -787,9 +780,9 @@ const Def* World::size_of(const Type* type, Debug dbg) {
  */
 
 const Def* World::load(const Def* mem, const Def* ptr, Debug dbg) {
-    if (auto tuple_type = ptr->type()->as<PtrType>()->pointee()->isa<Sigma>()) {
+    if (auto sigma = ptr->type()->as<PtrType>()->pointee()->isa<Sigma>()) {
         // loading an empty tuple can only result in an empty tuple
-        if (tuple_type->num_ops() == 0) {
+        if (sigma->num_ops() == 0) {
             return tuple({mem, tuple({}, dbg)});
         }
     }
@@ -844,7 +837,7 @@ const Assembly* World::assembly(Types types, const Def* mem, Defs inputs, std::s
     std::copy(inputs.begin(), inputs.end(), ops.begin()+1);
     ops.front() = mem;
 
-    return assembly(tuple_type(output), ops, asm_template, output_constraints, input_constraints, clobbers, flags, dbg);
+    return assembly(sigma(output), ops, asm_template, output_constraints, input_constraints, clobbers, flags, dbg);
 }
 
 /*
@@ -880,8 +873,8 @@ Lam* World::match(const Type* type, size_t num_patterns) {
     arg_types[0] = type;
     arg_types[1] = cn();
     for (size_t i = 0; i < num_patterns; i++)
-        arg_types[i + 2] = tuple_type({type, cn()});
-    return lam(cn(tuple_type(arg_types)), CC::C, Intrinsic::Match, {"match"});
+        arg_types[i + 2] = sigma({type, cn()});
+    return lam(cn(sigma(arg_types)), CC::C, Intrinsic::Match, {"match"});
 }
 
 /*

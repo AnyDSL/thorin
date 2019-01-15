@@ -74,13 +74,13 @@ Def* Lam::vstub(World& to, const Def* type) const {
 }
 
 size_t Lam::num_params() const {
-    if (auto tuple_type = param()->type()->isa<TupleType>())
-        return tuple_type->num_ops();
+    if (auto sigma = param()->type()->isa<Sigma>())
+        return sigma->num_ops();
     return 1;
 }
 
 const Def* Lam::param(size_t i, Debug dbg) const {
-    //if (param()->type()->isa<TupleType>())
+    //if (param()->type()->isa<Sigma>())
         return world().extract(param(), i, dbg);
     //return param();
 }
@@ -94,19 +94,19 @@ Array<const Def*> Lam::params() const {
 }
 
 const Def* Lam::filter(size_t i) const {
-    if (filter()->type()->isa<TupleType>())
+    if (filter()->type()->isa<Sigma>())
         return world().extract(filter(), i);
     return filter();
 }
 
 size_t App::num_args() const {
-    if (auto tuple_type = arg()->type()->isa<TupleType>())
-        return tuple_type->num_ops();
+    if (auto sigma = arg()->type()->isa<Sigma>())
+        return sigma->num_ops();
     return 1;
 }
 
 const Def* App::arg(size_t i) const {
-    if (arg()->type()->isa<TupleType>())
+    if (arg()->type()->isa<Sigma>())
         return callee()->world().extract(arg(), i);
     return arg();
 }

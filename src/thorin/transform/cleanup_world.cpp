@@ -191,11 +191,11 @@ void Cleaner::eliminate_params() {
             if (!proxy_idx.empty()) {
                 auto old_domain = olam->type()->domain();
                 const Type* new_domain;
-                if (auto tuple_type = old_domain->isa<TupleType>())
-                    new_domain = world().tuple_type(tuple_type->ops().cut(proxy_idx));
+                if (auto sigma = old_domain->isa<TupleType>())
+                    new_domain = world().sigma(sigma->ops().cut(proxy_idx));
                 else {
                     assert(proxy_idx.size() == 1 && proxy_idx[0] == 0);
-                    new_domain = world().tuple_type({});
+                    new_domain = world().sigma({});
                 }
                 auto cn = world().cn(new_domain);
                 auto nlam = world().lam(cn, olam->cc(), olam->intrinsic(), olam->debug_history());

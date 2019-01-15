@@ -50,7 +50,7 @@
         THORIN_NODE(MemType, mem)
         THORIN_NODE(PtrType, ptr)
         THORIN_NODE(Sigma, Σ)
-        THORIN_NODE(Variant, ∪)
+        THORIN_NODE(VariantType, ∪)
         THORIN_NODE(Var, var)
 
 #undef THORIN_NODE

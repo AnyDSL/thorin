@@ -3,6 +3,8 @@
 #endif
 
 // Def
+    THORIN_NODE(Universe, universe)
+    THORIN_NODE(Star, star)
     THORIN_NODE(Lam, lam)
     // PrimOp
         // Literal
@@ -44,14 +46,11 @@
     // Type
         // PrimType
         THORIN_NODE(App, app)
-        THORIN_NODE(App_, app)
         THORIN_NODE(DefiniteArrayType, definite_array_type)
         THORIN_NODE(Pi, pi)
         THORIN_NODE(ClosureType, closure_type)
         THORIN_NODE(FrameType, frame)
         THORIN_NODE(IndefiniteArrayType, indefinite_array_type)
-        THORIN_NODE(Lambda, lambda)
-        THORIN_NODE(BottomType, bottom_type)
         THORIN_NODE(MemType, mem)
         THORIN_NODE(PtrType, ptr)
         THORIN_NODE(StructType, struct_type)

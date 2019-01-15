@@ -42,8 +42,8 @@ std::vector<Peek> peek(const Def* param) {
 
 //------------------------------------------------------------------------------
 
-const Def* Param::vrebuild(World& to, const Type*, Defs ops) const { return to.param(ops[0]->as_lam(), debug()); }
-const Def* App  ::vrebuild(World& to, const Type*, Defs ops) const { return to.app  (ops[0], ops[1], debug()); }
+const Def* Param::vrebuild(World& to, const Def*, Defs ops) const { return to.param(ops[0]->as_lam(), debug()); }
+const Def* App  ::vrebuild(World& to, const Def*, Defs ops) const { return to.app  (ops[0], ops[1], debug()); }
 
 //------------------------------------------------------------------------------
 
@@ -69,7 +69,7 @@ void Lam::set_filter(Defs filter) {
 }
 
 
-Def* Lam::vstub(World& to, const Type* type) const {
+Def* Lam::vstub(World& to, const Def* type) const {
     return to.lam(type->as<Pi>(), cc(), intrinsic(), debug_history());
 }
 

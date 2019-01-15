@@ -1,3 +1,4 @@
+#if 0
 #ifndef THORIN_TYPE_H
 #define THORIN_TYPE_H
 
@@ -445,4 +446,5 @@ private:
 
 }
 
+#endif
 #endif

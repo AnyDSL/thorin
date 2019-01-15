@@ -101,7 +101,12 @@ bool is_const(const Def* def) {
     return true;
 }
 
-size_t vector_length(const Def* def) { return def->type()->as<VectorType>()->length(); }
+size_t vector_length(const Def* def) {
+    if (auto vector_type = def->isa<VectorType>())
+        return vector_type->length();
+    return def->type()->as<VectorType>()->length();
+}
+
 
 bool is_primlit(const Def* def, int64_t val) {
     if (auto lit = def->isa<PrimLit>()) {
@@ -163,7 +168,6 @@ void Def::dump() const {
     }
 }
 
-World& Def::world() const { return *static_cast<World*>(&type()->table()); }
 Lam* Def::as_lam() const { return const_cast<Lam*>(scast<Lam>(this)); }
 Lam* Def::isa_lam() const { return const_cast<Lam*>(dcast<Lam>(this)); }
 std::ostream& Def::stream(std::ostream& out) const { return out << unique_name(); }

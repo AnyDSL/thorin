@@ -44,6 +44,15 @@ const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
     return unify(new App(pi->codomain(), callee, arg, dbg));
 }
 
+const Pi* World::pi(const Def* domain, const Def* codomain) {
+    auto type = star(); // TODO
+    return unify(new Pi(type, domain, codomain));
+}
+
+const Def* World::tuple_type(const Def* type, Defs ops, Debug dbg = {}) {
+    return ops.size() == 1 ? ops.front() : unify(new TupleType(type, ops, dbg));
+}
+
 /*
  * literals
  */

@@ -31,7 +31,6 @@ private:
     const Scope& scope_;
     Defs args_;
     Defs lift_;
-    Type2Type type2type_;
     Lam* old_entry_;
     Lam* new_entry_;
     DefSet defs_;

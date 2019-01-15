@@ -1,3 +1,4 @@
+#if 0
 #ifndef THORIN_lam_H
 #define THORIN_lam_H
 
@@ -91,106 +92,6 @@ public:
     friend class World;
 };
 
-/**
- * A function abstraction.
- * A @p Lam is always of function type @p FnTypeNode.
- */
-class Lam : public Def {
-private:
-    Lam(const Pi* pi, CC cc, Intrinsic intrinsic, Debug dbg);
-
-public:
-    //@{ operands
-    const Def* filter() const { return op(0); }
-    const Def* filter(size_t i) const;
-    const Def* body() const { return op(1); }
-    const App* app() const { return body()->isa<App>(); }
-    //@}
-
-    //@{ params
-    const Param* param(Debug dbg = {}) const;
-    size_t num_params() const;
-    const Def* param(size_t i, Debug dbg = {}) const;
-    Array<const Def*> params() const;
-    const Def* mem_param() const;
-    const Def* ret_param() const;
-    //@}
-
-    //@{ setters
-    void set_filter(const Def* filter) { update_op(0, filter); }
-    void set_filter(Defs filter);
-    void set_all_true_filter();
-    void set_body(const Def* body) { update_op(1, body); }
-    void destroy_filter();
-    //@}
-
-    //@{ type
-    const Pi* type() const { return Def::type()->as<Pi>(); }
-    const Type* domain() const { return type()->domain(); }
-    const Type* codomain() const { return type()->codomain(); }
-    //@}
-
-    Def* vstub(World&, const Type*) const override;
-    const Def* vrebuild(World&, const Type*, Defs) const override { THORIN_UNREACHABLE; }
-
-    Lams preds() const;
-    Lams succs() const;
-    bool is_empty() const;
-    Intrinsic& intrinsic() { return intrinsic_; }
-    Intrinsic intrinsic() const { return intrinsic_; }
-    CC& cc() { return cc_; }
-    CC cc() const { return cc_; }
-    void set_intrinsic(); ///< Sets @p intrinsic_ derived on this @p Lam's @p name.
-    bool is_external() const;
-    void make_external();
-    void make_internal();
-    bool is_basicblock() const;
-    bool is_returning() const;
-    bool is_intrinsic() const;
-    bool is_accelerator() const;
-    void destroy_body();
-
-    std::ostream& stream_head(std::ostream&) const;
-    std::ostream& stream_body(std::ostream&) const;
-    void dump_head() const;
-    void dump_body() const;
-
-    // terminate
-
-    void app(const Def* callee, const Def* arg, Debug dbg = {});
-    void app(const Def* callee, Defs args, Debug dbg = {});
-    void branch(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
-    void match(const Def* val, Lam* otherwise, Defs patterns, ArrayRef<Lam*> lams, Debug dbg = {});
-
-private:
-    CC cc_;
-    Intrinsic intrinsic_;
-
-    friend class Cleaner;
-    friend class Scope;
-    friend class CFA;
-    friend class World;
-};
-
-/**
- * A parameter of a @p Lam function.
- * A @p Param's op isits @p lam() it belongs to.
- */
-class Param : public Def {
-private:
-    Param(const Type* type, const Lam* lam, Debug dbg)
-        : Def(Node_Param, type, Defs{lam}, dbg)
-    {
-        assert(lam->is_nominal());
-    }
-
-public:
-    Lam* lam() const { return op(0)->as_lam(); }
-    const Def* vrebuild(World&, const Type*, Defs) const override;
-
-    friend class World;
-};
-
 bool visit_uses(Lam*, std::function<bool(Lam*)>, bool include_globals);
 bool visit_capturing_intrinsics(Lam*, std::function<bool(Lam*)>, bool include_globals = true);
 bool is_passed_to_accelerator(Lam*, bool include_globals = true);
@@ -219,4 +120,5 @@ using Lam2Lam = LamMap<Lam*>;
 
 }
 
+#endif
 #endif

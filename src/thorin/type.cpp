@@ -17,10 +17,10 @@ namespace thorin {
  * misc
  */
 
-const Type* merge_tuple_type(const Type* a, const Type* b) {
+const Def* merge_tuple_type(const Def* a, const Def* b) {
     auto x = a->isa<TupleType>();
     auto y = b->isa<TupleType>();
-    auto& w = a->table();
+    auto& w = a->world();
 
     if ( x &&  y) return w.tuple_type(concat(x->ops(), y->ops()));
     if ( x && !y) return w.tuple_type(concat(x->ops(), b       ));
@@ -30,9 +30,9 @@ const Type* merge_tuple_type(const Type* a, const Type* b) {
     return w.tuple_type({a, b});
 }
 
-Array<const Type*> Pi::domains() const {
+Array<const Def*> Pi::domains() const {
     size_t n = num_domains();
-    Array<const Type*> domains(n);
+    Array<const Def*> domains(n);
     for (size_t i = 0; i != n; ++i)
         domains[i] = domain(i);
     return domains;
@@ -44,7 +44,7 @@ size_t Pi::num_domains() const {
     return 1;
 }
 
-const Type* Pi::domain(size_t i) const {
+const Def* Pi::domain(size_t i) const {
     if (auto tuple_type = domain()->isa<TupleType>())
         return tuple_type->op(i);
     return domain();
@@ -56,54 +56,24 @@ const Type* Pi::domain(size_t i) const {
  * vrebuild
  */
 
-const Type* StructType::vrebuild(TypeTable&, Types ops) const {
-    assert_unused(this->ops() == ops);
-    return this;
-}
+const Def* StructType::vrebuild(World&, const Def*, Defs) const { THORIN_UNREACHABLE; }
 
-const Type* App_               ::vrebuild(TypeTable& to, Types ops) const { return to.app_(ops[0], ops[1]); }
-const Type* TupleType          ::vrebuild(TypeTable& to, Types ops) const { return to.tuple_type(ops); }
-const Type* VariantType        ::vrebuild(TypeTable& to, Types ops) const { return to.variant_type(ops); }
-const Type* Lambda             ::vrebuild(TypeTable& to, Types ops) const { return to.lambda(ops[0], name()); }
-const Type* Var                ::vrebuild(TypeTable& to, Types    ) const { return to.var(depth()); }
-const Type* DefiniteArrayType  ::vrebuild(TypeTable& to, Types ops) const { return to.definite_array_type(ops[0], dim()); }
-const Type* Pi                 ::vrebuild(TypeTable& to, Types ops) const { return to.pi(ops[0], ops[1]); }
-const Type* FrameType          ::vrebuild(TypeTable& to, Types    ) const { return to.frame_type(); }
-const Type* IndefiniteArrayType::vrebuild(TypeTable& to, Types ops) const { return to.indefinite_array_type(ops[0]); }
-const Type* MemType            ::vrebuild(TypeTable& to, Types    ) const { return to.mem_type(); }
-const Type* BottomType         ::vrebuild(TypeTable& to, Types    ) const { return to.bottom_type(); }
-const Type* PrimType           ::vrebuild(TypeTable& to, Types    ) const { return to.type(primtype_tag(), length()); }
+const Def* Lam                ::vrebuild(World& to, const Def*, Defs ops) const { assert(!is_nominal()); return to.lam(ops[0], name()); }
 
-const Type* PtrType::vrebuild(TypeTable& to, Types ops) const {
+const Def* App                ::vrebuild(World& to, const Def*, Defs ops) const { return to.app_(ops[0], ops[1]); }
+const Def* TupleType          ::vrebuild(World& to, const Def*, Defs ops) const { return to.tuple_type(ops); }
+const Def* VariantType        ::vrebuild(World& to, const Def*, Defs ops) const { return to.variant_type(ops); }
+const Def* Var                ::vrebuild(World& to, const Def*, Defs    ) const { return to.var(depth()); }
+const Def* DefiniteArrayType  ::vrebuild(World& to, const Def*, Defs ops) const { return to.definite_array_type(ops[0], dim()); }
+const Def* Pi                 ::vrebuild(World& to, const Def*, Defs ops) const { return to.pi(ops[0], ops[1]); }
+const Def* FrameType          ::vrebuild(World& to, const Def*, Defs    ) const { return to.frame_type(); }
+const Def* IndefiniteArrayType::vrebuild(World& to, const Def*, Defs ops) const { return to.indefinite_array_type(ops[0]); }
+const Def* MemType            ::vrebuild(World& to, const Def*, Defs    ) const { return to.mem_type(); }
+const Def* BottomType         ::vrebuild(World& to, const Def*, Defs    ) const { return to.bottom_type(); }
+const Def* PrimType           ::vrebuild(World& to, const Def*, Defs    ) const { return to.type(primtype_tag(), length()); }
+
+const Def* PtrType::vrebuild(World& to, const Def*, Defs ops) const {
     return to.ptr_type(ops.front(), length(), device(), addr_space());
-}
-
-//------------------------------------------------------------------------------
-
-/*
- * reduce
- */
-
-const Type* Lambda::vreduce(int depth, const Type* type, Type2Type& map) const {
-    return table().lambda(body()->reduce(depth+1, type, map), name());
-}
-
-const Type* Var::vreduce(int depth, const Type* type, Type2Type&) const {
-    if (this->depth() == depth)
-        return type;
-    else if (this->depth() > depth)
-        return table().var(this->depth()-1);  // this is a free variable - shift by one
-    else
-        return this;                          // this variable is not free - don't adjust
-}
-
-const Type* StructType::vreduce(int depth, const Type* type, Type2Type& map) const {
-    auto struct_type = table().struct_type(name(), num_ops());
-    map[this] = struct_type;
-    for (size_t i = 0, e = num_ops(); i != e; ++i)
-        struct_type->set(i, op(i)->reduce(depth, type, map));
-
-    return struct_type;
 }
 
 //------------------------------------------------------------------------------
@@ -130,7 +100,7 @@ bool Pi::is_returning() const {
     return ret;
 }
 
-bool use_lea(const Type* type) { return type->isa<StructType>() || type->isa<ArrayType>(); }
+bool use_lea(const Def* type) { return type->isa<StructType>() || type->isa<ArrayType>(); }
 
 //------------------------------------------------------------------------------
 
@@ -152,11 +122,11 @@ uint64_t Var::vhash() const {
  * equal
  */
 
-bool Var::equal(const Type* other) const {
+bool Var::equal(const Def* other) const {
     return other->isa<Var>() ? this->as<Var>()->depth() == other->as<Var>()->depth() : false;
 }
 
-bool PtrType::equal(const Type* other) const {
+bool PtrType::equal(const Def* other) const {
     if (!VectorType::equal(other))
         return false;
     auto ptr = other->as<PtrType>();
@@ -169,8 +139,8 @@ bool PtrType::equal(const Type* other) const {
  * stream
  */
 
-static std::ostream& stream_type_ops(std::ostream& os, const Type* type) {
-   return stream_list(os, type->ops(), [&](const Type* type) { os << type; }, "(", ")");
+static std::ostream& stream_type_ops(std::ostream& os, const Def* type) {
+   return stream_list(os, type->ops(), [&](const Def* type) { os << type; }, "(", ")");
 }
 
 std::ostream& App_               ::stream(std::ostream& os) const { return streamf(os, "{}[{}]", callee(), arg()); }

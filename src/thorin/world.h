@@ -41,7 +41,7 @@ namespace thorin {
  *  All worlds are completely independent from each other.
  *  This is particular useful for multi-threading.
  */
-class World : public TypeTable, public Streamable {
+class World : public Streamable {
 public:
     struct DefHash {
         static uint64_t hash(const Def* def) { return def->hash(); }
@@ -64,6 +64,40 @@ public:
 
     bool empty() { return externals().empty(); }
 
+    // types
+
+    const Kind* star() { return star_; }
+    const Var* var(const Def* type, u64 index, Debug dbg = {}) { return unify(new Var(type, index, dbg)); }
+    const Def* tuple_type(const Def* type, Defs ops, Debug dbg = {});
+    const Def* tuple_type(Defs ops, Debug dbg = {}) { return tuple_type(star(), ops, dbg); }
+    const TupleType* unit() { return unit_; } ///< Returns unit, i.e., an empty @p TupleType.
+    const VariantType* variant_type(const Def* type, Defs ops, Debug dbg = {}) { return unify(new VariantType(type, ops, dbg)); }
+    const StructType* struct_type(Symbol name, size_t size);
+
+#define THORIN_ALL_TYPE(T, M) \
+    const PrimType* type_##T(size_t length = 1) { return type(PrimType_##T, length); }
+#include "thorin/tables/primtypetable.h"
+    const PrimType* type(PrimTypeTag tag, size_t length = 1, Debug dbg = {}) {
+        size_t i = tag - Begin_PrimType;
+        assert(i < (size_t) Num_PrimTypes);
+        return length == 1 ? primtypes_[i] : unify(new PrimType(tag, star(), length, dbg));
+    }
+    const MemType* mem_type() const { return mem_; }
+    const FrameType* frame_type() const { return frame_; }
+    const PtrType* ptr_type(const Def* pointee,
+                            size_t length = 1, int32_t device = -1, AddrSpace addr_space = AddrSpace::Generic, Debug dbg = {}) {
+        return unify(new PtrType(star(), pointee, length, device, addr_space, dbg));
+    }
+    const Pi* cn() { return cn0_; } ///< Returns an empty @p Pi.
+    const Pi* cn(Defs domains) { return cn(tuple_type(domains)); }
+    const Pi* cn(const Def* domain) { return pi(domain, bottom()); }
+
+    const Pi* pi(Defs domain, const Def* codomain) { return pi(tuple_type(domain), codomain); }
+    const Pi* pi(const Def* domain, const Def* codomain);
+    const DefiniteArrayType*   definite_array_type(const Def* elem, u64 dim, Debug dbg = {}) { return unify(new DefiniteArrayType(star(), elem, dim, dbg)); }
+    const IndefiniteArrayType* indefinite_array_type(const Def* elem, Debug dbg = {}) { return unify(new IndefiniteArrayType(star(), elem, dbg)); }
+
+
     // literals
 
 #define THORIN_ALL_TYPE(T, M) \
@@ -73,13 +107,14 @@ public:
     template<class T>
     const Def* literal(T value, Debug dbg = {}, size_t length = 1) { return literal(type2tag<T>::tag, Box(value), dbg, length); }
     const Def* zero(PrimTypeTag tag, Debug dbg = {}, size_t length = 1) { return literal(tag, 0, dbg, length); }
-    const Def* zero(const Type* type, Debug dbg = {}, size_t length = 1) { return zero(type->as<PrimType>()->primtype_tag(), dbg, length); }
+    const Def* zero(const Def* type, Debug dbg = {}, size_t length = 1) { return zero(type->as<PrimType>()->primtype_tag(), dbg, length); }
     const Def* one(PrimTypeTag tag, Debug dbg = {}, size_t length = 1) { return literal(tag, 1, dbg, length); }
-    const Def* one(const Type* type, Debug dbg = {}, size_t length = 1) { return one(type->as<PrimType>()->primtype_tag(), dbg, length); }
+    const Def* one(const Def* type, Debug dbg = {}, size_t length = 1) { return one(type->as<PrimType>()->primtype_tag(), dbg, length); }
     const Def* allset(PrimTypeTag tag, Debug dbg = {}, size_t length = 1);
-    const Def* allset(const Type* type, Debug dbg = {}, size_t length = 1) { return allset(type->as<PrimType>()->primtype_tag(), dbg, length); }
-    const Def* top   (const Type* type, Debug dbg = {}, size_t length = 1) { return splat(unify(new Top(type, dbg)), length); }
-    const Def* bottom(const Type* type, Debug dbg = {}, size_t length = 1) { return splat(unify(new Bottom(type, dbg)), length); }
+    const Def* allset(const Def* type, Debug dbg = {}, size_t length = 1) { return allset(type->as<PrimType>()->primtype_tag(), dbg, length); }
+    const Def* top   (const Def* type, Debug dbg = {}, size_t length = 1) { return splat(unify(new Top(type, dbg)), length); }
+    const Def* bottom(Debug dbg = {}) { return unify(new Bottom(star(), dbg)); }
+    const Def* bottom(const Def* type, Debug dbg = {}, size_t length = 1) { return splat(unify(new Bottom(type, dbg)), length); }
     const Def* bottom(PrimTypeTag tag, Debug dbg = {}, size_t length = 1) { return bottom(type(tag), dbg, length); }
 
     // arithops
@@ -106,13 +141,13 @@ public:
 
     // casts
 
-    const Def* convert(const Type* to, const Def* from, Debug dbg = {});
-    const Def* cast(const Type* to, const Def* from, Debug dbg = {});
-    const Def* bitcast(const Type* to, const Def* from, Debug dbg = {});
+    const Def* convert(const Def* to, const Def* from, Debug dbg = {});
+    const Def* cast(const Def* to, const Def* from, Debug dbg = {});
+    const Def* bitcast(const Def* to, const Def* from, Debug dbg = {});
 
     // aggregate operations
 
-    const Def* definite_array(const Type* elem, Defs args, Debug dbg = {}) {
+    const Def* definite_array(const Def* elem, Defs args, Debug dbg = {}) {
         return try_fold_aggregate(unify(new DefiniteArray(*this, elem, args, dbg)));
     }
     /// Create definite_array with at least one element. The type of that element is the element type of the definite array.
@@ -120,7 +155,7 @@ public:
         assert(!args.empty());
         return definite_array(args.front()->type(), args, dbg);
     }
-    const Def* indefinite_array(const Type* elem, const Def* dim, Debug dbg = {}) {
+    const Def* indefinite_array(const Def* elem, const Def* dim, Debug dbg = {}) {
         return unify(new IndefiniteArray(*this, elem, dim, dbg));
     }
     const Def* struct_agg(const StructType* struct_type, Defs args, Debug dbg = {}) {
@@ -144,22 +179,22 @@ public:
     }
 
     const Def* select(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
-    const Def* size_of(const Type* type, Debug dbg = {});
+    const Def* size_of(const Def* type, Debug dbg = {});
 
     // memory stuff
 
     const Def* load(const Def* mem, const Def* ptr, Debug dbg = {});
     const Def* store(const Def* mem, const Def* ptr, const Def* val, Debug dbg = {});
     const Def* enter(const Def* mem, Debug dbg = {});
-    const Def* slot(const Type* type, const Def* frame, Debug dbg = {}) { return unify(new Slot(type, frame, dbg)); }
-    const Def* alloc(const Type* type, const Def* mem, const Def* extra, Debug dbg = {});
-    const Def* alloc(const Type* type, const Def* mem, Debug dbg = {}) { return alloc(type, mem, literal_qu64(0, dbg), dbg); }
+    const Def* slot(const Def* type, const Def* frame, Debug dbg = {}) { return unify(new Slot(type, frame, dbg)); }
+    const Def* alloc(const Def* type, const Def* mem, const Def* extra, Debug dbg = {});
+    const Def* alloc(const Def* type, const Def* mem, Debug dbg = {}) { return alloc(type, mem, literal_qu64(0, dbg), dbg); }
     const Def* global(const Def* init, bool is_mutable = true, Debug dbg = {});
     const Def* global_immutable_string(const std::string& str, Debug dbg = {});
     const Def* lea(const Def* ptr, const Def* index, Debug dbg);
-    const Assembly* assembly(const Type* type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints,
+    const Assembly* assembly(const Def* type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints,
                              ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg = {});
-    const Assembly* assembly(Types types, const Def* mem, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints,
+    const Assembly* assembly(Defs types, const Def* mem, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints,
                              ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg = {});
 
     // partial evaluation related stuff
@@ -177,7 +212,7 @@ public:
     Lam* lam(const Pi* cn, Debug dbg = {}) { return lam(cn, CC::C, Intrinsic::None, dbg); }
     Lam* lam(Debug dbg = {}) { return lam(cn(), CC::C, Intrinsic::None, dbg); }
     Lam* branch() const { return branch_; }
-    Lam* match(const Type* type, size_t num_patterns);
+    Lam* match(const Def* type, size_t num_patterns);
     Lam* end_scope() const { return end_scope_; }
     const Def* app(const Def* callee, const Def* arg, Debug dbg = {});
     const Def* app(const Def* callee, Defs args, Debug dbg = {}) { return app(callee, tuple(args), dbg); }
@@ -215,13 +250,22 @@ public:
 
     friend void swap(World& w1, World& w2) {
         using std::swap;
-        swap(static_cast<TypeTable&>(w1), static_cast<TypeTable&>(w2));
-        swap(w1.name_,          w2.name_);
-        swap(w1.externals_,     w2.externals_);
-        swap(w1.defs_,          w2.defs_);
-        swap(w1.branch_,        w2.branch_);
-        swap(w1.end_scope_,     w2.end_scope_);
-        swap(w1.pe_done_,       w2.pe_done_);
+        swap(w1.name_,      w2.name_);
+        swap(w1.externals_, w2.externals_);
+        swap(w1.defs_,      w2.defs_);
+        swap(w1.branch_,    w2.branch_);
+        swap(w1.end_scope_, w2.end_scope_);
+        swap(w1.pe_done_,   w2.pe_done_);
+        swap(w1.unit_,      w2.unit_);
+        swap(w1.cn0_,       w2.cn0_);
+        swap(w1.bottom_,    w2.bottom_);
+        swap(w1.mem_,       w2.mem_);
+        swap(w1.frame_,     w2.frame_);
+
+#define THORIN_ALL_TYPE(T, M) \
+        swap(w1.T##_,       w2.T##_);
+
+#include "thorin/tables/primtypetable.h"
 
 #if THORIN_ENABLE_CHECKS
         swap(w1.breakpoints_,   w2.breakpoints_);
@@ -270,6 +314,20 @@ private:
     Breakpoints breakpoints_;
     bool track_history_ = false;
 #endif
+    const Kind* star_;
+    const TupleType* unit_; ///< tuple().
+    const Bottom* bottom_;
+    const Pi* cn0_;
+    const MemType* mem_;
+    const FrameType* frame_;
+    union {
+        struct {
+#define THORIN_ALL_TYPE(T, M) const PrimType* T##_;
+#include "thorin/tables/primtypetable.h"
+        };
+
+        const PrimType* primtypes_[Num_PrimTypes];
+    };
 
     friend class Cleaner;
     friend class Lam;

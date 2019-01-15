@@ -1,7 +1,6 @@
 #ifndef THORIN_TRANSFORM_MANGLE_H
 #define THORIN_TRANSFORM_MANGLE_H
 
-#include "thorin/type.h"
 #include "thorin/analyses/scope.h"
 
 namespace thorin {

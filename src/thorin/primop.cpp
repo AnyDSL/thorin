@@ -1,8 +1,6 @@
 #include "thorin/primop.h"
-#include "thorin/lam.h"
 
 #include "thorin/config.h"
-#include "thorin/type.h"
 #include "thorin/world.h"
 #include "thorin/util/array.h"
 

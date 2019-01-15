@@ -3,7 +3,7 @@
 
 #include <vector>
 
-#include "thorin/lam.h"
+#include "thorin/def.h"
 #include "thorin/util/array.h"
 #include "thorin/util/stream.h"
 

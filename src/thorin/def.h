@@ -264,7 +264,7 @@ private:
 
 class Kind : public Def {
 private:
-    Kind(World& world, NodeTag);
+    Kind(World& world, NodeTag, Debug);
 
 public:
     const Def* vrebuild(World&, const Def*, Defs) const override;
@@ -412,7 +412,7 @@ public:
     const Def* codomain() const { return type()->codomain(); }
     //@}
 
-    Def* vstub(World&, const Def*) const override;
+    Lam* vstub(World&, const Def*) const override;
     const Def* vrebuild(World&, const Def*, Defs) const override;
 
     Lams preds() const;
@@ -537,6 +537,7 @@ public:
     void set(size_t i, const Def* type) const { assert(is_nominal()); const_cast<Sigma*>(this)->Def::set_op(i, type); }
 
     virtual const Def* vrebuild(World& to, const Def*, Defs ops) const override;
+    Sigma* vstub(World&, const Def*) const override;
     virtual std::ostream& stream(std::ostream&) const override;
 
     friend class World;
@@ -567,9 +568,7 @@ public:
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
-    MemType(const Def* type)
-        : Def(Node_MemType, type, Defs{}, {"mem"})
-    {}
+    MemType(World& world);
 
     virtual const Def* vrebuild(World& to, const Def* type, Defs ops) const override;
 
@@ -582,9 +581,7 @@ public:
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
-    FrameType(const Def* type)
-        : Def(Node_FrameType, type, Defs{}, {"frame"})
-    {}
+    FrameType(World& world);
 
     virtual const Def* vrebuild(World& to, const Def*, Defs ops) const override;
 
@@ -618,9 +615,7 @@ private:
 /// Primitive type.
 class PrimType : public VectorType {
 private:
-    PrimType(PrimTypeTag tag, const Def* type, size_t length, Debug dbg)
-        : VectorType((int) tag, type, Defs{}, length, dbg)
-    {}
+    PrimType(World& world, PrimTypeTag tag, size_t length, Debug dbg);
 
 public:
     PrimTypeTag primtype_tag() const { return (PrimTypeTag) tag(); }

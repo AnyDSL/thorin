@@ -232,8 +232,7 @@ next_lam:;
 
 void Cleaner::rebuild() {
     Importer importer(world_);
-    importer.type_old2new_.rehash(world_.types_.capacity());
-    importer.def_old2new_.rehash(world_.defs().capacity());
+    importer.old2new_.rehash(world_.defs().capacity());
 
 #if THORIN_ENABLE_CHECKS
     world_.swap_breakpoints(importer.world());
@@ -265,8 +264,8 @@ void Cleaner::verify_closedness() {
 }
 
 void Cleaner::within(const Def* def) {
-    assert(world().types().contains(def->type()));
     assert_unused(world().defs().contains(def));
+    assert_unused(world().defs().contains(def->type()));
 }
 
 void Cleaner::clean_pe_info(std::queue<Lam*> queue, Lam* cur) {

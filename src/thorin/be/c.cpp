@@ -1,6 +1,4 @@
-#include "thorin/lam.h"
 #include "thorin/primop.h"
-#include "thorin/type.h"
 #include "thorin/world.h"
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/domtree.h"
@@ -31,30 +29,26 @@ public:
 
 private:
     std::ostream& emit_aggop_defs(const Def*);
-    std::ostream& emit_aggop_decl(const Type*);
+    std::ostream& emit_aggop_decl(const Def*);
     std::ostream& emit_debug_info(const Def*);
-    std::ostream& emit_addr_space(std::ostream&, const Type*);
-    std::ostream& emit_type(std::ostream&, const Type*);
+    std::ostream& emit_addr_space(std::ostream&, const Def*);
+    std::ostream& emit_type(std::ostream&, const Def*);
     std::ostream& emit(const Def*);
 
     template <typename T, typename IsInfFn, typename IsNanFn>
     std::ostream& emit_float(T, IsInfFn, IsNanFn);
 
     // TODO use Symbol instead of std::string
-    bool lookup(const Type*);
     bool lookup(const Def*);
-    void insert(const Type*, std::string);
     void insert(const Def*, std::string);
-    std::string& get_name(const Type*);
     std::string& get_name(const Def*);
     const std::string var_name(const Def*);
     const std::string get_lang() const;
-    bool is_texture_type(const Type*);
+    bool is_texture_type(const Def*);
 
     World& world_;
     const Cont2Config& kernel_config_;
     Lang lang_;
-    TypeMap<std::string> type2str_;
     DefMap<std::string> def2str_;
     DefMap<std::string> global2str_;
     DefMap<std::string> primop2str_;
@@ -76,7 +70,7 @@ std::ostream& CCodeGen::emit_debug_info(const Def* def) {
     return func_impl_;
 }
 
-std::ostream& CCodeGen::emit_addr_space(std::ostream& os, const Type* type) {
+std::ostream& CCodeGen::emit_addr_space(std::ostream& os, const Def* type) {
     if (auto ptr = type->isa<PtrType>()) {
         if (lang_==Lang::OPENCL) {
             switch (ptr->addr_space()) {
@@ -91,7 +85,7 @@ std::ostream& CCodeGen::emit_addr_space(std::ostream& os, const Type* type) {
     return os;
 }
 
-inline bool is_string_type(const Type* type) {
+inline bool is_string_type(const Def* type) {
     if (auto array = type->isa<DefiniteArrayType>())
         if (auto primtype = array->elem_type()->isa<PrimType>())
             if (primtype->primtype_tag() == PrimType_pu8)
@@ -99,7 +93,7 @@ inline bool is_string_type(const Type* type) {
     return false;
 }
 
-std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
+std::ostream& CCodeGen::emit_type(std::ostream& os, const Def* type) {
     if (lookup(type))
         return os << get_name(type);
 
@@ -205,7 +199,7 @@ std::ostream& CCodeGen::emit_aggop_defs(const Def* def) {
     return func_impl_;
 }
 
-std::ostream& CCodeGen::emit_aggop_decl(const Type* type) {
+std::ostream& CCodeGen::emit_aggop_decl(const Def* type) {
     if (lookup(type) || type == world().unit())
         return type_decls_;
 
@@ -367,7 +361,7 @@ void CCodeGen::emit() {
 
                 if (lang_ == Lang::OPENCL && lam->is_external() &&
                     (param->type()->isa<DefiniteArrayType>() ||
-                     param->type()->isa<>(Sigma))) {
+                     param->type()->isa<Sigma>())) {
                     // structs are passed via buffer; the parameter is a pointer to this buffer
                     func_decls_ << "__global ";
                     func_impl_  << "__global ";
@@ -504,7 +498,7 @@ void CCodeGen::emit() {
                 if (num_args == 0) func_impl_ << "return ;";
                 else {
                     Array<const Def*> values(num_args);
-                    Array<const Type*> types(num_args);
+                    Array<const Def*> types(num_args);
 
                     size_t n = 0;
                     for (auto arg : lam->app()->args()) {
@@ -636,7 +630,7 @@ void CCodeGen::emit() {
 
                         size_t n = 0;
                         Array<const Def*> values(num_params);
-                        Array<const Type*> types(num_params);
+                        Array<const Def*> types(num_params);
                         for (auto param : succ->params()) {
                             if (!is_mem(param) && !is_unit(param)) {
                                 values[n] = param;
@@ -672,7 +666,7 @@ void CCodeGen::emit() {
         def2str_.clear();
     });
 
-    type2str_.clear();
+    def2str_.clear();
     global2str_.clear();
 
     if (lang_==Lang::OPENCL) {
@@ -915,7 +909,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
 
         if (auto agg = def->isa<Aggregate>()) {
             emit_aggop_decl(def->type());
-            assert(def->isa<Tuple>() || def->isa<StructAgg>());
+            assert(def->isa<Tuple>());
             // emit definitions of inlined elements
             for (auto op : agg->ops())
                 emit_aggop_defs(op);
@@ -1194,10 +1188,6 @@ std::ostream& CCodeGen::emit(const Def* def) {
     THORIN_UNREACHABLE;
 }
 
-bool CCodeGen::lookup(const Type* type) {
-    return type2str_.contains(type);
-}
-
 bool CCodeGen::lookup(const Def* def) {
     if (def->isa<Global>())
         return global2str_.contains(def);
@@ -1205,10 +1195,6 @@ bool CCodeGen::lookup(const Def* def) {
         return primop2str_.contains(def);
     else
         return def2str_.contains(def);
-}
-
-std::string& CCodeGen::get_name(const Type* type) {
-    return type2str_[type];
 }
 
 std::string& CCodeGen::get_name(const Def* def) {
@@ -1236,10 +1222,6 @@ const std::string CCodeGen::get_lang() const {
     }
 }
 
-void CCodeGen::insert(const Type* type, std::string str) {
-    type2str_[type] = str;
-}
-
 void CCodeGen::insert(const Def* def, std::string str) {
     if (def->isa<Global>())
         global2str_[def] = str;
@@ -1249,7 +1231,7 @@ void CCodeGen::insert(const Def* def, std::string str) {
         def2str_[def] = str;
 }
 
-bool CCodeGen::is_texture_type(const Type* type) {
+bool CCodeGen::is_texture_type(const Def* type) {
     if (auto ptr = type->isa<PtrType>()) {
         if (ptr->addr_space()==AddrSpace::Texture) {
             assert(lang_==Lang::CUDA && "Textures currently only supported in CUDA");

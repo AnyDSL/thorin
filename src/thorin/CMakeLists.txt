@@ -3,12 +3,8 @@ set(THORIN_SOURCES
     def.h
     enums.cpp
     enums.h
-    lam.cpp
-    lam.h
     primop.cpp
     primop.h
-    type.cpp
-    type.h
     world.cpp
     world.h
     analyses/cfg.cpp
@@ -82,7 +78,6 @@ set(THORIN_SOURCES
     util/utility.h
     util/ycomp.cpp
     util/ycomp.h
-    util/type_table.h
 )
 
 if(LLVM_FOUND)

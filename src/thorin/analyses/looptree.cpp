@@ -4,7 +4,7 @@
 #include <iostream>
 #include <stack>
 
-#include "thorin/lam.h"
+#include "thorin/def.h"
 #include "thorin/analyses/cfg.h"
 
 /*

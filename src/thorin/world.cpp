@@ -4,8 +4,6 @@
 
 #include "thorin/def.h"
 #include "thorin/primop.h"
-#include "thorin/lam.h"
-#include "thorin/type.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/transform/cleanup_world.h"
 #include "thorin/transform/clone_bodies.h"
@@ -29,10 +27,17 @@ namespace thorin {
 
 World::World(std::string name)
     : name_(name)
-{
-    branch_ = lam(cn(sigma({type_bool(), cn(), cn()})), CC::C, Intrinsic::Branch, {"br"});
-    end_scope_ = lam(cn(), CC::C, Intrinsic::EndScope, {"end_scope"});
-}
+    , star_  (insert(new Kind(*this, Node_Star, {"*"})))
+    , unit_  (insert(new Sigma(star_, Defs{}, {"[]"})))
+    , bottom_(insert(new Bottom(star_, {"<⊥:*>"})))
+    , mem_   (insert(new MemType  (*this)))
+    , frame_ (insert(new FrameType(*this)))
+#define THORIN_ALL_TYPE(T, M) \
+    , T##_   (insert(new PrimType(*this, PrimType_##T, 1, {#T})))
+#include "thorin/tables/primtypetable.h"
+    , branch_   (lam(cn(sigma({type_bool(), cn({}), cn({})})), CC::C, Intrinsic::Branch, {"br"}))
+    , end_scope_(lam(cn({}), CC::C, Intrinsic::EndScope, {"end_scope"}))
+{}
 
 World::~World() {
     for (auto def : defs_) delete def;
@@ -44,12 +49,12 @@ const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
     return unify(new App(pi->codomain(), callee, arg, dbg));
 }
 
-const Pi* World::pi(const Def* domain, const Def* codomain) {
+const Pi* World::pi(const Def* domain, const Def* codomain, Debug dbg) {
     auto type = star(); // TODO
-    return unify(new Pi(type, domain, codomain));
+    return unify(new Pi(type, domain, codomain, dbg));
 }
 
-const Def* World::sigma(const Def* type, Defs ops, Debug dbg = {}) {
+const Def* World::sigma(const Def* type, Defs ops, Debug dbg) {
     return ops.size() == 1 ? ops.front() : unify(new Sigma(type, ops, dbg));
 }
 
@@ -89,6 +94,7 @@ const Def* World::binop(int tag, const Def* lhs, const Def* rhs, Debug dbg) {
     return cmp((CmpTag) tag, lhs, rhs, dbg);
 }
 
+#if 0
 const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg) {
     assert(a->type() == b->type());
     assert(a->type()->as<PrimType>()->length() == b->type()->as<PrimType>()->length());
@@ -381,6 +387,7 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
 
     return unify(new ArithOp(tag, a, b, dbg));
 }
+#endif
 
 const Def* World::arithop_not(const Def* def, Debug dbg) { return arithop_xor(allset(def->type(), dbg, vector_length(def)), def, dbg); }
 
@@ -478,7 +485,7 @@ const Def* World::cmp(CmpTag tag, const Def* a, const Def* b, Debug dbg) {
  * casts
  */
 
-const Def* World::convert(const Type* dst_type, const Def* src, Debug dbg) {
+const Def* World::convert(const Def* dst_type, const Def* src, Debug dbg) {
     if (dst_type == src->type())
         return src;
     if (src->type()->isa<PtrType>() && dst_type->isa<PtrType>())
@@ -496,7 +503,7 @@ const Def* World::convert(const Type* dst_type, const Def* src, Debug dbg) {
     return cast(dst_type, src, dbg);
 }
 
-const Def* World::cast(const Type* to, const Def* from, Debug dbg) {
+const Def* World::cast(const Def* to, const Def* from, Debug dbg) {
     if (from->isa<Bottom>())
         return bottom(to);
 
@@ -613,7 +620,7 @@ const Def* World::cast(const Type* to, const Def* from, Debug dbg) {
     return unify(new Cast(to, from, dbg));
 }
 
-const Def* World::bitcast(const Type* to, const Def* from, Debug dbg) {
+const Def* World::bitcast(const Def* to, const Def* from, Debug dbg) {
     if (from->isa<Bottom>())
         return bottom(to);
 
@@ -656,7 +663,7 @@ const Def* World::bitcast(const Type* to, const Def* from, Debug dbg) {
  * aggregate operations
  */
 
-static bool fold_1_tuple(const Type* type, const Def* index) {
+static bool fold_1_tuple(const Def* type, const Def* index) {
     if (auto lit = index->isa<PrimLit>()) {
         if (primlit_value<u64>(lit) == 0
                 && !type->isa<ArrayType>()
@@ -768,7 +775,7 @@ const Def* World::select(const Def* cond, const Def* a, const Def* b, Debug dbg)
     return unify(new Select(cond, a, b, dbg));
 }
 
-const Def* World::size_of(const Type* type, Debug dbg) {
+const Def* World::size_of(const Def* type, Debug dbg) {
     if (auto ptype = type->isa<PrimType>())
         return literal(qs32(num_bits(ptype->primtype_tag()) / 8), dbg);
 
@@ -805,7 +812,7 @@ const Def* World::enter(const Def* mem, Debug dbg) {
     return unify(new Enter(mem, dbg));
 }
 
-const Def* World::alloc(const Type* type, const Def* mem, const Def* extra, Debug dbg) {
+const Def* World::alloc(const Def* type, const Def* mem, const Def* extra, Debug dbg) {
     return unify(new Alloc(type, mem, extra, dbg));
 }
 
@@ -824,12 +831,12 @@ const Def* World::global_immutable_string(const std::string& str, Debug dbg) {
     return global(definite_array(str_array, dbg), false, dbg);
 }
 
-const Assembly* World::assembly(const Type* type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg) {
+const Assembly* World::assembly(const Def* type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg) {
     return unify(new Assembly(type, inputs, asm_template, output_constraints, input_constraints, clobbers, flags, dbg))->as<Assembly>();;
 }
 
-const Assembly* World::assembly(Types types, const Def* mem, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg) {
-    Array<const Type*> output(types.size()+1);
+const Assembly* World::assembly(Defs types, const Def* mem, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg) {
+    Array<const Def*> output(types.size()+1);
     std::copy(types.begin(), types.end(), output.begin()+1);
     output.front() = mem_type();
 
@@ -868,12 +875,12 @@ const Def* World::run(const Def* def, Debug dbg) {
  * lams
  */
 
-Lam* World::match(const Type* type, size_t num_patterns) {
-    Array<const Type*> arg_types(num_patterns + 2);
+Lam* World::match(const Def* type, size_t num_patterns) {
+    Array<const Def*> arg_types(num_patterns + 2);
     arg_types[0] = type;
-    arg_types[1] = cn();
+    arg_types[1] = cn({});
     for (size_t i = 0; i < num_patterns; i++)
-        arg_types[i + 2] = sigma({type, cn()});
+        arg_types[i + 2] = sigma({type, cn({})});
     return lam(cn(sigma(arg_types)), CC::C, Intrinsic::Match, {"match"});
 }
 

@@ -8,7 +8,6 @@
 #include <string>
 
 #include "thorin/enums.h"
-#include "thorin/lam.h"
 #include "thorin/primop.h"
 #include "thorin/util/hash.h"
 #include "thorin/util/stream.h"
@@ -73,7 +72,8 @@ public:
     const Sigma* unit() { return unit_; } ///< Returns unit, i.e., an empty @p Sigma.
     const Def* sigma(const Def* type, Defs ops, Debug dbg = {});
     const Def* sigma(Defs ops, Debug dbg = {}) { return sigma(star(), ops, dbg); }
-    Sigma* sigma(size_t size, Debug dbg = {});
+    /// creates a @em nominal @p Sigma
+    Sigma* sigma(const Def* type, size_t size, Debug dbg = {});
     //@}
 
 #define THORIN_ALL_TYPE(T, M) \
@@ -82,7 +82,7 @@ public:
     const PrimType* type(PrimTypeTag tag, size_t length = 1, Debug dbg = {}) {
         size_t i = tag - Begin_PrimType;
         assert(i < (size_t) Num_PrimTypes);
-        return length == 1 ? primtypes_[i] : unify(new PrimType(tag, star(), length, dbg));
+        return length == 1 ? primtypes_[i] : unify(new PrimType(*this, tag, length, dbg));
     }
     const MemType* mem_type() const { return mem_; }
     const FrameType* frame_type() const { return frame_; }
@@ -314,8 +314,6 @@ private:
     std::string name_;
     LamSet externals_;
     DefSet defs_;
-    Lam* branch_;
-    Lam* end_scope_;
     bool pe_done_ = false;
 #if THORIN_ENABLE_CHECKS
     Breakpoints breakpoints_;
@@ -334,6 +332,8 @@ private:
 
         const PrimType* primtypes_[Num_PrimTypes];
     };
+    Lam* branch_;
+    Lam* end_scope_;
 
     friend class Cleaner;
     friend class Lam;

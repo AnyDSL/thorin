@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <fstream>
 
-#include "thorin/lam.h"
 #include "thorin/world.h"
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/domtree.h"

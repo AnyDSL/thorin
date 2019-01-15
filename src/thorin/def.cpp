@@ -423,6 +423,7 @@ void Lam::app(const Def* callee, Defs args, Debug dbg) {
 }
 
 void Lam::app(const Def* callee, const Def* arg, Debug dbg) {
+    assert(is_nominal());
     if (auto lam = callee->isa<Lam>()) {
         switch (lam->intrinsic()) {
             case Intrinsic::Branch: {

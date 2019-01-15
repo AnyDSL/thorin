@@ -33,7 +33,6 @@ using GIDSet = thorin::HashSet<Key, GIDHash<Key>>;
 class Lam;
 class Param;
 class Def;
-class PrimOp;
 class Tracker;
 class Use;
 class World;
@@ -107,13 +106,6 @@ std::ostream& operator<<(std::ostream&, Use);
 
 //------------------------------------------------------------------------------
 
-/**
- * The base class for all three tags of Definitions in AnyDSL.
- * These are:
- * - \p PrimOp%s
- * - \p Param%s and
- * - \p Lam%s.
- */
 class Def : public RuntimeCast<Def>, public Streamable {
 private:
     Def& operator=(const Def&) = delete;
@@ -145,8 +137,6 @@ protected:
     {}
     virtual ~Def() {}
 
-    void clear_type() { type_ = nullptr; }
-    void set_type(const Def* type) { type_ = type; }
     void unregister_use(size_t i) const;
     void unregister_uses() const;
 
@@ -228,7 +218,6 @@ private:
 
     friend struct DefHash;
     friend class Cleaner;
-    friend class PrimOp;
     friend class Scope;
     friend class Tracker;
     friend class World;
@@ -340,11 +329,6 @@ public:
     friend class World;
 };
 
-template<class To>
-using AppMap  = GIDMap<const App*, To>;
-using AppSet  = GIDSet<const App*>;
-using App2App = AppMap<const App*>;
-
 enum class Intrinsic : uint8_t {
     None,                       ///< Not an intrinsic.
     _Accelerator_Begin,
@@ -449,8 +433,6 @@ private:
     Intrinsic intrinsic_;
 
     friend class Cleaner;
-    friend class Scope;
-    friend class CFA;
     friend class World;
 };
 
@@ -541,9 +523,7 @@ private:
     {}
     Sigma(const Def* type, size_t size, Debug dbg)
         : Def(Node_Sigma, type, size, dbg)
-    {
-        nominal_ = true;
-    }
+    {}
 
 public:
     void set(size_t i, const Def* type) const { assert(is_nominal()); const_cast<Sigma*>(this)->Def::set_op(i, type); }
@@ -556,7 +536,6 @@ public:
 };
 
 const Def* merge_sigma(const Def*, const Def*);
-
 
 /// The type of a variant (structurally typed).
 class VariantType : public Def {

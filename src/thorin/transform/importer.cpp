@@ -27,7 +27,7 @@ const Def* Importer::import(Tracker odef) {
 
     const Def* ndef = nullptr;
     if (odef->is_nominal()) {
-        ndef = odef->vstub(world_, ntype);
+        ndef = odef->stub(world_, ntype);
         old2new_[odef] = ndef;
     }
 
@@ -46,7 +46,7 @@ const Def* Importer::import(Tracker odef) {
                 ndef->as_lam()->make_external();
         }
     } else {
-        ndef = odef->vrebuild(world_, ntype, nops);
+        ndef = odef->rebuild(world_, ntype, nops);
         old2new_[odef] = ndef;
     }
 

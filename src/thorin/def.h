@@ -176,12 +176,8 @@ public:
     bool is_replaced() const { return substitute_ != nullptr; }
 
     //@{ rebuild/stub
-    virtual const Def* vrebuild(World&, const Def*, Defs) const = 0;
-    const Def* rebuild(const Def* type, Defs ops) const { return vrebuild(world(), type, ops); }
-    const Def* rebuild(Defs ops) const { return vrebuild(world(), type(), ops); }
-    virtual Def* vstub(World&, const Def*) const { THORIN_UNREACHABLE; }
-    Def* stub(const Def* type) const { return vstub(world(), type); }
-    Def* stub() const { return vstub(world(), type()); }
+    virtual const Def* rebuild(World&, const Def*, Defs) const = 0;
+    virtual Def* stub(World&, const Def*) const { THORIN_UNREACHABLE; }
     //@}
 
     virtual uint64_t vhash() const;
@@ -232,7 +228,7 @@ private:
         : Def(Node_Bottom, type, {}, dbg)
     {}
 
-    virtual const Def* vrebuild(World& to, const Def*, Defs ops) const override;
+    virtual const Def* rebuild(World& to, const Def*, Defs ops) const override;
 
     friend class World;
 };
@@ -246,7 +242,7 @@ private:
         : Def(Node_Top, type, {}, dbg)
     {}
 
-    virtual const Def* vrebuild(World& to, const Def*, Defs ops) const override;
+    virtual const Def* rebuild(World& to, const Def*, Defs ops) const override;
 
     friend class World;
 };
@@ -256,7 +252,7 @@ private:
     Kind(World& world, NodeTag, Debug);
 
 public:
-    const Def* vrebuild(World&, const Def*, Defs) const override;
+    const Def* rebuild(World&, const Def*, Defs) const override;
 
     friend class World;
 };
@@ -275,7 +271,7 @@ public:
 private:
     virtual uint64_t vhash() const override;
     virtual bool equal(const Def*) const override;
-    virtual const Def* vrebuild(World&, const Def*, Defs) const;
+    virtual const Def* rebuild(World&, const Def*, Defs) const;
 
     u64 index_;
 
@@ -305,7 +301,7 @@ public:
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
-    virtual const Def* vrebuild(World& to, const Def*, Defs ops) const override;
+    virtual const Def* rebuild(World& to, const Def*, Defs ops) const override;
 
     friend class World;
 };
@@ -324,7 +320,7 @@ public:
     const Def* arg(size_t i) const;
     Array<const Def*> args() const;
 
-    const Def* vrebuild(World&, const Def*, Defs) const override;
+    const Def* rebuild(World&, const Def*, Defs) const override;
 
     friend class World;
 };
@@ -396,8 +392,8 @@ public:
     const Def* codomain() const { return type()->codomain(); }
     //@}
 
-    Lam* vstub(World&, const Def*) const override;
-    const Def* vrebuild(World&, const Def*, Defs) const override;
+    Lam* stub(World&, const Def*) const override;
+    const Def* rebuild(World&, const Def*, Defs) const override;
 
     Lams preds() const;
     Lams succs() const;
@@ -483,7 +479,7 @@ private:
 
 public:
     Lam* lam() const { return op(0)->as_lam(); }
-    const Def* vrebuild(World&, const Def*, Defs) const override;
+    const Def* rebuild(World&, const Def*, Defs) const override;
 
     friend class World;
 };
@@ -528,8 +524,8 @@ private:
 public:
     void set(size_t i, const Def* type) const { assert(is_nominal()); const_cast<Sigma*>(this)->Def::set_op(i, type); }
 
-    virtual const Def* vrebuild(World& to, const Def*, Defs ops) const override;
-    Sigma* vstub(World&, const Def*) const override;
+    virtual const Def* rebuild(World& to, const Def*, Defs ops) const override;
+    Sigma* stub(World&, const Def*) const override;
     virtual std::ostream& stream(std::ostream&) const override;
 
     friend class World;
@@ -547,7 +543,7 @@ private:
     }
 
 private:
-    virtual const Def* vrebuild(World& to, const Def*, Defs ops) const override;
+    virtual const Def* rebuild(World& to, const Def*, Defs ops) const override;
     virtual std::ostream& stream(std::ostream&) const override;
 
     friend class World;
@@ -561,7 +557,7 @@ public:
 private:
     MemType(World& world);
 
-    virtual const Def* vrebuild(World& to, const Def* type, Defs ops) const override;
+    virtual const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
     friend class World;
 };
@@ -574,7 +570,7 @@ public:
 private:
     FrameType(World& world);
 
-    virtual const Def* vrebuild(World& to, const Def*, Defs ops) const override;
+    virtual const Def* rebuild(World& to, const Def*, Defs ops) const override;
 
     friend class World;
 };
@@ -614,7 +610,7 @@ public:
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
-    virtual const Def* vrebuild(World& to, const Def*, Defs ops) const override;
+    virtual const Def* rebuild(World& to, const Def*, Defs ops) const override;
 
     friend class World;
 };
@@ -663,7 +659,7 @@ public:
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
-    virtual const Def* vrebuild(World& to, const Def*, Defs ops) const override;
+    virtual const Def* rebuild(World& to, const Def*, Defs ops) const override;
 
     AddrSpace addr_space_;
     int32_t device_;
@@ -690,7 +686,7 @@ public:
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
-    virtual const Def* vrebuild(World& to, const Def*, Defs ops) const override;
+    virtual const Def* rebuild(World& to, const Def*, Defs ops) const override;
 
     friend class World;
 };
@@ -711,7 +707,7 @@ public:
     virtual std::ostream& stream(std::ostream&) const override;
 
 private:
-    virtual const Def* vrebuild(World& to, const Def*, Defs ops) const override;
+    virtual const Def* rebuild(World& to, const Def*, Defs ops) const override;
 
     u64 dim_;
 

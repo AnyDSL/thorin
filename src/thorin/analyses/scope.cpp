@@ -44,7 +44,6 @@ void Scope::run() {
 
     while (!queue.empty()) {
         auto def = pop(queue);
-        def->dump();
         if (def != entry_) {
             for (auto use : def->uses())
                 enqueue(use);

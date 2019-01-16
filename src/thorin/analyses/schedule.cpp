@@ -118,6 +118,9 @@ void Scheduler::schedule() {
             }
 
             if (!todo) {
+                // TODO We can basically do the same trick for def2early_ as for def2late_ but traverse bottom up.
+                // By doing this, we can compute def2early_ without cfg/domtree.
+                // However, there is this nasty "What exactly is an exit of a scope?" problem.
                 auto result = cfg_[cur];
                 def2late_[def] = result;
                 for (auto op : def->ops()) {

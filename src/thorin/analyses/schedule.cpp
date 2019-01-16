@@ -52,7 +52,7 @@ public:
     void schedule_early() { for_all_defs([&](const Def* def) { schedule_early(def); }); }
     void schedule_late()  { for_all_defs([&](const Def* def) { schedule_late (def); }); }
     void schedule_smart() { for_all_defs([&](const Def* def) { schedule_smart(def); }); }
-    const CFNode* schedule_early(const Def*);
+    const CFNode* schedule_early(Lam* cur, const Def*);
     const CFNode* schedule_late(const Def*);
     const CFNode* schedule_smart(const Def*);
     void topo_sort(Def2CFNode&);
@@ -73,37 +73,30 @@ void Scheduler::compute_def2uses() {
     std::queue<const Def*> queue;
     DefSet done;
 
-    auto enqueue = [&](const Def* def, size_t i, const Def* op) {
-        if (scope_.contains(op)) {
-            auto p1 = def2uses_[op].emplace(i, def);
-            assert_unused(p1.second);
-            auto p2 = done.emplace(op);
-            if (p2.second)
-                queue.push(op);
-        }
+    auto enqueue = [&](const Def* def) {
+        if (done.emplace(def).second)
+            queue.push(def);
     };
 
-    for (auto n : cfg_.reverse_post_order()) {
-        queue.push(n->lam());
-        auto p = done.emplace(n->lam());
-        assert_unused(p.second);
-    }
+    for (auto n : cfg_.reverse_post_order())
+        enqueue(n->lam());
 
     while (!queue.empty()) {
         auto def = pop(queue);
+
         for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
-            // all reachable lams have already been registered above
-            // NOTE we might still see references to unreachable lams in the schedule
-            if (!def->op(i)->isa<Lam>())
-                enqueue(def, i, def->op(i));
+            auto op = def->op(i);
+            if (scope_.contains(op)) {
+                def2uses_[op].emplace(i, def);
+                enqueue(op);
+            }
         }
     }
 }
 
-const CFNode* Scheduler::schedule_early(const Def* def) {
+const CFNode* Scheduler::schedule_early(Lam* cur, const Def* def) {
     auto i = def2early_.find(def);
-    if (i != def2early_.end())
-        return i->second;
+    if (i != def2early_.end()) return i->second;
 
     if (auto lam = def->isa_lam()) return cfg_[lam];
 
@@ -142,9 +135,14 @@ const CFNode* Scheduler::schedule_smart(const Def* def) {
 
     auto early = schedule_early(def);
     auto late  = schedule_late (def);
+    outf("cur: {}\n", def);
+    outf("early: {}\n", early);
+    outf("late: {}\n", late);
+    outf("---\n");
 
     const CFNode* result;
-    if (def->isa<Enter>() || def->isa<Slot>() || Enter::is_out_mem(def) || Enter::is_out_frame(def)) {
+    //if (def->isa<Enter>() || def->isa<Slot>() || Enter::is_out_mem(def) || Enter::is_out_frame(def)) {
+    if (false) {
         // Place allocas early for LLVM
         result = early;
     } else {
@@ -242,7 +240,7 @@ void Schedule::block_schedule() {
 }
 
 void Schedule::verify() {
-#if THORIN_ENABLE_CHECKS
+#if 0//THORIN_ENABLE_CHECKS
     bool ok = true;
     auto& domtree = cfg().domtree();
     Schedule::Map<const Def*> block2mem(*this);

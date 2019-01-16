@@ -684,7 +684,7 @@ std::ostream& PtrType::stream(std::ostream& os) const {
         case AddrSpace::Texture:  os << "[Tex]";      break;
         case AddrSpace::Shared:   os << "[Shared]";   break;
         case AddrSpace::Constant: os << "[Constant]"; break;
-        default: /* ignore unknown address space */      break;
+        default: /* ignore unknown address space */   break;
     }
     return os;
 }
@@ -708,6 +708,9 @@ std::ostream& PrimType::stream(std::ostream& os) const {
 std::ostream& Def::stream(std::ostream& out) const { return out << unique_name(); }
 
 std::ostream& Def::stream_assignment(std::ostream& os) const {
+    if (isa<App>())
+        //return streamf(os, "{} {} = {}", type(), unique_name(), this) << endl;
+        return os; // HACK
     return streamf(os, "{} {} = {} {}", type(), unique_name(), op_name(), stream_list(ops(), [&] (const Def* def) { os << def; })) << endl;
 }
 std::ostream& Lam::stream_head(std::ostream& os) const {

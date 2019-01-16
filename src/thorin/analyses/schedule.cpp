@@ -25,12 +25,12 @@ public:
         , looptree_(cfg_.looptree())
         , schedule_(schedule)
     {
-        compute_def2uses();
         Def2CFNode* def2node = nullptr;
+        compute_def2uses();
 
         switch (schedule.tag()) {
-            case Schedule::Early: schedule_early(); def2node = &def2early_; break;
-            case Schedule::Late:  schedule_late();  def2node = &def2late_;  break;
+            case Schedule::Early: this->schedule(); def2node = &def2early_; break;
+            case Schedule::Late:  this->schedule(); def2node = &def2late_;  break;
             case Schedule::Smart: schedule_smart(); def2node = &def2smart_; break;
         }
 
@@ -49,11 +49,8 @@ public:
 
     const Uses& uses(const Def* def) const { return def2uses_.find(def)->second; }
     void compute_def2uses();
-    void schedule_early() { for_all_defs([&](const Def* def) { schedule_early(def); }); }
-    void schedule_late()  { for_all_defs([&](const Def* def) { schedule_late (def); }); }
+    void schedule();
     void schedule_smart() { for_all_defs([&](const Def* def) { schedule_smart(def); }); }
-    const CFNode* schedule_early(Lam* cur, const Def*);
-    const CFNode* schedule_late(const Def*);
     const CFNode* schedule_smart(const Def*);
     void topo_sort(Def2CFNode&);
 
@@ -78,8 +75,7 @@ void Scheduler::compute_def2uses() {
             queue.push(def);
     };
 
-    for (auto n : cfg_.reverse_post_order())
-        enqueue(n->lam());
+    enqueue(scope_.entry());
 
     while (!queue.empty()) {
         auto def = pop(queue);
@@ -94,55 +90,62 @@ void Scheduler::compute_def2uses() {
     }
 }
 
-const CFNode* Scheduler::schedule_early(Lam* cur, const Def* def) {
-    auto i = def2early_.find(def);
-    if (i != def2early_.end()) return i->second;
+void Scheduler::schedule() {
+    unique_queue<LamSet> lams;
+    unique_stack<DefSet> defs;
 
-    if (auto lam = def->isa_lam()) return cfg_[lam];
+    lams.push(scope_.entry());
 
-    auto result = cfg_.entry();
-    for (auto op : def->ops()) {
-        if (def2uses_.contains(op)) {
-            auto n = schedule_early(op);
-            if (domtree_.depth(n) > domtree_.depth(result))
-                result = n;
+    // visits all lambdas
+    while (!lams.empty()) {
+        auto cur = lams.pop();
+        def2early_[cur] = cfg_[cur];
+        def2late_ [cur] = cfg_[cur];
+        defs.push(cur);
+
+        // post-order walk of all ops within cur
+        while (!defs.empty()) {
+            auto def = defs.top();
+
+            bool todo = false;
+            for (auto op : def->ops()) {
+                if (scope_.contains(op)) {
+                    if (auto lam = op->isa_lam())
+                        lams.push(lam); // for outer loop
+                    else
+                        todo |= defs.push(op);
+                }
+            }
+
+            if (!todo) {
+                auto result = cfg_[cur];
+                def2late_[def] = result;
+                for (auto op : def->ops()) {
+                    if (!op->isa<Lam>() && scope_.contains(op)) {
+                        auto n = def2early_[op];
+                        if (domtree_.depth(n) > domtree_.depth(result))
+                            result = n;
+                    }
+                }
+
+                def2early_[def] = result;
+                defs.pop();
+            }
         }
     }
-
-    return def2early_[def] = result;
-}
-
-const CFNode* Scheduler::schedule_late(const Def* def) {
-    auto i = def2late_.find(def);
-    if (i != def2late_.end())
-        return i->second;
-
-    if (auto lam = def->isa_lam()) return cfg_[lam];
-
-    const CFNode* result = nullptr;
-    for (auto use : uses(def)) {
-        auto n = schedule_late(use);
-        result = result ? domtree_.lca(result, n) : n;
-    }
-
-    return def2late_[def] = result;
 }
 
 const CFNode* Scheduler::schedule_smart(const Def* def) {
+    // TODO merge with method above
     auto i = def2smart_.find(def);
-    if (i != def2smart_.end())
-        return i->second;
+    if (i != def2smart_.end()) return i->second;
 
-    auto early = schedule_early(def);
-    auto late  = schedule_late (def);
-    outf("cur: {}\n", def);
-    outf("early: {}\n", early);
-    outf("late: {}\n", late);
-    outf("---\n");
+    schedule();
+    auto early = def2early_[def];
+    auto late  = def2late_ [def];
 
     const CFNode* result;
-    //if (def->isa<Enter>() || def->isa<Slot>() || Enter::is_out_mem(def) || Enter::is_out_frame(def)) {
-    if (false) {
+    if (def->isa<Enter>() || def->isa<Slot>() || Enter::is_out_mem(def) || Enter::is_out_frame(def)) {
         // Place allocas early for LLVM
         result = early;
     } else {

@@ -75,12 +75,16 @@ class unique_stack {
 public:
     typedef typename Set::value_type T;
 
-    void push(T val) {
-        if (done_.emplace(val).second)
+    bool push(T val) {
+        if (done_.emplace(val).second) {
             stack_.emplace(val);
+            return true;
+        }
+        return false;
     }
 
     bool empty() const { return stack_.empty(); }
+    const T& top() { return stack_.top(); }
     T pop() { return thorin::pop(stack_); }
 
 private:

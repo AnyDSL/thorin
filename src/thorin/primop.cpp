@@ -154,8 +154,6 @@ bool Slot::equal(const Def* other) const { return this == other; }
 
 const Def* ArithOp::rebuild(World& to, const Def*  , Defs ops) const { return to.arithop(arithop_tag(), ops[0], ops[1], debug()); }
 const Def* Bitcast::rebuild(World& to, const Def* t, Defs ops) const { return to.bitcast(t, ops[0], debug()); }
-const Def* Bottom ::rebuild(World& to, const Def* t, Defs    ) const { return to.bottom(t, debug()); }
-const Def* Top    ::rebuild(World& to, const Def* t, Defs    ) const { return to.top   (t, debug()); }
 const Def* Cast   ::rebuild(World& to, const Def* t, Defs ops) const { return to.cast(t, ops[0], debug()); }
 const Def* Cmp    ::rebuild(World& to, const Def*  , Defs ops) const { return to.cmp(cmp_tag(), ops[0], ops[1], debug()); }
 const Def* Enter  ::rebuild(World& to, const Def*  , Defs ops) const { return to.enter(ops[0], debug()); }

@@ -27,13 +27,14 @@ namespace thorin {
 
 World::World(std::string name)
     : name_(name)
-    , star_  (insert(new Kind(*this, Node_Star, {"*"})))
-    , unit_  (insert(new Sigma(star_, Defs{}, {"[]"})))
-    , bottom_(insert(new Bottom(star_, {"<⊥:*>"})))
-    , mem_   (insert(new MemType  (*this)))
-    , frame_ (insert(new FrameType(*this)))
+    , universe_ (insert(new Universe(*this)))
+    , star_     (insert(new Kind(*this, Node_Star)))
+    , unit_     (insert(new Sigma(star_, Defs{}, {"[]"})))
+    , bottom_   (insert(new Bottom(star_, {"<⊥:*>"})))
+    , mem_      (insert(new MemType  (*this)))
+    , frame_    (insert(new FrameType(*this)))
 #define THORIN_ALL_TYPE(T, M) \
-    , T##_   (insert(new PrimType(*this, PrimType_##T, 1, {#T})))
+    , T##_      (insert(new PrimType(*this, PrimType_##T, 1, {#T})))
 #include "thorin/tables/primtypetable.h"
     , branch_   (lam(cn(sigma({type_bool(), cn({}), cn({})})), CC::C, Intrinsic::Branch, {"br"}))
     , end_scope_(lam(cn({}), CC::C, Intrinsic::EndScope, {"end_scope"}))

@@ -63,6 +63,8 @@ public:
 
     bool empty() { return externals().empty(); }
 
+    const Universe* universe() { return universe_; }
+    const Kind* kind(NodeTag tag) { assert(tag == Node_Star); return unify(new Kind(*this, tag)); }
     const Kind* star() { return star_; }
     const Var* var(const Def* type, u64 index, Debug dbg = {}) { return unify(new Var(type, index, dbg)); }
     const VariantType* variant_type(Defs ops, Debug dbg = {}) { return unify(new VariantType(star(), ops, dbg)); }
@@ -327,6 +329,7 @@ private:
     Breakpoints breakpoints_;
     bool track_history_ = false;
 #endif
+    const Universe* universe_;
     const Kind* star_;
     const Sigma* unit_; ///< tuple().
     const Bottom* bottom_;

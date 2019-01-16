@@ -521,8 +521,7 @@ bool Pi::is_returning() const {
  */
 
 Kind::Kind(World& world, NodeTag tag)
-    //: Def(tag, world.universe(), {kind2str(tag)})
-    : Def(tag, world.universe(), {"TODO"})
+    : Def(tag, world.universe(), Defs{}, {"*"})
 {}
 
 Lam::Lam(const Pi* pi, const Def* filter, const Def* body, Debug dbg)
@@ -603,16 +602,20 @@ bool PtrType::equal(const Def* other) const {
 const Def* Lam                ::rebuild(World& to, const Def* t, Defs ops) const { assert(!is_nominal()); return to.lam(t->as<Pi>(), ops[0], ops[1], debug()); }
 const Def* Sigma              ::rebuild(World& to, const Def* t, Defs ops) const { assert(!is_nominal()); return to.sigma(t, ops, debug()); }
 const Def* App                ::rebuild(World& to, const Def*  , Defs ops) const { return to.app(ops[0], ops[1], debug()); }
+const Def* Bottom             ::rebuild(World& to, const Def* t, Defs    ) const { return to.bottom(t, debug()); }
+const Def* Top                ::rebuild(World& to, const Def* t, Defs    ) const { return to.top   (t, debug()); }
 const Def* DefiniteArrayType  ::rebuild(World& to, const Def*  , Defs ops) const { return to.definite_array_type(ops[0], dim(), debug()); }
 const Def* FrameType          ::rebuild(World& to, const Def*  , Defs    ) const { return to.frame_type(); }
 const Def* IndefiniteArrayType::rebuild(World& to, const Def*  , Defs ops) const { return to.indefinite_array_type(ops[0], debug()); }
+const Def* Kind               ::rebuild(World& to, const Def*  , Defs    ) const { return to.kind(tag()); }
 const Def* MemType            ::rebuild(World& to, const Def*  , Defs    ) const { return to.mem_type(); }
 const Def* Param              ::rebuild(World& to, const Def*  , Defs ops) const { return to.param(ops[0]->as_lam(), debug()); }
 const Def* Pi                 ::rebuild(World& to, const Def*  , Defs ops) const { return to.pi(ops[0], ops[1], debug()); }
 const Def* PrimType           ::rebuild(World& to, const Def*  , Defs    ) const { return to.type(primtype_tag(), length(), debug()); }
 const Def* PtrType            ::rebuild(World& to, const Def*  , Defs ops) const { return to.ptr_type(ops.front(), length(), device(), addr_space()); }
+const Def* Universe           ::rebuild(World& to, const Def*  , Defs    ) const { return to.universe(); }
 const Def* Var                ::rebuild(World& to, const Def* t, Defs    ) const { return to.var(t, index(), debug()); }
-const Def* VariantType        ::rebuild(World& to, const Def* t, Defs ops) const { return to.variant_type(t, ops, debug()); }
+const Def* VariantType        ::rebuild(World& to, const Def*  , Defs ops) const { return to.variant_type(ops, debug()); }
 
 /*
  * stub
@@ -633,7 +636,10 @@ std::ostream& Bottom             ::stream(std::ostream& os) const { return strea
 std::ostream& DefiniteArrayType  ::stream(std::ostream& os) const { return streamf(os, "[{} x {}]", dim(), elem_type()); }
 std::ostream& FrameType          ::stream(std::ostream& os) const { return os << "frame"; }
 std::ostream& IndefiniteArrayType::stream(std::ostream& os) const { return streamf(os, "[{}]", elem_type()); }
+std::ostream& Kind               ::stream(std::ostream& os) const { return streamf(os, "*"); }
 std::ostream& MemType            ::stream(std::ostream& os) const { return os << "mem"; }
+std::ostream& Top                ::stream(std::ostream& os) const { return streamf(os, "{{⊤: {}}}", type()); }
+std::ostream& Universe           ::stream(std::ostream& os) const { return streamf(os, "□"); }
 std::ostream& Var                ::stream(std::ostream& os) const { return streamf(os, "<{}:{}>", index(), type()); }
 std::ostream& VariantType        ::stream(std::ostream& os) const { return stream_type_ops(os << "variant", this); }
 

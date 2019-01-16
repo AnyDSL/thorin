@@ -219,40 +219,53 @@ private:
     friend class World;
 };
 
-class Bottom : public Def {
-public:
-    virtual std::ostream& stream(std::ostream&) const override;
-
+class Universe : public Def {
 private:
-    Bottom(const Def* type, Debug dbg)
-        : Def(Node_Bottom, type, {}, dbg)
+    Universe(World& world)
+        : Def(Node_Universe, reinterpret_cast<const Def*>(&world), Defs{}, {"□"})
     {}
 
-    virtual const Def* rebuild(World& to, const Def*, Defs ops) const override;
-
-    friend class World;
-};
-
-class Top : public Def {
 public:
+    const Def* rebuild(World&, const Def*, Defs) const override;
     virtual std::ostream& stream(std::ostream&) const override;
-
-private:
-    Top(const Def* type, Debug dbg)
-        : Def(Node_Top, type, {}, dbg)
-    {}
-
-    virtual const Def* rebuild(World& to, const Def*, Defs ops) const override;
 
     friend class World;
 };
 
 class Kind : public Def {
 private:
-    Kind(World& world, NodeTag, Debug);
+    Kind(World&, NodeTag);
 
 public:
     const Def* rebuild(World&, const Def*, Defs) const override;
+    virtual std::ostream& stream(std::ostream&) const override;
+
+    friend class World;
+};
+
+class Bottom : public Def {
+private:
+    Bottom(const Def* type, Debug dbg)
+        : Def(Node_Bottom, type, {}, dbg)
+    {}
+
+public:
+
+    virtual const Def* rebuild(World& to, const Def*, Defs ops) const override;
+    virtual std::ostream& stream(std::ostream&) const override;
+
+    friend class World;
+};
+
+class Top : public Def {
+private:
+    Top(const Def* type, Debug dbg)
+        : Def(Node_Top, type, {}, dbg)
+    {}
+
+private:
+    virtual const Def* rebuild(World& to, const Def*, Defs ops) const override;
+    virtual std::ostream& stream(std::ostream&) const override;
 
     friend class World;
 };

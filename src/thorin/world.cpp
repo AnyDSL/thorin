@@ -49,6 +49,11 @@ const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
     return unify(new App(pi->codomain(), callee, arg, dbg));
 }
 
+const Lam* World::lam(const Def* domain, const Def* filter, const Def* body, Debug dbg) {
+    auto p = pi(domain, body->type());
+    return unify(new Lam(p, filter, body, dbg));
+}
+
 const Pi* World::pi(const Def* domain, const Def* codomain, Debug dbg) {
     auto type = star(); // TODO
     return unify(new Pi(type, domain, codomain, dbg));
@@ -94,7 +99,6 @@ const Def* World::binop(int tag, const Def* lhs, const Def* rhs, Debug dbg) {
     return cmp((CmpTag) tag, lhs, rhs, dbg);
 }
 
-#if 0
 const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg) {
     assert(a->type() == b->type());
     assert(a->type()->as<PrimType>()->length() == b->type()->as<PrimType>()->length());
@@ -387,7 +391,6 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
 
     return unify(new ArithOp(tag, a, b, dbg));
 }
-#endif
 
 const Def* World::arithop_not(const Def* def, Debug dbg) { return arithop_xor(allset(def->type(), dbg, vector_length(def)), def, dbg); }
 
@@ -925,7 +928,7 @@ void World::cleanup() { cleanup_world(*this); }
 void World::opt() {
     cleanup();
     while (partial_evaluation(*this, true)); // lower2cff
-    flatten_tuples(*this);
+    //flatten_tuples(*this);
     clone_bodies(*this);
     split_slots(*this);
     //closure_conversion(*this);
@@ -935,7 +938,7 @@ void World::opt() {
     //dead_load_opt(*this);
     cleanup();
     codegen_prepare(*this);
-    rewrite_flow_graphs(*this);
+    //rewrite_flow_graphs(*this);
 }
 
 /*

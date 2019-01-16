@@ -65,15 +65,23 @@ public:
 
     const Kind* star() { return star_; }
     const Var* var(const Def* type, u64 index, Debug dbg = {}) { return unify(new Var(type, index, dbg)); }
-    const VariantType* variant_type(const Def* type, Defs ops, Debug dbg = {}) { return unify(new VariantType(type, ops, dbg)); }
+    const VariantType* variant_type(Defs ops, Debug dbg = {}) { return unify(new VariantType(star(), ops, dbg)); }
 
-    ///@defgroup @p Sigma%s
+    /// @defgroup @p Sigma%s
+    //@{
+    /// @defgroup structural @p Sigma%s
     //@{
     const Sigma* unit() { return unit_; } ///< Returns unit, i.e., an empty @p Sigma.
     const Def* sigma(const Def* type, Defs ops, Debug dbg = {});
+    /// a @em structural @p Sigma of type @p star
     const Def* sigma(Defs ops, Debug dbg = {}) { return sigma(star(), ops, dbg); }
-    /// creates a @em nominal @p Sigma
-    Sigma* sigma(const Def* type, size_t size, Debug dbg = {});
+    //@}
+    /// @defgroup nominal @p Sigma%s
+    //@{
+    Sigma* sigma(const Def* type, size_t size, Debug dbg = {}) { return insert(new Sigma(type, size, dbg)); }
+    /// a @em nominal @p Sigma of type @p star
+    Sigma* sigma(size_t size, Debug dbg = {}) { return sigma(star(), size, dbg); }
+    //@}
     //@}
 
 #define THORIN_ALL_TYPE(T, M) \

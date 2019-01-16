@@ -519,6 +519,19 @@ bool Pi::is_returning() const {
  * constructors
  */
 
+Kind::Kind(World& world, NodeTag tag)
+    //: Def(tag, world.universe(), {kind2str(tag)})
+    : Def(tag, world.universe(), {"TODO"})
+{}
+
+Lam::Lam(const Pi* pi, const Def* filter, const Def* body, Debug dbg)
+    : Def(Node_Lam, pi, {filter, body}, dbg)
+    , cc_(CC::C)
+    , intrinsic_(Intrinsic::None)
+{
+    contains_lam_ = true;
+}
+
 Lam::Lam(const Pi* pi, CC cc, Intrinsic intrinsic, Debug dbg)
     : Def(Node_Lam, pi, 2, dbg)
     , cc_(cc)
@@ -598,7 +611,7 @@ const Def* Pi                 ::vrebuild(World& to, const Def*  , Defs ops) cons
 const Def* PrimType           ::vrebuild(World& to, const Def*  , Defs    ) const { return to.type(primtype_tag(), length(), debug()); }
 const Def* PtrType            ::vrebuild(World& to, const Def*  , Defs ops) const { return to.ptr_type(ops.front(), length(), device(), addr_space()); }
 const Def* Var                ::vrebuild(World& to, const Def* t, Defs    ) const { return to.var(t, index(), debug()); }
-const Def* VariantType        ::vrebuild(World& to, const Def* t, Defs ops) const { return to.variant_type(t, ops, debug()); }
+const Def* VariantType        ::vrebuild(World& to, const Def*  , Defs ops) const { return to.variant_type(ops, debug()); }
 
 /*
  * vstub

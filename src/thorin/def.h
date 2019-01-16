@@ -380,6 +380,7 @@ enum class CC : uint8_t {
 class Lam : public Def {
 private:
     Lam(const Pi* pi, CC cc, Intrinsic intrinsic, Debug dbg);
+    Lam(const Pi* pi, const Def* filter, const Def* body, Debug dbg);
 
 public:
     //@{ operands

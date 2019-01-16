@@ -33,12 +33,12 @@ protected:
     virtual void optimize(int opt);
 
     unsigned compute_variant_bits(const VariantType*);
-    unsigned compute_variant_op_bits(const Type*);
-    llvm::Type* convert(const Type*);
+    unsigned compute_variant_op_bits(const Def*);
+    llvm::Type* convert(const Def*);
     llvm::Value* emit(const Def*);
     llvm::Value* lookup(const Def*);
     llvm::AllocaInst* emit_alloca(llvm::Type*, const std::string&);
-    llvm::Value* emit_alloc(const Type*, const Def*);
+    llvm::Value* emit_alloc(const Def*, const Def*);
     llvm::Function* emit_function_decl(Lam*);
     virtual unsigned convert_addr_space(const AddrSpace);
     virtual void emit_function_decl_hook(Lam*, llvm::Function*) {}
@@ -66,7 +66,7 @@ private:
     Lam* emit_vectorize_lam(Lam*);
     Lam* emit_atomic(Lam*);
     Lam* emit_cmpxchg(Lam*);
-    llvm::Value* emit_bitcast(const Def*, const Type*);
+    llvm::Value* emit_bitcast(const Def*, const Def*);
     virtual Lam* emit_reserve(const Lam*);
     void emit_result_phi(const Def*, llvm::Value*);
     void emit_vectorize(u32, llvm::Function*, llvm::CallInst*);
@@ -88,7 +88,7 @@ protected:
     DefMap<llvm::PHINode*> phis_;
     DefMap<llvm::Value*> defs_;
     LamMap<llvm::Function*> fcts_;
-    TypeMap<llvm::Type*> types_;
+    DefMap<llvm::Type*> types_;
 #if THORIN_ENABLE_RV
     std::vector<std::tuple<u32, llvm::Function*, llvm::CallInst*>> vec_todo_;
 #endif

@@ -423,6 +423,7 @@ void Lam::app(const Def* callee, Defs args, Debug dbg) {
 }
 
 void Lam::app(const Def* callee, const Def* arg, Debug dbg) {
+    assert(is_nominal());
     if (auto lam = callee->isa<Lam>()) {
         switch (lam->intrinsic()) {
             case Intrinsic::Branch: {
@@ -596,29 +597,29 @@ bool PtrType::equal(const Def* other) const {
 }
 
 /*
- * vrebuild
+ * rebuild
  */
 
-const Def* Lam                ::vrebuild(World& to, const Def* t, Defs ops) const { assert(!is_nominal()); return to.lam(t->as<Pi>(), ops[0], ops[1], debug()); }
-const Def* Sigma              ::vrebuild(World& to, const Def* t, Defs ops) const { assert(!is_nominal()); return to.sigma(t, ops, debug()); }
-const Def* App                ::vrebuild(World& to, const Def*  , Defs ops) const { return to.app(ops[0], ops[1], debug()); }
-const Def* DefiniteArrayType  ::vrebuild(World& to, const Def*  , Defs ops) const { return to.definite_array_type(ops[0], dim(), debug()); }
-const Def* FrameType          ::vrebuild(World& to, const Def*  , Defs    ) const { return to.frame_type(); }
-const Def* IndefiniteArrayType::vrebuild(World& to, const Def*  , Defs ops) const { return to.indefinite_array_type(ops[0], debug()); }
-const Def* MemType            ::vrebuild(World& to, const Def*  , Defs    ) const { return to.mem_type(); }
-const Def* Param              ::vrebuild(World& to, const Def*  , Defs ops) const { return to.param(ops[0]->as_lam(), debug()); }
-const Def* Pi                 ::vrebuild(World& to, const Def*  , Defs ops) const { return to.pi(ops[0], ops[1], debug()); }
-const Def* PrimType           ::vrebuild(World& to, const Def*  , Defs    ) const { return to.type(primtype_tag(), length(), debug()); }
-const Def* PtrType            ::vrebuild(World& to, const Def*  , Defs ops) const { return to.ptr_type(ops.front(), length(), device(), addr_space()); }
-const Def* Var                ::vrebuild(World& to, const Def* t, Defs    ) const { return to.var(t, index(), debug()); }
-const Def* VariantType        ::vrebuild(World& to, const Def*  , Defs ops) const { return to.variant_type(ops, debug()); }
+const Def* Lam                ::rebuild(World& to, const Def* t, Defs ops) const { assert(!is_nominal()); return to.lam(t->as<Pi>(), ops[0], ops[1], debug()); }
+const Def* Sigma              ::rebuild(World& to, const Def* t, Defs ops) const { assert(!is_nominal()); return to.sigma(t, ops, debug()); }
+const Def* App                ::rebuild(World& to, const Def*  , Defs ops) const { return to.app(ops[0], ops[1], debug()); }
+const Def* DefiniteArrayType  ::rebuild(World& to, const Def*  , Defs ops) const { return to.definite_array_type(ops[0], dim(), debug()); }
+const Def* FrameType          ::rebuild(World& to, const Def*  , Defs    ) const { return to.frame_type(); }
+const Def* IndefiniteArrayType::rebuild(World& to, const Def*  , Defs ops) const { return to.indefinite_array_type(ops[0], debug()); }
+const Def* MemType            ::rebuild(World& to, const Def*  , Defs    ) const { return to.mem_type(); }
+const Def* Param              ::rebuild(World& to, const Def*  , Defs ops) const { return to.param(ops[0]->as_lam(), debug()); }
+const Def* Pi                 ::rebuild(World& to, const Def*  , Defs ops) const { return to.pi(ops[0], ops[1], debug()); }
+const Def* PrimType           ::rebuild(World& to, const Def*  , Defs    ) const { return to.type(primtype_tag(), length(), debug()); }
+const Def* PtrType            ::rebuild(World& to, const Def*  , Defs ops) const { return to.ptr_type(ops.front(), length(), device(), addr_space()); }
+const Def* Var                ::rebuild(World& to, const Def* t, Defs    ) const { return to.var(t, index(), debug()); }
+const Def* VariantType        ::rebuild(World& to, const Def* t, Defs ops) const { return to.variant_type(t, ops, debug()); }
 
 /*
- * vstub
+ * stub
  */
 
-Lam*   Lam  ::vstub(World& to, const Def* type) const { assert(is_nominal()); return to.lam(type->as<Pi>(), cc(), intrinsic(), debug()); }
-Sigma* Sigma::vstub(World& to, const Def* type) const { assert(is_nominal()); return to.sigma(type, num_ops(), debug()); }
+Lam*   Lam  ::stub(World& to, const Def* type) const { assert(is_nominal()); return to.lam(type->as<Pi>(), cc(), intrinsic(), debug()); }
+Sigma* Sigma::stub(World& to, const Def* type) const { assert(is_nominal()); return to.sigma(type, num_ops(), debug()); }
 
 /*
  * stream

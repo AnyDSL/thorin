@@ -37,24 +37,18 @@ llvm::Function* Runtime::get(const char* name) {
     return result;
 }
 
-static bool contains_ptrtype(const Type* type) {
+static bool contains_ptrtype(const Def* type) {
     switch (type->tag()) {
         case Node_PtrType:             return false;
         case Node_IndefiniteArrayType: return contains_ptrtype(type->as<ArrayType>()->elem_type());
         case Node_DefiniteArrayType:   return contains_ptrtype(type->as<DefiniteArrayType>()->elem_type());
         case Node_Pi:                  return false;
-        case Node_StructType: {
+        case Node_Sigma: {
+            // TODO deal with recursive sigmas
             bool good = true;
-            auto struct_type = type->as<StructType>();
-            for (size_t i = 0, e = struct_type->num_ops(); i != e; ++i)
-                good &= contains_ptrtype(struct_type->op(i));
-            return good;
-        }
-        case Node_TupleType: {
-            bool good = true;
-            auto tuple = type->as<TupleType>();
-            for (size_t i = 0, e = tuple->num_ops(); i != e; ++i)
-                good &= contains_ptrtype(tuple->op(i));
+            auto sigma = type->as<Sigma>();
+            for (size_t i = 0, e = sigma->num_ops(); i != e; ++i)
+                good &= contains_ptrtype(sigma->op(i));
             return good;
         }
         default: return true;
@@ -94,8 +88,7 @@ Lam* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std::st
         KernelArgType arg_type;
         llvm::Value*  void_ptr;
         if (target_arg->type()->isa<DefiniteArrayType>() ||
-            target_arg->type()->isa<StructType>() ||
-            target_arg->type()->isa<TupleType>()) {
+            target_arg->type()->isa<Sigma>()) {
             // definite array | struct | tuple
             auto alloca = code_gen.emit_alloca(target_val->getType(), target_arg->name().str());
             builder_.CreateStore(target_val, alloca);

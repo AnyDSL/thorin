@@ -156,7 +156,7 @@ Lam* CodeGen::emit_reserve_shared(const Lam* lam, bool init_undef) {
     return l;
 }
 
-llvm::Value* CodeGen::emit_bitcast(const Def* val, const Type* dst_type) {
+llvm::Value* CodeGen::emit_bitcast(const Def* val, const Def* dst_type) {
     auto from = lookup(val);
     auto src_type = val->type();
     auto to = convert(dst_type);
@@ -567,7 +567,7 @@ llvm::AllocaInst* CodeGen::emit_alloca(llvm::Type* type, const std::string& name
     return alloca;
 }
 
-llvm::Value* CodeGen::emit_alloc(const Type* type, const Def* extra) {
+llvm::Value* CodeGen::emit_alloc(const Def* type, const Def* extra) {
     auto llvm_malloc = runtime_->get(get_alloc_name().c_str());
     auto alloced_type = convert(type);
     llvm::CallInst* void_ptr;
@@ -797,7 +797,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         return llvm::UndefValue::get(convert(array->type()));
 
     if (auto agg = def->isa<Aggregate>()) {
-        assert(def->isa<Tuple>() || def->isa<StructAgg>() || def->isa<Vector>());
+        assert(def->isa<Tuple>() || def->isa<Vector>());
         llvm::Value* llvm_agg = llvm::UndefValue::get(convert(agg->type()));
 
         if (def->isa<Vector>()) {
@@ -958,7 +958,7 @@ llvm::Value* CodeGen::emit_store(const Store* store) {
 }
 
 llvm::Value* CodeGen::emit_lea(const LEA* lea) {
-    if (lea->ptr_pointee()->isa<TupleType>() || lea->ptr_pointee()->isa<StructType>())
+    if (lea->ptr_pointee()->isa<Sigma>())
         return irbuilder_.CreateStructGEP(convert(lea->ptr_pointee()), lookup(lea->ptr()), primlit_value<u32>(lea->index()));
 
     assert(lea->ptr_pointee()->isa<ArrayType>());
@@ -970,7 +970,7 @@ llvm::Value* CodeGen::emit_assembly(const Assembly* assembly) {
     auto out_type = assembly->type();
     llvm::Type* res_type;
 
-    if (out_type->isa<TupleType>()) {
+    if (out_type->isa<Sigma>()) {
         if (out_type->num_ops() == 2)
             res_type = convert(assembly->type()->op(1));
         else
@@ -1029,7 +1029,7 @@ unsigned CodeGen::compute_variant_bits(const VariantType* variant) {
     return total_bits;
 }
 
-unsigned CodeGen::compute_variant_op_bits(const Type* type) {
+unsigned CodeGen::compute_variant_op_bits(const Def* type) {
     auto llvm_type = convert(type);
     auto layout = module_->getDataLayout();
     if (llvm_type->isPointerTy()       ||
@@ -1039,7 +1039,7 @@ unsigned CodeGen::compute_variant_op_bits(const Type* type) {
     return 0;
 }
 
-llvm::Type* CodeGen::convert(const Type* type) {
+llvm::Type* CodeGen::convert(const Def* type) {
     if (auto llvm_type = thorin::find(types_, type))
         return llvm_type;
 
@@ -1098,28 +1098,19 @@ llvm::Type* CodeGen::convert(const Type* type) {
             return types_[type] = llvm_type;
         }
 
-        case Node_StructType: {
-            auto struct_type = type->as<StructType>();
+        case Node_Sigma: {
+            auto sigma = type->as<Sigma>();
             auto llvm_struct = llvm::StructType::create(context_);
 
-            // important: memoize before recursing into element types to avoid endless recursion
-            assert(!types_.contains(struct_type) && "type already converted");
-            types_[struct_type] = llvm_struct;
+            assert(!types_.contains(sigma) && "type already converted");
+            types_[sigma] = llvm_struct;
 
-            Array<llvm::Type*> llvm_types(struct_type->num_ops());
+            Array<llvm::Type*> llvm_types(sigma->num_ops());
             for (size_t i = 0, e = llvm_types.size(); i != e; ++i)
-                llvm_types[i] = convert(struct_type->op(i));
+                llvm_types[i] = convert(sigma->op(i));
             llvm_struct->setBody(llvm_ref(llvm_types));
-            return llvm_struct;
-        }
 
-        case Node_TupleType: {
-            auto tuple = type->as<TupleType>();
-            Array<llvm::Type*> llvm_types(tuple->num_ops());
-            for (size_t i = 0, e = llvm_types.size(); i != e; ++i)
-                llvm_types[i] = convert(tuple->op(i));
-            llvm_type = llvm::StructType::get(context_, llvm_ref(llvm_types));
-            return types_[tuple] = llvm_type;
+            return llvm_struct;
         }
 
         case Node_VariantType: {

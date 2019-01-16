@@ -5,35 +5,27 @@
 
 namespace thorin {
 
-struct Rewriter {
-    const Def* instantiate(const Def* odef);
-    Def2Def old2new;
-};
-
 class Mangler {
 public:
     Mangler(const Scope& scope, Defs args, Defs lift);
 
     const Scope& scope() const { return scope_; }
     World& world() const { return scope_.world(); }
-    const Def* def2def(const Def* def) { return find(def2def_, def); }
+    const Def* old2new(const Def* def) { return find(old2new_, def); }
     Lam* mangle();
     Lam* old_entry() const { return old_entry_; }
     Lam* new_entry() const { return new_entry_; }
 
 private:
-    void mangle_body(Lam* olam, Lam* nlam);
-    Lam* mangle_head(Lam* olam);
-    const Def* mangle(const Def* odef);
+    const Def* mangle(const Def*);
     bool within(const Def* def) { return scope().contains(def) || defs_.contains(def); }
 
     const Scope& scope_;
     Defs args_;
-    Defs lift_;
     Lam* old_entry_;
     Lam* new_entry_;
     DefSet defs_;
-    Def2Def def2def_;
+    Def2Def old2new_;
 };
 
 Lam* mangle(const Scope&, Defs args, Defs lift);

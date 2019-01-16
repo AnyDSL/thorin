@@ -147,48 +147,48 @@ bool Slot::equal(const Def* other) const { return this == other; }
 //------------------------------------------------------------------------------
 
 /*
- * vrebuild
+ * rebuild
  */
 
 // do not use any of PrimOp's type getters - during import we need to derive types from 't' in the new world 'to'
 
-const Def* ArithOp::vrebuild(World& to, const Def*  , Defs ops) const { return to.arithop(arithop_tag(), ops[0], ops[1], debug()); }
-const Def* Bitcast::vrebuild(World& to, const Def* t, Defs ops) const { return to.bitcast(t, ops[0], debug()); }
-const Def* Bottom ::vrebuild(World& to, const Def* t, Defs    ) const { return to.bottom(t, debug()); }
-const Def* Top    ::vrebuild(World& to, const Def* t, Defs    ) const { return to.top   (t, debug()); }
-const Def* Cast   ::vrebuild(World& to, const Def* t, Defs ops) const { return to.cast(t, ops[0], debug()); }
-const Def* Cmp    ::vrebuild(World& to, const Def*  , Defs ops) const { return to.cmp(cmp_tag(), ops[0], ops[1], debug()); }
-const Def* Enter  ::vrebuild(World& to, const Def*  , Defs ops) const { return to.enter(ops[0], debug()); }
-const Def* Extract::vrebuild(World& to, const Def*  , Defs ops) const { return to.extract(ops[0], ops[1], debug()); }
-const Def* Global ::vrebuild(World& to, const Def*  , Defs ops) const { return to.global(ops[0], is_mutable(), debug()); }
-const Def* Hlt    ::vrebuild(World& to, const Def*  , Defs ops) const { return to.hlt(ops[0], debug()); }
-const Def* Known  ::vrebuild(World& to, const Def*  , Defs ops) const { return to.known(ops[0], debug()); }
-const Def* Run    ::vrebuild(World& to, const Def*  , Defs ops) const { return to.run(ops[0], debug()); }
-const Def* Insert ::vrebuild(World& to, const Def*  , Defs ops) const { return to.insert(ops[0], ops[1], ops[2], debug()); }
-const Def* LEA    ::vrebuild(World& to, const Def*  , Defs ops) const { return to.lea(ops[0], ops[1], debug()); }
-const Def* Load   ::vrebuild(World& to, const Def*  , Defs ops) const { return to.load(ops[0], ops[1], debug()); }
-const Def* PrimLit::vrebuild(World& to, const Def*  , Defs    ) const { return to.literal(primtype_tag(), value(), debug()); }
-const Def* Select ::vrebuild(World& to, const Def*  , Defs ops) const { return to.select(ops[0], ops[1], ops[2], debug()); }
-const Def* SizeOf ::vrebuild(World& to, const Def*  , Defs ops) const { return to.size_of(ops[0]->type(), debug()); }
-const Def* Slot   ::vrebuild(World& to, const Def* t, Defs ops) const { return to.slot(t->as<PtrType>()->pointee(), ops[0], debug()); }
-const Def* Store  ::vrebuild(World& to, const Def*  , Defs ops) const { return to.store(ops[0], ops[1], ops[2], debug()); }
-const Def* Tuple  ::vrebuild(World& to, const Def*  , Defs ops) const { return to.tuple(ops, debug()); }
-const Def* Variant::vrebuild(World& to, const Def* t, Defs ops) const { return to.variant(t->as<VariantType>(), ops[0], debug()); }
-const Def* Vector ::vrebuild(World& to, const Def*  , Defs ops) const { return to.vector(ops, debug()); }
+const Def* ArithOp::rebuild(World& to, const Def*  , Defs ops) const { return to.arithop(arithop_tag(), ops[0], ops[1], debug()); }
+const Def* Bitcast::rebuild(World& to, const Def* t, Defs ops) const { return to.bitcast(t, ops[0], debug()); }
+const Def* Bottom ::rebuild(World& to, const Def* t, Defs    ) const { return to.bottom(t, debug()); }
+const Def* Top    ::rebuild(World& to, const Def* t, Defs    ) const { return to.top   (t, debug()); }
+const Def* Cast   ::rebuild(World& to, const Def* t, Defs ops) const { return to.cast(t, ops[0], debug()); }
+const Def* Cmp    ::rebuild(World& to, const Def*  , Defs ops) const { return to.cmp(cmp_tag(), ops[0], ops[1], debug()); }
+const Def* Enter  ::rebuild(World& to, const Def*  , Defs ops) const { return to.enter(ops[0], debug()); }
+const Def* Extract::rebuild(World& to, const Def*  , Defs ops) const { return to.extract(ops[0], ops[1], debug()); }
+const Def* Global ::rebuild(World& to, const Def*  , Defs ops) const { return to.global(ops[0], is_mutable(), debug()); }
+const Def* Hlt    ::rebuild(World& to, const Def*  , Defs ops) const { return to.hlt(ops[0], debug()); }
+const Def* Known  ::rebuild(World& to, const Def*  , Defs ops) const { return to.known(ops[0], debug()); }
+const Def* Run    ::rebuild(World& to, const Def*  , Defs ops) const { return to.run(ops[0], debug()); }
+const Def* Insert ::rebuild(World& to, const Def*  , Defs ops) const { return to.insert(ops[0], ops[1], ops[2], debug()); }
+const Def* LEA    ::rebuild(World& to, const Def*  , Defs ops) const { return to.lea(ops[0], ops[1], debug()); }
+const Def* Load   ::rebuild(World& to, const Def*  , Defs ops) const { return to.load(ops[0], ops[1], debug()); }
+const Def* PrimLit::rebuild(World& to, const Def*  , Defs    ) const { return to.literal(primtype_tag(), value(), debug()); }
+const Def* Select ::rebuild(World& to, const Def*  , Defs ops) const { return to.select(ops[0], ops[1], ops[2], debug()); }
+const Def* SizeOf ::rebuild(World& to, const Def*  , Defs ops) const { return to.size_of(ops[0]->type(), debug()); }
+const Def* Slot   ::rebuild(World& to, const Def* t, Defs ops) const { return to.slot(t->as<PtrType>()->pointee(), ops[0], debug()); }
+const Def* Store  ::rebuild(World& to, const Def*  , Defs ops) const { return to.store(ops[0], ops[1], ops[2], debug()); }
+const Def* Tuple  ::rebuild(World& to, const Def*  , Defs ops) const { return to.tuple(ops, debug()); }
+const Def* Variant::rebuild(World& to, const Def* t, Defs ops) const { return to.variant(t->as<VariantType>(), ops[0], debug()); }
+const Def* Vector ::rebuild(World& to, const Def*  , Defs ops) const { return to.vector(ops, debug()); }
 
-const Def* Alloc::vrebuild(World& to, const Def* t, Defs ops) const {
+const Def* Alloc::rebuild(World& to, const Def* t, Defs ops) const {
     return to.alloc(t->as<Sigma>()->op(1)->as<PtrType>()->pointee(), ops[0], ops[1], debug());
 }
 
-const Def* Assembly::vrebuild(World& to, const Def* t, Defs ops) const {
+const Def* Assembly::rebuild(World& to, const Def* t, Defs ops) const {
     return to.assembly(t, ops, asm_template(), output_constraints(), input_constraints(), clobbers(), flags(), debug());
 }
 
-const Def* DefiniteArray::vrebuild(World& to, const Def* t, Defs ops) const {
+const Def* DefiniteArray::rebuild(World& to, const Def* t, Defs ops) const {
     return to.definite_array(t->as<DefiniteArrayType>()->elem_type(), ops, debug());
 }
 
-const Def* IndefiniteArray::vrebuild(World& to, const Def* t, Defs ops) const {
+const Def* IndefiniteArray::rebuild(World& to, const Def* t, Defs ops) const {
     return to.indefinite_array(t->as<IndefiniteArrayType>()->elem_type(), ops[0], debug());
 }
 

@@ -25,7 +25,7 @@ public:
 private:
     World& world_;
     bool lower2cff_;
-    AppMap<Lam*> cache_;
+    GIDMap<const App*, Lam*> cache_;
     LamSet done_;
     std::queue<Lam*> queue_;
     LamMap<bool> top_level_;
@@ -56,7 +56,7 @@ public:
             for (size_t i = 0; i != oprimop->num_ops(); ++i)
                 nops[i] = instantiate(odef->op(i));
 
-            auto nprimop = oprimop->rebuild(nops);
+            auto nprimop = oprimop->rebuild(world(), odef->type(), nops);
             return old2new_[oprimop] = nprimop;
         }
 

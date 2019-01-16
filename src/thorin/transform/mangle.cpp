@@ -6,29 +6,12 @@
 
 namespace thorin {
 
-const Def* Rewriter::instantiate(const Def* odef) {
-    if (auto ndef = find(old2new, odef))
-        return ndef;
-
-    if (auto oprimop = odef->isa<PrimOp>()) {
-        Array<const Def*> nops(oprimop->num_ops());
-        for (size_t i = 0; i != oprimop->num_ops(); ++i)
-            nops[i] = instantiate(odef->op(i));
-
-        auto nprimop = oprimop->rebuild(nops);
-        return old2new[oprimop] = nprimop;
-    }
-
-    return old2new[odef] = odef;
-}
-
 Mangler::Mangler(const Scope& scope, Defs args, Defs lift)
     : scope_(scope)
     , args_(args)
-    , lift_(lift)
     , old_entry_(scope.entry())
     , defs_(scope.defs().capacity())
-    , def2def_(scope.defs().capacity())
+    , old2new_(scope.defs().capacity())
 {
     assert(!old_entry()->is_empty());
     assert(args.size() == old_entry()->num_params());
@@ -56,28 +39,24 @@ Lam* Mangler::mangle() {
     std::vector<const Def*> param_types;
     for (size_t i = 0, e = old_entry()->num_params(); i != e; ++i) {
         if (args_[i]->isa<Top>())
-            param_types.emplace_back(old_entry()->param(i)->type()); // TODO reduce
+            param_types.emplace_back(old_entry()->param(i)->type());
     }
 
-    auto pi = world().cn(param_types);
-    new_entry_ = world().lam(pi, old_entry()->debug_history());
+    auto cn = world().cn(param_types);
+    new_entry_ = world().lam(cn, old_entry()->debug_history());
 
-    // map value params
-    def2def_[old_entry()] = old_entry();
+    // map params
+    old2new_[old_entry()] = old_entry();
     for (size_t i = 0, j = 0, e = old_entry()->num_params(); i != e; ++i) {
         auto old_param = old_entry()->param(i);
         if (auto def = args_[i])
-            def2def_[old_param] = def;
+            old2new_[old_param] = def;
         else {
             auto new_param = new_entry()->param(j++);
-            def2def_[old_param] = new_param;
+            old2new_[old_param] = new_param;
             new_param->debug().set(old_param->name());
         }
     }
-
-    // TODO lifting
-    //for (auto def : lift_)
-        //def2def_[def] = new_entry()->append_param(def->type()); // TODO reduce
 
     // mangle filter
     if (old_entry()->filter() != nullptr) {
@@ -94,70 +73,46 @@ Lam* Mangler::mangle() {
         new_entry()->set_filter(new_filter);
     }
 
-    mangle_body(old_entry(), new_entry());
+    new_entry()->set_body(mangle(old_entry()->body()));
 
     return new_entry();
 }
 
-Lam* Mangler::mangle_head(Lam* old_lam) {
-    assert(!def2def_.contains(old_lam));
-    assert(!old_lam->is_empty());
-    Lam* new_lam = old_lam->stub()->as_lam();
-    def2def_[old_lam] = new_lam;
-
-    for (size_t i = 0, e = old_lam->num_params(); i != e; ++i)
-        def2def_[old_lam->param(i)] = new_lam->param(i);
-
-    return new_lam;
-}
-
-void Mangler::mangle_body(Lam* old_lam, Lam* new_lam) {
-    // check whether we can optimize tail recursion
-    //if (ntarget == old_entry()) {
-        //std::vector<size_t> cut;
-        //bool substitute = true;
-        //for (size_t i = 0, e = args_.size(); i != e && substitute; ++i) {
-            //if (auto def = args_[i]) {
-                //substitute &= def == nargs[i];
-                //cut.push_back(i);
-            //}
-        //}
-
-        //if (substitute) {
-            //const auto& args = concat(nargs.cut(cut), new_entry()->params().get_back(lift_.size()));
-            //return new_lam->app(new_entry(), args, old_lam->app()->debug());
-        //}
-    //}
-
-    auto new_filter = mangle(old_lam->filter());
-    auto new_body   = mangle(old_lam->body());
-    new_lam->set_filter(new_filter);
-    new_lam->set_body  (new_body);
-}
-
 const Def* Mangler::mangle(const Def* old_def) {
-    if (auto new_def = find(def2def_, old_def))
-        return new_def;
-    else if (!within(old_def))
-        return old_def;
-    else if (auto old_lam = old_def->isa_lam()) {
-        auto new_lam = mangle_head(old_lam);
-        mangle_body(old_lam, new_lam);
-        return new_lam;
-    } else if (auto param = old_def->isa<Param>()) {
-        assert(within(param->lam()));
-        mangle(param->lam());
-        assert(def2def_.contains(param));
-        return def2def_[param];
-    } else {
-        auto old_primop = old_def->as<PrimOp>();
-        Array<const Def*> nops(old_primop->num_ops());
-        for (size_t i = 0, e = old_primop->num_ops(); i != e; ++i)
-            nops[i] = mangle(old_primop->op(i));
+    // TODO merge with importer
+    // TODO optimze for first-order recursive functions
 
-        auto type = old_primop->type();
-        return def2def_[old_primop] = old_primop->rebuild(type, nops);
+    if (auto new_def = find(old2new_, old_def)) return new_def;
+    if (!within(old_def)) return old_def;
+
+    auto new_type = mangle(old_def->type());
+
+    const Def* new_def = nullptr;
+    if (old_def->is_nominal()) {
+        new_def = old_def->stub(world(), new_type);
+        old2new_[old_def] = new_def;
     }
+
+    size_t size = old_def->num_ops();
+    Array<const Def*> new_ops(size);
+    for (size_t i = 0; i != size; ++i) {
+        new_ops[i] = mangle(old_def->op(i));
+        assert(&new_ops[i]->world() == &world());
+    }
+
+    if (new_def) {
+        for (size_t i = 0; i != size; ++i)
+            const_cast<Def*>(new_def)->update_op(i, new_ops[i]); // TODO use set_op here
+        if (auto olam = old_def->isa<Lam>()) { // TODO do sth smarter here
+            if (olam->is_external())
+                new_def->as_lam()->make_external();
+        }
+    } else {
+        new_def = old_def->rebuild(world(), new_type, new_ops);
+        old2new_[old_def] = new_def;
+    }
+
+    return new_def;
 }
 
 //------------------------------------------------------------------------------

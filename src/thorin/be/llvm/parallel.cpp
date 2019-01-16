@@ -31,7 +31,7 @@ Lam* CodeGen::emit_parallel(Lam* lam) {
     }
 
     // fetch values and create a unified struct which contains all values (closure)
-    auto closure_type = convert(world_.sigma(lam->app()->arg()->type()->as<TupleType>()->ops().skip_front(PAR_NUM_ARGS)));
+    auto closure_type = convert(world_.sigma(lam->app()->arg()->type()->as<Sigma>()->ops().skip_front(PAR_NUM_ARGS)));
     llvm::Value* closure = llvm::UndefValue::get(closure_type);
     if (num_kernel_args != 1) {
         for (size_t i = 0; i < num_kernel_args; ++i)
@@ -109,7 +109,7 @@ Lam* CodeGen::emit_spawn(Lam* lam) {
     }
 
     // fetch values and create a unified struct which contains all values (closure)
-    auto closure_type = convert(world_.sigma(lam->app()->arg()->type()->as<TupleType>()->ops().skip_front(SPAWN_NUM_ARGS)));
+    auto closure_type = convert(world_.sigma(lam->app()->arg()->type()->as<Sigma>()->ops().skip_front(SPAWN_NUM_ARGS)));
     llvm::Value* closure = llvm::UndefValue::get(closure_type);
     for (size_t i = 0; i < num_kernel_args; ++i)
         closure = irbuilder_.CreateInsertValue(closure, lookup(lam->app()->arg(i + SPAWN_NUM_ARGS)), unsigned(i));

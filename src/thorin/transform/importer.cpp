@@ -14,6 +14,7 @@ Importer::Importer(World& src)
 
     old2new_[src.branch()]    = world().branch();
     old2new_[src.end_scope()] = world().end_scope();
+    old2new_[src.universe()]  = world().universe();
 }
 
 const Def* Importer::import(Tracker odef) {

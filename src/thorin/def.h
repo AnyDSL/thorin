@@ -437,6 +437,7 @@ using LamMap  = GIDMap<Lam*, To>;
 using LamSet  = GIDSet<Lam*>;
 using Lam2Lam = LamMap<Lam*>;
 
+bool visit_uses(Lam* lam, std::function<bool(Lam*)> func, bool include_globals = true);
 bool visit_capturing_intrinsics(Lam* lam, std::function<bool(Lam*)> func, bool include_globals);
 
 inline bool is_passed_to_accelerator(Lam* lam, bool include_globals = true) {

@@ -50,7 +50,7 @@ static AddrSpace resolve_addr_space(const Def* def) {
 
 llvm::FunctionType* NVVMCodeGen::convert_fn_type(Lam* lam) {
     // skip non-global address-space parameters
-    std::vector<const Type*> types;
+    std::vector<const Def*> types;
     for (auto type : lam->type()->ops()) {
         if (auto ptr = type->isa<PtrType>())
             if (ptr->addr_space() == AddrSpace::Texture)
@@ -159,7 +159,7 @@ llvm::Value* NVVMCodeGen::emit_store(const Store* store) {
     return CodeGen::emit_store(store);
 }
 
-static std::string get_texture_fetch_command(const Type* type) {
+static std::string get_texture_fetch_command(const Def* type) {
     std::stringstream fun_str;
     fun_str << "tex.1d.v4.";
     switch (type->as<PrimType>()->primtype_tag()) {
@@ -181,7 +181,7 @@ static std::string get_texture_fetch_command(const Type* type) {
     return fun_str.str();
 }
 
-static std::string get_texture_fetch_constraint(const Type* type) {
+static std::string get_texture_fetch_constraint(const Def* type) {
     std::stringstream constraint_str;
     char c;
     switch (type->as<PrimType>()->primtype_tag()) {

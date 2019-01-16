@@ -12,6 +12,9 @@ public:
     NVVMCodeGen(World& world, const Cont2Config&);
 
 protected:
+    // NVVM-specific optimizations are run in the runtime
+    virtual void optimize(int opt) override { if (opt > 0) CodeGen::optimize(1); }
+
     virtual void emit_function_decl_hook(Continuation*, llvm::Function*) override;
     virtual llvm::FunctionType* convert_fn_type(Continuation*) override;
     virtual llvm::Value* map_param(llvm::Function*, llvm::Argument*, const Param*) override;

@@ -66,7 +66,7 @@ public:
     bool eval(size_t i, bool lower2cff) {
         // the only higher order parameter that is allowed is a single 1st-order fn-parameter of a top-level lam
         // all other parameters need specialization (lower2cff)
-        auto order = callee_->param(i)->order();
+        auto order = callee_->param(i)->type()->order();
         if (lower2cff)
             if(order >= 2 || (order == 1
                         && (!callee_->param(i)->type()->isa<Pi>()

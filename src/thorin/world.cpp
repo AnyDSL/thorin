@@ -29,15 +29,15 @@ World::World(std::string name)
     : name_(name)
     , universe_ (insert(new Universe(*this)))
     , star_     (insert(new Kind(*this, Node_Star)))
-    , unit_     (insert(new Sigma(star_, Defs{}, {"[]"})))
+    , sigma_    (insert(new Sigma(star_, Defs{}, {"[]"})))
     , bottom_   (insert(new Bottom(star_, {"<⊥:*>"})))
     , mem_      (insert(new MemType  (*this)))
     , frame_    (insert(new FrameType(*this)))
 #define THORIN_ALL_TYPE(T, M) \
     , T##_      (insert(new PrimType(*this, PrimType_##T, 1, {#T})))
 #include "thorin/tables/primtypetable.h"
-    , branch_   (lam(cn(sigma({type_bool(), cn({}), cn({})})), CC::C, Intrinsic::Branch, {"br"}))
-    , end_scope_(lam(cn({}), CC::C, Intrinsic::EndScope, {"end_scope"}))
+    , branch_   (lam(cn(sigma({type_bool(), cn(), cn()})), CC::C, Intrinsic::Branch, {"br"}))
+    , end_scope_(lam(cn(), CC::C, Intrinsic::EndScope, {"end_scope"}))
 {}
 
 World::~World() {
@@ -882,9 +882,9 @@ const Def* World::run(const Def* def, Debug dbg) {
 Lam* World::match(const Def* type, size_t num_patterns) {
     Array<const Def*> arg_types(num_patterns + 2);
     arg_types[0] = type;
-    arg_types[1] = cn({});
+    arg_types[1] = cn();
     for (size_t i = 0; i < num_patterns; i++)
-        arg_types[i + 2] = sigma({type, cn({})});
+        arg_types[i + 2] = sigma({type, cn()});
     return lam(cn(sigma(arg_types)), CC::C, Intrinsic::Match, {"match"});
 }
 

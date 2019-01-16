@@ -13,14 +13,14 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-size_t Def::gid_counter_ = 1;
+uint32_t Def::gid_counter_ = 1;
 
 /*
  * helpers
  */
 
 bool is_unit(const Def* def) {
-    return def->type() == def->world().unit();
+    return def->type() == def->world().sigma();
 }
 
 bool is_const(const Def* def) {
@@ -167,12 +167,12 @@ Debug Def::debug_history() const {
 #endif
 }
 
-void Def::set_op(size_t i, const Def* def) {
+void Def::set(size_t i, const Def* def) {
     assert(!op(i) && "already set");
     assert(def && "setting null pointer");
     ops_[i] = def;
     contains_lam_ |= def->contains_lam();
-    assert(!def->uses_.contains(Use(i, this)));
+    order_ = std::max(order_, def->order_);
     const auto& p = def->uses_.emplace(i, this);
     assert_unused(p.second);
 }
@@ -189,7 +189,7 @@ void Def::unregister_use(size_t i) const {
     assert(!def->uses_.contains(Use(i, this)));
 }
 
-void Def::unset_op(size_t i) {
+void Def::unset(size_t i) {
     assert(ops_[i] && "must be set");
     unregister_use(i);
     ops_[i] = nullptr;
@@ -210,12 +210,20 @@ void Def::replace(Tracker with) const {
         for (auto& use : copy_uses()) {
             auto def = const_cast<Def*>(use.def());
             auto index = use.index();
-            def->update_op(index, with);
+            def->update(index, with);
         }
 
         uses_.clear();
         substitute_ = with;
     }
+}
+
+Def::Sort Def::sort() const {
+    if (tag()                 == Node_Universe) return Sort::Universe;
+    if (type()->tag()         == Node_Universe) return Sort::Kind;
+    if (type()->type()->tag() == Node_Universe) return Sort::Type;
+    assert(type()->type()->type()->tag() == Node_Universe);
+    return Sort::Term;
 }
 
 void Def::dump() const {
@@ -310,7 +318,7 @@ const Def* Lam::ret_param() const {
     const Def* result = nullptr;
     for (size_t i = 0, e = num_params(); i != e; ++i) {
         auto p = param(i);
-        if (p->order() >= 1) {
+        if (p->type()->order() >= 1) {
             assertf(result == nullptr, "only one ret_param allowed");
             result = p;
         }
@@ -319,12 +327,12 @@ const Def* Lam::ret_param() const {
 }
 
 void Lam::destroy_filter() {
-    update_op(0, world().literal_bool(false));
+    update(0, world().literal_bool(false));
 }
 
 void Lam::destroy_body() {
-    update_op(0, world().literal_bool(false));
-    update_op(1, world().top(type()->codomain()));
+    update(0, world().literal_bool(false));
+    update(1, world().top(type()->codomain()));
 }
 
 Lams Lam::preds() const {
@@ -455,7 +463,7 @@ void Lam::app(const Def* callee, const Def* arg, Debug dbg) {
         }
     }
 
-    Def::update_op(1, world().app(callee, arg, dbg));
+    Def::update(1, world().app(callee, arg, dbg));
 }
 
 void Lam::branch(const Def* cond, const Def* t, const Def* f, Debug dbg) {
@@ -528,19 +536,15 @@ Lam::Lam(const Pi* pi, const Def* filter, const Def* body, Debug dbg)
     : Def(Node_Lam, pi, {filter, body}, dbg)
     , cc_(CC::C)
     , intrinsic_(Intrinsic::None)
-{
-    contains_lam_ = true;
-}
+{}
 
 Lam::Lam(const Pi* pi, CC cc, Intrinsic intrinsic, Debug dbg)
     : Def(Node_Lam, pi, 2, dbg)
     , cc_(cc)
     , intrinsic_(intrinsic)
 {
-    set_op(0, world().literal_bool(false));
-    set_op(1, world().top(pi->codomain()));
-
-    contains_lam_ = true;
+    set(0, world().literal_bool(false));
+    set(1, world().top(pi->codomain()));
 }
 
 PrimType::PrimType(World& world, PrimTypeTag tag, size_t length, Debug dbg)
@@ -599,6 +603,7 @@ bool PtrType::equal(const Def* other) const {
  * rebuild
  */
 
+const Def* Universe           ::rebuild(World&   , const Def*  , Defs    ) const { THORIN_UNREACHABLE; }
 const Def* Lam                ::rebuild(World& to, const Def* t, Defs ops) const { assert(!is_nominal()); return to.lam(t->as<Pi>(), ops[0], ops[1], debug()); }
 const Def* Sigma              ::rebuild(World& to, const Def* t, Defs ops) const { assert(!is_nominal()); return to.sigma(t, ops, debug()); }
 const Def* App                ::rebuild(World& to, const Def*  , Defs ops) const { return to.app(ops[0], ops[1], debug()); }
@@ -613,7 +618,6 @@ const Def* Param              ::rebuild(World& to, const Def*  , Defs ops) const
 const Def* Pi                 ::rebuild(World& to, const Def*  , Defs ops) const { return to.pi(ops[0], ops[1], debug()); }
 const Def* PrimType           ::rebuild(World& to, const Def*  , Defs    ) const { return to.type(primtype_tag(), length(), debug()); }
 const Def* PtrType            ::rebuild(World& to, const Def*  , Defs ops) const { return to.ptr_type(ops.front(), length(), device(), addr_space()); }
-const Def* Universe           ::rebuild(World& to, const Def*  , Defs    ) const { return to.universe(); }
 const Def* Var                ::rebuild(World& to, const Def* t, Defs    ) const { return to.var(t, index(), debug()); }
 const Def* VariantType        ::rebuild(World& to, const Def*  , Defs ops) const { return to.variant_type(ops, debug()); }
 
@@ -623,6 +627,7 @@ const Def* VariantType        ::rebuild(World& to, const Def*  , Defs ops) const
 
 Lam*   Lam  ::stub(World& to, const Def* type) const { assert(is_nominal()); return to.lam(type->as<Pi>(), cc(), intrinsic(), debug()); }
 Sigma* Sigma::stub(World& to, const Def* type) const { assert(is_nominal()); return to.sigma(type, num_ops(), debug()); }
+Universe* Universe::stub(World& to, const Def*) const { return const_cast<Universe*>(to.universe()); }
 
 /*
  * stream
@@ -632,6 +637,7 @@ static std::ostream& stream_type_ops(std::ostream& os, const Def* type) {
    return stream_list(os, type->ops(), [&](const Def* type) { os << type; }, "(", ")");
 }
 
+std::ostream& App                ::stream(std::ostream& os) const { return streamf(os, "{} {}", callee(), arg()); }
 std::ostream& Bottom             ::stream(std::ostream& os) const { return streamf(os, "{{⊥: {}}}", type()); }
 std::ostream& DefiniteArrayType  ::stream(std::ostream& os) const { return streamf(os, "[{} x {}]", dim(), elem_type()); }
 std::ostream& FrameType          ::stream(std::ostream& os) const { return os << "frame"; }
@@ -653,6 +659,10 @@ std::ostream& Lam::stream(std::ostream& os) const {
 std::ostream& Sigma::stream(std::ostream& os) const {
     if (is_nominal()) return os << unique_name();
     return stream_list(os, ops(), [&](const Def* type) { os << type; }, "[", "]");
+}
+
+std::ostream& Tuple::stream(std::ostream& os) const {
+    return stream_list(os, ops(), [&](const Def* type) { os << type; }, "(", ")");
 }
 
 std::ostream& Pi::stream(std::ostream& os) const {

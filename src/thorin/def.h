@@ -114,26 +114,30 @@ private:
 protected:
     /// Constructor for a @em structural Def.
     Def(NodeTag tag, const Def* type, Defs ops, Debug dbg)
-        : tag_(tag)
+        : gid_(gid_counter_++)
+        , tag_((unsigned)tag)
+        , nominal_(false)
+        , dependent_(false)
+        , contains_lam_(tag == Node_Lam)
+        , order_(tag == Node_Pi ? 1 : 0)
         , ops_(ops.size())
         , type_(type)
         , debug_(dbg)
-        , gid_(gid_counter_++)
-        , nominal_(false)
-        , contains_lam_(false)
     {
         for (size_t i = 0, e = ops.size(); i != e; ++i)
-            set_op(i, ops[i]);
+            set(i, ops[i]);
     }
     /// Constructor for a @em nominal Def.
     Def(NodeTag tag, const Def* type, size_t size, Debug dbg)
-        : tag_(tag)
+        : gid_(gid_counter_++)
+        , tag_(tag)
+        , nominal_(true)
+        , dependent_(false)
+        , contains_lam_(tag == Node_Lam)
+        , order_(tag == Node_Pi ? 1 : 0)
         , ops_(size)
         , type_(type)
         , debug_(dbg)
-        , gid_(gid_counter_++)
-        , nominal_(true)
-        , contains_lam_(false)
     {}
     virtual ~Def() {}
 
@@ -141,18 +145,47 @@ protected:
     void unregister_uses() const;
 
 public:
-    NodeTag tag() const { return tag_; }
+    enum class Sort {
+        Term, Type, Kind, Universe
+    };
+
+    /// @defgroup get @p Sort
+    //@{
+    Sort sort() const;
+    bool is_term() const { return sort() == Sort::Term; }
+    bool is_type() const { return sort() == Sort::Type; }
+    bool is_kind() const { return sort() == Sort::Kind; }
+    bool is_universe() const { return sort() == Sort::Universe; }
+    //@}
+
+    NodeTag tag() const { return (NodeTag)tag_; }
     /// In Debug build if World::enable_history is true, this thing keeps the gid to track a history of gid%s.
     Debug debug_history() const;
     Debug& debug() const { return debug_; }
     Location location() const { return debug_; }
     Symbol name() const { return debug().name(); }
+
     size_t num_ops() const { return ops_.size(); }
-    void set_op(size_t i, const Def* def);
-    void unset_op(size_t i);
-    void update_op(size_t i, const Def* def) { unset_op(i); set_op(i, def); }
+    Defs ops() const { return ops_; }
+    const Def* op(size_t i) const { assert(i < ops().size() && "index out of bounds"); return ops_[i]; }
+
+    /// @defgroup setters
+    //@{
+    void set(Defs);
+    void set(size_t i, const Def* def);
+    void unset();
+    void unset(size_t i);
+    void update(Defs defs) { unset(); set(defs); }
+    void update(size_t i, const Def* def) { unset(i); set(i, def); }
+    //@}
+
+    /// @defgroup misc getters
+    //@{
     bool contains_lam() const { return contains_lam_; }
     bool is_nominal() const { return nominal_; }
+    unsigned order() const { assert(!is_term()); return order_; }
+    //@}
+
     Lam* as_lam() const;
     Lam* isa_lam() const;
     void dump() const;
@@ -169,9 +202,6 @@ public:
         return *type()->type()->type()->world_;
     }
     const Def* type() const { assert(tag() != Node_Universe); return type_; }
-    int order() const { return type()->order(); }
-    Defs ops() const { return ops_; }
-    const Def* op(size_t i) const { assert(i < ops().size() && "index out of bounds"); return ops_[i]; }
     void replace(Tracker) const;
     bool is_replaced() const { return substitute_ != nullptr; }
 
@@ -188,7 +218,15 @@ public:
     static size_t gid_counter() { return gid_counter_; }
 
 private:
-    const NodeTag tag_;
+    static uint32_t gid_counter_;
+
+    uint32_t gid_;
+    // TODO fine-tune bit fields
+    unsigned tag_           : 10;
+    unsigned nominal_       :  1;
+    unsigned dependent_     :  1;
+    unsigned contains_lam_  :  1;
+    unsigned order_         : 10;
     Array<const Def*> ops_;
     union {
         const Def* type_;
@@ -197,15 +235,6 @@ private:
     mutable const Def* substitute_ = nullptr;
     mutable Uses uses_;
     mutable Debug debug_;
-    const size_t gid_ : 32;
-protected:
-    unsigned nominal_ : 1;
-private:
-
-    static size_t gid_counter_;
-
-protected:
-    unsigned contains_lam_ : 1;
 
 private:
     uint64_t hash() const { return hash_ == 0 ? hash_ = vhash() : hash_; }
@@ -222,12 +251,13 @@ private:
 class Universe : public Def {
 private:
     Universe(World& world)
-        : Def(Node_Universe, reinterpret_cast<const Def*>(&world), Defs{}, {"□"})
+        : Def(Node_Universe, reinterpret_cast<const Def*>(&world), 0_s, {"□"})
     {}
 
 public:
     const Def* rebuild(World&, const Def*, Defs) const override;
-    virtual std::ostream& stream(std::ostream&) const override;
+    Universe* stub(World&, const Def*) const override;
+    std::ostream& stream(std::ostream&) const override;
 
     friend class World;
 };
@@ -238,7 +268,7 @@ private:
 
 public:
     const Def* rebuild(World&, const Def*, Defs) const override;
-    virtual std::ostream& stream(std::ostream&) const override;
+    std::ostream& stream(std::ostream&) const override;
 
     friend class World;
 };
@@ -246,13 +276,13 @@ public:
 class Bottom : public Def {
 private:
     Bottom(const Def* type, Debug dbg)
-        : Def(Node_Bottom, type, {}, dbg)
+        : Def(Node_Bottom, type, Defs{}, dbg)
     {}
 
 public:
 
-    virtual const Def* rebuild(World& to, const Def*, Defs ops) const override;
-    virtual std::ostream& stream(std::ostream&) const override;
+    const Def* rebuild(World& to, const Def*, Defs ops) const override;
+    std::ostream& stream(std::ostream&) const override;
 
     friend class World;
 };
@@ -260,12 +290,12 @@ public:
 class Top : public Def {
 private:
     Top(const Def* type, Debug dbg)
-        : Def(Node_Top, type, {}, dbg)
+        : Def(Node_Top, type, Defs{}, dbg)
     {}
 
 private:
-    virtual const Def* rebuild(World& to, const Def*, Defs ops) const override;
-    virtual std::ostream& stream(std::ostream&) const override;
+    const Def* rebuild(World& to, const Def*, Defs ops) const override;
+    std::ostream& stream(std::ostream&) const override;
 
     friend class World;
 };
@@ -273,17 +303,17 @@ private:
 class Var : public Def {
 private:
     Var(const Def* type, u64 index, Debug dbg)
-        : Def(Node_Var, type, Defs(), dbg)
+        : Def(Node_Var, type, Defs{}, dbg)
         , index_(index)
     {}
 
 public:
     u64 index() const { return index_; }
-    virtual std::ostream& stream(std::ostream&) const override;
+    std::ostream& stream(std::ostream&) const override;
 
 private:
-    virtual uint64_t vhash() const override;
-    virtual bool equal(const Def*) const override;
+    uint64_t vhash() const override;
+    bool equal(const Def*) const override;
     virtual const Def* rebuild(World&, const Def*, Defs) const;
 
     u64 index_;
@@ -295,9 +325,7 @@ class Pi : public Def {
 protected:
     Pi(const Def* type, const Def* domain, const Def* codomain, Debug dbg)
         : Def(Node_Pi, type, {domain, codomain}, dbg)
-    {
-        //++order_;
-    }
+    {}
 
 public:
     const Def* domain() const { return op(0); }
@@ -311,10 +339,10 @@ public:
     bool is_basicblock() const { return order() == 1; }
     bool is_returning() const;
 
-    virtual std::ostream& stream(std::ostream&) const override;
+    std::ostream& stream(std::ostream&) const override;
 
 private:
-    virtual const Def* rebuild(World& to, const Def*, Defs ops) const override;
+    const Def* rebuild(World& to, const Def*, Defs ops) const override;
 
     friend class World;
 };
@@ -334,6 +362,7 @@ public:
     Array<const Def*> args() const;
 
     const Def* rebuild(World&, const Def*, Defs) const override;
+    std::ostream& stream(std::ostream&) const override;
 
     friend class World;
 };
@@ -393,10 +422,10 @@ public:
     //@}
 
     //@{ setters
-    void set_filter(const Def* filter) { update_op(0, filter); }
+    void set_filter(const Def* filter) { update(0, filter); }
     void set_filter(Defs filter);
     void set_all_true_filter();
-    void set_body(const Def* body) { update_op(1, body); }
+    void set_body(const Def* body) { update(1, body); }
     void destroy_filter();
     //@}
 
@@ -537,11 +566,11 @@ private:
     {}
 
 public:
-    void set(size_t i, const Def* type) const { assert(is_nominal()); const_cast<Sigma*>(this)->Def::set_op(i, type); }
+    void set(size_t i, const Def* type) const { assert(is_nominal()); const_cast<Sigma*>(this)->Def::set(i, type); }
 
-    virtual const Def* rebuild(World& to, const Def*, Defs ops) const override;
+    const Def* rebuild(World& to, const Def*, Defs ops) const override;
     Sigma* stub(World&, const Def*) const override;
-    virtual std::ostream& stream(std::ostream&) const override;
+    std::ostream& stream(std::ostream&) const override;
 
     friend class World;
 };
@@ -558,8 +587,8 @@ private:
     }
 
 private:
-    virtual const Def* rebuild(World& to, const Def*, Defs ops) const override;
-    virtual std::ostream& stream(std::ostream&) const override;
+    const Def* rebuild(World& to, const Def*, Defs ops) const override;
+    std::ostream& stream(std::ostream&) const override;
 
     friend class World;
 };
@@ -567,12 +596,12 @@ private:
 /// The type of the memory monad.
 class MemType : public Def {
 public:
-    virtual std::ostream& stream(std::ostream&) const override;
+    std::ostream& stream(std::ostream&) const override;
 
 private:
     MemType(World& world);
 
-    virtual const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
     friend class World;
 };
@@ -580,12 +609,12 @@ private:
 /// The type of a stack frame.
 class FrameType : public Def {
 public:
-    virtual std::ostream& stream(std::ostream&) const override;
+    std::ostream& stream(std::ostream&) const override;
 
 private:
     FrameType(World& world);
 
-    virtual const Def* rebuild(World& to, const Def*, Defs ops) const override;
+    const Def* rebuild(World& to, const Def*, Defs ops) const override;
 
     friend class World;
 };
@@ -598,8 +627,8 @@ protected:
         , length_(length)
     {}
 
-    virtual uint64_t vhash() const override { return hash_combine(Def::vhash(), length()); }
-    virtual bool equal(const Def* other) const override {
+    uint64_t vhash() const override { return hash_combine(Def::vhash(), length()); }
+    bool equal(const Def* other) const override {
         return Def::equal(other) && this->length() == other->as<VectorType>()->length();
     }
 
@@ -622,10 +651,10 @@ private:
 public:
     PrimTypeTag primtype_tag() const { return (PrimTypeTag) tag(); }
 
-    virtual std::ostream& stream(std::ostream&) const override;
+    std::ostream& stream(std::ostream&) const override;
 
 private:
-    virtual const Def* rebuild(World& to, const Def*, Defs ops) const override;
+    const Def* rebuild(World& to, const Def*, Defs ops) const override;
 
     friend class World;
 };
@@ -668,13 +697,13 @@ public:
     int32_t device() const { return device_; }
     bool is_host_device() const { return device_ == -1; }
 
-    virtual uint64_t vhash() const override;
-    virtual bool equal(const Def* other) const override;
+    uint64_t vhash() const override;
+    bool equal(const Def* other) const override;
 
-    virtual std::ostream& stream(std::ostream&) const override;
+    std::ostream& stream(std::ostream&) const override;
 
 private:
-    virtual const Def* rebuild(World& to, const Def*, Defs ops) const override;
+    const Def* rebuild(World& to, const Def*, Defs ops) const override;
 
     AddrSpace addr_space_;
     int32_t device_;
@@ -698,10 +727,10 @@ public:
         : ArrayType(Node_IndefiniteArrayType, type, elem_type, dbg)
     {}
 
-    virtual std::ostream& stream(std::ostream&) const override;
+    std::ostream& stream(std::ostream&) const override;
 
 private:
-    virtual const Def* rebuild(World& to, const Def*, Defs ops) const override;
+    const Def* rebuild(World& to, const Def*, Defs ops) const override;
 
     friend class World;
 };
@@ -714,15 +743,15 @@ public:
     {}
 
     u64 dim() const { return dim_; }
-    virtual uint64_t vhash() const override { return hash_combine(Def::vhash(), dim()); }
-    virtual bool equal(const Def* other) const override {
+    uint64_t vhash() const override { return hash_combine(Def::vhash(), dim()); }
+    bool equal(const Def* other) const override {
         return Def::equal(other) && this->dim() == other->as<DefiniteArrayType>()->dim();
     }
 
-    virtual std::ostream& stream(std::ostream&) const override;
+    std::ostream& stream(std::ostream&) const override;
 
 private:
-    virtual const Def* rebuild(World& to, const Def*, Defs ops) const override;
+    const Def* rebuild(World& to, const Def*, Defs ops) const override;
 
     u64 dim_;
 

@@ -13,7 +13,7 @@ void lift_builtins(World& world) {
         Scope::for_each(world, [&] (const Scope& scope) {
             if (cur) return;
             for (auto n : scope.f_cfg().post_order()) {
-                if (n->lam()->order() <= 1)
+                if (n->lam()->type()->order() <= 1)
                     continue;
                 if (is_passed_to_accelerator(n->lam(), false)) {
                     cur = n->lam();
@@ -36,7 +36,7 @@ void lift_builtins(World& world) {
         std::vector<const Def*> defs;
         for (auto param : free_defs(scope)) {
             if (!param->isa_lam()) {
-                assert(param->order() == 0 && "creating a higher-order function");
+                assert(param->type()->order() == 0 && "creating a higher-order function");
                 defs.push_back(param);
             }
         }

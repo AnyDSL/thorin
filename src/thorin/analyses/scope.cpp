@@ -35,22 +35,16 @@ void Scope::run() {
     std::queue<const Def*> queue;
 
     auto enqueue = [&] (const Def* def) {
-        if (defs_.insert(def).second) {
+        if (defs_.insert(def).second)
             queue.push(def);
-
-            if (auto lam = def->isa_lam()) {
-                auto param = lam->param();
-                auto p = defs_.insert(param);
-                assert_unused(p.second);
-                queue.push(param);
-            }
-        }
     };
 
     enqueue(entry_);
+    enqueue(entry_->param());
 
     while (!queue.empty()) {
         auto def = pop(queue);
+        def->dump();
         if (def != entry_) {
             for (auto use : def->uses())
                 enqueue(use);

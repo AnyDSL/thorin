@@ -49,7 +49,7 @@ CFA::CFA(const Scope& scope)
         DefSet done;
 
         auto enqueue = [&] (const Def* def) {
-            if (def->order() > 0 && scope.contains(def) && done.emplace(def).second) {
+            if (def->type()->order() > 0 && scope.contains(def) && done.emplace(def).second) {
                 if (auto dst = def->isa_lam()) {
                     cfg_enqueue(dst);
                     node(src)->link(node(dst));

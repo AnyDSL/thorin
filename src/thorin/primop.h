@@ -19,7 +19,7 @@ protected:
 public:
     const Def* out(size_t i) const;
     virtual bool has_multiple_outs() const { return false; }
-    virtual std::ostream& stream(std::ostream&) const override;
+    std::ostream& stream(std::ostream&) const override;
 
 protected:
 
@@ -57,9 +57,9 @@ public:
     std::ostream& stream(std::ostream&) const override;
 
 private:
-    virtual uint64_t vhash() const override;
-    virtual bool equal(const Def* other) const override;
-    virtual const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    uint64_t vhash() const override;
+    bool equal(const Def* other) const override;
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
     Box box_;
 
@@ -91,7 +91,7 @@ private:
         assert(!tval->type()->isa<Pi>() && "must not be a function");
     }
 
-    virtual const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
 public:
     const Def* cond() const { return op(0); }
@@ -106,7 +106,7 @@ class SizeOf : public PrimOp {
 private:
     SizeOf(const Def* def, Debug dbg);
 
-    virtual const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
 public:
     const Def* of() const { return op(0)->type(); }
@@ -135,12 +135,12 @@ private:
         : BinOp((NodeTag) tag, lhs->type(), lhs, rhs, dbg)
     {}
 
-    virtual const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
 public:
     const PrimType* type() const { return BinOp::type()->as<PrimType>(); }
     ArithOpTag arithop_tag() const { return (ArithOpTag) tag(); }
-    virtual const char* op_name() const override;
+    const char* op_name() const override;
 
     friend class World;
 };
@@ -150,12 +150,12 @@ class Cmp : public BinOp {
 private:
     Cmp(CmpTag tag, const Def* lhs, const Def* rhs, Debug dbg);
 
-    virtual const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
 public:
     const PrimType* type() const { return BinOp::type()->as<PrimType>(); }
     CmpTag cmp_tag() const { return (CmpTag) tag(); }
-    virtual const char* op_name() const override;
+    const char* op_name() const override;
 
     friend class World;
 };
@@ -178,7 +178,7 @@ private:
         : ConvOp(Node_Cast, from, to, dbg)
     {}
 
-    virtual const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
     friend class World;
 };
@@ -190,7 +190,7 @@ private:
         : ConvOp(Node_Bitcast, from, to, dbg)
     {}
 
-    virtual const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
     friend class World;
 };
@@ -208,7 +208,7 @@ class DefiniteArray : public Aggregate {
 private:
     DefiniteArray(World& world, const Def* elem, Defs args, Debug dbg);
 
-    virtual const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
 public:
     const DefiniteArrayType* type() const { return Aggregate::type()->as<DefiniteArrayType>(); }
@@ -223,7 +223,7 @@ class IndefiniteArray : public Aggregate {
 private:
     IndefiniteArray(World& world, const Def* elem, const Def* dim, Debug dbg);
 
-    virtual const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
 public:
     const IndefiniteArrayType* type() const { return Aggregate::type()->as<IndefiniteArrayType>(); }
@@ -237,10 +237,10 @@ class Tuple : public Aggregate {
 private:
     Tuple(World& world, Defs args, Debug dbg);
 
-    virtual const Def* rebuild(World& to, const Def* type, Defs ops) const override;
-
 public:
     const Sigma* type() const { return Aggregate::type()->as<Sigma>(); }
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    std::ostream& stream(std::ostream&) const override;
 
     friend class World;
 };
@@ -256,7 +256,7 @@ private:
         assert(std::find(variant_type->ops().begin(), variant_type->ops().end(), value->type()) != variant_type->ops().end());
     }
 
-    virtual const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
 public:
     const VariantType* type() const { return PrimOp::type()->as<VariantType>(); }
@@ -269,7 +269,7 @@ class Vector : public Aggregate {
 private:
     Vector(World& world, Defs args, Debug dbg);
 
-    virtual const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
     friend class World;
 };
@@ -295,7 +295,7 @@ private:
         : AggOp(Node_Extract, extracted_type(agg, index), {agg, index}, dbg)
     {}
 
-    virtual const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
 public:
     static const Def* extracted_type(const Def* agg, const Def* index);
@@ -317,7 +317,7 @@ private:
         : AggOp(Node_Insert, agg->type(), {agg, index, value}, dbg)
     {}
 
-    virtual const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
 public:
     const Def* value() const { return op(2); }
@@ -335,7 +335,7 @@ class LEA : public PrimOp {
 private:
     LEA(const Def* ptr, const Def* index, Debug dbg);
 
-    virtual const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
 public:
     const Def* ptr() const { return op(0); }
@@ -354,7 +354,7 @@ private:
         : PrimOp(Node_Hlt, def->type(), {def}, dbg)
     {}
 
-    virtual const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
 public:
     const Def* def() const { return op(0); }
@@ -367,7 +367,7 @@ class Known : public PrimOp {
 private:
     Known(const Def* def, Debug dbg);
 
-    virtual const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
 public:
     const Def* def() const { return op(0); }
@@ -385,7 +385,7 @@ private:
         : PrimOp(Node_Run, def->type(), {def}, dbg)
     {}
 
-    virtual const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
 public:
     const Def* def() const { return op(0); }
@@ -408,9 +408,9 @@ public:
     const Def* alloced_type() const { return type()->pointee(); }
 
 private:
-    virtual uint64_t vhash() const override;
-    virtual bool equal(const Def* other) const override;
-    virtual const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    uint64_t vhash() const override;
+    bool equal(const Def* other) const override;
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
     friend class World;
 };
@@ -428,14 +428,14 @@ public:
     bool is_mutable() const { return is_mutable_; }
     const PtrType* type() const { return PrimOp::type()->as<PtrType>(); }
     const Def* alloced_type() const { return type()->pointee(); }
-    virtual const char* op_name() const override;
+    const char* op_name() const override;
 
     std::ostream& stream(std::ostream&) const override;
 
 private:
-    virtual uint64_t vhash() const override { return murmur3(gid()); }
-    virtual bool equal(const Def* other) const override { return this == other; }
-    virtual const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    uint64_t vhash() const override { return murmur3(gid()); }
+    bool equal(const Def* other) const override { return this == other; }
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
     bool is_mutable_;
 
@@ -457,8 +457,8 @@ public:
     const Def* out_mem() const { return has_multiple_outs() ? out(0) : this; }
 
 private:
-    virtual uint64_t vhash() const override { return murmur3(gid()); }
-    virtual bool equal(const Def* other) const override { return this == other; }
+    uint64_t vhash() const override { return murmur3(gid()); }
+    bool equal(const Def* other) const override { return this == other; }
 };
 
 /// Allocates memory on the heap.
@@ -468,7 +468,7 @@ private:
 
 public:
     const Def* extra() const { return op(1); }
-    virtual bool has_multiple_outs() const override { return true; }
+    bool has_multiple_outs() const override { return true; }
     const Def* out_ptr() const { return out(1); }
     const Sigma* type() const { return MemOp::type()->as<Sigma>(); }
     const PtrType* out_ptr_type() const { return type()->op(1)->as<PtrType>(); }
@@ -477,7 +477,7 @@ public:
     static const Alloc* is_out_ptr(const Def* def) { return is_out<1, Alloc>(def); }
 
 private:
-    virtual const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
     friend class World;
 };
@@ -501,7 +501,7 @@ private:
     Load(const Def* mem, const Def* ptr, Debug dbg);
 
 public:
-    virtual bool has_multiple_outs() const override { return true; }
+    bool has_multiple_outs() const override { return true; }
     const Def* out_val() const { return out(1); }
     const Sigma* type() const { return MemOp::type()->as<Sigma>(); }
     const Def* out_val_type() const { return type()->op(1); }
@@ -509,7 +509,7 @@ public:
     static const Load* is_out_val(const Def* def) { return is_out<1, Load>(def); }
 
 private:
-    virtual const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
     friend class World;
 };
@@ -521,7 +521,7 @@ private:
         : Access(Node_Store, mem->type(), {mem, ptr, value}, dbg)
     {}
 
-    virtual const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
 public:
     const Def* val() const { return op(2); }
@@ -535,11 +535,11 @@ class Enter : public MemOp {
 private:
     Enter(const Def* mem, Debug dbg);
 
-    virtual const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
 public:
     const Sigma* type() const { return MemOp::type()->as<Sigma>(); }
-    virtual bool has_multiple_outs() const override { return true; }
+    bool has_multiple_outs() const override { return true; }
     const Def* out_frame() const { return out(1); }
     static const Enter* is_out_mem(const Def* def) { return is_out<0, Enter>(def); }
     static const Enter* is_out_frame(const Def* def) { return is_out<1, Enter>(def); }
@@ -564,7 +564,7 @@ public:
     Defs inputs() const { return ops().skip_front(); }
     const Def* input(size_t i) const { return inputs()[i]; }
     size_t num_inputs() const { return inputs().size(); }
-    virtual bool has_multiple_outs() const override { return true; }
+    bool has_multiple_outs() const override { return true; }
     const std::string& asm_template() const { return asm_template_; }
     const ArrayRef<std::string> output_constraints() const { return output_constraints_; }
     const ArrayRef<std::string> input_constraints() const { return input_constraints_; }
@@ -575,8 +575,8 @@ public:
     Flags flags() const { return flags_; }
 
 private:
-    virtual const Def* rebuild(World& to, const Def* type, Defs ops) const override;
-    virtual std::ostream& stream_assignment(std::ostream&) const override;
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    std::ostream& stream_assignment(std::ostream&) const override;
 
     std::string asm_template_;
     Array<std::string> output_constraints_, input_constraints_, clobbers_;

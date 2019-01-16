@@ -101,7 +101,7 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Def* type) {
         return os << "NULL";
     } else if (type->isa<FrameType>()) {
         return os;
-    } else if (type->isa<MemType>() || type == world().unit()) {
+    } else if (type->isa<MemType>() || type == world().sigma()) {
         return os << "void";
     } else if (type->isa<Pi>()) {
         THORIN_UNREACHABLE;
@@ -200,7 +200,7 @@ std::ostream& CCodeGen::emit_aggop_defs(const Def* def) {
 }
 
 std::ostream& CCodeGen::emit_aggop_decl(const Def* type) {
-    if (lookup(type) || type == world().unit())
+    if (lookup(type) || type == world().sigma())
         return type_decls_;
 
     // set indent to zero
@@ -334,7 +334,7 @@ void CCodeGen::emit() {
         for (auto param : lam->params()) {
             if (is_mem(param) || is_unit(param))
                 continue;
-            if (param->order() == 0) {
+            if (param->type()->order() == 0) {
                 emit_aggop_decl(param->type());
                 if (is_texture_type(param->type())) {
                     // emit texture declaration for CUDA
@@ -403,7 +403,7 @@ void CCodeGen::emit() {
         for (auto param : lam->params()) {
             if (is_mem(param) || is_unit(param))
                 continue;
-            if (param->order() == 0) {
+            if (param->type()->order() == 0) {
                 if (lang_==Lang::OPENCL && lam->is_external() &&
                     (param->type()->isa<DefiniteArrayType>() ||
                      param->type()->isa<Sigma>())) {
@@ -486,7 +486,7 @@ void CCodeGen::emit() {
                 emit_aggop_defs(arg);
 
                 // emit temporaries for arguments
-                if (arg->order() >= 1 || is_mem(arg) || is_unit(arg) || lookup(arg) || arg->isa<PrimLit>())
+                if (arg->type()->order() >= 1 || is_mem(arg) || is_unit(arg) || lookup(arg) || arg->isa<PrimLit>())
                     continue;
 
                 emit(arg) << endl;
@@ -603,7 +603,7 @@ void CCodeGen::emit() {
                             // emit all first-order args
                             size_t fi = 0;
                             for (auto arg : lam->app()->args()) {
-                                if (arg->order() == 0 && !(is_mem(arg) || is_unit(arg))) {
+                                if (arg->type()->order() == 0 && !(is_mem(arg) || is_unit(arg))) {
                                     if (fi++ > 0)
                                         func_impl_ << ", ";
                                     emit(arg);
@@ -618,7 +618,7 @@ void CCodeGen::emit() {
 
                         const Def* ret_arg = 0;
                         for (auto arg : lam->app()->args()) {
-                            if (arg->order() != 0) {
+                            if (arg->type()->order() != 0) {
                                 assert(!ret_arg);
                                 ret_arg = arg;
                             }

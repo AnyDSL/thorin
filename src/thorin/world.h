@@ -73,10 +73,10 @@ public:
     //@{
     /// @defgroup structural @p Sigma%s
     //@{
-    const Sigma* unit() { return unit_; } ///< Returns unit, i.e., an empty @p Sigma.
     const Def* sigma(const Def* type, Defs ops, Debug dbg = {});
     /// a @em structural @p Sigma of type @p star
     const Def* sigma(Defs ops, Debug dbg = {}) { return sigma(star(), ops, dbg); }
+    const Sigma* sigma() { return sigma_; } ///< Returns an empty @p Sigma - AKA unit - of type @p star
     //@}
     /// @defgroup nominal @p Sigma%s
     //@{
@@ -106,6 +106,7 @@ public:
     const Pi* pi(const Def* domain, const Def* codomain, Debug dbg = {});
     ///@defgroup continuation types - Pi types with codomain @p Bottom
     //@{
+    const Pi* cn() { return cn(sigma()); }
     const Pi* cn(Defs domains) { return cn(sigma(domains)); }
     const Pi* cn(const Def* domain) { return pi(domain, bottom()); }
     //@}
@@ -274,7 +275,7 @@ public:
         swap(w1.branch_,    w2.branch_);
         swap(w1.end_scope_, w2.end_scope_);
         swap(w1.pe_done_,   w2.pe_done_);
-        swap(w1.unit_,      w2.unit_);
+        swap(w1.sigma_,     w2.sigma_);
         swap(w1.bottom_,    w2.bottom_);
         swap(w1.mem_,       w2.mem_);
         swap(w1.frame_,     w2.frame_);
@@ -331,7 +332,7 @@ private:
 #endif
     const Universe* universe_;
     const Kind* star_;
-    const Sigma* unit_; ///< tuple().
+    const Sigma* sigma_;
     const Bottom* bottom_;
     const MemType* mem_;
     const FrameType* frame_;

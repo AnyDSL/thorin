@@ -54,7 +54,7 @@ void inliner(World& world) {
     };
 
     auto is_candidate = [&] (Lam* lam) -> Scope* {
-        if (!lam->is_empty() && lam->order() > 1) {
+        if (!lam->is_empty() && lam->type()->order() > 1) {
             auto scope = get_scope(lam);
             if (scope->defs().size() < scope->entry()->num_params() * factor + offset) {
                 // check that the function is not recursive to prevent inliner from peeling loops

@@ -272,13 +272,15 @@ public:
         swap(w1.name_,      w2.name_);
         swap(w1.externals_, w2.externals_);
         swap(w1.defs_,      w2.defs_);
-        swap(w1.branch_,    w2.branch_);
-        swap(w1.end_scope_, w2.end_scope_);
-        swap(w1.pe_done_,   w2.pe_done_);
+        swap(w1.universe_,  w2.universe_);
+        swap(w1.star_,      w2.star_);
         swap(w1.sigma_,     w2.sigma_);
         swap(w1.bottom_,    w2.bottom_);
         swap(w1.mem_,       w2.mem_);
         swap(w1.frame_,     w2.frame_);
+        swap(w1.branch_,    w2.branch_);
+        swap(w1.end_scope_, w2.end_scope_);
+        swap(w1.pe_done_,   w2.pe_done_);
 
 #define THORIN_ALL_TYPE(T, M) \
         swap(w1.T##_,       w2.T##_);

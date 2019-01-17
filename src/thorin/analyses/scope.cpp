@@ -100,6 +100,7 @@ const B_CFG& Scope::b_cfg() const { return cfa().b_cfg(); }
 
 template<bool elide_empty>
 void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
+    // TODO use Scope::walk instead
     unique_queue<LamSet> lam_queue;
 
     for (auto lam : world.externals()) {

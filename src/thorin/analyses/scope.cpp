@@ -39,7 +39,7 @@ void Scope::run() {
             queue.push(def);
     };
 
-    enqueue(entry_);
+    defs_.emplace(entry_);
     enqueue(entry_->param());
 
     while (!queue.empty()) {

@@ -248,7 +248,7 @@ void Schedule::block_schedule() {
 }
 
 void Schedule::verify() {
-#if 0//THORIN_ENABLE_CHECKS
+#if THORIN_ENABLE_CHECKS
     bool ok = true;
     auto& domtree = cfg().domtree();
     Schedule::Map<const Def*> block2mem(*this);
@@ -285,7 +285,7 @@ std::ostream& Schedule::stream(std::ostream& os) const {
             for (auto def : block)
                 def->stream_assignment(os);
 
-            lam->stream_body(os) << down_endl;
+            os << down_endl;
             if (indent)
                 os << down;
         }

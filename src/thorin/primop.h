@@ -235,7 +235,9 @@ public:
 /// Data constructor for a @p Sigma.
 class Tuple : public Aggregate {
 private:
-    Tuple(World& world, Defs args, Debug dbg);
+    Tuple(const Def* type, Defs args, Debug dbg)
+        : Aggregate(Node_Tuple, type, args, dbg)
+    {}
 
 public:
     const Sigma* type() const { return Aggregate::type()->as<Sigma>(); }

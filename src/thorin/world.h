@@ -165,25 +165,26 @@ public:
 
     // aggregate operations
 
-    const Def* definite_array(const Def* elem, Defs args, Debug dbg = {}) {
-        return try_fold_aggregate(unify(new DefiniteArray(*this, elem, args, dbg)));
+    const Def* definite_array(const Def* elem, Defs ops, Debug dbg = {}) {
+        return try_fold_aggregate(unify(new DefiniteArray(*this, elem, ops, dbg)));
     }
     /// Create definite_array with at least one element. The type of that element is the element type of the definite array.
-    const Def* definite_array(Defs args, Debug dbg = {}) {
-        assert(!args.empty());
-        return definite_array(args.front()->type(), args, dbg);
+    const Def* definite_array(Defs ops, Debug dbg = {}) {
+        assert(!ops.empty());
+        return definite_array(ops.front()->type(), ops, dbg);
     }
     const Def* indefinite_array(const Def* elem, const Def* dim, Debug dbg = {}) {
         return unify(new IndefiniteArray(*this, elem, dim, dbg));
     }
-    const Def* tuple(Defs args, Debug dbg = {}) { return args.size() == 1 ? args.front() : try_fold_aggregate(unify(new Tuple(*this, args, dbg))); }
+    const Def* tuple(const Def* type, Defs ops, Debug dbg = {});
+    const Def* tuple(Defs ops, Debug dbg = {});
     const Def* variant(const VariantType* variant_type, const Def* value, Debug dbg = {}) { return unify(new Variant(variant_type, value, dbg)); }
-    const Def* vector(Defs args, Debug dbg = {}) {
-        if (args.size() == 1) return args[0];
-        return try_fold_aggregate(unify(new Vector(*this, args, dbg)));
+    const Def* vector(Defs ops, Debug dbg = {}) {
+        if (ops.size() == 1) return ops[0];
+        return try_fold_aggregate(unify(new Vector(*this, ops, dbg)));
     }
-    /// Splats \p arg to create a \p Vector with \p length.
-    const Def* splat(const Def* arg, size_t length = 1, Debug dbg = {});
+    /// Splats \p op to create a \p Vector with \p length.
+    const Def* splat(const Def* op, size_t length = 1, Debug dbg = {});
     const Def* extract(const Def* tuple, const Def* index, Debug dbg = {});
     const Def* extract(const Def* tuple, u32 index, Debug dbg = {}) {
         return extract(tuple, literal_qu32(index, dbg), dbg);
@@ -233,8 +234,8 @@ public:
     Lam* branch() const { return branch_; }
     Lam* match(const Def* type, size_t num_patterns);
     Lam* end_scope() const { return end_scope_; }
-    const Def* app(const Def* callee, const Def* arg, Debug dbg = {});
-    const Def* app(const Def* callee, Defs args, Debug dbg = {}) { return app(callee, tuple(args), dbg); }
+    const Def* app(const Def* callee, const Def* op, Debug dbg = {});
+    const Def* app(const Def* callee, Defs ops, Debug dbg = {}) { return app(callee, tuple(ops), dbg); }
 
     /// Performs dead code, unreachable code and unused type elimination.
     void cleanup();

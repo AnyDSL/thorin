@@ -34,18 +34,6 @@ IndefiniteArray::IndefiniteArray(World& world, const Def* elem, const Def* dim, 
     : Aggregate(Node_IndefiniteArray, world.indefinite_array_type(elem), {dim}, dbg)
 {}
 
-static const Def* infer_sigma(World& world, Defs ops) {
-    Array<const Def*> elems(ops.size());
-    for (size_t i = 0, e = ops.size(); i != e; ++i)
-        elems[i] = ops[i]->type();
-
-    return world.sigma(elems);
-}
-
-Tuple::Tuple(World& world, Defs args, Debug dbg)
-    : Aggregate(Node_Tuple, infer_sigma(world, args), args, dbg)
-{}
-
 static const Def* infer_vector_type(World& world, Defs args) {
     if (auto primtype = args.front()->type()->isa<PrimType>()) {
         assert(primtype->length() == 1);

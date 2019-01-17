@@ -64,6 +64,26 @@ const Def* World::sigma(const Def* type, Defs ops, Debug dbg) {
     return ops.size() == 1 ? ops.front() : unify(new Sigma(type, ops, dbg));
 }
 
+static const Def* infer_sigma(World& world, Defs ops) {
+    Array<const Def*> elems(ops.size());
+    for (size_t i = 0, e = ops.size(); i != e; ++i)
+        elems[i] = ops[i]->type();
+
+    return world.sigma(elems);
+}
+
+const Def* World::tuple(Defs ops, Debug dbg) {
+    return tuple(infer_sigma(*this, ops), ops, dbg);
+}
+
+const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
+#if THORIN_ENABLE_CHECKS
+    // TODO type-check type vs inferred type
+#endif
+    if (type->is_nominal()) return unify(new Tuple(type, ops, dbg));
+    return ops.size() == 1 ? ops.front() : try_fold_aggregate(unify(new Tuple(type, ops, dbg)));
+}
+
 /*
  * literals
  */
@@ -501,7 +521,7 @@ const Def* World::convert(const Def* dst_type, const Def* src, Debug dbg) {
         for (size_t i = 0, e = new_tuple.size(); i != e; ++i)
             new_tuple[i] = convert(dst_type->op(i), extract(src, i, dbg), dbg);
 
-        return tuple(new_tuple, dbg);
+        return tuple(dst_sigma, new_tuple, dbg);
     }
 
     return cast(dst_type, src, dbg);
@@ -729,7 +749,7 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, Deb
             size_t i = 0;
             for (auto type : sigma->ops())
                 args[i++] = agg->isa<Bottom>() ? bottom(type, dbg) : top(type, dbg);
-            agg = tuple(args, dbg);
+            agg = tuple(sigma, args, dbg);
         }
     }
 

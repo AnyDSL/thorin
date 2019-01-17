@@ -158,7 +158,7 @@ const Def* Select ::rebuild(World& to, const Def*  , Defs ops) const { return to
 const Def* SizeOf ::rebuild(World& to, const Def*  , Defs ops) const { return to.size_of(ops[0]->type(), debug()); }
 const Def* Slot   ::rebuild(World& to, const Def* t, Defs ops) const { return to.slot(t->as<PtrType>()->pointee(), ops[0], debug()); }
 const Def* Store  ::rebuild(World& to, const Def*  , Defs ops) const { return to.store(ops[0], ops[1], ops[2], debug()); }
-const Def* Tuple  ::rebuild(World& to, const Def*  , Defs ops) const { return to.tuple(ops, debug()); }
+const Def* Tuple  ::rebuild(World& to, const Def* t, Defs ops) const { return to.tuple(t, ops, debug()); }
 const Def* Variant::rebuild(World& to, const Def* t, Defs ops) const { return to.variant(t->as<VariantType>(), ops[0], debug()); }
 const Def* Vector ::rebuild(World& to, const Def*  , Defs ops) const { return to.vector(ops, debug()); }
 

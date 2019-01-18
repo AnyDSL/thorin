@@ -62,6 +62,8 @@ set(THORIN_SOURCES
     transform/lift_builtins.h
     transform/mangle.cpp
     transform/mangle.h
+    transform/mpi_type.cpp
+    transform/mpi_type.h
     transform/resolve_loads.cpp
     transform/resolve_loads.h
     transform/mem2reg.cpp

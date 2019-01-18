@@ -19,6 +19,7 @@
 #include "thorin/transform/inliner.h"
 #include "thorin/transform/lift_builtins.h"
 #include "thorin/transform/mem2reg.h"
+#include "thorin/transform/mpi_type.h"
 #include "thorin/transform/partial_evaluation.h"
 #include "thorin/transform/split_slots.h"
 #include "thorin/util/array.h"
@@ -1023,6 +1024,7 @@ void World::opt() {
     dead_load_opt(*this);
     cleanup();
     deep_copy(*this);
+    mpi_type(*this);
     codegen_prepare(*this);
     rewrite_flow_graphs(*this);
 }

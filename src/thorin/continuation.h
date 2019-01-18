@@ -84,7 +84,8 @@ enum class Intrinsic : uint8_t {
     CmpXchg,                    ///< Intrinsic cmpxchg function
     Undef,                      ///< Intrinsic undef function
     Branch,                     ///< branch(cond, T, F).
-    DeepCopy,                   ///< deep_copy: cn(mem, T*, cn(M, T*))
+    DeepCopy,                   ///< deep_copy: cn(mem, T*, T*, cn(M))
+    MpiType,                    ///< mpi_type: cn(mem, T*, MPI_Datatype, cn(M))
     Match,                      ///< match(val, otherwise, (case1, cont1), (case2, cont2), ...)
     PeInfo,                     ///< Partial evaluation debug info.
     EndScope,                   ///< Dummy function which marks the end of a @p Scope.

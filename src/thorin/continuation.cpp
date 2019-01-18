@@ -196,6 +196,7 @@ void Continuation::set_intrinsic() {
     else if (name() == "atomic")               intrinsic_ = Intrinsic::Atomic;
     else if (name() == "cmpxchg")              intrinsic_ = Intrinsic::CmpXchg;
     else if (name() == "deep_copy")            intrinsic_ = Intrinsic::DeepCopy;
+    else if (name() == "mpi_type")             intrinsic_ = Intrinsic::MpiType;
     else if (name() == "undef")                intrinsic_ = Intrinsic::Undef;
     else ELOG("unsupported thorin intrinsic");
 }

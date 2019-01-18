@@ -47,6 +47,38 @@ World::~World() {
 const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
     auto pi = callee->type()->as<Pi>();
     assertf(pi->domain() == arg->type(), "'{}' is if of type '{}' but calls '{}' of type '{}'\n", callee, pi, arg, arg->type());
+
+    if (auto lam = callee->isa<Lam>()) {
+        switch (lam->intrinsic()) {
+            case Intrinsic::Branch: {
+                auto cond = extract(arg, 0_s);
+                auto t    = extract(arg, 1_s);
+                auto f    = extract(arg, 2_s);
+                if (auto lit = cond->isa<PrimLit>())
+                    return app(lit->value().get_bool() ? t : f, Defs{}, dbg);
+                if (t == f)
+                    return app(t, Defs{}, dbg);
+                if (is_not(cond))
+                    return branch(cond->as<ArithOp>()->rhs(), f, t, dbg);
+                break;
+            }
+            case Intrinsic::Match: {
+                auto args = arg->as<Tuple>()->ops();
+                if (args.size() == 2) return app(args[1], Defs{}, dbg);
+                if (auto lit = args[0]->isa<PrimLit>()) {
+                    for (size_t i = 2; i < args.size(); i++) {
+                        if (extract(args[i], 0_s)->as<PrimLit>() == lit)
+                            return app(extract(args[i], 1), Defs{}, dbg);
+                    }
+                    return app(args[1], Defs{}, dbg);
+                }
+                break;
+            }
+            default:
+                break;
+        }
+    }
+
     return unify(new App(pi->codomain(), callee, arg, dbg));
 }
 

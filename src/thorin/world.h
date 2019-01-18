@@ -236,6 +236,7 @@ public:
     Lam* end_scope() const { return end_scope_; }
     const Def* app(const Def* callee, const Def* op, Debug dbg = {});
     const Def* app(const Def* callee, Defs ops, Debug dbg = {}) { return app(callee, tuple(ops), dbg); }
+    const Def* branch(const Def* cond, const Def* t, const Def* f, Debug dbg = {}) { return app(branch(), {cond, t, f}, dbg); }
 
     /// Performs dead code, unreachable code and unused type elimination.
     void cleanup();

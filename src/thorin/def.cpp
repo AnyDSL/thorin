@@ -424,49 +424,12 @@ void Lam::set_intrinsic() {
 
 bool Lam::is_basicblock() const { return type()->is_basicblock(); }
 bool Lam::is_returning() const { return type()->is_returning(); }
-
-void Lam::app(const Def* callee, Defs args, Debug dbg) {
-    app(callee, world().tuple(args), dbg);
-}
+void Lam::branch(const Def* cond, const Def* t, const Def* f, Debug dbg) { return app(world().branch(), {cond, t, f}, dbg); }
+void Lam::app(const Def* callee, Defs args, Debug dbg) { app(callee, world().tuple(args), dbg); }
 
 void Lam::app(const Def* callee, const Def* arg, Debug dbg) {
     assert(is_nominal());
-    if (auto lam = callee->isa<Lam>()) {
-        switch (lam->intrinsic()) {
-            case Intrinsic::Branch: {
-                auto cond = world().extract(arg, 0_s);
-                auto t    = world().extract(arg, 1_s);
-                auto f    = world().extract(arg, 2_s);
-                if (auto lit = cond->isa<PrimLit>())
-                    return app(lit->value().get_bool() ? t : f, Defs{}, dbg);
-                if (t == f)
-                    return app(t, Defs{}, dbg);
-                if (is_not(cond))
-                    return branch(cond->as<ArithOp>()->rhs(), f, t, dbg);
-                break;
-            }
-            case Intrinsic::Match: {
-                auto args = arg->as<Tuple>()->ops();
-                if (args.size() == 2) return app(args[1], Defs{}, dbg);
-                if (auto lit = args[0]->isa<PrimLit>()) {
-                    for (size_t i = 2; i < args.size(); i++) {
-                        if (world().extract(args[i], 0_s)->as<PrimLit>() == lit)
-                            return app(world().extract(args[i], 1), Defs{}, dbg);
-                    }
-                    return app(args[1], Defs{}, dbg);
-                }
-                break;
-            }
-            default:
-                break;
-        }
-    }
-
-    Def::update(1, world().app(callee, arg, dbg));
-}
-
-void Lam::branch(const Def* cond, const Def* t, const Def* f, Debug dbg) {
-    return app(world().branch(), {cond, t, f}, dbg);
+    set_body(world().app(callee, arg, dbg));
 }
 
 void Lam::match(const Def* val, Lam* otherwise, Defs patterns, ArrayRef<Lam*> lams, Debug dbg) {

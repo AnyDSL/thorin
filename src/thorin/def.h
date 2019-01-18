@@ -556,8 +556,6 @@ private:
     {}
 
 public:
-    void set(size_t i, const Def* type) const { assert(is_nominal()); const_cast<Sigma*>(this)->Def::set(i, type); }
-
     const Def* rebuild(World& to, const Def*, Defs ops) const override;
     Sigma* stub(World&, const Def*) const override;
     std::ostream& stream(std::ostream&) const override;

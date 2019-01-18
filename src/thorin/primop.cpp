@@ -15,7 +15,9 @@ namespace thorin {
 PrimLit::PrimLit(World& world, PrimTypeTag tag, Box box, Debug dbg)
     : Literal((NodeTag) tag, world.type(tag), dbg)
     , box_(box)
-{}
+{
+    hash_ = hash_combine(hash_, bcast<uint64_t, Box>(value()));
+}
 
 Cmp::Cmp(CmpTag tag, const Def* lhs, const Def* rhs, Debug dbg)
     : BinOp((NodeTag) tag, lhs->world().type_bool(vector_length(lhs->type())), lhs, rhs, dbg)
@@ -80,6 +82,7 @@ SizeOf::SizeOf(const Def* def, Debug dbg)
 Slot::Slot(const Def* type, const Def* frame, Debug dbg)
     : PrimOp(Node_Slot, type->world().ptr_type(type), {frame}, dbg)
 {
+    hash_ = murmur3(gid()); // HACK
     assert(frame->type()->isa<FrameType>());
 }
 
@@ -87,6 +90,7 @@ Global::Global(const Def* init, bool is_mutable, Debug dbg)
     : PrimOp(Node_Global, init->world().ptr_type(init->type()), {init}, dbg)
     , is_mutable_(is_mutable)
 {
+    hash_ = murmur3(gid()); // HACK
     assert(is_const(init));
 }
 
@@ -110,15 +114,6 @@ Assembly::Assembly(const Def *type, Defs inputs, std::string asm_template, Array
     , clobbers_(clobbers)
     , flags_(flags)
 {}
-
-//------------------------------------------------------------------------------
-
-/*
- * hash
- */
-
-uint64_t PrimLit::vhash() const { return hash_combine(Literal::vhash(), bcast<uint64_t, Box>(value())); }
-uint64_t Slot::vhash() const { return hash_combine((int) tag(), gid()); }
 
 //------------------------------------------------------------------------------
 

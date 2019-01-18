@@ -57,7 +57,6 @@ public:
     std::ostream& stream(std::ostream&) const override;
 
 private:
-    uint64_t vhash() const override;
     bool equal(const Def* other) const override;
     const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
@@ -410,7 +409,6 @@ public:
     const Def* alloced_type() const { return type()->pointee(); }
 
 private:
-    uint64_t vhash() const override;
     bool equal(const Def* other) const override;
     const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
@@ -435,7 +433,6 @@ public:
     std::ostream& stream(std::ostream&) const override;
 
 private:
-    uint64_t vhash() const override { return murmur3(gid()); }
     bool equal(const Def* other) const override { return this == other; }
     const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
@@ -450,6 +447,7 @@ protected:
     MemOp(NodeTag tag, const Def* type, Defs args, Debug dbg)
         : PrimOp(tag, type, args, dbg)
     {
+        hash_ = murmur3(gid()); // HACK
         assert(mem()->type()->isa<MemType>());
         assert(args.size() >= 1);
     }
@@ -459,7 +457,6 @@ public:
     const Def* out_mem() const { return has_multiple_outs() ? out(0) : this; }
 
 private:
-    uint64_t vhash() const override { return murmur3(gid()); }
     bool equal(const Def* other) const override { return this == other; }
 };
 

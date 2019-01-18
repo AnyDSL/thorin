@@ -521,23 +521,6 @@ FrameType::FrameType(World& world)
 {}
 
 /*
- * hash
- */
-
-uint64_t Def::vhash() const {
-    if (is_nominal())
-        return murmur3(gid());
-
-    uint64_t seed = hash_combine(hash_begin((uint16_t) tag()), type()->gid());
-    for (auto op : ops())
-        seed = hash_combine(seed, op->gid());
-    return seed;
-}
-
-uint64_t PtrType::vhash() const { return hash_combine(VectorType::vhash(), (uint64_t)device(), (uint64_t)addr_space()); }
-uint64_t Var::vhash() const { return hash_combine(Def::vhash(), index()); }
-
-/*
  * equal
  */
 

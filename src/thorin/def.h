@@ -123,7 +123,11 @@ protected:
         , ops_(ops)
         , type_(type)
         , debug_(dbg)
-    {}
+    {
+        hash_ = hash_combine(hash_begin((uint16_t) tag), type->gid());
+        for (auto op : ops_)
+            hash_ = hash_combine(hash_, op->gid());
+    }
     /// Constructor for a @em nominal Def.
     Def(NodeTag tag, const Def* type, size_t size, Debug dbg)
         : gid_(gid_counter_++)
@@ -135,6 +139,7 @@ protected:
         , ops_(size)
         , type_(type)
         , debug_(dbg)
+        , hash_(murmur3(gid()))
     {}
     virtual ~Def() {}
 
@@ -174,6 +179,7 @@ public:
     bool contains_lam() const { return contains_lam_; }
     bool is_nominal() const { return nominal_; }
     unsigned order() const { assert(!is_term()); return order_; }
+    uint64_t hash() const { return hash_; }
     //@}
 
     Lam* as_lam() const;
@@ -200,7 +206,6 @@ public:
     virtual Def* stub(World&, const Def*) const { THORIN_UNREACHABLE; }
     //@}
 
-    virtual uint64_t vhash() const;
     virtual bool equal(const Def* other) const;
     virtual const char* op_name() const;
     virtual std::ostream& stream(std::ostream&) const;
@@ -228,10 +233,8 @@ private:
     mutable Uses uses_;
     mutable Debug debug_;
 
-private:
-    uint64_t hash() const { return hash_ == 0 ? hash_ = vhash() : hash_; }
-
-    mutable uint64_t hash_ = 0;
+protected:
+    uint64_t hash_;
 
     friend struct DefHash;
     friend class Cleaner;
@@ -298,14 +301,15 @@ private:
     Var(const Def* type, u64 index, Debug dbg)
         : Def(Node_Var, type, Defs{}, dbg)
         , index_(index)
-    {}
+    {
+        hash_ = hash_combine(hash_, index);
+    }
 
 public:
     u64 index() const { return index_; }
     std::ostream& stream(std::ostream&) const override;
 
 private:
-    uint64_t vhash() const override;
     bool equal(const Def*) const override;
     virtual const Def* rebuild(World&, const Def*, Defs) const;
 
@@ -614,9 +618,10 @@ protected:
     VectorType(int tag, const Def* type, Defs ops, size_t length, Debug dbg)
         : Def((NodeTag)tag, type, ops, dbg)
         , length_(length)
-    {}
+    {
+        hash_ = hash_combine(hash_, length);
+    }
 
-    uint64_t vhash() const override { return hash_combine(Def::vhash(), length()); }
     bool equal(const Def* other) const override {
         return Def::equal(other) && this->length() == other->as<VectorType>()->length();
     }
@@ -663,7 +668,7 @@ inline bool is_type_i   (const Def* t) { return thorin::is_type_i  (t->tag()); }
 inline bool is_type_f   (const Def* t) { return thorin::is_type_f  (t->tag()); }
 inline bool is_type_bool(const Def* t) { return t->tag() == Node_PrimType_bool; }
 
-enum class AddrSpace : uint32_t {
+enum class AddrSpace : uint8_t {
     Generic  = 0,
     Global   = 1,
     Texture  = 2,
@@ -674,28 +679,28 @@ enum class AddrSpace : uint32_t {
 /// Pointer type.
 class PtrType : public VectorType {
 private:
-    PtrType(const Def* type, const Def* pointee, size_t length, int32_t device, AddrSpace addr_space, Debug dbg)
+    PtrType(const Def* type, const Def* pointee, size_t length, int8_t device, AddrSpace addr_space, Debug dbg)
         : VectorType(Node_PtrType, type, {pointee}, length, dbg)
         , addr_space_(addr_space)
         , device_(device)
-    {}
+    {
+        hash_ = hash_combine(hash_, (int8_t)device, (uint8_t)addr_space);
+    }
 
 public:
     const Def* pointee() const { return op(0); }
     AddrSpace addr_space() const { return addr_space_; }
-    int32_t device() const { return device_; }
+    int8_t device() const { return device_; }
     bool is_host_device() const { return device_ == -1; }
 
-    uint64_t vhash() const override;
     bool equal(const Def* other) const override;
-
     std::ostream& stream(std::ostream&) const override;
 
 private:
     const Def* rebuild(World& to, const Def*, Defs ops) const override;
 
     AddrSpace addr_space_;
-    int32_t device_;
+    int8_t device_;
 
     friend class World;
 };
@@ -729,10 +734,11 @@ public:
     DefiniteArrayType(const Def* type, const Def* elem_type, u64 dim, Debug dbg)
         : ArrayType(Node_DefiniteArrayType, type, elem_type, dbg)
         , dim_(dim)
-    {}
+    {
+        hash_ = hash_combine(hash_, dim);
+    }
 
     u64 dim() const { return dim_; }
-    uint64_t vhash() const override { return hash_combine(Def::vhash(), dim()); }
     bool equal(const Def* other) const override {
         return Def::equal(other) && this->dim() == other->as<DefiniteArrayType>()->dim();
     }

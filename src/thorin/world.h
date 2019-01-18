@@ -97,7 +97,7 @@ public:
     const MemType* mem_type() const { return mem_; }
     const FrameType* frame_type() const { return frame_; }
     const PtrType* ptr_type(const Def* pointee,
-                            size_t length = 1, int32_t device = -1, AddrSpace addr_space = AddrSpace::Generic, Debug dbg = {}) {
+                            size_t length = 1, int8_t device = -1, AddrSpace addr_space = AddrSpace::Generic, Debug dbg = {}) {
         return unify(new PtrType(star(), pointee, length, device, addr_space, dbg));
     }
     ///@defgroup @p Pi%s

@@ -1212,7 +1212,7 @@ static void get_kernel_configs(Importer& importer,
             return false;
         }, true);
 
-        lam->destroy_body();
+        lam->destroy();
     }
 }
 

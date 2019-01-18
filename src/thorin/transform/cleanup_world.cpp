@@ -112,7 +112,7 @@ void Cleaner::eta_conversion() {
                     for (size_t i = 0, e = lam->num_args(); i != e; ++i)
                         callee->param(i)->replace(lam->arg(i));
                     lam->jump(callee->callee(), callee->args(), callee->jump_debug());
-                    callee->destroy_body();
+                    callee->destroy();
                     todo_ = todo = true;
                 } else
                     break;
@@ -126,7 +126,7 @@ void Cleaner::eta_conversion() {
 
                 if (lam->arg() == lam->param()) {
                     lam->replace(lam->callee());
-                    lam->destroy_body();
+                    lam->destroy();
                     todo_ = todo = true;
                     continue;
                 }
@@ -214,7 +214,7 @@ void Cleaner::eliminate_params() {
                     nlam->set_filter(world().tuple(new_filter));
                 }
                 nlam->jump(olam->callee(), olam->args(), olam->jump_debug());
-                olam->destroy_body();
+                olam->destroy();
 
                 for (auto use : olam->copy_uses()) {
                     auto ulam = use->as_lam();

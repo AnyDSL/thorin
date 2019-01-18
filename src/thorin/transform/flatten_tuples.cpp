@@ -206,7 +206,7 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
 
             def->replace(old_lam);
             if (auto lam = def->isa_lam())
-                lam->destroy_body();
+                lam->destroy();
         }
     }
 

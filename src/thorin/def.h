@@ -120,13 +120,10 @@ protected:
         , dependent_(false)
         , contains_lam_(tag == Node_Lam)
         , order_(tag == Node_Pi ? 1 : 0)
-        , ops_(ops.size())
+        , ops_(ops)
         , type_(type)
         , debug_(dbg)
-    {
-        for (size_t i = 0, e = ops.size(); i != e; ++i)
-            set(i, ops[i]);
-    }
+    {}
     /// Constructor for a @em nominal Def.
     Def(NodeTag tag, const Def* type, size_t size, Debug dbg)
         : gid_(gid_counter_++)
@@ -140,9 +137,6 @@ protected:
         , debug_(dbg)
     {}
     virtual ~Def() {}
-
-    void unregister_use(size_t i) const;
-    void unregister_uses() const;
 
 public:
     enum class Sort {
@@ -171,12 +165,8 @@ public:
 
     /// @defgroup setters
     //@{
-    void set(Defs);
     void set(size_t i, const Def* def);
-    void unset();
     void unset(size_t i);
-    void update(Defs defs) { unset(); set(defs); }
-    void update(size_t i, const Def* def) { unset(i); set(i, def); }
     //@}
 
     /// @defgroup misc getters
@@ -218,6 +208,8 @@ public:
     static size_t gid_counter() { return gid_counter_; }
 
 private:
+    void finalize();
+
     static uint32_t gid_counter_;
 
     uint32_t gid_;
@@ -422,11 +414,9 @@ public:
     //@}
 
     //@{ setters
-    void set_filter(const Def* filter) { update(0, filter); }
+    void set_filter(const Def* filter) { set(0, filter); }
     void set_filter(Defs filter);
-    void set_all_true_filter();
-    void set_body(const Def* body) { update(1, body); }
-    void destroy_filter();
+    void set_body(const Def* body) { set(1, body); }
     //@}
 
     //@{ type
@@ -453,7 +443,6 @@ public:
     bool is_returning() const;
     bool is_intrinsic() const;
     bool is_accelerator() const;
-    void destroy_body();
 
     std::ostream& stream_head(std::ostream&) const;
     std::ostream& stream_body(std::ostream&) const;
@@ -466,6 +455,7 @@ public:
     void app(const Def* callee, Defs args, Debug dbg = {});
     void branch(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
     void match(const Def* val, Lam* otherwise, Defs patterns, ArrayRef<Lam*> lams, Debug dbg = {});
+    void destroy();
 
 private:
     CC cc_;

@@ -102,7 +102,7 @@ const Def* Mangler::mangle(const Def* old_def) {
 
     if (new_def) {
         for (size_t i = 0; i != size; ++i)
-            const_cast<Def*>(new_def)->update(i, new_ops[i]); // TODO use set_op here
+            const_cast<Def*>(new_def)->set(i, new_ops[i]);
         if (auto olam = old_def->isa<Lam>()) { // TODO do sth smarter here
             if (olam->is_external())
                 new_def->as_lam()->make_external();

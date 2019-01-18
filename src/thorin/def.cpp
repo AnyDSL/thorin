@@ -167,9 +167,22 @@ Debug Def::debug_history() const {
 #endif
 }
 
+void Def::finalize() {
+    for (size_t i = 0, e = num_ops(); i != e; ++i) {
+        auto op = ops_[i];
+        assert(op != nullptr);
+        contains_lam_ |= op->contains_lam();
+        order_ = std::max(order_, op->order_);
+        const auto& p = op->uses_.emplace(i, this);
+        assert_unused(p.second);
+    }
+}
+
 void Def::set(size_t i, const Def* def) {
-    assert(!op(i) && "already set");
     assert(def && "setting null pointer");
+
+    if (ops_[i] != nullptr) unset(i);
+
     ops_[i] = def;
     contains_lam_ |= def->contains_lam();
     order_ = std::max(order_, def->order_);
@@ -177,21 +190,11 @@ void Def::set(size_t i, const Def* def) {
     assert_unused(p.second);
 }
 
-void Def::unregister_uses() const {
-    for (size_t i = 0, e = num_ops(); i != e; ++i)
-        unregister_use(i);
-}
-
-void Def::unregister_use(size_t i) const {
+void Def::unset(size_t i) {
     auto def = ops_[i];
     assert(def->uses_.contains(Use(i, this)));
     def->uses_.erase(Use(i, this));
     assert(!def->uses_.contains(Use(i, this)));
-}
-
-void Def::unset(size_t i) {
-    assert(ops_[i] && "must be set");
-    unregister_use(i);
     ops_[i] = nullptr;
 }
 
@@ -210,7 +213,7 @@ void Def::replace(Tracker with) const {
         for (auto& use : copy_uses()) {
             auto def = const_cast<Def*>(use.def());
             auto index = use.index();
-            def->update(index, with);
+            def->set(index, with);
         }
 
         uses_.clear();
@@ -274,6 +277,11 @@ Array<const Def*> App::args() const {
  * Lam
  */
 
+void Lam::destroy() {
+    set_filter(world().tuple(Array<const Def*>(type()->num_domains(), world().literal_bool(false))));
+    set_body  (world().bottom(type()->codomain()));
+}
+
 const Param* Lam::param(Debug dbg) const { return world().param(this->as_lam(), dbg); }
 bool Lam::is_empty() const { return body()->isa<Top>(); }
 void Lam::set_filter(Defs filter) { set_filter(world().tuple(filter)); }
@@ -324,15 +332,6 @@ const Def* Lam::ret_param() const {
         }
     }
     return result;
-}
-
-void Lam::destroy_filter() {
-    update(0, world().literal_bool(false));
-}
-
-void Lam::destroy_body() {
-    update(0, world().literal_bool(false));
-    update(1, world().top(type()->codomain()));
 }
 
 Lams Lam::preds() const {
@@ -543,8 +542,7 @@ Lam::Lam(const Pi* pi, CC cc, Intrinsic intrinsic, Debug dbg)
     , cc_(cc)
     , intrinsic_(intrinsic)
 {
-    set(0, world().literal_bool(false));
-    set(1, world().top(pi->codomain()));
+    destroy();
 }
 
 PrimType::PrimType(World& world, PrimTypeTag tag, size_t length, Debug dbg)

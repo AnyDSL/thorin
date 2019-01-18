@@ -308,7 +308,7 @@ private:
     }
 
     template<class T>
-    const T* unify(const T* def) {
+    const T* unify(T* def) {
 
 #ifndef NDEBUG
         if (breakpoints_.contains(def->gid())) THORIN_BREAK;
@@ -316,11 +316,10 @@ private:
         assert(!def->is_nominal());
         auto&& p = defs_.emplace(def);
         if (p.second) {
-            //def->finalize();
+            def->finalize();
             return static_cast<const T*>(def);
         }
 
-        def->unregister_uses();
         delete def;
         return static_cast<const T*>(*p.first);
     }

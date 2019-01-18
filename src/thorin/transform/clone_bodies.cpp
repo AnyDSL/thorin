@@ -23,7 +23,7 @@ void clone_bodies(World& world) {
             } else {
                 auto nlam = clone(scope);
                 if (auto ulam = use->isa_lam())
-                    ulam->update(use.index(), nlam);
+                    ulam->set(use.index(), nlam);
                 else {
                     auto primop = use->as<PrimOp>();
                     Array<const Def*> nops(primop->num_ops());

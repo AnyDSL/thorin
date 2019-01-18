@@ -19,7 +19,6 @@ Importer::Importer(World& src)
 
 const Def* Importer::import(Tracker odef) {
     if (auto ndef = find(old2new_, odef)) {
-        assert(&ndef->world() == &world_);
         assert(!ndef->is_replaced());
         return ndef;
     }
@@ -34,10 +33,8 @@ const Def* Importer::import(Tracker odef) {
 
     size_t size = odef->num_ops();
     Array<const Def*> nops(size);
-    for (size_t i = 0; i != size; ++i) {
+    for (size_t i = 0; i != size; ++i)
         nops[i] = import(odef->op(i));
-        assert(&nops[i]->world() == &world());
-    }
 
     if (ndef) {
         for (size_t i = 0; i != size; ++i)

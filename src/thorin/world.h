@@ -286,13 +286,15 @@ public:
 
 #define THORIN_ALL_TYPE(T, M) \
         swap(w1.T##_,       w2.T##_);
-
 #include "thorin/tables/primtypetable.h"
 
 #if THORIN_ENABLE_CHECKS
         swap(w1.breakpoints_,   w2.breakpoints_);
         swap(w1.track_history_, w2.track_history_);
 #endif
+        swap(w1.universe_->world_, w2.universe_->world_);
+        assert(&w1.universe()->world() == &w1);
+        assert(&w2.universe()->world() == &w2);
     }
 
 private:
@@ -310,7 +312,6 @@ private:
 
     template<class T>
     const T* unify(T* def) {
-
 #ifndef NDEBUG
         if (breakpoints_.contains(def->gid())) THORIN_BREAK;
 #endif
@@ -325,7 +326,7 @@ private:
         return static_cast<const T*>(*p.first);
     }
 
-    std::string name_;
+    std::string name_; // TODO use Debug instead
     LamSet externals_;
     DefSet defs_;
     bool pe_done_ = false;
@@ -333,7 +334,7 @@ private:
     Breakpoints breakpoints_;
     bool track_history_ = false;
 #endif
-    const Universe* universe_;
+    Universe* universe_;
     const Kind* star_;
     const Sigma* sigma_;
     const Bottom* bottom_;

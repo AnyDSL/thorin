@@ -246,7 +246,7 @@ void Cleaner::rebuild() {
 }
 
 void Cleaner::verify_closedness() {
-    auto check = [&](const Def* def) {
+    for (auto def : world().defs()) {
         size_t i = 0;
         for (auto op : def->ops()) {
             within(op);
@@ -257,10 +257,7 @@ void Cleaner::verify_closedness() {
             within(use);
             assert(use->op(use.index()) == def && "use doesn't point to def");
         }
-    };
-
-    for (auto def : world().defs())
-        check(def);
+    }
 }
 
 void Cleaner::within(const Def* def) {

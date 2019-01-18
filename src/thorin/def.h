@@ -238,6 +238,7 @@ private:
     friend class Scope;
     friend class Tracker;
     friend class World;
+    friend void swap(World&, World&);
 };
 
 class Universe : public Def {

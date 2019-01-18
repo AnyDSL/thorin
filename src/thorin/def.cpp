@@ -528,7 +528,7 @@ uint64_t Def::vhash() const {
     if (is_nominal())
         return murmur3(gid());
 
-    uint64_t seed = hash_combine(hash_begin((uint8_t) tag()), type()->gid());
+    uint64_t seed = hash_combine(hash_begin((uint16_t) tag()), type()->gid());
     for (auto op : ops())
         seed = hash_combine(seed, op->gid());
     return seed;
@@ -578,7 +578,7 @@ const Def* MemType            ::rebuild(World& to, const Def*  , Defs    ) const
 const Def* Param              ::rebuild(World& to, const Def*  , Defs ops) const { return to.param(ops[0]->as_lam(), debug()); }
 const Def* Pi                 ::rebuild(World& to, const Def*  , Defs ops) const { return to.pi(ops[0], ops[1], debug()); }
 const Def* PrimType           ::rebuild(World& to, const Def*  , Defs    ) const { return to.type(primtype_tag(), length(), debug()); }
-const Def* PtrType            ::rebuild(World& to, const Def*  , Defs ops) const { return to.ptr_type(ops.front(), length(), device(), addr_space()); }
+const Def* PtrType            ::rebuild(World& to, const Def*  , Defs ops) const { return to.ptr_type(ops[0], length(), device(), addr_space()); }
 const Def* Var                ::rebuild(World& to, const Def* t, Defs    ) const { return to.var(t, index(), debug()); }
 const Def* VariantType        ::rebuild(World& to, const Def*  , Defs ops) const { return to.variant_type(ops, debug()); }
 

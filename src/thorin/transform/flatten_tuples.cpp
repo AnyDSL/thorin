@@ -5,17 +5,16 @@
 
 #include <limits>
 
-#if 0
 namespace thorin {
 
 static Lam*   wrap_def(Def2Def&, Def2Def&, const Def*, const Pi*, size_t);
 static Lam* unwrap_def(Def2Def&, Def2Def&, const Def*, const Pi*, size_t);
 
 // Computes the type of the wrapped function
-static const Type* wrapped_type(const Pi* cn, size_t max_tuple_size) {
-    std::vector<const Type*> nops;
+static const Def* wrapped_type(const Pi* cn, size_t max_tuple_size) {
+    std::vector<const Def*> nops;
     for (auto op : cn->ops()) {
-        if (auto sigma = op->isa<TupleType>()) {
+        if (auto sigma = op->isa<Sigma>()) {
             if (sigma->num_ops() <= max_tuple_size) {
                 for (auto arg : sigma->ops())
                     nops.push_back(arg);
@@ -27,7 +26,7 @@ static const Type* wrapped_type(const Pi* cn, size_t max_tuple_size) {
             nops.push_back(op);
         }
     }
-    return cn->table().cn(nops);
+    return cn->world().cn(nops);
 }
 
 static Lam* app(Lam* lam, Array<const Def*>& args) {
@@ -86,7 +85,7 @@ static Lam* wrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* old_def, c
 
     for (size_t i = 0, j = 0, e = old_type->num_ops(); i != e; ++i) {
         auto op = old_type->op(i);
-        if (auto sigma = op->isa<TupleType>()) {
+        if (auto sigma = op->isa<Sigma>()) {
             if (sigma->num_ops() <= max_tuple_size) {
                 Array<const Def*> tuple_args(sigma->num_ops());
                 for (size_t k = 0, e = sigma->num_ops(); k != e; ++k)
@@ -139,7 +138,7 @@ static Lam* unwrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* new_def,
 
     for (size_t i = 0, j = 1, e = old_lam->num_params(); i != e; ++i) {
         auto param = old_lam->param(i);
-        if (auto sigma = param->type()->isa<TupleType>()) {
+        if (auto sigma = param->type()->isa<Sigma>()) {
             if (sigma->num_ops() <= max_tuple_size) {
                 for (size_t k = 0, e = sigma->num_ops(); k != e; ++k)
                     call_args[j++] = world.extract(param, k);
@@ -222,4 +221,3 @@ void flatten_tuples(World& world) {
 }
 
 }
-#endif

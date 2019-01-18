@@ -1076,14 +1076,14 @@ llvm::Type* CodeGen::convert(const Def* type) {
             llvm::Type* ret = nullptr;
             std::vector<llvm::Type*> domains;
             for (auto domain : cn->domains()) {
-                if (domain->isa<MemType>() || domain == world().unit()) continue;
+                if (domain->isa<MemType>() || domain == world().sigma()) continue;
                 auto cn = domain->isa<Pi>();
                 assert(cn->is_cn());
                 if (cn) {
                     assert(!ret && "only one 'return' supported");
                     std::vector<llvm::Type*> ret_types;
                     for (auto cn_domain : cn->domains()) {
-                        if (cn_domain->isa<MemType>() || cn_domain == world().unit()) continue;
+                        if (cn_domain->isa<MemType>() || cn_domain == world().sigma()) continue;
                         ret_types.push_back(convert(cn_domain));
                     }
                     if (ret_types.size() == 0)      ret = llvm::Type::getVoidTy(context_);

@@ -283,7 +283,7 @@ void Lam::destroy() {
 }
 
 const Param* Lam::param(Debug dbg) const { return world().param(this->as_lam(), dbg); }
-bool Lam::is_empty() const { return body()->isa<Top>(); }
+bool Lam::is_empty() const { return body()->isa<Bottom>(); }
 void Lam::set_filter(Defs filter) { set_filter(world().tuple(filter)); }
 
 size_t Lam::num_params() const {

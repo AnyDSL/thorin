@@ -1077,9 +1077,8 @@ llvm::Type* CodeGen::convert(const Def* type) {
             std::vector<llvm::Type*> domains;
             for (auto domain : cn->domains()) {
                 if (domain->isa<MemType>() || domain == world().sigma()) continue;
-                auto cn = domain->isa<Pi>();
-                assert(cn->is_cn());
-                if (cn) {
+                if (auto cn = domain->isa<Pi>()) {
+                    assert(cn->is_cn());
                     assert(!ret && "only one 'return' supported");
                     std::vector<llvm::Type*> ret_types;
                     for (auto cn_domain : cn->domains()) {

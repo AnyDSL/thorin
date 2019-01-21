@@ -2,6 +2,6 @@
 
 namespace thorin {
 
-void flatten_tuples(World& world);
+void flatten_tuples(World& world) {}
 
 }

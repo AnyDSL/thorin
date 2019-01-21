@@ -5,6 +5,7 @@
 
 #include <limits>
 
+#if 0
 namespace thorin {
 
 static Lam*   wrap_def(Def2Def&, Def2Def&, const Def*, const Pi*, size_t);
@@ -221,3 +222,4 @@ void flatten_tuples(World& world) {
 }
 
 }
+#endif

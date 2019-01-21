@@ -983,7 +983,7 @@ void World::opt() {
     while (partial_evaluation(*this, true)); // lower2cff
     flatten_tuples(*this);
     clone_bodies(*this);
-    split_slots(*this);
+    //split_slots(*this);
     //closure_conversion(*this);
     lift_builtins(*this);
     inliner(*this);

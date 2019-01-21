@@ -46,7 +46,7 @@ World::~World() {
 
 const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
     auto pi = callee->type()->as<Pi>();
-    assertf(pi->domain() == arg->type(), "'{}' is if of type '{}' but calls '{}' of type '{}'\n", callee, pi, arg, arg->type());
+    assertf(pi->domain() == arg->type(), "callee '{}' expects an argument of type '{}' but the argument '{}' is of type '{}'\n", callee, pi->domain(), arg, arg->type());
 
     if (auto lam = callee->isa<Lam>()) {
         switch (lam->intrinsic()) {

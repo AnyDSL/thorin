@@ -244,7 +244,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
         for (auto param : entry_->params()) {
             if (is_mem(param) || is_unit(param)) {
                 params_[param] = nullptr;
-            } else if (param->order() == 0) {
+            } else if (param->type()->order() == 0) {
                 auto argv = &*arg;
                 auto value = map_param(fct, argv, param);
                 if (value == argv) {
@@ -398,7 +398,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                     std::vector<llvm::Value*> args;
                     const Def* ret_arg = nullptr;
                     for (auto arg : lam->app()->args()) {
-                        if (arg->order() == 0) {
+                        if (arg->type()->order() == 0) {
                             if (!is_mem(arg) && !is_unit(arg))
                                 args.push_back(lookup(arg));
                         } else {

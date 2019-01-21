@@ -74,14 +74,16 @@ void inliner(World& world) {
         bool dirty = false;
         for (auto n : scope.f_cfg().post_order()) {
             auto lam = n->lam();
-            if (auto callee = lam->app()->callee()->isa_lam()) {
-                if (callee == scope.entry())
-                    continue; // don't inline recursive calls
-                DLOG("callee: {}", callee);
-                if (auto callee_scope = is_candidate(callee)) {
-                    DLOG("- here: {}", lam);
-                    lam->app(drop(*callee_scope, lam->app()->args()), Defs{}, lam->app()->debug());
-                    dirty = true;
+            if (auto app = lam->app()) {
+                if (auto callee = app->callee()->isa_lam()) {
+                    if (callee == scope.entry())
+                        continue; // don't inline recursive calls
+                    DLOG("callee: {}", callee);
+                    if (auto callee_scope = is_candidate(callee)) {
+                        DLOG("- here: {}", lam);
+                        lam->app(drop(*callee_scope, app->args()), Defs{}, app->debug());
+                        dirty = true;
+                    }
                 }
             }
         }

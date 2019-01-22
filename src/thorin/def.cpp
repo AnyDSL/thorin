@@ -652,17 +652,15 @@ std::ostream& PrimType::stream(std::ostream& os) const {
 std::ostream& Def::stream(std::ostream& out) const { return out << unique_name(); }
 
 std::ostream& Def::stream_assignment(std::ostream& os) const {
-    return streamf(os, "{} {} = {} {}", type(), unique_name(), op_name(), stream_list(ops(), [&] (const Def* def) { os << def; })) << endl;
+    return streamf(os, "{}: {} = {} {}", unique_name(), type(), op_name(), stream_list(ops(), [&] (const Def* def) { os << def; })) << endl;
 }
 std::ostream& Lam::stream_head(std::ostream& os) const {
-    os << unique_name();
-    streamf(os, "{} {}", param()->type(), param());
-    if (is_external())
-        os << " extern ";
-    if (cc() == CC::Device)
-        os << " device ";
-    if (filter())
-        streamf(os, " @({})", filter());
+    if (type()->is_cn())
+        streamf(os, "cn {} {}: {} @({})", unique_name(), param(), param()->type(), filter());
+    else
+        streamf(os, "fn {} {}: {} -> {} @({})", unique_name(), param(), param()->type(), codomain(), filter());
+    if (is_external()) os << " extern";
+    if (cc() == CC::Device) os << " device";
     return os;
 }
 

@@ -13,7 +13,7 @@ static Lam* unwrap_def(Def2Def&, Def2Def&, const Def*, const Pi*, size_t);
 // Computes the type of the wrapped function
 static const Def* wrapped_type(const Pi* cn, size_t max_tuple_size) {
     std::vector<const Def*> nops;
-    for (auto op : cn->ops()) {
+    for (auto op : cn->domains()) {
         if (auto sigma = op->isa<Sigma>()) {
             if (sigma->num_ops() <= max_tuple_size) {
                 for (auto arg : sigma->ops())
@@ -26,7 +26,7 @@ static const Def* wrapped_type(const Pi* cn, size_t max_tuple_size) {
             nops.push_back(op);
         }
     }
-    return cn->world().cn(nops);
+    return cn->world().pi(nops, cn->codomain());
 }
 
 static Lam* app(Lam* lam, Array<const Def*>& args) {
@@ -83,8 +83,8 @@ static Lam* wrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* old_def, c
 
     wrapped.emplace(old_def, new_lam);
 
-    for (size_t i = 0, j = 0, e = old_type->num_ops(); i != e; ++i) {
-        auto op = old_type->op(i);
+    for (size_t i = 0, j = 0, e = old_type->num_domains(); i != e; ++i) {
+        auto op = old_type->domain(i);
         if (auto sigma = op->isa<Sigma>()) {
             if (sigma->num_ops() <= max_tuple_size) {
                 Array<const Def*> tuple_args(sigma->num_ops());
@@ -132,7 +132,7 @@ static Lam* unwrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* new_def,
     auto& world = new_def->world();
     auto new_type = new_def->type()->as<Pi>();
     auto old_lam = world.lam(old_type, new_def->debug());
-    Array<const Def*> call_args(new_type->num_ops() + 1);
+    Array<const Def*> call_args(new_type->num_domains() + 1);
 
     unwrapped.emplace(new_def, old_lam);
 
@@ -145,7 +145,7 @@ static Lam* unwrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* new_def,
             } else
                 call_args[j++] = param;
         } else if (auto cn = param->type()->isa<Pi>()) {
-            auto new_cn = new_type->op(j - 1)->as<Pi>();
+            auto new_cn = new_type->domain(j - 1)->as<Pi>();
             // no need to wrap if the types are identical
             if (cn != new_cn)
                 call_args[j++] = wrap_def(wrapped, unwrapped, param, new_cn, max_tuple_size);
@@ -198,7 +198,11 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
         auto wrapped_copy = wrapped;
         for (auto wrap_pair : wrapped_copy) {
             auto def = wrap_pair.first;
-            if (def->num_ops() == 0) continue;
+            if (auto lam = def->isa<Lam>()) {
+                // Already replaced in previous pass
+                if (lam->is_empty())
+                    continue;
+            }
 
             auto new_lam = wrap_pair.second->as_lam();
             auto old_lam = unwrap_def(wrapped, unwrapped, new_lam, def->type()->as<Pi>(), max_tuple_size);

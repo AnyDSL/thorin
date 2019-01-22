@@ -170,60 +170,67 @@ void Cleaner::eta_conversion() {
 
 void Cleaner::eliminate_params() {
 #if 0
-    for (auto olam : world().copy_lams()) {
+    for (auto old_lam : world().copy_lams()) {
         std::vector<size_t> proxy_idx;
         std::vector<size_t> param_idx;
 
-        if (!olam->is_empty() && !world().is_external(olam)) {
-            for (auto use : olam->uses()) {
-                if (use.index() != 0 || !use->isa_lam())
-                    goto next_lam;
+        auto old_app = old_lam->app();
+        old_lam->dump_head();
+        if (old_app == nullptr || world().is_external(old_lam)) continue;
+
+        for (auto use : old_lam->uses()) {
+            if (use->isa<Param>()) continue; // ignore old_lam's Param
+            if (use.index() != 0 || !use->isa<App>())
+                goto next_lam;
+        }
+
+        for (size_t i = 0, e = old_lam->num_params(); i != e; ++i) {
+            auto param = old_lam->param(i);
+            if (param->num_uses() == 0)
+                proxy_idx.push_back(i);
+            else
+                param_idx.push_back(i);
+        }
+
+        if (!proxy_idx.empty()) {
+            auto old_domain = old_lam->type()->domain();
+
+            const Def* new_domain;
+            if (auto sigma = old_domain->isa<Sigma>())
+                new_domain = world().sigma(sigma->ops().cut(proxy_idx));
+            else {
+                assert(proxy_idx.size() == 1 && proxy_idx[0] == 0);
+                new_domain = world().sigma();
             }
 
-            for (size_t i = 0, e = olam->num_params(); i != e; ++i) {
-                auto param = olam->param(i);
-                if (param->num_uses() == 0)
-                    proxy_idx.push_back(i);
-                else
-                    param_idx.push_back(i);
+            auto cn = world().cn(new_domain);
+            auto new_lam = world().lam(cn, old_lam->cc(), old_lam->intrinsic(), old_lam->debug_history());
+            size_t j = 0;
+            for (auto i : param_idx) {
+                old_lam->param(i)->replace(new_lam->param(j));
+                new_lam->param(j++)->debug() = old_lam->param(i)->debug_history();
             }
 
-            if (!proxy_idx.empty()) {
-                auto old_domain = olam->type()->domain();
-                const Type* new_domain;
-                if (auto sigma = old_domain->isa<TupleType>())
-                    new_domain = world().sigma(sigma->ops().cut(proxy_idx));
-                else {
-                    assert(proxy_idx.size() == 1 && proxy_idx[0] == 0);
-                    new_domain = world().sigma({});
-                }
-                auto cn = world().cn(new_domain);
-                auto nlam = world().lam(cn, olam->cc(), olam->intrinsic(), olam->debug_history());
-                size_t j = 0;
-                for (auto i : param_idx) {
-                    olam->param(i)->replace(nlam->param(j));
-                    nlam->param(j++)->debug() = olam->param(i)->debug_history();
-                }
+            if (old_lam->filter() != nullptr) {
+                Array<const Def*> new_filter(param_idx.size());
+                size_t i = 0;
+                for (auto j : param_idx)
+                    new_filter[i++] = old_lam->filter(param_idx[j]);
 
-                if (olam->filter() != nullptr) {
-                    Array<const Def*> new_filter(param_idx.size());
-                    size_t i = 0;
-                    for (auto j : param_idx)
-                        new_filter[i++] = olam->filter(param_idx[j]);
-
-                    nlam->set_filter(world().tuple(new_filter));
-                }
-                nlam->jump(olam->callee(), olam->args(), olam->jump_debug());
-                olam->destroy();
-
-                for (auto use : olam->copy_uses()) {
-                    auto ulam = use->as_lam();
-                    assert(use.index() == 0);
-                    ulam->jump(nlam, ulam->args().cut(proxy_idx), ulam->jump_debug());
-                }
-
-                todo_ = true;
+                new_lam->set_filter(world().tuple(new_filter));
             }
+            new_lam->app(old_app->callee(), old_app->args(), old_app->debug());
+            old_lam->destroy();
+
+            for (auto use : old_lam->copy_uses()) {
+                if (use->isa<Param>()) continue; // ignore old_lam's Param
+                auto use_app = use->as<App>();
+                assert(use.index() == 0);
+                use_app->replace(world().app(new_lam, use_app->args().cut(proxy_idx), use_app->debug()));
+                std::cout << "yes" << std::endl;
+            }
+
+            todo_ = true;
         }
 next_lam:;
     }

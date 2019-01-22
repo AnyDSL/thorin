@@ -79,7 +79,7 @@ static Lam* wrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* old_def, c
     auto& world = old_def->world();
     auto old_type = old_def->type()->as<Pi>();
     auto new_lam = world.lam(new_type, old_def->debug());
-    Array<const Def*> call_args(old_type->num_ops() + 1);
+    Array<const Def*> call_args(old_type->num_domains() + 1);
 
     wrapped.emplace(old_def, new_lam);
 

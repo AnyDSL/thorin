@@ -80,8 +80,6 @@ Lam* Mangler::mangle() {
 
 const Def* Mangler::mangle(const Def* old_def) {
     // TODO merge with importer
-    // TODO optimze for first-order recursive functions
-
     if (auto new_def = find(old2new_, old_def)) return new_def;
     if (!within(old_def)) return old_def;
 
@@ -103,11 +101,33 @@ const Def* Mangler::mangle(const Def* old_def) {
     if (new_def) {
         for (size_t i = 0; i != size; ++i)
             const_cast<Def*>(new_def)->set(i, new_ops[i]);
-        if (auto olam = old_def->isa<Lam>()) { // TODO do sth smarter here
-            if (olam->is_external())
-                new_def->as_lam()->make_external();
-        }
     } else {
+        // check whether we can optimize tail recursion
+        if (auto app = old_def->isa<App>()) {
+            assert(new_ops.size() == 2);
+
+            if (app->callee() == old_entry()) {
+                auto new_args = new_ops[1]->isa<Tuple>() ? new_ops[1]->as<Tuple>()->ops() : new_ops.skip_front();
+                assert(new_args.size() == args_.size());
+
+                std::vector<size_t> cut;
+                bool substitute = true;
+                for (size_t i = 0, e = args_.size(); i != e && substitute; ++i) {
+                    if (!args_[i]->isa<Top>()) {
+                        substitute &= args_[i] == new_args[i];
+                        cut.push_back(i);
+                    }
+                }
+
+                if (substitute) {
+                    // TODO lifting
+                    //const auto& args = concat(new_args.cut(cut), new_entry()->params().get_back(lift_.size()));
+                    auto args = new_args.cut(cut);
+                    return world().app(new_entry(), args, app->debug());
+                }
+            }
+        }
+
         new_def = old_def->rebuild(world(), new_type, new_ops);
         old2new_[old_def] = new_def;
     }

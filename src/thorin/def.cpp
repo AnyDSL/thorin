@@ -616,16 +616,17 @@ static std::ostream& stream_type_ops(std::ostream& os, const Def* type) {
 }
 
 std::ostream& App                ::stream(std::ostream& os) const { return streamf(os, "{} {}", callee(), arg()); }
-std::ostream& Bottom             ::stream(std::ostream& os) const { return streamf(os, "{{⊥: {}}}", type()); }
-std::ostream& DefiniteArrayType  ::stream(std::ostream& os) const { return streamf(os, "[{} x {}]", dim(), elem_type()); }
+std::ostream& DefiniteArrayType  ::stream(std::ostream& os) const { return streamf(os, "«{}; {}»", dim(), elem_type()); }
 std::ostream& FrameType          ::stream(std::ostream& os) const { return os << "frame"; }
-std::ostream& IndefiniteArrayType::stream(std::ostream& os) const { return streamf(os, "[{}]", elem_type()); }
+std::ostream& IndefiniteArrayType::stream(std::ostream& os) const { return streamf(os, "«⊤; {}»", elem_type()); }
 std::ostream& Kind               ::stream(std::ostream& os) const { return streamf(os, "*"); }
 std::ostream& MemType            ::stream(std::ostream& os) const { return os << "mem"; }
-std::ostream& Top                ::stream(std::ostream& os) const { return streamf(os, "{{⊤: {}}}", type()); }
 std::ostream& Universe           ::stream(std::ostream& os) const { return streamf(os, "□"); }
 std::ostream& Var                ::stream(std::ostream& os) const { return streamf(os, "<{}:{}>", index(), type()); }
 std::ostream& VariantType        ::stream(std::ostream& os) const { return stream_type_ops(os << "variant", this); }
+
+std::ostream& Bottom::stream(std::ostream& os) const { return type()->tag() == Node_Star ? os << "⊥" : streamf(os, "{{⊥: {}}}", type()); }
+std::ostream& Top   ::stream(std::ostream& os) const { return type()->tag() == Node_Star ? os << "⊤" : streamf(os, "{{⊤: {}}}", type()); }
 
 #if 0
 std::ostream& Lam::stream(std::ostream& os) const {

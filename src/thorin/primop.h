@@ -609,12 +609,6 @@ using PrimOpMap     = GIDMap<const PrimOp*, To>;
 using PrimOpSet     = GIDSet<const PrimOp*>;
 using PrimOp2PrimOp = PrimOpMap<const PrimOp*>;
 
-//------------------------------------------------------------------------------
-
-bool is_from_branch_or_match(const Def*);
-
-//------------------------------------------------------------------------------
-
 }
 
 #endif

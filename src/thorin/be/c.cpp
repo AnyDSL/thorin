@@ -458,8 +458,8 @@ void CCodeGen::emit() {
             for (auto def : block) {
                 if (def->type()->order() >= 1) {
                     // ignore higher-order primops which come from a match intrinsic
-                    if (is_from_branch_or_match(def))
-                        continue;
+                    // TODO see llvm.cpp
+                    //if (is_arg_of_app(def)) continue;
                     THORIN_UNREACHABLE;
                 }
 

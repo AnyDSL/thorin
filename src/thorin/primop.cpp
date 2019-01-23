@@ -297,18 +297,6 @@ const Def* Extract::extracted_type(const Def* agg, const Def* index) {
     }
 }
 
-bool is_from_branch_or_match(const Def* def) {
-    bool from_match = true;
-    for (auto& use : def->uses()) {
-        if (auto app = use.def()->isa<App>()) {
-            auto callee = app->callee()->isa<Lam>();
-            if (callee && (callee->intrinsic() == Intrinsic::Branch || callee->intrinsic() == Intrinsic::Match)) continue;
-        }
-        from_match = false;
-    }
-    return from_match;
-}
-
 //------------------------------------------------------------------------------
 
 }

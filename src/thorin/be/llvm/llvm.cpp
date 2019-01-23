@@ -308,6 +308,10 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                 auto j = params_.find(def);
                 if (j != params_.end()) continue;
 
+                if (is_tuple_arg_of_app(def)) continue;
+                if (is_from_branch_or_match(def)) continue;
+
+#if 0
                 // ignore tuple arguments for lams
                 if (auto tuple = def->isa<Tuple>()) {
                     bool ignore = false;
@@ -320,9 +324,10 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
 
                 if (def->type()->order() >= 1) {
                     // ignore higher-order defs which stem from a branch/match intrinsic
-                    if (is_from_branch_or_match(def)) continue;
+                    if (is_arg_of_app(def)) continue;
                     THORIN_UNREACHABLE;
                 }
+#endif
 
                 if (auto llvm_value = emit(def))
                     defs_[def] = llvm_value;

@@ -90,7 +90,7 @@ static Lam* wrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* old_def, c
                 Array<const Def*> tuple_args(sigma->num_ops());
                 for (size_t k = 0, e = sigma->num_ops(); k != e; ++k)
                     tuple_args[k] = new_lam->param(j++);
-                call_args[i + 1] = world.tuple(tuple_args);
+                call_args[i + 1] = world.tuple(sigma, tuple_args);
             } else
                 call_args[i + 1] = new_lam->param(j++);
         } else if (auto cn = op->isa<Pi>()) {

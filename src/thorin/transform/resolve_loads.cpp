@@ -65,8 +65,7 @@ public:
     const Def* process_use(const Def* mem_use, Def2Def& mapping) {
         if (auto load = mem_use->isa<Load>()) {
             // Try to find the slot corresponding to this load
-            auto slot = find_slot(load->ptr());
-            if (slot) {
+            if (auto slot = find_slot(load->ptr())) {
                 // If the slot has been found and is safe, try to find a value for it
                 auto slot_value = get_value(slot, mapping);
                 auto load_value = extract_from_slot(load->ptr(), slot_value, load->debug());
@@ -79,8 +78,7 @@ public:
             return load->out_mem();
         } else if (auto store = mem_use->isa<Store>()) {
             // Try to find the slot corresponding to this store
-            auto slot = find_slot(store->ptr());
-            if (slot) {
+            if (auto slot = find_slot(store->ptr())) {
                 // If the slot has been found and is safe, try to find a value for it
                 auto slot_value = get_value(slot, mapping);
                 auto stored_value = insert_to_slot(store->ptr(), slot_value, store->val(), store->debug());

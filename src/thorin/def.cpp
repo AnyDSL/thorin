@@ -176,6 +176,8 @@ void Def::finalize() {
         const auto& p = op->uses_.emplace(i, this);
         assert_unused(p.second);
     }
+
+    if (isa<Pi>()) ++order_;
 }
 
 void Def::set(size_t i, const Def* def) {

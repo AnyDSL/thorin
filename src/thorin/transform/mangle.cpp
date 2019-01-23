@@ -49,8 +49,8 @@ Lam* Mangler::mangle() {
     old2new_[old_entry()] = old_entry();
     for (size_t i = 0, j = 0, e = old_entry()->num_params(); i != e; ++i) {
         auto old_param = old_entry()->param(i);
-        if (auto def = args_[i])
-            old2new_[old_param] = def;
+        if (!args_[i]->isa<Top>())
+            old2new_[old_param] = args_[i];
         else {
             auto new_param = new_entry()->param(j++);
             old2new_[old_param] = new_param;

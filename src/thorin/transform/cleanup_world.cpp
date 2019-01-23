@@ -37,7 +37,6 @@ private:
 };
 
 void Cleaner::eliminate_tail_rec() {
-#if 0
     Scope::for_each(world_, [&](Scope& scope) {
         auto entry = scope.entry();
 
@@ -45,7 +44,7 @@ void Cleaner::eliminate_tail_rec() {
         bool recursive = false;
         for (auto use : entry->uses()) {
             if (scope.contains(use)) {
-                if (use.index() != 0 || !use->isa<Lam>()) {
+                if (use.index() != 0 || !use->isa<App>()) {
                     only_tail_calls = false;
                     break;
                 } else {
@@ -63,10 +62,12 @@ void Cleaner::eliminate_tail_rec() {
 
                 for (auto use : entry->uses()) {
                     if (scope.contains(use)) {
-                        auto arg = use->as_lam()->app()->arg(i);
-                        if (!arg->isa<Bottom>() && arg != args[i]) {
-                            args[i] = nullptr;
-                            break;
+                        if (auto app = use->isa<App>()) {
+                            auto arg = app->arg(i);
+                            if (!arg->isa<Bottom>() && arg != args[i]) {
+                                args[i] = world().top(arg->type());
+                                break;
+                            }
                         }
                     }
                 }
@@ -94,7 +95,6 @@ void Cleaner::eliminate_tail_rec() {
             }
         }
     });
-#endif
 }
 
 void Cleaner::eta_conversion() {

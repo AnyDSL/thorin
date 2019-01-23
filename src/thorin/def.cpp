@@ -109,10 +109,12 @@ std::vector<Peek> peek(const Def* param) {
     std::vector<Peek> peeks;
     size_t index = get_param_index(param);
     for (auto use : get_param_lam(param)->uses()) {
-        if (auto pred = use->isa_lam()) {
-            if (auto app = pred->app()) {
-                if (use.index() == 1) // is it an arg of pred?
-                    peeks.emplace_back(app->arg(index), pred);
+        if (auto app = use->isa<App>()) {
+            for (auto use : app->uses()) {
+                if (auto pred = use->isa_lam()) {
+                    if (pred->body() == app)
+                        peeks.emplace_back(app->arg(index), pred);
+                }
             }
         }
     }

@@ -13,8 +13,9 @@ public:
     bool resolve_loads() {
         todo_ = false;
 
-        Scope::for_each(world_, [&] (const Scope& scope) {
+        Scope::for_each(world_, [&] (Scope& scope) {
             resolve_loads(scope);
+            scope.update(); // TODO only updated when actually needed
         });
         // Remove slots that only have stores
         for (auto& pair : safe_slots_) {

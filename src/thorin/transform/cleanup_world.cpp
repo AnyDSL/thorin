@@ -217,12 +217,7 @@ void Cleaner::eliminate_params() {
                 new_lam->param(j++)->debug() = old_lam->param(i)->debug_history();
             }
 
-            Array<const Def*> new_filter(param_idx.size());
-            size_t i = 0;
-            for (auto j : param_idx)
-                new_filter[i++] = old_lam->filter(j);
-
-            new_lam->set_filter(new_filter);
+            new_lam->set_filter(old_lam->filters().cut(proxy_idx));
             new_lam->app(old_app->callee(), old_app->args(), old_app->debug());
             old_lam->destroy();
 

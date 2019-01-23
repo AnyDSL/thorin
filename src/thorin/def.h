@@ -329,9 +329,9 @@ public:
     const Def* codomain() const { return op(1); }
     const Def* is_cn() const { return codomain()->isa<Bottom>(); }
 
-    size_t num_domains() const;
-    Array<const Def*> domains() const;
     const Def* domain(size_t i) const;
+    Array<const Def*> domains() const;
+    size_t num_domains() const;
 
     bool is_basicblock() const { return order() == 1; }
     bool is_returning() const;
@@ -354,9 +354,9 @@ public:
     const Def* callee() const { return op(0); }
     const Def* arg() const { return op(1); }
 
-    size_t num_args() const;
     const Def* arg(size_t i) const;
     Array<const Def*> args() const;
+    size_t num_args() const;
 
     const Def* rebuild(World&, const Def*, Defs) const override;
     std::ostream& stream(std::ostream&) const override;
@@ -408,15 +408,17 @@ public:
     //@{ operands
     const Def* filter() const { return op(0); }
     const Def* filter(size_t i) const;
+    Array<const Def*> filters() const;
+    size_t num_filters() const { return num_params(); }
     const Def* body() const { return op(1); }
     const App* app() const { return body()->isa<App>(); }
     //@}
 
     //@{ params
     const Param* param(Debug dbg = {}) const;
-    size_t num_params() const;
     const Def* param(size_t i, Debug dbg = {}) const;
     Array<const Def*> params() const;
+    size_t num_params() const;
     const Def* mem_param() const;
     const Def* ret_param() const;
     //@}

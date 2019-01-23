@@ -312,12 +312,6 @@ const Param* Lam::param(Debug dbg) const { return world().param(this->as_lam(), 
 bool Lam::is_empty() const { return body()->isa<Bottom>(); }
 void Lam::set_filter(Defs filter) { set_filter(world().tuple(filter)); }
 
-size_t Lam::num_params() const {
-    if (auto sigma = param()->type()->isa<Sigma>())
-        return sigma->num_ops();
-    return 1;
-}
-
 const Def* Lam::param(size_t i, Debug dbg) const {
     if (param()->type()->isa<Sigma>())
         return world().extract(param(), i, dbg);
@@ -333,10 +327,24 @@ Array<const Def*> Lam::params() const {
     return params;
 }
 
+size_t Lam::num_params() const {
+    if (auto sigma = param()->type()->isa<Sigma>())
+        return sigma->num_ops();
+    return 1;
+}
+
 const Def* Lam::filter(size_t i) const {
     if (filter()->type()->isa<Sigma>())
         return world().extract(filter(), i);
     return filter();
+}
+
+Array<const Def*> Lam::filters() const {
+    size_t n = num_filters();
+    Array<const Def*> filters(n);
+    for (size_t i = 0; i != n; ++i)
+        filters[i] = filter(i);
+    return filters;
 }
 
 const Def* Lam::mem_param() const {

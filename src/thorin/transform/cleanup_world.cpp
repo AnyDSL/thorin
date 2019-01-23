@@ -170,8 +170,8 @@ void Cleaner::eta_conversion() {
 
 void Cleaner::eliminate_params() {
     for (auto old_lam : world().copy_lams()) {
-        std::vector<size_t> proxy_idx;
-        std::vector<size_t> param_idx;
+        std::vector<size_t> proxy_idx; // indices of params we eliminate
+        std::vector<size_t> param_idx; // indices of params we keep
 
         auto old_app = old_lam->app();
         if (old_app == nullptr || world().is_external(old_lam)) continue;
@@ -217,14 +217,12 @@ void Cleaner::eliminate_params() {
                 new_lam->param(j++)->debug() = old_lam->param(i)->debug_history();
             }
 
-            if (old_lam->filter() != nullptr) {
-                Array<const Def*> new_filter(param_idx.size());
-                size_t i = 0;
-                for (auto j : param_idx)
-                    new_filter[i++] = old_lam->filter(param_idx[j]);
+            Array<const Def*> new_filter(param_idx.size());
+            size_t i = 0;
+            for (auto j : param_idx)
+                new_filter[i++] = old_lam->filter(j);
 
-                new_lam->set_filter(world().tuple(new_filter));
-            }
+            new_lam->set_filter(new_filter);
             new_lam->app(old_app->callee(), old_app->args(), old_app->debug());
             old_lam->destroy();
 

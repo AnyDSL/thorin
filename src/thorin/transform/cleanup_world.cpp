@@ -169,19 +169,25 @@ void Cleaner::eta_conversion() {
 }
 
 void Cleaner::eliminate_params() {
-#if 0
     for (auto old_lam : world().copy_lams()) {
         std::vector<size_t> proxy_idx;
         std::vector<size_t> param_idx;
 
         auto old_app = old_lam->app();
-        old_lam->dump_head();
         if (old_app == nullptr || world().is_external(old_lam)) continue;
 
         for (auto use : old_lam->uses()) {
             if (use->isa<Param>()) continue; // ignore old_lam's Param
             if (use.index() != 0 || !use->isa<App>())
                 goto next_lam;
+        }
+
+        // maybe the whole param tuple is passed somewhere?
+        if (old_lam->num_params() != 1) {
+            for (auto use : old_lam->param()->uses()) {
+                if (!use->isa<Extract>())
+                    goto next_lam;
+            }
         }
 
         for (size_t i = 0, e = old_lam->num_params(); i != e; ++i) {
@@ -227,14 +233,12 @@ void Cleaner::eliminate_params() {
                 auto use_app = use->as<App>();
                 assert(use.index() == 0);
                 use_app->replace(world().app(new_lam, use_app->args().cut(proxy_idx), use_app->debug()));
-                std::cout << "yes" << std::endl;
             }
 
             todo_ = true;
         }
 next_lam:;
     }
-#endif
 }
 
 void Cleaner::rebuild() {

@@ -108,7 +108,7 @@ void Cleaner::eta_conversion() {
                     if (auto callee = app->callee()->isa_lam()) {
                         if (callee->is_empty() || callee->is_external() || callee->num_uses() > 2) break;
                         bool ok = true;
-                        for (auto use : callee->uses()) {
+                        for (auto use : callee->uses()) { // 2 iterations at max - see above
                             if (!use->isa<App>() && !use->isa<Param>())
                                 ok = false;
                         }

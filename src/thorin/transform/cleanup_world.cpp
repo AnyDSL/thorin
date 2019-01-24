@@ -98,7 +98,6 @@ void Cleaner::eliminate_tail_rec() {
 }
 
 void Cleaner::eta_conversion() {
-#if 0
     for (bool todo = true; todo;) {
         todo = false;
 
@@ -107,17 +106,28 @@ void Cleaner::eta_conversion() {
             if (lam == nullptr) continue;
 
             // eat calls to known lams that are only used once
-            while (auto callee = lam->app()->callee()->isa_lam()) {
-                if (callee->num_uses() == 1 && !callee->is_empty() && !callee->is_external()) {
-                    for (size_t i = 0, e = lam->num_args(); i != e; ++i)
-                        callee->param(i)->replace(lam->arg(i));
-                    lam->jump(callee->callee(), callee->args(), callee->jump_debug());
-                    callee->destroy();
-                    todo_ = todo = true;
-                } else
-                    break;
-            }
+            while (true) {
+                if (auto app = lam->isa<App>()) {
+                    if (auto callee = app->callee()->isa_lam()) {
+                        if (callee->is_empty() || callee->is_external() || callee->num_uses() > 2) break;
+                        bool ok = true;
+                        for (auto use : callee->uses()) {
+                            if (!use->isa<App>() && !use->isa<Param>())
+                                ok = false;
+                        }
+                        if (!ok) break;
 
+                        callee->param()->replace(app->arg());
+                        lam->set_body(callee->body());
+                        callee->destroy();
+                        todo_ = todo = true;
+                        std::cout << "asdf" << std::endl;
+                        continue;
+                    }
+                }
+                break;
+            }
+#if 0
             // try to subsume lams which call a parameter
             // (that is free within that lam) with that parameter
             if (auto param = lam->callee()->isa<Param>()) {
@@ -163,9 +173,9 @@ void Cleaner::eta_conversion() {
                     }
                 }
             }
+#endif
         }
     }
-#endif
 }
 
 void Cleaner::eliminate_params() {

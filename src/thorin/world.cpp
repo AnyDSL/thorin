@@ -30,7 +30,7 @@ World::World(std::string name)
     , universe_ (insert(new Universe(*this)))
     , star_     (insert(new Kind(*this, Node_Star)))
     , sigma_    (insert(new Sigma(star_, Defs{}, {"[]"})))
-    , bottom_   (insert(new Bottom(star_, {"<⊥:*>"})))
+    , bot_      (insert(new BotTop(false, star_, {"<⊥:*>"})))
     , mem_      (insert(new MemType  (*this)))
     , frame_    (insert(new FrameType(*this)))
 #define THORIN_ALL_TYPE(T, M) \
@@ -241,7 +241,7 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
                     }
             }
         } catch (BottomException) {
-            return bottom(type, dbg);
+            return bot(type, dbg);
         }
     }
 
@@ -265,12 +265,12 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
 
                 case ArithOp_div:
                     if (is_zero(b))
-                        return bottom(type, dbg);
+                        return bot(type, dbg);
                     return one(type, dbg);
 
                 case ArithOp_rem:
                     if (is_zero(b))
-                        return bottom(type, dbg);
+                        return bot(type, dbg);
                     return zero(type, dbg);
 
                 default: break;
@@ -312,7 +312,7 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
         if (is_zero(b)) {
             switch (tag) {
                 case ArithOp_div:
-                case ArithOp_rem: return bottom(type, dbg);
+                case ArithOp_rem: return bot(type, dbg);
 
                 case ArithOp_shl:
                 case ArithOp_shr: return a;
@@ -334,7 +334,7 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
         if (rlit && primlit_value<uint64_t>(rlit) >= uint64_t(num_bits(type))) {
             switch (tag) {
                 case ArithOp_shl:
-                case ArithOp_shr: return bottom(type, dbg);
+                case ArithOp_shr: return bot(type, dbg);
 
                 default: break;
             }
@@ -471,8 +471,7 @@ const Def* World::cmp(CmpTag tag, const Def* a, const Def* b, Debug dbg) {
         default: break;
     }
 
-    if (a->isa<Bottom>() || b->isa<Bottom>())
-        return bottom(type_bool(), dbg);
+    if (is_bot(a) || is_bot(b)) return bot(type_bool(), dbg);
 
     if (oldtag != tag)
         std::swap(a, b);
@@ -560,11 +559,8 @@ const Def* World::convert(const Def* dst_type, const Def* src, Debug dbg) {
 }
 
 const Def* World::cast(const Def* to, const Def* from, Debug dbg) {
-    if (from->isa<Bottom>())
-        return bottom(to);
-
-    if (from->type() == to)
-        return from;
+    if (is_bot(from)) return bot(to);
+    if (from->type() == to) return from;
 
     if (auto vec = from->isa<Vector>()) {
         size_t num = vector_length(vec);
@@ -677,11 +673,8 @@ const Def* World::cast(const Def* to, const Def* from, Debug dbg) {
 }
 
 const Def* World::bitcast(const Def* to, const Def* from, Debug dbg) {
-    if (from->isa<Bottom>())
-        return bottom(to);
-
-    if (from->type() == to)
-        return from;
+    if (is_bot(from)) return bot(to);
+    if (from->type() == to) return from;
 
     if (auto other = from->isa<Bitcast>()) {
         // reduce bitcast chains
@@ -733,13 +726,9 @@ static bool fold_1_tuple(const Def* type, const Def* index) {
 }
 
 const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
-    if (agg->isa<Bottom>())
-        return bottom(Extract::extracted_type(agg, index), dbg);
-    if (agg->isa<Top>())
-        return top(Extract::extracted_type(agg, index), dbg);
-
-    if (!agg->isa<Param>() /*HACK*/ && fold_1_tuple(agg->type(), index))
-        return agg;
+    if (is_bot(agg)) return bot(Extract::extracted_type(agg, index), dbg);
+    if (is_top(agg)) return top(Extract::extracted_type(agg, index), dbg);
+    if (!agg->isa<Param>() /*HACK*/ && fold_1_tuple(agg->type(), index)) return agg;
 
     if (auto aggregate = agg->isa<Aggregate>()) {
         if (auto lit = index->isa<PrimLit>()) {
@@ -747,7 +736,7 @@ const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
                 if (primlit_value<u64>(lit) < aggregate->num_ops())
                     return get(aggregate->ops(), lit);
                 else
-                    return bottom(Extract::extracted_type(agg, index), dbg);
+                    return bot(Extract::extracted_type(agg, index), dbg);
             }
         }
     }
@@ -765,22 +754,21 @@ const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
 }
 
 const Def* World::insert(const Def* agg, const Def* index, const Def* value, Debug dbg) {
-    if (agg->isa<Bottom>() || agg->isa<Top>()) {
-        if (value->isa<Bottom>())
-            return agg;
+    if (is_bot(agg) || is_top(agg)) {
+        if (is_bot(value)) return agg;
 
         // build aggregate container and fill with bottom
         if (auto definite_array_type = agg->type()->isa<DefiniteArrayType>()) {
             Array<const Def*> args(definite_array_type->dim());
             auto elem_type = definite_array_type->elem_type();
-            auto elem = agg->isa<Bottom>() ? bottom(elem_type, dbg) : top(elem_type, dbg);
+            auto elem = is_bot(agg) ? bot(elem_type, dbg) : top(elem_type, dbg);
             std::fill(args.begin(), args.end(), elem);
             agg = definite_array(args, dbg);
         } else if (auto sigma = agg->type()->isa<Sigma>()) {
             Array<const Def*> args(sigma->num_ops());
             size_t i = 0;
             for (auto type : sigma->ops())
-                args[i++] = agg->isa<Bottom>() ? bottom(type, dbg) : top(type, dbg);
+                args[i++] = is_bot(agg) ? bot(type, dbg) : top(type, dbg);
             agg = tuple(sigma, args, dbg);
         }
     }
@@ -798,7 +786,7 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, Deb
                     args[primlit_value<u64>(lit)] = value;
                     return aggregate->rebuild(*this, agg->type(), args);
                 } else
-                    return bottom(agg->type(), dbg);
+                    return bot(agg->type(), dbg);
             }
         }
     }
@@ -814,20 +802,15 @@ const Def* World::lea(const Def* ptr, const Def* index, Debug dbg) {
 }
 
 const Def* World::select(const Def* cond, const Def* a, const Def* b, Debug dbg) {
-    if (cond->isa<Bottom>() || a->isa<Bottom>() || b->isa<Bottom>())
-        return bottom(a->type(), dbg);
-
-    if (auto lit = cond->isa<PrimLit>())
-        return lit->value().get_bool() ? a : b;
+    if (is_bot(cond) || is_bot(a) || is_bot(b)) return bot(a->type(), dbg);
+    if (auto lit = cond->isa<PrimLit>()) return lit->value().get_bool() ? a : b;
 
     if (is_not(cond)) {
         cond = cond->as<ArithOp>()->rhs();
         std::swap(a, b);
     }
 
-    if (a == b)
-        return a;
-
+    if (a == b) return a;
     return unify(new Select(cond, a, b, dbg));
 }
 
@@ -835,7 +818,7 @@ const Def* World::size_of(const Def* type, Debug dbg) {
     if (auto ptype = type->isa<PrimType>())
         return literal(qs32(num_bits(ptype->primtype_tag()) / 8), dbg);
 
-    return unify(new SizeOf(bottom(type, dbg), dbg));
+    return unify(new SizeOf(bot(type, dbg), dbg));
 }
 
 /*
@@ -857,8 +840,7 @@ bool is_agg_const(const Def* def) {
 }
 
 const Def* World::store(const Def* mem, const Def* ptr, const Def* value, Debug dbg) {
-    if (value->isa<Bottom>())
-        return mem;
+    if (is_bot(value)) return mem;
     return unify(new Store(mem, ptr, value, dbg));
 }
 

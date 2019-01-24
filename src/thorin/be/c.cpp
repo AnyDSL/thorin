@@ -193,8 +193,7 @@ std::ostream& CCodeGen::emit_aggop_defs(const Def* def) {
     }
 
     // emit declarations for bottom - required for nested data structures
-    if (def->isa<Bottom>())
-        emit(def) << endl;
+    if (is_bot(def)) emit(def) << endl;
 
     return func_impl_;
 }
@@ -549,7 +548,7 @@ void CCodeGen::emit() {
                 func_impl_ << "default: ";
                 emit(lam->app()->arg(1));
                 func_impl_ << down << endl << "}";
-            } else if (lam->app()->callee()->isa<Bottom>()) {
+            } else if (is_bot(lam->app()->callee())) {
                 func_impl_ << "return ; // bottom: unreachable";
             } else {
                 auto store_phi = [&] (const Def* param, const Def* arg) {
@@ -990,9 +989,9 @@ std::ostream& CCodeGen::emit(const Def* def) {
         return func_impl_;
     }
 
-    if (auto bottom = def->isa<Bottom>()) {
-        emit_addr_space(func_impl_, bottom->type());
-        emit_type(func_impl_, bottom->type()) << " " << def_name << "; // bottom";
+    if (is_bot(def)) {
+        emit_addr_space(func_impl_, def->type());
+        emit_type(func_impl_, def->type()) << " " << def_name << "; // bottom";
         insert(def, def_name);
         return func_impl_;
     }
@@ -1149,7 +1148,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
             case Lang::CUDA:   func_impl_ << "__device__ "; break;
             case Lang::OPENCL: func_impl_ << "__constant "; break;
         }
-        bool bottom = global->init()->isa<Bottom>();
+        bool bottom = is_bot(global->init());
         if (!bottom)
             emit(global->init()) << endl;
         emit_type(func_impl_, global->alloced_type()) << " " << def_name << "_slot";

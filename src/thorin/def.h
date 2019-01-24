@@ -244,6 +244,11 @@ protected:
     friend void swap(World&, World&);
 };
 
+// TODO make this smarter
+inline bool is_bot (const Def* def) { return def->tag() == Node_Bot; }
+inline bool is_top (const Def* def) { return def->tag() == Node_Top; }
+inline bool is_star(const Def* def) { return def->tag() == Node_Star; }
+
 class Universe : public Def {
 private:
     Universe(World& world)
@@ -269,27 +274,13 @@ public:
     friend class World;
 };
 
-class Bottom : public Def {
+class BotTop : public Def {
 private:
-    Bottom(const Def* type, Debug dbg)
-        : Def(Node_Bottom, type, Defs{}, dbg)
+    BotTop(bool is_top, const Def* type, Debug dbg)
+        : Def(is_top ? Node_Top : Node_Bot, type, Defs{}, dbg)
     {}
 
 public:
-
-    const Def* rebuild(World& to, const Def*, Defs ops) const override;
-    std::ostream& stream(std::ostream&) const override;
-
-    friend class World;
-};
-
-class Top : public Def {
-private:
-    Top(const Def* type, Debug dbg)
-        : Def(Node_Top, type, Defs{}, dbg)
-    {}
-
-private:
     const Def* rebuild(World& to, const Def*, Defs ops) const override;
     std::ostream& stream(std::ostream&) const override;
 
@@ -327,7 +318,7 @@ protected:
 public:
     const Def* domain() const { return op(0); }
     const Def* codomain() const { return op(1); }
-    const Def* is_cn() const { return codomain()->isa<Bottom>(); }
+    bool is_cn() const { return is_bot(codomain()); }
 
     const Def* domain(size_t i) const;
     Array<const Def*> domains() const;
@@ -440,7 +431,7 @@ public:
 
     Lams preds() const;
     Lams succs() const;
-    bool is_empty() const;
+    bool is_empty() const { return is_bot(body()); }
     Intrinsic& intrinsic() { return intrinsic_; }
     Intrinsic intrinsic() const { return intrinsic_; }
     CC& cc() { return cc_; }

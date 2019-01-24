@@ -8,7 +8,7 @@
     THORIN_NODE(Lam, lam)
     // PrimOp
         // Literal
-            THORIN_NODE(Bottom, bottom)
+            THORIN_NODE(Bot, bot)
             THORIN_NODE(Top, top)
         // MemOp
             THORIN_NODE(Alloc, alloc)

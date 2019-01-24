@@ -85,7 +85,7 @@ void app_to_dropped_app(Lam* src, Lam* dst, const App* app) {
     std::vector<const Def*> nargs;
     auto src_app = src->body()->as<App>();
     for (size_t i = 0, e = src_app->num_args(); i != e; ++i) {
-        if (app->arg(i)->isa<Top>())
+        if (is_top(app->arg(i)))
             nargs.push_back(src_app->arg(i));
     }
 
@@ -305,11 +305,10 @@ Array<const Def*> App::args() const {
 
 void Lam::destroy() {
     set_filter(world().tuple(Array<const Def*>(type()->num_domains(), world().literal_bool(false))));
-    set_body  (world().bottom(type()->codomain()));
+    set_body  (world().bot(type()->codomain()));
 }
 
 const Param* Lam::param(Debug dbg) const { return world().param(this->as_lam(), dbg); }
-bool Lam::is_empty() const { return body()->isa<Bottom>(); }
 void Lam::set_filter(Defs filter) { set_filter(world().tuple(filter)); }
 
 const Def* Lam::param(size_t i, Debug dbg) const {
@@ -585,8 +584,7 @@ const Def* Universe           ::rebuild(World&   , const Def*  , Defs    ) const
 const Def* Lam                ::rebuild(World& to, const Def* t, Defs ops) const { assert(!is_nominal()); return to.lam(t->as<Pi>(), ops[0], ops[1], debug()); }
 const Def* Sigma              ::rebuild(World& to, const Def* t, Defs ops) const { assert(!is_nominal()); return to.sigma(t, ops, debug()); }
 const Def* App                ::rebuild(World& to, const Def*  , Defs ops) const { return to.app(ops[0], ops[1], debug()); }
-const Def* Bottom             ::rebuild(World& to, const Def* t, Defs    ) const { return to.bottom(t, debug()); }
-const Def* Top                ::rebuild(World& to, const Def* t, Defs    ) const { return to.top   (t, debug()); }
+const Def* BotTop             ::rebuild(World& to, const Def* t, Defs    ) const { return to.bot_top(is_top(this), t, debug()); }
 const Def* DefiniteArrayType  ::rebuild(World& to, const Def*  , Defs ops) const { return to.definite_array_type(ops[0], dim(), debug()); }
 const Def* FrameType          ::rebuild(World& to, const Def*  , Defs    ) const { return to.frame_type(); }
 const Def* IndefiniteArrayType::rebuild(World& to, const Def*  , Defs ops) const { return to.indefinite_array_type(ops[0], debug()); }
@@ -625,8 +623,10 @@ std::ostream& Universe           ::stream(std::ostream& os) const { return strea
 std::ostream& Var                ::stream(std::ostream& os) const { return streamf(os, "<{}:{}>", index(), type()); }
 std::ostream& VariantType        ::stream(std::ostream& os) const { return stream_type_ops(os << "variant", this); }
 
-std::ostream& Bottom::stream(std::ostream& os) const { return type()->tag() == Node_Star ? os << "⊥" : streamf(os, "{{⊥: {}}}", type()); }
-std::ostream& Top   ::stream(std::ostream& os) const { return type()->tag() == Node_Star ? os << "⊤" : streamf(os, "{{⊤: {}}}", type()); }
+std::ostream& BotTop::stream(std::ostream& os) const {
+    auto op = is_bot(this) ? "⊥" : "⊤";
+    return is_star(type()) ? os << op : streamf(os, "{{{}: {}}}", op, type());
+}
 
 #if 0
 std::ostream& Lam::stream(std::ostream& os) const {

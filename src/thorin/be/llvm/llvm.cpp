@@ -381,7 +381,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                     auto case_bb    = bb2lam[arg->op(1)->as_lam()];
                     match->addCase(case_const, case_bb);
                 }
-            } else if (lam->app()->callee()->isa<Bottom>()) {
+            } else if (is_bot(lam->app()->callee())) {
                 irbuilder_.CreateUnreachable();
             } else {
                 auto callee = lam->app()->callee();
@@ -910,18 +910,13 @@ llvm::Value* CodeGen::emit(const Def* def) {
         }
     }
 
-    if (auto bottom = def->isa<Bottom>())
-        return llvm::UndefValue::get(convert(bottom->type()));
-
-    if (auto alloc = def->isa<Alloc>()) {
-        return emit_alloc(alloc->alloced_type(), alloc->extra());
-    }
-
-    if (auto load = def->isa<Load>())           return emit_load(load);
-    if (auto store = def->isa<Store>())         return emit_store(store);
-    if (auto lea = def->isa<LEA>())             return emit_lea(lea);
-    if (auto assembly = def->isa<Assembly>())   return emit_assembly(assembly);
-    if (def->isa<Enter>())                      return nullptr;
+    if (is_bot(def))                          return llvm::UndefValue::get(convert(def->type()));
+    if (auto alloc = def->isa<Alloc>())       return emit_alloc(alloc->alloced_type(), alloc->extra());
+    if (auto load = def->isa<Load>())         return emit_load(load);
+    if (auto store = def->isa<Store>())       return emit_store(store);
+    if (auto lea = def->isa<LEA>())           return emit_lea(lea);
+    if (auto assembly = def->isa<Assembly>()) return emit_assembly(assembly);
+    if (def->isa<Enter>())                    return nullptr;
 
     if (auto slot = def->isa<Slot>())
         return emit_alloca(convert(slot->type()->as<PtrType>()->pointee()), slot->unique_name());
@@ -947,7 +942,7 @@ llvm::Value* CodeGen::emit_global(const Global* global) {
     else {
         auto llvm_type = convert(global->alloced_type());
         auto var = llvm::cast<llvm::GlobalVariable>(module_->getOrInsertGlobal(global->unique_name().c_str(), llvm_type));
-        if (global->init()->isa<Bottom>())
+        if (is_bot(global->init()))
             var->setInitializer(llvm::Constant::getNullValue(llvm_type)); // HACK
         else
             var->setInitializer(llvm::cast<llvm::Constant>(emit(global->init())));

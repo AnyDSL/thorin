@@ -100,15 +100,15 @@ public:
                             size_t length = 1, int8_t device = -1, AddrSpace addr_space = AddrSpace::Generic, Debug dbg = {}) {
         return unify(new PtrType(star(), pointee, length, device, addr_space, dbg));
     }
-    ///@defgroup @p Pi%s
+    /// @defgroup @p Pi%s
     //@{
     const Pi* pi(Defs domain, const Def* codomain, Debug dbg = {}) { return pi(sigma(domain), codomain, dbg); }
     const Pi* pi(const Def* domain, const Def* codomain, Debug dbg = {});
-    ///@defgroup continuation types - Pi types with codomain @p Bottom
+    ///@defgroup continuation types - Pi types with codomain bottom
     //@{
     const Pi* cn() { return cn(sigma()); }
     const Pi* cn(Defs domains) { return cn(sigma(domains)); }
-    const Pi* cn(const Def* domain) { return pi(domain, bottom()); }
+    const Pi* cn(const Def* domain) { return pi(domain, bot()); }
     //@}
     //@}
 
@@ -130,10 +130,17 @@ public:
     const Def* one(const Def* type, Debug dbg = {}, size_t length = 1) { return one(type->as<PrimType>()->primtype_tag(), dbg, length); }
     const Def* allset(PrimTypeTag tag, Debug dbg = {}, size_t length = 1);
     const Def* allset(const Def* type, Debug dbg = {}, size_t length = 1) { return allset(type->as<PrimType>()->primtype_tag(), dbg, length); }
-    const Def* top   (const Def* type, Debug dbg = {}, size_t length = 1) { return splat(unify(new Top(type, dbg)), length); }
-    const Def* bottom(Debug dbg = {}) { return unify(new Bottom(star(), dbg)); }
-    const Def* bottom(const Def* type, Debug dbg = {}, size_t length = 1) { return splat(unify(new Bottom(type, dbg)), length); }
-    const Def* bottom(PrimTypeTag tag, Debug dbg = {}, size_t length = 1) { return bottom(type(tag), dbg, length); }
+
+    /// @defgroup top/bottom
+    //@{
+    const Def* bot_top(bool is_top, const Def* type, Debug dbg = {}, size_t length = 1) { return splat(unify(new BotTop(is_top, type, dbg)), length); }
+    const Def* bot(const Def* type, Debug dbg = {}, size_t length = 1) { return bot_top(false, type, dbg, length); }
+    const Def* top(const Def* type, Debug dbg = {}, size_t length = 1) { return bot_top(true,  type, dbg, length); }
+    const Def* bot(PrimTypeTag tag, Debug dbg = {}, size_t length = 1) { return bot_top(false, type(tag), dbg, length); }
+    const Def* top(PrimTypeTag tag, Debug dbg = {}, size_t length = 1) { return bot_top( true, type(tag), dbg, length); }
+    const Def* bot(Debug dbg = {}) { return bot_top(false, star(), dbg); }
+    const Def* top(Debug dbg = {}) { return bot_top(true,  star(), dbg); }
+    //@}
 
     // arithops
 
@@ -277,7 +284,7 @@ public:
         swap(w1.universe_,  w2.universe_);
         swap(w1.star_,      w2.star_);
         swap(w1.sigma_,     w2.sigma_);
-        swap(w1.bottom_,    w2.bottom_);
+        swap(w1.bot_,       w2.bot_);
         swap(w1.mem_,       w2.mem_);
         swap(w1.frame_,     w2.frame_);
         swap(w1.branch_,    w2.branch_);
@@ -337,7 +344,7 @@ private:
     Universe* universe_;
     const Kind* star_;
     const Sigma* sigma_;
-    const Bottom* bottom_;
+    const BotTop* bot_;
     const MemType* mem_;
     const FrameType* frame_;
     union {

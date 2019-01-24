@@ -93,7 +93,7 @@ public:
                 // All the slots allocated at that point contain bottom
                 auto slot = use->isa<Slot>();
                 if (slot && is_safe_slot(slot))
-                    mapping[slot] = world_.bottom(slot->type()->as<PtrType>()->pointee());
+                    mapping[slot] = world_.bot(slot->type()->as<PtrType>()->pointee());
             }
             return enter->out_mem();
         } else {
@@ -150,7 +150,7 @@ public:
     bool contains_top(const Def* def) {
         if (is_top_.contains(def))
             return is_top_[def];
-        if (def->isa<Top>()) {
+        if (is_top(def)) {
             return is_top_[def] = true;
         } else if (auto primop = def->isa<PrimOp>()) {
             for (auto op : primop->ops()) {

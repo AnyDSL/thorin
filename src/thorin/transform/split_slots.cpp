@@ -40,7 +40,7 @@ static void split(const Slot* slot) {
             store->replace(in_mem);
         } else if (auto load = use->isa<Load>()) {
             auto in_mem = load->op(0);
-            auto array = world.bottom(array_type, load->debug());
+            auto array = world.bot(array_type, load->debug());
             for (size_t i = 0, e = dim; i != e; ++i) {
                 auto tuple = world.load(in_mem, elem_slot(i), load->debug());
                 auto elem = world.extract(tuple, 1_u32, load->debug());

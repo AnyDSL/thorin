@@ -101,13 +101,10 @@ void Cleaner::eta_conversion() {
     for (bool todo = true; todo;) {
         todo = false;
 
-        for (auto def : world().defs()) {
-            auto lam = def->isa_lam();
-            if (lam == nullptr) continue;
-
+        for (auto lam : world().copy_lams()) {
             // eat calls to known lams that are only used once
             while (true) {
-                if (auto app = lam->isa<App>()) {
+                if (auto app = lam->app()) {
                     if (auto callee = app->callee()->isa_lam()) {
                         if (callee->is_empty() || callee->is_external() || callee->num_uses() > 2) break;
                         bool ok = true;
@@ -121,7 +118,6 @@ void Cleaner::eta_conversion() {
                         lam->set_body(callee->body());
                         callee->destroy();
                         todo_ = todo = true;
-                        std::cout << "asdf" << std::endl;
                         continue;
                     }
                 }

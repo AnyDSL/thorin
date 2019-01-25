@@ -140,36 +140,35 @@ void Cleaner::eta_conversion() {
                     todo_ = todo = true;
                     continue;
                 }
+
 #if 0
-
                 // build the permutation of the arguments
-                Array<size_t> perm(lam->num_args());
+                Array<size_t> perm(app->num_args());
                 bool is_permutation = true;
-                for (size_t i = 0, e = lam->num_args(); i != e; ++i)  {
-                    auto param_it = std::find(lam->params().begin(),
-                                                lam->params().end(),
-                                                lam->arg(i));
+                auto params = lam->params();
+                for (size_t i = 0, e = app->num_args(); i != e; ++i)  {
+                    auto param_it = std::find(params.begin(), params.end(), app->arg(i));
 
-                    if (param_it == lam->params().end()) {
+                    if (param_it == params.end()) {
                         is_permutation = false;
                         break;
                     }
 
-                    perm[i] = param_it - lam->params().begin();
+                    perm[i] = param_it - params.begin();
                 }
 
                 if (!is_permutation) continue;
 
-                // for every use of the lam at a call site,
+                // for every use of the lam at an pp,
                 // permute the arguments and call the parameter instead
                 for (auto use : lam->copy_uses()) {
-                    auto ulam = use->isa_lam();
-                    if (ulam && use.index() == 0) {
+                    auto uapp = use->isa<App>();
+                    if (uapp && use.index() == 0) {
                         Array<const Def*> new_args(perm.size());
                         for (size_t i = 0, e = perm.size(); i != e; ++i) {
-                            new_args[i] = ulam->arg(perm[i]);
+                            new_args[i] = uapp->arg(perm[i]);
                         }
-                        ulam->jump(param, new_args, ulam->jump_debug());
+                        uapp->replace(world().app(callee, new_args, uapp->debug()));
                         todo_ = todo = true;
                     }
                 }

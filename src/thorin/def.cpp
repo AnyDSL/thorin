@@ -92,6 +92,12 @@ void app_to_dropped_app(Lam* src, Lam* dst, const App* app) {
     src->app(dst, nargs, src_app->debug());
 }
 
+bool is_param(const Def* def) {
+    if (def->isa<Param>()) return true;
+    if (auto extract = def->isa<Extract>()) return extract->agg()->isa<Param>();
+    return false;
+}
+
 Lam* get_param_lam(const Def* def) {
     if (auto extract = def->isa<Extract>())
         return extract->agg()->as<Param>()->lam();

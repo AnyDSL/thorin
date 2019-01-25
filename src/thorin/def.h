@@ -502,6 +502,7 @@ private:
 
 size_t get_param_index(const Def* def);
 Lam* get_param_lam(const Def* def);
+bool is_param(const Def* def);
 std::vector<Peek> peek(const Def*);
 
 class Param : public Def {

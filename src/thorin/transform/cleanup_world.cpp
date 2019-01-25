@@ -123,19 +123,24 @@ void Cleaner::eta_conversion() {
                 }
                 break;
             }
-#if 0
+
+            auto app = lam->app();
+            if (!app) continue;
+
             // try to subsume lams which call a parameter
             // (that is free within that lam) with that parameter
-            if (auto param = lam->callee()->isa<Param>()) {
-                if (param->lam() == lam || lam->is_external())
+            auto callee = app->callee();
+            if (is_param(callee)) {
+                if (get_param_lam(callee) == lam || lam->is_external())
                     continue;
 
-                if (lam->arg() == lam->param()) {
-                    lam->replace(lam->callee());
+                if (app->arg() == lam->param()) {
+                    lam->replace(callee);
                     lam->destroy();
                     todo_ = todo = true;
                     continue;
                 }
+#if 0
 
                 // build the permutation of the arguments
                 Array<size_t> perm(lam->num_args());
@@ -168,8 +173,8 @@ void Cleaner::eta_conversion() {
                         todo_ = todo = true;
                     }
                 }
-            }
 #endif
+            }
         }
     }
 }

@@ -339,7 +339,9 @@ class App : public Def {
 private:
     App(const Def* type, const Def* callee, const Def* arg, Debug dbg)
         : Def(Node_App, type, {callee, arg}, dbg)
-    {}
+    {
+        if (is_bot(type)) hash_ = murmur3(gid());
+    }
 
 public:
     const Def* callee() const { return op(0); }

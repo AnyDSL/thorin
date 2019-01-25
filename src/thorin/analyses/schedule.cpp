@@ -34,14 +34,14 @@ public:
             case Schedule::Smart: schedule_smart(); def2node = &def2smart_; break;
         }
 
-        for (const auto& p : *def2node)
+        for (auto&& p : *def2node)
             schedule[p.second].defs_.push_back(p.first);
 
         topo_sort(*def2node);
     }
 
     void for_all_defs(std::function<void(const Def*)> f) {
-        for (const auto& p : def2uses_) {
+        for (auto&& p : def2uses_) {
             if (!p.first->isa<Lam>())
                 f(p.first);
         }
@@ -49,7 +49,7 @@ public:
 
     const Uses& uses(const Def* def) const { return def2uses_.find(def)->second; }
     void compute_def2uses();
-    void schedule_early() { for_all_defs([&](const Def* def) { schedule_late (def); }); }
+    void schedule_early() { for_all_defs([&](const Def* def) { schedule_early(def); }); }
     void schedule_late()  { for_all_defs([&](const Def* def) { schedule_late (def); }); }
     void schedule_smart() { for_all_defs([&](const Def* def) { schedule_smart(def); }); }
     const CFNode* schedule_early(const Def*);

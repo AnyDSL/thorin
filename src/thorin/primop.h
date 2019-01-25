@@ -132,7 +132,10 @@ class ArithOp : public BinOp {
 private:
     ArithOp(ArithOpTag tag, const Def* lhs, const Def* rhs, Debug dbg)
         : BinOp((NodeTag) tag, lhs->type(), lhs, rhs, dbg)
-    {}
+    {
+        if ((tag == ArithOp_div || tag == ArithOp_rem) && is_type_i(type()->tag()))
+            hash_ = murmur3(gid());
+    }
 
     const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 

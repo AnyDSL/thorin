@@ -7,24 +7,28 @@ namespace thorin {
 static bool replace_param(const Def* param, const Def* replace_with) {
     bool dirty = false;
     for (auto use : param->copy_uses()) {
-        // Check if the use is a call
         if (auto app = use->isa<App>()) {
-            // For all uses of the call
+            // The return parameter is used either as an
+            // argument or as a callee of an App node
             for (auto app_use : app->copy_uses()) {
                 if (auto lam = app_use->isa_lam()) {
+                    // Do not change replace_with
                     if (lam == replace_with)
                         continue;
                     dirty = true;
                     if (use.index() == 0) {
-                        // Replace by a call to the new callee, if it is not the new callee itself
+                        // Callee
                         lam->app(replace_with, app->op(1));
                     } else {
+                        // Argument
                         assert(use.index() == 1);
                         lam->app(app->op(0), replace_with);
                     }
                 }
             }
         } else if (auto tuple = use->isa<Tuple>()) {
+            // The return parameter is used in a tuple,
+            // which can be an argument to an App node
             auto& world = tuple->world();
             Array<const Def*> args(tuple->num_ops());
             for (size_t i = 0, n = tuple->num_ops(); i < n; ++i)
@@ -43,7 +47,21 @@ void codegen_prepare(World& world) {
         auto ret_param = scope.entry()->ret_param();
         auto ret_cont = world.lam(ret_param->type()->as<Pi>(), ret_param->debug());
         ret_cont->app(ret_param, ret_cont->param(), ret_param->debug());
-        if (replace_param(ret_param, ret_cont))
+
+        // Rebuild a new parameter to pass to functions using the parameter as-is
+        // (i.e without extracting the return continuation). Note that this assumes that
+        // the return continuation is the last element of the parameter.
+        std::vector<const Def*> ops;
+        auto param = scope.entry()->param();
+        for (size_t i = 0, n = param->type()->num_ops(); i < n; ++i) {
+            auto op = world.extract(param, world.literal_qu32(i));
+            ops.push_back(op);
+        }
+        ops.back() = ret_cont;
+        auto new_param = world.tuple(ops);
+
+        if (replace_param(ret_param, ret_cont) ||
+            replace_param(param, new_param))
             scope.update();
     });
     VLOG("end codegen_prepare");

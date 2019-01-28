@@ -198,10 +198,9 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
         auto wrapped_copy = wrapped;
         for (auto wrap_pair : wrapped_copy) {
             auto def = wrap_pair.first;
-            if (auto lam = def->isa<Lam>()) {
+            if (def->is_replaced()) {
                 // Already replaced in previous pass
-                if (lam->is_empty())
-                    continue;
+                continue;
             }
 
             auto new_lam = wrap_pair.second->as_lam();

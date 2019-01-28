@@ -309,7 +309,6 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                 if (j != params_.end()) continue;
 
                 if (is_tuple_arg_of_app(def)) continue;
-                if (is_from_branch_or_match(def)) continue;
 
 #if 0
                 // ignore tuple arguments for lams

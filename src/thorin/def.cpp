@@ -164,24 +164,13 @@ const Def* merge_sigma(const Def* a, const Def* b) {
 bool is_tuple_arg_of_app(const Def* def) {
     if (!def->isa<Tuple>()) return false;
     for (auto& use : def->uses()) {
-        if (use.index() != 1 || !use->isa<App>())
+        if (use.index() == 1 && use->isa<App>())
+            continue;
+        if (!is_tuple_arg_of_app(use.def()))
             return false;
     }
     return true;
 }
-
-bool is_from_branch_or_match(const Def* def) {
-    bool from_match = true;
-    for (auto& use : def->uses()) {
-        if (auto app = use.def()->isa<App>()) {
-            auto callee = app->callee()->isa<Lam>();
-            if (callee && (callee->intrinsic() == Intrinsic::Branch || callee->intrinsic() == Intrinsic::Match)) continue;
-        }
-        from_match = false;
-    }
-    return from_match;
-}
-
 
 //------------------------------------------------------------------------------
 

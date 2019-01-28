@@ -358,7 +358,6 @@ public:
 };
 
 bool is_tuple_arg_of_app(const Def*);
-bool is_from_branch_or_match(const Def*);
 
 enum class Intrinsic : uint8_t {
     None,                       ///< Not an intrinsic.

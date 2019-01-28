@@ -66,9 +66,6 @@ Lam* Mangler::mangle() {
             new_filter[j++] = mangle(old_entry()->filter(i));
     }
 
-    for (size_t e = new_entry()->num_params(); j != e; ++j)
-        new_filter[j] = world().literal_bool(false, Debug{});
-
     new_entry()->set_filter(new_filter);
     new_entry()->set_body(mangle(old_entry()->body()));
 

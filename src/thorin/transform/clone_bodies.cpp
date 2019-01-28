@@ -21,6 +21,7 @@ void clone_bodies(World& world) {
             if (first) {
                 first = false; // re-use the initial lam as first clone
             } else {
+                // TODO this needs porting to new App stuff
                 auto nlam = clone(scope);
                 if (auto ulam = use->isa_lam())
                     ulam->set(use.index(), nlam);

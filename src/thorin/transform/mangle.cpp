@@ -104,23 +104,27 @@ const Def* Mangler::mangle(const Def* old_def) {
             assert(new_ops.size() == 2);
 
             if (app->callee() == old_entry()) {
-                auto new_args = new_ops[1]->isa<Tuple>() ? new_ops[1]->as<Tuple>()->ops() : new_ops.skip_front();
-                assert(new_args.size() == args_.size());
+                if (args_.size() == 1 && args_[0] == new_ops[1])
+                    return world().app(new_entry(), {}, app->debug());
 
-                std::vector<size_t> cut;
-                bool substitute = true;
-                for (size_t i = 0, e = args_.size(); i != e && substitute; ++i) {
-                    if (!is_top(args_[i])) {
-                        substitute &= args_[i] == new_args[i];
-                        cut.push_back(i);
+                if (auto tuple = new_ops[1]->isa<Tuple>()) {
+                    assert(tuple->num_ops() == args_.size());
+
+                    std::vector<size_t> cut;
+                    bool substitute = true;
+                    for (size_t i = 0, e = args_.size(); i != e && substitute; ++i) {
+                        if (!is_top(args_[i])) {
+                            substitute &= args_[i] == tuple->op(i);
+                            cut.push_back(i);
+                        }
                     }
-                }
 
-                if (substitute) {
-                    // TODO lifting
-                    //const auto& args = concat(new_args.cut(cut), new_entry()->params().get_back(lift_.size()));
-                    auto args = new_args.cut(cut);
-                    return world().app(new_entry(), args, app->debug());
+                    if (substitute) {
+                        // TODO lifting
+                        //const auto& args = concat(new_args.cut(cut), new_entry()->params().get_back(lift_.size()));
+                        auto args = tuple->ops().cut(cut);
+                        return world().app(new_entry(), args, app->debug());
+                    }
                 }
             }
         }

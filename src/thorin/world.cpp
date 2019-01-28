@@ -829,7 +829,7 @@ const Def* World::load(const Def* mem, const Def* ptr, Debug dbg) {
     if (auto sigma = ptr->type()->as<PtrType>()->pointee()->isa<Sigma>()) {
         // loading an empty tuple can only result in an empty tuple
         if (sigma->num_ops() == 0) {
-            return tuple({mem, tuple({}, dbg)});
+            return tuple({mem, tuple(sigma->type(), {}, dbg)});
         }
     }
     return unify(new Load(mem, ptr, dbg));

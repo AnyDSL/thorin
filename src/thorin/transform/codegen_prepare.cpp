@@ -60,8 +60,7 @@ void codegen_prepare(World& world) {
         ops.back() = ret_cont;
         auto new_param = world.tuple(ops);
 
-        if (replace_param(ret_param, ret_cont) ||
-            replace_param(param, new_param))
+        if (replace_param(ret_param, ret_cont) || replace_param(param, new_param))
             scope.update();
     });
     VLOG("end codegen_prepare");

@@ -268,16 +268,6 @@ public:
     friend class World;
 };
 
-/// Data constructor for a @p VectorType.
-class Vector : public Aggregate {
-private:
-    Vector(World& world, Defs args, Debug dbg);
-
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
-
-    friend class World;
-};
-
 /// Base class for functional @p Insert and @p Extract.
 class AggOp : public PrimOp {
 protected:

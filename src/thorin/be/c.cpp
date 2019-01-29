@@ -136,8 +136,6 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Def* type) {
     } else if (auto ptr = type->isa<PtrType>()) {
         emit_type(os, ptr->pointee());
         os << '*';
-        if (ptr->is_vector())
-            os << vector_length(ptr->pointee());
         return os;
     } else if (auto primtype = type->isa<PrimType>()) {
         switch (primtype->primtype_tag()) {
@@ -154,8 +152,6 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Def* type) {
             case PrimType_pf32: case PrimType_qf32: os << "float";                  break;
             case PrimType_pf64: case PrimType_qf64: os << "double"; use_64_ = true; break;
         }
-        if (primtype->is_vector())
-            os << primtype->length();
         return os;
     }
     THORIN_UNREACHABLE;
@@ -887,19 +883,6 @@ std::ostream& CCodeGen::emit(const Def* def) {
             } else if (def->type()->isa<Sigma>()) {
                 func_impl_ << ".e";
                 emit(index);
-            } else if (def->type()->isa<VectorType>()) {
-                if (is_primlit(index, 0))
-                    func_impl_ << ".x";
-                else if (is_primlit(index, 1))
-                    func_impl_ << ".y";
-                else if (is_primlit(index, 2))
-                    func_impl_ << ".z";
-                else if (is_primlit(index, 3))
-                    func_impl_ << ".w";
-                else {
-                    func_impl_ << ".s";
-                    emit(index);
-                }
             } else {
                 THORIN_UNREACHABLE;
             }
@@ -1027,10 +1010,6 @@ std::ostream& CCodeGen::emit(const Def* def) {
 
     if (def->isa<Enter>())
         return func_impl_;
-
-    if (def->isa<Vector>()) {
-        THORIN_UNREACHABLE;
-    }
 
     if (auto lea = def->isa<LEA>()) {
         emit_aggop_defs(lea->ptr());

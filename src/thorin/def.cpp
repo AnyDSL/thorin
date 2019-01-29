@@ -41,13 +41,6 @@ bool is_const(const Def* def) {
     return true;
 }
 
-size_t vector_length(const Def* def) {
-    if (auto vector_type = def->isa<VectorType>())
-        return vector_type->length();
-    return def->type()->as<VectorType>()->length();
-}
-
-
 bool is_primlit(const Def* def, int64_t val) {
     if (auto lit = def->isa<PrimLit>()) {
         switch (lit->primtype_tag()) {
@@ -58,13 +51,6 @@ bool is_primlit(const Def* def, int64_t val) {
         }
     }
 
-    if (auto vector = def->isa<Vector>()) {
-        for (auto op : vector->ops()) {
-            if (!is_primlit(op, val))
-                return false;
-        }
-        return true;
-    }
     return false;
 }
 
@@ -262,13 +248,6 @@ void Def::dump() const {
 
 Lam* Def::as_lam() const { return const_cast<Lam*>(scast<Lam>(this)); }
 Lam* Def::isa_lam() const { return const_cast<Lam*>(dcast<Lam>(this)); }
-
-// TODO remove
-const VectorType* VectorType::scalarize() const {
-    if (auto ptr = isa<PtrType>())
-        return world().ptr_type(ptr->pointee());
-    return world().type(as<PrimType>()->primtype_tag());
-}
 
 /*
  * App
@@ -536,8 +515,8 @@ Lam::Lam(const Pi* pi, CC cc, Intrinsic intrinsic, Debug dbg)
     destroy();
 }
 
-PrimType::PrimType(World& world, PrimTypeTag tag, size_t length, Debug dbg)
-    : VectorType((int) tag, world.star(), Defs{}, length, dbg)
+PrimType::PrimType(World& world, PrimTypeTag tag, Debug dbg)
+    : Def((NodeTag) tag, world.star(), Defs{}, dbg)
 {}
 
 MemType::MemType(World& world)
@@ -565,8 +544,7 @@ bool Def::equal(const Def* other) const {
 bool Var::equal(const Def* other) const { return Def::equal(other) && this->index() == other->as<Var>()->index(); }
 
 bool PtrType::equal(const Def* other) const {
-    if (!VectorType::equal(other))
-        return false;
+    if (!Def::equal(other)) return false;
     auto ptr = other->as<PtrType>();
     return ptr->device() == device() && ptr->addr_space() == addr_space();
 }
@@ -587,8 +565,8 @@ const Def* Kind               ::rebuild(World& to, const Def*  , Defs    ) const
 const Def* MemType            ::rebuild(World& to, const Def*  , Defs    ) const { return to.mem_type(); }
 const Def* Param              ::rebuild(World& to, const Def*  , Defs ops) const { return to.param(ops[0]->as_lam(), debug()); }
 const Def* Pi                 ::rebuild(World& to, const Def*  , Defs ops) const { return to.pi(ops[0], ops[1], debug()); }
-const Def* PrimType           ::rebuild(World& to, const Def*  , Defs    ) const { return to.type(primtype_tag(), length(), debug()); }
-const Def* PtrType            ::rebuild(World& to, const Def*  , Defs ops) const { return to.ptr_type(ops[0], length(), device(), addr_space()); }
+const Def* PrimType           ::rebuild(World& to, const Def*  , Defs    ) const { return to.type(primtype_tag()); }
+const Def* PtrType            ::rebuild(World& to, const Def*  , Defs ops) const { return to.ptr_type(ops[0], device(), addr_space()); }
 const Def* Var                ::rebuild(World& to, const Def* t, Defs    ) const { return to.var(t, index(), debug()); }
 const Def* VariantType        ::rebuild(World& to, const Def*  , Defs ops) const { return to.variant_type(ops, debug()); }
 
@@ -646,11 +624,7 @@ std::ostream& Pi::stream(std::ostream& os) const {
 }
 
 std::ostream& PtrType::stream(std::ostream& os) const {
-    if (is_vector())
-        os << '<' << length() << " x ";
     os << pointee() << '*';
-    if (is_vector())
-        os << '>';
     if (device() != -1)
         os << '[' << device() << ']';
     switch (addr_space()) {
@@ -664,19 +638,11 @@ std::ostream& PtrType::stream(std::ostream& os) const {
 }
 
 std::ostream& PrimType::stream(std::ostream& os) const {
-    if (is_vector())
-        os << "<" << length() << " x ";
-
     switch (primtype_tag()) {
-#define THORIN_ALL_TYPE(T, M) case Node_PrimType_##T: os << #T; break;
+#define THORIN_ALL_TYPE(T, M) case Node_PrimType_##T: return os << #T;
 #include "thorin/tables/primtypetable.h"
           default: THORIN_UNREACHABLE;
     }
-
-    if (is_vector())
-        os << ">";
-
-    return os;
 }
 
 std::ostream& Def::stream(std::ostream& out) const { return out << unique_name(); }

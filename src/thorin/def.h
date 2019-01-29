@@ -610,35 +610,10 @@ private:
     friend class World;
 };
 
-/// Base class for all SIMD types.
-class VectorType : public Def {
-protected:
-    VectorType(int tag, const Def* type, Defs ops, size_t length, Debug dbg)
-        : Def((NodeTag)tag, type, ops, dbg)
-        , length_(length)
-    {
-        hash_ = hash_combine(hash_, length);
-    }
-
-    bool equal(const Def* other) const override {
-        return Def::equal(other) && this->length() == other->as<VectorType>()->length();
-    }
-
-public:
-    /// The number of vector arguments - the vector length.
-    size_t length() const { return length_; }
-    bool is_vector() const { return length_ != 1; }
-    /// Rebuilds the type with vector length 1.
-    const VectorType* scalarize() const;
-
-private:
-    size_t length_;
-};
-
 /// Primitive type.
-class PrimType : public VectorType {
+class PrimType : public Def {
 private:
-    PrimType(World& world, PrimTypeTag tag, size_t length, Debug dbg);
+    PrimType(World& world, PrimTypeTag tag, Debug dbg);
 
 public:
     PrimTypeTag primtype_tag() const { return (PrimTypeTag) tag(); }
@@ -675,10 +650,10 @@ enum class AddrSpace : uint8_t {
 };
 
 /// Pointer type.
-class PtrType : public VectorType {
+class PtrType : public Def {
 private:
-    PtrType(const Def* type, const Def* pointee, size_t length, int8_t device, AddrSpace addr_space, Debug dbg)
-        : VectorType(Node_PtrType, type, {pointee}, length, dbg)
+    PtrType(const Def* type, const Def* pointee, int8_t device, AddrSpace addr_space, Debug dbg)
+        : Def(Node_PtrType, type, {pointee}, dbg)
         , addr_space_(addr_space)
         , device_(device)
     {
@@ -753,8 +728,6 @@ private:
 
 uint64_t UseHash::hash(Use use) { return murmur3(uint64_t(use.index()) << 48_u64 | uint64_t(use->gid())); }
 
-/// Returns the vector length. Raises an assertion if type of this is not a \p VectorType.
-size_t vector_length(const Def*);
 bool is_unit(const Def*);
 bool is_const(const Def*);
 bool is_primlit(const Def*, int64_t);

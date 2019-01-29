@@ -20,7 +20,7 @@ PrimLit::PrimLit(World& world, PrimTypeTag tag, Box box, Debug dbg)
 }
 
 Cmp::Cmp(CmpTag tag, const Def* lhs, const Def* rhs, Debug dbg)
-    : BinOp((NodeTag) tag, lhs->world().type_bool(vector_length(lhs->type())), lhs, rhs, dbg)
+    : BinOp((NodeTag) tag, lhs->world().type_bool(), lhs, rhs, dbg)
 {}
 
 DefiniteArray::DefiniteArray(World& world, const Def* elem, Defs args, Debug dbg)
@@ -36,35 +36,16 @@ IndefiniteArray::IndefiniteArray(World& world, const Def* elem, const Def* dim, 
     : Aggregate(Node_IndefiniteArray, world.indefinite_array_type(elem), {dim}, dbg)
 {}
 
-static const Def* infer_vector_type(World& world, Defs args) {
-    if (auto primtype = args.front()->type()->isa<PrimType>()) {
-        assert(primtype->length() == 1);
-        return world.type(primtype->primtype_tag(), args.size());
-    }
-
-    auto ptr = args.front()->type()->as<PtrType>();
-    assert(ptr->length() == 1);
-    return world.ptr_type(ptr->pointee(), args.size());
-}
-
-Vector::Vector(World& world, Defs args, Debug dbg)
-    : Aggregate(Node_Vector, infer_vector_type(world, args), args, dbg)
-{}
-
 static const Def* infer_lea_type(World& world, const Def* ptr, const Def* index) {
     auto ptr_type = ptr->type()->as<PtrType>();
     auto ptr_pointee = ptr_type->pointee();
 
     if (auto sigma = ptr_pointee->isa<Sigma>()) {
-        return world.ptr_type(get(sigma->ops(), index), ptr_type->length(), ptr_type->device(), ptr_type->addr_space());
+        return world.ptr_type(get(sigma->ops(), index), ptr_type->device(), ptr_type->addr_space());
     } else if (auto array = ptr_pointee->isa<ArrayType>()) {
-        return world.ptr_type(array->elem_type(), ptr_type->length(), ptr_type->device(), ptr_type->addr_space());
-    } else if (auto prim_type = ptr_pointee->isa<PrimType>()) {
-        assert(prim_type->length() > 1);
-        return world.ptr_type(world.type(prim_type->primtype_tag()));
-    } else {
-        THORIN_UNREACHABLE;
+        return world.ptr_type(array->elem_type(), ptr_type->device(), ptr_type->addr_space());
     }
+    THORIN_UNREACHABLE;
 }
 
 LEA::LEA(const Def* ptr, const Def* index, Debug dbg)
@@ -155,7 +136,6 @@ const Def* Slot   ::rebuild(World& to, const Def* t, Defs ops) const { return to
 const Def* Store  ::rebuild(World& to, const Def*  , Defs ops) const { return to.store(ops[0], ops[1], ops[2], debug()); }
 const Def* Tuple  ::rebuild(World& to, const Def* t, Defs ops) const { return to.tuple(t, ops, debug()); }
 const Def* Variant::rebuild(World& to, const Def* t, Defs ops) const { return to.variant(t->as<VariantType>(), ops[0], debug()); }
-const Def* Vector ::rebuild(World& to, const Def*  , Defs ops) const { return to.vector(ops, debug()); }
 
 const Def* Alloc::rebuild(World& to, const Def* t, Defs ops) const {
     return to.alloc(t->as<Sigma>()->op(1)->as<PtrType>()->pointee(), ops[0], ops[1], debug());
@@ -289,8 +269,6 @@ const Def* Extract::extracted_type(const Def* agg, const Def* index) {
         return get(sigma->ops(), index);
     else if (auto array = agg->type()->isa<ArrayType>())
         return array->elem_type();
-    else if (auto vector = agg->type()->isa<VectorType>())
-        return vector->scalarize();
     else {
         assert(index->as<PrimLit>()->value().get_u64() == 0);
         return agg->type();

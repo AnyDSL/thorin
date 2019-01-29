@@ -803,16 +803,11 @@ llvm::Value* CodeGen::emit(const Def* def) {
         return llvm::UndefValue::get(convert(array->type()));
 
     if (auto agg = def->isa<Aggregate>()) {
-        assert(def->isa<Tuple>() || def->isa<Vector>());
+        assert(def->isa<Tuple>());
         llvm::Value* llvm_agg = llvm::UndefValue::get(convert(agg->type()));
 
-        if (def->isa<Vector>()) {
-            for (size_t i = 0, e = agg->num_ops(); i != e; ++i)
-                llvm_agg = irbuilder_.CreateInsertElement(llvm_agg, lookup(agg->op(i)), irbuilder_.getInt32(i));
-        } else {
-            for (size_t i = 0, e = agg->num_ops(); i != e; ++i)
-                llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, lookup(agg->op(i)), { unsigned(i) });
-        }
+        for (size_t i = 0, e = agg->num_ops(); i != e; ++i)
+            llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, lookup(agg->op(i)), { unsigned(i) });
 
         return llvm_agg;
     }
@@ -852,8 +847,6 @@ llvm::Value* CodeGen::emit(const Def* def) {
             if (aggop->agg()->type()->isa<ArrayType>())
                 return irbuilder_.CreateLoad(copy_to_alloca_or_global());
 
-            if (extract->agg()->type()->isa<VectorType>())
-                return irbuilder_.CreateExtractElement(llvm_agg, llvm_idx);
             // tuple/struct
             return irbuilder_.CreateExtractValue(llvm_agg, {primlit_value<unsigned>(aggop->index())});
         }
@@ -866,8 +859,6 @@ llvm::Value* CodeGen::emit(const Def* def) {
             irbuilder_.CreateStore(lookup(aggop->as<Insert>()->value()), p.second);
             return irbuilder_.CreateLoad(p.first);
         }
-        if (insert->agg()->type()->isa<VectorType>())
-            return irbuilder_.CreateInsertElement(llvm_agg, lookup(aggop->as<Insert>()->value()), llvm_idx);
         // tuple/struct
         return irbuilder_.CreateInsertValue(llvm_agg, value, {primlit_value<unsigned>(aggop->index())});
     }
@@ -919,14 +910,6 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
     if (auto slot = def->isa<Slot>())
         return emit_alloca(convert(slot->type()->as<PtrType>()->pointee()), slot->unique_name());
-
-    if (auto vector = def->isa<Vector>()) {
-        llvm::Value* vec = llvm::UndefValue::get(convert(vector->type()));
-        for (size_t i = 0, e = vector->num_ops(); i != e; ++i)
-            vec = irbuilder_.CreateInsertElement(vec, lookup(vector->op(i)), lookup(world_.literal_pu32(i, vector->location())));
-
-        return vec;
-    }
 
     if (auto global = def->isa<Global>())
         return emit_global(global);
@@ -1130,10 +1113,6 @@ llvm::Type* CodeGen::convert(const Def* type) {
             THORIN_UNREACHABLE;
     }
 
-    if (vector_length(type) == 1)
-        return types_[type] = llvm_type;
-
-    llvm_type = llvm::VectorType::get(llvm_type, vector_length(type));
     return types_[type] = llvm_type;
 }
 

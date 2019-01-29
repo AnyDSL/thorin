@@ -34,7 +34,7 @@ World::World(std::string name)
     , mem_      (insert(new MemType  (*this)))
     , frame_    (insert(new FrameType(*this)))
 #define THORIN_ALL_TYPE(T, M) \
-    , T##_      (insert(new PrimType(*this, PrimType_##T, 1, {#T})))
+    , T##_      (insert(new PrimType(*this, PrimType_##T, {#T})))
 #include "thorin/tables/primtypetable.h"
     , branch_   (lam(cn(sigma({type_bool(), cn(), cn()})), CC::C, Intrinsic::Branch, {"br"}))
     , end_scope_(lam(cn(), CC::C, Intrinsic::EndScope, {"end_scope"}))
@@ -120,21 +120,12 @@ const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
  * literals
  */
 
-const Def* World::splat(const Def* arg, size_t length, Debug dbg) {
-    if (length == 1)
-        return arg;
-
-    Array<const Def*> args(length);
-    std::fill(args.begin(), args.end(), arg);
-    return vector(args, dbg);
-}
-
-const Def* World::allset(PrimTypeTag tag, Debug dbg, size_t length) {
+const Def* World::allset(PrimTypeTag tag, Debug dbg) {
     switch (tag) {
 #define THORIN_I_TYPE(T, M) \
-    case PrimType_##T: return literal(PrimType_##T, Box(~T(0)), dbg, length);
+    case PrimType_##T: return literal(PrimType_##T, Box(~T(0)), dbg);
 #define THORIN_BOOL_TYPE(T, M) \
-    case PrimType_##T: return literal(PrimType_##T, Box(true), dbg, length);
+    case PrimType_##T: return literal(PrimType_##T, Box(true), dbg);
 #include "thorin/tables/primtypetable.h"
         default: THORIN_UNREACHABLE;
     }
@@ -154,21 +145,10 @@ const Def* World::binop(int tag, const Def* lhs, const Def* rhs, Debug dbg) {
 
 const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg) {
     assert(a->type() == b->type());
-    assert(a->type()->as<PrimType>()->length() == b->type()->as<PrimType>()->length());
     PrimTypeTag type = a->type()->as<PrimType>()->primtype_tag();
 
     auto llit = a->isa<PrimLit>();
     auto rlit = b->isa<PrimLit>();
-    auto lvec = a->isa<Vector>();
-    auto rvec = b->isa<Vector>();
-
-    if (lvec && rvec) {
-        size_t num = lvec->type()->as<PrimType>()->length();
-        Array<const Def*> ops(num);
-        for (size_t i = 0; i != num; ++i)
-            ops[i] = arithop(tag, lvec->op(i), rvec->op(i), dbg);
-        return vector(ops, dbg);
-    }
 
     if (llit && rlit) {
         Box l = llit->value();
@@ -245,11 +225,10 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
         }
     }
 
-    // normalize: swap literal/vector to the left
-    if (is_commutative(tag) && (rlit || rvec)) {
+    // normalize: swap literal to the left
+    if (is_commutative(tag) && rlit) {
         std::swap(a, b);
         std::swap(llit, rlit);
-        std::swap(lvec, rvec);
     }
 
     if (is_type_i(type) || type == PrimType_bool) {
@@ -423,17 +402,17 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
         }
     }
 
-    // normalize: try to reorder same ops to have the literal/vector on the left-most side
+    // normalize: try to reorder same ops to have the literal on the left-most side
     if (is_associative(tag) && is_type_i(a->type())) {
         auto a_same = a->isa<ArithOp>() && a->as<ArithOp>()->arithop_tag() == tag ? a->as<ArithOp>() : nullptr;
         auto b_same = b->isa<ArithOp>() && b->as<ArithOp>()->arithop_tag() == tag ? b->as<ArithOp>() : nullptr;
-        auto a_lhs_lv = a_same && (a_same->lhs()->isa<PrimLit>() || a_same->lhs()->isa<Vector>()) ? a_same->lhs() : nullptr;
-        auto b_lhs_lv = b_same && (b_same->lhs()->isa<PrimLit>() || b_same->lhs()->isa<Vector>()) ? b_same->lhs() : nullptr;
+        auto a_lhs_lv = a_same && a_same->lhs()->isa<PrimLit>() ? a_same->lhs() : nullptr;
+        auto b_lhs_lv = b_same && b_same->lhs()->isa<PrimLit>() ? b_same->lhs() : nullptr;
 
         if (is_commutative(tag)) {
             if (a_lhs_lv && b_lhs_lv)
                 return arithop(tag, arithop(tag, a_lhs_lv, b_lhs_lv, dbg), arithop(tag, a_same->rhs(), b_same->rhs(), dbg), dbg);
-            if ((llit || lvec) && b_lhs_lv)
+            if (llit && b_lhs_lv)
                 return arithop(tag, arithop(tag, a, b_lhs_lv, dbg), b_same->rhs(), dbg);
             if (b_lhs_lv)
                 return arithop(tag, b_lhs_lv, arithop(tag, a, b_same->rhs(), dbg), dbg);
@@ -445,13 +424,13 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
     return unify(new ArithOp(tag, a, b, dbg));
 }
 
-const Def* World::arithop_not(const Def* def, Debug dbg) { return arithop_xor(allset(def->type(), dbg, vector_length(def)), def, dbg); }
+const Def* World::arithop_not(const Def* def, Debug dbg) { return arithop_xor(allset(def->type(), dbg), def, dbg); }
 
 const Def* World::arithop_minus(const Def* def, Debug dbg) {
     switch (PrimTypeTag tag = def->type()->as<PrimType>()->primtype_tag()) {
 #define THORIN_F_TYPE(T, M) \
         case PrimType_##T: \
-            return arithop_sub(literal_##T(M(-0.f), dbg, vector_length(def)), def, dbg);
+            return arithop_sub(literal_##T(M(-0.f), dbg), def, dbg);
 #include "thorin/tables/primtypetable.h"
         default:
             assert(is_type_i(tag));
@@ -478,16 +457,6 @@ const Def* World::cmp(CmpTag tag, const Def* a, const Def* b, Debug dbg) {
 
     auto llit = a->isa<PrimLit>();
     auto rlit = b->isa<PrimLit>();
-    auto lvec = a->isa<Vector>();
-    auto rvec = b->isa<Vector>();
-
-    if (lvec && rvec) {
-        size_t num = lvec->type()->as<PrimType>()->length();
-        Array<const Def*> ops(num);
-        for (size_t i = 0; i != num; ++i)
-            ops[i] = cmp(tag, lvec->op(i), rvec->op(i), dbg);
-        return vector(ops, dbg);
-    }
 
     if (llit && rlit) {
         Box l = llit->value();
@@ -561,15 +530,6 @@ const Def* World::convert(const Def* dst_type, const Def* src, Debug dbg) {
 const Def* World::cast(const Def* to, const Def* from, Debug dbg) {
     if (is_bot(from)) return bot(to);
     if (from->type() == to) return from;
-
-    if (auto vec = from->isa<Vector>()) {
-        size_t num = vector_length(vec);
-        auto to_vec = to->as<VectorType>();
-        Array<const Def*> ops(num);
-        for (size_t i = 0; i != num; ++i)
-            ops[i] = cast(to_vec->scalarize(), vec->op(i), dbg);
-        return vector(ops, dbg);
-    }
 
     if (auto variant = from->isa<Variant>()) {
         if (variant->op(0)->type() != to)
@@ -696,15 +656,6 @@ const Def* World::bitcast(const Def* to, const Def* from, Debug dbg) {
             return literal(prim_to->primtype_tag(), lit->value(), dbg);
     }
 
-    if (auto vec = from->isa<Vector>()) {
-        size_t num = vector_length(vec);
-        auto to_vec = to->as<VectorType>();
-        Array<const Def*> ops(num);
-        for (size_t i = 0; i != num; ++i)
-            ops[i] = bitcast(to_vec->scalarize(), vec->op(i), dbg);
-        return vector(ops, dbg);
-    }
-
     return unify(new Bitcast(to, from, dbg));
 }
 
@@ -713,15 +664,8 @@ const Def* World::bitcast(const Def* to, const Def* from, Debug dbg) {
  */
 
 static bool fold_1_tuple(const Def* type, const Def* index) {
-    if (auto lit = index->isa<PrimLit>()) {
-        if (primlit_value<u64>(lit) == 0
-                && !type->isa<ArrayType>()
-                && !type->isa<Sigma>()) {
-            if (auto prim_type = type->isa<PrimType>())
-                return prim_type->length() == 1;
-            return true;
-        }
-    }
+    if (auto lit = index->isa<PrimLit>())
+        return primlit_value<u64>(lit) == 0 && !type->isa<ArrayType>() && !type->isa<Sigma>();
     return false;
 }
 

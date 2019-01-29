@@ -87,18 +87,17 @@ public:
     //@}
 
 #define THORIN_ALL_TYPE(T, M) \
-    const PrimType* type_##T(size_t length = 1) { return type(PrimType_##T, length); }
+    const PrimType* type_##T() { return type(PrimType_##T); }
 #include "thorin/tables/primtypetable.h"
-    const PrimType* type(PrimTypeTag tag, size_t length = 1, Debug dbg = {}) {
+    const PrimType* type(PrimTypeTag tag) {
         size_t i = tag - Begin_PrimType;
         assert(i < (size_t) Num_PrimTypes);
-        return length == 1 ? primtypes_[i] : unify(new PrimType(*this, tag, length, dbg));
+        return primtypes_[i];
     }
     const MemType* mem_type() const { return mem_; }
     const FrameType* frame_type() const { return frame_; }
-    const PtrType* ptr_type(const Def* pointee,
-                            size_t length = 1, int8_t device = -1, AddrSpace addr_space = AddrSpace::Generic, Debug dbg = {}) {
-        return unify(new PtrType(star(), pointee, length, device, addr_space, dbg));
+    const PtrType* ptr_type(const Def* pointee, int8_t device = -1, AddrSpace addr_space = AddrSpace::Generic, Debug dbg = {}) {
+        return unify(new PtrType(star(), pointee, device, addr_space, dbg));
     }
     /// @defgroup @p Pi%s
     //@{
@@ -119,25 +118,25 @@ public:
     // literals
 
 #define THORIN_ALL_TYPE(T, M) \
-    const Def* literal_##T(T val, Debug dbg = {}, size_t length = 1) { return literal(PrimType_##T, Box(val), dbg, length); }
+    const Def* literal_##T(T val, Debug dbg = {}) { return literal(PrimType_##T, Box(val), dbg); }
 #include "thorin/tables/primtypetable.h"
-    const Def* literal(PrimTypeTag tag, Box box, Debug dbg, size_t length = 1) { return splat(unify(new PrimLit(*this, tag, box, dbg)), length); }
+    const Def* literal(PrimTypeTag tag, Box box, Debug dbg) { return unify(new PrimLit(*this, tag, box, dbg)); }
     template<class T>
-    const Def* literal(T value, Debug dbg = {}, size_t length = 1) { return literal(type2tag<T>::tag, Box(value), dbg, length); }
-    const Def* zero(PrimTypeTag tag, Debug dbg = {}, size_t length = 1) { return literal(tag, 0, dbg, length); }
-    const Def* zero(const Def* type, Debug dbg = {}, size_t length = 1) { return zero(type->as<PrimType>()->primtype_tag(), dbg, length); }
-    const Def* one(PrimTypeTag tag, Debug dbg = {}, size_t length = 1) { return literal(tag, 1, dbg, length); }
-    const Def* one(const Def* type, Debug dbg = {}, size_t length = 1) { return one(type->as<PrimType>()->primtype_tag(), dbg, length); }
-    const Def* allset(PrimTypeTag tag, Debug dbg = {}, size_t length = 1);
-    const Def* allset(const Def* type, Debug dbg = {}, size_t length = 1) { return allset(type->as<PrimType>()->primtype_tag(), dbg, length); }
+    const Def* literal(T value, Debug dbg = {}) { return literal(type2tag<T>::tag, Box(value), dbg); }
+    const Def* zero(PrimTypeTag tag, Debug dbg = {}) { return literal(tag, 0, dbg); }
+    const Def* zero(const Def* type, Debug dbg = {}) { return zero(type->as<PrimType>()->primtype_tag(), dbg); }
+    const Def* one(PrimTypeTag tag, Debug dbg = {}) { return literal(tag, 1, dbg); }
+    const Def* one(const Def* type, Debug dbg = {}) { return one(type->as<PrimType>()->primtype_tag(), dbg); }
+    const Def* allset(PrimTypeTag tag, Debug dbg = {});
+    const Def* allset(const Def* type, Debug dbg = {}) { return allset(type->as<PrimType>()->primtype_tag(), dbg); }
 
     /// @defgroup top/bottom
     //@{
-    const Def* bot_top(bool is_top, const Def* type, Debug dbg = {}, size_t length = 1) { return splat(unify(new BotTop(is_top, type, dbg)), length); }
-    const Def* bot(const Def* type, Debug dbg = {}, size_t length = 1) { return bot_top(false, type, dbg, length); }
-    const Def* top(const Def* type, Debug dbg = {}, size_t length = 1) { return bot_top(true,  type, dbg, length); }
-    const Def* bot(PrimTypeTag tag, Debug dbg = {}, size_t length = 1) { return bot_top(false, type(tag), dbg, length); }
-    const Def* top(PrimTypeTag tag, Debug dbg = {}, size_t length = 1) { return bot_top( true, type(tag), dbg, length); }
+    const Def* bot_top(bool is_top, const Def* type, Debug dbg = {}) { return unify(new BotTop(is_top, type, dbg)); }
+    const Def* bot(const Def* type, Debug dbg = {}) { return bot_top(false, type, dbg); }
+    const Def* top(const Def* type, Debug dbg = {}) { return bot_top(true,  type, dbg); }
+    const Def* bot(PrimTypeTag tag, Debug dbg = {}) { return bot_top(false, type(tag), dbg); }
+    const Def* top(PrimTypeTag tag, Debug dbg = {}) { return bot_top( true, type(tag), dbg); }
     const Def* bot(Debug dbg = {}) { return bot_top(false, star(), dbg); }
     const Def* top(Debug dbg = {}) { return bot_top(true,  star(), dbg); }
     //@}
@@ -186,12 +185,6 @@ public:
     const Def* tuple(const Def* type, Defs ops, Debug dbg = {});
     const Def* tuple(Defs ops, Debug dbg = {});
     const Def* variant(const VariantType* variant_type, const Def* value, Debug dbg = {}) { return unify(new Variant(variant_type, value, dbg)); }
-    const Def* vector(Defs ops, Debug dbg = {}) {
-        if (ops.size() == 1) return ops[0];
-        return try_fold_aggregate(unify(new Vector(*this, ops, dbg)));
-    }
-    /// Splats \p op to create a \p Vector with \p length.
-    const Def* splat(const Def* op, size_t length = 1, Debug dbg = {});
     const Def* extract(const Def* tuple, const Def* index, Debug dbg = {});
     const Def* extract(const Def* tuple, u32 index, Debug dbg = {}) {
         return extract(tuple, literal_qu32(index, dbg), dbg);

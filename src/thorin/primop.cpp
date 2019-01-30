@@ -12,13 +12,6 @@ namespace thorin {
  * constructors
  */
 
-PrimLit::PrimLit(World& world, PrimTypeTag tag, Box box, Debug dbg)
-    : Literal((NodeTag) tag, world.type(tag), dbg)
-    , box_(box)
-{
-    hash_ = hash_combine(hash_, bcast<uint64_t, Box>(value()));
-}
-
 Cmp::Cmp(CmpTag tag, const Def* lhs, const Def* rhs, Debug dbg)
     : BinOp((NodeTag) tag, lhs->world().type_bool(), lhs, rhs, dbg)
 {}
@@ -102,10 +95,6 @@ Assembly::Assembly(const Def *type, Defs inputs, std::string asm_template, Array
  * equal
  */
 
-bool PrimLit::equal(const Def* other) const {
-    return Literal::equal(other) ? this->value() == other->as<PrimLit>()->value() : false;
-}
-
 bool Slot::equal(const Def* other) const { return this == other; }
 
 //------------------------------------------------------------------------------
@@ -129,7 +118,7 @@ const Def* Run    ::rebuild(World& to, const Def*  , Defs ops) const { return to
 const Def* Insert ::rebuild(World& to, const Def*  , Defs ops) const { return to.insert(ops[0], ops[1], ops[2], debug()); }
 const Def* LEA    ::rebuild(World& to, const Def*  , Defs ops) const { return to.lea(ops[0], ops[1], debug()); }
 const Def* Load   ::rebuild(World& to, const Def*  , Defs ops) const { return to.load(ops[0], ops[1], debug()); }
-const Def* PrimLit::rebuild(World& to, const Def*  , Defs    ) const { return to.literal(primtype_tag(), value(), debug()); }
+const Def* Lit    ::rebuild(World& to, const Def* t, Defs    ) const { return to.lit(t, box(), debug()); }
 const Def* Select ::rebuild(World& to, const Def*  , Defs ops) const { return to.select(ops[0], ops[1], ops[2], debug()); }
 const Def* SizeOf ::rebuild(World& to, const Def*  , Defs ops) const { return to.size_of(ops[0]->type(), debug()); }
 const Def* Slot   ::rebuild(World& to, const Def* t, Defs ops) const { return to.slot(t->as<PtrType>()->pointee(), ops[0], debug()); }
@@ -201,22 +190,26 @@ std::ostream& PrimOp::stream(std::ostream& os) const {
         return os << unique_name();
 }
 
-std::ostream& PrimLit::stream(std::ostream& os) const {
+std::ostream& Lit::stream(std::ostream& os) const {
     os << type() << ' ';
-    auto tag = primtype_tag();
+    if (auto prim_type = type()->isa<PrimType>()) {
+        auto tag = prim_type->primtype_tag();
 
-    // print i8 as ints
-    switch (tag) {
-        case PrimType_qs8: return os << (int) qs8_value();
-        case PrimType_ps8: return os << (int) ps8_value();
-        case PrimType_qu8: return os << (unsigned) qu8_value();
-        case PrimType_pu8: return os << (unsigned) pu8_value();
-        default:
-            switch (tag) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return os << value().get_##M();
+        // print i8 as ints
+        switch (tag) {
+            case PrimType_qs8: return os << (int) box().get_qs8();
+            case PrimType_ps8: return os << (int) box().get_ps8();
+            case PrimType_qu8: return os << (unsigned) box().get_qu8();
+            case PrimType_pu8: return os << (unsigned) box().get_pu8();
+            default:
+                switch (tag) {
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return os << box().get_##M();
 #include "thorin/tables/primtypetable.h"
-                default: THORIN_UNREACHABLE;
-            }
+                    default: THORIN_UNREACHABLE;
+                }
+        }
+    } else {
+        return os << box().get_u64();
     }
 }
 
@@ -252,7 +245,7 @@ const Def* merge_tuple(const Def* a, const Def* b) {
 std::string DefiniteArray::as_string() const {
     std::string res;
     for (auto op : ops()) {
-        auto c = op->as<PrimLit>()->pu8_value();
+        auto c = op->as<Lit>()->box().get_pu8();
         if (!c) break;
         res += c;
     }
@@ -270,7 +263,7 @@ const Def* Extract::extracted_type(const Def* agg, const Def* index) {
     else if (auto array = agg->type()->isa<ArrayType>())
         return array->elem_type();
     else {
-        assert(index->as<PrimLit>()->value().get_u64() == 0);
+        assert(index->as<Lit>()->box().get_u64() == 0);
         return agg->type();
     }
 }

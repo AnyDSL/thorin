@@ -79,9 +79,9 @@ Lam* CodeGen::emit_vectorize_lam(Lam* lam) {
     }
     auto simd_kernel_call = irbuilder_.CreateCall(kernel_simd_func, llvm_ref(args));
 
-    if (!lam->app()->arg(VectorizeArgs::Length)->isa<PrimLit>())
+    if (!lam->app()->arg(VectorizeArgs::Length)->isa<Lit>())
         EDEF(lam->app()->arg(VectorizeArgs::Length), "vector length must be known at compile-time");
-    u32 vector_length_constant = lam->app()->arg(VectorizeArgs::Length)->as<PrimLit>()->qu32_value();
+    u32 vector_length_constant = lam->app()->arg(VectorizeArgs::Length)->as<Lit>()->box().get_qu32();
     vec_todo_.emplace_back(vector_length_constant, emit_function_decl(kernel), simd_kernel_call);
 
     return lam->app()->arg(VectorizeArgs::Return)->as_lam();

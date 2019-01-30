@@ -114,21 +114,22 @@ public:
     const DefiniteArrayType*   definite_array_type(const Def* elem, u64 dim, Debug dbg = {}) { return unify(new DefiniteArrayType(star(), elem, dim, dbg)); }
     const IndefiniteArrayType* indefinite_array_type(const Def* elem, Debug dbg = {}) { return unify(new IndefiniteArrayType(star(), elem, dbg)); }
 
-
-    // literals
-
-#define THORIN_ALL_TYPE(T, M) \
-    const Def* literal_##T(T val, Debug dbg = {}) { return literal(PrimType_##T, Box(val), dbg); }
-#include "thorin/tables/primtypetable.h"
-    const Def* literal(PrimTypeTag tag, Box box, Debug dbg) { return unify(new PrimLit(*this, tag, box, dbg)); }
+    /// @defgroup create @p Lit%erals
+    //@{
+    const Def* lit(const Def* type, Box box, Debug dbg) { return unify(new Lit(type, box, dbg)); }
+    const Def* lit(PrimTypeTag tag, Box box, Debug dbg) { return lit(type(tag), box, dbg); }
     template<class T>
-    const Def* literal(T value, Debug dbg = {}) { return literal(type2tag<T>::tag, Box(value), dbg); }
-    const Def* zero(PrimTypeTag tag, Debug dbg = {}) { return literal(tag, 0, dbg); }
+    const Def* lit(T value, Debug dbg = {}) { return lit(type2tag<T>::tag, Box(value), dbg); }
+#define THORIN_ALL_TYPE(T, M) \
+    const Def* lit_##T(T val, Debug dbg = {}) { return lit(PrimType_##T, Box(val), dbg); }
+#include "thorin/tables/primtypetable.h"
+    const Def* zero(PrimTypeTag tag, Debug dbg = {}) { return lit(tag, 0, dbg); }
     const Def* zero(const Def* type, Debug dbg = {}) { return zero(type->as<PrimType>()->primtype_tag(), dbg); }
-    const Def* one(PrimTypeTag tag, Debug dbg = {}) { return literal(tag, 1, dbg); }
+    const Def* one(PrimTypeTag tag, Debug dbg = {}) { return lit(tag, 1, dbg); }
     const Def* one(const Def* type, Debug dbg = {}) { return one(type->as<PrimType>()->primtype_tag(), dbg); }
     const Def* allset(PrimTypeTag tag, Debug dbg = {});
     const Def* allset(const Def* type, Debug dbg = {}) { return allset(type->as<PrimType>()->primtype_tag(), dbg); }
+    //@}
 
     /// @defgroup top/bottom
     //@{
@@ -187,11 +188,11 @@ public:
     const Def* variant(const VariantType* variant_type, const Def* value, Debug dbg = {}) { return unify(new Variant(variant_type, value, dbg)); }
     const Def* extract(const Def* tuple, const Def* index, Debug dbg = {});
     const Def* extract(const Def* tuple, u32 index, Debug dbg = {}) {
-        return extract(tuple, literal_qu32(index, dbg), dbg);
+        return extract(tuple, lit_qu32(index, dbg), dbg);
     }
     const Def* insert(const Def* tuple, const Def* index, const Def* value, Debug dbg = {});
     const Def* insert(const Def* tuple, u32 index, const Def* value, Debug dbg = {}) {
-        return insert(tuple, literal_qu32(index, dbg), value, dbg);
+        return insert(tuple, lit_qu32(index, dbg), value, dbg);
     }
 
     const Def* select(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
@@ -204,7 +205,7 @@ public:
     const Def* enter(const Def* mem, Debug dbg = {});
     const Def* slot(const Def* type, const Def* frame, Debug dbg = {}) { return unify(new Slot(type, frame, dbg)); }
     const Def* alloc(const Def* type, const Def* mem, const Def* extra, Debug dbg = {});
-    const Def* alloc(const Def* type, const Def* mem, Debug dbg = {}) { return alloc(type, mem, literal_qu64(0, dbg), dbg); }
+    const Def* alloc(const Def* type, const Def* mem, Debug dbg = {}) { return alloc(type, mem, lit_qu64(0, dbg), dbg); }
     const Def* global(const Def* init, bool is_mutable = true, Debug dbg = {});
     const Def* global_immutable_string(const std::string& str, Debug dbg = {});
     const Def* lea(const Def* ptr, const Def* index, Debug dbg);
@@ -229,7 +230,7 @@ public:
     //@}
     /// @defgroup structural @p Lam%bdas
     const Lam* lam(const Def* domain, const Def* filter, const Def* body, Debug dbg);
-    const Lam* lam(const Def* domain, const Def* body, Debug dbg) { return lam(domain, literal_bool(true, Debug()), body, dbg); }
+    const Lam* lam(const Def* domain, const Def* body, Debug dbg) { return lam(domain, lit_bool(true, Debug()), body, dbg); }
     //@{
     Lam* branch() const { return branch_; }
     Lam* match(const Def* type, size_t num_patterns);

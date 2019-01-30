@@ -107,7 +107,7 @@ Lam* CodeGen::emit_atomic(Lam* lam) {
     if (!is_type_i(lam->app()->arg(3)->type()))
         EDEF(lam->app()->arg(3), "atomic only supported for integer types");
     // atomic tag: Xchg Add Sub And Nand Or Xor Max Min
-    u32 tag = lam->app()->arg(1)->as<PrimLit>()->qu32_value();
+    u32 tag = lam->app()->arg(1)->as<Lit>()->box().get_qu32();
     auto ptr = lookup(lam->app()->arg(2));
     auto val = lookup(lam->app()->arg(3));
     assert(int(llvm::AtomicRMWInst::BinOp::Xchg) <= int(tag) && int(tag) <= int(llvm::AtomicRMWInst::BinOp::UMin) && "unsupported atomic");
@@ -139,9 +139,9 @@ Lam* CodeGen::emit_reserve(const Lam* lam) {
 
 Lam* CodeGen::emit_reserve_shared(const Lam* lam, bool init_undef) {
     assert(lam->app()->num_args() == 3 && "required arguments are missing");
-    if (!lam->app()->arg(1)->isa<PrimLit>())
+    if (!lam->app()->arg(1)->isa<Lit>())
         EDEF(lam->app()->arg(1), "reserve_shared: couldn't extract memory size");
-    auto num_elems = lam->app()->arg(1)->as<PrimLit>()->ps32_value();
+    auto num_elems = lam->app()->arg(1)->as<Lit>()->box().get_ps32();
     auto l = lam->app()->arg(2)->as_lam();
     auto type = convert(lam->param(1)->type());
     // construct array type
@@ -880,23 +880,27 @@ llvm::Value* CodeGen::emit(const Def* def) {
         }
     }
 
-    if (auto primlit = def->isa<PrimLit>()) {
-        llvm::Type* llvm_type = convert(primlit->type());
-        Box box = primlit->value();
+    if (auto lit = def->isa<Lit>()) {
+        llvm::Type* llvm_type = convert(lit->type());
+        Box box = lit->box();
 
-        switch (primlit->primtype_tag()) {
-            case PrimType_bool:                     return irbuilder_. getInt1(box.get_bool());
-            case PrimType_ps8:  case PrimType_qs8:  return irbuilder_. getInt8(box. get_s8());
-            case PrimType_pu8:  case PrimType_qu8:  return irbuilder_. getInt8(box. get_u8());
-            case PrimType_ps16: case PrimType_qs16: return irbuilder_.getInt16(box.get_s16());
-            case PrimType_pu16: case PrimType_qu16: return irbuilder_.getInt16(box.get_u16());
-            case PrimType_ps32: case PrimType_qs32: return irbuilder_.getInt32(box.get_s32());
-            case PrimType_pu32: case PrimType_qu32: return irbuilder_.getInt32(box.get_u32());
-            case PrimType_ps64: case PrimType_qs64: return irbuilder_.getInt64(box.get_s64());
-            case PrimType_pu64: case PrimType_qu64: return irbuilder_.getInt64(box.get_u64());
-            case PrimType_pf16: case PrimType_qf16: return llvm::ConstantFP::get(llvm_type, box.get_f16());
-            case PrimType_pf32: case PrimType_qf32: return llvm::ConstantFP::get(llvm_type, box.get_f32());
-            case PrimType_pf64: case PrimType_qf64: return llvm::ConstantFP::get(llvm_type, box.get_f64());
+        if (auto prim_type = lit->type()->isa<PrimType>()) {
+            switch (prim_type->primtype_tag()) {
+                case PrimType_bool:                     return irbuilder_. getInt1(box.get_bool());
+                case PrimType_ps8:  case PrimType_qs8:  return irbuilder_. getInt8(box. get_s8());
+                case PrimType_pu8:  case PrimType_qu8:  return irbuilder_. getInt8(box. get_u8());
+                case PrimType_ps16: case PrimType_qs16: return irbuilder_.getInt16(box.get_s16());
+                case PrimType_pu16: case PrimType_qu16: return irbuilder_.getInt16(box.get_u16());
+                case PrimType_ps32: case PrimType_qs32: return irbuilder_.getInt32(box.get_s32());
+                case PrimType_pu32: case PrimType_qu32: return irbuilder_.getInt32(box.get_u32());
+                case PrimType_ps64: case PrimType_qs64: return irbuilder_.getInt64(box.get_s64());
+                case PrimType_pu64: case PrimType_qu64: return irbuilder_.getInt64(box.get_u64());
+                case PrimType_pf16: case PrimType_qf16: return llvm::ConstantFP::get(llvm_type, box.get_f16());
+                case PrimType_pf32: case PrimType_qf32: return llvm::ConstantFP::get(llvm_type, box.get_f32());
+                case PrimType_pf64: case PrimType_qf64: return llvm::ConstantFP::get(llvm_type, box.get_f64());
+            }
+        } else {
+            assert(false && "TODO");
         }
     }
 
@@ -1221,8 +1225,8 @@ static uint64_t get_alloc_size(const Def* def) {
     if (!call) return 0;
 
     // signature: anydsl_alloc(mem, i32, i64, fn(mem, &[i8]))
-    auto size = call->app()->arg(2)->isa<PrimLit>();
-    return size ? static_cast<uint64_t>(size->value().get_qu64()) : 0_u64;
+    auto size = call->app()->arg(2)->isa<Lit>();
+    return size ? static_cast<uint64_t>(size->box().get_qu64()) : 0_u64;
 }
 
 Backends::Backends(World& world)
@@ -1278,13 +1282,13 @@ Backends::Backends(World& world)
             }
 
             auto it_config = use->app()->arg(LaunchArgs::Config)->as<Tuple>();
-            if (it_config->op(0)->isa<PrimLit>() &&
-                it_config->op(1)->isa<PrimLit>() &&
-                it_config->op(2)->isa<PrimLit>()) {
+            if (it_config->op(0)->isa<Lit>() &&
+                it_config->op(1)->isa<Lit>() &&
+                it_config->op(2)->isa<Lit>()) {
                 return std::make_unique<GPUKernelConfig>(std::tuple<int, int, int> {
-                    it_config->op(0)->as<PrimLit>()->qu32_value().data(),
-                    it_config->op(1)->as<PrimLit>()->qu32_value().data(),
-                    it_config->op(2)->as<PrimLit>()->qu32_value().data()
+                    it_config->op(0)->as<Lit>()->box().get_qu32().data(),
+                    it_config->op(1)->as<Lit>()->box().get_qu32().data(),
+                    it_config->op(2)->as<Lit>()->box().get_qu32().data()
                 }, has_restrict);
             }
             return std::make_unique<GPUKernelConfig>(std::tuple<int, int, int> { -1, -1, -1 }, has_restrict);

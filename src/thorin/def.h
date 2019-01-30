@@ -287,6 +287,27 @@ public:
     friend class World;
 };
 
+class Lit : public Def {
+private:
+    Lit(const Def* type, Box box, Debug dbg)
+        : Def(Node_Lit, type, Defs{}, dbg)
+        , box_(box)
+        {
+            hash_ = hash_combine(hash_, box.get_u64());
+        }
+
+public:
+    Box box() const { return box_; }
+    bool equal(const Def*) const override;
+    const Def* rebuild(World& to, const Def*, Defs ops) const override;
+    std::ostream& stream(std::ostream&) const override;
+
+private:
+    Box box_;
+
+    friend class World;
+};
+
 class Var : public Def {
 private:
     Var(const Def* type, u64 index, Debug dbg)

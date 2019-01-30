@@ -33,44 +33,12 @@ protected:
 
 //------------------------------------------------------------------------------
 
-/// Base class for all @p PrimOp%s without operands.
-class Literal : public PrimOp {
-protected:
-    Literal(NodeTag tag, const Def* type, Debug dbg)
-        : PrimOp(tag, type, {}, dbg)
-    {}
-};
-
-/// Data constructor for a @p PrimType.
-class PrimLit : public Literal {
-private:
-    PrimLit(World& world, PrimTypeTag tag, Box box, Debug dbg);
-
-public:
-    Box value() const { return box_; }
-#define THORIN_ALL_TYPE(T, M) T T##_value() const { return value().get_##T(); }
-#include "thorin/tables/primtypetable.h"
-
-    const PrimType* type() const { return Literal::type()->as<PrimType>(); }
-    PrimTypeTag primtype_tag() const { return type()->primtype_tag(); }
-
-    std::ostream& stream(std::ostream&) const override;
-
-private:
-    bool equal(const Def* other) const override;
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
-
-    Box box_;
-
-    friend class World;
-};
-
 template<class T>
 T primlit_value(const Def* def) {
     static_assert(std::is_integral<T>::value, "only integral types supported");
-    auto lit = def->as<PrimLit>();
-    switch (lit->primtype_tag()) {
-#define THORIN_I_TYPE(T, M) case PrimType_##T: return lit->value().get_##T();
+    auto lit = def->as<Lit>();
+    switch (lit->type()->as<PrimType>()->primtype_tag()) {
+#define THORIN_I_TYPE(T, M) case PrimType_##T: return lit->box().get_##T();
 #include "thorin/tables/primtypetable.h"
         default: THORIN_UNREACHABLE;
     }

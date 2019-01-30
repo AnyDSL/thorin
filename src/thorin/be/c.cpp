@@ -481,7 +481,7 @@ void CCodeGen::emit() {
                 emit_aggop_defs(arg);
 
                 // emit temporaries for arguments
-                if (arg->type()->order() >= 1 || is_mem(arg) || is_unit(arg) || lookup(arg) || arg->isa<PrimLit>())
+                if (arg->type()->order() >= 1 || is_mem(arg) || is_unit(arg) || lookup(arg) || arg->isa<Lit>())
                     continue;
 
                 emit(arg) << endl;
@@ -566,7 +566,7 @@ void CCodeGen::emit() {
                 } else {
                     if (callee->is_intrinsic()) {
                         if (callee->intrinsic() == Intrinsic::Reserve) {
-                            if (!lam->app()->arg(1)->isa<PrimLit>())
+                            if (!lam->app()->arg(1)->isa<Lit>())
                                 EDEF(lam->app()->arg(1), "reserve_shared: couldn't extract memory size");
 
                             switch (lang_) {
@@ -940,24 +940,24 @@ std::ostream& CCodeGen::emit(const Def* def) {
         }
     }
 
-    if (auto primlit = def->isa<PrimLit>()) {
-        switch (primlit->primtype_tag()) {
-            case PrimType_bool:                     func_impl_ << (primlit->bool_value() ? "true" : "false");      break;
-            case PrimType_ps8:  case PrimType_qs8:  func_impl_ << (int) primlit->ps8_value();                      break;
-            case PrimType_pu8:  case PrimType_qu8:  func_impl_ << (unsigned) primlit->pu8_value();                 break;
-            case PrimType_ps16: case PrimType_qs16: func_impl_ << primlit->ps16_value();                           break;
-            case PrimType_pu16: case PrimType_qu16: func_impl_ << primlit->pu16_value();                           break;
-            case PrimType_ps32: case PrimType_qs32: func_impl_ << primlit->ps32_value();                           break;
-            case PrimType_pu32: case PrimType_qu32: func_impl_ << primlit->pu32_value();                           break;
-            case PrimType_ps64: case PrimType_qs64: func_impl_ << primlit->ps64_value();                           break;
-            case PrimType_pu64: case PrimType_qu64: func_impl_ << primlit->pu64_value();                           break;
-            case PrimType_pf16: case PrimType_qf16: emit_float<half>(primlit->pf16_value(),
+    if (auto lit = def->isa<Lit>()) {
+        switch (lit->type()->as<PrimType>()->primtype_tag()) {
+            case PrimType_bool:                     func_impl_ << (lit->box().get_bool() ? "true" : "false");      break;
+            case PrimType_ps8:  case PrimType_qs8:  func_impl_ << (int) lit->box().get_ps8();                      break;
+            case PrimType_pu8:  case PrimType_qu8:  func_impl_ << (unsigned) lit->box().get_pu8();                 break;
+            case PrimType_ps16: case PrimType_qs16: func_impl_ << lit->box().get_ps16();                           break;
+            case PrimType_pu16: case PrimType_qu16: func_impl_ << lit->box().get_pu16();                           break;
+            case PrimType_ps32: case PrimType_qs32: func_impl_ << lit->box().get_ps32();                           break;
+            case PrimType_pu32: case PrimType_qu32: func_impl_ << lit->box().get_pu32();                           break;
+            case PrimType_ps64: case PrimType_qs64: func_impl_ << lit->box().get_ps64();                           break;
+            case PrimType_pu64: case PrimType_qu64: func_impl_ << lit->box().get_pu64();                           break;
+            case PrimType_pf16: case PrimType_qf16: emit_float<half>(lit->box().get_pf16(),
                                                                      [](half v) { return half_float::isinf(v); },
                                                                      [](half v) { return half_float::isnan(v); }); break;
-            case PrimType_pf32: case PrimType_qf32: emit_float<float>(primlit->pf32_value(),
+            case PrimType_pf32: case PrimType_qf32: emit_float<float>(lit->box().get_pf32(),
                                                                       [](float v) { return std::isinf(v); },
                                                                       [](float v) { return std::isnan(v); });      break;
-            case PrimType_pf64: case PrimType_qf64: emit_float<double>(primlit->pf64_value(),
+            case PrimType_pf64: case PrimType_qf64: emit_float<double>(lit->box().get_pf64(),
                                                                        [](double v) { return std::isinf(v); },
                                                                        [](double v) { return std::isnan(v); });    break;
         }
@@ -1107,12 +1107,12 @@ std::ostream& CCodeGen::emit(const Def* def) {
 
         // string handling
         if (auto str_array = global->init()->isa<DefiniteArray>()) {
-            if (str_array->ops().back()->as<PrimLit>()->pu8_value() == pu8(0)) {
+            if (str_array->ops().back()->as<Lit>()->box().get_pu8() == pu8(0)) {
                 if (auto primtype = str_array->elem_type()->isa<PrimType>()) {
                     if (primtype->primtype_tag() == PrimType_pu8) {
                         std::string str = "\"";
                         for (auto op : str_array->ops().skip_back())
-                            str += op->as<PrimLit>()->pu8_value();
+                            str += op->as<Lit>()->box().get_pu8();
                         str += '"';
                         insert(def, str);
                         return func_impl_;

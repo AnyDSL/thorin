@@ -30,7 +30,7 @@ static void split(const Slot* slot) {
 
     for (auto use : slot->copy_uses()) {
         if (auto lea = use->isa<LEA>()) {
-            lea->replace(elem_slot(lea->index()->as<PrimLit>()->value().get_u32()));
+            lea->replace(elem_slot(lea->index()->as<Lit>()->box().get_u32()));
         } else if (auto store = use->isa<Store>()) {
             auto in_mem = store->op(0);
             for (size_t i = 0, e = dim; i != e; ++i) {

@@ -42,12 +42,14 @@ bool is_const(const Def* def) {
 }
 
 bool is_primlit(const Def* def, int64_t val) {
-    if (auto lit = def->isa<PrimLit>()) {
-        switch (lit->primtype_tag()) {
-#define THORIN_I_TYPE(T, M) case PrimType_##T: return lit->value().get_##T() == T(val);
+    if (auto lit = def->isa<Lit>()) {
+        if (auto prim_type = lit->type()->isa<PrimType>()) {
+            switch (prim_type->primtype_tag()) {
+#define THORIN_I_TYPE(T, M) case PrimType_##T: return lit->box().get_##T() == T(val);
 #include "thorin/tables/primtypetable.h"
-            case PrimType_bool: return lit->value().get_bool() == bool(val);
-            default: ; // FALLTHROUGH
+                case PrimType_bool: return lit->box().get_bool() == bool(val);
+                default: ; // FALLTHROUGH
+            }
         }
     }
 
@@ -55,13 +57,14 @@ bool is_primlit(const Def* def, int64_t val) {
 }
 
 bool is_minus_zero(const Def* def) {
-    if (auto lit = def->isa<PrimLit>()) {
-        Box box = lit->value();
-        switch (lit->primtype_tag()) {
-#define THORIN_I_TYPE(T, M) case PrimType_##T: return box.get_##M() == M(0);
-#define THORIN_F_TYPE(T, M) case PrimType_##T: return box.get_##M() == M(-0.0);
+    if (auto lit = def->isa<Lit>()) {
+        if (auto prim_type = lit->type()->isa<PrimType>()) {
+            switch (prim_type->primtype_tag()) {
+#define THORIN_I_TYPE(T, M) case PrimType_##T: return lit->box().get_##M() == M(0);
+#define THORIN_F_TYPE(T, M) case PrimType_##T: return lit->box().get_##M() == M(-0.0);
 #include "thorin/tables/primtypetable.h"
-            default: THORIN_UNREACHABLE;
+                default: THORIN_UNREACHABLE;
+            }
         }
     }
     return false;
@@ -92,7 +95,7 @@ Lam* get_param_lam(const Def* def) {
 
 size_t get_param_index(const Def* def) {
     if (auto extract = def->isa<Extract>())
-        return primlit_value<u64>(extract->index()->as<PrimLit>());
+        return primlit_value<u64>(extract->index()->as<Lit>());
     assert(def->isa<Param>());
     return 0;
 }
@@ -278,7 +281,7 @@ Array<const Def*> App::args() const {
  */
 
 void Lam::destroy() {
-    set_filter(world().tuple(Array<const Def*>(type()->num_domains(), world().literal_bool(false))));
+    set_filter(world().tuple(Array<const Def*>(type()->num_domains(), world().lit_bool(false))));
     set_body  (world().bot(type()->codomain()));
 }
 
@@ -542,6 +545,7 @@ bool Def::equal(const Def* other) const {
 }
 
 bool Var::equal(const Def* other) const { return Def::equal(other) && this->index() == other->as<Var>()->index(); }
+bool Lit::equal(const Def* other) const { return Def::equal(other) && this->box()   == other->as<Lit>()->box(); }
 
 bool PtrType::equal(const Def* other) const {
     if (!Def::equal(other)) return false;

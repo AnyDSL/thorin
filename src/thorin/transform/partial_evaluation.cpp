@@ -80,7 +80,7 @@ public:
     }
 
     const Def* filter(size_t i) {
-        return callee_->filter() == nullptr ? world().literal_bool(false, {}) : callee_->filter(i);
+        return callee_->filter() == nullptr ? world().lit_bool(false, {}) : callee_->filter(i);
     }
 
     bool has_free_params(Lam* lam) {

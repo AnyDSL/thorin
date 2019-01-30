@@ -6,10 +6,10 @@
     THORIN_NODE(Universe, universe)
     THORIN_NODE(Star, star)
     THORIN_NODE(Lam, lam)
+    THORIN_NODE(Bot, bot)
+    THORIN_NODE(Top, top)
+    THORIN_NODE(Lit, lit)
     // PrimOp
-        // Literal
-            THORIN_NODE(Bot, bot)
-            THORIN_NODE(Top, top)
         // MemOp
             THORIN_NODE(Alloc, alloc)
             // Access

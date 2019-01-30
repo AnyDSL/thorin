@@ -117,6 +117,10 @@ public:
     const Def* one(const Def* type, Debug dbg = {}) { return one(type->as<PrimType>()->primtype_tag(), dbg); }
     const Def* allset(PrimTypeTag tag, Debug dbg = {});
     const Def* allset(const Def* type, Debug dbg = {}) { return allset(type->as<PrimType>()->primtype_tag(), dbg); }
+    const Lit* lit_arity(u64 a, Loc loc = {});
+    const Lit* lit_index(u64 arity, u64 idx, Loc loc = {}) { return lit_index(lit_arity(arity), idx, loc); }
+    const Lit* lit_index(const Lit* arity, u64 index, Loc loc = {});
+
     //@}
     /// @defgroup top/bottom
     //@{

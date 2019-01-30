@@ -500,8 +500,17 @@ bool Pi::is_returning() const {
  * constructors
  */
 
+static inline const char* kind2str(NodeTag tag) {
+    switch (tag) {
+        case Node_KindArity: return "*A";
+        case Node_KindMulti: return "*M";
+        case Node_KindStar:  return "*";
+        default: THORIN_UNREACHABLE;
+    }
+}
+
 Kind::Kind(World& world, NodeTag tag)
-    : Def(tag, world.universe(), Defs{}, {"*"})
+    : Def(tag, world.universe(), Defs{}, {kind2str(tag)})
 {}
 
 Lam::Lam(const Pi* pi, const Def* filter, const Def* body, Debug dbg)
@@ -519,15 +528,15 @@ Lam::Lam(const Pi* pi, CC cc, Intrinsic intrinsic, Debug dbg)
 }
 
 PrimType::PrimType(World& world, PrimTypeTag tag, Debug dbg)
-    : Def((NodeTag) tag, world.star(), Defs{}, dbg)
+    : Def((NodeTag) tag, world.kind_star(), Defs{}, dbg)
 {}
 
 MemType::MemType(World& world)
-    : Def(Node_MemType, world.star(), Defs{}, {"mem"})
+    : Def(Node_MemType, world.kind_star(), Defs{}, {"mem"})
 {}
 
 FrameType::FrameType(World& world)
-    : Def(Node_FrameType, world.star(), Defs{}, {"frame"})
+    : Def(Node_FrameType, world.kind_star(), Defs{}, {"frame"})
 {}
 
 /*
@@ -602,7 +611,7 @@ std::ostream& VariantType        ::stream(std::ostream& os) const { return strea
 
 std::ostream& BotTop::stream(std::ostream& os) const {
     auto op = is_bot(this) ? "⊥" : "⊤";
-    return is_star(type()) ? os << op : streamf(os, "{{{}: {}}}", op, type());
+    return is_kind_star(type()) ? os << op : streamf(os, "{{{}: {}}}", op, type());
 }
 
 #if 0

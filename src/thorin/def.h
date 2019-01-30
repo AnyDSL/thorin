@@ -247,7 +247,9 @@ protected:
 // TODO make this smarter
 inline bool is_bot (const Def* def) { return def->tag() == Node_Bot; }
 inline bool is_top (const Def* def) { return def->tag() == Node_Top; }
-inline bool is_star(const Def* def) { return def->tag() == Node_Star; }
+inline bool is_kind_arity(const Def* def) { return def->tag() == Node_KindArity; }
+inline bool is_kind_multi(const Def* def) { return def->tag() == Node_KindMulti; }
+inline bool is_kind_star (const Def* def) { return def->tag() == Node_KindStar; }
 
 class Universe : public Def {
 private:

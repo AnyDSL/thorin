@@ -63,42 +63,18 @@ public:
 
     bool empty() { return externals().empty(); }
 
+    /// @defgroup core @p Def%s
+    //@{
+    /// @defgroup @p Universe and @p Kind%s
+    //@{
     const Universe* universe() { return universe_; }
-    const Kind* kind(NodeTag tag) { assert(tag == Node_Star); return unify(new Kind(*this, tag)); }
-    const Kind* star() { return star_; }
+    const Kind* kind(NodeTag tag) { return unify(new Kind(*this, tag)); }
+    const Kind* kind_arity() { return kind_arity_; }
+    const Kind* kind_multi() { return kind_multi_; }
+    const Kind* kind_star()  { return kind_star_; }
     const Var* var(const Def* type, u64 index, Debug dbg = {}) { return unify(new Var(type, index, dbg)); }
-    const VariantType* variant_type(Defs ops, Debug dbg = {}) { return unify(new VariantType(star(), ops, dbg)); }
-
-    /// @defgroup @p Sigma%s
-    //@{
-    /// @defgroup structural @p Sigma%s
-    //@{
-    const Def* sigma(const Def* type, Defs ops, Debug dbg = {});
-    /// a @em structural @p Sigma of type @p star
-    const Def* sigma(Defs ops, Debug dbg = {}) { return sigma(star(), ops, dbg); }
-    const Sigma* sigma() { return sigma_; } ///< Returns an empty @p Sigma - AKA unit - of type @p star
+    const VariantType* variant_type(Defs ops, Debug dbg = {}) { return unify(new VariantType(kind_star(), ops, dbg)); }
     //@}
-    /// @defgroup nominal @p Sigma%s
-    //@{
-    Sigma* sigma(const Def* type, size_t size, Debug dbg = {}) { return insert(new Sigma(type, size, dbg)); }
-    /// a @em nominal @p Sigma of type @p star
-    Sigma* sigma(size_t size, Debug dbg = {}) { return sigma(star(), size, dbg); }
-    //@}
-    //@}
-
-#define THORIN_ALL_TYPE(T, M) \
-    const PrimType* type_##T() { return type(PrimType_##T); }
-#include "thorin/tables/primtypetable.h"
-    const PrimType* type(PrimTypeTag tag) {
-        size_t i = tag - Begin_PrimType;
-        assert(i < (size_t) Num_PrimTypes);
-        return primtypes_[i];
-    }
-    const MemType* mem_type() const { return mem_; }
-    const FrameType* frame_type() const { return frame_; }
-    const PtrType* ptr_type(const Def* pointee, int8_t device = -1, AddrSpace addr_space = AddrSpace::Generic, Debug dbg = {}) {
-        return unify(new PtrType(star(), pointee, device, addr_space, dbg));
-    }
     /// @defgroup @p Pi%s
     //@{
     const Pi* pi(Defs domain, const Def* codomain, Debug dbg = {}) { return pi(sigma(domain), codomain, dbg); }
@@ -110,10 +86,22 @@ public:
     const Pi* cn(const Def* domain) { return pi(domain, bot()); }
     //@}
     //@}
-
-    const DefiniteArrayType*   definite_array_type(const Def* elem, u64 dim, Debug dbg = {}) { return unify(new DefiniteArrayType(star(), elem, dim, dbg)); }
-    const IndefiniteArrayType* indefinite_array_type(const Def* elem, Debug dbg = {}) { return unify(new IndefiniteArrayType(star(), elem, dbg)); }
-
+    /// @defgroup @p Sigma%s
+    //@{
+    /// @defgroup @em structural @p Sigma%s
+    //@{
+    const Def* sigma(const Def* type, Defs ops, Debug dbg = {});
+    /// a @em structural @p Sigma of type @p star
+    const Def* sigma(Defs ops, Debug dbg = {}) { return sigma(kind_star(), ops, dbg); }
+    const Sigma* sigma() { return sigma_; } ///< Returns an empty @p Sigma - AKA unit - of type @p star
+    //@}
+    /// @defgroup @em nominal @p Sigma%s
+    //@{
+    Sigma* sigma(const Def* type, size_t size, Debug dbg = {}) { return insert(new Sigma(type, size, dbg)); }
+    /// a @em nominal @p Sigma of type @p star
+    Sigma* sigma(size_t size, Debug dbg = {}) { return sigma(kind_star(), size, dbg); }
+    //@}
+    //@}
     /// @defgroup create @p Lit%erals
     //@{
     const Def* lit(const Def* type, Box box, Debug dbg) { return unify(new Lit(type, box, dbg)); }
@@ -130,7 +118,6 @@ public:
     const Def* allset(PrimTypeTag tag, Debug dbg = {});
     const Def* allset(const Def* type, Debug dbg = {}) { return allset(type->as<PrimType>()->primtype_tag(), dbg); }
     //@}
-
     /// @defgroup top/bottom
     //@{
     const Def* bot_top(bool is_top, const Def* type, Debug dbg = {}) { return unify(new BotTop(is_top, type, dbg)); }
@@ -138,9 +125,27 @@ public:
     const Def* top(const Def* type, Debug dbg = {}) { return bot_top(true,  type, dbg); }
     const Def* bot(PrimTypeTag tag, Debug dbg = {}) { return bot_top(false, type(tag), dbg); }
     const Def* top(PrimTypeTag tag, Debug dbg = {}) { return bot_top( true, type(tag), dbg); }
-    const Def* bot(Debug dbg = {}) { return bot_top(false, star(), dbg); }
-    const Def* top(Debug dbg = {}) { return bot_top(true,  star(), dbg); }
+    const Def* bot(Debug dbg = {}) { return bot_top(false, kind_star(), dbg); }
+    const Def* top(Debug dbg = {}) { return bot_top(true,  kind_star(), dbg); }
     //@}
+    //@}
+
+#define THORIN_ALL_TYPE(T, M) \
+    const PrimType* type_##T() { return type(PrimType_##T); }
+#include "thorin/tables/primtypetable.h"
+    const PrimType* type(PrimTypeTag tag) {
+        size_t i = tag - Begin_PrimType;
+        assert(i < (size_t) Num_PrimTypes);
+        return primtypes_[i];
+    }
+    const MemType* mem_type() const { return mem_; }
+    const FrameType* frame_type() const { return frame_; }
+    const PtrType* ptr_type(const Def* pointee, int8_t device = -1, AddrSpace addr_space = AddrSpace::Generic, Debug dbg = {}) {
+        return unify(new PtrType(kind_star(), pointee, device, addr_space, dbg));
+    }
+
+    const DefiniteArrayType*   definite_array_type(const Def* elem, u64 dim, Debug dbg = {}) { return unify(new DefiniteArrayType(kind_star(), elem, dim, dbg)); }
+    const IndefiniteArrayType* indefinite_array_type(const Def* elem, Debug dbg = {}) { return unify(new IndefiniteArrayType(kind_star(), elem, dbg)); }
 
     // arithops
 
@@ -272,18 +277,20 @@ public:
 
     friend void swap(World& w1, World& w2) {
         using std::swap;
-        swap(w1.name_,      w2.name_);
-        swap(w1.externals_, w2.externals_);
-        swap(w1.defs_,      w2.defs_);
-        swap(w1.universe_,  w2.universe_);
-        swap(w1.star_,      w2.star_);
-        swap(w1.sigma_,     w2.sigma_);
-        swap(w1.bot_,       w2.bot_);
-        swap(w1.mem_,       w2.mem_);
-        swap(w1.frame_,     w2.frame_);
-        swap(w1.branch_,    w2.branch_);
-        swap(w1.end_scope_, w2.end_scope_);
-        swap(w1.pe_done_,   w2.pe_done_);
+        swap(w1.name_,       w2.name_);
+        swap(w1.externals_,  w2.externals_);
+        swap(w1.defs_,       w2.defs_);
+        swap(w1.universe_,   w2.universe_);
+        swap(w1.kind_arity_, w2.kind_arity_);
+        swap(w1.kind_multi_, w2.kind_multi_);
+        swap(w1.kind_star_,  w2.kind_star_);
+        swap(w1.sigma_,      w2.sigma_);
+        swap(w1.bot_,        w2.bot_);
+        swap(w1.mem_,        w2.mem_);
+        swap(w1.frame_,      w2.frame_);
+        swap(w1.branch_,     w2.branch_);
+        swap(w1.end_scope_,  w2.end_scope_);
+        swap(w1.pe_done_,    w2.pe_done_);
 
 #define THORIN_ALL_TYPE(T, M) \
         swap(w1.T##_,       w2.T##_);
@@ -336,7 +343,9 @@ private:
     bool track_history_ = false;
 #endif
     Universe* universe_;
-    const Kind* star_;
+    const Kind* kind_arity_;
+    const Kind* kind_multi_;
+    const Kind* kind_star_;
     const Sigma* sigma_;
     const BotTop* bot_;
     const MemType* mem_;

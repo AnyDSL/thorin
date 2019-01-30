@@ -27,17 +27,19 @@ namespace thorin {
 
 World::World(std::string name)
     : name_(name)
-    , universe_ (insert(new Universe(*this)))
-    , star_     (insert(new Kind(*this, Node_Star)))
-    , sigma_    (insert(new Sigma(star_, Defs{}, {"[]"})))
-    , bot_      (insert(new BotTop(false, star_, {"<⊥:*>"})))
-    , mem_      (insert(new MemType  (*this)))
-    , frame_    (insert(new FrameType(*this)))
+    , universe_  (insert(new Universe(*this)))
+    , kind_arity_(insert(new Kind(*this, Node_KindArity)))
+    , kind_multi_(insert(new Kind(*this, Node_KindMulti)))
+    , kind_star_ (insert(new Kind(*this, Node_KindStar)))
+    , sigma_     (insert(new Sigma(kind_star_, Defs{}, {"[]"})))
+    , bot_       (insert(new BotTop(false, kind_star_, {"<⊥:*>"})))
+    , mem_       (insert(new MemType  (*this)))
+    , frame_     (insert(new FrameType(*this)))
 #define THORIN_ALL_TYPE(T, M) \
-    , T##_      (insert(new PrimType(*this, PrimType_##T, {#T})))
+    , T##_       (insert(new PrimType(*this, PrimType_##T, {#T})))
 #include "thorin/tables/primtypetable.h"
-    , branch_   (lam(cn(sigma({type_bool(), cn(), cn()})), CC::C, Intrinsic::Branch, {"br"}))
-    , end_scope_(lam(cn(), CC::C, Intrinsic::EndScope, {"end_scope"}))
+    , branch_    (lam(cn(sigma({type_bool(), cn(), cn()})), CC::C, Intrinsic::Branch, {"br"}))
+    , end_scope_ (lam(cn(), CC::C, Intrinsic::EndScope, {"end_scope"}))
 {}
 
 World::~World() {
@@ -88,7 +90,7 @@ const Lam* World::lam(const Def* domain, const Def* filter, const Def* body, Deb
 }
 
 const Pi* World::pi(const Def* domain, const Def* codomain, Debug dbg) {
-    auto type = star(); // TODO
+    auto type = kind_star(); // TODO
     return unify(new Pi(type, domain, codomain, dbg));
 }
 

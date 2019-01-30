@@ -4,7 +4,9 @@
 
 // Def
     THORIN_NODE(Universe, universe)
-    THORIN_NODE(Star, star)
+    THORIN_NODE(KindStar,  *)
+    THORIN_NODE(KindArity, *A)
+    THORIN_NODE(KindMulti, *M)
     THORIN_NODE(Lam, lam)
     THORIN_NODE(Bot, bot)
     THORIN_NODE(Top, top)

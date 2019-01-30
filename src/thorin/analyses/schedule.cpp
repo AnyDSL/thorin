@@ -261,7 +261,7 @@ void Schedule::verify() {
         for (auto def : block) {
             if (auto memop = def->isa<MemOp>()) {
                 if (memop->mem() != mem) {
-                    WLOG("incorrect schedule: {} @ '{}'; current mem is {} @ '{}') - scope entry: {}", memop, memop->location(), mem, mem->location(), scope_.entry());
+                    WLOG("incorrect schedule: {} @ '{}'; current mem is {} @ '{}') - scope entry: {}", memop, memop->loc(), mem, mem->loc(), scope_.entry());
                     ok = false;
                 }
                 mem = memop->out_mem();

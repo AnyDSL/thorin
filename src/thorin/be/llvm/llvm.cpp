@@ -227,12 +227,12 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
         llvm::DISubprogram* disub_program;
         llvm::DIScope* discope = dicompile_unit;
         if (debug) {
-            auto src_file = llvm::sys::path::filename(entry_->location().filename());
-            auto src_dir = llvm::sys::path::parent_path(entry_->location().filename());
+            auto src_file = llvm::sys::path::filename(entry_->loc().filename());
+            auto src_dir = llvm::sys::path::parent_path(entry_->loc().filename());
             auto difile = dibuilder_.createFile(src_file, src_dir);
-            disub_program = dibuilder_.createFunction(discope, fct->getName(), fct->getName(), difile, entry_->location().front_line(),
+            disub_program = dibuilder_.createFunction(discope, fct->getName(), fct->getName(), difile, entry_->loc().front_line(),
                                                       dibuilder_.createSubroutineType(dibuilder_.getOrCreateTypeArray(llvm::ArrayRef<llvm::Metadata*>())),
-                                                      false /* internal linkage */, true /* definition */, entry_->location().front_line(),
+                                                      false /* internal linkage */, true /* definition */, entry_->loc().front_line(),
                                                       llvm::DINode::FlagPrototyped /* Flags */, opt > 0);
             fct->setSubprogram(disub_program);
             discope = disub_program;
@@ -286,7 +286,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
         auto startBB = llvm::BasicBlock::Create(context_, fct->getName() + "_start", fct, &*oldStartBB);
         irbuilder_.SetInsertPoint(startBB);
         if (debug)
-            irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(entry_->location().front_line(), entry_->location().front_col(), discope));
+            irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(entry_->loc().front_line(), entry_->loc().front_col(), discope));
         emit_function_start(startBB, entry_);
         irbuilder_.CreateBr(&*oldStartBB);
 
@@ -299,7 +299,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
 
             for (auto def : block) {
                 if (debug)
-                    irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(def->location().front_line(), def->location().front_col(), discope));
+                    irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(def->loc().front_line(), def->loc().front_col(), discope));
 
                 if (def->isa<Param>()) continue;
                 if (def->isa<App>()) continue;

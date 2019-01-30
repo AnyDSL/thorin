@@ -169,7 +169,7 @@ bool is_tuple_arg_of_app(const Def* def) {
 
 Debug Def::debug_history() const {
 #if THORIN_ENABLE_CHECKS
-    return world().track_history() ? Debug(location(), unique_name()) : debug();
+    return world().track_history() ? Debug(loc(), unique_name()) : debug();
 #else
     return debug();
 #endif

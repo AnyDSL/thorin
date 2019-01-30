@@ -66,8 +66,8 @@ set(THORIN_SOURCES
     util/indexmap.h
     util/indexset.h
     util/iterator.h
-    util/location.cpp
-    util/location.h
+    util/debug.cpp
+    util/debug.h
     util/log.cpp
     util/log.h
     util/stream.cpp

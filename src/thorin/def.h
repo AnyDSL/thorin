@@ -7,7 +7,7 @@
 #include "thorin/enums.h"
 #include "thorin/util/array.h"
 #include "thorin/util/hash.h"
-#include "thorin/util/location.h"
+#include "thorin/util/debug.h"
 
 namespace thorin {
 
@@ -161,7 +161,7 @@ public:
     /// In Debug build if World::enable_history is true, this thing keeps the gid to track a history of gid%s.
     Debug debug_history() const;
     Debug& debug() const { return debug_; }
-    Location location() const { return debug_; }
+    Loc loc() const { return debug_; }
     Symbol name() const { return debug().name(); }
 
     size_t num_ops() const { return ops_.size(); }

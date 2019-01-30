@@ -32,7 +32,7 @@ void force_inline(Scope& scope, int threshold) {
         if (auto app = lam->app()) {
             if (auto callee = app->callee()->isa_lam()) {
                 if (!callee->is_empty() && !scope.contains(callee))
-                    WLOG("couldn't inline {} at {} within scope of {}", callee, app->location(), scope.entry());
+                    WLOG("couldn't inline {} at {} within scope of {}", callee, app->loc(), scope.entry());
             }
         }
     }

@@ -7,7 +7,7 @@
 #include <ostream>
 #include <sstream>
 
-#include "thorin/util/location.h"
+#include "thorin/util/debug.h"
 #include "thorin/util/stream.h"
 
 namespace thorin {
@@ -32,18 +32,18 @@ public:
     static std::string colorize(const std::string&, int);
 
     template<typename... Args>
-    static void log(Level level, Location location, const char* fmt, Args... args) {
+    static void log(Level level, Loc loc, const char* fmt, Args... args) {
         if (Log::get_stream() && Log::get_min_level() <= level) {
             std::ostringstream oss;
-            oss << location;
+            oss << loc;
             streamf(Log::stream(), "{}:{}: ", colorize(level2string(level), level2color(level)), colorize(oss.str(), 7));
             streamf(Log::stream(), fmt, std::forward<Args>(args)...) << std::endl;
         }
     }
 
     template<typename... Args>
-    [[noreturn]] static void error(Location location, const char* fmt, Args... args) {
-        log(Error, location, fmt, args...);
+    [[noreturn]] static void error(Loc loc, const char* fmt, Args... args) {
+        log(Error, loc, fmt, args...);
         std::abort();
     }
 
@@ -60,17 +60,17 @@ template<typename... Args> std::ostream& errf(const char* fmt, Args... args) { r
 
 // TODO don't use macros
 // TODO remove static state from these things
-#define EDEF(def, ...) thorin::Log::error(                 (def)->location(), __VA_ARGS__)
-#define WDEF(def, ...) thorin::Log::log(thorin::Log::Warn, (def)->location(), __VA_ARGS__)
-#define IDEF(def, ...) thorin::Log::log(thorin::Log::Info, (def)->location(), __VA_ARGS__)
+#define EDEF(def, ...) thorin::Log::error(                 (def)->loc(), __VA_ARGS__)
+#define WDEF(def, ...) thorin::Log::log(thorin::Log::Warn, (def)->loc(), __VA_ARGS__)
+#define IDEF(def, ...) thorin::Log::log(thorin::Log::Info, (def)->loc(), __VA_ARGS__)
 
-#define ELOG(...) thorin::Log::log(thorin::Log::Error,   Location(__FILE__, __LINE__, -1), __VA_ARGS__)
-#define WLOG(...) thorin::Log::log(thorin::Log::Warn,    Location(__FILE__, __LINE__, -1), __VA_ARGS__)
-#define ILOG(...) thorin::Log::log(thorin::Log::Info,    Location(__FILE__, __LINE__, -1), __VA_ARGS__)
-#define VLOG(...) thorin::Log::log(thorin::Log::Verbose, Location(__FILE__, __LINE__, -1), __VA_ARGS__)
+#define ELOG(...) thorin::Log::log(thorin::Log::Error,   Loc(__FILE__, __LINE__, -1), __VA_ARGS__)
+#define WLOG(...) thorin::Log::log(thorin::Log::Warn,    Loc(__FILE__, __LINE__, -1), __VA_ARGS__)
+#define ILOG(...) thorin::Log::log(thorin::Log::Info,    Loc(__FILE__, __LINE__, -1), __VA_ARGS__)
+#define VLOG(...) thorin::Log::log(thorin::Log::Verbose, Loc(__FILE__, __LINE__, -1), __VA_ARGS__)
 
 #ifndef NDEBUG
-#define DLOG(...) thorin::Log::log(thorin::Log::Debug,   Location(__FILE__, __LINE__, -1), __VA_ARGS__)
+#define DLOG(...) thorin::Log::log(thorin::Log::Debug,   Loc(__FILE__, __LINE__, -1), __VA_ARGS__)
 #else
 #define DLOG(...) do {} while (false)
 #endif

@@ -69,7 +69,7 @@ public:
     const LamMap<const CFNode*>& nodes() const { return nodes_; }
     const F_CFG& f_cfg() const;
     const B_CFG& b_cfg() const;
-    const CFNode* operator [] (Lam* lam) const { return find(nodes_, lam); }
+    const CFNode* operator[](Lam* lam) const { return nodes_.lookup(lam).value_or(nullptr); }
 
 private:
     void link_to_exit();

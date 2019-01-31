@@ -99,7 +99,7 @@ Lam* CodeGen::emit_hls(Lam* lam) {
 }
 
 void CodeGen::emit_result_phi(const Def* param, llvm::Value* value) {
-    thorin::find(phis_, param)->addIncoming(value, irbuilder_.GetInsertBlock());
+    phis_.lookup(param).value()->addIncoming(value, irbuilder_.GetInsertBlock());
 }
 
 Lam* CodeGen::emit_atomic(Lam* lam) {
@@ -172,8 +172,7 @@ llvm::FunctionType* CodeGen::convert_fn_type(Lam* lam) {
 }
 
 llvm::Function* CodeGen::emit_function_decl(Lam* lam) {
-    if (auto f = thorin::find(fcts_, lam))
-        return f;
+    if (auto f = fcts_.lookup(lam)) return *f;
 
     std::string name = (lam->is_external() || lam->is_empty()) ? lam->name().str() : lam->unique_name();
     auto f = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, convert_fn_type(lam)));
@@ -539,8 +538,8 @@ llvm::Value* CodeGen::lookup(const Def* def) {
     if (auto lam = def->isa_lam())
         return emit_function_decl(lam);
 
-    if (auto res = thorin::find(defs_, def))
-        return res;
+    if (auto res = defs_.lookup(def))
+        return *res;
     else {
         // we emit all Thorin constants in the entry block, since they are not part of the schedule
         if (is_const(def)) {
@@ -1028,8 +1027,7 @@ unsigned CodeGen::compute_variant_op_bits(const Def* type) {
 }
 
 llvm::Type* CodeGen::convert(const Def* type) {
-    if (auto llvm_type = thorin::find(types_, type))
-        return llvm_type;
+    if (auto llvm_type = types_.lookup(type)) return *llvm_type;
 
     assert(!type->isa<MemType>());
     llvm::Type* llvm_type;

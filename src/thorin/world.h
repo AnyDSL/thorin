@@ -148,10 +148,7 @@ public:
     }
     const MemType* mem_type() const { return mem_; }
     const FrameType* frame_type() const { return frame_; }
-    const PtrType* ptr_type(const Def* pointee, int8_t device = -1, AddrSpace addr_space = AddrSpace::Generic, Debug dbg = {}) {
-        return unify(new PtrType(kind_star(), pointee, device, addr_space, dbg));
-    }
-
+    const PtrType* ptr_type(const Def* pointee, AddrSpace addr_space = AddrSpace::Generic, Debug dbg = {}) { return unify(new PtrType(kind_star(), pointee, addr_space, dbg)); }
     const DefiniteArrayType*   definite_array_type(const Def* elem, u64 dim, Debug dbg = {}) { return unify(new DefiniteArrayType(kind_star(), elem, dim, dbg)); }
     const IndefiniteArrayType* indefinite_array_type(const Def* elem, Debug dbg = {}) { return unify(new IndefiniteArrayType(kind_star(), elem, dbg)); }
 

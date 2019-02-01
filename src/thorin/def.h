@@ -682,19 +682,16 @@ enum class AddrSpace : uint8_t {
 /// Pointer type.
 class PtrType : public Def {
 private:
-    PtrType(const Def* type, const Def* pointee, int8_t device, AddrSpace addr_space, Debug dbg)
+    PtrType(const Def* type, const Def* pointee, AddrSpace addr_space, Debug dbg)
         : Def(Node_PtrType, type, {pointee}, dbg)
         , addr_space_(addr_space)
-        , device_(device)
     {
-        hash_ = hash_combine(hash_, (int8_t)device, (uint8_t)addr_space);
+        hash_ = hash_combine(hash_, (uint8_t)addr_space);
     }
 
 public:
     const Def* pointee() const { return op(0); }
     AddrSpace addr_space() const { return addr_space_; }
-    int8_t device() const { return device_; }
-    bool is_host_device() const { return device_ == -1; }
 
     bool equal(const Def* other) const override;
     std::ostream& stream(std::ostream&) const override;
@@ -703,7 +700,6 @@ private:
     const Def* rebuild(World& to, const Def*, Defs ops) const override;
 
     AddrSpace addr_space_;
-    int8_t device_;
 
     friend class World;
 };

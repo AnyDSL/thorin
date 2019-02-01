@@ -49,7 +49,7 @@ namespace thorin {
 CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention, llvm::CallingConv::ID device_calling_convention, llvm::CallingConv::ID kernel_calling_convention)
     : world_(world)
     , context_()
-    , module_(new llvm::Module(world.name(), context_))
+    , module_(new llvm::Module(world.debug().name().str(), context_))
     , irbuilder_(context_)
     , dibuilder_(*module_.get())
     , function_calling_convention_(function_calling_convention)
@@ -216,7 +216,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
         // Darwin only supports dwarf2
         if (llvm::Triple(llvm::sys::getProcessTriple()).isOSDarwin())
             module_->addModuleFlag(llvm::Module::Warning, "Dwarf Version", 2);
-        dicompile_unit = dibuilder_.createCompileUnit(llvm::dwarf::DW_LANG_C, dibuilder_.createFile(world_.name(), llvm::StringRef()), "Impala", opt > 0, llvm::StringRef(), 0);
+        dicompile_unit = dibuilder_.createCompileUnit(llvm::dwarf::DW_LANG_C, dibuilder_.createFile(world_.debug().name().str(), llvm::StringRef()), "Impala", opt > 0, llvm::StringRef(), 0);
     }
 
     Scope::for_each(world_, [&] (const Scope& scope) {

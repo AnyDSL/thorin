@@ -1,6 +1,7 @@
 #ifndef THORIN_DEF_H
 #define THORIN_DEF_H
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -294,9 +295,9 @@ private:
     Lit(const Def* type, Box box, Debug dbg)
         : Def(Node_Lit, type, Defs{}, dbg)
         , box_(box)
-        {
-            hash_ = hash_combine(hash_, box.get_u64());
-        }
+    {
+        hash_ = hash_combine(hash_, box.get_u64());
+    }
 
 public:
     Box box() const { return box_; }
@@ -309,6 +310,12 @@ private:
 
     friend class World;
 };
+
+inline std::optional<u64> get_constant_arity(const Def* def) {
+    if (auto lit = def->isa<Lit>(); lit && is_kind_arity(lit->type()))
+        return {lit->box().get_u64()};
+    else return {};
+}
 
 class Var : public Def {
 private:

@@ -297,7 +297,7 @@ std::ostream& Schedule::stream(std::ostream& os) const {
 void Schedule::write_thorin(const char* filename) const { std::ofstream file(filename); stream(file); }
 
 void Schedule::thorin() const {
-    auto filename = world().name() + "_" + scope().entry()->unique_name() + ".thorin";
+    auto filename = world().debug().name() + "_" + scope().entry()->unique_name() + ".thorin";
     write_thorin(filename.c_str());
 }
 

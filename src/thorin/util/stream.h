@@ -144,12 +144,14 @@ StreamList<Emit, List> stream_list(const List& list, Emit emit, const char* sep 
 #else
 #   define assertf(condition, ...) do { \
         if (!(condition)) { \
-            std::cerr << "Assertion '" #condition "' failed in " << __FILE__ << ":" << __LINE__ << ": "; \
+            std::cerr << "assertion '" #condition "' failed in " << __FILE__ << ":" << __LINE__ << ": "; \
             streamf(std::cerr, __VA_ARGS__) << std::endl; \
             std::abort(); \
         } \
     } while (false)
 #endif
+
+#define errorf(...) assertf(false, __VA_ARGS__)
 
 }
 

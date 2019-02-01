@@ -325,14 +325,14 @@ private:
         if (breakpoints_.contains(def->gid())) THORIN_BREAK;
 #endif
         assert(!def->is_nominal());
-        auto&& p = defs_.emplace(def);
-        if (p.second) {
+        auto [i, success] = defs_.emplace(def);
+        if (success) {
             def->finalize();
             return static_cast<const T*>(def);
         }
 
         delete def;
-        return static_cast<const T*>(*p.first);
+        return static_cast<const T*>(*i);
     }
 
     Debug debug_;

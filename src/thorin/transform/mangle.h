@@ -11,7 +11,7 @@ public:
 
     const Scope& scope() const { return scope_; }
     World& world() const { return scope_.world(); }
-    const Def* old2new(const Def* def) { return find(old2new_, def); }
+    std::optional<const Def*> old2new(const Def* def) { return old2new_.lookup(def); }
     Lam* mangle();
     Lam* old_entry() const { return old_entry_; }
     Lam* new_entry() const { return new_entry_; }

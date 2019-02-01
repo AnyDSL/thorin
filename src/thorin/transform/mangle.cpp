@@ -74,7 +74,7 @@ Lam* Mangler::mangle() {
 
 const Def* Mangler::mangle(const Def* old_def) {
     // TODO merge with importer
-    if (auto new_def = find(old2new_, old_def)) return new_def;
+    if (auto new_def = old2new_.lookup(old_def)) return *new_def;
     if (!within(old_def)) return old_def;
 
     auto new_type = mangle(old_def->type());

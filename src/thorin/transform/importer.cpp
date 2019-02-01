@@ -18,9 +18,9 @@ Importer::Importer(World& src)
 }
 
 const Def* Importer::import(Tracker odef) {
-    if (auto ndef = find(old2new_, odef)) {
-        assert(!ndef->is_replaced());
-        return ndef;
+    if (auto ndef = old2new_.lookup(odef)) {
+        assert(!(*ndef)->is_replaced());
+        return *ndef;
     }
 
     auto ntype = import(odef->type());

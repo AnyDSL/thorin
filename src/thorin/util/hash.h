@@ -9,6 +9,7 @@
 #include <cstring>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <type_traits>
 #include <utility>
 
@@ -77,7 +78,7 @@ struct StrHash {
 namespace detail {
 
 /// Used internally for @p HashSet and @p HashMap.
-template<class Key, class T, class H, size_t StackCapacity = 4>
+template<class Key, class T, class H, size_t StackCapacity>
 class HashTable {
 public:
     enum { MinHeapCapacity = StackCapacity*4 };
@@ -100,7 +101,7 @@ public:
     template<bool is_const>
     class iterator_base {
     public:
-        typedef typename HashTable<Key, T, H>::value_type value_type;
+        typedef typename HashTable<Key, T, H, StackCapacity>::value_type value_type;
         typedef std::ptrdiff_t difference_type;
         typedef typename std::conditional<is_const, const value_type&, value_type&>::type reference;
         typedef typename std::conditional<is_const, const value_type*, value_type*>::type pointer;
@@ -542,9 +543,9 @@ private:
  * We use our own implementation in order to have a consistent and deterministic behavior across different platforms.
  */
 template<class Key, class H = typename Key::Hash, size_t StackCapacity = 4>
-class HashSet : public detail::HashTable<Key, void, H> {
+class HashSet : public detail::HashTable<Key, void, H, StackCapacity> {
 public:
-    typedef detail::HashTable<Key, void, H> Super;
+    typedef detail::HashTable<Key, void, H, StackCapacity> Super;
     typedef typename Super::key_type key_type;
     typedef typename Super::mapped_type mapped_type;
     typedef typename Super::value_type value_type;
@@ -576,9 +577,9 @@ public:
  * We use our own implementation in order to have a consistent and deterministic behavior across different platforms.
  */
 template<class Key, class T, class H = typename Key::Hash, size_t StackCapacity = 4>
-class HashMap : public detail::HashTable<Key, T, H> {
+class HashMap : public detail::HashTable<Key, T, H, StackCapacity> {
 public:
-    typedef detail::HashTable<Key, T, H> Super;
+    typedef detail::HashTable<Key, T, H, StackCapacity> Super;
     typedef typename Super::key_type key_type;
     typedef typename Super::mapped_type mapped_type;
     typedef typename Super::value_type value_type;
@@ -600,10 +601,13 @@ public:
         : Super(ilist)
     {}
 
-    mapped_type& operator[](const key_type& key) { return Super::insert(value_type(key, T())).first->second; }
-    mapped_type& operator[](key_type&& key) {
-        return Super::insert(value_type(std::move(key), T())).first->second;
+    std::optional<mapped_type> lookup(const key_type& k) const {
+        auto i = Super::find(k);
+        return i == Super::cend() ? std::nullopt : std::optional(i->second);
+
     }
+    mapped_type& operator[](const key_type& key) { return Super::insert(value_type(key, T())).first->second; }
+    mapped_type& operator[](key_type&& key) { return Super::insert(value_type(std::move(key), T())).first->second; }
 
     void dump() const {
         stream_list(std::cout, *this, [&] (const auto& p) { std::cout << p.first << " : " << p.second; }, "{", "}\n");
@@ -611,19 +615,6 @@ public:
 
     friend void swap(HashMap& m1, HashMap& m2) { swap(static_cast<Super&>(m1), static_cast<Super&>(m2)); }
 };
-
-//------------------------------------------------------------------------------
-
-template<class Key, class T, class H>
-T* find(const HashMap<Key, T*, H>& map, const typename HashMap<Key, T*, H>::key_type& key) {
-    auto i = map.find(key);
-    return i == map.end() ? nullptr : i->second;
-}
-
-template<class Key, class H, class Arg>
-bool visit(HashSet<Key, H>& set, const Arg& key) {
-    return !set.emplace(key).second;
-}
 
 //------------------------------------------------------------------------------
 

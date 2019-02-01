@@ -58,10 +58,15 @@ public:
 
     typedef HashSet<size_t, BreakHash> Breakpoints;
 
-    World(std::string name = "");
+    explicit World(Debug = {});
     ~World();
 
+    // getters
     bool empty() { return externals().empty(); }
+    Debug debug() const { return debug_; }
+    const DefSet& defs() const { return defs_; }
+    std::vector<Lam*> copy_lams() const;
+    const LamSet& externals() const { return externals_; }
 
     /// @defgroup core @p Def%s
     //@{
@@ -104,23 +109,22 @@ public:
     //@}
     /// @defgroup create @p Lit%erals
     //@{
-    const Def* lit(const Def* type, Box box, Debug dbg) { return unify(new Lit(type, box, dbg)); }
-    const Def* lit(PrimTypeTag tag, Box box, Debug dbg) { return lit(type(tag), box, dbg); }
+    const Lit* lit(const Def* type, Box box, Debug dbg) { return unify(new Lit(type, box, dbg)); }
+    const Lit* lit(PrimTypeTag tag, Box box, Debug dbg) { return lit(type(tag), box, dbg); }
     template<class T>
-    const Def* lit(T value, Debug dbg = {}) { return lit(type2tag<T>::tag, Box(value), dbg); }
+    const Lit* lit(T value, Debug dbg = {}) { return lit(type2tag<T>::tag, Box(value), dbg); }
 #define THORIN_ALL_TYPE(T, M) \
     const Def* lit_##T(T val, Debug dbg = {}) { return lit(PrimType_##T, Box(val), dbg); }
 #include "thorin/tables/primtypetable.h"
-    const Def* zero(PrimTypeTag tag, Debug dbg = {}) { return lit(tag, 0, dbg); }
-    const Def* zero(const Def* type, Debug dbg = {}) { return zero(type->as<PrimType>()->primtype_tag(), dbg); }
-    const Def* one(PrimTypeTag tag, Debug dbg = {}) { return lit(tag, 1, dbg); }
-    const Def* one(const Def* type, Debug dbg = {}) { return one(type->as<PrimType>()->primtype_tag(), dbg); }
-    const Def* allset(PrimTypeTag tag, Debug dbg = {});
-    const Def* allset(const Def* type, Debug dbg = {}) { return allset(type->as<PrimType>()->primtype_tag(), dbg); }
+    const Lit* zero(PrimTypeTag tag, Debug dbg = {}) { return lit(tag, 0, dbg); }
+    const Lit* zero(const Def* type, Debug dbg = {}) { return zero(type->as<PrimType>()->primtype_tag(), dbg); }
+    const Lit* one(PrimTypeTag tag, Debug dbg = {}) { return lit(tag, 1, dbg); }
+    const Lit* one(const Def* type, Debug dbg = {}) { return one(type->as<PrimType>()->primtype_tag(), dbg); }
+    const Lit* allset(PrimTypeTag tag, Debug dbg = {});
+    const Lit* allset(const Def* type, Debug dbg = {}) { return allset(type->as<PrimType>()->primtype_tag(), dbg); }
     const Lit* lit_arity(u64 a, Loc loc = {});
     const Lit* lit_index(u64 arity, u64 idx, Loc loc = {}) { return lit_index(lit_arity(arity), idx, loc); }
     const Lit* lit_index(const Lit* arity, u64 index, Loc loc = {});
-
     //@}
     /// @defgroup top/bottom
     //@{
@@ -144,10 +148,7 @@ public:
     }
     const MemType* mem_type() const { return mem_; }
     const FrameType* frame_type() const { return frame_; }
-    const PtrType* ptr_type(const Def* pointee, int8_t device = -1, AddrSpace addr_space = AddrSpace::Generic, Debug dbg = {}) {
-        return unify(new PtrType(kind_star(), pointee, device, addr_space, dbg));
-    }
-
+    const PtrType* ptr_type(const Def* pointee, AddrSpace addr_space = AddrSpace::Generic, Debug dbg = {}) { return unify(new PtrType(kind_star(), pointee, addr_space, dbg)); }
     const DefiniteArrayType*   definite_array_type(const Def* elem, u64 dim, Debug dbg = {}) { return unify(new DefiniteArrayType(kind_star(), elem, dim, dbg)); }
     const IndefiniteArrayType* indefinite_array_type(const Def* elem, Debug dbg = {}) { return unify(new IndefiniteArrayType(kind_star(), elem, dbg)); }
 
@@ -252,13 +253,6 @@ public:
     void cleanup();
     void opt();
 
-    // getters
-
-    const std::string& name() const { return name_; }
-    const DefSet& defs() const { return defs_; }
-    std::vector<Lam*> copy_lams() const;
-    const LamSet& externals() const { return externals_; }
-
     // other stuff
 
     void mark_pe_done(bool flag = true) { pe_done_ = flag; }
@@ -281,7 +275,7 @@ public:
 
     friend void swap(World& w1, World& w2) {
         using std::swap;
-        swap(w1.name_,       w2.name_);
+        swap(w1.debug_,      w2.debug_);
         swap(w1.externals_,  w2.externals_);
         swap(w1.defs_,       w2.defs_);
         swap(w1.universe_,   w2.universe_);
@@ -338,7 +332,7 @@ private:
         return static_cast<const T*>(*i);
     }
 
-    std::string name_; // TODO use Debug instead
+    Debug debug_;
     LamSet externals_;
     DefSet defs_;
     bool pe_done_ = false;

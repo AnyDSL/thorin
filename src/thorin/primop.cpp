@@ -34,9 +34,9 @@ static const Def* infer_lea_type(World& world, const Def* ptr, const Def* index)
     auto ptr_pointee = ptr_type->pointee();
 
     if (auto sigma = ptr_pointee->isa<Sigma>()) {
-        return world.ptr_type(get(sigma->ops(), index), ptr_type->device(), ptr_type->addr_space());
+        return world.ptr_type(get(sigma->ops(), index), ptr_type->addr_space());
     } else if (auto array = ptr_pointee->isa<ArrayType>()) {
-        return world.ptr_type(array->elem_type(), ptr_type->device(), ptr_type->addr_space());
+        return world.ptr_type(array->elem_type(), ptr_type->addr_space());
     }
     THORIN_UNREACHABLE;
 }

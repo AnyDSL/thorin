@@ -21,7 +21,7 @@ void YComp::write_ycomp(const char* filename) const {
 }
 
 void YComp::ycomp() const {
-    auto filename = world().name() + "_" + scope().entry()->unique_name() + "_" + name() + ".vcg";
+    auto filename = world().debug().name() + "_" + scope().entry()->unique_name() + "_" + name() + ".vcg";
     write_ycomp(filename.c_str());
 }
 

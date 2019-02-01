@@ -553,14 +553,9 @@ bool Def::equal(const Def* other) const {
     return result;
 }
 
-bool Var::equal(const Def* other) const { return Def::equal(other) && this->index() == other->as<Var>()->index(); }
-bool Lit::equal(const Def* other) const { return Def::equal(other) && this->box()   == other->as<Lit>()->box(); }
-
-bool PtrType::equal(const Def* other) const {
-    if (!Def::equal(other)) return false;
-    auto ptr = other->as<PtrType>();
-    return ptr->device() == device() && ptr->addr_space() == addr_space();
-}
+bool Var    ::equal(const Def* other) const { return Def::equal(other) && this->index()      == other->as<Var>()->index(); }
+bool Lit    ::equal(const Def* other) const { return Def::equal(other) && this->box()        == other->as<Lit>()->box(); }
+bool PtrType::equal(const Def* other) const { return Def::equal(other) && this->addr_space() == other->as<PtrType>()->addr_space(); }
 
 /*
  * rebuild
@@ -579,7 +574,7 @@ const Def* MemType            ::rebuild(World& to, const Def*  , Defs    ) const
 const Def* Param              ::rebuild(World& to, const Def*  , Defs ops) const { return to.param(ops[0]->as_lam(), debug()); }
 const Def* Pi                 ::rebuild(World& to, const Def*  , Defs ops) const { return to.pi(ops[0], ops[1], debug()); }
 const Def* PrimType           ::rebuild(World& to, const Def*  , Defs    ) const { return to.type(primtype_tag()); }
-const Def* PtrType            ::rebuild(World& to, const Def*  , Defs ops) const { return to.ptr_type(ops[0], device(), addr_space()); }
+const Def* PtrType            ::rebuild(World& to, const Def*  , Defs ops) const { return to.ptr_type(ops[0], addr_space()); }
 const Def* Var                ::rebuild(World& to, const Def* t, Defs    ) const { return to.var(t, index(), debug()); }
 const Def* VariantType        ::rebuild(World& to, const Def*  , Defs ops) const { return to.variant_type(ops, debug()); }
 
@@ -638,8 +633,6 @@ std::ostream& Pi::stream(std::ostream& os) const {
 
 std::ostream& PtrType::stream(std::ostream& os) const {
     os << pointee() << '*';
-    if (device() != -1)
-        os << '[' << device() << ']';
     switch (addr_space()) {
         case AddrSpace::Global:   os << "[Global]";   break;
         case AddrSpace::Texture:  os << "[Tex]";      break;

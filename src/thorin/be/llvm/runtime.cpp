@@ -71,7 +71,7 @@ Lam* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std::st
     auto kernel = lam->app()->arg(LaunchArgs::Body)->as<Global>()->init()->as<Lam>();
 
     auto kernel_name = builder_.CreateGlobalStringPtr(kernel->name().str());
-    auto file_name = builder_.CreateGlobalStringPtr(lam->world().name() + ext);
+    auto file_name = builder_.CreateGlobalStringPtr((lam->world().debug().name() + ext).str());
     const size_t num_kernel_args = lam->app()->num_args() - LaunchArgs::Num;
 
     // allocate argument pointers, sizes, and types

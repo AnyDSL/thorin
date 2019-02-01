@@ -1,6 +1,7 @@
 #ifndef THORIN_DEF_H
 #define THORIN_DEF_H
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -294,9 +295,9 @@ private:
     Lit(const Def* type, Box box, Debug dbg)
         : Def(Node_Lit, type, Defs{}, dbg)
         , box_(box)
-        {
-            hash_ = hash_combine(hash_, box.get_u64());
-        }
+    {
+        hash_ = hash_combine(hash_, box.get_u64());
+    }
 
 public:
     Box box() const { return box_; }
@@ -309,6 +310,12 @@ private:
 
     friend class World;
 };
+
+inline std::optional<u64> get_constant_arity(const Def* def) {
+    if (auto lit = def->isa<Lit>(); lit && is_kind_arity(lit->type()))
+        return {lit->box().get_u64()};
+    else return {};
+}
 
 class Var : public Def {
 private:
@@ -675,19 +682,16 @@ enum class AddrSpace : uint8_t {
 /// Pointer type.
 class PtrType : public Def {
 private:
-    PtrType(const Def* type, const Def* pointee, int8_t device, AddrSpace addr_space, Debug dbg)
+    PtrType(const Def* type, const Def* pointee, AddrSpace addr_space, Debug dbg)
         : Def(Node_PtrType, type, {pointee}, dbg)
         , addr_space_(addr_space)
-        , device_(device)
     {
-        hash_ = hash_combine(hash_, (int8_t)device, (uint8_t)addr_space);
+        hash_ = hash_combine(hash_, (uint8_t)addr_space);
     }
 
 public:
     const Def* pointee() const { return op(0); }
     AddrSpace addr_space() const { return addr_space_; }
-    int8_t device() const { return device_; }
-    bool is_host_device() const { return device_ == -1; }
 
     bool equal(const Def* other) const override;
     std::ostream& stream(std::ostream&) const override;
@@ -696,7 +700,6 @@ private:
     const Def* rebuild(World& to, const Def*, Defs ops) const override;
 
     AddrSpace addr_space_;
-    int8_t device_;
 
     friend class World;
 };

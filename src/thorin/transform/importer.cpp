@@ -3,7 +3,7 @@
 namespace thorin {
 
 Importer::Importer(World& src)
-    : world_(src.name())
+    : world_(src.debug())
 {
     if  (src.is_pe_done())
         world_.mark_pe_done();

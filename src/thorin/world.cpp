@@ -25,8 +25,8 @@ namespace thorin {
  * constructor and destructor
  */
 
-World::World(std::string name)
-    : name_(name)
+World::World(Debug debug)
+    : debug_(debug)
     , universe_  (insert(new Universe(*this)))
     , kind_arity_(insert(new Kind(*this, Node_KindArity)))
     , kind_multi_(insert(new Kind(*this, Node_KindMulti)))
@@ -122,7 +122,7 @@ const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
  * literals
  */
 
-const Def* World::allset(PrimTypeTag tag, Debug dbg) {
+const Lit* World::allset(PrimTypeTag tag, Debug dbg) {
     switch (tag) {
 #define THORIN_I_TYPE(T, M) \
     case PrimType_##T: return lit(PrimType_##T, Box(~T(0)), dbg);
@@ -132,6 +132,41 @@ const Def* World::allset(PrimTypeTag tag, Debug dbg) {
         default: THORIN_UNREACHABLE;
     }
 }
+
+const Lit* World::lit_arity(u64 a, Loc loc) {
+    auto cur = Def::gid_counter();
+    auto result = lit(kind_arity(), {a}, loc);
+
+    if (result->gid() >= cur)
+        result->debug().set(std::to_string(a) + "ₐ");
+
+    return result;
+}
+
+const Lit* World::lit_index(const Lit* a, u64 i, Loc loc) {
+    auto arity = *get_constant_arity(a);
+    if (i < arity) {
+        auto cur = Def::gid_counter();
+        auto result = lit(a, i, loc);
+
+        if (result->gid() >= cur) { // new literal -> build name
+            std::string s = std::to_string(i);
+            auto b = s.size();
+
+            // append utf-8 subscripts in reverse order
+            for (size_t aa = arity; aa > 0; aa /= 10)
+                ((s += char(char(0x80) + char(aa % 10))) += char(0x82)) += char(0xe2);
+
+            std::reverse(s.begin() + b, s.end());
+            result->debug().set(s);
+        }
+
+        return result;
+    } else {
+        errorf("index literal '{}' does not fit within arity '{}'", i, a);
+    }
+}
+
 
 /*
  * arithops
@@ -927,7 +962,7 @@ void World::opt() {
  */
 
 std::ostream& World::stream(std::ostream& os) const {
-    os << "module '" << name() << "'\n\n";
+    os << "module '" << debug().name() << "'\n\n";
 
     for (auto primop : defs()) {
         if (auto global = primop->isa<Global>())
@@ -941,7 +976,7 @@ std::ostream& World::stream(std::ostream& os) const {
 void World::write_thorin(const char* filename) const { std::ofstream file(filename); stream(file); }
 
 void World::thorin() const {
-    auto filename = name() + ".thorin";
+    auto filename = debug().name() + ".thorin";
     write_thorin(filename.c_str());
 }
 

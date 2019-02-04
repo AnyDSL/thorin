@@ -36,12 +36,20 @@ World::World(uint32_t cur_gid, Debug debug)
     , bot_       (insert(new BotTop(false, kind_star_, {"<⊥:*>"})))
     , mem_       (insert(new MemType  (*this)))
     , frame_     (insert(new FrameType(*this)))
+    , type_nat_  (insert(new PrimType(*this, /*HACK*/(PrimTypeTag)Node_Nat, {"nat"})))
 #define THORIN_ALL_TYPE(T, M) \
     , T##_       (insert(new PrimType(*this, PrimType_##T, {#T})))
 #include "thorin/tables/primtypetable.h"
     , branch_    (lam(cn(sigma({type_bool(), cn(), cn()})), CC::C, Intrinsic::Branch, {"br"}))
     , end_scope_ (lam(cn(), CC::C, Intrinsic::EndScope, {"end_scope"}))
-{}
+{
+    lit_bool_[0] = lit(type_bool(), {false});
+    lit_bool_[1] = lit(type_bool(), {true});
+
+    lit_nat_0_   = lit_nat(0);
+    for (size_t j = 0; j != lit_nat_.size(); ++j)
+        lit_nat_[j] = lit_nat(1 << int64_t(j));
+}
 
 World::~World() {
     for (auto def : defs_) delete def;
@@ -301,12 +309,12 @@ const Def* World::pack(Defs arity, const Def* body, Debug dbg) {
  * literals
  */
 
-const Lit* World::allset(PrimTypeTag tag, Debug dbg) {
+const Lit* World::allset(PrimTypeTag tag, Loc loc) {
     switch (tag) {
 #define THORIN_I_TYPE(T, M) \
-    case PrimType_##T: return lit(PrimType_##T, Box(~T(0)), dbg);
+    case PrimType_##T: return lit(PrimType_##T, Box(~T(0)), loc);
 #define THORIN_BOOL_TYPE(T, M) \
-    case PrimType_##T: return lit(PrimType_##T, Box(true), dbg);
+    case PrimType_##T: return lit(PrimType_##T, Box(true), loc);
 #include "thorin/tables/primtypetable.h"
         default: THORIN_UNREACHABLE;
     }
@@ -901,7 +909,7 @@ const Def* World::select(const Def* cond, const Def* a, const Def* b, Debug dbg)
 
 const Def* World::size_of(const Def* type, Debug dbg) {
     if (auto ptype = type->isa<PrimType>())
-        return lit(qs32(num_bits(ptype->primtype_tag()) / 8), dbg);
+        return lit_qs32(num_bits(ptype->primtype_tag()) / 8, dbg);
 
     return unify(new SizeOf(bot(type, dbg), dbg));
 }

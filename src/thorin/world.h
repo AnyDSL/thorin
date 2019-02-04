@@ -133,35 +133,57 @@ public:
     //@}
     /// @defgroup create @p Lit%erals
     //@{
-    const Lit* lit(const Def* type, Box box, Debug dbg) { return unify(new Lit(type, box, dbg)); }
-    const Lit* lit(PrimTypeTag tag, Box box, Debug dbg) { return lit(type(tag), box, dbg); }
-    template<class T>
-    const Lit* lit(T value, Debug dbg = {}) { return lit(type2tag<T>::tag, Box(value), dbg); }
-#define THORIN_ALL_TYPE(T, M) \
-    const Def* lit_##T(T val, Debug dbg = {}) { return lit(PrimType_##T, Box(val), dbg); }
-#include "thorin/tables/primtypetable.h"
-    const Lit* zero(PrimTypeTag tag, Debug dbg = {}) { return lit(tag, 0, dbg); }
-    const Lit* zero(const Def* type, Debug dbg = {}) { return zero(type->as<PrimType>()->primtype_tag(), dbg); }
-    const Lit* one(PrimTypeTag tag, Debug dbg = {}) { return lit(tag, 1, dbg); }
-    const Lit* one(const Def* type, Debug dbg = {}) { return one(type->as<PrimType>()->primtype_tag(), dbg); }
-    const Lit* allset(PrimTypeTag tag, Debug dbg = {});
-    const Lit* allset(const Def* type, Debug dbg = {}) { return allset(type->as<PrimType>()->primtype_tag(), dbg); }
+    const Lit* lit(const Def* type, Box box, Debug dbg = {}) { return unify(new Lit(type, box, dbg)); }
+    const Lit* lit(PrimTypeTag tag, Box box, Loc loc = {}) { return lit(type(tag), box, loc); }
+    /// @defgroup Arrity and Index Lit%erals
+    //@{
     const Lit* lit_arity(u64 a, Loc loc = {});
     const Lit* lit_index(u64 arity, u64 idx, Loc loc = {}) { return lit_index(lit_arity(arity), idx, loc); }
     const Lit* lit_index(const Lit* arity, u64 index, Loc loc = {});
     //@}
+    /// @defgroup Nat Lit%erals
+    //@{
+    const Lit* lit_nat(int64_t val, Loc loc = {}) { return lit(type_nat(), {val}, {loc}); }
+    const Lit* lit_nat_0 () { return lit_nat_0_; }
+    const Lit* lit_nat_1 () { return lit_nat_[0]; }
+    const Lit* lit_nat_2 () { return lit_nat_[1]; }
+    const Lit* lit_nat_4 () { return lit_nat_[2]; }
+    const Lit* lit_nat_8 () { return lit_nat_[3]; }
+    const Lit* lit_nat_16() { return lit_nat_[4]; }
+    const Lit* lit_nat_32() { return lit_nat_[5]; }
+    const Lit* lit_nat_64() { return lit_nat_[6]; }
+    //@}
+    /// @defgroup bool Lit%erals
+    //@{
+    const Lit* lit(bool val) { return lit_bool_[size_t(val)]; }
+    const Lit* lit_false() { return lit_bool_[0]; }
+    const Lit* lit_true()  { return lit_bool_[1]; }
+    /// @defgroup Lit%erals of @p PrimType%s
+    //@{
+#define THORIN_ALL_TYPE(T, M) \
+    const Def* lit_##T(T val, Loc loc = {}) { return lit(PrimType_##T, Box(val), loc); }
+#include "thorin/tables/primtypetable.h"
+    const Lit* zero(PrimTypeTag tag, Loc loc = {}) { return lit(tag, 0, loc); }
+    const Lit* zero(const Def* type, Loc loc = {}) { return zero(type->as<PrimType>()->primtype_tag(), loc); }
+    const Lit* one(PrimTypeTag tag, Loc loc = {}) { return lit(tag, 1, loc); }
+    const Lit* one(const Def* type, Loc loc = {}) { return one(type->as<PrimType>()->primtype_tag(), loc); }
+    const Lit* allset(PrimTypeTag tag, Loc loc = {});
+    const Lit* allset(const Def* type, Loc loc = {}) { return allset(type->as<PrimType>()->primtype_tag(), loc); }
+    //@}
+    //@}
     /// @defgroup top/bottom
     //@{
     const Def* bot_top(bool is_top, const Def* type, Debug dbg = {}) { return unify(new BotTop(is_top, type, dbg)); }
-    const Def* bot(const Def* type, Debug dbg = {}) { return bot_top(false, type, dbg); }
-    const Def* top(const Def* type, Debug dbg = {}) { return bot_top(true,  type, dbg); }
-    const Def* bot(PrimTypeTag tag, Debug dbg = {}) { return bot_top(false, type(tag), dbg); }
-    const Def* top(PrimTypeTag tag, Debug dbg = {}) { return bot_top( true, type(tag), dbg); }
-    const Def* bot(Debug dbg = {}) { return bot_top(false, kind_star(), dbg); }
-    const Def* top(Debug dbg = {}) { return bot_top(true,  kind_star(), dbg); }
+    const Def* bot(const Def* type, Loc dbg = {}) { return bot_top(false, type, dbg); }
+    const Def* top(const Def* type, Loc dbg = {}) { return bot_top(true,  type, dbg); }
+    const Def* bot(PrimTypeTag tag, Loc dbg = {}) { return bot_top(false, type(tag), dbg); }
+    const Def* top(PrimTypeTag tag, Loc dbg = {}) { return bot_top( true, type(tag), dbg); }
+    const Def* bot(Loc dbg = {}) { return bot_top(false, kind_star(), dbg); }
+    const Def* top(Loc dbg = {}) { return bot_top(true,  kind_star(), dbg); }
     //@}
     //@}
 
+    const PrimType* type_nat() { return type_nat_; }
 #define THORIN_ALL_TYPE(T, M) \
     const PrimType* type_##T() { return type(PrimType_##T); }
 #include "thorin/tables/primtypetable.h"
@@ -373,6 +395,10 @@ private:
     const BotTop* bot_;
     const MemType* mem_;
     const FrameType* frame_;
+    const Lit* lit_nat_0_;
+    std::array<const Lit*, 2> lit_bool_;
+    std::array<const Lit*, 7> lit_nat_;
+    const PrimType* type_nat_;
     union {
         struct {
 #define THORIN_ALL_TYPE(T, M) const PrimType* T##_;

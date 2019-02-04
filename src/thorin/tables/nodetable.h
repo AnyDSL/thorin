@@ -44,6 +44,7 @@
         //THORIN_NODE(Conv, conv)
             THORIN_NODE(Cast, cast)
             THORIN_NODE(Bitcast, bitcast)
+        THORIN_NODE(Nat, nat)
         THORIN_NODE(DefiniteArray, definite_array)
         THORIN_NODE(IndefiniteArray, indefinite_array)
         THORIN_NODE(Variant, variant)

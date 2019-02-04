@@ -102,7 +102,7 @@ const Def* Mangler::mangle(const Def* old_def) {
 
             if (app->callee() == old_entry()) {
                 if (args_.size() == 1 && args_[0] == new_ops[1])
-                    return world().app(new_entry(), {}, app->debug());
+                    return world().app(new_entry(), thorin::Defs {}, app->debug());
 
                 if (auto tuple = new_ops[1]->isa<Tuple>()) {
                     assert(tuple->num_ops() == args_.size());

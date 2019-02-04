@@ -139,14 +139,13 @@ public:
     const T* data() const { return stack_ ? data_.elems : data_.ptr; }
 
     friend void swap(ArrayStorage& a, ArrayStorage& b) {
-        using std::swap;
         auto size = a.size_;
         a.size_ = b.size_;
         b.size_ = size;
         auto stack = a.stack_;
         a.stack_ = b.stack_;
         b.stack_ = stack;
-        swap(a.data_, b.data_);
+        std::swap(a.data_, b.data_);
     }
 
 private:
@@ -182,9 +181,8 @@ public:
     const T* data() const { return ptr_; }
 
     friend void swap(ArrayStorage& a, ArrayStorage& b) {
-        using std::swap;
-        swap(a.size_, b.size_);
-        swap(a.ptr_, b.ptr_);
+        std::swap(a.size_, b.size_);
+        std::swap(a.ptr_, b.ptr_);
     }
 
 private:
@@ -292,7 +290,6 @@ public:
     void dump() const { ref().dump(); }
 
     friend void swap(Array& a, Array& b) {
-        using std::swap;
         swap(a.storage_, b.storage_);
     }
 

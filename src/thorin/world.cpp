@@ -25,8 +25,9 @@ namespace thorin {
  * constructor and destructor
  */
 
-World::World(Debug debug)
-    : debug_(debug)
+World::World(uint32_t cur_gid, Debug debug)
+    : cur_gid_   (cur_gid)
+    , debug_     (debug)
     , universe_  (insert(new Universe(*this)))
     , kind_arity_(insert(new Kind(*this, Node_KindArity)))
     , kind_multi_(insert(new Kind(*this, Node_KindMulti)))
@@ -312,7 +313,7 @@ const Lit* World::allset(PrimTypeTag tag, Debug dbg) {
 }
 
 const Lit* World::lit_arity(u64 a, Loc loc) {
-    auto cur = Def::gid_counter();
+    auto cur = cur_gid();
     auto result = lit(kind_arity(), {a}, loc);
 
     if (result->gid() >= cur)
@@ -324,7 +325,7 @@ const Lit* World::lit_arity(u64 a, Loc loc) {
 const Lit* World::lit_index(const Lit* a, u64 i, Loc loc) {
     auto arity = *get_constant_arity(a);
     if (i < arity) {
-        auto cur = Def::gid_counter();
+        auto cur = cur_gid();
         auto result = lit(a, i, loc);
 
         if (result->gid() >= cur) { // new literal -> build name

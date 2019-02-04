@@ -13,8 +13,6 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-uint32_t Def::gid_counter_ = 1;
-
 /*
  * helpers
  */
@@ -485,6 +483,35 @@ bool Pi::is_returning() const {
 /*
  * constructors
  */
+
+Def::Def(NodeTag tag, const Def* type, Defs ops, Debug dbg)
+    : type_(type)
+    , tag_((unsigned)tag)
+    , nominal_(false)
+    , dependent_(false)
+    , contains_lam_(tag == Node_Lam)
+    , order_(0)
+    , gid_(world().next_gid())
+    , ops_(ops)
+    , debug_(dbg)
+{
+    hash_ = hash_combine(hash_begin((uint16_t) tag), type->gid());
+    for (auto op : ops_)
+        hash_ = hash_combine(hash_, op->gid());
+}
+
+Def::Def(NodeTag tag, const Def* type, size_t size, Debug dbg)
+    : type_(type)
+    , tag_(tag)
+    , nominal_(true)
+    , dependent_(false)
+    , contains_lam_(tag == Node_Lam)
+    , order_(0)
+    , gid_(world().next_gid())
+    , ops_(size)
+    , debug_(dbg)
+    , hash_(murmur3(gid()))
+{}
 
 static inline const char* kind2str(NodeTag tag) {
     switch (tag) {

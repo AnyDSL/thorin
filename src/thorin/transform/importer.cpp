@@ -3,8 +3,9 @@
 namespace thorin {
 
 Importer::Importer(World& src)
-    : world_(src.debug())
+    : world_(src.cur_gid(), src.debug())
 {
+    // TODO make a stub mthod for world which does this
     if  (src.is_pe_done())
         world_.mark_pe_done();
 #if THORIN_ENABLE_CHECKS

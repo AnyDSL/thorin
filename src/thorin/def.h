@@ -114,34 +114,9 @@ private:
 
 protected:
     /// Constructor for a @em structural Def.
-    Def(NodeTag tag, const Def* type, Defs ops, Debug dbg)
-        : gid_(gid_counter_++)
-        , tag_((unsigned)tag)
-        , nominal_(false)
-        , dependent_(false)
-        , contains_lam_(tag == Node_Lam)
-        , order_(0)
-        , ops_(ops)
-        , type_(type)
-        , debug_(dbg)
-    {
-        hash_ = hash_combine(hash_begin((uint16_t) tag), type->gid());
-        for (auto op : ops_)
-            hash_ = hash_combine(hash_, op->gid());
-    }
+    Def(NodeTag tag, const Def* type, Defs ops, Debug dbg);
     /// Constructor for a @em nominal Def.
-    Def(NodeTag tag, const Def* type, size_t size, Debug dbg)
-        : gid_(gid_counter_++)
-        , tag_(tag)
-        , nominal_(true)
-        , dependent_(false)
-        , contains_lam_(tag == Node_Lam)
-        , order_(0)
-        , ops_(size)
-        , type_(type)
-        , debug_(dbg)
-        , hash_(murmur3(gid()))
-    {}
+    Def(NodeTag tag, const Def* type, size_t size, Debug dbg);
     virtual ~Def() {}
 
 public:
@@ -212,25 +187,22 @@ public:
     virtual const char* op_name() const;
     virtual std::ostream& stream(std::ostream&) const;
     virtual std::ostream& stream_assignment(std::ostream&) const;
-    static size_t gid_counter() { return gid_counter_; }
 
 private:
     void finalize();
 
-    static uint32_t gid_counter_;
-
-    uint32_t gid_;
+    union {
+        const Def* type_;
+        mutable World* world_;
+    };
     // TODO fine-tune bit fields
     unsigned tag_           : 10;
     unsigned nominal_       :  1;
     unsigned dependent_     :  1;
     unsigned contains_lam_  :  1;
     unsigned order_         : 10;
+    uint32_t gid_;
     Array<const Def*> ops_;
-    union {
-        const Def* type_;
-        mutable World* world_;
-    };
     mutable const Def* substitute_ = nullptr;
     mutable Uses uses_;
     mutable Debug debug_;

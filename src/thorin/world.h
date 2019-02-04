@@ -58,7 +58,7 @@ public:
 
     typedef HashSet<size_t, BreakHash> Breakpoints;
 
-    explicit World(Debug = {});
+    explicit World(uint32_t cur_gid, Debug = {});
     ~World();
 
     // getters
@@ -67,6 +67,12 @@ public:
     const DefSet& defs() const { return defs_; }
     std::vector<Lam*> copy_lams() const;
     const LamSet& externals() const { return externals_; }
+
+    /// @defgroup manage global identifier - a unique number for each @p Def
+    //@{
+    uint32_t cur_gid() const { return cur_gid_; }
+    uint32_t next_gid() { return ++cur_gid_; }
+    //@}
 
     /// @defgroup core @p Def%s
     //@{
@@ -350,6 +356,7 @@ private:
         return static_cast<const T*>(*i);
     }
 
+    uint32_t cur_gid_;
     Debug debug_;
     LamSet externals_;
     DefSet defs_;

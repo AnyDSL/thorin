@@ -707,16 +707,23 @@ static bool fold_1_tuple(const Def* type, const Def* index) {
 }
 
 const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
-    if (is_bot(agg)) return bot(Extract::extracted_type(agg, index), dbg);
-    if (is_top(agg)) return top(Extract::extracted_type(agg, index), dbg);
     if (!agg->isa<Param>() /*HACK*/ && fold_1_tuple(agg->type(), index)) return agg;
+
+    const Def* type;
+    if (auto sigma = agg->type()->isa<Sigma>())
+        type = get(sigma->ops(), index);
+    else
+        type = agg->type()->as<ArrayType>()->elem_type();
+
+    if (is_bot(agg)) return bot(type, dbg);
+    if (is_top(agg)) return top(type, dbg);
 
     if (agg->isa<Tuple>() || agg->isa<DefiniteArray>()) {
         if (auto lit = index->isa<Lit>()) {
             if (primlit_value<u64>(lit) < agg->num_ops())
                 return get(agg->ops(), lit);
             else
-                return bot(Extract::extracted_type(agg, index), dbg);
+                return bot(type, dbg);
         }
     }
 
@@ -729,7 +736,7 @@ const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
         }
     }
 
-    return unify(new Extract(agg, index, dbg));
+    return unify(new Extract(type, agg, index, dbg));
 }
 
 const Def* World::insert(const Def* agg, const Def* index, const Def* value, Debug dbg) {

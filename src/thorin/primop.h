@@ -211,57 +211,6 @@ public:
     friend class World;
 };
 
-/// Base class for functional @p Insert and @p Extract.
-class AggOp : public PrimOp {
-protected:
-    AggOp(NodeTag tag, const Def* type, Defs args, Debug dbg)
-        : PrimOp(tag, type, args, dbg)
-    {}
-
-public:
-    const Def* agg() const { return op(0); }
-    const Def* index() const { return op(1); }
-
-    friend class World;
-};
-
-/// Extracts from aggregate <tt>agg</tt> the element at position <tt>index</tt>.
-class Extract : public AggOp {
-private:
-    Extract(const Def* agg, const Def* index, Debug dbg)
-        : AggOp(Node_Extract, extracted_type(agg, index), {agg, index}, dbg)
-    {}
-
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
-
-public:
-    static const Def* extracted_type(const Def* agg, const Def* index);
-
-    friend class World;
-};
-
-size_t get_param_index(const Def* def);
-
-/**
- * Creates a new aggregate by inserting <tt>value</tt> at position <tt>index</tt> into <tt>agg</tt>.
- * @attention { This is a @em functional insert.
- *              The value <tt>agg</tt> remains untouched.
- *              The \p Insert itself is a \em new aggregate which contains the newly created <tt>value</tt>. }
- */
-class Insert : public AggOp {
-private:
-    Insert(const Def* agg, const Def* index, const Def* value, Debug dbg)
-        : AggOp(Node_Insert, agg->type(), {agg, index, value}, dbg)
-    {}
-
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
-
-public:
-    const Def* value() const { return op(2); }
-
-    friend class World;
-};
-
 /**
  * Load effective address.
  * Takes a pointer <tt>ptr</tt> to an aggregate as input.

@@ -580,8 +580,10 @@ const Def* Sigma              ::rebuild(World& to, const Def* t, Defs ops) const
 const Def* App                ::rebuild(World& to, const Def*  , Defs ops) const { return to.app(ops[0], ops[1], debug()); }
 const Def* BotTop             ::rebuild(World& to, const Def* t, Defs    ) const { return to.bot_top(is_top(this), t, debug()); }
 const Def* DefiniteArrayType  ::rebuild(World& to, const Def*  , Defs ops) const { return to.definite_array_type(ops[0], dim(), debug()); }
+const Def* Extract            ::rebuild(World& to, const Def*  , Defs ops) const { return to.extract(ops[0], ops[1], debug()); }
 const Def* FrameType          ::rebuild(World& to, const Def*  , Defs    ) const { return to.frame_type(); }
 const Def* IndefiniteArrayType::rebuild(World& to, const Def*  , Defs ops) const { return to.indefinite_array_type(ops[0], debug()); }
+const Def* Insert             ::rebuild(World& to, const Def*  , Defs ops) const { return to.insert(ops[0], ops[1], ops[2], debug()); }
 const Def* Kind               ::rebuild(World& to, const Def*  , Defs    ) const { return to.kind(tag()); }
 const Def* MemType            ::rebuild(World& to, const Def*  , Defs    ) const { return to.mem_type(); }
 const Def* Param              ::rebuild(World& to, const Def*  , Defs ops) const { return to.param(ops[0]->as_lam(), debug()); }

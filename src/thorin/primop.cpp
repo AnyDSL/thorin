@@ -110,12 +110,10 @@ const Def* Bitcast::rebuild(World& to, const Def* t, Defs ops) const { return to
 const Def* Cast   ::rebuild(World& to, const Def* t, Defs ops) const { return to.cast(t, ops[0], debug()); }
 const Def* Cmp    ::rebuild(World& to, const Def*  , Defs ops) const { return to.cmp(cmp_tag(), ops[0], ops[1], debug()); }
 const Def* Enter  ::rebuild(World& to, const Def*  , Defs ops) const { return to.enter(ops[0], debug()); }
-const Def* Extract::rebuild(World& to, const Def*  , Defs ops) const { return to.extract(ops[0], ops[1], debug()); }
 const Def* Global ::rebuild(World& to, const Def*  , Defs ops) const { return to.global(ops[0], is_mutable(), debug()); }
 const Def* Hlt    ::rebuild(World& to, const Def*  , Defs ops) const { return to.hlt(ops[0], debug()); }
 const Def* Known  ::rebuild(World& to, const Def*  , Defs ops) const { return to.known(ops[0], debug()); }
 const Def* Run    ::rebuild(World& to, const Def*  , Defs ops) const { return to.run(ops[0], debug()); }
-const Def* Insert ::rebuild(World& to, const Def*  , Defs ops) const { return to.insert(ops[0], ops[1], ops[2], debug()); }
 const Def* LEA    ::rebuild(World& to, const Def*  , Defs ops) const { return to.lea(ops[0], ops[1], debug()); }
 const Def* Load   ::rebuild(World& to, const Def*  , Defs ops) const { return to.load(ops[0], ops[1], debug()); }
 const Def* Lit    ::rebuild(World& to, const Def* t, Defs    ) const { return to.lit(t, box(), debug()); }
@@ -241,17 +239,6 @@ std::string DefiniteArray::as_string() const {
 const Def* PrimOp::out(size_t i) const {
     assert(i == 0 || i < type()->as<Sigma>()->num_ops());
     return world().extract(this, i, debug());
-}
-
-const Def* Extract::extracted_type(const Def* agg, const Def* index) {
-    if (auto sigma = agg->type()->isa<Sigma>())
-        return get(sigma->ops(), index);
-    else if (auto array = agg->type()->isa<ArrayType>())
-        return array->elem_type();
-    else {
-        assert(index->as<Lit>()->box().get_u64() == 0);
-        return agg->type();
-    }
 }
 
 //------------------------------------------------------------------------------

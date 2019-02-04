@@ -137,33 +137,6 @@ bool visit_capturing_intrinsics(Lam* lam, std::function<bool(Lam*)> func, bool i
     }, include_globals);
 }
 
-// TODO merge these two functions
-const Def* merge_sigma(const Def* a, const Def* b) {
-    auto x = a->isa<Sigma>();
-    auto y = b->isa<Sigma>();
-    auto& w = a->world();
-
-    if ( x &&  y) return w.sigma(concat(x->ops(), y->ops()));
-    if ( x && !y) return w.sigma(concat(x->ops(), b       ));
-    if (!x &&  y) return w.sigma(concat(a,        y->ops()));
-
-    assert(!x && !y);
-    return w.sigma({a, b});
-}
-
-const Def* merge_tuple(const Def* a, const Def* b) {
-    auto x = a->isa<Tuple>();
-    auto y = b->isa<Tuple>();
-    auto& w = a->world();
-
-    if ( x &&  y) return w.tuple(concat(x->ops(), y->ops()));
-    if ( x && !y) return w.tuple(concat(x->ops(), b       ));
-    if (!x &&  y) return w.tuple(concat(a,        y->ops()));
-
-    assert(!x && !y);
-    return w.tuple({a, b});
-}
-
 bool is_tuple_arg_of_app(const Def* def) {
     if (!def->isa<Tuple>()) return false;
     for (auto& use : def->uses()) {

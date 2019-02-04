@@ -611,9 +611,6 @@ public:
     friend class World;
 };
 
-const Def* merge_sigma(const Def*, const Def*);
-const Def* merge_tuple(const Def*, const Def*);
-
 /// Base class for functional @p Insert and @p Extract.
 class AggOp : public Def {
 protected:

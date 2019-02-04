@@ -116,7 +116,7 @@ public:
     {}
     ArrayStorage(size_t size) {
         size_ = size;
-        stack_ = size < StackSize;
+        stack_ = size <= StackSize;
         if (!stack_)
             data_.ptr = new T[size]();
     }
@@ -140,13 +140,17 @@ public:
 
     friend void swap(ArrayStorage& a, ArrayStorage& b) {
         using std::swap;
-        swap(a.size_, b.size_);
-        swap(a.stack_, b.stack_);
+        auto size = a.size_;
+        a.size_ = b.size_;
+        b.size_ = size;
+        auto stack = a.stack_;
+        a.stack_ = b.stack_;
+        b.stack_ = stack;
         swap(a.data_, b.data_);
     }
 
 private:
-    size_t size_ : sizeof(size_t) - 1;
+    size_t size_ : sizeof(size_t) * 8 - 1;
     bool stack_  : 1;
     union {
         T* ptr;
@@ -280,7 +284,7 @@ public:
     ArrayRef<T> get_back  (size_t num = 1) const { assert(num <= size()); return ArrayRef<T>(num, data() + size() - num); }
     Array<T> cut(ArrayRef<size_t> indices, size_t reserve = 0) const { return ArrayRef<T>(*this).cut(indices, reserve); }
     void shrink(size_t new_size) { assert(new_size <= size()); storage_.shrink(new_size); }
-    ArrayRef<T> ref() const { return ArrayRef<T>(data(), size()); }
+    ArrayRef<T> ref() const { return ArrayRef<T>(size(), data()); }
     T& operator[](size_t i) { assert(i < size() && "index out of bounds"); return data()[i]; }
     T const& operator[](size_t i) const { assert(i < size() && "index out of bounds"); return data()[i]; }
     bool operator==(const Array other) const { return ArrayRef<T>(*this) == ArrayRef<T>(other); }

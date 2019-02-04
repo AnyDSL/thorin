@@ -170,13 +170,13 @@ std::ostream& CCodeGen::emit_aggop_defs(const Def* def) {
         emit(array) << endl;
     }
 
-    // look for nested struct
-    if (auto agg = def->isa<Aggregate>()) {
-        for (auto op : agg->ops())
+    // look for nested struct - TODO also look for arrays?
+    if (auto tuple = def->isa<Tuple>()) {
+        for (auto op : tuple->ops())
             emit_aggop_defs(op);
         if (lookup(def))
             return func_impl_;
-        emit(agg) << endl;
+        emit(tuple) << endl;
     }
 
     // look for nested variants
@@ -889,18 +889,17 @@ std::ostream& CCodeGen::emit(const Def* def) {
             return func_impl_;
         };
 
-        if (auto agg = def->isa<Aggregate>()) {
-            emit_aggop_decl(def->type());
-            assert(def->isa<Tuple>());
+        if (auto tuple = def->isa<Tuple>()) {
+            emit_aggop_decl(tuple->type());
             // emit definitions of inlined elements
-            for (auto op : agg->ops())
+            for (auto op : tuple->ops())
                 emit_aggop_defs(op);
 
-            emit_type(func_impl_, agg->type()) << " " << def_name << ";" << endl << "{" << endl;
-            emit_type(func_impl_, agg->type()) << " " << def_name << "_tmp = { " << up;
-            for (size_t i = 0, e = agg->ops().size(); i != e; ++i) {
+            emit_type(func_impl_, tuple->type()) << " " << def_name << ";" << endl << "{" << endl;
+            emit_type(func_impl_, tuple->type()) << " " << def_name << "_tmp = { " << up;
+            for (size_t i = 0, e = tuple->ops().size(); i != e; ++i) {
                 func_impl_ << endl;
-                emit(agg->op(i)) << ",";
+                emit(tuple->op(i)) << ",";
             }
             func_impl_ << down << endl << "};" << endl;
             func_impl_ << " " << def_name << " = " << def_name << "_tmp;" << endl << "}" << endl;

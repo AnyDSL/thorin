@@ -31,7 +31,7 @@ bool is_const(const Def* def) {
         auto def = stack.pop();
         if (def->isa<Param>()) return false;
         if (def->isa<Hlt>()) return false;
-        if (def->isa<PrimOp>()) {
+        if (!def->is_nominal()) {
             for (auto op : def->ops())
                 stack.push(op);
         }
@@ -137,6 +137,7 @@ bool visit_capturing_intrinsics(Lam* lam, std::function<bool(Lam*)> func, bool i
     }, include_globals);
 }
 
+// TODO merge these two functions
 const Def* merge_sigma(const Def* a, const Def* b) {
     auto x = a->isa<Sigma>();
     auto y = b->isa<Sigma>();
@@ -148,6 +149,19 @@ const Def* merge_sigma(const Def* a, const Def* b) {
 
     assert(!x && !y);
     return w.sigma({a, b});
+}
+
+const Def* merge_tuple(const Def* a, const Def* b) {
+    auto x = a->isa<Tuple>();
+    auto y = b->isa<Tuple>();
+    auto& w = a->world();
+
+    if ( x &&  y) return w.tuple(concat(x->ops(), y->ops()));
+    if ( x && !y) return w.tuple(concat(x->ops(), b       ));
+    if (!x &&  y) return w.tuple(concat(a,        y->ops()));
+
+    assert(!x && !y);
+    return w.tuple({a, b});
 }
 
 bool is_tuple_arg_of_app(const Def* def) {
@@ -240,9 +254,8 @@ Def::Sort Def::sort() const {
 }
 
 void Def::dump() const {
-    auto primop = this->isa<PrimOp>();
-    if (primop && primop->num_ops() > 1)
-        primop->stream_assignment(std::cout);
+    if (!is_nominal() && num_ops() > 1)
+        stream_assignment(std::cout);
     else {
         std::cout << this;
         std::cout << std::endl;
@@ -575,6 +588,7 @@ const Def* Param              ::rebuild(World& to, const Def*  , Defs ops) const
 const Def* Pi                 ::rebuild(World& to, const Def*  , Defs ops) const { return to.pi(ops[0], ops[1], debug()); }
 const Def* PrimType           ::rebuild(World& to, const Def*  , Defs    ) const { return to.type(primtype_tag()); }
 const Def* PtrType            ::rebuild(World& to, const Def*  , Defs ops) const { return to.ptr_type(ops[0], addr_space()); }
+const Def* Tuple              ::rebuild(World& to, const Def* t, Defs ops) const { return to.tuple(t, ops, debug()); }
 const Def* Var                ::rebuild(World& to, const Def* t, Defs    ) const { return to.var(t, index(), debug()); }
 const Def* VariantType        ::rebuild(World& to, const Def*  , Defs ops) const { return to.variant_type(ops, debug()); }
 

@@ -72,8 +72,8 @@ static bool can_split(const Slot* slot) {
 static bool split_slots(const Scope& scope) {
     bool todo = false;
     for (const auto& block : schedule(scope, Schedule::Late)) {
-        for (auto primop : block) {
-            if (auto slot = primop->isa<Slot>()) {
+        for (auto def : block) {
+            if (auto slot = def->isa<Slot>()) {
                 if (can_split(slot)) {
                     split(slot);
                     todo = true;

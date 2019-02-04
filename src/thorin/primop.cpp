@@ -17,7 +17,7 @@ Cmp::Cmp(CmpTag tag, const Def* lhs, const Def* rhs, Debug dbg)
 {}
 
 DefiniteArray::DefiniteArray(World& world, const Def* elem, Defs args, Debug dbg)
-    : Aggregate(Node_DefiniteArray, world.definite_array_type(elem, args.size()), args, dbg)
+    : Def(Node_DefiniteArray, world.definite_array_type(elem, args.size()), args, dbg)
 {
 #if THORIN_ENABLE_CHECKS
     for (size_t i = 0, e = num_ops(); i != e; ++i)
@@ -26,7 +26,7 @@ DefiniteArray::DefiniteArray(World& world, const Def* elem, Defs args, Debug dbg
 }
 
 IndefiniteArray::IndefiniteArray(World& world, const Def* elem, const Def* dim, Debug dbg)
-    : Aggregate(Node_IndefiniteArray, world.indefinite_array_type(elem), {dim}, dbg)
+    : Def(Node_IndefiniteArray, world.indefinite_array_type(elem), {dim}, dbg)
 {}
 
 static const Def* infer_lea_type(World& world, const Def* ptr, const Def* index) {
@@ -123,7 +123,6 @@ const Def* Select ::rebuild(World& to, const Def*  , Defs ops) const { return to
 const Def* SizeOf ::rebuild(World& to, const Def*  , Defs ops) const { return to.size_of(ops[0]->type(), debug()); }
 const Def* Slot   ::rebuild(World& to, const Def* t, Defs ops) const { return to.slot(t->as<PtrType>()->pointee(), ops[0], debug()); }
 const Def* Store  ::rebuild(World& to, const Def*  , Defs ops) const { return to.store(ops[0], ops[1], ops[2], debug()); }
-const Def* Tuple  ::rebuild(World& to, const Def* t, Defs ops) const { return to.tuple(t, ops, debug()); }
 const Def* Variant::rebuild(World& to, const Def* t, Defs ops) const { return to.variant(t->as<VariantType>(), ops[0], debug()); }
 
 const Def* Alloc::rebuild(World& to, const Def* t, Defs ops) const {
@@ -228,19 +227,6 @@ std::ostream& Assembly::stream_assignment(std::ostream& os) const {
 /*
  * misc
  */
-
-const Def* merge_tuple(const Def* a, const Def* b) {
-    auto x = a->isa<Tuple>();
-    auto y = b->isa<Tuple>();
-    auto& w = a->world();
-
-    if ( x &&  y) return w.tuple(concat(x->ops(), y->ops()));
-    if ( x && !y) return w.tuple(concat(x->ops(), b       ));
-    if (!x &&  y) return w.tuple(concat(a,        y->ops()));
-
-    assert(!x && !y);
-    return w.tuple({a, b});
-}
 
 std::string DefiniteArray::as_string() const {
     std::string res;

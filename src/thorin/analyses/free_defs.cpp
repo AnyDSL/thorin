@@ -23,7 +23,7 @@ DefSet free_defs(const Scope& scope, bool /*include_closures*/) {
 
     while (!queue.empty()) {
         auto def = pop(queue);
-        if (auto primop = def->isa<PrimOp>()) {
+        if (!def->is_nominal()) {
 #if 0
             if (!include_closures && primop->isa<Closure>()) {
                 result.emplace(primop);
@@ -31,15 +31,15 @@ DefSet free_defs(const Scope& scope, bool /*include_closures*/) {
                 goto queue_next;
             }
 #endif
-            for (auto op : primop->ops()) {
+            for (auto op : def->ops()) {
                 if ((op->isa<MemOp>() || op->type()->isa<FrameType>()) && !scope.contains(op)) {
-                    result.emplace(primop);
+                    result.emplace(def);
                     goto queue_next;
                 }
             }
 
             // HACK for bitcasting address spaces
-            if (auto bitcast = primop->isa<Bitcast>()) {
+            if (auto bitcast = def->isa<Bitcast>()) {
                 if (auto dst_ptr = bitcast->type()->isa<PtrType>()) {
                     if (auto src_ptr = bitcast->from()->type()->isa<PtrType>()) {
                         if (       dst_ptr->pointee()->isa<IndefiniteArrayType>()
@@ -52,7 +52,7 @@ DefSet free_defs(const Scope& scope, bool /*include_closures*/) {
                 }
             }
 
-            enqueue_ops(primop);
+            enqueue_ops(def);
         } else if (!scope.contains(def))
             result.emplace(def);
 queue_next:;

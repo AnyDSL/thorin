@@ -304,7 +304,7 @@ public:
     }
 
 private:
-    const Def* try_fold_aggregate(const Aggregate*);
+    const Def* try_fold_aggregate(const Def*);
 
     template<class T>
     T* insert(T* def) {

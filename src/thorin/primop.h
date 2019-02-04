@@ -165,23 +165,15 @@ private:
     friend class World;
 };
 
-/// Base class for all aggregate data constructers.
-class Aggregate : public PrimOp {
-protected:
-    Aggregate(NodeTag tag, const Def* type, Defs args, Debug dbg)
-        : PrimOp(tag, type, args, dbg)
-    {}
-};
-
 /// Data constructor for a \p DefiniteArrayType.
-class DefiniteArray : public Aggregate {
+class DefiniteArray : public Def {
 private:
     DefiniteArray(World& world, const Def* elem, Defs args, Debug dbg);
 
     const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
 public:
-    const DefiniteArrayType* type() const { return Aggregate::type()->as<DefiniteArrayType>(); }
+    const DefiniteArrayType* type() const { return Def::type()->as<DefiniteArrayType>(); }
     const Def* elem_type() const { return type()->elem_type(); }
     std::string as_string() const;
 
@@ -189,35 +181,18 @@ public:
 };
 
 /// Data constructor for an \p IndefiniteArrayType.
-class IndefiniteArray : public Aggregate {
+class IndefiniteArray : public Def {
 private:
     IndefiniteArray(World& world, const Def* elem, const Def* dim, Debug dbg);
 
     const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
 public:
-    const IndefiniteArrayType* type() const { return Aggregate::type()->as<IndefiniteArrayType>(); }
+    const IndefiniteArrayType* type() const { return Def::type()->as<IndefiniteArrayType>(); }
     const Def* elem_type() const { return type()->elem_type(); }
 
     friend class World;
 };
-
-/// Data constructor for a @p Sigma.
-class Tuple : public Aggregate {
-private:
-    Tuple(const Def* type, Defs args, Debug dbg)
-        : Aggregate(Node_Tuple, type, args, dbg)
-    {}
-
-public:
-    const Sigma* type() const { return Aggregate::type()->as<Sigma>(); }
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
-    std::ostream& stream(std::ostream&) const override;
-
-    friend class World;
-};
-
-const Def* merge_tuple(const Def*, const Def*);
 
 /// Data constructor for a @p VariantType.
 class Variant : public PrimOp {

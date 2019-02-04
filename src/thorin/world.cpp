@@ -711,14 +711,12 @@ const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
     if (is_top(agg)) return top(Extract::extracted_type(agg, index), dbg);
     if (!agg->isa<Param>() /*HACK*/ && fold_1_tuple(agg->type(), index)) return agg;
 
-    if (auto aggregate = agg->isa<Aggregate>()) {
+    if (agg->isa<Tuple>() || agg->isa<DefiniteArray>()) {
         if (auto lit = index->isa<Lit>()) {
-            if (!agg->isa<IndefiniteArray>()) {
-                if (primlit_value<u64>(lit) < aggregate->num_ops())
-                    return get(aggregate->ops(), lit);
-                else
-                    return bot(Extract::extracted_type(agg, index), dbg);
-            }
+            if (primlit_value<u64>(lit) < agg->num_ops())
+                return get(agg->ops(), lit);
+            else
+                return bot(Extract::extracted_type(agg, index), dbg);
         }
     }
 
@@ -758,16 +756,15 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, Deb
         return value;
 
     // TODO double-check
-    if (auto aggregate = agg->isa<Aggregate>()) {
+    if (agg->isa<Tuple>() || agg->isa<DefiniteArray>()) {
         if (auto lit = index->isa<Lit>()) {
-            if (!agg->isa<IndefiniteArray>()) {
-                if (primlit_value<u64>(lit) < aggregate->num_ops()) {
-                    Array<const Def*> args(agg->num_ops());
-                    std::copy(agg->ops().begin(), agg->ops().end(), args.begin());
-                    args[primlit_value<u64>(lit)] = value;
-                    return aggregate->rebuild(*this, agg->type(), args);
-                } else
-                    return bot(agg->type(), dbg);
+            if (primlit_value<u64>(lit) < agg->num_ops()) {
+                Array<const Def*> args(agg->num_ops());
+                std::copy(agg->ops().begin(), agg->ops().end(), args.begin());
+                args[primlit_value<u64>(lit)] = value;
+                return agg->rebuild(*this, agg->type(), args);
+            } else {
+                return bot(agg->type(), dbg);
             }
         }
     }
@@ -907,7 +904,7 @@ Lam* World::match(const Def* type, size_t num_patterns) {
  * misc
  */
 
-const Def* World::try_fold_aggregate(const Aggregate* agg) {
+const Def* World::try_fold_aggregate(const Def* agg) {
     const Def* from = nullptr;
     for (size_t i = 0, e = agg->num_ops(); i != e; ++i) {
         auto arg = agg->op(i);
@@ -964,8 +961,8 @@ void World::opt() {
 std::ostream& World::stream(std::ostream& os) const {
     os << "module '" << debug().name() << "'\n\n";
 
-    for (auto primop : defs()) {
-        if (auto global = primop->isa<Global>())
+    for (auto def : defs()) {
+        if (auto global = def->isa<Global>())
             global->stream_assignment(os);
     }
 

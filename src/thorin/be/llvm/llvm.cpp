@@ -801,12 +801,11 @@ llvm::Value* CodeGen::emit(const Def* def) {
     if (auto array = def->isa<IndefiniteArray>())
         return llvm::UndefValue::get(convert(array->type()));
 
-    if (auto agg = def->isa<Aggregate>()) {
-        assert(def->isa<Tuple>());
-        llvm::Value* llvm_agg = llvm::UndefValue::get(convert(agg->type()));
+    if (auto tuple = def->isa<Tuple>()) {
+        llvm::Value* llvm_agg = llvm::UndefValue::get(convert(tuple->type()));
 
-        for (size_t i = 0, e = agg->num_ops(); i != e; ++i)
-            llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, lookup(agg->op(i)), { unsigned(i) });
+        for (size_t i = 0, e = tuple->num_ops(); i != e; ++i)
+            llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, lookup(tuple->op(i)), { unsigned(i) });
 
         return llvm_agg;
     }

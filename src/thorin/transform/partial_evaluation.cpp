@@ -1,4 +1,3 @@
-#include "thorin/primop.h"
 #include "thorin/world.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/util/hash.h"
@@ -51,13 +50,13 @@ public:
         if (auto ndef = old2new_.lookup(odef))
             return *ndef;
 
-        if (auto oprimop = odef->isa<PrimOp>()) {
-            Array<const Def*> nops(oprimop->num_ops());
-            for (size_t i = 0; i != oprimop->num_ops(); ++i)
+        if (!odef->is_nominal()) {
+            Array<const Def*> nops(odef->num_ops());
+            for (size_t i = 0; i != odef->num_ops(); ++i)
                 nops[i] = instantiate(odef->op(i));
 
-            auto nprimop = oprimop->rebuild(world(), odef->type(), nops);
-            return old2new_[oprimop] = nprimop;
+            auto ndef = odef->rebuild(world(), odef->type(), nops);
+            return old2new_[odef] = ndef;
         }
 
         return old2new_[odef] = odef;

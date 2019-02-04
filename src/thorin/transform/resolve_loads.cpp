@@ -152,8 +152,8 @@ public:
             return is_top_[def];
         if (is_top(def)) {
             return is_top_[def] = true;
-        } else if (auto primop = def->isa<PrimOp>()) {
-            for (auto op : primop->ops()) {
+        } else if (!def->is_nominal()) {
+            for (auto op : def->ops()) {
                 if (contains_top(op))
                     return is_top_[def] = true;
             }

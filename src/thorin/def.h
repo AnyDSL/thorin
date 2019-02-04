@@ -596,7 +596,23 @@ public:
     friend class World;
 };
 
+/// Data constructor for a @p Sigma.
+class Tuple : public Def {
+private:
+    Tuple(const Def* type, Defs args, Debug dbg)
+        : Def(Node_Tuple, type, args, dbg)
+    {}
+
+public:
+    const Sigma* type() const { return Def::type()->as<Sigma>(); }
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    std::ostream& stream(std::ostream&) const override;
+
+    friend class World;
+};
+
 const Def* merge_sigma(const Def*, const Def*);
+const Def* merge_tuple(const Def*, const Def*);
 
 /// The type of a variant (structurally typed).
 class VariantType : public Def {

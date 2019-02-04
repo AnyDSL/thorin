@@ -5,7 +5,6 @@
 #include <memory>
 #include <stack>
 
-#include "thorin/primop.h"
 #include "thorin/analyses/domfrontier.h"
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/looptree.h"

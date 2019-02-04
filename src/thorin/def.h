@@ -207,6 +207,7 @@ public:
     virtual Def* stub(World&, const Def*) const { THORIN_UNREACHABLE; }
     //@}
 
+    virtual const Def* arity() const;
     virtual bool equal(const Def* other) const;
     virtual const char* op_name() const;
     virtual std::ostream& stream(std::ostream&) const;
@@ -546,6 +547,8 @@ private:
 
 public:
     Lam* lam() const { return op(0)->as_lam(); }
+
+    const Def* arity() const override;
     const Def* rebuild(World&, const Def*, Defs) const override;
 
     friend class World;
@@ -589,6 +592,7 @@ private:
     {}
 
 public:
+    const Def* arity() const override;
     const Def* rebuild(World& to, const Def*, Defs ops) const override;
     Sigma* stub(World&, const Def*) const override;
     std::ostream& stream(std::ostream&) const override;
@@ -606,6 +610,35 @@ private:
 public:
     const Sigma* type() const { return Def::type()->as<Sigma>(); }
     const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    std::ostream& stream(std::ostream&) const override;
+
+    friend class World;
+};
+
+class Variadic : public Def {
+private:
+    Variadic(const Def* type, const Def* arity, const Def* body, Debug dbg)
+        : Def(Node_Variadic, type, {arity, body}, dbg)
+    {}
+
+public:
+    const Def* arity() const { return op(0); }
+    const Def* body() const { return op(1); }
+    const Def* rebuild(World&, const Def*, Defs) const override;
+    std::ostream& stream(std::ostream&) const override;
+
+    friend class World;
+};
+
+class Pack : public Def {
+private:
+    Pack(const Def* type, const Def* body, Debug dbg)
+        : Def(Node_Pack, type, {body}, dbg)
+    {}
+
+public:
+    const Def* body() const { return op(0); }
+    const Def* rebuild(World&, const Def*, Defs) const override;
     std::ostream& stream(std::ostream&) const override;
 
     friend class World;

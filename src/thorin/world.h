@@ -107,6 +107,24 @@ public:
     Sigma* sigma(size_t size, Debug dbg = {}) { return sigma(kind_star(), size, dbg); }
     //@}
     //@}
+    /// @defgroup Variadic%s
+    //@{
+    const Def* variadic(const Def* arities, const Def* body, Debug dbg = {});
+    const Def* variadic(Defs arities, const Def* body, Debug dbg = {});
+    const Def* variadic(u64 a, const Def* body, Debug dbg = {}) { return variadic(lit_arity(a, dbg), body, dbg); }
+    const Def* variadic(ArrayRef<u64> a, const Def* body, Debug dbg = {}) {
+        return variadic(Array<const Def*>(a.size(), [&](size_t i) { return lit_arity(a[i], dbg); }), body, dbg);
+    }
+    //@}
+    /// @defgroup Pack%s
+    //@{
+    const Def* pack(const Def* arities, const Def* body, Debug dbg = {});
+    const Def* pack(Defs arities, const Def* body, Debug dbg = {});
+    const Def* pack(u64 a, const Def* body, Debug dbg = {}) { return pack(lit_arity(a, dbg), body, dbg); }
+    const Def* pack(ArrayRef<u64> a, const Def* body, Debug dbg = {}) {
+        return pack(Array<const Def*>(a.size(), [&](auto i) { return lit_arity(a[i], dbg); }), body, dbg);
+    }
+    //@}
     /// @defgroup create @p Lit%erals
     //@{
     const Lit* lit(const Def* type, Box box, Debug dbg) { return unify(new Lit(type, box, dbg)); }

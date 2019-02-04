@@ -3,14 +3,30 @@
 #endif
 
 // Def
-    THORIN_NODE(Universe, universe)
-    THORIN_NODE(KindStar,  *)
+    THORIN_NODE(App, app)
+    THORIN_NODE(Bot, bot)
+    THORIN_NODE(Extract, extract)
+    THORIN_NODE(Insert, insert)
     THORIN_NODE(KindArity, *A)
     THORIN_NODE(KindMulti, *M)
+    THORIN_NODE(KindStar,  *)
     THORIN_NODE(Lam, lam)
-    THORIN_NODE(Bot, bot)
-    THORIN_NODE(Top, top)
     THORIN_NODE(Lit, lit)
+    THORIN_NODE(Pack, pack)
+    THORIN_NODE(Pi, Π)
+    THORIN_NODE(Sigma, Σ)
+    THORIN_NODE(Top, top)
+    THORIN_NODE(Tuple, tuple)
+    THORIN_NODE(Universe, universe)
+    THORIN_NODE(Var, var)
+    THORIN_NODE(Variadic, variadic)
+    THORIN_NODE(VariantType, ∪)
+    // get rid of these ones
+    THORIN_NODE(DefiniteArrayType, definite_array_type)
+    THORIN_NODE(FrameType, frame)
+    THORIN_NODE(IndefiniteArrayType, indefinite_array_type)
+    THORIN_NODE(MemType, mem)
+    THORIN_NODE(PtrType, ptr)
     // PrimOp
         // MemOp
             THORIN_NODE(Alloc, alloc)
@@ -30,12 +46,7 @@
             THORIN_NODE(Bitcast, bitcast)
         THORIN_NODE(DefiniteArray, definite_array)
         THORIN_NODE(IndefiniteArray, indefinite_array)
-        THORIN_NODE(Tuple, tuple)
         THORIN_NODE(Variant, variant)
-        THORIN_NODE(StructAgg, struct_agg)
-        THORIN_NODE(Vector, vector)
-        THORIN_NODE(Extract, extract)
-        THORIN_NODE(Insert, insert)
         THORIN_NODE(LEA, lea)
         THORIN_NODE(Hlt, hlt)
         THORIN_NODE(Known, known)
@@ -44,15 +55,5 @@
     THORIN_NODE(Param, param)
     // Type
         // PrimType
-        THORIN_NODE(App, app)
-        THORIN_NODE(DefiniteArrayType, definite_array_type)
-        THORIN_NODE(Pi, Π)
-        THORIN_NODE(FrameType, frame)
-        THORIN_NODE(IndefiniteArrayType, indefinite_array_type)
-        THORIN_NODE(MemType, mem)
-        THORIN_NODE(PtrType, ptr)
-        THORIN_NODE(Sigma, Σ)
-        THORIN_NODE(VariantType, ∪)
-        THORIN_NODE(Var, var)
 
 #undef THORIN_NODE

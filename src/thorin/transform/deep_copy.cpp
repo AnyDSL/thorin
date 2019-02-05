@@ -255,7 +255,7 @@ private:
         }
     }
     Continuation* generate_continuation(const Type* type) {
-        auto ptr_type = world.ptr_type(type, 1);
+        auto ptr_type = world.ptr_type(type);
         return world.continuation(world.fn_type({ world.mem_type(), ptr_type, ptr_type, world.fn_type({ world.mem_type() }) }),Debug(Symbol("deep_copy")));
     }
 

@@ -153,9 +153,9 @@ public:
 
                 if(dimension > 0) {
                     //load input and output pointers
-                    const Def* inputs[dimension];
-                    const Def* outputs[dimension];
-                    Continuation* calls[dimension];
+                    Array<const Def*> inputs(dimension);
+                    Array<const Def*> outputs(dimension);
+                    Array<Continuation*> calls(dimension);
 
                     for(u64 i=0; i<dimension; i++) {
                         inputs[i] = world.lea(input, world.literal_qu32((qu32) i, {}), {});

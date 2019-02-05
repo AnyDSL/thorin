@@ -72,52 +72,68 @@ public:
     std::vector<Lam*> copy_lams() const;
     const LamSet& externals() const { return externals_; }
 
-    /// @defgroup manage global identifier - a unique number for each @p Def
+    /// @name manage global identifier - a unique number for each Def
     //@{
     uint32_t cur_gid() const { return cur_gid_; }
     uint32_t next_gid() { return ++cur_gid_; }
     //@}
 
-    /// @defgroup core @p Def%s
-    //@{
-    /// @defgroup @p Universe and @p Kind%s
+    /// @name Universe and Kind
     //@{
     const Universe* universe() { return universe_; }
     const Kind* kind(NodeTag tag) { return unify<Kind>(0, *this, tag); }
     const Kind* kind_arity() { return kind_arity_; }
     const Kind* kind_multi() { return kind_multi_; }
     const Kind* kind_star()  { return kind_star_; }
+    /// @name Param and Var
+    //@{
+    const Param* param(Lam* lam, Debug dbg = {}) { return unify<Param>(1, lam->domain(), lam, dbg); }
     const Var* var(const Def* type, u64 index, Debug dbg = {}) { return unify<Var>(0, type, index, dbg); }
-    const VariantType* variant_type(Defs ops, Debug dbg = {}) { return unify<VariantType>(ops.size(), kind_star(), ops, dbg); }
     //@}
-    /// @defgroup @p Pi%s
+    //@}
+    /// @name Pi
     //@{
     const Pi* pi(Defs domain, const Def* codomain, Debug dbg = {}) { return pi(sigma(domain), codomain, dbg); }
     const Pi* pi(const Def* domain, const Def* codomain, Debug dbg = {});
-    ///@defgroup continuation types - Pi types with codomain bottom
+    //@}
+    /// @name Pi: continuation type, i.e., Pi type with codomain Bottom
     //@{
     const Pi* cn() { return cn(sigma()); }
     const Pi* cn(Defs domains) { return cn(sigma(domains)); }
     const Pi* cn(const Def* domain) { return pi(domain, bot()); }
     //@}
-    //@}
-    /// @defgroup @p Sigma%s
+    /// @name Lambda: nominal
     //@{
-    /// @defgroup @em structural @p Sigma%s
+    Lam* lam(const Pi* cn, CC cc = CC::C, Intrinsic intrinsic = Intrinsic::None, Debug dbg = {}) {
+        auto lam = insert<Lam>(2, cn, cc, intrinsic, dbg);
+        lam->destroy(); // set filter to false and body to top
+        return lam;
+    }
+    Lam* lam(const Pi* cn, Debug dbg = {}) { return lam(cn, CC::C, Intrinsic::None, dbg); }
+    //@}
+    /// @name Lambda: structural
+    const Lam* lam(const Def* domain, const Def* filter, const Def* body, Debug dbg);
+    const Lam* lam(const Def* domain, const Def* body, Debug dbg) { return lam(domain, lit_bool(true, Debug()), body, dbg); }
+    //@}
+    /// @name App
+    //@{
+    const Def* app(const Def* callee, const Def* op, Debug dbg = {});
+    const Def* app(const Def* callee, Defs ops, Debug dbg = {}) { return app(callee, tuple(ops), dbg); }
+    //@}
+    /// @name Sigma: structural
     //@{
     const Def* sigma(const Def* type, Defs ops, Debug dbg = {});
     /// a @em structural @p Sigma of type @p star
     const Def* sigma(Defs ops, Debug dbg = {}) { return sigma(kind_star(), ops, dbg); }
     const Sigma* sigma() { return sigma_; } ///< Returns an empty @p Sigma - AKA unit - of type @p star
     //@}
-    /// @defgroup @em nominal @p Sigma%s
+    /// @name Sigma: nominal
     //@{
     Sigma* sigma(const Def* type, size_t size, Debug dbg = {}) { return insert<Sigma>(size, type, size, dbg); }
     /// a @em nominal @p Sigma of type @p star
     Sigma* sigma(size_t size, Debug dbg = {}) { return sigma(kind_star(), size, dbg); }
     //@}
-    //@}
-    /// @defgroup Variadic%s
+    /// @name Variadic
     //@{
     const Def* variadic(const Def* arities, const Def* body, Debug dbg = {});
     const Def* variadic(Defs arities, const Def* body, Debug dbg = {});
@@ -126,7 +142,13 @@ public:
         return variadic(Array<const Def*>(a.size(), [&](size_t i) { return lit_arity(a[i], dbg); }), body, dbg);
     }
     //@}
-    /// @defgroup Pack%s
+    /// @name Tuple
+    //@{
+    /// ascribes @p type to this tuple - needed for dependetly typed and structural @p Sigma%s
+    const Def* tuple(const Def* type, Defs ops, Debug dbg = {});
+    const Def* tuple(Defs ops, Debug dbg = {});
+    //@}
+    /// @name Pack
     //@{
     const Def* pack(const Def* arities, const Def* body, Debug dbg = {});
     const Def* pack(Defs arities, const Def* body, Debug dbg = {});
@@ -135,17 +157,28 @@ public:
         return pack(Array<const Def*>(a.size(), [&](auto i) { return lit_arity(a[i], dbg); }), body, dbg);
     }
     //@}
-    /// @defgroup create @p Lit%erals
+    /// @name Extract
+    //@{
+    const Def* extract(const Def* tuple, const Def* index, Debug dbg = {});
+    const Def* extract(const Def* tuple, u32 index, Debug dbg = {}) { return extract(tuple, lit_qu32(index, dbg), dbg); }
+    //@}
+    /// @name Insert
+    //@{
+    const Def* insert(const Def* tuple, const Def* index, const Def* value, Debug dbg = {});
+    const Def* insert(const Def* tuple, u32 index, const Def* value, Debug dbg = {}) { return insert(tuple, lit_qu32(index, dbg), value, dbg); }
+    //@}
+    /// @name Literal
     //@{
     const Lit* lit(const Def* type, Box box, Debug dbg = {}) { return unify<Lit>(0, type, box, dbg); }
     const Lit* lit(PrimTypeTag tag, Box box, Loc loc = {}) { return lit(type(tag), box, loc); }
-    /// @defgroup Arrity and Index Lit%erals
+    //@}
+    /// @name Literal: Arrity and Index
     //@{
     const Lit* lit_arity(u64 a, Loc loc = {});
     const Lit* lit_index(u64 arity, u64 idx, Loc loc = {}) { return lit_index(lit_arity(arity), idx, loc); }
     const Lit* lit_index(const Lit* arity, u64 index, Loc loc = {});
     //@}
-    /// @defgroup Nat Lit%erals
+    /// @name Literal: Nat
     //@{
     const Lit* lit_nat(int64_t val, Loc loc = {}) { return lit(type_nat(), {val}, {loc}); }
     const Lit* lit_nat_0 () { return lit_nat_0_; }
@@ -157,12 +190,13 @@ public:
     const Lit* lit_nat_32() { return lit_nat_[5]; }
     const Lit* lit_nat_64() { return lit_nat_[6]; }
     //@}
-    /// @defgroup bool Lit%erals
+    /// @name Literal: Bool
     //@{
     const Lit* lit(bool val) { return lit_bool_[size_t(val)]; }
     const Lit* lit_false() { return lit_bool_[0]; }
     const Lit* lit_true()  { return lit_bool_[1]; }
-    /// @defgroup Lit%erals of @p PrimType%s
+    //@}
+    /// @name Literal: PrimTypes
     //@{
 #define THORIN_ALL_TYPE(T, M) \
     const Def* lit_##T(T val, Loc loc = {}) { return lit(PrimType_##T, Box(val), loc); }
@@ -174,8 +208,7 @@ public:
     const Lit* allset(PrimTypeTag tag, Loc loc = {});
     const Lit* allset(const Def* type, Loc loc = {}) { return allset(type->as<PrimType>()->primtype_tag(), loc); }
     //@}
-    //@}
-    /// @defgroup top/bottom
+    /// @name Top/Bottom
     //@{
     const Def* bot_top(bool is_top, const Def* type, Debug dbg = {}) { return unify<BotTop>(0, is_top, type, dbg); }
     const Def* bot(const Def* type, Loc dbg = {}) { return bot_top(false, type, dbg); }
@@ -185,8 +218,12 @@ public:
     const Def* bot(Loc dbg = {}) { return bot_top(false, kind_star(), dbg); }
     const Def* top(Loc dbg = {}) { return bot_top(true,  kind_star(), dbg); }
     //@}
-    //@}
+    // TODO group
+    const VariantType* variant_type(Defs ops, Debug dbg = {}) { return unify<VariantType>(ops.size(), kind_star(), ops, dbg); }
+    const Def* variant(const VariantType* variant_type, const Def* value, Debug dbg = {}) { return unify<Variant>(1, variant_type, value, dbg); }
 
+    /// @name misc types
+    //@{
     const PrimType* type_nat() { return type_nat_; }
 #define THORIN_ALL_TYPE(T, M) \
     const PrimType* type_##T() { return type(PrimType_##T); }
@@ -201,9 +238,10 @@ public:
     const PtrType* ptr_type(const Def* pointee, AddrSpace addr_space = AddrSpace::Generic, Debug dbg = {}) { return unify<PtrType>(1, kind_star(), pointee, addr_space, dbg); }
     const DefiniteArrayType*   definite_array_type(const Def* elem, u64 dim, Debug dbg = {}) { return unify<DefiniteArrayType>(1, kind_star(), elem, dim, dbg); }
     const IndefiniteArrayType* indefinite_array_type(const Def* elem, Debug dbg = {}) { return unify<IndefiniteArrayType>(1, kind_star(), elem, dbg); }
+    //@}
 
-    // arithops
-
+    /// @name ArithOps
+    //@{
     /// Creates an \p ArithOp or a \p Cmp.
     const Def* binop(int tag, const Def* lhs, const Def* rhs, Debug dbg = {});
     const Def* arithop_not(const Def* def, Debug dbg = {});
@@ -214,45 +252,38 @@ public:
         return arithop(ArithOp_##OP, lhs, rhs, dbg); \
     }
 #include "thorin/tables/arithoptable.h"
+    //@}
 
-    // compares
-
+    /// @name Cmps
+    //@{
     const Def* cmp(CmpTag tag, const Def* lhs, const Def* rhs, Debug dbg = {});
 #define THORIN_CMP(OP) \
     const Def* cmp_##OP(const Def* lhs, const Def* rhs, Debug dbg = {}) { \
         return cmp(Cmp_##OP, lhs, rhs, dbg);  \
     }
 #include "thorin/tables/cmptable.h"
+    //@}
 
-    // casts
-
+    /// @name Casts
+    //@{
     const Def* convert(const Def* to, const Def* from, Debug dbg = {});
     const Def* cast(const Def* to, const Def* from, Debug dbg = {});
     const Def* bitcast(const Def* to, const Def* from, Debug dbg = {});
+    //@}
 
     // aggregate operations
 
+    //@{
     const Def* definite_array(const Def* elem, Defs ops, Debug dbg = {});
     /// Create definite_array with at least one element. The type of that element is the element type of the definite array.
     const Def* definite_array(Defs ops, Debug dbg = {}) { assert(!ops.empty()); return definite_array(ops.front()->type(), ops, dbg); }
     const Def* indefinite_array(const Def* elem, const Def* dim, Debug dbg = {});
-    const Def* tuple(const Def* type, Defs ops, Debug dbg = {});
-    const Def* tuple(Defs ops, Debug dbg = {});
-    const Def* variant(const VariantType* variant_type, const Def* value, Debug dbg = {}) { return unify<Variant>(1, variant_type, value, dbg); }
-    const Def* extract(const Def* tuple, const Def* index, Debug dbg = {});
-    const Def* extract(const Def* tuple, u32 index, Debug dbg = {}) {
-        return extract(tuple, lit_qu32(index, dbg), dbg);
-    }
-    const Def* insert(const Def* tuple, const Def* index, const Def* value, Debug dbg = {});
-    const Def* insert(const Def* tuple, u32 index, const Def* value, Debug dbg = {}) {
-        return insert(tuple, lit_qu32(index, dbg), value, dbg);
-    }
 
     const Def* select(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
     const Def* size_of(const Def* type, Debug dbg = {});
 
-    // memory stuff
-
+    /// @name memory-related operations
+    //@{
     const Def* load(const Def* mem, const Def* ptr, Debug dbg = {});
     const Def* store(const Def* mem, const Def* ptr, const Def* val, Debug dbg = {});
     const Def* enter(const Def* mem, Debug dbg = {});
@@ -266,34 +297,18 @@ public:
                              ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg = {});
     const Assembly* assembly(Defs types, const Def* mem, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints,
                              ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg = {});
+    //@}
 
-    // partial evaluation related stuff
-
+    /// @name partial evaluation related operations
+    //@{
     const Def* hlt(const Def* def, Debug dbg = {});
     const Def* known(const Def* def, Debug dbg = {});
     const Def* run(const Def* def, Debug dbg = {});
-
-    // lams
-
-    const Param* param(Lam* lam, Debug dbg = {}) { return unify<Param>(1, lam->domain(), lam, dbg); }
-    /// @defgroup nominal @p Lam%bdas
-    //@{
-    Lam* lam(const Pi* cn, CC cc = CC::C, Intrinsic intrinsic = Intrinsic::None, Debug dbg = {}) {
-        auto lam = insert<Lam>(2, cn, cc, intrinsic, dbg);
-        lam->destroy(); // set filter to false and body to top
-        return lam;
-    }
-    Lam* lam(const Pi* cn, Debug dbg = {}) { return lam(cn, CC::C, Intrinsic::None, dbg); }
     //@}
-    /// @defgroup structural @p Lam%bdas
-    const Lam* lam(const Def* domain, const Def* filter, const Def* body, Debug dbg);
-    const Lam* lam(const Def* domain, const Def* body, Debug dbg) { return lam(domain, lit_bool(true, Debug()), body, dbg); }
-    //@{
+
     Lam* branch() const { return branch_; }
     Lam* match(const Def* type, size_t num_patterns);
     Lam* end_scope() const { return end_scope_; }
-    const Def* app(const Def* callee, const Def* op, Debug dbg = {});
-    const Def* app(const Def* callee, Defs ops, Debug dbg = {}) { return app(callee, tuple(ops), dbg); }
     const Def* branch(const Def* cond, const Def* t, const Def* f, Debug dbg = {}) { return app(branch(), {cond, t, f}, dbg); }
 
     /// Performs dead code, unreachable code and unused type elimination.

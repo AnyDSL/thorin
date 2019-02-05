@@ -134,7 +134,7 @@ public:
         Term, Type, Kind, Universe
     };
 
-    /// @defgroup get @p Sort
+    /// @name get Sort
     //@{
     Sort sort() const;
     bool is_term() const { return sort() == Sort::Term; }
@@ -154,13 +154,13 @@ public:
     inline const Def* op(size_t i) const { return ops()[i]; }
     inline size_t num_ops() const { return num_ops_; }
 
-    /// @defgroup setters
+    /// @name setters
     //@{
     void set(size_t i, const Def* def);
     void unset(size_t i);
     //@}
 
-    /// @defgroup misc getters
+    /// @name misc getters
     //@{
     bool contains_lam() const { return contains_lam_; }
     bool is_nominal() const { return nominal_; }

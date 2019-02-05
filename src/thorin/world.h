@@ -201,12 +201,12 @@ public:
 #define THORIN_ALL_TYPE(T, M) \
     const Def* lit_##T(T val, Loc loc = {}) { return lit(PrimType_##T, Box(val), loc); }
 #include "thorin/tables/primtypetable.h"
-    const Lit* zero(PrimTypeTag tag, Loc loc = {}) { return lit(tag, 0, loc); }
-    const Lit* zero(const Def* type, Loc loc = {}) { return zero(type->as<PrimType>()->primtype_tag(), loc); }
-    const Lit* one(PrimTypeTag tag, Loc loc = {}) { return lit(tag, 1, loc); }
-    const Lit* one(const Def* type, Loc loc = {}) { return one(type->as<PrimType>()->primtype_tag(), loc); }
-    const Lit* allset(PrimTypeTag tag, Loc loc = {});
-    const Lit* allset(const Def* type, Loc loc = {}) { return allset(type->as<PrimType>()->primtype_tag(), loc); }
+    const Lit* lit_zero(PrimTypeTag tag, Loc loc = {}) { return lit(tag, 0, loc); }
+    const Lit* lit_zero(const Def* type, Loc loc = {}) { return lit_zero(type->as<PrimType>()->primtype_tag(), loc); }
+    const Lit* lit_one(PrimTypeTag tag, Loc loc = {}) { return lit(tag, 1, loc); }
+    const Lit* lit_one(const Def* type, Loc loc = {}) { return lit_one(type->as<PrimType>()->primtype_tag(), loc); }
+    const Lit* lit_allset(PrimTypeTag tag, Loc loc = {});
+    const Lit* lit_allset(const Def* type, Loc loc = {}) { return lit_allset(type->as<PrimType>()->primtype_tag(), loc); }
     //@}
     /// @name Top/Bottom
     //@{

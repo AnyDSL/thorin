@@ -317,7 +317,7 @@ const Def* World::pack(Defs arity, const Def* body, Debug dbg) {
  * literals
  */
 
-const Lit* World::allset(PrimTypeTag tag, Loc loc) {
+const Lit* World::lit_allset(PrimTypeTag tag, Loc loc) {
     switch (tag) {
 #define THORIN_I_TYPE(T, M) \
     case PrimType_##T: return lit(PrimType_##T, Box(~T(0)), loc);
@@ -469,7 +469,7 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
                 case ArithOp_add: return arithop_mul(lit(type, 2, dbg), a, dbg);
 
                 case ArithOp_sub:
-                case ArithOp_xor: return zero(type, dbg);
+                case ArithOp_xor: return lit_zero(type, dbg);
 
                 case ArithOp_and:
                 case ArithOp_or:  return a;
@@ -477,12 +477,12 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
                 case ArithOp_div:
                     if (is_zero(b))
                         return bot(type, dbg);
-                    return one(type, dbg);
+                    return lit_one(type, dbg);
 
                 case ArithOp_rem:
                     if (is_zero(b))
                         return bot(type, dbg);
-                    return zero(type, dbg);
+                    return lit_zero(type, dbg);
 
                 default: break;
             }
@@ -495,7 +495,7 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
                 case ArithOp_rem:
                 case ArithOp_and:
                 case ArithOp_shl:
-                case ArithOp_shr: return zero(type, dbg);
+                case ArithOp_shr: return lit_zero(type, dbg);
 
                 case ArithOp_add:
                 case ArithOp_or:
@@ -536,7 +536,7 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
             switch (tag) {
                 case ArithOp_mul:
                 case ArithOp_div: return a;
-                case ArithOp_rem: return zero(type, dbg);
+                case ArithOp_rem: return lit_zero(type, dbg);
 
                 default: break;
             }
@@ -656,7 +656,7 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
     return unify<ArithOp>(2, tag, a, b, dbg);
 }
 
-const Def* World::arithop_not(const Def* def, Debug dbg) { return arithop_xor(allset(def->type(), dbg), def, dbg); }
+const Def* World::arithop_not(const Def* def, Debug dbg) { return arithop_xor(lit_allset(def->type(), dbg), def, dbg); }
 
 const Def* World::arithop_minus(const Def* def, Debug dbg) {
     switch (PrimTypeTag tag = def->type()->as<PrimType>()->primtype_tag()) {
@@ -666,7 +666,7 @@ const Def* World::arithop_minus(const Def* def, Debug dbg) {
 #include "thorin/tables/primtypetable.h"
         default:
             assert(is_type_i(tag));
-            return arithop_sub(zero(tag, dbg), def, dbg);
+            return arithop_sub(lit_zero(tag, dbg), def, dbg);
     }
 }
 
@@ -727,9 +727,9 @@ const Def* World::cmp(CmpTag tag, const Def* a, const Def* b, Debug dbg) {
     if (a == b) {
         switch (tag) {
             case Cmp_lt:
-            case Cmp_ne: return zero(type_bool(), dbg);
+            case Cmp_ne: return lit_zero(type_bool(), dbg);
             case Cmp_le:
-            case Cmp_eq: return one(type_bool(), dbg);
+            case Cmp_eq: return lit_one(type_bool(), dbg);
             default: break;
         }
     }

@@ -168,7 +168,9 @@ private:
 /// Data constructor for a \p DefiniteArrayType.
 class DefiniteArray : public Def {
 private:
-    DefiniteArray(World& world, const Def* elem, Defs args, Debug dbg);
+    DefiniteArray(const Def* type, Defs args, Debug dbg)
+        : Def(Node_DefiniteArray, type, args, dbg)
+    {}
 
     const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
@@ -183,7 +185,9 @@ public:
 /// Data constructor for an \p IndefiniteArrayType.
 class IndefiniteArray : public Def {
 private:
-    IndefiniteArray(World& world, const Def* elem, const Def* dim, Debug dbg);
+    IndefiniteArray(const Def* type, const Def* dim, Debug dbg)
+        : Def(Node_IndefiniteArray, type, {dim}, dbg)
+    {}
 
     const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
@@ -219,7 +223,9 @@ public:
  */
 class LEA : public PrimOp {
 private:
-    LEA(const Def* ptr, const Def* index, Debug dbg);
+    LEA(const Def* type, const Def* ptr, const Def* index, Debug dbg)
+        : PrimOp(Node_LEA, type, {ptr, index}, dbg)
+    {}
 
     const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
@@ -286,7 +292,12 @@ public:
  */
 class Slot : public PrimOp {
 private:
-    Slot(const Def* type, const Def* frame, Debug dbg);
+    Slot(const Def* type, const Def* frame, Debug dbg)
+        : PrimOp(Node_Slot, type, {frame}, dbg)
+    {
+        hash_ = murmur3(gid()); // HACK
+        assert(frame->type()->isa<FrameType>());
+    }
 
 public:
     const Def* frame() const { return op(0); }
@@ -306,11 +317,19 @@ private:
  */
 class Global : public PrimOp {
 private:
-    Global(const Def* init, bool is_mutable, Debug dbg);
+    struct Extra { bool is_mutable_; }; // TODO remove
+
+    Global(const Def* type, const Def* init, bool is_mutable, Debug dbg)
+        : PrimOp(Node_Global, type, {init}, dbg)
+    {
+        extra<Extra>().is_mutable_ = is_mutable;
+        hash_ = murmur3(gid()); // HACK
+        assert(is_const(init));
+    }
 
 public:
     const Def* init() const { return op(0); }
-    bool is_mutable() const { return is_mutable_; }
+    bool is_mutable() const { return extra<Extra>().is_mutable_; }
     const PtrType* type() const { return PrimOp::type()->as<PtrType>(); }
     const Def* alloced_type() const { return type()->pointee(); }
     const char* op_name() const override;
@@ -320,8 +339,6 @@ public:
 private:
     bool equal(const Def* other) const override { return this == other; }
     const Def* rebuild(World& to, const Def* type, Defs ops) const override;
-
-    bool is_mutable_;
 
     friend class World;
 };
@@ -348,7 +365,9 @@ private:
 /// Allocates memory on the heap.
 class Alloc : public MemOp {
 private:
-    Alloc(const Def* type, const Def* mem, const Def* extra, Debug dbg);
+    Alloc(const Def* type, const Def* mem, const Def* extra, Debug dbg)
+        : MemOp(Node_Alloc, type, {mem, extra}, dbg)
+    {}
 
 public:
     const Def* extra() const { return op(1); }
@@ -382,7 +401,9 @@ public:
 /// Loads with current effect <tt>mem</tt> from <tt>ptr</tt> to produce a pair of a new effect and the loaded value.
 class Load : public Access {
 private:
-    Load(const Def* mem, const Def* ptr, Debug dbg);
+    Load(const Def* type, const Def* mem, const Def* ptr, Debug dbg)
+        : Access(Node_Load, type, {mem, ptr}, dbg)
+    {}
 
 public:
     bool has_multiple_outs() const override { return true; }
@@ -417,7 +438,9 @@ public:
 /// Creates a stack \p Frame with current effect <tt>mem</tt>.
 class Enter : public MemOp {
 private:
-    Enter(const Def* mem, Debug dbg);
+    Enter(const Def* type, const Def* mem, Debug dbg)
+        : MemOp(Node_Enter, type, {mem}, dbg)
+    {}
 
     const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
@@ -440,31 +463,32 @@ public:
         IsIntelDialect = 1 << 2,
     };
 
+    struct Extra {
+        std::string asm_template_;
+        Array<std::string> output_constraints_, input_constraints_, clobbers_;
+        Flags flags_;
+    };
+
 private:
     Assembly(const Def *type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints,
              ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Flags flags, Debug dbg);
+    ~Assembly() override;
 
 public:
     Defs inputs() const { return ops().skip_front(); }
     const Def* input(size_t i) const { return inputs()[i]; }
     size_t num_inputs() const { return inputs().size(); }
     bool has_multiple_outs() const override { return true; }
-    const std::string& asm_template() const { return asm_template_; }
-    const ArrayRef<std::string> output_constraints() const { return output_constraints_; }
-    const ArrayRef<std::string> input_constraints() const { return input_constraints_; }
-    const ArrayRef<std::string> clobbers() const { return clobbers_; }
-    bool has_sideeffects() const { return flags_ & HasSideEffects; }
-    bool is_alignstack() const { return flags_ & IsAlignStack; }
-    bool is_inteldialect() const { return flags_ & IsIntelDialect; }
-    Flags flags() const { return flags_; }
-
-private:
+    const std::string& asm_template() const { return extra<Extra>().asm_template_; }
+    const ArrayRef<std::string> output_constraints() const { return extra<Extra>().output_constraints_; }
+    const ArrayRef<std::string> input_constraints() const { return extra<Extra>().input_constraints_; }
+    const ArrayRef<std::string> clobbers() const { return extra<Extra>().clobbers_; }
+    bool has_sideeffects() const { return flags() & HasSideEffects; }
+    bool is_alignstack() const { return flags() & IsAlignStack; }
+    bool is_inteldialect() const { return flags() & IsIntelDialect; }
+    Flags flags() const { return extra<Extra>().flags_; }
     const Def* rebuild(World& to, const Def* type, Defs ops) const override;
     std::ostream& stream_assignment(std::ostream&) const override;
-
-    std::string asm_template_;
-    Array<std::string> output_constraints_, input_constraints_, clobbers_;
-    Flags flags_;
 
     friend class World;
 };

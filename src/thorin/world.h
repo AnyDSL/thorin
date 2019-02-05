@@ -58,6 +58,10 @@ public:
 
     typedef HashSet<size_t, BreakHash> Breakpoints;
 
+    World(const World&) = delete;
+    World(World&&) = delete;
+    World& operator=(const World&) = delete;
+
     explicit World(uint32_t cur_gid, Debug = {});
     ~World();
 
@@ -79,12 +83,12 @@ public:
     /// @defgroup @p Universe and @p Kind%s
     //@{
     const Universe* universe() { return universe_; }
-    const Kind* kind(NodeTag tag) { return unify(new Kind(*this, tag)); }
+    const Kind* kind(NodeTag tag) { return unify<Kind>(0, *this, tag); }
     const Kind* kind_arity() { return kind_arity_; }
     const Kind* kind_multi() { return kind_multi_; }
     const Kind* kind_star()  { return kind_star_; }
-    const Var* var(const Def* type, u64 index, Debug dbg = {}) { return unify(new Var(type, index, dbg)); }
-    const VariantType* variant_type(Defs ops, Debug dbg = {}) { return unify(new VariantType(kind_star(), ops, dbg)); }
+    const Var* var(const Def* type, u64 index, Debug dbg = {}) { return unify<Var>(0, type, index, dbg); }
+    const VariantType* variant_type(Defs ops, Debug dbg = {}) { return unify<VariantType>(ops.size(), kind_star(), ops, dbg); }
     //@}
     /// @defgroup @p Pi%s
     //@{
@@ -108,7 +112,7 @@ public:
     //@}
     /// @defgroup @em nominal @p Sigma%s
     //@{
-    Sigma* sigma(const Def* type, size_t size, Debug dbg = {}) { return insert(new Sigma(type, size, dbg)); }
+    Sigma* sigma(const Def* type, size_t size, Debug dbg = {}) { return insert<Sigma>(size, type, size, dbg); }
     /// a @em nominal @p Sigma of type @p star
     Sigma* sigma(size_t size, Debug dbg = {}) { return sigma(kind_star(), size, dbg); }
     //@}
@@ -133,7 +137,7 @@ public:
     //@}
     /// @defgroup create @p Lit%erals
     //@{
-    const Lit* lit(const Def* type, Box box, Debug dbg = {}) { return unify(new Lit(type, box, dbg)); }
+    const Lit* lit(const Def* type, Box box, Debug dbg = {}) { return unify<Lit>(0, type, box, dbg); }
     const Lit* lit(PrimTypeTag tag, Box box, Loc loc = {}) { return lit(type(tag), box, loc); }
     /// @defgroup Arrity and Index Lit%erals
     //@{
@@ -173,7 +177,7 @@ public:
     //@}
     /// @defgroup top/bottom
     //@{
-    const Def* bot_top(bool is_top, const Def* type, Debug dbg = {}) { return unify(new BotTop(is_top, type, dbg)); }
+    const Def* bot_top(bool is_top, const Def* type, Debug dbg = {}) { return unify<BotTop>(0, is_top, type, dbg); }
     const Def* bot(const Def* type, Loc dbg = {}) { return bot_top(false, type, dbg); }
     const Def* top(const Def* type, Loc dbg = {}) { return bot_top(true,  type, dbg); }
     const Def* bot(PrimTypeTag tag, Loc dbg = {}) { return bot_top(false, type(tag), dbg); }
@@ -194,9 +198,9 @@ public:
     }
     const MemType* mem_type() const { return mem_; }
     const FrameType* frame_type() const { return frame_; }
-    const PtrType* ptr_type(const Def* pointee, AddrSpace addr_space = AddrSpace::Generic, Debug dbg = {}) { return unify(new PtrType(kind_star(), pointee, addr_space, dbg)); }
-    const DefiniteArrayType*   definite_array_type(const Def* elem, u64 dim, Debug dbg = {}) { return unify(new DefiniteArrayType(kind_star(), elem, dim, dbg)); }
-    const IndefiniteArrayType* indefinite_array_type(const Def* elem, Debug dbg = {}) { return unify(new IndefiniteArrayType(kind_star(), elem, dbg)); }
+    const PtrType* ptr_type(const Def* pointee, AddrSpace addr_space = AddrSpace::Generic, Debug dbg = {}) { return unify<PtrType>(1, kind_star(), pointee, addr_space, dbg); }
+    const DefiniteArrayType*   definite_array_type(const Def* elem, u64 dim, Debug dbg = {}) { return unify<DefiniteArrayType>(1, kind_star(), elem, dim, dbg); }
+    const IndefiniteArrayType* indefinite_array_type(const Def* elem, Debug dbg = {}) { return unify<IndefiniteArrayType>(1, kind_star(), elem, dbg); }
 
     // arithops
 
@@ -228,20 +232,13 @@ public:
 
     // aggregate operations
 
-    const Def* definite_array(const Def* elem, Defs ops, Debug dbg = {}) {
-        return try_fold_aggregate(unify(new DefiniteArray(*this, elem, ops, dbg)));
-    }
+    const Def* definite_array(const Def* elem, Defs ops, Debug dbg = {});
     /// Create definite_array with at least one element. The type of that element is the element type of the definite array.
-    const Def* definite_array(Defs ops, Debug dbg = {}) {
-        assert(!ops.empty());
-        return definite_array(ops.front()->type(), ops, dbg);
-    }
-    const Def* indefinite_array(const Def* elem, const Def* dim, Debug dbg = {}) {
-        return unify(new IndefiniteArray(*this, elem, dim, dbg));
-    }
+    const Def* definite_array(Defs ops, Debug dbg = {}) { assert(!ops.empty()); return definite_array(ops.front()->type(), ops, dbg); }
+    const Def* indefinite_array(const Def* elem, const Def* dim, Debug dbg = {});
     const Def* tuple(const Def* type, Defs ops, Debug dbg = {});
     const Def* tuple(Defs ops, Debug dbg = {});
-    const Def* variant(const VariantType* variant_type, const Def* value, Debug dbg = {}) { return unify(new Variant(variant_type, value, dbg)); }
+    const Def* variant(const VariantType* variant_type, const Def* value, Debug dbg = {}) { return unify<Variant>(1, variant_type, value, dbg); }
     const Def* extract(const Def* tuple, const Def* index, Debug dbg = {});
     const Def* extract(const Def* tuple, u32 index, Debug dbg = {}) {
         return extract(tuple, lit_qu32(index, dbg), dbg);
@@ -259,9 +256,9 @@ public:
     const Def* load(const Def* mem, const Def* ptr, Debug dbg = {});
     const Def* store(const Def* mem, const Def* ptr, const Def* val, Debug dbg = {});
     const Def* enter(const Def* mem, Debug dbg = {});
-    const Def* slot(const Def* type, const Def* frame, Debug dbg = {}) { return unify(new Slot(type, frame, dbg)); }
+    const Def* slot(const Def* type, const Def* frame, Debug dbg = {});
     const Def* alloc(const Def* type, const Def* mem, const Def* extra, Debug dbg = {});
-    const Def* alloc(const Def* type, const Def* mem, Debug dbg = {}) { return alloc(type, mem, lit_qu64(0, dbg), dbg); }
+    const Def* alloc(const Def* type, const Def* mem, Debug dbg = {});
     const Def* global(const Def* init, bool is_mutable = true, Debug dbg = {});
     const Def* global_immutable_string(const std::string& str, Debug dbg = {});
     const Def* lea(const Def* ptr, const Def* index, Debug dbg);
@@ -278,10 +275,14 @@ public:
 
     // lams
 
-    const Param* param(Lam* lam, Debug dbg = {}) { return unify(new Param(lam->domain(), lam, dbg)); }
+    const Param* param(Lam* lam, Debug dbg = {}) { return unify<Param>(1, lam->domain(), lam, dbg); }
     /// @defgroup nominal @p Lam%bdas
     //@{
-    Lam* lam(const Pi* cn, CC cc = CC::C, Intrinsic intrinsic = Intrinsic::None, Debug dbg = {}) { return insert(new Lam(cn, cc, intrinsic, dbg)); }
+    Lam* lam(const Pi* cn, CC cc = CC::C, Intrinsic intrinsic = Intrinsic::None, Debug dbg = {}) {
+        auto lam = insert<Lam>(2, cn, cc, intrinsic, dbg);
+        lam->destroy(); // set filter to false and body to top
+        return lam;
+    }
     Lam* lam(const Pi* cn, Debug dbg = {}) { return lam(cn, CC::C, Intrinsic::None, dbg); }
     //@}
     /// @defgroup structural @p Lam%bdas
@@ -321,20 +322,28 @@ public:
 
     friend void swap(World& w1, World& w2) {
         using std::swap;
-        swap(w1.debug_,      w2.debug_);
-        swap(w1.externals_,  w2.externals_);
-        swap(w1.defs_,       w2.defs_);
-        swap(w1.universe_,   w2.universe_);
-        swap(w1.kind_arity_, w2.kind_arity_);
-        swap(w1.kind_multi_, w2.kind_multi_);
-        swap(w1.kind_star_,  w2.kind_star_);
-        swap(w1.sigma_,      w2.sigma_);
-        swap(w1.bot_,        w2.bot_);
-        swap(w1.mem_,        w2.mem_);
-        swap(w1.frame_,      w2.frame_);
-        swap(w1.branch_,     w2.branch_);
-        swap(w1.end_scope_,  w2.end_scope_);
-        swap(w1.pe_done_,    w2.pe_done_);
+        swap(w1.root_page_,    w2.root_page_);
+        swap(w1.cur_page_,     w2.cur_page_);
+        swap(w1.cur_gid_,      w2.cur_gid_);
+        swap(w1.buffer_index_, w2.buffer_index_);
+        swap(w1.debug_,        w2.debug_);
+        swap(w1.externals_,    w2.externals_);
+        swap(w1.defs_,         w2.defs_);
+        swap(w1.universe_,     w2.universe_);
+        swap(w1.kind_arity_,   w2.kind_arity_);
+        swap(w1.kind_multi_,   w2.kind_multi_);
+        swap(w1.kind_star_,    w2.kind_star_);
+        swap(w1.sigma_,        w2.sigma_);
+        swap(w1.bot_,          w2.bot_);
+        swap(w1.mem_,          w2.mem_);
+        swap(w1.frame_,        w2.frame_);
+        swap(w1.type_nat_,     w2.type_nat_);
+        swap(w1.lit_nat_0_,    w2.lit_nat_0_);
+        swap(w1.lit_nat_,      w2.lit_nat_);
+        swap(w1.lit_bool_,     w2.lit_bool_);
+        swap(w1.branch_,       w2.branch_);
+        swap(w1.end_scope_,    w2.end_scope_);
+        swap(w1.pe_done_,      w2.pe_done_);
 
 #define THORIN_ALL_TYPE(T, M) \
         swap(w1.T##_,       w2.T##_);
@@ -352,8 +361,26 @@ public:
 private:
     const Def* try_fold_aggregate(const Def*);
 
-    template<class T>
-    T* insert(T* def) {
+    template<class T, class... Args>
+    const T* unify(size_t num_ops, Args&&... args) {
+        auto def = alloc<T>(num_ops, args...);
+#ifndef NDEBUG
+        if (breakpoints_.contains(def->gid())) THORIN_BREAK;
+#endif
+        assert(!def->is_nominal());
+        auto [i, success] = defs_.emplace(def);
+        if (success) {
+            def->finalize();
+            return def;
+        }
+
+        dealloc<T>(def);
+        return static_cast<const T*>(*i);
+    }
+
+    template<class T, class... Args>
+    T* insert(size_t num_ops, Args&&... args) {
+        auto def = alloc<T>(num_ops, args...);
 #ifndef NDEBUG
         if (breakpoints_.contains(def->gid())) THORIN_BREAK;
 #endif
@@ -362,22 +389,66 @@ private:
         return def;
     }
 
-    template<class T>
-    const T* unify(T* def) {
-#ifndef NDEBUG
-        if (breakpoints_.contains(def->gid())) THORIN_BREAK;
-#endif
-        assert(!def->is_nominal());
-        auto [i, success] = defs_.emplace(def);
-        if (success) {
-            def->finalize();
-            return static_cast<const T*>(def);
-        }
+    struct Zone {
+        static const size_t Size = 1024 * 1024 - sizeof(std::unique_ptr<int>); // 1MB - sizeof(next)
+        std::unique_ptr<Zone> next;
+        char buffer[Size];
+    };
 
-        delete def;
-        return static_cast<const T*>(*i);
+#ifndef NDEBUG
+    struct Lock {
+        Lock() {
+            assert((alloc_guard_ = !alloc_guard_) && "you are not allowed to recursively invoke alloc");
+        }
+        ~Lock() { alloc_guard_ = !alloc_guard_; }
+        static bool alloc_guard_;
+    };
+#else
+    struct Lock { ~Lock() {} };
+#endif
+
+    template<class T> static size_t num_bytes_of(size_t num_ops) {
+        size_t result = std::is_empty<typename T::Extra>() ? 0 : sizeof(typename T::Extra);
+        result += sizeof(Def) + sizeof(const Def*)*num_ops;
+        return (result + (sizeof(void*)-1)) & ~(sizeof(void*)-1); // align properly
     }
 
+    template<class T, class... Args>
+    T* alloc(size_t num_ops, Args&&... args) {
+        static_assert(sizeof(Def) == sizeof(T), "you are not allowed to introduce any additional data in subclasses of Def - use 'Extra' struct");
+        Lock lock;
+        size_t num_bytes = num_bytes_of<T>(num_ops);
+        num_bytes = (num_bytes + (sizeof(void*) - 1)) & ~(sizeof(void*)-1);
+        assert(num_bytes < Zone::Size);
+
+        if (buffer_index_ + num_bytes >= Zone::Size) {
+            auto page = new Zone;
+            cur_page_->next.reset(page);
+            cur_page_ = page;
+            buffer_index_ = 0;
+        }
+
+        auto result = new (cur_page_->buffer + buffer_index_) T(args...);
+        assert(result->num_ops() == num_ops);
+        buffer_index_ += num_bytes;
+        assert(buffer_index_ % alignof(T) == 0);
+
+        return result;
+    }
+
+    template<class T>
+    void dealloc(const T* def) {
+        size_t num_bytes = num_bytes_of<T>(def->num_ops());
+        num_bytes = (num_bytes + (sizeof(void*) - 1)) & ~(sizeof(void*)-1);
+        def->~T();
+        if (ptrdiff_t(buffer_index_ - num_bytes) > 0) // don't care otherwise
+            buffer_index_-= num_bytes;
+        assert(buffer_index_ % alignof(T) == 0);
+    }
+
+    std::unique_ptr<Zone> root_page_;
+    Zone* cur_page_;
+    size_t buffer_index_ = 0;
     uint32_t cur_gid_;
     Debug debug_;
     LamSet externals_;
@@ -395,10 +466,10 @@ private:
     const BotTop* bot_;
     const MemType* mem_;
     const FrameType* frame_;
+    const PrimType* type_nat_;
     const Lit* lit_nat_0_;
     std::array<const Lit*, 2> lit_bool_;
     std::array<const Lit*, 7> lit_nat_;
-    const PrimType* type_nat_;
     union {
         struct {
 #define THORIN_ALL_TYPE(T, M) const PrimType* T##_;

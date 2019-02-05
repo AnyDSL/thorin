@@ -162,11 +162,11 @@ Debug Def::debug_history() const {
 
 void Def::finalize() {
     for (size_t i = 0, e = num_ops(); i != e; ++i) {
-        auto op = ops_[i];
-        assert(op != nullptr);
-        contains_lam_ |= op->contains_lam();
-        order_ = std::max(order_, op->order_);
-        const auto& p = op->uses_.emplace(i, this);
+        auto o = op(i);
+        assert(o != nullptr);
+        contains_lam_ |= o->contains_lam();
+        order_ = std::max(order_, o->order_);
+        const auto& p = o->uses_.emplace(i, this);
         assert_unused(p.second);
     }
 
@@ -176,9 +176,10 @@ void Def::finalize() {
 void Def::set(size_t i, const Def* def) {
     assert(def && "setting null pointer");
 
-    if (ops_[i] != nullptr) unset(i);
+    if (op(i) != nullptr) unset(i);
 
-    ops_[i] = def;
+    assert(i < num_ops() && "index out of bounds");
+    ops_ptr()[i] = def;
     contains_lam_ |= def->contains_lam();
     order_ = std::max(order_, def->order_);
     const auto& p = def->uses_.emplace(i, this);
@@ -186,11 +187,12 @@ void Def::set(size_t i, const Def* def) {
 }
 
 void Def::unset(size_t i) {
-    auto def = ops_[i];
+    assert(i < num_ops() && "index out of bounds");
+    auto def = op(i);
     assert(def->uses_.contains(Use(i, this)));
     def->uses_.erase(Use(i, this));
     assert(!def->uses_.contains(Use(i, this)));
-    ops_[i] = nullptr;
+    ops_ptr()[i] = nullptr;
 }
 
 std::string Def::unique_name() const {
@@ -265,7 +267,7 @@ Array<const Def*> App::args() const {
  */
 
 void Lam::destroy() {
-    set_filter(world().tuple(Array<const Def*>(type()->num_domains(), world().lit_bool(false))));
+    set_filter(world().tuple(Array<const Def*>(type()->num_domains(), world().lit(false))));
     set_body  (world().bot(type()->codomain()));
 }
 
@@ -392,27 +394,27 @@ Lams Lam::succs() const {
 void Lam::make_external() { return world().add_external(this); }
 void Lam::make_internal() { return world().remove_external(this); }
 bool Lam::is_external() const { return world().is_external(this); }
-bool Lam::is_intrinsic() const { return intrinsic_ != Intrinsic::None; }
-bool Lam::is_accelerator() const { return Intrinsic::_Accelerator_Begin <= intrinsic_ && intrinsic_ < Intrinsic::_Accelerator_End; }
+bool Lam::is_intrinsic() const { return intrinsic() != Intrinsic::None; }
+bool Lam::is_accelerator() const { return Intrinsic::_Accelerator_Begin <= intrinsic() && intrinsic() < Intrinsic::_Accelerator_End; }
 void Lam::set_intrinsic() {
-    if      (name() == "cuda")                 intrinsic_ = Intrinsic::CUDA;
-    else if (name() == "nvvm")                 intrinsic_ = Intrinsic::NVVM;
-    else if (name() == "opencl")               intrinsic_ = Intrinsic::OpenCL;
-    else if (name() == "amdgpu")               intrinsic_ = Intrinsic::AMDGPU;
-    else if (name() == "hls")                  intrinsic_ = Intrinsic::HLS;
-    else if (name() == "parallel")             intrinsic_ = Intrinsic::Parallel;
-    else if (name() == "spawn")                intrinsic_ = Intrinsic::Spawn;
-    else if (name() == "sync")                 intrinsic_ = Intrinsic::Sync;
-    else if (name() == "anydsl_create_graph")  intrinsic_ = Intrinsic::CreateGraph;
-    else if (name() == "anydsl_create_task")   intrinsic_ = Intrinsic::CreateTask;
-    else if (name() == "anydsl_create_edge")   intrinsic_ = Intrinsic::CreateEdge;
-    else if (name() == "anydsl_execute_graph") intrinsic_ = Intrinsic::ExecuteGraph;
-    else if (name() == "vectorize")            intrinsic_ = Intrinsic::Vectorize;
-    else if (name() == "pe_info")              intrinsic_ = Intrinsic::PeInfo;
-    else if (name() == "reserve_shared")       intrinsic_ = Intrinsic::Reserve;
-    else if (name() == "atomic")               intrinsic_ = Intrinsic::Atomic;
-    else if (name() == "cmpxchg")              intrinsic_ = Intrinsic::CmpXchg;
-    else if (name() == "undef")                intrinsic_ = Intrinsic::Undef;
+    if      (name() == "cuda")                 extra<Extra>().intrinsic_ = Intrinsic::CUDA;
+    else if (name() == "nvvm")                 extra<Extra>().intrinsic_ = Intrinsic::NVVM;
+    else if (name() == "opencl")               extra<Extra>().intrinsic_ = Intrinsic::OpenCL;
+    else if (name() == "amdgpu")               extra<Extra>().intrinsic_ = Intrinsic::AMDGPU;
+    else if (name() == "hls")                  extra<Extra>().intrinsic_ = Intrinsic::HLS;
+    else if (name() == "parallel")             extra<Extra>().intrinsic_ = Intrinsic::Parallel;
+    else if (name() == "spawn")                extra<Extra>().intrinsic_ = Intrinsic::Spawn;
+    else if (name() == "sync")                 extra<Extra>().intrinsic_ = Intrinsic::Sync;
+    else if (name() == "anydsl_create_graph")  extra<Extra>().intrinsic_ = Intrinsic::CreateGraph;
+    else if (name() == "anydsl_create_task")   extra<Extra>().intrinsic_ = Intrinsic::CreateTask;
+    else if (name() == "anydsl_create_edge")   extra<Extra>().intrinsic_ = Intrinsic::CreateEdge;
+    else if (name() == "anydsl_execute_graph") extra<Extra>().intrinsic_ = Intrinsic::ExecuteGraph;
+    else if (name() == "vectorize")            extra<Extra>().intrinsic_ = Intrinsic::Vectorize;
+    else if (name() == "pe_info")              extra<Extra>().intrinsic_ = Intrinsic::PeInfo;
+    else if (name() == "reserve_shared")       extra<Extra>().intrinsic_ = Intrinsic::Reserve;
+    else if (name() == "atomic")               extra<Extra>().intrinsic_ = Intrinsic::Atomic;
+    else if (name() == "cmpxchg")              extra<Extra>().intrinsic_ = Intrinsic::CmpXchg;
+    else if (name() == "undef")                extra<Extra>().intrinsic_ = Intrinsic::Undef;
     else ELOG("unsupported thorin intrinsic");
 }
 
@@ -492,15 +494,16 @@ Def::Def(NodeTag tag, const Def* type, Defs ops, Debug dbg)
     , contains_lam_(tag == Node_Lam)
     , order_(0)
     , gid_(world().next_gid())
-    , ops_(ops)
+    , num_ops_(ops.size())
     , debug_(dbg)
 {
+    std::copy(ops.begin(), ops.end(), ops_ptr());
     hash_ = hash_combine(hash_begin((uint16_t) tag), type->gid());
-    for (auto op : ops_)
+    for (auto op : ops)
         hash_ = hash_combine(hash_, op->gid());
 }
 
-Def::Def(NodeTag tag, const Def* type, size_t size, Debug dbg)
+Def::Def(NodeTag tag, const Def* type, size_t num_ops, Debug dbg)
     : type_(type)
     , tag_(tag)
     , nominal_(true)
@@ -508,10 +511,12 @@ Def::Def(NodeTag tag, const Def* type, size_t size, Debug dbg)
     , contains_lam_(tag == Node_Lam)
     , order_(0)
     , gid_(world().next_gid())
-    , ops_(size)
+    , num_ops_(num_ops)
     , debug_(dbg)
     , hash_(murmur3(gid()))
-{}
+{
+    std::fill_n(ops_ptr(), num_ops, nullptr);
+}
 
 static inline const char* kind2str(NodeTag tag) {
     switch (tag) {
@@ -525,20 +530,6 @@ static inline const char* kind2str(NodeTag tag) {
 Kind::Kind(World& world, NodeTag tag)
     : Def(tag, world.universe(), Defs{}, {kind2str(tag)})
 {}
-
-Lam::Lam(const Pi* pi, const Def* filter, const Def* body, Debug dbg)
-    : Def(Node_Lam, pi, {filter, body}, dbg)
-    , cc_(CC::C)
-    , intrinsic_(Intrinsic::None)
-{}
-
-Lam::Lam(const Pi* pi, CC cc, Intrinsic intrinsic, Debug dbg)
-    : Def(Node_Lam, pi, 2, dbg)
-    , cc_(cc)
-    , intrinsic_(intrinsic)
-{
-    destroy();
-}
 
 PrimType::PrimType(World& world, PrimTypeTag tag, Debug dbg)
     : Def((NodeTag) tag, world.kind_star(), Defs{}, dbg)
@@ -570,13 +561,14 @@ bool Def::equal(const Def* other) const {
 
     bool result = this->tag() == other->tag() && this->num_ops() == other->num_ops() && this->type() == other->type();
     for (size_t i = 0, e = num_ops(); result && i != e; ++i)
-        result &= this->ops_[i] == other->ops_[i];
+        result &= this->op(i) == other->op(i);
     return result;
 }
 
-bool Var    ::equal(const Def* other) const { return Def::equal(other) && this->index()      == other->as<Var>()->index(); }
-bool Lit    ::equal(const Def* other) const { return Def::equal(other) && this->box()        == other->as<Lit>()->box(); }
-bool PtrType::equal(const Def* other) const { return Def::equal(other) && this->addr_space() == other->as<PtrType>()->addr_space(); }
+bool DefiniteArrayType::equal(const Def* other) const { return Def::equal(other) && this->dim()        == other->as<DefiniteArrayType>()->dim(); }
+bool Lit              ::equal(const Def* other) const { return Def::equal(other) && this->box()        == other->as<Lit>()->box(); }
+bool PtrType          ::equal(const Def* other) const { return Def::equal(other) && this->addr_space() == other->as<PtrType>()->addr_space(); }
+bool Var              ::equal(const Def* other) const { return Def::equal(other) && this->index()      == other->as<Var>()->index(); }
 
 /*
  * rebuild

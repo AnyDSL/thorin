@@ -16,35 +16,6 @@ Cmp::Cmp(CmpTag tag, const Def* lhs, const Def* rhs, Debug dbg)
     : BinOp((NodeTag) tag, lhs->world().type_bool(), lhs, rhs, dbg)
 {}
 
-DefiniteArray::DefiniteArray(World& world, const Def* elem, Defs args, Debug dbg)
-    : Def(Node_DefiniteArray, world.definite_array_type(elem, args.size()), args, dbg)
-{
-#if THORIN_ENABLE_CHECKS
-    for (size_t i = 0, e = num_ops(); i != e; ++i)
-        assert(args[i]->type() == type()->elem_type());
-#endif
-}
-
-IndefiniteArray::IndefiniteArray(World& world, const Def* elem, const Def* dim, Debug dbg)
-    : Def(Node_IndefiniteArray, world.indefinite_array_type(elem), {dim}, dbg)
-{}
-
-static const Def* infer_lea_type(World& world, const Def* ptr, const Def* index) {
-    auto ptr_type = ptr->type()->as<PtrType>();
-    auto ptr_pointee = ptr_type->pointee();
-
-    if (auto sigma = ptr_pointee->isa<Sigma>()) {
-        return world.ptr_type(get(sigma->ops(), index), ptr_type->addr_space());
-    } else if (auto array = ptr_pointee->isa<ArrayType>()) {
-        return world.ptr_type(array->elem_type(), ptr_type->addr_space());
-    }
-    THORIN_UNREACHABLE;
-}
-
-LEA::LEA(const Def* ptr, const Def* index, Debug dbg)
-    : PrimOp(Node_LEA, infer_lea_type(ptr->world(), ptr, index), {ptr, index}, dbg)
-{}
-
 Known::Known(const Def* def, Debug dbg)
     : PrimOp(Node_Known, def->world().type_bool(), {def}, dbg)
 {}
@@ -53,41 +24,21 @@ SizeOf::SizeOf(const Def* def, Debug dbg)
     : PrimOp(Node_SizeOf, def->world().type_qs32(), {def}, dbg)
 {}
 
-Slot::Slot(const Def* type, const Def* frame, Debug dbg)
-    : PrimOp(Node_Slot, type->world().ptr_type(type), {frame}, dbg)
-{
-    hash_ = murmur3(gid()); // HACK
-    assert(frame->type()->isa<FrameType>());
-}
-
-Global::Global(const Def* init, bool is_mutable, Debug dbg)
-    : PrimOp(Node_Global, init->world().ptr_type(init->type()), {init}, dbg)
-    , is_mutable_(is_mutable)
-{
-    hash_ = murmur3(gid()); // HACK
-    assert(is_const(init));
-}
-
-Alloc::Alloc(const Def* type, const Def* mem, const Def* extra, Debug dbg)
-    : MemOp(Node_Alloc, mem->world().sigma({mem->world().mem_type(), mem->world().ptr_type(type)}), {mem, extra}, dbg)
-{}
-
-Load::Load(const Def* mem, const Def* ptr, Debug dbg)
-    : Access(Node_Load, mem->world().sigma({mem->world().mem_type(), ptr->type()->as<PtrType>()->pointee()}), {mem, ptr}, dbg)
-{}
-
-Enter::Enter(const Def* mem, Debug dbg)
-    : MemOp(Node_Enter, mem->world().sigma({mem->world().mem_type(), mem->world().frame_type()}), {mem}, dbg)
-{}
-
-Assembly::Assembly(const Def *type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Flags flags, Debug dbg)
+Assembly::Assembly(const Def* type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Flags flags, Debug dbg)
     : MemOp(Node_Assembly, type, inputs, dbg)
-    , asm_template_(asm_template)
-    , output_constraints_(output_constraints)
-    , input_constraints_(input_constraints)
-    , clobbers_(clobbers)
-    , flags_(flags)
-{}
+{
+
+    new (&extra<Extra>()) Extra();
+    extra<Extra>().asm_template_ = asm_template;
+    extra<Extra>().output_constraints_ = output_constraints;
+    extra<Extra>().input_constraints_ = input_constraints;
+    extra<Extra>().clobbers_ = clobbers;
+    extra<Extra>().flags_ = flags;
+}
+
+Assembly::~Assembly() {
+    (&extra<Extra>())->~Extra();
+}
 
 //------------------------------------------------------------------------------
 

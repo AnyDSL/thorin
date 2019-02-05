@@ -107,6 +107,16 @@ std::ostream& operator<<(std::ostream&, Use);
 
 //------------------------------------------------------------------------------
 
+/**
+ * Base class for all Def%s.
+ * The data layout (see World::alloc) looks like this:
+\verbatim
+|| Def | op(0) ... op(num_ops-1) | Extra ||
+\endverbatim
+ * This means that any subclass of @p Def must not introduce additional members.
+ * However, you can have this Extra field.
+ * See App or Lit how this is done.
+ */
 class Def : public RuntimeCast<Def>, public Streamable {
 private:
     Def& operator=(const Def&) = delete;
@@ -116,7 +126,7 @@ protected:
     /// Constructor for a @em structural Def.
     Def(NodeTag tag, const Def* type, Defs ops, Debug dbg);
     /// Constructor for a @em nominal Def.
-    Def(NodeTag tag, const Def* type, size_t size, Debug dbg);
+    Def(NodeTag tag, const Def* type, size_t num_ops, Debug dbg);
     virtual ~Def() {}
 
 public:
@@ -140,9 +150,9 @@ public:
     Loc loc() const { return debug_; }
     Symbol name() const { return debug().name(); }
 
-    size_t num_ops() const { return ops_.size(); }
-    Defs ops() const { return ops_; }
-    const Def* op(size_t i) const { assert(i < ops().size() && "index out of bounds"); return ops_[i]; }
+    Defs ops() const { return Defs(num_ops_, ops_ptr()); }
+    const Def* op(size_t i) const { return ops()[i]; }
+    size_t num_ops() const { return num_ops_; }
 
     /// @defgroup setters
     //@{
@@ -188,8 +198,17 @@ public:
     virtual std::ostream& stream(std::ostream&) const;
     virtual std::ostream& stream_assignment(std::ostream&) const;
 
+protected:
+    char* extra_ptr() { return reinterpret_cast<char*>(this) + sizeof(Def) + sizeof(const Def*)*num_ops(); }
+    const char* extra_ptr() const { return const_cast<Def*>(this)->extra_ptr(); }
+    template<class T> T& extra() { return reinterpret_cast<T&>(*extra_ptr()); }
+    template<class T> const T& extra() const { return reinterpret_cast<const T&>(*extra_ptr()); }
+
 private:
+    const Def** ops_ptr() const { return reinterpret_cast<const Def**>(reinterpret_cast<char*>(const_cast<Def*>(this + 1))); }
     void finalize();
+
+    struct Extra {};
 
     union {
         const Def* type_;
@@ -202,7 +221,7 @@ private:
     unsigned contains_lam_  :  1;
     unsigned order_         : 10;
     uint32_t gid_;
-    Array<const Def*> ops_;
+    uint32_t num_ops_;
     mutable const Def* substitute_ = nullptr;
     mutable Uses uses_;
     mutable Debug debug_;
@@ -265,21 +284,20 @@ public:
 
 class Lit : public Def {
 private:
+    struct Extra { Box box_; };
+
     Lit(const Def* type, Box box, Debug dbg)
         : Def(Node_Lit, type, Defs{}, dbg)
-        , box_(box)
     {
+        extra<Extra>().box_ = box;
         hash_ = hash_combine(hash_, box.get_u64());
     }
 
 public:
-    Box box() const { return box_; }
+    Box box() const { return extra<Extra>().box_; }
     bool equal(const Def*) const override;
     const Def* rebuild(World& to, const Def*, Defs ops) const override;
     std::ostream& stream(std::ostream&) const override;
-
-private:
-    Box box_;
 
     friend class World;
 };
@@ -292,22 +310,22 @@ inline std::optional<u64> get_constant_arity(const Def* def) {
 
 class Var : public Def {
 private:
+    struct Extra { u64 index_; };
+
     Var(const Def* type, u64 index, Debug dbg)
         : Def(Node_Var, type, Defs{}, dbg)
-        , index_(index)
     {
+        extra<Extra>().index_ = index;
         hash_ = hash_combine(hash_, index);
     }
 
 public:
-    u64 index() const { return index_; }
+    u64 index() const { return extra<Extra>().index_; }
     std::ostream& stream(std::ostream&) const override;
 
 private:
     bool equal(const Def*) const override;
     virtual const Def* rebuild(World&, const Def*, Defs) const;
-
-    u64 index_;
 
     friend class World;
 };
@@ -396,8 +414,23 @@ enum class CC : uint8_t {
 
 class Lam : public Def {
 private:
-    Lam(const Pi* pi, CC cc, Intrinsic intrinsic, Debug dbg);
-    Lam(const Pi* pi, const Def* filter, const Def* body, Debug dbg);
+    struct Extra {
+        CC cc_;
+        Intrinsic intrinsic_;
+    };
+
+    Lam(const Pi* pi, const Def* filter, const Def* body, Debug dbg)
+        : Def(Node_Lam, pi, {filter, body}, dbg)
+    {
+        extra<Extra>().cc_ = CC::C;
+        extra<Extra>().intrinsic_ = Intrinsic::None;
+    }
+    Lam(const Pi* pi, CC cc, Intrinsic intrinsic, Debug dbg)
+        : Def(Node_Lam, pi, 2, dbg)
+    {
+        extra<Extra>().cc_ = cc;
+        extra<Extra>().intrinsic_ = intrinsic;
+    }
 
 public:
     //@{ operands
@@ -436,10 +469,10 @@ public:
     Lams preds() const;
     Lams succs() const;
     bool is_empty() const { return is_bot(body()); }
-    Intrinsic& intrinsic() { return intrinsic_; }
-    Intrinsic intrinsic() const { return intrinsic_; }
-    CC& cc() { return cc_; }
-    CC cc() const { return cc_; }
+    Intrinsic& intrinsic() { return extra<Extra>().intrinsic_; }
+    Intrinsic intrinsic() const { return extra<Extra>().intrinsic_; }
+    CC& cc() { return extra<Extra>().cc_; }
+    CC cc() const { return extra<Extra>().cc_; }
     void set_intrinsic(); ///< Sets @p intrinsic_ derived on this @p Lam's @p name.
     bool is_external() const;
     void make_external();
@@ -461,10 +494,6 @@ public:
     void branch(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
     void match(const Def* val, Lam* otherwise, Defs patterns, ArrayRef<Lam*> lams, Debug dbg = {});
     void destroy();
-
-private:
-    CC cc_;
-    Intrinsic intrinsic_;
 
     friend class Cleaner;
     friend class World;
@@ -748,24 +777,24 @@ enum class AddrSpace : uint8_t {
 /// Pointer type.
 class PtrType : public Def {
 private:
+    struct Extra { AddrSpace addr_space_; }; // TODO make this a proper op
+
     PtrType(const Def* type, const Def* pointee, AddrSpace addr_space, Debug dbg)
         : Def(Node_PtrType, type, {pointee}, dbg)
-        , addr_space_(addr_space)
     {
+        extra<Extra>().addr_space_ = addr_space;
         hash_ = hash_combine(hash_, (uint8_t)addr_space);
     }
 
 public:
     const Def* pointee() const { return op(0); }
-    AddrSpace addr_space() const { return addr_space_; }
+    AddrSpace addr_space() const { return extra<Extra>().addr_space_; }
 
     bool equal(const Def* other) const override;
     std::ostream& stream(std::ostream&) const override;
 
 private:
     const Def* rebuild(World& to, const Def*, Defs ops) const override;
-
-    AddrSpace addr_space_;
 
     friend class World;
 };
@@ -796,24 +825,21 @@ private:
 
 class DefiniteArrayType : public ArrayType {
 public:
+    struct Extra { u64 dim_; };
+
     DefiniteArrayType(const Def* type, const Def* elem_type, u64 dim, Debug dbg)
         : ArrayType(Node_DefiniteArrayType, type, elem_type, dbg)
-        , dim_(dim)
     {
+        extra<Extra>().dim_ = dim;
         hash_ = hash_combine(hash_, dim);
     }
 
-    u64 dim() const { return dim_; }
-    bool equal(const Def* other) const override {
-        return Def::equal(other) && this->dim() == other->as<DefiniteArrayType>()->dim();
-    }
-
+    u64 dim() const { return extra<Extra>().dim_; }
+    bool equal(const Def* other) const override;
     std::ostream& stream(std::ostream&) const override;
 
 private:
     const Def* rebuild(World& to, const Def*, Defs ops) const override;
-
-    u64 dim_;
 
     friend class World;
 };

@@ -150,9 +150,9 @@ public:
     Loc loc() const { return debug_; }
     Symbol name() const { return debug().name(); }
 
-    Defs ops() const { return Defs(num_ops_, ops_ptr()); }
-    const Def* op(size_t i) const { return ops()[i]; }
-    size_t num_ops() const { return num_ops_; }
+    inline Defs ops() const { return Defs(num_ops_, ops_ptr()); }
+    inline const Def* op(size_t i) const { return ops()[i]; }
+    inline size_t num_ops() const { return num_ops_; }
 
     /// @defgroup setters
     //@{
@@ -199,13 +199,13 @@ public:
     virtual std::ostream& stream_assignment(std::ostream&) const;
 
 protected:
-    char* extra_ptr() { return reinterpret_cast<char*>(this) + sizeof(Def) + sizeof(const Def*)*num_ops(); }
-    const char* extra_ptr() const { return const_cast<Def*>(this)->extra_ptr(); }
-    template<class T> T& extra() { return reinterpret_cast<T&>(*extra_ptr()); }
-    template<class T> const T& extra() const { return reinterpret_cast<const T&>(*extra_ptr()); }
+    inline char* extra_ptr() { return reinterpret_cast<char*>(this) + sizeof(Def) + sizeof(const Def*)*num_ops(); }
+    inline const char* extra_ptr() const { return const_cast<Def*>(this)->extra_ptr(); }
+    template<class T> inline T& extra() { return reinterpret_cast<T&>(*extra_ptr()); }
+    template<class T> inline const T& extra() const { return reinterpret_cast<const T&>(*extra_ptr()); }
 
 private:
-    const Def** ops_ptr() const { return reinterpret_cast<const Def**>(reinterpret_cast<char*>(const_cast<Def*>(this + 1))); }
+    inline const Def** ops_ptr() const { return reinterpret_cast<const Def**>(reinterpret_cast<char*>(const_cast<Def*>(this + 1))); }
     void finalize();
 
     struct Extra {};
@@ -305,7 +305,7 @@ public:
 inline std::optional<u64> get_constant_arity(const Def* def) {
     if (auto lit = def->isa<Lit>(); lit && is_kind_arity(lit->type()))
         return {lit->box().get_u64()};
-    else return {};
+    return {};
 }
 
 class Var : public Def {

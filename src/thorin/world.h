@@ -391,15 +391,13 @@ private:
 
     struct Zone {
         static const size_t Size = 1024 * 1024 - sizeof(std::unique_ptr<int>); // 1MB - sizeof(next)
-        std::unique_ptr<Zone> next;
         char buffer[Size];
+        std::unique_ptr<Zone> next;
     };
 
 #ifndef NDEBUG
     struct Lock {
-        Lock() {
-            assert((alloc_guard_ = !alloc_guard_) && "you are not allowed to recursively invoke alloc");
-        }
+        Lock() { assert((alloc_guard_ = !alloc_guard_) && "you are not allowed to recursively invoke alloc"); }
         ~Lock() { alloc_guard_ = !alloc_guard_; }
         static bool alloc_guard_;
     };
@@ -407,10 +405,12 @@ private:
     struct Lock { ~Lock() {} };
 #endif
 
-    template<class T> static size_t num_bytes_of(size_t num_ops) {
+    static inline size_t align(size_t n) { return (n + (sizeof(void*) - 1)) & ~(sizeof(void*)-1); }
+
+    template<class T> static inline size_t num_bytes_of(size_t num_ops) {
         size_t result = std::is_empty<typename T::Extra>() ? 0 : sizeof(typename T::Extra);
         result += sizeof(Def) + sizeof(const Def*)*num_ops;
-        return (result + (sizeof(void*)-1)) & ~(sizeof(void*)-1); // align properly
+        return align(result);
     }
 
     template<class T, class... Args>
@@ -418,7 +418,7 @@ private:
         static_assert(sizeof(Def) == sizeof(T), "you are not allowed to introduce any additional data in subclasses of Def - use 'Extra' struct");
         Lock lock;
         size_t num_bytes = num_bytes_of<T>(num_ops);
-        num_bytes = (num_bytes + (sizeof(void*) - 1)) & ~(sizeof(void*)-1);
+        num_bytes = align(num_bytes);
         assert(num_bytes < Zone::Size);
 
         if (buffer_index_ + num_bytes >= Zone::Size) {

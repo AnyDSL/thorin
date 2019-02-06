@@ -63,41 +63,6 @@ public:
     void thorin() const;                                         ///< Dumps thorin to a file with an auto-generated file name.
     //@}
 
-    template<class L, class D>
-    inline void post_order_walk(L visit_lam, D visit_def) const {
-        unique_queue<LamSet> lams;
-        unique_stack<DefSet> defs;
-
-        lams.push(entry());
-
-        // visits all lambdas
-        while (!lams.empty()) {
-            auto cur = lams.pop();
-            visit_lam(cur);
-            defs.push(cur);
-
-            // post-order walk of all ops within cur
-            while (!defs.empty()) {
-                auto def = defs.top();
-
-                bool todo = false;
-                for (auto op : def->ops()) {
-                    if (contains(op)) {
-                        if (auto lam = op->isa_lam())
-                            lams.push(lam); // queue in outer loop
-                        else
-                            todo |= defs.push(op);
-                    }
-                }
-
-                if (!todo) {
-                    visit_def(def);
-                    defs.pop();
-                }
-            }
-        }
-    }
-
     /**
      * Transitively visits all @em reachable Scope%s in @p world that do not have free variables.
      * We call these Scope%s @em top-level Scope%s.

@@ -248,10 +248,6 @@ void Cleaner::rebuild() {
     Importer importer(world_);
     importer.old2new_.rehash(world_.defs().capacity());
 
-#if THORIN_ENABLE_CHECKS
-    world_.swap_breakpoints(importer.world());
-#endif
-
     for (auto external : world().externals())
         importer.import(external);
 

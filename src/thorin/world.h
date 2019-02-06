@@ -63,7 +63,19 @@ public:
     World& operator=(const World&) = delete;
 
     explicit World(uint32_t cur_gid, Debug = {});
+    World(World& other)
+        : World(other.cur_gid(), other.debug())
+    {
+        pe_done_ = other.pe_done_;
+#if THORIN_ENABLE_CHECKS
+        track_history_ = track_history_;
+        breakpoints_   = breakpoints_;
+#endif
+    }
+
     ~World();
+    /// Creates a new empty world that inherits all other properties from this World.
+    World stub();
 
     // getters
     bool empty() { return externals().empty(); }

@@ -3,16 +3,8 @@
 namespace thorin {
 
 Importer::Importer(World& src)
-    : world_(src.cur_gid(), src.debug())
+    : world_(src)
 {
-    // TODO make a stub mthod for world which does this
-    if  (src.is_pe_done())
-        world_.mark_pe_done();
-#if THORIN_ENABLE_CHECKS
-    if (src.track_history())
-        world_.enable_history(true);
-#endif
-
     old2new_[src.branch()]    = world().branch();
     old2new_[src.end_scope()] = world().end_scope();
     old2new_[src.universe()]  = world().universe();

@@ -5,6 +5,7 @@
 #include "thorin/def.h"
 #include "thorin/primop.h"
 #include "thorin/analyses/scope.h"
+#include "thorin/opt/optimizer.h"
 #include "thorin/transform/cleanup_world.h"
 #include "thorin/transform/clone_bodies.h"
 #include "thorin/transform/codegen_prepare.h"
@@ -1093,9 +1094,12 @@ std::vector<Lam*> World::copy_lams() const {
  * optimizations
  */
 
-void World::cleanup() { cleanup_world(*this); }
+void World::cleanup() { /*cleanup_world(*this);*/ }
 
 void World::opt() {
+    dump();
+    auto opt = std_optimizer(*this);
+    opt.run();
     cleanup();
     while (partial_evaluation(*this, true)); // lower2cff
     flatten_tuples(*this);

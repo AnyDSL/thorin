@@ -394,7 +394,7 @@ private:
 #ifndef NDEBUG
         if (breakpoints_.contains(def->gid())) THORIN_BREAK;
 #endif
-        assert(!def->is_nominal());
+        assert(!def->isa_nominal());
         auto [i, success] = defs_.emplace(def);
         if (success) {
             def->finalize();

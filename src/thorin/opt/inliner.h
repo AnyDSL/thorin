@@ -14,12 +14,9 @@ public:
     Def* visit(Def*) override;
     const Def* visit(const Def*) override;
 
-    size_t& uses(Lam* lam) {
-        auto&& p = uses_.emplace(lam, 0);
-        return p.first->second;
-    }
-
 private:
+    size_t& uses(Lam* lam) { return uses_.emplace(lam, 0).first->second; }
+
     LamMap<size_t> uses_;
 };
 

@@ -19,7 +19,7 @@ const Def* Importer::import(Tracker odef) {
     auto ntype = import(odef->type());
 
     const Def* ndef = nullptr;
-    if (odef->is_nominal()) {
+    if (odef->isa_nominal()) {
         ndef = odef->stub(world_, ntype);
         old2new_[odef] = ndef;
     }

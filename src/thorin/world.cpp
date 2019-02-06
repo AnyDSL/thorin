@@ -132,7 +132,7 @@ const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
 #if THORIN_ENABLE_CHECKS
     // TODO type-check type vs inferred type
 #endif
-    if (type->is_nominal()) return unify<Tuple>(ops.size(), type, ops, dbg);
+    if (type->isa_nominal()) return unify<Tuple>(ops.size(), type, ops, dbg);
     return ops.size() == 1 ? ops.front() : try_fold_aggregate(unify<Tuple>(ops.size(), type, ops, dbg));
 }
 
@@ -221,7 +221,7 @@ const Def* World::variadic(const Def* arity, const Def* body, Debug dbg) {
 #if 0
     if (assignable(kind_multi(arity->qualifier()), arity)) {
         if (auto s = arity->isa<Sigma>()) {
-            if (!s->is_nominal())
+            if (!s->isa_nominal())
                 return variadic(s->ops(), flatten(body, s->ops()), dbg);
             else
                 errorf("can't have nominal sigma arities");

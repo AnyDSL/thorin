@@ -162,9 +162,8 @@ public:
 
     /// @name cast for nominals
     //@{
-    Def* is_nominal() const { return nominal_ ? const_cast<Def*>(this) : nullptr; }
-    template<class T> T* as_nominal() const { assert(as<T>()); return static_cast<T*>(is_nominal()); }
-    template<class T> T* isa_nominal() const { return dynamic_cast<T*>(is_nominal()); }
+    template<class T = Def> T* as_nominal() const { assert(nominal_ && as<T>()); return static_cast<T*>(const_cast<Def*>(this)); }
+    template<class T = Def> T* isa_nominal() const { return dynamic_cast<T*>(nominal_ ? const_cast<Def*>(this) : nullptr); }
     //@}
 
     /// @name misc getters
@@ -547,7 +546,7 @@ private:
     Param(const Def* type, const Lam* lam, Debug dbg)
         : Def(Node_Param, type, Defs{lam}, dbg)
     {
-        assert(lam->is_nominal());
+        assert(lam->isa_nominal());
     }
 
 public:

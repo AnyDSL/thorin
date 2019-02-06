@@ -50,7 +50,7 @@ public:
         if (auto ndef = old2new_.lookup(odef))
             return *ndef;
 
-        if (!odef->is_nominal()) {
+        if (!odef->isa_nominal()) {
             Array<const Def*> nops(odef->num_ops());
             for (size_t i = 0; i != odef->num_ops(); ++i)
                 nops[i] = instantiate(odef->op(i));

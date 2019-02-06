@@ -79,7 +79,7 @@ const Def* Mangler::mangle(const Def* old_def) {
     auto new_type = mangle(old_def->type());
 
     const Def* new_def = nullptr;
-    if (old_def->is_nominal()) {
+    if (old_def->isa_nominal()) {
         new_def = old_def->stub(world(), new_type);
         old2new_[old_def] = new_def;
     }

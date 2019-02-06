@@ -152,7 +152,7 @@ public:
             return is_top_[def];
         if (is_top(def)) {
             return is_top_[def] = true;
-        } else if (!def->is_nominal()) {
+        } else if (!def->isa_nominal()) {
             for (auto op : def->ops()) {
                 if (contains_top(op))
                     return is_top_[def] = true;

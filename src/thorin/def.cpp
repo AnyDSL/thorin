@@ -29,7 +29,7 @@ bool is_const(const Def* def) {
         auto def = stack.pop();
         if (def->isa<Param>()) return false;
         if (def->isa<Hlt>()) return false;
-        if (!def->is_nominal()) {
+        if (!def->isa_nominal()) {
             for (auto op : def->ops())
                 stack.push(op);
         }
@@ -227,7 +227,7 @@ Def::Sort Def::sort() const {
 }
 
 void Def::dump() const {
-    if (!is_nominal() && num_ops() > 1)
+    if (!isa_nominal() && num_ops() > 1)
         stream_assignment(std::cout);
     else {
         std::cout << this;
@@ -421,7 +421,7 @@ void Lam::branch(const Def* cond, const Def* t, const Def* f, Debug dbg) { retur
 void Lam::app(const Def* callee, Defs args, Debug dbg) { app(callee, world().tuple(args), dbg); }
 
 void Lam::app(const Def* callee, const Def* arg, Debug dbg) {
-    assert(is_nominal());
+    assert(isa_nominal());
     set_body(world().app(callee, arg, dbg));
 }
 
@@ -553,7 +553,7 @@ const Def* Param::arity() const { return type()->arity(); }
  */
 
 bool Def::equal(const Def* other) const {
-    if (this->is_nominal() || other->is_nominal())
+    if (this->isa_nominal() || other->isa_nominal())
         return this == other;
 
     bool result = this->tag() == other->tag() && this->num_ops() == other->num_ops() && this->type() == other->type();
@@ -572,8 +572,8 @@ bool Var              ::equal(const Def* other) const { return Def::equal(other)
  */
 
 const Def* Universe           ::rebuild(World&   , const Def*  , Defs    ) const { THORIN_UNREACHABLE; }
-const Def* Lam                ::rebuild(World& to, const Def* t, Defs ops) const { assert(!is_nominal()); return to.lam(t->as<Pi>(), ops[0], ops[1], debug()); }
-const Def* Sigma              ::rebuild(World& to, const Def* t, Defs ops) const { assert(!is_nominal()); return to.sigma(t, ops, debug()); }
+const Def* Lam                ::rebuild(World& to, const Def* t, Defs ops) const { assert(!isa_nominal()); return to.lam(t->as<Pi>(), ops[0], ops[1], debug()); }
+const Def* Sigma              ::rebuild(World& to, const Def* t, Defs ops) const { assert(!isa_nominal()); return to.sigma(t, ops, debug()); }
 const Def* App                ::rebuild(World& to, const Def*  , Defs ops) const { return to.app(ops[0], ops[1], debug()); }
 const Def* BotTop             ::rebuild(World& to, const Def* t, Defs    ) const { return to.bot_top(is_top(this), t, debug()); }
 const Def* DefiniteArrayType  ::rebuild(World& to, const Def*  , Defs ops) const { return to.definite_array_type(ops[0], dim(), debug()); }
@@ -597,8 +597,8 @@ const Def* VariantType        ::rebuild(World& to, const Def*  , Defs ops) const
  * stub
  */
 
-Lam*   Lam  ::stub(World& to, const Def* type) const { assert(is_nominal()); return to.lam(type->as<Pi>(), cc(), intrinsic(), debug()); }
-Sigma* Sigma::stub(World& to, const Def* type) const { assert(is_nominal()); return to.sigma(type, num_ops(), debug()); }
+Lam*   Lam  ::stub(World& to, const Def* type) const { assert(isa_nominal()); return to.lam(type->as<Pi>(), cc(), intrinsic(), debug()); }
+Sigma* Sigma::stub(World& to, const Def* type) const { assert(isa_nominal()); return to.sigma(type, num_ops(), debug()); }
 Universe* Universe::stub(World& to, const Def*) const { return const_cast<Universe*>(to.universe()); }
 
 /*
@@ -628,13 +628,13 @@ std::ostream& BotTop::stream(std::ostream& os) const {
 
 #if 0
 std::ostream& Lam::stream(std::ostream& os) const {
-    if (is_nominal())
+    if (isa_nominal())
     return streamf(os, "[{}].{}", name(), body());
 }
 #endif
 
 std::ostream& Sigma::stream(std::ostream& os) const {
-    if (is_nominal()) return os << unique_name();
+    if (isa_nominal()) return os << unique_name();
     return stream_list(os, ops(), [&](const Def* type) { os << type; }, "[", "]");
 }
 

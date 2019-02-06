@@ -11,7 +11,6 @@ void swap(Optimizer& a, Optimizer& b);
     swap(a.world_, b.world_);
     swap(a.opts_,  b.opts_);
 }
-#endif
 
 void Optimizer::run() {
     old2new_[world().branch()]    = world().branch();
@@ -24,7 +23,16 @@ void Optimizer::run() {
         nominals_.push(old_lam);
 
     while (!nominals_.empty()) {
-        //auto nominal = nominals_.pop();
+        auto old_def = nominals_.pop();
+
+        auto new_def = old_def;
+        for (auto&& opt : opts_)
+            new_def = opt->visit(new_def);
+
+        old2new_[old_def] = new_def_;
+
+        for (size_t i = 0; i != num_ops; ++i)
+            new_def->set(i, new_ops[i]);
     }
 
     for (auto old_lam : externals) {
@@ -33,13 +41,48 @@ void Optimizer::run() {
     }
 }
 
-const Def* Optimizer::rewrite(const Def* old_def) {
+const Def* Optimizer::rewrite(Def* old_def) {
     if (auto new_def = old2new_.lookup(old_def)) return *new_def;
+
+    if (auto nominal = old_def->isa_nominal()) {
+    }
 
     auto new_type = rewrite(old_def->type());
 
     const Def* new_def = nullptr;
-    if (old_def->is_nominal()) {
+    if (old_def->isa_nominal()) {
+        new_def = old_def->stub(world(), new_type);
+        old2new_[old_def] = new_def;
+    }
+
+    auto num_ops = old_def->num_ops();
+    Array<const Def*> new_ops(num_ops, [&](size_t i) { return rewrite(old_def->op(i)); });
+
+    if (new_def) {
+        for (size_t i = 0; i != num_ops; ++i)
+            const_cast<Def*>(new_def)->set(i, new_ops[i]);
+    } else {
+        new_def = old_def->rebuild(world(), new_type, new_ops);
+        old2new_[old_def] = new_def;
+
+        for (auto&& opt : opts_)
+            new_def = opt->visit(new_def);
+        //new_def = rewrite(new_def);
+        old2new_[old_def] = new_def;
+    }
+
+    return new_def;
+}
+const Def* Optimizer::rewrite(const Def* old_def) {
+    if (auto new_def = old2new_.lookup(old_def)) return *new_def;
+
+    if (auto nominal = old_def->isa_nominal()) {
+    }
+
+    auto new_type = rewrite(old_def->type());
+
+    const Def* new_def = nullptr;
+    if (old_def->isa_nominal()) {
         new_def = old_def->stub(world(), new_type);
         old2new_[old_def] = new_def;
     }
@@ -68,5 +111,6 @@ Optimizer std_optimizer(World& world) {
     result.create<Inliner>();
     return result;
 }
+#endif
 
 }

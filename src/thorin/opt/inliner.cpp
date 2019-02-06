@@ -5,6 +5,7 @@
 namespace thorin {
 
 Def* Inliner::visit(Def*) {
+    return nullptr;
 }
 
 const Def* Inliner::visit(const Def* def) {

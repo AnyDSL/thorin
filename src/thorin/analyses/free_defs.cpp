@@ -23,7 +23,7 @@ DefSet free_defs(const Scope& scope, bool /*include_closures*/) {
 
     while (!queue.empty()) {
         auto def = pop(queue);
-        if (!def->is_nominal()) {
+        if (!def->isa_nominal()) {
 #if 0
             if (!include_closures && primop->isa<Closure>()) {
                 result.emplace(primop);

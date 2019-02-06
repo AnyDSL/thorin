@@ -14,45 +14,35 @@ void swap(Optimizer& a, Optimizer& b);
 #endif
 
 void Optimizer::run() {
-    for (auto lam : world().externals())
-        lams_.push(lam);
+    auto externals = world().externals();
+    for (auto old_lam : externals)
+        rewrite(old_lam);
+}
 
-    // visits all lambdas
-    while (!lams_.empty()) {
-        auto lam = lams_.pop();
+const Def* Optimizer::rewrite(const Def* old_def) {
+    if (auto new_def = def2def_.lookup(old_def)) return *new_def;
 
-        for (auto&& opt : opts_)
-            opt->visit(lam);
-
-        defs_.push(lam);
-        const Def* def = nullptr;
-
-        // post-order walk of all ops within cur
-        while (!defs_.empty()) {
-            def = defs_.top();
-
-            bool todo = false;
-            for (auto op : def->ops()) {
-                if (auto lam = op->isa_lam())
-                    lams_.push(lam); // queue in outer loop
-                else
-                    todo |= defs_.push(op);
-            }
-
-            if (!todo) {
-                for (auto&& opt : opts_) {
-                    assert(!def2def_.contains(def));
-                    auto new_def = opt->visit(def);
-                    def2def_[def] = new_def;
-                    def = new_def;
-                }
-
-                defs_.pop();
-            }
-        }
-
-        lam->set_body(def);
+    Lam* new_lam = nullptr;
+    if (auto old_lam = old_def->isa_lam()) {
+        new_lam = old_lam->stub(world(), old_lam->type());
+        if (old_lam->is_external())
+            new_lam->make_external();
+        def2def_[old_lam] = new_lam;
     }
+
+    Array<const Def*> ops(old_def->num_ops(), [&](size_t i) { return rewrite(old_def->op(i)); });
+
+    if (new_lam) {
+        new_lam->set_filter(ops[0]);
+        new_lam->set_body(ops[1]);
+        return new_lam;
+    }
+
+    auto new_def = old_def->rebuild(world(), old_def->type(), ops);
+    for (auto&& opt : opts_)
+        new_def = opt->visit(new_def);
+
+    return def2def_[old_def] = new_def;
 }
 
 Optimizer std_optimizer(World& world) {

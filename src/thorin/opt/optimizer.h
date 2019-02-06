@@ -41,6 +41,7 @@ public:
     template<typename T, typename... Args>
     void create(Args&&... args) { opts_.emplace_back(std::make_unique<T>(*this, std::forward(args)...)); }
     void run();
+    const Def* rewrite(const Def* old_def);
 
     const Def* lookup(const Def* old) {
         // TODO path compression
@@ -52,6 +53,7 @@ public:
     }
 
 private:
+
     World& world_;
     std::deque<std::unique_ptr<Optimization>> opts_;
     unique_queue<LamSet> lams_;

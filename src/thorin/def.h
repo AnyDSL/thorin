@@ -463,7 +463,7 @@ public:
     const Def* codomain() const { return type()->codomain(); }
     //@}
 
-    Lam* stub(World&, const Def*) const override;
+    Lam* stub(World&, const Def* type) const override;
     const Def* rebuild(World&, const Def*, Defs) const override;
 
     Lams preds() const;

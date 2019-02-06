@@ -8,17 +8,18 @@ void Inliner::enter(Lam*) {
 }
 
 const Def* Inliner::visit(const Def* def) {
-    def->dump();
+    if (def->isa<Param>()) return def;
+
     for (auto op : def->ops()) {
-        op = optimizer().lookup(op);
         if (auto lam = op->isa_lam())
             ++uses(lam);
     }
 
     if (auto app = def->isa<App>()) {
+        app->dump();
         if (auto lam = app->callee()->isa_lam(); lam && !lam->is_empty() && uses(lam) == 1) {
             auto new_lam = drop(app);
-            return new_lam->body();
+            return optimizer().rewrite(new_lam->body());
         }
     }
 

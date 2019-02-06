@@ -1100,6 +1100,7 @@ void World::opt() {
     dump();
     auto opt = std_optimizer(*this);
     opt.run();
+    /*
     cleanup();
     while (partial_evaluation(*this, true)); // lower2cff
     flatten_tuples(*this);
@@ -1113,6 +1114,7 @@ void World::opt() {
     cleanup();
     codegen_prepare(*this);
     //rewrite_flow_graphs(*this);
+    */
 }
 
 /*

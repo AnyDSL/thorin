@@ -21,38 +21,62 @@ public:
 
             //parameters:
             //0 - mem type
-            //1 - struct input type
+            //1 - input type
             //2 - mpi output datatype
             //3 - return function
+            auto mem = entry->param(0);
             auto input = entry->param(1);
-            bool invalidType = true;
+            auto output = entry->param(2);
+            auto ret = entry->param(3);
+
             if(auto ptrType = input->type()->isa<PtrType>()) {
-                if(auto structType = ptrType->pointee()->isa<StructType>()) {
-                    invalidType = false;
-                    std::vector<const Type*> params;
-                    params.emplace_back(world.mem_type());
-                    params.emplace_back(world.ptr_type(world.type_qs32(1),1));
-                    for(size_t i=0; i<structType->num_ops(); i++) {
-                        params.emplace_back(world.ptr_type(structType->op(i),1));
-                    }
-                    params.emplace_back(world.fn_type({world.mem_type()}));
-                    auto externalCall = world.continuation(world.fn_type(params),Debug(Symbol("mpi_type_" + structType->name().str())));
-                    externalCall->cc() = CC::C;
+                //TODO adjust get_mpi_byte call with runtime call
+                //generate continuations
+                auto mpi_byte_call = world.continuation(world.fn_type({ world.mem_type(), world.fn_type({ world.mem_type(), world.type_qs32(1)})}), Debug(Symbol("get_mpi_byte")));
+                mpi_byte_call->cc() = CC::C;
+                auto mpi_byte_call_cont = world.continuation(world.fn_type({ world.mem_type(), world.type_qs32(1)}),Debug(Symbol("get_mpi_byte_cont")));
 
-                    std::vector<const Def*> call_params;
-                    call_params.emplace_back(entry->param(0));
-                    call_params.emplace_back(entry->param(2));
-                    for(size_t i=0; i<structType->num_ops(); i++) {
-                        call_params.emplace_back(world.lea(entry->param(1), world.literal_qu32((qu32) i, {}), {}));
-                    }
-                    call_params.emplace_back(entry->param(3));
+                auto mpi_type_contiguous_call = world.continuation(world.fn_type({
+                    world.mem_type(),
+                    world.type_qs32(1), //count
+                    world.type_qs32(1), //oldtype
+                    world.ptr_type(world.type_qs32(1)), //newtype
+                    world.fn_type({ world.mem_type(), world.type_qs32(1) })}),Debug(Symbol("MPI_Type_contiguous")));
+                mpi_byte_call->cc() = CC::C;
+                auto mpi_type_contiguous_call_cont = world.continuation(world.fn_type({ world.mem_type(), world.type_qs32(1)}),Debug(Symbol("MPI_Type_contiguous_cont")));
 
-                    entry->jump(externalCall, call_params);
-                }
+                auto mpi_type_commit_call = world.continuation(world.fn_type({
+                    world.mem_type(),
+                    world.ptr_type(world.type_qs32()), //newtype
+                    world.fn_type({ world.mem_type(), world.type_qs32(1)})}),Debug(Symbol("MPI_Type_commit")));
+                mpi_type_commit_call->cc() = CC::C;
+                auto mpi_type_commit_call_cont = world.continuation(world.fn_type({ world.mem_type(), world.type_qs32(1)}),Debug(Symbol("MPI_Type_commit_cont")));
+
+                //create jumps
+                entry->jump(mpi_byte_call, { mem, mpi_byte_call_cont });
+
+                //preparations for mpi_type_contiguous
+                auto inputSize = world.size_of(ptrType->pointee());
+
+                mpi_byte_call_cont->jump(mpi_type_contiguous_call, {
+                    mpi_byte_call_cont->param(0), //mem
+                    inputSize, //count
+                    mpi_byte_call_cont->param(1), //oldtype
+                    output, //newtype
+                    mpi_type_contiguous_call_cont
+                });
+
+                mpi_type_contiguous_call_cont->jump(mpi_type_commit_call, {
+                    mpi_type_contiguous_call_cont->param(0), //mem
+                    output, //newtype
+                    mpi_type_commit_call_cont
+                });
+
+                mpi_type_commit_call_cont->jump(ret, { mpi_type_commit_call_cont->param(0)});
+
             }
-            if(invalidType) {
-                std::cerr << "mpi_type is only available for struct types!" << std::endl;
-                exit(1);
+            else {
+                std::cerr << "Invalid datatype in mpi_type call!" << std::endl;
             }
 
             scope.update();

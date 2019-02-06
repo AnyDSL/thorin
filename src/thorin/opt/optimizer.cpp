@@ -11,28 +11,22 @@ void swap(Optimizer& a, Optimizer& b);
     swap(a.world_, b.world_);
     swap(a.opts_,  b.opts_);
 }
+#endif
 
 void Optimizer::run() {
-    old2new_[world().branch()]    = world().branch();
-    old2new_[world().end_scope()] = world().end_scope();
-    old2new_[world().universe()]  = world().universe();
-
     auto externals = world().externals();
 
     for (auto old_lam : externals)
-        nominals_.push(old_lam);
+        enqueue(old_lam);
 
     while (!nominals_.empty()) {
-        auto old_def = nominals_.pop();
+        auto def = pop(nominals_);
 
-        auto new_def = old_def;
-        for (auto&& opt : opts_)
-            new_def = opt->visit(new_def);
-
-        old2new_[old_def] = new_def_;
+        auto num_ops = def->num_ops();
+        Array<const Def*> new_ops(num_ops, [&](size_t i) { return rewrite(def->op(i)); });
 
         for (size_t i = 0; i != num_ops; ++i)
-            new_def->set(i, new_ops[i]);
+            def->set(i, new_ops[i]);
     }
 
     for (auto old_lam : externals) {
@@ -41,69 +35,38 @@ void Optimizer::run() {
     }
 }
 
-const Def* Optimizer::rewrite(Def* old_def) {
-    if (auto new_def = old2new_.lookup(old_def)) return *new_def;
+void Optimizer::enqueue(Def* old_def) {
+    if (old2new_.contains(old_def)) return;
 
-    if (auto nominal = old_def->isa_nominal()) {
-    }
-
-    auto new_type = rewrite(old_def->type());
-
-    const Def* new_def = nullptr;
-    if (old_def->isa_nominal()) {
-        new_def = old_def->stub(world(), new_type);
-        old2new_[old_def] = new_def;
-    }
-
-    auto num_ops = old_def->num_ops();
-    Array<const Def*> new_ops(num_ops, [&](size_t i) { return rewrite(old_def->op(i)); });
-
-    if (new_def) {
-        for (size_t i = 0; i != num_ops; ++i)
-            const_cast<Def*>(new_def)->set(i, new_ops[i]);
-    } else {
-        new_def = old_def->rebuild(world(), new_type, new_ops);
-        old2new_[old_def] = new_def;
-
-        for (auto&& opt : opts_)
-            new_def = opt->visit(new_def);
-        //new_def = rewrite(new_def);
-        old2new_[old_def] = new_def;
-    }
-
-    return new_def;
+    auto new_def = old_def;
+    /* TODO
+    for (auto&& opt : opts_)
+        new_def = opt->visit(new_def);
+    */
+    old2new_[old_def] = new_def;
+    nominals_.push(new_def);
 }
-const Def* Optimizer::rewrite(const Def* old_def) {
-    if (auto new_def = old2new_.lookup(old_def)) return *new_def;
 
-    if (auto nominal = old_def->isa_nominal()) {
-    }
+const Def* Optimizer::rewrite(const Def* old_def) {
+    if (auto nominal = old_def->isa_nominal()) enqueue(nominal);
+    if (auto new_def = old2new_.lookup(old_def)) return *new_def;
 
     auto new_type = rewrite(old_def->type());
 
-    const Def* new_def = nullptr;
-    if (old_def->isa_nominal()) {
-        new_def = old_def->stub(world(), new_type);
-        old2new_[old_def] = new_def;
-    }
+    bool rebuild = false;
+    Array<const Def*> new_ops(old_def->num_ops(), [&](size_t i) {
+        auto old_op = old_def->op(i);
+        auto new_op = rewrite(old_op);
+        rebuild |= old_op != new_op;
+        return new_op;
+    });
 
-    auto num_ops = old_def->num_ops();
-    Array<const Def*> new_ops(num_ops, [&](size_t i) { return rewrite(old_def->op(i)); });
+    auto new_def = rebuild ? old_def->rebuild(world(), new_type, new_ops) : old_def;
 
-    if (new_def) {
-        for (size_t i = 0; i != num_ops; ++i)
-            const_cast<Def*>(new_def)->set(i, new_ops[i]);
-    } else {
-        new_def = old_def->rebuild(world(), new_type, new_ops);
-        old2new_[old_def] = new_def;
+    for (auto&& opt : opts_)
+        new_def = opt->rewrite(new_def);
 
-        for (auto&& opt : opts_)
-            new_def = opt->visit(new_def);
-        //new_def = rewrite(new_def);
-        old2new_[old_def] = new_def;
-    }
-
-    return new_def;
+    return old2new_[old_def] = new_def;
 }
 
 Optimizer std_optimizer(World& world) {
@@ -111,6 +74,5 @@ Optimizer std_optimizer(World& world) {
     result.create<Inliner>();
     return result;
 }
-#endif
 
 }

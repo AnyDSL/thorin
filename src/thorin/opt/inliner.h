@@ -11,8 +11,7 @@ public:
         : Optimization(optimizer, "Inliner")
     {}
 
-    Def* visit(Def*) override;
-    const Def* visit(const Def*) override;
+    const Def* rewrite(const Def*) override;
 
 private:
     size_t& uses(Lam* lam) { return uses_.emplace(lam, 0).first->second; }

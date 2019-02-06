@@ -19,8 +19,7 @@ public:
 
     const char* name() const { return name_;}
     Optimizer& optimizer() { return optimizer_; }
-    virtual Def* visit(Def*) = 0;
-    virtual const Def* visit(const Def*) = 0;
+    virtual const Def* rewrite(const Def*) = 0;
 
 private:
     Optimizer& optimizer_;
@@ -41,7 +40,7 @@ public:
     template<typename T, typename... Args>
     void create(Args&&... args) { opts_.emplace_back(std::make_unique<T>(*this, std::forward(args)...)); }
     void run();
-    Def* rewrite(Def*);
+    void enqueue(Def*);
     const Def* rewrite(const Def*);
 
     const Def* lookup(const Def* old) {

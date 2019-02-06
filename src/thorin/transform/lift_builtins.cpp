@@ -35,7 +35,7 @@ void lift_builtins(World& world) {
         // remove all lams - they should be top-level functions and can thus be ignored
         std::vector<const Def*> defs;
         for (auto param : free_defs(scope)) {
-            if (!param->isa_lam()) {
+            if (!param->isa_nominal<Lam>()) {
                 assert(param->type()->order() == 0 && "creating a higher-order function");
                 defs.push_back(param);
             }
@@ -43,8 +43,8 @@ void lift_builtins(World& world) {
 
         auto lifted = lift(scope, defs);
         for (auto use : cur->copy_uses()) {
-            if (auto ulam = use->isa_lam()) {
-                if (auto callee = ulam->app()->callee()->isa_lam()) {
+            if (auto ulam = use->isa_nominal<Lam>()) {
+                if (auto callee = ulam->app()->callee()->isa_nominal<Lam>()) {
                     if (callee->is_intrinsic()) {
                         auto old_ops = ulam->ops();
                         Array<const Def*> new_ops(old_ops.size() + defs.size());

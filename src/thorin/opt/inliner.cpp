@@ -4,20 +4,21 @@
 
 namespace thorin {
 
-void Inliner::enter(Lam*) {
+Def* Inliner::visit(Def*) {
 }
 
 const Def* Inliner::visit(const Def* def) {
+    return def;
     if (def->isa<Param>()) return def;
 
     for (auto op : def->ops()) {
-        if (auto lam = op->isa_lam())
+        if (auto lam = op->isa_nominal<Lam>())
             ++uses(lam);
     }
 
     if (auto app = def->isa<App>()) {
         app->dump();
-        if (auto lam = app->callee()->isa_lam(); lam && !lam->is_empty() && uses(lam) == 1) {
+        if (auto lam = app->callee()->isa_nominal<Lam>(); lam && !lam->is_empty() && uses(lam) == 1) {
             auto new_lam = drop(app);
             return optimizer().rewrite(new_lam->body());
         }

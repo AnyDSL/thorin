@@ -14,35 +14,53 @@ void swap(Optimizer& a, Optimizer& b);
 #endif
 
 void Optimizer::run() {
+    old2new_[world().branch()]    = world().branch();
+    old2new_[world().end_scope()] = world().end_scope();
+    old2new_[world().universe()]  = world().universe();
+
     auto externals = world().externals();
+
     for (auto old_lam : externals)
-        rewrite(old_lam);
+        nominals_.push(old_lam);
+
+    while (!nominals_.empty()) {
+        //auto nominal = nominals_.pop();
+    }
+
+    for (auto old_lam : externals) {
+        //old_lam->make_internal();
+        lookup(old_lam)->as_nominal<Lam>()->make_external();
+    }
 }
 
 const Def* Optimizer::rewrite(const Def* old_def) {
-    if (auto new_def = def2def_.lookup(old_def)) return *new_def;
+    if (auto new_def = old2new_.lookup(old_def)) return *new_def;
 
-    Lam* new_lam = nullptr;
-    if (auto old_lam = old_def->isa_lam()) {
-        new_lam = old_lam->stub(world(), old_lam->type());
-        if (old_lam->is_external())
-            new_lam->make_external();
-        def2def_[old_lam] = new_lam;
+    auto new_type = rewrite(old_def->type());
+
+    const Def* new_def = nullptr;
+    if (old_def->is_nominal()) {
+        new_def = old_def->stub(world(), new_type);
+        old2new_[old_def] = new_def;
     }
 
-    Array<const Def*> ops(old_def->num_ops(), [&](size_t i) { return rewrite(old_def->op(i)); });
+    auto num_ops = old_def->num_ops();
+    Array<const Def*> new_ops(num_ops, [&](size_t i) { return rewrite(old_def->op(i)); });
 
-    if (new_lam) {
-        new_lam->set_filter(ops[0]);
-        new_lam->set_body(ops[1]);
-        return new_lam;
+    if (new_def) {
+        for (size_t i = 0; i != num_ops; ++i)
+            const_cast<Def*>(new_def)->set(i, new_ops[i]);
+    } else {
+        new_def = old_def->rebuild(world(), new_type, new_ops);
+        old2new_[old_def] = new_def;
+
+        for (auto&& opt : opts_)
+            new_def = opt->visit(new_def);
+        //new_def = rewrite(new_def);
+        old2new_[old_def] = new_def;
     }
 
-    auto new_def = old_def->rebuild(world(), old_def->type(), ops);
-    for (auto&& opt : opts_)
-        new_def = opt->visit(new_def);
-
-    return def2def_[old_def] = new_def;
+    return new_def;
 }
 
 Optimizer std_optimizer(World& world) {

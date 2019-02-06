@@ -104,7 +104,7 @@ std::vector<Peek> peek(const Def* param) {
     for (auto use : get_param_lam(param)->uses()) {
         if (auto app = use->isa<App>()) {
             for (auto use : app->uses()) {
-                if (auto pred = use->isa_lam()) {
+                if (auto pred = use->isa_nominal<Lam>()) {
                     if (pred->body() == app)
                         peeks.emplace_back(app->arg(index), pred);
                 }
@@ -119,7 +119,7 @@ bool visit_uses(Lam* lam, std::function<bool(Lam*)> func, bool include_globals) 
     if (!lam->is_intrinsic()) {
         for (auto use : lam->uses()) {
             auto def = include_globals && use->isa<Global>() ? use->uses().begin()->def() : use.def();
-            if (auto lam = def->isa_lam())
+            if (auto lam = def->isa_nominal<Lam>())
                 if (func(lam))
                     return true;
         }
@@ -128,8 +128,8 @@ bool visit_uses(Lam* lam, std::function<bool(Lam*)> func, bool include_globals) 
 }
 
 bool visit_capturing_intrinsics(Lam* lam, std::function<bool(Lam*)> func, bool include_globals) {
-    return visit_uses(lam, [&] (auto lam) {
-        if (auto callee = lam->app()->callee()->isa_lam())
+    return visit_uses(lam, [&] (Lam* lam) {
+        if (auto callee = lam->app()->callee()->isa_nominal<Lam>())
             return callee->is_intrinsic() && func(callee);
         return false;
     }, include_globals);
@@ -235,9 +235,6 @@ void Def::dump() const {
     }
 }
 
-Lam* Def::as_lam() const { return const_cast<Lam*>(scast<Lam>(this)); }
-Lam* Def::isa_lam() const { return const_cast<Lam*>(dcast<Lam>(this)); }
-
 /*
  * App
  */
@@ -271,7 +268,7 @@ void Lam::destroy() {
     set_body  (world().bot(type()->codomain()));
 }
 
-const Param* Lam::param(Debug dbg) const { return world().param(this->as_lam(), dbg); }
+const Param* Lam::param(Debug dbg) const { return world().param(this->as_nominal<Lam>(), dbg); }
 void Lam::set_filter(Defs filter) { set_filter(world().tuple(filter)); }
 
 const Def* Lam::param(size_t i, Debug dbg) const {
@@ -349,7 +346,7 @@ Lams Lam::preds() const {
 
     while (!queue.empty()) {
         auto use = pop(queue);
-        if (auto lam = use->isa_lam()) {
+        if (auto lam = use->isa_nominal<Lam>()) {
             preds.push_back(lam);
             continue;
         }
@@ -377,7 +374,7 @@ Lams Lam::succs() const {
 
     while (!queue.empty()) {
         auto def = pop(queue);
-        if (auto lam = def->isa_lam()) {
+        if (auto lam = def->isa_nominal<Lam>()) {
             succs.push_back(lam);
             continue;
         }
@@ -587,7 +584,7 @@ const Def* Insert             ::rebuild(World& to, const Def*  , Defs ops) const
 const Def* Kind               ::rebuild(World& to, const Def*  , Defs    ) const { return to.kind(tag()); }
 const Def* MemType            ::rebuild(World& to, const Def*  , Defs    ) const { return to.mem_type(); }
 const Def* Pack               ::rebuild(World& to, const Def* t, Defs ops) const { return to.pack(t->arity(), ops[0], debug()); }
-const Def* Param              ::rebuild(World& to, const Def*  , Defs ops) const { return to.param(ops[0]->as_lam(), debug()); }
+const Def* Param              ::rebuild(World& to, const Def*  , Defs ops) const { return to.param(ops[0]->as_nominal<Lam>(), debug()); }
 const Def* Pi                 ::rebuild(World& to, const Def*  , Defs ops) const { return to.pi(ops[0], ops[1], debug()); }
 const Def* PrimType           ::rebuild(World& to, const Def*  , Defs    ) const { return to.type(primtype_tag()); }
 const Def* PtrType            ::rebuild(World& to, const Def*  , Defs ops) const { return to.ptr_type(ops[0], addr_space()); }

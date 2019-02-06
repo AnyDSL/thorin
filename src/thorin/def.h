@@ -160,16 +160,20 @@ public:
     void unset(size_t i);
     //@}
 
+    /// @name cast for nominals
+    //@{
+    Def* is_nominal() const { return nominal_ ? const_cast<Def*>(this) : nullptr; }
+    template<class T> T* as_nominal() const { assert(as<T>()); return static_cast<T*>(is_nominal()); }
+    template<class T> T* isa_nominal() const { return dynamic_cast<T*>(is_nominal()); }
+    //@}
+
     /// @name misc getters
     //@{
     bool contains_lam() const { return contains_lam_; }
-    bool is_nominal() const { return nominal_; }
     unsigned order() const { assert(!is_term()); return order_; }
     uint64_t hash() const { return hash_; }
     //@}
 
-    Lam* as_lam() const;
-    Lam* isa_lam() const;
     void dump() const;
     const Uses& uses() const { return uses_; }
     Array<Use> copy_uses() const { return Array<Use>(uses_.begin(), uses_.end()); }
@@ -547,7 +551,7 @@ private:
     }
 
 public:
-    Lam* lam() const { return op(0)->as_lam(); }
+    Lam* lam() const { return op(0)->as_nominal<Lam>(); }
 
     const Def* arity() const override;
     const Def* rebuild(World&, const Def*, Defs) const override;

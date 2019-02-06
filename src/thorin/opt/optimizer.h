@@ -19,7 +19,7 @@ public:
 
     const char* name() const { return name_;}
     Optimizer& optimizer() { return optimizer_; }
-    virtual void enter(Lam*) = 0;
+    virtual Def* visit(Def*) = 0;
     virtual const Def* visit(const Def*) = 0;
 
 private:
@@ -45,7 +45,7 @@ public:
 
     const Def* lookup(const Def* old) {
         // TODO path compression
-        while (auto def = def2def_.lookup(old)) {
+        while (auto def = old2new_.lookup(old)) {
             if (*def == old) break;
             old = *def;
         }
@@ -56,9 +56,8 @@ private:
 
     World& world_;
     std::deque<std::unique_ptr<Optimization>> opts_;
-    unique_queue<LamSet> lams_;
-    unique_stack<DefSet> defs_;
-    Def2Def def2def_;
+    unique_queue<LamSet> nominals_;
+    Def2Def old2new_;
 
     friend void swap(Optimizer& a, Optimizer& b);
 };

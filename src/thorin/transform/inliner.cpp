@@ -13,7 +13,7 @@ void force_inline(Scope& scope, int threshold) {
         for (auto n : scope.f_cfg().post_order()) {
             auto lam = n->lam();
             if (auto app = lam->app()) {
-                if (auto callee = app->callee()->isa_lam()) {
+                if (auto callee = app->callee()->isa_nominal<Lam>()) {
                     if (!callee->is_empty() && !scope.contains(callee)) {
                         Scope callee_scope(callee);
                         lam->app(drop(callee_scope, app->args()), Defs{}, app->debug());
@@ -30,7 +30,7 @@ void force_inline(Scope& scope, int threshold) {
     for (auto n : scope.f_cfg().reverse_post_order()) {
         auto lam = n->lam();
         if (auto app = lam->app()) {
-            if (auto callee = app->callee()->isa_lam()) {
+            if (auto callee = app->callee()->isa_nominal<Lam>()) {
                 if (!callee->is_empty() && !scope.contains(callee))
                     WLOG("couldn't inline {} at {} within scope of {}", callee, app->loc(), scope.entry());
             }
@@ -75,7 +75,7 @@ void inliner(World& world) {
         for (auto n : scope.f_cfg().post_order()) {
             auto lam = n->lam();
             if (auto app = lam->app()) {
-                if (auto callee = app->callee()->isa_lam()) {
+                if (auto callee = app->callee()->isa_nominal<Lam>()) {
                     if (callee == scope.entry())
                         continue; // don't inline recursive calls
                     DLOG("callee: {}", callee);

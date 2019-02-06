@@ -34,7 +34,7 @@ const Def* Importer::import(Tracker odef) {
             const_cast<Def*>(ndef)->set(i, nops[i]);
         if (auto olam = odef->isa<Lam>()) { // TODO do sth smarter here
             if (olam->is_external())
-                ndef->as_lam()->make_external();
+                ndef->as_nominal<Lam>()->make_external();
         }
     } else {
         ndef = odef->rebuild(world_, ntype, nops);

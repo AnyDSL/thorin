@@ -1083,7 +1083,7 @@ std::vector<Lam*> World::copy_lams() const {
     std::vector<Lam*> result;
 
     for (auto def : defs_) {
-        if (auto lam = def->isa_lam())
+        if (auto lam = def->isa_nominal<Lam>())
             result.emplace_back(lam);
     }
 
@@ -1094,13 +1094,11 @@ std::vector<Lam*> World::copy_lams() const {
  * optimizations
  */
 
-void World::cleanup() { /*cleanup_world(*this);*/ }
+void World::cleanup() { cleanup_world(*this); }
 
 void World::opt() {
-    dump();
-    auto opt = std_optimizer(*this);
-    opt.run();
-    /*
+    //auto opt = std_optimizer(*this);
+    //opt.run();
     cleanup();
     while (partial_evaluation(*this, true)); // lower2cff
     flatten_tuples(*this);
@@ -1114,7 +1112,6 @@ void World::opt() {
     cleanup();
     codegen_prepare(*this);
     //rewrite_flow_graphs(*this);
-    */
 }
 
 /*

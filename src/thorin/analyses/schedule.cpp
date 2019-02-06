@@ -101,7 +101,7 @@ const CFNode* Scheduler::schedule_early(const Def* def) {
 
     const CFNode* result;
 
-    if (auto lam = def->isa_lam()) {
+    if (auto lam = def->isa_nominal<Lam>()) {
         result = cfg_[lam];
     } else if (auto param = def->isa<Param>()) {
         result = schedule_early(param->lam());
@@ -126,7 +126,7 @@ const CFNode* Scheduler::schedule_late(const Def* def) {
 
     const CFNode* result = nullptr;
 
-    if (auto lam = def->isa_lam()) {
+    if (auto lam = def->isa_nominal<Lam>()) {
         result = cfg_[lam];
     } else if (auto param = def->isa<Param>()) {
         result = schedule_late(param->lam());

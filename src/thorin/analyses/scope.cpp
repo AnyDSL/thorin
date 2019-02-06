@@ -121,7 +121,7 @@ void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
 
         while (!def_queue.empty()) {
             auto def = def_queue.pop();
-            if (auto lam = def->isa_lam())
+            if (auto lam = def->isa_nominal<Lam>())
                 lam_queue.push(lam);
             else {
                 for (auto op : def->ops())

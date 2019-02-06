@@ -23,7 +23,7 @@ void clone_bodies(World& world) {
             } else {
                 // TODO this needs porting to new App stuff
                 auto nlam = clone(scope);
-                if (auto ulam = use->isa_lam())
+                if (auto ulam = use->isa_nominal<Lam>())
                     ulam->set(use.index(), nlam);
                 else {
                     auto primop = use->as<PrimOp>();

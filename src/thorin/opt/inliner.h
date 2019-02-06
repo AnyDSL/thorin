@@ -11,7 +11,7 @@ public:
         : Optimization(optimizer, "Inliner")
     {}
 
-    void enter(Lam*) override;
+    Def* visit(Def*) override;
     const Def* visit(const Def*) override;
 
     size_t& uses(Lam* lam) {

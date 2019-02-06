@@ -103,7 +103,7 @@ public:
 
             if (def->isa<Param>())
                 return top_level_[lam] = false;
-            if (auto free_cn = def->isa_lam()) {
+            if (auto free_cn = def->isa_nominal<Lam>()) {
                 if (!is_top_level(free_cn))
                     return top_level_[lam] = false;
             } else {
@@ -133,7 +133,7 @@ void PartialEvaluator::eat_pe_info(Lam* cur) {
 
         // always re-insert into queue because we've changed cur's jump
         queue_.push(cur);
-    } else if (auto lam = next->isa_lam()) {
+    } else if (auto lam = next->isa_nominal<Lam>()) {
         queue_.push(lam);
     }
 }
@@ -161,7 +161,7 @@ bool PartialEvaluator::run() {
             callee_def = run->def();
         }
 
-        if (auto callee = callee_def->isa_lam()) {
+        if (auto callee = callee_def->isa_nominal<Lam>()) {
             if (callee->intrinsic() == Intrinsic::PeInfo) {
                 eat_pe_info(lam);
                 continue;

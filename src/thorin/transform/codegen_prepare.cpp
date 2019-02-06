@@ -11,7 +11,7 @@ static bool replace_param(const Def* param, const Def* replace_with) {
             // The return parameter is used either as an
             // argument or as a callee of an App node
             for (auto app_use : app->copy_uses()) {
-                if (auto lam = app_use->isa_lam()) {
+                if (auto lam = app_use->isa_nominal<Lam>()) {
                     // Do not change replace_with
                     if (lam == replace_with)
                         continue;

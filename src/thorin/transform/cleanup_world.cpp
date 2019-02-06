@@ -105,7 +105,7 @@ void Cleaner::eta_conversion() {
             // eat calls to known lams that are only used once
             while (true) {
                 if (auto app = lam->app()) {
-                    if (auto callee = app->callee()->isa_lam()) {
+                    if (auto callee = app->callee()->isa_nominal<Lam>()) {
                         if (callee->is_empty() || callee->is_external() || callee->num_uses() > 2) break;
                         bool ok = true;
                         for (auto use : callee->uses()) { // 2 iterations at max - see above
@@ -306,7 +306,7 @@ void Cleaner::clean_pe_infos() {
         auto lam = pop(queue);
 
         if (auto app = lam->app()) {
-            if (auto callee = app->callee()->isa_lam()) {
+            if (auto callee = app->callee()->isa_nominal<Lam>()) {
                 if (callee->intrinsic() == Intrinsic::PeInfo) {
                     clean_pe_info(queue, lam);
                     continue;

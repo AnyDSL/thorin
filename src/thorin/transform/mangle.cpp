@@ -139,7 +139,7 @@ Lam* mangle(const Scope& scope, Defs args, Defs lift) {
 }
 
 Lam* drop(const App* app) {
-    Scope scope(app->callee()->as_lam());
+    Scope scope(app->callee()->as_nominal<Lam>());
     return drop(scope, app->args());
 }
 

@@ -53,7 +53,7 @@ CFA::CFA(const Scope& scope)
             if (def->isa<Param>()) return;
             // TODO maybe optimize a little bit by using the order
             if (scope.contains(def) && done.emplace(def).second) {
-                if (auto dst = def->isa_lam()) {
+                if (auto dst = def->isa_nominal<Lam>()) {
                     cfg_enqueue(dst);
                     node(src)->link(node(dst));
                 } else

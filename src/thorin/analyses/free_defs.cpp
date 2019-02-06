@@ -17,7 +17,7 @@ DefSet free_defs(const Scope& scope, bool /*include_closures*/) {
     };
 
     for (auto def : scope.defs()) {
-        if (auto lam = def->isa_lam())
+        if (auto lam = def->isa_nominal<Lam>())
             enqueue_ops(lam);
     }
 

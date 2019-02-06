@@ -153,9 +153,9 @@ public:
 
                 if(dimension > 0) {
                     //load input and output pointers
-                    const Def* inputs[dimension];
-                    const Def* outputs[dimension];
-                    Continuation* calls[dimension];
+                    Array<const Def*> inputs(dimension);
+                    Array<const Def*> outputs(dimension);
+                    Array<Continuation*> calls(dimension);
 
                     for(u64 i=0; i<dimension; i++) {
                         inputs[i] = world.lea(input, world.literal_qu32((qu32) i, {}), {});
@@ -255,7 +255,7 @@ private:
         }
     }
     Continuation* generate_continuation(const Type* type) {
-        auto ptr_type = world.ptr_type(type, 1);
+        auto ptr_type = world.ptr_type(type);
         return world.continuation(world.fn_type({ world.mem_type(), ptr_type, ptr_type, world.fn_type({ world.mem_type() }) }),Debug(Symbol("deep_copy")));
     }
 

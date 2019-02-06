@@ -47,12 +47,12 @@ struct VectorizeArgs {
 };
 
 Lam* CodeGen::emit_vectorize_lam(Lam* lam) {
-    auto target = lam->app()->callee()->as_lam();
+    auto target = lam->app()->callee()->as_nominal<Lam>();
     assert_unused(target->intrinsic() == Intrinsic::Vectorize);
     assert(lam->app()->num_args() >= VectorizeArgs::Num && "required arguments are missing");
 
     // arguments
-    auto kernel = lam->app()->arg(VectorizeArgs::Body)->as<Global>()->init()->as_lam();
+    auto kernel = lam->app()->arg(VectorizeArgs::Body)->as<Global>()->init()->as_nominal<Lam>();
     const size_t num_kernel_args = lam->app()->num_args() - VectorizeArgs::Num;
 
     // build simd-function signature
@@ -84,7 +84,7 @@ Lam* CodeGen::emit_vectorize_lam(Lam* lam) {
     u32 vector_length_constant = lam->app()->arg(VectorizeArgs::Length)->as<Lit>()->box().get_qu32();
     vec_todo_.emplace_back(vector_length_constant, emit_function_decl(kernel), simd_kernel_call);
 
-    return lam->app()->arg(VectorizeArgs::Return)->as_lam();
+    return lam->app()->arg(VectorizeArgs::Return)->as_nominal<Lam>();
 }
 
 void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llvm::CallInst* simd_kernel_call) {

@@ -58,7 +58,7 @@ static bool contains_ptrtype(const Def* type) {
 Lam* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std::string& ext, Lam* lam) {
     // to-target is the desired kernel call
     // target(mem, device, (dim.x, dim.y, dim.z), (block.x, block.y, block.z), body, return, free_vars)
-    auto target = lam->app()->callee()->as_lam();
+    auto target = lam->app()->callee()->as_nominal<Lam>();
     assert_unused(target->is_intrinsic());
     assert(lam->app()->num_args() >= LaunchArgs::Num && "required arguments are missing");
 
@@ -170,7 +170,7 @@ Lam* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std::st
                   args, sizes, aligns, types,
                   builder_.getInt32(num_kernel_args));
 
-    return lam->app()->arg(LaunchArgs::Return)->as_lam();
+    return lam->app()->arg(LaunchArgs::Return)->as_nominal<Lam>();
 }
 
 llvm::Value* Runtime::launch_kernel(llvm::Value* device,

@@ -163,18 +163,16 @@ const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
     else
         type = agg->type()->as<Variadic>()->body();
 
-#if 0
-#if 0
     if (auto insert = agg->isa<Insert>()) {
+        // extract(insert(x, index, value), index) = value
         if (index == insert->index())
             return insert->value();
+        // extract(insert(x, j, value), i) = extract(x, i) where i != j
         else if (index->isa<Lit>()) {
             if (insert->index()->isa<Lit>())
                 return extract(insert->agg(), index, dbg);
         }
     }
-#endif
-#endif
 
     return unify<Extract>(2, type, agg, index, dbg);
 }
@@ -208,101 +206,32 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, Deb
 }
 
 const Def* World::variadic(const Def* arity, const Def* body, Debug dbg) {
+    if (auto a = isa_lit<u64>(arity)) {
+        if (*a == 0) return lit_arity_1_;
+        if (*a == 1) return body;
+    }
+
     auto type = kind_star();
     return unify<Variadic>(2, type, arity, body, dbg);
-#if 0
-    if (assignable(kind_multi(arity->qualifier()), arity)) {
-        if (auto s = arity->isa<Sigma>()) {
-            if (!s->isa_nominal())
-                return variadic(s->ops(), flatten(body, s->ops()), dbg);
-            else
-                errorf("can't have nominal sigma arities");
-        } else if (auto v = arity->isa<Variadic>()) {
-            if (auto a = get_constant_arity(v->arity())) {
-                assert(!v->body()->free_vars().test(0));
-                assert(a != 1);
-                auto result = flatten(body, DefArray(*a, shift_free_vars(v->body(), *a-1)));
-                for (size_t i = *a; i-- != 0;)
-                    result = variadic(shift_free_vars(v->body(), i-1), result, dbg);
-                return result;
-            }
-        } else if (auto a = get_constant_arity(arity)) {
-            switch (*a) {
-                case 0:
-                    if (body->is_kind())
-                        return unify<Variadic>(2, universe(), lit_arity(0), kind_star(body->qualifier()), dbg);
-                    return unit(body->type()->qualifier());
-                case 1:
-                    return reduce(body, lit_index(1, 0));
-                default:
-                    if (body->free_vars().test(0))
-                        return sigma(DefArray(*a, [&](auto i) { return shift_free_vars(reduce(body, lit_index(*a, i)), i); }), dbg);
-            }
-        }
-
-        assert(body->type()->is_kind() || body->type()->is_universe());
-        // TODO check whether qualifiers correct here
-        auto type = type_bound<Variant, false>(body->qualifier(), {arity, body});
-        return unify<Variadic>(2, type, arity, body, dbg);
-    } else {
-        errorf("'{}' of type '{}' provided to variadic constructor is not a (multi-) arity", arity, arity->type());
-    }
-#endif
-}
-
-const Def* World::variadic(Defs arity, const Def* body, Debug dbg) {
-    if (arity.empty())
-        return body;
-    return variadic(arity.skip_back(), variadic(arity.back(), body, dbg), dbg);
 }
 
 const Def* World::pack(const Def* arity, const Def* body, Debug dbg) {
+    if (auto a = isa_lit<u64>(arity)) {
+        if (*a == 0) return lit_index_0_;
+        if (*a == 1) return body;
+    }
+
     auto type = variadic(arity, body->type());
     return unify<Pack>(1, type, body, dbg);
-#if 0
-    if (auto sigma = arity->isa<Sigma>())
-        return pack(sigma->ops(), flatten(body, sigma->ops()), dbg);
+}
 
-    if (auto v = arity->isa<Variadic>()) {
-        if (auto a = get_constant_arity(v->arity())) {
-            assert(!v->body()->free_vars().test(0));
-            assert(a != 1);
-            auto result = flatten(body, DefArray(*a, shift_free_vars(v->body(), *a-1)));
-            for (size_t i = *a; i-- != 0;)
-                result = pack(shift_free_vars(v->body(), i-1), result, dbg);
-            return result;
-        }
-    }
-
-    if (auto a = get_constant_arity(arity)) {
-        switch (*a) {
-            case 0:
-                if (body->is_type())
-                    return unify<Pack>(1, unit_kind(body->qualifier()), unit(body->qualifier()), dbg);
-                return val_unit(body->type()->qualifier());
-            case 1:
-                return reduce(body, lit_index(1, 0));
-            default:
-                if (body->free_vars().test(0))
-                    return tuple(DefArray(*a, [&](auto i) { return reduce(body, this->lit_index(*a, i)); }), dbg);
-        }
-    }
-
-    if (auto extract = body->isa<Extract>()) {
-        if (auto var = extract->index()->isa<Var>()) {
-            if (var->index() == 0 && !extract->scrutinee()->free_vars().test(0))
-                return shift_free_vars(extract->scrutinee(), -1);
-        }
-    }
-
-    assert(body->is_term() || body->is_type());
-    return unify<Pack>(1, variadic(arity, body->type()), body, dbg);
-#endif
+const Def* World::variadic(Defs arity, const Def* body, Debug dbg) {
+    if (arity.empty()) return body;
+    return variadic(arity.skip_back(), variadic(arity.back(), body, dbg), dbg);
 }
 
 const Def* World::pack(Defs arity, const Def* body, Debug dbg) {
-    if (arity.empty())
-        return body;
+    if (arity.empty()) return body;
     return pack(arity.skip_back(), pack(arity.back(), body, dbg), dbg);
 }
 

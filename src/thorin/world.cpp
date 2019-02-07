@@ -39,7 +39,6 @@ World::World(uint32_t cur_gid, Debug debug)
     , kind_arity_(insert<Kind>(0, *this, Node_KindArity))
     , kind_multi_(insert<Kind>(0, *this, Node_KindMulti))
     , kind_star_ (insert<Kind>(0, *this, Node_KindStar))
-    , sigma_     (insert<Sigma>(0, kind_star_, Defs{}, Debug{"[]"}))
     , bot_       (insert<BotTop>(0, false, kind_star_, Debug{"<⊥:*>"}))
     , mem_       (insert<MemType  >(0, *this))
     , frame_     (insert<FrameType>(0, *this))
@@ -51,8 +50,10 @@ World::World(uint32_t cur_gid, Debug debug)
     lit_bool_[0] = lit(type_bool(), {false});
     lit_bool_[1] = lit(type_bool(), {true});
 
-    lit_arity_[0] = lit_arity(0);
-    lit_arity_[1] = lit_arity(1);
+    lit_arity_1_ = lit_arity(1);
+    lit_index_0_ = lit_index(lit_arity_1_, 0);
+    lit_arity_1_->debug().set("[]");
+    lit_index_0_->debug().set("()");
 
     lit_nat_0_   = lit_nat(0);
     for (size_t j = 0; j != lit_nat_.size(); ++j)
@@ -74,9 +75,9 @@ const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
     if (auto lam = callee->isa<Lam>()) {
         switch (lam->intrinsic()) {
             case Intrinsic::Branch: {
-                auto cond = extract_(arg, 0_s);
-                auto t    = extract_(arg, 1_s);
-                auto f    = extract_(arg, 2_s);
+                auto cond = extract(arg, 0_s);
+                auto t    = extract(arg, 1_s);
+                auto f    = extract(arg, 2_s);
                 if (auto lit = isa_lit<bool>(cond))
                     return app(*lit ? t : f, Defs{}, dbg);
                 if (t == f)
@@ -90,8 +91,8 @@ const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
                 if (args.size() == 2) return app(args[1], Defs{}, dbg);
                 if (auto lit = args[0]->isa<Lit>()) {
                     for (size_t i = 2; i < args.size(); i++) {
-                        if (extract_(args[i], 0_s)->as<Lit>() == lit)
-                            return app(extract_(args[i], 1), Defs{}, dbg);
+                        if (extract(args[i], 0_s)->as<Lit>() == lit)
+                            return app(extract(args[i], 1), Defs{}, dbg);
                     }
                     return app(args[1], Defs{}, dbg);
                 }
@@ -116,7 +117,12 @@ const Pi* World::pi(const Def* domain, const Def* codomain, Debug dbg) {
 }
 
 const Def* World::sigma(const Def* type, Defs ops, Debug dbg) {
-    return ops.size() == 1 ? ops.front() : unify<Sigma>(ops.size(), type, ops, dbg);
+    auto n = ops.size();
+    if (n == 0) return lit_arity_1();
+    if (n == 1) return ops[0];
+    if (std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; }))
+        return variadic(n, ops[0]);
+    return unify<Sigma>(ops.size(), type, ops, dbg);
 }
 
 static const Def* infer_sigma(World& world, Defs ops) {
@@ -136,31 +142,27 @@ const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
     // TODO type-check type vs inferred type
 #endif
     if (type->isa_nominal()) return unify<Tuple>(ops.size(), type, ops, dbg);
-    return ops.size() == 1 ? ops.front() : try_fold_aggregate(unify<Tuple>(ops.size(), type, ops, dbg));
+
+    auto n = ops.size();
+    if (n == 0) return lit_index_0();
+    if (n == 1) return ops[0];
+    if (std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; }))
+        return pack(n, ops[0]);
+    return unify<Tuple>(ops.size(), type, ops, dbg);
 }
 
-#if 0
-const Def* World::extract_(const Def* agg, const Def* index, Debug dbg) {
+const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
     if (index->type() == lit_arity_1()) return agg;
+    if (auto tuple = agg->isa<Tuple>()) return tuple->op(as_lit<u64>(index));
+    if (auto pack  = agg->isa<Pack >()) return pack->body();
 
-    const Def* type;
+    const Def* type = nullptr;
     if (auto sigma = agg->type()->isa<Sigma>())
         type = sigma->op(as_lit<u64>(index));
     else
-        type = agg->type()->as<ArrayType>()->elem_type();
+        type = agg->type()->as<Variadic>()->body();
 
-    if (is_bot(agg)) return bot(type, dbg);
-    if (is_top(agg)) return top(type, dbg);
-
-    if (agg->isa<Tuple>() || agg->isa<DefiniteArray>()) {
-        if (auto lit = isa_lit<u64>(index)) {
-            if (*lit < agg->num_ops())
-                return agg->op(*lit);
-            else
-                return bot(type, dbg);
-        }
-    }
-
+#if 0
 #if 0
     if (auto insert = agg->isa<Insert>()) {
         if (index == insert->index())
@@ -171,54 +173,38 @@ const Def* World::extract_(const Def* agg, const Def* index, Debug dbg) {
         }
     }
 #endif
+#endif
 
     return unify<Extract>(2, type, agg, index, dbg);
 }
 
-const Def* World::unsafe_extract(const Def* agg, const Def* index, Debug dbg) {
-    return extract_(agg, cast(agg->type()->arity(), index, dbg), dbg);
-}
-
 const Def* World::insert(const Def* agg, const Def* index, const Def* value, Debug dbg) {
-    if (is_bot(agg) || is_top(agg)) {
-        if (is_bot(value)) return agg;
+    if (index->type() == lit_arity_1()) return value;
 
-        // build aggregate container and fill with bottom
-        if (auto definite_array_type = agg->type()->isa<DefiniteArrayType>()) {
-            Array<const Def*> args(definite_array_type->dim());
-            auto elem_type = definite_array_type->elem_type();
-            auto elem = is_bot(agg) ? bot(elem_type, dbg) : top(elem_type, dbg);
-            std::fill(args.begin(), args.end(), elem);
-            agg = definite_array(args, dbg);
-        } else if (auto sigma = agg->type()->isa<Sigma>()) {
-            Array<const Def*> args(sigma->num_ops());
-            size_t i = 0;
-            for (auto type : sigma->ops())
-                args[i++] = is_bot(agg) ? bot(type, dbg) : top(type, dbg);
-            agg = tuple(sigma, args, dbg);
+    // insert((a, b, c, d), 2, x) =(a, b, x, d)
+    if (auto tup = agg->isa<Tuple>()) {
+        Array<const Def*> new_ops = tup->ops();
+        new_ops[as_lit<u64>(index)] = value;
+        return tuple(tup->type(), new_ops, dbg);
+    }
+
+    // insert(‹4; x›, 2, y) = (x, x, y, x)
+    if (auto pack = agg->isa<Pack>()) {
+        if (auto a = isa_lit<u64>(pack->type()->arity())) {
+            Array<const Def*> new_ops(*a, pack->body());
+            new_ops[as_lit<u64>(index)] = value;
+            return tuple(pack->type(), new_ops, dbg);
         }
     }
 
-    if (fold_1_tuple(agg->type(), index))
-        return value;
-
-    // TODO double-check
-    if (agg->isa<Tuple>() || agg->isa<DefiniteArray>()) {
-        if (auto lit = index->isa<Lit>()) {
-            if (as_lit<u64>(lit) < agg->num_ops()) {
-                Array<const Def*> args(agg->num_ops());
-                std::copy(agg->ops().begin(), agg->ops().end(), args.begin());
-                args[as_lit<u64>(lit)] = value;
-                return agg->rebuild(*this, agg->type(), args);
-            } else {
-                return bot(agg->type(), dbg);
-            }
-        }
+    // insert(insert(x, index, y), index, value) = insert(x, index, value)
+    if (auto insert = agg->isa<Insert>()) {
+        if (insert->index() == index)
+            agg = insert->agg();
     }
 
     return unify<Insert>(3, agg, index, value, dbg);
 }
-#endif
 
 const Def* World::variadic(const Def* arity, const Def* body, Debug dbg) {
     auto type = kind_star();
@@ -756,7 +742,7 @@ const Def* World::convert(const Def* dst_type, const Def* src, Debug dbg) {
 
         Array<const Def*> new_tuple(dst_sigma->num_ops());
         for (size_t i = 0, e = new_tuple.size(); i != e; ++i)
-            new_tuple[i] = convert(dst_type->op(i), extract_(src, i, dbg), dbg);
+            new_tuple[i] = convert(dst_type->op(i), extract(src, i, dbg), dbg);
 
         return tuple(dst_sigma, new_tuple, dbg);
     }
@@ -907,7 +893,6 @@ const Def* World::slot(const Def* type, const Def* frame, Debug dbg) {
     return unify<Slot>(1, ptr_type(type), frame, dbg);
 }
 
-#if 0
 const Def* World::lea(const Def* ptr, const Def* index, Debug dbg) {
     auto ptr_type = ptr->type()->as<PtrType>();
     auto ptr_pointee = ptr_type->pointee();
@@ -918,13 +903,12 @@ const Def* World::lea(const Def* ptr, const Def* index, Debug dbg) {
     if (auto sigma = ptr_pointee->isa<Sigma>()) {
         type = this->ptr_type(sigma->op(as_lit<u64>(index)), ptr_type->addr_space());
     } else {
-        auto array = ptr_pointee->as<ArrayType>();
-        type = this->ptr_type(array->elem_type(), ptr_type->addr_space());
+        auto variadic = ptr_pointee->as<Variadic>();
+        type = this->ptr_type(variadic->body(), ptr_type->addr_space());
     }
 
     return unify<LEA>(2, type, ptr, index, dbg);
 }
-#endif
 
 const Def* World::select(const Def* cond, const Def* a, const Def* b, Debug dbg) {
     if (is_bot(cond) || is_bot(a) || is_bot(b)) return bot(a->type(), dbg);

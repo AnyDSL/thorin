@@ -122,24 +122,13 @@ private:
     LamMap<bool>& top_level_;
 };
 
-std::string as_string(const Def* def) {
-    std::string res;
-    size_t e = as_lit<u64>(def->type()->arity());
-    for (size_t i = 0; i != e; ++i) {
-        auto c = as_lit<pu8>(def->world().extract_(def, i));
-        if (!c) break;
-        res += c;
-    }
-    return res;
-}
-
 void PartialEvaluator::eat_pe_info(Lam* cur) {
     assert(cur->app()->arg(1)->type() == world().ptr_type(world().unsafe_variadic(world().type_pu8())));
     auto next = cur->app()->arg(3);
 
     if (is_const(cur->app()->arg(2))) {
-        auto msg = cur->app()->arg(1)->as<Bitcast>()->from()->as<Global>()->init();
-        IDEF(cur->app()->callee(), "pe_info: {}: {}", as_string(msg), cur->app()->arg(2));
+        //auto msg = cur->app()->arg(1)->as<Bitcast>()->from()->as<Global>()->init();
+        IDEF(cur->app()->callee(), "pe_info: {}: {}", "TODO", cur->app()->arg(2));
         cur->app(next, {cur->app()->arg(0)}, cur->app()->debug());
 
         // always re-insert into queue because we've changed cur's jump

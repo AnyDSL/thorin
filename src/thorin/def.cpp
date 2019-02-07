@@ -246,7 +246,7 @@ size_t App::num_args() const {
     return 1;
 }
 
-const Def* App::arg(size_t i) const { return callee()->world().extract_(arg(), i); }
+const Def* App::arg(size_t i) const { return callee()->world().extract(arg(), i); }
 
 Array<const Def*> App::args() const {
     size_t n = num_args();
@@ -267,7 +267,7 @@ void Lam::destroy() {
 
 const Param* Lam::param(Debug dbg) const { return world().param(this->as_nominal<Lam>(), dbg); }
 void Lam::set_filter(Defs filter) { set_filter(world().tuple(filter)); }
-const Def* Lam::param(size_t i, Debug dbg) const { return world().extract_(param(), i, dbg); }
+const Def* Lam::param(size_t i, Debug dbg) const { return world().extract(param(), i, dbg); }
 
 Array<const Def*> Lam::params() const {
     size_t n = num_params();
@@ -283,7 +283,7 @@ size_t Lam::num_params() const {
     return 1;
 }
 
-const Def* Lam::filter(size_t i) const { return world().extract_(filter(), i); }
+const Def* Lam::filter(size_t i) const { return world().extract(filter(), i); }
 
 Array<const Def*> Lam::filters() const {
     size_t n = num_filters();
@@ -561,7 +561,7 @@ const Def* Lam                ::rebuild(World& to, const Def* t, Defs ops) const
 const Def* Sigma              ::rebuild(World& to, const Def* t, Defs ops) const { assert(!isa_nominal()); return to.sigma(t, ops, debug()); }
 const Def* App                ::rebuild(World& to, const Def*  , Defs ops) const { return to.app(ops[0], ops[1], debug()); }
 const Def* BotTop             ::rebuild(World& to, const Def* t, Defs    ) const { return to.bot_top(is_top(this), t, debug()); }
-const Def* Extract            ::rebuild(World& to, const Def*  , Defs ops) const { return to.extract_(ops[0], ops[1], debug()); }
+const Def* Extract            ::rebuild(World& to, const Def*  , Defs ops) const { return to.extract(ops[0], ops[1], debug()); }
 const Def* FrameType          ::rebuild(World& to, const Def*  , Defs    ) const { return to.frame_type(); }
 const Def* Insert             ::rebuild(World& to, const Def*  , Defs ops) const { return to.insert(ops[0], ops[1], ops[2], debug()); }
 const Def* Kind               ::rebuild(World& to, const Def*  , Defs    ) const { return to.kind(tag()); }
@@ -596,7 +596,7 @@ std::ostream& App                ::stream(std::ostream& os) const { return strea
 std::ostream& FrameType          ::stream(std::ostream& os) const { return streamf(os, "frame"); }
 std::ostream& Kind               ::stream(std::ostream& os) const { return streamf(os, "*"); }
 std::ostream& MemType            ::stream(std::ostream& os) const { return streamf(os, "mem"); }
-std::ostream& Pack               ::stream(std::ostream& os) const { return streamf(os, "‹{}; {}›", arity(), body()); }
+std::ostream& Pack               ::stream(std::ostream& os) const { return streamf(os, "‹{}; {}›", type()->arity(), body()); }
 std::ostream& Universe           ::stream(std::ostream& os) const { return streamf(os, "□"); }
 std::ostream& Var                ::stream(std::ostream& os) const { return streamf(os, "<{}:{}>", index(), type()); }
 std::ostream& Variadic           ::stream(std::ostream& os) const { return streamf(os, "«{}; {}»", arity(), body()); }

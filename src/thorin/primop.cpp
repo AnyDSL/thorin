@@ -139,7 +139,7 @@ std::ostream& Assembly::stream_assignment(std::ostream& os) const {
 
 //------------------------------------------------------------------------------
 
-const Def* PrimOp::out(size_t i) const { return world().extract_(this, i, debug()); }
+const Def* PrimOp::out(size_t i) const { return world().extract(this, i, debug()); }
 
 //------------------------------------------------------------------------------
 

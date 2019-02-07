@@ -141,7 +141,7 @@ public:
         values[n] = slot_value;
         values[0] = insert_value;
         for (size_t i = n - 1; i > 0; --i)
-            values[i] = world_.extract_(values[i + 1], indices[i], dbg);
+            values[i] = world_.extract(values[i + 1], indices[i], dbg);
         for (size_t i = 1; i <= n; ++i)
             values[i] = world_.insert(values[i], indices[i - 1], values[i - 1], dbg);
         return values[n];

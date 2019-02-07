@@ -132,7 +132,7 @@ public:
     const Def* sigma(const Def* type, Defs ops, Debug dbg = {});
     /// a @em structural @p Sigma of type @p star
     const Def* sigma(Defs ops, Debug dbg = {}) { return sigma(kind_star(), ops, dbg); }
-    const Sigma* sigma() { return sigma_; } ///< Returns an empty @p Sigma - AKA unit - of type @p star
+    const Lit* sigma() { return lit_arity_1_; } ///< Returns an empty @p Sigma - AKA unit - of type @p star
     //@}
     /// @name Sigma: nominal
     //@{
@@ -167,15 +167,22 @@ public:
     //@}
     /// @name Extract
     //@{
-    const Def* extract_(const Def* agg, const Def* index, Debug dbg = {});
-    const Def* extract_(const Def* agg, u32 index, Debug dbg = {}) { return extract_(agg, lit_index(agg->type()->arity()->as<Lit>(), index, dbg), dbg); }
-    const Def* unsafe_extract(const Def* agg, const Def* index, Debug dbg = {});
-    const Def* unsafe_extract(const Def* agg, u64 index, Debug dbg = {}) { return unsafe_extract(agg, lit_qu64(index, dbg), dbg); }
+    const Def* extract(const Def* agg, const Def* i, Debug dbg = {});
+    const Def* extract(const Def* agg, u32 i, Debug dbg = {}) { return extract(agg, lit_index(agg->type()->arity()->as<Lit>(), i, dbg), dbg); }
+    const Def* unsafe_extract(const Def* agg, const Def* i, Debug dbg = {}) { return extract(agg, cast(agg->type()->arity(), i, dbg), dbg); }
+    const Def* unsafe_extract(const Def* agg, u64 i, Debug dbg = {}) { return unsafe_extract(agg, lit_qu64(i, dbg), dbg); }
     //@}
     /// @name Insert
     //@{
-    const Def* insert(const Def* tuple, const Def* index, const Def* value, Debug dbg = {});
-    const Def* insert(const Def* tuple, u32 index, const Def* value, Debug dbg = {}) { return insert(tuple, lit_qu32(index, dbg), value, dbg); }
+    const Def* insert(const Def* agg, const Def* i, const Def* value, Debug dbg = {});
+    const Def* insert(const Def* agg, u32 i, const Def* value, Debug dbg = {}) { return insert(agg, lit_index(agg->type()->arity()->as<Lit>(), i, dbg), value, dbg); }
+    const Def* unsafe_insert(const Def* agg, const Def* i, const Def* value, Debug dbg = {}) { return insert(agg, cast(agg->type()->arity(), i, dbg), value, dbg); }
+    const Def* unsafe_insert(const Def* agg, u32 i, const Def* value, Debug dbg = {}) { return unsafe_insert(agg, lit_qu64(i, dbg), value, dbg); }
+    //@}
+    /// @name LEA - load effective address
+    //@{
+    const Def* lea(const Def* ptr, const Def* index, Debug dbg);
+    const Def* unsafe_lea(const Def* ptr, const Def* index, Debug dbg) { return lea(ptr, cast(ptr->type()->as<PtrType>()->pointee()->arity(), index, dbg), dbg); }
     //@}
     /// @name Literal
     //@{
@@ -184,9 +191,9 @@ public:
     //@}
     /// @name Literal: Arrity and Index
     //@{
+    const Lit* lit_index_0() { return lit_index_0_; } ///< equivalent to <tt>()</tt> (an empty tuple)
+    const Lit* lit_arity_1() { return lit_arity_1_; } ///< equivalent to <tt>[]</tt> (an empty sigma)
     const Lit* lit_arity(u64 a, Loc loc = {});
-    const Lit* lit_arity_0() { return lit_arity_[0]; }
-    const Lit* lit_arity_1() { return lit_arity_[1]; }
     const Lit* lit_index(u64 arity, u64 idx, Loc loc = {}) { return lit_index(lit_arity(arity), idx, loc); }
     const Lit* lit_index(const Lit* arity, u64 index, Loc loc = {});
     //@}
@@ -296,7 +303,6 @@ public:
     const Def* alloc(const Def* type, const Def* mem, Debug dbg = {});
     const Def* global(const Def* init, bool is_mutable = true, Debug dbg = {});
     const Def* global_immutable_string(const std::string& str, Debug dbg = {});
-    const Def* lea(const Def* ptr, const Def* index, Debug dbg);
     const Assembly* assembly(const Def* type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints,
                              ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg = {});
     const Assembly* assembly(Defs types, const Def* mem, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints,
@@ -365,14 +371,14 @@ public:
         swap(w1.kind_arity_,   w2.kind_arity_);
         swap(w1.kind_multi_,   w2.kind_multi_);
         swap(w1.kind_star_,    w2.kind_star_);
-        swap(w1.sigma_,        w2.sigma_);
         swap(w1.bot_,          w2.bot_);
         swap(w1.mem_,          w2.mem_);
         swap(w1.frame_,        w2.frame_);
         swap(w1.type_nat_,     w2.type_nat_);
         swap(w1.lit_nat_0_,    w2.lit_nat_0_);
         swap(w1.lit_nat_,      w2.lit_nat_);
-        swap(w1.lit_arity_,    w2.lit_arity_);
+        swap(w1.lit_arity_1_,  w2.lit_arity_1_);
+        swap(w1.lit_index_0_,  w2.lit_index_0_);
         swap(w1.lit_bool_,     w2.lit_bool_);
         swap(w1.branch_,       w2.branch_);
         swap(w1.end_scope_,    w2.end_scope_);
@@ -495,7 +501,6 @@ private:
     const Kind* kind_arity_;
     const Kind* kind_multi_;
     const Kind* kind_star_;
-    const Sigma* sigma_;
     const BotTop* bot_;
     const MemType* mem_;
     const FrameType* frame_;
@@ -503,7 +508,8 @@ private:
     const Lit* lit_nat_0_;
     std::array<const Lit*, 2> lit_bool_;
     std::array<const Lit*, 7> lit_nat_;
-    std::array<const Lit*, 2> lit_arity_;
+    const Lit* lit_arity_1_;
+    const Lit* lit_index_0_;
     union {
         struct {
 #define THORIN_ALL_TYPE(T, M) const PrimType* T##_;

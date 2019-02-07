@@ -72,17 +72,12 @@ public:
         breakpoints_   = breakpoints_;
 #endif
     }
-
     ~World();
-    /// Creates a new empty world that inherits all other properties from this World.
-    World stub();
 
     // getters
-    bool empty() { return externals().empty(); }
     Debug debug() const { return debug_; }
     const DefSet& defs() const { return defs_; }
     std::vector<Lam*> copy_lams() const;
-    const LamSet& externals() const { return externals_; }
 
     /// @name manage global identifier - a unique number for each Def
     //@{
@@ -331,21 +326,34 @@ public:
 
     void mark_pe_done(bool flag = true) { pe_done_ = flag; }
     bool is_pe_done() const { return pe_done_; }
+
+    /// @name manage externals
+    //@{
+    bool empty() { return externals().empty(); }
+    const LamSet& externals() const { return externals_; }
     void add_external(Lam* lam) { externals_.insert(lam); }
     void remove_external(Lam* lam) { externals_.erase(lam); }
     bool is_external(const Lam* lam) { return externals().contains(const_cast<Lam*>(lam)); }
+    //@}
+
 #if THORIN_ENABLE_CHECKS
+    /// @name debugging features
+    //@{
     void breakpoint(size_t number) { breakpoints_.insert(number); }
     const Breakpoints& breakpoints() const { return breakpoints_; }
     void swap_breakpoints(World& other) { swap(this->breakpoints_, other.breakpoints_); }
     bool track_history() const { return track_history_; }
     void enable_history(bool flag = true) { track_history_ = flag; }
+    //@}
 #endif
 
+    /// @name stream
+    //@{
     // Note that we don't use overloading for the following methods in order to have them accessible from gdb.
     virtual std::ostream& stream(std::ostream&) const override; ///< Streams thorin to file @p out.
     void write_thorin(const char* filename) const;              ///< Dumps thorin to file with name @p filename.
     void thorin() const;                                        ///< Dumps thorin to a file with an auto-generated file name.
+    //@}
 
     friend void swap(World& w1, World& w2) {
         using std::swap;
@@ -466,7 +474,7 @@ private:
     template<class T>
     void dealloc(const T* def) {
         size_t num_bytes = num_bytes_of<T>(def->num_ops());
-        num_bytes = (num_bytes + (sizeof(void*) - 1)) & ~(sizeof(void*)-1);
+        num_bytes = align(num_bytes);
         def->~T();
         if (ptrdiff_t(buffer_index_ - num_bytes) > 0) // don't care otherwise
             buffer_index_-= num_bytes;

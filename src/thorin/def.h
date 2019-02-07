@@ -134,30 +134,43 @@ public:
         Term, Type, Kind, Universe
     };
 
-    /// @name get Sort
+    /// @name type, Sort
     //@{
+    const Def* type() const { assert(tag() != Node_Universe); return type_; }
+    unsigned order() const { assert(!is_term()); return order_; }
     Sort sort() const;
     bool is_term() const { return sort() == Sort::Term; }
     bool is_type() const { return sort() == Sort::Type; }
     bool is_kind() const { return sort() == Sort::Kind; }
     bool is_universe() const { return sort() == Sort::Universe; }
+    virtual const Def* arity() const;
     //@}
 
-    NodeTag tag() const { return (NodeTag)tag_; }
-    /// In Debug build if World::enable_history is true, this thing keeps the gid to track a history of gid%s.
-    Debug debug_history() const;
-    Debug& debug() const { return debug_; }
-    Loc loc() const { return debug_; }
-    Symbol name() const { return debug().name(); }
-
+    /// @name ops
+    //@{
     inline Defs ops() const { return Defs(num_ops_, ops_ptr()); }
     inline const Def* op(size_t i) const { return ops()[i]; }
     inline size_t num_ops() const { return num_ops_; }
-
-    /// @name setters
-    //@{
     void set(size_t i, const Def* def);
     void unset(size_t i);
+    //@}
+
+    /// @name uses
+    //@{
+    const Uses& uses() const { return uses_; }
+    Array<Use> copy_uses() const { return Array<Use>(uses_.begin(), uses_.end()); }
+    size_t num_uses() const { return uses().size(); }
+    //@}
+
+    /// @name Debug
+    //@{
+    Debug& debug() const { return debug_; }
+    Loc loc() const { return debug_; }
+    Symbol name() const { return debug().name(); }
+    /// name + "_" + gid
+    std::string unique_name() const;
+    /// In Debug build if World::enable_history is true, this thing keeps the gid to track a history of gid%s.
+    Debug debug_history() const;
     //@}
 
     /// @name cast for nominals
@@ -168,17 +181,10 @@ public:
 
     /// @name misc getters
     //@{
-    bool contains_lam() const { return contains_lam_; }
-    unsigned order() const { assert(!is_term()); return order_; }
-    uint64_t hash() const { return hash_; }
-    //@}
-
-    void dump() const;
-    const Uses& uses() const { return uses_; }
-    Array<Use> copy_uses() const { return Array<Use>(uses_.begin(), uses_.end()); }
-    size_t num_uses() const { return uses().size(); }
+    NodeTag tag() const { return (NodeTag)tag_; }
     size_t gid() const { return gid_; }
-    std::string unique_name() const;
+    bool contains_lam() const { return contains_lam_; }
+    uint64_t hash() const { return hash_; }
     World& world() const {
         if (tag()                 == Node_Universe) return *world_;
         if (type()->tag()         == Node_Universe) return *type()->world_;
@@ -186,20 +192,28 @@ public:
         assert(type()->type()->type()->tag() == Node_Universe);
         return *type()->type()->type()->world_;
     }
-    const Def* type() const { assert(tag() != Node_Universe); return type_; }
-    void replace(Tracker) const;
-    bool is_replaced() const { return substitute_ != nullptr; }
-
-    //@{ rebuild/stub
-    virtual const Def* rebuild(World&, const Def*, Defs) const = 0;
-    virtual Def* stub(World&, const Def*) const { THORIN_UNREACHABLE; }
     //@}
 
-    virtual const Def* arity() const;
+    /// @name replace
+    //@{
+    void replace(Tracker) const;
+    bool is_replaced() const { return substitute_ != nullptr; }
+    //@}
+
+    /// @name rebuild, stub, equal
+    //@{
+    virtual const Def* rebuild(World&, const Def*, Defs) const = 0;
+    virtual Def* stub(World&, const Def*) const { THORIN_UNREACHABLE; }
     virtual bool equal(const Def* other) const;
+    //@}
+
+    /// @name stream
+    //@{
+    void dump() const;
     virtual const char* op_name() const;
     virtual std::ostream& stream(std::ostream&) const;
     virtual std::ostream& stream_assignment(std::ostream&) const;
+    //@}
 
 protected:
     inline char* extra_ptr() { return reinterpret_cast<char*>(this) + sizeof(Def) + sizeof(const Def*)*num_ops(); }

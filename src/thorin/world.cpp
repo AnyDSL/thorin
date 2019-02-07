@@ -51,6 +51,9 @@ World::World(uint32_t cur_gid, Debug debug)
     lit_bool_[0] = lit(type_bool(), {false});
     lit_bool_[1] = lit(type_bool(), {true});
 
+    lit_arity_[0] = lit_arity(0);
+    lit_arity_[1] = lit_arity(1);
+
     lit_nat_0_   = lit_nat(0);
     for (size_t j = 0; j != lit_nat_.size(); ++j)
         lit_nat_[j] = lit_nat(1 << int64_t(j));
@@ -71,9 +74,9 @@ const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
     if (auto lam = callee->isa<Lam>()) {
         switch (lam->intrinsic()) {
             case Intrinsic::Branch: {
-                auto cond = extract(arg, 0_s);
-                auto t    = extract(arg, 1_s);
-                auto f    = extract(arg, 2_s);
+                auto cond = extract_(arg, 0_s);
+                auto t    = extract_(arg, 1_s);
+                auto f    = extract_(arg, 2_s);
                 if (auto lit = isa_lit<bool>(cond))
                     return app(*lit ? t : f, Defs{}, dbg);
                 if (t == f)
@@ -87,8 +90,8 @@ const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
                 if (args.size() == 2) return app(args[1], Defs{}, dbg);
                 if (auto lit = args[0]->isa<Lit>()) {
                     for (size_t i = 2; i < args.size(); i++) {
-                        if (extract(args[i], 0_s)->as<Lit>() == lit)
-                            return app(extract(args[i], 1), Defs{}, dbg);
+                        if (extract_(args[i], 0_s)->as<Lit>() == lit)
+                            return app(extract_(args[i], 1), Defs{}, dbg);
                     }
                     return app(args[1], Defs{}, dbg);
                 }
@@ -142,8 +145,8 @@ static bool fold_1_tuple(const Def* type, const Def* index) {
     return false;
 }
 
-const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
-    if (!agg->isa<Param>() /*HACK*/ && fold_1_tuple(agg->type(), index)) return agg;
+const Def* World::extract_(const Def* agg, const Def* index, Debug dbg) {
+    if (index->type() == lit_arity_1()) return agg;
 
     const Def* type;
     if (auto sigma = agg->type()->isa<Sigma>())
@@ -163,6 +166,7 @@ const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
         }
     }
 
+#if 0
     if (auto insert = agg->isa<Insert>()) {
         if (index == insert->index())
             return insert->value();
@@ -171,8 +175,13 @@ const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
                 return extract(insert->agg(), index, dbg);
         }
     }
+#endif
 
     return unify<Extract>(2, type, agg, index, dbg);
+}
+
+const Def* World::unsafe_extract(const Def* agg, const Def* index, Debug dbg) {
+    return extract_(agg, cast(agg->type()->arity(), index, dbg), dbg);
 }
 
 const Def* World::insert(const Def* agg, const Def* index, const Def* value, Debug dbg) {
@@ -340,27 +349,26 @@ const Lit* World::lit_arity(u64 a, Loc loc) {
 }
 
 const Lit* World::lit_index(const Lit* a, u64 i, Loc loc) {
-    auto arity = as_lit<u64>(a);
-    if (i < arity) {
-        auto cur = cur_gid();
-        auto result = lit(a, i, loc);
-
-        if (result->gid() >= cur) { // new literal -> build name
-            std::string s = std::to_string(i);
-            auto b = s.size();
-
-            // append utf-8 subscripts in reverse order
-            for (size_t aa = arity; aa > 0; aa /= 10)
-                ((s += char(char(0x80) + char(aa % 10))) += char(0x82)) += char(0xe2);
-
-            std::reverse(s.begin() + b, s.end());
-            result->debug().set(s);
-        }
-
-        return result;
-    } else {
+    auto arity = a->box().get<u64>();
+    if (i >= arity)
         errorf("index literal '{}' does not fit within arity '{}'", i, a);
+
+    auto cur = cur_gid();
+    auto result = lit(a, i, loc);
+
+    if (result->gid() >= cur) { // new literal -> build name
+        std::string s = std::to_string(i);
+        auto b = s.size();
+
+        // append utf-8 subscripts in reverse order
+        for (size_t aa = arity; aa > 0; aa /= 10)
+            ((s += char(char(0x80) + char(aa % 10))) += char(0x82)) += char(0xe2);
+
+        std::reverse(s.begin() + b, s.end());
+        result->debug().set(s);
     }
+
+    return result;
 }
 
 
@@ -752,7 +760,7 @@ const Def* World::convert(const Def* dst_type, const Def* src, Debug dbg) {
 
         Array<const Def*> new_tuple(dst_sigma->num_ops());
         for (size_t i = 0, e = new_tuple.size(); i != e; ++i)
-            new_tuple[i] = convert(dst_type->op(i), extract(src, i, dbg), dbg);
+            new_tuple[i] = convert(dst_type->op(i), extract_(src, i, dbg), dbg);
 
         return tuple(dst_sigma, new_tuple, dbg);
     }
@@ -861,6 +869,9 @@ const Def* World::cast(const Def* to, const Def* from, Debug dbg) {
                 }
         }
     }
+
+    if (lit && is_arity(to))
+        return lit_index(as_lit<u64>(to), lit->box().get<u64>());
 
     return unify<Cast>(1, to, from, dbg);
 }

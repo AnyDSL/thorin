@@ -171,8 +171,10 @@ public:
     //@}
     /// @name Extract
     //@{
-    const Def* extract(const Def* tuple, const Def* index, Debug dbg = {});
-    const Def* extract(const Def* tuple, u32 index, Debug dbg = {}) { return extract(tuple, lit_qu32(index, dbg), dbg); }
+    const Def* extract_(const Def* agg, const Def* index, Debug dbg = {});
+    const Def* extract_(const Def* agg, u32 index, Debug dbg = {}) { return extract_(agg, lit_index(agg->type()->arity()->as<Lit>(), index, dbg), dbg); }
+    const Def* unsafe_extract(const Def* agg, const Def* index, Debug dbg = {});
+    const Def* unsafe_extract(const Def* agg, u64 index, Debug dbg = {}) { return unsafe_extract(agg, lit_qu64(index, dbg), dbg); }
     //@}
     /// @name Insert
     //@{
@@ -187,6 +189,8 @@ public:
     /// @name Literal: Arrity and Index
     //@{
     const Lit* lit_arity(u64 a, Loc loc = {});
+    const Lit* lit_arity_0() { return lit_arity_[0]; }
+    const Lit* lit_arity_1() { return lit_arity_[1]; }
     const Lit* lit_index(u64 arity, u64 idx, Loc loc = {}) { return lit_index(lit_arity(arity), idx, loc); }
     const Lit* lit_index(const Lit* arity, u64 index, Loc loc = {});
     //@}
@@ -230,9 +234,11 @@ public:
     const Def* bot_star(Loc dbg = {}) { return bot_top(false, kind_star(), dbg); }
     const Def* top_arity(Loc dbg = {}) { return bot_top(true,  kind_arity(), dbg); }
     //@}
-    // TODO group
+    /// @name Variant
+    //@{
     const VariantType* variant_type(Defs ops, Debug dbg = {}) { return unify<VariantType>(ops.size(), kind_star(), ops, dbg); }
     const Def* variant(const VariantType* variant_type, const Def* value, Debug dbg = {}) { return unify<Variant>(1, variant_type, value, dbg); }
+    //@}
 
     /// @name misc types
     //@{
@@ -367,6 +373,7 @@ public:
         swap(w1.type_nat_,     w2.type_nat_);
         swap(w1.lit_nat_0_,    w2.lit_nat_0_);
         swap(w1.lit_nat_,      w2.lit_nat_);
+        swap(w1.lit_arity_,    w2.lit_arity_);
         swap(w1.lit_bool_,     w2.lit_bool_);
         swap(w1.branch_,       w2.branch_);
         swap(w1.end_scope_,    w2.end_scope_);
@@ -497,6 +504,7 @@ private:
     const Lit* lit_nat_0_;
     std::array<const Lit*, 2> lit_bool_;
     std::array<const Lit*, 7> lit_nat_;
+    std::array<const Lit*, 2> lit_arity_;
     union {
         struct {
 #define THORIN_ALL_TYPE(T, M) const PrimType* T##_;

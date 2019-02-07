@@ -246,11 +246,7 @@ size_t App::num_args() const {
     return 1;
 }
 
-const Def* App::arg(size_t i) const {
-    if (arg()->type()->isa<Sigma>())
-        return callee()->world().extract(arg(), i);
-    return arg();
-}
+const Def* App::arg(size_t i) const { return callee()->world().extract_(arg(), i); }
 
 Array<const Def*> App::args() const {
     size_t n = num_args();
@@ -271,13 +267,7 @@ void Lam::destroy() {
 
 const Param* Lam::param(Debug dbg) const { return world().param(this->as_nominal<Lam>(), dbg); }
 void Lam::set_filter(Defs filter) { set_filter(world().tuple(filter)); }
-
-const Def* Lam::param(size_t i, Debug dbg) const {
-    if (param()->type()->isa<Sigma>())
-        return world().extract(param(), i, dbg);
-    assert(i == 0);
-    return param();
-}
+const Def* Lam::param(size_t i, Debug dbg) const { return world().extract_(param(), i, dbg); }
 
 Array<const Def*> Lam::params() const {
     size_t n = num_params();
@@ -293,11 +283,7 @@ size_t Lam::num_params() const {
     return 1;
 }
 
-const Def* Lam::filter(size_t i) const {
-    if (filter()->type()->isa<Sigma>())
-        return world().extract(filter(), i);
-    return filter();
-}
+const Def* Lam::filter(size_t i) const { return world().extract_(filter(), i); }
 
 Array<const Def*> Lam::filters() const {
     size_t n = num_filters();
@@ -577,7 +563,7 @@ const Def* Sigma              ::rebuild(World& to, const Def* t, Defs ops) const
 const Def* App                ::rebuild(World& to, const Def*  , Defs ops) const { return to.app(ops[0], ops[1], debug()); }
 const Def* BotTop             ::rebuild(World& to, const Def* t, Defs    ) const { return to.bot_top(is_top(this), t, debug()); }
 const Def* DefiniteArrayType  ::rebuild(World& to, const Def*  , Defs ops) const { return to.definite_array_type(ops[0], dim(), debug()); }
-const Def* Extract            ::rebuild(World& to, const Def*  , Defs ops) const { return to.extract(ops[0], ops[1], debug()); }
+const Def* Extract            ::rebuild(World& to, const Def*  , Defs ops) const { return to.extract_(ops[0], ops[1], debug()); }
 const Def* FrameType          ::rebuild(World& to, const Def*  , Defs    ) const { return to.frame_type(); }
 const Def* IndefiniteArrayType::rebuild(World& to, const Def*  , Defs ops) const { return to.indefinite_array_type(ops[0], debug()); }
 const Def* Insert             ::rebuild(World& to, const Def*  , Defs ops) const { return to.insert(ops[0], ops[1], ops[2], debug()); }
@@ -620,6 +606,31 @@ std::ostream& Universe           ::stream(std::ostream& os) const { return strea
 std::ostream& Var                ::stream(std::ostream& os) const { return streamf(os, "<{}:{}>", index(), type()); }
 std::ostream& Variadic           ::stream(std::ostream& os) const { return streamf(os, "«{}; {}»", arity(), body()); }
 std::ostream& VariantType        ::stream(std::ostream& os) const { return stream_type_ops(os << "variant", this); }
+
+std::ostream& Lit::stream(std::ostream& os) const {
+    if (!name().empty()) return os << name();
+
+    os << type() << ' ';
+    if (auto prim_type = type()->isa<PrimType>()) {
+        auto tag = prim_type->primtype_tag();
+
+        // print i8 as ints
+        switch (tag) {
+            case PrimType_qs8: return os << (int) box().get_qs8();
+            case PrimType_ps8: return os << (int) box().get_ps8();
+            case PrimType_qu8: return os << (unsigned) box().get_qu8();
+            case PrimType_pu8: return os << (unsigned) box().get_pu8();
+            default:
+                switch (tag) {
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return os << box().get_##M();
+#include "thorin/tables/primtypetable.h"
+                    default: THORIN_UNREACHABLE;
+                }
+        }
+    } else {
+        return os << box().get_u64();
+    }
+}
 
 std::ostream& BotTop::stream(std::ostream& os) const {
     auto op = is_bot(this) ? "⊥" : "⊤";

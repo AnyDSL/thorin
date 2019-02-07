@@ -141,7 +141,7 @@ static Lam* unwrap_def(Def2Def& wrapped, Def2Def& unwrapped, const Def* new_def,
         if (auto sigma = param->type()->isa<Sigma>()) {
             if (sigma->num_ops() <= max_tuple_size) {
                 for (size_t k = 0, e = sigma->num_ops(); k != e; ++k)
-                    call_args[j++] = world.extract(param, k);
+                    call_args[j++] = world.extract_(param, k);
             } else
                 call_args[j++] = param;
         } else if (auto cn = param->type()->isa<Pi>()) {

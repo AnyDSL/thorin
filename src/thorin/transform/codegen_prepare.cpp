@@ -54,7 +54,7 @@ void codegen_prepare(World& world) {
         std::vector<const Def*> ops;
         auto param = scope.entry()->param();
         for (size_t i = 0, n = param->type()->num_ops(); i < n; ++i) {
-            auto op = world.extract(param, world.lit_qu32(i));
+            auto op = scope.entry()->param(i);
             ops.push_back(op);
         }
         ops.back() = ret_cont;

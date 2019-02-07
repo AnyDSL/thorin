@@ -694,6 +694,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto to = convert(dst_type);
 
         if (conv->isa<Cast>()) {
+            if (is_arity(dst_type)) return from;
             if (auto variant_type = src_type->isa<VariantType>()) {
                 auto bits = compute_variant_bits(variant_type);
                 if (bits != 0) {
@@ -881,6 +882,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
     if (auto lit = def->isa<Lit>()) {
         llvm::Type* llvm_type = convert(lit->type());
         Box box = lit->box();
+        if (is_arity(lit->type())) return irbuilder_.getInt64(box.get<u64>());
 
         if (auto prim_type = lit->type()->isa<PrimType>()) {
             switch (prim_type->primtype_tag()) {
@@ -1030,6 +1032,10 @@ llvm::Type* CodeGen::convert(const Def* type) {
 
     assert(!type->isa<MemType>());
     llvm::Type* llvm_type;
+
+    if (is_arity(type))
+        return types_[type] = irbuilder_.getInt64Ty();
+
     switch (type->tag()) {
         case PrimType_bool:                                                             llvm_type = irbuilder_. getInt1Ty();  break;
         case PrimType_ps8:  case PrimType_qs8:  case PrimType_pu8:  case PrimType_qu8:  llvm_type = irbuilder_. getInt8Ty();  break;

@@ -260,6 +260,7 @@ inline bool is_top (const Def* def) { return def->tag() == Node_Top; }
 inline bool is_kind_arity(const Def* def) { return def->tag() == Node_KindArity; }
 inline bool is_kind_multi(const Def* def) { return def->tag() == Node_KindMulti; }
 inline bool is_kind_star (const Def* def) { return def->tag() == Node_KindStar; }
+inline bool is_arity(const Def* def) { return is_kind_arity(def->type()); }
 
 class Universe : public Def {
 private:
@@ -641,7 +642,7 @@ private:
     {}
 
 public:
-    const Def* arity() const { return op(0); }
+    const Def* arity() const override { return op(0); }
     const Def* body() const { return op(1); }
     const Def* rebuild(World&, const Def*, Defs) const override;
     std::ostream& stream(std::ostream&) const override;

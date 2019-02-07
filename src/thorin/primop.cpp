@@ -138,29 +138,6 @@ std::ostream& PrimOp::stream(std::ostream& os) const {
         return os << unique_name();
 }
 
-std::ostream& Lit::stream(std::ostream& os) const {
-    os << type() << ' ';
-    if (auto prim_type = type()->isa<PrimType>()) {
-        auto tag = prim_type->primtype_tag();
-
-        // print i8 as ints
-        switch (tag) {
-            case PrimType_qs8: return os << (int) box().get_qs8();
-            case PrimType_ps8: return os << (int) box().get_ps8();
-            case PrimType_qu8: return os << (unsigned) box().get_qu8();
-            case PrimType_pu8: return os << (unsigned) box().get_pu8();
-            default:
-                switch (tag) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return os << box().get_##M();
-#include "thorin/tables/primtypetable.h"
-                    default: THORIN_UNREACHABLE;
-                }
-        }
-    } else {
-        return os << box().get_u64();
-    }
-}
-
 std::ostream& Global::stream(std::ostream& os) const { return os << unique_name(); }
 
 std::ostream& Assembly::stream_assignment(std::ostream& os) const {
@@ -187,10 +164,7 @@ std::string DefiniteArray::as_string() const {
     return res;
 }
 
-const Def* PrimOp::out(size_t i) const {
-    assert(i == 0 || i < type()->as<Sigma>()->num_ops());
-    return world().extract(this, i, debug());
-}
+const Def* PrimOp::out(size_t i) const { return world().extract_(this, i, debug()); }
 
 //------------------------------------------------------------------------------
 

@@ -594,7 +594,7 @@ static std::ostream& stream_type_ops(std::ostream& os, const Def* type) {
 
 std::ostream& App                ::stream(std::ostream& os) const { return streamf(os, "{} {}", callee(), arg()); }
 std::ostream& FrameType          ::stream(std::ostream& os) const { return streamf(os, "frame"); }
-std::ostream& Kind               ::stream(std::ostream& os) const { return streamf(os, "*"); }
+std::ostream& Kind               ::stream(std::ostream& os) const { return streamf(os, "{}", name()); }
 std::ostream& MemType            ::stream(std::ostream& os) const { return streamf(os, "mem"); }
 std::ostream& Pack               ::stream(std::ostream& os) const { return streamf(os, "‹{}; {}›", type()->arity(), body()); }
 std::ostream& Universe           ::stream(std::ostream& os) const { return streamf(os, "□"); }
@@ -629,7 +629,9 @@ std::ostream& Lit::stream(std::ostream& os) const {
 
 std::ostream& BotTop::stream(std::ostream& os) const {
     auto op = is_bot(this) ? "⊥" : "⊤";
-    return is_kind_star(type()) ? os << op : streamf(os, "{{{}: {}}}", op, type());
+    if (type()->is_kind())
+        return streamf(os, "{}{}", op, type());
+    return streamf(os, "{{{}: {}}}", op, type());
 }
 
 #if 0

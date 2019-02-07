@@ -168,14 +168,14 @@ public:
     /// @name Extract
     //@{
     const Def* extract(const Def* agg, const Def* i, Debug dbg = {});
-    const Def* extract(const Def* agg, u32 i, Debug dbg = {}) { return extract(agg, lit_index(agg->type()->arity()->as<Lit>(), i, dbg), dbg); }
+    const Def* extract(const Def* agg, u32 i, Debug dbg = {}) { return extract(agg, lit_index(agg->type()->arity(), i, dbg), dbg); }
     const Def* unsafe_extract(const Def* agg, const Def* i, Debug dbg = {}) { return extract(agg, cast(agg->type()->arity(), i, dbg), dbg); }
     const Def* unsafe_extract(const Def* agg, u64 i, Debug dbg = {}) { return unsafe_extract(agg, lit_qu64(i, dbg), dbg); }
     //@}
     /// @name Insert
     //@{
     const Def* insert(const Def* agg, const Def* i, const Def* value, Debug dbg = {});
-    const Def* insert(const Def* agg, u32 i, const Def* value, Debug dbg = {}) { return insert(agg, lit_index(agg->type()->arity()->as<Lit>(), i, dbg), value, dbg); }
+    const Def* insert(const Def* agg, u32 i, const Def* value, Debug dbg = {}) { return insert(agg, lit_index(agg->type()->arity(), i, dbg), value, dbg); }
     const Def* unsafe_insert(const Def* agg, const Def* i, const Def* value, Debug dbg = {}) { return insert(agg, cast(agg->type()->arity(), i, dbg), value, dbg); }
     const Def* unsafe_insert(const Def* agg, u32 i, const Def* value, Debug dbg = {}) { return unsafe_insert(agg, lit_qu64(i, dbg), value, dbg); }
     //@}
@@ -195,7 +195,7 @@ public:
     const Lit* lit_arity_1() { return lit_arity_1_; } ///< equivalent to <tt>[]</tt> (an empty sigma)
     const Lit* lit_arity(u64 a, Loc loc = {});
     const Lit* lit_index(u64 arity, u64 idx, Loc loc = {}) { return lit_index(lit_arity(arity), idx, loc); }
-    const Lit* lit_index(const Lit* arity, u64 index, Loc loc = {});
+    const Lit* lit_index(const Def* arity, u64 index, Loc loc = {});
     //@}
     /// @name Literal: Nat
     //@{
@@ -234,8 +234,8 @@ public:
     const Def* top(const Def* type, Loc dbg = {}) { return bot_top(true,  type, dbg); }
     const Def* bot(PrimTypeTag tag, Loc dbg = {}) { return bot_top(false, type(tag), dbg); }
     const Def* top(PrimTypeTag tag, Loc dbg = {}) { return bot_top( true, type(tag), dbg); }
-    const Def* bot_star(Loc dbg = {}) { return bot_top(false, kind_star(), dbg); }
-    const Def* top_arity(Loc dbg = {}) { return bot_top(true,  kind_arity(), dbg); }
+    const Def* bot_star () { return bot_star_; }
+    const Def* top_arity() { return top_arity_; }
     //@}
     /// @name Variant
     //@{
@@ -371,7 +371,8 @@ public:
         swap(w1.kind_arity_,   w2.kind_arity_);
         swap(w1.kind_multi_,   w2.kind_multi_);
         swap(w1.kind_star_,    w2.kind_star_);
-        swap(w1.bot_,          w2.bot_);
+        swap(w1.bot_star_,     w2.bot_star_);
+        swap(w1.top_arity_,    w2.top_arity_);
         swap(w1.mem_,          w2.mem_);
         swap(w1.frame_,        w2.frame_);
         swap(w1.type_nat_,     w2.type_nat_);
@@ -501,7 +502,8 @@ private:
     const Kind* kind_arity_;
     const Kind* kind_multi_;
     const Kind* kind_star_;
-    const BotTop* bot_;
+    const BotTop* bot_star_;
+    const BotTop* top_arity_;
     const MemType* mem_;
     const FrameType* frame_;
     const PrimType* type_nat_;

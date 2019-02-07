@@ -39,7 +39,8 @@ World::World(uint32_t cur_gid, Debug debug)
     , kind_arity_(insert<Kind>(0, *this, Node_KindArity))
     , kind_multi_(insert<Kind>(0, *this, Node_KindMulti))
     , kind_star_ (insert<Kind>(0, *this, Node_KindStar))
-    , bot_       (insert<BotTop>(0, false, kind_star_, Debug{"<⊥:*>"}))
+    , bot_star_  (insert<BotTop>(0, false, kind_star_, Debug{"<⊥:*>"}))
+    , top_arity_ (insert<BotTop>(0, true, kind_arity_, Debug{"⊤ₐ"}))
     , mem_       (insert<MemType  >(0, *this))
     , frame_     (insert<FrameType>(0, *this))
     , type_nat_  (insert<PrimType>(0, *this, /*HACK*/(PrimTypeTag)Node_Nat, Debug{"nat"}))
@@ -330,12 +331,21 @@ const Lit* World::lit_arity(u64 a, Loc loc) {
     return result;
 }
 
-const Lit* World::lit_index(const Lit* a, u64 i, Loc loc) {
-    auto arity = a->box().get<u64>();
+const Lit* World::lit_index(const Def* a, u64 i, Loc loc) {
+    auto cur = cur_gid();
+
+    if (is_top(a)) {
+        auto result = lit(a, i, loc);
+        if (result->gid() >= cur) { // new literal -> build name
+            result->debug().set(std::to_string(i) + "T");
+        }
+        return result;
+    }
+
+    auto arity = as_lit<u64>(a);
     if (i >= arity)
         errorf("index literal '{}' does not fit within arity '{}'", i, a);
 
-    auto cur = cur_gid();
     auto result = lit(a, i, loc);
 
     if (result->gid() >= cur) { // new literal -> build name
@@ -853,7 +863,7 @@ const Def* World::cast(const Def* to, const Def* from, Debug dbg) {
     }
 
     if (lit && is_arity(to))
-        return lit_index(as_lit<u64>(to), lit->box().get<u64>());
+        return lit_index(to, lit->box().get<u64>());
 
     return unify<Cast>(1, to, from, dbg);
 }

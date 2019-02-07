@@ -835,8 +835,8 @@ llvm::Value* CodeGen::emit(const Def* def) {
             // Assemblys with more than two outputs are MemOps and have tuple type
             // and thus need their own rule here because the standard MemOp rule does not work
             if (auto assembly = extract->agg()->isa<Assembly>()) {
-                if (assembly->type()->num_ops() > 2 && primlit_value<unsigned>(aggop->index()) != 0)
-                    return irbuilder_.CreateExtractValue(llvm_agg, {primlit_value<unsigned>(aggop->index()) - 1});
+                if (assembly->type()->num_ops() > 2 && as_lit<u64>(aggop->index()) != 0)
+                    return irbuilder_.CreateExtractValue(llvm_agg, {as_lit<u32>(aggop->index()) - 1});
             }
 
             if (auto memop = extract->agg()->isa<MemOp>())
@@ -846,7 +846,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
                 return irbuilder_.CreateLoad(copy_to_alloca_or_global());
 
             // tuple/struct
-            return irbuilder_.CreateExtractValue(llvm_agg, {primlit_value<unsigned>(aggop->index())});
+            return irbuilder_.CreateExtractValue(llvm_agg, {as_lit<u32>(aggop->index())});
         }
 
         auto insert = def->as<Insert>();
@@ -858,7 +858,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
             return irbuilder_.CreateLoad(p.first);
         }
         // tuple/struct
-        return irbuilder_.CreateInsertValue(llvm_agg, value, {primlit_value<unsigned>(aggop->index())});
+        return irbuilder_.CreateInsertValue(llvm_agg, value, {as_lit<u32>(aggop->index())});
     }
 
     if (auto variant = def->isa<Variant>()) {
@@ -945,7 +945,7 @@ llvm::Value* CodeGen::emit_store(const Store* store) {
 
 llvm::Value* CodeGen::emit_lea(const LEA* lea) {
     if (lea->ptr_pointee()->isa<Sigma>())
-        return irbuilder_.CreateStructGEP(convert(lea->ptr_pointee()), lookup(lea->ptr()), primlit_value<u32>(lea->index()));
+        return irbuilder_.CreateStructGEP(convert(lea->ptr_pointee()), lookup(lea->ptr()), as_lit<u64>(lea->index()));
 
     assert(lea->ptr_pointee()->isa<ArrayType>());
     llvm::Value* args[2] = { irbuilder_.getInt64(0), lookup(lea->index()) };

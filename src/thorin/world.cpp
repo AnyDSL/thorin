@@ -201,10 +201,10 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, Deb
     // TODO double-check
     if (agg->isa<Tuple>() || agg->isa<DefiniteArray>()) {
         if (auto lit = index->isa<Lit>()) {
-            if (primlit_value<u64>(lit) < agg->num_ops()) {
+            if (as_lit<u64>(lit) < agg->num_ops()) {
                 Array<const Def*> args(agg->num_ops());
                 std::copy(agg->ops().begin(), agg->ops().end(), args.begin());
-                args[primlit_value<u64>(lit)] = value;
+                args[as_lit<u64>(lit)] = value;
                 return agg->rebuild(*this, agg->type(), args);
             } else {
                 return bot(agg->type(), dbg);
@@ -340,7 +340,7 @@ const Lit* World::lit_arity(u64 a, Loc loc) {
 }
 
 const Lit* World::lit_index(const Lit* a, u64 i, Loc loc) {
-    auto arity = *get_constant_arity(a);
+    auto arity = as_lit<u64>(a);
     if (i < arity) {
         auto cur = cur_gid();
         auto result = lit(a, i, loc);
@@ -543,7 +543,7 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
             }
         }
 
-        if (rlit && primlit_value<uint64_t>(rlit) >= uint64_t(num_bits(type))) {
+        if (rlit && as_lit<u64>(rlit) >= uint64_t(num_bits(type))) {
             switch (tag) {
                 case ArithOp_shl:
                 case ArithOp_shr: return bot(type, dbg);

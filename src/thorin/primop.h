@@ -33,17 +33,6 @@ protected:
 
 //------------------------------------------------------------------------------
 
-template<class T>
-T primlit_value(const Def* def) {
-    static_assert(std::is_integral<T>::value, "only integral types supported");
-    auto lit = def->as<Lit>();
-    switch (lit->type()->as<PrimType>()->primtype_tag()) {
-#define THORIN_I_TYPE(T, M) case PrimType_##T: return lit->box().get_##T();
-#include "thorin/tables/primtypetable.h"
-        default: THORIN_UNREACHABLE;
-    }
-}
-
 /// Akin to <tt>cond ? tval : fval</tt>.
 class Select : public PrimOp {
 private:

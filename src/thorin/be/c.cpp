@@ -1047,7 +1047,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
         Array<std::string> outputs(out_size, std::string(""));
         for (auto use : assembly->uses()) {
             auto extract = use->as<Extract>();
-            size_t index = primlit_value<unsigned>(extract->index());
+            size_t index = as_lit<u64>(extract->index());
             if (index == 0)
                 continue;   // skip the mem
 

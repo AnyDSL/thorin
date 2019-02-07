@@ -327,12 +327,6 @@ template<class T> std::optional<T> isa_lit(const Def* def) {
 
 template<class T> T as_lit(const Def* def) { return def->as<Lit>()->box().get<T>(); }
 
-inline std::optional<u64> get_constant_arity(const Def* def) {
-    if (auto lit = def->isa<Lit>(); lit && is_kind_arity(lit->type()))
-        return {lit->box().get_u64()};
-    return {};
-}
-
 class Var : public Def {
 private:
     struct Extra { u64 index_; };

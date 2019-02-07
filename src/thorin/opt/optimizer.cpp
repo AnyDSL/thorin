@@ -47,6 +47,8 @@ const Def* Optimizer::rewrite(const Def* old_def) {
         return new_op;
     });
 
+    // only rebuild if necessary
+    // this is not only an optimization but also required because some structural defs are not hash-consed
     auto new_def = rebuild ? old_def->rebuild(world(), new_type, new_ops) : old_def;
 
     for (auto&& opt : opts_)

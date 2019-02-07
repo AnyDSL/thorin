@@ -24,14 +24,12 @@ const Def* Importer::import(Tracker odef) {
         old2new_[odef] = ndef;
     }
 
-    size_t size = odef->num_ops();
-    Array<const Def*> nops(size);
-    for (size_t i = 0; i != size; ++i)
-        nops[i] = import(odef->op(i));
+    auto num_ops = odef->num_ops();
+    Array<const Def*> nops(num_ops, [&](size_t i) { return import(odef->op(i)); });
 
-    if (ndef) {
-        for (size_t i = 0; i != size; ++i)
-            const_cast<Def*>(ndef)->set(i, nops[i]);
+    if (auto nominal = ndef->isa_nominal()) {
+        for (size_t i = 0; i != num_ops; ++i)
+            nominal->set(i, nops[i]);
         if (auto olam = odef->isa<Lam>()) { // TODO do sth smarter here
             if (olam->is_external())
                 ndef->as_nominal<Lam>()->make_external();

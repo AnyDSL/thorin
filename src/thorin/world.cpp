@@ -1094,8 +1094,7 @@ std::vector<Lam*> World::copy_lams() const {
  * optimizations
  */
 
-//void World::cleanup() { cleanup_world(*this); }
-void World::cleanup() { /*cleanup_world(*this); */ }
+void World::cleanup() { cleanup_world(*this); }
 
 void World::opt() {
     auto opt = std_optimizer(*this);

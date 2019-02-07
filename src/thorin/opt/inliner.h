@@ -8,10 +8,11 @@ namespace thorin {
 class Inliner : public Optimization {
 public:
     Inliner(Optimizer& optimizer)
-        : Optimization(optimizer, "Inliner")
+        : Optimization(optimizer)
     {}
 
     const Def* rewrite(const Def*) override;
+    void analyze(const Def*) override;
 
 private:
     size_t& uses(Lam* lam) { return uses_.emplace(lam, 0).first->second; }

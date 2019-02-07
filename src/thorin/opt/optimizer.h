@@ -11,19 +11,17 @@ class Optimizer;
 /// All Optimization%s that want to be registered in the super @p Optimizer must implement this interface.
 class Optimization {
 public:
-    Optimization(Optimizer& optimizer, const char* name)
+    Optimization(Optimizer& optimizer)
         : optimizer_(optimizer)
-        , name_(name)
     {}
     virtual ~Optimization() {}
 
-    const char* name() const { return name_;}
     Optimizer& optimizer() { return optimizer_; }
     virtual const Def* rewrite(const Def*) = 0;
+    virtual void analyze(const Def*) = 0;
 
 private:
     Optimizer& optimizer_;
-    const char* name_;
 };
 
 /**
@@ -42,23 +40,14 @@ public:
     void run();
     void enqueue(Def*);
     const Def* rewrite(const Def*);
-
-    const Def* lookup(const Def* old) {
-        // TODO path compression
-        while (auto def = old2new_.lookup(old)) {
-            if (*def == old) break;
-            old = *def;
-        }
-        return old;
-    }
+    void analyze(const Def*);
 
 private:
     World& world_;
     std::deque<std::unique_ptr<Optimization>> opts_;
     std::queue<Def*> nominals_;
     Def2Def old2new_;
-
-    friend void swap(Optimizer& a, Optimizer& b);
+    DefSet analyzed_; // TODO: merge with map above
 };
 
 Optimizer std_optimizer(World&);

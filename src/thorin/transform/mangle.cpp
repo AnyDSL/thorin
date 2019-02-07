@@ -44,6 +44,8 @@ Lam* Mangler::mangle() {
     auto cn = world().cn(param_types);
     new_entry_ = world().lam(cn, old_entry()->debug_history());
 
+    // HACK we wil remove this code anyway
+    bool all = true;
     // map params
     old2new_[old_entry()] = old_entry();
     for (size_t i = 0, j = 0, e = old_entry()->num_params(); i != e; ++i) {
@@ -51,11 +53,15 @@ Lam* Mangler::mangle() {
         if (!is_top(args_[i]))
             old2new_[old_param] = args_[i];
         else {
+            all = false;
             auto new_param = new_entry()->param(j++);
             old2new_[old_param] = new_param;
             new_param->debug().set(old_param->name());
         }
     }
+
+    if (all)
+        old2new_[old_entry()->param()] = world().tuple(args_);
 
     // map filter
     Array<const Def*> new_filter(new_entry()->num_params());

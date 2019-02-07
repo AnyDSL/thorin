@@ -5,33 +5,19 @@
 
 namespace thorin {
 
-#if 0
-void swap(Optimizer& a, Optimizer& b);
-    using std::swap;
-    swap(a.world_, b.world_);
-    swap(a.opts_,  b.opts_);
-}
-#endif
-
 void Optimizer::run() {
     auto externals = world().externals();
-
-    for (auto old_lam : externals)
-        enqueue(old_lam);
+    for (auto lam : externals)
+        enqueue(lam);
 
     while (!nominals_.empty()) {
         auto def = pop(nominals_);
 
-        auto num_ops = def->num_ops();
-        Array<const Def*> new_ops(num_ops, [&](size_t i) { return rewrite(def->op(i)); });
+        for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
+            def->set(i, rewrite(def->op(i)));
+            analyze(def->op(i));
+        }
 
-        for (size_t i = 0; i != num_ops; ++i)
-            def->set(i, new_ops[i]);
-    }
-
-    for (auto old_lam : externals) {
-        //old_lam->make_internal();
-        lookup(old_lam)->as_nominal<Lam>()->make_external();
     }
 }
 
@@ -48,7 +34,7 @@ void Optimizer::enqueue(Def* old_def) {
 }
 
 const Def* Optimizer::rewrite(const Def* old_def) {
-    if (auto nominal = old_def->isa_nominal()) enqueue(nominal);
+    if (old_def->isa_nominal()) return old_def;
     if (auto new_def = old2new_.lookup(old_def)) return *new_def;
 
     auto new_type = rewrite(old_def->type());
@@ -67,6 +53,17 @@ const Def* Optimizer::rewrite(const Def* old_def) {
         new_def = opt->rewrite(new_def);
 
     return old2new_[old_def] = new_def;
+}
+
+void Optimizer::analyze(const Def* def) {
+    if (auto nominal = def->isa_nominal()) return enqueue(nominal);
+    if (!analyzed_.emplace(def).second) return;
+
+    for (auto op : def->ops())
+        analyze(op);
+
+    for (auto&& opt : opts_)
+        opt->analyze(def);
 }
 
 Optimizer std_optimizer(World& world) {

@@ -27,9 +27,9 @@ const Def* Importer::import(Tracker odef) {
     auto num_ops = odef->num_ops();
     Array<const Def*> nops(num_ops, [&](size_t i) { return import(odef->op(i)); });
 
-    if (auto nominal = ndef->isa_nominal()) {
+    if (ndef) {
         for (size_t i = 0; i != num_ops; ++i)
-            nominal->set(i, nops[i]);
+            ndef->as_nominal()->set(i, nops[i]);
         if (auto olam = odef->isa<Lam>()) { // TODO do sth smarter here
             if (olam->is_external())
                 ndef->as_nominal<Lam>()->make_external();

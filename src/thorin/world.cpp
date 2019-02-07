@@ -1097,9 +1097,9 @@ std::vector<Lam*> World::copy_lams() const {
 void World::cleanup() { cleanup_world(*this); }
 
 void World::opt() {
-    auto opt = std_optimizer(*this);
-    opt.run();
-    return;
+    //auto opt = std_optimizer(*this);
+    //opt.run();
+    //return;
     cleanup();
     while (partial_evaluation(*this, true)); // lower2cff
     flatten_tuples(*this);

@@ -44,9 +44,6 @@ T primlit_value(const Def* def) {
     }
 }
 
-template<class T>
-T get(ArrayRef<T> array, const Def* def) { return array[primlit_value<size_t>(def)]; }
-
 /// Akin to <tt>cond ? tval : fval</tt>.
 class Select : public PrimOp {
 private:

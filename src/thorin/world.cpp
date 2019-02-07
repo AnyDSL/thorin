@@ -74,8 +74,8 @@ const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
                 auto cond = extract(arg, 0_s);
                 auto t    = extract(arg, 1_s);
                 auto f    = extract(arg, 2_s);
-                if (auto lit = cond->isa<Lit>())
-                    return app(lit->box().get_bool() ? t : f, Defs{}, dbg);
+                if (auto lit = isa_lit<bool>(cond))
+                    return app(*lit ? t : f, Defs{}, dbg);
                 if (t == f)
                     return app(t, Defs{}, dbg);
                 if (is_not(cond))
@@ -137,8 +137,8 @@ const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
 }
 
 static bool fold_1_tuple(const Def* type, const Def* index) {
-    if (auto lit = index->isa<Lit>())
-        return primlit_value<u64>(lit) == 0 && !type->isa<ArrayType>() && !type->isa<Sigma>();
+    if (auto lit = isa_lit<u64>(index))
+        return *lit == 0 && !type->isa<ArrayType>() && !type->isa<Sigma>();
     return false;
 }
 
@@ -147,7 +147,7 @@ const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
 
     const Def* type;
     if (auto sigma = agg->type()->isa<Sigma>())
-        type = get(sigma->ops(), index);
+        type = sigma->op(as_lit<u64>(index));
     else
         type = agg->type()->as<ArrayType>()->elem_type();
 
@@ -155,9 +155,9 @@ const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
     if (is_top(agg)) return top(type, dbg);
 
     if (agg->isa<Tuple>() || agg->isa<DefiniteArray>()) {
-        if (auto lit = index->isa<Lit>()) {
-            if (primlit_value<u64>(lit) < agg->num_ops())
-                return get(agg->ops(), lit);
+        if (auto lit = isa_lit<u64>(index)) {
+            if (*lit < agg->num_ops())
+                return agg->op(*lit);
             else
                 return bot(type, dbg);
         }
@@ -166,8 +166,8 @@ const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
     if (auto insert = agg->isa<Insert>()) {
         if (index == insert->index())
             return insert->value();
-        else if (index->template isa<Lit>()) {
-            if (insert->index()->template isa<Lit>())
+        else if (index->isa<Lit>()) {
+            if (insert->index()->isa<Lit>())
                 return extract(insert->agg(), index, dbg);
         }
     }
@@ -923,7 +923,7 @@ const Def* World::lea(const Def* ptr, const Def* index, Debug dbg) {
 
     const Def* type;
     if (auto sigma = ptr_pointee->isa<Sigma>()) {
-        type = this->ptr_type(get(sigma->ops(), index), ptr_type->addr_space());
+        type = this->ptr_type(sigma->op(as_lit<u64>(index)), ptr_type->addr_space());
     } else {
         auto array = ptr_pointee->as<ArrayType>();
         type = this->ptr_type(array->elem_type(), ptr_type->addr_space());

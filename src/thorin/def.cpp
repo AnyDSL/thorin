@@ -91,9 +91,10 @@ Lam* get_param_lam(const Def* def) {
     return def->as<Param>()->lam();
 }
 
+// TODO
 size_t get_param_index(const Def* def) {
     if (auto extract = def->isa<Extract>())
-        return primlit_value<u64>(extract->index()->as<Lit>());
+        return as_lit<size_t>(extract->index());
     assert(def->isa<Param>());
     return 0;
 }
@@ -546,7 +547,6 @@ FrameType::FrameType(World& world)
 
 const Def* Def  ::arity() const { return world().lit_arity(1); }
 const Def* Sigma::arity() const { return world().lit_arity(num_ops()); }
-const Def* Param::arity() const { return type()->arity(); }
 
 /*
  * equal

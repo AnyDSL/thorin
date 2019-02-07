@@ -267,6 +267,17 @@ private:
 
 static_assert(sizeof(Box) == sizeof(uint64_t), "Box has incorrect size in bytes");
 
+template <> inline s8  Box::get<s8 >() { return s8_; }
+template <> inline s16 Box::get<s16>() { return s16_; }
+template <> inline s32 Box::get<s32>() { return s32_; }
+template <> inline s64 Box::get<s64>() { return s64_; }
+template <> inline u8  Box::get<u8 >() { return u8_; }
+template <> inline u16 Box::get<u16>() { return u16_; }
+template <> inline u32 Box::get<u32>() { return u32_; }
+template <> inline u64 Box::get<u64>() { return u64_; }
+template <> inline f16 Box::get<f16>() { return f16_; }
+template <> inline f32 Box::get<f32>() { return f32_; }
+template <> inline f64 Box::get<f64>() { return f64_; }
 #define THORIN_ALL_TYPE(T, M) template <> inline T Box::get<T>() { return M##_; }
 #include "thorin/tables/primtypetable.h"
 

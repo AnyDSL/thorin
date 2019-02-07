@@ -1106,12 +1106,12 @@ std::ostream& CCodeGen::emit(const Def* def) {
 
         // string handling
         if (auto str_array = global->init()->isa<DefiniteArray>()) {
-            if (str_array->ops().back()->as<Lit>()->box().get_pu8() == pu8(0)) {
+            if (as_lit<pu8>(str_array->ops().back()) == pu8(0)) {
                 if (auto primtype = str_array->elem_type()->isa<PrimType>()) {
                     if (primtype->primtype_tag() == PrimType_pu8) {
                         std::string str = "\"";
                         for (auto op : str_array->ops().skip_back())
-                            str += op->as<Lit>()->box().get_pu8();
+                            str += as_lit<pu8>(op);
                         str += '"';
                         insert(def, str);
                         return func_impl_;

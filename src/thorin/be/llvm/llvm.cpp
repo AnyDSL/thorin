@@ -107,7 +107,7 @@ Lam* CodeGen::emit_atomic(Lam* lam) {
     if (!is_type_i(lam->app()->arg(3)->type()))
         EDEF(lam->app()->arg(3), "atomic only supported for integer types");
     // atomic tag: Xchg Add Sub And Nand Or Xor Max Min
-    u32 tag = lam->app()->arg(1)->as<Lit>()->box().get_qu32();
+    u32 tag = as_lit<u32>(lam->app()->arg(1));
     auto ptr = lookup(lam->app()->arg(2));
     auto val = lookup(lam->app()->arg(3));
     assert(int(llvm::AtomicRMWInst::BinOp::Xchg) <= int(tag) && int(tag) <= int(llvm::AtomicRMWInst::BinOp::UMin) && "unsupported atomic");
@@ -141,7 +141,7 @@ Lam* CodeGen::emit_reserve_shared(const Lam* lam, bool init_undef) {
     assert(lam->app()->num_args() == 3 && "required arguments are missing");
     if (!lam->app()->arg(1)->isa<Lit>())
         EDEF(lam->app()->arg(1), "reserve_shared: couldn't extract memory size");
-    auto num_elems = lam->app()->arg(1)->as<Lit>()->box().get_ps32();
+    auto num_elems = as_lit<ps32>(lam->app()->arg(1));
     auto l = lam->app()->arg(2)->as_nominal<Lam>();
     auto type = convert(lam->param(1)->type());
     // construct array type
@@ -1283,9 +1283,7 @@ Backends::Backends(World& world)
                 it_config->op(1)->isa<Lit>() &&
                 it_config->op(2)->isa<Lit>()) {
                 return std::make_unique<GPUKernelConfig>(std::tuple<int, int, int> {
-                    it_config->op(0)->as<Lit>()->box().get_qu32().data(),
-                    it_config->op(1)->as<Lit>()->box().get_qu32().data(),
-                    it_config->op(2)->as<Lit>()->box().get_qu32().data()
+                    as_lit<qu32>(it_config->op(0)), as_lit<qu32>(it_config->op(1)), as_lit<qu32>(it_config->op(2)),
                 }, has_restrict);
             }
             return std::make_unique<GPUKernelConfig>(std::tuple<int, int, int> { -1, -1, -1 }, has_restrict);

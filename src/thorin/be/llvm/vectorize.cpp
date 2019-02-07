@@ -81,7 +81,7 @@ Lam* CodeGen::emit_vectorize_lam(Lam* lam) {
 
     if (!lam->app()->arg(VectorizeArgs::Length)->isa<Lit>())
         EDEF(lam->app()->arg(VectorizeArgs::Length), "vector length must be known at compile-time");
-    u32 vector_length_constant = lam->app()->arg(VectorizeArgs::Length)->as<Lit>()->box().get_qu32();
+    u32 vector_length_constant = as_lit<u32>(lam->app()->arg(VectorizeArgs::Length));
     vec_todo_.emplace_back(vector_length_constant, emit_function_decl(kernel), simd_kernel_call);
 
     return lam->app()->arg(VectorizeArgs::Return)->as_nominal<Lam>();

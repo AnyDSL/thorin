@@ -319,6 +319,14 @@ public:
     friend class World;
 };
 
+template<class T> std::optional<T> isa_lit(const Def* def) {
+    if (auto lit = def->isa<Lit>())
+        return lit->box().get<T>();
+    return {};
+}
+
+template<class T> T as_lit(const Def* def) { return def->as<Lit>()->box().get<T>(); }
+
 inline std::optional<u64> get_constant_arity(const Def* def) {
     if (auto lit = def->isa<Lit>(); lit && is_kind_arity(lit->type()))
         return {lit->box().get_u64()};
@@ -566,7 +574,6 @@ private:
 public:
     Lam* lam() const { return op(0)->as_nominal<Lam>(); }
 
-    const Def* arity() const override;
     const Def* rebuild(World&, const Def*, Defs) const override;
 
     friend class World;

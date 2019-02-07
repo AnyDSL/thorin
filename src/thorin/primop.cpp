@@ -180,7 +180,7 @@ std::ostream& Assembly::stream_assignment(std::ostream& os) const {
 std::string DefiniteArray::as_string() const {
     std::string res;
     for (auto op : ops()) {
-        auto c = op->as<Lit>()->box().get_pu8();
+        auto c = as_lit<pu8>(op->as<Lit>());
         if (!c) break;
         res += c;
     }

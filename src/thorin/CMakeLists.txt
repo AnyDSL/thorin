@@ -23,8 +23,8 @@ set(THORIN_SOURCES
     analyses/scope.h
     analyses/verify.cpp
     analyses/verify.h
-    be/c.cpp
-    be/c.h
+    #be/c.cpp
+    #be/c.h
     opt/optimizer.cpp
     opt/optimizer.h
     opt/inliner.cpp

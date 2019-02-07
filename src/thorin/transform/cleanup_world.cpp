@@ -277,14 +277,16 @@ void Cleaner::within(const Def* def) {
 
 void Cleaner::clean_pe_info(std::queue<Lam*> queue, Lam* cur) {
     auto app = cur->app();
-    assert(app->arg(1)->type() == world().ptr_type(world().indefinite_array_type(world().type_pu8())));
+    assert(app->arg(1)->type() == world().ptr_type(world().unsafe_variadic(world().type_pu8())));
     auto next = app->arg(3);
-    auto msg = app->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<DefiniteArray>();
+    auto msg = app->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<Variadic>();
 
+#if 0
     assert(!is_const(app->arg(2)));
     IDEF(app->callee(), "pe_info not constant: {}: {}", msg->as_string(), app->arg(2));
     cur->app(next, {app->arg(0)}, app->debug());
     todo_ = true;
+#endif
 
     // always re-insert into queue because we've changed cur's jump
     queue.push(cur);

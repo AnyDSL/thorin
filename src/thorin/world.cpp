@@ -139,12 +139,7 @@ const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
     return ops.size() == 1 ? ops.front() : try_fold_aggregate(unify<Tuple>(ops.size(), type, ops, dbg));
 }
 
-static bool fold_1_tuple(const Def* type, const Def* index) {
-    if (auto lit = isa_lit<u64>(index))
-        return *lit == 0 && !type->isa<ArrayType>() && !type->isa<Sigma>();
-    return false;
-}
-
+#if 0
 const Def* World::extract_(const Def* agg, const Def* index, Debug dbg) {
     if (index->type() == lit_arity_1()) return agg;
 
@@ -223,6 +218,7 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, Deb
 
     return unify<Insert>(3, agg, index, value, dbg);
 }
+#endif
 
 const Def* World::variadic(const Def* arity, const Def* body, Debug dbg) {
     auto type = kind_star();
@@ -907,32 +903,18 @@ const Def* World::bitcast(const Def* to, const Def* from, Debug dbg) {
  * aggregate operations
  */
 
-const Def* World::definite_array(const Def* elem, Defs ops, Debug dbg) {
-    auto type = definite_array_type(elem, ops.size());
-#if THORIN_ENABLE_CHECKS
-    for (auto op : ops)
-        assert(op->type() == type->elem_type());
-#endif
-    return try_fold_aggregate(unify<DefiniteArray>(ops.size(), type, ops, dbg));
-}
-
-const Def* World::indefinite_array(const Def* elem, const Def* dim, Debug dbg) {
-    auto type = indefinite_array_type(elem);
-    return unify<IndefiniteArray>(1, type, dim, dbg);
-}
-
 const Def* World::slot(const Def* type, const Def* frame, Debug dbg) {
     return unify<Slot>(1, ptr_type(type), frame, dbg);
 }
 
+#if 0
 const Def* World::lea(const Def* ptr, const Def* index, Debug dbg) {
-    if (fold_1_tuple(ptr->type()->as<PtrType>()->pointee(), index))
-        return ptr;
-
     auto ptr_type = ptr->type()->as<PtrType>();
     auto ptr_pointee = ptr_type->pointee();
 
-    const Def* type;
+    if (ptr_pointee->arity() == lit_arity_1()) return ptr;
+
+    const Def* type = nullptr;
     if (auto sigma = ptr_pointee->isa<Sigma>()) {
         type = this->ptr_type(sigma->op(as_lit<u64>(index)), ptr_type->addr_space());
     } else {
@@ -942,6 +924,7 @@ const Def* World::lea(const Def* ptr, const Def* index, Debug dbg) {
 
     return unify<LEA>(2, type, ptr, index, dbg);
 }
+#endif
 
 const Def* World::select(const Def* cond, const Def* a, const Def* b, Debug dbg) {
     if (is_bot(cond) || is_bot(a) || is_bot(b)) return bot(a->type(), dbg);
@@ -978,10 +961,6 @@ const Def* World::load(const Def* mem, const Def* ptr, Debug dbg) {
     return unify<Load>(2, sigma({mem_type(), ptr->type()->as<PtrType>()->pointee()}), mem, ptr, dbg);
 }
 
-bool is_agg_const(const Def* def) {
-    return def->isa<DefiniteArray>() || def->isa<Tuple>();
-}
-
 const Def* World::store(const Def* mem, const Def* ptr, const Def* value, Debug dbg) {
     if (is_bot(value)) return mem;
     return unify<Store>(3, mem, ptr, value, dbg);
@@ -1013,7 +992,7 @@ const Def* World::global_immutable_string(const std::string& str, Debug dbg) {
         str_array[i] = lit_qu8(str[i], dbg);
     str_array.back() = lit_qu8('\0', dbg);
 
-    return global(definite_array(str_array, dbg), false, dbg);
+    return global(tuple(str_array, dbg), false, dbg);
 }
 
 const Assembly* World::assembly(const Def* type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg) {

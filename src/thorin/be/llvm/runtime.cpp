@@ -40,8 +40,7 @@ llvm::Function* Runtime::get(const char* name) {
 static bool contains_ptrtype(const Def* type) {
     switch (type->tag()) {
         case Node_PtrType:             return false;
-        case Node_IndefiniteArrayType: return contains_ptrtype(type->as<ArrayType>()->elem_type());
-        case Node_DefiniteArrayType:   return contains_ptrtype(type->as<DefiniteArrayType>()->elem_type());
+        case Node_Variadic:            return contains_ptrtype(type->as<Variadic>()->body());
         case Node_Pi:                  return false;
         case Node_Sigma: {
             // TODO deal with recursive sigmas
@@ -87,9 +86,7 @@ Lam* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std::st
 
         KernelArgType arg_type;
         llvm::Value*  void_ptr;
-        if (target_arg->type()->isa<DefiniteArrayType>() ||
-            target_arg->type()->isa<Sigma>()) {
-            // definite array | struct | tuple
+        if (target_arg->type()->isa<Variadic>() || target_arg->type()->isa<Sigma>()) {
             auto alloca = code_gen.emit_alloca(target_val->getType(), target_arg->name().str());
             builder_.CreateStore(target_val, alloca);
 

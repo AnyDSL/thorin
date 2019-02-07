@@ -153,6 +153,7 @@ public:
     const Def* variadic(ArrayRef<u64> a, const Def* body, Debug dbg = {}) {
         return variadic(Array<const Def*>(a.size(), [&](size_t i) { return lit_arity(a[i], dbg); }), body, dbg);
     }
+    const Def* unsafe_variadic(const Def* body, Debug dbg = {}) { return variadic(top_arity(), body, dbg); }
     //@}
     /// @name Tuple
     //@{
@@ -254,8 +255,6 @@ public:
     const MemType* mem_type() const { return mem_; }
     const FrameType* frame_type() const { return frame_; }
     const PtrType* ptr_type(const Def* pointee, AddrSpace addr_space = AddrSpace::Generic, Debug dbg = {}) { return unify<PtrType>(1, kind_star(), pointee, addr_space, dbg); }
-    const DefiniteArrayType*   definite_array_type(const Def* elem, u64 dim, Debug dbg = {}) { return unify<DefiniteArrayType>(1, kind_star(), elem, dim, dbg); }
-    const IndefiniteArrayType* indefinite_array_type(const Def* elem, Debug dbg = {}) { return unify<IndefiniteArrayType>(1, kind_star(), elem, dbg); }
     //@}
 
     /// @name ArithOps
@@ -288,14 +287,6 @@ public:
     const Def* cast(const Def* to, const Def* from, Debug dbg = {});
     const Def* bitcast(const Def* to, const Def* from, Debug dbg = {});
     //@}
-
-    // aggregate operations
-
-    //@{
-    const Def* definite_array(const Def* elem, Defs ops, Debug dbg = {});
-    /// Create definite_array with at least one element. The type of that element is the element type of the definite array.
-    const Def* definite_array(Defs ops, Debug dbg = {}) { assert(!ops.empty()); return definite_array(ops.front()->type(), ops, dbg); }
-    const Def* indefinite_array(const Def* elem, const Def* dim, Debug dbg = {});
 
     const Def* select(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
     const Def* size_of(const Def* type, Debug dbg = {});

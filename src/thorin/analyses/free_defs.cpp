@@ -38,6 +38,8 @@ DefSet free_defs(const Scope& scope, bool /*include_closures*/) {
                 }
             }
 
+#if 0
+            // WTF we should finallly get rid of this
             // HACK for bitcasting address spaces
             if (auto bitcast = def->isa<Bitcast>()) {
                 if (auto dst_ptr = bitcast->type()->isa<PtrType>()) {
@@ -51,6 +53,7 @@ DefSet free_defs(const Scope& scope, bool /*include_closures*/) {
                     }
                 }
             }
+#endif
 
             enqueue_ops(def);
         } else if (!scope.contains(def))

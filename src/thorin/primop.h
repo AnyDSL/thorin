@@ -151,39 +151,6 @@ private:
     friend class World;
 };
 
-/// Data constructor for a \p DefiniteArrayType.
-class DefiniteArray : public Def {
-private:
-    DefiniteArray(const Def* type, Defs args, Debug dbg)
-        : Def(Node_DefiniteArray, type, args, dbg)
-    {}
-
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
-
-public:
-    const DefiniteArrayType* type() const { return Def::type()->as<DefiniteArrayType>(); }
-    const Def* elem_type() const { return type()->elem_type(); }
-    std::string as_string() const;
-
-    friend class World;
-};
-
-/// Data constructor for an \p IndefiniteArrayType.
-class IndefiniteArray : public Def {
-private:
-    IndefiniteArray(const Def* type, const Def* dim, Debug dbg)
-        : Def(Node_IndefiniteArray, type, {dim}, dbg)
-    {}
-
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
-
-public:
-    const IndefiniteArrayType* type() const { return Def::type()->as<IndefiniteArrayType>(); }
-    const Def* elem_type() const { return type()->elem_type(); }
-
-    friend class World;
-};
-
 /// Data constructor for a @p VariantType.
 class Variant : public PrimOp {
 private:

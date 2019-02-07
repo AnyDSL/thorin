@@ -818,51 +818,6 @@ private:
     friend class World;
 };
 
-class ArrayType : public Def {
-protected:
-    ArrayType(int tag, const Def* type, const Def* elem_type, Debug dbg)
-        : Def((NodeTag)tag, type, {elem_type}, dbg)
-    {}
-
-public:
-    const Def* elem_type() const { return op(0); }
-};
-
-class IndefiniteArrayType : public ArrayType {
-public:
-    IndefiniteArrayType(const Def* type, const Def* elem_type, Debug dbg)
-        : ArrayType(Node_IndefiniteArrayType, type, elem_type, dbg)
-    {}
-
-    std::ostream& stream(std::ostream&) const override;
-
-private:
-    const Def* rebuild(World& to, const Def*, Defs ops) const override;
-
-    friend class World;
-};
-
-class DefiniteArrayType : public ArrayType {
-public:
-    struct Extra { u64 dim_; };
-
-    DefiniteArrayType(const Def* type, const Def* elem_type, u64 dim, Debug dbg)
-        : ArrayType(Node_DefiniteArrayType, type, elem_type, dbg)
-    {
-        extra<Extra>().dim_ = dim;
-        hash_ = hash_combine(hash_, dim);
-    }
-
-    u64 dim() const { return extra<Extra>().dim_; }
-    bool equal(const Def* other) const override;
-    std::ostream& stream(std::ostream&) const override;
-
-private:
-    const Def* rebuild(World& to, const Def*, Defs ops) const override;
-
-    friend class World;
-};
-
 uint64_t UseHash::hash(Use use) { return murmur3(uint64_t(use.index()) << 48_u64 | uint64_t(use->gid())); }
 
 bool is_unit(const Def*);

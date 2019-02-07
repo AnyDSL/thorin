@@ -15,9 +15,9 @@ struct IndexHash {
 };
 
 static void split(const Slot* slot) {
-    auto array_type = slot->alloced_type()->as<DefiniteArrayType>();
-    auto dim = array_type->dim();
-    auto elem_type = array_type->elem_type();
+    auto variadic = slot->alloced_type()->as<Variadic>();
+    auto dim = as_lit<u64>(variadic->arity());
+    auto elem_type = variadic->body();
 
     HashMap<u32, const Def*, IndexHash> new_slots;
     auto& world = slot->world();
@@ -40,7 +40,7 @@ static void split(const Slot* slot) {
             store->replace(in_mem);
         } else if (auto load = use->isa<Load>()) {
             auto in_mem = load->op(0);
-            auto array = world.bot(array_type, load->debug());
+            auto array = world.bot(variadic, load->debug());
             for (size_t i = 0, e = dim; i != e; ++i) {
                 auto tuple = world.load(in_mem, elem_slot(i), load->debug());
                 auto elem = world.extract_(tuple, 1_u32, load->debug());
@@ -53,8 +53,7 @@ static void split(const Slot* slot) {
 }
 
 static bool can_split(const Slot* slot) {
-    if (!slot->alloced_type()->isa<DefiniteArrayType>())
-        return false;
+    if (auto variadic = slot->alloced_type()->isa<Variadic>()) return variadic->arity()->isa<Lit>();
 
     // only accept LEAs with constant indices and loads and stores
     for (auto use : slot->uses()) {

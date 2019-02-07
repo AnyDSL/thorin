@@ -145,8 +145,8 @@ Lam* CodeGen::emit_reserve_shared(const Lam* lam, bool init_undef) {
     auto l = lam->app()->arg(2)->as_nominal<Lam>();
     auto type = convert(lam->param(1)->type());
     // construct array type
-    auto elem_type = l->param(1)->type()->as<PtrType>()->pointee()->as<ArrayType>()->elem_type();
-    auto smem_type = this->convert(lam->world().definite_array_type(elem_type, num_elems));
+    auto elem_type = l->param(1)->type()->as<PtrType>()->pointee()->as<Variadic>()->body();
+    auto smem_type = this->convert(lam->world().variadic(num_elems, elem_type));
     auto name = lam->unique_name();
     // NVVM doesn't allow '.' in global identifier
     std::replace(name.begin(), name.end(), '.', '_');

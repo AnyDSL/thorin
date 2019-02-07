@@ -27,7 +27,6 @@ SizeOf::SizeOf(const Def* def, Debug dbg)
 Assembly::Assembly(const Def* type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Flags flags, Debug dbg)
     : MemOp(Node_Assembly, type, inputs, dbg)
 {
-
     new (&extra<Extra>()) Extra();
     extra<Extra>().asm_template_ = asm_template;
     extra<Extra>().output_constraints_ = output_constraints;
@@ -36,9 +35,7 @@ Assembly::Assembly(const Def* type, Defs inputs, std::string asm_template, Array
     extra<Extra>().flags_ = flags;
 }
 
-Assembly::~Assembly() {
-    (&extra<Extra>())->~Extra();
-}
+Assembly::~Assembly() { (&extra<Extra>())->~Extra(); }
 
 //------------------------------------------------------------------------------
 
@@ -80,14 +77,6 @@ const Def* Alloc::rebuild(World& to, const Def* t, Defs ops) const {
 
 const Def* Assembly::rebuild(World& to, const Def* t, Defs ops) const {
     return to.assembly(t, ops, asm_template(), output_constraints(), input_constraints(), clobbers(), flags(), debug());
-}
-
-const Def* DefiniteArray::rebuild(World& to, const Def* t, Defs ops) const {
-    return to.definite_array(t->as<DefiniteArrayType>()->elem_type(), ops, debug());
-}
-
-const Def* IndefiniteArray::rebuild(World& to, const Def* t, Defs ops) const {
-    return to.indefinite_array(t->as<IndefiniteArrayType>()->elem_type(), ops[0], debug());
 }
 
 //------------------------------------------------------------------------------
@@ -149,20 +138,6 @@ std::ostream& Assembly::stream_assignment(std::ostream& os) const {
 }
 
 //------------------------------------------------------------------------------
-
-/*
- * misc
- */
-
-std::string DefiniteArray::as_string() const {
-    std::string res;
-    for (auto op : ops()) {
-        auto c = as_lit<pu8>(op->as<Lit>());
-        if (!c) break;
-        res += c;
-    }
-    return res;
-}
 
 const Def* PrimOp::out(size_t i) const { return world().extract_(this, i, debug()); }
 

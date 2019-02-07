@@ -548,10 +548,9 @@ bool Def::equal(const Def* other) const {
     return result;
 }
 
-bool DefiniteArrayType::equal(const Def* other) const { return Def::equal(other) && this->dim()        == other->as<DefiniteArrayType>()->dim(); }
-bool Lit              ::equal(const Def* other) const { return Def::equal(other) && this->box()        == other->as<Lit>()->box(); }
-bool PtrType          ::equal(const Def* other) const { return Def::equal(other) && this->addr_space() == other->as<PtrType>()->addr_space(); }
-bool Var              ::equal(const Def* other) const { return Def::equal(other) && this->index()      == other->as<Var>()->index(); }
+bool Lit    ::equal(const Def* other) const { return Def::equal(other) && this->box()        == other->as<Lit>()->box(); }
+bool PtrType::equal(const Def* other) const { return Def::equal(other) && this->addr_space() == other->as<PtrType>()->addr_space(); }
+bool Var    ::equal(const Def* other) const { return Def::equal(other) && this->index()      == other->as<Var>()->index(); }
 
 /*
  * rebuild
@@ -562,10 +561,8 @@ const Def* Lam                ::rebuild(World& to, const Def* t, Defs ops) const
 const Def* Sigma              ::rebuild(World& to, const Def* t, Defs ops) const { assert(!isa_nominal()); return to.sigma(t, ops, debug()); }
 const Def* App                ::rebuild(World& to, const Def*  , Defs ops) const { return to.app(ops[0], ops[1], debug()); }
 const Def* BotTop             ::rebuild(World& to, const Def* t, Defs    ) const { return to.bot_top(is_top(this), t, debug()); }
-const Def* DefiniteArrayType  ::rebuild(World& to, const Def*  , Defs ops) const { return to.definite_array_type(ops[0], dim(), debug()); }
 const Def* Extract            ::rebuild(World& to, const Def*  , Defs ops) const { return to.extract_(ops[0], ops[1], debug()); }
 const Def* FrameType          ::rebuild(World& to, const Def*  , Defs    ) const { return to.frame_type(); }
-const Def* IndefiniteArrayType::rebuild(World& to, const Def*  , Defs ops) const { return to.indefinite_array_type(ops[0], debug()); }
 const Def* Insert             ::rebuild(World& to, const Def*  , Defs ops) const { return to.insert(ops[0], ops[1], ops[2], debug()); }
 const Def* Kind               ::rebuild(World& to, const Def*  , Defs    ) const { return to.kind(tag()); }
 const Def* MemType            ::rebuild(World& to, const Def*  , Defs    ) const { return to.mem_type(); }
@@ -596,9 +593,7 @@ static std::ostream& stream_type_ops(std::ostream& os, const Def* type) {
 }
 
 std::ostream& App                ::stream(std::ostream& os) const { return streamf(os, "{} {}", callee(), arg()); }
-std::ostream& DefiniteArrayType  ::stream(std::ostream& os) const { return streamf(os, "«{}; {}»", dim(), elem_type()); }
 std::ostream& FrameType          ::stream(std::ostream& os) const { return streamf(os, "frame"); }
-std::ostream& IndefiniteArrayType::stream(std::ostream& os) const { return streamf(os, "«⊤; {}»", elem_type()); }
 std::ostream& Kind               ::stream(std::ostream& os) const { return streamf(os, "*"); }
 std::ostream& MemType            ::stream(std::ostream& os) const { return streamf(os, "mem"); }
 std::ostream& Pack               ::stream(std::ostream& os) const { return streamf(os, "‹{}; {}›", arity(), body()); }

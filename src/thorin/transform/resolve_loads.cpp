@@ -203,11 +203,11 @@ public:
                 auto ptr_from = bitcast->from()->type()->isa<PtrType>();
                 if (!ptr_to || !ptr_from)
                     return false;
-                auto array_to   = ptr_to->pointee()->isa<IndefiniteArrayType>();
-                auto array_from = ptr_from->pointee()->isa<DefiniteArrayType>();
-                if (!array_to || !array_from)
+                auto variadic_to   = ptr_to->pointee()->isa<Variadic>();
+                auto variadic_from = ptr_from->pointee()->isa<Variadic>();
+                if (!variadic_to || !variadic_from)
                     return false;
-                if (array_to->elem_type() != array_from->elem_type())
+                if (variadic_to->body() != variadic_from->body())
                     return false;
                 if (!are_ptr_uses_safe(use.def(), allow_load)) return false;
             } else if (!allow_load || !use->isa<Load>()) {

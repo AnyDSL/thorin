@@ -143,8 +143,8 @@ public:
     bool is_type() const { return sort() == Sort::Type; }
     bool is_kind() const { return sort() == Sort::Kind; }
     bool is_universe() const { return sort() == Sort::Universe; }
+    bool is_value() const { return is_value_; }
     virtual const Def* arity() const;
-    virtual bool is_value() const { return true; }
     //@}
 
     /// @name ops
@@ -221,8 +221,6 @@ protected:
     inline const char* extra_ptr() const { return const_cast<Def*>(this)->extra_ptr(); }
     template<class T> inline T& extra() { return reinterpret_cast<T&>(*extra_ptr()); }
     template<class T> inline const T& extra() const { return reinterpret_cast<const T&>(*extra_ptr()); }
-
-private:
     inline const Def** ops_ptr() const { return reinterpret_cast<const Def**>(reinterpret_cast<char*>(const_cast<Def*>(this + 1))); }
     void finalize();
 
@@ -234,6 +232,7 @@ private:
     };
     // TODO fine-tune bit fields
     unsigned tag_           : 10;
+    unsigned is_value_      :  1;
     unsigned nominal_       :  1;
     unsigned dependent_     :  1;
     unsigned contains_lam_  :  1;
@@ -243,8 +242,6 @@ private:
     mutable const Def* substitute_ = nullptr;
     mutable Uses uses_;
     mutable Debug debug_;
-
-protected:
     uint64_t hash_;
 
     friend struct DefHash;
@@ -270,7 +267,6 @@ private:
     {}
 
 public:
-    bool is_value() const override { return false; }
     const Def* rebuild(World&, const Def*, Defs) const override;
     Universe* stub(World&, const Def*) const override;
     std::ostream& stream(std::ostream&) const override;
@@ -297,7 +293,6 @@ private:
     {}
 
 public:
-    bool is_value() const override { return is_term(); }
     const Def* rebuild(World& to, const Def*, Defs ops) const override;
     std::ostream& stream(std::ostream&) const override;
 
@@ -316,7 +311,6 @@ private:
     }
 
 public:
-    bool is_value() const override { return is_term(); }
     Box box() const { return extra<Extra>().box_; }
     bool equal(const Def*) const override;
     const Def* rebuild(World& to, const Def*, Defs ops) const override;
@@ -347,7 +341,6 @@ private:
 public:
     u64 index() const { return extra<Extra>().index_; }
 
-    bool is_value() const override { return is_term(); }
     bool equal(const Def*) const override;
     const Def* rebuild(World&, const Def*, Defs) const override;
     std::ostream& stream(std::ostream&) const override;
@@ -373,7 +366,6 @@ public:
     bool is_basicblock() const { return order() == 1; }
     bool is_returning() const;
 
-    bool is_value() const override { return false; }
     std::ostream& stream(std::ostream&) const override;
     const Def* rebuild(World& to, const Def*, Defs ops) const override;
 
@@ -446,12 +438,14 @@ private:
     Lam(const Pi* pi, const Def* filter, const Def* body, Debug dbg)
         : Def(Node_Lam, pi, {filter, body}, dbg)
     {
+        is_value_ = true;
         extra<Extra>().cc_ = CC::C;
         extra<Extra>().intrinsic_ = Intrinsic::None;
     }
     Lam(const Pi* pi, CC cc, Intrinsic intrinsic, Debug dbg)
         : Def(Node_Lam, pi, 2, dbg)
     {
+        is_value_ = true;
         extra<Extra>().cc_ = cc;
         extra<Extra>().intrinsic_ = intrinsic;
     }
@@ -573,7 +567,6 @@ private:
 public:
     Lam* lam() const { return op(0)->as_nominal<Lam>(); }
 
-    bool is_value() const override { return is_term(); }
     const Def* rebuild(World&, const Def*, Defs) const override;
 
     friend class World;
@@ -617,7 +610,6 @@ private:
     {}
 
 public:
-    bool is_value() const override { return false; }
     const Def* arity() const override;
     const Def* rebuild(World& to, const Def*, Defs ops) const override;
     Sigma* stub(World&, const Def*) const override;
@@ -631,7 +623,9 @@ class Tuple : public Def {
 private:
     Tuple(const Def* type, Defs args, Debug dbg)
         : Def(Node_Tuple, type, args, dbg)
-    {}
+    {
+        is_value_ = true;
+    }
 
 public:
     const Def* rebuild(World& to, const Def* type, Defs ops) const override;
@@ -649,7 +643,6 @@ private:
 public:
     const Def* arity() const override { return op(0); }
     const Def* body() const { return op(1); }
-    bool is_value() const override { return false; }
     const Def* rebuild(World&, const Def*, Defs) const override;
     std::ostream& stream(std::ostream&) const override;
 
@@ -660,7 +653,9 @@ class Pack : public Def {
 private:
     Pack(const Def* type, const Def* body, Debug dbg)
         : Def(Node_Pack, type, {body}, dbg)
-    {}
+    {
+        is_value_ = true;
+    }
 
 public:
     const Def* body() const { return op(0); }
@@ -680,7 +675,6 @@ protected:
 public:
     const Def* agg() const { return op(0); }
     const Def* index() const { return op(1); }
-    bool is_value() const override { return is_term(); }
 
     friend class World;
 };
@@ -729,7 +723,6 @@ private:
     }
 
 private:
-    bool is_value() const override { return false; }
     const Def* rebuild(World& to, const Def*, Defs ops) const override;
     std::ostream& stream(std::ostream&) const override;
 
@@ -742,7 +735,6 @@ private:
     MemType(World& world);
 
 public:
-    bool is_value() const override { return false; }
     const Def* rebuild(World& to, const Def* type, Defs ops) const override;
     std::ostream& stream(std::ostream&) const override;
 
@@ -755,7 +747,6 @@ private:
     FrameType(World& world);
 
 public:
-    bool is_value() const override { return false; }
     const Def* rebuild(World& to, const Def*, Defs ops) const override;
     std::ostream& stream(std::ostream&) const override;
 
@@ -770,7 +761,6 @@ private:
 public:
     PrimTypeTag primtype_tag() const { return (PrimTypeTag) tag(); }
 
-    bool is_value() const override { return false; }
     const Def* rebuild(World& to, const Def*, Defs ops) const override;
     std::ostream& stream(std::ostream&) const override;
 
@@ -816,7 +806,6 @@ public:
     const Def* pointee() const { return op(0); }
     AddrSpace addr_space() const { return extra<Extra>().addr_space_; }
 
-    bool is_value() const override { return false; }
     bool equal(const Def* other) const override;
     std::ostream& stream(std::ostream&) const override;
     const Def* rebuild(World& to, const Def*, Defs ops) const override;

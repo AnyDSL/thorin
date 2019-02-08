@@ -4,6 +4,7 @@
 
 // Def
     THORIN_NODE(App, app)
+    THORIN_NODE(Axiom, axiom)
     THORIN_NODE(Bot, bot)
     THORIN_NODE(Extract, extract)
     THORIN_NODE(Insert, insert)

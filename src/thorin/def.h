@@ -837,9 +837,9 @@ public:
 
 class Rewrite : public Def {
 private:
-    struct Extra { uint32_t depth_; };
+    struct Extra { u32 depth_; };
 
-    Rewrite(const Def* type, const Def* def, const Def* from, const Def* to, uint32_t depth, Debug dbg)
+    Rewrite(const Def* type, const Def* def, const Def* from, const Def* to, u32 depth, Debug dbg)
         : Def(Node_Rewrite, type, {def, from, to}, dbg)
     {
         extra<Extra>().depth_ = depth;
@@ -850,7 +850,7 @@ public:
     const Def* def() const { return op(0); }
     const Def* from() const { return op(1); }
     const Def* to() const { return op(2); }
-    size_t depth() const { return extra<Extra>().depth_; }
+    u32 depth() const { return extra<Extra>().depth_; }
 
     bool equal(const Def* other) const override;
     std::ostream& stream(std::ostream&) const override;

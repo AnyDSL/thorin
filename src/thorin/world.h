@@ -307,8 +307,13 @@ public:
     const Def* select(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
     const Def* size_of(const Def* type, Debug dbg = {});
     //@}
-
-    // TODO right now not all of them are axioms
+    /// @name Rewrite
+    //@{
+    const Def* rewrite(const Def* type, const Def* def, const Def* from, const Def* to, u32 depth, Debug dbg = {}) { return unify<Rewrite>(3, type, def, from, to, depth, dbg = {}); }
+    /// Inherits the type of the @p Rewrite from @p def.
+    const Def* rewrite(const Def* def, const Def* from, const Def* to, u32 depth, Debug dbg = {}) { return rewrite(def->type(), from, to, depth, dbg); }
+    //@}
+    // TODO not all of them are axioms right now
     /// @name Axioms
     //@{
     Axiom* axiom(const Def* type, Normalizer, Debug dbg = {});

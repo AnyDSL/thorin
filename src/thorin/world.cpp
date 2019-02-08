@@ -831,6 +831,13 @@ const Def* World::bitcast(const Def* to, const Def* from, Debug dbg) {
     return unify<Bitcast>(1, to, from, dbg);
 }
 
+const Def* World::bot_top(bool is_top, const Def* type, Debug dbg) {
+    if (auto variadic = type->isa<Variadic>()) return pack(variadic->arity(), bot_top(is_top, variadic->body()), dbg);
+    if (auto sigma = type->isa<Sigma>())
+        return tuple(sigma, Array<const Def*>(sigma->num_ops(), [&](size_t i) { return bot_top(is_top, sigma->op(i), dbg); }), dbg);
+    return unify<BotTop>(0, is_top, type, dbg);
+}
+
 /*
  * aggregate operations
  */
@@ -896,6 +903,11 @@ const Def* World::load(const Def* mem, const Def* ptr, Debug dbg) {
 const Def* World::store(const Def* mem, const Def* ptr, const Def* val, Debug dbg) {
     if (is_bot(val)) return mem;
     if (auto pack = val->isa<Pack>(); pack && is_bot(pack->body())) return mem;
+    if (auto tuple = val->isa<Tuple>()) {
+        if (std::all_of(tuple->ops().begin(), tuple->ops().end(), [&](auto op) { return is_bot(op); }))
+            return mem;
+    }
+
     assert(ptr->type()->as<PtrType>()->pointee() == val->type());
     return unify<Store>(3, mem, ptr, val, dbg);
 }

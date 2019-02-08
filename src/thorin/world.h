@@ -132,13 +132,12 @@ public:
     const Def* sigma(const Def* type, Defs ops, Debug dbg = {});
     /// a @em structural @p Sigma of type @p star
     const Def* sigma(Defs ops, Debug dbg = {}) { return sigma(kind_star(), ops, dbg); }
-    const Sigma* sigma() { return sigma_; }
+    const Sigma* sigma() { return sigma_; } ///< the unit type within @p kind_star()
     //@}
     /// @name Sigma: nominal
     //@{
     Sigma* sigma(const Def* type, size_t size, Debug dbg = {}) { return insert<Sigma>(size, type, size, dbg); }
-    /// a @em nominal @p Sigma of type @p star
-    Sigma* sigma(size_t size, Debug dbg = {}) { return sigma(kind_star(), size, dbg); }
+    Sigma* sigma(size_t size, Debug dbg = {}) { return sigma(kind_star(), size, dbg); } ///< a @em nominal @p Sigma of type @p star
     //@}
     /// @name Variadic
     //@{
@@ -155,7 +154,7 @@ public:
     /// ascribes @p type to this tuple - needed for dependetly typed and structural @p Sigma%s
     const Def* tuple(const Def* type, Defs ops, Debug dbg = {});
     const Def* tuple(Defs ops, Debug dbg = {});
-    const Tuple* tuple() { return tuple_; }
+    const Tuple* tuple() { return tuple_; } ///< the unit value of type <tt>[]</tt>
     //@}
     /// @name Pack
     //@{
@@ -190,13 +189,16 @@ public:
     const Lit* lit(const Def* type, Box box, Debug dbg = {}) { return unify<Lit>(0, type, box, dbg); }
     const Lit* lit(PrimTypeTag tag, Box box, Loc loc = {}) { return lit(type(tag), box, loc); }
     //@}
-    /// @name Literal: Arrity and Index
+    /// @name Literal: Arity - note that this is a type
     //@{
-    const Lit* lit_index_0_1() { return lit_index_0_1_; }
-    const Lit* lit_arity_1() { return lit_arity_1_; }
     const Lit* lit_arity(u64 a, Loc loc = {});
+    const Lit* lit_arity_1() { return lit_arity_1_; } ///< unit arity 1ₐ
+    //@}
+    /// @name Literal: Index - the inhabitants of an Arity
+    //@{
     const Lit* lit_index(u64 arity, u64 idx, Loc loc = {}) { return lit_index(lit_arity(arity), idx, loc); }
     const Lit* lit_index(const Def* arity, u64 index, Loc loc = {});
+    const Lit* lit_index_0_1() { return lit_index_0_1_; } ///< unit index 0₁ of type unit arity 1ₐ
     //@}
     /// @name Literal: Nat
     //@{
@@ -236,7 +238,7 @@ public:
     const Def* bot(PrimTypeTag tag, Loc dbg = {}) { return bot_top(false, type(tag), dbg); }
     const Def* top(PrimTypeTag tag, Loc dbg = {}) { return bot_top( true, type(tag), dbg); }
     const Def* bot_star () { return bot_star_; }
-    const Def* top_arity() { return top_arity_; }
+    const Def* top_arity() { return top_arity_; } ///< use this guy to encode an unknown arity, e.g., for unsafe arrays
     //@}
     /// @name Variant
     //@{

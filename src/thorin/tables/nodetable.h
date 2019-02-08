@@ -55,6 +55,7 @@
         THORIN_NODE(Run, run)
         THORIN_NODE(Assembly, asm)
     THORIN_NODE(Param, param)
+    THORIN_NODE(Rewrite, rewrite)
     // Type
         // PrimType
 

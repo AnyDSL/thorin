@@ -835,6 +835,30 @@ public:
     friend class World;
 };
 
+class Rewrite : public Def {
+private:
+    struct Extra { uint32_t depth_; };
+
+    Rewrite(const Def* type, const Def* def, const Def* from, const Def* to, uint32_t depth, Debug dbg)
+        : Def(Node_Rewrite, type, {def, from, to}, dbg)
+    {
+        extra<Extra>().depth_ = depth;
+        hash_ = hash_combine(hash_, depth);
+    }
+
+public:
+    const Def* def() const { return op(0); }
+    const Def* from() const { return op(1); }
+    const Def* to() const { return op(2); }
+    size_t depth() const { return extra<Extra>().depth_; }
+
+    bool equal(const Def* other) const override;
+    std::ostream& stream(std::ostream&) const override;
+    const Def* rebuild(World& to, const Def*, Defs ops) const override;
+
+    friend class World;
+};
+
 uint64_t UseHash::hash(Use use) { return murmur3(uint64_t(use.index()) << 48_u64 | uint64_t(use->gid())); }
 
 bool is_unit(const Def*);

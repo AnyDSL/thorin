@@ -18,7 +18,8 @@ enum class Lang : uint8_t {
     OPENCL  ///< Flag for OpenCL
 };
 
-void emit_c(World&, const Cont2Config& kernel_config, std::ostream& stream, Lang lang, bool debug);
+inline void emit_c(World&, const Cont2Config&, std::ostream&, Lang, bool) {}
+//void emit_c(World&, const Cont2Config& kernel_config, std::ostream& stream, Lang lang, bool debug);
 
 }
 

@@ -100,7 +100,7 @@ Lam* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std::st
             auto ptr = target_arg->type()->as<PtrType>();
             auto rtype = ptr->pointee();
 
-            if (!rtype->isa<ArrayType>())
+            if (!rtype->isa<Variadic>())
                 EDEF(target_arg, "currently only pointers to arrays supported as kernel argument; argument has different type: {}", ptr);
 
             auto alloca = code_gen.emit_alloca(builder_.getInt8PtrTy(), target_arg->name().str());

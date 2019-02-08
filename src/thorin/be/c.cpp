@@ -1,3 +1,4 @@
+#if 0
 #include "thorin/primop.h"
 #include "thorin/world.h"
 #include "thorin/analyses/cfg.h"
@@ -1225,3 +1226,4 @@ void emit_c(World& world, const Cont2Config& kernel_config, std::ostream& stream
 //------------------------------------------------------------------------------
 
 }
+#endif

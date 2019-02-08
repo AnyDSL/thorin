@@ -577,12 +577,12 @@ llvm::Value* CodeGen::emit_alloc(const Def* type, const Def* extra) {
     auto alloced_type = convert(type);
     llvm::CallInst* void_ptr;
     auto layout = module_->getDataLayout();
-    if (auto array = type->isa<IndefiniteArrayType>()) {
+    if (auto variadic = type->isa<Variadic>(); variadic && is_top(variadic->arity())) {
         assert(extra);
         auto size = irbuilder_.CreateAdd(
                 irbuilder_.getInt64(layout.getTypeAllocSize(alloced_type)),
                 irbuilder_.CreateMul(irbuilder_.CreateIntCast(lookup(extra), irbuilder_.getInt64Ty(), false),
-                                     irbuilder_.getInt64(layout.getTypeAllocSize(convert(array->elem_type())))));
+                                     irbuilder_.getInt64(layout.getTypeAllocSize(convert(variadic->body())))));
         llvm::Value* malloc_args[] = { irbuilder_.getInt32(0), size };
         void_ptr = irbuilder_.CreateCall(llvm_malloc, malloc_args);
     } else {
@@ -776,6 +776,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         return irbuilder_.getInt32(layout.getTypeAllocSize(type));
     }
 
+#if 0
     if (auto array = def->isa<DefiniteArray>()) {
         auto type = llvm::cast<llvm::ArrayType>(convert(array->type()));
         if (is_const(array)) {
@@ -801,6 +802,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
     if (auto array = def->isa<IndefiniteArray>())
         return llvm::UndefValue::get(convert(array->type()));
+#endif
 
     if (auto tuple = def->isa<Tuple>()) {
         llvm::Value* llvm_agg = llvm::UndefValue::get(convert(tuple->type()));
@@ -843,7 +845,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
             if (auto memop = extract->agg()->isa<MemOp>())
                 return lookup(memop);
 
-            if (aggop->agg()->type()->isa<ArrayType>())
+            if (aggop->agg()->type()->isa<Variadic>())
                 return irbuilder_.CreateLoad(copy_to_alloca_or_global());
 
             // tuple/struct
@@ -853,7 +855,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto insert = def->as<Insert>();
         auto value = lookup(insert->value());
 
-        if (insert->agg()->type()->isa<ArrayType>()) {
+        if (insert->agg()->type()->isa<Variadic>()) {
             auto p = copy_to_alloca();
             irbuilder_.CreateStore(lookup(aggop->as<Insert>()->value()), p.second);
             return irbuilder_.CreateLoad(p.first);
@@ -949,7 +951,7 @@ llvm::Value* CodeGen::emit_lea(const LEA* lea) {
     if (lea->ptr_pointee()->isa<Sigma>())
         return irbuilder_.CreateStructGEP(convert(lea->ptr_pointee()), lookup(lea->ptr()), as_lit<u64>(lea->index()));
 
-    assert(lea->ptr_pointee()->isa<ArrayType>());
+    assert(lea->ptr_pointee()->isa<Variadic>());
     llvm::Value* args[2] = { irbuilder_.getInt64(0), lookup(lea->index()) };
     return irbuilder_.CreateInBoundsGEP(lookup(lea->ptr()), args);
 }
@@ -1050,14 +1052,13 @@ llvm::Type* CodeGen::convert(const Def* type) {
             llvm_type = llvm::PointerType::get(convert(ptr->pointee()), convert_addr_space(ptr->addr_space()));
             break;
         }
-        case Node_IndefiniteArrayType: {
-            llvm_type = llvm::ArrayType::get(convert(type->as<ArrayType>()->elem_type()), 0);
-            return types_[type] = llvm_type;
-        }
-        case Node_DefiniteArrayType: {
-            auto array = type->as<DefiniteArrayType>();
-            llvm_type = llvm::ArrayType::get(convert(array->elem_type()), array->dim());
-            return types_[type] = llvm_type;
+        case Node_Variadic: {
+            auto variadic = type->as<Variadic>();
+            auto elem_type = convert(variadic->body());
+            if (auto arity = isa_lit<u64>(variadic->arity()))
+                return types_[type] = llvm::ArrayType::get(elem_type, *arity);
+            else
+                return types_[type] = llvm::ArrayType::get(elem_type, 0);
         }
 
         case Node_Pi: {
@@ -1314,13 +1315,13 @@ Backends::Backends(World& world)
                 auto elem_type = ptr_type->pointee();
                 size_t multiplier = 1;
                 if (!elem_type->isa<PrimType>()) {
-                    if (auto array_type = elem_type->isa<ArrayType>())
-                        elem_type = array_type->elem_type();
+                    if (auto variadic = elem_type->isa<Variadic>())
+                        elem_type = variadic->body();
                 }
                 if (!elem_type->isa<PrimType>()) {
-                    if (auto def_array_type = elem_type->isa<DefiniteArrayType>()) {
-                        elem_type = def_array_type->elem_type();
-                        multiplier = def_array_type->dim();
+                    if (auto variadic = elem_type->isa<Variadic>(); variadic && variadic->arity()->isa<Lit>()) {
+                        elem_type = variadic->body();
+                        multiplier = as_lit<u64>(variadic->arity());
                     }
                 }
                 auto prim_type = elem_type->isa<PrimType>();

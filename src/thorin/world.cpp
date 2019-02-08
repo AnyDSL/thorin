@@ -41,6 +41,8 @@ World::World(uint32_t cur_gid, Debug debug)
     , kind_star_ (insert<Kind>(0, *this, Node_KindStar))
     , bot_star_  (insert<BotTop>(0, false, kind_star_, Debug{"<⊥:*>"}))
     , top_arity_ (insert<BotTop>(0, true, kind_arity_, Debug{"⊤ₐ"}))
+    , sigma_     (insert<Sigma>(0, kind_star_, Defs{}, Debug{})->as<Sigma>())
+    , tuple_     (insert<Tuple>(0, sigma_, Defs{}, Debug{})->as<Tuple>())
     , mem_       (insert<MemType  >(0, *this))
     , frame_     (insert<FrameType>(0, *this))
     , type_nat_  (insert<PrimType>(0, *this, /*HACK*/(PrimTypeTag)Node_Nat, Debug{"nat"}))
@@ -52,9 +54,7 @@ World::World(uint32_t cur_gid, Debug debug)
     lit_bool_[1] = lit(type_bool(), {true});
 
     lit_arity_1_ = lit_arity(1);
-    lit_index_0_ = lit_index(lit_arity_1_, 0);
-    lit_arity_1_->debug().set("[]");
-    lit_index_0_->debug().set("()");
+    lit_index_0_1_ = lit_index(lit_arity_1_, 0);
 
     lit_nat_0_   = lit_nat(0);
     for (size_t j = 0; j != lit_nat_.size(); ++j)
@@ -119,7 +119,7 @@ const Pi* World::pi(const Def* domain, const Def* codomain, Debug dbg) {
 
 const Def* World::sigma(const Def* type, Defs ops, Debug dbg) {
     auto n = ops.size();
-    if (n == 0) return lit_arity_1();
+    if (n == 0) return sigma();
     if (n == 1) return ops[0];
     if (std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; }))
         return variadic(n, ops[0]);
@@ -145,7 +145,7 @@ const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
     if (type->isa_nominal()) return unify<Tuple>(ops.size(), type, ops, dbg);
 
     auto n = ops.size();
-    if (n == 0) return lit_index_0();
+    if (n == 0) return tuple();
     if (n == 1) return ops[0];
     if (std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; }))
         return pack(n, ops[0]);
@@ -180,7 +180,7 @@ const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
 const Def* World::insert(const Def* agg, const Def* index, const Def* value, Debug dbg) {
     if (index->type() == lit_arity_1()) return value;
 
-    // insert((a, b, c, d), 2, x) =(a, b, x, d)
+    // insert((a, b, c, d), 2, x) = (a, b, x, d)
     if (auto tup = agg->isa<Tuple>()) {
         Array<const Def*> new_ops = tup->ops();
         new_ops[as_lit<u64>(index)] = value;
@@ -207,7 +207,7 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, Deb
 
 const Def* World::variadic(const Def* arity, const Def* body, Debug dbg) {
     if (auto a = isa_lit<u64>(arity)) {
-        if (*a == 0) return lit_arity_1_;
+        if (*a == 0) return sigma();
         if (*a == 1) return body;
     }
 
@@ -217,7 +217,7 @@ const Def* World::variadic(const Def* arity, const Def* body, Debug dbg) {
 
 const Def* World::pack(const Def* arity, const Def* body, Debug dbg) {
     if (auto a = isa_lit<u64>(arity)) {
-        if (*a == 0) return lit_index_0_;
+        if (*a == 0) return tuple();
         if (*a == 1) return body;
     }
 
@@ -291,7 +291,6 @@ const Lit* World::lit_index(const Def* a, u64 i, Loc loc) {
 
     return result;
 }
-
 
 /*
  * arithops

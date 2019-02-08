@@ -132,7 +132,7 @@ public:
     const Def* sigma(const Def* type, Defs ops, Debug dbg = {});
     /// a @em structural @p Sigma of type @p star
     const Def* sigma(Defs ops, Debug dbg = {}) { return sigma(kind_star(), ops, dbg); }
-    const Lit* sigma() { return lit_arity_1_; } ///< Returns an empty @p Sigma - AKA unit - of type @p star
+    const Sigma* sigma() { return sigma_; }
     //@}
     /// @name Sigma: nominal
     //@{
@@ -155,6 +155,7 @@ public:
     /// ascribes @p type to this tuple - needed for dependetly typed and structural @p Sigma%s
     const Def* tuple(const Def* type, Defs ops, Debug dbg = {});
     const Def* tuple(Defs ops, Debug dbg = {});
+    const Tuple* tuple() { return tuple_; }
     //@}
     /// @name Pack
     //@{
@@ -191,8 +192,8 @@ public:
     //@}
     /// @name Literal: Arrity and Index
     //@{
-    const Lit* lit_index_0() { return lit_index_0_; } ///< equivalent to <tt>()</tt> (an empty tuple)
-    const Lit* lit_arity_1() { return lit_arity_1_; } ///< equivalent to <tt>[]</tt> (an empty sigma)
+    const Lit* lit_index_0_1() { return lit_index_0_1_; }
+    const Lit* lit_arity_1() { return lit_arity_1_; }
     const Lit* lit_arity(u64 a, Loc loc = {});
     const Lit* lit_index(u64 arity, u64 idx, Loc loc = {}) { return lit_index(lit_arity(arity), idx, loc); }
     const Lit* lit_index(const Def* arity, u64 index, Loc loc = {});
@@ -360,30 +361,32 @@ public:
 
     friend void swap(World& w1, World& w2) {
         using std::swap;
-        swap(w1.root_page_,    w2.root_page_);
-        swap(w1.cur_page_,     w2.cur_page_);
-        swap(w1.cur_gid_,      w2.cur_gid_);
-        swap(w1.buffer_index_, w2.buffer_index_);
-        swap(w1.debug_,        w2.debug_);
-        swap(w1.externals_,    w2.externals_);
-        swap(w1.defs_,         w2.defs_);
-        swap(w1.universe_,     w2.universe_);
-        swap(w1.kind_arity_,   w2.kind_arity_);
-        swap(w1.kind_multi_,   w2.kind_multi_);
-        swap(w1.kind_star_,    w2.kind_star_);
-        swap(w1.bot_star_,     w2.bot_star_);
-        swap(w1.top_arity_,    w2.top_arity_);
-        swap(w1.mem_,          w2.mem_);
-        swap(w1.frame_,        w2.frame_);
-        swap(w1.type_nat_,     w2.type_nat_);
-        swap(w1.lit_nat_0_,    w2.lit_nat_0_);
-        swap(w1.lit_nat_,      w2.lit_nat_);
-        swap(w1.lit_arity_1_,  w2.lit_arity_1_);
-        swap(w1.lit_index_0_,  w2.lit_index_0_);
-        swap(w1.lit_bool_,     w2.lit_bool_);
-        swap(w1.branch_,       w2.branch_);
-        swap(w1.end_scope_,    w2.end_scope_);
-        swap(w1.pe_done_,      w2.pe_done_);
+        swap(w1.root_page_,     w2.root_page_);
+        swap(w1.cur_page_,      w2.cur_page_);
+        swap(w1.cur_gid_,       w2.cur_gid_);
+        swap(w1.buffer_index_,  w2.buffer_index_);
+        swap(w1.debug_,         w2.debug_);
+        swap(w1.externals_,     w2.externals_);
+        swap(w1.defs_,          w2.defs_);
+        swap(w1.universe_,      w2.universe_);
+        swap(w1.kind_arity_,    w2.kind_arity_);
+        swap(w1.kind_multi_,    w2.kind_multi_);
+        swap(w1.kind_star_,     w2.kind_star_);
+        swap(w1.bot_star_,      w2.bot_star_);
+        swap(w1.top_arity_,     w2.top_arity_);
+        swap(w1.mem_,           w2.mem_);
+        swap(w1.frame_,         w2.frame_);
+        swap(w1.type_nat_,      w2.type_nat_);
+        swap(w1.lit_nat_0_,     w2.lit_nat_0_);
+        swap(w1.lit_nat_,       w2.lit_nat_);
+        swap(w1.lit_arity_1_,   w2.lit_arity_1_);
+        swap(w1.lit_index_0_1_, w2.lit_index_0_1_);
+        swap(w1.lit_bool_,      w2.lit_bool_);
+        swap(w1.sigma_,         w2.sigma_);
+        swap(w1.tuple_,         w2.tuple_);
+        swap(w1.branch_,        w2.branch_);
+        swap(w1.end_scope_,     w2.end_scope_);
+        swap(w1.pe_done_,       w2.pe_done_);
 
 #define THORIN_ALL_TYPE(T, M) \
         swap(w1.T##_,       w2.T##_);
@@ -504,6 +507,8 @@ private:
     const Kind* kind_star_;
     const BotTop* bot_star_;
     const BotTop* top_arity_;
+    const Sigma* sigma_;
+    const Tuple* tuple_;
     const MemType* mem_;
     const FrameType* frame_;
     const PrimType* type_nat_;
@@ -511,7 +516,7 @@ private:
     std::array<const Lit*, 2> lit_bool_;
     std::array<const Lit*, 7> lit_nat_;
     const Lit* lit_arity_1_;
-    const Lit* lit_index_0_;
+    const Lit* lit_index_0_1_;
     union {
         struct {
 #define THORIN_ALL_TYPE(T, M) const PrimType* T##_;

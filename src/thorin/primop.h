@@ -318,12 +318,11 @@ private:
 /// Allocates memory on the heap.
 class Alloc : public MemOp {
 private:
-    Alloc(const Def* type, const Def* mem, const Def* extra, Debug dbg)
-        : MemOp(Node_Alloc, type, {mem, extra}, dbg)
+    Alloc(const Def* type, const Def* mem, Debug dbg)
+        : MemOp(Node_Alloc, type, {mem}, dbg)
     {}
 
 public:
-    const Def* extra() const { return op(1); }
     bool has_multiple_outs() const override { return true; }
     const Def* out_ptr() const { return out(1); }
     const Sigma* type() const { return MemOp::type()->as<Sigma>(); }

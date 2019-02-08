@@ -906,11 +906,7 @@ const Def* World::enter(const Def* mem, Debug dbg) {
 }
 
 const Def* World::alloc(const Def* type, const Def* mem, Debug dbg) {
-    return alloc(sigma({mem_type(), ptr_type(type)}), mem, lit_qu64(0, dbg), dbg);
-}
-
-const Def* World::alloc(const Def* type, const Def* mem, const Def* extra, Debug dbg) {
-    return unify<Alloc>(2, sigma({mem_type(), ptr_type(type)}), mem, extra, dbg);
+    return unify<Alloc>(1, sigma({mem_type(), ptr_type(type)}), mem, dbg);
 }
 
 const Def* World::global(const Def* init, bool is_mutable, Debug dbg) {

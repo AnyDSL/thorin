@@ -53,6 +53,7 @@ bool Slot::equal(const Def* other) const { return this == other; }
 
 // do not use any of PrimOp's type getters - during import we need to derive types from 't' in the new world 'to'
 
+const Def* Alloc  ::rebuild(World& to, const Def* t, Defs ops) const { return to.alloc(t->as<Sigma>()->op(1)->as<PtrType>()->pointee(), ops[0], debug()); }
 const Def* ArithOp::rebuild(World& to, const Def*  , Defs ops) const { return to.arithop(arithop_tag(), ops[0], ops[1], debug()); }
 const Def* Bitcast::rebuild(World& to, const Def* t, Defs ops) const { return to.bitcast(t, ops[0], debug()); }
 const Def* Cast   ::rebuild(World& to, const Def* t, Defs ops) const { return to.cast(t, ops[0], debug()); }
@@ -70,10 +71,6 @@ const Def* SizeOf ::rebuild(World& to, const Def*  , Defs ops) const { return to
 const Def* Slot   ::rebuild(World& to, const Def* t, Defs ops) const { return to.slot(t->as<PtrType>()->pointee(), ops[0], debug()); }
 const Def* Store  ::rebuild(World& to, const Def*  , Defs ops) const { return to.store(ops[0], ops[1], ops[2], debug()); }
 const Def* Variant::rebuild(World& to, const Def* t, Defs ops) const { return to.variant(t->as<VariantType>(), ops[0], debug()); }
-
-const Def* Alloc::rebuild(World& to, const Def* t, Defs ops) const {
-    return to.alloc(t->as<Sigma>()->op(1)->as<PtrType>()->pointee(), ops[0], ops[1], debug());
-}
 
 const Def* Assembly::rebuild(World& to, const Def* t, Defs ops) const {
     return to.assembly(t, ops, asm_template(), output_constraints(), input_constraints(), clobbers(), flags(), debug());

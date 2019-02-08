@@ -302,7 +302,6 @@ public:
     const Def* store(const Def* mem, const Def* ptr, const Def* val, Debug dbg = {});
     const Def* enter(const Def* mem, Debug dbg = {});
     const Def* slot(const Def* type, const Def* frame, Debug dbg = {});
-    const Def* alloc(const Def* type, const Def* mem, const Def* extra, Debug dbg = {});
     const Def* alloc(const Def* type, const Def* mem, Debug dbg = {});
     const Def* global(const Def* init, bool is_mutable = true, Debug dbg = {});
     const Def* global_immutable_string(const std::string& str, Debug dbg = {});

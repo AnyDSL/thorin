@@ -572,16 +572,16 @@ llvm::AllocaInst* CodeGen::emit_alloca(llvm::Type* type, const std::string& name
     return alloca;
 }
 
-llvm::Value* CodeGen::emit_alloc(const Def* type, const Def* extra) {
+llvm::Value* CodeGen::emit_alloc(const Def* type) {
     auto llvm_malloc = runtime_->get(get_alloc_name().c_str());
     auto alloced_type = convert(type);
     llvm::CallInst* void_ptr;
     auto layout = module_->getDataLayout();
     if (auto variadic = type->isa<Variadic>(); variadic && is_top(variadic->arity())) {
-        assert(extra);
+        auto num = emit(variadic->arity());
         auto size = irbuilder_.CreateAdd(
                 irbuilder_.getInt64(layout.getTypeAllocSize(alloced_type)),
-                irbuilder_.CreateMul(irbuilder_.CreateIntCast(lookup(extra), irbuilder_.getInt64Ty(), false),
+                irbuilder_.CreateMul(irbuilder_.CreateIntCast(num, irbuilder_.getInt64Ty(), false),
                                      irbuilder_.getInt64(layout.getTypeAllocSize(convert(variadic->body())))));
         llvm::Value* malloc_args[] = { irbuilder_.getInt32(0), size };
         void_ptr = irbuilder_.CreateCall(llvm_malloc, malloc_args);
@@ -921,7 +921,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
     }
 
     if (is_bot(def))                          return llvm::UndefValue::get(convert(def->type()));
-    if (auto alloc = def->isa<Alloc>())       return emit_alloc(alloc->alloced_type(), alloc->extra());
+    if (auto alloc = def->isa<Alloc>())       return emit_alloc(alloc->alloced_type());
     if (auto load = def->isa<Load>())         return emit_load(load);
     if (auto store = def->isa<Store>())       return emit_store(store);
     if (auto lea = def->isa<LEA>())           return emit_lea(lea);

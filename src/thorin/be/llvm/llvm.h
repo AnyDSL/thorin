@@ -38,7 +38,7 @@ protected:
     llvm::Value* emit(const Def*);
     llvm::Value* lookup(const Def*);
     llvm::AllocaInst* emit_alloca(llvm::Type*, const std::string&);
-    llvm::Value* emit_alloc(const Def*, const Def*);
+    llvm::Value* emit_alloc(const Def* type);
     llvm::Function* emit_function_decl(Lam*);
     virtual unsigned convert_addr_space(const AddrSpace);
     virtual void emit_function_decl_hook(Lam*, llvm::Function*) {}

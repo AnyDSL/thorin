@@ -839,6 +839,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto copy_to_alloca_or_global = [&] () -> llvm::Value* {
             if (auto constant = llvm::dyn_cast<llvm::Constant>(llvm_agg)) {
                 auto global = llvm::cast<llvm::GlobalVariable>(module_->getOrInsertGlobal(aggop->agg()->unique_name().c_str(), llvm_agg->getType()));
+                global->setLinkage(llvm::GlobalValue::InternalLinkage);
                 global->setInitializer(constant);
                 return irbuilder_.CreateInBoundsGEP(global, { irbuilder_.getInt64(0), llvm_idx });
             }
@@ -953,6 +954,7 @@ llvm::Value* CodeGen::emit_global(const Global* global) {
     else {
         auto llvm_type = convert(global->alloced_type());
         auto var = llvm::cast<llvm::GlobalVariable>(module_->getOrInsertGlobal(global->unique_name().c_str(), llvm_type));
+        var->setLinkage(llvm::GlobalValue::InternalLinkage);
         if (global->init()->isa<Bottom>())
             var->setInitializer(llvm::Constant::getNullValue(llvm_type)); // HACK
         else

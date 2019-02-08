@@ -577,8 +577,8 @@ llvm::Value* CodeGen::emit_alloc(const Def* type) {
     auto alloced_type = convert(type);
     llvm::CallInst* void_ptr;
     auto layout = module_->getDataLayout();
-    if (auto variadic = type->isa<Variadic>(); variadic && is_top(variadic->arity())) {
-        auto num = emit(variadic->arity());
+    if (auto variadic = type->isa<Variadic>()) {
+        auto num = lookup(variadic->arity());
         auto size = irbuilder_.CreateAdd(
                 irbuilder_.getInt64(layout.getTypeAllocSize(alloced_type)),
                 irbuilder_.CreateMul(irbuilder_.CreateIntCast(num, irbuilder_.getInt64Ty(), false),

@@ -16,29 +16,24 @@
 namespace thorin {
 
 /**
- * The World represents the whole program and manages creation and destruction of Thorin nodes.
+ * The World represents the whole program and manages creation of Thorin nodes (Def%s).
  * In particular, the following things are done by this class:
  *
- *  - @p Type unification: \n
- *      There exists only one unique @p Type.
- *      These @p Type%s are hashed into an internal map for fast access.
- *      The getters just calculate a hash and lookup the @p Type, if it is already present, or create a new one otherwise.
- *  - Value unification: \n
- *      This is a built-in mechanism for the following things:
- *      - constant pooling
- *      - constant folding
- *      - common subexpression elimination
- *      - canonicalization of expressions
- *      - several local optimizations
+ *  - @p Def unification: \n
+ *      There exists only one unique @p Def.
+ *      These @p Def%s are hashed into an internal map for fast access.
+ *      The getters just calculate a hash and lookup the @p Def, if it is already present, or create a new one otherwise.
+ *      This is corresponds to value numbering.
+ *  - constant folding
+ *  - canonicalization of expressions
+ *  - several local optimizations like <tt>x + 0 -> x</tt>
  *
- *  @p PrimOp%s do not explicitly belong to a Lam.
- *  Instead they either implicitly belong to a Lam--when
- *  they (possibly via multiple levels of indirection) depend on a Lam's Param--or they are dead.
- *  Use @p cleanup to remove dead code and unreachable code.
+ *  Use @p cleanup to remove dead and unreachable code.
  *
  *  You can create several worlds.
  *  All worlds are completely independent from each other.
- *  This is particular useful for multi-threading.
+ *
+ *  Note that types are also just @p Def%s and will be hashed as well.
  */
 class World : public Streamable {
 public:

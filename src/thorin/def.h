@@ -634,7 +634,6 @@ private:
     {}
 
 public:
-    const Sigma* type() const { return Def::type()->as<Sigma>(); }
     const Def* rebuild(World& to, const Def* type, Defs ops) const override;
     std::ostream& stream(std::ostream&) const override;
 

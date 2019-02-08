@@ -894,8 +894,9 @@ const Def* World::load(const Def* mem, const Def* ptr, Debug dbg) {
 }
 
 const Def* World::store(const Def* mem, const Def* ptr, const Def* val, Debug dbg) {
-    assert(ptr->type()->as<PtrType>()->pointee() == val->type());
     if (is_bot(val)) return mem;
+    if (auto pack = val->isa<Pack>(); pack && is_bot(pack->body())) return mem;
+    assert(ptr->type()->as<PtrType>()->pointee() == val->type());
     return unify<Store>(3, mem, ptr, val, dbg);
 }
 

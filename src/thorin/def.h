@@ -144,6 +144,7 @@ public:
     bool is_kind() const { return sort() == Sort::Kind; }
     bool is_universe() const { return sort() == Sort::Universe; }
     virtual const Def* arity() const;
+    virtual bool is_value() const { return true; }
     //@}
 
     /// @name ops
@@ -269,6 +270,7 @@ private:
     {}
 
 public:
+    bool is_value() const override { return false; }
     const Def* rebuild(World&, const Def*, Defs) const override;
     Universe* stub(World&, const Def*) const override;
     std::ostream& stream(std::ostream&) const override;
@@ -281,6 +283,7 @@ private:
     Kind(World&, NodeTag);
 
 public:
+    bool is_value() const override { return false; }
     const Def* rebuild(World&, const Def*, Defs) const override;
     std::ostream& stream(std::ostream&) const override;
 
@@ -294,6 +297,7 @@ private:
     {}
 
 public:
+    bool is_value() const override { return is_term(); }
     const Def* rebuild(World& to, const Def*, Defs ops) const override;
     std::ostream& stream(std::ostream&) const override;
 
@@ -312,6 +316,7 @@ private:
     }
 
 public:
+    bool is_value() const override { return is_term(); }
     Box box() const { return extra<Extra>().box_; }
     bool equal(const Def*) const override;
     const Def* rebuild(World& to, const Def*, Defs ops) const override;
@@ -341,11 +346,11 @@ private:
 
 public:
     u64 index() const { return extra<Extra>().index_; }
-    std::ostream& stream(std::ostream&) const override;
 
-private:
+    bool is_value() const override { return is_term(); }
     bool equal(const Def*) const override;
-    virtual const Def* rebuild(World&, const Def*, Defs) const;
+    const Def* rebuild(World&, const Def*, Defs) const override;
+    std::ostream& stream(std::ostream&) const override;
 
     friend class World;
 };
@@ -368,9 +373,8 @@ public:
     bool is_basicblock() const { return order() == 1; }
     bool is_returning() const;
 
+    bool is_value() const override { return false; }
     std::ostream& stream(std::ostream&) const override;
-
-private:
     const Def* rebuild(World& to, const Def*, Defs ops) const override;
 
     friend class World;
@@ -569,6 +573,7 @@ private:
 public:
     Lam* lam() const { return op(0)->as_nominal<Lam>(); }
 
+    bool is_value() const override { return is_term(); }
     const Def* rebuild(World&, const Def*, Defs) const override;
 
     friend class World;
@@ -612,6 +617,7 @@ private:
     {}
 
 public:
+    bool is_value() const override { return false; }
     const Def* arity() const override;
     const Def* rebuild(World& to, const Def*, Defs ops) const override;
     Sigma* stub(World&, const Def*) const override;
@@ -644,6 +650,7 @@ private:
 public:
     const Def* arity() const override { return op(0); }
     const Def* body() const { return op(1); }
+    bool is_value() const override { return false; }
     const Def* rebuild(World&, const Def*, Defs) const override;
     std::ostream& stream(std::ostream&) const override;
 
@@ -674,6 +681,7 @@ protected:
 public:
     const Def* agg() const { return op(0); }
     const Def* index() const { return op(1); }
+    bool is_value() const override { return is_term(); }
 
     friend class World;
 };
@@ -722,6 +730,7 @@ private:
     }
 
 private:
+    bool is_value() const override { return false; }
     const Def* rebuild(World& to, const Def*, Defs ops) const override;
     std::ostream& stream(std::ostream&) const override;
 
@@ -730,26 +739,26 @@ private:
 
 /// The type of the memory monad.
 class MemType : public Def {
-public:
-    std::ostream& stream(std::ostream&) const override;
-
 private:
     MemType(World& world);
 
+public:
+    bool is_value() const override { return false; }
     const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    std::ostream& stream(std::ostream&) const override;
 
     friend class World;
 };
 
 /// The type of a stack frame.
 class FrameType : public Def {
-public:
-    std::ostream& stream(std::ostream&) const override;
-
 private:
     FrameType(World& world);
 
+public:
+    bool is_value() const override { return false; }
     const Def* rebuild(World& to, const Def*, Defs ops) const override;
+    std::ostream& stream(std::ostream&) const override;
 
     friend class World;
 };
@@ -762,10 +771,9 @@ private:
 public:
     PrimTypeTag primtype_tag() const { return (PrimTypeTag) tag(); }
 
-    std::ostream& stream(std::ostream&) const override;
-
-private:
+    bool is_value() const override { return false; }
     const Def* rebuild(World& to, const Def*, Defs ops) const override;
+    std::ostream& stream(std::ostream&) const override;
 
     friend class World;
 };
@@ -809,10 +817,9 @@ public:
     const Def* pointee() const { return op(0); }
     AddrSpace addr_space() const { return extra<Extra>().addr_space_; }
 
+    bool is_value() const override { return false; }
     bool equal(const Def* other) const override;
     std::ostream& stream(std::ostream&) const override;
-
-private:
     const Def* rebuild(World& to, const Def*, Defs ops) const override;
 
     friend class World;

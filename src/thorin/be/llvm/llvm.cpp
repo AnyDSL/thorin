@@ -821,7 +821,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         if (is_bot(pack->body())) return llvm_agg;
 
         auto elem = lookup(pack->body());
-        for (size_t i = 0, e = as_lit<u64>(pack->type()->arity()); i != e; ++i)
+        for (size_t i = 0, e = as_lit<u64>(pack->arity()); i != e; ++i)
             llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, elem, { unsigned(i) });
 
         return llvm_agg;

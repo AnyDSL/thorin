@@ -153,9 +153,15 @@ const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
 }
 
 const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
+    assertf(agg->arity() == index->type(), "extracting from aggregate {} of arity {} with index {} of type {}", agg, agg->arity(), index, index->type());
+
     if (index->type() == lit_arity_1()) return agg;
-    if (auto tuple = agg->isa<Tuple>()) return tuple->op(as_lit<u64>(index));
-    if (auto pack  = agg->isa<Pack >()) return pack->body();
+    if (auto pack = agg->isa<Pack>()) return pack->body();
+
+    if (auto tuple = agg->isa<Tuple>()) {
+        if (auto lit = isa_lit<u64>(index))
+            return tuple->op(*lit);
+    }
 
     const Def* type = nullptr;
     if (auto sigma = agg->type()->isa<Sigma>())
@@ -178,6 +184,8 @@ const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
 }
 
 const Def* World::insert(const Def* agg, const Def* index, const Def* value, Debug dbg) {
+    assertf(agg->arity() == index->type(), "inserting into aggregate {} of arity {} with index {} of type {}", agg, agg->arity(), index, index->type());
+
     if (index->type() == lit_arity_1()) return value;
 
     // insert((a, b, c, d), 2, x) = (a, b, x, d)
@@ -189,7 +197,7 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, Deb
 
     // insert(‹4; x›, 2, y) = (x, x, y, x)
     if (auto pack = agg->isa<Pack>()) {
-        if (auto a = isa_lit<u64>(pack->type()->arity())) {
+        if (auto a = isa_lit<u64>(pack->arity())) {
             Array<const Def*> new_ops(*a, pack->body());
             new_ops[as_lit<u64>(index)] = value;
             return tuple(pack->type(), new_ops, dbg);
@@ -272,8 +280,7 @@ const Lit* World::lit_index(const Def* a, u64 i, Loc loc) {
     }
 
     auto arity = as_lit<u64>(a);
-    if (i >= arity)
-        errorf("index literal '{}' does not fit within arity '{}'", i, a);
+    assertf(i < arity, "index literal '{}' does not fit within arity '{}'", i, a);
 
     auto result = lit(a, i, loc);
 
@@ -834,15 +841,17 @@ const Def* World::slot(const Def* type, const Def* frame, Debug dbg) {
 
 const Def* World::lea(const Def* ptr, const Def* index, Debug dbg) {
     auto ptr_type = ptr->type()->as<PtrType>();
-    auto ptr_pointee = ptr_type->pointee();
+    auto pointee = ptr_type->pointee();
 
-    if (ptr_pointee->arity() == lit_arity_1()) return ptr;
+    assertf(pointee->arity() == index->type(), "lea of aggregate {} of arity {} with index {} of type {}", pointee, pointee->arity(), index, index->type());
+
+    if (pointee->arity() == lit_arity_1()) return ptr;
 
     const Def* type = nullptr;
-    if (auto sigma = ptr_pointee->isa<Sigma>()) {
+    if (auto sigma = pointee->isa<Sigma>()) {
         type = this->ptr_type(sigma->op(as_lit<u64>(index)), ptr_type->addr_space());
     } else {
-        auto variadic = ptr_pointee->as<Variadic>();
+        auto variadic = pointee->as<Variadic>();
         type = this->ptr_type(variadic->body(), ptr_type->addr_space());
     }
 

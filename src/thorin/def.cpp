@@ -531,7 +531,7 @@ FrameType::FrameType(World& world)
  * arity
  */
 
-const Def* Def  ::arity() const { return world().lit_arity(1); }
+const Def* Def  ::arity() const { return is_value() ? type()->arity() : world().lit_arity_1(); }
 const Def* Sigma::arity() const { return world().lit_arity(num_ops()); }
 
 /*
@@ -556,25 +556,25 @@ bool Var    ::equal(const Def* other) const { return Def::equal(other) && this->
  * rebuild
  */
 
-const Def* Universe           ::rebuild(World&   , const Def*  , Defs    ) const { THORIN_UNREACHABLE; }
-const Def* Lam                ::rebuild(World& to, const Def* t, Defs ops) const { assert(!isa_nominal()); return to.lam(t->as<Pi>(), ops[0], ops[1], debug()); }
-const Def* Sigma              ::rebuild(World& to, const Def* t, Defs ops) const { assert(!isa_nominal()); return to.sigma(t, ops, debug()); }
-const Def* App                ::rebuild(World& to, const Def*  , Defs ops) const { return to.app(ops[0], ops[1], debug()); }
-const Def* BotTop             ::rebuild(World& to, const Def* t, Defs    ) const { return to.bot_top(is_top(this), t, debug()); }
-const Def* Extract            ::rebuild(World& to, const Def*  , Defs ops) const { return to.extract(ops[0], ops[1], debug()); }
-const Def* FrameType          ::rebuild(World& to, const Def*  , Defs    ) const { return to.frame_type(); }
-const Def* Insert             ::rebuild(World& to, const Def*  , Defs ops) const { return to.insert(ops[0], ops[1], ops[2], debug()); }
-const Def* Kind               ::rebuild(World& to, const Def*  , Defs    ) const { return to.kind(tag()); }
-const Def* MemType            ::rebuild(World& to, const Def*  , Defs    ) const { return to.mem_type(); }
-const Def* Pack               ::rebuild(World& to, const Def* t, Defs ops) const { return to.pack(t->arity(), ops[0], debug()); }
-const Def* Param              ::rebuild(World& to, const Def*  , Defs ops) const { return to.param(ops[0]->as_nominal<Lam>(), debug()); }
-const Def* Pi                 ::rebuild(World& to, const Def*  , Defs ops) const { return to.pi(ops[0], ops[1], debug()); }
-const Def* PrimType           ::rebuild(World& to, const Def*  , Defs    ) const { return to.type(primtype_tag()); }
-const Def* PtrType            ::rebuild(World& to, const Def*  , Defs ops) const { return to.ptr_type(ops[0], addr_space()); }
-const Def* Tuple              ::rebuild(World& to, const Def* t, Defs ops) const { return to.tuple(t, ops, debug()); }
-const Def* Var                ::rebuild(World& to, const Def* t, Defs    ) const { return to.var(t, index(), debug()); }
-const Def* Variadic           ::rebuild(World& to, const Def*  , Defs ops) const { return to.variadic(ops[0], ops[1], debug()); }
-const Def* VariantType        ::rebuild(World& to, const Def*  , Defs ops) const { return to.variant_type(ops, debug()); }
+const Def* Universe   ::rebuild(World&   , const Def*  , Defs    ) const { THORIN_UNREACHABLE; }
+const Def* Lam        ::rebuild(World& to, const Def* t, Defs ops) const { assert(!isa_nominal()); return to.lam(t->as<Pi>(), ops[0], ops[1], debug()); }
+const Def* Sigma      ::rebuild(World& to, const Def* t, Defs ops) const { assert(!isa_nominal()); return to.sigma(t, ops, debug()); }
+const Def* App        ::rebuild(World& to, const Def*  , Defs ops) const { return to.app(ops[0], ops[1], debug()); }
+const Def* BotTop     ::rebuild(World& to, const Def* t, Defs    ) const { return to.bot_top(is_top(this), t, debug()); }
+const Def* Extract    ::rebuild(World& to, const Def*  , Defs ops) const { return to.extract(ops[0], ops[1], debug()); }
+const Def* FrameType  ::rebuild(World& to, const Def*  , Defs    ) const { return to.frame_type(); }
+const Def* Insert     ::rebuild(World& to, const Def*  , Defs ops) const { return to.insert(ops[0], ops[1], ops[2], debug()); }
+const Def* Kind       ::rebuild(World& to, const Def*  , Defs    ) const { return to.kind(tag()); }
+const Def* MemType    ::rebuild(World& to, const Def*  , Defs    ) const { return to.mem_type(); }
+const Def* Pack       ::rebuild(World& to, const Def* t, Defs ops) const { return to.pack(t->arity(), ops[0], debug()); }
+const Def* Param      ::rebuild(World& to, const Def*  , Defs ops) const { return to.param(ops[0]->as_nominal<Lam>(), debug()); }
+const Def* Pi         ::rebuild(World& to, const Def*  , Defs ops) const { return to.pi(ops[0], ops[1], debug()); }
+const Def* PrimType   ::rebuild(World& to, const Def*  , Defs    ) const { return to.type(primtype_tag()); }
+const Def* PtrType    ::rebuild(World& to, const Def*  , Defs ops) const { return to.ptr_type(ops[0], addr_space()); }
+const Def* Tuple      ::rebuild(World& to, const Def* t, Defs ops) const { return to.tuple(t, ops, debug()); }
+const Def* Var        ::rebuild(World& to, const Def* t, Defs    ) const { return to.var(t, index(), debug()); }
+const Def* Variadic   ::rebuild(World& to, const Def*  , Defs ops) const { return to.variadic(ops[0], ops[1], debug()); }
+const Def* VariantType::rebuild(World& to, const Def*  , Defs ops) const { return to.variant_type(ops, debug()); }
 
 /*
  * stub
@@ -592,15 +592,15 @@ static std::ostream& stream_type_ops(std::ostream& os, const Def* type) {
    return stream_list(os, type->ops(), [&](const Def* type) { os << type; }, "(", ")");
 }
 
-std::ostream& App                ::stream(std::ostream& os) const { return streamf(os, "{} {}", callee(), arg()); }
-std::ostream& FrameType          ::stream(std::ostream& os) const { return streamf(os, "frame"); }
-std::ostream& Kind               ::stream(std::ostream& os) const { return streamf(os, "{}", name()); }
-std::ostream& MemType            ::stream(std::ostream& os) const { return streamf(os, "mem"); }
-std::ostream& Pack               ::stream(std::ostream& os) const { return streamf(os, "‹{}; {}›", type()->arity(), body()); }
-std::ostream& Universe           ::stream(std::ostream& os) const { return streamf(os, "□"); }
-std::ostream& Var                ::stream(std::ostream& os) const { return streamf(os, "<{}:{}>", index(), type()); }
-std::ostream& Variadic           ::stream(std::ostream& os) const { return streamf(os, "«{}; {}»", arity(), body()); }
-std::ostream& VariantType        ::stream(std::ostream& os) const { return stream_type_ops(os << "variant", this); }
+std::ostream& App        ::stream(std::ostream& os) const { return streamf(os, "{} {}", callee(), arg()); }
+std::ostream& FrameType  ::stream(std::ostream& os) const { return streamf(os, "frame"); }
+std::ostream& Kind       ::stream(std::ostream& os) const { return streamf(os, "{}", name()); }
+std::ostream& MemType    ::stream(std::ostream& os) const { return streamf(os, "mem"); }
+std::ostream& Pack       ::stream(std::ostream& os) const { return streamf(os, "‹{}; {}›", arity(), body()); }
+std::ostream& Universe   ::stream(std::ostream& os) const { return streamf(os, "□"); }
+std::ostream& Var        ::stream(std::ostream& os) const { return streamf(os, "<{}:{}>", index(), type()); }
+std::ostream& Variadic   ::stream(std::ostream& os) const { return streamf(os, "«{}; {}»", arity(), body()); }
+std::ostream& VariantType::stream(std::ostream& os) const { return stream_type_ops(os << "variant", this); }
 
 std::ostream& Lit::stream(std::ostream& os) const {
     if (!name().empty()) return os << name();

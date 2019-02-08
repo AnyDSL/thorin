@@ -141,7 +141,7 @@ public:
     //@}
     /// @name Variadic
     //@{
-    const Def* variadic(const Def* arities, const Def* body, Debug dbg = {});
+    const Def* variadic(const Def* arity, const Def* body, Debug dbg = {});
     const Def* variadic(Defs arities, const Def* body, Debug dbg = {});
     const Def* variadic(u64 a, const Def* body, Debug dbg = {}) { return variadic(lit_arity(a, dbg), body, dbg); }
     const Def* variadic(ArrayRef<u64> a, const Def* body, Debug dbg = {}) {
@@ -158,7 +158,7 @@ public:
     //@}
     /// @name Pack
     //@{
-    const Def* pack(const Def* arities, const Def* body, Debug dbg = {});
+    const Def* pack(const Def* arity, const Def* body, Debug dbg = {});
     const Def* pack(Defs arities, const Def* body, Debug dbg = {});
     const Def* pack(u64 a, const Def* body, Debug dbg = {}) { return pack(lit_arity(a, dbg), body, dbg); }
     const Def* pack(ArrayRef<u64> a, const Def* body, Debug dbg = {}) {

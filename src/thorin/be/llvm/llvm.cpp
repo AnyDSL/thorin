@@ -764,9 +764,9 @@ llvm::Value* CodeGen::emit(const Def* def) {
         if (def->type()->isa<Pi>())
             return nullptr;
 
-        llvm::Value* cond = lookup(select->cond());
-        llvm::Value* tval = lookup(select->tval());
-        llvm::Value* fval = lookup(select->fval());
+        auto cond = lookup(select->cond());
+        auto tval = lookup(select->tval());
+        auto fval = lookup(select->fval());
         return irbuilder_.CreateSelect(cond, tval, fval);
     }
 
@@ -809,6 +809,15 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
         for (size_t i = 0, e = tuple->num_ops(); i != e; ++i)
             llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, lookup(tuple->op(i)), { unsigned(i) });
+
+        return llvm_agg;
+    }
+
+    if (auto pack = def->isa<Pack>()) {
+        llvm::Value* llvm_agg = llvm::UndefValue::get(convert(pack->type()));
+        auto elem = lookup(pack->body());
+        for (size_t i = 0, e = as_lit<u64>(pack->type()->arity()); i != e; ++i)
+            llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, elem, { unsigned(i) });
 
         return llvm_agg;
     }
@@ -1091,15 +1100,20 @@ llvm::Type* CodeGen::convert(const Def* type) {
 
         case Node_Sigma: {
             auto sigma = type->as<Sigma>();
-            auto llvm_struct = llvm::StructType::create(context_);
 
-            assert(!types_.contains(sigma) && "type already converted");
-            types_[sigma] = llvm_struct;
+            llvm::StructType* llvm_struct = nullptr;
+            if (sigma->isa_nominal()) {
+                llvm_struct = llvm::StructType::create(context_);
+                assert(!types_.contains(sigma) && "type already converted");
+                types_[sigma] = llvm_struct;
+            }
 
-            Array<llvm::Type*> llvm_types(sigma->num_ops());
-            for (size_t i = 0, e = llvm_types.size(); i != e; ++i)
-                llvm_types[i] = convert(sigma->op(i));
-            llvm_struct->setBody(llvm_ref(llvm_types));
+            Array<llvm::Type*> llvm_types(sigma->num_ops(), [&](auto i) { return convert(sigma->op(i)); });
+
+            if (llvm_struct)
+                llvm_struct->setBody(llvm_ref(llvm_types));
+            else
+                llvm_struct = llvm::StructType::get(context_, llvm_ref(llvm_types));
 
             return llvm_struct;
         }

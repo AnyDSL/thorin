@@ -701,21 +701,21 @@ private:
 size_t get_param_index(const Def* def);
 
 /**
- * Creates a new aggregate by inserting <tt>value</tt> at position <tt>index</tt> into <tt>agg</tt>.
+ * Creates a new aggregate by inserting <tt>val</tt> at position <tt>index</tt> into <tt>agg</tt>.
  * @attention { This is a @em functional insert.
- *              The value <tt>agg</tt> remains untouched.
- *              The \p Insert itself is a \em new aggregate which contains the newly created <tt>value</tt>. }
+ *              The val <tt>agg</tt> remains untouched.
+ *              The \p Insert itself is a \em new aggregate which contains the newly created <tt>val</tt>. }
  */
 class Insert : public AggOp {
 private:
-    Insert(const Def* agg, const Def* index, const Def* value, Debug dbg)
-        : AggOp(Node_Insert, agg->type(), {agg, index, value}, dbg)
+    Insert(const Def* agg, const Def* index, const Def* val, Debug dbg)
+        : AggOp(Node_Insert, agg->type(), {agg, index, val}, dbg)
     {}
 
     const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
 public:
-    const Def* value() const { return op(2); }
+    const Def* val() const { return op(2); }
 
     friend class World;
 };

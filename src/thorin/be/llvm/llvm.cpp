@@ -867,15 +867,15 @@ llvm::Value* CodeGen::emit(const Def* def) {
         }
 
         auto insert = def->as<Insert>();
-        auto value = lookup(insert->value());
+        auto val = lookup(insert->val());
 
         if (insert->agg()->type()->isa<Variadic>()) {
             auto p = copy_to_alloca();
-            irbuilder_.CreateStore(lookup(aggop->as<Insert>()->value()), p.second);
+            irbuilder_.CreateStore(lookup(aggop->as<Insert>()->val()), p.second);
             return irbuilder_.CreateLoad(p.first);
         }
         // tuple/struct
-        return irbuilder_.CreateInsertValue(llvm_agg, value, {as_lit<u32>(aggop->index())});
+        return irbuilder_.CreateInsertValue(llvm_agg, val, {as_lit<u32>(aggop->index())});
     }
 
     if (auto variant = def->isa<Variant>()) {

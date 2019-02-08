@@ -170,10 +170,10 @@ const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
         type = agg->type()->as<Variadic>()->body();
 
     if (auto insert = agg->isa<Insert>()) {
-        // extract(insert(x, index, value), index) = value
+        // extract(insert(x, index, val), index) = val
         if (index == insert->index())
-            return insert->value();
-        // extract(insert(x, j, value), i) = extract(x, i) where i != j
+            return insert->val();
+        // extract(insert(x, j, val), i) = extract(x, i) where i != j
         else if (index->isa<Lit>()) {
             if (insert->index()->isa<Lit>())
                 return extract(insert->agg(), index, dbg);
@@ -183,15 +183,15 @@ const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
     return unify<Extract>(2, type, agg, index, dbg);
 }
 
-const Def* World::insert(const Def* agg, const Def* index, const Def* value, Debug dbg) {
+const Def* World::insert(const Def* agg, const Def* index, const Def* val, Debug dbg) {
     assertf(agg->arity() == index->type(), "inserting into aggregate {} of arity {} with index {} of type {}", agg, agg->arity(), index, index->type());
 
-    if (index->type() == lit_arity_1()) return value;
+    if (index->type() == lit_arity_1()) return val;
 
     // insert((a, b, c, d), 2, x) = (a, b, x, d)
     if (auto tup = agg->isa<Tuple>()) {
         Array<const Def*> new_ops = tup->ops();
-        new_ops[as_lit<u64>(index)] = value;
+        new_ops[as_lit<u64>(index)] = val;
         return tuple(tup->type(), new_ops, dbg);
     }
 
@@ -199,18 +199,18 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, Deb
     if (auto pack = agg->isa<Pack>()) {
         if (auto a = isa_lit<u64>(pack->arity())) {
             Array<const Def*> new_ops(*a, pack->body());
-            new_ops[as_lit<u64>(index)] = value;
+            new_ops[as_lit<u64>(index)] = val;
             return tuple(pack->type(), new_ops, dbg);
         }
     }
 
-    // insert(insert(x, index, y), index, value) = insert(x, index, value)
+    // insert(insert(x, index, y), index, val) = insert(x, index, val)
     if (auto insert = agg->isa<Insert>()) {
         if (insert->index() == index)
             agg = insert->agg();
     }
 
-    return unify<Insert>(3, agg, index, value, dbg);
+    return unify<Insert>(3, agg, index, val, dbg);
 }
 
 const Def* World::variadic(const Def* arity, const Def* body, Debug dbg) {
@@ -883,19 +883,20 @@ const Def* World::size_of(const Def* type, Debug dbg) {
  */
 
 const Def* World::load(const Def* mem, const Def* ptr, Debug dbg) {
-    if (auto sigma = ptr->type()->as<PtrType>()->pointee()->isa<Sigma>()) {
+    auto ptr_type = ptr->type()->as<PtrType>();
+
+    if (auto sigma = ptr_type->pointee()->isa<Sigma>()) {
         // loading an empty tuple can only result in an empty tuple
-        if (sigma->num_ops() == 0) {
-            return tuple({mem, tuple(sigma->type(), {}, dbg)});
-        }
+        if (sigma->num_ops() == 0) return tuple({mem, tuple(sigma->type(), {}, dbg)});
     }
 
-    return unify<Load>(2, sigma({mem_type(), ptr->type()->as<PtrType>()->pointee()}), mem, ptr, dbg);
+    return unify<Load>(2, sigma({mem_type(), ptr_type->pointee()}), mem, ptr, dbg);
 }
 
-const Def* World::store(const Def* mem, const Def* ptr, const Def* value, Debug dbg) {
-    if (is_bot(value)) return mem;
-    return unify<Store>(3, mem, ptr, value, dbg);
+const Def* World::store(const Def* mem, const Def* ptr, const Def* val, Debug dbg) {
+    assert(ptr->type()->as<PtrType>()->pointee() == val->type());
+    if (is_bot(val)) return mem;
+    return unify<Store>(3, mem, ptr, val, dbg);
 }
 
 const Def* World::enter(const Def* mem, Debug dbg) {

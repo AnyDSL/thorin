@@ -24,12 +24,24 @@ public:
             //1 - input type
             //2 - mpi output datatype
             //3 - return function
-            auto mem = entry->param(0);
+            const Def* mem = entry->param(0);
             auto input = entry->param(1);
             auto output = entry->param(2);
             auto ret = entry->param(3);
+            const Def* inputSize;
+            bool isBuffer = false;
 
             if(auto ptrType = input->type()->isa<PtrType>()) {
+                if(auto structType = ptrType->pointee()->isa<StructType>()) {
+                    if(structType->name().str() == "Buffer" && structType->num_ops() == 3) {
+                        isBuffer = true;
+                        //load size from Buffer struct and cast it to i32
+                        auto sizePtr = world.lea(input, world.literal_qu32(1, {}), {});
+                        auto sizePtrLoaded = world.load(mem, sizePtr);
+                        mem = world.extract(sizePtrLoaded, (u32) 0);
+                        inputSize = world.cast(world.type_qs32(1),world.extract(sizePtrLoaded, (u32) 1));
+                    }
+                }
                 //TODO adjust get_mpi_byte call with runtime call
                 //generate continuations
                 auto mpi_byte_call = world.continuation(world.fn_type({ world.mem_type(), world.fn_type({ world.mem_type(), world.type_qs32(1)})}), Debug(Symbol("get_mpi_byte")));
@@ -56,7 +68,9 @@ public:
                 entry->jump(mpi_byte_call, { mem, mpi_byte_call_cont });
 
                 //preparations for mpi_type_contiguous
-                auto inputSize = world.size_of(ptrType->pointee());
+                if(!isBuffer) {
+                    inputSize = world.size_of(ptrType->pointee());
+                }
 
                 mpi_byte_call_cont->jump(mpi_type_contiguous_call, {
                     mpi_byte_call_cont->param(0), //mem

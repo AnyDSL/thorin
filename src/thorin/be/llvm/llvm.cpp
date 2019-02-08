@@ -814,7 +814,12 @@ llvm::Value* CodeGen::emit(const Def* def) {
     }
 
     if (auto pack = def->isa<Pack>()) {
-        llvm::Value* llvm_agg = llvm::UndefValue::get(convert(pack->type()));
+        auto llvm_type = convert(pack->type());
+        if (auto lit = isa_lit<u64>(pack->body())) return llvm::ConstantAggregateZero::get(llvm_type);
+
+        llvm::Value* llvm_agg = llvm::UndefValue::get(llvm_type);
+        if (is_bot(pack->body())) return llvm_agg;
+
         auto elem = lookup(pack->body());
         for (size_t i = 0, e = as_lit<u64>(pack->type()->arity()); i != e; ++i)
             llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, elem, { unsigned(i) });

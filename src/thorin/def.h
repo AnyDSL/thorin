@@ -279,8 +279,30 @@ private:
     Kind(World&, NodeTag);
 
 public:
-    bool is_value() const override { return false; }
     const Def* rebuild(World&, const Def*, Defs) const override;
+    std::ostream& stream(std::ostream&) const override;
+
+    friend class World;
+};
+
+typedef const Def* (*Normalizer)(const Def*, const Def*, Debug);
+
+class Axiom : public Def {
+private:
+    struct Extra { Normalizer normalizer_; };
+
+    Axiom(const Def* type, Normalizer normalizer, Debug dbg)
+        : Def(Node_Axiom, type, 0, dbg)
+    {
+        extra<Extra>().normalizer_ = normalizer;
+        //assert(type->free_vars().none());
+    }
+
+public:
+    Normalizer normalizer() const { return extra<Extra>().normalizer_; }
+
+    const Def* rebuild(World&, const Def*, Defs) const override;
+    Axiom* stub(World&, const Def*) const override;
     std::ostream& stream(std::ostream&) const override;
 
     friend class World;

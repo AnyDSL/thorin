@@ -240,10 +240,8 @@ public:
     const VariantType* variant_type(Defs ops, Debug dbg = {}) { return unify<VariantType>(ops.size(), kind_star(), ops, dbg); }
     const Def* variant(const VariantType* variant_type, const Def* value, Debug dbg = {}) { return unify<Variant>(1, variant_type, value, dbg); }
     //@}
-
     /// @name misc types
     //@{
-    const PrimType* type_nat() { return type_nat_; }
 #define THORIN_ALL_TYPE(T, M) \
     const PrimType* type_##T() { return type(PrimType_##T); }
 #include "thorin/tables/primtypetable.h"
@@ -256,7 +254,6 @@ public:
     const FrameType* frame_type() const { return frame_; }
     const PtrType* ptr_type(const Def* pointee, AddrSpace addr_space = AddrSpace::Generic, Debug dbg = {}) { return unify<PtrType>(1, kind_star(), pointee, addr_space, dbg); }
     //@}
-
     /// @name ArithOps
     //@{
     /// Creates an \p ArithOp or a \p Cmp.
@@ -270,7 +267,6 @@ public:
     }
 #include "thorin/tables/arithoptable.h"
     //@}
-
     /// @name Cmps
     //@{
     const Def* cmp(CmpTag tag, const Def* lhs, const Def* rhs, Debug dbg = {});
@@ -280,17 +276,12 @@ public:
     }
 #include "thorin/tables/cmptable.h"
     //@}
-
     /// @name Casts
     //@{
     const Def* convert(const Def* to, const Def* from, Debug dbg = {});
     const Def* cast(const Def* to, const Def* from, Debug dbg = {});
     const Def* bitcast(const Def* to, const Def* from, Debug dbg = {});
     //@}
-
-    const Def* select(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
-    const Def* size_of(const Def* type, Debug dbg = {});
-
     /// @name memory-related operations
     //@{
     const Def* load(const Def* mem, const Def* ptr, Debug dbg = {});
@@ -305,18 +296,30 @@ public:
     const Assembly* assembly(Defs types, const Def* mem, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints,
                              ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg = {});
     //@}
-
     /// @name partial evaluation related operations
     //@{
     const Def* hlt(const Def* def, Debug dbg = {});
     const Def* known(const Def* def, Debug dbg = {});
     const Def* run(const Def* def, Debug dbg = {});
     //@}
+    /// @name misc operations
+    //@{
+    const Def* select(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
+    const Def* size_of(const Def* type, Debug dbg = {});
+    //@}
 
+    // TODO right now not all of them are axioms
+    /// @name Axioms
+    //@{
+    Axiom* axiom(const Def* type, Normalizer, Debug dbg = {});
+    Axiom* axiom(const Def* type, Debug dbg = {}) { return axiom(type, nullptr, dbg); }
+    std::optional<Axiom*> lookup_axiom(Symbol name) { return axioms_.lookup(name); }
+    Axiom* type_nat() { return type_nat_; }
     Lam* branch() const { return branch_; }
     Lam* match(const Def* type, size_t num_patterns);
     Lam* end_scope() const { return end_scope_; }
     const Def* branch(const Def* cond, const Def* t, const Def* f, Debug dbg = {}) { return app(branch(), {cond, t, f}, dbg); }
+    //@}
 
     /// Performs dead code, unreachable code and unused type elimination.
     void cleanup();
@@ -362,6 +365,7 @@ public:
         swap(w1.cur_gid_,       w2.cur_gid_);
         swap(w1.buffer_index_,  w2.buffer_index_);
         swap(w1.debug_,         w2.debug_);
+        swap(w1.axioms_,        w2.axioms_);
         swap(w1.externals_,     w2.externals_);
         swap(w1.defs_,          w2.defs_);
         swap(w1.universe_,      w2.universe_);
@@ -490,6 +494,7 @@ private:
     size_t buffer_index_ = 0;
     uint32_t cur_gid_;
     Debug debug_;
+    SymbolMap<Axiom*> axioms_;
     LamSet externals_;
     DefSet defs_;
     bool pe_done_ = false;
@@ -507,7 +512,7 @@ private:
     const Tuple* tuple_;
     const MemType* mem_;
     const FrameType* frame_;
-    const PrimType* type_nat_;
+    Axiom* type_nat_;
     const Lit* lit_nat_0_;
     std::array<const Lit*, 2> lit_bool_;
     std::array<const Lit*, 7> lit_nat_;

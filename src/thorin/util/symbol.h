@@ -55,6 +55,9 @@ inline Symbol operator+(Symbol s1, const char* s2) { return std::string(s1.c_str
 inline Symbol operator+(Symbol s1, std::string s2) { return std::string(s1.c_str()) + s2; }
 inline std::ostream& operator<<(std::ostream& os, Symbol s) { return os << s.c_str(); }
 
+template<class T>
+using SymbolMap = HashMap<Symbol, T>;
+
 }
 
 #endif

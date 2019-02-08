@@ -558,6 +558,7 @@ bool Var    ::equal(const Def* other) const { return Def::equal(other) && this->
  * rebuild
  */
 
+const Def* Axiom      ::rebuild(World&   , const Def*  , Defs    ) const { THORIN_UNREACHABLE; }
 const Def* Universe   ::rebuild(World&   , const Def*  , Defs    ) const { THORIN_UNREACHABLE; }
 const Def* Lam        ::rebuild(World& to, const Def* t, Defs ops) const { assert(!isa_nominal()); return to.lam(t->as<Pi>(), ops[0], ops[1], debug()); }
 const Def* Sigma      ::rebuild(World& to, const Def* t, Defs ops) const { assert(!isa_nominal()); return to.sigma(t, ops, debug()); }
@@ -582,9 +583,10 @@ const Def* VariantType::rebuild(World& to, const Def*  , Defs ops) const { retur
  * stub
  */
 
-Lam*   Lam  ::stub(World& to, const Def* type) const { assert(isa_nominal()); return to.lam(type->as<Pi>(), cc(), intrinsic(), debug()); }
-Sigma* Sigma::stub(World& to, const Def* type) const { assert(isa_nominal()); return to.sigma(type, num_ops(), debug()); }
-Universe* Universe::stub(World& to, const Def*) const { return const_cast<Universe*>(to.universe()); }
+Axiom*    Axiom   ::stub(World& to, const Def*  ) const { return to.lookup_axiom(name()).value(); }
+Lam*      Lam     ::stub(World& to, const Def* t) const { assert(isa_nominal()); return to.lam(t->as<Pi>(), cc(), intrinsic(), debug()); }
+Sigma*    Sigma   ::stub(World& to, const Def* t) const { assert(isa_nominal()); return to.sigma(t, num_ops(), debug()); }
+Universe* Universe::stub(World& to, const Def*  ) const { return const_cast<Universe*>(to.universe()); }
 
 /*
  * stream
@@ -595,6 +597,7 @@ static std::ostream& stream_type_ops(std::ostream& os, const Def* type) {
 }
 
 std::ostream& App        ::stream(std::ostream& os) const { return streamf(os, "{} {}", callee(), arg()); }
+std::ostream& Axiom      ::stream(std::ostream& os) const { return streamf(os, "{}", name()); }
 std::ostream& FrameType  ::stream(std::ostream& os) const { return streamf(os, "frame"); }
 std::ostream& Kind       ::stream(std::ostream& os) const { return streamf(os, "{}", name()); }
 std::ostream& MemType    ::stream(std::ostream& os) const { return streamf(os, "mem"); }

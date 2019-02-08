@@ -45,7 +45,7 @@ World::World(uint32_t cur_gid, Debug debug)
     , tuple_     (insert<Tuple>(0, sigma_, Defs{}, Debug{})->as<Tuple>())
     , mem_       (insert<MemType  >(0, *this))
     , frame_     (insert<FrameType>(0, *this))
-    , type_nat_  (insert<PrimType>(0, *this, /*HACK*/(PrimTypeTag)Node_Nat, Debug{"nat"}))
+    , type_nat_  (axiom(kind_star_, {"nat"}))
 #define THORIN_ALL_TYPE(T, M) \
     , T##_       (insert<PrimType>(0, *this, PrimType_##T, Debug{#T}))
 #include "thorin/tables/primtypetable.h"
@@ -978,8 +978,18 @@ const Def* World::run(const Def* def, Debug dbg) {
 }
 
 /*
- * lams
+ * Axioms
  */
+
+Axiom* World::axiom(const Def* type, Normalizer normalizer, Debug dbg) {
+    auto a = insert<Axiom>(0, type, normalizer, dbg);
+    auto s = dbg.name().c_str();
+    if (s[0] != '\0') {
+        assert(!axioms_.contains(s));
+        axioms_[s] = a;
+    }
+    return a;
+}
 
 Lam* World::match(const Def* type, size_t num_patterns) {
     Array<const Def*> arg_types(num_patterns + 2);

@@ -34,8 +34,8 @@ void Optimizer::enqueue(Def* old_def) {
 }
 
 const Def* Optimizer::rewrite(const Def* old_def) {
-    if (old_def->isa_nominal()) return old_def;
     if (auto new_def = old2new_.lookup(old_def)) return *new_def;
+    if (old_def->isa_nominal()) return old_def;
 
     auto new_type = rewrite(old_def->type());
 
@@ -58,8 +58,8 @@ const Def* Optimizer::rewrite(const Def* old_def) {
 }
 
 void Optimizer::analyze(const Def* def) {
-    if (auto nominal = def->isa_nominal()) return enqueue(nominal);
     if (!analyzed_.emplace(def).second) return;
+    if (auto nominal = def->isa_nominal()) return enqueue(nominal);
 
     for (auto op : def->ops())
         analyze(op);

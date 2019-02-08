@@ -971,14 +971,16 @@ llvm::Value* CodeGen::emit_lea(const LEA* lea) {
 }
 
 llvm::Value* CodeGen::emit_assembly(const Assembly* assembly) {
-    auto out_type = assembly->type();
     llvm::Type* res_type;
 
-    if (out_type->isa<Sigma>()) {
-        if (out_type->num_ops() == 2)
-            res_type = convert(assembly->type()->op(1));
-        else
-            res_type = convert(world().sigma(assembly->type()->ops().skip_front()));
+    if (auto sigma = assembly->type()->isa<Sigma>()) {
+        if (sigma->num_ops() == 2)
+            res_type = convert(sigma->op(1));
+        else {
+            auto ops = sigma->ops().skip_front();
+            // don't just convert(sigma(ops)) because Thorin might normalize this to a variadic
+            res_type = llvm::StructType::get(context_, llvm_ref(Array<llvm::Type*>(ops.size(), [&](auto i) { return convert(ops[i]); })));
+        }
     } else {
         res_type = llvm::Type::getVoidTy(context_);
     }

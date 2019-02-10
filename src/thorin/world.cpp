@@ -913,8 +913,10 @@ const Def* World::store(const Def* mem, const Def* ptr, const Def* val, Debug db
 }
 
 const Def* World::enter(const Def* mem, Debug dbg) {
-    if (auto e = Enter::is_out_mem(mem))
-        return e;
+    if (auto extract = mem->isa<Extract>()) {
+        if (auto e = extract->agg()->isa<Enter>())
+            return e;
+    }
     return unify<Enter>(1, sigma({mem_type(), frame_type()}), mem, dbg);
 }
 

@@ -134,10 +134,4 @@ std::ostream& Assembly::stream_assignment(std::ostream& os) const {
     return stream_list(os,         ops(), [&](const Def*                def) { os <<               def; },    "(", ")") << endl;
 }
 
-//------------------------------------------------------------------------------
-
-const Def* PrimOp::out(size_t i) const { return world().extract(this, i, debug()); }
-
-//------------------------------------------------------------------------------
-
 }

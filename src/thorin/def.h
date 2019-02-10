@@ -146,7 +146,6 @@ public:
     bool is_value() const { return is_value_; }
     virtual const Def* arity() const;
     //@}
-
     /// @name ops
     //@{
     inline Defs ops() const { return Defs(num_ops_, ops_ptr()); }
@@ -155,14 +154,17 @@ public:
     void set(size_t i, const Def* def);
     void unset(size_t i);
     //@}
-
     /// @name uses
     //@{
     const Uses& uses() const { return uses_; }
     Array<Use> copy_uses() const { return Array<Use>(uses_.begin(), uses_.end()); }
     size_t num_uses() const { return uses().size(); }
     //@}
-
+    /// @name outs
+    //@{
+    const Def* out(size_t i, Debug dbg = {}) const;
+    size_t num_outs() const;
+    //@}
     /// @name Debug
     //@{
     Debug& debug() const { return debug_; }
@@ -173,13 +175,11 @@ public:
     /// In Debug build if World::enable_history is true, this thing keeps the gid to track a history of gid%s.
     Debug debug_history() const;
     //@}
-
     /// @name cast for nominals
     //@{
     template<class T = Def> T* as_nominal() const { assert(nominal_ && as<T>()); return static_cast<T*>(const_cast<Def*>(this)); }
     template<class T = Def> T* isa_nominal() const { return dynamic_cast<T*>(nominal_ ? const_cast<Def*>(this) : nullptr); }
     //@}
-
     /// @name misc getters
     //@{
     NodeTag tag() const { return (NodeTag)tag_; }
@@ -194,20 +194,17 @@ public:
         return *type()->type()->type()->world_;
     }
     //@}
-
     /// @name replace
     //@{
     void replace(Tracker) const;
     bool is_replaced() const { return substitute_ != nullptr; }
     //@}
-
     /// @name rebuild, stub, equal
     //@{
     virtual const Def* rebuild(World&, const Def*, Defs) const = 0;
     virtual Def* stub(World&, const Def*) const { THORIN_UNREACHABLE; }
     virtual bool equal(const Def* other) const;
     //@}
-
     /// @name stream
     //@{
     void dump() const;

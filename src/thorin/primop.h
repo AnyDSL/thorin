@@ -17,14 +17,7 @@ protected:
     {}
 
 public:
-    const Def* out(size_t i) const;
-    virtual bool has_multiple_outs() const { return false; }
     std::ostream& stream(std::ostream&) const override;
-
-protected:
-
-    /// Is @p def the @p i^th result of a @p T @p PrimOp?
-    template<int i, class T> inline static const T* is_out(const Def* def);
 
     friend class World;
     friend class Cleaner;
@@ -44,12 +37,11 @@ private:
         assert(!tval->type()->isa<Pi>() && "must not be a function");
     }
 
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
-
 public:
     const Def* cond() const { return op(0); }
     const Def* tval() const { return op(1); }
     const Def* fval() const { return op(2); }
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
     friend class World;
 };
@@ -59,10 +51,9 @@ class SizeOf : public PrimOp {
 private:
     SizeOf(const Def* def, Debug dbg);
 
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
-
 public:
     const Def* of() const { return op(0)->type(); }
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
     friend class World;
 };
@@ -91,12 +82,11 @@ private:
             hash_ = murmur3(gid());
     }
 
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
-
 public:
     const PrimType* type() const { return BinOp::type()->as<PrimType>(); }
     ArithOpTag arithop_tag() const { return (ArithOpTag) tag(); }
     const char* op_name() const override;
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
     friend class World;
 };
@@ -106,12 +96,11 @@ class Cmp : public BinOp {
 private:
     Cmp(CmpTag tag, const Def* lhs, const Def* rhs, Debug dbg);
 
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
-
 public:
     const PrimType* type() const { return BinOp::type()->as<PrimType>(); }
     CmpTag cmp_tag() const { return (CmpTag) tag(); }
     const char* op_name() const override;
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
     friend class World;
 };
@@ -134,6 +123,7 @@ private:
         : ConvOp(Node_Cast, from, to, dbg)
     {}
 
+public:
     const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
     friend class World;
@@ -146,6 +136,7 @@ private:
         : ConvOp(Node_Bitcast, from, to, dbg)
     {}
 
+public:
     const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
     friend class World;
@@ -160,10 +151,9 @@ private:
         assert(std::find(variant_type->ops().begin(), variant_type->ops().end(), value->type()) != variant_type->ops().end());
     }
 
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
-
 public:
     const VariantType* type() const { return PrimOp::type()->as<VariantType>(); }
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
     friend class World;
 };
@@ -180,14 +170,13 @@ private:
         : PrimOp(Node_LEA, type, {ptr, index}, dbg)
     {}
 
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
-
 public:
     const Def* ptr() const { return op(0); }
     const Def* index() const { return op(1); }
     const PtrType* type() const { return PrimOp::type()->as<PtrType>(); }
     const PtrType* ptr_type() const { return ptr()->type()->as<PtrType>(); } ///< Returns the PtrType from @p ptr().
     const Def* ptr_pointee() const { return ptr_type()->pointee(); }        ///< Returns the type referenced by @p ptr().
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
     friend class World;
 };
@@ -199,10 +188,9 @@ private:
         : PrimOp(Node_Hlt, def->type(), {def}, dbg)
     {}
 
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
-
 public:
     const Def* def() const { return op(0); }
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
     friend class World;
 };
@@ -212,10 +200,9 @@ class Known : public PrimOp {
 private:
     Known(const Def* def, Debug dbg);
 
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
-
 public:
     const Def* def() const { return op(0); }
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
     friend class World;
 };
@@ -230,10 +217,9 @@ private:
         : PrimOp(Node_Run, def->type(), {def}, dbg)
     {}
 
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
-
 public:
     const Def* def() const { return op(0); }
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
     friend class World;
 };
@@ -256,8 +242,6 @@ public:
     const Def* frame() const { return op(0); }
     const PtrType* type() const { return PrimOp::type()->as<PtrType>(); }
     const Def* alloced_type() const { return type()->pointee(); }
-
-private:
     bool equal(const Def* other) const override;
     const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
@@ -287,11 +271,9 @@ public:
     const Def* alloced_type() const { return type()->pointee(); }
     const char* op_name() const override;
 
-    std::ostream& stream(std::ostream&) const override;
-
-private:
     bool equal(const Def* other) const override { return this == other; }
     const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    std::ostream& stream(std::ostream&) const override;
 
     friend class World;
 };
@@ -309,9 +291,7 @@ protected:
 
 public:
     const Def* mem() const { return op(0); }
-    const Def* out_mem() const { return has_multiple_outs() ? out(0) : this; }
-
-private:
+    const Def* out_mem() const { return out(0); }
     bool equal(const Def* other) const override { return this == other; }
 };
 
@@ -323,15 +303,10 @@ private:
     {}
 
 public:
-    bool has_multiple_outs() const override { return true; }
     const Def* out_ptr() const { return out(1); }
     const Sigma* type() const { return MemOp::type()->as<Sigma>(); }
     const PtrType* out_ptr_type() const { return type()->op(1)->as<PtrType>(); }
     const Def* alloced_type() const { return out_ptr_type()->pointee(); }
-    static const Alloc* is_out_mem(const Def* def) { return is_out<0, Alloc>(def); }
-    static const Alloc* is_out_ptr(const Def* def) { return is_out<1, Alloc>(def); }
-
-private:
     const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
     friend class World;
@@ -358,14 +333,9 @@ private:
     {}
 
 public:
-    bool has_multiple_outs() const override { return true; }
     const Def* out_val() const { return out(1); }
     const Sigma* type() const { return MemOp::type()->as<Sigma>(); }
     const Def* out_val_type() const { return type()->op(1); }
-    static const Load* is_out_mem(const Def* def) { return is_out<0, Load>(def); }
-    static const Load* is_out_val(const Def* def) { return is_out<1, Load>(def); }
-
-private:
     const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
     friend class World;
@@ -378,11 +348,10 @@ private:
         : Access(Node_Store, mem->type(), {mem, ptr, value}, dbg)
     {}
 
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
-
 public:
     const Def* val() const { return op(2); }
     const MemType* type() const { return Access::type()->as<MemType>(); }
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
     friend class World;
 };
@@ -394,14 +363,10 @@ private:
         : MemOp(Node_Enter, type, {mem}, dbg)
     {}
 
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
-
 public:
     const Sigma* type() const { return MemOp::type()->as<Sigma>(); }
-    bool has_multiple_outs() const override { return true; }
     const Def* out_frame() const { return out(1); }
-    static const Enter* is_out_mem(const Def* def) { return is_out<0, Enter>(def); }
-    static const Enter* is_out_frame(const Def* def) { return is_out<1, Enter>(def); }
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
     friend class World;
 };
@@ -430,7 +395,6 @@ public:
     Defs inputs() const { return ops().skip_front(); }
     const Def* input(size_t i) const { return inputs()[i]; }
     size_t num_inputs() const { return inputs().size(); }
-    bool has_multiple_outs() const override { return true; }
     const std::string& asm_template() const { return extra<Extra>().asm_template_; }
     const ArrayRef<std::string> output_constraints() const { return extra<Extra>().output_constraints_; }
     const ArrayRef<std::string> input_constraints() const { return extra<Extra>().input_constraints_; }
@@ -449,21 +413,6 @@ inline Assembly::Flags operator|(Assembly::Flags lhs, Assembly::Flags rhs) { ret
 inline Assembly::Flags operator&(Assembly::Flags lhs, Assembly::Flags rhs) { return static_cast<Assembly::Flags>(static_cast<int>(lhs) & static_cast<int>(rhs)); }
 inline Assembly::Flags operator|=(Assembly::Flags& lhs, Assembly::Flags rhs) { return lhs = lhs | rhs; }
 inline Assembly::Flags operator&=(Assembly::Flags& lhs, Assembly::Flags rhs) { return lhs = lhs & rhs; }
-
-//------------------------------------------------------------------------------
-
-template<int i, class T>
-const T* PrimOp::is_out(const Def* def) {
-    if (auto extract = def->isa<Extract>()) {
-        if (is_primlit(extract->index(), i)) {
-            if (auto res = extract->agg()->isa<T>())
-                return res;
-        }
-    }
-    return nullptr;
-}
-
-//------------------------------------------------------------------------------
 
 template<class To>
 using PrimOpMap     = GIDMap<const PrimOp*, To>;

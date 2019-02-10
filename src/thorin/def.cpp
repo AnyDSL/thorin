@@ -148,6 +148,9 @@ bool is_tuple_arg_of_app(const Def* def) {
  * Def
  */
 
+const Def* Def::out(size_t i, Debug dbg) const { return world().extract(this, num_outs(), i, dbg); }
+size_t Def::num_outs() const { return as_lit<u64>(arity()); }
+
 Debug Def::debug_history() const {
 #if THORIN_ENABLE_CHECKS
     return world().track_history() ? Debug(loc(), unique_name()) : debug();
@@ -251,7 +254,7 @@ const Param* Lam::param(Debug dbg) const { return world().param(this->as_nominal
 const Def* Lam::param(size_t i, Debug dbg) const { return world().extract(param(), num_params(), i, dbg); }
 Array<const Def*> Lam::params() const { return Array<const Def*>(num_params(), [&](auto i) { return param(i); }); }
 
-const Def* Lam::filter(size_t i) const { return world().extract(filter(), num_params(), i); }
+const Def* Lam::filter(size_t i) const { return world().extract(filter(), num_filters(), i); }
 Array<const Def*> Lam::filters() const { return Array<const Def*>(num_filters(), [&](auto i) { return filter(i); }); }
 void Lam::set_filter(Defs filter) { set_filter(world().tuple(filter)); }
 

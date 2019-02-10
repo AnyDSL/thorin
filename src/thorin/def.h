@@ -575,7 +575,6 @@ private:
 
 size_t get_param_index(const Def* def);
 Lam* get_param_lam(const Def* def);
-bool is_param(const Def* def);
 std::vector<Peek> peek(const Def*);
 
 class Param : public Def {
@@ -712,8 +711,6 @@ private:
 
     friend class World;
 };
-
-size_t get_param_index(const Def* def);
 
 /**
  * Creates a new aggregate by inserting <tt>val</tt> at position <tt>index</tt> into <tt>agg</tt>.

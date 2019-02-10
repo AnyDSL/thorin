@@ -97,6 +97,13 @@ void Cleaner::eliminate_tail_rec() {
     });
 }
 
+// TODO remove
+bool is_param(const Def* def) {
+    if (def->isa<Param>()) return true;
+    if (auto extract = def->isa<Extract>()) return extract->agg()->isa<Param>();
+    return false;
+}
+
 void Cleaner::eta_conversion() {
     for (bool todo = true; todo;) {
         todo = false;

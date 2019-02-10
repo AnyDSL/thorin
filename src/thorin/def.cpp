@@ -235,21 +235,8 @@ void Def::dump() const {
  * App
  */
 
-size_t App::num_args() const {
-    if (auto sigma = arg()->type()->isa<Sigma>())
-        return sigma->num_ops();
-    return 1;
-}
-
-const Def* App::arg(size_t i) const { return callee()->world().extract(arg(), i); }
-
-Array<const Def*> App::args() const {
-    size_t n = num_args();
-    Array<const Def*> args(n);
-    for (size_t i = 0; i != n; ++i)
-        args[i] = arg(i);
-    return args;
-}
+const Def* App::arg(size_t i) const { return callee()->world().extract(arg(), num_args(), i); }
+Array<const Def*> App::args() const { return Array<const Def*>(num_args(), [&](auto i) { return arg(i); }); }
 
 /*
  * Lam
@@ -261,32 +248,12 @@ void Lam::destroy() {
 }
 
 const Param* Lam::param(Debug dbg) const { return world().param(this->as_nominal<Lam>(), dbg); }
+const Def* Lam::param(size_t i, Debug dbg) const { return world().extract(param(), num_params(), i, dbg); }
+Array<const Def*> Lam::params() const { return Array<const Def*>(num_params(), [&](auto i) { return param(i); }); }
+
+const Def* Lam::filter(size_t i) const { return world().extract(filter(), num_params(), i); }
+Array<const Def*> Lam::filters() const { return Array<const Def*>(num_filters(), [&](auto i) { return filter(i); }); }
 void Lam::set_filter(Defs filter) { set_filter(world().tuple(filter)); }
-const Def* Lam::param(size_t i, Debug dbg) const { return world().extract(param(), i, dbg); }
-
-Array<const Def*> Lam::params() const {
-    size_t n = num_params();
-    Array<const Def*> params(n);
-    for (size_t i = 0; i != n; ++i)
-        params[i] = param(i);
-    return params;
-}
-
-size_t Lam::num_params() const {
-    if (auto sigma = param()->type()->isa<Sigma>())
-        return sigma->num_ops();
-    return 1;
-}
-
-const Def* Lam::filter(size_t i) const { return world().extract(filter(), i); }
-
-Array<const Def*> Lam::filters() const {
-    size_t n = num_filters();
-    Array<const Def*> filters(n);
-    for (size_t i = 0; i != n; ++i)
-        filters[i] = filter(i);
-    return filters;
-}
 
 const Def* Lam::mem_param() const {
     for (size_t i = 0, e = num_params(); i != e; ++i) {

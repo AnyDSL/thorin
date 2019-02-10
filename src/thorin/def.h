@@ -404,11 +404,11 @@ private:
 
 public:
     const Def* callee() const { return op(0); }
+    const Pi* callee_type() const { return callee()->type()->as<Pi>(); }
     const Def* arg() const { return op(1); }
-
     const Def* arg(size_t i) const;
     Array<const Def*> args() const;
-    size_t num_args() const;
+    size_t num_args() const { return as_lit<u64>(callee_type()->domain()->arity()); }
 
     const Def* rebuild(World&, const Def*, Defs) const override;
     std::ostream& stream(std::ostream&) const override;
@@ -486,7 +486,7 @@ public:
     const Param* param(Debug dbg = {}) const;
     const Def* param(size_t i, Debug dbg = {}) const;
     Array<const Def*> params() const;
-    size_t num_params() const;
+    size_t num_params() const { return as_lit<u64>(type()->domain()->arity()); }
     const Def* mem_param() const;
     const Def* ret_param() const;
     //@}

@@ -5,8 +5,6 @@ set(THORIN_SOURCES
     def.h
     enums.cpp
     enums.h
-    irbuilder.cpp
-    irbuilder.h
     primop.cpp
     primop.h
     type.cpp
@@ -44,8 +42,6 @@ set(THORIN_SOURCES
     transform/closure_conversion.h
     transform/codegen_prepare.h
     transform/codegen_prepare.cpp
-    transform/critical_edge_elimination.cpp
-    transform/critical_edge_elimination.h
     transform/dead_load_opt.cpp
     transform/dead_load_opt.h
     transform/deep_copy.cpp
@@ -66,8 +62,6 @@ set(THORIN_SOURCES
     transform/mpi_type.h
     transform/resolve_loads.cpp
     transform/resolve_loads.h
-    transform/mem2reg.cpp
-    transform/mem2reg.h
     transform/partial_evaluation.cpp
     transform/partial_evaluation.h
     transform/rewrite_flow_graphs.cpp
@@ -125,8 +119,8 @@ add_library(thorin ${THORIN_SOURCES})
 
 if(LLVM_FOUND)
     llvm_map_components_to_libnames(LLVM_LIBRARIES all)
-    target_link_libraries(thorin ${LLVM_LIBRARIES})
+    target_link_libraries(thorin PUBLIC ${LLVM_LIBRARIES})
 endif()
 if(RV_FOUND)
-    target_link_libraries(thorin ${RV_LIBRARIES})
+    target_link_libraries(thorin PRIVATE ${RV_LIBRARIES})
 endif()

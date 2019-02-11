@@ -49,7 +49,7 @@ std::ostream& streamf(std::ostream& os, const char* fmt) {
                 continue;
             }
             // TODO give exact position
-            throw std::invalid_argument("nmatched/unescaped closing brace '}' in format string");
+            throw std::invalid_argument("unmatched/unescaped closing brace '}' in format string");
         }
         os << *fmt++;
     }

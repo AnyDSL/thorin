@@ -68,8 +68,9 @@ public:
     const Def* zero(const Type* type, Debug dbg = {}, size_t length = 1) { return zero(type->as<PrimType>()->primtype_tag(), dbg, length); }
     const Def* one(PrimTypeTag tag, Debug dbg = {}, size_t length = 1) { return literal(tag, 1, dbg, length); }
     const Def* one(const Type* type, Debug dbg = {}, size_t length = 1) { return one(type->as<PrimType>()->primtype_tag(), dbg, length); }
-    const Def* allset(PrimTypeTag tag, Debug dbg = {}, size_t length = 1) { return literal(tag, -1, dbg, length); }
+    const Def* allset(PrimTypeTag tag, Debug dbg = {}, size_t length = 1);
     const Def* allset(const Type* type, Debug dbg = {}, size_t length = 1) { return allset(type->as<PrimType>()->primtype_tag(), dbg, length); }
+    const Def* top(const Type* type, Debug dbg = {}, size_t length = 1) { return splat(cse(new Top(type, dbg)), length); }
     const Def* bottom(const Type* type, Debug dbg = {}, size_t length = 1) { return splat(cse(new Bottom(type, dbg)), length); }
     const Def* bottom(PrimTypeTag tag, Debug dbg = {}, size_t length = 1) { return bottom(type(tag), dbg, length); }
 
@@ -165,7 +166,6 @@ public:
     Continuation* continuation(const FnType* fn, CC cc = CC::C, Intrinsic intrinsic = Intrinsic::None, Debug dbg = {});
     Continuation* continuation(const FnType* fn, Debug dbg = {}) { return continuation(fn, CC::C, Intrinsic::None, dbg); }
     Continuation* continuation(Debug dbg = {}) { return continuation(fn_type(), CC::C, Intrinsic::None, dbg); }
-    Continuation* basicblock(Debug dbg = {});
     Continuation* branch() const { return branch_; }
     Continuation* match(const Type* type, size_t num_patterns);
     Continuation* end_scope() const { return end_scope_; }

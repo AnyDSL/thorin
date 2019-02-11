@@ -7,6 +7,7 @@
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/Transforms/Scalar.h>
+#include <llvm/Transforms/IPO.h>
 
 #include <llvm/Config/llvm-config.h>
 
@@ -96,7 +97,9 @@ void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llv
 
     // ensure proper loop forms
     llvm::legacy::FunctionPassManager pm(module_.get());
+    pm.add(llvm::createCFGSimplificationPass());
     pm.add(llvm::createSROAPass());
+    pm.add(llvm::createEarlyCSEPass());
     pm.add(llvm::createSCCPPass());
     pm.add(rv::createCNSPass()); // make all loops reducible (has to run first!)
     pm.add(llvm::createPromoteMemoryToRegisterPass()); // CNSPass relies on mem2reg for now

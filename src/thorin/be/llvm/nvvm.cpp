@@ -11,7 +11,6 @@
 #include <llvm/IR/InlineAsm.h>
 #include <llvm/IRReader/IRReader.h>
 #include <llvm/Support/Host.h>
-#include <llvm/Support/raw_ostream.h>
 #include <llvm/Support/SourceMgr.h>
 
 #include "thorin/primop.h"
@@ -35,7 +34,7 @@ NVVMCodeGen::NVVMCodeGen(World& world, const Cont2Config& kernel_config)
     // nvvmir.version
     auto nvvmir_version_md = module_->getOrInsertNamedMetadata("nvvmir.version");
     llvm::Metadata* annotation_values_15[] = { llvm::ConstantAsMetadata::get(irbuilder_.getInt64(1)), llvm::ConstantAsMetadata::get(irbuilder_.getInt64(5)) };
-    nvvmir_version_md->addOperand(llvm::MDNode::get(context_, annotation_values_15));
+    nvvmir_version_md->addOperand(llvm::MDNode::get(*context_, annotation_values_15));
 }
 
 //------------------------------------------------------------------------------
@@ -65,8 +64,8 @@ void NVVMCodeGen::emit_function_decl_hook(Continuation* continuation, llvm::Func
     auto annotation = module_->getOrInsertNamedMetadata("nvvm.annotations");
 
     const auto append_metadata = [&](llvm::Value* target, const std::string& name, const int val) {
-        llvm::Metadata* annotation_values[] = { llvm::ValueAsMetadata::get(target), llvm::MDString::get(context_, name), llvm::ConstantAsMetadata::get(irbuilder_.getInt64(val)) };
-        llvm::MDNode* result = llvm::MDNode::get(context_, annotation_values);
+        llvm::Metadata* annotation_values[] = { llvm::ValueAsMetadata::get(target), llvm::MDString::get(*context_, name), llvm::ConstantAsMetadata::get(irbuilder_.getInt64(val)) };
+        llvm::MDNode* result = llvm::MDNode::get(*context_, annotation_values);
         annotation->addOperand(result);
         return result;
     };
@@ -115,7 +114,7 @@ llvm::Value* NVVMCodeGen::map_param(llvm::Function*, llvm::Argument* arg, const 
 llvm::Function* NVVMCodeGen::get_texture_handle_fun() {
     // %tex_ref = call i64 @llvm.nvvm.texsurf.handle.p1i64(metadata !{i64 addrspace(1)* @texture, metadata !"texture", i32 1}, i64 addrspace(1)* @texture)
     llvm::Type* types[2] = {
-            llvm::Type::getMetadataTy(context_),
+            llvm::Type::getMetadataTy(*context_),
             llvm::PointerType::get(irbuilder_.getInt64Ty(), 1)
     };
     auto type = llvm::FunctionType::get(irbuilder_.getInt64Ty(), types, false);
@@ -132,7 +131,7 @@ void NVVMCodeGen::emit_function_start(llvm::BasicBlock*, Continuation* continuat
             auto md = metadata_.find(param);
             assert(md != metadata_.end());
             // require specific handle to be mapped to a parameter
-            llvm::Value* args[] = { llvm::MetadataAsValue::get(context_, md->second), var };
+            llvm::Value* args[] = { llvm::MetadataAsValue::get(*context_, md->second), var };
             params_[param] = irbuilder_.CreateCall(texture_handle, args);
         }
     }

@@ -29,12 +29,11 @@ public:
             auto output = entry->param(2);
             auto ret = entry->param(3);
             const Def* inputSize;
-            bool isBuffer = false;
 
             if(auto ptrType = input->type()->isa<PtrType>()) {
+                inputSize = world.size_of(ptrType->pointee());
                 if(auto structType = ptrType->pointee()->isa<StructType>()) {
                     if(structType->name().str() == "Buffer" && structType->num_ops() == 3) {
-                        isBuffer = true;
                         //load size from Buffer struct and cast it to i32
                         auto sizePtr = world.lea(input, world.literal_qu32(1, {}), {});
                         auto sizePtrLoaded = world.load(mem, sizePtr);
@@ -66,11 +65,6 @@ public:
 
                 //create jumps
                 entry->jump(mpi_byte_call, { mem, mpi_byte_call_cont });
-
-                //preparations for mpi_type_contiguous
-                if(!isBuffer) {
-                    inputSize = world.size_of(ptrType->pointee());
-                }
 
                 mpi_byte_call_cont->jump(mpi_type_contiguous_call, {
                     mpi_byte_call_cont->param(0), //mem

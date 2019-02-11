@@ -58,7 +58,7 @@ public:
             const StructType* struct_type;
             const TupleType* tuple_type;
 
-            if(auto prim_type = type->isa<PrimType>()) {
+            if(type->isa<PrimType>()) {
                 //load input
                 auto inputDef = world.load(mem, input);
                 auto inputValue = world.extract(inputDef, (qu32) 1);
@@ -217,7 +217,7 @@ public:
                 check_continuation_availability(elem_type);
                 auto call = emit(elem_type);
 
-                Continuation* call_continuations[dimension-1];
+                Array<Continuation*> call_continuations(dimension-1);
                 for(u64 i=0; i < dimension-1; i++) {
                     call_continuations[i] = world.continuation(world.fn_type({world.mem_type()}),Debug(Symbol("deep_copy_array_cont")));
                 }

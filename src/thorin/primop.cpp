@@ -73,11 +73,13 @@ LEA::LEA(const Def* ptr, const Def* index, Debug dbg)
         set_type(world.ptr_type(array->elem_type(), type->length(), type->device(), type->addr_space()));
     } else if (auto struct_type = ptr_pointee()->isa<StructType>()) {
         set_type(world.ptr_type(get(struct_type->ops(), index)));
+    } else if (auto prim_type = ptr_pointee()->isa<PrimType>()) {
+        assert(prim_type->length() > 1);
+        set_type(world.ptr_type(world.type(prim_type->primtype_tag())));
     } else {
         THORIN_UNREACHABLE;
     }
 }
-
 
 Known::Known(const Def* def, Debug dbg)
     : PrimOp(Node_Known, def->world().type_bool(), {def}, dbg)
@@ -176,6 +178,7 @@ bool Slot::equal(const PrimOp* other) const { return this == other; }
 const Def* ArithOp::vrebuild(World& to, Defs ops, const Type*  ) const { return to.arithop(arithop_tag(), ops[0], ops[1], debug()); }
 const Def* Bitcast::vrebuild(World& to, Defs ops, const Type* t) const { return to.bitcast(t, ops[0], debug()); }
 const Def* Bottom ::vrebuild(World& to, Defs,     const Type* t) const { return to.bottom(t, debug()); }
+const Def* Top    ::vrebuild(World& to, Defs,     const Type* t) const { return to.top(t, debug()); }
 const Def* Cast   ::vrebuild(World& to, Defs ops, const Type* t) const { return to.cast(t, ops[0], debug()); }
 const Def* Cmp    ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.cmp(cmp_tag(), ops[0], ops[1], debug()); }
 const Def* Enter  ::vrebuild(World& to, Defs ops, const Type*  ) const { return to.enter(ops[0], debug()); }

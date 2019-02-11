@@ -54,7 +54,7 @@ Continuation* CodeGen::emit_parallel(Continuation* continuation) {
 
     // set insert point to the wrapper function
     auto old_bb = irbuilder_.GetInsertBlock();
-    auto bb = llvm::BasicBlock::Create(context_, wrapper_name, wrapper);
+    auto bb = llvm::BasicBlock::Create(*context_, wrapper_name, wrapper);
     irbuilder_.SetInsertPoint(bb);
 
     // extract all arguments from the closure
@@ -110,9 +110,14 @@ Continuation* CodeGen::emit_spawn(Continuation* continuation) {
 
     // fetch values and create a unified struct which contains all values (closure)
     auto closure_type = convert(world_.tuple_type(continuation->arg_fn_type()->ops().skip_front(SPAWN_NUM_ARGS)));
-    llvm::Value* closure = llvm::UndefValue::get(closure_type);
-    for (size_t i = 0; i < num_kernel_args; ++i)
-        closure = irbuilder_.CreateInsertValue(closure, lookup(continuation->arg(i + SPAWN_NUM_ARGS)), unsigned(i));
+    llvm::Value* closure = nullptr;
+    if (closure_type->isStructTy()) {
+        closure = llvm::UndefValue::get(closure_type);
+        for (size_t i = 0; i < num_kernel_args; ++i)
+            closure = irbuilder_.CreateInsertValue(closure, lookup(continuation->arg(i + SPAWN_NUM_ARGS)), unsigned(i));
+    } else {
+        closure = lookup(continuation->arg(0 + SPAWN_NUM_ARGS));
+    }
 
     // allocate closure object and write values into it
     auto ptr = irbuilder_.CreateAlloca(closure_type, nullptr);
@@ -128,7 +133,7 @@ Continuation* CodeGen::emit_spawn(Continuation* continuation) {
 
     // set insert point to the wrapper function
     auto old_bb = irbuilder_.GetInsertBlock();
-    auto bb = llvm::BasicBlock::Create(context_, wrapper_name, wrapper);
+    auto bb = llvm::BasicBlock::Create(*context_, wrapper_name, wrapper);
     irbuilder_.SetInsertPoint(bb);
 
     // extract all arguments from the closure
@@ -136,8 +141,12 @@ Continuation* CodeGen::emit_spawn(Continuation* continuation) {
     auto load_ptr = irbuilder_.CreateBitCast(&*wrapper_args, llvm::PointerType::get(closure_type, 0));
     auto val = irbuilder_.CreateLoad(load_ptr);
     std::vector<llvm::Value*> target_args(num_kernel_args);
-    for (size_t i = 0; i < num_kernel_args; ++i)
-        target_args[i] = irbuilder_.CreateExtractValue(val, { unsigned(i) });
+    if (val->getType()->isStructTy()) {
+        for (size_t i = 0; i < num_kernel_args; ++i)
+            target_args[i] = irbuilder_.CreateExtractValue(val, { unsigned(i) });
+    } else {
+        target_args[0] = val;
+    }
 
     // call kernel body
     auto par_type = llvm::FunctionType::get(irbuilder_.getVoidTy(), llvm_ref(par_args), false);

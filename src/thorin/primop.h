@@ -82,6 +82,18 @@ private:
     friend class World;
 };
 
+/// This literal represents 'any value'.
+class Top : public Literal {
+private:
+    Top(const Type* type, Debug dbg)
+        : Literal(Node_Top, type, dbg)
+    {}
+
+    virtual const Def* vrebuild(World& to, Defs ops, const Type* type) const override;
+
+    friend class World;
+};
+
 /// Data constructor for a @p PrimType.
 class PrimLit : public Literal {
 private:

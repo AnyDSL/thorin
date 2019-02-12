@@ -114,7 +114,8 @@ Continuation* CodeGen::emit_atomic(Continuation* continuation) {
     assert(int(llvm::AtomicRMWInst::BinOp::Xchg) <= int(tag) && int(tag) <= int(llvm::AtomicRMWInst::BinOp::UMin) && "unsupported atomic");
     auto binop = (llvm::AtomicRMWInst::BinOp)tag;
     auto cont = continuation->arg(4)->as_continuation();
-    auto call = irbuilder_.CreateAtomicRMW(binop, ptr, val, llvm::AtomicOrdering::SequentiallyConsistent, llvm::SyncScope::System);
+    auto addr_space = continuation->arg(2)->type()->as<PtrType>()->addr_space();
+    auto call = irbuilder_.CreateAtomicRMW(binop, ptr, val, get_atomic_ordering(), get_atomic_sync_scope(addr_space));
     emit_result_phi(cont->param(1), call);
     return cont;
 }
@@ -127,7 +128,8 @@ Continuation* CodeGen::emit_cmpxchg(Continuation* continuation) {
     auto cmp  = lookup(continuation->arg(2));
     auto val  = lookup(continuation->arg(3));
     auto cont = continuation->arg(4)->as_continuation();
-    auto call = irbuilder_.CreateAtomicCmpXchg(ptr, cmp, val, llvm::AtomicOrdering::SequentiallyConsistent, llvm::AtomicOrdering::SequentiallyConsistent, llvm::SyncScope::System);
+    auto addr_space = continuation->arg(1)->type()->as<PtrType>()->addr_space();
+    auto call = irbuilder_.CreateAtomicCmpXchg(ptr, cmp, val, get_atomic_ordering(), get_atomic_ordering(), get_atomic_sync_scope(addr_space));
     emit_result_phi(cont->param(1), irbuilder_.CreateExtractValue(call, 0));
     emit_result_phi(cont->param(2), irbuilder_.CreateExtractValue(call, 1));
     return cont;

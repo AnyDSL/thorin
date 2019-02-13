@@ -7,6 +7,49 @@
 
 namespace thorin {
 
+void lift_pipeline(World& world) {
+    for (auto cont : world.copy_continuations()) {
+        auto callee = cont->callee()->isa_continuation();
+        // Binding to the number of arguments to avoid repeated optimization
+        if (callee && callee->intrinsic() == Intrinsic::Pipeline && cont->num_args() == 6) {
+            //making new pipeline signature(type), adding continue
+            auto cont_type = world.fn_type({ world.mem_type() });
+            auto body_type = world.fn_type({ world.mem_type(), world.type_qs32() });
+            auto pipe_type = world.fn_type({
+                world.mem_type(),
+                world.type_qs32(),
+                world.type_qs32(),
+                world.type_qs32(),
+                body_type,
+                cont_type,
+                cont_type
+            });
+            // Making "PipelineContinue" as an intrinsic
+            auto continue_ = world.continuation(cont_type, CC::C, Intrinsic::PipelineContinue, Debug("pipeline_continue"));
+            // Modifying Pipeline signature with the new signature
+            auto pipe_cont = world.continuation(pipe_type, CC::C, Intrinsic::Pipeline, callee->debug());
+            //4th argument in pipeline intr is used for passing body
+            auto old_body = cont->arg(4);
+            //Making old_body as a continuation and renaming to body_cont
+            auto body_cont = world.continuation(body_type, old_body->debug());
+            //wiring and passing PipelineContinue intrinsic to the modified signature
+            cont->jump(pipe_cont, thorin::Defs { cont->arg(0), cont->arg(1), cont->arg(2), cont->arg(3), body_cont, cont->arg(5), continue_ });
+            // Getting body_cont in 4th parameter of new pipeline signature and assigning body_cont parameters as old body args
+            Call call(4);
+            call.callee() = old_body;
+            call.arg(0) = body_cont->param(0);
+            call.arg(1) = body_cont->param(1);
+            // passing pipelineContinue intrinsic (continuation)
+            call.arg(2) = continue_;
+            //inlining
+            auto target = drop(call);
+            //Jumping to the traget while applying args on body
+            body_cont->jump(target->callee(), target->args());
+        }
+    } 
+
+}
+
 void lift_builtins(World& world) {
     while (true) {
         Continuation* cur = nullptr;
@@ -63,6 +106,7 @@ void lift_builtins(World& world) {
 
         world.cleanup();
     }
+    lift_pipeline(world);
 }
 
 }

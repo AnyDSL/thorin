@@ -2,6 +2,7 @@
 #define THORIN_OPT_OPTIMIZER_H
 
 #include "thorin/world.h"
+#include "thorin/util/iterator.h"
 #include <deque>
 
 namespace thorin {
@@ -24,6 +25,12 @@ private:
     Optimizer& optimizer_;
 };
 
+class Context {
+public:
+    Def2Def old2new;
+    DefSet analyzed; // TODO: merge with map above
+};
+
 /**
  * A super optimizer.
  * See "Composing dataflow analyses and transformations" by Lerner, Grove, Chambers.
@@ -41,13 +48,29 @@ public:
     void enqueue(Def*);
     const Def* rewrite(const Def*);
     void analyze(const Def*);
+    std::optional<const Def*> lookup(const Def* old_def) {
+        for (auto&& ctxt : reverse_range(ctxts_)) {
+            auto i = ctxt.old2new.find(old_def);
+            auto e = ctxt.old2new.end();
+            if (i == e) continue;
+
+            // TODO path compression
+            for (auto j = ctxt.old2new.find(i->second); j != e;) {
+                auto tmp = j;
+                j = ctxt.old2new.find(i->second);
+                i = tmp;
+            }
+
+            return i->second;
+        }
+        return {};
+    }
 
 private:
     World& world_;
     std::deque<std::unique_ptr<Optimization>> opts_;
     std::queue<Def*> nominals_;
-    Def2Def old2new_;
-    DefSet analyzed_; // TODO: merge with map above
+    std::deque<Context> ctxts_;
 };
 
 Optimizer std_optimizer(World&);

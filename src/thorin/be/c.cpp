@@ -634,7 +634,13 @@ void CCodeGen::emit() {
                             func_impl_ << "p" << body->param(1)->unique_name() << " = i;" << endl;
                             emit(body);
                             // Emitting "continue" with accroding label used for goto
-                            func_impl_ << down << endl << "l" << continuation->arg(6)->gid() << ": continue;" << endl << "}";
+                            func_impl_ << down << endl << "l" << continuation->arg(6)->gid() << ": continue;" << endl << "}" << endl;
+                            if (continuation->arg(5) == ret_param)
+                                func_impl_ << "return;" << endl;
+                            else
+                                emit(continuation->arg(5));
+                        } else if (callee->intrinsic() == Intrinsic::PipelineContinue) {
+                            func_impl_ << "goto l" << callee->gid() << ";" << endl;  
                         } else {
                             THORIN_UNREACHABLE;
                         }

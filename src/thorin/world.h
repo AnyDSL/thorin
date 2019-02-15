@@ -230,7 +230,7 @@ public:
     //@{
     const Def* bot_top(bool is_top, const Def* type, Debug dbg = {});
     const Def* bot(const Def* type, Loc dbg = {}) { return bot_top(false, type, dbg); }
-    const Def* top(const Def* type, Loc dbg = {}) { return bot_top(true,  type, dbg); }
+    const Def* top(const Def* type, Loc dbg = {}) { return bot_top( true, type, dbg); }
     const Def* bot(PrimTypeTag tag, Loc dbg = {}) { return bot_top(false, type(tag), dbg); }
     const Def* top(PrimTypeTag tag, Loc dbg = {}) { return bot_top( true, type(tag), dbg); }
     const Def* bot_star () { return bot_star_; }

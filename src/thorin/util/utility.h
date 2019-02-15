@@ -63,10 +63,10 @@ T pop(std::stack<T>& stack) {
     return val;
 }
 
-template<class T>
-T pop(std::queue<T>& queue) {
-    auto val = queue.front();
-    queue.pop();
+template<class Q>
+typename Q::value_type pop(Q& q) {
+    auto val = q.front();
+    q.pop();
     return val;
 }
 

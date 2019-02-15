@@ -7,24 +7,29 @@ namespace thorin {
 
 void Optimizer::run() {
     auto externals = world().externals();
-    for (auto lam : externals)
+
+    for (auto lam : externals) {
         enqueue(lam);
 
-    while (!nominals_.empty()) {
-        auto def = pop(nominals_);
+        while (!nominals_.empty()) {
+            auto def = pop(nominals_);
 
-        for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
-            def->set(i, rewrite(def->op(i)));
-            analyze(def->op(i));
+            for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
+                def->set(i, rewrite(def->op(i)));
+                analyze(def->op(i));
+            }
         }
 
+        lookup(lam).value()->as_nominal<Lam>()->make_external();
+        //lam->make_internal();
     }
 }
 
 void Optimizer::enqueue(Def* old_def) {
-    if (old2new_.contains(old_def)) return;
+    if (auto new_def = lookup(old_def)) return;
 
-    auto new_def = old_def;
+    auto new_type = rewrite(old_def->type());
+    auto new_def = old_def->stub(world(), new_type);
     /* TODO
     for (auto&& opt : opts_)
         new_def = opt->visit(new_def);

@@ -626,12 +626,13 @@ void CCodeGen::emit() {
                             auto body = continuation->arg(4)->as_continuation();
                             func_impl_ << "#pragma HLS PIPELINE II=";
                             emit(continuation->arg(1)) << endl;
-                            func_impl_ << "for (int i = ";
+                            type_decls_ << "int i" << callee->gid() << ";" << endl;
+                            func_impl_ << "for (i" << callee->gid() << " = ";
                             emit(continuation->arg(2));
-                            func_impl_ << "; i < ";
-                            emit(continuation->arg(3)) <<"; i++) {"<< up << endl;
+                            func_impl_ << "; i" << callee->gid() << " < ";
+                            emit(continuation->arg(3)) <<"; i" << callee->gid() << "++) {"<< up << endl;
                             // Emiting body and "for index" as the "body parameter"
-                            func_impl_ << "p" << body->param(1)->unique_name() << " = i;" << endl;
+                            func_impl_ << "p" << body->param(1)->unique_name() << " = i"<< callee->gid()<< ";" << endl;
                             emit(body);
                             // Emitting "continue" with accroding label used for goto
                             func_impl_ << down << endl << "l" << continuation->arg(6)->gid() << ": continue;" << endl << "}" << endl;

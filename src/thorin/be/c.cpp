@@ -623,14 +623,15 @@ void CCodeGen::emit() {
                                            << "#pragma HLS dependence variable=" << name << " inter false" << endl
                                            << "#pragma HLS data_pack  variable=" << name;
                         } else if (callee->intrinsic() == Intrinsic::Pipeline) {
+                            // casting to contunation to get unique name of "for index"
                             auto body = continuation->arg(4)->as_continuation();
-                            func_impl_ << "#pragma HLS PIPELINE II=";
-                            emit(continuation->arg(1)) << endl;
                             type_decls_ << "int i" << callee->gid() << ";" << endl;
                             func_impl_ << "for (i" << callee->gid() << " = ";
                             emit(continuation->arg(2));
                             func_impl_ << "; i" << callee->gid() << " < ";
                             emit(continuation->arg(3)) <<"; i" << callee->gid() << "++) {"<< up << endl;
+                            func_impl_ << "#pragma HLS PIPELINE II=";
+                            emit(continuation->arg(1)) << endl;
                             // Emiting body and "for index" as the "body parameter"
                             func_impl_ << "p" << body->param(1)->unique_name() << " = i"<< callee->gid()<< ";" << endl;
                             emit(body);

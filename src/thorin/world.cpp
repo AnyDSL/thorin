@@ -27,7 +27,7 @@ namespace thorin {
  */
 
 #ifndef NDEBUG
-bool World::Lock::alloc_guard_ = false;
+bool World::Lock::allocate_guard_ = false;
 #endif
 
 World::World(uint32_t cur_gid, Debug debug)

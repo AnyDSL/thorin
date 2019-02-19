@@ -8,35 +8,44 @@ namespace thorin {
 void Optimizer::run() {
     auto externals = world().externals();
 
-    for (auto lam : externals) {
+    for (auto lam : externals)
         enqueue(lam);
 
-        while (!nominals_.empty()) {
-            auto def = pop(nominals_);
+    while (!nominals_.empty()) {
+        auto def = pop(nominals_);
 
-            for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
-                def->set(i, rewrite(def->op(i)));
-                analyze(def->op(i));
-            }
+        for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
+            def->set(i, rewrite(def->op(i)));
+            analyze(def->op(i));
         }
+    }
+
+    for (auto lam : externals) {
+        lam->make_internal();
+        lookup(lam).value()->as_nominal<Lam>()->make_external();
     }
 }
 
-void Optimizer::enqueue(Def* old_def) {
-    if (old2new_.contains(old_def)) return;
+void Optimizer::enqueue(Def* nom) {
+    //if (nom->is_empty())
+        nominals_.push(nom);
+}
 
-    auto new_def = old_def;
-    /* TODO
+Def* Optimizer::rewrite(Def* old_nom) {
+    if (auto new_nom = old2new_.lookup(old_nom)) return new_nom.value()->as_nominal();
+
+    auto new_type = rewrite(old_nom->type());
+    auto new_nom = old_nom->stub(world(), new_type);
     for (auto&& opt : opts_)
-        new_def = opt->visit(new_def);
-    */
-    old2new_[old_def] = new_def;
-    nominals_.push(new_def);
+        new_nom = opt->rewrite(new_nom);
+    old2new_[old_nom] = new_nom;
+
+    return new_nom;
 }
 
 const Def* Optimizer::rewrite(const Def* old_def) {
     if (auto new_def = old2new_.lookup(old_def)) return *new_def;
-    if (old_def->isa_nominal()) return old_def;
+    if (auto old_nom = old_def->isa_nominal()) return rewrite(old_nom);
 
     auto new_type = rewrite(old_def->type());
 

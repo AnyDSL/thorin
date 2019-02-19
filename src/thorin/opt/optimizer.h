@@ -17,6 +17,7 @@ public:
     virtual ~Optimization() {}
 
     Optimizer& optimizer() { return optimizer_; }
+    virtual Def* rewrite(Def* nominal) { return nominal; }
     virtual const Def* rewrite(const Def*) = 0;
     virtual void analyze(const Def*) = 0;
 
@@ -39,7 +40,8 @@ public:
     void create(Args&&... args) { opts_.emplace_back(std::make_unique<T>(*this, std::forward(args)...)); }
     void run();
     void enqueue(Def*);
-    const Def* rewrite(const Def*);
+    Def* rewrite(Def*);             ///< rewrites @em nominal @p Def%s
+    const Def* rewrite(const Def*); ///< rewrites @em structural @p Def%s
     void analyze(const Def*);
 
     std::optional<const Def*> lookup(const Def* old_def) {

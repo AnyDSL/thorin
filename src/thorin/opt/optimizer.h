@@ -61,7 +61,7 @@ private:
     std::deque<std::unique_ptr<Optimization>> opts_;
     std::queue<Def*> nominals_;
     Def2Def old2new_;
-    DefSet analyzed_; // TODO: merge with map above
+    DefSet analyzed_;
 };
 
 Optimizer std_optimizer(World&);

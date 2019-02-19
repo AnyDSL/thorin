@@ -1,6 +1,7 @@
 #include "thorin/opt/optimizer.h"
 
 #include "thorin/analyses/scope.h"
+#include "thorin/transform/importer.h"
 #include "thorin/opt/inliner.h"
 
 namespace thorin {
@@ -30,6 +31,16 @@ void Optimizer::run() {
         for (auto op : new_ops)
             analyze(op);
     }
+
+    // TODO provide this as stand alone method
+    // get rid of garbage
+    Importer importer(world_);
+    importer.old2new_.rehash(world_.defs().capacity());
+
+    for (auto external : world().externals())
+        importer.import(external);
+
+    swap(importer.world(), world_);
 }
 
 Def* Optimizer::rewrite(Def* old_nom) {
@@ -49,7 +60,7 @@ const Def* Optimizer::rewrite(const Def* old_def) {
     auto new_type = rewrite(old_def->type());
 
     bool rebuild = false;
-    Array<const Def*> new_ops(old_def->num_ops(), [&](size_t i) {
+    Array<const Def*> new_ops(old_def->num_ops(), [&](auto i) {
         auto old_op = old_def->op(i);
         auto new_op = rewrite(old_op);
         rebuild |= old_op != new_op;

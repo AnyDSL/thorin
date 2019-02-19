@@ -15,9 +15,10 @@ public:
     void analyze(const Def*) override;
 
 private:
-    size_t& uses(Lam* lam) { return uses_.emplace(lam, 0).first->second; }
+    enum class State : uint8_t { Bottom, Inlined_Once, Dont_Inline };
+    State& state(Lam* lam) { return state_.emplace(lam, State::Bottom).first->second;  }
 
-    LamMap<size_t> uses_;
+    LamMap<State> state_;
 };
 
 }

@@ -57,9 +57,14 @@ public:
     }
 
 private:
+    // visit basic blocks first
+    struct OrderLt {
+        bool operator()(Def* a, Def* b) { return a->type()->order() < b->type()->order(); }
+    };
+
     World& world_;
     std::deque<std::unique_ptr<Optimization>> opts_;
-    std::queue<Def*> nominals_;
+    std::priority_queue<Def*, std::deque<Def*>, OrderLt> nominals_;
     Def2Def old2new_;
     DefSet analyzed_;
 };

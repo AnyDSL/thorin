@@ -56,17 +56,17 @@ inline T& lazy_init(const This* self, std::unique_ptr<T>& ptr) {
     return *(ptr ? ptr : ptr = std::make_unique<T>(*self));
 }
 
-template<class T>
-T pop(std::stack<T>& stack) {
-    auto val = stack.top();
-    stack.pop();
+template<class S>
+auto pop(S& s) -> decltype(s.top(), typename S::value_type()) {
+    auto val = s.top();
+    s.pop();
     return val;
 }
 
-template<class T>
-T pop(std::queue<T>& queue) {
-    auto val = queue.front();
-    queue.pop();
+template<class Q>
+auto pop(Q& q) -> decltype(q.front(), typename Q::value_type()) {
+    auto val = q.front();
+    q.pop();
     return val;
 }
 

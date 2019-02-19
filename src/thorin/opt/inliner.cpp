@@ -4,6 +4,12 @@
 
 namespace thorin {
 
+// TODO here is another catch:
+// Say you have sth like this
+//  app(f, app(g, ...))
+// Now, this code will inline g and set g's state to Dont_Inline.
+// However, the inlined code might be dead after inlining f.
+
 const Def* Inliner::rewrite(const Def* def) {
     if (auto app = def->isa<App>()) {
         if (auto lam = app->callee()->isa_nominal<Lam>(); lam && !lam->is_empty()) {

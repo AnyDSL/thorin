@@ -43,7 +43,7 @@ public:
                 }
                 //TODO adjust get_mpi_byte call with runtime call
                 //generate continuations
-                auto mpi_byte_call = world.continuation(world.fn_type({ world.mem_type(), world.fn_type({ world.mem_type(), world.type_qs32(1)})}), Debug(Symbol("get_mpi_byte")));
+                auto mpi_byte_call = world.continuation(world.fn_type({ world.mem_type(), world.fn_type({ world.mem_type(), world.type_qs32(1)})}), Debug(Symbol("anydsl_comm_get_byte")));
                 mpi_byte_call->cc() = CC::C;
                 auto mpi_byte_call_cont = world.continuation(world.fn_type({ world.mem_type(), world.type_qs32(1)}),Debug(Symbol("get_mpi_byte_cont")));
 
@@ -52,16 +52,16 @@ public:
                     world.type_qs32(1), //count
                     world.type_qs32(1), //oldtype
                     world.ptr_type(world.type_qs32(1)), //newtype
-                    world.fn_type({ world.mem_type(), world.type_qs32(1) })}),Debug(Symbol("MPI_Type_contiguous")));
+                    world.fn_type({ world.mem_type(), world.type_qs32(1) })}),Debug(Symbol("anydsl_comm_type_contiguous")));
                 mpi_byte_call->cc() = CC::C;
-                auto mpi_type_contiguous_call_cont = world.continuation(world.fn_type({ world.mem_type(), world.type_qs32(1)}),Debug(Symbol("MPI_Type_contiguous_cont")));
+                auto mpi_type_contiguous_call_cont = world.continuation(world.fn_type({ world.mem_type(), world.type_qs32(1)}),Debug(Symbol("type_contiguous_cont")));
 
                 auto mpi_type_commit_call = world.continuation(world.fn_type({
                     world.mem_type(),
                     world.ptr_type(world.type_qs32()), //newtype
-                    world.fn_type({ world.mem_type(), world.type_qs32(1)})}),Debug(Symbol("MPI_Type_commit")));
+                    world.fn_type({ world.mem_type(), world.type_qs32(1)})}),Debug(Symbol("anydsl_comm_type_commit")));
                 mpi_type_commit_call->cc() = CC::C;
-                auto mpi_type_commit_call_cont = world.continuation(world.fn_type({ world.mem_type(), world.type_qs32(1)}),Debug(Symbol("MPI_Type_commit_cont")));
+                auto mpi_type_commit_call_cont = world.continuation(world.fn_type({ world.mem_type(), world.type_qs32(1)}),Debug(Symbol("type_commit_cont")));
 
                 //create jumps
                 entry->jump(mpi_byte_call, { mem, mpi_byte_call_cont });

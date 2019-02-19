@@ -8,6 +8,8 @@ const Def* Inliner::rewrite(const Def* def) {
     if (auto app = def->isa<App>()) {
         if (auto lam = app->callee()->isa_nominal<Lam>(); lam && !lam->is_empty() && uses(lam) == 0) {
             ++uses(lam);
+            std::cout << "drop" << std::endl;
+            app->dump();
             return optimizer().rewrite(drop(app)->body());
         }
     }

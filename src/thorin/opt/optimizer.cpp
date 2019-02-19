@@ -9,35 +9,34 @@ void Optimizer::run() {
     auto externals = world().externals();
 
     for (auto lam : externals)
-        enqueue(lam);
+        nominals_.push(lam);
 
     while (!nominals_.empty()) {
         auto def = pop(nominals_);
 
-        for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
-            def->set(i, rewrite(def->op(i)));
-            analyze(def->op(i));
+        bool mismatch = false;
+        auto old_ops = def->ops();
+        auto new_ops = Array<const Def*>(old_ops.size(), [&](auto i) {
+            auto new_op = rewrite(old_ops[i]);
+            mismatch |= new_op != old_ops[i];
+            return new_op;
+        });
+
+        if (mismatch) {
+            // TODO install restore point
+            def->set(new_ops);
         }
-    }
 
-    for (auto lam : externals) {
-        lam->make_internal();
-        lookup(lam).value()->as_nominal<Lam>()->make_external();
+        for (auto op : new_ops)
+            analyze(op);
     }
-}
-
-void Optimizer::enqueue(Def* nom) {
-    //if (nom->is_empty())
-        nominals_.push(nom);
 }
 
 Def* Optimizer::rewrite(Def* old_nom) {
-    if (auto new_nom = old2new_.lookup(old_nom)) return new_nom.value()->as_nominal();
-
-    auto new_type = rewrite(old_nom->type());
-    auto new_nom = old_nom->stub(world(), new_type);
+    auto new_nom = old_nom;
     for (auto&& opt : opts_)
         new_nom = opt->rewrite(new_nom);
+
     old2new_[old_nom] = new_nom;
 
     return new_nom;
@@ -69,7 +68,7 @@ const Def* Optimizer::rewrite(const Def* old_def) {
 
 void Optimizer::analyze(const Def* def) {
     if (!analyzed_.emplace(def).second) return;
-    if (auto nominal = def->isa_nominal()) return enqueue(nominal);
+    if (auto nominal = def->isa_nominal()) return nominals_.push(nominal);
 
     for (auto op : def->ops())
         analyze(op);

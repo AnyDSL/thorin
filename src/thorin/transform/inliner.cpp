@@ -14,7 +14,7 @@ void force_inline(Scope& scope, int threshold) {
             auto lam = n->lam();
             if (auto app = lam->app()) {
                 if (auto callee = app->callee()->isa_nominal<Lam>()) {
-                    if (!callee->is_empty() && !scope.contains(callee)) {
+                    if (!callee->is_unset() && !scope.contains(callee)) {
                         Scope callee_scope(callee);
                         lam->app(drop(callee_scope, app->args()), Defs{}, app->debug());
                         todo = true;
@@ -31,7 +31,7 @@ void force_inline(Scope& scope, int threshold) {
         auto lam = n->lam();
         if (auto app = lam->app()) {
             if (auto callee = app->callee()->isa_nominal<Lam>()) {
-                if (!callee->is_empty() && !scope.contains(callee))
+                if (!callee->is_unset() && !scope.contains(callee))
                     WLOG("couldn't inline {} at {} within scope of {}", callee, app->loc(), scope.entry());
             }
         }
@@ -54,7 +54,7 @@ void inliner(World& world) {
     };
 
     auto is_candidate = [&] (Lam* lam) -> Scope* {
-        if (!lam->is_empty() && lam->type()->order() > 1) {
+        if (!lam->is_unset() && lam->type()->order() > 1) {
             auto scope = get_scope(lam);
             if (scope->defs().size() < scope->entry()->num_params() * factor + offset) {
                 // check that the function is not recursive to prevent inliner from peeling loops

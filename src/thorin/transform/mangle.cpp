@@ -12,7 +12,7 @@ Mangler::Mangler(const Scope& scope, Defs args, Defs lift)
     , defs_(scope.defs().capacity())
     , old2new_(scope.defs().capacity())
 {
-    assert(!old_entry()->is_empty());
+    assert(!old_entry()->is_unset());
     assert(args.size() == old_entry()->num_params());
 
     // TODO correctly deal with lams here

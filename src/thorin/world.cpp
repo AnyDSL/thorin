@@ -60,8 +60,12 @@ World::World(uint32_t cur_gid, Debug debug)
     for (size_t j = 0; j != lit_nat_.size(); ++j)
         lit_nat_[j] = lit_nat(1 << int64_t(j));
 
-    branch_    = lam(cn(sigma({type_bool(), cn(), cn()})), CC::C, Intrinsic::Branch, Debug{"br"});
+    branch_= lam(cn(sigma({type_bool(), cn(), cn()})), CC::C, Intrinsic::Branch, Debug{"br"});
+    branch_->set_filter(pack(3, lit(false)));
+    branch_->set_body(bot_star_);
     end_scope_ = lam(cn(), CC::C, Intrinsic::EndScope, {"end_scope"});
+    end_scope_->set_filter(lit(false));
+    end_scope_->set_body(bot_star_);
 }
 
 World::~World() {

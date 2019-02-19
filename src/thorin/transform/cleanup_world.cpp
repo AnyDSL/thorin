@@ -113,7 +113,7 @@ void Cleaner::eta_conversion() {
             while (true) {
                 if (auto app = lam->app()) {
                     if (auto callee = app->callee()->isa_nominal<Lam>()) {
-                        if (callee->is_empty() || callee->is_external() || callee->num_uses() > 2) break;
+                        if (callee->is_unset() || callee->is_external() || callee->num_uses() > 2) break;
                         bool ok = true;
                         for (auto use : callee->uses()) { // 2 iterations at max - see above
                             if (!use->isa<App>() && !use->isa<Param>())
@@ -123,7 +123,7 @@ void Cleaner::eta_conversion() {
 
                         callee->param()->replace(app->arg());
                         lam->set_body(callee->body());
-                        callee->destroy();
+                        callee->unset();
                         todo_ = todo = true;
                         continue;
                     }
@@ -143,7 +143,7 @@ void Cleaner::eta_conversion() {
 
                 if (app->arg() == lam->param()) {
                     lam->replace(callee);
-                    lam->destroy();
+                    lam->unset();
                     todo_ = todo = true;
                     continue;
                 }
@@ -236,7 +236,7 @@ void Cleaner::eliminate_params() {
 
             new_lam->set_filter(old_lam->filters().cut(proxy_idx));
             new_lam->app(old_app->callee(), old_app->args(), old_app->debug());
-            old_lam->destroy();
+            old_lam->unset();
 
             for (auto use : old_lam->copy_uses()) {
                 if (use->isa<Param>()) continue; // ignore old_lam's Param

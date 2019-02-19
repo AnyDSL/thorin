@@ -42,6 +42,18 @@ public:
     const Def* rewrite(const Def*);
     void analyze(const Def*);
 
+    std::optional<const Def*> lookup(const Def* old_def) {
+        if (auto i = old2new_.find(old_def); i != old2new_.end())
+            return lookup(i);
+        return {};
+    }
+
+    const Def* lookup(Def2Def::iterator i) {
+        if (auto j = old2new_.find(i->second); j != old2new_.end())
+            i->second = lookup(j); // path compression + transitive replacements
+        return i->second;
+    }
+
 private:
     World& world_;
     std::deque<std::unique_ptr<Optimization>> opts_;

@@ -27,7 +27,7 @@ namespace thorin {
  */
 
 #ifndef NDEBUG
-bool World::Lock::alloc_guard_ = false;
+bool World::Lock::allocate_guard_ = false;
 #endif
 
 World::World(uint32_t cur_gid, Debug debug)
@@ -890,14 +890,13 @@ const Def* World::size_of(const Def* type, Debug dbg) {
  */
 
 const Def* World::load(const Def* mem, const Def* ptr, Debug dbg) {
-    auto ptr_type = ptr->type()->as<PtrType>();
+    auto pointee = ptr->type()->as<PtrType>()->pointee();
 
-    if (auto sigma = ptr_type->pointee()->isa<Sigma>()) {
-        // loading an empty tuple can only result in an empty tuple
-        if (sigma->num_ops() == 0) return tuple({mem, tuple(sigma->type(), {}, dbg)});
-    }
+    // loading an empty tuple can only result in an empty tuple
+    if (auto sigma = pointee->isa<Sigma>(); sigma && sigma->num_ops() == 0)
+        return tuple({mem, tuple(sigma->type(), {}, dbg)});
 
-    return unify<Load>(2, sigma({mem_type(), ptr_type->pointee()}), mem, ptr, dbg);
+    return unify<Load>(2, sigma({mem_type(), pointee}), mem, ptr, dbg);
 }
 
 const Def* World::store(const Def* mem, const Def* ptr, const Def* val, Debug dbg) {

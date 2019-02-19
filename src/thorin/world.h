@@ -412,7 +412,7 @@ private:
 
     template<class T, class... Args>
     const T* unify(size_t num_ops, Args&&... args) {
-        auto def = alloc<T>(num_ops, args...);
+        auto def = allocate<T>(num_ops, args...);
 #ifndef NDEBUG
         if (breakpoints_.contains(def->gid())) THORIN_BREAK;
 #endif
@@ -423,13 +423,13 @@ private:
             return def;
         }
 
-        dealloc<T>(def);
+        deallocate<T>(def);
         return static_cast<const T*>(*i);
     }
 
     template<class T, class... Args>
     T* insert(size_t num_ops, Args&&... args) {
-        auto def = alloc<T>(num_ops, args...);
+        auto def = allocate<T>(num_ops, args...);
 #ifndef NDEBUG
         if (breakpoints_.contains(def->gid())) THORIN_BREAK;
 #endif
@@ -446,9 +446,9 @@ private:
 
 #ifndef NDEBUG
     struct Lock {
-        Lock() { assert((alloc_guard_ = !alloc_guard_) && "you are not allowed to recursively invoke alloc"); }
-        ~Lock() { alloc_guard_ = !alloc_guard_; }
-        static bool alloc_guard_;
+        Lock() { assert((allocate_guard_ = !allocate_guard_) && "you are not allowed to recursively invoke allocate"); }
+        ~Lock() { allocate_guard_ = !allocate_guard_; }
+        static bool allocate_guard_;
     };
 #else
     struct Lock { ~Lock() {} };
@@ -463,7 +463,7 @@ private:
     }
 
     template<class T, class... Args>
-    T* alloc(size_t num_ops, Args&&... args) {
+    T* allocate(size_t num_ops, Args&&... args) {
         static_assert(sizeof(Def) == sizeof(T), "you are not allowed to introduce any additional data in subclasses of Def - use 'Extra' struct");
         Lock lock;
         size_t num_bytes = num_bytes_of<T>(num_ops);
@@ -486,7 +486,7 @@ private:
     }
 
     template<class T>
-    void dealloc(const T* def) {
+    void deallocate(const T* def) {
         size_t num_bytes = num_bytes_of<T>(def->num_ops());
         num_bytes = align(num_bytes);
         def->~T();

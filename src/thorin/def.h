@@ -153,8 +153,6 @@ public:
     inline size_t num_ops() const { return num_ops_; }
     void set(size_t i, const Def* def);
     void unset(size_t i);
-    void unset() { for (size_t i = 0, e = num_ops(); i != e; ++i) unset(i); }
-    bool is_unset() const { return num_ops() > 0 && ops().back() == nullptr; }
     //@}
     /// @name uses
     //@{
@@ -507,6 +505,7 @@ public:
 
     Lams preds() const;
     Lams succs() const;
+    bool is_empty() const { return is_bot(body()); }
     Intrinsic& intrinsic() { return extra<Extra>().intrinsic_; }
     Intrinsic intrinsic() const { return extra<Extra>().intrinsic_; }
     CC& cc() { return extra<Extra>().cc_; }
@@ -525,13 +524,13 @@ public:
     void dump_head() const;
     void dump_body() const;
 
-    /// @name sets the body by app-ing and set the filter to false
-    //@{
+    // terminate
+
     void app(const Def* callee, const Def* arg, Debug dbg = {});
     void app(const Def* callee, Defs args, Debug dbg = {});
     void branch(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
     void match(const Def* val, Lam* otherwise, Defs patterns, ArrayRef<Lam*> lams, Debug dbg = {});
-    //@}
+    void destroy();
 
     friend class Cleaner;
     friend class World;

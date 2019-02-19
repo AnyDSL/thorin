@@ -98,19 +98,19 @@ const CFA& Scope::cfa() const { return lazy_init(this, cfa_); }
 const F_CFG& Scope::f_cfg() const { return cfa().f_cfg(); }
 const B_CFG& Scope::b_cfg() const { return cfa().b_cfg(); }
 
-template<bool elide_unset>
+template<bool elide_empty>
 void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
     // TODO use Scope::walk instead
     unique_queue<LamSet> lam_queue;
 
     for (auto lam : world.externals()) {
-        assert(!lam->is_unset() && "external must be set");
+        assert(!lam->is_empty() && "external must not be empty");
         lam_queue.push(lam);
     }
 
     while (!lam_queue.empty()) {
         auto lam = lam_queue.pop();
-        if (elide_unset && lam->is_unset())
+        if (elide_empty && lam->is_empty())
             continue;
         Scope scope(lam);
         f(scope);

@@ -66,9 +66,9 @@ public:
     /**
      * Transitively visits all @em reachable Scope%s in @p world that do not have free variables.
      * We call these Scope%s @em top-level Scope%s.
-     * Select with @p elide_unset whether you want to visit trivial Scope%s of Lam%s without body.
+     * Select with @p elide_empty whether you want to visit trivial Scope%s of Lam%s without body.
      */
-    template<bool elide_unset = true>
+    template<bool elide_empty = true>
     static void for_each(const World&, std::function<void(Scope&)>);
 
 private:

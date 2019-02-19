@@ -6,7 +6,7 @@ namespace thorin {
 
 const Def* Inliner::rewrite(const Def* def) {
     if (auto app = def->isa<App>()) {
-        if (auto lam = app->callee()->isa_nominal<Lam>(); lam && !lam->is_unset() && uses(lam) == 0) {
+        if (auto lam = app->callee()->isa_nominal<Lam>(); lam && !lam->is_empty() && uses(lam) == 0) {
             ++uses(lam);
             return optimizer().rewrite(drop(app)->body());
         }
@@ -18,7 +18,7 @@ const Def* Inliner::rewrite(const Def* def) {
 void Inliner::analyze(const Def* def) {
     if (def->isa<Param>()) return;
     for (auto op : def->ops()) {
-        if (auto lam = op->isa_nominal<Lam>(); lam && !lam->is_unset()) {
+        if (auto lam = op->isa_nominal<Lam>(); lam && !lam->is_empty()) {
             ++uses(lam);
             if (uses(lam) > 1) {
                 // TODO

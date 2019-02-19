@@ -245,6 +245,11 @@ Array<const Def*> App::args() const { return Array<const Def*>(num_args(), [&](a
  * Lam
  */
 
+void Lam::destroy() {
+    set_filter(world().tuple(Array<const Def*>(type()->num_domains(), world().lit(false))));
+    set_body  (world().bot(type()->codomain()));
+}
+
 const Param* Lam::param(Debug dbg) const { return world().param(this->as_nominal<Lam>(), dbg); }
 const Def* Lam::param(size_t i, Debug dbg) const { return world().extract(param(), i, dbg); }
 Array<const Def*> Lam::params() const { return Array<const Def*>(num_params(), [&](auto i) { return param(i); }); }
@@ -369,7 +374,6 @@ void Lam::app(const Def* callee, Defs args, Debug dbg) { app(callee, world().tup
 
 void Lam::app(const Def* callee, const Def* arg, Debug dbg) {
     assert(isa_nominal());
-    set_filter(world().tuple(Array<const Def*>(type()->num_domains(), world().lit(false))));
     set_body(world().app(callee, arg, dbg));
 }
 

@@ -106,7 +106,11 @@ public:
     //@}
     /// @name Lambda: nominal
     //@{
-    Lam* lam(const Pi* cn, CC cc = CC::C, Intrinsic intrinsic = Intrinsic::None, Debug dbg = {}) { return insert<Lam>(2, cn, cc, intrinsic, dbg); }
+    Lam* lam(const Pi* cn, CC cc = CC::C, Intrinsic intrinsic = Intrinsic::None, Debug dbg = {}) {
+        auto lam = insert<Lam>(2, cn, cc, intrinsic, dbg);
+        lam->destroy(); // set filter to false and body to top
+        return lam;
+    }
     Lam* lam(const Pi* cn, Debug dbg = {}) { return lam(cn, CC::C, Intrinsic::None, dbg); }
     //@}
     /// @name Lambda: structural

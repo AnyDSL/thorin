@@ -3,11 +3,13 @@
 
 #include "thorin/world.h"
 #include "thorin/util/iterator.h"
+
 #include <deque>
 
 namespace thorin {
 
 class Optimizer;
+class Scope;
 
 /// All Optimization%s that want to be registered in the super @p Optimizer must implement this interface.
 class Optimization {
@@ -27,8 +29,15 @@ private:
 
 class Context {
 public:
+    Context(const Scope& scope, const Def* arg)
+        : scope(scope)
+        , arg(arg)
+    {}
+
+    const Scope& scope;
+    const Def* arg;
     Def2Def old2new;
-    DefSet analyzed; // TODO: merge with map above
+    //DefSet analyzed; // TODO: merge with map above
 };
 
 /**

@@ -471,7 +471,14 @@ private:
     }
 
 public:
-    //@{ operands
+    /// @name type
+    //@{
+    const Pi* type() const { return Def::type()->as<Pi>(); }
+    const Def* domain() const { return type()->domain(); }
+    const Def* codomain() const { return type()->codomain(); }
+    //@}
+    /// @name ops
+    //@{
     const Def* filter() const { return op(0); }
     const Def* filter(size_t i) const;
     Array<const Def*> filters() const;
@@ -479,8 +486,8 @@ public:
     const Def* body() const { return op(1); }
     const App* app() const { return body()->isa<App>(); }
     //@}
-
-    //@{ params
+    /// @name params
+    //@{
     const Param* param(Debug dbg = {}) const;
     const Def* param(size_t i, Debug dbg = {}) const;
     Array<const Def*> params() const;
@@ -488,21 +495,25 @@ public:
     const Def* mem_param() const;
     const Def* ret_param() const;
     //@}
-
-    //@{ setters
+    /// @name setters
+    //@{
     void set_filter(const Def* filter) { set(0, filter); }
     void set_filter(Defs filter);
     void set_body(const Def* body) { set(1, body); }
+    void destroy();
     //@}
-
-    //@{ type
-    const Pi* type() const { return Def::type()->as<Pi>(); }
-    const Def* domain() const { return type()->domain(); }
-    const Def* codomain() const { return type()->codomain(); }
+    /// @name setters: sets filter to @c false and sets the body by App-ing
+    //@{
+    void app(const Def* callee, const Def* arg, Debug dbg = {});
+    void app(const Def* callee, Defs args, Debug dbg = {});
+    void branch(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
+    void match(const Def* val, Lam* otherwise, Defs patterns, ArrayRef<Lam*> lams, Debug dbg = {});
     //@}
-
-    Lam* stub(World&, const Def* type) const override;
+    /// @name rebuild, stub
+    //@{
     const Def* rebuild(World&, const Def*, Defs) const override;
+    Lam* stub(World&, const Def* type) const override;
+    //@}
 
     Lams preds() const;
     Lams succs() const;
@@ -520,18 +531,13 @@ public:
     bool is_intrinsic() const;
     bool is_accelerator() const;
 
+    /// @name stream
+    //@{
     std::ostream& stream_head(std::ostream&) const;
     std::ostream& stream_body(std::ostream&) const;
     void dump_head() const;
     void dump_body() const;
-
-    // terminate
-
-    void app(const Def* callee, const Def* arg, Debug dbg = {});
-    void app(const Def* callee, Defs args, Debug dbg = {});
-    void branch(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
-    void match(const Def* val, Lam* otherwise, Defs patterns, ArrayRef<Lam*> lams, Debug dbg = {});
-    void destroy();
+    //@}
 
     friend class Cleaner;
     friend class World;

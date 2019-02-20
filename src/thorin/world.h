@@ -81,11 +81,11 @@ public:
     //@}
     /// @name Universe and Kind
     //@{
-    const Universe* universe() { return universe_; }
+    const Universe* universe() { return cache_.universe_; }
     const Kind* kind(NodeTag tag) { return unify<Kind>(0, *this, tag); }
-    const Kind* kind_arity() { return kind_arity_; }
-    const Kind* kind_multi() { return kind_multi_; }
-    const Kind* kind_star()  { return kind_star_; }
+    const Kind* kind_arity() { return cache_.kind_arity_; }
+    const Kind* kind_multi() { return cache_.kind_multi_; }
+    const Kind* kind_star()  { return cache_.kind_star_; }
     /// @name Param and Var
     //@{
     const Param* param(Lam* lam, Debug dbg = {}) { return unify<Param>(1, lam->domain(), lam, dbg); }
@@ -126,7 +126,7 @@ public:
     const Def* sigma(const Def* type, Defs ops, Debug dbg = {});
     /// a @em structural @p Sigma of type @p star
     const Def* sigma(Defs ops, Debug dbg = {}) { return sigma(kind_star(), ops, dbg); }
-    const Sigma* sigma() { return sigma_; } ///< the unit type within @p kind_star()
+    const Sigma* sigma() { return cache_.sigma_; } ///< the unit type within @p kind_star()
     //@}
     /// @name Sigma: nominal
     //@{
@@ -148,7 +148,7 @@ public:
     /// ascribes @p type to this tuple - needed for dependetly typed and structural @p Sigma%s
     const Def* tuple(const Def* type, Defs ops, Debug dbg = {});
     const Def* tuple(Defs ops, Debug dbg = {});
-    const Tuple* tuple() { return tuple_; } ///< the unit value of type <tt>[]</tt>
+    const Tuple* tuple() { return cache_.tuple_; } ///< the unit value of type <tt>[]</tt>
     //@}
     /// @name Pack
     //@{
@@ -187,31 +187,31 @@ public:
     /// @name Literal: Arity - note that this is a type
     //@{
     const Lit* lit_arity(u64 a, Loc loc = {});
-    const Lit* lit_arity_1() { return lit_arity_1_; } ///< unit arity 1ₐ
+    const Lit* lit_arity_1() { return cache_.lit_arity_1_; } ///< unit arity 1ₐ
     //@}
     /// @name Literal: Index - the inhabitants of an Arity
     //@{
     const Lit* lit_index(u64 arity, u64 idx, Loc loc = {}) { return lit_index(lit_arity(arity), idx, loc); }
     const Lit* lit_index(const Def* arity, u64 index, Loc loc = {});
-    const Lit* lit_index_0_1() { return lit_index_0_1_; } ///< unit index 0₁ of type unit arity 1ₐ
+    const Lit* lit_index_0_1() { return cache_.lit_index_0_1_; } ///< unit index 0₁ of type unit arity 1ₐ
     //@}
     /// @name Literal: Nat
     //@{
     const Lit* lit_nat(int64_t val, Loc loc = {}) { return lit(type_nat(), {val}, {loc}); }
-    const Lit* lit_nat_0 () { return lit_nat_0_; }
-    const Lit* lit_nat_1 () { return lit_nat_[0]; }
-    const Lit* lit_nat_2 () { return lit_nat_[1]; }
-    const Lit* lit_nat_4 () { return lit_nat_[2]; }
-    const Lit* lit_nat_8 () { return lit_nat_[3]; }
-    const Lit* lit_nat_16() { return lit_nat_[4]; }
-    const Lit* lit_nat_32() { return lit_nat_[5]; }
-    const Lit* lit_nat_64() { return lit_nat_[6]; }
+    const Lit* lit_nat_0 () { return cache_.lit_nat_0_; }
+    const Lit* lit_nat_1 () { return cache_.lit_nat_[0]; }
+    const Lit* lit_nat_2 () { return cache_.lit_nat_[1]; }
+    const Lit* lit_nat_4 () { return cache_.lit_nat_[2]; }
+    const Lit* lit_nat_8 () { return cache_.lit_nat_[3]; }
+    const Lit* lit_nat_16() { return cache_.lit_nat_[4]; }
+    const Lit* lit_nat_32() { return cache_.lit_nat_[5]; }
+    const Lit* lit_nat_64() { return cache_.lit_nat_[6]; }
     //@}
     /// @name Literal: Bool
     //@{
-    const Lit* lit(bool val) { return lit_bool_[size_t(val)]; }
-    const Lit* lit_false() { return lit_bool_[0]; }
-    const Lit* lit_true()  { return lit_bool_[1]; }
+    const Lit* lit(bool val) { return cache_.lit_bool_[size_t(val)]; }
+    const Lit* lit_false() { return cache_.lit_bool_[0]; }
+    const Lit* lit_true()  { return cache_.lit_bool_[1]; }
     //@}
     /// @name Literal: PrimTypes
     //@{
@@ -232,8 +232,8 @@ public:
     const Def* top(const Def* type, Loc dbg = {}) { return bot_top(true,  type, dbg); }
     const Def* bot(PrimTypeTag tag, Loc dbg = {}) { return bot_top(false, type(tag), dbg); }
     const Def* top(PrimTypeTag tag, Loc dbg = {}) { return bot_top( true, type(tag), dbg); }
-    const Def* bot_star () { return bot_star_; }
-    const Def* top_arity() { return top_arity_; } ///< use this guy to encode an unknown arity, e.g., for unsafe arrays
+    const Def* bot_star () { return cache_.bot_star_; }
+    const Def* top_arity() { return cache_.top_arity_; } ///< use this guy to encode an unknown arity, e.g., for unsafe arrays
     //@}
     /// @name Variant
     //@{
@@ -248,10 +248,10 @@ public:
     const PrimType* type(PrimTypeTag tag) {
         size_t i = tag - Begin_PrimType;
         assert(i < (size_t) Num_PrimTypes);
-        return primtypes_[i];
+        return cache_.primtypes_[i];
     }
-    const MemType* mem_type() const { return mem_; }
-    const FrameType* frame_type() const { return frame_; }
+    const MemType* mem_type() const { return cache_.mem_; }
+    const FrameType* frame_type() const { return cache_.frame_; }
     const PtrType* ptr_type(const Def* pointee, AddrSpace addr_space = AddrSpace::Generic, Debug dbg = {}) { return unify<PtrType>(1, kind_star(), pointee, addr_space, dbg); }
     //@}
     /// @name ArithOps
@@ -319,10 +319,10 @@ public:
     Axiom* axiom(const Def* type, Normalizer, Debug dbg = {});
     Axiom* axiom(const Def* type, Debug dbg = {}) { return axiom(type, nullptr, dbg); }
     std::optional<Axiom*> lookup_axiom(Symbol name) { return axioms_.lookup(name); }
-    Axiom* type_nat() { return type_nat_; }
-    Lam* branch() const { return branch_; }
+    Axiom* type_nat() { return cache_.type_nat_; }
+    Lam* branch() const { return cache_.branch_; }
     Lam* match(const Def* type, size_t num_patterns);
-    Lam* end_scope() const { return end_scope_; }
+    Lam* end_scope() const { return cache_.end_scope_; }
     const Def* branch(const Def* cond, const Def* t, const Def* f, Debug dbg = {}) { return app(branch(), {cond, t, f}, dbg); }
     //@}
 
@@ -373,35 +373,13 @@ public:
         swap(w1.axioms_,        w2.axioms_);
         swap(w1.externals_,     w2.externals_);
         swap(w1.defs_,          w2.defs_);
-        swap(w1.universe_,      w2.universe_);
-        swap(w1.kind_arity_,    w2.kind_arity_);
-        swap(w1.kind_multi_,    w2.kind_multi_);
-        swap(w1.kind_star_,     w2.kind_star_);
-        swap(w1.bot_star_,      w2.bot_star_);
-        swap(w1.top_arity_,     w2.top_arity_);
-        swap(w1.mem_,           w2.mem_);
-        swap(w1.frame_,         w2.frame_);
-        swap(w1.type_nat_,      w2.type_nat_);
-        swap(w1.lit_nat_0_,     w2.lit_nat_0_);
-        swap(w1.lit_nat_,       w2.lit_nat_);
-        swap(w1.lit_arity_1_,   w2.lit_arity_1_);
-        swap(w1.lit_index_0_1_, w2.lit_index_0_1_);
-        swap(w1.lit_bool_,      w2.lit_bool_);
-        swap(w1.sigma_,         w2.sigma_);
-        swap(w1.tuple_,         w2.tuple_);
-        swap(w1.branch_,        w2.branch_);
-        swap(w1.end_scope_,     w2.end_scope_);
         swap(w1.pe_done_,       w2.pe_done_);
-
-#define THORIN_ALL_TYPE(T, M) \
-        swap(w1.T##_,       w2.T##_);
-#include "thorin/tables/primtypetable.h"
-
+        swap(w1.cache_,         w2.cache_);
 #if THORIN_ENABLE_CHECKS
         swap(w1.breakpoints_,   w2.breakpoints_);
         swap(w1.track_history_, w2.track_history_);
 #endif
-        swap(w1.universe_->world_, w2.universe_->world_);
+        swap(w1.cache_.universe_->world_, w2.cache_.universe_->world_);
         assert(&w1.universe()->world() == &w1);
         assert(&w2.universe()->world() == &w2);
     }
@@ -497,42 +475,43 @@ private:
     std::unique_ptr<Zone> root_page_;
     Zone* cur_page_;
     size_t buffer_index_ = 0;
-    uint32_t cur_gid_;
     Debug debug_;
     SymbolMap<Axiom*> axioms_;
     LamSet externals_;
     DefSet defs_;
+    uint32_t cur_gid_;
     bool pe_done_ = false;
 #if THORIN_ENABLE_CHECKS
-    Breakpoints breakpoints_;
     bool track_history_ = false;
+    Breakpoints breakpoints_;
 #endif
-    Universe* universe_;
-    const Kind* kind_arity_;
-    const Kind* kind_multi_;
-    const Kind* kind_star_;
-    const BotTop* bot_star_;
-    const BotTop* top_arity_;
-    const Sigma* sigma_;
-    const Tuple* tuple_;
-    const MemType* mem_;
-    const FrameType* frame_;
-    Axiom* type_nat_;
-    const Lit* lit_nat_0_;
-    std::array<const Lit*, 2> lit_bool_;
-    std::array<const Lit*, 7> lit_nat_;
-    const Lit* lit_arity_1_;
-    const Lit* lit_index_0_1_;
-    union {
-        struct {
+    struct Cache {
+        Universe* universe_;
+        const Kind* kind_arity_;
+        const Kind* kind_multi_;
+        const Kind* kind_star_;
+        union {
+            struct {
 #define THORIN_ALL_TYPE(T, M) const PrimType* T##_;
 #include "thorin/tables/primtypetable.h"
+            };
+            std::array<const PrimType*, Num_PrimTypes> primtypes_;
         };
-
-        const PrimType* primtypes_[Num_PrimTypes];
-    };
-    Lam* branch_;
-    Lam* end_scope_;
+        const BotTop* bot_star_;
+        const BotTop* top_arity_;
+        const Sigma* sigma_;
+        const Tuple* tuple_;
+        const MemType* mem_;
+        const FrameType* frame_;
+        Axiom* type_nat_;
+        const Lit* lit_nat_0_;
+        std::array<const Lit*, 7> lit_nat_;
+        std::array<const Lit*, 2> lit_bool_;
+        const Lit* lit_arity_1_;
+        const Lit* lit_index_0_1_;
+        Lam* branch_;
+        Lam* end_scope_;
+    } cache_;
 
     friend class Cleaner;
     friend void Def::replace(Tracker) const;

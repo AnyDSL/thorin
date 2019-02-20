@@ -31,42 +31,39 @@ bool World::Lock::allocate_guard_ = false;
 #endif
 
 World::World(uint32_t cur_gid, Debug debug)
-    : root_page_ (new Zone)
-    , cur_page_  (root_page_.get())
-    , cur_gid_   (cur_gid)
-    , debug_     (debug)
-    , universe_  (insert<Universe>(0, *this))
-    , kind_arity_(insert<Kind>(0, *this, Node_KindArity))
-    , kind_multi_(insert<Kind>(0, *this, Node_KindMulti))
-    , kind_star_ (insert<Kind>(0, *this, Node_KindStar))
-    , bot_star_  (insert<BotTop>(0, false, kind_star_, Debug{"<⊥:*>"}))
-    , top_arity_ (insert<BotTop>(0, true, kind_arity_, Debug{"⊤ₐ"}))
-    , sigma_     (insert<Sigma>(0, kind_star_, Defs{}, Debug{})->as<Sigma>())
-    , tuple_     (insert<Tuple>(0, sigma_, Defs{}, Debug{})->as<Tuple>())
-    , mem_       (insert<MemType  >(0, *this))
-    , frame_     (insert<FrameType>(0, *this))
-    , type_nat_  (axiom(kind_star_, {"nat"}))
-#define THORIN_ALL_TYPE(T, M) \
-    , T##_       (insert<PrimType>(0, *this, PrimType_##T, Debug{#T}))
-#include "thorin/tables/primtypetable.h"
+    : root_page_(new Zone)
+    , cur_page_ (root_page_.get())
+    , debug_    (debug)
+    , cur_gid_  (cur_gid)
 {
-    lit_bool_[0] = lit(type_bool(), {false});
-    lit_bool_[1] = lit(type_bool(), {true});
+    cache_.universe_      = insert<Universe>(0, *this);
+    cache_.kind_arity_    = insert<Kind>(0, *this, Node_KindArity);
+    cache_.kind_multi_    = insert<Kind>(0, *this, Node_KindMulti);
+    cache_.kind_star_     = insert<Kind>(0, *this, Node_KindStar);
+#define THORIN_ALL_TYPE(T, M) \
+    cache_.T##_           = insert<PrimType>(0, *this, PrimType_##T, Debug{#T});
+#include "thorin/tables/primtypetable.h"
+    cache_.bot_star_      = insert<BotTop>(0, false, kind_star(), Debug{"<⊥:*>"});
+    cache_.top_arity_     = insert<BotTop>(0, true, kind_arity(), Debug{"⊤ₐ"});
+    cache_.sigma_         = insert<Sigma>(0, kind_star(), Defs{}, Debug{})->as<Sigma>();
+    cache_.tuple_         = insert<Tuple>(0, sigma(), Defs{}, Debug{})->as<Tuple>();
+    cache_.mem_           = insert<MemType  >(0, *this);
+    cache_.frame_         = insert<FrameType>(0, *this);
+    cache_.type_nat_      = axiom(kind_star(), {"nat"});
+    cache_.lit_arity_1_   = lit_arity(1);
+    cache_.lit_index_0_1_ = lit_index(lit_arity_1(), 0);
+    cache_.lit_nat_0_     = lit_nat(0);
+    cache_.lit_bool_[0]   = lit(type_bool(), {false});
+    cache_.lit_bool_[1]   = lit(type_bool(), {true});
+    cache_.branch_        = lam(cn(sigma({type_bool(), cn(), cn()})), CC::C, Intrinsic::Branch, Debug{"br"});
+    cache_.end_scope_     = lam(cn(), CC::C, Intrinsic::EndScope, {"end_scope"});
 
-    lit_arity_1_ = lit_arity(1);
-    lit_index_0_1_ = lit_index(lit_arity_1_, 0);
-
-    lit_nat_0_   = lit_nat(0);
-    for (size_t j = 0; j != lit_nat_.size(); ++j)
-        lit_nat_[j] = lit_nat(1 << int64_t(j));
-
-    branch_    = lam(cn(sigma({type_bool(), cn(), cn()})), CC::C, Intrinsic::Branch, Debug{"br"});
-    end_scope_ = lam(cn(), CC::C, Intrinsic::EndScope, {"end_scope"});
+    for (size_t j = 0; j != cache_.lit_nat_.size(); ++j)
+        cache_.lit_nat_[j] = lit_nat(1 << int64_t(j));
 }
 
 World::~World() {
-    for (auto def : defs_)
-        def->~Def();
+    for (auto def : defs_) def->~Def();
 }
 
 const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
@@ -1037,7 +1034,7 @@ std::vector<Lam*> World::copy_lams() const {
  * optimizations
  */
 
-void World::cleanup() { /*cleanup_world(*this);*/ }
+void World::cleanup() { cleanup_world(*this); }
 
 // TODO remove this
 void World::opt() {

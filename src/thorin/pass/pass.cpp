@@ -2,7 +2,7 @@
 
 #include "thorin/analyses/scope.h"
 #include "thorin/transform/importer.h"
-#include "thorin/pass/inliner.h"
+#include "thorin/util/log.h"
 
 namespace thorin {
 
@@ -21,15 +21,23 @@ void PassMgr::run() {
             return new_op;
         });
 
+        for (auto op : new_ops)
+            analyze(op);
+
         if (undo_ != No_Undo) {
-            assert(undo_ < num_states());
+            assert(undo_ <= num_states());
             // undo required so roll back nominals to former ops
-            for (size_t i = num_states(); i-- != undo_;) {
+            for (size_t i = num_states(); i-- >= undo_;) {
                 for (auto&& [nom, ops] : states_[i].old_ops)
                     nom->as_nominal()->set(ops);
             }
 
+            outf("undo: {} -> {}\n", num_states(), undo_);
             states_.resize(undo_);
+
+            for (auto&& pass : passes_)
+                pass->undo(undo_);
+
             undo_ = No_Undo;
         } else if (mismatch) {
             new_state();
@@ -37,10 +45,9 @@ void PassMgr::run() {
             cur_state().old_ops.emplace(def, old_ops);
             def->set(new_ops);
         }
-
-        for (auto op : new_ops)
-            analyze(op);
     }
+
+    //world_.dump();
 
     // TODO provide this as stand alone method
     // get rid of garbage

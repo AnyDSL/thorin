@@ -8,7 +8,7 @@ namespace thorin {
 
 class PassMgr;
 
-/// All Pass%es that want to be registered in the super @p PassMgr must implement this interface.
+/// All Pass%es that want to be registered in the @p PassMgr must implement this interface.
 class Pass {
 public:
     Pass(PassMgr& mgr)
@@ -17,9 +17,9 @@ public:
     virtual ~Pass() {}
 
     PassMgr& mgr() { return mgr_; }
-    virtual Def* rewrite(Def* nominal) { return nominal; }  ///< rewrites @em nominal @p Def%s
-    virtual const Def* rewrite(const Def*) = 0;             ///< rewrites @em structural @p Def%s
-    virtual void analyze(const Def*) = 0;
+    virtual Def* rewrite(Def* nominal) { return nominal; }  ///< Rewrites @em nominal @p Def%s.
+    virtual const Def* rewrite(const Def*) = 0;             ///< Rewrites @em structural @p Def%s.
+    virtual void analyze(const Def*) = 0;                   ///< Invoked after the @p PassMgr has finisched @p rewrite%ing a nominal.
     virtual void new_state() = 0;                           ///< The @p PassMgr will notify all @p Pass%es if a new state has been required.
     virtual void undo(size_t u) = 0;                        ///< The @p PassMgr will notify all @p Pass%es if an undo to state @p u is required.
 
@@ -33,6 +33,8 @@ private:
  */
 class PassMgr {
 public:
+    static constexpr size_t No_Undo = std::numeric_limits<size_t>::max();
+
     PassMgr(World& world)
         : world_(world)
     {
@@ -86,9 +88,11 @@ private:
     void analyze(const Def*);
     void enqueue(Def* nominal) { cur_state().nominals.push(nominal); }
     State& cur_state() { assert(!states_.empty()); return states_.back(); }
-    void new_state() { states_.emplace_back(cur_state()); }
-
-    static constexpr size_t No_Undo = std::numeric_limits<size_t>::max();
+    void new_state() {
+        for (auto&& pass : passes_)
+            pass->new_state();
+        states_.emplace_back(cur_state());
+    }
 
     World& world_;
     std::deque<std::unique_ptr<Pass>> passes_;

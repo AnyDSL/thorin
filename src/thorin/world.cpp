@@ -1034,13 +1034,19 @@ std::vector<Lam*> World::copy_lams() const {
  * optimizations
  */
 
+#if 0
+void World::cleanup() {}
+
+void World::opt() {
+    optimizer(*this).run();
+    return;
+}
+#else
+
 void World::cleanup() { cleanup_world(*this); }
 
-// TODO remove this
 void World::opt() {
-    //optimizer(*this).run();
-    //return;
-    //cleanup();
+    cleanup();
     while (partial_evaluation(*this, true)); // lower2cff
     flatten_tuples(*this);
     clone_bodies(*this);
@@ -1054,6 +1060,7 @@ void World::opt() {
     codegen_prepare(*this);
     //rewrite_flow_graphs(*this);
 }
+#endif
 
 /*
  * stream

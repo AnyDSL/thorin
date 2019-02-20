@@ -17,8 +17,8 @@ public:
     virtual ~Pass() {}
 
     PassMgr& mgr() { return mgr_; }
-    virtual Def* rewrite(Def* nominal) { return nominal; }
-    virtual const Def* rewrite(const Def*) = 0;
+    virtual Def* rewrite(Def* nominal) { return nominal; } ///< rewrites @em nominal @p Def%s
+    virtual const Def* rewrite(const Def*) = 0;            ///< rewrites @em structural @p Def%s
     virtual void analyze(const Def*) = 0;
 
 private:
@@ -43,7 +43,6 @@ public:
     void run();
     Def* rewrite(Def*);             ///< rewrites @em nominal @p Def%s
     const Def* rewrite(const Def*); ///< rewrites @em structural @p Def%s
-    void analyze(const Def*);
     void undo(size_t u) { undo_ = std::min(undo_, u); }
     size_t num_states() const { return states_.size(); }
 
@@ -82,6 +81,7 @@ private:
         DefMap<Array<const Def*>> old_ops;
     };
 
+    void analyze(const Def*);
     void enqueue(Def* nominal) { cur_state().nominals.push(nominal); }
     State& cur_state() { assert(!states_.empty()); return states_.back(); }
     void new_state() { states_.emplace_back(cur_state()); }

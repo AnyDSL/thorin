@@ -7,13 +7,11 @@
 namespace thorin {
 
 void PassMgr::run() {
-    auto externals = world().externals();
+    for (auto lam : world().externals())
+        enqueue(lam);
 
-    for (auto lam : externals)
-        nominals_.push(lam);
-
-    while (!nominals_.empty()) {
-        auto def = pop(nominals_);
+    while (!cur_state().nominals.empty()) {
+        auto def = pop(cur_state().nominals);
 
         bool mismatch = false;
         auto old_ops = def->ops();
@@ -23,8 +21,22 @@ void PassMgr::run() {
             return new_op;
         });
 
-        if (mismatch) {
-            // TODO install restore point
+        if (undo_ != No_Undo) {
+            assert(undo_ > num_states());
+            // undo required so roll back nominals to former ops
+            for (size_t i = num_states(); i-- != undo_;) {
+                for (auto&& [nom, ops] : states_[i].old_ops) {
+                    nom->dump();
+                    nom->as_nominal()->set(ops);
+                }
+            }
+
+            states_.resize(undo_);
+            undo_ = No_Undo;
+        } else if (mismatch) {
+            new_state();
+            // memoize former ops in new state
+            cur_state().old_ops.emplace(def, old_ops);
             def->set(new_ops);
         }
 
@@ -44,17 +56,17 @@ void PassMgr::run() {
 }
 
 Def* PassMgr::rewrite(Def* old_nom) {
+    assert(!lookup(old_nom).has_value());
+
     auto new_nom = old_nom;
     for (auto&& pass : passes_)
         new_nom = pass->rewrite(new_nom);
 
-    old2new_[old_nom] = new_nom;
-
-    return new_nom;
+    return map(old_nom, new_nom);
 }
 
 const Def* PassMgr::rewrite(const Def* old_def) {
-    if (auto new_def = old2new_.lookup(old_def)) return *new_def;
+    if (auto new_def = lookup(old_def)) return *new_def;
     if (auto old_nom = old_def->isa_nominal()) return rewrite(old_nom);
 
     auto new_type = rewrite(old_def->type());
@@ -74,12 +86,12 @@ const Def* PassMgr::rewrite(const Def* old_def) {
     for (auto&& pass : passes_)
         new_def = pass->rewrite(new_def);
 
-    return old2new_[old_def] = new_def;
+    return map(old_def, new_def);
 }
 
 void PassMgr::analyze(const Def* def) {
-    if (!analyzed_.emplace(def).second) return;
-    if (auto nominal = def->isa_nominal()) return nominals_.push(nominal);
+    if (!cur_state().analyzed.emplace(def).second) return;
+    if (auto nominal = def->isa_nominal()) return enqueue(nominal);
 
     for (auto op : def->ops())
         analyze(op);

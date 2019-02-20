@@ -15,10 +15,25 @@ public:
     void analyze(const Def*) override;
 
 private:
-    enum class State : uint8_t { Bottom, Inlined_Once, Dont_Inline };
-    State& state(Lam* lam) { return state_.emplace(lam, State::Bottom).first->second;  }
+    enum Lattice { Bottom, Inlined_Once, Dont_Inline };
 
-    LamMap<State> state_;
+    struct Info {
+        Info() = default;
+        Info(Lattice lattice, size_t undo)
+            : lattice(lattice)
+            , undo(undo)
+        {}
+
+        unsigned lattice :  4;
+        unsigned undo    : 28;
+    };
+
+    static_assert(sizeof(Info) == 4);
+
+    Info& info(Lam* lam) { return info_.emplace(lam, Info(Lattice::Bottom, mgr().num_states())).first->second;  }
+
+    // TODO we must also undo this info
+    LamMap<Info> info_;
 };
 
 }

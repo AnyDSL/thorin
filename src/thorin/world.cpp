@@ -1039,10 +1039,11 @@ std::vector<Lam*> World::copy_lams() const {
 
 void World::cleanup() { /*cleanup_world(*this);*/ }
 
+// TODO remove this
 void World::opt() {
-    optimizer(*this).run();
-    return;
-    cleanup();
+    //optimizer(*this).run();
+    //return;
+    //cleanup();
     while (partial_evaluation(*this, true)); // lower2cff
     flatten_tuples(*this);
     clone_bodies(*this);

@@ -1,12 +1,12 @@
-#include "thorin/opt/optimizer.h"
+#include "thorin/pass/pass.h"
 
 #include "thorin/analyses/scope.h"
 #include "thorin/transform/importer.h"
-#include "thorin/opt/inliner.h"
+#include "thorin/pass/inliner.h"
 
 namespace thorin {
 
-void Optimizer::run() {
+void PassMgr::run() {
     auto externals = world().externals();
 
     for (auto lam : externals)
@@ -43,17 +43,17 @@ void Optimizer::run() {
     swap(importer.world(), world_);
 }
 
-Def* Optimizer::rewrite(Def* old_nom) {
+Def* PassMgr::rewrite(Def* old_nom) {
     auto new_nom = old_nom;
-    for (auto&& opt : opts_)
-        new_nom = opt->rewrite(new_nom);
+    for (auto&& pass : passes_)
+        new_nom = pass->rewrite(new_nom);
 
     old2new_[old_nom] = new_nom;
 
     return new_nom;
 }
 
-const Def* Optimizer::rewrite(const Def* old_def) {
+const Def* PassMgr::rewrite(const Def* old_def) {
     if (auto new_def = old2new_.lookup(old_def)) return *new_def;
     if (auto old_nom = old_def->isa_nominal()) return rewrite(old_nom);
 
@@ -71,27 +71,21 @@ const Def* Optimizer::rewrite(const Def* old_def) {
     // this is not only an optimization but also required because some structural defs are not hash-consed
     auto new_def = rebuild ? old_def->rebuild(world(), new_type, new_ops) : old_def;
 
-    for (auto&& opt : opts_)
-        new_def = opt->rewrite(new_def);
+    for (auto&& pass : passes_)
+        new_def = pass->rewrite(new_def);
 
     return old2new_[old_def] = new_def;
 }
 
-void Optimizer::analyze(const Def* def) {
+void PassMgr::analyze(const Def* def) {
     if (!analyzed_.emplace(def).second) return;
     if (auto nominal = def->isa_nominal()) return nominals_.push(nominal);
 
     for (auto op : def->ops())
         analyze(op);
 
-    for (auto&& opt : opts_)
-        opt->analyze(def);
-}
-
-Optimizer std_optimizer(World& world) {
-    Optimizer result(world);
-    result.create<Inliner>();
-    return result;
+    for (auto&& pass : passes_)
+        pass->analyze(def);
 }
 
 }

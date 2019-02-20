@@ -1,14 +1,14 @@
-#ifndef THORIN_OPT_INLINER_H
-#define THORIN_OPT_INLINER_H
+#ifndef THORIN_PASS_INLINER_H
+#define THORIN_PASS_INLINER_H
 
-#include "thorin/opt/optimizer.h"
+#include "thorin/pass/pass.h"
 
 namespace thorin {
 
-class Inliner : public Optimization {
+class Inliner : public Pass {
 public:
-    Inliner(Optimizer& optimizer)
-        : Optimization(optimizer)
+    Inliner(PassMgr& mgr)
+        : Pass(mgr)
     {}
 
     const Def* rewrite(const Def*) override;

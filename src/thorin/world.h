@@ -79,7 +79,6 @@ public:
     uint32_t cur_gid() const { return cur_gid_; }
     uint32_t next_gid() { return ++cur_gid_; }
     //@}
-
     /// @name Universe and Kind
     //@{
     const Universe* universe() { return universe_; }
@@ -536,7 +535,6 @@ private:
     Lam* end_scope_;
 
     friend class Cleaner;
-    friend class Lam;
     friend void Def::replace(Tracker) const;
 };
 

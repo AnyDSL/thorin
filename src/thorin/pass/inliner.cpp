@@ -1,4 +1,4 @@
-#include "thorin/opt/inliner.h"
+#include "thorin/pass/inliner.h"
 
 #include "thorin/transform/mangle.h"
 
@@ -15,7 +15,7 @@ const Def* Inliner::rewrite(const Def* def) {
         if (auto lam = app->callee()->isa_nominal<Lam>(); lam && !lam->is_empty()) {
             if (auto& s = state(lam); s == State::Bottom) {
                 s = State::Inlined_Once;
-                return optimizer().rewrite(drop(app)->body());
+                return mgr().rewrite(drop(app)->body());
             }
         }
     }

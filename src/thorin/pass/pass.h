@@ -1,43 +1,43 @@
-#ifndef THORIN_OPT_OPTIMIZER_H
-#define THORIN_OPT_OPTIMIZER_H
+#ifndef THORIN_PASS_PASS_H
+#define THORIN_PASS_PASS_H
 
 #include "thorin/world.h"
 #include <deque>
 
 namespace thorin {
 
-class Optimizer;
+class PassMgr;
 
-/// All Optimization%s that want to be registered in the super @p Optimizer must implement this interface.
-class Optimization {
+/// All Pass%es that want to be registered in the super @p PassMgr must implement this interface.
+class Pass {
 public:
-    Optimization(Optimizer& optimizer)
-        : optimizer_(optimizer)
+    Pass(PassMgr& mgr)
+        : mgr_(mgr)
     {}
-    virtual ~Optimization() {}
+    virtual ~Pass() {}
 
-    Optimizer& optimizer() { return optimizer_; }
+    PassMgr& mgr() { return mgr_; }
     virtual Def* rewrite(Def* nominal) { return nominal; }
     virtual const Def* rewrite(const Def*) = 0;
     virtual void analyze(const Def*) = 0;
 
 private:
-    Optimizer& optimizer_;
+    PassMgr& mgr_;
 };
 
 /**
  * A super optimizer.
  * See "Composing dataflow analyses and transformations" by Lerner, Grove, Chambers.
  */
-class Optimizer {
+class PassMgr {
 public:
-    Optimizer(World& world)
+    PassMgr(World& world)
         : world_(world)
     {}
 
     World& world() { return world_; }
     template<typename T, typename... Args>
-    void create(Args&&... args) { opts_.emplace_back(std::make_unique<T>(*this, std::forward(args)...)); }
+    void create(Args&&... args) { passes_.emplace_back(std::make_unique<T>(*this, std::forward(args)...)); }
     void run();
     void enqueue(Def*);
     Def* rewrite(Def*);             ///< rewrites @em nominal @p Def%s
@@ -50,26 +50,24 @@ public:
         return {};
     }
 
+private:
     const Def* lookup(Def2Def::iterator i) {
         if (auto j = old2new_.find(i->second); j != old2new_.end())
             i->second = lookup(j); // path compression + transitive replacements
         return i->second;
     }
 
-private:
     // visit basic blocks first
     struct OrderLt {
         bool operator()(Def* a, Def* b) { return a->type()->order() < b->type()->order(); }
     };
 
     World& world_;
-    std::deque<std::unique_ptr<Optimization>> opts_;
+    std::deque<std::unique_ptr<Pass>> passes_;
     std::priority_queue<Def*, std::deque<Def*>, OrderLt> nominals_;
     Def2Def old2new_;
     DefSet analyzed_;
 };
-
-Optimizer std_optimizer(World&);
 
 }
 

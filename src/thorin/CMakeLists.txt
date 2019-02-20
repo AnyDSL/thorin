@@ -25,10 +25,12 @@ set(THORIN_SOURCES
     analyses/verify.h
     be/c.cpp
     be/c.h
-    opt/optimizer.cpp
-    opt/optimizer.h
-    opt/inliner.cpp
-    opt/inliner.h
+    pass/optimizer.cpp
+    pass/optimizer.h
+    pass/pass.cpp
+    pass/pass.h
+    pass/inliner.cpp
+    pass/inliner.h
     tables/allnodes.h
     tables/arithoptable.h
     tables/cmptable.h

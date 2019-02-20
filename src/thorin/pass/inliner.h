@@ -9,7 +9,9 @@ class Inliner : public Pass {
 public:
     Inliner(PassMgr& mgr)
         : Pass(mgr)
-    {}
+    {
+        states_.emplace_back();
+    }
 
     const Def* rewrite(const Def*) override;
     void analyze(const Def*) override;
@@ -28,12 +30,14 @@ private:
         unsigned undo    : 28;
     };
 
-    static_assert(sizeof(Info) == 4);
+    using State = LamMap<Info>;
 
-    Info& info(Lam* lam) { return info_.emplace(lam, Info(Lattice::Bottom, mgr().num_states())).first->second;  }
+    State& cur_state() { assert(!states_.empty()); return states_.back(); }
+    Info& info(Lam* lam) { return cur_state().emplace(lam, Info(Lattice::Bottom, mgr().num_states())).first->second;  }
+    void new_state() override { states_.emplace_back(cur_state()); }
+    void undo(size_t u) override { states_.resize(u); }
 
-    // TODO we must also undo this info
-    LamMap<Info> info_;
+    std::deque<LamMap<Info>> states_;
 };
 
 }

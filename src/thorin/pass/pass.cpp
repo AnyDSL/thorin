@@ -25,10 +25,8 @@ void PassMgr::run() {
             assert(undo_ < num_states());
             // undo required so roll back nominals to former ops
             for (size_t i = num_states(); i-- != undo_;) {
-                for (auto&& [nom, ops] : states_[i].old_ops) {
-                    nom->dump();
+                for (auto&& [nom, ops] : states_[i].old_ops)
                     nom->as_nominal()->set(ops);
-                }
             }
 
             states_.resize(undo_);

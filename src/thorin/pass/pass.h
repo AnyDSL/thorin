@@ -17,9 +17,11 @@ public:
     virtual ~Pass() {}
 
     PassMgr& mgr() { return mgr_; }
-    virtual Def* rewrite(Def* nominal) { return nominal; } ///< rewrites @em nominal @p Def%s
-    virtual const Def* rewrite(const Def*) = 0;            ///< rewrites @em structural @p Def%s
+    virtual Def* rewrite(Def* nominal) { return nominal; }  ///< rewrites @em nominal @p Def%s
+    virtual const Def* rewrite(const Def*) = 0;             ///< rewrites @em structural @p Def%s
     virtual void analyze(const Def*) = 0;
+    virtual void new_state() = 0;                           ///< The @p PassMgr will notify all @p Pass%es if a new state has been required.
+    virtual void undo(size_t u) = 0;                        ///< The @p PassMgr will notify all @p Pass%es if an undo to state @p u is required.
 
 private:
     PassMgr& mgr_;

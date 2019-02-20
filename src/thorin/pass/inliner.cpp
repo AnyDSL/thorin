@@ -15,6 +15,7 @@ const Def* Inliner::rewrite(const Def* def) {
         if (auto lam = app->callee()->isa_nominal<Lam>(); lam && !lam->is_empty()) {
             if (auto& inf = info(lam); inf.lattice == Lattice::Bottom) {
                 inf.lattice = Lattice::Inlined_Once;
+                std::cout << "inline: " << lam << std::endl;
                 return mgr().rewrite(drop(app)->body());
             }
         }

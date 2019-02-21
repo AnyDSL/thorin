@@ -68,6 +68,16 @@ bool is_minus_zero(const Def* def) {
     return false;
 }
 
+bool is_all_true(const Def* def) {
+    if (def->isa<Tuple>()) {
+        return std::all_of(def->ops().begin(), def->ops().end(), is_all_true);
+    } else if (auto pack = def->isa<Pack>()) {
+        return is_all_true(pack->body());
+    } else {
+        return is_type_bool(def->type()) && def->isa<Lit>() && def->as<Lit>()->box().get_bool();
+    }
+}
+
 void app_to_dropped_app(Lam* src, Lam* dst, const App* app) {
     std::vector<const Def*> nargs;
     auto src_app = src->body()->as<App>();

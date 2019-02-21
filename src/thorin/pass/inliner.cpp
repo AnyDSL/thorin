@@ -38,7 +38,7 @@ const Def* Inliner::rewrite(const Def* def) {
 void Inliner::analyze(const Def* def) {
     if (def->isa<Param>()) return;
     for (auto op : def->ops()) {
-        if (auto lam = op->isa_nominal<Lam>(); lam && !lam->is_empty()) {
+        if (auto lam = op->isa_nominal<Lam>(); lam && !lam->is_empty() && !is_all_true(lam->filter())) {
             switch (auto& inf = info(lam); inf.lattice) {
                 case Lattice::Inlined_Once:
                     inf.lattice = Lattice::Dont_Inline;

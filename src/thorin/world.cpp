@@ -109,8 +109,16 @@ const Lam* World::lam(const Def* domain, const Def* filter, const Def* body, Deb
     return unify<Lam>(2, p, filter, body, dbg);
 }
 
+static const Def* lub(const Def* t1, const Def* t2) {
+    if (t1->isa<Universe>()) return t1;
+    if (t2->isa<Universe>()) return t2;
+    assert(t1->isa<Kind>() && t2->isa<Kind>());
+    auto tag = std::max(t1->tag(), t2->tag());
+    return t1->world().kind(tag);
+}
+
 const Pi* World::pi(const Def* domain, const Def* codomain, Debug dbg) {
-    auto type = kind_star(); // TODO
+    auto type = lub(domain->type(), codomain->type());
     return unify<Pi>(2, type, domain, codomain, dbg);
 }
 

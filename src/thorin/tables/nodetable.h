@@ -3,14 +3,15 @@
 #endif
 
 // Def
+    THORIN_NODE(Universe, universe) // don't
+    THORIN_NODE(KindArity, *A)      // change
+    THORIN_NODE(KindMulti, *M)      // the
+    THORIN_NODE(KindStar,  *)       // order
     THORIN_NODE(App, app)
     THORIN_NODE(Axiom, axiom)
     THORIN_NODE(Bot, bot)
     THORIN_NODE(Extract, extract)
     THORIN_NODE(Insert, insert)
-    THORIN_NODE(KindArity, *A)
-    THORIN_NODE(KindMulti, *M)
-    THORIN_NODE(KindStar,  *)
     THORIN_NODE(Lam, lam)
     THORIN_NODE(Lit, lit)
     THORIN_NODE(Pack, pack)
@@ -18,7 +19,6 @@
     THORIN_NODE(Sigma, Σ)
     THORIN_NODE(Top, top)
     THORIN_NODE(Tuple, tuple)
-    THORIN_NODE(Universe, universe)
     THORIN_NODE(Var, var)
     THORIN_NODE(Variadic, variadic)
     THORIN_NODE(VariantType, ∪)

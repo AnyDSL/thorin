@@ -5,13 +5,6 @@
 
 namespace thorin {
 
-/*
-0 1 2 3 4 5 6 7
-        ^
-        |
-        5
-*/
-
 class Inliner : public Pass {
 public:
     Inliner(PassMgr& mgr)
@@ -22,7 +15,7 @@ public:
 
     const Def* rewrite(const Def*) override;
     void analyze(const Def*) override;
-    void new_state() override { states_.emplace_back(cur_state()); }
+    void new_state() override { states_.emplace_back(); }
     void undo(size_t u) override { states_.resize(u); }
 
 private:
@@ -42,7 +35,7 @@ private:
     using State = LamMap<Info>;
 
     State& cur_state() { assert(!states_.empty()); return states_.back(); }
-    Info& info(Lam* lam) { return cur_state().emplace(lam, Info(Lattice::Bottom, PassMgr::No_Undo)).first->second;  }
+    Info& info(Lam* lam);
 
     std::deque<LamMap<Info>> states_;
 };

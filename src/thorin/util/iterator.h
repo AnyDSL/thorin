@@ -118,7 +118,6 @@ public:
     friend void swap(map_iterator& i1, map_iterator& i2) { using std::swap; swap(i1, i2); }
 
 private:
-
     I iterator_;
     I end_;
     F function_;
@@ -149,7 +148,13 @@ template<class T>
 auto range(const T& t) -> Range<decltype(t.begin())> { return range(t.begin(), t.end()); }
 
 template<class T>
+auto range(T& t) -> Range<decltype(t.begin())> { return range(t.begin(), t.end()); }
+
+template<class T>
 auto reverse_range(const T& t) -> Range<decltype(t.rbegin())> { return range(t.rbegin(), t.rend()); }
+
+template<class T>
+auto reverse_range(T& t) -> Range<decltype(t.rbegin())> { return range(t.rbegin(), t.rend()); }
 
 template<class I, class P>
 auto  range(I begin, I end, P predicate) -> Range<filter_iterator<I, P>> {

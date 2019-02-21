@@ -1,6 +1,7 @@
 #include "thorin/pass/inliner.h"
 
 #include "thorin/transform/mangle.h"
+#include "thorin/util/iterator.h"
 
 namespace thorin {
 
@@ -9,6 +10,15 @@ namespace thorin {
 //  app(f, app(g, ...))
 // Now, this code will inline g and set g's lattice to Dont_Inline.
 // However, the inlined code might be dead after inlining f.
+
+Inliner::Info& Inliner::info(Lam* lam) {
+    for (auto&& state : reverse_range(states_)) {
+        if (auto i = state.find(lam); i != state.end())
+            return i->second;
+    }
+
+    return cur_state().emplace(lam, Info(Lattice::Bottom, PassMgr::No_Undo)).first->second;
+}
 
 const Def* Inliner::rewrite(const Def* def) {
     if (auto app = def->isa<App>()) {

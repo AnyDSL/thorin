@@ -25,34 +25,42 @@ void lift_pipeline(World& world) {
                 cont_type,
                 p_cont_type
             });
-            // Making "PipelineContinue" as an intrinsic
-            auto continue_ = world.continuation(cont_type, CC::C, Intrinsic::PipelineContinue, Debug("pipeline_continue"));
-            // Making continue_fix as a dummy intrinsic to handle dependency required for lifting
-            auto continue_fix = world.continuation(p_cont_type, CC::C, Intrinsic::PipelineContinue, Debug("pipeline_continue"));
-            // Modifying Pipeline signature with the new signature
-            auto pipe_cont = world.continuation(pipe_type, CC::C, Intrinsic::Pipeline, callee->debug());
-            // 4th argument in pipeline intr is used for passing body
+            // Transform:
+            //
+            // f(...)
+            //     pipeline(..., pipeline_body, return)
+            //
+            // pipeline_body(mem: mem, i: i32, ret: fn(mem))
+            //     ret(mem)
+            //
+            // Into:
+            //
+            // f(...)
+            //     new_pipeline(..., pipeline_body, return, pipeline_continue)
+            //
+            // pipeline_body(mem: mem, i: i32)
+            //     continue_wrapper(mem)
+            //
+            // continue_wrapper(mem: mem)
+            //     pipeline_continue(mem, return)
+            //
+            // Note the use of 'return' as the second argument to pipeline_continue.
+            // This is required to encode the dependence of the loop body over the call to pipeline,
+            // so that lift_builtins can extract the correct free variables.
+            auto pipeline_continue = world.continuation(p_cont_type, CC::C, Intrinsic::PipelineContinue, Debug("pipeline_continue"));
+            auto continue_wrapper = world.continuation(cont_type, Debug("continue_wrapper"));
+            auto new_pipeline = world.continuation(pipe_type, CC::C, Intrinsic::Pipeline, callee->debug());
             auto old_body = cont->arg(4);
-            // Making old_body as a continuation and renaming to body_cont
             auto body_cont = world.continuation(body_type, old_body->debug());
-            // wiring and passing PipelineContinue intrinsic to the modified signature
-            cont->jump(pipe_cont, thorin::Defs { cont->arg(0), cont->arg(1), cont->arg(2), cont->arg(3), body_cont, cont->arg(5), continue_fix });
-            // Getting body_cont in 4th parameter of new pipeline signature and assigning body_cont parameters as old body args
+            cont->jump(new_pipeline, thorin::Defs { cont->arg(0), cont->arg(1), cont->arg(2), cont->arg(3), body_cont, cont->arg(5), pipeline_continue });
             Call call(4);
             call.callee() = old_body;
             call.arg(0) = body_cont->param(0);
             call.arg(1) = body_cont->param(1);
-            // passing pipelineContinue intrinsic (continuation)
-            call.arg(2) = continue_;
-            // inlining
+            call.arg(2) = continue_wrapper;
             auto target = drop(call);
-            // Jumping to the traget while applying args on body
+            continue_wrapper->jump(pipeline_continue, thorin::Defs { continue_wrapper->param(0), cont->arg(5) });
             body_cont->jump(target->callee(), target->args());
-            for (auto use : continue_->copy_uses()) {
-                assert(use->isa_continuation() && use.index() == 0);
-                auto use_cont = use->as_continuation();
-                use_cont->jump(continue_fix, thorin::Defs { use_cont->arg(0), cont->arg(5) });
-            }
         }
     } 
 

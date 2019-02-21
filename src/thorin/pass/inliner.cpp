@@ -23,7 +23,7 @@ Inliner::Info& Inliner::info(Lam* lam) {
 const Def* Inliner::rewrite(const Def* def) {
     if (auto app = def->isa<App>()) {
         if (auto lam = app->callee()->isa_nominal<Lam>(); lam && !lam->is_empty()) {
-            if (auto& inf = info(lam); inf.lattice == Lattice::Bottom) {
+            if (auto& inf = info(lam); inf.lattice == Lattice::Bottom || is_all_true(lam->filter())) {
                 inf.lattice = Lattice::Inlined_Once;
                 inf.undo = mgr().num_states();
                 std::cout << "inline: " << lam << std::endl;

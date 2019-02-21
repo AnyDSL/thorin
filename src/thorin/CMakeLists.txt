@@ -31,6 +31,8 @@ set(THORIN_SOURCES
     pass/pass.h
     pass/inliner.cpp
     pass/inliner.h
+    pass/mem2reg.cpp
+    pass/mem2reg.h
     tables/allnodes.h
     tables/arithoptable.h
     tables/cmptable.h

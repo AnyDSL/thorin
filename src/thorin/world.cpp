@@ -1034,7 +1034,7 @@ std::vector<Lam*> World::copy_lams() const {
  * optimizations
  */
 
-#if 0
+#if 1
 void World::cleanup() {}
 
 void World::opt() {

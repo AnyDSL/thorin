@@ -3,10 +3,10 @@
 #endif
 
 // Def
-    THORIN_NODE(Universe, universe) // don't
-    THORIN_NODE(KindArity, *A)      // change
-    THORIN_NODE(KindMulti, *M)      // the
-    THORIN_NODE(KindStar,  *)       // order
+    THORIN_NODE(KindArity, *A)      // don't
+    THORIN_NODE(KindMulti, *M)      // change
+    THORIN_NODE(KindStar,  *)       // the
+    THORIN_NODE(Universe, universe) // order
     THORIN_NODE(App, app)
     THORIN_NODE(Axiom, axiom)
     THORIN_NODE(Bot, bot)

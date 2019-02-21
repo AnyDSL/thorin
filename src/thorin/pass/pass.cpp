@@ -10,24 +10,33 @@ void PassMgr::run() {
     for (auto lam : world().externals())
         enqueue(lam);
 
+    std::vector<const Def*> new_ops;
+
     while (!cur_state().nominals.empty()) {
-        auto nominal = pop(cur_state().nominals);
+        auto nominal = cur_state().nominals.top();
 
         bool mismatch = false;
-        auto old_ops = nominal->ops();
-        auto new_ops = Array<const Def*>(old_ops.size(), [&](auto i) {
-            auto new_op = rewrite(old_ops[i]);
-            mismatch |= new_op != old_ops[i];
-            return new_op;
-        });
+        new_ops.resize(nominal->num_ops());
+        for (size_t i = 0, e = nominal->num_ops(); i != e; ++i) {
+            auto new_op = rewrite(nominal->op(i));
+            mismatch |= new_op != nominal->op(i);
+            new_ops[i] = new_op;
+        }
+
+        if (mismatch) {
+            assert(undo_ == No_Undo && "only provoke undos in the analyze phase");
+            new_state(nominal, nominal->ops());
+            nominal->set(new_ops);
+            continue;
+        }
 
         for (auto op : new_ops)
             analyze(op);
 
         if (undo_ != No_Undo) {
-            assert(undo_ <= num_states());
+            assert(undo_ < num_states());
 
-            for (size_t i = num_states(); --i >= undo_;)
+            for (size_t i = num_states(); i-- != undo_;)
                 states_[i].nominal->set(states_[i].old_ops);
 
             outf("undo: {} -> {}\n", num_states(), undo_);
@@ -37,10 +46,9 @@ void PassMgr::run() {
                 pass->undo(undo_);
 
             undo_ = No_Undo;
-        } else if (mismatch) {
-            new_state(nominal, old_ops);
-            nominal->set(new_ops);
         }
+
+        cur_state().nominals.pop();
     }
 
     //world_.dump();

@@ -73,25 +73,32 @@ private:
         };
 
         State() = default;
-        State(const State& other)
+        State(const State&) = delete;
+        State(State&&) = delete;
+        State& operator=(State) = delete;
+
+        State(const State& other, Def* nominal, Defs old_ops)
             : nominals(other.nominals)
             , old2new(other.old2new)
             , analyzed(other.analyzed)
+            , nominal(nominal)
+            , old_ops(old_ops)
         {}
 
         std::priority_queue<Def*, std::deque<Def*>, OrderLt> nominals;
         Def2Def old2new;
         DefSet analyzed;
-        DefMap<Array<const Def*>> old_ops;
+        Def* nominal;
+        Array<const Def*> old_ops;
     };
 
     void analyze(const Def*);
     void enqueue(Def* nominal) { cur_state().nominals.push(nominal); }
     State& cur_state() { assert(!states_.empty()); return states_.back(); }
-    void new_state() {
+    void new_state(Def* nominal, Defs old_ops) {
         for (auto&& pass : passes_)
             pass->new_state();
-        states_.emplace_back(cur_state());
+        states_.emplace_back(cur_state(), nominal, old_ops);
     }
 
     World& world_;

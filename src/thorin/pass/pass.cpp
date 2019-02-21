@@ -11,10 +11,10 @@ void PassMgr::run() {
         enqueue(lam);
 
     while (!cur_state().nominals.empty()) {
-        auto def = pop(cur_state().nominals);
+        auto nominal = pop(cur_state().nominals);
 
         bool mismatch = false;
-        auto old_ops = def->ops();
+        auto old_ops = nominal->ops();
         auto new_ops = Array<const Def*>(old_ops.size(), [&](auto i) {
             auto new_op = rewrite(old_ops[i]);
             mismatch |= new_op != old_ops[i];
@@ -26,11 +26,9 @@ void PassMgr::run() {
 
         if (undo_ != No_Undo) {
             assert(undo_ <= num_states());
-            // undo required so roll back nominals to former ops
-            for (size_t i = num_states(); i-- >= undo_;) {
-                for (auto&& [nom, ops] : states_[i].old_ops)
-                    nom->as_nominal()->set(ops);
-            }
+
+            for (size_t i = num_states(); --i >= undo_;)
+                states_[i].nominal->set(states_[i].old_ops);
 
             outf("undo: {} -> {}\n", num_states(), undo_);
             states_.resize(undo_);
@@ -40,17 +38,14 @@ void PassMgr::run() {
 
             undo_ = No_Undo;
         } else if (mismatch) {
-            new_state();
-            // memoize former ops in new state
-            cur_state().old_ops.emplace(def, old_ops);
-            def->set(new_ops);
+            new_state(nominal, old_ops);
+            nominal->set(new_ops);
         }
     }
 
     //world_.dump();
 
     // TODO provide this as stand alone method
-    // get rid of garbage
     Importer importer(world_);
     importer.old2new_.rehash(world_.defs().capacity());
 

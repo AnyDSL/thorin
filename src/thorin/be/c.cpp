@@ -468,6 +468,11 @@ void CCodeGen::emit() {
                     }
                 }
             }
+            // Emit counter for pipeline intrinsic
+            if (continuation->callee()->isa_continuation() &&
+                continuation->callee()->as_continuation()->intrinsic() == Intrinsic::Pipeline) {
+                func_impl_ << endl << "int i" << continuation->callee()->gid() << ";";
+            }
         }
 
         for (const auto& block : schedule) {
@@ -626,7 +631,6 @@ void CCodeGen::emit() {
                             assert((lang_ == Lang::OPENCL || lang_ == Lang::HLS) && "pipelining not supported on this backend");
                             // casting to contunation to get unique name of "for index"
                             auto body = continuation->arg(4)->as_continuation();
-                            type_decls_ << "int i" << callee->gid() << ";" << endl;
                             if (lang_ == Lang::OPENCL) {
                                 func_impl_ << "#pragma ii ";
                                 emit(continuation->arg(1)) << endl;

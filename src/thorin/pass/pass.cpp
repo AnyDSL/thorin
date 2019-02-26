@@ -6,6 +6,17 @@
 
 namespace thorin {
 
+// TODO put this somewhere else
+static void cleanup(World& world) {
+    Importer importer(world);
+    importer.old2new_.rehash(world.defs().capacity());
+
+    for (auto external : world.externals())
+        importer.import(external);
+
+    swap(importer.world(), world);
+}
+
 void PassMgr::run() {
     for (auto lam : world().externals()) {
         cur_state().analyzed.emplace(lam);
@@ -38,20 +49,18 @@ void PassMgr::run() {
         for (auto op : new_ops)
             analyze(op);
 
-        if (undo_ != No_Undo) {
-            assert(undo_ < num_states());
+        while (undo_ != No_Undo) {
+            outf("undo: {} -> {}\n", num_states(), undo_);
 
+            assert(undo_ < num_states());
             for (size_t i = num_states(); i-- != undo_;)
                 states_[i].nominal->set(states_[i].old_ops);
 
-            outf("undo: {} -> {}\n", num_states(), undo_);
             states_.resize(undo_);
-
             for (auto&& pass : passes_)
                 pass->undo(undo_);
 
             undo_ = No_Undo;
-
             cur_state().nominals.pop();
 
             for (auto op : cur_state().nominals.top()->ops())
@@ -59,16 +68,7 @@ void PassMgr::run() {
         }
     }
 
-    //world_.dump();
-
-    // TODO provide this as stand alone method
-    Importer importer(world_);
-    importer.old2new_.rehash(world_.defs().capacity());
-
-    for (auto external : world().externals())
-        importer.import(external);
-
-    swap(importer.world(), world_);
+    cleanup(world_);
 }
 
 Def* PassMgr::rewrite(Def* old_nom) {
@@ -82,6 +82,20 @@ Def* PassMgr::rewrite(Def* old_nom) {
 }
 
 const Def* PassMgr::rewrite(const Def* old_def) {
+    auto new_def = rebuild(old_def);
+
+    for (auto&& pass : passes_)
+        new_def = pass->rewrite(new_def);
+
+    if (old_def != new_def) {
+        outf("map: {} -> {}\n", old_def, new_def);
+        outf("--\n");
+    }
+
+    return map(old_def, new_def);
+}
+
+const Def* PassMgr::rebuild(const Def* old_def) {
     if (auto new_def = lookup(old_def)) return *new_def;
     if (auto old_nom = old_def->isa_nominal()) return rewrite(old_nom);
 
@@ -97,32 +111,6 @@ const Def* PassMgr::rewrite(const Def* old_def) {
 
     // only rebuild if necessary
     // this is not only an optimization but also required because some structural defs are not hash-consed
-    auto new_def = rebuild ? old_def->rebuild(world(), new_type, new_ops) : old_def;
-
-    for (auto&& pass : passes_)
-        new_def = pass->rewrite(new_def);
-
-    if (old_def != new_def) {
-        outf("map: {} -> {}\n", old_def, new_def);
-        outf("--\n");
-    }
-    return map(old_def, new_def);
-}
-
-const Def* PassMgr::rebuild_(const Def* old_def) {
-    if (auto new_def = lookup(old_def)) return *new_def;
-    if (auto old_nom = old_def->isa_nominal()) return rewrite(old_nom);
-
-    auto new_type = rewrite(old_def->type());
-
-    bool rebuild = false;
-    Array<const Def*> new_ops(old_def->num_ops(), [&](auto i) {
-        auto old_op = old_def->op(i);
-        auto new_op = rewrite(old_op);
-        rebuild |= old_op != new_op;
-        return new_op;
-    });
-
     return rebuild ? old_def->rebuild(world(), new_type, new_ops) : old_def;
 }
 

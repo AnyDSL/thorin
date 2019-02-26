@@ -47,6 +47,7 @@ public:
     void run();
     Def* rewrite(Def*);             ///< rewrites @em nominal @p Def%s
     const Def* rewrite(const Def*); ///< rewrites @em structural @p Def%s
+    const Def* rebuild_(const Def*);
     void undo(size_t u) { undo_ = std::min(undo_, u); }
     size_t num_states() const { return states_.size(); }
 

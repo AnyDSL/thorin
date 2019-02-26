@@ -7,13 +7,16 @@
 namespace thorin {
 
 void PassMgr::run() {
-    for (auto lam : world().externals())
+    for (auto lam : world().externals()) {
+        cur_state().analyzed.emplace(lam);
         enqueue(lam);
+    }
 
     std::vector<const Def*> new_ops;
 
     while (!cur_state().nominals.empty()) {
         auto nominal = cur_state().nominals.top();
+        outf("cur: {}\n", nominal);
 
         bool mismatch = false;
         new_ops.resize(nominal->num_ops());
@@ -29,6 +32,8 @@ void PassMgr::run() {
             nominal->set(new_ops);
             continue;
         }
+
+        cur_state().nominals.pop();
 
         for (auto op : new_ops)
             analyze(op);
@@ -46,9 +51,12 @@ void PassMgr::run() {
                 pass->undo(undo_);
 
             undo_ = No_Undo;
-        }
 
-        cur_state().nominals.pop();
+            cur_state().nominals.pop();
+
+            for (auto op : cur_state().nominals.top()->ops())
+                analyze(op);
+        }
     }
 
     //world_.dump();
@@ -94,7 +102,28 @@ const Def* PassMgr::rewrite(const Def* old_def) {
     for (auto&& pass : passes_)
         new_def = pass->rewrite(new_def);
 
+    if (old_def != new_def) {
+        outf("map: {} -> {}\n", old_def, new_def);
+        outf("--\n");
+    }
     return map(old_def, new_def);
+}
+
+const Def* PassMgr::rebuild_(const Def* old_def) {
+    if (auto new_def = lookup(old_def)) return *new_def;
+    if (auto old_nom = old_def->isa_nominal()) return rewrite(old_nom);
+
+    auto new_type = rewrite(old_def->type());
+
+    bool rebuild = false;
+    Array<const Def*> new_ops(old_def->num_ops(), [&](auto i) {
+        auto old_op = old_def->op(i);
+        auto new_op = rewrite(old_op);
+        rebuild |= old_op != new_op;
+        return new_op;
+    });
+
+    return rebuild ? old_def->rebuild(world(), new_type, new_ops) : old_def;
 }
 
 void PassMgr::analyze(const Def* def) {

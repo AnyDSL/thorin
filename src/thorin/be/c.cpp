@@ -513,8 +513,9 @@ void CCodeGen::emit() {
             }
 
             for (auto arg : continuation->args()) {
-                // emit definitions of inlined elements
-                emit_aggop_defs(arg);
+                // emit definitions of inlined elements, skip match
+                if (!arg->isa<PrimOp>() || !is_from_match(arg->as<PrimOp>()))
+                    emit_aggop_defs(arg);
 
                 // emit temporaries for arguments
                 if (arg->order() >= 1 || is_mem(arg) || is_unit(arg) || lookup(arg) || arg->isa<PrimLit>())

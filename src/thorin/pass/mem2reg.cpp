@@ -67,7 +67,15 @@ void Mem2Reg::set_val(Lam* lam, const Slot* slot, const Def* val) {
     lam2slot2val(lam).emplace(slot, val);
 }
 
-void Mem2Reg::analyze(const Def*) {
+void Mem2Reg::analyze(const Def* def) {
+    for (auto op : def->ops()) {
+        if (auto slot = op->isa<Slot>()) {
+            if (auto& inf = info(slot); inf.lattice == SSA) {
+                inf.lattice = Keep;
+                mgr().undo(inf.undo);
+            }
+        }
+    }
 }
 
 }

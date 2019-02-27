@@ -19,7 +19,10 @@ public:
     void undo(size_t u) override { states_.resize(u); }
 
 private:
-    enum Lattice { Bottom, SSA, Keep };
+    const Def* get_val(Lam*, const Slot*);
+    void set_val(Lam*, const Slot*, const Def*);
+
+    enum Lattice { SSA, Keep };
 
     struct Info {
         Info() = default;
@@ -35,11 +38,13 @@ private:
     struct State {
         GIDMap<const Slot*, Info> slot2info;
         LamMap<Array<Lam*>> lam2preds;
+        LamMap<std::unique_ptr<GIDMap<const Slot*, const Def*>>> lam2slot2val;
     };
 
     State& cur_state() { assert(!states_.empty()); return states_.back(); }
     Info& info(const Slot*);
-    Array<Lam*>& lam2preds(Lam*);
+    ArrayRef<Lam*> lam2preds(Lam*);
+    GIDMap<const Slot*, const Def*>& lam2slot2val(Lam*);
 
     std::deque<State> states_;
 };

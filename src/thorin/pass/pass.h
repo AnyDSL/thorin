@@ -17,6 +17,7 @@ public:
     virtual ~Pass() {}
 
     PassMgr& mgr() { return mgr_; }
+    World& world();
     virtual Def* rewrite(Def* nominal) { return nominal; }  ///< Rewrites @em nominal @p Def%s.
     virtual const Def* rewrite(const Def*) = 0;             ///< Rewrites @em structural @p Def%s.
     virtual void analyze(const Def*) = 0;                   ///< Invoked after the @p PassMgr has finisched @p rewrite%ing a nominal.
@@ -50,6 +51,8 @@ public:
     const Def* rebuild(const Def*);
     void undo(size_t u) { undo_ = std::min(undo_, u); }
     size_t num_states() const { return states_.size(); }
+    Def* cur_nominal() const { return cur_nominal_; }
+    Lam* cur_lam() const { return cur_nominal_->as<Lam>(); }
 
     std::optional<const Def*> lookup(const Def* old_def) {
         auto& old2new = cur_state().old2new;
@@ -105,6 +108,7 @@ private:
     World& world_;
     std::deque<std::unique_ptr<Pass>> passes_;
     std::deque<State> states_;
+    Def* cur_nominal_;
     size_t undo_ = No_Undo;
 };
 

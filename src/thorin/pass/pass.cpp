@@ -27,6 +27,8 @@ template<typename T> void print_queue(T q) {
     std::cout << '\n';
 }
 
+World& Pass::world() { return mgr().world(); }
+
 void PassMgr::run() {
     for (auto lam : world().externals()) {
         cur_state().analyzed.emplace(lam);
@@ -37,23 +39,23 @@ void PassMgr::run() {
 
     while (!cur_state().queue.empty()) {
         std::cout << std::endl;
-        auto nominal = cur_state().queue.top();
-        outf("cur: {} {}\n", num_states(), nominal);
+        cur_nominal_ = cur_state().queue.top();
+        outf("cur: {} {}\n", num_states(), cur_nominal_);
         outf("Q: ");
         print_queue(cur_state().queue);
 
         bool mismatch = false;
-        new_ops.resize(nominal->num_ops());
-        for (size_t i = 0, e = nominal->num_ops(); i != e; ++i) {
-            auto new_op = rewrite(nominal->op(i));
-            mismatch |= new_op != nominal->op(i);
+        new_ops.resize(cur_nominal_->num_ops());
+        for (size_t i = 0, e = cur_nominal_->num_ops(); i != e; ++i) {
+            auto new_op = rewrite(cur_nominal_->op(i));
+            mismatch |= new_op != cur_nominal_->op(i);
             new_ops[i] = new_op;
         }
 
         if (mismatch) {
             assert(undo_ == No_Undo && "only provoke undos in the analyze phase");
-            new_state(nominal, nominal->ops());
-            nominal->set(new_ops);
+            new_state(cur_nominal_, cur_nominal_->ops());
+            cur_nominal_->set(new_ops);
             continue;
         }
 

@@ -5,8 +5,8 @@ namespace thorin {
 
 PassMgr optimizer(World& world) {
     PassMgr result(world);
+    //result.create<Mem2Reg>();
     result.create<Inliner>();
-    result.create<Mem2Reg>();
     return result;
 }
 

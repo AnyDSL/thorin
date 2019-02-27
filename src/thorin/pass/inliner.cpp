@@ -17,7 +17,7 @@ Inliner::Info& Inliner::info(Lam* lam) {
             return i->second;
     }
 
-    return cur_state().emplace(lam, Info(Lattice::Bottom, PassMgr::No_Undo)).first->second;
+    return cur_state().emplace(lam, Info(Lattice::Bottom, mgr().num_states())).first->second;
 }
 
 const Def* Inliner::rewrite(const Def* def) {

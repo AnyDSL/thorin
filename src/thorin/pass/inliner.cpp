@@ -26,7 +26,7 @@ const Def* Inliner::rewrite(const Def* def) {
             if (auto& inf = info(lam); inf.lattice == Lattice::Bottom || is_all_true(lam->filter())) {
                 inf.lattice = Lattice::Inlined_Once;
                 inf.undo = mgr().num_states();
-                std::cout << "inline: " << lam << std::endl;
+                std::cout << "inl: " << lam << std::endl;
                 return mgr().rebuild(drop(app)->body());
             }
         }
@@ -42,7 +42,7 @@ void Inliner::analyze(const Def* def) {
             switch (auto& inf = info(lam); inf.lattice) {
                 case Lattice::Inlined_Once:
                     inf.lattice = Lattice::Dont_Inline;
-                    std::cout << "rollback: " << lam << std::endl;
+                    std::cout << "roll: " << lam << std::endl;
                     mgr().undo(inf.undo);
                     break;
                 default:

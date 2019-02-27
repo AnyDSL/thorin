@@ -17,6 +17,16 @@ static void cleanup(World& world) {
     swap(importer.world(), world);
 }
 
+// TODO remove
+template<typename T> void print_queue(T q) {
+    std::cout << "  ";
+    while(!q.empty()) {
+        std::cout << q.top() << " ";
+        q.pop();
+    }
+    std::cout << '\n';
+}
+
 void PassMgr::run() {
     for (auto lam : world().externals()) {
         cur_state().analyzed.emplace(lam);
@@ -25,9 +35,12 @@ void PassMgr::run() {
 
     std::vector<const Def*> new_ops;
 
-    while (!cur_state().nominals.empty()) {
-        auto nominal = cur_state().nominals.top();
-        outf("cur: {}\n", nominal);
+    while (!cur_state().queue.empty()) {
+        std::cout << std::endl;
+        auto nominal = cur_state().queue.top();
+        outf("cur: {} {}\n", num_states(), nominal);
+        outf("Q: ");
+        print_queue(cur_state().queue);
 
         bool mismatch = false;
         new_ops.resize(nominal->num_ops());
@@ -44,8 +57,6 @@ void PassMgr::run() {
             continue;
         }
 
-        cur_state().nominals.pop();
-
         for (auto op : new_ops)
             analyze(op);
 
@@ -61,13 +72,15 @@ void PassMgr::run() {
                 pass->undo(undo_);
 
             undo_ = No_Undo;
-            cur_state().nominals.pop();
 
-            for (auto op : cur_state().nominals.top()->ops())
+            for (auto op : cur_state().queue.top()->ops())
                 analyze(op);
         }
+
+        cur_state().queue.pop();
     }
 
+    // TODO put this somewhere else
     cleanup(world_);
 }
 
@@ -87,10 +100,8 @@ const Def* PassMgr::rewrite(const Def* old_def) {
     for (auto&& pass : passes_)
         new_def = pass->rewrite(new_def);
 
-    if (old_def != new_def) {
+    if (old_def != new_def)
         outf("map: {} -> {}\n", old_def, new_def);
-        outf("--\n");
-    }
 
     return map(old_def, new_def);
 }

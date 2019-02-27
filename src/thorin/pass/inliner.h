@@ -32,12 +32,14 @@ private:
         unsigned undo    : 28;
     };
 
-    using State = LamMap<Info>;
+    using State = std::tuple<LamMap<Info>>;
 
     State& cur_state() { assert(!states_.empty()); return states_.back(); }
-    Info& info(Lam* lam);
+    Info& info(Lam* lam) { return get<Inliner, LamMap<Info>>(lam, std::move(Info(Lattice::Bottom, mgr().num_states()))); }
 
-    std::deque<LamMap<Info>> states_;
+    std::deque<State> states_;
+
+    friend class Pass;
 };
 
 }

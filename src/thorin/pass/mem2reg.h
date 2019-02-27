@@ -35,18 +35,19 @@ private:
         unsigned undo    : 28;
     };
 
-    struct State {
-        GIDMap<const Slot*, Info> slot2info;
-        LamMap<Array<Lam*>> lam2preds;
-        LamMap<std::unique_ptr<GIDMap<const Slot*, const Def*>>> lam2slot2val;
-    };
+    using Slot2Info    = GIDMap<const Slot*, Info> ;
+    using Lam2Preds    = LamMap<Array<Lam*>>;
+    using Lam2Slot2Val = LamMap<std::unique_ptr<GIDMap<const Slot*, const Def*>>>;
+    using State        = std::tuple<Slot2Info, Lam2Preds, Lam2Slot2Val>;
 
     State& cur_state() { assert(!states_.empty()); return states_.back(); }
-    Info& info(const Slot*);
-    ArrayRef<Lam*> lam2preds(Lam*);
-    GIDMap<const Slot*, const Def*>& lam2slot2val(Lam*);
+    auto& slot2info(const Slot* slot) { return get<Mem2Reg, Slot2Info>   (slot, std::move(Info(Lattice::SSA, mgr().num_states()))); }
+    auto& lam2preds   (Lam* lam)      { return get<Mem2Reg, Lam2Preds>   (lam,  std::move(Array<Lam*>())); }
+    auto& lam2slot2val(Lam* lam)      { return get<Mem2Reg, Lam2Slot2Val>(lam,  std::move(std::make_unique<GIDMap<const Slot*, const Def*>>())); }
 
     std::deque<State> states_;
+
+    friend class Pass;
 };
 
 }

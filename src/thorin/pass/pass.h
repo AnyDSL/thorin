@@ -1,8 +1,10 @@
 #ifndef THORIN_PASS_PASS_H
 #define THORIN_PASS_PASS_H
 
-#include "thorin/world.h"
 #include <deque>
+
+#include "thorin/world.h"
+#include "thorin/util/iterator.h"
 
 namespace thorin {
 
@@ -24,12 +26,24 @@ public:
     virtual void new_state() = 0;                           ///< The @p PassMgr will notify all @p Pass%es if a new state has been required.
     virtual void undo(size_t u) = 0;                        ///< The @p PassMgr will notify all @p Pass%es if an undo to state @p u is required.
 
+    template<class P, class M>
+    auto& get(const typename M::key_type& k, typename M::mapped_type&& m) {
+        auto& states = static_cast<P*>(this)->states_;
+        for (auto& state : reverse_range(states)) {
+            if (auto i = std::get<M>(state).find(k); i != std::get<M>(state).end())
+                return i->second;
+        }
+
+        assert(!states.empty());
+        return std::get<M>(states.back()).emplace(k, std::move(m)).first->second;
+    }
+
 private:
     PassMgr& mgr_;
 };
 
 /**
- * A super optimizer.
+ * An optimizer that combines several optimizations in an optimal way.
  * See "Composing dataflow analyses and transformations" by Lerner, Grove, Chambers.
  */
 class PassMgr {

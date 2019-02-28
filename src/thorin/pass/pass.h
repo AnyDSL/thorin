@@ -12,7 +12,7 @@ class PassMgr;
 
 /**
  * All Pass%es that want to be registered in the @p PassMgr must implement this interface.
- * However, inherit from @p Pass using CRTP to inherit some boilerplate
+ * However, inherit from @p Pass using CRTP to inherit some boilerplate regarding states for Pass%es.
  */
 class PassBase {
 public:
@@ -52,11 +52,11 @@ public:
         : PassBase(mgr, pass_index)
     {}
 
-    /// searches states from back to front in the map @p M for @p key using @p init if nothing is found
+    /// Searches states from back to front in the map @p M for @p key using @p init if nothing is found.
     template<class M> auto& get(const typename M::key_type& key, typename M::mapped_type&& init);
     template<class M> auto& get(const typename M::key_type& key) { return get<M>(key, typename M::mapped_type()); }
-    auto& states();     ///< returns PassMgr::states_
-    auto& cur_state();  ///< return PassMgr::states_.back()
+    auto& states();     ///< Returns PassMgr::states_.
+    auto& cur_state();  ///< Return PassMgr::states_.back().
     void* alloc() const override { return  new typename P::State(); }
     void dealloc(void* state) const override { delete (typename P::State*)state; }
 };
@@ -78,7 +78,7 @@ public:
     template<typename P>
     PassMgr& create() { passes_.emplace_back(std::make_unique<P>(*this, passes_.size())); return *this; }
     void run();
-    const Def* rebuild(const Def*); ///< just performs the rebuild of a @em struct @p Def
+    const Def* rebuild(const Def*); ///< Just performs the rebuild of a @em structural @p Def.
     void undo(size_t u) { undo_ = std::min(undo_, u); }
     size_t state_id() const { return states_.size(); }
     Def* cur_nominal() const { return cur_nominal_; }
@@ -98,8 +98,8 @@ private:
         return i->second;
     }
 
-    Def* rewrite(Def*);             ///< rewrites @em nominal @p Def%s
-    const Def* rewrite(const Def*); ///< rewrites @em structural @p Def%s
+    Def* rewrite(Def*);             ///< Rewrites @em nominal @p Def%s.
+    const Def* rewrite(const Def*); ///< Rewrites @em structural @p Def%s.
     void analyze(const Def*);
     void enqueue(Def* nominal) { cur_state().queue.push(nominal); }
     template<class D> // D may be "Def" or "const Def"

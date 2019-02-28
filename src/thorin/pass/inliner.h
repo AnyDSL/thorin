@@ -7,16 +7,15 @@ namespace thorin {
 
 class Inliner : public Pass {
 public:
-    Inliner(PassMgr& mgr)
-        : Pass(mgr)
-    {
-        states_.emplace_back();
-    }
+    Inliner(PassMgr& mgr, size_t pass_index)
+        : Pass(mgr, pass_index)
+    {}
 
     const Def* rewrite(const Def*) override;
     void analyze(const Def*) override;
-    void new_state() override { states_.emplace_back(); }
-    void undo(size_t u) override { states_.resize(u); }
+
+    static void* creator() { return new State(); }
+    static void deleter(void* state) { return delete (State*)state; }
 
 private:
     enum Lattice { Bottom, Inlined_Once, Dont_Inline };
@@ -34,10 +33,7 @@ private:
 
     using State = std::tuple<LamMap<Info>>;
 
-    State& cur_state() { assert(!states_.empty()); return states_.back(); }
-    Info& info(Lam* lam) { return get<Inliner, LamMap<Info>>(lam, std::move(Info(Lattice::Bottom, mgr().num_states()))); }
-
-    std::deque<State> states_;
+    Info& info(Lam* lam) { return get<State, LamMap<Info>>(lam, std::move(Info(Lattice::Bottom, mgr().num_states()))); }
 
     friend class Pass;
 };

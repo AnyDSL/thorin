@@ -7,16 +7,12 @@ namespace thorin {
 
 class Mem2Reg : public Pass {
 public:
-    Mem2Reg(PassMgr& mgr)
-        : Pass(mgr)
-    {
-        states_.emplace_back();
-    }
+    Mem2Reg(PassMgr& mgr, size_t pass_index)
+        : Pass(mgr, pass_index)
+    {}
 
     const Def* rewrite(const Def*) override;
     void analyze(const Def*) override;
-    void new_state() override { states_.emplace_back(); }
-    void undo(size_t u) override { states_.resize(u); }
 
 private:
     const Def* get_val(Lam*, const Slot*);
@@ -40,12 +36,9 @@ private:
     using Lam2Slot2Val = LamMap<std::unique_ptr<GIDMap<const Slot*, const Def*>>>;
     using State        = std::tuple<Slot2Info, Lam2Preds, Lam2Slot2Val>;
 
-    State& cur_state() { assert(!states_.empty()); return states_.back(); }
-    auto& slot2info(const Slot* slot) { return get<Mem2Reg, Slot2Info>   (slot, std::move(Info(Lattice::SSA, mgr().num_states()))); }
-    auto& lam2preds   (Lam* lam)      { return get<Mem2Reg, Lam2Preds>   (lam,  std::move(Array<Lam*>())); }
-    auto& lam2slot2val(Lam* lam)      { return get<Mem2Reg, Lam2Slot2Val>(lam,  std::move(std::make_unique<GIDMap<const Slot*, const Def*>>())); }
-
-    std::deque<State> states_;
+    auto& slot2info(const Slot* slot) { return get<State, Slot2Info>   (slot, std::move(Info(Lattice::SSA, mgr().num_states()))); }
+    auto& lam2preds   (Lam* lam)      { return get<State, Lam2Preds>   (lam,  std::move(Array<Lam*>())); }
+    auto& lam2slot2val(Lam* lam)      { return get<State, Lam2Slot2Val>(lam,  std::move(std::make_unique<GIDMap<const Slot*, const Def*>>())); }
 
     friend class Pass;
 };

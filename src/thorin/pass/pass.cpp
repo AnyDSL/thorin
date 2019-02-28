@@ -30,6 +30,8 @@ template<typename T> void print_queue(T q) {
 World& Pass::world() { return mgr().world(); }
 
 void PassMgr::run() {
+    states_.emplace_back(handlers_);
+
     for (auto lam : world().externals()) {
         cur_state().analyzed.emplace(lam);
         enqueue(lam);
@@ -70,9 +72,6 @@ void PassMgr::run() {
                 states_[i].nominal->set(states_[i].old_ops);
 
             states_.resize(undo_);
-            for (auto&& pass : passes_)
-                pass->undo(undo_);
-
             undo_ = No_Undo;
 
             for (auto op : cur_state().queue.top()->ops())

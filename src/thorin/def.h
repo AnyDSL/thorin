@@ -45,57 +45,34 @@ typedef std::vector<Lam*> Lams;
 
 /**
  * References a user.
- * A \p Def \c u which uses \p Def \c d as \c i^th operand is a \p Use with \p index_ \c i of \p Def \c d.
+ * A @p Def @c u which uses @p Def @c d as @c i^th operand is a @p Use with @p index_ @c i of @p Def @c d.
  */
 class Use {
 public:
     Use() {}
-#if defined(__x86_64__) || (_M_X64)
-    Use(size_t index, const Def* def)
-        : uptr_(reinterpret_cast<uintptr_t>(def) | (uintptr_t(index) << 48ull))
+    Use(const Def* def, size_t index)
+        : tagged_ptr_(def, index)
     {}
 
-    size_t index() const { return uptr_ >> 48ull; }
-    const Def* def() const {
-        // sign extend to make pointer canonical
-        return reinterpret_cast<const Def*>((iptr_  << 16) >> 16) ;
-    }
-#else
-    Use(size_t index, const Def* def)
-        : index_(index)
-        , def_(def)
-    {}
-
-    size_t index() const { return index_; }
-    const Def* def() const { return def_; }
-#endif
-    operator const Def*() const { return def(); }
-    const Def* operator->() const { return def(); }
-    bool operator==(Use other) const { return this->def() == other.def() && this->index() == other.index(); }
+    size_t index() const { return tagged_ptr_.index(); }
+    const Def* def() const { return tagged_ptr_.ptr(); }
+    operator const Def*() const { return tagged_ptr_; }
+    const Def* operator->() const { return tagged_ptr_; }
+    bool operator==(Use other) const { return this->tagged_ptr_ == other.tagged_ptr_; }
 
 private:
-#if defined(__x86_64__) || (_M_X64)
-    /// A tagged pointer: First 16bit is index, remaining 48bit is the actual pointer.
-    union {
-        uintptr_t uptr_;
-        intptr_t iptr_;
-    };
-#else
-    size_t index_;
-    const Def* def_;
-#endif
+    TaggedPtr<const Def, size_t> tagged_ptr_;
 };
-
-//------------------------------------------------------------------------------
 
 struct UseHash {
     inline static uint64_t hash(Use use);
-    inline static bool eq(Use u1, Use u2) { return u1 == u2; }
-    inline static Use sentinel() { return Use(size_t(-1), (const Def*)(-1)); }
+    static bool eq(Use u1, Use u2) { return u1 == u2; }
+    static Use sentinel() { return Use((const Def*)(-1), uint16_t(-1)); }
 };
 
-// using a StackCapacity of 8 covers almost 99% of all real-world use-lists
 typedef HashSet<Use, UseHash> Uses;
+
+//------------------------------------------------------------------------------
 
 template<class To>
 using DefMap  = GIDMap<const Def*, To>;

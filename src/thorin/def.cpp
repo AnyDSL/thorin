@@ -165,7 +165,7 @@ void Def::finalize() {
         assert(o != nullptr);
         contains_lam_ |= o->contains_lam();
         order_ = std::max(order_, o->order_);
-        const auto& p = o->uses_.emplace(i, this);
+        const auto& p = o->uses_.emplace(this, i);
         assert_unused(p.second);
     }
 
@@ -181,16 +181,16 @@ void Def::set(size_t i, const Def* def) {
     ops_ptr()[i] = def;
     contains_lam_ |= def->contains_lam();
     order_ = std::max(order_, def->order_);
-    const auto& p = def->uses_.emplace(i, this);
+    const auto& p = def->uses_.emplace(this, i);
     assert_unused(p.second);
 }
 
 void Def::unset(size_t i) {
     assert(i < num_ops() && "index out of bounds");
     auto def = op(i);
-    assert(def->uses_.contains(Use(i, this)));
-    def->uses_.erase(Use(i, this));
-    assert(!def->uses_.contains(Use(i, this)));
+    assert(def->uses_.contains(Use(this, i)));
+    def->uses_.erase(Use(this, i));
+    assert(!def->uses_.contains(Use(this, i)));
     ops_ptr()[i] = nullptr;
 }
 

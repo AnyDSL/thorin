@@ -10,9 +10,11 @@ namespace thorin {
 // Now, this code will inline g and set g's lattice to Dont_Inline.
 // However, the inlined code might be dead after inlining f.
 
+bool is_candidate(Lam* lam) { return lam != nullptr && !lam->is_empty() && !lam->is_external(); }
+
 const Def* Inliner::rewrite(const Def* def) {
     if (auto app = def->isa<App>()) {
-        if (auto lam = app->callee()->isa_nominal<Lam>(); lam && !lam->is_empty()) {
+        if (auto lam = app->callee()->isa_nominal<Lam>(); is_candidate(lam)) {
             if (auto& inf = info(lam); inf.lattice == Lattice::Bottom) {
                 inf.lattice = Lattice::Inlined_Once;
                 inf.undo = mgr().state_id();
@@ -28,7 +30,7 @@ const Def* Inliner::rewrite(const Def* def) {
 void Inliner::analyze(const Def* def) {
     if (def->isa<Param>()) return;
     for (auto op : def->ops()) {
-        if (auto lam = op->isa_nominal<Lam>(); lam && !lam->is_empty()) {
+        if (auto lam = op->isa_nominal<Lam>(); is_candidate(lam)) {
             switch (auto& inf = info(lam); inf.lattice) {
                 case Lattice::Inlined_Once:
                     inf.lattice = Lattice::Dont_Inline;

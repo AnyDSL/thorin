@@ -30,6 +30,7 @@ const Def* Mem2Reg::rewrite(const Def* def) {
 }
 
 const Def* Mem2Reg::get_val(Lam* lam, const Slot* slot) {
+    outf("get_val {} for {}\n", lam, slot);
     auto& slot2val = *lam2slot2val(lam);
     if (auto val = slot2val.lookup(slot))
         return *val;
@@ -53,6 +54,7 @@ const Def* Mem2Reg::get_val(Lam* lam, const Slot* slot) {
 }
 
 void Mem2Reg::set_val(Lam* lam, const Slot* slot, const Def* val) {
+    outf("set_val {} for {}: {}\n", lam, slot, val);
     lam2slot2val(lam)->emplace(slot, val);
 }
 

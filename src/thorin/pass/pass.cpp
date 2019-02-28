@@ -43,8 +43,8 @@ void PassMgr::run() {
         std::cout << std::endl;
         cur_nominal_ = cur_state().queue.top();
         outf("cur: {} {}\n", state_id(), cur_nominal_);
-        outf("Q: ");
-        print_queue(cur_state().queue);
+        //outf("Q: ");
+        //print_queue(cur_state().queue);
 
         bool mismatch = false;
         new_ops.resize(cur_nominal_->num_ops());
@@ -101,8 +101,8 @@ const Def* PassMgr::rewrite(const Def* old_def) {
     for (auto&& pass : passes_)
         new_def = pass->rewrite(new_def);
 
-    if (old_def != new_def)
-        outf("map: {} -> {}\n", old_def, new_def);
+    //if (old_def != new_def)
+        //outf("map: {} -> {}\n", old_def, new_def);
 
     return map(old_def, new_def);
 }

@@ -8,9 +8,8 @@ const Def* PartialEval::rewrite(const Def* def) {
     if (auto app = def->isa<App>()) {
         if (auto lam = app->callee()->isa_nominal<Lam>(); lam && !lam->is_empty()) {
             auto filter = isa_lit<bool>(lam->filter());
-            if (filter)
+            if (*filter)
                 return mgr().rebuild(drop(app)->body());
-            return app;
         }
     }
 

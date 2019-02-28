@@ -35,15 +35,15 @@ const Def* Mem2Reg::rewrite(const Def* def) {
 
 const Def* Mem2Reg::get_val(Lam* lam, const Slot* slot) {
     outf("get_val {} for {}\n", lam, slot);
-    auto& slot2val = *lam2slot2val(lam);
-    if (auto val = slot2val.lookup(slot)) {
+    auto& info = lam2info(lam);
+    if (auto val = info.slot2val.lookup(slot)) {
         outf("get_val {} for {}: {}\n", lam, slot, *val);
         return *val;
     }
 
     auto bot = world().bot(slot->type()->as<PtrType>()->pointee());
     const Def* same = bot;
-    for (auto pred : lam2preds(lam)) {
+    for (auto pred : info.preds) {
         auto def = get_val(pred, slot);
         if (is_bot(def)) continue;
         if (is_bot(same) && same != def) {
@@ -61,17 +61,18 @@ const Def* Mem2Reg::get_val(Lam* lam, const Slot* slot) {
 
 void Mem2Reg::set_val(Lam* lam, const Slot* slot, const Def* val) {
     outf("set_val {} for {}: {}\n", lam, slot, val);
-    lam2slot2val(lam)->emplace(slot, val);
+    lam2info(lam).slot2val.emplace(slot, val);
 }
 
 void Mem2Reg::analyze(const Def* def) {
     for (auto op : def->ops()) {
         if (auto lam = op->isa_nominal<Lam>()) {
-            lam2preds(lam).emplace(mgr().cur_lam());
+            auto& info = lam2info(lam);
+            info.preds.emplace(mgr().cur_lam());
         } else if (auto slot = op->isa<Slot>()) {
-            if (auto& inf = slot2info(slot); inf.lattice == SSA) {
-                inf.lattice = Keep;
-                //mgr().undo(inf.undo);
+            if (auto& info = slot2info(slot); info.lattice == SSA) {
+                info.lattice = Keep;
+                //mgr().undo(info.undo);
             }
         }
     }

@@ -16,9 +16,9 @@ public:
 
     enum Lattice { Bottom, SSA, Keep };
 
-    struct Info {
-        Info() = default;
-        Info(Lattice lattice, size_t undo)
+    struct SlotInfo {
+        SlotInfo() = default;
+        SlotInfo(Lattice lattice, size_t undo)
             : lattice(lattice)
             , undo(undo)
         {}
@@ -27,18 +27,21 @@ public:
         unsigned undo    : 28;
     };
 
-    using Slot2Info    = GIDMap<const Slot*, Info>;
-    using Lam2Preds    = LamMap<LamSet>;
-    using Lam2Slot2Val = LamMap<std::unique_ptr<GIDMap<const Slot*, const Def*>>>;
-    using State        = std::tuple<Slot2Info, Lam2Preds, Lam2Slot2Val>;
+    struct LamInfo {
+        GIDMap<const Slot*, const Def*> slot2val;
+        LamSet preds;
+    };
+
+    using Slot2Info = GIDMap<const Slot*, SlotInfo>;
+    using Lam2Info  = LamMap<LamInfo>;
+    using State     = std::tuple<Slot2Info, Lam2Info>;
 
 private:
     const Def* get_val(Lam*, const Slot*);
     void set_val(Lam*, const Slot*, const Def*);
 
-    auto& slot2info(const Slot* slot) { return get<Slot2Info>   (slot, Info(Lattice::Bottom, mgr().state_id())); }
-    auto& lam2slot2val(Lam* lam)      { return get<Lam2Slot2Val>(lam,  std::make_unique<GIDMap<const Slot*, const Def*>>()); }
-    auto& lam2preds   (Lam* lam)      { return get<Lam2Preds>   (lam); }
+    auto& slot2info(const Slot* slot) { return get<Slot2Info>(slot, SlotInfo(Lattice::Bottom, mgr().state_id())); }
+    auto& lam2info (Lam* lam)         { return get<Lam2Info> (lam); }
 };
 
 }

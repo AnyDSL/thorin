@@ -35,7 +35,6 @@ class Lam;
 class Param;
 class Def;
 class Tracker;
-class Use;
 class World;
 
 typedef ArrayRef<const Def*> Defs;
@@ -219,9 +218,7 @@ protected:
     mutable Debug debug_;
     uint64_t hash_;
 
-    friend struct DefHash;
     friend class Cleaner;
-    friend class Scope;
     friend class Tracker;
     friend class World;
     friend void swap(World&, World&);

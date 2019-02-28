@@ -90,7 +90,7 @@ Def* PassMgr::rewrite(Def* old_nom) {
 
     auto new_nom = old_nom;
     for (auto&& pass : passes_)
-        new_nom = std::get<0>(pass)->rewrite(new_nom);
+        new_nom = pass->rewrite(new_nom);
 
     return map(old_nom, new_nom);
 }
@@ -99,7 +99,7 @@ const Def* PassMgr::rewrite(const Def* old_def) {
     auto new_def = rebuild(old_def);
 
     for (auto&& pass : passes_)
-        new_def = std::get<0>(pass)->rewrite(new_def);
+        new_def = pass->rewrite(new_def);
 
     if (old_def != new_def)
         outf("map: {} -> {}\n", old_def, new_def);
@@ -134,7 +134,7 @@ void PassMgr::analyze(const Def* def) {
         analyze(op);
 
     for (auto&& pass : passes_)
-        std::get<0>(pass)->analyze(def);
+        pass->analyze(def);
 }
 
 }

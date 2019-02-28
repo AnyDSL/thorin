@@ -5,15 +5,13 @@
 
 namespace thorin {
 
-class PartialEval : public Pass<PartialEval> {
+class PartialEval : public PassBase {
 public:
     PartialEval(PassMgr& mgr, size_t pass_index)
-        : Pass(mgr, pass_index)
+        : PassBase(mgr, pass_index)
     {}
 
     const Def* rewrite(const Def*) override;
-
-    struct State {};
 };
 
 }

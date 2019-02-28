@@ -22,12 +22,23 @@ public:
     {}
     virtual ~PassBase() {}
 
+    /// @name getters
+    //@{
     PassMgr& mgr() { return mgr_; }
     size_t id() const { return id_; }
     World& world();
+    ///@}
+    /// @name hooks for the PassMgr
+    //@{
     virtual Def* rewrite(Def* nominal) { return nominal; }  ///< Rewrites @em nominal @p Def%s.
     virtual const Def* rewrite(const Def*) = 0;             ///< Rewrites @em structural @p Def%s.
     virtual void analyze(const Def*) {}                     ///< Invoked after the @p PassMgr has finisched @p rewrite%ing a nominal.
+    ///@}
+    /// @name alloc/dealloc state
+    //@{
+    virtual void* alloc() const { return nullptr; }
+    virtual void dealloc(void*) const {}
+    //@}
 
 private:
     PassMgr& mgr_;
@@ -41,9 +52,12 @@ public:
         : PassBase(mgr, pass_index)
     {}
 
-    template<class M> auto& get(const typename M::key_type&, typename M::mapped_type&&);
-    static void* creator() { return std::is_empty<typename P::State>::value ? nullptr : new typename P::State(); }
-    static void deleter(void* state) { if (!std::is_empty<typename P::State>::value) delete (typename P::State*)state; }
+    /// searches states from back to front in the map @p M for @p key using @p init if nothing is found
+    template<class M> auto& get(const typename M::key_type& key, typename M::mapped_type&& init);
+    auto& states();     ///< returns PassMgr::states_
+    auto& cur_state();  ///< return PassMgr::states_.back()
+    void* alloc() const override { return  new typename P::State(); }
+    void dealloc(void* state) const override { delete (typename P::State*)state; }
 };
 
 /**
@@ -53,9 +67,6 @@ public:
 class PassMgr {
 public:
     static constexpr size_t No_Undo = std::numeric_limits<size_t>::max();
-    using Creator = void*(*)();
-    using Deleter = void(*)(void*);
-    using PassData = std::tuple<std::unique_ptr<PassBase>, Creator, Deleter>;
 
     PassMgr(World& world)
         : world_(world)
@@ -63,7 +74,7 @@ public:
 
     World& world() { return world_; }
     template<typename P>
-    PassMgr& create() { passes_.emplace_back(std::tuple(std::make_unique<P>(*this, passes_.size()), P::creator, P::deleter)); return *this; }
+    PassMgr& create() { passes_.emplace_back(std::make_unique<P>(*this, passes_.size())); return *this; }
     void run();
     const Def* rebuild(const Def*); ///< just performs the rebuild of a @em struct @p Def
     void undo(size_t u) { undo_ = std::min(undo_, u); }
@@ -102,22 +113,22 @@ private:
         State(State&&) = delete;
         State& operator=(State) = delete;
 
-        State(const std::vector<PassData>& pass_data)
-            : pass_data(pass_data.data())
-            , pass_states(pass_data.size(), [&](auto i) { return std::get<Creator>(pass_data[i])(); })
+        State(const std::vector<std::unique_ptr<PassBase>>& passes)
+            : passes(passes.data())
+            , pass_states(passes.size(), [&](auto i) { return passes[i]->alloc(); })
         {}
-        State(const State& prev, Def* nominal, Defs old_ops, const std::vector<PassData>& pass_data)
+        State(const State& prev, Def* nominal, Defs old_ops, const std::vector<std::unique_ptr<PassBase>>& passes)
             : queue(prev.queue)
             , old2new(prev.old2new)
             , analyzed(prev.analyzed)
             , nominal(nominal)
             , old_ops(old_ops)
-            , pass_data(pass_data.data())
-            , pass_states(pass_data.size(), [&](auto i) { return std::get<Creator>(pass_data[i])(); })
+            , passes(passes.data())
+            , pass_states(passes.size(), [&](auto i) { return passes[i]->alloc(); })
         {}
         ~State() {
             for (size_t i = 0, e = pass_states.size(); i != e; ++i)
-                std::get<Deleter>(pass_data[i])(pass_states[i]);
+                passes[i]->dealloc(pass_states[i]);
         }
 
         std::priority_queue<Def*, std::deque<Def*>, OrderLt> queue;
@@ -125,7 +136,7 @@ private:
         DefSet analyzed;
         Def* nominal;
         Array<const Def*> old_ops;
-        const PassData* pass_data;
+        const std::unique_ptr<PassBase>* passes;
         Array<void*> pass_states;
     };
 
@@ -133,25 +144,32 @@ private:
     State& cur_state() { assert(!states_.empty()); return states_.back(); }
 
     World& world_;
-    std::vector<PassData> passes_;
+    std::vector<std::unique_ptr<PassBase>> passes_;
     std::deque<State> states_;
     Def* cur_nominal_;
     size_t undo_ = No_Undo;
 
-    template<class P> template<class M> friend auto& Pass<P>::get(const typename M::key_type&, typename M::mapped_type&&);
+    template<class P> friend auto& Pass<P>::states();
 };
 
+template<class P>
+auto& Pass<P>::states() { return mgr().states_; }
+
+template<class P>
+auto& Pass<P>::cur_state() {
+    assert(!states().empty());
+    return *static_cast<typename P::State*>(states().back().pass_states[id()]);
+}
+
 template<class P> template<class M>
-auto& Pass<P>::get(const typename M::key_type& k, typename M::mapped_type&& m) {
-    for (auto& state : reverse_range(mgr().states_)) {
+auto& Pass<P>::get(const typename M::key_type& k, typename M::mapped_type&& init) {
+    for (auto& state : reverse_range(states())) {
         auto& map = std::get<M>(*static_cast<typename P::State*>(state.pass_states[id()]));
         if (auto i = map.find(k); i != map.end())
             return i->second;
     }
 
-    assert(!mgr().states_.empty());
-    auto& map = std::get<M>(*static_cast<typename P::State*>(mgr().states_.back().pass_states[id()]));
-    return map.emplace(k, std::move(m)).first->second;
+    return std::get<M>(cur_state()).emplace(k, std::move(init)).first->second;
 }
 
 }

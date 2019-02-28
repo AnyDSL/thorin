@@ -1,7 +1,7 @@
 #include "thorin/pass/mem2reg.h"
 
 #include "thorin/transform/mangle.h"
-#include "thorin/util/iterator.h"
+#include "thorin/util/log.h"
 
 namespace thorin {
 
@@ -33,6 +33,22 @@ const Def* Mem2Reg::get_val(Lam* lam, const Slot* slot) {
     auto& slot2val = *lam2slot2val(lam);
     if (auto val = slot2val.lookup(slot))
         return *val;
+
+    auto bot = world().bot(slot->type()->as<PtrType>()->pointee());
+    const Def* same = bot;
+    for (auto pred : lam2preds(lam)) {
+        auto def = get_val(pred, slot);
+        if (is_bot(def)) continue;
+        if (is_bot(same) && same != def) {
+            same = nullptr; // defs from preds are different
+            break;
+        }
+        same = def;
+    }
+
+    if (same == nullptr)
+        outf("xxx param in {} for {}\n", lam, slot);
+
     return world().bot(slot->type()->as<PtrType>()->pointee());
 }
 
@@ -42,10 +58,11 @@ void Mem2Reg::set_val(Lam* lam, const Slot* slot, const Def* val) {
 
 void Mem2Reg::analyze(const Def* def) {
     for (auto op : def->ops()) {
+
         if (auto slot = op->isa<Slot>()) {
             if (auto& inf = slot2info(slot); inf.lattice == SSA) {
                 inf.lattice = Keep;
-                mgr().undo(inf.undo);
+                //mgr().undo(inf.undo);
             }
         }
     }

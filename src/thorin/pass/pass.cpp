@@ -37,8 +37,6 @@ void PassMgr::run() {
     for (auto lam : externals) {
         analyze(lam);
 
-    }
-    {
         while (!cur_state().queue.empty()) {
             std::cout << std::endl;
             cur_nominal_ = cur_state().queue.top();

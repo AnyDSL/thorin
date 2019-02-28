@@ -7,8 +7,8 @@ namespace thorin {
 
 class Mem2Reg : public Pass<Mem2Reg> {
 public:
-    Mem2Reg(PassMgr& mgr, size_t pass_index)
-        : Pass(mgr, pass_index)
+    Mem2Reg(PassMgr& mgr, size_t id)
+        : Pass(mgr, id)
     {}
 
     const Def* rewrite(const Def*) override;

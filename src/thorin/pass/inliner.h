@@ -7,8 +7,8 @@ namespace thorin {
 
 class Inliner : public Pass<Inliner> {
 public:
-    Inliner(PassMgr& mgr, size_t pass_index)
-        : Pass(mgr, pass_index)
+    Inliner(PassMgr& mgr, size_t id)
+        : Pass(mgr, id)
     {}
 
     const Def* rewrite(const Def*) override;

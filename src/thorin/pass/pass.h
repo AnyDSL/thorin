@@ -12,7 +12,8 @@ class PassMgr;
 
 /**
  * All Pass%es that want to be registered in the @p PassMgr must implement this interface.
- * However, inherit from @p Pass using CRTP to inherit some boilerplate regarding states for Pass%es.
+ * * Inherit from this class if your pass doesn't need state.
+ * * Inherit from PassBase using CRTP if you do need state.
  */
 class PassBase {
 public:
@@ -34,7 +35,7 @@ public:
     virtual const Def* rewrite(const Def*) = 0;             ///< Rewrites @em structural @p Def%s.
     virtual void analyze(const Def*) {}                     ///< Invoked after the @p PassMgr has finisched @p rewrite%ing a nominal.
     ///@}
-    /// @name alloc/dealloc state
+    /// @name alloc/dealloc state - dummy implementations here
     //@{
     virtual void* alloc() const { return nullptr; }
     virtual void dealloc(void*) const {}
@@ -43,22 +44,6 @@ public:
 private:
     PassMgr& mgr_;
     size_t id_;
-};
-
-template<class P>
-class Pass : public PassBase {
-public:
-    Pass(PassMgr& mgr, size_t pass_index)
-        : PassBase(mgr, pass_index)
-    {}
-
-    /// Searches states from back to front in the map @p M for @p key using @p init if nothing is found.
-    template<class M> auto& get(const typename M::key_type& key, typename M::mapped_type&& init);
-    template<class M> auto& get(const typename M::key_type& key) { return get<M>(key, typename M::mapped_type()); }
-    auto& states();     ///< Returns PassMgr::states_.
-    auto& cur_state();  ///< Return PassMgr::states_.back().
-    void* alloc() const override { return  new typename P::State(); }
-    void dealloc(void* state) const override { delete (typename P::State*)state; }
 };
 
 /**
@@ -157,33 +142,52 @@ private:
 
     World& world_;
     std::vector<PassPtr> passes_;
-    std::deque<State> states_;
     Def* cur_nominal_;
     size_t undo_ = No_Undo;
     size_t time_ = 0;
+    std::deque<State> states_;
 
-    template<class P> friend auto& Pass<P>::states();
+    template<class P> friend class Pass;
 };
 
+/// Inherit from this class using CRTP if you do need a Pass with a state.
 template<class P>
-auto& Pass<P>::states() { return mgr().states_; }
+class Pass : public PassBase {
+public:
+    Pass(PassMgr& mgr, size_t id)
+        : PassBase(mgr, id)
+    {}
 
-template<class P>
-auto& Pass<P>::cur_state() {
-    assert(!states().empty());
-    return *static_cast<typename P::State*>(states().back().data[id()]);
-}
+    /// @name getters
+    //@{
+    /// Returns PassMgr::states_.
+    auto& states() { return mgr().states_; }
+    /// Return PassMgr::states_.back().
+    auto& cur_state() { assert(!states().empty()); return *static_cast<typename P::State*>(states().back().data[id()]); }
+    //@}
+    /// @name recursive search in the state stack
+    //@{
+    /// Searches states from back to front in the map @p M for @p key using @p init if nothing is found.
+    template<class M>
+    auto& get(const typename M::key_type& key, typename M::mapped_type&& init) {
+        for (auto& state : reverse_range(states())) {
+            auto& map = std::get<M>(*static_cast<typename P::State*>(state.data[id()]));
+            if (auto i = map.find(key); i != map.end())
+                return i->second;
+        }
 
-template<class P> template<class M>
-auto& Pass<P>::get(const typename M::key_type& k, typename M::mapped_type&& init) {
-    for (auto& state : reverse_range(states())) {
-        auto& map = std::get<M>(*static_cast<typename P::State*>(state.data[id()]));
-        if (auto i = map.find(k); i != map.end())
-            return i->second;
+        return std::get<M>(cur_state()).emplace(key, std::move(init)).first->second;
     }
-
-    return std::get<M>(cur_state()).emplace(k, std::move(init)).first->second;
-}
+    /// Same as above but uses the default constructor as init.
+    template<class M>
+    auto& get(const typename M::key_type& key) { return get<M>(key, typename M::mapped_type()); }
+    //@}
+    /// @name alloc/dealloc state
+    //@{
+    void* alloc() const override { return new typename P::State(); }
+    void dealloc(void* state) const override { delete static_cast<typename P::State*>(state); }
+    //@}
+};
 
 }
 

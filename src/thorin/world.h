@@ -86,11 +86,11 @@ public:
     const Kind* kind_arity() { return cache_.kind_arity_; }
     const Kind* kind_multi() { return cache_.kind_multi_; }
     const Kind* kind_star()  { return cache_.kind_star_; }
+    //@}
     /// @name Param and Var
     //@{
     const Param* param(Lam* lam, Debug dbg = {}) { return unify<Param>(1, lam->domain(), lam, dbg); }
     const Var* var(const Def* type, u64 index, Debug dbg = {}) { return unify<Var>(0, type, index, dbg); }
-    //@}
     //@}
     /// @name Pi
     //@{

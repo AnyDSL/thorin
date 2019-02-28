@@ -7,8 +7,8 @@ namespace thorin {
 
 class PartialEval : public PassBase {
 public:
-    PartialEval(PassMgr& mgr, size_t pass_index)
-        : PassBase(mgr, pass_index)
+    PartialEval(PassMgr& mgr, size_t id)
+        : PassBase(mgr, id)
     {}
 
     const Def* rewrite(const Def*) override;

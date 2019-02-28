@@ -16,7 +16,6 @@ public:
     YCompCommandLine() {}
 
     void add(std::string graph, bool temp, std::string file);
-    void print(World& world);
 
 private:
     std::vector<std::string> graphs;

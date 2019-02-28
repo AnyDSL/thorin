@@ -18,6 +18,7 @@ const Def* Inliner::rewrite(const Def* def) {
             if (auto& inf = info(lam); inf.lattice == Lattice::Bottom) {
                 inf.lattice = Lattice::Inlined_Once;
                 inf.undo = mgr().state_id();
+                mgr().new_state();
                 std::cout << "inline: " << lam << std::endl;
                 return mgr().rebuild(drop(app)->body());
             }

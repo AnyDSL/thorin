@@ -54,8 +54,8 @@ void PassMgr::run() {
             }
 
             if (mismatch) {
+                //assert(old_id < state_id() && "nominal changed; you must introduce a new state");
                 assert(undo_ == No_Undo && "only provoke undos in the analyze phase");
-                new_state(cur_nominal_, cur_nominal_->ops());
                 cur_nominal_->set(new_ops);
                 continue;
             }

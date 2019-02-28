@@ -81,6 +81,9 @@ public:
     const Def* rebuild(const Def*); ///< Just performs the rebuild of a @em structural @p Def.
     void undo(size_t u) { undo_ = std::min(undo_, u); }
     size_t state_id() const { return states_.size(); }
+    void new_state() { states_.emplace_back(cur_state(), cur_nominal(), cur_nominal()->ops(), passes_);
+        std::cout<< state_id() << std::endl;
+    }
     Def* cur_nominal() const { return cur_nominal_; }
     Lam* cur_lam() const { return cur_nominal_->as<Lam>(); }
 

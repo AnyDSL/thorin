@@ -54,6 +54,7 @@ public:
 
     /// searches states from back to front in the map @p M for @p key using @p init if nothing is found
     template<class M> auto& get(const typename M::key_type& key, typename M::mapped_type&& init);
+    template<class M> auto& get(const typename M::key_type& key) { return get<M>(key, typename M::mapped_type()); }
     auto& states();     ///< returns PassMgr::states_
     auto& cur_state();  ///< return PassMgr::states_.back()
     void* alloc() const override { return  new typename P::State(); }

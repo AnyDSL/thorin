@@ -7,7 +7,11 @@ namespace thorin {
 
 const Def* Mem2Reg::rewrite(const Def* def) {
     if (auto slot = def->isa<Slot>()) {
-        slot2info(slot); // init
+        outf("slot: {}\n", slot);
+        if (auto& info = slot2info(slot); info.lattice == Lattice::Bottom) {
+            info.lattice = Lattice::SSA;
+            mgr().new_state();
+        }
         return slot;
     }
 
@@ -32,8 +36,10 @@ const Def* Mem2Reg::rewrite(const Def* def) {
 const Def* Mem2Reg::get_val(Lam* lam, const Slot* slot) {
     outf("get_val {} for {}\n", lam, slot);
     auto& slot2val = *lam2slot2val(lam);
-    if (auto val = slot2val.lookup(slot))
+    if (auto val = slot2val.lookup(slot)) {
+        outf("get_val {} for {}: {}\n", lam, slot, *val);
         return *val;
+    }
 
     auto bot = world().bot(slot->type()->as<PtrType>()->pointee());
     const Def* same = bot;

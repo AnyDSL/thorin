@@ -14,7 +14,7 @@ public:
     const Def* rewrite(const Def*) override;
     void analyze(const Def*) override;
 
-    enum Lattice { SSA, Keep };
+    enum Lattice { Bottom, SSA, Keep };
 
     struct Info {
         Info() = default;
@@ -36,7 +36,7 @@ private:
     const Def* get_val(Lam*, const Slot*);
     void set_val(Lam*, const Slot*, const Def*);
 
-    auto& slot2info(const Slot* slot) { return get<Slot2Info>   (slot, Info(Lattice::SSA, mgr().state_id())); }
+    auto& slot2info(const Slot* slot) { return get<Slot2Info>   (slot, Info(Lattice::Bottom, mgr().state_id())); }
     auto& lam2slot2val(Lam* lam)      { return get<Lam2Slot2Val>(lam,  std::make_unique<GIDMap<const Slot*, const Def*>>()); }
     auto& lam2preds   (Lam* lam)      { return get<Lam2Preds>   (lam); }
 };

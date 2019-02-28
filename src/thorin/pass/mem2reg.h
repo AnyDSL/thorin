@@ -13,8 +13,6 @@ public:
 
     const Def* rewrite(const Def*) override;
     void analyze(const Def*) override;
-    const Def* get_val(Lam*, const Slot*);
-    void set_val(Lam*, const Slot*, const Def*);
 
     enum Lattice { SSA, Keep };
 
@@ -29,15 +27,18 @@ public:
         unsigned undo    : 28;
     };
 
-    using Slot2Info    = GIDMap<const Slot*, Info> ;
+    using Slot2Info    = GIDMap<const Slot*, Info>;
     using Lam2Preds    = LamMap<Array<Lam*>>;
     using Lam2Slot2Val = LamMap<std::unique_ptr<GIDMap<const Slot*, const Def*>>>;
     using State        = std::tuple<Slot2Info, Lam2Preds, Lam2Slot2Val>;
 
 private:
-    auto& slot2info(const Slot* slot) { return get<Slot2Info>   (slot, std::move(Info(Lattice::SSA, mgr().state_id()))); }
-    auto& lam2preds   (Lam* lam)      { return get<Lam2Preds>   (lam,  std::move(Array<Lam*>())); }
-    auto& lam2slot2val(Lam* lam)      { return get<Lam2Slot2Val>(lam,  std::move(std::make_unique<GIDMap<const Slot*, const Def*>>())); }
+    const Def* get_val(Lam*, const Slot*);
+    void set_val(Lam*, const Slot*, const Def*);
+
+    auto& slot2info(const Slot* slot) { return get<Slot2Info>   (slot, Info(Lattice::SSA, mgr().state_id())); }
+    auto& lam2preds   (Lam* lam)      { return get<Lam2Preds>   (lam,  Array<Lam*>()); }
+    auto& lam2slot2val(Lam* lam)      { return get<Lam2Slot2Val>(lam,  std::make_unique<GIDMap<const Slot*, const Def*>>()); }
 };
 
 }

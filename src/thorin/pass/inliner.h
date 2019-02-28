@@ -15,6 +15,7 @@ public:
     void analyze(const Def*) override;
 
     enum Lattice { Bottom, Inlined_Once, Dont_Inline };
+
     struct Info {
         Info() = default;
         Info(Lattice lattice, size_t undo)
@@ -25,10 +26,11 @@ public:
         unsigned lattice :  4;
         unsigned undo    : 28;
     };
+
     using State = std::tuple<LamMap<Info>>;
 
 private:
-    Info& info(Lam* lam) { return get<LamMap<Info>>(lam, std::move(Info(Lattice::Bottom, mgr().state_id()))); }
+    Info& info(Lam* lam) { return get<LamMap<Info>>(lam, Info(Lattice::Bottom, mgr().state_id())); }
 };
 
 }

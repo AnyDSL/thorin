@@ -27,7 +27,7 @@ public:
     World& world();
     virtual Def* rewrite(Def* nominal) { return nominal; }  ///< Rewrites @em nominal @p Def%s.
     virtual const Def* rewrite(const Def*) = 0;             ///< Rewrites @em structural @p Def%s.
-    virtual void analyze(const Def*) = 0;                   ///< Invoked after the @p PassMgr has finisched @p rewrite%ing a nominal.
+    virtual void analyze(const Def*) {}                     ///< Invoked after the @p PassMgr has finisched @p rewrite%ing a nominal.
 
 private:
     PassMgr& mgr_;
@@ -42,8 +42,8 @@ public:
     {}
 
     template<class M> auto& get(const typename M::key_type&, typename M::mapped_type&&);
-    static void* creator() { return new typename P::State(); }
-    static void deleter(void* state) { return delete (typename P::State*)state; }
+    static void* creator() { return std::is_empty<typename P::State>::value ? nullptr : new typename P::State(); }
+    static void deleter(void* state) { if (!std::is_empty<typename P::State>::value) delete (typename P::State*)state; }
 };
 
 /**

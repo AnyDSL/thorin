@@ -33,6 +33,8 @@ set(THORIN_SOURCES
     pass/inliner.h
     pass/mem2reg.cpp
     pass/mem2reg.h
+    pass/partial_eval.cpp
+    pass/partial_eval.h
     tables/allnodes.h
     tables/arithoptable.h
     tables/cmptable.h

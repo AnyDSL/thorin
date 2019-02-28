@@ -866,7 +866,6 @@ bool is_unit(const Def*);
 bool is_const(const Def*);
 bool is_primlit(const Def*, int64_t);
 bool is_minus_zero(const Def*);
-bool is_all_true(const Def*);
 inline bool is_mem        (const Def* def) { return def->type()->isa<MemType>(); }
 inline bool is_zero       (const Def* def) { return is_primlit(def, 0); }
 inline bool is_one        (const Def* def) { return is_primlit(def, 1); }

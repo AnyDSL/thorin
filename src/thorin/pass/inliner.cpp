@@ -13,10 +13,9 @@ namespace thorin {
 const Def* Inliner::rewrite(const Def* def) {
     if (auto app = def->isa<App>()) {
         if (auto lam = app->callee()->isa_nominal<Lam>(); lam && !lam->is_empty()) {
-            if (auto& inf = info(lam); inf.lattice == Lattice::Bottom || is_all_true(lam->filter())) {
+            if (auto& inf = info(lam); inf.lattice == Lattice::Bottom) {
                 inf.lattice = Lattice::Inlined_Once;
                 inf.undo = mgr().state_id();
-                std::cout << "inl: " << lam << std::endl;
                 return mgr().rebuild(drop(app)->body());
             }
         }
@@ -28,11 +27,10 @@ const Def* Inliner::rewrite(const Def* def) {
 void Inliner::analyze(const Def* def) {
     if (def->isa<Param>()) return;
     for (auto op : def->ops()) {
-        if (auto lam = op->isa_nominal<Lam>(); lam && !lam->is_empty() && !is_all_true(lam->filter())) {
+        if (auto lam = op->isa_nominal<Lam>(); lam && !lam->is_empty()) {
             switch (auto& inf = info(lam); inf.lattice) {
                 case Lattice::Inlined_Once:
                     inf.lattice = Lattice::Dont_Inline;
-                    std::cout << "roll: " << lam << std::endl;
                     mgr().undo(inf.undo);
                     break;
                 default:

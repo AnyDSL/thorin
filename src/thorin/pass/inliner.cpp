@@ -15,7 +15,7 @@ const Def* Inliner::rewrite(const Def* def) {
         if (auto lam = app->callee()->isa_nominal<Lam>(); lam && !lam->is_empty()) {
             if (auto& inf = info(lam); inf.lattice == Lattice::Bottom || is_all_true(lam->filter())) {
                 inf.lattice = Lattice::Inlined_Once;
-                inf.undo = mgr().num_states();
+                inf.undo = mgr().state_id();
                 std::cout << "inl: " << lam << std::endl;
                 return mgr().rebuild(drop(app)->body());
             }

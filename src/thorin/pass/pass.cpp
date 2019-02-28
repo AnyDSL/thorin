@@ -27,10 +27,10 @@ template<typename T> void print_queue(T q) {
     std::cout << '\n';
 }
 
-World& Pass::world() { return mgr().world(); }
+World& PassBase::world() { return mgr().world(); }
 
 void PassMgr::run() {
-    states_.emplace_back(handlers_);
+    states_.emplace_back(passes_);
 
     for (auto lam : world().externals()) {
         cur_state().analyzed.emplace(lam);
@@ -42,7 +42,7 @@ void PassMgr::run() {
     while (!cur_state().queue.empty()) {
         std::cout << std::endl;
         cur_nominal_ = cur_state().queue.top();
-        outf("cur: {} {}\n", num_states(), cur_nominal_);
+        outf("cur: {} {}\n", state_id(), cur_nominal_);
         outf("Q: ");
         print_queue(cur_state().queue);
 
@@ -65,10 +65,10 @@ void PassMgr::run() {
             analyze(op);
 
         while (undo_ != No_Undo) {
-            outf("undo: {} -> {}\n", num_states(), undo_);
+            outf("undo: {} -> {}\n", state_id(), undo_);
 
-            assert(undo_ < num_states());
-            for (size_t i = num_states(); i-- != undo_;)
+            assert(undo_ < state_id());
+            for (size_t i = state_id(); i-- != undo_;)
                 states_[i].nominal->set(states_[i].old_ops);
 
             states_.resize(undo_);
@@ -90,7 +90,7 @@ Def* PassMgr::rewrite(Def* old_nom) {
 
     auto new_nom = old_nom;
     for (auto&& pass : passes_)
-        new_nom = pass->rewrite(new_nom);
+        new_nom = std::get<0>(pass)->rewrite(new_nom);
 
     return map(old_nom, new_nom);
 }
@@ -99,7 +99,7 @@ const Def* PassMgr::rewrite(const Def* old_def) {
     auto new_def = rebuild(old_def);
 
     for (auto&& pass : passes_)
-        new_def = pass->rewrite(new_def);
+        new_def = std::get<0>(pass)->rewrite(new_def);
 
     if (old_def != new_def)
         outf("map: {} -> {}\n", old_def, new_def);
@@ -134,7 +134,7 @@ void PassMgr::analyze(const Def* def) {
         analyze(op);
 
     for (auto&& pass : passes_)
-        pass->analyze(def);
+        std::get<0>(pass)->analyze(def);
 }
 
 }

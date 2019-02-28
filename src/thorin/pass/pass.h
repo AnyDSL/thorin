@@ -10,14 +10,17 @@ namespace thorin {
 
 class PassMgr;
 
-/// All Pass%es that want to be registered in the @p PassMgr must implement this interface.
-class Pass {
+/**
+ * All Pass%es that want to be registered in the @p PassMgr must implement this interface.
+ * However, inherit from @p Pass using CRTP to inherit some boilerplate
+ */
+class PassBase {
 public:
-    Pass(PassMgr& mgr, size_t id)
+    PassBase(PassMgr& mgr, size_t id)
         : mgr_(mgr)
         , id_(id)
     {}
-    virtual ~Pass() {}
+    virtual ~PassBase() {}
 
     PassMgr& mgr() { return mgr_; }
     size_t id() const { return id_; }
@@ -25,11 +28,22 @@ public:
     virtual Def* rewrite(Def* nominal) { return nominal; }  ///< Rewrites @em nominal @p Def%s.
     virtual const Def* rewrite(const Def*) = 0;             ///< Rewrites @em structural @p Def%s.
     virtual void analyze(const Def*) = 0;                   ///< Invoked after the @p PassMgr has finisched @p rewrite%ing a nominal.
-    template<class S, class M> auto& get(const typename M::key_type&, typename M::mapped_type&&);
 
 private:
     PassMgr& mgr_;
     size_t id_;
+};
+
+template<class P>
+class Pass : public PassBase {
+public:
+    Pass(PassMgr& mgr, size_t pass_index)
+        : PassBase(mgr, pass_index)
+    {}
+
+    template<class M> auto& get(const typename M::key_type&, typename M::mapped_type&&);
+    static void* creator() { return new typename P::State(); }
+    static void deleter(void* state) { return delete (typename P::State*)state; }
 };
 
 /**
@@ -41,24 +55,19 @@ public:
     static constexpr size_t No_Undo = std::numeric_limits<size_t>::max();
     using Creator = void*(*)();
     using Deleter = void(*)(void*);
-    using Handler = std::tuple<Creator, Deleter>;
+    using PassData = std::tuple<std::unique_ptr<PassBase>, Creator, Deleter>;
 
     PassMgr(World& world)
         : world_(world)
     {}
 
     World& world() { return world_; }
-    template<typename T>
-    void create() {
-        passes_.emplace_back(std::make_unique<T>(*this, passes_.size()));
-        handlers_.emplace_back(std::tuple(T::creator, T::deleter));
-    }
+    template<typename P>
+    PassMgr& create() { passes_.emplace_back(std::tuple(std::make_unique<P>(*this, passes_.size()), P::creator, P::deleter)); return *this; }
     void run();
-    Def* rewrite(Def*);             ///< rewrites @em nominal @p Def%s
-    const Def* rewrite(const Def*); ///< rewrites @em structural @p Def%s
-    const Def* rebuild(const Def*);
+    const Def* rebuild(const Def*); ///< just performs the rebuild of a @em struct @p Def
     void undo(size_t u) { undo_ = std::min(undo_, u); }
-    size_t num_states() const { return states_.size(); }
+    size_t state_id() const { return states_.size(); }
     Def* cur_nominal() const { return cur_nominal_; }
     Lam* cur_lam() const { return cur_nominal_->as<Lam>(); }
 
@@ -76,6 +85,10 @@ private:
         return i->second;
     }
 
+    Def* rewrite(Def*);             ///< rewrites @em nominal @p Def%s
+    const Def* rewrite(const Def*); ///< rewrites @em structural @p Def%s
+    void analyze(const Def*);
+    void enqueue(Def* nominal) { cur_state().queue.push(nominal); }
     template<class D> // D may be "Def" or "const Def"
     D* map(const Def* old_def, D* new_def) { cur_state().old2new.emplace(old_def, new_def); return new_def; }
 
@@ -89,55 +102,55 @@ private:
         State(State&&) = delete;
         State& operator=(State) = delete;
 
-        State(const std::vector<std::tuple<Creator, Deleter>>& handlers)
-            : passes(handlers.size(), [&](size_t i) { return std::tuple(std::get<Creator>(handlers[i])(), std::get<Deleter>(handlers[i])); })
+        State(const std::vector<PassData>& pass_data)
+            : pass_data(pass_data.data())
+            , pass_states(pass_data.size(), [&](auto i) { return std::get<Creator>(pass_data[i])(); })
         {}
-        State(const State& prev, Def* nominal, Defs old_ops, const std::vector<std::tuple<Creator, Deleter>>& handlers)
-            : passes(handlers.size(), [&](size_t i) { return std::tuple(std::get<Creator>(handlers[i])(), std::get<Deleter>(handlers[i])); })
-            , queue(prev.queue)
+        State(const State& prev, Def* nominal, Defs old_ops, const std::vector<PassData>& pass_data)
+            : queue(prev.queue)
             , old2new(prev.old2new)
             , analyzed(prev.analyzed)
             , nominal(nominal)
             , old_ops(old_ops)
+            , pass_data(pass_data.data())
+            , pass_states(pass_data.size(), [&](auto i) { return std::get<Creator>(pass_data[i])(); })
         {}
         ~State() {
-            for (size_t i = 0, e = passes.size(); i != e; ++i)
-                std::get<Deleter>(passes[i])(std::get<void*>(passes[i]));
+            for (size_t i = 0, e = pass_states.size(); i != e; ++i)
+                std::get<Deleter>(pass_data[i])(pass_states[i]);
         }
 
-        Array<std::tuple<void*, Deleter>> passes;
         std::priority_queue<Def*, std::deque<Def*>, OrderLt> queue;
         Def2Def old2new;
         DefSet analyzed;
         Def* nominal;
         Array<const Def*> old_ops;
+        const PassData* pass_data;
+        Array<void*> pass_states;
     };
 
-    void analyze(const Def*);
-    void enqueue(Def* nominal) { cur_state().queue.push(nominal); }
+    void new_state(Def* nominal, Defs old_ops) { states_.emplace_back(cur_state(), nominal, old_ops, passes_); }
     State& cur_state() { assert(!states_.empty()); return states_.back(); }
-    void new_state(Def* nominal, Defs old_ops) { states_.emplace_back(cur_state(), nominal, old_ops, handlers_); }
 
     World& world_;
-    std::deque<std::unique_ptr<Pass>> passes_;
+    std::vector<PassData> passes_;
     std::deque<State> states_;
     Def* cur_nominal_;
     size_t undo_ = No_Undo;
-    std::vector<std::tuple<Creator, Deleter>> handlers_;
 
-    template<class S, class M> friend auto& Pass::get(const typename M::key_type&, typename M::mapped_type&&);
+    template<class P> template<class M> friend auto& Pass<P>::get(const typename M::key_type&, typename M::mapped_type&&);
 };
 
-template<class S, class M>
-auto& Pass::get(const typename M::key_type& k, typename M::mapped_type&& m) {
+template<class P> template<class M>
+auto& Pass<P>::get(const typename M::key_type& k, typename M::mapped_type&& m) {
     for (auto& state : reverse_range(mgr().states_)) {
-        auto& map = std::get<M>(*static_cast<S*>(std::get<void*>(state.passes[id()])));
+        auto& map = std::get<M>(*static_cast<typename P::State*>(state.pass_states[id()]));
         if (auto i = map.find(k); i != map.end())
             return i->second;
     }
 
     assert(!mgr().states_.empty());
-    auto& map = std::get<M>(*static_cast<S*>(std::get<void*>(mgr().states_.back().passes[id()])));
+    auto& map = std::get<M>(*static_cast<typename P::State*>(mgr().states_.back().pass_states[id()]));
     return map.emplace(k, std::move(m)).first->second;
 }
 

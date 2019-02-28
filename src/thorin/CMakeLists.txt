@@ -25,8 +25,8 @@ set(THORIN_SOURCES
     analyses/verify.h
     be/c.cpp
     be/c.h
-    pass/optimizer.cpp
-    pass/optimizer.h
+    pass/optimize.cpp
+    pass/optimize.h
     pass/pass.cpp
     pass/pass.h
     pass/inliner.cpp

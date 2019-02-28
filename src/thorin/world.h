@@ -385,8 +385,6 @@ public:
     }
 
 private:
-    const Def* try_fold_aggregate(const Def*);
-
     template<class T, class... Args>
     const T* unify(size_t num_ops, Args&&... args) {
         auto def = allocate<T>(num_ops, args...);

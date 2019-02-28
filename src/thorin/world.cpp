@@ -1010,23 +1010,6 @@ Lam* World::match(const Def* type, size_t num_patterns) {
  * misc
  */
 
-const Def* World::try_fold_aggregate(const Def* agg) {
-    const Def* from = nullptr;
-    for (size_t i = 0, e = agg->num_ops(); i != e; ++i) {
-        auto arg = agg->op(i);
-        if (auto extract = arg->isa<Extract>()) {
-            if (from && extract->agg() != from) return agg;
-
-            auto lit = extract->index()->isa<Lit>();
-            if (!lit || lit->box().get_u64() != u64(i)) return agg;
-
-            from = extract->agg();
-        } else
-            return agg;
-    }
-    return from && from->type() == agg->type() ? from : agg;
-}
-
 std::vector<Lam*> World::copy_lams() const {
     std::vector<Lam*> result;
 
@@ -1042,7 +1025,7 @@ std::vector<Lam*> World::copy_lams() const {
  * optimizations
  */
 
-#if 0
+#if 1
 void World::cleanup() {}
 
 void World::opt() { optimize(*this); }

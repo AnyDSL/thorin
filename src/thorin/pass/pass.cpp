@@ -21,7 +21,7 @@ static void cleanup(World& world) {
 template<typename T> void print_queue(T q) {
     std::cout << "  ";
     while(!q.empty()) {
-        std::cout << q.top() << " ";
+        outf("{}/{} ", std::get<0>(q.top()), std::get<1>(q.top()));
         q.pop();
     }
     std::cout << '\n';
@@ -37,12 +37,13 @@ void PassMgr::run() {
     for (auto lam : externals) {
         analyze(lam);
 
-        while (!cur_state().queue.empty()) {
-            std::cout << std::endl;
-            cur_nominal_ = cur_state().queue.top();
-            outf("cur: {} {}\n", state_id(), cur_nominal_);
-            //outf("Q: ");
-            //print_queue(cur_state().queue);
+        while (!queue().empty()) {
+            cur_nominal_ = std::get<Def*>(queue().top());
+
+            auto old_id [[maybe_unused]] = state_id();
+            outf("\ncur: {} {}\n", state_id(), cur_nominal_);
+            outf("Q: ");
+            print_queue(queue());
 
             bool mismatch = false;
             new_ops.resize(cur_nominal_->num_ops());
@@ -59,8 +60,7 @@ void PassMgr::run() {
                 continue;
             }
 
-            for (auto op : new_ops)
-                analyze(op);
+            analyze();
 
             while (undo_ != No_Undo) {
                 outf("undo: {} -> {}\n", state_id(), undo_);
@@ -71,12 +71,10 @@ void PassMgr::run() {
 
                 states_.resize(undo_);
                 undo_ = No_Undo;
-
-                for (auto op : cur_state().queue.top()->ops())
-                    analyze(op);
+                analyze();
             }
 
-            cur_state().queue.pop();
+            queue().pop();
         }
     }
 
@@ -125,9 +123,14 @@ const Def* PassMgr::rebuild(const Def* old_def) {
     return rebuild ? old_def->rebuild(world(), new_type, new_ops) : old_def;
 }
 
+void PassMgr::analyze() {
+    for (auto op : std::get<Def*>(queue().top())->ops())
+        analyze(op);
+}
+
 void PassMgr::analyze(const Def* def) {
     if (!cur_state().analyzed.emplace(def).second) return;
-    if (auto nominal = def->isa_nominal()) return cur_state().queue.push(nominal);
+    if (auto nominal = def->isa_nominal()) return enqueue(nominal);
 
     for (auto op : def->ops())
         analyze(op);

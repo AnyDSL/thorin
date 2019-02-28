@@ -98,12 +98,6 @@ private:
         return i->second;
     }
 
-    Def* rewrite(Def*);             ///< Rewrites @em nominal @p Def%s.
-    const Def* rewrite(const Def*); ///< Rewrites @em structural @p Def%s.
-    void analyze(const Def*);
-    template<class D> // D may be "Def" or "const Def"
-    D* map(const Def* old_def, D* new_def) { cur_state().old2new.emplace(old_def, new_def); return new_def; }
-
     struct State {
         State() = default;
         State(const State&) = delete;
@@ -128,10 +122,18 @@ private:
                 passes[i]->dealloc(data[i]);
         }
 
-        struct OrderLt { // visit basic blocks first
-            bool operator()(Def* a, Def* b) { return a->type()->order() < b->type()->order(); }
+        typedef std::tuple<Def*, size_t> Item;
+
+        struct OrderLt {
+            // visit basic blocks first, then sort by time stamp to make it stable
+            bool operator()(Item a, Item b) {
+                return std::get<0>(a)->type()->order() != std::get<0>(b)->type()->order()
+                     ? std::get<0>(a)->type()->order() <  std::get<0>(b)->type()->order()
+                     : std::get<1>(a)                  <  std::get<1>(b);
+            }
         };
-        std::priority_queue<Def*, std::deque<Def*>, OrderLt> queue;
+
+        std::priority_queue<Item, std::deque<Item>, OrderLt> queue;
         Def2Def old2new;
         DefSet analyzed;
         Def* nominal;
@@ -140,14 +142,22 @@ private:
         Array<void*> data;
     };
 
-    void new_state(Def* nominal, Defs old_ops) { states_.emplace_back(cur_state(), nominal, old_ops, passes_); }
+    Def* rewrite(Def*);             ///< Rewrites @em nominal @p Def%s.
+    const Def* rewrite(const Def*); ///< Rewrites @em structural @p Def%s.
+    void analyze();
+    void analyze(const Def*);
+    template<class D> // D may be "Def" or "const Def"
+    D* map(const Def* old_def, D* new_def) { cur_state().old2new.emplace(old_def, new_def); return new_def; }
     State& cur_state() { assert(!states_.empty()); return states_.back(); }
+    auto& queue() { return cur_state().queue; }
+    void enqueue(Def* def) { queue().emplace(def, time_++); }
 
     World& world_;
     std::vector<PassPtr> passes_;
     std::deque<State> states_;
     Def* cur_nominal_;
     size_t undo_ = No_Undo;
+    size_t time_ = 0;
 
     template<class P> friend auto& Pass<P>::states();
 };

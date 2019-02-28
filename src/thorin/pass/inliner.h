@@ -34,8 +34,6 @@ private:
     using State = std::tuple<LamMap<Info>>;
 
     Info& info(Lam* lam) { return get<State, LamMap<Info>>(lam, std::move(Info(Lattice::Bottom, mgr().num_states()))); }
-
-    friend class Pass;
 };
 
 }

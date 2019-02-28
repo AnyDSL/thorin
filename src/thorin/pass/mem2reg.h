@@ -39,8 +39,6 @@ private:
     auto& slot2info(const Slot* slot) { return get<State, Slot2Info>   (slot, std::move(Info(Lattice::SSA, mgr().num_states()))); }
     auto& lam2preds   (Lam* lam)      { return get<State, Lam2Preds>   (lam,  std::move(Array<Lam*>())); }
     auto& lam2slot2val(Lam* lam)      { return get<State, Lam2Slot2Val>(lam,  std::move(std::make_unique<GIDMap<const Slot*, const Def*>>())); }
-
-    friend class Pass;
 };
 
 }

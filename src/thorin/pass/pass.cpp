@@ -108,17 +108,15 @@ const Def* PassMgr::rebuild(const Def* old_def) {
 
     auto new_type = rewrite(old_def->type());
 
-    bool rebuild = false;
+    bool changed = false;
     Array<const Def*> new_ops(old_def->num_ops(), [&](auto i) {
         auto old_op = old_def->op(i);
         auto new_op = rewrite(old_op);
-        rebuild |= old_op != new_op;
+        changed |= old_op != new_op;
         return new_op;
     });
 
-    // only rebuild if necessary
-    // this is not only an optimization but also required because some structural defs are not hash-consed
-    return rebuild ? old_def->rebuild(world(), new_type, new_ops) : old_def;
+    return changed ? old_def->rebuild(world(), new_type, new_ops) : old_def;
 }
 
 void PassMgr::analyze(Def* nominal) {

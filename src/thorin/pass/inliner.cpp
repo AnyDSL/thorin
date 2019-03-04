@@ -30,6 +30,7 @@ const Def* Inliner::rewrite(const Def* def) {
 
 void Inliner::analyze(const Def* def) {
     if (def->isa<Param>()) return;
+
     for (auto op : def->ops()) {
         if (auto lam = op->isa_nominal<Lam>(); is_candidate(lam)) {
             switch (auto& info = lam2info(lam); info.lattice) {

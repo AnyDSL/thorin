@@ -11,6 +11,7 @@ const Def* Mem2Reg::rewrite(const Def* def) {
         if (auto& info = slot2info(slot); info.lattice == Lattice::Bottom) {
             info.lattice = Lattice::SSA;
             mgr().new_state();
+            outf("new state: {}\n", mgr().state_id());
         }
         return slot;
     }
@@ -65,12 +66,16 @@ void Mem2Reg::set_val(Lam* lam, const Slot* slot, const Def* val) {
 }
 
 void Mem2Reg::analyze(const Def* def) {
+    if (def->isa<Param>()) return;
+
     for (auto op : def->ops()) {
         if (auto lam = op->isa_nominal<Lam>()) {
             auto& info = lam2info(lam);
             info.preds.emplace(mgr().cur_lam());
+            outf("{} -> {}\n", mgr().cur_lam(), lam);
         } else if (auto slot = op->isa<Slot>()) {
             if (auto& info = slot2info(slot); info.lattice == SSA) {
+                outf("keep: {}\n", slot);
                 info.lattice = Keep;
                 //mgr().undo(info.undo);
             }

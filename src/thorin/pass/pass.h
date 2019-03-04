@@ -66,7 +66,7 @@ public:
     const Def* rebuild(const Def*); ///< Just performs the rebuild of a @em structural @p Def.
     void undo(size_t u) { undo_ = std::min(undo_, u); }
     size_t state_id() const { return states_.size(); }
-    Def* cur_nominal() const { return std::get<Def*>(queue().top()); }
+    Def* cur_nominal() const { return cur_nominal_; }
     Lam* cur_lam() const { return cur_nominal()->as<Lam>(); }
     void new_state() { states_.emplace_back(cur_state(), cur_nominal(), cur_nominal()->ops(), passes_);
         std::cout<< state_id() << std::endl;
@@ -134,14 +134,12 @@ private:
 
     Def* rewrite(Def*);             ///< Rewrites @em nominal @p Def%s.
     const Def* rewrite(const Def*); ///< Rewrites @em structural @p Def%s.
-    void analyze(Def*);
+    void analyze();
     void analyze(const Def*);
     template<class D> // D may be "Def" or "const Def"
     D* map(const Def* old_def, D* new_def) { cur_state().old2new.emplace(old_def, new_def); return new_def; }
     State& cur_state() { assert(!states_.empty()); return states_.back(); }
-    const State& cur_state() const { assert(!states_.empty()); return states_.back(); }
     State::Queue& queue() { return cur_state().queue; }
-    const State::Queue& queue() const { return cur_state().queue; }
     void enqueue(Def* def) {
         if (cur_state().enqueued.emplace(def).second)
             queue().emplace(def, time_++);
@@ -152,6 +150,7 @@ private:
     size_t undo_ = No_Undo;
     size_t time_ = 0;
     std::deque<State> states_;
+    Def* cur_nominal_ = nullptr;
 
     template<class P> friend class Pass;
 };

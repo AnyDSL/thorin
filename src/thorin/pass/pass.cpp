@@ -38,7 +38,8 @@ void PassMgr::run() {
         enqueue(lam);
 
         while (!queue().empty()) {
-            auto old_id [[maybe_unused]] = state_id();
+            cur_nominal_ = std::get<Def*>(queue().top());
+            //auto old_id [[maybe_unused]] = state_id();
             outf("\ncur: {} {}\n", state_id(), cur_nominal());
             outf("Q: ");
             print_queue(queue());
@@ -60,8 +61,8 @@ void PassMgr::run() {
 
             do {
                 undo_ = No_Undo;
-                auto nominal = std::get<Def*>(pop(queue()));
-                analyze(nominal);
+                queue().pop();
+                analyze();
 
                 if (undo_ != No_Undo) {
                     outf("undo: {} -> {}\n", state_id(), undo_);
@@ -71,12 +72,14 @@ void PassMgr::run() {
                         states_[i].nominal->set(states_[i].old_ops);
 
                     states_.resize(undo_);
+                    cur_nominal_ = std::get<Def*>(queue().top());
                 }
             } while (undo_ != No_Undo);
         }
     }
 
     // TODO put this somewhere else
+    world_.dump();
     cleanup(world_);
 }
 
@@ -119,9 +122,9 @@ const Def* PassMgr::rebuild(const Def* old_def) {
     return changed ? old_def->rebuild(world(), new_type, new_ops) : old_def;
 }
 
-void PassMgr::analyze(Def* nominal) {
-    outf("analyze: {}\n", nominal);
-    for (auto op : nominal->ops())
+void PassMgr::analyze() {
+    outf("analyze: {}\n", cur_nominal());
+    for (auto op : cur_nominal()->ops())
         analyze(op);
 }
 

@@ -35,46 +35,44 @@ void PassMgr::run() {
 
     auto externals = world().externals();
     for (auto lam : externals) {
-        analyze(lam);
+        enqueue(lam);
 
         while (!queue().empty()) {
-            cur_nominal_ = std::get<Def*>(queue().top());
-
             auto old_id [[maybe_unused]] = state_id();
-            outf("\ncur: {} {}\n", state_id(), cur_nominal_);
+            outf("\ncur: {} {}\n", state_id(), cur_nominal());
             outf("Q: ");
             print_queue(queue());
 
             bool mismatch = false;
-            new_ops.resize(cur_nominal_->num_ops());
-            for (size_t i = 0, e = cur_nominal_->num_ops(); i != e; ++i) {
-                auto new_op = rewrite(cur_nominal_->op(i));
-                mismatch |= new_op != cur_nominal_->op(i);
+            new_ops.resize(cur_nominal()->num_ops());
+            for (size_t i = 0, e = cur_nominal()->num_ops(); i != e; ++i) {
+                auto new_op = rewrite(cur_nominal()->op(i));
+                mismatch |= new_op != cur_nominal()->op(i);
                 new_ops[i] = new_op;
             }
 
             if (mismatch) {
                 //assert(old_id < state_id() && "nominal changed; you must introduce a new state");
                 assert(undo_ == No_Undo && "only provoke undos in the analyze phase");
-                cur_nominal_->set(new_ops);
+                cur_nominal()->set(new_ops);
                 continue;
             }
 
-            analyze();
-
-            while (undo_ != No_Undo) {
-                outf("undo: {} -> {}\n", state_id(), undo_);
-
-                assert(undo_ < state_id());
-                for (size_t i = state_id(); i-- != undo_;)
-                    states_[i].nominal->set(states_[i].old_ops);
-
-                states_.resize(undo_);
+            do {
                 undo_ = No_Undo;
-                analyze();
-            }
+                auto nominal = std::get<Def*>(pop(queue()));
+                analyze(nominal);
 
-            queue().pop();
+                if (undo_ != No_Undo) {
+                    outf("undo: {} -> {}\n", state_id(), undo_);
+
+                    assert(undo_ < state_id());
+                    for (size_t i = state_id(); i-- != undo_;)
+                        states_[i].nominal->set(states_[i].old_ops);
+
+                    states_.resize(undo_);
+                }
+            } while (undo_ != No_Undo);
         }
     }
 
@@ -123,8 +121,9 @@ const Def* PassMgr::rebuild(const Def* old_def) {
     return rebuild ? old_def->rebuild(world(), new_type, new_ops) : old_def;
 }
 
-void PassMgr::analyze() {
-    for (auto op : std::get<Def*>(queue().top())->ops())
+void PassMgr::analyze(Def* nominal) {
+    outf("analyze: {}\n", nominal);
+    for (auto op : nominal->ops())
         analyze(op);
 }
 

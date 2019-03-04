@@ -116,8 +116,8 @@ private:
             // visit basic blocks first, then sort by time stamp to make it stable
             bool operator()(Item a, Item b) {
                 return std::get<0>(a)->type()->order() != std::get<0>(b)->type()->order()
-                     ? std::get<0>(a)->type()->order() <  std::get<0>(b)->type()->order()
-                     : std::get<1>(a)                  <  std::get<1>(b);
+                     ? std::get<0>(a)->type()->order() >  std::get<0>(b)->type()->order()
+                     : std::get<1>(a)                  >  std::get<1>(b);
             }
         };
         typedef std::priority_queue<Item, std::deque<Item>, OrderLt> Queue;

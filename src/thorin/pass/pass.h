@@ -132,7 +132,6 @@ private:
 
     Def* rewrite(Def*);             ///< Rewrites @em nominal @p Def%s.
     const Def* rewrite(const Def*); ///< Rewrites @em structural @p Def%s.
-    void analyze();
     void analyze(const Def*);
     template<class D> // D may be "Def" or "const Def"
     D* map(const Def* old_def, D* new_def) { cur_state().old2new.emplace(old_def, new_def); return new_def; }

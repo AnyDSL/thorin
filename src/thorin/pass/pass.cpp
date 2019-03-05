@@ -58,7 +58,8 @@ void PassMan::run() {
             }
 
             queue().pop();
-            analyze();
+            for (auto op : cur_nominal()->ops())
+                analyze(op);
 
             if (undo_ != No_Undo) {
                 outf("undo: {} -> {}\n", state_id(), undo_);
@@ -115,12 +116,6 @@ const Def* PassMan::rebuild(const Def* old_def) {
     });
 
     return changed ? old_def->rebuild(world(), new_type, new_ops) : old_def;
-}
-
-void PassMan::analyze() {
-    outf("analyze: {}\n", cur_nominal());
-    for (auto op : cur_nominal()->ops())
-        analyze(op);
 }
 
 void PassMan::analyze(const Def* def) {

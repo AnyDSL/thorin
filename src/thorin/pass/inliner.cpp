@@ -17,10 +17,10 @@ const Def* Inliner::rewrite(const Def* def) {
         if (auto lam = app->callee()->isa_nominal<Lam>(); is_candidate(lam)) {
             if (auto& info = lam2info(lam); info.lattice == Lattice::Bottom) {
                 info.lattice = Lattice::Inlined_Once;
-                info.undo = mgr().state_id();
-                mgr().new_state();
+                info.undo = man().state_id();
+                man().new_state();
                 std::cout << "inline: " << lam << std::endl;
-                return mgr().rebuild(drop(app)->body());
+                return man().rebuild(drop(app)->body());
             }
         }
     }
@@ -37,7 +37,7 @@ void Inliner::analyze(const Def* def) {
                 case Lattice::Inlined_Once:
                     info.lattice = Lattice::Dont_Inline;
                     std::cout << "rollback: " << lam << std::endl;
-                    mgr().undo(info.undo);
+                    man().undo(info.undo);
                     break;
                 default:
                     assertf(info.lattice != Lattice::Bottom || (!def->isa<App>() || def->as<App>()->callee() != op), "this case should have been inlined");

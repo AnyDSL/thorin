@@ -7,8 +7,8 @@ namespace thorin {
 
 class Inliner : public Pass<Inliner> {
 public:
-    Inliner(PassMgr& mgr, size_t id)
-        : Pass(mgr, id)
+    Inliner(PassMan& man, size_t id)
+        : Pass(man, id)
     {}
 
     const Def* rewrite(const Def*) override;
@@ -30,7 +30,7 @@ public:
     using State = std::tuple<LamMap<Info>>;
 
 private:
-    Info& lam2info(Lam* lam) { return get<LamMap<Info>>(lam, Info(Lattice::Bottom, mgr().state_id())); }
+    Info& lam2info(Lam* lam) { return get<LamMap<Info>>(lam, Info(Lattice::Bottom, man().state_id())); }
 };
 
 }

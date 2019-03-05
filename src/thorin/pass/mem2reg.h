@@ -7,14 +7,15 @@ namespace thorin {
 
 class Mem2Reg : public Pass<Mem2Reg> {
 public:
-    Mem2Reg(PassMgr& mgr, size_t id)
-        : Pass(mgr, id)
+    Mem2Reg(PassMan& man, size_t id)
+        : Pass(man, id)
     {}
 
+    Def* rewrite(Def*) override;
     const Def* rewrite(const Def*) override;
     void analyze(const Def*) override;
 
-    enum Lattice { Bottom, SSA, Keep };
+    enum Lattice { SSA, Keep };
 
     struct SlotInfo {
         SlotInfo() = default;
@@ -30,6 +31,7 @@ public:
     struct LamInfo {
         GIDMap<const Slot*, const Def*> slot2val;
         LamSet preds;
+        std::vector<const Slot*> slots;
     };
 
     using Slot2Info = GIDMap<const Slot*, SlotInfo>;
@@ -40,7 +42,7 @@ private:
     const Def* get_val(Lam*, const Slot*);
     void set_val(Lam*, const Slot*, const Def*);
 
-    auto& slot2info(const Slot* slot) { return get<Slot2Info>(slot, SlotInfo(Lattice::Bottom, mgr().state_id())); }
+    auto& slot2info(const Slot* slot) { return get<Slot2Info>(slot, SlotInfo(Lattice::SSA, man().state_id())); }
     auto& lam2info (Lam* lam)         { return get<Lam2Info> (lam); }
 };
 

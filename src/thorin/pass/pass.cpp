@@ -27,9 +27,9 @@ template<typename T> void print_queue(T q) {
     std::cout << '\n';
 }
 
-World& PassBase::world() { return mgr().world(); }
+World& PassBase::world() { return man().world(); }
 
-void PassMgr::run() {
+void PassMan::run() {
     states_.emplace_back(passes_);
     std::vector<const Def*> new_ops;
 
@@ -39,7 +39,6 @@ void PassMgr::run() {
 
         while (!queue().empty()) {
             cur_nominal_ = std::get<Def*>(queue().top());
-            //auto old_id [[maybe_unused]] = state_id();
             outf("\ncur: {} {}\n", state_id(), cur_nominal());
             outf("Q: ");
             print_queue(queue());
@@ -53,28 +52,24 @@ void PassMgr::run() {
             }
 
             if (mismatch) {
-                //assert(old_id < state_id() && "nominal changed; you must introduce a new state");
                 assert(undo_ == No_Undo && "only provoke undos in the analyze phase");
                 cur_nominal()->set(new_ops);
                 continue;
             }
 
-            do {
+            queue().pop();
+            analyze();
+
+            if (undo_ != No_Undo) {
+                outf("undo: {} -> {}\n", state_id(), undo_);
+
+                assert(undo_ < state_id());
+                for (size_t i = state_id(); i-- != undo_;)
+                    states_[i].nominal->set(states_[i].old_ops);
+
+                states_.resize(undo_);
                 undo_ = No_Undo;
-                queue().pop();
-                analyze();
-
-                if (undo_ != No_Undo) {
-                    outf("undo: {} -> {}\n", state_id(), undo_);
-
-                    assert(undo_ < state_id());
-                    for (size_t i = state_id(); i-- != undo_;)
-                        states_[i].nominal->set(states_[i].old_ops);
-
-                    states_.resize(undo_);
-                    cur_nominal_ = std::get<Def*>(queue().top());
-                }
-            } while (undo_ != No_Undo);
+            }
         }
     }
 
@@ -83,7 +78,7 @@ void PassMgr::run() {
     cleanup(world_);
 }
 
-Def* PassMgr::rewrite(Def* old_nom) {
+Def* PassMan::rewrite(Def* old_nom) {
     assert(!lookup(old_nom).has_value());
 
     auto new_nom = old_nom;
@@ -93,7 +88,7 @@ Def* PassMgr::rewrite(Def* old_nom) {
     return map(old_nom, new_nom);
 }
 
-const Def* PassMgr::rewrite(const Def* old_def) {
+const Def* PassMan::rewrite(const Def* old_def) {
     auto new_def = rebuild(old_def);
 
     for (auto&& pass : passes_)
@@ -105,7 +100,7 @@ const Def* PassMgr::rewrite(const Def* old_def) {
     return map(old_def, new_def);
 }
 
-const Def* PassMgr::rebuild(const Def* old_def) {
+const Def* PassMan::rebuild(const Def* old_def) {
     if (auto new_def = lookup(old_def)) return *new_def;
     if (auto old_nom = old_def->isa_nominal()) return rewrite(old_nom);
 
@@ -122,13 +117,13 @@ const Def* PassMgr::rebuild(const Def* old_def) {
     return changed ? old_def->rebuild(world(), new_type, new_ops) : old_def;
 }
 
-void PassMgr::analyze() {
+void PassMan::analyze() {
     outf("analyze: {}\n", cur_nominal());
     for (auto op : cur_nominal()->ops())
         analyze(op);
 }
 
-void PassMgr::analyze(const Def* def) {
+void PassMan::analyze(const Def* def) {
     if (!cur_state().analyzed.emplace(def).second) return;
     if (auto nominal = def->isa_nominal()) return enqueue(nominal);
 

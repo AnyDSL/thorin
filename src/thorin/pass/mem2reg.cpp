@@ -5,28 +5,38 @@
 
 namespace thorin {
 
-const Def* Mem2Reg::rewrite(const Def* def) {
-    if (auto slot = def->isa<Slot>()) {
-        outf("slot: {}\n", slot);
-        if (auto& info = slot2info(slot); info.lattice == Lattice::Bottom) {
-            info.lattice = Lattice::SSA;
-            mgr().new_state();
-            outf("new state: {}\n", mgr().state_id());
+Def* Mem2Reg::rewrite(Def* def) {
+    if (auto lam = def->isa<Lam>()) {
+        if (!lam2info(lam).slots.empty()) {
         }
-        return slot;
+    }
+
+    return def;
+}
+
+const Def* Mem2Reg::rewrite(const Def* def) {
+    if (auto enter = def->isa<Enter>()) {
+        for (auto use : enter->out_frame()->uses()) {
+            slot2info(use->as<Slot>());
+            auto slot = use->as<Slot>();
+            outf("slot: {}\n", slot);
+        }
+
+        man().new_state();
+        return enter;
     }
 
     if (auto load = def->isa<Load>()) {
         if (auto slot = load->ptr()->isa<Slot>()) {
             if (slot2info(slot).lattice == Lattice::Keep) return load;
-            return world().tuple({load->mem(), get_val(mgr().cur_lam(), slot)});
+            return world().tuple({load->mem(), get_val(man().cur_lam(), slot)});
         }
     }
 
     if (auto store = def->isa<Store>()) {
         if (auto slot = store->ptr()->isa<Slot>()) {
             if (slot2info(slot).lattice == Lattice::Keep) return store;
-            set_val(mgr().cur_lam(), slot, store->val());
+            set_val(man().cur_lam(), slot, store->val());
             return store->mem();
         }
     }
@@ -71,13 +81,13 @@ void Mem2Reg::analyze(const Def* def) {
     for (auto op : def->ops()) {
         if (auto lam = op->isa_nominal<Lam>()) {
             auto& info = lam2info(lam);
-            info.preds.emplace(mgr().cur_lam());
-            outf("{} -> {}\n", mgr().cur_lam(), lam);
+            info.preds.emplace(man().cur_lam());
+            outf("{} -> {}\n", man().cur_lam(), lam);
         } else if (auto slot = op->isa<Slot>()) {
             if (auto& info = slot2info(slot); info.lattice == SSA) {
                 outf("keep: {}\n", slot);
                 info.lattice = Keep;
-                //mgr().undo(info.undo);
+                //man().undo(info.undo);
             }
         }
     }

@@ -5,7 +5,7 @@
 namespace thorin {
 
 void optimize(World& world) {
-    PassMgr(world)
+    PassMan(world)
     //.create<Mem2Reg>()
     .create<PartialEval>()
     .create<Inliner>()

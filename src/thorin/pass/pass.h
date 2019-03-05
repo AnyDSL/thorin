@@ -8,32 +8,32 @@
 
 namespace thorin {
 
-class PassMgr;
+class PassMan;
 
 /**
- * All Pass%es that want to be registered in the @p PassMgr must implement this interface.
+ * All Pass%es that want to be registered in the @p PassMan must implement this interface.
  * * Inherit from this class if your pass doesn't need state.
  * * Inherit from PassBase using CRTP if you do need state.
  */
 class PassBase {
 public:
-    PassBase(PassMgr& mgr, size_t id)
-        : mgr_(mgr)
+    PassBase(PassMan& man, size_t id)
+        : man_(man)
         , id_(id)
     {}
     virtual ~PassBase() {}
 
     /// @name getters
     //@{
-    PassMgr& mgr() { return mgr_; }
+    PassMan& man() { return man_; }
     size_t id() const { return id_; }
     World& world();
     ///@}
-    /// @name hooks for the PassMgr
+    /// @name hooks for the PassMan
     //@{
     virtual Def* rewrite(Def* nominal) { return nominal; }  ///< Rewrites @em nominal @p Def%s.
     virtual const Def* rewrite(const Def*) = 0;             ///< Rewrites @em structural @p Def%s.
-    virtual void analyze(const Def*) {}                     ///< Invoked after the @p PassMgr has finisched @p rewrite%ing a nominal.
+    virtual void analyze(const Def*) {}                     ///< Invoked after the @p PassMan has finisched @p rewrite%ing a nominal.
     ///@}
     /// @name alloc/dealloc state - dummy implementations here
     //@{
@@ -42,7 +42,7 @@ public:
     //@}
 
 private:
-    PassMgr& mgr_;
+    PassMan& man_;
     size_t id_;
 };
 
@@ -50,27 +50,25 @@ private:
  * An optimizer that combines several optimizations in an optimal way.
  * See "Composing dataflow analyses and transformations" by Lerner, Grove, Chambers.
  */
-class PassMgr {
+class PassMan {
 public:
     static constexpr size_t No_Undo = std::numeric_limits<size_t>::max();
     typedef std::unique_ptr<PassBase> PassPtr;
 
-    PassMgr(World& world)
+    PassMan(World& world)
         : world_(world)
     {}
 
     World& world() { return world_; }
     template<typename P>
-    PassMgr& create() { passes_.emplace_back(std::make_unique<P>(*this, passes_.size())); return *this; }
+    PassMan& create() { passes_.emplace_back(std::make_unique<P>(*this, passes_.size())); return *this; }
     void run();
     const Def* rebuild(const Def*); ///< Just performs the rebuild of a @em structural @p Def.
     void undo(size_t u) { undo_ = std::min(undo_, u); }
     size_t state_id() const { return states_.size(); }
     Def* cur_nominal() const { return cur_nominal_; }
     Lam* cur_lam() const { return cur_nominal()->as<Lam>(); }
-    void new_state() { states_.emplace_back(cur_state(), cur_nominal(), cur_nominal()->ops(), passes_);
-        std::cout<< state_id() << std::endl;
-    }
+    void new_state() { states_.emplace_back(cur_state(), cur_nominal(), cur_nominal()->ops(), passes_); }
 
     std::optional<const Def*> lookup(const Def* old_def) {
         auto& old2new = cur_state().old2new;
@@ -159,15 +157,15 @@ private:
 template<class P>
 class Pass : public PassBase {
 public:
-    Pass(PassMgr& mgr, size_t id)
-        : PassBase(mgr, id)
+    Pass(PassMan& man, size_t id)
+        : PassBase(man, id)
     {}
 
     /// @name getters
     //@{
-    /// Returns PassMgr::states_.
-    auto& states() { return mgr().states_; }
-    /// Return PassMgr::states_.back().
+    /// Returns PassMan::states_.
+    auto& states() { return man().states_; }
+    /// Return PassMan::states_.back().
     auto& cur_state() { assert(!states().empty()); return *static_cast<typename P::State*>(states().back().data[id()]); }
     //@}
     /// @name recursive search in the state stack

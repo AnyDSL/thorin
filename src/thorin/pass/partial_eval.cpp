@@ -21,7 +21,7 @@ const Def* PartialEval::rewrite(const Def* def) {
             //auto filter = isa_lit<bool>(lam->filter());
             //if (filter && *filter)
             if (is_all_true(lam->filter()))
-                return mgr().rebuild(drop(app)->body());
+                return man().rebuild(drop(app)->body());
         }
     }
 

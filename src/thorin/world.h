@@ -304,14 +304,9 @@ public:
     //@}
     /// @name misc operations
     //@{
+    const Def* analyze(const Def* type, Defs ops, u64 index, Debug dbg = {}) { return unify<Analyze>(ops.size(), type, ops, index, dbg); }
     const Def* select(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
     const Def* size_of(const Def* type, Debug dbg = {});
-    //@}
-    /// @name Rewrite
-    //@{
-    const Def* rewrite(const Def* type, const Def* def, const Def* from, const Def* to, u32 depth, Debug dbg = {}) { return unify<Rewrite>(3, type, def, from, to, depth, dbg = {}); }
-    /// Inherits the type of the @p Rewrite from @p def.
-    const Def* rewrite(const Def* def, const Def* from, const Def* to, u32 depth, Debug dbg = {}) { return rewrite(def->type(), from, to, depth, dbg); }
     //@}
     // TODO not all of them are axioms right now
     /// @name Axioms

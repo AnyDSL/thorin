@@ -810,22 +810,19 @@ public:
     friend class World;
 };
 
-class Rewrite : public Def {
+class Analyze : public Def {
 private:
-    struct Extra { u32 depth_; };
+    struct Extra { u64 index_; };
 
-    Rewrite(const Def* type, const Def* def, const Def* from, const Def* to, u32 depth, Debug dbg)
-        : Def(Node_Rewrite, type, {def, from, to}, dbg)
+    Analyze(const Def* type, Defs ops, u64 index, Debug dbg)
+        : Def(Node_Analyze, type, ops, dbg)
     {
-        extra<Extra>().depth_ = depth;
-        hash_ = hash_combine(hash_, depth);
+        extra<Extra>().index_ = index;
+        hash_ = hash_combine(hash_, index);
     }
 
 public:
-    const Def* def() const { return op(0); }
-    const Def* from() const { return op(1); }
-    const Def* to() const { return op(2); }
-    u32 depth() const { return extra<Extra>().depth_; }
+    u64 index() const { return extra<Extra>().index_; }
 
     bool equal(const Def* other) const override;
     std::ostream& stream(std::ostream&) const override;

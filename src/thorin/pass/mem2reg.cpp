@@ -7,7 +7,15 @@ namespace thorin {
 
 Def* Mem2Reg::rewrite(Def* def) {
     if (auto lam = def->isa<Lam>()) {
-        if (!lam2info(lam).slots.empty()) {
+        auto& slots = lam2info(lam).slots;
+        if (!slots.empty()) {
+            Array<const Def*> types(slots.size(), [&](auto i) { return slots[i]->type()->pointee(); });
+
+            auto cn = world().cn(world().sigma({lam->domain(), world().sigma(types)}));
+            auto new_lam = world().lam(cn, lam->debug());
+
+            for (size_t i = 0, e = slots.size(); i != e; ++i)
+                set_val(new_lam, slots[i], world().extract(new_lam->param(1), slots.size(), i));
         }
     }
 
@@ -65,9 +73,9 @@ const Def* Mem2Reg::get_val(Lam* lam, const Slot* slot) {
     }
 
     if (same == nullptr)
-        outf("xxx param in {} for {}\n", lam, slot);
-
-    return world().bot(slot->type()->as<PtrType>()->pointee());
+        return world().top(slot->type()->pointee());
+    return same;
+        //outf("xxx param in {} for {}\n", lam, slot);
 }
 
 void Mem2Reg::set_val(Lam* lam, const Slot* slot, const Def* val) {

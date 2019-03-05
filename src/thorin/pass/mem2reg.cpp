@@ -87,7 +87,7 @@ void Mem2Reg::analyze(const Def* def) {
             if (auto& info = slot2info(slot); info.lattice == SSA) {
                 outf("keep: {}\n", slot);
                 info.lattice = Keep;
-                //man().undo(info.undo);
+                man().undo(info.undo);
             }
         }
     }

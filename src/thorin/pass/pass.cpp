@@ -35,7 +35,7 @@ void PassMan::run() {
 
     auto externals = world().externals();
     for (auto lam : externals) {
-        enqueue(lam);
+        analyze(lam);
 
         while (!queue().empty()) {
             cur_nominal_ = std::get<Def*>(queue().top());
@@ -120,7 +120,7 @@ const Def* PassMan::rebuild(const Def* old_def) {
 
 void PassMan::analyze(const Def* def) {
     if (!cur_state().analyzed.emplace(def).second) return;
-    if (auto nominal = def->isa_nominal()) return enqueue(nominal);
+    if (auto nominal = def->isa_nominal()) return queue().emplace(nominal, time_++);
 
     for (auto op : def->ops())
         analyze(op);

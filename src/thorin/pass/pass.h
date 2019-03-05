@@ -98,7 +98,6 @@ private:
             : queue(prev.queue)
             , old2new(prev.old2new)
             , analyzed(prev.analyzed)
-            , enqueued(prev.enqueued)
             , nominal(nominal)
             , old_ops(old_ops)
             , passes(passes.data())
@@ -123,7 +122,6 @@ private:
         Queue queue;
         Def2Def old2new;
         DefSet analyzed;
-        DefSet enqueued;
         Def* nominal;
         Array<const Def*> old_ops;
         const PassPtr* passes;
@@ -137,10 +135,6 @@ private:
     D* map(const Def* old_def, D* new_def) { cur_state().old2new.emplace(old_def, new_def); return new_def; }
     State& cur_state() { assert(!states_.empty()); return states_.back(); }
     State::Queue& queue() { return cur_state().queue; }
-    void enqueue(Def* def) {
-        if (cur_state().enqueued.emplace(def).second)
-            queue().emplace(def, time_++);
-    }
 
     World& world_;
     std::vector<PassPtr> passes_;

@@ -30,7 +30,7 @@ public:
     using State = std::tuple<LamMap<Info>>;
 
 private:
-    Info& lam2info(Lam* lam) { return get<LamMap<Info>>(lam, Info(Lattice::Bottom, man().state_id())); }
+    Info& lam2info(Lam* lam) { return get<LamMap<Info>>(lam, Info(Lattice::Bottom, man().cur_state_id())); }
 };
 
 }

@@ -42,7 +42,7 @@ private:
     const Def* get_val(Lam*, const Slot*);
     void set_val(Lam*, const Slot*, const Def*);
 
-    auto& slot2info(const Slot* slot) { return get<Slot2Info>(slot, SlotInfo(Lattice::SSA, man().state_id())); }
+    auto& slot2info(const Slot* slot) { return get<Slot2Info>(slot, SlotInfo(Lattice::SSA, man().cur_state_id())); }
     auto& lam2info (Lam* lam)         { return get<Lam2Info> (lam); }
 };
 

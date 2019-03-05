@@ -39,7 +39,7 @@ void PassMan::run() {
 
         while (!queue().empty()) {
             cur_nominal_ = std::get<Def*>(queue().top());
-            outf("\ncur: {} {}\n", state_id(), cur_nominal());
+            outf("\ncur: {} {}\n", cur_state_id(), cur_nominal());
             outf("Q: ");
             print_queue(queue());
 
@@ -62,10 +62,10 @@ void PassMan::run() {
                 analyze(op);
 
             if (undo_ != No_Undo) {
-                outf("undo: {} -> {}\n", state_id(), undo_);
+                outf("undo: {} -> {}\n", cur_state_id(), undo_);
 
-                assert(undo_ < state_id());
-                for (size_t i = state_id(); i-- != undo_;)
+                assert(undo_ < cur_state_id());
+                for (size_t i = cur_state_id(); i-- != undo_;)
                     states_[i].nominal->set(states_[i].old_ops);
 
                 states_.resize(undo_);

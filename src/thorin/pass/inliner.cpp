@@ -17,7 +17,7 @@ const Def* Inliner::rewrite(const Def* def) {
         if (auto lam = app->callee()->isa_nominal<Lam>(); is_candidate(lam)) {
             if (auto& info = lam2info(lam); info.lattice == Lattice::Bottom) {
                 info.lattice = Lattice::Inlined_Once;
-                info.undo = man().state_id();
+                info.undo = man().cur_state_id();
                 man().new_state();
                 std::cout << "inline: " << lam << std::endl;
                 return man().rebuild(drop(app)->body());

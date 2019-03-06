@@ -12,7 +12,6 @@ void lift_pipeline(World& world) {
         auto callee = cont->callee()->isa_continuation();
         // Binding to the number of arguments to avoid repeated optimization
         if (callee && callee->intrinsic() == Intrinsic::Pipeline && cont->num_args() == 6) {
-            // making new pipeline signature(type), adding continue
             auto cont_type = world.fn_type({ world.mem_type() });
             auto p_cont_type = world.fn_type({ world.mem_type(), cont_type });
             auto body_type = world.fn_type({ world.mem_type(), world.type_qs32() });
@@ -62,7 +61,7 @@ void lift_pipeline(World& world) {
             continue_wrapper->jump(pipeline_continue, thorin::Defs { continue_wrapper->param(0), cont->arg(5) });
             body_cont->jump(target->callee(), target->args());
         }
-    } 
+    }
 
 }
 

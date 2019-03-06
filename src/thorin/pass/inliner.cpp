@@ -19,8 +19,7 @@ const Def* Inliner::rewrite(const Def* def) {
                 info.lattice = Lattice::Inlined_Once;
                 info.undo = man().cur_state_id();
                 man().new_state();
-                std::cout << "inline: " << lam << std::endl;
-                return man().rebuild(drop(app)->body());
+                return drop(app)->body();
             }
         }
     }

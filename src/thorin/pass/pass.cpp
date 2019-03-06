@@ -74,8 +74,6 @@ void PassMan::run() {
         }
     }
 
-    // TODO put this somewhere else
-    world_.dump();
     cleanup(world_);
 }
 
@@ -90,18 +88,6 @@ Def* PassMan::rewrite(Def* old_nom) {
 }
 
 const Def* PassMan::rewrite(const Def* old_def) {
-    auto new_def = rebuild(old_def);
-
-    for (auto&& pass : passes_)
-        new_def = pass->rewrite(new_def);
-
-    //if (old_def != new_def)
-        //outf("map: {} -> {}\n", old_def, new_def);
-
-    return map(old_def, new_def);
-}
-
-const Def* PassMan::rebuild(const Def* old_def) {
     if (auto new_def = lookup(old_def)) return *new_def;
     if (auto old_nom = old_def->isa_nominal()) return rewrite(old_nom);
 
@@ -115,7 +101,12 @@ const Def* PassMan::rebuild(const Def* old_def) {
         return new_op;
     });
 
-    return changed ? old_def->rebuild(world(), new_type, new_ops) : old_def;
+    auto new_def = changed ? old_def->rebuild(world(), new_type, new_ops) : old_def;
+
+    for (auto&& pass : passes_)
+        new_def = pass->rewrite(new_def);
+
+    return map(old_def, new_def);
 }
 
 void PassMan::analyze(const Def* def) {

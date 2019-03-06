@@ -63,15 +63,14 @@ public:
     template<typename P>
     PassMan& create() { passes_.emplace_back(std::make_unique<P>(*this, passes_.size())); return *this; }
     void run();
-    const Def* rebuild(const Def*); ///< Just performs the rebuild of a @em structural @p Def.
     void undo(size_t u) { undo_ = std::min(undo_, u); }
     size_t cur_state_id() const { return states_.size(); }
     Def* cur_nominal() const { return cur_nominal_; }
     Lam* cur_lam() const { return cur_nominal()->as<Lam>(); }
     void new_state() { states_.emplace_back(cur_state(), cur_nominal(), cur_nominal()->ops(), passes_); }
-
     template<class D> // D may be "Def" or "const Def"
     D* map(const Def* old_def, D* new_def) { cur_state().old2new.emplace(old_def, new_def); return new_def; }
+
     std::optional<const Def*> lookup(const Def* old_def) {
         auto& old2new = cur_state().old2new;
         if (auto i = old2new.find(old_def); i != old2new.end())
@@ -132,7 +131,7 @@ private:
 
     Def* rewrite(Def*);             ///< Rewrites @em nominal @p Def%s.
     const Def* rewrite(const Def*); ///< Rewrites @em structural @p Def%s.
-    void analyze(const Def*);
+    void analyze(const Def*);       ///< Invoked after a nominal becoms stable.
     State& cur_state() { assert(!states_.empty()); return states_.back(); }
     State::Queue& queue() { return cur_state().queue; }
 

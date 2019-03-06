@@ -5,6 +5,8 @@ set(THORIN_SOURCES
     enums.h
     primop.cpp
     primop.h
+    rewrite.cpp
+    rewrite.h
     world.cpp
     world.h
     analyses/cfg.cpp

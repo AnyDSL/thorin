@@ -1,20 +1,9 @@
 #include "thorin/pass/pass.h"
 
-#include "thorin/transform/importer.h"
+#include "thorin/rewrite.h"
 #include "thorin/util/log.h"
 
 namespace thorin {
-
-// TODO put this somewhere else
-static void cleanup(World& world) {
-    Importer importer(world);
-    importer.old2new_.rehash(world.defs().capacity());
-
-    for (auto external : world.externals())
-        importer.import(external);
-
-    swap(importer.world(), world);
-}
 
 // TODO remove
 template<typename T> void print_queue(T q) {

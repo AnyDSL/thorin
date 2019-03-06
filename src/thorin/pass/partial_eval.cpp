@@ -1,6 +1,6 @@
 #include "thorin/pass/partial_eval.h"
 
-#include "thorin/transform/mangle.h"
+#include "thorin/rewrite.h"
 
 namespace thorin {
 
@@ -21,7 +21,7 @@ const Def* PartialEval::rewrite(const Def* def) {
             //auto filter = isa_lit<bool>(lam->filter());
             //if (filter && *filter)
             if (is_all_true(lam->filter()))
-                return drop(app)->body();
+                return drop(lam, app->arg());
         }
     }
 

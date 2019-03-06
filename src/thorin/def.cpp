@@ -551,10 +551,10 @@ const Def* VariantType::rebuild(World& w, const Def*  , Defs o) const { return w
  * stub
  */
 
-Axiom*    Axiom   ::stub(World& to, const Def*  ) const { return to.lookup_axiom(name()).value(); }
-Lam*      Lam     ::stub(World& to, const Def* t) const { assert(isa_nominal()); return to.lam(t->as<Pi>(), cc(), intrinsic(), debug()); }
-Sigma*    Sigma   ::stub(World& to, const Def* t) const { assert(isa_nominal()); return to.sigma(t, num_ops(), debug()); }
-Universe* Universe::stub(World& to, const Def*  ) const { return const_cast<Universe*>(to.universe()); }
+Axiom*    Axiom   ::stub(World& to, const Def*  ) { return to.lookup_axiom(name()).value(); }
+Lam*      Lam     ::stub(World& to, const Def* t) { assert(isa_nominal()); return to.lam(t->as<Pi>(), cc(), intrinsic(), debug()); }
+Sigma*    Sigma   ::stub(World& to, const Def* t) { assert(isa_nominal()); return to.sigma(t, num_ops(), debug()); }
+Universe* Universe::stub(World& to, const Def*  ) { return const_cast<Universe*>(to.universe()); }
 
 /*
  * stream

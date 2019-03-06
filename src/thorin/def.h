@@ -179,7 +179,7 @@ public:
     /// @name rebuild, stub, equal
     //@{
     virtual const Def* rebuild(World&, const Def*, Defs) const = 0;
-    virtual Def* stub(World&, const Def*) const { THORIN_UNREACHABLE; }
+    virtual Def* stub(World&, const Def*) { THORIN_UNREACHABLE; }
     virtual bool equal(const Def* other) const;
     //@}
     /// @name stream
@@ -240,7 +240,7 @@ private:
 
 public:
     const Def* rebuild(World&, const Def*, Defs) const override;
-    Universe* stub(World&, const Def*) const override;
+    Universe* stub(World&, const Def*) override;
     std::ostream& stream(std::ostream&) const override;
 
     friend class World;
@@ -274,7 +274,7 @@ public:
     Normalizer normalizer() const { return extra<Extra>().normalizer_; }
 
     const Def* rebuild(World&, const Def*, Defs) const override;
-    Axiom* stub(World&, const Def*) const override;
+    Axiom* stub(World&, const Def*) override;
     std::ostream& stream(std::ostream&) const override;
 
     friend class World;
@@ -486,7 +486,7 @@ public:
     /// @name rebuild, stub
     //@{
     const Def* rebuild(World&, const Def*, Defs) const override;
-    Lam* stub(World&, const Def* type) const override;
+    Lam* stub(World&, const Def* type) override;
     //@}
 
     Lams preds() const;
@@ -611,7 +611,7 @@ private:
 public:
     const Def* arity() const override;
     const Def* rebuild(World& to, const Def*, Defs ops) const override;
-    Sigma* stub(World&, const Def*) const override;
+    Sigma* stub(World&, const Def*) override;
     std::ostream& stream(std::ostream&) const override;
 
     friend class World;

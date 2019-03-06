@@ -127,8 +127,8 @@ public:
     inline Defs ops() const { return Defs(num_ops_, ops_ptr()); }
     inline const Def* op(size_t i) const { return ops()[i]; }
     inline size_t num_ops() const { return num_ops_; }
-    void set(size_t i, const Def* def);
-    void set(Defs ops) { for (size_t i = 0, e = num_ops(); i != e; ++i) set(i, ops[i]); }
+    Def* set(size_t i, const Def* def);
+    Def* set(Defs ops) { for (size_t i = 0, e = num_ops(); i != e; ++i) set(i, ops[i]); return this; }
     void unset(size_t i);
     //@}
     /// @name uses

@@ -1,6 +1,5 @@
 #include "thorin/pass/pass.h"
 
-#include "thorin/analyses/scope.h"
 #include "thorin/transform/importer.h"
 #include "thorin/util/log.h"
 
@@ -27,8 +26,6 @@ template<typename T> void print_queue(T q) {
     std::cout << '\n';
 }
 
-World& PassBase::world() { return man().world(); }
-
 void PassMan::run() {
     states_.emplace_back(passes_);
     std::vector<const Def*> new_ops;
@@ -52,7 +49,7 @@ void PassMan::run() {
             }
 
             if (mismatch) {
-                assert(undo_ == No_Undo && "only provoke undos in the analyze phase");
+                assert(undo_ == No_Undo && "only provoke undos during analyze");
                 cur_nominal()->set(new_ops);
                 continue;
             }
@@ -81,7 +78,7 @@ Def* PassMan::rewrite(Def* old_nom) {
     assert(!lookup(old_nom).has_value());
 
     auto new_nom = old_nom;
-    for (auto&& pass : passes_)
+    for (auto& pass : passes_)
         new_nom = pass->rewrite(new_nom);
 
     return map(old_nom, new_nom);
@@ -95,15 +92,13 @@ const Def* PassMan::rewrite(const Def* old_def) {
 
     bool changed = false;
     Array<const Def*> new_ops(old_def->num_ops(), [&](auto i) {
-        auto old_op = old_def->op(i);
-        auto new_op = rewrite(old_op);
-        changed |= old_op != new_op;
+        auto new_op = rewrite(old_def->op(i));
+        changed |= old_def->op(i) != new_op;
         return new_op;
     });
 
     auto new_def = changed ? old_def->rebuild(world(), new_type, new_ops) : old_def;
-
-    for (auto&& pass : passes_)
+    for (auto& pass : passes_)
         new_def = pass->rewrite(new_def);
 
     return map(old_def, new_def);
@@ -116,7 +111,7 @@ void PassMan::analyze(const Def* def) {
     for (auto op : def->ops())
         analyze(op);
 
-    for (auto&& pass : passes_)
+    for (auto& pass : passes_)
         pass->analyze(def);
 }
 

@@ -33,7 +33,7 @@ public:
     //@{
     virtual Def* rewrite(Def* nominal) { return nominal; }  ///< Rewrites @em nominal @p Def%s.
     virtual const Def* rewrite(const Def*) = 0;             ///< Rewrites @em structural @p Def%s.
-    virtual void analyze(const Def*) {}                     ///< Invoked after the @p PassMan has finisched @p rewrite%ing a nominal.
+    virtual void analyze(const Def*) {}                     ///< Invoked after the @p PassMan has finished @p rewrite%ing a nominal.
     ///@}
     /// @name alloc/dealloc state - dummy implementations here
     //@{
@@ -48,7 +48,8 @@ private:
 
 /**
  * An optimizer that combines several optimizations in an optimal way.
- * See "Composing dataflow analyses and transformations" by Lerner, Grove, Chambers.
+ * This is loosely based upon:
+ * "Composing dataflow analyses and transformations" by Lerner, Grove, Chambers.
  */
 class PassMan {
 public:
@@ -60,8 +61,8 @@ public:
     {}
 
     World& world() { return world_; }
-    template<typename P>
-    PassMan& create() { passes_.emplace_back(std::make_unique<P>(*this, passes_.size())); return *this; }
+    template<class P, class... Args>
+    PassMan& create(Args... args) { passes_.emplace_back(std::make_unique<P>(*this, passes_.size()), std::forward<Args>(args)...); return *this; }
     void run();
     void undo(size_t u) { undo_ = std::min(undo_, u); }
     size_t cur_state_id() const { return states_.size(); }
@@ -129,9 +130,9 @@ private:
         Array<void*> data;
     };
 
-    Def* rewrite(Def*);             ///< Rewrites @em nominal @p Def%s.
-    const Def* rewrite(const Def*); ///< Rewrites @em structural @p Def%s.
-    void analyze(const Def*);       ///< Invoked after a nominal becoms stable.
+    Def* rewrite(Def*);
+    const Def* rewrite(const Def*);
+    void analyze(const Def*);
     State& cur_state() { assert(!states_.empty()); return states_.back(); }
     State::Queue& queue() { return cur_state().queue; }
 
@@ -145,6 +146,8 @@ private:
     template<class P> friend class Pass;
 };
 
+inline World& PassBase::world() { return man().world(); }
+
 /// Inherit from this class using CRTP if you do need a Pass with a state.
 template<class P>
 class Pass : public PassBase {
@@ -155,9 +158,9 @@ public:
 
     /// @name getters
     //@{
-    /// Returns PassMan::states_.
+    /// Returns @c PassMan::states_.
     auto& states() { return man().states_; }
-    /// Return PassMan::states_.back().
+    /// Returns @c PassMan::states_.back().
     auto& cur_state() { assert(!states().empty()); return *static_cast<typename P::State*>(states().back().data[id()]); }
     //@}
     /// @name recursive search in the state stack

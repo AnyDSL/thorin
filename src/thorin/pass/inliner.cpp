@@ -32,16 +32,14 @@ void Inliner::analyze(const Def* def) {
 
     for (auto op : def->ops()) {
         if (auto lam = op->isa_nominal<Lam>(); is_candidate(lam)) {
-            switch (auto& info = lam2info(lam); info.lattice) {
-                case Lattice::Inlined_Once:
-                    info.lattice = Lattice::Dont_Inline;
-                    std::cout << "rollback: " << lam << std::endl;
-                    man().undo(info.undo);
-                    break;
-                default:
-                    assertf(info.lattice != Lattice::Bottom || (!def->isa<App>() || def->as<App>()->callee() != op), "this case should have been inlined");
-                    info.lattice = Lattice::Dont_Inline;
-                    break;
+            auto& info = lam2info(lam);
+            if (info.lattice == Lattice::Bottom) {
+                assertf(!def->isa<App>() || def->as<App>()->callee() == op, "this case should have been inlined");
+                info.lattice = Lattice::Dont_Inline;
+            } else if (info.lattice == Lattice::Inlined_Once) {
+                info.lattice = Lattice::Dont_Inline;
+                std::cout << "rollback: " << lam << std::endl;
+                man().undo(info.undo);
             }
         }
     }

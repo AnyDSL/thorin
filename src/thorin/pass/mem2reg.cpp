@@ -19,9 +19,10 @@ static const Def* merge(const Def* a, Defs defs) {
 
 Def* Mem2Reg::rewrite(Def* def) {
     if (auto lam = def->isa<Lam>()) {
-        auto& slots = lam2info(lam).slots;
-        man().new_state();
+        auto& info = lam2info(lam);
+        auto& slots = info.slots;
         if (!slots.empty()) {
+            man().new_state();
             size_t n = slots.size();
             Array<const Def*> types(n, [&](auto i) { return slots[i]->type()->pointee(); });
             auto new_domain = merge(lam->domain(), types);
@@ -32,7 +33,9 @@ Def* Mem2Reg::rewrite(Def* def) {
 
             outf("xxx new_lam\n");
             new_lam->dump_head();
-            return new_lam;
+
+            //return world().analyze(lam->type(), {lam}, id());
+            return nullptr;
         }
     }
 
@@ -40,35 +43,28 @@ Def* Mem2Reg::rewrite(Def* def) {
 }
 
 const Def* Mem2Reg::rewrite(const Def* def) {
-    if (auto app = def->isa<App>()) {
-        if (auto lam = app->callee()->isa_nominal<Lam>()) {
-            //auto& info = lam2info(lam);
-        }
-    }
-
     if (auto enter = def->isa<Enter>()) {
         for (auto use : enter->out_frame()->uses()) {
-            slot2info(use->as<Slot>());
             auto slot = use->as<Slot>();
-            outf("slot: {}\n", slot);
+            slot2info(slot); // init optimistic info
+            set_val(man().cur_lam(), slot, world().bot(slot->type()->pointee()));
         }
 
         man().new_state();
         return enter;
-    }
-
-    if (auto load = def->isa<Load>()) {
+    } else if (auto load = def->isa<Load>()) {
         if (auto slot = load->ptr()->isa<Slot>()) {
             if (slot2info(slot).lattice == Lattice::Keep) return load;
             return world().tuple({load->mem(), get_val(man().cur_lam(), slot)});
         }
-    }
-
-    if (auto store = def->isa<Store>()) {
+    } else if (auto store = def->isa<Store>()) {
         if (auto slot = store->ptr()->isa<Slot>()) {
             if (slot2info(slot).lattice == Lattice::Keep) return store;
             set_val(man().cur_lam(), slot, store->val());
             return store->mem();
+        }
+    } else if (auto app = def->isa<App>()) {
+        if (/*auto lam =*/ app->callee()->isa_nominal<Lam>()) {
         }
     }
 
@@ -95,8 +91,9 @@ const Def* Mem2Reg::get_val(Lam* lam, const Slot* slot) {
         same = def;
     }
 
+    // if we see this guy again during analyze, we need a phi in lam
     if (same == nullptr)
-        return world().top(slot->type()->pointee());
+        return world().analyze(slot->type()->pointee(), {lam, slot}, id());
     return same;
 }
 
@@ -108,20 +105,36 @@ void Mem2Reg::set_val(Lam* lam, const Slot* slot, const Def* val) {
 void Mem2Reg::analyze(const Def* def) {
     if (def->isa<Param>()) return;
 
-    if (auto analyze = def->isa<Analyze>()) {
+    // we need to install a phi in lam next time around
+    if (auto analyze = def->isa<Analyze>(); analyze && analyze->index() == id()) {
         auto lam  = analyze->op(0)->as_nominal<Lam>();
-        auto slot = analyze->op(1)->as<Slot>();
         auto& info = lam2info(lam);
-        info.slots.emplace_back(slot);
-        man().undo(info.undo);
+
+        if (analyze->num_ops() == 2) {
+            auto slot = analyze->op(1)->as<Slot>();
+            if (info.lattice == Lattice::SSA) {
+                info.slots.emplace_back(slot);
+                man().undo(info.undo);
+            } else {
+                auto& info = slot2info(slot);
+                info.lattice = Lattice::Keep;
+                man().undo(info.undo);
+            }
+        } else {
+            outf("keep: {}\n", lam);
+            info.lattice = Keep;
+            if (!info.slots.empty())
+                man().undo(info.undo);
+        }
         return;
     }
 
-    for (auto op : def->ops()) {
+    for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
+        auto op = def->op(i);
+
         if (auto lam = op->isa_nominal<Lam>()) {
             auto& info = lam2info(lam);
             info.preds.emplace(man().cur_lam());
-            outf("{} -> {}\n", man().cur_lam(), lam);
         } else if (auto slot = op->isa<Slot>()) {
             if (auto& info = slot2info(slot); info.lattice == SSA) {
                 outf("keep: {}\n", slot);

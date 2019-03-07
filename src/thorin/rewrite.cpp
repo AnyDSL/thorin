@@ -21,24 +21,23 @@ const Def* Rewriter::rewrite(const Def* old_def) {
     // HACK the entry really shouldn't be part of the scope ^^^
 
     auto new_type = rewrite(old_def->type());
-    Def* new_nom = nullptr;
-    if (auto old_nom = old_def->isa_nominal())
-        old2new[old_nom] = new_nom = old_nom->stub(new_world, new_type);
 
-    Array<const Def*> new_ops(old_def->num_ops(), [&](auto i) { return rewrite(old_def->op(i)); });
-    return new_nom ? new_nom->set(new_ops) : old2new[old_def] = old_def->rebuild(new_world, new_type, new_ops);
+    if (auto old_nom = old_def->isa_nominal())
+        return map(old_nom, old_nom->stub(new_world, new_type))->set(new_ops(old_nom));
+
+    return map(old_def, old_def->rebuild(new_world, new_type, new_ops(old_def)));
 }
 
 const Def* rewrite(const Def* def, const Def* old_def, const Def* new_def) {
     Rewriter rewriter(def->world());
-    rewriter.old2new.emplace(old_def, new_def);
+    rewriter.map(old_def, new_def);
     return rewriter.rewrite(def);
 }
 
 const Def* drop(Lam* lam, const Def* arg) {
     Scope scope(lam);
     Rewriter rewriter(lam->world(), &scope);
-    rewriter.old2new.emplace(lam->param(), arg);
+    rewriter.map(lam->param(), arg);
     return rewriter.rewrite(lam->body());
 }
 

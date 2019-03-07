@@ -12,7 +12,6 @@ public:
     Rewriter(World& old_world, World& new_world, const Scope* scope = nullptr);
 
     const Def* rewrite(const Def*);
-    void inherit_externals();
 
     World& old_world;
     World& new_world;

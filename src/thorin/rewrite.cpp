@@ -18,7 +18,7 @@ Rewriter::Rewriter(World& old_world, World& new_world, const Scope* scope)
 const Def* Rewriter::rewrite(const Def* old_def) {
     if (auto new_def = old2new.lookup(old_def)) return *new_def;
     if (scope != nullptr && (!scope->contains(old_def) || scope->entry() == old_def)) return old_def;
-    // HACK the entry really shouldn't be part of the scope
+    // HACK the entry really shouldn't be part of the scope ^^^
 
     auto new_type = rewrite(old_def->type());
     Def* new_nom = nullptr;
@@ -27,6 +27,19 @@ const Def* Rewriter::rewrite(const Def* old_def) {
 
     Array<const Def*> new_ops(old_def->num_ops(), [&](auto i) { return rewrite(old_def->op(i)); });
     return new_nom ? new_nom->set(new_ops) : old2new[old_def] = old_def->rebuild(new_world, new_type, new_ops);
+}
+
+const Def* rewrite(const Def* def, const Def* old_def, const Def* new_def) {
+    Rewriter rewriter(def->world());
+    rewriter.old2new.emplace(old_def, new_def);
+    return rewriter.rewrite(def);
+}
+
+const Def* drop(Lam* lam, const Def* arg) {
+    Scope scope(lam);
+    Rewriter rewriter(lam->world(), &scope);
+    rewriter.old2new.emplace(lam->param(), arg);
+    return rewriter.rewrite(lam->body());
 }
 
 void cleanup(World& old_world) {
@@ -39,14 +52,6 @@ void cleanup(World& old_world) {
         rewriter.rewrite(old_lam)->as_nominal<Lam>()->make_external();
 
     swap(rewriter.old_world, rewriter.new_world);
-}
-
-const Def* drop(Lam* lam, const Def* arg) {
-    Scope scope(lam);
-    Rewriter rewriter(lam->world(), lam->world(), &scope);
-    rewriter.old2new.emplace(lam->param(), arg);
-
-    return rewriter.rewrite(lam->body());
 }
 
 }

@@ -10,6 +10,9 @@ class Scope;
 class Rewriter {
 public:
     Rewriter(World& old_world, World& new_world, const Scope* scope = nullptr);
+    Rewriter(World& world, const Scope* scope = nullptr)
+        : Rewriter(world, world, scope)
+    {}
 
     const Def* rewrite(const Def*);
 
@@ -19,8 +22,9 @@ public:
     Def2Def old2new;
 };
 
-void cleanup(World&);
+const Def* rewrite(const Def* def, const Def* old_def, const Def* new_def);
 const Def* drop(Lam* lam, const Def* arg);
+void cleanup(World&);
 
 }
 

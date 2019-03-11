@@ -468,6 +468,11 @@ void CCodeGen::emit() {
                     }
                 }
             }
+            // Emit counter for pipeline intrinsic
+            if (continuation->callee()->isa_continuation() &&
+                continuation->callee()->as_continuation()->intrinsic() == Intrinsic::Pipeline) {
+                func_impl_ << endl << "int i" << continuation->callee()->gid() << ";";
+            }
         }
 
         for (const auto& block : schedule) {
@@ -623,6 +628,41 @@ void CCodeGen::emit() {
                                 func_impl_ << endl
                                            << "#pragma HLS dependence variable=" << name << " inter false" << endl
                                            << "#pragma HLS data_pack  variable=" << name;
+                        } else if (callee->intrinsic() == Intrinsic::Pipeline) {
+                            assert((lang_ == Lang::OPENCL || lang_ == Lang::HLS) && "pipelining not supported on this backend");
+                            // casting to contunation to get unique name of "for index"
+                            auto body = continuation->arg(4)->as_continuation();
+                            if (lang_ == Lang::OPENCL) {
+                                if (continuation->arg(1)->as<PrimLit>()->value().get_s32() !=0) {
+                                    func_impl_ << "#pragma ii ";
+                                    emit(continuation->arg(1)) << endl;
+                                } else {
+                                    func_impl_ << "#pragma ii 1"<< endl;
+                                }
+                            }
+                            func_impl_ << "for (i" << callee->gid() << " = ";
+                            emit(continuation->arg(2));
+                            func_impl_ << "; i" << callee->gid() << " < ";
+                            emit(continuation->arg(3)) <<"; i" << callee->gid() << "++) {"<< up << endl;
+                            if (lang_ == Lang::HLS) {
+                                if (continuation->arg(1)->as<PrimLit>()->value().get_s32() != 0) {
+                                    func_impl_ << "#pragma HLS PIPELINE II=";
+                                    emit(continuation->arg(1)) << endl;
+                                } else {
+                                    func_impl_ << "#pragma HLS PIPELINE"<< endl;
+                                }
+                            }
+                            // Emiting body and "for index" as the "body parameter"
+                            func_impl_ << "p" << body->param(1)->unique_name() << " = i"<< callee->gid()<< ";" << endl;
+                            emit(body);
+                            // Emitting "continue" with accroding label used for goto
+                            func_impl_ << down << endl << "l" << continuation->arg(6)->gid() << ": continue;" << endl << "}" << endl;
+                            if (continuation->arg(5) == ret_param)
+                                func_impl_ << "return;" << endl;
+                            else
+                                emit(continuation->arg(5));
+                        } else if (callee->intrinsic() == Intrinsic::PipelineContinue) {
+                            func_impl_ << "goto l" << callee->gid() << ";" << endl;
                         } else {
                             THORIN_UNREACHABLE;
                         }

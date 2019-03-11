@@ -66,7 +66,9 @@ void lift_pipeline(World& world) {
 }
 
 void lift_builtins(World& world) {
+    // This must be run first
     lift_pipeline(world);
+
     while (true) {
         Continuation* cur = nullptr;
         Scope::for_each(world, [&] (const Scope& scope) {

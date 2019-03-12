@@ -6,7 +6,7 @@ namespace thorin {
 
 void optimize(World& world) {
     PassMan(world)
-    //.create<Mem2Reg>()
+    .create<Mem2Reg>()
     .create<PartialEval>()
     .create<Inliner>()
     .run();

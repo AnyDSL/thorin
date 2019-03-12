@@ -54,6 +54,7 @@ private:
 class PassMan {
 public:
     static constexpr size_t No_Undo = std::numeric_limits<size_t>::max();
+    static constexpr u64 Pass_Index = std::numeric_limits<u64>::max();
     typedef std::unique_ptr<PassBase> PassPtr;
 
     PassMan(World& world)
@@ -130,7 +131,7 @@ private:
         Array<void*> data;
     };
 
-    Def* rewrite(Def*);
+    const Def* rewrite(Def*);
     const Def* rewrite(const Def*);
     void analyze(const Def*);
     State& cur_state() { assert(!states_.empty()); return states_.back(); }

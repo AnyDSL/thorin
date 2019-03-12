@@ -63,12 +63,20 @@ void PassMan::run() {
     cleanup(world_);
 }
 
-Def* PassMan::rewrite(Def* old_nom) {
+const Def* PassMan::rewrite(Def* old_nom) {
     assert(!lookup(old_nom).has_value());
 
     auto new_nom = old_nom;
-    for (auto& pass : passes_)
+    for (auto& pass : passes_) {
         new_nom = pass->rewrite(new_nom);
+        if (new_nom != old_nom) {
+            outf("nom: {} -> {}\n", old_nom, new_nom);
+            map(old_nom->as<Lam>()->param(), new_nom->as<Lam>()->param());
+            new_nom->set(old_nom->ops());
+            old_nom->as<Lam>()->destroy();
+            return map(old_nom, world().analyze(old_nom->type(), {old_nom, new_nom}, Pass_Index));
+        }
+    }
 
     return map(old_nom, new_nom);
 }

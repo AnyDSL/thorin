@@ -63,8 +63,8 @@ public:
     {
         pe_done_ = other.pe_done_;
 #if THORIN_ENABLE_CHECKS
-        track_history_ = track_history_;
-        breakpoints_   = breakpoints_;
+        track_history_ = other.track_history_;
+        breakpoints_   = other.breakpoints_;
 #endif
     }
     ~World();

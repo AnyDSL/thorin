@@ -57,7 +57,9 @@ public:
 
 private:
     const Def* get_val(Lam*, const Slot*);
+    const Def* get_val(const Slot* slot) { return get_val(man().cur_lam(), slot); }
     void set_val(Lam*, const Slot*, const Def*);
+    void set_val(const Slot* slot, const Def* def) { return set_val(man().cur_lam(), slot, def); }
 
     auto& slot2info(const Slot* slot) { return get<Slot2Info>(slot, SlotInfo(man().cur_state_id())); }
     auto& lam2info (Lam* lam)         { return get<Lam2Info> (lam,   LamInfo(man().cur_state_id())); }

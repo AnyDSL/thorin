@@ -344,7 +344,6 @@ public:
     //@{
     void breakpoint(size_t number) { breakpoints_.insert(number); }
     const Breakpoints& breakpoints() const { return breakpoints_; }
-    void swap_breakpoints(World& other) { swap(this->breakpoints_, other.breakpoints_); }
     bool track_history() const { return track_history_; }
     void enable_history(bool flag = true) { track_history_ = flag; }
     //@}

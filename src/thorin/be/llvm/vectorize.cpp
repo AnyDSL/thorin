@@ -64,7 +64,7 @@ Continuation* CodeGen::emit_vectorize_continuation(Continuation* continuation) {
     }
 
     auto simd_type = llvm::FunctionType::get(irbuilder_.getVoidTy(), llvm_ref(simd_args), false);
-    auto kernel_simd_func = (llvm::Function*)module_->getOrInsertFunction(kernel->unique_name() + "_vectorize", simd_type);
+    auto kernel_simd_func = (llvm::Function*)module_->getOrInsertFunction(kernel->unique_name() + "_vectorize", simd_type).getCallee()->stripPointerCasts();
 
     // build iteration loop and wire the calls
     Array<llvm::Value*> args(num_kernel_args + 1);

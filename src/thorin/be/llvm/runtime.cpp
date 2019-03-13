@@ -31,7 +31,7 @@ Runtime::Runtime(llvm::LLVMContext& context,
 }
 
 llvm::Function* Runtime::get(const char* name) {
-    auto result = llvm::cast<llvm::Function>(target_.getOrInsertFunction(name, runtime_->getFunction(name)->getFunctionType()));
+    auto result = llvm::cast<llvm::Function>(target_.getOrInsertFunction(name, runtime_->getFunction(name)->getFunctionType()).getCallee()->stripPointerCasts());
     assert(result != nullptr && "Required runtime function could not be resolved");
     return result;
 }

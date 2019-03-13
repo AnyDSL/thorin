@@ -118,7 +118,7 @@ llvm::Function* NVVMCodeGen::get_texture_handle_fun() {
             llvm::PointerType::get(irbuilder_.getInt64Ty(), 1)
     };
     auto type = llvm::FunctionType::get(irbuilder_.getInt64Ty(), types, false);
-    return llvm::cast<llvm::Function>(module_->getOrInsertFunction("llvm.nvvm.texsurf.handle.p1i64", type));
+    return llvm::cast<llvm::Function>(module_->getOrInsertFunction("llvm.nvvm.texsurf.handle.p1i64", type).getCallee()->stripPointerCasts());
 }
 
 void NVVMCodeGen::emit_function_start(llvm::BasicBlock*, Continuation* continuation) {

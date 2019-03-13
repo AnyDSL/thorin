@@ -31,8 +31,9 @@ public:
     ///@}
     /// @name hooks for the PassMan
     //@{
-    virtual Def* rewrite(Def* nominal) { return nominal; }  ///< Rewrites @em nominal @p Def%s.
     virtual const Def* rewrite(const Def*) = 0;             ///< Rewrites @em structural @p Def%s.
+    virtual void inspect(Def*) {}                           ///< Inspects a @em nominal @p Def when first encountering it.
+    virtual void enter(Def*) {}                             ///< Invoked when a @em nominal is the top of the PassMan::queue().
     virtual void analyze(const Def*) {}                     ///< Invoked after the @p PassMan has finished @p rewrite%ing a nominal.
     ///@}
     /// @name alloc/dealloc state - dummy implementations here
@@ -54,7 +55,6 @@ private:
 class PassMan {
 public:
     static constexpr size_t No_Undo = std::numeric_limits<size_t>::max();
-    static constexpr u64 Pass_Index = std::numeric_limits<u64>::max();
     typedef std::unique_ptr<PassBase> PassPtr;
 
     PassMan(World& world)
@@ -131,7 +131,6 @@ private:
         Array<void*> data;
     };
 
-    const Def* rewrite(Def*);
     const Def* rewrite(const Def*);
     void analyze(const Def*);
     State& cur_state() { assert(!states_.empty()); return states_.back(); }

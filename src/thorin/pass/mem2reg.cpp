@@ -28,34 +28,6 @@ static const Def* merge_tuple(const Def* def, Defs defs) {
     return def->world().tuple(merge(def, defs));
 }
 
-Def* Mem2Reg::rewrite(Def* def) {
-    if (auto lam = def->isa<Lam>()) {
-        auto& info = lam2info(lam);
-
-        if (info.lattice == Lattice::SSA && lam->mem_param())
-            man().new_state();
-
-        auto& slots = info.slots;
-        if (!slots.empty()) {
-            man().new_state();
-            size_t n = slots.size();
-            Array<const Def*> types(n, [&](auto i) { return slots[i]->type()->pointee(); });
-            auto new_domain = merge_sigma(lam->domain(), types);
-            auto new_lam = world().lam(world().pi(new_domain, lam->codomain()), lam->debug());
-
-            for (size_t i = 0, e = slots.size(); i != e; ++i)
-                set_val(new_lam, slots[i], new_lam->param(new_lam->num_params() - n + i));
-
-            outf("xxx new_lam\n");
-            new_lam->dump_head();
-
-            return new_lam;
-        }
-    }
-
-    return def;
-}
-
 const Def* Mem2Reg::rewrite(const Def* def) {
     if (auto enter = def->isa<Enter>()) {
         for (auto use : enter->out_frame()->uses()) {
@@ -78,19 +50,66 @@ const Def* Mem2Reg::rewrite(const Def* def) {
             return store->mem();
         }
     } else if (auto app = def->isa<App>()) {
-        if (auto analyze = app->callee()->isa<Analyze>(); analyze && analyze->index() == PassMan::Pass_Index) {
-            const auto& info = lam2info(analyze->op(0)->as_nominal<Lam>());
-            Array<const Def*> args(info.slots.size(), [&](auto i) { return get_val(man().cur_lam(), info.slots[i]); });
-            auto a = world().app(analyze->op(1), merge_tuple(app->arg(), args));
-            a->dump();
-            return a;
+        if (auto lam = app->callee()->isa_nominal<Lam>()) {
+            const auto& info = lam2info(lam);
+            if (auto new_lam = info.new_lam) {
+                Array<const Def*> args(info.slots.size(), [&](auto i) { return get_val(man().cur_lam(), info.slots[i]); });
+                auto a = world().app(new_lam, merge_tuple(app->arg(), args));
+                a->dump();
+                return a;
+            }
         }
     } else if (auto param = def->isa<Param>()) {
+        if (auto analyze = param->op(0)->isa<Analyze>())
+            return world().param(analyze->op(1)->as_nominal<Lam>(), param->debug());
         const auto& info = lam2info(param->lam());
         outf("asdf: {}\n", info.slots.size());
     }
 
     return def;
+}
+
+void Mem2Reg::inspect(Def* def) {
+    if (auto old_lam = def->isa<Lam>()) {
+        auto& info = lam2info(old_lam);
+
+        if (info.lattice == Lattice::SSA && old_lam->mem_param())
+            man().new_state();
+
+        auto& slots = info.slots;
+        if (!slots.empty()) {
+            man().new_state();
+            size_t n = slots.size();
+            Array<const Def*> types(n, [&](auto i) { return slots[i]->type()->pointee(); });
+            auto new_domain = merge_sigma(old_lam->domain(), types);
+            auto new_lam = world().lam(world().pi(new_domain, old_lam->codomain()), old_lam->debug());
+
+            outf("xxx new_lam\n");
+            new_lam->dump_head();
+
+            lam2lam(new_lam) = old_lam;
+
+            info.new_lam = new_lam;
+        }
+    }
+}
+
+void Mem2Reg::enter(Def* def) {
+    if (auto new_lam = def->isa<Lam>()) {
+        outf("enter: {}\n", new_lam);
+        if (auto old_lam = lam2lam(new_lam)) {
+            outf("enter: {}/{}\n", old_lam, new_lam);
+            man().map(old_lam->param(), new_lam->param(0));
+            new_lam->set(old_lam->ops());
+
+            auto& info = lam2info(old_lam);
+            auto& slots = info.slots;
+            size_t n = 1;
+
+            for (size_t i = 0, e = slots.size(); i != e; ++i)
+                set_val(new_lam, slots[i], new_lam->param(new_lam->num_params() - n + i));
+        }
+    }
 }
 
 const Def* Mem2Reg::get_val(Lam* lam, const Slot* slot) {

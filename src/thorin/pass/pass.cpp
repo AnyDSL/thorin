@@ -24,11 +24,18 @@ void PassMan::run() {
         analyze(lam);
 
         while (!queue().empty()) {
+            auto old_nom = cur_nominal_;
             cur_nominal_ = std::get<Def*>(queue().top());
+            if (old_nom != cur_nominal_) {
+                for (auto& pass : passes_)
+                    pass->enter(cur_nominal_);
+            }
+
             outf("\ncur: {} {}\n", cur_state_id(), cur_nominal());
             outf("Q: ");
             print_queue(queue());
 
+            //new_state();
             bool mismatch = false;
             new_ops.resize(cur_nominal()->num_ops());
             for (size_t i = 0, e = cur_nominal()->num_ops(); i != e; ++i) {
@@ -38,6 +45,7 @@ void PassMan::run() {
             }
 
             if (mismatch) {
+                new_state();
                 assert(undo_ == No_Undo && "only provoke undos during analyze");
                 cur_nominal()->set(new_ops);
                 continue;
@@ -61,29 +69,17 @@ void PassMan::run() {
     }
 
     cleanup(world_);
-}
-
-const Def* PassMan::rewrite(Def* old_nom) {
-    assert(!lookup(old_nom).has_value());
-
-    auto new_nom = old_nom;
-    for (auto& pass : passes_) {
-        new_nom = pass->rewrite(new_nom);
-        if (new_nom != old_nom) {
-            outf("nom: {} -> {}\n", old_nom, new_nom);
-            map(old_nom->as<Lam>()->param(), new_nom->as<Lam>()->param());
-            new_nom->set(old_nom->ops());
-            old_nom->as<Lam>()->destroy();
-            return map(old_nom, world().analyze(old_nom->type(), {old_nom, new_nom}, Pass_Index));
-        }
-    }
-
-    return map(old_nom, new_nom);
+    world_.dump();
 }
 
 const Def* PassMan::rewrite(const Def* old_def) {
     if (auto new_def = lookup(old_def)) return *new_def;
-    if (auto old_nom = old_def->isa_nominal()) return rewrite(old_nom);
+
+    if (auto nominal = old_def->isa_nominal()) {
+        for (auto& pass : passes_)
+            pass->inspect(nominal);
+        return map(nominal, nominal);
+    }
 
     auto new_type = rewrite(old_def->type());
 

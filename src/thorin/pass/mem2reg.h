@@ -17,8 +17,9 @@ public:
         : Pass(man, id)
     {}
 
-    Def* rewrite(Def*) override;
     const Def* rewrite(const Def*) override;
+    void inspect(Def*) override;
+    void enter(Def*) override;
     void analyze(const Def*) override;
 
     enum Lattice { SSA, Keep };
@@ -44,6 +45,7 @@ public:
         GIDMap<const Slot*, const Def*> slot2val;
         LamSet preds;
         std::vector<const Slot*> slots;
+        Lam* new_lam = nullptr;
         unsigned lattice :  4;
         unsigned undo    : 28;
     };

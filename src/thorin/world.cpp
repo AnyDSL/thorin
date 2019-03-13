@@ -162,20 +162,19 @@ const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
     for (size_t i = 0; i != n && eta; ++i) {
         if (auto extract = ops[i]->isa<Extract>()) {
             if (auto index = isa_lit<u64>(extract->index())) {
-                if (eta |= u64(i) == *index) {
+                if (eta &= u64(i) == *index) {
                     if (i == 0)
                         agg = extract->agg();
                     else
                         eta &= extract->agg() == agg;
+                    continue;
                 }
-                continue;
             }
         }
         eta = false;
     }
 
-    if (eta) return agg;
-
+    if (eta && agg->type() == type) return agg;
     return unify<Tuple>(ops.size(), type, ops, dbg);
 }
 

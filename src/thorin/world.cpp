@@ -154,6 +154,28 @@ const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
     if (n == 1) return ops[0];
     if (std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; }))
         return pack(n, ops[0]);
+
+    // eta rule for tuples:
+    // (extract(agg, 0), extract(agg, 1), extract(agg, 2)) -> agg
+    bool eta = true;
+    const Def* agg = nullptr;
+    for (size_t i = 0; i != n && eta; ++i) {
+        if (auto extract = ops[i]->isa<Extract>()) {
+            if (auto index = isa_lit<u64>(extract->index())) {
+                if (eta |= u64(i) == *index) {
+                    if (i == 0)
+                        agg = extract->agg();
+                    else
+                        eta |= extract->agg() != agg;
+                }
+                continue;
+            }
+        }
+        eta = false;
+    }
+
+    if (eta) return agg;
+
     return unify<Tuple>(ops.size(), type, ops, dbg);
 }
 

@@ -56,7 +56,6 @@ void PassMan::run() {
             if (undo_ != No_Undo) {
                 outf("undo: {} -> {}\n", cur_state_id(), undo_);
 
-                assert(undo_ < cur_state_id());
                 for (size_t i = cur_state_id(); i-- != undo_;)
                     states_[i].nominal->set(states_[i].old_ops);
 

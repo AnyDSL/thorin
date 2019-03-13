@@ -65,7 +65,7 @@ public:
     template<class P, class... Args>
     PassMan& create(Args... args) { passes_.emplace_back(std::make_unique<P>(*this, passes_.size()), std::forward<Args>(args)...); return *this; }
     void run();
-    void undo(size_t u) { undo_ = std::min(undo_, u); }
+    void undo(size_t u) { assert(u <= cur_state_id()); undo_ = std::min(undo_, u); }
     size_t cur_state_id() const { return states_.size(); }
     Def* cur_nominal() const { return cur_nominal_; }
     Lam* cur_lam() const { return cur_nominal()->as<Lam>(); }

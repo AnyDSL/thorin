@@ -39,9 +39,10 @@ const Def* Mem2Reg::rewrite(const Def* def) {
         return enter;
     } else if (auto analyze = def->isa<Analyze>(); analyze && analyze->index() == id()) {
         assert(analyze->num_ops() == 2);
-        auto lam  = analyze->op(0)->as_nominal<Lam>();
-        auto slot = analyze->op(1)->as<Slot>();
-        return get_val(lam, slot);
+        auto old_lam = analyze->op(0)->as_nominal<Lam>();
+        auto slot    = analyze->op(1)->as<Slot>();
+        if (auto new_lam = lam2info(old_lam).new_lam)
+            return get_val(new_lam, slot);
     } else if (auto load = def->isa<Load>()) {
         if (auto slot = load->ptr()->isa<Slot>()) {
             if (slot2info(slot).lattice == Lattice::Keep) return load;
@@ -76,16 +77,10 @@ void Mem2Reg::inspect(Def* def) {
             man().new_state();
 
         if (auto& slots = info.slots; !slots.empty()) {
-            size_t n = slots.size();
-            Array<const Def*> types(n, [&](auto i) { return slots[i]->type()->pointee(); });
+            Array<const Def*> types(slots.size(), [&](auto i) { return slots[i]->type()->pointee(); });
             auto new_domain = merge_sigma(old_lam->domain(), types);
             auto new_lam = world().lam(world().pi(new_domain, old_lam->codomain()), old_lam->debug());
-
-            outf("xxx new_lam\n");
-            new_lam->dump_head();
-
-            lam2lam(new_lam) = old_lam;
-
+            new2old(new_lam) = old_lam;
             info.new_lam = new_lam;
         }
     }
@@ -94,7 +89,7 @@ void Mem2Reg::inspect(Def* def) {
 void Mem2Reg::enter(Def* def) {
     if (auto new_lam = def->isa<Lam>()) {
         outf("enter: {}\n", new_lam);
-        if (auto old_lam = lam2lam(new_lam)) {
+        if (auto old_lam = new2old(new_lam)) {
             outf("enter: {}/{}\n", old_lam, new_lam);
             man().map(old_lam->param(), new_lam->param(0));
             new_lam->set(old_lam->ops());
@@ -161,7 +156,7 @@ void Mem2Reg::analyze(const Def* def) {
             //auto& info = slot2info(slot);
             //info.lattice = Lattice::Keep;
             outf("B: {}\n", slot);
-            man().undo(info.undo);
+            //man().undo(info.undo);
         }
         return;
     }
@@ -172,6 +167,12 @@ void Mem2Reg::analyze(const Def* def) {
         if (auto lam = op->isa_nominal<Lam>()) {
             auto& info = lam2info(lam);
             info.preds.emplace(man().cur_lam());
+
+            if (info.lattice == SSA && (!def->isa<App>() || i != 0)) {
+                outf("keep: {}\n", lam);
+                info.lattice = Keep;
+                man().undo(info.undo);
+            }
         } else if (auto slot = op->isa<Slot>()) {
             if (auto& info = slot2info(slot); info.lattice == SSA) {
                 outf("keep: {}\n", slot);

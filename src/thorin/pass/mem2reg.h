@@ -63,7 +63,7 @@ private:
 
     auto& slot2info(const Slot* slot) { return get<Slot2Info>(slot, SlotInfo(man().cur_state_id())); }
     auto& lam2info (Lam* lam)         { return get<Lam2Info> (lam,   LamInfo(man().cur_state_id())); }
-    auto& lam2lam  (Lam* lam)         { return get<Lam2Lam>  (lam); }
+    auto& new2old  (Lam* lam)         { return get<Lam2Lam>  (lam); }
 };
 
 }

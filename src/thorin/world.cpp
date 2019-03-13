@@ -166,7 +166,7 @@ const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
                     if (i == 0)
                         agg = extract->agg();
                     else
-                        eta |= extract->agg() != agg;
+                        eta &= extract->agg() == agg;
                 }
                 continue;
             }

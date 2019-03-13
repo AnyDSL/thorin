@@ -163,10 +163,12 @@ const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
         if (auto extract = ops[i]->isa<Extract>()) {
             if (auto index = isa_lit<u64>(extract->index())) {
                 if (eta &= u64(i) == *index) {
-                    if (i == 0)
+                    if (i == 0) {
                         agg = extract->agg();
-                    else
+                        eta &= agg->type() == type;
+                    } else {
                         eta &= extract->agg() == agg;
+                    }
                     continue;
                 }
             }
@@ -174,7 +176,7 @@ const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
         eta = false;
     }
 
-    if (eta && agg->type() == type) return agg;
+    if (eta) return agg;
     return unify<Tuple>(ops.size(), type, ops, dbg);
 }
 
@@ -196,10 +198,10 @@ const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
         type = agg->type()->as<Variadic>()->body();
 
     if (auto insert = agg->isa<Insert>()) {
-        // extract(insert(x, index, val), index) = val
+        // extract(insert(x, index, val), index) -> val
         if (index == insert->index())
             return insert->val();
-        // extract(insert(x, j, val), i) = extract(x, i) where i != j
+        // extract(insert(x, j, val), i) -> extract(x, i) where i != j
         else if (index->isa<Lit>()) {
             if (insert->index()->isa<Lit>())
                 return extract(insert->agg(), index, dbg);
@@ -214,14 +216,14 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* val, Debug
 
     if (index->type() == lit_arity_1()) return val;
 
-    // insert((a, b, c, d), 2, x) = (a, b, x, d)
+    // insert((a, b, c, d), 2, x) -> (a, b, x, d)
     if (auto tup = agg->isa<Tuple>()) {
         Array<const Def*> new_ops = tup->ops();
         new_ops[as_lit<u64>(index)] = val;
         return tuple(tup->type(), new_ops, dbg);
     }
 
-    // insert(‹4; x›, 2, y) = (x, x, y, x)
+    // insert(‹4; x›, 2, y) -> (x, x, y, x)
     if (auto pack = agg->isa<Pack>()) {
         if (auto a = isa_lit<u64>(pack->arity())) {
             Array<const Def*> new_ops(*a, pack->body());
@@ -230,7 +232,7 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* val, Debug
         }
     }
 
-    // insert(insert(x, index, y), index, val) = insert(x, index, val)
+    // insert(insert(x, index, y), index, val) -> insert(x, index, val)
     if (auto insert = agg->isa<Insert>()) {
         if (insert->index() == index)
             agg = insert->agg();

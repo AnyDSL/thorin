@@ -179,7 +179,7 @@ llvm::Function* CodeGen::emit_function_decl(Continuation* continuation) {
         return f;
 
     std::string name = (continuation->is_external() || continuation->empty()) ? continuation->name().str() : continuation->unique_name();
-    auto f = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, convert_fn_type(continuation)));
+    auto f = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, convert_fn_type(continuation)).getCallee()->stripPointerCasts());
 
 #ifdef _MSC_VER
     // set dll storage class for MSVC

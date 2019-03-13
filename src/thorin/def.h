@@ -560,7 +560,7 @@ private:
     Param(const Def* type, const Lam* lam, Debug dbg)
         : Def(Node_Param, type, Defs{lam}, dbg)
     {
-        assert(lam->isa_nominal());
+        assert(lam->isa_nominal<Lam>());
     }
 
 public:

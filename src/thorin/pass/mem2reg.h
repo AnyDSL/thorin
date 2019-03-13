@@ -26,19 +26,19 @@ public:
 
     struct SlotInfo {
         SlotInfo() = default;
-        SlotInfo(Lattice lattice, size_t undo)
-            : lattice(lattice)
+        SlotInfo(size_t undo)
+            : lattice(Lattice::SSA)
             , undo(undo)
         {}
 
-        unsigned lattice :  4;
-        unsigned undo    : 28;
+        unsigned lattice :  2;
+        unsigned undo    : 30;
     };
 
     struct LamInfo {
         LamInfo() = default;
-        LamInfo(Lattice lattice, size_t undo)
-            : lattice(lattice)
+        LamInfo(size_t undo)
+            : lattice(Lattice::SSA)
             , undo(undo)
         {}
 
@@ -46,8 +46,8 @@ public:
         LamSet preds;
         std::vector<const Slot*> slots;
         Lam* new_lam = nullptr;
-        unsigned lattice :  4;
-        unsigned undo    : 28;
+        unsigned lattice    :  2;
+        unsigned undo       : 30;
     };
 
     using Slot2Info = GIDMap<const Slot*, SlotInfo>;
@@ -59,8 +59,8 @@ private:
     const Def* get_val(Lam*, const Slot*);
     void set_val(Lam*, const Slot*, const Def*);
 
-    auto& slot2info(const Slot* slot) { return get<Slot2Info>(slot, SlotInfo(Lattice::SSA, man().cur_state_id())); }
-    auto& lam2info (Lam* lam)         { return get<Lam2Info> (lam,   LamInfo(Lattice::SSA, man().cur_state_id())); }
+    auto& slot2info(const Slot* slot) { return get<Slot2Info>(slot, SlotInfo(man().cur_state_id())); }
+    auto& lam2info (Lam* lam)         { return get<Lam2Info> (lam,   LamInfo(man().cur_state_id())); }
     auto& lam2lam  (Lam* lam)         { return get<Lam2Lam>  (lam); }
 };
 

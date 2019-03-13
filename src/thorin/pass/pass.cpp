@@ -35,7 +35,6 @@ void PassMan::run() {
             outf("Q: ");
             print_queue(queue());
 
-            //new_state();
             bool mismatch = false;
             new_ops.resize(cur_nominal()->num_ops());
             for (size_t i = 0, e = cur_nominal()->num_ops(); i != e; ++i) {
@@ -45,7 +44,6 @@ void PassMan::run() {
             }
 
             if (mismatch) {
-                new_state();
                 assert(undo_ == No_Undo && "only provoke undos during analyze");
                 cur_nominal()->set(new_ops);
                 continue;

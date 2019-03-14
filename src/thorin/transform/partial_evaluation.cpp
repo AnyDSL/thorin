@@ -79,7 +79,9 @@ public:
     }
 
     const Def* filter(size_t i) {
-        return callee_->filter() == nullptr ? world().lit_bool(false, {}) : callee_->filter(i);
+        if (callee_->filter()->type()->isa<Sigma>())
+            return callee_->filter(i);
+        return callee_->filter();
     }
 
     bool has_free_params(Lam* lam) {

@@ -71,16 +71,17 @@ void Mem2Reg::inspect(Def* def) {
         auto& info = lam2info(old_lam);
         if (old_lam->is_external())
             info.lattice = Keep;
+        else if (info.lattice == SSA) {
+            if (old_lam->mem_param()) man().new_state();
 
-        if (info.lattice == SSA && old_lam->mem_param())
-            man().new_state();
-
-        if (auto& slots = info.slots; !slots.empty()) {
-            Array<const Def*> types(slots.size(), [&](auto i) { return slots[i]->type()->pointee(); });
-            auto new_domain = merge_sigma(old_lam->domain(), types);
-            auto new_lam = world().lam(world().pi(new_domain, old_lam->codomain()), old_lam->debug());
-            new2old(new_lam) = old_lam;
-            info.new_lam = new_lam;
+            if (info.lattice == SSA && !info.slots.empty()) {
+                assert(old_lam->mem_param());
+                Array<const Def*> types(info.slots.size(), [&](auto i) { return info.slots[i]->type()->pointee(); });
+                auto new_domain = merge_sigma(old_lam->domain(), types);
+                auto new_lam = world().lam(world().pi(new_domain, old_lam->codomain()), old_lam->debug());
+                new2old(new_lam) = old_lam;
+                info.new_lam = new_lam;
+            }
         }
     }
 }

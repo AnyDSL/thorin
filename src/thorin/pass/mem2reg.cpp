@@ -30,11 +30,8 @@ static const Def* merge_tuple(const Def* def, Defs defs) {
 
 const Def* Mem2Reg::rewrite(const Def* def) {
     if (auto enter = def->isa<Enter>()) {
-        for (auto use : enter->out_frame()->uses()) {
-            auto slot = use->as<Slot>();
-            if (slot2info(slot).lattice == Lattice::SSA)
-                set_val(slot, world().bot(slot->type()->pointee()));
-        }
+        for (auto use : enter->out_frame()->uses())
+            slot2info(use->as<Slot>());
         man().new_state();
         return enter;
     } else if (auto analyze = def->isa<Analyze>(); analyze && analyze->index() == id()) {

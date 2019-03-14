@@ -111,16 +111,17 @@ const Def* Mem2Reg::get_val(Lam* lam, const Slot* slot) {
         return *val;
     }
 
-    auto bot = world().bot(slot->type()->as<PtrType>()->pointee());
-    const Def* same = bot;
+    const Def* same = world().bot(slot->type()->as<PtrType>()->pointee());
     for (auto pred : info.preds) {
         auto def = get_val(pred, slot);
         if (is_bot(def)) continue;
-        if (is_bot(same) && same != def) {
+
+        if (is_bot(same)) {
+            same = def;
+        } else if (same != def) {
             same = nullptr; // defs from preds are different
             break;
         }
-        same = def;
     }
 
     // if we see this guy again during analyze, we need a phi in lam

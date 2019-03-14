@@ -65,13 +65,14 @@ public:
     template<class P, class... Args>
     PassMan& create(Args... args) { passes_.emplace_back(std::make_unique<P>(*this, passes_.size()), std::forward<Args>(args)...); return *this; }
     void run();
-    void undo(size_t u) { assert(u <= cur_state_id()); undo_ = std::min(undo_, u); }
+    void undo(size_t u) { assert(u < cur_state_id()); undo_ = std::min(undo_, u); }
     size_t cur_state_id() const { return states_.size(); }
     Def* cur_nominal() const { return cur_nominal_; }
     Lam* cur_lam() const { return cur_nominal()->as<Lam>(); }
     void new_state() { states_.emplace_back(cur_state(), cur_nominal(), cur_nominal()->ops(), passes_); }
     template<class D> // D may be "Def" or "const Def"
     D* map(const Def* old_def, D* new_def) { cur_state().old2new.emplace(old_def, new_def); return new_def; }
+    const DefSet& entered() { return cur_state().entered; }
 
     std::optional<const Def*> lookup(const Def* old_def) {
         auto& old2new = cur_state().old2new;
@@ -101,6 +102,7 @@ private:
             : queue(prev.queue)
             , old2new(prev.old2new)
             , analyzed(prev.analyzed)
+            , entered(prev.entered)
             , nominal(nominal)
             , old_ops(old_ops)
             , passes(passes.data())
@@ -125,6 +127,7 @@ private:
         Queue queue;
         Def2Def old2new;
         DefSet analyzed;
+        DefSet entered;
         Def* nominal;
         Array<const Def*> old_ops;
         const PassPtr* passes;

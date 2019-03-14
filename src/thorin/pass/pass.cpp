@@ -27,6 +27,8 @@ void PassMan::run() {
             auto old_nom = cur_nominal_;
             cur_nominal_ = std::get<Def*>(queue().top());
             if (old_nom != cur_nominal_) {
+                auto succ = cur_state().entered.emplace(cur_nominal_).second;
+                assert_unused(succ);
                 for (auto& pass : passes_)
                     pass->enter(cur_nominal_);
             }
@@ -61,6 +63,7 @@ void PassMan::run() {
 
                 states_.resize(undo_);
                 undo_ = No_Undo;
+                cur_state().entered.erase(std::get<Def*>(queue().top()));
             }
         }
     }

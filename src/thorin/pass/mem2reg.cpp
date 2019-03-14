@@ -42,12 +42,12 @@ const Def* Mem2Reg::rewrite(const Def* def) {
             return get_val(new_lam, slot);
     } else if (auto load = def->isa<Load>()) {
         if (auto slot = load->ptr()->isa<Slot>()) {
-            if (slot2info(slot).lattice == Lattice::Keep) return load;
+            if (slot2info(slot).lattice == Keep) return load;
             return world().tuple({load->mem(), get_val(slot)});
         }
     } else if (auto store = def->isa<Store>()) {
         if (auto slot = store->ptr()->isa<Slot>()) {
-            if (slot2info(slot).lattice == Lattice::Keep) return store;
+            if (slot2info(slot).lattice == Keep) return store;
             set_val(slot, store->val());
             return store->mem();
         }
@@ -69,8 +69,10 @@ const Def* Mem2Reg::rewrite(const Def* def) {
 void Mem2Reg::inspect(Def* def) {
     if (auto old_lam = def->isa<Lam>()) {
         auto& info = lam2info(old_lam);
+        if (old_lam->is_external())
+            info.lattice = Keep;
 
-        if (info.lattice == Lattice::SSA && old_lam->mem_param())
+        if (info.lattice == SSA && old_lam->mem_param())
             man().new_state();
 
         if (auto& slots = info.slots; !slots.empty()) {
@@ -146,15 +148,16 @@ void Mem2Reg::analyze(const Def* def) {
         auto slot = analyze->op(1)->as<Slot>();
         auto& info = lam2info(lam);
 
-        if (info.lattice == Lattice::SSA) {
+        if (info.lattice == SSA) {
+            assertf(std::find(info.slots.begin(), info.slots.end(), slot) == info.slots.end(), "already added slot {} to {}", slot, lam);
             info.slots.emplace_back(slot);
             outf("A: {}\n", slot);
             man().undo(info.undo);
         } else {
-            //auto& info = slot2info(slot);
-            //info.lattice = Lattice::Keep;
+            auto& info = slot2info(slot);
+            info.lattice = Keep;
             outf("B: {}\n", slot);
-            //man().undo(info.undo);
+            man().undo(info.undo);
         }
         return;
     }
@@ -162,20 +165,28 @@ void Mem2Reg::analyze(const Def* def) {
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
         auto op = def->op(i);
 
-        if (auto lam = op->isa_nominal<Lam>()) {
-            auto& info = lam2info(lam);
-            info.preds.emplace(man().cur_lam());
-
-            if (info.lattice == SSA && (!def->isa<App>() || i != 0)) {
-                outf("keep: {}\n", lam);
-                info.lattice = Keep;
-                man().undo(info.undo);
-            }
-        } else if (auto slot = op->isa<Slot>()) {
+        if (auto slot = op->isa<Slot>()) {
             if (auto& info = slot2info(slot); info.lattice == SSA) {
                 outf("keep: {}\n", slot);
                 info.lattice = Keep;
                 man().undo(info.undo);
+            }
+        } else if (auto lam = op->isa_nominal<Lam>()) {
+            auto& info = lam2info(lam);
+            info.preds.emplace(man().cur_lam());
+
+            if (info.lattice == SSA) {
+                if (def->isa<App>() && i == 0) {
+                    if (man().entered().contains(lam)) {
+                        outf("dicoverd new pred for {}\n", lam);
+                        man().undo(info.undo);
+                    }
+                } else {
+                    outf("keep: {}\n", lam);
+                    info.lattice = Keep;
+                    if (!info.slots.empty())
+                        man().undo(info.undo);
+                }
             }
         }
     }

@@ -99,7 +99,7 @@ void Mem2Reg::enter(Def* def) {
             size_t n = 1;
 
             for (size_t i = 0, e = slots.size(); i != e; ++i)
-                set_val(new_lam, slots[i], new_lam->param(new_lam->num_params() - n + i));
+                set_val(new_lam, slots[i], new_lam->param(n + i));
         }
     }
 }

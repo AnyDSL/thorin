@@ -21,13 +21,14 @@ void PassMan::run() {
 
     auto externals = world().externals();
     for (auto lam : externals) {
-        analyze(lam);
+        rewrite(lam); // provokes inspect
+        analyze(lam); // puts in into the queue
 
         while (!queue().empty()) {
             auto old_nom = cur_nominal_;
             cur_nominal_ = std::get<Def*>(queue().top());
             if (old_nom != cur_nominal_) {
-                auto succ = cur_state().entered.emplace(cur_nominal_).second;
+                auto succ = entered().emplace(cur_nominal_).second;
                 assert_unused(succ);
                 for (auto& pass : passes_)
                     pass->enter(cur_nominal_);
@@ -46,6 +47,7 @@ void PassMan::run() {
             }
 
             if (mismatch) {
+                new_state();
                 assert(undo_ == No_Undo && "only provoke undos during analyze");
                 cur_nominal()->set(new_ops);
                 continue;
@@ -63,7 +65,7 @@ void PassMan::run() {
 
                 states_.resize(undo_);
                 undo_ = No_Undo;
-                cur_state().entered.erase(std::get<Def*>(queue().top()));
+                entered().erase(std::get<Def*>(queue().top()));
             }
         }
     }

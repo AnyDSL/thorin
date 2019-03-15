@@ -72,7 +72,7 @@ public:
     void new_state() { states_.emplace_back(cur_state(), cur_nominal(), cur_nominal()->ops(), passes_); }
     template<class D> // D may be "Def" or "const Def"
     D* map(const Def* old_def, D* new_def) { cur_state().old2new.emplace(old_def, new_def); return new_def; }
-    const DefSet& entered() { return cur_state().entered; }
+    bool has_entered(Def* def) { return entered().contains(def); }
 
     std::optional<const Def*> lookup(const Def* old_def) {
         auto& old2new = cur_state().old2new;
@@ -137,7 +137,9 @@ private:
     const Def* rewrite(const Def*);
     void analyze(const Def*);
     State& cur_state() { assert(!states_.empty()); return states_.back(); }
+    const State& cur_state() const { assert(!states_.empty()); return states_.back(); }
     State::Queue& queue() { return cur_state().queue; }
+    DefSet& entered() { return cur_state().entered; }
 
     World& world_;
     std::vector<PassPtr> passes_;

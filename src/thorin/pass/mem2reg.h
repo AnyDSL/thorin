@@ -39,6 +39,7 @@ public:
         LamInfo() = default;
         LamInfo(size_t undo)
             : lattice(Lattice::SSA)
+            , visited(false)
             , undo(undo)
         {}
 
@@ -47,7 +48,8 @@ public:
         std::vector<const Slot*> slots;
         Lam* new_lam = nullptr;
         unsigned lattice    :  2;
-        unsigned undo       : 30;
+        unsigned visited    :  1;
+        unsigned undo       : 29;
     };
 
     using Slot2Info = GIDMap<const Slot*, SlotInfo>;
@@ -58,8 +60,9 @@ public:
 private:
     const Def* get_val(Lam*, const Slot*);
     const Def* get_val(const Slot* slot) { return get_val(man().cur_lam(), slot); }
-    void set_val(Lam*, const Slot*, const Def*);
-    void set_val(const Slot* slot, const Def* def) { return set_val(man().cur_lam(), slot, def); }
+    const Def* set_val(Lam*, const Slot*, const Def*);
+    const Def* set_val(const Slot* slot, const Def* def) { return set_val(man().cur_lam(), slot, def); }
+    const Def* virtual_phi(Lam*, const Slot*);
 
     auto& slot2info(const Slot* slot) { return get<Slot2Info>(slot, SlotInfo(man().cur_state_id())); }
     auto& lam2info (Lam* lam)         { return get<Lam2Info> (lam,   LamInfo(man().cur_state_id())); }

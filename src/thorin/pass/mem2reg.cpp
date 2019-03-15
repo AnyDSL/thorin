@@ -34,12 +34,12 @@ const Def* Mem2Reg::rewrite(const Def* def) {
             slot2info(use->as<Slot>());
         man().new_state();
         return enter;
-    } else if (auto analyze = def->isa<Analyze>(); analyze && analyze->index() == id()) {
-        assert(analyze->num_ops() == 2);
-        auto old_lam = analyze->op(0)->as_nominal<Lam>();
-        auto slot    = analyze->op(1)->as<Slot>();
-        if (auto new_lam = lam2info(old_lam).new_lam)
-            return get_val(new_lam, slot);
+    //} else if (auto analyze = def->isa<Analyze>(); analyze && analyze->index() == id()) {
+        //assert(analyze->num_ops() == 2);
+        //auto old_lam = analyze->op(0)->as_nominal<Lam>();
+        //auto slot    = analyze->op(1)->as<Slot>();
+        //if (auto new_lam = lam2info(old_lam).new_lam)
+            //return get_val(new_lam, slot);
     } else if (auto load = def->isa<Load>()) {
         if (auto slot = load->ptr()->isa<Slot>()) {
             if (slot2info(slot).lattice == Keep) return load;
@@ -69,9 +69,9 @@ const Def* Mem2Reg::rewrite(const Def* def) {
 void Mem2Reg::inspect(Def* def) {
     if (auto old_lam = def->isa<Lam>()) {
         auto& info = lam2info(old_lam);
-        if (old_lam->is_external())
+        if (old_lam->is_external() || old_lam->intrinsic() != Intrinsic::None) {
             info.lattice = Keep;
-        else if (info.lattice == SSA) {
+        } else if (info.lattice == SSA) {
             if (old_lam->mem_param()) man().new_state();
 
             if (info.lattice == SSA && !info.slots.empty()) {
@@ -104,13 +104,26 @@ void Mem2Reg::enter(Def* def) {
     }
 }
 
+const Def* Mem2Reg::virtual_phi(Lam* new_lam, const Slot* slot) {
+    auto old_lam = new_lam;
+    if (auto lam = new2old(new_lam)) old_lam = lam;
+    outf("virtual phi: {}/{} for {}\n", old_lam, new_lam, slot);
+    return set_val(new_lam, slot, world().analyze(slot->type()->pointee(), {old_lam, slot}, id()));
+}
+
 const Def* Mem2Reg::get_val(Lam* lam, const Slot* slot) {
     auto& info = lam2info(lam);
+
     if (auto val = info.slot2val.lookup(slot)) {
         outf("get_val {} for {}: {}\n", lam, slot, *val);
         return *val;
     }
 
+    if (info.visited                                                                                                   // break cycle
+            || std::any_of(info.preds.begin(), info.preds.end(), [&](auto pred) { return !man().has_entered(pred); })) // not sealed
+        return virtual_phi(lam, slot);
+
+    info.visited = true;
     const Def* same = world().bot(slot->type()->as<PtrType>()->pointee());
     for (auto pred : info.preds) {
         auto def = get_val(pred, slot);
@@ -123,20 +136,19 @@ const Def* Mem2Reg::get_val(Lam* lam, const Slot* slot) {
             break;
         }
     }
+    info.visited = false;
 
-    // if we see this guy again during analyze, we need a phi in lam
-    if (same == nullptr) {
-        auto res = world().analyze(slot->type()->pointee(), {lam, slot}, id());
-        outf("get_val {} for {}: {}\n", lam, slot, res);
-        return res;
+    if (same != nullptr) {
+        outf("get_val {} for {}: {}\n", lam, slot, same);
+        return same;
     }
-    outf("get_val {} for {}: {}\n", lam, slot, same);
-    return same;
+
+    return virtual_phi(lam, slot);
 }
 
-void Mem2Reg::set_val(Lam* lam, const Slot* slot, const Def* val) {
+const Def* Mem2Reg::set_val(Lam* lam, const Slot* slot, const Def* val) {
     outf("set_val {} for {}: {}\n", lam, slot, val);
-    lam2info(lam).slot2val[slot] = val;
+    return lam2info(lam).slot2val[slot] = val;
 }
 
 void Mem2Reg::analyze(const Def* def) {
@@ -157,7 +169,7 @@ void Mem2Reg::analyze(const Def* def) {
         } else {
             auto& info = slot2info(slot);
             info.lattice = Keep;
-            outf("B: {}\n", slot);
+            outf("keep: {}\n", slot);
             man().undo(info.undo);
         }
         return;
@@ -174,11 +186,11 @@ void Mem2Reg::analyze(const Def* def) {
             }
         } else if (auto lam = op->isa_nominal<Lam>()) {
             auto& info = lam2info(lam);
-            info.preds.emplace(man().cur_lam());
+            auto new_pred = info.preds.emplace(man().cur_lam()).second;
 
             if (info.lattice == SSA) {
                 if (def->isa<App>() && i == 0) {
-                    if (man().entered().contains(lam)) {
+                    if (new_pred && man().has_entered(lam)) {
                         outf("dicoverd new pred for {}\n", lam);
                         man().undo(info.undo);
                     }

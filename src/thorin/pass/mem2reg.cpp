@@ -186,12 +186,17 @@ void Mem2Reg::analyze(const Def* def) {
             }
         } else if (auto lam = op->isa_nominal<Lam>()) {
             auto& info = lam2info(lam);
-            auto new_pred = info.preds.emplace(man().cur_lam()).second;
+
+            auto pred = man().cur_lam();
+            if (auto old_lam = new2old(lam))
+                pred = old_lam;
+
+            auto new_pred = info.preds.emplace(pred).second;
 
             if (info.lattice == SSA) {
                 if (def->isa<App>() && i == 0) {
                     if (new_pred && man().has_entered(lam)) {
-                        outf("dicoverd new pred for {}\n", lam);
+                        outf("discovered new pred: {} -> {}\n", pred, lam);
                         man().undo(info.undo);
                     }
                 } else {

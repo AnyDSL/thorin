@@ -975,7 +975,7 @@ llvm::Value* CodeGen::emit_lea(const LEA* lea) {
     if (lea->ptr_pointee()->isa<TupleType>() || lea->ptr_pointee()->isa<StructType>())
         return irbuilder_.CreateStructGEP(convert(lea->ptr_pointee()), lookup(lea->ptr()), primlit_value<u32>(lea->index()));
 
-    assert(lea->ptr_pointee()->isa<ArrayType>());
+    assert(lea->ptr_pointee()->isa<ArrayType>() || lea->ptr_pointee()->isa<VectorType>());
     llvm::Value* args[2] = { irbuilder_.getInt64(0), lookup(lea->index()) };
     return irbuilder_.CreateInBoundsGEP(lookup(lea->ptr()), args);
 }

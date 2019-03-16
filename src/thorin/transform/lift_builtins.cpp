@@ -7,7 +7,68 @@
 
 namespace thorin {
 
+void lift_pipeline(World& world) {
+    for (auto cont : world.copy_continuations()) {
+        auto callee = cont->callee()->isa_continuation();
+        // Binding to the number of arguments to avoid repeated optimization
+        if (callee && callee->intrinsic() == Intrinsic::Pipeline && cont->num_args() == 6) {
+            auto cont_type = world.fn_type({ world.mem_type() });
+            auto p_cont_type = world.fn_type({ world.mem_type(), cont_type });
+            auto body_type = world.fn_type({ world.mem_type(), world.type_qs32() });
+            auto pipe_type = world.fn_type({
+                world.mem_type(),
+                world.type_qs32(),
+                world.type_qs32(),
+                world.type_qs32(),
+                body_type,
+                cont_type,
+                p_cont_type
+            });
+            // Transform:
+            //
+            // f(...)
+            //     pipeline(..., pipeline_body, return)
+            //
+            // pipeline_body(mem: mem, i: i32, ret: fn(mem))
+            //     ret(mem)
+            //
+            // Into:
+            //
+            // f(...)
+            //     new_pipeline(..., pipeline_body, return, pipeline_continue)
+            //
+            // pipeline_body(mem: mem, i: i32)
+            //     continue_wrapper(mem)
+            //
+            // continue_wrapper(mem: mem)
+            //     pipeline_continue(mem, return)
+            //
+            // Note the use of 'return' as the second argument to pipeline_continue.
+            // This is required to encode the dependence of the loop body over the call to pipeline,
+            // so that lift_builtins can extract the correct free variables.
+            auto pipeline_continue = world.continuation(p_cont_type, CC::C, Intrinsic::PipelineContinue, Debug("pipeline_continue"));
+            auto continue_wrapper = world.continuation(cont_type, Debug("continue_wrapper"));
+            auto new_pipeline = world.continuation(pipe_type, CC::C, Intrinsic::Pipeline, callee->debug());
+            auto old_body = cont->arg(4);
+            auto body_cont = world.continuation(body_type, old_body->debug());
+            cont->jump(new_pipeline, thorin::Defs { cont->arg(0), cont->arg(1), cont->arg(2), cont->arg(3), body_cont, cont->arg(5), pipeline_continue });
+            Call call(4);
+            call.callee() = old_body;
+            call.arg(0) = body_cont->param(0);
+            call.arg(1) = body_cont->param(1);
+            call.arg(2) = continue_wrapper;
+            auto target = drop(call);
+            continue_wrapper->jump(pipeline_continue, thorin::Defs { continue_wrapper->param(0), cont->arg(5) });
+            body_cont->jump(target->callee(), target->args());
+        }
+    }
+
+}
+
 void lift_builtins(World& world) {
+    // This must be run first
+    lift_pipeline(world);
+
     while (true) {
         Continuation* cur = nullptr;
         Scope::for_each(world, [&] (const Scope& scope) {

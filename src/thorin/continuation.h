@@ -82,6 +82,8 @@ enum class Intrinsic : uint8_t {
     Atomic,                     ///< Intrinsic atomic function
     CmpXchg,                    ///< Intrinsic cmpxchg function
     Undef,                      ///< Intrinsic undef function
+    PipelineContinue,           ///< Intrinsic loop-pipelining-HLS-Backend
+    Pipeline,                   ///< Intrinsic loop-piplining-HLS-Backend
     Branch,                     ///< branch(cond, T, F).
     DeepCopy,                   ///< deep_copy: cn(mem, T*, T*, cn(M))
     MpiType,                    ///< mpi_type: cn(mem, T*, MPI_Datatype*, cn(M))

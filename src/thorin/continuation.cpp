@@ -192,6 +192,7 @@ void Continuation::set_intrinsic() {
     else if (name() == "anydsl_execute_graph") intrinsic_ = Intrinsic::ExecuteGraph;
     else if (name() == "vectorize")            intrinsic_ = Intrinsic::Vectorize;
     else if (name() == "pe_info")              intrinsic_ = Intrinsic::PeInfo;
+    else if (name() == "pipeline")             intrinsic_ = Intrinsic::Pipeline;
     else if (name() == "reserve_shared")       intrinsic_ = Intrinsic::Reserve;
     else if (name() == "atomic")               intrinsic_ = Intrinsic::Atomic;
     else if (name() == "cmpxchg")              intrinsic_ = Intrinsic::CmpXchg;

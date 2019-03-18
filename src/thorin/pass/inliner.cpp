@@ -31,7 +31,7 @@ void Inliner::analyze(const Def* def) {
     if (def->isa<Param>()) return;
 
     for (auto op : def->ops()) {
-        if (auto lam = op->isa_nominal<Lam>(); is_candidate(lam)) {
+        if (auto lam = op->isa_nominal<Lam>()) {
             auto& info = lam2info(lam);
             if (info.lattice == Lattice::Bottom) {
                 assertf(!def->isa<App>() || def->as<App>()->callee() == op, "this case should have been inlined");

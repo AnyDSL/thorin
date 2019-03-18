@@ -33,13 +33,8 @@ const Def* Mem2Reg::rewrite(const Def* def) {
         for (auto use : enter->out_frame()->uses())
             slot2info(use->as<Slot>());
         man().new_state();
+
         return enter;
-    //} else if (auto analyze = def->isa<Analyze>(); analyze && analyze->index() == id()) {
-        //assert(analyze->num_ops() == 2);
-        //auto old_lam = analyze->op(0)->as_nominal<Lam>();
-        //auto slot    = analyze->op(1)->as<Slot>();
-        //if (auto new_lam = lam2info(old_lam).new_lam)
-            //return get_val(new_lam, slot);
     } else if (auto load = def->isa<Load>()) {
         if (auto slot = load->ptr()->isa<Slot>()) {
             if (slot2info(slot).lattice == Keep) return load;
@@ -79,6 +74,7 @@ void Mem2Reg::inspect(Def* def) {
                 Array<const Def*> types(info.slots.size(), [&](auto i) { return info.slots[i]->type()->pointee(); });
                 auto new_domain = merge_sigma(old_lam->domain(), types);
                 auto new_lam = world().lam(world().pi(new_domain, old_lam->codomain()), old_lam->debug());
+                outf("new_lam: {} -> {}\n", old_lam, new_lam);
                 new2old(new_lam) = old_lam;
                 info.new_lam = new_lam;
             }
@@ -112,38 +108,16 @@ const Def* Mem2Reg::virtual_phi(Lam* new_lam, const Slot* slot) {
 }
 
 const Def* Mem2Reg::get_val(Lam* lam, const Slot* slot) {
-    auto& info = lam2info(lam);
-
-    if (auto val = info.slot2val.lookup(slot)) {
+    if (auto val = lam2info(lam).slot2val.lookup(slot)) {
         outf("get_val {} for {}: {}\n", lam, slot, *val);
         return *val;
     }
 
-    if (info.visited                                                                                                   // break cycle
-            || std::any_of(info.preds.begin(), info.preds.end(), [&](auto pred) { return !man().has_entered(pred); })) // not sealed
-        return virtual_phi(lam, slot);
-
-    info.visited = true;
-    const Def* same = world().bot(slot->type()->as<PtrType>()->pointee());
-    for (auto pred : info.preds) {
-        auto def = get_val(pred, slot);
-        if (is_bot(def)) continue;
-
-        if (is_bot(same)) {
-            same = def;
-        } else if (same != def) {
-            same = nullptr; // defs from preds are different
-            break;
-        }
+    switch (const auto& preds = predset(lam); preds.size()) {
+        case 0:  return world().bot(slot->type()->as<PtrType>()->pointee());
+        case 1:  return set_val(lam, slot, get_val(*preds.begin(), slot));
+        default: return virtual_phi(lam, slot);
     }
-    info.visited = false;
-
-    if (same != nullptr) {
-        outf("get_val {} for {}: {}\n", lam, slot, same);
-        return same;
-    }
-
-    return virtual_phi(lam, slot);
 }
 
 const Def* Mem2Reg::set_val(Lam* lam, const Slot* slot, const Def* val) {
@@ -191,13 +165,22 @@ void Mem2Reg::analyze(const Def* def) {
             if (auto old_lam = new2old(lam))
                 pred = old_lam;
 
-            auto new_pred = info.preds.emplace(pred).second;
+            auto& preds = predset(lam);
+            preds.emplace(pred);
 
             if (info.lattice == SSA) {
                 if (def->isa<App>() && i == 0) {
-                    if (new_pred && man().has_entered(lam)) {
-                        outf("discovered new pred: {} -> {}\n", pred, lam);
-                        man().undo(info.undo);
+                    if (preds.size() == 2) {
+                        bool undo = false;
+                        for (auto& p : info.slot2val) {
+                            auto slot = p.first;
+                            if (std::find(info.slots.begin(), info.slots.end(), slot) == info.slots.end()) {
+                                info.slots.emplace_back(slot);
+                                undo = true;
+                            }
+                        }
+
+                        if (undo) man().undo(info.undo);
                     }
                 } else {
                     outf("keep: {}\n", lam);

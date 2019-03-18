@@ -36,8 +36,9 @@ public:
     virtual void enter(Def*) {}                             ///< Invoked when a @em nominal is the top of the PassMan::queue().
     virtual void analyze(const Def*) {}                     ///< Invoked after the @p PassMan has finished @p rewrite%ing a nominal.
     ///@}
-    /// @name alloc/dealloc state - dummy implementations here
+    /// @name mangage state - dummy implementations here
     //@{
+    virtual void init() {}
     virtual void* alloc() const { return nullptr; }
     virtual void dealloc(void*) const {}
     //@}
@@ -69,7 +70,11 @@ public:
     size_t cur_state_id() const { return states_.size(); }
     Def* cur_nominal() const { return cur_nominal_; }
     Lam* cur_lam() const { return cur_nominal()->as<Lam>(); }
-    void new_state() { states_.emplace_back(cur_state(), cur_nominal(), cur_nominal()->ops(), passes_); }
+    void new_state() {
+        states_.emplace_back(cur_state(), cur_nominal(), cur_nominal()->ops(), passes_);
+        for (auto& pass : passes_)
+            pass->init();
+    }
     template<class D> // D may be "Def" or "const Def"
     D* map(const Def* old_def, D* new_def) { cur_state().old2new.emplace(old_def, new_def); return new_def; }
     bool has_entered(Def* def) { return entered().contains(def); }
@@ -167,6 +172,7 @@ public:
     auto& states() { return man().states_; }
     /// Returns @c PassMan::states_.back().
     auto& cur_state() { assert(!states().empty()); return *static_cast<typename P::State*>(states().back().data[id()]); }
+    auto& prev_state() { assert(!states().empty()); return *static_cast<typename P::State*>(states()[states().size()-2].data[id()]); }
     //@}
     /// @name recursive search in the state stack
     //@{

@@ -39,25 +39,24 @@ public:
         LamInfo() = default;
         LamInfo(size_t undo)
             : lattice(Lattice::SSA)
-            , visited(false)
             , undo(undo)
         {}
 
         GIDMap<const Slot*, const Def*> slot2val;
-        LamSet preds;
         std::vector<const Slot*> slots;
         Lam* new_lam = nullptr;
         unsigned lattice    :  2;
-        unsigned visited    :  1;
         unsigned undo       : 29;
     };
 
     using Slot2Info = GIDMap<const Slot*, SlotInfo>;
     using Lam2Info  = LamMap<LamInfo>;
     using Lam2Lam   = LamMap<Lam*>;
-    using State     = std::tuple<Slot2Info, Lam2Info, Lam2Lam>;
+    using Preds     = LamMap<LamSet>;
+    using State     = std::tuple<Slot2Info, Lam2Info, Lam2Lam, Preds>;
 
 private:
+    void init() override { std::get<Preds>(cur_state()) = std::get<Preds>(prev_state()); }
     const Def* get_val(Lam*, const Slot*);
     const Def* get_val(const Slot* slot) { return get_val(man().cur_lam(), slot); }
     const Def* set_val(Lam*, const Slot*, const Def*);
@@ -67,6 +66,7 @@ private:
     auto& slot2info(const Slot* slot) { return get<Slot2Info>(slot, SlotInfo(man().cur_state_id())); }
     auto& lam2info (Lam* lam)         { return get<Lam2Info> (lam,   LamInfo(man().cur_state_id())); }
     auto& new2old  (Lam* lam)         { return get<Lam2Lam>  (lam); }
+    auto& predset(Lam* lam) { return std::get<Preds>(cur_state())[lam]; }
 };
 
 }

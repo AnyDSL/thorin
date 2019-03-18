@@ -38,7 +38,6 @@ public:
     ///@}
     /// @name mangage state - dummy implementations here
     //@{
-    virtual void init() {}
     virtual void* alloc() const { return nullptr; }
     virtual void dealloc(void*) const {}
     //@}
@@ -70,14 +69,9 @@ public:
     size_t cur_state_id() const { return states_.size(); }
     Def* cur_nominal() const { return cur_nominal_; }
     Lam* cur_lam() const { return cur_nominal()->as<Lam>(); }
-    void new_state() {
-        states_.emplace_back(cur_state(), cur_nominal(), cur_nominal()->ops(), passes_);
-        for (auto& pass : passes_)
-            pass->init();
-    }
+    void new_state() { states_.emplace_back(cur_state(), cur_nominal(), cur_nominal()->ops(), passes_); }
     template<class D> // D may be "Def" or "const Def"
     D* map(const Def* old_def, D* new_def) { cur_state().old2new.emplace(old_def, new_def); return new_def; }
-    bool has_entered(Def* def) { return entered().contains(def); }
 
     std::optional<const Def*> lookup(const Def* old_def) {
         auto& old2new = cur_state().old2new;
@@ -107,7 +101,6 @@ private:
             : queue(prev.queue)
             , old2new(prev.old2new)
             , analyzed(prev.analyzed)
-            , entered(prev.entered)
             , nominal(nominal)
             , old_ops(old_ops)
             , passes(passes.data())
@@ -132,7 +125,6 @@ private:
         Queue queue;
         Def2Def old2new;
         DefSet analyzed;
-        DefSet entered;
         Def* nominal;
         Array<const Def*> old_ops;
         const PassPtr* passes;
@@ -144,7 +136,6 @@ private:
     State& cur_state() { assert(!states_.empty()); return states_.back(); }
     const State& cur_state() const { assert(!states_.empty()); return states_.back(); }
     State::Queue& queue() { return cur_state().queue; }
-    DefSet& entered() { return cur_state().entered; }
 
     World& world_;
     std::vector<PassPtr> passes_;

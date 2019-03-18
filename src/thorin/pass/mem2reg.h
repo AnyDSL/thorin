@@ -22,41 +22,42 @@ public:
     void enter(Def*) override;
     void analyze(const Def*) override;
 
-    enum Lattice { SSA, Keep };
-
     struct SlotInfo {
+        enum Lattice { SSA, Keep_Slot };
+
         SlotInfo() = default;
         SlotInfo(size_t undo)
             : lattice(Lattice::SSA)
             , undo(undo)
         {}
 
-        unsigned lattice :  2;
-        unsigned undo    : 30;
+        unsigned lattice :  1;
+        unsigned undo    : 31;
     };
 
     struct LamInfo {
+        enum Lattice { Preds0, Preds1, PredsN, Keep_Lam };
+
         LamInfo() = default;
         LamInfo(size_t undo)
-            : lattice(Lattice::SSA)
+            : lattice(Lattice::Preds0)
             , undo(undo)
         {}
 
         GIDMap<const Slot*, const Def*> slot2val;
         std::vector<const Slot*> slots;
+        Lam* pred = nullptr;
         Lam* new_lam = nullptr;
         unsigned lattice    :  2;
-        unsigned undo       : 29;
+        unsigned undo       : 30;
     };
 
     using Slot2Info = GIDMap<const Slot*, SlotInfo>;
     using Lam2Info  = LamMap<LamInfo>;
     using Lam2Lam   = LamMap<Lam*>;
-    using Preds     = LamMap<LamSet>;
-    using State     = std::tuple<Slot2Info, Lam2Info, Lam2Lam, Preds>;
+    using State     = std::tuple<Slot2Info, Lam2Info, Lam2Lam>;
 
 private:
-    void init() override { std::get<Preds>(cur_state()) = std::get<Preds>(prev_state()); }
     const Def* get_val(Lam*, const Slot*);
     const Def* get_val(const Slot* slot) { return get_val(man().cur_lam(), slot); }
     const Def* set_val(Lam*, const Slot*, const Def*);
@@ -66,7 +67,11 @@ private:
     auto& slot2info(const Slot* slot) { return get<Slot2Info>(slot, SlotInfo(man().cur_state_id())); }
     auto& lam2info (Lam* lam)         { return get<Lam2Info> (lam,   LamInfo(man().cur_state_id())); }
     auto& new2old  (Lam* lam)         { return get<Lam2Lam>  (lam); }
-    auto& predset(Lam* lam) { return std::get<Preds>(cur_state())[lam]; }
+    Lam* original(Lam* new_lam) {
+        if (auto old_lam = new2old(new_lam))
+            return old_lam;
+        return new_lam;
+    }
 };
 
 }

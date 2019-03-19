@@ -28,12 +28,17 @@ static const Def* merge_tuple(const Def* def, Defs defs) {
     return def->world().tuple(merge(def, defs));
 }
 
+static Lam* find_mem_param(const Def* def) {
+    if (auto param = def->isa<Param>()) return param->lam();
+    return find_mem_param(def->op(0));
+}
+
 const Def* Mem2Reg::rewrite(const Def* def) {
     if (auto enter = def->isa<Enter>()) {
-        for (auto use : enter->out_frame()->uses())
-            slot2info(use->as<Slot>());
-        man().new_state();
-
+        for (auto use : enter->out_frame()->uses()) {
+            auto lam = find_mem_param(enter);
+            slot2info(use->as<Slot>(), SlotInfo(lam, man().cur_state_id())); // init
+        }
         return enter;
     } else if (auto load = def->isa<Load>()) {
         if (auto slot = load->ptr()->isa<Slot>()) {
@@ -114,8 +119,10 @@ const Def* Mem2Reg::get_val(Lam* lam, const Slot* slot) {
         return *val;
     }
 
+    if (slot2info(slot).lam == lam) return world().bot(slot->type()->pointee());
+
     switch (info.lattice) {
-        case LamInfo::Preds0: return world().bot(slot->type()->as<PtrType>()->pointee());
+        case LamInfo::Preds0: return world().bot(slot->type()->pointee());
         case LamInfo::Preds1: return set_val(lam, slot, get_val(info.pred, slot));
         default: return virtual_phi(lam, slot);
     }
@@ -177,7 +184,8 @@ void Mem2Reg::analyze(const Def* def) {
                     man().undo(info.undo);
                     break;
                 }
-                default: break;
+                default:
+                    break;
             }
 
             if (info.lattice == LamInfo::PredsN && (!def->isa<App>() || i != 0)) {

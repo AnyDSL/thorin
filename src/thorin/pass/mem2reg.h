@@ -26,11 +26,13 @@ public:
         enum Lattice { SSA, Keep_Slot };
 
         SlotInfo() = default;
-        SlotInfo(size_t undo)
-            : lattice(Lattice::SSA)
+        SlotInfo(Lam* lam, size_t undo)
+            : lam(lam)
+            , lattice(Lattice::SSA)
             , undo(undo)
         {}
 
+        Lam* lam;
         unsigned lattice :  1;
         unsigned undo    : 31;
     };
@@ -64,7 +66,8 @@ private:
     const Def* set_val(const Slot* slot, const Def* def) { return set_val(man().cur_lam(), slot, def); }
     const Def* virtual_phi(Lam*, const Slot*);
 
-    auto& slot2info(const Slot* slot) { return get<Slot2Info>(slot, SlotInfo(man().cur_state_id())); }
+    auto& slot2info(const Slot* slot, SlotInfo init) { return get<Slot2Info>(slot, std::move(init)); }
+    auto& slot2info(const Slot* slot) { return get<Slot2Info>(slot); }
     auto& lam2info (Lam* lam)         { return get<Lam2Info> (lam,   LamInfo(man().cur_state_id())); }
     auto& new2old  (Lam* lam)         { return get<Lam2Lam>  (lam); }
     Lam* original(Lam* new_lam) {

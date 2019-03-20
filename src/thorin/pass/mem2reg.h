@@ -25,10 +25,14 @@ public:
     struct SlotInfo {
         enum Lattice { SSA, Keep_Slot };
 
-        SlotInfo() = default;
+        SlotInfo()
+            : lam(nullptr)
+            , lattice(SSA)
+            , undo(0x7fffffff)
+        {}
         SlotInfo(Lam* lam, size_t undo)
             : lam(lam)
-            , lattice(Lattice::SSA)
+            , lattice(SSA)
             , undo(undo)
         {}
 
@@ -42,7 +46,7 @@ public:
 
         LamInfo() = default;
         LamInfo(size_t undo)
-            : lattice(Lattice::Preds0)
+            : lattice(Preds0)
             , undo(undo)
         {}
 

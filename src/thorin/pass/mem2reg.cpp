@@ -34,12 +34,18 @@ static Lam* find_mem_param(const Def* def) {
 }
 
 const Def* Mem2Reg::rewrite(const Def* def) {
-    if (auto enter = def->isa<Enter>()) {
-        for (auto use : enter->out_frame()->uses()) {
-            auto lam = find_mem_param(enter);
-            slot2info(use->as<Slot>(), SlotInfo(lam, man().cur_state_id())); // init
-        }
-        return enter;
+    if (auto slot = def->isa<Slot>()) {
+        auto lam = find_mem_param(slot);
+        assert(man().cur_state_id() != 0);
+        slot2info(slot, SlotInfo(lam, man().cur_state_id())); // init
+        return slot;
+    //if (auto enter = def->isa<Enter>()) {
+        //for (auto use : enter->out_frame()->uses()) {
+            //auto lam = find_mem_param(enter);
+            //assert(man().cur_state_id() != 0);
+            //slot2info(use->as<Slot>(), SlotInfo(lam, man().cur_state_id())); // init
+        //}
+        //return enter;
     } else if (auto load = def->isa<Load>()) {
         if (auto slot = load->ptr()->isa<Slot>()) {
             if (slot2info(slot).lattice == SlotInfo::Keep_Slot) return load;
@@ -90,6 +96,7 @@ void Mem2Reg::inspect(Def* def) {
 
 void Mem2Reg::enter(Def* def) {
     if (auto new_lam = def->isa<Lam>()) {
+        lam2info(new_lam).slot2val.clear(); // remove any garbage from prevous runs
         outf("enter: {}\n", new_lam);
         if (auto old_lam = new2old(new_lam)) {
             outf("enter: {}/{}\n", old_lam, new_lam);
@@ -178,12 +185,10 @@ void Mem2Reg::analyze(const Def* def) {
                     info.pred = pred;
                     assert(info.slots.empty());
                     break;
-                case LamInfo::Preds1: {
+                case LamInfo::Preds1:
                     info.lattice = LamInfo::PredsN;
-                    info.slot2val.clear();
                     man().undo(info.undo);
                     break;
-                }
                 default:
                     break;
             }

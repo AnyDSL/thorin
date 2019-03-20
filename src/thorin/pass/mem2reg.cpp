@@ -28,39 +28,48 @@ static const Def* merge_tuple(const Def* def, Defs defs) {
     return def->world().tuple(merge(def, defs));
 }
 
-static Lam* find_mem_param(const Def* def) {
-    if (auto param = def->isa<Param>()) return param->lam();
-    return find_mem_param(def->op(0));
+const Def* Mem2Reg::get_mem(const Def* def) {
+    if (auto analyze = def->isa<Analyze>(); analyze && analyze->index() == id() && analyze->num_ops() == 1)
+        return get_mem(analyze->op(0));
+    return def;
 }
 
 const Def* Mem2Reg::rewrite(const Def* def) {
     if (auto slot = def->isa<Slot>()) {
-        auto lam = find_mem_param(slot);
-        assert(man().cur_state_id() != 0);
-        const auto& info = slot2info(slot, SlotInfo(lam, man().cur_state_id())); // init
-        outf("{} -> {}\n", slot, info.undo);
-        //slot2info(slot, SlotInfo(lam, man().cur_state_id())); // init
+        slot2info(slot); // init;
+        set_val(slot->enter(), slot, world().bot(slot->type()->pointee()));
         return slot;
     } else if (auto load = def->isa<Load>()) {
         if (auto slot = load->ptr()->isa<Slot>()) {
             if (slot2info(slot).lattice == SlotInfo::Keep_Slot) return load;
-            return world().tuple({load->mem(), get_val(slot)});
+            return world().tuple({load->mem(), get_val(load->mem(), slot)});
         }
     } else if (auto store = def->isa<Store>()) {
         if (auto slot = store->ptr()->isa<Slot>()) {
             if (slot2info(slot).lattice == SlotInfo::Keep_Slot) return store;
-            set_val(slot, store->val());
-            return store->mem();
+            auto mem = world().analyze(world().mem_type(), {store->mem()}, id());
+            set_val(mem, slot, store->val());
+            return mem;
         }
     } else if (auto app = def->isa<App>()) {
         if (auto lam = app->callee()->isa_nominal<Lam>()) {
             const auto& info = lam2info(lam);
             if (auto new_lam = info.new_lam) {
-                Array<const Def*> args(info.slots.size(), [&](auto i) { return get_val(info.slots[i]); });
+                Array<const Def*> args(info.slots.size(), [&](auto i) { return get_val(app->arg(0), info.slots[i]); });
                 auto a = world().app(new_lam, merge_tuple(app->arg(), args));
                 a->dump();
                 return a;
             }
+        }
+    }
+
+    if (def->num_ops() > 1) {
+        auto new_mem = get_mem(def->op(0));
+        if (new_mem != def->op(0)) {
+            Array<const Def*> new_ops(def->ops());
+            new_ops[0] = new_mem;
+            auto res = def->rebuild(world(), def->type(), new_ops);
+            mem2slot2val(res) = mem2slot2val(def); // copy over slot2val info to new mem
         }
     }
 
@@ -70,10 +79,10 @@ const Def* Mem2Reg::rewrite(const Def* def) {
 void Mem2Reg::inspect(Def* def) {
     if (auto old_lam = def->isa<Lam>()) {
         auto& info = lam2info(old_lam);
-        if (old_lam->is_external() || old_lam->intrinsic() != Intrinsic::None)
+        if (old_lam->is_external() || old_lam->intrinsic() != Intrinsic::None || old_lam->mem_param() == nullptr) {
             info.lattice = LamInfo::Keep_Lam;
-        if (info.lattice != LamInfo::Keep_Lam) {
-            if (old_lam->mem_param()) man().new_state();
+        } else {
+            man().new_state();
 
             if (info.lattice == LamInfo::PredsN && !info.slots.empty()) {
                 assert(old_lam->mem_param());
@@ -91,63 +100,54 @@ void Mem2Reg::inspect(Def* def) {
 
 void Mem2Reg::enter(Def* def) {
     if (auto new_lam = def->isa<Lam>()) {
-        lam2info(new_lam).slot2val.clear(); // remove any garbage from prevous runs
         outf("enter: {}\n", new_lam);
         if (auto old_lam = new2old(new_lam)) {
             outf("enter: {}/{}\n", old_lam, new_lam);
-            auto& info = lam2info(old_lam);
-            size_t n = new_lam->num_params() - info.slots.size();
+            auto& slots = lam2info(old_lam).slots;
+            size_t n = new_lam->num_params() - slots.size();
 
             auto new_param = world().tuple(Array<const Def*>(n, [&](auto i) { return new_lam->param(i); }));
             man().map(old_lam->param(), new_param);
             new_lam->set(old_lam->ops());
 
-            for (size_t i = 0, e = info.slots.size(); i != e; ++i)
-                set_val(new_lam, info.slots[i], new_lam->param(n + i));
+            for (size_t i = 0, e = slots.size(); i != e; ++i)
+                set_val(new_lam->param(), slots[i], new_lam->param(n + i));
         }
     }
 }
 
-const Def* Mem2Reg::virtual_phi(Lam* new_lam, const Slot* slot) {
-    auto old_lam = original(new_lam);
-    outf("virtual phi: {}/{} for {}\n", old_lam, new_lam, slot);
-    auto& info = slot2info(slot);
-    info.undo = std::min(info.undo, lam2info(old_lam).undo);
-    std::cout << std::flush;
-    assert(slot2info(slot).undo < 1000);
-    assert(slot2info(slot).undo <= lam2info(old_lam).undo);
-    return set_val(new_lam, slot, world().analyze(slot->type()->pointee(), {old_lam, slot}, id()));
-}
-
-const Def* Mem2Reg::get_val(Lam* lam, const Slot* slot) {
-    const auto& info = lam2info(lam);
-    if (auto val = info.slot2val.lookup(slot)) {
-        outf("get_val {} for {}: {}\n", lam, slot, *val);
+const Def* Mem2Reg::get_val(const Def* mem, const Slot* slot) {
+    if (auto val = mem2slot2val(mem).lookup(slot)) {
+        outf("get_val {} for {}: {}\n", mem, slot, *val);
         return *val;
     }
 
-    if (slot2info(slot).lam != lam) {
+    if (auto param = mem->isa<Param>()) {
+        const auto& info = lam2info(param->lam());
         switch (info.lattice) {
-            case LamInfo::Preds0: break;
-            case LamInfo::Preds1: return set_val(lam, slot, get_val(info.pred, slot));
-            default: return virtual_phi(lam, slot);
+            case LamInfo::Preds0: return world().bot(slot->type()->pointee());
+            case LamInfo::Preds1: return get_val(info.pred->body()->as<App>()->arg(0), slot);
+            default: {
+                auto old_lam = original(param->lam());
+                outf("virtual phi: {}/{} for {}\n", old_lam, param->lam(), slot);
+                return set_val(param, slot, world().analyze(slot->type()->pointee(), {old_lam, slot}, id()));
+            }
         }
     }
 
-    return world().bot(slot->type()->pointee());
+    return get_val(mem->op(0), slot);
 }
 
-const Def* Mem2Reg::set_val(Lam* lam, const Slot* slot, const Def* val) {
-    outf("set_val {} for {}: {}\n", lam, slot, val);
-    return lam2info(lam).slot2val[slot] = val;
+const Def* Mem2Reg::set_val(const Def* mem, const Slot* slot, const Def* val) {
+    outf("set_val {} for {}: {}\n", mem, slot, val);
+    return mem2slot2val(mem)[slot] = val;
 }
 
 void Mem2Reg::analyze(const Def* def) {
     if (def->isa<Param>()) return;
 
     // we need to install a phi in lam next time around
-    if (auto analyze = def->isa<Analyze>(); analyze && analyze->index() == id()) {
-        assert(analyze->num_ops() == 2);
+    if (auto analyze = def->isa<Analyze>(); analyze && analyze->index() == id() && analyze->num_ops() == 2) {
         auto lam  = analyze->op(0)->as_nominal<Lam>();
         auto slot = analyze->op(1)->as<Slot>();
         auto& lam_info = lam2info(lam);
@@ -165,7 +165,7 @@ void Mem2Reg::analyze(const Def* def) {
         } else {
             assert(lam_info.lattice == LamInfo::PredsN);
             assertf(std::find(slots.begin(), slots.end(), slot) == slots.end(), "already added slot {} to {}", slot, lam);
-            assert(slot_info.undo <= lam_info.undo);
+            //assert(slot_info.undo <= lam_info.undo);
             slots.emplace_back(slot);
             man().undo(lam_info.undo);
         }

@@ -72,13 +72,10 @@ public:
     void new_state() { states_.emplace_back(cur_state(), cur_nominal(), cur_nominal()->ops(), passes_); }
     template<class D> // D may be "Def" or "const Def"
     D* map(const Def* old_def, D* new_def) { cur_state().old2new.emplace(old_def, new_def); return new_def; }
-    template<class D> // D may be "Def" or "const Def"
-    D* map_local(const Def* old_def, D* new_def) { old2new_.emplace(old_def, new_def); return new_def; }
 
     std::optional<const Def*> lookup(const Def* old_def) {
         auto& old2new = cur_state().old2new;
-        if (auto i = old2new .find(old_def); i != old2new .end()) return lookup(old2new , i);
-        if (auto i = old2new_.find(old_def); i != old2new_.end()) return lookup(old2new_, i);
+        if (auto i = old2new.find(old_def); i != old2new.end()) return lookup(old2new, i);
         return {};
     }
 
@@ -145,7 +142,6 @@ private:
     size_t time_ = 0;
     std::deque<State> states_;
     Def* cur_nominal_ = nullptr;
-    Def2Def old2new_;
 
     template<class P> friend class Pass;
 };

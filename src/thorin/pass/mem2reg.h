@@ -26,17 +26,14 @@ public:
         enum Lattice { SSA, Keep_Slot };
 
         SlotInfo()
-            : lam(nullptr)
-            , lattice(SSA)
+            : lattice(SSA)
             , undo(0x7fffffff)
         {}
-        SlotInfo(Lam* lam, size_t undo)
-            : lam(lam)
-            , lattice(SSA)
+        SlotInfo(size_t undo)
+            : lattice(SSA)
             , undo(undo)
         {}
 
-        Lam* lam;
         unsigned lattice :  1;
         unsigned undo    : 31;
     };
@@ -50,7 +47,6 @@ public:
             , undo(undo)
         {}
 
-        GIDMap<const Slot*, const Def*> slot2val;
         std::vector<const Slot*> slots;
         Lam* pred = nullptr;
         Lam* new_lam = nullptr;
@@ -58,22 +54,21 @@ public:
         unsigned undo       : 30;
     };
 
-    using Slot2Info = GIDMap<const Slot*, SlotInfo>;
-    using Lam2Info  = LamMap<LamInfo>;
-    using Lam2Lam   = LamMap<Lam*>;
-    using State     = std::tuple<Slot2Info, Lam2Info, Lam2Lam>;
+    using Slot2Info    = GIDMap<const Slot*, SlotInfo>;
+    using Lam2Info     = LamMap<LamInfo>;
+    using Lam2Lam      = LamMap<Lam*>;
+    using Mem2Slot2Val = DefMap<GIDMap<const Slot*, const Def*>>;
+    using State        = std::tuple<Slot2Info, Lam2Info, Lam2Lam, Mem2Slot2Val>;
 
 private:
-    const Def* get_val(Lam*, const Slot*);
-    const Def* get_val(const Slot* slot) { return get_val(man().cur_lam(), slot); }
-    const Def* set_val(Lam*, const Slot*, const Def*);
-    const Def* set_val(const Slot* slot, const Def* def) { return set_val(man().cur_lam(), slot, def); }
-    const Def* virtual_phi(Lam*, const Slot*);
+    const Def* get_mem(const Def*);
+    const Def* get_val(const Def*, const Slot*);
+    const Def* set_val(const Def*, const Slot*, const Def*);
 
-    auto& slot2info(const Slot* slot, SlotInfo init) { return get<Slot2Info>(slot, std::move(init)); }
-    auto& slot2info(const Slot* slot) { return get<Slot2Info>(slot); }
-    auto& lam2info (Lam* lam)         { return get<Lam2Info> (lam,   LamInfo(man().cur_state_id())); }
-    auto& new2old  (Lam* lam)         { return get<Lam2Lam>  (lam); }
+    auto& slot2info   (const Slot* slot) { return get<Slot2Info>(slot, SlotInfo(man().cur_state_id())); }
+    auto& lam2info    (Lam* lam)         { return get<Lam2Info> (lam,   LamInfo(man().cur_state_id())); }
+    auto& new2old     (Lam* lam)         { return get<Lam2Lam>  (lam); }
+    auto& mem2slot2val(const Def* mem)   { return get<Mem2Slot2Val>(mem); }
     Lam* original(Lam* new_lam) {
         if (auto old_lam = new2old(new_lam))
             return old_lam;

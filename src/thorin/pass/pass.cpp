@@ -52,7 +52,6 @@ void PassMan::run() {
                 continue;
             }
 
-            old2new_.clear();
             queue().pop();
             for (auto op : cur_nominal()->ops())
                 analyze(op);
@@ -94,7 +93,7 @@ const Def* PassMan::rewrite(const Def* old_def) {
     for (auto& pass : passes_)
         new_def = pass->rewrite(new_def);
 
-    return map_local(old_def, new_def);
+    return map(old_def, new_def);
 }
 
 void PassMan::analyze(const Def* def) {

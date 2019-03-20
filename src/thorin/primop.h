@@ -225,30 +225,6 @@ public:
 };
 
 /**
- * A slot in a stack frame opend via @p Enter.
- * A @p Slot yields a pointer to the given <tt>type</tt>.
- * Loads from this address yield @p Bottom if the frame has already been closed.
- */
-class Slot : public PrimOp {
-private:
-    Slot(const Def* type, const Def* frame, Debug dbg)
-        : PrimOp(Node_Slot, type, {frame}, dbg)
-    {
-        hash_ = murmur3(gid()); // HACK
-        assert(frame->type()->isa<FrameType>());
-    }
-
-public:
-    const Def* frame() const { return op(0); }
-    const PtrType* type() const { return PrimOp::type()->as<PtrType>(); }
-    const Def* alloced_type() const { return type()->pointee(); }
-    bool equal(const Def* other) const override;
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
-
-    friend class World;
-};
-
-/**
  * A global variable in the data segment.
  * A @p Global may be mutable or immutable.
  */
@@ -366,6 +342,31 @@ private:
 public:
     const Sigma* type() const { return MemOp::type()->as<Sigma>(); }
     const Def* out_frame() const { return out(1); }
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+
+    friend class World;
+};
+
+/**
+ * A slot in a stack frame opend via @p Enter.
+ * A @p Slot yields a pointer to the given <tt>type</tt>.
+ * Loads from this address yield @p Bottom if the frame has already been closed.
+ */
+class Slot : public PrimOp {
+private:
+    Slot(const Def* type, const Def* frame, Debug dbg)
+        : PrimOp(Node_Slot, type, {frame}, dbg)
+    {
+        hash_ = murmur3(gid()); // HACK
+        assert(frame->type()->isa<FrameType>());
+    }
+
+public:
+    const Extract* frame() const { return op(0)->as<Extract>(); }
+    const Enter* enter() const { return frame()->op(0)->as<Enter>(); }
+    const PtrType* type() const { return PrimOp::type()->as<PtrType>(); }
+    const Def* alloced_type() const { return type()->pointee(); }
+    bool equal(const Def* other) const override;
     const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
     friend class World;

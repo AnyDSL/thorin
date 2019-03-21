@@ -31,10 +31,10 @@ public:
     ///@}
     /// @name hooks for the PassMan
     //@{
-    virtual const Def* rewrite(const Def*) = 0;             ///< Rewrites @em structural @p Def%s.
-    virtual void inspect(Def*) {}                           ///< Inspects a @em nominal @p Def when first encountering it.
-    virtual void enter(Def*) {}                             ///< Invoked when a @em nominal is the top of the PassMan::queue().
-    virtual void analyze(const Def*) {}                     ///< Invoked after the @p PassMan has finished @p rewrite%ing a nominal.
+    virtual const Def* rewrite(const Def*) = 0; ///< Rewrites @em structural @p Def%s.
+    virtual void inspect(Def*) {}               ///< Inspects a @em nominal @p Def when first encountering it.
+    virtual void enter(Def*) {}                 ///< Invoked when a @em nominal is the top of the PassMan::queue().
+    virtual void analyze(const Def*) {}         ///< Invoked after the @p PassMan has finished @p rewrite%ing a nominal.
     ///@}
     /// @name mangage state - dummy implementations here
     //@{

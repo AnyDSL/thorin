@@ -58,7 +58,7 @@ public:
     using Lam2Info     = LamMap<LamInfo>;
     using Lam2Lam      = LamMap<Lam*>;
     using Mem2Slot2Val = DefMap<GIDMap<const Slot*, const Def*>>;
-    using State        = std::tuple<Slot2Info, Lam2Info, Lam2Lam, Mem2Slot2Val>;
+    using State        = std::tuple<Slot2Info, Lam2Info, Mem2Slot2Val, Lam2Lam>;
 
 private:
     const Def* get_mem(const Def*);
@@ -67,11 +67,10 @@ private:
 
     auto& slot2info   (const Slot* slot) { return get<Slot2Info>(slot, SlotInfo(man().cur_state_id())); }
     auto& lam2info    (Lam* lam)         { return get<Lam2Info> (lam,   LamInfo(man().cur_state_id())); }
-    auto& new2old     (Lam* lam)         { return get<Lam2Lam>  (lam); }
     auto& mem2slot2val(const Def* mem)   { return get<Mem2Slot2Val>(mem); }
+    auto& new2old     (Lam* lam)         { return get<Lam2Lam>  (lam); }
     Lam* original(Lam* new_lam) {
-        if (auto old_lam = new2old(new_lam))
-            return old_lam;
+        if (auto old_lam = new2old(new_lam)) return old_lam;
         return new_lam;
     }
 };

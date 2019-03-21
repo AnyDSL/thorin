@@ -4,6 +4,38 @@
 
 namespace thorin {
 
+bool CopyProp::LamInfo::join(const App* app) {
+    bool todo = false;
+    for (size_t i = 0, e = params.size(); i != e; ++i) {
+        auto& lattice = std::get<Lattice   >(params[i]);
+        auto& param   = std::get<const Def*>(params[i]);
+
+        if (lattice == Top || is_bot(app->arg(i))) continue;
+
+        if (is_bot(param)) {
+            todo |= param != app->arg(i);
+            param = app->arg(i);
+        } else if (param == app->arg(i)) {
+            /* do nothing */
+        } else {
+            lattice = Top;
+            todo = true;
+        }
+    }
+    return todo;
+}
+
+bool CopyProp::set_top(Lam* lam) {
+    bool todo = false;
+    auto& info = lam2info(lam);
+    info.new_lam = nullptr;
+    for (auto& param : info.params) {
+        todo |= std::get<Lattice>(param) != Top;
+        std::get<Lattice>(param) = Top;
+    }
+    return todo;
+}
+
 const Def* CopyProp::rewrite(const Def* def) {
     if (auto app = def->isa<App>()) {
         if (auto lam = app->callee()->isa_nominal<Lam>()) {
@@ -32,7 +64,7 @@ const Def* CopyProp::rewrite(const Def* def) {
 void CopyProp::inspect(Def* def) {
     if (auto old_lam = def->isa<Lam>()) {
         if (old_lam->is_external() || old_lam->intrinsic() != Intrinsic::None) {
-            bot(old_lam);
+            set_top(old_lam);
         } else {
             auto& info = lam2info(old_lam);
             std::vector<const Def*> new_domain;
@@ -85,14 +117,14 @@ void CopyProp::analyze(const Def* def) {
 
         for (size_t i = 0, e = app->num_args(); i != e; ++i) {
             if (auto lam = app->arg(i)->isa_nominal<Lam>()) {
-                if (bot(lam))
+                if (set_top(lam))
                     man().undo(lam2info(lam).undo);
             }
         }
     } else {
         for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
             if (auto lam = def->op(i)->isa_nominal<Lam>())
-                if (bot(lam))
+                if (set_top(lam))
                     man().undo(lam2info(lam).undo);
         }
     }

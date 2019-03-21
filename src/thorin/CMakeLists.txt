@@ -27,16 +27,18 @@ set(THORIN_SOURCES
     analyses/verify.h
     be/c.cpp
     be/c.h
-    pass/optimize.cpp
-    pass/optimize.h
-    pass/pass.cpp
-    pass/pass.h
+    pass/copy_prop.cpp
+    pass/copy_prop.h
     pass/inliner.cpp
     pass/inliner.h
     pass/mem2reg.cpp
     pass/mem2reg.h
+    pass/optimize.cpp
+    pass/optimize.h
     pass/partial_eval.cpp
     pass/partial_eval.h
+    pass/pass.cpp
+    pass/pass.h
     tables/allnodes.h
     tables/arithoptable.h
     tables/cmptable.h

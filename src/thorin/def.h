@@ -449,6 +449,9 @@ public:
     //@{
     const Pi* type() const { return Def::type()->as<Pi>(); }
     const Def* domain() const { return type()->domain(); }
+    const Def* domain(size_t i) const { return type()->domain(i); }
+    Array<const Def*> domains() const { return type()->domains(); }
+    size_t num_domains() const { return type()->num_domains(); }
     const Def* codomain() const { return type()->codomain(); }
     //@}
     /// @name ops

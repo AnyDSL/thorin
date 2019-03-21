@@ -63,6 +63,7 @@ const Def* Mem2Reg::rewrite(const Def* def) {
         }
     }
 
+#if 0
     if (def->num_ops() > 1) {
         auto new_mem = get_mem(def->op(0));
         if (new_mem != def->op(0)) {
@@ -72,6 +73,7 @@ const Def* Mem2Reg::rewrite(const Def* def) {
             mem2slot2val(res) = mem2slot2val(def); // copy over slot2val info to new mem
         }
     }
+#endif
 
     return def;
 }
@@ -81,7 +83,7 @@ void Mem2Reg::inspect(Def* def) {
         auto& info = lam2info(old_lam);
         if (old_lam->is_external() || old_lam->intrinsic() != Intrinsic::None || old_lam->mem_param() == nullptr) {
             info.lattice = LamInfo::Keep_Lam;
-        } else {
+        } else if (info.lattice != LamInfo::Keep_Lam) {
             man().new_state();
 
             if (info.lattice == LamInfo::PredsN && !info.slots.empty()) {

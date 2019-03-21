@@ -90,9 +90,10 @@ void CopyProp::enter(Def* def) {
         if (auto old_lam = new2old(new_lam)) {
             auto& info = lam2info(old_lam);
             size_t n = info.params.size();
+            size_t j = 0;
             auto new_param = world().tuple(Array<const Def*>(n, [&](auto i) {
                 if (std::get<Lattice>(info.params[i]) == Top)
-                    return new_lam->param(i);
+                    return new_lam->param(j++);
                 return std::get<const Def*>(info.params[i]);
             }));
             man().map(old_lam->param(), new_param);
@@ -106,8 +107,8 @@ void CopyProp::analyze(const Def* def) {
 
     if (auto app = def->isa<App>()) {
         if (auto lam = app->callee()->isa_nominal<Lam>()) {
-            if (auto old_lam = new2old(lam)) {
-                auto& info = lam2info(old_lam);
+            if (new2old(lam) == nullptr) {
+                auto& info = lam2info(lam);
                 if (info.join(app)) {
                     man().undo(info.undo);
                     info.new_lam = nullptr;
@@ -115,11 +116,9 @@ void CopyProp::analyze(const Def* def) {
             }
         }
 
-        for (size_t i = 0, e = app->num_args(); i != e; ++i) {
-            if (auto lam = app->arg(i)->isa_nominal<Lam>()) {
-                if (set_top(lam))
-                    man().undo(lam2info(lam).undo);
-            }
+        if (auto lam = app->arg()->isa_nominal<Lam>()) {
+            if (set_top(lam))
+                man().undo(lam2info(lam).undo);
         }
     } else {
         for (size_t i = 0, e = def->num_ops(); i != e; ++i) {

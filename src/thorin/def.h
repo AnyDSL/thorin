@@ -411,7 +411,6 @@ enum class Intrinsic : uint8_t {
     Atomic,                     ///< Intrinsic atomic function
     CmpXchg,                    ///< Intrinsic cmpxchg function
     Undef,                      ///< Intrinsic undef function
-    Branch,                     ///< branch(cond, T, F).
     Match,                      ///< match(val, otherwise, (case1, cont1), (case2, cont2), ...)
     PeInfo,                     ///< Partial evaluation debug info.
     EndScope,                   ///< Dummy function which marks the end of a @p Scope.
@@ -483,7 +482,7 @@ public:
     //@{
     void app(const Def* callee, const Def* arg, Debug dbg = {});
     void app(const Def* callee, Defs args, Debug dbg = {});
-    void branch(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
+    void branch(const Def* cond, const Def* t, const Def* f, const Def* mem, Debug dbg = {});
     void match(const Def* val, Lam* otherwise, Defs patterns, ArrayRef<Lam*> lams, Debug dbg = {});
     //@}
     /// @name rebuild, stub

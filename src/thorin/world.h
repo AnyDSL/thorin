@@ -305,8 +305,12 @@ public:
     /// @name misc operations
     //@{
     const Def* analyze(const Def* type, Defs ops, u64 index, Debug dbg = {}) { return unify<Analyze>(ops.size(), type, ops, index, dbg); }
-    const Def* select(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
     const Def* size_of(const Def* type, Debug dbg = {});
+    //@}
+    /// @name select
+    //@{
+    const Def* select(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
+    const Def* branch(const Def* cond, const Def* t, const Def* f, const Def* mem, Debug dbg = {}) { return app(select(cond, t, f, dbg), mem, dbg); }
     //@}
     // TODO not all of them are axioms right now
     /// @name Axioms
@@ -315,10 +319,8 @@ public:
     Axiom* axiom(const Def* type, Debug dbg = {}) { return axiom(type, nullptr, dbg); }
     std::optional<Axiom*> lookup_axiom(Symbol name) { return axioms_.lookup(name); }
     Axiom* type_nat() { return cache_.type_nat_; }
-    Lam* branch() const { return cache_.branch_; }
     Lam* match(const Def* type, size_t num_patterns);
     Lam* end_scope() const { return cache_.end_scope_; }
-    const Def* branch(const Def* cond, const Def* t, const Def* f, Debug dbg = {}) { return app(branch(), {cond, t, f}, dbg); }
     //@}
 
     /// Performs dead code, unreachable code and unused type elimination.
@@ -501,7 +503,6 @@ private:
         std::array<const Lit*, 2> lit_bool_;
         const Lit* lit_arity_1_;
         const Lit* lit_index_0_1_;
-        Lam* branch_;
         Lam* end_scope_;
     } cache_;
 

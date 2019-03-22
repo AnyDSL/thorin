@@ -10,7 +10,6 @@ Rewriter::Rewriter(World& old_world, World& new_world, const Scope* scope)
     , new_world(new_world)
     , scope(scope)
 {
-    old2new[old_world.branch()]    = new_world.branch();
     old2new[old_world.end_scope()] = new_world.end_scope();
     old2new[old_world.universe()]  = new_world.universe();
 }

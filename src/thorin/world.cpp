@@ -55,7 +55,6 @@ World::World(uint32_t cur_gid, Debug debug)
     cache_.lit_nat_0_     = lit_nat(0);
     cache_.lit_bool_[0]   = lit(type_bool(), {false});
     cache_.lit_bool_[1]   = lit(type_bool(), {true});
-    cache_.branch_        = lam(cn(sigma({type_bool(), cn(), cn()})), CC::C, Intrinsic::Branch, Debug{"br"});
     cache_.end_scope_     = lam(cn(), CC::C, Intrinsic::EndScope, {"end_scope"});
 
     for (size_t j = 0; j != cache_.lit_nat_.size(); ++j)
@@ -71,33 +70,16 @@ const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
     assertf(pi->domain() == arg->type(), "callee '{}' expects an argument of type '{}' but the argument '{}' is of type '{}'\n", callee, pi->domain(), arg, arg->type());
 
     if (auto lam = callee->isa<Lam>()) {
-        switch (lam->intrinsic()) {
-            case Intrinsic::Branch: {
-                auto cond = extract(arg, 0_s);
-                auto t    = extract(arg, 1_s);
-                auto f    = extract(arg, 2_s);
-                if (auto lit = isa_lit<bool>(cond))
-                    return app(*lit ? t : f, Defs{}, dbg);
-                if (t == f)
-                    return app(t, Defs{}, dbg);
-                if (is_not(cond))
-                    return branch(cond->as<ArithOp>()->rhs(), f, t, dbg);
-                break;
-            }
-            case Intrinsic::Match: {
-                auto args = arg->as<Tuple>()->ops();
-                if (args.size() == 2) return app(args[1], Defs{}, dbg);
-                if (auto lit = args[0]->isa<Lit>()) {
-                    for (size_t i = 2; i < args.size(); i++) {
-                        if (extract(args[i], 0_s)->as<Lit>() == lit)
-                            return app(extract(args[i], 1), Defs{}, dbg);
-                    }
-                    return app(args[1], Defs{}, dbg);
+        if (lam->intrinsic() == Intrinsic::Match) {
+            auto args = arg->as<Tuple>()->ops();
+            if (args.size() == 2) return app(args[1], Defs{}, dbg);
+            if (auto lit = args[0]->isa<Lit>()) {
+                for (size_t i = 2; i < args.size(); i++) {
+                    if (extract(args[i], 0_s)->as<Lit>() == lit)
+                        return app(extract(args[i], 1), Defs{}, dbg);
                 }
-                break;
+                return app(args[1], Defs{}, dbg);
             }
-            default:
-                break;
         }
     }
 
@@ -1048,12 +1030,6 @@ std::vector<Lam*> World::copy_lams() const {
  * optimizations
  */
 
-#if 0
-void World::cleanup() {}
-
-void World::opt() { optimize(*this); }
-#else
-
 void World::cleanup() { cleanup_world(*this); }
 
 void World::opt() {
@@ -1073,7 +1049,6 @@ void World::opt() {
     codegen_prepare(*this);
     //rewrite_flow_graphs(*this);
 }
-#endif
 
 /*
  * stream

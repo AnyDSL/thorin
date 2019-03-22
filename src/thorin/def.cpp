@@ -370,7 +370,7 @@ void Lam::set_intrinsic() {
 
 bool Lam::is_basicblock() const { return type()->is_basicblock(); }
 bool Lam::is_returning() const { return type()->is_returning(); }
-void Lam::branch(const Def* cond, const Def* t, const Def* f, Debug dbg) { return app(world().branch(), {cond, t, f}, dbg); }
+void Lam::branch(const Def* cond, const Def* t, const Def* f, const Def* mem, Debug dbg) { return set_body(world().branch(cond, t, f, mem, dbg)); }
 void Lam::app(const Def* callee, Defs args, Debug dbg) { app(callee, world().tuple(args), dbg); }
 
 void Lam::app(const Def* callee, const Def* arg, Debug dbg) {

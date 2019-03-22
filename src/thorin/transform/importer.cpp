@@ -5,7 +5,6 @@ namespace thorin {
 Importer::Importer(World& src)
     : world_(src)
 {
-    old2new_[src.branch()]    = world().branch();
     old2new_[src.end_scope()] = world().end_scope();
     old2new_[src.universe()]  = world().universe();
 }

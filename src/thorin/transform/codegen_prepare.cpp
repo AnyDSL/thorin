@@ -26,15 +26,11 @@ static bool replace_param(const Def* param, const Def* replace_with) {
                     }
                 }
             }
-        } else if (auto tuple = use->isa<Tuple>()) {
-            // The return parameter is used in a tuple,
-            // which can be an argument to an App node
-            auto& world = tuple->world();
-            Array<const Def*> args(tuple->num_ops());
-            for (size_t i = 0, n = tuple->num_ops(); i < n; ++i)
-                args[i] = tuple->op(i);
-            args[use.index()] = replace_with;
-            dirty |= replace_param(tuple, world.tuple(args));
+        } else if (!use->isa_nominal()) {
+            auto& world = use->world();
+            Array<const Def*> new_ops(use->ops());
+            new_ops[use.index()] = replace_with;
+            dirty |= replace_param(use, use->rebuild(world, use->type(), new_ops));
         }
     }
     return dirty;

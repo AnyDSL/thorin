@@ -363,10 +363,10 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                         irbuilder_.CreateRet(agg);
                     }
                 }
-            } else if (lam->app()->callee() == world().branch()) {
-                auto cond = lookup(lam->app()->arg(0));
-                auto tbb = bb2lam[lam->app()->arg(1)->as_nominal<Lam>()];
-                auto fbb = bb2lam[lam->app()->arg(2)->as_nominal<Lam>()];
+            } else if (auto select = lam->app()->callee()->isa<Select>()) {
+                auto cond = lookup(select->cond());
+                auto tbb = bb2lam[select->tval()->as_nominal<Lam>()];
+                auto fbb = bb2lam[select->fval()->as_nominal<Lam>()];
                 irbuilder_.CreateCondBr(cond, tbb, fbb);
             } else if (lam->app()->callee()->isa<Lam>() &&
                        lam->app()->callee()->as<Lam>()->intrinsic() == Intrinsic::Match) {

@@ -34,7 +34,6 @@ private:
     {
         assert(is_type_bool(cond->type()));
         assert(tval->type() == fval->type() && "types of both values must be equal");
-        assert(!tval->type()->isa<Pi>() && "must not be a function");
     }
 
 public:

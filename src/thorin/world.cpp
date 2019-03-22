@@ -1057,8 +1057,8 @@ void World::opt() { optimize(*this); }
 void World::cleanup() { cleanup_world(*this); }
 
 void World::opt() {
-    optimize(*this);
-    return;
+    //optimize(*this);
+    //return;
     cleanup();
     while (partial_evaluation(*this, true)); // lower2cff
     flatten_tuples(*this);

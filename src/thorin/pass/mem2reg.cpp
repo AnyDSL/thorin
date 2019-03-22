@@ -28,12 +28,6 @@ static const Def* merge_tuple(const Def* def, Defs defs) {
     return def->world().tuple(merge(def, defs));
 }
 
-const Def* Mem2Reg::get_mem(const Def* def) {
-    if (auto analyze = def->isa<Analyze>(); analyze && analyze->index() == id() && analyze->num_ops() == 1)
-        return get_mem(analyze->op(0));
-    return def;
-}
-
 const Def* Mem2Reg::rewrite(const Def* def) {
     if (auto slot = def->isa<Slot>()) {
         slot2info(slot); // init;
@@ -41,15 +35,15 @@ const Def* Mem2Reg::rewrite(const Def* def) {
         return slot;
     } else if (auto load = def->isa<Load>()) {
         if (auto slot = load->ptr()->isa<Slot>()) {
-            if (slot2info(slot).lattice == SlotInfo::Keep_Slot) return load;
-            return world().tuple({load->mem(), get_val(load->mem(), slot)});
+            if (slot2info(slot).lattice == SlotInfo::SSA)
+                return world().tuple({load->mem(), get_val(load->mem(), slot)});
         }
     } else if (auto store = def->isa<Store>()) {
         if (auto slot = store->ptr()->isa<Slot>()) {
-            if (slot2info(slot).lattice == SlotInfo::Keep_Slot) return store;
-            auto mem = world().analyze(world().mem_type(), {store->mem()}, id());
-            set_val(mem, slot, store->val());
-            return mem;
+            if (slot2info(slot).lattice == SlotInfo::SSA) {
+                set_val(store->mem(), slot, store->val());
+                return store->mem();
+            }
         }
     } else if (auto app = def->isa<App>()) {
         if (auto lam = app->callee()->isa_nominal<Lam>()) {
@@ -62,18 +56,6 @@ const Def* Mem2Reg::rewrite(const Def* def) {
             }
         }
     }
-
-#if 0
-    if (def->num_ops() > 1) {
-        auto new_mem = get_mem(def->op(0));
-        if (new_mem != def->op(0)) {
-            Array<const Def*> new_ops(def->ops());
-            new_ops[0] = new_mem;
-            auto res = def->rebuild(world(), def->type(), new_ops);
-            mem2slot2val(res) = mem2slot2val(def); // copy over slot2val info to new mem
-        }
-    }
-#endif
 
     return def;
 }
@@ -149,7 +131,8 @@ void Mem2Reg::analyze(const Def* def) {
     if (def->isa<Param>()) return;
 
     // we need to install a phi in lam next time around
-    if (auto analyze = def->isa<Analyze>(); analyze && analyze->index() == id() && analyze->num_ops() == 2) {
+    if (auto analyze = def->isa<Analyze>(); analyze && analyze->index() == id()) {
+        assert(analyze->num_ops() == 2);
         auto lam  = analyze->op(0)->as_nominal<Lam>();
         auto slot = analyze->op(1)->as<Slot>();
         auto& lam_info = lam2info(lam);

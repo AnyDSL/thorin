@@ -61,7 +61,6 @@ public:
     using State        = std::tuple<Slot2Info, Lam2Info, Mem2Slot2Val, Lam2Lam>;
 
 private:
-    const Def* get_mem(const Def*);
     const Def* get_val(const Def*, const Slot*);
     const Def* set_val(const Def*, const Slot*, const Def*);
 

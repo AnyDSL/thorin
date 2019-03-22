@@ -1,5 +1,6 @@
 #include "thorin/primop.h"
 #include "thorin/world.h"
+#include "thorin/util.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/verify.h"

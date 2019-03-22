@@ -1,6 +1,7 @@
+#include "thorin/util.h"
+#include "thorin/world.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/schedule.h"
-#include "thorin/world.h"
 
 namespace thorin {
 

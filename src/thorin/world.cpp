@@ -4,6 +4,7 @@
 
 #include "thorin/def.h"
 #include "thorin/primop.h"
+#include "thorin/util.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/pass/optimize.h"
 #include "thorin/transform/cleanup_world.h"
@@ -1033,8 +1034,7 @@ std::vector<Lam*> World::copy_lams() const {
 void World::cleanup() { cleanup_world(*this); }
 
 void World::opt() {
-    //optimize(*this);
-    //return;
+    optimize(*this);
     cleanup();
     while (partial_evaluation(*this, true)); // lower2cff
     flatten_tuples(*this);

@@ -1,4 +1,5 @@
 #include "thorin/world.h"
+#include "thorin/util.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/transform/mangle.h"
 

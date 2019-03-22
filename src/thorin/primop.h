@@ -2,7 +2,7 @@
 #define THORIN_PRIMOP_H
 
 #include "thorin/config.h"
-#include "thorin/def.h"
+#include "thorin/util.h"
 #include "thorin/enums.h"
 
 namespace thorin {
@@ -236,7 +236,6 @@ private:
     {
         extra<Extra>().is_mutable_ = is_mutable;
         hash_ = murmur3(gid()); // HACK
-        assert(is_const(init));
     }
 
 public:

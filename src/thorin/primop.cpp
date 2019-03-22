@@ -2,6 +2,7 @@
 
 #include "thorin/config.h"
 #include "thorin/world.h"
+#include "thorin/util.h"
 #include "thorin/util/array.h"
 
 namespace thorin {

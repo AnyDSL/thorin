@@ -1,4 +1,5 @@
 #include "thorin/primop.h"
+#include "thorin/util.h"
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/scope.h"
 

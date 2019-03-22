@@ -6,143 +6,11 @@
 #include <stack>
 
 #include "thorin/primop.h"
+#include "thorin/util.h"
 #include "thorin/world.h"
 #include "thorin/util/log.h"
 
 namespace thorin {
-
-//------------------------------------------------------------------------------
-
-/*
- * helpers
- */
-
-bool is_unit(const Def* def) {
-    return def->type() == def->world().sigma();
-}
-
-bool is_const(const Def* def) {
-    unique_stack<DefSet> stack;
-    stack.push(def);
-
-    while (!stack.empty()) {
-        auto def = stack.pop();
-        if (def->isa<Param>()) return false;
-        if (def->isa<Hlt>()) return false;
-        if (!def->isa_nominal()) {
-            for (auto op : def->ops())
-                stack.push(op);
-        }
-        // lams are always const
-    }
-
-    return true;
-}
-
-bool is_primlit(const Def* def, int64_t val) {
-    if (auto lit = def->isa<Lit>()) {
-        if (auto prim_type = lit->type()->isa<PrimType>()) {
-            switch (prim_type->primtype_tag()) {
-#define THORIN_I_TYPE(T, M) case PrimType_##T: return lit->box().get_##T() == T(val);
-#include "thorin/tables/primtypetable.h"
-                case PrimType_bool: return lit->box().get_bool() == bool(val);
-                default: ; // FALLTHROUGH
-            }
-        }
-    }
-
-    return false;
-}
-
-bool is_minus_zero(const Def* def) {
-    if (auto lit = def->isa<Lit>()) {
-        if (auto prim_type = lit->type()->isa<PrimType>()) {
-            switch (prim_type->primtype_tag()) {
-#define THORIN_I_TYPE(T, M) case PrimType_##T: return lit->box().get_##M() == M(0);
-#define THORIN_F_TYPE(T, M) case PrimType_##T: return lit->box().get_##M() == M(-0.0);
-#include "thorin/tables/primtypetable.h"
-                default: THORIN_UNREACHABLE;
-            }
-        }
-    }
-    return false;
-}
-
-void app_to_dropped_app(Lam* src, Lam* dst, const App* app) {
-    std::vector<const Def*> nargs;
-    auto src_app = src->body()->as<App>();
-    for (size_t i = 0, e = src_app->num_args(); i != e; ++i) {
-        if (is_top(app->arg(i)))
-            nargs.push_back(src_app->arg(i));
-    }
-
-    src->app(dst, nargs, src_app->debug());
-}
-
-// TODO remove
-Lam* get_param_lam(const Def* def) {
-    if (auto extract = def->isa<Extract>())
-        return extract->agg()->as<Param>()->lam();
-    return def->as<Param>()->lam();
-}
-
-// TODO remove
-size_t get_param_index(const Def* def) {
-    if (auto extract = def->isa<Extract>())
-        return as_lit<size_t>(extract->index());
-    assert(def->isa<Param>());
-    return 0;
-}
-
-std::vector<Peek> peek(const Def* param) {
-    std::vector<Peek> peeks;
-    size_t index = get_param_index(param);
-    for (auto use : get_param_lam(param)->uses()) {
-        if (auto app = use->isa<App>()) {
-            for (auto use : app->uses()) {
-                if (auto pred = use->isa_nominal<Lam>()) {
-                    if (pred->body() == app)
-                        peeks.emplace_back(app->arg(index), pred);
-                }
-            }
-        }
-    }
-
-    return peeks;
-}
-
-bool visit_uses(Lam* lam, std::function<bool(Lam*)> func, bool include_globals) {
-    if (!lam->is_intrinsic()) {
-        for (auto use : lam->uses()) {
-            auto def = include_globals && use->isa<Global>() ? use->uses().begin()->def() : use.def();
-            if (auto lam = def->isa_nominal<Lam>())
-                if (func(lam))
-                    return true;
-        }
-    }
-    return false;
-}
-
-bool visit_capturing_intrinsics(Lam* lam, std::function<bool(Lam*)> func, bool include_globals) {
-    return visit_uses(lam, [&] (Lam* lam) {
-        if (auto callee = lam->app()->callee()->isa_nominal<Lam>())
-            return callee->is_intrinsic() && func(callee);
-        return false;
-    }, include_globals);
-}
-
-bool is_tuple_arg_of_app(const Def* def) {
-    if (!def->isa<Tuple>()) return false;
-    for (auto& use : def->uses()) {
-        if (use.index() == 1 && use->isa<App>())
-            continue;
-        if (!is_tuple_arg_of_app(use.def()))
-            return false;
-    }
-    return true;
-}
-
-//------------------------------------------------------------------------------
 
 /*
  * Def
@@ -245,6 +113,8 @@ Array<const Def*> App::args() const { return Array<const Def*>(num_args(), [&](a
 /*
  * Lam
  */
+
+bool Lam::is_empty() const { return is_bot(body()); }
 
 void Lam::destroy() {
     set_filter(world().tuple(Array<const Def*>(type()->num_domains(), world().lit(false))));
@@ -394,6 +264,8 @@ void Lam::match(const Def* val, Lam* otherwise, Defs patterns, ArrayRef<Lam*> la
  * Pi
  */
 
+bool Pi::is_cn() const { return is_bot(codomain()); }
+
 Array<const Def*> Pi::domains() const {
     size_t n = num_domains();
     Array<const Def*> domains(n);
@@ -468,6 +340,12 @@ Def::Def(NodeTag tag, const Def* type, size_t num_ops, Debug dbg)
     , hash_(murmur3(gid()))
 {
     std::fill_n(ops_ptr(), num_ops, nullptr);
+}
+
+App::App(const Def* type, const Def* callee, const Def* arg, Debug dbg)
+    : Def(Node_App, type, {callee, arg}, dbg)
+{
+    if (is_bot(type)) hash_ = murmur3(gid());
 }
 
 static inline const char* kind2str(NodeTag tag) {

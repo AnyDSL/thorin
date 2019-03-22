@@ -7,6 +7,8 @@ set(THORIN_SOURCES
     primop.h
     rewrite.cpp
     rewrite.h
+    util.cpp
+    util.h
     world.cpp
     world.h
     analyses/cfg.cpp

@@ -1,4 +1,5 @@
 #include "thorin/world.h"
+#include "thorin/util.h"
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/free_defs.h"
 #include "thorin/analyses/scope.h"

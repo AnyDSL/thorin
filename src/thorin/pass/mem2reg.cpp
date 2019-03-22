@@ -1,32 +1,9 @@
 #include "thorin/pass/mem2reg.h"
 
-#include "thorin/transform/mangle.h"
+#include "thorin/util.h"
 #include "thorin/util/log.h"
 
 namespace thorin {
-
-static Array<const Def*> merge(const Def* def, Defs defs) {
-    return Array<const Def*>(defs.size() + 1, [&](auto i) { return i == 0 ? def : defs[i-1]; });
-}
-
-static Array<const Def*> merge_tuple_or_sigma(const Def* tuple_or_sigma, Defs defs) {
-    Array<const Def*> result(tuple_or_sigma->num_ops() + defs.size());
-    auto i = std::copy(tuple_or_sigma->ops().begin(), tuple_or_sigma->ops().end(), result.begin());
-    std::copy(defs.begin(), defs.end(), i);
-    return result;
-}
-
-static const Def* merge_sigma(const Def* def, Defs defs) {
-    if (auto sigma = def->isa<Sigma>(); sigma && !sigma->isa_nominal())
-        return def->world().sigma(merge_tuple_or_sigma(sigma, defs));
-    return def->world().sigma(merge(def, defs));
-}
-
-static const Def* merge_tuple(const Def* def, Defs defs) {
-    if (auto tuple = def->isa<Tuple>(); tuple && !tuple->type()->isa_nominal())
-        return def->world().tuple(merge_tuple_or_sigma(tuple, defs));
-    return def->world().tuple(merge(def, defs));
-}
 
 const Def* Mem2Reg::rewrite(const Def* def) {
     if (auto slot = def->isa<Slot>()) {
@@ -34,25 +11,19 @@ const Def* Mem2Reg::rewrite(const Def* def) {
         set_val(slot->enter(), slot, world().bot(slot->type()->pointee()));
         return slot;
     } else if (auto load = def->isa<Load>()) {
-        if (auto slot = load->ptr()->isa<Slot>()) {
-            if (slot2info(slot).lattice == SlotInfo::SSA)
-                return world().tuple({load->mem(), get_val(load->mem(), slot)});
-        }
+        if (auto slot = load->ptr()->isa<Slot>(); slot && slot2info(slot).lattice == SlotInfo::SSA)
+            return world().tuple({load->mem(), get_val(load->mem(), slot)});
     } else if (auto store = def->isa<Store>()) {
-        if (auto slot = store->ptr()->isa<Slot>()) {
-            if (slot2info(slot).lattice == SlotInfo::SSA) {
-                set_val(store->mem(), slot, store->val());
-                return store->mem();
-            }
+        if (auto slot = store->ptr()->isa<Slot>(); slot && slot2info(slot).lattice == SlotInfo::SSA) {
+            set_val(store->mem(), slot, store->val());
+            return store->mem();
         }
     } else if (auto app = def->isa<App>()) {
         if (auto lam = app->callee()->isa_nominal<Lam>()) {
             const auto& info = lam2info(lam);
             if (auto new_lam = info.new_lam) {
                 Array<const Def*> args(info.slots.size(), [&](auto i) { return get_val(app->arg(0), info.slots[i]); });
-                auto a = world().app(new_lam, merge_tuple(app->arg(), args));
-                a->dump();
-                return a;
+                return world().app(new_lam, merge_tuple(app->arg(), args));
             }
         }
     }

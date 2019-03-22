@@ -8,7 +8,7 @@ namespace thorin {
 // TODO remove
 template<typename T> void print_queue(T q) {
     std::cout << "  ";
-    while(!q.empty()) {
+    while (!q.empty()) {
         outf("{}/{} ", std::get<0>(q.top()), std::get<1>(q.top()));
         q.pop();
     }

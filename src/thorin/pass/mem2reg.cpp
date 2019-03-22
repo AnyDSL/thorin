@@ -5,16 +5,22 @@
 
 namespace thorin {
 
+const Slot* Mem2Reg::is_ssa_slot(const Def* ptr) {
+    if (auto slot = ptr->isa<Slot>(); slot && slot2info(slot).lattice == SlotInfo::SSA)
+        return slot;
+    return nullptr;
+}
+
 const Def* Mem2Reg::rewrite(const Def* def) {
     if (auto slot = def->isa<Slot>()) {
         slot2info(slot); // init;
         set_val(slot->enter(), slot, world().bot(slot->type()->pointee()));
         return slot;
     } else if (auto load = def->isa<Load>()) {
-        if (auto slot = load->ptr()->isa<Slot>(); slot && slot2info(slot).lattice == SlotInfo::SSA)
+        if (auto slot = is_ssa_slot(load->ptr()))
             return world().tuple({load->mem(), get_val(load->mem(), slot)});
     } else if (auto store = def->isa<Store>()) {
-        if (auto slot = store->ptr()->isa<Slot>(); slot && slot2info(slot).lattice == SlotInfo::SSA) {
+        if (auto slot = is_ssa_slot(store->ptr())) {
             set_val(store->mem(), slot, store->val());
             return store->mem();
         }

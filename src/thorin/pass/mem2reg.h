@@ -25,10 +25,7 @@ public:
     struct SlotInfo {
         enum Lattice { SSA, Keep_Slot };
 
-        SlotInfo()
-            : lattice(SSA)
-            , undo(0x7fffffff)
-        {}
+        SlotInfo() = default;
         SlotInfo(size_t undo)
             : lattice(SSA)
             , undo(undo)
@@ -61,6 +58,7 @@ public:
     using State        = std::tuple<Slot2Info, Lam2Info, Mem2Slot2Val, Lam2Lam>;
 
 private:
+    const Slot* is_ssa_slot(const Def*);
     const Def* get_val(const Def*, const Slot*);
     const Def* set_val(const Def*, const Slot*, const Def*);
 

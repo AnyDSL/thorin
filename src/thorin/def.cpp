@@ -345,7 +345,7 @@ Def::Def(NodeTag tag, const Def* type, size_t num_ops, Debug dbg)
 App::App(const Def* type, const Def* callee, const Def* arg, Debug dbg)
     : Def(Node_App, type, {callee, arg}, dbg)
 {
-    if (is_bot(type)) hash_ = murmur3(gid());
+    //if (is_bot(type)) hash_ = murmur3(gid());
 }
 
 static inline const char* kind2str(NodeTag tag) {

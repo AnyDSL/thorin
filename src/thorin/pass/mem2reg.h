@@ -20,6 +20,7 @@ public:
     const Def* rewrite(const Def*) override;
     void inspect(Def*) override;
     void enter(Def*) override;
+    void reenter(Def*) override;
     void analyze(const Def*) override;
 
     struct ProxyInfo {
@@ -53,6 +54,7 @@ public:
         GIDSet<const Analyze*> writable;
         Lam* pred = nullptr;
         Lam* new_lam = nullptr;
+        unsigned num_slots = 0;
         unsigned lattice    :  2;
         unsigned undo       : 30;
     };

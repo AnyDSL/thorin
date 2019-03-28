@@ -34,6 +34,8 @@ void PassMan::run() {
                 for (auto& pass : passes_)
                     pass->enter(cur_nominal_);
             }
+            for (auto& pass : passes_)
+                pass->reenter(cur_nominal_);
 
             outf("\ncur: {} {}\n", cur_state_id(), cur_nominal());
             outf("Q: ");
@@ -91,7 +93,12 @@ const Def* PassMan::rewrite(const Def* old_def) {
         return new_op;
     });
 
-    auto new_def = changed ? old_def->rebuild(world(), new_type, new_ops) : old_def;
+    auto new_def = old_def;
+    if (changed) {
+        new_def = old_def->rebuild(world(), new_type, new_ops);
+        if (auto def = lookup(new_def)) return *def;
+    }
+
     for (auto& pass : passes_)
         new_def = pass->rewrite(new_def);
 

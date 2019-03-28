@@ -14,7 +14,7 @@ const Analyze* Mem2Reg::isa_proxy(const Def* ptr) {
 
 const Def* Mem2Reg::rewrite(const Def* def) {
     if (auto slot = def->isa<Slot>()) {
-        auto proxy = world().analyze(slot->out_ptr_type(), {man().cur_lam(), slot->mem()}, id(), slot->debug());
+        auto proxy = world().analyze(slot->out_ptr_type(), {man().cur_lam(), world().lit_nat(lam2info(man().cur_lam()).num_slots++)}, id(), slot->debug());
         auto& info = proxy2info(proxy, man().cur_state_id());
         outf("slot: {}\n", proxy);
         if (info.lattice == ProxyInfo::SSA) {
@@ -73,10 +73,6 @@ void Mem2Reg::inspect(Def* def) {
 void Mem2Reg::enter(Def* def) {
     if (auto new_lam = def->isa<Lam>()) {
         outf("enter: {}\n", new_lam);
-        // remove any potential garbage from previous runs
-        auto& info =lam2info(new_lam);
-        info.proxy2val.clear();
-
         if (auto old_lam = new2old(new_lam)) {
             outf("enter: {}/{}\n", old_lam, new_lam);
             auto& proxies = lam2info(old_lam).proxies;
@@ -85,6 +81,21 @@ void Mem2Reg::enter(Def* def) {
             auto new_param = world().tuple(Array<const Def*>(n, [&](auto i) { return new_lam->param(i); }));
             man().map(old_lam->param(), new_param);
             new_lam->set(old_lam->ops());
+        }
+    }
+}
+
+void Mem2Reg::reenter(Def* def) {
+    if (auto new_lam = def->isa<Lam>()) {
+        outf("enter: {}\n", new_lam);
+        // remove any potential garbage from previous runs
+        auto& info = lam2info(new_lam);
+        info.proxy2val.clear();
+        info.num_slots = 0;
+        if (auto old_lam = new2old(new_lam)) {
+            outf("enter: {}/{}\n", old_lam, new_lam);
+            auto& proxies = lam2info(old_lam).proxies;
+            size_t n = new_lam->num_params() - proxies.size();
 
             for (size_t i = 0, e = proxies.size(); i != e; ++i) {
                 auto proxy = proxies[i];

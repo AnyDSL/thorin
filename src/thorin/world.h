@@ -251,7 +251,6 @@ public:
         return cache_.primtypes_[i];
     }
     const MemType* mem_type() const { return cache_.mem_; }
-    const FrameType* frame_type() const { return cache_.frame_; }
     const PtrType* ptr_type(const Def* pointee, AddrSpace addr_space = AddrSpace::Generic, Debug dbg = {}) { return unify<PtrType>(1, kind_star(), pointee, addr_space, dbg); }
     //@}
     /// @name ArithOps
@@ -286,9 +285,8 @@ public:
     //@{
     const Def* load(const Def* mem, const Def* ptr, Debug dbg = {});
     const Def* store(const Def* mem, const Def* ptr, const Def* val, Debug dbg = {});
-    const Def* enter(const Def* mem, Debug dbg = {});
-    const Def* slot(const Def* type, const Def* frame, Debug dbg = {});
-    const Def* alloc(const Def* type, const Def* mem, Debug dbg = {});
+    const Slot* slot(const Def* type, const Def* mem, Debug dbg = {});
+    const Alloc* alloc(const Def* type, const Def* mem, Debug dbg = {});
     const Def* global(const Def* init, bool is_mutable = true, Debug dbg = {});
     const Def* global_immutable_string(const std::string& str, Debug dbg = {});
     const Assembly* assembly(const Def* type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints,
@@ -304,7 +302,7 @@ public:
     //@}
     /// @name misc operations
     //@{
-    const Def* analyze(const Def* type, Defs ops, u64 index, Debug dbg = {}) { return unify<Analyze>(ops.size(), type, ops, index, dbg); }
+    const Analyze* analyze(const Def* type, Defs ops, u64 index, Debug dbg = {}) { return unify<Analyze>(ops.size(), type, ops, index, dbg); }
     const Def* size_of(const Def* type, Debug dbg = {});
     //@}
     /// @name select
@@ -496,7 +494,6 @@ private:
         const Sigma* sigma_;
         const Tuple* tuple_;
         const MemType* mem_;
-        const FrameType* frame_;
         Axiom* type_nat_;
         const Lit* lit_nat_0_;
         std::array<const Lit*, 7> lit_nat_;

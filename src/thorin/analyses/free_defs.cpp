@@ -32,7 +32,7 @@ DefSet free_defs(const Scope& scope, bool /*include_closures*/) {
             }
 #endif
             for (auto op : def->ops()) {
-                if ((op->isa<MemOp>() || op->type()->isa<FrameType>()) && !scope.contains(op)) {
+                if (op->isa<MemOp>() && !scope.contains(op)) {
                     result.emplace(def);
                     goto queue_next;
                 }

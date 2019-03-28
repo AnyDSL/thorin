@@ -16,6 +16,8 @@ template<typename T> void print_queue(T q) {
 }
 
 void PassMan::run() {
+    world().thorin();
+
     states_.emplace_back(passes_);
     std::vector<const Def*> new_ops;
 

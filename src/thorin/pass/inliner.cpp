@@ -1,6 +1,7 @@
 #include "thorin/pass/inliner.h"
 
 #include "thorin/rewrite.h"
+#include "thorin/util/log.h"
 
 namespace thorin {
 
@@ -19,6 +20,7 @@ const Def* Inliner::rewrite(const Def* def) {
                 info.lattice = Lattice::Inlined_Once;
                 info.undo = man().cur_state_id();
                 man().new_state();
+                outf("inline: {}\n", lam);
                 return drop(lam, app->arg());
             }
         }

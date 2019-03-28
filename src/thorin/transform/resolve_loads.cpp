@@ -87,16 +87,10 @@ public:
                 mapping[slot] = stored_value;
             }
             return store->out_mem();
-        } else if (auto enter = mem_use->isa<Enter>()) {
-            // Loop through all slots allocated through the returned frame
-            auto frame = enter->out_frame();
-            for (auto use : frame->uses()) {
-                // All the slots allocated at that point contain bottom
-                auto slot = use->isa<Slot>();
+        } else if (auto slot = mem_use->isa<Slot>()) {
                 if (slot && is_safe_slot(slot))
                     mapping[slot] = world_.bot(slot->type()->as<PtrType>()->pointee());
-            }
-            return enter->out_mem();
+            return slot->out_mem();
         } else {
             return nullptr;
         }

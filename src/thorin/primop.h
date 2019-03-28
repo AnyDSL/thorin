@@ -77,6 +77,7 @@ private:
     ArithOp(ArithOpTag tag, const Def* lhs, const Def* rhs, Debug dbg)
         : BinOp((NodeTag) tag, lhs->type(), lhs, rhs, dbg)
     {
+        // TODO remove this and make div/rem proper nodes *with* side-effects
         if ((tag == ArithOp_div || tag == ArithOp_rem) && is_type_i(type()->tag()))
             hash_ = murmur3(gid());
     }
@@ -258,7 +259,6 @@ protected:
     MemOp(NodeTag tag, const Def* type, Defs args, Debug dbg)
         : PrimOp(tag, type, args, dbg)
     {
-        hash_ = murmur3(gid()); // HACK
         assert(mem()->type()->isa<MemType>());
         assert(args.size() >= 1);
     }
@@ -274,6 +274,24 @@ class Alloc : public MemOp {
 private:
     Alloc(const Def* type, const Def* mem, Debug dbg)
         : MemOp(Node_Alloc, type, {mem}, dbg)
+    {}
+
+public:
+    const Def* out_ptr() const { return out(1); }
+    const Sigma* type() const { return MemOp::type()->as<Sigma>(); }
+    const PtrType* out_ptr_type() const { return type()->op(1)->as<PtrType>(); }
+    const Def* alloced_type() const { return out_ptr_type()->pointee(); }
+    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+
+    friend class World;
+};
+
+/// Allocates memory on the stack.
+/// TODO eventually substitute with Alloc
+class Slot : public MemOp {
+private:
+    Slot(const Def* type, const Def* mem, Debug dbg)
+        : MemOp(Node_Slot, type, {mem}, dbg)
     {}
 
 public:
@@ -325,46 +343,6 @@ private:
 public:
     const Def* val() const { return op(2); }
     const MemType* type() const { return Access::type()->as<MemType>(); }
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
-
-    friend class World;
-};
-
-/// Creates a stack \p Frame with current effect <tt>mem</tt>.
-class Enter : public MemOp {
-private:
-    Enter(const Def* type, const Def* mem, Debug dbg)
-        : MemOp(Node_Enter, type, {mem}, dbg)
-    {}
-
-public:
-    const Sigma* type() const { return MemOp::type()->as<Sigma>(); }
-    const Def* out_frame() const { return out(1); }
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
-
-    friend class World;
-};
-
-/**
- * A slot in a stack frame opend via @p Enter.
- * A @p Slot yields a pointer to the given <tt>type</tt>.
- * Loads from this address yield @p Bottom if the frame has already been closed.
- */
-class Slot : public PrimOp {
-private:
-    Slot(const Def* type, const Def* frame, Debug dbg)
-        : PrimOp(Node_Slot, type, {frame}, dbg)
-    {
-        hash_ = murmur3(gid()); // HACK
-        assert(frame->type()->isa<FrameType>());
-    }
-
-public:
-    const Extract* frame() const { return op(0)->as<Extract>(); }
-    const Enter* enter() const { return frame()->op(0)->as<Enter>(); }
-    const PtrType* type() const { return PrimOp::type()->as<PtrType>(); }
-    const Def* alloced_type() const { return type()->pointee(); }
-    bool equal(const Def* other) const override;
     const Def* rebuild(World& to, const Def* type, Defs ops) const override;
 
     friend class World;

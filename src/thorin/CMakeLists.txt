@@ -52,10 +52,6 @@ set(THORIN_SOURCES
     transform/clone_bodies.h
     transform/codegen_prepare.h
     transform/codegen_prepare.cpp
-    transform/dead_load_opt.cpp
-    transform/dead_load_opt.h
-    transform/hoist_enters.cpp
-    transform/hoist_enters.h
     transform/flatten_tuples.cpp
     transform/flatten_tuples.h
     transform/importer.cpp
@@ -72,8 +68,6 @@ set(THORIN_SOURCES
     transform/partial_evaluation.h
     transform/rewrite_flow_graphs.cpp
     transform/rewrite_flow_graphs.h
-    transform/split_slots.cpp
-    transform/split_slots.h
     util/args.h
     util/array.h
     util/cast.h

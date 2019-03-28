@@ -41,14 +41,6 @@ Assembly::~Assembly() { (&extra<Extra>())->~Extra(); }
 //------------------------------------------------------------------------------
 
 /*
- * equal
- */
-
-bool Slot::equal(const Def* other) const { return this == other; }
-
-//------------------------------------------------------------------------------
-
-/*
  * rebuild
  */
 
@@ -59,7 +51,6 @@ const Def* ArithOp::rebuild(World& to, const Def*  , Defs ops) const { return to
 const Def* Bitcast::rebuild(World& to, const Def* t, Defs ops) const { return to.bitcast(t, ops[0], debug()); }
 const Def* Cast   ::rebuild(World& to, const Def* t, Defs ops) const { return to.cast(t, ops[0], debug()); }
 const Def* Cmp    ::rebuild(World& to, const Def*  , Defs ops) const { return to.cmp(cmp_tag(), ops[0], ops[1], debug()); }
-const Def* Enter  ::rebuild(World& to, const Def*  , Defs ops) const { return to.enter(ops[0], debug()); }
 const Def* Global ::rebuild(World& to, const Def*  , Defs ops) const { return to.global(ops[0], is_mutable(), debug()); }
 const Def* Hlt    ::rebuild(World& to, const Def*  , Defs ops) const { return to.hlt(ops[0], debug()); }
 const Def* Known  ::rebuild(World& to, const Def*  , Defs ops) const { return to.known(ops[0], debug()); }
@@ -69,7 +60,7 @@ const Def* Load   ::rebuild(World& to, const Def*  , Defs ops) const { return to
 const Def* Lit    ::rebuild(World& to, const Def* t, Defs    ) const { return to.lit(t, box(), debug()); }
 const Def* Select ::rebuild(World& to, const Def*  , Defs ops) const { return to.select(ops[0], ops[1], ops[2], debug()); }
 const Def* SizeOf ::rebuild(World& to, const Def*  , Defs ops) const { return to.size_of(ops[0]->type(), debug()); }
-const Def* Slot   ::rebuild(World& to, const Def* t, Defs ops) const { return to.slot(t->as<PtrType>()->pointee(), ops[0], debug()); }
+const Def* Slot   ::rebuild(World& to, const Def* t, Defs ops) const { return to.slot(t->as<Sigma>()->op(1)->as<PtrType>()->pointee(), ops[0], debug()); }
 const Def* Store  ::rebuild(World& to, const Def*  , Defs ops) const { return to.store(ops[0], ops[1], ops[2], debug()); }
 const Def* Variant::rebuild(World& to, const Def* t, Defs ops) const { return to.variant(t->as<VariantType>(), ops[0], debug()); }
 

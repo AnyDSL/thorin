@@ -693,18 +693,6 @@ public:
     friend class World;
 };
 
-/// The type of a stack frame.
-class FrameType : public Def {
-private:
-    FrameType(World& world);
-
-public:
-    const Def* rebuild(World& to, const Def*, Defs ops) const override;
-    std::ostream& stream(std::ostream&) const override;
-
-    friend class World;
-};
-
 /// Primitive type.
 class PrimType : public Def {
 private:

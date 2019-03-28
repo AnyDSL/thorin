@@ -369,10 +369,6 @@ MemType::MemType(World& world)
     : Def(Node_MemType, world.kind_star(), Defs{}, {"mem"})
 {}
 
-FrameType::FrameType(World& world)
-    : Def(Node_FrameType, world.kind_star(), Defs{}, {"frame"})
-{}
-
 /*
  * arity
  */
@@ -411,7 +407,6 @@ const Def* Analyze    ::rebuild(World& w, const Def* t, Defs o) const { return w
 const Def* App        ::rebuild(World& w, const Def*  , Defs o) const { return w.app(o[0], o[1], debug()); }
 const Def* BotTop     ::rebuild(World& w, const Def* t, Defs  ) const { return w.bot_top(is_top(this), t, debug()); }
 const Def* Extract    ::rebuild(World& w, const Def*  , Defs o) const { return w.extract(o[0], o[1], debug()); }
-const Def* FrameType  ::rebuild(World& w, const Def*  , Defs  ) const { return w.frame_type(); }
 const Def* Insert     ::rebuild(World& w, const Def*  , Defs o) const { return w.insert(o[0], o[1], o[2], debug()); }
 const Def* Kind       ::rebuild(World& w, const Def*  , Defs  ) const { return w.kind(tag()); }
 const Def* MemType    ::rebuild(World& w, const Def*  , Defs  ) const { return w.mem_type(); }
@@ -444,7 +439,6 @@ static std::ostream& stream_type_ops(std::ostream& os, const Def* type) {
 
 std::ostream& App        ::stream(std::ostream& os) const { return streamf(os, "{} {}", callee(), arg()); }
 std::ostream& Axiom      ::stream(std::ostream& os) const { return streamf(os, "{}", name()); }
-std::ostream& FrameType  ::stream(std::ostream& os) const { return streamf(os, "frame"); }
 std::ostream& Kind       ::stream(std::ostream& os) const { return streamf(os, "{}", name()); }
 std::ostream& MemType    ::stream(std::ostream& os) const { return streamf(os, "mem"); }
 std::ostream& Pack       ::stream(std::ostream& os) const { return streamf(os, "‹{}; {}›", arity(), body()); }

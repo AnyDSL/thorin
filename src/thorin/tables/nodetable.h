@@ -24,7 +24,6 @@
     THORIN_NODE(VariantType, variant_type)
     // get rid of these ones
     THORIN_NODE(DefiniteArrayType, definite_array_type)
-    THORIN_NODE(FrameType, frame)
     THORIN_NODE(IndefiniteArrayType, indefinite_array_type)
     THORIN_NODE(MemType, mem)
     THORIN_NODE(PtrType, ptr)
@@ -34,8 +33,6 @@
             // Access
                 THORIN_NODE(Load, load)
                 THORIN_NODE(Store, store)
-            THORIN_NODE(Enter, enter)
-            THORIN_NODE(Leave, leave)
         THORIN_NODE(Select, select)
         THORIN_NODE(SizeOf, size_of)
         THORIN_NODE(Global, global)

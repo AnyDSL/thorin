@@ -22,11 +22,15 @@ public:
     void enter(Def*) override;
     void analyze(const Def*) override;
 
-    struct SlotInfo {
-        enum Lattice { SSA, Keep_Slot };
+    struct ProxyInfo {
+        enum Lattice { SSA, Keep };
 
-        SlotInfo() = default;
-        SlotInfo(size_t undo)
+        //ProxyInfo() = default;
+        ProxyInfo()
+            : lattice(SSA)
+            , undo(0x7fffffff)
+        {}
+        ProxyInfo(size_t undo)
             : lattice(SSA)
             , undo(undo)
         {}
@@ -36,7 +40,7 @@ public:
     };
 
     struct LamInfo {
-        enum Lattice { Preds0, Preds1, PredsN, Keep_Lam };
+        enum Lattice { Preds0, Preds1, PredsN, Keep };
 
         LamInfo() = default;
         LamInfo(size_t undo)
@@ -44,28 +48,31 @@ public:
             , undo(undo)
         {}
 
-        std::vector<const Slot*> slots;
+        std::vector<const Analyze*> proxies;
+        GIDMap<const Analyze*, const Def*> proxy2val;
+        GIDSet<const Analyze*> writable;
         Lam* pred = nullptr;
         Lam* new_lam = nullptr;
         unsigned lattice    :  2;
         unsigned undo       : 30;
     };
 
-    using Slot2Info    = GIDMap<const Slot*, SlotInfo>;
-    using Lam2Info     = LamMap<LamInfo>;
-    using Lam2Lam      = LamMap<Lam*>;
-    using Mem2Slot2Val = DefMap<GIDMap<const Slot*, const Def*>>;
-    using State        = std::tuple<Slot2Info, Lam2Info, Mem2Slot2Val, Lam2Lam>;
+    using Proxy2Info = GIDMap<const Analyze*, ProxyInfo>;
+    using Lam2Info = LamMap<LamInfo>;
+    using Lam2Lam  = LamMap<Lam*>;
+    using State    = std::tuple<Proxy2Info, Lam2Info, Lam2Lam>;
 
 private:
-    const Slot* is_ssa_slot(const Def*);
-    const Def* get_val(const Def*, const Slot*);
-    const Def* set_val(const Def*, const Slot*, const Def*);
+    const Analyze* isa_proxy(const Def*);
+    const Def* get_val(Lam*, const Analyze*);
+    const Def* get_val(const Analyze* proxy) { return get_val(man().cur_lam(), proxy); }
+    const Def* set_val(Lam*, const Analyze*, const Def*);
+    const Def* set_val(const Analyze* proxy, const Def* val) { return set_val(man().cur_lam(), proxy, val); }
 
-    auto& slot2info   (const Slot* slot) { return get<Slot2Info>(slot, SlotInfo(man().cur_state_id())); }
-    auto& lam2info    (Lam* lam)         { return get<Lam2Info> (lam,   LamInfo(man().cur_state_id())); }
-    auto& mem2slot2val(const Def* mem)   { return get<Mem2Slot2Val>(mem); }
-    auto& new2old     (Lam* lam)         { return get<Lam2Lam>  (lam); }
+    auto& proxy2info(const Analyze* proxy, size_t u) { return get<Proxy2Info>(proxy, ProxyInfo(u)); }
+    auto& proxy2info(const Analyze* proxy) { return get<Proxy2Info>(proxy); }
+    auto& lam2info  (Lam* lam)             { return get<Lam2Info>(lam, LamInfo(man().cur_state_id())); }
+    auto& new2old   (Lam* lam)             { return get<Lam2Lam> (lam); }
     Lam* original(Lam* new_lam) {
         if (auto old_lam = new2old(new_lam)) return old_lam;
         return new_lam;

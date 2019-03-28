@@ -10,14 +10,11 @@
 #include "thorin/transform/cleanup_world.h"
 #include "thorin/transform/clone_bodies.h"
 #include "thorin/transform/codegen_prepare.h"
-#include "thorin/transform/dead_load_opt.h"
 #include "thorin/transform/flatten_tuples.h"
 #include "thorin/transform/rewrite_flow_graphs.h"
-#include "thorin/transform/hoist_enters.h"
 #include "thorin/transform/inliner.h"
 #include "thorin/transform/lift_builtins.h"
 #include "thorin/transform/partial_evaluation.h"
-#include "thorin/transform/split_slots.h"
 #include "thorin/util/array.h"
 #include "thorin/util/log.h"
 
@@ -49,7 +46,6 @@ World::World(uint32_t cur_gid, Debug debug)
     cache_.sigma_         = insert<Sigma>(0, kind_star(), Defs{}, Debug{})->as<Sigma>();
     cache_.tuple_         = insert<Tuple>(0, sigma(), Defs{}, Debug{})->as<Tuple>();
     cache_.mem_           = insert<MemType  >(0, *this);
-    cache_.frame_         = insert<FrameType>(0, *this);
     cache_.type_nat_      = axiom(kind_star(), {"nat"});
     cache_.lit_arity_1_   = lit_arity(1);
     cache_.lit_index_0_1_ = lit_index(lit_arity_1(), 0);
@@ -853,10 +849,6 @@ const Def* World::bot_top(bool is_top, const Def* type, Debug dbg) {
  * aggregate operations
  */
 
-const Def* World::slot(const Def* type, const Def* frame, Debug dbg) {
-    return unify<Slot>(1, ptr_type(type), frame, dbg);
-}
-
 const Def* World::lea(const Def* ptr, const Def* index, Debug dbg) {
     auto ptr_type = ptr->type()->as<PtrType>();
     auto pointee = ptr_type->pointee();
@@ -922,16 +914,12 @@ const Def* World::store(const Def* mem, const Def* ptr, const Def* val, Debug db
     return unify<Store>(3, mem, ptr, val, dbg);
 }
 
-const Def* World::enter(const Def* mem, Debug dbg) {
-    if (auto extract = mem->isa<Extract>()) {
-        if (auto e = extract->agg()->isa<Enter>())
-            return e;
-    }
-    return unify<Enter>(1, sigma({mem_type(), frame_type()}), mem, dbg);
+const Alloc* World::alloc(const Def* type, const Def* mem, Debug dbg) {
+    return unify<Alloc>(1, sigma({mem_type(), ptr_type(type)}), mem, dbg);
 }
 
-const Def* World::alloc(const Def* type, const Def* mem, Debug dbg) {
-    return unify<Alloc>(1, sigma({mem_type(), ptr_type(type)}), mem, dbg);
+const Slot* World::slot(const Def* type, const Def* mem, Debug dbg) {
+    return unify<Slot>(1, sigma({mem_type(), ptr_type(type)}), mem, dbg);
 }
 
 const Def* World::global(const Def* init, bool is_mutable, Debug dbg) {
@@ -1039,12 +1027,9 @@ void World::opt() {
     while (partial_evaluation(*this, true)); // lower2cff
     flatten_tuples(*this);
     clone_bodies(*this);
-    //split_slots(*this);
     //closure_conversion(*this);
     lift_builtins(*this);
     inliner(*this);
-    hoist_enters(*this);
-    //dead_load_opt(*this);
     cleanup();
     codegen_prepare(*this);
     //rewrite_flow_graphs(*this);

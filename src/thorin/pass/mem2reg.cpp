@@ -157,10 +157,9 @@ void Mem2Reg::analyze(const Def* def) {
             if (proxy_info.lattice == ProxyInfo::SSA) {
                 proxy_info.lattice = ProxyInfo::Keep;
                 outf("keep: {}\n", proxy);
-                if (auto i = std::find(proxies.begin(), proxies.end(), proxy); i != proxies.end()) {
+                if (auto i = std::find(proxies.begin(), proxies.end(), proxy); i != proxies.end())
                     proxies.erase(i);
-                    man().undo(proxy_info.undo);
-                }
+                man().undo(proxy_info.undo);
             }
         } else {
             assert(lam_info.lattice == LamInfo::PredsN);

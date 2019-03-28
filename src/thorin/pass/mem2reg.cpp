@@ -16,9 +16,9 @@ const Def* Mem2Reg::rewrite(const Def* def) {
     if (auto slot = def->isa<Slot>()) {
         auto proxy = world().analyze(slot->out_ptr_type(), {man().cur_lam(), slot->mem()}, id(), slot->debug());
         auto& info = proxy2info(proxy, man().cur_state_id());
-        //man().new_state();
         outf("slot: {}\n", proxy);
         if (info.lattice == ProxyInfo::SSA) {
+            man().new_state();
             set_val(proxy, world().bot(proxy_type(proxy)));
             auto& info = lam2info(man().cur_lam());
             info.writable.emplace(proxy);

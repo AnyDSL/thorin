@@ -7,8 +7,8 @@ namespace thorin {
 
 class CopyProp : public Pass<CopyProp> {
 public:
-    CopyProp(PassMan& man, size_t id)
-        : Pass(man, id)
+    CopyProp(PassMan& man, size_t index)
+        : Pass(man, index)
     {}
 
     const Def* rewrite(const Def*) override;

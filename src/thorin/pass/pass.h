@@ -17,16 +17,16 @@ class PassMan;
  */
 class PassBase {
 public:
-    PassBase(PassMan& man, size_t id)
+    PassBase(PassMan& man, size_t index)
         : man_(man)
-        , id_(id)
+        , index_(index)
     {}
     virtual ~PassBase() {}
 
     /// @name getters
     //@{
     PassMan& man() { return man_; }
-    size_t id() const { return id_; }
+    size_t index() const { return index_; }
     World& world();
     ///@}
     /// @name hooks for the PassMan
@@ -45,7 +45,7 @@ public:
 
 private:
     PassMan& man_;
-    size_t id_;
+    size_t index_;
 };
 
 /**
@@ -153,8 +153,8 @@ inline World& PassBase::world() { return man().world(); }
 template<class P>
 class Pass : public PassBase {
 public:
-    Pass(PassMan& man, size_t id)
-        : PassBase(man, id)
+    Pass(PassMan& man, size_t index)
+        : PassBase(man, index)
     {}
 
     /// @name getters
@@ -162,8 +162,8 @@ public:
     /// Returns @c PassMan::states_.
     auto& states() { return man().states_; }
     /// Returns @c PassMan::states_.back().
-    auto& cur_state() { assert(!states().empty()); return *static_cast<typename P::State*>(states().back().data[id()]); }
-    auto& prev_state() { assert(!states().empty()); return *static_cast<typename P::State*>(states()[states().size()-2].data[id()]); }
+    auto& cur_state() { assert(!states().empty()); return *static_cast<typename P::State*>(states().back().data[index()]); }
+    auto& prev_state() { assert(!states().empty()); return *static_cast<typename P::State*>(states()[states().size()-2].data[index()]); }
     //@}
     /// @name recursive search in the state stack
     //@{
@@ -171,7 +171,7 @@ public:
     template<class M>
     auto& get(const typename M::key_type& key, typename M::mapped_type&& init) {
         for (auto& state : reverse_range(states())) {
-            auto& map = std::get<M>(*static_cast<typename P::State*>(state.data[id()]));
+            auto& map = std::get<M>(*static_cast<typename P::State*>(state.data[index()]));
             if (auto i = map.find(key); i != map.end())
                 return i->second;
         }

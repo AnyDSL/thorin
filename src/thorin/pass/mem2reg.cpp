@@ -8,13 +8,13 @@ namespace thorin {
 static const Def* proxy_type(const Analyze* proxy) { return proxy->type()->as<PtrType>()->pointee(); }
 
 const Analyze* Mem2Reg::isa_proxy(const Def* ptr) {
-    if (auto analyze = ptr->isa<Analyze>(); analyze && analyze->index() == id() && !analyze->op(1)->isa<Analyze>()) return analyze;
+    if (auto analyze = ptr->isa<Analyze>(); analyze && analyze->index() == index() && !analyze->op(1)->isa<Analyze>()) return analyze;
     return nullptr;
 }
 
 const Def* Mem2Reg::rewrite(const Def* def) {
     if (auto slot = def->isa<Slot>()) {
-        auto proxy = world().analyze(slot->out_ptr_type(), {man().cur_lam(), world().lit_nat(lam2info(man().cur_lam()).num_slots++)}, id(), slot->debug());
+        auto proxy = world().analyze(slot->out_ptr_type(), {man().cur_lam(), world().lit_nat(lam2info(man().cur_lam()).num_slots++)}, index(), slot->debug());
         auto& info = proxy2info(proxy, man().cur_state_id());
         outf("slot: {}\n", proxy);
         if (info.lattice == ProxyInfo::SSA) {
@@ -73,6 +73,8 @@ void Mem2Reg::inspect(Def* def) {
 void Mem2Reg::enter(Def* def) {
     if (auto new_lam = def->isa<Lam>()) {
         outf("enter: {}\n", new_lam);
+        auto& info = lam2info(new_lam);
+        info.proxy2val.clear();
         if (auto old_lam = new2old(new_lam)) {
             outf("enter: {}/{}\n", old_lam, new_lam);
             auto& proxies = lam2info(old_lam).proxies;
@@ -81,6 +83,18 @@ void Mem2Reg::enter(Def* def) {
             auto new_param = world().tuple(Array<const Def*>(n, [&](auto i) { return new_lam->param(i); }));
             man().map(old_lam->param(), new_param);
             new_lam->set(old_lam->ops());
+
+            if (auto old_lam = new2old(new_lam)) {
+                outf("enter: {}/{}\n", old_lam, new_lam);
+                auto& proxies = lam2info(old_lam).proxies;
+                size_t n = new_lam->num_params() - proxies.size();
+
+                for (size_t i = 0, e = proxies.size(); i != e; ++i) {
+                    auto proxy = proxies[i];
+                    //auto lam = proxy->op(0)->as_nominal<Lam>();
+                    set_val(new_lam, proxy, new_lam->param(n + i));
+                }
+            }
         }
     }
 }
@@ -90,19 +104,18 @@ void Mem2Reg::reenter(Def* def) {
         outf("enter: {}\n", new_lam);
         // remove any potential garbage from previous runs
         auto& info = lam2info(new_lam);
-        info.proxy2val.clear();
         info.num_slots = 0;
-        if (auto old_lam = new2old(new_lam)) {
-            outf("enter: {}/{}\n", old_lam, new_lam);
-            auto& proxies = lam2info(old_lam).proxies;
-            size_t n = new_lam->num_params() - proxies.size();
+        //if (auto old_lam = new2old(new_lam)) {
+            //outf("enter: {}/{}\n", old_lam, new_lam);
+            //auto& proxies = lam2info(old_lam).proxies;
+            //size_t n = new_lam->num_params() - proxies.size();
 
-            for (size_t i = 0, e = proxies.size(); i != e; ++i) {
-                auto proxy = proxies[i];
-                //auto lam = proxy->op(0)->as_nominal<Lam>();
-                set_val(new_lam, proxy, new_lam->param(n + i));
-            }
-        }
+            //for (size_t i = 0, e = proxies.size(); i != e; ++i) {
+                //auto proxy = proxies[i];
+                ////auto lam = proxy->op(0)->as_nominal<Lam>();
+                //set_val(new_lam, proxy, new_lam->param(n + i));
+            //}
+        //}
     }
 }
 
@@ -119,7 +132,7 @@ const Def* Mem2Reg::get_val(Lam* lam, const Analyze* proxy) {
         default: {
             auto old_lam = original(lam);
             outf("virtual phi: {}/{} for {}\n", old_lam, lam, proxy);
-            return set_val(lam, proxy, world().analyze(proxy_type(proxy), {old_lam, proxy}, id()));
+            return set_val(lam, proxy, world().analyze(proxy_type(proxy), {old_lam, proxy}, index()));
         }
     }
 }
@@ -133,7 +146,7 @@ void Mem2Reg::analyze(const Def* def) {
     if (def->isa<Param>()) return;
 
     // we need to install a phi in lam next time around
-    if (auto analyze = def->isa<Analyze>(); analyze && analyze->index() == id() && analyze->op(1)->isa<Analyze>()) {
+    if (auto analyze = def->isa<Analyze>(); analyze && analyze->index() == index() && analyze->op(1)->isa<Analyze>()) {
         auto lam   = analyze->op(0)->as_nominal<Lam>();
         auto proxy = analyze->op(1)->as<Analyze>();
         auto& lam_info = lam2info(lam);

@@ -13,8 +13,8 @@ namespace thorin {
  */
 class Mem2Reg : public Pass<Mem2Reg> {
 public:
-    Mem2Reg(PassMan& man, size_t id)
-        : Pass(man, id)
+    Mem2Reg(PassMan& man, size_t index)
+        : Pass(man, index)
     {}
 
     const Def* rewrite(const Def*) override;

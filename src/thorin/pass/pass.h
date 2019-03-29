@@ -157,13 +157,11 @@ public:
         : PassBase(man, index)
     {}
 
-    /// @name getters
+    /// @name state-related getters
     //@{
-    /// Returns @c PassMan::states_.
     auto& states() { return man().states_; }
-    /// Returns @c PassMan::states_.back().
+    auto& state(size_t i) { return *static_cast<typename P::State*>(states()[i].data[index()]); }
     auto& cur_state() { assert(!states().empty()); return *static_cast<typename P::State*>(states().back().data[index()]); }
-    auto& prev_state() { assert(!states().empty()); return *static_cast<typename P::State*>(states()[states().size()-2].data[index()]); }
     //@}
     /// @name recursive search in the state stack
     //@{

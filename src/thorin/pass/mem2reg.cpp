@@ -14,11 +14,20 @@ const Analyze* Mem2Reg::isa_proxy(const Def* ptr) {
 
 const Def* Mem2Reg::rewrite(const Def* def) {
     if (auto slot = def->isa<Slot>()) {
-        auto proxy = world().analyze(slot->out_ptr_type(), {man().cur_lam(), world().lit_nat(lam2info(man().cur_lam()).num_slots++)}, index(), slot->debug());
-        auto& info = proxy2info(proxy, man().cur_state_id());
-        outf("slot: {}\n", proxy);
-        if (info.lattice == ProxyInfo::SSA) {
-            man().new_state();
+        auto orig = original(man().cur_lam());
+        auto& lam_info = lam2info(orig);
+        auto undo = lam_info.undo;
+        auto proxy = world().analyze(slot->out_ptr_type(), {orig, world().lit_nat(lam_info.num_slots++)}, index(), slot->debug());
+        auto& map = std::get<Proxy2Info>(state(undo-1));
+        ProxyInfo* proxy_info = nullptr;
+        if (auto i = map.find(proxy); i != map.end())
+            proxy_info = &i->second;
+        else
+            proxy_info = &(map[proxy] = ProxyInfo(undo));
+
+        outf("slot: {}/{}\n", proxy, proxy_info->lattice);
+        if (proxy_info->lattice == ProxyInfo::SSA) {
+            //man().new_state();
             set_val(proxy, world().bot(proxy_type(proxy)));
             auto& info = lam2info(man().cur_lam());
             info.writable.emplace(proxy);
@@ -57,6 +66,15 @@ void Mem2Reg::inspect(Def* def) {
             man().new_state();
 
             if (info.lattice == LamInfo::PredsN && !info.proxies.empty()) {
+
+                for (size_t i = 0; i != info.proxies.size();) {
+                    if (proxy2info(info.proxies[i]).lattice == ProxyInfo::Keep) {
+                        info.proxies.erase(info.proxies.begin() + i);
+                        outf("remove proxy: {}\n", info.proxies[i]);
+                    } else
+                        ++i;
+                }
+
                 assert(old_lam->mem_param());
                 Array<const Def*> types(info.proxies.size(), [&](auto i) { return proxy_type(info.proxies[i]); });
                 auto new_domain = merge_sigma(old_lam->domain(), types);
@@ -76,8 +94,9 @@ void Mem2Reg::enter(Def* def) {
         auto& info = lam2info(new_lam);
         info.proxy2val.clear();
         if (auto old_lam = new2old(new_lam)) {
-            outf("enter: {}/{}\n", old_lam, new_lam);
             auto& proxies = lam2info(old_lam).proxies;
+
+            outf("enter: {}/{}\n", old_lam, new_lam);
             size_t n = new_lam->num_params() - proxies.size();
 
             auto new_param = world().tuple(Array<const Def*>(n, [&](auto i) { return new_lam->param(i); }));
@@ -132,7 +151,7 @@ const Def* Mem2Reg::get_val(Lam* lam, const Analyze* proxy) {
         default: {
             auto old_lam = original(lam);
             outf("virtual phi: {}/{} for {}\n", old_lam, lam, proxy);
-            return set_val(lam, proxy, world().analyze(proxy_type(proxy), {old_lam, proxy}, index()));
+            return set_val(lam, proxy, world().analyze(proxy_type(proxy), {old_lam, proxy}, index(), {"phi"}));
         }
     }
 }

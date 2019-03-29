@@ -26,6 +26,7 @@ void PassMan::run() {
         cur_nominal_ = lam;
         rewrite(lam); // provokes inspect
         analyze(lam); // puts in into the queue
+        cur_nominal_ = nullptr;
 
         while (!queue().empty()) {
             auto old_nom = cur_nominal_;

@@ -266,7 +266,6 @@ protected:
 public:
     const Def* mem() const { return op(0); }
     const Def* out_mem() const { return out(0); }
-    bool equal(const Def* other) const override { return this == other; }
 };
 
 /// Allocates memory on the heap.

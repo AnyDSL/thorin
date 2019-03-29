@@ -7,6 +7,7 @@ namespace thorin {
 
 class Scope;
 
+/// Rewrites part of a program.
 class Rewriter {
 public:
     Rewriter(World& old_world, World& new_world, const Scope* scope = nullptr);
@@ -25,8 +26,11 @@ public:
     Def2Def old2new;
 };
 
+/// Rewrites @p def while mapping @p old_def to @p new_def.
 const Def* rewrite(const Def* def, const Def* old_def, const Def* new_def);
+/// Inlines @p lam while using the argument @p arg.
 const Def* drop(Lam* lam, const Def* arg);
+/// Removes unreachable and dead code by rewriting the whole program.
 void cleanup(World&);
 
 }

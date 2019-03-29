@@ -200,7 +200,7 @@ void Mem2Reg::analyze(const Def* def) {
             auto& info = lam2info(proxy_lam);
             if (info.proxies[proxy_id] == Info::SSA) {
                 outf("keep: {}\n", proxy);
-                info.lattice = Info::Keep_;
+                info.proxies[proxy_id] = Info::Keep_;
                 man().undo(info.undo);
             }
         } else if (auto lam = op->isa_nominal<Lam>()) {

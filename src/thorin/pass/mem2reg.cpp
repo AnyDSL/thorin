@@ -15,18 +15,13 @@ const Analyze* Mem2Reg::isa_proxy(const Def* ptr) {
 const Def* Mem2Reg::rewrite(const Def* def) {
     if (auto slot = def->isa<Slot>()) {
         auto orig = original(man().cur_lam());
-        auto& lam_info = lam2info(orig);
-        auto undo = lam_info.undo;
-        auto proxy = world().analyze(slot->out_ptr_type(), {orig, world().lit_nat(lam_info.num_slots++)}, index(), slot->debug());
-        auto& map = std::get<Proxy2Info>(state(undo-1));
-        ProxyInfo* proxy_info = nullptr;
-        if (auto i = map.find(proxy); i != map.end())
-            proxy_info = &i->second;
-        else
-            proxy_info = &(map[proxy] = ProxyInfo(undo));
+        auto& info = lam2info(orig);
+        auto slot_id = info.num_slots++;
+        auto proxy = world().analyze(slot->out_ptr_type(), {orig, world().lit_nat(slot_id)}, index(), slot->debug());
+        auto& lattice = info.proxies[slot_id];
 
-        outf("slot: {}/{}\n", proxy, proxy_info->lattice);
-        if (proxy_info->lattice == ProxyInfo::SSA) {
+        outf("slot: {}/{}\n", proxy, lattice);
+        if (lattice == Info::SSA) {
             //man().new_state();
             set_val(proxy, world().bot(proxy_type(proxy)));
             auto& info = lam2info(man().cur_lam());
@@ -48,7 +43,7 @@ const Def* Mem2Reg::rewrite(const Def* def) {
             const auto& info = lam2info(lam);
             if (auto new_lam = info.new_lam) {
                 outf("{}/{}:\n", lam2info(lam).undo, lam2info(new_lam).undo);
-                Array<const Def*> args(info.proxies.size(), [&](auto i) { return get_val(info.proxies[i]); });
+                Array<const Def*> args(info.phis.size(), [&](auto i) { return get_val(info.phis[i]); });
                 return world().app(new_lam, merge_tuple(app->arg(), args));
             }
         }
@@ -61,27 +56,29 @@ void Mem2Reg::inspect(Def* def) {
     if (auto old_lam = def->isa<Lam>()) {
         auto& info = lam2info(old_lam);
         if (old_lam->is_external() || old_lam->intrinsic() != Intrinsic::None) {
-            info.lattice = LamInfo::Keep;
-        } else if (info.lattice != LamInfo::Keep) {
+            info.lattice = Info::Keep;
+        } else if (info.lattice != Info::Keep) {
             man().new_state();
 
-            if (info.lattice == LamInfo::PredsN && !info.proxies.empty()) {
+            if (info.lattice == Info::PredsN && !info.phis.empty()) {
 
-                for (size_t i = 0; i != info.proxies.size();) {
-                    if (proxy2info(info.proxies[i]).lattice == ProxyInfo::Keep) {
-                        info.proxies.erase(info.proxies.begin() + i);
-                        outf("remove proxy: {}\n", info.proxies[i]);
+                /*
+                for (size_t i = 0; i != info.phis.size();) {
+                    if (proxy2info(info.phis[i]).lattice == Info::Keep_) {
+                        info.phis.erase(info.phis.begin() + i);
+                        outf("remove proxy: {}\n", info.phis[i]);
                     } else
                         ++i;
                 }
+                */
 
                 assert(old_lam->mem_param());
-                Array<const Def*> types(info.proxies.size(), [&](auto i) { return proxy_type(info.proxies[i]); });
+                Array<const Def*> types(info.phis.size(), [&](auto i) { return proxy_type(info.phis[i]); });
                 auto new_domain = merge_sigma(old_lam->domain(), types);
                 auto new_lam = world().lam(world().pi(new_domain, old_lam->codomain()), old_lam->debug());
                 outf("new_lam: {} -> {}\n", old_lam, new_lam);
                 new2old(new_lam) = old_lam;
-                lam2info(new_lam).lattice = LamInfo::PredsN;
+                lam2info(new_lam).lattice = Info::PredsN;
                 info.new_lam = new_lam;
             }
         }
@@ -94,10 +91,10 @@ void Mem2Reg::enter(Def* def) {
         auto& info = lam2info(new_lam);
         info.proxy2val.clear();
         if (auto old_lam = new2old(new_lam)) {
-            auto& proxies = lam2info(old_lam).proxies;
+            auto& phis = lam2info(old_lam).phis;
 
             outf("enter: {}/{}\n", old_lam, new_lam);
-            size_t n = new_lam->num_params() - proxies.size();
+            size_t n = new_lam->num_params() - phis.size();
 
             auto new_param = world().tuple(Array<const Def*>(n, [&](auto i) { return new_lam->param(i); }));
             man().map(old_lam->param(), new_param);
@@ -105,11 +102,11 @@ void Mem2Reg::enter(Def* def) {
 
             if (auto old_lam = new2old(new_lam)) {
                 outf("enter: {}/{}\n", old_lam, new_lam);
-                auto& proxies = lam2info(old_lam).proxies;
-                size_t n = new_lam->num_params() - proxies.size();
+                auto& phis = lam2info(old_lam).phis;
+                size_t n = new_lam->num_params() - phis.size();
 
-                for (size_t i = 0, e = proxies.size(); i != e; ++i) {
-                    auto proxy = proxies[i];
+                for (size_t i = 0, e = phis.size(); i != e; ++i) {
+                    auto proxy = phis[i];
                     //auto lam = proxy->op(0)->as_nominal<Lam>();
                     set_val(new_lam, proxy, new_lam->param(n + i));
                 }
@@ -126,11 +123,11 @@ void Mem2Reg::reenter(Def* def) {
         info.num_slots = 0;
         //if (auto old_lam = new2old(new_lam)) {
             //outf("enter: {}/{}\n", old_lam, new_lam);
-            //auto& proxies = lam2info(old_lam).proxies;
-            //size_t n = new_lam->num_params() - proxies.size();
+            //auto& phis = lam2info(old_lam).phis;
+            //size_t n = new_lam->num_params() - phis.size();
 
-            //for (size_t i = 0, e = proxies.size(); i != e; ++i) {
-                //auto proxy = proxies[i];
+            //for (size_t i = 0, e = phis.size(); i != e; ++i) {
+                //auto proxy = phis[i];
                 ////auto lam = proxy->op(0)->as_nominal<Lam>();
                 //set_val(new_lam, proxy, new_lam->param(n + i));
             //}
@@ -146,8 +143,8 @@ const Def* Mem2Reg::get_val(Lam* lam, const Analyze* proxy) {
     }
 
     switch (info.lattice) {
-        case LamInfo::Preds0: return world().bot(proxy_type(proxy));
-        case LamInfo::Preds1: return get_val(info.pred, proxy);
+        case Info::Preds0: return world().bot(proxy_type(proxy));
+        case Info::Preds1: return get_val(info.pred, proxy);
         default: {
             auto old_lam = original(lam);
             outf("virtual phi: {}/{} for {}\n", old_lam, lam, proxy);
@@ -166,27 +163,30 @@ void Mem2Reg::analyze(const Def* def) {
 
     // we need to install a phi in lam next time around
     if (auto analyze = def->isa<Analyze>(); analyze && analyze->index() == index() && analyze->op(1)->isa<Analyze>()) {
-        auto lam   = analyze->op(0)->as_nominal<Lam>();
-        auto proxy = analyze->op(1)->as<Analyze>();
-        auto& lam_info = lam2info(lam);
-        auto& proxy_info = proxy2info(proxy);
-        auto& proxies = lam_info.proxies;
+        auto phi_lam = analyze->op(0)->as_nominal<Lam>();
+        auto proxy   = analyze->op(1)->as<Analyze>();
+        auto proxy_lam = proxy->op(0)->as_nominal<Lam>();
+        auto proxy_id  = as_lit<u64>(proxy->op(1));
 
-        if (lam_info.lattice == LamInfo::Keep) {
-            if (proxy_info.lattice == ProxyInfo::SSA) {
-                proxy_info.lattice = ProxyInfo::Keep;
+        auto& phi_info   = lam2info(phi_lam);
+        auto& proxy_info = lam2info(proxy_lam);
+        auto& phis = phi_info.phis;
+
+        if (phi_info.lattice == Info::Keep) {
+            if (proxy_info.proxies[proxy_id] == Info::SSA) {
+                proxy_info.proxies[proxy_id] = Info::Keep_;
                 outf("keep: {}\n", proxy);
-                if (auto i = std::find(proxies.begin(), proxies.end(), proxy); i != proxies.end())
-                    proxies.erase(i);
+                if (auto i = std::find(phis.begin(), phis.end(), proxy); i != phis.end())
+                    phis.erase(i);
                 man().undo(proxy_info.undo);
             }
         } else {
-            assert(lam_info.lattice == LamInfo::PredsN);
-            assertf(std::find(proxies.begin(), proxies.end(), proxy) == proxies.end(), "already added proxy {} to {}", proxy, lam);
+            assert(phi_info.lattice == Info::PredsN);
+            assertf(std::find(phis.begin(), phis.end(), proxy) == phis.end(), "already added proxy {} to {}", proxy, phi_lam);
             //assert(proxy_info.undo <= lam_info.undo);
-            proxies.emplace_back(proxy);
+            phis.emplace_back(proxy);
             outf("phi needed: {}\n", analyze);
-            man().undo(lam_info.undo);
+            man().undo(phi_info.undo);
         }
         return;
     }
@@ -195,10 +195,12 @@ void Mem2Reg::analyze(const Def* def) {
         auto op = def->op(i);
 
         if (auto proxy = isa_proxy(op)) {
-            if (auto& info = proxy2info(proxy); info.lattice == ProxyInfo::SSA) {
+            auto proxy_lam = proxy->op(0)->as_nominal<Lam>();
+            auto proxy_id  = as_lit<u64>(proxy->op(1));
+            auto& info = lam2info(proxy_lam);
+            if (info.proxies[proxy_id] == Info::SSA) {
                 outf("keep: {}\n", proxy);
-                std::cout << std::flush;
-                info.lattice = ProxyInfo::Keep;
+                info.lattice = Info::Keep_;
                 man().undo(info.undo);
             }
         } else if (auto lam = op->isa_nominal<Lam>()) {
@@ -209,13 +211,13 @@ void Mem2Reg::analyze(const Def* def) {
             auto pred = man().cur_lam();
 
             switch (info.lattice) {
-                case LamInfo::Preds0:
-                    info.lattice = LamInfo::Preds1;
+                case Info::Preds0:
+                    info.lattice = Info::Preds1;
                     info.pred = pred;
-                    assert(info.proxies.empty());
+                    assert(info.phis.empty());
                     break;
-                case LamInfo::Preds1:
-                    info.lattice = LamInfo::PredsN;
+                case Info::Preds1:
+                    info.lattice = Info::PredsN;
                     outf("Preds1 -> PredsN\n");
                     man().undo(info.undo);
                     break;
@@ -224,13 +226,14 @@ void Mem2Reg::analyze(const Def* def) {
             }
 
             // if lam does not occur as callee and has more than one pred
-            if ((!def->isa<App>() || i != 0) && (info.lattice == LamInfo::PredsN )) {
-                info.lattice = LamInfo::Keep;
+            if ((!def->isa<App>() || i != 0) && (info.lattice == Info::PredsN )) {
+                info.lattice = Info::Keep;
                 outf("keep: {}\n", lam);
-                for (auto proxy : info.proxies) {
-                    auto& proxy_info = proxy2info(proxy);
-                    proxy_info.lattice = ProxyInfo::Keep;
-                    info.proxies.clear();
+                for (auto phi : info.phis) {
+                    auto& proxy_info = lam2info(phi->op(0)->as_nominal<Lam>());
+                    auto proxy_id    = as_lit<u64>(phi->op(1));
+                    proxy_info.proxies[proxy_id] = Info::Keep_;
+                    info.phis.clear();
                     man().undo(info.undo);
                     man().undo(proxy_info.undo);
                 }

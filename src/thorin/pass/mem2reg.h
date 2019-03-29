@@ -23,33 +23,19 @@ public:
     void reenter(Def*) override;
     void analyze(const Def*) override;
 
-    struct ProxyInfo {
-        enum Lattice { SSA, Keep };
+    struct Info {
+        enum LamLattice { Preds0, Preds1, PredsN, Keep };
+        enum ProxyLattice { SSA, Keep_ };
 
-        //ProxyInfo() = default;
-        ProxyInfo()
-            : lattice(SSA)
-            , undo(0x7fffffff)
-        {}
-        ProxyInfo(size_t undo)
-            : lattice(SSA)
+        Info() = default;
+        Info(size_t undo)
+            : proxies(100, SSA)
+            , lattice(Preds0)
             , undo(undo)
         {}
 
-        unsigned lattice :  1;
-        unsigned undo    : 31;
-    };
-
-    struct LamInfo {
-        enum Lattice { Preds0, Preds1, PredsN, Keep };
-
-        LamInfo() = default;
-        LamInfo(size_t undo)
-            : lattice(Preds0)
-            , undo(undo)
-        {}
-
-        std::vector<const Analyze*> proxies;
+        std::vector<ProxyLattice> proxies;
+        std::vector<const Analyze*> phis;
         GIDMap<const Analyze*, const Def*> proxy2val;
         GIDSet<const Analyze*> writable;
         Lam* pred = nullptr;
@@ -59,10 +45,9 @@ public:
         unsigned undo       : 30;
     };
 
-    using Proxy2Info = GIDMap<const Analyze*, ProxyInfo>;
-    using Lam2Info = LamMap<LamInfo>;
+    using Lam2Info = LamMap<Info>;
     using Lam2Lam  = LamMap<Lam*>;
-    using State    = std::tuple<Proxy2Info, Lam2Info, Lam2Lam>;
+    using State    = std::tuple<Lam2Info, Lam2Lam>;
 
 private:
     const Analyze* isa_proxy(const Def*);
@@ -71,9 +56,7 @@ private:
     const Def* set_val(Lam*, const Analyze*, const Def*);
     const Def* set_val(const Analyze* proxy, const Def* val) { return set_val(man().cur_lam(), proxy, val); }
 
-    auto& proxy2info(const Analyze* proxy, size_t u) { return get<Proxy2Info>(proxy, ProxyInfo(u)); }
-    auto& proxy2info(const Analyze* proxy) { return get<Proxy2Info>(proxy); }
-    auto& lam2info  (Lam* lam)             { return get<Lam2Info>(lam, LamInfo(man().cur_state_id())); }
+    auto& lam2info  (Lam* lam)             { return get<Lam2Info>(lam, Info(man().cur_state_id())); }
     auto& new2old   (Lam* lam)             { return get<Lam2Lam> (lam); }
     Lam* original(Lam* new_lam) {
         if (auto old_lam = new2old(new_lam)) return old_lam;

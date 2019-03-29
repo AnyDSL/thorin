@@ -31,6 +31,7 @@ void PassMan::run() {
             auto old_nom = cur_nominal_;
             cur_nominal_ = std::get<Def*>(queue().top());
             if (old_nom != cur_nominal_) {
+                new_state();
                 for (auto& pass : passes_)
                     pass->enter(cur_nominal_);
             }
@@ -66,6 +67,8 @@ void PassMan::run() {
                 for (size_t i = cur_state_id(); i-- != undo_;)
                     states_[i].nominal->set(states_[i].old_ops);
 
+                //TODO
+                //assert(old_nom != cur_nominal_);
                 states_.resize(undo_);
                 undo_ = No_Undo;
             }

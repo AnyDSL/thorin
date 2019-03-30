@@ -100,7 +100,7 @@ const Def* PassMan::rewrite(const Def* old_def) {
     auto new_def = old_def;
     if (changed) {
         new_def = old_def->rebuild(world(), new_type, new_ops);
-        if (auto def = lookup(new_def)) return *def;
+        //if (auto def = lookup(new_def)) return *def;
     }
 
     for (auto& pass : passes_)

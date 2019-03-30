@@ -25,16 +25,16 @@ public:
 
     struct Info {
         enum LamLattice { Preds0, Preds1, PredsN, Keep };
-        enum ProxyLattice { SSA, Keep_ };
+        enum SlotLattice { SSA, Keep_ };
 
         Info() = default;
         Info(size_t undo)
-            : proxies(100, SSA)
+            : slots(100, SSA) // HACK
             , lattice(Preds0)
             , undo(undo)
         {}
 
-        std::vector<ProxyLattice> proxies;
+        std::vector<SlotLattice> slots;
         std::vector<const Analyze*> phis;
         GIDMap<const Analyze*, const Def*> proxy2val;
         GIDSet<const Analyze*> writable;

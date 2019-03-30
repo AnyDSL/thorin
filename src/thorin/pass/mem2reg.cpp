@@ -18,7 +18,7 @@ const Def* Mem2Reg::rewrite(const Def* def) {
         auto& info = lam2info(orig);
         auto slot_id = info.num_slots++;
         auto proxy = world().analyze(slot->out_ptr_type(), {orig, world().lit_nat(slot_id)}, index(), slot->debug());
-        auto& lattice = info.proxies[slot_id];
+        auto& lattice = info.slots[slot_id];
 
         outf("slot: {}/{}\n", proxy, lattice);
         if (lattice == Info::SSA) {
@@ -117,7 +117,7 @@ void Mem2Reg::enter(Def* def) {
 
 void Mem2Reg::reenter(Def* def) {
     if (auto new_lam = def->isa<Lam>()) {
-        outf("enter: {}\n", new_lam);
+        outf("reenter: {}\n", new_lam);
         // remove any potential garbage from previous runs
         auto& info = lam2info(new_lam);
         info.num_slots = 0;
@@ -166,15 +166,15 @@ void Mem2Reg::analyze(const Def* def) {
         auto phi_lam = analyze->op(0)->as_nominal<Lam>();
         auto proxy   = analyze->op(1)->as<Analyze>();
         auto proxy_lam = proxy->op(0)->as_nominal<Lam>();
-        auto proxy_id  = as_lit<u64>(proxy->op(1));
+        auto slot_id  = as_lit<u64>(proxy->op(1));
 
         auto& phi_info   = lam2info(phi_lam);
         auto& proxy_info = lam2info(proxy_lam);
         auto& phis = phi_info.phis;
 
         if (phi_info.lattice == Info::Keep) {
-            if (proxy_info.proxies[proxy_id] == Info::SSA) {
-                proxy_info.proxies[proxy_id] = Info::Keep_;
+            if (proxy_info.slots[slot_id] == Info::SSA) {
+                proxy_info.slots[slot_id] = Info::Keep_;
                 outf("keep: {}\n", proxy);
                 if (auto i = std::find(phis.begin(), phis.end(), proxy); i != phis.end())
                     phis.erase(i);
@@ -196,11 +196,11 @@ void Mem2Reg::analyze(const Def* def) {
 
         if (auto proxy = isa_proxy(op)) {
             auto proxy_lam = proxy->op(0)->as_nominal<Lam>();
-            auto proxy_id  = as_lit<u64>(proxy->op(1));
+            auto slot_id  = as_lit<u64>(proxy->op(1));
             auto& info = lam2info(proxy_lam);
-            if (info.proxies[proxy_id] == Info::SSA) {
+            if (info.slots[slot_id] == Info::SSA) {
                 outf("keep: {}\n", proxy);
-                info.proxies[proxy_id] = Info::Keep_;
+                info.slots[slot_id] = Info::Keep_;
                 man().undo(info.undo);
             }
         } else if (auto lam = op->isa_nominal<Lam>()) {
@@ -231,8 +231,8 @@ void Mem2Reg::analyze(const Def* def) {
                 outf("keep: {}\n", lam);
                 for (auto phi : info.phis) {
                     auto& proxy_info = lam2info(phi->op(0)->as_nominal<Lam>());
-                    auto proxy_id    = as_lit<u64>(phi->op(1));
-                    proxy_info.proxies[proxy_id] = Info::Keep_;
+                    auto slot_id    = as_lit<u64>(phi->op(1));
+                    proxy_info.slots[slot_id] = Info::Keep_;
                     info.phis.clear();
                     man().undo(info.undo);
                     man().undo(proxy_info.undo);

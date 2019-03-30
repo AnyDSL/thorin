@@ -126,11 +126,12 @@ const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
 #if THORIN_ENABLE_CHECKS
     // TODO type-check type vs inferred type
 #endif
-    if (type->isa_nominal()) return unify<Tuple>(ops.size(), type, ops, dbg);
 
     auto n = ops.size();
     if (n == 0) return tuple();
     if (n == 1) return ops[0];
+    if (type->isa_nominal()) return unify<Tuple>(ops.size(), type, ops, dbg);
+
     if (std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; }))
         return pack(n, ops[0]);
 
@@ -1023,7 +1024,6 @@ void World::cleanup() { cleanup_world(*this); }
 
 void World::opt() {
     optimize(*this);
-    return;
     cleanup();
     while (partial_evaluation(*this, true)); // lower2cff
     flatten_tuples(*this);

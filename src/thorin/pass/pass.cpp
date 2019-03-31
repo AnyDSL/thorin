@@ -15,7 +15,7 @@ void PassMan::run() {
     for (auto lam : externals) {
         cur_nominal_ = lam;
         rewrite(lam); // provokes inspect
-        analyze(lam); // puts in into the queue
+        analyze(lam); // puts into the queue
         cur_nominal_ = nullptr;
 
         while (!queue().empty()) {
@@ -84,11 +84,7 @@ const Def* PassMan::rewrite(const Def* old_def) {
         return new_op;
     });
 
-    auto new_def = old_def;
-    if (changed) {
-        new_def = old_def->rebuild(world(), new_type, new_ops);
-        //if (auto def = lookup(new_def)) return *def;
-    }
+    auto new_def = changed ? old_def->rebuild(world(), new_type, new_ops) : old_def;
 
     for (auto& pass : passes_)
         new_def = pass->rewrite(new_def);

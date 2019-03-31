@@ -6,8 +6,6 @@
 namespace thorin {
 
 void PassMan::run() {
-    world().thorin();
-
     states_.emplace_back(passes_);
     std::vector<const Def*> new_ops;
 

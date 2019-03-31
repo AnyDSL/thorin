@@ -1,6 +1,8 @@
 #ifndef THORIN_PASS_MEM2REG_H
 #define THORIN_PASS_MEM2REG_H
 
+#include <set>
+
 #include "thorin/pass/pass.h"
 #include "thorin/util/bitset.h"
 
@@ -34,7 +36,7 @@ public:
         {}
 
         BitSet keep_slots; // true means: keep
-        std::vector<const Analyze*> phis;
+        std::set<const Analyze*, GIDLt<const Analyze*>> phis;
         GIDMap<const Analyze*, const Def*> proxy2val;
         GIDSet<const Analyze*> writable;
         Lam* pred = nullptr;

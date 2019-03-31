@@ -44,7 +44,8 @@ const Def* Mem2Reg::rewrite(const Def* def) {
         if (auto lam = app->callee()->isa_nominal<Lam>()) {
             const auto& info = lam2info(lam);
             if (auto new_lam = info.new_lam) {
-                Array<const Def*> args(info.phis.size(), [&](auto i) { return get_val(info.phis[i]); });
+                auto phi = info.phis.begin();
+                Array<const Def*> args(info.phis.size(), [&](auto) { return get_val(*phi++); });
                 return world().app(new_lam, merge_tuple(app->arg(), args));
             }
         }
@@ -63,7 +64,8 @@ void Mem2Reg::inspect(Def* def) {
 
             if (info.lattice == Info::PredsN && !info.phis.empty()) {
                 assert(old_lam->mem_param());
-                Array<const Def*> types(info.phis.size(), [&](auto i) { return proxy_type(info.phis[i]); });
+                auto phi = info.phis.begin();
+                Array<const Def*> types(info.phis.size(), [&](auto) { return proxy_type(*phi++); });
                 auto new_domain = merge_sigma(old_lam->domain(), types);
                 auto new_lam = world().lam(world().pi(new_domain, old_lam->codomain()), old_lam->debug());
                 outf("new_lam: {} -> {}\n", old_lam, new_lam);
@@ -94,12 +96,9 @@ void Mem2Reg::enter(Def* def) {
                 outf("enter: {}/{}\n", old_lam, new_lam);
                 auto& phis = lam2info(old_lam).phis;
                 size_t n = new_lam->num_params() - phis.size();
-
-                for (size_t i = 0, e = phis.size(); i != e; ++i) {
-                    auto proxy = phis[i];
-                    //auto lam = proxy->op(0)->as_nominal<Lam>();
-                    set_val(new_lam, proxy, new_lam->param(n + i));
-                }
+                size_t i = 0;
+                for (auto phi : phis)
+                    set_val(new_lam, phi, new_lam->param(n + i++));
             }
         }
     }
@@ -149,14 +148,14 @@ void Mem2Reg::analyze(const Def* def) {
             if (auto keep = proxy_info.keep_slots[slot_id]; !keep) {
                 keep = true;
                 outf("keep: {}\n", proxy);
-                if (auto i = std::find(phis.begin(), phis.end(), proxy); i != phis.end())
+                if (auto i = phis.find(proxy); i != phis.end())
                     phis.erase(i);
                 man().undo(proxy_info.undo);
             }
         } else {
             assert(phi_info.lattice == Info::PredsN);
-            assertf(std::find(phis.begin(), phis.end(), proxy) == phis.end(), "already added proxy {} to {}", proxy, phi_lam);
-            phis.emplace_back(proxy);
+            assertf(phis.find(proxy) == phis.end(), "already added proxy {} to {}", proxy, phi_lam);
+            phis.emplace(proxy);
             outf("phi needed: {}\n", phi);
             man().undo(phi_info.undo);
         }

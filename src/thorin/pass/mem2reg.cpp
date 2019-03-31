@@ -81,7 +81,11 @@ void Mem2Reg::enter(Def* def) {
     if (auto new_lam = def->isa<Lam>()) {
         outf("enter: {}\n", new_lam);
         auto& info = lam2info(new_lam);
+
+        // remove garbage from previous runs
+        info.num_slots = 0;
         info.proxy2val.clear();
+
         if (auto old_lam = new2old(new_lam)) {
             auto& phis = lam2info(old_lam).phis;
 
@@ -102,11 +106,6 @@ void Mem2Reg::enter(Def* def) {
             }
         }
     }
-}
-
-void Mem2Reg::reenter(Def* def) {
-    if (auto new_lam = def->isa<Lam>())
-        lam2info(new_lam).num_slots = 0;
 }
 
 const Def* Mem2Reg::get_val(Lam* lam, const Analyze* proxy) {

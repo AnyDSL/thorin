@@ -23,7 +23,6 @@ public:
     const Def* rewrite(const Def*) override;
     void inspect(Def*) override;
     void enter(Def*) override;
-    void reenter(Def*) override;
     void analyze(const Def*) override;
 
     struct Info {

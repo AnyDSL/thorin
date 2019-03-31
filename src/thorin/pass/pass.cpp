@@ -14,7 +14,7 @@ void PassMan::run() {
         cur_nominal_ = lam;
         rewrite(lam); // provokes inspect
         analyze(lam); // puts into the queue
-        cur_nominal_ = nullptr;
+        cur_nominal_ = nullptr; // ensure to provoke pass->enter
 
         while (!queue().empty()) {
             auto old_nom = cur_nominal_;
@@ -25,9 +25,6 @@ void PassMan::run() {
                 for (auto& pass : passes_)
                     pass->enter(cur_nominal_);
             }
-
-            for (auto& pass : passes_)
-                pass->reenter(cur_nominal_);
 
             outf("\ncur: {} {}\n", cur_state_id(), cur_nominal());
 
@@ -57,6 +54,7 @@ void PassMan::run() {
 
                 states_.resize(undo_);
                 undo_ = No_Undo;
+                cur_nominal_ = nullptr; // ensure to provoke pass->enter
             }
         }
     }

@@ -40,8 +40,8 @@ public:
         Lam* pred = nullptr;
         Lam* new_lam = nullptr;
         unsigned num_slots = 0;
-        unsigned lattice    :  2;
-        unsigned undo       : 30;
+        unsigned lattice :  2;
+        unsigned undo    : 30;
     };
 
     using Lam2Info = LamMap<Info>;
@@ -50,13 +50,14 @@ public:
 
 private:
     const Analyze* isa_proxy(const Def*);
+    const Analyze* isa_virtual_phi(const Def*);
     const Def* get_val(Lam*, const Analyze*);
     const Def* get_val(const Analyze* proxy) { return get_val(man().cur_lam(), proxy); }
     const Def* set_val(Lam*, const Analyze*, const Def*);
     const Def* set_val(const Analyze* proxy, const Def* val) { return set_val(man().cur_lam(), proxy, val); }
 
-    auto& lam2info  (Lam* lam)             { return get<Lam2Info>(lam, Info(man().cur_state_id())); }
-    auto& new2old   (Lam* lam)             { return get<Lam2Lam> (lam); }
+    auto& lam2info(Lam* lam) { return get<Lam2Info>(lam, Info(man().cur_state_id())); }
+    auto& new2old (Lam* lam) { return get<Lam2Lam> (lam); }
     Lam* original(Lam* new_lam) {
         if (auto old_lam = new2old(new_lam)) return old_lam;
         return new_lam;

@@ -70,6 +70,8 @@ set(THORIN_SOURCES
     transform/rewrite_flow_graphs.h
     util/args.h
     util/array.h
+    util/bitset.cpp
+    util/bitset.h
     util/cast.h
     util/hash.h
     util/hash.cpp

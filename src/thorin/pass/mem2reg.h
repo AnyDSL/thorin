@@ -2,6 +2,7 @@
 #define THORIN_PASS_MEM2REG_H
 
 #include "thorin/pass/pass.h"
+#include "thorin/util/bitset.h"
 
 namespace thorin {
 
@@ -24,17 +25,15 @@ public:
     void analyze(const Def*) override;
 
     struct Info {
-        enum LamLattice { Preds0, Preds1, PredsN, Keep };
-        enum SlotLattice { SSA, Keep_ };
+        enum Lattice { Preds0, Preds1, PredsN, Keep };
 
         Info() = default;
         Info(size_t undo)
-            : slots(100, SSA) // HACK
-            , lattice(Preds0)
+            : lattice(Preds0)
             , undo(undo)
         {}
 
-        std::vector<SlotLattice> slots;
+        BitSet keep_slots; // true means: keep
         std::vector<const Analyze*> phis;
         GIDMap<const Analyze*, const Def*> proxy2val;
         GIDSet<const Analyze*> writable;

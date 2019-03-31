@@ -18,11 +18,7 @@ const Def* Mem2Reg::rewrite(const Def* def) {
         auto& info = lam2info(orig);
         auto slot_id = info.num_slots++;
         auto proxy = world().analyze(slot->out_ptr_type(), {orig, world().lit_nat(slot_id)}, index(), slot->debug());
-        auto& lattice = info.slots[slot_id];
-
-        outf("slot: {}/{}\n", proxy, lattice);
-        if (lattice == Info::SSA) {
-            //man().new_state();
+        if (!info.keep_slots[slot_id]) {
             set_val(proxy, world().bot(proxy_type(proxy)));
             auto& info = lam2info(man().cur_lam());
             info.writable.emplace(proxy);
@@ -61,17 +57,6 @@ void Mem2Reg::inspect(Def* def) {
             man().new_state();
 
             if (info.lattice == Info::PredsN && !info.phis.empty()) {
-
-                /*
-                for (size_t i = 0; i != info.phis.size();) {
-                    if (proxy2info(info.phis[i]).lattice == Info::Keep_) {
-                        info.phis.erase(info.phis.begin() + i);
-                        outf("remove proxy: {}\n", info.phis[i]);
-                    } else
-                        ++i;
-                }
-                */
-
                 assert(old_lam->mem_param());
                 Array<const Def*> types(info.phis.size(), [&](auto i) { return proxy_type(info.phis[i]); });
                 auto new_domain = merge_sigma(old_lam->domain(), types);
@@ -121,17 +106,6 @@ void Mem2Reg::reenter(Def* def) {
         // remove any potential garbage from previous runs
         auto& info = lam2info(new_lam);
         info.num_slots = 0;
-        //if (auto old_lam = new2old(new_lam)) {
-            //outf("enter: {}/{}\n", old_lam, new_lam);
-            //auto& phis = lam2info(old_lam).phis;
-            //size_t n = new_lam->num_params() - phis.size();
-
-            //for (size_t i = 0, e = phis.size(); i != e; ++i) {
-                //auto proxy = phis[i];
-                ////auto lam = proxy->op(0)->as_nominal<Lam>();
-                //set_val(new_lam, proxy, new_lam->param(n + i));
-            //}
-        //}
     }
 }
 
@@ -173,8 +147,8 @@ void Mem2Reg::analyze(const Def* def) {
         auto& phis = phi_info.phis;
 
         if (phi_info.lattice == Info::Keep) {
-            if (proxy_info.slots[slot_id] == Info::SSA) {
-                proxy_info.slots[slot_id] = Info::Keep_;
+            if (auto keep = proxy_info.keep_slots[slot_id]; !keep) {
+                keep = true;
                 outf("keep: {}\n", proxy);
                 if (auto i = std::find(phis.begin(), phis.end(), proxy); i != phis.end())
                     phis.erase(i);
@@ -198,9 +172,9 @@ void Mem2Reg::analyze(const Def* def) {
             auto proxy_lam = proxy->op(0)->as_nominal<Lam>();
             auto slot_id  = as_lit<u64>(proxy->op(1));
             auto& info = lam2info(proxy_lam);
-            if (info.slots[slot_id] == Info::SSA) {
+            if (auto keep = info.keep_slots[slot_id]; !keep) {
+                keep = true;
                 outf("keep: {}\n", proxy);
-                info.slots[slot_id] = Info::Keep_;
                 man().undo(info.undo);
             }
         } else if (auto lam = op->isa_nominal<Lam>()) {
@@ -232,7 +206,7 @@ void Mem2Reg::analyze(const Def* def) {
                 for (auto phi : info.phis) {
                     auto& proxy_info = lam2info(phi->op(0)->as_nominal<Lam>());
                     auto slot_id    = as_lit<u64>(phi->op(1));
-                    proxy_info.slots[slot_id] = Info::Keep_;
+                    proxy_info.keep_slots.set(slot_id);
                     info.phis.clear();
                     man().undo(info.undo);
                     man().undo(proxy_info.undo);

@@ -5,16 +5,6 @@
 
 namespace thorin {
 
-// TODO remove
-template<typename T> void print_queue(T q) {
-    std::cout << "  ";
-    while (!q.empty()) {
-        outf("{}/{} ", std::get<0>(q.top()), std::get<1>(q.top()));
-        q.pop();
-    }
-    std::cout << '\n';
-}
-
 void PassMan::run() {
     world().thorin();
 
@@ -31,17 +21,17 @@ void PassMan::run() {
         while (!queue().empty()) {
             auto old_nom = cur_nominal_;
             cur_nominal_ = std::get<Def*>(queue().top());
+
             if (old_nom != cur_nominal_) {
                 new_state();
                 for (auto& pass : passes_)
                     pass->enter(cur_nominal_);
             }
+
             for (auto& pass : passes_)
                 pass->reenter(cur_nominal_);
 
             outf("\ncur: {} {}\n", cur_state_id(), cur_nominal());
-            outf("Q: ");
-            print_queue(queue());
 
             bool mismatch = false;
             new_ops.resize(cur_nominal()->num_ops());
@@ -52,7 +42,6 @@ void PassMan::run() {
             }
 
             if (mismatch) {
-                new_state();
                 assert(undo_ == No_Undo && "only provoke undos during analyze");
                 cur_nominal()->set(new_ops);
                 continue;
@@ -68,8 +57,6 @@ void PassMan::run() {
                 for (size_t i = cur_state_id(); i-- != undo_;)
                     states_[i].nominal->set(states_[i].old_ops);
 
-                //TODO
-                //assert(old_nom != cur_nominal_);
                 states_.resize(undo_);
                 undo_ = No_Undo;
             }

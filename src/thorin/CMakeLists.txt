@@ -66,8 +66,6 @@ set(THORIN_SOURCES
     transform/resolve_loads.h
     transform/partial_evaluation.cpp
     transform/partial_evaluation.h
-    transform/rewrite_flow_graphs.cpp
-    transform/rewrite_flow_graphs.h
     util/args.h
     util/array.h
     util/bitset.cpp

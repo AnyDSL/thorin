@@ -11,7 +11,6 @@
 #include "thorin/transform/clone_bodies.h"
 #include "thorin/transform/codegen_prepare.h"
 #include "thorin/transform/flatten_tuples.h"
-#include "thorin/transform/rewrite_flow_graphs.h"
 #include "thorin/transform/inliner.h"
 #include "thorin/transform/lift_builtins.h"
 #include "thorin/transform/partial_evaluation.h"
@@ -1029,12 +1028,10 @@ void World::opt() {
     while (partial_evaluation(*this, true)); // lower2cff
     flatten_tuples(*this);
     clone_bodies(*this);
-    //closure_conversion(*this);
     lift_builtins(*this);
     inliner(*this);
     cleanup();
     codegen_prepare(*this);
-    //rewrite_flow_graphs(*this);
 }
 
 /*

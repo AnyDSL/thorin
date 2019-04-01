@@ -31,6 +31,8 @@ public:
 
 private:
     Info& lam2info(Lam* lam) { return get<LamMap<Info>>(lam, Info(Lattice::Bottom, man().cur_state_id())); }
+
+    LamSet keep_;
 };
 
 }

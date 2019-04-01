@@ -15,13 +15,13 @@ bool is_candidate(Lam* lam) { return lam != nullptr && !lam->is_empty() && !lam-
 
 const Def* Inliner::rewrite(const Def* def) {
     if (auto app = def->isa<App>()) {
-        if (auto lam = app->callee()->isa_nominal<Lam>(); is_candidate(lam)) {
+        if (auto lam = app->callee()->isa_nominal<Lam>(); is_candidate(lam) && !keep_.contains(lam)) {
             if (auto& info = lam2info(lam); info.lattice == Lattice::Bottom) {
                 info.lattice = Lattice::Inlined_Once;
                 info.undo = man().cur_state_id();
                 man().new_state();
                 outf("inline: {}\n", lam);
-                return drop(lam, app->arg());
+                return man().rewrite(drop(lam, app->arg()));
             }
         }
     }
@@ -34,6 +34,8 @@ void Inliner::analyze(const Def* def) {
 
     for (auto op : def->ops()) {
         if (auto lam = op->isa_nominal<Lam>()) {
+            if (keep_.contains(lam)) return;
+
             auto& info = lam2info(lam);
             if (info.lattice == Lattice::Bottom) {
                 assertf(!def->isa<App>() || def->as<App>()->callee() == op, "this case should have been inlined");
@@ -41,6 +43,7 @@ void Inliner::analyze(const Def* def) {
             } else if (info.lattice == Lattice::Inlined_Once) {
                 info.lattice = Lattice::Dont_Inline;
                 std::cout << "rollback: " << lam << std::endl;
+                keep_.emplace(lam);
                 man().undo(info.undo);
             }
         }

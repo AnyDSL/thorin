@@ -38,8 +38,8 @@ public:
     ///@}
     /// @name mangage state - dummy implementations here
     //@{
-    virtual void* alloc() const { return nullptr; }
-    virtual void dealloc(void*) const {}
+    virtual void* alloc() { return nullptr; }
+    virtual void dealloc(void*) {}
     //@}
 
 private:
@@ -71,7 +71,8 @@ public:
     Lam* cur_lam() const { return cur_nominal()->as<Lam>(); }
     void new_state() { states_.emplace_back(cur_state(), cur_nominal(), cur_nominal()->ops(), passes_); }
     template<class D> // D may be "Def" or "const Def"
-    D* map(const Def* old_def, D* new_def) { cur_state().old2new.emplace(old_def, new_def); return new_def; }
+    D* map(const Def* old_def, D* new_def) { cur_state().old2new[old_def] = new_def; return new_def; }
+    const Def* rewrite(const Def*);
 
     std::optional<const Def*> lookup(const Def* old_def) {
         auto& old2new = cur_state().old2new;
@@ -130,7 +131,6 @@ private:
         Array<void*> data;
     };
 
-    const Def* rewrite(const Def*);
     void analyze(const Def*);
     State& cur_state() { assert(!states_.empty()); return states_.back(); }
     const State& cur_state() const { assert(!states_.empty()); return states_.back(); }
@@ -167,11 +167,9 @@ public:
     /// Searches states from back to front in the map @p M for @p key using @p init if nothing is found.
     template<class M>
     auto& get(const typename M::key_type& key, typename M::mapped_type&& init) {
-        for (auto& state : reverse_range(states())) {
-            auto& map = std::get<M>(*static_cast<typename P::State*>(state.data[index()]));
-            if (auto i = map.find(key); i != map.end())
-                return i->second;
-        }
+        auto& map = std::get<M>(cur_state());
+        if (auto i = map.find(key); i != map.end())
+            return i->second;
 
         return std::get<M>(cur_state()).emplace(key, std::move(init)).first->second;
     }
@@ -181,8 +179,8 @@ public:
     //@}
     /// @name alloc/dealloc state
     //@{
-    void* alloc() const override { return new typename P::State(); }
-    void dealloc(void* state) const override { delete static_cast<typename P::State*>(state); }
+    void* alloc() override { return states().empty() ? new typename P::State() : new typename P::State(cur_state()); }
+    void dealloc(void* state) override { delete static_cast<typename P::State*>(state); }
     //@}
 };
 

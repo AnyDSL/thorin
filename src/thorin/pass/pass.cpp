@@ -82,8 +82,9 @@ const Def* PassMan::rewrite(const Def* old_def) {
 
     auto new_def = changed ? old_def->rebuild(world(), new_type, new_ops) : old_def;
 
-    for (auto& pass : passes_)
+    for (auto& pass : passes_) {
         new_def = pass->rewrite(new_def);
+    }
 
     return map(old_def, new_def);
 }

@@ -40,6 +40,8 @@
 #include "thorin/be/llvm/hls.h"
 #include "thorin/be/llvm/nvvm.h"
 #include "thorin/be/llvm/opencl.h"
+#include "thorin/pass/optimize.h"
+#include "thorin/transform/cleanup_world.h"
 #include "thorin/transform/codegen_prepare.h"
 #include "thorin/util/array.h"
 #include "thorin/util/log.h"
@@ -1198,7 +1200,7 @@ static void get_kernel_configs(Importer& importer,
     Cont2Config& kernel_config,
     std::function<std::unique_ptr<KernelConfig> (Lam*, Lam*)> use_callback)
 {
-    importer.world().opt();
+    optimize_old(importer.world());
 
     auto externals = importer.world().externals();
     for (auto lam : kernels) {
@@ -1356,7 +1358,7 @@ Backends::Backends(World& world)
         get_kernel_configs(hls, kernels, kernel_config, get_hls_config);
     }
 
-    world.cleanup();
+    cleanup_world(world);
     codegen_prepare(world);
 
     cpu_cg = std::make_unique<CPUCodeGen>(world);

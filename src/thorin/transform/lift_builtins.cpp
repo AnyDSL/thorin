@@ -3,6 +3,7 @@
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/free_defs.h"
 #include "thorin/analyses/scope.h"
+#include "thorin/transform/cleanup_world.h"
 #include "thorin/transform/inliner.h"
 #include "thorin/transform/mangle.h"
 
@@ -62,7 +63,7 @@ void lift_builtins(World& world) {
             }
         }
 
-        world.cleanup();
+        cleanup_world(world);
     }
 }
 

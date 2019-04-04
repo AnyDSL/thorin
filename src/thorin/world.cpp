@@ -6,14 +6,6 @@
 #include "thorin/primop.h"
 #include "thorin/util.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/pass/optimize.h"
-#include "thorin/transform/cleanup_world.h"
-#include "thorin/transform/clone_bodies.h"
-#include "thorin/transform/codegen_prepare.h"
-#include "thorin/transform/flatten_tuples.h"
-#include "thorin/transform/inliner.h"
-#include "thorin/transform/lift_builtins.h"
-#include "thorin/transform/partial_evaluation.h"
 #include "thorin/util/array.h"
 #include "thorin/util/log.h"
 
@@ -1013,25 +1005,6 @@ std::vector<Lam*> World::copy_lams() const {
     }
 
     return result;
-}
-
-/*
- * optimizations
- */
-
-void World::cleanup() { cleanup_world(*this); }
-
-void World::opt() {
-    optimize(*this);
-    return;
-    cleanup();
-    while (partial_evaluation(*this, true)); // lower2cff
-    flatten_tuples(*this);
-    clone_bodies(*this);
-    lift_builtins(*this);
-    inliner(*this);
-    cleanup();
-    codegen_prepare(*this);
 }
 
 /*

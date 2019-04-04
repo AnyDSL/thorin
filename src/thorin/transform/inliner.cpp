@@ -2,6 +2,7 @@
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/verify.h"
+#include "thorin/transform/cleanup_world.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/util/log.h"
 
@@ -98,7 +99,7 @@ void inliner(World& world) {
 
     VLOG("stop inliner");
     debug_verify(world);
-    world.cleanup();
+    cleanup_world(world);
 }
 
 }

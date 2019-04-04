@@ -321,10 +321,6 @@ public:
     Lam* end_scope() const { return cache_.end_scope_; }
     //@}
 
-    /// Performs dead code, unreachable code and unused type elimination.
-    void cleanup();
-    void opt();
-
     // other stuff
 
     void mark_pe_done(bool flag = true) { pe_done_ = flag; }

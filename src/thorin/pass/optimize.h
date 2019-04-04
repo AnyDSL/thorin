@@ -7,6 +7,8 @@ namespace thorin {
 
 void optimize(World&);
 
+void optimize_old(World&);
+
 }
 
 #endif

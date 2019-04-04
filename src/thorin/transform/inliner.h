@@ -3,6 +3,7 @@
 
 namespace thorin {
 
+class Scope;
 class World;
 
 /**

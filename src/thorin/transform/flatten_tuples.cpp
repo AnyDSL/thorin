@@ -1,5 +1,6 @@
 #include "thorin/world.h"
 #include "thorin/util.h"
+#include "thorin/transform/cleanup_world.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/analyses/verify.h"
 #include "thorin/util/log.h"
@@ -216,7 +217,7 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
     for (auto unwrap_pair : unwrapped)
         inline_calls(unwrap_pair.second->as_nominal<Lam>());
 
-    world.cleanup();
+    cleanup_world(world);
     debug_verify(world);
 }
 

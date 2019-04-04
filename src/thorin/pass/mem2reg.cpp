@@ -41,7 +41,6 @@ const Def* Mem2Reg::rewrite(const Def* def) {
             }
         }
     } else if (auto app = def->isa<App>()) {
-        app->dump();
         if (auto lam = app->callee()->isa_nominal<Lam>()) {
             const auto& info = lam2info(lam);
             if (auto new_lam = info.new_lam) {
@@ -70,8 +69,17 @@ void Mem2Reg::inspect(Def* def) {
             auto& phis = lam2phis_[old_lam];
 
             if (info.lattice == Info::PredsN && !phis.empty()) {
-                auto phi = phis.begin();
-                Array<const Def*> types(phis.size(), [&](auto) { return proxy_type(*phi++); });
+                std::vector<const Def*> types;
+                for (auto i = phis.begin(); i != phis.end();) {
+                    auto proxy = *i;
+                    if (keep_.contains(proxy)) {
+                        i = phis.erase(i);
+                    } else {
+                        types.emplace_back(proxy_type(proxy));
+                        ++i;
+                    }
+                }
+                //Array<const Def*> types(phis.size(), [&](auto) { return proxy_type(*phi++); });
                 auto new_domain = merge_sigma(old_lam->domain(), types);
                 auto new_lam = world().lam(world().pi(new_domain, old_lam->codomain()), old_lam->debug());
                 outf("new_lam: {} -> {}\n", old_lam, new_lam);
@@ -114,7 +122,9 @@ const Def* Mem2Reg::get_val(Lam* lam, const Analyze* proxy) {
 
     switch (info.lattice) {
         case Info::Preds0: return world().bot(proxy_type(proxy));
-        case Info::Preds1: return get_val(info.pred, proxy);
+        case Info::Preds1:
+                           outf("get_val pred: {}: {} -> {}\n", proxy, lam, info.pred);
+                           return get_val(info.pred, proxy);
         default: {
             auto old_lam = original(lam);
             outf("virtual phi: {}/{} for {}\n", old_lam, lam, proxy);

@@ -54,7 +54,7 @@ void PassMan::run() {
 
                 states_.resize(undo_);
                 undo_ = No_Undo;
-                cur_nominal_ = nullptr; // ensure to provoke pass->enter
+                cur_nominal_ = std::get<Def*>(queue().top()); // don't provoke pass->enter
             }
         }
     }
@@ -82,11 +82,11 @@ const Def* PassMan::rewrite(const Def* old_def) {
 
     auto new_def = changed ? old_def->rebuild(world(), new_type, new_ops) : old_def;
 
-    for (auto& pass : passes_) {
+    for (auto& pass : passes_)
         new_def = pass->rewrite(new_def);
-    }
 
-    return map(old_def, new_def);
+    assert(!cur_state().old2new.contains(new_def) || cur_state().old2new[new_def] == new_def);
+    return map(old_def, map(new_def, new_def));
 }
 
 void PassMan::analyze(const Def* def) {

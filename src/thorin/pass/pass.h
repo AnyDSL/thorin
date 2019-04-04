@@ -81,9 +81,9 @@ public:
     }
 
 private:
-    static const Def* lookup(Def2Def& old2new, Def2Def::iterator i) {
-        if (auto j = old2new.find(i->second); j != old2new.end() && i != j)
-            i->second = lookup(old2new, j); // path compression + transitive replacements
+    static const Def* lookup(Def2Def& /*old2new*/, Def2Def::iterator i) {
+        //if (auto j = old2new.find(i->second); j != old2new.end() && i != j)
+            //i->second = lookup(old2new, j); // path compression + transitive replacements
         return i->second;
     }
 

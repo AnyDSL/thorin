@@ -4,6 +4,7 @@
 
 #include "thorin/def.h"
 #include "thorin/primop.h"
+#include "thorin/rewrite.h"
 #include "thorin/util.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/util/array.h"
@@ -157,28 +158,37 @@ const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
     if (index->type() == lit_arity_1()) return agg;
     if (auto pack = agg->isa<Pack>()) return pack->body();
 
-    if (auto tuple = agg->isa<Tuple>()) {
-        if (auto lit = isa_lit<u64>(index))
-            return tuple->op(*lit);
-    }
-
-    const Def* type = nullptr;
-    if (auto sigma = agg->type()->isa<Sigma>())
-        type = sigma->op(as_lit<u64>(index));
-    else
-        type = agg->type()->as<Variadic>()->body();
-
+    // extract(insert(x, index, val), index) -> val
     if (auto insert = agg->isa<Insert>()) {
-        // extract(insert(x, index, val), index) -> val
         if (index == insert->index())
             return insert->val();
-        // extract(insert(x, j, val), i) -> extract(x, i) where i != j
-        else if (index->isa<Lit>()) {
+    }
+
+    if (auto i = isa_lit<u64>(index)) {
+        if (auto tuple = agg->isa<Tuple>()) return tuple->op(*i);
+
+        // extract(insert(x, j, val), i) -> extract(x, i) where i != j (guaranteed by rule above)
+        if (auto insert = agg->isa<Insert>()) {
             if (insert->index()->isa<Lit>())
                 return extract(insert->agg(), index, dbg);
         }
+
+        const Def* type = nullptr;
+        if (auto sigma = agg->type()->isa<Sigma>()) {
+            if (sigma->is_dependent() && *i >= 1) {
+                Rewriter rewriter(*this);
+                for (size_t j = 0; j != *i; ++j)
+                    rewriter.map(var(sigma->op(0), j), extract(agg, j));
+                type = rewriter.rewrite(sigma->op(*i));
+            } else {
+                type = sigma->op(*i);
+            }
+
+            return unify<Extract>(2, type, agg, index, dbg);
+        }
     }
 
+    auto type = agg->type()->as<Variadic>()->body();
     return unify<Extract>(2, type, agg, index, dbg);
 }
 

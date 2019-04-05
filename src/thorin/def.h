@@ -119,7 +119,8 @@ public:
     bool is_type() const { return sort() == Sort::Type; }
     bool is_kind() const { return sort() == Sort::Kind; }
     bool is_universe() const { return sort() == Sort::Universe; }
-    bool is_value() const { return is_value_; }
+    bool is_value() const { return value_; }
+    bool is_dependent() const { return dependent_; }
     virtual const Def* arity() const;
     //@}
     /// @name ops
@@ -206,7 +207,7 @@ protected:
     };
     // TODO fine-tune bit fields
     unsigned tag_           : 10;
-    unsigned is_value_      :  1;
+    unsigned value_         :  1;
     unsigned nominal_       :  1;
     unsigned dependent_     :  1;
     unsigned contains_lam_  :  1;
@@ -417,14 +418,14 @@ private:
     Lam(const Pi* pi, const Def* filter, const Def* body, Debug dbg)
         : Def(Node_Lam, pi, {filter, body}, dbg)
     {
-        is_value_ = true;
+        value_ = true;
         extra<Extra>().cc_ = CC::C;
         extra<Extra>().intrinsic_ = Intrinsic::None;
     }
     Lam(const Pi* pi, CC cc, Intrinsic intrinsic, Debug dbg)
         : Def(Node_Lam, pi, 2, dbg)
     {
-        is_value_ = true;
+        value_ = true;
         extra<Extra>().cc_ = cc;
         extra<Extra>().intrinsic_ = intrinsic;
     }
@@ -578,7 +579,7 @@ private:
     Tuple(const Def* type, Defs args, Debug dbg)
         : Def(Node_Tuple, type, args, dbg)
     {
-        is_value_ = true;
+        value_ = true;
     }
 
 public:
@@ -608,7 +609,7 @@ private:
     Pack(const Def* type, const Def* body, Debug dbg)
         : Def(Node_Pack, type, {body}, dbg)
     {
-        is_value_ = true;
+        value_ = true;
     }
 
 public:

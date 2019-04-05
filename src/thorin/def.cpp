@@ -33,11 +33,13 @@ void Def::finalize() {
         assert(o != nullptr);
         contains_lam_ |= o->contains_lam();
         order_ = std::max(order_, o->order_);
+        dependent_ |= o->is_dependent();
         const auto& p = o->uses_.emplace(this, i);
         assert_unused(p.second);
     }
 
     if (isa<Pi>()) ++order_;
+    else if (isa<Var>()) dependent_ = true;
 }
 
 Def* Def::set(size_t i, const Def* def) {
@@ -49,6 +51,7 @@ Def* Def::set(size_t i, const Def* def) {
     ops_ptr()[i] = def;
     contains_lam_ |= def->contains_lam();
     order_ = std::max(order_, def->order_);
+    dependent_ |= def->is_dependent();
     const auto& p = def->uses_.emplace(this, i);
     assert_unused(p.second);
     return this;
@@ -311,7 +314,7 @@ bool Pi::is_returning() const {
 Def::Def(NodeTag tag, const Def* type, Defs ops, Debug dbg)
     : type_(type)
     , tag_((unsigned)tag)
-    , is_value_(is_term())
+    , value_(is_term())
     , nominal_(false)
     , dependent_(false)
     , contains_lam_(tag == Node_Lam)
@@ -329,7 +332,7 @@ Def::Def(NodeTag tag, const Def* type, Defs ops, Debug dbg)
 Def::Def(NodeTag tag, const Def* type, size_t num_ops, Debug dbg)
     : type_(type)
     , tag_(tag)
-    , is_value_(is_term())
+    , value_(is_term())
     , nominal_(true)
     , dependent_(false)
     , contains_lam_(tag == Node_Lam)

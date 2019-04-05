@@ -212,7 +212,7 @@ void Mem2Reg::analyze(const Def* def) {
                 for (auto phi : phis) {
                     auto [proxy_lam, slot_id] = disassemble_proxy(phi);
                     auto& proxy_info = lam2info(proxy_lam);
-                    keep_.emplace(proxy);
+                    keep_.emplace(phi);
                     phis.clear();
                     man().undo(info.undo);
                     man().undo(proxy_info.undo);

@@ -120,7 +120,7 @@ Array<const Def*> App::args() const { return Array<const Def*>(num_args(), [&](a
 bool Lam::is_empty() const { return is_bot(body()); }
 
 void Lam::destroy() {
-    set_filter(world().tuple(Array<const Def*>(type()->num_domains(), world().lit(false))));
+    set_filter(world().lit(false));
     set_body  (world().bot(type()->codomain()));
 }
 

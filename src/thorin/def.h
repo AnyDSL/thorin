@@ -443,9 +443,6 @@ public:
     /// @name ops
     //@{
     const Def* filter() const { return op(0); }
-    const Def* filter(size_t i) const;
-    Array<const Def*> filters() const;
-    size_t num_filters() const { return num_params(); }
     const Def* body() const { return op(1); }
     const App* app() const { return body()->isa<App>(); }
     //@}
@@ -461,7 +458,6 @@ public:
     /// @name setters
     //@{
     void set_filter(const Def* filter) { set(0, filter); }
-    void set_filter(Defs filter);
     void set_body(const Def* body) { set(1, body); }
     void destroy();
     //@}

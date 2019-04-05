@@ -64,15 +64,7 @@ Lam* Mangler::mangle() {
     if (all)
         old2new_[old_entry()->param()] = world().tuple(args_);
 
-    // map filter
-    Array<const Def*> new_filter(new_entry()->num_params());
-    size_t j = 0;
-    for (size_t i = 0, e = old_entry()->num_params(); i != e; ++i) {
-        if (is_top(args_[i]))
-            new_filter[j++] = mangle(old_entry()->filter(i));
-    }
-
-    new_entry()->set_filter(new_filter);
+    new_entry()->set_filter(mangle(old_entry()->filter()));
     new_entry()->set_body(mangle(old_entry()->body()));
 
     return new_entry();

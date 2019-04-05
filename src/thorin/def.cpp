@@ -128,10 +128,6 @@ const Param* Lam::param(Debug dbg) const { return world().param(this->as_nominal
 const Def* Lam::param(size_t i, Debug dbg) const { return world().extract(param(), i, dbg); }
 Array<const Def*> Lam::params() const { return Array<const Def*>(num_params(), [&](auto i) { return param(i); }); }
 
-const Def* Lam::filter(size_t i) const { return world().extract(filter(), i); }
-Array<const Def*> Lam::filters() const { return Array<const Def*>(num_filters(), [&](auto i) { return filter(i); }); }
-void Lam::set_filter(Defs filter) { set_filter(world().tuple(filter)); }
-
 const Def* Lam::mem_param() const {
     for (size_t i = 0, e = num_params(); i != e; ++i) {
         auto p = param(i);

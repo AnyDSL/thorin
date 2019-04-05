@@ -235,12 +235,7 @@ void Cleaner::eliminate_params() {
                 new_lam->param(j++)->debug() = old_lam->param(i)->debug_history();
             }
 
-            if (auto a = as_lit<u64>(old_lam->filter()->arity()); a != 1) {
-                Array<const Def*> new_filter(param_idx.size(), [&](auto i) { return world().extract(old_lam->filter(), param_idx[i]); });
-                new_lam->set_filter(new_filter);
-            } else {
-                new_lam->set_filter(old_lam->filter());
-            }
+            new_lam->set_filter(old_lam->filter());
             new_lam->app(old_app->callee(), old_app->args(), old_app->debug());
             old_lam->destroy();
 

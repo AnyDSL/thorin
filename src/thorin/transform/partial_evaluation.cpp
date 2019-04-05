@@ -79,11 +79,7 @@ public:
         //return is_one(instantiate(filter(i)));
     }
 
-    const Def* filter(size_t i) {
-        if (callee_->filter()->type()->isa<Sigma>())
-            return callee_->filter(i);
-        return callee_->filter();
-    }
+    const Def* filter(size_t /*i*/) { return callee_->filter(); }
 
     bool has_free_params(Lam* lam) {
         Scope scope(lam);

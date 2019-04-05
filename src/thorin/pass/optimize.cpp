@@ -24,7 +24,6 @@ void optimize(World& world) {
 }
 
 void optimize_old(World& world) {
-    cleanup_world(world); // TODO remove this
     optimize(world);
     cleanup_world(world);
     while (partial_evaluation(world, true)); // lower2cff

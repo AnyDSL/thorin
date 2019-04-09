@@ -739,14 +739,15 @@ void CCodeGen::emit() {
         def2str_.clear();
     });
     // HLS top function
-    if (lang_==Lang::HLS)
+    if (lang_==Lang::HLS) {
         hls_pragmas += "#pragma HLS DATAFLOW";
+        Scope::for_each(world(), [&] (const Scope& scope) {
+                })
         hls_top_ << "void hls_top() {" << up;
         if (!hls_pragmas.empty())
             hls_top_ << down << endl << hls_pragmas << up;
-       //develope Here
-       hls_top_ << down << endl << "}" << endl;
-
+        hls_top_ << down << endl << "}" << endl;
+    }
     type2str_.clear();
     global2str_.clear();
 

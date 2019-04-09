@@ -69,6 +69,7 @@ private:
     std::ostringstream func_impl_;
     std::ostringstream func_decls_;
     std::ostringstream type_decls_;
+    std::ostringstream hls_top_;
 };
 
 
@@ -299,6 +300,7 @@ void CCodeGen::emit() {
         }
     }
 
+    std::string hls_pragmas;
     Scope::for_each(world(), [&] (const Scope& scope) {
         if (scope.entry() == world().branch())
             return;
@@ -359,7 +361,6 @@ void CCodeGen::emit() {
         emit_type(func_decls_, ret_type) << " " << name << "(";
         emit_type(func_impl_,  ret_type) << " " << name << "(";
         size_t i = 0;
-        std::string hls_pragmas;
         // emit and store all first-order params
         for (auto param : continuation->params()) {
             if (is_mem(param) || is_unit(param))
@@ -737,6 +738,14 @@ void CCodeGen::emit() {
         func_impl_ << down << endl << "}" << endl << endl;
         def2str_.clear();
     });
+    // HLS top function
+    if (lang_==Lang::HLS)
+        hls_pragmas += "#pragma HLS DATAFLOW";
+        hls_top_ << "void hls_top() {" << up;
+        if (!hls_pragmas.empty())
+            hls_top_ << down << endl << hls_pragmas << up;
+       //develope Here
+       hls_top_ << down << endl << "}" << endl;
 
     type2str_.clear();
     global2str_.clear();
@@ -763,7 +772,8 @@ void CCodeGen::emit() {
     if (!func_decls_.str().empty())
         os_ << func_decls_.str() << endl;
     os_ << func_impl_.str();
-
+    if (!hls_top_.str().empty() && lang_==Lang::HLS)
+            os_ << hls_top_.str() << endl;
     if (lang_==Lang::CUDA || lang_==Lang::HLS)
         os_ << "}"; // extern "C"
 }

@@ -762,24 +762,26 @@ void CCodeGen::emit() {
                 }
             }
         assert(ret_param);
-        auto name = (continuation->is_external() || continuation->empty()) ? continuation->name() : continuation->unique_name();
-        hls_top_ << name << "();" << endl;
-//        KernelConfig* config = nullptr;
-//        if (continuation->is_external()) {
-//            auto config_it = kernel_config_.find(continuation);
-//            assert(config_it != kernel_config_.end());
-//            config = config_it->second.get();
-//        }
-//        if (param->type()->isa<PtrType>()) {
-//                    auto array_size = config->as<HLSKernelConfig>()->param_size(param);
-//                    assert(array_size > 0);
-//                    auto ptr_type = param->type()->as<PtrType>();
-//                    auto elem_type = ptr_type->pointee();
-//                    if (auto array_type = elem_type->isa<ArrayType>())
-//                        elem_type = array_type->elem_type();
-//                    emit_type(func_decls_, elem_type) << "[" << array_size << "]";
-//                    emit_type(func_impl_,  elem_type) << " " << param->unique_name() << "[" << array_size << "]";
-//        }
+        size_t param_num = 0;
+        for (auto param : continuation->params()) {
+            KernelConfig* config = nullptr;
+            if (continuation->is_external()) {
+                auto config_it = kernel_config_.find(continuation);
+                assert(config_it != kernel_config_.end());
+                config = config_it->second.get();
+            }
+        if (param->type()->isa<PtrType>()) {
+            auto array_size = config->as<HLSKernelConfig>()->param_size(param);
+            assert(array_size > 0);
+            auto ptr_type = param->type()->as<PtrType>();
+            auto elem_type = ptr_type->pointee();
+                    if (auto array_type = elem_type->isa<ArrayType>())
+                        elem_type = array_type->elem_type();
+                    emit_type(hls_top_,  elem_type) << " " << param->unique_name() << "[" << array_size << "]";
+        }
+        }
+        auto kernel_name = (continuation->is_external() || continuation->empty()) ? continuation->name() : continuation->unique_name();
+        hls_top_ << kernel_name << "();" << endl;
                 });
         hls_top_ << down << endl << "}" << endl;
     }

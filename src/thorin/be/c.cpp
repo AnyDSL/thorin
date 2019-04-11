@@ -741,11 +741,46 @@ void CCodeGen::emit() {
     // HLS top function
     if (lang_==Lang::HLS) {
         hls_pragmas += "#pragma HLS DATAFLOW";
-        Scope::for_each(world(), [&] (const Scope& scope) {
-                })
-        hls_top_ << "void hls_top() {" << up;
+        //-----ADD Main parameters and Interface Pragma
+        //--- ADD include from patch
+        hls_top_ << "void hls_top() {" << endl << up;
         if (!hls_pragmas.empty())
-            hls_top_ << down << endl << hls_pragmas << up;
+            hls_top_ << down << hls_pragmas << up << endl;
+        Scope::for_each(world(), [&] (const Scope& scope) {
+            if (scope.entry() == world().branch())
+                return;
+
+        auto continuation = scope.entry();
+        if (continuation->is_intrinsic())
+            return;
+
+        const Param* ret_param = nullptr;
+        for (auto param : continuation->params()) {
+            if (param->order() != 0) {
+                assert(!ret_param);
+                ret_param = param;
+                }
+            }
+        assert(ret_param);
+        auto name = (continuation->is_external() || continuation->empty()) ? continuation->name() : continuation->unique_name();
+        hls_top_ << name << "();" << endl;
+//        KernelConfig* config = nullptr;
+//        if (continuation->is_external()) {
+//            auto config_it = kernel_config_.find(continuation);
+//            assert(config_it != kernel_config_.end());
+//            config = config_it->second.get();
+//        }
+//        if (param->type()->isa<PtrType>()) {
+//                    auto array_size = config->as<HLSKernelConfig>()->param_size(param);
+//                    assert(array_size > 0);
+//                    auto ptr_type = param->type()->as<PtrType>();
+//                    auto elem_type = ptr_type->pointee();
+//                    if (auto array_type = elem_type->isa<ArrayType>())
+//                        elem_type = array_type->elem_type();
+//                    emit_type(func_decls_, elem_type) << "[" << array_size << "]";
+//                    emit_type(func_impl_,  elem_type) << " " << param->unique_name() << "[" << array_size << "]";
+//        }
+                });
         hls_top_ << down << endl << "}" << endl;
     }
     type2str_.clear();

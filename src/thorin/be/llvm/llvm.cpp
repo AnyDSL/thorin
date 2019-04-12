@@ -1200,18 +1200,12 @@ llvm::Value* CodeGen::create_tmp_alloca(llvm::Type* type, std::function<llvm::Va
     // emit the alloca in the entry block
     auto alloca = emit_alloca(type, "tmp_alloca");
 
-    // mark the lifetime of the alloca
-    auto lifetime_start = llvm::Intrinsic::getDeclaration(module_.get(), llvm::Intrinsic::lifetime_start);
-    auto lifetime_end   = llvm::Intrinsic::getDeclaration(module_.get(), llvm::Intrinsic::lifetime_end);
-    auto addr_space = alloca->getType()->getPointerAddressSpace();
-    auto void_cast = irbuilder_.CreateBitCast(alloca, llvm::PointerType::get(irbuilder_.getInt8Ty(), addr_space));
-
     auto layout = llvm::DataLayout(module_->getDataLayout());
     auto size = irbuilder_.getInt64(layout.getTypeAllocSize(type));
 
-    irbuilder_.CreateCall(lifetime_start, { size, void_cast });
+    irbuilder_.CreateLifetimeStart(alloca, size);
     auto result = fun(alloca);
-    irbuilder_.CreateCall(lifetime_end, { size, void_cast });
+    irbuilder_.CreateLifetimeEnd(alloca, size);
     return result;
 }
 

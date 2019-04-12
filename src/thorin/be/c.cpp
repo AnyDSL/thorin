@@ -743,9 +743,8 @@ void CCodeGen::emit() {
         hls_pragmas += "#pragma HLS DATAFLOW";
         //-----ADD Main parameters and Interface Pragma
         //--- ADD include from patch
-        hls_top_ << "void hls_top() {" << endl << up;
-        if (!hls_pragmas.empty())
-            hls_top_ << down << hls_pragmas << up << endl;
+        //--try storing in string variables and reusing the same loops
+        hls_top_ << "void hls_top(";
         Scope::for_each(world(), [&] (const Scope& scope) {
             if (scope.entry() == world().branch())
                 return;
@@ -754,14 +753,6 @@ void CCodeGen::emit() {
         if (continuation->is_intrinsic())
             return;
 
-        const Param* ret_param = nullptr;
-        for (auto param : continuation->params()) {
-            if (param->order() != 0) {
-                assert(!ret_param);
-                ret_param = param;
-                }
-            }
-        assert(ret_param);
         size_t param_num = 0;
         for (auto param : continuation->params()) {
             KernelConfig* config = nullptr;
@@ -777,12 +768,22 @@ void CCodeGen::emit() {
             auto elem_type = ptr_type->pointee();
                     if (auto array_type = elem_type->isa<ArrayType>())
                         elem_type = array_type->elem_type();
+                    // Top I/O ports(input,output)
                     emit_type(hls_top_,  elem_type) << " " << param->unique_name() << "[" << array_size << "]";
         }
         }
-        auto kernel_name = (continuation->is_external() || continuation->empty()) ? continuation->name() : continuation->unique_name();
-        hls_top_ << kernel_name << "();" << endl;
+//        auto kernel_name = (continuation->is_external() || continuation->empty()) ? continuation->name() : continuation->unique_name();
+        // Functions calls
+//        hls_top_ << kernel_name << "();" << endl;
                 });
+        hls_top_ <<") {" << endl << up;
+        if (!hls_pragmas.empty())
+            hls_top_ << down << hls_pragmas << up << endl;
+//        Scope::for_each(world(), [&] (const Scope& scope) {
+//        auto continuation = scope.entry();
+//        if (continuation->is_intrinsic())
+//            return;
+//                });
         hls_top_ << down << endl << "}" << endl;
     }
     type2str_.clear();

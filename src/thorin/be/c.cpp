@@ -774,18 +774,24 @@ void CCodeGen::emit() {
                 hls_top_ << ", ";
         }
         }
-//        auto kernel_name = (continuation->is_external() || continuation->empty()) ? continuation->name() : continuation->unique_name();
-        // Functions calls
-//        hls_top_ << kernel_name << "();" << endl;
                 });
         hls_top_ <<") {" << endl << up;
+        if (!hls_pragmas.empty()) {
+            hls_top_ << down << hls_pragmas << endl;
+            hls_pragmas.clear();
+        }
+        hls_pragmas += "#pragma HLS INTERFACE ap_ctrl_none port=return";
         if (!hls_pragmas.empty())
-            hls_top_ << down << hls_pragmas << up << endl;
-//        Scope::for_each(world(), [&] (const Scope& scope) {
-//        auto continuation = scope.entry();
-//        if (continuation->is_intrinsic())
-//            return;
-//                });
+            hls_top_ << hls_pragmas << up << endl;
+        Scope::for_each(world(), [&] (const Scope& scope) {
+        auto continuation = scope.entry();
+        if (continuation->is_intrinsic())
+            return;
+
+        auto kernel_name = (continuation->is_external() || continuation->empty()) ? continuation->name() : continuation->unique_name();
+        // Functions calls
+        hls_top_ << kernel_name << "();" << endl;
+                });
         hls_top_ << down << endl << "}" << endl;
     }
     type2str_.clear();

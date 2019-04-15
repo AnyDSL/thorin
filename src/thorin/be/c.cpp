@@ -740,6 +740,7 @@ void CCodeGen::emit() {
     });
     // HLS top function
     if (lang_==Lang::HLS) {
+        size_t io_cnt = 0;
         hls_pragmas += "#pragma HLS DATAFLOW";
         //-----ADD Main parameters and Interface Pragma
         //--- ADD include from patch
@@ -753,7 +754,6 @@ void CCodeGen::emit() {
         if (continuation->is_intrinsic())
             return;
 
-        size_t param_num = 0;
         for (auto param : continuation->params()) {
             KernelConfig* config = nullptr;
             if (continuation->is_external()) {
@@ -761,15 +761,17 @@ void CCodeGen::emit() {
                 assert(config_it != kernel_config_.end());
                 config = config_it->second.get();
             }
-        if (param->type()->isa<PtrType>()) {
-            auto array_size = config->as<HLSKernelConfig>()->param_size(param);
-            assert(array_size > 0);
-            auto ptr_type = param->type()->as<PtrType>();
-            auto elem_type = ptr_type->pointee();
-                    if (auto array_type = elem_type->isa<ArrayType>())
-                        elem_type = array_type->elem_type();
-                    // Top I/O ports(input,output)
-                    emit_type(hls_top_,  elem_type) << " " << param->unique_name() << "[" << array_size << "]";
+            if (param->type()->isa<PtrType>()) {
+                auto array_size = config->as<HLSKernelConfig>()->param_size(param);
+                assert(array_size > 0);
+                auto ptr_type = param->type()->as<PtrType>();
+                auto elem_type = ptr_type->pointee();
+            if (auto array_type = elem_type->isa<ArrayType>())
+                elem_type = array_type->elem_type();
+            // Top I/O ports(input,output)
+            emit_type(hls_top_,  elem_type) << " " << param->unique_name() << "[" << array_size << "]";
+            if (io_cnt++ != 1)
+                hls_top_ << ", ";
         }
         }
 //        auto kernel_name = (continuation->is_external() || continuation->empty()) ? continuation->name() : continuation->unique_name();

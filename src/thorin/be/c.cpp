@@ -740,11 +740,11 @@ void CCodeGen::emit() {
     });
     // HLS top function
     if (lang_==Lang::HLS) {
+        std::string io[2];
         size_t io_cnt = 0;
         hls_pragmas += "#pragma HLS DATAFLOW";
         //-----ADD Main parameters and Interface Pragma
         //--- ADD include from patch
-        //--try storing in string variables and reusing the same loops
         hls_top_ << "void hls_top(";
         Scope::for_each(world(), [&] (const Scope& scope) {
             if (scope.entry() == world().branch())
@@ -770,6 +770,7 @@ void CCodeGen::emit() {
                 elem_type = array_type->elem_type();
             // Top I/O ports(input,output)
             emit_type(hls_top_,  elem_type) << " " << param->unique_name() << "[" << array_size << "]";
+            io[io_cnt] = param->unique_name();
             if (io_cnt++ != 1)
                 hls_top_ << ", ";
         }
@@ -777,10 +778,11 @@ void CCodeGen::emit() {
                 });
         hls_top_ <<") {" << endl << up;
         if (!hls_pragmas.empty()) {
-            hls_top_ << down << hls_pragmas << endl;
+            hls_top_ << down << hls_pragmas<< endl;
             hls_pragmas.clear();
         }
-        hls_pragmas += "#pragma HLS INTERFACE ap_ctrl_none port=return";
+        hls_pragmas += "#pragma HLS INTERFACE ap_ctrl_none port=return\n";
+        hls_pragmas += "#pragma HLS top name=AnyHLS";
         if (!hls_pragmas.empty())
             hls_top_ << hls_pragmas << up << endl;
         Scope::for_each(world(), [&] (const Scope& scope) {

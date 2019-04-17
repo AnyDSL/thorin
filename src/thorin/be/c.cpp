@@ -742,7 +742,8 @@ void CCodeGen::emit() {
     if (lang_==Lang::HLS) {
         enum io_type: bool {input, output};
         io_type io = io_type::input;
-        std::string io_name[sizeof(io_type)] = "";
+        std::string io_params[sizeof(io_type)+1] = "";
+        //std::cout <<sizeof(io_type); 
         size_t kernel_cnt = 0;
         hls_pragmas += "#pragma HLS DATAFLOW";
         //-----ADD Main parameters and Interface Pragma
@@ -772,8 +773,8 @@ void CCodeGen::emit() {
                 elem_type = array_type->elem_type();
             // Top I/O ports(input,output)
             emit_type(hls_top_,  elem_type) << " " << param->unique_name() << "[" << array_size << "]";
-            if (io_name[io].empty())
-                io_name[io] = param->unique_name();
+            if (io_params[io].empty())
+                io_params[io] = param->unique_name();
             if (io == input) {
                 hls_top_ << ", ";
                 io = io_type::output;
@@ -787,7 +788,11 @@ void CCodeGen::emit() {
             hls_pragmas.clear();
         }
         hls_pragmas += "#pragma HLS top name=AnyHLS\n";
-        hls_pragmas += "#pragma HLS INTERFACE ap_ctrl_none port=return";
+        hls_pragmas += "#pragma HLS INTERFACE ap_ctrl_none port=return\n";
+        for (auto param : io_params) {
+            hls_pragmas += "#pragma HLS INTERFACE axis port=";
+            hls_pragmas.append(param+="\n");
+        }
         if (!hls_pragmas.empty())
             if (kernel_cnt == 1 )
                 hls_top_ << down ;

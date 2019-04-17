@@ -740,8 +740,9 @@ void CCodeGen::emit() {
     });
     // HLS top function
     if (lang_==Lang::HLS) {
-        std::string io[2];
-        size_t io_cnt = 0;
+        enum io_type: bool {input=0, output=1};
+        io_type io = io_type::input;
+        std::string io_name[sizeof(io_type)] = "";
         hls_pragmas += "#pragma HLS DATAFLOW";
         //-----ADD Main parameters and Interface Pragma
         //--- ADD include from patch
@@ -770,9 +771,12 @@ void CCodeGen::emit() {
                 elem_type = array_type->elem_type();
             // Top I/O ports(input,output)
             emit_type(hls_top_,  elem_type) << " " << param->unique_name() << "[" << array_size << "]";
-            io[io_cnt] = param->unique_name();
-            if (io_cnt++ != 1)
+            if (io_name[io].empty())
+                io_name[io] = param->unique_name();
+            if (io == input) {
                 hls_top_ << ", ";
+                io = io_type::output;
+            }
         }
         }
                 });

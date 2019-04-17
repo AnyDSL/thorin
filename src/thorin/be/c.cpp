@@ -740,9 +740,10 @@ void CCodeGen::emit() {
     });
     // HLS top function
     if (lang_==Lang::HLS) {
-        enum io_type: bool {input=0, output=1};
+        enum io_type: bool {input, output};
         io_type io = io_type::input;
         std::string io_name[sizeof(io_type)] = "";
+        size_t kernel_cnt = 0;
         hls_pragmas += "#pragma HLS DATAFLOW";
         //-----ADD Main parameters and Interface Pragma
         //--- ADD include from patch
@@ -754,7 +755,7 @@ void CCodeGen::emit() {
         auto continuation = scope.entry();
         if (continuation->is_intrinsic())
             return;
-
+        kernel_cnt++;
         for (auto param : continuation->params()) {
             KernelConfig* config = nullptr;
             if (continuation->is_external()) {
@@ -781,13 +782,15 @@ void CCodeGen::emit() {
         }
                 });
         hls_top_ <<") {" << endl << up;
-        if (!hls_pragmas.empty()) {
+        if (!hls_pragmas.empty() && (kernel_cnt > 1)) {
             hls_top_ << down << hls_pragmas<< endl;
             hls_pragmas.clear();
         }
-        hls_pragmas += "#pragma HLS INTERFACE ap_ctrl_none port=return\n";
-        hls_pragmas += "#pragma HLS top name=AnyHLS";
+        hls_pragmas += "#pragma HLS top name=AnyHLS\n";
+        hls_pragmas += "#pragma HLS INTERFACE ap_ctrl_none port=return";
         if (!hls_pragmas.empty())
+            if (kernel_cnt == 1 )
+                hls_top_ << down ;
             hls_top_ << hls_pragmas << up << endl;
         Scope::for_each(world(), [&] (const Scope& scope) {
         auto continuation = scope.entry();

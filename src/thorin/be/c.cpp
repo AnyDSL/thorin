@@ -742,11 +742,9 @@ void CCodeGen::emit() {
     if (lang_==Lang::HLS) {
         enum io_type: bool {input, output};
         io_type io = io_type::input;
-        std::string io_params[sizeof(io_type)+1] = "";
-        //std::cout <<sizeof(io_type); 
-        size_t kernel_cnt = 0;
+        std::string io_params[sizeof(io_type)] = "";
         hls_pragmas += "#pragma HLS DATAFLOW";
-        //-----ADD Main parameters and Interface Pragma
+        size_t kernel_cnt = 0;
         //--- ADD include from patch
         hls_top_ << "void hls_top(";
         Scope::for_each(world(), [&] (const Scope& scope) {
@@ -784,14 +782,22 @@ void CCodeGen::emit() {
                 });
         hls_top_ <<") {" << endl << up;
         if (!hls_pragmas.empty() && (kernel_cnt > 1)) {
-            hls_top_ << down << hls_pragmas<< endl;
-            hls_pragmas.clear();
+            hls_top_ << down << hls_pragmas << endl;
         }
+        hls_pragmas.clear();
         hls_pragmas += "#pragma HLS top name=AnyHLS\n";
         hls_pragmas += "#pragma HLS INTERFACE ap_ctrl_none port=return\n";
         for (auto param : io_params) {
             hls_pragmas += "#pragma HLS INTERFACE axis port=";
-            hls_pragmas.append(param+="\n");
+            hls_pragmas.append(param);
+            hls_pragmas += " bundle=";
+            if (io == output){
+                hls_pragmas.append("input_s\n");
+                io =io_type::input;
+                }
+            else
+                hls_pragmas.append("output_s\n");
+
         }
         if (!hls_pragmas.empty())
             if (kernel_cnt == 1 )

@@ -742,7 +742,7 @@ void CCodeGen::emit() {
     if (lang_==Lang::HLS) {
         enum io_type: bool {input, output};
         io_type io = io_type::input;
-        std::string io_params[sizeof(io_type)] = "";
+        std::string io_params[sizeof(io_type)+1] = "";
         hls_pragmas += "#pragma HLS DATAFLOW";
         size_t kernel_cnt = 0;
         //--- ADD include from patch

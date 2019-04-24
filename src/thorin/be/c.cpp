@@ -290,13 +290,15 @@ void CCodeGen::emit() {
     }
 
     // emit all globals
-    for (auto primop : world().primops()) {
-        if (auto global = primop->isa<Global>()) {
-            // skip strings as they are emitted inline
-            if (is_string_type(global->init()->type()))
-                continue;
-            emit_aggop_decl(global->type());
-            emit(global) << endl;
+    if (!(lang_==Lang::HLS)) {
+        for (auto primop : world().primops()) {
+            if (auto global = primop->isa<Global>()) {
+                // skip strings as they are emitted inline
+                if (is_string_type(global->init()->type()))
+                    continue;
+                emit_aggop_decl(global->type());
+                emit(global) << endl;
+            }
         }
     }
 
@@ -1299,27 +1301,31 @@ std::ostream& CCodeGen::emit(const Def* def) {
             case Lang::OPENCL: func_impl_ << "__constant "; break;
         }
         bool bottom = global->init()->isa<Bottom>();
-        if (!bottom)
-            emit(global->init()) << endl;
-        emit_type(func_impl_, global->alloced_type()) << " " << def_name << "_slot";
-        if (bottom) {
-            func_impl_ << "; // bottom";
-        } else {
-            func_impl_ << " = ";
-            emit(global->init()) << ";";
-        }
-        func_impl_ << endl;
+        if (!(lang_==Lang::HLS)) {
+            if (!bottom)
+                emit(global->init()) << endl;
+            emit_type(func_impl_, global->alloced_type()) << " " << def_name << "_slot";
+            if (bottom) {
+                func_impl_ << "; // bottom";
+            } else {
+                func_impl_ << " = ";
+                emit(global->init()) << ";";
+            }
+            func_impl_ << endl;
 
-        switch (lang_) {
-            default:                                        break;
-            case Lang::CUDA:   func_impl_ << "__device__ "; break;
-            case Lang::OPENCL: func_impl_ << "__constant "; break;
-        }
-        emit_type(func_impl_, global->alloced_type()) << " *" << def_name << " = &" << def_name << "_slot;";
-
+            switch (lang_) {
+                default:                                        break;
+                case Lang::CUDA:   func_impl_ << "__device__ "; break;
+                case Lang::OPENCL: func_impl_ << "__constant "; break;
+            }
+            emit_type(func_impl_, global->alloced_type()) << " *" << def_name << " = &" << def_name << "_slot;";
+            } else {
+                emit(global->init()) << endl;
+                //emit_type(hls_top_, global->alloced_type()) << " " << def_name;
+            }
+    }
         insert(def, def_name);
         return func_impl_;
-    }
 
     if (auto select = def->isa<Select>()) {
         emit_aggop_defs(select->cond());

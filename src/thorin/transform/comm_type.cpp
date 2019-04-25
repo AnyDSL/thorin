@@ -22,11 +22,9 @@ public:
             //parameters:
             //0 - mem type
             //1 - input type
-            //2 - mpi output datatype
-            //3 - return function
+            //2 - return function
             const Def* mem = entry->param(0);
             auto input = entry->param(1);
-            //auto output = entry->param(2);
             auto ret = entry->param(2);
             const Def* inputSize;
 
@@ -51,57 +49,8 @@ public:
                     })
                 }), Debug(Symbol("anydsl_create_datatype")));
                 create_datatype_call->cc() = CC::C;
-                /*
-                auto create_datatype_cont = world.continuation(world.fn_type({
-                    world.mem_type(),
-                    world.ptr_type(world.type_qs32(1))
-                }), Debug(Symbol("anydsl_create_datatype_cont")));
-                */
-                //create jumps
+
                 entry->jump(create_datatype_call, { mem, inputSize, ret });
-
-                //TODO adjust get_mpi_byte call with runtime call
-                //generate continuations
-                /*
-                auto mpi_byte_call = world.continuation(world.fn_type({ world.mem_type(), world.fn_type({ world.mem_type(), world.type_qs32(1)})}), Debug(Symbol("anydsl_comm_get_byte")));
-                mpi_byte_call->cc() = CC::C;
-                auto mpi_byte_call_cont = world.continuation(world.fn_type({ world.mem_type(), world.type_qs32(1)}),Debug(Symbol("get_mpi_byte_cont")));
-
-                auto mpi_type_contiguous_call = world.continuation(world.fn_type({
-                    world.mem_type(),
-                    world.type_qs32(1), //count
-                    world.type_qs32(1), //oldtype
-                    world.ptr_type(world.type_qs32(1)), //newtype
-                    world.fn_type({ world.mem_type(), world.type_qs32(1) })}),Debug(Symbol("anydsl_comm_type_contiguous")));
-                mpi_byte_call->cc() = CC::C;
-                auto mpi_type_contiguous_call_cont = world.continuation(world.fn_type({ world.mem_type(), world.type_qs32(1)}),Debug(Symbol("type_contiguous_cont")));
-
-                auto mpi_type_commit_call = world.continuation(world.fn_type({
-                    world.mem_type(),
-                    world.ptr_type(world.type_qs32()), //newtype
-                    world.fn_type({ world.mem_type(), world.type_qs32(1)})}),Debug(Symbol("anydsl_comm_type_commit")));
-                mpi_type_commit_call->cc() = CC::C;
-                auto mpi_type_commit_call_cont = world.continuation(world.fn_type({ world.mem_type(), world.type_qs32(1)}),Debug(Symbol("type_commit_cont")));
-
-                //create jumps
-                entry->jump(mpi_byte_call, { mem, mpi_byte_call_cont });
-
-                mpi_byte_call_cont->jump(mpi_type_contiguous_call, {
-                    mpi_byte_call_cont->param(0), //mem
-                    inputSize, //count
-                    mpi_byte_call_cont->param(1), //oldtype
-                    output, //newtype
-                    mpi_type_contiguous_call_cont
-                });
-
-                mpi_type_contiguous_call_cont->jump(mpi_type_commit_call, {
-                    mpi_type_contiguous_call_cont->param(0), //mem
-                    output, //newtype
-                    mpi_type_commit_call_cont
-                });
-
-                mpi_type_commit_call_cont->jump(ret, { mpi_type_commit_call_cont->param(0)});
-                */
             }
             else {
                 std::cerr << "Invalid datatype in comm_type call!" << std::endl;

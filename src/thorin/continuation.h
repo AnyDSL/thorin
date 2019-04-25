@@ -86,7 +86,7 @@ enum class Intrinsic : uint8_t {
     Pipeline,                   ///< Intrinsic loop-piplining-HLS-Backend
     Branch,                     ///< branch(cond, T, F).
     DeepCopy,                   ///< deep_copy: cn(mem, T*, T*, cn(M))
-    MpiType,                    ///< mpi_type: cn(mem, T*, MPI_Datatype*, cn(M))
+    CommType,                    ///< mpi_type: cn(mem, T*, cn(M, MPI_Datatype*))
     Match,                      ///< match(val, otherwise, (case1, cont1), (case2, cont2), ...)
     PeInfo,                     ///< Partial evaluation debug info.
     EndScope,                   ///< Dummy function which marks the end of a @p Scope.

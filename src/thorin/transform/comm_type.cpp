@@ -5,16 +5,16 @@
 
 namespace thorin {
 
-class MpiType {
+class CommType {
 public:
-    MpiType(World& world)
+    CommType(World& world)
         : world(world) {}
 
      void run() {
         Scope::for_each<false>(world, [&](Scope& scope) {
             auto entry = scope.entry();
 
-            if (entry->intrinsic() != Intrinsic::MpiType)
+            if (entry->intrinsic() != Intrinsic::CommType)
                 return;
 
             entry->intrinsic() = Intrinsic::None;
@@ -26,8 +26,8 @@ public:
             //3 - return function
             const Def* mem = entry->param(0);
             auto input = entry->param(1);
-            auto output = entry->param(2);
-            auto ret = entry->param(3);
+            //auto output = entry->param(2);
+            auto ret = entry->param(2);
             const Def* inputSize;
 
             if(auto ptrType = input->type()->isa<PtrType>()) {
@@ -41,8 +41,28 @@ public:
                         inputSize = world.cast(world.type_qs32(1),world.extract(sizePtrLoaded, (u32) 1));
                     }
                 }
+
+                auto create_datatype_call = world.continuation(world.fn_type({
+                    world.mem_type(),
+                    world.type_qs32(1),
+                    world.fn_type({
+                        world.mem_type(),
+                        world.ptr_type(world.type_qs32(1))
+                    })
+                }), Debug(Symbol("anydsl_create_datatype")));
+                create_datatype_call->cc() = CC::C;
+                /*
+                auto create_datatype_cont = world.continuation(world.fn_type({
+                    world.mem_type(),
+                    world.ptr_type(world.type_qs32(1))
+                }), Debug(Symbol("anydsl_create_datatype_cont")));
+                */
+                //create jumps
+                entry->jump(create_datatype_call, { mem, inputSize, ret });
+
                 //TODO adjust get_mpi_byte call with runtime call
                 //generate continuations
+                /*
                 auto mpi_byte_call = world.continuation(world.fn_type({ world.mem_type(), world.fn_type({ world.mem_type(), world.type_qs32(1)})}), Debug(Symbol("anydsl_comm_get_byte")));
                 mpi_byte_call->cc() = CC::C;
                 auto mpi_byte_call_cont = world.continuation(world.fn_type({ world.mem_type(), world.type_qs32(1)}),Debug(Symbol("get_mpi_byte_cont")));
@@ -81,10 +101,10 @@ public:
                 });
 
                 mpi_type_commit_call_cont->jump(ret, { mpi_type_commit_call_cont->param(0)});
-
+                */
             }
             else {
-                std::cerr << "Invalid datatype in mpi_type call!" << std::endl;
+                std::cerr << "Invalid datatype in comm_type call!" << std::endl;
             }
 
             scope.update();
@@ -96,8 +116,8 @@ public:
 private:
     World& world;
 };
-    void mpi_type(World& world) {
-    MpiType(world).run();
+    void comm_type(World& world) {
+    CommType(world).run();
 }
 
 }

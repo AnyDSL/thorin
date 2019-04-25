@@ -5,7 +5,7 @@ class World;
 
 namespace thorin {
 
-void mpi_type(World&);
+void comm_type(World&);
 
 }
 

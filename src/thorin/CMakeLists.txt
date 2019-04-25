@@ -42,6 +42,8 @@ set(THORIN_SOURCES
     transform/closure_conversion.h
     transform/codegen_prepare.h
     transform/codegen_prepare.cpp
+    transform/comm_type.cpp
+    transform/comm_type.h
     transform/dead_load_opt.cpp
     transform/dead_load_opt.h
     transform/deep_copy.cpp
@@ -58,8 +60,6 @@ set(THORIN_SOURCES
     transform/lift_builtins.h
     transform/mangle.cpp
     transform/mangle.h
-    transform/mpi_type.cpp
-    transform/mpi_type.h
     transform/resolve_loads.cpp
     transform/resolve_loads.h
     transform/partial_evaluation.cpp

@@ -254,7 +254,10 @@ std::ostream& CCodeGen::emit_aggop_decl(const Type* type) {
     if (auto struct_type = type->isa<StructType>()) {
         for (auto op : struct_type->ops())
             emit_aggop_decl(op);
-        emit_type(type_decls_, struct_type) << endl;
+        if (lang_==Lang::HLS)
+            emit_type(hls_top_, struct_type) << endl;
+        else
+            emit_type(type_decls_, struct_type) << endl;
         insert(type, "struct_" + struct_type->name().str() + "_" + std::to_string(type->gid()));
     }
 
@@ -805,6 +808,17 @@ void CCodeGen::emit() {
             if (kernel_cnt == 1 )
                 hls_top_ << down ;
             hls_top_ << hls_pragmas << up << endl;
+
+        for (auto primop : world().primops()) {
+            if (auto global = primop->isa<Global>()) {
+                // skip strings as they are emitted inline
+                if (is_string_type(global->init()->type()))
+                    continue;
+                emit_aggop_decl(global->type()) << endl;// not emited by bottom
+                //emit(global) << endl; // emit(Global) should emit on hls_top_, check the function
+            }
+        }
+
         Scope::for_each(world(), [&] (const Scope& scope) {
         auto continuation = scope.entry();
         if (continuation->is_intrinsic())
@@ -1320,9 +1334,11 @@ std::ostream& CCodeGen::emit(const Def* def) {
             }
             emit_type(func_impl_, global->alloced_type()) << " *" << def_name << " = &" << def_name << "_slot;";
             } else {
-                emit(global->init()) << endl;
-                //emit_type(hls_top_, global->alloced_type()) << " " << def_name;
-            }
+//                if (!bottom)
+//                    emit(global->init()) << endl;
+//                emit_type(hls_top_, global->alloced_type()) << " " << def_name <<";";
+                }
+//                hls_top_ << endl;
     }
         insert(def, def_name);
         return func_impl_;

@@ -254,9 +254,6 @@ std::ostream& CCodeGen::emit_aggop_decl(const Type* type) {
     if (auto struct_type = type->isa<StructType>()) {
         for (auto op : struct_type->ops())
             emit_aggop_decl(op);
-        if (lang_==Lang::HLS)
-            emit_type(hls_top_, struct_type) << endl;
-        else
             emit_type(type_decls_, struct_type) << endl;
         insert(type, "struct_" + struct_type->name().str() + "_" + std::to_string(type->gid()));
     }
@@ -293,17 +290,17 @@ void CCodeGen::emit() {
     }
 
     // emit all globals
-    if (!(lang_==Lang::HLS)) {
         for (auto primop : world().primops()) {
             if (auto global = primop->isa<Global>()) {
                 // skip strings as they are emitted inline
                 if (is_string_type(global->init()->type()))
                     continue;
                 emit_aggop_decl(global->type());
-                emit(global) << endl;
+                if(!(lang_==Lang::HLS)) {
+                    emit(global) << endl;
+                }
             }
         }
-    }
 
     std::string hls_pragmas;
     Scope::for_each(world(), [&] (const Scope& scope) {
@@ -756,35 +753,36 @@ void CCodeGen::emit() {
             if (scope.entry() == world().branch())
                 return;
 
-        auto continuation = scope.entry();
-        if (continuation->is_intrinsic())
-            return;
-        kernel_cnt++;
-        for (auto param : continuation->params()) {
-            KernelConfig* config = nullptr;
-            if (continuation->is_external()) {
-                auto config_it = kernel_config_.find(continuation);
-                assert(config_it != kernel_config_.end());
-                config = config_it->second.get();
+            auto continuation = scope.entry();
+            if (continuation->is_intrinsic())
+                return;
+
+            kernel_cnt++;
+            for (auto param : continuation->params()) {
+                KernelConfig* config = nullptr;
+                if (continuation->is_external()) {
+                    auto config_it = kernel_config_.find(continuation);
+                    assert(config_it != kernel_config_.end());
+                    config = config_it->second.get();
+                }
+                if (param->type()->isa<PtrType>()) {
+                    auto array_size = config->as<HLSKernelConfig>()->param_size(param);
+                    assert(array_size > 0);
+                    auto ptr_type = param->type()->as<PtrType>();
+                    auto elem_type = ptr_type->pointee();
+                    if (auto array_type = elem_type->isa<ArrayType>())
+                        elem_type = array_type->elem_type();
+                    // Top I/O ports(input,output)
+                    emit_type(hls_top_,  elem_type) << " " << param->unique_name() << "[" << array_size << "]";
+                    if (io_params[io].empty())
+                        io_params[io] = param->unique_name();
+                    if (io == input) {
+                        hls_top_ << ", ";
+                        io = io_type::output;
+                    }
+                }
             }
-            if (param->type()->isa<PtrType>()) {
-                auto array_size = config->as<HLSKernelConfig>()->param_size(param);
-                assert(array_size > 0);
-                auto ptr_type = param->type()->as<PtrType>();
-                auto elem_type = ptr_type->pointee();
-            if (auto array_type = elem_type->isa<ArrayType>())
-                elem_type = array_type->elem_type();
-            // Top I/O ports(input,output)
-            emit_type(hls_top_,  elem_type) << " " << param->unique_name() << "[" << array_size << "]";
-            if (io_params[io].empty())
-                io_params[io] = param->unique_name();
-            if (io == input) {
-                hls_top_ << ", ";
-                io = io_type::output;
-            }
-        }
-        }
-                });
+        });
         hls_top_ <<") {" << endl << up;
         if (!hls_pragmas.empty() && (kernel_cnt > 1)) {
             hls_top_ << down << hls_pragmas << endl;
@@ -814,7 +812,7 @@ void CCodeGen::emit() {
                 // skip strings as they are emitted inline
                 if (is_string_type(global->init()->type()))
                     continue;
-                emit_aggop_decl(global->type()) << endl;// not emited by bottom
+                //emit_aggop_decl(global->type()) << endl;// not emited by bottom
                 //emit(global) << endl; // emit(Global) should emit on hls_top_, check the function
             }
         }
@@ -856,7 +854,7 @@ void CCodeGen::emit() {
         os_ << func_decls_.str() << endl;
     os_ << func_impl_.str();
     if (!hls_top_.str().empty() && lang_==Lang::HLS)
-            os_ << hls_top_.str() << endl;
+        os_ << hls_top_.str() << endl;
     if (lang_==Lang::CUDA || lang_==Lang::HLS)
         os_ << "}"; // extern "C"
 }
@@ -1333,15 +1331,14 @@ std::ostream& CCodeGen::emit(const Def* def) {
                 case Lang::OPENCL: func_impl_ << "__constant "; break;
             }
             emit_type(func_impl_, global->alloced_type()) << " *" << def_name << " = &" << def_name << "_slot;";
-            } else {
-//                if (!bottom)
-//                    emit(global->init()) << endl;
-//                emit_type(hls_top_, global->alloced_type()) << " " << def_name <<";";
-                }
-//                hls_top_ << endl;
-    }
+        } else {
+            if (!bottom)
+                emit(global->init()) << endl;
+            emit_type(hls_top_, global->alloced_type()) << " " << def_name <<";\n";
+        }
         insert(def, def_name);
         return func_impl_;
+    }
 
     if (auto select = def->isa<Select>()) {
         emit_aggop_defs(select->cond());

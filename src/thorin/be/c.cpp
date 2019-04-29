@@ -375,7 +375,7 @@ void CCodeGen::emit() {
                 // skip strings as they are emitted inline
                 if (is_string_type(global->init()->type()))
                     continue;
-                emit(global) << endl;
+                emit(global);
             }
         }
         hls_top_ << endl;
@@ -392,6 +392,7 @@ void CCodeGen::emit() {
         hls_top_ << down << endl << "}";
         hls_pragmas.clear();
     }
+
     Scope::for_each(world(), [&] (const Scope& scope) {
         if (scope.entry() == world().branch())
             return;

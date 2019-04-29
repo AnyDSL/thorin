@@ -303,6 +303,95 @@ void CCodeGen::emit() {
         }
 
     std::string hls_pragmas;
+    // HLS top function
+    if (lang_==Lang::HLS) {
+        enum io_type: bool {input, output};
+        io_type io = io_type::input;
+        std::string io_params[sizeof(io_type)+1] = "";
+        hls_pragmas += "#pragma HLS DATAFLOW";
+        size_t kernel_cnt = 0;
+        //--- ADD include from patch
+        hls_top_ << "void hls_top(";
+        Scope::for_each(world(), [&] (const Scope& scope) {
+                if (scope.entry() == world().branch())
+                return;
+
+                auto continuation = scope.entry();
+                if (continuation->is_intrinsic())
+                return;
+
+                kernel_cnt++;
+                for (auto param : continuation->params()) {
+                KernelConfig* config = nullptr;
+                if (continuation->is_external()) {
+                auto config_it = kernel_config_.find(continuation);
+                assert(config_it != kernel_config_.end());
+                config = config_it->second.get();
+                }
+                if (param->type()->isa<PtrType>()) {
+                auto array_size = config->as<HLSKernelConfig>()->param_size(param);
+                assert(array_size > 0);
+                auto ptr_type = param->type()->as<PtrType>();
+                auto elem_type = ptr_type->pointee();
+                if (auto array_type = elem_type->isa<ArrayType>())
+                    elem_type = array_type->elem_type();
+                // Top I/O ports(input,output)
+                emit_type(hls_top_,  elem_type) << " " << param->unique_name() << "[" << array_size << "]";
+                if (io_params[io].empty())
+                    io_params[io] = param->unique_name();
+                if (io == input) {
+                    hls_top_ << ", ";
+                    io = io_type::output;
+                }
+                }
+                }
+        });
+        hls_top_ <<") {" << endl << up;
+        if (!hls_pragmas.empty() && (kernel_cnt > 1)) {
+            hls_top_ << down << hls_pragmas << endl;
+        }
+        hls_pragmas.clear();
+        hls_pragmas += "#pragma HLS top name=AnyHLS\n";
+        hls_pragmas += "#pragma HLS INTERFACE ap_ctrl_none port=return\n";
+        for (auto param : io_params) {
+            hls_pragmas += "#pragma HLS INTERFACE axis port=";
+            hls_pragmas.append(param);
+            hls_pragmas += " bundle=";
+            if (io == output){
+                hls_pragmas.append("input_s\n");
+                io =io_type::input;
+            }
+            else
+                hls_pragmas.append("output_s\n");
+
+        }
+        if (!hls_pragmas.empty())
+            if (kernel_cnt == 1 )
+                hls_top_ << down ;
+        hls_top_ << hls_pragmas << up;
+
+        for (auto primop : world().primops()) {
+            if (auto global = primop->isa<Global>()) {
+                // skip strings as they are emitted inline
+                if (is_string_type(global->init()->type()))
+                    continue;
+                emit(global) << endl;
+            }
+        }
+        hls_top_ << endl;
+
+        Scope::for_each(world(), [&] (const Scope& scope) {
+                auto continuation = scope.entry();
+                if (continuation->is_intrinsic())
+                return;
+
+                auto kernel_name = (continuation->is_external() || continuation->empty()) ? continuation->name() : continuation->unique_name();
+                // Functions calls
+                hls_top_ <<  kernel_name << "();" << endl;
+                });
+        hls_top_ << down << endl << "}";
+        hls_pragmas.clear();
+    }
     Scope::for_each(world(), [&] (const Scope& scope) {
         if (scope.entry() == world().branch())
             return;
@@ -740,94 +829,6 @@ void CCodeGen::emit() {
         func_impl_ << down << endl << "}" << endl << endl;
         def2str_.clear();
     });
-    // HLS top function
-    if (lang_==Lang::HLS) {
-        enum io_type: bool {input, output};
-        io_type io = io_type::input;
-        std::string io_params[sizeof(io_type)+1] = "";
-        hls_pragmas += "#pragma HLS DATAFLOW";
-        size_t kernel_cnt = 0;
-        //--- ADD include from patch
-        hls_top_ << "void hls_top(";
-        Scope::for_each(world(), [&] (const Scope& scope) {
-            if (scope.entry() == world().branch())
-                return;
-
-            auto continuation = scope.entry();
-            if (continuation->is_intrinsic())
-                return;
-
-            kernel_cnt++;
-            for (auto param : continuation->params()) {
-                KernelConfig* config = nullptr;
-                if (continuation->is_external()) {
-                    auto config_it = kernel_config_.find(continuation);
-                    assert(config_it != kernel_config_.end());
-                    config = config_it->second.get();
-                }
-                if (param->type()->isa<PtrType>()) {
-                    auto array_size = config->as<HLSKernelConfig>()->param_size(param);
-                    assert(array_size > 0);
-                    auto ptr_type = param->type()->as<PtrType>();
-                    auto elem_type = ptr_type->pointee();
-                    if (auto array_type = elem_type->isa<ArrayType>())
-                        elem_type = array_type->elem_type();
-                    // Top I/O ports(input,output)
-                    emit_type(hls_top_,  elem_type) << " " << param->unique_name() << "[" << array_size << "]";
-                    if (io_params[io].empty())
-                        io_params[io] = param->unique_name();
-                    if (io == input) {
-                        hls_top_ << ", ";
-                        io = io_type::output;
-                    }
-                }
-            }
-        });
-        hls_top_ <<") {" << endl << up;
-        if (!hls_pragmas.empty() && (kernel_cnt > 1)) {
-            hls_top_ << down << hls_pragmas << endl;
-        }
-        hls_pragmas.clear();
-        hls_pragmas += "#pragma HLS top name=AnyHLS\n";
-        hls_pragmas += "#pragma HLS INTERFACE ap_ctrl_none port=return\n";
-        for (auto param : io_params) {
-            hls_pragmas += "#pragma HLS INTERFACE axis port=";
-            hls_pragmas.append(param);
-            hls_pragmas += " bundle=";
-            if (io == output){
-                hls_pragmas.append("input_s\n");
-                io =io_type::input;
-                }
-            else
-                hls_pragmas.append("output_s\n");
-
-        }
-        if (!hls_pragmas.empty())
-            if (kernel_cnt == 1 )
-                hls_top_ << down ;
-            hls_top_ << hls_pragmas << up << endl;
-
-        for (auto primop : world().primops()) {
-            if (auto global = primop->isa<Global>()) {
-                // skip strings as they are emitted inline
-                if (is_string_type(global->init()->type()))
-                    continue;
-                //emit_aggop_decl(global->type()) << endl;// not emited by bottom
-                //emit(global) << endl; // emit(Global) should emit on hls_top_, check the function
-            }
-        }
-
-        Scope::for_each(world(), [&] (const Scope& scope) {
-        auto continuation = scope.entry();
-        if (continuation->is_intrinsic())
-            return;
-
-        auto kernel_name = (continuation->is_external() || continuation->empty()) ? continuation->name() : continuation->unique_name();
-        // Functions calls
-        hls_top_ << kernel_name << "();" << endl;
-                });
-        hls_top_ << down << endl << "}" << endl;
-    }
     type2str_.clear();
     global2str_.clear();
 

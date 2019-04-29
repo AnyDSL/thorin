@@ -847,9 +847,10 @@ void CCodeGen::emit() {
     if (lang_==Lang::CUDA && use_16_)
         os_ << "#include <cuda_fp16.h>" << endl << endl;
 
-    if (lang_==Lang::CUDA || lang_==Lang::HLS)
+    if (lang_==Lang::CUDA || lang_==Lang::HLS) {
+        os_ << "#include \"hls_stream.h\""<< endl << "#include \"hls_math.h\""<< endl;
         os_ << "extern \"C\" {" << endl;
-
+    }
     if (!type_decls_.str().empty())
         os_ << type_decls_.str() << endl;
     if (!func_decls_.str().empty())

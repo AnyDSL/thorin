@@ -1373,7 +1373,12 @@ bool CCodeGen::lookup(const Def* def) {
 }
 
 std::string& CCodeGen::get_name(const Type* type) {
-    return type2str_[type];
+    if (lang_==Lang::HLS) {
+        if (type->isa<StructType>())
+            return type2str_[type] = "hls::stream<" + type2str_[type] + ">";//TODO checkk!!
+        return type2str_[type];
+    } else
+        return type2str_[type];
 }
 
 std::string& CCodeGen::get_name(const Def* def) {

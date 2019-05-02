@@ -70,6 +70,8 @@ private:
     std::ostringstream func_decls_;
     std::ostringstream type_decls_;
     std::ostringstream hls_top_;
+    std::string hls_pragmas;
+
 };
 
 
@@ -310,13 +312,12 @@ void CCodeGen::emit() {
             }
         }
 
-    std::string hls_pragmas;
     // HLS top function
     if (lang_ == Lang::HLS) {
         enum io_type: bool {input, output};
         enum stream_lvl: char {source, mid, sink};
         io_type io = io_type::input;
-        stream_lvl level = stream_lvl::source;
+        stream_lvl lvl = stream_lvl::source;
         std::string io_params[sizeof(io_type)+1] = "";
         hls_pragmas += "#pragma HLS DATAFLOW";
         size_t kernel_cnt = 0;
@@ -398,9 +399,9 @@ void CCodeGen::emit() {
 
             auto kernel_name = (continuation->is_external() || continuation->empty()) ? continuation->name() : continuation->unique_name();
             // Functions calls
-            if (level == source) {
+            if (lvl == source) {
             hls_top_ <<  kernel_name << "();" << endl;
-            } else if (level == mid) {
+            } else if (lvl == mid) {
             hls_top_ <<  kernel_name << "();" << endl;
             }  else {
             hls_top_ <<  kernel_name << "();" << endl;

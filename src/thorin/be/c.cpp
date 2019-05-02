@@ -304,7 +304,7 @@ void CCodeGen::emit() {
                 if (is_string_type(global->init()->type()))
                     continue;
                 emit_aggop_decl(global->type());
-                if(!(lang_==Lang::HLS)) {
+                if(lang_ != Lang::HLS) {
                     emit(global) << endl;
                 }
             }
@@ -312,7 +312,7 @@ void CCodeGen::emit() {
 
     std::string hls_pragmas;
     // HLS top function
-    if (lang_==Lang::HLS) {
+    if (lang_ == Lang::HLS) {
         enum io_type: bool {input, output};
         io_type io = io_type::input;
         std::string io_params[sizeof(io_type)+1] = "";
@@ -856,7 +856,8 @@ void CCodeGen::emit() {
         os_ << "#include <cuda_fp16.h>" << endl << endl;
 
     if (lang_==Lang::CUDA || lang_==Lang::HLS) {
-        os_ << "#include \"hls_stream.h\""<< endl << "#include \"hls_math.h\""<< endl;
+        if (lang_==Lang::HLS)
+            os_ << "#include \"hls_stream.h\""<< endl << "#include \"hls_math.h\""<< endl;
         os_ << "extern \"C\" {" << endl;
     }
     if (!type_decls_.str().empty())
@@ -1324,7 +1325,7 @@ std::ostream& CCodeGen::emit(const Def* def) {
             case Lang::OPENCL: func_impl_ << "__constant "; break;
         }
         bool bottom = global->init()->isa<Bottom>();
-        if (!(lang_==Lang::HLS)) {
+        if (lang_ != Lang::HLS) {
             if (!bottom)
                 emit(global->init()) << endl;
             emit_type(func_impl_, global->alloced_type()) << " " << def_name << "_slot";

@@ -262,7 +262,7 @@ std::ostream& CCodeGen::emit_aggop_decl(const Type* type) {
         if (lang_ != Lang::HLS)
             insert(type, "struct_" + struct_type->name().str() + "_" + std::to_string(type->gid()));
         else if (is_channel_type(struct_type))
-            insert(type,"hls::stream<struct_" + struct_type->name().str() + "_" + std::to_string(type->gid()) + ">");
+            insert(type,"    hls::stream<struct_" + struct_type->name().str() + "_" + std::to_string(type->gid()) + ">");
 
     }
 
@@ -314,46 +314,48 @@ void CCodeGen::emit() {
     // HLS top function
     if (lang_ == Lang::HLS) {
         enum io_type: bool {input, output};
+        enum stream_level: char {source, mid, sink};
         io_type io = io_type::input;
         std::string io_params[sizeof(io_type)+1] = "";
         hls_pragmas += "#pragma HLS DATAFLOW";
         size_t kernel_cnt = 0;
-        //--- ADD include from patch
         hls_top_ << "void hls_top(";
+
         Scope::for_each(world(), [&] (const Scope& scope) {
-                if (scope.entry() == world().branch())
+            if (scope.entry() == world().branch())
                 return;
 
-                auto continuation = scope.entry();
-                if (continuation->is_intrinsic())
+            auto continuation = scope.entry();
+            if (continuation->is_intrinsic())
                 return;
 
-                kernel_cnt++;
-                for (auto param : continuation->params()) {
+            kernel_cnt++;
+            for (auto param : continuation->params()) {
                 KernelConfig* config = nullptr;
                 if (continuation->is_external()) {
-                auto config_it = kernel_config_.find(continuation);
-                assert(config_it != kernel_config_.end());
-                config = config_it->second.get();
-                }
+                    auto config_it = kernel_config_.find(continuation);
+                    assert(config_it != kernel_config_.end());
+                    config = config_it->second.get();
+                    }
                 if (param->type()->isa<PtrType>()) {
-                auto array_size = config->as<HLSKernelConfig>()->param_size(param);
-                assert(array_size > 0);
-                auto ptr_type = param->type()->as<PtrType>();
-                auto elem_type = ptr_type->pointee();
-                if (auto array_type = elem_type->isa<ArrayType>())
-                    elem_type = array_type->elem_type();
-                // Top I/O ports(input,output)
-                emit_type(hls_top_,  elem_type) << " " << param->unique_name() << "[" << array_size << "]";
-                if (io_params[io].empty())
-                    io_params[io] = param->unique_name();
-                if (io == input) {
-                    hls_top_ << ", ";
-                    io = io_type::output;
+                    auto array_size = config->as<HLSKernelConfig>()->param_size(param);
+                    assert(array_size > 0);
+                    auto ptr_type = param->type()->as<PtrType>();
+                    auto elem_type = ptr_type->pointee();
+                    if (auto array_type = elem_type->isa<ArrayType>())
+                        elem_type = array_type->elem_type();
+                    // Top I/O ports(input,output)
+                    emit_type(hls_top_,  elem_type) << " " << param->unique_name() << "[" << array_size << "]";
+                    if (io_params[io].empty())
+                        io_params[io] = param->unique_name();
+                    if (io == input) {
+                        hls_top_ << ", ";
+                        io = io_type::output;
+                    }
                 }
-                }
-                }
+            }
         });
+
         hls_top_ <<") {" << endl << up;
         if (!hls_pragmas.empty() && (kernel_cnt > 1)) {
             hls_top_ << down << hls_pragmas << endl;
@@ -389,14 +391,15 @@ void CCodeGen::emit() {
         hls_top_ << endl;
 
         Scope::for_each(world(), [&] (const Scope& scope) {
-                auto continuation = scope.entry();
-                if (continuation->is_intrinsic())
+            auto continuation = scope.entry();
+            if (continuation->is_intrinsic())
                 return;
 
-                auto kernel_name = (continuation->is_external() || continuation->empty()) ? continuation->name() : continuation->unique_name();
-                // Functions calls
+            auto kernel_name = (continuation->is_external() || continuation->empty()) ? continuation->name() : continuation->unique_name();
+            // Functions calls
+            //if ()
                 hls_top_ <<  kernel_name << "();" << endl;
-                });
+        });
         hls_top_ << down << endl << "}";
         hls_pragmas.clear();
     }

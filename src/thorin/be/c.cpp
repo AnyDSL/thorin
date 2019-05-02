@@ -258,8 +258,12 @@ std::ostream& CCodeGen::emit_aggop_decl(const Type* type) {
     if (auto struct_type = type->isa<StructType>()) {
         for (auto op : struct_type->ops())
             emit_aggop_decl(op);
-            emit_type(type_decls_, struct_type) << endl;
-        insert(type, "struct_" + struct_type->name().str() + "_" + std::to_string(type->gid()));
+        emit_type(type_decls_, struct_type) << endl;
+        if (lang_ != Lang::HLS)
+            insert(type, "struct_" + struct_type->name().str() + "_" + std::to_string(type->gid()));
+        else if (is_channel_type(struct_type))
+            insert(type,"hls::stream<struct_" + struct_type->name().str() + "_" + std::to_string(type->gid()) + ">");
+
     }
 
     // look for nested variants
@@ -1377,11 +1381,6 @@ bool CCodeGen::lookup(const Def* def) {
 }
 
 std::string& CCodeGen::get_name(const Type* type) {
-    if (lang_==Lang::HLS) {
-        if (type->isa<StructType>())
-            return type2str_[type] = "hls::stream<" + type2str_[type] + ">";//TODO checkk!!
-        return type2str_[type];
-    } else
         return type2str_[type];
 }
 

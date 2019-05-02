@@ -102,6 +102,10 @@ inline bool is_string_type(const Type* type) {
     return false;
 }
 
+inline bool is_channel_type(const StructType* struct_type) {
+    return struct_type->name().str().find("channel_") != std::string::npos;
+}
+
 std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
     if (lookup(type))
         return os << get_name(type);
@@ -137,7 +141,7 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
             emit_type(os, struct_type->op(i)) << " e" << i << ";";
         }
         os << down << endl << "} struct_" << struct_type->name() << "_" << struct_type->gid() << ";";
-        if (struct_type->name().str().find("channel_") != std::string::npos)
+        if (is_channel_type(struct_type))
             use_channels_ = true;
         return os;
     } else if (type->isa<Var>()) {

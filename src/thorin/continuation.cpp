@@ -176,6 +176,7 @@ void Continuation::make_external() { return world().add_external(this); }
 void Continuation::make_internal() { return world().remove_external(this); }
 bool Continuation::is_external() const { return world().is_external(this); }
 bool Continuation::is_intrinsic() const { return intrinsic_ != Intrinsic::None; }
+bool Continuation::is_channel() const { return name().str().find("channel") != std::string::npos; }
 bool Continuation::is_accelerator() const { return Intrinsic::_Accelerator_Begin <= intrinsic_ && intrinsic_ < Intrinsic::_Accelerator_End; }
 void Continuation::set_intrinsic() {
     if      (name() == "cuda")                 intrinsic_ = Intrinsic::CUDA;

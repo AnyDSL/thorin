@@ -145,6 +145,7 @@ public:
     bool is_basicblock() const;
     bool is_returning() const;
     bool is_intrinsic() const;
+    bool is_channel() const;
     bool is_accelerator() const;
     void destroy_body();
 

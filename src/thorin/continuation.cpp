@@ -201,6 +201,12 @@ void Continuation::set_intrinsic() {
     else ELOG("unsupported thorin intrinsic");
 }
 
+void Continuation::set_channel() {
+    if      (name().str().find("read")  != std::string::npos) channel_ = Channel::Read;
+    else if (name().str().find("write") != std::string::npos) channel_ = Channel::Write;
+    else ELOG("unsupported channel placeholder");
+}
+
 bool Continuation::is_basicblock() const { return type()->is_basicblock(); }
 bool Continuation::is_returning() const { return type()->is_returning(); }
 

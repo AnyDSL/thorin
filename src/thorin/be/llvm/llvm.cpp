@@ -964,11 +964,21 @@ llvm::Value* CodeGen::emit_global(const Global* global) {
 }
 
 llvm::Value* CodeGen::emit_load(const Load* load) {
-    return irbuilder_.CreateLoad(lookup(load->ptr()));
+    auto irPtr = lookup(load->ptr());
+    auto layout = llvm::DataLayout(module_->getDataLayout());
+    unsigned ptrAlignment = layout.getABITypeAlignment(irPtr->getType()->getPointerElementType());
+    auto irLoad = irbuilder_.CreateLoad(irPtr);
+    irLoad->setAlignment(ptrAlignment);
+    return irLoad;
 }
 
 llvm::Value* CodeGen::emit_store(const Store* store) {
-    return irbuilder_.CreateStore(lookup(store->val()), lookup(store->ptr()));
+    auto irPtr = lookup(store->ptr());
+    auto layout = llvm::DataLayout(module_->getDataLayout());
+    unsigned ptrAlignment = layout.getABITypeAlignment(irPtr->getType()->getPointerElementType());
+    auto irStore = irbuilder_.CreateStore(lookup(store->val()), irPtr);
+    irStore->setAlignment(ptrAlignment);
+    return irStore;
 }
 
 llvm::Value* CodeGen::emit_lea(const LEA* lea) {

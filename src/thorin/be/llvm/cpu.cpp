@@ -32,7 +32,7 @@ struct LLVMTargetDesc {
     if (llvm_cpu_target == "cortex-a53") {
       return LLVMTargetDesc("aarch64-unknown-linux-gnu", "cortex-a53", "+fp-armv8 +neon +crc +crypto +sha2 +aes");
     } else if (llvm_cpu_target == "aurora") {
-      return LLVMTargetDesc("ve-unknown-linux", "", "");
+      return LLVMTargetDesc("ve", "ve", "");
     }
 
     throw std::invalid_argument("Unknown LLVM target: " + llvm_cpu_target);

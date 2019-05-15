@@ -108,8 +108,11 @@ protected:
 template<class T>
 llvm::ArrayRef<T> llvm_ref(const Array<T>& array) { return llvm::ArrayRef<T>(array.begin(), array.end()); }
 
+// return a list of all builtin CPU targets
+std::vector<std::string> GetCPUTargets();
+
 struct Backends {
-    Backends(World& world);
+    Backends(World& world, std::string llvm_cpu_target="");
 
     Cont2Config kernel_config;
     std::vector<Continuation*> kernels;

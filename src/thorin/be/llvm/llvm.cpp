@@ -1274,7 +1274,9 @@ static uint64_t get_alloc_size(const Def* def) {
     return size ? static_cast<uint64_t>(size->value().get_qu64()) : 0_u64;
 }
 
-Backends::Backends(World& world)
+std::vector<std::string> GetCPUTargets() { return CPUCodeGen::GetTargets(); }
+
+Backends::Backends(World& world, std::string llvm_cpu_target)
     : cuda(world)
     , nvvm(world)
     , opencl(world)
@@ -1382,7 +1384,7 @@ Backends::Backends(World& world)
     world.cleanup();
     codegen_prepare(world);
 
-    cpu_cg = std::make_unique<CPUCodeGen>(world);
+    cpu_cg = std::make_unique<CPUCodeGen>(world, llvm_cpu_target);
 
     if (!cuda.  world().empty()) cuda_cg   = std::make_unique<CUDACodeGen  >(cuda  .world(), kernel_config);
     if (!nvvm.  world().empty()) nvvm_cg   = std::make_unique<NVVMCodeGen  >(nvvm  .world(), kernel_config);

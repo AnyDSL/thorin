@@ -2,6 +2,8 @@
 
 #include <cstdlib>
 
+#include <vector>
+
 #include <llvm/Support/Host.h>
 #include <llvm/Support/TargetRegistry.h>
 #include <llvm/Support/TargetSelect.h>
@@ -10,8 +12,36 @@
 
 namespace thorin {
 
-CPUCodeGen::CPUCodeGen(World& world)
-    : CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::C, llvm::CallingConv::C)
+std::vector<std::string>
+CPUCodeGen::GetTargets() {
+  return std::vector<std::string>({
+    "cortex-a53",
+    "aurora"
+  });
+}
+
+struct LLVMTargetDesc {
+  std::string triple;
+  std::string cpu;
+  std::string features;
+
+  LLVMTargetDesc(std::string triple="", std::string cpu="", std::string features="") : triple(triple), cpu(cpu), features(features) {}
+
+  static LLVMTargetDesc
+  Create(std::string llvm_cpu_target) {
+    if (llvm_cpu_target == "cortex-a53") {
+      return LLVMTargetDesc("aarch64-unknown-linux-gnu", "cortex-a53", "+fp-armv8 +neon +crc +crypto +sha2 +aes");
+    } else if (llvm_cpu_target == "aurora") {
+      return LLVMTargetDesc("ve-unknown-linux", "", "");
+    }
+
+    throw std::invalid_argument("Unknown LLVM target: " + llvm_cpu_target);
+  }
+};
+
+
+CPUCodeGen::CPUCodeGen(World& world, std::string cpu_target_name)
+: CodeGen(world, llvm::CallingConv::C, llvm::CallingConv::C, llvm::CallingConv::C)
 {
     llvm::InitializeNativeTarget();
     auto triple_str   = llvm::sys::getDefaultTargetTriple();
@@ -22,9 +52,17 @@ CPUCodeGen::CPUCodeGen(World& world)
     for (auto& feature : features)
         features_str += (feature.getValue() ? "+" : "-") + feature.getKey().str() + ",";
 
-    char* target_triple   = std::getenv("ANYDSL_TARGET_TRIPLE");
-    char* target_cpu      = std::getenv("ANYDSL_TARGET_CPU");
-    char* target_features = std::getenv("ANYDSL_TARGET_FEATURES");
+    const char* target_triple   = std::getenv("ANYDSL_TARGET_TRIPLE");
+    const char* target_cpu      = std::getenv("ANYDSL_TARGET_CPU");
+    const char* target_features = std::getenv("ANYDSL_TARGET_FEATURES");
+
+    // prefer cmd line targets over env vars
+    if (cpu_target_name.length() > 0) {
+      auto target_desc = LLVMTargetDesc::Create(cpu_target_name);
+      target_triple = target_desc.triple.c_str();
+      target_cpu = target_desc.cpu.c_str();
+      target_features = target_desc.features.c_str();
+    }
 
     if (target_triple && target_cpu) {
         llvm::InitializeAllTargets();

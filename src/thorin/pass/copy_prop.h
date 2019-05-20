@@ -14,7 +14,7 @@ public:
     const Def* rewrite(const Def*) override;
     void inspect(Def*) override;
     void enter(Def*) override;
-    void analyze(const Def*) override;
+    size_t analyze(const Def*) override;
 
     enum Lattice { Val, Top };
 

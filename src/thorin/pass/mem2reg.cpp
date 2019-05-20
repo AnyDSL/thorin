@@ -138,8 +138,8 @@ const Def* Mem2Reg::set_val(Lam* lam, const Analyze* proxy, const Def* val) {
     return lam2info(lam).proxy2val[proxy] = val;
 }
 
-void Mem2Reg::analyze(const Def* def) {
-    if (def->isa<Param>()) return;
+size_t Mem2Reg::analyze(const Def* def) {
+    if (def->isa<Param>()) return No_Undo;
 
     // we need to install a phi in lam next time around
     if (auto phi = isa_virtual_phi(def)) {
@@ -155,18 +155,18 @@ void Mem2Reg::analyze(const Def* def) {
                 outf("keep: {}\n", proxy);
                 if (auto i = phis.find(proxy); i != phis.end())
                     phis.erase(i);
-                man().undo(proxy_info.undo);
+                return proxy_info.undo;
             }
         } else {
             assert(phi_info.lattice == Info::PredsN);
             assertf(phis.find(proxy) == phis.end(), "already added proxy {} to {}", proxy, phi_lam);
             phis.emplace(proxy);
             outf("phi needed: {}\n", phi);
-            man().undo(phi_info.undo);
+            return phi_info.undo;
         }
-        return;
+        return No_Undo;
     } else if (isa_proxy(def)) {
-        return;
+        return No_Undo;
     }
 
     for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
@@ -177,7 +177,7 @@ void Mem2Reg::analyze(const Def* def) {
             auto& info = lam2info(proxy_lam);
             if (keep_.emplace(proxy).second) {
                 outf("keep: {}\n", proxy);
-                man().undo(info.undo);
+                return info.undo;
             }
         } else if (auto lam = op->isa_nominal<Lam>()) {
             // TODO optimize
@@ -198,12 +198,12 @@ void Mem2Reg::analyze(const Def* def) {
                     info.lattice = Info::PredsN;
                     preds_n_.emplace(orig);
                     outf("Preds1 -> PredsN: {}\n", orig);
-                    man().undo(info.undo);
-                    break;
+                    return info.undo;
                 default:
                     break;
             }
 
+            auto undo = No_Undo;
             // if lam does not occur as callee and has more than one pred
             if ((!def->isa<App>() || i != 0) && (info.lattice == Info::PredsN )) {
                 info.lattice = Info::Keep;
@@ -213,13 +213,16 @@ void Mem2Reg::analyze(const Def* def) {
                     auto [proxy_lam, slot_id] = disassemble_proxy(phi);
                     auto& proxy_info = lam2info(proxy_lam);
                     keep_.emplace(phi);
-                    man().undo(info.undo);
-                    man().undo(proxy_info.undo);
+                    undo = std::min(undo, std::min(size_t(info.undo), size_t(proxy_info.undo)));
                 }
                 phis.clear();
             }
+
+            return undo;
         }
     }
+
+    return No_Undo;
 }
 
 }

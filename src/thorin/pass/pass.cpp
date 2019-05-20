@@ -19,43 +19,23 @@ void PassMan::run() {
         while (!queue().empty()) {
             auto old_nom = cur_nominal_;
             cur_nominal_ = std::get<Def*>(queue().top());
+            new_state(); // TODO do we need this?
 
             if (old_nom != cur_nominal_) {
-                new_state();
                 for (auto& pass : passes_)
                     pass->enter(cur_nominal_);
             }
 
             outf("\ncur: {} {}\n", cur_state_id(), cur_nominal());
 
-            bool mismatch = false;
             new_ops.resize(cur_nominal()->num_ops());
-            for (size_t i = 0, e = cur_nominal()->num_ops(); i != e; ++i) {
-                auto new_op = rewrite(cur_nominal()->op(i));
-                mismatch |= new_op != cur_nominal()->op(i);
-                new_ops[i] = new_op;
-            }
-
-            if (mismatch) {
-                assert(undo_ == No_Undo && "only provoke undos during analyze");
-                cur_nominal()->set(new_ops);
-                continue;
-            }
+            for (size_t i = 0, e = cur_nominal()->num_ops(); i != e; ++i)
+                new_ops[i] = rewrite(cur_nominal()->op(i));
+            cur_nominal()->set(new_ops);
 
             queue().pop();
             for (auto op : cur_nominal()->ops())
                 analyze(op);
-
-            if (undo_ != No_Undo) {
-                outf("undo: {} -> {}\n", cur_state_id(), undo_);
-
-                for (size_t i = cur_state_id(); i-- != undo_;)
-                    states_[i].nominal->set(states_[i].old_ops);
-
-                states_.resize(undo_);
-                undo_ = No_Undo;
-                cur_nominal_ = std::get<Def*>(queue().top()); // don't provoke pass->enter
-            }
         }
     }
 
@@ -98,6 +78,16 @@ void PassMan::analyze(const Def* def) {
 
     for (auto& pass : passes_)
         pass->analyze(def);
+}
+
+void PassMan::undo(size_t u) {
+    outf("undo: {} -> {}\n", cur_state_id(), u);
+
+    for (size_t i = cur_state_id(); i --> u;)
+        states_[i].nominal->set(states_[i].old_ops);
+
+    states_.resize(u);
+    cur_nominal_ = std::get<Def*>(queue().top()); // don't provoke pass->enter
 }
 
 }

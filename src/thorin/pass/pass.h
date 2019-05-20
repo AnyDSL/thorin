@@ -17,6 +17,8 @@ class PassMan;
  */
 class PassBase {
 public:
+    static constexpr size_t No_Undo = std::numeric_limits<size_t>::max();
+
     PassBase(PassMan& man, size_t index)
         : man_(man)
         , index_(index)
@@ -34,7 +36,11 @@ public:
     virtual const Def* rewrite(const Def*) = 0; ///< Rewrites @em structural @p Def%s.
     virtual void inspect(Def*) {}               ///< Inspects a @em nominal @p Def when first encountering it.
     virtual void enter(Def*) {}                 ///< Invoked when a @em nominal is first time the top of the PassMan::queue().
-    virtual void analyze(const Def*) {}         ///< Invoked after the @p PassMan has finished @p rewrite%ing a nominal.
+    /**
+     * Invoked after the @p PassMan has finished @p rewrite%ing a nominal.
+     * Return the state id to rollback to or @p No_Undo if no undo is required.
+     */
+    virtual size_t analyze(const Def*) { return No_Undo; }
     ///@}
     /// @name mangage state - dummy implementations here
     //@{
@@ -54,7 +60,6 @@ private:
  */
 class PassMan {
 public:
-    static constexpr size_t No_Undo = std::numeric_limits<size_t>::max();
     typedef std::unique_ptr<PassBase> PassPtr;
 
     PassMan(World& world)
@@ -65,7 +70,7 @@ public:
     template<class P, class... Args>
     PassMan& create(Args... args) { passes_.emplace_back(std::make_unique<P>(*this, passes_.size()), std::forward<Args>(args)...); return *this; }
     void run();
-    void undo(size_t u) { assert(0 < u && u < cur_state_id()); undo_ = std::min(undo_, u); }
+    void undo(size_t u);
     size_t cur_state_id() const { return states_.size(); }
     Def* cur_nominal() const { return cur_nominal_; }
     Lam* cur_lam() const { return cur_nominal()->as<Lam>(); }
@@ -138,7 +143,6 @@ private:
 
     World& world_;
     std::vector<PassPtr> passes_;
-    size_t undo_ = No_Undo;
     size_t time_ = 0;
     std::deque<State> states_;
     Def* cur_nominal_ = nullptr;

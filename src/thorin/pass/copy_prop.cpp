@@ -103,31 +103,33 @@ void CopyProp::enter(Def* def) {
     }
 }
 
-void CopyProp::analyze(const Def* def) {
-    if (def->isa<Param>()) return;
+size_t CopyProp::analyze(const Def* def) {
+    if (def->isa<Param>()) return No_Undo;
 
     if (auto app = def->isa<App>()) {
         if (auto lam = app->callee()->isa_nominal<Lam>()) {
             if (new2old(lam) == nullptr) {
                 auto& info = lam2info(lam);
                 if (info.join(app)) {
-                    man().undo(info.undo);
                     info.new_lam = nullptr;
+                    return info.undo;
                 }
             }
         }
 
         if (auto lam = app->arg()->isa_nominal<Lam>()) {
             if (set_top(lam))
-                man().undo(lam2info(lam).undo);
+                return lam2info(lam).undo;
         }
     } else {
         for (size_t i = 0, e = def->num_ops(); i != e; ++i) {
             if (auto lam = def->op(i)->isa_nominal<Lam>())
                 if (set_top(lam))
-                    man().undo(lam2info(lam).undo);
+                    return lam2info(lam).undo;
         }
     }
+
+    return No_Undo;
 }
 
 }

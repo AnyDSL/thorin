@@ -12,7 +12,7 @@ public:
     {}
 
     const Def* rewrite(const Def*) override;
-    void analyze(const Def*) override;
+    size_t analyze(const Def*) override;
 
     enum Lattice { Bottom, Inlined_Once, Dont_Inline };
 

@@ -23,7 +23,7 @@ public:
     const Def* rewrite(const Def*) override;
     void inspect(Def*) override;
     void enter(Def*) override;
-    void analyze(const Def*) override;
+    size_t analyze(const Def*) override;
 
     struct Info {
         enum Lattice { Preds0, Preds1, PredsN, Keep };

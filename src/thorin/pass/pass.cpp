@@ -42,31 +42,54 @@ void PassMan::run() {
     cleanup(world_);
 }
 
-const Def* PassMan::rewrite(const Def* old_def) {
-    if (auto new_def = lookup(old_def)) return *new_def;
+bool PassMan::push(const Def* old_def) {
+    if (lookup(old_def)) return false;
 
     if (auto nominal = old_def->isa_nominal()) {
         for (auto& pass : passes_)
             pass->inspect(nominal);
-        return map(nominal, nominal);
+        map(nominal, nominal);
+        return false;
     }
 
-    auto new_type = rewrite(old_def->type());
+    stack().emplace(old_def);
+    return true;
+}
 
-    bool changed = false;
-    Array<const Def*> new_ops(old_def->num_ops(), [&](auto i) {
-        auto new_op = rewrite(old_def->op(i));
-        changed |= old_def->op(i) != new_op;
-        return new_op;
-    });
+const Def* PassMan::rewrite(const Def* root) {
+    std::vector<const Def*> new_ops;
+    push(root);
 
-    auto new_def = changed ? old_def->rebuild(world(), new_type, new_ops) : old_def;
+    while (!stack().empty()) {
+        auto old_def = stack().top();
+        auto n = old_def->num_ops();
+        new_ops.resize(n);
 
-    for (auto& pass : passes_)
-        new_def = pass->rewrite(new_def);
+        bool todo = false;
+        todo |= push(old_def->type());
+        for (size_t i = 0; i != n; ++i)
+            todo |= push(old_def->op(i));
 
-    assert(!cur_state().old2new.contains(new_def) || cur_state().old2new[new_def] == new_def);
-    return map(old_def, map(new_def, new_def));
+        if (!todo) {
+            auto new_type = *lookup(old_def->type());
+
+            bool changed = new_type != old_def->type();
+            for (size_t i = 0; i != n; ++i)
+                changed |= old_def->op(i) != (new_ops[i] = *lookup(old_def->op(i)));
+
+            auto new_def = changed ? old_def->rebuild(world(), new_type, new_ops) : old_def;
+
+            for (auto& pass : passes_)
+                new_def = pass->rewrite(new_def);
+
+            //assert(!cur_state().old2new.contains(new_def) || cur_state().old2new[new_def] == new_def);
+            map(old_def, map(new_def, new_def));
+
+            stack().pop();
+        }
+    }
+
+    return *lookup(root);
 }
 
 void PassMan::analyze(const Def* def) {

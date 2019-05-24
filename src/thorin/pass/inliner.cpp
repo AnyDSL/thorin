@@ -20,7 +20,9 @@ const Def* Inliner::rewrite(const Def* def) {
                 man().new_state();
                 lam2info(lam).lattice = Lattice::Inlined_Once;
                 outf("inline: {}\n", lam);
-                return man().rewrite(drop(lam, app->arg()));
+                auto dropped = drop(lam, app->arg());
+                man().push(dropped);
+                return dropped;
             }
         }
     }

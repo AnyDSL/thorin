@@ -10,7 +10,9 @@ const Def* PartialEval::rewrite(const Def* def) {
         if (auto lam = app->callee()->isa_nominal<Lam>(); lam && !lam->is_empty()) {
             if (auto filter = isa_lit<bool>(thorin::rewrite(lam->filter(), lam->param(), app->arg())); filter && *filter) {
                 outf("PE: {}\n", lam);
-                return man().rewrite(drop(lam, app->arg()));
+                auto dropped = drop(lam, app->arg());
+                man().push(dropped);
+                return dropped;
             }
         }
     }

@@ -19,7 +19,7 @@ void optimize(World& world) {
     //.create<CopyProp>()
     .create<PartialEval>()
     .create<Inliner>()
-    //.create<Mem2Reg>()
+    .create<Mem2Reg>()
     .run();
 }
 

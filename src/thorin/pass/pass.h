@@ -70,7 +70,6 @@ public:
     template<class P, class... Args>
     PassMan& create(Args... args) { passes_.emplace_back(std::make_unique<P>(*this, passes_.size()), std::forward<Args>(args)...); return *this; }
     void run();
-    void undo(size_t u);
     size_t cur_state_id() const { return states_.size(); }
     Def* cur_nominal() const { return cur_nominal_; }
     Lam* cur_lam() const { return cur_nominal()->as<Lam>(); }
@@ -78,7 +77,7 @@ public:
     template<class D> // D may be "Def" or "const Def"
     D* map(const Def* old_def, D* new_def) { cur_state().old2new[old_def] = new_def; return new_def; }
     bool push(const Def*); ///< Pushes to @p rewrite stack.
-    const Def* rewrite(const Def*);
+    void rewrite();
 
     std::optional<const Def*> lookup(const Def* old_def) {
         auto& old2new = cur_state().old2new;
@@ -139,7 +138,7 @@ private:
         Array<void*> data;
     };
 
-    void analyze(const Def*);
+    size_t analyze(const Def*);
     State& cur_state() { assert(!states_.empty()); return states_.back(); }
     const State& cur_state() const { assert(!states_.empty()); return states_.back(); }
     State::Queue& queue() { return cur_state().queue; }

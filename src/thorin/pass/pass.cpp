@@ -5,6 +5,16 @@
 
 namespace thorin {
 
+void dump_stack(std::stack<const Def*> stack) {
+    std::cout << "push: \n";
+    while (!stack.empty()) {
+        std::cout << " | ";
+        pop(stack)->dump();
+    }
+    std::cout << "\n";
+}
+
+
 void PassMan::run() {
     states_.emplace_back(passes_);
     std::vector<const Def*> new_ops;
@@ -20,31 +30,35 @@ void PassMan::run() {
             for (auto& pass : passes_)
                 pass->enter(cur_nominal_);
 
-            outf("\ncur: {} {}\n", cur_state_id(), cur_nominal());
-
             for (auto op : cur_nominal()->ops())
                 push(op);
 
             for (bool todo = true; todo;) {
+                outf("\ncur: {} {}\n", cur_state_id(), cur_nominal());
+
                 todo = false;
+
                 rewrite();
 
+                outf("pop: {}\n", std::get<Def*>(queue().top()));
+                queue().pop();
+
                 for (auto op : cur_nominal()->ops()) {
-                    if (auto undo = analyze(op); undo != PassBase::No_Undo) {
+                    if (auto undo = analyze(op, PassBase::No_Undo); undo != PassBase::No_Undo) {
                         todo = true;
                         outf("undo: {} -> {}\n", cur_state_id(), undo);
 
-                        for (size_t i = cur_state_id(); i --> undo;)
-                            states_[i].nominal->set(states_[i].old_ops);
+                        for (size_t i = cur_state_id(); i --> undo;) {
+                            for (const auto& [nom, old_ops] : states_[i].nominals)
+                                nom->set(old_ops);
+                        }
 
                         states_.resize(undo);
-                        cur_nominal_ = std::get<Def*>(queue().top()); // don't provoke pass->enter
+                        cur_nominal_ = std::get<Def*>(queue().top());
                         break;
                     }
                 }
             }
-
-            queue().pop();
         }
     }
 
@@ -61,7 +75,11 @@ bool PassMan::push(const Def* old_def) {
         return false;
     }
 
+    std::cout << std::flush;
+    assert(stack().empty() || stack().top() != old_def);
+
     stack().emplace(old_def);
+    //dump_stack(stack());
     return true;
 }
 
@@ -96,28 +114,25 @@ void PassMan::rewrite() {
         }
     }
 
+    cur_state().nominals.emplace_back(cur_nominal(), cur_nominal()->ops());
     for (size_t i = 0, e = cur_nominal()->num_ops(); i != e; ++i)
         cur_nominal()->set(i, *lookup(cur_nominal()->op(i)));
 }
 
-size_t PassMan::analyze(const Def* def) {
-    if (!cur_state().analyzed.emplace(def).second) return PassBase::No_Undo;
+size_t PassMan::analyze(const Def* def, size_t undo) {
+    if (!cur_state().analyzed.emplace(def).second) return undo;
     if (auto nominal = def->isa_nominal()) {
         queue().emplace(nominal, time_++);
-        return PassBase::No_Undo;
+        return undo;
     }
 
-    for (auto op : def->ops()) {
-        if (auto undo = analyze(op); undo != PassBase::No_Undo)
-            return undo;
-    }
+    for (auto op : def->ops())
+        undo = std::min(undo, analyze(op, undo));
 
-    for (auto& pass : passes_) {
-        if (auto undo = pass->analyze(def); undo != PassBase::No_Undo)
-            return undo;
-    }
+    for (size_t i = 0, e = passes_.size(); i != e && undo == PassBase::No_Undo; ++i)
+        undo = passes_[i]->analyze(def);
 
-    return PassBase::No_Undo;
+    return undo;
 }
 
 }

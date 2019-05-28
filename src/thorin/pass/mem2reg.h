@@ -36,11 +36,13 @@ public:
             , pred     (info.pred)
             , new_lam  (info.new_lam)
             , num_slots(info.num_slots)
+            , entered  (info.entered)
             , lattice  (info.lattice)
             , undo     (info.undo)
         {}
         Info(size_t undo)
-            : lattice(Preds0)
+            : entered(false)
+            , lattice(Preds0)
             , undo(undo)
         {}
 
@@ -63,8 +65,9 @@ public:
         unsigned num_slots = 0;
         union {
             struct {
+                unsigned entered :  1;
                 unsigned lattice :  2;
-                unsigned undo    : 30;
+                unsigned undo    : 29;
             };
             unsigned lattice_undo;
         };

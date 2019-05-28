@@ -73,7 +73,7 @@ public:
     size_t cur_state_id() const { return states_.size(); }
     Def* cur_nominal() const { return cur_nominal_; }
     Lam* cur_lam() const { return cur_nominal()->as<Lam>(); }
-    void new_state() { states_.emplace_back(cur_state(), cur_nominal(), cur_nominal()->ops(), passes_); }
+    void new_state() { states_.emplace_back(cur_state(), passes_); }
     template<class D> // D may be "Def" or "const Def"
     D* map(const Def* old_def, D* new_def) { cur_state().old2new[old_def] = new_def; return new_def; }
     bool push(const Def*); ///< Pushes to @p rewrite stack.
@@ -102,13 +102,11 @@ private:
             : passes(passes.data())
             , data(passes.size(), [&](auto i) { return passes[i]->alloc(); })
         {}
-        State(const State& prev, Def* nominal, Defs old_ops, const std::vector<PassPtr>& passes)
+        State(const State& prev, const std::vector<PassPtr>& passes)
             : queue(prev.queue)
             , stack(prev.stack)
             , old2new(prev.old2new)
             , analyzed(prev.analyzed)
-            , nominal(nominal)
-            , old_ops(old_ops)
             , passes(passes.data())
             , data(passes.size(), [&](auto i) { return passes[i]->alloc(); })
         {}
@@ -128,17 +126,16 @@ private:
         };
         typedef std::priority_queue<Item, std::deque<Item>, OrderLt> Queue;
 
+        std::deque<std::tuple<Def*, Array<const Def*>>> nominals;
         Queue queue;
         std::stack<const Def*> stack;
         Def2Def old2new;
         DefSet analyzed;
-        Def* nominal;
-        Array<const Def*> old_ops;
         const PassPtr* passes;
         Array<void*> data;
     };
 
-    size_t analyze(const Def*);
+    size_t analyze(const Def*, size_t);
     State& cur_state() { assert(!states_.empty()); return states_.back(); }
     const State& cur_state() const { assert(!states_.empty()); return states_.back(); }
     State::Queue& queue() { return cur_state().queue; }

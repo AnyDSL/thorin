@@ -57,6 +57,7 @@ const Def* Mem2Reg::rewrite(const Def* def) {
 
 void Mem2Reg::inspect(Def* def) {
     if (auto old_lam = def->isa<Lam>()) {
+        outf("inspect {}\n", old_lam);
         auto& info = lam2info(old_lam);
         if (preds_n_.contains(old_lam)) info.lattice = Info::PredsN;
         if (keep_   .contains(old_lam)) info.lattice = Info::Keep;
@@ -64,7 +65,9 @@ void Mem2Reg::inspect(Def* def) {
         if (old_lam->is_external() || old_lam->intrinsic() != Intrinsic::None) {
             info.lattice = Info::Keep;
         } else if (info.lattice != Info::Keep) {
+            // TODO only alloc new state if we have: app(old_Lam, arg)
             man().new_state();
+            outf("new state {}\n", old_lam);
             auto& info = lam2info(old_lam);
             auto& phis = lam2phis_[old_lam];
 
@@ -86,31 +89,23 @@ void Mem2Reg::inspect(Def* def) {
                 new2old_[new_lam] = old_lam;
                 info.new_lam = new_lam;
                 lam2info(new_lam).lattice = Info::PredsN;
+
+                size_t n = new_lam->num_params() - phis.size();
+
+                auto new_param = world().tuple(Array<const Def*>(n, [&](auto i) { return new_lam->param(i); }));
+                man().map(old_lam->param(), new_param);
+                new_lam->set(old_lam->ops());
+
+                size_t i = 0;
+                for (auto phi : phis)
+                    set_val(new_lam, phi, new_lam->param(n + i++));
             }
         }
     }
 }
 
 void Mem2Reg::enter(Def* def) {
-    if (auto new_lam = def->isa<Lam>()) {
-        outf("enter: {}\n", new_lam);
-
-        if (auto old_lam_opt = new2old_.lookup(new_lam)) {
-            auto old_lam = *old_lam_opt;
-            auto& phis = lam2phis_[old_lam];
-
-            outf("enter: {}/{}\n", old_lam, new_lam);
-            size_t n = new_lam->num_params() - phis.size();
-
-            auto new_param = world().tuple(Array<const Def*>(n, [&](auto i) { return new_lam->param(i); }));
-            man().map(old_lam->param(), new_param);
-            new_lam->set(old_lam->ops());
-
-            size_t i = 0;
-            for (auto phi : phis)
-                set_val(new_lam, phi, new_lam->param(n + i++));
-        }
-    }
+    if (auto lam = def->isa<Lam>()) lam2info(lam).entered = true;
 }
 
 const Def* Mem2Reg::get_val(Lam* lam, const Analyze* proxy) {
@@ -198,7 +193,9 @@ size_t Mem2Reg::analyze(const Def* def) {
                     info.lattice = Info::PredsN;
                     preds_n_.emplace(orig);
                     outf("Preds1 -> PredsN: {}\n", orig);
-                    return info.undo;
+                    if (info.entered)
+                        return info.undo;
+                    break; // not yet entered, so undo unnecessary
                 default:
                     break;
             }
@@ -218,7 +215,8 @@ size_t Mem2Reg::analyze(const Def* def) {
                 phis.clear();
             }
 
-            return undo;
+            if (undo != No_Undo)
+                return undo;
         }
     }
 

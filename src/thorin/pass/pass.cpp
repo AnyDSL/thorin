@@ -6,14 +6,13 @@
 namespace thorin {
 
 void dump_stack(std::stack<const Def*> stack) {
-    std::cout << "push: \n";
+    std::cout << "stack: ";
     while (!stack.empty()) {
+        pop(stack)->stream(std::cout);
         std::cout << " | ";
-        pop(stack)->dump();
     }
     std::cout << "\n";
 }
-
 
 void PassMan::run() {
     states_.emplace_back(passes_);
@@ -75,7 +74,8 @@ bool PassMan::push(const Def* old_def) {
         return false;
     }
 
-    std::cout << std::flush;
+    //outf("push: {}\n", old_def);
+    //std::cout << std::flush;
     assert(stack().empty() || stack().top() != old_def);
 
     stack().emplace(old_def);
@@ -97,7 +97,7 @@ void PassMan::rewrite() {
             todo |= push(old_def->op(i));
 
         if (!todo) {
-            stack().pop();
+            //dump_stack(stack());
             auto new_type = *lookup(old_def->type());
 
             bool changed = new_type != old_def->type();
@@ -109,8 +109,11 @@ void PassMan::rewrite() {
             for (auto& pass : passes_)
                 new_def = pass->rewrite(new_def);
 
+            stack().pop();
+            push(new_def);
+
             //assert(!cur_state().old2new.contains(new_def) || cur_state().old2new[new_def] == new_def);
-            map(old_def, map(new_def, new_def));
+            map(old_def, new_def);
         }
     }
 

@@ -57,7 +57,9 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention
     , device_calling_convention_(device_calling_convention)
     , kernel_calling_convention_(kernel_calling_convention)
     , runtime_(new Runtime(*context_, *module_.get(), irbuilder_))
-{}
+{
+    codegen_prepare(world);
+}
 
 Continuation* CodeGen::emit_intrinsic(Continuation* continuation) {
     auto callee = continuation->callee()->as_continuation();
@@ -90,7 +92,7 @@ Continuation* CodeGen::emit_hls(Continuation* continuation) {
             ret = cont;
             continue;
         }
-        args[j++] = emit(continuation->arg(i));
+        args[j++] = lookup(continuation->arg(i));
     }
     auto callee = continuation->arg(1)->as<Global>()->init()->as_continuation();
     callee->make_external();
@@ -1349,6 +1351,7 @@ Backends::Backends(World& world)
 
     // get the HLS kernel configurations
     if (!hls.world().empty()) {
+        hls_channels(hls.world());
         auto get_hls_config = [&] (Continuation* use, Continuation* imported) {
             HLSKernelConfig::Param2Size param_sizes;
             for (size_t i = 3, e = use->num_args(); i != e; ++i) {
@@ -1383,7 +1386,6 @@ Backends::Backends(World& world)
     }
 
     world.cleanup();
-    codegen_prepare(world);
 
     cpu_cg = std::make_unique<CPUCodeGen>(world);
 

@@ -6,6 +6,7 @@
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
+#include "thorin/transform/codegen_prepare.h"
 #include "thorin/util/log.h"
 #include "thorin/util/stream.h"
 #include "thorin/be/c.h"
@@ -25,7 +26,9 @@ public:
         , fn_mem_(world.fn_type({world.mem_type()}))
         , debug_(debug)
         , os_(stream)
-    {}
+    {
+        codegen_prepare(world);
+    }
 
     void emit();
     World& world() const { return world_; }

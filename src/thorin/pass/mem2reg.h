@@ -55,7 +55,7 @@ public:
             swap(a.pred,         b.pred);
             swap(a.new_lam,      b.new_lam);
             swap(a.num_slots,    b.num_slots);
-            swap(a.lattice_undo, b.lattice_undo);
+            swap(a.fields,       b.fields);
         }
 
         GIDMap<const Analyze*, const Def*> proxy2val;
@@ -69,7 +69,7 @@ public:
                 unsigned lattice :  2;
                 unsigned undo    : 29;
             };
-            unsigned lattice_undo;
+            unsigned fields;
         };
     };
 

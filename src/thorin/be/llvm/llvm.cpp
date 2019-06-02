@@ -114,7 +114,8 @@ Continuation* CodeGen::emit_atomic(Continuation* continuation) {
     assert(int(llvm::AtomicRMWInst::BinOp::Xchg) <= int(tag) && int(tag) <= int(llvm::AtomicRMWInst::BinOp::UMin) && "unsupported atomic");
     auto binop = (llvm::AtomicRMWInst::BinOp)tag;
     auto cont = continuation->arg(4)->as_continuation();
-    auto call = irbuilder_.CreateAtomicRMW(binop, ptr, val, llvm::AtomicOrdering::SequentiallyConsistent, llvm::SyncScope::System);
+    auto addr_space = continuation->arg(2)->type()->as<PtrType>()->addr_space();
+    auto call = irbuilder_.CreateAtomicRMW(binop, ptr, val, get_atomic_ordering(), get_atomic_sync_scope(addr_space));
     emit_result_phi(cont->param(1), call);
     return cont;
 }
@@ -127,7 +128,8 @@ Continuation* CodeGen::emit_cmpxchg(Continuation* continuation) {
     auto cmp  = lookup(continuation->arg(2));
     auto val  = lookup(continuation->arg(3));
     auto cont = continuation->arg(4)->as_continuation();
-    auto call = irbuilder_.CreateAtomicCmpXchg(ptr, cmp, val, llvm::AtomicOrdering::SequentiallyConsistent, llvm::AtomicOrdering::SequentiallyConsistent, llvm::SyncScope::System);
+    auto addr_space = continuation->arg(1)->type()->as<PtrType>()->addr_space();
+    auto call = irbuilder_.CreateAtomicCmpXchg(ptr, cmp, val, get_atomic_ordering(), get_atomic_ordering(), get_atomic_sync_scope(addr_space));
     emit_result_phi(cont->param(1), irbuilder_.CreateExtractValue(call, 0));
     emit_result_phi(cont->param(2), irbuilder_.CreateExtractValue(call, 1));
     return cont;
@@ -232,8 +234,9 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
             auto difile = dibuilder_.createFile(src_file, src_dir);
             disub_program = dibuilder_.createFunction(discope, fct->getName(), fct->getName(), difile, entry_->location().front_line(),
                                                       dibuilder_.createSubroutineType(dibuilder_.getOrCreateTypeArray(llvm::ArrayRef<llvm::Metadata*>())),
-                                                      false /* internal linkage */, true /* definition */, entry_->location().front_line(),
-                                                      llvm::DINode::FlagPrototyped /* Flags */, opt > 0);
+                                                      entry_->location().front_line(),
+                                                      llvm::DINode::FlagPrototyped,
+                                                      llvm::DISubprogram::SPFlagDefinition | (opt > 0 ? llvm::DISubprogram::SPFlagOptimized : llvm::DISubprogram::SPFlagZero));
             fct->setSubprogram(disub_program);
             discope = disub_program;
         }
@@ -964,11 +967,21 @@ llvm::Value* CodeGen::emit_global(const Global* global) {
 }
 
 llvm::Value* CodeGen::emit_load(const Load* load) {
-    return irbuilder_.CreateLoad(lookup(load->ptr()));
+    auto irPtr = lookup(load->ptr());
+    auto layout = llvm::DataLayout(module_->getDataLayout());
+    unsigned ptrAlignment = layout.getABITypeAlignment(irPtr->getType()->getPointerElementType());
+    auto irLoad = irbuilder_.CreateLoad(irPtr);
+    irLoad->setAlignment(ptrAlignment);
+    return irLoad;
 }
 
 llvm::Value* CodeGen::emit_store(const Store* store) {
-    return irbuilder_.CreateStore(lookup(store->val()), lookup(store->ptr()));
+    auto irPtr = lookup(store->ptr());
+    auto layout = llvm::DataLayout(module_->getDataLayout());
+    unsigned ptrAlignment = layout.getABITypeAlignment(irPtr->getType()->getPointerElementType());
+    auto irStore = irbuilder_.CreateStore(lookup(store->val()), irPtr);
+    irStore->setAlignment(ptrAlignment);
+    return irStore;
 }
 
 llvm::Value* CodeGen::emit_lea(const LEA* lea) {
@@ -1200,18 +1213,12 @@ llvm::Value* CodeGen::create_tmp_alloca(llvm::Type* type, std::function<llvm::Va
     // emit the alloca in the entry block
     auto alloca = emit_alloca(type, "tmp_alloca");
 
-    // mark the lifetime of the alloca
-    auto lifetime_start = llvm::Intrinsic::getDeclaration(module_.get(), llvm::Intrinsic::lifetime_start);
-    auto lifetime_end   = llvm::Intrinsic::getDeclaration(module_.get(), llvm::Intrinsic::lifetime_end);
-    auto addr_space = alloca->getType()->getPointerAddressSpace();
-    auto void_cast = irbuilder_.CreateBitCast(alloca, llvm::PointerType::get(irbuilder_.getInt8Ty(), addr_space));
-
     auto layout = llvm::DataLayout(module_->getDataLayout());
     auto size = irbuilder_.getInt64(layout.getTypeAllocSize(type));
 
-    irbuilder_.CreateCall(lifetime_start, { size, void_cast });
+    irbuilder_.CreateLifetimeStart(alloca, size);
     auto result = fun(alloca);
-    irbuilder_.CreateCall(lifetime_end, { size, void_cast });
+    irbuilder_.CreateLifetimeEnd(alloca, size);
     return result;
 }
 

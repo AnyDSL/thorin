@@ -75,13 +75,13 @@ public:
     //@{
     Debug debug() const { return debug_; }
     const Structurals& structurals() const { return structurals_; }
-    const Nominals& nominals() const { return nominals_; }
+    auto nominals() const { return map_range(nominals_, [&](auto&& p) { return p.second; }); }
     auto externals() const {
         return map_range(
-            make_filter_iterator(nominals_, [&](auto p) { return p.second->is_external(); }),
-            [&](auto p) { return p.second; });
+            make_filter_iterator(nominals_, [&](auto&& p) { return p.second->is_external(); }),
+            [&](auto&& p) { return p.second; });
     }
-    std::vector<Lam*> copy_lams() const;
+    std::vector<Lam*> copy_lams() const; // TODO get rid of this
     //@}
     /// @name manage global identifier - a unique number for each Def
     //@{

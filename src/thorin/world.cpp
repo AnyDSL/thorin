@@ -1004,6 +1004,21 @@ Lam* World::match(const Def* type, size_t num_patterns) {
 }
 
 /*
+ * misc
+ */
+
+std::vector<Lam*> World::copy_lams() const {
+    std::vector<Lam*> result;
+
+    for (auto def : nominals()) {
+        if (auto lam = def->isa<Lam>())
+            result.emplace_back(lam);
+    }
+
+    return result;
+}
+
+/*
  * stream
  */
 

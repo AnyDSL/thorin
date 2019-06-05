@@ -195,8 +195,8 @@ size_t CFG<forward>::post_order_visit(const CFNode* n, size_t i) {
 
 template<bool forward>
 void CFG<forward>::stream_ycomp(std::ostream& out) const {
-    thorin::ycomp(out, YCompOrientation::TopToBottom, scope(), range(reverse_post_order()),
-        [&] (const CFNode* n) { return range(succs(n)); }
+    thorin::ycomp(out, YCompOrientation::TopToBottom, scope(), make_range(reverse_post_order()),
+        [&] (const CFNode* n) { return make_range(succs(n)); }
     );
 }
 

@@ -103,8 +103,8 @@ void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
     // TODO use Scope::walk instead
     unique_queue<LamSet> lam_queue;
 
-    for (auto&& p : world.externals()) {
-        if (auto lam = p.second->isa<Lam>()) {
+    for (auto&& external : world.externals()) {
+        if (auto lam = external->isa<Lam>()) {
             assert(!lam->is_empty() && "external must not be empty");
             lam_queue.push(lam);
         }

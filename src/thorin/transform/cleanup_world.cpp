@@ -254,7 +254,7 @@ next_lam:;
 
 void Cleaner::rebuild() {
     Importer importer(world_);
-    importer.old2new_.rehash(world_.defs().capacity());
+    importer.old2new_.rehash(world_.structurals().capacity());
 
     for (auto external : world().externals())
         importer.import(external);
@@ -264,7 +264,7 @@ void Cleaner::rebuild() {
 }
 
 void Cleaner::verify_closedness() {
-    for (auto def : world().defs()) {
+    for (auto def : world().structurals()) {
         size_t i = 0;
         for (auto op : def->ops()) {
             within(op);
@@ -279,8 +279,8 @@ void Cleaner::verify_closedness() {
 }
 
 void Cleaner::within(const Def* def) {
-    assert_unused(world().defs().contains(def));
-    assert_unused(world().defs().contains(def->type()));
+    assert_unused(world().structurals().contains(def));
+    assert_unused(world().structurals().contains(def->type()));
 }
 
 void Cleaner::clean_pe_info(std::queue<Lam*> queue, Lam* cur) {
@@ -306,8 +306,10 @@ void Cleaner::clean_pe_infos() {
         if (done.emplace(lam).second)
             queue.push(lam);
     };
+
     for (auto external : world().externals()) {
-        enqueue(external);
+        if (auto lam = external->isa<Lam>())
+            enqueue(lam);
     }
 
     while (!queue.empty()) {

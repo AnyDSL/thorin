@@ -77,9 +77,9 @@ public:
     const Structurals& structurals() const { return structurals_; }
     const Nominals& nominals() const { return nominals_; }
     auto externals() const {
-        return make_map_iterator(
-            make_filter_range(nominals_, [&](const Nominals::value_type& p) -> bool { return p.second->is_external(); }),
-            [&](const Nominals::value_type& p) -> Def* { return p.second; });
+        return map_range(
+            make_filter_iterator(nominals_, [&](auto p) { return p.second->is_external(); }),
+            [&](auto p) { return p.second; });
     }
     std::vector<Lam*> copy_lams() const;
     //@}

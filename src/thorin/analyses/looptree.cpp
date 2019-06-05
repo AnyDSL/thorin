@@ -223,11 +223,11 @@ void LoopTree<forward>::stream_ycomp(std::ostream& out) const {
     std::vector<const Node *> nodes;
     get_nodes(nodes, root());
 
-    thorin::ycomp(out, YCompOrientation::LeftToRight, cfg().scope(), range(nodes),
+    thorin::ycomp(out, YCompOrientation::LeftToRight, cfg().scope(), make_range(nodes),
         [] (const Node* n) {
             if (auto head = n->template isa<Head>())
-                return range(head->children());
-            return range(ArrayRef<std::unique_ptr<Node>>());
+                return make_range(head->children());
+            return make_range(ArrayRef<std::unique_ptr<Node>>());
         }
     );
 }

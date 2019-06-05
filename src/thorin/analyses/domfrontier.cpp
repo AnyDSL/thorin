@@ -22,8 +22,8 @@ void DomFrontierBase<forward>::create() {
 template<bool forward>
 void DomFrontierBase<forward>::stream_ycomp(std::ostream& out) const {
     thorin::ycomp(out, forward ? YCompOrientation::TopToBottom : YCompOrientation::BottomToTop,
-                  scope(), range(cfg().reverse_post_order()),
-                  [&] (const CFNode* n) { return range(succs(n)); });
+                  scope(), make_range(cfg().reverse_post_order()),
+                  [&] (const CFNode* n) { return make_range(succs(n)); });
 }
 
 template class DomFrontierBase<true>;

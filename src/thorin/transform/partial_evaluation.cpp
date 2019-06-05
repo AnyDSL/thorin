@@ -141,8 +141,10 @@ bool PartialEvaluator::run() {
     bool todo = false;
 
     for (auto external : world().externals()) {
-        enqueue(external);
-        top_level_[external] = true;
+        if (auto lam = external->isa<Lam>()) {
+            enqueue(lam);
+            top_level_[lam] = true;
+        }
     }
 
     while (!queue_.empty()) {

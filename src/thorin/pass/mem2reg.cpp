@@ -182,7 +182,7 @@ void Mem2Reg::analyze(const Def* def) {
         } else if (auto lam = op->isa_nominal<Lam>()) {
             // TODO optimize
             if (lam->is_basicblock() && lam != man().cur_lam())
-                lam2info(lam).writable.insert_range(range(lam2info(man().cur_lam()).writable));
+                lam2info(lam).writable.insert_range(make_range(lam2info(man().cur_lam()).writable));
             auto orig = original(lam);
             auto& info = lam2info(orig);
             auto& phis = lam2phis_[orig];

@@ -10,29 +10,35 @@ namespace thorin {
 
 template<class I>
 struct range {
+    using iterator          = I;
+    using difference_type   = typename std::iterator_traits<I>::difference_type;
+    using value_type        = typename std::iterator_traits<I>::value_type;
+    using reference         = typename std::iterator_traits<I>::reference;
+    using pointer           = typename std::iterator_traits<I>::pointer;
+    using iterator_category = typename std::iterator_traits<I>::iterator_category;
+
     range(I begin, I end)
         : begin_(begin)
         , end_(end)
+    {}
+    range(const range& other)
+        : begin_(other.begin())
+        , end_  (other.end())
+    {}
+    range(range&& other)
+        : begin_(std::move(other.begin_))
+        , end_  (std::move(other.end_))
     {}
 
     I begin() const { return begin_; }
     I end() const { return end_; }
     size_t distance() const { return std::distance(begin(), end()); }
 
-    range(const range& other)
-        : begin_(other.begin())
-        , end_  (other.end())
-    {}
-    range(range&& other)
-        : super(std::move(other.begin_), std::move(other.end_))
-        , function_(std::move(other.function_))
-    {}
-
-    value_type operator*() const { return function_(*begin_); }
-    pointer operator->() const { return (pointer) &function_(*begin_); }
-    bool operator==( const map_iterator& other) { assert(this->end_ == other.end_); return this->begin_ == other.begin_; }
-    bool operator!=( const map_iterator& other) { assert(this->end_ == other.end_); return this->begin_ != other.begin_; }
-    range& operator=(range other) { assert(this->end_ == other.end_); swap(*this, other); return *this; }
+    value_type operator*() const { return *begin_; }
+    pointer operator->() const { return (pointer) &*begin_; }
+    bool operator==(const range& other) { assert(this->end_ == other.end_); return this->begin_ == other.begin_; }
+    bool operator!=(const range& other) { assert(this->end_ == other.end_); return this->begin_ != other.begin_; }
+    range& operator=(range other) { swap(*this, other); return *this; }
 
     friend void swap(range& r1, range& r2) {
         using std::swap;
@@ -40,10 +46,13 @@ struct range {
         swap(r1.end_,   r2.end_);
     }
 
-private:
+protected:
     I begin_;
     I end_;
 };
+
+template<class C>
+auto make_range(const C& container) { return range(container.begin(), container.end()); }
 
 template<class C>
 auto reverse_range(const C& container) { return range(container.rbegin(), container.rend()); }
@@ -56,15 +65,13 @@ auto reverse_range(C& container) { return range(container.rbegin(), container.re
 template<class I, class P, class V = typename std::iterator_traits<I>::value_type>
 class filter_iterator : public range<I> {
 public:
-    using super             = range<I>;
-    using iterator          = I;
-    //using difference_type   = typename R::difference_type;
-    using value_type        = V;
-    using reference         = V&;
-    using pointer           = V*;
-    using iterator_category = std::forward_iterator_tag;
+    using super = range<I>;
+    using value_type        = typename super::value_type;
+    using reference         = typename super::reference;
+    using pointer           = typename super::pointer;
+    using iterator_category = typename super::iterator_category;
 
-    filter_iterator(iterator begin, iterator end, P predicate)
+    filter_iterator(I begin, I end, P predicate)
         : range<I>(begin, end)
         , predicate_(predicate)
     {
@@ -86,28 +93,24 @@ public:
     P predicate() const { return predicate_; }
 
     filter_iterator& operator++() {
-        assert(begin_ != end_);
-        ++begin_;
+        assert(super::begin_ != super::end_);
+        ++super::begin_;
         skip();
         return *this;
     }
     filter_iterator operator++(int) { filter_iterator res = *this; ++(*this); return res; }
-    reference operator*() const { return (reference) *begin_; }
-    pointer operator->() const { return (pointer) &*begin_; }
-    bool operator==(const filter_iterator& other) { assert(this->end() == other.end()); return this->begin_ == other.begin_; }
-    bool operator!=(const filter_iterator& other) { assert(this->end() == other.end()); return this->begin_ != other.begin_; }
     filter_iterator& operator=(filter_iterator other) { swap(*this, other); return *this; }
 
     friend void swap(filter_iterator& i1, filter_iterator& i2) {
         using std::swap;
-        swap(static_cast<super&>(s1), static_cast<super&>(s2));
+        swap(static_cast<super&>(i1), static_cast<super&>(i2));
         swap(i1.predicate_, i2.predicate_);
     }
 
 private:
     void skip() {
-        while (begin_ != end() && !predicate_(*begin_))
-            ++begin_;
+        while (super::begin_ != super::end() && !predicate_(*super::begin_))
+            ++super::begin_;
     }
 
     P predicate_;
@@ -119,56 +122,51 @@ auto make_filter_iterator(const R& range, P predicate) { return filter_iterator(
 //------------------------------------------------------------------------------
 
 template<class I, class F>
-class map_iterator : public range<I> {
+class map_iterator {
 public:
-    using super             = range<I>;
     using iterator          = I;
-    //using difference_type   = typename std::iterator_traits<iterator>::difference_type;
-    using value_type        = typename std::result_of<F(typename I::value_type)>::type;
+    using difference_type   = typename std::iterator_traits<iterator>::difference_type;
+    using value_type        = typename std::result_of<F(typename std::iterator_traits<I>::value_type)>::type;
     using reference         = value_type&;
     using pointer           = value_type*;
-    using iterator_category = std::forward_iterator_tag;
+    using iterator_category = typename std::iterator_traits<I>::iterator_category;
 
-    map_iterator(iterator begin, iterator end, F function)
-        : super(begin, end)
-        , function_(function)
+    map_iterator(iterator iter, F map)
+        : iter_(iter)
+        , map_(map)
     {}
     map_iterator(const map_iterator& other)
-        : super(other.begin(), other.end())
-        , function_(other.function())
+        : iter_(other.iter_)
+        , map_ (other.map_)
     {}
     map_iterator(map_iterator&& other)
-        : super(std::move(other.begin_), std::move(other.end_))
-        , function_(std::move(other.function_))
+        : iter_(std::move(other.iter_))
+        , map_(std::move(other.map_))
     {}
 
-    F function() const { return function_; }
+    F map() const { return map_; }
 
-    map_iterator& operator++() {
-        assert(begin_ != end_);
-        ++begin_;
-        return *this;
-    }
+    map_iterator& operator++() { ++iter_; return *this; }
     map_iterator operator++(int) { map_iterator res = *this; ++(*this); return res; }
-    value_type operator*() const { return function_(*begin_); }
-    pointer operator->() const { return (pointer) &function_(*begin_); }
-    bool operator==( const map_iterator& other) { assert(this->end_ == other.end_); return this->begin_ == other.begin_; }
-    bool operator!=( const map_iterator& other) { assert(this->end_ == other.end_); return this->begin_ != other.begin_; }
-    map_iterator& operator=(map_iterator other) { assert(this->end_ == other.end_); swap(*this, other); return *this; }
+    value_type operator*() const { return map_(*iter_); }
+    pointer operator->() const { return (pointer) &map_(*iter_); }
+    bool operator==(const map_iterator& other) { return this->iter_ == other.iter_; }
+    bool operator!=(const map_iterator& other) { return this->iter_ != other.iter_; }
+    map_iterator& operator=(map_iterator other) { swap(*this, other); return *this; }
 
     friend void swap(map_iterator& i1, map_iterator& i2) {
         using std::swap;
-        swap(static_cast<super&>(s1), static_cast<super&>(s2));
-        swap(i1.predicate_, i2.predicate_);
+        swap(i1.iter_, i2.iter_);
+        swap(i1.map_,  i2.map_ );
     }
 
-
 private:
-    F function_;
+    iterator iter_;
+    F map_;
 };
 
 template<class R, class F>
-auto make_map_iterator(const R& range, F f) { return map_iterator(range.begin(), range.end(), f); }
+auto map_range(const R& r, F f) { return range(map_iterator(r.begin(), f), map_iterator(r.end(), f)); }
 
 //------------------------------------------------------------------------------
 

@@ -127,7 +127,7 @@ public:
     const CFNode* exit()  const { return forward ? cfa().exit()  : cfa().entry(); }
 
     ArrayRef<const CFNode*> reverse_post_order() const { return rpo_.array(); }
-    Range<ArrayRef<const CFNode*>::const_reverse_iterator> post_order() const { return reverse_range(rpo_.array()); }
+    range<ArrayRef<const CFNode*>::const_reverse_iterator> post_order() const { return reverse_range(rpo_.array()); }
     const CFNode* reverse_post_order(size_t i) const { return rpo_.array()[i]; }  ///< Maps from reverse post-order index to @p CFNode.
     const CFNode* post_order(size_t i) const { return rpo_.array()[size()-1-i]; } ///< Maps from post-order index to @p CFNode.
     const CFNode* operator [] (Lam* lam) const { return cfa()[lam]; }    ///< Maps from @p l to @p CFNode.

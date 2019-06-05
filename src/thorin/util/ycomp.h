@@ -47,11 +47,10 @@ public:
         ostream << "orientation: " << YCompOrientation_Names[orientation] << endl;
     }
 
-    YCompScope(std::ostream& ostream, const Scope& scope, Range<I> range,
-               SuccFct succs, YCompOrientation orientation)
+    YCompScope(std::ostream& ostream, const Scope& scope, range<I> r, SuccFct succs, YCompOrientation orientation)
         : YCompScope(ostream, orientation)
     {
-        addScope(scope, range, succs);
+        addScope(scope, r, succs);
     }
 
     ~YCompScope() {
@@ -61,8 +60,8 @@ public:
     std::ostream& ostream() { return ostream_; }
 
 private:
-    void addScope(const Scope& scope, Range<I> range, SuccFct succs) {
-        auto print_node = [&] (decltype(*range.begin()) node) {
+    void addScope(const Scope& scope, range<I> r, SuccFct succs) {
+        auto print_node = [&] (decltype(*r.begin()) node) {
             streamf(ostream(), "node: {{ title: \"{}\" label: \"{}\" }}", node, node) << endl;
 
             for (const auto& succ : succs(node))
@@ -75,7 +74,7 @@ private:
         ostream() << "title: \"" << title << "\"" << endl;
         ostream() << "label: \"" << title << "\"" << endl;
 
-        for (auto n : range)
+        for (auto n : r)
             print_node(n);
 
         ostream() << down_endl << "}";
@@ -85,8 +84,8 @@ private:
 };
 
 template<class I, class S>
-YCompScope<I, S> ycomp(std::ostream& out, YCompOrientation o, const Scope& scope, Range<I> range, S succs) {
-    return YCompScope<I, S>(out, scope, range, succs, o);
+YCompScope<I, S> ycomp(std::ostream& out, YCompOrientation o, const Scope& scope, range<I> r, S succs) {
+    return YCompScope<I, S>(out, scope, r, succs, o);
 }
 
 //------------------------------------------------------------------------------

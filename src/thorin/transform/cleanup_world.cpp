@@ -192,7 +192,7 @@ void Cleaner::eliminate_params() {
         std::vector<size_t> param_idx; // indices of params we keep
 
         auto old_app = old_lam->app();
-        if (old_app == nullptr || world().is_external(old_lam)) continue;
+        if (old_app == nullptr || old_lam->is_external()) continue;
 
         for (auto use : old_lam->uses()) {
             if (use->isa<Param>()) continue; // ignore old_lam's Param

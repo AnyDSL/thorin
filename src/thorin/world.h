@@ -11,6 +11,7 @@
 #include "thorin/primop.h"
 #include "thorin/util/hash.h"
 #include "thorin/util/stream.h"
+#include "thorin/util/iterator.h"
 #include "thorin/config.h"
 
 namespace thorin {
@@ -43,7 +44,8 @@ public:
         static const Def* sentinel() { return (const Def*)(1); }
     };
 
-    typedef HashSet<const Def*, DefHash> DefSet;
+    typedef HashSet<const Def*, DefHash> Structurals;
+    typedef HashMap<const char*, Def*, StrHash> Nominals;
 
     struct BreakHash {
         static uint64_t hash(size_t i) { return i; }
@@ -69,11 +71,18 @@ public:
     }
     ~World();
 
-    // getters
+    /// @name getters
+    //@{
     Debug debug() const { return debug_; }
-    const DefSet& defs() const { return defs_; }
+    const Structurals& structurals() const { return structurals_; }
+    const Nominals& nominals() const { return nominals_; }
+    auto externals() const {
+        return make_map_iterator(
+            make_filter_range(nominals_, [&](const Nominals::value_type& p) -> bool { return p.second->is_external(); }),
+            [&](const Nominals::value_type& p) -> Def* { return p.second; });
+    }
     std::vector<Lam*> copy_lams() const;
-
+    //@}
     /// @name manage global identifier - a unique number for each Def
     //@{
     uint32_t cur_gid() const { return cur_gid_; }
@@ -315,7 +324,6 @@ public:
     //@{
     Axiom* axiom(const Def* type, Normalizer, Debug dbg = {});
     Axiom* axiom(const Def* type, Debug dbg = {}) { return axiom(type, nullptr, dbg); }
-    std::optional<Axiom*> lookup_axiom(Symbol name) { return axioms_.lookup(name); }
     Axiom* type_nat() { return cache_.type_nat_; }
     Lam* match(const Def* type, size_t num_patterns);
     Lam* end_scope() const { return cache_.end_scope_; }
@@ -325,15 +333,6 @@ public:
 
     void mark_pe_done(bool flag = true) { pe_done_ = flag; }
     bool is_pe_done() const { return pe_done_; }
-
-    /// @name manage externals
-    //@{
-    bool empty() { return externals().empty(); }
-    const LamSet& externals() const { return externals_; }
-    void add_external(Lam* lam) { externals_.insert(lam); }
-    void remove_external(Lam* lam) { externals_.erase(lam); }
-    bool is_external(const Lam* lam) { return externals().contains(const_cast<Lam*>(lam)); }
-    //@}
 
 #if THORIN_ENABLE_CHECKS
     /// @name debugging features
@@ -360,9 +359,8 @@ public:
         swap(w1.cur_gid_,       w2.cur_gid_);
         swap(w1.buffer_index_,  w2.buffer_index_);
         swap(w1.debug_,         w2.debug_);
-        swap(w1.axioms_,        w2.axioms_);
-        swap(w1.externals_,     w2.externals_);
-        swap(w1.defs_,          w2.defs_);
+        swap(w1.structurals_,   w2.structurals_);
+        swap(w1.nominals_,      w2.nominals_);
         swap(w1.pe_done_,       w2.pe_done_);
         swap(w1.cache_,         w2.cache_);
 #if THORIN_ENABLE_CHECKS
@@ -382,7 +380,7 @@ private:
         if (breakpoints_.contains(def->gid())) THORIN_BREAK;
 #endif
         assert(!def->isa_nominal());
-        auto [i, success] = defs_.emplace(def);
+        auto [i, success] = structurals_.emplace(def);
         if (success) {
             def->finalize();
             return def;
@@ -398,7 +396,7 @@ private:
 #ifndef NDEBUG
         if (breakpoints_.contains(def->gid())) THORIN_BREAK;
 #endif
-        auto p = defs_.emplace(def);
+        auto p = structurals_.emplace(def);
         assert_unused(p.second);
         return def;
     }
@@ -464,9 +462,8 @@ private:
     Zone* cur_page_;
     size_t buffer_index_ = 0;
     Debug debug_;
-    SymbolMap<Axiom*> axioms_;
-    LamSet externals_;
-    DefSet defs_;
+    Structurals structurals_;
+    Nominals nominals_;
     uint32_t cur_gid_;
     bool pe_done_ = false;
 #if THORIN_ENABLE_CHECKS

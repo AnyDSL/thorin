@@ -51,7 +51,8 @@ World::World(uint32_t cur_gid, Debug debug)
 }
 
 World::~World() {
-    for (auto def : defs_) def->~Def();
+    for (auto def : structurals_) def->~Def();
+    for (const auto& p : nominals_) p.second->~Def();
 }
 
 const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
@@ -983,15 +984,15 @@ const Def* World::run(const Def* def, Debug dbg) {
  * Axioms
  */
 
-Axiom* World::axiom(const Def* type, Normalizer normalizer, Debug dbg) {
-    auto a = insert<Axiom>(0, type, normalizer, dbg);
-    auto s = dbg.name().c_str();
-    if (s[0] != '\0') {
-        assert(!axioms_.contains(s));
-        axioms_[s] = a;
-    }
-    return a;
-}
+//Axiom* World::axiom(const Def* type, Normalizer normalizer, Debug dbg) {
+    //auto a = insert<Axiom>(0, type, normalizer, dbg);
+    //auto s = dbg.name().c_str();
+    //if (s[0] != '\0') {
+        //assert(!axioms_.contains(s));
+        //axioms_[s] = a;
+    //}
+    //return a;
+//}
 
 Lam* World::match(const Def* type, size_t num_patterns) {
     Array<const Def*> arg_types(num_patterns + 2);
@@ -1003,28 +1004,13 @@ Lam* World::match(const Def* type, size_t num_patterns) {
 }
 
 /*
- * misc
- */
-
-std::vector<Lam*> World::copy_lams() const {
-    std::vector<Lam*> result;
-
-    for (auto def : defs_) {
-        if (auto lam = def->isa_nominal<Lam>())
-            result.emplace_back(lam);
-    }
-
-    return result;
-}
-
-/*
  * stream
  */
 
 std::ostream& World::stream(std::ostream& os) const {
     os << "module '" << debug().name() << "'\n\n";
 
-    for (auto def : defs()) {
+    for (auto def : structurals()) {
         if (auto global = def->isa<Global>())
             global->stream_assignment(os);
     }

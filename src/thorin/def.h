@@ -172,6 +172,11 @@ public:
         return *type()->type()->type()->world_;
     }
     //@}
+    /// @name external
+    //@{
+    bool is_external() const { return external_; }
+    void make_external(bool external = true) { external_ = external; }
+    //@}
     /// @name replace
     //@{
     void replace(Tracker) const;
@@ -211,6 +216,7 @@ protected:
     unsigned nominal_       :  1;
     unsigned dependent_     :  1;
     unsigned contains_lam_  :  1;
+    unsigned external_      :  1;
     unsigned order_         : 10;
     uint32_t gid_;
     uint32_t num_ops_;
@@ -482,9 +488,6 @@ public:
     CC& cc() { return extra<Extra>().cc_; }
     CC cc() const { return extra<Extra>().cc_; }
     void set_intrinsic(); ///< Sets @p intrinsic_ derived on this @p Lam's @p name.
-    bool is_external() const;
-    void make_external();
-    void make_internal();
     bool is_basicblock() const;
     bool is_returning() const;
     bool is_intrinsic() const;

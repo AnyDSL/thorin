@@ -9,7 +9,7 @@ void PassMan::run() {
     states_.emplace_back(passes_);
     std::vector<const Def*> new_ops;
 
-    auto externals = world().externals();
+    std::vector<Def*> externals(world().externals().begin(), world().externals().end());
     for (auto lam : externals) {
         cur_nominal_ = lam;
         rewrite(lam); // provokes inspect

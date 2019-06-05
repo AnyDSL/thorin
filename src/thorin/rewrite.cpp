@@ -44,10 +44,10 @@ void cleanup(World& old_world) {
     World new_world(old_world);
 
     Rewriter rewriter(old_world, new_world);
-    rewriter.old2new.rehash(old_world.defs().capacity());
+    rewriter.old2new.rehash(old_world.structurals().capacity());
 
-    for (auto old_lam : old_world.externals())
-        rewriter.rewrite(old_lam)->as_nominal<Lam>()->make_external();
+    for (auto&& p : old_world.externals())
+        rewriter.rewrite(p.second)->as_nominal<Lam>()->make_external();
 
     swap(rewriter.old_world, rewriter.new_world);
 }

@@ -210,9 +210,6 @@ Lams Lam::succs() const {
     return succs;
 }
 
-void Lam::make_external() { return world().add_external(this); }
-void Lam::make_internal() { return world().remove_external(this); }
-bool Lam::is_external() const { return world().is_external(this); }
 bool Lam::is_intrinsic() const { return intrinsic() != Intrinsic::None; }
 bool Lam::is_accelerator() const { return Intrinsic::_Accelerator_Begin <= intrinsic() && intrinsic() < Intrinsic::_Accelerator_End; }
 void Lam::set_intrinsic() {
@@ -314,6 +311,7 @@ Def::Def(NodeTag tag, const Def* type, Defs ops, Debug dbg)
     , nominal_(false)
     , dependent_(false)
     , contains_lam_(tag == Node_Lam)
+    , external_(false)
     , order_(0)
     , gid_(world().next_gid())
     , num_ops_(ops.size())
@@ -332,6 +330,7 @@ Def::Def(NodeTag tag, const Def* type, size_t num_ops, Debug dbg)
     , nominal_(true)
     , dependent_(false)
     , contains_lam_(tag == Node_Lam)
+    , external_(false)
     , order_(0)
     , gid_(world().next_gid())
     , num_ops_(num_ops)
@@ -423,7 +422,7 @@ const Def* VariantType::rebuild(World& w, const Def*  , Defs o) const { return w
  * stub
  */
 
-Axiom*    Axiom   ::stub(World& to, const Def*  ) { return to.lookup_axiom(name()).value(); }
+//Axiom*    Axiom   ::stub(World& to, const Def*  ) { return to.lookup_axiom(name()).value(); }
 Lam*      Lam     ::stub(World& to, const Def* t) { assert(isa_nominal()); return to.lam(t->as<Pi>(), cc(), intrinsic(), debug()); }
 Sigma*    Sigma   ::stub(World& to, const Def* t) { assert(isa_nominal()); return to.sigma(t, num_ops(), debug()); }
 Universe* Universe::stub(World& to, const Def*  ) { return const_cast<Universe*>(to.universe()); }

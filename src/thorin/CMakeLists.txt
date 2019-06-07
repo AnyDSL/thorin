@@ -60,6 +60,8 @@ set(THORIN_SOURCES
     transform/inliner.h
     transform/lift_builtins.cpp
     transform/lift_builtins.h
+    transform/live.cpp
+    transform/live.h
     transform/mangle.cpp
     transform/mangle.h
     transform/resolve_loads.cpp

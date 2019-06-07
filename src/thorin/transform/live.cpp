@@ -94,6 +94,19 @@ void Live::analyze()
             }
         });
     } while(is_unequal_map(tmp_in, in) || is_unequal_map(tmp_out, out));
+    tmp_in.clear();
+    tmp_out.clear();
+
+    DefMap<DefSet> edges;
+    reverse_post_order_world(world, [&edges,&def,&out](const Lam* n) {
+        // We add an edge if v and w both are alive in at least one program point simultaneously
+        for(auto a : def[n]) {
+            for(auto b : out[n]) {
+                // add edge from a to b
+                edges[a].emplace(b);
+            }
+        }
+    });
 }
 
 //------------------------------------------------------------------------------

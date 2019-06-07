@@ -233,8 +233,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
             auto difile = dibuilder_.createFile(src_file, src_dir);
             disub_program = dibuilder_.createFunction(discope, fct->getName(), fct->getName(), difile, entry_->loc().front_line(),
                                                       dibuilder_.createSubroutineType(dibuilder_.getOrCreateTypeArray(llvm::ArrayRef<llvm::Metadata*>())),
-                                                      false /* internal linkage */, true /* definition */, entry_->loc().front_line(),
-                                                      llvm::DINode::FlagPrototyped /* Flags */, opt > 0);
+                                                      entry_->loc().front_line(), llvm::DINode::FlagPrototyped);
             fct->setSubprogram(disub_program);
             discope = disub_program;
         }

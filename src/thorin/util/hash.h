@@ -505,6 +505,8 @@ private:
     }
 
     void array_erase(const_iterator pos) {
+        if(size_ == 0)
+            return;
         for (size_t i = std::distance(array_.data(), pos.ptr_), e = size_-1; i != e; ++i)
             array_[i] = std::move(array_[i+1]);
 

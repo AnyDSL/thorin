@@ -1,6 +1,7 @@
 #ifndef THORIN_PASS_LIVE_H
 #define THORIN_PASS_LIVE_H
 
+#if 0
 #include "thorin/analyses/cfg.h"
 
 namespace thorin {
@@ -26,5 +27,7 @@ private:
 //------------------------------------------------------------------------------
 
 }
+
+#endif
 
 #endif

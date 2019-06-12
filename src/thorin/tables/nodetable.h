@@ -19,7 +19,6 @@
     THORIN_NODE(Sigma, sigma)
     THORIN_NODE(Top, top)
     THORIN_NODE(Tuple, tuple)
-    THORIN_NODE(Var, var)
     THORIN_NODE(Variadic, variadic)
     THORIN_NODE(VariantType, variant_type)
     // get rid of these ones

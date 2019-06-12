@@ -174,17 +174,8 @@ const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
                 return extract(insert->agg(), index, dbg);
         }
 
-        const Def* type = nullptr;
         if (auto sigma = agg->type()->isa<Sigma>()) {
-            if (sigma->is_dependent() && *i >= 1) {
-                Rewriter rewriter(*this);
-                for (size_t j = 0; j != *i; ++j)
-                    rewriter.map(var(sigma->op(0), j), extract(agg, j));
-                type = rewriter.rewrite(sigma->op(*i));
-            } else {
-                type = sigma->op(*i);
-            }
-
+            auto type = sigma->op(*i);
             return unify<Extract>(2, type, agg, index, dbg);
         }
     }

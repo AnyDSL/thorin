@@ -45,7 +45,7 @@ public:
     };
 
     typedef HashSet<const Def*, DefHash> Structurals;
-    typedef HashMap<const char*, Def*, StrHash> Nominals;
+    typedef DefMap<Def*> Nominals;
 
     struct BreakHash {
         static uint64_t hash(size_t i) { return i; }
@@ -76,6 +76,7 @@ public:
     Debug debug() const { return debug_; }
     const Structurals& structurals() const { return structurals_; }
     auto nominals() const { return map_range(nominals_, [&](auto&& p) { return p.second; }); }
+    /// All @em nominals that are @em external.
     auto externals() const {
         return map_range(
             make_filter_iterator(nominals_, [&](auto&& p) { return p.second->is_external(); }),

@@ -153,6 +153,14 @@ const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
     return unify<Tuple>(ops.size(), type, ops, dbg);
 }
 
+const Def* World::tuple_str(const char* str, Debug dbg) {
+    std::vector<const Def*> ops;
+    for (size_t i = 0; str[i] != '\0'; ++i)
+        ops.emplace_back(lit_ps8(*str));
+
+    return tuple(ops, dbg);
+}
+
 const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
     assertf(agg->arity() == index->type(), "extracting from aggregate {} of arity {} with index {} of type {}", agg, agg->arity(), index, index->type());
 

@@ -88,6 +88,7 @@ public:
     //@{
     uint32_t cur_gid() const { return cur_gid_; }
     uint32_t next_gid() { return ++cur_gid_; }
+    const Def* lit_gid() { return lit_nat(next_gid()); }
     //@}
     /// @name Universe and Kind
     //@{
@@ -157,6 +158,7 @@ public:
     /// ascribes @p type to this tuple - needed for dependetly typed and structural @p Sigma%s
     const Def* tuple(const Def* type, Defs ops, Debug dbg = {});
     const Def* tuple(Defs ops, Debug dbg = {});
+    const Def* tuple_str(const char* str, Debug dbg = {});
     const Tuple* tuple() { return cache_.tuple_; } ///< the unit value of type <tt>[]</tt>
     //@}
     /// @name Pack

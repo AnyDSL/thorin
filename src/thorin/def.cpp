@@ -210,6 +210,8 @@ Lams Lam::succs() const {
 bool Lam::is_intrinsic() const { return intrinsic() != Intrinsic::None; }
 bool Lam::is_accelerator() const { return Intrinsic::_Accelerator_Begin <= intrinsic() && intrinsic() < Intrinsic::_Accelerator_End; }
 void Lam::set_intrinsic() {
+#if 0
+    // TODO
     if      (name() == "cuda")                 extra<Extra>().intrinsic_ = Intrinsic::CUDA;
     else if (name() == "nvvm")                 extra<Extra>().intrinsic_ = Intrinsic::NVVM;
     else if (name() == "opencl")               extra<Extra>().intrinsic_ = Intrinsic::OpenCL;
@@ -228,7 +230,9 @@ void Lam::set_intrinsic() {
     else if (name() == "atomic")               extra<Extra>().intrinsic_ = Intrinsic::Atomic;
     else if (name() == "cmpxchg")              extra<Extra>().intrinsic_ = Intrinsic::CmpXchg;
     else if (name() == "undef")                extra<Extra>().intrinsic_ = Intrinsic::Undef;
-    else ELOG("unsupported thorin intrinsic");
+    else
+#endif
+        ELOG("unsupported thorin intrinsic");
 }
 
 bool Lam::is_basicblock() const { return type()->is_basicblock(); }
@@ -302,7 +306,8 @@ bool Pi::is_returning() const {
  */
 
 Def::Def(NodeTag tag, const Def* type, Defs ops, Debug dbg)
-    : type_(type)
+    : name_(nullptr)
+    , type_(type)
     , tag_((unsigned)tag)
     , value_(is_term())
     , nominal_(false)
@@ -319,8 +324,9 @@ Def::Def(NodeTag tag, const Def* type, Defs ops, Debug dbg)
         hash_ = hash_combine(hash_, op->gid());
 }
 
-Def::Def(NodeTag tag, const Def* type, size_t num_ops, Debug dbg)
-    : type_(type)
+Def::Def(NodeTag tag, const Def* name, const Def* type, size_t num_ops, Debug dbg)
+    : name_(name)
+    , type_(type)
     , tag_(tag)
     , value_(is_term())
     , nominal_(true)
@@ -443,7 +449,8 @@ std::ostream& Analyze::stream(std::ostream& os) const {
 }
 
 std::ostream& Lit::stream(std::ostream& os) const {
-    if (!name().empty()) return os << name();
+    // TODO
+    //if (!name().empty()) return os << name();
 
     os << type() << ' ';
     if (auto prim_type = type()->isa<PrimType>()) {

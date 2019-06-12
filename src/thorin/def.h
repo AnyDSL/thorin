@@ -101,8 +101,8 @@ private:
 protected:
     /// Constructor for a @em structural Def.
     Def(NodeTag tag, const Def* type, Defs ops, Debug dbg);
-    /// Constructor for a @em nominal Def.
-    Def(NodeTag tag, const Def* type, size_t num_ops, Debug dbg);
+    /// Constructor for a @em nominal Def with an @em explicit @p name.
+    Def(NodeTag tag, const Def* name, const Def* type, size_t num_ops, Debug dbg);
     virtual ~Def() {}
 
 public:
@@ -146,7 +146,6 @@ public:
     //@{
     Debug& debug() const { return debug_; }
     Loc loc() const { return debug_; }
-    Symbol name() const { return debug().name(); }
     /// name + "_" + gid
     std::string unique_name() const;
     /// In Debug build if World::enable_history is true, this thing keeps the gid to track a history of gid%s.
@@ -159,6 +158,7 @@ public:
     //@}
     /// @name misc getters
     //@{
+    const Def* name() const { return name_; }
     NodeTag tag() const { return (NodeTag)tag_; }
     size_t gid() const { return gid_; }
     bool contains_lam() const { return contains_lam_; }
@@ -205,6 +205,7 @@ protected:
 
     struct Extra {};
 
+    const Def* name_;
     union {
         const Def* type_;
         mutable World* world_;

@@ -102,7 +102,7 @@ protected:
     /// Constructor for a @em structural Def.
     Def(NodeTag tag, const Def* type, Defs ops, Debug dbg);
     /// Constructor for a @em nominal Def with an @em explicit @p name.
-    Def(NodeTag tag, const Def* name, const Def* type, size_t num_ops, Debug dbg);
+    Def(NodeTag tag, const Def* type, size_t num_ops, Debug dbg, const Def* name);
     virtual ~Def() {}
 
 public:
@@ -146,6 +146,8 @@ public:
     //@{
     Debug& debug() const { return debug_; }
     Loc loc() const { return debug_; }
+    // TODO remove
+    Symbol debug_name() const { return debug().name(); }
     /// name + "_" + gid
     std::string unique_name() const;
     /// In Debug build if World::enable_history is true, this thing keeps the gid to track a history of gid%s.
@@ -232,8 +234,8 @@ protected:
 
 class Universe : public Def {
 private:
-    Universe(World& world)
-        : Def(Node_Universe, reinterpret_cast<const Def*>(&world), 0_s, {"□"})
+    Universe(World& world, const Def* name)
+        : Def(Node_Universe, reinterpret_cast<const Def*>(&world), 0_s, {"□"}, name)
     {}
 
 public:
@@ -261,8 +263,8 @@ class Axiom : public Def {
 private:
     struct Extra { Normalizer normalizer_; };
 
-    Axiom(const Def* type, Normalizer normalizer, Debug dbg)
-        : Def(Node_Axiom, type, 0, dbg)
+    Axiom(const Def* type, Normalizer normalizer, Debug dbg, const Def* name)
+        : Def(Node_Axiom, type, 0, dbg, name)
     {
         extra<Extra>().normalizer_ = normalizer;
         //assert(type->free_vars().none());
@@ -406,8 +408,8 @@ private:
         extra<Extra>().cc_ = CC::C;
         extra<Extra>().intrinsic_ = Intrinsic::None;
     }
-    Lam(const Pi* pi, CC cc, Intrinsic intrinsic, Debug dbg)
-        : Def(Node_Lam, pi, 2, dbg)
+    Lam(const Pi* pi, CC cc, Intrinsic intrinsic, Debug dbg, const Def* name)
+        : Def(Node_Lam, pi, 2, dbg, name)
     {
         value_ = true;
         extra<Extra>().cc_ = cc;
@@ -534,11 +536,13 @@ private:
 
 class Sigma : public Def {
 private:
+    /// @em Structural @p Sigma.
     Sigma(const Def* type, Defs ops, Debug dbg)
         : Def(Node_Sigma, type, ops, dbg)
     {}
-    Sigma(const Def* type, size_t size, Debug dbg)
-        : Def(Node_Sigma, type, size, dbg)
+    /// @em Nominal @p Sigma.
+    Sigma(const Def* type, size_t size, Debug dbg, const Def* name)
+        : Def(Node_Sigma, type, size, dbg, name)
     {}
 
 public:

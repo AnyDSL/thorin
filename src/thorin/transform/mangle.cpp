@@ -57,7 +57,7 @@ Lam* Mangler::mangle() {
             all = false;
             auto new_param = new_entry()->param(j++);
             old2new_[old_param] = new_param;
-            new_param->debug().set(old_param->name());
+            new_param->debug().set(old_param->debug_name());
         }
     }
 

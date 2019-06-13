@@ -26,7 +26,7 @@ World::World(uint32_t cur_gid, Debug debug)
     , debug_    (debug)
     , cur_gid_  (cur_gid)
 {
-    cache_.universe_      = insert<Universe>(0, *this);
+    cache_.universe_      = insert<Universe>(0, *this, lit_gid());
     cache_.kind_arity_    = insert<Kind>(0, *this, Node_KindArity);
     cache_.kind_multi_    = insert<Kind>(0, *this, Node_KindMulti);
     cache_.kind_star_     = insert<Kind>(0, *this, Node_KindStar);
@@ -37,7 +37,7 @@ World::World(uint32_t cur_gid, Debug debug)
     cache_.top_arity_     = insert<BotTop>(0, true, kind_arity(), Debug{"⊤ₐ"});
     cache_.sigma_         = insert<Sigma>(0, kind_star(), Defs{}, Debug{})->as<Sigma>();
     cache_.tuple_         = insert<Tuple>(0, sigma(), Defs{}, Debug{})->as<Tuple>();
-    cache_.mem_           = insert<MemType  >(0, *this);
+    cache_.mem_           = insert<MemType>(0, *this);
     cache_.type_nat_      = axiom(kind_star(), {"nat"});
     cache_.lit_arity_1_   = lit_arity(1);
     cache_.lit_index_0_1_ = lit_index(lit_arity_1(), 0);

@@ -115,8 +115,8 @@ public:
     //@}
     /// @name Lambda: nominal
     //@{
-    Lam* lam(const Pi* cn, CC cc = CC::C, Intrinsic intrinsic = Intrinsic::None, Debug dbg = {}) {
-        auto lam = insert<Lam>(2, cn, cc, intrinsic, dbg);
+    Lam* lam(const Pi* cn, CC cc = CC::C, Intrinsic intrinsic = Intrinsic::None, Debug dbg = {}, const Def* name = nullptr) {
+        auto lam = insert<Lam>(2, cn, cc, intrinsic, dbg, name ? name : lit_gid());
         lam->destroy(); // set filter to false and body to top
         return lam;
     }
@@ -140,8 +140,11 @@ public:
     //@}
     /// @name Sigma: nominal
     //@{
-    Sigma* sigma(const Def* type, size_t size, Debug dbg = {}) { return insert<Sigma>(size, type, size, dbg); }
-    Sigma* sigma(size_t size, Debug dbg = {}) { return sigma(kind_star(), size, dbg); } ///< a @em nominal @p Sigma of type @p star
+    Sigma* sigma(const Def* type, size_t size, Debug dbg = {}, const Def* name = nullptr) {
+        return insert<Sigma>(size, type, size, dbg, name ? name : lit_gid());
+    }
+    ///< a @em nominal @p Sigma of type @p star
+    Sigma* sigma(size_t size, Debug dbg = {}, const Def* name = nullptr) { return sigma(kind_star(), size, dbg, name); }
     //@}
     /// @name Variadic
     //@{

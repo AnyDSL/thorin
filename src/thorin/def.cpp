@@ -324,7 +324,7 @@ Def::Def(NodeTag tag, const Def* type, Defs ops, Debug dbg)
         hash_ = hash_combine(hash_, op->gid());
 }
 
-Def::Def(NodeTag tag, const Def* name, const Def* type, size_t num_ops, Debug dbg)
+Def::Def(NodeTag tag, const Def* type, size_t num_ops, Debug dbg, const Def* name)
     : name_(name)
     , type_(type)
     , tag_(tag)

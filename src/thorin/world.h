@@ -401,7 +401,7 @@ private:
 #ifndef NDEBUG
         if (breakpoints_.contains(def->gid())) THORIN_BREAK;
 #endif
-        auto p = structurals_.emplace(def);
+        auto p = nominals_.emplace(def->name(), def);
         assert_unused(p.second);
         return def;
     }

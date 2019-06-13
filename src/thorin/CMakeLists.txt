@@ -64,6 +64,8 @@ set(THORIN_SOURCES
     transform/rewrite_flow_graphs.h
     transform/split_slots.cpp
     transform/split_slots.h
+    transform/hls_channels.cpp
+    transform/hls_channels.h
     util/args.h
     util/array.h
     util/cast.h

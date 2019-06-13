@@ -202,9 +202,9 @@ void Continuation::set_intrinsic() {
 }
 
 void Continuation::set_channel() {
-    if      (name().str().find("read")  != std::string::npos) channel_ = Channel::Read;
-    else if (name().str().find("write") != std::string::npos) channel_ = Channel::Write;
-    else ELOG("unsupported channel placeholder");
+    if      (name().str().find("write_channel")  != std::string::npos) channel_ = Channel::Read;
+    else if (name().str().find("read_channel") != std::string::npos) channel_ = Channel::Write;
+    else ELOG(" Not a channel / unsupported channel placeholder");
 }
 
 bool Continuation::is_basicblock() const { return type()->is_basicblock(); }

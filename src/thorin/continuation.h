@@ -96,8 +96,8 @@ enum class CC : uint8_t {
 };
 
 enum class Channel : uint8_t {
-    None,       ///< Not a channel
-    Read,       ///< Read-channel HLS-Backend
+    None,       ///< Not a channel HLS-Backend
+    Read,       ///< Read-channel  HLS-Backend
     Write       ///< Write-channel HLS-Backend
 };
 

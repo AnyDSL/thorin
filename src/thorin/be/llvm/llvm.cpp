@@ -42,6 +42,7 @@
 #include "thorin/be/llvm/nvvm.h"
 #include "thorin/be/llvm/opencl.h"
 #include "thorin/transform/codegen_prepare.h"
+#include "thorin/transform/hls_channels.h"
 #include "thorin/util/array.h"
 #include "thorin/util/log.h"
 
@@ -1225,6 +1226,17 @@ static void get_kernel_configs(Importer& importer,
     std::function<std::unique_ptr<KernelConfig> (Continuation*, Continuation*)> use_callback)
 {
     importer.world().opt();
+
+    for (auto external : importer.world().externals()) {
+        if (external->name() == "hls_top") {
+            HLSKernelConfig::Param2Size param_sizes;
+            for (size_t i = 0; i < external->num_params(); ++i) {
+                param_sizes.emplace(external->param(i), 42);
+            }
+            auto config = std::make_unique<HLSKernelConfig>(param_sizes);
+            kernel_config.emplace(external, std::move(config));
+        }
+    }
 
     auto externals = importer.world().externals();
     for (auto continuation : kernels) {

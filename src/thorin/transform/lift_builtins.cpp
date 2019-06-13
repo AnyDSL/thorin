@@ -56,7 +56,7 @@ void lift_builtins(World& world) {
 
                         // jump to new top-level dummy function with new args
                         auto cn = world.cn(Array<const Def*>(new_ops.size()-1, [&] (auto i) { return new_ops[i+1]->type(); }));
-                        auto nlam = world.lam(cn, callee->cc(), callee->intrinsic(), callee->debug());
+                        auto nlam = world.lam("lifted", cn, callee->cc(), callee->intrinsic(), callee->debug());
                         ulam->app(nlam, new_ops.skip_front(), ulam->app()->debug());
                     }
                 }

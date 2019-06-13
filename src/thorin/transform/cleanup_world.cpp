@@ -228,7 +228,7 @@ void Cleaner::eliminate_params() {
             }
 
             auto cn = world().cn(new_domain);
-            auto new_lam = world().lam(cn, old_lam->cc(), old_lam->intrinsic(), old_lam->debug_history());
+            auto new_lam = world().lam(old_lam->name(), cn, old_lam->cc(), old_lam->intrinsic(), old_lam->debug_history());
             size_t j = 0;
             for (auto i : param_idx) {
                 old_lam->param(i)->replace(new_lam->param(j));

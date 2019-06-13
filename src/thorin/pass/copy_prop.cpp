@@ -77,7 +77,7 @@ void CopyProp::inspect(Def* def) {
             if (new_domain.size() != old_lam->num_params()) {
                 man().new_state();
 
-                auto new_lam = world().lam(world().pi(new_domain, old_lam->codomain()), old_lam->debug());
+                auto new_lam = world().lam(old_lam->name(), world().pi(new_domain, old_lam->codomain()), old_lam->debug());
                 outf("new_lam: {}:{} -> {}:{}\n", old_lam, old_lam->type(), new_lam, new_lam->type());
                 new2old(new_lam) = old_lam;
                 info.new_lam = new_lam;

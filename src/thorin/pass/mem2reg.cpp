@@ -81,7 +81,7 @@ void Mem2Reg::inspect(Def* def) {
                 }
                 //Array<const Def*> types(phis.size(), [&](auto) { return proxy_type(*phi++); });
                 auto new_domain = merge_sigma(old_lam->domain(), types);
-                auto new_lam = world().lam(world().pi(new_domain, old_lam->codomain()), old_lam->debug());
+                auto new_lam = world().lam(old_lam->name(), world().pi(new_domain, old_lam->codomain()), old_lam->debug());
                 outf("new_lam: {} -> {}\n", old_lam, new_lam);
                 new2old_[new_lam] = old_lam;
                 info.new_lam = new_lam;

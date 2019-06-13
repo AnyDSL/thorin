@@ -38,13 +38,13 @@ World::World(uint32_t cur_gid, Debug debug)
     cache_.sigma_         = insert<Sigma>(0, kind_star(), Defs{}, Debug{})->as<Sigma>();
     cache_.tuple_         = insert<Tuple>(0, sigma(), Defs{}, Debug{})->as<Tuple>();
     cache_.mem_           = insert<MemType>(0, *this);
-    cache_.type_nat_      = axiom(kind_star(), {"nat"});
+    cache_.type_nat_      = axiom("nat", kind_star(), {"nat"});
     cache_.lit_arity_1_   = lit_arity(1);
     cache_.lit_index_0_1_ = lit_index(lit_arity_1(), 0);
     cache_.lit_nat_0_     = lit_nat(0);
     cache_.lit_bool_[0]   = lit(type_bool(), {false});
     cache_.lit_bool_[1]   = lit(type_bool(), {true});
-    cache_.end_scope_     = lam(cn(), CC::C, Intrinsic::EndScope, {"end_scope"});
+    cache_.end_scope_     = lam("end_scope", cn(), CC::C, Intrinsic::EndScope, {"end_scope"});
 
     for (size_t j = 0; j != cache_.lit_nat_.size(); ++j)
         cache_.lit_nat_[j] = lit_nat(1 << int64_t(j));
@@ -76,9 +76,9 @@ const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
     return unify<App>(2, pi->codomain(), callee, arg, dbg);
 }
 
-const Lam* World::lam(const Def* domain, const Def* filter, const Def* body, Debug dbg) {
+const Lam* World::lam(const Def* domain, Filter f, const Def* body, Debug dbg) {
     auto p = pi(domain, body->type());
-    return unify<Lam>(2, p, filter, body, dbg);
+    return unify<Lam>(2, p, filter(f), body, dbg);
 }
 
 static const Def* lub(const Def* t1, const Def* t2) {
@@ -983,15 +983,9 @@ const Def* World::run(const Def* def, Debug dbg) {
  * Axioms
  */
 
-//Axiom* World::axiom(const Def* type, Normalizer normalizer, Debug dbg) {
-    //auto a = insert<Axiom>(0, type, normalizer, dbg);
-    //auto s = dbg.name().c_str();
-    //if (s[0] != '\0') {
-        //assert(!axioms_.contains(s));
-        //axioms_[s] = a;
-    //}
-    //return a;
-//}
+Axiom* World::axiom(Name n, const Def* type, Normalizer normalizer, Debug dbg) {
+    return insert<Axiom>(0, name(n), type, normalizer, dbg);
+}
 
 Lam* World::match(const Def* type, size_t num_patterns) {
     Array<const Def*> arg_types(num_patterns + 2);
@@ -999,7 +993,7 @@ Lam* World::match(const Def* type, size_t num_patterns) {
     arg_types[1] = cn();
     for (size_t i = 0; i < num_patterns; i++)
         arg_types[i + 2] = sigma({type, cn()});
-    return lam(cn(sigma(arg_types)), CC::C, Intrinsic::Match, {"match"});
+    return lam("match", cn(sigma(arg_types)), CC::C, Intrinsic::Match, {"match"});
 }
 
 /*

@@ -102,7 +102,7 @@ protected:
     /// Constructor for a @em structural Def.
     Def(NodeTag tag, const Def* type, Defs ops, Debug dbg);
     /// Constructor for a @em nominal Def with an @em explicit @p name.
-    Def(NodeTag tag, const Def* type, size_t num_ops, Debug dbg, const Def* name);
+    Def(NodeTag tag, const Def* name, const Def* type, size_t num_ops, Debug dbg);
     virtual ~Def() {}
 
 public:
@@ -235,7 +235,7 @@ protected:
 class Universe : public Def {
 private:
     Universe(World& world, const Def* name)
-        : Def(Node_Universe, reinterpret_cast<const Def*>(&world), 0_s, {"□"}, name)
+        : Def(Node_Universe, name, reinterpret_cast<const Def*>(&world), 0_s, {"□"})
     {}
 
 public:
@@ -263,8 +263,8 @@ class Axiom : public Def {
 private:
     struct Extra { Normalizer normalizer_; };
 
-    Axiom(const Def* type, Normalizer normalizer, Debug dbg, const Def* name)
-        : Def(Node_Axiom, type, 0, dbg, name)
+    Axiom(const Def* name, const Def* type, Normalizer normalizer, Debug dbg)
+        : Def(Node_Axiom, name, type, 0, dbg)
     {
         extra<Extra>().normalizer_ = normalizer;
         //assert(type->free_vars().none());
@@ -408,8 +408,8 @@ private:
         extra<Extra>().cc_ = CC::C;
         extra<Extra>().intrinsic_ = Intrinsic::None;
     }
-    Lam(const Pi* pi, CC cc, Intrinsic intrinsic, Debug dbg, const Def* name)
-        : Def(Node_Lam, pi, 2, dbg, name)
+    Lam(const Def* name, const Pi* pi, CC cc, Intrinsic intrinsic, Debug dbg)
+        : Def(Node_Lam, name, pi, 2, dbg)
     {
         value_ = true;
         extra<Extra>().cc_ = cc;
@@ -541,8 +541,8 @@ private:
         : Def(Node_Sigma, type, ops, dbg)
     {}
     /// @em Nominal @p Sigma.
-    Sigma(const Def* type, size_t size, Debug dbg, const Def* name)
-        : Def(Node_Sigma, type, size, dbg, name)
+    Sigma(const Def* name, const Def* type, size_t size, Debug dbg)
+        : Def(Node_Sigma, name, type, size, dbg)
     {}
 
 public:

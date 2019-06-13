@@ -43,7 +43,7 @@ Lam* Mangler::mangle() {
     }
 
     auto cn = world().cn(param_types);
-    new_entry_ = world().lam(cn, old_entry()->debug_history());
+    new_entry_ = world().lam({}, cn, old_entry()->debug_history());
 
     // HACK we wil remove this code anyway
     bool all = true;

@@ -41,7 +41,7 @@ void codegen_prepare(World& world) {
     Scope::for_each(world, [&](Scope& scope) {
         DLOG("scope: {}", scope.entry());
         auto ret_param = scope.entry()->ret_param();
-        auto ret_cont = world.lam(ret_param->type()->as<Pi>(), ret_param->debug());
+        auto ret_cont = world.lam({}, ret_param->type()->as<Pi>(), ret_param->debug());
         ret_cont->app(ret_param, ret_cont->param(), ret_param->debug());
 
         // Rebuild a new parameter to pass to functions using the parameter as-is

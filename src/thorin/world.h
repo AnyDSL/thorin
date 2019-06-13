@@ -1,11 +1,12 @@
 #ifndef THORIN_WORLD_H
 #define THORIN_WORLD_H
 
-#include <cassert>
-#include <iostream>
 #include <functional>
 #include <initializer_list>
+#include <iostream>
+#include <optional>
 #include <string>
+#include <variant>
 
 #include "thorin/enums.h"
 #include "thorin/primop.h"
@@ -15,6 +16,9 @@
 #include "thorin/config.h"
 
 namespace thorin {
+
+using Name   = std::optional<std::variant<const char*, const Def*>>;
+using Filter = std::optional<const Def*>;
 
 /**
  * The World represents the whole program and manages creation of Thorin nodes (Def%s).
@@ -75,6 +79,7 @@ public:
     //@{
     Debug debug() const { return debug_; }
     const Structurals& structurals() const { return structurals_; }
+    std::optional<Def*> nominal(const Def* name) { return nominals_.lookup(name); }
     auto nominals() const { return map_range(nominals_, [&](auto&& p) { return p.second; }); }
     /// All @em nominals that are @em external.
     auto externals() const {
@@ -115,16 +120,15 @@ public:
     //@}
     /// @name Lambda: nominal
     //@{
-    Lam* lam(const Pi* cn, CC cc = CC::C, Intrinsic intrinsic = Intrinsic::None, Debug dbg = {}, const Def* name = nullptr) {
-        auto lam = insert<Lam>(2, cn, cc, intrinsic, dbg, name ? name : lit_gid());
+    Lam* lam(Name n, const Pi* pi, CC cc = CC::C, Intrinsic intrinsic = Intrinsic::None, Debug dbg = {}) {
+        auto lam = insert<Lam>(2, name(n), pi, cc, intrinsic, dbg);
         lam->destroy(); // set filter to false and body to top
         return lam;
     }
-    Lam* lam(const Pi* cn, Debug dbg = {}) { return lam(cn, CC::C, Intrinsic::None, dbg); }
+    Lam* lam(Name n, const Pi* pi, Debug dbg = {}) { return lam(n, pi, CC::C, Intrinsic::None, dbg); }
     //@}
     /// @name Lambda: structural
-    const Lam* lam(const Def* domain, const Def* filter, const Def* body, Debug dbg);
-    const Lam* lam(const Def* domain, const Def* body, Debug dbg) { return lam(domain, lit_bool(true, Debug()), body, dbg); }
+    const Lam* lam(const Def* domain, Filter f, const Def* body, Debug dbg);
     //@}
     /// @name App
     //@{
@@ -140,11 +144,8 @@ public:
     //@}
     /// @name Sigma: nominal
     //@{
-    Sigma* sigma(const Def* type, size_t size, Debug dbg = {}, const Def* name = nullptr) {
-        return insert<Sigma>(size, type, size, dbg, name ? name : lit_gid());
-    }
-    ///< a @em nominal @p Sigma of type @p star
-    Sigma* sigma(size_t size, Debug dbg = {}, const Def* name = nullptr) { return sigma(kind_star(), size, dbg, name); }
+    Sigma* sigma(Name n, const Def* type, size_t size, Debug dbg = {}) { return insert<Sigma>(size, name(n), type, size, dbg); }
+    Sigma* sigma(Name n, size_t size, Debug dbg = {}) { return sigma(n, kind_star(), size, dbg); } ///< A @em nominal @p Sigma of @p kind_star.
     //@}
     /// @name Variadic
     //@{
@@ -327,8 +328,8 @@ public:
     // TODO not all of them are axioms right now
     /// @name Axioms
     //@{
-    Axiom* axiom(const Def* type, Normalizer, Debug dbg = {});
-    Axiom* axiom(const Def* type, Debug dbg = {}) { return axiom(type, nullptr, dbg); }
+    Axiom* axiom(Name n, const Def* type, Normalizer, Debug dbg = {});
+    Axiom* axiom(Name n, const Def* type, Debug dbg = {}) { return axiom(n, type, nullptr, dbg); }
     Axiom* type_nat() { return cache_.type_nat_; }
     Lam* match(const Def* type, size_t num_patterns);
     Lam* end_scope() const { return cache_.end_scope_; }
@@ -378,6 +379,21 @@ public:
     }
 
 private:
+    /// @name helpers for optional/variant arguments
+    //@{
+    const Def* name(Name n) {
+        if (n) {
+            if (std::holds_alternative<const char*>(*n)) return tuple_str(std::get<const char*>(*n));
+            if (std::holds_alternative<const Def* >(*n)) return std::get<const Def*>(*n);
+            THORIN_UNREACHABLE;
+        }
+        return lit_gid();
+    }
+    const Def* filter(Filter f) { return f ? *f : lit_false(); }
+    //@}
+
+    /// @name memory management and putting stuff into the internal hash tables
+    //@{
     template<class T, class... Args>
     const T* unify(size_t num_ops, Args&&... args) {
         auto def = allocate<T>(num_ops, args...);
@@ -462,6 +478,7 @@ private:
             buffer_index_-= num_bytes;
         assert(buffer_index_ % alignof(T) == 0);
     }
+    //@}
 
     std::unique_ptr<Zone> root_page_;
     Zone* cur_page_;

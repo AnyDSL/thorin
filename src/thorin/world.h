@@ -492,16 +492,18 @@ private:
     bool track_history_ = false;
     Breakpoints breakpoints_;
 #endif
+    struct PrimTypesStruct {
+#define THORIN_ALL_TYPE(T, M) const PrimType* T##_;
+#include "thorin/tables/primtypetable.h"
+    };
+
     struct Cache {
         Universe* universe_;
         const Kind* kind_arity_;
         const Kind* kind_multi_;
         const Kind* kind_star_;
         union {
-            struct {
-#define THORIN_ALL_TYPE(T, M) const PrimType* T##_;
-#include "thorin/tables/primtypetable.h"
-            };
+            PrimTypesStruct pt_;
             std::array<const PrimType*, Num_PrimTypes> primtypes_;
         };
         const BotTop* bot_star_;

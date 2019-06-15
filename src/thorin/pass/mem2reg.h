@@ -29,45 +29,18 @@ public:
         enum Lattice { Preds0, Preds1, PredsN, Keep };
 
         Info() = default;
-        Info(Info&& other) { swap(*this, other); }
-        Info(const Info& info)
-            : proxy2val(info.proxy2val)
-            , writable (info.writable)
-            , pred     (info.pred)
-            , new_lam  (info.new_lam)
-            , num_slots(info.num_slots)
-            , lattice  (info.lattice)
-            , undo     (info.undo)
-        {}
         Info(size_t undo)
             : lattice(Preds0)
             , undo(undo)
         {}
-
-        Info& operator=(Info other) { swap(*this, other); return *this; }
-
-        friend void swap(Info& a, Info& b) {
-            using std::swap;
-            swap(a.proxy2val,    b.proxy2val);
-            swap(a.writable,     b.writable);
-            swap(a.pred,         b.pred);
-            swap(a.new_lam,      b.new_lam);
-            swap(a.num_slots,    b.num_slots);
-            swap(a.lattice_undo, b.lattice_undo);
-        }
 
         GIDMap<const Analyze*, const Def*> proxy2val;
         GIDSet<const Analyze*> writable;
         Lam* pred = nullptr;
         Lam* new_lam = nullptr;
         unsigned num_slots = 0;
-        union {
-            struct {
-                unsigned lattice :  2;
-                unsigned undo    : 30;
-            };
-            unsigned lattice_undo;
-        };
+        unsigned lattice :  2;
+        unsigned undo    : 30;
     };
 
     using Lam2Info = LamMap<Info>;

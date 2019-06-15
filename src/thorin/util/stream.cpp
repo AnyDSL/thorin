@@ -14,7 +14,7 @@ void inc_indent() { indent++; }
 void dec_indent() { indent--; }
 unsigned int get_indent() { return indent; }
 
-};
+}
 
 std::string Streamable::to_string() const {
     std::ostringstream os;

@@ -31,7 +31,7 @@ World::World(uint32_t cur_gid, Debug debug)
     cache_.kind_multi_    = insert<Kind>(0, *this, Node_KindMulti);
     cache_.kind_star_     = insert<Kind>(0, *this, Node_KindStar);
 #define THORIN_ALL_TYPE(T, M) \
-    cache_.T##_           = insert<PrimType>(0, *this, PrimType_##T, Debug{#T});
+    cache_.pt_.T##_       = insert<PrimType>(0, *this, PrimType_##T, Debug{#T});
 #include "thorin/tables/primtypetable.h"
     cache_.bot_star_      = insert<BotTop>(0, false, kind_star(), Debug{"<⊥:*>"});
     cache_.top_arity_     = insert<BotTop>(0, true, kind_arity(), Debug{"⊤ₐ"});

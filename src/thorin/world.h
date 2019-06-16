@@ -43,7 +43,7 @@ public:
         static const Def* sentinel() { return (const Def*)(1); }
     };
 
-    typedef HashSet<const Def*, DefHash> DefSet;
+    typedef HashSet<const Def*, DefHash> Sea; /// This @p HashSet contains Thorin's "sea of nodes".
 
     struct BreakHash {
         static uint64_t hash(size_t i) { return i; }
@@ -71,7 +71,7 @@ public:
 
     // getters
     Debug debug() const { return debug_; }
-    const DefSet& defs() const { return defs_; }
+    const Sea& defs() const { return defs_; }
     std::vector<Lam*> copy_lams() const;
 
     /// @name manage global identifier - a unique number for each Def
@@ -466,7 +466,7 @@ private:
     Debug debug_;
     SymbolMap<Axiom*> axioms_;
     LamSet externals_;
-    DefSet defs_;
+    Sea defs_;
     uint32_t cur_gid_;
     bool pe_done_ = false;
 #if THORIN_ENABLE_CHECKS

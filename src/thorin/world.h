@@ -43,15 +43,15 @@ public:
         static const Def* sentinel() { return (const Def*)(1); }
     };
 
-    typedef HashSet<const Def*, DefHash> Sea; /// This @p HashSet contains Thorin's "sea of nodes".
-
     struct BreakHash {
         static uint64_t hash(size_t i) { return i; }
         static bool eq(size_t i1, size_t i2) { return i1 == i2; }
         static size_t sentinel() { return size_t(-1); }
     };
 
-    typedef HashSet<size_t, BreakHash> Breakpoints;
+    using Sea         = HashSet<const Def*, DefHash>;///< This @p HashSet contains Thorin's "sea of nodes".
+    using Breakpoints = HashSet<size_t, BreakHash>;
+    using Externals   = GIDSet<Def*>;
 
     World(const World&) = delete;
     World(World&&) = delete;
@@ -329,10 +329,10 @@ public:
     /// @name manage externals
     //@{
     bool empty() { return externals().empty(); }
-    const LamSet& externals() const { return externals_; }
-    void add_external(Lam* lam) { externals_.insert(lam); }
-    void remove_external(Lam* lam) { externals_.erase(lam); }
-    bool is_external(const Lam* lam) { return externals().contains(const_cast<Lam*>(lam)); }
+    const Externals& externals() const { return externals_; }
+    void make_external(Def* def) { externals_.emplace(def); }
+    void make_internal(Def* def) { externals_.erase(def); }
+    bool is_external(const Def* def) { return externals().contains(const_cast<Def*>(def)); }
     //@}
 
 #if THORIN_ENABLE_CHECKS
@@ -465,7 +465,7 @@ private:
     size_t buffer_index_ = 0;
     Debug debug_;
     SymbolMap<Axiom*> axioms_;
-    LamSet externals_;
+    Externals externals_;
     Sea defs_;
     uint32_t cur_gid_;
     bool pe_done_ = false;

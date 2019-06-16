@@ -143,6 +143,12 @@ public:
     const Def* out(size_t i, Debug dbg = {}) const;
     size_t num_outs() const;
     //@}
+    /// @name external handling
+    //@{
+    bool is_external() const;
+    void make_external();
+    void make_internal();
+    //@}
     /// @name Debug
     //@{
     Debug& debug() const { return debug_; }
@@ -482,9 +488,6 @@ public:
     CC& cc() { return extra<Extra>().cc_; }
     CC cc() const { return extra<Extra>().cc_; }
     void set_intrinsic(); ///< Sets @p intrinsic_ derived on this @p Lam's @p name.
-    bool is_external() const;
-    void make_external();
-    void make_internal();
     bool is_basicblock() const;
     bool is_returning() const;
     bool is_intrinsic() const;

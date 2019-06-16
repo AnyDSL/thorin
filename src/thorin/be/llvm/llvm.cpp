@@ -1207,8 +1207,10 @@ static void get_kernel_configs(Importer& importer,
         // recover the imported lam (lost after the call to opt)
         Lam* imported = nullptr;
         for (auto external : externals) {
-            if (external->name() == lam->name())
-                imported = external;
+            if (auto ex_lam = external->isa<Lam>()) {
+                if (ex_lam->name() == lam->name())
+                    imported = ex_lam;
+            }
         }
         if (!imported) continue;
 

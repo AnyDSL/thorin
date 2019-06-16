@@ -57,6 +57,10 @@ Def* Def::set(size_t i, const Def* def) {
     return this;
 }
 
+void Def::make_external() { return world().make_external(this); }
+void Def::make_internal() { return world().make_internal(this); }
+bool Def::is_external() const { return world().is_external(this); }
+
 void Def::unset(size_t i) {
     assert(i < num_ops() && "index out of bounds");
     auto def = op(i);
@@ -210,9 +214,6 @@ Lams Lam::succs() const {
     return succs;
 }
 
-void Lam::make_external() { return world().add_external(this); }
-void Lam::make_internal() { return world().remove_external(this); }
-bool Lam::is_external() const { return world().is_external(this); }
 bool Lam::is_intrinsic() const { return intrinsic() != Intrinsic::None; }
 bool Lam::is_accelerator() const { return Intrinsic::_Accelerator_Begin <= intrinsic() && intrinsic() < Intrinsic::_Accelerator_End; }
 void Lam::set_intrinsic() {

@@ -307,7 +307,8 @@ void Cleaner::clean_pe_infos() {
             queue.push(lam);
     };
     for (auto external : world().externals()) {
-        enqueue(external);
+        if (auto lam = external->isa<Lam>())
+            enqueue(lam);
     }
 
     while (!queue.empty()) {

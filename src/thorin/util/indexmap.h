@@ -52,8 +52,8 @@ public:
     const Value& array(size_t i) const { return array_[i]; }
 
     typedef filter_iterator<typename Array<Value>::const_iterator, bool (*)(Value)> const_iterator;
-    const_iterator begin() const { return make_filter(array_.begin(), array_.end(), IsValidPred<Value>::is_valid); }
-    const_iterator end() const { return make_filter(array_.end(), array_.end(), IsValidPred<Value>::is_valid); }
+    const_iterator begin() const { return filter(array_.begin(), array_.end(), IsValidPred<Value>::is_valid); }
+    const_iterator end() const { return filter(array_.end(), array_.end(), IsValidPred<Value>::is_valid); }
 
     friend void swap(IndexMap& map1, IndexMap& map2) {
         using std::swap;

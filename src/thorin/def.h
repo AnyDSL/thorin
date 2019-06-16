@@ -120,7 +120,6 @@ public:
     bool is_kind() const { return sort() == Sort::Kind; }
     bool is_universe() const { return sort() == Sort::Universe; }
     bool is_value() const { return value_; }
-    bool is_dependent() const { return dependent_; }
     virtual const Def* arity() const;
     //@}
     /// @name ops
@@ -215,7 +214,6 @@ protected:
     unsigned tag_           : 10;
     unsigned value_         :  1;
     unsigned nominal_       :  1;
-    unsigned dependent_     :  1;
     unsigned contains_lam_  :  1;
     unsigned order_         : 10;
     uint32_t gid_;
@@ -319,27 +317,6 @@ template<class T> std::optional<T> isa_lit(const Def* def) {
 }
 
 template<class T> T as_lit(const Def* def) { return def->as<Lit>()->box().get<T>(); }
-
-class Var : public Def {
-private:
-    struct Extra { u64 index_; };
-
-    Var(const Def* type, u64 index, Debug dbg)
-        : Def(Node_Var, type, Defs{}, dbg)
-    {
-        extra<Extra>().index_ = index;
-        hash_ = hash_combine(hash_, index);
-    }
-
-public:
-    u64 index() const { return extra<Extra>().index_; }
-
-    bool equal(const Def*) const override;
-    const Def* rebuild(World&, const Def*, Defs) const override;
-    std::ostream& stream(std::ostream&) const override;
-
-    friend class World;
-};
 
 class Pi : public Def {
 protected:

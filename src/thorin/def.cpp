@@ -33,13 +33,11 @@ void Def::finalize() {
         assert(o != nullptr);
         contains_lam_ |= o->contains_lam();
         order_ = std::max(order_, o->order_);
-        dependent_ |= o->is_dependent();
         const auto& p = o->uses_.emplace(this, i);
         assert_unused(p.second);
     }
 
     if (isa<Pi>()) ++order_;
-    else if (isa<Var>()) dependent_ = true;
 }
 
 Def* Def::set(size_t i, const Def* def) {
@@ -51,7 +49,6 @@ Def* Def::set(size_t i, const Def* def) {
     ops_ptr()[i] = def;
     contains_lam_ |= def->contains_lam();
     order_ = std::max(order_, def->order_);
-    dependent_ |= def->is_dependent();
     const auto& p = def->uses_.emplace(this, i);
     assert_unused(p.second);
     return this;
@@ -313,7 +310,6 @@ Def::Def(NodeTag tag, const Def* type, Defs ops, Debug dbg)
     , tag_((unsigned)tag)
     , value_(is_term())
     , nominal_(false)
-    , dependent_(false)
     , contains_lam_(tag == Node_Lam)
     , order_(0)
     , gid_(world().next_gid())
@@ -331,7 +327,6 @@ Def::Def(NodeTag tag, const Def* type, size_t num_ops, Debug dbg)
     , tag_(tag)
     , value_(is_term())
     , nominal_(true)
-    , dependent_(false)
     , contains_lam_(tag == Node_Lam)
     , order_(0)
     , gid_(world().next_gid())
@@ -393,7 +388,6 @@ bool Def::equal(const Def* other) const {
 bool Analyze::equal(const Def* other) const { return Def::equal(other) && this->index()      == other->as<Analyze>()->index(); }
 bool Lit    ::equal(const Def* other) const { return Def::equal(other) && this->box()        == other->as<Lit>()->box(); }
 bool PtrType::equal(const Def* other) const { return Def::equal(other) && this->addr_space() == other->as<PtrType>()->addr_space(); }
-bool Var    ::equal(const Def* other) const { return Def::equal(other) && this->index()      == other->as<Var>()->index(); }
 
 /*
  * rebuild
@@ -416,7 +410,6 @@ const Def* Pi         ::rebuild(World& w, const Def*  , Defs o) const { return w
 const Def* PrimType   ::rebuild(World& w, const Def*  , Defs  ) const { return w.type(primtype_tag()); }
 const Def* PtrType    ::rebuild(World& w, const Def*  , Defs o) const { return w.ptr_type(o[0], addr_space()); }
 const Def* Tuple      ::rebuild(World& w, const Def* t, Defs o) const { return w.tuple(t, o, debug()); }
-const Def* Var        ::rebuild(World& w, const Def* t, Defs  ) const { return w.var(t, index(), debug()); }
 const Def* Variadic   ::rebuild(World& w, const Def*  , Defs o) const { return w.variadic(o[0], o[1], debug()); }
 const Def* VariantType::rebuild(World& w, const Def*  , Defs o) const { return w.variant_type(o, debug()); }
 
@@ -443,7 +436,6 @@ std::ostream& Kind       ::stream(std::ostream& os) const { return streamf(os, "
 std::ostream& MemType    ::stream(std::ostream& os) const { return streamf(os, "mem"); }
 std::ostream& Pack       ::stream(std::ostream& os) const { return streamf(os, "‹{}; {}›", arity(), body()); }
 std::ostream& Universe   ::stream(std::ostream& os) const { return streamf(os, "□"); }
-std::ostream& Var        ::stream(std::ostream& os) const { return streamf(os, "<{}:{}>", index(), type()); }
 std::ostream& Variadic   ::stream(std::ostream& os) const { return streamf(os, "«{}; {}»", arity(), body()); }
 std::ostream& VariantType::stream(std::ostream& os) const { return stream_type_ops(os << "variant", this); }
 

@@ -137,8 +137,26 @@ const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
     if (n == 1) return ops[0];
     if (type->isa_nominal()) return unify<Tuple>(ops.size(), type, ops, dbg);
 
-    if (std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; }))
-        return pack(n, ops[0]);
+    const Lit* lit = ops[0]->isa<Lit>();// are alle ops literals? -> build a LitN
+    const Def* same = ops[0];           // are alle ops the same? -> build a Pack
+    for (size_t i = 1; i != n && (lit || same); ++i) {
+        if (same != ops[i]) same = nullptr;
+        if (!ops[i]->isa<Lit>() || ops[i]->as<Lit>()->type() != lit->type()) lit = nullptr;
+    }
+
+    if (same) return pack(n, same);
+
+    if (lit) {
+        auto elem_num_bytes = num_bits(lit->type()->as<PrimType>()->primtype_tag()) / 8_s;
+        Array<char> buffer(n * elem_num_bytes);
+        auto p = buffer.data();
+        for (size_t i = 0; i != n; ++i, p += elem_num_bytes) {
+            auto box = ops[i]->as<Lit>()->box();
+            memcpy(p, &box, elem_num_bytes);
+        }
+
+        return lit_n(lit->type(), buffer.size(), buffer.data(), dbg);
+    }
 
     // eta rule for tuples:
     // (extract(agg, 0), extract(agg, 1), extract(agg, 2)) -> agg

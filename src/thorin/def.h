@@ -478,7 +478,6 @@ public:
     void dump_body() const;
     //@}
 
-    friend class Cleaner;
     friend class World;
 };
 

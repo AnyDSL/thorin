@@ -67,7 +67,7 @@ public:
     {}
 
     Symbol name() const { return name_; }
-    Loc loc() { return *this; }
+    Loc loc() const { return *this; }
     void set(Symbol name) { name_= name; }
     void set(Loc loc) { *static_cast<Loc*>(this) = loc; }
 

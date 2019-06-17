@@ -232,7 +232,7 @@ void Cleaner::eliminate_params() {
             size_t j = 0;
             for (auto i : param_idx) {
                 old_lam->param(i)->replace(new_lam->param(j));
-                new_lam->param(j++)->debug() = old_lam->param(i)->debug_history();
+                new_lam->param(j++, old_lam->param(i)->debug_history());
             }
 
             new_lam->set_filter(old_lam->filter());

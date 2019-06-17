@@ -152,7 +152,7 @@ public:
     //@}
     /// @name Debug
     //@{
-    Debug& debug() const { return debug_; }
+    const Debug& debug() const { return debug_; }
     Loc loc() const { return debug_; }
     Symbol name() const { return debug().name(); }
     /// name + "_" + gid
@@ -223,7 +223,7 @@ protected:
     uint32_t num_ops_;
     mutable const Def* substitute_ = nullptr;
     mutable Uses uses_;
-    mutable Debug debug_;
+    Debug debug_;
     uint64_t hash_;
 
     friend class Cleaner;

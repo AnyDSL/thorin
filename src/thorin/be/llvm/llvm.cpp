@@ -1292,12 +1292,14 @@ Backends::Backends(World& world)
         else
             return;
 
-        imported->debug().set(lam->unique_name());
+        // TODO
+        //imported->debug().set(lam->unique_name());
         imported->make_external();
-        lam->debug().set(lam->unique_name());
+        // TODO
+        //lam->debug().set(lam->unique_name());
 
-        for (size_t i = 0, e = lam->num_params(); i != e; ++i)
-            imported->param(i)->debug().set(lam->param(i)->unique_name());
+        //for (size_t i = 0, e = lam->num_params(); i != e; ++i)
+            //imported->param(i)->debug().set(lam->param(i)->unique_name());
 
         kernels.emplace_back(lam);
     });

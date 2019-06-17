@@ -55,16 +55,16 @@ World::~World() {
 }
 
 const Def* World::lit_n(const Def* elem_type, size_t num_elems, const char* data, Debug dbg) {
-    auto num_bytes = num_elems * (num_bits(elem_type->as<PrimType>()->primtype_tag()) / 8_s);
+    auto extra_num_bytes = num_elems * (num_bits(elem_type->as<PrimType>()->primtype_tag()) / 8_s);
 
     if (num_elems == 0) return tuple();
     if (num_elems == 1) {
         Box box(0_u64);
-        memcpy(&box, data, num_bytes);
+        memcpy(&box, data, extra_num_bytes);
         return lit(elem_type, box, dbg);
     }
 
-    return unify<LitN>(0, variadic(num_elems, elem_type, dbg), num_bytes, data, dbg);
+    return unify_n<LitN>(sizeof(Def) + sizeof(LitN::Extra) + extra_num_bytes, variadic(num_elems, elem_type, dbg), extra_num_bytes, data, dbg);
 }
 
 const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
@@ -197,12 +197,7 @@ const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
 
     if (auto i = isa_lit<u64>(index)) {
         if (auto tuple = agg->isa<Tuple>()) return tuple->op(*i);
-        if (auto lit_n = agg->isa<LitN>()) {
-            std::cout<< "XXX" << std::endl;
-            auto l = lit(lit_n->elem_type(), lit_n->get(*i), dbg);
-            l->dump();
-            return l;
-        }
+        if (auto lit_n = agg->isa<LitN>()) return lit(lit_n->elem_type(), lit_n->get(*i), dbg);
 
         // extract(insert(x, j, val), i) -> extract(x, i) where i != j (guaranteed by rule above)
         if (auto insert = agg->isa<Insert>()) {
@@ -223,7 +218,35 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* val, Debug
 
     if (index->type() == lit_arity_1()) return val;
 
-    // insert((a, b, c, d), 2, x) -> (a, b, x, d)
+    // insert((0, 1, 2, 3), 2, val) -> (0, 1, val, 2)
+    if (auto ln = agg->isa<LitN>()) {
+        auto x = as_lit<u64>(index);
+
+        if (auto val_lit = val->isa<Lit>()) {
+            auto n = ln->extra_num_bytes();
+            auto n_elem = ln->elem_num_bytes();
+            Array<char> buffer(n);
+            memcpy(buffer.data(), ln->data(), n);
+            auto box = val_lit->box();
+            memcpy(buffer.data() + x*n_elem, &box, n_elem);
+            auto xx = lit_n(ln->elem_type(), ln->lit_arity(), buffer.data(), dbg);
+
+            std::cout << "not tested" << std::endl;
+            xx->dump();
+            return xx;
+        }
+
+        auto elem_type = ln->elem_type();
+        Array<const Def*> new_ops(ln->lit_arity(), [&](auto i) {
+            return i == x ? val : lit(elem_type, ln->get(i), dbg);
+        });
+        auto yy = tuple(ln->type(), new_ops, dbg);
+        std::cout << "not tested" << std::endl;
+        yy->dump();
+        return yy;
+    }
+
+    // insert((a, b, c, d), 2, val) -> (a, b, val, d)
     if (auto tup = agg->isa<Tuple>()) {
         Array<const Def*> new_ops = tup->ops();
         new_ops[as_lit<u64>(index)] = val;

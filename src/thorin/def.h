@@ -330,11 +330,12 @@ private:
 
     LitN(const Def* type, size_t extra_num_bytes, const char* data, Debug dbg);
 
-    size_t extra_num_bytes() const { return extra<Extra>().extra_num_bytes_; }
     size_t num_bytes() const override { return Def::num_bytes() + sizeof(Extra) + extra_num_bytes(); }
     char* data() { return reinterpret_cast<char*>(this) + sizeof(Def) + sizeof(Extra); }
 
 public:
+    size_t elem_num_bytes() const;
+    size_t extra_num_bytes() const { return extra<Extra>().extra_num_bytes_; }
     const PrimType* elem_type() const;
     const char* data() const { return const_cast<LitN*>(this)->data(); }
     Box get(size_t i) const;

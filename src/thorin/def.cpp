@@ -112,10 +112,11 @@ void Def::dump() const {
  */
 
 const PrimType* LitN::elem_type() const { return type()->as<Variadic>()->body()->as<PrimType>(); }
+size_t LitN::elem_num_bytes() const { return num_bits(elem_type()->primtype_tag()) / 8_s; }
 
 Box LitN::get(size_t i) const {
     Box box(0_u64);
-    auto size = num_bits(elem_type()->primtype_tag()) / 8_s;
+    auto size = elem_num_bytes();
     memcpy(&box, data() + i * size, size);
     return box;
 }

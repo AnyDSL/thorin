@@ -140,8 +140,8 @@ const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
     const Lit* lit = ops[0]->isa<Lit>();// are alle ops literals? -> build a LitN
     const Def* same = ops[0];           // are alle ops the same? -> build a Pack
     for (size_t i = 1; i != n && (lit || same); ++i) {
-        if (same != ops[i]) same = nullptr;
-        else if (!ops[i]->isa<Lit>() || ops[i]->as<Lit>()->type() != lit->type()) lit = nullptr;
+        if (same && (same != ops[i])) same = nullptr;
+        if (lit  && (!ops[i]->isa<Lit>() || ops[i]->as<Lit>()->type() != lit->type())) lit = nullptr;
     }
 
     if (same) return pack(n, same);

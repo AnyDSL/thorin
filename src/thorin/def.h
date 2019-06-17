@@ -121,12 +121,13 @@ public:
     bool is_universe() const { return sort() == Sort::Universe; }
     bool is_value() const { return value_; }
     virtual const Def* arity() const;
+    u64 lit_arity() const;
     //@}
     /// @name ops
     //@{
-    inline Defs ops() const { return Defs(num_ops_, ops_ptr()); }
-    inline const Def* op(size_t i) const { return ops()[i]; }
-    inline size_t num_ops() const { return num_ops_; }
+    Defs ops() const { return Defs(num_ops_, ops_ptr()); }
+    const Def* op(size_t i) const { return ops()[i]; }
+    size_t num_ops() const { return num_ops_; }
     Def* set(size_t i, const Def* def);
     Def* set(Defs ops) { for (size_t i = 0, e = num_ops(); i != e; ++i) set(i, ops[i]); return this; }
     void unset(size_t i);
@@ -197,11 +198,12 @@ public:
     //@}
 
 protected:
-    inline char* extra_ptr() { return reinterpret_cast<char*>(this) + sizeof(Def) + sizeof(const Def*)*num_ops(); }
-    inline const char* extra_ptr() const { return const_cast<Def*>(this)->extra_ptr(); }
-    template<class T> inline T& extra() { return reinterpret_cast<T&>(*extra_ptr()); }
-    template<class T> inline const T& extra() const { return reinterpret_cast<const T&>(*extra_ptr()); }
-    inline const Def** ops_ptr() const { return reinterpret_cast<const Def**>(reinterpret_cast<char*>(const_cast<Def*>(this + 1))); }
+    virtual size_t num_bytes() const { return sizeof(Def) + sizeof(const Def*)*num_ops(); }
+    char* extra_ptr() { return reinterpret_cast<char*>(this) + sizeof(Def) + sizeof(const Def*)*num_ops(); }
+    const char* extra_ptr() const { return const_cast<Def*>(this)->extra_ptr(); }
+    template<class T> T& extra() { return reinterpret_cast<T&>(*extra_ptr()); }
+    template<class T> const T& extra() const { return reinterpret_cast<const T&>(*extra_ptr()); }
+    const Def** ops_ptr() const { return reinterpret_cast<const Def**>(reinterpret_cast<char*>(const_cast<Def*>(this + 1))); }
     void finalize();
 
     struct Extra {};
@@ -267,9 +269,10 @@ private:
         //assert(type->free_vars().none());
     }
 
+    size_t num_bytes() const override { return Def::num_bytes() + sizeof(Extra); }
+
 public:
     Normalizer normalizer() const { return extra<Extra>().normalizer_; }
-
     const Def* rebuild(World&, const Def*, Defs) const override;
     Axiom* stub(World&, const Def*) override;
     std::ostream& stream(std::ostream&) const override;
@@ -301,6 +304,8 @@ private:
         hash_ = hash_combine(hash_, box.get_u64());
     }
 
+    size_t num_bytes() const override { return Def::num_bytes() + sizeof(Extra); }
+
 public:
     Box box() const { return extra<Extra>().box_; }
     bool equal(const Def*) const override;
@@ -317,6 +322,25 @@ template<class T> std::optional<T> isa_lit(const Def* def) {
 }
 
 template<class T> T as_lit(const Def* def) { return def->as<Lit>()->box().get<T>(); }
+
+class LitN : public Def {
+private:
+    struct Extra { size_t extra_num_bytes_; };
+
+    LitN(const Def* type, size_t extra_num_bytes, const char* data, Debug dbg);
+
+    size_t extra_num_bytes() const { return extra<Extra>().extra_num_bytes_; }
+    size_t num_bytes() const override { return Def::num_bytes() + sizeof(Extra) + extra_num_bytes(); }
+    char* data() { return reinterpret_cast<char*>(this) + sizeof(Def) + sizeof(Extra); }
+
+public:
+    const char* data() const { return const_cast<LitN*>(this)->data(); }
+    bool equal(const Def*) const override;
+    const Def* rebuild(World& to, const Def*, Defs ops) const override;
+    std::ostream& stream(std::ostream&) const override;
+
+    friend class World;
+};
 
 class Pi : public Def {
 protected:
@@ -412,6 +436,8 @@ private:
         extra<Extra>().cc_ = cc;
         extra<Extra>().intrinsic_ = intrinsic;
     }
+
+    size_t num_bytes() const override { return Def::num_bytes() + sizeof(Extra); }
 
 public:
     /// @name type
@@ -703,6 +729,8 @@ private:
         hash_ = hash_combine(hash_, (uint8_t)addr_space);
     }
 
+    size_t num_bytes() const override { return Def::num_bytes() + sizeof(Extra); }
+
 public:
     const Def* pointee() const { return op(0); }
     AddrSpace addr_space() const { return extra<Extra>().addr_space_; }
@@ -725,9 +753,10 @@ private:
         hash_ = hash_combine(hash_, index);
     }
 
+    size_t num_bytes() const override { return Def::num_bytes() + sizeof(Extra); }
+
 public:
     u64 index() const { return extra<Extra>().index_; }
-
     bool equal(const Def* other) const override;
     std::ostream& stream(std::ostream&) const override;
     const Def* rebuild(World& to, const Def*, Defs ops) const override;

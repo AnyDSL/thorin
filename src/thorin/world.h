@@ -224,6 +224,12 @@ public:
     const Lit* lit_allset(PrimTypeTag tag, Loc loc = {});
     const Lit* lit_allset(const Def* type, Loc loc = {}) { return lit_allset(type->as<PrimType>()->primtype_tag(), loc); }
     //@}
+    /// @name Array Literal
+    //@{
+    const Def* lit_n(const Def* elem_type, size_t num_bytes, const char* data, Debug dbg = {});
+    template<class T, size_t N>
+    const Def* lit_n(const std::array<T, N>& a, Debug dbg = {}) { return lit_n(type(type2tag<T>::tag), N * sizeof(T), (char*) a.data(), dbg); }
+    //@}
     /// @name Top/Bottom
     //@{
     const Def* bot_top(bool is_top, const Def* type, Debug dbg = {});
@@ -375,8 +381,8 @@ public:
 
 private:
     template<class T, class... Args>
-    const T* unify(size_t num_ops, Args&&... args) {
-        auto def = allocate<T>(num_ops, args...);
+    const T* unify_n(size_t num_bytes, Args&&... args) {
+        auto def = allocate<T>(num_bytes, args...);
 #ifndef NDEBUG
         if (breakpoints_.contains(def->gid())) THORIN_BREAK;
 #endif
@@ -392,8 +398,11 @@ private:
     }
 
     template<class T, class... Args>
-    T* insert(size_t num_ops, Args&&... args) {
-        auto def = allocate<T>(num_ops, args...);
+    const T* unify(size_t num_ops, Args&&... args) { return unify_n<T>(num_bytes_of<T>(num_ops), args...); }
+
+    template<class T, class... Args>
+    T* insert_n(size_t num_bytes, Args&&... args) {
+        auto def = allocate<T>(num_bytes, args...);
 #ifndef NDEBUG
         if (breakpoints_.contains(def->gid())) THORIN_BREAK;
 #endif
@@ -401,6 +410,9 @@ private:
         assert_unused(p.second);
         return def;
     }
+
+    template<class T, class... Args>
+    T* insert(size_t num_ops, Args&&... args) { return insert_n<T>(num_bytes_of<T>(num_ops), args...); }
 
     struct Zone {
         static const size_t Size = 1024 * 1024 - sizeof(std::unique_ptr<int>); // 1MB - sizeof(next)
@@ -418,19 +430,18 @@ private:
     struct Lock { ~Lock() {} };
 #endif
 
-    static inline size_t align(size_t n) { return (n + (sizeof(void*) - 1)) & ~(sizeof(void*)-1); }
+    static size_t align(size_t n) { return (n + (sizeof(void*) - 1)) & ~(sizeof(void*)-1); }
 
-    template<class T> static inline size_t num_bytes_of(size_t num_ops) {
+    template<class T> static size_t num_bytes_of(size_t num_ops) {
         size_t result = std::is_empty<typename T::Extra>() ? 0 : sizeof(typename T::Extra);
         result += sizeof(Def) + sizeof(const Def*)*num_ops;
         return align(result);
     }
 
     template<class T, class... Args>
-    T* allocate(size_t num_ops, Args&&... args) {
+    T* allocate(size_t num_bytes, Args&&... args) {
         static_assert(sizeof(Def) == sizeof(T), "you are not allowed to introduce any additional data in subclasses of Def - use 'Extra' struct");
         Lock lock;
-        size_t num_bytes = num_bytes_of<T>(num_ops);
         num_bytes = align(num_bytes);
         assert(num_bytes < Zone::Size);
 
@@ -442,7 +453,6 @@ private:
         }
 
         auto result = new (cur_page_->buffer + buffer_index_) T(args...);
-        assert(result->num_ops() == num_ops);
         buffer_index_ += num_bytes;
         assert(buffer_index_ % alignof(T) == 0);
 
@@ -451,8 +461,7 @@ private:
 
     template<class T>
     void deallocate(const T* def) {
-        size_t num_bytes = num_bytes_of<T>(def->num_ops());
-        num_bytes = align(num_bytes);
+        auto num_bytes = align(def->num_bytes());
         def->~T();
         if (ptrdiff_t(buffer_index_ - num_bytes) > 0) // don't care otherwise
             buffer_index_-= num_bytes;

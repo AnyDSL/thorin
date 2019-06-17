@@ -14,6 +14,7 @@
     THORIN_NODE(Insert, insert)
     THORIN_NODE(Lam, lam)
     THORIN_NODE(Lit, lit)
+    THORIN_NODE(LitN, lit_n)
     THORIN_NODE(Pack, pack)
     THORIN_NODE(Pi, pi)
     THORIN_NODE(Sigma, sigma)

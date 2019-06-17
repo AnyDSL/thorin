@@ -57,7 +57,6 @@ const Def* Known  ::rebuild(World& to, const Def*  , Defs ops) const { return to
 const Def* Run    ::rebuild(World& to, const Def*  , Defs ops) const { return to.run(ops[0], debug()); }
 const Def* LEA    ::rebuild(World& to, const Def*  , Defs ops) const { return to.lea(ops[0], ops[1], debug()); }
 const Def* Load   ::rebuild(World& to, const Def*  , Defs ops) const { return to.load(ops[0], ops[1], debug()); }
-const Def* Lit    ::rebuild(World& to, const Def* t, Defs    ) const { return to.lit(t, box(), debug()); }
 const Def* Select ::rebuild(World& to, const Def*  , Defs ops) const { return to.select(ops[0], ops[1], ops[2], debug()); }
 const Def* SizeOf ::rebuild(World& to, const Def*  , Defs ops) const { return to.size_of(ops[0]->type(), debug()); }
 const Def* Slot   ::rebuild(World& to, const Def* t, Defs ops) const { return to.slot(t->as<Sigma>()->op(1)->as<PtrType>()->pointee(), ops[0], debug()); }

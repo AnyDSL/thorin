@@ -54,6 +54,19 @@ World::~World() {
     for (auto def : defs_) def->~Def();
 }
 
+const Def* World::lit_n(const Def* elem_type, size_t num_elems, const char* data, Debug dbg) {
+    auto num_bytes = num_elems * (num_bits(elem_type->as<PrimType>()->primtype_tag()) / 8_s);
+
+    if (num_elems == 0) return tuple();
+    if (num_elems == 1) {
+        Box box(0_u64);
+        memcpy(&box, data, num_bytes);
+        return lit(elem_type, box, dbg);
+    }
+
+    return unify<LitN>(0, variadic(num_elems, elem_type, dbg), num_bytes, data, dbg);
+}
+
 const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
     auto pi = callee->type()->as<Pi>();
     assertf(pi->domain() == arg->type(), "callee '{}' expects an argument of type '{}' but the argument '{}' is of type '{}'\n", callee, pi->domain(), arg, arg->type());

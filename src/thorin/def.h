@@ -33,6 +33,7 @@ using GIDSet = thorin::HashSet<Key, GIDHash<Key>>;
 
 class Lam;
 class Param;
+class PrimType;
 class Def;
 class Tracker;
 class World;
@@ -334,7 +335,9 @@ private:
     char* data() { return reinterpret_cast<char*>(this) + sizeof(Def) + sizeof(Extra); }
 
 public:
+    const PrimType* elem_type() const;
     const char* data() const { return const_cast<LitN*>(this)->data(); }
+    Box get(size_t i) const;
     bool equal(const Def*) const override;
     const Def* rebuild(World& to, const Def*, Defs ops) const override;
     std::ostream& stream(std::ostream&) const override;

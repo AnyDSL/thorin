@@ -197,6 +197,12 @@ const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
 
     if (auto i = isa_lit<u64>(index)) {
         if (auto tuple = agg->isa<Tuple>()) return tuple->op(*i);
+        if (auto lit_n = agg->isa<LitN>()) {
+            std::cout<< "XXX" << std::endl;
+            auto l = lit(lit_n->elem_type(), lit_n->get(*i), dbg);
+            l->dump();
+            return l;
+        }
 
         // extract(insert(x, j, val), i) -> extract(x, i) where i != j (guaranteed by rule above)
         if (auto insert = agg->isa<Insert>()) {

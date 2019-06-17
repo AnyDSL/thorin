@@ -108,6 +108,19 @@ void Def::dump() const {
 }
 
 /*
+ * LitN
+ */
+
+const PrimType* LitN::elem_type() const { return type()->as<Variadic>()->body()->as<PrimType>(); }
+
+Box LitN::get(size_t i) const {
+    Box box(0_u64);
+    auto size = num_bits(elem_type()->primtype_tag()) / 8_s;
+    memcpy(&box, data() + i * size, size);
+    return box;
+}
+
+/*
  * App
  */
 

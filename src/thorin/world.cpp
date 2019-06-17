@@ -141,7 +141,7 @@ const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
     const Def* same = ops[0];           // are alle ops the same? -> build a Pack
     for (size_t i = 1; i != n && (lit || same); ++i) {
         if (same != ops[i]) same = nullptr;
-        if (!ops[i]->isa<Lit>() || ops[i]->as<Lit>()->type() != lit->type()) lit = nullptr;
+        else if (!ops[i]->isa<Lit>() || ops[i]->as<Lit>()->type() != lit->type()) lit = nullptr;
     }
 
     if (same) return pack(n, same);
@@ -155,7 +155,7 @@ const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
             memcpy(p, &box, elem_num_bytes);
         }
 
-        return lit_n(lit->type(), buffer.size(), buffer.data(), dbg);
+        return lit_n(lit->type(), n, buffer.data(), dbg);
     }
 
     // eta rule for tuples:

@@ -424,7 +424,7 @@ const Def* Extract    ::rebuild(World& w, const Def*  , Defs o) const { return w
 const Def* Insert     ::rebuild(World& w, const Def*  , Defs o) const { return w.insert(o[0], o[1], o[2], debug()); }
 const Def* Kind       ::rebuild(World& w, const Def*  , Defs  ) const { return w.kind(tag()); }
 const Def* Lit        ::rebuild(World& w, const Def* t, Defs  ) const { return w.lit(t, box(), debug()); }
-const Def* LitN       ::rebuild(World& w, const Def* t, Defs  ) const { return w.lit_n(t->as<Variadic>()->body(), extra_num_bytes(), data(), debug()); }
+const Def* LitN       ::rebuild(World& w, const Def* t, Defs  ) const { return w.lit_n(t->as<Variadic>()->body(), lit_arity(), data(), debug()); }
 const Def* MemType    ::rebuild(World& w, const Def*  , Defs  ) const { return w.mem_type(); }
 const Def* Pack       ::rebuild(World& w, const Def* t, Defs o) const { return w.pack(t->arity(), o[0], debug()); }
 const Def* Param      ::rebuild(World& w, const Def*  , Defs o) const { return w.param(o[0]->as_nominal<Lam>(), debug()); }

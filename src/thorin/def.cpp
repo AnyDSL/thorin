@@ -482,6 +482,19 @@ std::ostream& Analyze::stream(std::ostream& os) const {
 
 std::ostream& Lit::stream(std::ostream& os) const {
     if (!name().empty()) return os << name();
+    if (is_kind_arity(type())) return streamf(os, "{}ₐ", box().get<u64>());
+
+    if (is_arity(type())) {
+        if (is_top(type())) return streamf(os, "{}T", box().get<u64>());
+
+        std::string s;
+        // append utf-8 subscripts in reverse order
+        for (size_t aa = as_lit<u64>(type()); aa > 0; aa /= 10)
+            ((s += char(char(0x80) + char(aa % 10))) += char(0x82)) += char(0xe2);
+        std::reverse(s.begin(), s.end());
+
+        return streamf(os, "{}{}", box().get<u64>(), s);
+    }
 
     os << type() << ' ';
     if (auto prim_type = type()->isa<PrimType>()) {

@@ -305,56 +305,24 @@ const Def* World::pack(Defs arity, const Def* body, Debug dbg) {
  * literals
  */
 
-const Lit* World::lit_allset(PrimTypeTag tag, Loc loc) {
+const Lit* World::lit_allset(PrimTypeTag tag, Debug dbg) {
     switch (tag) {
 #define THORIN_I_TYPE(T, M) \
-    case PrimType_##T: return lit(PrimType_##T, Box(~T(0)), loc);
+    case PrimType_##T: return lit(PrimType_##T, Box(~T(0)), dbg);
 #define THORIN_BOOL_TYPE(T, M) \
-    case PrimType_##T: return lit(PrimType_##T, Box(true), loc);
+    case PrimType_##T: return lit(PrimType_##T, Box(true), dbg);
 #include "thorin/tables/primtypetable.h"
         default: THORIN_UNREACHABLE;
     }
 }
 
-const Lit* World::lit_arity(u64 a, Loc loc) {
-    auto cur = cur_gid();
-    auto result = lit(kind_arity(), {a}, loc);
-
-    if (result->gid() >= cur)
-        result->debug().set(std::to_string(a) + "ₐ");
-
-    return result;
-}
-
-const Lit* World::lit_index(const Def* a, u64 i, Loc loc) {
-    auto cur = cur_gid();
-
-    if (is_top(a)) {
-        auto result = lit(a, i, loc);
-        if (result->gid() >= cur) { // new literal -> build name
-            result->debug().set(std::to_string(i) + "T");
-        }
-        return result;
-    }
+const Lit* World::lit_index(const Def* a, u64 i, Debug dbg) {
+    if (is_top(a)) return lit(a, i, dbg);
 
     auto arity = as_lit<u64>(a);
     assertf(i < arity, "index literal '{}' does not fit within arity '{}'", i, a);
 
-    auto result = lit(a, i, loc);
-
-    if (result->gid() >= cur) { // new literal -> build name
-        std::string s = std::to_string(i);
-        auto b = s.size();
-
-        // append utf-8 subscripts in reverse order
-        for (size_t aa = arity; aa > 0; aa /= 10)
-            ((s += char(char(0x80) + char(aa % 10))) += char(0x82)) += char(0xe2);
-
-        std::reverse(s.begin() + b, s.end());
-        result->debug().set(s);
-    }
-
-    return result;
+    return lit(a, i, dbg);
 }
 
 /*

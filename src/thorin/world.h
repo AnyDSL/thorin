@@ -181,22 +181,22 @@ public:
     /// @name Literal
     //@{
     const Lit* lit(const Def* type, Box box, Debug dbg = {}) { return unify<Lit>(0, type, box, dbg); }
-    const Lit* lit(PrimTypeTag tag, Box box, Loc loc = {}) { return lit(type(tag), box, loc); }
+    const Lit* lit(PrimTypeTag tag, Box box, Debug dbg = {}) { return lit(type(tag), box, dbg); }
     //@}
     /// @name Literal: Arity - note that this is a type
     //@{
-    const Lit* lit_arity(u64 a, Loc loc = {});
+    const Lit* lit_arity(u64 a, Debug dbg = {}) { return lit(kind_arity(), {a}, dbg); }
     const Lit* lit_arity_1() { return cache_.lit_arity_1_; } ///< unit arity 1ₐ
     //@}
     /// @name Literal: Index - the inhabitants of an Arity
     //@{
-    const Lit* lit_index(u64 arity, u64 idx, Loc loc = {}) { return lit_index(lit_arity(arity), idx, loc); }
-    const Lit* lit_index(const Def* arity, u64 index, Loc loc = {});
+    const Lit* lit_index(u64 arity, u64 idx, Debug dbg = {}) { return lit_index(lit_arity(arity), idx, dbg); }
+    const Lit* lit_index(const Def* arity, u64 index, Debug dbg = {});
     const Lit* lit_index_0_1() { return cache_.lit_index_0_1_; } ///< unit index 0₁ of type unit arity 1ₐ
     //@}
     /// @name Literal: Nat
     //@{
-    const Lit* lit_nat(int64_t val, Loc loc = {}) { return lit(type_nat(), {val}, {loc}); }
+    const Lit* lit_nat(int64_t val, Debug dbg = {}) { return lit(type_nat(), {val}, dbg); }
     const Lit* lit_nat_0 () { return cache_.lit_nat_0_; }
     const Lit* lit_nat_1 () { return cache_.lit_nat_[0]; }
     const Lit* lit_nat_2 () { return cache_.lit_nat_[1]; }
@@ -215,14 +215,14 @@ public:
     /// @name Literal: PrimTypes
     //@{
 #define THORIN_ALL_TYPE(T, M) \
-    const Def* lit_##T(T val, Loc loc = {}) { return lit(PrimType_##T, Box(val), loc); }
+    const Def* lit_##T(T val, Debug dbg = {}) { return lit(PrimType_##T, Box(val), dbg); }
 #include "thorin/tables/primtypetable.h"
-    const Lit* lit_zero(PrimTypeTag tag, Loc loc = {}) { return lit(tag, 0, loc); }
-    const Lit* lit_zero(const Def* type, Loc loc = {}) { return lit_zero(type->as<PrimType>()->primtype_tag(), loc); }
-    const Lit* lit_one(PrimTypeTag tag, Loc loc = {}) { return lit(tag, 1, loc); }
-    const Lit* lit_one(const Def* type, Loc loc = {}) { return lit_one(type->as<PrimType>()->primtype_tag(), loc); }
-    const Lit* lit_allset(PrimTypeTag tag, Loc loc = {});
-    const Lit* lit_allset(const Def* type, Loc loc = {}) { return lit_allset(type->as<PrimType>()->primtype_tag(), loc); }
+    const Lit* lit_zero(PrimTypeTag tag, Debug dbg = {}) { return lit(tag, 0, dbg); }
+    const Lit* lit_zero(const Def* type, Debug dbg = {}) { return lit_zero(type->as<PrimType>()->primtype_tag(), dbg); }
+    const Lit* lit_one(PrimTypeTag tag, Debug dbg = {}) { return lit(tag, 1, dbg); }
+    const Lit* lit_one(const Def* type, Debug dbg = {}) { return lit_one(type->as<PrimType>()->primtype_tag(), dbg); }
+    const Lit* lit_allset(PrimTypeTag tag, Debug dbg = {});
+    const Lit* lit_allset(const Def* type, Debug dbg = {}) { return lit_allset(type->as<PrimType>()->primtype_tag(), dbg); }
     //@}
     /// @name Array Literal
     //@{
@@ -233,10 +233,10 @@ public:
     /// @name Top/Bottom
     //@{
     const Def* bot_top(bool is_top, const Def* type, Debug dbg = {});
-    const Def* bot(const Def* type, Loc dbg = {}) { return bot_top(false, type, dbg); }
-    const Def* top(const Def* type, Loc dbg = {}) { return bot_top(true,  type, dbg); }
-    const Def* bot(PrimTypeTag tag, Loc dbg = {}) { return bot_top(false, type(tag), dbg); }
-    const Def* top(PrimTypeTag tag, Loc dbg = {}) { return bot_top( true, type(tag), dbg); }
+    const Def* bot(const Def* type, Debug dbg = {}) { return bot_top(false, type, dbg); }
+    const Def* top(const Def* type, Debug dbg = {}) { return bot_top(true,  type, dbg); }
+    const Def* bot(PrimTypeTag tag, Debug dbg = {}) { return bot_top(false, type(tag), dbg); }
+    const Def* top(PrimTypeTag tag, Debug dbg = {}) { return bot_top( true, type(tag), dbg); }
     const Def* bot_star () { return cache_.bot_star_; }
     const Def* top_arity() { return cache_.top_arity_; } ///< use this guy to encode an unknown arity, e.g., for unsafe arrays
     //@}

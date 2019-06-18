@@ -381,6 +381,7 @@ private:
     //@{
     Debug debug(Dbg dbg) {
         if (std::holds_alternative<const char*>(dbg.name)) return Debug(dbg.loc, tuple_str(std::get<const char*>(dbg.name)));
+        if (std::holds_alternative<std::string>(dbg.name)) return Debug(dbg.loc, tuple_str(std::get<std::string>(dbg.name).c_str()));
         if (std::holds_alternative<const Def* >(dbg.name)) return Debug(dbg.loc, std::get<const Def*>(dbg.name));
         THORIN_UNREACHABLE;
     }

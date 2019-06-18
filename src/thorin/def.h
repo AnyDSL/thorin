@@ -95,15 +95,19 @@ std::ostream& operator<<(std::ostream&, Use);
  * See App or Lit how this is done.
  */
 class Def : public RuntimeCast<Def>, public Streamable {
+public:
+    using RebuildFn = const Def* (*)(const Def*, World&, const Def*, Defs);
+    using StubFn    = Def* (*)(const Def*, World&, const Def*);
+
 private:
     Def& operator=(const Def&) = delete;
     Def(const Def&) = delete;
 
 protected:
     /// Constructor for a @em structural Def.
-    Def(NodeTag tag, const Def* type, Defs ops, Debug dbg);
+    Def(NodeTag tag, RebuildFn rebuild, const Def* type, Defs ops, Debug dbg);
     /// Constructor for a @em nominal Def.
-    Def(NodeTag tag, const Def* type, size_t num_ops, Debug dbg);
+    Def(NodeTag tag, StubFn stub, const Def* type, size_t num_ops, Debug dbg);
     virtual ~Def() {}
 
 public:
@@ -186,8 +190,14 @@ public:
     //@}
     /// @name rebuild, stub, equal
     //@{
-    virtual const Def* rebuild(World&, const Def*, Defs) const = 0;
-    virtual Def* stub(World&, const Def*) { THORIN_UNREACHABLE; }
+    const Def* rebuild(World& world, const Def* type, Defs ops) const {
+        assert(!isa_nominal());
+        return rebuild_(this, world, type, ops);
+    }
+    Def* stub(World& world, const Def* type) {
+        assert(isa_nominal());
+        return stub_(this, world, type);
+    }
     virtual bool equal(const Def* other) const;
     //@}
     /// @name stream
@@ -212,6 +222,10 @@ protected:
         const Def* type_;
         mutable World* world_;
     };
+    union {
+        RebuildFn rebuild_;
+        StubFn    stub_;
+    };
     // TODO fine-tune bit fields
     unsigned tag_           : 10;
     unsigned value_         :  1;
@@ -234,12 +248,11 @@ protected:
 class Universe : public Def {
 private:
     Universe(World& world)
-        : Def(Node_Universe, reinterpret_cast<const Def*>(&world), 0_s, {"□"})
+        : Def(Node_Universe, stub, reinterpret_cast<const Def*>(&world), 0_s, {"□"})
     {}
 
 public:
-    const Def* rebuild(World&, const Def*, Defs) const override;
-    Universe* stub(World&, const Def*) override;
+    static Def* stub(const Def*, World&, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
     friend class World;
@@ -250,7 +263,7 @@ private:
     Kind(World&, NodeTag);
 
 public:
-    const Def* rebuild(World&, const Def*, Defs) const override;
+    static const Def* rebuild(const Def*, World&, const Def*, Defs);
     std::ostream& stream(std::ostream&) const override;
 
     friend class World;
@@ -263,7 +276,7 @@ private:
     struct Extra { Normalizer normalizer_; };
 
     Axiom(const Def* type, Normalizer normalizer, Debug dbg)
-        : Def(Node_Axiom, type, 0, dbg)
+        : Def(Node_Axiom, stub, type, 0, dbg)
     {
         extra<Extra>().normalizer_ = normalizer;
         //assert(type->free_vars().none());
@@ -271,8 +284,7 @@ private:
 
 public:
     Normalizer normalizer() const { return extra<Extra>().normalizer_; }
-    const Def* rebuild(World&, const Def*, Defs) const override;
-    Axiom* stub(World&, const Def*) override;
+    static Def* stub(const Def*, World&, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
     friend class World;
@@ -281,11 +293,11 @@ public:
 class BotTop : public Def {
 private:
     BotTop(bool is_top, const Def* type, Debug dbg)
-        : Def(is_top ? Node_Top : Node_Bot, type, Defs{}, dbg)
+        : Def(is_top ? Node_Top : Node_Bot, rebuild, type, Defs{}, dbg)
     {}
 
 public:
-    const Def* rebuild(World& to, const Def*, Defs ops) const override;
+    static const Def* rebuild(const Def*, World&, const Def*, Defs);
     std::ostream& stream(std::ostream&) const override;
 
     friend class World;
@@ -296,7 +308,7 @@ private:
     struct Extra { Box box_; };
 
     Lit(const Def* type, Box box, Debug dbg)
-        : Def(Node_Lit, type, Defs{}, dbg)
+        : Def(Node_Lit, rebuild, type, Defs{}, dbg)
     {
         extra<Extra>().box_ = box;
         hash_ = hash_combine(hash_, box.get_u64());
@@ -305,7 +317,7 @@ private:
 public:
     Box box() const { return extra<Extra>().box_; }
     bool equal(const Def*) const override;
-    const Def* rebuild(World& to, const Def*, Defs ops) const override;
+    static const Def* rebuild(const Def*, World&, const Def*, Defs);
     std::ostream& stream(std::ostream&) const override;
 
     friend class World;
@@ -322,7 +334,7 @@ template<class T> T as_lit(const Def* def) { return def->as<Lit>()->box().get<T>
 class Pi : public Def {
 protected:
     Pi(const Def* type, const Def* domain, const Def* codomain, Debug dbg)
-        : Def(Node_Pi, type, {domain, codomain}, dbg)
+        : Def(Node_Pi, rebuild, type, {domain, codomain}, dbg)
     {}
 
 public:
@@ -338,7 +350,7 @@ public:
     bool is_returning() const;
 
     std::ostream& stream(std::ostream&) const override;
-    const Def* rebuild(World& to, const Def*, Defs ops) const override;
+    static const Def* rebuild(const Def*, World&, const Def*, Defs);
 
     friend class World;
 };
@@ -355,7 +367,7 @@ public:
     Array<const Def*> args() const;
     size_t num_args() const { return as_lit<u64>(callee_type()->domain()->arity()); }
 
-    const Def* rebuild(World&, const Def*, Defs) const override;
+    static const Def* rebuild(const Def*, World&, const Def*, Defs);
     std::ostream& stream(std::ostream&) const override;
 
     friend class World;
@@ -400,19 +412,20 @@ private:
     };
 
     Lam(const Pi* pi, const Def* filter, const Def* body, Debug dbg)
-        : Def(Node_Lam, pi, {filter, body}, dbg)
+        : Def(Node_Lam, rebuild, pi, {filter, body}, dbg)
     {
         value_ = true;
         extra<Extra>().cc_ = CC::C;
         extra<Extra>().intrinsic_ = Intrinsic::None;
     }
     Lam(const Pi* pi, CC cc, Intrinsic intrinsic, Debug dbg)
-        : Def(Node_Lam, pi, 2, dbg)
+        : Def(Node_Lam, stub, pi, 2, dbg)
     {
         value_ = true;
         extra<Extra>().cc_ = cc;
         extra<Extra>().intrinsic_ = intrinsic;
     }
+
 
 public:
     /// @name type
@@ -454,8 +467,8 @@ public:
     //@}
     /// @name rebuild, stub
     //@{
-    const Def* rebuild(World&, const Def*, Defs) const override;
-    Lam* stub(World&, const Def* type) override;
+    static const Def* rebuild(const Def*, World&, const Def*, Defs);
+    static Def* stub(const Def*, World&, const Def*);
     //@}
 
     Lams preds() const;
@@ -490,7 +503,7 @@ using Lam2Lam = LamMap<Lam*>;
 class Param : public Def {
 private:
     Param(const Def* type, const Lam* lam, Debug dbg)
-        : Def(Node_Param, type, Defs{lam}, dbg)
+        : Def(Node_Param, rebuild, type, Defs{lam}, dbg)
     {
         assert(lam->isa_nominal<Lam>());
     }
@@ -498,7 +511,7 @@ private:
 public:
     Lam* lam() const { return op(0)->as_nominal<Lam>(); }
 
-    const Def* rebuild(World&, const Def*, Defs) const override;
+    static const Def* rebuild(const Def*, World&, const Def*, Defs);
 
     friend class World;
 };
@@ -534,16 +547,16 @@ private:
 class Sigma : public Def {
 private:
     Sigma(const Def* type, Defs ops, Debug dbg)
-        : Def(Node_Sigma, type, ops, dbg)
+        : Def(Node_Sigma, rebuild, type, ops, dbg)
     {}
     Sigma(const Def* type, size_t size, Debug dbg)
-        : Def(Node_Sigma, type, size, dbg)
+        : Def(Node_Sigma, stub, type, size, dbg)
     {}
 
 public:
     const Def* arity() const override;
-    const Def* rebuild(World& to, const Def*, Defs ops) const override;
-    Sigma* stub(World&, const Def*) override;
+    static const Def* rebuild(const Def*, World&, const Def*, Defs);
+    static Def* stub(const Def*, World&, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
     friend class World;
@@ -553,13 +566,13 @@ public:
 class Tuple : public Def {
 private:
     Tuple(const Def* type, Defs args, Debug dbg)
-        : Def(Node_Tuple, type, args, dbg)
+        : Def(Node_Tuple, rebuild, type, args, dbg)
     {
         value_ = true;
     }
 
 public:
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    static const Def* rebuild(const Def*, World&, const Def*, Defs);
     std::ostream& stream(std::ostream&) const override;
 
     friend class World;
@@ -568,13 +581,13 @@ public:
 class Variadic : public Def {
 private:
     Variadic(const Def* type, const Def* arity, const Def* body, Debug dbg)
-        : Def(Node_Variadic, type, {arity, body}, dbg)
+        : Def(Node_Variadic, rebuild, type, {arity, body}, dbg)
     {}
 
 public:
     const Def* arity() const override { return op(0); }
     const Def* body() const { return op(1); }
-    const Def* rebuild(World&, const Def*, Defs) const override;
+    static const Def* rebuild(const Def*, World&, const Def*, Defs);
     std::ostream& stream(std::ostream&) const override;
 
     friend class World;
@@ -583,14 +596,14 @@ public:
 class Pack : public Def {
 private:
     Pack(const Def* type, const Def* body, Debug dbg)
-        : Def(Node_Pack, type, {body}, dbg)
+        : Def(Node_Pack, rebuild, type, {body}, dbg)
     {
         value_ = true;
     }
 
 public:
     const Def* body() const { return op(0); }
-    const Def* rebuild(World&, const Def*, Defs) const override;
+    static const Def* rebuild(const Def*, World&, const Def*, Defs);
     std::ostream& stream(std::ostream&) const override;
 
     friend class World;
@@ -599,8 +612,8 @@ public:
 /// Base class for functional @p Insert and @p Extract.
 class AggOp : public Def {
 protected:
-    AggOp(NodeTag tag, const Def* type, Defs args, Debug dbg)
-        : Def(tag, type, args, dbg)
+    AggOp(NodeTag tag, RebuildFn rebuild, const Def* type, Defs args, Debug dbg)
+        : Def(tag, rebuild, type, args, dbg)
     {}
 
 public:
@@ -614,10 +627,10 @@ public:
 class Extract : public AggOp {
 private:
     Extract(const Def* type, const Def* agg, const Def* index, Debug dbg)
-        : AggOp(Node_Extract, type, {agg, index}, dbg)
+        : AggOp(Node_Extract, rebuild, type, {agg, index}, dbg)
     {}
 
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    static const Def* rebuild(const Def*, World&, const Def*, Defs);
 
     friend class World;
 };
@@ -631,10 +644,10 @@ private:
 class Insert : public AggOp {
 private:
     Insert(const Def* agg, const Def* index, const Def* val, Debug dbg)
-        : AggOp(Node_Insert, agg->type(), {agg, index, val}, dbg)
+        : AggOp(Node_Insert, rebuild, agg->type(), {agg, index, val}, dbg)
     {}
 
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    static const Def* rebuild(const Def*, World&, const Def*, Defs);
 
 public:
     const Def* val() const { return op(2); }
@@ -646,13 +659,13 @@ public:
 class VariantType : public Def {
 private:
     VariantType(const Def* type, Defs ops, Debug dbg)
-        : Def(Node_VariantType, type, ops, dbg)
+        : Def(Node_VariantType, rebuild, type, ops, dbg)
     {
         assert(std::adjacent_find(ops.begin(), ops.end()) == ops.end());
     }
 
 private:
-    const Def* rebuild(World& to, const Def*, Defs ops) const override;
+    static const Def* rebuild(const Def*, World&, const Def*, Defs);
     std::ostream& stream(std::ostream&) const override;
 
     friend class World;
@@ -664,7 +677,7 @@ private:
     MemType(World& world);
 
 public:
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    static const Def* rebuild(const Def*, World&, const Def*, Defs);
     std::ostream& stream(std::ostream&) const override;
 
     friend class World;
@@ -678,7 +691,7 @@ private:
 public:
     PrimTypeTag primtype_tag() const { return (PrimTypeTag) tag(); }
 
-    const Def* rebuild(World& to, const Def*, Defs ops) const override;
+    static const Def* rebuild(const Def*, World&, const Def*, Defs);
     std::ostream& stream(std::ostream&) const override;
 
     friend class World;
@@ -698,7 +711,7 @@ private:
     struct Extra { AddrSpace addr_space_; }; // TODO make this a proper op
 
     PtrType(const Def* type, const Def* pointee, AddrSpace addr_space, Debug dbg)
-        : Def(Node_PtrType, type, {pointee}, dbg)
+        : Def(Node_PtrType, rebuild, type, {pointee}, dbg)
     {
         extra<Extra>().addr_space_ = addr_space;
         hash_ = hash_combine(hash_, (uint8_t)addr_space);
@@ -710,7 +723,7 @@ public:
 
     bool equal(const Def* other) const override;
     std::ostream& stream(std::ostream&) const override;
-    const Def* rebuild(World& to, const Def*, Defs ops) const override;
+    static const Def* rebuild(const Def*, World&, const Def*, Defs);
 
     friend class World;
 };
@@ -720,7 +733,7 @@ private:
     struct Extra { u64 index_; };
 
     Analyze(const Def* type, Defs ops, u64 index, Debug dbg)
-        : Def(Node_Analyze, type, ops, dbg)
+        : Def(Node_Analyze, rebuild, type, ops, dbg)
     {
         extra<Extra>().index_ = index;
         hash_ = hash_combine(hash_, index);
@@ -730,7 +743,7 @@ public:
     u64 index() const { return extra<Extra>().index_; }
     bool equal(const Def* other) const override;
     std::ostream& stream(std::ostream&) const override;
-    const Def* rebuild(World& to, const Def*, Defs ops) const override;
+    static const Def* rebuild(const Def*, World&, const Def*, Defs);
 
     friend class World;
 };

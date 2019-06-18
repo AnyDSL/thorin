@@ -159,7 +159,7 @@ const Def* merge_tuple(const Def* def, Defs defs) {
 std::string tuple2str(const Def* def) {
     std::string result;
     for (size_t i = 0, e = def->lit_arity(); i != e; ++i)
-        result.push_back(as_lit<char>(def->out(i)));
+        result.push_back(as_lit<qs8>(def->out(i)));
     return result;
 }
 

@@ -696,7 +696,7 @@ public:
 /// Primitive type.
 class PrimType : public Def {
 private:
-    PrimType(World& world, PrimTypeTag tag, Debug dbg);
+    PrimType(World& world, PrimTypeTag tag);
 
 public:
     PrimTypeTag primtype_tag() const { return (PrimTypeTag) tag(); }

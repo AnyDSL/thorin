@@ -349,8 +349,8 @@ Kind::Kind(World& world, NodeTag tag)
     : Def(tag, world.universe(), Defs{}, {})
 {}
 
-PrimType::PrimType(World& world, PrimTypeTag tag, Debug dbg)
-    : Def((NodeTag) tag, world.kind_star(), Defs{}, dbg)
+PrimType::PrimType(World& world, PrimTypeTag tag)
+    : Def((NodeTag) tag, world.kind_star(), Defs{}, {})
 {}
 
 MemType::MemType(World& world)

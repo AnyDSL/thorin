@@ -156,8 +156,11 @@ const Def* merge_tuple(const Def* def, Defs defs) {
     return def->world().tuple(merge(def, defs));
 }
 
-std::string tuple2str(const Def*) {
-    return "TODO";
+std::string tuple2str(const Def* def) {
+    std::string result;
+    for (size_t i = 0, e = def->lit_arity(); i != e; ++i)
+        result.push_back(as_lit<char>(def->out(i)));
+    return result;
 }
 
 }

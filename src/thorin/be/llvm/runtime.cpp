@@ -69,8 +69,8 @@ Lam* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std::st
     auto it_config = lam->app()->arg(LaunchArgs::Config)->as<Tuple>();
     auto kernel = lam->app()->arg(LaunchArgs::Body)->as<Global>()->init()->as<Lam>();
 
-    auto kernel_name = builder_.CreateGlobalStringPtr(kernel->name().str());
-    auto file_name = builder_.CreateGlobalStringPtr((lam->world().debug().name() + ext).str());
+    auto kernel_name = builder_.CreateGlobalStringPtr(tuple2str(kernel->name()));
+    auto file_name = builder_.CreateGlobalStringPtr(lam->world().name() + ext);
     const size_t num_kernel_args = lam->app()->num_args() - LaunchArgs::Num;
 
     // allocate argument pointers, sizes, and types
@@ -87,7 +87,7 @@ Lam* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std::st
         KernelArgType arg_type;
         llvm::Value*  void_ptr;
         if (target_arg->type()->isa<Variadic>() || target_arg->type()->isa<Sigma>()) {
-            auto alloca = code_gen.emit_alloca(target_val->getType(), target_arg->name().str());
+            auto alloca = code_gen.emit_alloca(target_val->getType(), tuple2str(target_arg->name()));
             builder_.CreateStore(target_val, alloca);
 
             // check if argument type contains pointers
@@ -103,14 +103,14 @@ Lam* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std::st
             if (!rtype->isa<Variadic>())
                 EDEF(target_arg, "currently only pointers to arrays supported as kernel argument; argument has different type: {}", ptr);
 
-            auto alloca = code_gen.emit_alloca(builder_.getInt8PtrTy(), target_arg->name().str());
+            auto alloca = code_gen.emit_alloca(builder_.getInt8PtrTy(), tuple2str(target_arg->name()));
             auto target_ptr = builder_.CreatePointerCast(target_val, builder_.getInt8PtrTy());
             builder_.CreateStore(target_ptr, alloca);
             void_ptr = builder_.CreatePointerCast(alloca, builder_.getInt8PtrTy());
             arg_type = KernelArgType::Ptr;
         } else {
             // normal variable
-            auto alloca = code_gen.emit_alloca(target_val->getType(), target_arg->name().str());
+            auto alloca = code_gen.emit_alloca(target_val->getType(), tuple2str(target_arg->name()));
             builder_.CreateStore(target_val, alloca);
 
             void_ptr = builder_.CreatePointerCast(alloca, builder_.getInt8PtrTy());

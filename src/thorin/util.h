@@ -51,6 +51,8 @@ Array<const Def*> merge(const Def* def, Defs defs);
 const Def* merge_sigma(const Def* def, Defs defs);
 const Def* merge_tuple(const Def* def, Defs defs);
 
+std::string tuple2str(const Def*);
+
 bool visit_uses(Lam* lam, std::function<bool(Lam*)> func, bool include_globals = true);
 bool visit_capturing_intrinsics(Lam* lam, std::function<bool(Lam*)> func, bool include_globals);
 

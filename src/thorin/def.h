@@ -199,7 +199,6 @@ public:
     //@}
 
 protected:
-    virtual size_t num_bytes() const { return sizeof(Def) + sizeof(const Def*)*num_ops(); }
     char* extra_ptr() { return reinterpret_cast<char*>(this) + sizeof(Def) + sizeof(const Def*)*num_ops(); }
     const char* extra_ptr() const { return const_cast<Def*>(this)->extra_ptr(); }
     template<class T> T& extra() { return reinterpret_cast<T&>(*extra_ptr()); }
@@ -270,8 +269,6 @@ private:
         //assert(type->free_vars().none());
     }
 
-    size_t num_bytes() const override { return Def::num_bytes() + sizeof(Extra); }
-
 public:
     Normalizer normalizer() const { return extra<Extra>().normalizer_; }
     const Def* rebuild(World&, const Def*, Defs) const override;
@@ -305,8 +302,6 @@ private:
         hash_ = hash_combine(hash_, box.get_u64());
     }
 
-    size_t num_bytes() const override { return Def::num_bytes() + sizeof(Extra); }
-
 public:
     Box box() const { return extra<Extra>().box_; }
     bool equal(const Def*) const override;
@@ -323,28 +318,6 @@ template<class T> std::optional<T> isa_lit(const Def* def) {
 }
 
 template<class T> T as_lit(const Def* def) { return def->as<Lit>()->box().get<T>(); }
-
-class LitN : public Def {
-private:
-    struct Extra { size_t extra_num_bytes_; };
-
-    LitN(const Def* type, size_t extra_num_bytes, const char* data, Debug dbg);
-
-    size_t num_bytes() const override { return Def::num_bytes() + sizeof(Extra) + extra_num_bytes(); }
-    char* data() { return reinterpret_cast<char*>(this) + sizeof(Def) + sizeof(Extra); }
-
-public:
-    size_t elem_num_bytes() const;
-    size_t extra_num_bytes() const { return extra<Extra>().extra_num_bytes_; }
-    const PrimType* elem_type() const;
-    const char* data() const { return const_cast<LitN*>(this)->data(); }
-    Box get(size_t i) const;
-    bool equal(const Def*) const override;
-    const Def* rebuild(World& to, const Def*, Defs ops) const override;
-    std::ostream& stream(std::ostream&) const override;
-
-    friend class World;
-};
 
 class Pi : public Def {
 protected:
@@ -440,8 +413,6 @@ private:
         extra<Extra>().cc_ = cc;
         extra<Extra>().intrinsic_ = intrinsic;
     }
-
-    size_t num_bytes() const override { return Def::num_bytes() + sizeof(Extra); }
 
 public:
     /// @name type
@@ -733,8 +704,6 @@ private:
         hash_ = hash_combine(hash_, (uint8_t)addr_space);
     }
 
-    size_t num_bytes() const override { return Def::num_bytes() + sizeof(Extra); }
-
 public:
     const Def* pointee() const { return op(0); }
     AddrSpace addr_space() const { return extra<Extra>().addr_space_; }
@@ -756,8 +725,6 @@ private:
         extra<Extra>().index_ = index;
         hash_ = hash_combine(hash_, index);
     }
-
-    size_t num_bytes() const override { return Def::num_bytes() + sizeof(Extra); }
 
 public:
     u64 index() const { return extra<Extra>().index_; }

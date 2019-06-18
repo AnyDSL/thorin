@@ -21,7 +21,7 @@ size_t Def::num_outs() const { return as_lit<u64>(arity()); }
 
 Debug Def::debug_history() const {
 #if THORIN_ENABLE_CHECKS
-    return world().track_history() ? Debug(loc(), world().lit_str(unique_name())) : debug();
+    return world().track_history() ? Debug(loc(), world().tuple_str(unique_name())) : debug();
 #else
     return debug();
 #endif
@@ -105,20 +105,6 @@ void Def::dump() const {
         std::cout << this;
         std::cout << std::endl;
     }
-}
-
-/*
- * LitN
- */
-
-const PrimType* LitN::elem_type() const { return type()->as<Variadic>()->body()->as<PrimType>(); }
-size_t LitN::elem_num_bytes() const { return num_bits(elem_type()->primtype_tag()) / 8_s; }
-
-Box LitN::get(size_t i) const {
-    Box box(0_u64);
-    auto size = elem_num_bytes();
-    memcpy(&box, data() + i * size, size);
-    return box;
 }
 
 /*
@@ -229,24 +215,25 @@ bool Lam::is_intrinsic() const { return intrinsic() != Intrinsic::None; }
 bool Lam::is_accelerator() const { return Intrinsic::_Accelerator_Begin <= intrinsic() && intrinsic() < Intrinsic::_Accelerator_End; }
 void Lam::set_intrinsic() {
     // TODO this is slow and inelegant - but we want to remove this code anyway
-    if      (name() == world().lit_str("cuda"))                 extra<Extra>().intrinsic_ = Intrinsic::CUDA;
-    else if (name() == world().lit_str("nvvm"))                 extra<Extra>().intrinsic_ = Intrinsic::NVVM;
-    else if (name() == world().lit_str("opencl"))               extra<Extra>().intrinsic_ = Intrinsic::OpenCL;
-    else if (name() == world().lit_str("amdgpu"))               extra<Extra>().intrinsic_ = Intrinsic::AMDGPU;
-    else if (name() == world().lit_str("hls"))                  extra<Extra>().intrinsic_ = Intrinsic::HLS;
-    else if (name() == world().lit_str("parallel"))             extra<Extra>().intrinsic_ = Intrinsic::Parallel;
-    else if (name() == world().lit_str("spawn"))                extra<Extra>().intrinsic_ = Intrinsic::Spawn;
-    else if (name() == world().lit_str("sync"))                 extra<Extra>().intrinsic_ = Intrinsic::Sync;
-    else if (name() == world().lit_str("anydsl_create_graph"))  extra<Extra>().intrinsic_ = Intrinsic::CreateGraph;
-    else if (name() == world().lit_str("anydsl_create_task"))   extra<Extra>().intrinsic_ = Intrinsic::CreateTask;
-    else if (name() == world().lit_str("anydsl_create_edge"))   extra<Extra>().intrinsic_ = Intrinsic::CreateEdge;
-    else if (name() == world().lit_str("anydsl_execute_graph")) extra<Extra>().intrinsic_ = Intrinsic::ExecuteGraph;
-    else if (name() == world().lit_str("vectorize"))            extra<Extra>().intrinsic_ = Intrinsic::Vectorize;
-    else if (name() == world().lit_str("pe_info"))              extra<Extra>().intrinsic_ = Intrinsic::PeInfo;
-    else if (name() == world().lit_str("reserve_shared"))       extra<Extra>().intrinsic_ = Intrinsic::Reserve;
-    else if (name() == world().lit_str("atomic"))               extra<Extra>().intrinsic_ = Intrinsic::Atomic;
-    else if (name() == world().lit_str("cmpxchg"))              extra<Extra>().intrinsic_ = Intrinsic::CmpXchg;
-    else if (name() == world().lit_str("undef"))                extra<Extra>().intrinsic_ = Intrinsic::Undef;
+    auto n = tuple2str(name());
+    if      (n == "cuda")                 extra<Extra>().intrinsic_ = Intrinsic::CUDA;
+    else if (n == "nvvm")                 extra<Extra>().intrinsic_ = Intrinsic::NVVM;
+    else if (n == "opencl")               extra<Extra>().intrinsic_ = Intrinsic::OpenCL;
+    else if (n == "amdgpu")               extra<Extra>().intrinsic_ = Intrinsic::AMDGPU;
+    else if (n == "hls")                  extra<Extra>().intrinsic_ = Intrinsic::HLS;
+    else if (n == "parallel")             extra<Extra>().intrinsic_ = Intrinsic::Parallel;
+    else if (n == "spawn")                extra<Extra>().intrinsic_ = Intrinsic::Spawn;
+    else if (n == "sync")                 extra<Extra>().intrinsic_ = Intrinsic::Sync;
+    else if (n == "anydsl_create_graph")  extra<Extra>().intrinsic_ = Intrinsic::CreateGraph;
+    else if (n == "anydsl_create_task")   extra<Extra>().intrinsic_ = Intrinsic::CreateTask;
+    else if (n == "anydsl_create_edge")   extra<Extra>().intrinsic_ = Intrinsic::CreateEdge;
+    else if (n == "anydsl_execute_graph") extra<Extra>().intrinsic_ = Intrinsic::ExecuteGraph;
+    else if (n == "vectorize")            extra<Extra>().intrinsic_ = Intrinsic::Vectorize;
+    else if (n == "pe_info")              extra<Extra>().intrinsic_ = Intrinsic::PeInfo;
+    else if (n == "reserve_shared")       extra<Extra>().intrinsic_ = Intrinsic::Reserve;
+    else if (n == "atomic")               extra<Extra>().intrinsic_ = Intrinsic::Atomic;
+    else if (n == "cmpxchg")              extra<Extra>().intrinsic_ = Intrinsic::CmpXchg;
+    else if (n == "undef")                extra<Extra>().intrinsic_ = Intrinsic::Undef;
     else ELOG("unsupported thorin intrinsic");
 }
 
@@ -352,17 +339,6 @@ Def::Def(NodeTag tag, const Def* type, size_t num_ops, Debug dbg)
     std::fill_n(ops_ptr(), num_ops, nullptr);
 }
 
-LitN::LitN(const Def* type, size_t extra_num_bytes, const char* src, Debug dbg)
-    : Def(Node_LitN, type, Defs{}, dbg)
-{
-    extra<Extra>().extra_num_bytes_ = extra_num_bytes;
-
-    for (size_t i = 0; i != extra_num_bytes; ++i)
-        hash_ = hash_combine(hash_, src[i]);
-
-    memcpy(data(), src, extra_num_bytes);
-}
-
 App::App(const Def* type, const Def* callee, const Def* arg, Debug dbg)
     : Def(Node_App, type, {callee, arg}, dbg)
 {
@@ -407,14 +383,6 @@ bool Analyze::equal(const Def* other) const { return Def::equal(other) && this->
 bool Lit    ::equal(const Def* other) const { return Def::equal(other) && this->box()        == other->as<Lit>()->box(); }
 bool PtrType::equal(const Def* other) const { return Def::equal(other) && this->addr_space() == other->as<PtrType>()->addr_space(); }
 
-bool LitN::equal(const Def* other) const {
-    if (Def::equal(other)) {
-        auto lit_n = other->as<LitN>();
-        return this->extra_num_bytes() == lit_n->extra_num_bytes() && memcmp(this->data(), lit_n->data(), extra_num_bytes()) == 0;
-    }
-    return false;
-}
-
 /*
  * rebuild
  */
@@ -430,7 +398,6 @@ const Def* Extract    ::rebuild(World& w, const Def*  , Defs o) const { return w
 const Def* Insert     ::rebuild(World& w, const Def*  , Defs o) const { return w.insert(o[0], o[1], o[2], debug()); }
 const Def* Kind       ::rebuild(World& w, const Def*  , Defs  ) const { return w.kind(tag()); }
 const Def* Lit        ::rebuild(World& w, const Def* t, Defs  ) const { return w.lit(t, box(), debug()); }
-const Def* LitN       ::rebuild(World& w, const Def* t, Defs  ) const { return w.lit_n(t->as<Variadic>()->body(), lit_arity(), data(), debug()); }
 const Def* MemType    ::rebuild(World& w, const Def*  , Defs  ) const { return w.mem_type(); }
 const Def* Pack       ::rebuild(World& w, const Def* t, Defs o) const { return w.pack(t->arity(), o[0], debug()); }
 const Def* Param      ::rebuild(World& w, const Def*  , Defs o) const { return w.param(o[0]->as_nominal<Lam>(), debug()); }
@@ -517,10 +484,6 @@ std::ostream& Lit::stream(std::ostream& os) const {
     } else {
         return os << box().get_u64();
     }
-}
-
-std::ostream& LitN::stream(std::ostream& os) const {
-    return os << "LitN: TODO";
 }
 
 std::ostream& BotTop::stream(std::ostream& os) const {

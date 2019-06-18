@@ -51,7 +51,7 @@ namespace thorin {
 CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention, llvm::CallingConv::ID device_calling_convention, llvm::CallingConv::ID kernel_calling_convention)
     : world_(world)
     , context_()
-    , module_(new llvm::Module(world.debug().name().str(), context_))
+    , module_(new llvm::Module(world.name(), context_))
     , irbuilder_(context_)
     , dibuilder_(*module_.get())
     , function_calling_convention_(function_calling_convention)
@@ -176,7 +176,7 @@ llvm::FunctionType* CodeGen::convert_fn_type(Lam* lam) {
 llvm::Function* CodeGen::emit_function_decl(Lam* lam) {
     if (auto f = fcts_.lookup(lam)) return *f;
 
-    std::string name = (lam->is_external() || lam->is_empty()) ? lam->name().str() : lam->unique_name();
+    std::string name = (lam->is_external() || lam->is_empty()) ? tuple2str(lam->name()) : lam->unique_name();
     auto f = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, convert_fn_type(lam)));
 
 #ifdef _MSC_VER
@@ -217,7 +217,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
         // Darwin only supports dwarf2
         if (llvm::Triple(llvm::sys::getProcessTriple()).isOSDarwin())
             module_->addModuleFlag(llvm::Module::Warning, "Dwarf Version", 2);
-        dicompile_unit = dibuilder_.createCompileUnit(llvm::dwarf::DW_LANG_C, dibuilder_.createFile(world_.debug().name().str(), llvm::StringRef()), "Impala", opt > 0, llvm::StringRef(), 0);
+        dicompile_unit = dibuilder_.createCompileUnit(llvm::dwarf::DW_LANG_C, dibuilder_.createFile(world_.name(), llvm::StringRef()), "Impala", opt > 0, llvm::StringRef(), 0);
     }
 
     Scope::for_each(world_, [&] (const Scope& scope) {
@@ -269,14 +269,14 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
             auto lam = block.lam();
             // map all bb-like lams to llvm bb stubs
             if (lam->intrinsic() != Intrinsic::EndScope) {
-                auto bb = bb2lam[lam] = llvm::BasicBlock::Create(context_, lam->name().c_str(), fct);
+                auto bb = bb2lam[lam] = llvm::BasicBlock::Create(context_, tuple2str(lam->name()), fct);
 
                 // create phi node stubs (for all lams different from entry)
                 if (entry_ != lam) {
                     for (auto param : lam->params()) {
                         auto phi = (is_mem(param) || is_unit(param))
                                  ? nullptr
-                                 : llvm::PHINode::Create(convert(param->type()), (unsigned) peek(param).size(), param->name().c_str(), bb);
+                                 : llvm::PHINode::Create(convert(param->type()), (unsigned) peek(param).size(), tuple2str(param->name()), bb);
                         phis_[param] = phi;
                     }
                 }
@@ -599,7 +599,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
     if (auto bin = def->isa<BinOp>()) {
         llvm::Value* lhs = lookup(bin->lhs());
         llvm::Value* rhs = lookup(bin->rhs());
-        const char* name = bin->name().c_str();
+        auto name = tuple2str(bin->name());
 
         if (auto cmp = bin->isa<Cmp>()) {
             auto type = cmp->lhs()->type();
@@ -834,7 +834,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto llvm_idx = lookup(aggop->index());
         auto copy_to_alloca = [&] () {
             WDEF(def, "slow: alloca and loads/stores needed for aggregate '{}'", def);
-            auto alloca = emit_alloca(llvm_agg->getType(), aggop->name().str());
+            auto alloca = emit_alloca(llvm_agg->getType(), tuple2str(aggop->name()));
             irbuilder_.CreateStore(llvm_agg, alloca);
 
             llvm::Value* args[2] = { irbuilder_.getInt64(0), llvm_idx };
@@ -920,17 +920,6 @@ llvm::Value* CodeGen::emit(const Def* def) {
         } else {
             assert(false && "TODO");
         }
-    }
-
-    if (auto lit_n = def->isa<LitN>()) {
-        auto n = lit_n->lit_arity();
-        auto elem_type = lit_n->elem_type();
-        Array<llvm::Constant*> values(n);
-        for (size_t i = 0; i != n; ++i)
-            values[i] = llvm::cast<llvm::Constant>(emit(world().lit(elem_type, lit_n->get(i))));
-
-        auto llvm_type = llvm::ArrayType::get(convert(elem_type), n);
-        return llvm::ConstantArray::get(llvm_type, llvm_ref(values));
     }
 
     if (is_bot(def))                          return llvm::UndefValue::get(convert(def->type()));
@@ -1254,7 +1243,7 @@ static const Lam* get_alloc_call(const Def* def) {
     if (!call || use.index() == 0) return nullptr;
 
     auto callee = call->app()->callee();
-    if (callee->name() != "anydsl_alloc") return nullptr;
+    if (tuple2str(callee->name()) != "anydsl_alloc") return nullptr;
 
     return call;
 }

@@ -178,6 +178,8 @@ public:
     /// ascribes @p type to this tuple - needed for dependetly typed and structural @p Sigma%s
     const Def* tuple(const Def* type, Defs ops, Dbg dbg = {});
     const Def* tuple(Defs ops, Dbg dbg = {});
+    const Def* tuple_str(const char* s, Dbg = {});
+    const Def* tuple_str(const std::string& s, Dbg dbg = {}) { return tuple_str(s.c_str(), dbg); }
     const Tuple* tuple() { return cache_.tuple_; } ///< the unit value of type <tt>[]</tt>
     //@}
     /// @name Pack
@@ -254,14 +256,6 @@ public:
     const Lit* lit_one(const Def* type, Dbg dbg = {}) { return lit_one(type->as<PrimType>()->primtype_tag(), dbg); }
     const Lit* lit_allset(PrimTypeTag tag, Dbg dbg = {});
     const Lit* lit_allset(const Def* type, Dbg dbg = {}) { return lit_allset(type->as<PrimType>()->primtype_tag(), dbg); }
-    //@}
-    /// @name Array Literal
-    //@{
-    const Def* lit_n(const Def* elem_type, size_t num_bytes, const char* data, Dbg dbg = {});
-    template<class T, size_t N>
-    const Def* lit_n(const std::array<T, N>& a, Dbg dbg = {}) { return lit_n(type(type2tag<T>::tag), N * sizeof(T), (char*) a.data(), dbg); }
-    const Def* lit_str(const char* s, Dbg dbg = {}) { return lit_n(type(PrimTypeTag::PrimType_qs8), strlen(s), s, dbg); }
-    const Def* lit_str(const std::string& s, Dbg dbg = {}) { return lit_n(type(PrimTypeTag::PrimType_qs8), s.size(), s.data(), dbg); }
     //@}
     /// @name Top/Bottom
     //@{
@@ -414,7 +408,7 @@ private:
     /// @name helpers for optional/variant arguments
     //@{
     Debug debug(Dbg dbg) {
-        if (std::holds_alternative<const char*>(dbg.name)) return Debug(dbg.loc, lit_str(std::get<const char*>(dbg.name)));
+        if (std::holds_alternative<const char*>(dbg.name)) return Debug(dbg.loc, tuple_str(std::get<const char*>(dbg.name)));
         if (std::holds_alternative<const Def* >(dbg.name)) return Debug(dbg.loc, std::get<const Def*>(dbg.name));
         THORIN_UNREACHABLE;
     }
@@ -424,8 +418,8 @@ private:
     /// @name memory management and hashing
     //@{
     template<class T, class... Args>
-    const T* unify_n(size_t num_bytes, Args&&... args) {
-        auto def = allocate<T>(num_bytes, args...);
+    const T* unify(size_t num_ops, Args&&... args) {
+        auto def = allocate<T>(num_ops, args...);
 #ifndef NDEBUG
         if (breakpoints_.contains(def->gid())) THORIN_BREAK;
 #endif
@@ -441,11 +435,8 @@ private:
     }
 
     template<class T, class... Args>
-    const T* unify(size_t num_ops, Args&&... args) { return unify_n<T>(num_bytes_of<T>(num_ops), args...); }
-
-    template<class T, class... Args>
-    T* insert_n(size_t num_bytes, Args&&... args) {
-        auto def = allocate<T>(num_bytes, args...);
+    T* insert(size_t num_ops, Args&&... args) {
+        auto def = allocate<T>(num_ops, args...);
 #ifndef NDEBUG
         if (breakpoints_.contains(def->gid())) THORIN_BREAK;
 #endif
@@ -453,9 +444,6 @@ private:
         assert_unused(p.second);
         return def;
     }
-
-    template<class T, class... Args>
-    T* insert(size_t num_ops, Args&&... args) { return insert_n<T>(num_bytes_of<T>(num_ops), args...); }
 
     struct Zone {
         static const size_t Size = 1024 * 1024 - sizeof(std::unique_ptr<int>); // 1MB - sizeof(next)
@@ -473,18 +461,19 @@ private:
     struct Lock { ~Lock() {} };
 #endif
 
-    static size_t align(size_t n) { return (n + (sizeof(void*) - 1)) & ~(sizeof(void*)-1); }
+    static inline size_t align(size_t n) { return (n + (sizeof(void*) - 1)) & ~(sizeof(void*)-1); }
 
-    template<class T> static size_t num_bytes_of(size_t num_ops) {
+    template<class T> static inline size_t num_bytes_of(size_t num_ops) {
         size_t result = std::is_empty<typename T::Extra>() ? 0 : sizeof(typename T::Extra);
         result += sizeof(Def) + sizeof(const Def*)*num_ops;
         return align(result);
     }
 
     template<class T, class... Args>
-    T* allocate(size_t num_bytes, Args&&... args) {
+    T* allocate(size_t num_ops, Args&&... args) {
         static_assert(sizeof(Def) == sizeof(T), "you are not allowed to introduce any additional data in subclasses of Def - use 'Extra' struct");
         Lock lock;
+        size_t num_bytes = num_bytes_of<T>(num_ops);
         num_bytes = align(num_bytes);
         assert(num_bytes < Zone::Size);
 
@@ -496,6 +485,7 @@ private:
         }
 
         auto result = new (cur_page_->buffer + buffer_index_) T(args...);
+        assert(result->num_ops() == num_ops);
         buffer_index_ += num_bytes;
         assert(buffer_index_ % alignof(T) == 0);
 
@@ -504,7 +494,8 @@ private:
 
     template<class T>
     void deallocate(const T* def) {
-        auto num_bytes = align(def->num_bytes());
+        size_t num_bytes = num_bytes_of<T>(def->num_ops());
+        num_bytes = align(num_bytes);
         def->~T();
         if (ptrdiff_t(buffer_index_ - num_bytes) > 0) // don't care otherwise
             buffer_index_-= num_bytes;

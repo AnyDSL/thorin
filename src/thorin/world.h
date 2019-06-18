@@ -317,6 +317,7 @@ public:
     //@{
     Axiom* axiom(const Def* type, Normalizer, Dbg dbg = {});
     Axiom* axiom(const Def* type, Dbg dbg = {}) { return axiom(type, nullptr, dbg); }
+    std::optional<Axiom*> lookup_axiom(const Def* name) { return axioms_.lookup(name); }
     Axiom* type_nat() { return cache_.type_nat_; }
     Lam* match(const Def* type, size_t num_patterns);
     Lam* end_scope() const { return cache_.end_scope_; }
@@ -361,6 +362,7 @@ public:
         swap(w1.buffer_index_,  w2.buffer_index_);
         swap(w1.name_,          w2.name_);
         swap(w1.loc_,           w2.loc_);
+        swap(w1.axioms_,        w2.axioms_);
         swap(w1.externals_,     w2.externals_);
         swap(w1.defs_,          w2.defs_);
         swap(w1.pe_done_,       w2.pe_done_);
@@ -478,6 +480,7 @@ private:
     size_t buffer_index_ = 0;
     std::string name_;
     Loc loc_;
+    DefMap<Axiom*> axioms_; //< TODO remove this
     Externals externals_;
     Sea defs_;
     uint32_t cur_gid_;

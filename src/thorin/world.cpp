@@ -39,7 +39,7 @@ World::World(uint32_t cur_gid, const std::string& name, Loc loc)
     cache_.sigma_            = insert<Sigma>(0, kind_star(), Defs{}, Debug{})->as<Sigma>();
     cache_.tuple_            = insert<Tuple>(0, sigma(), Defs{}, Debug{})->as<Tuple>();
     cache_.mem_              = insert<MemType>(0, *this);
-    cache_.type_nat_         = axiom(kind_star(), {"nat"});
+    cache_.type_nat_         = axiom(kind_star(), {tuple_str("nat")});
     cache_.lit_arity_1_      = lit_arity(1);
     cache_.lit_index_0_1_    = lit_index(lit_arity_1(), 0);
     cache_.lit_nat_0_        = lit_nat(0);
@@ -948,18 +948,12 @@ const Def* World::run(const Def* def, Dbg dbg) {
  * Axioms
  */
 
-/*
- * TODO
 Axiom* World::axiom(const Def* type, Normalizer normalizer, Dbg dbg) {
-    auto a = insert<Axiom>(0, type, normalizer, dbg);
-    auto s = dbg.name().c_str();
-    if (s[0] != '\0') {
-        assert(!axioms_.contains(s));
-        axioms_[s] = a;
-    }
+    auto a = insert<Axiom>(0, type, normalizer, debug(dbg));
+    assert(!axioms_.contains(a->name()));
+    axioms_[a->name()] = a;
     return a;
 }
-*/
 
 Lam* World::match(const Def* type, size_t num_patterns) {
     Array<const Def*> arg_types(num_patterns + 2);

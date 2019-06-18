@@ -4,11 +4,9 @@
 #include <ostream>
 #include <string>
 
-#include "thorin/util/symbol.h"
-
 namespace thorin {
 
-//------------------------------------------------------------------------------
+class Def;
 
 class Loc {
 public:
@@ -21,11 +19,9 @@ public:
         , back_line_(back_line)
         , back_col_(back_col)
     {}
-
     Loc(const char* filename, uint32_t line, uint32_t col)
         : Loc(filename, line, col, line, col)
     {}
-
     Loc(Loc front, Loc back)
         : Loc(front.filename(), front.front_line(), front.front_col(), back.back_line(), back.back_col())
     {}
@@ -41,7 +37,7 @@ public:
     bool is_set() const { return filename_ != nullptr; }
 
 protected:
-    const char* filename_ = nullptr;
+    const char* filename_ = nullptr; // TODO squeeze additional 4 * 4 bits out of the upper 16 bits
     uint16_t front_line_ = 1, front_col_ = 1, back_line_ = 1, back_col_ = 1;
 };
 
@@ -55,30 +51,23 @@ public:
     Debug(const Debug&) = default;
     Debug& operator=(const Debug&) = default;
 
-    Debug(Loc loc, Symbol name)
+    Debug(Loc loc, const Def* name)
         : Loc(loc)
         , name_(name)
     {}
-    Debug(Symbol name)
+    Debug(const Def* name)
         : name_(name)
     {}
     Debug(Loc loc)
         : Loc(loc)
     {}
 
-    Symbol name() const { return name_; }
+    const Def* name() const { return name_; }
     Loc loc() const { return *this; }
-    void set(Symbol name) { name_= name; }
-    void set(Loc loc) { *static_cast<Loc*>(this) = loc; }
 
 private:
-    Symbol name_;
+    const Def* name_ = nullptr;
 };
-
-inline Debug operator+(Debug dbg, Symbol s)             { return {dbg, dbg.name() + s}; }
-inline Debug operator+(Debug dbg, const char* s)        { return {dbg, dbg.name() + s}; }
-inline Debug operator+(Debug dbg, const std::string& s) { return {dbg, dbg.name() + s}; }
-Debug operator+(Debug d1, Debug d2);
 
 std::ostream& operator<<(std::ostream&, Debug);
 

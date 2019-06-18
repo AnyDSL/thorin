@@ -82,8 +82,6 @@ set(THORIN_SOURCES
     util/log.h
     util/stream.cpp
     util/stream.h
-    util/symbol.cpp
-    util/symbol.h
     util/types.h
     util/utility.h
     util/ycomp.cpp

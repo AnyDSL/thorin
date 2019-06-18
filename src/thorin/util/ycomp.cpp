@@ -20,10 +20,12 @@ void YComp::write_ycomp(const char* filename) const {
     stream_ycomp(file);
 }
 
+#if 0
 void YComp::ycomp() const {
     auto filename = world().debug().name() + "_" + scope().entry()->unique_name() + "_" + name() + ".vcg";
     write_ycomp(filename.c_str());
 }
+#endif
 
 //------------------------------------------------------------------------------
 

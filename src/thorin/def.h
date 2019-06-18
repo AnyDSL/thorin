@@ -154,7 +154,7 @@ public:
     //@{
     const Debug& debug() const { return debug_; }
     Loc loc() const { return debug_; }
-    Symbol name() const { return debug().name(); }
+    const Def* name() const { return debug().name(); }
     /// name + "_" + gid
     std::string unique_name() const;
     /// In Debug build if World::enable_history is true, this thing keeps the gid to track a history of gid%s.
@@ -235,7 +235,7 @@ protected:
 class Universe : public Def {
 private:
     Universe(World& world)
-        : Def(Node_Universe, reinterpret_cast<const Def*>(&world), 0_s, {"□"})
+        : Def(Node_Universe, reinterpret_cast<const Def*>(&world), 0_s, {})
     {}
 
 public:

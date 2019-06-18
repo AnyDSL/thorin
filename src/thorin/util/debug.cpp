@@ -30,10 +30,6 @@ std::ostream& operator<<(std::ostream& os, Loc l) {
 #endif // _MSC_VER
 }
 
-Debug operator+(Debug d1, Debug d2) {
-    return {(Loc)d1 + (Loc)d2, d1.name() + std::string(".") + d2.name()};
-}
-
 std::ostream& operator<<(std::ostream& os, Debug dbg) {
     return streamf(os, "{{{}, {}}}", (Loc)dbg, dbg.name());
 }

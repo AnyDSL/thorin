@@ -21,7 +21,7 @@ size_t Def::num_outs() const { return as_lit<u64>(arity()); }
 
 Debug Def::debug_history() const {
 #if THORIN_ENABLE_CHECKS
-    return world().track_history() ? Debug(loc(), unique_name()) : debug();
+    return world().track_history() ? Debug(loc(), world().lit_str(unique_name())) : debug();
 #else
     return debug();
 #endif
@@ -135,7 +135,7 @@ Array<const Def*> App::args() const { return Array<const Def*>(num_args(), [&](a
 bool Lam::is_empty() const { return is_bot(body()); }
 
 void Lam::destroy() {
-    set_filter(world().lit(false));
+    set_filter(world().lit_false());
     set_body  (world().bot(type()->codomain()));
 }
 
@@ -228,24 +228,25 @@ Lams Lam::succs() const {
 bool Lam::is_intrinsic() const { return intrinsic() != Intrinsic::None; }
 bool Lam::is_accelerator() const { return Intrinsic::_Accelerator_Begin <= intrinsic() && intrinsic() < Intrinsic::_Accelerator_End; }
 void Lam::set_intrinsic() {
-    if      (name() == "cuda")                 extra<Extra>().intrinsic_ = Intrinsic::CUDA;
-    else if (name() == "nvvm")                 extra<Extra>().intrinsic_ = Intrinsic::NVVM;
-    else if (name() == "opencl")               extra<Extra>().intrinsic_ = Intrinsic::OpenCL;
-    else if (name() == "amdgpu")               extra<Extra>().intrinsic_ = Intrinsic::AMDGPU;
-    else if (name() == "hls")                  extra<Extra>().intrinsic_ = Intrinsic::HLS;
-    else if (name() == "parallel")             extra<Extra>().intrinsic_ = Intrinsic::Parallel;
-    else if (name() == "spawn")                extra<Extra>().intrinsic_ = Intrinsic::Spawn;
-    else if (name() == "sync")                 extra<Extra>().intrinsic_ = Intrinsic::Sync;
-    else if (name() == "anydsl_create_graph")  extra<Extra>().intrinsic_ = Intrinsic::CreateGraph;
-    else if (name() == "anydsl_create_task")   extra<Extra>().intrinsic_ = Intrinsic::CreateTask;
-    else if (name() == "anydsl_create_edge")   extra<Extra>().intrinsic_ = Intrinsic::CreateEdge;
-    else if (name() == "anydsl_execute_graph") extra<Extra>().intrinsic_ = Intrinsic::ExecuteGraph;
-    else if (name() == "vectorize")            extra<Extra>().intrinsic_ = Intrinsic::Vectorize;
-    else if (name() == "pe_info")              extra<Extra>().intrinsic_ = Intrinsic::PeInfo;
-    else if (name() == "reserve_shared")       extra<Extra>().intrinsic_ = Intrinsic::Reserve;
-    else if (name() == "atomic")               extra<Extra>().intrinsic_ = Intrinsic::Atomic;
-    else if (name() == "cmpxchg")              extra<Extra>().intrinsic_ = Intrinsic::CmpXchg;
-    else if (name() == "undef")                extra<Extra>().intrinsic_ = Intrinsic::Undef;
+    // TODO this is slow and inelegant - but we want to remove this code anyway
+    if      (name() == world().lit_str("cuda"))                 extra<Extra>().intrinsic_ = Intrinsic::CUDA;
+    else if (name() == world().lit_str("nvvm"))                 extra<Extra>().intrinsic_ = Intrinsic::NVVM;
+    else if (name() == world().lit_str("opencl"))               extra<Extra>().intrinsic_ = Intrinsic::OpenCL;
+    else if (name() == world().lit_str("amdgpu"))               extra<Extra>().intrinsic_ = Intrinsic::AMDGPU;
+    else if (name() == world().lit_str("hls"))                  extra<Extra>().intrinsic_ = Intrinsic::HLS;
+    else if (name() == world().lit_str("parallel"))             extra<Extra>().intrinsic_ = Intrinsic::Parallel;
+    else if (name() == world().lit_str("spawn"))                extra<Extra>().intrinsic_ = Intrinsic::Spawn;
+    else if (name() == world().lit_str("sync"))                 extra<Extra>().intrinsic_ = Intrinsic::Sync;
+    else if (name() == world().lit_str("anydsl_create_graph"))  extra<Extra>().intrinsic_ = Intrinsic::CreateGraph;
+    else if (name() == world().lit_str("anydsl_create_task"))   extra<Extra>().intrinsic_ = Intrinsic::CreateTask;
+    else if (name() == world().lit_str("anydsl_create_edge"))   extra<Extra>().intrinsic_ = Intrinsic::CreateEdge;
+    else if (name() == world().lit_str("anydsl_execute_graph")) extra<Extra>().intrinsic_ = Intrinsic::ExecuteGraph;
+    else if (name() == world().lit_str("vectorize"))            extra<Extra>().intrinsic_ = Intrinsic::Vectorize;
+    else if (name() == world().lit_str("pe_info"))              extra<Extra>().intrinsic_ = Intrinsic::PeInfo;
+    else if (name() == world().lit_str("reserve_shared"))       extra<Extra>().intrinsic_ = Intrinsic::Reserve;
+    else if (name() == world().lit_str("atomic"))               extra<Extra>().intrinsic_ = Intrinsic::Atomic;
+    else if (name() == world().lit_str("cmpxchg"))              extra<Extra>().intrinsic_ = Intrinsic::CmpXchg;
+    else if (name() == world().lit_str("undef"))                extra<Extra>().intrinsic_ = Intrinsic::Undef;
     else ELOG("unsupported thorin intrinsic");
 }
 
@@ -368,17 +369,8 @@ App::App(const Def* type, const Def* callee, const Def* arg, Debug dbg)
     //if (is_bot(type)) hash_ = murmur3(gid());
 }
 
-static inline const char* kind2str(NodeTag tag) {
-    switch (tag) {
-        case Node_KindArity: return "*A";
-        case Node_KindMulti: return "*M";
-        case Node_KindStar:  return "*";
-        default: THORIN_UNREACHABLE;
-    }
-}
-
 Kind::Kind(World& world, NodeTag tag)
-    : Def(tag, world.universe(), Defs{}, {kind2str(tag)})
+    : Def(tag, world.universe(), Defs{}, {})
 {}
 
 PrimType::PrimType(World& world, PrimTypeTag tag, Debug dbg)
@@ -386,7 +378,7 @@ PrimType::PrimType(World& world, PrimTypeTag tag, Debug dbg)
 {}
 
 MemType::MemType(World& world)
-    : Def(Node_MemType, world.kind_star(), Defs{}, {"mem"})
+    : Def(Node_MemType, world.kind_star(), Defs{}, {})
 {}
 
 /*
@@ -453,7 +445,8 @@ const Def* VariantType::rebuild(World& w, const Def*  , Defs o) const { return w
  * stub
  */
 
-Axiom*    Axiom   ::stub(World& to, const Def*  ) { return to.lookup_axiom(name()).value(); }
+//TODO
+//Axiom*    Axiom   ::stub(World& to, const Def*  ) { return to.lookup_axiom(name()).value(); }
 Lam*      Lam     ::stub(World& to, const Def* t) { assert(isa_nominal()); return to.lam(t->as<Pi>(), cc(), intrinsic(), debug()); }
 Sigma*    Sigma   ::stub(World& to, const Def* t) { assert(isa_nominal()); return to.sigma(t, num_ops(), debug()); }
 Universe* Universe::stub(World& to, const Def*  ) { return const_cast<Universe*>(to.universe()); }
@@ -468,12 +461,20 @@ static std::ostream& stream_type_ops(std::ostream& os, const Def* type) {
 
 std::ostream& App        ::stream(std::ostream& os) const { return streamf(os, "{} {}", callee(), arg()); }
 std::ostream& Axiom      ::stream(std::ostream& os) const { return streamf(os, "{}", name()); }
-std::ostream& Kind       ::stream(std::ostream& os) const { return streamf(os, "{}", name()); }
 std::ostream& MemType    ::stream(std::ostream& os) const { return streamf(os, "mem"); }
 std::ostream& Pack       ::stream(std::ostream& os) const { return streamf(os, "‹{}; {}›", arity(), body()); }
 std::ostream& Universe   ::stream(std::ostream& os) const { return streamf(os, "□"); }
 std::ostream& Variadic   ::stream(std::ostream& os) const { return streamf(os, "«{}; {}»", arity(), body()); }
 std::ostream& VariantType::stream(std::ostream& os) const { return stream_type_ops(os << "variant", this); }
+
+std::ostream& Kind::stream(std::ostream& os) const {
+    switch (tag()) {
+        case Node_KindArity: return os << "*A";
+        case Node_KindMulti: return os << "*M";
+        case Node_KindStar : return os << "*";
+        default: THORIN_UNREACHABLE;
+    }
+}
 
 std::ostream& Analyze::stream(std::ostream& os) const {
     stream_list(os << "analyze(", ops(), [&](auto def) { os << def; });
@@ -481,7 +482,7 @@ std::ostream& Analyze::stream(std::ostream& os) const {
 }
 
 std::ostream& Lit::stream(std::ostream& os) const {
-    if (!name().empty()) return os << name();
+    if (!name()) return os << name();
     if (is_kind_arity(type())) return streamf(os, "{}ₐ", box().get<u64>());
 
     if (is_arity(type())) {

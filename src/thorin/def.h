@@ -44,23 +44,15 @@ typedef std::vector<Lam*> Lams;
 
 //------------------------------------------------------------------------------
 
-using Name = std::variant<const char*, const Def*>;
+using Name = std::variant<const char*, std::string, const Def*>;
 
 class Dbg {
 public:
-    Dbg()
-        : loc()
-        , name((const Def*) nullptr)
-    {}
     Dbg(Debug debug)
         : loc(debug.loc())
         , name(debug.name())
     {}
-    Dbg(Loc loc)
-        : loc(loc)
-        , name((const Def*) nullptr)
-    {}
-    Dbg(Loc loc, Name name)
+    Dbg(Loc loc = {}, Name name = (const Def*) nullptr)
         : loc(loc)
         , name(name)
     {}

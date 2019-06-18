@@ -57,7 +57,7 @@ public:
     World(World&&) = delete;
     World& operator=(const World&) = delete;
 
-    explicit World(uint32_t cur_gid, const char* name = nullptr, Loc loc = {});
+    explicit World(uint32_t cur_gid, const std::string& name = {}, Loc loc = {});
     World(World& other)
         : World(other.cur_gid(), other.name(), other.loc())
     {
@@ -70,7 +70,7 @@ public:
     ~World();
 
     // getters
-    const char* name() const { return name_; }
+    const std::string& name() const { return name_; }
     Loc loc() const { return loc_; }
     const Sea& defs() const { return defs_; }
     std::vector<Lam*> copy_lams() const;
@@ -476,7 +476,7 @@ private:
     std::unique_ptr<Zone> root_page_;
     Zone* cur_page_;
     size_t buffer_index_ = 0;
-    const char* name_;
+    std::string name_;
     Loc loc_;
     Externals externals_;
     Sea defs_;

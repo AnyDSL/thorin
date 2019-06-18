@@ -20,10 +20,10 @@ namespace thorin {
 bool World::Lock::allocate_guard_ = false;
 #endif
 
-World::World(uint32_t cur_gid, const char* name, Loc loc)
+World::World(uint32_t cur_gid, const std::string& name, Loc loc)
     : root_page_(new Zone)
     , cur_page_ (root_page_.get())
-    , name_(name ? name : "module")
+    , name_(name.empty() ? "module" : name)
     , loc_(loc)
     , cur_gid_  (cur_gid)
 {
@@ -32,7 +32,7 @@ World::World(uint32_t cur_gid, const char* name, Loc loc)
     cache_.kind_.kind_multi_ = insert<Kind>(0, *this, Node_KindMulti);
     cache_.kind_.kind_star_  = insert<Kind>(0, *this, Node_KindStar);
 #define THORIN_ALL_TYPE(T, M) \
-    cache_.primtype_.T##_    = insert<PrimType>(0, *this, PrimType_##T, Debug(tuple_str(#T)));
+    cache_.primtype_.T##_    = insert<PrimType>(0, *this, PrimType_##T, Debug({}, tuple_str(#T)));
 #include "thorin/tables/primtypetable.h"
     cache_.bot_star_         = insert<BotTop>(0, false, kind_star(), Debug{});
     cache_.top_arity_        = insert<BotTop>(0, true, kind_arity(), Debug{});

@@ -55,12 +55,6 @@ public:
         : Loc(loc)
         , name_(name)
     {}
-    Debug(const Def* name)
-        : name_(name)
-    {}
-    Debug(Loc loc)
-        : Loc(loc)
-    {}
 
     const Def* name() const { return name_; }
     Loc loc() const { return *this; }

@@ -16,7 +16,7 @@ namespace thorin {
  * Def
  */
 
-const Def* Def::out(size_t i, Debug dbg) const { return world().extract(this, i, dbg); }
+const Def* Def::out(size_t i, Dbg dbg) const { return world().extract(this, i, dbg); }
 size_t Def::num_outs() const { return as_lit<u64>(arity()); }
 
 Debug Def::debug_history() const {
@@ -125,8 +125,8 @@ void Lam::destroy() {
     set_body  (world().bot(type()->codomain()));
 }
 
-const Param* Lam::param(Debug dbg) const { return world().param(this->as_nominal<Lam>(), dbg); }
-const Def* Lam::param(size_t i, Debug dbg) const { return world().extract(param(), i, dbg); }
+const Param* Lam::param(Dbg dbg) const { return world().param(this->as_nominal<Lam>(), dbg); }
+const Def* Lam::param(size_t i, Dbg dbg) const { return world().extract(param(), i, dbg); }
 Array<const Def*> Lam::params() const { return Array<const Def*>(num_params(), [&](auto i) { return param(i); }); }
 
 const Def* Lam::mem_param() const {
@@ -239,15 +239,15 @@ void Lam::set_intrinsic() {
 
 bool Lam::is_basicblock() const { return type()->is_basicblock(); }
 bool Lam::is_returning() const { return type()->is_returning(); }
-void Lam::branch(const Def* cond, const Def* t, const Def* f, const Def* mem, Debug dbg) { return set_body(world().branch(cond, t, f, mem, dbg)); }
-void Lam::app(const Def* callee, Defs args, Debug dbg) { app(callee, world().tuple(args), dbg); }
+void Lam::branch(const Def* cond, const Def* t, const Def* f, const Def* mem, Dbg dbg) { return set_body(world().branch(cond, t, f, mem, dbg)); }
+void Lam::app(const Def* callee, Defs args, Dbg dbg) { app(callee, world().tuple(args), dbg); }
 
-void Lam::app(const Def* callee, const Def* arg, Debug dbg) {
+void Lam::app(const Def* callee, const Def* arg, Dbg dbg) {
     assert(isa_nominal());
     set_body(world().app(callee, arg, dbg));
 }
 
-void Lam::match(const Def* val, Lam* otherwise, Defs patterns, ArrayRef<Lam*> lams, Debug dbg) {
+void Lam::match(const Def* val, Lam* otherwise, Defs patterns, ArrayRef<Lam*> lams, Dbg dbg) {
     Array<const Def*> args(patterns.size() + 2);
 
     args[0] = val;

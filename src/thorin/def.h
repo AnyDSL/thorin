@@ -3,6 +3,7 @@
 
 #include <optional>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "thorin/enums.h"
@@ -40,6 +41,37 @@ class World;
 
 typedef ArrayRef<const Def*> Defs;
 typedef std::vector<Lam*> Lams;
+
+//------------------------------------------------------------------------------
+
+using Name = std::variant<const char*, const Def*>;
+
+class Dbg {
+public:
+    Dbg()
+        : loc()
+        , name((const Def*) nullptr)
+    {}
+    Dbg(Debug debug)
+        : loc(debug.loc())
+        , name(debug.name())
+    {}
+    Dbg(Loc loc)
+        : loc(loc)
+        , name((const Def*) nullptr)
+    {}
+    Dbg(Loc loc, Name name)
+        : loc(loc)
+        , name(name)
+    {}
+    Dbg(Name name)
+        : loc()
+        , name(name)
+    {}
+
+    Loc loc;
+    Name name;
+};
 
 //------------------------------------------------------------------------------
 
@@ -141,7 +173,7 @@ public:
     //@}
     /// @name outs
     //@{
-    const Def* out(size_t i, Debug dbg = {}) const;
+    const Def* out(size_t i, Dbg dbg = {}) const;
     size_t num_outs() const;
     //@}
     /// @name external handling
@@ -266,7 +298,6 @@ private:
         : Def(Node_Axiom, type, 0, dbg)
     {
         extra<Extra>().normalizer_ = normalizer;
-        //assert(type->free_vars().none());
     }
 
 public:
@@ -432,8 +463,8 @@ public:
     //@}
     /// @name params
     //@{
-    const Param* param(Debug dbg = {}) const;
-    const Def* param(size_t i, Debug dbg = {}) const;
+    const Param* param(Dbg dbg = {}) const;
+    const Def* param(size_t i, Dbg dbg = {}) const;
     Array<const Def*> params() const;
     size_t num_params() const { return as_lit<u64>(type()->domain()->arity()); }
     const Def* mem_param() const;
@@ -447,10 +478,10 @@ public:
     //@}
     /// @name setters: sets filter to @c false and sets the body by App-ing
     //@{
-    void app(const Def* callee, const Def* arg, Debug dbg = {});
-    void app(const Def* callee, Defs args, Debug dbg = {});
-    void branch(const Def* cond, const Def* t, const Def* f, const Def* mem, Debug dbg = {});
-    void match(const Def* val, Lam* otherwise, Defs patterns, ArrayRef<Lam*> lams, Debug dbg = {});
+    void app(const Def* callee, const Def* arg, Dbg dbg = {});
+    void app(const Def* callee, Defs args, Dbg dbg = {});
+    void branch(const Def* cond, const Def* t, const Def* f, const Def* mem, Dbg dbg = {});
+    void match(const Def* val, Lam* otherwise, Defs patterns, ArrayRef<Lam*> lams, Dbg dbg = {});
     //@}
     /// @name rebuild, stub
     //@{

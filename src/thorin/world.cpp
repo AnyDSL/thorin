@@ -990,10 +990,8 @@ std::vector<Lam*> World::copy_lams() const {
  * stream
  */
 
-// TODO
-#if 0
 std::ostream& World::stream(std::ostream& os) const {
-    os << "module '" << debug().name() << "'\n\n";
+    os << "module '" << name() << "'\n\n";
 
     for (auto def : defs()) {
         if (auto global = def->isa<Global>())
@@ -1007,9 +1005,8 @@ std::ostream& World::stream(std::ostream& os) const {
 void World::write_thorin(const char* filename) const { std::ofstream file(filename); stream(file); }
 
 void World::thorin() const {
-    auto filename = debug().name() + ".thorin";
+    auto filename = std::string(name()) + ".thorin";
     write_thorin(filename.c_str());
 }
-#endif
 
 }

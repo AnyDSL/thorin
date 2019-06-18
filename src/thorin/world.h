@@ -6,7 +6,6 @@
 #include <functional>
 #include <initializer_list>
 #include <string>
-#include <variant>
 
 #include "thorin/enums.h"
 #include "thorin/primop.h"
@@ -15,35 +14,6 @@
 #include "thorin/config.h"
 
 namespace thorin {
-
-using Name = std::variant<const char*, const Def*>;
-
-class Dbg {
-public:
-    Dbg()
-        : loc()
-        , name((const Def*) nullptr)
-    {}
-    Dbg(Debug debug)
-        : loc(debug.loc())
-        , name(debug.name())
-    {}
-    Dbg(Loc loc)
-        : loc(loc)
-        , name((const Def*) nullptr)
-    {}
-    Dbg(Loc loc, Name name)
-        : loc(loc)
-        , name(name)
-    {}
-    Dbg(Name name)
-        : loc()
-        , name(name)
-    {}
-
-    Loc loc;
-    Name name;
-};
 
 /**
  * The World represents the whole program and manages creation of Thorin nodes (Def%s).

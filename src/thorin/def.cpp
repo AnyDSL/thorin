@@ -108,20 +108,6 @@ void Def::dump() const {
 }
 
 /*
- * LitN
- */
-
-const PrimType* LitN::elem_type() const { return type()->as<Variadic>()->body()->as<PrimType>(); }
-size_t LitN::elem_num_bytes() const { return num_bits(elem_type()->primtype_tag()) / 8_s; }
-
-Box LitN::get(size_t i) const {
-    Box box(0_u64);
-    auto size = elem_num_bytes();
-    memcpy(&box, data() + i * size, size);
-    return box;
-}
-
-/*
  * App
  */
 
@@ -351,17 +337,6 @@ Def::Def(NodeTag tag, const Def* type, size_t num_ops, Debug dbg)
     std::fill_n(ops_ptr(), num_ops, nullptr);
 }
 
-LitN::LitN(const Def* type, size_t extra_num_bytes, const char* src, Debug dbg)
-    : Def(Node_LitN, type, Defs{}, dbg)
-{
-    extra<Extra>().extra_num_bytes_ = extra_num_bytes;
-
-    for (size_t i = 0; i != extra_num_bytes; ++i)
-        hash_ = hash_combine(hash_, src[i]);
-
-    memcpy(data(), src, extra_num_bytes);
-}
-
 App::App(const Def* type, const Def* callee, const Def* arg, Debug dbg)
     : Def(Node_App, type, {callee, arg}, dbg)
 {
@@ -415,14 +390,6 @@ bool Analyze::equal(const Def* other) const { return Def::equal(other) && this->
 bool Lit    ::equal(const Def* other) const { return Def::equal(other) && this->box()        == other->as<Lit>()->box(); }
 bool PtrType::equal(const Def* other) const { return Def::equal(other) && this->addr_space() == other->as<PtrType>()->addr_space(); }
 
-bool LitN::equal(const Def* other) const {
-    if (Def::equal(other)) {
-        auto lit_n = other->as<LitN>();
-        return this->extra_num_bytes() == lit_n->extra_num_bytes() && memcmp(this->data(), lit_n->data(), extra_num_bytes()) == 0;
-    }
-    return false;
-}
-
 /*
  * rebuild
  */
@@ -438,7 +405,6 @@ const Def* Extract    ::rebuild(World& w, const Def*  , Defs o) const { return w
 const Def* Insert     ::rebuild(World& w, const Def*  , Defs o) const { return w.insert(o[0], o[1], o[2], debug()); }
 const Def* Kind       ::rebuild(World& w, const Def*  , Defs  ) const { return w.kind(tag()); }
 const Def* Lit        ::rebuild(World& w, const Def* t, Defs  ) const { return w.lit(t, box(), debug()); }
-const Def* LitN       ::rebuild(World& w, const Def* t, Defs  ) const { return w.lit_n(t->as<Variadic>()->body(), lit_arity(), data(), debug()); }
 const Def* MemType    ::rebuild(World& w, const Def*  , Defs  ) const { return w.mem_type(); }
 const Def* Pack       ::rebuild(World& w, const Def* t, Defs o) const { return w.pack(t->arity(), o[0], debug()); }
 const Def* Param      ::rebuild(World& w, const Def*  , Defs o) const { return w.param(o[0]->as_nominal<Lam>(), debug()); }
@@ -516,10 +482,6 @@ std::ostream& Lit::stream(std::ostream& os) const {
     } else {
         return os << box().get_u64();
     }
-}
-
-std::ostream& LitN::stream(std::ostream& os) const {
-    return os << "LitN: TODO";
 }
 
 std::ostream& BotTop::stream(std::ostream& os) const {

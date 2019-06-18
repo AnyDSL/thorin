@@ -922,17 +922,6 @@ llvm::Value* CodeGen::emit(const Def* def) {
         }
     }
 
-    if (auto lit_n = def->isa<LitN>()) {
-        auto n = lit_n->lit_arity();
-        auto elem_type = lit_n->elem_type();
-        Array<llvm::Constant*> values(n);
-        for (size_t i = 0; i != n; ++i)
-            values[i] = llvm::cast<llvm::Constant>(emit(world().lit(elem_type, lit_n->get(i))));
-
-        auto llvm_type = llvm::ArrayType::get(convert(elem_type), n);
-        return llvm::ConstantArray::get(llvm_type, llvm_ref(values));
-    }
-
     if (is_bot(def))                          return llvm::UndefValue::get(convert(def->type()));
     if (auto alloc = def->isa<Alloc>())       return emit_alloc(alloc->alloced_type());
     if (auto load = def->isa<Load>())         return emit_load(load);

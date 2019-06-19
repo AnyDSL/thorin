@@ -12,8 +12,8 @@ namespace thorin {
 /// Base class for all @p PrimOp%s.
 class PrimOp : public Def {
 protected:
-    PrimOp(NodeTag tag, const Def* type, Defs ops, Debug dbg)
-        : Def(tag, type, ops, dbg)
+    PrimOp(NodeTag tag, RebuildFn rebuild, const Def* type, Defs ops, Debug dbg)
+        : Def(tag, rebuild, type, ops, dbg)
     {}
 
 public:
@@ -30,7 +30,7 @@ public:
 class Select : public PrimOp {
 private:
     Select(const Def* cond, const Def* tval, const Def* fval, Debug dbg)
-        : PrimOp(Node_Select, tval->type(), {cond, tval, fval}, dbg)
+        : PrimOp(Node_Select, rebuild, tval->type(), {cond, tval, fval}, dbg)
     {
         assert(is_type_bool(cond->type()));
         assert(tval->type() == fval->type() && "types of both values must be equal");
@@ -40,7 +40,7 @@ public:
     const Def* cond() const { return op(0); }
     const Def* tval() const { return op(1); }
     const Def* fval() const { return op(2); }
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops);
 
     friend class World;
 };
@@ -52,7 +52,7 @@ private:
 
 public:
     const Def* of() const { return op(0)->type(); }
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops);
 
     friend class World;
 };
@@ -60,8 +60,8 @@ public:
 /// Base class for all side-effect free binary \p PrimOp%s.
 class BinOp : public PrimOp {
 protected:
-    BinOp(NodeTag tag, const Def* type, const Def* lhs, const Def* rhs, Debug dbg)
-        : PrimOp(tag, type, {lhs, rhs}, dbg)
+    BinOp(NodeTag tag, RebuildFn rebuild, const Def* type, const Def* lhs, const Def* rhs, Debug dbg)
+        : PrimOp(tag, rebuild, type, {lhs, rhs}, dbg)
     {
         assert(lhs->type() == rhs->type() && "types are not equal");
     }
@@ -75,7 +75,7 @@ public:
 class ArithOp : public BinOp {
 private:
     ArithOp(ArithOpTag tag, const Def* lhs, const Def* rhs, Debug dbg)
-        : BinOp((NodeTag) tag, lhs->type(), lhs, rhs, dbg)
+        : BinOp((NodeTag) tag, rebuild, lhs->type(), lhs, rhs, dbg)
     {
         // TODO remove this and make div/rem proper nodes *with* side-effects
         if ((tag == ArithOp_div || tag == ArithOp_rem) && is_type_i(type()->tag()))
@@ -86,7 +86,7 @@ public:
     const PrimType* type() const { return BinOp::type()->as<PrimType>(); }
     ArithOpTag arithop_tag() const { return (ArithOpTag) tag(); }
     const char* op_name() const override;
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops);
 
     friend class World;
 };
@@ -100,7 +100,7 @@ public:
     const PrimType* type() const { return BinOp::type()->as<PrimType>(); }
     CmpTag cmp_tag() const { return (CmpTag) tag(); }
     const char* op_name() const override;
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops);
 
     friend class World;
 };
@@ -108,8 +108,8 @@ public:
 /// Base class for @p Bitcast and @p Cast.
 class ConvOp : public PrimOp {
 protected:
-    ConvOp(NodeTag tag, const Def* from, const Def* to, Debug dbg)
-        : PrimOp(tag, to, {from}, dbg)
+    ConvOp(NodeTag tag, RebuildFn rebuild, const Def* from, const Def* to, Debug dbg)
+        : PrimOp(tag, rebuild, to, {from}, dbg)
     {}
 
 public:
@@ -120,11 +120,11 @@ public:
 class Cast : public ConvOp {
 private:
     Cast(const Def* to, const Def* from, Debug dbg)
-        : ConvOp(Node_Cast, from, to, dbg)
+        : ConvOp(Node_Cast, rebuild, from, to, dbg)
     {}
 
 public:
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops);
 
     friend class World;
 };
@@ -133,11 +133,11 @@ public:
 class Bitcast : public ConvOp {
 private:
     Bitcast(const Def* to, const Def* from, Debug dbg)
-        : ConvOp(Node_Bitcast, from, to, dbg)
+        : ConvOp(Node_Bitcast, rebuild, from, to, dbg)
     {}
 
 public:
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops);
 
     friend class World;
 };
@@ -146,14 +146,14 @@ public:
 class Variant : public PrimOp {
 private:
     Variant(const VariantType* variant_type, const Def* value, Debug dbg)
-        : PrimOp(Node_Variant, variant_type, {value}, dbg)
+        : PrimOp(Node_Variant, rebuild, variant_type, {value}, dbg)
     {
         assert(std::find(variant_type->ops().begin(), variant_type->ops().end(), value->type()) != variant_type->ops().end());
     }
 
 public:
     const VariantType* type() const { return PrimOp::type()->as<VariantType>(); }
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops);
 
     friend class World;
 };
@@ -167,7 +167,7 @@ public:
 class LEA : public PrimOp {
 private:
     LEA(const Def* type, const Def* ptr, const Def* index, Debug dbg)
-        : PrimOp(Node_LEA, type, {ptr, index}, dbg)
+        : PrimOp(Node_LEA, rebuild, type, {ptr, index}, dbg)
     {}
 
 public:
@@ -176,7 +176,7 @@ public:
     const PtrType* type() const { return PrimOp::type()->as<PtrType>(); }
     const PtrType* ptr_type() const { return ptr()->type()->as<PtrType>(); } ///< Returns the PtrType from @p ptr().
     const Def* ptr_pointee() const { return ptr_type()->pointee(); }        ///< Returns the type referenced by @p ptr().
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops);
 
     friend class World;
 };
@@ -185,12 +185,12 @@ public:
 class Hlt : public PrimOp {
 private:
     Hlt(const Def* def, Debug dbg)
-        : PrimOp(Node_Hlt, def->type(), {def}, dbg)
+        : PrimOp(Node_Hlt, rebuild, def->type(), {def}, dbg)
     {}
 
 public:
     const Def* def() const { return op(0); }
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops);
 
     friend class World;
 };
@@ -202,7 +202,7 @@ private:
 
 public:
     const Def* def() const { return op(0); }
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops);
 
     friend class World;
 };
@@ -214,12 +214,12 @@ public:
 class Run : public PrimOp {
 private:
     Run(const Def* def, Debug dbg)
-        : PrimOp(Node_Run, def->type(), {def}, dbg)
+        : PrimOp(Node_Run, rebuild, def->type(), {def}, dbg)
     {}
 
 public:
     const Def* def() const { return op(0); }
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops);
 
     friend class World;
 };
@@ -233,7 +233,7 @@ private:
     struct Extra { bool is_mutable_; }; // TODO remove
 
     Global(const Def* type, const Def* init, bool is_mutable, Debug dbg)
-        : PrimOp(Node_Global, type, {init}, dbg)
+        : PrimOp(Node_Global, rebuild, type, {init}, dbg)
     {
         extra<Extra>().is_mutable_ = is_mutable;
         hash_ = murmur3(gid()); // HACK
@@ -247,7 +247,7 @@ public:
     const char* op_name() const override;
 
     bool equal(const Def* other) const override { return this == other; }
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops);
     std::ostream& stream(std::ostream&) const override;
 
     friend class World;
@@ -256,8 +256,8 @@ public:
 /// Base class for all \p PrimOp%s taking and producing side-effects.
 class MemOp : public PrimOp {
 protected:
-    MemOp(NodeTag tag, const Def* type, Defs args, Debug dbg)
-        : PrimOp(tag, type, args, dbg)
+    MemOp(NodeTag tag, RebuildFn rebuild, const Def* type, Defs args, Debug dbg)
+        : PrimOp(tag, rebuild, type, args, dbg)
     {
         assert(mem()->type()->isa<MemType>());
         assert(args.size() >= 1);
@@ -272,7 +272,7 @@ public:
 class Alloc : public MemOp {
 private:
     Alloc(const Def* type, const Def* mem, Debug dbg)
-        : MemOp(Node_Alloc, type, {mem}, dbg)
+        : MemOp(Node_Alloc, rebuild, type, {mem}, dbg)
     {}
 
 public:
@@ -280,7 +280,7 @@ public:
     const Sigma* type() const { return MemOp::type()->as<Sigma>(); }
     const PtrType* out_ptr_type() const { return type()->op(1)->as<PtrType>(); }
     const Def* alloced_type() const { return out_ptr_type()->pointee(); }
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops);
 
     friend class World;
 };
@@ -290,7 +290,7 @@ public:
 class Slot : public MemOp {
 private:
     Slot(const Def* type, const Def* mem, Debug dbg)
-        : MemOp(Node_Slot, type, {mem}, dbg)
+        : MemOp(Node_Slot, rebuild, type, {mem}, dbg)
     {}
 
 public:
@@ -298,7 +298,7 @@ public:
     const Sigma* type() const { return MemOp::type()->as<Sigma>(); }
     const PtrType* out_ptr_type() const { return type()->op(1)->as<PtrType>(); }
     const Def* alloced_type() const { return out_ptr_type()->pointee(); }
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops);
 
     friend class World;
 };
@@ -306,8 +306,8 @@ public:
 /// Base class for @p Load and @p Store.
 class Access : public MemOp {
 protected:
-    Access(NodeTag tag, const Def* type, Defs args, Debug dbg)
-        : MemOp(tag, type, args, dbg)
+    Access(NodeTag tag, RebuildFn rebuild, const Def* type, Defs args, Debug dbg)
+        : MemOp(tag, rebuild, type, args, dbg)
     {
         assert(args.size() >= 2);
     }
@@ -320,14 +320,14 @@ public:
 class Load : public Access {
 private:
     Load(const Def* type, const Def* mem, const Def* ptr, Debug dbg)
-        : Access(Node_Load, type, {mem, ptr}, dbg)
+        : Access(Node_Load, rebuild, type, {mem, ptr}, dbg)
     {}
 
 public:
     const Def* out_val() const { return out(1); }
     const Sigma* type() const { return MemOp::type()->as<Sigma>(); }
     const Def* out_val_type() const { return type()->op(1); }
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops);
 
     friend class World;
 };
@@ -336,13 +336,13 @@ public:
 class Store : public Access {
 private:
     Store(const Def* mem, const Def* ptr, const Def* value, Debug dbg)
-        : Access(Node_Store, mem->type(), {mem, ptr, value}, dbg)
+        : Access(Node_Store, rebuild, mem->type(), {mem, ptr, value}, dbg)
     {}
 
 public:
     const Def* val() const { return op(2); }
     const MemType* type() const { return Access::type()->as<MemType>(); }
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops);
 
     friend class World;
 };
@@ -379,7 +379,7 @@ public:
     bool is_alignstack() const { return flags() & IsAlignStack; }
     bool is_inteldialect() const { return flags() & IsIntelDialect; }
     Flags flags() const { return extra<Extra>().flags_; }
-    const Def* rebuild(World& to, const Def* type, Defs ops) const override;
+    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops);
     std::ostream& stream_assignment(std::ostream&) const override;
 
     friend class World;

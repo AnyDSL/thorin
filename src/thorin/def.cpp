@@ -412,7 +412,6 @@ const Def* VariantType::rebuild(const Def* d, World& w, const Def*  , Defs o) { 
  * stub
  */
 
-Def* Axiom   ::stub(const Def* d, World& to, const Def*  ) { return to.lookup_axiom(d->name()).value(); }
 Def* Lam     ::stub(const Def* d, World& to, const Def* t) { assert(d->isa_nominal()); return to.lam(t->as<Pi>(), d->as<Lam>()->cc(), d->as<Lam>()->intrinsic(), d->debug()); }
 Def* Sigma   ::stub(const Def* d, World& to, const Def* t) { assert(d->isa_nominal()); return to.sigma(t, d->num_ops(), d->debug()); }
 Def* Universe::stub(const Def*  , World& to, const Def*  ) { return const_cast<Universe*>(to.universe()); }
@@ -426,7 +425,6 @@ static std::ostream& stream_type_ops(std::ostream& os, const Def* type) {
 }
 
 std::ostream& App        ::stream(std::ostream& os) const { return streamf(os, "{} {}", callee(), arg()); }
-std::ostream& Axiom      ::stream(std::ostream& os) const { return streamf(os, "{}", name()); }
 std::ostream& MemType    ::stream(std::ostream& os) const { return streamf(os, "mem"); }
 std::ostream& Pack       ::stream(std::ostream& os) const { return streamf(os, "‹{}; {}›", arity(), body()); }
 std::ostream& Universe   ::stream(std::ostream& os) const { return streamf(os, "□"); }

@@ -37,7 +37,7 @@ namespace thorin {
  */
 class World : public Streamable {
 public:
-    struct DefHash {
+    struct SeaHash {
         static uint64_t hash(const Def* def) { return def->hash(); }
         static bool eq(const Def* def1, const Def* def2) { return def1->equal(def2); }
         static const Def* sentinel() { return (const Def*)(1); }
@@ -49,7 +49,7 @@ public:
         static size_t sentinel() { return size_t(-1); }
     };
 
-    using Sea         = HashSet<const Def*, DefHash>;///< This @p HashSet contains Thorin's "sea of nodes".
+    using Sea         = HashSet<const Def*, SeaHash>;///< This @p HashSet contains Thorin's "sea of nodes".
     using Breakpoints = HashSet<size_t, BreakHash>;
     using Externals   = GIDSet<Def*>;
 
@@ -197,18 +197,6 @@ public:
     const Lit* lit_index(const Def* arity, u64 index, Dbg dbg = {});
     const Lit* lit_index_0_1() { return cache_.lit_index_0_1_; } ///< unit index 0₁ of type unit arity 1ₐ
     //@}
-    /// @name Literal: Nat
-    //@{
-    const Lit* lit_nat(int64_t val, Dbg dbg = {}) { return lit(type_nat(), {val}, dbg); }
-    const Lit* lit_nat_0 () { return cache_.lit_nat_0_; }
-    const Lit* lit_nat_1 () { return cache_.lit_nat_[0]; }
-    const Lit* lit_nat_2 () { return cache_.lit_nat_[1]; }
-    const Lit* lit_nat_4 () { return cache_.lit_nat_[2]; }
-    const Lit* lit_nat_8 () { return cache_.lit_nat_[3]; }
-    const Lit* lit_nat_16() { return cache_.lit_nat_[4]; }
-    const Lit* lit_nat_32() { return cache_.lit_nat_[5]; }
-    const Lit* lit_nat_64() { return cache_.lit_nat_[6]; }
-    //@}
     /// @name Literal: Bool
     //@{
     const Lit* lit_bool(bool val) { return cache_.lit_bool_[size_t(val)]; }
@@ -312,13 +300,6 @@ public:
     const Def* select(const Def* cond, const Def* t, const Def* f, Dbg dbg = {});
     const Def* branch(const Def* cond, const Def* t, const Def* f, const Def* mem, Dbg dbg = {}) { return app(select(cond, t, f, dbg), mem, dbg); }
     //@}
-    // TODO not all of them are axioms right now
-    /// @name Axioms
-    //@{
-    Axiom* axiom(const Def* type, Normalizer, Dbg dbg = {});
-    Axiom* axiom(const Def* type, Dbg dbg = {}) { return axiom(type, nullptr, dbg); }
-    std::optional<Axiom*> lookup_axiom(const Def* name) { return axioms_.lookup(name); }
-    Axiom* type_nat() { return cache_.type_nat_; }
     Lam* match(const Def* type, size_t num_patterns);
     Lam* end_scope() const { return cache_.end_scope_; }
     //@}
@@ -362,7 +343,6 @@ public:
         swap(w1.buffer_index_,  w2.buffer_index_);
         swap(w1.name_,          w2.name_);
         swap(w1.loc_,           w2.loc_);
-        swap(w1.axioms_,        w2.axioms_);
         swap(w1.externals_,     w2.externals_);
         swap(w1.defs_,          w2.defs_);
         swap(w1.pe_done_,       w2.pe_done_);
@@ -481,7 +461,6 @@ private:
     size_t buffer_index_ = 0;
     std::string name_;
     Loc loc_;
-    DefMap<Axiom*> axioms_; //< TODO remove this
     Externals externals_;
     Sea defs_;
     uint32_t cur_gid_;
@@ -516,7 +495,6 @@ private:
         const Sigma* sigma_;
         const Tuple* tuple_;
         const MemType* mem_;
-        Axiom* type_nat_;
         const Lit* lit_nat_0_;
         std::array<const Lit*, 7> lit_nat_;
         std::array<const Lit*, 2> lit_bool_;

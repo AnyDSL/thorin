@@ -194,18 +194,6 @@ public:
     const Lit* lit_index(const Def* arity, u64 index, Debug dbg = {});
     const Lit* lit_index_0_1() { return cache_.lit_index_0_1_; } ///< unit index 0₁ of type unit arity 1ₐ
     //@}
-    /// @name Literal: Nat
-    //@{
-    const Lit* lit_nat(int64_t val, Debug dbg = {}) { return lit(type_nat(), {val}, dbg); }
-    const Lit* lit_nat_0 () { return cache_.lit_nat_0_; }
-    const Lit* lit_nat_1 () { return cache_.lit_nat_[0]; }
-    const Lit* lit_nat_2 () { return cache_.lit_nat_[1]; }
-    const Lit* lit_nat_4 () { return cache_.lit_nat_[2]; }
-    const Lit* lit_nat_8 () { return cache_.lit_nat_[3]; }
-    const Lit* lit_nat_16() { return cache_.lit_nat_[4]; }
-    const Lit* lit_nat_32() { return cache_.lit_nat_[5]; }
-    const Lit* lit_nat_64() { return cache_.lit_nat_[6]; }
-    //@}
     /// @name Literal: Bool
     //@{
     const Lit* lit(bool val) { return cache_.lit_bool_[size_t(val)]; }
@@ -309,13 +297,6 @@ public:
     const Def* select(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
     const Def* branch(const Def* cond, const Def* t, const Def* f, const Def* mem, Debug dbg = {}) { return app(select(cond, t, f, dbg), mem, dbg); }
     //@}
-    // TODO not all of them are axioms right now
-    /// @name Axioms
-    //@{
-    Axiom* axiom(const Def* type, Normalizer, Debug dbg = {});
-    Axiom* axiom(const Def* type, Debug dbg = {}) { return axiom(type, nullptr, dbg); }
-    std::optional<Axiom*> lookup_axiom(Symbol name) { return axioms_.lookup(name); }
-    Axiom* type_nat() { return cache_.type_nat_; }
     Lam* match(const Def* type, size_t num_patterns);
     Lam* end_scope() const { return cache_.end_scope_; }
     //@}
@@ -359,7 +340,6 @@ public:
         swap(w1.cur_gid_,       w2.cur_gid_);
         swap(w1.buffer_index_,  w2.buffer_index_);
         swap(w1.debug_,         w2.debug_);
-        swap(w1.axioms_,        w2.axioms_);
         swap(w1.externals_,     w2.externals_);
         swap(w1.defs_,          w2.defs_);
         swap(w1.pe_done_,       w2.pe_done_);
@@ -463,7 +443,6 @@ private:
     Zone* cur_page_;
     size_t buffer_index_ = 0;
     Debug debug_;
-    SymbolMap<Axiom*> axioms_;
     Externals externals_;
     Sea defs_;
     uint32_t cur_gid_;
@@ -491,7 +470,6 @@ private:
         const Sigma* sigma_;
         const Tuple* tuple_;
         const MemType* mem_;
-        Axiom* type_nat_;
         const Lit* lit_nat_0_;
         std::array<const Lit*, 7> lit_nat_;
         std::array<const Lit*, 2> lit_bool_;

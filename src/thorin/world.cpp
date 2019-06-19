@@ -38,16 +38,11 @@ World::World(uint32_t cur_gid, Debug debug)
     cache_.sigma_         = insert<Sigma>(0, kind_star(), Defs{}, Debug{})->as<Sigma>();
     cache_.tuple_         = insert<Tuple>(0, sigma(), Defs{}, Debug{})->as<Tuple>();
     cache_.mem_           = insert<MemType  >(0, *this);
-    cache_.type_nat_      = axiom(kind_star(), {"nat"});
     cache_.lit_arity_1_   = lit_arity(1);
     cache_.lit_index_0_1_ = lit_index(lit_arity_1(), 0);
-    cache_.lit_nat_0_     = lit_nat(0);
     cache_.lit_bool_[0]   = lit(type_bool(), {false});
     cache_.lit_bool_[1]   = lit(type_bool(), {true});
     cache_.end_scope_     = lam(cn(), CC::C, Intrinsic::EndScope, {"end_scope"});
-
-    for (size_t j = 0; j != cache_.lit_nat_.size(); ++j)
-        cache_.lit_nat_[j] = lit_nat(1 << int64_t(j));
 }
 
 World::~World() {
@@ -934,20 +929,6 @@ const Def* World::run(const Def* def, Debug dbg) {
     if (pe_done_)
         return def;
     return unify<Run>(1, def, dbg);
-}
-
-/*
- * Axioms
- */
-
-Axiom* World::axiom(const Def* type, Normalizer normalizer, Debug dbg) {
-    auto a = insert<Axiom>(0, type, normalizer, dbg);
-    auto s = dbg.name().c_str();
-    if (s[0] != '\0') {
-        assert(!axioms_.contains(s));
-        axioms_[s] = a;
-    }
-    return a;
 }
 
 Lam* World::match(const Def* type, size_t num_patterns) {

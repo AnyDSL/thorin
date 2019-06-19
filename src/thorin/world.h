@@ -37,7 +37,7 @@ namespace thorin {
  */
 class World : public Streamable {
 public:
-    struct DefHash {
+    struct SeaHash {
         static uint64_t hash(const Def* def) { return def->hash(); }
         static bool eq(const Def* def1, const Def* def2) { return def1->equal(def2); }
         static const Def* sentinel() { return (const Def*)(1); }
@@ -49,7 +49,7 @@ public:
         static size_t sentinel() { return size_t(-1); }
     };
 
-    using Sea         = HashSet<const Def*, DefHash>;///< This @p HashSet contains Thorin's "sea of nodes".
+    using Sea         = HashSet<const Def*, SeaHash>;///< This @p HashSet contains Thorin's "sea of nodes".
     using Breakpoints = HashSet<size_t, BreakHash>;
     using Externals   = GIDSet<Def*>;
 

@@ -69,7 +69,8 @@ void Def::unset(size_t i) {
 
 std::string Def::unique_name() const {
     std::ostringstream oss;
-    oss << name() << '_' << gid();
+    if (name()) oss << name();
+    oss <<  '_' << gid();
     return oss.str();
 }
 
@@ -426,7 +427,6 @@ static std::ostream& stream_type_ops(std::ostream& os, const Def* type) {
 
 std::ostream& App        ::stream(std::ostream& os) const { return streamf(os, "{} {}", callee(), arg()); }
 std::ostream& MemType    ::stream(std::ostream& os) const { return streamf(os, "mem"); }
-std::ostream& Pack       ::stream(std::ostream& os) const { return streamf(os, "‹{}; {}›", arity(), body()); }
 std::ostream& Universe   ::stream(std::ostream& os) const { return streamf(os, "□"); }
 std::ostream& Variadic   ::stream(std::ostream& os) const { return streamf(os, "«{}; {}»", arity(), body()); }
 std::ostream& VariantType::stream(std::ostream& os) const { return stream_type_ops(os << "variant", this); }
@@ -446,7 +446,7 @@ std::ostream& Analyze::stream(std::ostream& os) const {
 }
 
 std::ostream& Lit::stream(std::ostream& os) const {
-    if (!name()) return os << name();
+    if (name()) return os << name();
     if (is_kind_arity(type())) return streamf(os, "{}ₐ", box().get<u64>());
 
     if (is_arity(type())) {
@@ -459,6 +459,14 @@ std::ostream& Lit::stream(std::ostream& os) const {
         std::reverse(s.begin(), s.end());
 
         return streamf(os, "{}{}", box().get<u64>(), s);
+    }
+
+    // special case for char
+    if (auto prim_type = type()->isa<PrimType>()) {
+        if (prim_type->primtype_tag() == PrimTypeTag::PrimType_qs8) {
+            char c = box().get<qs8>();
+            if (0x21 <= c && c <= 0x7e) return os << 'c'; // printable char range
+        }
     }
 
     os << type() << ' ';
@@ -503,7 +511,37 @@ std::ostream& Sigma::stream(std::ostream& os) const {
 }
 
 std::ostream& Tuple::stream(std::ostream& os) const {
+    // special case for string
+    if (std::all_of(ops().begin(), ops().end(), [&](const Def* op) { return op->isa<Lit>(); })) {
+        if (auto variadic = type()->isa<Variadic>()) {
+            if (auto prim_type = variadic->body()->isa<PrimType>()) {
+                if (prim_type->primtype_tag() == PrimTypeTag::PrimType_qs8) {
+                    for (auto op : ops()) os << as_lit<qs8>(op);
+                    return os;
+                }
+            }
+        }
+    }
+
     return stream_list(os, ops(), [&](const Def* type) { os << type; }, "(", ")");
+}
+
+std::ostream& Pack::stream(std::ostream& os) const {
+    // special case for string
+    if (auto variadic = type()->isa<Variadic>()) {
+        if (auto prim_type = variadic->body()->isa<PrimType>()) {
+            if (prim_type->primtype_tag() == PrimTypeTag::PrimType_qs8) {
+                if (auto a = isa_lit<u64>(arity())) {
+                    if (auto lit = body()->isa<Lit>()) {
+                        for (size_t i = 0, e = *a; i != e; ++i) os << lit->box().get<qs8>();
+                        return os;
+                    }
+                }
+            }
+        }
+    }
+
+    return streamf(os, "‹{}; {}›", arity(), body());
 }
 
 std::ostream& Pi::stream(std::ostream& os) const {

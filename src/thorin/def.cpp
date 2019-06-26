@@ -446,7 +446,7 @@ std::ostream& Analyze::stream(std::ostream& os) const {
 }
 
 std::ostream& Lit::stream(std::ostream& os) const {
-    if (name()) return os << name();
+    //if (name()) return os << name();
     if (is_kind_arity(type())) return streamf(os, "{}ₐ", box().get<u64>());
 
     if (is_arity(type())) {

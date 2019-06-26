@@ -16,7 +16,7 @@ const Def* Importer::import(Tracker odef) {
     }
 
     auto ntype = import(odef->type());
-    auto nname = import(odef->name());
+    auto nname = odef->name() ? import(odef->name()) : nullptr;
 
     const Def* ndef = nullptr;
     if (auto onom = odef->isa_nominal()) {

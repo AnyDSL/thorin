@@ -72,7 +72,7 @@ const Def* PassMan::rewrite(const Def* old_def) {
     }
 
     auto new_type = rewrite(old_def->type());
-    auto new_name = rewrite(old_def->name());
+    auto new_name = old_def->name() ? rewrite(old_def->name()) : nullptr;
 
     bool changed = false;
     Array<const Def*> new_ops(old_def->num_ops(), [&](auto i) {

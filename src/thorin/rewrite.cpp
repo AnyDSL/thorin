@@ -20,7 +20,7 @@ const Def* Rewriter::rewrite(const Def* old_def) {
     // HACK the entry really shouldn't be part of the scope ^^^
 
     auto new_type = rewrite(old_def->type());
-    auto new_name = rewrite(old_def->name());
+    auto new_name = old_def->name() ? rewrite(old_def->name()) : nullptr;
 
     if (auto old_nom = old_def->isa_nominal())
         return map(old_nom, old_nom->stub(new_world, new_type, new_name))->set(new_ops(old_nom));

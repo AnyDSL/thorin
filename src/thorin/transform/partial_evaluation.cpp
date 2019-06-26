@@ -56,7 +56,7 @@ public:
             for (size_t i = 0; i != odef->num_ops(); ++i)
                 nops[i] = instantiate(odef->op(i));
 
-            auto ndef = odef->rebuild(world(), odef->type(), nops);
+            auto ndef = odef->rebuild(world(), odef->type(), nops, odef->name());
             return old2new_[odef] = ndef;
         }
 

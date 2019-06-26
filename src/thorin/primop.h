@@ -40,7 +40,7 @@ public:
     const Def* cond() const { return op(0); }
     const Def* tval() const { return op(1); }
     const Def* fval() const { return op(2); }
-    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops);
+    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
     friend class World;
 };
@@ -52,7 +52,7 @@ private:
 
 public:
     const Def* of() const { return op(0)->type(); }
-    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops);
+    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
     friend class World;
 };
@@ -86,7 +86,7 @@ public:
     const PrimType* type() const { return BinOp::type()->as<PrimType>(); }
     ArithOpTag arithop_tag() const { return (ArithOpTag) tag(); }
     const char* op_name() const override;
-    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops);
+    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
     friend class World;
 };
@@ -100,7 +100,7 @@ public:
     const PrimType* type() const { return BinOp::type()->as<PrimType>(); }
     CmpTag cmp_tag() const { return (CmpTag) tag(); }
     const char* op_name() const override;
-    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops);
+    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
     friend class World;
 };
@@ -124,7 +124,7 @@ private:
     {}
 
 public:
-    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops);
+    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
     friend class World;
 };
@@ -137,7 +137,7 @@ private:
     {}
 
 public:
-    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops);
+    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
     friend class World;
 };
@@ -153,7 +153,7 @@ private:
 
 public:
     const VariantType* type() const { return PrimOp::type()->as<VariantType>(); }
-    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops);
+    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
     friend class World;
 };
@@ -176,7 +176,7 @@ public:
     const PtrType* type() const { return PrimOp::type()->as<PtrType>(); }
     const PtrType* ptr_type() const { return ptr()->type()->as<PtrType>(); } ///< Returns the PtrType from @p ptr().
     const Def* ptr_pointee() const { return ptr_type()->pointee(); }        ///< Returns the type referenced by @p ptr().
-    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops);
+    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
     friend class World;
 };
@@ -190,7 +190,7 @@ private:
 
 public:
     const Def* def() const { return op(0); }
-    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops);
+    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
     friend class World;
 };
@@ -202,7 +202,7 @@ private:
 
 public:
     const Def* def() const { return op(0); }
-    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops);
+    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
     friend class World;
 };
@@ -219,7 +219,7 @@ private:
 
 public:
     const Def* def() const { return op(0); }
-    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops);
+    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
     friend class World;
 };
@@ -247,7 +247,7 @@ public:
     const char* op_name() const override;
 
     bool equal(const Def* other) const override { return this == other; }
-    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops);
+    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
     friend class World;
@@ -280,7 +280,7 @@ public:
     const Sigma* type() const { return MemOp::type()->as<Sigma>(); }
     const PtrType* out_ptr_type() const { return type()->op(1)->as<PtrType>(); }
     const Def* alloced_type() const { return out_ptr_type()->pointee(); }
-    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops);
+    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
     friend class World;
 };
@@ -298,7 +298,7 @@ public:
     const Sigma* type() const { return MemOp::type()->as<Sigma>(); }
     const PtrType* out_ptr_type() const { return type()->op(1)->as<PtrType>(); }
     const Def* alloced_type() const { return out_ptr_type()->pointee(); }
-    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops);
+    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
     friend class World;
 };
@@ -327,7 +327,7 @@ public:
     const Def* out_val() const { return out(1); }
     const Sigma* type() const { return MemOp::type()->as<Sigma>(); }
     const Def* out_val_type() const { return type()->op(1); }
-    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops);
+    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
     friend class World;
 };
@@ -342,7 +342,7 @@ private:
 public:
     const Def* val() const { return op(2); }
     const MemType* type() const { return Access::type()->as<MemType>(); }
-    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops);
+    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
     friend class World;
 };
@@ -379,7 +379,7 @@ public:
     bool is_alignstack() const { return flags() & IsAlignStack; }
     bool is_inteldialect() const { return flags() & IsIntelDialect; }
     Flags flags() const { return extra<Extra>().flags_; }
-    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops);
+    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
     std::ostream& stream_assignment(std::ostream&) const override;
 
     friend class World;

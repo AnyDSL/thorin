@@ -16,10 +16,11 @@ const Def* Importer::import(Tracker odef) {
     }
 
     auto ntype = import(odef->type());
+    auto nname = import(odef->name());
 
     const Def* ndef = nullptr;
     if (auto onom = odef->isa_nominal()) {
-        ndef = onom->stub(world_, ntype);
+        ndef = onom->stub(world_, ntype, nname);
         old2new_[odef] = ndef;
     }
 
@@ -34,7 +35,7 @@ const Def* Importer::import(Tracker odef) {
                 ndef->as_nominal<Lam>()->make_external();
         }
     } else {
-        ndef = odef->rebuild(world_, ntype, nops);
+        ndef = odef->rebuild(world_, ntype, nops, nname);
         old2new_[odef] = ndef;
     }
 

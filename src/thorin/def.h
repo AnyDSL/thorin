@@ -120,8 +120,8 @@ std::ostream& operator<<(std::ostream&, Use);
  */
 class Def : public RuntimeCast<Def>, public Streamable {
 public:
-    using RebuildFn = const Def* (*)(const Def*, World&, const Def*, Defs);
-    using StubFn    = Def* (*)(const Def*, World&, const Def*);
+    using RebuildFn = const Def* (*)(const Def*, World&, const Def*, Defs, const Def*);
+    using StubFn    = Def* (*)(const Def*, World&, const Def*, const Def*);
 
 private:
     Def& operator=(const Def&) = delete;
@@ -214,13 +214,13 @@ public:
     //@}
     /// @name rebuild, stub, equal
     //@{
-    const Def* rebuild(World& world, const Def* type, Defs ops) const {
+    const Def* rebuild(World& world, const Def* type, Defs ops, const Def* name) const {
         assert(!isa_nominal());
-        return rebuild_(this, world, type, ops);
+        return rebuild_(this, world, type, ops, name);
     }
-    Def* stub(World& world, const Def* type) {
+    Def* stub(World& world, const Def* type, const Def* name) {
         assert(isa_nominal());
-        return stub_(this, world, type);
+        return stub_(this, world, type, name);
     }
     virtual bool equal(const Def* other) const;
     //@}
@@ -276,7 +276,7 @@ private:
     {}
 
 public:
-    static Def* stub(const Def*, World&, const Def*);
+    static Def* stub(const Def*, World&, const Def*, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
     friend class World;
@@ -287,7 +287,7 @@ private:
     Kind(World&, NodeTag);
 
 public:
-    static const Def* rebuild(const Def*, World&, const Def*, Defs);
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
     friend class World;
@@ -307,7 +307,7 @@ private:
 
 public:
     Normalizer normalizer() const { return extra<Extra>().normalizer_; }
-    static Def* stub(const Def*, World&, const Def*);
+    static Def* stub(const Def*, World&, const Def*, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
     friend class World;
@@ -320,7 +320,7 @@ private:
     {}
 
 public:
-    static const Def* rebuild(const Def*, World&, const Def*, Defs);
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
     friend class World;
@@ -340,7 +340,7 @@ private:
 public:
     Box box() const { return extra<Extra>().box_; }
     bool equal(const Def*) const override;
-    static const Def* rebuild(const Def*, World&, const Def*, Defs);
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
     friend class World;
@@ -373,7 +373,7 @@ public:
     bool is_returning() const;
 
     std::ostream& stream(std::ostream&) const override;
-    static const Def* rebuild(const Def*, World&, const Def*, Defs);
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
     friend class World;
 };
@@ -390,7 +390,7 @@ public:
     Array<const Def*> args() const;
     size_t num_args() const { return as_lit<u64>(callee_type()->domain()->arity()); }
 
-    static const Def* rebuild(const Def*, World&, const Def*, Defs);
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
     friend class World;
@@ -490,8 +490,8 @@ public:
     //@}
     /// @name rebuild, stub
     //@{
-    static const Def* rebuild(const Def*, World&, const Def*, Defs);
-    static Def* stub(const Def*, World&, const Def*);
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    static Def* stub(const Def*, World&, const Def*, const Def*);
     //@}
 
     Lams preds() const;
@@ -534,7 +534,7 @@ private:
 public:
     Lam* lam() const { return op(0)->as_nominal<Lam>(); }
 
-    static const Def* rebuild(const Def*, World&, const Def*, Defs);
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
     friend class World;
 };
@@ -578,8 +578,8 @@ private:
 
 public:
     const Def* arity() const override;
-    static const Def* rebuild(const Def*, World&, const Def*, Defs);
-    static Def* stub(const Def*, World&, const Def*);
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    static Def* stub(const Def*, World&, const Def*, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
     friend class World;
@@ -595,7 +595,7 @@ private:
     }
 
 public:
-    static const Def* rebuild(const Def*, World&, const Def*, Defs);
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
     friend class World;
@@ -610,7 +610,7 @@ private:
 public:
     const Def* arity() const override { return op(0); }
     const Def* body() const { return op(1); }
-    static const Def* rebuild(const Def*, World&, const Def*, Defs);
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
     friend class World;
@@ -626,7 +626,7 @@ private:
 
 public:
     const Def* body() const { return op(0); }
-    static const Def* rebuild(const Def*, World&, const Def*, Defs);
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
     friend class World;
@@ -653,7 +653,7 @@ private:
         : AggOp(Node_Extract, rebuild, type, {agg, index}, dbg)
     {}
 
-    static const Def* rebuild(const Def*, World&, const Def*, Defs);
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
     friend class World;
 };
@@ -670,7 +670,7 @@ private:
         : AggOp(Node_Insert, rebuild, agg->type(), {agg, index, val}, dbg)
     {}
 
-    static const Def* rebuild(const Def*, World&, const Def*, Defs);
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
 public:
     const Def* val() const { return op(2); }
@@ -688,7 +688,7 @@ private:
     }
 
 private:
-    static const Def* rebuild(const Def*, World&, const Def*, Defs);
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
     friend class World;
@@ -700,7 +700,7 @@ private:
     MemType(World& world);
 
 public:
-    static const Def* rebuild(const Def*, World&, const Def*, Defs);
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
     friend class World;
@@ -714,7 +714,7 @@ private:
 public:
     PrimTypeTag primtype_tag() const { return (PrimTypeTag) tag(); }
 
-    static const Def* rebuild(const Def*, World&, const Def*, Defs);
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
     friend class World;
@@ -746,7 +746,7 @@ public:
 
     bool equal(const Def* other) const override;
     std::ostream& stream(std::ostream&) const override;
-    static const Def* rebuild(const Def*, World&, const Def*, Defs);
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
     friend class World;
 };
@@ -766,7 +766,7 @@ public:
     u64 index() const { return extra<Extra>().index_; }
     bool equal(const Def* other) const override;
     std::ostream& stream(std::ostream&) const override;
-    static const Def* rebuild(const Def*, World&, const Def*, Defs);
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
     friend class World;
 };

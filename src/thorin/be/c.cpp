@@ -576,18 +576,16 @@ void CCodeGen::emit() {
         }
         func_decls_ << ");" << endl;
         func_impl_  << ") {" << up;
-        if (!hls_pragmas.empty())
-            func_impl_ << down << endl << hls_pragmas << up;
 
         if (lang_ == Lang::HLS && name == "hls_top") {
-            hls_pragmas.clear();
             hls_pragmas += "#pragma HLS DATAFLOW\n";
             hls_pragmas += "#pragma HLS top name=AnyHLS\n";
             hls_pragmas += "#pragma HLS INTERFACE ap_ctrl_none port=return\n";
             hls_pragmas += "#pragma HLS INTERFACE axis port=";
-
-            func_impl_ << down << endl << hls_pragmas << up;
         }
+        if (!hls_pragmas.empty())
+            func_impl_ << down << endl << hls_pragmas << up;
+        hls_pragmas.clear();
         // OpenCL: load struct from buffer
         for (auto param : continuation->params()) {
             if (is_mem(param) || is_unit(param))

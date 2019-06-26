@@ -1226,18 +1226,6 @@ static void get_kernel_configs(Importer& importer,
     std::function<std::unique_ptr<KernelConfig> (Continuation*, Continuation*)> use_callback)
 {
     importer.world().opt();
-
-    for (auto external : importer.world().externals()) {
-        if (external->name() == "hls_top") {
-            HLSKernelConfig::Param2Size param_sizes;
-            for (size_t i = 0; i < external->num_params(); ++i) {
-                param_sizes.emplace(external->param(i), 42);
-            }
-            auto config = std::make_unique<HLSKernelConfig>(param_sizes);
-            kernel_config.emplace(external, std::move(config));
-        }
-    }
-
     auto externals = importer.world().externals();
     for (auto continuation : kernels) {
         // recover the imported continuation (lost after the call to opt)
@@ -1245,6 +1233,20 @@ static void get_kernel_configs(Importer& importer,
         for (auto external : externals) {
             if (external->name() == continuation->name())
                 imported = external;
+            if (external->name() == "hls_top") {
+                auto hls_top = external;
+                //auto callee = hls_top->callee()->as_continuation();
+                //callee->arg(1)->dump();
+                //importer.world().continuations().dump();
+                //hls_top->param(2);
+
+                HLSKernelConfig::Param2Size param_sizes;
+                for (size_t i = 0; i < hls_top->num_params(); ++i) {
+                    param_sizes.emplace(hls_top->param(i), 42);
+                }
+                auto config = std::make_unique<HLSKernelConfig>(param_sizes);
+                kernel_config.emplace(hls_top, std::move(config));
+            }
         }
         if (!imported) continue;
 
@@ -1364,6 +1366,21 @@ Backends::Backends(World& world)
     // get the HLS kernel configurations
     if (!hls.world().empty()) {
         hls_channels(hls.world());
+//        HLSKernelConfig::Param2Size param_sizes;
+//        for (auto external : hls.world().externals()) {
+//            if (external->name() == "hls_top") {
+//                auto hls_top = external;
+//                //auto callee = hls_top->callee()->as_continuation();
+//                //callee->arg(1)->dump();
+//                //hls.world().continuations().dump();
+//                //hls_top->param(2);
+//                for (size_t i = 0; i < hls_top->num_params(); ++i) {
+//                    param_sizes.emplace(hls_top->param(i), 42);
+//                }
+//                auto config = std::make_unique<HLSKernelConfig>(param_sizes);
+//                kernel_config.emplace(hls_top, std::move(config));
+//            }
+//        }
         auto get_hls_config = [&] (Continuation* use, Continuation* imported) {
             HLSKernelConfig::Param2Size param_sizes;
             for (size_t i = 3, e = use->num_args(); i != e; ++i) {
@@ -1389,6 +1406,7 @@ Backends::Backends(World& world)
                 if (!prim_type)
                     EDEF(arg, "only pointers to arrays of primitive types are supported");
                 auto num_elems = size / (multiplier * num_bits(prim_type->primtype_tag()) / 8);
+
                 // imported has type: fn (mem, fn (mem), ...)
                 param_sizes.emplace(imported->param(i - 3 + 2), num_elems);
             }

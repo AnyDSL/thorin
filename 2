@@ -15,7 +15,6 @@ enum class ChannelMode : uint8_t {
 };
 
 using Def2Mode = DefMap<ChannelMode>;
-using Kernel2Index = std::vector<std::pair<std::string, size_t>>;
 
 static void extract_kernel_channels(const Schedule& schedule, Def2Mode& def2mode) {
     for (const auto& block : schedule) {
@@ -54,14 +53,11 @@ bool is_channel_type(const Type* type) {
     return false;
 }
 
-void hls_annotate_top(World& world, Kernel2Index& kernel2index) {
-   // save the name and index of i/o parameters of old kernels
-}
 
 void hls_channels(World& world) {
     std::vector<Def2Mode> channels_map; // vector of channel->mode maps for each kernel
     std::vector<Continuation*> new_kernels;
-    Def2Def param2arg; // contains map from new kernel parameter to arguments of call inside hls_top (for all kernels)
+    Def2Def param2global; // contains map from new kernel parameter to global channel
 
     Scope::for_each(world, [&] (Scope& scope) {
         auto kernel = scope.entry();
@@ -95,7 +91,7 @@ void hls_channels(World& world) {
         for (auto pair : index2def) {
             auto param = new_kernel->param(pair.first);
             rewriter.old2new[pair.second] = param;
-            param2arg[param] = pair.second; // (channel params, globals)
+            param2global[param] = pair.second;
         }
         for (auto def : scope.defs()) {
             if (auto cont = def->isa_continuation()) {
@@ -122,31 +118,32 @@ void hls_channels(World& world) {
         channels_map.emplace_back(def2mode);
     });
 
-    // Building the type of hls_top
+
+    // Building Top types
     std::vector<const Type*> top_param_types;
-    top_param_types.emplace_back(world.mem_type());
-    top_param_types.emplace_back(world.fn_type({ world.mem_type() }));
-    std::vector<std::tuple<Continuation*, size_t, size_t>> param_index; // tuples made of (new_kernel, index new kernel param., index hls_top param.)
+    top_param_types.emplace_back(world.mem_type());                      //mem
+    top_param_types.emplace_back(world.fn_type({ world.mem_type() }));   //ret_continuation
+    size_t io_cnt = 0;
     for (auto kernel : new_kernels) {
-        for (size_t i = 0; i < kernel->num_params(); ++i) {
-            auto param = kernel->param(i);
-            // If the parameter is not a channel, add it to the hls_top parameter list
+        for (auto param : kernel->params()) {
             if (!is_channel_type(param->type())) {
-                if (param != kernel->ret_param() && param != kernel->mem_param()) {
-                    param_index.emplace_back(kernel, i, top_param_types.size());
+                if( param != kernel->ret_param() && param != kernel->mem_param()) {
                     top_param_types.emplace_back(param->type());
+                    io_cnt++;
                 }
             }
         }
     }
 
     auto hls_top = world.continuation(world.fn_type(top_param_types), Debug("hls_top"));
-    for (auto tuple : param_index) {
-        // (non-channel params, top params as kernel call args)
-        param2arg.emplace(std::get<0>(tuple)->param(std::get<1>(tuple)), hls_top->param(std::get<2>(tuple)));
+
+    if (io_cnt > 2) {
+        for (auto param : hls_top->params()) {
+            if( param != hls_top->ret_param() && param != hls_top->mem_param() &&
+                    !param->type()->as<PtrType>()->pointee()->isa<ArrayType>())
+                WLOG("Top function has {} non-streaming input/output", (io_cnt-2));
+        }
     }
-
-
     std::cout<< "kernel_count = " << channels_map.size() <<endl;
 
     auto enter   = world.enter(hls_top->mem_param());
@@ -170,35 +167,46 @@ void hls_channels(World& world) {
 
     std::cout <<"channel_count = " << channel_slots.size() <<endl;
 
-    auto cur_bb = hls_top;
+    //dummy_val
+    auto val = world.literal_qu8(20, {});
+
+    size_t i=0;
+    Array<Continuation*> continuations(new_kernels.size());
     for (auto kernel : new_kernels) {
-        auto ret_param = kernel->ret_param();
-        auto mem_param = kernel->mem_param();
-        auto ret_type = ret_param->type()->as<FnType>();
-        auto ret = world.continuation(ret_type, kernel->debug());
-        // Fill the array of arguments
-        Array<const Def*> args(kernel->type()->num_ops());
-        for (size_t i = 0; i < kernel->type()->num_ops(); ++i) {
-            auto param = kernel->param(i);
-            if (param == mem_param) {
-                args[i] = cur_mem;
-            } else if (param == ret_param) {
-                args[i] = ret;
-            } else if (auto arg = param2arg[param]) {
-                args[i] = arg->isa<Global>() && is_channel_type(arg->type()) ? global2slot[arg] : arg;
-            } else {
-                assert(false);
-            }
-        }
-        cur_bb->jump(kernel, args);
-        cur_bb = ret;
-        cur_mem = ret->mem_param();
+        auto cont_type = kernel->ret_param()->type()->as<FnType>();
+        continuations[i++] = world.continuation(cont_type, kernel->debug());
     }
 
 
+//    auto cont_type_0 = new_kernels[0]->ret_param()->type()->as<FnType>();
+//    auto cont_type_1 = new_kernels[1]->ret_param()->type()->as<FnType>();
+//    auto continuation_0 = world.continuation(cont_type_0, new_kernels[0]->debug());
+//    auto continuation_1 = world.continuation(cont_type_1, new_kernels[1]->debug());
+
+    // via channel_map find each kernel uses which globals then use global2slot to map it on the slot the use that slot for the same new_kernel 
+    // search on global2slot by the key for the first kernel on channel_map
+    // args in array
+    for (auto channels : channels_map) {
+        for (auto channel : channels) {
+            //channel->dump();
+            global2slot.find(channel.first)->second->dump();
+        }
+    }
+    hls_top->jump(new_kernels[0], {cur_mem, continuations[0], hls_top->param(2), channel_slots[0]});
+    continuations[0]->jump(new_kernels[1], {continuations[0]->mem_param(), continuations[1], hls_top->param(3), channel_slots[0]});
+    //last kernel should jump to top return
+    continuations[1]->jump(hls_top->ret_param(), {continuations[1]->mem_param()});
+
+    for (auto continuation : continuations) {
+        continuation->dump();
+    }
+    //hls_top->jump(hls_top->ret_param(), { hls_top->mem_param() });
+    //hls_top->jump(hls_top->ret_param(), {cur_mem});
+
     hls_top->make_external();
 
-   // world.cleanup();
+    channels_map.clear();
+    world.cleanup();
     world.dump();
 }
 

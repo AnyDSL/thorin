@@ -5,9 +5,12 @@
 
 namespace thorin {
 
+using Kernel2Index = std::vector<std::pair<std::string, size_t>>;
+
 class World;
 
 void hls_channels(World&);
+void hls_annotate_top(World&, Kernel2Index&);
 
 }
 

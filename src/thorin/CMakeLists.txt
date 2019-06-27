@@ -48,18 +48,12 @@ set(THORIN_SOURCES
     tables/primtypetable.h
     transform/cleanup_world.cpp
     transform/cleanup_world.h
-    transform/clone_bodies.cpp
-    transform/clone_bodies.h
     transform/codegen_prepare.h
     transform/codegen_prepare.cpp
     transform/flatten_tuples.cpp
     transform/flatten_tuples.h
     transform/importer.cpp
     transform/importer.h
-    transform/inliner.cpp
-    transform/inliner.h
-    transform/lift_builtins.cpp
-    transform/lift_builtins.h
     transform/mangle.cpp
     transform/mangle.h
     transform/resolve_loads.cpp

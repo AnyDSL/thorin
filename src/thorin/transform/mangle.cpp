@@ -75,7 +75,7 @@ const Def* Mangler::mangle(const Def* old_def) {
     if (!within(old_def)) return old_def;
 
     auto new_type = mangle(old_def->type());
-    auto new_name = mangle(old_def->name());
+    auto new_name = old_def->name() ? mangle(old_def->name()) : nullptr;
 
     const Def* new_def = nullptr;
     if (auto old_nom = old_def->isa_nominal()) {

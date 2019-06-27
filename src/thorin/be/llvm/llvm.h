@@ -8,9 +8,9 @@
 
 #include "thorin/config.h"
 #include "thorin/def.h"
+#include "thorin/rewrite.h"
 #include "thorin/be/llvm/runtime.h"
 #include "thorin/be/kernel_config.h"
-#include "thorin/transform/importer.h"
 
 namespace thorin {
 
@@ -105,23 +105,15 @@ template<class T>
 llvm::ArrayRef<T> llvm_ref(const Array<T>& array) { return llvm::ArrayRef<T>(array.begin(), array.end()); }
 
 struct Backends {
-    Backends(World& world);
+    enum { CPU, CUDA, NVVM, OpenCL, AMDGPU, HLS, Num_Backends };
+
+    explicit Backends(World& world);
 
     Cont2Config kernel_config;
     std::vector<Lam*> kernels;
 
-    Importer cuda;
-    Importer nvvm;
-    Importer opencl;
-    Importer amdgpu;
-    Importer hls;
-
-    std::unique_ptr<CodeGen> cpu_cg;
-    std::unique_ptr<CodeGen> cuda_cg;
-    std::unique_ptr<CodeGen> nvvm_cg;
-    std::unique_ptr<CodeGen> opencl_cg;
-    std::unique_ptr<CodeGen> amdgpu_cg;
-    std::unique_ptr<CodeGen> hls_cg;
+    std::array<Rewriter, Num_Backends> rewriters;
+    std::array<std::unique_ptr<CodeGen>,  Num_Backends> codegens;
 };
 
 } // namespace thorin

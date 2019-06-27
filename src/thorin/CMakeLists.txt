@@ -52,8 +52,6 @@ set(THORIN_SOURCES
     transform/codegen_prepare.cpp
     transform/flatten_tuples.cpp
     transform/flatten_tuples.h
-    transform/importer.cpp
-    transform/importer.h
     transform/mangle.cpp
     transform/mangle.h
     transform/resolve_loads.cpp

@@ -53,12 +53,12 @@ public:
     using Breakpoints = HashSet<size_t, BreakHash>;
     using Externals   = GIDSet<Def*>;
 
-    World(const World&) = delete;
     World(World&&) = delete;
     World& operator=(const World&) = delete;
 
     explicit World(uint32_t cur_gid, const std::string& name = {}, Loc loc = {});
-    World(World& other)
+    ///  Inherits properties of the @p other @p World but does @em not perform a copy.
+    explicit World(const World& other)
         : World(other.cur_gid(), other.name(), other.loc())
     {
         pe_done_ = other.pe_done_;

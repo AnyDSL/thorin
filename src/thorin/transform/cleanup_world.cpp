@@ -1,12 +1,12 @@
 #include "thorin/config.h"
 #include "thorin/util.h"
 #include "thorin/world.h"
+#include "thorin/rewrite.h"
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/verify.h"
-#include "thorin/transform/importer.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/transform/resolve_loads.h"
 #include "thorin/transform/partial_evaluation.h"
@@ -21,11 +21,10 @@ public:
     {}
 
     World& world() { return world_; }
-    void cleanup();
+    void run();
     void eliminate_tail_rec();
     void eta_conversion();
     void eliminate_params();
-    void rebuild();
     void verify_closedness();
     void within(const Def*);
     void clean_pe_infos();
@@ -252,17 +251,6 @@ next_lam:;
     }
 }
 
-void Cleaner::rebuild() {
-    Importer importer(world_);
-    importer.old2new_.rehash(world_.defs().capacity());
-
-    for (auto external : world().externals())
-        importer.import(external);
-
-    swap(importer.world(), world_);
-    todo_ |= importer.todo();
-}
-
 void Cleaner::verify_closedness() {
     for (auto def : world().defs()) {
         size_t i = 0;
@@ -337,9 +325,9 @@ void Cleaner::cleanup_fix_point() {
             eliminate_tail_rec();
         eta_conversion();
         eliminate_params();
-        rebuild(); // resolve replaced defs before going to resolve_loads
+        cleanup(world_); // resolve replaced defs before going to resolve_loads
         todo_ |= resolve_loads(world());
-        rebuild();
+        cleanup(world_);
         if (!world().is_pe_done())
             todo_ |= partial_evaluation(world_);
         else
@@ -347,7 +335,7 @@ void Cleaner::cleanup_fix_point() {
     }
 }
 
-void Cleaner::cleanup() {
+void Cleaner::run() {
     VLOG("start cleanup");
     cleanup_fix_point();
 
@@ -366,6 +354,6 @@ void Cleaner::cleanup() {
 #endif
 }
 
-void cleanup_world(World& world) { Cleaner(world).cleanup(); }
+void cleanup_world(World& world) { Cleaner(world).run(); }
 
 }

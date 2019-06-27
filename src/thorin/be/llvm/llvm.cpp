@@ -1195,14 +1195,15 @@ llvm::Value* CodeGen::create_tmp_alloca(llvm::Type* type, std::function<llvm::Va
 
 //------------------------------------------------------------------------------
 
-static void get_kernel_configs(Importer& importer,
+#if 0
+static void get_kernel_configs(Rewriter& rewriter,
     const std::vector<Lam*>& kernels,
     Cont2Config& kernel_config,
     std::function<std::unique_ptr<KernelConfig> (Lam*, Lam*)> use_callback)
 {
-    optimize_old(importer.world());
+    optimize_old(rewriter.world());
 
-    auto externals = importer.world().externals();
+    auto externals = rewriter.world().externals();
     for (auto lam : kernels) {
         // recover the imported lam (lost after the call to opt)
         Lam* imported = nullptr;
@@ -1256,18 +1257,18 @@ static uint64_t get_alloc_size(const Def* def) {
     auto size = call->app()->arg(2)->isa<Lit>();
     return size ? static_cast<uint64_t>(size->box().get_qu64()) : 0_u64;
 }
+#endif
 
 Backends::Backends(World& world)
-    : cuda(world)
-    , nvvm(world)
-    , opencl(world)
-    , amdgpu(world)
-    , hls(world)
+    : rewriters({world, world, world, world, world, world})
 {
+    // TODO rewrite as loop
+#if 0
     // determine different parts of the world which need to be compiled differently
     Scope::for_each(world, [&] (const Scope& scope) {
         auto lam = scope.entry();
         Lam* imported = nullptr;
+
         if (is_passed_to_intrinsic(lam, Intrinsic::CUDA))
             imported = cuda.import(lam)->as_nominal<Lam>();
         else if (is_passed_to_intrinsic(lam, Intrinsic::NVVM))
@@ -1365,13 +1366,16 @@ Backends::Backends(World& world)
     cleanup_world(world);
     codegen_prepare(world);
 
-    cpu_cg = std::make_unique<CPUCodeGen>(world);
+#endif
+    codegens[CPU] = std::make_unique<CPUCodeGen>(world);
 
-    if (!cuda.  world().empty()) cuda_cg   = std::make_unique<CUDACodeGen  >(cuda  .world(), kernel_config);
-    if (!nvvm.  world().empty()) nvvm_cg   = std::make_unique<NVVMCodeGen  >(nvvm  .world(), kernel_config);
-    if (!opencl.world().empty()) opencl_cg = std::make_unique<OpenCLCodeGen>(opencl.world(), kernel_config);
-    if (!amdgpu.world().empty()) amdgpu_cg = std::make_unique<AMDGPUCodeGen>(amdgpu.world(), kernel_config);
-    if (!hls.   world().empty()) hls_cg    = std::make_unique<HLSCodeGen   >(hls   .world(), kernel_config);
+#if 0
+    if (!cuda.  world().empty()) codegens[CUDA  ] = std::make_unique<CUDACodeGen  >(cuda  .world(), kernel_config);
+    if (!nvvm.  world().empty()) codegens[NVVM  ] = std::make_unique<NVVMCodeGen  >(nvvm  .world(), kernel_config);
+    if (!opencl.world().empty()) codegens[OpenCL] = std::make_unique<OpenCLCodeGen>(opencl.world(), kernel_config);
+    if (!amdgpu.world().empty()) codegens[AMDGPU] = std::make_unique<AMDGPUCodeGen>(amdgpu.world(), kernel_config);
+    if (!hls.   world().empty()) codegens[HLS   ] = std::make_unique<HLSCodeGen   >(hls   .world(), kernel_config);
+#endif
 }
 
 //------------------------------------------------------------------------------

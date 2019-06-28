@@ -148,7 +148,6 @@ public:
     bool is_type() const { return sort() == Sort::Type; }
     bool is_kind() const { return sort() == Sort::Kind; }
     bool is_universe() const { return sort() == Sort::Universe; }
-    bool is_value() const { return value_; }
     virtual const Def* arity() const;
     u64 lit_arity() const;
     //@}
@@ -252,7 +251,6 @@ protected:
     };
     // TODO fine-tune bit fields
     unsigned tag_           : 10;
-    unsigned value_         :  1;
     unsigned nominal_       :  1;
     unsigned contains_lam_  :  1;
     unsigned order_         : 10;
@@ -437,14 +435,12 @@ private:
     Lam(const Pi* pi, const Def* filter, const Def* body, Debug dbg)
         : Def(Node_Lam, rebuild, pi, {filter, body}, dbg)
     {
-        value_ = true;
         extra<Extra>().cc_ = CC::C;
         extra<Extra>().intrinsic_ = Intrinsic::None;
     }
     Lam(const Pi* pi, CC cc, Intrinsic intrinsic, Debug dbg)
         : Def(Node_Lam, stub, pi, 2, dbg)
     {
-        value_ = true;
         extra<Extra>().cc_ = cc;
         extra<Extra>().intrinsic_ = intrinsic;
     }
@@ -590,9 +586,7 @@ class Tuple : public Def {
 private:
     Tuple(const Def* type, Defs args, Debug dbg)
         : Def(Node_Tuple, rebuild, type, args, dbg)
-    {
-        value_ = true;
-    }
+    {}
 
 public:
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
@@ -620,9 +614,7 @@ class Pack : public Def {
 private:
     Pack(const Def* type, const Def* body, Debug dbg)
         : Def(Node_Pack, rebuild, type, {body}, dbg)
-    {
-        value_ = true;
-    }
+    {}
 
 public:
     const Def* body() const { return op(0); }

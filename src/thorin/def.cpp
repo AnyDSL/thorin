@@ -312,7 +312,6 @@ Def::Def(NodeTag tag, RebuildFn rebuild, const Def* type, Defs ops, Debug dbg)
     : type_(type)
     , rebuild_(rebuild)
     , tag_((unsigned)tag)
-    , value_(is_term())
     , nominal_(false)
     , contains_lam_(tag == Node_Lam)
     , order_(0)
@@ -330,7 +329,6 @@ Def::Def(NodeTag tag, StubFn stub, const Def* type, size_t num_ops, Debug dbg)
     : type_(type)
     , stub_(stub)
     , tag_(tag)
-    , value_(is_term())
     , nominal_(true)
     , contains_lam_(tag == Node_Lam)
     , order_(0)
@@ -364,7 +362,7 @@ MemType::MemType(World& world)
  * arity
  */
 
-const Def* Def  ::arity() const { return is_value() ? type()->arity() : world().lit_arity_1(); }
+const Def* Def  ::arity() const { return is_term() ? type()->arity() : world().lit_arity_1(); }
 const Def* Sigma::arity() const { return world().lit_arity(num_ops()); }
 u64 Def::lit_arity() const { return as_lit<u64>(arity()); }
 

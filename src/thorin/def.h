@@ -46,23 +46,17 @@ typedef std::vector<Lam*> Lams;
 
 using Name = std::variant<const char*, std::string, const Def*>;
 
-class Dbg {
-public:
-    Dbg(Debug debug)
-        : loc(debug.loc())
-        , name(debug.name())
+struct Dbg {
+    Dbg(Name name, Name filename, uint64_t front_line, uint64_t front_row, uint64_t back_line, uint64_t back_row)
+        : data(std::make_tuple(name, filename, front_line, front_row, back_line, back_row))
     {}
-    Dbg(Loc loc = {}, Name name = (const Def*) nullptr)
-        : loc(loc)
-        , name(name)
-    {}
-    Dbg(Name name)
-        : loc()
-        , name(name)
+    Dbg(const Def* def = nullptr)
+        : data(def)
     {}
 
-    Loc loc;
-    Name name;
+    auto& operator*() { return data; }
+
+    std::variant<std::tuple<Name, Name, u64, u64, u64, u64>, const Def*> data;
 };
 
 //------------------------------------------------------------------------------
@@ -129,9 +123,9 @@ private:
 
 protected:
     /// Constructor for a @em structural Def.
-    Def(NodeTag tag, RebuildFn rebuild, const Def* type, Defs ops, Debug dbg);
+    Def(NodeTag tag, RebuildFn rebuild, const Def* type, Defs ops, const Def* dbg);
     /// Constructor for a @em nominal Def.
-    Def(NodeTag tag, StubFn stub, const Def* type, size_t num_ops, Debug dbg);
+    Def(NodeTag tag, StubFn stub, const Def* type, size_t num_ops, const Def* dbg);
     virtual ~Def() {}
 
 public:
@@ -179,13 +173,18 @@ public:
     //@}
     /// @name Debug
     //@{
-    const Debug& debug() const { return debug_; }
-    Loc loc() const { return debug_; }
-    const Def* name() const { return debug().name(); }
+    const Def* debug() const { return debug_; }
+    /// In Debug build if World::enable_history is true, this thing keeps the gid to track a history of gid%s.
+    const Def* debug_history() const;
+    std::string name() const;
     /// name + "_" + gid
     std::string unique_name() const;
-    /// In Debug build if World::enable_history is true, this thing keeps the gid to track a history of gid%s.
-    Debug debug_history() const;
+    const Def* loc() const { return debug_ ? debug_->out(1) : nullptr; }
+    std::string filename() const;
+    uint64_t front_line() const;
+    uint64_t front_row() const;
+    uint64_t back_line() const;
+    uint64_t back_row() const;
     //@}
     /// @name cast for nominals
     //@{
@@ -258,7 +257,7 @@ protected:
     uint32_t num_ops_;
     mutable const Def* substitute_ = nullptr;
     mutable Uses uses_;
-    Debug debug_;
+    const Def* debug_;
     uint64_t hash_;
 
     friend class Cleaner;
@@ -291,13 +290,13 @@ public:
     friend class World;
 };
 
-typedef const Def* (*Normalizer)(const Def*, const Def*, Debug);
+typedef const Def* (*Normalizer)(const Def*, const Def*, const Def*);
 
 class Axiom : public Def {
 private:
     struct Extra { Normalizer normalizer_; };
 
-    Axiom(const Def* type, Normalizer normalizer, Debug dbg)
+    Axiom(const Def* type, Normalizer normalizer, const Def* dbg)
         : Def(Node_Axiom, stub, type, 0, dbg)
     {
         extra<Extra>().normalizer_ = normalizer;
@@ -313,7 +312,7 @@ public:
 
 class BotTop : public Def {
 private:
-    BotTop(bool is_top, const Def* type, Debug dbg)
+    BotTop(bool is_top, const Def* type, const Def* dbg)
         : Def(is_top ? Node_Top : Node_Bot, rebuild, type, Defs{}, dbg)
     {}
 
@@ -328,7 +327,7 @@ class Lit : public Def {
 private:
     struct Extra { Box box_; };
 
-    Lit(const Def* type, Box box, Debug dbg)
+    Lit(const Def* type, Box box, const Def* dbg)
         : Def(Node_Lit, rebuild, type, Defs{}, dbg)
     {
         extra<Extra>().box_ = box;
@@ -354,7 +353,7 @@ template<class T> T as_lit(const Def* def) { return def->as<Lit>()->box().get<T>
 
 class Pi : public Def {
 protected:
-    Pi(const Def* type, const Def* domain, const Def* codomain, Debug dbg)
+    Pi(const Def* type, const Def* domain, const Def* codomain, const Def* dbg)
         : Def(Node_Pi, rebuild, type, {domain, codomain}, dbg)
     {}
 
@@ -378,7 +377,7 @@ public:
 
 class App : public Def {
 private:
-    App(const Def* type, const Def* callee, const Def* arg, Debug dbg);
+    App(const Def* type, const Def* callee, const Def* arg, const Def* dbg);
 
 public:
     const Def* callee() const { return op(0); }
@@ -432,13 +431,13 @@ private:
         Intrinsic intrinsic_;
     };
 
-    Lam(const Pi* pi, const Def* filter, const Def* body, Debug dbg)
+    Lam(const Pi* pi, const Def* filter, const Def* body, const Def* dbg)
         : Def(Node_Lam, rebuild, pi, {filter, body}, dbg)
     {
         extra<Extra>().cc_ = CC::C;
         extra<Extra>().intrinsic_ = Intrinsic::None;
     }
-    Lam(const Pi* pi, CC cc, Intrinsic intrinsic, Debug dbg)
+    Lam(const Pi* pi, CC cc, Intrinsic intrinsic, const Def* dbg)
         : Def(Node_Lam, stub, pi, 2, dbg)
     {
         extra<Extra>().cc_ = cc;
@@ -521,7 +520,7 @@ using Lam2Lam = LamMap<Lam*>;
 
 class Param : public Def {
 private:
-    Param(const Def* type, const Lam* lam, Debug dbg)
+    Param(const Def* type, const Lam* lam, const Def* dbg)
         : Def(Node_Param, rebuild, type, Defs{lam}, dbg)
     {
         assert(lam->isa_nominal<Lam>());
@@ -565,10 +564,10 @@ private:
 
 class Sigma : public Def {
 private:
-    Sigma(const Def* type, Defs ops, Debug dbg)
+    Sigma(const Def* type, Defs ops, const Def* dbg)
         : Def(Node_Sigma, rebuild, type, ops, dbg)
     {}
-    Sigma(const Def* type, size_t size, Debug dbg)
+    Sigma(const Def* type, size_t size, const Def* dbg)
         : Def(Node_Sigma, stub, type, size, dbg)
     {}
 
@@ -584,7 +583,7 @@ public:
 /// Data constructor for a @p Sigma.
 class Tuple : public Def {
 private:
-    Tuple(const Def* type, Defs args, Debug dbg)
+    Tuple(const Def* type, Defs args, const Def* dbg)
         : Def(Node_Tuple, rebuild, type, args, dbg)
     {}
 
@@ -597,7 +596,7 @@ public:
 
 class Variadic : public Def {
 private:
-    Variadic(const Def* type, const Def* arity, const Def* body, Debug dbg)
+    Variadic(const Def* type, const Def* arity, const Def* body, const Def* dbg)
         : Def(Node_Variadic, rebuild, type, {arity, body}, dbg)
     {}
 
@@ -612,7 +611,7 @@ public:
 
 class Pack : public Def {
 private:
-    Pack(const Def* type, const Def* body, Debug dbg)
+    Pack(const Def* type, const Def* body, const Def* dbg)
         : Def(Node_Pack, rebuild, type, {body}, dbg)
     {}
 
@@ -627,7 +626,7 @@ public:
 /// Base class for functional @p Insert and @p Extract.
 class AggOp : public Def {
 protected:
-    AggOp(NodeTag tag, RebuildFn rebuild, const Def* type, Defs args, Debug dbg)
+    AggOp(NodeTag tag, RebuildFn rebuild, const Def* type, Defs args, const Def* dbg)
         : Def(tag, rebuild, type, args, dbg)
     {}
 
@@ -641,7 +640,7 @@ public:
 /// Extracts from aggregate <tt>agg</tt> the element at position <tt>index</tt>.
 class Extract : public AggOp {
 private:
-    Extract(const Def* type, const Def* agg, const Def* index, Debug dbg)
+    Extract(const Def* type, const Def* agg, const Def* index, const Def* dbg)
         : AggOp(Node_Extract, rebuild, type, {agg, index}, dbg)
     {}
 
@@ -658,7 +657,7 @@ private:
  */
 class Insert : public AggOp {
 private:
-    Insert(const Def* agg, const Def* index, const Def* val, Debug dbg)
+    Insert(const Def* agg, const Def* index, const Def* val, const Def* dbg)
         : AggOp(Node_Insert, rebuild, agg->type(), {agg, index, val}, dbg)
     {}
 
@@ -673,7 +672,7 @@ public:
 /// The type of a variant (structurally typed).
 class VariantType : public Def {
 private:
-    VariantType(const Def* type, Defs ops, Debug dbg)
+    VariantType(const Def* type, Defs ops, const Def* dbg)
         : Def(Node_VariantType, rebuild, type, ops, dbg)
     {
         assert(std::adjacent_find(ops.begin(), ops.end()) == ops.end());
@@ -725,7 +724,7 @@ class PtrType : public Def {
 private:
     struct Extra { AddrSpace addr_space_; }; // TODO make this a proper op
 
-    PtrType(const Def* type, const Def* pointee, AddrSpace addr_space, Debug dbg)
+    PtrType(const Def* type, const Def* pointee, AddrSpace addr_space, const Def* dbg)
         : Def(Node_PtrType, rebuild, type, {pointee}, dbg)
     {
         extra<Extra>().addr_space_ = addr_space;
@@ -747,7 +746,7 @@ class Analyze : public Def {
 private:
     struct Extra { u64 index_; };
 
-    Analyze(const Def* type, Defs ops, u64 index, Debug dbg)
+    Analyze(const Def* type, Defs ops, u64 index, const Def* dbg)
         : Def(Node_Analyze, rebuild, type, ops, dbg)
     {
         extra<Extra>().index_ = index;

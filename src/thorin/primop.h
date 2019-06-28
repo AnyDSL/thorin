@@ -12,7 +12,7 @@ namespace thorin {
 /// Base class for all @p PrimOp%s.
 class PrimOp : public Def {
 protected:
-    PrimOp(NodeTag tag, RebuildFn rebuild, const Def* type, Defs ops, Debug dbg)
+    PrimOp(NodeTag tag, RebuildFn rebuild, const Def* type, Defs ops, const Def* dbg)
         : Def(tag, rebuild, type, ops, dbg)
     {}
 
@@ -29,7 +29,7 @@ public:
 /// Akin to <tt>cond ? tval : fval</tt>.
 class Select : public PrimOp {
 private:
-    Select(const Def* cond, const Def* tval, const Def* fval, Debug dbg)
+    Select(const Def* cond, const Def* tval, const Def* fval, const Def* dbg)
         : PrimOp(Node_Select, rebuild, tval->type(), {cond, tval, fval}, dbg)
     {
         assert(is_type_bool(cond->type()));
@@ -48,7 +48,7 @@ public:
 /// Get number of bytes needed for any value (including bottom) of a given @p Type.
 class SizeOf : public PrimOp {
 private:
-    SizeOf(const Def* def, Debug dbg);
+    SizeOf(const Def* def, const Def* dbg);
 
 public:
     const Def* of() const { return op(0)->type(); }
@@ -60,7 +60,7 @@ public:
 /// Base class for all side-effect free binary \p PrimOp%s.
 class BinOp : public PrimOp {
 protected:
-    BinOp(NodeTag tag, RebuildFn rebuild, const Def* type, const Def* lhs, const Def* rhs, Debug dbg)
+    BinOp(NodeTag tag, RebuildFn rebuild, const Def* type, const Def* lhs, const Def* rhs, const Def* dbg)
         : PrimOp(tag, rebuild, type, {lhs, rhs}, dbg)
     {
         assert(lhs->type() == rhs->type() && "types are not equal");
@@ -74,7 +74,7 @@ public:
 /// One of \p ArithOpTag arithmetic operation.
 class ArithOp : public BinOp {
 private:
-    ArithOp(ArithOpTag tag, const Def* lhs, const Def* rhs, Debug dbg)
+    ArithOp(ArithOpTag tag, const Def* lhs, const Def* rhs, const Def* dbg)
         : BinOp((NodeTag) tag, rebuild, lhs->type(), lhs, rhs, dbg)
     {
         // TODO remove this and make div/rem proper nodes *with* side-effects
@@ -94,7 +94,7 @@ public:
 /// One of \p CmpTag compare.
 class Cmp : public BinOp {
 private:
-    Cmp(CmpTag tag, const Def* lhs, const Def* rhs, Debug dbg);
+    Cmp(CmpTag tag, const Def* lhs, const Def* rhs, const Def* dbg);
 
 public:
     const PrimType* type() const { return BinOp::type()->as<PrimType>(); }
@@ -108,7 +108,7 @@ public:
 /// Base class for @p Bitcast and @p Cast.
 class ConvOp : public PrimOp {
 protected:
-    ConvOp(NodeTag tag, RebuildFn rebuild, const Def* from, const Def* to, Debug dbg)
+    ConvOp(NodeTag tag, RebuildFn rebuild, const Def* from, const Def* to, const Def* dbg)
         : PrimOp(tag, rebuild, to, {from}, dbg)
     {}
 
@@ -119,7 +119,7 @@ public:
 /// Converts <tt>from</tt> to type <tt>to</tt>.
 class Cast : public ConvOp {
 private:
-    Cast(const Def* to, const Def* from, Debug dbg)
+    Cast(const Def* to, const Def* from, const Def* dbg)
         : ConvOp(Node_Cast, rebuild, from, to, dbg)
     {}
 
@@ -132,7 +132,7 @@ public:
 /// Reinterprets the bits of <tt>from</tt> as type <tt>to</tt>.
 class Bitcast : public ConvOp {
 private:
-    Bitcast(const Def* to, const Def* from, Debug dbg)
+    Bitcast(const Def* to, const Def* from, const Def* dbg)
         : ConvOp(Node_Bitcast, rebuild, from, to, dbg)
     {}
 
@@ -145,7 +145,7 @@ public:
 /// Data constructor for a @p VariantType.
 class Variant : public PrimOp {
 private:
-    Variant(const VariantType* variant_type, const Def* value, Debug dbg)
+    Variant(const VariantType* variant_type, const Def* value, const Def* dbg)
         : PrimOp(Node_Variant, rebuild, variant_type, {value}, dbg)
     {
         assert(std::find(variant_type->ops().begin(), variant_type->ops().end(), value->type()) != variant_type->ops().end());
@@ -166,7 +166,7 @@ public:
  */
 class LEA : public PrimOp {
 private:
-    LEA(const Def* type, const Def* ptr, const Def* index, Debug dbg)
+    LEA(const Def* type, const Def* ptr, const Def* index, const Def* dbg)
         : PrimOp(Node_LEA, rebuild, type, {ptr, index}, dbg)
     {}
 
@@ -184,7 +184,7 @@ public:
 /// Casts the underlying @p def to a dynamic value during @p partial_evaluation.
 class Hlt : public PrimOp {
 private:
-    Hlt(const Def* def, Debug dbg)
+    Hlt(const Def* def, const Def* dbg)
         : PrimOp(Node_Hlt, rebuild, def->type(), {def}, dbg)
     {}
 
@@ -198,7 +198,7 @@ public:
 /// Evaluates to @c true, if @p def is a literal.
 class Known : public PrimOp {
 private:
-    Known(const Def* def, Debug dbg);
+    Known(const Def* def, const Def* dbg);
 
 public:
     const Def* def() const { return op(0); }
@@ -213,7 +213,7 @@ public:
  */
 class Run : public PrimOp {
 private:
-    Run(const Def* def, Debug dbg)
+    Run(const Def* def, const Def* dbg)
         : PrimOp(Node_Run, rebuild, def->type(), {def}, dbg)
     {}
 
@@ -232,7 +232,7 @@ class Global : public PrimOp {
 private:
     struct Extra { bool is_mutable_; }; // TODO remove
 
-    Global(const Def* type, const Def* init, bool is_mutable, Debug dbg)
+    Global(const Def* type, const Def* init, bool is_mutable, const Def* dbg)
         : PrimOp(Node_Global, rebuild, type, {init}, dbg)
     {
         extra<Extra>().is_mutable_ = is_mutable;
@@ -256,7 +256,7 @@ public:
 /// Base class for all \p PrimOp%s taking and producing side-effects.
 class MemOp : public PrimOp {
 protected:
-    MemOp(NodeTag tag, RebuildFn rebuild, const Def* type, Defs args, Debug dbg)
+    MemOp(NodeTag tag, RebuildFn rebuild, const Def* type, Defs args, const Def* dbg)
         : PrimOp(tag, rebuild, type, args, dbg)
     {
         assert(mem()->type()->isa<MemType>());
@@ -271,7 +271,7 @@ public:
 /// Allocates memory on the heap.
 class Alloc : public MemOp {
 private:
-    Alloc(const Def* type, const Def* mem, Debug dbg)
+    Alloc(const Def* type, const Def* mem, const Def* dbg)
         : MemOp(Node_Alloc, rebuild, type, {mem}, dbg)
     {}
 
@@ -289,7 +289,7 @@ public:
 /// TODO eventually substitute with Alloc
 class Slot : public MemOp {
 private:
-    Slot(const Def* type, const Def* mem, Debug dbg)
+    Slot(const Def* type, const Def* mem, const Def* dbg)
         : MemOp(Node_Slot, rebuild, type, {mem}, dbg)
     {}
 
@@ -306,7 +306,7 @@ public:
 /// Base class for @p Load and @p Store.
 class Access : public MemOp {
 protected:
-    Access(NodeTag tag, RebuildFn rebuild, const Def* type, Defs args, Debug dbg)
+    Access(NodeTag tag, RebuildFn rebuild, const Def* type, Defs args, const Def* dbg)
         : MemOp(tag, rebuild, type, args, dbg)
     {
         assert(args.size() >= 2);
@@ -319,7 +319,7 @@ public:
 /// Loads with current effect <tt>mem</tt> from <tt>ptr</tt> to produce a pair of a new effect and the loaded value.
 class Load : public Access {
 private:
-    Load(const Def* type, const Def* mem, const Def* ptr, Debug dbg)
+    Load(const Def* type, const Def* mem, const Def* ptr, const Def* dbg)
         : Access(Node_Load, rebuild, type, {mem, ptr}, dbg)
     {}
 
@@ -335,7 +335,7 @@ public:
 /// Stores with current effect <tt>mem</tt> <tt>value</tt> into <tt>ptr</tt> while producing a new effect.
 class Store : public Access {
 private:
-    Store(const Def* mem, const Def* ptr, const Def* value, Debug dbg)
+    Store(const Def* mem, const Def* ptr, const Def* value, const Def* dbg)
         : Access(Node_Store, rebuild, mem->type(), {mem, ptr, value}, dbg)
     {}
 
@@ -364,7 +364,7 @@ public:
 
 private:
     Assembly(const Def *type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints,
-             ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Flags flags, Debug dbg);
+             ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Flags flags, const Def* dbg);
     ~Assembly() override;
 
 public:

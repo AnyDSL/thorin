@@ -19,6 +19,7 @@ namespace thorin {
 const Def* Def::out(size_t i, Dbg dbg) const { return world().extract(this, i, dbg); }
 size_t Def::num_outs() const { return as_lit<u64>(arity()); }
 
+#if 0
 Debug Def::debug_history() const {
 #if THORIN_ENABLE_CHECKS
     return world().track_history() ? Debug(loc(), world().tuple_str(unique_name())) : debug();
@@ -26,6 +27,13 @@ Debug Def::debug_history() const {
     return debug();
 #endif
 }
+#endif
+
+std::string Def::name() const { return debug_ ? tuple2str(debug_->out(0)) : std::string{}; }
+uint64_t Def::front_line() const { return loc() ? as_lit<u64>(loc()->out(1)) : std::numeric_limits<uint64_t>::max(); }
+uint64_t Def::front_row() const  { return loc() ? as_lit<u64>(loc()->out(2)) : std::numeric_limits<uint64_t>::max(); }
+uint64_t Def::back_line() const  { return loc() ? as_lit<u64>(loc()->out(3)) : std::numeric_limits<uint64_t>::max(); }
+uint64_t Def::back_row() const   { return loc() ? as_lit<u64>(loc()->out(4)) : std::numeric_limits<uint64_t>::max(); }
 
 void Def::finalize() {
     for (size_t i = 0, e = num_ops(); i != e; ++i) {
@@ -388,31 +396,31 @@ bool PtrType::equal(const Def* other) const { return Def::equal(other) && this->
  * rebuild
  */
 
-const Def* Lam        ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* n) { assert(!d->isa_nominal()); return w.lam(t->as<Pi>(), o[0], o[1], {d->debug().loc(), n}); }
-const Def* Sigma      ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* n) { assert(!d->isa_nominal()); return w.sigma(t, o, {d->debug().loc(), n}); }
-const Def* Analyze    ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* n) { return w.analyze(t, o, d->as<Analyze>()->index(), {d->debug().loc(), n}); }
-const Def* App        ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def* n) { return w.app(o[0], o[1], {d->debug().loc(), n}); }
-const Def* BotTop     ::rebuild(const Def* d, World& w, const Def* t, Defs  , const Def* n) { return w.bot_top(is_top(d), t, {d->debug().loc(), n}); }
-const Def* Extract    ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def* n) { return w.extract(o[0], o[1], {d->debug().loc(), n}); }
-const Def* Insert     ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def* n) { return w.insert(o[0], o[1], o[2], {d->debug().loc(), n}); }
-const Def* Kind       ::rebuild(const Def* d, World& w, const Def*  , Defs  , const Def*  ) { return w.kind(d->as<Kind>()->tag()); }
-const Def* Lit        ::rebuild(const Def* d, World& w, const Def* t, Defs  , const Def* n) { return w.lit(t, d->as<Lit>()->box(), {d->debug().loc(), n}); }
-const Def* MemType    ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*  ) { return w.mem_type(); }
-const Def* Pack       ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* n) { return w.pack(t->arity(), o[0], {d->debug().loc(), n}); }
-const Def* Param      ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def* n) { return w.param(o[0]->as_nominal<Lam>(), {d->debug().loc(), n}); }
-const Def* Pi         ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def* n) { return w.pi(o[0], o[1], {d->debug().loc(), n}); }
-const Def* PrimType   ::rebuild(const Def* d, World& w, const Def*  , Defs  , const Def*  ) { return w.type(d->as<PrimType>()->primtype_tag()); }
-const Def* PtrType    ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def*  ) { return w.ptr_type(o[0], d->as<PtrType>()->addr_space()); }
-const Def* Tuple      ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* n) { return w.tuple(t, o, {d->debug().loc(), n}); }
-const Def* Variadic   ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def* n) { return w.variadic(o[0], o[1], {d->debug().loc(), n}); }
-const Def* VariantType::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def* n) { return w.variant_type(o, {d->debug().loc(), n}); }
+const Def* Lam        ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* dbg) { assert(!d->isa_nominal()); return w.lam(t->as<Pi>(), o[0], o[1], dbg); }
+const Def* Sigma      ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* dbg) { assert(!d->isa_nominal()); return w.sigma(t, o, dbg); }
+const Def* Analyze    ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* dbg) { return w.analyze(t, o, d->as<Analyze>()->index(), dbg); }
+const Def* App        ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def* dbg) { return w.app(o[0], o[1], dbg); }
+const Def* BotTop     ::rebuild(const Def* d, World& w, const Def* t, Defs  , const Def* dbg) { return w.bot_top(is_top(d), t, dbg); }
+const Def* Extract    ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def* dbg) { return w.extract(o[0], o[1], dbg); }
+const Def* Insert     ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def* dbg) { return w.insert(o[0], o[1], o[2], dbg); }
+const Def* Kind       ::rebuild(const Def* d, World& w, const Def*  , Defs  , const Def* dbg) { return w.kind(d->as<Kind>()->tag()); }
+const Def* Lit        ::rebuild(const Def* d, World& w, const Def* t, Defs  , const Def* dbg) { return w.lit(t, d->as<Lit>()->box(), dbg); }
+const Def* MemType    ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def* dbg) { return w.mem_type(); }
+const Def* Pack       ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* dbg) { return w.pack(t->arity(), o[0], dbg); }
+const Def* Param      ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def* dbg) { return w.param(o[0]->as_nominal<Lam>(), dbg); }
+const Def* Pi         ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def* dbg) { return w.pi(o[0], o[1], dbg); }
+const Def* PrimType   ::rebuild(const Def* d, World& w, const Def*  , Defs  , const Def* dbg) { return w.type(d->as<PrimType>()->primtype_tag()); }
+const Def* PtrType    ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def* dbg) { return w.ptr_type(o[0], d->as<PtrType>()->addr_space()); }
+const Def* Tuple      ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* dbg) { return w.tuple(t, o, dbg); }
+const Def* Variadic   ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def* dbg) { return w.variadic(o[0], o[1], dbg); }
+const Def* VariantType::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def* dbg) { return w.variant_type(o, dbg); }
 
 /*
  * stub
  */
 
-Def* Lam     ::stub(const Def* d, World& to, const Def* t, const Def* n) { assert(d->isa_nominal()); return to.lam(t->as<Pi>(), d->as<Lam>()->cc(), d->as<Lam>()->intrinsic(), {d->debug().loc(), n}); }
-Def* Sigma   ::stub(const Def* d, World& to, const Def* t, const Def* n) { assert(d->isa_nominal()); return to.sigma(t, d->num_ops(), {d->debug().loc(), n}); }
+Def* Lam     ::stub(const Def* d, World& to, const Def* t, const Def* n) { assert(d->isa_nominal()); return to.lam(t->as<Pi>(), d->as<Lam>()->cc(), d->as<Lam>()->intrinsic(), dbg); }
+Def* Sigma   ::stub(const Def* d, World& to, const Def* t, const Def* n) { assert(d->isa_nominal()); return to.sigma(t, d->num_ops(), dbg); }
 Def* Universe::stub(const Def*  , World& to, const Def*  , const Def*  ) { return const_cast<Universe*>(to.universe()); }
 
 /*

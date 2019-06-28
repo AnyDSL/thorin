@@ -358,12 +358,23 @@ public:
 
 private:
     /// @name helpers for optional/variant arguments
+    const Def* name2def(Name n) {
+        if (auto s = std::get_if<const char*>(&n)) return tuple_str(*s);
+        if (auto s = std::get_if<std::string>(&n)) return tuple_str(s->c_str());
+        return std::get<const Def*>(n);
+    }
     //@{
-    Debug debug(Dbg dbg) {
-        if (std::holds_alternative<const char*>(dbg.name)) return Debug(dbg.loc, tuple_str(std::get<const char*>(dbg.name)));
-        if (std::holds_alternative<std::string>(dbg.name)) return Debug(dbg.loc, tuple_str(std::get<std::string>(dbg.name).c_str()));
-        if (std::holds_alternative<const Def* >(dbg.name)) return Debug(dbg.loc, std::get<const Def*>(dbg.name));
-        THORIN_UNREACHABLE;
+    const Def* debug(Dbg dbg) {
+        if (auto d  = std::get_if<0>(&*dbg)) {
+            auto n  = name2def(std::get<0>(*d));
+            auto f  = name2def(std::get<1>(*d));
+            auto fl = lit_pu64(std::get<2>(*d));
+            auto fr = lit_pu64(std::get<3>(*d));
+            auto bl = lit_pu64(std::get<4>(*d));
+            auto br = lit_pu64(std::get<5>(*d));
+            return tuple({n, f, fl, fr, bl, br});
+        }
+        return std::get<const Def*>(*dbg);
     }
     //const Def* filter(Filter f) { return f ? *f : lit_false(); }
     //@}

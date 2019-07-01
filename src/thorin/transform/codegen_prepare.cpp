@@ -30,7 +30,7 @@ static bool replace_param(const Def* param, const Def* replace_with) {
             auto& world = use->world();
             Array<const Def*> new_ops(use->ops());
             new_ops[use.index()] = replace_with;
-            dirty |= replace_param(use, use->rebuild(world, use->type(), new_ops, use->name()));
+            dirty |= replace_param(use, use->rebuild(world, use->type(), new_ops, use->debug()));
         }
     }
     return dirty;

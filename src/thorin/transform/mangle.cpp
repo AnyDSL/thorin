@@ -75,11 +75,11 @@ const Def* Mangler::mangle(const Def* old_def) {
     if (!within(old_def)) return old_def;
 
     auto new_type = mangle(old_def->type());
-    auto new_name = old_def->name() ? mangle(old_def->name()) : nullptr;
+    auto new_debug = old_def->debug() ? mangle(old_def->debug()) : nullptr;
 
     const Def* new_def = nullptr;
     if (auto old_nom = old_def->isa_nominal()) {
-        new_def = old_nom->stub(world(), new_type, new_name);
+        new_def = old_nom->stub(world(), new_type, new_debug);
         old2new_[old_def] = new_def;
     }
 
@@ -124,7 +124,7 @@ const Def* Mangler::mangle(const Def* old_def) {
             }
         }
 
-        new_def = old_def->rebuild(world(), new_type, new_ops, new_name);
+        new_def = old_def->rebuild(world(), new_type, new_ops, new_debug);
         old2new_[old_def] = new_def;
     }
 

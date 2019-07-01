@@ -77,7 +77,7 @@ void Def::unset(size_t i) {
 
 std::string Def::unique_name() const {
     std::ostringstream oss;
-    if (name()) oss << name();
+    if (!name().empty()) oss << name();
     oss <<  '_' << gid();
     return oss.str();
 }
@@ -224,7 +224,7 @@ bool Lam::is_intrinsic() const { return intrinsic() != Intrinsic::None; }
 bool Lam::is_accelerator() const { return Intrinsic::_Accelerator_Begin <= intrinsic() && intrinsic() < Intrinsic::_Accelerator_End; }
 void Lam::set_intrinsic() {
     // TODO this is slow and inelegant - but we want to remove this code anyway
-    auto n = tuple2str(name());
+    auto n = name();
     if      (n == "cuda")                 extra<Extra>().intrinsic_ = Intrinsic::CUDA;
     else if (n == "nvvm")                 extra<Extra>().intrinsic_ = Intrinsic::NVVM;
     else if (n == "opencl")               extra<Extra>().intrinsic_ = Intrinsic::OpenCL;
@@ -316,7 +316,7 @@ bool Pi::is_returning() const {
  * constructors
  */
 
-Def::Def(NodeTag tag, RebuildFn rebuild, const Def* type, Defs ops, Debug dbg)
+Def::Def(NodeTag tag, RebuildFn rebuild, const Def* type, Defs ops, const Def* dbg)
     : type_(type)
     , rebuild_(rebuild)
     , tag_((unsigned)tag)
@@ -333,7 +333,7 @@ Def::Def(NodeTag tag, RebuildFn rebuild, const Def* type, Defs ops, Debug dbg)
         hash_ = hash_combine(hash_, op->gid());
 }
 
-Def::Def(NodeTag tag, StubFn stub, const Def* type, size_t num_ops, Debug dbg)
+Def::Def(NodeTag tag, StubFn stub, const Def* type, size_t num_ops, const Def* dbg)
     : type_(type)
     , stub_(stub)
     , tag_(tag)
@@ -348,7 +348,7 @@ Def::Def(NodeTag tag, StubFn stub, const Def* type, size_t num_ops, Debug dbg)
     std::fill_n(ops_ptr(), num_ops, nullptr);
 }
 
-App::App(const Def* type, const Def* callee, const Def* arg, Debug dbg)
+App::App(const Def* type, const Def* callee, const Def* arg, const Def* dbg)
     : Def(Node_App, rebuild, type, {callee, arg}, dbg)
 {
     //if (is_bot(type)) hash_ = murmur3(gid());
@@ -399,29 +399,29 @@ bool PtrType::equal(const Def* other) const { return Def::equal(other) && this->
 const Def* Lam        ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* dbg) { assert(!d->isa_nominal()); return w.lam(t->as<Pi>(), o[0], o[1], dbg); }
 const Def* Sigma      ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* dbg) { assert(!d->isa_nominal()); return w.sigma(t, o, dbg); }
 const Def* Analyze    ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* dbg) { return w.analyze(t, o, d->as<Analyze>()->index(), dbg); }
-const Def* App        ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def* dbg) { return w.app(o[0], o[1], dbg); }
+const Def* App        ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.app(o[0], o[1], dbg); }
 const Def* BotTop     ::rebuild(const Def* d, World& w, const Def* t, Defs  , const Def* dbg) { return w.bot_top(is_top(d), t, dbg); }
-const Def* Extract    ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def* dbg) { return w.extract(o[0], o[1], dbg); }
-const Def* Insert     ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def* dbg) { return w.insert(o[0], o[1], o[2], dbg); }
-const Def* Kind       ::rebuild(const Def* d, World& w, const Def*  , Defs  , const Def* dbg) { return w.kind(d->as<Kind>()->tag()); }
+const Def* Extract    ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.extract(o[0], o[1], dbg); }
+const Def* Insert     ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.insert(o[0], o[1], o[2], dbg); }
+const Def* Kind       ::rebuild(const Def* d, World& w, const Def*  , Defs  , const Def*    ) { return w.kind(d->as<Kind>()->tag()); }
 const Def* Lit        ::rebuild(const Def* d, World& w, const Def* t, Defs  , const Def* dbg) { return w.lit(t, d->as<Lit>()->box(), dbg); }
-const Def* MemType    ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def* dbg) { return w.mem_type(); }
-const Def* Pack       ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* dbg) { return w.pack(t->arity(), o[0], dbg); }
-const Def* Param      ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def* dbg) { return w.param(o[0]->as_nominal<Lam>(), dbg); }
-const Def* Pi         ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def* dbg) { return w.pi(o[0], o[1], dbg); }
-const Def* PrimType   ::rebuild(const Def* d, World& w, const Def*  , Defs  , const Def* dbg) { return w.type(d->as<PrimType>()->primtype_tag()); }
-const Def* PtrType    ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def* dbg) { return w.ptr_type(o[0], d->as<PtrType>()->addr_space()); }
-const Def* Tuple      ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* dbg) { return w.tuple(t, o, dbg); }
-const Def* Variadic   ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def* dbg) { return w.variadic(o[0], o[1], dbg); }
-const Def* VariantType::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def* dbg) { return w.variant_type(o, dbg); }
+const Def* MemType    ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.mem_type(); }
+const Def* Pack       ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.pack(t->arity(), o[0], dbg); }
+const Def* Param      ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.param(o[0]->as_nominal<Lam>(), dbg); }
+const Def* Pi         ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.pi(o[0], o[1], dbg); }
+const Def* PrimType   ::rebuild(const Def* d, World& w, const Def*  , Defs  , const Def*    ) { return w.type(d->as<PrimType>()->primtype_tag()); }
+const Def* PtrType    ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def*    ) { return w.ptr_type(o[0], d->as<PtrType>()->addr_space()); }
+const Def* Tuple      ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.tuple(t, o, dbg); }
+const Def* Variadic   ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.variadic(o[0], o[1], dbg); }
+const Def* VariantType::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.variant_type(o, dbg); }
 
 /*
  * stub
  */
 
-Def* Lam     ::stub(const Def* d, World& to, const Def* t, const Def* n) { assert(d->isa_nominal()); return to.lam(t->as<Pi>(), d->as<Lam>()->cc(), d->as<Lam>()->intrinsic(), dbg); }
-Def* Sigma   ::stub(const Def* d, World& to, const Def* t, const Def* n) { assert(d->isa_nominal()); return to.sigma(t, d->num_ops(), dbg); }
-Def* Universe::stub(const Def*  , World& to, const Def*  , const Def*  ) { return const_cast<Universe*>(to.universe()); }
+Def* Lam     ::stub(const Def* d, World& to, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return to.lam(t->as<Pi>(), d->as<Lam>()->cc(), d->as<Lam>()->intrinsic(), dbg); }
+Def* Sigma   ::stub(const Def* d, World& to, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return to.sigma(t, d->num_ops(), dbg); }
+Def* Universe::stub(const Def*  , World& to, const Def*  , const Def*    ) { return const_cast<Universe*>(to.universe()); }
 
 /*
  * stream

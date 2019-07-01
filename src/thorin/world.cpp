@@ -34,10 +34,10 @@ World::World(uint32_t cur_gid, const std::string& name, Loc loc)
 #define THORIN_ALL_TYPE(T, M) \
     cache_.primtype_.T##_    = insert<PrimType>(0, *this, PrimType_##T);
 #include "thorin/tables/primtypetable.h"
-    cache_.bot_star_         = insert<BotTop>(0, false, kind_star(), Debug{});
-    cache_.top_arity_        = insert<BotTop>(0, true, kind_arity(), Debug{});
-    cache_.sigma_            = insert<Sigma>(0, kind_star(), Defs{}, Debug{})->as<Sigma>();
-    cache_.tuple_            = insert<Tuple>(0, sigma(), Defs{}, Debug{})->as<Tuple>();
+    cache_.bot_star_         = insert<BotTop>(0, false, kind_star(), nullptr);
+    cache_.top_arity_        = insert<BotTop>(0, true, kind_arity(), nullptr);
+    cache_.sigma_            = insert<Sigma>(0, kind_star(), Defs{}, nullptr)->as<Sigma>();
+    cache_.tuple_            = insert<Tuple>(0, sigma(), Defs{}, nullptr)->as<Tuple>();
     cache_.mem_              = insert<MemType>(0, *this);
     cache_.lit_arity_1_      = lit_arity(1);
     cache_.lit_index_0_1_    = lit_index(lit_arity_1(), 0);

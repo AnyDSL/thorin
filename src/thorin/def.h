@@ -47,6 +47,9 @@ typedef std::vector<Lam*> Lams;
 using Name = std::variant<const char*, std::string, const Def*>;
 
 struct Dbg {
+    Dbg(Name name)
+        : data(std::make_tuple(name, "", uint64_t(-1), uint64_t(-1), uint64_t(-1), uint64_t(-1)))
+    {}
     Dbg(Name name, Name filename, uint64_t front_line, uint64_t front_row, uint64_t back_line, uint64_t back_row)
         : data(std::make_tuple(name, filename, front_line, front_row, back_line, back_row))
     {}
@@ -212,13 +215,13 @@ public:
     //@}
     /// @name rebuild, stub, equal
     //@{
-    const Def* rebuild(World& world, const Def* type, Defs ops, const Def* name) const {
+    const Def* rebuild(World& world, const Def* type, Defs ops, const Def* dbg) const {
         assert(!isa_nominal());
-        return rebuild_(this, world, type, ops, name);
+        return rebuild_(this, world, type, ops, dbg);
     }
-    Def* stub(World& world, const Def* type, const Def* name) {
+    Def* stub(World& world, const Def* type, const Def* dbg) {
         assert(isa_nominal());
-        return stub_(this, world, type, name);
+        return stub_(this, world, type, dbg);
     }
     virtual bool equal(const Def* other) const;
     //@}

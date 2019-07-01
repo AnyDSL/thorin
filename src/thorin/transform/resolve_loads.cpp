@@ -109,7 +109,7 @@ public:
         return mapping[alloc] = world_.top(alloc->type()->as<PtrType>()->pointee(), alloc->debug());
     }
 
-    const Def* extract_from_slot(const Def* ptr, const Def* slot_value, Debug dbg) {
+    const Def* extract_from_slot(const Def* ptr, const Def* slot_value, const Def* dbg) {
         while (auto bitcast = ptr->isa<Bitcast>())
             ptr = bitcast->from();
         if (auto lea = ptr->isa<LEA>())

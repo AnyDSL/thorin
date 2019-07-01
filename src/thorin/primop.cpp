@@ -13,19 +13,19 @@ namespace thorin {
  * constructors
  */
 
-Cmp::Cmp(CmpTag tag, const Def* lhs, const Def* rhs, Debug dbg)
+Cmp::Cmp(CmpTag tag, const Def* lhs, const Def* rhs, const Def* dbg)
     : BinOp((NodeTag) tag, rebuild, lhs->world().type_bool(), lhs, rhs, dbg)
 {}
 
-Known::Known(const Def* def, Debug dbg)
+Known::Known(const Def* def, const Def* dbg)
     : PrimOp(Node_Known, rebuild, def->world().type_bool(), {def}, dbg)
 {}
 
-SizeOf::SizeOf(const Def* def, Debug dbg)
+SizeOf::SizeOf(const Def* def, const Def* dbg)
     : PrimOp(Node_SizeOf, rebuild, def->world().type_qs32(), {def}, dbg)
 {}
 
-Assembly::Assembly(const Def* type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Flags flags, Debug dbg)
+Assembly::Assembly(const Def* type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Flags flags, const Def* dbg)
     : MemOp(Node_Assembly, rebuild, type, inputs, dbg)
 {
     new (&extra<Extra>()) Extra();
@@ -46,22 +46,22 @@ Assembly::~Assembly() { (&extra<Extra>())->~Extra(); }
 
 // do not use any of PrimOp's type getters - during import we need to derive types from 't' in the new world 'to'
 
-const Def* Alloc  ::rebuild(const Def* d, World& to, const Def* t, Defs ops, const Def* dbg) { return to.alloc(t->as<Sigma>()->op(1)->as<PtrType>()->pointee(), ops[0], dbg); }
+const Def* Alloc  ::rebuild(const Def*  , World& to, const Def* t, Defs ops, const Def* dbg) { return to.alloc(t->as<Sigma>()->op(1)->as<PtrType>()->pointee(), ops[0], dbg); }
 const Def* ArithOp::rebuild(const Def* d, World& to, const Def*  , Defs ops, const Def* dbg) { return to.arithop(d->as<ArithOp>()->arithop_tag(), ops[0], ops[1], dbg); }
-const Def* Bitcast::rebuild(const Def* d, World& to, const Def* t, Defs ops, const Def* dbg) { return to.bitcast(t, ops[0], dbg); }
-const Def* Cast   ::rebuild(const Def* d, World& to, const Def* t, Defs ops, const Def* dbg) { return to.cast(t, ops[0], dbg); }
+const Def* Bitcast::rebuild(const Def*  , World& to, const Def* t, Defs ops, const Def* dbg) { return to.bitcast(t, ops[0], dbg); }
+const Def* Cast   ::rebuild(const Def*  , World& to, const Def* t, Defs ops, const Def* dbg) { return to.cast(t, ops[0], dbg); }
 const Def* Cmp    ::rebuild(const Def* d, World& to, const Def*  , Defs ops, const Def* dbg) { return to.cmp(d->as<Cmp>()->cmp_tag(), ops[0], ops[1], dbg); }
 const Def* Global ::rebuild(const Def* d, World& to, const Def*  , Defs ops, const Def* dbg) { return to.global(ops[0], d->as<Global>()->is_mutable(), dbg); }
-const Def* Hlt    ::rebuild(const Def* d, World& to, const Def*  , Defs ops, const Def* dbg) { return to.hlt(ops[0], dbg); }
-const Def* Known  ::rebuild(const Def* d, World& to, const Def*  , Defs ops, const Def* dbg) { return to.known(ops[0], dbg); }
-const Def* Run    ::rebuild(const Def* d, World& to, const Def*  , Defs ops, const Def* dbg) { return to.run(ops[0], dbg); }
-const Def* LEA    ::rebuild(const Def* d, World& to, const Def*  , Defs ops, const Def* dbg) { return to.lea(ops[0], ops[1], dbg); }
-const Def* Load   ::rebuild(const Def* d, World& to, const Def*  , Defs ops, const Def* dbg) { return to.load(ops[0], ops[1], dbg); }
-const Def* Select ::rebuild(const Def* d, World& to, const Def*  , Defs ops, const Def* dbg) { return to.select(ops[0], ops[1], ops[2], dbg); }
-const Def* SizeOf ::rebuild(const Def* d, World& to, const Def*  , Defs ops, const Def* dbg) { return to.size_of(ops[0]->type(), dbg); }
-const Def* Slot   ::rebuild(const Def* d, World& to, const Def* t, Defs ops, const Def* dbg) { return to.slot(t->as<Sigma>()->op(1)->as<PtrType>()->pointee(), ops[0], dbg); }
-const Def* Store  ::rebuild(const Def* d, World& to, const Def*  , Defs ops, const Def* dbg) { return to.store(ops[0], ops[1], ops[2], dbg); }
-const Def* Variant::rebuild(const Def* d, World& to, const Def* t, Defs ops, const Def* dbg) { return to.variant(t->as<VariantType>(), ops[0], dbg); }
+const Def* Hlt    ::rebuild(const Def*  , World& to, const Def*  , Defs ops, const Def* dbg) { return to.hlt(ops[0], dbg); }
+const Def* Known  ::rebuild(const Def*  , World& to, const Def*  , Defs ops, const Def* dbg) { return to.known(ops[0], dbg); }
+const Def* Run    ::rebuild(const Def*  , World& to, const Def*  , Defs ops, const Def* dbg) { return to.run(ops[0], dbg); }
+const Def* LEA    ::rebuild(const Def*  , World& to, const Def*  , Defs ops, const Def* dbg) { return to.lea(ops[0], ops[1], dbg); }
+const Def* Load   ::rebuild(const Def*  , World& to, const Def*  , Defs ops, const Def* dbg) { return to.load(ops[0], ops[1], dbg); }
+const Def* Select ::rebuild(const Def*  , World& to, const Def*  , Defs ops, const Def* dbg) { return to.select(ops[0], ops[1], ops[2], dbg); }
+const Def* SizeOf ::rebuild(const Def*  , World& to, const Def*  , Defs ops, const Def* dbg) { return to.size_of(ops[0]->type(), dbg); }
+const Def* Slot   ::rebuild(const Def*  , World& to, const Def* t, Defs ops, const Def* dbg) { return to.slot(t->as<Sigma>()->op(1)->as<PtrType>()->pointee(), ops[0], dbg); }
+const Def* Store  ::rebuild(const Def*  , World& to, const Def*  , Defs ops, const Def* dbg) { return to.store(ops[0], ops[1], ops[2], dbg); }
+const Def* Variant::rebuild(const Def*  , World& to, const Def* t, Defs ops, const Def* dbg) { return to.variant(t->as<VariantType>(), ops[0], dbg); }
 
 const Def* Assembly::rebuild(const Def* d, World& to, const Def* t, Defs ops, const Def* dbg) {
     auto asm_ = d->as<Assembly>();

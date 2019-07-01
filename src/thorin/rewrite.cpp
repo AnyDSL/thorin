@@ -19,13 +19,13 @@ const Def* Rewriter::rewrite(const Def* old_def) {
     if (scope != nullptr && (!scope->contains(old_def) || scope->entry() == old_def)) return old_def;
     // HACK the entry really shouldn't be part of the scope ^^^
 
-    auto new_type = rewrite(old_def->type());
-    auto new_name = old_def->name() ? rewrite(old_def->name()) : nullptr;
+    auto new_type  = rewrite(old_def->type());
+    auto new_debug = old_def->debug() ? rewrite(old_def->debug()) : nullptr;
 
     if (auto old_nom = old_def->isa_nominal())
-        return map(old_nom, old_nom->stub(new_world, new_type, new_name))->set(new_ops(old_nom));
+        return map(old_nom, old_nom->stub(new_world, new_type, new_debug))->set(new_ops(old_nom));
 
-    return map(old_def, old_def->rebuild(new_world, new_type, new_ops(old_def), new_name));
+    return map(old_def, old_def->rebuild(new_world, new_type, new_ops(old_def), new_debug));
 }
 
 const Def* rewrite(const Def* def, const Def* old_def, const Def* new_def) {

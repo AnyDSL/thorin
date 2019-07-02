@@ -15,7 +15,6 @@ enum class ChannelMode : uint8_t {
 };
 
 using Def2Mode = DefMap<ChannelMode>;
-using Kernel2Index = std::vector<std::pair<std::string, size_t>>;
 
 static void extract_kernel_channels(const Schedule& schedule, Def2Mode& def2mode) {
     for (const auto& block : schedule) {
@@ -54,25 +53,42 @@ bool is_channel_type(const Type* type) {
     return false;
 }
 
-void hls_annotate_top(World& world, Kernel2Index& kernel2index) {
-   // save the name and index of i/o parameters of old kernels
+void hls_annotate_top(World& world, const Top2Kernel& top2kernel, Cont2Config& cont2config) {
+    auto find_kernel_by_name = [&] (const std::string& name) {
+        auto it = std::find_if(world.externals().begin(), world.externals().end(), [&] (auto external) {
+            return external->name() == name;
+        });
+        return it != world.externals().end() ? *it : nullptr;
+    };
+    auto hls_top = find_kernel_by_name("hls_top");
+    assert(hls_top);
+    HLSKernelConfig::Param2Size param_sizes;
+    for (auto& tuple : top2kernel) {
+        auto& name = std::get<1>(tuple);
+        auto kernel = find_kernel_by_name(name);
+        auto param  = kernel->param(std::get<2>(tuple));
+        assert(kernel);
+        auto config = cont2config[kernel]->as<HLSKernelConfig>();
+        param_sizes[hls_top->param(std::get<0>(tuple))] = config->param_size(param);
+    }
+    cont2config.emplace(hls_top, std::make_unique<HLSKernelConfig>(param_sizes));
 }
 
-void hls_channels(World& world) {
+void hls_channels(World& world, Top2Kernel& top2kernel) {
     std::vector<Def2Mode> channels_map; // vector of channel->mode maps for each kernel
     std::vector<Continuation*> new_kernels;
     Def2Def param2arg; // contains map from new kernel parameter to arguments of call inside hls_top (for all kernels)
 
     Scope::for_each(world, [&] (Scope& scope) {
-        auto kernel = scope.entry();
+        auto old_kernel = scope.entry();
         Def2Mode def2mode;
         extract_kernel_channels(schedule(scope), def2mode);
 
-        Array<const Type*> new_param_types(def2mode.size() + kernel->num_params());
-        std::copy(kernel->type()->ops().begin(),
-                  kernel->type()->ops().end(),
+        Array<const Type*> new_param_types(def2mode.size() + old_kernel->num_params());
+        std::copy(old_kernel->type()->ops().begin(),
+                  old_kernel->type()->ops().end(),
                   new_param_types.begin());
-        size_t i = kernel->num_params();
+        size_t i = old_kernel->num_params();
         // This vector records pairs containing:
         // - The position of the channel parameter for the new kernel
         // - The old global definition for the channel
@@ -84,10 +100,11 @@ void hls_channels(World& world) {
 
         // new kernels signature
         // fn(mem, ret_cnt, ... , /channels/ )
-        auto new_kernel = world.continuation(world.fn_type(new_param_types), kernel->debug());
+        auto new_kernel = world.continuation(world.fn_type(new_param_types), old_kernel->debug());
         new_kernel->make_external();
         new_kernels.emplace_back(new_kernel);
-        kernel->make_internal();
+        //kernel2index.emplace_back(new_kernel->name().str(), 0);
+        old_kernel->make_internal();
 
         Rewriter rewriter;
         // Map the parameters of the old kernel to the first N parameters of the new one
@@ -101,7 +118,7 @@ void hls_channels(World& world) {
             if (auto cont = def->isa_continuation()) {
                 // Copy the basic block by calling stub
                 // Or reuse the newly created kernel copy if def is the old kernel
-                auto new_cont = def == kernel ? new_kernel : cont->stub();
+                auto new_cont = def == old_kernel ? new_kernel : cont->stub();
                 rewriter.old2new[cont] = new_cont;
                 for (size_t i = 0; i < cont->num_params(); ++i)
                     rewriter.old2new[cont->param(i)] = new_cont->param(i);
@@ -130,10 +147,11 @@ void hls_channels(World& world) {
     for (auto kernel : new_kernels) {
         for (size_t i = 0; i < kernel->num_params(); ++i) {
             auto param = kernel->param(i);
-            // If the parameter is not a channel, add it to the hls_top parameter list
+            // If the parameter is not a channel, save the details and add it to the hls_top parameter list
             if (!is_channel_type(param->type())) {
                 if (param != kernel->ret_param() && param != kernel->mem_param()) {
                     param_index.emplace_back(kernel, i, top_param_types.size());
+                    top2kernel.emplace_back(top_param_types.size(), kernel->name().str(), i);
                     top_param_types.emplace_back(param->type());
                 }
             }
@@ -145,9 +163,6 @@ void hls_channels(World& world) {
         // (non-channel params, top params as kernel call args)
         param2arg.emplace(std::get<0>(tuple)->param(std::get<1>(tuple)), hls_top->param(std::get<2>(tuple)));
     }
-
-
-    std::cout<< "kernel_count = " << channels_map.size() <<endl;
 
     auto enter   = world.enter(hls_top->mem_param());
     auto cur_mem = world.extract(enter, 0_s);
@@ -167,8 +182,6 @@ void hls_channels(World& world) {
             global2slot.emplace(global, channel_slots.back());
         }
     }
-
-    std::cout <<"channel_count = " << channel_slots.size() <<endl;
 
     auto cur_bb = hls_top;
     for (auto kernel : new_kernels) {
@@ -195,10 +208,9 @@ void hls_channels(World& world) {
         cur_mem = ret->mem_param();
     }
 
-
     hls_top->make_external();
 
-   // world.cleanup();
+    world.cleanup();
     world.dump();
 }
 

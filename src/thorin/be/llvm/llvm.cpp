@@ -1219,7 +1219,7 @@ llvm::Value* CodeGen::create_tmp_alloca(llvm::Type* type, std::function<llvm::Va
 }
 
 //------------------------------------------------------------------------------
-
+//Kernel2Index kernel2index;
 static void get_kernel_configs(Importer& importer,
     const std::vector<Continuation*>& kernels,
     Cont2Config& kernel_config,
@@ -1233,20 +1233,6 @@ static void get_kernel_configs(Importer& importer,
         for (auto external : externals) {
             if (external->name() == continuation->name())
                 imported = external;
-            if (external->name() == "hls_top") {
-                auto hls_top = external;
-                //auto callee = hls_top->callee()->as_continuation();
-                //callee->arg(1)->dump();
-                //importer.world().continuations().dump();
-                //hls_top->param(2);
-
-                HLSKernelConfig::Param2Size param_sizes;
-                for (size_t i = 0; i < hls_top->num_params(); ++i) {
-                    param_sizes.emplace(hls_top->param(i), 42);
-                }
-                auto config = std::make_unique<HLSKernelConfig>(param_sizes);
-                kernel_config.emplace(hls_top, std::move(config));
-            }
         }
         if (!imported) continue;
 
@@ -1364,23 +1350,9 @@ Backends::Backends(World& world)
     }
 
     // get the HLS kernel configurations
+    Top2Kernel top2kernel;
     if (!hls.world().empty()) {
-        hls_channels(hls.world());
-//        HLSKernelConfig::Param2Size param_sizes;
-//        for (auto external : hls.world().externals()) {
-//            if (external->name() == "hls_top") {
-//                auto hls_top = external;
-//                //auto callee = hls_top->callee()->as_continuation();
-//                //callee->arg(1)->dump();
-//                //hls.world().continuations().dump();
-//                //hls_top->param(2);
-//                for (size_t i = 0; i < hls_top->num_params(); ++i) {
-//                    param_sizes.emplace(hls_top->param(i), 42);
-//                }
-//                auto config = std::make_unique<HLSKernelConfig>(param_sizes);
-//                kernel_config.emplace(hls_top, std::move(config));
-//            }
-//        }
+        hls_channels(hls.world(), top2kernel);
         auto get_hls_config = [&] (Continuation* use, Continuation* imported) {
             HLSKernelConfig::Param2Size param_sizes;
             for (size_t i = 3, e = use->num_args(); i != e; ++i) {
@@ -1413,6 +1385,7 @@ Backends::Backends(World& world)
             return std::make_unique<HLSKernelConfig>(param_sizes);
         };
         get_kernel_configs(hls, kernels, kernel_config, get_hls_config);
+        hls_annotate_top(hls.world(), top2kernel, kernel_config);
     }
 
     world.cleanup();

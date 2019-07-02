@@ -47,11 +47,14 @@ typedef std::vector<Lam*> Lams;
 using Name = std::variant<const char*, std::string, const Def*>;
 
 struct Dbg {
-    Dbg(Name name)
-        : data(std::make_tuple(name, "", uint64_t(-1), uint64_t(-1), uint64_t(-1), uint64_t(-1)))
+    Dbg(Name name, Name filename, uint64_t front_line, uint64_t front_col, uint64_t back_line, uint64_t back_col)
+        : data(std::make_tuple(name, filename, front_line, front_col, back_line, back_col))
     {}
-    Dbg(Name name, Name filename, uint64_t front_line, uint64_t front_row, uint64_t back_line, uint64_t back_row)
-        : data(std::make_tuple(name, filename, front_line, front_row, back_line, back_row))
+    Dbg(Name filename, uint64_t front_line, uint64_t front_col, uint64_t back_line, uint64_t back_col)
+        : Dbg("", filename, front_line, front_col, back_line, back_col)
+    {}
+    Dbg(Name name)
+        : Dbg(name, "", uint64_t(-1), uint64_t(-1), uint64_t(-1), uint64_t(-1))
     {}
     Dbg(const Def* def = nullptr)
         : data(def)
@@ -182,12 +185,12 @@ public:
     std::string name() const;
     /// name + "_" + gid
     std::string unique_name() const;
-    const Def* loc() const { return debug_ ? debug_->out(1) : nullptr; }
     std::string filename() const;
     uint64_t front_line() const;
-    uint64_t front_row() const;
+    uint64_t front_col() const;
     uint64_t back_line() const;
-    uint64_t back_row() const;
+    uint64_t back_col() const;
+    std::string loc() const;
     //@}
     /// @name cast for nominals
     //@{

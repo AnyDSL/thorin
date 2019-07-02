@@ -369,10 +369,10 @@ private:
             auto n  = name2def(std::get<0>(*d));
             auto f  = name2def(std::get<1>(*d));
             auto fl = lit_pu64(std::get<2>(*d));
-            auto fr = lit_pu64(std::get<3>(*d));
+            auto fc = lit_pu64(std::get<3>(*d));
             auto bl = lit_pu64(std::get<4>(*d));
-            auto br = lit_pu64(std::get<5>(*d));
-            return tuple({n, f, fl, fr, bl, br});
+            auto bc = lit_pu64(std::get<5>(*d));
+            return tuple({n, f, fl, fc, bl, bc});
         }
         return std::get<const Def*>(*dbg);
     }

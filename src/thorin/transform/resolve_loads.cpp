@@ -117,7 +117,7 @@ public:
         return slot_value;
     }
 
-    const Def* insert_to_slot(const Def* ptr, const Def* slot_value, const Def* insert_value, Debug dbg) {
+    const Def* insert_to_slot(const Def* ptr, const Def* slot_value, const Def* insert_value, const Def* dbg) {
         std::vector<const Def*> indices;
         while (true) {
             if (auto bitcast = ptr->isa<Bitcast>()) {

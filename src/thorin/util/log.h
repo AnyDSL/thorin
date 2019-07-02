@@ -32,7 +32,7 @@ public:
     static std::string colorize(const std::string&, int);
 
     template<typename... Args>
-    static void log(Level level, Loc loc, const char* fmt, Args... args) {
+    static void log(Level level, const std::string& loc, const char* fmt, Args... args) {
         if (Log::get_stream() && Log::get_min_level() <= level) {
             std::ostringstream oss;
             oss << loc;
@@ -58,19 +58,22 @@ private:
 template<typename... Args> std::ostream& outf(const char* fmt, Args... args) { return streamf(std::cout, fmt, std::forward<Args>(args)...); }
 template<typename... Args> std::ostream& errf(const char* fmt, Args... args) { return streamf(std::cerr, fmt, std::forward<Args>(args)...); }
 
+#define THORIN_STRINGIFY(x) #x
+#define THORIN_TOSTRING(x) THORIN_STRINGIFY(x)
+
 // TODO don't use macros
 // TODO remove static state from these things
 #define EDEF(def, ...) thorin::Log::error(                 (def)->loc(), __VA_ARGS__)
 #define WDEF(def, ...) thorin::Log::log(thorin::Log::Warn, (def)->loc(), __VA_ARGS__)
 #define IDEF(def, ...) thorin::Log::log(thorin::Log::Info, (def)->loc(), __VA_ARGS__)
 
-#define ELOG(...) thorin::Log::log(thorin::Log::Error,   Loc(__FILE__, __LINE__, -1), __VA_ARGS__)
-#define WLOG(...) thorin::Log::log(thorin::Log::Warn,    Loc(__FILE__, __LINE__, -1), __VA_ARGS__)
-#define ILOG(...) thorin::Log::log(thorin::Log::Info,    Loc(__FILE__, __LINE__, -1), __VA_ARGS__)
-#define VLOG(...) thorin::Log::log(thorin::Log::Verbose, Loc(__FILE__, __LINE__, -1), __VA_ARGS__)
+#define ELOG(...) thorin::Log::log(thorin::Log::Error,   std::string(__FILE__":" THORIN_STRINGIFY(__LINE__)), __VA_ARGS__)
+#define WLOG(...) thorin::Log::log(thorin::Log::Warn,    std::string(__FILE__":" THORIN_STRINGIFY(__LINE__)), __VA_ARGS__)
+#define ILOG(...) thorin::Log::log(thorin::Log::Info,    std::string(__FILE__":" THORIN_STRINGIFY(__LINE__)), __VA_ARGS__)
+#define VLOG(...) thorin::Log::log(thorin::Log::Verbose, std::string(__FILE__":" THORIN_STRINGIFY(__LINE__)), __VA_ARGS__)
 
 #ifndef NDEBUG
-#define DLOG(...) thorin::Log::log(thorin::Log::Debug,   Loc(__FILE__, __LINE__, -1), __VA_ARGS__)
+#define DLOG(...) thorin::Log::log(thorin::Log::Debug,   std::string(__FILE__":" THORIN_STRINGIFY(__LINE__)), __VA_ARGS__)
 #else
 #define DLOG(...) do {} while (false)
 #endif

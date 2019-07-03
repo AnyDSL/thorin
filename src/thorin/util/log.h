@@ -42,7 +42,7 @@ public:
     }
 
     template<typename... Args>
-    [[noreturn]] static void error(Loc loc, const char* fmt, Args... args) {
+    [[noreturn]] static void error(const std::string& loc, const char* fmt, Args... args) {
         log(Error, loc, fmt, args...);
         std::abort();
     }

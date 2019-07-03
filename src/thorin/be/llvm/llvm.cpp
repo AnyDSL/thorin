@@ -135,7 +135,7 @@ Lam* CodeGen::emit_cmpxchg(Lam* lam) {
 }
 
 Lam* CodeGen::emit_reserve(const Lam* lam) {
-    EDEF(&lam->app()->debug(), "reserve_shared: only allowed in device code");
+    EDEF(lam->app()->debug(), "reserve_shared: only allowed in device code");
     THORIN_UNREACHABLE;
 }
 
@@ -176,7 +176,7 @@ llvm::FunctionType* CodeGen::convert_fn_type(Lam* lam) {
 llvm::Function* CodeGen::emit_function_decl(Lam* lam) {
     if (auto f = fcts_.lookup(lam)) return *f;
 
-    std::string name = (lam->is_external() || lam->is_empty()) ? tuple2str(lam->name()) : lam->unique_name();
+    std::string name = (lam->is_external() || lam->is_empty()) ? lam->name() : lam->unique_name();
     auto f = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, convert_fn_type(lam)));
 
 #ifdef _MSC_VER
@@ -228,12 +228,12 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
         llvm::DISubprogram* disub_program;
         llvm::DIScope* discope = dicompile_unit;
         if (debug) {
-            auto src_file = llvm::sys::path::filename(entry_->loc().filename());
-            auto src_dir = llvm::sys::path::parent_path(entry_->loc().filename());
+            auto src_file = llvm::sys::path::filename(entry_->filename());
+            auto src_dir = llvm::sys::path::parent_path(entry_->filename());
             auto difile = dibuilder_.createFile(src_file, src_dir);
-            disub_program = dibuilder_.createFunction(discope, fct->getName(), fct->getName(), difile, entry_->loc().front_line(),
+            disub_program = dibuilder_.createFunction(discope, fct->getName(), fct->getName(), difile, entry_->front_line(),
                                                       dibuilder_.createSubroutineType(dibuilder_.getOrCreateTypeArray(llvm::ArrayRef<llvm::Metadata*>())),
-                                                      false /* internal linkage */, true /* definition */, entry_->loc().front_line(),
+                                                      false /* internal linkage */, true /* definition */, entry_->front_line(),
                                                       llvm::DINode::FlagPrototyped /* Flags */, opt > 0);
             fct->setSubprogram(disub_program);
             discope = disub_program;
@@ -269,14 +269,14 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
             auto lam = block.lam();
             // map all bb-like lams to llvm bb stubs
             if (lam->intrinsic() != Intrinsic::EndScope) {
-                auto bb = bb2lam[lam] = llvm::BasicBlock::Create(context_, tuple2str(lam->name()), fct);
+                auto bb = bb2lam[lam] = llvm::BasicBlock::Create(context_, lam->name(), fct);
 
                 // create phi node stubs (for all lams different from entry)
                 if (entry_ != lam) {
                     for (auto param : lam->params()) {
                         auto phi = (is_mem(param) || is_unit(param))
                                  ? nullptr
-                                 : llvm::PHINode::Create(convert(param->type()), (unsigned) peek(param).size(), tuple2str(param->name()), bb);
+                                 : llvm::PHINode::Create(convert(param->type()), (unsigned) peek(param).size(), param->name(), bb);
                         phis_[param] = phi;
                     }
                 }
@@ -287,7 +287,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
         auto startBB = llvm::BasicBlock::Create(context_, fct->getName() + "_start", fct, &*oldStartBB);
         irbuilder_.SetInsertPoint(startBB);
         if (debug)
-            irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(entry_->loc().front_line(), entry_->loc().front_col(), discope));
+            irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(entry_->front_line(), entry_->front_col(), discope));
         emit_function_start(startBB, entry_);
         irbuilder_.CreateBr(&*oldStartBB);
 
@@ -300,7 +300,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
 
             for (auto def : block) {
                 if (debug)
-                    irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(def->loc().front_line(), def->loc().front_col(), discope));
+                    irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(def->front_line(), def->front_col(), discope));
 
                 if (def->isa<Param>()) continue;
                 if (def->isa<App>()) continue;
@@ -335,7 +335,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
 
             // terminate bb
             if (debug)
-                irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(lam->app()->debug().front_line(), lam->app()->debug().front_col(), discope));
+                irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(lam->app()->front_line(), lam->app()->front_col(), discope));
             if (lam->app()->callee() == ret_param) { // return
                 size_t num_args = lam->app()->num_args();
                 if (num_args == 0) irbuilder_.CreateRetVoid();
@@ -599,7 +599,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
     if (auto bin = def->isa<BinOp>()) {
         llvm::Value* lhs = lookup(bin->lhs());
         llvm::Value* rhs = lookup(bin->rhs());
-        auto name = tuple2str(bin->name());
+        auto name = bin->name();
 
         if (auto cmp = bin->isa<Cmp>()) {
             auto type = cmp->lhs()->type();
@@ -834,7 +834,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto llvm_idx = lookup(aggop->index());
         auto copy_to_alloca = [&] () {
             WDEF(def, "slow: alloca and loads/stores needed for aggregate '{}'", def);
-            auto alloca = emit_alloca(llvm_agg->getType(), tuple2str(aggop->name()));
+            auto alloca = emit_alloca(llvm_agg->getType(), aggop->name());
             irbuilder_.CreateStore(llvm_agg, alloca);
 
             llvm::Value* args[2] = { irbuilder_.getInt64(0), llvm_idx };
@@ -1244,7 +1244,7 @@ static const Lam* get_alloc_call(const Def* def) {
     if (!call || use.index() == 0) return nullptr;
 
     auto callee = call->app()->callee();
-    if (tuple2str(callee->name()) != "anydsl_alloc") return nullptr;
+    if (callee->name() != "anydsl_alloc") return nullptr;
 
     return call;
 }

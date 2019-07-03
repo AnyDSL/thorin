@@ -30,10 +30,10 @@ const Def* Def::debug_history() const {
 
 std::string Def::name() const     { return debug() ?   tuple2str(debug()->out(0)) : std::string{}; }
 std::string Def::filename() const { return debug() ?   tuple2str(debug()->out(1)) : std::string{}; }
-uint64_t Def::front_line() const  { return debug() ? as_lit<u64>(debug()->out(2)) : std::numeric_limits<uint64_t>::max(); }
-uint64_t Def::front_col() const   { return debug() ? as_lit<u64>(debug()->out(3)) : std::numeric_limits<uint64_t>::max(); }
-uint64_t Def::back_line() const   { return debug() ? as_lit<u64>(debug()->out(4)) : std::numeric_limits<uint64_t>::max(); }
-uint64_t Def::back_col() const    { return debug() ? as_lit<u64>(debug()->out(5)) : std::numeric_limits<uint64_t>::max(); }
+u64 Def::front_line() const  { return debug() ? as_lit<u64>(debug()->out(2)) : std::numeric_limits<u64>::max(); }
+u64 Def::front_col() const   { return debug() ? as_lit<u64>(debug()->out(3)) : std::numeric_limits<u64>::max(); }
+u64 Def::back_line() const   { return debug() ? as_lit<u64>(debug()->out(4)) : std::numeric_limits<u64>::max(); }
+u64 Def::back_col() const    { return debug() ? as_lit<u64>(debug()->out(5)) : std::numeric_limits<u64>::max(); }
 std::string Def::loc() const {
     // TODO remove Loc
     Loc l(filename().c_str(), front_line(), front_col(), back_line(), back_col());

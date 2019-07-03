@@ -19,15 +19,14 @@ namespace thorin {
 const Def* Def::out(size_t i, Dbg dbg) const { return world().extract(this, i, dbg); }
 size_t Def::num_outs() const { return as_lit<u64>(arity()); }
 
-#if 0
-Debug Def::debug_history() const {
-#if THORIN_ENABLE_CHECKS
-    return world().track_history() ? Debug(loc(), world().tuple_str(unique_name())) : debug();
-#else
+// TODO
+const Def* Def::debug_history() const {
+//#if THORIN_ENABLE_CHECKS
+    //return world().track_history() ? Debug(loc(), world().tuple_str(unique_name())) : debug();
+//#else
     return debug();
-#endif
+//#endif
 }
-#endif
 
 std::string Def::name() const     { return debug() ?   tuple2str(debug()->out(0)) : std::string{}; }
 std::string Def::filename() const { return debug() ?   tuple2str(debug()->out(1)) : std::string{}; }

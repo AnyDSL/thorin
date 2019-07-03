@@ -56,10 +56,10 @@ public:
     World(World&&) = delete;
     World& operator=(const World&) = delete;
 
-    explicit World(uint32_t cur_gid, const std::string& name = {}, Loc loc = {});
+    explicit World(uint32_t cur_gid, const std::string& name = {});
     ///  Inherits properties of the @p other @p World but does @em not perform a copy.
     explicit World(const World& other)
-        : World(other.cur_gid(), other.name(), other.loc())
+        : World(other.cur_gid(), other.name())
     {
         pe_done_ = other.pe_done_;
 #if THORIN_ENABLE_CHECKS
@@ -71,7 +71,6 @@ public:
 
     // getters
     const std::string& name() const { return name_; }
-    Loc loc() const { return loc_; }
     const Sea& defs() const { return defs_; }
     std::vector<Lam*> copy_lams() const;
 
@@ -342,7 +341,6 @@ public:
         swap(w1.cur_gid_,       w2.cur_gid_);
         swap(w1.buffer_index_,  w2.buffer_index_);
         swap(w1.name_,          w2.name_);
-        swap(w1.loc_,           w2.loc_);
         swap(w1.externals_,     w2.externals_);
         swap(w1.defs_,          w2.defs_);
         swap(w1.pe_done_,       w2.pe_done_);
@@ -471,7 +469,6 @@ private:
     Zone* cur_page_;
     size_t buffer_index_ = 0;
     std::string name_;
-    Loc loc_;
     Externals externals_;
     Sea defs_;
     uint32_t cur_gid_;

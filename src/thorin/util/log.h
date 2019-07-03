@@ -7,7 +7,6 @@
 #include <ostream>
 #include <sstream>
 
-#include "thorin/util/debug.h"
 #include "thorin/util/stream.h"
 
 namespace thorin {

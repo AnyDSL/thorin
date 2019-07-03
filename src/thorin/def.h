@@ -9,7 +9,6 @@
 #include "thorin/enums.h"
 #include "thorin/util/array.h"
 #include "thorin/util/hash.h"
-#include "thorin/util/debug.h"
 
 namespace thorin {
 

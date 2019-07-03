@@ -34,12 +34,25 @@ u64 Def::front_line() const  { return debug() ? as_lit<u64>(debug()->out(2)) : s
 u64 Def::front_col() const   { return debug() ? as_lit<u64>(debug()->out(3)) : std::numeric_limits<u64>::max(); }
 u64 Def::back_line() const   { return debug() ? as_lit<u64>(debug()->out(4)) : std::numeric_limits<u64>::max(); }
 u64 Def::back_col() const    { return debug() ? as_lit<u64>(debug()->out(5)) : std::numeric_limits<u64>::max(); }
+
 std::string Def::loc() const {
-    // TODO remove Loc
-    Loc l(filename().c_str(), front_line(), front_col(), back_line(), back_col());
-    std::ostringstream oss;
-    oss << l;
-    return oss.str();
+    std::ostringstream os;
+    os << filename() << ':';
+
+    if (front_col() == u64(-1) || back_col() == u64(-1)) {
+        if (front_line() != back_line())
+            streamf(os, "{} - {}", front_line(), back_line());
+        else
+            streamf(os, "{}", front_line());
+    } else if (front_line() != back_line()) {
+        streamf(os, "{} col {} - {} col {}", front_line(), front_col(), back_line(), back_col());
+    } else if (front_col() != back_col()) {
+        streamf(os, "{} col {} - {}", front_line(), front_col(), back_col());
+    } else {
+        streamf(os, "{} col {}", front_line(), front_col());
+    }
+
+    return os.str();
 }
 
 void Def::finalize() {

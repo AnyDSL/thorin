@@ -20,12 +20,11 @@ namespace thorin {
 bool World::Lock::allocate_guard_ = false;
 #endif
 
-World::World(uint32_t cur_gid, const std::string& name, Loc loc)
+World::World(uint32_t cur_gid, const std::string& name)
     : root_page_(new Zone)
-    , cur_page_ (root_page_.get())
+    , cur_page_(root_page_.get())
     , name_(name.empty() ? "module" : name)
-    , loc_(loc)
-    , cur_gid_  (cur_gid)
+    , cur_gid_(cur_gid)
 {
     cache_.universe_         = insert<Universe>(0, *this);
     cache_.kind_.kind_arity_ = insert<Kind>(0, *this, Node_KindArity);

@@ -402,7 +402,6 @@ bool Def::equal(const Def* other) const {
     return result;
 }
 
-bool Analyze::equal(const Def* other) const { return Def::equal(other) && this->index()      == other->as<Analyze>()->index(); }
 bool Lit    ::equal(const Def* other) const { return Def::equal(other) && this->box()        == other->as<Lit>()->box(); }
 
 /*
@@ -411,7 +410,7 @@ bool Lit    ::equal(const Def* other) const { return Def::equal(other) && this->
 
 const Def* Lam        ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* dbg) { assert(!d->isa_nominal()); return w.lam(t->as<Pi>(), o[0], o[1], dbg); }
 const Def* Sigma      ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* dbg) { assert(!d->isa_nominal()); return w.sigma(t, o, dbg); }
-const Def* Analyze    ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* dbg) { return w.analyze(t, o, d->as<Analyze>()->index(), dbg); }
+const Def* Analyze    ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.analyze(t, o, dbg); }
 const Def* App        ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.app(o[0], o[1], dbg); }
 const Def* BotTop     ::rebuild(const Def* d, World& w, const Def* t, Defs  , const Def* dbg) { return w.bot_top(is_top(d), t, dbg); }
 const Def* Extract    ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.extract(o[0], o[1], dbg); }
@@ -460,7 +459,7 @@ std::ostream& Kind::stream(std::ostream& os) const {
 }
 
 std::ostream& Analyze::stream(std::ostream& os) const {
-    stream_list(os << "analyze(", ops(), [&](auto def) { os << def; });
+    stream_list(os << "analyze(", ops().skip_front(), [&](auto def) { os << def; });
     return streamf(os, "; {})", index());
 }
 

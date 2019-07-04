@@ -725,18 +725,12 @@ public:
 
 class Analyze : public Def {
 private:
-    struct Extra { u64 index_; };
-
-    Analyze(const Def* type, Defs ops, u64 index, const Def* dbg)
+    Analyze(const Def* type, Defs ops, const Def* dbg)
         : Def(Node_Analyze, rebuild, type, ops, dbg)
-    {
-        extra<Extra>().index_ = index;
-        hash_ = hash_combine(hash_, index);
-    }
+    {}
 
 public:
-    u64 index() const { return extra<Extra>().index_; }
-    bool equal(const Def* other) const override;
+    u64 index() const { return as_lit<u64>(op(0)); }
     std::ostream& stream(std::ostream&) const override;
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 

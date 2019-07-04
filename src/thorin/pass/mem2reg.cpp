@@ -6,16 +6,16 @@
 namespace thorin {
 
 static const Def* proxy_type(const Analyze* proxy) { return proxy->type()->as<PtrType>()->pointee(); }
-static std::tuple<Lam*, int64_t> disassemble_proxy(const Analyze* proxy) { return {proxy->op(0)->as_nominal<Lam>(), as_lit<u64>(proxy->op(1))}; }
-static std::tuple<Lam*, const Analyze*> disassemble_virtual_phi(const Analyze* proxy) { return {proxy->op(0)->as_nominal<Lam>(), proxy->op(1)->as<Analyze>()}; }
+static std::tuple<Lam*, int64_t> disassemble_proxy(const Analyze* proxy) { return {proxy->op(1)->as_nominal<Lam>(), as_lit<u64>(proxy->op(2))}; }
+static std::tuple<Lam*, const Analyze*> disassemble_virtual_phi(const Analyze* proxy) { return {proxy->op(1)->as_nominal<Lam>(), proxy->op(2)->as<Analyze>()}; }
 
 const Analyze* Mem2Reg::isa_proxy(const Def* def) {
-    if (auto analyze = def->isa<Analyze>(); analyze && analyze->index() == index() && !analyze->op(1)->isa<Analyze>()) return analyze;
+    if (auto analyze = def->isa<Analyze>(); analyze && analyze->index() == index() && !analyze->op(2)->isa<Analyze>()) return analyze;
     return nullptr;
 }
 
 const Analyze* Mem2Reg::isa_virtual_phi(const Def* def) {
-    if (auto analyze = def->isa<Analyze>(); analyze && analyze->index() == index() && analyze->op(1)->isa<Analyze>()) return analyze;
+    if (auto analyze = def->isa<Analyze>(); analyze && analyze->index() == index() && analyze->op(2)->isa<Analyze>()) return analyze;
     return nullptr;
 }
 
@@ -24,7 +24,7 @@ const Def* Mem2Reg::rewrite(const Def* def) {
         auto orig = original(man().cur_lam());
         auto& info = lam2info(orig);
         auto slot_id = info.num_slots++;
-        auto proxy = world().analyze(slot->out_ptr_type(), {orig, world().lit(PrimTypeTag::PrimType_pu64, slot_id)}, index(), slot->debug());
+        auto proxy = world().analyze(slot->out_ptr_type(), index(), {orig, world().lit(PrimTypeTag::PrimType_pu64, slot_id)}, slot->debug());
         if (!keep_.contains(proxy)) {
             set_val(proxy, world().bot(proxy_type(proxy)));
             lam2info(man().cur_lam()).writable.emplace(proxy);
@@ -128,7 +128,7 @@ const Def* Mem2Reg::get_val(Lam* lam, const Analyze* proxy) {
         default: {
             auto old_lam = original(lam);
             outf("virtual phi: {}/{} for {}\n", old_lam, lam, proxy);
-            return set_val(lam, proxy, world().analyze(proxy_type(proxy), {old_lam, proxy}, index(), {"phi"}));
+            return set_val(lam, proxy, world().analyze(proxy_type(proxy), index(), {old_lam, proxy}, {"phi"}));
         }
     }
 }

@@ -284,21 +284,26 @@ public:
     const Assembly* assembly(Defs types, const Def* mem, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints,
                              ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Dbg dbg = {});
     //@}
+    /// @name select
+    //@{
+    const Def* select(const Def* cond, const Def* t, const Def* f, Dbg dbg = {});
+    const Def* branch(const Def* cond, const Def* t, const Def* f, const Def* mem, Dbg dbg = {}) { return app(select(cond, t, f, dbg), mem, dbg); }
+    //@}
     /// @name partial evaluation related operations
     //@{
     const Def* hlt(const Def* def, Dbg dbg = {});
     const Def* known(const Def* def, Dbg dbg = {});
     const Def* run(const Def* def, Dbg dbg = {});
     //@}
+    /// @name Analyze - used internally for Pass%es
+    //@{
+    const Analyze* analyze(const Def* type, Defs ops, Dbg dbg = {}) { return unify<Analyze>(ops.size(), type, ops, debug(dbg)); }
+    const Analyze* analyze(const Def* type, u64 index, const Def* op, Dbg dbg = {}) { return analyze(type, {lit_pu64(index), op}, dbg); }
+    const Analyze* analyze(const Def* type, u64 index, Defs ops, Dbg dbg = {}) { return analyze(type, concat(lit_pu64(index), ops), dbg); }
+    //@}
     /// @name misc operations
     //@{
-    const Analyze* analyze(const Def* type, Defs ops, u64 index, Dbg dbg = {}) { return unify<Analyze>(ops.size(), type, ops, index, debug(dbg)); }
     const Def* size_of(const Def* type, Dbg dbg = {});
-    //@}
-    /// @name select
-    //@{
-    const Def* select(const Def* cond, const Def* t, const Def* f, Dbg dbg = {});
-    const Def* branch(const Def* cond, const Def* t, const Def* f, const Def* mem, Dbg dbg = {}) { return app(select(cond, t, f, dbg), mem, dbg); }
     //@}
     Lam* match(const Def* type, size_t num_patterns);
     Lam* end_scope() const { return cache_.end_scope_; }

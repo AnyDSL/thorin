@@ -19,7 +19,7 @@ struct GIDLt {
 
 template<class T>
 struct GIDHash {
-    static uint64_t hash(T n) { return thorin::murmur3(n->gid()); }
+    static uint32_t hash(T n) { return thorin::murmur3(n->gid()); }
     static bool eq(T a, T b) { return a == b; }
     static T sentinel() { return T(1); }
 };
@@ -88,7 +88,7 @@ private:
 };
 
 struct UseHash {
-    inline static uint64_t hash(Use use);
+    inline static uint32_t hash(Use use);
     static bool eq(Use u1, Use u2) { return u1 == u2; }
     static Use sentinel() { return Use((const Def*)(-1), uint16_t(-1)); }
 };
@@ -200,7 +200,7 @@ public:
     //@{
     NodeTag tag() const { return (NodeTag)tag_; }
     size_t gid() const { return gid_; }
-    uint64_t hash() const { return hash_; }
+    uint32_t hash() const { return hash_; }
     World& world() const {
         if (tag()                 == Node_Universe) return *world_;
         if (type()->tag()         == Node_Universe) return *type()->world_;
@@ -253,16 +253,16 @@ protected:
         StubFn    stub_;
     };
 
-    unsigned tag_           : 16;
+    uint64_t flags_;
+    uint16_t tag_;
     unsigned nominal_       :  1;
     unsigned order_         : 15;
-    uint32_t fields_;
     uint32_t gid_;
     uint32_t num_ops_;
+    uint32_t hash_;
     mutable const Def* substitute_ = nullptr;
     mutable Uses uses_;
     const Def* debug_;
-    uint64_t hash_;
 
     friend class Cleaner;
     friend class Tracker;
@@ -737,7 +737,7 @@ public:
     friend class World;
 };
 
-uint64_t UseHash::hash(Use use) { return murmur3(uint64_t(use.index()) << 48_u64 | uint64_t(use->gid())); }
+uint32_t UseHash::hash(Use use) { return hash_combine(hash_begin(uint16_t(use.index())), uint32_t(use->gid())); }
 
 namespace detail {
     inline std::ostream& stream(std::ostream& os, const Def* def) { return def->stream(os); }

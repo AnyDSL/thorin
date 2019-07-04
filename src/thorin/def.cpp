@@ -356,17 +356,15 @@ Def::Def(NodeTag tag, StubFn stub, const Def* type, size_t num_ops, const Def* d
     , order_(0)
     , gid_(world().next_gid())
     , num_ops_(num_ops)
-    , debug_(dbg)
     , hash_(murmur3(gid()))
+    , debug_(dbg)
 {
     std::fill_n(ops_ptr(), num_ops, nullptr);
 }
 
 App::App(const Def* type, const Def* callee, const Def* arg, const Def* dbg)
     : Def(Node_App, rebuild, type, {callee, arg}, dbg)
-{
-    //if (is_bot(type)) hash_ = murmur3(gid());
-}
+{}
 
 Kind::Kind(World& world, NodeTag tag)
     : Def(tag, rebuild, world.universe(), Defs{}, {})

@@ -38,13 +38,13 @@ namespace thorin {
 class World : public Streamable {
 public:
     struct SeaHash {
-        static uint64_t hash(const Def* def) { return def->hash(); }
+        static uint32_t hash(const Def* def) { return def->hash(); }
         static bool eq(const Def* def1, const Def* def2) { return def1->equal(def2); }
         static const Def* sentinel() { return (const Def*)(1); }
     };
 
     struct BreakHash {
-        static uint64_t hash(size_t i) { return i; }
+        static uint32_t hash(size_t i) { return i; }
         static bool eq(size_t i1, size_t i2) { return i1 == i2; }
         static size_t sentinel() { return size_t(-1); }
     };

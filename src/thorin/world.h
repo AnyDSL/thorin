@@ -240,7 +240,8 @@ public:
         return cache_.primtypes_[i];
     }
     const MemType* mem_type() const { return cache_.mem_; }
-    const PtrType* ptr_type(const Def* pointee, AddrSpace addr_space = AddrSpace::Generic, Dbg dbg = {}) { return unify<PtrType>(1, kind_star(), pointee, addr_space, debug(dbg)); }
+    const PtrType* ptr_type(const Def* pointee, const Def* addr_space, Dbg dbg = {}) { return unify<PtrType>(2, kind_star(), pointee, addr_space, debug(dbg)); }
+    const PtrType* ptr_type(const Def* pointee, u64 addr_space = AddrSpace::Generic, Dbg dbg = {}) { return ptr_type(pointee, lit_pu64((u64) addr_space), dbg); }
     //@}
     /// @name ArithOps
     //@{

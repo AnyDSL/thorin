@@ -410,7 +410,6 @@ bool Def::equal(const Def* other) const {
 
 bool Analyze::equal(const Def* other) const { return Def::equal(other) && this->index()      == other->as<Analyze>()->index(); }
 bool Lit    ::equal(const Def* other) const { return Def::equal(other) && this->box()        == other->as<Lit>()->box(); }
-bool PtrType::equal(const Def* other) const { return Def::equal(other) && this->addr_space() == other->as<PtrType>()->addr_space(); }
 
 /*
  * rebuild
@@ -430,7 +429,7 @@ const Def* Pack       ::rebuild(const Def*  , World& w, const Def* t, Defs o, co
 const Def* Param      ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.param(o[0]->as_nominal<Lam>(), dbg); }
 const Def* Pi         ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.pi(o[0], o[1], dbg); }
 const Def* PrimType   ::rebuild(const Def* d, World& w, const Def*  , Defs  , const Def*    ) { return w.type(d->as<PrimType>()->primtype_tag()); }
-const Def* PtrType    ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def*    ) { return w.ptr_type(o[0], d->as<PtrType>()->addr_space()); }
+const Def* PtrType    ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.ptr_type(o[0], o[1], dbg); }
 const Def* Tuple      ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.tuple(t, o, dbg); }
 const Def* Variadic   ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.variadic(o[0], o[1], dbg); }
 const Def* VariantType::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.variant_type(o, dbg); }
@@ -578,14 +577,13 @@ std::ostream& Pi::stream(std::ostream& os) const {
 
 std::ostream& PtrType::stream(std::ostream& os) const {
     os << pointee() << '*';
-    switch (addr_space()) {
-        case AddrSpace::Global:   os << "[Global]";   break;
-        case AddrSpace::Texture:  os << "[Tex]";      break;
-        case AddrSpace::Shared:   os << "[Shared]";   break;
-        case AddrSpace::Constant: os << "[Constant]"; break;
-        default: /* ignore unknown address space */   break;
+    switch (auto as = lit_addr_space()) {
+        case AddrSpace::Global:   return streamf(os, "[Global]");
+        case AddrSpace::Texture:  return streamf(os, "[Tex]");
+        case AddrSpace::Shared:   return streamf(os, "[Shared]");
+        case AddrSpace::Constant: return streamf(os, "[Constant]");
+        default:                  return streamf(os, "[{}]", as);
     }
-    return os;
 }
 
 std::ostream& PrimType::stream(std::ostream& os) const {

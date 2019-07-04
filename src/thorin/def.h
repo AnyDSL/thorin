@@ -716,31 +716,28 @@ public:
     friend class World;
 };
 
-enum class AddrSpace : uint8_t {
-    Generic  = 0,
-    Global   = 1,
-    Texture  = 2,
-    Shared   = 3,
-    Constant = 4,
+struct AddrSpace {
+    enum : u64 {
+        Generic  = 0,
+        Global   = 1,
+        Texture  = 2,
+        Shared   = 3,
+        Constant = 4,
+    };
 };
 
 /// Pointer type.
 class PtrType : public Def {
 private:
-    struct Extra { AddrSpace addr_space_; }; // TODO make this a proper op
-
-    PtrType(const Def* type, const Def* pointee, AddrSpace addr_space, const Def* dbg)
-        : Def(Node_PtrType, rebuild, type, {pointee}, dbg)
-    {
-        extra<Extra>().addr_space_ = addr_space;
-        hash_ = hash_combine(hash_, (uint8_t)addr_space);
-    }
+    PtrType(const Def* type, const Def* pointee, const Def* addr_space, const Def* dbg)
+        : Def(Node_PtrType, rebuild, type, {pointee, addr_space}, dbg)
+    {}
 
 public:
     const Def* pointee() const { return op(0); }
-    AddrSpace addr_space() const { return extra<Extra>().addr_space_; }
+    const Def* addr_space() const { return op(1); }
+    u64 lit_addr_space() const { return as_lit<u64>(op(1)); }
 
-    bool equal(const Def* other) const override;
     std::ostream& stream(std::ostream&) const override;
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 

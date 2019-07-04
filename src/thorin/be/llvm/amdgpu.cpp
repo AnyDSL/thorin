@@ -32,7 +32,7 @@ void AMDGPUCodeGen::emit_function_decl_hook(Lam* lam, llvm::Function* f) {
     }
 }
 
-unsigned AMDGPUCodeGen::convert_addr_space(const AddrSpace addr_space) {
+unsigned AMDGPUCodeGen::convert_addr_space(u64 addr_space) {
     switch (addr_space) {
         case AddrSpace::Generic:
         case AddrSpace::Global:   return 1;

@@ -1015,7 +1015,7 @@ llvm::Value* CodeGen::emit_assembly(const Assembly* assembly) {
     return irbuilder_.CreateCall(asm_expr, llvm_ref(input_values));
 }
 
-unsigned CodeGen::convert_addr_space(const AddrSpace addr_space) {
+unsigned CodeGen::convert_addr_space(u64 addr_space) {
     switch (addr_space) {
         case AddrSpace::Generic:  return 0;
         case AddrSpace::Global:   return 1;
@@ -1066,7 +1066,7 @@ llvm::Type* CodeGen::convert(const Def* type) {
         case PrimType_pf64: case PrimType_qf64:                                         llvm_type = irbuilder_.getDoubleTy(); break;
         case Node_PtrType: {
             auto ptr = type->as<PtrType>();
-            llvm_type = llvm::PointerType::get(convert(ptr->pointee()), convert_addr_space(ptr->addr_space()));
+            llvm_type = llvm::PointerType::get(convert(ptr->pointee()), convert_addr_space(ptr->lit_addr_space()));
             break;
         }
         case Node_Variadic: {

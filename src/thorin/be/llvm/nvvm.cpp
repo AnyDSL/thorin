@@ -42,9 +42,9 @@ NVVMCodeGen::NVVMCodeGen(World& world, const Cont2Config& kernel_config)
 // Kernel code
 //------------------------------------------------------------------------------
 
-static AddrSpace resolve_addr_space(const Def* def) {
+static u64 resolve_addr_space(const Def* def) {
     if (auto ptr = def->type()->isa<PtrType>())
-        return ptr->addr_space();
+        return ptr->lit_addr_space();
     return AddrSpace::Generic;
 }
 
@@ -53,7 +53,7 @@ llvm::FunctionType* NVVMCodeGen::convert_fn_type(Lam* lam) {
     std::vector<const Def*> types;
     for (auto type : lam->type()->ops()) {
         if (auto ptr = type->isa<PtrType>())
-            if (ptr->addr_space() == AddrSpace::Texture)
+            if (ptr->lit_addr_space() == AddrSpace::Texture)
                 continue;
         types.push_back(type);
     }
@@ -72,7 +72,7 @@ void NVVMCodeGen::emit_function_decl_hook(Lam* lam, llvm::Function* f) {
     };
 
     const auto emit_texture_kernel_arg = [&](const Def* param) {
-        assert(param->type()->as<PtrType>()->addr_space() == AddrSpace::Texture);
+        assert(param->type()->as<PtrType>()->lit_addr_space() == AddrSpace::Texture);
         auto global = emit_global_variable(irbuilder_.getInt64Ty(), param->name(), 1);
         metadata_[param] = append_metadata(global, "texture", 1);
     };
@@ -92,7 +92,7 @@ void NVVMCodeGen::emit_function_decl_hook(Lam* lam, llvm::Function* f) {
     // check signature for texturing memory
     for (auto param : lam->params()) {
         if (auto ptr = param->type()->isa<PtrType>()) {
-            switch (ptr->addr_space()) {
+            switch (ptr->lit_addr_space()) {
                 case AddrSpace::Texture:
                     emit_texture_kernel_arg(param);
                     break;

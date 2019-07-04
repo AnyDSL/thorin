@@ -200,7 +200,6 @@ public:
     //@{
     NodeTag tag() const { return (NodeTag)tag_; }
     size_t gid() const { return gid_; }
-    bool contains_lam() const { return contains_lam_; }
     uint64_t hash() const { return hash_; }
     World& world() const {
         if (tag()                 == Node_Universe) return *world_;
@@ -256,7 +255,6 @@ protected:
     // TODO fine-tune bit fields
     unsigned tag_           : 10;
     unsigned nominal_       :  1;
-    unsigned contains_lam_  :  1;
     unsigned order_         : 10;
     uint32_t gid_;
     uint32_t num_ops_;
@@ -290,26 +288,6 @@ private:
 
 public:
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-    std::ostream& stream(std::ostream&) const override;
-
-    friend class World;
-};
-
-typedef const Def* (*Normalizer)(const Def*, const Def*, const Def*);
-
-class Axiom : public Def {
-private:
-    struct Extra { Normalizer normalizer_; };
-
-    Axiom(const Def* type, Normalizer normalizer, const Def* dbg)
-        : Def(Node_Axiom, stub, type, 0, dbg)
-    {
-        extra<Extra>().normalizer_ = normalizer;
-    }
-
-public:
-    Normalizer normalizer() const { return extra<Extra>().normalizer_; }
-    static Def* stub(const Def*, World&, const Def*, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
     friend class World;

@@ -59,7 +59,6 @@ void Def::finalize() {
     for (size_t i = 0, e = num_ops(); i != e; ++i) {
         auto o = op(i);
         assert(o != nullptr);
-        contains_lam_ |= o->contains_lam();
         order_ = std::max(order_, o->order_);
         const auto& p = o->uses_.emplace(this, i);
         assert_unused(p.second);
@@ -75,7 +74,6 @@ Def* Def::set(size_t i, const Def* def) {
 
     assert(i < num_ops() && "index out of bounds");
     ops_ptr()[i] = def;
-    contains_lam_ |= def->contains_lam();
     order_ = std::max(order_, def->order_);
     const auto& p = def->uses_.emplace(this, i);
     assert_unused(p.second);
@@ -231,10 +229,8 @@ Lams Lam::succs() const {
             continue;
         }
 
-        for (auto op : def->ops()) {
-            if (op->contains_lam())
-                enqueue(op);
-        }
+        for (auto op : def->ops())
+            enqueue(op);
     }
 
     return succs;
@@ -341,7 +337,6 @@ Def::Def(NodeTag tag, RebuildFn rebuild, const Def* type, Defs ops, const Def* d
     , rebuild_(rebuild)
     , tag_((unsigned)tag)
     , nominal_(false)
-    , contains_lam_(tag == Node_Lam)
     , order_(0)
     , gid_(world().next_gid())
     , num_ops_(ops.size())
@@ -358,7 +353,6 @@ Def::Def(NodeTag tag, StubFn stub, const Def* type, size_t num_ops, const Def* d
     , stub_(stub)
     , tag_(tag)
     , nominal_(true)
-    , contains_lam_(tag == Node_Lam)
     , order_(0)
     , gid_(world().next_gid())
     , num_ops_(num_ops)

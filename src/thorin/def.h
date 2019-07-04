@@ -252,10 +252,11 @@ protected:
         RebuildFn rebuild_;
         StubFn    stub_;
     };
-    // TODO fine-tune bit fields
-    unsigned tag_           : 10;
+
+    unsigned tag_           : 16;
     unsigned nominal_       :  1;
-    unsigned order_         : 10;
+    unsigned order_         : 15;
+    uint32_t fields_;
     uint32_t gid_;
     uint32_t num_ops_;
     mutable const Def* substitute_ = nullptr;

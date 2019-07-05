@@ -335,12 +335,12 @@ bool Pi::is_returning() const {
 Def::Def(NodeTag tag, RebuildFn rebuild, const Def* type, Defs ops, const Def* dbg)
     : type_(type)
     , rebuild_(rebuild)
+    , debug_(dbg)
     , tag_((unsigned)tag)
     , nominal_(false)
     , order_(0)
     , gid_(world().next_gid())
     , num_ops_(ops.size())
-    , debug_(dbg)
 {
     std::copy(ops.begin(), ops.end(), ops_ptr());
     hash_ = hash_combine(hash_begin((uint16_t) tag), type->gid());
@@ -351,13 +351,13 @@ Def::Def(NodeTag tag, RebuildFn rebuild, const Def* type, Defs ops, const Def* d
 Def::Def(NodeTag tag, StubFn stub, const Def* type, size_t num_ops, const Def* dbg)
     : type_(type)
     , stub_(stub)
+    , debug_(dbg)
     , tag_(tag)
     , nominal_(true)
     , order_(0)
     , gid_(world().next_gid())
     , num_ops_(num_ops)
     , hash_(murmur3(gid()))
-    , debug_(dbg)
 {
     std::fill_n(ops_ptr(), num_ops, nullptr);
 }

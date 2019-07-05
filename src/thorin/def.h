@@ -252,17 +252,16 @@ protected:
         RebuildFn rebuild_;
         StubFn    stub_;
     };
-
+    const Def* debug_;
     uint64_t flags_;
     uint16_t tag_;
-    unsigned nominal_       :  1;
-    unsigned order_         : 15;
+    unsigned nominal_ :  1;
+    unsigned order_   : 15;
     uint32_t gid_;
     uint32_t num_ops_;
     uint32_t hash_;
-    mutable const Def* substitute_ = nullptr;
     mutable Uses uses_;
-    const Def* debug_;
+    mutable const Def* substitute_ = nullptr; // TODO remove this
 
     friend class Cleaner;
     friend class Tracker;

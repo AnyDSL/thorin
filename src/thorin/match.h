@@ -5,42 +5,29 @@
 
 namespace thorin {
 
-template <unsigned Min, unsigned Max>
+template <unsigned Min, unsigned Max = Min>
 struct MatchTag {
-    static bool match(const Def* def) {
-        return def->tag() >= Min && def->tag() <= Max;
-    }
+    static bool match(const Def* def) { return Min <= def->tag() && def->tag() <= Max; }
 };
-
-template <unsigned Tag>
-using MatchTagExact = MatchTag<Tag, Tag>;
 
 template <size_t Op, typename Matcher>
 struct MatchOp {
-    static bool match(const Def* def) {
-        return Matcher::match(def->op(Op));
-    }
+    static bool match(const Def* def) { return Matcher::match(def->op(Op)); }
 };
 
 template <typename Matcher>
 struct MatchType {
-    static bool match(const Def* def) {
-        return Matcher::match(def->type());
-    }
+    static bool match(const Def* def) { return Matcher::match(def->type()); }
 };
 
 template <typename Matcher, typename... Args>
 struct MatchManyAnd {
-    static bool match(const Def* def) {
-        return Matcher::match(def) && MatchManyAnd<Args...>::match(def);
-    }
+    static bool match(const Def* def) { return Matcher::match(def) && MatchManyAnd<Args...>::match(def); }
 };
 
 template <typename Matcher>
 struct MatchManyAnd<Matcher> {
-    static bool match(const Def* def) {
-        return Matcher::match(def);
-    }
+    static bool match(const Def* def) { return Matcher::match(def); }
 };
 
 template <typename Left, typename Right>
@@ -48,29 +35,23 @@ using MatchAnd = MatchManyAnd<Left, Right>;
 
 template <typename Matcher, typename... Args>
 struct MatchManyOr {
-    static bool match(const Def* def) {
-        return Matcher::match(def) || MatchManyOr<Args...>::match(def);
-    }
+    static bool match(const Def* def) { return Matcher::match(def) || MatchManyOr<Args...>::match(def); }
 };
 
 template <typename Matcher>
 struct MatchManyOr<Matcher> {
-    static bool match(const Def* def) {
-        return Matcher::match(def);
-    }
+    static bool match(const Def* def) { return Matcher::match(def); }
 };
 
 template <typename Left, typename Right>
 using MatchOr = MatchManyOr<Left, Right>;
 
 struct IsLiteral {
-    static bool match(const Def* def) {
-        return def->isa<Lit>();
-    }
+    static bool match(const Def* def) { return def->isa<Lit>(); }
 };
 
-using IsKind  = MatchType<MatchTagExact<Node_Universe>>;
-using IsType  = MatchType<MatchTagExact<Node_KindStar>>;
+using IsKind  = MatchType<MatchTag<Node_Universe>>;
+using IsType  = MatchType<MatchTag<Node_KindStar>>;
 using IsValue = MatchType<IsType>;
 
 }

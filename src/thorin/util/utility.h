@@ -38,17 +38,10 @@ inline __declspec(noreturn) void thorin_dummy_function() { abort(); }
 
 namespace thorin {
 
-/**
- * A @c size_t literal.
- * Use @c 0_s to disambiguate @c 0 from @c nullptr.
- */
-constexpr size_t operator""_s(unsigned long long int i) { return size_t(i); }
-
-/// A @c uint32_t literal.
-constexpr uint32_t operator""_u32(unsigned long long int i) { return uint32_t(i); }
-
-/// A @c uint64_t literal.
-constexpr uint64_t operator""_u64(unsigned long long int i) { return uint64_t(i); }
+constexpr   size_t operator""_s  (unsigned long long int i) { return   size_t(i); } ///< A @c   size_t literal. Use @c 0_s to disambiguate @c 0 from @c nullptr.
+constexpr uint16_t operator""_u16(unsigned long long int i) { return uint16_t(i); } ///< A @c uint16_t literal.
+constexpr uint32_t operator""_u32(unsigned long long int i) { return uint32_t(i); } ///< A @c uint32_t literal.
+constexpr uint64_t operator""_u64(unsigned long long int i) { return uint64_t(i); } ///< A @c uint64_t literal.
 
 /// Use to initialize an @c std::unique_ptr<T> in a lazy way.
 template<class This, class T>

@@ -49,7 +49,7 @@ World::~World() {
     for (auto def : defs_) def->~Def();
 }
 
-const Def* World::app(const Def* callee, const Def* arg, Dbg dbg) {
+const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
     auto pi = callee->type()->as<Pi>();
     assertf(pi->domain() == arg->type(), "callee '{}' expects an argument of type '{}' but the argument '{}' is of type '{}'\n", callee, pi->domain(), arg, arg->type());
 
@@ -70,7 +70,7 @@ const Def* World::app(const Def* callee, const Def* arg, Dbg dbg) {
     return unify<App>(2, pi->codomain(), callee, arg, debug(dbg));
 }
 
-const Lam* World::lam(const Def* domain, const Def* filter, const Def* body, Dbg dbg) {
+const Lam* World::lam(const Def* domain, const Def* filter, const Def* body, Debug dbg) {
     auto p = pi(domain, body->type());
     return unify<Lam>(2, p, filter, body, debug(dbg));
 }
@@ -83,12 +83,12 @@ static const Def* lub(const Def* t1, const Def* t2) {
     return t1->world().kind(tag);
 }
 
-const Pi* World::pi(const Def* domain, const Def* codomain, Dbg dbg) {
+const Pi* World::pi(const Def* domain, const Def* codomain, Debug dbg) {
     auto type = lub(domain->type(), codomain->type());
     return unify<Pi>(2, type, domain, codomain, debug(dbg));
 }
 
-const Def* World::sigma(const Def* type, Defs ops, Dbg dbg) {
+const Def* World::sigma(const Def* type, Defs ops, Debug dbg) {
     auto n = ops.size();
     if (n == 0) return sigma();
     if (n == 1) return ops[0];
@@ -105,11 +105,11 @@ static const Def* infer_sigma(World& world, Defs ops) {
     return world.sigma(elems);
 }
 
-const Def* World::tuple(Defs ops, Dbg dbg) {
+const Def* World::tuple(Defs ops, Debug dbg) {
     return tuple(infer_sigma(*this, ops), ops, dbg);
 }
 
-const Def* World::tuple(const Def* type, Defs ops, Dbg dbg) {
+const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
 #if THORIN_ENABLE_CHECKS
     // TODO type-check type vs inferred type
 #endif
@@ -147,14 +147,14 @@ const Def* World::tuple(const Def* type, Defs ops, Dbg dbg) {
     return unify<Tuple>(ops.size(), type, ops, debug(dbg));
 }
 
-const Def* World::tuple_str(const char* s, Dbg dbg) {
+const Def* World::tuple_str(const char* s, Debug dbg) {
     std::vector<const Def*> ops;
     for (; *s != '\0'; ++s)
         ops.emplace_back(lit_qs8(*s));
     return tuple(ops, dbg);
 }
 
-const Def* World::extract(const Def* agg, const Def* index, Dbg dbg) {
+const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
     assertf(agg->arity() == index->type(), "extracting from aggregate {} of arity {} with index {} of type {}", agg, agg->arity(), index, index->type());
 
     if (index->type() == lit_arity_1()) return agg;
@@ -183,7 +183,7 @@ const Def* World::extract(const Def* agg, const Def* index, Dbg dbg) {
     return unify<Extract>(2, type, agg, index, debug(dbg));
 }
 
-const Def* World::insert(const Def* agg, const Def* index, const Def* val, Dbg dbg) {
+const Def* World::insert(const Def* agg, const Def* index, const Def* val, Debug dbg) {
     assertf(agg->arity() == index->type(), "inserting into aggregate {} of arity {} with index {} of type {}", agg, agg->arity(), index, index->type());
 
     if (index->type() == lit_arity_1()) return val;
@@ -213,7 +213,7 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* val, Dbg d
     return unify<Insert>(3, agg, index, val, debug(dbg));
 }
 
-const Def* World::variadic(const Def* arity, const Def* body, Dbg dbg) {
+const Def* World::variadic(const Def* arity, const Def* body, Debug dbg) {
     if (auto a = isa_lit<u64>(arity)) {
         if (*a == 0) return sigma();
         if (*a == 1) return body;
@@ -223,7 +223,7 @@ const Def* World::variadic(const Def* arity, const Def* body, Dbg dbg) {
     return unify<Variadic>(2, type, arity, body, debug(dbg));
 }
 
-const Def* World::pack(const Def* arity, const Def* body, Dbg dbg) {
+const Def* World::pack(const Def* arity, const Def* body, Debug dbg) {
     if (auto a = isa_lit<u64>(arity)) {
         if (*a == 0) return tuple();
         if (*a == 1) return body;
@@ -233,12 +233,12 @@ const Def* World::pack(const Def* arity, const Def* body, Dbg dbg) {
     return unify<Pack>(1, type, body, debug(dbg));
 }
 
-const Def* World::variadic(Defs arity, const Def* body, Dbg dbg) {
+const Def* World::variadic(Defs arity, const Def* body, Debug dbg) {
     if (arity.empty()) return body;
     return variadic(arity.skip_back(), variadic(arity.back(), body, dbg), dbg);
 }
 
-const Def* World::pack(Defs arity, const Def* body, Dbg dbg) {
+const Def* World::pack(Defs arity, const Def* body, Debug dbg) {
     if (arity.empty()) return body;
     return pack(arity.skip_back(), pack(arity.back(), body, dbg), dbg);
 }
@@ -247,7 +247,7 @@ const Def* World::pack(Defs arity, const Def* body, Dbg dbg) {
  * literals
  */
 
-const Lit* World::lit_allset(PrimTypeTag tag, Dbg dbg) {
+const Lit* World::lit_allset(PrimTypeTag tag, Debug dbg) {
     switch (tag) {
 #define THORIN_I_TYPE(T, M) \
     case PrimType_##T: return lit(PrimType_##T, Box(~T(0)), dbg);
@@ -258,7 +258,7 @@ const Lit* World::lit_allset(PrimTypeTag tag, Dbg dbg) {
     }
 }
 
-const Lit* World::lit_index(const Def* a, u64 i, Dbg dbg) {
+const Lit* World::lit_index(const Def* a, u64 i, Debug dbg) {
     if (is_top(a)) return lit(a, i, dbg);
 
     auto arity = as_lit<u64>(a);
@@ -271,7 +271,7 @@ const Lit* World::lit_index(const Def* a, u64 i, Dbg dbg) {
  * arithops
  */
 
-const Def* World::binop(int tag, const Def* lhs, const Def* rhs, Dbg dbg) {
+const Def* World::binop(int tag, const Def* lhs, const Def* rhs, Debug dbg) {
     if (is_arithop(tag))
         return arithop((ArithOpTag) tag, lhs, rhs, dbg);
 
@@ -279,7 +279,7 @@ const Def* World::binop(int tag, const Def* lhs, const Def* rhs, Dbg dbg) {
     return cmp((CmpTag) tag, lhs, rhs, dbg);
 }
 
-const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Dbg dbg) {
+const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg) {
     assert(a->type() == b->type());
     PrimTypeTag type = a->type()->as<PrimType>()->primtype_tag();
 
@@ -561,9 +561,9 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Dbg dbg) {
     return unify<ArithOp>(2, tag, a, b, debug(dbg));
 }
 
-const Def* World::arithop_not(const Def* def, Dbg dbg) { return arithop_xor(lit_allset(def->type(), dbg), def, dbg); }
+const Def* World::arithop_not(const Def* def, Debug dbg) { return arithop_xor(lit_allset(def->type(), dbg), def, dbg); }
 
-const Def* World::arithop_minus(const Def* def, Dbg dbg) {
+const Def* World::arithop_minus(const Def* def, Debug dbg) {
     switch (PrimTypeTag tag = def->type()->as<PrimType>()->primtype_tag()) {
 #define THORIN_F_TYPE(T, M) \
         case PrimType_##T: \
@@ -579,7 +579,7 @@ const Def* World::arithop_minus(const Def* def, Dbg dbg) {
  * compares
  */
 
-const Def* World::cmp(CmpTag tag, const Def* a, const Def* b, Dbg dbg) {
+const Def* World::cmp(CmpTag tag, const Def* a, const Def* b, Debug dbg) {
     CmpTag oldtag = tag;
     switch (tag) {
         case Cmp_gt: tag = Cmp_lt; break;
@@ -646,7 +646,7 @@ const Def* World::cmp(CmpTag tag, const Def* a, const Def* b, Dbg dbg) {
  * casts
  */
 
-const Def* World::convert(const Def* dst_type, const Def* src, Dbg dbg) {
+const Def* World::convert(const Def* dst_type, const Def* src, Debug dbg) {
     if (dst_type == src->type())
         return src;
     if (src->type()->isa<PtrType>() && dst_type->isa<PtrType>())
@@ -664,7 +664,7 @@ const Def* World::convert(const Def* dst_type, const Def* src, Dbg dbg) {
     return cast(dst_type, src, dbg);
 }
 
-const Def* World::cast(const Def* to, const Def* from, Dbg dbg) {
+const Def* World::cast(const Def* to, const Def* from, Debug dbg) {
     if (is_bot(from)) return bot(to);
     if (from->type() == to) return from;
 
@@ -772,7 +772,7 @@ const Def* World::cast(const Def* to, const Def* from, Dbg dbg) {
     return unify<Cast>(1, to, from, debug(dbg));
 }
 
-const Def* World::bitcast(const Def* to, const Def* from, Dbg dbg) {
+const Def* World::bitcast(const Def* to, const Def* from, Debug dbg) {
     if (is_bot(from)) return bot(to);
     if (from->type() == to) return from;
 
@@ -799,7 +799,7 @@ const Def* World::bitcast(const Def* to, const Def* from, Dbg dbg) {
     return unify<Bitcast>(1, to, from, debug(dbg));
 }
 
-const Def* World::bot_top(bool is_top, const Def* type, Dbg dbg) {
+const Def* World::bot_top(bool is_top, const Def* type, Debug dbg) {
     if (auto variadic = type->isa<Variadic>()) return pack(variadic->arity(), bot_top(is_top, variadic->body()), dbg);
     if (auto sigma = type->isa<Sigma>())
         return tuple(sigma, Array<const Def*>(sigma->num_ops(), [&](size_t i) { return bot_top(is_top, sigma->op(i), dbg); }), dbg);
@@ -810,7 +810,7 @@ const Def* World::bot_top(bool is_top, const Def* type, Dbg dbg) {
  * aggregate operations
  */
 
-const Def* World::lea(const Def* ptr, const Def* index, Dbg dbg) {
+const Def* World::lea(const Def* ptr, const Def* index, Debug dbg) {
     auto ptr_type = ptr->type()->as<PtrType>();
     auto pointee = ptr_type->pointee();
 
@@ -829,7 +829,7 @@ const Def* World::lea(const Def* ptr, const Def* index, Dbg dbg) {
     return unify<LEA>(2, type, ptr, index, debug(dbg));
 }
 
-const Def* World::select(const Def* cond, const Def* a, const Def* b, Dbg dbg) {
+const Def* World::select(const Def* cond, const Def* a, const Def* b, Debug dbg) {
     if (is_bot(cond) || is_bot(a) || is_bot(b)) return bot(a->type(), dbg);
     if (auto lit = cond->isa<Lit>()) return lit->box().get_bool() ? a : b;
 
@@ -842,7 +842,7 @@ const Def* World::select(const Def* cond, const Def* a, const Def* b, Dbg dbg) {
     return unify<Select>(3, cond, a, b, debug(dbg));
 }
 
-const Def* World::size_of(const Def* type, Dbg dbg) {
+const Def* World::size_of(const Def* type, Debug dbg) {
     if (auto ptype = type->isa<PrimType>())
         return lit_qs32(num_bits(ptype->primtype_tag()) / 8, dbg);
 
@@ -853,7 +853,7 @@ const Def* World::size_of(const Def* type, Dbg dbg) {
  * memory stuff
  */
 
-const Def* World::load(const Def* mem, const Def* ptr, Dbg dbg) {
+const Def* World::load(const Def* mem, const Def* ptr, Debug dbg) {
     auto pointee = ptr->type()->as<PtrType>()->pointee();
 
     // loading an empty tuple can only result in an empty tuple
@@ -863,7 +863,7 @@ const Def* World::load(const Def* mem, const Def* ptr, Dbg dbg) {
     return unify<Load>(2, sigma({mem_type(), pointee}), mem, ptr, debug(dbg));
 }
 
-const Def* World::store(const Def* mem, const Def* ptr, const Def* val, Dbg dbg) {
+const Def* World::store(const Def* mem, const Def* ptr, const Def* val, Debug dbg) {
     if (is_bot(val)) return mem;
     if (auto pack = val->isa<Pack>(); pack && is_bot(pack->body())) return mem;
     if (auto tuple = val->isa<Tuple>()) {
@@ -875,19 +875,19 @@ const Def* World::store(const Def* mem, const Def* ptr, const Def* val, Dbg dbg)
     return unify<Store>(3, mem, ptr, val, debug(dbg));
 }
 
-const Alloc* World::alloc(const Def* type, const Def* mem, Dbg dbg) {
+const Alloc* World::alloc(const Def* type, const Def* mem, Debug dbg) {
     return unify<Alloc>(1, sigma({mem_type(), ptr_type(type)}), mem, debug(dbg));
 }
 
-const Slot* World::slot(const Def* type, const Def* mem, Dbg dbg) {
+const Slot* World::slot(const Def* type, const Def* mem, Debug dbg) {
     return unify<Slot>(1, sigma({mem_type(), ptr_type(type)}), mem, debug(dbg));
 }
 
-const Def* World::global(const Def* init, bool is_mutable, Dbg dbg) {
+const Def* World::global(const Def* init, bool is_mutable, Debug dbg) {
     return unify<Global>(1, ptr_type(init->type()), init, is_mutable, debug(dbg));
 }
 
-const Def* World::global_immutable_string(const std::string& str, Dbg dbg) {
+const Def* World::global_immutable_string(const std::string& str, Debug dbg) {
     size_t size = str.size() + 1;
 
     Array<const Def*> str_array(size);
@@ -898,11 +898,11 @@ const Def* World::global_immutable_string(const std::string& str, Dbg dbg) {
     return global(tuple(str_array, dbg), false, dbg);
 }
 
-const Assembly* World::assembly(const Def* type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Dbg dbg) {
+const Assembly* World::assembly(const Def* type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg) {
     return unify<Assembly>(inputs.size(), type, inputs, asm_template, output_constraints, input_constraints, clobbers, flags, debug(dbg))->as<Assembly>();;
 }
 
-const Assembly* World::assembly(Defs types, const Def* mem, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Dbg dbg) {
+const Assembly* World::assembly(Defs types, const Def* mem, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg) {
     Array<const Def*> output(types.size()+1);
     std::copy(types.begin(), types.end(), output.begin()+1);
     output.front() = mem_type();
@@ -918,13 +918,13 @@ const Assembly* World::assembly(Defs types, const Def* mem, Defs inputs, std::st
  * partial evaluation related stuff
  */
 
-const Def* World::hlt(const Def* def, Dbg dbg) {
+const Def* World::hlt(const Def* def, Debug dbg) {
     if (pe_done_)
         return def;
     return unify<Hlt>(1, def, debug(dbg));
 }
 
-const Def* World::known(const Def* def, Dbg dbg) {
+const Def* World::known(const Def* def, Debug dbg) {
     if (pe_done_ || def->isa<Hlt>())
         return lit_bool(false, dbg);
     if (is_const(def))
@@ -932,7 +932,7 @@ const Def* World::known(const Def* def, Dbg dbg) {
     return unify<Known>(1, def, debug(dbg));
 }
 
-const Def* World::run(const Def* def, Dbg dbg) {
+const Def* World::run(const Def* def, Debug dbg) {
     if (pe_done_)
         return def;
     return unify<Run>(1, def, debug(dbg));
@@ -944,7 +944,7 @@ Lam* World::match(const Def* type, size_t num_patterns) {
     arg_types[1] = cn();
     for (size_t i = 0; i < num_patterns; i++)
         arg_types[i + 2] = sigma({type, cn()});
-    auto dbg = Dbg("match");
+    auto dbg = Debug("match");
     return lam(cn(sigma(arg_types)), CC::C, Intrinsic::Match, dbg);
 }
 

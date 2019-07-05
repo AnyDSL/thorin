@@ -45,17 +45,17 @@ typedef std::vector<Lam*> Lams;
 
 using Name = std::variant<const char*, std::string, const Def*>;
 
-struct Dbg {
-    Dbg(Name name, Name filename, u64 front_line, u64 front_col, u64 back_line, u64 back_col)
+struct Debug {
+    Debug(Name name, Name filename, u64 front_line, u64 front_col, u64 back_line, u64 back_col)
         : data(std::make_tuple(name, filename, front_line, front_col, back_line, back_col))
     {}
-    Dbg(Name filename, u64 front_line, u64 front_col, u64 back_line, u64 back_col)
-        : Dbg("", filename, front_line, front_col, back_line, back_col)
+    Debug(Name filename, u64 front_line, u64 front_col, u64 back_line, u64 back_col)
+        : Debug("", filename, front_line, front_col, back_line, back_col)
     {}
-    Dbg(Name name)
-        : Dbg(name, "", u64(-1), u64(-1), u64(-1), u64(-1))
+    Debug(Name name)
+        : Debug(name, "", u64(-1), u64(-1), u64(-1), u64(-1))
     {}
-    Dbg(const Def* def = nullptr)
+    Debug(const Def* def = nullptr)
         : data(def)
     {}
 
@@ -167,7 +167,7 @@ public:
     //@}
     /// @name outs
     //@{
-    const Def* out(size_t i, Dbg dbg = {}) const;
+    const Def* out(size_t i, Debug dbg = {}) const;
     size_t num_outs() const;
     //@}
     /// @name external handling
@@ -447,8 +447,8 @@ public:
     //@}
     /// @name params
     //@{
-    const Param* param(Dbg dbg = {}) const;
-    const Def* param(size_t i, Dbg dbg = {}) const;
+    const Param* param(Debug dbg = {}) const;
+    const Def* param(size_t i, Debug dbg = {}) const;
     Array<const Def*> params() const;
     size_t num_params() const { return as_lit<u64>(type()->domain()->arity()); }
     const Def* mem_param() const;
@@ -462,10 +462,10 @@ public:
     //@}
     /// @name setters: sets filter to @c false and sets the body by App-ing
     //@{
-    void app(const Def* callee, const Def* arg, Dbg dbg = {});
-    void app(const Def* callee, Defs args, Dbg dbg = {});
-    void branch(const Def* cond, const Def* t, const Def* f, const Def* mem, Dbg dbg = {});
-    void match(const Def* val, Lam* otherwise, Defs patterns, ArrayRef<Lam*> lams, Dbg dbg = {});
+    void app(const Def* callee, const Def* arg, Debug dbg = {});
+    void app(const Def* callee, Defs args, Debug dbg = {});
+    void branch(const Def* cond, const Def* t, const Def* f, const Def* mem, Debug dbg = {});
+    void match(const Def* val, Lam* otherwise, Defs patterns, ArrayRef<Lam*> lams, Debug dbg = {});
     //@}
     /// @name rebuild, stub
     //@{

@@ -89,12 +89,12 @@ public:
     //@}
     /// @name Param
     //@{
-    const Param* param(Lam* lam, Dbg dbg = {}) { return unify<Param>(1, lam->domain(), lam, debug(dbg)); }
+    const Param* param(Lam* lam, Debug dbg = {}) { return unify<Param>(1, lam->domain(), lam, debug(dbg)); }
     //@}
     /// @name Pi
     //@{
-    const Pi* pi(Defs domain, const Def* codomain, Dbg dbg = {}) { return pi(sigma(domain), codomain, dbg); }
-    const Pi* pi(const Def* domain, const Def* codomain, Dbg dbg = {});
+    const Pi* pi(Defs domain, const Def* codomain, Debug dbg = {}) { return pi(sigma(domain), codomain, dbg); }
+    const Pi* pi(const Def* domain, const Def* codomain, Debug dbg = {});
     //@}
     /// @name Pi: continuation type, i.e., Pi type with codomain Bottom
     //@{
@@ -104,96 +104,96 @@ public:
     //@}
     /// @name Lambda: nominal
     //@{
-    Lam* lam(const Pi* cn, CC cc = CC::C, Intrinsic intrinsic = Intrinsic::None, Dbg dbg = {}) {
+    Lam* lam(const Pi* cn, CC cc = CC::C, Intrinsic intrinsic = Intrinsic::None, Debug dbg = {}) {
         auto lam = insert<Lam>(2, cn, cc, intrinsic, debug(dbg));
         lam->destroy(); // set filter to false and body to top
         return lam;
     }
-    Lam* lam(const Pi* cn, Dbg dbg = {}) { return lam(cn, CC::C, Intrinsic::None, dbg); }
+    Lam* lam(const Pi* cn, Debug dbg = {}) { return lam(cn, CC::C, Intrinsic::None, dbg); }
     //@}
     /// @name Lambda: structural
-    const Lam* lam(const Def* domain, const Def* filter, const Def* body, Dbg dbg);
-    const Lam* lam(const Def* domain, const Def* body, Dbg dbg) { return lam(domain, lit_true(), body, dbg); }
+    const Lam* lam(const Def* domain, const Def* filter, const Def* body, Debug dbg);
+    const Lam* lam(const Def* domain, const Def* body, Debug dbg) { return lam(domain, lit_true(), body, dbg); }
     //@}
     /// @name App
     //@{
-    const Def* app(const Def* callee, const Def* op, Dbg dbg = {});
-    const Def* app(const Def* callee, Defs ops, Dbg dbg = {}) { return app(callee, tuple(ops), dbg); }
+    const Def* app(const Def* callee, const Def* op, Debug dbg = {});
+    const Def* app(const Def* callee, Defs ops, Debug dbg = {}) { return app(callee, tuple(ops), dbg); }
     //@}
     /// @name Sigma: structural
     //@{
-    const Def* sigma(const Def* type, Defs ops, Dbg dbg = {});
+    const Def* sigma(const Def* type, Defs ops, Debug dbg = {});
     /// a @em structural @p Sigma of type @p star
-    const Def* sigma(Defs ops, Dbg dbg = {}) { return sigma(kind_star(), ops, dbg); }
+    const Def* sigma(Defs ops, Debug dbg = {}) { return sigma(kind_star(), ops, dbg); }
     const Sigma* sigma() { return cache_.sigma_; } ///< the unit type within @p kind_star()
     //@}
     /// @name Sigma: nominal
     //@{
-    Sigma* sigma(const Def* type, size_t size, Dbg dbg = {}) { return insert<Sigma>(size, type, size, debug(dbg)); }
-    Sigma* sigma(size_t size, Dbg dbg = {}) { return sigma(kind_star(), size, dbg); } ///< a @em nominal @p Sigma of type @p star
+    Sigma* sigma(const Def* type, size_t size, Debug dbg = {}) { return insert<Sigma>(size, type, size, debug(dbg)); }
+    Sigma* sigma(size_t size, Debug dbg = {}) { return sigma(kind_star(), size, dbg); } ///< a @em nominal @p Sigma of type @p star
     //@}
     /// @name Variadic
     //@{
-    const Def* variadic(const Def* arity, const Def* body, Dbg dbg = {});
-    const Def* variadic(Defs arities, const Def* body, Dbg dbg = {});
-    const Def* variadic(u64 a, const Def* body, Dbg dbg = {}) { return variadic(lit_arity(a, dbg), body, dbg); }
-    const Def* variadic(ArrayRef<u64> a, const Def* body, Dbg dbg = {}) {
+    const Def* variadic(const Def* arity, const Def* body, Debug dbg = {});
+    const Def* variadic(Defs arities, const Def* body, Debug dbg = {});
+    const Def* variadic(u64 a, const Def* body, Debug dbg = {}) { return variadic(lit_arity(a, dbg), body, dbg); }
+    const Def* variadic(ArrayRef<u64> a, const Def* body, Debug dbg = {}) {
         return variadic(Array<const Def*>(a.size(), [&](size_t i) { return lit_arity(a[i], dbg); }), body, dbg);
     }
-    const Def* unsafe_variadic(const Def* body, Dbg dbg = {}) { return variadic(top_arity(), body, dbg); }
+    const Def* unsafe_variadic(const Def* body, Debug dbg = {}) { return variadic(top_arity(), body, dbg); }
     //@}
     /// @name Tuple
     //@{
     /// ascribes @p type to this tuple - needed for dependetly typed and structural @p Sigma%s
-    const Def* tuple(const Def* type, Defs ops, Dbg dbg = {});
-    const Def* tuple(Defs ops, Dbg dbg = {});
-    const Def* tuple_str(const char* s, Dbg = {});
-    const Def* tuple_str(const std::string& s, Dbg dbg = {}) { return tuple_str(s.c_str(), dbg); }
+    const Def* tuple(const Def* type, Defs ops, Debug dbg = {});
+    const Def* tuple(Defs ops, Debug dbg = {});
+    const Def* tuple_str(const char* s, Debug = {});
+    const Def* tuple_str(const std::string& s, Debug dbg = {}) { return tuple_str(s.c_str(), dbg); }
     const Tuple* tuple() { return cache_.tuple_; } ///< the unit value of type <tt>[]</tt>
     //@}
     /// @name Pack
     //@{
-    const Def* pack(const Def* arity, const Def* body, Dbg dbg = {});
-    const Def* pack(Defs arities, const Def* body, Dbg dbg = {});
-    const Def* pack(u64 a, const Def* body, Dbg dbg = {}) { return pack(lit_arity(a, dbg), body, dbg); }
-    const Def* pack(ArrayRef<u64> a, const Def* body, Dbg dbg = {}) {
+    const Def* pack(const Def* arity, const Def* body, Debug dbg = {});
+    const Def* pack(Defs arities, const Def* body, Debug dbg = {});
+    const Def* pack(u64 a, const Def* body, Debug dbg = {}) { return pack(lit_arity(a, dbg), body, dbg); }
+    const Def* pack(ArrayRef<u64> a, const Def* body, Debug dbg = {}) {
         return pack(Array<const Def*>(a.size(), [&](auto i) { return lit_arity(a[i], dbg); }), body, dbg);
     }
     //@}
     /// @name Extract
     //@{
-    const Def* extract(const Def* agg, const Def* i, Dbg dbg = {});
-    const Def* extract(const Def* agg, u32 i, Dbg dbg = {}) { return extract(agg, lit_index(agg->arity(), i, dbg), dbg); }
-    const Def* extract(const Def* agg, u32 a, u32 i, Dbg dbg = {}) { return extract(agg, lit_index(a, i, dbg), dbg); }
-    const Def* unsafe_extract(const Def* agg, const Def* i, Dbg dbg = {}) { return extract(agg, cast(agg->arity(), i, dbg), dbg); }
-    const Def* unsafe_extract(const Def* agg, u64 i, Dbg dbg = {}) { return unsafe_extract(agg, lit_qu64(i, dbg), dbg); }
+    const Def* extract(const Def* agg, const Def* i, Debug dbg = {});
+    const Def* extract(const Def* agg, u32 i, Debug dbg = {}) { return extract(agg, lit_index(agg->arity(), i, dbg), dbg); }
+    const Def* extract(const Def* agg, u32 a, u32 i, Debug dbg = {}) { return extract(agg, lit_index(a, i, dbg), dbg); }
+    const Def* unsafe_extract(const Def* agg, const Def* i, Debug dbg = {}) { return extract(agg, cast(agg->arity(), i, dbg), dbg); }
+    const Def* unsafe_extract(const Def* agg, u64 i, Debug dbg = {}) { return unsafe_extract(agg, lit_qu64(i, dbg), dbg); }
     //@}
     /// @name Insert
     //@{
-    const Def* insert(const Def* agg, const Def* i, const Def* value, Dbg dbg = {});
-    const Def* insert(const Def* agg, u32 i, const Def* value, Dbg dbg = {}) { return insert(agg, lit_index(agg->arity(), i, dbg), value, dbg); }
-    const Def* unsafe_insert(const Def* agg, const Def* i, const Def* value, Dbg dbg = {}) { return insert(agg, cast(agg->arity(), i, dbg), value, dbg); }
-    const Def* unsafe_insert(const Def* agg, u32 i, const Def* value, Dbg dbg = {}) { return unsafe_insert(agg, lit_qu64(i, dbg), value, dbg); }
+    const Def* insert(const Def* agg, const Def* i, const Def* value, Debug dbg = {});
+    const Def* insert(const Def* agg, u32 i, const Def* value, Debug dbg = {}) { return insert(agg, lit_index(agg->arity(), i, dbg), value, dbg); }
+    const Def* unsafe_insert(const Def* agg, const Def* i, const Def* value, Debug dbg = {}) { return insert(agg, cast(agg->arity(), i, dbg), value, dbg); }
+    const Def* unsafe_insert(const Def* agg, u32 i, const Def* value, Debug dbg = {}) { return unsafe_insert(agg, lit_qu64(i, dbg), value, dbg); }
     //@}
     /// @name LEA - load effective address
     //@{
-    const Def* lea(const Def* ptr, const Def* index, Dbg dbg);
-    const Def* unsafe_lea(const Def* ptr, const Def* index, Dbg dbg) { return lea(ptr, cast(ptr->type()->as<PtrType>()->pointee()->arity(), index, dbg), dbg); }
+    const Def* lea(const Def* ptr, const Def* index, Debug dbg);
+    const Def* unsafe_lea(const Def* ptr, const Def* index, Debug dbg) { return lea(ptr, cast(ptr->type()->as<PtrType>()->pointee()->arity(), index, dbg), dbg); }
     //@}
     /// @name Literal
     //@{
-    const Lit* lit(const Def* type, Box box, Dbg dbg = {}) { return unify<Lit>(0, type, box, debug(dbg)); }
-    const Lit* lit(PrimTypeTag tag, Box box, Dbg dbg = {}) { return lit(type(tag), box, dbg); }
+    const Lit* lit(const Def* type, Box box, Debug dbg = {}) { return unify<Lit>(0, type, box, debug(dbg)); }
+    const Lit* lit(PrimTypeTag tag, Box box, Debug dbg = {}) { return lit(type(tag), box, dbg); }
     //@}
     /// @name Literal: Arity - note that this is a type
     //@{
-    const Lit* lit_arity(u64 a, Dbg dbg = {}) { return lit(kind_arity(), {a}, dbg); }
+    const Lit* lit_arity(u64 a, Debug dbg = {}) { return lit(kind_arity(), {a}, dbg); }
     const Lit* lit_arity_1() { return cache_.lit_arity_1_; } ///< unit arity 1ₐ
     //@}
     /// @name Literal: Index - the inhabitants of an Arity
     //@{
-    const Lit* lit_index(u64 arity, u64 idx, Dbg dbg = {}) { return lit_index(lit_arity(arity), idx, dbg); }
-    const Lit* lit_index(const Def* arity, u64 index, Dbg dbg = {});
+    const Lit* lit_index(u64 arity, u64 idx, Debug dbg = {}) { return lit_index(lit_arity(arity), idx, dbg); }
+    const Lit* lit_index(const Def* arity, u64 index, Debug dbg = {});
     const Lit* lit_index_0_1() { return cache_.lit_index_0_1_; } ///< unit index 0₁ of type unit arity 1ₐ
     //@}
     /// @name Literal: Bool
@@ -205,29 +205,29 @@ public:
     /// @name Literal: PrimTypes
     //@{
 #define THORIN_ALL_TYPE(T, M) \
-    const Def* lit_##T(T val, Dbg dbg = {}) { return lit(PrimType_##T, Box(val), dbg); }
+    const Def* lit_##T(T val, Debug dbg = {}) { return lit(PrimType_##T, Box(val), dbg); }
 #include "thorin/tables/primtypetable.h"
-    const Lit* lit_zero(PrimTypeTag tag, Dbg dbg = {}) { return lit(tag, 0, dbg); }
-    const Lit* lit_zero(const Def* type, Dbg dbg = {}) { return lit_zero(type->as<PrimType>()->primtype_tag(), dbg); }
-    const Lit* lit_one(PrimTypeTag tag, Dbg dbg = {}) { return lit(tag, 1, dbg); }
-    const Lit* lit_one(const Def* type, Dbg dbg = {}) { return lit_one(type->as<PrimType>()->primtype_tag(), dbg); }
-    const Lit* lit_allset(PrimTypeTag tag, Dbg dbg = {});
-    const Lit* lit_allset(const Def* type, Dbg dbg = {}) { return lit_allset(type->as<PrimType>()->primtype_tag(), dbg); }
+    const Lit* lit_zero(PrimTypeTag tag, Debug dbg = {}) { return lit(tag, 0, dbg); }
+    const Lit* lit_zero(const Def* type, Debug dbg = {}) { return lit_zero(type->as<PrimType>()->primtype_tag(), dbg); }
+    const Lit* lit_one(PrimTypeTag tag, Debug dbg = {}) { return lit(tag, 1, dbg); }
+    const Lit* lit_one(const Def* type, Debug dbg = {}) { return lit_one(type->as<PrimType>()->primtype_tag(), dbg); }
+    const Lit* lit_allset(PrimTypeTag tag, Debug dbg = {});
+    const Lit* lit_allset(const Def* type, Debug dbg = {}) { return lit_allset(type->as<PrimType>()->primtype_tag(), dbg); }
     //@}
     /// @name Top/Bottom
     //@{
-    const Def* bot_top(bool is_top, const Def* type, Dbg dbg = {});
-    const Def* bot(const Def* type, Dbg dbg = {}) { return bot_top(false, type, dbg); }
-    const Def* top(const Def* type, Dbg dbg = {}) { return bot_top(true,  type, dbg); }
-    const Def* bot(PrimTypeTag tag, Dbg dbg = {}) { return bot_top(false, type(tag), dbg); }
-    const Def* top(PrimTypeTag tag, Dbg dbg = {}) { return bot_top( true, type(tag), dbg); }
+    const Def* bot_top(bool is_top, const Def* type, Debug dbg = {});
+    const Def* bot(const Def* type, Debug dbg = {}) { return bot_top(false, type, dbg); }
+    const Def* top(const Def* type, Debug dbg = {}) { return bot_top(true,  type, dbg); }
+    const Def* bot(PrimTypeTag tag, Debug dbg = {}) { return bot_top(false, type(tag), dbg); }
+    const Def* top(PrimTypeTag tag, Debug dbg = {}) { return bot_top( true, type(tag), dbg); }
     const Def* bot_star () { return cache_.bot_star_; }
     const Def* top_arity() { return cache_.top_arity_; } ///< use this guy to encode an unknown arity, e.g., for unsafe arrays
     //@}
     /// @name Variant
     //@{
-    const VariantType* variant_type(Defs ops, Dbg dbg = {}) { return unify<VariantType>(ops.size(), kind_star(), ops, debug(dbg)); }
-    const Def* variant(const VariantType* variant_type, const Def* value, Dbg dbg = {}) { return unify<Variant>(1, variant_type, value, debug(dbg)); }
+    const VariantType* variant_type(Defs ops, Debug dbg = {}) { return unify<VariantType>(ops.size(), kind_star(), ops, debug(dbg)); }
+    const Def* variant(const VariantType* variant_type, const Def* value, Debug dbg = {}) { return unify<Variant>(1, variant_type, value, debug(dbg)); }
     //@}
     /// @name misc types
     //@{
@@ -240,70 +240,70 @@ public:
         return cache_.primtypes_[i];
     }
     const MemType* mem_type() const { return cache_.mem_; }
-    const PtrType* ptr_type(const Def* pointee, const Def* addr_space, Dbg dbg = {}) { return unify<PtrType>(2, kind_star(), pointee, addr_space, debug(dbg)); }
-    const PtrType* ptr_type(const Def* pointee, u64 addr_space = AddrSpace::Generic, Dbg dbg = {}) { return ptr_type(pointee, lit_pu64((u64) addr_space), dbg); }
+    const PtrType* ptr_type(const Def* pointee, const Def* addr_space, Debug dbg = {}) { return unify<PtrType>(2, kind_star(), pointee, addr_space, debug(dbg)); }
+    const PtrType* ptr_type(const Def* pointee, u64 addr_space = AddrSpace::Generic, Debug dbg = {}) { return ptr_type(pointee, lit_pu64((u64) addr_space), dbg); }
     //@}
     /// @name ArithOps
     //@{
     /// Creates an \p ArithOp or a \p Cmp.
-    const Def* binop(int tag, const Def* lhs, const Def* rhs, Dbg dbg = {});
-    const Def* arithop_not(const Def* def, Dbg dbg = {});
-    const Def* arithop_minus(const Def* def, Dbg dbg = {});
-    const Def* arithop(ArithOpTag tag, const Def* lhs, const Def* rhs, Dbg dbg = {});
+    const Def* binop(int tag, const Def* lhs, const Def* rhs, Debug dbg = {});
+    const Def* arithop_not(const Def* def, Debug dbg = {});
+    const Def* arithop_minus(const Def* def, Debug dbg = {});
+    const Def* arithop(ArithOpTag tag, const Def* lhs, const Def* rhs, Debug dbg = {});
 #define THORIN_ARITHOP(OP) \
-    const Def* arithop_##OP(const Def* lhs, const Def* rhs, Dbg dbg = {}) { \
+    const Def* arithop_##OP(const Def* lhs, const Def* rhs, Debug dbg = {}) { \
         return arithop(ArithOp_##OP, lhs, rhs, dbg); \
     }
 #include "thorin/tables/arithoptable.h"
     //@}
     /// @name Cmps
     //@{
-    const Def* cmp(CmpTag tag, const Def* lhs, const Def* rhs, Dbg dbg = {});
+    const Def* cmp(CmpTag tag, const Def* lhs, const Def* rhs, Debug dbg = {});
 #define THORIN_CMP(OP) \
-    const Def* cmp_##OP(const Def* lhs, const Def* rhs, Dbg dbg = {}) { \
+    const Def* cmp_##OP(const Def* lhs, const Def* rhs, Debug dbg = {}) { \
         return cmp(Cmp_##OP, lhs, rhs, dbg);  \
     }
 #include "thorin/tables/cmptable.h"
     //@}
     /// @name Casts
     //@{
-    const Def* convert(const Def* to, const Def* from, Dbg dbg = {});
-    const Def* cast(const Def* to, const Def* from, Dbg dbg = {});
-    const Def* bitcast(const Def* to, const Def* from, Dbg dbg = {});
+    const Def* convert(const Def* to, const Def* from, Debug dbg = {});
+    const Def* cast(const Def* to, const Def* from, Debug dbg = {});
+    const Def* bitcast(const Def* to, const Def* from, Debug dbg = {});
     //@}
     /// @name memory-related operations
     //@{
-    const Def* load(const Def* mem, const Def* ptr, Dbg dbg = {});
-    const Def* store(const Def* mem, const Def* ptr, const Def* val, Dbg dbg = {});
-    const Slot* slot(const Def* type, const Def* mem, Dbg dbg = {});
-    const Alloc* alloc(const Def* type, const Def* mem, Dbg dbg = {});
-    const Def* global(const Def* init, bool is_mutable = true, Dbg dbg = {});
-    const Def* global_immutable_string(const std::string& str, Dbg dbg = {});
+    const Def* load(const Def* mem, const Def* ptr, Debug dbg = {});
+    const Def* store(const Def* mem, const Def* ptr, const Def* val, Debug dbg = {});
+    const Slot* slot(const Def* type, const Def* mem, Debug dbg = {});
+    const Alloc* alloc(const Def* type, const Def* mem, Debug dbg = {});
+    const Def* global(const Def* init, bool is_mutable = true, Debug dbg = {});
+    const Def* global_immutable_string(const std::string& str, Debug dbg = {});
     const Assembly* assembly(const Def* type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints,
-                             ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Dbg dbg = {});
+                             ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg = {});
     const Assembly* assembly(Defs types, const Def* mem, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints,
-                             ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Dbg dbg = {});
+                             ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg = {});
     //@}
     /// @name select
     //@{
-    const Def* select(const Def* cond, const Def* t, const Def* f, Dbg dbg = {});
-    const Def* branch(const Def* cond, const Def* t, const Def* f, const Def* mem, Dbg dbg = {}) { return app(select(cond, t, f, dbg), mem, dbg); }
+    const Def* select(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
+    const Def* branch(const Def* cond, const Def* t, const Def* f, const Def* mem, Debug dbg = {}) { return app(select(cond, t, f, dbg), mem, dbg); }
     //@}
     /// @name partial evaluation related operations
     //@{
-    const Def* hlt(const Def* def, Dbg dbg = {});
-    const Def* known(const Def* def, Dbg dbg = {});
-    const Def* run(const Def* def, Dbg dbg = {});
+    const Def* hlt(const Def* def, Debug dbg = {});
+    const Def* known(const Def* def, Debug dbg = {});
+    const Def* run(const Def* def, Debug dbg = {});
     //@}
     /// @name Analyze - used internally for Pass%es
     //@{
-    const Analyze* analyze(const Def* type, Defs ops, Dbg dbg = {}) { return unify<Analyze>(ops.size(), type, ops, debug(dbg)); }
-    const Analyze* analyze(const Def* type, u64 index, const Def* op, Dbg dbg = {}) { return analyze(type, {lit_pu64(index), op}, dbg); }
-    const Analyze* analyze(const Def* type, u64 index, Defs ops, Dbg dbg = {}) { return analyze(type, concat(lit_pu64(index), ops), dbg); }
+    const Analyze* analyze(const Def* type, Defs ops, Debug dbg = {}) { return unify<Analyze>(ops.size(), type, ops, debug(dbg)); }
+    const Analyze* analyze(const Def* type, u64 index, const Def* op, Debug dbg = {}) { return analyze(type, {lit_pu64(index), op}, dbg); }
+    const Analyze* analyze(const Def* type, u64 index, Defs ops, Debug dbg = {}) { return analyze(type, concat(lit_pu64(index), ops), dbg); }
     //@}
     /// @name misc operations
     //@{
-    const Def* size_of(const Def* type, Dbg dbg = {});
+    const Def* size_of(const Def* type, Debug dbg = {});
     //@}
     Lam* match(const Def* type, size_t num_patterns);
     Lam* end_scope() const { return cache_.end_scope_; }
@@ -368,7 +368,7 @@ private:
         return std::get<const Def*>(n);
     }
     //@{
-    const Def* debug(Dbg dbg) {
+    const Def* debug(Debug dbg) {
         if (auto d  = std::get_if<0>(&*dbg)) {
             auto n  = name2def(std::get<0>(*d));
             auto f  = name2def(std::get<1>(*d));

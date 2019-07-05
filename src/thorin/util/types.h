@@ -36,6 +36,7 @@ public:
     typedef typename std::make_unsigned<ST>::type UT;
     static_assert(std::is_signed<ST>::value, "ST must be a signed type");
 
+    SInt() = default;
     SInt(ST data)
         : data_(data)
     {}
@@ -130,6 +131,7 @@ class UInt {
 public:
     static_assert(std::is_unsigned<UT>::value, "UT must be an unsigned type");
 
+    UInt() = default;
     UInt(UT data)
         : data_(data)
     {}
@@ -195,6 +197,7 @@ inline long double rem(long double a, long double b) { return std::fmod(a, b); }
 template<class FT, bool precise>
 class Float {
 public:
+    Float() = default;
     Float(FT data)
         : data_(data)
     {}

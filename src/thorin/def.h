@@ -128,9 +128,9 @@ private:
 
 protected:
     /// Constructor for a @em structural Def.
-    Def(NodeTag tag, RebuildFn rebuild, const Def* type, Defs ops, const Def* dbg);
+    Def(NodeTag tag, RebuildFn rebuild, const Def* type, Defs ops, uint64_t flags, const Def* dbg);
     /// Constructor for a @em nominal Def.
-    Def(NodeTag tag, StubFn stub, const Def* type, size_t num_ops, const Def* dbg);
+    Def(NodeTag tag, StubFn stub, const Def* type, size_t num_ops, uint64_t flags, const Def* dbg);
     virtual ~Def() {}
 
 public:
@@ -198,6 +198,7 @@ public:
     //@}
     /// @name misc getters
     //@{
+    uint64_t flags() const { return flags_; }
     NodeTag tag() const { return (NodeTag)tag_; }
     size_t gid() const { return gid_; }
     uint32_t hash() const { return hash_; }
@@ -272,7 +273,7 @@ protected:
 class Universe : public Def {
 private:
     Universe(World& world)
-        : Def(Node_Universe, stub, reinterpret_cast<const Def*>(&world), 0_s, {})
+        : Def(Node_Universe, stub, reinterpret_cast<const Def*>(&world), 0_s, 0, nullptr)
     {}
 
 public:
@@ -296,7 +297,7 @@ public:
 class BotTop : public Def {
 private:
     BotTop(bool is_top, const Def* type, const Def* dbg)
-        : Def(is_top ? Node_Top : Node_Bot, rebuild, type, Defs{}, dbg)
+        : Def(is_top ? Node_Top : Node_Bot, rebuild, type, Defs{}, 0, dbg)
     {}
 
 public:
@@ -308,18 +309,13 @@ public:
 
 class Lit : public Def {
 private:
-    struct Extra { Box box_; };
-
-    Lit(const Def* type, Box box, const Def* dbg)
-        : Def(Node_Lit, rebuild, type, Defs{}, dbg)
-    {
-        extra<Extra>().box_ = box;
-        hash_ = hash_combine(hash_, box.get_u64());
-    }
+    Lit(const Def* type, uint64_t val, const Def* dbg)
+        : Def(Node_Lit, rebuild, type, Defs{}, val, dbg)
+    {}
 
 public:
-    Box box() const { return extra<Extra>().box_; }
-    bool equal(const Def*) const override;
+    template<class T = uint64_t>
+    T get() const { static_assert(sizeof(T) <= 8); return bcast<T>(flags_); }
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
@@ -327,17 +323,16 @@ public:
 };
 
 template<class T> std::optional<T> isa_lit(const Def* def) {
-    if (auto lit = def->isa<Lit>())
-        return lit->box().get<T>();
+    if (auto lit = def->isa<Lit>()) return lit->get<T>();
     return {};
 }
 
-template<class T> T as_lit(const Def* def) { return def->as<Lit>()->box().get<T>(); }
+template<class T> T as_lit(const Def* def) { return def->as<Lit>()->get<T>(); }
 
 class Pi : public Def {
 protected:
     Pi(const Def* type, const Def* domain, const Def* codomain, const Def* dbg)
-        : Def(Node_Pi, rebuild, type, {domain, codomain}, dbg)
+        : Def(Node_Pi, rebuild, type, {domain, codomain}, 0, dbg)
     {}
 
 public:
@@ -415,13 +410,13 @@ private:
     };
 
     Lam(const Pi* pi, const Def* filter, const Def* body, const Def* dbg)
-        : Def(Node_Lam, rebuild, pi, {filter, body}, dbg)
+        : Def(Node_Lam, rebuild, pi, {filter, body}, 0, dbg)
     {
         extra<Extra>().cc_ = CC::C;
         extra<Extra>().intrinsic_ = Intrinsic::None;
     }
     Lam(const Pi* pi, CC cc, Intrinsic intrinsic, const Def* dbg)
-        : Def(Node_Lam, stub, pi, 2, dbg)
+        : Def(Node_Lam, stub, pi, 2, 0, dbg)
     {
         extra<Extra>().cc_ = cc;
         extra<Extra>().intrinsic_ = intrinsic;
@@ -504,7 +499,7 @@ using Lam2Lam = LamMap<Lam*>;
 class Param : public Def {
 private:
     Param(const Def* type, const Lam* lam, const Def* dbg)
-        : Def(Node_Param, rebuild, type, Defs{lam}, dbg)
+        : Def(Node_Param, rebuild, type, Defs{lam}, 0, dbg)
     {
         assert(lam->isa_nominal<Lam>());
     }
@@ -548,10 +543,10 @@ private:
 class Sigma : public Def {
 private:
     Sigma(const Def* type, Defs ops, const Def* dbg)
-        : Def(Node_Sigma, rebuild, type, ops, dbg)
+        : Def(Node_Sigma, rebuild, type, ops, 0, dbg)
     {}
     Sigma(const Def* type, size_t size, const Def* dbg)
-        : Def(Node_Sigma, stub, type, size, dbg)
+        : Def(Node_Sigma, stub, type, size, 0, dbg)
     {}
 
 public:
@@ -567,7 +562,7 @@ public:
 class Tuple : public Def {
 private:
     Tuple(const Def* type, Defs args, const Def* dbg)
-        : Def(Node_Tuple, rebuild, type, args, dbg)
+        : Def(Node_Tuple, rebuild, type, args, 0, dbg)
     {}
 
 public:
@@ -580,7 +575,7 @@ public:
 class Variadic : public Def {
 private:
     Variadic(const Def* type, const Def* arity, const Def* body, const Def* dbg)
-        : Def(Node_Variadic, rebuild, type, {arity, body}, dbg)
+        : Def(Node_Variadic, rebuild, type, {arity, body}, 0, dbg)
     {}
 
 public:
@@ -595,37 +590,28 @@ public:
 class Pack : public Def {
 private:
     Pack(const Def* type, const Def* body, const Def* dbg)
-        : Def(Node_Pack, rebuild, type, {body}, dbg)
+        : Def(Node_Pack, rebuild, type, {body}, 0, dbg)
     {}
 
 public:
     const Def* body() const { return op(0); }
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
-    friend class World;
-};
-
-/// Base class for functional @p Insert and @p Extract.
-class AggOp : public Def {
-protected:
-    AggOp(NodeTag tag, RebuildFn rebuild, const Def* type, Defs args, const Def* dbg)
-        : Def(tag, rebuild, type, args, dbg)
-    {}
-
-public:
-    const Def* agg() const { return op(0); }
-    const Def* index() const { return op(1); }
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
     friend class World;
 };
 
 /// Extracts from aggregate <tt>agg</tt> the element at position <tt>index</tt>.
-class Extract : public AggOp {
+class Extract : public Def {
 private:
     Extract(const Def* type, const Def* agg, const Def* index, const Def* dbg)
-        : AggOp(Node_Extract, rebuild, type, {agg, index}, dbg)
+        : Def(Node_Extract, rebuild, type, {agg, index}, 0, dbg)
     {}
+
+public:
+    const Def* agg() const { return op(0); }
+    const Def* index() const { return op(1); }
 
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
@@ -638,15 +624,17 @@ private:
  *              The val <tt>agg</tt> remains untouched.
  *              The \p Insert itself is a \em new aggregate which contains the newly created <tt>val</tt>. }
  */
-class Insert : public AggOp {
+class Insert : public Def {
 private:
     Insert(const Def* agg, const Def* index, const Def* val, const Def* dbg)
-        : AggOp(Node_Insert, rebuild, agg->type(), {agg, index, val}, dbg)
+        : Def(Node_Insert, rebuild, agg->type(), {agg, index, val}, 0, dbg)
     {}
 
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
 public:
+    const Def* agg() const { return op(0); }
+    const Def* index() const { return op(1); }
     const Def* val() const { return op(2); }
 
     friend class World;
@@ -656,7 +644,7 @@ public:
 class VariantType : public Def {
 private:
     VariantType(const Def* type, Defs ops, const Def* dbg)
-        : Def(Node_VariantType, rebuild, type, ops, dbg)
+        : Def(Node_VariantType, rebuild, type, ops, 0, dbg)
     {
         assert(std::adjacent_find(ops.begin(), ops.end()) == ops.end());
     }
@@ -708,7 +696,7 @@ struct AddrSpace {
 class PtrType : public Def {
 private:
     PtrType(const Def* type, const Def* pointee, const Def* addr_space, const Def* dbg)
-        : Def(Node_PtrType, rebuild, type, {pointee, addr_space}, dbg)
+        : Def(Node_PtrType, rebuild, type, {pointee, addr_space}, 0, dbg)
     {}
 
 public:
@@ -725,7 +713,7 @@ public:
 class Analyze : public Def {
 private:
     Analyze(const Def* type, Defs ops, const Def* dbg)
-        : Def(Node_Analyze, rebuild, type, ops, dbg)
+        : Def(Node_Analyze, rebuild, type, ops, 0, dbg)
     {}
 
 public:

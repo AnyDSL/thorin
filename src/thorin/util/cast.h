@@ -44,15 +44,21 @@ inline const L* dcast(const R* r) { return const_cast<const L*>(dcast<L, R>(cons
 
 /**
  * A bitcast.
- * The bitcast requires both types to be of the same size.
  * Watch out for the order of the template parameters!
  */
-template<class L, class R>
-inline L bcast(const R& from) {
-    static_assert(sizeof(R) == sizeof(L), "size mismatch for bitcast");
-    L to;
-    memcpy(&to, &from, sizeof(L));
-    return to;
+template<class D, class S>
+inline D bcast(const S& src) {
+    D dst;
+    auto s = reinterpret_cast<const void*>(&src);
+    auto d = reinterpret_cast<void*>(&dst);
+
+    if constexpr(sizeof(D) == sizeof(S)) memcpy(d, s, sizeof(D));
+    if constexpr(sizeof(D)  < sizeof(S)) memcpy(d, s, sizeof(D));
+    if constexpr(sizeof(D)  > sizeof(S)) {
+        memset(d, 0, sizeof(D));
+        memcpy(d, s, sizeof(S));
+    }
+    return dst;
 }
 
 /**

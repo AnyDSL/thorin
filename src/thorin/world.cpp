@@ -250,9 +250,9 @@ const Def* World::pack(Defs arity, const Def* body, Debug dbg) {
 const Lit* World::lit_allset(PrimTypeTag tag, Debug dbg) {
     switch (tag) {
 #define THORIN_I_TYPE(T, M) \
-    case PrimType_##T: return lit(PrimType_##T, Box(~T(0)), dbg);
+    case PrimType_##T: return lit(PrimType_##T, std::numeric_limits<u64>::max(), dbg);
 #define THORIN_BOOL_TYPE(T, M) \
-    case PrimType_##T: return lit(PrimType_##T, Box(true), dbg);
+    case PrimType_##T: return lit(PrimType_##T, u64(true), dbg);
 #include "thorin/tables/primtypetable.h"
         default: THORIN_UNREACHABLE;
     }
@@ -287,72 +287,70 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
     auto rlit = b->isa<Lit>();
 
     if (llit && rlit) {
-        Box l = llit->box();
-        Box r = rlit->box();
 
         try {
             switch (tag) {
                 case ArithOp_add:
                     switch (type) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit(type, Box(T(l.get_##T() + r.get_##T())), dbg);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit(type, T(llit->get<T>() + rlit->get<T>()), dbg);
 #include "thorin/tables/primtypetable.h"
                         default: THORIN_UNREACHABLE;
                     }
                 case ArithOp_sub:
                     switch (type) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit(type, Box(T(l.get_##T() - r.get_##T())), dbg);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit(type, T(llit->get<T>() - rlit->get<T>()), dbg);
 #include "thorin/tables/primtypetable.h"
                         default: THORIN_UNREACHABLE;
                     }
                 case ArithOp_mul:
                     switch (type) {
-#define THORIN_P_TYPE(T, M) case PrimType_##T: return lit(type, Box(T(l.get_##T() * r.get_##T())), dbg);
-#define THORIN_Q_TYPE(T, M) case PrimType_##T: return lit(type, Box(T(l.get_##T() * r.get_##T())), dbg);
+#define THORIN_P_TYPE(T, M) case PrimType_##T: return lit(type, T(llit->get<T>() * rlit->get<T>()), dbg);
+#define THORIN_Q_TYPE(T, M) case PrimType_##T: return lit(type, T(llit->get<T>() * rlit->get<T>()), dbg);
 #include "thorin/tables/primtypetable.h"
                         default: THORIN_UNREACHABLE;
                     }
                 case ArithOp_div:
                     switch (type) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit(type, Box(T(l.get_##T() / r.get_##T())), dbg);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit(type, T(llit->get<T>() / rlit->get<T>()), dbg);
 #include "thorin/tables/primtypetable.h"
                         default: THORIN_UNREACHABLE;
                     }
                 case ArithOp_rem:
                     switch (type) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit(type, Box(T(l.get_##T() % r.get_##T())), dbg);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit(type, T(llit->get<T>() % rlit->get<T>()), dbg);
 #include "thorin/tables/primtypetable.h"
                         default: THORIN_UNREACHABLE;
                     }
                 case ArithOp_and:
                     switch (type) {
-#define THORIN_I_TYPE(T, M)    case PrimType_##T: return lit(type, Box(T(l.get_##T() & r.get_##T())), dbg);
-#define THORIN_BOOL_TYPE(T, M) case PrimType_##T: return lit(type, Box(T(l.get_##T() & r.get_##T())), dbg);
+#define THORIN_I_TYPE(T, M)    case PrimType_##T: return lit(type, T(llit->get<T>() & rlit->get<T>()), dbg);
+#define THORIN_BOOL_TYPE(T, M) case PrimType_##T: return lit(type, T(llit->get<T>() & rlit->get<T>()), dbg);
 #include "thorin/tables/primtypetable.h"
                         default: THORIN_UNREACHABLE;
                     }
                 case ArithOp_or:
                     switch (type) {
-#define THORIN_I_TYPE(T, M)    case PrimType_##T: return lit(type, Box(T(l.get_##T() | r.get_##T())), dbg);
-#define THORIN_BOOL_TYPE(T, M) case PrimType_##T: return lit(type, Box(T(l.get_##T() | r.get_##T())), dbg);
+#define THORIN_I_TYPE(T, M)    case PrimType_##T: return lit(type, T(llit->get<T>() | rlit->get<T>()), dbg);
+#define THORIN_BOOL_TYPE(T, M) case PrimType_##T: return lit(type, T(llit->get<T>() | rlit->get<T>()), dbg);
 #include "thorin/tables/primtypetable.h"
                         default: THORIN_UNREACHABLE;
                     }
                 case ArithOp_xor:
                     switch (type) {
-#define THORIN_I_TYPE(T, M)    case PrimType_##T: return lit(type, Box(T(l.get_##T() ^ r.get_##T())), dbg);
-#define THORIN_BOOL_TYPE(T, M) case PrimType_##T: return lit(type, Box(T(l.get_##T() ^ r.get_##T())), dbg);
+#define THORIN_I_TYPE(T, M)    case PrimType_##T: return lit(type, T(llit->get<T>() ^ rlit->get<T>()), dbg);
+#define THORIN_BOOL_TYPE(T, M) case PrimType_##T: return lit(type, T(llit->get<T>() ^ rlit->get<T>()), dbg);
 #include "thorin/tables/primtypetable.h"
                         default: THORIN_UNREACHABLE;
                     }
                 case ArithOp_shl:
                     switch (type) {
-#define THORIN_I_TYPE(T, M) case PrimType_##T: return lit(type, Box(T(l.get_##T() << r.get_##T())), dbg);
+#define THORIN_I_TYPE(T, M) case PrimType_##T: return lit(type, T(llit->get<T>() << rlit->get<T>()), dbg);
 #include "thorin/tables/primtypetable.h"
                         default: THORIN_UNREACHABLE;
                     }
                 case ArithOp_shr:
                     switch (type) {
-#define THORIN_I_TYPE(T, M) case PrimType_##T: return lit(type, Box(T(l.get_##T() >> r.get_##T())), dbg);
+#define THORIN_I_TYPE(T, M) case PrimType_##T: return lit(type, T(llit->get<T>() >> rlit->get<T>()), dbg);
 #include "thorin/tables/primtypetable.h"
                         default: THORIN_UNREACHABLE;
                     }
@@ -567,7 +565,7 @@ const Def* World::arithop_minus(const Def* def, Debug dbg) {
     switch (PrimTypeTag tag = def->type()->as<PrimType>()->primtype_tag()) {
 #define THORIN_F_TYPE(T, M) \
         case PrimType_##T: \
-            return arithop_sub(lit_##T(M(-0.f), dbg), def, dbg);
+            return arithop_sub(lit(PrimType_##T, M(-0.f), dbg), def, dbg);
 #include "thorin/tables/primtypetable.h"
         default:
             assert(is_type_i(tag));
@@ -596,32 +594,30 @@ const Def* World::cmp(CmpTag tag, const Def* a, const Def* b, Debug dbg) {
     auto rlit = b->isa<Lit>();
 
     if (llit && rlit) {
-        Box l = llit->box();
-        Box r = rlit->box();
         PrimTypeTag type = llit->type()->as<PrimType>()->primtype_tag();
 
         switch (tag) {
             case Cmp_eq:
                 switch (type) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit_bool(l.get_##T() == r.get_##T(), dbg);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit_bool(llit->get<T>() == rlit->get<T>(), dbg);
 #include "thorin/tables/primtypetable.h"
                     default: THORIN_UNREACHABLE;
                 }
             case Cmp_ne:
                 switch (type) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit_bool(l.get_##T() != r.get_##T(), dbg);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit_bool(llit->get<T>() != rlit->get<T>(), dbg);
 #include "thorin/tables/primtypetable.h"
                     default: THORIN_UNREACHABLE;
                 }
             case Cmp_lt:
                 switch (type) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit_bool(l.get_##T() <  r.get_##T(), dbg);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit_bool(llit->get<T>() <  rlit->get<T>(), dbg);
 #include "thorin/tables/primtypetable.h"
                     default: THORIN_UNREACHABLE;
                 }
             case Cmp_le:
                 switch (type) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit_bool(l.get_##T() <= r.get_##T(), dbg);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit_bool(llit->get<T>() <= rlit->get<T>(), dbg);
 #include "thorin/tables/primtypetable.h"
                     default: THORIN_UNREACHABLE;
                 }
@@ -677,89 +673,87 @@ const Def* World::cast(const Def* to, const Def* from, Debug dbg) {
     auto lit = from->isa<Lit>();
     auto to_type = to->isa<PrimType>();
     if (lit && to_type) {
-        Box box = lit->box();
-
         switch (lit->type()->as<PrimType>()->primtype_tag()) {
             case PrimType_bool:
                 switch (to_type->primtype_tag()) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit_##T(M(box.get_bool()), dbg);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit_##T(M(lit->get<bool>()), dbg);
 #include "thorin/tables/primtypetable.h"
                     default: THORIN_UNREACHABLE;
                 }
             case PrimType_ps8:
             case PrimType_qs8:
                 switch (to_type->primtype_tag()) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit_##T(M(box.get_s8()), dbg);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit_##T(M(lit->get<s8>()), dbg);
 #include "thorin/tables/primtypetable.h"
                     default: THORIN_UNREACHABLE;
                 }
             case PrimType_ps16:
             case PrimType_qs16:
                 switch (to_type->primtype_tag()) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit_##T(M(box.get_s16()), dbg);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit_##T(M(lit->get<s16>()), dbg);
 #include "thorin/tables/primtypetable.h"
                     default: THORIN_UNREACHABLE;
                 }
             case PrimType_ps32:
             case PrimType_qs32:
                 switch (to_type->primtype_tag()) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit_##T(M(box.get_s32()), dbg);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit_##T(M(lit->get<s32>()), dbg);
 #include "thorin/tables/primtypetable.h"
                     default: THORIN_UNREACHABLE;
                 }
             case PrimType_ps64:
             case PrimType_qs64:
                 switch (to_type->primtype_tag()) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit_##T(M(box.get_s64()), dbg);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit_##T(M(lit->get<s64>()), dbg);
 #include "thorin/tables/primtypetable.h"
                     default: THORIN_UNREACHABLE;
                 }
             case PrimType_pu8:
             case PrimType_qu8:
                 switch (to_type->primtype_tag()) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit_##T(M(box.get_u8()), dbg);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit_##T(M(lit->get<u8>()), dbg);
 #include "thorin/tables/primtypetable.h"
                     default: THORIN_UNREACHABLE;
                 }
             case PrimType_pu16:
             case PrimType_qu16:
                 switch (to_type->primtype_tag()) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit_##T(M(box.get_u16()), dbg);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit_##T(M(lit->get<u16>()), dbg);
 #include "thorin/tables/primtypetable.h"
                     default: THORIN_UNREACHABLE;
                 }
             case PrimType_pu32:
             case PrimType_qu32:
                 switch (to_type->primtype_tag()) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit_##T(M(box.get_u32()), dbg);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit_##T(M(lit->get<u32>()), dbg);
 #include "thorin/tables/primtypetable.h"
                     default: THORIN_UNREACHABLE;
                 }
             case PrimType_pu64:
             case PrimType_qu64:
                 switch (to_type->primtype_tag()) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit_##T(M(box.get_u64()), dbg);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit_##T(M(lit->get<u64>()), dbg);
 #include "thorin/tables/primtypetable.h"
                     default: THORIN_UNREACHABLE;
                 }
             case PrimType_pf16:
             case PrimType_qf16:
                 switch (to_type->primtype_tag()) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit_##T(M(box.get_f16()), dbg);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit_##T(M(lit->get<f16>()), dbg);
 #include "thorin/tables/primtypetable.h"
                     default: THORIN_UNREACHABLE;
                 }
             case PrimType_pf32:
             case PrimType_qf32:
                 switch (to_type->primtype_tag()) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit_##T(M(box.get_f32()), dbg);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit_##T(M(lit->get<f32>()), dbg);
 #include "thorin/tables/primtypetable.h"
                     default: THORIN_UNREACHABLE;
                 }
             case PrimType_pf64:
             case PrimType_qf64:
                 switch (to_type->primtype_tag()) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit_##T(M(box.get_f64()), dbg);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit_##T(M(lit->get<f64>()), dbg);
 #include "thorin/tables/primtypetable.h"
                     default: THORIN_UNREACHABLE;
                 }
@@ -767,7 +761,7 @@ const Def* World::cast(const Def* to, const Def* from, Debug dbg) {
     }
 
     if (lit && is_arity(to))
-        return lit_index(to, lit->box().get<u64>());
+        return lit_index(to, lit->get());
 
     return unify<Cast>(1, to, from, debug(dbg));
 }
@@ -793,7 +787,7 @@ const Def* World::bitcast(const Def* to, const Def* from, Debug dbg) {
             ELOG("bitcast between primitive types of different size");
         // constant folding
         if (auto lit = from->isa<Lit>())
-            return this->lit(prim_to->primtype_tag(), lit->box(), dbg);
+            return this->lit(prim_to->primtype_tag(), lit->get(), dbg);
     }
 
     return unify<Bitcast>(1, to, from, debug(dbg));
@@ -831,7 +825,7 @@ const Def* World::lea(const Def* ptr, const Def* index, Debug dbg) {
 
 const Def* World::select(const Def* cond, const Def* a, const Def* b, Debug dbg) {
     if (is_bot(cond) || is_bot(a) || is_bot(b)) return bot(a->type(), dbg);
-    if (auto lit = cond->isa<Lit>()) return lit->box().get_bool() ? a : b;
+    if (auto lit = cond->isa<Lit>()) return lit->get<bool>() ? a : b;
 
     if (is_not(cond)) {
         cond = cond->as<ArithOp>()->rhs();

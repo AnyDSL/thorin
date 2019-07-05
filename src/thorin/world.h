@@ -182,12 +182,16 @@ public:
     //@}
     /// @name Literal
     //@{
-    const Lit* lit(const Def* type, Box box, Debug dbg = {}) { return unify<Lit>(0, type, box, debug(dbg)); }
-    const Lit* lit(PrimTypeTag tag, Box box, Debug dbg = {}) { return lit(type(tag), box, dbg); }
+    const Lit* lit(const Def* type, uint64_t val, Debug dbg = {}) { return unify<Lit>(0, type, val, debug(dbg)); }
+    template<class T>
+    const Lit* lit(const Def* type, T val, Debug dbg = {}) { return lit(type, bcast<u64>(val), dbg); }
+    const Lit* lit(PrimTypeTag tag, uint64_t val, Debug dbg = {}) { return lit(type(tag), val, dbg); }
+    template<class T>
+    const Lit* lit(PrimTypeTag tag, T val, Debug dbg = {}) { return lit(tag, bcast<u64>(val), dbg); }
     //@}
     /// @name Literal: Arity - note that this is a type
     //@{
-    const Lit* lit_arity(u64 a, Debug dbg = {}) { return lit(kind_arity(), {a}, dbg); }
+    const Lit* lit_arity(u64 a, Debug dbg = {}) { return lit(kind_arity(), a, dbg); }
     const Lit* lit_arity_1() { return cache_.lit_arity_1_; } ///< unit arity 1ₐ
     //@}
     /// @name Literal: Index - the inhabitants of an Arity
@@ -205,7 +209,7 @@ public:
     /// @name Literal: PrimTypes
     //@{
 #define THORIN_ALL_TYPE(T, M) \
-    const Def* lit_##T(T val, Debug dbg = {}) { return lit(PrimType_##T, Box(val), dbg); }
+    const Def* lit_##T(T val, Debug dbg = {}) { return lit(PrimType_##T, bcast<u64>(val), dbg); }
 #include "thorin/tables/primtypetable.h"
     const Lit* lit_zero(PrimTypeTag tag, Debug dbg = {}) { return lit(tag, 0, dbg); }
     const Lit* lit_zero(const Def* type, Debug dbg = {}) { return lit_zero(type->as<PrimType>()->primtype_tag(), dbg); }

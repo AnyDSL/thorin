@@ -13,7 +13,7 @@ namespace thorin {
 class PrimOp : public Def {
 protected:
     PrimOp(NodeTag tag, RebuildFn rebuild, const Def* type, Defs ops, const Def* dbg)
-        : Def(tag, rebuild, type, ops, dbg)
+        : Def(tag, rebuild, type, ops, 0, dbg)
     {}
 
 public:

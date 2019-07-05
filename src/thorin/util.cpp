@@ -30,9 +30,9 @@ bool is_primlit(const Def* def, int64_t val) {
     if (auto lit = def->isa<Lit>()) {
         if (auto prim_type = lit->type()->isa<PrimType>()) {
             switch (prim_type->primtype_tag()) {
-#define THORIN_I_TYPE(T, M) case PrimType_##T: return lit->box().get_##T() == T(val);
+#define THORIN_I_TYPE(T, M) case PrimType_##T: return lit->get<T>() == T(val);
 #include "thorin/tables/primtypetable.h"
-                case PrimType_bool: return lit->box().get_bool() == bool(val);
+                case PrimType_bool: return lit->get<bool>() == bool(val);
                 default: ; // FALLTHROUGH
             }
         }
@@ -45,8 +45,8 @@ bool is_minus_zero(const Def* def) {
     if (auto lit = def->isa<Lit>()) {
         if (auto prim_type = lit->type()->isa<PrimType>()) {
             switch (prim_type->primtype_tag()) {
-#define THORIN_I_TYPE(T, M) case PrimType_##T: return lit->box().get_##M() == M(0);
-#define THORIN_F_TYPE(T, M) case PrimType_##T: return lit->box().get_##M() == M(-0.0);
+#define THORIN_I_TYPE(T, M) case PrimType_##T: return lit->get<M>() == M(0);
+#define THORIN_F_TYPE(T, M) case PrimType_##T: return lit->get<M>() == M(-0.0);
 #include "thorin/tables/primtypetable.h"
                 default: THORIN_UNREACHABLE;
             }

@@ -829,12 +829,12 @@ llvm::Value* CodeGen::emit(const Def* def) {
         return llvm_agg;
     }
 
-    if (auto aggop = def->isa<AggOp>()) {
-        auto llvm_agg = lookup(aggop->agg());
-        auto llvm_idx = lookup(aggop->index());
+    if (def->isa<Extract>() || def->isa<Insert>()) {
+        auto llvm_agg = lookup(def->op(0));
+        auto llvm_idx = lookup(def->op(1));
         auto copy_to_alloca = [&] () {
             WDEF(def, "slow: alloca and loads/stores needed for aggregate '{}'", def);
-            auto alloca = emit_alloca(llvm_agg->getType(), aggop->name());
+            auto alloca = emit_alloca(llvm_agg->getType(), def->name());
             irbuilder_.CreateStore(llvm_agg, alloca);
 
             llvm::Value* args[2] = { irbuilder_.getInt64(0), llvm_idx };
@@ -843,29 +843,29 @@ llvm::Value* CodeGen::emit(const Def* def) {
         };
         auto copy_to_alloca_or_global = [&] () -> llvm::Value* {
             if (auto constant = llvm::dyn_cast<llvm::Constant>(llvm_agg)) {
-                auto global = llvm::cast<llvm::GlobalVariable>(module_->getOrInsertGlobal(aggop->agg()->unique_name().c_str(), llvm_agg->getType()));
+                auto global = llvm::cast<llvm::GlobalVariable>(module_->getOrInsertGlobal(def->op(0)->unique_name().c_str(), llvm_agg->getType()));
                 global->setInitializer(constant);
                 return irbuilder_.CreateInBoundsGEP(global, { irbuilder_.getInt64(0), llvm_idx });
             }
             return copy_to_alloca().second;
         };
 
-        if (auto extract = aggop->isa<Extract>()) {
+        if (auto extract = def->isa<Extract>()) {
             // Assemblys with more than two outputs are MemOps and have tuple type
             // and thus need their own rule here because the standard MemOp rule does not work
             if (auto assembly = extract->agg()->isa<Assembly>()) {
-                if (assembly->type()->num_ops() > 2 && as_lit<u64>(aggop->index()) != 0)
-                    return irbuilder_.CreateExtractValue(llvm_agg, {as_lit<u32>(aggop->index()) - 1});
+                if (assembly->type()->num_ops() > 2 && as_lit<u64>(extract->index()) != 0)
+                    return irbuilder_.CreateExtractValue(llvm_agg, {as_lit<u32>(extract->index()) - 1});
             }
 
             if (auto memop = extract->agg()->isa<MemOp>())
                 return lookup(memop);
 
-            if (aggop->agg()->type()->isa<Variadic>())
+            if (extract->agg()->type()->isa<Variadic>())
                 return irbuilder_.CreateLoad(copy_to_alloca_or_global());
 
             // tuple/struct
-            return irbuilder_.CreateExtractValue(llvm_agg, {as_lit<u32>(aggop->index())});
+            return irbuilder_.CreateExtractValue(llvm_agg, {as_lit<u32>(extract->index())});
         }
 
         auto insert = def->as<Insert>();
@@ -873,11 +873,11 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
         if (insert->agg()->type()->isa<Variadic>()) {
             auto p = copy_to_alloca();
-            irbuilder_.CreateStore(lookup(aggop->as<Insert>()->val()), p.second);
+            irbuilder_.CreateStore(lookup(insert->val()), p.second);
             return irbuilder_.CreateLoad(p.first);
         }
         // tuple/struct
-        return irbuilder_.CreateInsertValue(llvm_agg, val, {as_lit<u32>(aggop->index())});
+        return irbuilder_.CreateInsertValue(llvm_agg, val, {as_lit<u32>(insert->index())});
     }
 
     if (auto variant = def->isa<Variant>()) {
@@ -899,23 +899,22 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
     if (auto lit = def->isa<Lit>()) {
         llvm::Type* llvm_type = convert(lit->type());
-        Box box = lit->box();
-        if (is_arity(lit->type())) return irbuilder_.getInt64(box.get<u64>());
+        if (is_arity(lit->type())) return irbuilder_.getInt64(lit->get());
 
         if (auto prim_type = lit->type()->isa<PrimType>()) {
             switch (prim_type->primtype_tag()) {
-                case PrimType_bool:                     return irbuilder_. getInt1(box.get_bool());
-                case PrimType_ps8:  case PrimType_qs8:  return irbuilder_. getInt8(box. get_s8());
-                case PrimType_pu8:  case PrimType_qu8:  return irbuilder_. getInt8(box. get_u8());
-                case PrimType_ps16: case PrimType_qs16: return irbuilder_.getInt16(box.get_s16());
-                case PrimType_pu16: case PrimType_qu16: return irbuilder_.getInt16(box.get_u16());
-                case PrimType_ps32: case PrimType_qs32: return irbuilder_.getInt32(box.get_s32());
-                case PrimType_pu32: case PrimType_qu32: return irbuilder_.getInt32(box.get_u32());
-                case PrimType_ps64: case PrimType_qs64: return irbuilder_.getInt64(box.get_s64());
-                case PrimType_pu64: case PrimType_qu64: return irbuilder_.getInt64(box.get_u64());
-                case PrimType_pf16: case PrimType_qf16: return llvm::ConstantFP::get(llvm_type, box.get_f16());
-                case PrimType_pf32: case PrimType_qf32: return llvm::ConstantFP::get(llvm_type, box.get_f32());
-                case PrimType_pf64: case PrimType_qf64: return llvm::ConstantFP::get(llvm_type, box.get_f64());
+                case PrimType_bool:                     return irbuilder_. getInt1(lit->get<bool>());
+                case PrimType_ps8:  case PrimType_qs8:  return irbuilder_. getInt8(lit->get< s8>());
+                case PrimType_pu8:  case PrimType_qu8:  return irbuilder_. getInt8(lit->get< u8>());
+                case PrimType_ps16: case PrimType_qs16: return irbuilder_.getInt16(lit->get<s16>());
+                case PrimType_pu16: case PrimType_qu16: return irbuilder_.getInt16(lit->get<u16>());
+                case PrimType_ps32: case PrimType_qs32: return irbuilder_.getInt32(lit->get<s32>());
+                case PrimType_pu32: case PrimType_qu32: return irbuilder_.getInt32(lit->get<u32>());
+                case PrimType_ps64: case PrimType_qs64: return irbuilder_.getInt64(lit->get<s64>());
+                case PrimType_pu64: case PrimType_qu64: return irbuilder_.getInt64(lit->get<u64>());
+                case PrimType_pf16: case PrimType_qf16: return llvm::ConstantFP::get(llvm_type, lit->get<f16>());
+                case PrimType_pf32: case PrimType_qf32: return llvm::ConstantFP::get(llvm_type, lit->get<f32>());
+                case PrimType_pf64: case PrimType_qf64: return llvm::ConstantFP::get(llvm_type, lit->get<f64>());
             }
         } else {
             assert(false && "TODO");

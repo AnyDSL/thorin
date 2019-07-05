@@ -332,10 +332,11 @@ bool Pi::is_returning() const {
  * constructors
  */
 
-Def::Def(NodeTag tag, RebuildFn rebuild, const Def* type, Defs ops, const Def* dbg)
+Def::Def(NodeTag tag, RebuildFn rebuild, const Def* type, Defs ops, uint64_t flags, const Def* dbg)
     : type_(type)
     , rebuild_(rebuild)
     , debug_(dbg)
+    , flags_(flags)
     , tag_((unsigned)tag)
     , nominal_(false)
     , order_(0)
@@ -343,15 +344,16 @@ Def::Def(NodeTag tag, RebuildFn rebuild, const Def* type, Defs ops, const Def* d
     , num_ops_(ops.size())
 {
     std::copy(ops.begin(), ops.end(), ops_ptr());
-    hash_ = hash_combine(hash_begin((uint16_t) tag), type->gid());
+    hash_ = hash_combine(hash_begin((uint16_t) tag), type->gid(), flags_);
     for (auto op : ops)
         hash_ = hash_combine(hash_, op->gid());
 }
 
-Def::Def(NodeTag tag, StubFn stub, const Def* type, size_t num_ops, const Def* dbg)
+Def::Def(NodeTag tag, StubFn stub, const Def* type, size_t num_ops, uint64_t flags, const Def* dbg)
     : type_(type)
     , stub_(stub)
     , debug_(dbg)
+    , flags_(flags)
     , tag_(tag)
     , nominal_(true)
     , order_(0)
@@ -363,19 +365,19 @@ Def::Def(NodeTag tag, StubFn stub, const Def* type, size_t num_ops, const Def* d
 }
 
 App::App(const Def* type, const Def* callee, const Def* arg, const Def* dbg)
-    : Def(Node_App, rebuild, type, {callee, arg}, dbg)
+    : Def(Node_App, rebuild, type, {callee, arg}, 0, dbg)
 {}
 
 Kind::Kind(World& world, NodeTag tag)
-    : Def(tag, rebuild, world.universe(), Defs{}, {})
+    : Def(tag, rebuild, world.universe(), Defs{}, 0, nullptr)
 {}
 
 PrimType::PrimType(World& world, PrimTypeTag tag)
-    : Def((NodeTag) tag, rebuild, world.kind_star(), Defs{}, {})
+    : Def((NodeTag) tag, rebuild, world.kind_star(), Defs{}, 0, nullptr)
 {}
 
 MemType::MemType(World& world)
-    : Def(Node_MemType, rebuild, world.kind_star(), Defs{}, {})
+    : Def(Node_MemType, rebuild, world.kind_star(), Defs{}, 0, nullptr)
 {}
 
 /*
@@ -400,8 +402,6 @@ bool Def::equal(const Def* other) const {
     return result;
 }
 
-bool Lit    ::equal(const Def* other) const { return Def::equal(other) && this->box()        == other->as<Lit>()->box(); }
-
 /*
  * rebuild
  */
@@ -414,7 +414,7 @@ const Def* BotTop     ::rebuild(const Def* d, World& w, const Def* t, Defs  , co
 const Def* Extract    ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.extract(o[0], o[1], dbg); }
 const Def* Insert     ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.insert(o[0], o[1], o[2], dbg); }
 const Def* Kind       ::rebuild(const Def* d, World& w, const Def*  , Defs  , const Def*    ) { return w.kind(d->as<Kind>()->tag()); }
-const Def* Lit        ::rebuild(const Def* d, World& w, const Def* t, Defs  , const Def* dbg) { return w.lit(t, d->as<Lit>()->box(), dbg); }
+const Def* Lit        ::rebuild(const Def* d, World& w, const Def* t, Defs  , const Def* dbg) { return w.lit(t, as_lit<u64>(d), dbg); }
 const Def* MemType    ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.mem_type(); }
 const Def* Pack       ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.pack(t->arity(), o[0], dbg); }
 const Def* Param      ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.param(o[0]->as_nominal<Lam>(), dbg); }
@@ -463,10 +463,10 @@ std::ostream& Analyze::stream(std::ostream& os) const {
 
 std::ostream& Lit::stream(std::ostream& os) const {
     //if (name()) return os << name();
-    if (is_kind_arity(type())) return streamf(os, "{}ₐ", box().get<u64>());
+    if (is_kind_arity(type())) return streamf(os, "{}ₐ", get());
 
     if (is_arity(type())) {
-        if (is_top(type())) return streamf(os, "{}T", box().get<u64>());
+        if (is_top(type())) return streamf(os, "{}T", get());
 
         std::string s;
         // append utf-8 subscripts in reverse order
@@ -474,13 +474,13 @@ std::ostream& Lit::stream(std::ostream& os) const {
             ((s += char(char(0x80) + char(aa % 10))) += char(0x82)) += char(0xe2);
         std::reverse(s.begin(), s.end());
 
-        return streamf(os, "{}{}", box().get<u64>(), s);
+        return streamf(os, "{}{}", get(), s);
     }
 
     // special case for char
     if (auto prim_type = type()->isa<PrimType>()) {
         if (prim_type->primtype_tag() == PrimTypeTag::PrimType_qs8) {
-            char c = box().get<qs8>();
+            char c = get<char>();
             if (0x21 <= c && c <= 0x7e) return os << 'c'; // printable char range
         }
     }
@@ -491,19 +491,19 @@ std::ostream& Lit::stream(std::ostream& os) const {
 
         // print i8 as ints
         switch (tag) {
-            case PrimType_qs8: return os << (int) box().get_qs8();
-            case PrimType_ps8: return os << (int) box().get_ps8();
-            case PrimType_qu8: return os << (unsigned) box().get_qu8();
-            case PrimType_pu8: return os << (unsigned) box().get_pu8();
+            case PrimType_qs8: return os << (int) get<char>();
+            case PrimType_ps8: return os << (int) get<char>();
+            case PrimType_qu8: return os << (unsigned) get<char>();
+            case PrimType_pu8: return os << (unsigned) get<char>();
             default:
                 switch (tag) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return os << box().get_##M();
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return os << get<M>();
 #include "thorin/tables/primtypetable.h"
                     default: THORIN_UNREACHABLE;
                 }
         }
     } else {
-        return os << box().get_u64();
+        return os << get();
     }
 }
 
@@ -532,7 +532,7 @@ std::ostream& Tuple::stream(std::ostream& os) const {
         if (auto variadic = type()->isa<Variadic>()) {
             if (auto prim_type = variadic->body()->isa<PrimType>()) {
                 if (prim_type->primtype_tag() == PrimTypeTag::PrimType_qs8) {
-                    for (auto op : ops()) os << as_lit<qs8>(op);
+                    for (auto op : ops()) os << as_lit<char>(op);
                     return os;
                 }
             }
@@ -549,7 +549,7 @@ std::ostream& Pack::stream(std::ostream& os) const {
             if (prim_type->primtype_tag() == PrimTypeTag::PrimType_qs8) {
                 if (auto a = isa_lit<u64>(arity())) {
                     if (auto lit = body()->isa<Lit>()) {
-                        for (size_t i = 0, e = *a; i != e; ++i) os << lit->box().get<qs8>();
+                        for (size_t i = 0, e = *a; i != e; ++i) os << lit->get<char>();
                         return os;
                     }
                 }

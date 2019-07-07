@@ -396,7 +396,7 @@ bool Def::equal(const Def* other) const {
     if (this->isa_nominal() || other->isa_nominal())
         return this == other;
 
-    bool result = this->tag() == other->tag() && this->num_ops() == other->num_ops() && this->type() == other->type();
+    bool result = this->tag() == other->tag() && this->flags() == other->flags() && this->num_ops() == other->num_ops() && this->type() == other->type();
     for (size_t i = 0, e = num_ops(); result && i != e; ++i)
         result &= this->op(i) == other->op(i);
     return result;

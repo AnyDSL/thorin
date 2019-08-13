@@ -238,28 +238,32 @@ Lams Lam::succs() const {
 
 bool Lam::is_intrinsic() const { return intrinsic() != Intrinsic::None; }
 bool Lam::is_accelerator() const { return Intrinsic::_Accelerator_Begin <= intrinsic() && intrinsic() < Intrinsic::_Accelerator_End; }
+
 void Lam::set_intrinsic() {
     // TODO this is slow and inelegant - but we want to remove this code anyway
     auto n = name();
-    if      (n == "cuda")                 extra<Extra>().intrinsic_ = Intrinsic::CUDA;
-    else if (n == "nvvm")                 extra<Extra>().intrinsic_ = Intrinsic::NVVM;
-    else if (n == "opencl")               extra<Extra>().intrinsic_ = Intrinsic::OpenCL;
-    else if (n == "amdgpu")               extra<Extra>().intrinsic_ = Intrinsic::AMDGPU;
-    else if (n == "hls")                  extra<Extra>().intrinsic_ = Intrinsic::HLS;
-    else if (n == "parallel")             extra<Extra>().intrinsic_ = Intrinsic::Parallel;
-    else if (n == "spawn")                extra<Extra>().intrinsic_ = Intrinsic::Spawn;
-    else if (n == "sync")                 extra<Extra>().intrinsic_ = Intrinsic::Sync;
-    else if (n == "anydsl_create_graph")  extra<Extra>().intrinsic_ = Intrinsic::CreateGraph;
-    else if (n == "anydsl_create_task")   extra<Extra>().intrinsic_ = Intrinsic::CreateTask;
-    else if (n == "anydsl_create_edge")   extra<Extra>().intrinsic_ = Intrinsic::CreateEdge;
-    else if (n == "anydsl_execute_graph") extra<Extra>().intrinsic_ = Intrinsic::ExecuteGraph;
-    else if (n == "vectorize")            extra<Extra>().intrinsic_ = Intrinsic::Vectorize;
-    else if (n == "pe_info")              extra<Extra>().intrinsic_ = Intrinsic::PeInfo;
-    else if (n == "reserve_shared")       extra<Extra>().intrinsic_ = Intrinsic::Reserve;
-    else if (n == "atomic")               extra<Extra>().intrinsic_ = Intrinsic::Atomic;
-    else if (n == "cmpxchg")              extra<Extra>().intrinsic_ = Intrinsic::CmpXchg;
-    else if (n == "undef")                extra<Extra>().intrinsic_ = Intrinsic::Undef;
+    auto intrin = Intrinsic::None;
+    if      (n == "cuda")                 intrin = Intrinsic::CUDA;
+    else if (n == "nvvm")                 intrin = Intrinsic::NVVM;
+    else if (n == "opencl")               intrin = Intrinsic::OpenCL;
+    else if (n == "amdgpu")               intrin = Intrinsic::AMDGPU;
+    else if (n == "hls")                  intrin = Intrinsic::HLS;
+    else if (n == "parallel")             intrin = Intrinsic::Parallel;
+    else if (n == "spawn")                intrin = Intrinsic::Spawn;
+    else if (n == "sync")                 intrin = Intrinsic::Sync;
+    else if (n == "anydsl_create_graph")  intrin = Intrinsic::CreateGraph;
+    else if (n == "anydsl_create_task")   intrin = Intrinsic::CreateTask;
+    else if (n == "anydsl_create_edge")   intrin = Intrinsic::CreateEdge;
+    else if (n == "anydsl_execute_graph") intrin = Intrinsic::ExecuteGraph;
+    else if (n == "vectorize")            intrin = Intrinsic::Vectorize;
+    else if (n == "pe_info")              intrin = Intrinsic::PeInfo;
+    else if (n == "reserve_shared")       intrin = Intrinsic::Reserve;
+    else if (n == "atomic")               intrin = Intrinsic::Atomic;
+    else if (n == "cmpxchg")              intrin = Intrinsic::CmpXchg;
+    else if (n == "undef")                intrin = Intrinsic::Undef;
     else ELOG("unsupported thorin intrinsic");
+
+    set_intrinsic(intrin);
 }
 
 bool Lam::is_basicblock() const { return type()->is_basicblock(); }

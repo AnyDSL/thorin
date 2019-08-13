@@ -406,24 +406,12 @@ public:
     };
 
 private:
-    struct Extra {
-        CC cc_;
-        Intrinsic intrinsic_;
-    };
-
     Lam(const Pi* pi, const Def* filter, const Def* body, const Def* dbg)
         : Def(Node_Lam, rebuild, pi, {filter, body}, 0, dbg)
-    {
-        extra<Extra>().cc_ = CC::C;
-        extra<Extra>().intrinsic_ = Intrinsic::None;
-    }
+    {}
     Lam(const Pi* pi, CC cc, Intrinsic intrinsic, const Def* dbg)
-        : Def(Node_Lam, stub, pi, 2, 0, dbg)
-    {
-        extra<Extra>().cc_ = cc;
-        extra<Extra>().intrinsic_ = intrinsic;
-    }
-
+        : Def(Node_Lam, stub, pi, 2, uint64_t(cc) << 8_u64 | uint64_t(intrinsic), dbg)
+    {}
 
 public:
     /// @name type
@@ -468,15 +456,18 @@ public:
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     static Def* stub(const Def*, World&, const Def*, const Def*);
     //@}
+    /// @name get/set flags - Intrinsic and CC
+    //@{
+    Intrinsic intrinsic() const { return Intrinsic(flags() & 0x00ff_u64); }
+    void set_intrinsic(Intrinsic intrin) { flags_ = (flags_ & 0xff00_u64) | uint64_t(intrin); }
+    void set_intrinsic(); ///< Sets Intrinsic derived on this @p Lam's @p name.
+    CC cc() const { return CC(flags() >> 8_u64); }
+    void set_cc(CC cc) { flags_ = (flags_ & 0x00ff_u64) | uint64_t(cc) << 8_u64; }
+    //@}
 
     Lams preds() const;
     Lams succs() const;
     bool is_empty() const;
-    Intrinsic& intrinsic() { return extra<Extra>().intrinsic_; }
-    Intrinsic intrinsic() const { return extra<Extra>().intrinsic_; }
-    CC& cc() { return extra<Extra>().cc_; }
-    CC cc() const { return extra<Extra>().cc_; }
-    void set_intrinsic(); ///< Sets @p intrinsic_ derived on this @p Lam's @p name.
     bool is_basicblock() const;
     bool is_returning() const;
     bool is_intrinsic() const;

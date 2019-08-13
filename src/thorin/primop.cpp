@@ -26,14 +26,13 @@ SizeOf::SizeOf(const Def* def, const Def* dbg)
 {}
 
 Assembly::Assembly(const Def* type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Flags flags, const Def* dbg)
-    : MemOp(Node_Assembly, rebuild, type, inputs, dbg)
+    : MemOp(Node_Assembly, rebuild, type, inputs, uint64_t(flags), dbg)
 {
     new (&extra<Extra>()) Extra();
     extra<Extra>().asm_template_ = asm_template;
     extra<Extra>().output_constraints_ = output_constraints;
     extra<Extra>().input_constraints_ = input_constraints;
     extra<Extra>().clobbers_ = clobbers;
-    extra<Extra>().flags_ = flags;
 }
 
 Assembly::~Assembly() { (&extra<Extra>())->~Extra(); }

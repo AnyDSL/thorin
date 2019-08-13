@@ -253,8 +253,8 @@ public:
 /// Base class for all \p PrimOp%s taking and producing side-effects.
 class MemOp : public PrimOp {
 protected:
-    MemOp(NodeTag tag, RebuildFn rebuild, const Def* type, Defs args, const Def* dbg)
-        : PrimOp(tag, rebuild, type, args, 0, dbg)
+    MemOp(NodeTag tag, RebuildFn rebuild, const Def* type, Defs args, uint64_t flags, const Def* dbg)
+        : PrimOp(tag, rebuild, type, args, flags, dbg)
     {
         assert(mem()->type()->isa<MemType>());
         assert(args.size() >= 1);
@@ -269,7 +269,7 @@ public:
 class Alloc : public MemOp {
 private:
     Alloc(const Def* type, const Def* mem, const Def* dbg)
-        : MemOp(Node_Alloc, rebuild, type, {mem}, dbg)
+        : MemOp(Node_Alloc, rebuild, type, {mem}, 0, dbg)
     {}
 
 public:
@@ -287,7 +287,7 @@ public:
 class Slot : public MemOp {
 private:
     Slot(const Def* type, const Def* mem, const Def* dbg)
-        : MemOp(Node_Slot, rebuild, type, {mem}, dbg)
+        : MemOp(Node_Slot, rebuild, type, {mem}, 0, dbg)
     {}
 
 public:
@@ -304,7 +304,7 @@ public:
 class Access : public MemOp {
 protected:
     Access(NodeTag tag, RebuildFn rebuild, const Def* type, Defs args, const Def* dbg)
-        : MemOp(tag, rebuild, type, args, dbg)
+        : MemOp(tag, rebuild, type, args, 0, dbg)
     {
         assert(args.size() >= 2);
     }
@@ -356,7 +356,6 @@ public:
     struct Extra {
         std::string asm_template_;
         Array<std::string> output_constraints_, input_constraints_, clobbers_;
-        Flags flags_;
     };
 
 private:
@@ -375,7 +374,7 @@ public:
     bool has_sideeffects() const { return flags() & HasSideEffects; }
     bool is_alignstack() const { return flags() & IsAlignStack; }
     bool is_inteldialect() const { return flags() & IsIntelDialect; }
-    Flags flags() const { return extra<Extra>().flags_; }
+    Flags flags() const { return Flags(Def::flags()); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
     std::ostream& stream_assignment(std::ostream&) const override;
 

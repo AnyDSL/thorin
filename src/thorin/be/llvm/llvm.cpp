@@ -63,21 +63,21 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention
 Lam* CodeGen::emit_intrinsic(Lam* lam) {
     auto callee = lam->app()->callee()->as_nominal<Lam>();
     switch (callee->intrinsic()) {
-        case Intrinsic::Atomic:    return emit_atomic(lam);
-        case Intrinsic::CmpXchg:   return emit_cmpxchg(lam);
-        case Intrinsic::Reserve:   return emit_reserve(lam);
-        case Intrinsic::CUDA:      return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM,   ".cu",     lam);
-        case Intrinsic::NVVM:      return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM,   ".nvvm",   lam);
-        case Intrinsic::OpenCL:    return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".cl",     lam);
-        case Intrinsic::AMDGPU:    return runtime_->emit_host_code(*this, Runtime::HSA_PLATFORM,    ".amdgpu", lam);
-        case Intrinsic::HLS:       return emit_hls(lam);
-        case Intrinsic::Parallel:  return emit_parallel(lam);
-        case Intrinsic::Spawn:     return emit_spawn(lam);
-        case Intrinsic::Sync:      return emit_sync(lam);
+        case Lam::Intrinsic::Atomic:    return emit_atomic(lam);
+        case Lam::Intrinsic::CmpXchg:   return emit_cmpxchg(lam);
+        case Lam::Intrinsic::Reserve:   return emit_reserve(lam);
+        case Lam::Intrinsic::CUDA:      return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM,   ".cu",     lam);
+        case Lam::Intrinsic::NVVM:      return runtime_->emit_host_code(*this, Runtime::CUDA_PLATFORM,   ".nvvm",   lam);
+        case Lam::Intrinsic::OpenCL:    return runtime_->emit_host_code(*this, Runtime::OPENCL_PLATFORM, ".cl",     lam);
+        case Lam::Intrinsic::AMDGPU:    return runtime_->emit_host_code(*this, Runtime::HSA_PLATFORM,    ".amdgpu", lam);
+        case Lam::Intrinsic::HLS:       return emit_hls(lam);
+        case Lam::Intrinsic::Parallel:  return emit_parallel(lam);
+        case Lam::Intrinsic::Spawn:     return emit_spawn(lam);
+        case Lam::Intrinsic::Sync:      return emit_sync(lam);
 #if THORIN_ENABLE_RV
-        case Intrinsic::Vectorize: return emit_vectorize_lam(lam);
+        case Lam::Intrinsic::Vectorize: return emit_vectorize_lam(lam);
 #else
-        case Intrinsic::Vectorize: throw std::runtime_error("rebuild with RV support");
+        case Lam::Intrinsic::Vectorize: throw std::runtime_error("rebuild with RV support");
 #endif
         default: THORIN_UNREACHABLE;
     }
@@ -201,7 +201,7 @@ llvm::Function* CodeGen::emit_function_decl(Lam* lam) {
         f->setCallingConv(kernel_calling_convention_);
         emit_function_decl_hook(lam, f);
     } else {
-        if (lam->cc() == CC::Device)
+        if (lam->cc() == Lam::CC::Device)
             f->setCallingConv(device_calling_convention_);
         else
             f->setCallingConv(function_calling_convention_);
@@ -269,7 +269,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
         for (const auto& block : schedule) {
             auto lam = block.lam();
             // map all bb-like lams to llvm bb stubs
-            if (lam->intrinsic() != Intrinsic::EndScope) {
+            if (lam->intrinsic() != Lam::Intrinsic::EndScope) {
                 auto bb = bb2lam[lam] = llvm::BasicBlock::Create(context_, lam->name(), fct);
 
                 // create phi node stubs (for all lams different from entry)
@@ -294,7 +294,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
 
         for (auto& block : schedule) {
             auto lam = block.lam();
-            if (lam->intrinsic() == Intrinsic::EndScope)
+            if (lam->intrinsic() == Lam::Intrinsic::EndScope)
                 continue;
             assert(lam == entry_ || lam->is_basicblock());
             irbuilder_.SetInsertPoint(bb2lam[lam]);
@@ -372,7 +372,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                 auto fbb = bb2lam[select->fval()->as_nominal<Lam>()];
                 irbuilder_.CreateCondBr(cond, tbb, fbb);
             } else if (lam->app()->callee()->isa<Lam>() &&
-                       lam->app()->callee()->as<Lam>()->intrinsic() == Intrinsic::Match) {
+                       lam->app()->callee()->as<Lam>()->intrinsic() == Lam::Intrinsic::Match) {
                 auto val = lookup(lam->app()->arg(0));
                 auto otherwise_bb = bb2lam[lam->app()->arg(1)->as_nominal<Lam>()];
                 auto match = irbuilder_.CreateSwitch(val, otherwise_bb, lam->app()->num_args() - 2);
@@ -420,7 +420,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                         call = irbuilder_.CreateCall(emit_function_decl(callee_lam), args);
                         if (callee_lam->is_external())
                             call->setCallingConv(kernel_calling_convention_);
-                        else if (callee_lam->cc() == CC::Device)
+                        else if (callee_lam->cc() == Lam::CC::Device)
                             call->setCallingConv(device_calling_convention_);
                         else
                             call->setCallingConv(function_calling_convention_);

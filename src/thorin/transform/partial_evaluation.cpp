@@ -163,7 +163,7 @@ bool PartialEvaluator::run() {
         }
 
         if (auto callee = callee_def->isa_nominal<Lam>()) {
-            if (callee->intrinsic() == Intrinsic::PeInfo) {
+            if (callee->intrinsic() == Lam::Intrinsic::PeInfo) {
                 eat_pe_info(lam);
                 continue;
             }

@@ -42,7 +42,7 @@ World::World(uint32_t cur_gid, const std::string& name)
     cache_.lit_index_0_1_    = lit_index(lit_arity_1(), 0);
     cache_.lit_bool_[0]      = lit(type_bool(), {false});
     cache_.lit_bool_[1]      = lit(type_bool(), {true});
-    cache_.end_scope_        = lam(cn(), CC::C, Intrinsic::EndScope, {"end_scope"});
+    cache_.end_scope_        = lam(cn(), Lam::CC::C, Lam::Intrinsic::EndScope, {"end_scope"});
 }
 
 World::~World() {
@@ -54,7 +54,7 @@ const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
     assertf(pi->domain() == arg->type(), "callee '{}' expects an argument of type '{}' but the argument '{}' is of type '{}'\n", callee, pi->domain(), arg, arg->type());
 
     if (auto lam = callee->isa<Lam>()) {
-        if (lam->intrinsic() == Intrinsic::Match) {
+        if (lam->intrinsic() == Lam::Intrinsic::Match) {
             auto args = arg->as<Tuple>()->ops();
             if (args.size() == 2) return app(args[1], Defs{}, dbg);
             if (auto lit = args[0]->isa<Lit>()) {
@@ -939,7 +939,7 @@ Lam* World::match(const Def* type, size_t num_patterns) {
     for (size_t i = 0; i < num_patterns; i++)
         arg_types[i + 2] = sigma({type, cn()});
     auto dbg = Debug("match");
-    return lam(cn(sigma(arg_types)), CC::C, Intrinsic::Match, dbg);
+    return lam(cn(sigma(arg_types)), Lam::CC::C, Lam::Intrinsic::Match, dbg);
 }
 
 /*

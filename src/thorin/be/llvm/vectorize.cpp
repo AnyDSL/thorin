@@ -48,7 +48,7 @@ struct VectorizeArgs {
 
 Lam* CodeGen::emit_vectorize_lam(Lam* lam) {
     auto target = lam->app()->callee()->as_nominal<Lam>();
-    assert_unused(target->intrinsic() == Intrinsic::Vectorize);
+    assert_unused(target->intrinsic() == Lam::Intrinsic::Vectorize);
     assert(lam->app()->num_args() >= VectorizeArgs::Num && "required arguments are missing");
 
     // arguments

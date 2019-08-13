@@ -64,7 +64,7 @@ const Def* CopyProp::rewrite(const Def* def) {
 
 void CopyProp::inspect(Def* def) {
     if (auto old_lam = def->isa<Lam>()) {
-        if (old_lam->is_external() || old_lam->intrinsic() != Intrinsic::None) {
+        if (old_lam->is_external() || old_lam->intrinsic() != Lam::Intrinsic::None) {
             set_top(old_lam);
         } else {
             auto& info = lam2info(old_lam);

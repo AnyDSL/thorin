@@ -371,38 +371,40 @@ public:
     friend class World;
 };
 
-enum class Intrinsic : uint8_t {
-    None,                       ///< Not an intrinsic.
-    _Accelerator_Begin,
-    CUDA = _Accelerator_Begin,  ///< Internal CUDA-Backend.
-    NVVM,                       ///< Internal NNVM-Backend.
-    OpenCL,                     ///< Internal OpenCL-Backend.
-    AMDGPU,                     ///< Internal AMDGPU-Backend.
-    HLS,                        ///< Internal HLS-Backend.
-    Parallel,                   ///< Internal Parallel-CPU-Backend.
-    Spawn,                      ///< Internal Parallel-CPU-Backend.
-    Sync,                       ///< Internal Parallel-CPU-Backend.
-    CreateGraph,                ///< Internal Flow-Graph-Backend.
-    CreateTask,                 ///< Internal Flow-Graph-Backend.
-    CreateEdge,                 ///< Internal Flow-Graph-Backend.
-    ExecuteGraph,               ///< Internal Flow-Graph-Backend.
-    Vectorize,                  ///< External vectorizer.
-    _Accelerator_End,
-    Reserve = _Accelerator_End, ///< Intrinsic memory reserve function
-    Atomic,                     ///< Intrinsic atomic function
-    CmpXchg,                    ///< Intrinsic cmpxchg function
-    Undef,                      ///< Intrinsic undef function
-    Match,                      ///< match(val, otherwise, (case1, cont1), (case2, cont2), ...)
-    PeInfo,                     ///< Partial evaluation debug info.
-    EndScope,                   ///< Dummy function which marks the end of a @p Scope.
-};
-
-enum class CC : uint8_t {
-    C,          ///< C calling convention.
-    Device,     ///< Device calling convention. These are special functions only available on a particular device.
-};
-
 class Lam : public Def {
+public:
+    enum class Intrinsic : uint8_t {
+        None,                       ///< Not an intrinsic.
+        _Accelerator_Begin,
+        CUDA = _Accelerator_Begin,  ///< Internal CUDA-Backend.
+        NVVM,                       ///< Internal NNVM-Backend.
+        OpenCL,                     ///< Internal OpenCL-Backend.
+        AMDGPU,                     ///< Internal AMDGPU-Backend.
+        HLS,                        ///< Internal HLS-Backend.
+        Parallel,                   ///< Internal Parallel-CPU-Backend.
+        Spawn,                      ///< Internal Parallel-CPU-Backend.
+        Sync,                       ///< Internal Parallel-CPU-Backend.
+        CreateGraph,                ///< Internal Flow-Graph-Backend.
+        CreateTask,                 ///< Internal Flow-Graph-Backend.
+        CreateEdge,                 ///< Internal Flow-Graph-Backend.
+        ExecuteGraph,               ///< Internal Flow-Graph-Backend.
+        Vectorize,                  ///< External vectorizer.
+        _Accelerator_End,
+        Reserve = _Accelerator_End, ///< Intrinsic memory reserve function
+        Atomic,                     ///< Intrinsic atomic function
+        CmpXchg,                    ///< Intrinsic cmpxchg function
+        Undef,                      ///< Intrinsic undef function
+        Match,                      ///< match(val, otherwise, (case1, cont1), (case2, cont2), ...)
+        PeInfo,                     ///< Partial evaluation debug info.
+        EndScope,                   ///< Dummy function which marks the end of a @p Scope.
+    };
+
+    /// calling convention
+    enum class CC : uint8_t {
+        C,          ///< C calling convention.
+        Device,     ///< Device calling convention. These are special functions only available on a particular device.
+    };
+
 private:
     struct Extra {
         CC cc_;

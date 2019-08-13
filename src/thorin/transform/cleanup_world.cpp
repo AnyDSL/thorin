@@ -304,7 +304,7 @@ void Cleaner::clean_pe_infos() {
 
         if (auto app = lam->app()) {
             if (auto callee = app->callee()->isa_nominal<Lam>()) {
-                if (callee->intrinsic() == Intrinsic::PeInfo) {
+                if (callee->intrinsic() == Lam::Intrinsic::PeInfo) {
                     clean_pe_info(queue, lam);
                     continue;
                 }

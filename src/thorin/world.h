@@ -104,12 +104,12 @@ public:
     //@}
     /// @name Lambda: nominal
     //@{
-    Lam* lam(const Pi* cn, CC cc = CC::C, Intrinsic intrinsic = Intrinsic::None, Debug dbg = {}) {
+    Lam* lam(const Pi* cn, Lam::CC cc = Lam::CC::C, Lam::Intrinsic intrinsic = Lam::Intrinsic::None, Debug dbg = {}) {
         auto lam = insert<Lam>(2, cn, cc, intrinsic, debug(dbg));
         lam->destroy(); // set filter to false and body to top
         return lam;
     }
-    Lam* lam(const Pi* cn, Debug dbg = {}) { return lam(cn, CC::C, Intrinsic::None, dbg); }
+    Lam* lam(const Pi* cn, Debug dbg = {}) { return lam(cn, Lam::CC::C, Lam::Intrinsic::None, dbg); }
     //@}
     /// @name Lambda: structural
     const Lam* lam(const Def* domain, const Def* filter, const Def* body, Debug dbg);
@@ -366,12 +366,12 @@ public:
 
 private:
     /// @name helpers for optional/variant arguments
+    //@{
     const Def* name2def(Name n) {
         if (auto s = std::get_if<const char*>(&n)) return tuple_str(*s);
         if (auto s = std::get_if<std::string>(&n)) return tuple_str(s->c_str());
         return std::get<const Def*>(n);
     }
-    //@{
     const Def* debug(Debug dbg) {
         if (auto d  = std::get_if<0>(&*dbg)) {
             auto n  = name2def(std::get<0>(*d));

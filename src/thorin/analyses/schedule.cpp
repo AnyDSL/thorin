@@ -277,7 +277,7 @@ void Schedule::verify() {
 std::ostream& Schedule::stream(std::ostream& os) const {
     for (auto& block : *this) {
         auto lam = block.lam();
-        if (lam->intrinsic() != Intrinsic::EndScope) {
+        if (lam->intrinsic() != Lam::Intrinsic::EndScope) {
             bool indent = lam != scope().entry();
             if (indent)
                 os << up;

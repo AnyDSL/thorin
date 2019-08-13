@@ -61,7 +61,7 @@ void Mem2Reg::inspect(Def* def) {
         if (preds_n_.contains(old_lam)) info.lattice = Info::PredsN;
         if (keep_   .contains(old_lam)) info.lattice = Info::Keep;
 
-        if (old_lam->is_external() || old_lam->intrinsic() != Intrinsic::None) {
+        if (old_lam->is_external() || old_lam->intrinsic() != Lam::Intrinsic::None) {
             info.lattice = Info::Keep;
         } else if (info.lattice != Info::Keep) {
             man().new_state();

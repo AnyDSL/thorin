@@ -60,7 +60,7 @@ inline bool is_passed_to_accelerator(Lam* lam, bool include_globals = true) {
     return visit_capturing_intrinsics(lam, [&] (Lam* lam) { return lam->is_accelerator(); }, include_globals);
 }
 
-inline bool is_passed_to_intrinsic(Lam* lam, Intrinsic intrinsic, bool include_globals = true) {
+inline bool is_passed_to_intrinsic(Lam* lam, Lam::Intrinsic intrinsic, bool include_globals = true) {
     return visit_capturing_intrinsics(lam, [&] (Lam* lam) { return lam->intrinsic() == intrinsic; }, include_globals);
 }
 

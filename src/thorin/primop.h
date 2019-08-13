@@ -12,8 +12,8 @@ namespace thorin {
 /// Base class for all @p PrimOp%s.
 class PrimOp : public Def {
 protected:
-    PrimOp(NodeTag tag, RebuildFn rebuild, const Def* type, Defs ops, const Def* dbg)
-        : Def(tag, rebuild, type, ops, 0, dbg)
+    PrimOp(NodeTag tag, RebuildFn rebuild, const Def* type, Defs ops, uint64_t flags, const Def* dbg)
+        : Def(tag, rebuild, type, ops, flags, dbg)
     {}
 
 public:
@@ -30,7 +30,7 @@ public:
 class Select : public PrimOp {
 private:
     Select(const Def* cond, const Def* tval, const Def* fval, const Def* dbg)
-        : PrimOp(Node_Select, rebuild, tval->type(), {cond, tval, fval}, dbg)
+        : PrimOp(Node_Select, rebuild, tval->type(), {cond, tval, fval}, 0, dbg)
     {
         assert(is_type_bool(cond->type()));
         assert(tval->type() == fval->type() && "types of both values must be equal");
@@ -61,7 +61,7 @@ public:
 class BinOp : public PrimOp {
 protected:
     BinOp(NodeTag tag, RebuildFn rebuild, const Def* type, const Def* lhs, const Def* rhs, const Def* dbg)
-        : PrimOp(tag, rebuild, type, {lhs, rhs}, dbg)
+        : PrimOp(tag, rebuild, type, {lhs, rhs}, 0, dbg)
     {
         assert(lhs->type() == rhs->type() && "types are not equal");
     }
@@ -109,7 +109,7 @@ public:
 class ConvOp : public PrimOp {
 protected:
     ConvOp(NodeTag tag, RebuildFn rebuild, const Def* from, const Def* to, const Def* dbg)
-        : PrimOp(tag, rebuild, to, {from}, dbg)
+        : PrimOp(tag, rebuild, to, {from}, 0, dbg)
     {}
 
 public:
@@ -146,7 +146,7 @@ public:
 class Variant : public PrimOp {
 private:
     Variant(const VariantType* variant_type, const Def* value, const Def* dbg)
-        : PrimOp(Node_Variant, rebuild, variant_type, {value}, dbg)
+        : PrimOp(Node_Variant, rebuild, variant_type, {value}, 0, dbg)
     {
         assert(std::find(variant_type->ops().begin(), variant_type->ops().end(), value->type()) != variant_type->ops().end());
     }
@@ -167,7 +167,7 @@ public:
 class LEA : public PrimOp {
 private:
     LEA(const Def* type, const Def* ptr, const Def* index, const Def* dbg)
-        : PrimOp(Node_LEA, rebuild, type, {ptr, index}, dbg)
+        : PrimOp(Node_LEA, rebuild, type, {ptr, index}, 0, dbg)
     {}
 
 public:
@@ -185,7 +185,7 @@ public:
 class Hlt : public PrimOp {
 private:
     Hlt(const Def* def, const Def* dbg)
-        : PrimOp(Node_Hlt, rebuild, def->type(), {def}, dbg)
+        : PrimOp(Node_Hlt, rebuild, def->type(), {def}, 0, dbg)
     {}
 
 public:
@@ -214,7 +214,7 @@ public:
 class Run : public PrimOp {
 private:
     Run(const Def* def, const Def* dbg)
-        : PrimOp(Node_Run, rebuild, def->type(), {def}, dbg)
+        : PrimOp(Node_Run, rebuild, def->type(), {def}, 0, dbg)
     {}
 
 public:
@@ -230,18 +230,15 @@ public:
  */
 class Global : public PrimOp {
 private:
-    struct Extra { bool is_mutable_; }; // TODO remove
-
     Global(const Def* type, const Def* init, bool is_mutable, const Def* dbg)
-        : PrimOp(Node_Global, rebuild, type, {init}, dbg)
+        : PrimOp(Node_Global, rebuild, type, {init}, is_mutable, dbg)
     {
-        extra<Extra>().is_mutable_ = is_mutable;
         hash_ = murmur3(gid()); // HACK
     }
 
 public:
     const Def* init() const { return op(0); }
-    bool is_mutable() const { return extra<Extra>().is_mutable_; }
+    bool is_mutable() const { return flags(); }
     const PtrType* type() const { return PrimOp::type()->as<PtrType>(); }
     const Def* alloced_type() const { return type()->pointee(); }
     const char* op_name() const override;
@@ -257,7 +254,7 @@ public:
 class MemOp : public PrimOp {
 protected:
     MemOp(NodeTag tag, RebuildFn rebuild, const Def* type, Defs args, const Def* dbg)
-        : PrimOp(tag, rebuild, type, args, dbg)
+        : PrimOp(tag, rebuild, type, args, 0, dbg)
     {
         assert(mem()->type()->isa<MemType>());
         assert(args.size() >= 1);

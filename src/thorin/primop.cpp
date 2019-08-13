@@ -18,11 +18,11 @@ Cmp::Cmp(CmpTag tag, const Def* lhs, const Def* rhs, const Def* dbg)
 {}
 
 Known::Known(const Def* def, const Def* dbg)
-    : PrimOp(Node_Known, rebuild, def->world().type_bool(), {def}, dbg)
+    : PrimOp(Node_Known, rebuild, def->world().type_bool(), {def}, 0, dbg)
 {}
 
 SizeOf::SizeOf(const Def* def, const Def* dbg)
-    : PrimOp(Node_SizeOf, rebuild, def->world().type_qs32(), {def}, dbg)
+    : PrimOp(Node_SizeOf, rebuild, def->world().type_qs32(), {def}, 0, dbg)
 {}
 
 Assembly::Assembly(const Def* type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Flags flags, const Def* dbg)

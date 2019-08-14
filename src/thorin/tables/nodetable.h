@@ -49,7 +49,7 @@
         THORIN_NODE(Hlt, hlt)
         THORIN_NODE(Known, known)
         THORIN_NODE(Run, run)
-        THORIN_NODE(Assembly, asm)
+        //THORIN_NODE(Assembly, asm)
     THORIN_NODE(Param, param)
     THORIN_NODE(Analyze, analyze)
     // Type

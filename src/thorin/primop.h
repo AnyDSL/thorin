@@ -344,6 +344,7 @@ public:
     friend class World;
 };
 
+/*
 class Assembly : public MemOp {
 public:
     enum Flags {
@@ -385,6 +386,7 @@ inline Assembly::Flags operator|(Assembly::Flags lhs, Assembly::Flags rhs) { ret
 inline Assembly::Flags operator&(Assembly::Flags lhs, Assembly::Flags rhs) { return static_cast<Assembly::Flags>(static_cast<int>(lhs) & static_cast<int>(rhs)); }
 inline Assembly::Flags operator|=(Assembly::Flags& lhs, Assembly::Flags rhs) { return lhs = lhs | rhs; }
 inline Assembly::Flags operator&=(Assembly::Flags& lhs, Assembly::Flags rhs) { return lhs = lhs & rhs; }
+*/
 
 template<class To>
 using PrimOpMap     = GIDMap<const PrimOp*, To>;

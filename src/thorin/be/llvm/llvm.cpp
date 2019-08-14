@@ -854,10 +854,10 @@ llvm::Value* CodeGen::emit(const Def* def) {
         if (auto extract = def->isa<Extract>()) {
             // Assemblys with more than two outputs are MemOps and have tuple type
             // and thus need their own rule here because the standard MemOp rule does not work
-            if (auto assembly = extract->agg()->isa<Assembly>()) {
-                if (assembly->type()->num_ops() > 2 && as_lit<u64>(extract->index()) != 0)
-                    return irbuilder_.CreateExtractValue(llvm_agg, {as_lit<u32>(extract->index()) - 1});
-            }
+            //if (auto assembly = extract->agg()->isa<Assembly>()) {
+                //if (assembly->type()->num_ops() > 2 && as_lit<u64>(extract->index()) != 0)
+                    //return irbuilder_.CreateExtractValue(llvm_agg, {as_lit<u32>(extract->index()) - 1});
+            //}
 
             if (auto memop = extract->agg()->isa<MemOp>())
                 return lookup(memop);
@@ -927,7 +927,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
     if (auto load = def->isa<Load>())         return emit_load(load);
     if (auto store = def->isa<Store>())       return emit_store(store);
     if (auto lea = def->isa<LEA>())           return emit_lea(lea);
-    if (auto assembly = def->isa<Assembly>()) return emit_assembly(assembly);
+    //if (auto assembly = def->isa<Assembly>()) return emit_assembly(assembly);
 
     if (auto slot = def->isa<Slot>())
         return emit_alloca(convert(slot->alloced_type()), slot->unique_name());
@@ -971,6 +971,7 @@ llvm::Value* CodeGen::emit_lea(const LEA* lea) {
     return irbuilder_.CreateInBoundsGEP(lookup(lea->ptr()), args);
 }
 
+/*
 llvm::Value* CodeGen::emit_assembly(const Assembly* assembly) {
     llvm::Type* res_type;
 
@@ -1014,6 +1015,7 @@ llvm::Value* CodeGen::emit_assembly(const Assembly* assembly) {
             assembly->is_inteldialect() ? llvm::InlineAsm::AsmDialect::AD_Intel : llvm::InlineAsm::AsmDialect::AD_ATT);
     return irbuilder_.CreateCall(asm_expr, llvm_ref(input_values));
 }
+*/
 
 unsigned CodeGen::convert_addr_space(u64 addr_space) {
     switch (addr_space) {

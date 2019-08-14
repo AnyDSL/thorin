@@ -892,6 +892,7 @@ const Def* World::global_immutable_string(const std::string& str, Debug dbg) {
     return global(tuple(str_array, dbg), false, dbg);
 }
 
+/*
 const Assembly* World::assembly(const Def* type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg) {
     return unify<Assembly>(inputs.size(), type, inputs, asm_template, output_constraints, input_constraints, clobbers, flags, debug(dbg))->as<Assembly>();;
 }
@@ -907,6 +908,7 @@ const Assembly* World::assembly(Defs types, const Def* mem, Defs inputs, std::st
 
     return assembly(sigma(output), ops, asm_template, output_constraints, input_constraints, clobbers, flags, dbg);
 }
+*/
 
 /*
  * partial evaluation related stuff

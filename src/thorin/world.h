@@ -436,14 +436,13 @@ private:
     static inline size_t align(size_t n) { return (n + (sizeof(void*) - 1)) & ~(sizeof(void*)-1); }
 
     template<class T> static inline size_t num_bytes_of(size_t num_ops) {
-        size_t result = std::is_empty<typename T::Extra>() ? 0 : sizeof(typename T::Extra);
-        result += sizeof(Def) + sizeof(const Def*)*num_ops;
+        size_t result = sizeof(Def) + sizeof(const Def*)*num_ops;
         return align(result);
     }
 
     template<class T, class... Args>
     T* allocate(size_t num_ops, Args&&... args) {
-        static_assert(sizeof(Def) == sizeof(T), "you are not allowed to introduce any additional data in subclasses of Def - use 'Extra' struct");
+        static_assert(sizeof(Def) == sizeof(T), "you are not allowed to introduce any additional data in subclasses of Def");
         Lock lock;
         size_t num_bytes = num_bytes_of<T>(num_ops);
         num_bytes = align(num_bytes);

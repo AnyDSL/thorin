@@ -243,8 +243,6 @@ protected:
     const Def** ops_ptr() const { return reinterpret_cast<const Def**>(reinterpret_cast<char*>(const_cast<Def*>(this + 1))); }
     void finalize();
 
-    struct Extra {};
-
     union {
         const Def* type_;
         mutable World* world_;

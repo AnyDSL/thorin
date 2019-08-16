@@ -225,7 +225,7 @@ public:
         assert(isa_nominal());
         return stub_(this, world, type, dbg);
     }
-    virtual bool equal(const Def* other) const;
+    bool equal(const Def* other) const;
     //@}
     /// @name stream
     //@{

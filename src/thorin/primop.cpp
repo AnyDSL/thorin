@@ -52,7 +52,7 @@ const Def* ArithOp::rebuild(const Def* d, World& to, const Def*  , Defs ops, con
 const Def* Bitcast::rebuild(const Def*  , World& to, const Def* t, Defs ops, const Def* dbg) { return to.bitcast(t, ops[0], dbg); }
 const Def* Cast   ::rebuild(const Def*  , World& to, const Def* t, Defs ops, const Def* dbg) { return to.cast(t, ops[0], dbg); }
 const Def* Cmp    ::rebuild(const Def* d, World& to, const Def*  , Defs ops, const Def* dbg) { return to.cmp(d->as<Cmp>()->cmp_tag(), ops[0], ops[1], dbg); }
-const Def* Global ::rebuild(const Def* d, World& to, const Def*  , Defs ops, const Def* dbg) { return to.global(ops[0], d->as<Global>()->is_mutable(), dbg); }
+const Def* Global ::rebuild(const Def* d, World& to, const Def*  , Defs ops, const Def* dbg) { return to.global(ops[0], ops[1], d->as<Global>()->is_mutable(), dbg); }
 const Def* Hlt    ::rebuild(const Def*  , World& to, const Def*  , Defs ops, const Def* dbg) { return to.hlt(ops[0], dbg); }
 const Def* Known  ::rebuild(const Def*  , World& to, const Def*  , Defs ops, const Def* dbg) { return to.known(ops[0], dbg); }
 const Def* Run    ::rebuild(const Def*  , World& to, const Def*  , Defs ops, const Def* dbg) { return to.run(ops[0], dbg); }

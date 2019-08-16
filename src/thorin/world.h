@@ -281,7 +281,8 @@ public:
     const Def* store(const Def* mem, const Def* ptr, const Def* val, Debug dbg = {});
     const Slot* slot(const Def* type, const Def* mem, Debug dbg = {});
     const Alloc* alloc(const Def* type, const Def* mem, Debug dbg = {});
-    const Def* global(const Def* init, bool is_mutable = true, Debug dbg = {});
+    const Def* global(const Def* id, const Def* init, bool is_mutable = true, Debug dbg = {});
+    const Def* global(const Def* init, bool is_mutable = true, Debug dbg = {}) { return global(lit_qu64(cur_gid_), init, is_mutable, debug(dbg)); }
     const Def* global_immutable_string(const std::string& str, Debug dbg = {});
     //const Assembly* assembly(const Def* type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints,
                              //ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg = {});

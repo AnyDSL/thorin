@@ -230,20 +230,19 @@ public:
  */
 class Global : public PrimOp {
 private:
-    Global(const Def* type, const Def* init, bool is_mutable, const Def* dbg)
-        : PrimOp(Node_Global, rebuild, type, {init}, is_mutable, dbg)
-    {
-        hash_ = murmur3(gid()); // HACK
-    }
+    Global(const Def* type, const Def* id, const Def* init, bool is_mutable, const Def* dbg)
+        : PrimOp(Node_Global, rebuild, type, {id, init}, is_mutable, dbg)
+    {}
 
 public:
-    const Def* init() const { return op(0); }
+    /// This thing's sole purpose is to differentiate on global from another.
+    const Def* id() const { return op(0); }
+    const Def* init() const { return op(1); }
     bool is_mutable() const { return flags(); }
     const PtrType* type() const { return PrimOp::type()->as<PtrType>(); }
     const Def* alloced_type() const { return type()->pointee(); }
     const char* op_name() const override;
 
-    bool equal(const Def* other) const override { return this == other; }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
     std::ostream& stream(std::ostream&) const override;
 

@@ -877,8 +877,8 @@ const Slot* World::slot(const Def* type, const Def* mem, Debug dbg) {
     return unify<Slot>(1, sigma({mem_type(), ptr_type(type)}), mem, debug(dbg));
 }
 
-const Def* World::global(const Def* init, bool is_mutable, Debug dbg) {
-    return unify<Global>(1, ptr_type(init->type()), init, is_mutable, debug(dbg));
+const Def* World::global(const Def* id, const Def* init, bool is_mutable, Debug dbg) {
+    return unify<Global>(2, ptr_type(init->type()), id, init, is_mutable, debug(dbg));
 }
 
 const Def* World::global_immutable_string(const std::string& str, Debug dbg) {

@@ -372,8 +372,16 @@ App::App(const Def* type, const Def* callee, const Def* arg, const Def* dbg)
     : Def(Node_App, rebuild, type, {callee, arg}, 0, dbg)
 {}
 
-Kind::Kind(World& world, NodeTag tag)
-    : Def(tag, rebuild, world.universe(), Defs{}, 0, nullptr)
+KindArity::KindArity(World& world)
+    : Def(Node_KindArity, rebuild, world.universe(), Defs{}, 0, nullptr)
+{}
+
+KindMulti::KindMulti(World& world)
+    : Def(Node_KindMulti, rebuild, world.universe(), Defs{}, 0, nullptr)
+{}
+
+KindStar::KindStar(World& world)
+    : Def(Node_KindStar, rebuild, world.universe(), Defs{}, 0, nullptr)
 {}
 
 PrimType::PrimType(World& world, PrimTypeTag tag)
@@ -418,7 +426,9 @@ const Def* Bot        ::rebuild(const Def*  , World& w, const Def* t, Defs  , co
 const Def* Top        ::rebuild(const Def*  , World& w, const Def* t, Defs  , const Def* dbg) { return w.top(t, dbg); }
 const Def* Extract    ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.extract(o[0], o[1], dbg); }
 const Def* Insert     ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.insert(o[0], o[1], o[2], dbg); }
-const Def* Kind       ::rebuild(const Def* d, World& w, const Def*  , Defs  , const Def*    ) { return w.kind(d->as<Kind>()->tag()); }
+const Def* KindArity  ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.kind_arity(); }
+const Def* KindMulti  ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.kind_multi(); }
+const Def* KindStar   ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.kind_star(); }
 const Def* Lit        ::rebuild(const Def* d, World& w, const Def* t, Defs  , const Def* dbg) { return w.lit(t, as_lit<u64>(d), dbg); }
 const Def* MemType    ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.mem_type(); }
 const Def* Pack       ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.pack(t->arity(), o[0], dbg); }
@@ -451,15 +461,9 @@ std::ostream& MemType    ::stream(std::ostream& os) const { return streamf(os, "
 std::ostream& Universe   ::stream(std::ostream& os) const { return streamf(os, "□"); }
 std::ostream& Variadic   ::stream(std::ostream& os) const { return streamf(os, "«{}; {}»", arity(), body()); }
 std::ostream& VariantType::stream(std::ostream& os) const { return stream_type_ops(os << "variant", this); }
-
-std::ostream& Kind::stream(std::ostream& os) const {
-    switch (tag()) {
-        case Node_KindArity: return os << "*A";
-        case Node_KindMulti: return os << "*M";
-        case Node_KindStar : return os << "*";
-        default: THORIN_UNREACHABLE;
-    }
-}
+std::ostream& KindArity  ::stream(std::ostream& os) const { return os << "*A"; }
+std::ostream& KindMulti  ::stream(std::ostream& os) const { return os << "*M"; }
+std::ostream& KindStar   ::stream(std::ostream& os) const { return os << "*"; }
 
 std::ostream& Analyze::stream(std::ostream& os) const {
     stream_list(os << "analyze(", ops().skip_front(), [&](auto def) { os << def; });
@@ -468,7 +472,7 @@ std::ostream& Analyze::stream(std::ostream& os) const {
 
 std::ostream& Lit::stream(std::ostream& os) const {
     //if (name()) return os << name();
-    if (is_kind_arity(type())) return streamf(os, "{}ₐ", get());
+    if (type()->isa<KindArity>()) return streamf(os, "{}ₐ", get());
 
     if (is_arity(type())) {
         if (type()->isa<Top>()) return streamf(os, "{}T", get());

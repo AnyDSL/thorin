@@ -82,10 +82,9 @@ public:
     /// @name Universe and Kind
     //@{
     const Universe* universe() { return cache_.universe_; }
-    const Kind* kind(NodeTag tag) { return cache_.kinds_[(size_t) tag - (size_t) Node_KindArity]; }
-    const Kind* kind_arity() { return cache_.kind_.kind_arity_; }
-    const Kind* kind_multi() { return cache_.kind_.kind_multi_; }
-    const Kind* kind_star()  { return cache_.kind_.kind_star_; }
+    const KindArity* kind_arity() { return cache_.kind_arity_; }
+    const KindMulti* kind_multi() { return cache_.kind_multi_; }
+    const KindStar*  kind_star()  { return cache_.kind_star_; }
     //@}
     /// @name Param
     //@{
@@ -492,18 +491,11 @@ private:
 #include "thorin/tables/primtypetable.h"
     };
 
-    struct Kinds {
-        const Kind* kind_arity_;
-        const Kind* kind_multi_;
-        const Kind* kind_star_;
-    };
-
     struct Cache {
         Universe* universe_;
-        union {
-            Kinds kind_;
-            std::array<const Kind*, 3> kinds_;
-        };
+        const KindArity* kind_arity_;
+        const KindMulti* kind_multi_;
+        const KindStar*  kind_star_;
         union {
             PrimTypeStruct primtype_;
             std::array<const PrimType*, Num_PrimTypes> primtypes_;

@@ -281,9 +281,31 @@ public:
     friend class World;
 };
 
-class Kind : public Def {
+class KindArity : public Def {
 private:
-    Kind(World&, NodeTag);
+    KindArity(World&);
+
+public:
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    std::ostream& stream(std::ostream&) const override;
+
+    friend class World;
+};
+
+class KindMulti : public Def {
+private:
+    KindMulti(World&);
+
+public:
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    std::ostream& stream(std::ostream&) const override;
+
+    friend class World;
+};
+
+class KindStar : public Def {
+private:
+    KindStar(World&);
 
 public:
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);

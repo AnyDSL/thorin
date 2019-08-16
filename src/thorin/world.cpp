@@ -27,9 +27,9 @@ World::World(uint32_t cur_gid, const std::string& name)
     , cur_gid_(cur_gid)
 {
     cache_.universe_         = insert<Universe>(0, *this);
-    cache_.kind_.kind_arity_ = insert<Kind>(0, *this, Node_KindArity);
-    cache_.kind_.kind_multi_ = insert<Kind>(0, *this, Node_KindMulti);
-    cache_.kind_.kind_star_  = insert<Kind>(0, *this, Node_KindStar);
+    cache_.kind_arity_       = insert<KindArity>(0, *this);
+    cache_.kind_multi_       = insert<KindMulti>(0, *this);
+    cache_.kind_star_        = insert<KindStar >(0, *this);
 #define THORIN_ALL_TYPE(T, M) \
     cache_.primtype_.T##_    = insert<PrimType>(0, *this, PrimType_##T);
 #include "thorin/tables/primtypetable.h"
@@ -78,9 +78,14 @@ const Lam* World::lam(const Def* domain, const Def* filter, const Def* body, Deb
 static const Def* lub(const Def* t1, const Def* t2) {
     if (t1->isa<Universe>()) return t1;
     if (t2->isa<Universe>()) return t2;
-    assert(t1->isa<Kind>() && t2->isa<Kind>());
-    auto tag = std::max(t1->tag(), t2->tag());
-    return t1->world().kind(tag);
+    //assert(t1->isa<Kind>() && t2->isa<Kind>());
+    switch (std::max(t1->tag(), t2->tag())) {
+        case Node_KindArity: return t1->world().kind_arity();
+        case Node_KindMulti: return t1->world().kind_multi();
+        case Node_KindStar:  return t1->world().kind_star();
+        default:
+        THORIN_UNREACHABLE;
+    }
 }
 
 const Pi* World::pi(const Def* domain, const Def* codomain, Debug dbg) {

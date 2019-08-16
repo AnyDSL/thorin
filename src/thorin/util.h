@@ -29,10 +29,7 @@ inline bool is_type_i   (const Def* t) { return thorin::is_type_i  (t->tag()); }
 inline bool is_type_f   (const Def* t) { return thorin::is_type_f  (t->tag()); }
 inline bool is_type_bool(const Def* t) { return t->tag() == Node_PrimType_bool; }
 
-inline bool is_kind_arity(const Def* def) { return def->tag() == Node_KindArity; }
-inline bool is_kind_multi(const Def* def) { return def->tag() == Node_KindMulti; }
-inline bool is_kind_star (const Def* def) { return def->tag() == Node_KindStar; }
-inline bool is_arity(const Def* def) { return is_kind_arity(def->type()); }
+inline bool is_arity(const Def* def) { return def->type()->isa<KindArity>(); }
 inline bool is_mem        (const Def* def) { return def->type()->isa<MemType>(); }
 inline bool is_zero       (const Def* def) { return is_primlit(def, 0); }
 inline bool is_one        (const Def* def) { return is_primlit(def, 1); }

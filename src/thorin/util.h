@@ -29,8 +29,6 @@ inline bool is_type_i   (const Def* t) { return thorin::is_type_i  (t->tag()); }
 inline bool is_type_f   (const Def* t) { return thorin::is_type_f  (t->tag()); }
 inline bool is_type_bool(const Def* t) { return t->tag() == Node_PrimType_bool; }
 
-inline bool is_bot (const Def* def) { return def->tag() == Node_Bot; }
-inline bool is_top (const Def* def) { return def->tag() == Node_Top; }
 inline bool is_kind_arity(const Def* def) { return def->tag() == Node_KindArity; }
 inline bool is_kind_multi(const Def* def) { return def->tag() == Node_KindMulti; }
 inline bool is_kind_star (const Def* def) { return def->tag() == Node_KindStar; }

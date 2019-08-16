@@ -38,7 +38,7 @@ Lam* Mangler::mangle() {
     // create new_entry - but first collect and specialize all param types
     std::vector<const Def*> param_types;
     for (size_t i = 0, e = old_entry()->num_params(); i != e; ++i) {
-        if (is_top(args_[i]))
+        if (args_[i]->isa<Top>())
             param_types.emplace_back(old_entry()->param(i)->type());
     }
 
@@ -51,7 +51,7 @@ Lam* Mangler::mangle() {
     old2new_[old_entry()] = old_entry();
     for (size_t i = 0, j = 0, e = old_entry()->num_params(); i != e; ++i) {
         auto old_param = old_entry()->param(i);
-        if (!is_top(args_[i]))
+        if (!args_[i]->isa<Top>())
             old2new_[old_param] = args_[i];
         else {
             all = false;
@@ -108,7 +108,7 @@ const Def* Mangler::mangle(const Def* old_def) {
                     std::vector<size_t> cut;
                     bool substitute = true;
                     for (size_t i = 0, e = args_.size(); i != e && substitute; ++i) {
-                        if (!is_top(args_[i])) {
+                        if (!args_[i]->isa<Top>()) {
                             substitute &= args_[i] == tuple->op(i);
                             cut.push_back(i);
                         }

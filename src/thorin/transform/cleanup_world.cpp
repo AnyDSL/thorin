@@ -65,7 +65,7 @@ void Cleaner::eliminate_tail_rec() {
                     if (use->isa<Param>()) continue;
                     if (scope.contains(use)) {
                         auto arg = use->as<App>()->arg(i);
-                        if (!is_bot(arg) && arg != args[i]) {
+                        if (!arg->isa<Bot>() && arg != args[i]) {
                             args[i] = world().top(arg->type());
                             break;
                         }
@@ -76,7 +76,7 @@ void Cleaner::eliminate_tail_rec() {
             std::vector<const Def*> new_args;
 
             for (size_t i = 0; i != n; ++i) {
-                if (is_top(args[i])) {
+                if (args[i]->isa<Top>()) {
                     new_args.emplace_back(entry->param(i));
                     if (entry->param(i)->type()->order() != 0) {
                         // the resulting function wouldn't be of first order so examine next scope

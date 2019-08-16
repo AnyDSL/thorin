@@ -11,9 +11,9 @@ bool CopyProp::LamInfo::join(const App* app) {
         auto& lattice = std::get<Lattice   >(params[i]);
         auto& param   = std::get<const Def*>(params[i]);
 
-        if (lattice == Top || is_bot(app->arg(i))) continue;
+        if (lattice == Top || app->arg(i)->isa<Bot>()) continue;
 
-        if (is_bot(param)) {
+        if (param->isa<Bot>()) {
             todo |= param != app->arg(i);
             param = app->arg(i);
         } else if (param == app->arg(i)) {
@@ -48,7 +48,7 @@ const Def* CopyProp::rewrite(const Def* def) {
                     auto& param   = std::get<const Def*>(info.params[i]);
                     if (lattice == Top)
                         new_args.emplace_back(app->arg(i));
-                    else if (is_bot(app->arg(i)) || app->arg(i) == param)
+                    else if (app->arg(i)->isa<Bot>() || app->arg(i) == param)
                         continue;
                     else
                         return app;

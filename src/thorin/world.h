@@ -508,13 +508,11 @@ private:
             PrimTypeStruct primtype_;
             std::array<const PrimType*, Num_PrimTypes> primtypes_;
         };
-        const BotTop* bot_star_;
-        const BotTop* top_arity_;
+        const Bot* bot_star_;
+        const Top* top_arity_;
         const Sigma* sigma_;
         const Tuple* tuple_;
         const MemType* mem_;
-        const Lit* lit_nat_0_;
-        std::array<const Lit*, 7> lit_nat_;
         std::array<const Lit*, 2> lit_bool_;
         const Lit* lit_arity_1_;
         const Lit* lit_index_0_1_;

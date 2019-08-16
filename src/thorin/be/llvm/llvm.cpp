@@ -382,7 +382,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                     auto case_bb    = bb2lam[arg->op(1)->as_nominal<Lam>()];
                     match->addCase(case_const, case_bb);
                 }
-            } else if (is_bot(lam->app()->callee())) {
+            } else if (lam->app()->callee()->isa<Bot>()) {
                 irbuilder_.CreateUnreachable();
             } else {
                 auto callee = lam->app()->callee();
@@ -821,7 +821,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         if (auto lit = isa_lit<u64>(pack->body())) return llvm::ConstantAggregateZero::get(llvm_type);
 
         llvm::Value* llvm_agg = llvm::UndefValue::get(llvm_type);
-        if (is_bot(pack->body())) return llvm_agg;
+        if (pack->body()->isa<Bot>()) return llvm_agg;
 
         auto elem = lookup(pack->body());
         for (size_t i = 0, e = as_lit<u64>(pack->arity()); i != e; ++i)
@@ -922,7 +922,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         }
     }
 
-    if (is_bot(def))                          return llvm::UndefValue::get(convert(def->type()));
+    if (def->isa<Bot>())                      return llvm::UndefValue::get(convert(def->type()));
     if (auto alloc = def->isa<Alloc>())       return emit_alloc(alloc->alloced_type());
     if (auto load = def->isa<Load>())         return emit_load(load);
     if (auto store = def->isa<Store>())       return emit_store(store);
@@ -945,7 +945,7 @@ llvm::Value* CodeGen::emit_global(const Global* global) {
     else {
         auto llvm_type = convert(global->alloced_type());
         auto var = llvm::cast<llvm::GlobalVariable>(module_->getOrInsertGlobal(global->unique_name().c_str(), llvm_type));
-        if (is_bot(global->init()))
+        if (global->init()->isa<Bot>())
             var->setInitializer(llvm::Constant::getNullValue(llvm_type)); // HACK
         else
             var->setInitializer(llvm::cast<llvm::Constant>(emit(global->init())));

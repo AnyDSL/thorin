@@ -33,8 +33,8 @@ World::World(uint32_t cur_gid, const std::string& name)
 #define THORIN_ALL_TYPE(T, M) \
     cache_.primtype_.T##_    = insert<PrimType>(0, *this, PrimType_##T);
 #include "thorin/tables/primtypetable.h"
-    cache_.bot_star_         = insert<BotTop>(0, false, kind_star(), nullptr);
-    cache_.top_arity_        = insert<BotTop>(0, true, kind_arity(), nullptr);
+    cache_.bot_star_         = insert<Bot>(0, kind_star(), nullptr);
+    cache_.top_arity_        = insert<Top>(0, kind_arity(), nullptr);
     cache_.sigma_            = insert<Sigma>(0, kind_star(), Defs{}, nullptr)->as<Sigma>();
     cache_.tuple_            = insert<Tuple>(0, sigma(), Defs{}, nullptr)->as<Tuple>();
     cache_.mem_              = insert<MemType>(0, *this);
@@ -259,7 +259,7 @@ const Lit* World::lit_allset(PrimTypeTag tag, Debug dbg) {
 }
 
 const Lit* World::lit_index(const Def* a, u64 i, Debug dbg) {
-    if (is_top(a)) return lit(a, i, dbg);
+    if (a->isa<Top>()) return lit(a, i, dbg);
 
     auto arity = as_lit<u64>(a);
     assertf(i < arity, "index literal '{}' does not fit within arity '{}'", i, a);
@@ -585,7 +585,7 @@ const Def* World::cmp(CmpTag tag, const Def* a, const Def* b, Debug dbg) {
         default: break;
     }
 
-    if (is_bot(a) || is_bot(b)) return bot(type_bool(), dbg);
+    if (a->isa<Bot>() || b->isa<Bot>()) return bot(type_bool(), dbg);
 
     if (oldtag != tag)
         std::swap(a, b);
@@ -661,7 +661,7 @@ const Def* World::convert(const Def* dst_type, const Def* src, Debug dbg) {
 }
 
 const Def* World::cast(const Def* to, const Def* from, Debug dbg) {
-    if (is_bot(from)) return bot(to);
+    if (from->isa<Bot>()) return bot(to);
     if (from->type() == to) return from;
 
     if (auto variant = from->isa<Variant>()) {
@@ -767,7 +767,7 @@ const Def* World::cast(const Def* to, const Def* from, Debug dbg) {
 }
 
 const Def* World::bitcast(const Def* to, const Def* from, Debug dbg) {
-    if (is_bot(from)) return bot(to);
+    if (from->isa<Bot>()) return bot(to);
     if (from->type() == to) return from;
 
     if (auto other = from->isa<Bitcast>()) {
@@ -797,7 +797,8 @@ const Def* World::bot_top(bool is_top, const Def* type, Debug dbg) {
     if (auto variadic = type->isa<Variadic>()) return pack(variadic->arity(), bot_top(is_top, variadic->body()), dbg);
     if (auto sigma = type->isa<Sigma>())
         return tuple(sigma, Array<const Def*>(sigma->num_ops(), [&](size_t i) { return bot_top(is_top, sigma->op(i), dbg); }), dbg);
-    return unify<BotTop>(0, is_top, type, debug(dbg));
+    auto d = debug(dbg);
+    return is_top ? (const Def*) unify<Top>(0, type, d) : (const Def*) unify<Bot>(0, type, d);
 }
 
 /*
@@ -824,7 +825,7 @@ const Def* World::lea(const Def* ptr, const Def* index, Debug dbg) {
 }
 
 const Def* World::select(const Def* cond, const Def* a, const Def* b, Debug dbg) {
-    if (is_bot(cond) || is_bot(a) || is_bot(b)) return bot(a->type(), dbg);
+    if (cond->isa<Bot>() || a->isa<Bot>() || b->isa<Bot>()) return bot(a->type(), dbg);
     if (auto lit = cond->isa<Lit>()) return lit->get<bool>() ? a : b;
 
     if (is_not(cond)) {
@@ -858,10 +859,10 @@ const Def* World::load(const Def* mem, const Def* ptr, Debug dbg) {
 }
 
 const Def* World::store(const Def* mem, const Def* ptr, const Def* val, Debug dbg) {
-    if (is_bot(val)) return mem;
-    if (auto pack = val->isa<Pack>(); pack && is_bot(pack->body())) return mem;
+    if (val->isa<Bot>()) return mem;
+    if (auto pack = val->isa<Pack>(); pack && pack->body()->isa<Bot>()) return mem;
     if (auto tuple = val->isa<Tuple>()) {
-        if (std::all_of(tuple->ops().begin(), tuple->ops().end(), [&](auto op) { return is_bot(op); }))
+        if (std::all_of(tuple->ops().begin(), tuple->ops().end(), [&](const Def* op) { return op->isa<Bot>(); }))
             return mem;
     }
 

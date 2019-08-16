@@ -292,10 +292,23 @@ public:
     friend class World;
 };
 
-class BotTop : public Def {
+class Bot : public Def {
 private:
-    BotTop(bool is_top, const Def* type, const Def* dbg)
-        : Def(is_top ? Node_Top : Node_Bot, rebuild, type, Defs{}, 0, dbg)
+    Bot(const Def* type, const Def* dbg)
+        : Def(Node_Bot, rebuild, type, Defs{}, 0, dbg)
+    {}
+
+public:
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    std::ostream& stream(std::ostream&) const override;
+
+    friend class World;
+};
+
+class Top : public Def {
+private:
+    Top(const Def* type, const Def* dbg)
+        : Def(Node_Top, rebuild, type, Defs{}, 0, dbg)
     {}
 
 public:

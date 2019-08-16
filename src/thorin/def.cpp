@@ -145,7 +145,7 @@ Array<const Def*> App::args() const { return Array<const Def*>(num_args(), [&](a
  * Lam
  */
 
-bool Lam::is_empty() const { return is_bot(body()); }
+bool Lam::is_empty() const { return body()->isa<Bot>(); }
 
 void Lam::destroy() {
     set_filter(world().lit_false());
@@ -292,7 +292,7 @@ void Lam::match(const Def* val, Lam* otherwise, Defs patterns, ArrayRef<Lam*> la
  * Pi
  */
 
-bool Pi::is_cn() const { return is_bot(codomain()); }
+bool Pi::is_cn() const { return codomain()->isa<Bot>(); }
 
 Array<const Def*> Pi::domains() const {
     size_t n = num_domains();
@@ -414,7 +414,8 @@ const Def* Lam        ::rebuild(const Def* d, World& w, const Def* t, Defs o, co
 const Def* Sigma      ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* dbg) { assert(!d->isa_nominal()); return w.sigma(t, o, dbg); }
 const Def* Analyze    ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.analyze(t, o, dbg); }
 const Def* App        ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.app(o[0], o[1], dbg); }
-const Def* BotTop     ::rebuild(const Def* d, World& w, const Def* t, Defs  , const Def* dbg) { return w.bot_top(is_top(d), t, dbg); }
+const Def* Bot        ::rebuild(const Def*  , World& w, const Def* t, Defs  , const Def* dbg) { return w.bot(t, dbg); }
+const Def* Top        ::rebuild(const Def*  , World& w, const Def* t, Defs  , const Def* dbg) { return w.top(t, dbg); }
 const Def* Extract    ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.extract(o[0], o[1], dbg); }
 const Def* Insert     ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.insert(o[0], o[1], o[2], dbg); }
 const Def* Kind       ::rebuild(const Def* d, World& w, const Def*  , Defs  , const Def*    ) { return w.kind(d->as<Kind>()->tag()); }
@@ -470,7 +471,7 @@ std::ostream& Lit::stream(std::ostream& os) const {
     if (is_kind_arity(type())) return streamf(os, "{}ₐ", get());
 
     if (is_arity(type())) {
-        if (is_top(type())) return streamf(os, "{}T", get());
+        if (type()->isa<Top>()) return streamf(os, "{}T", get());
 
         std::string s;
         // append utf-8 subscripts in reverse order
@@ -511,11 +512,14 @@ std::ostream& Lit::stream(std::ostream& os) const {
     }
 }
 
-std::ostream& BotTop::stream(std::ostream& os) const {
-    auto op = is_bot(this) ? "⊥" : "⊤";
-    if (type()->is_kind())
-        return streamf(os, "{}{}", op, type());
-    return streamf(os, "{{{}: {}}}", op, type());
+std::ostream& Bot::stream(std::ostream& os) const {
+    if (type()->is_kind()) return streamf(os, "⊥{}", type());
+    return streamf(os, "{{⊥: {}}}", type());
+}
+
+std::ostream& Top::stream(std::ostream& os) const {
+    if (type()->is_kind()) return streamf(os, "⊤{}", type());
+    return streamf(os, "{{⊤: {}}}", type());
 }
 
 #if 0

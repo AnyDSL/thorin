@@ -145,7 +145,7 @@ public:
     bool contains_top(const Def* def) {
         if (is_top_.contains(def))
             return is_top_[def];
-        if (is_top(def)) {
+        if (def->isa<Top>()) {
             return is_top_[def] = true;
         } else if (!def->isa_nominal()) {
             for (auto op : def->ops()) {

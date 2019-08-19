@@ -690,78 +690,76 @@ llvm::Value* CodeGen::emit(const Def* def) {
         }
     }
 
-    if (auto conv = def->isa<ConvOp>()) {
-        auto from = lookup(conv->from());
-        auto src_type = conv->from()->type();
-        auto dst_type = conv->type();
+    if (auto cast = def->isa<Cast>()) {
+        auto from = lookup(cast->from());
+        auto src_type = cast->from()->type();
+        auto dst_type = cast->type();
         auto to = convert(dst_type);
 
-        if (conv->isa<Cast>()) {
-            if (is_arity(dst_type)) return from;
-            if (auto variant_type = src_type->isa<VariantType>()) {
-                auto bits = compute_variant_bits(variant_type);
-                if (bits != 0) {
-                    auto value_bits = compute_variant_op_bits(dst_type);
-                    auto trunc = irbuilder_.CreateTrunc(from, irbuilder_.getIntNTy(value_bits));
-                    return irbuilder_.CreateBitOrPointerCast(trunc, to);
-                } else {
-                    WDEF(def, "slow: alloca and loads/stores needed for variant cast '{}'", def);
-                    auto ptr_type = llvm::PointerType::get(to, 0);
-                    return create_tmp_alloca(from->getType(), [&] (auto alloca) {
-                        auto casted_ptr = irbuilder_.CreateBitCast(alloca, ptr_type);
-                        irbuilder_.CreateStore(from, alloca);
-                        return irbuilder_.CreateLoad(casted_ptr);
-                    });
-                }
+        if (is_arity(dst_type)) return from;
+        if (auto variant_type = src_type->isa<VariantType>()) {
+            auto bits = compute_variant_bits(variant_type);
+            if (bits != 0) {
+                auto value_bits = compute_variant_op_bits(dst_type);
+                auto trunc = irbuilder_.CreateTrunc(from, irbuilder_.getIntNTy(value_bits));
+                return irbuilder_.CreateBitOrPointerCast(trunc, to);
+            } else {
+                WDEF(def, "slow: alloca and loads/stores needed for variant cast '{}'", def);
+                auto ptr_type = llvm::PointerType::get(to, 0);
+                return create_tmp_alloca(from->getType(), [&] (auto alloca) {
+                    auto casted_ptr = irbuilder_.CreateBitCast(alloca, ptr_type);
+                    irbuilder_.CreateStore(from, alloca);
+                    return irbuilder_.CreateLoad(casted_ptr);
+                });
             }
-
-            if (src_type->isa<PtrType>() && dst_type->isa<PtrType>()) {
-                return irbuilder_.CreatePointerCast(from, to);
-            }
-            if (src_type->isa<PtrType>()) {
-                assert(is_type_i(dst_type) || is_type_bool(dst_type));
-                return irbuilder_.CreatePtrToInt(from, to);
-            }
-            if (dst_type->isa<PtrType>()) {
-                assert(is_type_i(src_type) || is_type_bool(src_type));
-                return irbuilder_.CreateIntToPtr(from, to);
-            }
-
-            auto src = src_type->as<PrimType>();
-            auto dst = dst_type->as<PrimType>();
-
-            if (is_type_f(src) && is_type_f(dst)) {
-                assert(num_bits(src->primtype_tag()) != num_bits(dst->primtype_tag()));
-                return irbuilder_.CreateFPCast(from, to);
-            }
-            if (is_type_f(src)) {
-                if (is_type_s(dst))
-                    return irbuilder_.CreateFPToSI(from, to);
-                return irbuilder_.CreateFPToUI(from, to);
-            }
-            if (is_type_f(dst)) {
-                if (is_type_s(src))
-                    return irbuilder_.CreateSIToFP(from, to);
-                return irbuilder_.CreateUIToFP(from, to);
-            }
-
-            if (num_bits(src->primtype_tag()) > num_bits(dst->primtype_tag())) {
-                if (is_type_i(src) && (is_type_i(dst) || is_type_bool(dst)))
-                    return irbuilder_.CreateTrunc(from, to);
-            } else if (num_bits(src->primtype_tag()) < num_bits(dst->primtype_tag())) {
-                if ( is_type_s(src)                       && is_type_i(dst)) return irbuilder_.CreateSExt(from, to);
-                if ((is_type_u(src) || is_type_bool(src)) && is_type_i(dst)) return irbuilder_.CreateZExt(from, to);
-            } else if (is_type_i(src) && is_type_i(dst)) {
-                assert(num_bits(src->primtype_tag()) == num_bits(dst->primtype_tag()));
-                return from;
-            }
-
-            assert(false && "unsupported cast");
         }
 
-        if (conv->isa<Bitcast>())
-            return emit_bitcast(conv->from(), dst_type);
+        if (src_type->isa<PtrType>() && dst_type->isa<PtrType>()) {
+            return irbuilder_.CreatePointerCast(from, to);
+        }
+        if (src_type->isa<PtrType>()) {
+            assert(is_type_i(dst_type) || is_type_bool(dst_type));
+            return irbuilder_.CreatePtrToInt(from, to);
+        }
+        if (dst_type->isa<PtrType>()) {
+            assert(is_type_i(src_type) || is_type_bool(src_type));
+            return irbuilder_.CreateIntToPtr(from, to);
+        }
+
+        auto src = src_type->as<PrimType>();
+        auto dst = dst_type->as<PrimType>();
+
+        if (is_type_f(src) && is_type_f(dst)) {
+            assert(num_bits(src->primtype_tag()) != num_bits(dst->primtype_tag()));
+            return irbuilder_.CreateFPCast(from, to);
+        }
+        if (is_type_f(src)) {
+            if (is_type_s(dst))
+                return irbuilder_.CreateFPToSI(from, to);
+            return irbuilder_.CreateFPToUI(from, to);
+        }
+        if (is_type_f(dst)) {
+            if (is_type_s(src))
+                return irbuilder_.CreateSIToFP(from, to);
+            return irbuilder_.CreateUIToFP(from, to);
+        }
+
+        if (num_bits(src->primtype_tag()) > num_bits(dst->primtype_tag())) {
+            if (is_type_i(src) && (is_type_i(dst) || is_type_bool(dst)))
+                return irbuilder_.CreateTrunc(from, to);
+        } else if (num_bits(src->primtype_tag()) < num_bits(dst->primtype_tag())) {
+            if ( is_type_s(src)                       && is_type_i(dst)) return irbuilder_.CreateSExt(from, to);
+            if ((is_type_u(src) || is_type_bool(src)) && is_type_i(dst)) return irbuilder_.CreateZExt(from, to);
+        } else if (is_type_i(src) && is_type_i(dst)) {
+            assert(num_bits(src->primtype_tag()) == num_bits(dst->primtype_tag()));
+            return from;
+        }
+
+        assert(false && "unsupported cast");
     }
+
+    if (auto bitcast = def->isa<Bitcast>())
+        return emit_bitcast(bitcast->from(), bitcast->type());
 
     if (auto select = def->isa<Select>()) {
         if (def->type()->isa<Pi>())

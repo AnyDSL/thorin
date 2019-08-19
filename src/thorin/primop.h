@@ -61,7 +61,7 @@ public:
 class ArithOp : public PrimOp {
 private:
     ArithOp(ArithOpTag tag, const Def* lhs, const Def* rhs, const Def* dbg)
-        : PrimOp((NodeTag) tag, rebuild, lhs->type(), {lhs, rhs}, 0, dbg)
+        : PrimOp(Node_ArithOp, rebuild, lhs->type(), {lhs, rhs}, tag, dbg)
     {
         assert(lhs->type() == rhs->type() && "types are not equal");
         // TODO remove this and make div/rem proper nodes *with* side-effects
@@ -73,7 +73,7 @@ public:
     const Def* lhs() const { return op(0); }
     const Def* rhs() const { return op(1); }
     const PrimType* type() const { return PrimOp::type()->as<PrimType>(); }
-    ArithOpTag arithop_tag() const { return (ArithOpTag) tag(); }
+    ArithOpTag arithop_tag() const { return (ArithOpTag) flags(); }
     const char* op_name() const override;
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
@@ -89,45 +89,36 @@ public:
     const Def* lhs() const { return op(0); }
     const Def* rhs() const { return op(1); }
     const PrimType* type() const { return PrimOp::type()->as<PrimType>(); }
-    CmpTag cmp_tag() const { return (CmpTag) tag(); }
+    CmpTag cmp_tag() const { return (CmpTag) flags(); }
     const char* op_name() const override;
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
     friend class World;
 };
 
-/// Base class for @p Bitcast and @p Cast.
-class ConvOp : public PrimOp {
-protected:
-    ConvOp(NodeTag tag, RebuildFn rebuild, const Def* from, const Def* to, const Def* dbg)
-        : PrimOp(tag, rebuild, to, {from}, 0, dbg)
+/// Converts <tt>from</tt> to type <tt>to</tt>.
+class Cast : public PrimOp {
+private:
+    Cast(const Def* to, const Def* from, const Def* dbg)
+        : PrimOp(Node_Cast, rebuild, to, {from}, 0, dbg)
     {}
 
 public:
     const Def* from() const { return op(0); }
-};
-
-/// Converts <tt>from</tt> to type <tt>to</tt>.
-class Cast : public ConvOp {
-private:
-    Cast(const Def* to, const Def* from, const Def* dbg)
-        : ConvOp(Node_Cast, rebuild, from, to, dbg)
-    {}
-
-public:
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
     friend class World;
 };
 
 /// Reinterprets the bits of <tt>from</tt> as type <tt>to</tt>.
-class Bitcast : public ConvOp {
+class Bitcast : public PrimOp {
 private:
     Bitcast(const Def* to, const Def* from, const Def* dbg)
-        : ConvOp(Node_Bitcast, rebuild, from, to, dbg)
+        : PrimOp(Node_Bitcast, rebuild, to, {from}, 0, dbg)
     {}
 
 public:
+    const Def* from() const { return op(0); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
     friend class World;

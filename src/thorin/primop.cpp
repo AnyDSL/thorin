@@ -14,7 +14,7 @@ namespace thorin {
  */
 
 Cmp::Cmp(CmpTag tag, const Def* lhs, const Def* rhs, const Def* dbg)
-    : PrimOp((NodeTag) tag, rebuild, lhs->world().type_bool(), {lhs, rhs}, 0, dbg)
+    : PrimOp(Node_Cmp, rebuild, lhs->world().type_bool(), {lhs, rhs}, tag, dbg)
 {
     assert(lhs->type() == rhs->type() && "types are not equal");
 }
@@ -86,7 +86,7 @@ const char* Def::op_name() const {
 }
 
 const char* ArithOp::op_name() const {
-    switch (tag()) {
+    switch (arithop_tag()) {
 #define THORIN_ARITHOP(op) case ArithOp_##op: return #op;
 #include "thorin/tables/arithoptable.h"
         default: THORIN_UNREACHABLE;
@@ -94,7 +94,7 @@ const char* ArithOp::op_name() const {
 }
 
 const char* Cmp::op_name() const {
-    switch (tag()) {
+    switch (cmp_tag()) {
 #define THORIN_CMP(op) case Cmp_##op: return #op;
 #include "thorin/tables/cmptable.h"
         default: THORIN_UNREACHABLE;

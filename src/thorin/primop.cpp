@@ -14,8 +14,10 @@ namespace thorin {
  */
 
 Cmp::Cmp(CmpTag tag, const Def* lhs, const Def* rhs, const Def* dbg)
-    : BinOp((NodeTag) tag, rebuild, lhs->world().type_bool(), lhs, rhs, dbg)
-{}
+    : PrimOp((NodeTag) tag, rebuild, lhs->world().type_bool(), {lhs, rhs}, 0, dbg)
+{
+    assert(lhs->type() == rhs->type() && "types are not equal");
+}
 
 Known::Known(const Def* def, const Def* dbg)
     : PrimOp(Node_Known, rebuild, def->world().type_bool(), {def}, 0, dbg)

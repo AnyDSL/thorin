@@ -597,95 +597,95 @@ llvm::Value* CodeGen::emit_alloc(const Def* type) {
 }
 
 llvm::Value* CodeGen::emit(const Def* def) {
-    if (auto bin = def->isa<BinOp>()) {
-        llvm::Value* lhs = lookup(bin->lhs());
-        llvm::Value* rhs = lookup(bin->rhs());
-        auto name = bin->name();
+    if (auto cmp = def->isa<Cmp>()) {
+        auto lhs = lookup(cmp->lhs());
+        auto rhs = lookup(cmp->rhs());
+        auto name = cmp->name();
+        auto type = cmp->lhs()->type();
+        if (is_type_s(type)) {
+            switch (cmp->cmp_tag()) {
+                case Cmp_eq: return irbuilder_.CreateICmpEQ (lhs, rhs, name);
+                case Cmp_ne: return irbuilder_.CreateICmpNE (lhs, rhs, name);
+                case Cmp_gt: return irbuilder_.CreateICmpSGT(lhs, rhs, name);
+                case Cmp_ge: return irbuilder_.CreateICmpSGE(lhs, rhs, name);
+                case Cmp_lt: return irbuilder_.CreateICmpSLT(lhs, rhs, name);
+                case Cmp_le: return irbuilder_.CreateICmpSLE(lhs, rhs, name);
+            }
+        } else if (is_type_u(type) || is_type_bool(type)) {
+            switch (cmp->cmp_tag()) {
+                case Cmp_eq: return irbuilder_.CreateICmpEQ (lhs, rhs, name);
+                case Cmp_ne: return irbuilder_.CreateICmpNE (lhs, rhs, name);
+                case Cmp_gt: return irbuilder_.CreateICmpUGT(lhs, rhs, name);
+                case Cmp_ge: return irbuilder_.CreateICmpUGE(lhs, rhs, name);
+                case Cmp_lt: return irbuilder_.CreateICmpULT(lhs, rhs, name);
+                case Cmp_le: return irbuilder_.CreateICmpULE(lhs, rhs, name);
+            }
+        } else if (is_type_f(type)) {
+            switch (cmp->cmp_tag()) {
+                case Cmp_eq: return irbuilder_.CreateFCmpOEQ(lhs, rhs, name);
+                case Cmp_ne: return irbuilder_.CreateFCmpUNE(lhs, rhs, name);
+                case Cmp_gt: return irbuilder_.CreateFCmpOGT(lhs, rhs, name);
+                case Cmp_ge: return irbuilder_.CreateFCmpOGE(lhs, rhs, name);
+                case Cmp_lt: return irbuilder_.CreateFCmpOLT(lhs, rhs, name);
+                case Cmp_le: return irbuilder_.CreateFCmpOLE(lhs, rhs, name);
+            }
+        } else if (type->isa<PtrType>()) {
+            switch (cmp->cmp_tag()) {
+                case Cmp_eq: return irbuilder_.CreateICmpEQ (lhs, rhs, name);
+                case Cmp_ne: return irbuilder_.CreateICmpNE (lhs, rhs, name);
+                default: THORIN_UNREACHABLE;
+            }
+        }
+    }
 
-        if (auto cmp = bin->isa<Cmp>()) {
-            auto type = cmp->lhs()->type();
-            if (is_type_s(type)) {
-                switch (cmp->cmp_tag()) {
-                    case Cmp_eq: return irbuilder_.CreateICmpEQ (lhs, rhs, name);
-                    case Cmp_ne: return irbuilder_.CreateICmpNE (lhs, rhs, name);
-                    case Cmp_gt: return irbuilder_.CreateICmpSGT(lhs, rhs, name);
-                    case Cmp_ge: return irbuilder_.CreateICmpSGE(lhs, rhs, name);
-                    case Cmp_lt: return irbuilder_.CreateICmpSLT(lhs, rhs, name);
-                    case Cmp_le: return irbuilder_.CreateICmpSLE(lhs, rhs, name);
-                }
-            } else if (is_type_u(type) || is_type_bool(type)) {
-                switch (cmp->cmp_tag()) {
-                    case Cmp_eq: return irbuilder_.CreateICmpEQ (lhs, rhs, name);
-                    case Cmp_ne: return irbuilder_.CreateICmpNE (lhs, rhs, name);
-                    case Cmp_gt: return irbuilder_.CreateICmpUGT(lhs, rhs, name);
-                    case Cmp_ge: return irbuilder_.CreateICmpUGE(lhs, rhs, name);
-                    case Cmp_lt: return irbuilder_.CreateICmpULT(lhs, rhs, name);
-                    case Cmp_le: return irbuilder_.CreateICmpULE(lhs, rhs, name);
-                }
-            } else if (is_type_f(type)) {
-                switch (cmp->cmp_tag()) {
-                    case Cmp_eq: return irbuilder_.CreateFCmpOEQ(lhs, rhs, name);
-                    case Cmp_ne: return irbuilder_.CreateFCmpUNE(lhs, rhs, name);
-                    case Cmp_gt: return irbuilder_.CreateFCmpOGT(lhs, rhs, name);
-                    case Cmp_ge: return irbuilder_.CreateFCmpOGE(lhs, rhs, name);
-                    case Cmp_lt: return irbuilder_.CreateFCmpOLT(lhs, rhs, name);
-                    case Cmp_le: return irbuilder_.CreateFCmpOLE(lhs, rhs, name);
-                }
-            } else if (type->isa<PtrType>()) {
-                switch (cmp->cmp_tag()) {
-                    case Cmp_eq: return irbuilder_.CreateICmpEQ (lhs, rhs, name);
-                    case Cmp_ne: return irbuilder_.CreateICmpNE (lhs, rhs, name);
-                    default: THORIN_UNREACHABLE;
-                }
+    if (auto arithop = def->isa<ArithOp>()) {
+        auto lhs = lookup(arithop->lhs());
+        auto rhs = lookup(arithop->rhs());
+        auto name = arithop->name();
+        auto type = arithop->type();
+        bool q = is_type_q(arithop->type()); // quick? -> nsw/nuw/fast float
+
+        if (is_type_f(type)) {
+            switch (arithop->arithop_tag()) {
+                case ArithOp_add: return irbuilder_.CreateFAdd(lhs, rhs, name);
+                case ArithOp_sub: return irbuilder_.CreateFSub(lhs, rhs, name);
+                case ArithOp_mul: return irbuilder_.CreateFMul(lhs, rhs, name);
+                case ArithOp_div: return irbuilder_.CreateFDiv(lhs, rhs, name);
+                case ArithOp_rem: return irbuilder_.CreateFRem(lhs, rhs, name);
+                case ArithOp_and:
+                case ArithOp_or:
+                case ArithOp_xor:
+                case ArithOp_shl:
+                case ArithOp_shr: THORIN_UNREACHABLE;
             }
         }
 
-        if (auto arithop = bin->isa<ArithOp>()) {
-            auto type = arithop->type();
-            bool q = is_type_q(arithop->type()); // quick? -> nsw/nuw/fast float
-
-            if (is_type_f(type)) {
-                switch (arithop->arithop_tag()) {
-                    case ArithOp_add: return irbuilder_.CreateFAdd(lhs, rhs, name);
-                    case ArithOp_sub: return irbuilder_.CreateFSub(lhs, rhs, name);
-                    case ArithOp_mul: return irbuilder_.CreateFMul(lhs, rhs, name);
-                    case ArithOp_div: return irbuilder_.CreateFDiv(lhs, rhs, name);
-                    case ArithOp_rem: return irbuilder_.CreateFRem(lhs, rhs, name);
-                    case ArithOp_and:
-                    case ArithOp_or:
-                    case ArithOp_xor:
-                    case ArithOp_shl:
-                    case ArithOp_shr: THORIN_UNREACHABLE;
-                }
+        if (is_type_s(type) || is_type_bool(type)) {
+            switch (arithop->arithop_tag()) {
+                case ArithOp_add: return irbuilder_.CreateAdd (lhs, rhs, name, false, q);
+                case ArithOp_sub: return irbuilder_.CreateSub (lhs, rhs, name, false, q);
+                case ArithOp_mul: return irbuilder_.CreateMul (lhs, rhs, name, false, q);
+                case ArithOp_div: return irbuilder_.CreateSDiv(lhs, rhs, name);
+                case ArithOp_rem: return irbuilder_.CreateSRem(lhs, rhs, name);
+                case ArithOp_and: return irbuilder_.CreateAnd (lhs, rhs, name);
+                case ArithOp_or:  return irbuilder_.CreateOr  (lhs, rhs, name);
+                case ArithOp_xor: return irbuilder_.CreateXor (lhs, rhs, name);
+                case ArithOp_shl: return irbuilder_.CreateShl (lhs, rhs, name, false, q);
+                case ArithOp_shr: return irbuilder_.CreateAShr(lhs, rhs, name);
             }
-
-            if (is_type_s(type) || is_type_bool(type)) {
-                switch (arithop->arithop_tag()) {
-                    case ArithOp_add: return irbuilder_.CreateAdd (lhs, rhs, name, false, q);
-                    case ArithOp_sub: return irbuilder_.CreateSub (lhs, rhs, name, false, q);
-                    case ArithOp_mul: return irbuilder_.CreateMul (lhs, rhs, name, false, q);
-                    case ArithOp_div: return irbuilder_.CreateSDiv(lhs, rhs, name);
-                    case ArithOp_rem: return irbuilder_.CreateSRem(lhs, rhs, name);
-                    case ArithOp_and: return irbuilder_.CreateAnd (lhs, rhs, name);
-                    case ArithOp_or:  return irbuilder_.CreateOr  (lhs, rhs, name);
-                    case ArithOp_xor: return irbuilder_.CreateXor (lhs, rhs, name);
-                    case ArithOp_shl: return irbuilder_.CreateShl (lhs, rhs, name, false, q);
-                    case ArithOp_shr: return irbuilder_.CreateAShr(lhs, rhs, name);
-                }
-            }
-            if (is_type_u(type) || is_type_bool(type)) {
-                switch (arithop->arithop_tag()) {
-                    case ArithOp_add: return irbuilder_.CreateAdd (lhs, rhs, name, q, false);
-                    case ArithOp_sub: return irbuilder_.CreateSub (lhs, rhs, name, q, false);
-                    case ArithOp_mul: return irbuilder_.CreateMul (lhs, rhs, name, q, false);
-                    case ArithOp_div: return irbuilder_.CreateUDiv(lhs, rhs, name);
-                    case ArithOp_rem: return irbuilder_.CreateURem(lhs, rhs, name);
-                    case ArithOp_and: return irbuilder_.CreateAnd (lhs, rhs, name);
-                    case ArithOp_or:  return irbuilder_.CreateOr  (lhs, rhs, name);
-                    case ArithOp_xor: return irbuilder_.CreateXor (lhs, rhs, name);
-                    case ArithOp_shl: return irbuilder_.CreateShl (lhs, rhs, name, q, false);
-                    case ArithOp_shr: return irbuilder_.CreateLShr(lhs, rhs, name);
-                }
+        }
+        if (is_type_u(type) || is_type_bool(type)) {
+            switch (arithop->arithop_tag()) {
+                case ArithOp_add: return irbuilder_.CreateAdd (lhs, rhs, name, q, false);
+                case ArithOp_sub: return irbuilder_.CreateSub (lhs, rhs, name, q, false);
+                case ArithOp_mul: return irbuilder_.CreateMul (lhs, rhs, name, q, false);
+                case ArithOp_div: return irbuilder_.CreateUDiv(lhs, rhs, name);
+                case ArithOp_rem: return irbuilder_.CreateURem(lhs, rhs, name);
+                case ArithOp_and: return irbuilder_.CreateAnd (lhs, rhs, name);
+                case ArithOp_or:  return irbuilder_.CreateOr  (lhs, rhs, name);
+                case ArithOp_xor: return irbuilder_.CreateXor (lhs, rhs, name);
+                case ArithOp_shl: return irbuilder_.CreateShl (lhs, rhs, name, q, false);
+                case ArithOp_shr: return irbuilder_.CreateLShr(lhs, rhs, name);
             }
         }
     }

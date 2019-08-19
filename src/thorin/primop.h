@@ -57,33 +57,22 @@ public:
     friend class World;
 };
 
-/// Base class for all side-effect free binary \p PrimOp%s.
-class BinOp : public PrimOp {
-protected:
-    BinOp(NodeTag tag, RebuildFn rebuild, const Def* type, const Def* lhs, const Def* rhs, const Def* dbg)
-        : PrimOp(tag, rebuild, type, {lhs, rhs}, 0, dbg)
-    {
-        assert(lhs->type() == rhs->type() && "types are not equal");
-    }
-
-public:
-    const Def* lhs() const { return op(0); }
-    const Def* rhs() const { return op(1); }
-};
-
 /// One of \p ArithOpTag arithmetic operation.
-class ArithOp : public BinOp {
+class ArithOp : public PrimOp {
 private:
     ArithOp(ArithOpTag tag, const Def* lhs, const Def* rhs, const Def* dbg)
-        : BinOp((NodeTag) tag, rebuild, lhs->type(), lhs, rhs, dbg)
+        : PrimOp((NodeTag) tag, rebuild, lhs->type(), {lhs, rhs}, 0, dbg)
     {
+        assert(lhs->type() == rhs->type() && "types are not equal");
         // TODO remove this and make div/rem proper nodes *with* side-effects
         if ((tag == ArithOp_div || tag == ArithOp_rem) && is_type_i(type()->tag()))
             hash_ = murmur3(gid());
     }
 
 public:
-    const PrimType* type() const { return BinOp::type()->as<PrimType>(); }
+    const Def* lhs() const { return op(0); }
+    const Def* rhs() const { return op(1); }
+    const PrimType* type() const { return PrimOp::type()->as<PrimType>(); }
     ArithOpTag arithop_tag() const { return (ArithOpTag) tag(); }
     const char* op_name() const override;
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
@@ -92,12 +81,14 @@ public:
 };
 
 /// One of \p CmpTag compare.
-class Cmp : public BinOp {
+class Cmp : public PrimOp {
 private:
     Cmp(CmpTag tag, const Def* lhs, const Def* rhs, const Def* dbg);
 
 public:
-    const PrimType* type() const { return BinOp::type()->as<PrimType>(); }
+    const Def* lhs() const { return op(0); }
+    const Def* rhs() const { return op(1); }
+    const PrimType* type() const { return PrimOp::type()->as<PrimType>(); }
     CmpTag cmp_tag() const { return (CmpTag) tag(); }
     const char* op_name() const override;
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);

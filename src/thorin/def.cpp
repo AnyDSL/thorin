@@ -385,7 +385,7 @@ KindStar::KindStar(World& world)
 {}
 
 PrimType::PrimType(World& world, PrimTypeTag tag)
-    : Def((NodeTag) tag, rebuild, world.kind_star(), Defs{}, 0, nullptr)
+    : Def(Node_PrimType, rebuild, world.kind_star(), Defs{}, tag, nullptr)
 {}
 
 MemType::MemType(World& world)

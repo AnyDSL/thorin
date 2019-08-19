@@ -1050,100 +1050,97 @@ llvm::Type* CodeGen::convert(const Def* type) {
     if (auto llvm_type = types_.lookup(type)) return *llvm_type;
 
     assert(!type->isa<MemType>());
-    llvm::Type* llvm_type;
 
     if (is_arity(type))
         return types_[type] = irbuilder_.getInt64Ty();
 
-    switch (type->tag()) {
-        case PrimType_bool:                                                             llvm_type = irbuilder_. getInt1Ty();  break;
-        case PrimType_ps8:  case PrimType_qs8:  case PrimType_pu8:  case PrimType_qu8:  llvm_type = irbuilder_. getInt8Ty();  break;
-        case PrimType_ps16: case PrimType_qs16: case PrimType_pu16: case PrimType_qu16: llvm_type = irbuilder_.getInt16Ty();  break;
-        case PrimType_ps32: case PrimType_qs32: case PrimType_pu32: case PrimType_qu32: llvm_type = irbuilder_.getInt32Ty();  break;
-        case PrimType_ps64: case PrimType_qs64: case PrimType_pu64: case PrimType_qu64: llvm_type = irbuilder_.getInt64Ty();  break;
-        case PrimType_pf16: case PrimType_qf16:                                         llvm_type = irbuilder_.getHalfTy();   break;
-        case PrimType_pf32: case PrimType_qf32:                                         llvm_type = irbuilder_.getFloatTy();  break;
-        case PrimType_pf64: case PrimType_qf64:                                         llvm_type = irbuilder_.getDoubleTy(); break;
-        case Node_PtrType: {
-            auto ptr = type->as<PtrType>();
-            llvm_type = llvm::PointerType::get(convert(ptr->pointee()), convert_addr_space(ptr->lit_addr_space()));
-            break;
+    if (auto primtype = type->isa<PrimType>()) {
+        switch (primtype->primtype_tag()) {
+            case PrimType_bool:                                                             return types_[type] = irbuilder_. getInt1Ty();
+            case PrimType_ps8:  case PrimType_qs8:  case PrimType_pu8:  case PrimType_qu8:  return types_[type] = irbuilder_. getInt8Ty();
+            case PrimType_ps16: case PrimType_qs16: case PrimType_pu16: case PrimType_qu16: return types_[type] = irbuilder_.getInt16Ty();
+            case PrimType_ps32: case PrimType_qs32: case PrimType_pu32: case PrimType_qu32: return types_[type] = irbuilder_.getInt32Ty();
+            case PrimType_ps64: case PrimType_qs64: case PrimType_pu64: case PrimType_qu64: return types_[type] = irbuilder_.getInt64Ty();
+            case PrimType_pf16: case PrimType_qf16:                                         return types_[type] = irbuilder_.getHalfTy();
+            case PrimType_pf32: case PrimType_qf32:                                         return types_[type] = irbuilder_.getFloatTy();
+            case PrimType_pf64: case PrimType_qf64:                                         return types_[type] = irbuilder_.getDoubleTy();
+            default:
+                THORIN_UNREACHABLE;
         }
-        case Node_Variadic: {
-            auto variadic = type->as<Variadic>();
-            auto elem_type = convert(variadic->body());
-            if (auto arity = isa_lit<u64>(variadic->arity()))
-                return types_[type] = llvm::ArrayType::get(elem_type, *arity);
-            else
-                return types_[type] = llvm::ArrayType::get(elem_type, 0);
-        }
-
-        case Node_Pi: {
-            // extract "return" type, collect all other types
-            auto cn = type->as<Pi>();
-            assert(cn->is_cn());
-            llvm::Type* ret = nullptr;
-            std::vector<llvm::Type*> domains;
-            for (auto domain : cn->domains()) {
-                if (domain->isa<MemType>() || domain == world().sigma()) continue;
-                if (auto cn = domain->isa<Pi>()) {
-                    assert(cn->is_cn());
-                    assert(!ret && "only one 'return' supported");
-                    std::vector<llvm::Type*> ret_types;
-                    for (auto cn_domain : cn->domains()) {
-                        if (cn_domain->isa<MemType>() || cn_domain == world().sigma()) continue;
-                        ret_types.push_back(convert(cn_domain));
-                    }
-                    if (ret_types.size() == 0)      ret = llvm::Type::getVoidTy(context_);
-                    else if (ret_types.size() == 1) ret = ret_types.back();
-                    else                            ret = llvm::StructType::get(context_, ret_types);
-                } else
-                    domains.push_back(convert(domain));
-            }
-            assert(ret);
-
-            auto llvm_type = llvm::FunctionType::get(ret, domains, false);
-            return types_[type] = llvm_type;
-        }
-
-        case Node_Sigma: {
-            auto sigma = type->as<Sigma>();
-
-            llvm::StructType* llvm_struct = nullptr;
-            if (sigma->isa_nominal()) {
-                llvm_struct = llvm::StructType::create(context_);
-                assert(!types_.contains(sigma) && "type already converted");
-                types_[sigma] = llvm_struct;
-            }
-
-            Array<llvm::Type*> llvm_types(sigma->num_ops(), [&](auto i) { return convert(sigma->op(i)); });
-
-            if (llvm_struct)
-                llvm_struct->setBody(llvm_ref(llvm_types));
-            else
-                llvm_struct = llvm::StructType::get(context_, llvm_ref(llvm_types));
-
-            return llvm_struct;
-        }
-
-        case Node_VariantType: {
-            auto bits = compute_variant_bits(type->as<VariantType>());
-            if (bits != 0) {
-                return irbuilder_.getIntNTy(bits);
-            } else {
-                auto layout = module_->getDataLayout();
-                uint64_t max_size = 0;
-                for (auto op : type->ops())
-                    max_size = std::max(max_size, layout.getTypeAllocSize(convert(op)));
-                return llvm::ArrayType::get(irbuilder_.getInt8Ty(), max_size);
-            }
-        }
-
-        default:
-            THORIN_UNREACHABLE;
     }
 
-    return types_[type] = llvm_type;
+    if (auto ptr = type->isa<PtrType>()) {
+        auto llvm_type = llvm::PointerType::get(convert(ptr->pointee()), convert_addr_space(ptr->lit_addr_space()));
+        return types_[type] = llvm_type;
+    }
+
+    if (auto variadic = type->isa<Variadic>()) {
+        auto elem_type = convert(variadic->body());
+        if (auto arity = isa_lit<u64>(variadic->arity()))
+            return types_[type] = llvm::ArrayType::get(elem_type, *arity);
+        else
+            return types_[type] = llvm::ArrayType::get(elem_type, 0);
+    }
+
+    if (auto cn = type->isa<Pi>()) {
+        // extract "return" type, collect all other types
+        assert(cn->is_cn());
+        llvm::Type* ret = nullptr;
+        std::vector<llvm::Type*> domains;
+        for (auto domain : cn->domains()) {
+            if (domain->isa<MemType>() || domain == world().sigma()) continue;
+            if (auto cn = domain->isa<Pi>()) {
+                assert(cn->is_cn());
+                assert(!ret && "only one 'return' supported");
+                std::vector<llvm::Type*> ret_types;
+                for (auto cn_domain : cn->domains()) {
+                    if (cn_domain->isa<MemType>() || cn_domain == world().sigma()) continue;
+                    ret_types.push_back(convert(cn_domain));
+                }
+                if (ret_types.size() == 0)      ret = llvm::Type::getVoidTy(context_);
+                else if (ret_types.size() == 1) ret = ret_types.back();
+                else                            ret = llvm::StructType::get(context_, ret_types);
+            } else
+                domains.push_back(convert(domain));
+        }
+        assert(ret);
+
+        auto llvm_type = llvm::FunctionType::get(ret, domains, false);
+        return types_[type] = llvm_type;
+    }
+
+    if (auto sigma = type->isa<Sigma>()) {
+        llvm::StructType* llvm_struct = nullptr;
+        if (sigma->isa_nominal()) {
+            llvm_struct = llvm::StructType::create(context_);
+            assert(!types_.contains(sigma) && "type already converted");
+            types_[sigma] = llvm_struct;
+        }
+
+        Array<llvm::Type*> llvm_types(sigma->num_ops(), [&](auto i) { return convert(sigma->op(i)); });
+
+        if (llvm_struct)
+            llvm_struct->setBody(llvm_ref(llvm_types));
+        else
+            llvm_struct = llvm::StructType::get(context_, llvm_ref(llvm_types));
+
+        return llvm_struct;
+    }
+
+    if (auto variant_type = type->isa<VariantType>()) {
+        auto bits = compute_variant_bits(variant_type);
+        if (bits != 0) {
+            return types_[type] = irbuilder_.getIntNTy(bits);
+        } else {
+            auto layout = module_->getDataLayout();
+            uint64_t max_size = 0;
+            for (auto op : type->ops())
+                max_size = std::max(max_size, layout.getTypeAllocSize(convert(op)));
+            return types_[type] = llvm::ArrayType::get(irbuilder_.getInt8Ty(), max_size);
+        }
+    }
+
+    THORIN_UNREACHABLE;
 }
 
 llvm::GlobalVariable* CodeGen::emit_global_variable(llvm::Type* type, const std::string& name, unsigned addr_space, bool init_undef) {

@@ -65,7 +65,7 @@ private:
     {
         assert(lhs->type() == rhs->type() && "types are not equal");
         // TODO remove this and make div/rem proper nodes *with* side-effects
-        if ((tag == ArithOp_div || tag == ArithOp_rem) && is_type_i(type()->tag()))
+        if ((tag == ArithOp_div || tag == ArithOp_rem) && is_type_i(type()))
             hash_ = murmur3(gid());
     }
 

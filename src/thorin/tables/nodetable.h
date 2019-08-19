@@ -53,6 +53,6 @@
     THORIN_NODE(Param, param)
     THORIN_NODE(Analyze, analyze)
     // Type
-        // PrimType
+         THORIN_NODE(PrimType, primtype)
 
 #undef THORIN_NODE

@@ -700,7 +700,7 @@ private:
     PrimType(World& world, PrimTypeTag tag);
 
 public:
-    PrimTypeTag primtype_tag() const { return (PrimTypeTag) tag(); }
+    PrimTypeTag primtype_tag() const { return (PrimTypeTag) flags(); }
 
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     std::ostream& stream(std::ostream&) const override;

@@ -857,8 +857,8 @@ llvm::Value* CodeGen::emit(const Def* def) {
                     //return irbuilder_.CreateExtractValue(llvm_agg, {as_lit<u32>(extract->index()) - 1});
             //}
 
-            if (auto memop = extract->agg()->isa<MemOp>())
-                return lookup(memop);
+            if (is_memop(extract->agg()))
+                return lookup(extract->agg());
 
             if (extract->agg()->type()->isa<Variadic>())
                 return irbuilder_.CreateLoad(copy_to_alloca_or_global());

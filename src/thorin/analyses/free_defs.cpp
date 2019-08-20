@@ -32,7 +32,7 @@ DefSet free_defs(const Scope& scope, bool /*include_closures*/) {
             }
 #endif
             for (auto op : def->ops()) {
-                if (op->isa<MemOp>() && !scope.contains(op)) {
+                if (is_memop(op) && !scope.contains(op)) {
                     result.emplace(def);
                     goto queue_next;
                 }

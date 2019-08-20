@@ -55,11 +55,11 @@ bool is_minus_zero(const Def* def) {
     return false;
 }
 
-bool is_not        (const Def* def) { return def->isa<PrimOp>() && (def->flags() == Node_xor && is_allset(def->op(0))); }
-bool is_minus      (const Def* def) { return def->isa<PrimOp>() && (def->flags() == Node_sub && is_minus_zero(def->op(0))); }
-bool is_div_or_rem (const Def* def) { return def->isa<PrimOp>() && thorin::is_div_or_rem(def->flags()); }
-bool is_commutative(const Def* def) { return def->isa<PrimOp>() && thorin::is_commutative(def->flags()); }
-bool is_associative(const Def* def) { return def->isa<PrimOp>() && thorin::is_associative(def->flags()); }
+bool is_not        (const Def* def) { return def->isa<ArithOp>() && (def->flags() == Node_xor && is_allset(def->op(0))); }
+bool is_minus      (const Def* def) { return def->isa<ArithOp>() && (def->flags() == Node_sub && is_minus_zero(def->op(0))); }
+bool is_div_or_rem (const Def* def) { return def->isa<ArithOp>() && thorin::is_div_or_rem(def->flags()); }
+bool is_commutative(const Def* def) { return def->isa<ArithOp>() && thorin::is_commutative(def->flags()); }
+bool is_associative(const Def* def) { return def->isa<ArithOp>() && thorin::is_associative(def->flags()); }
 
 void app_to_dropped_app(Lam* src, Lam* dst, const App* app) {
     std::vector<const Def*> nargs;

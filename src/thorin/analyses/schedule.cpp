@@ -211,10 +211,7 @@ void Scheduler::topo_sort(Def2CFNode& def2node) {
             auto def = pop(queue);
 
             for (auto use : uses(def)) {
-                if (auto def = use->isa<Def>()) {
-                    if (inside(def))
-                        enqueue(def);
-                }
+                if (inside(use)) enqueue(use);
             }
         }
 
@@ -259,12 +256,12 @@ void Schedule::verify() {
         auto idom = block.lam() != scope().entry() ? domtree.idom(block.node()) : block.node();
         mem = mem ? mem : block2mem[(*this)[idom]];
         for (auto def : block) {
-            if (auto memop = def->isa<MemOp>()) {
-                if (memop->mem() != mem) {
-                    WLOG("incorrect schedule: {} @ '{}'; current mem is {} @ '{}') - scope entry: {}", memop, memop->loc(), mem, mem->loc(), scope_.entry());
+            if (is_memop(def)) {
+                if (def->op(0) != mem) {
+                    WLOG("incorrect schedule: {} @ '{}'; current mem is {} @ '{}') - scope entry: {}", def, def->loc(), mem, mem->loc(), scope_.entry());
                     ok = false;
                 }
-                mem = memop->out_mem();
+                mem = def->out(0);
             }
         }
         block2mem[block] = mem;

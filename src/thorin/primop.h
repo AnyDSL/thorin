@@ -42,6 +42,7 @@ public:
     const Def* fval() const { return op(2); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
+    static constexpr auto Tag = Tags::Select;
     friend class World;
 };
 
@@ -54,6 +55,7 @@ public:
     const Def* of() const { return op(0)->type(); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
+    static constexpr auto Tag = Tags::SizeOf;
     friend class World;
 };
 
@@ -77,6 +79,7 @@ public:
     const char* op_name() const override;
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
+    static constexpr auto Tag = Tags::ArithOp;
     friend class World;
 };
 
@@ -93,6 +96,7 @@ public:
     const char* op_name() const override;
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
+    static constexpr auto Tag = Tags::Cmp;
     friend class World;
 };
 
@@ -107,6 +111,7 @@ public:
     const Def* from() const { return op(0); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
+    static constexpr auto Tag = Tags::Cast;
     friend class World;
 };
 
@@ -121,6 +126,7 @@ public:
     const Def* from() const { return op(0); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
+    static constexpr auto Tag = Tags::Bitcast;
     friend class World;
 };
 
@@ -137,6 +143,7 @@ public:
     const VariantType* type() const { return PrimOp::type()->as<VariantType>(); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
+    static constexpr auto Tag = Tags::Variant;
     friend class World;
 };
 
@@ -160,6 +167,7 @@ public:
     const Def* ptr_pointee() const { return ptr_type()->pointee(); }        ///< Returns the type referenced by @p ptr().
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
+    static constexpr auto Tag = Tags::LEA;
     friend class World;
 };
 
@@ -174,6 +182,7 @@ public:
     const Def* def() const { return op(0); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
+    static constexpr auto Tag = Tags::Hlt;
     friend class World;
 };
 
@@ -186,6 +195,7 @@ public:
     const Def* def() const { return op(0); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
+    static constexpr auto Tag = Tags::Known;
     friend class World;
 };
 
@@ -203,6 +213,7 @@ public:
     const Def* def() const { return op(0); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
+    static constexpr auto Tag = Tags::Run;
     friend class World;
 };
 
@@ -228,6 +239,7 @@ public:
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
+    static constexpr auto Tag = Tags::Global;
     friend class World;
 };
 
@@ -260,6 +272,7 @@ public:
     const Def* alloced_type() const { return out_ptr_type()->pointee(); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
+    static constexpr auto Tag = Tags::Alloc;
     friend class World;
 };
 
@@ -278,50 +291,42 @@ public:
     const Def* alloced_type() const { return out_ptr_type()->pointee(); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
+    static constexpr auto Tag = Tags::Slot;
     friend class World;
 };
 
-/// Base class for @p Load and @p Store.
-class Access : public MemOp {
-protected:
-    Access(NodeTag tag, RebuildFn rebuild, const Def* type, Defs args, const Def* dbg)
-        : MemOp(tag, rebuild, type, args, 0, dbg)
-    {
-        assert(args.size() >= 2);
-    }
-
-public:
-    const Def* ptr() const { return op(1); }
-};
-
 /// Loads with current effect <tt>mem</tt> from <tt>ptr</tt> to produce a pair of a new effect and the loaded value.
-class Load : public Access {
+class Load : public MemOp {
 private:
     Load(const Def* type, const Def* mem, const Def* ptr, const Def* dbg)
-        : Access(Node_Load, rebuild, type, {mem, ptr}, dbg)
+        : MemOp(Node_Load, rebuild, type, {mem, ptr}, 0, dbg)
     {}
 
 public:
+    const Def* ptr() const { return op(1); }
     const Def* out_val() const { return out(1); }
     const Sigma* type() const { return MemOp::type()->as<Sigma>(); }
     const Def* out_val_type() const { return type()->op(1); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
+    static constexpr auto Tag = Tags::Load;
     friend class World;
 };
 
 /// Stores with current effect <tt>mem</tt> <tt>value</tt> into <tt>ptr</tt> while producing a new effect.
-class Store : public Access {
+class Store : public MemOp {
 private:
     Store(const Def* mem, const Def* ptr, const Def* value, const Def* dbg)
-        : Access(Node_Store, rebuild, mem->type(), {mem, ptr, value}, dbg)
+        : MemOp(Node_Store, rebuild, mem->type(), {mem, ptr, value}, 0, dbg)
     {}
 
 public:
+    const Def* ptr() const { return op(1); }
     const Def* val() const { return op(2); }
-    const MemType* type() const { return Access::type()->as<MemType>(); }
+    const MemType* type() const { return MemOp::type()->as<MemType>(); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
+    static constexpr auto Tag = Tags::Store;
     friend class World;
 };
 
@@ -360,6 +365,7 @@ public:
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
     std::ostream& stream_assignment(std::ostream&) const override;
 
+    static constexpr auto Tag = Tags::Assembly;
     friend class World;
 };
 

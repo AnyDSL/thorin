@@ -203,12 +203,27 @@ public:
     //@}
     /// @name casts
     //@{
-    template<class T> T* isa() { return tag_ == T::Tag ? static_cast<T*>(this) : nullptr; }
-    template<class T> const T* isa() const { return tag_ == T::Tag ? static_cast<const T*>(this) : nullptr; }
-    template<class T> T* as() { assert(isa<T>()); return static_cast<T*>(this); }
-    template<class T> const T* as() const { assert(isa<T>()); return static_cast<const T*>(this); }
-    template<class T = Def> T* as_nominal() const { assert(nominal_ && as<T>()); return static_cast<T*>(const_cast<Def*>(this)); }
-    template<class T = Def> T* isa_nominal() const { return dynamic_cast<T*>(nominal_ ? const_cast<Def*>(this) : nullptr); }
+    template<class T>       T* isa()       { return tag_ == T::Tag ? static_cast<      T*>(this) : nullptr; } ///< Dynamic cast.
+    template<class T> const T* isa() const { return tag_ == T::Tag ? static_cast<const T*>(this) : nullptr; } ///< Dynamic cast. @c const version.
+    template<class T> T*       as()       { assert(isa<T>()); return static_cast<      T*>(this); }           ///< Static cast with debug check.
+    template<class T> const T* as() const { assert(isa<T>()); return static_cast<const T*>(this); }           ///< Static cast with debug check. @c const version.
+
+    /// If @c this is @em nominal, it will cast constness away and perform a dynamic cast to @p T.
+    template<class T = Def> T* isa_nominal() const {
+        if constexpr(std::is_same<T, Def>::value)
+            return nominal_ ? const_cast<Def*>(this) : nullptr;
+        else
+            return nominal_ ? const_cast<Def*>(this)->template isa<T>() : nullptr;
+    }
+
+    /// Asserts that @c this is a @em nominal, casts constness away and performs a static cast to @p T (checked in Debug build).
+    template<class T = Def> T* as_nominal() const {
+        assert(nominal_);
+        if constexpr(std::is_same<T, Def>::value)
+            return const_cast<Def*>(this);
+        else
+            return const_cast<Def*>(this)->template as<T>();
+    }
     //@}
     /// @name misc getters
     //@{

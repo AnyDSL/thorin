@@ -276,14 +276,6 @@ const Lit* World::lit_index(const Def* a, u64 i, Debug dbg) {
  * arithops
  */
 
-const Def* World::binop(int tag, const Def* lhs, const Def* rhs, Debug dbg) {
-    if (is_arithop(tag))
-        return arithop((ArithOpTag) tag, lhs, rhs, dbg);
-
-    assert(is_cmp(tag) && "must be a Cmp");
-    return cmp((CmpTag) tag, lhs, rhs, dbg);
-}
-
 const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg) {
     assert(a->type() == b->type());
     PrimTypeTag type = a->type()->as<PrimType>()->primtype_tag();

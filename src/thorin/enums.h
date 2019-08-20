@@ -75,16 +75,9 @@ inline bool is_type_i(int tag) { return is_type_s (tag) || is_type_u (tag); }
 inline bool is_type_f(int tag) { return is_type_pf(tag) || is_type_qf(tag); }
 
 inline bool is_primtype(int tag){ return (int) Begin_PrimType <= tag && tag < (int) End_PrimType; }
-inline bool is_arithop(int tag) { return (int) Begin_ArithOp <= tag && tag < (int) End_ArithOp; }
-inline bool is_cmp(int tag)     { return (int) Begin_Cmp   <= tag && tag < (int) End_Cmp; }
 
-inline bool is_bitop(int tag) { return  tag == ArithOp_and || tag == ArithOp_or || tag == ArithOp_xor; }
-inline bool is_shift(int tag) { return  tag == ArithOp_shl || tag == ArithOp_shr; }
-inline bool is_div_or_rem(int tag) { return tag == ArithOp_div || tag == ArithOp_rem; }
-inline bool is_commutative(int tag) { return tag == ArithOp_add  || tag == ArithOp_mul
-                                           || tag == ArithOp_and  || tag == ArithOp_or || tag == ArithOp_xor; }
-inline bool is_associative(int tag) { return tag == ArithOp_add || tag == ArithOp_mul
-                                           || tag == ArithOp_and || tag == ArithOp_or || tag == ArithOp_xor; }
+inline bool is_commutative(int tag) { return tag == ArithOp_add || tag == ArithOp_mul || tag == ArithOp_and || tag == ArithOp_or || tag == ArithOp_xor; }
+inline bool is_associative(int tag) { return tag == ArithOp_add || tag == ArithOp_mul || tag == ArithOp_and || tag == ArithOp_or || tag == ArithOp_xor; }
 
 template<PrimTypeTag tag> struct tag2type {};
 #define THORIN_ALL_TYPE(T, M) template<> struct tag2type<PrimType_##T> { typedef T type; };

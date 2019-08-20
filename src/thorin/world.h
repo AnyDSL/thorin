@@ -249,7 +249,6 @@ public:
     /// @name ArithOps
     //@{
     /// Creates an \p ArithOp or a \p Cmp.
-    const Def* binop(int tag, const Def* lhs, const Def* rhs, Debug dbg = {});
     const Def* arithop_not(const Def* def, Debug dbg = {});
     const Def* arithop_minus(const Def* def, Debug dbg = {});
     const Def* arithop(ArithOpTag tag, const Def* lhs, const Def* rhs, Debug dbg = {});

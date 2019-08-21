@@ -14,23 +14,24 @@ namespace thorin {
  */
 
 Cmp::Cmp(CmpTag tag, const Def* lhs, const Def* rhs, const Def* dbg)
-    : PrimOp(Node_Cmp, rebuild, lhs->world().type_bool(), {lhs, rhs}, tag, dbg)
+    : PrimOp(Tag, rebuild, lhs->world().type_bool(), {lhs, rhs}, tag, dbg)
 {
     assert(lhs->type() == rhs->type() && "types are not equal");
 }
 
 Known::Known(const Def* def, const Def* dbg)
-    : PrimOp(Node_Known, rebuild, def->world().type_bool(), {def}, 0, dbg)
+    : PrimOp(Tag, rebuild, def->world().type_bool(), {def}, 0, dbg)
 {}
 
 SizeOf::SizeOf(const Def* def, const Def* dbg)
-    : PrimOp(Node_SizeOf, rebuild, def->world().type_qs32(), {def}, 0, dbg)
+    : PrimOp(Tag, rebuild, def->world().type_qs32(), {def}, 0, dbg)
 {}
 
 /*
 Assembly::Assembly(const Def* type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Flags flags, const Def* dbg)
-    : MemOp(Node_Assembly, rebuild, type, inputs, uint64_t(flags), dbg)
+    : MemOp(Tag::Assembly, rebuild, type, inputs, uint64_t(flags), dbg)
 {
+    assert(mem()->type()->isa<MemType>());
     new (&extra<Extra>()) Extra();
     extra<Extra>().asm_template_ = asm_template;
     extra<Extra>().output_constraints_ = output_constraints;
@@ -79,7 +80,7 @@ const Def* Variant::rebuild(const Def*  , World& to, const Def* t, Defs ops, con
 
 const char* Def::op_name() const {
     switch (tag()) {
-#define THORIN_NODE(op, abbr) case Node_##op: return #abbr;
+#define THORIN_NODE(op, abbr) case Tag::op: return #abbr;
 #include "thorin/tables/nodetable.h"
         default: THORIN_UNREACHABLE;
     }

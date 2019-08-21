@@ -118,10 +118,10 @@ void Def::replace(Tracker with) const {
 }
 
 Def::Sort Def::sort() const {
-    if (tag()                 == Node_Universe) return Sort::Universe;
-    if (type()->tag()         == Node_Universe) return Sort::Kind;
-    if (type()->type()->tag() == Node_Universe) return Sort::Type;
-    assert(type()->type()->type()->tag() == Node_Universe);
+    if (tag()                 == Tag::Universe) return Sort::Universe;
+    if (type()->tag()         == Tag::Universe) return Sort::Kind;
+    if (type()->type()->tag() == Tag::Universe) return Sort::Type;
+    assert(type()->type()->type()->tag() == Tag::Universe);
     return Sort::Term;
 }
 
@@ -336,7 +336,7 @@ bool Pi::is_returning() const {
  * constructors
  */
 
-Def::Def(NodeTag tag, RebuildFn rebuild, const Def* type, Defs ops, uint64_t flags, const Def* dbg)
+Def::Def(uint16_t tag, RebuildFn rebuild, const Def* type, Defs ops, uint64_t flags, const Def* dbg)
     : type_(type)
     , rebuild_(rebuild)
     , debug_(dbg)
@@ -353,7 +353,7 @@ Def::Def(NodeTag tag, RebuildFn rebuild, const Def* type, Defs ops, uint64_t fla
         hash_ = hash_combine(hash_, op->gid());
 }
 
-Def::Def(NodeTag tag, StubFn stub, const Def* type, size_t num_ops, uint64_t flags, const Def* dbg)
+Def::Def(uint16_t tag, StubFn stub, const Def* type, size_t num_ops, uint64_t flags, const Def* dbg)
     : type_(type)
     , stub_(stub)
     , debug_(dbg)
@@ -369,27 +369,27 @@ Def::Def(NodeTag tag, StubFn stub, const Def* type, size_t num_ops, uint64_t fla
 }
 
 App::App(const Def* type, const Def* callee, const Def* arg, const Def* dbg)
-    : Def(Node_App, rebuild, type, {callee, arg}, 0, dbg)
+    : Def(Tag, rebuild, type, {callee, arg}, 0, dbg)
 {}
 
 KindArity::KindArity(World& world)
-    : Def(Node_KindArity, rebuild, world.universe(), Defs{}, 0, nullptr)
+    : Def(Tag, rebuild, world.universe(), Defs{}, 0, nullptr)
 {}
 
 KindMulti::KindMulti(World& world)
-    : Def(Node_KindMulti, rebuild, world.universe(), Defs{}, 0, nullptr)
+    : Def(Tag, rebuild, world.universe(), Defs{}, 0, nullptr)
 {}
 
 KindStar::KindStar(World& world)
-    : Def(Node_KindStar, rebuild, world.universe(), Defs{}, 0, nullptr)
+    : Def(Tag, rebuild, world.universe(), Defs{}, 0, nullptr)
 {}
 
 PrimType::PrimType(World& world, PrimTypeTag tag)
-    : Def(Node_PrimType, rebuild, world.kind_star(), Defs{}, tag, nullptr)
+    : Def(Tag, rebuild, world.kind_star(), Defs{}, tag, nullptr)
 {}
 
 MemType::MemType(World& world)
-    : Def(Node_MemType, rebuild, world.kind_star(), Defs{}, 0, nullptr)
+    : Def(Tag, rebuild, world.kind_star(), Defs{}, 0, nullptr)
 {}
 
 /*

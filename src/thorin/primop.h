@@ -12,7 +12,7 @@ namespace thorin {
 /// Base class for all @p PrimOp%s.
 class PrimOp : public Def {
 protected:
-    PrimOp(NodeTag tag, RebuildFn rebuild, const Def* type, Defs ops, uint64_t flags, const Def* dbg)
+    PrimOp(uint16_t tag, RebuildFn rebuild, const Def* type, Defs ops, uint64_t flags, const Def* dbg)
         : Def(tag, rebuild, type, ops, flags, dbg)
     {}
 
@@ -30,7 +30,7 @@ public:
 class Select : public PrimOp {
 private:
     Select(const Def* cond, const Def* tval, const Def* fval, const Def* dbg)
-        : PrimOp(Node_Select, rebuild, tval->type(), {cond, tval, fval}, 0, dbg)
+        : PrimOp(Tag, rebuild, tval->type(), {cond, tval, fval}, 0, dbg)
     {
         assert(is_type_bool(cond->type()));
         assert(tval->type() == fval->type() && "types of both values must be equal");
@@ -42,7 +42,7 @@ public:
     const Def* fval() const { return op(2); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
-    static constexpr auto Tag = Tags::Select;
+    static constexpr auto Tag = Tag::Select;
     friend class World;
 };
 
@@ -55,7 +55,7 @@ public:
     const Def* of() const { return op(0)->type(); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
-    static constexpr auto Tag = Tags::SizeOf;
+    static constexpr auto Tag = Tag::SizeOf;
     friend class World;
 };
 
@@ -63,7 +63,7 @@ public:
 class ArithOp : public PrimOp {
 private:
     ArithOp(ArithOpTag tag, const Def* lhs, const Def* rhs, const Def* dbg)
-        : PrimOp(Node_ArithOp, rebuild, lhs->type(), {lhs, rhs}, tag, dbg)
+        : PrimOp(Tag, rebuild, lhs->type(), {lhs, rhs}, tag, dbg)
     {
         assert(lhs->type() == rhs->type() && "types are not equal");
         // TODO remove this and make div/rem proper nodes *with* side-effects
@@ -79,7 +79,7 @@ public:
     const char* op_name() const override;
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
-    static constexpr auto Tag = Tags::ArithOp;
+    static constexpr auto Tag = Tag::ArithOp;
     friend class World;
 };
 
@@ -96,7 +96,7 @@ public:
     const char* op_name() const override;
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
-    static constexpr auto Tag = Tags::Cmp;
+    static constexpr auto Tag = Tag::Cmp;
     friend class World;
 };
 
@@ -104,14 +104,14 @@ public:
 class Cast : public PrimOp {
 private:
     Cast(const Def* to, const Def* from, const Def* dbg)
-        : PrimOp(Node_Cast, rebuild, to, {from}, 0, dbg)
+        : PrimOp(Tag, rebuild, to, {from}, 0, dbg)
     {}
 
 public:
     const Def* from() const { return op(0); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
-    static constexpr auto Tag = Tags::Cast;
+    static constexpr auto Tag = Tag::Cast;
     friend class World;
 };
 
@@ -119,14 +119,14 @@ public:
 class Bitcast : public PrimOp {
 private:
     Bitcast(const Def* to, const Def* from, const Def* dbg)
-        : PrimOp(Node_Bitcast, rebuild, to, {from}, 0, dbg)
+        : PrimOp(Tag, rebuild, to, {from}, 0, dbg)
     {}
 
 public:
     const Def* from() const { return op(0); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
-    static constexpr auto Tag = Tags::Bitcast;
+    static constexpr auto Tag = Tag::Bitcast;
     friend class World;
 };
 
@@ -134,7 +134,7 @@ public:
 class Variant : public PrimOp {
 private:
     Variant(const VariantType* variant_type, const Def* value, const Def* dbg)
-        : PrimOp(Node_Variant, rebuild, variant_type, {value}, 0, dbg)
+        : PrimOp(Tag, rebuild, variant_type, {value}, 0, dbg)
     {
         assert(std::find(variant_type->ops().begin(), variant_type->ops().end(), value->type()) != variant_type->ops().end());
     }
@@ -143,7 +143,7 @@ public:
     const VariantType* type() const { return PrimOp::type()->as<VariantType>(); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
-    static constexpr auto Tag = Tags::Variant;
+    static constexpr auto Tag = Tag::Variant;
     friend class World;
 };
 
@@ -156,7 +156,7 @@ public:
 class LEA : public PrimOp {
 private:
     LEA(const Def* type, const Def* ptr, const Def* index, const Def* dbg)
-        : PrimOp(Node_LEA, rebuild, type, {ptr, index}, 0, dbg)
+        : PrimOp(Tag, rebuild, type, {ptr, index}, 0, dbg)
     {}
 
 public:
@@ -167,7 +167,7 @@ public:
     const Def* ptr_pointee() const { return ptr_type()->pointee(); }        ///< Returns the type referenced by @p ptr().
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
-    static constexpr auto Tag = Tags::LEA;
+    static constexpr auto Tag = Tag::LEA;
     friend class World;
 };
 
@@ -175,14 +175,14 @@ public:
 class Hlt : public PrimOp {
 private:
     Hlt(const Def* def, const Def* dbg)
-        : PrimOp(Node_Hlt, rebuild, def->type(), {def}, 0, dbg)
+        : PrimOp(Tag, rebuild, def->type(), {def}, 0, dbg)
     {}
 
 public:
     const Def* def() const { return op(0); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
-    static constexpr auto Tag = Tags::Hlt;
+    static constexpr auto Tag = Tag::Hlt;
     friend class World;
 };
 
@@ -195,7 +195,7 @@ public:
     const Def* def() const { return op(0); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
-    static constexpr auto Tag = Tags::Known;
+    static constexpr auto Tag = Tag::Known;
     friend class World;
 };
 
@@ -206,14 +206,14 @@ public:
 class Run : public PrimOp {
 private:
     Run(const Def* def, const Def* dbg)
-        : PrimOp(Node_Run, rebuild, def->type(), {def}, 0, dbg)
+        : PrimOp(Tag, rebuild, def->type(), {def}, 0, dbg)
     {}
 
 public:
     const Def* def() const { return op(0); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
-    static constexpr auto Tag = Tags::Run;
+    static constexpr auto Tag = Tag::Run;
     friend class World;
 };
 
@@ -224,7 +224,7 @@ public:
 class Global : public PrimOp {
 private:
     Global(const Def* type, const Def* id, const Def* init, bool is_mutable, const Def* dbg)
-        : PrimOp(Node_Global, rebuild, type, {id, init}, is_mutable, dbg)
+        : PrimOp(Tag, rebuild, type, {id, init}, is_mutable, dbg)
     {}
 
 public:
@@ -239,99 +239,100 @@ public:
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
-    static constexpr auto Tag = Tags::Global;
+    static constexpr auto Tag = Tag::Global;
     friend class World;
 };
 
-/// Base class for all \p PrimOp%s taking and producing side-effects.
-class MemOp : public PrimOp {
-protected:
-    MemOp(NodeTag tag, RebuildFn rebuild, const Def* type, Defs args, uint64_t flags, const Def* dbg)
-        : PrimOp(tag, rebuild, type, args, flags, dbg)
+/// Allocates memory on the heap.
+class Alloc : public PrimOp {
+private:
+    Alloc(const Def* type, const Def* mem, const Def* dbg)
+        : PrimOp(Tag, rebuild, type, {mem}, 0, dbg)
     {
-        assert(mem()->type()->isa<MemType>());
-        assert(args.size() >= 1);
+        assert(mem->type()->isa<MemType>());
     }
 
 public:
     const Def* mem() const { return op(0); }
     const Def* out_mem() const { return out(0); }
-};
-
-/// Allocates memory on the heap.
-class Alloc : public MemOp {
-private:
-    Alloc(const Def* type, const Def* mem, const Def* dbg)
-        : MemOp(Node_Alloc, rebuild, type, {mem}, 0, dbg)
-    {}
-
-public:
     const Def* out_ptr() const { return out(1); }
-    const Sigma* type() const { return MemOp::type()->as<Sigma>(); }
+    const Sigma* type() const { return PrimOp::type()->as<Sigma>(); }
     const PtrType* out_ptr_type() const { return type()->op(1)->as<PtrType>(); }
     const Def* alloced_type() const { return out_ptr_type()->pointee(); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
-    static constexpr auto Tag = Tags::Alloc;
+    static constexpr auto Tag = Tag::Alloc;
     friend class World;
 };
 
 /// Allocates memory on the stack.
 /// TODO eventually substitute with Alloc
-class Slot : public MemOp {
+class Slot : public PrimOp {
 private:
     Slot(const Def* type, const Def* mem, const Def* dbg)
-        : MemOp(Node_Slot, rebuild, type, {mem}, 0, dbg)
-    {}
+        : PrimOp(Tag, rebuild, type, {mem}, 0, dbg)
+    {
+        assert(mem->type()->isa<MemType>());
+    }
 
 public:
+    const Def* mem() const { return op(0); }
+    const Def* out_mem() const { return out(0); }
     const Def* out_ptr() const { return out(1); }
-    const Sigma* type() const { return MemOp::type()->as<Sigma>(); }
+    const Sigma* type() const { return PrimOp::type()->as<Sigma>(); }
     const PtrType* out_ptr_type() const { return type()->op(1)->as<PtrType>(); }
     const Def* alloced_type() const { return out_ptr_type()->pointee(); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
-    static constexpr auto Tag = Tags::Slot;
+    static constexpr auto Tag = Tag::Slot;
     friend class World;
 };
 
 /// Loads with current effect <tt>mem</tt> from <tt>ptr</tt> to produce a pair of a new effect and the loaded value.
-class Load : public MemOp {
+class Load : public PrimOp {
 private:
     Load(const Def* type, const Def* mem, const Def* ptr, const Def* dbg)
-        : MemOp(Node_Load, rebuild, type, {mem, ptr}, 0, dbg)
-    {}
+        : PrimOp(Tag, rebuild, type, {mem, ptr}, 0, dbg)
+    {
+        assert(mem->type()->isa<MemType>());
+    }
 
 public:
+    const Def* mem() const { return op(0); }
     const Def* ptr() const { return op(1); }
+    const Def* out_mem() const { return out(0); }
     const Def* out_val() const { return out(1); }
-    const Sigma* type() const { return MemOp::type()->as<Sigma>(); }
+    const Sigma* type() const { return PrimOp::type()->as<Sigma>(); }
     const Def* out_val_type() const { return type()->op(1); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
-    static constexpr auto Tag = Tags::Load;
+    static constexpr auto Tag = Tag::Load;
     friend class World;
 };
 
 /// Stores with current effect <tt>mem</tt> <tt>value</tt> into <tt>ptr</tt> while producing a new effect.
-class Store : public MemOp {
+class Store : public PrimOp {
 private:
     Store(const Def* mem, const Def* ptr, const Def* value, const Def* dbg)
-        : MemOp(Node_Store, rebuild, mem->type(), {mem, ptr, value}, 0, dbg)
-    {}
+        : PrimOp(Tag, rebuild, mem->type(), {mem, ptr, value}, 0, dbg)
+    {
+        assert(mem->type()->isa<MemType>());
+    }
 
 public:
+    const Def* mem() const { return op(0); }
     const Def* ptr() const { return op(1); }
     const Def* val() const { return op(2); }
-    const MemType* type() const { return MemOp::type()->as<MemType>(); }
+    const Def* out_mem() const { return out(0); }
+    const MemType* type() const { return PrimOp::type()->as<MemType>(); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
-    static constexpr auto Tag = Tags::Store;
+    static constexpr auto Tag = Tag::Store;
     friend class World;
 };
 
 /*
-class Assembly : public MemOp {
+class Assembly : public PrimOp {
 public:
     enum Flags {
         NoFlag         = 0,
@@ -365,7 +366,7 @@ public:
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
     std::ostream& stream_assignment(std::ostream&) const override;
 
-    static constexpr auto Tag = Tags::Assembly;
+    static constexpr auto Tag = Tag::Assembly;
     friend class World;
 };
 

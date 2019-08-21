@@ -33,18 +33,22 @@ public:
     * Thus, the forest is pooled into a tree.
     */
     class Node : public RuntimeCast<Node>, public Streamable {
+    public:
+        enum class Tag { Head, Leaf };
+
     protected:
-        Node(Head* parent, int depth, const std::vector<const CFNode*>&);
+        Node(Tag tag, Head* parent, int depth, const std::vector<const CFNode*>&);
 
     public:
+        Tag tag() const { return tag_; }
         int depth() const { return depth_; }
         const Head* parent() const { return parent_; }
         ArrayRef<const CFNode*> cf_nodes() const { return cf_nodes_; }
         size_t num_cf_nodes() const { return cf_nodes().size(); }
-
-    protected:
         std::ostream& indent() const;
 
+    protected:
+        Tag tag_;
         Head* parent_;
         std::vector<const CFNode*> cf_nodes_;
         int depth_;
@@ -53,21 +57,21 @@ public:
     /// A Head owns further @p Node%s as children.
     class Head : public Node {
     private:
-        typedef Node Super;
-
         Head(Head* parent, int depth, const std::vector<const CFNode*>& cf_nodes)
-            : Super(parent, depth, cf_nodes)
+            : Node(Tag, parent, depth, cf_nodes)
         {}
 
     public:
-        ArrayRef<std::unique_ptr<Super>> children() const { return children_; }
-        const Super* child(size_t i) const { return children_[i].get(); }
+        ArrayRef<std::unique_ptr<Node>> children() const { return children_; }
+        const Node* child(size_t i) const { return children_[i].get(); }
         size_t num_children() const { return children().size(); }
-        bool is_root() const { return Super::parent_ == 0; }
+        bool is_root() const { return Node::parent_ == 0; }
         virtual std::ostream& stream(std::ostream&) const override;
 
+        static constexpr auto Tag = Node::Tag::Head;
+
     private:
-        std::vector<std::unique_ptr<Super>> children_;
+        std::vector<std::unique_ptr<Node>> children_;
 
         friend class Node;
         friend class LoopTreeBuilder<forward>;
@@ -76,20 +80,20 @@ public:
     /// A Leaf only holds a single @p CFNode and does not have any children.
     class Leaf : public Node {
     private:
-        typedef Node Super;
-
         Leaf(size_t index, Head* parent, int depth, const std::vector<const CFNode*>& cf_nodes)
-            : Super(parent, depth, cf_nodes)
+            : Node(Tag, parent, depth, cf_nodes)
             , index_(index)
         {
-            assert(Super::num_cf_nodes() == 1);
+            assert(Leaf::num_cf_nodes() == 1);
         }
 
     public:
-        const CFNode* cf_node() const { return Super::cf_nodes().front(); }
+        const CFNode* cf_node() const { return Leaf::cf_nodes().front(); }
         /// Index of a DFS of the @p LoopTree's @p Leaf%s.
         size_t index() const { return index_; }
         virtual std::ostream& stream(std::ostream&) const override;
+
+        static constexpr auto Tag = Node::Tag::Leaf;
 
     private:
         size_t index_;

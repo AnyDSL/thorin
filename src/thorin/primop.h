@@ -9,28 +9,11 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-/// Base class for all @p PrimOp%s.
-class PrimOp : public Def {
-protected:
-    PrimOp(uint16_t tag, RebuildFn rebuild, const Def* type, Defs ops, uint64_t flags, const Def* dbg)
-        : Def(tag, rebuild, type, ops, flags, dbg)
-    {}
-
-public:
-    std::ostream& stream(std::ostream&) const override;
-
-    friend class World;
-    friend class Cleaner;
-    friend void Def::replace(Tracker) const;
-};
-
-//------------------------------------------------------------------------------
-
 /// Akin to <tt>cond ? tval : fval</tt>.
-class Select : public PrimOp {
+class Select : public Def {
 private:
     Select(const Def* cond, const Def* tval, const Def* fval, const Def* dbg)
-        : PrimOp(Tag, rebuild, tval->type(), {cond, tval, fval}, 0, dbg)
+        : Def(Tag, rebuild, tval->type(), {cond, tval, fval}, 0, dbg)
     {
         assert(is_type_bool(cond->type()));
         assert(tval->type() == fval->type() && "types of both values must be equal");
@@ -47,7 +30,7 @@ public:
 };
 
 /// Get number of bytes needed for any value (including bottom) of a given @p Type.
-class SizeOf : public PrimOp {
+class SizeOf : public Def {
 private:
     SizeOf(const Def* def, const Def* dbg);
 
@@ -60,10 +43,10 @@ public:
 };
 
 /// One of \p ArithOpTag arithmetic operation.
-class ArithOp : public PrimOp {
+class ArithOp : public Def {
 private:
     ArithOp(ArithOpTag tag, const Def* lhs, const Def* rhs, const Def* dbg)
-        : PrimOp(Tag, rebuild, lhs->type(), {lhs, rhs}, tag, dbg)
+        : Def(Tag, rebuild, lhs->type(), {lhs, rhs}, tag, dbg)
     {
         assert(lhs->type() == rhs->type() && "types are not equal");
         // TODO remove this and make div/rem proper nodes *with* side-effects
@@ -74,7 +57,7 @@ private:
 public:
     const Def* lhs() const { return op(0); }
     const Def* rhs() const { return op(1); }
-    const PrimType* type() const { return PrimOp::type()->as<PrimType>(); }
+    const PrimType* type() const { return Def::type()->as<PrimType>(); }
     ArithOpTag arithop_tag() const { return (ArithOpTag) flags(); }
     const char* op_name() const override;
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
@@ -84,14 +67,14 @@ public:
 };
 
 /// One of \p CmpTag compare.
-class Cmp : public PrimOp {
+class Cmp : public Def {
 private:
     Cmp(CmpTag tag, const Def* lhs, const Def* rhs, const Def* dbg);
 
 public:
     const Def* lhs() const { return op(0); }
     const Def* rhs() const { return op(1); }
-    const PrimType* type() const { return PrimOp::type()->as<PrimType>(); }
+    const PrimType* type() const { return Def::type()->as<PrimType>(); }
     CmpTag cmp_tag() const { return (CmpTag) flags(); }
     const char* op_name() const override;
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
@@ -101,10 +84,10 @@ public:
 };
 
 /// Converts <tt>from</tt> to type <tt>to</tt>.
-class Cast : public PrimOp {
+class Cast : public Def {
 private:
     Cast(const Def* to, const Def* from, const Def* dbg)
-        : PrimOp(Tag, rebuild, to, {from}, 0, dbg)
+        : Def(Tag, rebuild, to, {from}, 0, dbg)
     {}
 
 public:
@@ -116,10 +99,10 @@ public:
 };
 
 /// Reinterprets the bits of <tt>from</tt> as type <tt>to</tt>.
-class Bitcast : public PrimOp {
+class Bitcast : public Def {
 private:
     Bitcast(const Def* to, const Def* from, const Def* dbg)
-        : PrimOp(Tag, rebuild, to, {from}, 0, dbg)
+        : Def(Tag, rebuild, to, {from}, 0, dbg)
     {}
 
 public:
@@ -131,16 +114,16 @@ public:
 };
 
 /// Data constructor for a @p VariantType.
-class Variant : public PrimOp {
+class Variant : public Def {
 private:
     Variant(const VariantType* variant_type, const Def* value, const Def* dbg)
-        : PrimOp(Tag, rebuild, variant_type, {value}, 0, dbg)
+        : Def(Tag, rebuild, variant_type, {value}, 0, dbg)
     {
         assert(std::find(variant_type->ops().begin(), variant_type->ops().end(), value->type()) != variant_type->ops().end());
     }
 
 public:
-    const VariantType* type() const { return PrimOp::type()->as<VariantType>(); }
+    const VariantType* type() const { return Def::type()->as<VariantType>(); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
     static constexpr auto Tag = Tag::Variant;
@@ -153,16 +136,16 @@ public:
  * Then, the address to the <tt>index</tt>'th element is computed.
  * This yields a pointer to that element.
  */
-class LEA : public PrimOp {
+class LEA : public Def {
 private:
     LEA(const Def* type, const Def* ptr, const Def* index, const Def* dbg)
-        : PrimOp(Tag, rebuild, type, {ptr, index}, 0, dbg)
+        : Def(Tag, rebuild, type, {ptr, index}, 0, dbg)
     {}
 
 public:
     const Def* ptr() const { return op(0); }
     const Def* index() const { return op(1); }
-    const PtrType* type() const { return PrimOp::type()->as<PtrType>(); }
+    const PtrType* type() const { return Def::type()->as<PtrType>(); }
     const PtrType* ptr_type() const { return ptr()->type()->as<PtrType>(); } ///< Returns the PtrType from @p ptr().
     const Def* ptr_pointee() const { return ptr_type()->pointee(); }        ///< Returns the type referenced by @p ptr().
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
@@ -172,10 +155,10 @@ public:
 };
 
 /// Casts the underlying @p def to a dynamic value during @p partial_evaluation.
-class Hlt : public PrimOp {
+class Hlt : public Def {
 private:
     Hlt(const Def* def, const Def* dbg)
-        : PrimOp(Tag, rebuild, def->type(), {def}, 0, dbg)
+        : Def(Tag, rebuild, def->type(), {def}, 0, dbg)
     {}
 
 public:
@@ -187,7 +170,7 @@ public:
 };
 
 /// Evaluates to @c true, if @p def is a literal.
-class Known : public PrimOp {
+class Known : public Def {
 private:
     Known(const Def* def, const Def* dbg);
 
@@ -201,12 +184,12 @@ public:
 
 /**
  * If a lam typed def is wrapped in @p Run primop, it will be specialized into a callee whenever it is called.
- * Otherwise, this @p PrimOp evaluates to @p def.
+ * Otherwise, this @p Def evaluates to @p def.
  */
-class Run : public PrimOp {
+class Run : public Def {
 private:
     Run(const Def* def, const Def* dbg)
-        : PrimOp(Tag, rebuild, def->type(), {def}, 0, dbg)
+        : Def(Tag, rebuild, def->type(), {def}, 0, dbg)
     {}
 
 public:
@@ -221,10 +204,10 @@ public:
  * A global variable in the data segment.
  * A @p Global may be mutable or immutable.
  */
-class Global : public PrimOp {
+class Global : public Def {
 private:
     Global(const Def* type, const Def* id, const Def* init, bool is_mutable, const Def* dbg)
-        : PrimOp(Tag, rebuild, type, {id, init}, is_mutable, dbg)
+        : Def(Tag, rebuild, type, {id, init}, is_mutable, dbg)
     {}
 
 public:
@@ -232,7 +215,7 @@ public:
     const Def* id() const { return op(0); }
     const Def* init() const { return op(1); }
     bool is_mutable() const { return flags(); }
-    const PtrType* type() const { return PrimOp::type()->as<PtrType>(); }
+    const PtrType* type() const { return Def::type()->as<PtrType>(); }
     const Def* alloced_type() const { return type()->pointee(); }
     const char* op_name() const override;
 
@@ -244,10 +227,10 @@ public:
 };
 
 /// Allocates memory on the heap.
-class Alloc : public PrimOp {
+class Alloc : public Def {
 private:
     Alloc(const Def* type, const Def* mem, const Def* dbg)
-        : PrimOp(Tag, rebuild, type, {mem}, 0, dbg)
+        : Def(Tag, rebuild, type, {mem}, 0, dbg)
     {
         assert(mem->type()->isa<MemType>());
     }
@@ -256,7 +239,7 @@ public:
     const Def* mem() const { return op(0); }
     const Def* out_mem() const { return out(0); }
     const Def* out_ptr() const { return out(1); }
-    const Sigma* type() const { return PrimOp::type()->as<Sigma>(); }
+    const Sigma* type() const { return Def::type()->as<Sigma>(); }
     const PtrType* out_ptr_type() const { return type()->op(1)->as<PtrType>(); }
     const Def* alloced_type() const { return out_ptr_type()->pointee(); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
@@ -267,10 +250,10 @@ public:
 
 /// Allocates memory on the stack.
 /// TODO eventually substitute with Alloc
-class Slot : public PrimOp {
+class Slot : public Def {
 private:
     Slot(const Def* type, const Def* mem, const Def* dbg)
-        : PrimOp(Tag, rebuild, type, {mem}, 0, dbg)
+        : Def(Tag, rebuild, type, {mem}, 0, dbg)
     {
         assert(mem->type()->isa<MemType>());
     }
@@ -279,7 +262,7 @@ public:
     const Def* mem() const { return op(0); }
     const Def* out_mem() const { return out(0); }
     const Def* out_ptr() const { return out(1); }
-    const Sigma* type() const { return PrimOp::type()->as<Sigma>(); }
+    const Sigma* type() const { return Def::type()->as<Sigma>(); }
     const PtrType* out_ptr_type() const { return type()->op(1)->as<PtrType>(); }
     const Def* alloced_type() const { return out_ptr_type()->pointee(); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
@@ -289,10 +272,10 @@ public:
 };
 
 /// Loads with current effect <tt>mem</tt> from <tt>ptr</tt> to produce a pair of a new effect and the loaded value.
-class Load : public PrimOp {
+class Load : public Def {
 private:
     Load(const Def* type, const Def* mem, const Def* ptr, const Def* dbg)
-        : PrimOp(Tag, rebuild, type, {mem, ptr}, 0, dbg)
+        : Def(Tag, rebuild, type, {mem, ptr}, 0, dbg)
     {
         assert(mem->type()->isa<MemType>());
     }
@@ -302,7 +285,7 @@ public:
     const Def* ptr() const { return op(1); }
     const Def* out_mem() const { return out(0); }
     const Def* out_val() const { return out(1); }
-    const Sigma* type() const { return PrimOp::type()->as<Sigma>(); }
+    const Sigma* type() const { return Def::type()->as<Sigma>(); }
     const Def* out_val_type() const { return type()->op(1); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
@@ -311,10 +294,10 @@ public:
 };
 
 /// Stores with current effect <tt>mem</tt> <tt>value</tt> into <tt>ptr</tt> while producing a new effect.
-class Store : public PrimOp {
+class Store : public Def {
 private:
     Store(const Def* mem, const Def* ptr, const Def* value, const Def* dbg)
-        : PrimOp(Tag, rebuild, mem->type(), {mem, ptr, value}, 0, dbg)
+        : Def(Tag, rebuild, mem->type(), {mem, ptr, value}, 0, dbg)
     {
         assert(mem->type()->isa<MemType>());
     }
@@ -324,7 +307,7 @@ public:
     const Def* ptr() const { return op(1); }
     const Def* val() const { return op(2); }
     const Def* out_mem() const { return out(0); }
-    const MemType* type() const { return PrimOp::type()->as<MemType>(); }
+    const MemType* type() const { return Def::type()->as<MemType>(); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
     static constexpr auto Tag = Tag::Store;
@@ -332,7 +315,7 @@ public:
 };
 
 /*
-class Assembly : public PrimOp {
+class Assembly : public Def {
 public:
     enum Flags {
         NoFlag         = 0,
@@ -375,11 +358,6 @@ inline Assembly::Flags operator&(Assembly::Flags lhs, Assembly::Flags rhs) { ret
 inline Assembly::Flags operator|=(Assembly::Flags& lhs, Assembly::Flags rhs) { return lhs = lhs | rhs; }
 inline Assembly::Flags operator&=(Assembly::Flags& lhs, Assembly::Flags rhs) { return lhs = lhs & rhs; }
 */
-
-template<class To>
-using PrimOpMap     = GIDMap<const PrimOp*, To>;
-using PrimOpSet     = GIDSet<const PrimOp*>;
-using PrimOp2PrimOp = PrimOpMap<const PrimOp*>;
 
 }
 

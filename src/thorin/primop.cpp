@@ -14,17 +14,17 @@ namespace thorin {
  */
 
 Cmp::Cmp(CmpTag tag, const Def* lhs, const Def* rhs, const Def* dbg)
-    : PrimOp(Tag, rebuild, lhs->world().type_bool(), {lhs, rhs}, tag, dbg)
+    : Def(Tag, rebuild, lhs->world().type_bool(), {lhs, rhs}, tag, dbg)
 {
     assert(lhs->type() == rhs->type() && "types are not equal");
 }
 
 Known::Known(const Def* def, const Def* dbg)
-    : PrimOp(Tag, rebuild, def->world().type_bool(), {def}, 0, dbg)
+    : Def(Tag, rebuild, def->world().type_bool(), {def}, 0, dbg)
 {}
 
 SizeOf::SizeOf(const Def* def, const Def* dbg)
-    : PrimOp(Tag, rebuild, def->world().type_qs32(), {def}, 0, dbg)
+    : Def(Tag, rebuild, def->world().type_qs32(), {def}, 0, dbg)
 {}
 
 /*
@@ -48,7 +48,7 @@ Assembly::~Assembly() { (&extra<Extra>())->~Extra(); }
  * rebuild
  */
 
-// do not use any of PrimOp's type getters - during import we need to derive types from 't' in the new world 'to'
+// do not use any of d's type getters - during import we need to derive types from 't' in the new world 'to'
 
 const Def* Alloc  ::rebuild(const Def*  , World& to, const Def* t, Defs ops, const Def* dbg) { return to.alloc(t->as<Sigma>()->op(1)->as<PtrType>()->pointee(), ops[0], dbg); }
 const Def* ArithOp::rebuild(const Def* d, World& to, const Def*  , Defs ops, const Def* dbg) { return to.arithop(d->as<ArithOp>()->arithop_tag(), ops[0], ops[1], dbg); }
@@ -110,15 +110,15 @@ const char* Global::op_name() const { return is_mutable() ? "global_mutable" : "
  * stream
  */
 
-std::ostream& PrimOp::stream(std::ostream& os) const {
-    if (is_const(this)) {
-        if (num_ops() == 0)
-            return streamf(os, "{} {}", op_name(), type());
-        else
-            return streamf(os, "({} {} {})", type(), op_name(), stream_list(ops(), [&](const Def* def) { os << def; }));
-    } else
-        return os << unique_name();
-}
+//std::ostream& PrimOp::stream(std::ostream& os) const {
+    //if (is_const(this)) {
+        //if (num_ops() == 0)
+            //return streamf(os, "{} {}", op_name(), type());
+        //else
+            //return streamf(os, "({} {} {})", type(), op_name(), stream_list(ops(), [&](const Def* def) { os << def; }));
+    //} else
+        //return os << unique_name();
+//}
 
 std::ostream& Global::stream(std::ostream& os) const { return os << unique_name(); }
 

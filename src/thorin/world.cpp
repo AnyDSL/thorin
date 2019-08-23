@@ -37,7 +37,8 @@ World::World(uint32_t cur_gid, const std::string& name)
     cache_.top_arity_        = insert<Top>(0, kind_arity(), nullptr);
     cache_.sigma_            = insert<Sigma>(0, kind_star(), Defs{}, nullptr)->as<Sigma>();
     cache_.tuple_            = insert<Tuple>(0, sigma(), Defs{}, nullptr)->as<Tuple>();
-    cache_.mem_              = insert<MemType>(0, *this);
+    cache_.type_mem_         = insert<Mem>(0, *this);
+    cache_.type_nat_         = insert<Nat>(0, *this);
     cache_.lit_arity_1_      = lit_arity(1);
     cache_.lit_index_0_1_    = lit_index(lit_arity_1(), 0);
     cache_.lit_bool_[0]      = lit(type_bool(), {false});
@@ -852,7 +853,7 @@ const Def* World::load(const Def* mem, const Def* ptr, Debug dbg) {
     if (auto sigma = pointee->isa<Sigma>(); sigma && sigma->num_ops() == 0)
         return tuple({mem, tuple(sigma->type(), {}, dbg)});
 
-    return unify<Load>(2, sigma({mem_type(), pointee}), mem, ptr, debug(dbg));
+    return unify<Load>(2, sigma({type_mem(), pointee}), mem, ptr, debug(dbg));
 }
 
 const Def* World::store(const Def* mem, const Def* ptr, const Def* val, Debug dbg) {
@@ -868,11 +869,11 @@ const Def* World::store(const Def* mem, const Def* ptr, const Def* val, Debug db
 }
 
 const Alloc* World::alloc(const Def* type, const Def* mem, Debug dbg) {
-    return unify<Alloc>(1, sigma({mem_type(), ptr_type(type)}), mem, debug(dbg));
+    return unify<Alloc>(1, sigma({type_mem(), ptr_type(type)}), mem, debug(dbg));
 }
 
 const Slot* World::slot(const Def* type, const Def* mem, Debug dbg) {
-    return unify<Slot>(1, sigma({mem_type(), ptr_type(type)}), mem, debug(dbg));
+    return unify<Slot>(1, sigma({type_mem(), ptr_type(type)}), mem, debug(dbg));
 }
 
 const Def* World::global(const Def* id, const Def* init, bool is_mutable, Debug dbg) {
@@ -898,7 +899,7 @@ const Assembly* World::assembly(const Def* type, Defs inputs, std::string asm_te
 const Assembly* World::assembly(Defs types, const Def* mem, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg) {
     Array<const Def*> output(types.size()+1);
     std::copy(types.begin(), types.end(), output.begin()+1);
-    output.front() = mem_type();
+    output.front() = type_mem();
 
     Array<const Def*> ops(inputs.size()+1);
     std::copy(inputs.begin(), inputs.end(), ops.begin()+1);

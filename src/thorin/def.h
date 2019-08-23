@@ -724,16 +724,28 @@ public:
     friend class World;
 };
 
-/// The type of the memory monad.
-class MemType : public Def {
+class Nat : public Def {
 private:
-    MemType(World& world);
+    Nat(World& world);
 
 public:
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
-    static constexpr auto Tag = Tag::MemType;
+    static constexpr auto Tag = Tag::Nat;
+    friend class World;
+};
+
+/// The type of the memory monad.
+class Mem : public Def {
+private:
+    Mem(World& world);
+
+public:
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    std::ostream& stream(std::ostream&) const override;
+
+    static constexpr auto Tag = Tag::Mem;
     friend class World;
 };
 

@@ -244,7 +244,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
         const Def* ret_param = nullptr;
         auto arg = fct->arg_begin();
         for (auto param : entry_->params()) {
-            if (is_mem(param) || is_unit(param)) {
+            if (param->type()->isa<Mem>() || is_unit(param)) {
                 params_[param] = nullptr;
             } else if (param->type()->order() == 0) {
                 auto argv = &*arg;
@@ -275,7 +275,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                 // create phi node stubs (for all lams different from entry)
                 if (entry_ != lam) {
                     for (auto param : lam->params()) {
-                        auto phi = (is_mem(param) || is_unit(param))
+                        auto phi = (param->type()->isa<Mem>() || is_unit(param))
                                  ? nullptr
                                  : llvm::PHINode::Create(convert(param->type()), (unsigned) peek(param).size(), param->name(), bb);
                         phis_[param] = phi;
@@ -346,7 +346,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
 
                     size_t n = 0;
                     for (auto arg : lam->app()->args()) {
-                        if (!is_mem(arg) && !is_unit(arg)) {
+                        if (!arg->type()->isa<Mem>() && !is_unit(arg)) {
                             auto val = lookup(arg);
                             values[n] = val;
                             args[n++] = val->getType();
@@ -407,7 +407,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                     const Def* ret_arg = nullptr;
                     for (auto arg : lam->app()->args()) {
                         if (arg->type()->order() == 0) {
-                            if (!is_mem(arg) && !is_unit(arg))
+                            if (!arg->type()->isa<Mem>() && !is_unit(arg))
                                 args.push_back(lookup(arg));
                         } else {
                             assert(!ret_arg);
@@ -437,7 +437,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                     size_t n = 0;
                     const Def* last_param = nullptr;
                     for (auto param : succ->params()) {
-                        if (is_mem(param) || is_unit(param))
+                        if (param->type()->isa<Mem>() || is_unit(param))
                             continue;
                         last_param = param;
                         ++n;
@@ -452,7 +452,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                         Array<llvm::Value*> extracts(n);
                         for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
                             auto param = succ->param(i);
-                            if (is_mem(param) || is_unit(param))
+                            if (param->type()->isa<Mem>() || is_unit(param))
                                 continue;
                             extracts[j] = irbuilder_.CreateExtractValue(call, unsigned(j));
                             j++;
@@ -462,7 +462,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
 
                         for (size_t i = 0, j = 0; i != succ->num_params(); ++i) {
                             auto param = succ->param(i);
-                            if (is_mem(param) || is_unit(param))
+                            if (param->type()->isa<Mem>() || is_unit(param))
                                 continue;
                             emit_result_phi(param, extracts[j]);
                             j++;
@@ -1049,7 +1049,7 @@ unsigned CodeGen::compute_variant_op_bits(const Def* type) {
 llvm::Type* CodeGen::convert(const Def* type) {
     if (auto llvm_type = types_.lookup(type)) return *llvm_type;
 
-    assert(!type->isa<MemType>());
+    assert(!type->isa<Mem>());
 
     if (is_arity(type))
         return types_[type] = irbuilder_.getInt64Ty();
@@ -1088,13 +1088,13 @@ llvm::Type* CodeGen::convert(const Def* type) {
         llvm::Type* ret = nullptr;
         std::vector<llvm::Type*> domains;
         for (auto domain : cn->domains()) {
-            if (domain->isa<MemType>() || domain == world().sigma()) continue;
+            if (domain->isa<Mem>() || domain == world().sigma()) continue;
             if (auto cn = domain->isa<Pi>()) {
                 assert(cn->is_cn());
                 assert(!ret && "only one 'return' supported");
                 std::vector<llvm::Type*> ret_types;
                 for (auto cn_domain : cn->domains()) {
-                    if (cn_domain->isa<MemType>() || cn_domain == world().sigma()) continue;
+                    if (cn_domain->isa<Mem>() || cn_domain == world().sigma()) continue;
                     ret_types.push_back(convert(cn_domain));
                 }
                 if (ret_types.size() == 0)      ret = llvm::Type::getVoidTy(context_);

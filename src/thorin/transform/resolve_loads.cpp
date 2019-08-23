@@ -33,7 +33,7 @@ public:
         for (auto node : scope.f_cfg().reverse_post_order()) {
             auto lam = node->lam();
             for (auto param : lam->params()) {
-                if (param->type()->isa<MemType>()) {
+                if (param->type()->isa<Mem>()) {
                     Def2Def mapping;
                     resolve_loads(param, mapping);
                 }

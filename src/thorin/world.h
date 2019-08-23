@@ -242,7 +242,8 @@ public:
         assert(i < (size_t) Num_PrimTypes);
         return cache_.primtypes_[i];
     }
-    const MemType* mem_type() const { return cache_.mem_; }
+    const Nat* type_nat() const { return cache_.type_nat_; }
+    const Mem* type_mem() const { return cache_.type_mem_; }
     const PtrType* ptr_type(const Def* pointee, const Def* addr_space, Debug dbg = {}) { return unify<PtrType>(2, kind_star(), pointee, addr_space, debug(dbg)); }
     const PtrType* ptr_type(const Def* pointee, u64 addr_space = AddrSpace::Generic, Debug dbg = {}) { return ptr_type(pointee, lit_pu64((u64) addr_space), dbg); }
     //@}
@@ -503,7 +504,8 @@ private:
         const Top* top_arity_;
         const Sigma* sigma_;
         const Tuple* tuple_;
-        const MemType* mem_;
+        const Nat* type_nat_;
+        const Mem* type_mem_;
         std::array<const Lit*, 2> lit_bool_;
         const Lit* lit_arity_1_;
         const Lit* lit_index_0_1_;

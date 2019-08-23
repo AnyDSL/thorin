@@ -159,7 +159,7 @@ Array<const Def*> Lam::params() const { return Array<const Def*>(num_params(), [
 const Def* Lam::mem_param() const {
     for (size_t i = 0, e = num_params(); i != e; ++i) {
         auto p = param(i);
-        if (is_mem(p))
+        if (p->type()->isa<Mem>())
             return p;
     }
     return nullptr;
@@ -384,11 +384,15 @@ KindStar::KindStar(World& world)
     : Def(Tag, rebuild, world.universe(), Defs{}, 0, nullptr)
 {}
 
+Nat::Nat(World& world)
+    : Def(Tag, rebuild, world.kind_star(), Defs{}, 0, nullptr)
+{}
+
 PrimType::PrimType(World& world, PrimTypeTag tag)
     : Def(Tag, rebuild, world.kind_star(), Defs{}, tag, nullptr)
 {}
 
-MemType::MemType(World& world)
+Mem::Mem(World& world)
     : Def(Tag, rebuild, world.kind_star(), Defs{}, 0, nullptr)
 {}
 
@@ -430,7 +434,8 @@ const Def* KindArity  ::rebuild(const Def*  , World& w, const Def*  , Defs  , co
 const Def* KindMulti  ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.kind_multi(); }
 const Def* KindStar   ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.kind_star(); }
 const Def* Lit        ::rebuild(const Def* d, World& w, const Def* t, Defs  , const Def* dbg) { return w.lit(t, as_lit<u64>(d), dbg); }
-const Def* MemType    ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.mem_type(); }
+const Def* Nat        ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.type_nat(); }
+const Def* Mem        ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.type_mem(); }
 const Def* Pack       ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.pack(t->arity(), o[0], dbg); }
 const Def* Param      ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.param(o[0]->as_nominal<Lam>(), dbg); }
 const Def* Pi         ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.pi(o[0], o[1], dbg); }
@@ -457,7 +462,8 @@ static std::ostream& stream_type_ops(std::ostream& os, const Def* type) {
 }
 
 std::ostream& App        ::stream(std::ostream& os) const { return streamf(os, "{} {}", callee(), arg()); }
-std::ostream& MemType    ::stream(std::ostream& os) const { return streamf(os, "mem"); }
+std::ostream& Mem        ::stream(std::ostream& os) const { return streamf(os, "mem"); }
+std::ostream& Nat        ::stream(std::ostream& os) const { return streamf(os, "nat"); }
 std::ostream& Universe   ::stream(std::ostream& os) const { return streamf(os, "□"); }
 std::ostream& Variadic   ::stream(std::ostream& os) const { return streamf(os, "«{}; {}»", arity(), body()); }
 std::ostream& VariantType::stream(std::ostream& os) const { return stream_type_ops(os << "variant", this); }

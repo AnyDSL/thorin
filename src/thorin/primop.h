@@ -232,7 +232,7 @@ private:
     Alloc(const Def* type, const Def* mem, const Def* dbg)
         : Def(Tag, rebuild, type, {mem}, 0, dbg)
     {
-        assert(mem->type()->isa<MemType>());
+        assert(mem->type()->isa<Mem>());
     }
 
 public:
@@ -255,7 +255,7 @@ private:
     Slot(const Def* type, const Def* mem, const Def* dbg)
         : Def(Tag, rebuild, type, {mem}, 0, dbg)
     {
-        assert(mem->type()->isa<MemType>());
+        assert(mem->type()->isa<Mem>());
     }
 
 public:
@@ -277,7 +277,7 @@ private:
     Load(const Def* type, const Def* mem, const Def* ptr, const Def* dbg)
         : Def(Tag, rebuild, type, {mem, ptr}, 0, dbg)
     {
-        assert(mem->type()->isa<MemType>());
+        assert(mem->type()->isa<Mem>());
     }
 
 public:
@@ -299,7 +299,7 @@ private:
     Store(const Def* mem, const Def* ptr, const Def* value, const Def* dbg)
         : Def(Tag, rebuild, mem->type(), {mem, ptr, value}, 0, dbg)
     {
-        assert(mem->type()->isa<MemType>());
+        assert(mem->type()->isa<Mem>());
     }
 
 public:
@@ -307,7 +307,7 @@ public:
     const Def* ptr() const { return op(1); }
     const Def* val() const { return op(2); }
     const Def* out_mem() const { return out(0); }
-    const MemType* type() const { return Def::type()->as<MemType>(); }
+    const Mem* type() const { return Def::type()->as<Mem>(); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
     static constexpr auto Tag = Tag::Store;

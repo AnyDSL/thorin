@@ -643,7 +643,7 @@ const Def* World::cmp(CmpTag tag, const Def* a, const Def* b, Debug dbg) {
 const Def* World::convert(const Def* dst_type, const Def* src, Debug dbg) {
     if (dst_type == src->type())
         return src;
-    if (src->type()->isa<PtrType>() && dst_type->isa<PtrType>())
+    if (src->type()->isa<Ptr>() && dst_type->isa<Ptr>())
         return bitcast(dst_type, src, dbg);
     if (auto dst_sigma = dst_type->isa<Sigma>()) {
         assert(dst_sigma->num_ops() == src->type()->as<Sigma>()->num_ops());
@@ -804,8 +804,8 @@ const Def* World::bot_top(bool is_top, const Def* type, Debug dbg) {
  */
 
 const Def* World::lea(const Def* ptr, const Def* index, Debug dbg) {
-    auto ptr_type = ptr->type()->as<PtrType>();
-    auto pointee = ptr_type->pointee();
+    auto type_ptr = ptr->type()->as<Ptr>();
+    auto pointee = type_ptr->pointee();
 
     assertf(pointee->arity() == index->type(), "lea of aggregate {} of arity {} with index {} of type {}", pointee, pointee->arity(), index, index->type());
 
@@ -813,10 +813,10 @@ const Def* World::lea(const Def* ptr, const Def* index, Debug dbg) {
 
     const Def* type = nullptr;
     if (auto sigma = pointee->isa<Sigma>()) {
-        type = this->ptr_type(sigma->op(as_lit<u64>(index)), ptr_type->addr_space());
+        type = this->type_ptr(sigma->op(as_lit<u64>(index)), type_ptr->addr_space());
     } else {
         auto variadic = pointee->as<Variadic>();
-        type = this->ptr_type(variadic->body(), ptr_type->addr_space());
+        type = this->type_ptr(variadic->body(), type_ptr->addr_space());
     }
 
     return unify<LEA>(2, type, ptr, index, debug(dbg));
@@ -847,7 +847,7 @@ const Def* World::size_of(const Def* type, Debug dbg) {
  */
 
 const Def* World::load(const Def* mem, const Def* ptr, Debug dbg) {
-    auto pointee = ptr->type()->as<PtrType>()->pointee();
+    auto pointee = ptr->type()->as<Ptr>()->pointee();
 
     // loading an empty tuple can only result in an empty tuple
     if (auto sigma = pointee->isa<Sigma>(); sigma && sigma->num_ops() == 0)
@@ -864,20 +864,20 @@ const Def* World::store(const Def* mem, const Def* ptr, const Def* val, Debug db
             return mem;
     }
 
-    assert(ptr->type()->as<PtrType>()->pointee() == val->type());
+    assert(ptr->type()->as<Ptr>()->pointee() == val->type());
     return unify<Store>(3, mem, ptr, val, debug(dbg));
 }
 
 const Alloc* World::alloc(const Def* type, const Def* mem, Debug dbg) {
-    return unify<Alloc>(1, sigma({type_mem(), ptr_type(type)}), mem, debug(dbg));
+    return unify<Alloc>(1, sigma({type_mem(), type_ptr(type)}), mem, debug(dbg));
 }
 
 const Slot* World::slot(const Def* type, const Def* mem, Debug dbg) {
-    return unify<Slot>(1, sigma({type_mem(), ptr_type(type)}), mem, debug(dbg));
+    return unify<Slot>(1, sigma({type_mem(), type_ptr(type)}), mem, debug(dbg));
 }
 
 const Def* World::global(const Def* id, const Def* init, bool is_mutable, Debug dbg) {
-    return unify<Global>(2, ptr_type(init->type()), id, init, is_mutable, debug(dbg));
+    return unify<Global>(2, type_ptr(init->type()), id, init, is_mutable, debug(dbg));
 }
 
 const Def* World::global_immutable_string(const std::string& str, Debug dbg) {

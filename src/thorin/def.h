@@ -775,9 +775,9 @@ struct AddrSpace {
 };
 
 /// Pointer type.
-class PtrType : public Def {
+class Ptr : public Def {
 private:
-    PtrType(const Def* type, const Def* pointee, const Def* addr_space, const Def* dbg)
+    Ptr(const Def* type, const Def* pointee, const Def* addr_space, const Def* dbg)
         : Def(Tag, rebuild, type, {pointee, addr_space}, 0, dbg)
     {}
 
@@ -789,7 +789,7 @@ public:
     std::ostream& stream(std::ostream&) const override;
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
-    static constexpr auto Tag = Tag::PtrType;
+    static constexpr auto Tag = Tag::Ptr;
     friend class World;
 };
 

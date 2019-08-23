@@ -122,7 +122,7 @@ private:
 };
 
 void PartialEvaluator::eat_pe_info(Lam* cur) {
-    assert(cur->app()->arg(1)->type() == world().ptr_type(world().unsafe_variadic(world().type_pu8())));
+    assert(cur->app()->arg(1)->type() == world().type_ptr(world().unsafe_variadic(world().type_pu8())));
     auto next = cur->app()->arg(3);
 
     if (is_const(cur->app()->arg(2))) {

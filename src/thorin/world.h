@@ -177,7 +177,7 @@ public:
     /// @name LEA - load effective address
     //@{
     const Def* lea(const Def* ptr, const Def* index, Debug dbg);
-    const Def* unsafe_lea(const Def* ptr, const Def* index, Debug dbg) { return lea(ptr, cast(ptr->type()->as<PtrType>()->pointee()->arity(), index, dbg), dbg); }
+    const Def* unsafe_lea(const Def* ptr, const Def* index, Debug dbg) { return lea(ptr, cast(ptr->type()->as<Ptr>()->pointee()->arity(), index, dbg), dbg); }
     //@}
     /// @name Literal
     //@{
@@ -198,6 +198,10 @@ public:
     const Lit* lit_index(u64 arity, u64 idx, Debug dbg = {}) { return lit_index(lit_arity(arity), idx, dbg); }
     const Lit* lit_index(const Def* arity, u64 index, Debug dbg = {});
     const Lit* lit_index_0_1() { return cache_.lit_index_0_1_; } ///< unit index 0₁ of type unit arity 1ₐ
+    //@}
+    /// @name Literal: Nat
+    //@{
+    const Lit* lit_nat(u64 a, Debug dbg = {}) { return lit(type_nat(), a, dbg); }
     //@}
     /// @name Literal: Bool
     //@{
@@ -244,8 +248,8 @@ public:
     }
     const Nat* type_nat() const { return cache_.type_nat_; }
     const Mem* type_mem() const { return cache_.type_mem_; }
-    const PtrType* ptr_type(const Def* pointee, const Def* addr_space, Debug dbg = {}) { return unify<PtrType>(2, kind_star(), pointee, addr_space, debug(dbg)); }
-    const PtrType* ptr_type(const Def* pointee, u64 addr_space = AddrSpace::Generic, Debug dbg = {}) { return ptr_type(pointee, lit_pu64((u64) addr_space), dbg); }
+    const Ptr* type_ptr(const Def* pointee, const Def* addr_space, Debug dbg = {}) { return unify<Ptr>(2, kind_star(), pointee, addr_space, debug(dbg)); }
+    const Ptr* type_ptr(const Def* pointee, u64 addr_space = AddrSpace::Generic, Debug dbg = {}) { return type_ptr(pointee, lit_pu64((u64) addr_space), dbg); }
     //@}
     /// @name ArithOps
     //@{

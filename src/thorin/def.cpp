@@ -440,7 +440,7 @@ const Def* Pack       ::rebuild(const Def*  , World& w, const Def* t, Defs o, co
 const Def* Param      ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.param(o[0]->as_nominal<Lam>(), dbg); }
 const Def* Pi         ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.pi(o[0], o[1], dbg); }
 const Def* PrimType   ::rebuild(const Def* d, World& w, const Def*  , Defs  , const Def*    ) { return w.type(d->as<PrimType>()->primtype_tag()); }
-const Def* PtrType    ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.ptr_type(o[0], o[1], dbg); }
+const Def* Ptr        ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.type_ptr(o[0], o[1], dbg); }
 const Def* Tuple      ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.tuple(t, o, dbg); }
 const Def* Variadic   ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.variadic(o[0], o[1], dbg); }
 const Def* VariantType::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.variant_type(o, dbg); }
@@ -584,7 +584,7 @@ std::ostream& Pi::stream(std::ostream& os) const {
         : streamf(os, "Π{} -> {}", domain(), codomain());
 }
 
-std::ostream& PtrType::stream(std::ostream& os) const {
+std::ostream& Ptr::stream(std::ostream& os) const {
     os << pointee() << '*';
     switch (auto as = lit_addr_space()) {
         case AddrSpace::Global:   return streamf(os, "[Global]");

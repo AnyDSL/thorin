@@ -147,7 +147,7 @@ Lam* CodeGen::emit_reserve_shared(const Lam* lam, bool init_undef) {
     auto l = lam->app()->arg(2)->as_nominal<Lam>();
     auto type = convert(lam->param(1)->type());
     // construct array type
-    auto elem_type = l->param(1)->type()->as<PtrType>()->pointee()->as<Variadic>()->body();
+    auto elem_type = l->param(1)->type()->as<Ptr>()->pointee()->as<Variadic>()->body();
     auto smem_type = this->convert(lam->world().variadic(num_elems, elem_type));
     auto name = lam->unique_name();
     // NVVM doesn't allow '.' in global identifier
@@ -164,7 +164,7 @@ llvm::Value* CodeGen::emit_bitcast(const Def* val, const Def* dst_type) {
     auto to = convert(dst_type);
     if (from->getType()->isAggregateType() || to->isAggregateType())
         EDEF(val, "bitcast from or to aggregate types not allowed: bitcast from '{}' to '{}'", src_type, dst_type);
-    if (src_type->isa<PtrType>() && dst_type->isa<PtrType>())
+    if (src_type->isa<Ptr>() && dst_type->isa<Ptr>())
         return irbuilder_.CreatePointerCast(from, to);
     return irbuilder_.CreateBitCast(from, to);
 }
@@ -629,7 +629,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
                 case Cmp_lt: return irbuilder_.CreateFCmpOLT(lhs, rhs, name);
                 case Cmp_le: return irbuilder_.CreateFCmpOLE(lhs, rhs, name);
             }
-        } else if (type->isa<PtrType>()) {
+        } else if (type->isa<Ptr>()) {
             switch (cmp->cmp_tag()) {
                 case Cmp_eq: return irbuilder_.CreateICmpEQ (lhs, rhs, name);
                 case Cmp_ne: return irbuilder_.CreateICmpNE (lhs, rhs, name);
@@ -714,14 +714,14 @@ llvm::Value* CodeGen::emit(const Def* def) {
             }
         }
 
-        if (src_type->isa<PtrType>() && dst_type->isa<PtrType>()) {
+        if (src_type->isa<Ptr>() && dst_type->isa<Ptr>()) {
             return irbuilder_.CreatePointerCast(from, to);
         }
-        if (src_type->isa<PtrType>()) {
+        if (src_type->isa<Ptr>()) {
             assert(is_type_i(dst_type) || is_type_bool(dst_type));
             return irbuilder_.CreatePtrToInt(from, to);
         }
-        if (dst_type->isa<PtrType>()) {
+        if (dst_type->isa<Ptr>()) {
             assert(is_type_i(src_type) || is_type_bool(src_type));
             return irbuilder_.CreateIntToPtr(from, to);
         }
@@ -1069,7 +1069,7 @@ llvm::Type* CodeGen::convert(const Def* type) {
         }
     }
 
-    if (auto ptr = type->isa<PtrType>()) {
+    if (auto ptr = type->isa<Ptr>()) {
         auto llvm_type = llvm::PointerType::get(convert(ptr->pointee()), convert_addr_space(ptr->lit_addr_space()));
         return types_[type] = llvm_type;
     }
@@ -1302,7 +1302,7 @@ Backends::Backends(World& world)
             DefSet allocs;
             for (size_t i = LaunchArgs::Num, e = use->app()->num_args(); has_restrict && i != e; ++i) {
                 auto arg = use->app()->arg(i);
-                if (!arg->type()->isa<PtrType>()) continue;
+                if (!arg->type()->isa<Ptr>()) continue;
                 auto alloc = get_alloc_call(arg);
                 if (!alloc) has_restrict = false;
                 auto p = allocs.insert(alloc);
@@ -1331,7 +1331,7 @@ Backends::Backends(World& world)
             HLSKernelConfig::Param2Size param_sizes;
             for (size_t i = 3, e = use->app()->num_args(); i != e; ++i) {
                 auto arg = use->app()->arg(i);
-                auto ptr_type = arg->type()->isa<PtrType>();
+                auto ptr_type = arg->type()->isa<Ptr>();
                 if (!ptr_type) continue;
                 auto size = get_alloc_size(arg);
                 if (size == 0)

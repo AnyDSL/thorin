@@ -73,7 +73,7 @@ Lam* CodeGen::emit_vectorize_lam(Lam* lam) {
         // check target type
         auto arg = lam->app()->arg(i + VectorizeArgs::Num);
         auto llvm_arg = lookup(arg);
-        if (arg->type()->isa<PtrType>())
+        if (arg->type()->isa<Ptr>())
             llvm_arg = irbuilder_.CreateBitCast(llvm_arg, simd_args[i + 1]);
         args[i + 1] = llvm_arg;
     }

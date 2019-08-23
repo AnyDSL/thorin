@@ -273,7 +273,7 @@ void Cleaner::within(const Def* def) {
 
 void Cleaner::clean_pe_info(std::queue<Lam*> queue, Lam* cur) {
     auto app = cur->app();
-    assert(app->arg(1)->type() == world().ptr_type(world().unsafe_variadic(world().type_pu8())));
+    assert(app->arg(1)->type() == world().type_ptr(world().unsafe_variadic(world().type_pu8())));
     auto next = app->arg(3);
     //auto msg = app->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<Variadic>();
 

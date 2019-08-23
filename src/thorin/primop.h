@@ -145,8 +145,8 @@ private:
 public:
     const Def* ptr() const { return op(0); }
     const Def* index() const { return op(1); }
-    const PtrType* type() const { return Def::type()->as<PtrType>(); }
-    const PtrType* ptr_type() const { return ptr()->type()->as<PtrType>(); } ///< Returns the PtrType from @p ptr().
+    const Ptr* type() const { return Def::type()->as<Ptr>(); }
+    const Ptr* ptr_type() const { return ptr()->type()->as<Ptr>(); } ///< Returns the Ptr from @p ptr().
     const Def* ptr_pointee() const { return ptr_type()->pointee(); }        ///< Returns the type referenced by @p ptr().
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
@@ -215,7 +215,7 @@ public:
     const Def* id() const { return op(0); }
     const Def* init() const { return op(1); }
     bool is_mutable() const { return flags(); }
-    const PtrType* type() const { return Def::type()->as<PtrType>(); }
+    const Ptr* type() const { return Def::type()->as<Ptr>(); }
     const Def* alloced_type() const { return type()->pointee(); }
     const char* op_name() const override;
 
@@ -240,8 +240,7 @@ public:
     const Def* out_mem() const { return out(0); }
     const Def* out_ptr() const { return out(1); }
     const Sigma* type() const { return Def::type()->as<Sigma>(); }
-    const PtrType* out_ptr_type() const { return type()->op(1)->as<PtrType>(); }
-    const Def* alloced_type() const { return out_ptr_type()->pointee(); }
+    const Def* alloced_type() const { return out_ptr()->type()->as<Ptr>()->pointee(); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
     static constexpr auto Tag = Tag::Alloc;
@@ -263,8 +262,7 @@ public:
     const Def* out_mem() const { return out(0); }
     const Def* out_ptr() const { return out(1); }
     const Sigma* type() const { return Def::type()->as<Sigma>(); }
-    const PtrType* out_ptr_type() const { return type()->op(1)->as<PtrType>(); }
-    const Def* alloced_type() const { return out_ptr_type()->pointee(); }
+    const Def* alloced_type() const { return out_ptr()->type()->as<Ptr>()->pointee(); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
     static constexpr auto Tag = Tag::Slot;

@@ -50,8 +50,8 @@ struct IsLiteral {
     static bool match(const Def* def) { return def->isa<Lit>(); }
 };
 
-using IsKind  = MatchType<MatchTag<Node_Universe>>;
-using IsType  = MatchType<MatchTag<Node_KindStar>>;
+using IsKind  = MatchType<MatchTag<Tag::Universe>>;
+using IsType  = MatchType<MatchTag<Tag::KindStar>>;
 using IsValue = MatchType<IsType>;
 
 }

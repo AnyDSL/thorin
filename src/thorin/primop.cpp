@@ -24,7 +24,7 @@ Known::Known(const Def* def, const Def* dbg)
 {}
 
 SizeOf::SizeOf(const Def* def, const Def* dbg)
-    : Def(Tag, rebuild, def->world().type_qs32(), {def}, 0, dbg)
+    : Def(Tag, rebuild, def->world().type_uint(32), {def}, 0, dbg)
 {}
 
 /*

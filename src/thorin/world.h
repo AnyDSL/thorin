@@ -7,6 +7,7 @@
 #include <initializer_list>
 #include <string>
 
+#include "thorin/def.h"
 #include "thorin/enums.h"
 #include "thorin/primop.h"
 #include "thorin/util/hash.h"
@@ -111,6 +112,7 @@ public:
     Lam* lam(const Pi* cn, Debug dbg = {}) { return lam(cn, Lam::CC::C, Lam::Intrinsic::None, dbg); }
     //@}
     /// @name Lambda: structural
+    //@{
     const Lam* lam(const Def* domain, const Def* filter, const Def* body, Debug dbg);
     const Lam* lam(const Def* domain, const Def* body, Debug dbg) { return lam(domain, lit_true(), body, dbg); }
     //@}
@@ -165,14 +167,14 @@ public:
     const Def* extract(const Def* agg, u32 i, Debug dbg = {}) { return extract(agg, lit_index(agg->arity(), i, dbg), dbg); }
     const Def* extract(const Def* agg, u32 a, u32 i, Debug dbg = {}) { return extract(agg, lit_index(a, i, dbg), dbg); }
     const Def* unsafe_extract(const Def* agg, const Def* i, Debug dbg = {}) { return extract(agg, cast(agg->arity(), i, dbg), dbg); }
-    const Def* unsafe_extract(const Def* agg, u64 i, Debug dbg = {}) { return unsafe_extract(agg, lit_qu64(i, dbg), dbg); }
+    const Def* unsafe_extract(const Def* agg, u64 i, Debug dbg = {}) { return unsafe_extract(agg, lit_u(i, dbg), dbg); }
     //@}
     /// @name Insert
     //@{
     const Def* insert(const Def* agg, const Def* i, const Def* value, Debug dbg = {});
     const Def* insert(const Def* agg, u32 i, const Def* value, Debug dbg = {}) { return insert(agg, lit_index(agg->arity(), i, dbg), value, dbg); }
     const Def* unsafe_insert(const Def* agg, const Def* i, const Def* value, Debug dbg = {}) { return insert(agg, cast(agg->arity(), i, dbg), value, dbg); }
-    const Def* unsafe_insert(const Def* agg, u32 i, const Def* value, Debug dbg = {}) { return unsafe_insert(agg, lit_qu64(i, dbg), value, dbg); }
+    const Def* unsafe_insert(const Def* agg, u32 i, const Def* value, Debug dbg = {}) { return unsafe_insert(agg, lit_u(i, dbg), value, dbg); }
     //@}
     /// @name LEA - load effective address
     //@{
@@ -184,9 +186,6 @@ public:
     const Lit* lit(const Def* type, uint64_t val, Debug dbg = {}) { return unify<Lit>(0, type, val, debug(dbg)); }
     template<class T>
     const Lit* lit(const Def* type, T val, Debug dbg = {}) { return lit(type, bcast<u64>(val), dbg); }
-    const Lit* lit(PrimTypeTag tag, uint64_t val, Debug dbg = {}) { return lit(type(tag), val, dbg); }
-    template<class T>
-    const Lit* lit(PrimTypeTag tag, T val, Debug dbg = {}) { return lit(tag, bcast<u64>(val), dbg); }
     //@}
     /// @name Literal: Arity - note that this is a type
     //@{
@@ -209,25 +208,26 @@ public:
     const Lit* lit_false() { return cache_.lit_bool_[0]; }
     const Lit* lit_true()  { return cache_.lit_bool_[1]; }
     //@}
-    /// @name Literal: PrimTypes
+    /// @name Literal: Int, Uint, Real
     //@{
-#define THORIN_ALL_TYPE(T, M) \
-    const Def* lit_##T(T val, Debug dbg = {}) { return lit(PrimType_##T, bcast<u64>(val), dbg); }
-#include "thorin/tables/primtypetable.h"
-    const Lit* lit_zero(PrimTypeTag tag, Debug dbg = {}) { return lit(tag, 0, dbg); }
-    const Lit* lit_zero(const Def* type, Debug dbg = {}) { return lit_zero(type->as<PrimType>()->primtype_tag(), dbg); }
-    const Lit* lit_one(PrimTypeTag tag, Debug dbg = {}) { return lit(tag, 1, dbg); }
-    const Lit* lit_one(const Def* type, Debug dbg = {}) { return lit_one(type->as<PrimType>()->primtype_tag(), dbg); }
-    const Lit* lit_allset(PrimTypeTag tag, Debug dbg = {});
-    const Lit* lit_allset(const Def* type, Debug dbg = {}) { return lit_allset(type->as<PrimType>()->primtype_tag(), dbg); }
+    template<class S> const Lit* lit_s(S val, Debug dbg = {}) {
+        static_assert(std::is_integral<S>() && std::is_signed<S>());
+        return lit(type_sint(sizeof(S)*8), val, dbg);
+    }
+    template<class U> const Lit* lit_u(U val, Debug dbg = {}) {
+        static_assert(std::is_integral<U>() && std::is_unsigned<U>());
+        return lit(type_uint(sizeof(U)*8), val, dbg);
+    }
+    template<class R> const Lit* lit_r(R val, Debug dbg = {}) {
+        static_assert(std::is_floating_point<R>() || std::is_same<R, f16>());
+        return lit(type_real(sizeof(R)*8), val, dbg);
+    }
     //@}
     /// @name Top/Bottom
     //@{
     const Def* bot_top(bool is_top, const Def* type, Debug dbg = {});
     const Def* bot(const Def* type, Debug dbg = {}) { return bot_top(false, type, dbg); }
     const Def* top(const Def* type, Debug dbg = {}) { return bot_top(true,  type, dbg); }
-    const Def* bot(PrimTypeTag tag, Debug dbg = {}) { return bot_top(false, type(tag), dbg); }
-    const Def* top(PrimTypeTag tag, Debug dbg = {}) { return bot_top( true, type(tag), dbg); }
     const Def* bot_star () { return cache_.bot_star_; }
     const Def* top_arity() { return cache_.top_arity_; } ///< use this guy to encode an unknown arity, e.g., for unsafe arrays
     //@}
@@ -238,18 +238,17 @@ public:
     //@}
     /// @name misc types
     //@{
-#define THORIN_ALL_TYPE(T, M) \
-    const PrimType* type_##T() { return type(PrimType_##T); }
-#include "thorin/tables/primtypetable.h"
-    const PrimType* type(PrimTypeTag tag) {
-        size_t i = tag - Begin_PrimType;
-        assert(i < (size_t) Num_PrimTypes);
-        return cache_.primtypes_[i];
-    }
+    const Bool* type_bool() const { return cache_.type_bool_; }
     const Nat* type_nat() const { return cache_.type_nat_; }
     const Mem* type_mem() const { return cache_.type_mem_; }
+    const Sint* type_sint (const Def* num_bits, bool quick = false) { return unify<Sint>(1, *this, num_bits, quick); }
+    const Uint* type_uint(const Def* num_bits, bool quick = false) { return unify<Uint>(1, *this, num_bits, quick); }
+    const Real* type_real(const Def* num_bits, bool quick = false) { return unify<Real>(1, *this, num_bits, quick); }
+    const Sint* type_sint(u64 num_bits, bool quick = false) { return type_sint(lit_nat(num_bits), quick); }
+    const Uint* type_uint(u64 num_bits, bool quick = false) { return type_uint(lit_nat(num_bits), quick); }
+    const Real* type_real(u64 num_bits, bool quick = false) { return type_real(lit_nat(num_bits), quick); }
     const Ptr* type_ptr(const Def* pointee, const Def* addr_space, Debug dbg = {}) { return unify<Ptr>(2, kind_star(), pointee, addr_space, debug(dbg)); }
-    const Ptr* type_ptr(const Def* pointee, u64 addr_space = AddrSpace::Generic, Debug dbg = {}) { return type_ptr(pointee, lit_pu64((u64) addr_space), dbg); }
+    const Ptr* type_ptr(const Def* pointee, u64 addr_space = AddrSpace::Generic, Debug dbg = {}) { return type_ptr(pointee, lit_u((u64) addr_space), dbg); }
     //@}
     /// @name ArithOps
     //@{
@@ -285,7 +284,7 @@ public:
     const Slot* slot(const Def* type, const Def* mem, Debug dbg = {});
     const Alloc* alloc(const Def* type, const Def* mem, Debug dbg = {});
     const Def* global(const Def* id, const Def* init, bool is_mutable = true, Debug dbg = {});
-    const Def* global(const Def* init, bool is_mutable = true, Debug dbg = {}) { return global(lit_qu64(cur_gid_), init, is_mutable, debug(dbg)); }
+    const Def* global(const Def* init, bool is_mutable = true, Debug dbg = {}) { return global(lit_u<u64>(cur_gid_), init, is_mutable, debug(dbg)); }
     const Def* global_immutable_string(const std::string& str, Debug dbg = {});
     //const Assembly* assembly(const Def* type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints,
                              //ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg = {});
@@ -306,13 +305,13 @@ public:
     /// @name Analyze - used internally for Pass%es
     //@{
     const Analyze* analyze(const Def* type, Defs ops, Debug dbg = {}) { return unify<Analyze>(ops.size(), type, ops, debug(dbg)); }
-    const Analyze* analyze(const Def* type, u64 index, const Def* op, Debug dbg = {}) { return analyze(type, {lit_pu64(index), op}, dbg); }
-    const Analyze* analyze(const Def* type, u64 index, Defs ops, Debug dbg = {}) { return analyze(type, concat(lit_pu64(index), ops), dbg); }
+    const Analyze* analyze(const Def* type, u64 index, const Def* op, Debug dbg = {}) { return analyze(type, {lit_u(index), op}, dbg); }
+    //const Analyze* analyze(const Def* type, u64 index, Defs ops, Debug dbg = {}) { return analyze(type, concat(lit_u(index), ops), dbg); }
+    const Analyze* analyze(const Def* type, u64 index, Defs ops, Debug dbg = {});
     //@}
     /// @name misc operations
     //@{
     const Def* size_of(const Def* type, Debug dbg = {});
-    //@}
     Lam* match(const Def* type, size_t num_patterns);
     Lam* end_scope() const { return cache_.end_scope_; }
     //@}
@@ -380,10 +379,10 @@ private:
         if (auto d  = std::get_if<0>(&*dbg)) {
             auto n  = name2def(std::get<0>(*d));
             auto f  = name2def(std::get<1>(*d));
-            auto fl = lit_pu64(std::get<2>(*d));
-            auto fc = lit_pu64(std::get<3>(*d));
-            auto bl = lit_pu64(std::get<4>(*d));
-            auto bc = lit_pu64(std::get<5>(*d));
+            auto fl = lit_u(std::get<2>(*d));
+            auto fc = lit_u(std::get<3>(*d));
+            auto bl = lit_u(std::get<4>(*d));
+            auto bc = lit_u(std::get<5>(*d));
             return tuple({n, f, fl, fc, bl, bc});
         }
         return std::get<const Def*>(*dbg);
@@ -490,24 +489,16 @@ private:
     bool track_history_ = false;
     Breakpoints breakpoints_;
 #endif
-    struct PrimTypeStruct {
-#define THORIN_ALL_TYPE(T, M) const PrimType* T##_;
-#include "thorin/tables/primtypetable.h"
-    };
-
     struct Cache {
         Universe* universe_;
         const KindArity* kind_arity_;
         const KindMulti* kind_multi_;
         const KindStar*  kind_star_;
-        union {
-            PrimTypeStruct primtype_;
-            std::array<const PrimType*, Num_PrimTypes> primtypes_;
-        };
         const Bot* bot_star_;
         const Top* top_arity_;
         const Sigma* sigma_;
         const Tuple* tuple_;
+        const Bool* type_bool_;
         const Nat* type_nat_;
         const Mem* type_mem_;
         std::array<const Lit*, 2> lit_bool_;

@@ -39,10 +39,10 @@ llvm::Function* Runtime::get(const char* name) {
 
 static bool contains_ptrtype(const Def* type) {
     switch (type->tag()) {
-        case Node_Ptr:      return false;
-        case Node_Variadic: return contains_ptrtype(type->as<Variadic>()->body());
-        case Node_Pi:       return false;
-        case Node_Sigma: {
+        case Tag::Ptr:      return false;
+        case Tag::Variadic: return contains_ptrtype(type->as<Variadic>()->body());
+        case Tag::Pi:       return false;
+        case Tag::Sigma: {
             // TODO deal with recursive sigmas
             bool good = true;
             auto sigma = type->as<Sigma>();

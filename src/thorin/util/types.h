@@ -226,63 +226,13 @@ std::ostream& operator<<(std::ostream& os, const Float<FT, precise>& ft) { retur
 
 typedef  int8_t  s8; typedef  uint8_t  u8; typedef SInt< s8, true>  ps8; typedef UInt< u8, true>  pu8; typedef SInt< s8, false>  qs8; typedef UInt< u8, false>  qu8;
 typedef int16_t s16; typedef uint16_t u16; typedef SInt<s16, true> ps16; typedef UInt<u16, true> pu16; typedef SInt<s16, false> qs16; typedef UInt<u16, false> qu16;
+
 typedef int32_t s32; typedef uint32_t u32; typedef SInt<s32, true> ps32; typedef UInt<u32, true> pu32; typedef SInt<s32, false> qs32; typedef UInt<u32, false> qu32;
 typedef int64_t s64; typedef uint64_t u64; typedef SInt<s64, true> ps64; typedef UInt<u64, true> pu64; typedef SInt<s64, false> qs64; typedef UInt<u64, false> qu64;
 
 typedef half   f16; typedef Float<f16, true> pf16; typedef Float<f16, false> qf16;
 typedef float  f32; typedef Float<f32, true> pf32; typedef Float<f32, false> qf32;
 typedef double f64; typedef Float<f64, true> pf64; typedef Float<f64, false> qf64;
-
-union Box {
-public:
-    Box() : u64_() {}
-#define THORIN_ALL_TYPE(T, M) Box(T val) { reset(); M##_ = (M)val; }
-#include "thorin/tables/primtypetable.h"
-    Box( s8 val) { reset();  s8_ = val; } Box( u8 val) { reset();  u8_ = val; }
-    Box(s16 val) { reset(); s16_ = val; } Box(u16 val) { reset(); u16_ = val; }
-    Box(s32 val) { reset(); s32_ = val; } Box(u32 val) { reset(); u32_ = val; }
-    Box(s64 val) { reset(); s64_ = val; } Box(u64 val) { reset(); u64_ = val; }
-    Box(f16 val) { reset(); f16_ = val; }
-    Box(f32 val) { reset(); f32_ = val; }
-    Box(f64 val) { reset(); f64_ = val; }
-
-    bool operator==(const Box& other) const { return bcast<uint64_t, Box>(*this) == bcast<uint64_t, Box>(other); }
-    template <typename T> inline T get() { THORIN_UNREACHABLE; }
-#define THORIN_ALL_TYPE(T, M) \
-    T get_##T() const { return (T)M##_; }
-#include "thorin/tables/primtypetable.h"
-     s8  get_s8() const { return  s8_; }  u8  get_u8() const { return  u8_; }
-    s16 get_s16() const { return s16_; } u16 get_u16() const { return u16_; }
-    s32 get_s32() const { return s32_; } u32 get_u32() const { return u32_; }
-    s64 get_s64() const { return s64_; } u64 get_u64() const { return u64_; }
-    f16 get_f16() const { return f16_; }
-    f32 get_f32() const { return f32_; }
-    f64 get_f64() const { return f64_; }
-
-private:
-    void reset() { *this = Box(); }
-
-    bool bool_;
-    s8 s8_; s16 s16_; s32 s32_; s64 s64_;
-    u8 u8_; u16 u16_; u32 u32_; u64 u64_;
-    f16 f16_; f32 f32_; f64 f64_;
-};
-
-static_assert(sizeof(Box) == sizeof(uint64_t), "Box has incorrect size in bytes");
-
-template <> inline s8  Box::get<s8 >() { return s8_; }
-template <> inline s16 Box::get<s16>() { return s16_; }
-template <> inline s32 Box::get<s32>() { return s32_; }
-template <> inline s64 Box::get<s64>() { return s64_; }
-template <> inline u8  Box::get<u8 >() { return u8_; }
-template <> inline u16 Box::get<u16>() { return u16_; }
-template <> inline u32 Box::get<u32>() { return u32_; }
-template <> inline u64 Box::get<u64>() { return u64_; }
-template <> inline f16 Box::get<f16>() { return f16_; }
-template <> inline f32 Box::get<f32>() { return f32_; }
-template <> inline f64 Box::get<f64>() { return f64_; }
-#define THORIN_ALL_TYPE(T, M) template <> inline T Box::get<T>() { return M##_; }
-#include "thorin/tables/primtypetable.h"
 
 }
 

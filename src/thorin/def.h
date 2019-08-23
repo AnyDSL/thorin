@@ -43,7 +43,6 @@ using GIDSet = thorin::HashSet<Key, GIDHash<Key>>;
 
 class Lam;
 class Param;
-class PrimType;
 class Def;
 class Tracker;
 class World;
@@ -724,19 +723,7 @@ public:
     friend class World;
 };
 
-class Nat : public Def {
-private:
-    Nat(World& world);
-
-public:
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-    std::ostream& stream(std::ostream&) const override;
-
-    static constexpr auto Tag = Tag::Nat;
-    friend class World;
-};
-
-/// The type of the memory monad.
+/// The type of values that models side effects.
 class Mem : public Def {
 private:
     Mem(World& world);
@@ -749,18 +736,75 @@ public:
     friend class World;
 };
 
-/// Primitive type.
-class PrimType : public Def {
+class Bool : public Def {
 private:
-    PrimType(World& world, PrimTypeTag tag);
+    Bool(World& world);
 
 public:
-    PrimTypeTag primtype_tag() const { return (PrimTypeTag) flags(); }
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    std::ostream& stream(std::ostream&) const override;
+
+    static constexpr auto Tag = Tag::Bool;
+    friend class World;
+};
+
+class Nat : public Def {
+private:
+    Nat(World& world);
+
+public:
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    std::ostream& stream(std::ostream&) const override;
+
+    static constexpr auto Tag = Tag::Nat;
+    friend class World;
+};
+
+class Sint : public Def {
+private:
+    Sint(World& world, const Def* num_bits, bool quick);
+
+public:
+    const Def* num_bits() const { return op(0); }
+    u64 lit_num_bits() const { return as_lit<u64>(op(0)); }
+    bool is_quick() const { return flags() != 0; }
 
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
-    static constexpr auto Tag = Tag::PrimType;
+    static constexpr auto Tag = Tag::Sint;
+    friend class World;
+};
+
+class Uint : public Def {
+private:
+    Uint(World& world, const Def* num_bits, bool quick);
+
+public:
+    const Def* num_bits() const { return op(0); }
+    u64 lit_num_bits() const { return as_lit<u64>(op(0)); }
+    bool is_quick() const { return flags() != 0; }
+
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    std::ostream& stream(std::ostream&) const override;
+
+    static constexpr auto Tag = Tag::Uint;
+    friend class World;
+};
+
+class Real : public Def {
+private:
+    Real(World& world, const Def* num_bits, bool quick);
+
+public:
+    const Def* num_bits() const { return op(0); }
+    u64 lit_num_bits() const { return as_lit<u64>(op(0)); }
+    bool is_quick() const { return flags() != 0; }
+
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    std::ostream& stream(std::ostream&) const override;
+
+    static constexpr auto Tag = Tag::Real;
     friend class World;
 };
 

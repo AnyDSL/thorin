@@ -30,6 +30,7 @@
 #endif
 
 #include "thorin/def.h"
+#include "thorin/match.h"
 #include "thorin/primop.h"
 #include "thorin/world.h"
 #include "thorin/analyses/schedule.h"
@@ -102,6 +103,17 @@ Lam* CodeGen::emit_hls(Lam* lam) {
 
 void CodeGen::emit_result_phi(const Def* param, llvm::Value* value) {
     phis_.lookup(param).value()->addIncoming(value, irbuilder_.GetInsertBlock());
+}
+
+// TODO remove once we got rid of signedness
+static bool is_type_i(const Def* def) { return def->isa<Sint>() || def->isa<Uint>(); }
+
+// TODO remove once we got rid of signedness
+static u64 num_bits(const Def* def) {
+    if (auto sint = def->isa<Sint>()) return sint->lit_num_bits();
+    if (auto uint = def->isa<Uint>()) return uint->lit_num_bits();
+    if (auto real = def->isa<Real>()) return real->lit_num_bits();
+    THORIN_UNREACHABLE;
 }
 
 Lam* CodeGen::emit_atomic(Lam* lam) {
@@ -602,7 +614,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto rhs = lookup(cmp->rhs());
         auto name = cmp->name();
         auto type = cmp->lhs()->type();
-        if (is_type_s(type)) {
+        if (type->isa<Sint>()) {
             switch (cmp->cmp_tag()) {
                 case Cmp_eq: return irbuilder_.CreateICmpEQ (lhs, rhs, name);
                 case Cmp_ne: return irbuilder_.CreateICmpNE (lhs, rhs, name);
@@ -611,7 +623,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
                 case Cmp_lt: return irbuilder_.CreateICmpSLT(lhs, rhs, name);
                 case Cmp_le: return irbuilder_.CreateICmpSLE(lhs, rhs, name);
             }
-        } else if (is_type_u(type) || is_type_bool(type)) {
+        } else if (type->isa<Uint>() || type->isa<Bool>()) {
             switch (cmp->cmp_tag()) {
                 case Cmp_eq: return irbuilder_.CreateICmpEQ (lhs, rhs, name);
                 case Cmp_ne: return irbuilder_.CreateICmpNE (lhs, rhs, name);
@@ -620,7 +632,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
                 case Cmp_lt: return irbuilder_.CreateICmpULT(lhs, rhs, name);
                 case Cmp_le: return irbuilder_.CreateICmpULE(lhs, rhs, name);
             }
-        } else if (is_type_f(type)) {
+        } else if (type->isa<Real>()) {
             switch (cmp->cmp_tag()) {
                 case Cmp_eq: return irbuilder_.CreateFCmpOEQ(lhs, rhs, name);
                 case Cmp_ne: return irbuilder_.CreateFCmpUNE(lhs, rhs, name);
@@ -643,9 +655,8 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto rhs = lookup(arithop->rhs());
         auto name = arithop->name();
         auto type = arithop->type();
-        bool q = is_type_q(arithop->type()); // quick? -> nsw/nuw/fast float
 
-        if (is_type_f(type)) {
+        if (type->isa<Real>()) {
             switch (arithop->arithop_tag()) {
                 case ArithOp_add: return irbuilder_.CreateFAdd(lhs, rhs, name);
                 case ArithOp_sub: return irbuilder_.CreateFSub(lhs, rhs, name);
@@ -660,7 +671,8 @@ llvm::Value* CodeGen::emit(const Def* def) {
             }
         }
 
-        if (is_type_s(type) || is_type_bool(type)) {
+        if (type->isa<Sint>() || type->isa<Bool>()) {
+            bool q = arithop->type()->isa<Sint>() ? arithop->type()->as<Sint>()->is_quick() : false; // quick? -> nsw/nuw
             switch (arithop->arithop_tag()) {
                 case ArithOp_add: return irbuilder_.CreateAdd (lhs, rhs, name, false, q);
                 case ArithOp_sub: return irbuilder_.CreateSub (lhs, rhs, name, false, q);
@@ -674,7 +686,9 @@ llvm::Value* CodeGen::emit(const Def* def) {
                 case ArithOp_shr: return irbuilder_.CreateAShr(lhs, rhs, name);
             }
         }
-        if (is_type_u(type) || is_type_bool(type)) {
+
+        if (type->isa<Uint>() || type->isa<Bool>()) {
+            bool q = arithop->type()->isa<Uint>() ? arithop->type()->as<Sint>()->is_quick() : false; // quick? -> nsw/nuw
             switch (arithop->arithop_tag()) {
                 case ArithOp_add: return irbuilder_.CreateAdd (lhs, rhs, name, q, false);
                 case ArithOp_sub: return irbuilder_.CreateSub (lhs, rhs, name, q, false);
@@ -692,15 +706,15 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
     if (auto cast = def->isa<Cast>()) {
         auto from = lookup(cast->from());
-        auto src_type = cast->from()->type();
-        auto dst_type = cast->type();
-        auto to = convert(dst_type);
+        auto src = cast->from()->type();
+        auto dst = cast->type();
+        auto to = convert(dst);
 
-        if (is_arity(dst_type)) return from;
-        if (auto variant_type = src_type->isa<VariantType>()) {
+        if (is_arity(dst)) return from;
+        if (auto variant_type = src->isa<VariantType>()) {
             auto bits = compute_variant_bits(variant_type);
             if (bits != 0) {
-                auto value_bits = compute_variant_op_bits(dst_type);
+                auto value_bits = compute_variant_op_bits(dst);
                 auto trunc = irbuilder_.CreateTrunc(from, irbuilder_.getIntNTy(value_bits));
                 return irbuilder_.CreateBitOrPointerCast(trunc, to);
             } else {
@@ -714,44 +728,40 @@ llvm::Value* CodeGen::emit(const Def* def) {
             }
         }
 
-        if (src_type->isa<Ptr>() && dst_type->isa<Ptr>()) {
+        if (src->isa<Ptr>() && dst->isa<Ptr>()) {
             return irbuilder_.CreatePointerCast(from, to);
         }
-        if (src_type->isa<Ptr>()) {
-            assert(is_type_i(dst_type) || is_type_bool(dst_type));
+        if (src->isa<Ptr>()) {
+            assert(is_type_i(dst) || dst->isa<Bool>());
             return irbuilder_.CreatePtrToInt(from, to);
         }
-        if (dst_type->isa<Ptr>()) {
-            assert(is_type_i(src_type) || is_type_bool(src_type));
+        if (dst->isa<Ptr>()) {
+            assert(is_type_i(src) || src->isa<Bool>());
             return irbuilder_.CreateIntToPtr(from, to);
         }
-
-        auto src = src_type->as<PrimType>();
-        auto dst = dst_type->as<PrimType>();
-
-        if (is_type_f(src) && is_type_f(dst)) {
-            assert(num_bits(src->primtype_tag()) != num_bits(dst->primtype_tag()));
+        if (src->isa<Real>() && dst->isa<Real>()) {
+            assert(src->as<Real>()->lit_num_bits() != dst->as<Real>()->lit_num_bits());
             return irbuilder_.CreateFPCast(from, to);
         }
-        if (is_type_f(src)) {
-            if (is_type_s(dst))
+        if (src->isa<Real>()) {
+            if (dst->isa<Sint>())
                 return irbuilder_.CreateFPToSI(from, to);
             return irbuilder_.CreateFPToUI(from, to);
         }
-        if (is_type_f(dst)) {
-            if (is_type_s(src))
+        if (dst->isa<Real>()) {
+            if (src->isa<Sint>())
                 return irbuilder_.CreateSIToFP(from, to);
             return irbuilder_.CreateUIToFP(from, to);
         }
 
-        if (num_bits(src->primtype_tag()) > num_bits(dst->primtype_tag())) {
-            if (is_type_i(src) && (is_type_i(dst) || is_type_bool(dst)))
+        if (num_bits(src) > num_bits(dst)) {
+            if (is_type_i(src) && (is_type_i(dst) || dst->isa<Bool>()))
                 return irbuilder_.CreateTrunc(from, to);
-        } else if (num_bits(src->primtype_tag()) < num_bits(dst->primtype_tag())) {
-            if ( is_type_s(src)                       && is_type_i(dst)) return irbuilder_.CreateSExt(from, to);
-            if ((is_type_u(src) || is_type_bool(src)) && is_type_i(dst)) return irbuilder_.CreateZExt(from, to);
+        } else if (num_bits(src) < num_bits(dst)) {
+            if (src->isa<Sint>()                       && is_type_i(dst)) return irbuilder_.CreateSExt(from, to);
+            if ((src->isa<Uint>() || src->isa<Bool>()) && is_type_i(dst)) return irbuilder_.CreateZExt(from, to);
         } else if (is_type_i(src) && is_type_i(dst)) {
-            assert(num_bits(src->primtype_tag()) == num_bits(dst->primtype_tag()));
+            assert(num_bits(src) == num_bits(dst));
             return from;
         }
 
@@ -900,24 +910,38 @@ llvm::Value* CodeGen::emit(const Def* def) {
         llvm::Type* llvm_type = convert(lit->type());
         if (is_arity(lit->type())) return irbuilder_.getInt64(lit->get());
 
-        if (auto prim_type = lit->type()->isa<PrimType>()) {
-            switch (prim_type->primtype_tag()) {
-                case PrimType_bool:                     return irbuilder_. getInt1(lit->get<bool>());
-                case PrimType_ps8:  case PrimType_qs8:  return irbuilder_. getInt8(lit->get< s8>());
-                case PrimType_pu8:  case PrimType_qu8:  return irbuilder_. getInt8(lit->get< u8>());
-                case PrimType_ps16: case PrimType_qs16: return irbuilder_.getInt16(lit->get<s16>());
-                case PrimType_pu16: case PrimType_qu16: return irbuilder_.getInt16(lit->get<u16>());
-                case PrimType_ps32: case PrimType_qs32: return irbuilder_.getInt32(lit->get<s32>());
-                case PrimType_pu32: case PrimType_qu32: return irbuilder_.getInt32(lit->get<u32>());
-                case PrimType_ps64: case PrimType_qs64: return irbuilder_.getInt64(lit->get<s64>());
-                case PrimType_pu64: case PrimType_qu64: return irbuilder_.getInt64(lit->get<u64>());
-                case PrimType_pf16: case PrimType_qf16: return llvm::ConstantFP::get(llvm_type, lit->get<f16>());
-                case PrimType_pf32: case PrimType_qf32: return llvm::ConstantFP::get(llvm_type, lit->get<f32>());
-                case PrimType_pf64: case PrimType_qf64: return llvm::ConstantFP::get(llvm_type, lit->get<f64>());
+        if (lit->type()->isa<Bool>()) return irbuilder_.getInt1(lit->get<bool>());
+
+        if (auto sint = lit->type()->isa<Sint>()) {
+            switch (sint->lit_num_bits()) {
+                case  8: return irbuilder_. getInt8(lit->get< s8>());
+                case 16: return irbuilder_.getInt16(lit->get<s16>());
+                case 32: return irbuilder_.getInt32(lit->get<s32>());
+                case 64: return irbuilder_.getInt64(lit->get<s64>());
+                default: THORIN_UNREACHABLE;
             }
-        } else {
-            assert(false && "TODO");
         }
+
+        if (auto uint = lit->type()->isa<Uint>()) {
+            switch (uint->lit_num_bits()) {
+                case  8: return irbuilder_. getInt8(lit->get< u8>());
+                case 16: return irbuilder_.getInt16(lit->get<u16>());
+                case 32: return irbuilder_.getInt32(lit->get<u32>());
+                case 64: return irbuilder_.getInt64(lit->get<u64>());
+                default: THORIN_UNREACHABLE;
+            }
+        }
+
+        if (auto real = lit->type()->isa<Real>()) {
+            switch (real->lit_num_bits()) {
+                case 16: return llvm::ConstantFP::get(llvm_type, lit->get<f16>());
+                case 32: return llvm::ConstantFP::get(llvm_type, lit->get<f32>());
+                case 64: return llvm::ConstantFP::get(llvm_type, lit->get<f64>());
+                default: THORIN_UNREACHABLE;
+            }
+        }
+
+        THORIN_UNREACHABLE;
     }
 
     if (def->isa<Bot>())                      return llvm::UndefValue::get(convert(def->type()));
@@ -1054,18 +1078,34 @@ llvm::Type* CodeGen::convert(const Def* type) {
     if (is_arity(type))
         return types_[type] = irbuilder_.getInt64Ty();
 
-    if (auto primtype = type->isa<PrimType>()) {
-        switch (primtype->primtype_tag()) {
-            case PrimType_bool:                                                             return types_[type] = irbuilder_. getInt1Ty();
-            case PrimType_ps8:  case PrimType_qs8:  case PrimType_pu8:  case PrimType_qu8:  return types_[type] = irbuilder_. getInt8Ty();
-            case PrimType_ps16: case PrimType_qs16: case PrimType_pu16: case PrimType_qu16: return types_[type] = irbuilder_.getInt16Ty();
-            case PrimType_ps32: case PrimType_qs32: case PrimType_pu32: case PrimType_qu32: return types_[type] = irbuilder_.getInt32Ty();
-            case PrimType_ps64: case PrimType_qs64: case PrimType_pu64: case PrimType_qu64: return types_[type] = irbuilder_.getInt64Ty();
-            case PrimType_pf16: case PrimType_qf16:                                         return types_[type] = irbuilder_.getHalfTy();
-            case PrimType_pf32: case PrimType_qf32:                                         return types_[type] = irbuilder_.getFloatTy();
-            case PrimType_pf64: case PrimType_qf64:                                         return types_[type] = irbuilder_.getDoubleTy();
-            default:
-                THORIN_UNREACHABLE;
+    if (type->isa<Bool>()) return types_[type] = irbuilder_. getInt1Ty();
+
+    if (auto sint = type->isa<Sint>()) {
+        switch (sint->lit_num_bits()) {
+            case 8:  return types_[type] = irbuilder_. getInt8Ty();
+            case 16: return types_[type] = irbuilder_.getInt16Ty();
+            case 32: return types_[type] = irbuilder_.getInt32Ty();
+            case 64: return types_[type] = irbuilder_.getInt64Ty();
+            default: THORIN_UNREACHABLE;
+        }
+    }
+
+    if (auto uint = type->isa<Uint>()) {
+        switch (uint->lit_num_bits()) {
+            case 8:  return types_[type] = irbuilder_. getInt8Ty();
+            case 16: return types_[type] = irbuilder_.getInt16Ty();
+            case 32: return types_[type] = irbuilder_.getInt32Ty();
+            case 64: return types_[type] = irbuilder_.getInt64Ty();
+            default: THORIN_UNREACHABLE;
+        }
+    }
+
+    if (auto real = type->isa<Real>()) {
+        switch (real->lit_num_bits()) {
+            case 16: return types_[type] = irbuilder_.getHalfTy();
+            case 32: return types_[type] = irbuilder_.getFloatTy();
+            case 64: return types_[type] = irbuilder_.getDoubleTy();
+            default: THORIN_UNREACHABLE;
         }
     }
 

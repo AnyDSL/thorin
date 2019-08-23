@@ -162,21 +162,33 @@ llvm::Value* NVVMCodeGen::emit_store(const Store* store) {
 static std::string get_texture_fetch_command(const Def* type) {
     std::stringstream fun_str;
     fun_str << "tex.1d.v4.";
-    switch (type->as<PrimType>()->primtype_tag()) {
-        case PrimType_ps8:  case PrimType_qs8:
-        case PrimType_pu8:  case PrimType_qu8:  fun_str << "s8";  break;
-        case PrimType_ps16: case PrimType_qs16:
-        case PrimType_pu16: case PrimType_qu16: fun_str << "s16"; break;
-        case PrimType_bool:
-        case PrimType_ps32: case PrimType_qs32:
-        case PrimType_pu32: case PrimType_qu32: fun_str << "s32"; break;
-        case PrimType_ps64: case PrimType_qs64:
-        case PrimType_pu64: case PrimType_qu64: fun_str << "s64"; break;
-        case PrimType_pf32: case PrimType_qf32: fun_str << "f32"; break;
-        case PrimType_pf64: case PrimType_qf64: fun_str << "f64"; break;
-        default:
-            THORIN_UNREACHABLE;
+
+    if (type->isa<Bool>()) {
+        fun_str << "s32";
+    } else if (auto sint = type->isa<Sint>()) {
+        switch (sint->lit_num_bits()) {
+            case  8: fun_str << "s8";  break;
+            case 16: fun_str << "s16"; break;
+            case 32: fun_str << "s32"; break;
+            case 64: fun_str << "s64"; break;
+            default: THORIN_UNREACHABLE;
+        }
+    } else if (auto uint = type->isa<Uint>()) {
+        switch (uint->lit_num_bits()) {
+            case  8: fun_str << "s8";  break;
+            case 16: fun_str << "s16"; break;
+            case 32: fun_str << "s32"; break;
+            case 64: fun_str << "s64"; break;
+            default: THORIN_UNREACHABLE;
+        }
+    } else if (auto real = type->isa<Real>()) {
+        switch (real->lit_num_bits()) {
+            case 32: fun_str << "f32"; break;
+            case 64: fun_str << "f64"; break;
+            default: THORIN_UNREACHABLE;
+        }
     }
+
     fun_str << ".s32 {$0,$1,$2,$3}, [$4, {$5,$6,$7,$8}];";
     return fun_str.str();
 }
@@ -184,23 +196,34 @@ static std::string get_texture_fetch_command(const Def* type) {
 static std::string get_texture_fetch_constraint(const Def* type) {
     std::stringstream constraint_str;
     char c;
-    switch (type->as<PrimType>()->primtype_tag()) {
-        case PrimType_ps8:  case PrimType_qs8:
-        case PrimType_pu8:  case PrimType_qu8:  c = 'c'; break;
-        case PrimType_ps16: case PrimType_qs16:
-        case PrimType_pu16: case PrimType_qu16: c = 'h'; break;
-        case PrimType_bool:
-        case PrimType_ps32: case PrimType_qs32:
-        case PrimType_pu32: case PrimType_qu32: c = 'r'; break;
-        case PrimType_ps64: case PrimType_qs64:
-        case PrimType_pu64: case PrimType_qu64: c = 'l'; break;
-        case PrimType_pf32: case PrimType_qf32: c = 'f'; break;
-        case PrimType_pf64: case PrimType_qf64: c = 'd'; break;
-        default:
-            THORIN_UNREACHABLE;
+
+    if (type->isa<Bool>()) {
+        c = 'r';
+    } else if (auto sint = type->isa<Sint>()) {
+        switch (sint->lit_num_bits()) {
+            case  8: c = 'c'; break;
+            case 16: c = 'h'; break;
+            case 32: c = 'r'; break;
+            case 64: c = 'l'; break;
+            default: THORIN_UNREACHABLE;
+        }
+    } else if (auto uint = type->isa<Uint>()) {
+        switch (uint->lit_num_bits()) {
+            case  8: c = 'c'; break;
+            case 16: c = 'h'; break;
+            case 32: c = 'r'; break;
+            case 64: c = 'l'; break;
+            default: THORIN_UNREACHABLE;
+        }
+    } else if (auto real = type->isa<Real>()) {
+        switch (real->lit_num_bits()) {
+            case 32: c = 'f'; break;
+            case 64: c = 'd'; break;
+            default: THORIN_UNREACHABLE;
+        }
     }
-    constraint_str << "=" << c << ",=" << c << ",=" << c << ",=" << c
-                   << ",l,r,r,r,r";
+
+    constraint_str << "=" << c << ",=" << c << ",=" << c << ",=" << c << ",l,r,r,r,r";
     return constraint_str.str();
 }
 

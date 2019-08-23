@@ -9,7 +9,7 @@ set(THORIN_SOURCES
     rewrite.h
     util.cpp
     util.h
-    world.cpp
+    #world.cpp
     world.h
     analyses/cfg.cpp
     analyses/cfg.h
@@ -41,11 +41,9 @@ set(THORIN_SOURCES
     pass/partial_eval.h
     pass/pass.cpp
     pass/pass.h
-    tables/allnodes.h
     tables/arithoptable.h
     tables/cmptable.h
     tables/nodetable.h
-    tables/primtypetable.h
     transform/cleanup_world.cpp
     transform/cleanup_world.h
     transform/codegen_prepare.h

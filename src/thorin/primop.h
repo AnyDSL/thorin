@@ -2,8 +2,9 @@
 #define THORIN_PRIMOP_H
 
 #include "thorin/config.h"
-#include "thorin/util.h"
+#include "thorin/def.h"
 #include "thorin/enums.h"
+#include "thorin/util.h"
 
 namespace thorin {
 
@@ -15,7 +16,7 @@ private:
     Select(const Def* cond, const Def* tval, const Def* fval, const Def* dbg)
         : Def(Tag, rebuild, tval->type(), {cond, tval, fval}, 0, dbg)
     {
-        assert(is_type_bool(cond->type()));
+        assert(cond->type()->isa<Bool>());
         assert(tval->type() == fval->type() && "types of both values must be equal");
     }
 
@@ -50,14 +51,13 @@ private:
     {
         assert(lhs->type() == rhs->type() && "types are not equal");
         // TODO remove this and make div/rem proper nodes *with* side-effects
-        if ((tag == ArithOp_div || tag == ArithOp_rem) && is_type_i(type()))
+        if ((tag == ArithOp_div || tag == ArithOp_rem) && (type()->isa<Sint>() || type()->isa<Uint>()))
             hash_ = murmur3(gid());
     }
 
 public:
     const Def* lhs() const { return op(0); }
     const Def* rhs() const { return op(1); }
-    const PrimType* type() const { return Def::type()->as<PrimType>(); }
     ArithOpTag arithop_tag() const { return (ArithOpTag) flags(); }
     const char* op_name() const override;
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
@@ -74,7 +74,6 @@ private:
 public:
     const Def* lhs() const { return op(0); }
     const Def* rhs() const { return op(1); }
-    const PrimType* type() const { return Def::type()->as<PrimType>(); }
     CmpTag cmp_tag() const { return (CmpTag) flags(); }
     const char* op_name() const override;
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);

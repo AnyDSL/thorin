@@ -30,14 +30,12 @@ World::World(uint32_t cur_gid, const std::string& name)
     cache_.kind_arity_       = insert<KindArity>(0, *this);
     cache_.kind_multi_       = insert<KindMulti>(0, *this);
     cache_.kind_star_        = insert<KindStar >(0, *this);
-#define THORIN_ALL_TYPE(T, M) \
-    cache_.primtype_.T##_    = insert<PrimType>(0, *this, PrimType_##T);
-#include "thorin/tables/primtypetable.h"
     cache_.bot_star_         = insert<Bot>(0, kind_star(), nullptr);
     cache_.top_arity_        = insert<Top>(0, kind_arity(), nullptr);
     cache_.sigma_            = insert<Sigma>(0, kind_star(), Defs{}, nullptr)->as<Sigma>();
     cache_.tuple_            = insert<Tuple>(0, sigma(), Defs{}, nullptr)->as<Tuple>();
     cache_.type_mem_         = insert<Mem>(0, *this);
+    cache_.type_bool_        = insert<Bool>(0, *this);
     cache_.type_nat_         = insert<Nat>(0, *this);
     cache_.lit_arity_1_      = lit_arity(1);
     cache_.lit_index_0_1_    = lit_index(lit_arity_1(), 0);
@@ -253,17 +251,6 @@ const Def* World::pack(Defs arity, const Def* body, Debug dbg) {
  * literals
  */
 
-const Lit* World::lit_allset(PrimTypeTag tag, Debug dbg) {
-    switch (tag) {
-#define THORIN_I_TYPE(T, M) \
-    case PrimType_##T: return lit(PrimType_##T, std::numeric_limits<u64>::max(), dbg);
-#define THORIN_BOOL_TYPE(T, M) \
-    case PrimType_##T: return lit(PrimType_##T, u64(true), dbg);
-#include "thorin/tables/primtypetable.h"
-        default: THORIN_UNREACHABLE;
-    }
-}
-
 const Lit* World::lit_index(const Def* a, u64 i, Debug dbg) {
     if (a->isa<Top>()) return lit(a, i, dbg);
 
@@ -279,7 +266,7 @@ const Lit* World::lit_index(const Def* a, u64 i, Debug dbg) {
 
 const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg) {
     assert(a->type() == b->type());
-    PrimTypeTag type = a->type()->as<PrimType>()->primtype_tag();
+    auto type = a->type();
 
     auto llit = a->isa<Lit>();
     auto rlit = b->isa<Lit>();

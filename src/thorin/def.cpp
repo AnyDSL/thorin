@@ -384,12 +384,24 @@ KindStar::KindStar(World& world)
     : Def(Tag, rebuild, world.universe(), Defs{}, 0, nullptr)
 {}
 
+Bool::Bool(World& world)
+    : Def(Tag, rebuild, world.kind_star(), Defs{}, 0, nullptr)
+{}
+
 Nat::Nat(World& world)
     : Def(Tag, rebuild, world.kind_star(), Defs{}, 0, nullptr)
 {}
 
-PrimType::PrimType(World& world, PrimTypeTag tag)
-    : Def(Tag, rebuild, world.kind_star(), Defs{}, tag, nullptr)
+Sint::Sint(World& world, const Def* num_bits, bool quick)
+    : Def(Tag, rebuild, world.kind_star(), {num_bits}, quick, nullptr)
+{}
+
+Uint::Uint(World& world, const Def* num_bits, bool quick)
+    : Def(Tag, rebuild, world.kind_star(), {num_bits}, quick, nullptr)
+{}
+
+Real::Real(World& world, const Def* num_bits, bool quick)
+    : Def(Tag, rebuild, world.kind_star(), {num_bits}, quick, nullptr)
 {}
 
 Mem::Mem(World& world)
@@ -434,12 +446,15 @@ const Def* KindArity  ::rebuild(const Def*  , World& w, const Def*  , Defs  , co
 const Def* KindMulti  ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.kind_multi(); }
 const Def* KindStar   ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.kind_star(); }
 const Def* Lit        ::rebuild(const Def* d, World& w, const Def* t, Defs  , const Def* dbg) { return w.lit(t, as_lit<u64>(d), dbg); }
+const Def* Bool       ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.type_bool(); }
 const Def* Nat        ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.type_nat(); }
+const Def* Sint       ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def*    ) { return w.type_sint(o[0], d->as<Sint>()->is_quick()); }
+const Def* Uint       ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def*    ) { return w.type_uint(o[0], d->as<Uint>()->is_quick()); }
+const Def* Real       ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def*    ) { return w.type_real(o[0], d->as<Real>()->is_quick()); }
 const Def* Mem        ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.type_mem(); }
 const Def* Pack       ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.pack(t->arity(), o[0], dbg); }
 const Def* Param      ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.param(o[0]->as_nominal<Lam>(), dbg); }
 const Def* Pi         ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.pi(o[0], o[1], dbg); }
-const Def* PrimType   ::rebuild(const Def* d, World& w, const Def*  , Defs  , const Def*    ) { return w.type(d->as<PrimType>()->primtype_tag()); }
 const Def* Ptr        ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.type_ptr(o[0], o[1], dbg); }
 const Def* Tuple      ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.tuple(t, o, dbg); }
 const Def* Variadic   ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.variadic(o[0], o[1], dbg); }
@@ -463,7 +478,11 @@ static std::ostream& stream_type_ops(std::ostream& os, const Def* type) {
 
 std::ostream& App        ::stream(std::ostream& os) const { return streamf(os, "{} {}", callee(), arg()); }
 std::ostream& Mem        ::stream(std::ostream& os) const { return streamf(os, "mem"); }
+std::ostream& Bool       ::stream(std::ostream& os) const { return streamf(os, "bool"); }
 std::ostream& Nat        ::stream(std::ostream& os) const { return streamf(os, "nat"); }
+std::ostream& Sint       ::stream(std::ostream& os) const { return streamf(os, "{}sint{}", is_quick() ? "q" : "", lit_num_bits()); }
+std::ostream& Uint       ::stream(std::ostream& os) const { return streamf(os, "{}uint{}", is_quick() ? "q" : "", lit_num_bits()); }
+std::ostream& Real       ::stream(std::ostream& os) const { return streamf(os, "{}real{}", is_quick() ? "q" : "", lit_num_bits()); }
 std::ostream& Universe   ::stream(std::ostream& os) const { return streamf(os, "□"); }
 std::ostream& Variadic   ::stream(std::ostream& os) const { return streamf(os, "«{}; {}»", arity(), body()); }
 std::ostream& VariantType::stream(std::ostream& os) const { return stream_type_ops(os << "variant", this); }
@@ -492,34 +511,37 @@ std::ostream& Lit::stream(std::ostream& os) const {
         return streamf(os, "{}{}", get(), s);
     }
 
-    // special case for char
-    if (auto prim_type = type()->isa<PrimType>()) {
-        if (prim_type->primtype_tag() == PrimTypeTag::PrimType_qs8) {
-            char c = get<char>();
-            if (0x21 <= c && c <= 0x7e) return os << 'c'; // printable char range
-        }
-    }
-
     os << type() << ' ';
-    if (auto prim_type = type()->isa<PrimType>()) {
-        auto tag = prim_type->primtype_tag();
-
-        // print i8 as ints
-        switch (tag) {
-            case PrimType_qs8: return os << (int) get<char>();
-            case PrimType_ps8: return os << (int) get<char>();
-            case PrimType_qu8: return os << (unsigned) get<char>();
-            case PrimType_pu8: return os << (unsigned) get<char>();
-            default:
-                switch (tag) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return os << get<M>();
-#include "thorin/tables/primtypetable.h"
-                    default: THORIN_UNREACHABLE;
-                }
+    if (auto real = type()->isa<Real>()) {
+        switch (real->lit_num_bits()) {
+            case 16: return os << get<f16>();
+            case 32: return os << get<f32>();
+            case 64: return os << get<f64>();
+            default: THORIN_UNREACHABLE;
         }
-    } else {
-        return os << get();
     }
+
+    if (auto i = type()->isa<Sint>()) {
+        switch (i->lit_num_bits()) {
+            case  8: return os << (int) get<s8>();
+            case 16: return os << get<s16>();
+            case 32: return os << get<s32>();
+            case 64: return os << get<s64>();
+            default: THORIN_UNREACHABLE;
+        }
+    }
+
+    if (auto u = type()->isa<Uint>()) {
+        switch (u->lit_num_bits()) {
+            case  8: return os << (unsigned) get<u8>();
+            case 16: return os << get<u16>();
+            case 32: return os << get<u32>();
+            case 64: return os << get<u64>();
+            default: THORIN_UNREACHABLE;
+        }
+    }
+
+    return os << get();
 }
 
 std::ostream& Bot::stream(std::ostream& os) const {
@@ -548,8 +570,8 @@ std::ostream& Tuple::stream(std::ostream& os) const {
     // special case for string
     if (std::all_of(ops().begin(), ops().end(), [&](const Def* op) { return op->isa<Lit>(); })) {
         if (auto variadic = type()->isa<Variadic>()) {
-            if (auto prim_type = variadic->body()->isa<PrimType>()) {
-                if (prim_type->primtype_tag() == PrimTypeTag::PrimType_qs8) {
+            if (auto i = variadic->body()->isa<Sint>()) {
+                if (i->lit_num_bits() == 8) {
                     for (auto op : ops()) os << as_lit<char>(op);
                     return os;
                 }
@@ -563,8 +585,8 @@ std::ostream& Tuple::stream(std::ostream& os) const {
 std::ostream& Pack::stream(std::ostream& os) const {
     // special case for string
     if (auto variadic = type()->isa<Variadic>()) {
-        if (auto prim_type = variadic->body()->isa<PrimType>()) {
-            if (prim_type->primtype_tag() == PrimTypeTag::PrimType_qs8) {
+        if (auto i = variadic->body()->isa<Sint>()) {
+            if (i->lit_num_bits() == 8) {
                 if (auto a = isa_lit<u64>(arity())) {
                     if (auto lit = body()->isa<Lit>()) {
                         for (size_t i = 0, e = *a; i != e; ++i) os << lit->get<char>();
@@ -592,14 +614,6 @@ std::ostream& Ptr::stream(std::ostream& os) const {
         case AddrSpace::Shared:   return streamf(os, "[Shared]");
         case AddrSpace::Constant: return streamf(os, "[Constant]");
         default:                  return streamf(os, "[{}]", as);
-    }
-}
-
-std::ostream& PrimType::stream(std::ostream& os) const {
-    switch (primtype_tag()) {
-#define THORIN_ALL_TYPE(T, M) case Node_PrimType_##T: return os << #T;
-#include "thorin/tables/primtypetable.h"
-          default: THORIN_UNREACHABLE;
     }
 }
 

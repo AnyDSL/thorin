@@ -379,10 +379,10 @@ private:
         if (auto d  = std::get_if<0>(&*dbg)) {
             auto n  = name2def(std::get<0>(*d));
             auto f  = name2def(std::get<1>(*d));
-            auto fl = lit_u(std::get<2>(*d));
-            auto fc = lit_u(std::get<3>(*d));
-            auto bl = lit_u(std::get<4>(*d));
-            auto bc = lit_u(std::get<5>(*d));
+            auto fl = lit_nat(std::get<2>(*d));
+            auto fc = lit_nat(std::get<3>(*d));
+            auto bl = lit_nat(std::get<4>(*d));
+            auto bc = lit_nat(std::get<5>(*d));
             return tuple({n, f, fl, fc, bl, bc});
         }
         return std::get<const Def*>(*dbg);

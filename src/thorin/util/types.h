@@ -18,9 +18,6 @@
 #pragma clang diagnostic pop
 #endif
 
-#include "thorin/util/cast.h"
-#include "thorin/util/hash.h"
-
 namespace thorin {
 
 using half_float::half;
@@ -233,6 +230,21 @@ typedef int64_t s64; typedef uint64_t u64; typedef SInt<s64, true> ps64; typedef
 typedef half   f16; typedef Float<f16, true> pf16; typedef Float<f16, false> qf16;
 typedef float  f32; typedef Float<f32, true> pf32; typedef Float<f32, false> qf32;
 typedef double f64; typedef Float<f64, true> pf64; typedef Float<f64, false> qf64;
+
+/// A @c size_t literal. Use @c 0_s to disambiguate @c 0 from @c nullptr.
+constexpr size_t operator""_s(unsigned long long int i) { return size_t(i); }
+
+constexpr  s8 operator"" _s8(unsigned long long int i) { return  s8(i); }
+constexpr s16 operator""_s16(unsigned long long int i) { return s16(i); }
+constexpr s32 operator""_s32(unsigned long long int i) { return s32(i); }
+constexpr s64 operator""_s64(unsigned long long int i) { return s64(i); }
+constexpr  u8 operator"" _u8(unsigned long long int i) { return  u8(i); }
+constexpr u16 operator""_u16(unsigned long long int i) { return u16(i); }
+constexpr u32 operator""_u32(unsigned long long int i) { return u32(i); }
+constexpr u64 operator""_u64(unsigned long long int i) { return u64(i); }
+inline /*constexpr*/ f16 operator""_f16(long double d) { return f16(d); } // wait till fixed upstream
+constexpr f32 operator""_f32(long double d) { return f32(d); }
+constexpr f64 operator""_f64(long double d) { return f64(d); }
 
 }
 

@@ -26,22 +26,22 @@ World::World(uint32_t cur_gid, const std::string& name)
     , name_(name.empty() ? "module" : name)
     , cur_gid_(cur_gid)
 {
-    cache_.universe_         = insert<Universe>(0, *this);
-    cache_.kind_arity_       = insert<KindArity>(0, *this);
-    cache_.kind_multi_       = insert<KindMulti>(0, *this);
-    cache_.kind_star_        = insert<KindStar >(0, *this);
-    cache_.bot_star_         = insert<Bot>(0, kind_star(), nullptr);
-    cache_.top_arity_        = insert<Top>(0, kind_arity(), nullptr);
-    cache_.sigma_            = insert<Sigma>(0, kind_star(), Defs{}, nullptr)->as<Sigma>();
-    cache_.tuple_            = insert<Tuple>(0, sigma(), Defs{}, nullptr)->as<Tuple>();
-    cache_.type_mem_         = insert<Mem>(0, *this);
-    cache_.type_bool_        = insert<Bool>(0, *this);
-    cache_.type_nat_         = insert<Nat>(0, *this);
-    cache_.lit_arity_1_      = lit_arity(1);
-    cache_.lit_index_0_1_    = lit_index(lit_arity_1(), 0);
-    cache_.lit_bool_[0]      = lit(type_bool(), {false});
-    cache_.lit_bool_[1]      = lit(type_bool(), {true});
-    cache_.end_scope_        = lam(cn(), Lam::CC::C, Lam::Intrinsic::EndScope, {"end_scope"});
+    cache_.universe_      = insert<Universe>(0, *this);
+    cache_.kind_arity_    = insert<KindArity>(0, *this);
+    cache_.kind_multi_    = insert<KindMulti>(0, *this);
+    cache_.kind_star_     = insert<KindStar >(0, *this);
+    cache_.bot_star_      = insert<Bot>(0, kind_star(), nullptr);
+    cache_.top_arity_     = insert<Top>(0, kind_arity(), nullptr);
+    cache_.sigma_         = insert<Sigma>(0, kind_star(), Defs{}, nullptr)->as<Sigma>();
+    cache_.tuple_         = insert<Tuple>(0, sigma(), Defs{}, nullptr)->as<Tuple>();
+    cache_.type_mem_      = insert<Mem>(0, *this);
+    cache_.type_bool_     = insert<Bool>(0, *this);
+    cache_.type_nat_      = insert<Nat>(0, *this);
+    cache_.lit_arity_1_   = lit_arity(1);
+    cache_.lit_index_0_1_ = lit_index(lit_arity_1(), 0);
+    cache_.lit_bool_[0]   = lit(type_bool(), {false});
+    cache_.lit_bool_[1]   = lit(type_bool(), {true});
+    cache_.end_scope_     = lam(cn(), Lam::CC::C, Lam::Intrinsic::EndScope, {"end_scope"});
 }
 
 World::~World() {
@@ -79,11 +79,10 @@ static const Def* lub(const Def* t1, const Def* t2) {
     if (t2->isa<Universe>()) return t2;
     //assert(t1->isa<Kind>() && t2->isa<Kind>());
     switch (std::max(t1->tag(), t2->tag())) {
-        case Node_KindArity: return t1->world().kind_arity();
-        case Node_KindMulti: return t1->world().kind_multi();
-        case Node_KindStar:  return t1->world().kind_star();
-        default:
-        THORIN_UNREACHABLE;
+        case Tag::KindArity: return t1->world().kind_arity();
+        case Tag::KindMulti: return t1->world().kind_multi();
+        case Tag::KindStar:  return t1->world().kind_star();
+        default: THORIN_UNREACHABLE;
     }
 }
 
@@ -154,7 +153,7 @@ const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
 const Def* World::tuple_str(const char* s, Debug dbg) {
     std::vector<const Def*> ops;
     for (; *s != '\0'; ++s)
-        ops.emplace_back(lit_qs8(*s));
+        ops.emplace_back(lit_s(*s));
     return tuple(ops, dbg);
 }
 
@@ -264,6 +263,7 @@ const Lit* World::lit_index(const Def* a, u64 i, Debug dbg) {
  * arithops
  */
 
+#if 0
 const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg) {
     assert(a->type() == b->type());
     auto type = a->type();
@@ -543,25 +543,28 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
 
     return unify<ArithOp>(2, tag, a, b, debug(dbg));
 }
+#endif
 
-const Def* World::arithop_not(const Def* def, Debug dbg) { return arithop_xor(lit_allset(def->type(), dbg), def, dbg); }
+const Def* World::arithop_not(const Def* def, Debug dbg) { return arithop_xor(lit(def->type(), u64(-1), dbg), def, dbg); }
 
 const Def* World::arithop_minus(const Def* def, Debug dbg) {
-    switch (PrimTypeTag tag = def->type()->as<PrimType>()->primtype_tag()) {
-#define THORIN_F_TYPE(T, M) \
-        case PrimType_##T: \
-            return arithop_sub(lit(PrimType_##T, M(-0.f), dbg), def, dbg);
-#include "thorin/tables/primtypetable.h"
-        default:
-            assert(is_type_i(tag));
-            return arithop_sub(lit_zero(tag, dbg), def, dbg);
+    if (auto real = def->type()->isa<Real>()) {
+        switch (real->lit_num_bits()) {
+            case 16: return arithop_sub(lit_r(-0._f16, dbg), def, dbg);
+            case 32: return arithop_sub(lit_r(-0._f32, dbg), def, dbg);
+            case 64: return arithop_sub(lit_r(-0._f64, dbg), def, dbg);
+            default: THORIN_UNREACHABLE;
+        }
     }
+
+    return arithop_sub(lit(def->type(), 0_u64, dbg), def, dbg);
 }
 
 /*
  * compares
  */
 
+#if 0
 const Def* World::cmp(CmpTag tag, const Def* a, const Def* b, Debug dbg) {
     CmpTag oldtag = tag;
     switch (tag) {
@@ -622,6 +625,7 @@ const Def* World::cmp(CmpTag tag, const Def* a, const Def* b, Debug dbg) {
 
     return unify<Cmp>(2, tag, a, b, debug(dbg));
 }
+#endif
 
 /*
  * casts
@@ -645,6 +649,7 @@ const Def* World::convert(const Def* dst_type, const Def* src, Debug dbg) {
     return cast(dst_type, src, dbg);
 }
 
+#if 0
 const Def* World::cast(const Def* to, const Def* from, Debug dbg) {
     if (from->isa<Bot>()) return bot(to);
     if (from->type() == to) return from;
@@ -777,6 +782,7 @@ const Def* World::bitcast(const Def* to, const Def* from, Debug dbg) {
 
     return unify<Bitcast>(1, to, from, debug(dbg));
 }
+#endif
 
 const Def* World::bot_top(bool is_top, const Def* type, Debug dbg) {
     if (auto variadic = type->isa<Variadic>()) return pack(variadic->arity(), bot_top(is_top, variadic->body()), dbg);

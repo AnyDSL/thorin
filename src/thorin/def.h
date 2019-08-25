@@ -8,6 +8,7 @@
 
 #include "thorin/enums.h"
 #include "thorin/util/array.h"
+#include "thorin/util/cast.h"
 #include "thorin/util/hash.h"
 
 namespace thorin {

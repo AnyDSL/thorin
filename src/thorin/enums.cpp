@@ -1,5 +1,7 @@
 #include "thorin/enums.h"
 
+#include "thorin/util/utility.h"
+
 namespace thorin {
 
 CmpTag negate(CmpTag tag) {

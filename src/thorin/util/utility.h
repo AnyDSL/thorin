@@ -10,6 +10,8 @@
 #include <intrin.h>
 #endif
 
+#include "thorin/util/types.h"
+
 #ifndef _MSC_VER
 #define THORIN_UNREACHABLE do { assert(true && "unreachable"); abort(); } while(0)
 #else // _MSC_VER
@@ -24,24 +26,12 @@ inline __declspec(noreturn) void thorin_dummy_function() { abort(); }
 #endif
 
 #ifndef NDEBUG
-#define THORIN_CALL_ONCE do { static bool once = true; assert(once); once=false; } while(0)
 #define assert_unused(x) assert(x)
 #else
-#define THORIN_CALL_ONCE
 #define assert_unused(x) ((void) (0 && (x)))
 #endif
 
-#define THORIN_IMPLIES(a, b) (!(a) || ((a) && (b)))
-
-// http://stackoverflow.com/questions/1489932/how-to-concatenate-twice-with-the-c-preprocessor-and-expand-a-macro-as-in-arg
-#define THORIN_PASTER(x,y) x ## y
-
 namespace thorin {
-
-constexpr   size_t operator""_s  (unsigned long long int i) { return   size_t(i); } ///< A @c   size_t literal. Use @c 0_s to disambiguate @c 0 from @c nullptr.
-constexpr uint16_t operator""_u16(unsigned long long int i) { return uint16_t(i); } ///< A @c uint16_t literal.
-constexpr uint32_t operator""_u32(unsigned long long int i) { return uint32_t(i); } ///< A @c uint32_t literal.
-constexpr uint64_t operator""_u64(unsigned long long int i) { return uint64_t(i); } ///< A @c uint64_t literal.
 
 /// Use to initialize an @c std::unique_ptr<T> in a lazy way.
 template<class This, class T>

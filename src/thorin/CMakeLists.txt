@@ -9,7 +9,7 @@ set(THORIN_SOURCES
     rewrite.h
     util.cpp
     util.h
-    #world.cpp
+    world.cpp
     world.h
     analyses/cfg.cpp
     analyses/cfg.h

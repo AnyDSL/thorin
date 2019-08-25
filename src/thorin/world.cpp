@@ -153,7 +153,7 @@ const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
 const Def* World::tuple_str(const char* s, Debug dbg) {
     std::vector<const Def*> ops;
     for (; *s != '\0'; ++s)
-        ops.emplace_back(lit_s(*s));
+        ops.emplace_back(lit_sint(*s));
     return tuple(ops, dbg);
 }
 
@@ -550,9 +550,9 @@ const Def* World::arithop_not(const Def* def, Debug dbg) { return arithop_xor(li
 const Def* World::arithop_minus(const Def* def, Debug dbg) {
     if (auto real = def->type()->isa<Real>()) {
         switch (real->lit_num_bits()) {
-            case 16: return arithop_sub(lit_r(-0._f16, dbg), def, dbg);
-            case 32: return arithop_sub(lit_r(-0._f32, dbg), def, dbg);
-            case 64: return arithop_sub(lit_r(-0._f64, dbg), def, dbg);
+            case 16: return arithop_sub(lit_real(-0._f16, dbg), def, dbg);
+            case 32: return arithop_sub(lit_real(-0._f32, dbg), def, dbg);
+            case 64: return arithop_sub(lit_real(-0._f64, dbg), def, dbg);
             default: THORIN_UNREACHABLE;
         }
     }
@@ -829,8 +829,9 @@ const Def* World::select(const Def* cond, const Def* a, const Def* b, Debug dbg)
 }
 
 const Def* World::size_of(const Def* type, Debug dbg) {
-    if (auto ptype = type->isa<PrimType>())
-        return lit_qs32(num_bits(ptype->primtype_tag()) / 8, dbg);
+    if (auto sint = type->isa<Sint>()) return lit_uint<u32>(sint->lit_num_bits() / 8, dbg);
+    if (auto uint = type->isa<Uint>()) return lit_uint<u32>(uint->lit_num_bits() / 8, dbg);
+    if (auto real = type->isa<Real>()) return lit_uint<u32>(real->lit_num_bits() / 8, dbg);
 
     return unify<SizeOf>(1, bot(type, dbg), debug(dbg));
 }
@@ -878,8 +879,8 @@ const Def* World::global_immutable_string(const std::string& str, Debug dbg) {
 
     Array<const Def*> str_array(size);
     for (size_t i = 0; i != size-1; ++i)
-        str_array[i] = lit_qu8(str[i], dbg);
-    str_array.back() = lit_qu8('\0', dbg);
+        str_array[i] = lit_sint<s8>(str[i], dbg);
+    str_array.back() = lit_sint<s8>('\0', dbg);
 
     return global(tuple(str_array, dbg), false, dbg);
 }
@@ -913,10 +914,9 @@ const Def* World::hlt(const Def* def, Debug dbg) {
 }
 
 const Def* World::known(const Def* def, Debug dbg) {
-    if (pe_done_ || def->isa<Hlt>())
-        return lit_bool(false, dbg);
-    if (is_const(def))
-        return lit_bool(true, dbg);
+    if (pe_done_ || def->isa<Hlt>()) return lit_bool(false);
+    if (is_const(def)) return lit_bool(true);
+
     return unify<Known>(1, def, debug(dbg));
 }
 

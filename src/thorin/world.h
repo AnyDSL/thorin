@@ -167,14 +167,14 @@ public:
     const Def* extract(const Def* agg, u32 i, Debug dbg = {}) { return extract(agg, lit_index(agg->arity(), i, dbg), dbg); }
     const Def* extract(const Def* agg, u32 a, u32 i, Debug dbg = {}) { return extract(agg, lit_index(a, i, dbg), dbg); }
     const Def* unsafe_extract(const Def* agg, const Def* i, Debug dbg = {}) { return extract(agg, cast(agg->arity(), i, dbg), dbg); }
-    const Def* unsafe_extract(const Def* agg, u64 i, Debug dbg = {}) { return unsafe_extract(agg, lit_u(i, dbg), dbg); }
+    const Def* unsafe_extract(const Def* agg, u64 i, Debug dbg = {}) { return unsafe_extract(agg, lit_uint(i, dbg), dbg); }
     //@}
     /// @name Insert
     //@{
     const Def* insert(const Def* agg, const Def* i, const Def* value, Debug dbg = {});
     const Def* insert(const Def* agg, u32 i, const Def* value, Debug dbg = {}) { return insert(agg, lit_index(agg->arity(), i, dbg), value, dbg); }
     const Def* unsafe_insert(const Def* agg, const Def* i, const Def* value, Debug dbg = {}) { return insert(agg, cast(agg->arity(), i, dbg), value, dbg); }
-    const Def* unsafe_insert(const Def* agg, u32 i, const Def* value, Debug dbg = {}) { return unsafe_insert(agg, lit_u(i, dbg), value, dbg); }
+    const Def* unsafe_insert(const Def* agg, u32 i, const Def* value, Debug dbg = {}) { return unsafe_insert(agg, lit_uint(i, dbg), value, dbg); }
     //@}
     /// @name LEA - load effective address
     //@{
@@ -210,15 +210,15 @@ public:
     //@}
     /// @name Literal: Int, Uint, Real
     //@{
-    template<class S> const Lit* lit_s(S val, Debug dbg = {}) {
+    template<class S> const Lit* lit_sint(S val, Debug dbg = {}) {
         static_assert(std::is_integral<S>() && std::is_signed<S>());
         return lit(type_sint(sizeof(S)*8), val, dbg);
     }
-    template<class U> const Lit* lit_u(U val, Debug dbg = {}) {
+    template<class U> const Lit* lit_uint(U val, Debug dbg = {}) {
         static_assert(std::is_integral<U>() && std::is_unsigned<U>());
         return lit(type_uint(sizeof(U)*8), val, dbg);
     }
-    template<class R> const Lit* lit_r(R val, Debug dbg = {}) {
+    template<class R> const Lit* lit_real(R val, Debug dbg = {}) {
         static_assert(std::is_floating_point<R>() || std::is_same<R, f16>());
         return lit(type_real(sizeof(R)*8), val, dbg);
     }
@@ -248,7 +248,7 @@ public:
     const Uint* type_uint(u64 num_bits, bool quick = false) { return type_uint(lit_nat(num_bits), quick); }
     const Real* type_real(u64 num_bits, bool quick = false) { return type_real(lit_nat(num_bits), quick); }
     const Ptr* type_ptr(const Def* pointee, const Def* addr_space, Debug dbg = {}) { return unify<Ptr>(2, kind_star(), pointee, addr_space, debug(dbg)); }
-    const Ptr* type_ptr(const Def* pointee, u64 addr_space = AddrSpace::Generic, Debug dbg = {}) { return type_ptr(pointee, lit_u((u64) addr_space), dbg); }
+    const Ptr* type_ptr(const Def* pointee, u64 addr_space = AddrSpace::Generic, Debug dbg = {}) { return type_ptr(pointee, lit_uint((u64) addr_space), dbg); }
     //@}
     /// @name ArithOps
     //@{
@@ -284,7 +284,7 @@ public:
     const Slot* slot(const Def* type, const Def* mem, Debug dbg = {});
     const Alloc* alloc(const Def* type, const Def* mem, Debug dbg = {});
     const Def* global(const Def* id, const Def* init, bool is_mutable = true, Debug dbg = {});
-    const Def* global(const Def* init, bool is_mutable = true, Debug dbg = {}) { return global(lit_u<u64>(cur_gid_), init, is_mutable, debug(dbg)); }
+    const Def* global(const Def* init, bool is_mutable = true, Debug dbg = {}) { return global(lit_uint<u64>(cur_gid_), init, is_mutable, debug(dbg)); }
     const Def* global_immutable_string(const std::string& str, Debug dbg = {});
     //const Assembly* assembly(const Def* type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints,
                              //ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg = {});
@@ -305,8 +305,8 @@ public:
     /// @name Analyze - used internally for Pass%es
     //@{
     const Analyze* analyze(const Def* type, Defs ops, Debug dbg = {}) { return unify<Analyze>(ops.size(), type, ops, debug(dbg)); }
-    const Analyze* analyze(const Def* type, u64 index, const Def* op, Debug dbg = {}) { return analyze(type, {lit_u(index), op}, dbg); }
-    //const Analyze* analyze(const Def* type, u64 index, Defs ops, Debug dbg = {}) { return analyze(type, concat(lit_u(index), ops), dbg); }
+    const Analyze* analyze(const Def* type, u64 index, const Def* op, Debug dbg = {}) { return analyze(type, {lit_uint(index), op}, dbg); }
+    //const Analyze* analyze(const Def* type, u64 index, Defs ops, Debug dbg = {}) { return analyze(type, concat(lit_uint(index), ops), dbg); }
     const Analyze* analyze(const Def* type, u64 index, Defs ops, Debug dbg = {});
     //@}
     /// @name misc operations

@@ -8,7 +8,7 @@ namespace thorin {
 
 /// A bitcast.
 template<class D, class S>
-inline D bcast(const S& src) {
+inline D bitcast(const S& src) {
     D dst;
     auto s = reinterpret_cast<const void*>(&src);
     auto d = reinterpret_cast<void*>(&dst);

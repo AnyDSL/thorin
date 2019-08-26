@@ -378,7 +378,7 @@ private:
 
 public:
     template<class T = uint64_t>
-    T get() const { static_assert(sizeof(T) <= 8); return bcast<T>(flags_); }
+    T get() const { static_assert(sizeof(T) <= 8); return bitcast<T>(flags_); }
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     std::ostream& stream(std::ostream&) const override;
 

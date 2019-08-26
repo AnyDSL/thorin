@@ -185,7 +185,7 @@ public:
     //@{
     const Lit* lit(const Def* type, uint64_t val, Debug dbg = {}) { return unify<Lit>(0, type, val, debug(dbg)); }
     template<class T>
-    const Lit* lit(const Def* type, T val, Debug dbg = {}) { return lit(type, bcast<u64>(val), dbg); }
+    const Lit* lit(const Def* type, T val, Debug dbg = {}) { return lit(type, thorin::bitcast<u64>(val), dbg); }
     //@}
     /// @name Literal: Arity - note that this is a type
     //@{

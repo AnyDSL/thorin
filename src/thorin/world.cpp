@@ -263,9 +263,9 @@ const Lit* World::lit_index(const Def* a, u64 i, Debug dbg) {
  * arithops
  */
 
-#if 0
 const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg) {
     assert(a->type() == b->type());
+#if 0
     auto type = a->type();
 
     auto llit = a->isa<Lit>();
@@ -541,9 +541,9 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
             return arithop(tag, a_lhs_lv, arithop(tag, a_same->rhs(), b, dbg), dbg);
     }
 
+#endif
     return unify<ArithOp>(2, tag, a, b, debug(dbg));
 }
-#endif
 
 const Def* World::arithop_not(const Def* def, Debug dbg) { return arithop_xor(lit(def->type(), u64(-1), dbg), def, dbg); }
 
@@ -565,8 +565,8 @@ const Def* World::arithop_minus(const Def* def, Debug dbg) {
  * compares
  */
 
-#if 0
 const Def* World::cmp(CmpTag tag, const Def* a, const Def* b, Debug dbg) {
+#if 0
     CmpTag oldtag = tag;
     switch (tag) {
         case Cmp_gt: tag = Cmp_lt; break;
@@ -624,9 +624,9 @@ const Def* World::cmp(CmpTag tag, const Def* a, const Def* b, Debug dbg) {
         }
     }
 
+#endif
     return unify<Cmp>(2, tag, a, b, debug(dbg));
 }
-#endif
 
 /*
  * casts

@@ -314,8 +314,7 @@ public:
     //@{
     const Analyze* analyze(const Def* type, Defs ops, Debug dbg = {}) { return unify<Analyze>(ops.size(), type, ops, debug(dbg)); }
     const Analyze* analyze(const Def* type, u64 index, const Def* op, Debug dbg = {}) { return analyze(type, {lit_nat(index), op}, dbg); }
-    //const Analyze* analyze(const Def* type, u64 index, Defs ops, Debug dbg = {}) { return analyze(type, concat(lit_uint(index), ops), dbg); }
-    const Analyze* analyze(const Def* type, u64 index, Defs ops, Debug dbg = {});
+    const Analyze* analyze(const Def* type, u64 index, Defs ops, Debug dbg = {}) { return analyze(type, concat((const Def*) lit_nat(index), ops), dbg); }
     //@}
     /// @name misc operations
     //@{

@@ -55,8 +55,8 @@ bool is_const(const Def* def) {
     //return false;
 //}
 
-bool is_not        (const Def* def) { return def->isa<ArithOp>() && (def->flags() == ArithOp_xor && is_allset(def->op(0))); }
-bool is_minus      (const Def* def) { return def->isa<ArithOp>() && (def->flags() == ArithOp_sub && is_minus_zero(def->op(0))); }
+//bool is_not        (const Def* def) { return def->isa<ArithOp>() && (def->flags() == ArithOp_xor && is_allset(def->op(0))); }
+//bool is_minus      (const Def* def) { return def->isa<ArithOp>() && (def->flags() == ArithOp_sub && is_minus_zero(def->op(0))); }
 bool is_commutative(const Def* def) { return def->isa<ArithOp>() && thorin::is_commutative(def->flags()); }
 bool is_associative(const Def* def) { return def->isa<ArithOp>() && thorin::is_associative(def->flags()); }
 

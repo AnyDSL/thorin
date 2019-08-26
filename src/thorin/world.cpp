@@ -650,7 +650,6 @@ const Def* World::convert(const Def* dst_type, const Def* src, Debug dbg) {
     return cast(dst_type, src, dbg);
 }
 
-#if 0
 const Def* World::cast(const Def* to, const Def* from, Debug dbg) {
     if (from->isa<Bot>()) return bot(to);
     if (from->type() == to) return from;
@@ -662,6 +661,7 @@ const Def* World::cast(const Def* to, const Def* from, Debug dbg) {
     }
 
     auto lit = from->isa<Lit>();
+#if 0
     auto to_type = to->isa<PrimType>();
     if (lit && to_type) {
         switch (lit->type()->as<PrimType>()->primtype_tag()) {
@@ -751,6 +751,7 @@ const Def* World::cast(const Def* to, const Def* from, Debug dbg) {
         }
     }
 
+#endif
     if (lit && is_arity(to))
         return lit_index(to, lit->get());
 
@@ -771,6 +772,7 @@ const Def* World::bitcast(const Def* to, const Def* from, Debug dbg) {
         } while (other);
     }
 
+#if 0
     auto prim_to = to->isa<PrimType>();
     auto prim_from = from->type()->isa<PrimType>();
     if (prim_to && prim_from) {
@@ -780,10 +782,10 @@ const Def* World::bitcast(const Def* to, const Def* from, Debug dbg) {
         if (auto lit = from->isa<Lit>())
             return this->lit(prim_to->primtype_tag(), lit->get(), dbg);
     }
+#endif
 
     return unify<Bitcast>(1, to, from, debug(dbg));
 }
-#endif
 
 const Def* World::bot_top(bool is_top, const Def* type, Debug dbg) {
     if (auto variadic = type->isa<Variadic>()) return pack(variadic->arity(), bot_top(is_top, variadic->body()), dbg);
@@ -820,10 +822,12 @@ const Def* World::select(const Def* cond, const Def* a, const Def* b, Debug dbg)
     if (cond->isa<Bot>() || a->isa<Bot>() || b->isa<Bot>()) return bot(a->type(), dbg);
     if (auto lit = cond->isa<Lit>()) return lit->get<bool>() ? a : b;
 
+#if 0
     if (is_not(cond)) {
         cond = cond->as<ArithOp>()->rhs();
         std::swap(a, b);
     }
+#endif
 
     if (a == b) return a;
     return unify<Select>(3, cond, a, b, debug(dbg));

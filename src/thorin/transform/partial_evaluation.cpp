@@ -75,7 +75,10 @@ public:
             return true;
         }
 
-        return (!callee_->is_external() && callee_->num_uses() == 1) || is_one(instantiate(filter(i)));
+        auto instance = isa_lit<u64>(instantiate(filter(i)));
+        auto is_one = instance ? *instance : false;
+
+        return (!callee_->is_external() && callee_->num_uses() == 1) || is_one;
         //return is_one(instantiate(filter(i)));
     }
 

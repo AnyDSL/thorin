@@ -689,7 +689,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         }
 
         if (type->isa<Uint>() || type->isa<Bool>()) {
-            bool q = arithop->type()->isa<Uint>() ? arithop->type()->as<Sint>()->is_quick() : false; // quick? -> nsw/nuw
+            bool q = arithop->type()->isa<Uint>() ? arithop->type()->as<Uint>()->is_quick() : false; // quick? -> nsw/nuw
             switch (arithop->arithop_tag()) {
                 case ArithOp_add: return irbuilder_.CreateAdd (lhs, rhs, name, q, false);
                 case ArithOp_sub: return irbuilder_.CreateSub (lhs, rhs, name, q, false);

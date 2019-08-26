@@ -110,6 +110,7 @@ static bool is_type_i(const Def* def) { return def->isa<Sint>() || def->isa<Uint
 
 // TODO remove once we got rid of signedness
 static u64 num_bits(const Def* def) {
+    if (def->isa<Bool>()) return 1;
     if (auto sint = def->isa<Sint>()) return sint->lit_num_bits();
     if (auto uint = def->isa<Uint>()) return uint->lit_num_bits();
     if (auto real = def->isa<Real>()) return real->lit_num_bits();

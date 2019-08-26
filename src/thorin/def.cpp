@@ -481,9 +481,9 @@ std::ostream& App        ::stream(std::ostream& os) const { return streamf(os, "
 std::ostream& Mem        ::stream(std::ostream& os) const { return streamf(os, "mem"); }
 std::ostream& Bool       ::stream(std::ostream& os) const { return streamf(os, "bool"); }
 std::ostream& Nat        ::stream(std::ostream& os) const { return streamf(os, "nat"); }
-std::ostream& Sint       ::stream(std::ostream& os) const { return streamf(os, "{}sint{}", is_quick() ? "q" : "", lit_num_bits()); }
-std::ostream& Uint       ::stream(std::ostream& os) const { return streamf(os, "{}uint{}", is_quick() ? "q" : "", lit_num_bits()); }
-std::ostream& Real       ::stream(std::ostream& os) const { return streamf(os, "{}real{}", is_quick() ? "q" : "", lit_num_bits()); }
+std::ostream& Sint       ::stream(std::ostream& os) const { return streamf(os, "{}sint{}", is_quick() ? "q" : "p", lit_num_bits()); }
+std::ostream& Uint       ::stream(std::ostream& os) const { return streamf(os, "{}uint{}", is_quick() ? "q" : "p", lit_num_bits()); }
+std::ostream& Real       ::stream(std::ostream& os) const { return streamf(os, "{}real{}", is_quick() ? "q" : "p", lit_num_bits()); }
 std::ostream& Universe   ::stream(std::ostream& os) const { return streamf(os, "□"); }
 std::ostream& Variadic   ::stream(std::ostream& os) const { return streamf(os, "«{}; {}»", arity(), body()); }
 std::ostream& VariantType::stream(std::ostream& os) const { return stream_type_ops(os << "variant", this); }

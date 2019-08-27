@@ -7,6 +7,7 @@ set(THORIN_SOURCES
     primop.h
     rewrite.cpp
     rewrite.h
+    tables.h
     util.cpp
     util.h
     world.cpp
@@ -43,7 +44,6 @@ set(THORIN_SOURCES
     pass/pass.h
     tables/arithoptable.h
     tables/cmptable.h
-    tables/nodetable.h
     transform/cleanup_world.cpp
     transform/cleanup_world.h
     transform/codegen_prepare.h

@@ -80,8 +80,9 @@ const Def* Variant::rebuild(const Def*  , World& to, const Def* t, Defs ops, con
 
 const char* Def::op_name() const {
     switch (tag()) {
-#define THORIN_NODE(op, abbr) case Tag::op: return #abbr;
-#include "thorin/tables/nodetable.h"
+#define CODE(op, abbr) case Tag::op: return #abbr;
+THORIN_NODE(CODE)
+#undef CODE
         default: THORIN_UNREACHABLE;
     }
 }

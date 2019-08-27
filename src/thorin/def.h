@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "thorin/enums.h"
+#include "thorin/tables.h"
 #include "thorin/util/array.h"
 #include "thorin/util/cast.h"
 #include "thorin/util/hash.h"
@@ -16,9 +17,9 @@ namespace thorin {
 namespace Tag {
 
 enum : uint16_t {
-#define THORIN_NODE(tag, name) tag,
-#include "thorin/tables/nodetable.h"
-#undef THORIN_NODE
+#define CODE(tag, name) tag,
+THORIN_NODE(CODE)
+#undef CODE
 };
 
 }

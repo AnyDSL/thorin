@@ -21,30 +21,24 @@ struct MatchType {
 };
 
 template <typename Matcher, typename... Args>
-struct MatchManyAnd {
-    static bool match(const Def* def) { return Matcher::match(def) && MatchManyAnd<Args...>::match(def); }
+struct MatchAnd {
+    static bool match(const Def* def) { return Matcher::match(def) && MatchAnd<Args...>::match(def); }
 };
 
 template <typename Matcher>
-struct MatchManyAnd<Matcher> {
+struct MatchAnd<Matcher> {
     static bool match(const Def* def) { return Matcher::match(def); }
 };
-
-template <typename Left, typename Right>
-using MatchAnd = MatchManyAnd<Left, Right>;
 
 template <typename Matcher, typename... Args>
-struct MatchManyOr {
-    static bool match(const Def* def) { return Matcher::match(def) || MatchManyOr<Args...>::match(def); }
+struct MatchOr {
+    static bool match(const Def* def) { return Matcher::match(def) || MatchOr<Args...>::match(def); }
 };
 
 template <typename Matcher>
-struct MatchManyOr<Matcher> {
+struct MatchOr<Matcher> {
     static bool match(const Def* def) { return Matcher::match(def); }
 };
-
-template <typename Left, typename Right>
-using MatchOr = MatchManyOr<Left, Right>;
 
 struct IsLiteral {
     static bool match(const Def* def) { return def->isa<Lit>(); }

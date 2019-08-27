@@ -97,6 +97,8 @@ void Mem2Reg::enter(Def* def) {
 
         if (auto old_lam_opt = new2old_.lookup(new_lam)) {
             auto old_lam = *old_lam_opt;
+            if (!old_lam->is_set()) return;
+
             auto& phis = lam2phis_[old_lam];
 
             outf("enter: {}/{}\n", old_lam, new_lam);

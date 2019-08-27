@@ -296,7 +296,7 @@ void Cleaner::clean_pe_infos() {
     std::queue<Lam*> queue;
     LamSet done;
     auto enqueue = [&](Lam* lam) {
-        if (done.emplace(lam).second)
+        if (lam->is_set() && done.emplace(lam).second)
             queue.push(lam);
     };
     for (auto external : world().externals()) {

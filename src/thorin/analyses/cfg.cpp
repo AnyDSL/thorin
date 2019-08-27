@@ -38,11 +38,12 @@ CFA::CFA(const Scope& scope)
     // TODO use Scope::walk instead
 
     auto cfg_enqueue = [&] (Lam* lam) {
-        if (cfg_done.emplace(lam).second)
+        if (lam->is_set() && cfg_done.emplace(lam).second)
             cfg_queue.push(lam);
     };
 
-    cfg_queue.push(scope.entry());
+    //cfg_queue.push(scope.entry());
+    cfg_enqueue(scope.entry());
 
     while (!cfg_queue.empty()) {
         auto src = pop(cfg_queue);

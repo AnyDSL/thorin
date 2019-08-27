@@ -69,15 +69,15 @@ void Def::finalize() {
 }
 
 Def* Def::set(size_t i, const Def* def) {
-    assert(def && "setting null pointer");
-
     if (op(i) != nullptr) unset(i);
 
-    assert(i < num_ops() && "index out of bounds");
-    ops_ptr()[i] = def;
-    order_ = std::max(order_, def->order_);
-    const auto& p = def->uses_.emplace(this, i);
-    assert_unused(p.second);
+    if (def != nullptr) {
+        assert(i < num_ops() && "index out of bounds");
+        ops_ptr()[i] = def;
+        order_ = std::max(order_, def->order_);
+        const auto& p = def->uses_.emplace(this, i);
+        assert_unused(p.second);
+    }
     return this;
 }
 

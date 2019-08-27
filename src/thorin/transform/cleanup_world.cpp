@@ -109,11 +109,13 @@ void Cleaner::eta_conversion() {
         todo = false;
 
         for (auto lam : world().copy_lams()) {
+            if (!lam->is_set()) continue;
+
             // eat calls to known lams that are only used once
             while (true) {
                 if (auto app = lam->app()) {
                     if (auto callee = app->callee()->isa_nominal<Lam>()) {
-                        if (callee->is_empty() || callee->is_external() || callee->num_uses() > 2) break;
+                        if (!callee->is_set() || callee->is_external() || callee->num_uses() > 2) break;
                         bool ok = true;
                         for (auto use : callee->uses()) { // 2 iterations at max - see above
                             if (!use->isa<App>() && !use->isa<Param>())
@@ -123,7 +125,7 @@ void Cleaner::eta_conversion() {
 
                         callee->param()->replace(app->arg());
                         lam->set_body(callee->body());
-                        callee->destroy();
+                        callee->unset();
                         todo_ = todo = true;
                         continue;
                     }
@@ -143,7 +145,7 @@ void Cleaner::eta_conversion() {
 
                 if (app->arg() == lam->param()) {
                     lam->replace(callee);
-                    lam->destroy();
+                    lam->unset();
                     todo_ = todo = true;
                     continue;
                 }
@@ -187,6 +189,8 @@ void Cleaner::eta_conversion() {
 
 void Cleaner::eliminate_params() {
     for (auto old_lam : world().copy_lams()) {
+        if (!old_lam->is_set()) continue;
+
         std::vector<size_t> proxy_idx; // indices of params we eliminate
         std::vector<size_t> param_idx; // indices of params we keep
 
@@ -236,7 +240,7 @@ void Cleaner::eliminate_params() {
 
             new_lam->set_filter(old_lam->filter());
             new_lam->app(old_app->callee(), old_app->args(), old_app->debug());
-            old_lam->destroy();
+            old_lam->unset();
 
             for (auto use : old_lam->copy_uses()) {
                 if (use->isa<Param>()) continue; // ignore old_lam's Param
@@ -253,6 +257,8 @@ next_lam:;
 
 void Cleaner::verify_closedness() {
     for (auto def : world().defs()) {
+        if (!def->is_set()) continue;
+
         size_t i = 0;
         for (auto op : def->ops()) {
             within(op);

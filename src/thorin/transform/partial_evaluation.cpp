@@ -17,7 +17,7 @@ public:
     World& world() { return world_; }
     bool run();
     void enqueue(Lam* lam) {
-        if (lam->gid() < 2 * boundary_ && done_.emplace(lam).second)
+        if (lam->is_set() && lam->gid() < 2 * boundary_ && done_.emplace(lam).second)
             queue_.push(lam);
     }
     void eat_pe_info(Lam*);
@@ -170,7 +170,7 @@ bool PartialEvaluator::run() {
                 continue;
             }
 
-            if (!callee->is_empty()) {
+            if (callee->is_set()) {
                 size_t num_args = app->num_args();
                 Array<const Def*> args(num_args);
 

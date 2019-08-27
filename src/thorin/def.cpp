@@ -81,10 +81,6 @@ Def* Def::set(size_t i, const Def* def) {
     return this;
 }
 
-void Def::make_external() { return world().make_external(this); }
-void Def::make_internal() { return world().make_internal(this); }
-bool Def::is_external() const { return world().is_external(this); }
-
 void Def::unset(size_t i) {
     assert(i < num_ops() && "index out of bounds");
     auto def = op(i);
@@ -93,6 +89,23 @@ void Def::unset(size_t i) {
     assert(!def->uses_.contains(Use(this, i)));
     ops_ptr()[i] = nullptr;
 }
+
+bool Def::is_set() const {
+    if (!isa_nominal()) {
+        assert(std::all_of(ops().begin(), ops().end(), [&](auto op) { return op != nullptr; }) && "structurals must be always set");
+        return true;
+    }
+
+    if (std::all_of(ops().begin(), ops().end(), [&](auto op) { return op != nullptr; }))
+        return true;
+
+    assert(std::all_of(ops().begin(), ops().end(), [&](auto op) { return op == nullptr; }) && "some operands are set, others aren't");
+    return false;
+}
+
+void Def::make_external() { return world().make_external(this); }
+void Def::make_internal() { return world().make_internal(this); }
+bool Def::is_external() const { return world().is_external(this); }
 
 std::string Def::unique_name() const {
     std::ostringstream oss;
@@ -145,13 +158,6 @@ Array<const Def*> App::args() const { return Array<const Def*>(num_args(), [&](a
 /*
  * Lam
  */
-
-bool Lam::is_empty() const { return body()->isa<Bot>(); }
-
-void Lam::destroy() {
-    set_filter(world().lit_false());
-    set_body  (world().bot(type()->codomain()));
-}
 
 const Param* Lam::param(Debug dbg) const { return world().param(this->as_nominal<Lam>(), dbg); }
 const Def* Lam::param(size_t i, Debug dbg) const { return world().extract(param(), i, dbg); }
@@ -269,13 +275,14 @@ void Lam::set_intrinsic() {
 
 bool Lam::is_basicblock() const { return type()->is_basicblock(); }
 bool Lam::is_returning() const { return type()->is_returning(); }
-void Lam::branch(const Def* cond, const Def* t, const Def* f, const Def* mem, Debug dbg) { return set_body(world().branch(cond, t, f, mem, dbg)); }
-void Lam::app(const Def* callee, Defs args, Debug dbg) { app(callee, world().tuple(args), dbg); }
 
 void Lam::app(const Def* callee, const Def* arg, Debug dbg) {
     assert(isa_nominal());
-    set_body(world().app(callee, arg, dbg));
+    auto filter = world().lit_false();
+    set(filter, world().app(callee, arg, dbg));
 }
+void Lam::app(const Def* callee, Defs args, Debug dbg) { app(callee, world().tuple(args), dbg); }
+void Lam::branch(const Def* cond, const Def* t, const Def* f, const Def* mem, Debug dbg) { return app(world().select(cond, t, f, dbg), mem, dbg); }
 
 void Lam::match(const Def* val, Lam* otherwise, Defs patterns, ArrayRef<Lam*> lams, Debug dbg) {
     Array<const Def*> args(patterns.size() + 2);

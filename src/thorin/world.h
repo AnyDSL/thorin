@@ -106,7 +106,6 @@ public:
     //@{
     Lam* lam(const Pi* cn, Lam::CC cc = Lam::CC::C, Lam::Intrinsic intrinsic = Lam::Intrinsic::None, Debug dbg = {}) {
         auto lam = insert<Lam>(2, cn, cc, intrinsic, debug(dbg));
-        lam->destroy(); // set filter to false and body to top
         return lam;
     }
     Lam* lam(const Pi* cn, Debug dbg = {}) { return lam(cn, Lam::CC::C, Lam::Intrinsic::None, dbg); }
@@ -302,7 +301,6 @@ public:
     /// @name select
     //@{
     const Def* select(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
-    const Def* branch(const Def* cond, const Def* t, const Def* f, const Def* mem, Debug dbg = {}) { return app(select(cond, t, f, dbg), mem, dbg); }
     //@}
     /// @name partial evaluation related operations
     //@{

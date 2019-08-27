@@ -13,7 +13,7 @@ Mangler::Mangler(const Scope& scope, Defs args, Defs lift)
     , defs_(scope.defs().capacity())
     , old2new_(scope.defs().capacity())
 {
-    assert(!old_entry()->is_empty());
+    assert(old_entry()->is_set());
     assert(args.size() == old_entry()->num_params());
 
     // TODO correctly deal with lams here
@@ -63,8 +63,9 @@ Lam* Mangler::mangle() {
     if (all)
         old2new_[old_entry()->param()] = world().tuple(args_);
 
-    new_entry()->set_filter(mangle(old_entry()->filter()));
-    new_entry()->set_body(mangle(old_entry()->body()));
+    auto new_filter = mangle(old_entry()->filter());
+    auto new_body   = mangle(old_entry()->body());
+    new_entry()->set(new_filter, new_body);
 
     return new_entry();
 }

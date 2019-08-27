@@ -176,7 +176,7 @@ llvm::FunctionType* CodeGen::convert_fn_type(Lam* lam) {
 llvm::Function* CodeGen::emit_function_decl(Lam* lam) {
     if (auto f = fcts_.lookup(lam)) return *f;
 
-    std::string name = (lam->is_external() || lam->is_empty()) ? lam->name() : lam->unique_name();
+    std::string name = (lam->is_external() || !lam->is_set()) ? lam->name() : lam->unique_name();
     auto f = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, convert_fn_type(lam)));
 
 #ifdef _MSC_VER
@@ -191,7 +191,7 @@ llvm::Function* CodeGen::emit_function_decl(Lam* lam) {
 #endif
 
     // set linkage
-    if (lam->is_empty() || lam->is_external())
+    if (!lam->is_set() || lam->is_external())
         f->setLinkage(llvm::Function::ExternalLinkage);
     else
         f->setLinkage(llvm::Function::InternalLinkage);

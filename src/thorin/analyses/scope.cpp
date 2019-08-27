@@ -58,6 +58,8 @@ const DefSet& Scope::free() const {
         free_ = std::make_unique<DefSet>();
 
         for (auto def : defs_) {
+            if (!def->is_set()) continue;
+
             for (auto op : def->ops()) {
                 if (!contains(op))
                     free_->emplace(op);
@@ -100,19 +102,18 @@ const B_CFG& Scope::b_cfg() const { return cfa().b_cfg(); }
 
 template<bool elide_empty>
 void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
-    // TODO use Scope::walk instead
     unique_queue<LamSet> lam_queue;
 
     for (auto external : world.externals()) {
         if (auto lam = external->isa<Lam>()) {
-            assert(!lam->is_empty() && "external must not be empty");
+            assert(lam->is_set() && "external must not be empty");
             lam_queue.push(lam);
         }
     }
 
     while (!lam_queue.empty()) {
         auto lam = lam_queue.pop();
-        if (elide_empty && lam->is_empty())
+        if (elide_empty && !lam->is_set())
             continue;
         Scope scope(lam);
         f(scope);

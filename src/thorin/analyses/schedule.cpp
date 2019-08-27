@@ -79,8 +79,10 @@ void Scheduler::compute_def2uses() {
             queue.push(def);
     };
 
-    for (auto n : cfg_.reverse_post_order())
-        enqueue(n->lam());
+    for (auto n : cfg_.reverse_post_order()) {
+        if (n->lam()->is_set())
+            enqueue(n->lam());
+    }
 
     while (!queue.empty()) {
         auto def = pop(queue);

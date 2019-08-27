@@ -130,6 +130,7 @@ public:
             verify();
         }
 #else
+        int id() const { return id_; }
         inline void verify() const {}
         inline void verify(iterator_base) const {}
 #endif
@@ -222,6 +223,9 @@ public:
     size_t capacity() const { return capacity_; }
     size_t size() const { return size_; }
     bool empty() const { return size() == 0; }
+#if THORIN_ENABLE_CHECKS
+    int id() const { return id_; }
+#endif
     //@}
 
     //@{ get begin/end iterators

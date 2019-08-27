@@ -11,7 +11,7 @@ namespace thorin {
 // Now, this code will inline g and set g's lattice to Dont_Inline.
 // However, the inlined code might be dead after inlining f.
 
-bool is_candidate(Lam* lam) { return lam != nullptr && !lam->is_empty() && !lam->is_external(); }
+bool is_candidate(Lam* lam) { return lam != nullptr && lam->is_set() && !lam->is_external(); }
 
 const Def* Inliner::rewrite(const Def* def) {
     if (auto app = def->isa<App>()) {

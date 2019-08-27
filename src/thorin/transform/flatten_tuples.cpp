@@ -176,7 +176,7 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
 
         for (auto lam : world.copy_lams()) {
             // do not change the signature of intrinsic/external functions
-            if (lam->is_empty() ||
+            if (!lam->is_set() ||
                 lam->is_intrinsic() ||
                 lam->is_external() ||
                 is_passed_to_accelerator(lam))
@@ -210,7 +210,7 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
 
             def->replace(old_lam);
             if (auto lam = def->isa_nominal<Lam>())
-                lam->destroy();
+                lam->unset();
         }
     }
 

@@ -29,11 +29,13 @@ void PassMan::run() {
             outf("\ncur: {} {}\n", cur_state_id(), cur_nominal());
 
             bool mismatch = false;
-            new_ops.resize(cur_nominal()->num_ops());
-            for (size_t i = 0, e = cur_nominal()->num_ops(); i != e; ++i) {
-                auto new_op = rewrite(cur_nominal()->op(i));
-                mismatch |= new_op != cur_nominal()->op(i);
-                new_ops[i] = new_op;
+            if (cur_nominal_->is_set()) {
+                new_ops.resize(cur_nominal()->num_ops());
+                for (size_t i = 0, e = cur_nominal()->num_ops(); i != e; ++i) {
+                    auto new_op = rewrite(cur_nominal()->op(i));
+                    mismatch |= new_op != cur_nominal()->op(i);
+                    new_ops[i] = new_op;
+                }
             }
 
             if (mismatch) {
@@ -43,14 +45,19 @@ void PassMan::run() {
             }
 
             queue().pop();
-            for (auto op : cur_nominal()->ops())
-                analyze(op);
+
+            if (cur_nominal_->is_set()) {
+                for (auto op : cur_nominal()->ops())
+                    analyze(op);
+            }
 
             if (undo_ != No_Undo) {
                 outf("undo: {} -> {}\n", cur_state_id(), undo_);
 
-                for (size_t i = cur_state_id(); i-- != undo_;)
-                    states_[i].nominal->set(states_[i].old_ops);
+                for (size_t i = cur_state_id(); i-- != undo_;) {
+                    if (states_[i].nominal->is_set())
+                        states_[i].nominal->set(states_[i].old_ops);
+                }
 
                 states_.resize(undo_);
                 undo_ = No_Undo;

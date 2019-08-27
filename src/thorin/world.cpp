@@ -964,10 +964,15 @@ std::vector<Lam*> World::copy_lams() const {
 std::ostream& World::stream(std::ostream& os) const {
     os << "module '" << name() << "'\n\n";
 
+    std::vector<const Global*> globals;
+
     for (auto def : defs()) {
         if (auto global = def->isa<Global>())
-            global->stream_assignment(os);
+            globals.emplace_back(global);
     }
+
+    for (auto global : globals)
+        global->stream_assignment(os);
 
     Scope::for_each<false>(*this, [&] (const Scope& scope) { scope.stream(os); });
     return os;

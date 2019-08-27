@@ -168,6 +168,9 @@ public:
     Def* set(size_t i, const Def* def);
     Def* set(Defs ops) { for (size_t i = 0, e = num_ops(); i != e; ++i) set(i, ops[i]); return this; }
     void unset(size_t i);
+    void unset() { for (size_t i = 0, e = num_ops(); i != e; ++i) unset(i); }
+    /// @c true if all operands are set or num_ops == 0, @c false if all operands are @c nullptr, asserts otherwise.
+    bool is_set() const;
     //@}
     /// @name uses
     //@{
@@ -506,11 +509,13 @@ public:
     //@}
     /// @name setters
     //@{
-    void set_filter(const Def* filter) { set(0, filter); }
-    void set_body(const Def* body) { set(1, body); }
-    void destroy();
+    Lam* set(size_t i, const Def* def) { return Def::set(i, def)->as<Lam>(); }
+    Lam* set(Defs ops) { return Def::set(ops)->as<Lam>(); }
+    Lam* set(const Def* filter, const Def* body) { return set({filter, body}); }
+    Lam* set_filter(const Def* filter) { return set(0_s, filter); }
+    Lam* set_body(const Def* body) { return set(1, body); }
     //@}
-    /// @name setters: sets filter to @c false and sets the body by App-ing
+    /// @name setters: sets filter to @c false and sets the body by @p App -ing
     //@{
     void app(const Def* callee, const Def* arg, Debug dbg = {});
     void app(const Def* callee, Defs args, Debug dbg = {});
@@ -533,7 +538,6 @@ public:
 
     Lams preds() const;
     Lams succs() const;
-    bool is_empty() const;
     bool is_basicblock() const;
     bool is_returning() const;
     bool is_intrinsic() const;

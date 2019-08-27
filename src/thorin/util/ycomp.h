@@ -22,7 +22,6 @@ private:
     std::vector<std::string> graphs;
     std::vector<bool> temps;
     std::vector<std::string> files;
-
 };
 
 enum YCompOrientation {

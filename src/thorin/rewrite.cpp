@@ -22,8 +22,12 @@ const Def* Rewriter::rewrite(const Def* old_def) {
     auto new_type  = rewrite(old_def->type());
     auto new_debug = old_def->debug() ? rewrite(old_def->debug()) : nullptr;
 
-    if (auto old_nom = old_def->isa_nominal())
-        return map(old_nom, old_nom->stub(new_world, new_type, new_debug))->set(new_ops(old_nom));
+    if (auto old_nom = old_def->isa_nominal()) {
+        auto new_nom = old_nom->stub(new_world, new_type, new_debug);
+        map(old_nom, new_nom);
+        if (old_nom->is_set()) new_nom->set(new_ops(old_nom));
+        return new_nom;
+    }
 
     return map(old_def, old_def->rebuild(new_world, new_type, new_ops(old_def), new_debug));
 }

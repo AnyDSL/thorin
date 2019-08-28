@@ -300,6 +300,12 @@ void Lam::match(const Def* val, Lam* otherwise, Defs patterns, ArrayRef<Lam*> la
  * Pi
  */
 
+Pi* Pi::set_domain(Defs domains) { return Def::set(0, world().sigma(domains))->as<Pi>(); }
+
+const Param* Pi::param(Debug dbg) const { return world().param(this->as_nominal<Pi>(), dbg); }
+const Def* Pi::param(size_t i, Debug dbg) const { return world().extract(param(), i, dbg); }
+Array<const Def*> Pi::params() const { return Array<const Def*>(num_params(), [&](auto i) { return param(i); }); }
+
 bool Pi::is_cn() const { return codomain()->isa<Bot>(); }
 
 Array<const Def*> Pi::domains() const {
@@ -472,7 +478,9 @@ const Def* VariantType::rebuild(const Def*  , World& w, const Def*  , Defs o, co
  * stub
  */
 
+Def* Axiom   ::stub(const Def* d, World& to, const Def*  , const Def*    ) { assert(d->isa_nominal()); auto axiom = to.lookup(d->name()); assert(axiom); return axiom; }
 Def* Lam     ::stub(const Def* d, World& to, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return to.lam(t->as<Pi>(), d->as<Lam>()->cc(), d->as<Lam>()->intrinsic(), dbg); }
+Def* Pi      ::stub(const Def* d, World& to, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return to.pi(t, Debug{dbg}); }
 Def* Sigma   ::stub(const Def* d, World& to, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return to.sigma(t, d->num_ops(), dbg); }
 Def* Universe::stub(const Def*  , World& to, const Def*  , const Def*    ) { return const_cast<Universe*>(to.universe()); }
 

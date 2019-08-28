@@ -130,8 +130,9 @@ std::ostream& operator<<(std::ostream&, Use);
  */
 class Def : public RuntimeCast<Def>, public Streamable {
 public:
-    using RebuildFn = const Def* (*)(const Def*, World&, const Def*, Defs, const Def*);
-    using StubFn    = Def* (*)(const Def*, World&, const Def*, const Def*);
+    using RebuildFn   = const Def* (*)(const Def*, World&, const Def*, Defs, const Def*);
+    using StubFn      = Def* (*)(const Def*, World&, const Def*, const Def*);
+    using NormalizeFn = const Def* (*)(const Def*, const Def*, const Def*);
 
 private:
     Def& operator=(const Def&) = delete;
@@ -243,7 +244,7 @@ public:
     void replace(Tracker) const;
     bool is_replaced() const { return substitute_ != nullptr; }
     //@}
-    /// @name rebuild, stub, equal
+    /// @name rebuild, stub, normalize, equal
     //@{
     const Def* rebuild(World& world, const Def* type, Defs ops, const Def* dbg) const {
         assert(!isa_nominal());
@@ -253,6 +254,7 @@ public:
         assert(isa_nominal());
         return stub_(this, world, type, dbg);
     }
+    NormalizeFn normalize() const { return normalize_; }
     bool equal(const Def* other) const;
     //@}
     /// @name stream
@@ -279,6 +281,7 @@ protected:
         RebuildFn rebuild_;
         StubFn    stub_;
     };
+    NormalizeFn normalize_ = nullptr;
     const Def* debug_;
     uint64_t flags_;
     uint16_t tag_;
@@ -346,6 +349,22 @@ public:
     friend class World;
 };
 
+class Axiom : public Def {
+private:
+    Axiom(const Def* type, NormalizeFn normalize, uint64_t flags, const Def* dbg)
+        : Def(Tag, stub, type, 0, flags, dbg)
+    {
+        normalize_ = normalize;
+    }
+
+public:
+    static Def* stub(const Def*, World&, const Def*, const Def*);
+    std::ostream& stream(std::ostream&) const override;
+
+    static constexpr auto Tag = Tag::Axiom;
+    friend class World;
+};
+
 class Bot : public Def {
 private:
     Bot(const Def* type, const Def* dbg)
@@ -397,10 +416,16 @@ template<class T> std::optional<T> isa_lit(const Def* def) {
 
 template<class T> T as_lit(const Def* def) { return def->as<Lit>()->get<T>(); }
 
+/// A function type AKA Pi type.
 class Pi : public Def {
 protected:
+    /// Constructor for a @em structural Pi.
     Pi(const Def* type, const Def* domain, const Def* codomain, const Def* dbg)
         : Def(Tag, rebuild, type, {domain, codomain}, 0, dbg)
+    {}
+    /// Constructor for a @em nominal Pi.
+    Pi(const Def* type, const Def* dbg)
+        : Def(Tag, stub, type, 2, 0, dbg)
     {}
 
 public:
@@ -408,6 +433,21 @@ public:
     const Def* codomain() const { return op(1); }
     bool is_cn() const;
 
+    /// @name Setters for @em nominal @p Pi%s.
+    //@{
+    Pi* set_domain(const Def* domain) { return Def::set(0, domain)->as<Pi>(); }
+    Pi* set_domain(Defs domains);
+    Pi* set_codomain(const Def* codomain) { return Def::set(1, codomain)->as<Pi>(); }
+    //@}
+
+    /// @name Retrieve @p Param for @em nominal @p Pi%s.
+    //@{
+    const Param* param(Debug dbg = {}) const;
+    const Def* param(size_t i, Debug dbg = {}) const;
+    Array<const Def*> params() const;
+    size_t num_params() const { return domain()->lit_arity(); }
+    //@}
+    //
     const Def* domain(size_t i) const;
     Array<const Def*> domains() const;
     size_t num_domains() const;
@@ -417,6 +457,7 @@ public:
 
     std::ostream& stream(std::ostream&) const override;
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    static Def* stub(const Def*, World&, const Def*, const Def*);
 
     static constexpr auto Tag = Tag::Pi;
     friend class World;
@@ -432,7 +473,7 @@ public:
     const Def* arg() const { return op(1); }
     const Def* arg(size_t i) const;
     Array<const Def*> args() const;
-    size_t num_args() const { return as_lit<u64>(callee_type()->domain()->arity()); }
+    size_t num_args() const { return callee_type()->domain()->lit_arity(); }
 
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     std::ostream& stream(std::ostream&) const override;
@@ -504,7 +545,7 @@ public:
     const Param* param(Debug dbg = {}) const;
     const Def* param(size_t i, Debug dbg = {}) const;
     Array<const Def*> params() const;
-    size_t num_params() const { return as_lit<u64>(type()->domain()->arity()); }
+    size_t num_params() const { return type()->num_params(); }
     const Def* mem_param() const;
     const Def* ret_param() const;
     //@}
@@ -563,14 +604,14 @@ using Lam2Lam = LamMap<Lam*>;
 
 class Param : public Def {
 private:
-    Param(const Def* type, const Lam* lam, const Def* dbg)
-        : Def(Tag, rebuild, type, Defs{lam}, 0, dbg)
-    {
-        assert(lam->isa_nominal<Lam>());
-    }
+    Param(const Def* type, Def* nominal, const Def* dbg)
+        : Def(Tag, rebuild, type, Defs{nominal}, 0, dbg)
+    {}
 
 public:
-    Lam* lam() const { return op(0)->as_nominal<Lam>(); }
+    Def* nominal() const { return op(0)->as_nominal(); }
+    Lam* lam() const { return nominal()->as<Lam>(); }
+    Pi* pi() const { return nominal()->as<Pi>(); }
 
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
@@ -608,9 +649,11 @@ private:
 
 class Sigma : public Def {
 private:
+    /// Constructor for a @em structural Pi.
     Sigma(const Def* type, Defs ops, const Def* dbg)
         : Def(Tag, rebuild, type, ops, 0, dbg)
     {}
+    /// Constructor for a @em nominal Pi.
     Sigma(const Def* type, size_t size, const Def* dbg)
         : Def(Tag, stub, type, size, 0, dbg)
     {}

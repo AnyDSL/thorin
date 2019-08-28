@@ -48,6 +48,17 @@ World::~World() {
     for (auto def : defs_) def->~Def();
 }
 
+const Param* World::param(Def* nominal, Debug dbg) {
+    const Def* type = nullptr;
+    if (auto lam = nominal->isa<Lam>())
+        type = lam->domain();
+    else if (auto pi = nominal->isa<Pi>())
+        type = pi->domain();
+    assert(type);
+
+    return unify<Param>(1, type, nominal, debug(dbg));
+}
+
 const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
     auto pi = callee->type()->as<Pi>();
     assertf(pi->domain() == arg->type(), "callee '{}' expects an argument of type '{}' but the argument '{}' is of type '{}'\n", callee, pi->domain(), arg, arg->type());

@@ -95,12 +95,13 @@ public:
     //@}
     /// @name Param
     //@{
-    const Param* param(Lam* lam, Debug dbg = {}) { return unify<Param>(1, lam->domain(), lam, debug(dbg)); }
+    const Param* param(Def* nominal, Debug dbg = {});
     //@}
     /// @name Pi
     //@{
-    const Pi* pi(Defs domain, const Def* codomain, Debug dbg = {}) { return pi(sigma(domain), codomain, dbg); }
     const Pi* pi(const Def* domain, const Def* codomain, Debug dbg = {});
+    const Pi* pi(Defs domain, const Def* codomain, Debug dbg = {}) { return pi(sigma(domain), codomain, dbg); }
+    Pi* pi(const Def* type, Debug dbg = {}) { return insert<Pi>(2, type, debug(dbg)); } ///< @em nominal Pi.
     //@}
     /// @name Pi: continuation type, i.e., Pi type with codomain Bottom
     //@{

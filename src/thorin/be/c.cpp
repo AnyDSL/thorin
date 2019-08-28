@@ -15,8 +15,6 @@
 #include <sstream>
 #include <type_traits>
 
-//#define hls_top
-
 namespace thorin {
 
 class CCodeGen {
@@ -56,8 +54,6 @@ private:
     const std::string var_name(const Def*);
     const std::string get_lang() const;
     bool is_texture_type(const Type*);
-    //void stream_param(const Schedule);
-    //const std::string stream_param(const Schedule);
 
     World& world_;
     const Cont2Config& kernel_config_;
@@ -76,7 +72,6 @@ private:
     std::ostringstream func_impl_;
     std::ostringstream func_decls_;
     std::ostringstream type_decls_;
-    std::ostringstream hls_top_;
     std::string hls_pragmas;
 
 };
@@ -144,12 +139,17 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
         os << down << endl << "};";
         return os;
     } else if (auto struct_type = type->isa<StructType>()) {
-        os << "typedef struct {" << up;
-        for (size_t i = 0, e = struct_type->num_ops(); i != e; ++i) {
-            os << endl;
-            emit_type(os, struct_type->op(i)) << " e" << i << ";";
+        if (lang_ == Lang::HLS && is_channel_type(struct_type)) {
+            os << "typedef ";
+            emit_type(os, struct_type->op(0)) << " "<< struct_type->name() << "_" <<struct_type->gid() <<";";
+        } else {
+            os << "typedef struct {" << up;
+            for (size_t i = 0, e = struct_type->num_ops(); i != e; ++i) {
+                os << endl;
+                emit_type(os, struct_type->op(i)) << " e" << i << ";";
+            }
+            os << down << endl << "} struct_" << struct_type->name() << "_" << struct_type->gid() << ";";
         }
-        os << down << endl << "} struct_" << struct_type->name() << "_" << struct_type->gid() << ";";
         if (is_channel_type(struct_type))
             use_channels_ = true;
         return os;
@@ -271,7 +271,7 @@ std::ostream& CCodeGen::emit_aggop_decl(const Type* type) {
         if (lang_ != Lang::HLS)
             insert(type, "struct_" + struct_type->name().str() + "_" + std::to_string(type->gid()));
         else if (is_channel_type(struct_type))
-            insert(type,"hls::stream<struct_" + struct_type->name().str() + "_" + std::to_string(type->gid()) + ">");
+            insert(type,"hls::stream<" + struct_type->name().str() + "_" + std::to_string(type->gid()) + ">");
 
     }
 
@@ -318,132 +318,6 @@ void CCodeGen::emit() {
                 }
             }
         }
-
-    // HLS top function
-#ifdef hls_top
-    if (lang_ == Lang::HLS) {
-        enum io_type: bool {input, output};
-        enum stream_lvl: char {source, mid, sink};
-        io_type io = io_type::input;
-        stream_lvl lvl = stream_lvl::source;
-        std::string io_params[sizeof(io_type)+1] = "";
-        std::string flow_name[3];
-        hls_pragmas += "#pragma HLS DATAFLOW";
-        size_t kernel_cnt = 0;
-        hls_top_ << "void hls_top(";
-
-        Scope::for_each(world(), [&] (const Scope& scope) {
-            if (scope.entry() == world().branch())
-                return;
-
-            auto continuation = scope.entry();
-            if (continuation->is_intrinsic())
-                return;
-
-        //std::cout<<"***** Kernel ******\n";
-        //Get global variable names inside each kernel
-            //stream_param(schedule(scope));
-            kernel_cnt++;
-            for (auto param : continuation->params()) {
-                if (is_mem(param) || is_unit(param))
-                    continue;
-                if (param->order() == 0) {
-                    KernelConfig* config = nullptr;
-                    if (continuation->is_external()) {
-                        auto config_it = kernel_config_.find(continuation);
-                        assert(config_it != kernel_config_.end());
-                        config = config_it->second.get();
-                    }
-                    if (continuation->is_external() && param->type()->as<PtrType>()->pointee()->isa<ArrayType>()) {
-                        auto array_size = config->as<HLSKernelConfig>()->param_size(param);
-                        assert(array_size > 0);
-                        auto ptr_type = param->type()->as<PtrType>();
-                        auto elem_type = ptr_type->pointee();
-                        if (auto array_type = elem_type->isa<ArrayType>())
-                            elem_type = array_type->elem_type();
-                        // Top I/O ports(input,output)
-                        emit_type(hls_top_,  elem_type) << " " << param->unique_name() << "[" << array_size << "]";
-                        if (io_params[io].empty()) {
-                            io_params[io] = param->unique_name();
-                            flow_name[lvl] = (continuation->is_external() || continuation->empty()) ? continuation->name().c_str() : continuation->unique_name().c_str();
-                        }
-                        if (io == input) {
-                            hls_top_ << ", ";
-                            lvl = stream_lvl::sink;
-                            io = io_type::output;
-                        }
-                    } else {
-                        //lvl = stream_lvl::mid;
-                    }
-                }
-            }
-            if (lvl)
-            auto kernel_name = (continuation->is_external() || continuation->empty()) ? continuation->name() : continuation->unique_name();
-        });
-
-        hls_top_ <<") {" << endl << up;
-        if (!hls_pragmas.empty() && (kernel_cnt > 1)) {
-            hls_top_ << down << hls_pragmas << endl;
-        }
-        hls_pragmas.clear();
-        hls_pragmas += "#pragma HLS top name=AnyHLS\n";
-        hls_pragmas += "#pragma HLS INTERFACE ap_ctrl_none port=return\n";
-        for (auto param : io_params) {
-            hls_pragmas += "#pragma HLS INTERFACE axis port=";
-            hls_pragmas.append(param);
-            hls_pragmas += " bundle=";
-            if (io == output){
-                hls_pragmas.append("input_s\n");
-                io =io_type::input;
-            }
-            else
-                hls_pragmas.append("output_s\n");
-
-        }
-        if (!hls_pragmas.empty())
-            if (kernel_cnt == 1 )
-                hls_top_ << down ;
-        hls_top_ << hls_pragmas << up;
-        //hls_top_ << hls_pragmas<< flow_name[source] << flow_name[sink] << up;
-
-        for (auto primop : world().primops()) {
-            if (auto global = primop->isa<Global>()) {
-                std::cout<<"Globals emitted"<<endl;
-                // skip strings as they are emitted inline
-                if (is_string_type(global->init()->type()))
-                    continue;
-                emit(global);
-            }
-        }
-        hls_top_ << endl;
-        hls_top_ << flow_name[source] << "();" << " //source"<<endl;
-
-        Scope::for_each(world(), [&] (const Scope& scope) {
-            auto continuation = scope.entry();
-            if (continuation->is_intrinsic())
-                return;
-
-            auto kernel_name = (continuation->is_external() || continuation->empty()) ? continuation->name() : continuation->unique_name();
-            //hls_top_ << kernel_name << endl;
-            // Functions calls
-            //if (lvl == source) {
-            //hls_top_ << flow_name[source] << "();" << endl;
-            //} else if (lvl == mid) {
-            //hls_top_ <<  kernel_name << "();" << endl;
-            //}  else {
-            //hls_top_ << flow_name[sink] << "();" << endl;
-            //}
-            
-        });
-        if (kernel_cnt > 1 )
-            hls_top_ << flow_name[sink] << "();" << " //sink"<< endl;
-        hls_top_ << down << endl << "}";
-        hls_pragmas.clear();
-    }
-#endif
-
-    //extern std::vector<const Def*> top_io_params;
-    //std::cout<< "hls_io_num"<<top_io_params.size() << endl;
 
     Scope::for_each(world(), [&] (const Scope& scope) {
         if (scope.entry() == world().branch())
@@ -504,8 +378,6 @@ void CCodeGen::emit() {
         emit_addr_space(func_impl_,  ret_type);
         emit_type(func_decls_, ret_type) << " " << name << "(";
         emit_type(func_impl_,  ret_type) << " " << name << "(";
-        //stream_param(schedule(scope));
-        //emit_type(func_impl_, stream_param(schedule(scope))); //stream_param should return def
         size_t i = 0;
         // emit and store all first-order params
         for (auto param : continuation->params()) {
@@ -546,7 +418,7 @@ void CCodeGen::emit() {
                     emit_type(func_decls_, param->type()) << " *";
                     emit_type(func_impl_,  param->type()) << " *" << param->unique_name() << "_";
                 } else if (lang_ == Lang::HLS && continuation->is_external() &&
-                           param->type()->as<PtrType>()->pointee()->isa<ArrayType>()) {
+                           param->type()->isa<PtrType>() && param->type()->as<PtrType>()->pointee()->isa<ArrayType>()) {
                     auto array_size = config->as<HLSKernelConfig>()->param_size(param);
                     assert(array_size > 0);
                     auto ptr_type = param->type()->as<PtrType>();
@@ -577,14 +449,29 @@ void CCodeGen::emit() {
         func_decls_ << ");" << endl;
         func_impl_  << ") {" << up;
 
-        if (lang_ == Lang::HLS && name == "hls_top") {
-            hls_pragmas += "#pragma HLS DATAFLOW\n";
-            hls_pragmas += "#pragma HLS top name=AnyHLS\n";
-            hls_pragmas += "#pragma HLS INTERFACE ap_ctrl_none port=return\n";
-            hls_pragmas += "#pragma HLS INTERFACE axis port=";
+        if (lang_ == Lang::HLS && continuation->is_external() ) {
+            if (name == "hls_top") {
+                if (continuation->num_params() > 2) { //
+                    for (auto param : continuation->params()) {
+                        if (is_mem(param) || param->order() != 0  || is_unit(param) )
+                            continue;
+                        if (param->type()->isa<PtrType>() && param->type()->as<PtrType>()->pointee()->isa<ArrayType>())
+                            func_impl_ << "\n#pragma HLS INTERFACE axis port = " << param->unique_name();
+                        else
+                            func_impl_ << "\n#pragma HLS INTERFACE s_axilite port = " << param->unique_name();
+                    }
+                    hls_pragmas += "\n#pragma HLS INTERFACE ap_ctrl_none port = return";
+                }
+                hls_pragmas += "\n#pragma HLS top name = hls_top";
+                if (use_channels_)
+                    hls_pragmas += "\n#pragma HLS DATAFLOW";
+            } else if (use_channels_) {
+                hls_pragmas += "\n#pragma HLS INLINE off";
+            }
         }
+
         if (!hls_pragmas.empty())
-            func_impl_ << down << endl << hls_pragmas << up;
+            func_impl_ << hls_pragmas;
         hls_pragmas.clear();
         // OpenCL: load struct from buffer
         for (auto param : continuation->params()) {
@@ -611,7 +498,6 @@ void CCodeGen::emit() {
                 emit_aggop_decl(param->type());
                 insert(param, param->unique_name());
             }
-
             auto continuation = block.continuation();
             if (scope.entry() != continuation) {
                 for (auto param : continuation->params()) {
@@ -628,7 +514,7 @@ void CCodeGen::emit() {
             if (continuation->callee()->isa_continuation() &&
                 continuation->callee()->as_continuation()->intrinsic() == Intrinsic::Pipeline) {
                 func_impl_ << endl << "int i" << continuation->callee()->gid() << ";";
-            }
+    }
         }
 
         for (const auto& block : schedule) {
@@ -823,10 +709,29 @@ void CCodeGen::emit() {
                             THORIN_UNREACHABLE;
                         }
                     } else {
-                        //if (callee->is_channel())
-                            //std::cout<< "**** CHANNEL ****\n";
-                            //callee->dump();
                         auto emit_call = [&] (const Param* param = nullptr) {
+                            if (callee->is_channel() && lang_==Lang::HLS) {
+                                // write_channel(channel, value)
+                                // channel = read_channel(value)
+                                size_t i = 0;
+                                for (auto arg : continuation->args()) {
+                                    if (arg->order() == 0 && !(is_mem(arg) || is_unit(arg))) {
+                                        if (i == 0) {
+                                            func_impl_ << "*";
+                                            emit(arg);
+                                        }
+                                        if (callee->name().str().find("write_channel") != std::string::npos &&
+                                                i++ > 0) {
+                                            func_impl_ << " << "; // "<<" overloaded as "write into a channel"
+                                            emit(arg);
+                                        } else if (callee->name().str().find("read_channel") != std::string::npos) {
+                                            func_impl_ << " >> "; // ">>" overloaded as "Read from a channel"
+                                            emit(param);
+                                        }
+                                    }
+                                }
+                                func_impl_ << ";";
+                        } else {
                             auto name = (callee->is_external() || callee->empty()) ? callee->name() : callee->unique_name();
                             if (param)
                                 emit(param) << " = ";
@@ -837,15 +742,16 @@ void CCodeGen::emit() {
                                 if (arg->order() == 0 && !(is_mem(arg) || is_unit(arg))) {
                                     if (i++ > 0)
                                         func_impl_ << ", ";
-                                    emit(arg); //HLS: Global
+                                    emit(arg);
                                 }
                             }
                             func_impl_ << ");";
-                            if (param) {
-                                func_impl_ << endl;
-                                store_phi(param, param);
-                            }
-                        };
+                        }
+                        if (param) {
+                            func_impl_ << endl;
+                            store_phi(param, param);
+                        }
+                    };
 
                         const Def* ret_arg = 0;
                         for (auto arg : continuation->args()) {
@@ -921,8 +827,6 @@ void CCodeGen::emit() {
     if (!func_decls_.str().empty())
         os_ << func_decls_.str() << endl;
     os_ << func_impl_.str();
-    if (!hls_top_.str().empty() && lang_==Lang::HLS)
-        os_ << hls_top_.str() << endl;
     if (lang_==Lang::CUDA || lang_==Lang::HLS)
         os_ << "}"; // extern "C"
 }
@@ -1381,29 +1285,24 @@ std::ostream& CCodeGen::emit(const Def* def) {
             case Lang::OPENCL: func_impl_ << "__constant "; break;
         }
         bool bottom = global->init()->isa<Bottom>();
-        if (lang_ != Lang::HLS) {
-            if (!bottom)
-                emit(global->init()) << endl;
-            emit_type(func_impl_, global->alloced_type()) << " " << def_name << "_slot";
-            if (bottom) {
-                func_impl_ << "; // bottom";
-            } else {
-                func_impl_ << " = ";
-                emit(global->init()) << ";";
-            }
-            func_impl_ << endl;
-
-            switch (lang_) {
-                default:                                        break;
-                case Lang::CUDA:   func_impl_ << "__device__ "; break;
-                case Lang::OPENCL: func_impl_ << "__constant "; break;
-            }
-            emit_type(func_impl_, global->alloced_type()) << " *" << def_name << " = &" << def_name << "_slot;";
+        if (!bottom)
+            emit(global->init()) << endl;
+        emit_type(func_impl_, global->alloced_type()) << " " << def_name << "_slot";
+        if (bottom) {
+            func_impl_ << "; // bottom";
         } else {
-            if (!bottom)
-                emit(global->init()) << endl;
-            emit_type(hls_top_, global->alloced_type()) << " " << def_name <<";\n";
+            func_impl_ << " = ";
+            emit(global->init()) << ";";
         }
+        func_impl_ << endl;
+
+        switch (lang_) {
+            default:                                        break;
+            case Lang::CUDA:   func_impl_ << "__device__ "; break;
+            case Lang::OPENCL: func_impl_ << "__constant "; break;
+        }
+        emit_type(func_impl_, global->alloced_type()) << " *" << def_name << " = &" << def_name << "_slot;";
+
         insert(def, def_name);
         return func_impl_;
     }
@@ -1457,62 +1356,6 @@ const std::string CCodeGen::var_name(const Def* def) {
         return def->unique_name();
 }
 
-//const std::string CCodeGen::stream_param(const Schedule schedule) { //return string then emit_type on call site
-//    for (const auto& block : schedule) {
-//        auto continuation = block.continuation();
-//        if (continuation->empty())
-//            continue;
-//        auto callee = continuation->callee()->as_continuation();
-//        if (callee->is_channel()) {
-//            callee->set_channel();
-//            if (callee->channel() == Channel::Read) {
-//                std::cout<< "HEY, I am a READ channel!"<<endl;
-//                // for (auto arg : continuation->args()) {
-//                if (continuation->arg(1)->order() == 0 && !(is_mem(continuation->arg(1)) || is_unit(continuation->arg(1)))) {
-//                    emit(continuation->arg(1)); //HLS: Global
-//                    std::cout<<"My name is " << continuation->arg(1)->unique_name()<< endl;
-//                    return continuation->arg(1)->unique_name();
-//                }
-//                // }
-//
-//            } else if (callee->channel() == Channel::Write) {
-//                std::cout<< "HEY, I am a WRITE channel!"<< endl;
-//                if (continuation->arg(1)->order() == 0 && !(is_mem(continuation->arg(1)) || is_unit(continuation->arg(1)))) {
-//                    emit(continuation->arg(1)); //HLS: Global
-//                    std::cout<<"My name is " << continuation->arg(1)->unique_name()<< endl;
-//                    return  continuation->arg(1)->unique_name();
-//                }
-//            }
-//        }
-//    }
-//}
-///*const std::string*/void CCodeGen::stream_param(const Schedule schedule) { //return string then emit_type on call site
-//    for (const auto& block : schedule) {
-//        auto continuation = block.continuation();
-//        if (continuation->empty())
-//            continue;
-//        auto callee = continuation->callee()->as_continuation();
-//        if (callee->is_channel()) {
-//            callee->set_channel();
-//            if (callee->channel() == Channel::Read) {
-//                std::cout<< "HEY, I am a READ channel!"<<endl;
-//                // for (auto arg : continuation->args()) {
-//                if (continuation->arg(1)->order() == 0 && !(is_mem(continuation->arg(1)) || is_unit(continuation->arg(1)))) {
-//                    emit(continuation->arg(1)); //HLS: Global
-//                    std::cout<<"My name is " << continuation->arg(1)->unique_name()<< endl;
-//                }
-//                // }
-//
-//            } else if (callee->channel() == Channel::Write) {
-//                std::cout<< "HEY, I am a WRITE channel!"<< endl;
-//                if (continuation->arg(1)->order() == 0 && !(is_mem(continuation->arg(1)) || is_unit(continuation->arg(1)))) {
-//                    emit(continuation->arg(1)); //HLS: Global
-//                    std::cout<<"My name is " << continuation->arg(1)->unique_name()<< endl;
-//                }
-//            }
-//        }
-//    }
-//}
 const std::string CCodeGen::get_lang() const {
     switch (lang_) {
         default:

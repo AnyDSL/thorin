@@ -15,6 +15,7 @@ enum class ChannelMode : uint8_t {
 };
 
 using Def2Mode = DefMap<ChannelMode>;
+using Dependencies = std::vector<std::pair<size_t, size_t>>; // <From, To>
 
 static void extract_kernel_channels(const Schedule& schedule, Def2Mode& def2mode) {
     for (const auto& block : schedule) {
@@ -53,13 +54,22 @@ bool is_channel_type(const Type* type) {
     return false;
 }
 
+bool is_single_kernel(Continuation* kernel) {
+    for (auto param : kernel->params()) {
+        if (is_channel_type(param->type()))
+            return false;
+    }
+    return true;
+}
+
 void hls_annotate_top(World& world, const Top2Kernel& top2kernel, Cont2Config& cont2config) {
     auto find_kernel_by_name = [&] (const std::string& name) {
         auto it = std::find_if(world.externals().begin(), world.externals().end(), [&] (auto external) {
-            return external->name() == name;
-        });
+                return external->name() == name;
+                });
         return it != world.externals().end() ? *it : nullptr;
     };
+    // Extract and save param size info for hls_top then insert it into configuration map.
     auto hls_top = find_kernel_by_name("hls_top");
     assert(hls_top);
     HLSKernelConfig::Param2Size param_sizes;
@@ -74,70 +84,137 @@ void hls_annotate_top(World& world, const Top2Kernel& top2kernel, Cont2Config& c
     cont2config.emplace(hls_top, std::make_unique<HLSKernelConfig>(param_sizes));
 }
 
+// ----------- Kernel scheduling (dependency resolver) algorithm -------------
+
+// Find out if a kernel has no dependency (no input from other kernels to this one)
+static bool is_free_kernel(const Dependencies& dependencies, const bool dependency_bool_vector[], const size_t kernel) {
+    bool free_kernel = true;
+    for (size_t i = 0; i < dependencies.size() && free_kernel; ++i) {
+        free_kernel = (!dependency_bool_vector[i])|| (dependencies[i].second != kernel);
+    }
+    return free_kernel;
+}
+
+// Get the kernels with no dependency (no input from other kernels to those)
+static size_t get_free_kernels(const Dependencies& dependencies, const bool dependency_bool_vector[],
+        const size_t dependent_kernels_size, std::stack<size_t>& free_kernels) {
+    for (size_t kernel = 0; kernel < dependent_kernels_size; ++kernel) {
+        if (is_free_kernel(dependencies, dependency_bool_vector, kernel)) {
+            free_kernels.push(kernel);
+        }
+    }
+    return free_kernels.size();
+}
+
+bool dependency_resolver(Dependencies& dependencies, const size_t dependent_kernels_size, std::vector<size_t>& resolved) {
+    std::stack<size_t> free_kernels;
+    bool dependency_bool_vector[dependencies.size()];
+    size_t remaining_dependencies = dependencies.size();
+
+
+    // in the begining all dependencies are marked
+    for (size_t i = 0; i < dependencies.size(); ++i )
+        dependency_bool_vector[i] = true;
+    // Get the kernels with no incoming dependencies
+    auto num_of_free_kernels = get_free_kernels(dependencies, dependency_bool_vector, dependent_kernels_size, free_kernels);
+    // Main loop
+    while (num_of_free_kernels) {
+        // get a free kernel
+        auto free = free_kernels.top();
+        // Add it to the resolved array
+        resolved.emplace_back(free);
+        // Remove from free_kernels stack
+        free_kernels.pop();
+        // Remove all dependencies with other kernels
+        for (size_t i = 0; i < dependencies.size(); ++i) {
+            if (dependency_bool_vector[i] && dependencies[i].first == free) {
+                dependency_bool_vector[i] = false;
+                remaining_dependencies--;
+
+                // Check if other kernels are free now
+                if (is_free_kernel(dependencies, dependency_bool_vector, dependencies[i].second)) {
+                    // Add it to set of free kernels
+                    free_kernels.push(dependencies[i].second);
+                }
+            }
+        }
+        num_of_free_kernels = free_kernels.size();
+    }
+    // if there is no more free kernels but there exist dependencies, a cycle is found
+    return remaining_dependencies == 0;
+}
+
+// ------------------------------------
+
 void hls_channels(World& world, Top2Kernel& top2kernel) {
-    std::vector<Def2Mode> channels_map; // vector of channel->mode maps for each kernel
+    std::vector<Def2Mode> kernels_ch_modes; // vector of channel->mode maps for kernels which use channel(s)
     std::vector<Continuation*> new_kernels;
     Def2Def param2arg; // contains map from new kernel parameter to arguments of call inside hls_top (for all kernels)
 
     Scope::for_each(world, [&] (Scope& scope) {
-        auto old_kernel = scope.entry();
-        Def2Mode def2mode;
-        extract_kernel_channels(schedule(scope), def2mode);
+            auto old_kernel = scope.entry();
+            Def2Mode def2mode;
+            extract_kernel_channels(schedule(scope), def2mode);
 
-        Array<const Type*> new_param_types(def2mode.size() + old_kernel->num_params());
-        std::copy(old_kernel->type()->ops().begin(),
-                  old_kernel->type()->ops().end(),
-                  new_param_types.begin());
-        size_t i = old_kernel->num_params();
-        // This vector records pairs containing:
-        // - The position of the channel parameter for the new kernel
-        // - The old global definition for the channel
-        std::vector<std::pair<size_t, const Def*>> index2def;
-        for (auto map : def2mode) {
+            Array<const Type*> new_param_types(def2mode.size() + old_kernel->num_params());
+            std::copy(old_kernel->type()->ops().begin(),
+                    old_kernel->type()->ops().end(),
+                    new_param_types.begin());
+            size_t i = old_kernel->num_params();
+            // This vector records pairs containing:
+            // - The position of the channel parameter for the new kernel
+            // - The old global definition for the channel
+            std::vector<std::pair<size_t, const Def*>> index2def;
+            for (auto map : def2mode) {
             index2def.emplace_back(i, map.first);
             new_param_types[i++] = map.first->type();
-        }
-
-        // new kernels signature
-        // fn(mem, ret_cnt, ... , /channels/ )
-        auto new_kernel = world.continuation(world.fn_type(new_param_types), old_kernel->debug());
-        new_kernel->make_external();
-        new_kernels.emplace_back(new_kernel);
-        //kernel2index.emplace_back(new_kernel->name().str(), 0);
-        old_kernel->make_internal();
-
-        Rewriter rewriter;
-        // Map the parameters of the old kernel to the first N parameters of the new one
-        // The channels used inside the kernel are mapped to the parameters N + 1, N + 2, ...
-        for (auto pair : index2def) {
-            auto param = new_kernel->param(pair.first);
-            rewriter.old2new[pair.second] = param;
-            param2arg[param] = pair.second; // (channel params, globals)
-        }
-        for (auto def : scope.defs()) {
-            if (auto cont = def->isa_continuation()) {
-                // Copy the basic block by calling stub
-                // Or reuse the newly created kernel copy if def is the old kernel
-                auto new_cont = def == old_kernel ? new_kernel : cont->stub();
-                rewriter.old2new[cont] = new_cont;
-                for (size_t i = 0; i < cont->num_params(); ++i)
-                    rewriter.old2new[cont->param(i)] = new_cont->param(i);
             }
-        }
-        // Rewriting the basic blocks of the kernel using the map
-        for (auto def : scope.defs()) {
-            if (auto cont = def->isa_continuation()) { // all basic blocks of the scope
-                auto new_cont = rewriter.old2new[cont]->as_continuation();
-                auto new_callee = rewriter.instantiate(cont->callee());
-                Array<const Def*> new_args(cont->num_args());
-                for ( size_t i = 0; i < cont->num_args(); ++i)
-                    new_args[i] = rewriter.instantiate(cont->arg(i));
-                new_cont->jump(new_callee, new_args, cont->debug());
-            }
-        }
 
-        channels_map.emplace_back(def2mode);
+            // new kernels signature
+            // fn(mem, ret_cnt, ... , /channels/ )
+            auto new_kernel = world.continuation(world.fn_type(new_param_types), old_kernel->debug());
+            new_kernel->make_external();
+
+            if (is_single_kernel(new_kernel))
+                new_kernels.emplace(new_kernels.begin(),new_kernel);
+            else
+                new_kernels.emplace_back(new_kernel);
+
+            old_kernel->make_internal();
+
+            Rewriter rewriter;
+            // Map the parameters of the old kernel to the first N parameters of the new one
+            // The channels used inside the kernel are mapped to the parameters N + 1, N + 2, ...
+            for (auto pair : index2def) {
+                auto param = new_kernel->param(pair.first);
+                rewriter.old2new[pair.second] = param;
+                param2arg[param] = pair.second; // (channel params, globals)
+            }
+            for (auto def : scope.defs()) {
+                if (auto cont = def->isa_continuation()) {
+                    // Copy the basic block by calling stub
+                    // Or reuse the newly created kernel copy if def is the old kernel
+                    auto new_cont = def == old_kernel ? new_kernel : cont->stub();
+                    rewriter.old2new[cont] = new_cont;
+                    for (size_t i = 0; i < cont->num_params(); ++i)
+                        rewriter.old2new[cont->param(i)] = new_cont->param(i);
+                }
+            }
+            // Rewriting the basic blocks of the kernel using the map
+            for (auto def : scope.defs()) {
+                if (auto cont = def->isa_continuation()) { // all basic blocks of the scope
+                    auto new_cont = rewriter.old2new[cont]->as_continuation();
+                    auto new_callee = rewriter.instantiate(cont->callee());
+                    Array<const Def*> new_args(cont->num_args());
+                    for ( size_t i = 0; i < cont->num_args(); ++i)
+                        new_args[i] = rewriter.instantiate(cont->arg(i));
+                    new_cont->jump(new_callee, new_args, cont->debug());
+                }
+            }
+            if (!is_single_kernel(new_kernel))
+                kernels_ch_modes.emplace_back(def2mode);
     });
+
 
     // Building the type of hls_top
     std::vector<const Type*> top_param_types;
@@ -175,12 +252,77 @@ void hls_channels(World& world, Top2Kernel& top2kernel) {
         if (auto global = primop->isa<Global>())
             globals.emplace_back(global);
     }
+
+    Dependencies dependencies;
     // We need to iterate over globals twice because we cannot iterate over primops while creating new primops
     for (auto global : globals) {
         if (is_channel_type(global->type())) {
             channel_slots.emplace_back(world.slot(global->type()->as<PtrType>()->pointee(), frame));
             global2slot.emplace(global, channel_slots.back());
         }
+
+        // Finding all dependencies between the kernels
+        // for each global variables find the kernels which use it,
+        // check the mode on each kernel and fill a dpendency data structure: < Write, Read> => <From, To>
+        // It is not possible to read a channel before writing that, so dependencies are "From write To read"
+        size_t from, to = 0;
+        for(size_t index_from = 0; index_from < kernels_ch_modes.size() ; ++index_from) {
+            auto channel_it = kernels_ch_modes[index_from].find(global);
+            if (channel_it != kernels_ch_modes[index_from].end()) {
+                auto mode = channel_it->second;
+                if (mode == ChannelMode::Write) {
+                    from = index_from;
+                    for (size_t index_to = 0; index_to < kernels_ch_modes.size(); ++index_to) {
+                        auto channel_it = kernels_ch_modes[index_to].find(global);
+                        if (channel_it != kernels_ch_modes[index_to].end()) {
+                            auto mode = channel_it->second;
+                            if (mode == ChannelMode::Read) {
+                                to = index_to;
+                                dependencies.emplace_back(from, to);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // resolving dependencies
+    std::vector<size_t> resolved;
+    const size_t dependent_kernels_size = kernels_ch_modes.size();
+    auto single_kernels_size = new_kernels.size() - dependent_kernels_size;
+    std::vector<std::pair<size_t, size_t>> cycle;
+    // Passing vector of dependencies
+    if (dependency_resolver(dependencies, dependent_kernels_size, resolved)) {
+        for (auto& elem : resolved)
+            elem = elem + single_kernels_size;
+    } else {
+        ELOG("Kernels have circular dependency");
+        // finding all circles between kernels
+        for (size_t i = 0; i < dependencies.size(); ++i) {
+            for (size_t j = i; j < dependencies.size(); ++j) {
+                if (dependencies[i].first == dependencies[j].second &&
+                        // extra condition to take into account circles in disconnected kernel networks
+                        std::find(cycle.begin(), cycle.end(), dependencies[i]) == cycle.end()) {
+                    cycle.emplace_back(i,j);
+                }
+            }
+        }
+        for (auto elem : cycle) {
+            auto circle_from_index = dependencies[elem.first].first + single_kernels_size;
+            auto circle_to_index   = dependencies[elem.second].first + single_kernels_size;
+            ELOG("A channel between kernel#{} {} and kernel#{} {} made a circular data flow",
+                    circle_from_index, new_kernels[circle_from_index]->name().str(),
+                    circle_to_index, new_kernels[circle_to_index]->name().str());
+        }
+        assert(false && "circular dependency between kernels");
+    }
+
+    // reordering kernels, resolving dependencies
+    auto copy_new_kernels = new_kernels;
+    for (size_t i = 0; i < resolved.size(); ++i) {
+        auto succ_kernel = resolved[i];
+        new_kernels[i + single_kernels_size] = copy_new_kernels[succ_kernel];
     }
 
     auto cur_bb = hls_top;

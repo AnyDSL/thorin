@@ -353,7 +353,7 @@ void hls_channels(World& world, Top2Kernel& top2kernel) {
     hls_top->make_external();
 
     world.cleanup();
-    world.dump();
+    //world.dump();
 }
 
 }

@@ -735,7 +735,7 @@ void CCodeGen::emit() {
                             auto name = (callee->is_external() || callee->empty()) ? callee->name() : callee->unique_name();
                             if (param)
                                 emit(param) << " = ";
-                            func_impl_ << name << "("; //HLS: channel Place-holder
+                            func_impl_ << name << "(";
                             // emit all first-order args
                             size_t i = 0;
                             for (auto arg : continuation->args()) {

@@ -104,8 +104,8 @@ template<bool elide_empty>
 void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
     unique_queue<LamSet> lam_queue;
 
-    for (auto external : world.externals()) {
-        if (auto lam = external->isa<Lam>()) {
+    for (const auto& [name, nom] : world.externals()) {
+        if (auto lam = nom->template isa<Lam>()) {
             assert(lam->is_set() && "external must not be empty");
             lam_queue.push(lam);
         }

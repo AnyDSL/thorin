@@ -142,8 +142,8 @@ void PartialEvaluator::eat_pe_info(Lam* cur) {
 bool PartialEvaluator::run() {
     bool todo = false;
 
-    for (auto external : world().externals()) {
-        if (auto lam = external->isa<Lam>()) {
+    for (const auto& [name, nom] : world().externals()) {
+        if (auto lam = nom->isa<Lam>()) {
             enqueue(lam);
             top_level_[lam] = true;
         }

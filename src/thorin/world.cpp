@@ -153,7 +153,7 @@ const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
 const Def* World::tuple_str(const char* s, Debug dbg) {
     std::vector<const Def*> ops;
     for (; *s != '\0'; ++s)
-        ops.emplace_back(lit_qsint(*s));
+        ops.emplace_back(lit_nat(*s));
     return tuple(ops, dbg);
 }
 

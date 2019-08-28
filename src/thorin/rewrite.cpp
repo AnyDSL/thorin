@@ -51,8 +51,8 @@ void cleanup(World& old_world) {
     Rewriter rewriter(old_world, new_world);
     rewriter.old2new.rehash(old_world.defs().capacity());
 
-    for (auto old_lam : old_world.externals())
-        rewriter.rewrite(old_lam)->as_nominal<Lam>()->make_external();
+    for (const auto& [name, nom] : old_world.externals())
+        rewriter.rewrite(nom)->as_nominal()->make_external();
 
     swap(rewriter.old_world, rewriter.new_world);
 }

@@ -295,12 +295,14 @@ void Cleaner::clean_pe_infos() {
     VLOG("cleaning remaining pe_infos");
     std::queue<Lam*> queue;
     LamSet done;
+
     auto enqueue = [&](Lam* lam) {
         if (lam->is_set() && done.emplace(lam).second)
             queue.push(lam);
     };
-    for (auto external : world().externals()) {
-        if (auto lam = external->isa<Lam>())
+
+    for (const auto& [name, nom] : world().externals()) {
+        if (auto lam = nom->isa<Lam>())
             enqueue(lam);
     }
 

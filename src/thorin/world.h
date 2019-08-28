@@ -50,9 +50,15 @@ public:
         static size_t sentinel() { return size_t(-1); }
     };
 
+    struct ExternalsHash {
+        static uint32_t hash(const std::string& s) { return thorin::hash(s.c_str()); }
+        static bool eq(const std::string& s1, const std::string& s2) { return s1 == s2; }
+        static std::string sentinel() { return std::string(); }
+    };
+
     using Sea         = HashSet<const Def*, SeaHash>;///< This @p HashSet contains Thorin's "sea of nodes".
     using Breakpoints = HashSet<size_t, BreakHash>;
-    using Externals   = GIDSet<Def*>;
+    using Externals   = HashMap<std::string, Def*, ExternalsHash>;
 
     World(World&&) = delete;
     World& operator=(const World&) = delete;
@@ -327,11 +333,12 @@ public:
     //@}
     /// @name manage externals
     //@{
-    bool empty() { return externals().empty(); }
+    bool empty() { return externals_.empty(); }
     const Externals& externals() const { return externals_; }
-    void make_external(Def* def) { externals_.emplace(def); }
-    void make_internal(Def* def) { externals_.erase(def); }
-    bool is_external(const Def* def) { return externals().contains(const_cast<Def*>(def)); }
+    void make_external(Def* def) { externals_.emplace(def->name(), def); }
+    void make_internal(Def* def) { externals_.erase(def->name()); }
+    bool is_external(const Def* def) { return externals_.contains(def->name()); }
+    Def* lookup(const std::string& name) { return externals_.lookup(name).value_or(nullptr); }
     //@}
 
 #if THORIN_ENABLE_CHECKS

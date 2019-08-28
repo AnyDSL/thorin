@@ -9,11 +9,11 @@ void PassMan::run() {
     states_.emplace_back(passes_);
     std::vector<const Def*> new_ops;
 
-    auto externals = world().externals();
-    for (auto lam : externals) {
-        cur_nominal_ = lam;
-        rewrite(lam); // provokes inspect
-        analyze(lam); // puts into the queue
+    auto externals = world().externals(); // copy
+    for (const auto& [name, nom] : externals) {
+        cur_nominal_ = nom;
+        rewrite(nom); // provokes inspect
+        analyze(nom); // puts into the queue
         cur_nominal_ = nullptr; // ensure to provoke pass->enter
 
         while (!queue().empty()) {

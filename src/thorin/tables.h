@@ -156,47 +156,17 @@ enum class RMode : uint64_t {
                      m(RCmp, une) /* x x x o - unordered or not equal        */ \
                      m(RCmp,   t) /* x x x x - always true                   */
 
-enum class WOp : u64 {
-#define CODE(T, o) o,
-    THORIN_W_OP(CODE)
-#undef CODE
-};
+#define THORIN_OP_CMP(m) m(WOp) m(ZOp) m(IOp) m(ROp) m(ICmp) m(RCmp)
 
-enum class ZOp : u64 {
 #define CODE(T, o) o,
-    THORIN_Z_OP(CODE)
+enum class WOp  : u64 { THORIN_W_OP(CODE) };
+enum class ZOp  : u64 { THORIN_Z_OP(CODE) };
+enum class IOp  : u64 { THORIN_I_OP(CODE) };
+enum class ROp  : u64 { THORIN_R_OP(CODE) };
+enum class ICmp : u64 { THORIN_I_CMP(CODE) };
+enum class RCmp : u64 { THORIN_R_CMP(CODE) };
+enum class _Cast : u64 { THORIN_CAST(CODE) };
 #undef CODE
-};
-
-enum class IOp : u64 {
-#define CODE(T, o) o,
-    THORIN_I_OP(CODE)
-#undef CODE
-};
-
-enum class ROp : u64 {
-#define CODE(T, o) o,
-    THORIN_R_OP(CODE)
-#undef CODE
-};
-
-enum class ICmp : u64 {
-#define CODE(T, o) o,
-    THORIN_I_CMP(CODE)
-#undef CODE
-};
-
-enum class RCmp : u64 {
-#define CODE(T, o) o,
-    THORIN_R_CMP(CODE)
-#undef CODE
-};
-
-enum class _Cast : u64 {
-#define CODE(T, o) o,
-    THORIN_CAST(CODE)
-#undef CODE
-};
 
 constexpr WMode operator|(WMode a, WMode b) { return WMode(int64_t(a) | int64_t(b)); }
 constexpr WMode operator&(WMode a, WMode b) { return WMode(int64_t(a) & int64_t(b)); }
@@ -213,68 +183,21 @@ constexpr RCmp operator&(RCmp a, RCmp b) { return RCmp(int64_t(a) & int64_t(b));
 constexpr bool has_feature(WMode mode, WMode feature) { return (mode & feature) == feature; }
 constexpr bool has_feature(RMode mode, RMode feature) { return (mode & feature) == feature; }
 
-constexpr const char* op2str(WOp o) {
-    switch (o) {
 #define CODE(T, o) case T::o: return #o;
-    THORIN_W_OP(CODE)
+constexpr const char* op2str(WOp  o) { switch (o) { THORIN_W_OP(CODE)  default: THORIN_UNREACHABLE; } } 
+constexpr const char* op2str(ZOp  o) { switch (o) { THORIN_Z_OP(CODE)  default: THORIN_UNREACHABLE; } } 
+constexpr const char* op2str(IOp  o) { switch (o) { THORIN_I_OP(CODE)  default: THORIN_UNREACHABLE; } } 
+constexpr const char* op2str(ROp  o) { switch (o) { THORIN_R_OP(CODE)  default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(_Cast o) { switch (o) { THORIN_CAST(CODE) default: THORIN_UNREACHABLE; } }
 #undef CODE
-        default: THORIN_UNREACHABLE;
-    }
-}
 
-constexpr const char* op2str(ZOp o) {
-    switch (o) {
-#define CODE(T, o) case T::o: return #o;
-    THORIN_Z_OP(CODE)
+#define CODE(T, o) case T::o: return "icmp_"#o;
+constexpr const char* op2str(ICmp o) { switch (o) { THORIN_I_CMP(CODE) default: THORIN_UNREACHABLE; } }
 #undef CODE
-        default: THORIN_UNREACHABLE;
-    }
-}
 
-constexpr const char* op2str(IOp o) {
-    switch (o) {
-#define CODE(T, o) case T::o: return #o;
-    THORIN_I_OP(CODE)
+#define CODE(T, o) case T::o: return "rcmp_"#o;
+constexpr const char* op2str(RCmp o) { switch (o) { THORIN_R_CMP(CODE) default: THORIN_UNREACHABLE; } }
 #undef CODE
-        default: THORIN_UNREACHABLE;
-    }
-}
-
-constexpr const char* op2str(ROp o) {
-    switch (o) {
-#define CODE(T, o) case T::o: return #o;
-    THORIN_R_OP(CODE)
-#undef CODE
-        default: THORIN_UNREACHABLE;
-    }
-}
-
-constexpr const char* op2str(ICmp o) {
-    switch (o) {
-#define CODE(T, o) case T::o: return "icmp_" #o;
-    THORIN_I_CMP(CODE)
-#undef CODE
-        default: THORIN_UNREACHABLE;
-    }
-}
-
-constexpr const char* op2str(RCmp o) {
-    switch (o) {
-#define CODE(T, o) case T::o: return "rcmp_" #o;
-    THORIN_R_CMP(CODE)
-#undef CODE
-        default: THORIN_UNREACHABLE;
-    }
-}
-
-constexpr const char* cast2str(_Cast o) {
-    switch (o) {
-#define CODE(T, o) case T::o: return #o;
-    THORIN_CAST(CODE)
-#undef CODE
-        default: THORIN_UNREACHABLE;
-    }
-}
 
 }
 

@@ -16,6 +16,8 @@
 
 namespace thorin {
 
+const Def* infer_width(const Def*);
+
 /**
  * The World represents the whole program and manages creation of Thorin nodes (Def%s).
  * In particular, the following things are done by this class:
@@ -221,6 +223,14 @@ public:
     //@}
     /// @name Literal: Int, Uint, Real
     //@{
+    template<class I> const Lit* lit_int(I val, Debug dbg = {}) {
+        static_assert(std::is_integral<I>());
+        return lit(type_int(sizeof(I)*8), val, dbg);
+    }
+    template<class R> const Lit* lit_real_(R val, Debug dbg = {}) {
+        static_assert(std::is_floating_point<R>() || std::is_same<R, f16>());
+        return lit(type_real_(sizeof(R)*8), val, dbg);
+    }
     template<class S> const Lit* lit_sint(S val, bool quick, Debug dbg = {}) {
         static_assert(std::is_integral<S>() && std::is_signed<S>());
         return lit(type_sint(sizeof(S)*8, quick), val, dbg);
@@ -268,6 +278,18 @@ public:
     const Real* type_real(u64 num_bits, bool quick = false) { return type_real(lit_nat(num_bits), quick); }
     const Ptr* type_ptr(const Def* pointee, const Def* addr_space, Debug dbg = {}) { return unify<Ptr>(2, kind_star(), pointee, addr_space, debug(dbg)); }
     const Ptr* type_ptr(const Def* pointee, u64 addr_space = AddrSpace::Generic, Debug dbg = {}) { return type_ptr(pointee, lit_nat((u64) addr_space), dbg); }
+    const Axiom* type_int() const { return cache_.type_int; }
+    const Axiom* type_real_() const { return cache_.type_real_; }
+    const Def* type_int  (u64 num_bits) { return type_int  (lit_nat(num_bits)); }
+    const Def* type_real_(u64 num_bits) { return type_real_(lit_nat(num_bits)); }
+    const Def* type_int  (const Def* num_bits) { return app(type_int(),   num_bits); }
+    const Def* type_real_(const Def* num_bits) { return app(type_real_(), num_bits); }
+    //@}
+    /// @name arithmetic operations for IOp
+    //@{
+    template<IOp o> const Axiom* op() { return cache_.IOp_[size_t(o)]; }
+    template<IOp o> const Def* op(const Def* a, const Def* b, Debug dbg = {}) { return op<o>(infer_width(a), a, b, dbg); }
+    template<IOp o> const Def* op(const Def* width, const Def* a, const Def* b, Debug dbg = {}) { return app(app(op<o>(), width), {a, b}, dbg); }
     //@}
     /// @name ArithOps
     //@{
@@ -524,6 +546,15 @@ private:
         const Lit* lit_arity_1;
         const Lit* lit_index_0_1;
         Lam* end_scope;
+        Axiom* type_int;
+        Axiom* type_real_;
+        std::array<Axiom*, Num<WOp>> WOp_;
+        std::array<Axiom*, Num<ZOp>> ZOp_;
+        std::array<Axiom*, Num<IOp>> IOp_;
+        std::array<Axiom*, Num<ROp>> ROp_;
+        std::array<Axiom*, Num<ICmp>> ICmp_;
+        std::array<Axiom*, Num<RCmp>> RCmp_;
+        std::array<Axiom*, Num<_Cast>> _Cast_;
         Axiom* op_select;
     } cache_;
 

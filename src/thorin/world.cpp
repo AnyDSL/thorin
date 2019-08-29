@@ -13,6 +13,12 @@
 
 namespace thorin {
 
+const Def* infer_width(const Def* def) {
+    auto app = def->type()->as<App>();
+    assert(app->callee() == def->world().type_int());
+    return app->arg();
+}
+
 /*
  * constructor and destructor
  */
@@ -44,11 +50,72 @@ World::World(uint32_t cur_gid, const std::string& name)
     cache_.lit_bool[1]   = lit(type_bool(), {true});
     cache_.end_scope     = lam(cn(), Lam::CC::C, Lam::Intrinsic::EndScope, {"end_scope"});
 
+    { // int/real: Πw: Nat. *
+        auto p = pi(type_nat(), kind_star());
+        cache_.type_int  = axiom(p, 0, {"int"});
+        cache_.type_real_ = axiom(p, 0, {"real"});
+    }
+
+#define CODE(op) Pi* type_ ## op;
+THORIN_OP_CMP(CODE)
+#undef CODE
+    { // WOp: Π[m: nat, w: nat]. Π[int w, int w]. int w
+        type_WOp = pi(kind_star())->set_domain({type_nat(), type_nat()});
+        type_WOp->param(0, {"m"});
+        auto w = type_WOp->param(1, {"w"});
+        auto int_w = type_int(w);
+        auto inner = pi({int_w, int_w}, int_w);
+        type_WOp->set_codomain(inner);
+    }
+    { // ZOp: Πw: nat. Π[mem, int w, int w]. [mem, int w]
+        type_ZOp = pi(kind_star())->set_domain(type_nat());
+        auto w = type_ZOp->param({"w"});
+        auto int_w = type_int(w);
+        auto inner = pi({type_mem(), int_w, int_w}, sigma({type_mem(), int_w}));
+        type_ZOp->set_codomain(inner);
+    }
+    { // IOp: Πw: nat. Π[int w, int w]. int w
+        type_IOp = pi(kind_star())->set_domain(type_nat());
+        auto w = type_IOp->param({"w"});
+        auto int_w = type_int(w);
+        auto inner = pi({int_w, int_w}, int_w);
+        type_IOp->set_codomain(inner);
+    }
+    { // ROp: Π[m: nat, w: nat]. Π[real w, real w]. real w
+        type_ROp = pi(kind_star())->set_domain({type_nat(), type_nat()});
+        type_ROp->param(0, {"m"});
+        auto w = type_ROp->param(1, {"w"});
+        auto real_w = type_real_(w);
+        auto inner = pi({real_w, real_w}, real_w);
+        type_ROp->set_codomain(inner);
+    }
+    { // ICmp: Πw: nat. Π[int w, int w]. bool
+        type_ICmp = pi(kind_star())->set_domain(type_nat());
+        auto w = type_ICmp->param({"w"});
+        auto int_w = type_int(w);
+        auto inner = pi({int_w, int_w}, type_int(1));
+        type_ICmp->set_codomain(inner);
+    }
+    { // RCmp: Π[m: nat, w: nat]. Π[real w, real w]. bool
+        type_RCmp = pi(kind_star())->set_domain({type_nat(), type_nat()});
+        type_RCmp->param(0, {"m"});
+        auto w = type_RCmp->param(1, {"w"});
+        auto real_w = type_real_(w);
+        auto inner = pi({real_w, real_w}, type_int(1));
+        type_RCmp->set_codomain(inner);
+    }
+
+#define CODE(op)                                                                           \
+    for (size_t i = 0, e = Num<op>; i != e; ++i)                                           \
+        cache_.op ## _[i] = axiom(normalizers_ ## op[i], type_ ## op, i, {op2str(op(i))});
+THORIN_OP_CMP(CODE)
+#undef CODE
+
     { // select: ΠT:*. Π[bool, T, T]. T
         auto outer_pi = pi(kind_star())->set_domain(kind_star());
         auto T = outer_pi->param({"T"});
-        auto inner_pi = pi({type_bool(), T, T}, T);
-        outer_pi->set_codomain(inner_pi);
+        auto inner = pi({type_bool(), T, T}, T);
+        outer_pi->set_codomain(inner);
         cache_.op_select = axiom(normalize_select, outer_pi, 0, {"select"});
     }
 }
@@ -60,6 +127,7 @@ World::~World() {
 Axiom* World::axiom(Def::NormalizeFn normalize, const Def* type, uint64_t flags, Debug dbg) {
     auto a = insert<Axiom>(0, normalize, type, flags, debug(dbg));
     a->make_external();
+    assert(lookup(a->name()) == a);
     return a;
 }
 

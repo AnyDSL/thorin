@@ -504,7 +504,7 @@ static std::ostream& stream_type_ops(std::ostream& os, const Def* type) {
 }
 
 std::ostream& App        ::stream(std::ostream& os) const { return streamf(os, "{} {}", callee(), arg()); }
-std::ostream& Axiom      ::stream(std::ostream& os) const { return streamf(os, "axiom {}: {}", name(), type()); }
+std::ostream& Axiom      ::stream(std::ostream& os) const { return streamf(os, "{}", name()); }
 std::ostream& Mem        ::stream(std::ostream& os) const { return streamf(os, "mem"); }
 std::ostream& Bool       ::stream(std::ostream& os) const { return streamf(os, "bool"); }
 std::ostream& Nat        ::stream(std::ostream& os) const { return streamf(os, "nat"); }

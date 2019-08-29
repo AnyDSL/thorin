@@ -313,6 +313,7 @@ public:
     /// @name select
     //@{
     const Def* select(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
+    const Def* op_select(const Def* cond, const Def* t, const Def* f, Debug dbg = {}) { return app(app(cache_.op_select, t->type()), {cond, t, f}, dbg); }
     //@}
     /// @name partial evaluation related operations
     //@{

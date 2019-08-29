@@ -49,11 +49,8 @@ World::World(uint32_t cur_gid, const std::string& name)
         auto T = outer_pi->param({"T"});
         auto inner_pi = pi({type_bool(), T, T}, T);
         outer_pi->set_codomain(inner_pi);
-        outer_pi->dump();
-        assert(!inner_pi->isa_nominal());
         cache_.op_select = axiom(outer_pi, normalize_select, 0, {"select"});
     }
-
 }
 
 World::~World() {

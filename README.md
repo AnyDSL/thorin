@@ -1,5 +1,5 @@
 #### Modified for HLS backend
-Some test cases are available at [impala_hls_snippets] (https://github.com/pooyaww/impala_hls_snippets)
+Some test cases are available at [impala_hls_snippets](https://github.com/pooyaww/impala_hls_snippets)
 
 # Thorin
 The Higher-Order Intermediate Representation

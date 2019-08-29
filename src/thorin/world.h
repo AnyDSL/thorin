@@ -97,6 +97,11 @@ public:
     //@{
     const Param* param(Def* nominal, Debug dbg = {});
     //@}
+    /// @name Axiom
+    //@{
+    Axiom* axiom(const Def* type, Def::NormalizeFn normalize, uint64_t flags, Debug dbg);
+    Axiom* axiom(const Def* type, uint64_t flags, Debug dbg) { return axiom(type, nullptr, flags, dbg); }
+    //@}
     /// @name Pi
     //@{
     const Pi* pi(const Def* domain, const Def* codomain, Debug dbg = {});

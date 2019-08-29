@@ -48,6 +48,12 @@ World::~World() {
     for (auto def : defs_) def->~Def();
 }
 
+Axiom* World::axiom(const Def* type, Def::NormalizeFn normalize, uint64_t flags, Debug dbg) {
+    auto a = insert<Axiom>(0, type, normalize, flags, debug(dbg));
+    a->make_external();
+    return a;
+}
+
 const Param* World::param(Def* nominal, Debug dbg) {
     const Def* type = nullptr;
     if (auto lam = nominal->isa<Lam>())

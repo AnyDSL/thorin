@@ -26,22 +26,33 @@ World::World(uint32_t cur_gid, const std::string& name)
     , name_(name.empty() ? "module" : name)
     , cur_gid_(cur_gid)
 {
-    cache_.universe_      = insert<Universe>(0, *this);
-    cache_.kind_arity_    = insert<KindArity>(0, *this);
-    cache_.kind_multi_    = insert<KindMulti>(0, *this);
-    cache_.kind_star_     = insert<KindStar >(0, *this);
-    cache_.bot_star_      = insert<Bot>(0, kind_star(), nullptr);
-    cache_.top_arity_     = insert<Top>(0, kind_arity(), nullptr);
-    cache_.sigma_         = insert<Sigma>(0, kind_star(), Defs{}, nullptr)->as<Sigma>();
-    cache_.tuple_         = insert<Tuple>(0, sigma(), Defs{}, nullptr)->as<Tuple>();
-    cache_.type_mem_      = insert<Mem>(0, *this);
-    cache_.type_bool_     = insert<Bool>(0, *this);
-    cache_.type_nat_      = insert<Nat>(0, *this);
-    cache_.lit_arity_1_   = lit_arity(1);
-    cache_.lit_index_0_1_ = lit_index(lit_arity_1(), 0);
-    cache_.lit_bool_[0]   = lit(type_bool(), {false});
-    cache_.lit_bool_[1]   = lit(type_bool(), {true});
-    cache_.end_scope_     = lam(cn(), Lam::CC::C, Lam::Intrinsic::EndScope, {"end_scope"});
+    cache_.universe      = insert<Universe>(0, *this);
+    cache_.kind_arity    = insert<KindArity>(0, *this);
+    cache_.kind_multi    = insert<KindMulti>(0, *this);
+    cache_.kind_star     = insert<KindStar >(0, *this);
+    cache_.bot_star      = insert<Bot>(0, kind_star(), nullptr);
+    cache_.top_arity     = insert<Top>(0, kind_arity(), nullptr);
+    cache_.sigma         = insert<Sigma>(0, kind_star(), Defs{}, nullptr)->as<Sigma>();
+    cache_.tuple         = insert<Tuple>(0, sigma(), Defs{}, nullptr)->as<Tuple>();
+    cache_.type_mem      = insert<Mem>(0, *this);
+    cache_.type_bool     = insert<Bool>(0, *this);
+    cache_.type_nat      = insert<Nat>(0, *this);
+    cache_.lit_arity_1   = lit_arity(1);
+    cache_.lit_index_0_1 = lit_index(lit_arity_1(), 0);
+    cache_.lit_bool[0]   = lit(type_bool(), {false});
+    cache_.lit_bool[1]   = lit(type_bool(), {true});
+    cache_.end_scope     = lam(cn(), Lam::CC::C, Lam::Intrinsic::EndScope, {"end_scope"});
+
+    { // select: ΠT:*. Π[bool, T, T]. T
+        auto outer_pi = pi(kind_star())->set_domain(kind_star());
+        auto T = outer_pi->param({"T"});
+        auto inner_pi = pi({type_bool(), T, T}, T);
+        outer_pi->set_codomain(inner_pi);
+        outer_pi->dump();
+        assert(!inner_pi->isa_nominal());
+        cache_.op_select = axiom(outer_pi, 0, {"select"});
+    }
+
 }
 
 World::~World() {
@@ -52,17 +63,6 @@ Axiom* World::axiom(const Def* type, Def::NormalizeFn normalize, uint64_t flags,
     auto a = insert<Axiom>(0, type, normalize, flags, debug(dbg));
     a->make_external();
     return a;
-}
-
-const Param* World::param(Def* nominal, Debug dbg) {
-    const Def* type = nullptr;
-    if (auto lam = nominal->isa<Lam>())
-        type = lam->domain();
-    else if (auto pi = nominal->isa<Pi>())
-        type = pi->domain();
-    assert(type);
-
-    return unify<Param>(1, type, nominal, debug(dbg));
 }
 
 const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {

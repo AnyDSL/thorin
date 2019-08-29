@@ -159,7 +159,7 @@ Array<const Def*> App::args() const { return Array<const Def*>(num_args(), [&](a
  * Lam
  */
 
-const Param* Lam::param(Debug dbg) const { return world().param(this->as_nominal<Lam>(), dbg); }
+const Param* Lam::param(Debug dbg) const { return world().param(domain(), as_nominal<Lam>(), dbg); }
 const Def* Lam::param(size_t i, Debug dbg) const { return world().extract(param(), i, dbg); }
 Array<const Def*> Lam::params() const { return Array<const Def*>(num_params(), [&](auto i) { return param(i); }); }
 
@@ -302,7 +302,7 @@ void Lam::match(const Def* val, Lam* otherwise, Defs patterns, ArrayRef<Lam*> la
 
 Pi* Pi::set_domain(Defs domains) { return Def::set(0, world().sigma(domains))->as<Pi>(); }
 
-const Param* Pi::param(Debug dbg) const { return world().param(this->as_nominal<Pi>(), dbg); }
+const Param* Pi::param(Debug dbg) const { return world().param(domain(), as_nominal<Pi>(), dbg); }
 const Def* Pi::param(size_t i, Debug dbg) const { return world().extract(param(), i, dbg); }
 Array<const Def*> Pi::params() const { return Array<const Def*>(num_params(), [&](auto i) { return param(i); }); }
 
@@ -467,7 +467,7 @@ const Def* Uint       ::rebuild(const Def* d, World& w, const Def*  , Defs o, co
 const Def* Real       ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def*    ) { return w.type_real(o[0], d->as<Real>()->is_quick()); }
 const Def* Mem        ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.type_mem(); }
 const Def* Pack       ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.pack(t->arity(), o[0], dbg); }
-const Def* Param      ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.param(o[0]->as_nominal<Lam>(), dbg); }
+const Def* Param      ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.param(t, o[0]->as_nominal(), dbg); }
 const Def* Pi         ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.pi(o[0], o[1], dbg); }
 const Def* Ptr        ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.type_ptr(o[0], o[1], dbg); }
 const Def* Tuple      ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.tuple(t, o, dbg); }
@@ -493,6 +493,7 @@ static std::ostream& stream_type_ops(std::ostream& os, const Def* type) {
 }
 
 std::ostream& App        ::stream(std::ostream& os) const { return streamf(os, "{} {}", callee(), arg()); }
+std::ostream& Axiom      ::stream(std::ostream& os) const { return streamf(os, "axiom {}: {}", name(), type()); }
 std::ostream& Mem        ::stream(std::ostream& os) const { return streamf(os, "mem"); }
 std::ostream& Bool       ::stream(std::ostream& os) const { return streamf(os, "bool"); }
 std::ostream& Nat        ::stream(std::ostream& os) const { return streamf(os, "nat"); }
@@ -617,9 +618,17 @@ std::ostream& Pack::stream(std::ostream& os) const {
 }
 
 std::ostream& Pi::stream(std::ostream& os) const {
-    return is_cn()
-        ? streamf(os, "cn {}", domain())
-        : streamf(os, "Π{} -> {}", domain(), codomain());
+    if (is_cn()) {
+        if (isa_nominal())
+            return streamf(os, "cn {}:{}", param(), domain());
+        else
+            return streamf(os, "cn {}", domain());
+    } else {
+        if (isa_nominal())
+            return streamf(os, "Π{}:{} -> {}", param(), domain(), codomain());
+        else
+            return streamf(os, "Π{} -> {}", domain(), codomain());
+    }
 }
 
 std::ostream& Ptr::stream(std::ostream& os) const {

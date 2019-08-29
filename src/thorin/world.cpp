@@ -3,6 +3,7 @@
 #include <fstream>
 
 #include "thorin/def.h"
+#include "thorin/normalize.h"
 #include "thorin/primop.h"
 #include "thorin/rewrite.h"
 #include "thorin/util.h"
@@ -50,7 +51,7 @@ World::World(uint32_t cur_gid, const std::string& name)
         outer_pi->set_codomain(inner_pi);
         outer_pi->dump();
         assert(!inner_pi->isa_nominal());
-        cache_.op_select = axiom(outer_pi, 0, {"select"});
+        cache_.op_select = axiom(outer_pi, normalize_select, 0, {"select"});
     }
 
 }

@@ -43,6 +43,7 @@ using GIDSet = thorin::HashSet<Key, GIDHash<Key>>;
 
 //------------------------------------------------------------------------------
 
+class Axiom;
 class Lam;
 class Param;
 class Def;
@@ -254,7 +255,6 @@ public:
         assert(isa_nominal());
         return stub_(this, world, type, dbg);
     }
-    NormalizeFn normalize() const { return normalize_; }
     bool equal(const Def* other) const;
     //@}
     /// @name stream
@@ -281,7 +281,12 @@ protected:
         RebuildFn rebuild_;
         StubFn    stub_;
     };
-    NormalizeFn normalize_ = nullptr;
+    union {
+        /// @p Axiom%s use this member to store their normalize function and the currying depth.
+        TaggedPtr<std::remove_pointer_t<NormalizeFn>, unsigned> normalizer_depth_;
+        /// Curried @p App%s of @p Axiom%s use this member to propagate the @p Axiom in question and the current currying depth.
+        TaggedPtr<const Axiom, unsigned> axiom_depth_;
+    };
     const Def* debug_;
     uint64_t flags_;
     uint16_t tag_;
@@ -351,13 +356,11 @@ public:
 
 class Axiom : public Def {
 private:
-    Axiom(const Def* type, NormalizeFn normalize, uint64_t flags, const Def* dbg)
-        : Def(Tag, stub, type, 0, flags, dbg)
-    {
-        normalize_ = normalize;
-    }
+    Axiom(NormalizeFn normalizer, const Def* type, uint64_t flags, const Def* dbg);
 
 public:
+    NormalizeFn normalizer() const { return normalizer_depth_.ptr(); }
+    unsigned currying_depth() const { return normalizer_depth_.index(); }
     static Def* stub(const Def*, World&, const Def*, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
@@ -429,31 +432,34 @@ protected:
     {}
 
 public:
+    /// @name getters
+    //@{
     const Def* domain() const { return op(0); }
+    const Def* domain(size_t i) const;
+    Array<const Def*> domains() const;
+    size_t num_domains() const;
     const Def* codomain() const { return op(1); }
     bool is_cn() const;
+    bool is_basicblock() const { return order() == 1; }
+    bool is_returning() const;
+    //@}
 
-    /// @name Setters for @em nominal @p Pi%s.
+    /// @name setters for @em nominal @p Pi%s
     //@{
     Pi* set_domain(const Def* domain) { return Def::set(0, domain)->as<Pi>(); }
     Pi* set_domain(Defs domains);
     Pi* set_codomain(const Def* codomain) { return Def::set(1, codomain)->as<Pi>(); }
     //@}
 
-    /// @name Retrieve @p Param for @em nominal @p Pi%s.
+    /// @name retrieve @p Param for @em nominal @p Pi%s.
     //@{
     const Param* param(Debug dbg = {}) const;
     const Def* param(size_t i, Debug dbg = {}) const;
     Array<const Def*> params() const;
     size_t num_params() const { return domain()->lit_arity(); }
+    /// Reduces the @p codomain by rewriting this @p Pi's @p Param with @p arg in order to retrieve the codomain of a dependent function @p App.
+    const Def* apply(const Def* arg) const;
     //@}
-    //
-    const Def* domain(size_t i) const;
-    Array<const Def*> domains() const;
-    size_t num_domains() const;
-
-    bool is_basicblock() const { return order() == 1; }
-    bool is_returning() const;
 
     std::ostream& stream(std::ostream&) const override;
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
@@ -465,7 +471,11 @@ public:
 
 class App : public Def {
 private:
-    App(const Def* type, const Def* callee, const Def* arg, const Def* dbg);
+    App(const Axiom* axiom, unsigned currying_depth, const Def* type, const Def* callee, const Def* arg, const Def* dbg)
+        : Def(Tag, rebuild, type, {callee, arg}, 0, dbg)
+    {
+        axiom_depth_.set(axiom, currying_depth);
+    }
 
 public:
     const Def* callee() const { return op(0); }
@@ -474,6 +484,8 @@ public:
     const Def* arg(size_t i) const;
     Array<const Def*> args() const;
     size_t num_args() const { return callee_type()->domain()->lit_arity(); }
+    const Axiom* axiom() const { return axiom_depth_.ptr(); }
+    unsigned currying_depth() const { return axiom_depth_.index(); }
 
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     std::ostream& stream(std::ostream&) const override;

@@ -49,7 +49,7 @@ World::World(uint32_t cur_gid, const std::string& name)
         auto T = outer_pi->param({"T"});
         auto inner_pi = pi({type_bool(), T, T}, T);
         outer_pi->set_codomain(inner_pi);
-        cache_.op_select = axiom(outer_pi, normalize_select, 0, {"select"});
+        cache_.op_select = axiom(normalize_select, outer_pi, 0, {"select"});
     }
 }
 
@@ -57,15 +57,17 @@ World::~World() {
     for (auto def : defs_) def->~Def();
 }
 
-Axiom* World::axiom(const Def* type, Def::NormalizeFn normalize, uint64_t flags, Debug dbg) {
-    auto a = insert<Axiom>(0, type, normalize, flags, debug(dbg));
+Axiom* World::axiom(Def::NormalizeFn normalize, const Def* type, uint64_t flags, Debug dbg) {
+    auto a = insert<Axiom>(0, normalize, type, flags, debug(dbg));
     a->make_external();
     return a;
 }
 
 const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
     auto pi = callee->type()->as<Pi>();
-    assertf(pi->domain() == arg->type(), "callee '{}' expects an argument of type '{}' but the argument '{}' is of type '{}'\n", callee, pi->domain(), arg, arg->type());
+    auto type = pi->apply(arg);
+
+    assertf(pi->domain() == arg->type(), "callee '{}' expects an argument of type '{}' but the argument '{}' is of type '{}'\n", callee, type, arg, arg->type());
 
     if (auto lam = callee->isa<Lam>()) {
         if (lam->intrinsic() == Lam::Intrinsic::Match) {
@@ -81,7 +83,24 @@ const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
         }
     }
 
-    return unify<App>(2, pi->codomain(), callee, arg, debug(dbg));
+    const Axiom* axiom = nullptr;
+    unsigned currying_depth = 0;
+    if (auto a = callee->isa<Axiom>()) {
+        axiom = a;
+        currying_depth = a->currying_depth();
+    } else if (auto app = callee->isa<App>()) {
+        axiom = app->axiom();
+        currying_depth = app->currying_depth();
+    }
+
+    if (axiom && currying_depth == 1) {
+        if (auto normalize = axiom->normalizer()) {
+            if (auto normalized = normalize(callee, arg, debug(dbg)))
+                return normalized;
+        }
+    }
+
+    return unify<App>(2, axiom, currying_depth-1, type, callee, arg, debug(dbg));
 }
 
 const Lam* World::lam(const Def* domain, const Def* filter, const Def* body, Debug dbg) {

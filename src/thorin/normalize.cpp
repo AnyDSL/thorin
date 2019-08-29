@@ -21,9 +21,7 @@ const Def* normalize_select(const Def* callee, const Def* arg, const Def* dbg) {
 #endif
 
     if (a == b) return a;
-
-    return world.app(callee, {cond, a, b}, dbg);
+    return nullptr;
 }
-
 
 }

@@ -99,8 +99,8 @@ public:
     //@}
     /// @name Axiom
     //@{
-    Axiom* axiom(const Def* type, Def::NormalizeFn normalize, uint64_t flags, Debug dbg);
-    Axiom* axiom(const Def* type, uint64_t flags, Debug dbg) { return axiom(type, nullptr, flags, dbg); }
+    Axiom* axiom(Def::NormalizeFn normalize, const Def* type, uint64_t flags, Debug dbg);
+    Axiom* axiom(const Def* type, uint64_t flags, Debug dbg) { return axiom(nullptr, type, flags, dbg); }
     //@}
     /// @name Pi
     //@{
@@ -129,8 +129,8 @@ public:
     //@}
     /// @name App
     //@{
-    const Def* app(const Def* callee, const Def* op, Debug dbg = {});
-    const Def* app(const Def* callee, Defs ops, Debug dbg = {}) { return app(callee, tuple(ops), dbg); }
+    const Def* app(const Def* callee, const Def* arg, Debug dbg = {});
+    const Def* app(const Def* callee, Defs args, Debug dbg = {}) { return app(callee, tuple(args), dbg); }
     //@}
     /// @name Sigma: structural
     //@{

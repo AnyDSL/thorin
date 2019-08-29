@@ -6,6 +6,7 @@
 #include <stack>
 
 #include "thorin/primop.h"
+#include "thorin/rewrite.h"
 #include "thorin/util.h"
 #include "thorin/world.h"
 #include "thorin/util/log.h"
@@ -31,10 +32,10 @@ const Def* Def::debug_history() const {
 
 std::string Def::name() const     { return debug() ? tuple2str(debug()->out(0)) : std::string{}; }
 std::string Def::filename() const { return debug() ? tuple2str(debug()->out(1)) : std::string{}; }
-u64 Def::front_line() const  { return debug() ? as_lit<u64>(debug()->out(2)) : std::numeric_limits<u64>::max(); }
-u64 Def::front_col() const   { return debug() ? as_lit<u64>(debug()->out(3)) : std::numeric_limits<u64>::max(); }
-u64 Def::back_line() const   { return debug() ? as_lit<u64>(debug()->out(4)) : std::numeric_limits<u64>::max(); }
-u64 Def::back_col() const    { return debug() ? as_lit<u64>(debug()->out(5)) : std::numeric_limits<u64>::max(); }
+u64 Def::front_line() const { return debug() ? as_lit<u64>(debug()->out(2)) : std::numeric_limits<u64>::max(); }
+u64 Def::front_col()  const { return debug() ? as_lit<u64>(debug()->out(3)) : std::numeric_limits<u64>::max(); }
+u64 Def::back_line()  const { return debug() ? as_lit<u64>(debug()->out(4)) : std::numeric_limits<u64>::max(); }
+u64 Def::back_col()   const { return debug() ? as_lit<u64>(debug()->out(5)) : std::numeric_limits<u64>::max(); }
 
 std::string Def::loc() const {
     std::ostringstream os;
@@ -344,6 +345,8 @@ bool Pi::is_returning() const {
     return ret;
 }
 
+const Def* Pi::apply(const Def* arg) const { return isa_nominal() ? rewrite(codomain(), param(), arg) : codomain(); }
+
 //------------------------------------------------------------------------------
 
 /*
@@ -382,9 +385,17 @@ Def::Def(uint16_t tag, StubFn stub, const Def* type, size_t num_ops, uint64_t fl
     std::fill_n(ops_ptr(), num_ops, nullptr);
 }
 
-App::App(const Def* type, const Def* callee, const Def* arg, const Def* dbg)
-    : Def(Tag, rebuild, type, {callee, arg}, 0, dbg)
-{}
+Axiom::Axiom(NormalizeFn normalizer, const Def* type, uint64_t flags, const Def* dbg)
+    : Def(Tag, stub, type, 0, flags, dbg)
+{
+    unsigned currying_depth = 0;
+    while (auto pi = type->isa<Pi>()) {
+        ++currying_depth;
+        type = pi->codomain();
+    }
+
+    normalizer_depth_.set(normalizer, currying_depth);
+}
 
 KindArity::KindArity(World& world)
     : Def(Tag, rebuild, world.universe(), Defs{}, 0, nullptr)

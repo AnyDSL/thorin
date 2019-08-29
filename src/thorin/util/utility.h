@@ -144,6 +144,12 @@ public:
     I index() const { return index_; }
     bool operator==(TaggedPtr other) const { return this->ptr() == other.ptr() && this->index() == other.index(); }
 
+#if defined(__x86_64__) || (_M_X64)
+    void set(T* ptr, I index) { ptr_ = reinterpret_cast<int64_t>(ptr); index_ = index; }
+#else
+    void set(T* ptr, I index) { ptr_ = ptr; index_ = index; }
+#endif
+
 private:
 #if defined(__x86_64__) || (_M_X64)
     int64_t ptr_   : 48; // sign extend to make pointer canonical

@@ -28,7 +28,7 @@ enum {
 template<bool forward>
 class LoopTreeBuilder {
 public:
-    typedef typename LoopTree<forward>::Node Node;
+    typedef typename LoopTree<forward>::Base Base;
     typedef typename LoopTree<forward>::Leaf Leaf;
     typedef typename LoopTree<forward>::Head Head;
 
@@ -196,8 +196,8 @@ int LoopTreeBuilder<forward>::walk_scc(const CFNode* cur, Head* parent, int dept
 //------------------------------------------------------------------------------
 
 template<bool forward>
-LoopTree<forward>::Node::Node(Tag tag, Head* parent, int depth, const std::vector<const CFNode*>& cf_nodes)
-    : tag_(tag)
+LoopTree<forward>::Base::Base(Node node, Head* parent, int depth, const std::vector<const CFNode*>& cf_nodes)
+    : node_(node)
     , parent_(parent)
     , cf_nodes_(cf_nodes)
     , depth_(depth)
@@ -221,14 +221,14 @@ std::ostream& LoopTree<forward>::Head::stream(std::ostream& out) const {
 
 template<bool forward>
 void LoopTree<forward>::stream_ycomp(std::ostream& out) const {
-    std::vector<const Node *> nodes;
+    std::vector<const Base*> nodes;
     get_nodes(nodes, root());
 
     thorin::ycomp(out, YCompOrientation::LeftToRight, cfg().scope(), range(nodes),
-        [] (const Node* n) {
+        [] (const Base* n) {
             if (auto head = n->template isa<Head>())
                 return range(head->children());
-            return range(ArrayRef<std::unique_ptr<Node>>());
+            return range(ArrayRef<std::unique_ptr<Base>>());
         }
     );
 }

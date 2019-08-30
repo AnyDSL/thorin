@@ -26,6 +26,12 @@ bool is_const(const Def* def) {
     return true;
 }
 
+std::tuple<const Axiom*, u16> get_axiom(const Def* def) {
+    if (auto axiom = def->isa<Axiom>()) return {axiom, axiom->currying_depth()};
+    if (auto app = def->isa<App>()) return {app->axiom(), app->currying_depth()};
+    return {0, u16(-1)};
+}
+
 void app_to_dropped_app(Lam* src, Lam* dst, const App* app) {
     std::vector<const Def*> nargs;
     auto src_app = src->body()->as<App>();

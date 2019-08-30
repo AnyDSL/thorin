@@ -31,6 +31,20 @@ inline bool is_passed_to_intrinsic(Lam* lam, Lam::Intrinsic intrinsic, bool incl
     return visit_capturing_intrinsics(lam, [&] (Lam* lam) { return lam->intrinsic() == intrinsic; }, include_globals);
 }
 
+std::tuple<const Axiom*, u16> get_axiom(const Def*);
+
+template<u32 tag>
+bool match(const Def* def) {
+    auto [axiom, currying_depth] = get_axiom(def);
+    return axiom->tag() == tag && currying_depth == 0;
+}
+
+template<u32 tag, u32 flags>
+bool match(const Def* def) {
+    auto [axiom, currying_depth] = get_axiom(def);
+    return axiom->tag() == tag && axiom->flags() == flags && currying_depth == 0;
+}
+
 void app_to_dropped_app(Lam* src, Lam* dst, const App* app);
 
 class Peek {

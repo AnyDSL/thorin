@@ -23,7 +23,19 @@ namespace thorin {
 using half_float::half;
 
 #define THORIN_8_16_32_64(m) m(8) m(16) m(32) m(64)
-#define THORIN_16_32_64(m) m(16) m(32) m(64)
+#define THORIN_16_32_64(m)        m(16) m(32) m(64)
+
+template<class T>
+bool get_sign(T val) {
+    static_assert(std::is_integral<T>(), "get_sign only supported for signed and unsigned integer types");
+
+    if constexpr(std::is_integral<T>()) {
+        if constexpr(std::is_signed<T>())
+            return val < 0;
+        else
+            return val >> (T(sizeof(val)) * T(8) - T(1));
+    }
+}
 
 template<int> struct w2u_ {};
 template<int> struct w2s_ {};
@@ -38,6 +50,10 @@ template<int> struct w2r_ {};
     constexpr u ## i operator"" _u ## i(unsigned long long int u) { return u ## i(u); }
 THORIN_8_16_32_64(CODE)
 #undef CODE
+
+// Map both signed 1 and unsigned 1 to bool
+template<> struct w2u_<1> { typedef bool type; };
+template<> struct w2s_<1> { typedef bool type; };
 
 typedef half   r16;
 typedef float  r32;

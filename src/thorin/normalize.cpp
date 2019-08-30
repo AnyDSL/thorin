@@ -52,7 +52,7 @@ static const Def* try_wfold(const Def* callee, const Def* a, const Def* b, const
         auto w = as_lit<u64>(world.extract(fw, 1_u64));
         Res res;
         switch (f) {
-            case int64_t(WMode::none):
+            case u64(WMode::none):
                 switch (w) {
                     case  8: res = F< 8, false, false>::run(la->get(), lb->get()); break;
                     case 16: res = F<16, false, false>::run(la->get(), lb->get()); break;
@@ -61,7 +61,7 @@ static const Def* try_wfold(const Def* callee, const Def* a, const Def* b, const
                     default: THORIN_UNREACHABLE;
                 }
                 break;
-            case int64_t(WMode::nsw):
+            case u64(WMode::nsw):
                 switch (w) {
                     case  8: res = F< 8,  true, false>::run(la->get(), lb->get()); break;
                     case 16: res = F<16,  true, false>::run(la->get(), lb->get()); break;
@@ -70,7 +70,7 @@ static const Def* try_wfold(const Def* callee, const Def* a, const Def* b, const
                     default: THORIN_UNREACHABLE;
                 }
                 break;
-            case int64_t(WMode::nuw):
+            case u64(WMode::nuw):
                 switch (w) {
                     case  8: res = F< 8, false,  true>::run(la->get(), lb->get()); break;
                     case 16: res = F<16, false,  true>::run(la->get(), lb->get()); break;
@@ -79,7 +79,7 @@ static const Def* try_wfold(const Def* callee, const Def* a, const Def* b, const
                     default: THORIN_UNREACHABLE;
                 }
                 break;
-            case int64_t(WMode::nsw | WMode::nuw):
+            case u64(WMode::nsw | WMode::nuw):
                 switch (w) {
                     case  8: res = F< 8,  true,  true>::run(la->get(), lb->get()); break;
                     case 16: res = F<16,  true,  true>::run(la->get(), lb->get()); break;
@@ -117,6 +117,7 @@ static const Def* try_ifold(const Def* callee, const Def* a, const Def* b, const
         auto w = as_lit<u64>(t->as<App>()->arg());
         Res res;
         switch (w) {
+            case  1: res = F< 1>::run(la->get(), lb->get()); break;
             case  8: res = F< 8>::run(la->get(), lb->get()); break;
             case 16: res = F<16>::run(la->get(), lb->get()); break;
             case 32: res = F<32>::run(la->get(), lb->get()); break;

@@ -14,12 +14,12 @@ namespace thorin {
  */
 
 Known::Known(const Def* def, const Def* dbg)
-    : Def(Tag, rebuild, def->world().type_bool(), {def}, 0, dbg)
+    : Def(Node, rebuild, def->world().type_bool(), {def}, 0, dbg)
 {}
 
 /*
 Assembly::Assembly(const Def* type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Flags flags, const Def* dbg)
-    : MemOp(Tag::Assembly, rebuild, type, inputs, uint64_t(flags), dbg)
+    : MemOp(Node::Assembly, rebuild, type, inputs, uint64_t(flags), dbg)
 {
     assert(mem()->type()->isa<MemType>());
     new (&extra<Extra>()) Extra();
@@ -64,8 +64,8 @@ const Def* Variant::rebuild(const Def*  , World& to, const Def* t, Defs ops, con
  */
 
 const char* Def::op_name() const {
-    switch (tag()) {
-#define CODE(op, abbr) case Tag::op: return #abbr;
+    switch (node()) {
+#define CODE(op, abbr) case Node::op: return #abbr;
 THORIN_NODE(CODE)
 #undef CODE
         default: THORIN_UNREACHABLE;

@@ -26,10 +26,10 @@ inline D bitcast(const S& src) {
 template<class Base>
 class RuntimeCast {
 public:
-    template<class T>       T* isa()       { return static_cast<      Base*>(this)->tag() == T::Tag ? static_cast<      T*>(this) : nullptr; } ///< Dynamic cast.
-    template<class T> const T* isa() const { return static_cast<const Base*>(this)->tag() == T::Tag ? static_cast<const T*>(this) : nullptr; } ///< Dynamic cast. @c const version.
-    template<class T>       T* as()       { assert(isa<T>()); return static_cast<      T*>(this); }                                            ///< Static cast with debug check.
-    template<class T> const T* as() const { assert(isa<T>()); return static_cast<const T*>(this); }                                            ///< Static cast with debug check. @c const version.
+    template<class T>       T* isa()       { return static_cast<      Base*>(this)->node() == T::Node ? static_cast<      T*>(this) : nullptr; } ///< Dynamic cast.
+    template<class T> const T* isa() const { return static_cast<const Base*>(this)->node() == T::Node ? static_cast<const T*>(this) : nullptr; } ///< Dynamic cast. @c const version.
+    template<class T>       T* as()       { assert(isa<T>()); return static_cast<      T*>(this); }                                              ///< Static cast with debug check.
+    template<class T> const T* as() const { assert(isa<T>()); return static_cast<const T*>(this); }                                              ///< Static cast with debug check. @c const version.
 };
 
 }

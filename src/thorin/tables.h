@@ -41,13 +41,18 @@ namespace thorin {
                        m(Param, param)                    \
                        m(Analyze, analyze)
 
-enum class WMode : uint64_t {
+#define THORIN_TAG(m)                                                           \
+    m(Int, int) m(Real, real)                                                   \
+    m(WOp, wop) m(ZOp, zop) m(IOp, iop) m(ROp, rop) m(ICmp, icmp) m(RCmp, rcmp) \
+    m(Select, select) m(Sizeof, sizeof)
+
+enum class WMode : u32 {
     none = 0,
     nsw  = 1 << 0,
     nuw  = 1 << 1,
 };
 
-enum class RMode : uint64_t {
+enum class RMode : u32 {
     none     = 0,
     nnan     = 1 << 0, ///< No NaNs - Allow optimizations to assume the arguments and result are not NaN. Such optimizations are required to retain defined behavior over NaNs, but the value of the result is undefined.
     ninf     = 1 << 1, ///< No Infs - Allow optimizations to assume the arguments and result are not +/-Inf. Such optimizations are required to retain defined behavior over +/-Inf, but the value of the result is undefined.
@@ -149,6 +154,19 @@ enum class RMode : uint64_t {
 
 #define THORIN_OP_CMP(m) m(WOp) m(ZOp) m(IOp) m(ROp) m(ICmp) m(RCmp)
 
+
+namespace Node {
+#define CODE(node, name) node,
+enum : u16 { THORIN_NODE(CODE) };
+#undef CODE
+}
+
+namespace Tag {
+#define CODE(tag, name) tag,
+enum : u32 { THORIN_TAG(CODE) };
+#undef CODE
+}
+
 #define CODE(T, o) o,
 enum class WOp  : u64 { THORIN_W_OP(CODE) };
 enum class ZOp  : u64 { THORIN_Z_OP(CODE) };
@@ -159,17 +177,17 @@ enum class RCmp : u64 { THORIN_R_CMP(CODE) };
 enum class Cast : u64 { THORIN_CAST(CODE) };
 #undef CODE
 
-constexpr WMode operator|(WMode a, WMode b) { return WMode(int64_t(a) | int64_t(b)); }
-constexpr WMode operator&(WMode a, WMode b) { return WMode(int64_t(a) & int64_t(b)); }
+constexpr WMode operator|(WMode a, WMode b) { return WMode(u32(a) | u32(b)); }
+constexpr WMode operator&(WMode a, WMode b) { return WMode(u32(a) & u32(b)); }
 
-constexpr RMode operator|(RMode a, RMode b) { return RMode(int64_t(a) | int64_t(b)); }
-constexpr RMode operator&(RMode a, RMode b) { return RMode(int64_t(a) & int64_t(b)); }
+constexpr RMode operator|(RMode a, RMode b) { return RMode(u32(a) | u32(b)); }
+constexpr RMode operator&(RMode a, RMode b) { return RMode(u32(a) & u32(b)); }
 
-constexpr ICmp operator|(ICmp a, ICmp b) { return ICmp(int64_t(a) | int64_t(b)); }
-constexpr ICmp operator&(ICmp a, ICmp b) { return ICmp(int64_t(a) & int64_t(b)); }
+constexpr ICmp operator|(ICmp a, ICmp b) { return ICmp(u32(a) | u32(b)); }
+constexpr ICmp operator&(ICmp a, ICmp b) { return ICmp(u32(a) & u32(b)); }
 
-constexpr RCmp operator|(RCmp a, RCmp b) { return RCmp(int64_t(a) | int64_t(b)); }
-constexpr RCmp operator&(RCmp a, RCmp b) { return RCmp(int64_t(a) & int64_t(b)); }
+constexpr RCmp operator|(RCmp a, RCmp b) { return RCmp(u32(a) | u32(b)); }
+constexpr RCmp operator&(RCmp a, RCmp b) { return RCmp(u32(a) & u32(b)); }
 
 constexpr bool has_feature(WMode mode, WMode feature) { return (mode & feature) == feature; }
 constexpr bool has_feature(RMode mode, RMode feature) { return (mode & feature) == feature; }
@@ -197,6 +215,8 @@ namespace thorin {
 template<class T> constexpr auto Num = size_t(-1);
 
 #define CODE(T, o) + 1_s
+constexpr auto Num_Nodes = 0_s THORIN_NODE (CODE);
+constexpr auto Num_Tags  = 0_s THORIN_TAG (CODE);
 template<> constexpr auto Num<WOp>  = 0_s THORIN_W_OP (CODE);
 template<> constexpr auto Num<ZOp>  = 0_s THORIN_Z_OP (CODE);
 template<> constexpr auto Num<IOp>  = 0_s THORIN_I_OP (CODE);

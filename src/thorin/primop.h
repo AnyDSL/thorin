@@ -14,14 +14,14 @@ namespace thorin {
 class Bitcast : public Def {
 private:
     Bitcast(const Def* to, const Def* from, const Def* dbg)
-        : Def(Tag, rebuild, to, {from}, 0, dbg)
+        : Def(Node, rebuild, to, {from}, 0, dbg)
     {}
 
 public:
     const Def* from() const { return op(0); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
-    static constexpr auto Tag = Tag::Bitcast;
+    static constexpr auto Node = Node::Bitcast;
     friend class World;
 };
 
@@ -29,7 +29,7 @@ public:
 class Variant : public Def {
 private:
     Variant(const VariantType* variant_type, const Def* value, const Def* dbg)
-        : Def(Tag, rebuild, variant_type, {value}, 0, dbg)
+        : Def(Node, rebuild, variant_type, {value}, 0, dbg)
     {
         assert(std::find(variant_type->ops().begin(), variant_type->ops().end(), value->type()) != variant_type->ops().end());
     }
@@ -38,7 +38,7 @@ public:
     const VariantType* type() const { return Def::type()->as<VariantType>(); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
-    static constexpr auto Tag = Tag::Variant;
+    static constexpr auto Node = Node::Variant;
     friend class World;
 };
 
@@ -51,7 +51,7 @@ public:
 class LEA : public Def {
 private:
     LEA(const Def* type, const Def* ptr, const Def* index, const Def* dbg)
-        : Def(Tag, rebuild, type, {ptr, index}, 0, dbg)
+        : Def(Node, rebuild, type, {ptr, index}, 0, dbg)
     {}
 
 public:
@@ -62,7 +62,7 @@ public:
     const Def* ptr_pointee() const { return ptr_type()->pointee(); }        ///< Returns the type referenced by @p ptr().
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
-    static constexpr auto Tag = Tag::LEA;
+    static constexpr auto Node = Node::LEA;
     friend class World;
 };
 
@@ -70,14 +70,14 @@ public:
 class Hlt : public Def {
 private:
     Hlt(const Def* def, const Def* dbg)
-        : Def(Tag, rebuild, def->type(), {def}, 0, dbg)
+        : Def(Node, rebuild, def->type(), {def}, 0, dbg)
     {}
 
 public:
     const Def* def() const { return op(0); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
-    static constexpr auto Tag = Tag::Hlt;
+    static constexpr auto Node = Node::Hlt;
     friend class World;
 };
 
@@ -90,7 +90,7 @@ public:
     const Def* def() const { return op(0); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
-    static constexpr auto Tag = Tag::Known;
+    static constexpr auto Node = Node::Known;
     friend class World;
 };
 
@@ -101,14 +101,14 @@ public:
 class Run : public Def {
 private:
     Run(const Def* def, const Def* dbg)
-        : Def(Tag, rebuild, def->type(), {def}, 0, dbg)
+        : Def(Node, rebuild, def->type(), {def}, 0, dbg)
     {}
 
 public:
     const Def* def() const { return op(0); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
-    static constexpr auto Tag = Tag::Run;
+    static constexpr auto Node = Node::Run;
     friend class World;
 };
 
@@ -119,14 +119,14 @@ public:
 class Global : public Def {
 private:
     Global(const Def* type, const Def* id, const Def* init, bool is_mutable, const Def* dbg)
-        : Def(Tag, rebuild, type, {id, init}, is_mutable, dbg)
+        : Def(Node, rebuild, type, {id, init}, is_mutable, dbg)
     {}
 
 public:
     /// This thing's sole purpose is to differentiate on global from another.
     const Def* id() const { return op(0); }
     const Def* init() const { return op(1); }
-    bool is_mutable() const { return flags(); }
+    bool is_mutable() const { return fields(); }
     const Ptr* type() const { return Def::type()->as<Ptr>(); }
     const Def* alloced_type() const { return type()->pointee(); }
     const char* op_name() const override;
@@ -134,7 +134,7 @@ public:
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
-    static constexpr auto Tag = Tag::Global;
+    static constexpr auto Node = Node::Global;
     friend class World;
 };
 
@@ -142,7 +142,7 @@ public:
 class Alloc : public Def {
 private:
     Alloc(const Def* type, const Def* mem, const Def* dbg)
-        : Def(Tag, rebuild, type, {mem}, 0, dbg)
+        : Def(Node, rebuild, type, {mem}, 0, dbg)
     {
         assert(mem->type()->isa<Mem>());
     }
@@ -155,7 +155,7 @@ public:
     const Def* alloced_type() const { return out_ptr()->type()->as<Ptr>()->pointee(); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
-    static constexpr auto Tag = Tag::Alloc;
+    static constexpr auto Node = Node::Alloc;
     friend class World;
 };
 
@@ -164,7 +164,7 @@ public:
 class Slot : public Def {
 private:
     Slot(const Def* type, const Def* mem, const Def* dbg)
-        : Def(Tag, rebuild, type, {mem}, 0, dbg)
+        : Def(Node, rebuild, type, {mem}, 0, dbg)
     {
         assert(mem->type()->isa<Mem>());
     }
@@ -177,7 +177,7 @@ public:
     const Def* alloced_type() const { return out_ptr()->type()->as<Ptr>()->pointee(); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
-    static constexpr auto Tag = Tag::Slot;
+    static constexpr auto Node = Node::Slot;
     friend class World;
 };
 
@@ -185,7 +185,7 @@ public:
 class Load : public Def {
 private:
     Load(const Def* type, const Def* mem, const Def* ptr, const Def* dbg)
-        : Def(Tag, rebuild, type, {mem, ptr}, 0, dbg)
+        : Def(Node, rebuild, type, {mem, ptr}, 0, dbg)
     {
         assert(mem->type()->isa<Mem>());
     }
@@ -199,7 +199,7 @@ public:
     const Def* out_val_type() const { return type()->op(1); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
-    static constexpr auto Tag = Tag::Load;
+    static constexpr auto Node = Node::Load;
     friend class World;
 };
 
@@ -207,7 +207,7 @@ public:
 class Store : public Def {
 private:
     Store(const Def* mem, const Def* ptr, const Def* value, const Def* dbg)
-        : Def(Tag, rebuild, mem->type(), {mem, ptr, value}, 0, dbg)
+        : Def(Node, rebuild, mem->type(), {mem, ptr, value}, 0, dbg)
     {
         assert(mem->type()->isa<Mem>());
     }
@@ -220,7 +220,7 @@ public:
     const Mem* type() const { return Def::type()->as<Mem>(); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
-    static constexpr auto Tag = Tag::Store;
+    static constexpr auto Node = Node::Store;
     friend class World;
 };
 
@@ -252,14 +252,14 @@ public:
     const ArrayRef<std::string> output_constraints() const { return extra<Extra>().output_constraints_; }
     const ArrayRef<std::string> input_constraints() const { return extra<Extra>().input_constraints_; }
     const ArrayRef<std::string> clobbers() const { return extra<Extra>().clobbers_; }
-    bool has_sideeffects() const { return flags() & HasSideEffects; }
-    bool is_alignstack() const { return flags() & IsAlignStack; }
-    bool is_inteldialect() const { return flags() & IsIntelDialect; }
-    Flags flags() const { return Flags(Def::flags()); }
+    bool has_sideeffects() const { return fields() & HasSideEffects; }
+    bool is_alignstack() const { return fields() & IsAlignStack; }
+    bool is_inteldialect() const { return fields() & IsIntelDialect; }
+    Flags flags() const { return Flags(fields()); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
     std::ostream& stream_assignment(std::ostream&) const override;
 
-    static constexpr auto Tag = Tag::Assembly;
+    static constexpr auto Node = Node::Assembly;
     friend class World;
 };
 

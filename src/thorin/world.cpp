@@ -49,8 +49,8 @@ World::World(uint32_t cur_gid, const std::string& name)
 
     { // int/real: Πw: Nat. *
         auto p = pi(type_nat(), kind_star());
-        cache_.type_int  = axiom(p, 0, {"int"});
-        cache_.type_real = axiom(p, 0, {"real"});
+        cache_.type_int  = axiom(p, Tag::Int,  0, {"int"});
+        cache_.type_real = axiom(p, Tag::Real, 0, {"real"});
     }
 
     cache_.lit_bool[0] = lit(type_bool(), {false});
@@ -107,7 +107,7 @@ World::World(uint32_t cur_gid, const std::string& name)
 
 #define CODE(op)                                                                           \
     for (size_t i = 0, e = Num<op>; i != e; ++i)                                           \
-        cache_.op ## _[i] = axiom(normalizers_ ## op[i], type_ ## op, i, {op2str(op(i))});
+        cache_.op ## _[i] = axiom(normalizers_ ## op[i], type_ ## op, Tag::op, i, {op2str(op(i))});
     THORIN_OP_CMP(CODE)
 #undef CODE
 
@@ -116,12 +116,12 @@ World::World(uint32_t cur_gid, const std::string& name)
         auto T = type->param({"T"});
         auto inner = pi({type_bool(), T, T}, T);
         type->set_codomain(inner);
-        cache_.op_select = axiom(normalize_select, type, 0, {"select"});
+        cache_.op_select = axiom(normalize_select, type, Tag::Select, 0, {"select"});
     }
 
     { // sizeof: ΠT:*. nat
         auto type = pi(kind_star(), type_nat());
-        cache_.op_sizeof = axiom(normalize_sizeof, type, 0, {"sizeof"});
+        cache_.op_sizeof = axiom(normalize_sizeof, type, Tag::Sizeof, 0, {"sizeof"});
     }
 }
 
@@ -129,8 +129,8 @@ World::~World() {
     for (auto def : defs_) def->~Def();
 }
 
-Axiom* World::axiom(Def::NormalizeFn normalize, const Def* type, uint64_t flags, Debug dbg) {
-    auto a = insert<Axiom>(0, normalize, type, flags, debug(dbg));
+Axiom* World::axiom(Def::NormalizeFn normalize, const Def* type, u32 tag, u32 flags, Debug dbg) {
+    auto a = insert<Axiom>(0, normalize, type, tag, flags, debug(dbg));
     a->make_external();
     assert(lookup(a->name()) == a);
     return a;
@@ -156,15 +156,7 @@ const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
         }
     }
 
-    const Axiom* axiom = nullptr;
-    unsigned currying_depth = 0;
-    if (auto a = callee->isa<Axiom>()) {
-        axiom = a;
-        currying_depth = a->currying_depth();
-    } else if (auto app = callee->isa<App>()) {
-        axiom = app->axiom();
-        currying_depth = app->currying_depth();
-    }
+    auto [axiom, currying_depth] = get_axiom(callee);
 
     if (axiom && currying_depth == 1) {
         if (auto normalize = axiom->normalizer()) {
@@ -185,10 +177,10 @@ static const Def* lub(const Def* t1, const Def* t2) {
     if (t1->isa<Universe>()) return t1;
     if (t2->isa<Universe>()) return t2;
     //assert(t1->isa<Kind>() && t2->isa<Kind>());
-    switch (std::max(t1->tag(), t2->tag())) {
-        case Tag::KindArity: return t1->world().kind_arity();
-        case Tag::KindMulti: return t1->world().kind_multi();
-        case Tag::KindStar:  return t1->world().kind_star();
+    switch (std::max(t1->node(), t2->node())) {
+        case Node::KindArity: return t1->world().kind_arity();
+        case Node::KindMulti: return t1->world().kind_multi();
+        case Node::KindStar:  return t1->world().kind_star();
         default: THORIN_UNREACHABLE;
     }
 }

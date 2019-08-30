@@ -101,8 +101,8 @@ public:
     //@}
     /// @name Axiom
     //@{
-    Axiom* axiom(Def::NormalizeFn normalize, const Def* type, uint64_t flags, Debug dbg);
-    Axiom* axiom(const Def* type, uint64_t flags, Debug dbg) { return axiom(nullptr, type, flags, dbg); }
+    Axiom* axiom(Def::NormalizeFn normalize, const Def* type, u32 tag, u32 flags, Debug dbg);
+    Axiom* axiom(const Def* type, u32 tag, u32 flags, Debug dbg) { return axiom(nullptr, type, tag, flags, dbg); }
     //@}
     /// @name Pi
     //@{
@@ -196,7 +196,7 @@ public:
     //@}
     /// @name Literal
     //@{
-    const Lit* lit(const Def* type, uint64_t val, Debug dbg = {}) { return unify<Lit>(0, type, val, debug(dbg)); }
+    const Lit* lit(const Def* type, u64 val, Debug dbg = {}) { return unify<Lit>(0, type, val, debug(dbg)); }
     template<class T>
     const Lit* lit(const Def* type, T val, Debug dbg = {}) { return lit(type, thorin::bitcast<u64>(val), dbg); }
     //@}

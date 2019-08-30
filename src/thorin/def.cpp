@@ -133,10 +133,10 @@ void Def::replace(Tracker with) const {
 }
 
 Def::Sort Def::sort() const {
-    if (tag()                 == Tag::Universe) return Sort::Universe;
-    if (type()->tag()         == Tag::Universe) return Sort::Kind;
-    if (type()->type()->tag() == Tag::Universe) return Sort::Type;
-    assert(type()->type()->type()->tag() == Tag::Universe);
+    if (node()                 == Node::Universe) return Sort::Universe;
+    if (type()->node()         == Node::Universe) return Sort::Kind;
+    if (type()->type()->node() == Node::Universe) return Sort::Type;
+    assert(type()->type()->type()->node() == Node::Universe);
     return Sort::Term;
 }
 
@@ -353,29 +353,29 @@ const Def* Pi::apply(const Def* arg) const { return isa_nominal() ? rewrite(codo
  * constructors
  */
 
-Def::Def(uint16_t tag, RebuildFn rebuild, const Def* type, Defs ops, uint64_t flags, const Def* dbg)
+Def::Def(u16 node, RebuildFn rebuild, const Def* type, Defs ops, uint64_t fields, const Def* dbg)
     : type_(type)
     , rebuild_(rebuild)
     , debug_(dbg)
-    , flags_(flags)
-    , tag_((unsigned)tag)
+    , fields_(fields)
+    , node_((unsigned)node)
     , nominal_(false)
     , order_(0)
     , gid_(world().next_gid())
     , num_ops_(ops.size())
 {
     std::copy(ops.begin(), ops.end(), ops_ptr());
-    hash_ = hash_combine(hash_begin((uint16_t) tag), type->gid(), flags_);
+    hash_ = hash_combine(hash_begin((u16) node), type->gid(), fields_);
     for (auto op : ops)
         hash_ = hash_combine(hash_, op->gid());
 }
 
-Def::Def(uint16_t tag, StubFn stub, const Def* type, size_t num_ops, uint64_t flags, const Def* dbg)
+Def::Def(u16 node, StubFn stub, const Def* type, size_t num_ops, uint64_t fields, const Def* dbg)
     : type_(type)
     , stub_(stub)
     , debug_(dbg)
-    , flags_(flags)
-    , tag_(tag)
+    , fields_(fields)
+    , node_(node)
     , nominal_(true)
     , order_(0)
     , gid_(world().next_gid())
@@ -385,10 +385,10 @@ Def::Def(uint16_t tag, StubFn stub, const Def* type, size_t num_ops, uint64_t fl
     std::fill_n(ops_ptr(), num_ops, nullptr);
 }
 
-Axiom::Axiom(NormalizeFn normalizer, const Def* type, uint64_t flags, const Def* dbg)
-    : Def(Tag, stub, type, 0, flags, dbg)
+Axiom::Axiom(NormalizeFn normalizer, const Def* type, u32 tag, u32 flags, const Def* dbg)
+    : Def(Node, stub, type, 0, (u64(tag) << 32_u64) | u64(flags), dbg)
 {
-    unsigned currying_depth = 0;
+    u16 currying_depth = 0;
     while (auto pi = type->isa<Pi>()) {
         ++currying_depth;
         type = pi->codomain();
@@ -398,23 +398,23 @@ Axiom::Axiom(NormalizeFn normalizer, const Def* type, uint64_t flags, const Def*
 }
 
 KindArity::KindArity(World& world)
-    : Def(Tag, rebuild, world.universe(), Defs{}, 0, nullptr)
+    : Def(Node, rebuild, world.universe(), Defs{}, 0, nullptr)
 {}
 
 KindMulti::KindMulti(World& world)
-    : Def(Tag, rebuild, world.universe(), Defs{}, 0, nullptr)
+    : Def(Node, rebuild, world.universe(), Defs{}, 0, nullptr)
 {}
 
 KindStar::KindStar(World& world)
-    : Def(Tag, rebuild, world.universe(), Defs{}, 0, nullptr)
+    : Def(Node, rebuild, world.universe(), Defs{}, 0, nullptr)
 {}
 
 Nat::Nat(World& world)
-    : Def(Tag, rebuild, world.kind_star(), Defs{}, 0, nullptr)
+    : Def(Node, rebuild, world.kind_star(), Defs{}, 0, nullptr)
 {}
 
 Mem::Mem(World& world)
-    : Def(Tag, rebuild, world.kind_star(), Defs{}, 0, nullptr)
+    : Def(Node, rebuild, world.kind_star(), Defs{}, 0, nullptr)
 {}
 
 /*
@@ -433,7 +433,7 @@ bool Def::equal(const Def* other) const {
     if (this->isa_nominal() || other->isa_nominal())
         return this == other;
 
-    bool result = this->tag() == other->tag() && this->flags() == other->flags() && this->num_ops() == other->num_ops() && this->type() == other->type();
+    bool result = this->node() == other->node() && this->fields() == other->fields() && this->num_ops() == other->num_ops() && this->type() == other->type();
     for (size_t i = 0, e = num_ops(); result && i != e; ++i)
         result &= this->op(i) == other->op(i);
     return result;

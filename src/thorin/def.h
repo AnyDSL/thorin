@@ -14,16 +14,6 @@
 
 namespace thorin {
 
-namespace Tag {
-
-enum : uint16_t {
-#define CODE(tag, name) tag,
-THORIN_NODE(CODE)
-#undef CODE
-};
-
-}
-
 template<class T>
 struct GIDLt {
     bool operator()(T a, T b) const { return a->gid() < b->gid(); }
@@ -31,7 +21,7 @@ struct GIDLt {
 
 template<class T>
 struct GIDHash {
-    static uint32_t hash(T n) { return thorin::murmur3(n->gid()); }
+    static u32 hash(T n) { return thorin::murmur3(n->gid()); }
     static bool eq(T a, T b) { return a == b; }
     static T sentinel() { return T(1); }
 };
@@ -100,7 +90,7 @@ private:
 };
 
 struct UseHash {
-    inline static uint32_t hash(Use use);
+    inline static u32 hash(Use use);
     static bool eq(Use u1, Use u2) { return u1 == u2; }
     static Use sentinel() { return Use((const Def*)(-1), uint16_t(-1)); }
 };
@@ -141,9 +131,9 @@ private:
 
 protected:
     /// Constructor for a @em structural Def.
-    Def(uint16_t tag, RebuildFn rebuild, const Def* type, Defs ops, uint64_t flags, const Def* dbg);
+    Def(uint16_t tag, RebuildFn rebuild, const Def* type, Defs ops, uint64_t fields, const Def* dbg);
     /// Constructor for a @em nominal Def.
-    Def(uint16_t tag, StubFn stub, const Def* type, size_t num_ops, uint64_t flags, const Def* dbg);
+    Def(uint16_t tag, StubFn stub, const Def* type, size_t num_ops, uint64_t fields, const Def* dbg);
     virtual ~Def() {}
 
 public:
@@ -153,7 +143,7 @@ public:
 
     /// @name type, Sort
     //@{
-    const Def* type() const { assert(tag() != Tag::Universe); return type_; }
+    const Def* type() const { assert(node() != Node::Universe); return type_; }
     unsigned order() const { assert(!is_term()); return order_; }
     Sort sort() const;
     bool is_term() const { return sort() == Sort::Term; }
@@ -228,15 +218,15 @@ public:
     //@}
     /// @name misc getters
     //@{
-    uint64_t flags() const { return flags_; }
-    uint16_t tag() const { return tag_; }
+    uint64_t fields() const { return fields_; }
+    uint16_t node() const { return node_; }
     size_t gid() const { return gid_; }
-    uint32_t hash() const { return hash_; }
+    u32 hash() const { return hash_; }
     World& world() const {
-        if (tag()                 == Tag::Universe) return *world_;
-        if (type()->tag()         == Tag::Universe) return *type()->world_;
-        if (type()->type()->tag() == Tag::Universe) return *type()->type()->world_;
-        assert(type()->type()->type()->tag() == Tag::Universe);
+        if (node()                 == Node::Universe) return *world_;
+        if (type()->node()         == Node::Universe) return *type()->world_;
+        if (type()->type()->node() == Node::Universe) return *type()->type()->world_;
+        assert(type()->type()->type()->node() == Node::Universe);
         return *type()->type()->type()->world_;
     }
     //@}
@@ -283,18 +273,18 @@ protected:
     };
     union {
         /// @p Axiom%s use this member to store their normalize function and the currying depth.
-        TaggedPtr<std::remove_pointer_t<NormalizeFn>, unsigned> normalizer_depth_;
+        TaggedPtr<std::remove_pointer_t<NormalizeFn>, u16> normalizer_depth_;
         /// Curried @p App%s of @p Axiom%s use this member to propagate the @p Axiom in question and the current currying depth.
-        TaggedPtr<const Axiom, unsigned> axiom_depth_;
+        TaggedPtr<const Axiom, u16> axiom_depth_;
     };
     const Def* debug_;
-    uint64_t flags_;
-    uint16_t tag_;
+    uint64_t fields_;
+    uint16_t node_;
     unsigned nominal_ :  1;
     unsigned order_   : 15;
-    uint32_t gid_;
-    uint32_t num_ops_;
-    uint32_t hash_;
+    u32 gid_;
+    u32 num_ops_;
+    u32 hash_;
     mutable Uses uses_;
     mutable const Def* substitute_ = nullptr; // TODO remove this
 
@@ -307,14 +297,14 @@ protected:
 class Universe : public Def {
 private:
     Universe(World& world)
-        : Def(Tag, stub, reinterpret_cast<const Def*>(&world), 0_s, 0, nullptr)
+        : Def(Node, stub, reinterpret_cast<const Def*>(&world), 0_s, 0, nullptr)
     {}
 
 public:
     static Def* stub(const Def*, World&, const Def*, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
-    static constexpr auto Tag = Tag::Universe;
+    static constexpr auto Node = Node::Universe;
     friend class World;
 };
 
@@ -326,7 +316,7 @@ public:
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
-    static constexpr auto Tag = Tag::KindArity;
+    static constexpr auto Node = Node::KindArity;
     friend class World;
 };
 
@@ -338,7 +328,7 @@ public:
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
-    static constexpr auto Tag = Tag::KindMulti;
+    static constexpr auto Node = Node::KindMulti;
     friend class World;
 };
 
@@ -350,65 +340,67 @@ public:
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
-    static constexpr auto Tag = Tag::KindStar;
+    static constexpr auto Node = Node::KindStar;
     friend class World;
 };
 
 class Axiom : public Def {
 private:
-    Axiom(NormalizeFn normalizer, const Def* type, uint64_t flags, const Def* dbg);
+    Axiom(NormalizeFn normalizer, const Def* type, u32 tag, u32 flags, const Def* dbg);
 
 public:
+    u32 tag() const { return fields() >> 32_u64; }
+    u32 flags() const { return fields(); }
     NormalizeFn normalizer() const { return normalizer_depth_.ptr(); }
-    unsigned currying_depth() const { return normalizer_depth_.index(); }
+    u16 currying_depth() const { return normalizer_depth_.index(); }
     static Def* stub(const Def*, World&, const Def*, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
-    static constexpr auto Tag = Tag::Axiom;
+    static constexpr auto Node = Node::Axiom;
     friend class World;
 };
 
 class Bot : public Def {
 private:
     Bot(const Def* type, const Def* dbg)
-        : Def(Tag, rebuild, type, Defs{}, 0, dbg)
+        : Def(Node, rebuild, type, Defs{}, 0, dbg)
     {}
 
 public:
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
-    static constexpr auto Tag = Tag::Bot;
+    static constexpr auto Node = Node::Bot;
     friend class World;
 };
 
 class Top : public Def {
 private:
     Top(const Def* type, const Def* dbg)
-        : Def(Tag, rebuild, type, Defs{}, 0, dbg)
+        : Def(Node, rebuild, type, Defs{}, 0, dbg)
     {}
 
 public:
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
-    static constexpr auto Tag = Tag::Top;
+    static constexpr auto Node = Node::Top;
     friend class World;
 };
 
 class Lit : public Def {
 private:
     Lit(const Def* type, uint64_t val, const Def* dbg)
-        : Def(Tag, rebuild, type, Defs{}, val, dbg)
+        : Def(Node, rebuild, type, Defs{}, val, dbg)
     {}
 
 public:
     template<class T = uint64_t>
-    T get() const { static_assert(sizeof(T) <= 8); return bitcast<T>(flags_); }
+    T get() const { static_assert(sizeof(T) <= 8); return bitcast<T>(fields_); }
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
-    static constexpr auto Tag = Tag::Lit;
+    static constexpr auto Node = Node::Lit;
     friend class World;
 };
 
@@ -424,11 +416,11 @@ class Pi : public Def {
 protected:
     /// Constructor for a @em structural Pi.
     Pi(const Def* type, const Def* domain, const Def* codomain, const Def* dbg)
-        : Def(Tag, rebuild, type, {domain, codomain}, 0, dbg)
+        : Def(Node, rebuild, type, {domain, codomain}, 0, dbg)
     {}
     /// Constructor for a @em nominal Pi.
     Pi(const Def* type, const Def* dbg)
-        : Def(Tag, stub, type, 2, 0, dbg)
+        : Def(Node, stub, type, 2, 0, dbg)
     {}
 
 public:
@@ -465,14 +457,14 @@ public:
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     static Def* stub(const Def*, World&, const Def*, const Def*);
 
-    static constexpr auto Tag = Tag::Pi;
+    static constexpr auto Node = Node::Pi;
     friend class World;
 };
 
 class App : public Def {
 private:
-    App(const Axiom* axiom, unsigned currying_depth, const Def* type, const Def* callee, const Def* arg, const Def* dbg)
-        : Def(Tag, rebuild, type, {callee, arg}, 0, dbg)
+    App(const Axiom* axiom, u16 currying_depth, const Def* type, const Def* callee, const Def* arg, const Def* dbg)
+        : Def(Node, rebuild, type, {callee, arg}, 0, dbg)
     {
         axiom_depth_.set(axiom, currying_depth);
     }
@@ -485,12 +477,12 @@ public:
     Array<const Def*> args() const;
     size_t num_args() const { return callee_type()->domain()->lit_arity(); }
     const Axiom* axiom() const { return axiom_depth_.ptr(); }
-    unsigned currying_depth() const { return axiom_depth_.index(); }
+    u16 currying_depth() const { return axiom_depth_.index(); }
 
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
-    static constexpr auto Tag = Tag::App;
+    static constexpr auto Node = Node::App;
     friend class World;
 };
 
@@ -530,10 +522,10 @@ public:
 
 private:
     Lam(const Pi* pi, const Def* filter, const Def* body, const Def* dbg)
-        : Def(Tag, rebuild, pi, {filter, body}, 0, dbg)
+        : Def(Node, rebuild, pi, {filter, body}, 0, dbg)
     {}
     Lam(const Pi* pi, CC cc, Intrinsic intrinsic, const Def* dbg)
-        : Def(Tag, stub, pi, 2, uint64_t(cc) << 8_u64 | uint64_t(intrinsic), dbg)
+        : Def(Node, stub, pi, 2, uint64_t(cc) << 8_u64 | uint64_t(intrinsic), dbg)
     {}
 
 public:
@@ -581,13 +573,13 @@ public:
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     static Def* stub(const Def*, World&, const Def*, const Def*);
     //@}
-    /// @name get/set flags - Intrinsic and CC
+    /// @name get/set fields - Intrinsic and CC
     //@{
-    Intrinsic intrinsic() const { return Intrinsic(flags() & 0x00ff_u64); }
-    void set_intrinsic(Intrinsic intrin) { flags_ = (flags_ & 0xff00_u64) | uint64_t(intrin); }
+    Intrinsic intrinsic() const { return Intrinsic(fields() & 0x00ff_u64); }
+    void set_intrinsic(Intrinsic intrin) { fields_ = (fields_ & 0xff00_u64) | uint64_t(intrin); }
     void set_intrinsic(); ///< Sets Intrinsic derived on this @p Lam's @p name.
-    CC cc() const { return CC(flags() >> 8_u64); }
-    void set_cc(CC cc) { flags_ = (flags_ & 0x00ff_u64) | uint64_t(cc) << 8_u64; }
+    CC cc() const { return CC(fields() >> 8_u64); }
+    void set_cc(CC cc) { fields_ = (fields_ & 0x00ff_u64) | uint64_t(cc) << 8_u64; }
     //@}
 
     Lams preds() const;
@@ -605,7 +597,7 @@ public:
     void dump_body() const;
     //@}
 
-    static constexpr auto Tag = Tag::Lam;
+    static constexpr auto Node = Node::Lam;
     friend class World;
 };
 
@@ -617,7 +609,7 @@ using Lam2Lam = LamMap<Lam*>;
 class Param : public Def {
 private:
     Param(const Def* type, Def* nominal, const Def* dbg)
-        : Def(Tag, rebuild, type, Defs{nominal}, 0, dbg)
+        : Def(Node, rebuild, type, Defs{nominal}, 0, dbg)
     {}
 
 public:
@@ -627,7 +619,7 @@ public:
 
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
-    static constexpr auto Tag = Tag::Param;
+    static constexpr auto Node = Node::Param;
     friend class World;
 };
 
@@ -663,11 +655,11 @@ class Sigma : public Def {
 private:
     /// Constructor for a @em structural Pi.
     Sigma(const Def* type, Defs ops, const Def* dbg)
-        : Def(Tag, rebuild, type, ops, 0, dbg)
+        : Def(Node, rebuild, type, ops, 0, dbg)
     {}
     /// Constructor for a @em nominal Pi.
     Sigma(const Def* type, size_t size, const Def* dbg)
-        : Def(Tag, stub, type, size, 0, dbg)
+        : Def(Node, stub, type, size, 0, dbg)
     {}
 
 public:
@@ -676,7 +668,7 @@ public:
     static Def* stub(const Def*, World&, const Def*, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
-    static constexpr auto Tag = Tag::Sigma;
+    static constexpr auto Node = Node::Sigma;
     friend class World;
 };
 
@@ -684,21 +676,21 @@ public:
 class Tuple : public Def {
 private:
     Tuple(const Def* type, Defs args, const Def* dbg)
-        : Def(Tag, rebuild, type, args, 0, dbg)
+        : Def(Node, rebuild, type, args, 0, dbg)
     {}
 
 public:
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
-    static constexpr auto Tag = Tag::Tuple;
+    static constexpr auto Node = Node::Tuple;
     friend class World;
 };
 
 class Variadic : public Def {
 private:
     Variadic(const Def* type, const Def* arity, const Def* body, const Def* dbg)
-        : Def(Tag, rebuild, type, {arity, body}, 0, dbg)
+        : Def(Node, rebuild, type, {arity, body}, 0, dbg)
     {}
 
 public:
@@ -707,14 +699,14 @@ public:
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
-    static constexpr auto Tag = Tag::Variadic;
+    static constexpr auto Node = Node::Variadic;
     friend class World;
 };
 
 class Pack : public Def {
 private:
     Pack(const Def* type, const Def* body, const Def* dbg)
-        : Def(Tag, rebuild, type, {body}, 0, dbg)
+        : Def(Node, rebuild, type, {body}, 0, dbg)
     {}
 
 public:
@@ -723,7 +715,7 @@ public:
 
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
-    static constexpr auto Tag = Tag::Pack;
+    static constexpr auto Node = Node::Pack;
     friend class World;
 };
 
@@ -731,7 +723,7 @@ public:
 class Extract : public Def {
 private:
     Extract(const Def* type, const Def* agg, const Def* index, const Def* dbg)
-        : Def(Tag, rebuild, type, {agg, index}, 0, dbg)
+        : Def(Node, rebuild, type, {agg, index}, 0, dbg)
     {}
 
 public:
@@ -740,7 +732,7 @@ public:
 
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
-    static constexpr auto Tag = Tag::Extract;
+    static constexpr auto Node = Node::Extract;
     friend class World;
 };
 
@@ -753,7 +745,7 @@ public:
 class Insert : public Def {
 private:
     Insert(const Def* agg, const Def* index, const Def* val, const Def* dbg)
-        : Def(Tag, rebuild, agg->type(), {agg, index, val}, 0, dbg)
+        : Def(Node, rebuild, agg->type(), {agg, index, val}, 0, dbg)
     {}
 
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
@@ -763,7 +755,7 @@ public:
     const Def* index() const { return op(1); }
     const Def* val() const { return op(2); }
 
-    static constexpr auto Tag = Tag::Insert;
+    static constexpr auto Node = Node::Insert;
     friend class World;
 };
 
@@ -771,7 +763,7 @@ public:
 class VariantType : public Def {
 private:
     VariantType(const Def* type, Defs ops, const Def* dbg)
-        : Def(Tag, rebuild, type, ops, 0, dbg)
+        : Def(Node, rebuild, type, ops, 0, dbg)
     {
         assert(std::adjacent_find(ops.begin(), ops.end()) == ops.end());
     }
@@ -780,7 +772,7 @@ public:
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
-    static constexpr auto Tag = Tag::VariantType;
+    static constexpr auto Node = Node::VariantType;
     friend class World;
 };
 
@@ -793,7 +785,7 @@ public:
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
-    static constexpr auto Tag = Tag::Mem;
+    static constexpr auto Node = Node::Mem;
     friend class World;
 };
 
@@ -805,7 +797,7 @@ public:
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
-    static constexpr auto Tag = Tag::Nat;
+    static constexpr auto Node = Node::Nat;
     friend class World;
 };
 
@@ -823,7 +815,7 @@ struct AddrSpace {
 class Ptr : public Def {
 private:
     Ptr(const Def* type, const Def* pointee, const Def* addr_space, const Def* dbg)
-        : Def(Tag, rebuild, type, {pointee, addr_space}, 0, dbg)
+        : Def(Node, rebuild, type, {pointee, addr_space}, 0, dbg)
     {}
 
 public:
@@ -834,14 +826,14 @@ public:
     std::ostream& stream(std::ostream&) const override;
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
-    static constexpr auto Tag = Tag::Ptr;
+    static constexpr auto Node = Node::Ptr;
     friend class World;
 };
 
 class Analyze : public Def {
 private:
     Analyze(const Def* type, Defs ops, const Def* dbg)
-        : Def(Tag, rebuild, type, ops, 0, dbg)
+        : Def(Node, rebuild, type, ops, 0, dbg)
     {}
 
 public:
@@ -849,11 +841,11 @@ public:
     std::ostream& stream(std::ostream&) const override;
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
-    static constexpr auto Tag = Tag::Analyze;
+    static constexpr auto Node = Node::Analyze;
     friend class World;
 };
 
-uint32_t UseHash::hash(Use use) { return hash_combine(hash_begin(uint16_t(use.index())), uint32_t(use->gid())); }
+u32 UseHash::hash(Use use) { return hash_combine(hash_begin(uint16_t(use.index())), u32(use->gid())); }
 
 namespace detail {
     inline std::ostream& stream(std::ostream& os, const Def* def) { return def->stream(os); }

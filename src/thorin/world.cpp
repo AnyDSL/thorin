@@ -53,11 +53,11 @@ World::World(uint32_t cur_gid, const std::string& name)
         cache_.type_real = axiom(p, 0, {"real"});
     }
 
-    cache_.lit_bool[0]   = lit(type_bool(), {false});
-    cache_.lit_bool[1]   = lit(type_bool(), {true});
+    cache_.lit_bool[0] = lit(type_bool(), {false});
+    cache_.lit_bool[1] = lit(type_bool(), {true});
 
 #define CODE(op) Pi* type_ ## op;
-THORIN_OP_CMP(CODE)
+    THORIN_OP_CMP(CODE)
 #undef CODE
     { // WOp: Π[m: nat, w: nat]. Π[int w, int w]. int w
         type_WOp = pi(kind_star())->set_domain({type_nat(), type_nat()});
@@ -108,7 +108,7 @@ THORIN_OP_CMP(CODE)
 #define CODE(op)                                                                           \
     for (size_t i = 0, e = Num<op>; i != e; ++i)                                           \
         cache_.op ## _[i] = axiom(normalizers_ ## op[i], type_ ## op, i, {op2str(op(i))});
-THORIN_OP_CMP(CODE)
+    THORIN_OP_CMP(CODE)
 #undef CODE
 
     { // select: ΠT:*. Π[bool, T, T]. T

@@ -797,18 +797,6 @@ public:
     friend class World;
 };
 
-class Bool : public Def {
-private:
-    Bool(World& world);
-
-public:
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-    std::ostream& stream(std::ostream&) const override;
-
-    static constexpr auto Tag = Tag::Bool;
-    friend class World;
-};
-
 class Nat : public Def {
 private:
     Nat(World& world);
@@ -818,54 +806,6 @@ public:
     std::ostream& stream(std::ostream&) const override;
 
     static constexpr auto Tag = Tag::Nat;
-    friend class World;
-};
-
-class Sint : public Def {
-private:
-    Sint(World& world, const Def* num_bits, bool quick);
-
-public:
-    const Def* num_bits() const { return op(0); }
-    u64 lit_num_bits() const { return as_lit<u64>(op(0)); }
-    bool is_quick() const { return flags() != 0; }
-
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-    std::ostream& stream(std::ostream&) const override;
-
-    static constexpr auto Tag = Tag::Sint;
-    friend class World;
-};
-
-class Uint : public Def {
-private:
-    Uint(World& world, const Def* num_bits, bool quick);
-
-public:
-    const Def* num_bits() const { return op(0); }
-    u64 lit_num_bits() const { return as_lit<u64>(op(0)); }
-    bool is_quick() const { return flags() != 0; }
-
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-    std::ostream& stream(std::ostream&) const override;
-
-    static constexpr auto Tag = Tag::Uint;
-    friend class World;
-};
-
-class Real : public Def {
-private:
-    Real(World& world, const Def* num_bits, bool quick);
-
-public:
-    const Def* num_bits() const { return op(0); }
-    u64 lit_num_bits() const { return as_lit<u64>(op(0)); }
-    bool is_quick() const { return flags() != 0; }
-
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-    std::ostream& stream(std::ostream&) const override;
-
-    static constexpr auto Tag = Tag::Real;
     friend class World;
 };
 

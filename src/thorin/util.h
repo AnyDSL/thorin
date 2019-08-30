@@ -9,22 +9,10 @@ namespace thorin {
 
 bool is_unit(const Def*);
 bool is_const(const Def*);
-bool is_primlit(const Def*, int64_t);
-bool is_minus_zero(const Def*);
-
 bool is_tuple_arg_of_app(const Def*);
 
 inline bool is_arity(const Def* def) { return def->type()->isa<KindArity>(); }
 inline bool is_memop      (const Def* def) { return def->num_ops() >= 1 && def->op(0)->type()->isa<Mem>(); }
-//inline bool is_zero       (const Def* def) { return is_primlit(def, 0); }
-//inline bool is_one        (const Def* def) { return is_primlit(def, 1); }
-//inline bool is_allset     (const Def* def) { return is_primlit(def, -1); }
-//bool is_not        (const Def* def);
-//bool is_minus      (const Def* def);
-bool is_div_or_rem (const Def* def);
-bool is_commutative(const Def* def);
-bool is_associative(const Def* def);
-
 
 Array<const Def*> merge(const Def* def, Defs defs);
 const Def* merge_sigma(const Def* def, Defs defs);

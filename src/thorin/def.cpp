@@ -283,7 +283,7 @@ void Lam::app(const Def* callee, const Def* arg, Debug dbg) {
     set(filter, world().app(callee, arg, dbg));
 }
 void Lam::app(const Def* callee, Defs args, Debug dbg) { app(callee, world().tuple(args), dbg); }
-void Lam::branch(const Def* cond, const Def* t, const Def* f, const Def* mem, Debug dbg) { return app(world().select(cond, t, f, dbg), mem, dbg); }
+void Lam::branch(const Def* cond, const Def* t, const Def* f, const Def* mem, Debug dbg) { return app(world().op_select(cond, t, f, dbg), mem, dbg); }
 
 void Lam::match(const Def* val, Lam* otherwise, Defs patterns, ArrayRef<Lam*> lams, Debug dbg) {
     Array<const Def*> args(patterns.size() + 2);
@@ -409,24 +409,8 @@ KindStar::KindStar(World& world)
     : Def(Tag, rebuild, world.universe(), Defs{}, 0, nullptr)
 {}
 
-Bool::Bool(World& world)
-    : Def(Tag, rebuild, world.kind_star(), Defs{}, 0, nullptr)
-{}
-
 Nat::Nat(World& world)
     : Def(Tag, rebuild, world.kind_star(), Defs{}, 0, nullptr)
-{}
-
-Sint::Sint(World& world, const Def* num_bits, bool quick)
-    : Def(Tag, rebuild, world.kind_star(), {num_bits}, quick, nullptr)
-{}
-
-Uint::Uint(World& world, const Def* num_bits, bool quick)
-    : Def(Tag, rebuild, world.kind_star(), {num_bits}, quick, nullptr)
-{}
-
-Real::Real(World& world, const Def* num_bits, bool quick)
-    : Def(Tag, rebuild, world.kind_star(), {num_bits}, quick, nullptr)
 {}
 
 Mem::Mem(World& world)
@@ -471,11 +455,7 @@ const Def* KindArity  ::rebuild(const Def*  , World& w, const Def*  , Defs  , co
 const Def* KindMulti  ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.kind_multi(); }
 const Def* KindStar   ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.kind_star(); }
 const Def* Lit        ::rebuild(const Def* d, World& w, const Def* t, Defs  , const Def* dbg) { return w.lit(t, as_lit<u64>(d), dbg); }
-const Def* Bool       ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.type_bool(); }
 const Def* Nat        ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.type_nat(); }
-const Def* Sint       ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def*    ) { return w.type_sint(o[0], d->as<Sint>()->is_quick()); }
-const Def* Uint       ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def*    ) { return w.type_uint(o[0], d->as<Uint>()->is_quick()); }
-const Def* Real       ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def*    ) { return w.type_real(o[0], d->as<Real>()->is_quick()); }
 const Def* Mem        ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.type_mem(); }
 const Def* Pack       ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.pack(t->arity(), o[0], dbg); }
 const Def* Param      ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.param(t, o[0]->as_nominal(), dbg); }
@@ -506,11 +486,7 @@ static std::ostream& stream_type_ops(std::ostream& os, const Def* type) {
 std::ostream& App        ::stream(std::ostream& os) const { return streamf(os, "{} {}", callee(), arg()); }
 std::ostream& Axiom      ::stream(std::ostream& os) const { return streamf(os, "{}", name()); }
 std::ostream& Mem        ::stream(std::ostream& os) const { return streamf(os, "mem"); }
-std::ostream& Bool       ::stream(std::ostream& os) const { return streamf(os, "bool"); }
 std::ostream& Nat        ::stream(std::ostream& os) const { return streamf(os, "nat"); }
-std::ostream& Sint       ::stream(std::ostream& os) const { return streamf(os, "{}sint{}", is_quick() ? "q" : "p", lit_num_bits()); }
-std::ostream& Uint       ::stream(std::ostream& os) const { return streamf(os, "{}uint{}", is_quick() ? "q" : "p", lit_num_bits()); }
-std::ostream& Real       ::stream(std::ostream& os) const { return streamf(os, "{}real{}", is_quick() ? "q" : "p", lit_num_bits()); }
 std::ostream& Universe   ::stream(std::ostream& os) const { return streamf(os, "□"); }
 std::ostream& Variadic   ::stream(std::ostream& os) const { return streamf(os, "«{}; {}»", arity(), body()); }
 std::ostream& VariantType::stream(std::ostream& os) const { return stream_type_ops(os << "variant", this); }
@@ -540,6 +516,7 @@ std::ostream& Lit::stream(std::ostream& os) const {
     }
 
     os << type() << ' ';
+#if 0
     if (auto real = type()->isa<Real>()) {
         switch (real->lit_num_bits()) {
             case 16: return os << get<f16>();
@@ -568,6 +545,7 @@ std::ostream& Lit::stream(std::ostream& os) const {
             default: THORIN_UNREACHABLE;
         }
     }
+#endif
 
     return os << get();
 }
@@ -595,6 +573,7 @@ std::ostream& Sigma::stream(std::ostream& os) const {
 }
 
 std::ostream& Tuple::stream(std::ostream& os) const {
+#if 0
     // special case for string
     if (std::all_of(ops().begin(), ops().end(), [&](const Def* op) { return op->isa<Lit>(); })) {
         if (auto variadic = type()->isa<Variadic>()) {
@@ -606,11 +585,13 @@ std::ostream& Tuple::stream(std::ostream& os) const {
             }
         }
     }
+#endif
 
     return stream_list(os, ops(), [&](const Def* type) { os << type; }, "(", ")");
 }
 
 std::ostream& Pack::stream(std::ostream& os) const {
+#if 0
     // special case for string
     if (auto variadic = type()->isa<Variadic>()) {
         if (auto i = variadic->body()->isa<Sint>()) {
@@ -624,6 +605,7 @@ std::ostream& Pack::stream(std::ostream& os) const {
             }
         }
     }
+#endif
 
     return streamf(os, "‹{}; {}›", arity(), body());
 }

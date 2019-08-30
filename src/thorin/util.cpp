@@ -26,40 +26,6 @@ bool is_const(const Def* def) {
     return true;
 }
 
-//bool is_primlit(const Def* def, int64_t val) {
-    //if (auto lit = def->isa<Lit>()) {
-        //if (auto prim_type = lit->type()->isa<PrimType>()) {
-            //switch (prim_type->primtype_tag()) {
-//#define THORIN_I_TYPE(T, M) case PrimType_##T: return lit->get<T>() == T(val);
-//#include "thorin/tables/primtypetable.h"
-                //case PrimType_bool: return lit->get<bool>() == bool(val);
-                //default: ; // FALLTHROUGH
-            //}
-        //}
-    //}
-
-    //return false;
-//}
-
-//bool is_minus_zero(const Def* def) {
-    //if (auto lit = def->isa<Lit>()) {
-        //if (auto prim_type = lit->type()->isa<PrimType>()) {
-            //switch (prim_type->primtype_tag()) {
-//#define THORIN_I_TYPE(T, M) case PrimType_##T: return lit->get<M>() == M(0);
-//#define THORIN_F_TYPE(T, M) case PrimType_##T: return lit->get<M>() == M(-0.0);
-//#include "thorin/tables/primtypetable.h"
-                //default: THORIN_UNREACHABLE;
-            //}
-        //}
-    //}
-    //return false;
-//}
-
-//bool is_not        (const Def* def) { return def->isa<ArithOp>() && (def->flags() == ArithOp_xor && is_allset(def->op(0))); }
-//bool is_minus      (const Def* def) { return def->isa<ArithOp>() && (def->flags() == ArithOp_sub && is_minus_zero(def->op(0))); }
-bool is_commutative(const Def* def) { return def->isa<ArithOp>() && thorin::is_commutative(def->flags()); }
-bool is_associative(const Def* def) { return def->isa<ArithOp>() && thorin::is_associative(def->flags()); }
-
 void app_to_dropped_app(Lam* src, Lam* dst, const App* app) {
     std::vector<const Def*> nargs;
     auto src_app = src->body()->as<App>();
@@ -166,7 +132,7 @@ std::string tuple2str(const Def* def) {
 
     std::string result;
     for (size_t i = 0, e = def->lit_arity(); i != e; ++i)
-        result.push_back(as_lit<qs8>(def->out(i)));
+        result.push_back(as_lit<u64>(def->out(i)));
     return result;
 }
 

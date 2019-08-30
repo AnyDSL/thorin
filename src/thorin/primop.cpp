@@ -13,18 +13,8 @@ namespace thorin {
  * constructors
  */
 
-Cmp::Cmp(CmpTag tag, const Def* lhs, const Def* rhs, const Def* dbg)
-    : Def(Tag, rebuild, lhs->world().type_bool(), {lhs, rhs}, tag, dbg)
-{
-    assert(lhs->type() == rhs->type() && "types are not equal");
-}
-
 Known::Known(const Def* def, const Def* dbg)
     : Def(Tag, rebuild, def->world().type_bool(), {def}, 0, dbg)
-{}
-
-SizeOf::SizeOf(const Def* def, const Def* dbg)
-    : Def(Tag, rebuild, def->world().type_uint(32), {def}, 0, dbg)
 {}
 
 /*
@@ -51,18 +41,13 @@ Assembly::~Assembly() { (&extra<Extra>())->~Extra(); }
 // do not use any of d's type getters - during import we need to derive types from 't' in the new world 'to'
 
 const Def* Alloc  ::rebuild(const Def*  , World& to, const Def* t, Defs ops, const Def* dbg) { return to.alloc(t->as<Sigma>()->op(1)->as<Ptr>()->pointee(), ops[0], dbg); }
-const Def* ArithOp::rebuild(const Def* d, World& to, const Def*  , Defs ops, const Def* dbg) { return to.arithop(d->as<ArithOp>()->arithop_tag(), ops[0], ops[1], dbg); }
 const Def* Bitcast::rebuild(const Def*  , World& to, const Def* t, Defs ops, const Def* dbg) { return to.bitcast(t, ops[0], dbg); }
-const Def* Cast   ::rebuild(const Def*  , World& to, const Def* t, Defs ops, const Def* dbg) { return to.cast(t, ops[0], dbg); }
-const Def* Cmp    ::rebuild(const Def* d, World& to, const Def*  , Defs ops, const Def* dbg) { return to.cmp(d->as<Cmp>()->cmp_tag(), ops[0], ops[1], dbg); }
 const Def* Global ::rebuild(const Def* d, World& to, const Def*  , Defs ops, const Def* dbg) { return to.global(ops[0], ops[1], d->as<Global>()->is_mutable(), dbg); }
 const Def* Hlt    ::rebuild(const Def*  , World& to, const Def*  , Defs ops, const Def* dbg) { return to.hlt(ops[0], dbg); }
 const Def* Known  ::rebuild(const Def*  , World& to, const Def*  , Defs ops, const Def* dbg) { return to.known(ops[0], dbg); }
 const Def* Run    ::rebuild(const Def*  , World& to, const Def*  , Defs ops, const Def* dbg) { return to.run(ops[0], dbg); }
 const Def* LEA    ::rebuild(const Def*  , World& to, const Def*  , Defs ops, const Def* dbg) { return to.lea(ops[0], ops[1], dbg); }
 const Def* Load   ::rebuild(const Def*  , World& to, const Def*  , Defs ops, const Def* dbg) { return to.load(ops[0], ops[1], dbg); }
-const Def* Select ::rebuild(const Def*  , World& to, const Def*  , Defs ops, const Def* dbg) { return to.select(ops[0], ops[1], ops[2], dbg); }
-const Def* SizeOf ::rebuild(const Def*  , World& to, const Def*  , Defs ops, const Def* dbg) { return to.size_of(ops[0]->type(), dbg); }
 const Def* Slot   ::rebuild(const Def*  , World& to, const Def* t, Defs ops, const Def* dbg) { return to.slot(t->as<Sigma>()->op(1)->as<Ptr>()->pointee(), ops[0], dbg); }
 const Def* Store  ::rebuild(const Def*  , World& to, const Def*  , Defs ops, const Def* dbg) { return to.store(ops[0], ops[1], ops[2], dbg); }
 const Def* Variant::rebuild(const Def*  , World& to, const Def* t, Defs ops, const Def* dbg) { return to.variant(t->as<VariantType>(), ops[0], dbg); }
@@ -83,22 +68,6 @@ const char* Def::op_name() const {
 #define CODE(op, abbr) case Tag::op: return #abbr;
 THORIN_NODE(CODE)
 #undef CODE
-        default: THORIN_UNREACHABLE;
-    }
-}
-
-const char* ArithOp::op_name() const {
-    switch (arithop_tag()) {
-#define THORIN_ARITHOP(op) case ArithOp_##op: return #op;
-#include "thorin/tables/arithoptable.h"
-        default: THORIN_UNREACHABLE;
-    }
-}
-
-const char* Cmp::op_name() const {
-    switch (cmp_tag()) {
-#define THORIN_CMP(op) case Cmp_##op: return #op;
-#include "thorin/tables/cmptable.h"
         default: THORIN_UNREACHABLE;
     }
 }

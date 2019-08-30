@@ -42,19 +42,19 @@ World::World(uint32_t cur_gid, const std::string& name)
     cache_.sigma         = insert<Sigma>(0, kind_star(), Defs{}, nullptr)->as<Sigma>();
     cache_.tuple         = insert<Tuple>(0, sigma(), Defs{}, nullptr)->as<Tuple>();
     cache_.type_mem      = insert<Mem>(0, *this);
-    cache_.type_bool     = insert<Bool>(0, *this);
     cache_.type_nat      = insert<Nat>(0, *this);
     cache_.lit_arity_1   = lit_arity(1);
     cache_.lit_index_0_1 = lit_index(lit_arity_1(), 0);
-    cache_.lit_bool[0]   = lit(type_bool(), {false});
-    cache_.lit_bool[1]   = lit(type_bool(), {true});
     cache_.end_scope     = lam(cn(), Lam::CC::C, Lam::Intrinsic::EndScope, {"end_scope"});
 
     { // int/real: Πw: Nat. *
         auto p = pi(type_nat(), kind_star());
         cache_.type_int  = axiom(p, 0, {"int"});
-        cache_.type_real_ = axiom(p, 0, {"real"});
+        cache_.type_real = axiom(p, 0, {"real"});
     }
+
+    cache_.lit_bool[0]   = lit(type_bool(), {false});
+    cache_.lit_bool[1]   = lit(type_bool(), {true});
 
 #define CODE(op) Pi* type_ ## op;
 THORIN_OP_CMP(CODE)
@@ -85,7 +85,7 @@ THORIN_OP_CMP(CODE)
         type_ROp = pi(kind_star())->set_domain({type_nat(), type_nat()});
         type_ROp->param(0, {"m"});
         auto w = type_ROp->param(1, {"w"});
-        auto real_w = type_real_(w);
+        auto real_w = type_real(w);
         auto inner = pi({real_w, real_w}, real_w);
         type_ROp->set_codomain(inner);
     }
@@ -100,7 +100,7 @@ THORIN_OP_CMP(CODE)
         type_RCmp = pi(kind_star())->set_domain({type_nat(), type_nat()});
         type_RCmp->param(0, {"m"});
         auto w = type_RCmp->param(1, {"w"});
-        auto real_w = type_real_(w);
+        auto real_w = type_real(w);
         auto inner = pi({real_w, real_w}, type_int(1));
         type_RCmp->set_codomain(inner);
     }
@@ -112,11 +112,16 @@ THORIN_OP_CMP(CODE)
 #undef CODE
 
     { // select: ΠT:*. Π[bool, T, T]. T
-        auto outer_pi = pi(kind_star())->set_domain(kind_star());
-        auto T = outer_pi->param({"T"});
+        auto type = pi(kind_star())->set_domain(kind_star());
+        auto T = type->param({"T"});
         auto inner = pi({type_bool(), T, T}, T);
-        outer_pi->set_codomain(inner);
-        cache_.op_select = axiom(normalize_select, outer_pi, 0, {"select"});
+        type->set_codomain(inner);
+        cache_.op_select = axiom(normalize_select, type, 0, {"select"});
+    }
+
+    { // sizeof: ΠT:*. nat
+        auto type = pi(kind_star(), type_nat());
+        cache_.op_sizeof = axiom(normalize_sizeof, type, 0, {"sizeof"});
     }
 }
 
@@ -361,13 +366,13 @@ const Lit* World::lit_index(const Def* a, u64 i, Debug dbg) {
     return lit(a, i, dbg);
 }
 
+#if 0
 /*
  * arithops
  */
 
 const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg) {
     assert(a->type() == b->type());
-#if 0
     auto type = a->type();
 
     auto llit = a->isa<Lit>();
@@ -643,7 +648,6 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
             return arithop(tag, a_lhs_lv, arithop(tag, a_same->rhs(), b, dbg), dbg);
     }
 
-#endif
     return unify<ArithOp>(2, tag, a, b, debug(dbg));
 }
 
@@ -668,7 +672,6 @@ const Def* World::arithop_minus(const Def* def, Debug dbg) {
  */
 
 const Def* World::cmp(CmpTag tag, const Def* a, const Def* b, Debug dbg) {
-#if 0
     CmpTag oldtag = tag;
     switch (tag) {
         case Cmp_gt: tag = Cmp_lt; break;
@@ -726,9 +729,10 @@ const Def* World::cmp(CmpTag tag, const Def* a, const Def* b, Debug dbg) {
         }
     }
 
-#endif
     return unify<Cmp>(2, tag, a, b, debug(dbg));
 }
+
+#endif
 
 /*
  * casts
@@ -749,9 +753,10 @@ const Def* World::convert(const Def* dst_type, const Def* src, Debug dbg) {
         return tuple(dst_sigma, new_tuple, dbg);
     }
 
-    return cast(dst_type, src, dbg);
+    return op_cast(dst_type, src, dbg);
 }
 
+#if 0
 const Def* World::cast(const Def* to, const Def* from, Debug dbg) {
     if (from->isa<Bot>()) return bot(to);
     if (from->type() == to) return from;
@@ -763,7 +768,6 @@ const Def* World::cast(const Def* to, const Def* from, Debug dbg) {
     }
 
     auto lit = from->isa<Lit>();
-#if 0
     auto to_type = to->isa<PrimType>();
     if (lit && to_type) {
         switch (lit->type()->as<PrimType>()->primtype_tag()) {
@@ -853,12 +857,12 @@ const Def* World::cast(const Def* to, const Def* from, Debug dbg) {
         }
     }
 
-#endif
     if (lit && is_arity(to))
         return lit_index(to, lit->get());
 
     return unify<Cast>(1, to, from, debug(dbg));
 }
+#endif
 
 const Def* World::bitcast(const Def* to, const Def* from, Debug dbg) {
     if (from->isa<Bot>()) return bot(to);
@@ -920,29 +924,6 @@ const Def* World::lea(const Def* ptr, const Def* index, Debug dbg) {
     return unify<LEA>(2, type, ptr, index, debug(dbg));
 }
 
-const Def* World::select(const Def* cond, const Def* a, const Def* b, Debug dbg) {
-    if (cond->isa<Bot>() || a->isa<Bot>() || b->isa<Bot>()) return bot(a->type(), dbg);
-    if (auto lit = cond->isa<Lit>()) return lit->get<bool>() ? a : b;
-
-#if 0
-    if (is_not(cond)) {
-        cond = cond->as<ArithOp>()->rhs();
-        std::swap(a, b);
-    }
-#endif
-
-    if (a == b) return a;
-    return unify<Select>(3, cond, a, b, debug(dbg));
-}
-
-const Def* World::size_of(const Def* type, Debug dbg) {
-    if (auto sint = type->isa<Sint>()) return lit_uint<u32>(sint->lit_num_bits() / 8, false, dbg);
-    if (auto uint = type->isa<Uint>()) return lit_uint<u32>(uint->lit_num_bits() / 8, false, dbg);
-    if (auto real = type->isa<Real>()) return lit_uint<u32>(real->lit_num_bits() / 8, false, dbg);
-
-    return unify<SizeOf>(1, bot(type, dbg), debug(dbg));
-}
-
 /*
  * memory stuff
  */
@@ -986,8 +967,8 @@ const Def* World::global_immutable_string(const std::string& str, Debug dbg) {
 
     Array<const Def*> str_array(size);
     for (size_t i = 0; i != size-1; ++i)
-        str_array[i] = lit_sint<s8>(str[i], true, dbg);
-    str_array.back() = lit_sint<s8>('\0', true, dbg);
+        str_array[i] = lit_nat(str[i], dbg);
+    str_array.back() = lit_nat('\0', dbg);
 
     return global(tuple(str_array, dbg), false, dbg);
 }

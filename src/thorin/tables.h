@@ -23,20 +23,14 @@ namespace thorin {
                        m(Tuple, tuple)                    \
                        m(Variadic, variadic)              \
                        m(VariantType, variant_type)       \
-                       m(Bool, bool)                      \
                        m(Nat, nat)                        \
                        m(Mem, mem)                        \
                        m(Ptr, ptr)                        \
                        m(Alloc, alloc)                    \
                        m(Load, load)                      \
                        m(Store, store)                    \
-                       m(Select, select)                  \
-                       m(SizeOf, size_of)                 \
                        m(Global, global)                  \
                        m(Slot, slot)                      \
-                       m(ArithOp, arithop)                \
-                       m(Cmp, cmp)                        \
-                       m(Cast, cast)                      \
                        m(Bitcast, bitcast)                \
                        m(Variant, variant)                \
                        m(LEA, lea)                        \
@@ -45,10 +39,7 @@ namespace thorin {
                        m(Run, run)                        \
                        m(Assembly, asm)                   \
                        m(Param, param)                    \
-                       m(Analyze, analyze)                \
-                       m(Sint, sint)                      \
-                       m(Uint, uint)                      \
-                       m(Real, real)
+                       m(Analyze, analyze)
 
 enum class WMode : uint64_t {
     none = 0,
@@ -77,9 +68,9 @@ enum class RMode : uint64_t {
 /// Integer operations that neither take a @p WMode nor do produce a side effect.
 #define THORIN_I_OP(m) m(IOp, ashr) m(IOp, lshr) m(IOp, iand) m(IOp, ior) m(IOp, ixor)
 /// Rloating point (float) operations that take @p RMode.
-#define THORIN_R_OP(m) m(ROp, fadd) m(ROp, fsub) m(ROp, fmul) m(ROp, fdiv) m(ROp, fmod)
+#define THORIN_R_OP(m) m(ROp, radd) m(ROp, rsub) m(ROp, rmul) m(ROp, rdiv) m(ROp, rmod)
 /// All cast operations that cast from/to float/signed/unsigned.
-#define THORIN_CAST(m) m(_Cast, f2f) m(_Cast, f2s) m(_Cast, f2u) m(_Cast, s2f) m(_Cast, s2s) m(_Cast, u2f) m(_Cast, u2u)
+#define THORIN_CAST(m) m(Cast, r2r) m(Cast, r2s) m(Cast, r2u) m(Cast, s2r) m(Cast, s2s) m(Cast, u2r) m(Cast, u2u)
 
 /**
  * The 5 relations are disjoint and are organized as follows:
@@ -165,7 +156,7 @@ enum class IOp  : u64 { THORIN_I_OP(CODE) };
 enum class ROp  : u64 { THORIN_R_OP(CODE) };
 enum class ICmp : u64 { THORIN_I_CMP(CODE) };
 enum class RCmp : u64 { THORIN_R_CMP(CODE) };
-enum class _Cast : u64 { THORIN_CAST(CODE) };
+enum class Cast : u64 { THORIN_CAST(CODE) };
 #undef CODE
 
 constexpr WMode operator|(WMode a, WMode b) { return WMode(int64_t(a) | int64_t(b)); }
@@ -184,11 +175,11 @@ constexpr bool has_feature(WMode mode, WMode feature) { return (mode & feature) 
 constexpr bool has_feature(RMode mode, RMode feature) { return (mode & feature) == feature; }
 
 #define CODE(T, o) case T::o: return #o;
-constexpr const char* op2str(WOp  o) { switch (o) { THORIN_W_OP(CODE)  default: THORIN_UNREACHABLE; } } 
-constexpr const char* op2str(ZOp  o) { switch (o) { THORIN_Z_OP(CODE)  default: THORIN_UNREACHABLE; } } 
-constexpr const char* op2str(IOp  o) { switch (o) { THORIN_I_OP(CODE)  default: THORIN_UNREACHABLE; } } 
-constexpr const char* op2str(ROp  o) { switch (o) { THORIN_R_OP(CODE)  default: THORIN_UNREACHABLE; } }
-constexpr const char* op2str(_Cast o) { switch (o) { THORIN_CAST(CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(WOp  o) { switch (o) { THORIN_W_OP(CODE) default: THORIN_UNREACHABLE; } } 
+constexpr const char* op2str(ZOp  o) { switch (o) { THORIN_Z_OP(CODE) default: THORIN_UNREACHABLE; } } 
+constexpr const char* op2str(IOp  o) { switch (o) { THORIN_I_OP(CODE) default: THORIN_UNREACHABLE; } } 
+constexpr const char* op2str(ROp  o) { switch (o) { THORIN_R_OP(CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(Cast o) { switch (o) { THORIN_CAST(CODE) default: THORIN_UNREACHABLE; } }
 #undef CODE
 
 #define CODE(T, o) case T::o: return "icmp_"#o;
@@ -212,7 +203,7 @@ template<> constexpr auto Num<IOp>  = 0_s THORIN_I_OP (CODE);
 template<> constexpr auto Num<ROp>  = 0_s THORIN_R_OP (CODE);
 template<> constexpr auto Num<ICmp> = 0_s THORIN_I_CMP(CODE);
 template<> constexpr auto Num<RCmp> = 0_s THORIN_R_CMP(CODE);
-template<> constexpr auto Num<_Cast> = 0_s THORIN_CAST (CODE);
+template<> constexpr auto Num<Cast> = 0_s THORIN_CAST (CODE);
 #undef CODE
 
 }

@@ -179,20 +179,20 @@ public:
     const Def* extract(const Def* agg, const Def* i, Debug dbg = {});
     const Def* extract(const Def* agg, u32 i, Debug dbg = {}) { return extract(agg, lit_index(agg->arity(), i, dbg), dbg); }
     const Def* extract(const Def* agg, u32 a, u32 i, Debug dbg = {}) { return extract(agg, lit_index(a, i, dbg), dbg); }
-    const Def* unsafe_extract(const Def* agg, const Def* i, Debug dbg = {}) { return extract(agg, cast(agg->arity(), i, dbg), dbg); }
+    const Def* unsafe_extract(const Def* agg, const Def* i, Debug dbg = {}) { return extract(agg, op_cast(agg->arity(), i, dbg), dbg); }
     const Def* unsafe_extract(const Def* agg, u64 i, Debug dbg = {}) { return unsafe_extract(agg, lit_nat(i, dbg), dbg); }
     //@}
     /// @name Insert
     //@{
     const Def* insert(const Def* agg, const Def* i, const Def* value, Debug dbg = {});
     const Def* insert(const Def* agg, u32 i, const Def* value, Debug dbg = {}) { return insert(agg, lit_index(agg->arity(), i, dbg), value, dbg); }
-    const Def* unsafe_insert(const Def* agg, const Def* i, const Def* value, Debug dbg = {}) { return insert(agg, cast(agg->arity(), i, dbg), value, dbg); }
+    const Def* unsafe_insert(const Def* agg, const Def* i, const Def* value, Debug dbg = {}) { return insert(agg, op_cast(agg->arity(), i, dbg), value, dbg); }
     const Def* unsafe_insert(const Def* agg, u32 i, const Def* value, Debug dbg = {}) { return unsafe_insert(agg, lit_nat(i, dbg), value, dbg); }
     //@}
     /// @name LEA - load effective address
     //@{
     const Def* lea(const Def* ptr, const Def* index, Debug dbg);
-    const Def* unsafe_lea(const Def* ptr, const Def* index, Debug dbg) { return lea(ptr, cast(ptr->type()->as<Ptr>()->pointee()->arity(), index, dbg), dbg); }
+    const Def* unsafe_lea(const Def* ptr, const Def* index, Debug dbg) { return lea(ptr, op_cast(ptr->type()->as<Ptr>()->pointee()->arity(), index, dbg), dbg); }
     //@}
     /// @name Literal
     //@{
@@ -227,30 +227,10 @@ public:
         static_assert(std::is_integral<I>());
         return lit(type_int(sizeof(I)*8), val, dbg);
     }
-    template<class R> const Lit* lit_real_(R val, Debug dbg = {}) {
-        static_assert(std::is_floating_point<R>() || std::is_same<R, f16>());
-        return lit(type_real_(sizeof(R)*8), val, dbg);
+    template<class R> const Lit* lit_real(R val, Debug dbg = {}) {
+        static_assert(std::is_floating_point<R>() || std::is_same<R, r16>());
+        return lit(type_real(sizeof(R)*8), val, dbg);
     }
-    template<class S> const Lit* lit_sint(S val, bool quick, Debug dbg = {}) {
-        static_assert(std::is_integral<S>() && std::is_signed<S>());
-        return lit(type_sint(sizeof(S)*8, quick), val, dbg);
-    }
-    template<class S> const Lit* lit_qsint(S val, Debug dbg = {}) { return lit_sint(val,  true, dbg); }
-    template<class S> const Lit* lit_psint(S val, Debug dbg = {}) { return lit_sint(val, false, dbg); }
-
-    template<class U> const Lit* lit_uint(U val, bool quick, Debug dbg = {}) {
-        static_assert(std::is_integral<U>() && std::is_unsigned<U>());
-        return lit(type_uint(sizeof(U)*8, quick), val, dbg);
-    }
-    template<class U> const Lit* lit_quint(U val, Debug dbg = {}) { return lit_uint(val,  true, dbg); }
-    template<class U> const Lit* lit_puint(U val, Debug dbg = {}) { return lit_uint(val, false, dbg); }
-
-    template<class R> const Lit* lit_real(R val, bool quick, Debug dbg = {}) {
-        static_assert(std::is_floating_point<R>() || std::is_same<R, f16>());
-        return lit(type_real(sizeof(R)*8, quick), val, dbg);
-    }
-    template<class R> const Lit* lit_qreal(R val, Debug dbg = {}) { return lit_real(val,  true, dbg); }
-    template<class R> const Lit* lit_preal(R val, Debug dbg = {}) { return lit_real(val, false, dbg); }
     //@}
     /// @name Top/Bottom
     //@{
@@ -267,55 +247,48 @@ public:
     //@}
     /// @name misc types
     //@{
-    const Bool* type_bool() const { return cache_.type_bool; }
-    const Nat* type_nat() const { return cache_.type_nat; }
-    const Mem* type_mem() const { return cache_.type_mem; }
-    const Sint* type_sint (const Def* num_bits, bool quick = false) { return unify<Sint>(1, *this, num_bits, quick); }
-    const Uint* type_uint(const Def* num_bits, bool quick = false) { return unify<Uint>(1, *this, num_bits, quick); }
-    const Real* type_real(const Def* num_bits, bool quick = false) { return unify<Real>(1, *this, num_bits, quick); }
-    const Sint* type_sint(u64 num_bits, bool quick = false) { return type_sint(lit_nat(num_bits), quick); }
-    const Uint* type_uint(u64 num_bits, bool quick = false) { return type_uint(lit_nat(num_bits), quick); }
-    const Real* type_real(u64 num_bits, bool quick = false) { return type_real(lit_nat(num_bits), quick); }
+    const Nat* type_nat() { return cache_.type_nat; }
+    const Mem* type_mem() { return cache_.type_mem; }
+    const Axiom* type_int()  { return cache_.type_int; }
+    const Axiom* type_real() { return cache_.type_real; }
+    const App* type_bool() { return type_int(1); }
+    const App* type_int (u64 num_bits) { return type_int (lit_nat(num_bits)); }
+    const App* type_real(u64 num_bits) { return type_real(lit_nat(num_bits)); }
+    const App* type_int (const Def* num_bits) { return app(type_int(),  num_bits)->as<App>(); }
+    const App* type_real(const Def* num_bits) { return app(type_real(), num_bits)->as<App>(); }
     const Ptr* type_ptr(const Def* pointee, const Def* addr_space, Debug dbg = {}) { return unify<Ptr>(2, kind_star(), pointee, addr_space, debug(dbg)); }
     const Ptr* type_ptr(const Def* pointee, u64 addr_space = AddrSpace::Generic, Debug dbg = {}) { return type_ptr(pointee, lit_nat((u64) addr_space), dbg); }
-    const Axiom* type_int() const { return cache_.type_int; }
-    const Axiom* type_real_() const { return cache_.type_real_; }
-    const Def* type_int  (u64 num_bits) { return type_int  (lit_nat(num_bits)); }
-    const Def* type_real_(u64 num_bits) { return type_real_(lit_nat(num_bits)); }
-    const Def* type_int  (const Def* num_bits) { return app(type_int(),   num_bits); }
-    const Def* type_real_(const Def* num_bits) { return app(type_real_(), num_bits); }
     //@}
-    /// @name arithmetic operations for IOp
+    /// @name WOp
+    //@{
+    template<WOp o> const Axiom* op() { return cache_.WOp_[size_t(o)]; }
+    template<WOp o> const Def* op(WMode m, const Def* a, const Def* b, Debug dbg = {}) { return op<o>(m, infer_width(a), a, b, dbg); }
+    template<WOp o> const Def* op(WMode m, const Def* w, const Def* a, const Def* b, Debug dbg = {}) { return app(app(op<o>(), {lit_nat(u64(m)), w}), {a, b}, dbg);
+    }
+    //@}
+    /// @name ZOp
+    //@{
+    template<ZOp o> const Axiom* op() { return cache_.ZOp_[size_t(o)]; }
+    template<ZOp o> const Def* op(const Def* z, const Def* a, const Def* b, Debug dbg = {}) { return op<o>(infer_width(a), z, a, b, dbg); }
+    template<ZOp o> const Def* op(const Def* w, const Def* z, const Def* a, const Def* b, Debug dbg = {}) { return app(app(op<o>(), w), {z, a, b}, dbg); }
+    //@}
+    /// @name IOp
     //@{
     template<IOp o> const Axiom* op() { return cache_.IOp_[size_t(o)]; }
     template<IOp o> const Def* op(const Def* a, const Def* b, Debug dbg = {}) { return op<o>(infer_width(a), a, b, dbg); }
-    template<IOp o> const Def* op(const Def* width, const Def* a, const Def* b, Debug dbg = {}) { return app(app(op<o>(), width), {a, b}, dbg); }
+    template<IOp o> const Def* op(const Def* w, const Def* a, const Def* b, Debug dbg = {}) { return app(app(op<o>(), w), {a, b}, dbg); }
     //@}
-    /// @name ArithOps
+    /// @name ROp
     //@{
-    /// Creates an \p ArithOp or a \p Cmp.
-    const Def* arithop_not(const Def* def, Debug dbg = {});
-    const Def* arithop_minus(const Def* def, Debug dbg = {});
-    const Def* arithop(ArithOpTag tag, const Def* lhs, const Def* rhs, Debug dbg = {});
-#define THORIN_ARITHOP(OP) \
-    const Def* arithop_##OP(const Def* lhs, const Def* rhs, Debug dbg = {}) { \
-        return arithop(ArithOp_##OP, lhs, rhs, dbg); \
-    }
-#include "thorin/tables/arithoptable.h"
-    //@}
-    /// @name Cmps
-    //@{
-    const Def* cmp(CmpTag tag, const Def* lhs, const Def* rhs, Debug dbg = {});
-#define THORIN_CMP(OP) \
-    const Def* cmp_##OP(const Def* lhs, const Def* rhs, Debug dbg = {}) { \
-        return cmp(Cmp_##OP, lhs, rhs, dbg);  \
-    }
-#include "thorin/tables/cmptable.h"
+    template<ROp o> const Axiom* op() { return cache_.ROp_[size_t(o)]; }
+    template<ROp o> const Def* op(const Def* a, const Def* b, Debug dbg = {}) { return op<o>(RMode::none, a, b, dbg); }
+    template<ROp o> const Def* op(RMode m, const Def* a, const Def* b, Debug dbg = {}) { return op<o>(m, infer_width(a), a, b, dbg); }
+    template<ROp o> const Def* op(RMode m, const Def* w, const Def* a, const Def* b, Debug dbg = {}) { return app(app(op<o>(), {lit_nat(u64(m)), w}), {a, b}, dbg); }
     //@}
     /// @name Casts
     //@{
     const Def* convert(const Def* to, const Def* from, Debug dbg = {});
-    const Def* cast(const Def* to, const Def* from, Debug dbg = {});
+    const App* op_cast(const Def* to, const Def* from, Debug dbg = {});
     const Def* bitcast(const Def* to, const Def* from, Debug dbg = {});
     //@}
     /// @name memory-related operations
@@ -332,11 +305,6 @@ public:
     //const Assembly* assembly(Defs types, const Def* mem, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints,
                              //ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg = {});
     //@}
-    /// @name select
-    //@{
-    const Def* select(const Def* cond, const Def* t, const Def* f, Debug dbg = {});
-    const Def* op_select(const Def* cond, const Def* t, const Def* f, Debug dbg = {}) { return app(app(cache_.op_select, t->type()), {cond, t, f}, dbg); }
-    //@}
     /// @name partial evaluation related operations
     //@{
     const Def* hlt(const Def* def, Debug dbg = {});
@@ -351,7 +319,10 @@ public:
     //@}
     /// @name misc operations
     //@{
-    const Def* size_of(const Def* type, Debug dbg = {});
+    const Axiom* op_select() const { return cache_.op_select; }
+    const Axiom* op_sizeof() const { return cache_.op_sizeof; }
+    const Def* op_select(const Def* cond, const Def* t, const Def* f, Debug dbg = {}) { return app(app(cache_.op_select, t->type()), {cond, t, f}, dbg); }
+    const Def* op_sizeof(const Def* type, Debug dbg = {}) { return app(op_sizeof(), type, dbg); }
     Lam* match(const Def* type, size_t num_patterns);
     Lam* end_scope() const { return cache_.end_scope; }
     //@}
@@ -539,7 +510,6 @@ private:
         const Top* top_arity;
         const Sigma* sigma;
         const Tuple* tuple;
-        const Bool* type_bool;
         const Nat* type_nat;
         const Mem* type_mem;
         std::array<const Lit*, 2> lit_bool;
@@ -547,15 +517,16 @@ private:
         const Lit* lit_index_0_1;
         Lam* end_scope;
         Axiom* type_int;
-        Axiom* type_real_;
-        std::array<Axiom*, Num<WOp>> WOp_;
-        std::array<Axiom*, Num<ZOp>> ZOp_;
-        std::array<Axiom*, Num<IOp>> IOp_;
-        std::array<Axiom*, Num<ROp>> ROp_;
+        Axiom* type_real;
+        std::array<Axiom*, Num<WOp>>  WOp_;
+        std::array<Axiom*, Num<ZOp>>  ZOp_;
+        std::array<Axiom*, Num<IOp>>  IOp_;
+        std::array<Axiom*, Num<ROp>>  ROp_;
         std::array<Axiom*, Num<ICmp>> ICmp_;
         std::array<Axiom*, Num<RCmp>> RCmp_;
-        std::array<Axiom*, Num<_Cast>> _Cast_;
+        std::array<Axiom*, Num<Cast>> Cast_;
         Axiom* op_select;
+        Axiom* op_sizeof;
     } cache_;
 
     friend class Cleaner;

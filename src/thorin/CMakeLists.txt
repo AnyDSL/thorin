@@ -3,6 +3,7 @@ set(THORIN_SOURCES
     def.h
     enums.cpp
     enums.h
+    fold.h
     normalize.cpp
     normalize.h
     primop.cpp

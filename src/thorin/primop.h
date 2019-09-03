@@ -3,7 +3,6 @@
 
 #include "thorin/config.h"
 #include "thorin/def.h"
-#include "thorin/enums.h"
 #include "thorin/util.h"
 
 namespace thorin {

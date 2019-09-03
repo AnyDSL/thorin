@@ -8,7 +8,6 @@
 #include <string>
 
 #include "thorin/def.h"
-#include "thorin/enums.h"
 #include "thorin/primop.h"
 #include "thorin/util/hash.h"
 #include "thorin/util/stream.h"

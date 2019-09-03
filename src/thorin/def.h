@@ -6,7 +6,6 @@
 #include <variant>
 #include <vector>
 
-#include "thorin/enums.h"
 #include "thorin/tables.h"
 #include "thorin/util/array.h"
 #include "thorin/util/cast.h"

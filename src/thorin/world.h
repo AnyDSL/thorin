@@ -259,6 +259,12 @@ public:
     const Ptr* type_ptr(const Def* pointee, const Def* addr_space, Debug dbg = {}) { return unify<Ptr>(2, kind_star(), pointee, addr_space, debug(dbg)); }
     const Ptr* type_ptr(const Def* pointee, u64 addr_space = AddrSpace::Generic, Debug dbg = {}) { return type_ptr(pointee, lit_nat((u64) addr_space), dbg); }
     //@}
+    /// @name IOp
+    //@{
+    template<IOp o> const Axiom* op() { return cache_.IOp_[size_t(o)]; }
+    template<IOp o> const Def* op(const Def* a, const Def* b, Debug dbg = {}) { return op<o>(infer_width(a), a, b, dbg); }
+    template<IOp o> const Def* op(const Def* w, const Def* a, const Def* b, Debug dbg = {}) { return app(app(op<o>(), w), {a, b}, dbg); }
+    //@}
     /// @name WOp
     //@{
     template<WOp o> const Axiom* op() { return cache_.WOp_[size_t(o)]; }
@@ -271,12 +277,6 @@ public:
     template<ZOp o> const Axiom* op() { return cache_.ZOp_[size_t(o)]; }
     template<ZOp o> const Def* op(const Def* z, const Def* a, const Def* b, Debug dbg = {}) { return op<o>(infer_width(a), z, a, b, dbg); }
     template<ZOp o> const Def* op(const Def* w, const Def* z, const Def* a, const Def* b, Debug dbg = {}) { return app(app(op<o>(), w), {z, a, b}, dbg); }
-    //@}
-    /// @name IOp
-    //@{
-    template<IOp o> const Axiom* op() { return cache_.IOp_[size_t(o)]; }
-    template<IOp o> const Def* op(const Def* a, const Def* b, Debug dbg = {}) { return op<o>(infer_width(a), a, b, dbg); }
-    template<IOp o> const Def* op(const Def* w, const Def* a, const Def* b, Debug dbg = {}) { return app(app(op<o>(), w), {a, b}, dbg); }
     //@}
     /// @name ROp
     //@{
@@ -518,9 +518,9 @@ private:
         Lam* end_scope;
         Axiom* type_int;
         Axiom* type_real;
+        std::array<Axiom*, Num<IOp>>  IOp_;
         std::array<Axiom*, Num<WOp>>  WOp_;
         std::array<Axiom*, Num<ZOp>>  ZOp_;
-        std::array<Axiom*, Num<IOp>>  IOp_;
         std::array<Axiom*, Num<ROp>>  ROp_;
         std::array<Axiom*, Num<ICmp>> ICmp_;
         std::array<Axiom*, Num<RCmp>> RCmp_;
@@ -532,6 +532,20 @@ private:
     friend class Cleaner;
     friend void Def::replace(Tracker) const;
 };
+
+template<size_t N = size_t(-1)>
+auto Def::split() const {
+    std::conditional_t<N == size_t(-1), std::vector<const Def*>, std::array<const Def*, N>> array;
+    if constexpr (N == size_t(-1))
+        array.resize(lit_arity());
+    else
+        assert(lit_arity() == N);
+
+    auto& w = world();
+    for (size_t i = 0, e = lit_arity(); i != e; ++i) array[i] = w.extract(this, i);
+
+    return array;
+}
 
 }
 

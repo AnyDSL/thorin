@@ -229,6 +229,8 @@ public:
         assert(type()->type()->type()->node() == Node::Universe);
         return *type()->type()->type()->world_;
     }
+    /// Splits this def into an array by using @p arity many @p Extract%s.
+    template<size_t N = size_t(-1)> auto split() const;
     //@}
     /// @name replace
     //@{

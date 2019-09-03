@@ -66,12 +66,12 @@ enum class RMode : u32 {
     fast = nnan | ninf | nsz | arcp | contract | afn | reassoc,
 };
 
+/// Integer operations that neither take a @p WMode nor do produce a side effect.
+#define THORIN_I_OP(m) m(IOp, ashr) m(IOp, lshr) m(IOp, iand) m(IOp, ior) m(IOp, ixor)
 /// Integer operations that might wrap and, hence, take @p WMode.
 #define THORIN_W_OP(m) m(WOp, add) m(WOp, sub) m(WOp, mul) m(WOp, shl)
 /// Integer operations that might produce a "division by zero" side effect.
 #define THORIN_Z_OP(m) m(ZOp, sdiv) m(ZOp, udiv) m(ZOp, smod) m(ZOp, umod)
-/// Integer operations that neither take a @p WMode nor do produce a side effect.
-#define THORIN_I_OP(m) m(IOp, ashr) m(IOp, lshr) m(IOp, iand) m(IOp, ior) m(IOp, ixor)
 /// Rloating point (float) operations that take @p RMode.
 #define THORIN_R_OP(m) m(ROp, radd) m(ROp, rsub) m(ROp, rmul) m(ROp, rdiv) m(ROp, rmod)
 /// All cast operations that cast from/to float/signed/unsigned.

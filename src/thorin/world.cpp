@@ -59,6 +59,13 @@ World::World(uint32_t cur_gid, const std::string& name)
 #define CODE(op) Pi* type_ ## op;
     THORIN_OP_CMP(CODE)
 #undef CODE
+    { // IOp: Πw: nat. Π[int w, int w]. int w
+        type_IOp = pi(kind_star())->set_domain(type_nat());
+        auto w = type_IOp->param({"w"});
+        auto int_w = type_int(w);
+        auto inner = pi({int_w, int_w}, int_w);
+        type_IOp->set_codomain(inner);
+    }
     { // WOp: Π[m: nat, w: nat]. Π[int w, int w]. int w
         type_WOp = pi(kind_star())->set_domain({type_nat(), type_nat()});
         type_WOp->param(0, {"m"});
@@ -73,13 +80,6 @@ World::World(uint32_t cur_gid, const std::string& name)
         auto int_w = type_int(w);
         auto inner = pi({type_mem(), int_w, int_w}, sigma({type_mem(), int_w}));
         type_ZOp->set_codomain(inner);
-    }
-    { // IOp: Πw: nat. Π[int w, int w]. int w
-        type_IOp = pi(kind_star())->set_domain(type_nat());
-        auto w = type_IOp->param({"w"});
-        auto int_w = type_int(w);
-        auto inner = pi({int_w, int_w}, int_w);
-        type_IOp->set_codomain(inner);
     }
     { // ROp: Π[m: nat, w: nat]. Π[real w, real w]. real w
         type_ROp = pi(kind_star())->set_domain({type_nat(), type_nat()});

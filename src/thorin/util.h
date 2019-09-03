@@ -34,15 +34,15 @@ inline bool is_passed_to_intrinsic(Lam* lam, Lam::Intrinsic intrinsic, bool incl
 std::tuple<const Axiom*, u16> get_axiom(const Def*);
 
 template<u32 tag>
-bool match(const Def* def) {
+const Def* match(const Def* def) {
     auto [axiom, currying_depth] = get_axiom(def);
-    return axiom->tag() == tag && currying_depth == 0;
+    return axiom->tag() == tag && currying_depth == 0 ? def->as<App>()->arg() : nullptr;
 }
 
 template<u32 tag, u32 flags>
-bool match(const Def* def) {
+const Def* match(const Def* def) {
     auto [axiom, currying_depth] = get_axiom(def);
-    return axiom->tag() == tag && axiom->flags() == flags && currying_depth == 0;
+    return axiom->tag() == tag && axiom->flags() == flags && currying_depth == 0 ? def->as<App>()->arg() : nullptr;
 }
 
 void app_to_dropped_app(Lam* src, Lam* dst, const App* app);

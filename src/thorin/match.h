@@ -6,8 +6,8 @@
 namespace thorin {
 
 template <unsigned Min, unsigned Max = Min>
-struct MatchTag {
-    static bool match(const Def* def) { return Min <= def->tag() && def->tag() <= Max; }
+struct MatchNode {
+    static bool match(const Def* def) { return Min <= def->node() && def->node() <= Max; }
 };
 
 template <size_t Op, typename Matcher>
@@ -44,8 +44,8 @@ struct IsLiteral {
     static bool match(const Def* def) { return def->isa<Lit>(); }
 };
 
-using IsKind  = MatchType<MatchTag<Tag::Universe>>;
-using IsType  = MatchType<MatchTag<Tag::KindStar>>;
+using IsKind  = MatchType<MatchNode<Node::Universe>>;
+using IsType  = MatchType<MatchNode<Node::KindStar>>;
 using IsValue = MatchType<IsType>;
 
 }

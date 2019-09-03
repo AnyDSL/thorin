@@ -217,14 +217,23 @@ template<class T> constexpr auto Num = size_t(-1);
 #define CODE(T, o) + 1_s
 constexpr auto Num_Nodes = 0_s THORIN_NODE (CODE);
 constexpr auto Num_Tags  = 0_s THORIN_TAG (CODE);
+template<> constexpr auto Num<IOp>  = 0_s THORIN_I_OP (CODE);
 template<> constexpr auto Num<WOp>  = 0_s THORIN_W_OP (CODE);
 template<> constexpr auto Num<ZOp>  = 0_s THORIN_Z_OP (CODE);
-template<> constexpr auto Num<IOp>  = 0_s THORIN_I_OP (CODE);
 template<> constexpr auto Num<ROp>  = 0_s THORIN_R_OP (CODE);
 template<> constexpr auto Num<ICmp> = 0_s THORIN_I_CMP(CODE);
 template<> constexpr auto Num<RCmp> = 0_s THORIN_R_CMP(CODE);
 template<> constexpr auto Num<Cast> = 0_s THORIN_CAST (CODE);
 #undef CODE
+
+template<u32 tag> struct Tag2Flags_ {};
+template<> struct Tag2Flags_<Tag::IOp>  { using type = IOp; };
+template<> struct Tag2Flags_<Tag::WOp>  { using type = WOp; };
+template<> struct Tag2Flags_<Tag::ZOp>  { using type = ZOp; };
+template<> struct Tag2Flags_<Tag::ROp>  { using type = ROp; };
+template<> struct Tag2Flags_<Tag::ICmp> { using type = ICmp; };
+template<> struct Tag2Flags_<Tag::RCmp> { using type = RCmp; };
+template<u32 tag> using Tag2Flags = typename Tag2Flags_<tag>::type;
 
 }
 

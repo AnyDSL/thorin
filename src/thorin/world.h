@@ -132,6 +132,14 @@ public:
     //@{
     const Def* app(const Def* callee, const Def* arg, Debug dbg = {});
     const Def* app(const Def* callee, Defs args, Debug dbg = {}) { return app(callee, tuple(args), dbg); }
+    /// Does not invoke the @p App's normalizer.
+    const Def* raw_app(const Def* callee, const Def* arg, Debug dbg = {}) {
+        auto type = callee->type()->as<Pi>()->apply(arg);
+        auto [axiom, currying_depth] = get_axiom(callee);
+        return unify<App>(2, axiom, currying_depth, type, callee, arg, debug(dbg));
+    }
+    /// Does not invoke the @p App's normalizer.
+    const Def* raw_app(const Def* callee, Defs args, Debug dbg = {}) { return raw_app(callee, tuple(args, dbg), dbg); }
     //@}
     /// @name Sigma: structural
     //@{

@@ -7,22 +7,36 @@ namespace thorin {
 
 using namespace thorin::fold;
 
+//------------------------------------------------------------------------------
+
+static bool is_allset(const Def* def) {
+    if (auto lit = isa_lit<u64>(def)) {
+        if (auto width = isa_lit<u64>(as<Tag::Int>(def->type())))
+            return (*lit >> (64_u64 - *width) == u64(-1) >> (64_u64 - *width));
+    }
+    return false;
+}
+
+static bool is_not(const Def* def) {
+    if (auto arg = isa<Tag::IOp, IOp::ixor>(def)) {
+        auto [x, y] = split<2>(arg);
+        if (is_allset(x)) return true;
+    }
+    return false;
+}
+
+//------------------------------------------------------------------------------
+
 const Def* normalize_select(const Def* callee, const Def* arg, const Def* dbg) {
     auto& world = callee->world();
     auto [cond, a, b] = split<3>(arg);
 
-    if (cond->isa<Bot>() || a->isa<Bot>() || b->isa<Bot>()) return world.bot(a->type(), dbg);
+    if (cond->isa<Bot>()) return world.bot(a->type(), dbg);
     if (auto lit = cond->isa<Lit>()) return lit->get<bool>() ? a : b;
-
-#if 0
-    if (is_not(cond)) {
-        cond = cond->as<ArithOp>()->rhs();
-        std::swap(a, b);
-    }
-#endif
-
     if (a == b) return a;
-    return nullptr;
+    if (is_not(cond)) std::swap(a, b);
+
+    return world.raw_app(callee, {a, b}, dbg);
 }
 
 const Def* normalize_sizeof(const Def* callee, const Def* type, const Def* dbg) {
@@ -30,8 +44,8 @@ const Def* normalize_sizeof(const Def* callee, const Def* type, const Def* dbg) 
 
     const Def* width = nullptr;
     if (false) {}
-    else if (auto arg = match<Tag::Int >(type)) width = arg;
-    else if (auto arg = match<Tag::Real>(type)) width = arg;
+    else if (auto arg = isa<Tag::Int >(type)) width = arg;
+    else if (auto arg = isa<Tag::Real>(type)) width = arg;
 
     if (auto lit = isa_lit<u64>(width)) return world.lit_nat(*lit / 8, dbg);
     return nullptr;
@@ -233,13 +247,13 @@ const Def* normalize_Cast(const Def*, const Def*, const Def*) {
 
 // instantiate templates
 #define CODE(T, o) template const Def* normalize_ ## T<T::o>(const Def*, const Def*, const Def*);
-    THORIN_W_OP (CODE)
-    THORIN_Z_OP (CODE)
-    THORIN_I_OP (CODE)
-    THORIN_R_OP (CODE)
-    THORIN_I_CMP(CODE)
-    THORIN_R_CMP(CODE)
-    THORIN_CAST(CODE)
+THORIN_W_OP (CODE)
+THORIN_Z_OP (CODE)
+THORIN_I_OP (CODE)
+THORIN_R_OP (CODE)
+THORIN_I_CMP(CODE)
+THORIN_R_CMP(CODE)
+THORIN_CAST(CODE)
 #undef CODE
 
 }

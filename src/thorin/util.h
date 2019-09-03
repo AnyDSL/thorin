@@ -34,16 +34,19 @@ inline bool is_passed_to_intrinsic(Lam* lam, Lam::Intrinsic intrinsic, bool incl
 std::tuple<const Axiom*, u16> get_axiom(const Def*);
 
 template<u32 tag>
-const Def* match(const Def* def) {
+const Def* isa(const Def* def) {
     auto [axiom, currying_depth] = get_axiom(def);
     return axiom->tag() == tag && currying_depth == 0 ? def->as<App>()->arg() : nullptr;
 }
 
-template<u32 tag, u32 flags>
-const Def* match(const Def* def) {
+template<u32 tag, Tag2Flags<tag> flags>
+const Def* isa(const Def* def) {
     auto [axiom, currying_depth] = get_axiom(def);
-    return axiom->tag() == tag && axiom->flags() == flags && currying_depth == 0 ? def->as<App>()->arg() : nullptr;
+    return axiom->tag() == tag && axiom->flags() == u32(flags) && currying_depth == 0 ? def->as<App>()->arg() : nullptr;
 }
+
+template<u32 tag>                       const Def* as(const Def* def) { assert( isa<tag       >(def) ); return def->as<App>()->arg(); }
+template<u32 tag, Tag2Flags<tag> flags> const Def* as(const Def* def) { assert((isa<tag, flags>(def))); return def->as<App>()->arg(); }
 
 /// Splits this def into an array by using @p arity many @p Extract%s.
 template<size_t N = size_t(-1)>

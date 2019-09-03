@@ -142,4 +142,31 @@ std::string tuple2str(const Def* def) {
     return result;
 }
 
+template<size_t N = size_t(-1)>
+auto split(const Def* def) -> std::conditional_t<N == size_t(-1), std::vector<const Def*>, std::array<const Def*, N>> {
+    std::conditional_t<N == size_t(-1), std::vector<const Def*>, std::array<const Def*, N>> array;
+    auto a = def->lit_arity();
+    if constexpr (N == size_t(-1))
+        array.resize(a);
+    else
+        assert(a == N);
+
+    auto& world = def->world();
+    for (size_t i = 0; i != a; ++i)
+        array[i] = world.extract(def, i);
+
+    return array;
+}
+
+// instantiate templates
+template auto split<1>(const Def* def) -> std::array<const Def*, 1>;
+template auto split<2>(const Def* def) -> std::array<const Def*, 2>;
+template auto split<3>(const Def* def) -> std::array<const Def*, 3>;
+template auto split<4>(const Def* def) -> std::array<const Def*, 4>;
+template auto split<5>(const Def* def) -> std::array<const Def*, 5>;
+template auto split<6>(const Def* def) -> std::array<const Def*, 6>;
+template auto split<7>(const Def* def) -> std::array<const Def*, 7>;
+template auto split<8>(const Def* def) -> std::array<const Def*, 8>;
+template auto split<size_t(-1)>(const Def* def) -> std::vector<const Def*>;
+
 }

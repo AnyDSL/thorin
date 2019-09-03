@@ -45,6 +45,10 @@ const Def* match(const Def* def) {
     return axiom->tag() == tag && axiom->flags() == flags && currying_depth == 0 ? def->as<App>()->arg() : nullptr;
 }
 
+/// Splits this def into an array by using @p arity many @p Extract%s.
+template<size_t N = size_t(-1)>
+auto split(const Def* def) -> std::conditional_t<N == size_t(-1), std::vector<const Def*>, std::array<const Def*, N>>;
+
 void app_to_dropped_app(Lam* src, Lam* dst, const App* app);
 
 class Peek {

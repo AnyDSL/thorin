@@ -532,20 +532,6 @@ private:
     friend void Def::replace(Tracker) const;
 };
 
-template<size_t N = size_t(-1)>
-auto Def::split() const {
-    std::conditional_t<N == size_t(-1), std::vector<const Def*>, std::array<const Def*, N>> array;
-    if constexpr (N == size_t(-1))
-        array.resize(lit_arity());
-    else
-        assert(lit_arity() == N);
-
-    auto& w = world();
-    for (size_t i = 0, e = lit_arity(); i != e; ++i) array[i] = w.extract(this, i);
-
-    return array;
-}
-
 }
 
 #endif

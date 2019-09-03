@@ -9,7 +9,7 @@ using namespace thorin::fold;
 
 const Def* normalize_select(const Def* callee, const Def* arg, const Def* dbg) {
     auto& world = callee->world();
-    auto [cond, a, b] = arg->split<3>();
+    auto [cond, a, b] = split<3>(arg);
 
     if (cond->isa<Bot>() || a->isa<Bot>() || b->isa<Bot>()) return world.bot(a->type(), dbg);
     if (auto lit = cond->isa<Lit>()) return lit->get<bool>() ? a : b;
@@ -65,7 +65,7 @@ static const Def* fold_i(const Def* callee, const Def* a, const Def* b, const De
 
 template<IOp op>
 const Def* normalize_IOp(const Def* callee, const Def* arg, const Def* dbg) {
-    auto [a, b] = arg->split<2>();
+    auto [a, b] = split<2>(arg);
     if (auto result = fold_i<FoldIOp<op>::template Fold>(callee, a, b, dbg)) return result;
 
     return nullptr;
@@ -79,7 +79,7 @@ static const Def* fold_w(const Def* callee, const Def* a, const Def* b, const De
     auto la = a->isa<Lit>(), lb = b->isa<Lit>();
     if (la && lb) {
         auto t = a->type();
-        auto [ff, ww] = callee->as<App>()->arg()->split<2>();
+        auto [ff, ww] = split<2>(callee->as<App>()->arg());
         auto f = as_lit<u64>(ff);
         auto w = as_lit<u64>(ww);
         Res res;
@@ -131,7 +131,7 @@ static const Def* fold_w(const Def* callee, const Def* a, const Def* b, const De
 
 template<WOp op>
 const Def* normalize_WOp(const Def* callee, const Def* arg, const Def* dbg) {
-    auto [a, b] = arg->split<2>();
+    auto [a, b] = split<2>(arg);
     if (auto result = fold_w<FoldWOp<op>::template Fold>(callee, a, b, dbg)) return result;
 
     return nullptr;
@@ -164,7 +164,7 @@ static const Def* fold_ZOp(const Def* callee, const Def* m, const Def* a, const 
 
 template<ZOp op>
 const Def* normalize_ZOp(const Def* callee, const Def* arg, const Def* dbg) {
-    auto [m, a, b] = arg->split<3>();
+    auto [m, a, b] = split<3>(arg);
     if (auto result = fold_ZOp<FoldZOp<op>::template Fold>(callee, m, a, b, dbg)) return result;
 
     return nullptr;
@@ -196,7 +196,7 @@ static const Def* fold_r(const Def* callee, const Def* a, const Def* b, const De
 
 template<ROp op>
 const Def* normalize_ROp(const Def* callee, const Def* arg, const Def* dbg) {
-    auto [a, b] = arg->split<2>();
+    auto [a, b] = split<2>(arg);
     if (auto result = fold_r<FoldROp<op>::template Fold>(callee, a, b, dbg)) return result;
 
     return nullptr;
@@ -206,7 +206,7 @@ const Def* normalize_ROp(const Def* callee, const Def* arg, const Def* dbg) {
 
 template<ICmp op>
 const Def* normalize_ICmp(const Def* callee, const Def* arg, const Def* dbg) {
-    auto [a, b] = arg->split<2>();
+    auto [a, b] = split<2>(arg);
     if (auto result = fold_i<FoldICmp<op>::template Fold>(callee, a, b, dbg)) return result;
 
     return nullptr;
@@ -216,7 +216,7 @@ const Def* normalize_ICmp(const Def* callee, const Def* arg, const Def* dbg) {
 
 template<RCmp op>
 const Def* normalize_RCmp(const Def* callee, const Def* arg, const Def* dbg) {
-    auto [a, b] = arg->split<2>();
+    auto [a, b] = split<2>(arg);
     if (auto result = fold_r<FoldRCmp<op>::template Fold>(callee, a, b, dbg)) return result;
 
     return nullptr;

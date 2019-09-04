@@ -275,8 +275,8 @@ public:
     /// @name WOp
     //@{
     template<WOp o> const Axiom* op() { return cache_.WOp_[size_t(o)]; }
-    template<WOp o> const Def* op(WMode m, const Def* a, const Def* b, Debug dbg = {}) { return op<o>(m, infer_width(a), a, b, dbg); }
-    template<WOp o> const Def* op(WMode m, const Def* w, const Def* a, const Def* b, Debug dbg = {}) { return app(app(op<o>(), {lit_nat(u64(m)), w}), {a, b}, dbg);
+    template<WOp o> const Def* op(u64 wmode, const Def* a, const Def* b, Debug dbg = {}) { return op<o>(wmode, infer_width(a), a, b, dbg); }
+    template<WOp o> const Def* op(u64 wmode, const Def* w, const Def* a, const Def* b, Debug dbg = {}) { return app(app(op<o>(), {lit_nat(wmode), w}), {a, b}, dbg);
     }
     //@}
     /// @name ZOp
@@ -289,8 +289,8 @@ public:
     //@{
     template<ROp o> const Axiom* op() { return cache_.ROp_[size_t(o)]; }
     template<ROp o> const Def* op(const Def* a, const Def* b, Debug dbg = {}) { return op<o>(RMode::none, a, b, dbg); }
-    template<ROp o> const Def* op(RMode m, const Def* a, const Def* b, Debug dbg = {}) { return op<o>(m, infer_width(a), a, b, dbg); }
-    template<ROp o> const Def* op(RMode m, const Def* w, const Def* a, const Def* b, Debug dbg = {}) { return app(app(op<o>(), {lit_nat(u64(m)), w}), {a, b}, dbg); }
+    template<ROp o> const Def* op(u64 rmode, const Def* a, const Def* b, Debug dbg = {}) { return op<o>(rmode, infer_width(a), a, b, dbg); }
+    template<ROp o> const Def* op(u64 rmode, const Def* w, const Def* a, const Def* b, Debug dbg = {}) { return app(app(op<o>(), {lit_nat(rmode), w}), {a, b}, dbg); }
     //@}
     /// @name Casts
     //@{

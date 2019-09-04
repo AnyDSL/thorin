@@ -46,13 +46,16 @@ namespace thorin {
     m(WOp, wop) m(ZOp, zop) m(IOp, iop) m(ROp, rop) m(ICmp, icmp) m(RCmp, rcmp) \
     m(Select, select) m(Sizeof, sizeof)
 
-enum class WMode : u32 {
+namespace WMode {
+enum : u64 {
     none = 0,
     nsw  = 1 << 0,
     nuw  = 1 << 1,
 };
+}
 
-enum class RMode : u32 {
+namespace RMode {
+enum RMode : u64 {
     none     = 0,
     nnan     = 1 << 0, ///< No NaNs - Allow optimizations to assume the arguments and result are not NaN. Such optimizations are required to retain defined behavior over NaNs, but the value of the result is undefined.
     ninf     = 1 << 1, ///< No Infs - Allow optimizations to assume the arguments and result are not +/-Inf. Such optimizations are required to retain defined behavior over +/-Inf, but the value of the result is undefined.
@@ -65,6 +68,7 @@ enum class RMode : u32 {
     unsafe   = nsz | arcp | reassoc,
     fast = nnan | ninf | nsz | arcp | contract | afn | reassoc,
 };
+}
 
 /// Integer operations that neither take a @p WMode nor do produce a side effect.
 #define THORIN_I_OP(m) m(IOp, ashr) m(IOp, lshr) m(IOp, iand) m(IOp, ior) m(IOp, ixor)
@@ -177,25 +181,16 @@ enum class RCmp : u64 { THORIN_R_CMP(CODE) };
 enum class Cast : u64 { THORIN_CAST(CODE) };
 #undef CODE
 
-constexpr WMode operator|(WMode a, WMode b) { return WMode(u32(a) | u32(b)); }
-constexpr WMode operator&(WMode a, WMode b) { return WMode(u32(a) & u32(b)); }
-
-constexpr RMode operator|(RMode a, RMode b) { return RMode(u32(a) | u32(b)); }
-constexpr RMode operator&(RMode a, RMode b) { return RMode(u32(a) & u32(b)); }
-
 constexpr ICmp operator|(ICmp a, ICmp b) { return ICmp(u32(a) | u32(b)); }
 constexpr ICmp operator&(ICmp a, ICmp b) { return ICmp(u32(a) & u32(b)); }
 
 constexpr RCmp operator|(RCmp a, RCmp b) { return RCmp(u32(a) | u32(b)); }
 constexpr RCmp operator&(RCmp a, RCmp b) { return RCmp(u32(a) & u32(b)); }
 
-constexpr bool has_feature(WMode mode, WMode feature) { return (mode & feature) == feature; }
-constexpr bool has_feature(RMode mode, RMode feature) { return (mode & feature) == feature; }
-
 #define CODE(T, o) case T::o: return #o;
-constexpr const char* op2str(WOp  o) { switch (o) { THORIN_W_OP(CODE) default: THORIN_UNREACHABLE; } } 
-constexpr const char* op2str(ZOp  o) { switch (o) { THORIN_Z_OP(CODE) default: THORIN_UNREACHABLE; } } 
-constexpr const char* op2str(IOp  o) { switch (o) { THORIN_I_OP(CODE) default: THORIN_UNREACHABLE; } } 
+constexpr const char* op2str(WOp  o) { switch (o) { THORIN_W_OP(CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(ZOp  o) { switch (o) { THORIN_Z_OP(CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(IOp  o) { switch (o) { THORIN_I_OP(CODE) default: THORIN_UNREACHABLE; } }
 constexpr const char* op2str(ROp  o) { switch (o) { THORIN_R_OP(CODE) default: THORIN_UNREACHABLE; } }
 constexpr const char* op2str(Cast o) { switch (o) { THORIN_CAST(CODE) default: THORIN_UNREACHABLE; } }
 #undef CODE

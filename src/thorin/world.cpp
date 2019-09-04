@@ -53,69 +53,59 @@ World::World(uint32_t cur_gid, const std::string& name)
         cache_.type_real = axiom(p, Tag::Real, 0, {"real"});
     }
 
-    cache_.lit_bool[0] = lit(type_bool(), {false});
-    cache_.lit_bool[1] = lit(type_bool(), {true});
+    cache_.lit_bool[0] = lit(type_bool(), false);
+    cache_.lit_bool[1] = lit(type_bool(),  true);
 
-#define CODE(op) Pi* type_ ## op;
-    THORIN_OP_CMP(CODE)
-#undef CODE
     { // IOp: Πw: nat. Π[int w, int w]. int w
-        type_IOp = pi(kind_star())->set_domain(type_nat());
-        auto w = type_IOp->param({"w"});
+        auto type = pi(kind_star())->set_domain(type_nat());
+        auto w = type->param({"w"});
         auto int_w = type_int(w);
-        auto inner = pi({int_w, int_w}, int_w);
-        type_IOp->set_codomain(inner);
+        type->set_codomain(pi({int_w, int_w}, int_w));
+        init<Tag::IOp>(cache_.IOp_, normalizers_IOp, type);
     }
     { // WOp: Π[m: nat, w: nat]. Π[int w, int w]. int w
-        type_WOp = pi(kind_star())->set_domain({type_nat(), type_nat()});
-        type_WOp->param(0, {"m"});
-        auto w = type_WOp->param(1, {"w"});
+        auto type = pi(kind_star())->set_domain({type_nat(), type_nat()});
+        type->param(0, {"m"});
+        auto w = type->param(1, {"w"});
         auto int_w = type_int(w);
-        auto inner = pi({int_w, int_w}, int_w);
-        type_WOp->set_codomain(inner);
+        type->set_codomain(pi({int_w, int_w}, int_w));
+        init<Tag::WOp>(cache_.WOp_, normalizers_WOp, type);
     }
     { // ZOp: Πw: nat. Π[mem, int w, int w]. [mem, int w]
-        type_ZOp = pi(kind_star())->set_domain(type_nat());
-        auto w = type_ZOp->param({"w"});
+        auto type = pi(kind_star())->set_domain(type_nat());
+        auto w = type->param({"w"});
         auto int_w = type_int(w);
-        auto inner = pi({type_mem(), int_w, int_w}, sigma({type_mem(), int_w}));
-        type_ZOp->set_codomain(inner);
+        type->set_codomain(pi({type_mem(), int_w, int_w}, sigma({type_mem(), int_w})));
+        init<Tag::ZOp>(cache_.ZOp_, normalizers_ZOp, type);
     }
     { // ROp: Π[m: nat, w: nat]. Π[real w, real w]. real w
-        type_ROp = pi(kind_star())->set_domain({type_nat(), type_nat()});
-        type_ROp->param(0, {"m"});
-        auto w = type_ROp->param(1, {"w"});
+        auto type = pi(kind_star())->set_domain({type_nat(), type_nat()});
+        type->param(0, {"m"});
+        auto w = type->param(1, {"w"});
         auto real_w = type_real(w);
-        auto inner = pi({real_w, real_w}, real_w);
-        type_ROp->set_codomain(inner);
+        type->set_codomain(pi({real_w, real_w}, real_w));
+        init<Tag::ROp>(cache_.ROp_, normalizers_ROp, type);
     }
     { // ICmp: Πw: nat. Π[int w, int w]. bool
-        type_ICmp = pi(kind_star())->set_domain(type_nat());
-        auto w = type_ICmp->param({"w"});
+        auto type = pi(kind_star())->set_domain(type_nat());
+        auto w = type->param({"w"});
         auto int_w = type_int(w);
-        auto inner = pi({int_w, int_w}, type_int(1));
-        type_ICmp->set_codomain(inner);
+        type->set_codomain(pi({int_w, int_w}, type_bool()));
+        init<Tag::ICmp>(cache_.ICmp_, normalizers_ICmp, type);
     }
     { // RCmp: Π[m: nat, w: nat]. Π[real w, real w]. bool
-        type_RCmp = pi(kind_star())->set_domain({type_nat(), type_nat()});
-        type_RCmp->param(0, {"m"});
-        auto w = type_RCmp->param(1, {"w"});
+        auto type = pi(kind_star())->set_domain({type_nat(), type_nat()});
+        type->param(0, {"m"});
+        auto w = type->param(1, {"w"});
         auto real_w = type_real(w);
-        auto inner = pi({real_w, real_w}, type_int(1));
-        type_RCmp->set_codomain(inner);
+        type->set_codomain(pi({real_w, real_w}, type_bool()));
+        init<Tag::RCmp>(cache_.RCmp_, normalizers_RCmp, type);
     }
-
-#define CODE(op)                                                                           \
-    for (size_t i = 0, e = Num<op>; i != e; ++i)                                           \
-        cache_.op ## _[i] = axiom(normalizers_ ## op[i], type_ ## op, Tag::op, i, {op2str(op(i))});
-    THORIN_OP_CMP(CODE)
-#undef CODE
 
     { // select: ΠT:*. Π[bool, T, T]. T
         auto type = pi(kind_star())->set_domain(kind_star());
         auto T = type->param({"T"});
-        auto inner = pi({type_bool(), T, T}, T);
-        type->set_codomain(inner);
+        type->set_codomain(pi({type_bool(), T, T}, T));
         cache_.op_select = axiom(normalize_select, type, Tag::Select, 0, {"select"});
     }
 

@@ -152,9 +152,6 @@ enum class RMode : u32 {
                      m(RCmp, une) /* x x x o - unordered or not equal        */ \
                      m(RCmp,   t) /* x x x x - always true                   */
 
-#define THORIN_OP_CMP(m) m(WOp) m(ZOp) m(IOp) m(ROp) m(ICmp) m(RCmp)
-
-
 namespace Node {
 #define CODE(node, name) node,
 enum : u16 { THORIN_NODE(CODE) };
@@ -226,16 +223,15 @@ template<> constexpr auto Num<RCmp> = 0_s THORIN_R_CMP(CODE);
 template<> constexpr auto Num<Cast> = 0_s THORIN_CAST (CODE);
 #undef CODE
 
-template<u32 tag> struct Tag2Flags_     { using type = u32; };
-template<> struct Tag2Flags_<Tag::IOp>  { using type = IOp; };
-template<> struct Tag2Flags_<Tag::WOp>  { using type = WOp; };
-template<> struct Tag2Flags_<Tag::ZOp>  { using type = ZOp; };
-template<> struct Tag2Flags_<Tag::ROp>  { using type = ROp; };
-template<> struct Tag2Flags_<Tag::ICmp> { using type = ICmp; };
-template<> struct Tag2Flags_<Tag::RCmp> { using type = RCmp; };
-template<u32 tag> using Tag2Flags = typename Tag2Flags_<tag>::type;
+template<u32 tag> struct Tag2Enum_     { using type = u32; };
+template<> struct Tag2Enum_<Tag::IOp>  { using type = IOp; };
+template<> struct Tag2Enum_<Tag::WOp>  { using type = WOp; };
+template<> struct Tag2Enum_<Tag::ZOp>  { using type = ZOp; };
+template<> struct Tag2Enum_<Tag::ROp>  { using type = ROp; };
+template<> struct Tag2Enum_<Tag::ICmp> { using type = ICmp; };
+template<> struct Tag2Enum_<Tag::RCmp> { using type = RCmp; };
+template<u32 tag> using Tag2Enum = typename Tag2Enum_<tag>::type;
 
 }
 
 #endif
-

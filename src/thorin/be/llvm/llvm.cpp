@@ -107,8 +107,8 @@ void CodeGen::emit_result_phi(const Def* param, llvm::Value* value) {
 
 // TODO remove once we got rid of signedness
 static u64 num_bits(const Def* type) {
-    if (auto arg = isa<Tag::Int >(type)) return as_lit<u64>(arg);
-    if (auto arg = isa<Tag::Real>(type)) return as_lit<u64>(arg);
+    if (auto type_i = isa<Tag::Int >(type)) return as_lit<u64>(type_i.arg());
+    if (auto type_r = isa<Tag::Real>(type)) return as_lit<u64>(type_r.arg());
     THORIN_UNREACHABLE;
 }
 
@@ -377,7 +377,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                     }
                 }
             } else if (auto select = isa<Tag::Select>(lam->app()->callee())) {
-                auto [cond, a, b] = split<3>(select);
+                auto [cond, a, b] = select.split<3>();
                 auto tbb = bb2lam[a->as_nominal<Lam>()];
                 auto fbb = bb2lam[b->as_nominal<Lam>()];
                 irbuilder_.CreateCondBr(lookup(cond), tbb, fbb);
@@ -607,12 +607,68 @@ llvm::Value* CodeGen::emit_alloc(const Def* type) {
 }
 
 llvm::Value* CodeGen::emit(const Def* def) {
-    if (auto cmp = isa<Tag::ICmp>(def)) {
-        auto [a, b] = split<2>(cmp);
+    if (auto iop = isa<Tag::IOp>(def)) {
+        auto [a, b] = iop.split<2>();
+        auto lhs = lookup(a);
+        auto rhs = lookup(b);
+        auto name = def->name();
+        switch (iop.flags()) {
+            case IOp::lshr: return irbuilder_.CreateLShr(lhs, rhs, name);
+            case IOp::ashr: return irbuilder_.CreateAShr(lhs, rhs, name);
+            case IOp::iand: return irbuilder_.CreateAnd (lhs, rhs, name);
+            case IOp::ior : return irbuilder_.CreateOr  (lhs, rhs, name);
+            case IOp::ixor: return irbuilder_.CreateXor (lhs, rhs, name);
+            default: THORIN_UNREACHABLE;
+        }
+    } else if (auto wop = isa<Tag::WOp>(def)) {
+        auto [a, b] = wop.split<2>();
+        auto lhs = lookup(a);
+        auto rhs = lookup(b);
+        auto name = def->name();
+        auto [mode, width] = split<2>(wop.callee()->as<App>());
+        auto m = as_lit<u64>(mode);
+        bool nuw = m & u32(WMode::nuw);
+        bool nsw = m & u32(WMode::nsw);
+        switch (wop.flags()) {
+            case WOp::add: return irbuilder_.CreateAdd(lhs, rhs, name, nuw, nsw);
+            case WOp::sub: return irbuilder_.CreateSub(lhs, rhs, name, nuw, nsw);
+            case WOp::mul: return irbuilder_.CreateMul(lhs, rhs, name, nuw, nsw);
+            case WOp::shl: return irbuilder_.CreateShl(lhs, rhs, name, nuw, nsw);
+            default: THORIN_UNREACHABLE;
+        }
+    } else if (auto zop = isa<Tag::ZOp>(def)) {
+        auto [m, a, b] = zop.split<3>();
+        auto lhs = lookup(a);
+        auto rhs = lookup(b);
+        auto name = def->name();
+        switch (zop.flags()) {
+            case ZOp::sdiv: return irbuilder_.CreateSDiv(lhs, rhs, name);
+            case ZOp::udiv: return irbuilder_.CreateUDiv(lhs, rhs, name);
+            case ZOp::smod: return irbuilder_.CreateSRem(lhs, rhs, name);
+            case ZOp::umod: return irbuilder_.CreateURem(lhs, rhs, name);
+            default: THORIN_UNREACHABLE;
+        }
+    } else if (auto rop = isa<Tag::ROp>(def)) {
+        auto [a, b] = wop.split<2>();
+        auto lhs = lookup(a);
+        auto rhs = lookup(b);
+        auto name = def->name();
+        //auto [mode, width] = split<2>(rop.callee()->as<App>());
+        //auto m = as_lit<u64>(mode);
+        switch (rop.flags()) {
+            case ROp::add: return irbuilder_.CreateFAdd(lhs, rhs, name);
+            case ROp::sub: return irbuilder_.CreateFSub(lhs, rhs, name);
+            case ROp::mul: return irbuilder_.CreateFMul(lhs, rhs, name);
+            case ROp::div: return irbuilder_.CreateFDiv(lhs, rhs, name);
+            case ROp::mod: return irbuilder_.CreateFRem(lhs, rhs, name);
+            default: THORIN_UNREACHABLE;
+        }
+    } else if (auto icmp = isa<Tag::ICmp>(def)) {
+        auto [a, b] = icmp.split<2>();
         auto x = lookup(a);
         auto y = lookup(b);
         auto name = def->name();
-        switch (ICmp(std::get<0>(get_axiom(def))->flags())) {
+        switch (icmp.flags()) {
             case ICmp::e:   return irbuilder_.CreateICmpEQ (x, y, name);
             case ICmp::ne:  return irbuilder_.CreateICmpNE (x, y, name);
             case ICmp::sg:  return irbuilder_.CreateICmpSGT(x, y, name);
@@ -625,12 +681,12 @@ llvm::Value* CodeGen::emit(const Def* def) {
             case ICmp::ule: return irbuilder_.CreateICmpULE(x, y, name);
             default: THORIN_UNREACHABLE;
         }
-    } else if (auto cmp = isa<Tag::RCmp>(def)) {
-        auto [a, b] = split<2>(cmp);
+    } else if (auto rcmp = isa<Tag::RCmp>(def)) {
+        auto [a, b] = rcmp.split<2>();
         auto x = lookup(a);
         auto y = lookup(b);
         auto name = def->name();
-        switch (RCmp(std::get<0>(get_axiom(def))->flags())) {
+        switch (rcmp.flags()) {
             case RCmp::  e: return irbuilder_.CreateFCmpOEQ(x, y, name);
             case RCmp::  l: return irbuilder_.CreateFCmpOLT(x, y, name);
             case RCmp:: le: return irbuilder_.CreateFCmpOLE(x, y, name);
@@ -646,67 +702,6 @@ llvm::Value* CodeGen::emit(const Def* def) {
             case RCmp::uge: return irbuilder_.CreateFCmpUGE(x, y, name);
             case RCmp::une: return irbuilder_.CreateFCmpUNE(x, y, name);
             default: THORIN_UNREACHABLE;
-        }
-        //} else if (type->isa<Ptr>()) {
-            //switch (cmp->cmp_tag()) {
-                //case Cmp_eq: return irbuilder_.CreateICmpEQ (lhs, rhs, name);
-                //case Cmp_ne: return irbuilder_.CreateICmpNE (lhs, rhs, name);
-                //default: THORIN_UNREACHABLE;
-            //}
-        //}
-    }
-
-    if (auto arithop = def->isa<ArithOp>()) {
-        auto lhs = lookup(arithop->lhs());
-        auto rhs = lookup(arithop->rhs());
-        auto name = arithop->name();
-        auto type = arithop->type();
-
-        if (type->isa<Real>()) {
-            switch (arithop->arithop_tag()) {
-                case ArithOp_add: return irbuilder_.CreateFAdd(lhs, rhs, name);
-                case ArithOp_sub: return irbuilder_.CreateFSub(lhs, rhs, name);
-                case ArithOp_mul: return irbuilder_.CreateFMul(lhs, rhs, name);
-                case ArithOp_div: return irbuilder_.CreateFDiv(lhs, rhs, name);
-                case ArithOp_rem: return irbuilder_.CreateFRem(lhs, rhs, name);
-                case ArithOp_and:
-                case ArithOp_or:
-                case ArithOp_xor:
-                case ArithOp_shl:
-                case ArithOp_shr: THORIN_UNREACHABLE;
-            }
-        }
-
-        if (type->isa<Sint>() || type->isa<Bool>()) {
-            bool q = arithop->type()->isa<Sint>() ? arithop->type()->as<Sint>()->is_quick() : false; // quick? -> nsw/nuw
-            switch (arithop->arithop_tag()) {
-                case ArithOp_add: return irbuilder_.CreateAdd (lhs, rhs, name, false, q);
-                case ArithOp_sub: return irbuilder_.CreateSub (lhs, rhs, name, false, q);
-                case ArithOp_mul: return irbuilder_.CreateMul (lhs, rhs, name, false, q);
-                case ArithOp_div: return irbuilder_.CreateSDiv(lhs, rhs, name);
-                case ArithOp_rem: return irbuilder_.CreateSRem(lhs, rhs, name);
-                case ArithOp_and: return irbuilder_.CreateAnd (lhs, rhs, name);
-                case ArithOp_or:  return irbuilder_.CreateOr  (lhs, rhs, name);
-                case ArithOp_xor: return irbuilder_.CreateXor (lhs, rhs, name);
-                case ArithOp_shl: return irbuilder_.CreateShl (lhs, rhs, name, false, q);
-                case ArithOp_shr: return irbuilder_.CreateAShr(lhs, rhs, name);
-            }
-        }
-
-        if (type->isa<Uint>() || type->isa<Bool>()) {
-            bool q = arithop->type()->isa<Uint>() ? arithop->type()->as<Uint>()->is_quick() : false; // quick? -> nsw/nuw
-            switch (arithop->arithop_tag()) {
-                case ArithOp_add: return irbuilder_.CreateAdd (lhs, rhs, name, q, false);
-                case ArithOp_sub: return irbuilder_.CreateSub (lhs, rhs, name, q, false);
-                case ArithOp_mul: return irbuilder_.CreateMul (lhs, rhs, name, q, false);
-                case ArithOp_div: return irbuilder_.CreateUDiv(lhs, rhs, name);
-                case ArithOp_rem: return irbuilder_.CreateURem(lhs, rhs, name);
-                case ArithOp_and: return irbuilder_.CreateAnd (lhs, rhs, name);
-                case ArithOp_or:  return irbuilder_.CreateOr  (lhs, rhs, name);
-                case ArithOp_xor: return irbuilder_.CreateXor (lhs, rhs, name);
-                case ArithOp_shl: return irbuilder_.CreateShl (lhs, rhs, name, q, false);
-                case ArithOp_shr: return irbuilder_.CreateLShr(lhs, rhs, name);
-            }
         }
     }
 

@@ -37,6 +37,7 @@ std::tuple<const Axiom*, u16> get_axiom(const Def*);
 template<size_t N = size_t(-1)>
 auto split(const Def* def) -> std::conditional_t<N == size_t(-1), std::vector<const Def*>, std::array<const Def*, N>>;
 
+template<class F>
 class Query {
 public:
     Query()
@@ -50,13 +51,12 @@ public:
 
     const Axiom* axiom() const { return axiom_; }
     u32 tag() const { return axiom()->tag(); }
-    u32 flags() const { return axiom()->flags(); }
+    F flags() const { return F(axiom()->flags()); }
     const App* app() const { return app_; }
     const Def* callee() const { return app()->callee(); }
     const Def* arg() const { return app()->arg(); }
 
-    template<size_t N = size_t(-1)>
-    auto split() { return thorin::split<N>(arg()); }
+    template<size_t N = size_t(-1)> auto split() { return thorin::split<N>(arg()); }
 
     operator bool() { return axiom_ != nullptr; }
 
@@ -66,7 +66,7 @@ private:
 };
 
 template<u32 tag>
-Query isa(const Def* def) {
+Query<Tag2Flags<tag>> isa(const Def* def) {
     auto [axiom, currying_depth] = get_axiom(def);
     if (axiom->tag() == tag && currying_depth == 0)
         return {axiom, def->as<App>()};
@@ -74,15 +74,15 @@ Query isa(const Def* def) {
 }
 
 template<u32 tag, Tag2Flags<tag> flags>
-Query isa(const Def* def) {
+Query<Tag2Flags<tag>> isa(const Def* def) {
     auto [axiom, currying_depth] = get_axiom(def);
     if (axiom->tag() == tag && axiom->flags() == u32(flags) && currying_depth == 0)
         return {axiom, def->as<App>()};
     return {};
 }
 
-template<u32 t>                 Query as(const Def* d) { assert( isa<t   >(d) ); return {std::get<0>(get_axiom(d)), d->as<App>()}; }
-template<u32 t, Tag2Flags<t> f> Query as(const Def* d) { assert((isa<t, f>(d))); return {std::get<0>(get_axiom(d)), d->as<App>()}; }
+template<u32 t>                 Query<Tag2Flags<t>> as(const Def* d) { assert( isa<t   >(d) ); return {std::get<0>(get_axiom(d)), d->as<App>()}; }
+template<u32 t, Tag2Flags<t> f> Query<Tag2Flags<t>> as(const Def* d) { assert((isa<t, f>(d))); return {std::get<0>(get_axiom(d)), d->as<App>()}; }
 
 void app_to_dropped_app(Lam* src, Lam* dst, const App* app);
 

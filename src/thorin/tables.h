@@ -73,7 +73,7 @@ enum class RMode : u32 {
 /// Integer operations that might produce a "division by zero" side effect.
 #define THORIN_Z_OP(m) m(ZOp, sdiv) m(ZOp, udiv) m(ZOp, smod) m(ZOp, umod)
 /// Rloating point (float) operations that take @p RMode.
-#define THORIN_R_OP(m) m(ROp, radd) m(ROp, rsub) m(ROp, rmul) m(ROp, rdiv) m(ROp, rmod)
+#define THORIN_R_OP(m) m(ROp, add) m(ROp, sub) m(ROp, mul) m(ROp, div) m(ROp, mod)
 /// All cast operations that cast from/to float/signed/unsigned.
 #define THORIN_CAST(m) m(Cast, r2r) m(Cast, r2s) m(Cast, r2u) m(Cast, s2r) m(Cast, s2s) m(Cast, u2r) m(Cast, u2u)
 
@@ -226,7 +226,7 @@ template<> constexpr auto Num<RCmp> = 0_s THORIN_R_CMP(CODE);
 template<> constexpr auto Num<Cast> = 0_s THORIN_CAST (CODE);
 #undef CODE
 
-template<u32 tag> struct Tag2Flags_ {};
+template<u32 tag> struct Tag2Flags_     { using type = u32; };
 template<> struct Tag2Flags_<Tag::IOp>  { using type = IOp; };
 template<> struct Tag2Flags_<Tag::WOp>  { using type = WOp; };
 template<> struct Tag2Flags_<Tag::ZOp>  { using type = ZOp; };

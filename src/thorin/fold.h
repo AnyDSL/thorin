@@ -89,11 +89,11 @@ template<> struct FoldIOp<IOp::ior > { template<int w> struct Fold { static Res 
 template<> struct FoldIOp<IOp::ixor> { template<int w> struct Fold { static Res run(u64 a, u64 b) { typedef w2u<w> T; return T(get<T>(a) ^ get<T>(b)); } }; };
 
 template<ROp> struct FoldROp {};
-template<> struct FoldROp<ROp::radd> { template<int w> struct Fold { static Res run(u64 a, u64 b) { typedef w2r<w> T; return w2r<w>(get<w2r<w>>(a) + get<T>(b)); } }; };
-template<> struct FoldROp<ROp::rsub> { template<int w> struct Fold { static Res run(u64 a, u64 b) { typedef w2r<w> T; return T(get<T>(a) - get<T>(b)); } }; };
-template<> struct FoldROp<ROp::rmul> { template<int w> struct Fold { static Res run(u64 a, u64 b) { typedef w2r<w> T; return T(get<T>(a) * get<T>(b)); } }; };
-template<> struct FoldROp<ROp::rdiv> { template<int w> struct Fold { static Res run(u64 a, u64 b) { typedef w2r<w> T; return T(get<T>(a) / get<T>(b)); } }; };
-template<> struct FoldROp<ROp::rmod> { template<int w> struct Fold { static Res run(u64 a, u64 b) { typedef w2r<w> T; return T(rem(get<T>(a), get<T>(b))); } }; };
+template<> struct FoldROp<ROp::add> { template<int w> struct Fold { static Res run(u64 a, u64 b) { typedef w2r<w> T; return w2r<w>(get<w2r<w>>(a) + get<T>(b)); } }; };
+template<> struct FoldROp<ROp::sub> { template<int w> struct Fold { static Res run(u64 a, u64 b) { typedef w2r<w> T; return T(get<T>(a) - get<T>(b)); } }; };
+template<> struct FoldROp<ROp::mul> { template<int w> struct Fold { static Res run(u64 a, u64 b) { typedef w2r<w> T; return T(get<T>(a) * get<T>(b)); } }; };
+template<> struct FoldROp<ROp::div> { template<int w> struct Fold { static Res run(u64 a, u64 b) { typedef w2r<w> T; return T(get<T>(a) / get<T>(b)); } }; };
+template<> struct FoldROp<ROp::mod> { template<int w> struct Fold { static Res run(u64 a, u64 b) { typedef w2r<w> T; return T(rem(get<T>(a), get<T>(b))); } }; };
 
 template<ICmp cmp> struct FoldICmp {
     template<int w> struct Fold {

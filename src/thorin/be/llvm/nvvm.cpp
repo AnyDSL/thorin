@@ -163,8 +163,8 @@ static std::string get_texture_fetch_command(const Def* type) {
     std::stringstream fun_str;
     fun_str << "tex.1d.v4.";
 
-     if (auto arg = isa<Tag::Int>(type)) {
-        switch (as_lit<u64>(arg)) {
+     if (auto type_i = isa<Tag::Int>(type)) {
+        switch (as_lit<u64>(type_i.arg())) {
             case  1: fun_str << "s32"; break;
             case  8: fun_str << "s8";  break;
             case 16: fun_str << "s16"; break;
@@ -172,8 +172,8 @@ static std::string get_texture_fetch_command(const Def* type) {
             case 64: fun_str << "s64"; break;
             default: THORIN_UNREACHABLE;
         }
-    } else if (auto arg = isa<Tag::Real>(type)) {
-        switch (as_lit<u64>(arg)) {
+    } else if (auto type_r = isa<Tag::Real>(type)) {
+        switch (as_lit<u64>(type_r.arg())) {
             case 32: fun_str << "f32"; break;
             case 64: fun_str << "f64"; break;
             default: THORIN_UNREACHABLE;

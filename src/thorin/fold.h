@@ -20,8 +20,8 @@ inline T get(u64 u) { return bitcast<T>(u); }
 template<WOp> struct FoldWOp {};
 
 template<> struct FoldWOp<WOp::add> {
-    template<int w, bool nsw, bool nuw> struct Fold {
-        static Res run(u64 a, u64 b) {
+    template<int w> struct Fold {
+        static Res run(u64 a, u64 b, bool /*nsw*/, bool nuw) {
             auto x = get<w2u<w>>(a);
             auto y = get<w2u<w>>(b);
             decltype(x) res = x + y;
@@ -33,8 +33,8 @@ template<> struct FoldWOp<WOp::add> {
 };
 
 template<> struct FoldWOp<WOp::sub> {
-    template<int w, bool nsw, bool nuw> struct Fold {
-        static Res run(u64 a, u64 b) {
+    template<int w> struct Fold {
+        static Res run(u64 a, u64 b, bool /*nsw*/, bool /*nuw*/) {
             typedef w2u<w> UT;
             auto x = get<UT>(a);
             auto y = get<UT>(b);
@@ -47,8 +47,8 @@ template<> struct FoldWOp<WOp::sub> {
 };
 
 template<> struct FoldWOp<WOp::mul> {
-    template<int w, bool nsw, bool nuw> struct Fold {
-        static Res run(u64 a, u64 b) {
+    template<int w> struct Fold {
+        static Res run(u64 a, u64 b, bool /*nsw*/, bool nuw) {
             typedef w2u<w> UT;
             auto x = get<UT>(a);
             auto y = get<UT>(b);
@@ -61,8 +61,8 @@ template<> struct FoldWOp<WOp::mul> {
 };
 
 template<> struct FoldWOp<WOp::shl> {
-    template<int w, bool nsw, bool nuw> struct Fold {
-        static Res run(u64 aa, u64 bb) {
+    template<int w> struct Fold {
+        static Res run(u64 aa, u64 bb, bool nsw, bool nuw) {
             typedef w2u<w> T;
             auto a = get<T>(aa);
             auto b = get<T>(bb);

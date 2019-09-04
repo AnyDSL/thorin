@@ -42,12 +42,12 @@ const Def* normalize_select(const Def* callee, const Def* arg, const Def* dbg) {
 const Def* normalize_sizeof(const Def* callee, const Def* type, const Def* dbg) {
     auto& world = callee->world();
 
-    const Def* width = nullptr;
+    const Def* arg = nullptr;
     if (false) {}
-    else if (auto type_i = isa<Tag::Int >(type)) width = type_i.arg();
-    else if (auto type_r = isa<Tag::Real>(type)) width = type_i.arg();
+    else if (auto int_ = isa<Tag::Int >(type)) arg = int_.arg();
+    else if (auto real = isa<Tag::Real>(type)) arg = real.arg();
 
-    if (auto lit = isa_lit<u64>(width)) return world.lit_nat(*lit / 8, dbg);
+    if (auto width = isa_lit<u64>(arg)) return world.lit_nat(*width / 8, dbg);
     return nullptr;
 }
 
@@ -87,7 +87,7 @@ const Def* normalize_IOp(const Def* callee, const Def* arg, const Def* dbg) {
 
 //------------------------------------------------------------------------------
 
-template<template<int, bool, bool> class F>
+template<template<int> class F>
 static const Def* fold_w(const Def* callee, const Def* a, const Def* b, const Def* dbg) {
     auto& world = callee->world();
     auto la = a->isa<Lit>(), lb = b->isa<Lit>();
@@ -96,44 +96,15 @@ static const Def* fold_w(const Def* callee, const Def* a, const Def* b, const De
         auto [ff, ww] = split<2>(callee->as<App>()->arg());
         auto f = as_lit<u64>(ff);
         auto w = as_lit<u64>(ww);
+        bool nsw = f & WMode::nsw;
+        bool nuw = f & WMode::nuw;
         Res res;
-        switch (f) {
-            case u64(WMode::none):
-                switch (w) {
-                    case  8: res = F< 8, false, false>::run(la->get(), lb->get()); break;
-                    case 16: res = F<16, false, false>::run(la->get(), lb->get()); break;
-                    case 32: res = F<32, false, false>::run(la->get(), lb->get()); break;
-                    case 64: res = F<64, false, false>::run(la->get(), lb->get()); break;
-                    default: THORIN_UNREACHABLE;
-                }
-                break;
-            case u64(WMode::nsw):
-                switch (w) {
-                    case  8: res = F< 8,  true, false>::run(la->get(), lb->get()); break;
-                    case 16: res = F<16,  true, false>::run(la->get(), lb->get()); break;
-                    case 32: res = F<32,  true, false>::run(la->get(), lb->get()); break;
-                    case 64: res = F<64,  true, false>::run(la->get(), lb->get()); break;
-                    default: THORIN_UNREACHABLE;
-                }
-                break;
-            case u64(WMode::nuw):
-                switch (w) {
-                    case  8: res = F< 8, false,  true>::run(la->get(), lb->get()); break;
-                    case 16: res = F<16, false,  true>::run(la->get(), lb->get()); break;
-                    case 32: res = F<32, false,  true>::run(la->get(), lb->get()); break;
-                    case 64: res = F<64, false,  true>::run(la->get(), lb->get()); break;
-                    default: THORIN_UNREACHABLE;
-                }
-                break;
-            case u64(WMode::nsw | WMode::nuw):
-                switch (w) {
-                    case  8: res = F< 8,  true,  true>::run(la->get(), lb->get()); break;
-                    case 16: res = F<16,  true,  true>::run(la->get(), lb->get()); break;
-                    case 32: res = F<32,  true,  true>::run(la->get(), lb->get()); break;
-                    case 64: res = F<64,  true,  true>::run(la->get(), lb->get()); break;
-                    default: THORIN_UNREACHABLE;
-                }
-                break;
+        switch (w) {
+            case  8: res = F< 8>::run(la->get(), lb->get(), nsw, nuw); break;
+            case 16: res = F<16>::run(la->get(), lb->get(), nsw, nuw); break;
+            case 32: res = F<32>::run(la->get(), lb->get(), nsw, nuw); break;
+            case 64: res = F<64>::run(la->get(), lb->get(), nsw, nuw); break;
+            default: THORIN_UNREACHABLE;
         }
 
         if (res) return world.lit(t, *res, dbg);

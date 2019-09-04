@@ -8,27 +8,27 @@ namespace thorin {
 
 class KernelConfig : public RuntimeCast<KernelConfig> {
 public:
-    enum class Tag { GPUKernelConfig, HLSKernelConfig };
+    enum class Node { GPUKernelConfig, HLSKernelConfig };
 
-    KernelConfig(Tag tag)
-        : tag_(tag)
+    KernelConfig(Node node)
+        : node_(node)
     {}
     virtual ~KernelConfig() {}
 
-    Tag tag() const { return tag_; }
+    Node node() const { return node_; }
 
 private:
-    Tag tag_;
+    Node node_;
 };
 
 typedef LamMap<std::unique_ptr<KernelConfig>> Cont2Config;
 
 class GPUKernelConfig : public KernelConfig {
 public:
-    static constexpr auto Tag = Tag::GPUKernelConfig;
+    static constexpr auto Node = Node::GPUKernelConfig;
 
     GPUKernelConfig(std::tuple<int, int, int> block, bool has_restrict = false)
-        : KernelConfig(Tag)
+        : KernelConfig(Node)
         , block_(block)
         , has_restrict_(has_restrict)
     {}
@@ -44,11 +44,11 @@ private:
 
 class HLSKernelConfig : public KernelConfig {
 public:
-    static constexpr auto Tag = Tag::HLSKernelConfig;
+    static constexpr auto Node = Node::HLSKernelConfig;
     typedef DefMap<uint32_t> Param2Size;
 
     HLSKernelConfig(const Param2Size& param_sizes)
-        : KernelConfig(Tag)
+        : KernelConfig(Node)
         , param_sizes_(param_sizes)
     {}
 

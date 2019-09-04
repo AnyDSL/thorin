@@ -188,26 +188,17 @@ static std::string get_texture_fetch_constraint(const Def* type) {
     std::stringstream constraint_str;
     char c;
 
-    if (type->isa<Bool>()) {
-        c = 'r';
-    } else if (auto sint = type->isa<Sint>()) {
-        switch (sint->lit_num_bits()) {
+    if (auto int_ = isa<Tag::Int>(type)) {
+        switch (as_lit<u64>(int_.arg())) {
+            case  1: c = 'r'; break;
             case  8: c = 'c'; break;
             case 16: c = 'h'; break;
             case 32: c = 'r'; break;
             case 64: c = 'l'; break;
             default: THORIN_UNREACHABLE;
         }
-    } else if (auto uint = type->isa<Uint>()) {
-        switch (uint->lit_num_bits()) {
-            case  8: c = 'c'; break;
-            case 16: c = 'h'; break;
-            case 32: c = 'r'; break;
-            case 64: c = 'l'; break;
-            default: THORIN_UNREACHABLE;
-        }
-    } else if (auto real = type->isa<Real>()) {
-        switch (real->lit_num_bits()) {
+    } else if (auto real = isa<Tag::Real>(type)) {
+        switch (as_lit<u64>(real.arg())) {
             case 32: c = 'f'; break;
             case 64: c = 'd'; break;
             default: THORIN_UNREACHABLE;

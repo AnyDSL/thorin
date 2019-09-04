@@ -47,7 +47,7 @@ World::World(uint32_t cur_gid, const std::string& name)
     cache_.lit_index_0_1 = lit_index(lit_arity_1(), 0);
     cache_.end_scope     = lam(cn(), Lam::CC::C, Lam::Intrinsic::EndScope, {"end_scope"});
 
-    { // int/real: Πw: Nat. *
+    {   // int/real: Πw: Nat. *
         auto p = pi(type_nat(), kind_star());
         cache_.type_int  = axiom(p, Tag::Int,  0, {"int"});
         cache_.type_real = axiom(p, Tag::Real, 0, {"real"});
@@ -56,14 +56,14 @@ World::World(uint32_t cur_gid, const std::string& name)
     cache_.lit_bool[0] = lit(type_bool(), false);
     cache_.lit_bool[1] = lit(type_bool(),  true);
 
-    { // IOp: Πw: nat. Π[int w, int w]. int w
+    {   // IOp: Πw: nat. Π[int w, int w]. int w
         auto type = pi(kind_star())->set_domain(type_nat());
         auto w = type->param({"w"});
         auto int_w = type_int(w);
         type->set_codomain(pi({int_w, int_w}, int_w));
         init<Tag::IOp>(cache_.IOp_, normalizers_IOp, type);
     }
-    { // WOp: Π[m: nat, w: nat]. Π[int w, int w]. int w
+    {   // WOp: Π[m: nat, w: nat]. Π[int w, int w]. int w
         auto type = pi(kind_star())->set_domain({type_nat(), type_nat()});
         type->param(0, {"m"});
         auto w = type->param(1, {"w"});
@@ -71,14 +71,14 @@ World::World(uint32_t cur_gid, const std::string& name)
         type->set_codomain(pi({int_w, int_w}, int_w));
         init<Tag::WOp>(cache_.WOp_, normalizers_WOp, type);
     }
-    { // ZOp: Πw: nat. Π[mem, int w, int w]. [mem, int w]
+    {   // ZOp: Πw: nat. Π[mem, int w, int w]. [mem, int w]
         auto type = pi(kind_star())->set_domain(type_nat());
         auto w = type->param({"w"});
         auto int_w = type_int(w);
         type->set_codomain(pi({type_mem(), int_w, int_w}, sigma({type_mem(), int_w})));
         init<Tag::ZOp>(cache_.ZOp_, normalizers_ZOp, type);
     }
-    { // ROp: Π[m: nat, w: nat]. Π[real w, real w]. real w
+    {   // ROp: Π[m: nat, w: nat]. Π[real w, real w]. real w
         auto type = pi(kind_star())->set_domain({type_nat(), type_nat()});
         type->param(0, {"m"});
         auto w = type->param(1, {"w"});
@@ -86,14 +86,14 @@ World::World(uint32_t cur_gid, const std::string& name)
         type->set_codomain(pi({real_w, real_w}, real_w));
         init<Tag::ROp>(cache_.ROp_, normalizers_ROp, type);
     }
-    { // ICmp: Πw: nat. Π[int w, int w]. bool
+    {   // ICmp: Πw: nat. Π[int w, int w]. bool
         auto type = pi(kind_star())->set_domain(type_nat());
         auto w = type->param({"w"});
         auto int_w = type_int(w);
         type->set_codomain(pi({int_w, int_w}, type_bool()));
         init<Tag::ICmp>(cache_.ICmp_, normalizers_ICmp, type);
     }
-    { // RCmp: Π[m: nat, w: nat]. Π[real w, real w]. bool
+    {   // RCmp: Π[m: nat, w: nat]. Π[real w, real w]. bool
         auto type = pi(kind_star())->set_domain({type_nat(), type_nat()});
         type->param(0, {"m"});
         auto w = type->param(1, {"w"});
@@ -101,15 +101,13 @@ World::World(uint32_t cur_gid, const std::string& name)
         type->set_codomain(pi({real_w, real_w}, type_bool()));
         init<Tag::RCmp>(cache_.RCmp_, normalizers_RCmp, type);
     }
-
-    { // select: ΠT:*. Π[bool, T, T]. T
+    {   // select: ΠT:*. Π[bool, T, T]. T
         auto type = pi(kind_star())->set_domain(kind_star());
         auto T = type->param({"T"});
         type->set_codomain(pi({type_bool(), T, T}, T));
         cache_.op_select = axiom(normalize_select, type, Tag::Select, 0, {"select"});
     }
-
-    { // sizeof: ΠT:*. nat
+    {   // sizeof: ΠT:*. nat
         auto type = pi(kind_star(), type_nat());
         cache_.op_sizeof = axiom(normalize_sizeof, type, Tag::Sizeof, 0, {"sizeof"});
     }

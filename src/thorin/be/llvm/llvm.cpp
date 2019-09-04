@@ -106,20 +106,15 @@ void CodeGen::emit_result_phi(const Def* param, llvm::Value* value) {
 }
 
 // TODO remove once we got rid of signedness
-static bool is_type_i(const Def* def) { return def->isa<Sint>() || def->isa<Uint>(); }
-
-// TODO remove once we got rid of signedness
-static u64 num_bits(const Def* def) {
-    if (def->isa<Bool>()) return 1;
-    if (auto sint = def->isa<Sint>()) return sint->lit_num_bits();
-    if (auto uint = def->isa<Uint>()) return uint->lit_num_bits();
-    if (auto real = def->isa<Real>()) return real->lit_num_bits();
+static u64 num_bits(const Def* type) {
+    if (auto arg = isa<Tag::Int >(type)) return as_lit<u64>(arg);
+    if (auto arg = isa<Tag::Real>(type)) return as_lit<u64>(arg);
     THORIN_UNREACHABLE;
 }
 
 Lam* CodeGen::emit_atomic(Lam* lam) {
     assert(lam->app()->num_args() == 5 && "required arguments are missing");
-    if (!is_type_i(lam->app()->arg(3)->type()))
+    if (!isa<Tag::Int>(lam->app()->arg(3)->type()))
         EDEF(lam->app()->arg(3), "atomic only supported for integer types");
     // atomic tag: Xchg Add Sub And Nand Or Xor Max Min
     u32 tag = as_lit<u32>(lam->app()->arg(1));
@@ -135,7 +130,7 @@ Lam* CodeGen::emit_atomic(Lam* lam) {
 
 Lam* CodeGen::emit_cmpxchg(Lam* lam) {
     assert(lam->app()->num_args() == 5 && "required arguments are missing");
-    if (!is_type_i(lam->app()->arg(3)->type()))
+    if (!isa<Tag::Int>(lam->app()->arg(3)->type()))
         EDEF(lam->app()->arg(3), "cmpxchg only supported for integer types");
     auto ptr  = lookup(lam->app()->arg(1));
     auto cmp  = lookup(lam->app()->arg(2));
@@ -152,6 +147,7 @@ Lam* CodeGen::emit_reserve(const Lam* lam) {
     THORIN_UNREACHABLE;
 }
 
+#if 0
 Lam* CodeGen::emit_reserve_shared(const Lam* lam, bool init_undef) {
     assert(lam->app()->num_args() == 3 && "required arguments are missing");
     if (!lam->app()->arg(1)->isa<Lit>())
@@ -170,6 +166,7 @@ Lam* CodeGen::emit_reserve_shared(const Lam* lam, bool init_undef) {
     emit_result_phi(l->param(1), call);
     return l;
 }
+#endif
 
 llvm::Value* CodeGen::emit_bitcast(const Def* val, const Def* dst_type) {
     auto from = lookup(val);
@@ -379,11 +376,11 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                         irbuilder_.CreateRet(agg);
                     }
                 }
-            } else if (auto select = lam->app()->callee()->isa<Select>()) {
-                auto cond = lookup(select->cond());
-                auto tbb = bb2lam[select->tval()->as_nominal<Lam>()];
-                auto fbb = bb2lam[select->fval()->as_nominal<Lam>()];
-                irbuilder_.CreateCondBr(cond, tbb, fbb);
+            } else if (auto select = isa<Tag::Select>(lam->app()->callee())) {
+                auto [cond, a, b] = split<3>(select);
+                auto tbb = bb2lam[a->as_nominal<Lam>()];
+                auto fbb = bb2lam[b->as_nominal<Lam>()];
+                irbuilder_.CreateCondBr(lookup(cond), tbb, fbb);
             } else if (lam->app()->callee()->isa<Lam>() &&
                        lam->app()->callee()->as<Lam>()->intrinsic() == Lam::Intrinsic::Match) {
                 auto val = lookup(lam->app()->arg(0));
@@ -610,45 +607,53 @@ llvm::Value* CodeGen::emit_alloc(const Def* type) {
 }
 
 llvm::Value* CodeGen::emit(const Def* def) {
-    if (auto cmp = def->isa<Cmp>()) {
-        auto lhs = lookup(cmp->lhs());
-        auto rhs = lookup(cmp->rhs());
-        auto name = cmp->name();
-        auto type = cmp->lhs()->type();
-        if (type->isa<Sint>()) {
-            switch (cmp->cmp_tag()) {
-                case Cmp_eq: return irbuilder_.CreateICmpEQ (lhs, rhs, name);
-                case Cmp_ne: return irbuilder_.CreateICmpNE (lhs, rhs, name);
-                case Cmp_gt: return irbuilder_.CreateICmpSGT(lhs, rhs, name);
-                case Cmp_ge: return irbuilder_.CreateICmpSGE(lhs, rhs, name);
-                case Cmp_lt: return irbuilder_.CreateICmpSLT(lhs, rhs, name);
-                case Cmp_le: return irbuilder_.CreateICmpSLE(lhs, rhs, name);
-            }
-        } else if (type->isa<Uint>() || type->isa<Bool>()) {
-            switch (cmp->cmp_tag()) {
-                case Cmp_eq: return irbuilder_.CreateICmpEQ (lhs, rhs, name);
-                case Cmp_ne: return irbuilder_.CreateICmpNE (lhs, rhs, name);
-                case Cmp_gt: return irbuilder_.CreateICmpUGT(lhs, rhs, name);
-                case Cmp_ge: return irbuilder_.CreateICmpUGE(lhs, rhs, name);
-                case Cmp_lt: return irbuilder_.CreateICmpULT(lhs, rhs, name);
-                case Cmp_le: return irbuilder_.CreateICmpULE(lhs, rhs, name);
-            }
-        } else if (type->isa<Real>()) {
-            switch (cmp->cmp_tag()) {
-                case Cmp_eq: return irbuilder_.CreateFCmpOEQ(lhs, rhs, name);
-                case Cmp_ne: return irbuilder_.CreateFCmpUNE(lhs, rhs, name);
-                case Cmp_gt: return irbuilder_.CreateFCmpOGT(lhs, rhs, name);
-                case Cmp_ge: return irbuilder_.CreateFCmpOGE(lhs, rhs, name);
-                case Cmp_lt: return irbuilder_.CreateFCmpOLT(lhs, rhs, name);
-                case Cmp_le: return irbuilder_.CreateFCmpOLE(lhs, rhs, name);
-            }
-        } else if (type->isa<Ptr>()) {
-            switch (cmp->cmp_tag()) {
-                case Cmp_eq: return irbuilder_.CreateICmpEQ (lhs, rhs, name);
-                case Cmp_ne: return irbuilder_.CreateICmpNE (lhs, rhs, name);
-                default: THORIN_UNREACHABLE;
-            }
+    if (auto cmp = isa<Tag::ICmp>(def)) {
+        auto [a, b] = split<2>(cmp);
+        auto x = lookup(a);
+        auto y = lookup(b);
+        auto name = def->name();
+        switch (ICmp(std::get<0>(get_axiom(def))->flags())) {
+            case ICmp::e:   return irbuilder_.CreateICmpEQ (x, y, name);
+            case ICmp::ne:  return irbuilder_.CreateICmpNE (x, y, name);
+            case ICmp::sg:  return irbuilder_.CreateICmpSGT(x, y, name);
+            case ICmp::sge: return irbuilder_.CreateICmpSGE(x, y, name);
+            case ICmp::sl:  return irbuilder_.CreateICmpSLT(x, y, name);
+            case ICmp::sle: return irbuilder_.CreateICmpSLE(x, y, name);
+            case ICmp::ug:  return irbuilder_.CreateICmpUGT(x, y, name);
+            case ICmp::uge: return irbuilder_.CreateICmpUGE(x, y, name);
+            case ICmp::ul:  return irbuilder_.CreateICmpULT(x, y, name);
+            case ICmp::ule: return irbuilder_.CreateICmpULE(x, y, name);
+            default: THORIN_UNREACHABLE;
         }
+    } else if (auto cmp = isa<Tag::RCmp>(def)) {
+        auto [a, b] = split<2>(cmp);
+        auto x = lookup(a);
+        auto y = lookup(b);
+        auto name = def->name();
+        switch (RCmp(std::get<0>(get_axiom(def))->flags())) {
+            case RCmp::  e: return irbuilder_.CreateFCmpOEQ(x, y, name);
+            case RCmp::  l: return irbuilder_.CreateFCmpOLT(x, y, name);
+            case RCmp:: le: return irbuilder_.CreateFCmpOLE(x, y, name);
+            case RCmp::  g: return irbuilder_.CreateFCmpOGT(x, y, name);
+            case RCmp:: ge: return irbuilder_.CreateFCmpOGE(x, y, name);
+            case RCmp:: ne: return irbuilder_.CreateFCmpONE(x, y, name);
+            case RCmp::  o: return irbuilder_.CreateFCmpORD(x, y, name);
+            case RCmp::  u: return irbuilder_.CreateFCmpUNO(x, y, name);
+            case RCmp:: ue: return irbuilder_.CreateFCmpUEQ(x, y, name);
+            case RCmp:: ul: return irbuilder_.CreateFCmpULT(x, y, name);
+            case RCmp::ule: return irbuilder_.CreateFCmpULE(x, y, name);
+            case RCmp:: ug: return irbuilder_.CreateFCmpUGT(x, y, name);
+            case RCmp::uge: return irbuilder_.CreateFCmpUGE(x, y, name);
+            case RCmp::une: return irbuilder_.CreateFCmpUNE(x, y, name);
+            default: THORIN_UNREACHABLE;
+        }
+        //} else if (type->isa<Ptr>()) {
+            //switch (cmp->cmp_tag()) {
+                //case Cmp_eq: return irbuilder_.CreateICmpEQ (lhs, rhs, name);
+                //case Cmp_ne: return irbuilder_.CreateICmpNE (lhs, rhs, name);
+                //default: THORIN_UNREACHABLE;
+            //}
+        //}
     }
 
     if (auto arithop = def->isa<ArithOp>()) {

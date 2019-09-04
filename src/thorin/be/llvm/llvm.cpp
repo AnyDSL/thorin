@@ -105,13 +105,6 @@ void CodeGen::emit_result_phi(const Def* param, llvm::Value* value) {
     phis_.lookup(param).value()->addIncoming(value, irbuilder_.GetInsertBlock());
 }
 
-// TODO remove once we got rid of signedness
-static u64 num_bits(const Def* type) {
-    if (auto type_i = isa<Tag::Int >(type)) return as_lit<u64>(type_i.arg());
-    if (auto type_r = isa<Tag::Real>(type)) return as_lit<u64>(type_r.arg());
-    THORIN_UNREACHABLE;
-}
-
 Lam* CodeGen::emit_atomic(Lam* lam) {
     assert(lam->app()->num_args() == 5 && "required arguments are missing");
     if (!isa<Tag::Int>(lam->app()->arg(3)->type()))
@@ -620,7 +613,9 @@ llvm::Value* CodeGen::emit(const Def* def) {
             case IOp::ixor: return irbuilder_.CreateXor (lhs, rhs, name);
             default: THORIN_UNREACHABLE;
         }
-    } else if (auto wop = isa<Tag::WOp>(def)) {
+    }
+
+    if (auto wop = isa<Tag::WOp>(def)) {
         auto [a, b] = wop.split<2>();
         auto lhs = lookup(a);
         auto rhs = lookup(b);
@@ -636,7 +631,9 @@ llvm::Value* CodeGen::emit(const Def* def) {
             case WOp::shl: return irbuilder_.CreateShl(lhs, rhs, name, nuw, nsw);
             default: THORIN_UNREACHABLE;
         }
-    } else if (auto zop = isa<Tag::ZOp>(def)) {
+    }
+
+    if (auto zop = isa<Tag::ZOp>(def)) {
         auto [m, a, b] = zop.split<3>();
         auto lhs = lookup(a);
         auto rhs = lookup(b);
@@ -648,13 +645,27 @@ llvm::Value* CodeGen::emit(const Def* def) {
             case ZOp::umod: return irbuilder_.CreateURem(lhs, rhs, name);
             default: THORIN_UNREACHABLE;
         }
-    } else if (auto rop = isa<Tag::ROp>(def)) {
-        auto [a, b] = wop.split<2>();
+    }
+
+    if (auto rop = isa<Tag::ROp>(def)) {
+        auto [a, b] = rop.split<2>();
         auto lhs = lookup(a);
         auto rhs = lookup(b);
         auto name = def->name();
-        //auto [mode, width] = split<2>(rop.callee()->as<App>());
-        //auto m = as_lit<u64>(mode);
+
+        auto [mode, width] = split<2>(rop.callee()->as<App>());
+        auto m = as_lit<u64>(mode);
+
+        llvm::FastMathFlags flags;
+        if (m & RMode::nnan    ) flags.setNoNaNs();
+        if (m & RMode::ninf    ) flags.setNoInfs();
+        if (m & RMode::nsz     ) flags.setNoSignedZeros();
+        if (m & RMode::arcp    ) flags.setAllowReciprocal();
+        if (m & RMode::contract) flags.setAllowContract();
+        if (m & RMode::afn     ) flags.setApproxFunc();
+        if (m & RMode::reassoc ) flags.setAllowReassoc();
+        irbuilder_.setFastMathFlags(flags);
+
         switch (rop.flags()) {
             case ROp::add: return irbuilder_.CreateFAdd(lhs, rhs, name);
             case ROp::sub: return irbuilder_.CreateFSub(lhs, rhs, name);
@@ -663,7 +674,9 @@ llvm::Value* CodeGen::emit(const Def* def) {
             case ROp::mod: return irbuilder_.CreateFRem(lhs, rhs, name);
             default: THORIN_UNREACHABLE;
         }
-    } else if (auto icmp = isa<Tag::ICmp>(def)) {
+    }
+
+    if (auto icmp = isa<Tag::ICmp>(def)) {
         auto [a, b] = icmp.split<2>();
         auto x = lookup(a);
         auto y = lookup(b);
@@ -681,7 +694,9 @@ llvm::Value* CodeGen::emit(const Def* def) {
             case ICmp::ule: return irbuilder_.CreateICmpULE(x, y, name);
             default: THORIN_UNREACHABLE;
         }
-    } else if (auto rcmp = isa<Tag::RCmp>(def)) {
+    }
+
+    if (auto rcmp = isa<Tag::RCmp>(def)) {
         auto [a, b] = rcmp.split<2>();
         auto x = lookup(a);
         auto y = lookup(b);
@@ -705,6 +720,23 @@ llvm::Value* CodeGen::emit(const Def* def) {
         }
     }
 
+    if (auto select = isa<Tag::Select>(def)) {
+        if (def->type()->isa<Pi>()) return nullptr;
+
+        auto [cond, tval, fval] = select.split<3>();
+        auto llvm_cond = lookup(cond);
+        auto llvm_tval = lookup(tval);
+        auto llvm_fval = lookup(fval);
+        return irbuilder_.CreateSelect(llvm_cond, llvm_tval, llvm_fval);
+    }
+
+    if (auto size_of = isa<Tag::Sizeof>(def)) {
+        auto type = convert(size_of.arg());
+        auto layout = llvm::DataLayout(module_->getDataLayout());
+        return irbuilder_.getInt32(layout.getTypeAllocSize(type));
+    }
+
+#if 0
     if (auto cast = def->isa<Cast>()) {
         auto from = lookup(cast->from());
         auto src = cast->from()->type();
@@ -768,53 +800,10 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
         assert(false && "unsupported cast");
     }
+#endif
 
     if (auto bitcast = def->isa<Bitcast>())
         return emit_bitcast(bitcast->from(), bitcast->type());
-
-    if (auto select = def->isa<Select>()) {
-        if (def->type()->isa<Pi>())
-            return nullptr;
-
-        auto cond = lookup(select->cond());
-        auto tval = lookup(select->tval());
-        auto fval = lookup(select->fval());
-        return irbuilder_.CreateSelect(cond, tval, fval);
-    }
-
-    if (auto size_of = def->isa<SizeOf>()) {
-        auto type = convert(size_of->of());
-        auto layout = llvm::DataLayout(module_->getDataLayout());
-        return irbuilder_.getInt32(layout.getTypeAllocSize(type));
-    }
-
-#if 0
-    if (auto array = def->isa<DefiniteArray>()) {
-        auto type = llvm::cast<llvm::ArrayType>(convert(array->type()));
-        if (is_const(array)) {
-            size_t size = array->num_ops();
-            Array<llvm::Constant*> vals(size);
-            for (size_t i = 0; i != size; ++i)
-                vals[i] = llvm::cast<llvm::Constant>(emit(array->op(i)));
-            return llvm::ConstantArray::get(type, llvm_ref(vals));
-        }
-        WDEF(def, "slow: alloca and loads/stores needed for definite array '{}'", def);
-        auto alloca = emit_alloca(type, array->name().str());
-
-        u64 i = 0;
-        llvm::Value* args[2] = { irbuilder_.getInt64(0), nullptr };
-        for (auto op : array->ops()) {
-            args[1] = irbuilder_.getInt64(i++);
-            auto gep = irbuilder_.CreateInBoundsGEP(alloca, args, op->name().c_str());
-            irbuilder_.CreateStore(lookup(op), gep);
-        }
-
-        return irbuilder_.CreateLoad(alloca);
-    }
-
-    if (auto array = def->isa<IndefiniteArray>())
-        return llvm::UndefValue::get(convert(array->type()));
-#endif
 
     if (auto tuple = def->isa<Tuple>()) {
         llvm::Value* llvm_agg = llvm::UndefValue::get(convert(tuple->type()));
@@ -911,20 +900,9 @@ llvm::Value* CodeGen::emit(const Def* def) {
         llvm::Type* llvm_type = convert(lit->type());
         if (is_arity(lit->type())) return irbuilder_.getInt64(lit->get());
 
-        if (lit->type()->isa<Bool>()) return irbuilder_.getInt1(lit->get<bool>());
-
-        if (auto sint = lit->type()->isa<Sint>()) {
-            switch (sint->lit_num_bits()) {
-                case  8: return irbuilder_. getInt8(lit->get< s8>());
-                case 16: return irbuilder_.getInt16(lit->get<s16>());
-                case 32: return irbuilder_.getInt32(lit->get<s32>());
-                case 64: return irbuilder_.getInt64(lit->get<s64>());
-                default: THORIN_UNREACHABLE;
-            }
-        }
-
-        if (auto uint = lit->type()->isa<Uint>()) {
-            switch (uint->lit_num_bits()) {
+        if (auto int_ = isa<Tag::Int>(lit->type())) {
+            switch (as_lit<u64>(int_.arg())) {
+                case  1: return irbuilder_. getInt1(lit->get< u1>());
                 case  8: return irbuilder_. getInt8(lit->get< u8>());
                 case 16: return irbuilder_.getInt16(lit->get<u16>());
                 case 32: return irbuilder_.getInt32(lit->get<u32>());
@@ -933,15 +911,14 @@ llvm::Value* CodeGen::emit(const Def* def) {
             }
         }
 
-        if (auto real = lit->type()->isa<Real>()) {
-            switch (real->lit_num_bits()) {
-                case 16: return llvm::ConstantFP::get(llvm_type, lit->get<f16>());
-                case 32: return llvm::ConstantFP::get(llvm_type, lit->get<f32>());
-                case 64: return llvm::ConstantFP::get(llvm_type, lit->get<f64>());
+        if (auto real = isa<Tag::Real>(lit->type())) {
+            switch (as_lit<u64>(real.arg())) {
+                case 16: return llvm::ConstantFP::get(llvm_type, lit->get<r16>());
+                case 32: return llvm::ConstantFP::get(llvm_type, lit->get<r32>());
+                case 64: return llvm::ConstantFP::get(llvm_type, lit->get<r64>());
                 default: THORIN_UNREACHABLE;
             }
         }
-
         THORIN_UNREACHABLE;
     }
 
@@ -1079,11 +1056,10 @@ llvm::Type* CodeGen::convert(const Def* type) {
     if (is_arity(type))
         return types_[type] = irbuilder_.getInt64Ty();
 
-    if (type->isa<Bool>()) return types_[type] = irbuilder_. getInt1Ty();
-
-    if (auto sint = type->isa<Sint>()) {
-        switch (sint->lit_num_bits()) {
-            case 8:  return types_[type] = irbuilder_. getInt8Ty();
+    if (auto int_ = isa<Tag::Int>(type)) {
+        switch (as_lit<u64>(int_.arg())) {
+            case  1: return types_[type] = irbuilder_. getInt1Ty();
+            case  8: return types_[type] = irbuilder_. getInt8Ty();
             case 16: return types_[type] = irbuilder_.getInt16Ty();
             case 32: return types_[type] = irbuilder_.getInt32Ty();
             case 64: return types_[type] = irbuilder_.getInt64Ty();
@@ -1091,18 +1067,8 @@ llvm::Type* CodeGen::convert(const Def* type) {
         }
     }
 
-    if (auto uint = type->isa<Uint>()) {
-        switch (uint->lit_num_bits()) {
-            case 8:  return types_[type] = irbuilder_. getInt8Ty();
-            case 16: return types_[type] = irbuilder_.getInt16Ty();
-            case 32: return types_[type] = irbuilder_.getInt32Ty();
-            case 64: return types_[type] = irbuilder_.getInt64Ty();
-            default: THORIN_UNREACHABLE;
-        }
-    }
-
-    if (auto real = type->isa<Real>()) {
-        switch (real->lit_num_bits()) {
+    if (auto real = isa<Tag::Real>(type)) {
+        switch (as_lit<u64>(real.arg())) {
             case 16: return types_[type] = irbuilder_.getHalfTy();
             case 32: return types_[type] = irbuilder_.getFloatTy();
             case 64: return types_[type] = irbuilder_.getDoubleTy();

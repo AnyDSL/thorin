@@ -51,6 +51,8 @@ template<int> struct w2r_ {};
 THORIN_8_16_32_64(CODE)
 #undef CODE
 
+typedef bool u1;
+
 // Map both signed 1 and unsigned 1 to bool
 template<> struct w2u_<1> { typedef bool type; };
 template<> struct w2s_<1> { typedef bool type; };

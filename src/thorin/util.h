@@ -66,23 +66,23 @@ private:
 };
 
 template<u32 tag>
-Query<Tag2Flags<tag>> isa(const Def* def) {
+Query<Tag2Enum<tag>> isa(const Def* def) {
     auto [axiom, currying_depth] = get_axiom(def);
     if (axiom->tag() == tag && currying_depth == 0)
         return {axiom, def->as<App>()};
     return {};
 }
 
-template<u32 tag, Tag2Flags<tag> flags>
-Query<Tag2Flags<tag>> isa(const Def* def) {
+template<u32 tag, Tag2Enum<tag> flags>
+Query<Tag2Enum<tag>> isa(const Def* def) {
     auto [axiom, currying_depth] = get_axiom(def);
     if (axiom->tag() == tag && axiom->flags() == u32(flags) && currying_depth == 0)
         return {axiom, def->as<App>()};
     return {};
 }
 
-template<u32 t>                 Query<Tag2Flags<t>> as(const Def* d) { assert( isa<t   >(d) ); return {std::get<0>(get_axiom(d)), d->as<App>()}; }
-template<u32 t, Tag2Flags<t> f> Query<Tag2Flags<t>> as(const Def* d) { assert((isa<t, f>(d))); return {std::get<0>(get_axiom(d)), d->as<App>()}; }
+template<u32 t>                Query<Tag2Enum<t>> as(const Def* d) { assert( isa<t   >(d) ); return {std::get<0>(get_axiom(d)), d->as<App>()}; }
+template<u32 t, Tag2Enum<t> f> Query<Tag2Enum<t>> as(const Def* d) { assert((isa<t, f>(d))); return {std::get<0>(get_axiom(d)), d->as<App>()}; }
 
 void app_to_dropped_app(Lam* src, Lam* dst, const App* app);
 

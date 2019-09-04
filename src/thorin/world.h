@@ -496,6 +496,14 @@ private:
     }
     //@}
 
+    /// Used internally to initialize the arrays of axioms within the cache_.
+    template<u32 tag, class A, class N>
+    void init(A& axioms, const N& normalizers, const Def* type) {
+        using Enum = Tag2Enum<tag>;
+        for (size_t i = 0, e = Num<Enum>; i != e; ++i)
+            axioms[i] = axiom(normalizers[i], type, tag, i, {op2str(Enum(i))});
+    }
+
     std::unique_ptr<Zone> root_page_;
     Zone* cur_page_;
     size_t buffer_index_ = 0;

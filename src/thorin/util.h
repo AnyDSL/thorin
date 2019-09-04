@@ -33,24 +33,56 @@ inline bool is_passed_to_intrinsic(Lam* lam, Lam::Intrinsic intrinsic, bool incl
 
 std::tuple<const Axiom*, u16> get_axiom(const Def*);
 
-template<u32 tag>
-const Def* isa(const Def* def) {
-    auto [axiom, currying_depth] = get_axiom(def);
-    return axiom->tag() == tag && currying_depth == 0 ? def->as<App>()->arg() : nullptr;
-}
-
-template<u32 tag, Tag2Flags<tag> flags>
-const Def* isa(const Def* def) {
-    auto [axiom, currying_depth] = get_axiom(def);
-    return axiom->tag() == tag && axiom->flags() == u32(flags) && currying_depth == 0 ? def->as<App>()->arg() : nullptr;
-}
-
-template<u32 tag>                       const Def* as(const Def* def) { assert( isa<tag       >(def) ); return def->as<App>()->arg(); }
-template<u32 tag, Tag2Flags<tag> flags> const Def* as(const Def* def) { assert((isa<tag, flags>(def))); return def->as<App>()->arg(); }
-
 /// Splits this def into an array by using @p arity many @p Extract%s.
 template<size_t N = size_t(-1)>
 auto split(const Def* def) -> std::conditional_t<N == size_t(-1), std::vector<const Def*>, std::array<const Def*, N>>;
+
+class Query {
+public:
+    Query()
+        : axiom_(nullptr)
+        , app_(nullptr)
+    {}
+    Query(const Axiom* axiom, const App* app)
+        : axiom_(axiom)
+        , app_(app)
+    {}
+
+    const Axiom* axiom() const { return axiom_; }
+    u32 tag() const { return axiom()->tag(); }
+    u32 flags() const { return axiom()->flags(); }
+    const App* app() const { return app_; }
+    const Def* callee() const { return app()->callee(); }
+    const Def* arg() const { return app()->arg(); }
+
+    template<size_t N = size_t(-1)>
+    auto split() { return thorin::split<N>(arg()); }
+
+    operator bool() { return axiom_ != nullptr; }
+
+private:
+    const Axiom* axiom_;
+    const App* app_;
+};
+
+template<u32 tag>
+Query isa(const Def* def) {
+    auto [axiom, currying_depth] = get_axiom(def);
+    if (axiom->tag() == tag && currying_depth == 0)
+        return {axiom, def->as<App>()};
+    return {};
+}
+
+template<u32 tag, Tag2Flags<tag> flags>
+Query isa(const Def* def) {
+    auto [axiom, currying_depth] = get_axiom(def);
+    if (axiom->tag() == tag && axiom->flags() == u32(flags) && currying_depth == 0)
+        return {axiom, def->as<App>()};
+    return {};
+}
+
+template<u32 t>                 Query as(const Def* d) { assert( isa<t   >(d) ); return {std::get<0>(get_axiom(d)), d->as<App>()}; }
+template<u32 t, Tag2Flags<t> f> Query as(const Def* d) { assert((isa<t, f>(d))); return {std::get<0>(get_axiom(d)), d->as<App>()}; }
 
 void app_to_dropped_app(Lam* src, Lam* dst, const App* app);
 

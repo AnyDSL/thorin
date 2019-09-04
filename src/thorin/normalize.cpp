@@ -11,15 +11,15 @@ using namespace thorin::fold;
 
 static bool is_allset(const Def* def) {
     if (auto lit = isa_lit<u64>(def)) {
-        if (auto width = isa_lit<u64>(as<Tag::Int>(def->type())))
+        if (auto width = isa_lit<u64>(as<Tag::Int>(def->type()).arg()))
             return (*lit >> (64_u64 - *width) == u64(-1) >> (64_u64 - *width));
     }
     return false;
 }
 
 static bool is_not(const Def* def) {
-    if (auto arg = isa<Tag::IOp, IOp::ixor>(def)) {
-        auto [x, y] = split<2>(arg);
+    if (auto ixor = isa<Tag::IOp, IOp::ixor>(def)) {
+        auto [x, y] = ixor.split<2>();
         if (is_allset(x)) return true;
     }
     return false;
@@ -44,8 +44,8 @@ const Def* normalize_sizeof(const Def* callee, const Def* type, const Def* dbg) 
 
     const Def* width = nullptr;
     if (false) {}
-    else if (auto arg = isa<Tag::Int >(type)) width = arg;
-    else if (auto arg = isa<Tag::Real>(type)) width = arg;
+    else if (auto type_i = isa<Tag::Int >(type)) width = type_i.arg();
+    else if (auto type_r = isa<Tag::Real>(type)) width = type_i.arg();
 
     if (auto lit = isa_lit<u64>(width)) return world.lit_nat(*lit / 8, dbg);
     return nullptr;

@@ -7,7 +7,9 @@ namespace thorin {
 
 using namespace thorin::fold;
 
-//------------------------------------------------------------------------------
+/*
+ * helpers
+ */
 
 static bool is_allset(const Def* def) {
     if (auto lit = isa_lit<u64>(def)) {
@@ -25,41 +27,18 @@ static bool is_not(const Def* def) {
     return false;
 }
 
-//------------------------------------------------------------------------------
-
-const Def* normalize_select(const Def* callee, const Def* arg, const Def* dbg) {
-    auto& world = callee->world();
-    auto [cond, a, b] = split<3>(arg);
-
-    if (cond->isa<Bot>()) return world.bot(a->type(), dbg);
-    if (auto lit = cond->isa<Lit>()) return lit->get<bool>() ? a : b;
-    if (a == b) return a;
-    if (is_not(cond)) std::swap(a, b);
-
-    return world.raw_app(callee, {a, b}, dbg);
-}
-
-const Def* normalize_sizeof(const Def* callee, const Def* type, const Def* dbg) {
-    auto& world = callee->world();
-
-    const Def* arg = nullptr;
-    if (false) {}
-    else if (auto int_ = isa<Tag::Int >(type)) arg = int_.arg();
-    else if (auto real = isa<Tag::Real>(type)) arg = real.arg();
-
-    if (auto width = isa_lit<u64>(arg)) return world.lit_nat(*width / 8, dbg);
-    return nullptr;
-}
-
-//------------------------------------------------------------------------------
+/*
+ * fold
+ */
 
 template<template<int> class F>
-static const Def* fold_i(const Def* callee, const Def* a, const Def* b, const Def* dbg) {
+static const Def* fold_i(const Def* type, const Def* callee, const Def* a, const Def* b, const Def* dbg) {
     auto& world = callee->world();
+    if (a->isa<Bot>() || b->isa<Bot>()) return world.bot(type, dbg);
+
     auto la = a->isa<Lit>(), lb = b->isa<Lit>();
     if (la && lb) {
-        auto t = a->type();
-        auto w = as_lit<u64>(t->as<App>()->arg());
+        auto w = as_lit<u64>(as<Tag::Int>(type).arg());
         Res res;
         switch (w) {
             case  1: res = F< 1>::run(la->get(), lb->get()); break;
@@ -70,29 +49,20 @@ static const Def* fold_i(const Def* callee, const Def* a, const Def* b, const De
             default: THORIN_UNREACHABLE;
         }
 
-        if (res) return world.lit(t, *res, dbg);
-        return world.bot(t, dbg);
+        if (res) return world.lit(type, *res, dbg);
+        return world.bot(type, dbg);
     }
 
     return nullptr;
 }
 
-template<IOp op>
-const Def* normalize_IOp(const Def* callee, const Def* arg, const Def* dbg) {
-    auto [a, b] = split<2>(arg);
-    if (auto result = fold_i<FoldIOp<op>::template Fold>(callee, a, b, dbg)) return result;
-
-    return nullptr;
-}
-
-//------------------------------------------------------------------------------
-
 template<template<int> class F>
-static const Def* fold_w(const Def* callee, const Def* a, const Def* b, const Def* dbg) {
+static const Def* fold_w(const Def* type, const Def* callee, const Def* a, const Def* b, const Def* dbg) {
     auto& world = callee->world();
+    if (a->isa<Bot>() || b->isa<Bot>()) return world.bot(type, dbg);
+
     auto la = a->isa<Lit>(), lb = b->isa<Lit>();
     if (la && lb) {
-        auto t = a->type();
         auto [ff, ww] = split<2>(callee->as<App>()->arg());
         auto f = as_lit<u64>(ff);
         auto w = as_lit<u64>(ww);
@@ -107,30 +77,21 @@ static const Def* fold_w(const Def* callee, const Def* a, const Def* b, const De
             default: THORIN_UNREACHABLE;
         }
 
-        if (res) return world.lit(t, *res, dbg);
-        return world.bot(t, dbg);
+        if (res) return world.lit(type, *res, dbg);
+        return world.bot(type, dbg);
     }
 
     return nullptr;
 }
 
-template<WOp op>
-const Def* normalize_WOp(const Def* callee, const Def* arg, const Def* dbg) {
-    auto [a, b] = split<2>(arg);
-    if (auto result = fold_w<FoldWOp<op>::template Fold>(callee, a, b, dbg)) return result;
-
-    return nullptr;
-}
-
-//------------------------------------------------------------------------------
-
 template<template<int> class F>
-static const Def* fold_ZOp(const Def* callee, const Def* m, const Def* a, const Def* b, const Def* dbg) {
+static const Def* fold_z(const Def* type, const Def* callee, const Def* m, const Def* a, const Def* b, const Def* dbg) {
     auto& world = callee->world();
+    if (a->isa<Bot>() || b->isa<Bot>()) return world.bot(type, dbg);
+
     auto la = a->isa<Lit>(), lb = b->isa<Lit>();
     if (la && lb) {
-        auto t = a->type();
-        auto w = as_lit<u64>(t->as<App>()->arg());
+        auto w = as_lit<u64>(as<Tag::Int>(type).arg());
         Res res;
         switch (w) {
             case  8: res = F< 8>::run(la->get(), lb->get()); break;
@@ -140,30 +101,21 @@ static const Def* fold_ZOp(const Def* callee, const Def* m, const Def* a, const 
             default: THORIN_UNREACHABLE;
         }
 
-        if (res) return world.tuple({m, world.lit(t, *res, dbg)}, dbg);
-        return world.tuple({m, world.bot(t, dbg)}, dbg);
+        if (res) return world.tuple({m, world.lit(type, *res, dbg)}, dbg);
+        return world.tuple({m, world.bot(type, dbg)}, dbg);
     }
 
     return nullptr;
 }
 
-template<ZOp op>
-const Def* normalize_ZOp(const Def* callee, const Def* arg, const Def* dbg) {
-    auto [m, a, b] = split<3>(arg);
-    if (auto result = fold_ZOp<FoldZOp<op>::template Fold>(callee, m, a, b, dbg)) return result;
-
-    return nullptr;
-}
-
-//------------------------------------------------------------------------------
-
 template<template<int> class F>
-static const Def* fold_r(const Def* callee, const Def* a, const Def* b, const Def* dbg) {
+static const Def* fold_r(const Def* type, const Def* callee, const Def* a, const Def* b, const Def* dbg) {
     auto& world = callee->world();
+    if (a->isa<Bot>() || b->isa<Bot>()) return world.bot(type, dbg);
+
     auto la = a->isa<Lit>(), lb = b->isa<Lit>();
     if (la && lb) {
-        auto t = a->type();
-        auto w = as_lit<u64>(t->as<App>()->arg());
+        auto w = as_lit<u64>(as<Tag::Real>(type).arg());
         Res res;
         switch (w) {
             case 16: res = F<16>::run(la->get(), lb->get()); break;
@@ -172,62 +124,107 @@ static const Def* fold_r(const Def* callee, const Def* a, const Def* b, const De
             default: THORIN_UNREACHABLE;
         }
 
-        if (res) return world.lit(t, *res, dbg);
-        return world.bot(t, dbg);
+        if (res) return world.lit(type, *res, dbg);
+        return world.bot(type, dbg);
     }
 
     return nullptr;
 }
 
-template<ROp op>
-const Def* normalize_ROp(const Def* callee, const Def* arg, const Def* dbg) {
+/*
+ * normalize
+ */
+
+template<IOp op>
+const Def* normalize_IOp(const Def* type, const Def* callee, const Def* arg, const Def* dbg) {
     auto [a, b] = split<2>(arg);
-    if (auto result = fold_r<FoldROp<op>::template Fold>(callee, a, b, dbg)) return result;
+    if (auto result = fold_i<FoldIOp<op>::template Fold>(type, callee, a, b, dbg)) return result;
 
     return nullptr;
 }
 
-//------------------------------------------------------------------------------
+template<WOp op>
+const Def* normalize_WOp(const Def* type, const Def* callee, const Def* arg, const Def* dbg) {
+    auto [a, b] = split<2>(arg);
+    if (auto result = fold_w<FoldWOp<op>::template Fold>(type, callee, a, b, dbg)) return result;
+
+    return nullptr;
+}
+
+template<ZOp op>
+const Def* normalize_ZOp(const Def* type, const Def* callee, const Def* arg, const Def* dbg) {
+    auto [m, a, b] = split<3>(arg);
+    if (auto result = fold_z<FoldZOp<op>::template Fold>(type, callee, m, a, b, dbg)) return result;
+
+    return nullptr;
+}
+
+template<ROp op>
+const Def* normalize_ROp(const Def* type, const Def* callee, const Def* arg, const Def* dbg) {
+    auto [a, b] = split<2>(arg);
+    if (auto result = fold_r<FoldROp<op>::template Fold>(type, callee, a, b, dbg)) return result;
+
+    return nullptr;
+}
 
 template<ICmp op>
-const Def* normalize_ICmp(const Def* callee, const Def* arg, const Def* dbg) {
+const Def* normalize_ICmp(const Def* type, const Def* callee, const Def* arg, const Def* dbg) {
     auto& world = callee->world();
     auto [a, b] = split<2>(arg);
 
+    if (auto result = fold_i<FoldICmp<op>::template Fold>(type, callee, a, b, dbg)) return result;
     if constexpr (op == ICmp::_f) return world.lit_false();
     if constexpr (op == ICmp::_t) return world.lit_true();
 
-    if (auto result = fold_i<FoldICmp<op>::template Fold>(callee, a, b, dbg)) return result;
-
     return nullptr;
 }
 
-//------------------------------------------------------------------------------
-
 template<RCmp op>
-const Def* normalize_RCmp(const Def* callee, const Def* arg, const Def* dbg) {
+const Def* normalize_RCmp(const Def* type, const Def* callee, const Def* arg, const Def* dbg) {
     auto& world = callee->world();
 
+    auto [a, b] = split<2>(arg);
+    if (auto result = fold_r<FoldRCmp<op>::template Fold>(type, callee, a, b, dbg)) return result;
     if constexpr (op == RCmp::f) return world.lit_false();
     if constexpr (op == RCmp::t) return world.lit_true();
 
-    auto [a, b] = split<2>(arg);
-    if (auto result = fold_r<FoldRCmp<op>::template Fold>(callee, a, b, dbg)) return result;
-
     return nullptr;
 }
-
-//------------------------------------------------------------------------------
 
 template<Cast op>
-const Def* normalize_Cast(const Def*, const Def*, const Def*) {
+const Def* normalize_Cast(const Def*, const Def*, const Def*, const Def*) {
     return nullptr;
 }
 
-//------------------------------------------------------------------------------
+const Def* normalize_select(const Def* type, const Def* callee, const Def* arg, const Def* dbg) {
+    auto& world = callee->world();
+    auto [cond, a, b] = split<3>(arg);
 
-// instantiate templates
-#define CODE(T, o) template const Def* normalize_ ## T<T::o>(const Def*, const Def*, const Def*);
+    if (cond->isa<Bot>()) return world.bot(type, dbg);
+    if (auto lit = cond->isa<Lit>()) return lit->get<bool>() ? a : b;
+    if (a == b) return a;
+    if (is_not(cond)) std::swap(a, b);
+
+    return world.raw_app(callee, {a, b}, dbg);
+}
+
+const Def* normalize_sizeof(const Def*, const Def* callee, const Def* type, const Def* dbg) {
+    auto& world = callee->world();
+
+    const Def* arg = nullptr;
+    if (false) {}
+    else if (auto int_ = isa<Tag::Int >(type)) arg = int_.arg();
+    else if (auto real = isa<Tag::Real>(type)) arg = real.arg();
+
+    if (auto width = isa_lit<u64>(arg)) return world.lit_nat(*width / 8, dbg);
+    return nullptr;
+}
+
+/*
+ * instantiate templates
+ */
+
+#define CODE(T, o) template const Def* normalize_ ## T<T::o>(const Def*, const Def*, const Def*, const Def*);
 THORIN_W_OP (CODE)
 THORIN_Z_OP (CODE)
 THORIN_I_OP (CODE)

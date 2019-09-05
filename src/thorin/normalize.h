@@ -3,16 +3,16 @@
 
 namespace thorin {
 
-const Def* normalize_select(const Def*, const Def*, const Def*);
-const Def* normalize_sizeof(const Def*, const Def*, const Def*);
+const Def* normalize_select(const Def*, const Def*, const Def*, const Def*);
+const Def* normalize_sizeof(const Def*, const Def*, const Def*, const Def*);
 
-template<WOp > const Def* normalize_WOp (const Def*, const Def*, const Def*);
-template<ZOp > const Def* normalize_ZOp (const Def*, const Def*, const Def*);
-template<IOp > const Def* normalize_IOp (const Def*, const Def*, const Def*);
-template<ROp > const Def* normalize_ROp (const Def*, const Def*, const Def*);
-template<ICmp> const Def* normalize_ICmp(const Def*, const Def*, const Def*);
-template<RCmp> const Def* normalize_RCmp(const Def*, const Def*, const Def*);
-template<Cast> const Def* normalize_Cast(const Def*, const Def*, const Def*);
+template<WOp > const Def* normalize_WOp (const Def*, const Def*, const Def*, const Def*);
+template<ZOp > const Def* normalize_ZOp (const Def*, const Def*, const Def*, const Def*);
+template<IOp > const Def* normalize_IOp (const Def*, const Def*, const Def*, const Def*);
+template<ROp > const Def* normalize_ROp (const Def*, const Def*, const Def*, const Def*);
+template<ICmp> const Def* normalize_ICmp(const Def*, const Def*, const Def*, const Def*);
+template<RCmp> const Def* normalize_RCmp(const Def*, const Def*, const Def*, const Def*);
+template<Cast> const Def* normalize_Cast(const Def*, const Def*, const Def*, const Def*);
 
 #define CODE(T, o) normalize_ ## T<T::o>,
 constexpr std::array<Def::NormalizeFn, Num<WOp>>  normalizers_WOp  = { THORIN_W_OP(CODE) };

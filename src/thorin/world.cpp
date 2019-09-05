@@ -147,7 +147,7 @@ const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
 
     if (axiom && currying_depth == 1) {
         if (auto normalize = axiom->normalizer()) {
-            if (auto normalized = normalize(callee, arg, debug(dbg)))
+            if (auto normalized = normalize(type, callee, arg, debug(dbg)))
                 return normalized;
         }
     }

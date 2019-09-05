@@ -122,7 +122,7 @@ class Def : public RuntimeCast<Def>, public Streamable {
 public:
     using RebuildFn   = const Def* (*)(const Def*, World&, const Def*, Defs, const Def*);
     using StubFn      = Def* (*)(const Def*, World&, const Def*, const Def*);
-    using NormalizeFn = const Def* (*)(const Def*, const Def*, const Def*);
+    using NormalizeFn = const Def* (*)(const Def*, const Def*, const Def*, const Def*);
 
 private:
     Def& operator=(const Def&) = delete;

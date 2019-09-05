@@ -222,13 +222,7 @@ public:
     //@{
     const Lit* lit_nat(u64 a, Debug dbg = {}) { return lit(type_nat(), a, dbg); }
     //@}
-    /// @name Literal: Bool
-    //@{
-    const Lit* lit_bool(bool val) { return cache_.lit_bool[size_t(val)]; }
-    const Lit* lit_false() { return cache_.lit_bool[0]; }
-    const Lit* lit_true()  { return cache_.lit_bool[1]; }
-    //@}
-    /// @name Literal: Int, Uint, Real
+    /// @name Literal: Int, Real
     //@{
     template<class I> const Lit* lit_int(I val, Debug dbg = {}) {
         static_assert(std::is_integral<I>());
@@ -238,6 +232,9 @@ public:
         static_assert(std::is_floating_point<R>() || std::is_same<R, r16>());
         return lit(type_real(sizeof(R)*8), val, dbg);
     }
+    const Lit* lit_bool(bool val) { return cache_.lit_bool[size_t(val)]; }
+    const Lit* lit_false() { return cache_.lit_bool[0]; }
+    const Lit* lit_true()  { return cache_.lit_bool[1]; }
     //@}
     /// @name Top/Bottom
     //@{

@@ -51,11 +51,10 @@ World::World(uint32_t cur_gid, const std::string& name)
         auto p = pi(type_nat(), kind_star());
         cache_.type_int  = axiom(p, Tag::Int,  0, {"int"});
         cache_.type_real = axiom(p, Tag::Real, 0, {"real"});
+        cache_.lit_bool[0] = lit(type_bool(), false);
+        cache_.lit_bool[1] = lit(type_bool(),  true);
+
     }
-
-    cache_.lit_bool[0] = lit(type_bool(), false);
-    cache_.lit_bool[1] = lit(type_bool(),  true);
-
     {   // IOp: Πw: nat. Π[int w, int w]. int w
         auto type = pi(kind_star())->set_domain(type_nat());
         auto w = type->param({"w"});

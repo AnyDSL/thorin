@@ -180,9 +180,11 @@ enum class Cast : u64 { THORIN_CAST(CODE) };
 
 constexpr ICmp operator|(ICmp a, ICmp b) { return ICmp(u32(a) | u32(b)); }
 constexpr ICmp operator&(ICmp a, ICmp b) { return ICmp(u32(a) & u32(b)); }
+constexpr ICmp operator^(ICmp a, ICmp b) { return ICmp(u32(a) ^ u32(b)); }
 
 constexpr RCmp operator|(RCmp a, RCmp b) { return RCmp(u32(a) | u32(b)); }
 constexpr RCmp operator&(RCmp a, RCmp b) { return RCmp(u32(a) & u32(b)); }
+constexpr RCmp operator^(RCmp a, RCmp b) { return RCmp(u32(a) ^ u32(b)); }
 
 #define CODE(T, o) case T::o: return #o;
 constexpr const char* op2str(WOp  o) { switch (o) { THORIN_W_OP(CODE) default: THORIN_UNREACHABLE; } }

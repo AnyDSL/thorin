@@ -104,11 +104,11 @@ template<ICmp cmp> struct FoldICmp {
             bool result = false;
             auto pm = !(x >> T(w-1)) &&  (y >> T(w-1));
             auto mp =  (x >> T(w-1)) && !(y >> T(w-1));
-            result |= (cmp & ICmp::_x) != ICmp::_f && pm;
-            result |= (cmp & ICmp::_y) != ICmp::_f && mp;
-            result |= (cmp & ICmp::_g) != ICmp::_f && x > y && !mp;
-            result |= (cmp & ICmp::_l) != ICmp::_f && x < y && !pm;
-            result |= (cmp & ICmp:: e) != ICmp::_f && x == y;
+            result |= ((cmp & ICmp::_x) != ICmp::_f) && pm;
+            result |= ((cmp & ICmp::_y) != ICmp::_f) && mp;
+            result |= ((cmp & ICmp::_g) != ICmp::_f) && x > y && !mp;
+            result |= ((cmp & ICmp::_l) != ICmp::_f) && x < y && !pm;
+            result |= ((cmp & ICmp:: e) != ICmp::_f) && x == y;
             return result;
         }
     };
@@ -121,10 +121,10 @@ template<RCmp cmp> struct FoldRCmp {
             auto x = get<T>(a);
             auto y = get<T>(b);
             bool result = false;
-            result |= (cmp & RCmp::u) != RCmp::f && std::isunordered(x, y);
-            result |= (cmp & RCmp::g) != RCmp::f && x > y;
-            result |= (cmp & RCmp::l) != RCmp::f && x < y;
-            result |= (cmp & RCmp::e) != RCmp::f && x == y;
+            result |= ((cmp & RCmp::u) != RCmp::f) && std::isunordered(x, y);
+            result |= ((cmp & RCmp::g) != RCmp::f) && x > y;
+            result |= ((cmp & RCmp::l) != RCmp::f) && x < y;
+            result |= ((cmp & RCmp::e) != RCmp::f) && x == y;
             return result;
         }
     };

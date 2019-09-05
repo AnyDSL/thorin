@@ -191,7 +191,12 @@ const Def* normalize_ROp(const Def* callee, const Def* arg, const Def* dbg) {
 
 template<ICmp op>
 const Def* normalize_ICmp(const Def* callee, const Def* arg, const Def* dbg) {
+    auto& world = callee->world();
     auto [a, b] = split<2>(arg);
+
+    if constexpr (op == ICmp::_f) return world.lit_false();
+    if constexpr (op == ICmp::_t) return world.lit_true();
+
     if (auto result = fold_i<FoldICmp<op>::template Fold>(callee, a, b, dbg)) return result;
 
     return nullptr;
@@ -201,6 +206,11 @@ const Def* normalize_ICmp(const Def* callee, const Def* arg, const Def* dbg) {
 
 template<RCmp op>
 const Def* normalize_RCmp(const Def* callee, const Def* arg, const Def* dbg) {
+    auto& world = callee->world();
+
+    if constexpr (op == RCmp::f) return world.lit_false();
+    if constexpr (op == RCmp::t) return world.lit_true();
+
     auto [a, b] = split<2>(arg);
     if (auto result = fold_r<FoldRCmp<op>::template Fold>(callee, a, b, dbg)) return result;
 

@@ -112,10 +112,9 @@ std::ostream& operator<<(std::ostream&, Use);
  * Base class for all Def%s.
  * The data layout (see World::alloc) looks like this:
 \verbatim
-|| Def | op(0) ... op(num_ops-1) | Extra ||
+|| Def | op(0) ... op(num_ops-1) ||
 \endverbatim
  * This means that any subclass of @p Def must not introduce additional members.
- * However, you can have this Extra field.
  * See App or Lit how this is done.
  */
 class Def : public RuntimeCast<Def>, public Streamable {
@@ -257,8 +256,6 @@ public:
 protected:
     char* extra_ptr() { return reinterpret_cast<char*>(this) + sizeof(Def) + sizeof(const Def*)*num_ops(); }
     const char* extra_ptr() const { return const_cast<Def*>(this)->extra_ptr(); }
-    template<class T> T& extra() { return reinterpret_cast<T&>(*extra_ptr()); }
-    template<class T> const T& extra() const { return reinterpret_cast<const T&>(*extra_ptr()); }
     const Def** ops_ptr() const { return reinterpret_cast<const Def**>(reinterpret_cast<char*>(const_cast<Def*>(this + 1))); }
     void finalize();
 

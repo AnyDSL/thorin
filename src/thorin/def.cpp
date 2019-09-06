@@ -15,14 +15,13 @@
 namespace thorin {
 
 namespace detail {
-    const Def* world_extract(World& world, const Def* def, u64 i)  { return world.extract(def, i); }
+    const Def* world_extract(World& world, const Def* def, u64 i) { return world.extract(def, i); }
 }
 
 /*
  * Def
  */
 
-const Def* Def::out(size_t i, Debug dbg) const { return world().extract(this, i, dbg); }
 size_t Def::num_outs() const { return as_lit<u64>(arity()); }
 
 // TODO
@@ -154,19 +153,8 @@ void Def::dump() const {
 }
 
 /*
- * App
- */
-
-const Def* App::arg(size_t i) const { return callee()->world().extract(arg(), i); }
-Array<const Def*> App::args() const { return Array<const Def*>(num_args(), [&](auto i) { return arg(i); }); }
-
-/*
  * Lam
  */
-
-const Param* Lam::param(Debug dbg) const { return world().param(domain(), as_nominal<Lam>(), dbg); }
-const Def* Lam::param(size_t i, Debug dbg) const { return world().extract(param(), i, dbg); }
-Array<const Def*> Lam::params() const { return Array<const Def*>(num_params(), [&](auto i) { return param(i); }); }
 
 const Def* Lam::mem_param() const {
     for (size_t i = 0, e = num_params(); i != e; ++i) {
@@ -307,12 +295,6 @@ void Lam::match(const Def* val, Lam* otherwise, Defs patterns, ArrayRef<Lam*> la
 
 Pi* Pi::set_domain(Defs domains) { return Def::set(0, world().sigma(domains))->as<Pi>(); }
 
-const Param* Pi::param(Debug dbg) const { return world().param(domain(), as_nominal<Pi>(), dbg); }
-const Def* Pi::param(size_t i, Debug dbg) const { return world().extract(param(), i, dbg); }
-Array<const Def*> Pi::params() const { return Array<const Def*>(num_params(), [&](auto i) { return param(i); }); }
-
-bool Pi::is_cn() const { return codomain()->isa<Bot>(); }
-
 Array<const Def*> Pi::domains() const {
     size_t n = num_domains();
     Array<const Def*> domains(n);
@@ -420,6 +402,13 @@ Nat::Nat(World& world)
 Mem::Mem(World& world)
     : Def(Node, rebuild, world.kind_star(), Defs{}, 0, nullptr)
 {}
+
+/*
+ * param
+ */
+
+const Param* Lam::param(Debug dbg) const { return world().param(domain(), as_nominal<Lam>(), dbg); }
+const Param* Pi ::param(Debug dbg) const { return world().param(domain(), as_nominal<Pi >(), dbg); }
 
 /*
  * arity

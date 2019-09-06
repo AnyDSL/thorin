@@ -35,16 +35,13 @@ using GIDSet = thorin::HashSet<Key, GIDHash<Key>>;
 class Axiom;
 class Lam;
 class Param;
+class Pi;
 class Def;
 class Tracker;
 class World;
 
 typedef ArrayRef<const Def*> Defs;
 typedef std::vector<Lam*> Lams;
-
-namespace detail {
-    const Def* world_extract(World&, const Def*, u64);
-}
 
 //------------------------------------------------------------------------------
 
@@ -68,6 +65,10 @@ struct Debug {
 
     std::variant<std::tuple<Name, Name, u64, u64, u64, u64>, const Def*> data;
 };
+
+namespace detail {
+    const Def* world_extract(World&, const Def*, u64, Debug dbg = {});
+}
 
 //------------------------------------------------------------------------------
 
@@ -175,7 +176,7 @@ public:
     //@}
     /// @name outs
     //@{
-    const Def* out(size_t i, Debug dbg = {}) const;
+    const Def* out(size_t i, Debug dbg = {}) const { return detail::world_extract(world(), this, i, dbg); }
     size_t num_outs() const;
     //@}
     /// @name external handling
@@ -311,6 +312,28 @@ auto split(const Def* def, F f) {
 
     return array;
 }
+
+class Param : public Def {
+private:
+    Param(const Def* type, Def* nominal, const Def* dbg)
+        : Def(Node, rebuild, type, Defs{nominal}, 0, dbg)
+    {}
+
+public:
+    Def* nominal() const { return op(0)->as_nominal(); }
+    Lam* lam() const { return nominal()->as<Lam>(); }
+    Pi* pi() const { return nominal()->as<Pi>(); }
+
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+
+    static constexpr auto Node = Node::Param;
+    friend class World;
+};
+
+template<class To>
+using ParamMap    = GIDMap<const Param*, To>;
+using ParamSet    = GIDSet<const Param*>;
+using Param2Param = ParamMap<const Param*>;
 
 /// Splits the @p def into an array by using @p arity many @p Extract%s.
 template<size_t N = size_t(-1)> auto split(const Def* def) { return split<N>(def, [](const Def* def) { return def; }); }
@@ -452,23 +475,21 @@ public:
     Array<const Def*> domains() const;
     size_t num_domains() const;
     const Def* codomain() const { return op(1); }
-    bool is_cn() const;
+    bool is_cn() const { return codomain()->isa<Bot>(); }
     bool is_basicblock() const { return order() == 1; }
     bool is_returning() const;
     //@}
-
     /// @name setters for @em nominal @p Pi%s
     //@{
     Pi* set_domain(const Def* domain) { return Def::set(0, domain)->as<Pi>(); }
     Pi* set_domain(Defs domains);
     Pi* set_codomain(const Def* codomain) { return Def::set(1, codomain)->as<Pi>(); }
     //@}
-
     /// @name retrieve @p Param for @em nominal @p Pi%s.
     //@{
     const Param* param(Debug dbg = {}) const;
-    const Def* param(size_t i, Debug dbg = {}) const;
-    Array<const Def*> params() const;
+    const Def* param(size_t i, Debug dbg = {}) const { return detail::world_extract(world(), param(), i, dbg); }
+    Array<const Def*> params() const { return Array<const Def*>(num_params(), [&](auto i) { return param(i); }); }
     size_t num_params() const { return domain()->lit_arity(); }
     /// Reduces the @p codomain by rewriting this @p Pi's @p Param with @p arg in order to retrieve the codomain of a dependent function @p App.
     const Def* apply(const Def* arg) const;
@@ -494,8 +515,8 @@ public:
     const Def* callee() const { return op(0); }
     const Pi* callee_type() const { return callee()->type()->as<Pi>(); }
     const Def* arg() const { return op(1); }
-    const Def* arg(size_t i) const;
-    Array<const Def*> args() const;
+    const Def* arg(size_t i) const { return detail::world_extract(world(), arg(), i); }
+    Array<const Def*> args() const { return Array<const Def*>(num_args(), [&](auto i) { return arg(i); }); }
     size_t num_args() const { return callee_type()->domain()->lit_arity(); }
     const Axiom* axiom() const { return axiom_depth_.ptr(); }
     u16 currying_depth() const { return axiom_depth_.index(); }
@@ -575,8 +596,8 @@ public:
     /// @name params
     //@{
     const Param* param(Debug dbg = {}) const;
-    const Def* param(size_t i, Debug dbg = {}) const;
-    Array<const Def*> params() const;
+    const Def* param(size_t i, Debug dbg = {}) const { return detail::world_extract(world(), param(), i, dbg); }
+    Array<const Def*> params() const { return Array<const Def*>(num_params(), [&](auto i) { return param(i); }); }
     size_t num_params() const { return type()->num_params(); }
     const Def* mem_param() const;
     const Def* ret_param() const;
@@ -633,28 +654,6 @@ template<class To>
 using LamMap  = GIDMap<Lam*, To>;
 using LamSet  = GIDSet<Lam*>;
 using Lam2Lam = LamMap<Lam*>;
-
-class Param : public Def {
-private:
-    Param(const Def* type, Def* nominal, const Def* dbg)
-        : Def(Node, rebuild, type, Defs{nominal}, 0, dbg)
-    {}
-
-public:
-    Def* nominal() const { return op(0)->as_nominal(); }
-    Lam* lam() const { return nominal()->as<Lam>(); }
-    Pi* pi() const { return nominal()->as<Pi>(); }
-
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-
-    static constexpr auto Node = Node::Param;
-    friend class World;
-};
-
-template<class To>
-using ParamMap    = GIDMap<const Param*, To>;
-using ParamSet    = GIDSet<const Param*>;
-using Param2Param = ParamMap<const Param*>;
 
 class Tracker {
 public:

@@ -164,7 +164,7 @@ static std::string get_texture_fetch_command(const Def* type) {
     fun_str << "tex.1d.v4.";
 
      if (auto int_ = isa<Tag::Int>(type)) {
-        switch (as_lit<u64>(int_.arg())) {
+        switch (as_lit<u64>(int_->arg())) {
             case  1: fun_str << "s32"; break;
             case  8: fun_str << "s8";  break;
             case 16: fun_str << "s16"; break;
@@ -173,7 +173,7 @@ static std::string get_texture_fetch_command(const Def* type) {
             default: THORIN_UNREACHABLE;
         }
     } else if (auto real = isa<Tag::Real>(type)) {
-        switch (as_lit<u64>(real.arg())) {
+        switch (as_lit<u64>(real->arg())) {
             case 32: fun_str << "f32"; break;
             case 64: fun_str << "f64"; break;
             default: THORIN_UNREACHABLE;
@@ -189,7 +189,7 @@ static std::string get_texture_fetch_constraint(const Def* type) {
     char c;
 
     if (auto int_ = isa<Tag::Int>(type)) {
-        switch (as_lit<u64>(int_.arg())) {
+        switch (as_lit<u64>(int_->arg())) {
             case  1: c = 'r'; break;
             case  8: c = 'c'; break;
             case 16: c = 'h'; break;
@@ -198,7 +198,7 @@ static std::string get_texture_fetch_constraint(const Def* type) {
             default: THORIN_UNREACHABLE;
         }
     } else if (auto real = isa<Tag::Real>(type)) {
-        switch (as_lit<u64>(real.arg())) {
+        switch (as_lit<u64>(real->arg())) {
             case 32: c = 'f'; break;
             case 64: c = 'd'; break;
             default: THORIN_UNREACHABLE;

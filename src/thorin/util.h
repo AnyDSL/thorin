@@ -33,10 +33,6 @@ inline bool is_passed_to_intrinsic(Lam* lam, Lam::Intrinsic intrinsic, bool incl
 
 std::tuple<const Axiom*, u16> get_axiom(const Def*);
 
-/// Splits this def into an array by using @p arity many @p Extract%s.
-template<size_t N = size_t(-1)>
-auto split(const Def* def) -> std::conditional_t<N == size_t(-1), std::vector<const Def*>, std::array<const Def*, N>>;
-
 template<class F>
 class Query {
 public:
@@ -52,12 +48,9 @@ public:
     const Axiom* axiom() const { return axiom_; }
     u32 tag() const { return axiom()->tag(); }
     F flags() const { return F(axiom()->flags()); }
-    const App* app() const { return app_; }
-    const Def* callee() const { return app()->callee(); }
-    const Def* arg() const { return app()->arg(); }
 
-    template<size_t N = size_t(-1)> auto split() { return thorin::split<N>(arg()); }
-
+    const App* operator->() const { return app_; }
+    operator const App*() const { return app_; }
     operator bool() { return axiom_ != nullptr; }
 
 private:

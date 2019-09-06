@@ -14,6 +14,10 @@
 
 namespace thorin {
 
+namespace detail {
+    const Def* world_extract(World& world, const Def* def, u64 i)  { return world.extract(def, i); }
+}
+
 /*
  * Def
  */

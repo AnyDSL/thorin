@@ -42,6 +42,10 @@ class World;
 typedef ArrayRef<const Def*> Defs;
 typedef std::vector<Lam*> Lams;
 
+namespace detail {
+    const Def* world_extract(World&, const Def*, u64);
+}
+
 //------------------------------------------------------------------------------
 
 using Name = std::variant<const char*, std::string, const Def*>;
@@ -254,8 +258,6 @@ public:
     //@}
 
 protected:
-    char* extra_ptr() { return reinterpret_cast<char*>(this) + sizeof(Def) + sizeof(const Def*)*num_ops(); }
-    const char* extra_ptr() const { return const_cast<Def*>(this)->extra_ptr(); }
     const Def** ops_ptr() const { return reinterpret_cast<const Def**>(reinterpret_cast<char*>(const_cast<Def*>(this + 1))); }
     void finalize();
 
@@ -289,6 +291,29 @@ protected:
     friend class World;
     friend void swap(World&, World&);
 };
+
+/// Splits the @p def into an array by using @p arity many @p Extract%s.
+/// Applies @p f to each extracted element.
+template<size_t N = size_t(-1), class F>
+auto split(const Def* def, F f) {
+    using R = decltype(f(def));
+    std::conditional_t<N == size_t(-1), std::vector<R>, std::array<R, N>> array;
+
+    auto a = def->lit_arity();
+    if constexpr (N == size_t(-1))
+        array.resize(a);
+    else
+        assert(a == N);
+
+    auto& w = def->world();
+    for (size_t i = 0; i != a; ++i)
+        array[i] = f(detail::world_extract(w, def, i));
+
+    return array;
+}
+
+/// Splits the @p def into an array by using @p arity many @p Extract%s.
+template<size_t N = size_t(-1)> auto split(const Def* def) { return split<N>(def, [](const Def* def) { return def; }); }
 
 class Universe : public Def {
 private:
@@ -474,6 +499,13 @@ public:
     size_t num_args() const { return callee_type()->domain()->lit_arity(); }
     const Axiom* axiom() const { return axiom_depth_.ptr(); }
     u16 currying_depth() const { return axiom_depth_.index(); }
+    const App* decurry() const { return callee()->as<App>(); }
+
+    /// Splits the @p arg into an array by using @p arity many @p Extract%s.
+    /// Applies @p f to each extracted element.
+    template<size_t N = size_t(-1), class F> auto split(F f) const { return thorin::split<N, F>(arg(), f); }
+    /// Splits the @p arg into an array by using @p arity many @p Extract%s.
+    template<size_t N = size_t(-1)> auto split() const { return thorin::split<N>(arg()); }
 
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     std::ostream& stream(std::ostream&) const override;

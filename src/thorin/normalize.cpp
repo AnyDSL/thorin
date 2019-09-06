@@ -13,7 +13,7 @@ using namespace thorin::fold;
 
 static bool is_allset(const Def* def) {
     if (auto lit = isa_lit<u64>(def)) {
-        if (auto width = isa_lit<u64>(as<Tag::Int>(def->type()).arg()))
+        if (auto width = isa_lit<u64>(as<Tag::Int>(def->type())->arg()))
             return (*lit >> (64_u64 - *width) == u64(-1) >> (64_u64 - *width));
     }
     return false;
@@ -21,7 +21,7 @@ static bool is_allset(const Def* def) {
 
 static bool is_not(const Def* def) {
     if (auto ixor = isa<Tag::IOp, IOp::ixor>(def)) {
-        auto [x, y] = ixor.split<2>();
+        auto [x, y] = ixor->split<2>();
         if (is_allset(x)) return true;
     }
     return false;
@@ -38,7 +38,7 @@ static const Def* fold_i(const Def* type, const Def* callee, const Def* a, const
 
     auto la = a->isa<Lit>(), lb = b->isa<Lit>();
     if (la && lb) {
-        auto w = as_lit<u64>(as<Tag::Int>(type).arg());
+        auto w = as_lit<u64>(as<Tag::Int>(type)->arg());
         Res res;
         switch (w) {
             case  1: res = F< 1>::run(la->get(), lb->get()); break;
@@ -63,22 +63,22 @@ static const Def* fold_w(const Def* type, const Def* callee, const Def* a, const
 
     auto la = a->isa<Lit>(), lb = b->isa<Lit>();
     if (la && lb) {
-        auto [ff, ww] = split<2>(callee->as<App>()->arg());
-        auto f = as_lit<u64>(ff);
-        auto w = as_lit<u64>(ww);
-        bool nsw = f & WMode::nsw;
-        bool nuw = f & WMode::nuw;
-        Res res;
-        switch (w) {
-            case  8: res = F< 8>::run(la->get(), lb->get(), nsw, nuw); break;
-            case 16: res = F<16>::run(la->get(), lb->get(), nsw, nuw); break;
-            case 32: res = F<32>::run(la->get(), lb->get(), nsw, nuw); break;
-            case 64: res = F<64>::run(la->get(), lb->get(), nsw, nuw); break;
-            default: THORIN_UNREACHABLE;
-        }
+        auto [f, w] = callee->as<App>()->split<2>(isa_lit<u64>);
+        if (f && w) {
+            bool nsw = *f & WMode::nsw;
+            bool nuw = *f & WMode::nuw;
+            Res res;
+            switch (*w) {
+                case  8: res = F< 8>::run(la->get(), lb->get(), nsw, nuw); break;
+                case 16: res = F<16>::run(la->get(), lb->get(), nsw, nuw); break;
+                case 32: res = F<32>::run(la->get(), lb->get(), nsw, nuw); break;
+                case 64: res = F<64>::run(la->get(), lb->get(), nsw, nuw); break;
+                default: THORIN_UNREACHABLE;
+            }
 
-        if (res) return world.lit(type, *res, dbg);
-        return world.bot(type, dbg);
+            if (res) return world.lit(type, *res, dbg);
+            return world.bot(type, dbg);
+        }
     }
 
     return nullptr;
@@ -91,7 +91,7 @@ static const Def* fold_z(const Def* type, const Def* callee, const Def* m, const
 
     auto la = a->isa<Lit>(), lb = b->isa<Lit>();
     if (la && lb) {
-        auto w = as_lit<u64>(as<Tag::Int>(type).arg());
+        auto w = as_lit<u64>(as<Tag::Int>(type)->arg());
         Res res;
         switch (w) {
             case  8: res = F< 8>::run(la->get(), lb->get()); break;
@@ -115,7 +115,7 @@ static const Def* fold_r(const Def* type, const Def* callee, const Def* a, const
 
     auto la = a->isa<Lit>(), lb = b->isa<Lit>();
     if (la && lb) {
-        auto w = as_lit<u64>(as<Tag::Real>(type).arg());
+        auto w = as_lit<u64>(as<Tag::Real>(type)->arg());
         Res res;
         switch (w) {
             case 16: res = F<16>::run(la->get(), lb->get()); break;
@@ -213,8 +213,8 @@ const Def* normalize_sizeof(const Def*, const Def* callee, const Def* type, cons
 
     const Def* arg = nullptr;
     if (false) {}
-    else if (auto int_ = isa<Tag::Int >(type)) arg = int_.arg();
-    else if (auto real = isa<Tag::Real>(type)) arg = real.arg();
+    else if (auto int_ = isa<Tag::Int >(type)) arg = int_->arg();
+    else if (auto real = isa<Tag::Real>(type)) arg = real->arg();
 
     if (auto width = isa_lit<u64>(arg)) return world.lit_nat(*width / 8, dbg);
     return nullptr;

@@ -156,15 +156,21 @@ enum RMode : u64 {
                      m(RCmp, une) /* x x x o - unordered or not equal        */ \
                      m(RCmp,   t) /* x x x x - always true                   */
 
+using node_t   = u16;
+using tag_t    = u32;
+using flags_t  = u32;
+using fields_t = u64;
+using nat_t    = u64;
+
 namespace Node {
 #define CODE(node, name) node,
-enum : u16 { THORIN_NODE(CODE) };
+enum : node_t { THORIN_NODE(CODE) };
 #undef CODE
 }
 
 namespace Tag {
 #define CODE(tag, name) tag,
-enum : u32 { THORIN_TAG(CODE) };
+enum : tag_t { THORIN_TAG(CODE) };
 #undef CODE
 }
 
@@ -178,13 +184,13 @@ enum class RCmp : u64 { THORIN_R_CMP(CODE) };
 enum class Cast : u64 { THORIN_CAST(CODE) };
 #undef CODE
 
-constexpr ICmp operator|(ICmp a, ICmp b) { return ICmp(u32(a) | u32(b)); }
-constexpr ICmp operator&(ICmp a, ICmp b) { return ICmp(u32(a) & u32(b)); }
-constexpr ICmp operator^(ICmp a, ICmp b) { return ICmp(u32(a) ^ u32(b)); }
+constexpr ICmp operator|(ICmp a, ICmp b) { return ICmp(flags_t(a) | flags_t(b)); }
+constexpr ICmp operator&(ICmp a, ICmp b) { return ICmp(flags_t(a) & flags_t(b)); }
+constexpr ICmp operator^(ICmp a, ICmp b) { return ICmp(flags_t(a) ^ flags_t(b)); }
 
-constexpr RCmp operator|(RCmp a, RCmp b) { return RCmp(u32(a) | u32(b)); }
-constexpr RCmp operator&(RCmp a, RCmp b) { return RCmp(u32(a) & u32(b)); }
-constexpr RCmp operator^(RCmp a, RCmp b) { return RCmp(u32(a) ^ u32(b)); }
+constexpr RCmp operator|(RCmp a, RCmp b) { return RCmp(flags_t(a) | flags_t(b)); }
+constexpr RCmp operator&(RCmp a, RCmp b) { return RCmp(flags_t(a) & flags_t(b)); }
+constexpr RCmp operator^(RCmp a, RCmp b) { return RCmp(flags_t(a) ^ flags_t(b)); }
 
 #define CODE(T, o) case T::o: return #o;
 constexpr const char* op2str(WOp  o) { switch (o) { THORIN_W_OP(CODE) default: THORIN_UNREACHABLE; } }
@@ -220,14 +226,14 @@ template<> constexpr auto Num<RCmp> = 0_s THORIN_R_CMP(CODE);
 template<> constexpr auto Num<Cast> = 0_s THORIN_CAST (CODE);
 #undef CODE
 
-template<u32 tag> struct Tag2Enum_     { using type = u32; };
+template<tag_t tag> struct Tag2Enum_   { using type = tag_t; };
 template<> struct Tag2Enum_<Tag::IOp>  { using type = IOp; };
 template<> struct Tag2Enum_<Tag::WOp>  { using type = WOp; };
 template<> struct Tag2Enum_<Tag::ZOp>  { using type = ZOp; };
 template<> struct Tag2Enum_<Tag::ROp>  { using type = ROp; };
 template<> struct Tag2Enum_<Tag::ICmp> { using type = ICmp; };
 template<> struct Tag2Enum_<Tag::RCmp> { using type = RCmp; };
-template<u32 tag> using Tag2Enum = typename Tag2Enum_<tag>::type;
+template<tag_t tag> using Tag2Enum = typename Tag2Enum_<tag>::type;
 
 }
 

@@ -100,8 +100,8 @@ public:
     //@}
     /// @name Axiom
     //@{
-    Axiom* axiom(Def::NormalizeFn normalize, const Def* type, u32 tag, u32 flags, Debug dbg);
-    Axiom* axiom(const Def* type, u32 tag, u32 flags, Debug dbg) { return axiom(nullptr, type, tag, flags, dbg); }
+    Axiom* axiom(Def::NormalizeFn normalize, const Def* type, tag_t tag, flags_t flags, Debug dbg);
+    Axiom* axiom(const Def* type, tag_t tag, flags_t flags, Debug dbg) { return axiom(nullptr, type, tag, flags, dbg); }
     //@}
     /// @name Pi
     //@{
@@ -185,16 +185,16 @@ public:
     //@{
     const Def* extract(const Def* agg, const Def* i, Debug dbg = {});
     const Def* extract(const Def* agg, u64 i, Debug dbg = {}) { return extract(agg, lit_index(agg->arity(), i, dbg), dbg); }
-    const Def* extract(const Def* agg, u64 a, u32 i, Debug dbg = {}) { return extract(agg, lit_index(a, i, dbg), dbg); }
+    const Def* extract(const Def* agg, u64 a, u64 i, Debug dbg = {}) { return extract(agg, lit_index(a, i, dbg), dbg); }
     const Def* unsafe_extract(const Def* agg, const Def* i, Debug dbg = {}) { return extract(agg, op_cast(agg->arity(), i, dbg), dbg); }
     const Def* unsafe_extract(const Def* agg, u64 i, Debug dbg = {}) { return unsafe_extract(agg, lit_nat(i, dbg), dbg); }
     //@}
     /// @name Insert
     //@{
     const Def* insert(const Def* agg, const Def* i, const Def* value, Debug dbg = {});
-    const Def* insert(const Def* agg, u32 i, const Def* value, Debug dbg = {}) { return insert(agg, lit_index(agg->arity(), i, dbg), value, dbg); }
+    const Def* insert(const Def* agg, u64 i, const Def* value, Debug dbg = {}) { return insert(agg, lit_index(agg->arity(), i, dbg), value, dbg); }
     const Def* unsafe_insert(const Def* agg, const Def* i, const Def* value, Debug dbg = {}) { return insert(agg, op_cast(agg->arity(), i, dbg), value, dbg); }
-    const Def* unsafe_insert(const Def* agg, u32 i, const Def* value, Debug dbg = {}) { return unsafe_insert(agg, lit_nat(i, dbg), value, dbg); }
+    const Def* unsafe_insert(const Def* agg, u64 i, const Def* value, Debug dbg = {}) { return unsafe_insert(agg, lit_nat(i, dbg), value, dbg); }
     //@}
     /// @name LEA - load effective address
     //@{
@@ -494,7 +494,7 @@ private:
     //@}
 
     /// Used internally to initialize the arrays of axioms within the cache_.
-    template<u32 tag, class A, class N>
+    template<tag_t tag, class A, class N>
     void init(A& axioms, const N& normalizers, const Def* type) {
         using Enum = Tag2Enum<tag>;
         for (size_t i = 0, e = Num<Enum>; i != e; ++i)

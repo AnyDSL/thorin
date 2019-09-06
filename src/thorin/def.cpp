@@ -339,7 +339,7 @@ const Def* Pi::apply(const Def* arg) const { return isa_nominal() ? rewrite(codo
  * constructors
  */
 
-Def::Def(u16 node, RebuildFn rebuild, const Def* type, Defs ops, uint64_t fields, const Def* dbg)
+Def::Def(node_t node, RebuildFn rebuild, const Def* type, Defs ops, uint64_t fields, const Def* dbg)
     : type_(type)
     , rebuild_(rebuild)
     , debug_(dbg)
@@ -351,12 +351,12 @@ Def::Def(u16 node, RebuildFn rebuild, const Def* type, Defs ops, uint64_t fields
     , num_ops_(ops.size())
 {
     std::copy(ops.begin(), ops.end(), ops_ptr());
-    hash_ = hash_combine(hash_begin((u16) node), type->gid(), fields_);
+    hash_ = hash_combine(hash_begin(node), type->gid(), fields_);
     for (auto op : ops)
         hash_ = hash_combine(hash_, op->gid());
 }
 
-Def::Def(u16 node, StubFn stub, const Def* type, size_t num_ops, uint64_t fields, const Def* dbg)
+Def::Def(node_t node, StubFn stub, const Def* type, size_t num_ops, uint64_t fields, const Def* dbg)
     : type_(type)
     , stub_(stub)
     , debug_(dbg)

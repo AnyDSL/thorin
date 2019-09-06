@@ -18,25 +18,27 @@
 
 namespace thorin {
 
+using hash_t = u32;
+
 //------------------------------------------------------------------------------
 
 void debug_hash();
 
 /// Magic numbers from http://www.isthe.com/chongo/tech/comp/fnv/index.html#FNV-param .
 struct FNV1 {
-    static const uint32_t offset = 2166136261_u32;
-    static const uint32_t prime  = 16777619_u32;
+    static const hash_t offset = 2166136261_u32;
+    static const hash_t prime  = 16777619_u32;
 };
 
 /// Returns a new hash by combining the hash @p seed with @p val.
 template<class T>
-uint32_t hash_combine(uint32_t seed, T v) {
+hash_t hash_combine(hash_t seed, T v) {
     static_assert(std::is_signed<T>::value || std::is_unsigned<T>::value,
                   "please provide your own hash function");
 
-    uint32_t val = v;
-    for (uint32_t i = 0; i < sizeof(T); ++i) {
-        uint32_t octet = val & 0xff_u32; // extract lower 8 bits
+    hash_t val = v;
+    for (hash_t i = 0; i < sizeof(T); ++i) {
+        hash_t octet = val & 0xff_u32; // extract lower 8 bits
         seed ^= octet;
         seed *= FNV1::prime;
         val >>= 8_u32;
@@ -45,18 +47,18 @@ uint32_t hash_combine(uint32_t seed, T v) {
 }
 
 template<class T>
-uint32_t hash_combine(uint32_t seed, T* val) { return hash_combine(seed, uintptr_t(val)); }
+hash_t hash_combine(hash_t seed, T* val) { return hash_combine(seed, uintptr_t(val)); }
 
 template<class T, class... Args>
-uint32_t hash_combine(uint32_t seed, T val, Args&&... args) {
+hash_t hash_combine(hash_t seed, T val, Args&&... args) {
     return hash_combine(hash_combine(seed, val), std::forward<Args>(args)...);
 }
 
 template<class T>
-uint32_t hash_begin(T val) { return hash_combine(FNV1::offset, val); }
-inline uint32_t hash_begin() { return FNV1::offset; }
+hash_t hash_begin(T val) { return hash_combine(FNV1::offset, val); }
+inline hash_t hash_begin() { return FNV1::offset; }
 
-inline uint32_t murmur3(uint32_t h) {
+inline hash_t murmur3(hash_t h) {
     h ^= h >> 16_u32;
     h *= 0x85ebca6b_u32;
     h ^= h >> 13_u32;
@@ -65,10 +67,10 @@ inline uint32_t murmur3(uint32_t h) {
     return h;
 }
 
-uint32_t hash(const char* s);
+hash_t hash(const char* s);
 
 struct StrHash {
-    static uint32_t hash(const char* s) { return thorin::hash(s); }
+    static hash_t hash(const char* s) { return thorin::hash(s); }
     static bool eq(const char* s1, const char* s2) { return std::strcmp(s1, s2) == 0; }
     static const char* sentinel() { return (const char*)(1); }
 };
@@ -473,7 +475,7 @@ private:
 #else
     void debug(size_t) {}
 #endif
-    uint32_t hash(size_t i) { return H::hash(key(&nodes_[i])); } ///< just for debugging
+    hash_t hash(size_t i) { return H::hash(key(&nodes_[i])); } ///< just for debugging
     size_t mod(size_t i) const { return i & (capacity_-1); }
     size_t desired_pos(const key_type& key) const { return mod(H::hash(key)); }
     size_t probe_distance(size_t i) { return mod(i + capacity() - desired_pos(key(nodes_+i))); }

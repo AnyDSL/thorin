@@ -138,7 +138,7 @@ std::string tuple2str(const Def* def) {
 
     std::string result;
     for (size_t i = 0, e = def->lit_arity(); i != e; ++i)
-        result.push_back(as_lit<u64>(def->out(i)));
+        result.push_back(as_lit<nat_t>(def->out(i)));
     return result;
 }
 

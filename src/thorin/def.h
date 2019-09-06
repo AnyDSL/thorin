@@ -20,7 +20,7 @@ struct GIDLt {
 
 template<class T>
 struct GIDHash {
-    static u32 hash(T n) { return thorin::murmur3(n->gid()); }
+    static hash_t hash(T n) { return thorin::murmur3(n->gid()); }
     static bool eq(T a, T b) { return a == b; }
     static T sentinel() { return T(1); }
 };
@@ -94,9 +94,9 @@ private:
 };
 
 struct UseHash {
-    inline static u32 hash(Use use);
+    inline static hash_t hash(Use use);
     static bool eq(Use u1, Use u2) { return u1 == u2; }
-    static Use sentinel() { return Use((const Def*)(-1), uint16_t(-1)); }
+    static Use sentinel() { return Use((const Def*)(-1), u16(-1)); }
 };
 
 typedef HashSet<Use, UseHash> Uses;
@@ -134,9 +134,9 @@ private:
 
 protected:
     /// Constructor for a @em structural Def.
-    Def(uint16_t tag, RebuildFn rebuild, const Def* type, Defs ops, uint64_t fields, const Def* dbg);
+    Def(node_t, RebuildFn rebuild, const Def* type, Defs ops, fields_t fields, const Def* dbg);
     /// Constructor for a @em nominal Def.
-    Def(uint16_t tag, StubFn stub, const Def* type, size_t num_ops, uint64_t fields, const Def* dbg);
+    Def(node_t, StubFn stub, const Def* type, size_t num_ops, fields_t fields, const Def* dbg);
     virtual ~Def() {}
 
 public:
@@ -221,10 +221,10 @@ public:
     //@}
     /// @name misc getters
     //@{
-    uint64_t fields() const { return fields_; }
-    uint16_t node() const { return node_; }
+    fields_t fields() const { return fields_; }
+    node_t node() const { return node_; }
     size_t gid() const { return gid_; }
-    u32 hash() const { return hash_; }
+    hash_t hash() const { return hash_; }
     World& world() const {
         if (node()                 == Node::Universe) return *world_;
         if (type()->node()         == Node::Universe) return *type()->world_;
@@ -277,13 +277,13 @@ protected:
         TaggedPtr<const Axiom, u16> axiom_depth_;
     };
     const Def* debug_;
-    uint64_t fields_;
-    uint16_t node_;
+    fields_t fields_;
+    node_t node_;
     unsigned nominal_ :  1;
     unsigned order_   : 15;
     u32 gid_;
     u32 num_ops_;
-    u32 hash_;
+    hash_t hash_;
     mutable Uses uses_;
     mutable const Def* substitute_ = nullptr; // TODO remove this
 
@@ -390,11 +390,11 @@ public:
 
 class Axiom : public Def {
 private:
-    Axiom(NormalizeFn normalizer, const Def* type, u32 tag, u32 flags, const Def* dbg);
+    Axiom(NormalizeFn normalizer, const Def* type, tag_t tag, flags_t flags, const Def* dbg);
 
 public:
-    u32 tag() const { return fields() >> 32_u64; }
-    u32 flags() const { return fields(); }
+    tag_t tag() const { return fields() >> 32_u64; }
+    flags_t flags() const { return fields(); }
     NormalizeFn normalizer() const { return normalizer_depth_.ptr(); }
     u16 currying_depth() const { return normalizer_depth_.index(); }
     static Def* stub(const Def*, World&, const Def*, const Def*);
@@ -434,12 +434,12 @@ public:
 
 class Lit : public Def {
 private:
-    Lit(const Def* type, uint64_t val, const Def* dbg)
+    Lit(const Def* type, fields_t val, const Def* dbg)
         : Def(Node, rebuild, type, Defs{}, val, dbg)
     {}
 
 public:
-    template<class T = uint64_t>
+    template<class T = fields_t>
     T get() const { static_assert(sizeof(T) <= 8); return bitcast<T>(fields_); }
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     std::ostream& stream(std::ostream&) const override;
@@ -537,7 +537,7 @@ public:
 
 class Lam : public Def {
 public:
-    enum class Intrinsic : uint8_t {
+    enum class Intrinsic : u8 {
         None,                       ///< Not an intrinsic.
         _Accelerator_Begin,
         CUDA = _Accelerator_Begin,  ///< Internal CUDA-Backend.
@@ -564,7 +564,7 @@ public:
     };
 
     /// calling convention
-    enum class CC : uint8_t {
+    enum class CC : u8 {
         C,          ///< C calling convention.
         Device,     ///< Device calling convention. These are special functions only available on a particular device.
     };
@@ -574,7 +574,7 @@ private:
         : Def(Node, rebuild, pi, {filter, body}, 0, dbg)
     {}
     Lam(const Pi* pi, CC cc, Intrinsic intrinsic, const Def* dbg)
-        : Def(Node, stub, pi, 2, uint64_t(cc) << 8_u64 | uint64_t(intrinsic), dbg)
+        : Def(Node, stub, pi, 2, u64(cc) << 8_u64 | u64(intrinsic), dbg)
     {}
 
 public:
@@ -625,10 +625,10 @@ public:
     /// @name get/set fields - Intrinsic and CC
     //@{
     Intrinsic intrinsic() const { return Intrinsic(fields() & 0x00ff_u64); }
-    void set_intrinsic(Intrinsic intrin) { fields_ = (fields_ & 0xff00_u64) | uint64_t(intrin); }
+    void set_intrinsic(Intrinsic intrin) { fields_ = (fields_ & 0xff00_u64) | u64(intrin); }
     void set_intrinsic(); ///< Sets Intrinsic derived on this @p Lam's @p name.
     CC cc() const { return CC(fields() >> 8_u64); }
-    void set_cc(CC cc) { fields_ = (fields_ & 0x00ff_u64) | uint64_t(cc) << 8_u64; }
+    void set_cc(CC cc) { fields_ = (fields_ & 0x00ff_u64) | u64(cc) << 8_u64; }
     //@}
 
     Lams preds() const;
@@ -872,7 +872,7 @@ public:
     friend class World;
 };
 
-u32 UseHash::hash(Use use) { return hash_combine(hash_begin(uint16_t(use.index())), u32(use->gid())); }
+hash_t UseHash::hash(Use use) { return hash_combine(hash_begin(u16(use.index())), hash_t(use->gid())); }
 
 namespace detail {
     inline std::ostream& stream(std::ostream& os, const Def* def) { return def->stream(os); }

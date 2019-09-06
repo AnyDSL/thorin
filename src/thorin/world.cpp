@@ -116,7 +116,7 @@ World::~World() {
     for (auto def : defs_) def->~Def();
 }
 
-Axiom* World::axiom(Def::NormalizeFn normalize, const Def* type, u32 tag, u32 flags, Debug dbg) {
+Axiom* World::axiom(Def::NormalizeFn normalize, const Def* type, tag_t tag, flags_t flags, Debug dbg) {
     auto a = insert<Axiom>(0, normalize, type, tag, flags, debug(dbg));
     a->make_external();
     assert(lookup(a->name()) == a);

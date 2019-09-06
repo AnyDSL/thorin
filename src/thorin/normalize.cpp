@@ -38,7 +38,7 @@ static const Def* fold_i(const Def* type, const Def* callee, const Def* a, const
 
     auto la = a->isa<Lit>(), lb = b->isa<Lit>();
     if (la && lb) {
-        auto w = as_lit<u64>(as<Tag::Int>(type)->arg());
+        auto w = as_lit<nat_t>(as<Tag::Int>(type)->arg());
         Res res;
         switch (w) {
             case  1: res = F< 1>::run(la->get(), lb->get()); break;
@@ -63,7 +63,7 @@ static const Def* fold_w(const Def* type, const Def* callee, const Def* a, const
 
     auto la = a->isa<Lit>(), lb = b->isa<Lit>();
     if (la && lb) {
-        auto [f, w] = callee->as<App>()->split<2>(isa_lit<u64>);
+        auto [f, w] = callee->as<App>()->split<2>(isa_lit<nat_t>);
         if (f && w) {
             bool nsw = *f & WMode::nsw;
             bool nuw = *f & WMode::nuw;
@@ -91,7 +91,7 @@ static const Def* fold_z(const Def* type, const Def* callee, const Def* m, const
 
     auto la = a->isa<Lit>(), lb = b->isa<Lit>();
     if (la && lb) {
-        auto w = as_lit<u64>(as<Tag::Int>(type)->arg());
+        auto w = as_lit<nat_t>(as<Tag::Int>(type)->arg());
         Res res;
         switch (w) {
             case  8: res = F< 8>::run(la->get(), lb->get()); break;
@@ -115,7 +115,7 @@ static const Def* fold_r(const Def* type, const Def* callee, const Def* a, const
 
     auto la = a->isa<Lit>(), lb = b->isa<Lit>();
     if (la && lb) {
-        auto w = as_lit<u64>(as<Tag::Real>(type)->arg());
+        auto w = as_lit<nat_t>(as<Tag::Real>(type)->arg());
         Res res;
         switch (w) {
             case 16: res = F<16>::run(la->get(), lb->get()); break;
@@ -216,7 +216,7 @@ const Def* normalize_sizeof(const Def*, const Def* callee, const Def* type, cons
     else if (auto int_ = isa<Tag::Int >(type)) arg = int_->arg();
     else if (auto real = isa<Tag::Real>(type)) arg = real->arg();
 
-    if (auto width = isa_lit<u64>(arg)) return world.lit_nat(*width / 8, dbg);
+    if (auto width = isa_lit<nat_t>(arg)) return world.lit_nat(*width / 8, dbg);
     return nullptr;
 }
 

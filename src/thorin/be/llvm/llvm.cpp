@@ -616,9 +616,9 @@ llvm::Value* CodeGen::emit(const Def* def) {
     if (auto wop = isa<Tag::WOp>(def)) {
         auto [a, b] = wop->split<2>([&](auto def) { return lookup(def); });
         auto name = def->name();
-        auto [mode, width] = wop->decurry()->split<2>(as_lit<u64>);
-        bool nuw = mode & u64(WMode::nuw);
-        bool nsw = mode & u64(WMode::nsw);
+        auto [mode, width] = wop->decurry()->split<2>(as_lit<nat_t>);
+        bool nuw = mode & WMode::nuw;
+        bool nsw = mode & WMode::nsw;
         switch (wop.flags()) {
             case WOp::add: return irbuilder_.CreateAdd(a, b, name, nuw, nsw);
             case WOp::sub: return irbuilder_.CreateSub(a, b, name, nuw, nsw);
@@ -645,7 +645,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
     if (auto rop = isa<Tag::ROp>(def)) {
         auto name = def->name();
         auto [a, b] = rop->split<2>([&](auto def) { return lookup(def); });
-        auto [mode, width] = rop->decurry()->split<2>(as_lit<u64>);
+        auto [mode, width] = rop->decurry()->split<2>(as_lit<nat_t>);
 
         llvm::FastMathFlags flags;
         if (mode & RMode::nnan    ) flags.setNoNaNs();
@@ -800,7 +800,6 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
     if (auto pack = def->isa<Pack>()) {
         auto llvm_type = convert(pack->type());
-        if (auto lit = isa_lit<u64>(pack->body())) return llvm::ConstantAggregateZero::get(llvm_type);
 
         llvm::Value* llvm_agg = llvm::UndefValue::get(llvm_type);
         if (pack->body()->isa<Bot>()) return llvm_agg;
@@ -885,7 +884,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         if (is_arity(lit->type())) return irbuilder_.getInt64(lit->get());
 
         if (auto int_ = isa<Tag::Int>(lit->type())) {
-            switch (as_lit<u64>(int_->arg())) {
+            switch (as_lit<nat_t>(int_->arg())) {
                 case  1: return irbuilder_. getInt1(lit->get< u1>());
                 case  8: return irbuilder_. getInt8(lit->get< u8>());
                 case 16: return irbuilder_.getInt16(lit->get<u16>());
@@ -896,7 +895,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         }
 
         if (auto real = isa<Tag::Real>(lit->type())) {
-            switch (as_lit<u64>(real->arg())) {
+            switch (as_lit<nat_t>(real->arg())) {
                 case 16: return llvm::ConstantFP::get(llvm_type, lit->get<r16>());
                 case 32: return llvm::ConstantFP::get(llvm_type, lit->get<r32>());
                 case 64: return llvm::ConstantFP::get(llvm_type, lit->get<r64>());
@@ -1041,7 +1040,7 @@ llvm::Type* CodeGen::convert(const Def* type) {
         return types_[type] = irbuilder_.getInt64Ty();
 
     if (auto int_ = isa<Tag::Int>(type)) {
-        switch (as_lit<u64>(int_->arg())) {
+        switch (as_lit<nat_t>(int_->arg())) {
             case  1: return types_[type] = irbuilder_. getInt1Ty();
             case  8: return types_[type] = irbuilder_. getInt8Ty();
             case 16: return types_[type] = irbuilder_.getInt16Ty();
@@ -1052,7 +1051,7 @@ llvm::Type* CodeGen::convert(const Def* type) {
     }
 
     if (auto real = isa<Tag::Real>(type)) {
-        switch (as_lit<u64>(real->arg())) {
+        switch (as_lit<nat_t>(real->arg())) {
             case 16: return types_[type] = irbuilder_.getHalfTy();
             case 32: return types_[type] = irbuilder_.getFloatTy();
             case 64: return types_[type] = irbuilder_.getDoubleTy();

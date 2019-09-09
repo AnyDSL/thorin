@@ -35,16 +35,16 @@ const Def* Def::debug_history() const {
 
 std::string Def::name() const     { return debug() ? tuple2str(debug()->out(0)) : std::string{}; }
 std::string Def::filename() const { return debug() ? tuple2str(debug()->out(1)) : std::string{}; }
-u64 Def::front_line() const { return debug() ? as_lit<u64>(debug()->out(2)) : std::numeric_limits<u64>::max(); }
-u64 Def::front_col()  const { return debug() ? as_lit<u64>(debug()->out(3)) : std::numeric_limits<u64>::max(); }
-u64 Def::back_line()  const { return debug() ? as_lit<u64>(debug()->out(4)) : std::numeric_limits<u64>::max(); }
-u64 Def::back_col()   const { return debug() ? as_lit<u64>(debug()->out(5)) : std::numeric_limits<u64>::max(); }
+nat_t Def::front_line() const { return debug() ? as_lit<nat_t>(debug()->out(2)) : std::numeric_limits<nat_t>::max(); }
+nat_t Def::front_col()  const { return debug() ? as_lit<nat_t>(debug()->out(3)) : std::numeric_limits<nat_t>::max(); }
+nat_t Def::back_line()  const { return debug() ? as_lit<nat_t>(debug()->out(4)) : std::numeric_limits<nat_t>::max(); }
+nat_t Def::back_col()   const { return debug() ? as_lit<nat_t>(debug()->out(5)) : std::numeric_limits<nat_t>::max(); }
 
 std::string Def::loc() const {
     std::ostringstream os;
     os << filename() << ':';
 
-    if (front_col() == u64(-1) || back_col() == u64(-1)) {
+    if (front_col() == nat_t(-1) || back_col() == nat_t(-1)) {
         if (front_line() != back_line())
             streamf(os, "{} - {}", front_line(), back_line());
         else
@@ -372,7 +372,7 @@ Def::Def(node_t node, StubFn stub, const Def* type, size_t num_ops, uint64_t fie
 }
 
 Axiom::Axiom(NormalizeFn normalizer, const Def* type, u32 tag, u32 flags, const Def* dbg)
-    : Def(Node, stub, type, 0, (u64(tag) << 32_u64) | u64(flags), dbg)
+    : Def(Node, stub, type, 0, (nat_t(tag) << 32_u64) | nat_t(flags), dbg)
 {
     u16 currying_depth = 0;
     while (auto pi = type->isa<Pi>()) {
@@ -416,7 +416,7 @@ const Param* Pi ::param(Debug dbg) const { return world().param(domain(), as_nom
 
 const Def* Def  ::arity() const { return is_term() ? type()->arity() : world().lit_arity_1(); }
 const Def* Sigma::arity() const { return world().lit_arity(num_ops()); }
-u64 Def::lit_arity() const { return as_lit<u64>(arity()); }
+nat_t Def::lit_arity() const { return as_lit<nat_t>(arity()); }
 
 /*
  * equal
@@ -447,7 +447,7 @@ const Def* Insert     ::rebuild(const Def*  , World& w, const Def*  , Defs o, co
 const Def* KindArity  ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.kind_arity(); }
 const Def* KindMulti  ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.kind_multi(); }
 const Def* KindStar   ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.kind_star(); }
-const Def* Lit        ::rebuild(const Def* d, World& w, const Def* t, Defs  , const Def* dbg) { return w.lit(t, as_lit<u64>(d), dbg); }
+const Def* Lit        ::rebuild(const Def* d, World& w, const Def* t, Defs  , const Def* dbg) { return w.lit(t, as_lit<nat_t>(d), dbg); }
 const Def* Nat        ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.type_nat(); }
 const Def* Mem        ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.type_mem(); }
 const Def* Pack       ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.pack(t->arity(), o[0], dbg); }
@@ -501,7 +501,7 @@ std::ostream& Lit::stream(std::ostream& os) const {
 
         std::string s;
         // append utf-8 subscripts in reverse order
-        for (size_t aa = as_lit<u64>(type()); aa > 0; aa /= 10)
+        for (size_t aa = as_lit<nat_t>(type()); aa > 0; aa /= 10)
             ((s += char(char(0x80) + char(aa % 10))) += char(0x82)) += char(0xe2);
         std::reverse(s.begin(), s.end());
 

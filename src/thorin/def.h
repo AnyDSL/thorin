@@ -48,14 +48,14 @@ typedef std::vector<Lam*> Lams;
 using Name = std::variant<const char*, std::string, const Def*>;
 
 struct Debug {
-    Debug(Name name, Name filename, u64 front_line, u64 front_col, u64 back_line, u64 back_col)
+    Debug(Name name, Name filename, nat_t front_line, nat_t front_col, nat_t back_line, nat_t back_col)
         : data(std::make_tuple(name, filename, front_line, front_col, back_line, back_col))
     {}
-    Debug(Name filename, u64 front_line, u64 front_col, u64 back_line, u64 back_col)
+    Debug(Name filename, nat_t front_line, nat_t front_col, nat_t back_line, nat_t back_col)
         : Debug("", filename, front_line, front_col, back_line, back_col)
     {}
     Debug(Name name)
-        : Debug(name, "", u64(-1), u64(-1), u64(-1), u64(-1))
+        : Debug(name, "", nat_t(-1), nat_t(-1), nat_t(-1), nat_t(-1))
     {}
     Debug(const Def* def = nullptr)
         : data(def)
@@ -63,7 +63,7 @@ struct Debug {
 
     auto& operator*() { return data; }
 
-    std::variant<std::tuple<Name, Name, u64, u64, u64, u64>, const Def*> data;
+    std::variant<std::tuple<Name, Name, nat_t, nat_t, nat_t, nat_t>, const Def*> data;
 };
 
 namespace detail {
@@ -194,10 +194,10 @@ public:
     /// name + "_" + gid
     std::string unique_name() const;
     std::string filename() const;
-    u64 front_line() const;
-    u64 front_col() const;
-    u64 back_line() const;
-    u64 back_col() const;
+    nat_t front_line() const;
+    nat_t front_col() const;
+    nat_t back_line() const;
+    nat_t back_col() const;
     std::string loc() const;
     //@}
     /// @name casts
@@ -829,7 +829,7 @@ public:
 };
 
 struct AddrSpace {
-    enum : u64 {
+    enum : nat_t {
         Generic  = 0,
         Global   = 1,
         Texture  = 2,
@@ -848,7 +848,7 @@ private:
 public:
     const Def* pointee() const { return op(0); }
     const Def* addr_space() const { return op(1); }
-    u64 lit_addr_space() const { return as_lit<u64>(op(1)); }
+    nat_t lit_addr_space() const { return as_lit<nat_t>(op(1)); }
 
     std::ostream& stream(std::ostream&) const override;
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
@@ -864,7 +864,7 @@ private:
     {}
 
 public:
-    u64 index() const { return as_lit<u64>(op(0)); }
+    nat_t index() const { return as_lit<nat_t>(op(0)); }
     std::ostream& stream(std::ostream&) const override;
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 

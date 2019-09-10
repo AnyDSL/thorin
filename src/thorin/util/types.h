@@ -22,8 +22,9 @@ namespace thorin {
 
 using half_float::half;
 
-#define THORIN_8_16_32_64(m) m(8) m(16) m(32) m(64)
-#define THORIN_16_32_64(m)        m(16) m(32) m(64)
+#define THORIN_1_8_16_32_64(m) m(1) m(8) m(16) m(32) m(64)
+#define THORIN_8_16_32_64(m)        m(8) m(16) m(32) m(64)
+#define THORIN_16_32_64(m)               m(16) m(32) m(64)
 
 template<class T>
 bool get_sign(T val) {

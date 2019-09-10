@@ -89,10 +89,10 @@ public:
     //@}
     /// @name Universe and Kind
     //@{
-    const Universe* universe() { return cache_.universe; }
-    const KindArity* kind_arity() { return cache_.kind_arity; }
-    const KindMulti* kind_multi() { return cache_.kind_multi; }
-    const KindStar*  kind_star()  { return cache_.kind_star; }
+    const Universe* universe() { return cache_.universe_; }
+    const KindArity* kind_arity() { return cache_.kind_arity_; }
+    const KindMulti* kind_multi() { return cache_.kind_multi_; }
+    const KindStar*  kind_star()  { return cache_.kind_star_; }
     //@}
     /// @name Param
     //@{
@@ -146,7 +146,7 @@ public:
     const Def* sigma(const Def* type, Defs ops, Debug dbg = {});
     /// a @em structural @p Sigma of type @p star
     const Def* sigma(Defs ops, Debug dbg = {}) { return sigma(kind_star(), ops, dbg); }
-    const Sigma* sigma() { return cache_.sigma; } ///< the unit type within @p kind_star()
+    const Sigma* sigma() { return cache_.sigma_; } ///< the unit type within @p kind_star()
     //@}
     /// @name Sigma: nominal
     //@{
@@ -170,7 +170,7 @@ public:
     const Def* tuple(Defs ops, Debug dbg = {});
     const Def* tuple_str(const char* s, Debug = {});
     const Def* tuple_str(const std::string& s, Debug dbg = {}) { return tuple_str(s.c_str(), dbg); }
-    const Tuple* tuple() { return cache_.tuple; } ///< the unit value of type <tt>[]</tt>
+    const Tuple* tuple() { return cache_.tuple_; } ///< the unit value of type <tt>[]</tt>
     //@}
     /// @name Pack
     //@{
@@ -186,20 +186,20 @@ public:
     const Def* extract(const Def* agg, const Def* i, Debug dbg = {});
     const Def* extract(const Def* agg, u64 i, Debug dbg = {}) { return extract(agg, lit_index(agg->arity(), i, dbg), dbg); }
     const Def* extract(const Def* agg, u64 a, u64 i, Debug dbg = {}) { return extract(agg, lit_index(a, i, dbg), dbg); }
-    const Def* unsafe_extract(const Def* agg, const Def* i, Debug dbg = {}) { return extract(agg, op_cast(agg->arity(), i, dbg), dbg); }
+    const Def* unsafe_extract(const Def* agg, const Def* i, Debug dbg = {}) { return extract(agg, bitcast(agg->arity(), i, dbg), dbg); }
     const Def* unsafe_extract(const Def* agg, u64 i, Debug dbg = {}) { return unsafe_extract(agg, lit_nat(i, dbg), dbg); }
     //@}
     /// @name Insert
     //@{
     const Def* insert(const Def* agg, const Def* i, const Def* value, Debug dbg = {});
     const Def* insert(const Def* agg, u64 i, const Def* value, Debug dbg = {}) { return insert(agg, lit_index(agg->arity(), i, dbg), value, dbg); }
-    const Def* unsafe_insert(const Def* agg, const Def* i, const Def* value, Debug dbg = {}) { return insert(agg, op_cast(agg->arity(), i, dbg), value, dbg); }
+    const Def* unsafe_insert(const Def* agg, const Def* i, const Def* value, Debug dbg = {}) { return insert(agg, bitcast(agg->arity(), i, dbg), value, dbg); }
     const Def* unsafe_insert(const Def* agg, u64 i, const Def* value, Debug dbg = {}) { return unsafe_insert(agg, lit_nat(i, dbg), value, dbg); }
     //@}
     /// @name LEA - load effective address
     //@{
     const Def* lea(const Def* ptr, const Def* index, Debug dbg);
-    const Def* unsafe_lea(const Def* ptr, const Def* index, Debug dbg) { return lea(ptr, op_cast(ptr->type()->as<Ptr>()->pointee()->arity(), index, dbg), dbg); }
+    const Def* unsafe_lea(const Def* ptr, const Def* index, Debug dbg) { return lea(ptr, bitcast(ptr->type()->as<Ptr>()->pointee()->arity(), index, dbg), dbg); }
     //@}
     /// @name Literal
     //@{
@@ -210,13 +210,13 @@ public:
     /// @name Literal: Arity - note that this is a type
     //@{
     const Lit* lit_arity(u64 a, Debug dbg = {}) { return lit(kind_arity(), a, dbg); }
-    const Lit* lit_arity_1() { return cache_.lit_arity_1; } ///< unit arity 1ₐ
+    const Lit* lit_arity_1() { return cache_.lit_arity_1_; } ///< unit arity 1ₐ
     //@}
     /// @name Literal: Index - the inhabitants of an Arity
     //@{
     const Lit* lit_index(u64 arity, u64 idx, Debug dbg = {}) { return lit_index(lit_arity(arity), idx, dbg); }
     const Lit* lit_index(const Def* arity, u64 index, Debug dbg = {});
-    const Lit* lit_index_0_1() { return cache_.lit_index_0_1; } ///< unit index 0₁ of type unit arity 1ₐ
+    const Lit* lit_index_0_1() { return cache_.lit_index_0_1_; } ///< unit index 0₁ of type unit arity 1ₐ
     //@}
     /// @name Literal: Nat
     //@{
@@ -232,17 +232,17 @@ public:
         static_assert(std::is_floating_point<R>() || std::is_same<R, r16>());
         return lit(type_real(sizeof(R)*8), val, dbg);
     }
-    const Lit* lit_bool(bool val) { return cache_.lit_bool[size_t(val)]; }
-    const Lit* lit_false() { return cache_.lit_bool[0]; }
-    const Lit* lit_true()  { return cache_.lit_bool[1]; }
+    const Lit* lit_bool(bool val) { return cache_.lit_bool_[size_t(val)]; }
+    const Lit* lit_false() { return cache_.lit_bool_[0]; }
+    const Lit* lit_true()  { return cache_.lit_bool_[1]; }
     //@}
     /// @name Top/Bottom
     //@{
     const Def* bot_top(bool is_top, const Def* type, Debug dbg = {});
     const Def* bot(const Def* type, Debug dbg = {}) { return bot_top(false, type, dbg); }
     const Def* top(const Def* type, Debug dbg = {}) { return bot_top(true,  type, dbg); }
-    const Def* bot_star () { return cache_.bot_star; }
-    const Def* top_arity() { return cache_.top_arity; } ///< use this guy to encode an unknown arity, e.g., for unsafe arrays
+    const Def* bot_star () { return cache_.bot_star_; }
+    const Def* top_arity() { return cache_.top_arity_; } ///< use this guy to encode an unknown arity, e.g., for unsafe arrays
     //@}
     /// @name Variant
     //@{
@@ -251,10 +251,10 @@ public:
     //@}
     /// @name misc types
     //@{
-    const Nat* type_nat() { return cache_.type_nat; }
-    const Mem* type_mem() { return cache_.type_mem; }
-    const Axiom* type_int()  { return cache_.type_int; }
-    const Axiom* type_real() { return cache_.type_real; }
+    const Nat* type_nat() { return cache_.type_nat_; }
+    const Mem* type_mem() { return cache_.type_mem_; }
+    const Axiom* type_int()  { return cache_.type_int_; }
+    const Axiom* type_real() { return cache_.type_real_; }
     const App* type_bool() { return type_int(1); }
     const App* type_int (u64 num_bits) { return type_int (lit_nat(num_bits)); }
     const App* type_real(u64 num_bits) { return type_real(lit_nat(num_bits)); }
@@ -301,11 +301,17 @@ public:
     template<RCmp o> const Def* op(const Def* a, const Def* b, Debug dbg = {}) { return op<o>(infer_width(a), a, b, dbg); }
     template<RCmp o> const Def* op(const Def* w, const Def* a, const Def* b, Debug dbg = {}) { return app(app(op<o>(), w), {a, b}, dbg); }
     //@}
-    /// @name Casts
+    /// @name I2I
     //@{
-    const Def* convert(const Def* to, const Def* from, Debug dbg = {});
-    const App* op_cast(const Def* to, const Def* from, Debug dbg = {});
-    const Def* bitcast(const Def* to, const Def* from, Debug dbg = {});
+    template<I2I o> const Axiom* op() { return cache_.I2I_[size_t(o)]; }
+    template<I2I o> const Def* op(nat_t dw, const Def* src, Debug dbg = {}) { auto sw = infer_width(src); return op<o>(sw, lit_nat(dw), src, dbg); }
+    template<I2I o> const Def* op(const Def* sw, const Def* dw, const Def* src, Debug dbg = {}) { return app(app(op<o>(), {sw, dw}), src, dbg); }
+    //@}
+    /// @name Other casts.
+    //@{
+    const App* op_r2r(const Def* to, const Def* from, Debug dbg = {});
+    //const App* op_bitcast(const Def* to, const Def* from, Debug dbg = {});
+    const Def* bitcast(const Def* to, const Def* from, Debug dbg = {}); ///< deprecated
     //@}
     /// @name memory-related operations
     //@{
@@ -335,12 +341,12 @@ public:
     //@}
     /// @name misc operations
     //@{
-    const Axiom* op_select() const { return cache_.op_select; }
-    const Axiom* op_sizeof() const { return cache_.op_sizeof; }
-    const Def* op_select(const Def* cond, const Def* t, const Def* f, Debug dbg = {}) { return app(app(cache_.op_select, t->type()), {cond, t, f}, dbg); }
+    const Axiom* op_select() const { return cache_.op_select_; }
+    const Axiom* op_sizeof() const { return cache_.op_sizeof_; }
+    const Def* op_select(const Def* cond, const Def* t, const Def* f, Debug dbg = {}) { return app(app(cache_.op_select_, t->type()), {cond, t, f}, dbg); }
     const Def* op_sizeof(const Def* type, Debug dbg = {}) { return app(op_sizeof(), type, dbg); }
     Lam* match(const Def* type, size_t num_patterns);
-    Lam* end_scope() const { return cache_.end_scope; }
+    Lam* end_scope() const { return cache_.end_scope_; }
     //@}
     /// @name partial evaluation done?
     //@{
@@ -390,7 +396,7 @@ public:
         swap(w1.breakpoints_,   w2.breakpoints_);
         swap(w1.track_history_, w2.track_history_);
 #endif
-        swap(w1.cache_.universe->world_, w2.cache_.universe->world_);
+        swap(w1.cache_.universe_->world_, w2.cache_.universe_->world_);
         assert(&w1.universe()->world() == &w1);
         assert(&w2.universe()->world() == &w2);
     }
@@ -526,31 +532,34 @@ private:
     Breakpoints breakpoints_;
 #endif
     struct Cache {
-        Universe* universe;
-        const KindArity* kind_arity;
-        const KindMulti* kind_multi;
-        const KindStar*  kind_star;
-        const Bot* bot_star;
-        const Top* top_arity;
-        const Sigma* sigma;
-        const Tuple* tuple;
-        const Nat* type_nat;
-        const Mem* type_mem;
-        std::array<const Lit*, 2> lit_bool;
-        const Lit* lit_arity_1;
-        const Lit* lit_index_0_1;
-        Lam* end_scope;
-        Axiom* type_int;
-        Axiom* type_real;
+        Universe* universe_;
+        const KindArity* kind_arity_;
+        const KindMulti* kind_multi_;
+        const KindStar*  kind_star_;
+        const Bot* bot_star_;
+        const Top* top_arity_;
+        const Sigma* sigma_;
+        const Tuple* tuple_;
+        const Nat* type_nat_;
+        const Mem* type_mem_;
+        std::array<const Lit*, 2> lit_bool_;
+        const Lit* lit_arity_1_;
+        const Lit* lit_index_0_1_;
+        Lam* end_scope_;
+        Axiom* type_int_;
+        Axiom* type_real_;
         std::array<Axiom*, Num<IOp>>  IOp_;
         std::array<Axiom*, Num<WOp>>  WOp_;
         std::array<Axiom*, Num<ZOp>>  ZOp_;
         std::array<Axiom*, Num<ROp>>  ROp_;
         std::array<Axiom*, Num<ICmp>> ICmp_;
         std::array<Axiom*, Num<RCmp>> RCmp_;
-        std::array<Axiom*, Num<Cast>> Cast_;
-        Axiom* op_select;
-        Axiom* op_sizeof;
+        std::array<Axiom*, Num<I2I>>  I2I_;
+        std::array<Axiom*, Num<I2R>>  I2R_;
+        std::array<Axiom*, Num<R2I>>  R2I_;
+        Axiom* op_r2r_;
+        Axiom* op_select_;
+        Axiom* op_sizeof_;
     } cache_;
 
     friend class Cleaner;

@@ -51,7 +51,7 @@ public:
 
     const App* operator->() const { return app_; }
     operator const App*() const { return app_; }
-    operator bool() { return axiom_ != nullptr; }
+    explicit operator bool() { return axiom_ != nullptr; }
 
 private:
     const Axiom* axiom_;

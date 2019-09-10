@@ -31,7 +31,7 @@ static bool is_not(const Def* def) {
  * fold
  */
 
-template<template<int> class F>
+template<template<nat_t> class F>
 static const Def* fold_i(const Def* type, const Def* callee, const Def* a, const Def* b, const Def* dbg) {
     auto& world = callee->world();
     if (a->isa<Bot>() || b->isa<Bot>()) return world.bot(type, dbg);
@@ -56,7 +56,7 @@ static const Def* fold_i(const Def* type, const Def* callee, const Def* a, const
     return nullptr;
 }
 
-template<template<int> class F>
+template<template<nat_t> class F>
 static const Def* fold_w(const Def* type, const Def* callee, const Def* a, const Def* b, const Def* dbg) {
     auto& world = callee->world();
     if (a->isa<Bot>() || b->isa<Bot>()) return world.bot(type, dbg);
@@ -84,7 +84,7 @@ static const Def* fold_w(const Def* type, const Def* callee, const Def* a, const
     return nullptr;
 }
 
-template<template<int> class F>
+template<template<nat_t> class F>
 static const Def* fold_z(const Def* type, const Def* callee, const Def* m, const Def* a, const Def* b, const Def* dbg) {
     auto& world = callee->world();
     if (a->isa<Bot>() || b->isa<Bot>()) return world.bot(type, dbg);
@@ -108,7 +108,7 @@ static const Def* fold_z(const Def* type, const Def* callee, const Def* m, const
     return nullptr;
 }
 
-template<template<int> class F>
+template<template<nat_t> class F>
 static const Def* fold_r(const Def* type, const Def* callee, const Def* a, const Def* b, const Def* dbg) {
     auto& world = callee->world();
     if (a->isa<Bot>() || b->isa<Bot>()) return world.bot(type, dbg);
@@ -126,6 +126,34 @@ static const Def* fold_r(const Def* type, const Def* callee, const Def* a, const
 
         if (res) return world.lit(type, *res, dbg);
         return world.bot(type, dbg);
+    }
+
+    return nullptr;
+}
+
+#define TABLE(m)           m( 1,  8) m( 1, 16) m( 1, 32) m( 1, 64) \
+                 m( 8,  1)           m( 8, 16) m( 8, 32) m( 8, 64) \
+                 m(16,  1) m(16,  8)           m(16, 32) m(16, 64) \
+                 m(32,  1) m(32,  8) m(32, 16)           m(32, 64) \
+                 m(64,  1) m(64,  8) m(64, 16) m(64, 32)
+
+template<nat_t min_sw, nat_t min_dw, template<nat_t, nat_t> class F>
+static const Def* fold_t2t(const Def* dst_type, const Def* callee, const Def* src, const Def* dbg) {
+    auto& world = callee->world();
+    if (src->isa<Bot>()) return world.bot(dst_type, dbg);
+
+    auto [sw, dw] = callee->as<App>()->decurry()->split<2>();
+    if (sw == dw) return src;
+
+    auto lit_src = src->isa<Lit>();
+    auto lit_sw = isa_lit<nat_t>(sw), lit_dw = isa_lit<nat_t>(dw);
+    if (lit_src && lit_sw && lit_dw) {
+        Res res;
+#define CODE(sw, dw) else if (*lit_sw == sw && *lit_dw == dw) { if constexpr (sw >= min_sw && dw >= min_dw) res = F<sw, dw>::run(lit_src->get());}
+        if (false) {} TABLE(CODE)
+#undef CODE
+        if (res) return world.lit(dst_type, *res, dbg);
+        return world.bot(dst_type, dbg);
     }
 
     return nullptr;
@@ -191,8 +219,27 @@ const Def* normalize_RCmp(const Def* type, const Def* callee, const Def* arg, co
     return nullptr;
 }
 
-template<Cast op>
-const Def* normalize_Cast(const Def*, const Def*, const Def*, const Def*) {
+template<I2I op>
+const Def* normalize_I2I(const Def* dst_type, const Def* callee, const Def* src, const Def* dbg) {
+    if (auto result = fold_t2t<1, 1, FoldI2I<op>::template Fold>(dst_type, callee, src, dbg)) return result;
+
+    return nullptr;
+}
+
+template<I2R op>
+const Def* normalize_I2R(const Def* dst_type, const Def* callee, const Def* src, const Def* dbg) {
+    if (auto result = fold_t2t<1, 16, FoldI2R<op>::template Fold>(dst_type, callee, src, dbg)) return result;
+    return nullptr;
+}
+
+template<R2I op>
+const Def* normalize_R2I(const Def* dst_type, const Def* callee, const Def* src, const Def* dbg) {
+    if (auto result = fold_t2t<16, 1, FoldR2I<op>::template Fold>(dst_type, callee, src, dbg)) return result;
+    return nullptr;
+}
+
+const Def* normalize_r2r(const Def* dst_type, const Def* callee, const Def* src, const Def* dbg) {
+    if (auto result = fold_t2t<16, 16, FoldR2R::Fold>(dst_type, callee, src, dbg)) return result;
     return nullptr;
 }
 
@@ -231,7 +278,9 @@ THORIN_I_OP (CODE)
 THORIN_R_OP (CODE)
 THORIN_I_CMP(CODE)
 THORIN_R_CMP(CODE)
-THORIN_CAST(CODE)
+THORIN_I2I  (CODE)
+THORIN_I2R  (CODE)
+THORIN_R2I  (CODE)
 #undef CODE
 
 }

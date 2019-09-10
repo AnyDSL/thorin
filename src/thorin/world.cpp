@@ -33,82 +33,100 @@ World::World(uint32_t cur_gid, const std::string& name)
     , name_(name.empty() ? "module" : name)
     , cur_gid_(cur_gid)
 {
-    cache_.universe      = insert<Universe>(0, *this);
-    cache_.kind_arity    = insert<KindArity>(0, *this);
-    cache_.kind_multi    = insert<KindMulti>(0, *this);
-    cache_.kind_star     = insert<KindStar >(0, *this);
-    cache_.bot_star      = insert<Bot>(0, kind_star(), nullptr);
-    cache_.top_arity     = insert<Top>(0, kind_arity(), nullptr);
-    cache_.sigma         = insert<Sigma>(0, kind_star(), Defs{}, nullptr)->as<Sigma>();
-    cache_.tuple         = insert<Tuple>(0, sigma(), Defs{}, nullptr)->as<Tuple>();
-    cache_.type_mem      = insert<Mem>(0, *this);
-    cache_.type_nat      = insert<Nat>(0, *this);
-    cache_.lit_arity_1   = lit_arity(1);
-    cache_.lit_index_0_1 = lit_index(lit_arity_1(), 0);
-    cache_.end_scope     = lam(cn(), Lam::CC::C, Lam::Intrinsic::EndScope, {"end_scope"});
+    cache_.universe_      = insert<Universe>(0, *this);
+    cache_.kind_arity_    = insert<KindArity>(0, *this);
+    cache_.kind_multi_    = insert<KindMulti>(0, *this);
+    cache_.kind_star_     = insert<KindStar >(0, *this);
+    cache_.bot_star_      = insert<Bot>(0, kind_star(), nullptr);
+    cache_.top_arity_     = insert<Top>(0, kind_arity(), nullptr);
+    cache_.sigma_         = insert<Sigma>(0, kind_star(), Defs{}, nullptr)->as<Sigma>();
+    cache_.tuple_         = insert<Tuple>(0, sigma(), Defs{}, nullptr)->as<Tuple>();
+    cache_.type_mem_      = insert<Mem>(0, *this);
+    cache_.type_nat_      = insert<Nat>(0, *this);
+    cache_.lit_arity_1_   = lit_arity(1);
+    cache_.lit_index_0_1_ = lit_index(lit_arity_1(), 0);
+    cache_.end_scope_     = lam(cn(), Lam::CC::C, Lam::Intrinsic::EndScope, {"end_scope"});
 
     {   // int/real: Πw: Nat. *
         auto p = pi(type_nat(), kind_star());
-        cache_.type_int  = axiom(p, Tag::Int,  0, {"int"});
-        cache_.type_real = axiom(p, Tag::Real, 0, {"real"});
-        cache_.lit_bool[0] = lit(type_bool(), false);
-        cache_.lit_bool[1] = lit(type_bool(),  true);
+        cache_.type_int_  = axiom(p, Tag::Int,  0, {"int"});
+        cache_.type_real_ = axiom(p, Tag::Real, 0, {"real"});
+        cache_.lit_bool_[0] = lit(type_bool(), false);
+        cache_.lit_bool_[1] = lit(type_bool(),  true);
 
-    }
-    {   // IOp: Πw: nat. Π[int w, int w]. int w
+    } { // IOp: Πw: nat. Π[int w, int w]. int w
         auto type = pi(kind_star())->set_domain(type_nat());
-        auto w = type->param({"w"});
-        auto int_w = type_int(w);
+        auto int_w = type_int(type->param({"w"}));
         type->set_codomain(pi({int_w, int_w}, int_w));
         init<Tag::IOp>(cache_.IOp_, normalizers_IOp, type);
-    }
-    {   // WOp: Π[m: nat, w: nat]. Π[int w, int w]. int w
+    } { // WOp: Π[m: nat, w: nat]. Π[int w, int w]. int w
         auto type = pi(kind_star())->set_domain({type_nat(), type_nat()});
         type->param(0, {"m"});
-        auto w = type->param(1, {"w"});
-        auto int_w = type_int(w);
+        auto int_w = type_int(type->param(1, {"w"}));
         type->set_codomain(pi({int_w, int_w}, int_w));
         init<Tag::WOp>(cache_.WOp_, normalizers_WOp, type);
-    }
-    {   // ZOp: Πw: nat. Π[mem, int w, int w]. [mem, int w]
+    } { // ZOp: Πw: nat. Π[mem, int w, int w]. [mem, int w]
         auto type = pi(kind_star())->set_domain(type_nat());
-        auto w = type->param({"w"});
-        auto int_w = type_int(w);
+        auto int_w = type_int(type->param({"w"}));
         type->set_codomain(pi({type_mem(), int_w, int_w}, sigma({type_mem(), int_w})));
         init<Tag::ZOp>(cache_.ZOp_, normalizers_ZOp, type);
-    }
-    {   // ROp: Π[m: nat, w: nat]. Π[real w, real w]. real w
+    } { // ROp: Π[m: nat, w: nat]. Π[real w, real w]. real w
         auto type = pi(kind_star())->set_domain({type_nat(), type_nat()});
         type->param(0, {"m"});
-        auto w = type->param(1, {"w"});
-        auto real_w = type_real(w);
+        auto real_w = type_real(type->param(1, {"w"}));
         type->set_codomain(pi({real_w, real_w}, real_w));
         init<Tag::ROp>(cache_.ROp_, normalizers_ROp, type);
-    }
-    {   // ICmp: Πw: nat. Π[int w, int w]. bool
+    } { // ICmp: Πw: nat. Π[int w, int w]. bool
         auto type = pi(kind_star())->set_domain(type_nat());
-        auto w = type->param({"w"});
-        auto int_w = type_int(w);
+        auto int_w = type_int(type->param({"w"}));
         type->set_codomain(pi({int_w, int_w}, type_bool()));
         init<Tag::ICmp>(cache_.ICmp_, normalizers_ICmp, type);
-    }
-    {   // RCmp: Π[m: nat, w: nat]. Π[real w, real w]. bool
+    } { // RCmp: Π[m: nat, w: nat]. Π[real w, real w]. bool
         auto type = pi(kind_star())->set_domain({type_nat(), type_nat()});
         type->param(0, {"m"});
-        auto w = type->param(1, {"w"});
-        auto real_w = type_real(w);
+        auto real_w = type_real(type->param(1, {"w"}));
         type->set_codomain(pi({real_w, real_w}, type_bool()));
         init<Tag::RCmp>(cache_.RCmp_, normalizers_RCmp, type);
-    }
-    {   // select: ΠT:*. Π[bool, T, T]. T
+    } { // I2I: Π[sw: nat, dw: nat]. Πint sw. int dw
+        auto type = pi(kind_star())->set_domain(type_nat());
+        auto sw = type->param(0, {"sw"});
+        auto dw = type->param(1, {"dw"});
+        auto int_sw = type_int(sw);
+        auto int_dw = type_int(dw);
+        type->set_codomain(pi(int_sw, int_dw));
+        init<Tag::I2I>(cache_.I2I_, normalizers_I2I, type);
+    } { // I2R: Π[sw: nat, dw: nat]. Πint sw. real dw
+        auto type = pi(kind_star())->set_domain(type_nat());
+        auto sw = type->param(0, {"sw"});
+        auto dw = type->param(1, {"dw"});
+        auto  int_sw = type_int (sw);
+        auto real_dw = type_real(dw);
+        type->set_codomain(pi(int_sw, real_dw));
+        init<Tag::I2R>(cache_.I2R_, normalizers_I2R, type);
+    } { // R2I: Π[sw: nat, dw: nat]. Πreal sw. int dw
+        auto type = pi(kind_star())->set_domain(type_nat());
+        auto sw = type->param(0, {"sw"});
+        auto dw = type->param(1, {"dw"});
+        auto real_sw = type_real(sw);
+        auto  int_dw = type_int (dw);
+        type->set_codomain(pi(real_sw, int_dw));
+        init<Tag::I2I>(cache_.R2I_, normalizers_R2I, type);
+    } { // R2R: Π[sw: nat, dw: nat]. Πreal sw. real dw
+        auto type = pi(kind_star())->set_domain(type_nat());
+        auto sw = type->param(0, {"sw"});
+        auto dw = type->param(1, {"dw"});
+        auto real_sw = type_real(sw);
+        auto real_dw = type_real(dw);
+        type->set_codomain(pi(real_sw, real_dw));
+        cache_.op_r2r_ = axiom(normalize_r2r, type, Tag::R2R, 0, {"r2r"});
+    } { // select: ΠT:*. Π[bool, T, T]. T
         auto type = pi(kind_star())->set_domain(kind_star());
         auto T = type->param({"T"});
         type->set_codomain(pi({type_bool(), T, T}, T));
-        cache_.op_select = axiom(normalize_select, type, Tag::Select, 0, {"select"});
-    }
-    {   // sizeof: ΠT:*. nat
+        cache_.op_select_ = axiom(normalize_select, type, Tag::Select, 0, {"select"});
+    } { // sizeof: ΠT:*. nat
         auto type = pi(kind_star(), type_nat());
-        cache_.op_sizeof = axiom(normalize_sizeof, type, Tag::Sizeof, 0, {"sizeof"});
+        cache_.op_sizeof_ = axiom(normalize_sizeof, type, Tag::Sizeof, 0, {"sizeof"});
     }
 }
 
@@ -717,24 +735,6 @@ const Def* World::cmp(CmpTag tag, const Def* a, const Def* b, Debug dbg) {
  * casts
  */
 
-const Def* World::convert(const Def* dst_type, const Def* src, Debug dbg) {
-    if (dst_type == src->type())
-        return src;
-    if (src->type()->isa<Ptr>() && dst_type->isa<Ptr>())
-        return bitcast(dst_type, src, dbg);
-    if (auto dst_sigma = dst_type->isa<Sigma>()) {
-        assert(dst_sigma->num_ops() == src->type()->as<Sigma>()->num_ops());
-
-        Array<const Def*> new_tuple(dst_sigma->num_ops());
-        for (size_t i = 0, e = new_tuple.size(); i != e; ++i)
-            new_tuple[i] = convert(dst_type->op(i), extract(src, i, dbg), dbg);
-
-        return tuple(dst_sigma, new_tuple, dbg);
-    }
-
-    return op_cast(dst_type, src, dbg);
-}
-
 #if 0
 const Def* World::cast(const Def* to, const Def* from, Debug dbg) {
     if (from->isa<Bot>()) return bot(to);
@@ -836,9 +836,6 @@ const Def* World::cast(const Def* to, const Def* from, Debug dbg) {
         }
     }
 
-    if (lit && is_arity(to))
-        return lit_index(to, lit->get());
-
     return unify<Cast>(1, to, from, debug(dbg));
 }
 #endif
@@ -846,6 +843,7 @@ const Def* World::cast(const Def* to, const Def* from, Debug dbg) {
 const Def* World::bitcast(const Def* to, const Def* from, Debug dbg) {
     if (from->isa<Bot>()) return bot(to);
     if (from->type() == to) return from;
+    if (auto lit = isa_lit<nat_t>(from); lit && is_arity(to)) return lit_index(to, *lit);
 
     if (auto other = from->isa<Bitcast>()) {
         // reduce bitcast chains

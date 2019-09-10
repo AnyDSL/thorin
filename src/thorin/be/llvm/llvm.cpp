@@ -707,6 +707,41 @@ llvm::Value* CodeGen::emit(const Def* def) {
         }
     }
 
+    if (auto i2i = isa<Tag::I2I>(def)) {
+        auto src = lookup(i2i->arg());
+        auto name = def->name();
+        auto type = convert(def->type());
+        auto [num_src, num_dst] = i2i->decurry()->split<2>(as_lit<nat_t>);
+        assert(num_src != num_dst);
+        switch (i2i.flags()) {
+            case I2I::s2s: return num_src < num_dst ? irbuilder_.CreateSExt(src, type, name) : irbuilder_.CreateTrunc(src, type, name);
+            case I2I::u2u: return num_src < num_dst ? irbuilder_.CreateZExt(src, type, name) : irbuilder_.CreateTrunc(src, type, name);
+            default: THORIN_UNREACHABLE;
+        }
+    }
+
+    if (auto i2r = isa<Tag::I2R>(def)) {
+        auto src = lookup(i2r->arg());
+        auto name = def->name();
+        auto type = convert(def->type());
+        switch (i2r.flags()) {
+            case I2R::s2r: return irbuilder_.CreateSIToFP(src, type, name);
+            case I2R::u2r: return irbuilder_.CreateUIToFP(src, type, name);
+            default: THORIN_UNREACHABLE;
+        }
+    }
+
+    if (auto r2i = isa<Tag::R2I>(def)) {
+        auto src = lookup(r2i->arg());
+        auto name = def->name();
+        auto type = convert(def->type());
+        switch (r2i.flags()) {
+            case R2I::r2s: return irbuilder_.CreateFPToSI(src, type, name);
+            case R2I::r2u: return irbuilder_.CreateFPToUI(src, type, name);
+            default: THORIN_UNREACHABLE;
+        }
+    }
+
     if (auto select = isa<Tag::Select>(def)) {
         if (def->type()->isa<Pi>()) return nullptr;
 

@@ -44,6 +44,7 @@ namespace thorin {
 #define THORIN_TAG(m)                                                           \
     m(Int, int) m(Real, real)                                                   \
     m(WOp, wop) m(ZOp, zop) m(IOp, iop) m(ROp, rop) m(ICmp, icmp) m(RCmp, rcmp) \
+    m(I2I, i2i) m(I2R, i2r) m(R2I, r2i) m(R2R, r2r)                             \
     m(Select, select) m(Sizeof, sizeof)
 
 namespace WMode {
@@ -76,10 +77,14 @@ enum RMode : u64 {
 #define THORIN_W_OP(m) m(WOp, add) m(WOp, sub) m(WOp, mul) m(WOp, shl)
 /// Integer operations that might produce a "division by zero" side effect.
 #define THORIN_Z_OP(m) m(ZOp, sdiv) m(ZOp, udiv) m(ZOp, smod) m(ZOp, umod)
-/// Rloating point (float) operations that take @p RMode.
+/// Floating point (real) operations that take @p RMode.
 #define THORIN_R_OP(m) m(ROp, add) m(ROp, sub) m(ROp, mul) m(ROp, div) m(ROp, mod)
-/// All cast operations that cast from/to float/signed/unsigned.
-#define THORIN_CAST(m) m(Cast, r2r) m(Cast, r2s) m(Cast, r2u) m(Cast, s2r) m(Cast, s2s) m(Cast, u2r) m(Cast, u2u)
+/// Convert integer to other integer - either signed to signed (i.e. sext/trunc) or unsigned to unsigned (i.e. zext/trunc).
+#define THORIN_I2I(m) m(I2I, s2s) m(I2I, u2u)
+/// Convert floating point (real) to integer --- either signed or unsigned.
+#define THORIN_I2R(m) m(I2R, s2r) m(I2R, u2r)
+/// Convert integer - either signed or unsigned - to floating point (real).
+#define THORIN_R2I(m) m(R2I, r2s) m(R2I, r2u)
 
 /**
  * The 5 relations are disjoint and are organized as follows:
@@ -175,13 +180,15 @@ enum : tag_t { THORIN_TAG(CODE) };
 }
 
 #define CODE(T, o) o,
-enum class WOp  : u64 { THORIN_W_OP(CODE) };
-enum class ZOp  : u64 { THORIN_Z_OP(CODE) };
-enum class IOp  : u64 { THORIN_I_OP(CODE) };
-enum class ROp  : u64 { THORIN_R_OP(CODE) };
+enum class WOp  : u64 { THORIN_W_OP (CODE) };
+enum class ZOp  : u64 { THORIN_Z_OP (CODE) };
+enum class IOp  : u64 { THORIN_I_OP (CODE) };
+enum class ROp  : u64 { THORIN_R_OP (CODE) };
 enum class ICmp : u64 { THORIN_I_CMP(CODE) };
 enum class RCmp : u64 { THORIN_R_CMP(CODE) };
-enum class Cast : u64 { THORIN_CAST(CODE) };
+enum class I2I  : u64 { THORIN_I2I  (CODE) };
+enum class I2R  : u64 { THORIN_I2R  (CODE) };
+enum class R2I  : u64 { THORIN_R2I  (CODE) };
 #undef CODE
 
 constexpr ICmp operator|(ICmp a, ICmp b) { return ICmp(flags_t(a) | flags_t(b)); }
@@ -193,11 +200,13 @@ constexpr RCmp operator&(RCmp a, RCmp b) { return RCmp(flags_t(a) & flags_t(b));
 constexpr RCmp operator^(RCmp a, RCmp b) { return RCmp(flags_t(a) ^ flags_t(b)); }
 
 #define CODE(T, o) case T::o: return #o;
-constexpr const char* op2str(WOp  o) { switch (o) { THORIN_W_OP(CODE) default: THORIN_UNREACHABLE; } }
-constexpr const char* op2str(ZOp  o) { switch (o) { THORIN_Z_OP(CODE) default: THORIN_UNREACHABLE; } }
-constexpr const char* op2str(IOp  o) { switch (o) { THORIN_I_OP(CODE) default: THORIN_UNREACHABLE; } }
-constexpr const char* op2str(ROp  o) { switch (o) { THORIN_R_OP(CODE) default: THORIN_UNREACHABLE; } }
-constexpr const char* op2str(Cast o) { switch (o) { THORIN_CAST(CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(IOp o) { switch (o) { THORIN_I_OP(CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(WOp o) { switch (o) { THORIN_W_OP(CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(ZOp o) { switch (o) { THORIN_Z_OP(CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(ROp o) { switch (o) { THORIN_R_OP(CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(I2I o) { switch (o) { THORIN_I2I (CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(I2R o) { switch (o) { THORIN_I2R (CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(R2I o) { switch (o) { THORIN_R2I (CODE) default: THORIN_UNREACHABLE; } }
 #undef CODE
 
 #define CODE(T, o) case T::o: return "icmp_"#o;
@@ -212,10 +221,11 @@ constexpr const char* op2str(RCmp o) { switch (o) { THORIN_R_CMP(CODE) default: 
 
 namespace thorin {
 
+// This trick let's us count the number of elements in an enum class without tainting it with an extra "Num" field.
 template<class T> constexpr auto Num = size_t(-1);
 
 #define CODE(T, o) + 1_s
-constexpr auto Num_Nodes = 0_s THORIN_NODE (CODE);
+constexpr auto Num_Nodes = 0_s THORIN_NODE(CODE);
 constexpr auto Num_Tags  = 0_s THORIN_TAG (CODE);
 template<> constexpr auto Num<IOp>  = 0_s THORIN_I_OP (CODE);
 template<> constexpr auto Num<WOp>  = 0_s THORIN_W_OP (CODE);
@@ -223,7 +233,9 @@ template<> constexpr auto Num<ZOp>  = 0_s THORIN_Z_OP (CODE);
 template<> constexpr auto Num<ROp>  = 0_s THORIN_R_OP (CODE);
 template<> constexpr auto Num<ICmp> = 0_s THORIN_I_CMP(CODE);
 template<> constexpr auto Num<RCmp> = 0_s THORIN_R_CMP(CODE);
-template<> constexpr auto Num<Cast> = 0_s THORIN_CAST (CODE);
+template<> constexpr auto Num<I2I>  = 0_s THORIN_I2I  (CODE);
+template<> constexpr auto Num<I2R>  = 0_s THORIN_I2R  (CODE);
+template<> constexpr auto Num<R2I>  = 0_s THORIN_R2I  (CODE);
 #undef CODE
 
 template<tag_t tag> struct Tag2Enum_   { using type = tag_t; };
@@ -233,6 +245,9 @@ template<> struct Tag2Enum_<Tag::ZOp>  { using type = ZOp; };
 template<> struct Tag2Enum_<Tag::ROp>  { using type = ROp; };
 template<> struct Tag2Enum_<Tag::ICmp> { using type = ICmp; };
 template<> struct Tag2Enum_<Tag::RCmp> { using type = RCmp; };
+template<> struct Tag2Enum_<Tag::I2I>  { using type = I2I; };
+template<> struct Tag2Enum_<Tag::I2R>  { using type = I2R; };
+template<> struct Tag2Enum_<Tag::R2I>  { using type = R2I; };
 template<tag_t tag> using Tag2Enum = typename Tag2Enum_<tag>::type;
 
 }

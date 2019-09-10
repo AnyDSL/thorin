@@ -32,6 +32,7 @@ using GIDSet = thorin::HashSet<Key, GIDHash<Key>>;
 
 //------------------------------------------------------------------------------
 
+class App;
 class Axiom;
 class Lam;
 class Param;
@@ -209,7 +210,6 @@ public:
         else
             return nominal_ ? const_cast<Def*>(this)->template isa<T>() : nullptr;
     }
-
     /// Asserts that @c this is a @em nominal, casts constness away and performs a static cast to @p T (checked in Debug build).
     template<class T = Def> T* as_nominal() const {
         assert(nominal_);
@@ -218,6 +218,15 @@ public:
         else
             return const_cast<Def*>(this)->template as<T>();
     }
+    /**
+     * Asserts that this Def is an @p App and returns its callee again as @p App.
+     * For example, invoking decurry on {@c f(x, y)(a, b, c) } yields {@c f(x, y) } as @p App.
+     * Thus, you can conveniently call @p App::split afterwards to retrieve the arguments:
+    @code
+    auto [x, y] = foo->decurry()->split<2>();
+    @endcode
+     */
+    const App* decurry() const;
     //@}
     /// @name misc getters
     //@{
@@ -520,7 +529,6 @@ public:
     size_t num_args() const { return callee_type()->domain()->lit_arity(); }
     const Axiom* axiom() const { return axiom_depth_.ptr(); }
     u16 currying_depth() const { return axiom_depth_.index(); }
-    const App* decurry() const { return callee()->as<App>(); }
 
     /// Splits the @p arg into an array by using @p arity many @p Extract%s.
     /// Applies @p f to each extracted element.

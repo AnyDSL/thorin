@@ -23,6 +23,7 @@ namespace detail {
  */
 
 size_t Def::num_outs() const { return as_lit<u64>(arity()); }
+const App* Def::decurry() const { return as<App>()->callee()->as<App>(); }
 
 // TODO
 const Def* Def::debug_history() const {

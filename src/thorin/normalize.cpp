@@ -224,9 +224,18 @@ const Def* normalize_RCmp(const Def* type, const Def* callee, const Def* arg, co
 
 template<Conv op>
 const Def* normalize_Conv(const Def* dst_type, const Def* callee, const Def* src, const Def* dbg) {
+    auto& world = callee->world();
+
     static constexpr auto min_sw = op == Conv::r2s || op == Conv::r2u || op == Conv::r2r ? 16 : 1;
     static constexpr auto min_dw = op == Conv::s2r || op == Conv::u2r || op == Conv::r2r ? 16 : 1;
     if (auto result = fold_Conv<min_sw, min_dw, FoldConv<op>::template Fold>(dst_type, callee, src, dbg)) return result;
+
+    auto [sw, dw] = callee->decurry()->split<2>(isa_lit<nat_t>);
+    if (sw == dw && dst_type == src->type()) return src;
+
+    if constexpr (op == Conv::s2s) {
+        if (sw && dw && *sw < *dw) return world.op<Conv::u2u>(dst_type, src, dbg);
+    }
 
     return nullptr;
 }

@@ -22,6 +22,7 @@ constexpr std::array<Def::NormalizeFn, Num<IOp>>  normalizers_IOp  = { THORIN_I_
 constexpr std::array<Def::NormalizeFn, Num<ROp>>  normalizers_ROp  = { THORIN_R_OP (CODE) };
 constexpr std::array<Def::NormalizeFn, Num<ICmp>> normalizers_ICmp = { THORIN_I_CMP(CODE) };
 constexpr std::array<Def::NormalizeFn, Num<RCmp>> normalizers_RCmp = { THORIN_R_CMP(CODE) };
+constexpr std::array<Def::NormalizeFn, Num<Conv>> normalizers_Conv = { THORIN_CONV (CODE) };
 #undef CODE
 
 }

@@ -81,41 +81,26 @@ World::World(uint32_t cur_gid, const std::string& name)
         type->param(0, {"m"});
         auto real_w = type_real(type->param(1, {"w"}));
         init<Tag::RCmp>(cache_.RCmp_, normalizers_RCmp, type->set_codomain(pi({real_w, real_w}, type_bool())));
-    } { // s2s/u2u: Π[sw: nat, dw: nat]. Πint sw. int dw
-        auto type = pi(kind_star())->set_domain(type_nat());
-        auto sw = type->param(0, {"sw"});
-        auto dw = type->param(1, {"dw"});
-        auto int_sw = type_int(sw);
-        auto int_dw = type_int(dw);
-        type->set_codomain(pi(int_sw, int_dw));
-        cache_.Conv_[size_t(Conv::s2s)] = axiom(normalize_Conv<Conv::s2s>, type, Tag::Conv, 0, {"s2s"});
-        cache_.Conv_[size_t(Conv::u2u)] = axiom(normalize_Conv<Conv::u2u>, type, Tag::Conv, 0, {"u2u"});
-    } { // s2r/u2r: Π[sw: nat, dw: nat]. Πint sw. real dw
-        auto type = pi(kind_star())->set_domain(type_nat());
-        auto sw = type->param(0, {"sw"});
-        auto dw = type->param(1, {"dw"});
-        auto  int_sw = type_int (sw);
-        auto real_dw = type_real(dw);
-        type->set_codomain(pi(int_sw, real_dw));
-        cache_.Conv_[size_t(Conv::s2r)] = axiom(normalize_Conv<Conv::s2r>, type, Tag::Conv, 0, {"s2r"});
-        cache_.Conv_[size_t(Conv::u2r)] = axiom(normalize_Conv<Conv::u2r>, type, Tag::Conv, 0, {"u2r"});
-    } { // r2s/r2u: Π[sw: nat, dw: nat]. Πreal sw. int dw
-        auto type = pi(kind_star())->set_domain(type_nat());
-        auto sw = type->param(0, {"sw"});
-        auto dw = type->param(1, {"dw"});
-        auto real_sw = type_real(sw);
-        auto  int_dw = type_int (dw);
-        type->set_codomain(pi(real_sw, int_dw));
-        cache_.Conv_[size_t(Conv::r2s)] = axiom(normalize_Conv<Conv::s2r>, type, Tag::Conv, 0, {"r2s"});
-        cache_.Conv_[size_t(Conv::r2u)] = axiom(normalize_Conv<Conv::u2r>, type, Tag::Conv, 0, {"r2u"});
-    } { // R2R: Π[sw: nat, dw: nat]. Πreal sw. real dw
-        auto type = pi(kind_star())->set_domain(type_nat());
-        auto sw = type->param(0, {"sw"});
-        auto dw = type->param(1, {"dw"});
-        auto real_sw = type_real(sw);
-        auto real_dw = type_real(dw);
-        type->set_codomain(pi(real_sw, real_dw));
-        cache_.Conv_[size_t(Conv::r2r)] = axiom(normalize_Conv<Conv::r2r>, type, Tag::Conv, 0, {"r2r"});
+    } { // Conv: Π[sw: nat, dw: nat]. Πi/r sw. i/r dw
+        using TypeFn = const App* (World::*)(const Def*);
+
+        auto make_conv = [&](Conv op, TypeFn type_src, TypeFn type_dst) {
+            auto type = pi(kind_star())->set_domain(type_nat());
+            auto sw = type->param(0, {"sw"});
+            auto dw = type->param(1, {"dw"});
+            auto type_sw = (this->*type_src)(sw);
+            auto type_dw = (this->*type_dst)(dw);
+            type->set_codomain(pi(type_sw, type_dw));
+            cache_.Conv_[size_t(op)] = axiom(normalizers_Conv[size_t(op)], type, Tag::Conv, 0, {op2str(op)});
+        };
+
+        make_conv(Conv::s2s, (TypeFn) &thorin::World::type_int , (TypeFn) &thorin::World::type_int );
+        make_conv(Conv::u2u, (TypeFn) &thorin::World::type_int , (TypeFn) &thorin::World::type_int );
+        make_conv(Conv::s2r, (TypeFn) &thorin::World::type_int , (TypeFn) &thorin::World::type_real);
+        make_conv(Conv::u2r, (TypeFn) &thorin::World::type_int , (TypeFn) &thorin::World::type_real);
+        make_conv(Conv::r2s, (TypeFn) &thorin::World::type_real, (TypeFn) &thorin::World::type_int );
+        make_conv(Conv::r2u, (TypeFn) &thorin::World::type_real, (TypeFn) &thorin::World::type_int );
+        make_conv(Conv::r2r, (TypeFn) &thorin::World::type_real, (TypeFn) &thorin::World::type_real);
     } { // select: ΠT:*. Π[bool, T, T]. T
         auto type = pi(kind_star())->set_domain(kind_star());
         auto T = type->param({"T"});

@@ -304,8 +304,11 @@ public:
     /// @name Conv
     //@{
     template<Conv o> const Axiom* op() { return cache_.Conv_[size_t(o)]; }
-    //template<Conv o> const Def* op(nat_t dw, const Def* src, Debug dbg = {}) { return op<o>(infer_width(a), a, b, dbg); }
-    //template<Conv o> const Def* op(const Def* dst_type, const Def* src, Debug dbg = {}) { return app(app(op<o>(), w), {a, b}, dbg); }
+    template<Conv o> const Def* op(const Def* dst_type, const Def* src, Debug dbg = {}) {
+        auto sw = src->type()->decurry()->arg();
+        auto dw =  dst_type  ->decurry()->arg();
+        return app(app(op<o>(), {sw, dw}), src, dbg);
+    }
     //@}
     /// @name Other casts.
     //@{

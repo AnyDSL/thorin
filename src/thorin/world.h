@@ -289,6 +289,18 @@ public:
     template<ROp o> const Def* op(u64 rmode, const Def* a, const Def* b, Debug dbg = {}) { return op<o>(rmode, infer_width(a), a, b, dbg); }
     template<ROp o> const Def* op(u64 rmode, const Def* w, const Def* a, const Def* b, Debug dbg = {}) { return app(app(op<o>(), {lit_nat(rmode), w}), {a, b}, dbg); }
     //@}
+    /// @name ICmp
+    //@{
+    template<ICmp o> const Axiom* op() { return cache_.ICmp_[size_t(o)]; }
+    template<ICmp o> const Def* op(const Def* a, const Def* b, Debug dbg = {}) { return op<o>(infer_width(a), a, b, dbg); }
+    template<ICmp o> const Def* op(const Def* w, const Def* a, const Def* b, Debug dbg = {}) { return app(app(op<o>(), w), {a, b}, dbg); }
+    //@}
+    /// @name RCmp
+    //@{
+    template<RCmp o> const Axiom* op() { return cache_.RCmp_[size_t(o)]; }
+    template<RCmp o> const Def* op(const Def* a, const Def* b, Debug dbg = {}) { return op<o>(infer_width(a), a, b, dbg); }
+    template<RCmp o> const Def* op(const Def* w, const Def* a, const Def* b, Debug dbg = {}) { return app(app(op<o>(), w), {a, b}, dbg); }
+    //@}
     /// @name Casts
     //@{
     const Def* convert(const Def* to, const Def* from, Debug dbg = {});

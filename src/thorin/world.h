@@ -301,15 +301,14 @@ public:
     template<RCmp o> const Def* op(const Def* a, const Def* b, Debug dbg = {}) { return op<o>(infer_width(a), a, b, dbg); }
     template<RCmp o> const Def* op(const Def* w, const Def* a, const Def* b, Debug dbg = {}) { return app(app(op<o>(), w), {a, b}, dbg); }
     //@}
-    /// @name I2I
+    /// @name Conv
     //@{
-    template<I2I o> const Axiom* op() { return cache_.I2I_[size_t(o)]; }
-    template<I2I o> const Def* op(nat_t dw, const Def* src, Debug dbg = {}) { auto sw = infer_width(src); return op<o>(sw, lit_nat(dw), src, dbg); }
-    template<I2I o> const Def* op(const Def* sw, const Def* dw, const Def* src, Debug dbg = {}) { return app(app(op<o>(), {sw, dw}), src, dbg); }
+    template<Conv o> const Axiom* op() { return cache_.Conv_[size_t(o)]; }
+    //template<Conv o> const Def* op(nat_t dw, const Def* src, Debug dbg = {}) { return op<o>(infer_width(a), a, b, dbg); }
+    //template<Conv o> const Def* op(const Def* dst_type, const Def* src, Debug dbg = {}) { return app(app(op<o>(), w), {a, b}, dbg); }
     //@}
     /// @name Other casts.
     //@{
-    const App* op_r2r(const Def* to, const Def* from, Debug dbg = {});
     //const App* op_bitcast(const Def* to, const Def* from, Debug dbg = {});
     const Def* bitcast(const Def* to, const Def* from, Debug dbg = {}); ///< deprecated
     //@}
@@ -554,10 +553,7 @@ private:
         std::array<Axiom*, Num<ROp>>  ROp_;
         std::array<Axiom*, Num<ICmp>> ICmp_;
         std::array<Axiom*, Num<RCmp>> RCmp_;
-        std::array<Axiom*, Num<I2I>>  I2I_;
-        std::array<Axiom*, Num<I2R>>  I2R_;
-        std::array<Axiom*, Num<R2I>>  R2I_;
-        Axiom* op_r2r_;
+        std::array<Axiom*, Num<Conv>> Conv_;
         Axiom* op_select_;
         Axiom* op_sizeof_;
     } cache_;

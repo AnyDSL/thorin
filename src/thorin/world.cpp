@@ -57,60 +57,57 @@ World::World(uint32_t cur_gid, const std::string& name)
     } { // IOp: Πw: nat. Π[int w, int w]. int w
         auto type = pi(kind_star())->set_domain(type_nat());
         auto int_w = type_int(type->param({"w"}));
-        type->set_codomain(pi({int_w, int_w}, int_w));
-        init<Tag::IOp>(cache_.IOp_, normalizers_IOp, type);
+        init<Tag::IOp>(cache_.IOp_, normalizers_IOp, type->set_codomain(pi({int_w, int_w}, int_w)));
     } { // WOp: Π[m: nat, w: nat]. Π[int w, int w]. int w
         auto type = pi(kind_star())->set_domain({type_nat(), type_nat()});
         type->param(0, {"m"});
         auto int_w = type_int(type->param(1, {"w"}));
-        type->set_codomain(pi({int_w, int_w}, int_w));
-        init<Tag::WOp>(cache_.WOp_, normalizers_WOp, type);
+        init<Tag::WOp>(cache_.WOp_, normalizers_WOp, type->set_codomain(pi({int_w, int_w}, int_w)));
     } { // ZOp: Πw: nat. Π[mem, int w, int w]. [mem, int w]
         auto type = pi(kind_star())->set_domain(type_nat());
         auto int_w = type_int(type->param({"w"}));
-        type->set_codomain(pi({type_mem(), int_w, int_w}, sigma({type_mem(), int_w})));
-        init<Tag::ZOp>(cache_.ZOp_, normalizers_ZOp, type);
+        init<Tag::ZOp>(cache_.ZOp_, normalizers_ZOp, type->set_codomain(pi({type_mem(), int_w, int_w}, sigma({type_mem(), int_w}))));
     } { // ROp: Π[m: nat, w: nat]. Π[real w, real w]. real w
         auto type = pi(kind_star())->set_domain({type_nat(), type_nat()});
         type->param(0, {"m"});
         auto real_w = type_real(type->param(1, {"w"}));
-        type->set_codomain(pi({real_w, real_w}, real_w));
-        init<Tag::ROp>(cache_.ROp_, normalizers_ROp, type);
+        init<Tag::ROp>(cache_.ROp_, normalizers_ROp, type->set_codomain(pi({real_w, real_w}, real_w)));
     } { // ICmp: Πw: nat. Π[int w, int w]. bool
         auto type = pi(kind_star())->set_domain(type_nat());
         auto int_w = type_int(type->param({"w"}));
-        type->set_codomain(pi({int_w, int_w}, type_bool()));
-        init<Tag::ICmp>(cache_.ICmp_, normalizers_ICmp, type);
+        init<Tag::ICmp>(cache_.ICmp_, normalizers_ICmp, type->set_codomain(pi({int_w, int_w}, type_bool())));
     } { // RCmp: Π[m: nat, w: nat]. Π[real w, real w]. bool
         auto type = pi(kind_star())->set_domain({type_nat(), type_nat()});
         type->param(0, {"m"});
         auto real_w = type_real(type->param(1, {"w"}));
-        type->set_codomain(pi({real_w, real_w}, type_bool()));
-        init<Tag::RCmp>(cache_.RCmp_, normalizers_RCmp, type);
-    } { // I2I: Π[sw: nat, dw: nat]. Πint sw. int dw
+        init<Tag::RCmp>(cache_.RCmp_, normalizers_RCmp, type->set_codomain(pi({real_w, real_w}, type_bool())));
+    } { // s2s/u2u: Π[sw: nat, dw: nat]. Πint sw. int dw
         auto type = pi(kind_star())->set_domain(type_nat());
         auto sw = type->param(0, {"sw"});
         auto dw = type->param(1, {"dw"});
         auto int_sw = type_int(sw);
         auto int_dw = type_int(dw);
         type->set_codomain(pi(int_sw, int_dw));
-        init<Tag::I2I>(cache_.I2I_, normalizers_I2I, type);
-    } { // I2R: Π[sw: nat, dw: nat]. Πint sw. real dw
+        cache_.Conv_[size_t(Conv::s2s)] = axiom(normalize_Conv<Conv::s2s>, type, Tag::Conv, 0, {"s2s"});
+        cache_.Conv_[size_t(Conv::u2u)] = axiom(normalize_Conv<Conv::u2u>, type, Tag::Conv, 0, {"u2u"});
+    } { // s2r/u2r: Π[sw: nat, dw: nat]. Πint sw. real dw
         auto type = pi(kind_star())->set_domain(type_nat());
         auto sw = type->param(0, {"sw"});
         auto dw = type->param(1, {"dw"});
         auto  int_sw = type_int (sw);
         auto real_dw = type_real(dw);
         type->set_codomain(pi(int_sw, real_dw));
-        init<Tag::I2R>(cache_.I2R_, normalizers_I2R, type);
-    } { // R2I: Π[sw: nat, dw: nat]. Πreal sw. int dw
+        cache_.Conv_[size_t(Conv::s2r)] = axiom(normalize_Conv<Conv::s2r>, type, Tag::Conv, 0, {"s2r"});
+        cache_.Conv_[size_t(Conv::u2r)] = axiom(normalize_Conv<Conv::u2r>, type, Tag::Conv, 0, {"u2r"});
+    } { // r2s/r2u: Π[sw: nat, dw: nat]. Πreal sw. int dw
         auto type = pi(kind_star())->set_domain(type_nat());
         auto sw = type->param(0, {"sw"});
         auto dw = type->param(1, {"dw"});
         auto real_sw = type_real(sw);
         auto  int_dw = type_int (dw);
         type->set_codomain(pi(real_sw, int_dw));
-        init<Tag::I2I>(cache_.R2I_, normalizers_R2I, type);
+        cache_.Conv_[size_t(Conv::r2s)] = axiom(normalize_Conv<Conv::s2r>, type, Tag::Conv, 0, {"r2s"});
+        cache_.Conv_[size_t(Conv::r2u)] = axiom(normalize_Conv<Conv::u2r>, type, Tag::Conv, 0, {"r2u"});
     } { // R2R: Π[sw: nat, dw: nat]. Πreal sw. real dw
         auto type = pi(kind_star())->set_domain(type_nat());
         auto sw = type->param(0, {"sw"});
@@ -118,7 +115,7 @@ World::World(uint32_t cur_gid, const std::string& name)
         auto real_sw = type_real(sw);
         auto real_dw = type_real(dw);
         type->set_codomain(pi(real_sw, real_dw));
-        cache_.op_r2r_ = axiom(normalize_r2r, type, Tag::R2R, 0, {"r2r"});
+        cache_.Conv_[size_t(Conv::r2r)] = axiom(normalize_Conv<Conv::r2r>, type, Tag::Conv, 0, {"r2r"});
     } { // select: ΠT:*. Π[bool, T, T]. T
         auto type = pi(kind_star())->set_domain(kind_star());
         auto T = type->param({"T"});

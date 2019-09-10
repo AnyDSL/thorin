@@ -144,19 +144,14 @@ template<RCmp cmp> struct FoldRCmp {
     };
 };
 
-template<I2I> struct FoldI2I {};
-template<> struct FoldI2I<I2I::s2s> { template<nat_t sw, nat_t dw> struct Fold { static Res run(u64 src) { return w2s<dw>(get<w2s<sw>>(src)); } }; };
-template<> struct FoldI2I<I2I::u2u> { template<nat_t sw, nat_t dw> struct Fold { static Res run(u64 src) { return w2u<dw>(get<w2u<sw>>(src)); } }; };
-
-template<I2R> struct FoldI2R {};
-template<> struct FoldI2R<I2R::s2r> { template<nat_t sw, nat_t dw> struct Fold { static Res run(u64 src) { return w2r<dw>(get<w2s<sw>>(src)); } }; };
-template<> struct FoldI2R<I2R::u2r> { template<nat_t sw, nat_t dw> struct Fold { static Res run(u64 src) { return w2r<dw>(get<w2u<sw>>(src)); } }; };
-
-template<R2I> struct FoldR2I {};
-template<> struct FoldR2I<R2I::r2s> { template<nat_t sw, nat_t dw> struct Fold { static Res run(u64 src) { return w2s<dw>(get<w2r<sw>>(src)); } }; };
-template<> struct FoldR2I<R2I::r2u> { template<nat_t sw, nat_t dw> struct Fold { static Res run(u64 src) { return w2u<dw>(get<w2r<sw>>(src)); } }; };
-
-struct FoldR2R { template<nat_t sw, nat_t dw> struct Fold { static Res run(u64 src) { return w2r<dw>(get<w2r<sw>>(src)); } }; };
+template<Conv> struct FoldConv {};
+template<> struct FoldConv<Conv::s2s> { template<nat_t sw, nat_t dw> struct Fold { static Res run(u64 src) { return w2s<dw>(get<w2s<sw>>(src)); } }; };
+template<> struct FoldConv<Conv::u2u> { template<nat_t sw, nat_t dw> struct Fold { static Res run(u64 src) { return w2u<dw>(get<w2u<sw>>(src)); } }; };
+template<> struct FoldConv<Conv::s2r> { template<nat_t sw, nat_t dw> struct Fold { static Res run(u64 src) { return w2r<dw>(get<w2s<sw>>(src)); } }; };
+template<> struct FoldConv<Conv::u2r> { template<nat_t sw, nat_t dw> struct Fold { static Res run(u64 src) { return w2r<dw>(get<w2u<sw>>(src)); } }; };
+template<> struct FoldConv<Conv::r2s> { template<nat_t sw, nat_t dw> struct Fold { static Res run(u64 src) { return w2s<dw>(get<w2r<sw>>(src)); } }; };
+template<> struct FoldConv<Conv::r2u> { template<nat_t sw, nat_t dw> struct Fold { static Res run(u64 src) { return w2u<dw>(get<w2r<sw>>(src)); } }; };
+template<> struct FoldConv<Conv::r2r> { template<nat_t sw, nat_t dw> struct Fold { static Res run(u64 src) { return w2r<dw>(get<w2r<sw>>(src)); } }; };
 
 }
 

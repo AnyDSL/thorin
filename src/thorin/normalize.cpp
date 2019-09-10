@@ -219,27 +219,12 @@ const Def* normalize_RCmp(const Def* type, const Def* callee, const Def* arg, co
     return nullptr;
 }
 
-template<I2I op>
-const Def* normalize_I2I(const Def* dst_type, const Def* callee, const Def* src, const Def* dbg) {
-    if (auto result = fold_t2t<1, 1, FoldI2I<op>::template Fold>(dst_type, callee, src, dbg)) return result;
+template<Conv op>
+const Def* normalize_Conv(const Def* dst_type, const Def* callee, const Def* src, const Def* dbg) {
+    static constexpr auto min_sw = op == Conv::r2s || op == Conv::r2u || op == Conv::r2r ? 16 : 1;
+    static constexpr auto min_dw = op == Conv::s2r || op == Conv::u2r || op == Conv::r2r ? 16 : 1;
+    if (auto result = fold_t2t<min_sw, min_dw, FoldConv<op>::template Fold>(dst_type, callee, src, dbg)) return result;
 
-    return nullptr;
-}
-
-template<I2R op>
-const Def* normalize_I2R(const Def* dst_type, const Def* callee, const Def* src, const Def* dbg) {
-    if (auto result = fold_t2t<1, 16, FoldI2R<op>::template Fold>(dst_type, callee, src, dbg)) return result;
-    return nullptr;
-}
-
-template<R2I op>
-const Def* normalize_R2I(const Def* dst_type, const Def* callee, const Def* src, const Def* dbg) {
-    if (auto result = fold_t2t<16, 1, FoldR2I<op>::template Fold>(dst_type, callee, src, dbg)) return result;
-    return nullptr;
-}
-
-const Def* normalize_r2r(const Def* dst_type, const Def* callee, const Def* src, const Def* dbg) {
-    if (auto result = fold_t2t<16, 16, FoldR2R::Fold>(dst_type, callee, src, dbg)) return result;
     return nullptr;
 }
 
@@ -278,9 +263,7 @@ THORIN_I_OP (CODE)
 THORIN_R_OP (CODE)
 THORIN_I_CMP(CODE)
 THORIN_R_CMP(CODE)
-THORIN_I2I  (CODE)
-THORIN_I2R  (CODE)
-THORIN_R2I  (CODE)
+THORIN_CONV (CODE)
 #undef CODE
 
 }

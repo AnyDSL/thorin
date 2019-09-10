@@ -44,7 +44,7 @@ namespace thorin {
 #define THORIN_TAG(m)                                                           \
     m(Int, int) m(Real, real)                                                   \
     m(WOp, wop) m(ZOp, zop) m(IOp, iop) m(ROp, rop) m(ICmp, icmp) m(RCmp, rcmp) \
-    m(I2I, i2i) m(I2R, i2r) m(R2I, r2i) m(R2R, r2r)                             \
+    m(Conv, conv) \
     m(Select, select) m(Sizeof, sizeof)
 
 namespace WMode {
@@ -79,12 +79,8 @@ enum RMode : u64 {
 #define THORIN_Z_OP(m) m(ZOp, sdiv) m(ZOp, udiv) m(ZOp, smod) m(ZOp, umod)
 /// Floating point (real) operations that take @p RMode.
 #define THORIN_R_OP(m) m(ROp, add) m(ROp, sub) m(ROp, mul) m(ROp, div) m(ROp, mod)
-/// Convert integer to other integer - either signed to signed (i.e. sext/trunc) or unsigned to unsigned (i.e. zext/trunc).
-#define THORIN_I2I(m) m(I2I, s2s) m(I2I, u2u)
-/// Convert floating point (real) to integer --- either signed or unsigned.
-#define THORIN_I2R(m) m(I2R, s2r) m(I2R, u2r)
-/// Convert integer - either signed or unsigned - to floating point (real).
-#define THORIN_R2I(m) m(R2I, r2s) m(R2I, r2u)
+
+#define THORIN_CONV(m) m(Conv, s2s) m(Conv, u2u) m(Conv, s2r) m(Conv, u2r) m(Conv, r2s) m(Conv, r2u) m(Conv, r2r)
 
 /**
  * The 5 relations are disjoint and are organized as follows:
@@ -186,9 +182,7 @@ enum class IOp  : u64 { THORIN_I_OP (CODE) };
 enum class ROp  : u64 { THORIN_R_OP (CODE) };
 enum class ICmp : u64 { THORIN_I_CMP(CODE) };
 enum class RCmp : u64 { THORIN_R_CMP(CODE) };
-enum class I2I  : u64 { THORIN_I2I  (CODE) };
-enum class I2R  : u64 { THORIN_I2R  (CODE) };
-enum class R2I  : u64 { THORIN_R2I  (CODE) };
+enum class Conv : u64 { THORIN_CONV (CODE) };
 #undef CODE
 
 constexpr ICmp operator|(ICmp a, ICmp b) { return ICmp(flags_t(a) | flags_t(b)); }
@@ -200,13 +194,11 @@ constexpr RCmp operator&(RCmp a, RCmp b) { return RCmp(flags_t(a) & flags_t(b));
 constexpr RCmp operator^(RCmp a, RCmp b) { return RCmp(flags_t(a) ^ flags_t(b)); }
 
 #define CODE(T, o) case T::o: return #o;
-constexpr const char* op2str(IOp o) { switch (o) { THORIN_I_OP(CODE) default: THORIN_UNREACHABLE; } }
-constexpr const char* op2str(WOp o) { switch (o) { THORIN_W_OP(CODE) default: THORIN_UNREACHABLE; } }
-constexpr const char* op2str(ZOp o) { switch (o) { THORIN_Z_OP(CODE) default: THORIN_UNREACHABLE; } }
-constexpr const char* op2str(ROp o) { switch (o) { THORIN_R_OP(CODE) default: THORIN_UNREACHABLE; } }
-constexpr const char* op2str(I2I o) { switch (o) { THORIN_I2I (CODE) default: THORIN_UNREACHABLE; } }
-constexpr const char* op2str(I2R o) { switch (o) { THORIN_I2R (CODE) default: THORIN_UNREACHABLE; } }
-constexpr const char* op2str(R2I o) { switch (o) { THORIN_R2I (CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(IOp  o) { switch (o) { THORIN_I_OP(CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(WOp  o) { switch (o) { THORIN_W_OP(CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(ZOp  o) { switch (o) { THORIN_Z_OP(CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(ROp  o) { switch (o) { THORIN_R_OP(CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(Conv o) { switch (o) { THORIN_CONV(CODE) default: THORIN_UNREACHABLE; } }
 #undef CODE
 
 #define CODE(T, o) case T::o: return "icmp_"#o;
@@ -233,9 +225,7 @@ template<> constexpr auto Num<ZOp>  = 0_s THORIN_Z_OP (CODE);
 template<> constexpr auto Num<ROp>  = 0_s THORIN_R_OP (CODE);
 template<> constexpr auto Num<ICmp> = 0_s THORIN_I_CMP(CODE);
 template<> constexpr auto Num<RCmp> = 0_s THORIN_R_CMP(CODE);
-template<> constexpr auto Num<I2I>  = 0_s THORIN_I2I  (CODE);
-template<> constexpr auto Num<I2R>  = 0_s THORIN_I2R  (CODE);
-template<> constexpr auto Num<R2I>  = 0_s THORIN_R2I  (CODE);
+template<> constexpr auto Num<Conv> = 0_s THORIN_CONV (CODE);
 #undef CODE
 
 template<tag_t tag> struct Tag2Enum_   { using type = tag_t; };
@@ -245,9 +235,7 @@ template<> struct Tag2Enum_<Tag::ZOp>  { using type = ZOp; };
 template<> struct Tag2Enum_<Tag::ROp>  { using type = ROp; };
 template<> struct Tag2Enum_<Tag::ICmp> { using type = ICmp; };
 template<> struct Tag2Enum_<Tag::RCmp> { using type = RCmp; };
-template<> struct Tag2Enum_<Tag::I2I>  { using type = I2I; };
-template<> struct Tag2Enum_<Tag::I2R>  { using type = I2R; };
-template<> struct Tag2Enum_<Tag::R2I>  { using type = R2I; };
+template<> struct Tag2Enum_<Tag::Conv> { using type = Conv; };
 template<tag_t tag> using Tag2Enum = typename Tag2Enum_<tag>::type;
 
 }

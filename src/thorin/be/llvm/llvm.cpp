@@ -140,12 +140,11 @@ Lam* CodeGen::emit_reserve(const Lam* lam) {
     THORIN_UNREACHABLE;
 }
 
-#if 0
 Lam* CodeGen::emit_reserve_shared(const Lam* lam, bool init_undef) {
     assert(lam->app()->num_args() == 3 && "required arguments are missing");
     if (!lam->app()->arg(1)->isa<Lit>())
         EDEF(lam->app()->arg(1), "reserve_shared: couldn't extract memory size");
-    auto num_elems = as_lit<ps32>(lam->app()->arg(1));
+    auto num_elems = as_lit<u32>(lam->app()->arg(1));
     auto l = lam->app()->arg(2)->as_nominal<Lam>();
     auto type = convert(lam->param(1)->type());
     // construct array type
@@ -159,7 +158,6 @@ Lam* CodeGen::emit_reserve_shared(const Lam* lam, bool init_undef) {
     emit_result_phi(l->param(1), call);
     return l;
 }
-#endif
 
 llvm::Value* CodeGen::emit_bitcast(const Def* val, const Def* dst_type) {
     auto from = lookup(val);

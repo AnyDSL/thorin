@@ -15,16 +15,6 @@ template<ICmp> const Def* normalize_ICmp(const Def*, const Def*, const Def*, con
 template<RCmp> const Def* normalize_RCmp(const Def*, const Def*, const Def*, const Def*);
 template<Conv> const Def* normalize_Conv(const Def*, const Def*, const Def*, const Def*);
 
-#define CODE(T, o) normalize_ ## T<T::o>,
-constexpr std::array<Def::NormalizeFn, Num<WOp>>  normalizers_WOp  = { THORIN_W_OP (CODE) };
-constexpr std::array<Def::NormalizeFn, Num<ZOp>>  normalizers_ZOp  = { THORIN_Z_OP (CODE) };
-constexpr std::array<Def::NormalizeFn, Num<IOp>>  normalizers_IOp  = { THORIN_I_OP (CODE) };
-constexpr std::array<Def::NormalizeFn, Num<ROp>>  normalizers_ROp  = { THORIN_R_OP (CODE) };
-constexpr std::array<Def::NormalizeFn, Num<ICmp>> normalizers_ICmp = { THORIN_I_CMP(CODE) };
-constexpr std::array<Def::NormalizeFn, Num<RCmp>> normalizers_RCmp = { THORIN_R_CMP(CODE) };
-constexpr std::array<Def::NormalizeFn, Num<Conv>> normalizers_Conv = { THORIN_CONV (CODE) };
-#undef CODE
-
 }
 
 #endif

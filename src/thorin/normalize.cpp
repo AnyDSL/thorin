@@ -8,6 +8,7 @@ namespace thorin {
  * helpers
  */
 
+// TODO use World::lit_int_allset
 static bool is_allset(const Def* def) {
     if (auto lit = isa_lit<u64>(def)) {
         if (auto width = isa_lit<u64>(as<Tag::Int>(def->type())->arg()))

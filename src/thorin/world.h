@@ -193,40 +193,76 @@ public:
     const Def* lea(const Def* ptr, const Def* index, Debug dbg);
     const Def* unsafe_lea(const Def* ptr, const Def* index, Debug dbg) { return lea(ptr, bitcast(ptr->type()->as<Ptr>()->pointee()->arity(), index, dbg), dbg); }
     //@}
-    /// @name Literal
+    /// @name Lit
     //@{
     const Lit* lit(const Def* type, u64 val, Debug dbg = {}) { return unify<Lit>(0, type, val, debug(dbg)); }
     template<class T>
     const Lit* lit(const Def* type, T val, Debug dbg = {}) { return lit(type, thorin::bitcast<u64>(val), dbg); }
     //@}
-    /// @name Literal: Arity - note that this is a type
+    /// @name Lit: Arity - note that this is a type
     //@{
     const Lit* lit_arity(u64 a, Debug dbg = {}) { return lit(kind_arity(), a, dbg); }
     const Lit* lit_arity_1() { return cache_.lit_arity_1_; } ///< unit arity 1ₐ
     //@}
-    /// @name Literal: Index - the inhabitants of an Arity
+    /// @name Lit: Index - the inhabitants of an Arity
     //@{
     const Lit* lit_index(u64 arity, u64 idx, Debug dbg = {}) { return lit_index(lit_arity(arity), idx, dbg); }
     const Lit* lit_index(const Def* arity, u64 index, Debug dbg = {});
     const Lit* lit_index_0_1() { return cache_.lit_index_0_1_; } ///< unit index 0₁ of type unit arity 1ₐ
     //@}
-    /// @name Literal: Nat
+    /// @name Lit: Nat
     //@{
     const Lit* lit_nat(u64 a, Debug dbg = {}) { return lit(type_nat(), a, dbg); }
     //@}
-    /// @name Literal: Int, Real
+    /// @name Lit: Int
     //@{
     template<class I> const Lit* lit_int(I val, Debug dbg = {}) {
         static_assert(std::is_integral<I>());
         return lit(type_int(sizeof(I)*8), val, dbg);
     }
+    const Lit* lit_int_0  (nat_t w, Debug dbg = {}) { return lit(type_int(w), u64( 0)                , dbg); }
+    const Lit* lit_int_1  (nat_t w, Debug dbg = {}) { return lit(type_int(w), u64( 1)                , dbg); }
+    const Lit* lit_int_max(nat_t w, Debug dbg = {}) { return lit(type_int(w), u64(-1) >> (64_u64 - w), dbg); }
+    const Lit* lit_int_0  (const Def* type, Debug dbg = {}) { return lit_int_0  (as_lit<nat_t>(as<Tag::Int>(type)->arg()), dbg); }
+    const Lit* lit_int_1  (const Def* type, Debug dbg = {}) { return lit_int_1  (as_lit<nat_t>(as<Tag::Int>(type)->arg()), dbg); }
+    const Lit* lit_int_max(const Def* type, Debug dbg = {}) { return lit_int_max(as_lit<nat_t>(as<Tag::Int>(type)->arg()), dbg); }
+    const Lit* lit_bool(bool val) { return cache_.lit_bool_[size_t(val)]; }
+    const Lit* lit_false() { return cache_.lit_bool_[0]; }
+    const Lit* lit_true()  { return cache_.lit_bool_[1]; }
+    //@}
+    /// @name Lit: Int, Real
+    //@{
     template<class R> const Lit* lit_real(R val, Debug dbg = {}) {
         static_assert(std::is_floating_point<R>() || std::is_same<R, r16>());
         return lit(type_real(sizeof(R)*8), val, dbg);
     }
-    const Lit* lit_bool(bool val) { return cache_.lit_bool_[size_t(val)]; }
-    const Lit* lit_false() { return cache_.lit_bool_[0]; }
-    const Lit* lit_true()  { return cache_.lit_bool_[1]; }
+    const Lit* lit_real_0(nat_t w, Debug dbg = {}) {
+        switch (w) {
+            case 16: return lit_real(0._r16, dbg);
+            case 32: return lit_real(0._r32, dbg);
+            case 64: return lit_real(0._r64, dbg);
+            default: THORIN_UNREACHABLE;
+        }
+    }
+    const Lit* lit_real_minus_0(nat_t w, Debug dbg = {}) {
+        switch (w) {
+            case 16: return lit_real(-0._r16, dbg);
+            case 32: return lit_real(-0._r32, dbg);
+            case 64: return lit_real(-0._r64, dbg);
+            default: THORIN_UNREACHABLE;
+        }
+    }
+    const Lit* lit_real_1(nat_t w, Debug dbg = {}) {
+        switch (w) {
+            case 16: return lit_real(1._r16, dbg);
+            case 32: return lit_real(1._r32, dbg);
+            case 64: return lit_real(1._r64, dbg);
+            default: THORIN_UNREACHABLE;
+        }
+    }
+    const Lit* lit_real_0      (const Def* type, Debug dbg = {}) { return lit_real_0      (as_lit<nat_t>(as<Tag::Real>(type)->arg()), dbg); }
+    const Lit* lit_real_minus_0(const Def* type, Debug dbg = {}) { return lit_real_minus_0(as_lit<nat_t>(as<Tag::Real>(type)->arg()), dbg); }
+    const Lit* lit_real_1      (const Def* type, Debug dbg = {}) { return lit_real_1      (as_lit<nat_t>(as<Tag::Real>(type)->arg()), dbg); }
     //@}
     /// @name Top/Bottom
     //@{
@@ -248,10 +284,10 @@ public:
     const Axiom* type_int()  { return cache_.type_int_; }
     const Axiom* type_real() { return cache_.type_real_; }
     const App* type_bool() { return type_int(1); }
-    const App* type_int (nat_t num_bits) { return type_int (lit_nat(num_bits)); }
-    const App* type_real(nat_t num_bits) { return type_real(lit_nat(num_bits)); }
-    const App* type_int (const Def* num_bits) { return app(type_int(),  num_bits)->as<App>(); }
-    const App* type_real(const Def* num_bits) { return app(type_real(), num_bits)->as<App>(); }
+    const App* type_int (nat_t w) { return type_int (lit_nat(w)); }
+    const App* type_real(nat_t w) { return type_real(lit_nat(w)); }
+    const App* type_int (const Def* w) { return app(type_int(),  w)->as<App>(); }
+    const App* type_real(const Def* w) { return app(type_real(), w)->as<App>(); }
     const Ptr* type_ptr(const Def* pointee, const Def* addr_space, Debug dbg = {}) { return unify<Ptr>(2, kind_star(), pointee, addr_space, debug(dbg)); }
     const Ptr* type_ptr(const Def* pointee, nat_t addr_space = AddrSpace::Generic, Debug dbg = {}) { return type_ptr(pointee, lit_nat(addr_space), dbg); }
     //@}
@@ -260,13 +296,14 @@ public:
     template<IOp o> const Axiom* op() { return cache_.IOp_[size_t(o)]; }
     template<IOp o> const Def* op(const Def* a, const Def* b, Debug dbg = {}) { return op<o>(infer_width(a), a, b, dbg); }
     template<IOp o> const Def* op(const Def* w, const Def* a, const Def* b, Debug dbg = {}) { return app(app(op<o>(), w), {a, b}, dbg); }
+    const Def* op_IOp_inot(const Def* a, Debug dbg = {}) { return op<IOp::ixor>(lit_int_max(a->type(), dbg), a, dbg); }
     //@}
     /// @name WOp
     //@{
     template<WOp o> const Axiom* op() { return cache_.WOp_[size_t(o)]; }
     template<WOp o> const Def* op(flags_t wmode, const Def* a, const Def* b, Debug dbg = {}) { return op<o>(wmode, infer_width(a), a, b, dbg); }
-    template<WOp o> const Def* op(flags_t wmode, const Def* w, const Def* a, const Def* b, Debug dbg = {}) { return app(app(op<o>(), {lit_nat(wmode), w}), {a, b}, dbg);
-    }
+    template<WOp o> const Def* op(flags_t wmode, const Def* w, const Def* a, const Def* b, Debug dbg = {}) { return app(app(op<o>(), {lit_nat(wmode), w}), {a, b}, dbg); }
+    const Def* op_WOp_minus(flags_t wmode, const Def* a, Debug dbg = {}) { return op<WOp::sub>(wmode, lit_int_0(a->type(), dbg), a, dbg); }
     //@}
     /// @name ZOp
     //@{
@@ -292,6 +329,7 @@ public:
     template<RCmp o> const Axiom* op() { return cache_.RCmp_[size_t(o)]; }
     template<RCmp o> const Def* op(const Def* a, const Def* b, Debug dbg = {}) { return op<o>(infer_width(a), a, b, dbg); }
     template<RCmp o> const Def* op(const Def* w, const Def* a, const Def* b, Debug dbg = {}) { return app(app(op<o>(), w), {a, b}, dbg); }
+    const Def* op_ROp_minus(const Def* a, Debug dbg = {}) { return op<ROp::sub>(lit_real_minus_0(a->type(), dbg), a, dbg); }
     //@}
     /// @name Conv
     //@{

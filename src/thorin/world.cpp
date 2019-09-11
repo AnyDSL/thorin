@@ -629,22 +629,6 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
     return unify<ArithOp>(2, tag, a, b, debug(dbg));
 }
 
-const Def* World::arithop_not(const Def* def, Debug dbg) { return arithop_xor(lit(def->type(), u64(-1), dbg), def, dbg); }
-
-const Def* World::arithop_minus(const Def* def, Debug dbg) {
-    if (auto real = def->type()->isa<Real>()) {
-        bool q = real->is_quick();
-        switch (real->lit_num_bits()) {
-            case 16: return arithop_sub(lit_real(-0._f16, q, dbg), def, dbg);
-            case 32: return arithop_sub(lit_real(-0._f32, q, dbg), def, dbg);
-            case 64: return arithop_sub(lit_real(-0._f64, q, dbg), def, dbg);
-            default: THORIN_UNREACHABLE;
-        }
-    }
-
-    return arithop_sub(lit(def->type(), 0_u64, dbg), def, dbg);
-}
-
 /*
  * compares
  */

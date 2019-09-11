@@ -611,9 +611,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
             case IOp::ixor: return irbuilder_.CreateXor (a, b, name);
             default: THORIN_UNREACHABLE;
         }
-    }
-
-    if (auto wop = isa<Tag::WOp>(def)) {
+    } else if (auto wop = isa<Tag::WOp>(def)) {
         auto [a, b] = wop->split<2>([&](auto def) { return lookup(def); });
         auto name = def->name();
         auto [mode, width] = wop->decurry()->split<2>(as_lit<nat_t>);
@@ -626,9 +624,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
             case WOp::shl: return irbuilder_.CreateShl(a, b, name, nuw, nsw);
             default: THORIN_UNREACHABLE;
         }
-    }
-
-    if (auto zop = isa<Tag::ZOp>(def)) {
+    } else if (auto zop = isa<Tag::ZOp>(def)) {
         auto [m, aa, bb] = zop->split<3>();
         auto a = lookup(aa);
         auto b = lookup(bb);
@@ -640,9 +636,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
             case ZOp::umod: return irbuilder_.CreateURem(a, b, name);
             default: THORIN_UNREACHABLE;
         }
-    }
-
-    if (auto rop = isa<Tag::ROp>(def)) {
+    } else if (auto rop = isa<Tag::ROp>(def)) {
         auto name = def->name();
         auto [a, b] = rop->split<2>([&](auto def) { return lookup(def); });
         auto [mode, width] = rop->decurry()->split<2>(as_lit<nat_t>);
@@ -665,9 +659,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
             case ROp::mod: return irbuilder_.CreateFRem(a, b, name);
             default: THORIN_UNREACHABLE;
         }
-    }
-
-    if (auto icmp = isa<Tag::ICmp>(def)) {
+    } else if (auto icmp = isa<Tag::ICmp>(def)) {
         auto [a, b] = icmp->split<2>([&](auto def) { return lookup(def); });
         auto name = def->name();
         switch (icmp.flags()) {
@@ -683,9 +675,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
             case ICmp::ule: return irbuilder_.CreateICmpULE(a, b, name);
             default: THORIN_UNREACHABLE;
         }
-    }
-
-    if (auto rcmp = isa<Tag::RCmp>(def)) {
+    } else if (auto rcmp = isa<Tag::RCmp>(def)) {
         auto [a, b] = rcmp->split<2>([&](auto def) { return lookup(def); });
         auto name = def->name();
         switch (rcmp.flags()) {
@@ -705,9 +695,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
             case RCmp::une: return irbuilder_.CreateFCmpUNE(a, b, name);
             default: THORIN_UNREACHABLE;
         }
-    }
-
-    if (auto conv = isa<Tag::Conv>(def)) {
+    } else if (auto conv = isa<Tag::Conv>(def)) {
         auto src = lookup(conv->arg());
         auto name = def->name();
         auto type = convert(def->type());
@@ -723,16 +711,12 @@ llvm::Value* CodeGen::emit(const Def* def) {
             case Conv::r2u: return irbuilder_.CreateFPToUI(src, type, name);
             default: THORIN_UNREACHABLE;
         }
-    }
-
-    if (auto select = isa<Tag::Select>(def)) {
+    } else if (auto select = isa<Tag::Select>(def)) {
         if (def->type()->isa<Pi>()) return nullptr;
 
         auto [cond, tval, fval] = select->split<3>([&](auto def) { return lookup(def); });
         return irbuilder_.CreateSelect(cond, tval, fval);
-    }
-
-    if (auto size_of = isa<Tag::Sizeof>(def)) {
+    } else if (auto size_of = isa<Tag::Sizeof>(def)) {
         auto type = convert(size_of->arg());
         auto layout = llvm::DataLayout(module_->getDataLayout());
         return irbuilder_.getInt32(layout.getTypeAllocSize(type));

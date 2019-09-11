@@ -256,12 +256,12 @@ public:
     const Axiom* type_int()  { return cache_.type_int_; }
     const Axiom* type_real() { return cache_.type_real_; }
     const App* type_bool() { return type_int(1); }
-    const App* type_int (u64 num_bits) { return type_int (lit_nat(num_bits)); }
-    const App* type_real(u64 num_bits) { return type_real(lit_nat(num_bits)); }
+    const App* type_int (nat_t num_bits) { return type_int (lit_nat(num_bits)); }
+    const App* type_real(nat_t num_bits) { return type_real(lit_nat(num_bits)); }
     const App* type_int (const Def* num_bits) { return app(type_int(),  num_bits)->as<App>(); }
     const App* type_real(const Def* num_bits) { return app(type_real(), num_bits)->as<App>(); }
     const Ptr* type_ptr(const Def* pointee, const Def* addr_space, Debug dbg = {}) { return unify<Ptr>(2, kind_star(), pointee, addr_space, debug(dbg)); }
-    const Ptr* type_ptr(const Def* pointee, u64 addr_space = AddrSpace::Generic, Debug dbg = {}) { return type_ptr(pointee, lit_nat((u64) addr_space), dbg); }
+    const Ptr* type_ptr(const Def* pointee, nat_t addr_space = AddrSpace::Generic, Debug dbg = {}) { return type_ptr(pointee, lit_nat(addr_space), dbg); }
     //@}
     /// @name IOp
     //@{
@@ -272,8 +272,8 @@ public:
     /// @name WOp
     //@{
     template<WOp o> const Axiom* op() { return cache_.WOp_[size_t(o)]; }
-    template<WOp o> const Def* op(u64 wmode, const Def* a, const Def* b, Debug dbg = {}) { return op<o>(wmode, infer_width(a), a, b, dbg); }
-    template<WOp o> const Def* op(u64 wmode, const Def* w, const Def* a, const Def* b, Debug dbg = {}) { return app(app(op<o>(), {lit_nat(wmode), w}), {a, b}, dbg);
+    template<WOp o> const Def* op(flags_t wmode, const Def* a, const Def* b, Debug dbg = {}) { return op<o>(wmode, infer_width(a), a, b, dbg); }
+    template<WOp o> const Def* op(flags_t wmode, const Def* w, const Def* a, const Def* b, Debug dbg = {}) { return app(app(op<o>(), {lit_nat(wmode), w}), {a, b}, dbg);
     }
     //@}
     /// @name ZOp
@@ -286,8 +286,8 @@ public:
     //@{
     template<ROp o> const Axiom* op() { return cache_.ROp_[size_t(o)]; }
     template<ROp o> const Def* op(const Def* a, const Def* b, Debug dbg = {}) { return op<o>(RMode::none, a, b, dbg); }
-    template<ROp o> const Def* op(u64 rmode, const Def* a, const Def* b, Debug dbg = {}) { return op<o>(rmode, infer_width(a), a, b, dbg); }
-    template<ROp o> const Def* op(u64 rmode, const Def* w, const Def* a, const Def* b, Debug dbg = {}) { return app(app(op<o>(), {lit_nat(rmode), w}), {a, b}, dbg); }
+    template<ROp o> const Def* op(flags_t rmode, const Def* a, const Def* b, Debug dbg = {}) { return op<o>(rmode, infer_width(a), a, b, dbg); }
+    template<ROp o> const Def* op(flags_t rmode, const Def* w, const Def* a, const Def* b, Debug dbg = {}) { return app(app(op<o>(), {lit_nat(rmode), w}), {a, b}, dbg); }
     //@}
     /// @name ICmp
     //@{

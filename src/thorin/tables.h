@@ -5,6 +5,12 @@
 
 namespace thorin {
 
+using node_t   = u16;
+using tag_t    = u32;
+using flags_t  = u32;
+using fields_t = u64;
+using nat_t    = u64;
+
 #define THORIN_NODE(m) m(KindArity, *A)      /* don't  */ \
                        m(KindMulti, *M)      /* change */ \
                        m(KindStar,  *)       /* this   */ \
@@ -48,7 +54,7 @@ namespace thorin {
     m(Select, select) m(Sizeof, sizeof)
 
 namespace WMode {
-enum : u64 {
+enum : nat_t {
     none = 0,
     nsw  = 1 << 0,
     nuw  = 1 << 1,
@@ -56,7 +62,7 @@ enum : u64 {
 }
 
 namespace RMode {
-enum RMode : u64 {
+enum RMode : nat_t {
     none     = 0,
     nnan     = 1 << 0, ///< No NaNs - Allow optimizations to assume the arguments and result are not NaN. Such optimizations are required to retain defined behavior over NaNs, but the value of the result is undefined.
     ninf     = 1 << 1, ///< No Infs - Allow optimizations to assume the arguments and result are not +/-Inf. Such optimizations are required to retain defined behavior over +/-Inf, but the value of the result is undefined.
@@ -157,12 +163,6 @@ enum RMode : u64 {
                      m(RCmp, une) /* x x x o - unordered or not equal        */ \
                      m(RCmp,   t) /* x x x x - always true                   */
 
-using node_t   = u16;
-using tag_t    = u32;
-using flags_t  = u32;
-using fields_t = u64;
-using nat_t    = u64;
-
 namespace Node {
 #define CODE(node, name) node,
 enum : node_t { THORIN_NODE(CODE) };
@@ -176,13 +176,13 @@ enum : tag_t { THORIN_TAG(CODE) };
 }
 
 #define CODE(T, o) o,
-enum class WOp  : u64 { THORIN_W_OP (CODE) };
-enum class ZOp  : u64 { THORIN_Z_OP (CODE) };
-enum class IOp  : u64 { THORIN_I_OP (CODE) };
-enum class ROp  : u64 { THORIN_R_OP (CODE) };
-enum class ICmp : u64 { THORIN_I_CMP(CODE) };
-enum class RCmp : u64 { THORIN_R_CMP(CODE) };
-enum class Conv : u64 { THORIN_CONV (CODE) };
+enum class WOp  : tag_t { THORIN_W_OP (CODE) };
+enum class ZOp  : tag_t { THORIN_Z_OP (CODE) };
+enum class IOp  : tag_t { THORIN_I_OP (CODE) };
+enum class ROp  : tag_t { THORIN_R_OP (CODE) };
+enum class ICmp : tag_t { THORIN_I_CMP(CODE) };
+enum class RCmp : tag_t { THORIN_R_CMP(CODE) };
+enum class Conv : tag_t { THORIN_CONV (CODE) };
 #undef CODE
 
 constexpr ICmp operator|(ICmp a, ICmp b) { return ICmp(flags_t(a) | flags_t(b)); }

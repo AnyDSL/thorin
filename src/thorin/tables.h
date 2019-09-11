@@ -192,25 +192,15 @@ constexpr RCmp operator|(RCmp a, RCmp b) { return RCmp(flags_t(a) | flags_t(b));
 constexpr RCmp operator&(RCmp a, RCmp b) { return RCmp(flags_t(a) & flags_t(b)); }
 constexpr RCmp operator^(RCmp a, RCmp b) { return RCmp(flags_t(a) ^ flags_t(b)); }
 
-#define CODE(T, o) case T::o: return #o;
-constexpr const char* op2str(IOp  o) { switch (o) { THORIN_I_OP(CODE) default: THORIN_UNREACHABLE; } }
-constexpr const char* op2str(WOp  o) { switch (o) { THORIN_W_OP(CODE) default: THORIN_UNREACHABLE; } }
-constexpr const char* op2str(ZOp  o) { switch (o) { THORIN_Z_OP(CODE) default: THORIN_UNREACHABLE; } }
-constexpr const char* op2str(ROp  o) { switch (o) { THORIN_R_OP(CODE) default: THORIN_UNREACHABLE; } }
-constexpr const char* op2str(Conv o) { switch (o) { THORIN_CONV(CODE) default: THORIN_UNREACHABLE; } }
-#undef CODE
-
-#define CODE(T, o) case T::o: return "icmp_"#o;
+#define CODE(T, o) case T::o: return #T "_" #o;
+constexpr const char* op2str(IOp  o) { switch (o) { THORIN_I_OP(CODE)  default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(WOp  o) { switch (o) { THORIN_W_OP(CODE)  default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(ZOp  o) { switch (o) { THORIN_Z_OP(CODE)  default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(ROp  o) { switch (o) { THORIN_R_OP(CODE)  default: THORIN_UNREACHABLE; } }
 constexpr const char* op2str(ICmp o) { switch (o) { THORIN_I_CMP(CODE) default: THORIN_UNREACHABLE; } }
-#undef CODE
-
-#define CODE(T, o) case T::o: return "rcmp_"#o;
 constexpr const char* op2str(RCmp o) { switch (o) { THORIN_R_CMP(CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(Conv o) { switch (o) { THORIN_CONV(CODE)  default: THORIN_UNREACHABLE; } }
 #undef CODE
-
-}
-
-namespace thorin {
 
 // This trick let's us count the number of elements in an enum class without tainting it with an extra "Num" field.
 template<class T> constexpr auto Num = size_t(-1);

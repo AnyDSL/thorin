@@ -43,7 +43,6 @@ using nat_t    = u64;
                        m(Hlt, hlt)                        \
                        m(Known, known)                    \
                        m(Run, run)                        \
-                       m(Assembly, asm)                   \
                        m(Param, param)                    \
                        m(Analyze, analyze)
 

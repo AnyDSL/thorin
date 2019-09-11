@@ -90,25 +90,19 @@ World::World(uint32_t cur_gid, const std::string& name)
         THORIN_R_CMP(CODE)
     }
 #undef CODE
-    {   // Conv: Π[sw: nat, dw: nat]. Πi/r sw. i/r dw
-        using TypeFn = const App* (World::*)(const Def*);
-
-        auto make_conv = [&](Conv op, Def::NormalizeFn normalize, TypeFn type_src, TypeFn type_dst) {
-            auto type = pi(kind_star())->set_domain(type_nat());
-            auto type_sw = (this->*type_src)(type->param(0, {"sw"}));
-            auto type_dw = (this->*type_dst)(type->param(1, {"dw"}));
-            type->set_codomain(pi(type_sw, type_dw));
-            cache_.Conv_[size_t(op)] = axiom(normalize, type, Tag::Conv, 0, {op2str(op)});
-        };
-
-        make_conv(Conv::s2s, normalize_Conv<Conv::s2s>, (TypeFn) &thorin::World::type_int , (TypeFn) &thorin::World::type_int );
-        make_conv(Conv::u2u, normalize_Conv<Conv::u2u>, (TypeFn) &thorin::World::type_int , (TypeFn) &thorin::World::type_int );
-        make_conv(Conv::s2r, normalize_Conv<Conv::s2r>, (TypeFn) &thorin::World::type_int , (TypeFn) &thorin::World::type_real);
-        make_conv(Conv::u2r, normalize_Conv<Conv::u2r>, (TypeFn) &thorin::World::type_int , (TypeFn) &thorin::World::type_real);
-        make_conv(Conv::r2s, normalize_Conv<Conv::r2s>, (TypeFn) &thorin::World::type_real, (TypeFn) &thorin::World::type_int );
-        make_conv(Conv::r2u, normalize_Conv<Conv::r2u>, (TypeFn) &thorin::World::type_real, (TypeFn) &thorin::World::type_int );
-        make_conv(Conv::r2r, normalize_Conv<Conv::r2r>, (TypeFn) &thorin::World::type_real, (TypeFn) &thorin::World::type_real);
-    } { // select: ΠT:*. Π[bool, T, T]. T
+#define CODE(T, o) \
+    {   /* Conv: Π[sw: nat, dw: nat]. Πi/r sw. i/r dw */                                                          \
+        auto type = pi(kind_star())->set_domain(type_nat());                                                      \
+        auto sw = type->param(0, {"sw"});                                                                         \
+        auto dw = type->param(1, {"dw"});                                                                         \
+        auto type_sw = T::o == T::r2s || T::o == T::r2u || T::o == T::r2r ? type_real(sw) : type_int(sw);         \
+        auto type_dw = T::o == T::s2r || T::o == T::u2r || T::o == T::r2r ? type_real(dw) : type_int(dw);         \
+        type->set_codomain(pi(type_sw, type_dw));                                                                 \
+        cache_.Conv_[size_t(T::o)] = axiom(normalize_Conv<T::o>, type, Tag::Conv, flags_t(T::o), {op2str(T::o)}); \
+    }
+    THORIN_CONV(CODE)
+#undef Code
+    { // select: ΠT:*. Π[bool, T, T]. T
         auto type = pi(kind_star())->set_domain(kind_star());
         auto T = type->param({"T"});
         cache_.op_select_ = axiom(normalize_select, type->set_codomain(pi({type_bool(), T, T}, T)), Tag::Select, 0, {"select"});

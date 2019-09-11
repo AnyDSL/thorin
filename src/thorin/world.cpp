@@ -86,10 +86,8 @@ World::World(uint32_t cur_gid, const std::string& name)
 
         auto make_conv = [&](Conv op, TypeFn type_src, TypeFn type_dst) {
             auto type = pi(kind_star())->set_domain(type_nat());
-            auto sw = type->param(0, {"sw"});
-            auto dw = type->param(1, {"dw"});
-            auto type_sw = (this->*type_src)(sw);
-            auto type_dw = (this->*type_dst)(dw);
+            auto type_sw = (this->*type_src)(type->param(0, {"sw"}));
+            auto type_dw = (this->*type_dst)(type->param(1, {"dw"}));
             type->set_codomain(pi(type_sw, type_dw));
             cache_.Conv_[size_t(op)] = axiom(normalizers_Conv[size_t(op)], type, Tag::Conv, 0, {op2str(op)});
         };

@@ -1,7 +1,6 @@
 set(THORIN_SOURCES
     def.cpp
     def.h
-    fold.h
     normalize.cpp
     normalize.h
     primop.cpp

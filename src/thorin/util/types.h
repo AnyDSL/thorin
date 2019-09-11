@@ -75,7 +75,7 @@ template<int w> using w2r = typename w2r_<w>::type;
 
 /// A @c size_t literal. Use @c 0_s to disambiguate @c 0 from @c nullptr.
 constexpr size_t operator""_s(unsigned long long int i) { return size_t(i); }
-inline /*constexpr*/ r16 operator""_f16(long double d) { return r16(d); } // wait till fixed upstream
+inline /*constexpr*/ r16 operator""_r16(long double d) { return r16(d); } // wait till fixed upstream
 constexpr r32 operator""_r32(long double d) { return r32(d); }
 constexpr r64 operator""_r64(long double d) { return r64(d); }
 

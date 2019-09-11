@@ -42,8 +42,6 @@ set(THORIN_SOURCES
     pass/partial_eval.h
     pass/pass.cpp
     pass/pass.h
-    tables/arithoptable.h
-    tables/cmptable.h
     transform/cleanup_world.cpp
     transform/cleanup_world.h
     transform/codegen_prepare.h

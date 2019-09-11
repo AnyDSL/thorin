@@ -29,13 +29,10 @@ using half_float::half;
 template<class T>
 bool get_sign(T val) {
     static_assert(std::is_integral<T>(), "get_sign only supported for signed and unsigned integer types");
-
-    if constexpr(std::is_integral<T>()) {
-        if constexpr(std::is_signed<T>())
-            return val < 0;
-        else
-            return val >> (T(sizeof(val)) * T(8) - T(1));
-    }
+    if constexpr(std::is_signed<T>())
+        return val < 0;
+    else
+        return val >> (T(sizeof(val)) * T(8) - T(1));
 }
 
 template<int> struct w2u_ {};

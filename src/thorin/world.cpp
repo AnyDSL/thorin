@@ -104,11 +104,9 @@ World::World(uint32_t cur_gid, const std::string& name)
     } { // select: ΠT:*. Π[bool, T, T]. T
         auto type = pi(kind_star())->set_domain(kind_star());
         auto T = type->param({"T"});
-        type->set_codomain(pi({type_bool(), T, T}, T));
-        cache_.op_select_ = axiom(normalize_select, type, Tag::Select, 0, {"select"});
+        cache_.op_select_ = axiom(normalize_select, type->set_codomain(pi({type_bool(), T, T}, T)), Tag::Select, 0, {"select"});
     } { // sizeof: ΠT:*. nat
-        auto type = pi(kind_star(), type_nat());
-        cache_.op_sizeof_ = axiom(normalize_sizeof, type, Tag::Sizeof, 0, {"sizeof"});
+        cache_.op_sizeof_ = axiom(normalize_sizeof, pi(kind_star(), type_nat()), Tag::Sizeof, 0, {"sizeof"});
     }
 }
 

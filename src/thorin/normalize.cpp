@@ -16,12 +16,12 @@ static bool is_allset(const Def* def) {
     return false;
 }
 
-static bool is_not(const Def* def) {
+static const Def* is_not(const Def* def) {
     if (auto ixor = isa<Tag::IOp, IOp::ixor>(def)) {
         auto [x, y] = ixor->split<2>();
-        if (is_allset(x)) return true;
+        if (is_allset(x)) return y;
     }
-    return false;
+    return nullptr;
 }
 
 template<class T> inline static T get(u64 u) { return bitcast<T>(u); }
@@ -51,117 +51,106 @@ private:
     std::optional<u64> data_;
 };
 
-template<class T, T> struct Fold {};
+template<class T, T, nat_t> struct Fold {};
 
-template<> struct Fold<WOp, WOp::add> {
-    template<nat_t w> struct F {
-        static Res run(u64 a, u64 b, bool /*nsw*/, bool nuw) {
-            auto x = get<w2u<w>>(a), y = get<w2u<w>>(b);
-            decltype(x) res = x + y;
-            if (nuw && res < x) return {};
-            // TODO nsw
-            return res;
-        }
-    };
+template<nat_t w> struct Fold<WOp, WOp::add, w> {
+    static Res run(u64 a, u64 b, bool /*nsw*/, bool nuw) {
+        auto x = get<w2u<w>>(a), y = get<w2u<w>>(b);
+        decltype(x) res = x + y;
+        if (nuw && res < x) return {};
+        // TODO nsw
+        return res;
+    }
 };
 
-template<> struct Fold<WOp, WOp::sub> {
-    template<nat_t w> struct F {
-        static Res run(u64 a, u64 b, bool /*nsw*/, bool /*nuw*/) {
-            using UT = w2u<w>;
-            auto x = get<UT>(a), y = get<UT>(b);
-            decltype(x) res = x - y;
-            //if (nuw && y && x > std::numeric_limits<UT>::max() / y) return {};
-            // TODO nsw
-            return res;
-        }
-    };
+template<nat_t w> struct Fold<WOp, WOp::sub, w> {
+    static Res run(u64 a, u64 b, bool /*nsw*/, bool /*nuw*/) {
+        using UT = w2u<w>;
+        auto x = get<UT>(a), y = get<UT>(b);
+        decltype(x) res = x - y;
+        //if (nuw && y && x > std::numeric_limits<UT>::max() / y) return {};
+        // TODO nsw
+        return res;
+    }
 };
 
-template<> struct Fold<WOp, WOp::mul> {
-    template<nat_t w> struct F {
-        static Res run(u64 a, u64 b, bool /*nsw*/, bool nuw) {
-            using UT = w2u<w>;
-            auto x = get<UT>(a), y = get<UT>(b);
-            decltype(x) res = x * y;
-            if (nuw && y && x > std::numeric_limits<UT>::max() / y) return {};
-            // TODO nsw
-            return res;
-        }
-    };
+template<nat_t w> struct Fold<WOp, WOp::mul, w> {
+    static Res run(u64 a, u64 b, bool /*nsw*/, bool nuw) {
+        using UT = w2u<w>;
+        auto x = get<UT>(a), y = get<UT>(b);
+        decltype(x) res = x * y;
+        if (nuw && y && x > std::numeric_limits<UT>::max() / y) return {};
+        // TODO nsw
+        return res;
+    }
 };
 
-template<> struct Fold<WOp, WOp::shl> {
-    template<nat_t w> struct F {
-        static Res run(u64 a, u64 b, bool nsw, bool nuw) {
-            using T = w2u<w>;
-            auto x = get<T>(a), y = get<T>(b);
-            if (y > w) return {};
-            decltype(x) res = x << y;
-            if (nuw && res < x) return {};
-            if (nsw && get_sign(x) != get_sign(res)) return {};
-            return res;
-        }
-    };
+template<nat_t w> struct Fold<WOp, WOp::shl, w> {
+    static Res run(u64 a, u64 b, bool nsw, bool nuw) {
+        using T = w2u<w>;
+        auto x = get<T>(a), y = get<T>(b);
+        if (y > w) return {};
+        decltype(x) res = x << y;
+        if (nuw && res < x) return {};
+        if (nsw && get_sign(x) != get_sign(res)) return {};
+        return res;
+    }
 };
 
-template<> struct Fold<ZOp, ZOp::sdiv> { template<nat_t w> struct F { static Res run(u64 a, u64 b) { using T = w2s<w>; T r = get<T>(b); if (r == 0) return {}; return T(get<T>(a) / r); } }; };
-template<> struct Fold<ZOp, ZOp::udiv> { template<nat_t w> struct F { static Res run(u64 a, u64 b) { using T = w2u<w>; T r = get<T>(b); if (r == 0) return {}; return T(get<T>(a) / r); } }; };
-template<> struct Fold<ZOp, ZOp::smod> { template<nat_t w> struct F { static Res run(u64 a, u64 b) { using T = w2s<w>; T r = get<T>(b); if (r == 0) return {}; return T(get<T>(a) % r); } }; };
-template<> struct Fold<ZOp, ZOp::umod> { template<nat_t w> struct F { static Res run(u64 a, u64 b) { using T = w2u<w>; T r = get<T>(b); if (r == 0) return {}; return T(get<T>(a) % r); } }; };
+template<nat_t w> struct Fold<ZOp, ZOp::sdiv, w> { static Res run(u64 a, u64 b) { using T = w2s<w>; T r = get<T>(b); if (r == 0) return {}; return T(get<T>(a) / r); } };
+template<nat_t w> struct Fold<ZOp, ZOp::udiv, w> { static Res run(u64 a, u64 b) { using T = w2u<w>; T r = get<T>(b); if (r == 0) return {}; return T(get<T>(a) / r); } };
+template<nat_t w> struct Fold<ZOp, ZOp::smod, w> { static Res run(u64 a, u64 b) { using T = w2s<w>; T r = get<T>(b); if (r == 0) return {}; return T(get<T>(a) % r); } };
+template<nat_t w> struct Fold<ZOp, ZOp::umod, w> { static Res run(u64 a, u64 b) { using T = w2u<w>; T r = get<T>(b); if (r == 0) return {}; return T(get<T>(a) % r); } };
 
-template<> struct Fold<IOp, IOp::ashr> { template<nat_t w> struct F { static Res run(u64 a, u64 b) { using T = w2s<w>; if (b > w) return {}; return T(get<T>(a) >> get<T>(b)); } }; };
-template<> struct Fold<IOp, IOp::lshr> { template<nat_t w> struct F { static Res run(u64 a, u64 b) { using T = w2u<w>; if (b > w) return {}; return T(get<T>(a) >> get<T>(b)); } }; };
-template<> struct Fold<IOp, IOp::iand> { template<nat_t w> struct F { static Res run(u64 a, u64 b) { using T = w2u<w>; return T(get<T>(a) & get<T>(b)); } }; };
-template<> struct Fold<IOp, IOp::ior > { template<nat_t w> struct F { static Res run(u64 a, u64 b) { using T = w2u<w>; return T(get<T>(a) | get<T>(b)); } }; };
-template<> struct Fold<IOp, IOp::ixor> { template<nat_t w> struct F { static Res run(u64 a, u64 b) { using T = w2u<w>; return T(get<T>(a) ^ get<T>(b)); } }; };
+template<nat_t w> struct Fold<IOp, IOp::ashr, w> { static Res run(u64 a, u64 b) { using T = w2s<w>; if (b > w) return {}; return T(get<T>(a) >> get<T>(b)); } };
+template<nat_t w> struct Fold<IOp, IOp::lshr, w> { static Res run(u64 a, u64 b) { using T = w2u<w>; if (b > w) return {}; return T(get<T>(a) >> get<T>(b)); } };
+template<nat_t w> struct Fold<IOp, IOp::iand, w> { static Res run(u64 a, u64 b) { using T = w2u<w>; return T(get<T>(a) & get<T>(b)); } };
+template<nat_t w> struct Fold<IOp, IOp::ior , w> { static Res run(u64 a, u64 b) { using T = w2u<w>; return T(get<T>(a) | get<T>(b)); } };
+template<nat_t w> struct Fold<IOp, IOp::ixor, w> { static Res run(u64 a, u64 b) { using T = w2u<w>; return T(get<T>(a) ^ get<T>(b)); } };
 
-template<> struct Fold<ROp, ROp::add> { template<nat_t w> struct F { static Res run(u64 a, u64 b) { using T = w2r<w>; return T(get<T>(a) + get<T>(b)); } }; };
-template<> struct Fold<ROp, ROp::sub> { template<nat_t w> struct F { static Res run(u64 a, u64 b) { using T = w2r<w>; return T(get<T>(a) - get<T>(b)); } }; };
-template<> struct Fold<ROp, ROp::mul> { template<nat_t w> struct F { static Res run(u64 a, u64 b) { using T = w2r<w>; return T(get<T>(a) * get<T>(b)); } }; };
-template<> struct Fold<ROp, ROp::div> { template<nat_t w> struct F { static Res run(u64 a, u64 b) { using T = w2r<w>; return T(get<T>(a) / get<T>(b)); } }; };
-template<> struct Fold<ROp, ROp::mod> { template<nat_t w> struct F { static Res run(u64 a, u64 b) { using T = w2r<w>; return T(rem(get<T>(a), get<T>(b))); } }; };
+template<nat_t w> struct Fold<ROp, ROp:: add, w> { static Res run(u64 a, u64 b) { using T = w2r<w>; return T(get<T>(a) + get<T>(b)); } };
+template<nat_t w> struct Fold<ROp, ROp:: sub, w> { static Res run(u64 a, u64 b) { using T = w2r<w>; return T(get<T>(a) - get<T>(b)); } };
+template<nat_t w> struct Fold<ROp, ROp:: mul, w> { static Res run(u64 a, u64 b) { using T = w2r<w>; return T(get<T>(a) * get<T>(b)); } };
+template<nat_t w> struct Fold<ROp, ROp:: div, w> { static Res run(u64 a, u64 b) { using T = w2r<w>; return T(get<T>(a) / get<T>(b)); } };
+template<nat_t w> struct Fold<ROp, ROp:: mod, w> { static Res run(u64 a, u64 b) { using T = w2r<w>; return T(rem(get<T>(a), get<T>(b))); } };
 
-template<ICmp cmp> struct Fold<ICmp, cmp> {
-    template<nat_t w> struct F {
-        inline static Res run(u64 a, u64 b) {
-            using T = w2u<w>;
-            auto x = get<T>(a), y = get<T>(b);
-            bool result = false;
-            auto pm = !(x >> T(w-1)) &&  (y >> T(w-1));
-            auto mp =  (x >> T(w-1)) && !(y >> T(w-1));
-            result |= ((cmp & ICmp::_x) != ICmp::_f) && pm;
-            result |= ((cmp & ICmp::_y) != ICmp::_f) && mp;
-            result |= ((cmp & ICmp::_g) != ICmp::_f) && x > y && !mp;
-            result |= ((cmp & ICmp::_l) != ICmp::_f) && x < y && !pm;
-            result |= ((cmp & ICmp:: e) != ICmp::_f) && x == y;
-            return result;
-        }
-    };
+template<ICmp cmp, nat_t w> struct Fold<ICmp, cmp, w> {
+    inline static Res run(u64 a, u64 b) {
+        using T = w2u<w>;
+        auto x = get<T>(a), y = get<T>(b);
+        bool result = false;
+        auto pm = !(x >> T(w-1)) &&  (y >> T(w-1));
+        auto mp =  (x >> T(w-1)) && !(y >> T(w-1));
+        result |= ((cmp & ICmp::_x) != ICmp::_f) && pm;
+        result |= ((cmp & ICmp::_y) != ICmp::_f) && mp;
+        result |= ((cmp & ICmp::_g) != ICmp::_f) && x > y && !mp;
+        result |= ((cmp & ICmp::_l) != ICmp::_f) && x < y && !pm;
+        result |= ((cmp & ICmp:: e) != ICmp::_f) && x == y;
+        return result;
+    }
 };
 
-template<RCmp cmp> struct Fold<RCmp, cmp> {
-    template<nat_t w> struct F {
-        inline static Res run(u64 a, u64 b) {
-            using T = w2r<w>;
-            auto x = get<T>(a), y = get<T>(b);
-            bool result = false;
-            result |= ((cmp & RCmp::u) != RCmp::f) && std::isunordered(x, y);
-            result |= ((cmp & RCmp::g) != RCmp::f) && x > y;
-            result |= ((cmp & RCmp::l) != RCmp::f) && x < y;
-            result |= ((cmp & RCmp::e) != RCmp::f) && x == y;
-            return result;
-        }
-    };
+template<RCmp cmp, nat_t w> struct Fold<RCmp, cmp, w> {
+    inline static Res run(u64 a, u64 b) {
+        using T = w2r<w>;
+        auto x = get<T>(a), y = get<T>(b);
+        bool result = false;
+        result |= ((cmp & RCmp::u) != RCmp::f) && std::isunordered(x, y);
+        result |= ((cmp & RCmp::g) != RCmp::f) && x > y;
+        result |= ((cmp & RCmp::l) != RCmp::f) && x < y;
+        result |= ((cmp & RCmp::e) != RCmp::f) && x == y;
+        return result;
+    }
 };
 
-template<> struct Fold<Conv, Conv::s2s> { template<nat_t sw, nat_t dw> struct F { static Res run(u64 src) { return w2s<dw>(get<w2s<sw>>(src)); } }; };
-template<> struct Fold<Conv, Conv::u2u> { template<nat_t sw, nat_t dw> struct F { static Res run(u64 src) { return w2u<dw>(get<w2u<sw>>(src)); } }; };
-template<> struct Fold<Conv, Conv::s2r> { template<nat_t sw, nat_t dw> struct F { static Res run(u64 src) { return w2r<dw>(get<w2s<sw>>(src)); } }; };
-template<> struct Fold<Conv, Conv::u2r> { template<nat_t sw, nat_t dw> struct F { static Res run(u64 src) { return w2r<dw>(get<w2u<sw>>(src)); } }; };
-template<> struct Fold<Conv, Conv::r2s> { template<nat_t sw, nat_t dw> struct F { static Res run(u64 src) { return w2s<dw>(get<w2r<sw>>(src)); } }; };
-template<> struct Fold<Conv, Conv::r2u> { template<nat_t sw, nat_t dw> struct F { static Res run(u64 src) { return w2u<dw>(get<w2r<sw>>(src)); } }; };
-template<> struct Fold<Conv, Conv::r2r> { template<nat_t sw, nat_t dw> struct F { static Res run(u64 src) { return w2r<dw>(get<w2r<sw>>(src)); } }; };
+template<Conv op, nat_t, nat_t> struct FoldConv {};
+template<nat_t sw, nat_t dw> struct FoldConv<Conv::s2s, sw, dw> { static Res run(u64 src) { return w2s<dw>(get<w2s<sw>>(src)); } };
+template<nat_t sw, nat_t dw> struct FoldConv<Conv::u2u, sw, dw> { static Res run(u64 src) { return w2u<dw>(get<w2u<sw>>(src)); } };
+template<nat_t sw, nat_t dw> struct FoldConv<Conv::s2r, sw, dw> { static Res run(u64 src) { return w2r<dw>(get<w2s<sw>>(src)); } };
+template<nat_t sw, nat_t dw> struct FoldConv<Conv::u2r, sw, dw> { static Res run(u64 src) { return w2r<dw>(get<w2u<sw>>(src)); } };
+template<nat_t sw, nat_t dw> struct FoldConv<Conv::r2s, sw, dw> { static Res run(u64 src) { return w2s<dw>(get<w2r<sw>>(src)); } };
+template<nat_t sw, nat_t dw> struct FoldConv<Conv::r2u, sw, dw> { static Res run(u64 src) { return w2u<dw>(get<w2r<sw>>(src)); } };
+template<nat_t sw, nat_t dw> struct FoldConv<Conv::r2r, sw, dw> { static Res run(u64 src) { return w2r<dw>(get<w2r<sw>>(src)); } };
 
 /*
  * fold
@@ -187,14 +176,14 @@ static const Def* fold(const Def* type, const Def* callee, const Def* m, const D
         auto w = as_lit<nat_t>(a->type()->decurry()->arg());
         Res res;
         switch (w) {
-#define CODE(i)                                                                                 \
-            case i:                                                                             \
-                if constexpr (i >= min_w) {                                                     \
-                    if constexpr (std::is_same<Op, WOp>())                                      \
-                        res = Fold<Op, op>::template F<i>::run(la->get(), lb->get(), nsw, nuw); \
-                    else                                                                        \
-                        res = Fold<Op, op>::template F<i>::run(la->get(), lb->get());           \
-                }                                                                               \
+#define CODE(i)                                                                     \
+            case i:                                                                 \
+                if constexpr (i >= min_w) {                                         \
+                    if constexpr (std::is_same<Op, WOp>())                          \
+                        res = Fold<Op, op, i>::run(la->get(), lb->get(), nsw, nuw); \
+                    else                                                            \
+                        res = Fold<Op, op, i>::run(la->get(), lb->get());           \
+                }                                                                   \
                 break;
             THORIN_1_8_16_32_64(CODE)
 #undef CODE
@@ -223,10 +212,10 @@ static const Def* fold_Conv(const Def* dst_type, const Def* callee, const Def* s
     auto lit_src = src->isa<Lit>();
     if (lit_src && lit_sw && lit_dw) {
         Res res;
-#define CODE(sw, dw)                                                  \
-        else if (*lit_sw == sw && *lit_dw == dw) {                    \
-            if constexpr (sw >= min_sw && dw >= min_dw)               \
-                res = Fold<Conv, op>::template F<sw, dw>::run(lit_src->get()); \
+#define CODE(sw, dw)                                             \
+        else if (*lit_sw == sw && *lit_dw == dw) {               \
+            if constexpr (sw >= min_sw && dw >= min_dw)          \
+                res = FoldConv<op, sw, dw>::run(lit_src->get()); \
         }
         if (false) {} TABLE(CODE)
 #undef CODE
@@ -319,12 +308,12 @@ const Def* normalize_select(const Def* type, const Def* callee, const Def* arg, 
     auto& world = callee->world();
     auto [cond, a, b] = split<3>(arg);
 
-    if (cond->isa<Bot>()) return world.bot(type, dbg);
+    if (cond->isa<Bot>())            return world.bot(type, dbg);
+    if (a == b)                      return a;
     if (auto lit = cond->isa<Lit>()) return lit->get<bool>() ? a : b;
-    if (a == b) return a;
-    if (is_not(cond)) std::swap(a, b);
+    if (auto neg = is_not(cond))     return world.op_select(neg, b, a, dbg);
 
-    return world.raw_app(callee, {a, b}, dbg);
+    return nullptr;
 }
 
 const Def* normalize_sizeof(const Def*, const Def* callee, const Def* type, const Def* dbg) {

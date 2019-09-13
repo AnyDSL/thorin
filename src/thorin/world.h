@@ -335,8 +335,8 @@ public:
     //@{
     template<Conv o> const Axiom* op() { return cache_.Conv_[size_t(o)]; }
     template<Conv o> const Def* op(const Def* dst_type, const Def* src, Debug dbg = {}) {
-        auto sw = src->type()->decurry()->arg();
-        auto dw =  dst_type  ->decurry()->arg();
+        auto sw = src->type()->as<App>()->arg();
+        auto dw =  dst_type  ->as<App>()->arg();
         return app(app(op<o>(), {sw, dw}), src, dbg);
     }
     //@}

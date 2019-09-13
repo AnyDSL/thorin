@@ -32,7 +32,6 @@ using GIDSet = thorin::HashSet<Key, GIDHash<Key>>;
 
 //------------------------------------------------------------------------------
 
-class App;
 class Axiom;
 class Lam;
 class Param;
@@ -218,15 +217,6 @@ public:
         else
             return const_cast<Def*>(this)->template as<T>();
     }
-    /**
-     * Asserts that this Def is an @p App and returns its callee again as @p App.
-     * For example, invoking decurry on {@c f(x, y)(a, b, c) } yields {@c f(x, y) } as @p App.
-     * Thus, you can conveniently call @p App::split afterwards to retrieve the arguments:
-    @code
-    auto [x, y] = foo->decurry()->split<2>();
-    @endcode
-     */
-    const App* decurry() const;
     //@}
     /// @name misc getters
     //@{
@@ -522,6 +512,7 @@ private:
 
 public:
     const Def* callee() const { return op(0); }
+    const App* decurry() const { return as<App>()->callee()->as<App>(); } ///< Returns the @p callee again as @p App.
     const Pi* callee_type() const { return callee()->type()->as<Pi>(); }
     const Def* arg() const { return op(1); }
     const Def* arg(size_t i) const { return detail::world_extract(world(), arg(), i); }

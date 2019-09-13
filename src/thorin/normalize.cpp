@@ -174,7 +174,7 @@ static const Def* fold(const Def* type, const Def* callee, const Def* m, const D
 
     auto la = a->isa<Lit>(), lb = b->isa<Lit>();
     if (la && lb) {
-        auto w = as_lit<nat_t>(a->type()->decurry()->arg());
+        auto w = as_lit<nat_t>(a->type()->as<App>()->arg());
         Res res;
         switch (w) {
 #define CODE(i)                                                                     \
@@ -209,7 +209,7 @@ static const Def* fold_Conv(const Def* dst_type, const Def* callee, const Def* s
     auto& world = callee->world();
     if (src->isa<Bot>()) return world.bot(dst_type, dbg);
 
-    auto [lit_sw, lit_dw] = callee->decurry()->split<2>(isa_lit<nat_t>);
+    auto [lit_sw, lit_dw] = callee->as<App>()->split<2>(isa_lit<nat_t>);
     auto lit_src = src->isa<Lit>();
     if (lit_src && lit_sw && lit_dw) {
         Res res;
@@ -295,7 +295,7 @@ const Def* normalize_Conv(const Def* dst_type, const Def* callee, const Def* src
     static constexpr auto min_dw = op == Conv::s2r || op == Conv::u2r || op == Conv::r2r ? 16 : 1;
     if (auto result = fold_Conv<min_sw, min_dw, op>(dst_type, callee, src, dbg)) return result;
 
-    auto [sw, dw] = callee->decurry()->split<2>(isa_lit<nat_t>);
+    auto [sw, dw] = callee->as<App>()->split<2>(isa_lit<nat_t>);
     if (sw == dw && dst_type == src->type()) return src;
 
     if constexpr (op == Conv::s2s) {

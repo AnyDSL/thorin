@@ -15,7 +15,7 @@ namespace thorin {
 
 const Def* infer_width(const Def* def) {
     auto app = def->type()->as<App>();
-    assert(app->callee() == def->world().type_int());
+    assert(isa<Tag::Int>(def->type()) || isa<Tag::Real>(def->type()));
     return app->arg();
 }
 

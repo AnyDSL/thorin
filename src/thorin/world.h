@@ -294,42 +294,41 @@ public:
     /// @name IOp
     //@{
     template<IOp o> const Axiom* op() { return cache_.IOp_[size_t(o)]; }
-    template<IOp o> const Def* op(const Def* a, const Def* b, Debug dbg = {}) { return op<o>(infer_width(a), a, b, dbg); }
-    template<IOp o> const Def* op(const Def* w, const Def* a, const Def* b, Debug dbg = {}) { return app(app(op<o>(), w), {a, b}, dbg); }
+    template<IOp o> const Def* op(const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return app(app(op<o>(), w), {a, b}, dbg); }
     const Def* op_IOp_inot(const Def* a, Debug dbg = {}) { return op<IOp::ixor>(lit_int_max(a->type(), dbg), a, dbg); }
     //@}
     /// @name WOp
     //@{
     template<WOp o> const Axiom* op() { return cache_.WOp_[size_t(o)]; }
-    template<WOp o> const Def* op(flags_t wmode, const Def* a, const Def* b, Debug dbg = {}) { return op<o>(wmode, infer_width(a), a, b, dbg); }
-    template<WOp o> const Def* op(flags_t wmode, const Def* w, const Def* a, const Def* b, Debug dbg = {}) { return app(app(op<o>(), {lit_nat(wmode), w}), {a, b}, dbg); }
-    const Def* op_WOp_minus(flags_t wmode, const Def* a, Debug dbg = {}) { return op<WOp::sub>(wmode, lit_int_0(a->type(), dbg), a, dbg); }
+    template<WOp o> const Def* op(nat_t wmode, const Def* a, const Def* b, Debug dbg = {}) { return op<o>(lit_nat(wmode), a, b, dbg); }
+    template<WOp o> const Def* op(const Def* wmode, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return app(app(op<o>(), {wmode, w}), {a, b}, dbg); }
+    const Def* op_WOp_minus(nat_t wmode, const Def* a, Debug dbg = {}) { return op<WOp::sub>(wmode, lit_int_0(a->type(), dbg), a, dbg); }
     //@}
     /// @name ZOp
     //@{
     template<ZOp o> const Axiom* op() { return cache_.ZOp_[size_t(o)]; }
-    template<ZOp o> const Def* op(const Def* z, const Def* a, const Def* b, Debug dbg = {}) { return op<o>(infer_width(a), z, a, b, dbg); }
-    template<ZOp o> const Def* op(const Def* w, const Def* z, const Def* a, const Def* b, Debug dbg = {}) { return app(app(op<o>(), w), {z, a, b}, dbg); }
+    template<ZOp o> const Def* op(const Def* z, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return app(app(op<o>(), w), {z, a, b}, dbg); }
     //@}
     /// @name ROp
     //@{
     template<ROp o> const Axiom* op() { return cache_.ROp_[size_t(o)]; }
     template<ROp o> const Def* op(const Def* a, const Def* b, Debug dbg = {}) { return op<o>(RMode::none, a, b, dbg); }
-    template<ROp o> const Def* op(flags_t rmode, const Def* a, const Def* b, Debug dbg = {}) { return op<o>(rmode, infer_width(a), a, b, dbg); }
-    template<ROp o> const Def* op(flags_t rmode, const Def* w, const Def* a, const Def* b, Debug dbg = {}) { return app(app(op<o>(), {lit_nat(rmode), w}), {a, b}, dbg); }
+    template<ROp o> const Def* op(nat_t rmode, const Def* a, const Def* b, Debug dbg = {}) { return op<o>(lit_nat(rmode), a, b, dbg); }
+    template<ROp o> const Def* op(const Def* rmode, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return app(app(op<o>(), {rmode, w}), {a, b}, dbg); }
+    const Def* op_ROp_minus(const Def* a, Debug dbg = {}) { return op<ROp::sub>(lit_real_minus_0(a->type(), dbg), a, dbg); }
+    const Def* op_ROp_minus(nat_t rmode, const Def* a, Debug dbg = {}) { return op<ROp::sub>(rmode, lit_real_minus_0(a->type(), dbg), a, dbg); }
     //@}
     /// @name ICmp
     //@{
     template<ICmp o> const Axiom* op() { return cache_.ICmp_[size_t(o)]; }
-    template<ICmp o> const Def* op(const Def* a, const Def* b, Debug dbg = {}) { return op<o>(infer_width(a), a, b, dbg); }
-    template<ICmp o> const Def* op(const Def* w, const Def* a, const Def* b, Debug dbg = {}) { return app(app(op<o>(), w), {a, b}, dbg); }
+    template<ICmp o> const Def* op(const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return app(app(op<o>(), w), {a, b}, dbg); }
     //@}
     /// @name RCmp
     //@{
     template<RCmp o> const Axiom* op() { return cache_.RCmp_[size_t(o)]; }
-    template<RCmp o> const Def* op(const Def* a, const Def* b, Debug dbg = {}) { return op<o>(infer_width(a), a, b, dbg); }
-    template<RCmp o> const Def* op(const Def* w, const Def* a, const Def* b, Debug dbg = {}) { return app(app(op<o>(), w), {a, b}, dbg); }
-    const Def* op_ROp_minus(const Def* a, Debug dbg = {}) { return op<ROp::sub>(lit_real_minus_0(a->type(), dbg), a, dbg); }
+    template<RCmp o> const Def* op(const Def* a, const Def* b, Debug dbg = {}) { return op<o>(RMode::none, a, b, dbg); }
+    template<RCmp o> const Def* op(nat_t rmode, const Def* a, const Def* b, Debug dbg = {}) { return op<o>(lit_nat(rmode), a, b, dbg); }
+    template<RCmp o> const Def* op(const Def* rmode, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return app(app(op<o>(), {rmode, w}), {a, b}, dbg); }
     //@}
     /// @name Conv
     //@{

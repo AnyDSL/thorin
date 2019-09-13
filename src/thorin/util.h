@@ -61,7 +61,7 @@ private:
 template<tag_t tag>
 Query<Tag2Enum<tag>> isa(const Def* def) {
     auto [axiom, currying_depth] = get_axiom(def);
-    if (axiom->tag() == tag && currying_depth == 0)
+    if (axiom && axiom->tag() == tag && currying_depth == 0)
         return {axiom, def->as<App>()};
     return {};
 }
@@ -69,7 +69,7 @@ Query<Tag2Enum<tag>> isa(const Def* def) {
 template<tag_t tag, Tag2Enum<tag> flags>
 Query<Tag2Enum<tag>> isa(const Def* def) {
     auto [axiom, currying_depth] = get_axiom(def);
-    if (axiom->tag() == tag && axiom->flags() == flags_t(flags) && currying_depth == 0)
+    if (axiom && axiom->tag() == tag && axiom->flags() == flags_t(flags) && currying_depth == 0)
         return {axiom, def->as<App>()};
     return {};
 }

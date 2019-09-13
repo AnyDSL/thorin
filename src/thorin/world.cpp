@@ -92,7 +92,7 @@ World::World(uint32_t cur_gid, const std::string& name)
 #undef CODE
 #define CODE(T, o) \
     {   /* Conv: Π[sw: nat, dw: nat]. Πi/r sw. i/r dw */                                                          \
-        auto type = pi(kind_star())->set_domain(type_nat());                                                      \
+        auto type = pi(kind_star())->set_domain({type_nat(), type_nat()});                                        \
         auto sw = type->param(0, {"sw"});                                                                         \
         auto dw = type->param(1, {"dw"});                                                                         \
         auto type_sw = T::o == T::r2s || T::o == T::r2u || T::o == T::r2r ? type_real(sw) : type_int(sw);         \

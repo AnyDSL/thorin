@@ -178,20 +178,20 @@ public:
     const Def* extract(const Def* agg, const Def* i, Debug dbg = {});
     const Def* extract(const Def* agg, u64 i, Debug dbg = {}) { return extract(agg, lit_index(agg->arity(), i, dbg), dbg); }
     const Def* extract(const Def* agg, u64 a, u64 i, Debug dbg = {}) { return extract(agg, lit_index(a, i, dbg), dbg); }
-    const Def* unsafe_extract(const Def* agg, const Def* i, Debug dbg = {}) { return extract(agg, bitcast(agg->arity(), i, dbg), dbg); }
+    const Def* unsafe_extract(const Def* agg, const Def* i, Debug dbg = {}) { return extract(agg, op_bitcast(agg->arity(), i, dbg), dbg); }
     const Def* unsafe_extract(const Def* agg, u64 i, Debug dbg = {}) { return unsafe_extract(agg, lit_nat(i, dbg), dbg); }
     //@}
     /// @name Insert
     //@{
     const Def* insert(const Def* agg, const Def* i, const Def* value, Debug dbg = {});
     const Def* insert(const Def* agg, u64 i, const Def* value, Debug dbg = {}) { return insert(agg, lit_index(agg->arity(), i, dbg), value, dbg); }
-    const Def* unsafe_insert(const Def* agg, const Def* i, const Def* value, Debug dbg = {}) { return insert(agg, bitcast(agg->arity(), i, dbg), value, dbg); }
+    const Def* unsafe_insert(const Def* agg, const Def* i, const Def* value, Debug dbg = {}) { return insert(agg, op_bitcast(agg->arity(), i, dbg), value, dbg); }
     const Def* unsafe_insert(const Def* agg, u64 i, const Def* value, Debug dbg = {}) { return unsafe_insert(agg, lit_nat(i, dbg), value, dbg); }
     //@}
     /// @name LEA - load effective address
     //@{
     const Def* lea(const Def* ptr, const Def* index, Debug dbg);
-    const Def* unsafe_lea(const Def* ptr, const Def* index, Debug dbg) { return lea(ptr, bitcast(ptr->type()->as<Ptr>()->pointee()->arity(), index, dbg), dbg); }
+    const Def* unsafe_lea(const Def* ptr, const Def* index, Debug dbg) { return lea(ptr, op_bitcast(ptr->type()->as<Ptr>()->pointee()->arity(), index, dbg), dbg); }
     //@}
     /// @name Lit
     //@{
@@ -339,10 +339,10 @@ public:
         return app(app(op(o), {sw, dw}), src, dbg);
     }
     //@}
-    /// @name Other casts.
+    /// @name Bitcast
     //@{
-    //const App* op_bitcast(const Def* to, const Def* from, Debug dbg = {});
-    const Def* bitcast(const Def* to, const Def* from, Debug dbg = {}); ///< deprecated
+    const Axiom* op_bitcast() { return cache_.op_bitcast_; }
+    const Def* op_bitcast(const Def* dst_type, const Def* src, Debug dbg = {}) { return app(app(op_bitcast(), {src->type(), dst_type}), src, dbg); }
     //@}
     /// @name memory-related operations
     //@{
@@ -569,8 +569,6 @@ private:
         const Lit* lit_arity_1_;
         const Lit* lit_index_0_1_;
         Lam* end_scope_;
-        Axiom* type_int_;
-        Axiom* type_real_;
         std::array<Axiom*, Num<IOp>>  IOp_;
         std::array<Axiom*, Num<WOp>>  WOp_;
         std::array<Axiom*, Num<ZOp>>  ZOp_;
@@ -578,6 +576,9 @@ private:
         std::array<Axiom*, Num<ICmp>> ICmp_;
         std::array<Axiom*, Num<RCmp>> RCmp_;
         std::array<Axiom*, Num<Conv>> Conv_;
+        Axiom* type_int_;
+        Axiom* type_real_;
+        Axiom* op_bitcast_;
         Axiom* op_select_;
         Axiom* op_sizeof_;
     } cache_;

@@ -709,6 +709,8 @@ llvm::Value* CodeGen::emit(const Def* def) {
             case Conv::r2u: return irbuilder_.CreateFPToUI(src, type, name);
             default: THORIN_UNREACHABLE;
         }
+    } else if (auto bitcast = isa<Tag::Bitcast>(def)) {
+        return emit_bitcast(bitcast->arg(), bitcast->type());
     } else if (auto select = isa<Tag::Select>(def)) {
         if (def->type()->isa<Pi>()) return nullptr;
 
@@ -785,9 +787,6 @@ llvm::Value* CodeGen::emit(const Def* def) {
         assert(false && "unsupported cast");
     }
 #endif
-
-    if (auto bitcast = def->isa<Bitcast>())
-        return emit_bitcast(bitcast->from(), bitcast->type());
 
     if (auto tuple = def->isa<Tuple>()) {
         llvm::Value* llvm_agg = llvm::UndefValue::get(convert(tuple->type()));

@@ -1,6 +1,7 @@
 #include "thorin/def.h"
 #include "thorin/util.h"
 #include "thorin/world.h"
+#include "thorin/util/log.h"
 
 namespace thorin {
 
@@ -8,10 +9,17 @@ namespace thorin {
  * helpers
  */
 
+static const Def* width(const Def* type) {
+    if (false) {}
+    else if (auto int_ = isa<Tag::Int >(type)) return int_->arg();
+    else if (auto real = isa<Tag::Real>(type)) return real->arg();
+    return nullptr;
+}
+
 static bool is_allset(const Def* def) {
     if (auto lit = isa_lit<u64>(def)) {
-        if (auto width = isa_lit<u64>(as<Tag::Int>(def->type())->arg()))
-            return def == def->world().lit_int_max(*width);
+        if (auto w = width(def->type()); w && w->isa<Lit>())
+            return def == def->world().lit_int_max(as_lit<nat_t>(w));
     }
     return false;
 }
@@ -24,7 +32,7 @@ static const Def* is_not(const Def* def) {
     return nullptr;
 }
 
-template<class T> inline static T get(u64 u) { return bitcast<T>(u); }
+template<class T> static T get(u64 u) { return bitcast<T>(u); }
 
 /*
  * Fold
@@ -334,6 +342,26 @@ const Def* normalize_Conv(const Def* dst_type, const Def* callee, const Def* src
     return nullptr;
 }
 
+const Def* normalize_bitcast(const Def* dst_type, const Def* callee, const Def* src, const Def* dbg) {
+    auto& world = callee->world();
+
+    if (src->isa<Bot>())                     return world.bot(dst_type);
+    if (src->type() == dst_type)             return src;
+    if (auto other = isa<Tag::Bitcast>(src)) return world.op_bitcast(dst_type, other->arg(), dbg);
+
+    if (auto lit = src->isa<Lit>()) {
+        if (is_arity(dst_type))       return world.lit_index(dst_type, lit->get<u64>());
+        if (auto w = width(dst_type)) return world.lit(dst_type, (u64(-1) >> (64_u64 - as_lit<u64>(w))) & lit->get());
+    }
+
+    if (auto variant = src->isa<Variant>()) {
+        if (variant->op(0)->type() != dst_type) ELOG("variant downcast not possible");
+        return variant->op(0);
+    }
+
+    return nullptr;
+}
+
 const Def* normalize_select(const Def* type, const Def* callee, const Def* arg, const Def* dbg) {
     auto& world = callee->world();
     auto [cond, a, b] = split<3>(arg);
@@ -349,12 +377,9 @@ const Def* normalize_select(const Def* type, const Def* callee, const Def* arg, 
 const Def* normalize_sizeof(const Def*, const Def* callee, const Def* type, const Def* dbg) {
     auto& world = callee->world();
 
-    const Def* arg = nullptr;
-    if (false) {}
-    else if (auto int_ = isa<Tag::Int >(type)) arg = int_->arg();
-    else if (auto real = isa<Tag::Real>(type)) arg = real->arg();
-
-    if (auto width = isa_lit<nat_t>(arg)) return world.lit_nat(*width / 8, dbg);
+    if (auto w = width(type)) {
+        if (auto width = isa_lit<nat_t>(w)) return world.lit_nat(*width / 8, dbg);
+    }
     return nullptr;
 }
 

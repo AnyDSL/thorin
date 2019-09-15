@@ -102,7 +102,13 @@ World::World(uint32_t cur_gid, const std::string& name)
     }
     THORIN_CONV(CODE)
 #undef Code
-    { // select: ΠT:*. Π[bool, T, T]. T
+    {   // bitcast: Π[S: *, D: *]. ΠS. D
+        auto type = pi(kind_star())->set_domain({kind_star(), kind_star()});
+        auto S = type->param(0, {"S"});
+        auto D = type->param(1, {"D"});
+        type->set_codomain(pi(S, D));
+        cache_.op_bitcast_ = axiom(normalize_bitcast, type, Tag::Bitcast, 0, {"bitcast"});
+    } { // select: ΠT:*. Π[bool, T, T]. T
         auto type = pi(kind_star())->set_domain(kind_star());
         auto T = type->param({"T"});
         cache_.op_select_ = axiom(normalize_select, type->set_codomain(pi({type_bool(), T, T}, T)), Tag::Select, 0, {"select"});
@@ -804,36 +810,6 @@ const Def* World::cast(const Def* to, const Def* from, Debug dbg) {
     return unify<Cast>(1, to, from, debug(dbg));
 }
 #endif
-
-const Def* World::bitcast(const Def* to, const Def* from, Debug dbg) {
-    if (from->isa<Bot>()) return bot(to);
-    if (from->type() == to) return from;
-    if (auto lit = isa_lit<nat_t>(from); lit && is_arity(to)) return lit_index(to, *lit);
-
-    if (auto other = from->isa<Bitcast>()) {
-        // reduce bitcast chains
-        do {
-            auto value = other->from();
-            if (to == value->type())
-                return value;
-            other = value->isa<Bitcast>();
-        } while (other);
-    }
-
-#if 0
-    auto prim_to = to->isa<PrimType>();
-    auto prim_from = from->type()->isa<PrimType>();
-    if (prim_to && prim_from) {
-        if (num_bits(prim_from->primtype_tag()) != num_bits(prim_to->primtype_tag()))
-            ELOG("bitcast between primitive types of different size");
-        // constant folding
-        if (auto lit = from->isa<Lit>())
-            return this->lit(prim_to->primtype_tag(), lit->get(), dbg);
-    }
-#endif
-
-    return unify<Bitcast>(1, to, from, debug(dbg));
-}
 
 const Def* World::bot_top(bool is_top, const Def* type, Debug dbg) {
     if (auto variadic = type->isa<Variadic>()) return pack(variadic->arity(), bot_top(is_top, variadic->body()), dbg);

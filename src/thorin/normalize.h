@@ -3,9 +3,9 @@
 
 namespace thorin {
 
-const Def* normalize_r2r   (const Def*, const Def*, const Def*, const Def*);
-const Def* normalize_select(const Def*, const Def*, const Def*, const Def*);
-const Def* normalize_sizeof(const Def*, const Def*, const Def*, const Def*);
+const Def* normalize_bitcast(const Def*, const Def*, const Def*, const Def*);
+const Def* normalize_select (const Def*, const Def*, const Def*, const Def*);
+const Def* normalize_sizeof (const Def*, const Def*, const Def*, const Def*);
 
 template<WOp > const Def* normalize_WOp (const Def*, const Def*, const Def*, const Def*);
 template<ZOp > const Def* normalize_ZOp (const Def*, const Def*, const Def*, const Def*);

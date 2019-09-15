@@ -54,6 +54,41 @@ World::World(uint32_t cur_gid, const std::string& name)
         cache_.lit_bool_[0] = lit(type_bool(), false);
         cache_.lit_bool_[1] = lit(type_bool(),  true);
     }
+
+    // lea:,  Π[s: *M, Ts: «s; *», as: nat]. Π[ptr(«j: s; Ts#j», as), i: s]. ptr(Ts#i, as)
+    // load:  Π[T: *, as: nat]. Π[M as, ptr(T, as)]. [M as, T]
+    // store: Π[T: *, as: nat]. Π[M as, ptr(T, as), T]. M as
+    // enter: Πas: nat. ΠM as. [M as, F as]
+    // slot:  Π[T: *, as: nat]. Π[F as, nat]. ptr(T, as)
+
+    { // analyze: Π[s: *M, Ts: «s; *», T: *]. Π[nat, «i: s; Ts#i»], T
+        auto domain = sigma(kind_star(), 3)->set(0, kind_multi());
+        auto s = domain->param(0, {"s"});
+        domain->set(1, variadic(s, kind_star()))->set(2, kind_star());
+        auto type = pi(kind_star())->set_domain(domain);
+        auto v = variadic(kind_star())->set_arity(type->param(0, {"s"}));
+        auto i = v->param({"i"});
+        v->set_body(extract(type->param(1, {"Ts"}), i));
+        type->set_codomain(pi(v, type->param(2, {"2"})));
+        type->dump();
+        cache_.op_analyze_ = axiom(nullptr, type, Tag::Analyze, 0, {"analyze"});
+
+        analyze(type_nat(), 1, {lit_int(23), lit_real(42.f)});
+        //auto type = pi(kind_star())->set_domain(s)-
+        //auto type = pi(kind_star())->set_domain(kind_multi(), variadic(
+    } { // bitcast: Π[S: *, D: *]. ΠS. D
+        auto type = pi(kind_star())->set_domain({kind_star(), kind_star()});
+        auto S = type->param(0, {"S"});
+        auto D = type->param(1, {"D"});
+        type->set_codomain(pi(S, D));
+        cache_.op_bitcast_ = axiom(normalize_bitcast, type, Tag::Bitcast, 0, {"bitcast"});
+    } { // select: ΠT:*. Π[bool, T, T]. T
+        auto type = pi(kind_star())->set_domain(kind_star());
+        auto T = type->param({"T"});
+        cache_.op_select_ = axiom(normalize_select, type->set_codomain(pi({type_bool(), T, T}, T)), Tag::Select, 0, {"select"});
+    } { // sizeof: ΠT:*. nat
+        cache_.op_sizeof_ = axiom(normalize_sizeof, pi(kind_star(), type_nat()), Tag::Sizeof, 0, {"sizeof"});
+    }
 #define CODE(T, o) cache_.T ## _[size_t(T::o)] = axiom(normalize_ ## T<T::o>, type, Tag::T, flags_t(T::o), {op2str(T::o)});
     {   // IOp: Πw: nat. Π[int w, int w]. int w
         auto type = pi(kind_star())->set_domain(type_nat());
@@ -102,19 +137,6 @@ World::World(uint32_t cur_gid, const std::string& name)
     }
     THORIN_CONV(CODE)
 #undef Code
-    {   // bitcast: Π[S: *, D: *]. ΠS. D
-        auto type = pi(kind_star())->set_domain({kind_star(), kind_star()});
-        auto S = type->param(0, {"S"});
-        auto D = type->param(1, {"D"});
-        type->set_codomain(pi(S, D));
-        cache_.op_bitcast_ = axiom(normalize_bitcast, type, Tag::Bitcast, 0, {"bitcast"});
-    } { // select: ΠT:*. Π[bool, T, T]. T
-        auto type = pi(kind_star())->set_domain(kind_star());
-        auto T = type->param({"T"});
-        cache_.op_select_ = axiom(normalize_select, type->set_codomain(pi({type_bool(), T, T}, T)), Tag::Select, 0, {"select"});
-    } { // sizeof: ΠT:*. nat
-        cache_.op_sizeof_ = axiom(normalize_sizeof, pi(kind_star(), type_nat()), Tag::Sizeof, 0, {"sizeof"});
-    }
 }
 
 World::~World() {
@@ -128,11 +150,16 @@ Axiom* World::axiom(Def::NormalizeFn normalize, const Def* type, tag_t tag, flag
     return a;
 }
 
+bool assignable(const Def* dst, const Def* src) {
+    if (dst == src) return true;
+    return false;
+}
+
 const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
     auto pi = callee->type()->as<Pi>();
     auto type = pi->apply(arg);
 
-    assertf(pi->domain() == arg->type(), "callee '{}' expects an argument of type '{}' but the argument '{}' is of type '{}'\n", callee, type, arg, arg->type());
+    //assertf(pi->domain() == arg->type(), "callee '{}' expects an argument of type '{}' but the argument '{}' is of type '{}'\n", callee, type, arg, arg->type());
 
     if (auto lam = callee->isa<Lam>()) {
         if (lam->intrinsic() == Lam::Intrinsic::Match) {

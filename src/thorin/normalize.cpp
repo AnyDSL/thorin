@@ -25,7 +25,7 @@ static bool is_allset(const Def* def) {
 }
 
 static const Def* is_not(const Def* def) {
-    if (auto ixor = isa<Tag::IOp, IOp::ixor>(def)) {
+    if (auto ixor = isa<Tag::IOp>(IOp::ixor, def)) {
         auto [x, y] = ixor->split<2>();
         if (is_allset(x)) return y;
     }

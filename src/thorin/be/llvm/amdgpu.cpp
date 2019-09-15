@@ -48,6 +48,6 @@ llvm::Value* AMDGPUCodeGen::emit_global(const Global* global) {
     return CodeGen::emit_global(global);
 }
 
-Lam* AMDGPUCodeGen::emit_reserve(const Lam* lam) { return emit_reserve_shared(lam, true); }
+Lam* AMDGPUCodeGen::emit_reserve(Lam* lam) { return emit_reserve_shared(lam, true); }
 
 }

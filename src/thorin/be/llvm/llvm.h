@@ -54,7 +54,7 @@ protected:
 
     virtual std::string get_alloc_name() const = 0;
     llvm::GlobalVariable* emit_global_variable(llvm::Type*, const std::string&, unsigned, bool=false);
-    Lam* emit_reserve_shared(const Lam*, bool=false);
+    Lam* emit_reserve_shared(Lam*, bool=false);
 
 private:
     Lam* emit_peinfo(Lam*);
@@ -67,7 +67,7 @@ private:
     Lam* emit_atomic(Lam*);
     Lam* emit_cmpxchg(Lam*);
     llvm::Value* emit_bitcast(const Def*, const Def*);
-    virtual Lam* emit_reserve(const Lam*);
+    virtual Lam* emit_reserve(Lam*);
     void emit_result_phi(const Def*, llvm::Value*);
     void emit_vectorize(u32, llvm::Function*, llvm::CallInst*);
 

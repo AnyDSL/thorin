@@ -66,16 +66,16 @@ Query<Tag2Enum<tag>> isa(const Def* def) {
     return {};
 }
 
-template<tag_t tag, Tag2Enum<tag> flags>
-Query<Tag2Enum<tag>> isa(const Def* def) {
+template<tag_t tag>
+Query<Tag2Enum<tag>> isa(Tag2Enum<tag> flags, const Def* def) {
     auto [axiom, currying_depth] = get_axiom(def);
     if (axiom && axiom->tag() == tag && axiom->flags() == flags_t(flags) && currying_depth == 0)
         return {axiom, def->as<App>()};
     return {};
 }
 
-template<tag_t t>                Query<Tag2Enum<t>> as(const Def* d) { assert( isa<t   >(d) ); return {std::get<0>(get_axiom(d)), d->as<App>()}; }
-template<tag_t t, Tag2Enum<t> f> Query<Tag2Enum<t>> as(const Def* d) { assert((isa<t, f>(d))); return {std::get<0>(get_axiom(d)), d->as<App>()}; }
+template<tag_t t> Query<Tag2Enum<t>> as(               const Def* d) { assert( isa<t>(   d) ); return {std::get<0>(get_axiom(d)), d->as<App>()}; }
+template<tag_t t> Query<Tag2Enum<t>> as(Tag2Enum<t> f, const Def* d) { assert((isa<t>(f, d))); return {std::get<0>(get_axiom(d)), d->as<App>()}; }
 
 void app_to_dropped_app(Lam* src, Lam* dst, const App* app);
 

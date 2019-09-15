@@ -25,11 +25,16 @@ const Def* Rewriter::rewrite(const Def* old_def) {
     if (auto old_nom = old_def->isa_nominal()) {
         auto new_nom = old_nom->stub(new_world, new_type, new_debug);
         map(old_nom, new_nom);
-        if (old_nom->is_set()) new_nom->set(new_ops(old_nom));
+
+        for (size_t i = 0, e = old_nom->num_ops(); i != e; ++i) {
+            if (auto old_op = old_nom->op(i))
+                new_nom->set(i, rewrite(old_op));
+        }
+
         return new_nom;
     }
 
-    return map(old_def, old_def->rebuild(new_world, new_type, new_ops(old_def), new_debug));
+    return map(old_def, old_def->rebuild(new_world, new_type, Array<const Def*>(old_def->num_ops(), [&](auto i) { return rewrite(old_def->op(i)); }), new_debug)); ;
 }
 
 const Def* rewrite(const Def* def, const Def* old_def, const Def* new_def) {

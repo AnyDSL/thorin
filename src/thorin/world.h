@@ -154,6 +154,7 @@ public:
         return variadic(Array<const Def*>(a.size(), [&](size_t i) { return lit_arity(a[i], dbg); }), body, dbg);
     }
     const Def* unsafe_variadic(const Def* body, Debug dbg = {}) { return variadic(top_arity(), body, dbg); }
+    Variadic* variadic(const Def* type, Debug dbg = {}) { return insert<Variadic>(2, type, debug(dbg)); } ///< @em nominal Variadic.
     //@}
     /// @name Tuple
     //@{
@@ -172,6 +173,7 @@ public:
     const Def* pack(ArrayRef<u64> a, const Def* body, Debug dbg = {}) {
         return pack(Array<const Def*>(a.size(), [&](auto i) { return lit_arity(a[i], dbg); }), body, dbg);
     }
+    Pack* pack(const Def* type, Debug dbg = {}) { return insert<Pack>(1, type, debug(dbg)); } ///< @em nominal Pack.
     //@}
     /// @name Extract
     //@{
@@ -366,9 +368,11 @@ public:
     //@}
     /// @name Analyze - used internally for Pass%es
     //@{
-    const Analyze* analyze(const Def* type, Defs ops, Debug dbg = {}) { return unify<Analyze>(ops.size(), type, ops, debug(dbg)); }
-    const Analyze* analyze(const Def* type, u64 index, const Def* op, Debug dbg = {}) { return analyze(type, {lit_nat(index), op}, dbg); }
-    const Analyze* analyze(const Def* type, u64 index, Defs ops, Debug dbg = {}) { return analyze(type, concat((const Def*) lit_nat(index), ops), dbg); }
+    const App* analyze(const Def* type, nat_t index, Defs ops, Debug dbg = {}) { return analyze(type, lit_nat(index), ops, dbg); }
+    const App* analyze(const Def* type, const Def* index, Defs ops, Debug dbg = {}) {
+        Array<const Def*> types(ops.size(), [&](size_t i) { return ops[i]->type(); });
+        return app(app(cache_.op_analyze_, {lit_arity(ops.size()), tuple(types), type}), {index, tuple(ops)}, dbg)->as<App>();
+    }
     //@}
     /// @name misc operations
     //@{
@@ -578,6 +582,7 @@ private:
         std::array<Axiom*, Num<Conv>> Conv_;
         Axiom* type_int_;
         Axiom* type_real_;
+        Axiom* op_analyze_;
         Axiom* op_bitcast_;
         Axiom* op_select_;
         Axiom* op_sizeof_;

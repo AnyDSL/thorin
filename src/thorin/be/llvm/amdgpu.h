@@ -15,7 +15,7 @@ protected:
     virtual void emit_function_decl_hook(Lam*, llvm::Function*) override;
     virtual unsigned convert_addr_space(u64) override;
     virtual llvm::Value* emit_global(const Global*) override;
-    virtual Lam* emit_reserve(const Lam*) override;
+    virtual Lam* emit_reserve(Lam*) override;
     virtual std::string get_alloc_name() const override { return "malloc"; }
 
     const Cont2Config& kernel_config_;

@@ -135,12 +135,12 @@ Lam* CodeGen::emit_cmpxchg(Lam* lam) {
     return l;
 }
 
-Lam* CodeGen::emit_reserve(const Lam* lam) {
+Lam* CodeGen::emit_reserve(Lam* lam) {
     EDEF(lam->app()->debug(), "reserve_shared: only allowed in device code");
     THORIN_UNREACHABLE;
 }
 
-Lam* CodeGen::emit_reserve_shared(const Lam* lam, bool init_undef) {
+Lam* CodeGen::emit_reserve_shared(Lam* lam, bool init_undef) {
     assert(lam->app()->num_args() == 3 && "required arguments are missing");
     if (!lam->app()->arg(1)->isa<Lit>())
         EDEF(lam->app()->arg(1), "reserve_shared: couldn't extract memory size");
@@ -1214,7 +1214,7 @@ static void get_kernel_configs(Rewriter& rewriter,
     }
 }
 
-static const Lam* get_alloc_call(const Def* def) {
+static Lam* get_alloc_call(const Def* def) {
     // look through casts
     while (auto conv_op = def->isa<ConvOp>())
         def = conv_op->op(0);

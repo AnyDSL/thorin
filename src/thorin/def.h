@@ -218,6 +218,13 @@ public:
             return const_cast<Def*>(this)->template as<T>();
     }
     //@}
+    /// @name retrieve @p Param for @em nominals.
+    //@{
+    const Param* param(Debug dbg = {});
+    const Def* param(size_t i, Debug dbg = {}) { return detail::world_extract(world(), (const Def*) param(), i, dbg); }
+    Array<const Def*> params() { return Array<const Def*>(num_params(), [&](auto i) { return param(i); }); }
+    size_t num_params();
+    //@}
     /// @name misc getters
     //@{
     fields_t fields() const { return fields_; }
@@ -478,21 +485,14 @@ public:
     bool is_basicblock() const { return order() == 1; }
     bool is_returning() const;
     //@}
-    /// @name setters for @em nominal @p Pi%s
+    /// @name setters for @em nominal @p Pi.
     //@{
     Pi* set_domain(const Def* domain) { return Def::set(0, domain)->as<Pi>(); }
     Pi* set_domain(Defs domains);
     Pi* set_codomain(const Def* codomain) { return Def::set(1, codomain)->as<Pi>(); }
     //@}
-    /// @name retrieve @p Param for @em nominal @p Pi%s.
-    //@{
-    const Param* param(Debug dbg = {}) const;
-    const Def* param(size_t i, Debug dbg = {}) const { return detail::world_extract(world(), param(), i, dbg); }
-    Array<const Def*> params() const { return Array<const Def*>(num_params(), [&](auto i) { return param(i); }); }
-    size_t num_params() const { return domain()->lit_arity(); }
     /// Reduces the @p codomain by rewriting this @p Pi's @p Param with @p arg in order to retrieve the codomain of a dependent function @p App.
     const Def* apply(const Def* arg) const;
-    //@}
 
     std::ostream& stream(std::ostream&) const override;
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
@@ -594,12 +594,8 @@ public:
     //@}
     /// @name params
     //@{
-    const Param* param(Debug dbg = {}) const;
-    const Def* param(size_t i, Debug dbg = {}) const { return detail::world_extract(world(), param(), i, dbg); }
-    Array<const Def*> params() const { return Array<const Def*>(num_params(), [&](auto i) { return param(i); }); }
-    size_t num_params() const { return type()->num_params(); }
-    const Def* mem_param() const;
-    const Def* ret_param() const;
+    const Def* mem_param();
+    const Def* ret_param();
     //@}
     /// @name setters
     //@{
@@ -679,17 +675,22 @@ private:
 
 class Sigma : public Def {
 private:
-    /// Constructor for a @em structural Pi.
+    /// Constructor for a @em structural Sigma.
     Sigma(const Def* type, Defs ops, const Def* dbg)
         : Def(Node, rebuild, type, ops, 0, dbg)
     {}
-    /// Constructor for a @em nominal Pi.
+    /// Constructor for a @em nominal Sigma.
     Sigma(const Def* type, size_t size, const Def* dbg)
         : Def(Node, stub, type, size, 0, dbg)
     {}
 
 public:
     const Def* arity() const override;
+    /// @name setters
+    //@{
+    Sigma* set(size_t i, const Def* def) { return Def::set(i, def)->as<Sigma>(); }
+    Sigma* set(Defs ops) { return Def::set(ops)->as<Sigma>(); }
+    //@}
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     static Def* stub(const Def*, World&, const Def*, const Def*);
     std::ostream& stream(std::ostream&) const override;
@@ -715,14 +716,28 @@ public:
 
 class Variadic : public Def {
 private:
+    /// Constructor for a @em structural Variadic.
     Variadic(const Def* type, const Def* arity, const Def* body, const Def* dbg)
         : Def(Node, rebuild, type, {arity, body}, 0, dbg)
+    {}
+    /// Constructor for a @em nominal Variaidc.
+    Variadic(const Def* type, const Def* dbg)
+        : Def(Node, stub, type, 2, 0, dbg)
     {}
 
 public:
     const Def* arity() const override { return op(0); }
     const Def* body() const { return op(1); }
+
+    /// @name setters for @em nominal @p Variadic.
+    //@{
+    Variadic* set_arity(const Def* arity) { return Def::set(0, arity)->as<Variadic>(); }
+    Variadic* set_arity(Defs arities);
+    Variadic* set_body(const Def* body) { return Def::set(1, body)->as<Variadic>(); }
+    //@}
+
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    static Def* stub(const Def*, World&, const Def*, const Def*);
     std::ostream& stream(std::ostream&) const override;
 
     static constexpr auto Node = Node::Variadic;
@@ -731,15 +746,27 @@ public:
 
 class Pack : public Def {
 private:
+    /// Constructor for a @em structural Variadic.
     Pack(const Def* type, const Def* body, const Def* dbg)
         : Def(Node, rebuild, type, {body}, 0, dbg)
+    {}
+    /// Constructor for a @em nominal Variaidc.
+    Pack(const Def* type, const Def* dbg)
+        : Def(Node, stub, type, 1, 0, dbg)
     {}
 
 public:
     const Def* body() const { return op(0); }
+
+    /// @name setters for @em nominal @p Pack.
+    //@{
+    Pack* set_body(const Def* body) { return Def::set(0, body)->as<Pack>(); }
+    //@}
+
     std::ostream& stream(std::ostream&) const override;
 
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    static Def* stub(const Def*, World&, const Def*, const Def*);
 
     static constexpr auto Node = Node::Pack;
     friend class World;
@@ -870,21 +897,6 @@ public:
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
     static constexpr auto Node = Node::Ptr;
-    friend class World;
-};
-
-class Analyze : public Def {
-private:
-    Analyze(const Def* type, Defs ops, const Def* dbg)
-        : Def(Node, rebuild, type, ops, 0, dbg)
-    {}
-
-public:
-    nat_t index() const { return as_lit<nat_t>(op(0)); }
-    std::ostream& stream(std::ostream&) const override;
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-
-    static constexpr auto Node = Node::Analyze;
     friend class World;
 };
 

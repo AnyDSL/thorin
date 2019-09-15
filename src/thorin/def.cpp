@@ -156,7 +156,7 @@ void Def::dump() const {
  * Lam
  */
 
-const Def* Lam::mem_param() const {
+const Def* Lam::mem_param() {
     for (size_t i = 0, e = num_params(); i != e; ++i) {
         auto p = param(i);
         if (p->type()->isa<Mem>())
@@ -165,7 +165,7 @@ const Def* Lam::mem_param() const {
     return nullptr;
 }
 
-const Def* Lam::ret_param() const {
+const Def* Lam::ret_param() {
     const Def* result = nullptr;
     for (size_t i = 0, e = num_params(); i != e; ++i) {
         auto p = param(i);
@@ -331,7 +331,10 @@ bool Pi::is_returning() const {
     return ret;
 }
 
-const Def* Pi::apply(const Def* arg) const { return isa_nominal() ? rewrite(codomain(), param(), arg) : codomain(); }
+const Def* Pi::apply(const Def* arg) const {
+    if (auto pi = isa_nominal<Pi>()) return rewrite(pi->codomain(), pi->param(), arg);
+    return codomain();
+}
 
 //------------------------------------------------------------------------------
 
@@ -403,12 +406,23 @@ Mem::Mem(World& world)
     : Def(Node, rebuild, world.kind_star(), Defs{}, 0, nullptr)
 {}
 
-/*
- * param
- */
+size_t Def::num_params() {
+    if (auto lam =      isa<Lam     >()) return lam->domain()->lit_arity();
+    if (auto pi  =      isa<Pi      >()) return pi ->domain()->lit_arity();
+    if (auto sigma =    isa<Sigma   >()) return sigma->num_ops();
+    if (auto variadic = isa<Variadic>()) return variadic->arity()->lit_arity();
+    if (auto pack =     isa<Pack    >()) return pack->arity()->lit_arity();
+    THORIN_UNREACHABLE;
+}
 
-const Param* Lam::param(Debug dbg) const { return world().param(domain(), as_nominal<Lam>(), dbg); }
-const Param* Pi ::param(Debug dbg) const { return world().param(domain(), as_nominal<Pi >(), dbg); }
+const Param* Def::param(Debug dbg) {
+    if (auto lam =      isa<Lam     >()) return world().param(lam->domain(),     lam,      dbg);
+    if (auto pack =     isa<Pack    >()) return world().param(pack    ->arity(), pack,     dbg);
+    if (auto pi  =      isa<Pi      >()) return world().param( pi->domain(),     pi,       dbg);
+    if (auto sigma =    isa<Sigma   >()) return world().param(sigma,             sigma,    dbg);
+    if (auto variadic = isa<Variadic>()) return world().param(variadic->arity(), variadic, dbg);
+    THORIN_UNREACHABLE;
+}
 
 /*
  * arity
@@ -438,7 +452,6 @@ bool Def::equal(const Def* other) const {
 
 const Def* Lam        ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* dbg) { assert(!d->isa_nominal()); return w.lam(t->as<Pi>(), o[0], o[1], dbg); }
 const Def* Sigma      ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* dbg) { assert(!d->isa_nominal()); return w.sigma(t, o, dbg); }
-const Def* Analyze    ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.analyze(t, o, dbg); }
 const Def* App        ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.app(o[0], o[1], dbg); }
 const Def* Bot        ::rebuild(const Def*  , World& w, const Def* t, Defs  , const Def* dbg) { return w.bot(t, dbg); }
 const Def* Top        ::rebuild(const Def*  , World& w, const Def* t, Defs  , const Def* dbg) { return w.top(t, dbg); }
@@ -462,11 +475,13 @@ const Def* VariantType::rebuild(const Def*  , World& w, const Def*  , Defs o, co
  * stub
  */
 
+Def* Universe::stub(const Def*  , World& to, const Def*  , const Def*    ) { return const_cast<Universe*>(to.universe()); }
 Def* Axiom   ::stub(const Def* d, World& to, const Def*  , const Def*    ) { assert(d->isa_nominal()); auto axiom = to.lookup(d->name()); assert(axiom); return axiom; }
 Def* Lam     ::stub(const Def* d, World& to, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return to.lam(t->as<Pi>(), d->as<Lam>()->cc(), d->as<Lam>()->intrinsic(), dbg); }
+Def* Pack    ::stub(const Def* d, World& to, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return to.pack(t, Debug{dbg}); }
 Def* Pi      ::stub(const Def* d, World& to, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return to.pi(t, Debug{dbg}); }
 Def* Sigma   ::stub(const Def* d, World& to, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return to.sigma(t, d->num_ops(), dbg); }
-Def* Universe::stub(const Def*  , World& to, const Def*  , const Def*    ) { return const_cast<Universe*>(to.universe()); }
+Def* Variadic::stub(const Def* d, World& to, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return to.variadic(t, Debug{dbg}); }
 
 /*
  * stream
@@ -486,11 +501,6 @@ std::ostream& VariantType::stream(std::ostream& os) const { return stream_type_o
 std::ostream& KindArity  ::stream(std::ostream& os) const { return os << "*A"; }
 std::ostream& KindMulti  ::stream(std::ostream& os) const { return os << "*M"; }
 std::ostream& KindStar   ::stream(std::ostream& os) const { return os << "*"; }
-
-std::ostream& Analyze::stream(std::ostream& os) const {
-    stream_list(os << "analyze(", ops().skip_front(), [&](auto def) { os << def; });
-    return streamf(os, "; {})", index());
-}
 
 std::ostream& Lit::stream(std::ostream& os) const {
     //if (name()) return os << name();
@@ -605,13 +615,13 @@ std::ostream& Pack::stream(std::ostream& os) const {
 
 std::ostream& Pi::stream(std::ostream& os) const {
     if (is_cn()) {
-        if (isa_nominal())
-            return streamf(os, "cn {}:{}", param(), domain());
+        if (auto pi = isa_nominal<Pi>())
+            return streamf(os, "cn {}:{}", pi->param(), pi->domain());
         else
             return streamf(os, "cn {}", domain());
     } else {
-        if (isa_nominal())
-            return streamf(os, "Π{}:{} -> {}", param(), domain(), codomain());
+        if (auto pi = isa_nominal<Pi>())
+            return streamf(os, "Π{}:{} -> {}", pi->param(), pi->domain(), pi->codomain());
         else
             return streamf(os, "Π{} -> {}", domain(), codomain());
     }
@@ -634,10 +644,11 @@ std::ostream& Def::stream_assignment(std::ostream& os) const {
     return streamf(os, "{}: {} = {} {}", unique_name(), type(), op_name(), stream_list(ops(), [&] (const Def* def) { os << def; })) << endl;
 }
 std::ostream& Lam::stream_head(std::ostream& os) const {
+    auto lam = as_nominal<Lam>();
     if (type()->is_cn())
-        streamf(os, "cn {} {}: {} @({})", unique_name(), param(), param()->type(), filter());
+        streamf(os, "cn {} {}: {} @({})", lam->unique_name(), lam->param(), lam->param()->type(), lam->filter());
     else
-        streamf(os, "fn {} {}: {} -> {} @({})", unique_name(), param(), param()->type(), codomain(), filter());
+        streamf(os, "fn {} {}: {} -> {} @({})", lam->unique_name(), lam->param(), lam->param()->type(), lam->codomain(), lam->filter());
     if (is_external()) os << " extern";
     if (cc() == CC::Device) os << " device";
     return os;

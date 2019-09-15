@@ -8,11 +8,10 @@ namespace thorin {
  * helpers
  */
 
-// TODO use World::lit_int_allset
 static bool is_allset(const Def* def) {
     if (auto lit = isa_lit<u64>(def)) {
         if (auto width = isa_lit<u64>(as<Tag::Int>(def->type())->arg()))
-            return (*lit >> (64_u64 - *width) == u64(-1) >> (64_u64 - *width));
+            return def == def->world().lit_int_max(*width);
     }
     return false;
 }

@@ -299,7 +299,7 @@ const Def* normalize_Conv(const Def* dst_type, const Def* callee, const Def* src
     if (sw == dw && dst_type == src->type()) return src;
 
     if constexpr (op == Conv::s2s) {
-        if (sw && dw && *sw < *dw) return world.op<Conv::u2u>(dst_type, src, dbg);
+        if (sw && dw && *sw < *dw) return world.op(Conv::u2u, dst_type, src, dbg);
     }
 
     return nullptr;

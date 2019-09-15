@@ -230,10 +230,40 @@ static const Def* fold_Conv(const Def* dst_type, const Def* callee, const Def* s
  * normalize
  */
 
+template<tag_t tag, class F>
+static const Def* merge_cmps(World& world, const Def* a, const Def* b) {
+    auto a_cmp = isa<tag>(a), b_cmp = isa<tag>(b);
+    if (a_cmp && b_cmp && a_cmp->arg() == b_cmp->arg()) {
+        auto [x, y] = a_cmp->template split<2>();
+        return world.op(Tag2Enum<tag>(F()(flags_t(a_cmp.flags()), flags_t(b_cmp.flags()))), x, y);
+    }
+    return nullptr;
+}
+
+template<class F>
+static const Def* merge_cmps(World& world, const Def* a, const Def* b) {
+    if (auto res = merge_cmps<Tag::ICmp, F>(world, a, b)) return res;
+    if (auto res = merge_cmps<Tag::RCmp, F>(world, a, b)) return res;
+    return nullptr;
+}
+
 template<IOp op>
 const Def* normalize_IOp(const Def* type, const Def* callee, const Def* arg, const Def* dbg) {
+    auto& world = callee->world();
     auto [a, b] = split<2>(arg);
     if (auto result = fold<1, IOp, op>(type, callee, nullptr, a, b, dbg)) return result;
+
+    if (op == IOp::ixor) {
+        if (is_allset(a)) { // bitwise not
+            if (auto icmp = isa<Tag::ICmp>(b)) { auto [x, y] = icmp->split<2>(); return world.op(ICmp(~flags_t(icmp.flags()) & 0b11111), y, x); }
+            if (auto rcmp = isa<Tag::RCmp>(b)) { auto [x, y] = rcmp->split<2>(); return world.op(RCmp(~flags_t(rcmp.flags()) & 0b01111), y, x); }
+        }
+        if (auto res = merge_cmps<std::bit_xor<flags_t>>(world, a, b)) return res;
+    } else if (op == IOp::iand) {
+        if (auto res = merge_cmps<std::bit_and<flags_t>>(world, a, b)) return res;
+    } else if (op == IOp::ior) {
+        if (auto res = merge_cmps<std::bit_or <flags_t>>(world, a, b)) return res;
+    }
 
     return nullptr;
 }

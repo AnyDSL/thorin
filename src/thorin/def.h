@@ -802,6 +802,23 @@ public:
     friend class World;
 };
 
+/// Data constructor for a @p VariantType.
+class Variant : public Def {
+private:
+    Variant(const VariantType* variant_type, const Def* value, const Def* dbg)
+        : Def(Node, rebuild, variant_type, {value}, 0, dbg)
+    {
+        assert(std::find(variant_type->ops().begin(), variant_type->ops().end(), value->type()) != variant_type->ops().end());
+    }
+
+public:
+    const VariantType* type() const { return Def::type()->as<VariantType>(); }
+    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
+
+    static constexpr auto Node = Node::Variant;
+    friend class World;
+};
+
 /// The type of values that models side effects.
 class Mem : public Def {
 private:

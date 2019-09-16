@@ -417,8 +417,8 @@ size_t Def::num_params() {
 
 const Param* Def::param(Debug dbg) {
     if (auto lam =      isa<Lam     >()) return world().param(lam->domain(),     lam,      dbg);
-    if (auto pack =     isa<Pack    >()) return world().param(pack    ->arity(), pack,     dbg);
-    if (auto pi  =      isa<Pi      >()) return world().param( pi->domain(),     pi,       dbg);
+    if (auto pi  =      isa<Pi      >()) return world().param(pi ->domain(),     pi,       dbg);
+    if (auto pack =     isa<Pack    >()) return world().param(pack->arity(),     pack,     dbg);
     if (auto sigma =    isa<Sigma   >()) return world().param(sigma,             sigma,    dbg);
     if (auto variadic = isa<Variadic>()) return world().param(variadic->arity(), variadic, dbg);
     THORIN_UNREACHABLE;

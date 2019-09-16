@@ -1,4 +1,6 @@
 set(THORIN_SOURCES
+    alpha_equiv.cpp
+    alpha_equiv.h
     def.cpp
     def.h
     normalize.cpp

@@ -22,15 +22,17 @@ struct Checker {
                 params.emplace_back(n1->param(), n2->param());
                 equiv.emplace(n1, n2);
                 for (size_t i = 0, e = n1->num_ops(); i != e && result; ++i)
-                    result |= run(n1->op(i), n2->op(i));
+                    result &= run(n1->op(i), n2->op(i));
             } else {
                 return false;
             }
         } else {
             if (!d2->isa_nominal()) {
                 for (size_t i = 0, e = d1->num_ops(); i != e && result; ++i)
-                    result |= run(d1->op(i), d2->op(i));
-                equiv.emplace(d1, d2);
+                    result &= run(d1->op(i), d2->op(i));
+
+                if (result)
+                    equiv.emplace(d1, d2);
             } else {
                 return false;
             }

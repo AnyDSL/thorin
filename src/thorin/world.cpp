@@ -66,7 +66,7 @@ World::World(uint32_t cur_gid, const std::string& name)
     { // analyze: Π[s: *M, Ts: «s; *», T: *]. Π[nat, «i: s; Ts#i»], T
         auto domain = sigma(universe(), 3);
         domain->set(0, kind_multi());
-        domain->set(1, variadic(domain->param(0, {"s"}), universe()));
+        domain->set(1, variadic(domain->param(0, {"s"}), kind_star()));
         domain->set(2, kind_star());
         auto type = pi(kind_star())->set_domain(domain);
         auto v = variadic(kind_star())->set_arity(type->param(0, {"s"}));

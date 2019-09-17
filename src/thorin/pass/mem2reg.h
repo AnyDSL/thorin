@@ -2,7 +2,6 @@
 #define THORIN_PASS_MEM2REG_H
 
 #include <set>
-
 #include "thorin/pass/pass.h"
 #include "thorin/util/bitset.h"
 

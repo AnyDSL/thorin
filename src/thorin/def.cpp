@@ -492,7 +492,6 @@ static std::ostream& stream_type_ops(std::ostream& os, const Def* type) {
    return stream_list(os, type->ops(), [&](const Def* type) { os << type; }, "(", ")");
 }
 
-std::ostream& App        ::stream(std::ostream& os) const { return streamf(os, "{} {}", callee(), arg()); }
 std::ostream& Axiom      ::stream(std::ostream& os) const { return streamf(os, "{}", name()); }
 std::ostream& Mem        ::stream(std::ostream& os) const { return streamf(os, "mem"); }
 std::ostream& Nat        ::stream(std::ostream& os) const { return streamf(os, "nat"); }
@@ -502,6 +501,15 @@ std::ostream& VariantType::stream(std::ostream& os) const { return stream_type_o
 std::ostream& KindArity  ::stream(std::ostream& os) const { return os << "*A"; }
 std::ostream& KindMulti  ::stream(std::ostream& os) const { return os << "*M"; }
 std::ostream& KindStar   ::stream(std::ostream& os) const { return os << "*"; }
+
+std::ostream& App::stream(std::ostream& os) const {
+    if (auto w = get_width(this)) {
+        if (auto real = thorin::isa<Tag::Real>(this)) return streamf(os, "r{}", *w);
+        return streamf(os, "i{}", *w);
+    }
+
+    return streamf(os, "{} {}", callee(), arg());
+}
 
 std::ostream& Lit::stream(std::ostream& os) const {
     //if (name()) return os << name();
@@ -519,7 +527,7 @@ std::ostream& Lit::stream(std::ostream& os) const {
         return streamf(os, "{}{}", get(), s);
     }
 
-    os << type() << ' ';
+    return streamf(os, "{{{}: {}}}", type(), get());
 #if 0
     if (auto real = type()->isa<Real>()) {
         switch (real->lit_num_bits()) {
@@ -550,8 +558,6 @@ std::ostream& Lit::stream(std::ostream& os) const {
         }
     }
 #endif
-
-    return os << get();
 }
 
 std::ostream& Bot::stream(std::ostream& os) const {
@@ -631,6 +637,7 @@ std::ostream& Pi::stream(std::ostream& os) const {
 std::ostream& Ptr::stream(std::ostream& os) const {
     os << pointee() << '*';
     switch (auto as = lit_addr_space()) {
+        case AddrSpace::Generic:  return streamf(os, "");
         case AddrSpace::Global:   return streamf(os, "[Global]");
         case AddrSpace::Texture:  return streamf(os, "[Tex]");
         case AddrSpace::Shared:   return streamf(os, "[Shared]");

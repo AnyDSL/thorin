@@ -57,7 +57,7 @@ const Def* Mem2Reg::rewrite(const Def* def) {
         auto orig = original(man().cur_lam());
         auto& info = lam2info(orig);
         auto slot_id = info.num_slots++;
-        auto proxy = world().analyze(slot->out_ptr()->type(), index(), {orig, world().lit_nat(slot_id)}, slot->debug());
+        auto proxy = world().op_analyze(slot->out_ptr()->type(), index(), {orig, world().lit_nat(slot_id)}, slot->debug());
         if (!keep_.contains(proxy)) {
             set_val(proxy, world().bot(proxy_type(proxy)));
             lam2info(man().cur_lam()).writable.emplace(proxy);
@@ -163,7 +163,7 @@ const Def* Mem2Reg::get_val(Lam* lam, const App* proxy) {
         default: {
             auto old_lam = original(lam);
             outf("virtual phi: {}/{} for {}\n", old_lam, lam, proxy);
-            return set_val(lam, proxy, world().analyze(proxy_type(proxy), index(), {old_lam, proxy}, {"phi"}));
+            return set_val(lam, proxy, world().op_analyze(proxy_type(proxy), index(), {old_lam, proxy}, {"phi"}));
         }
     }
 }

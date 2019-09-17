@@ -9,17 +9,10 @@ namespace thorin {
  * helpers
  */
 
-static const Def* width(const Def* type) {
-    if (false) {}
-    else if (auto int_ = isa<Tag::Int >(type)) return int_->arg();
-    else if (auto real = isa<Tag::Real>(type)) return real->arg();
-    return nullptr;
-}
-
 static bool is_allset(const Def* def) {
     if (auto lit = isa_lit<u64>(def)) {
-        if (auto w = width(def->type()); w && w->isa<Lit>())
-            return def == def->world().lit_int_max(as_lit<nat_t>(w));
+        if (auto w = get_width(def->type()))
+            return def == def->world().lit_int_max(*w);
     }
     return false;
 }
@@ -351,7 +344,7 @@ const Def* normalize_bitcast(const Def* dst_type, const Def* callee, const Def* 
 
     if (auto lit = src->isa<Lit>()) {
         if (is_arity(dst_type))       return world.lit_index(dst_type, lit->get<u64>());
-        if (auto w = width(dst_type)) return world.lit(dst_type, (u64(-1) >> (64_u64 - as_lit<u64>(w))) & lit->get());
+        if (auto w = get_width(dst_type)) return world.lit(dst_type, (u64(-1) >> (64_u64 - *w)) & lit->get());
     }
 
     if (auto variant = src->isa<Variant>()) {
@@ -377,9 +370,7 @@ const Def* normalize_select(const Def* type, const Def* callee, const Def* arg, 
 const Def* normalize_sizeof(const Def*, const Def* callee, const Def* type, const Def* dbg) {
     auto& world = callee->world();
 
-    if (auto w = width(type)) {
-        if (auto width = isa_lit<nat_t>(w)) return world.lit_nat(*width / 8, dbg);
-    }
+    if (auto w = get_width(type)) return world.lit_nat(*w / 8, dbg);
     return nullptr;
 }
 

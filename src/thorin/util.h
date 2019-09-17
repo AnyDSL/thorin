@@ -74,6 +74,13 @@ Query<Tag2Enum<tag>> isa(Tag2Enum<tag> flags, const Def* def) {
     return {};
 }
 
+inline std::optional<nat_t> get_width(const Def* type) {
+    if (false) {}
+    else if (auto int_ = isa<Tag::Int >(type)) return isa_lit<nat_t>(int_->arg());
+    else if (auto real = isa<Tag::Real>(type)) return isa_lit<nat_t>(real->arg());
+    return {};
+}
+
 template<tag_t t> Query<Tag2Enum<t>> as(               const Def* d) { assert( isa<t>(   d) ); return {std::get<0>(get_axiom(d)), d->as<App>()}; }
 template<tag_t t> Query<Tag2Enum<t>> as(Tag2Enum<t> f, const Def* d) { assert((isa<t>(f, d))); return {std::get<0>(get_axiom(d)), d->as<App>()}; }
 

@@ -368,8 +368,8 @@ public:
     //@}
     /// @name Analyze - used internally for Pass%es
     //@{
-    const App* analyze(const Def* type, nat_t index, Defs ops, Debug dbg = {}) { return analyze(type, lit_nat(index), ops, dbg); }
-    const App* analyze(const Def* type, const Def* index, Defs ops, Debug dbg = {}) {
+    const App* op_analyze(const Def* type, nat_t index, Defs ops, Debug dbg = {}) { return op_analyze(type, lit_nat(index), ops, dbg); }
+    const App* op_analyze(const Def* type, const Def* index, Defs ops, Debug dbg = {}) {
         Array<const Def*> types(ops.size(), [&](size_t i) { return ops[i]->type(); });
         return app(app(cache_.op_analyze_, {lit_arity(ops.size()), tuple(types), type}), {index, tuple(ops)}, dbg)->as<App>();
     }

@@ -11,7 +11,7 @@ struct Checker {
                 || bool(d1->isa_nominal()) != bool(d2->isa_nominal())) return false;
         if (d1->gid() > d2->gid()) std::swap(d1, d2); // normalize: always put smaller gid to the left
 
-        // this assumption will either be true - or we will bail out with false anyway
+        // this assumption will either hold true - or we will bail out with false anyway
         auto [i, success] = equiv.emplace(d1, d2);
         if (!success) return true;
 
@@ -26,10 +26,8 @@ struct Checker {
         if (auto n1 = d1->isa_nominal())
             params.emplace_back(n1->param(), d2->as_nominal()->param());
 
-        bool result = true;
-        for (size_t i = 0, e = d1->num_ops(); i != e && result; ++i)
-            result &= run(d1->op(i), d2->op(i));
-        return result;
+        return std::equal(d1->ops().begin(), d1->ops().end(),
+                          d2->ops().begin(), d2->ops().end(), [&](auto op1, auto op2) { return run(op1, op2); });
     }
 
     struct Hash {

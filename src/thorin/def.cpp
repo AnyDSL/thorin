@@ -24,6 +24,29 @@ namespace detail {
 
 size_t Def::num_outs() const { return as_lit<u64>(arity()); }
 
+const Def* Def::arity() const {
+    if (auto sigma    = isa<Sigma   >()) return world().lit_arity(sigma->num_ops());
+    if (auto variadic = isa<Variadic>()) return variadic->arity();
+    return world().lit_arity_1();
+}
+
+nat_t Def::lit_arity() const {
+    if (auto sigma    = isa<Sigma   >()) return sigma->num_ops();
+    if (auto variadic = isa<Variadic>()) return as_lit<nat_t>(variadic->arity());
+    return 1;
+}
+
+bool Def::equal(const Def* other) const {
+    if (this->isa_nominal() || other->isa_nominal())
+        return this == other;
+
+    bool result = this->node() == other->node() && this->fields() == other->fields() && this->num_ops() == other->num_ops() && this->type() == other->type();
+    for (size_t i = 0, e = num_ops(); result && i != e; ++i)
+        result &= this->op(i) == other->op(i);
+    return result;
+}
+
+
 // TODO
 const Def* Def::debug_history() const {
 //#if THORIN_ENABLE_CHECKS
@@ -422,28 +445,6 @@ const Param* Def::param(Debug dbg) {
     if (auto sigma =    isa<Sigma   >()) return world().param(sigma,             sigma,    dbg);
     if (auto variadic = isa<Variadic>()) return world().param(variadic->arity(), variadic, dbg);
     THORIN_UNREACHABLE;
-}
-
-/*
- * arity
- */
-
-const Def* Def  ::arity() const { return is_term() ? type()->arity() : world().lit_arity_1(); }
-const Def* Sigma::arity() const { return world().lit_arity(num_ops()); }
-nat_t Def::lit_arity() const { return as_lit<nat_t>(arity()); }
-
-/*
- * equal
- */
-
-bool Def::equal(const Def* other) const {
-    if (this->isa_nominal() || other->isa_nominal())
-        return this == other;
-
-    bool result = this->node() == other->node() && this->fields() == other->fields() && this->num_ops() == other->num_ops() && this->type() == other->type();
-    for (size_t i = 0, e = num_ops(); result && i != e; ++i)
-        result &= this->op(i) == other->op(i);
-    return result;
 }
 
 /*

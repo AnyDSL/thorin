@@ -34,7 +34,8 @@ const Def* Rewriter::rewrite(const Def* old_def) {
         return new_nom;
     }
 
-    return map(old_def, old_def->rebuild(new_world, new_type, Array<const Def*>(old_def->num_ops(), [&](auto i) { return rewrite(old_def->op(i)); }), new_debug)); ;
+    Array<const Def*> new_ops(old_def->num_ops(), [&](auto i) { return rewrite(old_def->op(i)); });
+    return map(old_def, old_def->rebuild(new_world, new_type, new_ops, new_debug)); ;
 }
 
 const Def* rewrite(const Def* def, const Def* old_def, const Def* new_def) {

@@ -178,22 +178,22 @@ public:
     /// @name Extract
     //@{
     const Def* extract(const Def* agg, const Def* i, Debug dbg = {});
-    const Def* extract(const Def* agg, u64 i, Debug dbg = {}) { return extract(agg, lit_index(agg->arity(), i, dbg), dbg); }
+    const Def* extract(const Def* agg, u64 i, Debug dbg = {}) { return extract(agg, lit_index(agg->type()->arity(), i, dbg), dbg); }
     const Def* extract(const Def* agg, u64 a, u64 i, Debug dbg = {}) { return extract(agg, lit_index(a, i, dbg), dbg); }
-    const Def* unsafe_extract(const Def* agg, const Def* i, Debug dbg = {}) { return extract(agg, op_bitcast(agg->arity(), i, dbg), dbg); }
+    const Def* unsafe_extract(const Def* agg, const Def* i, Debug dbg = {}) { return extract(agg, op_bitcast(agg->type()->arity(), i, dbg), dbg); }
     const Def* unsafe_extract(const Def* agg, u64 i, Debug dbg = {}) { return unsafe_extract(agg, lit_nat(i, dbg), dbg); }
     //@}
     /// @name Insert
     //@{
     const Def* insert(const Def* agg, const Def* i, const Def* value, Debug dbg = {});
-    const Def* insert(const Def* agg, u64 i, const Def* value, Debug dbg = {}) { return insert(agg, lit_index(agg->arity(), i, dbg), value, dbg); }
-    const Def* unsafe_insert(const Def* agg, const Def* i, const Def* value, Debug dbg = {}) { return insert(agg, op_bitcast(agg->arity(), i, dbg), value, dbg); }
+    const Def* insert(const Def* agg, u64 i, const Def* value, Debug dbg = {}) { return insert(agg, lit_index(agg->type()->arity(), i, dbg), value, dbg); }
+    const Def* unsafe_insert(const Def* agg, const Def* i, const Def* value, Debug dbg = {}) { return insert(agg, op_bitcast(agg->type()->arity(), i, dbg), value, dbg); }
     const Def* unsafe_insert(const Def* agg, u64 i, const Def* value, Debug dbg = {}) { return unsafe_insert(agg, lit_nat(i, dbg), value, dbg); }
     //@}
     /// @name LEA - load effective address
     //@{
     const Def* lea(const Def* ptr, const Def* index, Debug dbg);
-    const Def* unsafe_lea(const Def* ptr, const Def* index, Debug dbg) { return lea(ptr, op_bitcast(ptr->type()->as<Ptr>()->pointee()->arity(), index, dbg), dbg); }
+    const Def* unsafe_lea(const Def* ptr, const Def* index, Debug dbg) { return lea(ptr, op_bitcast(ptr->type()->as<Ptr>()->pointee()->type()->arity(), index, dbg), dbg); }
     //@}
     /// @name Lit
     //@{

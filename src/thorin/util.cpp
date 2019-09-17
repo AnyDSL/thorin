@@ -137,7 +137,7 @@ std::string tuple2str(const Def* def) {
     if (def == nullptr) return {};
 
     std::string result;
-    for (size_t i = 0, e = def->lit_arity(); i != e; ++i)
+    for (size_t i = 0, e = def->type()->lit_arity(); i != e; ++i)
         result.push_back(as_lit<nat_t>(def->out(i)));
     return result;
 }

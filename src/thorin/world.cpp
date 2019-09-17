@@ -2,6 +2,7 @@
 
 #include <fstream>
 
+#include "thorin/alpha_equiv.h"
 #include "thorin/def.h"
 #include "thorin/normalize.h"
 #include "thorin/primop.h"
@@ -55,6 +56,7 @@ World::World(uint32_t cur_gid, const std::string& name)
         cache_.lit_bool_[1] = lit(type_bool(),  true);
     }
 
+    // TODO
     // lea:,  Π[s: *M, Ts: «s; *», as: nat]. Π[ptr(«j: s; Ts#j», as), i: s]. ptr(Ts#i, as)
     // load:  Π[T: *, as: nat]. Π[M as, ptr(T, as)]. [M as, T]
     // store: Π[T: *, as: nat]. Π[M as, ptr(T, as), T]. M as
@@ -62,20 +64,17 @@ World::World(uint32_t cur_gid, const std::string& name)
     // slot:  Π[T: *, as: nat]. Π[F as, nat]. ptr(T, as)
 
     { // analyze: Π[s: *M, Ts: «s; *», T: *]. Π[nat, «i: s; Ts#i»], T
-        auto domain = sigma(kind_star(), 3)->set(0, kind_multi());
-        auto s = domain->param(0, {"s"});
-        domain->set(1, variadic(s, kind_star()))->set(2, kind_star());
+        auto domain = sigma(universe(), 3);
+        domain->set(0, kind_multi());
+        domain->set(1, variadic(domain->param(0, {"s"}), universe()));
+        domain->set(2, kind_star());
         auto type = pi(kind_star())->set_domain(domain);
         auto v = variadic(kind_star())->set_arity(type->param(0, {"s"}));
         auto i = v->param({"i"});
         v->set_body(extract(type->param(1, {"Ts"}), i));
-        type->set_codomain(pi(v, type->param(2, {"2"})));
+        type->set_codomain(pi({type_nat(), v}, type->param(2, {"T"})));
         type->dump();
         cache_.op_analyze_ = axiom(nullptr, type, Tag::Analyze, 0, {"analyze"});
-
-        analyze(type_nat(), 1, {lit_int(23), lit_real(42.f)});
-        //auto type = pi(kind_star())->set_domain(s)-
-        //auto type = pi(kind_star())->set_domain(kind_multi(), variadic(
     } { // bitcast: Π[S: *, D: *]. ΠS. D
         auto type = pi(kind_star())->set_domain({kind_star(), kind_star()});
         auto S = type->param(0, {"S"});
@@ -276,7 +275,8 @@ const Def* World::tuple_str(const char* s, Debug dbg) {
 }
 
 const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
-    assertf(agg->arity() == index->type(), "extracting from aggregate {} of arity {} with index {} of type {}", agg, agg->arity(), index, index->type());
+    assertf(alpha_equiv(agg->type()->arity(), index->type()),
+            "extracting from aggregate {} of arity {} with index {} of type {}", agg, agg->type()->arity(), index, index->type());
 
     if (index->type() == lit_arity_1()) return agg;
     if (auto pack = agg->isa<Pack>()) return pack->body();
@@ -305,7 +305,8 @@ const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
 }
 
 const Def* World::insert(const Def* agg, const Def* index, const Def* val, Debug dbg) {
-    assertf(agg->arity() == index->type(), "inserting into aggregate {} of arity {} with index {} of type {}", agg, agg->arity(), index, index->type());
+    assertf(alpha_equiv(agg->type()->arity(), index->type()),
+            "inserting into aggregate {} of arity {} with index {} of type {}", agg, agg->type()->arity(), index, index->type());
 
     if (index->type() == lit_arity_1()) return val;
 

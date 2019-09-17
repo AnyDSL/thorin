@@ -153,7 +153,7 @@ public:
     bool is_type() const { return sort() == Sort::Type; }
     bool is_kind() const { return sort() == Sort::Kind; }
     bool is_universe() const { return sort() == Sort::Universe; }
-    virtual const Def* arity() const;
+    const Def* arity() const;
     u64 lit_arity() const;
     //@}
     /// @name ops
@@ -306,7 +306,7 @@ auto split(const Def* def, F f) {
     using R = decltype(f(def));
     std::conditional_t<N == size_t(-1), std::vector<R>, std::array<R, N>> array;
 
-    auto a = def->lit_arity();
+    auto a = def->type()->lit_arity();
     if constexpr (N == size_t(-1))
         array.resize(a);
     else
@@ -685,7 +685,6 @@ private:
     {}
 
 public:
-    const Def* arity() const override;
     /// @name setters
     //@{
     Sigma* set(size_t i, const Def* def) { return Def::set(i, def)->as<Sigma>(); }
@@ -726,7 +725,7 @@ private:
     {}
 
 public:
-    const Def* arity() const override { return op(0); }
+    const Def* arity() const { return op(0); }
     const Def* body() const { return op(1); }
 
     /// @name setters for @em nominal @p Variadic.

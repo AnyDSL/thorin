@@ -22,8 +22,6 @@ namespace detail {
  * Def
  */
 
-size_t Def::num_outs() const { return as_lit<u64>(arity()); }
-
 const Def* Def::arity() const {
     if (auto sigma    = isa<Sigma   >()) return world().lit_arity(sigma->num_ops());
     if (auto variadic = isa<Variadic>()) return variadic->arity();
@@ -518,52 +516,32 @@ std::ostream& App::stream(std::ostream& os) const {
 }
 
 std::ostream& Lit::stream(std::ostream& os) const {
-    //if (name()) return os << name();
     if (type()->isa<KindArity>()) return streamf(os, "{}ₐ", get());
 
     if (is_arity(type())) {
         if (type()->isa<Top>()) return streamf(os, "{}T", get());
 
-        std::string s;
         // append utf-8 subscripts in reverse order
+        std::string s;
         for (size_t aa = as_lit<nat_t>(type()); aa > 0; aa /= 10)
             ((s += char(char(0x80) + char(aa % 10))) += char(0x82)) += char(0xe2);
         std::reverse(s.begin(), s.end());
 
         return streamf(os, "{}{}", get(), s);
+    } else if (type()->isa<Nat>()) {
+        return streamf(os, "{}_nat", get());
+    } else if (auto int_ = thorin::isa<Tag::Int >(type())) {
+        return streamf(os, "{}_i{}", get(), as_lit<nat_t>(int_->arg()));
+    } else if (auto real = thorin::isa<Tag::Real>(type())) {
+        switch (as_lit<nat_t>(real->arg())) {
+            case 16: return streamf(os, "{}_r16", get<r16>());
+            case 32: return streamf(os, "{}_r32", get<r32>());
+            case 64: return streamf(os, "{}_r64", get<r64>());
+            default: THORIN_UNREACHABLE;
+        }
     }
 
     return streamf(os, "{{{}: {}}}", type(), get());
-#if 0
-    if (auto real = type()->isa<Real>()) {
-        switch (real->lit_num_bits()) {
-            case 16: return os << get<f16>();
-            case 32: return os << get<f32>();
-            case 64: return os << get<f64>();
-            default: THORIN_UNREACHABLE;
-        }
-    }
-
-    if (auto i = type()->isa<Sint>()) {
-        switch (i->lit_num_bits()) {
-            case  8: return os << (int) get<s8>();
-            case 16: return os << get<s16>();
-            case 32: return os << get<s32>();
-            case 64: return os << get<s64>();
-            default: THORIN_UNREACHABLE;
-        }
-    }
-
-    if (auto u = type()->isa<Uint>()) {
-        switch (u->lit_num_bits()) {
-            case  8: return os << (unsigned) get<u8>();
-            case 16: return os << get<u16>();
-            case 32: return os << get<u32>();
-            case 64: return os << get<u64>();
-            default: THORIN_UNREACHABLE;
-        }
-    }
-#endif
 }
 
 std::ostream& Bot::stream(std::ostream& os) const {

@@ -140,9 +140,7 @@ protected:
     virtual ~Def() {}
 
 public:
-    enum class Sort {
-        Term, Type, Kind, Universe
-    };
+    enum class Sort { Term, Type, Kind, Universe };
 
     /// @name type, Sort
     //@{
@@ -177,7 +175,6 @@ public:
     /// @name outs
     //@{
     const Def* out(size_t i, Debug dbg = {}) const { return detail::world_extract(world(), this, i, dbg); }
-    size_t num_outs() const;
     //@}
     /// @name external handling
     //@{
@@ -188,11 +185,9 @@ public:
     /// @name Debug
     //@{
     const Def* debug() const { return debug_; }
-    /// In Debug build if World::enable_history is true, this thing keeps the gid to track a history of gid%s.
-    const Def* debug_history() const;
+    const Def* debug_history() const; ///< In Debug build if World::enable_history is true, this thing keeps the gid to track a history of gid%s.
     std::string name() const;
-    /// name + "_" + gid
-    std::string unique_name() const;
+    std::string unique_name() const;  ///< name + "_" + gid
     std::string filename() const;
     nat_t front_line() const;
     nat_t front_col() const;
@@ -319,6 +314,9 @@ auto split(const Def* def, F f) {
     return array;
 }
 
+/// Splits the @p def into an array by using @p arity many @p Extract%s.
+template<size_t N = size_t(-1)> auto split(const Def* def) { return split<N>(def, [](const Def* def) { return def; }); }
+
 class Param : public Def {
 private:
     Param(const Def* type, Def* nominal, const Def* dbg)
@@ -340,9 +338,6 @@ template<class To>
 using ParamMap    = GIDMap<const Param*, To>;
 using ParamSet    = GIDSet<const Param*>;
 using Param2Param = ParamMap<const Param*>;
-
-/// Splits the @p def into an array by using @p arity many @p Extract%s.
-template<size_t N = size_t(-1)> auto split(const Def* def) { return split<N>(def, [](const Def* def) { return def; }); }
 
 class Universe : public Def {
 private:
@@ -536,6 +531,7 @@ public:
 
 class Lam : public Def {
 public:
+    // TODO make these thigns axioms
     enum class Intrinsic : u8 {
         None,                       ///< Not an intrinsic.
         _Accelerator_Begin,

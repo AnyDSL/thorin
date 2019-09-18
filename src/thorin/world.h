@@ -40,19 +40,19 @@ const Def* infer_width(const Def*);
 class World : public Streamable {
 public:
     struct SeaHash {
-        static uint32_t hash(const Def* def) { return def->hash(); }
+        static hash_t hash(const Def* def) { return def->hash(); }
         static bool eq(const Def* def1, const Def* def2) { return def1->equal(def2); }
         static const Def* sentinel() { return (const Def*)(1); }
     };
 
     struct BreakHash {
-        static uint32_t hash(size_t i) { return i; }
+        static hash_t hash(size_t i) { return i; }
         static bool eq(size_t i1, size_t i2) { return i1 == i2; }
         static size_t sentinel() { return size_t(-1); }
     };
 
     struct ExternalsHash {
-        static uint32_t hash(const std::string& s) { return thorin::hash(s.c_str()); }
+        static hash_t hash(const std::string& s) { return thorin::hash(s.c_str()); }
         static bool eq(const std::string& s1, const std::string& s2) { return s1 == s2; }
         static std::string sentinel() { return std::string(); }
     };
@@ -341,11 +341,6 @@ public:
         return app(app(op(o), {sw, dw}), src, dbg);
     }
     //@}
-    /// @name Bitcast
-    //@{
-    const Axiom* op_bitcast() { return cache_.op_bitcast_; }
-    const Def* op_bitcast(const Def* dst_type, const Def* src, Debug dbg = {}) { return app(app(op_bitcast(), {src->type(), dst_type}), src, dbg); }
-    //@}
     /// @name memory-related operations
     //@{
     const Def* load(const Def* mem, const Def* ptr, Debug dbg = {});
@@ -372,6 +367,8 @@ public:
     //@}
     /// @name misc operations
     //@{
+    const Axiom* op_bitcast() { return cache_.op_bitcast_; }
+    const Def* op_bitcast(const Def* dst_type, const Def* src, Debug dbg = {}) { return app(app(op_bitcast(), {src->type(), dst_type}), src, dbg); }
     const Axiom* op_select() const { return cache_.op_select_; }
     const Axiom* op_sizeof() const { return cache_.op_sizeof_; }
     const Def* op_select(const Def* cond, const Def* t, const Def* f, Debug dbg = {}) { return app(app(cache_.op_select_, t->type()), {cond, t, f}, dbg); }

@@ -61,6 +61,15 @@ nat_t Def::front_col()  const { return debug() ? as_lit<nat_t>(debug()->out(3)) 
 nat_t Def::back_line()  const { return debug() ? as_lit<nat_t>(debug()->out(4)) : std::numeric_limits<nat_t>::max(); }
 nat_t Def::back_col()   const { return debug() ? as_lit<nat_t>(debug()->out(5)) : std::numeric_limits<nat_t>::max(); }
 
+const char* Def::node_name() const {
+    switch (node()) {
+#define CODE(op, abbr) case Node::op: return #abbr;
+THORIN_NODE(CODE)
+#undef CODE
+        default: THORIN_UNREACHABLE;
+    }
+}
+
 std::string Def::loc() const {
     std::ostringstream os;
     os << filename() << ':';
@@ -469,6 +478,7 @@ const Def* Pi         ::rebuild(const Def*  , World& w, const Def*  , Defs o, co
 const Def* Ptr        ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.type_ptr(o[0], o[1], dbg); }
 const Def* Tuple      ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.tuple(t, o, dbg); }
 const Def* Variadic   ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.variadic(o[0], o[1], dbg); }
+const Def* Variant    ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.variant(t->as<VariantType>(), o[0], dbg); }
 const Def* VariantType::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.variant_type(o, dbg); }
 
 /*
@@ -633,7 +643,7 @@ std::ostream& Ptr::stream(std::ostream& os) const {
 std::ostream& Def::stream(std::ostream& out) const { return out << unique_name(); }
 
 std::ostream& Def::stream_assignment(std::ostream& os) const {
-    return streamf(os, "{}: {} = {} {}", unique_name(), type(), op_name(), stream_list(ops(), [&] (const Def* def) { os << def; })) << endl;
+    return streamf(os, "{}: {} = {} {}", unique_name(), type(), node_name(), stream_list(ops(), [&] (const Def* def) { os << def; })) << endl;
 }
 std::ostream& Lam::stream_head(std::ostream& os) const {
     auto lam = as_nominal<Lam>();

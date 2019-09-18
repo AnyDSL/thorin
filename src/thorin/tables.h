@@ -37,7 +37,6 @@ using nat_t    = u64;
                        m(Store, store)                    \
                        m(Global, global)                  \
                        m(Slot, slot)                      \
-                       m(Bitcast, bitcast)                \
                        m(Variant, variant)                \
                        m(LEA, lea)                        \
                        m(Hlt, hlt)                        \
@@ -200,6 +199,16 @@ constexpr const char* op2str(ICmp o) { switch (o) { THORIN_I_CMP(CODE) default: 
 constexpr const char* op2str(RCmp o) { switch (o) { THORIN_R_CMP(CODE) default: THORIN_UNREACHABLE; } }
 constexpr const char* op2str(Conv o) { switch (o) { THORIN_CONV(CODE)  default: THORIN_UNREACHABLE; } }
 #undef CODE
+
+struct AddrSpace {
+    enum : nat_t {
+        Generic  = 0,
+        Global   = 1,
+        Texture  = 2,
+        Shared   = 3,
+        Constant = 4,
+    };
+};
 
 // This trick let's us count the number of elements in an enum class without tainting it with an extra "Num" field.
 template<class T> constexpr auto Num = size_t(-1);

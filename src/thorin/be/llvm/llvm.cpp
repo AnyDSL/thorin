@@ -831,13 +831,6 @@ llvm::Value* CodeGen::emit(const Def* def) {
         };
 
         if (auto extract = def->isa<Extract>()) {
-            // Assemblys with more than two outputs are MemOps and have tuple type
-            // and thus need their own rule here because the standard MemOp rule does not work
-            //if (auto assembly = extract->agg()->isa<Assembly>()) {
-                //if (assembly->type()->num_ops() > 2 && as_lit<u64>(extract->index()) != 0)
-                    //return irbuilder_.CreateExtractValue(llvm_agg, {as_lit<u32>(extract->index()) - 1});
-            //}
-
             if (is_memop(extract->agg()))
                 return lookup(extract->agg());
 
@@ -908,7 +901,6 @@ llvm::Value* CodeGen::emit(const Def* def) {
     if (auto load = def->isa<Load>())         return emit_load(load);
     if (auto store = def->isa<Store>())       return emit_store(store);
     if (auto lea = def->isa<LEA>())           return emit_lea(lea);
-    //if (auto assembly = def->isa<Assembly>()) return emit_assembly(assembly);
 
     if (auto slot = def->isa<Slot>())
         return emit_alloca(convert(slot->alloced_type()), slot->unique_name());
@@ -951,52 +943,6 @@ llvm::Value* CodeGen::emit_lea(const LEA* lea) {
     llvm::Value* args[2] = { irbuilder_.getInt64(0), lookup(lea->index()) };
     return irbuilder_.CreateInBoundsGEP(lookup(lea->ptr()), args);
 }
-
-/*
-llvm::Value* CodeGen::emit_assembly(const Assembly* assembly) {
-    llvm::Type* res_type;
-
-    if (auto sigma = assembly->type()->isa<Sigma>()) {
-        if (sigma->num_ops() == 2)
-            res_type = convert(sigma->op(1));
-        else {
-            auto ops = sigma->ops().skip_front();
-            // don't just convert(sigma(ops)) because Thorin might normalize this to a variadic
-            res_type = llvm::StructType::get(context_, llvm_ref(Array<llvm::Type*>(ops.size(), [&](auto i) { return convert(ops[i]); })));
-        }
-    } else {
-        res_type = llvm::Type::getVoidTy(context_);
-    }
-
-    size_t num_inputs = assembly->num_inputs();
-    auto input_values = Array<llvm::Value*>(num_inputs);
-    auto input_types = Array<llvm::Type*>(num_inputs);
-    for (size_t i = 0; i != num_inputs; ++i) {
-        input_values[i] = lookup(assembly->input(i));
-        input_types[i] = convert(assembly->input(i)->type());
-    }
-
-    auto fn_type = llvm::FunctionType::get(res_type, llvm_ref(input_types), false);
-
-    std::string constraints;
-    for (auto con : assembly->output_constraints())
-        constraints += con + ",";
-    for (auto con : assembly->input_constraints())
-        constraints += con + ",";
-    for (auto clob : assembly->clobbers())
-        constraints += "~{" + clob + "},";
-    // clang always marks those registers as clobbered, so we will do so as well
-    constraints += "~{dirflag},~{fpsr},~{flags}";
-
-    if (!llvm::InlineAsm::Verify(fn_type, constraints))
-        EDEF(assembly, "constraints and input and output types of inline assembly do not match");
-
-    auto asm_expr = llvm::InlineAsm::get(fn_type, assembly->asm_template(), constraints,
-            assembly->has_sideeffects(), assembly->is_alignstack(),
-            assembly->is_inteldialect() ? llvm::InlineAsm::AsmDialect::AD_Intel : llvm::InlineAsm::AsmDialect::AD_ATT);
-    return irbuilder_.CreateCall(asm_expr, llvm_ref(input_values));
-}
-*/
 
 unsigned CodeGen::convert_addr_space(u64 addr_space) {
     switch (addr_space) {

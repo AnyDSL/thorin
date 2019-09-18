@@ -9,21 +9,6 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-/// Reinterprets the bits of <tt>from</tt> as type <tt>to</tt>.
-class Bitcast : public Def {
-private:
-    Bitcast(const Def* to, const Def* from, const Def* dbg)
-        : Def(Node, rebuild, to, {from}, 0, dbg)
-    {}
-
-public:
-    const Def* from() const { return op(0); }
-    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
-
-    static constexpr auto Node = Node::Bitcast;
-    friend class World;
-};
-
 /**
  * Load effective address.
  * Takes a pointer <tt>ptr</tt> to an aggregate as input.
@@ -111,7 +96,6 @@ public:
     bool is_mutable() const { return fields(); }
     const Ptr* type() const { return Def::type()->as<Ptr>(); }
     const Def* alloced_type() const { return type()->pointee(); }
-    const char* op_name() const override;
 
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
     std::ostream& stream(std::ostream&) const override;
@@ -205,51 +189,6 @@ public:
     static constexpr auto Node = Node::Store;
     friend class World;
 };
-
-/*
-class Assembly : public Def {
-public:
-    enum Flags {
-        NoFlag         = 0,
-        HasSideEffects = 1 << 0,
-        IsAlignStack   = 1 << 1,
-        IsIntelDialect = 1 << 2,
-    };
-
-    struct Extra {
-        std::string asm_template_;
-        Array<std::string> output_constraints_, input_constraints_, clobbers_;
-    };
-
-private:
-    Assembly(const Def *type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints,
-             ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Flags flags, const Def* dbg);
-    ~Assembly() override;
-
-public:
-    Defs inputs() const { return ops().skip_front(); }
-    const Def* input(size_t i) const { return inputs()[i]; }
-    size_t num_inputs() const { return inputs().size(); }
-    const std::string& asm_template() const { return extra<Extra>().asm_template_; }
-    const ArrayRef<std::string> output_constraints() const { return extra<Extra>().output_constraints_; }
-    const ArrayRef<std::string> input_constraints() const { return extra<Extra>().input_constraints_; }
-    const ArrayRef<std::string> clobbers() const { return extra<Extra>().clobbers_; }
-    bool has_sideeffects() const { return fields() & HasSideEffects; }
-    bool is_alignstack() const { return fields() & IsAlignStack; }
-    bool is_inteldialect() const { return fields() & IsIntelDialect; }
-    Flags flags() const { return Flags(fields()); }
-    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
-    std::ostream& stream_assignment(std::ostream&) const override;
-
-    static constexpr auto Node = Node::Assembly;
-    friend class World;
-};
-
-inline Assembly::Flags operator|(Assembly::Flags lhs, Assembly::Flags rhs) { return static_cast<Assembly::Flags>(static_cast<int>(lhs) | static_cast<int>(rhs)); }
-inline Assembly::Flags operator&(Assembly::Flags lhs, Assembly::Flags rhs) { return static_cast<Assembly::Flags>(static_cast<int>(lhs) & static_cast<int>(rhs)); }
-inline Assembly::Flags operator|=(Assembly::Flags& lhs, Assembly::Flags rhs) { return lhs = lhs | rhs; }
-inline Assembly::Flags operator&=(Assembly::Flags& lhs, Assembly::Flags rhs) { return lhs = lhs & rhs; }
-*/
 
 }
 

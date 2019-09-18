@@ -110,8 +110,8 @@ public:
     }
 
     const Def* extract_from_slot(const Def* ptr, const Def* slot_value, const Def* dbg) {
-        while (auto bitcast = ptr->isa<Bitcast>())
-            ptr = bitcast->from();
+        while (auto bitcast = isa<Tag::Bitcast>(ptr))
+            ptr = bitcast->arg();
         if (auto lea = ptr->isa<LEA>())
             return world_.unsafe_extract(extract_from_slot(lea->ptr(), slot_value, dbg), lea->index(), dbg);
         return slot_value;
@@ -120,8 +120,8 @@ public:
     const Def* insert_to_slot(const Def* ptr, const Def* slot_value, const Def* insert_value, const Def* dbg) {
         std::vector<const Def*> indices;
         while (true) {
-            if (auto bitcast = ptr->isa<Bitcast>()) {
-                ptr = bitcast->from();
+            if (auto bitcast = isa<Tag::Bitcast>(ptr)) {
+                ptr = bitcast->arg();
             } else if (auto lea = ptr->isa<LEA>()) {
                 indices.push_back(lea->index());
                 ptr = lea->ptr();
@@ -168,7 +168,7 @@ public:
         if (ptr->isa<Slot>() && is_safe_slot(ptr)) return ptr;
         if (ptr->isa<Global>() && !ptr->as<Global>()->is_mutable()) return ptr;
         if (auto lea = ptr->isa<LEA>()) return find_slot(lea->ptr());
-        if (auto bitcast = ptr->isa<Bitcast>()) return find_slot(bitcast->from());
+        if (auto bitcast = isa<Tag::Bitcast>(ptr)) return find_slot(bitcast->arg());
         return nullptr;
     }
 
@@ -178,7 +178,7 @@ public:
                 store->replace(store->mem());
             } else if (use->isa<Load>()) {
                 assert(false);
-            } else if (use->isa<LEA>() || use->isa<Bitcast>()) {
+            } else if (use->isa<LEA>() || isa<Tag::Bitcast>(use)) {
                 replace_ptr_uses(use);
             } else {
                 assert(false);
@@ -192,10 +192,10 @@ public:
                 if (use.index() != 1) return false;
             } else if (use->isa<LEA>()) {
                 if (!are_ptr_uses_safe(use.def(), allow_load)) return false;
-            } else if (auto bitcast = use->isa<Bitcast>()) {
+            } else if (auto bitcast = isa<Tag::Bitcast>(use)) {
                 // Support cast between pointers to definite and indefinite arrays
                 auto ptr_to   = bitcast->type()->isa<Ptr>();
-                auto ptr_from = bitcast->from()->type()->isa<Ptr>();
+                auto ptr_from = bitcast->arg()->type()->isa<Ptr>();
                 if (!ptr_to || !ptr_from)
                     return false;
                 auto variadic_to   = ptr_to->pointee()->isa<Variadic>();

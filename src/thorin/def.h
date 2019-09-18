@@ -275,7 +275,7 @@ public:
     /// @name stream
     //@{
     void dump() const;
-    virtual const char* op_name() const;
+    virtual const char* node_name() const;
     virtual std::ostream& stream(std::ostream&) const;
     virtual std::ostream& stream_assignment(std::ostream&) const;
     //@}
@@ -858,16 +858,6 @@ public:
 
     static constexpr auto Node = Node::Nat;
     friend class World;
-};
-
-struct AddrSpace {
-    enum : nat_t {
-        Generic  = 0,
-        Global   = 1,
-        Texture  = 2,
-        Shared   = 3,
-        Constant = 4,
-    };
 };
 
 /// Pointer type.

@@ -899,6 +899,21 @@ public:
     friend class World;
 };
 
+class Analyze : public Def {
+private:
+    Analyze(const Def* type, Defs ops, fields_t index, const Def* dbg)
+        : Def(Node, rebuild, type, ops, index, dbg)
+    {}
+
+public:
+    fields_t index() const { return fields(); }
+    std::ostream& stream(std::ostream&) const override;
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+
+    static constexpr auto Node = Node::Analyze;
+    friend class World;
+};
+
 hash_t UseHash::hash(Use use) { return hash_combine(hash_begin(u16(use.index())), hash_t(use->gid())); }
 
 namespace detail {

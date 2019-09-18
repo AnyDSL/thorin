@@ -453,6 +453,7 @@ const Param* Def::param(Debug dbg) {
 
 const Def* Lam        ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* dbg) { assert(!d->isa_nominal()); return w.lam(t->as<Pi>(), o[0], o[1], dbg); }
 const Def* Sigma      ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* dbg) { assert(!d->isa_nominal()); return w.sigma(t, o, dbg); }
+const Def* Analyze    ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* dbg) { return w.analyze(t, o, d->fields(), dbg); }
 const Def* App        ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.app(o[0], o[1], dbg); }
 const Def* Bot        ::rebuild(const Def*  , World& w, const Def* t, Defs  , const Def* dbg) { return w.bot(t, dbg); }
 const Def* Top        ::rebuild(const Def*  , World& w, const Def* t, Defs  , const Def* dbg) { return w.top(t, dbg); }
@@ -501,6 +502,11 @@ std::ostream& VariantType::stream(std::ostream& os) const { return stream_type_o
 std::ostream& KindArity  ::stream(std::ostream& os) const { return os << "*A"; }
 std::ostream& KindMulti  ::stream(std::ostream& os) const { return os << "*M"; }
 std::ostream& KindStar   ::stream(std::ostream& os) const { return os << "*"; }
+
+std::ostream& Analyze::stream(std::ostream& os) const {
+    stream_list(os << "analyze(", ops().skip_front(), [&](auto def) { os << def; });
+    return streamf(os, "; {})", index());
+}
 
 std::ostream& App::stream(std::ostream& os) const {
     if (auto w = get_width(this)) {

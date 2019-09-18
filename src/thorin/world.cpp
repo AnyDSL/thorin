@@ -63,18 +63,7 @@ World::World(uint32_t cur_gid, const std::string& name)
     // enter: Πas: nat. ΠM as. [M as, F as]
     // slot:  Π[T: *, as: nat]. Π[F as, nat]. ptr(T, as)
 
-    { // analyze: Π[s: *M, Ts: «s; *», T: *]. Π[nat, «i: s; Ts#i»], T
-        auto domain = sigma(universe(), 3);
-        domain->set(0, kind_multi());
-        domain->set(1, variadic(domain->param(0, {"s"}), kind_star()));
-        domain->set(2, kind_star());
-        auto type = pi(kind_star())->set_domain(domain);
-        auto v = variadic(kind_star())->set_arity(type->param(0, {"s"}));
-        auto i = v->param({"i"});
-        v->set_body(extract(type->param(1, {"Ts"}), i));
-        type->set_codomain(pi({type_nat(), v}, type->param(2, {"T"})));
-        type->dump();
-        cache_.op_analyze_ = axiom(type, Tag::Analyze, 0, {"analyze"});
+    {
     } { // bitcast: Π[S: *, D: *]. ΠS. D
         auto type = pi(kind_star())->set_domain({kind_star(), kind_star()});
         auto S = type->param(0, {"S"});

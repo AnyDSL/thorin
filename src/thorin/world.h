@@ -368,11 +368,7 @@ public:
     //@}
     /// @name Analyze - used internally for Pass%es
     //@{
-    const App* op_analyze(const Def* type, nat_t index, Defs ops, Debug dbg = {}) { return op_analyze(type, lit_nat(index), ops, dbg); }
-    const App* op_analyze(const Def* type, const Def* index, Defs ops, Debug dbg = {}) {
-        Array<const Def*> types(ops.size(), [&](size_t i) { return ops[i]->type(); });
-        return app(app(cache_.op_analyze_, {lit_arity(ops.size()), tuple(types), type}), {index, tuple(ops)}, dbg)->as<App>();
-    }
+    const Analyze* analyze(const Def* type, Defs ops, fields_t index, Debug dbg = {}) { return unify<Analyze>(ops.size(), type, ops, index, debug(dbg)); }
     //@}
     /// @name misc operations
     //@{
@@ -582,7 +578,6 @@ private:
         std::array<Axiom*, Num<Conv>> Conv_;
         Axiom* type_int_;
         Axiom* type_real_;
-        Axiom* op_analyze_;
         Axiom* op_bitcast_;
         Axiom* op_select_;
         Axiom* op_sizeof_;

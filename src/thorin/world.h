@@ -100,8 +100,8 @@ public:
     //@}
     /// @name Axiom
     //@{
-    Axiom* axiom(Def::NormalizeFn normalize, const Def* type, tag_t tag, flags_t flags, Debug dbg);
-    Axiom* axiom(const Def* type, tag_t tag, flags_t flags, Debug dbg) { return axiom(nullptr, type, tag, flags, dbg); }
+    Axiom* axiom(Def::NormalizeFn normalize, const Def* type, size_t num_ops, tag_t tag, flags_t flags, Debug dbg);
+    Axiom* axiom(const Def* type, tag_t tag, flags_t flags, Debug dbg) { return axiom(nullptr, type, 0, tag, flags, dbg); }
     //@}
     /// @name Pi
     //@{
@@ -158,7 +158,7 @@ public:
     //@}
     /// @name Tuple
     //@{
-    /// ascribes @p type to this tuple - needed for dependetly typed and structural @p Sigma%s
+    /// ascribes @p type to this tuple - needed for dependently typed and structural @p Sigma%s
     const Def* tuple(const Def* type, Defs ops, Debug dbg = {});
     const Def* tuple(Defs ops, Debug dbg = {});
     const Def* tuple_str(const char* s, Debug = {});

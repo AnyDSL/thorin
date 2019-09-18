@@ -397,8 +397,8 @@ Def::Def(node_t node, StubFn stub, const Def* type, size_t num_ops, uint64_t fie
     std::fill_n(ops_ptr(), num_ops, nullptr);
 }
 
-Axiom::Axiom(NormalizeFn normalizer, const Def* type, u32 tag, u32 flags, const Def* dbg)
-    : Def(Node, stub, type, 0, (nat_t(tag) << 32_u64) | nat_t(flags), dbg)
+Axiom::Axiom(NormalizeFn normalizer, const Def* type, size_t num_ops, u32 tag, u32 flags, const Def* dbg)
+    : Def(Node, stub, type, num_ops, (nat_t(tag) << 32_u64) | nat_t(flags), dbg)
 {
     u16 currying_depth = 0;
     while (auto pi = type->isa<Pi>()) {

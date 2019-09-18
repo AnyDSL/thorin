@@ -74,21 +74,21 @@ World::World(uint32_t cur_gid, const std::string& name)
         v->set_body(extract(type->param(1, {"Ts"}), i));
         type->set_codomain(pi({type_nat(), v}, type->param(2, {"T"})));
         type->dump();
-        cache_.op_analyze_ = axiom(nullptr, type, Tag::Analyze, 0, {"analyze"});
+        cache_.op_analyze_ = axiom(type, Tag::Analyze, 0, {"analyze"});
     } { // bitcast: Π[S: *, D: *]. ΠS. D
         auto type = pi(kind_star())->set_domain({kind_star(), kind_star()});
         auto S = type->param(0, {"S"});
         auto D = type->param(1, {"D"});
         type->set_codomain(pi(S, D));
-        cache_.op_bitcast_ = axiom(normalize_bitcast, type, Tag::Bitcast, 0, {"bitcast"});
+        cache_.op_bitcast_ = axiom(normalize_bitcast, type, 0, Tag::Bitcast, 0, {"bitcast"});
     } { // select: ΠT:*. Π[bool, T, T]. T
         auto type = pi(kind_star())->set_domain(kind_star());
         auto T = type->param({"T"});
-        cache_.op_select_ = axiom(normalize_select, type->set_codomain(pi({type_bool(), T, T}, T)), Tag::Select, 0, {"select"});
+        cache_.op_select_ = axiom(normalize_select, type->set_codomain(pi({type_bool(), T, T}, T)), 0, Tag::Select, 0, {"select"});
     } { // sizeof: ΠT:*. nat
-        cache_.op_sizeof_ = axiom(normalize_sizeof, pi(kind_star(), type_nat()), Tag::Sizeof, 0, {"sizeof"});
+        cache_.op_sizeof_ = axiom(normalize_sizeof, pi(kind_star(), type_nat()), 0, Tag::Sizeof, 0, {"sizeof"});
     }
-#define CODE(T, o) cache_.T ## _[size_t(T::o)] = axiom(normalize_ ## T<T::o>, type, Tag::T, flags_t(T::o), {op2str(T::o)});
+#define CODE(T, o) cache_.T ## _[size_t(T::o)] = axiom(normalize_ ## T<T::o>, type, 0, Tag::T, flags_t(T::o), {op2str(T::o)});
     {   // IOp: Πw: nat. Π[int w, int w]. int w
         auto type = pi(kind_star())->set_domain(type_nat());
         auto int_w = type_int(type->param({"w"}));
@@ -132,7 +132,7 @@ World::World(uint32_t cur_gid, const std::string& name)
         auto type_sw = T::o == T::r2s || T::o == T::r2u || T::o == T::r2r ? type_real(sw) : type_int(sw);         \
         auto type_dw = T::o == T::s2r || T::o == T::u2r || T::o == T::r2r ? type_real(dw) : type_int(dw);         \
         type->set_codomain(pi(type_sw, type_dw));                                                                 \
-        cache_.Conv_[size_t(T::o)] = axiom(normalize_Conv<T::o>, type, Tag::Conv, flags_t(T::o), {op2str(T::o)}); \
+        cache_.Conv_[size_t(T::o)] = axiom(normalize_Conv<T::o>, type, 0, Tag::Conv, flags_t(T::o), {op2str(T::o)}); \
     }
     THORIN_CONV(CODE)
 #undef Code
@@ -142,8 +142,8 @@ World::~World() {
     for (auto def : defs_) def->~Def();
 }
 
-Axiom* World::axiom(Def::NormalizeFn normalize, const Def* type, tag_t tag, flags_t flags, Debug dbg) {
-    auto a = insert<Axiom>(0, normalize, type, tag, flags, debug(dbg));
+Axiom* World::axiom(Def::NormalizeFn normalize, const Def* type, size_t num_ops, tag_t tag, flags_t flags, Debug dbg) {
+    auto a = insert<Axiom>(0, normalize, type, num_ops, tag, flags, debug(dbg));
     a->make_external();
     assert(lookup(a->name()) == a);
     return a;

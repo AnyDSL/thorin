@@ -162,13 +162,13 @@ enum RMode : nat_t {
 
 namespace Node {
 #define CODE(node, name) node,
-enum : node_t { THORIN_NODE(CODE) };
+enum : node_t { THORIN_NODE(CODE) Max };
 #undef CODE
 }
 
 namespace Tag {
 #define CODE(tag, name) tag,
-enum : tag_t { THORIN_TAG(CODE) };
+enum : tag_t { THORIN_TAG(CODE) Max };
 #undef CODE
 }
 

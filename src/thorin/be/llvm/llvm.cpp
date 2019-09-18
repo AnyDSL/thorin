@@ -368,7 +368,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                     }
                 }
             } else if (auto select = isa<Tag::Select>(lam->app()->callee())) {
-                auto [cond, a, b] = select->split<3>();
+                auto [cond, a, b] = select->arg()->split_<3>();
                 auto tbb = bb2lam[a->as_nominal<Lam>()];
                 auto fbb = bb2lam[b->as_nominal<Lam>()];
                 irbuilder_.CreateCondBr(lookup(cond), tbb, fbb);
@@ -599,7 +599,7 @@ llvm::Value* CodeGen::emit_alloc(const Def* type) {
 
 llvm::Value* CodeGen::emit(const Def* def) {
     if (auto iop = isa<Tag::IOp>(def)) {
-        auto [a, b] = iop->split<2>([&](auto def) { return lookup(def); });
+        auto [a, b] = iop->arg()->split_<2>([&](auto def) { return lookup(def); });
         auto name = def->name();
         switch (iop.flags()) {
             case IOp::lshr: return irbuilder_.CreateLShr(a, b, name);
@@ -610,9 +610,9 @@ llvm::Value* CodeGen::emit(const Def* def) {
             default: THORIN_UNREACHABLE;
         }
     } else if (auto wop = isa<Tag::WOp>(def)) {
-        auto [a, b] = wop->split<2>([&](auto def) { return lookup(def); });
+        auto [a, b] = wop->arg()->split_<2>([&](auto def) { return lookup(def); });
         auto name = def->name();
-        auto [mode, width] = wop->decurry()->split<2>(as_lit<nat_t>);
+        auto [mode, width] = wop->decurry()->arg()->split_<2>(as_lit<nat_t>);
         bool nuw = mode & WMode::nuw;
         bool nsw = mode & WMode::nsw;
         switch (wop.flags()) {
@@ -623,7 +623,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
             default: THORIN_UNREACHABLE;
         }
     } else if (auto zop = isa<Tag::ZOp>(def)) {
-        auto [m, aa, bb] = zop->split<3>();
+        auto [m, aa, bb] = zop->arg()->split_<3>();
         auto a = lookup(aa);
         auto b = lookup(bb);
         auto name = def->name();
@@ -636,8 +636,8 @@ llvm::Value* CodeGen::emit(const Def* def) {
         }
     } else if (auto rop = isa<Tag::ROp>(def)) {
         auto name = def->name();
-        auto [a, b] = rop->split<2>([&](auto def) { return lookup(def); });
-        auto [mode, width] = rop->decurry()->split<2>(as_lit<nat_t>);
+        auto [a, b] = rop->arg()->split_<2>([&](auto def) { return lookup(def); });
+        auto [mode, width] = rop->decurry()->arg()->split_<2>(as_lit<nat_t>);
 
         llvm::FastMathFlags flags;
         if (mode & RMode::nnan    ) flags.setNoNaNs();
@@ -658,7 +658,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
             default: THORIN_UNREACHABLE;
         }
     } else if (auto icmp = isa<Tag::ICmp>(def)) {
-        auto [a, b] = icmp->split<2>([&](auto def) { return lookup(def); });
+        auto [a, b] = icmp->arg()->split_<2>([&](auto def) { return lookup(def); });
         auto name = def->name();
         switch (icmp.flags()) {
             case ICmp::e:   return irbuilder_.CreateICmpEQ (a, b, name);
@@ -674,7 +674,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
             default: THORIN_UNREACHABLE;
         }
     } else if (auto rcmp = isa<Tag::RCmp>(def)) {
-        auto [a, b] = rcmp->split<2>([&](auto def) { return lookup(def); });
+        auto [a, b] = rcmp->arg()->split_<2>([&](auto def) { return lookup(def); });
         auto name = def->name();
         switch (rcmp.flags()) {
             case RCmp::  e: return irbuilder_.CreateFCmpOEQ(a, b, name);
@@ -697,7 +697,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto src = lookup(conv->arg());
         auto name = def->name();
         auto type = convert(def->type());
-        auto [num_src, num_dst] = conv->decurry()->split<2>(as_lit<nat_t>);
+        auto [num_src, num_dst] = conv->decurry()->arg()->split_<2>(as_lit<nat_t>);
         assert(num_src != num_dst);
         switch (conv.flags()) {
             case Conv::s2s: return num_src < num_dst ? irbuilder_.CreateSExt (src, type, name) : irbuilder_.CreateTrunc  (src, type, name);
@@ -714,7 +714,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
     } else if (auto select = isa<Tag::Select>(def)) {
         if (def->type()->isa<Pi>()) return nullptr;
 
-        auto [cond, tval, fval] = select->split<3>([&](auto def) { return lookup(def); });
+        auto [cond, tval, fval] = select->arg()->split_<3>([&](auto def) { return lookup(def); });
         return irbuilder_.CreateSelect(cond, tval, fval);
     } else if (auto size_of = isa<Tag::Sizeof>(def)) {
         auto type = convert(size_of->arg());

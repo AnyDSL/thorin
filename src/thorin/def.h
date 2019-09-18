@@ -172,8 +172,29 @@ public:
     Array<Use> copy_uses() const { return Array<Use>(uses_.begin(), uses_.end()); }
     size_t num_uses() const { return uses().size(); }
     //@}
-    /// @name outs
+    /// @name split def via extracts
     //@{
+    /// Splits this @p Def into an array by using @p arity many @p Extract%s.
+    /// Applies @p f to each extracted element.
+    template<size_t N = size_t(-1), class F>
+    auto split_(F f) const {
+        using R = decltype(f(this));
+        std::conditional_t<N == size_t(-1), std::vector<R>, std::array<R, N>> array;
+
+        auto a = type()->lit_arity();
+        if constexpr (N == size_t(-1))
+            array.resize(a);
+        else
+            assert(a == N);
+
+        auto& w =world();
+        for (size_t i = 0; i != a; ++i)
+            array[i] = f(detail::world_extract(w, this, i));
+
+        return array;
+    }
+    /// Splits this @p Def into an array by using @p arity many @p Extract%s.
+    template<size_t N = size_t(-1)> auto split_() const { return split_<N>([](const Def* def) { return def; }); }
     const Def* out(size_t i, Debug dbg = {}) const { return detail::world_extract(world(), this, i, dbg); }
     //@}
     /// @name external handling
@@ -293,29 +314,6 @@ protected:
     friend class World;
     friend void swap(World&, World&);
 };
-
-/// Splits the @p def into an array by using @p arity many @p Extract%s.
-/// Applies @p f to each extracted element.
-template<size_t N = size_t(-1), class F>
-auto split(const Def* def, F f) {
-    using R = decltype(f(def));
-    std::conditional_t<N == size_t(-1), std::vector<R>, std::array<R, N>> array;
-
-    auto a = def->type()->lit_arity();
-    if constexpr (N == size_t(-1))
-        array.resize(a);
-    else
-        assert(a == N);
-
-    auto& w = def->world();
-    for (size_t i = 0; i != a; ++i)
-        array[i] = f(detail::world_extract(w, def, i));
-
-    return array;
-}
-
-/// Splits the @p def into an array by using @p arity many @p Extract%s.
-template<size_t N = size_t(-1)> auto split(const Def* def) { return split<N>(def, [](const Def* def) { return def; }); }
 
 class Param : public Def {
 private:
@@ -515,12 +513,6 @@ public:
     size_t num_args() const { return callee_type()->domain()->lit_arity(); }
     const Axiom* axiom() const { return axiom_depth_.ptr(); }
     u16 currying_depth() const { return axiom_depth_.index(); }
-
-    /// Splits the @p arg into an array by using @p arity many @p Extract%s.
-    /// Applies @p f to each extracted element.
-    template<size_t N = size_t(-1), class F> auto split(F f) const { return thorin::split<N, F>(arg(), f); }
-    /// Splits the @p arg into an array by using @p arity many @p Extract%s.
-    template<size_t N = size_t(-1)> auto split() const { return thorin::split<N>(arg()); }
 
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     std::ostream& stream(std::ostream&) const override;

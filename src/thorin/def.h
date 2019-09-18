@@ -177,7 +177,7 @@ public:
     /// Splits this @p Def into an array by using @p arity many @p Extract%s.
     /// Applies @p f to each extracted element.
     template<size_t N = size_t(-1), class F>
-    auto split_(F f) const {
+    auto split(F f) const {
         using R = decltype(f(this));
         std::conditional_t<N == size_t(-1), std::vector<R>, std::array<R, N>> array;
 
@@ -194,7 +194,7 @@ public:
         return array;
     }
     /// Splits this @p Def into an array by using @p arity many @p Extract%s.
-    template<size_t N = size_t(-1)> auto split_() const { return split_<N>([](const Def* def) { return def; }); }
+    template<size_t N = size_t(-1)> auto split() const { return split<N>([](const Def* def) { return def; }); }
     const Def* out(size_t i, Debug dbg = {}) const { return detail::world_extract(world(), this, i, dbg); }
     //@}
     /// @name external handling

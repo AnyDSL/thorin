@@ -136,10 +136,8 @@ const Def* merge_tuple(const Def* def, Defs defs) {
 std::string tuple2str(const Def* def) {
     if (def == nullptr) return {};
 
-    std::string result;
-    for (size_t i = 0, e = def->type()->lit_arity(); i != e; ++i)
-        result.push_back(as_lit<nat_t>(def->out(i)));
-    return result;
+    auto array = def->split(as_lit<nat_t>);
+    return std::string(array.begin(), array.end());
 }
 
 }

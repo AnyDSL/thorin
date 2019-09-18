@@ -40,7 +40,7 @@ World::World(uint32_t cur_gid, const std::string& name)
     cache_.kind_star_     = insert<KindStar >(0, *this);
     cache_.bot_star_      = insert<Bot>(0, kind_star(), nullptr);
     cache_.top_arity_     = insert<Top>(0, kind_arity(), nullptr);
-    cache_.sigma_         = insert<Sigma>(0, kind_star(), Defs{}, nullptr)->as<Sigma>();
+    cache_.sigma_         = insert<Sigma>(0, kind_star(), Defs{}, false, nullptr)->as<Sigma>();
     cache_.tuple_         = insert<Tuple>(0, sigma(), Defs{}, nullptr)->as<Tuple>();
     cache_.type_mem_      = insert<Mem>(0, *this);
     cache_.type_nat_      = insert<Nat>(0, *this);
@@ -208,13 +208,13 @@ const Pi* World::pi(const Def* domain, const Def* codomain, Debug dbg) {
     return unify<Pi>(2, type, domain, codomain, debug(dbg));
 }
 
-const Def* World::sigma(const Def* type, Defs ops, Debug dbg) {
+const Def* World::sigma(const Def* type, Defs ops, bool pack, Debug dbg) {
     auto n = ops.size();
     if (n == 0) return sigma();
     if (n == 1) return ops[0];
-    if (std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; }))
+    if (pack && std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; }))
         return variadic(n, ops[0]);
-    return unify<Sigma>(ops.size(), type, ops, debug(dbg));
+    return unify<Sigma>(ops.size(), type, ops, pack, debug(dbg));
 }
 
 static const Def* infer_sigma(World& world, Defs ops) {

@@ -135,9 +135,9 @@ public:
     //@}
     /// @name Sigma: structural
     //@{
-    const Def* sigma(const Def* type, Defs ops, Debug dbg = {});
+    const Def* sigma(const Def* type, Defs ops, bool pack = true, Debug dbg = {});
     /// a @em structural @p Sigma of type @p star
-    const Def* sigma(Defs ops, Debug dbg = {}) { return sigma(kind_star(), ops, dbg); }
+    const Def* sigma(Defs ops, bool pack = true, Debug dbg = {}) { return sigma(kind_star(), ops, pack, dbg); }
     const Sigma* sigma() { return cache_.sigma_; } ///< the unit type within @p kind_star()
     //@}
     /// @name Sigma: nominal

@@ -676,8 +676,8 @@ private:
 class Sigma : public Def {
 private:
     /// Constructor for a @em structural Sigma.
-    Sigma(const Def* type, Defs ops, const Def* dbg)
-        : Def(Node, rebuild, type, ops, 0, dbg)
+    Sigma(const Def* type, Defs ops, bool pack, const Def* dbg)
+        : Def(Node, rebuild, type, ops, pack ? 1 : 0, dbg)
     {}
     /// Constructor for a @em nominal Sigma.
     Sigma(const Def* type, size_t size, const Def* dbg)

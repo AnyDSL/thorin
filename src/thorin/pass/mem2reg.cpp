@@ -5,7 +5,7 @@
 
 namespace thorin {
 
-static const Def* proxy_type(const Analyze* proxy) { return proxy->type()->as<Ptr>()->pointee(); }
+static const Def* proxy_type(const Analyze* proxy) { return as<Tag::Ptr>(proxy->type())->arg()->split(0_s); }
 static std::tuple<Lam*, int64_t> disassemble_proxy(const Analyze* proxy) { return {proxy->op(0)->as_nominal<Lam>(), as_lit<u64>(proxy->op(1))}; }
 static std::tuple<Lam*, const Analyze*> disassemble_virtual_phi(const Analyze* proxy) { return {proxy->op(0)->as_nominal<Lam>(), proxy->op(1)->as<Analyze>()}; }
 

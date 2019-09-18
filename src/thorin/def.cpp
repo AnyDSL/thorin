@@ -54,12 +54,12 @@ const Def* Def::debug_history() const {
 //#endif
 }
 
-std::string Def::name() const     { return debug() ? tuple2str(debug()->out(0)) : std::string{}; }
-std::string Def::filename() const { return debug() ? tuple2str(debug()->out(1)) : std::string{}; }
-nat_t Def::front_line() const { return debug() ? as_lit<nat_t>(debug()->out(2)) : std::numeric_limits<nat_t>::max(); }
-nat_t Def::front_col()  const { return debug() ? as_lit<nat_t>(debug()->out(3)) : std::numeric_limits<nat_t>::max(); }
-nat_t Def::back_line()  const { return debug() ? as_lit<nat_t>(debug()->out(4)) : std::numeric_limits<nat_t>::max(); }
-nat_t Def::back_col()   const { return debug() ? as_lit<nat_t>(debug()->out(5)) : std::numeric_limits<nat_t>::max(); }
+std::string Def::name() const     { return debug() ? tuple2str(debug()->split(0_s)) : std::string{}; }
+std::string Def::filename() const { return debug() ? tuple2str(debug()->split(1_s)) : std::string{}; }
+nat_t Def::front_line() const { return debug() ? as_lit<nat_t>(debug()->split(2_s)) : std::numeric_limits<nat_t>::max(); }
+nat_t Def::front_col()  const { return debug() ? as_lit<nat_t>(debug()->split(3_s)) : std::numeric_limits<nat_t>::max(); }
+nat_t Def::back_line()  const { return debug() ? as_lit<nat_t>(debug()->split(4_s)) : std::numeric_limits<nat_t>::max(); }
+nat_t Def::back_col()   const { return debug() ? as_lit<nat_t>(debug()->split(5_s)) : std::numeric_limits<nat_t>::max(); }
 
 std::string Def::loc() const {
     std::ostringstream os;
@@ -466,7 +466,6 @@ const Def* Mem        ::rebuild(const Def*  , World& w, const Def*  , Defs  , co
 const Def* Pack       ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.pack(t->arity(), o[0], dbg); }
 const Def* Param      ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.param(t, o[0]->as_nominal(), dbg); }
 const Def* Pi         ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.pi(o[0], o[1], dbg); }
-const Def* Ptr        ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.type_ptr(o[0], o[1], dbg); }
 const Def* Tuple      ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.tuple(t, o, dbg); }
 const Def* Variadic   ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.variadic(o[0], o[1], dbg); }
 const Def* VariantType::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.variant_type(o, dbg); }
@@ -510,6 +509,17 @@ std::ostream& App::stream(std::ostream& os) const {
     if (auto w = get_width(this)) {
         if (auto real = thorin::isa<Tag::Real>(this)) return streamf(os, "r{}", *w);
         return streamf(os, "i{}", *w);
+    } else if (auto ptr = thorin::isa<Tag::Ptr>(this)) {
+        auto [pointee, addr_space] = ptr->arg()->split<2>();
+        os << pointee << '*';
+        switch (auto as = as_lit<nat_t>(addr_space)) {
+            case AddrSpace::Generic:  return streamf(os, "");
+            case AddrSpace::Global:   return streamf(os, "[Global]");
+            case AddrSpace::Texture:  return streamf(os, "[Tex]");
+            case AddrSpace::Shared:   return streamf(os, "[Shared]");
+            case AddrSpace::Constant: return streamf(os, "[Constant]");
+            default:                  return streamf(os, "[{}]", as);
+        }
     }
 
     return streamf(os, "{} {}", callee(), arg());
@@ -615,18 +625,6 @@ std::ostream& Pi::stream(std::ostream& os) const {
             return streamf(os, "Π{}:{} -> {}", pi->param(), pi->domain(), pi->codomain());
         else
             return streamf(os, "Π{} -> {}", domain(), codomain());
-    }
-}
-
-std::ostream& Ptr::stream(std::ostream& os) const {
-    os << pointee() << '*';
-    switch (auto as = lit_addr_space()) {
-        case AddrSpace::Generic:  return streamf(os, "");
-        case AddrSpace::Global:   return streamf(os, "[Global]");
-        case AddrSpace::Texture:  return streamf(os, "[Tex]");
-        case AddrSpace::Shared:   return streamf(os, "[Shared]");
-        case AddrSpace::Constant: return streamf(os, "[Constant]");
-        default:                  return streamf(os, "[{}]", as);
     }
 }
 

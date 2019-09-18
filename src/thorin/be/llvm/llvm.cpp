@@ -148,7 +148,7 @@ Lam* CodeGen::emit_reserve_shared(Lam* lam, bool init_undef) {
     auto l = lam->app()->arg(2)->as_nominal<Lam>();
     auto type = convert(lam->param(1)->type());
     // construct array type
-    auto elem_type = l->param(1)->type()->as<Ptr>()->pointee()->as<Variadic>()->body();
+    auto elem_type = as<Tag::Ptr>(l->param(1)->type())->arg()->split(0_s)->as<Variadic>()->body();
     auto smem_type = this->convert(lam->world().variadic(num_elems, elem_type));
     auto name = lam->unique_name();
     // NVVM doesn't allow '.' in global identifier
@@ -165,7 +165,7 @@ llvm::Value* CodeGen::emit_bitcast(const Def* val, const Def* dst_type) {
     auto to = convert(dst_type);
     if (from->getType()->isAggregateType() || to->isAggregateType())
         EDEF(val, "bitcast from or to aggregate types not allowed: bitcast from '{}' to '{}'", src_type, dst_type);
-    if (src_type->isa<Ptr>() && dst_type->isa<Ptr>())
+    if (isa<Tag::Ptr>(src_type) && isa<Tag::Ptr>(dst_type))
         return irbuilder_.CreatePointerCast(from, to);
     return irbuilder_.CreateBitCast(from, to);
 }
@@ -944,6 +944,7 @@ llvm::Value* CodeGen::emit_store(const Store* store) {
     return irbuilder_.CreateStore(lookup(store->val()), lookup(store->ptr()));
 }
 
+#if 0
 llvm::Value* CodeGen::emit_lea(const LEA* lea) {
     if (lea->ptr_pointee()->isa<Sigma>())
         return irbuilder_.CreateStructGEP(convert(lea->ptr_pointee()), lookup(lea->ptr()), as_lit<u64>(lea->index()));
@@ -952,6 +953,7 @@ llvm::Value* CodeGen::emit_lea(const LEA* lea) {
     llvm::Value* args[2] = { irbuilder_.getInt64(0), lookup(lea->index()) };
     return irbuilder_.CreateInBoundsGEP(lookup(lea->ptr()), args);
 }
+#endif
 
 /*
 llvm::Value* CodeGen::emit_assembly(const Assembly* assembly) {
@@ -1047,31 +1049,24 @@ llvm::Type* CodeGen::convert(const Def* type) {
             case 64: return types_[type] = irbuilder_.getInt64Ty();
             default: THORIN_UNREACHABLE;
         }
-    }
-
-    if (auto real = isa<Tag::Real>(type)) {
+    } else if (auto real = isa<Tag::Real>(type)) {
         switch (as_lit<nat_t>(real->arg())) {
             case 16: return types_[type] = irbuilder_.getHalfTy();
             case 32: return types_[type] = irbuilder_.getFloatTy();
             case 64: return types_[type] = irbuilder_.getDoubleTy();
             default: THORIN_UNREACHABLE;
         }
-    }
-
-    if (auto ptr = type->isa<Ptr>()) {
-        auto llvm_type = llvm::PointerType::get(convert(ptr->pointee()), convert_addr_space(ptr->lit_addr_space()));
+    } else if (auto ptr = isa<Tag::Ptr>(type)) {
+        auto [pointee, addr_space] = ptr->arg()->split<2>();
+        auto llvm_type = llvm::PointerType::get(convert(pointee), convert_addr_space(as_lit<nat_t>(addr_space)));
         return types_[type] = llvm_type;
-    }
-
-    if (auto variadic = type->isa<Variadic>()) {
+    } else if (auto variadic = type->isa<Variadic>()) {
         auto elem_type = convert(variadic->body());
         if (auto arity = isa_lit<u64>(variadic->arity()))
             return types_[type] = llvm::ArrayType::get(elem_type, *arity);
         else
             return types_[type] = llvm::ArrayType::get(elem_type, 0);
-    }
-
-    if (auto cn = type->isa<Pi>()) {
+    } else if (auto cn = type->isa<Pi>()) {
         // extract "return" type, collect all other types
         assert(cn->is_cn());
         llvm::Type* ret = nullptr;
@@ -1096,9 +1091,7 @@ llvm::Type* CodeGen::convert(const Def* type) {
 
         auto llvm_type = llvm::FunctionType::get(ret, domains, false);
         return types_[type] = llvm_type;
-    }
-
-    if (auto sigma = type->isa<Sigma>()) {
+    } else if (auto sigma = type->isa<Sigma>()) {
         llvm::StructType* llvm_struct = nullptr;
         if (sigma->isa_nominal()) {
             llvm_struct = llvm::StructType::create(context_);
@@ -1114,9 +1107,7 @@ llvm::Type* CodeGen::convert(const Def* type) {
             llvm_struct = llvm::StructType::get(context_, llvm_ref(llvm_types));
 
         return llvm_struct;
-    }
-
-    if (auto variant_type = type->isa<VariantType>()) {
+    } else if (auto variant_type = type->isa<VariantType>()) {
         auto bits = compute_variant_bits(variant_type);
         if (bits != 0) {
             return types_[type] = irbuilder_.getIntNTy(bits);

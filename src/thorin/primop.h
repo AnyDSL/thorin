@@ -39,9 +39,8 @@ private:
 public:
     const Def* ptr() const { return op(0); }
     const Def* index() const { return op(1); }
-    const Ptr* type() const { return Def::type()->as<Ptr>(); }
-    const Ptr* ptr_type() const { return ptr()->type()->as<Ptr>(); } ///< Returns the Ptr from @p ptr().
-    const Def* ptr_pointee() const { return ptr_type()->pointee(); }        ///< Returns the type referenced by @p ptr().
+    //const Ptr* ptr_type() const { return ptr()->type()->as<Ptr>(); } ///< Returns the Ptr from @p ptr().
+    //const Def* ptr_pointee() const { return ptr_type()->pointee(); } ///< Returns the type referenced by @p ptr().
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
     static constexpr auto Node = Node::LEA;
@@ -109,8 +108,7 @@ public:
     const Def* id() const { return op(0); }
     const Def* init() const { return op(1); }
     bool is_mutable() const { return fields(); }
-    const Ptr* type() const { return Def::type()->as<Ptr>(); }
-    const Def* alloced_type() const { return type()->pointee(); }
+    const Def* alloced_type() const { return thorin::as<Tag::Ptr>(type())->arg()->split(0_s); }
     const char* op_name() const override;
 
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
@@ -131,10 +129,10 @@ private:
 
 public:
     const Def* mem() const { return op(0); }
-    const Def* out_mem() const { return out(0); }
-    const Def* out_ptr() const { return out(1); }
+    const Def* out_mem() const { return split(0_s); }
+    const Def* out_ptr() const { return split(1_s); }
     const Sigma* type() const { return Def::type()->as<Sigma>(); }
-    const Def* alloced_type() const { return out_ptr()->type()->as<Ptr>()->pointee(); }
+    const Def* alloced_type() const { return thorin::as<Tag::Ptr>(type())->arg()->split(0_s); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
     static constexpr auto Node = Node::Alloc;
@@ -153,10 +151,10 @@ private:
 
 public:
     const Def* mem() const { return op(0); }
-    const Def* out_mem() const { return out(0); }
-    const Def* out_ptr() const { return out(1); }
+    const Def* out_mem() const { return split(0_s); }
+    const Def* out_ptr() const { return split(1_s); }
     const Sigma* type() const { return Def::type()->as<Sigma>(); }
-    const Def* alloced_type() const { return out_ptr()->type()->as<Ptr>()->pointee(); }
+    const Def* alloced_type() const { return thorin::as<Tag::Ptr>(out_ptr()->type())->arg()->split(0_s); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
     static constexpr auto Node = Node::Slot;
@@ -175,8 +173,8 @@ private:
 public:
     const Def* mem() const { return op(0); }
     const Def* ptr() const { return op(1); }
-    const Def* out_mem() const { return out(0); }
-    const Def* out_val() const { return out(1); }
+    const Def* out_mem() const { return split(0_s); }
+    const Def* out_val() const { return split(1_s); }
     const Sigma* type() const { return Def::type()->as<Sigma>(); }
     const Def* out_val_type() const { return type()->op(1); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
@@ -198,7 +196,7 @@ public:
     const Def* mem() const { return op(0); }
     const Def* ptr() const { return op(1); }
     const Def* val() const { return op(2); }
-    const Def* out_mem() const { return out(0); }
+    const Def* out_mem() const { return split(0_s); }
     const Mem* type() const { return Def::type()->as<Mem>(); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 

@@ -193,7 +193,7 @@ public:
     /// @name LEA - load effective address
     //@{
     const Def* lea(const Def* ptr, const Def* index, Debug dbg);
-    const Def* unsafe_lea(const Def* ptr, const Def* index, Debug dbg) { return lea(ptr, op_bitcast(ptr->type()->as<Ptr>()->pointee()->type()->arity(), index, dbg), dbg); }
+    const Def* unsafe_lea(const Def* ptr, const Def* index, Debug dbg) { return lea(ptr, op_bitcast(as<Tag::Ptr>(ptr->type())->arg()->split(0_s)->type()->arity(), index, dbg), dbg); }
     //@}
     /// @name Lit
     //@{
@@ -290,8 +290,9 @@ public:
     const App* type_real(nat_t w) { return type_real(lit_nat(w)); }
     const App* type_int (const Def* w) { return app(type_int(),  w)->as<App>(); }
     const App* type_real(const Def* w) { return app(type_real(), w)->as<App>(); }
-    const Ptr* type_ptr(const Def* pointee, const Def* addr_space, Debug dbg = {}) { return unify<Ptr>(2, kind_star(), pointee, addr_space, debug(dbg)); }
-    const Ptr* type_ptr(const Def* pointee, nat_t addr_space = AddrSpace::Generic, Debug dbg = {}) { return type_ptr(pointee, lit_nat(addr_space), dbg); }
+    const Axiom* type_ptr() { return cache_.type_ptr_; }
+    const App* type_ptr(const Def* pointee, const Def* addr_space, Debug dbg = {}) { return app(type_ptr(), {pointee, addr_space}, debug(dbg))->as<App>(); }
+    const App* type_ptr(const Def* pointee, nat_t addr_space = AddrSpace::Generic, Debug dbg = {}) { return type_ptr(pointee, lit_nat(addr_space), dbg); }
     //@}
     /// @name IOp
     //@{
@@ -575,6 +576,7 @@ private:
         std::array<Axiom*, Num<Conv>> Conv_;
         Axiom* type_int_;
         Axiom* type_real_;
+        Axiom* type_ptr_;
         Axiom* op_bitcast_;
         Axiom* op_select_;
         Axiom* op_sizeof_;

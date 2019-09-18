@@ -263,7 +263,7 @@ void Schedule::verify() {
                     WLOG("incorrect schedule: {} @ '{}'; current mem is {} @ '{}') - scope entry: {}", def, def->loc(), mem, mem->loc(), scope_.entry());
                     ok = false;
                 }
-                mem = def->out(0);
+                mem = def->split(0_s);
             }
         }
         block2mem[block] = mem;

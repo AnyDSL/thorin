@@ -47,7 +47,7 @@ using nat_t    = u64;
                        m(Param, param)
 
 #define THORIN_TAG(m)                                                                         \
-    m(Int, int) m(Real, real)                                                                 \
+    m(Int, int) m(Real, real) m(Ptr, ptr)                                                     \
     m(WOp, wop) m(ZOp, zop) m(IOp, iop) m(ROp, rop) m(ICmp, icmp) m(RCmp, rcmp) m(Conv, conv) \
     m(Bitcast, bitcast) m(Select, select) m(Sizeof, sizeof)
 
@@ -225,6 +225,16 @@ template<> struct Tag2Enum_<Tag::ICmp> { using type = ICmp; };
 template<> struct Tag2Enum_<Tag::RCmp> { using type = RCmp; };
 template<> struct Tag2Enum_<Tag::Conv> { using type = Conv; };
 template<tag_t tag> using Tag2Enum = typename Tag2Enum_<tag>::type;
+
+namespace AddrSpace {
+    enum : nat_t {
+        Generic  = 0,
+        Global   = 1,
+        Texture  = 2,
+        Shared   = 3,
+        Constant = 4,
+    };
+}
 
 }
 

@@ -54,16 +54,12 @@ World::World(uint32_t cur_gid, const std::string& name)
         cache_.type_real_ = axiom(p, Tag::Real, 0, {"real"});
         cache_.lit_bool_[0] = lit(type_bool(), false);
         cache_.lit_bool_[1] = lit(type_bool(),  true);
-    }
-
-    // TODO
-    // lea:,  Π[s: *M, Ts: «s; *», as: nat]. Π[ptr(«j: s; Ts#j», as), i: s]. ptr(Ts#i, as)
-    // load:  Π[T: *, as: nat]. Π[M as, ptr(T, as)]. [M as, T]
-    // store: Π[T: *, as: nat]. Π[M as, ptr(T, as), T]. M as
-    // enter: Πas: nat. ΠM as. [M as, F as]
-    // slot:  Π[T: *, as: nat]. Π[F as, nat]. ptr(T, as)
-
-    {
+    } { // ptr: Π[T: *, as: nat]. *
+    } { // lea:,  Π[s: *M, Ts: «s; *», as: nat]. Π[ptr(«j: s; Ts#j», as), i: s]. ptr(Ts#i, as)
+    } { // load:  Π[T: *, as: nat]. Π[M as, ptr(T, as)]. [M as, T]
+    } { // store: Π[T: *, as: nat]. Π[M as, ptr(T, as), T]. M as
+    } { // enter: Πas: nat. ΠM as. [M as, F as]
+    } { // slot:  Π[T: *, as: nat]. Π[F as, nat]. ptr(T, as)
     } { // bitcast: Π[S: *, D: *]. ΠS. D
         auto type = pi(kind_star())->set_domain({kind_star(), kind_star()});
         auto S = type->param(0, {"S"});
@@ -666,8 +662,8 @@ const Def* World::bot_top(bool is_top, const Def* type, Debug dbg) {
  */
 
 const Def* World::lea(const Def* ptr, const Def* index, Debug dbg) {
-    auto type_ptr = ptr->type()->as<Ptr>();
-    auto pointee = type_ptr->pointee();
+    auto type_ptr = as<Tag::Ptr>(ptr->type());
+    auto [pointee, addr_space] = type_ptr->arg()->split<2>();
 
     assertf(pointee->arity() == index->type(), "lea of aggregate {} of arity {} with index {} of type {}", pointee, pointee->arity(), index, index->type());
 
@@ -675,10 +671,10 @@ const Def* World::lea(const Def* ptr, const Def* index, Debug dbg) {
 
     const Def* type = nullptr;
     if (auto sigma = pointee->isa<Sigma>()) {
-        type = this->type_ptr(sigma->op(as_lit<u64>(index)), type_ptr->addr_space());
+        type = this->type_ptr(sigma->op(as_lit<u64>(index)), addr_space);
     } else {
         auto variadic = pointee->as<Variadic>();
-        type = this->type_ptr(variadic->body(), type_ptr->addr_space());
+        type = this->type_ptr(variadic->body(), addr_space);
     }
 
     return unify<LEA>(2, type, ptr, index, debug(dbg));
@@ -689,7 +685,7 @@ const Def* World::lea(const Def* ptr, const Def* index, Debug dbg) {
  */
 
 const Def* World::load(const Def* mem, const Def* ptr, Debug dbg) {
-    auto pointee = ptr->type()->as<Ptr>()->pointee();
+    auto pointee = as<Tag::Ptr>(ptr->type())->arg()->split(0_s);
 
     // loading an empty tuple can only result in an empty tuple
     if (auto sigma = pointee->isa<Sigma>(); sigma && sigma->num_ops() == 0)
@@ -706,7 +702,7 @@ const Def* World::store(const Def* mem, const Def* ptr, const Def* val, Debug db
             return mem;
     }
 
-    assert(ptr->type()->as<Ptr>()->pointee() == val->type());
+    //assert(ptr->type()->as<Ptr>()->pointee() == val->type());
     return unify<Store>(3, mem, ptr, val, debug(dbg));
 }
 

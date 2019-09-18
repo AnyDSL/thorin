@@ -172,7 +172,7 @@ public:
     Array<Use> copy_uses() const { return Array<Use>(uses_.begin(), uses_.end()); }
     size_t num_uses() const { return uses().size(); }
     //@}
-    /// @name split def via extracts
+    /// @name split Def via extracts
     //@{
     /// Splits this @p Def into an array by using @p arity many @p Extract%s.
     /// Applies @p f to each extracted element.
@@ -195,7 +195,7 @@ public:
     }
     /// Splits this @p Def into an array by using @p arity many @p Extract%s.
     template<size_t N = size_t(-1)> auto split() const { return split<N>([](const Def* def) { return def; }); }
-    const Def* out(size_t i, Debug dbg = {}) const { return detail::world_extract(world(), this, i, dbg); }
+    const Def* split(size_t i, Debug dbg = {}) const { return detail::world_extract(world(), this, i, dbg); }
     //@}
     /// @name external handling
     //@{
@@ -855,35 +855,6 @@ public:
     std::ostream& stream(std::ostream&) const override;
 
     static constexpr auto Node = Node::Nat;
-    friend class World;
-};
-
-struct AddrSpace {
-    enum : nat_t {
-        Generic  = 0,
-        Global   = 1,
-        Texture  = 2,
-        Shared   = 3,
-        Constant = 4,
-    };
-};
-
-/// Pointer type.
-class Ptr : public Def {
-private:
-    Ptr(const Def* type, const Def* pointee, const Def* addr_space, const Def* dbg)
-        : Def(Node, rebuild, type, {pointee, addr_space}, 0, dbg)
-    {}
-
-public:
-    const Def* pointee() const { return op(0); }
-    const Def* addr_space() const { return op(1); }
-    nat_t lit_addr_space() const { return as_lit<nat_t>(op(1)); }
-
-    std::ostream& stream(std::ostream&) const override;
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-
-    static constexpr auto Node = Node::Ptr;
     friend class World;
 };
 

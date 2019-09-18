@@ -43,8 +43,8 @@ NVVMCodeGen::NVVMCodeGen(World& world, const Cont2Config& kernel_config)
 //------------------------------------------------------------------------------
 
 static u64 resolve_addr_space(const Def* def) {
-    if (auto ptr = def->type()->isa<Ptr>())
-        return ptr->lit_addr_space();
+    if (auto ptr = isa<Tag::Ptr>(def->type()))
+        return as_lit<nat_t>(ptr->arg()->split(0_s));
     return AddrSpace::Generic;
 }
 
@@ -52,9 +52,10 @@ llvm::FunctionType* NVVMCodeGen::convert_fn_type(Lam* lam) {
     // skip non-global address-space parameters
     std::vector<const Def*> types;
     for (auto type : lam->type()->ops()) {
-        if (auto ptr = type->isa<Ptr>())
-            if (ptr->lit_addr_space() == AddrSpace::Texture)
+        if (auto ptr = isa<Tag::Ptr>(type)) {
+            if (as_lit<nat_t>(ptr->arg()->split(0_s)) == AddrSpace::Texture)
                 continue;
+        }
         types.push_back(type);
     }
     return llvm::cast<llvm::FunctionType>(convert(lam->world().cn(types)));
@@ -72,7 +73,7 @@ void NVVMCodeGen::emit_function_decl_hook(Lam* lam, llvm::Function* f) {
     };
 
     const auto emit_texture_kernel_arg = [&](const Def* param) {
-        assert(param->type()->as<Ptr>()->lit_addr_space() == AddrSpace::Texture);
+        assert(as_lit<nat_t>(as<Tag::Ptr>(param->type())->arg()->split(1_s)) == AddrSpace::Texture);
         auto global = emit_global_variable(irbuilder_.getInt64Ty(), param->name(), 1);
         metadata_[param] = append_metadata(global, "texture", 1);
     };
@@ -91,8 +92,8 @@ void NVVMCodeGen::emit_function_decl_hook(Lam* lam, llvm::Function* f) {
 
     // check signature for texturing memory
     for (auto param : lam->params()) {
-        if (auto ptr = param->type()->isa<Ptr>()) {
-            switch (ptr->lit_addr_space()) {
+        if (auto ptr = isa<Tag::Ptr>(param->type())) {
+            switch (as_lit<nat_t>(ptr->arg()->split(1_s))) {
                 case AddrSpace::Texture:
                     emit_texture_kernel_arg(param);
                     break;
@@ -215,16 +216,17 @@ llvm::Value* NVVMCodeGen::emit_lea(const LEA* lea) {
             // sample for i32:
             // %tex_fetch = call { i32, i32, i32, i32 } asm sideeffect "tex.1d.v4.s32.s32 {$0,$1,$2,$3}, [$4, {$5,$6,$7,$8}];",
             // "=r,=r,=r,=r,l,r,r,r,r" (i64 %tex_ref, i32 %add, i32 0, i32 0, i32 0)
-            auto ptr_ty = lea->type();
-            auto llvm_ptr_ty = convert(ptr_ty->pointee());
+            auto ptr_ty = as<Tag::Ptr>(lea->type());
+            auto [pointee, addr_space] = ptr_ty->arg()->split<2>();
+            auto llvm_ptr_ty = convert(pointee);
             llvm::Type* struct_types[] = { llvm_ptr_ty, llvm_ptr_ty, llvm_ptr_ty, llvm_ptr_ty };
             auto ret_type = llvm::StructType::create(struct_types);
             llvm::Type* args[] = {
                 irbuilder_.getInt64Ty(),
                 irbuilder_.getInt32Ty(), irbuilder_.getInt32Ty(), irbuilder_.getInt32Ty(), irbuilder_.getInt32Ty() };
             auto type = llvm::FunctionType::get(ret_type, args, false);
-            auto fetch_command = get_texture_fetch_command(ptr_ty->pointee());
-            auto fetch_constraint = get_texture_fetch_constraint(ptr_ty->pointee());
+            auto fetch_command = get_texture_fetch_command(pointee);
+            auto fetch_constraint = get_texture_fetch_constraint(pointee);
             auto get_call = llvm::InlineAsm::get(type, fetch_command, fetch_constraint, false);
             llvm::Value* values[] = {
                 lookup(lea->ptr()), lookup(lea->index()),

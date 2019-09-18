@@ -40,14 +40,14 @@ Assembly::~Assembly() { (&extra<Extra>())->~Extra(); }
 
 // do not use any of d's type getters - during import we need to derive types from 't' in the new world 'to'
 
-const Def* Alloc  ::rebuild(const Def*  , World& to, const Def* t, Defs ops, const Def* dbg) { return to.alloc(t->as<Sigma>()->op(1)->as<Ptr>()->pointee(), ops[0], dbg); }
+const Def* Alloc  ::rebuild(const Def*  , World& to, const Def* t, Defs ops, const Def* dbg) { return to.alloc(thorin::as<Tag::Ptr>(t->as<Sigma>()->op(1))->arg()->split(0_s), ops[0], dbg); }
 const Def* Global ::rebuild(const Def* d, World& to, const Def*  , Defs ops, const Def* dbg) { return to.global(ops[0], ops[1], d->as<Global>()->is_mutable(), dbg); }
 const Def* Hlt    ::rebuild(const Def*  , World& to, const Def*  , Defs ops, const Def* dbg) { return to.hlt(ops[0], dbg); }
 const Def* Known  ::rebuild(const Def*  , World& to, const Def*  , Defs ops, const Def* dbg) { return to.known(ops[0], dbg); }
 const Def* Run    ::rebuild(const Def*  , World& to, const Def*  , Defs ops, const Def* dbg) { return to.run(ops[0], dbg); }
 const Def* LEA    ::rebuild(const Def*  , World& to, const Def*  , Defs ops, const Def* dbg) { return to.lea(ops[0], ops[1], dbg); }
 const Def* Load   ::rebuild(const Def*  , World& to, const Def*  , Defs ops, const Def* dbg) { return to.load(ops[0], ops[1], dbg); }
-const Def* Slot   ::rebuild(const Def*  , World& to, const Def* t, Defs ops, const Def* dbg) { return to.slot(t->as<Sigma>()->op(1)->as<Ptr>()->pointee(), ops[0], dbg); }
+const Def* Slot   ::rebuild(const Def*  , World& to, const Def* t, Defs ops, const Def* dbg) { return to.slot(thorin::as<Tag::Ptr>(t->as<Sigma>()->op(1))->arg()->split(0_s), ops[0], dbg); }
 const Def* Store  ::rebuild(const Def*  , World& to, const Def*  , Defs ops, const Def* dbg) { return to.store(ops[0], ops[1], ops[2], dbg); }
 const Def* Variant::rebuild(const Def*  , World& to, const Def* t, Defs ops, const Def* dbg) { return to.variant(t->as<VariantType>(), ops[0], dbg); }
 

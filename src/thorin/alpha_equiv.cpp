@@ -8,7 +8,7 @@ struct Checker {
     bool run(const Def* d1, const Def* d2) {
         if (d1 == d2 || (!d1->is_set() && !d2->is_set())) return true;
         if (d1->node() != d2->node() || d1->fields() != d2->fields() || d1->num_ops() != d2->num_ops()
-                || bool(d1->isa_nominal()) != bool(d2->isa_nominal())) return false;
+                || bool(d1->isa_nominal()) != bool(d2->isa_nominal()) || d1->is_set() != d2->is_set()) return false;
         if (d1->gid() > d2->gid()) std::swap(d1, d2); // normalize: always put smaller gid to the left
 
         // this assumption will either hold true - or we will bail out with false anyway
@@ -31,13 +31,13 @@ struct Checker {
     }
 
     struct Hash {
-        static uint32_t hash(Pair pair) { return hash_combine(hash_begin(std::get<0>(pair)), std::get<1>(pair)); }
+        static hash_t hash(Pair pair) { return hash_combine(hash_begin(std::get<0>(pair)->gid()), std::get<1>(pair)->gid()); }
         static bool eq(Pair p1, Pair p2) { return p1 == p2; }
         static Pair sentinel() { return {nullptr, nullptr}; }
     };
 
     HashSet<Pair, Hash> equiv;
-    std::deque<std::tuple<const Param*, const Param*>> params;
+    std::deque<Pair> params;
 };
 
 bool alpha_equiv(const Def* d1, const Def* d2) { return Checker().run(d1, d2); }

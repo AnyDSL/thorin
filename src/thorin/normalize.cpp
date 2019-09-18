@@ -160,9 +160,12 @@ template<nat_t sw, nat_t dw> struct FoldConv<Conv::r2r, sw, dw> { static Res run
 template<nat_t min_w, class Op, Op op>
 static const Def* fold(const Def* type, const Def* callee, const Def* m, const Def* a, const Def* b, const Def* dbg) {
     auto& world = callee->world();
+    if (m) type = type->as<Sigma>()->op(1); // peel of actual type for ZOps
 
-    if (a->isa<Bot>() || b->isa<Bot>() || (m != nullptr && m->isa<Bot>()))
-        return world.bot(type, dbg);
+    if (a->isa<Bot>() || b->isa<Bot>() || (m != nullptr && m->isa<Bot>())) {
+        auto bot = world.bot(type, dbg);
+        return m ? world.tuple({m, bot}) : bot;
+    }
 
     [[maybe_unused]] bool nsw = false, nuw = false;
     if constexpr (std::is_same<Op, WOp>()) {

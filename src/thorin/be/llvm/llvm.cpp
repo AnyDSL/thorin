@@ -304,7 +304,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                     irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(def->front_line(), def->front_col(), discope));
 
                 if (def->isa<Param>()) continue;
-                if (def->isa<App>()) continue;
+                if (def->type()->isa<Bot>()) continue;
                 auto i = phis_.  find(def);
                 if (i != phis_.  end()) continue;
                 auto j = params_.find(def);

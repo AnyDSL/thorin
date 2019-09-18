@@ -28,11 +28,12 @@ const Def* infer_width(const Def* def) {
 bool World::Lock::allocate_guard_ = false;
 #endif
 
-World::World(uint32_t cur_gid, const std::string& name)
+World::World(uint32_t cur_gid, const std::string& name, bool tuple2pack)
     : root_page_(new Zone)
     , cur_page_(root_page_.get())
     , name_(name.empty() ? "module" : name)
     , cur_gid_(cur_gid)
+    , tuple2pack_(tuple2pack)
 {
     cache_.universe_      = insert<Universe>(0, *this);
     cache_.kind_arity_    = insert<KindArity>(0, *this);
@@ -201,7 +202,7 @@ const Def* World::sigma(const Def* type, Defs ops, Debug dbg) {
     auto n = ops.size();
     if (n == 0) return sigma();
     if (n == 1) return ops[0];
-    if (std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; }))
+    if (tuple2pack_ && std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; }))
         return variadic(n, ops[0]);
     return unify<Sigma>(ops.size(), type, ops, debug(dbg));
 }
@@ -228,7 +229,7 @@ const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
     if (n == 1) return ops[0];
     if (type->isa_nominal()) return unify<Tuple>(ops.size(), type, ops, debug(dbg));
 
-    if (std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; }))
+    if (tuple2pack_ && std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; }))
         return pack(n, ops[0]);
 
     // eta rule for tuples:

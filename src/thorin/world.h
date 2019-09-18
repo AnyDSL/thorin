@@ -64,10 +64,10 @@ public:
     World(World&&) = delete;
     World& operator=(const World&) = delete;
 
-    explicit World(uint32_t cur_gid, const std::string& name = {});
+    explicit World(uint32_t cur_gid, const std::string& name = {}, bool tuple2pack = true);
     ///  Inherits properties of the @p other @p World but does @em not perform a copy.
     explicit World(const World& other)
-        : World(other.cur_gid(), other.name())
+        : World(other.cur_gid(), other.name(), other.tuple2pack_)
     {
         pe_done_ = other.pe_done_;
 #if THORIN_ENABLE_CHECKS
@@ -419,6 +419,7 @@ public:
         swap(w1.externals_,     w2.externals_);
         swap(w1.defs_,          w2.defs_);
         swap(w1.pe_done_,       w2.pe_done_);
+        swap(w1.tuple2pack_,    w2.tuple2pack_);
         swap(w1.cache_,         w2.cache_);
 #if THORIN_ENABLE_CHECKS
         swap(w1.breakpoints_,   w2.breakpoints_);
@@ -547,6 +548,7 @@ private:
     Sea defs_;
     uint32_t cur_gid_;
     bool pe_done_ = false;
+    bool tuple2pack_;
 #if THORIN_ENABLE_CHECKS
     bool track_history_ = false;
     Breakpoints breakpoints_;

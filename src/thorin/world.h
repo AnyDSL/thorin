@@ -193,7 +193,7 @@ public:
     /// @name LEA - load effective address
     //@{
     const Def* lea(const Def* ptr, const Def* index, Debug dbg);
-    const Def* unsafe_lea(const Def* ptr, const Def* index, Debug dbg) { return lea(ptr, op_bitcast(ptr->type()->as<Ptr>()->pointee()->type()->arity(), index, dbg), dbg); }
+    const Def* unsafe_lea(const Def* ptr, const Def* index, Debug dbg) { return lea(ptr, op_bitcast(ptr->type()->as<Ptr>()->pointee()->arity(), index, dbg), dbg); }
     //@}
     /// @name Lit
     //@{

@@ -510,6 +510,8 @@ public:
     const Def* arg() const { return op(1); }
     const Def* arg(size_t i) const { return detail::world_extract(world(), arg(), i); }
     Array<const Def*> args() const { return Array<const Def*>(num_args(), [&](auto i) { return arg(i); }); }
+    template<size_t N = size_t(-1), class F> auto args(F f) const { return arg()->split<N, F>(f); }
+    template<size_t N = size_t(-1)> auto args() const { return arg()->split<N>(); }
     size_t num_args() const { return callee_type()->domain()->lit_arity(); }
     const Axiom* axiom() const { return axiom_depth_.ptr(); }
     u16 currying_depth() const { return axiom_depth_.index(); }

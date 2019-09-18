@@ -19,7 +19,7 @@ static bool is_allset(const Def* def) {
 
 static const Def* is_not(const Def* def) {
     if (auto ixor = isa<Tag::IOp>(IOp::ixor, def)) {
-        auto [x, y] = ixor->arg()->split<2>();
+        auto [x, y] = ixor->args<2>();
         if (is_allset(x)) return y;
     }
     return nullptr;
@@ -166,7 +166,7 @@ static const Def* fold(const Def* type, const Def* callee, const Def* m, const D
 
     [[maybe_unused]] bool nsw = false, nuw = false;
     if constexpr (std::is_same<Op, WOp>()) {
-        auto [f, w] = callee->as<App>()->arg()->split<2>(isa_lit<nat_t>);
+        auto [f, w] = callee->as<App>()->args<2>(isa_lit<nat_t>);
         if (!f && !w) return nullptr;
         nsw = *f & WMode::nsw;
         nuw = *f & WMode::nuw;
@@ -209,7 +209,7 @@ static const Def* fold_Conv(const Def* dst_type, const Def* callee, const Def* s
     auto& world = callee->world();
     if (src->isa<Bot>()) return world.bot(dst_type, dbg);
 
-    auto [lit_sw, lit_dw] = callee->as<App>()->arg()->split<2>(isa_lit<nat_t>);
+    auto [lit_sw, lit_dw] = callee->as<App>()->args<2>(isa_lit<nat_t>);
     auto lit_src = src->isa<Lit>();
     if (lit_src && lit_sw && lit_dw) {
         Res res;
@@ -235,7 +235,7 @@ template<tag_t tag, class F>
 static const Def* merge_cmps(World& world, const Def* a, const Def* b) {
     auto a_cmp = isa<tag>(a), b_cmp = isa<tag>(b);
     if (a_cmp && b_cmp && a_cmp->arg() == b_cmp->arg()) {
-        auto [x, y] = a_cmp->arg()->template split<2>();
+        auto [x, y] = a_cmp->template args<2>();
         return world.op(Tag2Enum<tag>(F()(flags_t(a_cmp.flags()), flags_t(b_cmp.flags()))), x, y);
     }
     return nullptr;
@@ -256,8 +256,8 @@ const Def* normalize_IOp(const Def* type, const Def* callee, const Def* arg, con
 
     if (op == IOp::ixor) {
         if (is_allset(a)) { // bitwise not
-            if (auto icmp = isa<Tag::ICmp>(b)) { auto [x, y] = icmp->arg()->split<2>(); return world.op(ICmp(~flags_t(icmp.flags()) & 0b11111), y, x); }
-            if (auto rcmp = isa<Tag::RCmp>(b)) { auto [x, y] = rcmp->arg()->split<2>(); return world.op(RCmp(~flags_t(rcmp.flags()) & 0b01111), y, x); }
+            if (auto icmp = isa<Tag::ICmp>(b)) { auto [x, y] = icmp->args<2>(); return world.op(ICmp(~flags_t(icmp.flags()) & 0b11111), y, x); }
+            if (auto rcmp = isa<Tag::RCmp>(b)) { auto [x, y] = rcmp->args<2>(); return world.op(RCmp(~flags_t(rcmp.flags()) & 0b01111), y, x); }
         }
         if (auto res = merge_cmps<std::bit_xor<flags_t>>(world, a, b)) return res;
     } else if (op == IOp::iand) {
@@ -325,7 +325,7 @@ const Def* normalize_Conv(const Def* dst_type, const Def* callee, const Def* src
     static constexpr auto min_dw = op == Conv::s2r || op == Conv::u2r || op == Conv::r2r ? 16 : 1;
     if (auto result = fold_Conv<min_sw, min_dw, op>(dst_type, callee, src, dbg)) return result;
 
-    auto [sw, dw] = callee->as<App>()->arg()->split<2>(isa_lit<nat_t>);
+    auto [sw, dw] = callee->as<App>()->args<2>(isa_lit<nat_t>);
     if (sw == dw && dst_type == src->type()) return src;
 
     if constexpr (op == Conv::s2s) {

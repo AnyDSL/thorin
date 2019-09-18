@@ -697,7 +697,6 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto name = def->name();
         auto type = convert(def->type());
         auto [num_src, num_dst] = conv->decurry()->args<2>(as_lit<nat_t>);
-        assert(num_src != num_dst);
         switch (conv.flags()) {
             case Conv::s2s: return num_src < num_dst ? irbuilder_.CreateSExt (src, type, name) : irbuilder_.CreateTrunc  (src, type, name);
             case Conv::u2u: return num_src < num_dst ? irbuilder_.CreateZExt (src, type, name) : irbuilder_.CreateTrunc  (src, type, name);

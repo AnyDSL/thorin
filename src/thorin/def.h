@@ -505,7 +505,7 @@ private:
 
 public:
     const Def* callee() const { return op(0); }
-    const App* decurry() const { return as<App>()->callee()->as<App>(); } ///< Returns the @p callee again as @p App.
+    const App* decurry() const { return callee()->as<App>(); } ///< Returns the @p callee again as @p App.
     const Pi* callee_type() const { return callee()->type()->as<Pi>(); }
     const Def* arg() const { return op(1); }
     const Def* arg(size_t i) const { return detail::world_extract(world(), arg(), i); }

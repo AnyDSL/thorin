@@ -14,7 +14,6 @@ typedef CFG<true>  F_CFG;
 typedef CFG<false> B_CFG;
 
 class CFA;
-class CFNode;
 
 /**
  * A @p Scope represents a region of @p Lam%s which are live from the view of an @p entry @p Lam.

@@ -14,6 +14,7 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
+class CFNode;
 template<bool> class LoopTree;
 template<bool> class DomTreeBase;
 template<bool> class DomFrontierBase;

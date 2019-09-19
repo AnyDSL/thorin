@@ -35,14 +35,11 @@ CFA::CFA(const Scope& scope)
     std::queue<Lam*> cfg_queue;
     LamSet cfg_done;
 
-    // TODO use Scope::walk instead
-
     auto cfg_enqueue = [&] (Lam* lam) {
         if (lam->is_set() && cfg_done.emplace(lam).second)
             cfg_queue.push(lam);
     };
 
-    //cfg_queue.push(scope.entry());
     cfg_enqueue(scope.entry());
 
     while (!cfg_queue.empty()) {

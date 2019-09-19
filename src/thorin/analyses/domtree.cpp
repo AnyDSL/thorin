@@ -5,6 +5,7 @@ namespace thorin {
 template<bool forward>
 void DomTreeBase<forward>::create() {
     // Cooper et al, 2001. A Simple, Fast Dominance Algorithm. http://www.cs.rice.edu/~keith/EMBED/dom.pdf
+    idoms_[cfg().entry()] = cfg().entry();
 
     // all idoms different from entry are set to their first found dominating pred
     for (auto n : cfg().reverse_post_order().skip_front()) {

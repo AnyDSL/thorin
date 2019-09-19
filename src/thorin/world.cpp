@@ -134,7 +134,7 @@ World::~World() {
 }
 
 Axiom* World::axiom(Def::NormalizeFn normalize, const Def* type, size_t num_ops, tag_t tag, flags_t flags, Debug dbg) {
-    auto a = insert<Axiom>(0, normalize, type, num_ops, tag, flags, debug(dbg));
+    auto a = insert<Axiom>(num_ops, normalize, type, num_ops, tag, flags, debug(dbg));
     a->make_external();
     assert(lookup(a->name()) == a);
     return a;

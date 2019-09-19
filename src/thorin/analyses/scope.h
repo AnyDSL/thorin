@@ -19,8 +19,8 @@ class CFNode;
 /**
  * A @p Scope represents a region of @p Lam%s which are live from the view of an @p entry @p Lam.
  * Transitively, all user's of the @p entry's parameters are pooled into this @p Scope.
- * @p entry() will be first, @p exit() will be last.
- * @warning All other @p Lam%s are in no particular order.
+ * Both @p entry() and @p exit() are @em NOT part of the @p Scope itself - but their @p Param%s.
+ * @warning All @p Lam%s are in no particular order.
  */
 class Scope : public Streamable {
 public:

@@ -16,8 +16,7 @@ Rewriter::Rewriter(World& old_world, World& new_world, const Scope* scope)
 
 const Def* Rewriter::rewrite(const Def* old_def) {
     if (auto new_def = old2new.lookup(old_def)) return *new_def;
-    if (scope != nullptr && (!scope->contains(old_def) || scope->entry() == old_def)) return old_def;
-    // HACK the entry really shouldn't be part of the scope ^^^
+    if (scope != nullptr && !scope->contains(old_def)) return old_def;
 
     auto new_type  = rewrite(old_def->type());
     auto new_debug = old_def->debug() ? rewrite(old_def->debug()) : nullptr;

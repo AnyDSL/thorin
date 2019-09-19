@@ -39,7 +39,6 @@ void Scope::run() {
             queue.push(def);
     };
 
-    defs_.emplace(entry_);
     enqueue(entry_->param());
 
     while (!queue.empty()) {
@@ -50,7 +49,7 @@ void Scope::run() {
         }
     }
 
-    enqueue(exit_);
+    enqueue(exit_->param());
 }
 
 const DefSet& Scope::free() const {

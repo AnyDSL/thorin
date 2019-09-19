@@ -285,7 +285,7 @@ public:
     const Mem* type_mem() { return cache_.type_mem_; }
     const Axiom* type_int()  { return cache_.type_int_; }
     const Axiom* type_real() { return cache_.type_real_; }
-    const App* type_bool() { return type_int(1); }
+    const App* type_bool() { return cache_.type_bool_; }
     const App* type_int (nat_t w) { return type_int (lit_nat(w)); }
     const App* type_real(nat_t w) { return type_real(lit_nat(w)); }
     const App* type_int (const Def* w) { return app(type_int(),  w)->as<App>(); }
@@ -577,6 +577,7 @@ private:
         std::array<Axiom*, Num<Conv>> Conv_;
         Axiom* type_int_;
         Axiom* type_real_;
+        const App* type_bool_;
         Axiom* op_bitcast_;
         Axiom* op_select_;
         Axiom* op_sizeof_;

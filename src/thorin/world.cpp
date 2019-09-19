@@ -53,6 +53,7 @@ World::World(uint32_t cur_gid, const std::string& name, bool tuple2pack)
         auto p = pi(type_nat(), kind_star());
         cache_.type_int_  = axiom(p, Tag::Int,  0, {"int"});
         cache_.type_real_ = axiom(p, Tag::Real, 0, {"real"});
+        cache_.type_bool_ = type_int(1);
         cache_.lit_bool_[0] = lit(type_bool(), false);
         cache_.lit_bool_[1] = lit(type_bool(),  true);
     }

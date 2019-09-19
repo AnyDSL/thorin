@@ -708,6 +708,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
             default: THORIN_UNREACHABLE;
         }
     } else if (auto bitcast = isa<Tag::Bitcast>(def)) {
+        if (is_arity(bitcast->type())) return lookup(bitcast->arg());
         return emit_bitcast(bitcast->arg(), bitcast->type());
     } else if (auto select = isa<Tag::Select>(def)) {
         if (def->type()->isa<Pi>()) return nullptr;

@@ -133,12 +133,6 @@ World::World(uint32_t cur_gid, const std::string& name, bool tuple2pack)
         pi2->set_codomain(type_ptr(extract(Ts, pi2->param(1, {"i"})), as));
         pi1->set_codomain(pi2);
         cache_.op_lea_ = axiom(normalize_lea, pi1, 0 , Tag::Lea, 0, {"lea"});
-
-        auto t = tuple({lit_real(23.f), lit_int(42), lit_bool(false)});
-        auto m = lit(type_mem(), 0);
-        auto p = alloc(m, t->type())->out(1);
-        auto x = op_lea(p, lit_index(3, 1));
-        x->dump();
     } {
     } { // sizeof: ΠT:*. nat
         cache_.op_sizeof_ = axiom(normalize_sizeof, pi(kind_star(), type_nat()), 0, Tag::Sizeof, 0, {"sizeof"});

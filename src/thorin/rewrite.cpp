@@ -38,8 +38,8 @@ const Def* Rewriter::rewrite(const Def* old_def) {
     return map(old_def, old_def->rebuild(new_world, new_type, new_ops, new_debug)); ;
 }
 
-const Def* rewrite(const Def* def, const Def* old_def, const Def* new_def) {
-    Rewriter rewriter(def->world());
+const Def* rewrite(const Def* def, const Def* old_def, const Def* new_def, const Scope* scope) {
+    Rewriter rewriter(def->world(), scope);
     rewriter.map(old_def, new_def);
     return rewriter.rewrite(def);
 }

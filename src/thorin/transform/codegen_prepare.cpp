@@ -1,63 +1,32 @@
 #include "thorin/world.h"
+#include "thorin/rewrite.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/util/log.h"
 
 namespace thorin {
 
-static bool replace_param(const Def* param, const Def* replace_with) {
-    bool dirty = false;
-    for (auto use : param->copy_uses()) {
-        if (auto app = use->isa<App>()) {
-            // The return parameter is used either as an
-            // argument or as a callee of an App node
-            for (auto app_use : app->copy_uses()) {
-                if (auto lam = app_use->isa_nominal<Lam>()) {
-                    // Do not change replace_with
-                    if (lam == replace_with)
-                        continue;
-                    dirty = true;
-                    if (use.index() == 0) {
-                        // Callee
-                        lam->app(replace_with, app->op(1));
-                    } else {
-                        // Argument
-                        assert(use.index() == 1);
-                        lam->app(app->op(0), replace_with);
-                    }
-                }
-            }
-        } else if (!use->isa_nominal()) {
-            auto& world = use->world();
-            Array<const Def*> new_ops(use->ops());
-            new_ops[use.index()] = replace_with;
-            dirty |= replace_param(use, use->rebuild(world, use->type(), new_ops, use->debug()));
-        }
-    }
-    return dirty;
-}
-
 void codegen_prepare(World& world) {
     VLOG("start codegen_prepare");
     Scope::for_each(world, [&](Scope& scope) {
         DLOG("scope: {}", scope.entry());
+        // new wrapper that calls the return continuation
         auto ret_param = scope.entry()->ret_param();
         auto ret_cont = world.lam(ret_param->type()->as<Pi>(), ret_param->debug());
         ret_cont->app(ret_param, ret_cont->param(), ret_param->debug());
 
-        // Rebuild a new parameter to pass to functions using the parameter as-is
-        // (i.e without extracting the return continuation). Note that this assumes that
-        // the return continuation is the last element of the parameter.
-        std::vector<const Def*> ops;
-        auto param = scope.entry()->param();
-        for (size_t i = 0, n = param->type()->num_ops(); i < n; ++i) {
-            auto op = scope.entry()->param(i);
-            ops.push_back(op);
-        }
+        // rebuild a new "param" that substitutes the actual ret_param with ret_cont
+        // note that this assumes that the return continuation is the last element of the parameter
+        auto old_param = scope.entry()->param();
+        auto ops = old_param->split();
         ops.back() = ret_cont;
         auto new_param = world.tuple(ops);
 
-        if (replace_param(ret_param, ret_cont) || replace_param(param, new_param))
+        auto old_body = scope.entry()->body();
+        auto new_body = rewrite(old_body, old_param, new_param, &scope);
+        if (new_body != old_body) {
+            scope.entry()->set_body(new_body);
             scope.update();
+        }
     });
     VLOG("end codegen_prepare");
 }

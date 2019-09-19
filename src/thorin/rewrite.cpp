@@ -46,9 +46,7 @@ const Def* rewrite(const Def* def, const Def* old_def, const Def* new_def, const
 
 const Def* drop(Lam* lam, const Def* arg) {
     Scope scope(lam);
-    Rewriter rewriter(lam->world(), &scope);
-    rewriter.map(lam->param(), arg);
-    return rewriter.rewrite(lam->body());
+    return rewrite(lam->body(), lam->param(), arg, &scope);
 }
 
 void cleanup(World& old_world) {

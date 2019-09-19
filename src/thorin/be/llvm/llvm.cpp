@@ -303,6 +303,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                 if (debug)
                     irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(def->front_line(), def->front_col(), discope));
 
+                if (!def->is_term()) continue;
                 if (def->isa<Param>()) continue;
                 if (def->type()->isa<Bot>()) continue;
                 auto i = phis_.  find(def);
@@ -872,6 +873,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
     if (auto global = def->isa<Global>())
         return emit_global(global);
 
+    return nullptr;
     THORIN_UNREACHABLE;
 }
 

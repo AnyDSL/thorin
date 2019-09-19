@@ -709,6 +709,11 @@ llvm::Value* CodeGen::emit(const Def* def) {
         }
     } else if (auto bitcast = isa<Tag::Bitcast>(def)) {
         if (is_arity(bitcast->type())) return lookup(bitcast->arg());
+        auto src_type_ptr = bitcast->arg()->type()->isa<Ptr>();
+        auto dst_type_ptr = bitcast->type()->isa<Ptr>();
+        if (src_type_ptr && dst_type_ptr) return irbuilder_.CreatePointerCast(lookup(bitcast->arg()), convert(bitcast->type()), bitcast->name());
+        if (src_type_ptr)                 return irbuilder_.CreatePtrToInt   (lookup(bitcast->arg()), convert(bitcast->type()), bitcast->name());
+        if (dst_type_ptr)                 return irbuilder_.CreateIntToPtr   (lookup(bitcast->arg()), convert(bitcast->type()), bitcast->name());
         return emit_bitcast(bitcast->arg(), bitcast->type());
     } else if (auto select = isa<Tag::Select>(def)) {
         if (def->type()->isa<Pi>()) return nullptr;
@@ -728,7 +733,6 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto dst = cast->type();
         auto to = convert(dst);
 
-        if (is_arity(dst)) return from;
         if (auto variant_type = src->isa<VariantType>()) {
             auto bits = compute_variant_bits(variant_type);
             if (bits != 0) {
@@ -745,46 +749,6 @@ llvm::Value* CodeGen::emit(const Def* def) {
                 });
             }
         }
-
-        if (src->isa<Ptr>() && dst->isa<Ptr>()) {
-            return irbuilder_.CreatePointerCast(from, to);
-        }
-        if (src->isa<Ptr>()) {
-            assert(is_type_i(dst) || dst->isa<Bool>());
-            return irbuilder_.CreatePtrToInt(from, to);
-        }
-        if (dst->isa<Ptr>()) {
-            assert(is_type_i(src) || src->isa<Bool>());
-            return irbuilder_.CreateIntToPtr(from, to);
-        }
-        if (src->isa<Real>() && dst->isa<Real>()) {
-            assert(src->as<Real>()->lit_num_bits() != dst->as<Real>()->lit_num_bits());
-            return irbuilder_.CreateFPCast(from, to);
-        }
-        if (src->isa<Real>()) {
-            if (dst->isa<Sint>())
-                return irbuilder_.CreateFPToSI(from, to);
-            return irbuilder_.CreateFPToUI(from, to);
-        }
-        if (dst->isa<Real>()) {
-            if (src->isa<Sint>())
-                return irbuilder_.CreateSIToFP(from, to);
-            return irbuilder_.CreateUIToFP(from, to);
-        }
-
-        if (num_bits(src) > num_bits(dst)) {
-            if (is_type_i(src) && (is_type_i(dst) || dst->isa<Bool>()))
-                return irbuilder_.CreateTrunc(from, to);
-        } else if (num_bits(src) < num_bits(dst)) {
-            if (src->isa<Sint>()                       && is_type_i(dst)) return irbuilder_.CreateSExt(from, to);
-            if ((src->isa<Uint>() || src->isa<Bool>()) && is_type_i(dst)) return irbuilder_.CreateZExt(from, to);
-        } else if (is_type_i(src) && is_type_i(dst)) {
-            assert(num_bits(src) == num_bits(dst));
-            return from;
-        }
-
-        assert(false && "unsupported cast");
-    }
 #endif
 
     if (auto tuple = def->isa<Tuple>()) {

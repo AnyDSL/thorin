@@ -48,7 +48,7 @@ using nat_t    = u64;
 #define THORIN_TAG(m)                                                                         \
     m(Int, int) m(Real, real)                                                                 \
     m(WOp, wop) m(ZOp, zop) m(IOp, iop) m(ROp, rop) m(ICmp, icmp) m(RCmp, rcmp) m(Conv, conv) \
-    m(Bitcast, bitcast) m(Select, select) m(Sizeof, sizeof)
+    m(Bitcast, bitcast) m(Lea, lea) m(Select, select) m(Sizeof, sizeof)
 
 namespace WMode {
 enum : nat_t {

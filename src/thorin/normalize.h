@@ -4,6 +4,7 @@
 namespace thorin {
 
 const Def* normalize_bitcast(const Def*, const Def*, const Def*, const Def*);
+const Def* normalize_lea    (const Def*, const Def*, const Def*, const Def*);
 const Def* normalize_select (const Def*, const Def*, const Def*, const Def*);
 const Def* normalize_sizeof (const Def*, const Def*, const Def*, const Def*);
 

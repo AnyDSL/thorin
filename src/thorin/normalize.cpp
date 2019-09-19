@@ -359,6 +359,14 @@ const Def* normalize_bitcast(const Def* dst_type, const Def* callee, const Def* 
     return nullptr;
 }
 
+const Def* normalize_lea(const Def* type, const Def* callee, const Def* arg, const Def* dbg) {
+    type->dump();
+    callee->dump();
+    arg->dump();
+    if (dbg) dbg->dump();
+    return nullptr;
+}
+
 const Def* normalize_select(const Def* type, const Def* callee, const Def* arg, const Def* dbg) {
     auto& world = callee->world();
     auto [cond, a, b] = arg->split<3>();

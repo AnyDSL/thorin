@@ -58,27 +58,7 @@ World::World(uint32_t cur_gid, const std::string& name, bool tuple2pack)
         cache_.lit_bool_[1] = lit(type_bool(),  true);
     }
 
-    // TODO
-    // lea:,  Π[s: *M, Ts: «s; *», as: nat]. Π[ptr(«j: s; Ts#j», as), i: s]. ptr(Ts#i, as)
-    // load:  Π[T: *, as: nat]. Π[M as, ptr(T, as)]. [M as, T]
-    // store: Π[T: *, as: nat]. Π[M as, ptr(T, as), T]. M as
-    // enter: Πas: nat. ΠM as. [M as, F as]
-    // slot:  Π[T: *, as: nat]. Π[F as, nat]. ptr(T, as)
-
     {
-    } { // bitcast: Π[S: *, D: *]. ΠS. D
-        auto type = pi(kind_star())->set_domain({kind_star(), kind_star()});
-        auto S = type->param(0, {"S"});
-        auto D = type->param(1, {"D"});
-        type->set_codomain(pi(S, D));
-        cache_.op_bitcast_ = axiom(normalize_bitcast, type, 0, Tag::Bitcast, 0, {"bitcast"});
-    } { // select: ΠT:*. Π[bool, T, T]. T
-        auto type = pi(kind_star())->set_domain(kind_star());
-        auto T = type->param({"T"});
-        cache_.op_select_ = axiom(normalize_select, type->set_codomain(pi({type_bool(), T, T}, T)), 0, Tag::Select, 0, {"select"});
-    } { // sizeof: ΠT:*. nat
-        cache_.op_sizeof_ = axiom(normalize_sizeof, pi(kind_star(), type_nat()), 0, Tag::Sizeof, 0, {"sizeof"});
-    }
 #define CODE(T, o) cache_.T ## _[size_t(T::o)] = axiom(normalize_ ## T<T::o>, type, 0, Tag::T, flags_t(T::o), {op2str(T::o)});
     {   // IOp: Πw: nat. Π[int w, int w]. int w
         auto type = pi(kind_star())->set_domain(type_nat());
@@ -127,6 +107,46 @@ World::World(uint32_t cur_gid, const std::string& name, bool tuple2pack)
     }
     THORIN_CONV(CODE)
 #undef Code
+    } { // bitcast: Π[S: *, D: *]. ΠS. D
+        auto type = pi(kind_star())->set_domain({kind_star(), kind_star()});
+        auto S = type->param(0, {"S"});
+        auto D = type->param(1, {"D"});
+        type->set_codomain(pi(S, D));
+        cache_.op_bitcast_ = axiom(normalize_bitcast, type, 0, Tag::Bitcast, 0, {"bitcast"});
+    } { // select: ΠT:*. Π[bool, T, T]. T
+        auto type = pi(kind_star())->set_domain(kind_star());
+        auto T = type->param({"T"});
+        cache_.op_select_ = axiom(normalize_select, type->set_codomain(pi({type_bool(), T, T}, T)), 0, Tag::Select, 0, {"select"});
+    } { // lea:,  Π[s: *M, Ts: «s; *», as: nat]. Π[ptr(«j: s; Ts#j», as), i: s]. ptr(Ts#i, as)
+        auto domain = sigma(3, universe());
+        domain->set(0, kind_multi());
+        domain->set(1, variadic(domain->param(0, {"s"}), kind_star()));
+        domain->set(2, type_nat());
+        auto pi1 = pi(kind_star())->set_domain(domain);
+        auto s  = pi1->param(0, {"s"});
+        auto Ts = pi1->param(1, {"Ts"});
+        auto as = pi1->param(2, {"as"});
+        auto v = variadic(kind_star())->set_arity(s);
+        v->set_body(extract(Ts, v->param({"j"})));
+        auto src_ptr = type_ptr(v, as);
+        auto pi2 = pi(kind_star())->set_domain({src_ptr, s});
+        pi2->set_codomain(type_ptr(extract(Ts, pi2->param(1, {"i"})), as));
+        pi1->set_codomain(pi2);
+        cache_.op_lea_ = axiom(normalize_lea, pi1, 0 , Tag::Lea, 0, {"lea"});
+
+        auto t = tuple({lit_real(23.f), lit_int(42), lit_bool(false)});
+        auto m = lit(type_mem(), 0);
+        auto p = alloc(m, t->type())->out(1);
+        auto x = op_lea(p, lit_index(3, 1));
+        x->dump();
+    } {
+    } { // sizeof: ΠT:*. nat
+        cache_.op_sizeof_ = axiom(normalize_sizeof, pi(kind_star(), type_nat()), 0, Tag::Sizeof, 0, {"sizeof"});
+    } { // load:  Π[T: *, as: nat]. Π[M, ptr(T, as)]. [M, T]
+    } { // store: Π[T: *, as: nat]. Π[M, ptr(T, as), T]. M
+    } { // alloc:  Π[T: *, as: nat]. Π[F as, nat]. ptr(T, as)
+    } { // slot:  Π[T: *, as: nat]. Π[F as, nat]. ptr(T, as)
+    }
 }
 
 World::~World() {

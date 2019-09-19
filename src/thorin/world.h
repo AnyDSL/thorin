@@ -367,10 +367,20 @@ public:
     //@}
     /// @name misc operations
     //@{
-    const Axiom* op_bitcast() { return cache_.op_bitcast_; }
+    const Axiom* op_bitcast() const { return cache_.op_bitcast_; }
+    const Axiom* op_lea()     const { return cache_.op_lea_; }
+    const Axiom* op_select()  const { return cache_.op_select_; }
+    const Axiom* op_sizeof()  const { return cache_.op_sizeof_; }
     const Def* op_bitcast(const Def* dst_type, const Def* src, Debug dbg = {}) { return app(app(op_bitcast(), {src->type(), dst_type}), src, dbg); }
-    const Axiom* op_select() const { return cache_.op_select_; }
-    const Axiom* op_sizeof() const { return cache_.op_sizeof_; }
+    const Def* op_lea(const Def* ptr, const Def* index, Debug dbg = {}) {
+        //auto [pointee, addr_space] = ptr->type()->isa<Ptr>();
+        auto t = ptr->type()->as<Ptr>();
+        auto pointee = t->pointee();
+        auto addr_space = t->addr_space();
+        auto arity = pointee->arity();
+        Array<const Def*> Ts(as_lit<nat_t>(arity));
+        return app(app(op_lea(), {arity, tuple_of_types(pointee), addr_space}), {ptr, index}, debug(dbg));
+    }
     const Def* op_select(const Def* cond, const Def* t, const Def* f, Debug dbg = {}) { return app(app(cache_.op_select_, t->type()), {cond, t, f}, dbg); }
     const Def* op_sizeof(const Def* type, Debug dbg = {}) { return app(op_sizeof(), type, dbg); }
     Lam* match(const Def* type, size_t num_patterns);
@@ -438,6 +448,7 @@ private:
         if (auto s = std::get_if<std::string>(&n)) return tuple_str(s->c_str());
         return std::get<const Def*>(n);
     }
+
     const Def* debug(Debug dbg) {
         if (auto d  = std::get_if<0>(&*dbg)) {
             auto n  = name2def(std::get<0>(*d));
@@ -450,7 +461,17 @@ private:
         }
         return std::get<const Def*>(*dbg);
     }
-    //const Def* filter(Filter f) { return f ? *f : lit_false(); }
+
+    const Def* tuple_of_types(const Def* type) {
+        assertf(!type->type()->is_universe(), "can't reflect operands of {} in a tuple, at least one kind in operands", type);
+        if (auto sig = type->isa<Sigma>()) {
+            //assertf(!sig->is_dependent(), "can't reflect operands of dependent sigma type {} in a tuple", sig);
+            return tuple(sig->ops());
+        } else if (auto var = type->isa<Variadic>()) {
+            return pack(var->arity(), var->body());
+        }
+        return type;
+    }
     //@}
 
     /// @name memory management and hashing
@@ -579,6 +600,7 @@ private:
         Axiom* type_real_;
         const App* type_bool_;
         Axiom* op_bitcast_;
+        Axiom* op_lea_;
         Axiom* op_select_;
         Axiom* op_sizeof_;
     } cache_;

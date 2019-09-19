@@ -259,7 +259,13 @@ void Schedule::verify() {
         mem = mem ? mem : block2mem[(*this)[idom]];
         for (auto def : block) {
             if (is_memop(def)) {
-                if (def->op(0) != mem) {
+                const Def* m;
+                if (auto app = def->isa<App>())
+                    m = app->arg(0);
+                else
+                    m = def->op(0);
+                if (m != mem) {
+                    def->dump();
                     WLOG("incorrect schedule: {} @ '{}'; current mem is {} @ '{}') - scope entry: {}", def, def->loc(), mem, mem->loc(), scope_.entry());
                     ok = false;
                 }

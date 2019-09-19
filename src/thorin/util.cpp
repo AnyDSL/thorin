@@ -4,6 +4,14 @@
 
 namespace thorin {
 
+bool is_memop(const Def* def) {
+    return (def->isa<App>() && def->out(0)->type()->isa<Mem>())
+        || def->isa<Load>()
+        || def->isa<Store>()
+        || def->isa<Slot>()
+        || def->isa<Alloc>();
+}
+
 bool is_unit(const Def* def) {
     return def->type() == def->world().sigma();
 }

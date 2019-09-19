@@ -148,7 +148,7 @@ const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
     auto pi = callee->type()->as<Pi>();
     auto type = pi->apply(arg);
 
-    assertf(pi->domain() == arg->type(), "callee '{}' expects an argument of type '{}' but the argument '{}' is of type '{}'\n", callee, type, arg, arg->type());
+    //assertf(pi->domain() == arg->type(), "callee '{}' expects an argument of type '{}' but the argument '{}' is of type '{}'\n", callee, pi->domain(), arg, arg->type());
 
     if (auto lam = callee->isa<Lam>()) {
         if (lam->intrinsic() == Lam::Intrinsic::Match) {

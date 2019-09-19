@@ -3,7 +3,6 @@
 #include "thorin/world.h"
 #include "thorin/rewrite.h"
 #include "thorin/analyses/cfg.h"
-#include "thorin/analyses/scope.h"
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/verify.h"

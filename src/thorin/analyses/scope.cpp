@@ -31,25 +31,15 @@ Scope& Scope::update() {
 }
 
 void Scope::run() {
-    // TODO use unique_queue
-    std::queue<const Def*> queue;
-
-    auto enqueue = [&] (const Def* def) {
-        if (defs_.insert(def).second)
-            queue.push(def);
-    };
-
-    enqueue(entry_->param());
+    unique_queue<DefSet&> queue(defs_);
+    queue.push(entry_->param());
 
     while (!queue.empty()) {
-        auto def = pop(queue);
-        if (def != entry_) {
-            for (auto use : def->uses())
-                enqueue(use);
+        for (auto use : queue.pop()->uses()) {
+            if (use == entry_ || use == exit_) continue;
+            queue.push(use);
         }
     }
-
-    enqueue(exit_->param());
 }
 
 const DefSet& Scope::free() const {

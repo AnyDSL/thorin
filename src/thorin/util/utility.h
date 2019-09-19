@@ -56,7 +56,7 @@ auto pop(Q& q) -> decltype(q.front(), typename Q::value_type()) {
 template<class Set>
 class unique_stack {
 public:
-    typedef typename Set::value_type T;
+    using T = typename std::remove_reference_t<Set>::value_type;
 
     bool push(T val) {
         if (done_.emplace(val).second) {
@@ -78,7 +78,12 @@ private:
 template<class Set>
 class unique_queue {
 public:
-    typedef typename Set::value_type T;
+    using T = typename std::remove_reference_t<Set>::value_type;
+
+    unique_queue() = default;
+    unique_queue(Set set)
+        : done_(set)
+    {}
 
     void push(T val) {
         if (done_.emplace(val).second)

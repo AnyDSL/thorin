@@ -48,7 +48,7 @@ Lam* Mangler::mangle() {
     // HACK we wil remove this code anyway
     bool all = true;
     // map params
-    old2new_[old_entry()] = old_entry();
+    //old2new_[old_entry()] = old_entry();
     for (size_t i = 0, j = 0, e = old_entry()->num_params(); i != e; ++i) {
         auto old_param = old_entry()->param(i);
         if (!args_[i]->isa<Top>())

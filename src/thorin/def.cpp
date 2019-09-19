@@ -442,15 +442,17 @@ size_t Def::num_params() {
     if (auto sigma =    isa<Sigma   >()) return sigma->num_ops();
     if (auto variadic = isa<Variadic>()) return variadic->arity()->lit_arity();
     if (auto pack =     isa<Pack    >()) return pack->arity()->lit_arity();
+    if (auto axiom =    isa<Axiom   >()) return axiom->type()->as<Pi>()->domain()->lit_arity();
     THORIN_UNREACHABLE;
 }
 
 const Param* Def::param(Debug dbg) {
-    if (auto lam =      isa<Lam     >()) return world().param(lam->domain(),     lam,      dbg);
-    if (auto pi  =      isa<Pi      >()) return world().param(pi ->domain(),     pi,       dbg);
-    if (auto pack =     isa<Pack    >()) return world().param(pack->arity(),     pack,     dbg);
-    if (auto sigma =    isa<Sigma   >()) return world().param(sigma,             sigma,    dbg);
-    if (auto variadic = isa<Variadic>()) return world().param(variadic->arity(), variadic, dbg);
+    if (auto lam =      isa<Lam     >()) return world().param(lam->domain(),                     lam,      dbg);
+    if (auto pi  =      isa<Pi      >()) return world().param(pi ->domain(),                     pi,       dbg);
+    if (auto pack =     isa<Pack    >()) return world().param(pack->arity(),                     pack,     dbg);
+    if (auto sigma =    isa<Sigma   >()) return world().param(sigma,                             sigma,    dbg);
+    if (auto variadic = isa<Variadic>()) return world().param(variadic->arity(),                 variadic, dbg);
+    if (auto axiom =    isa<Axiom   >()) return world().param(axiom->type()->as<Pi>()->domain(), axiom,    dbg);
     THORIN_UNREACHABLE;
 }
 

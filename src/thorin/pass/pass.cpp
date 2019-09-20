@@ -79,7 +79,6 @@ const Def* PassMan::rewrite(const Def* old_def) {
     }
 
     auto new_type  = rewrite(old_def->type());
-    auto new_debug = old_def->debug() ? rewrite(old_def->debug()) : nullptr;
 
     bool changed = false;
     Array<const Def*> new_ops(old_def->num_ops(), [&](auto i) {
@@ -88,7 +87,7 @@ const Def* PassMan::rewrite(const Def* old_def) {
         return new_op;
     });
 
-    auto new_def = changed ? old_def->rebuild(world(), new_type, new_ops, new_debug) : old_def;
+    auto new_def = changed ? old_def->rebuild(world(), new_type, new_ops, old_def->debug()) : old_def;
 
     for (auto& pass : passes_)
         new_def = pass->rewrite(new_def);

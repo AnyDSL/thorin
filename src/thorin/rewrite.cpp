@@ -18,7 +18,9 @@ const Def* Rewriter::rewrite(const Def* old_def) {
     if (scope != nullptr && !scope->contains(old_def)) return old_def;
 
     auto new_type  = rewrite(old_def->type());
-    auto new_debug = old_def->debug() ? rewrite(old_def->debug()) : nullptr;
+
+    auto new_debug = &new_world == &old_world ? old_def->debug() :
+        old_def->debug() ? rewrite(old_def->debug()) : nullptr;
 
     if (auto old_nom = old_def->isa_nominal()) {
         auto new_nom = old_nom->stub(new_world, new_type, new_debug);

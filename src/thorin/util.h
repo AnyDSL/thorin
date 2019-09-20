@@ -12,6 +12,7 @@ bool is_const(const Def*);
 bool is_tuple_arg_of_app(const Def*);
 
 inline bool is_arity(const Def* def) { return def->type()->isa<KindArity>(); }
+inline bool is_multi(const Def* def) { return def->type()->isa<KindMulti>(); }
 bool is_memop(const Def* def);
 
 Array<const Def*> merge(const Def* def, Defs defs);

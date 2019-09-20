@@ -206,8 +206,10 @@ const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
     auto type = pi->apply(arg);
 
     auto [axiom, currying_depth] = get_axiom(callee); // TODO move down again
-    if (axiom == nullptr || axiom->tag() != Tag::Bitcast) // HACK
+#if 0
+    if (axiom == nullptr || (axiom->tag() != Tag::Bitcast && axiom->tag() != Tag::LEA)) // HACK
         assertf(pi->domain() == arg->type(), "callee '{}' expects an argument of type '{}' but the argument '{}' is of type '{}'\n", callee, pi->domain(), arg, arg->type());
+#endif
 
     if (auto lam = callee->isa<Lam>()) {
         if (lam->intrinsic() == Lam::Intrinsic::Match) {
@@ -383,6 +385,8 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* val, Debug
 }
 
 const Def* World::variadic(const Def* arity, const Def* body, Debug dbg) {
+    assert(is_arity(arity) || is_multi(arity));
+
     if (auto a = isa_lit<u64>(arity)) {
         if (*a == 0) return sigma();
         if (*a == 1) return body;
@@ -393,6 +397,8 @@ const Def* World::variadic(const Def* arity, const Def* body, Debug dbg) {
 }
 
 const Def* World::pack(const Def* arity, const Def* body, Debug dbg) {
+    assert(is_arity(arity) || is_multi(arity));
+
     if (auto a = isa_lit<u64>(arity)) {
         if (*a == 0) return tuple();
         if (*a == 1) return body;

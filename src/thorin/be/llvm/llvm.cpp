@@ -775,9 +775,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
             llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, lookup(tuple->op(i)), { unsigned(i) });
 
         return llvm_agg;
-    }
-
-    if (auto pack = def->isa<Pack>()) {
+    } else if (auto pack = def->isa<Pack>()) {
         auto llvm_type = convert(pack->type());
 
         llvm::Value* llvm_agg = llvm::UndefValue::get(llvm_type);
@@ -788,9 +786,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
             llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, elem, { unsigned(i) });
 
         return llvm_agg;
-    }
-
-    if (def->isa<Extract>() || def->isa<Insert>()) {
+    } else if (def->isa<Extract>() || def->isa<Insert>()) {
         auto llvm_agg = lookup(def->op(0));
         auto llvm_idx = lookup(def->op(1));
         auto copy_to_alloca = [&] () {
@@ -832,9 +828,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         }
         // tuple/struct
         return irbuilder_.CreateInsertValue(llvm_agg, val, {as_lit<u32>(insert->index())});
-    }
-
-    if (auto variant = def->isa<Variant>()) {
+    } else if (auto variant = def->isa<Variant>()) {
         auto bits = compute_variant_bits(variant->type());
         auto value = lookup(variant->op(0));
         if (bits != 0) {
@@ -849,9 +843,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
                 return irbuilder_.CreateLoad(alloca);
             });
         }
-    }
-
-    if (auto lit = def->isa<Lit>()) {
+    } else if (auto lit = def->isa<Lit>()) {
         llvm::Type* llvm_type = convert(lit->type());
         if (is_arity(lit->type())) return irbuilder_.getInt64(lit->get());
 
@@ -875,15 +867,13 @@ llvm::Value* CodeGen::emit(const Def* def) {
             }
         }
         THORIN_UNREACHABLE;
+    } else if (def->isa<Bot>()) {
+        return llvm::UndefValue::get(convert(def->type()));
+    } else if (auto global = def->isa<Global>()) {
+        return emit_global(global);
     }
 
-    if (def->isa<Bot>())                      return llvm::UndefValue::get(convert(def->type()));
-
-    if (auto global = def->isa<Global>())
-        return emit_global(global);
-
     return nullptr;
-    THORIN_UNREACHABLE;
 }
 
 llvm::Value* CodeGen::emit_global(const Global* global) {

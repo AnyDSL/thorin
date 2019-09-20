@@ -139,7 +139,7 @@ std::ostream& CCodeGen::emit_type(std::ostream& os, const Type* type) {
         os << down << endl << "};";
         return os;
     } else if (auto struct_type = type->isa<StructType>()) {
-        if (lang_ == Lang::HLS && is_channel_type(struct_type)) {
+        if ((lang_ == Lang::HLS || lang_ == Lang::OPENCL) && is_channel_type(struct_type)) {
             os << "typedef ";
             emit_type(os, struct_type->op(0)) << " "<< struct_type->name() << "_" <<struct_type->gid() <<";";
         } else {
@@ -264,15 +264,17 @@ std::ostream& CCodeGen::emit_aggop_decl(const Type* type) {
     }
 
     // look for nested struct
+    // hls and fpga-opencl use structs to implement channels
     if (auto struct_type = type->isa<StructType>()) {
         for (auto op : struct_type->ops())
             emit_aggop_decl(op);
         emit_type(type_decls_, struct_type) << endl;
-        if (lang_ != Lang::HLS)
+        if (lang_ != Lang::HLS || !use_channels_)
             insert(type, "struct_" + struct_type->name().str() + "_" + std::to_string(type->gid()));
-        else if (is_channel_type(struct_type))
+        else if (is_channel_type(struct_type) && lang_ == Lang::HLS)
             insert(type,"hls::stream<" + struct_type->name().str() + "_" + std::to_string(type->gid()) + ">");
-
+        else if (lang_ == Lang::OPENCL && use_channels_)
+            insert(type, struct_type->name().str() + "_" + std::to_string(type->gid()));
     }
 
     // look for nested variants
@@ -731,27 +733,30 @@ void CCodeGen::emit() {
                                     }
                                 }
                                 func_impl_ << ";";
-                        } else {
-                            auto name = (callee->is_external() || callee->empty()) ? callee->name() : callee->unique_name();
-                            if (param)
-                                emit(param) << " = ";
-                            func_impl_ << name << "(";
-                            // emit all first-order args
-                            size_t i = 0;
-                            for (auto arg : continuation->args()) {
-                                if (arg->order() == 0 && !(is_mem(arg) || is_unit(arg))) {
-                                    if (i++ > 0)
-                                        func_impl_ << ", ";
-                                    emit(arg);
+                            } else {
+                                auto name = (callee->is_external() || callee->empty()) ? callee->name() : callee->unique_name();
+                                if (param)
+                                    emit(param) << " = ";
+                                if (lang_ == Lang::OPENCL && use_channels_)
+                                    func_impl_ << name << "_intel" << "(";
+                                else
+                                    func_impl_ << name << "(";
+                                // emit all first-order args
+                                size_t i = 0;
+                                for (auto arg : continuation->args()) {
+                                    if (arg->order() == 0 && !(is_mem(arg) || is_unit(arg))) {
+                                        if (i++ > 0)
+                                            func_impl_ << ", ";
+                                        emit(arg);
+                                    }
                                 }
+                                func_impl_ << ");";
                             }
-                            func_impl_ << ");";
-                        }
-                        if (param) {
-                            func_impl_ << endl;
-                            store_phi(param, param);
-                        }
-                    };
+                            if (param) {
+                                func_impl_ << endl;
+                                store_phi(param, param);
+                            }
+                        };
 
                         const Def* ret_arg = 0;
                         for (auto arg : continuation->args()) {
@@ -1282,7 +1287,12 @@ std::ostream& CCodeGen::emit(const Def* def) {
         switch (lang_) {
             default:                                        break;
             case Lang::CUDA:   func_impl_ << "__device__ "; break;
-            case Lang::OPENCL: func_impl_ << "__constant "; break;
+            case Lang::OPENCL:
+               if(use_channels_)
+                   func_impl_ << "channel ";
+               else
+                   func_impl_ << "__constant ";
+               break;
         }
         bool bottom = global->init()->isa<Bottom>();
         if (!bottom)
@@ -1299,9 +1309,11 @@ std::ostream& CCodeGen::emit(const Def* def) {
         switch (lang_) {
             default:                                        break;
             case Lang::CUDA:   func_impl_ << "__device__ "; break;
-            case Lang::OPENCL: func_impl_ << "__constant "; break;
+            case Lang::OPENCL:
+               if(!use_channels_) func_impl_ << "__constant "; break;
         }
-        emit_type(func_impl_, global->alloced_type()) << " *" << def_name << " = &" << def_name << "_slot;";
+        if (lang_ != Lang::OPENCL || !use_channels_)
+            emit_type(func_impl_, global->alloced_type()) << " *" << def_name << " = &" << def_name << "_slot;";
 
         insert(def, def_name);
         return func_impl_;

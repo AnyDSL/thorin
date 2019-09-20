@@ -70,8 +70,8 @@ public:
     const Def* id() const { return op(0); }
     const Def* init() const { return op(1); }
     bool is_mutable() const { return fields(); }
-    const Ptr* type() const { return Def::type()->as<Ptr>(); }
-    const Def* alloced_type() const { return type()->pointee(); }
+    const App* type() const { return thorin::as<Tag::Ptr>(Def::type()); }
+    const Def* alloced_type() const { return type()->arg(0); }
 
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
     std::ostream& stream(std::ostream&) const override;
@@ -94,7 +94,7 @@ public:
     const Def* out_mem() const { return out(0); }
     const Def* out_ptr() const { return out(1); }
     const Sigma* type() const { return Def::type()->as<Sigma>(); }
-    const Def* alloced_type() const { return out_ptr()->type()->as<Ptr>()->pointee(); }
+    const Def* alloced_type() const { return thorin::as<Tag::Ptr>(out_ptr()->type())->arg(0); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
     static constexpr auto Node = Node::Alloc;
@@ -116,7 +116,7 @@ public:
     const Def* out_mem() const { return out(0); }
     const Def* out_ptr() const { return out(1); }
     const Sigma* type() const { return Def::type()->as<Sigma>(); }
-    const Def* alloced_type() const { return out_ptr()->type()->as<Ptr>()->pointee(); }
+    const Def* alloced_type() const { return thorin::as<Tag::Ptr>(out_ptr()->type())->arg(0); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
     static constexpr auto Node = Node::Slot;

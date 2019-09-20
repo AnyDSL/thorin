@@ -57,9 +57,9 @@ World::World(uint32_t cur_gid, const std::string& name, bool tuple2pack)
         cache_.type_bool_ = type_int(1);
         cache_.lit_bool_[0] = lit(type_bool(), false);
         cache_.lit_bool_[1] = lit(type_bool(),  true);
+    } { // ptr: Π[T: *, as: nat]. *
+        cache_.type_ptr_ = axiom(pi({kind_star(), type_nat()}, kind_star()), Tag::Ptr, 0, {"ptr"});
     }
-
-    {
 #define CODE(T, o) cache_.T ## _[size_t(T::o)] = axiom(normalize_ ## T<T::o>, type, 0, Tag::T, flags_t(T::o), {op2str(T::o)});
     {   // IOp: Πw: nat. Π[int w, int w]. int w
         auto type = pi(kind_star())->set_domain(type_nat());
@@ -108,7 +108,7 @@ World::World(uint32_t cur_gid, const std::string& name, bool tuple2pack)
     }
     THORIN_CONV(CODE)
 #undef Code
-    } { // bitcast: Π[S: *, D: *]. ΠS. D
+    {   // bitcast: Π[S: *, D: *]. ΠS. D
         auto type = pi(kind_star())->set_domain({kind_star(), kind_star()});
         auto S = type->param(0, {"S"});
         auto D = type->param(1, {"D"});
@@ -389,10 +389,7 @@ const Lit* World::lit_index(const Def* a, u64 i, Debug dbg) {
  */
 
 const Def* World::op_lea(const Def* ptr, const Def* index, Debug dbg) {
-    //auto [pointee, addr_space] = ptr->type()->isa<Ptr>();
-    auto ptr_t = ptr->type()->as<Ptr>();
-    auto pointee = ptr_t->pointee();
-    auto addr_space = ptr_t->addr_space();
+    auto [pointee, addr_space] = as<Tag::Ptr>(ptr->type())->args<2>();
 
     const Def* Ts;
     if (auto sigma = pointee->isa<Sigma>()) {
@@ -708,7 +705,7 @@ const Def* World::bot_top(bool is_top, const Def* type, Debug dbg) {
  */
 
 const Def* World::load(const Def* mem, const Def* ptr, Debug dbg) {
-    auto pointee = ptr->type()->as<Ptr>()->pointee();
+    auto [pointee, addr_space] = as<Tag::Ptr>(ptr->type())->args<2>();
 
     // loading an empty tuple can only result in an empty tuple
     if (auto sigma = pointee->isa<Sigma>(); sigma && sigma->num_ops() == 0)
@@ -725,7 +722,7 @@ const Def* World::store(const Def* mem, const Def* ptr, const Def* val, Debug db
             return mem;
     }
 
-    assert(ptr->type()->as<Ptr>()->pointee() == val->type());
+    assert(as<Tag::Ptr>(ptr->type())->arg(0) == val->type());
     return unify<Store>(3, mem, ptr, val, debug(dbg));
 }
 

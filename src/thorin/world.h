@@ -280,13 +280,14 @@ public:
     const Mem* type_mem() { return cache_.type_mem_; }
     const Axiom* type_int()  { return cache_.type_int_; }
     const Axiom* type_real() { return cache_.type_real_; }
+    const Axiom* type_ptr()  { return cache_.type_ptr_; }
     const App* type_bool() { return cache_.type_bool_; }
     const App* type_int (nat_t w) { return type_int (lit_nat(w)); }
     const App* type_real(nat_t w) { return type_real(lit_nat(w)); }
     const App* type_int (const Def* w) { return app(type_int(),  w)->as<App>(); }
     const App* type_real(const Def* w) { return app(type_real(), w)->as<App>(); }
-    const Ptr* type_ptr(const Def* pointee, const Def* addr_space, Debug dbg = {}) { return unify<Ptr>(2, kind_star(), pointee, addr_space, debug(dbg)); }
-    const Ptr* type_ptr(const Def* pointee, nat_t addr_space = AddrSpace::Generic, Debug dbg = {}) { return type_ptr(pointee, lit_nat(addr_space), dbg); }
+    const App* type_ptr(const Def* pointee, nat_t addr_space = AddrSpace::Generic, Debug dbg = {}) { return type_ptr(pointee, lit_nat(addr_space), dbg); }
+    const App* type_ptr(const Def* pointee, const Def* addr_space, Debug dbg = {}) { return app(type_ptr(), {pointee, addr_space}, dbg)->as<App>(); }
     //@}
     /// @name IOp
     //@{
@@ -368,7 +369,7 @@ public:
     const Axiom* op_sizeof()  const { return cache_.op_sizeof_; }
     const Def* op_bitcast(const Def* dst_type, const Def* src, Debug dbg = {}) { return app(app(op_bitcast(), {src->type(), dst_type}), src, dbg); }
     const Def* op_lea(const Def* ptr, const Def* index, Debug dbg = {});
-    const Def* op_lea_unsafe(const Def* ptr, const Def* index, Debug dbg) { return op_lea(ptr, op_bitcast(ptr->type()->as<Ptr>()->pointee()->arity(), index, dbg), dbg); }
+    const Def* op_lea_unsafe(const Def* ptr, const Def* index, Debug dbg) { return op_lea(ptr, op_bitcast(as<Tag::Ptr>(ptr->type())->arg(0)->arity(), index, dbg), dbg); }
     const Def* op_select(const Def* cond, const Def* t, const Def* f, Debug dbg = {}) { return app(app(cache_.op_select_, t->type()), {cond, t, f}, dbg); }
     const Def* op_sizeof(const Def* type, Debug dbg = {}) { return app(op_sizeof(), type, dbg); }
     Lam* match(const Def* type, size_t num_patterns);
@@ -575,6 +576,7 @@ private:
         Axiom* axiom_end_scope_;
         Axiom* type_int_;
         Axiom* type_real_;
+        Axiom* type_ptr_;
         const App* type_bool_;
         Axiom* op_bitcast_;
         Axiom* op_lea_;

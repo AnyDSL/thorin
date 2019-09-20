@@ -362,8 +362,7 @@ const Def* normalize_bitcast(const Def* dst_type, const Def*, const Def* src, co
 const Def* normalize_lea(const Def* type, const Def*, const Def* arg, const Def*) {
     auto& world = type->world();
     auto [ptr, index] = arg->split<2>();
-    auto ptr_t = ptr->type()->as<Ptr>();
-    auto pointee = ptr_t->pointee();
+    auto [pointee, addr_space] = as<Tag::Ptr>(ptr->type())->args<2>();
 
     if (pointee->arity() == world.lit_arity_1()) return ptr;
 

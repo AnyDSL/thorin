@@ -31,7 +31,6 @@ using nat_t    = u64;
                        m(VariantType, variant_type)       \
                        m(Nat, nat)                        \
                        m(Mem, mem)                        \
-                       m(Ptr, ptr)                        \
                        m(Alloc, alloc)                    \
                        m(Load, load)                      \
                        m(Store, store)                    \
@@ -45,10 +44,10 @@ using nat_t    = u64;
                        m(Param, param)
 
 #define THORIN_TAG(m)                                                                         \
-    m(EndScope, end_scope)                                                                    \
-    m(Int, int) m(Real, real)                                                                 \
+    m(Int, int) m(Real, real) m(Ptr, ptr)                                                     \
     m(WOp, wop) m(ZOp, zop) m(IOp, iop) m(ROp, rop) m(ICmp, icmp) m(RCmp, rcmp) m(Conv, conv) \
-    m(Bitcast, bitcast) m(LEA, lea) m(Select, select) m(Sizeof, sizeof)
+    m(Bitcast, bitcast) m(LEA, lea) m(Select, select) m(Sizeof, sizeof)                       \
+    m(EndScope, end_scope)
 
 namespace WMode {
 enum : nat_t {

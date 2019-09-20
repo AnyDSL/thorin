@@ -89,7 +89,7 @@ public:
             return store->out_mem();
         } else if (auto slot = mem_use->isa<Slot>()) {
                 if (slot && is_safe_slot(slot))
-                    mapping[slot] = world_.bot(slot->type()->as<Ptr>()->pointee());
+                    mapping[slot] = world_.bot(as<Tag::Ptr>(slot->type())->arg(0));
             return slot->out_mem();
         } else {
             return nullptr;
@@ -106,7 +106,7 @@ public:
                 return mapping[alloc] = global->init();
         }
         // Nothing is known about this allocation yet
-        return mapping[alloc] = world_.top(alloc->type()->as<Ptr>()->pointee(), alloc->debug());
+        return mapping[alloc] = world_.top(as<Tag::Ptr>(alloc->type())->arg(0), alloc->debug());
     }
 
     const Def* extract_from_slot(const Def* ptr, const Def* slot_value, const Def* dbg) {
@@ -197,12 +197,12 @@ public:
                 if (!are_ptr_uses_safe(use.def(), allow_load)) return false;
             } else if (auto bitcast = isa<Tag::Bitcast>(use)) {
                 // Support cast between pointers to definite and indefinite arrays
-                auto ptr_to   = bitcast->type()->isa<Ptr>();
-                auto ptr_from = bitcast->arg()->type()->isa<Ptr>();
+                auto ptr_to   = isa<Tag::Ptr>(bitcast->type());
+                auto ptr_from = isa<Tag::Ptr>(bitcast->arg()->type());
                 if (!ptr_to || !ptr_from)
                     return false;
-                auto variadic_to   = ptr_to->pointee()->isa<Variadic>();
-                auto variadic_from = ptr_from->pointee()->isa<Variadic>();
+                auto variadic_to   = ptr_to->arg(0)->isa<Variadic>();
+                auto variadic_from = ptr_from->arg(0)->isa<Variadic>();
                 if (!variadic_to || !variadic_from)
                     return false;
                 if (variadic_to->body() != variadic_from->body())

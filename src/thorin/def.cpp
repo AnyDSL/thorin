@@ -166,14 +166,6 @@ void Def::replace(Tracker with) const {
     }
 }
 
-Def::Sort Def::sort() const {
-    if (node()                 == Node::Universe) return Sort::Universe;
-    if (type()->node()         == Node::Universe) return Sort::Kind;
-    if (type()->type()->node() == Node::Universe) return Sort::Type;
-    assert(type()->type()->type()->node() == Node::Universe);
-    return Sort::Term;
-}
-
 void Def::dump() const {
     if (!isa_nominal() && num_ops() > 1)
         stream_assignment(std::cout);
@@ -540,7 +532,7 @@ std::ostream& App::stream(std::ostream& os) const {
 std::ostream& Lit::stream(std::ostream& os) const {
     if (type()->isa<KindArity>()) return streamf(os, "{}ₐ", get());
 
-    if (is_arity(type())) {
+    if (type()->type()->isa<KindArity>()) {
         if (type()->isa<Top>()) return streamf(os, "{}T", get());
 
         // append utf-8 subscripts in reverse order
@@ -567,12 +559,10 @@ std::ostream& Lit::stream(std::ostream& os) const {
 }
 
 std::ostream& Bot::stream(std::ostream& os) const {
-    if (type()->is_kind()) return streamf(os, "⊥{}", type());
     return streamf(os, "{{⊥: {}}}", type());
 }
 
 std::ostream& Top::stream(std::ostream& os) const {
-    if (type()->is_kind()) return streamf(os, "⊤{}", type());
     return streamf(os, "{{⊤: {}}}", type());
 }
 

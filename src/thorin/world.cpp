@@ -385,7 +385,7 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* val, Debug
 }
 
 const Def* World::variadic(const Def* arity, const Def* body, Debug dbg) {
-    assert(is_arity(arity) || is_multi(arity));
+    assert(arity->type()->isa<KindArity>() || arity->type()->isa<KindMulti>());
 
     if (auto a = isa_lit<u64>(arity)) {
         if (*a == 0) return sigma();
@@ -397,7 +397,7 @@ const Def* World::variadic(const Def* arity, const Def* body, Debug dbg) {
 }
 
 const Def* World::pack(const Def* arity, const Def* body, Debug dbg) {
-    assert(is_arity(arity) || is_multi(arity));
+    assert(arity->type()->isa<KindArity>() || arity->type()->isa<KindMulti>());
 
     if (auto a = isa_lit<u64>(arity)) {
         if (*a == 0) return tuple();

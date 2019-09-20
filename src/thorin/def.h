@@ -148,17 +148,10 @@ protected:
     virtual ~Def() {}
 
 public:
-    enum class Sort { Term, Type, Kind, Universe };
-
-    /// @name type, Sort
+    /// @name type
     //@{
     const Def* type() const { assert(node() != Node::Universe); return type_; }
-    unsigned order() const { assert(!is_term()); return order_; }
-    Sort sort() const;
-    bool is_term() const { return sort() == Sort::Term; }
-    bool is_type() const { return sort() == Sort::Type; }
-    bool is_kind() const { return sort() == Sort::Kind; }
-    bool is_universe() const { return sort() == Sort::Universe; }
+    unsigned order() const { /*TODO assertion*/return order_; }
     const Def* arity() const;
     u64 lit_arity() const;
     //@}

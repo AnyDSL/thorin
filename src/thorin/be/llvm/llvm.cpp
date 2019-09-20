@@ -307,16 +307,11 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
                 if (debug)
                     irbuilder_.SetCurrentDebugLocation(llvm::DebugLoc::get(def->front_line(), def->front_col(), discope));
 
-                if (!def->is_term()) continue;
-                if (def->isa<Param>()) continue;
-                if (def->type()->isa<Bot>()) continue;
-                auto i = phis_.  find(def);
-                if (i != phis_.  end()) continue;
-                auto j = params_.find(def);
-                if (j != params_.end()) continue;
-
+                if (def->isa<Param>())        continue;
+                if (def->type()->isa<Bot>())  continue;
                 if (is_tuple_arg_of_app(def)) continue;
-
+                if (phis_.  contains(def))    continue;
+                if (params_.contains(def))    continue;
 #if 0
                 // ignore tuple arguments for lams
                 if (auto tuple = def->isa<Tuple>()) {
@@ -713,7 +708,9 @@ llvm::Value* CodeGen::emit(const Def* def) {
             default: THORIN_UNREACHABLE;
         }
     } else if (auto bitcast = isa<Tag::Bitcast>(def)) {
-        if (is_arity(bitcast->type())) return lookup(bitcast->arg());
+        if (bitcast->type()->isa<KindArity>())          return lookup(bitcast->arg());
+        if (bitcast->type()->type()->isa<KindArity>())  return lookup(bitcast->arg());
+        if (bitcast->arg()->type()->isa<KindArity>())   return lookup(bitcast->arg());
         auto src_type_ptr = isa<Tag::Ptr>(bitcast->arg()->type());
         auto dst_type_ptr = isa<Tag::Ptr>(bitcast->type());
         if (src_type_ptr && dst_type_ptr) return irbuilder_.CreatePointerCast(lookup(bitcast->arg()), convert(bitcast->type()), bitcast->name());
@@ -845,7 +842,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         }
     } else if (auto lit = def->isa<Lit>()) {
         llvm::Type* llvm_type = convert(lit->type());
-        if (is_arity(lit->type())) return irbuilder_.getInt64(lit->get());
+        if (lit->type()->type()->isa<KindArity>()) return irbuilder_.getInt64(lit->get());
 
         if (auto int_ = isa<Tag::Int>(lit->type())) {
             switch (as_lit<nat_t>(int_->arg())) {
@@ -949,7 +946,7 @@ llvm::Type* CodeGen::convert(const Def* type) {
 
     assert(!type->isa<Mem>());
 
-    if (is_arity(type)) {
+    if (type->type()->isa<KindArity>()) {
         return types_[type] = irbuilder_.getInt64Ty();
     } else if (auto int_ = isa<Tag::Int>(type)) {
         switch (as_lit<nat_t>(int_->arg())) {

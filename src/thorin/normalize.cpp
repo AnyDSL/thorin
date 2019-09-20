@@ -360,9 +360,9 @@ const Def* normalize_bitcast(const Def* dst_type, const Def*, const Def* src, co
     if (auto other = isa<Tag::Bitcast>(src)) return world.op_bitcast(dst_type, other->arg(), dbg);
 
     if (auto lit = src->isa<Lit>()) {
-        if (is_arity(dst_type))           return world.lit_index(dst_type, lit->get());
-        if (dst_type->isa<Nat>())         return world.lit(dst_type, lit->get());
-        if (auto w = get_width(dst_type)) return world.lit(dst_type, (u64(-1) >> (64_u64 - *w)) & lit->get());
+        if (dst_type->type()->isa<KindArity>()) return world.lit_index(dst_type, lit->get());
+        if (dst_type->isa<Nat>())               return world.lit(dst_type, lit->get());
+        if (auto w = get_width(dst_type))       return world.lit(dst_type, (u64(-1) >> (64_u64 - *w)) & lit->get());
     }
 
     if (auto variant = src->isa<Variant>()) {

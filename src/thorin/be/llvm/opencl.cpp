@@ -3,10 +3,8 @@
 #include <fstream>
 #include <stdexcept>
 
-#include "thorin/primop.h"
 #include "thorin/world.h"
 #include "thorin/be/c.h"
-
 
 namespace thorin {
 

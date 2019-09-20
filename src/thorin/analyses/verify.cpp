@@ -1,4 +1,3 @@
-#include "thorin/primop.h"
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/util/log.h"

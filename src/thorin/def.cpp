@@ -5,7 +5,6 @@
 #include <sstream>
 #include <stack>
 
-#include "thorin/primop.h"
 #include "thorin/rewrite.h"
 #include "thorin/util.h"
 #include "thorin/world.h"
@@ -359,6 +358,13 @@ const Def* Pi::apply(const Def* arg) const {
     return codomain();
 }
 
+/*
+ * Global
+ */
+
+const App* Global::type() const { return thorin::as<Tag::Ptr>(Def::type()); }
+const Def* Global::alloced_type() const { return type()->arg(0); }
+
 //------------------------------------------------------------------------------
 
 /*
@@ -456,6 +462,7 @@ const Def* App        ::rebuild(const Def*  , World& w, const Def*  , Defs o, co
 const Def* Bot        ::rebuild(const Def*  , World& w, const Def* t, Defs  , const Def* dbg) { return w.bot(t, dbg); }
 const Def* Top        ::rebuild(const Def*  , World& w, const Def* t, Defs  , const Def* dbg) { return w.top(t, dbg); }
 const Def* Extract    ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.extract(o[0], o[1], dbg); }
+const Def* Global     ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def* dbg) { return w.global(o[0], o[1], d->as<Global>()->is_mutable(), dbg); }
 const Def* Insert     ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.insert(o[0], o[1], o[2], dbg); }
 const Def* KindArity  ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.kind_arity(); }
 const Def* KindMulti  ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.kind_multi(); }
@@ -492,6 +499,7 @@ static std::ostream& stream_type_ops(std::ostream& os, const Def* type) {
 }
 
 std::ostream& Axiom      ::stream(std::ostream& os) const { return streamf(os, "{}", name()); }
+std::ostream& Global     ::stream(std::ostream& os) const { return os << unique_name(); }
 std::ostream& Mem        ::stream(std::ostream& os) const { return streamf(os, "mem"); }
 std::ostream& Nat        ::stream(std::ostream& os) const { return streamf(os, "nat"); }
 std::ostream& Universe   ::stream(std::ostream& os) const { return streamf(os, "□"); }

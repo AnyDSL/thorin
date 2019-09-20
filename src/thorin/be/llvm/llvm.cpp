@@ -30,7 +30,6 @@
 #endif
 
 #include "thorin/def.h"
-#include "thorin/primop.h"
 #include "thorin/world.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"

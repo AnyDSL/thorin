@@ -2,7 +2,6 @@
 
 #include "thorin/config.h"
 #include "thorin/def.h"
-#include "thorin/primop.h"
 #include "thorin/world.h"
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/domtree.h"

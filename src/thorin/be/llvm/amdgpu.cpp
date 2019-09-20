@@ -1,6 +1,5 @@
 #include "thorin/be/llvm/amdgpu.h"
 
-#include "thorin/primop.h"
 #include "thorin/world.h"
 #include "thorin/util/log.h"
 

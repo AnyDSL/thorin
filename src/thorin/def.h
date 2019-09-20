@@ -876,6 +876,32 @@ public:
     friend class World;
 };
 
+/**
+ * A global variable in the data segment.
+ * A @p Global may be mutable or immutable.
+ * @em deprecated. WILL BE REMOVED
+ */
+class Global : public Def {
+private:
+    Global(const Def* type, const Def* id, const Def* init, bool is_mutable, const Def* dbg)
+        : Def(Node, rebuild, type, {id, init}, is_mutable, dbg)
+    {}
+
+public:
+    /// This thing's sole purpose is to differentiate on global from another.
+    const Def* id() const { return op(0); }
+    const Def* init() const { return op(1); }
+    bool is_mutable() const { return fields(); }
+    const App* type() const;
+    const Def* alloced_type() const;
+
+    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
+    std::ostream& stream(std::ostream&) const override;
+
+    static constexpr auto Node = Node::Global;
+    friend class World;
+};
+
 hash_t UseHash::hash(Use use) { return hash_combine(hash_begin(u16(use.index())), hash_t(use->gid())); }
 
 namespace detail {

@@ -5,7 +5,6 @@
 #include "thorin/alpha_equiv.h"
 #include "thorin/def.h"
 #include "thorin/normalize.h"
-#include "thorin/primop.h"
 #include "thorin/rewrite.h"
 #include "thorin/util.h"
 #include "thorin/analyses/scope.h"

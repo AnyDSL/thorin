@@ -11,10 +11,10 @@
 
 namespace thorin {
 
-Scope::Scope(Lam* entry)
+Scope::Scope(Def* entry)
     : world_(entry->world())
     , entry_(entry)
-    , exit_(world().end_scope())
+    , exit_(world().axiom_end_scope())
 {
     run();
 }
@@ -67,7 +67,7 @@ const ParamSet& Scope::free_params() const {
         auto enqueue = [&](const Def* def) {
             if (auto param = def->isa<Param>())
                 free_params_->emplace(param);
-            else if (def->isa<Lam>())
+            else if (def->isa_nominal())
                 return;
             else
                 queue.push(def);
@@ -91,20 +91,18 @@ const B_CFG& Scope::b_cfg() const { return cfa().b_cfg(); }
 
 template<bool elide_empty>
 void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
-    unique_queue<LamSet> lam_queue;
+    unique_queue<NomSet> nom_queue;
 
     for (const auto& [name, nom] : world.externals()) {
-        if (auto lam = nom->template isa<Lam>()) {
-            assert(lam->is_set() && "external must not be empty");
-            lam_queue.push(lam);
-        }
+        assert(nom->is_set() && "external must not be empty");
+        nom_queue.push(nom);
     }
 
-    while (!lam_queue.empty()) {
-        auto lam = lam_queue.pop();
-        if (elide_empty && !lam->is_set())
+    while (!nom_queue.empty()) {
+        auto nom = nom_queue.pop();
+        if (elide_empty && !nom->is_set())
             continue;
-        Scope scope(lam);
+        Scope scope(nom);
         f(scope);
 
         unique_queue<DefSet> def_queue;
@@ -113,8 +111,8 @@ void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
 
         while (!def_queue.empty()) {
             auto def = def_queue.pop();
-            if (auto lam = def->isa_nominal<Lam>())
-                lam_queue.push(lam);
+            if (auto nom = def->isa_nominal())
+                nom_queue.push(nom);
             else {
                 for (auto op : def->ops())
                     def_queue.push(op);

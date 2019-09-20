@@ -26,10 +26,14 @@ public:
     Def2Def old2new;
 };
 
-/// Rewrites @p def while mapping @p old_def to @p new_def.
-const Def* rewrite(const Def* def, const Def* old_def, const Def* new_def, const Scope* scope = nullptr);
-/// Inlines @p lam while using the argument @p arg.
-const Def* drop(Lam* lam, const Def* arg);
+/// Rewrites @p nom by substituting @p nom's @p Param with @p arg while obeying @p nom's @p scope.
+const Def* rewrite(Def* nom, const Def* arg);
+/// Same as above but uses @p scope as an optimization instead of computing a new @p Scope.
+const Def* rewrite(Def* nom, const Def* arg, const Scope* scope);
+
+/// Rewrites @p def by mapping @p old_def to @p new_def.
+const Def* rewrite(const Def* def, const Def* old_def, const Def* new_def);
+
 /// Removes unreachable and dead code by rewriting the whole program.
 void cleanup(World&);
 

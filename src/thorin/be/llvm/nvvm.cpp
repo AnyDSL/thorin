@@ -209,13 +209,14 @@ static std::string get_texture_fetch_constraint(const Def* type) {
     return constraint_str.str();
 }
 
-llvm::Value* NVVMCodeGen::emit_lea(const LEA* lea) {
-    switch (resolve_addr_space(lea->ptr())) {
+llvm::Value* NVVMCodeGen::emit_lea(const App* lea) {
+    auto [ptr, index] = lea->args<2>();
+    switch (resolve_addr_space(ptr)) {
         case AddrSpace::Texture: {
             // sample for i32:
             // %tex_fetch = call { i32, i32, i32, i32 } asm sideeffect "tex.1d.v4.s32.s32 {$0,$1,$2,$3}, [$4, {$5,$6,$7,$8}];",
             // "=r,=r,=r,=r,l,r,r,r,r" (i64 %tex_ref, i32 %add, i32 0, i32 0, i32 0)
-            auto ptr_ty = lea->type();
+            auto ptr_ty = lea->type()->as<Ptr>();
             auto llvm_ptr_ty = convert(ptr_ty->pointee());
             llvm::Type* struct_types[] = { llvm_ptr_ty, llvm_ptr_ty, llvm_ptr_ty, llvm_ptr_ty };
             auto ret_type = llvm::StructType::create(struct_types);
@@ -227,7 +228,7 @@ llvm::Value* NVVMCodeGen::emit_lea(const LEA* lea) {
             auto fetch_constraint = get_texture_fetch_constraint(ptr_ty->pointee());
             auto get_call = llvm::InlineAsm::get(type, fetch_command, fetch_constraint, false);
             llvm::Value* values[] = {
-                lookup(lea->ptr()), lookup(lea->index()),
+                lookup(ptr), lookup(index),
                 irbuilder_.getInt32(0), irbuilder_.getInt32(0), irbuilder_.getInt32(0) };
             return irbuilder_.CreateCall(get_call, values);
         }

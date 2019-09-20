@@ -33,44 +33,49 @@ inline bool is_passed_to_intrinsic(Lam* lam, Lam::Intrinsic intrinsic, bool incl
 
 std::tuple<const Axiom*, u16> get_axiom(const Def*);
 
-template<class F>
+// TODO put this somewhere else
+template<tag_t tag> struct Tag2Def_   { using type = App; };
+template<> struct Tag2Def_<Tag::EndScope> { using type = Axiom; };
+template<tag_t tag> using Tag2Def = typename Tag2Def_<tag>::type;
+
+template<class F, class D>
 class Query {
 public:
     Query()
         : axiom_(nullptr)
-        , app_(nullptr)
+        , def_(nullptr)
     {}
-    Query(const Axiom* axiom, const App* app)
+    Query(const Axiom* axiom, const D* def)
         : axiom_(axiom)
-        , app_(app)
+        , def_(def)
     {}
 
     const Axiom* axiom() const { return axiom_; }
     tag_t tag() const { return axiom()->tag(); }
     F flags() const { return F(axiom()->flags()); }
 
-    const App* operator->() const { return app_; }
-    operator const App*() const { return app_; }
+    const D* operator->() const { return def_; }
+    operator const D*() const { return def_; }
     explicit operator bool() { return axiom_ != nullptr; }
 
 private:
     const Axiom* axiom_;
-    const App* app_;
+    const D* def_;
 };
 
 template<tag_t tag>
-Query<Tag2Enum<tag>> isa(const Def* def) {
+Query<Tag2Enum<tag>, Tag2Def<tag>> isa(const Def* def) {
     auto [axiom, currying_depth] = get_axiom(def);
     if (axiom && axiom->tag() == tag && currying_depth == 0)
-        return {axiom, def->as<App>()};
+        return {axiom, def->as<Tag2Def<tag>>()};
     return {};
 }
 
 template<tag_t tag>
-Query<Tag2Enum<tag>> isa(Tag2Enum<tag> flags, const Def* def) {
+Query<Tag2Enum<tag>, Tag2Def<tag>> isa(Tag2Enum<tag> flags, const Def* def) {
     auto [axiom, currying_depth] = get_axiom(def);
     if (axiom && axiom->tag() == tag && axiom->flags() == flags_t(flags) && currying_depth == 0)
-        return {axiom, def->as<App>()};
+        return {axiom, def->as<Tag2Def<tag>>()};
     return {};
 }
 
@@ -81,8 +86,8 @@ inline std::optional<nat_t> get_width(const Def* type) {
     return {};
 }
 
-template<tag_t t> Query<Tag2Enum<t>> as(               const Def* d) { assert( isa<t>(   d) ); return {std::get<0>(get_axiom(d)), d->as<App>()}; }
-template<tag_t t> Query<Tag2Enum<t>> as(Tag2Enum<t> f, const Def* d) { assert((isa<t>(f, d))); return {std::get<0>(get_axiom(d)), d->as<App>()}; }
+template<tag_t t> Query<Tag2Enum<t>, Tag2Def<t>> as(               const Def* d) { assert( isa<t>(   d) ); return {std::get<0>(get_axiom(d)), d->as<App>()}; }
+template<tag_t t> Query<Tag2Enum<t>, Tag2Def<t>> as(Tag2Enum<t> f, const Def* d) { assert((isa<t>(f, d))); return {std::get<0>(get_axiom(d)), d->as<App>()}; }
 
 void app_to_dropped_app(Lam* src, Lam* dst, const App* app);
 

@@ -31,8 +31,8 @@ public:
 
     void resolve_loads(const Scope& scope) {
         for (auto node : scope.f_cfg().reverse_post_order()) {
-            auto lam = node->lam();
-            for (auto param : lam->params()) {
+            auto nom = node->nominal();
+            for (auto param : nom->params()) {
                 if (param->type()->isa<Mem>()) {
                     Def2Def mapping;
                     resolve_loads(param, mapping);
@@ -112,8 +112,10 @@ public:
     const Def* extract_from_slot(const Def* ptr, const Def* slot_value, const Def* dbg) {
         while (auto bitcast = isa<Tag::Bitcast>(ptr))
             ptr = bitcast->arg();
-        if (auto lea = ptr->isa<LEA>())
-            return world_.unsafe_extract(extract_from_slot(lea->ptr(), slot_value, dbg), lea->index(), dbg);
+        if (auto lea = isa<Tag::LEA>(ptr)) {
+            auto [ptr, index] = lea->args<2>();
+            return world_.extract_unsafe(extract_from_slot(ptr, slot_value, dbg), index, dbg);
+        }
         return slot_value;
     }
 
@@ -122,9 +124,10 @@ public:
         while (true) {
             if (auto bitcast = isa<Tag::Bitcast>(ptr)) {
                 ptr = bitcast->arg();
-            } else if (auto lea = ptr->isa<LEA>()) {
-                indices.push_back(lea->index());
-                ptr = lea->ptr();
+            } else if (auto lea = isa<Tag::LEA>(ptr)) {
+                auto [lea_ptr, index] = lea->args<2>();
+                indices.push_back(index);
+                ptr = lea_ptr;
             } else {
                 break;
             }
@@ -167,7 +170,7 @@ public:
     const Def* find_slot(const Def* ptr) {
         if (ptr->isa<Slot>() && is_safe_slot(ptr)) return ptr;
         if (ptr->isa<Global>() && !ptr->as<Global>()->is_mutable()) return ptr;
-        if (auto lea = ptr->isa<LEA>()) return find_slot(lea->ptr());
+        if (auto lea = isa<Tag::LEA>(ptr)) return find_slot(lea->arg(0));
         if (auto bitcast = isa<Tag::Bitcast>(ptr)) return find_slot(bitcast->arg());
         return nullptr;
     }
@@ -178,7 +181,7 @@ public:
                 store->replace(store->mem());
             } else if (use->isa<Load>()) {
                 assert(false);
-            } else if (use->isa<LEA>() || isa<Tag::Bitcast>(use)) {
+            } else if (isa<Tag::LEA>(use) || isa<Tag::Bitcast>(use)) {
                 replace_ptr_uses(use);
             } else {
                 assert(false);
@@ -190,7 +193,7 @@ public:
         for (auto& use : ptr->uses()) {
             if (use->isa<Store>()) {
                 if (use.index() != 1) return false;
-            } else if (use->isa<LEA>()) {
+            } else if (isa<Tag::LEA>(use)) {
                 if (!are_ptr_uses_safe(use.def(), allow_load)) return false;
             } else if (auto bitcast = isa<Tag::Bitcast>(use)) {
                 // Support cast between pointers to definite and indefinite arrays

@@ -153,7 +153,7 @@ public:
     const Def* variadic(ArrayRef<u64> a, const Def* body, Debug dbg = {}) {
         return variadic(Array<const Def*>(a.size(), [&](size_t i) { return lit_arity(a[i], dbg); }), body, dbg);
     }
-    const Def* unsafe_variadic(const Def* body, Debug dbg = {}) { return variadic(top_arity(), body, dbg); }
+    const Def* variadic_unsafe(const Def* body, Debug dbg = {}) { return variadic(top_arity(), body, dbg); }
     Variadic* variadic(const Def* type, Debug dbg = {}) { return insert<Variadic>(2, type, debug(dbg)); } ///< @em nominal Variadic.
     //@}
     /// @name Tuple
@@ -180,20 +180,15 @@ public:
     const Def* extract(const Def* agg, const Def* i, Debug dbg = {});
     const Def* extract(const Def* agg, u64 i, Debug dbg = {}) { return extract(agg, lit_index(agg->type()->arity(), i, dbg), dbg); }
     const Def* extract(const Def* agg, u64 a, u64 i, Debug dbg = {}) { return extract(agg, lit_index(a, i, dbg), dbg); }
-    const Def* unsafe_extract(const Def* agg, const Def* i, Debug dbg = {}) { return extract(agg, op_bitcast(agg->type()->arity(), i, dbg), dbg); }
-    const Def* unsafe_extract(const Def* agg, u64 i, Debug dbg = {}) { return unsafe_extract(agg, lit_nat(i, dbg), dbg); }
+    const Def* extract_unsafe(const Def* agg, const Def* i, Debug dbg = {}) { return extract(agg, op_bitcast(agg->type()->arity(), i, dbg), dbg); }
+    const Def* extract_unsafe(const Def* agg, u64 i, Debug dbg = {}) { return extract_unsafe(agg, lit_nat(i, dbg), dbg); }
     //@}
     /// @name Insert
     //@{
     const Def* insert(const Def* agg, const Def* i, const Def* value, Debug dbg = {});
     const Def* insert(const Def* agg, u64 i, const Def* value, Debug dbg = {}) { return insert(agg, lit_index(agg->type()->arity(), i, dbg), value, dbg); }
-    const Def* unsafe_insert(const Def* agg, const Def* i, const Def* value, Debug dbg = {}) { return insert(agg, op_bitcast(agg->type()->arity(), i, dbg), value, dbg); }
-    const Def* unsafe_insert(const Def* agg, u64 i, const Def* value, Debug dbg = {}) { return unsafe_insert(agg, lit_nat(i, dbg), value, dbg); }
-    //@}
-    /// @name LEA - load effective address
-    //@{
-    const Def* lea(const Def* ptr, const Def* index, Debug dbg);
-    const Def* unsafe_lea(const Def* ptr, const Def* index, Debug dbg) { return lea(ptr, op_bitcast(ptr->type()->as<Ptr>()->pointee()->arity(), index, dbg), dbg); }
+    const Def* insert_unsafe(const Def* agg, const Def* i, const Def* value, Debug dbg = {}) { return insert(agg, op_bitcast(agg->type()->arity(), i, dbg), value, dbg); }
+    const Def* insert_unsafe(const Def* agg, u64 i, const Def* value, Debug dbg = {}) { return insert_unsafe(agg, lit_nat(i, dbg), value, dbg); }
     //@}
     /// @name Lit
     //@{
@@ -372,19 +367,12 @@ public:
     const Axiom* op_select()  const { return cache_.op_select_; }
     const Axiom* op_sizeof()  const { return cache_.op_sizeof_; }
     const Def* op_bitcast(const Def* dst_type, const Def* src, Debug dbg = {}) { return app(app(op_bitcast(), {src->type(), dst_type}), src, dbg); }
-    const Def* op_lea(const Def* ptr, const Def* index, Debug dbg = {}) {
-        //auto [pointee, addr_space] = ptr->type()->isa<Ptr>();
-        auto t = ptr->type()->as<Ptr>();
-        auto pointee = t->pointee();
-        auto addr_space = t->addr_space();
-        auto arity = pointee->arity();
-        Array<const Def*> Ts(as_lit<nat_t>(arity));
-        return app(app(op_lea(), {arity, tuple_of_types(pointee), addr_space}), {ptr, index}, debug(dbg));
-    }
+    const Def* op_lea(const Def* ptr, const Def* index, Debug dbg = {});
+    const Def* op_lea_unsafe(const Def* ptr, const Def* index, Debug dbg) { return op_lea(ptr, op_bitcast(ptr->type()->as<Ptr>()->pointee()->arity(), index, dbg), dbg); }
     const Def* op_select(const Def* cond, const Def* t, const Def* f, Debug dbg = {}) { return app(app(cache_.op_select_, t->type()), {cond, t, f}, dbg); }
     const Def* op_sizeof(const Def* type, Debug dbg = {}) { return app(op_sizeof(), type, dbg); }
     Lam* match(const Def* type, size_t num_patterns);
-    Lam* end_scope() const { return cache_.end_scope_; }
+    Axiom* axiom_end_scope() const { return cache_.axiom_end_scope_; }
     //@}
     /// @name partial evaluation done?
     //@{
@@ -460,17 +448,6 @@ private:
             return tuple({n, f, fl, fc, bl, bc});
         }
         return std::get<const Def*>(*dbg);
-    }
-
-    const Def* tuple_of_types(const Def* type) {
-        assertf(!type->type()->is_universe(), "can't reflect operands of {} in a tuple, at least one kind in operands", type);
-        if (auto sig = type->isa<Sigma>()) {
-            //assertf(!sig->is_dependent(), "can't reflect operands of dependent sigma type {} in a tuple", sig);
-            return tuple(sig->ops());
-        } else if (auto var = type->isa<Variadic>()) {
-            return pack(var->arity(), var->body());
-        }
-        return type;
     }
     //@}
 
@@ -588,7 +565,6 @@ private:
         std::array<const Lit*, 2> lit_bool_;
         const Lit* lit_arity_1_;
         const Lit* lit_index_0_1_;
-        Lam* end_scope_;
         std::array<Axiom*, Num<IOp>>  IOp_;
         std::array<Axiom*, Num<WOp>>  WOp_;
         std::array<Axiom*, Num<ZOp>>  ZOp_;
@@ -596,6 +572,7 @@ private:
         std::array<Axiom*, Num<ICmp>> ICmp_;
         std::array<Axiom*, Num<RCmp>> RCmp_;
         std::array<Axiom*, Num<Conv>> Conv_;
+        Axiom* axiom_end_scope_;
         Axiom* type_int_;
         Axiom* type_real_;
         const App* type_bool_;

@@ -37,7 +37,8 @@ private:
 
 void Cleaner::eliminate_tail_rec() {
     Scope::for_each(world_, [&](Scope& scope) {
-        auto entry = scope.entry();
+        auto entry = scope.entry()->isa<Lam>();
+        if (entry == nullptr) return;
 
         bool only_tail_calls = true;
         bool recursive = false;

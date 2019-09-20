@@ -23,7 +23,7 @@ void CFNode::link(const CFNode* other) const {
     other->preds_.emplace(this);
 }
 
-std::ostream& CFNode::stream(std::ostream& out) const { return streamf(out, "{}", lam()); }
+std::ostream& CFNode::stream(std::ostream& out) const { return streamf(out, "{}", nominal()); }
 
 //------------------------------------------------------------------------------
 
@@ -32,12 +32,12 @@ CFA::CFA(const Scope& scope)
     , entry_(node(scope.entry()))
     , exit_ (node(scope.exit() ))
 {
-    std::queue<Lam*> cfg_queue;
-    LamSet cfg_done;
+    std::queue<Def*> cfg_queue;
+    NomSet cfg_done;
 
-    auto cfg_enqueue = [&] (Lam* lam) {
-        if (lam->is_set() && cfg_done.emplace(lam).second)
-            cfg_queue.push(lam);
+    auto cfg_enqueue = [&] (Def* nom) {
+        if (nom->is_set() && cfg_done.emplace(nom).second)
+            cfg_queue.push(nom);
     };
 
     cfg_enqueue(scope.entry());
@@ -51,7 +51,7 @@ CFA::CFA(const Scope& scope)
             if (def->isa<Param>()) return;
             // TODO maybe optimize a little bit by using the order
             if (scope.contains(def) && done.emplace(def).second) {
-                if (auto dst = def->isa_nominal<Lam>()) {
+                if (auto dst = def->isa_nominal()) {
                     cfg_enqueue(dst);
                     node(src)->link(node(dst));
                 } else
@@ -72,10 +72,10 @@ CFA::CFA(const Scope& scope)
     verify();
 }
 
-const CFNode* CFA::node(Lam* lam) {
-    auto& n = nodes_[lam];
+const CFNode* CFA::node(Def* nom) {
+    auto& n = nodes_[nom];
     if (n == nullptr)
-        n = new CFNode(lam);
+        n = new CFNode(nom);
     return n;
 }
 
@@ -152,7 +152,7 @@ void CFA::verify() {
     for (const auto& p : nodes()) {
         auto in = p.second;
         if (in != entry() && in->preds_.size() == 0) {
-            VLOG("missing predecessors: {}", in->lam());
+            VLOG("missing predecessors: {}", in->nominal());
             error = true;
         }
     }

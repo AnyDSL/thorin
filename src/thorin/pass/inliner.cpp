@@ -21,7 +21,7 @@ const Def* Inliner::rewrite(const Def* def) {
                 info.undo = man().cur_state_id();
                 man().new_state();
                 outf("inline: {}\n", lam);
-                return man().rewrite(drop(lam, app->arg()));
+                return man().rewrite(thorin::rewrite(lam, app->arg()));
             }
         }
     }

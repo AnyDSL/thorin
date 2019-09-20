@@ -9,30 +9,6 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-/**
- * Load effective address.
- * Takes a pointer <tt>ptr</tt> to an aggregate as input.
- * Then, the address to the <tt>index</tt>'th element is computed.
- * This yields a pointer to that element.
- */
-class LEA : public Def {
-private:
-    LEA(const Def* type, const Def* ptr, const Def* index, const Def* dbg)
-        : Def(Node, rebuild, type, {ptr, index}, 0, dbg)
-    {}
-
-public:
-    const Def* ptr() const { return op(0); }
-    const Def* index() const { return op(1); }
-    const Ptr* type() const { return Def::type()->as<Ptr>(); }
-    const Ptr* ptr_type() const { return ptr()->type()->as<Ptr>(); } ///< Returns the Ptr from @p ptr().
-    const Def* ptr_pointee() const { return ptr_type()->pointee(); }        ///< Returns the type referenced by @p ptr().
-    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
-
-    static constexpr auto Node = Node::LEA;
-    friend class World;
-};
-
 /// Casts the underlying @p def to a dynamic value during @p partial_evaluation.
 class Hlt : public Def {
 private:

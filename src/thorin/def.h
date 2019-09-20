@@ -108,6 +108,11 @@ using DefMap  = GIDMap<const Def*, To>;
 using DefSet  = GIDSet<const Def*>;
 using Def2Def = DefMap<const Def*>;
 
+template<class To>
+using NomMap  = GIDMap<Def*, To>;
+using NomSet  = GIDSet<Def*>;
+using Nom2Nom = NomMap<Def*>;
+
 std::ostream& operator<<(std::ostream&, const Def*);
 std::ostream& operator<<(std::ostream&, Use);
 
@@ -549,7 +554,6 @@ public:
         Undef,                      ///< Intrinsic undef function
         Match,                      ///< match(val, otherwise, (case1, cont1), (case2, cont2), ...)
         PeInfo,                     ///< Partial evaluation debug info.
-        EndScope,                   ///< Dummy function which marks the end of a @p Scope.
     };
 
     /// calling convention

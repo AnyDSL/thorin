@@ -47,7 +47,8 @@ World::World(uint32_t cur_gid, const std::string& name, bool tuple2pack)
     cache_.type_nat_      = insert<Nat>(0, *this);
     cache_.lit_arity_1_   = lit_arity(1);
     cache_.lit_index_0_1_ = lit_index(lit_arity_1(), 0);
-    cache_.end_scope_     = lam(cn(), Lam::CC::C, Lam::Intrinsic::EndScope, {"end_scope"});
+
+    cache_.axiom_end_scope_  = axiom(bot_star(), Tag::EndScope, 0, {"EndScope"});
 
     {   // int/real: Πw: Nat. *
         auto p = pi(type_nat(), kind_star());
@@ -132,7 +133,7 @@ World::World(uint32_t cur_gid, const std::string& name, bool tuple2pack)
         auto pi2 = pi(kind_star())->set_domain({src_ptr, s});
         pi2->set_codomain(type_ptr(extract(Ts, pi2->param(1, {"i"})), as));
         pi1->set_codomain(pi2);
-        cache_.op_lea_ = axiom(normalize_lea, pi1, 0 , Tag::Lea, 0, {"lea"});
+        cache_.op_lea_ = axiom(normalize_lea, pi1, 0 , Tag::LEA, 0, {"lea"});
     } {
     } { // sizeof: ΠT:*. nat
         cache_.op_sizeof_ = axiom(normalize_sizeof, pi(kind_star(), type_nat()), 0, Tag::Sizeof, 0, {"sizeof"});
@@ -146,6 +147,10 @@ World::World(uint32_t cur_gid, const std::string& name, bool tuple2pack)
 World::~World() {
     for (auto def : defs_) def->~Def();
 }
+
+/*
+ * core calculus
+ */
 
 Axiom* World::axiom(Def::NormalizeFn normalize, const Def* type, size_t num_ops, tag_t tag, flags_t flags, Debug dbg) {
     auto a = insert<Axiom>(num_ops, normalize, type, num_ops, tag, flags, debug(dbg));
@@ -370,10 +375,6 @@ const Def* World::pack(Defs arity, const Def* body, Debug dbg) {
     return pack(arity.skip_back(), pack(arity.back(), body, dbg), dbg);
 }
 
-/*
- * literals
- */
-
 const Lit* World::lit_index(const Def* a, u64 i, Debug dbg) {
     if (a->isa<Top>()) return lit(a, i, dbg);
 
@@ -382,6 +383,31 @@ const Lit* World::lit_index(const Def* a, u64 i, Debug dbg) {
 
     return lit(a, i, dbg);
 }
+
+/*
+ * ops
+ */
+
+const Def* World::op_lea(const Def* ptr, const Def* index, Debug dbg) {
+    //auto [pointee, addr_space] = ptr->type()->isa<Ptr>();
+    auto ptr_t = ptr->type()->as<Ptr>();
+    auto pointee = ptr_t->pointee();
+    auto addr_space = ptr_t->addr_space();
+
+    const Def* Ts;
+    if (auto sigma = pointee->isa<Sigma>()) {
+        Ts = tuple(sigma->ops());
+    } else {
+        auto variadic = pointee->as<Variadic>();
+        Ts = pack(variadic->arity(), variadic->body());
+    }
+
+    return app(app(op_lea(), {pointee->arity(), Ts, addr_space}), {ptr, index}, debug(dbg));
+}
+
+/*
+ * deprecated
+ */
 
 #if 0
 /*
@@ -675,29 +701,6 @@ const Def* World::bot_top(bool is_top, const Def* type, Debug dbg) {
         return tuple(sigma, Array<const Def*>(sigma->num_ops(), [&](size_t i) { return bot_top(is_top, sigma->op(i), dbg); }), dbg);
     auto d = debug(dbg);
     return is_top ? (const Def*) unify<Top>(0, type, d) : (const Def*) unify<Bot>(0, type, d);
-}
-
-/*
- * aggregate operations
- */
-
-const Def* World::lea(const Def* ptr, const Def* index, Debug dbg) {
-    auto type_ptr = ptr->type()->as<Ptr>();
-    auto pointee = type_ptr->pointee();
-
-    assertf(pointee->arity() == index->type(), "lea of aggregate {} of arity {} with index {} of type {}", pointee, pointee->arity(), index, index->type());
-
-    if (pointee->arity() == lit_arity_1()) return ptr;
-
-    const Def* type = nullptr;
-    if (auto sigma = pointee->isa<Sigma>()) {
-        type = this->type_ptr(sigma->op(as_lit<u64>(index)), type_ptr->addr_space());
-    } else {
-        auto variadic = pointee->as<Variadic>();
-        type = this->type_ptr(variadic->body(), type_ptr->addr_space());
-    }
-
-    return unify<LEA>(2, type, ptr, index, debug(dbg));
 }
 
 /*

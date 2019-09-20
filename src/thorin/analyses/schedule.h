@@ -8,7 +8,7 @@ namespace thorin {
 
 class Schedule : public Streamable {
 public:
-    enum Tag { Early, Late, Smart };
+    enum Mode { Early, Late, Smart };
 
     class Block {
     public:
@@ -18,7 +18,7 @@ public:
         Block() {}
 
         const CFNode* node() const { return node_; }
-        Lam* lam() const { return node()->lam(); }
+        Def* nominal() const { return node()->nominal(); }
         ArrayRef<const Def*> defs() const { return defs_; }
         size_t index() const { return index_; }
 
@@ -46,11 +46,11 @@ public:
         : scope_(std::move(other.scope_))
         , indices_(std::move(other.indices_))
         , blocks_(std::move(other.blocks_))
-        , tag_(std::move(other.tag_))
+        , mode_(std::move(other.mode_))
     {}
-    Schedule(const Scope&, Tag = Smart);
+    Schedule(const Scope&, Mode = Smart);
 
-    Tag tag() const { return tag_; }
+    Mode mode() const { return mode_; }
     const Scope& scope() const { return scope_; }
     const World& world() const { return scope().world(); }
     const CFA& cfa() const { return scope().cfa(); }
@@ -77,12 +77,12 @@ private:
     const Scope& scope_;
     F_CFG::Map<size_t> indices_;
     Array<Block> blocks_;
-    Tag tag_;
+    Mode mode_;
 
     friend class Scheduler;
 };
 
-inline Schedule schedule(const Scope& scope, Schedule::Tag tag = Schedule::Smart) { return Schedule(scope, tag); }
+inline Schedule schedule(const Scope& scope, Schedule::Mode mode = Schedule::Smart) { return Schedule(scope, mode); }
 void verify_mem(World& );
 
 }

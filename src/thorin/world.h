@@ -438,14 +438,17 @@ private:
     }
 
     const Def* debug(Debug dbg) {
-        if (auto d  = std::get_if<0>(&*dbg)) {
-            auto n  = name2def(std::get<0>(*d));
-            auto f  = name2def(std::get<1>(*d));
-            auto fl = lit_nat(std::get<2>(*d));
-            auto fc = lit_nat(std::get<3>(*d));
-            auto bl = lit_nat(std::get<4>(*d));
-            auto bc = lit_nat(std::get<5>(*d));
-            return tuple({n, f, fl, fc, bl, bc});
+        if (auto d = std::get_if<0>(&*dbg)) {
+            auto n = name2def(std::get<0>(*d));
+            auto f = name2def(std::get<1>(*d));
+            auto l = tuple({
+                lit_nat(std::get<2>(*d)),
+                lit_nat(std::get<3>(*d)),
+                lit_nat(std::get<4>(*d)),
+                lit_nat(std::get<5>(*d))
+            });
+            auto m = std::get<6>(*d);
+            return tuple({n, f, l, m ? m : bot(bot_star()) });
         }
         return std::get<const Def*>(*dbg);
     }

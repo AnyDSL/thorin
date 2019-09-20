@@ -418,11 +418,11 @@ Axiom::Axiom(NormalizeFn normalizer, const Def* type, size_t num_ops, u32 tag, u
 }
 
 KindArity::KindArity(World& world)
-    : Def(Node, rebuild, world.universe(), Defs{}, 0, nullptr)
+    : Def(Node, rebuild, world.kind_multi(), Defs{}, 0, nullptr)
 {}
 
 KindMulti::KindMulti(World& world)
-    : Def(Node, rebuild, world.universe(), Defs{}, 0, nullptr)
+    : Def(Node, rebuild, world.kind_star() , Defs{}, 0, nullptr)
 {}
 
 KindStar::KindStar(World& world)

@@ -89,9 +89,9 @@ public:
     //@}
     /// @name Universe and Kind
     //@{
-    const Universe* universe() { return cache_.universe_; }
-    const KindArity* kind_arity() { return cache_.kind_arity_; }
+    const Universe*  universe()   { return cache_.universe_; }
     const KindMulti* kind_multi() { return cache_.kind_multi_; }
+    const KindArity* kind_arity() { return cache_.kind_arity_; }
     const KindStar*  kind_star()  { return cache_.kind_star_; }
     //@}
     /// @name Param
@@ -556,8 +556,8 @@ private:
 #endif
     struct Cache {
         Universe* universe_;
-        const KindArity* kind_arity_;
         const KindMulti* kind_multi_;
+        const KindArity* kind_arity_;
         const KindStar*  kind_star_;
         const Bot* bot_star_;
         const Top* top_arity_;

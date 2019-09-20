@@ -257,11 +257,11 @@ public:
     size_t gid() const { return gid_; }
     hash_t hash() const { return hash_; }
     World& world() const {
-        if (node()                 == Node::Universe) return *world_;
-        if (type()->node()         == Node::Universe) return *type()->world_;
-        if (type()->type()->node() == Node::Universe) return *type()->type()->world_;
-        assert(type()->type()->type()->node() == Node::Universe);
-        return *type()->type()->type()->world_;
+        if (node() == Node::KindArity) return *type()->type()->type()->world_;
+        if (node() == Node::KindMulti) return *type()->type()->world_;
+        if (node() == Node::KindStar ) return *type()->world_;
+        if (node() == Node::Universe ) return *world_;
+        return type()->world();
     }
     //@}
     /// @name replace

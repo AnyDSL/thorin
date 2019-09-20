@@ -35,10 +35,10 @@ World::World(uint32_t cur_gid, const std::string& name, bool tuple2pack)
     , cur_gid_(cur_gid)
     , tuple2pack_(tuple2pack)
 {
-    cache_.universe_      = insert<Universe>(0, *this);
-    cache_.kind_arity_    = insert<KindArity>(0, *this);
-    cache_.kind_multi_    = insert<KindMulti>(0, *this);
+    cache_.universe_      = insert<Universe >(0, *this);
     cache_.kind_star_     = insert<KindStar >(0, *this);
+    cache_.kind_multi_    = insert<KindMulti>(0, *this);
+    cache_.kind_arity_    = insert<KindArity>(0, *this);
     cache_.bot_star_      = insert<Bot>(0, kind_star(), nullptr);
     cache_.top_arity_     = insert<Top>(0, kind_arity(), nullptr);
     cache_.sigma_         = insert<Sigma>(0, kind_star(), Defs{}, nullptr)->as<Sigma>();

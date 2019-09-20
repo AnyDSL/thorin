@@ -111,6 +111,11 @@ using DefMap  = GIDMap<const Def*, To>;
 using DefSet  = GIDSet<const Def*>;
 using Def2Def = DefMap<const Def*>;
 
+template<class To>
+using NomMap  = GIDMap<Def*, To>;
+using NomSet  = GIDSet<Def*>;
+using Nom2Nom = NomMap<Def*>;
+
 std::ostream& operator<<(std::ostream&, const Def*);
 std::ostream& operator<<(std::ostream&, Use);
 
@@ -553,7 +558,6 @@ public:
         Undef,                      ///< Intrinsic undef function
         Match,                      ///< match(val, otherwise, (case1, cont1), (case2, cont2), ...)
         PeInfo,                     ///< Partial evaluation debug info.
-        EndScope,                   ///< Dummy function which marks the end of a @p Scope.
     };
 
     /// calling convention
@@ -861,25 +865,6 @@ public:
     std::ostream& stream(std::ostream&) const override;
 
     static constexpr auto Node = Node::Nat;
-    friend class World;
-};
-
-/// Pointer type.
-class Ptr : public Def {
-private:
-    Ptr(const Def* type, const Def* pointee, const Def* addr_space, const Def* dbg)
-        : Def(Node, rebuild, type, {pointee, addr_space}, 0, dbg)
-    {}
-
-public:
-    const Def* pointee() const { return op(0); }
-    const Def* addr_space() const { return op(1); }
-    nat_t lit_addr_space() const { return as_lit<nat_t>(op(1)); }
-
-    std::ostream& stream(std::ostream&) const override;
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-
-    static constexpr auto Node = Node::Ptr;
     friend class World;
 };
 

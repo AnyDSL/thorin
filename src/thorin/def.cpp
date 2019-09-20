@@ -363,7 +363,7 @@ bool Pi::is_returning() const {
 }
 
 const Def* Pi::apply(const Def* arg) const {
-    if (auto pi = isa_nominal<Pi>()) return rewrite(pi->codomain(), pi->param(), arg);
+    if (auto pi = isa_nominal<Pi>()) return rewrite(pi, arg);
     return codomain();
 }
 
@@ -437,25 +437,21 @@ Mem::Mem(World& world)
     : Def(Node, rebuild, world.kind_star(), Defs{}, 0, nullptr)
 {}
 
-size_t Def::num_params() {
-    if (auto lam =      isa<Lam     >()) return lam->domain()->lit_arity();
-    if (auto pi  =      isa<Pi      >()) return pi ->domain()->lit_arity();
-    if (auto sigma =    isa<Sigma   >()) return sigma->num_ops();
-    if (auto variadic = isa<Variadic>()) return variadic->arity()->lit_arity();
-    if (auto pack =     isa<Pack    >()) return pack->arity()->lit_arity();
-    if (auto axiom =    isa<Axiom   >()) return axiom->type()->as<Pi>()->domain()->lit_arity();
+const Param* Def::param(Debug dbg) {
+    if (auto lam      = isa<Lam     >()) return world().param(lam->domain(),     lam,      dbg);
+    if (auto pi       = isa<Pi      >()) return world().param(pi ->domain(),     pi,       dbg);
+    if (auto pack     = isa<Pack    >()) return world().param(pack->arity(),     pack,     dbg);
+    if (auto sigma    = isa<Sigma   >()) return world().param(sigma,             sigma,    dbg);
+    if (auto variadic = isa<Variadic>()) return world().param(variadic->arity(), variadic, dbg);
+    if (auto axiom    = isa<Axiom   >()) {
+        if (auto pi = axiom->type()->isa<Pi>())
+            return world().param(pi->domain(), axiom, dbg);
+        return world().param(world().bot_star(), axiom, dbg);
+    }
     THORIN_UNREACHABLE;
 }
 
-const Param* Def::param(Debug dbg) {
-    if (auto lam =      isa<Lam     >()) return world().param(lam->domain(),                     lam,      dbg);
-    if (auto pi  =      isa<Pi      >()) return world().param(pi ->domain(),                     pi,       dbg);
-    if (auto pack =     isa<Pack    >()) return world().param(pack->arity(),                     pack,     dbg);
-    if (auto sigma =    isa<Sigma   >()) return world().param(sigma,                             sigma,    dbg);
-    if (auto variadic = isa<Variadic>()) return world().param(variadic->arity(),                 variadic, dbg);
-    if (auto axiom =    isa<Axiom   >()) return world().param(axiom->type()->as<Pi>()->domain(), axiom,    dbg);
-    THORIN_UNREACHABLE;
-}
+size_t Def::num_params() { return param()->type()->lit_arity(); }
 
 /*
  * rebuild
@@ -478,7 +474,6 @@ const Def* Mem        ::rebuild(const Def*  , World& w, const Def*  , Defs  , co
 const Def* Pack       ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.pack(t->arity(), o[0], dbg); }
 const Def* Param      ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.param(t, o[0]->as_nominal(), dbg); }
 const Def* Pi         ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.pi(o[0], o[1], dbg); }
-const Def* Ptr        ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.type_ptr(o[0], o[1], dbg); }
 const Def* Tuple      ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.tuple(t, o, dbg); }
 const Def* Variadic   ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.variadic(o[0], o[1], dbg); }
 const Def* Variant    ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.variant(t->as<VariantType>(), o[0], dbg); }
@@ -523,6 +518,20 @@ std::ostream& App::stream(std::ostream& os) const {
     if (auto w = get_width(this)) {
         if (auto real = thorin::isa<Tag::Real>(this)) return streamf(os, "r{}", *w);
         return streamf(os, "i{}", *w);
+    } else if (auto ptr = thorin::isa<Tag::Ptr>(this)) {
+        auto [pointee, addr_space] = ptr->args<2>();
+        os << pointee << '*';
+        if (auto as = isa_lit<nat_t>(addr_space)) {
+            switch (*as) {
+                case AddrSpace::Generic:  return streamf(os, "");
+                case AddrSpace::Global:   return streamf(os, "[Global]");
+                case AddrSpace::Texture:  return streamf(os, "[Tex]");
+                case AddrSpace::Shared:   return streamf(os, "[Shared]");
+                case AddrSpace::Constant: return streamf(os, "[Constant]");
+                default:;
+            }
+        }
+        return streamf(os, "[{}]", addr_space);
     }
 
     return streamf(os, "{} {}", callee(), arg());
@@ -628,18 +637,6 @@ std::ostream& Pi::stream(std::ostream& os) const {
             return streamf(os, "Π{}:{} -> {}", pi->param(), pi->domain(), pi->codomain());
         else
             return streamf(os, "Π{} -> {}", domain(), codomain());
-    }
-}
-
-std::ostream& Ptr::stream(std::ostream& os) const {
-    os << pointee() << '*';
-    switch (auto as = lit_addr_space()) {
-        case AddrSpace::Generic:  return streamf(os, "");
-        case AddrSpace::Global:   return streamf(os, "[Global]");
-        case AddrSpace::Texture:  return streamf(os, "[Tex]");
-        case AddrSpace::Shared:   return streamf(os, "[Shared]");
-        case AddrSpace::Constant: return streamf(os, "[Constant]");
-        default:                  return streamf(os, "[{}]", as);
     }
 }
 

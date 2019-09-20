@@ -10,7 +10,6 @@ Rewriter::Rewriter(World& old_world, World& new_world, const Scope* scope)
     , new_world(new_world)
     , scope(scope)
 {
-    old2new[old_world.end_scope()] = new_world.end_scope();
     old2new[old_world.universe()]  = new_world.universe();
 }
 
@@ -19,7 +18,9 @@ const Def* Rewriter::rewrite(const Def* old_def) {
     if (scope != nullptr && !scope->contains(old_def)) return old_def;
 
     auto new_type  = rewrite(old_def->type());
-    auto new_debug = old_def->debug() ? rewrite(old_def->debug()) : nullptr;
+
+    auto new_debug = &new_world == &old_world ? old_def->debug() :
+        old_def->debug() ? rewrite(old_def->debug()) : nullptr;
 
     if (auto old_nom = old_def->isa_nominal()) {
         auto new_nom = old_nom->stub(new_world, new_type, new_debug);
@@ -37,15 +38,21 @@ const Def* Rewriter::rewrite(const Def* old_def) {
     return map(old_def, old_def->rebuild(new_world, new_type, new_ops, new_debug)); ;
 }
 
-const Def* rewrite(const Def* def, const Def* old_def, const Def* new_def, const Scope* scope) {
-    Rewriter rewriter(def->world(), scope);
+const Def* rewrite(const Def* def, const Def* old_def, const Def* new_def) {
+    Rewriter rewriter(def->world());
     rewriter.map(old_def, new_def);
     return rewriter.rewrite(def);
 }
 
-const Def* drop(Lam* lam, const Def* arg) {
-    Scope scope(lam);
-    return rewrite(lam->body(), lam->param(), arg, &scope);
+const Def* rewrite(Def* nom, const Def* arg, const Scope* scope) {
+    Rewriter rewriter(nom->world(), scope);
+    rewriter.map(nom->param(), arg);
+    return rewriter.rewrite(nom->ops().back());
+}
+
+const Def* rewrite(Def* nom, const Def* arg) {
+    Scope scope(nom);
+    return rewrite(nom, arg, &scope);
 }
 
 void cleanup(World& old_world) {

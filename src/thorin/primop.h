@@ -9,30 +9,6 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-/**
- * Load effective address.
- * Takes a pointer <tt>ptr</tt> to an aggregate as input.
- * Then, the address to the <tt>index</tt>'th element is computed.
- * This yields a pointer to that element.
- */
-class LEA : public Def {
-private:
-    LEA(const Def* type, const Def* ptr, const Def* index, const Def* dbg)
-        : Def(Node, rebuild, type, {ptr, index}, 0, dbg)
-    {}
-
-public:
-    const Def* ptr() const { return op(0); }
-    const Def* index() const { return op(1); }
-    const Ptr* type() const { return Def::type()->as<Ptr>(); }
-    const Ptr* ptr_type() const { return ptr()->type()->as<Ptr>(); } ///< Returns the Ptr from @p ptr().
-    const Def* ptr_pointee() const { return ptr_type()->pointee(); }        ///< Returns the type referenced by @p ptr().
-    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
-
-    static constexpr auto Node = Node::LEA;
-    friend class World;
-};
-
 /// Casts the underlying @p def to a dynamic value during @p partial_evaluation.
 class Hlt : public Def {
 private:
@@ -94,8 +70,8 @@ public:
     const Def* id() const { return op(0); }
     const Def* init() const { return op(1); }
     bool is_mutable() const { return fields(); }
-    const Ptr* type() const { return Def::type()->as<Ptr>(); }
-    const Def* alloced_type() const { return type()->pointee(); }
+    const App* type() const { return thorin::as<Tag::Ptr>(Def::type()); }
+    const Def* alloced_type() const { return type()->arg(0); }
 
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
     std::ostream& stream(std::ostream&) const override;
@@ -118,7 +94,7 @@ public:
     const Def* out_mem() const { return out(0); }
     const Def* out_ptr() const { return out(1); }
     const Sigma* type() const { return Def::type()->as<Sigma>(); }
-    const Def* alloced_type() const { return out_ptr()->type()->as<Ptr>()->pointee(); }
+    const Def* alloced_type() const { return thorin::as<Tag::Ptr>(out_ptr()->type())->arg(0); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
     static constexpr auto Node = Node::Alloc;
@@ -140,7 +116,7 @@ public:
     const Def* out_mem() const { return out(0); }
     const Def* out_ptr() const { return out(1); }
     const Sigma* type() const { return Def::type()->as<Sigma>(); }
-    const Def* alloced_type() const { return out_ptr()->type()->as<Ptr>()->pointee(); }
+    const Def* alloced_type() const { return thorin::as<Tag::Ptr>(out_ptr()->type())->arg(0); }
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
 
     static constexpr auto Node = Node::Slot;

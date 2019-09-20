@@ -47,7 +47,8 @@ World::World(uint32_t cur_gid, const std::string& name, bool tuple2pack)
     cache_.type_nat_      = insert<Nat>(0, *this);
     cache_.lit_arity_1_   = lit_arity(1);
     cache_.lit_index_0_1_ = lit_index(lit_arity_1(), 0);
-    cache_.end_scope_     = lam(cn(), Lam::CC::C, Lam::Intrinsic::EndScope, {"end_scope"});
+
+    cache_.axiom_end_scope_  = axiom(bot_star(), Tag::EndScope, 0, {"EndScope"});
 
     {   // int/real: Πw: Nat. *
         auto p = pi(type_nat(), kind_star());
@@ -56,28 +57,8 @@ World::World(uint32_t cur_gid, const std::string& name, bool tuple2pack)
         cache_.type_bool_ = type_int(1);
         cache_.lit_bool_[0] = lit(type_bool(), false);
         cache_.lit_bool_[1] = lit(type_bool(),  true);
-    }
-
-    // TODO
-    // lea:,  Π[s: *M, Ts: «s; *», as: nat]. Π[ptr(«j: s; Ts#j», as), i: s]. ptr(Ts#i, as)
-    // load:  Π[T: *, as: nat]. Π[M as, ptr(T, as)]. [M as, T]
-    // store: Π[T: *, as: nat]. Π[M as, ptr(T, as), T]. M as
-    // enter: Πas: nat. ΠM as. [M as, F as]
-    // slot:  Π[T: *, as: nat]. Π[F as, nat]. ptr(T, as)
-
-    {
-    } { // bitcast: Π[S: *, D: *]. ΠS. D
-        auto type = pi(kind_star())->set_domain({kind_star(), kind_star()});
-        auto S = type->param(0, {"S"});
-        auto D = type->param(1, {"D"});
-        type->set_codomain(pi(S, D));
-        cache_.op_bitcast_ = axiom(normalize_bitcast, type, 0, Tag::Bitcast, 0, {"bitcast"});
-    } { // select: ΠT:*. Π[bool, T, T]. T
-        auto type = pi(kind_star())->set_domain(kind_star());
-        auto T = type->param({"T"});
-        cache_.op_select_ = axiom(normalize_select, type->set_codomain(pi({type_bool(), T, T}, T)), 0, Tag::Select, 0, {"select"});
-    } { // sizeof: ΠT:*. nat
-        cache_.op_sizeof_ = axiom(normalize_sizeof, pi(kind_star(), type_nat()), 0, Tag::Sizeof, 0, {"sizeof"});
+    } { // ptr: Π[T: *, as: nat]. *
+        cache_.type_ptr_ = axiom(pi({kind_star(), type_nat()}, kind_star()), Tag::Ptr, 0, {"ptr"});
     }
 #define CODE(T, o) cache_.T ## _[size_t(T::o)] = axiom(normalize_ ## T<T::o>, type, 0, Tag::T, flags_t(T::o), {op2str(T::o)});
     {   // IOp: Πw: nat. Π[int w, int w]. int w
@@ -127,11 +108,49 @@ World::World(uint32_t cur_gid, const std::string& name, bool tuple2pack)
     }
     THORIN_CONV(CODE)
 #undef Code
+    {   // bitcast: Π[S: *, D: *]. ΠS. D
+        auto type = pi(kind_star())->set_domain({kind_star(), kind_star()});
+        auto S = type->param(0, {"S"});
+        auto D = type->param(1, {"D"});
+        type->set_codomain(pi(S, D));
+        cache_.op_bitcast_ = axiom(normalize_bitcast, type, 0, Tag::Bitcast, 0, {"bitcast"});
+    } { // select: ΠT:*. Π[bool, T, T]. T
+        auto type = pi(kind_star())->set_domain(kind_star());
+        auto T = type->param({"T"});
+        cache_.op_select_ = axiom(normalize_select, type->set_codomain(pi({type_bool(), T, T}, T)), 0, Tag::Select, 0, {"select"});
+    } { // lea:,  Π[s: *M, Ts: «s; *», as: nat]. Π[ptr(«j: s; Ts#j», as), i: s]. ptr(Ts#i, as)
+        auto domain = sigma(3, universe());
+        domain->set(0, kind_multi());
+        domain->set(1, variadic(domain->param(0, {"s"}), kind_star()));
+        domain->set(2, type_nat());
+        auto pi1 = pi(kind_star())->set_domain(domain);
+        auto s  = pi1->param(0, {"s"});
+        auto Ts = pi1->param(1, {"Ts"});
+        auto as = pi1->param(2, {"as"});
+        auto v = variadic(kind_star())->set_arity(s);
+        v->set_body(extract(Ts, v->param({"j"})));
+        auto src_ptr = type_ptr(v, as);
+        auto pi2 = pi(kind_star())->set_domain({src_ptr, s});
+        pi2->set_codomain(type_ptr(extract(Ts, pi2->param(1, {"i"})), as));
+        pi1->set_codomain(pi2);
+        cache_.op_lea_ = axiom(normalize_lea, pi1, 0 , Tag::LEA, 0, {"lea"});
+    } {
+    } { // sizeof: ΠT:*. nat
+        cache_.op_sizeof_ = axiom(normalize_sizeof, pi(kind_star(), type_nat()), 0, Tag::Sizeof, 0, {"sizeof"});
+    } { // load:  Π[T: *, as: nat]. Π[M, ptr(T, as)]. [M, T]
+    } { // store: Π[T: *, as: nat]. Π[M, ptr(T, as), T]. M
+    } { // alloc:  Π[T: *, as: nat]. Π[F as, nat]. ptr(T, as)
+    } { // slot:  Π[T: *, as: nat]. Π[F as, nat]. ptr(T, as)
+    }
 }
 
 World::~World() {
     for (auto def : defs_) def->~Def();
 }
+
+/*
+ * core calculus
+ */
 
 Axiom* World::axiom(Def::NormalizeFn normalize, const Def* type, size_t num_ops, tag_t tag, flags_t flags, Debug dbg) {
     auto a = insert<Axiom>(num_ops, normalize, type, num_ops, tag, flags, debug(dbg));
@@ -356,10 +375,6 @@ const Def* World::pack(Defs arity, const Def* body, Debug dbg) {
     return pack(arity.skip_back(), pack(arity.back(), body, dbg), dbg);
 }
 
-/*
- * literals
- */
-
 const Lit* World::lit_index(const Def* a, u64 i, Debug dbg) {
     if (a->isa<Top>()) return lit(a, i, dbg);
 
@@ -368,6 +383,28 @@ const Lit* World::lit_index(const Def* a, u64 i, Debug dbg) {
 
     return lit(a, i, dbg);
 }
+
+/*
+ * ops
+ */
+
+const Def* World::op_lea(const Def* ptr, const Def* index, Debug dbg) {
+    auto [pointee, addr_space] = as<Tag::Ptr>(ptr->type())->args<2>();
+
+    const Def* Ts;
+    if (auto sigma = pointee->isa<Sigma>()) {
+        Ts = tuple(sigma->ops());
+    } else {
+        auto variadic = pointee->as<Variadic>();
+        Ts = pack(variadic->arity(), variadic->body());
+    }
+
+    return app(app(op_lea(), {pointee->arity(), Ts, addr_space}), {ptr, index}, debug(dbg));
+}
+
+/*
+ * deprecated
+ */
 
 #if 0
 /*
@@ -664,34 +701,11 @@ const Def* World::bot_top(bool is_top, const Def* type, Debug dbg) {
 }
 
 /*
- * aggregate operations
- */
-
-const Def* World::lea(const Def* ptr, const Def* index, Debug dbg) {
-    auto type_ptr = ptr->type()->as<Ptr>();
-    auto pointee = type_ptr->pointee();
-
-    assertf(pointee->arity() == index->type(), "lea of aggregate {} of arity {} with index {} of type {}", pointee, pointee->arity(), index, index->type());
-
-    if (pointee->arity() == lit_arity_1()) return ptr;
-
-    const Def* type = nullptr;
-    if (auto sigma = pointee->isa<Sigma>()) {
-        type = this->type_ptr(sigma->op(as_lit<u64>(index)), type_ptr->addr_space());
-    } else {
-        auto variadic = pointee->as<Variadic>();
-        type = this->type_ptr(variadic->body(), type_ptr->addr_space());
-    }
-
-    return unify<LEA>(2, type, ptr, index, debug(dbg));
-}
-
-/*
  * memory stuff
  */
 
 const Def* World::load(const Def* mem, const Def* ptr, Debug dbg) {
-    auto pointee = ptr->type()->as<Ptr>()->pointee();
+    auto [pointee, addr_space] = as<Tag::Ptr>(ptr->type())->args<2>();
 
     // loading an empty tuple can only result in an empty tuple
     if (auto sigma = pointee->isa<Sigma>(); sigma && sigma->num_ops() == 0)
@@ -708,7 +722,7 @@ const Def* World::store(const Def* mem, const Def* ptr, const Def* val, Debug db
             return mem;
     }
 
-    assert(ptr->type()->as<Ptr>()->pointee() == val->type());
+    assert(as<Tag::Ptr>(ptr->type())->arg(0) == val->type());
     return unify<Store>(3, mem, ptr, val, debug(dbg));
 }
 

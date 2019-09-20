@@ -22,7 +22,7 @@ protected:
     virtual llvm::Value* emit_global(const Global*) override;
     virtual llvm::Value* emit_load(const Load*) override;
     virtual llvm::Value* emit_store(const Store*) override;
-    virtual llvm::Value* emit_lea(const LEA*) override;
+    virtual llvm::Value* emit_lea(const App*) override;
     virtual Lam* emit_reserve(Lam*) override;
     virtual std::string get_alloc_name() const override { return "malloc"; }
 

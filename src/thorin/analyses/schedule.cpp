@@ -28,7 +28,7 @@ public:
         compute_def2uses();
         Def2CFNode* def2node = nullptr;
 
-        switch (schedule.tag()) {
+        switch (schedule.mode()) {
             case Schedule::Early: schedule_early(); def2node = &def2early_; break;
             case Schedule::Late:  schedule_late();  def2node = &def2late_;  break;
             case Schedule::Smart: schedule_smart(); def2node = &def2smart_; break;
@@ -80,8 +80,8 @@ void Scheduler::compute_def2uses() {
     };
 
     for (auto n : cfg_.reverse_post_order()) {
-        if (n->lam()->is_set())
-            enqueue(n->lam());
+        if (n->nominal()->is_set())
+            enqueue(n->nominal());
     }
 
     while (!queue.empty()) {
@@ -103,10 +103,10 @@ const CFNode* Scheduler::schedule_early(const Def* def) {
 
     const CFNode* result;
 
-    if (auto lam = def->isa_nominal<Lam>()) {
-        result = cfg_[lam];
+    if (auto nom = def->isa_nominal<Lam>()) {
+        result = cfg_[nom];
     } else if (auto param = def->isa<Param>()) {
-        result = schedule_early(param->lam());
+        result = schedule_early(param->nominal());
     } else {
         result = cfg_.entry();
         for (auto op : def->ops()) {
@@ -128,10 +128,10 @@ const CFNode* Scheduler::schedule_late(const Def* def) {
 
     const CFNode* result = nullptr;
 
-    if (auto lam = def->isa_nominal<Lam>()) {
-        result = cfg_[lam];
+    if (auto nom = def->isa_nominal<Lam>()) {
+        result = cfg_[nom];
     } else if (auto param = def->isa<Param>()) {
-        result = schedule_late(param->lam());
+        result = schedule_late(param->nominal());
     } else {
         for (auto use : uses(def)) {
             auto n = schedule_late(use);
@@ -224,11 +224,11 @@ void Scheduler::topo_sort(Def2CFNode& def2node) {
 
 //------------------------------------------------------------------------------
 
-Schedule::Schedule(const Scope& scope, Tag tag)
+Schedule::Schedule(const Scope& scope, Mode mode)
     : scope_(scope)
     , indices_(cfg())
     , blocks_(cfa().size())
-    , tag_(tag)
+    , mode_(mode)
 {
     block_schedule();
     Scheduler(scope, *this);
@@ -248,14 +248,15 @@ void Schedule::block_schedule() {
 }
 
 void Schedule::verify() {
+#if 0
 #if THORIN_ENABLE_CHECKS
     bool ok = true;
     auto& domtree = cfg().domtree();
     Schedule::Map<const Def*> block2mem(*this);
 
     for (auto& block : *this) {
-        const Def* mem = block.lam()->mem_param();
-        auto idom = block.lam() != scope().entry() ? domtree.idom(block.node()) : block.node();
+        const Def* mem = block.nominal()->mem_param();
+        auto idom = block.nominal() != scope().entry() ? domtree.idom(block.node()) : block.node();
         mem = mem ? mem : block2mem[(*this)[idom]];
         for (auto def : block) {
             if (is_memop(def)) {
@@ -277,17 +278,19 @@ void Schedule::verify() {
 
     assert(ok && "incorrectly wired or scheduled memory operations");
 #endif
+#endif
 }
 
 std::ostream& Schedule::stream(std::ostream& os) const {
     for (auto& block : *this) {
-        auto lam = block.lam();
-        if (lam->intrinsic() != Lam::Intrinsic::EndScope) {
-            bool indent = lam != scope().entry();
+        auto nom = block.nominal();
+        if (isa<Tag::EndScope>(nom)) {
+            bool indent = nom != scope().entry();
             if (indent)
                 os << up;
             os << endl;
-            lam->stream_head(os) << up_endl;
+            //nom->stream_head(os) << up_endl;
+            nom->stream(os) << up_endl;
             for (auto def : block)
                 def->stream_assignment(os);
 

@@ -9,7 +9,7 @@ namespace thorin {
 Mangler::Mangler(const Scope& scope, Defs args, Defs lift)
     : scope_(scope)
     , args_(args)
-    , old_entry_(scope.entry())
+    , old_entry_(scope.entry()->as<Lam>())
     , defs_(scope.defs().capacity())
     , old2new_(scope.defs().capacity())
 {

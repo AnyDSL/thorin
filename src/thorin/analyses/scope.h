@@ -16,17 +16,16 @@ typedef CFG<false> B_CFG;
 class CFA;
 
 /**
- * A @p Scope represents a region of @p Lam%s which are live from the view of an @p entry @p Lam.
- * Transitively, all user's of the @p entry's parameters are pooled into this @p Scope.
+ * A @p Scope represents a region of @em nominals which are live from the view of an @p entry @em nominal.
+ * Transitively, all user's of the @p entry's @p Param%s are pooled into this @p Scope.
  * Both @p entry() and @p exit() are @em NOT part of the @p Scope itself - but their @p Param%s.
- * @warning All @p Lam%s are in no particular order.
  */
 class Scope : public Streamable {
 public:
     Scope(const Scope&) = delete;
     Scope& operator=(Scope) = delete;
 
-    explicit Scope(Lam* entry);
+    explicit Scope(Def* entry);
     ~Scope();
 
     /// Invoke if you have modified sth in this Scope.
@@ -34,8 +33,8 @@ public:
 
     //@{ misc getters
     World& world() const { return world_; }
-    Lam* entry() const { return entry_; }
-    Lam* exit() const { return exit_; }
+    Def* entry() const { return entry_; }
+    Def* exit() const { return exit_; }
     //@}
 
     //@{ get Def%s contained in this Scope
@@ -65,7 +64,7 @@ public:
     /**
      * Transitively visits all @em reachable Scope%s in @p world that do not have free variables.
      * We call these Scope%s @em top-level Scope%s.
-     * Select with @p elide_empty whether you want to visit trivial Scope%s of Lam%s without body.
+     * Select with @p elide_empty whether you want to visit trivial @p Scope%s of @em nominalss without body.
      */
     template<bool elide_empty = true>
     static void for_each(const World&, std::function<void(Scope&)>);
@@ -75,8 +74,8 @@ private:
 
     World& world_;
     DefSet defs_;
-    Lam* entry_ = nullptr;
-    Lam* exit_ = nullptr;
+    Def* entry_ = nullptr;
+    Def* exit_ = nullptr;
     mutable std::unique_ptr<DefSet> free_;
     mutable std::unique_ptr<ParamSet> free_params_;
     mutable std::unique_ptr<const CFA> cfa_;

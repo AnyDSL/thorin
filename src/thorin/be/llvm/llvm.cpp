@@ -147,7 +147,7 @@ Lam* CodeGen::emit_reserve_shared(Lam* lam, bool init_undef) {
     auto l = lam->app()->arg(2)->as_nominal<Lam>();
     auto type = convert(lam->param(1)->type());
     // construct array type
-    auto elem_type = l->param(1)->type()->as<Ptr>()->pointee()->as<Variadic>()->body();
+    auto elem_type = as<Tag::Ptr>(l->param(1)->type())->arg(0)->as<Variadic>()->body();
     auto smem_type = this->convert(lam->world().variadic(num_elems, elem_type));
     auto name = lam->unique_name();
     // NVVM doesn't allow '.' in global identifier
@@ -164,7 +164,7 @@ llvm::Value* CodeGen::emit_bitcast(const Def* val, const Def* dst_type) {
     auto to = convert(dst_type);
     if (from->getType()->isAggregateType() || to->isAggregateType())
         EDEF(val, "bitcast from or to aggregate types not allowed: bitcast from '{}' to '{}'", src_type, dst_type);
-    if (src_type->isa<Ptr>() && dst_type->isa<Ptr>())
+    if (isa<Tag::Ptr>(src_type) && isa<Tag::Ptr>(dst_type))
         return irbuilder_.CreatePointerCast(from, to);
     return irbuilder_.CreateBitCast(from, to);
 }
@@ -221,7 +221,9 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
     }
 
     Scope::for_each(world_, [&] (const Scope& scope) {
-        entry_ = scope.entry();
+        entry_ = scope.entry()->isa<Lam>();
+        if (entry_ == nullptr) return;
+
         assert(entry_->is_returning());
         llvm::Function* fct = emit_function_decl(entry_);
 
@@ -267,19 +269,20 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
         Schedule schedule(scope);
 
         for (const auto& block : schedule) {
-            auto lam = block.lam();
-            // map all bb-like lams to llvm bb stubs
-            if (lam->intrinsic() != Lam::Intrinsic::EndScope) {
-                auto bb = bb2lam[lam] = llvm::BasicBlock::Create(context_, lam->name(), fct);
+            auto nom = block.nominal();
+            if (isa<Tag::EndScope>(nom)) continue;
 
-                // create phi node stubs (for all lams different from entry)
-                if (entry_ != lam) {
-                    for (auto param : lam->params()) {
-                        auto phi = (param->type()->isa<Mem>() || is_unit(param))
-                                 ? nullptr
-                                 : llvm::PHINode::Create(convert(param->type()), (unsigned) peek(param).size(), param->name(), bb);
-                        phis_[param] = phi;
-                    }
+            // map all bb-like lams to llvm bb stubs
+            auto lam = nom->as<Lam>();
+            auto bb = bb2lam[lam] = llvm::BasicBlock::Create(context_, lam->name(), fct);
+
+            // create phi node stubs (for all lams different from entry)
+            if (entry_ != lam) {
+                for (auto param : lam->params()) {
+                    auto phi = (param->type()->isa<Mem>() || is_unit(param))
+                                ? nullptr
+                                : llvm::PHINode::Create(convert(param->type()), (unsigned) peek(param).size(), param->name(), bb);
+                    phis_[param] = phi;
                 }
             }
         }
@@ -293,9 +296,10 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
         irbuilder_.CreateBr(&*oldStartBB);
 
         for (auto& block : schedule) {
-            auto lam = block.lam();
-            if (lam->intrinsic() == Lam::Intrinsic::EndScope)
-                continue;
+            auto nom = block.nominal();
+            if (isa<Tag::EndScope>(nom)) continue;
+
+            auto lam = nom->as<Lam>();
             assert(lam == entry_ || lam->is_basicblock());
             irbuilder_.SetInsertPoint(bb2lam[lam]);
 
@@ -710,12 +714,14 @@ llvm::Value* CodeGen::emit(const Def* def) {
         }
     } else if (auto bitcast = isa<Tag::Bitcast>(def)) {
         if (is_arity(bitcast->type())) return lookup(bitcast->arg());
-        auto src_type_ptr = bitcast->arg()->type()->isa<Ptr>();
-        auto dst_type_ptr = bitcast->type()->isa<Ptr>();
+        auto src_type_ptr = isa<Tag::Ptr>(bitcast->arg()->type());
+        auto dst_type_ptr = isa<Tag::Ptr>(bitcast->type());
         if (src_type_ptr && dst_type_ptr) return irbuilder_.CreatePointerCast(lookup(bitcast->arg()), convert(bitcast->type()), bitcast->name());
         if (src_type_ptr)                 return irbuilder_.CreatePtrToInt   (lookup(bitcast->arg()), convert(bitcast->type()), bitcast->name());
         if (dst_type_ptr)                 return irbuilder_.CreateIntToPtr   (lookup(bitcast->arg()), convert(bitcast->type()), bitcast->name());
         return emit_bitcast(bitcast->arg(), bitcast->type());
+    } else if (auto lea = isa<Tag::LEA>(def)) {
+        return emit_lea(lea);
     } else if (auto select = isa<Tag::Select>(def)) {
         if (def->type()->isa<Pi>()) return nullptr;
 
@@ -865,7 +871,6 @@ llvm::Value* CodeGen::emit(const Def* def) {
     if (auto alloc = def->isa<Alloc>())       return emit_alloc(alloc->alloced_type());
     if (auto load = def->isa<Load>())         return emit_load(load);
     if (auto store = def->isa<Store>())       return emit_store(store);
-    if (auto lea = def->isa<LEA>())           return emit_lea(lea);
 
     if (auto slot = def->isa<Slot>())
         return emit_alloca(convert(slot->alloced_type()), slot->unique_name());
@@ -901,13 +906,15 @@ llvm::Value* CodeGen::emit_store(const Store* store) {
     return irbuilder_.CreateStore(lookup(store->val()), lookup(store->ptr()));
 }
 
-llvm::Value* CodeGen::emit_lea(const LEA* lea) {
-    if (lea->ptr_pointee()->isa<Sigma>())
-        return irbuilder_.CreateStructGEP(convert(lea->ptr_pointee()), lookup(lea->ptr()), as_lit<u64>(lea->index()));
+llvm::Value* CodeGen::emit_lea(const App* lea) {
+    auto [ptr, index] = lea->args<2>();
+    auto pointee = as<Tag::Ptr>(ptr->type())->arg(0);
+    if (pointee->isa<Sigma>())
+        return irbuilder_.CreateStructGEP(convert(pointee), lookup(ptr), as_lit<u64>(index));
 
-    assert(lea->ptr_pointee()->isa<Variadic>());
-    llvm::Value* args[2] = { irbuilder_.getInt64(0), lookup(lea->index()) };
-    return irbuilder_.CreateInBoundsGEP(lookup(lea->ptr()), args);
+    assert(pointee->isa<Variadic>());
+    llvm::Value* args[2] = { irbuilder_.getInt64(0), lookup(index) };
+    return irbuilder_.CreateInBoundsGEP(lookup(ptr), args);
 }
 
 unsigned CodeGen::convert_addr_space(u64 addr_space) {
@@ -946,10 +953,9 @@ llvm::Type* CodeGen::convert(const Def* type) {
 
     assert(!type->isa<Mem>());
 
-    if (is_arity(type))
+    if (is_arity(type)) {
         return types_[type] = irbuilder_.getInt64Ty();
-
-    if (auto int_ = isa<Tag::Int>(type)) {
+    } else if (auto int_ = isa<Tag::Int>(type)) {
         switch (as_lit<nat_t>(int_->arg())) {
             case  1: return types_[type] = irbuilder_. getInt1Ty();
             case  8: return types_[type] = irbuilder_. getInt8Ty();
@@ -958,31 +964,24 @@ llvm::Type* CodeGen::convert(const Def* type) {
             case 64: return types_[type] = irbuilder_.getInt64Ty();
             default: THORIN_UNREACHABLE;
         }
-    }
-
-    if (auto real = isa<Tag::Real>(type)) {
+    } else if (auto real = isa<Tag::Real>(type)) {
         switch (as_lit<nat_t>(real->arg())) {
             case 16: return types_[type] = irbuilder_.getHalfTy();
             case 32: return types_[type] = irbuilder_.getFloatTy();
             case 64: return types_[type] = irbuilder_.getDoubleTy();
             default: THORIN_UNREACHABLE;
         }
-    }
-
-    if (auto ptr = type->isa<Ptr>()) {
-        auto llvm_type = llvm::PointerType::get(convert(ptr->pointee()), convert_addr_space(ptr->lit_addr_space()));
+    } else if (auto ptr = isa<Tag::Ptr>(type)) {
+        auto [pointee, addr_space] = ptr->args<2>();
+        auto llvm_type = llvm::PointerType::get(convert(pointee), convert_addr_space(as_lit<nat_t>(addr_space)));
         return types_[type] = llvm_type;
-    }
-
-    if (auto variadic = type->isa<Variadic>()) {
+    } else if (auto variadic = type->isa<Variadic>()) {
         auto elem_type = convert(variadic->body());
         if (auto arity = isa_lit<u64>(variadic->arity()))
             return types_[type] = llvm::ArrayType::get(elem_type, *arity);
         else
             return types_[type] = llvm::ArrayType::get(elem_type, 0);
-    }
-
-    if (auto cn = type->isa<Pi>()) {
+    } else if (auto cn = type->isa<Pi>()) {
         // extract "return" type, collect all other types
         assert(cn->is_cn());
         llvm::Type* ret = nullptr;
@@ -1007,9 +1006,7 @@ llvm::Type* CodeGen::convert(const Def* type) {
 
         auto llvm_type = llvm::FunctionType::get(ret, domains, false);
         return types_[type] = llvm_type;
-    }
-
-    if (auto sigma = type->isa<Sigma>()) {
+    } else if (auto sigma = type->isa<Sigma>()) {
         llvm::StructType* llvm_struct = nullptr;
         if (sigma->isa_nominal()) {
             llvm_struct = llvm::StructType::create(context_);
@@ -1025,9 +1022,7 @@ llvm::Type* CodeGen::convert(const Def* type) {
             llvm_struct = llvm::StructType::get(context_, llvm_ref(llvm_types));
 
         return llvm_struct;
-    }
-
-    if (auto variant_type = type->isa<VariantType>()) {
+    } else if (auto variant_type = type->isa<VariantType>()) {
         auto bits = compute_variant_bits(variant_type);
         if (bits != 0) {
             return types_[type] = irbuilder_.getIntNTy(bits);

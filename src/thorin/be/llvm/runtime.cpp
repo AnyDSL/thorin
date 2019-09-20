@@ -38,8 +38,8 @@ llvm::Function* Runtime::get(const char* name) {
 }
 
 static bool contains_ptrtype(const Def* type) {
+    if (isa<Tag::Ptr>(type)) return false;
     switch (type->node()) {
-        case Node::Ptr:      return false;
         case Node::Variadic: return contains_ptrtype(type->as<Variadic>()->body());
         case Node::Pi:       return false;
         case Node::Sigma: {
@@ -96,9 +96,8 @@ Lam* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std::st
 
             void_ptr = builder_.CreatePointerCast(alloca, builder_.getInt8PtrTy());
             arg_type = KernelArgType::Struct;
-        } else if (target_arg->type()->isa<Ptr>()) {
-            auto ptr = target_arg->type()->as<Ptr>();
-            auto rtype = ptr->pointee();
+        } else if (auto ptr = isa<Tag::Ptr>(target_arg->type())) {
+            auto [rtype, addr_space] = ptr->args<2>();
 
             if (!rtype->isa<Variadic>())
                 EDEF(target_arg, "currently only pointers to arrays supported as kernel argument; argument has different type: {}", ptr);

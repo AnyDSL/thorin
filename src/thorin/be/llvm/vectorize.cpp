@@ -73,7 +73,7 @@ Lam* CodeGen::emit_vectorize_lam(Lam* lam) {
         // check target type
         auto arg = lam->app()->arg(i + VectorizeArgs::Num);
         auto llvm_arg = lookup(arg);
-        if (arg->type()->isa<Ptr>())
+        if (isa<Tag::Ptr>(arg->type()))
             llvm_arg = irbuilder_.CreateBitCast(llvm_arg, simd_args[i + 1]);
         args[i + 1] = llvm_arg;
     }
@@ -90,9 +90,9 @@ Lam* CodeGen::emit_vectorize_lam(Lam* lam) {
 void CodeGen::emit_vectorize(u32 vector_length, llvm::Function* kernel_func, llvm::CallInst* simd_kernel_call) {
     bool broken = llvm::verifyModule(*module_.get(), &llvm::errs());
     if (broken) {
-      module_->print(llvm::errs(), nullptr, false, true);
-      llvm::errs() << "Broken module:\n";
-      abort();
+        module_->print(llvm::errs(), nullptr, false, true);
+        llvm::errs() << "Broken module:\n";
+        abort();
     }
 
     // ensure proper loop forms

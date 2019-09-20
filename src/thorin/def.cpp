@@ -56,10 +56,11 @@ const Def* Def::debug_history() const {
 
 std::string Def::name() const     { return debug() ? tuple2str(debug()->out(0)) : std::string{}; }
 std::string Def::filename() const { return debug() ? tuple2str(debug()->out(1)) : std::string{}; }
-nat_t Def::front_line() const { return debug() ? as_lit<nat_t>(debug()->out(2)) : std::numeric_limits<nat_t>::max(); }
-nat_t Def::front_col()  const { return debug() ? as_lit<nat_t>(debug()->out(3)) : std::numeric_limits<nat_t>::max(); }
-nat_t Def::back_line()  const { return debug() ? as_lit<nat_t>(debug()->out(4)) : std::numeric_limits<nat_t>::max(); }
-nat_t Def::back_col()   const { return debug() ? as_lit<nat_t>(debug()->out(5)) : std::numeric_limits<nat_t>::max(); }
+nat_t Def::front_line() const { return debug() ? as_lit<nat_t>(debug()->out(2)->out(0)) : std::numeric_limits<nat_t>::max(); }
+nat_t Def::front_col()  const { return debug() ? as_lit<nat_t>(debug()->out(2)->out(1)) : std::numeric_limits<nat_t>::max(); }
+nat_t Def::back_line()  const { return debug() ? as_lit<nat_t>(debug()->out(2)->out(2)) : std::numeric_limits<nat_t>::max(); }
+nat_t Def::back_col()   const { return debug() ? as_lit<nat_t>(debug()->out(2)->out(3)) : std::numeric_limits<nat_t>::max(); }
+const Def* Def::meta() const { return debug() ? debug()->out(3) : nullptr; }
 
 const char* Def::node_name() const {
     switch (node()) {

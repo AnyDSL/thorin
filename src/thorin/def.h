@@ -48,14 +48,17 @@ typedef std::vector<Lam*> Lams;
 using Name = std::variant<const char*, std::string, const Def*>;
 
 struct Debug {
-    Debug(Name name, Name filename, nat_t front_line, nat_t front_col, nat_t back_line, nat_t back_col)
-        : data(std::make_tuple(name, filename, front_line, front_col, back_line, back_col))
+    Debug(Name name,
+          Name filename = "",
+          nat_t front_line = nat_t(-1),
+          nat_t front_col = nat_t(-1),
+          nat_t back_line = nat_t(-1),
+          nat_t back_col = nat_t(-1),
+          const Def* meta = nullptr)
+        : data(std::make_tuple(name, filename, front_line, front_col, back_line, back_col, meta))
     {}
     Debug(Name filename, nat_t front_line, nat_t front_col, nat_t back_line, nat_t back_col)
         : Debug("", filename, front_line, front_col, back_line, back_col)
-    {}
-    Debug(Name name)
-        : Debug(name, "", nat_t(-1), nat_t(-1), nat_t(-1), nat_t(-1))
     {}
     Debug(const Def* def = nullptr)
         : data(def)
@@ -63,7 +66,7 @@ struct Debug {
 
     auto& operator*() { return data; }
 
-    std::variant<std::tuple<Name, Name, nat_t, nat_t, nat_t, nat_t>, const Def*> data;
+    std::variant<std::tuple<Name, Name, nat_t, nat_t, nat_t, nat_t, const Def*>, const Def*> data;
 };
 
 namespace detail {
@@ -215,6 +218,7 @@ public:
     nat_t back_line() const;
     nat_t back_col() const;
     std::string loc() const;
+    const Def* meta() const;
     //@}
     /// @name casts
     //@{

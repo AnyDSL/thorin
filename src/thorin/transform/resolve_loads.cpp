@@ -65,32 +65,34 @@ public:
     }
 
     const Def* process_use(const Def* mem_use, Def2Def& mapping) {
-        if (auto load = mem_use->isa<Load>()) {
+        if (auto load = isa<Tag::Load>(mem_use)) {
+            auto [mem, ptr] = load->args<2>();
             // Try to find the slot corresponding to this load
-            if (auto slot = find_slot(load->ptr())) {
+            if (auto slot = find_slot(ptr)) {
                 // If the slot has been found and is safe, try to find a value for it
                 auto slot_value = get_value(slot, mapping);
-                auto load_value = extract_from_slot(load->ptr(), slot_value, load->debug());
+                auto load_value = extract_from_slot(ptr, slot_value, load->debug());
                 // If the loaded value is completely specified, replace the load
                 if (!contains_top(load_value)) {
                     todo_ = true;
-                    load->replace(world_.tuple({ load->mem(), load_value }));
+                    load->replace(world_.tuple({ mem, load_value }));
                 }
             }
-            return load->out_mem();
-        } else if (auto store = mem_use->isa<Store>()) {
+            return load->out(0);
+        } else if (auto store = isa<Tag::Store>(mem_use)) {
+            auto [mem, ptr, val] = store->args<3>();
             // Try to find the slot corresponding to this store
-            if (auto slot = find_slot(store->ptr())) {
+            if (auto slot = find_slot(ptr)) {
                 // If the slot has been found and is safe, try to find a value for it
                 auto slot_value = get_value(slot, mapping);
-                auto stored_value = insert_to_slot(store->ptr(), slot_value, store->val(), store->debug());
+                auto stored_value = insert_to_slot(ptr, slot_value, val, store->debug());
                 mapping[slot] = stored_value;
             }
-            return store->out_mem();
-        } else if (auto slot = mem_use->isa<Slot>()) {
+            return store->out(0);
+        } else if (auto slot = isa<Tag::Slot>(mem_use)) {
                 if (slot && is_safe_slot(slot))
                     mapping[slot] = world_.bot(as<Tag::Ptr>(slot->type())->arg(0));
-            return slot->out_mem();
+            return slot->out(0);
         } else {
             return nullptr;
         }
@@ -162,13 +164,13 @@ public:
     }
 
     bool is_safe_slot(const Def* slot) {
-        assert(slot->isa<Slot>());
+        assert(isa<Tag::Slot>(slot));
         if (safe_slots_.contains(slot)) return safe_slots_[slot];
         return safe_slots_[slot] = are_ptr_uses_safe(slot);
     }
 
     const Def* find_slot(const Def* ptr) {
-        if (ptr->isa<Slot>() && is_safe_slot(ptr)) return ptr;
+        if (isa<Tag::Slot>(ptr) && is_safe_slot(ptr)) return ptr;
         if (ptr->isa<Global>() && !ptr->as<Global>()->is_mutable()) return ptr;
         if (auto lea = isa<Tag::LEA>(ptr)) return find_slot(lea->arg(0));
         if (auto bitcast = isa<Tag::Bitcast>(ptr)) return find_slot(bitcast->arg());
@@ -177,9 +179,9 @@ public:
 
     static void replace_ptr_uses(const Def* ptr) {
         for (auto& use : ptr->uses()) {
-            if (auto store = use->isa<Store>()) {
-                store->replace(store->mem());
-            } else if (use->isa<Load>()) {
+            if (auto store = isa<Tag::Store>(use)) {
+                store->replace(store->arg(0));
+            } else if (isa<Tag::Load>(use)) {
                 assert(false);
             } else if (isa<Tag::LEA>(use) || isa<Tag::Bitcast>(use)) {
                 replace_ptr_uses(use);
@@ -191,7 +193,7 @@ public:
 
     static bool are_ptr_uses_safe(const Def* ptr, bool allow_load = true) {
         for (auto& use : ptr->uses()) {
-            if (use->isa<Store>()) {
+            if (isa<Tag::Store>(use)) {
                 if (use.index() != 1) return false;
             } else if (isa<Tag::LEA>(use)) {
                 if (!are_ptr_uses_safe(use.def(), allow_load)) return false;
@@ -208,7 +210,7 @@ public:
                 if (variadic_to->body() != variadic_from->body())
                     return false;
                 if (!are_ptr_uses_safe(use.def(), allow_load)) return false;
-            } else if (!allow_load || !use->isa<Load>()) {
+            } else if (!allow_load || !isa<Tag::Load>(use)) {
                 return false;
             }
         }

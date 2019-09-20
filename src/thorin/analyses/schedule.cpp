@@ -284,7 +284,7 @@ void Schedule::verify() {
 std::ostream& Schedule::stream(std::ostream& os) const {
     for (auto& block : *this) {
         auto nom = block.nominal();
-        if (isa<Tag::EndScope>(nom)) {
+        if (isa<Tag::End>(nom)) {
             bool indent = nom != scope().entry();
             if (indent)
                 os << up;

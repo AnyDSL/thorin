@@ -270,7 +270,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
 
         for (const auto& block : schedule) {
             auto nom = block.nominal();
-            if (isa<Tag::EndScope>(nom)) continue;
+            if (isa<Tag::End>(nom)) continue;
 
             // map all bb-like lams to llvm bb stubs
             auto lam = nom->as<Lam>();
@@ -297,7 +297,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
 
         for (auto& block : schedule) {
             auto nom = block.nominal();
-            if (isa<Tag::EndScope>(nom)) continue;
+            if (isa<Tag::End>(nom)) continue;
 
             auto lam = nom->as<Lam>();
             assert(lam == entry_ || lam->is_basicblock());
@@ -731,6 +731,16 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto type = convert(size_of->arg());
         auto layout = llvm::DataLayout(module_->getDataLayout());
         return irbuilder_.getInt32(layout.getTypeAllocSize(type));
+    } else if (auto alloc = isa<Tag::Alloc>(def)) {
+        auto alloced_type = alloc->decurry()->arg(0);
+        return emit_alloc(alloced_type);
+    } else if (auto slot = isa<Tag::Slot>(def)) {
+        auto alloced_type = slot->decurry()->arg(0);
+        return emit_alloca(convert(alloced_type), slot->unique_name());
+    } else if (auto load = isa<Tag::Load>(def)) {
+        return emit_load(load);
+    } else if (auto store = isa<Tag::Store>(def)) {
+        return emit_store(store);
     }
 
 #if 0
@@ -868,12 +878,6 @@ llvm::Value* CodeGen::emit(const Def* def) {
     }
 
     if (def->isa<Bot>())                      return llvm::UndefValue::get(convert(def->type()));
-    if (auto alloc = def->isa<Alloc>())       return emit_alloc(alloc->alloced_type());
-    if (auto load = def->isa<Load>())         return emit_load(load);
-    if (auto store = def->isa<Store>())       return emit_store(store);
-
-    if (auto slot = def->isa<Slot>())
-        return emit_alloca(convert(slot->alloced_type()), slot->unique_name());
 
     if (auto global = def->isa<Global>())
         return emit_global(global);
@@ -898,12 +902,14 @@ llvm::Value* CodeGen::emit_global(const Global* global) {
     return val;
 }
 
-llvm::Value* CodeGen::emit_load(const Load* load) {
-    return irbuilder_.CreateLoad(lookup(load->ptr()));
+llvm::Value* CodeGen::emit_load(const App* load) {
+    auto [mem, ptr] = load->args<2>();
+    return irbuilder_.CreateLoad(lookup(ptr));
 }
 
-llvm::Value* CodeGen::emit_store(const Store* store) {
-    return irbuilder_.CreateStore(lookup(store->val()), lookup(store->ptr()));
+llvm::Value* CodeGen::emit_store(const App* store) {
+    auto [mem, ptr, val] = store->args<3>();
+    return irbuilder_.CreateStore(lookup(val), lookup(ptr));
 }
 
 llvm::Value* CodeGen::emit_lea(const App* lea) {

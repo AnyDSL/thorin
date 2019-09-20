@@ -159,9 +159,9 @@ bool PartialEvaluator::run() {
         auto callee_def = app->callee();
 
 
-        if (auto run = app->callee()->isa<Run>()) {
+        if (auto run = isa<Tag::PE>(PE::run, app->callee())) {
             force_fold = true;
-            callee_def = run->def();
+            callee_def = run->arg();
         }
 
         if (auto callee = callee_def->isa_nominal<Lam>()) {

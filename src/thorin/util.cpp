@@ -4,13 +4,7 @@
 
 namespace thorin {
 
-bool is_memop(const Def* def) {
-    return (def->isa<App>() && def->out(0)->type()->isa<Mem>())
-        || def->isa<Load>()
-        || def->isa<Store>()
-        || def->isa<Slot>()
-        || def->isa<Alloc>();
-}
+bool is_memop(const Def* def) { return def->isa<App>() && def->out(0)->type()->isa<Mem>(); }
 
 bool is_unit(const Def* def) {
     return def->type() == def->world().sigma();
@@ -23,12 +17,12 @@ bool is_const(const Def* def) {
     while (!stack.empty()) {
         auto def = stack.pop();
         if (def->isa<Param>()) return false;
-        if (def->isa<Hlt>()) return false;
+        if (isa<Tag::PE>(PE::hlt, def)) return false;
         if (!def->isa_nominal()) {
             for (auto op : def->ops())
                 stack.push(op);
         }
-        // lams are always const
+        // nominals are always const
     }
 
     return true;

@@ -143,18 +143,20 @@ llvm::Value* NVVMCodeGen::emit_global(const Global* global) {
     return CodeGen::emit_global(global);
 }
 
-llvm::Value* NVVMCodeGen::emit_load(const Load* load) {
-    switch (resolve_addr_space(load->ptr())) {
+llvm::Value* NVVMCodeGen::emit_load(const App* load) {
+    auto [mem, ptr] = load->args<2>();
+    switch (resolve_addr_space(ptr)) {
         case AddrSpace::Texture:
-            return irbuilder_.CreateExtractValue(lookup(load->ptr()), { unsigned(0) });
+            return irbuilder_.CreateExtractValue(lookup(ptr), { unsigned(0) });
         default:
             // shared address space uses the same load functionality
             return CodeGen::emit_load(load);
     }
 }
 
-llvm::Value* NVVMCodeGen::emit_store(const Store* store) {
-    assert(resolve_addr_space(store->ptr()) != AddrSpace::Texture &&
+llvm::Value* NVVMCodeGen::emit_store(const App* store) {
+    auto [mem, ptr, val] = store->args<3>();
+    assert(resolve_addr_space(ptr) != AddrSpace::Texture &&
             "Writes to textures are currently not supported");
     return CodeGen::emit_store(store);
 }

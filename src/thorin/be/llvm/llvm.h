@@ -47,8 +47,8 @@ protected:
     virtual llvm::FunctionType* convert_fn_type(Lam*);
 
     virtual llvm::Value* emit_global(const Global*);
-    virtual llvm::Value* emit_load(const Load*);
-    virtual llvm::Value* emit_store(const Store*);
+    virtual llvm::Value* emit_load(const App*);
+    virtual llvm::Value* emit_store(const App*);
     virtual llvm::Value* emit_lea(const App*);
     //virtual llvm::Value* emit_assembly(const Assembly* assembly);
 

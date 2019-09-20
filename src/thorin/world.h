@@ -339,23 +339,22 @@ public:
     //@}
     /// @name memory-related operations
     //@{
-    const Def* load(const Def* mem, const Def* ptr, Debug dbg = {});
-    const Def* store(const Def* mem, const Def* ptr, const Def* val, Debug dbg = {});
-    const Slot* slot(const Def* type, const Def* mem, Debug dbg = {});
-    const Alloc* alloc(const Def* type, const Def* mem, Debug dbg = {});
+    const Def* op_load()  { return cache_.op_load_;  }
+    const Def* op_store() { return cache_.op_store_; }
+    const Def* op_slot()  { return cache_.op_slot_;  }
+    const Def* op_alloc() { return cache_.op_alloc_; }
+    const Def* op_load (const Def* mem, const Def* ptr, Debug dbg)                 { auto [T, a] = as<Tag::Ptr>(ptr->type())->args<2>(); return app(app(op_load (), {T, a}), {mem, ptr},      dbg); }
+    const Def* op_store(const Def* mem, const Def* ptr, const Def* val, Debug dbg) { auto [T, a] = as<Tag::Ptr>(ptr->type())->args<2>(); return app(app(op_store(), {T, a}), {mem, ptr, val}, dbg); }
+    const Def* op_alloc(const Def* type, const Def* mem, Debug dbg) { return app(app(op_alloc(), {type, lit_nat(0)}), mem, dbg); }
+    const Def* op_slot (const Def* type, const Def* mem, Debug dbg) { return app(app(op_slot (), {type, lit_nat(0)}), mem, dbg); }
     const Def* global(const Def* id, const Def* init, bool is_mutable = true, Debug dbg = {});
     const Def* global(const Def* init, bool is_mutable = true, Debug dbg = {}) { return global(lit_nat(cur_gid_), init, is_mutable, debug(dbg)); }
     const Def* global_immutable_string(const std::string& str, Debug dbg = {});
-    //const Assembly* assembly(const Def* type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints,
-                             //ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg = {});
-    //const Assembly* assembly(Defs types, const Def* mem, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints,
-                             //ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg = {});
     //@}
-    /// @name partial evaluation related operations
+    /// @name PE - partial evaluation related operations
     //@{
-    const Def* hlt(const Def* def, Debug dbg = {});
-    const Def* known(const Def* def, Debug dbg = {});
-    const Def* run(const Def* def, Debug dbg = {});
+    const Def* op(PE o) { return cache_.PE_[size_t(o)]; }
+    const Def* op(PE o, const Def* def, Debug dbg = {}) { return app(app(op(o), def->type()), def, debug(dbg)); }
     //@}
     /// @name Analyze - used internally for Pass%es
     //@{
@@ -373,7 +372,7 @@ public:
     const Def* op_select(const Def* cond, const Def* t, const Def* f, Debug dbg = {}) { return app(app(cache_.op_select_, t->type()), {cond, t, f}, dbg); }
     const Def* op_sizeof(const Def* type, Debug dbg = {}) { return app(op_sizeof(), type, dbg); }
     Lam* match(const Def* type, size_t num_patterns);
-    Axiom* axiom_end_scope() const { return cache_.axiom_end_scope_; }
+    Axiom* axiom_end() const { return cache_.axiom_end_; }
     //@}
     /// @name partial evaluation done?
     //@{
@@ -573,7 +572,8 @@ private:
         std::array<Axiom*, Num<ICmp>> ICmp_;
         std::array<Axiom*, Num<RCmp>> RCmp_;
         std::array<Axiom*, Num<Conv>> Conv_;
-        Axiom* axiom_end_scope_;
+        std::array<Axiom*, Num<PE>>   PE_;
+        Axiom* axiom_end_;
         Axiom* type_int_;
         Axiom* type_real_;
         Axiom* type_ptr_;
@@ -582,6 +582,10 @@ private:
         Axiom* op_lea_;
         Axiom* op_select_;
         Axiom* op_sizeof_;
+        Axiom* op_alloc_;
+        Axiom* op_slot_;
+        Axiom* op_load_;
+        Axiom* op_store_;
     } cache_;
 
     friend class Cleaner;

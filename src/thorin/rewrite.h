@@ -28,6 +28,7 @@ public:
 
 /// Rewrites @p nom by substituting @p nom's @p Param with @p arg while obeying @p nom's @p scope.
 const Def* rewrite(Def* nom, const Def* arg);
+
 /// Same as above but uses @p scope as an optimization instead of computing a new @p Scope.
 const Def* rewrite(Def* nom, const Def* arg, const Scope* scope);
 

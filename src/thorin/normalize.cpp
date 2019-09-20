@@ -338,6 +338,20 @@ const Def* normalize_Conv(const Def* dst_type, const Def* callee, const Def* src
     return nullptr;
 }
 
+template<PE op>
+const Def* normalize_PE(const Def* type, const Def*, const Def* arg, const Def*) {
+    auto& world = type->world();
+
+    if constexpr (op == PE::known) {
+        if (world.is_pe_done() || isa<Tag::PE>(PE::hlt, arg)) return world.lit_false();
+        if (is_const(arg)) return world.lit_true();
+    } else {
+        if (world.is_pe_done()) return arg;
+    }
+
+    return nullptr;
+}
+
 const Def* normalize_bitcast(const Def* dst_type, const Def*, const Def* src, const Def* dbg) {
     auto& world = dst_type->world();
 
@@ -388,6 +402,33 @@ const Def* normalize_sizeof(const Def*, const Def*, const Def* type, const Def* 
     return nullptr;
 }
 
+const Def* normalize_load(const Def* type, const Def*, const Def* arg, const Def* dbg) {
+    auto& world = type->world();
+    auto [mem, ptr] = arg->split<2>();
+    auto [pointee, addr_space] = as<Tag::Ptr>(ptr->type())->args<2>();
+
+    if (ptr->isa<Bot>()) return world.tuple({mem, world.bot(type->as<Sigma>()->op(1))}, dbg);
+
+    // loading an empty tuple can only result in an empty tuple
+    if (auto sigma = pointee->isa<Sigma>(); sigma && sigma->num_ops() == 0)
+        return world.tuple({mem, world.tuple(sigma->type(), {}, dbg)});
+
+    return nullptr;
+}
+
+const Def* normalize_store(const Def*, const Def*, const Def* arg, const Def*) {
+    auto [mem, ptr, val] = arg->split<3>();
+
+    if (ptr->isa<Bot>() || val->isa<Bot>()) return mem;
+    if (auto pack = val->isa<Pack>(); pack && pack->body()->isa<Bot>()) return mem;
+    if (auto tuple = val->isa<Tuple>()) {
+        if (std::all_of(tuple->ops().begin(), tuple->ops().end(), [&](const Def* op) { return op->isa<Bot>(); }))
+            return mem;
+    }
+
+    return nullptr;
+}
+
 /*
  * instantiate templates
  */
@@ -400,6 +441,7 @@ THORIN_R_OP (CODE)
 THORIN_I_CMP(CODE)
 THORIN_R_CMP(CODE)
 THORIN_CONV (CODE)
+THORIN_PE   (CODE)
 #undef CODE
 
 }

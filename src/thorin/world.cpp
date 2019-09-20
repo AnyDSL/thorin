@@ -133,7 +133,7 @@ World::World(uint32_t cur_gid, const std::string& name, bool tuple2pack)
         auto T = type->param({"T"});
         cache_.op_select_ = axiom(normalize_select, type->set_codomain(pi({type_bool(), T, T}, T)), 0, Tag::Select, 0, {"select"});
     } { // lea:,  Π[s: *M, Ts: «s; *», as: nat]. Π[ptr(«j: s; Ts#j», as), i: s]. ptr(Ts#i, as)
-        auto domain = sigma(3, universe());
+        auto domain = sigma(universe(), 3);
         domain->set(0, kind_multi());
         domain->set(1, variadic(domain->param(0, {"s"}), star));
         domain->set(2, nat);

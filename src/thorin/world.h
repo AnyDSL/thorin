@@ -132,6 +132,8 @@ public:
     //@{
     const Def* app(const Def* callee, const Def* arg, Debug dbg = {});
     const Def* app(const Def* callee, Defs args, Debug dbg = {}) { return app(callee, tuple(args), dbg); }
+    const Def* raw_app(const Def* callee, const Def* arg, Debug dbg = {});                                         /// Same as @p app but does @em not apply @p NormalizeFn.
+    const Def* raw_app(const Def* callee, Defs args, Debug dbg = {}) { return raw_app(callee, tuple(args), dbg); } /// Same as @p app but does @em not apply @p NormalizeFn.
     //@}
     /// @name Sigma: structural
     //@{
@@ -388,7 +390,6 @@ public:
     bool is_external(const Def* def) { return externals_.contains(def->name()); }
     Def* lookup(const std::string& name) { return externals_.lookup(name).value_or(nullptr); }
     //@}
-
 #if THORIN_ENABLE_CHECKS
     /// @name debugging features
     //@{
@@ -398,7 +399,6 @@ public:
     void enable_history(bool flag = true) { track_history_ = flag; }
     //@}
 #endif
-
     /// @name stream
     //@{
     // Note that we don't use overloading for the following methods in order to have them accessible from gdb.

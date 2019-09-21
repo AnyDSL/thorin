@@ -27,6 +27,11 @@ static const Def* is_not(const Def* def) {
 
 template<class T> static T get(u64 u) { return bitcast<T>(u); }
 
+template<class T> bool is_commutative(T) { return false; }
+static bool is_commutative(IOp op) { return op == IOp::iand || op == IOp::ior || op == IOp::ixor; }
+static bool is_commutative(WOp op) { return op == WOp:: add || op == WOp::mul; }
+static bool is_commutative(ROp op) { return op == ROp:: add || op == ROp::mul; }
+
 /*
  * Fold
  */
@@ -158,7 +163,7 @@ template<nat_t sw, nat_t dw> struct FoldConv<Conv::r2r, sw, dw> { static Res run
  */
 
 template<nat_t min_w, class Op, Op op>
-static const Def* fold(const Def* type, const Def* callee, const Def* m, const Def* a, const Def* b, const Def* dbg) {
+static const Def* fold(const Def* type, const Def* callee, const Def* m, const Def*& a, const Def*& b, const Def* dbg) {
     auto& world = type->world();
     if (m) type = type->as<Sigma>()->op(1); // peel of actual type for ZOps
 
@@ -197,6 +202,8 @@ static const Def* fold(const Def* type, const Def* callee, const Def* m, const D
         auto result = res ? world.lit(type, *res, dbg) : world.bot(type, dbg);
         return m ? world.tuple({m, result}, dbg) : result;
     }
+
+    if (is_commutative(op) && a->gid() > b->gid() && !la) std::swap(a, b);
 
     return nullptr;
 }
@@ -269,31 +276,37 @@ const Def* normalize_IOp(const Def* type, const Def* callee, const Def* arg, con
         if (auto res = merge_cmps<std::bit_or <flags_t>>(world, a, b)) return res;
     }
 
-    return nullptr;
+    return world.raw_app(callee, {a, b}, dbg);
 }
 
 template<WOp op>
 const Def* normalize_WOp(const Def* type, const Def* callee, const Def* arg, const Def* dbg) {
+    auto& world = type->world();
     auto [a, b] = arg->split<2>();
+
     if (auto result = fold<8, WOp, op>(type, callee, nullptr, a, b, dbg)) return result;
 
-    return nullptr;
+    return world.raw_app(callee, {a, b}, dbg);
 }
 
 template<ZOp op>
 const Def* normalize_ZOp(const Def* type, const Def* callee, const Def* arg, const Def* dbg) {
+    auto& world = type->world();
     auto [m, a, b] = arg->split<3>();
+
     if (auto result = fold<8, ZOp, op>(type, callee, m, a, b, dbg)) return result;
 
-    return nullptr;
+    return world.raw_app(callee, {m, a, b}, dbg);
 }
 
 template<ROp op>
 const Def* normalize_ROp(const Def* type, const Def* callee, const Def* arg, const Def* dbg) {
+    auto& world = type->world();
+
     auto [a, b] = arg->split<2>();
     if (auto result = fold<16, ROp, op>(type, callee, nullptr, a, b, dbg)) return result;
 
-    return nullptr;
+    return world.raw_app(callee, {a, b}, dbg);
 }
 
 template<ICmp op>
@@ -305,7 +318,7 @@ const Def* normalize_ICmp(const Def* type, const Def* callee, const Def* arg, co
     if constexpr (op == ICmp::_f) return world.lit_false();
     if constexpr (op == ICmp::_t) return world.lit_true();
 
-    return nullptr;
+    return world.raw_app(callee, {a, b}, dbg);
 }
 
 template<RCmp op>
@@ -317,7 +330,7 @@ const Def* normalize_RCmp(const Def* type, const Def* callee, const Def* arg, co
     if constexpr (op == RCmp::f) return world.lit_false();
     if constexpr (op == RCmp::t) return world.lit_true();
 
-    return nullptr;
+    return world.raw_app(callee, {a, b}, dbg);
 }
 
 template<Conv op>
@@ -335,11 +348,11 @@ const Def* normalize_Conv(const Def* dst_type, const Def* callee, const Def* src
         if (sw && dw && *sw < *dw) return world.op(Conv::u2u, dst_type, src, dbg);
     }
 
-    return nullptr;
+    return world.raw_app(callee, src, dbg);
 }
 
 template<PE op>
-const Def* normalize_PE(const Def* type, const Def*, const Def* arg, const Def*) {
+const Def* normalize_PE(const Def* type, const Def* callee, const Def* arg, const Def* dbg) {
     auto& world = type->world();
 
     if constexpr (op == PE::known) {
@@ -349,10 +362,10 @@ const Def* normalize_PE(const Def* type, const Def*, const Def* arg, const Def*)
         if (world.is_pe_done()) return arg;
     }
 
-    return nullptr;
+    return world.raw_app(callee, arg, dbg);
 }
 
-const Def* normalize_bitcast(const Def* dst_type, const Def*, const Def* src, const Def* dbg) {
+const Def* normalize_bitcast(const Def* dst_type, const Def* callee, const Def* src, const Def* dbg) {
     auto& world = dst_type->world();
 
     if (src->isa<Bot>())                     return world.bot(dst_type);
@@ -370,20 +383,20 @@ const Def* normalize_bitcast(const Def* dst_type, const Def*, const Def* src, co
         return variant->op(0);
     }
 
-    return nullptr;
+    return world.raw_app(callee, src, dbg);
 }
 
-const Def* normalize_lea(const Def* type, const Def*, const Def* arg, const Def*) {
+const Def* normalize_lea(const Def* type, const Def* callee, const Def* arg, const Def* dbg) {
     auto& world = type->world();
     auto [ptr, index] = arg->split<2>();
     auto [pointee, addr_space] = as<Tag::Ptr>(ptr->type())->args<2>();
 
     if (pointee->arity() == world.lit_arity_1()) return ptr;
 
-    return nullptr;
+    return world.raw_app(callee, {ptr, index}, dbg);
 }
 
-const Def* normalize_select(const Def* type, const Def*, const Def* arg, const Def* dbg) {
+const Def* normalize_select(const Def* type, const Def* callee, const Def* arg, const Def* dbg) {
     auto& world = type->world();
     auto [cond, a, b] = arg->split<3>();
 
@@ -392,17 +405,18 @@ const Def* normalize_select(const Def* type, const Def*, const Def* arg, const D
     if (auto lit = cond->isa<Lit>()) return lit->get<bool>() ? a : b;
     if (auto neg = is_not(cond))     return world.op_select(neg, b, a, dbg);
 
-    return nullptr;
+    return world.raw_app(callee, {cond, a, b}, dbg);
 }
 
-const Def* normalize_sizeof(const Def*, const Def*, const Def* type, const Def* dbg) {
-    auto& world = type->world();
+const Def* normalize_sizeof(const Def* t, const Def* callee, const Def* arg, const Def* dbg) {
+    auto& world = t->world();
 
-    if (auto w = get_width(type)) return world.lit_nat(*w / 8, dbg);
-    return nullptr;
+    if (auto w = get_width(arg)) return world.lit_nat(*w / 8, dbg);
+
+    return world.raw_app(callee, arg, dbg);
 }
 
-const Def* normalize_load(const Def* type, const Def*, const Def* arg, const Def* dbg) {
+const Def* normalize_load(const Def* type, const Def* callee, const Def* arg, const Def* dbg) {
     auto& world = type->world();
     auto [mem, ptr] = arg->split<2>();
     auto [pointee, addr_space] = as<Tag::Ptr>(ptr->type())->args<2>();
@@ -413,10 +427,11 @@ const Def* normalize_load(const Def* type, const Def*, const Def* arg, const Def
     if (auto sigma = pointee->isa<Sigma>(); sigma && sigma->num_ops() == 0)
         return world.tuple({mem, world.tuple(sigma->type(), {}, dbg)});
 
-    return nullptr;
+    return world.raw_app(callee, {mem, ptr}, dbg);
 }
 
-const Def* normalize_store(const Def*, const Def*, const Def* arg, const Def*) {
+const Def* normalize_store(const Def* type, const Def* callee, const Def* arg, const Def* dbg) {
+    auto& world = type->world();
     auto [mem, ptr, val] = arg->split<3>();
 
     if (ptr->isa<Bot>() || val->isa<Bot>()) return mem;
@@ -426,7 +441,7 @@ const Def* normalize_store(const Def*, const Def*, const Def* arg, const Def*) {
             return mem;
     }
 
-    return nullptr;
+    return world.raw_app(callee, {mem, ptr, val}, dbg);
 }
 
 /*

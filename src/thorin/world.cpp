@@ -226,11 +226,17 @@ const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
 
     if (axiom && currying_depth == 1) {
         if (auto normalize = axiom->normalizer()) {
-            if (auto normalized = normalize(type, callee, arg, debug(dbg)))
-                return normalized;
+            return normalize(type, callee, arg, debug(dbg));
         }
     }
 
+    return unify<App>(2, axiom, currying_depth-1, type, callee, arg, debug(dbg));
+}
+
+const Def* World::raw_app(const Def* callee, const Def* arg, Debug dbg) {
+    auto pi = callee->type()->as<Pi>();
+    auto type = pi->apply(arg);
+    auto [axiom, currying_depth] = get_axiom(callee);
     return unify<App>(2, axiom, currying_depth-1, type, callee, arg, debug(dbg));
 }
 

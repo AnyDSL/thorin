@@ -203,7 +203,10 @@ static const Def* fold(const Def* type, const Def* callee, const Def* m, const D
         return m ? world.tuple({m, result}, dbg) : result;
     }
 
-    if (is_commutative(op) && a->gid() > b->gid() && !la) std::swap(a, b);
+    if (is_commutative(op)) {
+        if (lb || (a->gid() > b->gid() && !la))
+            std::swap(a, b);
+    }
 
     return nullptr;
 }

@@ -827,7 +827,10 @@ std::ostream& World::stream(std::ostream& os) const {
     for (auto global : globals)
         global->stream_assignment(os);
 
-    Scope::for_each<false>(*this, [&] (const Scope& scope) { scope.stream(os); });
+    Scope::for_each<false>(*this, [&] (const Scope& scope) {
+        if (scope.entry()->isa<Axiom>()) return;
+        scope.stream(os);
+    });
     return os;
 }
 

@@ -100,8 +100,7 @@ void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
 
     while (!nom_queue.empty()) {
         auto nom = nom_queue.pop();
-        if (elide_empty && !nom->is_set())
-            continue;
+        if (elide_empty && !nom->is_set()) continue;
         Scope scope(nom);
         f(scope);
 

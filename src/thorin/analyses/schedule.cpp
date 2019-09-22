@@ -283,20 +283,19 @@ void Schedule::verify() {
 std::ostream& Schedule::stream(std::ostream& os) const {
     for (auto& block : *this) {
         auto nom = block.nominal();
-        if (isa<Tag::End>(nom)) {
-            bool indent = nom != scope().entry();
-            if (indent)
-                os << up;
-            os << endl;
-            //nom->stream_head(os) << up_endl;
-            nom->stream(os) << up_endl;
-            for (auto def : block)
-                def->stream_assignment(os);
+        if (isa<Tag::End>(nom)) continue;
 
-            os << down_endl;
-            if (indent)
-                os << down;
-        }
+        bool indent = nom != scope().entry();
+        if (indent)
+            os << up;
+        os << endl;
+        streamf(os, "{}: {}", nom->unique_name(), nom->type()) << up_endl;
+        for (auto def : block)
+            def->stream_assignment(os);
+
+        os << down_endl;
+        if (indent)
+            os << down;
     }
     return os << endl;
 }

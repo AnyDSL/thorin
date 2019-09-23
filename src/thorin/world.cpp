@@ -165,6 +165,11 @@ bool assignable(const Def* dst, const Def* src) {
 }
 
 const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
+    // For nominal Pis
+    if (auto pi = callee->isa_nominal<Pi>())
+        return pi->apply(arg);
+
+    // Otherwise, the callee must be of Pi type
     auto pi = callee->type()->as<Pi>();
     auto type = pi->apply(arg);
 

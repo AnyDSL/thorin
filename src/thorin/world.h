@@ -77,11 +77,12 @@ public:
     }
     ~World();
 
-    // getters
+    /// @ getters
+    //@{
     const std::string& name() const { return name_; }
     const Sea& defs() const { return defs_; }
-    std::vector<Lam*> copy_lams() const;
-
+    std::vector<Lam*> copy_lams() const; // TODO remove this
+    //@}
     /// @name manage global identifier - a unique number for each Def
     //@{
     uint32_t cur_gid() const { return cur_gid_; }
@@ -453,7 +454,6 @@ private:
         return std::get<const Def*>(*dbg);
     }
     //@}
-
     /// @name memory management and hashing
     //@{
     template<class T, class... Args>

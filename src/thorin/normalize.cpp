@@ -32,6 +32,8 @@ static bool is_commutative(IOp op) { return op == IOp::iand || op == IOp::ior ||
 static bool is_commutative(WOp op) { return op == WOp:: add || op == WOp::mul; }
 static bool is_commutative(ROp op) { return op == ROp:: add || op == ROp::mul; }
 
+template<class T> bool is_associative(T op) { return is_commutative(op); }
+
 /**
  * Reassociates @p a und @p b according to following rules.
  * We use the following naming convention while literals are prefixed with an 'l':
@@ -311,9 +313,8 @@ const Def* normalize_IOp(const Def* type, const Def* callee, const Def* arg, con
         if (auto res = merge_cmps<std::bit_or <flags_t>>(world, a, b)) return res;
     }
 
-    if (op == IOp::iand) {
-        if (auto res = reassociate<Tag::IOp>(IOp::iand, world, a, b))
-            return res;
+    if (is_associative(op)) {
+        if (auto res = reassociate<Tag::IOp>(op, world, a, b)) return res;
     }
 
     return world.raw_app(callee, {a, b}, dbg);
@@ -345,6 +346,12 @@ const Def* normalize_ROp(const Def* type, const Def* callee, const Def* arg, con
 
     auto [a, b] = arg->split<2>();
     if (auto result = fold<16, ROp, op>(world, type, callee, nullptr, a, b, dbg)) return result;
+
+    auto x = RMode::reassoc;
+    auto rmode = isa_lit<nat_t>(callee->as<App>()->decurry()->arg(0));
+    if (is_associative(op) && rmode && has(*rmode, x)) {
+        if (auto res = reassociate<Tag::ROp>(op, world, a, b)) return res;
+    }
 
     return world.raw_app(callee, {a, b}, dbg);
 }

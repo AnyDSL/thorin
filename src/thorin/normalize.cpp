@@ -52,10 +52,10 @@ const Def* reassociate(Tag2Enum<tag> op, World& world, const Def* a, const Def* 
     auto la = a->isa<Lit>();
     auto xy = isa<tag>(op, a);
     auto zw = isa<tag>(op, b);
-    auto lx = xy ? xy->arg(0)->template isa<Lit>() : nullptr;
     auto  y = xy ? xy->arg(1) : nullptr;
+    auto  w = zw ? zw->arg(1) : nullptr;
+    auto lx = xy ? xy->arg(0)->template isa<Lit>() : nullptr;
     auto lz = zw ? zw->arg(0)->template isa<Lit>() : nullptr;
-    auto  w = zw ? xy->arg(1) : nullptr;
 
     if (la && lz) return world.op(op, world.op(op, la, lz), w);                  // (1)
     if (lx && lz) return world.op(op, world.op(op, lx, lz), world.op(op, y, w)); // (2)

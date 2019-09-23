@@ -8,7 +8,7 @@
 #include <string>
 
 #include "thorin/def.h"
-#include "thorin/primop.h"
+#include "thorin/util.h"
 #include "thorin/util/hash.h"
 #include "thorin/util/stream.h"
 #include "thorin/config.h"
@@ -89,9 +89,9 @@ public:
     //@}
     /// @name Universe and Kind
     //@{
-    const Universe* universe() { return cache_.universe_; }
-    const KindArity* kind_arity() { return cache_.kind_arity_; }
+    const Universe*  universe()   { return cache_.universe_; }
     const KindMulti* kind_multi() { return cache_.kind_multi_; }
+    const KindArity* kind_arity() { return cache_.kind_arity_; }
     const KindStar*  kind_star()  { return cache_.kind_star_; }
     //@}
     /// @name Param
@@ -132,6 +132,8 @@ public:
     //@{
     const Def* app(const Def* callee, const Def* arg, Debug dbg = {});
     const Def* app(const Def* callee, Defs args, Debug dbg = {}) { return app(callee, tuple(args), dbg); }
+    const Def* raw_app(const Def* callee, const Def* arg, Debug dbg = {});                                         /// Same as @p app but does @em not apply @p NormalizeFn.
+    const Def* raw_app(const Def* callee, Defs args, Debug dbg = {}) { return raw_app(callee, tuple(args), dbg); } /// Same as @p app but does @em not apply @p NormalizeFn.
     //@}
     /// @name Sigma: structural
     //@{
@@ -339,23 +341,22 @@ public:
     //@}
     /// @name memory-related operations
     //@{
-    const Def* load(const Def* mem, const Def* ptr, Debug dbg = {});
-    const Def* store(const Def* mem, const Def* ptr, const Def* val, Debug dbg = {});
-    const Slot* slot(const Def* type, const Def* mem, Debug dbg = {});
-    const Alloc* alloc(const Def* type, const Def* mem, Debug dbg = {});
+    const Def* op_load()  { return cache_.op_load_;  }
+    const Def* op_store() { return cache_.op_store_; }
+    const Def* op_slot()  { return cache_.op_slot_;  }
+    const Def* op_alloc() { return cache_.op_alloc_; }
+    const Def* op_load (const Def* mem, const Def* ptr, Debug dbg)                 { auto [T, a] = as<Tag::Ptr>(ptr->type())->args<2>(); return app(app(op_load (), {T, a}), {mem, ptr},      dbg); }
+    const Def* op_store(const Def* mem, const Def* ptr, const Def* val, Debug dbg) { auto [T, a] = as<Tag::Ptr>(ptr->type())->args<2>(); return app(app(op_store(), {T, a}), {mem, ptr, val}, dbg); }
+    const Def* op_alloc(const Def* type, const Def* mem, Debug dbg) { return app(app(op_alloc(), {type, lit_nat(0)}), mem, dbg); }
+    const Def* op_slot (const Def* type, const Def* mem, Debug dbg) { return app(app(op_slot (), {type, lit_nat(0)}), mem, dbg); }
     const Def* global(const Def* id, const Def* init, bool is_mutable = true, Debug dbg = {});
     const Def* global(const Def* init, bool is_mutable = true, Debug dbg = {}) { return global(lit_nat(cur_gid_), init, is_mutable, debug(dbg)); }
     const Def* global_immutable_string(const std::string& str, Debug dbg = {});
-    //const Assembly* assembly(const Def* type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints,
-                             //ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg = {});
-    //const Assembly* assembly(Defs types, const Def* mem, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints,
-                             //ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg = {});
     //@}
-    /// @name partial evaluation related operations
+    /// @name PE - partial evaluation related operations
     //@{
-    const Def* hlt(const Def* def, Debug dbg = {});
-    const Def* known(const Def* def, Debug dbg = {});
-    const Def* run(const Def* def, Debug dbg = {});
+    const Def* op(PE o) { return cache_.PE_[size_t(o)]; }
+    const Def* op(PE o, const Def* def, Debug dbg = {}) { return app(app(op(o), def->type()), def, debug(dbg)); }
     //@}
     /// @name Analyze - used internally for Pass%es
     //@{
@@ -373,7 +374,7 @@ public:
     const Def* op_select(const Def* cond, const Def* t, const Def* f, Debug dbg = {}) { return app(app(cache_.op_select_, t->type()), {cond, t, f}, dbg); }
     const Def* op_sizeof(const Def* type, Debug dbg = {}) { return app(op_sizeof(), type, dbg); }
     Lam* match(const Def* type, size_t num_patterns);
-    Axiom* axiom_end_scope() const { return cache_.axiom_end_scope_; }
+    Axiom* axiom_end() const { return cache_.axiom_end_; }
     //@}
     /// @name partial evaluation done?
     //@{
@@ -389,7 +390,6 @@ public:
     bool is_external(const Def* def) { return externals_.contains(def->name()); }
     Def* lookup(const std::string& name) { return externals_.lookup(name).value_or(nullptr); }
     //@}
-
 #if THORIN_ENABLE_CHECKS
     /// @name debugging features
     //@{
@@ -399,7 +399,6 @@ public:
     void enable_history(bool flag = true) { track_history_ = flag; }
     //@}
 #endif
-
     /// @name stream
     //@{
     // Note that we don't use overloading for the following methods in order to have them accessible from gdb.
@@ -557,8 +556,8 @@ private:
 #endif
     struct Cache {
         Universe* universe_;
-        const KindArity* kind_arity_;
         const KindMulti* kind_multi_;
+        const KindArity* kind_arity_;
         const KindStar*  kind_star_;
         const Bot* bot_star_;
         const Top* top_arity_;
@@ -576,7 +575,8 @@ private:
         std::array<Axiom*, Num<ICmp>> ICmp_;
         std::array<Axiom*, Num<RCmp>> RCmp_;
         std::array<Axiom*, Num<Conv>> Conv_;
-        Axiom* axiom_end_scope_;
+        std::array<Axiom*, Num<PE>>   PE_;
+        Axiom* axiom_end_;
         Axiom* type_int_;
         Axiom* type_real_;
         Axiom* type_ptr_;
@@ -585,6 +585,10 @@ private:
         Axiom* op_lea_;
         Axiom* op_select_;
         Axiom* op_sizeof_;
+        Axiom* op_alloc_;
+        Axiom* op_slot_;
+        Axiom* op_load_;
+        Axiom* op_store_;
     } cache_;
 
     friend class Cleaner;

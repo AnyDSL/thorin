@@ -5,8 +5,6 @@ set(THORIN_SOURCES
     def.h
     normalize.cpp
     normalize.h
-    primop.cpp
-    primop.h
     rewrite.cpp
     rewrite.h
     tables.h

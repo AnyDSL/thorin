@@ -148,17 +148,10 @@ protected:
     virtual ~Def() {}
 
 public:
-    enum class Sort { Term, Type, Kind, Universe };
-
-    /// @name type, Sort
+    /// @name type
     //@{
     const Def* type() const { assert(node() != Node::Universe); return type_; }
-    unsigned order() const { assert(!is_term()); return order_; }
-    Sort sort() const;
-    bool is_term() const { return sort() == Sort::Term; }
-    bool is_type() const { return sort() == Sort::Type; }
-    bool is_kind() const { return sort() == Sort::Kind; }
-    bool is_universe() const { return sort() == Sort::Universe; }
+    unsigned order() const { /*TODO assertion*/return order_; }
     const Def* arity() const;
     u64 lit_arity() const;
     //@}
@@ -257,11 +250,11 @@ public:
     size_t gid() const { return gid_; }
     hash_t hash() const { return hash_; }
     World& world() const {
-        if (node()                 == Node::Universe) return *world_;
-        if (type()->node()         == Node::Universe) return *type()->world_;
-        if (type()->type()->node() == Node::Universe) return *type()->type()->world_;
-        assert(type()->type()->type()->node() == Node::Universe);
-        return *type()->type()->type()->world_;
+        if (node() == Node::KindArity) return *type()->type()->type()->world_;
+        if (node() == Node::KindMulti) return *type()->type()->world_;
+        if (node() == Node::KindStar ) return *type()->world_;
+        if (node() == Node::Universe ) return *world_;
+        return type()->world();
     }
     //@}
     /// @name replace
@@ -880,6 +873,32 @@ public:
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
     static constexpr auto Node = Node::Analyze;
+    friend class World;
+};
+
+/**
+ * A global variable in the data segment.
+ * A @p Global may be mutable or immutable.
+ * @em deprecated. WILL BE REMOVED
+ */
+class Global : public Def {
+private:
+    Global(const Def* type, const Def* id, const Def* init, bool is_mutable, const Def* dbg)
+        : Def(Node, rebuild, type, {id, init}, is_mutable, dbg)
+    {}
+
+public:
+    /// This thing's sole purpose is to differentiate on global from another.
+    const Def* id() const { return op(0); }
+    const Def* init() const { return op(1); }
+    bool is_mutable() const { return fields(); }
+    const App* type() const;
+    const Def* alloced_type() const;
+
+    static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
+    std::ostream& stream(std::ostream&) const override;
+
+    static constexpr auto Node = Node::Global;
     friend class World;
 };
 

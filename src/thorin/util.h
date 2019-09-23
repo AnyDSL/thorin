@@ -10,8 +10,6 @@ namespace thorin {
 bool is_unit(const Def*);
 bool is_const(const Def*);
 bool is_tuple_arg_of_app(const Def*);
-
-inline bool is_arity(const Def* def) { return def->type()->isa<KindArity>(); }
 bool is_memop(const Def* def);
 
 Array<const Def*> merge(const Def* def, Defs defs);
@@ -35,7 +33,7 @@ std::tuple<const Axiom*, u16> get_axiom(const Def*);
 
 // TODO put this somewhere else
 template<tag_t tag> struct Tag2Def_   { using type = App; };
-template<> struct Tag2Def_<Tag::EndScope> { using type = Axiom; };
+template<> struct Tag2Def_<Tag::End> { using type = Axiom; };
 template<tag_t tag> using Tag2Def = typename Tag2Def_<tag>::type;
 
 template<class F, class D>

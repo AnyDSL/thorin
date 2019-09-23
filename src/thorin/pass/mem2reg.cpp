@@ -20,24 +20,27 @@ const Analyze* Mem2Reg::isa_virtual_phi(const Def* def) {
 }
 
 const Def* Mem2Reg::rewrite(const Def* def) {
-    if (auto slot = def->isa<Slot>()) {
+    if (auto slot = isa<Tag::Slot>(def)) {
+        auto [out_mem, out_ptr] = slot->split<2>();
         auto orig = original(man().cur_lam());
         auto& info = lam2info(orig);
         auto slot_id = info.num_slots++;
-        auto proxy = world().analyze(slot->out_ptr()->type(), {orig, world().lit_nat(slot_id)}, index(), slot->debug());
+        auto proxy = world().analyze(out_ptr->type(), {orig, world().lit_nat(slot_id)}, index(), slot->debug());
         if (!keep_.contains(proxy)) {
             set_val(proxy, world().bot(proxy_type(proxy)));
             lam2info(man().cur_lam()).writable.emplace(proxy);
-            return world().tuple({slot->mem(), proxy});
+            return world().tuple({slot->arg(), proxy});
         }
-    } else if (auto load = def->isa<Load>()) {
-        if (auto proxy = isa_proxy(load->ptr()))
-            return world().tuple({load->mem(), get_val(proxy)});
-    } else if (auto store = def->isa<Store>()) {
-        if (auto proxy = isa_proxy(store->ptr())) {
+    } else if (auto load = isa<Tag::Load>(def)) {
+        auto [mem, ptr] = load->args<2>();
+        if (auto proxy = isa_proxy(ptr))
+            return world().tuple({mem, get_val(proxy)});
+    } else if (auto store = isa<Tag::Store>(def)) {
+        auto [mem, ptr, val] = store->args<3>();
+        if (auto proxy = isa_proxy(ptr)) {
             if (lam2info(man().cur_lam()).writable.contains(proxy)) {
-                set_val(proxy, store->val());
-                return store->mem();
+                set_val(proxy, val);
+                return mem;
             }
         }
     } else if (auto app = def->isa<App>()) {

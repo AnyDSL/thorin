@@ -5,7 +5,6 @@
 #include <sstream>
 #include <stack>
 
-#include "thorin/primop.h"
 #include "thorin/rewrite.h"
 #include "thorin/util.h"
 #include "thorin/world.h"
@@ -164,14 +163,6 @@ void Def::replace(Tracker with) const {
         uses_.clear();
         substitute_ = with;
     }
-}
-
-Def::Sort Def::sort() const {
-    if (node()                 == Node::Universe) return Sort::Universe;
-    if (type()->node()         == Node::Universe) return Sort::Kind;
-    if (type()->type()->node() == Node::Universe) return Sort::Type;
-    assert(type()->type()->type()->node() == Node::Universe);
-    return Sort::Term;
 }
 
 void Def::dump() const {
@@ -367,6 +358,13 @@ const Def* Pi::apply(const Def* arg) const {
     return codomain();
 }
 
+/*
+ * Global
+ */
+
+const App* Global::type() const { return thorin::as<Tag::Ptr>(Def::type()); }
+const Def* Global::alloced_type() const { return type()->arg(0); }
+
 //------------------------------------------------------------------------------
 
 /*
@@ -418,11 +416,11 @@ Axiom::Axiom(NormalizeFn normalizer, const Def* type, size_t num_ops, u32 tag, u
 }
 
 KindArity::KindArity(World& world)
-    : Def(Node, rebuild, world.universe(), Defs{}, 0, nullptr)
+    : Def(Node, rebuild, world.kind_multi(), Defs{}, 0, nullptr)
 {}
 
 KindMulti::KindMulti(World& world)
-    : Def(Node, rebuild, world.universe(), Defs{}, 0, nullptr)
+    : Def(Node, rebuild, world.kind_star() , Defs{}, 0, nullptr)
 {}
 
 KindStar::KindStar(World& world)
@@ -464,6 +462,7 @@ const Def* App        ::rebuild(const Def*  , World& w, const Def*  , Defs o, co
 const Def* Bot        ::rebuild(const Def*  , World& w, const Def* t, Defs  , const Def* dbg) { return w.bot(t, dbg); }
 const Def* Top        ::rebuild(const Def*  , World& w, const Def* t, Defs  , const Def* dbg) { return w.top(t, dbg); }
 const Def* Extract    ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.extract(o[0], o[1], dbg); }
+const Def* Global     ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def* dbg) { return w.global(o[0], o[1], d->as<Global>()->is_mutable(), dbg); }
 const Def* Insert     ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.insert(o[0], o[1], o[2], dbg); }
 const Def* KindArity  ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.kind_arity(); }
 const Def* KindMulti  ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.kind_multi(); }
@@ -500,6 +499,7 @@ static std::ostream& stream_type_ops(std::ostream& os, const Def* type) {
 }
 
 std::ostream& Axiom      ::stream(std::ostream& os) const { return streamf(os, "{}", name()); }
+std::ostream& Global     ::stream(std::ostream& os) const { return os << unique_name(); }
 std::ostream& Mem        ::stream(std::ostream& os) const { return streamf(os, "mem"); }
 std::ostream& Nat        ::stream(std::ostream& os) const { return streamf(os, "nat"); }
 std::ostream& Universe   ::stream(std::ostream& os) const { return streamf(os, "□"); }
@@ -540,7 +540,7 @@ std::ostream& App::stream(std::ostream& os) const {
 std::ostream& Lit::stream(std::ostream& os) const {
     if (type()->isa<KindArity>()) return streamf(os, "{}ₐ", get());
 
-    if (is_arity(type())) {
+    if (type()->type()->isa<KindArity>()) {
         if (type()->isa<Top>()) return streamf(os, "{}T", get());
 
         // append utf-8 subscripts in reverse order
@@ -567,12 +567,10 @@ std::ostream& Lit::stream(std::ostream& os) const {
 }
 
 std::ostream& Bot::stream(std::ostream& os) const {
-    if (type()->is_kind()) return streamf(os, "⊥{}", type());
     return streamf(os, "{{⊥: {}}}", type());
 }
 
 std::ostream& Top::stream(std::ostream& os) const {
-    if (type()->is_kind()) return streamf(os, "⊤{}", type());
     return streamf(os, "{{⊤: {}}}", type());
 }
 

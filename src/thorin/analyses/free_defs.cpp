@@ -1,4 +1,4 @@
-#include "thorin/primop.h"
+#include "thorin/util.h"
 #include "thorin/analyses/scope.h"
 
 namespace thorin {

@@ -32,6 +32,39 @@ static bool is_commutative(IOp op) { return op == IOp::iand || op == IOp::ior ||
 static bool is_commutative(WOp op) { return op == WOp:: add || op == WOp::mul; }
 static bool is_commutative(ROp op) { return op == ROp:: add || op == ROp::mul; }
 
+/**
+ * Reassociates @p a und @p b according to following rules.
+ * We use the following naming convention while literals are prefixed with an 'l':
+@verbatim
+    a    op     b
+(x op y) op (z op w)
+@endverbatim
+ * Rules:
+@verbatim
+ * (1)     la    op (lz op w) -> (la op lz) op w
+ * (2) (lx op y) op (lz op w) -> (lx op lz) op (y op w)
+ * (3)      a    op (lz op w) ->  lz op (a op w)
+ * (4) (lx op y) op      b    ->  lx op (y op b)
+@endverbatim
+ */
+template<tag_t tag>
+const Def* reassociate(Tag2Enum<tag> op, World& world, const Def* a, const Def* b) {
+    auto la = a->isa<Lit>();
+    auto xy = isa<tag>(op, a);
+    auto zw = isa<tag>(op, b);
+    auto lx = xy ? xy->arg(0)->template isa<Lit>() : nullptr;
+    auto  y = xy ? xy->arg(1) : nullptr;
+    auto lz = zw ? zw->arg(0)->template isa<Lit>() : nullptr;
+    auto  w = zw ? xy->arg(1) : nullptr;
+
+    if (la && lz) return world.op(op, world.op(op, la, lz), w);                  // (1)
+    if (lx && lz) return world.op(op, world.op(op, lx, lz), world.op(op, y, w)); // (2)
+    if (lz)       return world.op(op, lz, world.op(op, a, w));                   // (3)
+    if (lx)       return world.op(op, lx, world.op(op, y, b));                   // (4)
+
+    return nullptr;
+}
+
 /*
  * Fold
  */
@@ -163,8 +196,7 @@ template<nat_t sw, nat_t dw> struct FoldConv<Conv::r2r, sw, dw> { static Res run
  */
 
 template<nat_t min_w, class Op, Op op>
-static const Def* fold(const Def* type, const Def* callee, const Def* m, const Def*& a, const Def*& b, const Def* dbg) {
-    auto& world = type->world();
+static const Def* fold(World& world, const Def* type, const Def* callee, const Def* m, const Def*& a, const Def*& b, const Def* dbg) {
     if (m) type = type->as<Sigma>()->op(1); // peel of actual type for ZOps
 
     if (a->isa<Bot>() || b->isa<Bot>() || (m != nullptr && m->isa<Bot>())) {
@@ -204,7 +236,7 @@ static const Def* fold(const Def* type, const Def* callee, const Def* m, const D
     }
 
     if (is_commutative(op)) {
-        if (lb || (a->gid() > b->gid() && !la))
+        if (lb || (a->gid() > b->gid() && !la)) // swap lit to left, or smaller gid to left if no lit present
             std::swap(a, b);
     }
 
@@ -265,7 +297,7 @@ template<IOp op>
 const Def* normalize_IOp(const Def* type, const Def* callee, const Def* arg, const Def* dbg) {
     auto& world = type->world();
     auto [a, b] = arg->split<2>();
-    if (auto result = fold<1, IOp, op>(type, callee, nullptr, a, b, dbg)) return result;
+    if (auto result = fold<1, IOp, op>(world, type, callee, nullptr, a, b, dbg)) return result;
 
     if (op == IOp::ixor) {
         if (is_allset(a)) { // bitwise not
@@ -279,6 +311,11 @@ const Def* normalize_IOp(const Def* type, const Def* callee, const Def* arg, con
         if (auto res = merge_cmps<std::bit_or <flags_t>>(world, a, b)) return res;
     }
 
+    if (op == IOp::iand) {
+        if (auto res = reassociate<Tag::IOp>(IOp::iand, world, a, b))
+            return res;
+    }
+
     return world.raw_app(callee, {a, b}, dbg);
 }
 
@@ -287,7 +324,7 @@ const Def* normalize_WOp(const Def* type, const Def* callee, const Def* arg, con
     auto& world = type->world();
     auto [a, b] = arg->split<2>();
 
-    if (auto result = fold<8, WOp, op>(type, callee, nullptr, a, b, dbg)) return result;
+    if (auto result = fold<8, WOp, op>(world, type, callee, nullptr, a, b, dbg)) return result;
 
     return world.raw_app(callee, {a, b}, dbg);
 }
@@ -297,7 +334,7 @@ const Def* normalize_ZOp(const Def* type, const Def* callee, const Def* arg, con
     auto& world = type->world();
     auto [m, a, b] = arg->split<3>();
 
-    if (auto result = fold<8, ZOp, op>(type, callee, m, a, b, dbg)) return result;
+    if (auto result = fold<8, ZOp, op>(world, type, callee, m, a, b, dbg)) return result;
 
     return world.raw_app(callee, {m, a, b}, dbg);
 }
@@ -307,7 +344,7 @@ const Def* normalize_ROp(const Def* type, const Def* callee, const Def* arg, con
     auto& world = type->world();
 
     auto [a, b] = arg->split<2>();
-    if (auto result = fold<16, ROp, op>(type, callee, nullptr, a, b, dbg)) return result;
+    if (auto result = fold<16, ROp, op>(world, type, callee, nullptr, a, b, dbg)) return result;
 
     return world.raw_app(callee, {a, b}, dbg);
 }
@@ -317,7 +354,7 @@ const Def* normalize_ICmp(const Def* type, const Def* callee, const Def* arg, co
     auto& world = type->world();
     auto [a, b] = arg->split<2>();
 
-    if (auto result = fold<1, ICmp, op>(type, callee, nullptr, a, b, dbg)) return result;
+    if (auto result = fold<1, ICmp, op>(world, type, callee, nullptr, a, b, dbg)) return result;
     if constexpr (op == ICmp::_f) return world.lit_false();
     if constexpr (op == ICmp::_t) return world.lit_true();
 
@@ -329,7 +366,7 @@ const Def* normalize_RCmp(const Def* type, const Def* callee, const Def* arg, co
     auto& world = type->world();
 
     auto [a, b] = arg->split<2>();
-    if (auto result = fold<16, RCmp, op>(type, callee, nullptr, a, b, dbg)) return result;
+    if (auto result = fold<16, RCmp, op>(world, type, callee, nullptr, a, b, dbg)) return result;
     if constexpr (op == RCmp::f) return world.lit_false();
     if constexpr (op == RCmp::t) return world.lit_true();
 

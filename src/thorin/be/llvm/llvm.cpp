@@ -695,7 +695,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto src = lookup(conv->arg());
         auto name = def->name();
         auto type = convert(def->type());
-        auto [num_src, num_dst] = conv->decurry()->args<2>(as_lit<nat_t>);
+        auto [num_dst, num_src] = conv->decurry()->args<2>(as_lit<nat_t>);
         switch (conv.flags()) {
             case Conv::s2s: return num_src < num_dst ? irbuilder_.CreateSExt (src, type, name) : irbuilder_.CreateTrunc  (src, type, name);
             case Conv::u2u: return num_src < num_dst ? irbuilder_.CreateZExt (src, type, name) : irbuilder_.CreateTrunc  (src, type, name);
@@ -710,8 +710,8 @@ llvm::Value* CodeGen::emit(const Def* def) {
         if (bitcast->type()->isa<KindArity>())          return lookup(bitcast->arg());
         if (bitcast->type()->type()->isa<KindArity>())  return lookup(bitcast->arg());
         if (bitcast->arg()->type()->isa<KindArity>())   return lookup(bitcast->arg());
-        auto src_type_ptr = isa<Tag::Ptr>(bitcast->arg()->type());
         auto dst_type_ptr = isa<Tag::Ptr>(bitcast->type());
+        auto src_type_ptr = isa<Tag::Ptr>(bitcast->arg()->type());
         if (src_type_ptr && dst_type_ptr) return irbuilder_.CreatePointerCast(lookup(bitcast->arg()), convert(bitcast->type()), bitcast->name());
         if (src_type_ptr)                 return irbuilder_.CreatePtrToInt   (lookup(bitcast->arg()), convert(bitcast->type()), bitcast->name());
         if (dst_type_ptr)                 return irbuilder_.CreateIntToPtr   (lookup(bitcast->arg()), convert(bitcast->type()), bitcast->name());

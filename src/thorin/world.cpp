@@ -99,10 +99,10 @@ World::World(uint32_t cur_gid, const std::string& name, bool tuple2pack)
     }
 #undef CODE
 #define CODE(T, o) \
-    {   /* Conv: Π[sw: nat, dw: nat]. Πi/r sw. i/r dw */                                                             \
+    {   /* Conv: Π[dw: nat, sw: nat]. Πi/r sw. i/r dw */                                                             \
         auto type = pi(star)->set_domain({nat, nat});                                                                \
-        auto sw = type->param(0, {"sw"});                                                                            \
-        auto dw = type->param(1, {"dw"});                                                                            \
+        auto dw = type->param(0, {"dw"});                                                                            \
+        auto sw = type->param(1, {"sw"});                                                                            \
         auto type_sw = T::o == T::r2s || T::o == T::r2u || T::o == T::r2r ? type_real(sw) : type_int(sw);            \
         auto type_dw = T::o == T::s2r || T::o == T::u2r || T::o == T::r2r ? type_real(dw) : type_int(dw);            \
         type->set_codomain(pi(type_sw, type_dw));                                                                    \
@@ -121,10 +121,10 @@ World::World(uint32_t cur_gid, const std::string& name, bool tuple2pack)
         auto T = type->param({"T"});
         type->set_codomain(pi(T, type_bool()));
         cache_.PE_[size_t(PE::known)] = axiom(normalize_PE<PE::known>, type, 0, Tag::PE, flags_t(PE::known), {op2str(PE::known)});
-    } {   // bitcast: Π[S: *, D: *]. ΠS. D
+    } {   // bitcast: Π[D: *, S: *]. ΠS. D
         auto type = pi(star)->set_domain({star, star});
-        auto S = type->param(0, {"S"});
-        auto D = type->param(1, {"D"});
+        auto D = type->param(0, {"D"});
+        auto S = type->param(1, {"S"});
         type->set_codomain(pi(S, D));
         cache_.op_bitcast_ = axiom(normalize_bitcast, type, 0, Tag::Bitcast, 0, {"bitcast"});
     } { // select: ΠT: *. Π[bool, T, T]. T

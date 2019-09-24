@@ -227,6 +227,15 @@ template<nat_t dw, nat_t sw> struct FoldConv<Conv::r2r, dw, sw> { static Res run
 template<nat_t min_w, class Op, Op op>
 static const Def* fold(World& world, const Def* type, const Def* callee, const Def* m, const Def*& a, const Def*& b, const Def* dbg) {
     if (m) type = type->as<Sigma>()->op(1); // peel of actual type for ZOps
+    auto la = a->isa<Lit>(), lb = b->isa<Lit>();
+
+    auto commute = [&]() {
+        if (is_commutative(op)) {
+            if (lb || (a->gid() > b->gid() && !la)) // swap lit to left, or smaller gid to left if no lit present
+                std::swap(a, b);
+        }
+        return nullptr;
+    };
 
     if (a->isa<Bot>() || b->isa<Bot>() || (m != nullptr && m->isa<Bot>())) {
         auto bot = world.bot(type, dbg);
@@ -237,7 +246,7 @@ static const Def* fold(World& world, const Def* type, const Def* callee, const D
     if constexpr (std::is_same<Op, WOp>()) {
         if (auto app = callee->isa<App>()) {
             auto [m, w] = app->args<2>(isa_lit<nat_t>);
-            if (!m && !w) return nullptr;
+            if (!m && !w) return commute();
             nsw = *m & WMode::nsw;
             nuw = *m & WMode::nuw;
         } else {
@@ -247,7 +256,6 @@ static const Def* fold(World& world, const Def* type, const Def* callee, const D
         }
     }
 
-    auto la = a->isa<Lit>(), lb = b->isa<Lit>();
     if (la && lb) {
         auto w = as_lit<nat_t>(a->type()->as<App>()->arg());
         Res res;
@@ -267,19 +275,14 @@ static const Def* fold(World& world, const Def* type, const Def* callee, const D
         }
 
         if constexpr (std::is_same<Op, WOp>()) {
-            if (unsure && !res) return nullptr; // wrap around happend but wmode was not a literal so we bail out
+            if (unsure && !res) return commute(); // wrap around happend but wmode was not a literal so we bail out
         }
 
         auto result = res ? world.lit(type, *res, dbg) : world.bot(type, dbg);
         return m ? world.tuple({m, result}, dbg) : result;
     }
 
-    if (is_commutative(op)) {
-        if (lb || (a->gid() > b->gid() && !la)) // swap lit to left, or smaller gid to left if no lit present
-            std::swap(a, b);
-    }
-
-    return nullptr;
+    return commute();
 }
 
 #define TABLE(m) m( 1,  1) m( 1,  8) m( 1, 16) m( 1, 32) m( 1, 64) \

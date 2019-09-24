@@ -8,7 +8,7 @@
 
 namespace thorin {
 
-Lams succs(Lam* lam) {
+std::vector<Lam*> succs(Lam* lam) {
     std::vector<Lam*> succs;
     std::queue<const Def*> queue;
     DefSet done;

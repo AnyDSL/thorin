@@ -41,7 +41,6 @@ class Tracker;
 class World;
 
 typedef ArrayRef<const Def*> Defs;
-typedef std::vector<Lam*> Lams;
 
 //------------------------------------------------------------------------------
 

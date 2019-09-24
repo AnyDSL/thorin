@@ -130,9 +130,7 @@ void Scope::for_each_rewrite(World& world, EnterFn enter_fn, RewriteFn rewrite_f
             if (scope.entry()->ops().back() != new_body) {
                 scope.entry()->set(scope.entry()->num_ops()-1, new_body);
                 scope.update();
-                outf("XXX\n");
             }
-            scope.dump();
         }
     });
 }

@@ -617,8 +617,8 @@ public:
     void set_cc(CC cc) { fields_ = (fields_ & 0x00ff_u64) | u64(cc) << 8_u64; }
     //@}
 
-    Lams preds() const;
-    Lams succs() const;
+    Lams preds() const; // TODO remove
+    Lams succs() const; // TODO remove
     bool is_basicblock() const;
     bool is_returning() const;
     bool is_intrinsic() const;

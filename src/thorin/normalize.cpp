@@ -6,7 +6,7 @@
 namespace thorin {
 
 /*
- * helpers
+ * small helpers
  */
 
 static bool is_allset(const Def* def) {
@@ -27,10 +27,12 @@ static const Def* is_not(const Def* def) {
 
 template<class T> static T get(u64 u) { return bitcast<T>(u); }
 
-template<class T> bool is_commutative(T) { return false; }
+template<class T> static bool is_commutative(T) { return false; }
 static bool is_commutative(IOp op) { return op == IOp::iand || op == IOp::ior || op == IOp::ixor; }
 static bool is_commutative(WOp op) { return op == WOp:: add || op == WOp::mul; }
 static bool is_commutative(ROp op) { return op == ROp:: add || op == ROp::mul; }
+
+template<class T> static bool is_associative(T op) { return is_commutative(op); }
 
 /*
  * Fold
@@ -150,37 +152,50 @@ template<RCmp cmp, nat_t w> struct Fold<RCmp, cmp, w> {
 };
 
 template<Conv op, nat_t, nat_t> struct FoldConv {};
-template<nat_t sw, nat_t dw> struct FoldConv<Conv::s2s, sw, dw> { static Res run(u64 src) { return w2s<dw>(get<w2s<sw>>(src)); } };
-template<nat_t sw, nat_t dw> struct FoldConv<Conv::u2u, sw, dw> { static Res run(u64 src) { return w2u<dw>(get<w2u<sw>>(src)); } };
-template<nat_t sw, nat_t dw> struct FoldConv<Conv::s2r, sw, dw> { static Res run(u64 src) { return w2r<dw>(get<w2s<sw>>(src)); } };
-template<nat_t sw, nat_t dw> struct FoldConv<Conv::u2r, sw, dw> { static Res run(u64 src) { return w2r<dw>(get<w2u<sw>>(src)); } };
-template<nat_t sw, nat_t dw> struct FoldConv<Conv::r2s, sw, dw> { static Res run(u64 src) { return w2s<dw>(get<w2r<sw>>(src)); } };
-template<nat_t sw, nat_t dw> struct FoldConv<Conv::r2u, sw, dw> { static Res run(u64 src) { return w2u<dw>(get<w2r<sw>>(src)); } };
-template<nat_t sw, nat_t dw> struct FoldConv<Conv::r2r, sw, dw> { static Res run(u64 src) { return w2r<dw>(get<w2r<sw>>(src)); } };
+template<nat_t dw, nat_t sw> struct FoldConv<Conv::s2s, dw, sw> { static Res run(u64 src) { return w2s<dw>(get<w2s<sw>>(src)); } };
+template<nat_t dw, nat_t sw> struct FoldConv<Conv::u2u, dw, sw> { static Res run(u64 src) { return w2u<dw>(get<w2u<sw>>(src)); } };
+template<nat_t dw, nat_t sw> struct FoldConv<Conv::s2r, dw, sw> { static Res run(u64 src) { return w2r<dw>(get<w2s<sw>>(src)); } };
+template<nat_t dw, nat_t sw> struct FoldConv<Conv::u2r, dw, sw> { static Res run(u64 src) { return w2r<dw>(get<w2u<sw>>(src)); } };
+template<nat_t dw, nat_t sw> struct FoldConv<Conv::r2s, dw, sw> { static Res run(u64 src) { return w2s<dw>(get<w2r<sw>>(src)); } };
+template<nat_t dw, nat_t sw> struct FoldConv<Conv::r2u, dw, sw> { static Res run(u64 src) { return w2u<dw>(get<w2r<sw>>(src)); } };
+template<nat_t dw, nat_t sw> struct FoldConv<Conv::r2r, dw, sw> { static Res run(u64 src) { return w2r<dw>(get<w2r<sw>>(src)); } };
 
 /*
- * fold
+ * bigger logic used by several ops
  */
 
 template<nat_t min_w, class Op, Op op>
-static const Def* fold(const Def* type, const Def* callee, const Def* m, const Def*& a, const Def*& b, const Def* dbg) {
-    auto& world = type->world();
+static const Def* fold(World& world, const Def* type, const Def* callee, const Def* m, const Def*& a, const Def*& b, const Def* dbg) {
     if (m) type = type->as<Sigma>()->op(1); // peel of actual type for ZOps
+    auto la = a->isa<Lit>(), lb = b->isa<Lit>();
+
+    auto commute = [&]() {
+        if (is_commutative(op)) {
+            if (lb || (a->gid() > b->gid() && !la)) // swap lit to left, or smaller gid to left if no lit present
+                std::swap(a, b);
+        }
+        return nullptr;
+    };
 
     if (a->isa<Bot>() || b->isa<Bot>() || (m != nullptr && m->isa<Bot>())) {
         auto bot = world.bot(type, dbg);
         return m ? world.tuple({m, bot}) : bot;
     }
 
-    [[maybe_unused]] bool nsw = false, nuw = false;
+    [[maybe_unused]] bool nsw = false, nuw = false, unsure = false;
     if constexpr (std::is_same<Op, WOp>()) {
-        auto [f, w] = callee->as<App>()->args<2>(isa_lit<nat_t>);
-        if (!f && !w) return nullptr;
-        nsw = *f & WMode::nsw;
-        nuw = *f & WMode::nuw;
+        if (auto app = callee->isa<App>()) {
+            auto [m, w] = app->args<2>(isa_lit<nat_t>);
+            if (!m && !w) return commute();
+            nsw = *m & WMode::nsw;
+            nuw = *m & WMode::nuw;
+        } else {
+            // Mode is not a lit.
+            // So we set nsw and nuw and return nullptr (i.e. folding not possible) if res below holds nothing.
+            nsw = nuw = unsure = true;
+        }
     }
 
-    auto la = a->isa<Lit>(), lb = b->isa<Lit>();
     if (la && lb) {
         auto w = as_lit<nat_t>(a->type()->as<App>()->arg());
         Res res;
@@ -199,43 +214,72 @@ static const Def* fold(const Def* type, const Def* callee, const Def* m, const D
             default: THORIN_UNREACHABLE;
         }
 
+        if constexpr (std::is_same<Op, WOp>()) {
+            if (unsure && !res) return commute(); // wrap around happend but wmode was not a literal so we bail out
+        }
+
         auto result = res ? world.lit(type, *res, dbg) : world.bot(type, dbg);
         return m ? world.tuple({m, result}, dbg) : result;
     }
 
-    if (is_commutative(op)) {
-        if (lb || (a->gid() > b->gid() && !la))
-            std::swap(a, b);
-    }
-
-    return nullptr;
+    return commute();
 }
 
-#define TABLE(m) m( 1,  1) m( 1,  8) m( 1, 16) m( 1, 32) m( 1, 64) \
-                 m( 8,  1) m( 8,  8) m( 8, 16) m( 8, 32) m( 8, 64) \
-                 m(16,  1) m(16,  8) m(16, 16) m(16, 32) m(16, 64) \
-                 m(32,  1) m(32,  8) m(32, 16) m(32, 32) m(32, 64) \
-                 m(64,  1) m(64,  8) m(64, 16) m(64, 32) m(64, 64)
+/**
+ * Reassociates @p a und @p b according to following rules.
+ * We use the following naming convention while literals are prefixed with an 'l':
+@verbatim
+    a    op     b
+(x op y) op (z op w)
+@endverbatim
+ * Rules:
+@verbatim
+ * (1)     la    op (lz op w) -> (la op lz) op w
+ * (2) (lx op y) op (lz op w) -> (lx op lz) op (y op w)
+ * (3)      a    op (lz op w) ->  lz op (a op w)
+ * (4) (lx op y) op      b    ->  lx op (y op b)
+@endverbatim
+ */
+template<tag_t tag>
+static const Def* reassociate(Tag2Enum<tag> op, World& world, const App* ab, const Def* a, const Def* b) {
+    static constexpr bool has_mode = tag == Tag::WOp || tag == Tag::ROp;
+    if (!is_associative(tag)) return nullptr;
 
-template<nat_t min_sw, nat_t min_dw, Conv op>
-static const Def* fold_Conv(const Def* dst_type, const Def* callee, const Def* src, const Def* dbg) {
-    auto& world = dst_type->world();
-    if (src->isa<Bot>()) return world.bot(dst_type, dbg);
+    auto la = a->isa<Lit>();
+    auto xy = isa<tag>(op, a);
+    auto zw = isa<tag>(op, b);
+    auto  y = xy ? xy->arg(1) : nullptr;
+    auto  w = zw ? zw->arg(1) : nullptr;
+    auto lx = xy ? xy->arg(0)->template isa<Lit>() : nullptr;
+    auto lz = zw ? zw->arg(0)->template isa<Lit>() : nullptr;
 
-    auto [lit_sw, lit_dw] = callee->as<App>()->args<2>(isa_lit<nat_t>);
-    auto lit_src = src->isa<Lit>();
-    if (lit_src && lit_sw && lit_dw) {
-        Res res;
-#define CODE(sw, dw)                                             \
-        else if (*lit_sw == sw && *lit_dw == dw) {               \
-            if constexpr (sw >= min_sw && dw >= min_dw)          \
-                res = FoldConv<op, sw, dw>::run(lit_src->get()); \
+    std::function<const Def*(const Def*, const Def*)> make_op;
+
+    // build mode for all new ops by using the least upper bound of all involved apps
+    nat_t m = nat_t(-1); // bottom
+    if constexpr (has_mode) {
+#define check_mode(app) {                                         \
+            auto app_m = isa_lit<nat_t>(app->arg(0));             \
+            if (!app_m) return nullptr;                           \
+            if constexpr (tag == Tag::ROp) {                      \
+                if (!has(*app_m, RMode::reassoc)) return nullptr; \
+            }                                                     \
+            m &= *app_m; /* lub */                                \
         }
-        if (false) {} TABLE(CODE)
-#undef CODE
-        if (res) return world.lit(dst_type, *res, dbg);
-        return world.bot(dst_type, dbg);
+
+        check_mode(ab);
+        if (xy) check_mode(xy->decurry());
+        if (zw) check_mode(zw->decurry());
+
+        make_op = [&](const Def* a, const Def* b) { return world.op(op, m, a, b); };
+    } else {
+        make_op = [&](const Def* a, const Def* b) { return world.op(op, a, b); };
     }
+
+    if (la && lz) return make_op(make_op(la, lz), w);             // (1)
+    if (lx && lz) return make_op(make_op(lx, lz), make_op(y, w)); // (2)
+    if (lz)       return make_op(lz, make_op(a, w));              // (3)
+    if (lx)       return make_op(lx, make_op(y, b));              // (4)
 
     return nullptr;
 }
@@ -265,7 +309,7 @@ template<IOp op>
 const Def* normalize_IOp(const Def* type, const Def* callee, const Def* arg, const Def* dbg) {
     auto& world = type->world();
     auto [a, b] = arg->split<2>();
-    if (auto result = fold<1, IOp, op>(type, callee, nullptr, a, b, dbg)) return result;
+    if (auto result = fold<1, IOp, op>(world, type, callee, nullptr, a, b, dbg)) return result;
 
     if (op == IOp::ixor) {
         if (is_allset(a)) { // bitwise not
@@ -279,6 +323,10 @@ const Def* normalize_IOp(const Def* type, const Def* callee, const Def* arg, con
         if (auto res = merge_cmps<std::bit_or <flags_t>>(world, a, b)) return res;
     }
 
+    if (auto app = callee->isa<App>()) {
+        if (auto res = reassociate<Tag::IOp>(op, world, app, a, b)) return res;
+    }
+
     return world.raw_app(callee, {a, b}, dbg);
 }
 
@@ -287,7 +335,11 @@ const Def* normalize_WOp(const Def* type, const Def* callee, const Def* arg, con
     auto& world = type->world();
     auto [a, b] = arg->split<2>();
 
-    if (auto result = fold<8, WOp, op>(type, callee, nullptr, a, b, dbg)) return result;
+    if (auto result = fold<8, WOp, op>(world, type, callee, nullptr, a, b, dbg)) return result;
+
+    if (auto app = callee->isa<App>()) {
+        if (auto res = reassociate<Tag::WOp>(op, world, app, a, b)) return res;
+    }
 
     return world.raw_app(callee, {a, b}, dbg);
 }
@@ -297,7 +349,7 @@ const Def* normalize_ZOp(const Def* type, const Def* callee, const Def* arg, con
     auto& world = type->world();
     auto [m, a, b] = arg->split<3>();
 
-    if (auto result = fold<8, ZOp, op>(type, callee, m, a, b, dbg)) return result;
+    if (auto result = fold<8, ZOp, op>(world, type, callee, m, a, b, dbg)) return result;
 
     return world.raw_app(callee, {m, a, b}, dbg);
 }
@@ -307,7 +359,11 @@ const Def* normalize_ROp(const Def* type, const Def* callee, const Def* arg, con
     auto& world = type->world();
 
     auto [a, b] = arg->split<2>();
-    if (auto result = fold<16, ROp, op>(type, callee, nullptr, a, b, dbg)) return result;
+    if (auto result = fold<16, ROp, op>(world, type, callee, nullptr, a, b, dbg)) return result;
+
+    if (auto app = callee->isa<App>()) {
+        if (auto res = reassociate<Tag::ROp>(op, world, app, a, b)) return res;
+    }
 
     return world.raw_app(callee, {a, b}, dbg);
 }
@@ -317,7 +373,7 @@ const Def* normalize_ICmp(const Def* type, const Def* callee, const Def* arg, co
     auto& world = type->world();
     auto [a, b] = arg->split<2>();
 
-    if (auto result = fold<1, ICmp, op>(type, callee, nullptr, a, b, dbg)) return result;
+    if (auto result = fold<1, ICmp, op>(world, type, callee, nullptr, a, b, dbg)) return result;
     if constexpr (op == ICmp::_f) return world.lit_false();
     if constexpr (op == ICmp::_t) return world.lit_true();
 
@@ -329,22 +385,53 @@ const Def* normalize_RCmp(const Def* type, const Def* callee, const Def* arg, co
     auto& world = type->world();
 
     auto [a, b] = arg->split<2>();
-    if (auto result = fold<16, RCmp, op>(type, callee, nullptr, a, b, dbg)) return result;
+    if (auto result = fold<16, RCmp, op>(world, type, callee, nullptr, a, b, dbg)) return result;
     if constexpr (op == RCmp::f) return world.lit_false();
     if constexpr (op == RCmp::t) return world.lit_true();
 
     return world.raw_app(callee, {a, b}, dbg);
 }
 
-template<Conv op>
-const Def* normalize_Conv(const Def* dst_type, const Def* callee, const Def* src, const Def* dbg) {
+#define TABLE(m) m( 1,  1) m( 1,  8) m( 1, 16) m( 1, 32) m( 1, 64) \
+                 m( 8,  1) m( 8,  8) m( 8, 16) m( 8, 32) m( 8, 64) \
+                 m(16,  1) m(16,  8) m(16, 16) m(16, 32) m(16, 64) \
+                 m(32,  1) m(32,  8) m(32, 16) m(32, 32) m(32, 64) \
+                 m(64,  1) m(64,  8) m(64, 16) m(64, 32) m(64, 64)
+
+template<nat_t min_sw, nat_t min_dw, Conv op>
+static const Def* fold_Conv(const Def* dst_type, const App* callee, const Def* src, const Def* dbg) {
     auto& world = dst_type->world();
+    if (src->isa<Bot>()) return world.bot(dst_type, dbg);
+
+    auto [lit_dw, lit_sw] = callee->args<2>(isa_lit<nat_t>);
+    auto lit_src = src->isa<Lit>();
+    if (lit_src && lit_dw && lit_sw) {
+        Res res;
+#define CODE(sw, dw)                                             \
+        else if (*lit_dw == dw && *lit_sw == sw) {               \
+            if constexpr (dw >= min_dw && sw >= min_sw)          \
+                res = FoldConv<op, dw, sw>::run(lit_src->get()); \
+        }
+        if (false) {} TABLE(CODE)
+#undef CODE
+        if (res) return world.lit(dst_type, *res, dbg);
+        return world.bot(dst_type, dbg);
+    }
+
+    return nullptr;
+}
+
+template<Conv op>
+const Def* normalize_Conv(const Def* dst_type, const Def* c, const Def* src, const Def* dbg) {
+    auto& world = dst_type->world();
+    auto callee = c->isa<App>();
+    if (callee == nullptr) return nullptr;
 
     static constexpr auto min_sw = op == Conv::r2s || op == Conv::r2u || op == Conv::r2r ? 16 : 1;
     static constexpr auto min_dw = op == Conv::s2r || op == Conv::u2r || op == Conv::r2r ? 16 : 1;
     if (auto result = fold_Conv<min_sw, min_dw, op>(dst_type, callee, src, dbg)) return result;
 
-    auto [sw, dw] = callee->as<App>()->args<2>(isa_lit<nat_t>);
+    auto [dw, sw] = callee->args<2>(isa_lit<nat_t>);
     if (sw == dw && dst_type == src->type()) return src;
 
     if constexpr (op == Conv::s2s) {

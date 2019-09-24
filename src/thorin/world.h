@@ -77,11 +77,12 @@ public:
     }
     ~World();
 
-    // getters
+    /// @ getters
+    //@{
     const std::string& name() const { return name_; }
     const Sea& defs() const { return defs_; }
-    std::vector<Lam*> copy_lams() const;
-
+    std::vector<Lam*> copy_lams() const; // TODO remove this
+    //@}
     /// @name manage global identifier - a unique number for each Def
     //@{
     uint32_t cur_gid() const { return cur_gid_; }
@@ -334,9 +335,9 @@ public:
     //@{
     const Axiom* op(Conv o) { return cache_.Conv_[size_t(o)]; }
     const Def* op(Conv o, const Def* dst_type, const Def* src, Debug dbg = {}) {
-        auto sw = src->type()->as<App>()->arg();
         auto dw =  dst_type  ->as<App>()->arg();
-        return app(app(op(o), {sw, dw}), src, dbg);
+        auto sw = src->type()->as<App>()->arg();
+        return app(app(op(o), {dw, sw}), src, dbg);
     }
     //@}
     /// @name memory-related operations
@@ -368,7 +369,7 @@ public:
     const Axiom* op_lea()     const { return cache_.op_lea_; }
     const Axiom* op_select()  const { return cache_.op_select_; }
     const Axiom* op_sizeof()  const { return cache_.op_sizeof_; }
-    const Def* op_bitcast(const Def* dst_type, const Def* src, Debug dbg = {}) { return app(app(op_bitcast(), {src->type(), dst_type}), src, dbg); }
+    const Def* op_bitcast(const Def* dst_type, const Def* src, Debug dbg = {}) { return app(app(op_bitcast(), {dst_type, src->type()}), src, dbg); }
     const Def* op_lea(const Def* ptr, const Def* index, Debug dbg = {});
     const Def* op_lea_unsafe(const Def* ptr, const Def* index, Debug dbg) { return op_lea(ptr, op_bitcast(as<Tag::Ptr>(ptr->type())->arg(0)->arity(), index, dbg), dbg); }
     const Def* op_select(const Def* cond, const Def* t, const Def* f, Debug dbg = {}) { return app(app(cache_.op_select_, t->type()), {cond, t, f}, dbg); }
@@ -453,7 +454,6 @@ private:
         return std::get<const Def*>(*dbg);
     }
     //@}
-
     /// @name memory management and hashing
     //@{
     template<class T, class... Args>

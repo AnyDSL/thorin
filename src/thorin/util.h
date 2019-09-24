@@ -12,6 +12,8 @@ bool is_const(const Def*);
 bool is_tuple_arg_of_app(const Def*);
 bool is_memop(const Def* def);
 
+template<class T, class U> bool has(T flags, U option) { return (flags & option) == option; }
+
 Array<const Def*> merge(const Def* def, Defs defs);
 const Def* merge_sigma(const Def* def, Defs defs);
 const Def* merge_tuple(const Def* def, Defs defs);

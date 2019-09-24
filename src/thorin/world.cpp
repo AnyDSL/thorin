@@ -99,10 +99,10 @@ World::World(uint32_t cur_gid, const std::string& name, bool tuple2pack)
     }
 #undef CODE
 #define CODE(T, o) \
-    {   /* Conv: Π[sw: nat, dw: nat]. Πi/r sw. i/r dw */                                                             \
+    {   /* Conv: Π[dw: nat, sw: nat]. Πi/r sw. i/r dw */                                                             \
         auto type = pi(star)->set_domain({nat, nat});                                                                \
-        auto sw = type->param(0, {"sw"});                                                                            \
-        auto dw = type->param(1, {"dw"});                                                                            \
+        auto dw = type->param(0, {"dw"});                                                                            \
+        auto sw = type->param(1, {"sw"});                                                                            \
         auto type_sw = T::o == T::r2s || T::o == T::r2u || T::o == T::r2r ? type_real(sw) : type_int(sw);            \
         auto type_dw = T::o == T::s2r || T::o == T::u2r || T::o == T::r2r ? type_real(dw) : type_int(dw);            \
         type->set_codomain(pi(type_sw, type_dw));                                                                    \
@@ -121,10 +121,10 @@ World::World(uint32_t cur_gid, const std::string& name, bool tuple2pack)
         auto T = type->param({"T"});
         type->set_codomain(pi(T, type_bool()));
         cache_.PE_[size_t(PE::known)] = axiom(normalize_PE<PE::known>, type, 0, Tag::PE, flags_t(PE::known), {op2str(PE::known)});
-    } {   // bitcast: Π[S: *, D: *]. ΠS. D
+    } {   // bitcast: Π[D: *, S: *]. ΠS. D
         auto type = pi(star)->set_domain({star, star});
-        auto S = type->param(0, {"S"});
-        auto D = type->param(1, {"D"});
+        auto D = type->param(0, {"D"});
+        auto S = type->param(1, {"S"});
         type->set_codomain(pi(S, D));
         cache_.op_bitcast_ = axiom(normalize_bitcast, type, 0, Tag::Bitcast, 0, {"bitcast"});
     } { // select: ΠT: *. Π[bool, T, T]. T
@@ -195,9 +195,26 @@ Axiom* World::axiom(Def::NormalizeFn normalize, const Def* type, size_t num_ops,
     return a;
 }
 
-bool assignable(const Def* dst, const Def* src) {
-    if (dst == src) return true;
-    return false;
+static const Def* lub(const Def* t1, const Def* t2) { // TODO broken
+    if (t1->isa<Universe>()) return t1;
+    if (t2->isa<Universe>()) return t2;
+    //assert(t1->isa<Kind>() && t2->isa<Kind>());
+    switch (std::max(t1->node(), t2->node())) {
+        case Node::KindArity: return t1->world().kind_arity();
+        case Node::KindMulti: return t1->world().kind_multi();
+        case Node::KindStar:  return t1->world().kind_star();
+        default: THORIN_UNREACHABLE;
+    }
+}
+
+const Pi* World::pi(const Def* domain, const Def* codomain, Debug dbg) {
+    auto type = lub(domain->type(), codomain->type());
+    return unify<Pi>(2, type, domain, codomain, debug(dbg));
+}
+
+const Lam* World::lam(const Def* domain, const Def* filter, const Def* body, Debug dbg) {
+    auto p = pi(domain, body->type());
+    return unify<Lam>(2, p, filter, body, debug(dbg));
 }
 
 const Def* World::app(const Def* callee, const Def* arg, Debug dbg) {
@@ -243,28 +260,6 @@ const Def* World::raw_app(const Def* callee, const Def* arg, Debug dbg) {
     auto type = pi->apply(arg);
     auto [axiom, currying_depth] = get_axiom(callee);
     return unify<App>(2, axiom, currying_depth-1, type, callee, arg, debug(dbg));
-}
-
-const Lam* World::lam(const Def* domain, const Def* filter, const Def* body, Debug dbg) {
-    auto p = pi(domain, body->type());
-    return unify<Lam>(2, p, filter, body, debug(dbg));
-}
-
-static const Def* lub(const Def* t1, const Def* t2) {
-    if (t1->isa<Universe>()) return t1;
-    if (t2->isa<Universe>()) return t2;
-    //assert(t1->isa<Kind>() && t2->isa<Kind>());
-    switch (std::max(t1->node(), t2->node())) {
-        case Node::KindArity: return t1->world().kind_arity();
-        case Node::KindMulti: return t1->world().kind_multi();
-        case Node::KindStar:  return t1->world().kind_star();
-        default: THORIN_UNREACHABLE;
-    }
-}
-
-const Pi* World::pi(const Def* domain, const Def* codomain, Debug dbg) {
-    auto type = lub(domain->type(), codomain->type());
-    return unify<Pi>(2, type, domain, codomain, debug(dbg));
 }
 
 const Def* World::sigma(const Def* type, Defs ops, Debug dbg) {
@@ -437,6 +432,29 @@ const Lit* World::lit_index(const Def* a, u64 i, Debug dbg) {
     return lit(a, i, dbg);
 }
 
+const Def* World::bot_top(bool is_top, const Def* type, Debug dbg) {
+    if (auto variadic = type->isa<Variadic>()) return pack(variadic->arity(), bot_top(is_top, variadic->body()), dbg);
+    if (auto sigma = type->isa<Sigma>())
+        return tuple(sigma, Array<const Def*>(sigma->num_ops(), [&](size_t i) { return bot_top(is_top, sigma->op(i), dbg); }), dbg);
+    auto d = debug(dbg);
+    return is_top ? (const Def*) unify<Top>(0, type, d) : (const Def*) unify<Bot>(0, type, d);
+}
+
+const Def* World::global(const Def* id, const Def* init, bool is_mutable, Debug dbg) {
+    return unify<Global>(2, type_ptr(init->type()), id, init, is_mutable, debug(dbg));
+}
+
+const Def* World::global_immutable_string(const std::string& str, Debug dbg) {
+    size_t size = str.size() + 1;
+
+    Array<const Def*> str_array(size);
+    for (size_t i = 0; i != size-1; ++i)
+        str_array[i] = lit_nat(str[i], dbg);
+    str_array.back() = lit_nat('\0', dbg);
+
+    return global(tuple(str_array, dbg), false, dbg);
+}
+
 /*
  * ops
  */
@@ -470,86 +488,6 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
 
     auto llit = a->isa<Lit>();
     auto rlit = b->isa<Lit>();
-
-    if (llit && rlit) {
-
-        try {
-            switch (tag) {
-                case ArithOp_add:
-                    switch (type) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit(type, T(llit->get<T>() + rlit->get<T>()), dbg);
-#include "thorin/tables/primtypetable.h"
-                        default: THORIN_UNREACHABLE;
-                    }
-                case ArithOp_sub:
-                    switch (type) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit(type, T(llit->get<T>() - rlit->get<T>()), dbg);
-#include "thorin/tables/primtypetable.h"
-                        default: THORIN_UNREACHABLE;
-                    }
-                case ArithOp_mul:
-                    switch (type) {
-#define THORIN_P_TYPE(T, M) case PrimType_##T: return lit(type, T(llit->get<T>() * rlit->get<T>()), dbg);
-#define THORIN_Q_TYPE(T, M) case PrimType_##T: return lit(type, T(llit->get<T>() * rlit->get<T>()), dbg);
-#include "thorin/tables/primtypetable.h"
-                        default: THORIN_UNREACHABLE;
-                    }
-                case ArithOp_div:
-                    switch (type) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit(type, T(llit->get<T>() / rlit->get<T>()), dbg);
-#include "thorin/tables/primtypetable.h"
-                        default: THORIN_UNREACHABLE;
-                    }
-                case ArithOp_rem:
-                    switch (type) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit(type, T(llit->get<T>() % rlit->get<T>()), dbg);
-#include "thorin/tables/primtypetable.h"
-                        default: THORIN_UNREACHABLE;
-                    }
-                case ArithOp_and:
-                    switch (type) {
-#define THORIN_I_TYPE(T, M)    case PrimType_##T: return lit(type, T(llit->get<T>() & rlit->get<T>()), dbg);
-#define THORIN_BOOL_TYPE(T, M) case PrimType_##T: return lit(type, T(llit->get<T>() & rlit->get<T>()), dbg);
-#include "thorin/tables/primtypetable.h"
-                        default: THORIN_UNREACHABLE;
-                    }
-                case ArithOp_or:
-                    switch (type) {
-#define THORIN_I_TYPE(T, M)    case PrimType_##T: return lit(type, T(llit->get<T>() | rlit->get<T>()), dbg);
-#define THORIN_BOOL_TYPE(T, M) case PrimType_##T: return lit(type, T(llit->get<T>() | rlit->get<T>()), dbg);
-#include "thorin/tables/primtypetable.h"
-                        default: THORIN_UNREACHABLE;
-                    }
-                case ArithOp_xor:
-                    switch (type) {
-#define THORIN_I_TYPE(T, M)    case PrimType_##T: return lit(type, T(llit->get<T>() ^ rlit->get<T>()), dbg);
-#define THORIN_BOOL_TYPE(T, M) case PrimType_##T: return lit(type, T(llit->get<T>() ^ rlit->get<T>()), dbg);
-#include "thorin/tables/primtypetable.h"
-                        default: THORIN_UNREACHABLE;
-                    }
-                case ArithOp_shl:
-                    switch (type) {
-#define THORIN_I_TYPE(T, M) case PrimType_##T: return lit(type, T(llit->get<T>() << rlit->get<T>()), dbg);
-#include "thorin/tables/primtypetable.h"
-                        default: THORIN_UNREACHABLE;
-                    }
-                case ArithOp_shr:
-                    switch (type) {
-#define THORIN_I_TYPE(T, M) case PrimType_##T: return lit(type, T(llit->get<T>() >> rlit->get<T>()), dbg);
-#include "thorin/tables/primtypetable.h"
-                        default: THORIN_UNREACHABLE;
-                    }
-            }
-        } catch (BottomException) {
-            return bot(type, dbg);
-        }
-    }
-
-    // normalize: swap literal to the left
-    if (is_commutative(tag) && rlit) {
-        std::swap(a, b);
-        std::swap(llit, rlit);
-    }
 
     if (is_type_i(type) || type == PrimType_bool) {
         if (a == b) {
@@ -646,17 +584,6 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
                 return this->cmp(negate(cmp->cmp_tag()), cmp->lhs(), cmp->rhs(), dbg);
         }
 
-        auto lcmp = a->isa<Cmp>();
-        auto rcmp = b->isa<Cmp>();
-
-        if (tag == ArithOp_or && lcmp && rcmp && lcmp->lhs() == rcmp->lhs() && lcmp->rhs() == rcmp->rhs()
-                && lcmp->cmp_tag() == negate(rcmp->cmp_tag()))
-                return lit_bool(true, dbg);
-
-        if (tag == ArithOp_and && lcmp && rcmp && lcmp->lhs() == rcmp->lhs() && lcmp->rhs() == rcmp->rhs()
-                && lcmp->cmp_tag() == negate(rcmp->cmp_tag()))
-                return lit_bool(false, dbg);
-
         auto land = a->tag() == Node_and ? a->as<ArithOp>() : nullptr;
         auto rand = b->tag() == Node_and ? b->as<ArithOp>() : nullptr;
 
@@ -744,51 +671,6 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
     return unify<ArithOp>(2, tag, a, b, debug(dbg));
 }
 #endif
-
-const Def* World::bot_top(bool is_top, const Def* type, Debug dbg) {
-    if (auto variadic = type->isa<Variadic>()) return pack(variadic->arity(), bot_top(is_top, variadic->body()), dbg);
-    if (auto sigma = type->isa<Sigma>())
-        return tuple(sigma, Array<const Def*>(sigma->num_ops(), [&](size_t i) { return bot_top(is_top, sigma->op(i), dbg); }), dbg);
-    auto d = debug(dbg);
-    return is_top ? (const Def*) unify<Top>(0, type, d) : (const Def*) unify<Bot>(0, type, d);
-}
-
-/*
- * memory stuff
- */
-
-const Def* World::global(const Def* id, const Def* init, bool is_mutable, Debug dbg) {
-    return unify<Global>(2, type_ptr(init->type()), id, init, is_mutable, debug(dbg));
-}
-
-const Def* World::global_immutable_string(const std::string& str, Debug dbg) {
-    size_t size = str.size() + 1;
-
-    Array<const Def*> str_array(size);
-    for (size_t i = 0; i != size-1; ++i)
-        str_array[i] = lit_nat(str[i], dbg);
-    str_array.back() = lit_nat('\0', dbg);
-
-    return global(tuple(str_array, dbg), false, dbg);
-}
-
-/*
-const Assembly* World::assembly(const Def* type, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg) {
-    return unify<Assembly>(inputs.size(), type, inputs, asm_template, output_constraints, input_constraints, clobbers, flags, debug(dbg))->as<Assembly>();;
-}
-
-const Assembly* World::assembly(Defs types, const Def* mem, Defs inputs, std::string asm_template, ArrayRef<std::string> output_constraints, ArrayRef<std::string> input_constraints, ArrayRef<std::string> clobbers, Assembly::Flags flags, Debug dbg) {
-    Array<const Def*> output(types.size()+1);
-    std::copy(types.begin(), types.end(), output.begin()+1);
-    output.front() = type_mem();
-
-    Array<const Def*> ops(inputs.size()+1);
-    std::copy(inputs.begin(), inputs.end(), ops.begin()+1);
-    ops.front() = mem;
-
-    return assembly(sigma(output), ops, asm_template, output_constraints, input_constraints, clobbers, flags, dbg);
-}
-*/
 
 Lam* World::match(const Def* type, size_t num_patterns) {
     Array<const Def*> arg_types(num_patterns + 2);

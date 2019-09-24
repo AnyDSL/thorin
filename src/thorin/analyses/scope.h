@@ -9,11 +9,13 @@
 
 namespace thorin {
 
-template<bool> class CFG;
-typedef CFG<true>  F_CFG;
-typedef CFG<false> B_CFG;
-
+class Scope;
 class CFA;
+template<bool> class CFG;
+using EnterFn   = std::function<bool(const Scope&)>;
+using RewriteFn = std::function<const Def*(const Def*)>;
+using F_CFG = CFG<true >;
+using B_CFG = CFG<false>;
 
 /**
  * A @p Scope represents a region of @em nominals which are live from the view of an @p entry @em nominal.
@@ -68,6 +70,7 @@ public:
      */
     template<bool elide_empty = true>
     static void for_each(const World&, std::function<void(Scope&)>);
+    static void for_each_rewrite(World&, EnterFn, RewriteFn);
 
 private:
     void run();

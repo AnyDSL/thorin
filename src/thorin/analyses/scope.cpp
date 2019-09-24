@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <fstream>
 
+#include "thorin/rewrite.h"
+#include "thorin/util/log.h"
 #include "thorin/world.h"
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/domtree.h"
@@ -118,6 +120,21 @@ void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
             }
         }
     }
+}
+
+void Scope::for_each_rewrite(World& world, EnterFn enter_fn, RewriteFn rewrite_fn) {
+    Scope::for_each(world, [&](Scope& scope) {
+        if (enter_fn(scope)) {
+            auto new_body = rewrite(scope.entry(), &scope, rewrite_fn);
+
+            if (scope.entry()->ops().back() != new_body) {
+                scope.entry()->set(scope.entry()->num_ops()-1, new_body);
+                scope.update();
+                outf("XXX\n");
+            }
+            scope.dump();
+        }
+    });
 }
 
 template void Scope::for_each<true> (const World&, std::function<void(Scope&)>);

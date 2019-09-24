@@ -66,13 +66,13 @@ template<typename... Args> std::ostream& errf(const char* fmt, Args... args) { r
 #define WDEF(def, ...) thorin::Log::log(thorin::Log::Warn, (def)->loc(), __VA_ARGS__)
 #define IDEF(def, ...) thorin::Log::log(thorin::Log::Info, (def)->loc(), __VA_ARGS__)
 
-#define ELOG(...) thorin::Log::log(thorin::Log::Error,   std::string(__FILE__":" THORIN_STRINGIFY(__LINE__)), __VA_ARGS__)
-#define WLOG(...) thorin::Log::log(thorin::Log::Warn,    std::string(__FILE__":" THORIN_STRINGIFY(__LINE__)), __VA_ARGS__)
-#define ILOG(...) thorin::Log::log(thorin::Log::Info,    std::string(__FILE__":" THORIN_STRINGIFY(__LINE__)), __VA_ARGS__)
-#define VLOG(...) thorin::Log::log(thorin::Log::Verbose, std::string(__FILE__":" THORIN_STRINGIFY(__LINE__)), __VA_ARGS__)
+#define ELOG(...) thorin::Log::log(thorin::Log::Error,   std::string(__FILE__":" THORIN_TOSTRING(__LINE__)), __VA_ARGS__)
+#define WLOG(...) thorin::Log::log(thorin::Log::Warn,    std::string(__FILE__":" THORIN_TOSTRING(__LINE__)), __VA_ARGS__)
+#define ILOG(...) thorin::Log::log(thorin::Log::Info,    std::string(__FILE__":" THORIN_TOSTRING(__LINE__)), __VA_ARGS__)
+#define VLOG(...) thorin::Log::log(thorin::Log::Verbose, std::string(__FILE__":" THORIN_TOSTRING(__LINE__)), __VA_ARGS__)
 
 #ifndef NDEBUG
-#define DLOG(...) thorin::Log::log(thorin::Log::Debug,   std::string(__FILE__":" THORIN_STRINGIFY(__LINE__)), __VA_ARGS__)
+#define DLOG(...) thorin::Log::log(thorin::Log::Debug,   std::string(__FILE__":" THORIN_TOSTRING(__LINE__)), __VA_ARGS__)
 #else
 #define DLOG(...) do {} while (false)
 #endif

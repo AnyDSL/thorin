@@ -30,7 +30,6 @@ public:
 
 private:
     void cleanup_fix_point();
-    void clean_pe_info(std::queue<Lam*>, Lam*);
     World& world_;
     bool todo_ = true;
 };
@@ -277,50 +276,31 @@ void Cleaner::within(const Def* def) {
     assert_unused(world().defs().contains(def->type()));
 }
 
-void Cleaner::clean_pe_info(std::queue<Lam*> queue, Lam* cur) {
-    auto app = cur->app();
-    auto next = app->arg(3);
-    //auto msg = app->arg(1)->as<Bitcast>()->from()->as<Global>()->init()->as<Variadic>();
-
-    assert(!is_const(app->arg(2)));
-    IDEF(app->callee(), "pe_info not constant: {}: {}", "TODO", app->arg(2));
-    cur->app(next, {app->arg(0)}, app->debug());
-    todo_ = true;
-
-    // always re-insert into queue because we've changed cur's jump
-    queue.push(cur);
-}
-
 void Cleaner::clean_pe_infos() {
     VLOG("cleaning remaining pe_infos");
-    std::queue<Lam*> queue;
-    LamSet done;
 
-    auto enqueue = [&](Lam* lam) {
-        if (lam->is_set() && done.emplace(lam).second)
-            queue.push(lam);
-    };
+    Scope::for_each(world(), [&](Scope& scope) {
+        auto entry = scope.entry()->isa<Lam>();
+        if (entry == nullptr) return;
 
-    for (const auto& [name, nom] : world().externals()) {
-        if (auto lam = nom->isa<Lam>())
-            enqueue(lam);
-    }
-
-    while (!queue.empty()) {
-        auto lam = pop(queue);
-
-        if (auto app = lam->app()) {
-            if (auto callee = app->callee()->isa_nominal<Lam>()) {
-                if (callee->intrinsic() == Lam::Intrinsic::PeInfo) {
-                    clean_pe_info(queue, lam);
-                    continue;
+        bool dirty = false;
+        rewrite(entry, &scope, [&](const Def* old_def) {
+            if (auto app = old_def->isa<App>()) {
+                if (auto callee = app->callee()->isa_nominal<Lam>()) {
+                    if (callee->intrinsic() == Lam::Intrinsic::PeInfo) {
+                        auto next = app->arg(3);
+                        assert(!is_const(app->arg(2)));
+                        IDEF(app->callee(), "pe_info not constant: {}: {}", "TODO", app->arg(2));
+                        dirty = true;
+                        return world().app(next, {app->arg(0)}, app->debug());
+                    }
                 }
             }
-        }
+            return (const Def*) nullptr;
+        });
 
-        for (auto succ : lam->succs())
-            enqueue(succ);
-    }
+        if (dirty) scope.update();
+    });
 }
 
 void Cleaner::cleanup_fix_point() {

@@ -9,11 +9,8 @@
 
 namespace thorin {
 
-class Scope;
 class CFA;
 template<bool> class CFG;
-using EnterFn   = std::function<bool(const Scope&)>;
-using RewriteFn = std::function<const Def*(const Def*)>;
 using F_CFG = CFG<true >;
 using B_CFG = CFG<false>;
 
@@ -55,22 +52,12 @@ public:
     const F_CFG& f_cfg() const;
     const B_CFG& b_cfg() const;
     //@}
-
     //@{ dump
     // Note that we don't use overloading for the following methods in order to have them accessible from gdb.
     virtual std::ostream& stream(std::ostream&) const override;  ///< Streams thorin to file @p out.
     void write_thorin(const char* filename) const;               ///< Dumps thorin to file with name @p filename.
     void thorin() const;                                         ///< Dumps thorin to a file with an auto-generated file name.
     //@}
-
-    /**
-     * Transitively visits all @em reachable Scope%s in @p world that do not have free variables.
-     * We call these Scope%s @em top-level Scope%s.
-     * Select with @p elide_empty whether you want to visit trivial @p Scope%s of @em nominalss without body.
-     */
-    template<bool elide_empty = true>
-    static void for_each(const World&, std::function<void(Scope&)>);
-    static void for_each_rewrite(World&, EnterFn, RewriteFn);
 
 private:
     void run();

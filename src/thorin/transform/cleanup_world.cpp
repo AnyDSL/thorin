@@ -35,7 +35,7 @@ private:
 };
 
 void Cleaner::eliminate_tail_rec() {
-    Scope::for_each(world_, [&](Scope& scope) {
+    world_.visit([&](Scope& scope) {
         auto entry = scope.entry()->isa<Lam>();
         if (entry == nullptr) return;
 
@@ -277,30 +277,23 @@ void Cleaner::within(const Def* def) {
 }
 
 void Cleaner::clean_pe_infos() {
-    VLOG("cleaning remaining pe_infos");
-
-    Scope::for_each(world(), [&](Scope& scope) {
-        auto entry = scope.entry()->isa<Lam>();
-        if (entry == nullptr) return;
-
-        bool dirty = false;
-        rewrite(entry, &scope, [&](const Def* old_def) {
+    world().rewrite("cleaning remaining pe_infos",
+        [&](const Scope& scope) {
+            return scope.entry()->isa<Lam>();
+        },
+        [&](const Def* old_def) -> const Def* {
             if (auto app = old_def->isa<App>()) {
                 if (auto callee = app->callee()->isa_nominal<Lam>()) {
                     if (callee->intrinsic() == Lam::Intrinsic::PeInfo) {
                         auto next = app->arg(3);
                         assert(!is_const(app->arg(2)));
                         IDEF(app->callee(), "pe_info not constant: {}: {}", "TODO", app->arg(2));
-                        dirty = true;
                         return world().app(next, {app->arg(0)}, app->debug());
                     }
                 }
             }
-            return (const Def*) nullptr;
+            return nullptr;
         });
-
-        if (dirty) scope.update();
-    });
 }
 
 void Cleaner::cleanup_fix_point() {

@@ -15,6 +15,10 @@
 
 namespace thorin {
 
+class Scope;
+using EnterFn   = std::function<bool(const Scope&)>;
+using RewriteFn = std::function<const Def*(const Def*)>;
+
 const Def* infer_width(const Def*);
 
 /**
@@ -390,6 +394,16 @@ public:
     void make_internal(Def* def) { externals_.erase(def->name()); }
     bool is_external(const Def* def) { return externals_.contains(def->name()); }
     Def* lookup(const std::string& name) { return externals_.lookup(name).value_or(nullptr); }
+    //@}
+    /// @name visit and rewrite
+    //@{
+    /**
+     * Transitively visits all @em reachable Scope%s in this @p World that do not have free variables.
+     * We call these Scope%s @em top-level Scope%s.
+     * Select with @p elide_empty whether you want to visit trivial @p Scope%s of @em nominals without body.
+     */
+    template<bool elide_empty = true> void visit(std::function<void(Scope&)>) const;
+    void rewrite(const std::string& info, EnterFn, RewriteFn);
     //@}
 #if THORIN_ENABLE_CHECKS
     /// @name debugging features

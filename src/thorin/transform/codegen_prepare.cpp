@@ -1,16 +1,14 @@
 #include "thorin/world.h"
-#include "thorin/rewrite.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/util/log.h"
 
 namespace thorin {
 
 void codegen_prepare(World& world) {
-    VLOG("start codegen_prepare");
-
     const Param* old_param = nullptr;
     const Def* new_param = nullptr;
-    Scope::for_each_rewrite(world,
+
+    world.rewrite( "codegen_prepare",
         [&](const Scope& scope) {
             if (auto entry = scope.entry()->isa<Lam>()) {
                 DLOG("scope: {}", entry);

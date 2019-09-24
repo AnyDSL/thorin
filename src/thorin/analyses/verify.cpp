@@ -5,7 +5,7 @@
 namespace thorin {
 
 static void verify_top_level(World& world) {
-    Scope::for_each(world, [&] (const Scope& scope) {
+    world.visit([&](const Scope& scope) {
         if (scope.has_free_params()) {
             for (auto param : scope.free_params())
                 ELOG("top-level lam '{}' got free param '{}' belonging to lam {}", scope.entry(), param, param->lam());

@@ -672,6 +672,60 @@ std::vector<Lam*> World::copy_lams() const {
 }
 
 /*
+ * visit & rewrite
+ */
+
+template<bool elide_empty>
+void World::visit(std::function<void(Scope&)> f) const {
+    unique_queue<NomSet> nom_queue;
+
+    for (const auto& [name, nom] : externals()) {
+        assert(nom->is_set() && "external must not be empty");
+        nom_queue.push(nom);
+    }
+
+    while (!nom_queue.empty()) {
+        auto nom = nom_queue.pop();
+        if (elide_empty && !nom->is_set()) continue;
+        Scope scope(nom);
+        f(scope);
+
+        unique_queue<DefSet> def_queue;
+        for (auto def : scope.free())
+            def_queue.push(def);
+
+        while (!def_queue.empty()) {
+            auto def = def_queue.pop();
+            if (auto nom = def->isa_nominal())
+                nom_queue.push(nom);
+            else {
+                for (auto op : def->ops())
+                    def_queue.push(op);
+            }
+        }
+    }
+}
+
+void World::rewrite(const std::string& info, EnterFn enter_fn, RewriteFn rewrite_fn) {
+    VLOG("start: {},", info);
+
+    visit([&](Scope& scope) {
+        if (enter_fn(scope)) {
+            auto new_body = thorin::rewrite(scope.entry(), &scope, rewrite_fn);
+
+            if (scope.entry()->ops().back() != new_body) {
+                scope.entry()->set(scope.entry()->num_ops()-1, new_body);
+                scope.update();
+            }
+        }
+    });
+    VLOG("end: {},", info);
+}
+
+template void World::visit<true> (std::function<void(Scope&)>) const;
+template void World::visit<false>(std::function<void(Scope&)>) const;
+
+/*
  * stream
  */
 
@@ -688,7 +742,7 @@ std::ostream& World::stream(std::ostream& os) const {
     for (auto global : globals)
         global->stream_assignment(os);
 
-    Scope::for_each<false>(*this, [&] (const Scope& scope) {
+    visit<false>([&] (const Scope& scope) {
         if (scope.entry()->isa<Axiom>()) return;
         scope.stream(os);
     });

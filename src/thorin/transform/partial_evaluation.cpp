@@ -4,7 +4,38 @@
 #include "thorin/util/hash.h"
 #include "thorin/util/log.h"
 
+// WARNING This file will be nuked
+
 namespace thorin {
+
+Lams succs(Lam* lam) {
+    std::vector<Lam*> succs;
+    std::queue<const Def*> queue;
+    DefSet done;
+
+    auto enqueue = [&] (const Def* def) {
+        if (done.find(def) == done.end()) {
+            queue.push(def);
+            done.insert(def);
+        }
+    };
+
+    done.insert(lam);
+    enqueue(lam->body());
+
+    while (!queue.empty()) {
+        auto def = pop(queue);
+        if (auto lam = def->isa_nominal<Lam>()) {
+            succs.push_back(lam);
+            continue;
+        }
+
+        for (auto op : def->ops())
+            enqueue(op);
+    }
+
+    return succs;
+}
 
 class PartialEvaluator {
 public:
@@ -208,7 +239,7 @@ bool PartialEvaluator::run() {
             }
         }
 
-        for (auto succ : lam->succs())
+        for (auto succ : succs(lam))
             enqueue(succ);
     }
 

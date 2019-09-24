@@ -403,7 +403,14 @@ public:
      * Select with @p elide_empty whether you want to visit trivial @p Scope%s of @em nominals without body.
      */
     template<bool elide_empty = true> void visit(std::function<void(Scope&)>) const;
-    void rewrite(const std::string& info, EnterFn, RewriteFn);
+    /**
+     * Rewrites the whole world by @p visit%ing each @p Def with all @em top-level @p Scope%s.
+     * Every time, we enter a new scope @p enter_fn will be invoked.
+     * Return @c true, if you are interested in this @p Scope.
+     * Return @c false, if you want to skip this @p Scope.
+     * For each @p Def in the current @p Scope, @p rewrite_fn will be invoked.
+     */
+    void rewrite(const std::string& info, EnterFn enter_fn, RewriteFn rewrite_fn);
     //@}
 #if THORIN_ENABLE_CHECKS
     /// @name debugging features

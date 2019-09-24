@@ -6,7 +6,7 @@
 namespace thorin {
 
 /*
- * helpers
+ * small helpers
  */
 
 static bool is_allset(const Def* def) {
@@ -33,66 +33,6 @@ static bool is_commutative(WOp op) { return op == WOp:: add || op == WOp::mul; }
 static bool is_commutative(ROp op) { return op == ROp:: add || op == ROp::mul; }
 
 template<class T> static bool is_associative(T op) { return is_commutative(op); }
-//template<class T> static bool is_associative(T) { return false; }
-
-/**
- * Reassociates @p a und @p b according to following rules.
- * We use the following naming convention while literals are prefixed with an 'l':
-@verbatim
-    a    op     b
-(x op y) op (z op w)
-@endverbatim
- * Rules:
-@verbatim
- * (1)     la    op (lz op w) -> (la op lz) op w
- * (2) (lx op y) op (lz op w) -> (lx op lz) op (y op w)
- * (3)      a    op (lz op w) ->  lz op (a op w)
- * (4) (lx op y) op      b    ->  lx op (y op b)
-@endverbatim
- */
-template<tag_t tag>
-static const Def* reassociate(Tag2Enum<tag> op, World& world, const App* ab, const Def* a, const Def* b) {
-    static constexpr auto has_mode = tag == Tag::WOp || tag == Tag::ROp;
-
-    auto la = a->isa<Lit>();
-    auto xy = isa<tag>(op, a);
-    auto zw = isa<tag>(op, b);
-
-    auto  y = xy ? xy->arg(1) : nullptr;
-    auto  w = zw ? zw->arg(1) : nullptr;
-    auto lx = xy ? xy->arg(0)->template isa<Lit>() : nullptr;
-    auto lz = zw ? zw->arg(0)->template isa<Lit>() : nullptr;
-
-    std::function<const Def*(const Def*, const Def*)> make_op;
-
-    // build mode for all new ops by using the least upper bound of all involved apps
-    nat_t m = nat_t(-1); // bottom
-    if constexpr (has_mode) {
-#define check_mode(app) {                                         \
-            auto app_m = isa_lit<nat_t>(app->arg(0));             \
-            if (!app_m) return nullptr;                           \
-            if constexpr (tag == Tag::ROp) {                      \
-                if (!has(*app_m, RMode::reassoc)) return nullptr; \
-            }                                                     \
-            m &= *app_m; /* lub */                                \
-        }
-
-        check_mode(ab);
-        if (xy) check_mode(xy->decurry());
-        if (zw) check_mode(zw->decurry());
-
-        make_op = [&](const Def* a, const Def* b) { return world.op(op, m, a, b); };
-    } else {
-        make_op = [&](const Def* a, const Def* b) { return world.op(op, a, b); };
-    }
-
-    if (la && lz) return make_op(make_op(la, lz), w);             // (1)
-    if (lx && lz) return make_op(make_op(lx, lz), make_op(y, w)); // (2)
-    if (lz)       return make_op(lz, make_op(a, w));              // (3)
-    if (lx)       return make_op(lx, make_op(y, b));              // (4)
-
-    return nullptr;
-}
 
 /*
  * Fold
@@ -221,7 +161,7 @@ template<nat_t dw, nat_t sw> struct FoldConv<Conv::r2u, dw, sw> { static Res run
 template<nat_t dw, nat_t sw> struct FoldConv<Conv::r2r, dw, sw> { static Res run(u64 src) { return w2r<dw>(get<w2r<sw>>(src)); } };
 
 /*
- * fold
+ * bigger logic used by several ops
  */
 
 template<nat_t min_w, class Op, Op op>
@@ -285,31 +225,61 @@ static const Def* fold(World& world, const Def* type, const Def* callee, const D
     return commute();
 }
 
-#define TABLE(m) m( 1,  1) m( 1,  8) m( 1, 16) m( 1, 32) m( 1, 64) \
-                 m( 8,  1) m( 8,  8) m( 8, 16) m( 8, 32) m( 8, 64) \
-                 m(16,  1) m(16,  8) m(16, 16) m(16, 32) m(16, 64) \
-                 m(32,  1) m(32,  8) m(32, 16) m(32, 32) m(32, 64) \
-                 m(64,  1) m(64,  8) m(64, 16) m(64, 32) m(64, 64)
+/**
+ * Reassociates @p a und @p b according to following rules.
+ * We use the following naming convention while literals are prefixed with an 'l':
+@verbatim
+    a    op     b
+(x op y) op (z op w)
+@endverbatim
+ * Rules:
+@verbatim
+ * (1)     la    op (lz op w) -> (la op lz) op w
+ * (2) (lx op y) op (lz op w) -> (lx op lz) op (y op w)
+ * (3)      a    op (lz op w) ->  lz op (a op w)
+ * (4) (lx op y) op      b    ->  lx op (y op b)
+@endverbatim
+ */
+template<tag_t tag>
+static const Def* reassociate(Tag2Enum<tag> op, World& world, const App* ab, const Def* a, const Def* b) {
+    static constexpr bool has_mode = tag == Tag::WOp || tag == Tag::ROp;
+    if (!is_associative(tag)) return nullptr;
 
-template<nat_t min_sw, nat_t min_dw, Conv op>
-static const Def* fold_Conv(const Def* dst_type, const App* callee, const Def* src, const Def* dbg) {
-    auto& world = dst_type->world();
-    if (src->isa<Bot>()) return world.bot(dst_type, dbg);
+    auto la = a->isa<Lit>();
+    auto xy = isa<tag>(op, a);
+    auto zw = isa<tag>(op, b);
+    auto  y = xy ? xy->arg(1) : nullptr;
+    auto  w = zw ? zw->arg(1) : nullptr;
+    auto lx = xy ? xy->arg(0)->template isa<Lit>() : nullptr;
+    auto lz = zw ? zw->arg(0)->template isa<Lit>() : nullptr;
 
-    auto [lit_dw, lit_sw] = callee->args<2>(isa_lit<nat_t>);
-    auto lit_src = src->isa<Lit>();
-    if (lit_src && lit_dw && lit_sw) {
-        Res res;
-#define CODE(sw, dw)                                             \
-        else if (*lit_dw == dw && *lit_sw == sw) {               \
-            if constexpr (dw >= min_dw && sw >= min_sw)          \
-                res = FoldConv<op, dw, sw>::run(lit_src->get()); \
+    std::function<const Def*(const Def*, const Def*)> make_op;
+
+    // build mode for all new ops by using the least upper bound of all involved apps
+    nat_t m = nat_t(-1); // bottom
+    if constexpr (has_mode) {
+#define check_mode(app) {                                         \
+            auto app_m = isa_lit<nat_t>(app->arg(0));             \
+            if (!app_m) return nullptr;                           \
+            if constexpr (tag == Tag::ROp) {                      \
+                if (!has(*app_m, RMode::reassoc)) return nullptr; \
+            }                                                     \
+            m &= *app_m; /* lub */                                \
         }
-        if (false) {} TABLE(CODE)
-#undef CODE
-        if (res) return world.lit(dst_type, *res, dbg);
-        return world.bot(dst_type, dbg);
+
+        check_mode(ab);
+        if (xy) check_mode(xy->decurry());
+        if (zw) check_mode(zw->decurry());
+
+        make_op = [&](const Def* a, const Def* b) { return world.op(op, m, a, b); };
+    } else {
+        make_op = [&](const Def* a, const Def* b) { return world.op(op, a, b); };
     }
+
+    if (la && lz) return make_op(make_op(la, lz), w);             // (1)
+    if (lx && lz) return make_op(make_op(lx, lz), make_op(y, w)); // (2)
+    if (lz)       return make_op(lz, make_op(a, w));              // (3)
+    if (lx)       return make_op(lx, make_op(y, b));              // (4)
 
     return nullptr;
 }
@@ -353,7 +323,7 @@ const Def* normalize_IOp(const Def* type, const Def* callee, const Def* arg, con
         if (auto res = merge_cmps<std::bit_or <flags_t>>(world, a, b)) return res;
     }
 
-    if (auto app = callee->isa<App>(); app && is_associative(op)) {
+    if (auto app = callee->isa<App>()) {
         if (auto res = reassociate<Tag::IOp>(op, world, app, a, b)) return res;
     }
 
@@ -367,7 +337,7 @@ const Def* normalize_WOp(const Def* type, const Def* callee, const Def* arg, con
 
     if (auto result = fold<8, WOp, op>(world, type, callee, nullptr, a, b, dbg)) return result;
 
-    if (auto app = callee->isa<App>(); app && is_associative(op)) {
+    if (auto app = callee->isa<App>()) {
         if (auto res = reassociate<Tag::WOp>(op, world, app, a, b)) return res;
     }
 
@@ -391,7 +361,7 @@ const Def* normalize_ROp(const Def* type, const Def* callee, const Def* arg, con
     auto [a, b] = arg->split<2>();
     if (auto result = fold<16, ROp, op>(world, type, callee, nullptr, a, b, dbg)) return result;
 
-    if (auto app = callee->isa<App>(); app && is_associative(op)) {
+    if (auto app = callee->isa<App>()) {
         if (auto res = reassociate<Tag::ROp>(op, world, app, a, b)) return res;
     }
 
@@ -420,6 +390,35 @@ const Def* normalize_RCmp(const Def* type, const Def* callee, const Def* arg, co
     if constexpr (op == RCmp::t) return world.lit_true();
 
     return world.raw_app(callee, {a, b}, dbg);
+}
+
+#define TABLE(m) m( 1,  1) m( 1,  8) m( 1, 16) m( 1, 32) m( 1, 64) \
+                 m( 8,  1) m( 8,  8) m( 8, 16) m( 8, 32) m( 8, 64) \
+                 m(16,  1) m(16,  8) m(16, 16) m(16, 32) m(16, 64) \
+                 m(32,  1) m(32,  8) m(32, 16) m(32, 32) m(32, 64) \
+                 m(64,  1) m(64,  8) m(64, 16) m(64, 32) m(64, 64)
+
+template<nat_t min_sw, nat_t min_dw, Conv op>
+static const Def* fold_Conv(const Def* dst_type, const App* callee, const Def* src, const Def* dbg) {
+    auto& world = dst_type->world();
+    if (src->isa<Bot>()) return world.bot(dst_type, dbg);
+
+    auto [lit_dw, lit_sw] = callee->args<2>(isa_lit<nat_t>);
+    auto lit_src = src->isa<Lit>();
+    if (lit_src && lit_dw && lit_sw) {
+        Res res;
+#define CODE(sw, dw)                                             \
+        else if (*lit_dw == dw && *lit_sw == sw) {               \
+            if constexpr (dw >= min_dw && sw >= min_sw)          \
+                res = FoldConv<op, dw, sw>::run(lit_src->get()); \
+        }
+        if (false) {} TABLE(CODE)
+#undef CODE
+        if (res) return world.lit(dst_type, *res, dbg);
+        return world.bot(dst_type, dbg);
+    }
+
+    return nullptr;
 }
 
 template<Conv op>

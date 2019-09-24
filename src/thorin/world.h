@@ -377,6 +377,24 @@ public:
     Lam* match(const Def* type, size_t num_patterns);
     Axiom* axiom_end() const { return cache_.axiom_end_; }
     //@}
+    /// @name debug information
+    //@{
+    const Def* debug(Debug dbg) {
+        if (auto d = std::get_if<0>(&*dbg)) {
+            auto n = name2def(std::get<0>(*d));
+            auto f = name2def(std::get<1>(*d));
+            auto l = tuple({
+                lit_nat(std::get<2>(*d)),
+                lit_nat(std::get<3>(*d)),
+                lit_nat(std::get<4>(*d)),
+                lit_nat(std::get<5>(*d))
+            });
+            auto m = std::get<6>(*d);
+            return tuple({n, f, l, m ? m : bot(bot_star()) });
+        }
+        return std::get<const Def*>(*dbg);
+    }
+    //@}
     /// @name partial evaluation done?
     //@{
     void mark_pe_done(bool flag = true) { pe_done_ = flag; }
@@ -436,22 +454,6 @@ private:
         if (auto s = std::get_if<const char*>(&n)) return tuple_str(*s);
         if (auto s = std::get_if<std::string>(&n)) return tuple_str(s->c_str());
         return std::get<const Def*>(n);
-    }
-
-    const Def* debug(Debug dbg) {
-        if (auto d = std::get_if<0>(&*dbg)) {
-            auto n = name2def(std::get<0>(*d));
-            auto f = name2def(std::get<1>(*d));
-            auto l = tuple({
-                lit_nat(std::get<2>(*d)),
-                lit_nat(std::get<3>(*d)),
-                lit_nat(std::get<4>(*d)),
-                lit_nat(std::get<5>(*d))
-            });
-            auto m = std::get<6>(*d);
-            return tuple({n, f, l, m ? m : bot(bot_star()) });
-        }
-        return std::get<const Def*>(*dbg);
     }
     //@}
     /// @name memory management and hashing

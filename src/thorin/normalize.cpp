@@ -270,8 +270,8 @@ static const Def* reassociate(Tag2Enum<tag> op, World& world, const App* ab, con
         }
 
         check_mode(ab);
-        if (xy) check_mode(xy->decurry());
-        if (zw) check_mode(zw->decurry());
+        if (lx) check_mode(xy->decurry());
+        if (lz) check_mode(zw->decurry());
 
         make_op = [&](const Def* a, const Def* b) { return world.op(op, m, a, b); };
     } else {

@@ -15,6 +15,7 @@ void codegen_prepare(World& world) {
             if (auto entry = scope.entry()->isa<Lam>()) {
                 DLOG("scope: {}", entry);
                 // new wrapper that calls the return continuation
+                old_param = entry->param();
                 auto ret_param = entry->ret_param();
                 auto ret_cont = world.lam(ret_param->type()->as<Pi>(), ret_param->debug());
                 ret_cont->app(ret_param, ret_cont->param(), ret_param->debug());

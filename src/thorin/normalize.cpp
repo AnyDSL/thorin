@@ -28,12 +28,12 @@ static const Def* is_not(const Def* def) {
 template<class T> static T get(u64 u) { return bitcast<T>(u); }
 
 template<class T> static bool is_commutative(T) { return false; }
-//static bool is_commutative(IOp op) { return op == IOp::iand || op == IOp::ior || op == IOp::ixor; }
-//static bool is_commutative(WOp op) { return op == WOp:: add || op == WOp::mul; }
-//static bool is_commutative(ROp op) { return op == ROp:: add || op == ROp::mul; }
+static bool is_commutative(IOp op) { return op == IOp::iand || op == IOp::ior || op == IOp::ixor; }
+static bool is_commutative(WOp op) { return op == WOp:: add || op == WOp::mul; }
+static bool is_commutative(ROp op) { return op == ROp:: add || op == ROp::mul; }
 
-//template<class T> bool is_associative(T op) { return is_commutative(op); }
-template<class T> static bool is_associative(T) { return false; }
+template<class T> static bool is_associative(T op) { return is_commutative(op); }
+//template<class T> static bool is_associative(T) { return false; }
 
 /**
  * Reassociates @p a und @p b according to following rules.
@@ -69,7 +69,7 @@ static const Def* reassociate(Tag2Enum<tag> op, World& world, const App* ab, con
     nat_t m = nat_t(-1); // bottom
     if constexpr (has_mode) {
 #define check_mode(app) {                                         \
-            auto app_m = isa_lit<nat_t>(app->decurry()->arg(0));  \
+            auto app_m = isa_lit<nat_t>(app->arg(0));             \
             if (!app_m) return nullptr;                           \
             if constexpr (tag == Tag::ROp) {                      \
                 if (!has(*app_m, RMode::reassoc)) return nullptr; \
@@ -78,8 +78,8 @@ static const Def* reassociate(Tag2Enum<tag> op, World& world, const App* ab, con
         }
 
         check_mode(ab);
-        if (xy) check_mode(xy);
-        if (zw) check_mode(zw);
+        if (xy) check_mode(xy->decurry());
+        if (zw) check_mode(zw->decurry());
 
         make_op = [&](const Def* a, const Def* b) { return world.op(op, m, a, b); };
     } else {

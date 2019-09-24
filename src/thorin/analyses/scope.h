@@ -29,14 +29,14 @@ public:
 
     /// Invoke if you have modified sth in this Scope.
     Scope& update();
-
-    //@{ misc getters
+    /// @name getters
+    //@{
     World& world() const { return world_; }
     Def* entry() const { return entry_; }
     Def* exit() const { return exit_; }
     //@}
-
-    //@{ get Def%s contained in this Scope
+    /// @name get Def%s contained in this Scope
+    //@{
     const DefSet& defs() const { return defs_; }
     bool contains(const Def* def) const { return defs_.contains(def); }
     /// All @p Def%s referenced but @em not contained in this @p Scope.
@@ -46,13 +46,14 @@ public:
     /// Are there any free @p Param%s within this @p Scope.
     bool has_free_params() const { return !free_params().empty(); }
     //@}
-
-    //@{ simple CFA to construct a CFG
+    /// @name simple CFA to construct a CFG
+    //@{
     const CFA& cfa() const;
     const F_CFG& f_cfg() const;
     const B_CFG& b_cfg() const;
     //@}
-    //@{ dump
+    /// @name dump
+    //@{
     // Note that we don't use overloading for the following methods in order to have them accessible from gdb.
     virtual std::ostream& stream(std::ostream&) const override;  ///< Streams thorin to file @p out.
     void write_thorin(const char* filename) const;               ///< Dumps thorin to file with name @p filename.

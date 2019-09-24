@@ -580,8 +580,6 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
         if (tag == ArithOp_xor && is_allset(a)) {    // is this a NOT
             if (is_not(b))                            // do we have ~~x?
                 return b->as<ArithOp>()->rhs();
-            if (auto cmp = b->isa<Cmp>())   // do we have ~(a cmp b)?
-                return this->cmp(negate(cmp->cmp_tag()), cmp->lhs(), cmp->rhs(), dbg);
         }
 
         auto land = a->tag() == Node_and ? a->as<ArithOp>() : nullptr;
@@ -647,25 +645,6 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
                     return arithop_and(land->lhs(), rand->lhs(), dbg);
             }
         }
-    }
-
-    // normalize: try to reorder same ops to have the literal on the left-most side
-    if (is_associative(tag) && is_type_i(a->type())) {
-        auto a_same = a->isa<ArithOp>() && a->as<ArithOp>()->arithop_tag() == tag ? a->as<ArithOp>() : nullptr;
-        auto b_same = b->isa<ArithOp>() && b->as<ArithOp>()->arithop_tag() == tag ? b->as<ArithOp>() : nullptr;
-        auto a_lhs_lv = a_same && a_same->lhs()->isa<Lit>() ? a_same->lhs() : nullptr;
-        auto b_lhs_lv = b_same && b_same->lhs()->isa<Lit>() ? b_same->lhs() : nullptr;
-
-        if (is_commutative(tag)) {
-            if (a_lhs_lv && b_lhs_lv)
-                return arithop(tag, arithop(tag, a_lhs_lv, b_lhs_lv, dbg), arithop(tag, a_same->rhs(), b_same->rhs(), dbg), dbg);
-            if (llit && b_lhs_lv)
-                return arithop(tag, arithop(tag, a, b_lhs_lv, dbg), b_same->rhs(), dbg);
-            if (b_lhs_lv)
-                return arithop(tag, b_lhs_lv, arithop(tag, a, b_same->rhs(), dbg), dbg);
-        }
-        if (a_lhs_lv)
-            return arithop(tag, a_lhs_lv, arithop(tag, a_same->rhs(), b, dbg), dbg);
     }
 
     return unify<ArithOp>(2, tag, a, b, debug(dbg));

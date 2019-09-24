@@ -28,9 +28,11 @@ static const Def* is_not(const Def* def) {
 template<class T> static T get(u64 u) { return bitcast<T>(u); }
 
 template<class T> static bool is_commutative(T) { return false; }
-static bool is_commutative(IOp op) { return op == IOp::iand || op == IOp::ior || op == IOp::ixor; }
-static bool is_commutative(WOp op) { return op == WOp:: add || op == WOp::mul; }
-static bool is_commutative(ROp op) { return op == ROp:: add || op == ROp::mul; }
+static bool is_commutative(IOp  op) { return op == IOp ::iand || op == IOp ::ior || op == IOp::ixor; }
+static bool is_commutative(WOp  op) { return op == WOp :: add || op == WOp ::mul; }
+static bool is_commutative(ROp  op) { return op == ROp :: add || op == ROp ::mul; }
+static bool is_commutative(ICmp op) { return op == ICmp::   e || op == ICmp:: ne; }
+static bool is_commutative(RCmp op) { return op == RCmp::   e || op == RCmp:: ne; }
 
 template<class T> static bool is_associative(T op) { return is_commutative(op); }
 
@@ -248,10 +250,10 @@ static const Def* reassociate(Tag2Enum<tag> op, World& world, const App* ab, con
     auto la = a->isa<Lit>();
     auto xy = isa<tag>(op, a);
     auto zw = isa<tag>(op, b);
-    auto  y = xy ? xy->arg(1) : nullptr;
-    auto  w = zw ? zw->arg(1) : nullptr;
     auto lx = xy ? xy->arg(0)->template isa<Lit>() : nullptr;
     auto lz = zw ? zw->arg(0)->template isa<Lit>() : nullptr;
+    auto  y = xy ? xy->arg(1) : nullptr;
+    auto  w = zw ? zw->arg(1) : nullptr;
 
     std::function<const Def*(const Def*, const Def*)> make_op;
 

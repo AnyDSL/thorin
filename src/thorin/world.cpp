@@ -487,14 +487,6 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
     if (is_type_i(type) || type == PrimType_bool) {
         if (a == b) {
             switch (tag) {
-                case ArithOp_add: return arithop_mul(lit(type, 2, dbg), a, dbg);
-
-                case ArithOp_sub:
-                case ArithOp_xor: return lit_zero(type, dbg);
-
-                case ArithOp_and:
-                case ArithOp_or:  return a;
-
                 case ArithOp_div:
                     if (is_zero(b))
                         return bot(type, dbg);
@@ -511,33 +503,9 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
 
         if (is_zero(a)) {
             switch (tag) {
-                case ArithOp_mul:
                 case ArithOp_div:
                 case ArithOp_rem:
-                case ArithOp_and:
-                case ArithOp_shl:
-                case ArithOp_shr: return lit_zero(type, dbg);
-
-                case ArithOp_add:
-                case ArithOp_or:
-                case ArithOp_xor:  return b;
-
-                default: break;
-            }
-        }
-
-        if (is_one(a)) {
-            switch (tag) {
-                case ArithOp_mul: return b;
-                default: break;
-            }
-        }
-
-        if (is_allset(a)) {
-            switch (tag) {
-                case ArithOp_and: return b;
-                case ArithOp_or:  return llit; // allset
-                default: break;
+                case ArithOp_and: ArithOp_shr: return lit_zero(type, dbg);
             }
         }
 
@@ -545,17 +513,12 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
             switch (tag) {
                 case ArithOp_div:
                 case ArithOp_rem: return bot(type, dbg);
-
-                case ArithOp_shl:
-                case ArithOp_shr: return a;
-
                 default: break;
             }
         }
 
         if (is_one(b)) {
             switch (tag) {
-                case ArithOp_mul:
                 case ArithOp_div: return a;
                 case ArithOp_rem: return lit_zero(type, dbg);
 

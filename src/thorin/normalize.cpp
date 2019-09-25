@@ -229,7 +229,7 @@ static const Def* fold(World& world, const Def* type, const App* callee, const D
  */
 template<tag_t tag>
 static const Def* reassociate(Tag2Enum<tag> op, World& world, const App* ab, const Def* a, const Def* b, const Def* dbg) {
-    if (!is_associative(tag)) return nullptr;
+    if (!is_associative(op)) return nullptr;
 
     auto la = a->isa<Lit>();
     auto xy = isa<tag>(op, a);

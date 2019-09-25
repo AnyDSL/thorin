@@ -485,47 +485,6 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
     auto rlit = b->isa<Lit>();
 
     if (is_type_i(type) || type == PrimType_bool) {
-        if (a == b) {
-            switch (tag) {
-                case ArithOp_div:
-                    if (is_zero(b))
-                        return bot(type, dbg);
-                    return lit_one(type, dbg);
-
-                case ArithOp_rem:
-                    if (is_zero(b))
-                        return bot(type, dbg);
-                    return lit_zero(type, dbg);
-
-                default: break;
-            }
-        }
-
-        if (is_zero(a)) {
-            switch (tag) {
-                case ArithOp_div:
-                case ArithOp_rem:
-                case ArithOp_and: ArithOp_shr: return lit_zero(type, dbg);
-            }
-        }
-
-        if (is_zero(b)) {
-            switch (tag) {
-                case ArithOp_div:
-                case ArithOp_rem: return bot(type, dbg);
-                default: break;
-            }
-        }
-
-        if (is_one(b)) {
-            switch (tag) {
-                case ArithOp_div: return a;
-                case ArithOp_rem: return lit_zero(type, dbg);
-
-                default: break;
-            }
-        }
-
         if (rlit && as_lit<u64>(rlit) >= uint64_t(num_bits(type))) {
             switch (tag) {
                 case ArithOp_shl:

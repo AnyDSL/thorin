@@ -64,6 +64,8 @@ enum RMode : nat_t {
     finite   = nnan | ninf,
     unsafe   = nsz | arcp | reassoc,
     fast = nnan | ninf | nsz | arcp | contract | afn | reassoc,
+    bot = fast,
+    top = none,
 };
 }
 

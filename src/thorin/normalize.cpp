@@ -168,13 +168,13 @@ template<nat_t dw, nat_t sw> struct FoldConv<Conv::r2r, dw, sw> { static Res run
 
 /// @attention Note that @p a and @p b are passed by reference as fold also commutes if possible. See commute().
 template<nat_t min_w, class Op, Op op>
-static const Def* fold(World& world, const Def* type, const App* callee, const Def* m, const Def*& a, const Def*& b, const Def* dbg) {
-    if (m) type = type->as<Sigma>()->op(1); // peel of actual type for ZOps
+static const Def* fold(World& world, const Def* type, const App* callee, const Def* mem, const Def*& a, const Def*& b, const Def* dbg) {
+    if (mem) type = type->as<Sigma>()->op(1); // peel of actual type for ZOps
     auto la = a->isa<Lit>(), lb = b->isa<Lit>();
 
-    if (a->isa<Bot>() || b->isa<Bot>() || (m != nullptr && m->isa<Bot>())) {
+    if (a->isa<Bot>() || b->isa<Bot>() || (mem != nullptr && mem->isa<Bot>())) {
         auto bot = world.bot(type, dbg);
-        return m ? world.tuple({m, bot}) : bot;
+        return mem ? world.tuple({mem, bot}) : bot;
     }
 
     if (la && lb) {
@@ -206,7 +206,7 @@ static const Def* fold(World& world, const Def* type, const App* callee, const D
         }
 
         auto result = res ? world.lit(type, *res, dbg) : world.bot(type, dbg);
-        return m ? world.tuple({m, result}, dbg) : result;
+        return mem ? world.tuple({mem, result}, dbg) : result;
     }
 
     if (is_commutative(op)) {
@@ -233,8 +233,7 @@ static const Def* fold(World& world, const Def* type, const App* callee, const D
 @endverbatim
  */
 template<tag_t tag>
-static const Def* reassociate(Tag2Enum<tag> op, World& world, const App* ab, const Def* a, const Def* b) {
-    static constexpr bool has_mode = tag == Tag::WOp || tag == Tag::ROp;
+static const Def* reassociate(Tag2Enum<tag> op, World& world, const App* ab, const Def* a, const Def* b, const Def* dbg) {
     if (!is_associative(tag)) return nullptr;
 
     auto la = a->isa<Lit>();
@@ -247,25 +246,28 @@ static const Def* reassociate(Tag2Enum<tag> op, World& world, const App* ab, con
 
     std::function<const Def*(const Def*, const Def*)> make_op;
 
-    // build mode for all new ops by using the least upper bound of all involved apps
-    nat_t m = nat_t(-1); // bottom
-    if constexpr (has_mode) {
+    if constexpr (tag == Tag::ROp) {
+        // build rmode for all new ops by using the least upper bound of all involved apps
+        nat_t rmode = RMode::bot;
 #define check_mode(app) {                                         \
             auto app_m = isa_lit<nat_t>(app->arg(0));             \
             if (!app_m) return nullptr;                           \
             if constexpr (tag == Tag::ROp) {                      \
                 if (!has(*app_m, RMode::reassoc)) return nullptr; \
             }                                                     \
-            m &= *app_m; /* least upper bound */                  \
+            rmode &= *app_m; /* least upper bound */              \
         }
 
         check_mode(ab);
         if (lx) check_mode(xy->decurry());
         if (lz) check_mode(zw->decurry());
 
-        make_op = [&](const Def* a, const Def* b) { return world.op(op, m, a, b); };
+        make_op = [&](const Def* a, const Def* b) { return world.op(op, rmode, a, b, dbg); };
+    } else if constexpr (tag == Tag::WOp) {
+        // if we reassociate WOps, we have to forget about nsw/nuw
+        make_op = [&](const Def* a, const Def* b) { return world.op(op, WMode::none, a, b, dbg); };
     } else {
-        make_op = [&](const Def* a, const Def* b) { return world.op(op, a, b); };
+        make_op = [&](const Def* a, const Def* b) { return world.op(op, a, b, dbg); };
     }
 
     if (la && lz) return make_op(make_op(la, lz), w);             // (1)
@@ -365,7 +367,7 @@ const Def* normalize_IOp(const Def* type, const Def* c, const Def* arg, const De
         }
     }
 
-    if (auto res = reassociate<Tag::IOp>(op, world, callee, a, b)) return res;
+    if (auto res = reassociate<Tag::IOp>(op, world, callee, a, b, dbg)) return res;
 
     return world.raw_app(callee, {a, b}, dbg);
 }
@@ -426,7 +428,7 @@ const Def* normalize_WOp(const Def* type, const Def* c, const Def* arg, const De
         }
     }
 
-    if (auto res = reassociate<Tag::WOp>(op, world, callee, a, b)) return res;
+    if (auto res = reassociate<Tag::WOp>(op, world, callee, a, b, dbg)) return res;
 
     return world.raw_app(callee, {a, b}, dbg);
 }
@@ -435,11 +437,11 @@ template<ZOp op>
 const Def* normalize_ZOp(const Def* type, const Def* c, const Def* arg, const Def* dbg) {
     auto& world = type->world();
     auto callee = c->as<App>();
-    auto [m, a, b] = arg->split<3>();
+    auto [mem, a, b] = arg->split<3>();
 
-    if (auto result = fold<8, ZOp, op>(world, type, callee, m, a, b, dbg)) return result;
+    if (auto result = fold<8, ZOp, op>(world, type, callee, mem, a, b, dbg)) return result;
 
-    return world.raw_app(callee, {m, a, b}, dbg);
+    return world.raw_app(callee, {mem, a, b}, dbg);
 }
 
 template<ROp op>

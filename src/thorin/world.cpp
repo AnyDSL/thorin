@@ -342,6 +342,14 @@ const Def* World::variant_(const Def* type, const Def* index, const Def* arg, De
     return unify<Variant_>(2, type, index, arg, debug(dbg));
 }
 
+const Def* World::variant_(const Def* type, const Def* arg, Debug dbg) {
+    // TODO: reduce 'type'
+    assertf(type->isa<Union>() && !type->isa_nominal(), "only nominal unions can be created with this constructor");
+    size_t index = std::find(type->ops().begin(), type->ops().end(), arg->type()) - type->ops().begin();
+    assertf(index != type->num_ops(), "cannot find type {} in union {}", arg->type(), type);
+    return variant_(type, lit_index(index, type->num_ops()), arg, dbg);
+}
+
 const Def* World::match_(const Def* arg, Defs cases, Debug dbg) {
 #if THORIN_ENABLE_CHECKS
     assertf(cases.size() > 0, "match must take at least one case");

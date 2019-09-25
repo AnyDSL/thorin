@@ -323,6 +323,49 @@ const Def* World::tuple_str(const char* s, Debug dbg) {
     return tuple(ops, dbg);
 }
 
+const Def* World::union_(const Def* type, Defs ops, Debug dbg) {
+    assertf(ops.size() > 0, "unions must have at least one operand");
+    if (ops.size() == 1) return ops[0];
+    // Remove duplicate operands
+    Array<const Def*> ops_copy(ops);
+    std::sort(ops_copy.begin(), ops_copy.end());
+    ops.skip_back(ops_copy.end() - std::unique(ops_copy.begin(), ops_copy.end()));
+    return unify<Union>(ops_copy.size(), type, ops_copy, debug(dbg));
+}
+
+const Def* World::variant_(const Def* type, const Def* index, const Def* arg, Debug dbg) {
+#if THORIN_ENABLE_CHECKS
+    // TODO:
+    // - assert that 'type', when reduced, is a 'union' with 'type->arity() == index->type()'
+    // - assert that 'type', when reduced, is a 'union' with 'type->op(index) == arg->type()'
+#endif
+    return unify<Variant_>(2, type, index, arg, debug(dbg));
+}
+
+const Def* World::match_(const Def* arg, Defs cases, Debug dbg) {
+#if THORIN_ENABLE_CHECKS
+    assertf(cases.size() > 0, "match must take at least one case");
+    assertf(cases[0]->type()->isa<Pi>(), "match cases must be functions");
+#endif
+    auto type = cases[0]->type()->as<Pi>()->codomain();
+#if THORIN_ENABLE_CHECKS
+    for (auto case_ : cases) {
+        assertf(case_->type()->isa<Pi>(), "match cases must be functions");
+        assertf(case_->type()->as<Pi>()->codomain() == type,
+            "match cases codomains are not consistent with each other, got {} and {}",
+            case_->type()->as<Pi>()->codomain(), type);
+    }
+    // TODO:
+    // - assert that `arg->type()`, when reduced, is a `union` with arity == cases.size()
+#endif
+    if (auto variant = arg->isa<Variant_>())
+        return app(cases[as_lit<nat_t>(variant->index())], variant->arg());
+    Array<const Def*> ops(cases.size() + 1);
+    ops[0] = arg;
+    std::copy(cases.begin(), cases.end(), ops.begin() + 1);
+    return unify<Match_>(cases.size() + 1, type, ops, debug(dbg));
+}
+
 const Def* World::extract(const Def* agg, const Def* index, Debug dbg) {
     assertf(alpha_equiv(agg->type()->arity(), index->type()),
             "extracting from aggregate {} of arity {} with index {} of type {}", agg, agg->type()->arity(), index, index->type());

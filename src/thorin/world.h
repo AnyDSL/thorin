@@ -148,6 +148,17 @@ public:
     Sigma* sigma(const Def* type, size_t size, Debug dbg = {}) { return insert<Sigma>(size, type, size, debug(dbg)); }
     Sigma* sigma(size_t size, Debug dbg = {}) { return sigma(kind_star(), size, dbg); } ///< a @em nominal @p Sigma of type @p star
     //@}
+    /// @name Union: structural
+    //@{
+    const Def* union_(const Def* type, Defs ops, Debug dbg = {});
+    /// a @em structural @p Union of type @p star
+    const Def* union_(Defs ops, Debug dbg = {}) { return union_(kind_star(), ops, dbg); }
+    //@}
+    /// @name Union: nominal
+    //@{
+    Union* union_(const Def* type, size_t size, Debug dbg = {}) { return insert<Union>(size, type, size, debug(dbg)); }
+    Union* union_(size_t size, Debug dbg = {}) { return union_(kind_star(), size, dbg); } ///< a @em nominal @p Sigma of type @p star
+    //@}
     /// @name Variadic
     //@{
     const Def* variadic(const Def* arity, const Def* body, Debug dbg = {});
@@ -167,6 +178,10 @@ public:
     const Def* tuple_str(const char* s, Debug = {});
     const Def* tuple_str(const std::string& s, Debug dbg = {}) { return tuple_str(s.c_str(), dbg); }
     const Tuple* tuple() { return cache_.tuple_; } ///< the unit value of type <tt>[]</tt>
+    //@}
+    /// @name Variant_
+    //@{
+    const Def* variant_(const Def* type, const Def* index, const Def* arg, Debug dbg = {});
     //@}
     /// @name Pack
     //@{
@@ -192,6 +207,10 @@ public:
     const Def* insert(const Def* agg, u64 i, const Def* value, Debug dbg = {}) { return insert(agg, lit_index(agg->type()->arity(), i, dbg), value, dbg); }
     const Def* insert_unsafe(const Def* agg, const Def* i, const Def* value, Debug dbg = {}) { return insert(agg, op_bitcast(agg->type()->arity(), i, dbg), value, dbg); }
     const Def* insert_unsafe(const Def* agg, u64 i, const Def* value, Debug dbg = {}) { return insert_unsafe(agg, lit_nat(i, dbg), value, dbg); }
+    //@}
+    /// @name Match_
+    //@{
+    const Def* match_(const Def* variant, Defs cases, Debug dbg = {});
     //@}
     /// @name Lit
     //@{

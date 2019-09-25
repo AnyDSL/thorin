@@ -23,12 +23,14 @@ namespace detail {
 
 const Def* Def::arity() const {
     if (auto sigma    = isa<Sigma   >()) return world().lit_arity(sigma->num_ops());
+    if (auto union_   = isa<Union   >()) return world().lit_arity(union_->num_ops());
     if (auto variadic = isa<Variadic>()) return variadic->arity();
     return world().lit_arity_1();
 }
 
 nat_t Def::lit_arity() const {
     if (auto sigma    = isa<Sigma   >()) return sigma->num_ops();
+    if (auto union_   = isa<Union   >()) return union_->num_ops();
     if (auto variadic = isa<Variadic>()) return as_lit<nat_t>(variadic->arity());
     return 1;
 }
@@ -457,6 +459,7 @@ size_t Def::num_params() { return param()->type()->lit_arity(); }
 
 const Def* Lam        ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* dbg) { assert(!d->isa_nominal()); return w.lam(t->as<Pi>(), o[0], o[1], dbg); }
 const Def* Sigma      ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* dbg) { assert(!d->isa_nominal()); return w.sigma(t, o, dbg); }
+const Def* Union      ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* dbg) { assert(!d->isa_nominal()); return w.union_(t, o, dbg); }
 const Def* Analyze    ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* dbg) { return w.analyze(t, o, d->fields(), dbg); }
 const Def* App        ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.app(o[0], o[1], dbg); }
 const Def* Bot        ::rebuild(const Def*  , World& w, const Def* t, Defs  , const Def* dbg) { return w.bot(t, dbg); }
@@ -464,6 +467,7 @@ const Def* Top        ::rebuild(const Def*  , World& w, const Def* t, Defs  , co
 const Def* Extract    ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.extract(o[0], o[1], dbg); }
 const Def* Global     ::rebuild(const Def* d, World& w, const Def*  , Defs o, const Def* dbg) { return w.global(o[0], o[1], d->as<Global>()->is_mutable(), dbg); }
 const Def* Insert     ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.insert(o[0], o[1], o[2], dbg); }
+const Def* Match_     ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.match_(o[0], o.skip_front(), dbg); }
 const Def* KindArity  ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.kind_arity(); }
 const Def* KindMulti  ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.kind_multi(); }
 const Def* KindStar   ::rebuild(const Def*  , World& w, const Def*  , Defs  , const Def*    ) { return w.kind_star(); }
@@ -474,6 +478,7 @@ const Def* Pack       ::rebuild(const Def*  , World& w, const Def* t, Defs o, co
 const Def* Param      ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.param(t, o[0]->as_nominal(), dbg); }
 const Def* Pi         ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.pi(o[0], o[1], dbg); }
 const Def* Tuple      ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.tuple(t, o, dbg); }
+const Def* Variant_   ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.variant_(t, o[0], o[1], dbg); }
 const Def* Variadic   ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.variadic(o[0], o[1], dbg); }
 const Def* Variant    ::rebuild(const Def*  , World& w, const Def* t, Defs o, const Def* dbg) { return w.variant(t->as<VariantType>(), o[0], dbg); }
 const Def* VariantType::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.variant_type(o, dbg); }
@@ -488,14 +493,15 @@ Def* Lam     ::stub(const Def* d, World& to, const Def* t, const Def* dbg) { ass
 Def* Pack    ::stub(const Def* d, World& to, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return to.pack(t, Debug{dbg}); }
 Def* Pi      ::stub(const Def* d, World& to, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return to.pi(t, Debug{dbg}); }
 Def* Sigma   ::stub(const Def* d, World& to, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return to.sigma(t, d->num_ops(), dbg); }
+Def* Union   ::stub(const Def* d, World& to, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return to.union_(t, d->num_ops(), dbg); }
 Def* Variadic::stub(const Def* d, World& to, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return to.variadic(t, Debug{dbg}); }
 
 /*
  * stream
  */
 
-static std::ostream& stream_type_ops(std::ostream& os, const Def* type) {
-   return stream_list(os, type->ops(), [&](const Def* type) { os << type; }, "(", ")");
+static std::ostream& stream_ops(std::ostream& os, const Def* def) {
+   return stream_list(os, def->ops(), [&](const Def* op) { os << op; }, "(", ")");
 }
 
 std::ostream& Axiom      ::stream(std::ostream& os) const { return streamf(os, "{}", name()); }
@@ -504,7 +510,7 @@ std::ostream& Mem        ::stream(std::ostream& os) const { return streamf(os, "
 std::ostream& Nat        ::stream(std::ostream& os) const { return streamf(os, "nat"); }
 std::ostream& Universe   ::stream(std::ostream& os) const { return streamf(os, "□"); }
 std::ostream& Variadic   ::stream(std::ostream& os) const { return streamf(os, "«{}; {}»", arity(), body()); }
-std::ostream& VariantType::stream(std::ostream& os) const { return stream_type_ops(os << "variant", this); }
+std::ostream& VariantType::stream(std::ostream& os) const { return stream_ops(os << "variant", this); }
 std::ostream& KindArity  ::stream(std::ostream& os) const { return os << "*A"; }
 std::ostream& KindMulti  ::stream(std::ostream& os) const { return os << "*M"; }
 std::ostream& KindStar   ::stream(std::ostream& os) const { return os << "*"; }
@@ -602,6 +608,11 @@ std::ostream& Tuple::stream(std::ostream& os) const {
 #endif
 
     return stream_list(os, ops(), [&](const Def* type) { os << type; }, "(", ")");
+}
+
+std::ostream& Union::stream(std::ostream& os) const {
+    if (isa_nominal()) return os << unique_name();
+    return stream_list(os << "⋃", ops(), [&](const Def* type) { os << type; }, "{", "}");
 }
 
 std::ostream& Pack::stream(std::ostream& os) const {

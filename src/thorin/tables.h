@@ -24,15 +24,18 @@ using nat_t    = u64;
                        m(Lit, lit)                        \
                        m(Pack, pack)                      \
                        m(Pi, pi)                          \
+                       m(Union, union_)                   \
                        m(Sigma, sigma)                    \
                        m(Top, top)                        \
                        m(Tuple, tuple)                    \
                        m(Variadic, variadic)              \
                        m(VariantType, variant_type)       \
+                       m(Match_, match_)                  \
                        m(Nat, nat)                        \
                        m(Mem, mem)                        \
                        m(Global, global)                  \
                        m(Variant, variant)                \
+                       m(Variant_, variant_)              \
                        m(Analyze, analyze)                \
                        m(Param, param)
 

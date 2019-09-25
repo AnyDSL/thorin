@@ -704,6 +704,42 @@ public:
     friend class World;
 };
 
+class Union : public Def {
+private:
+    /// Constructor for a @em structural Union.
+    Union(const Def* type, Defs ops, const Def* dbg)
+        : Def(Node, rebuild, type, ops, 0, dbg)
+    {}
+    /// Constructor for a @em nominal Union.
+    Union(const Def* type, size_t size, const Def* dbg)
+        : Def(Node, stub, type, size, 0, dbg)
+    {}
+
+public:
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    static Def* stub(const Def*, World&, const Def*, const Def*);
+    std::ostream& stream(std::ostream&) const override;
+
+    static constexpr auto Node = Node::Union;
+    friend class World;
+};
+
+/// Data constructor for a @p Union.
+class Variant_ : public Def {
+private:
+    Variant_(const Def* type, const Def* index, const Def* arg, const Def* dbg)
+        : Def(Node, rebuild, type, {index, arg}, 0, dbg)
+    {}
+
+public:
+    const Def* index() const { return op(0); }
+    const Def* arg() const { return op(1); }
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+
+    static constexpr auto Node = Node::Variant_;
+    friend class World;
+};
+
 class Variadic : public Def {
 private:
     /// Constructor for a @em structural Variadic.
@@ -799,6 +835,23 @@ public:
     const Def* val() const { return op(2); }
 
     static constexpr auto Node = Node::Insert;
+    friend class World;
+};
+
+/// Matches against <tt>variant</tT>, using the functions specified in <tt>cases</tt>.
+class Match_ : public Def {
+private:
+    Match_(const Def* type, Defs ops, const Def* dbg)
+        : Def(Node, rebuild, type, ops, 0, dbg)
+    {}
+
+public:
+    const Def* arg() const { return op(0); }
+    Defs cases() const { return ops().skip_front(); }
+
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+
+    static constexpr auto Node = Node::Match_;
     friend class World;
 };
 

@@ -538,14 +538,6 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
     if (is_type_i(type) || type == PrimType_bool) {
         if (a == b) {
             switch (tag) {
-                case ArithOp_add: return arithop_mul(lit(type, 2, dbg), a, dbg);
-
-                case ArithOp_sub:
-                case ArithOp_xor: return lit_zero(type, dbg);
-
-                case ArithOp_and:
-                case ArithOp_or:  return a;
-
                 case ArithOp_div:
                     if (is_zero(b))
                         return bot(type, dbg);
@@ -562,33 +554,9 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
 
         if (is_zero(a)) {
             switch (tag) {
-                case ArithOp_mul:
                 case ArithOp_div:
                 case ArithOp_rem:
-                case ArithOp_and:
-                case ArithOp_shl:
-                case ArithOp_shr: return lit_zero(type, dbg);
-
-                case ArithOp_add:
-                case ArithOp_or:
-                case ArithOp_xor:  return b;
-
-                default: break;
-            }
-        }
-
-        if (is_one(a)) {
-            switch (tag) {
-                case ArithOp_mul: return b;
-                default: break;
-            }
-        }
-
-        if (is_allset(a)) {
-            switch (tag) {
-                case ArithOp_and: return b;
-                case ArithOp_or:  return llit; // allset
-                default: break;
+                case ArithOp_and: ArithOp_shr: return lit_zero(type, dbg);
             }
         }
 
@@ -596,17 +564,12 @@ const Def* World::arithop(ArithOpTag tag, const Def* a, const Def* b, Debug dbg)
             switch (tag) {
                 case ArithOp_div:
                 case ArithOp_rem: return bot(type, dbg);
-
-                case ArithOp_shl:
-                case ArithOp_shr: return a;
-
                 default: break;
             }
         }
 
         if (is_one(b)) {
             switch (tag) {
-                case ArithOp_mul:
                 case ArithOp_div: return a;
                 case ArithOp_rem: return lit_zero(type, dbg);
 
@@ -723,6 +686,60 @@ std::vector<Lam*> World::copy_lams() const {
 }
 
 /*
+ * visit & rewrite
+ */
+
+template<bool elide_empty>
+void World::visit(VisitFn f) const {
+    unique_queue<NomSet> nom_queue;
+
+    for (const auto& [name, nom] : externals()) {
+        assert(nom->is_set() && "external must not be empty");
+        nom_queue.push(nom);
+    }
+
+    while (!nom_queue.empty()) {
+        auto nom = nom_queue.pop();
+        if (elide_empty && !nom->is_set()) continue;
+        Scope scope(nom);
+        f(scope);
+
+        unique_queue<DefSet> def_queue;
+        for (auto def : scope.free())
+            def_queue.push(def);
+
+        while (!def_queue.empty()) {
+            auto def = def_queue.pop();
+            if (auto nom = def->isa_nominal())
+                nom_queue.push(nom);
+            else {
+                for (auto op : def->ops())
+                    def_queue.push(op);
+            }
+        }
+    }
+}
+
+void World::rewrite(const std::string& info, EnterFn enter_fn, RewriteFn rewrite_fn) {
+    VLOG("start: {},", info);
+
+    visit([&](const Scope& scope) {
+        if (enter_fn(scope)) {
+            auto new_body = thorin::rewrite(scope.entry(), &scope, rewrite_fn);
+
+            if (scope.entry()->ops().back() != new_body) {
+                scope.entry()->set(scope.entry()->num_ops()-1, new_body);
+                const_cast<Scope&>(scope).update(); // yes, we know what we are doing
+            }
+        }
+    });
+    VLOG("end: {},", info);
+}
+
+template void World::visit<true> (VisitFn) const;
+template void World::visit<false>(VisitFn) const;
+
+/*
  * stream
  */
 
@@ -739,7 +756,7 @@ std::ostream& World::stream(std::ostream& os) const {
     for (auto global : globals)
         global->stream_assignment(os);
 
-    Scope::for_each<false>(*this, [&] (const Scope& scope) {
+    visit<false>([&] (const Scope& scope) {
         if (scope.entry()->isa<Axiom>()) return;
         scope.stream(os);
     });

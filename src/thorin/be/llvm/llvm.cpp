@@ -219,7 +219,7 @@ std::unique_ptr<llvm::Module>& CodeGen::emit(int opt, bool debug) {
         dicompile_unit = dibuilder_.createCompileUnit(llvm::dwarf::DW_LANG_C, dibuilder_.createFile(world_.name(), llvm::StringRef()), "Impala", opt > 0, llvm::StringRef(), 0);
     }
 
-    Scope::for_each(world_, [&] (const Scope& scope) {
+    world_.visit([&](const Scope& scope) {
         entry_ = scope.entry()->isa<Lam>();
         if (entry_ == nullptr) return;
 

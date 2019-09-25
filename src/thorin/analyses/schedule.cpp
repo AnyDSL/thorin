@@ -310,7 +310,7 @@ void Schedule::thorin() const {
 //------------------------------------------------------------------------------
 
 void verify_mem(World& world) {
-    Scope::for_each(world, [&](const Scope& scope) { schedule(scope); });
+    world.visit([&](const Scope& scope) { schedule(scope); });
 }
 
 }

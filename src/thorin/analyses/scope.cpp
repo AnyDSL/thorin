@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <fstream>
 
+#include "thorin/rewrite.h"
+#include "thorin/util/log.h"
 #include "thorin/world.h"
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/domtree.h"
@@ -88,40 +90,6 @@ const ParamSet& Scope::free_params() const {
 const CFA& Scope::cfa() const { return lazy_init(this, cfa_); }
 const F_CFG& Scope::f_cfg() const { return cfa().f_cfg(); }
 const B_CFG& Scope::b_cfg() const { return cfa().b_cfg(); }
-
-template<bool elide_empty>
-void Scope::for_each(const World& world, std::function<void(Scope&)> f) {
-    unique_queue<NomSet> nom_queue;
-
-    for (const auto& [name, nom] : world.externals()) {
-        assert(nom->is_set() && "external must not be empty");
-        nom_queue.push(nom);
-    }
-
-    while (!nom_queue.empty()) {
-        auto nom = nom_queue.pop();
-        if (elide_empty && !nom->is_set()) continue;
-        Scope scope(nom);
-        f(scope);
-
-        unique_queue<DefSet> def_queue;
-        for (auto def : scope.free())
-            def_queue.push(def);
-
-        while (!def_queue.empty()) {
-            auto def = def_queue.pop();
-            if (auto nom = def->isa_nominal())
-                nom_queue.push(nom);
-            else {
-                for (auto op : def->ops())
-                    def_queue.push(op);
-            }
-        }
-    }
-}
-
-template void Scope::for_each<true> (const World&, std::function<void(Scope&)>);
-template void Scope::for_each<false>(const World&, std::function<void(Scope&)>);
 
 std::ostream& Scope::stream(std::ostream& os) const { return schedule(*this).stream(os); }
 void Scope::write_thorin(const char* filename) const { return schedule(*this).write_thorin(filename); }

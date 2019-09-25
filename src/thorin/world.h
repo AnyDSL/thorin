@@ -15,6 +15,11 @@
 
 namespace thorin {
 
+class Scope;
+using VisitFn   = std::function<void(const Scope&)>;
+using EnterFn   = std::function<bool(const Scope&)>;
+using RewriteFn = std::function<const Def*(const Def*)>;
+
 const Def* infer_width(const Def*);
 
 /**
@@ -367,8 +372,8 @@ public:
     const Def* op_store() { return cache_.op_store_; }
     const Def* op_slot()  { return cache_.op_slot_;  }
     const Def* op_alloc() { return cache_.op_alloc_; }
-    const Def* op_load (const Def* mem, const Def* ptr, Debug dbg)                 { auto [T, a] = as<Tag::Ptr>(ptr->type())->args<2>(); return app(app(op_load (), {T, a}), {mem, ptr},      dbg); }
-    const Def* op_store(const Def* mem, const Def* ptr, const Def* val, Debug dbg) { auto [T, a] = as<Tag::Ptr>(ptr->type())->args<2>(); return app(app(op_store(), {T, a}), {mem, ptr, val}, dbg); }
+    const Def* op_load (const Def* mem, const Def* ptr, Debug dbg = {})                 { auto [T, a] = as<Tag::Ptr>(ptr->type())->args<2>(); return app(app(op_load (), {T, a}), {mem, ptr},      dbg); }
+    const Def* op_store(const Def* mem, const Def* ptr, const Def* val, Debug dbg = {}) { auto [T, a] = as<Tag::Ptr>(ptr->type())->args<2>(); return app(app(op_store(), {T, a}), {mem, ptr, val}, dbg); }
     const Def* op_alloc(const Def* type, const Def* mem, Debug dbg) { return app(app(op_alloc(), {type, lit_nat(0)}), mem, dbg); }
     const Def* op_slot (const Def* type, const Def* mem, Debug dbg) { return app(app(op_slot (), {type, lit_nat(0)}), mem, dbg); }
     const Def* global(const Def* id, const Def* init, bool is_mutable = true, Debug dbg = {});
@@ -429,6 +434,23 @@ public:
     void make_internal(Def* def) { externals_.erase(def->name()); }
     bool is_external(const Def* def) { return externals_.contains(def->name()); }
     Def* lookup(const std::string& name) { return externals_.lookup(name).value_or(nullptr); }
+    //@}
+    /// @name visit and rewrite
+    //@{
+    /**
+     * Transitively visits all @em reachable Scope%s in this @p World that do not have free variables.
+     * We call these Scope%s @em top-level Scope%s.
+     * Select with @p elide_empty whether you want to visit trivial @p Scope%s of @em nominals without body.
+     */
+    template<bool elide_empty = true> void visit(VisitFn) const;
+    /**
+     * Rewrites the whole world by @p visit%ing each @p Def with all @em top-level @p Scope%s.
+     * Every time, we enter a new scope @p enter_fn will be invoked.
+     * Return @c true, if you are interested in this @p Scope.
+     * Return @c false, if you want to skip this @p Scope.
+     * For each @p Def in the current @p Scope, @p rewrite_fn will be invoked.
+     */
+    void rewrite(const std::string& info, EnterFn enter_fn, RewriteFn rewrite_fn);
     //@}
 #if THORIN_ENABLE_CHECKS
     /// @name debugging features

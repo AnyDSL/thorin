@@ -201,65 +201,6 @@ const Def* Lam::ret_param() {
     return result;
 }
 
-Lams Lam::preds() const {
-    std::vector<Lam*> preds;
-    std::queue<Use> queue;
-    DefSet done;
-
-    auto enqueue = [&] (const Def* def) {
-        for (auto use : def->uses()) {
-            if (done.find(use) == done.end()) {
-                queue.push(use);
-                done.insert(use);
-            }
-        }
-    };
-
-    done.insert(this);
-    enqueue(this);
-
-    while (!queue.empty()) {
-        auto use = pop(queue);
-        if (auto lam = use->isa_nominal<Lam>()) {
-            preds.push_back(lam);
-            continue;
-        }
-
-        enqueue(use);
-    }
-
-    return preds;
-}
-
-Lams Lam::succs() const {
-    std::vector<Lam*> succs;
-    std::queue<const Def*> queue;
-    DefSet done;
-
-    auto enqueue = [&] (const Def* def) {
-        if (done.find(def) == done.end()) {
-            queue.push(def);
-            done.insert(def);
-        }
-    };
-
-    done.insert(this);
-    enqueue(body());
-
-    while (!queue.empty()) {
-        auto def = pop(queue);
-        if (auto lam = def->isa_nominal<Lam>()) {
-            succs.push_back(lam);
-            continue;
-        }
-
-        for (auto op : def->ops())
-            enqueue(op);
-    }
-
-    return succs;
-}
-
 bool Lam::is_intrinsic() const { return intrinsic() != Intrinsic::None; }
 bool Lam::is_accelerator() const { return Intrinsic::_Accelerator_Begin <= intrinsic() && intrinsic() < Intrinsic::_Accelerator_End; }
 

@@ -218,13 +218,11 @@ static const Def* fold(World& world, const Def* type, const App* callee, const D
 @verbatim
     a    op     b
 (x op y) op (z op w)
-@endverbatim
- * Rules:
-@verbatim
- * (1)     la    op (lz op w) -> (la op lz) op w
- * (2) (lx op y) op (lz op w) -> (lx op lz) op (y op w)
- * (3)      a    op (lz op w) ->  lz op (a op w)
- * (4) (lx op y) op      b    ->  lx op (y op b)
+
+(1)     la    op (lz op w) -> (la op lz) op w
+(2) (lx op y) op (lz op w) -> (lx op lz) op (y op w)
+(3)      a    op (lz op w) ->  lz op (a op w)
+(4) (lx op y) op      b    ->  lx op (y op b)
 @endverbatim
  */
 template<tag_t tag>

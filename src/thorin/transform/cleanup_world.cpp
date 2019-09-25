@@ -35,7 +35,7 @@ private:
 };
 
 void Cleaner::eliminate_tail_rec() {
-    world_.visit([&](Scope& scope) {
+    world_.visit([&](const Scope& scope) {
         auto entry = scope.entry()->isa<Lam>();
         if (entry == nullptr) return;
 
@@ -90,7 +90,8 @@ void Cleaner::eliminate_tail_rec() {
 
                 entry->app(dropped, new_args);
                 todo_ = true;
-                scope.update();
+                const_cast<Scope&>(scope).update();
+                // this pass will be rewritten, so don't mind the const_cast for now
             }
         }
     });

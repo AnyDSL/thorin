@@ -16,6 +16,7 @@
 namespace thorin {
 
 class Scope;
+using VisitFn   = std::function<void(const Scope&)>;
 using EnterFn   = std::function<bool(const Scope&)>;
 using RewriteFn = std::function<const Def*(const Def*)>;
 
@@ -402,7 +403,7 @@ public:
      * We call these Scope%s @em top-level Scope%s.
      * Select with @p elide_empty whether you want to visit trivial @p Scope%s of @em nominals without body.
      */
-    template<bool elide_empty = true> void visit(std::function<void(Scope&)>) const;
+    template<bool elide_empty = true> void visit(VisitFn) const;
     /**
      * Rewrites the whole world by @p visit%ing each @p Def with all @em top-level @p Scope%s.
      * Every time, we enter a new scope @p enter_fn will be invoked.

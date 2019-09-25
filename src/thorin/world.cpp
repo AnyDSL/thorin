@@ -639,7 +639,7 @@ std::vector<Lam*> World::copy_lams() const {
  */
 
 template<bool elide_empty>
-void World::visit(std::function<void(Scope&)> f) const {
+void World::visit(VisitFn f) const {
     unique_queue<NomSet> nom_queue;
 
     for (const auto& [name, nom] : externals()) {
@@ -672,21 +672,21 @@ void World::visit(std::function<void(Scope&)> f) const {
 void World::rewrite(const std::string& info, EnterFn enter_fn, RewriteFn rewrite_fn) {
     VLOG("start: {},", info);
 
-    visit([&](Scope& scope) {
+    visit([&](const Scope& scope) {
         if (enter_fn(scope)) {
             auto new_body = thorin::rewrite(scope.entry(), &scope, rewrite_fn);
 
             if (scope.entry()->ops().back() != new_body) {
                 scope.entry()->set(scope.entry()->num_ops()-1, new_body);
-                scope.update();
+                const_cast<Scope&>(scope).update(); // yes, we know what we are doing
             }
         }
     });
     VLOG("end: {},", info);
 }
 
-template void World::visit<true> (std::function<void(Scope&)>) const;
-template void World::visit<false>(std::function<void(Scope&)>) const;
+template void World::visit<true> (VisitFn) const;
+template void World::visit<false>(VisitFn) const;
 
 /*
  * stream

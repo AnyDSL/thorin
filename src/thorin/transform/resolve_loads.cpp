@@ -14,9 +14,10 @@ public:
     bool resolve_loads() {
         todo_ = false;
 
-        world_.visit([&] (Scope& scope) {
+        world_.visit([&] (const Scope& scope) {
             resolve_loads(scope);
-            scope.update(); // TODO only updated when actually needed
+            const_cast<Scope&>(scope).update(); // TODO only updated when actually needed
+            // ResolveLoads will be remove in the future, so don't mind the const_cast
         });
         // Remove slots that only have stores
         for (auto& pair : safe_slots_) {

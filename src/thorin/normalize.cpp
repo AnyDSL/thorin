@@ -344,11 +344,12 @@ const Def* normalize_IOp(const Def* type, const Def* c, const Def* arg, const De
     }
 
     if (auto lb = b->isa<Lit>()) {
-        if (lb == world.lit_int_0(type)) { // is zero?
+        if (lb == world.lit_int_0(type)) {   // is zero?
             switch (op) {
                 case IOp::ashr: return a;
                 case IOp::lshr: return a;
                 default: THORIN_UNREACHABLE;
+                // iand, ior, ixor are commutative, the literal has been normalized to the left
             }
         }
     }
@@ -407,10 +408,11 @@ const Def* normalize_WOp(const Def* type, const Def* c, const Def* arg, const De
                 case WOp::sub: return a;    // a  - 0 -> a
                 case WOp::shl: return a;    // a >> 0 -> a
                 default: THORIN_UNREACHABLE;
+                // add, mul are commutative, the literal has been normalized to the left
             }
         }
 
-        // a - lb -> a + (~lb +1)
+        // a - lb -> a + (~lb + 1)
         if (op == WOp::sub) return world.op(WOp::add, mode, a, world.lit(type, (~lb->get() + 1_u64) & (u64(-1) >> (64_u64 - *w))));
     }
 

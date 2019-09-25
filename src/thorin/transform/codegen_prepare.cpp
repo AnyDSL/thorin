@@ -1,6 +1,5 @@
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/util/log.h"
 
 namespace thorin {
 
@@ -11,7 +10,6 @@ void codegen_prepare(World& world) {
     world.rewrite("codegen_prepare",
         [&](const Scope& scope) {
             if (auto entry = scope.entry()->isa<Lam>()) {
-                DLOG("scope: {}", entry);
                 // new wrapper that calls the return continuation
                 old_param = entry->param();
                 auto ret_param = entry->ret_param();
@@ -20,7 +18,7 @@ void codegen_prepare(World& world) {
 
                 // rebuild a new "param" that substitutes the actual ret_param with ret_cont
                 auto ops = entry->param()->split();
-                assert(ops.back() == ret_param);
+                assert(ops.back() == ret_param && "we assume that the last element is the ret_param");
                 ops.back() = ret_cont;
                 new_param = world.tuple(ops);
                 return true;
@@ -31,8 +29,6 @@ void codegen_prepare(World& world) {
             if (old_def == old_param) return new_param;
             return nullptr;
         });
-
-    VLOG("end codegen_prepare");
 }
 
 }

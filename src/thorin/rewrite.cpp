@@ -14,8 +14,8 @@ const Def* Rewriter::rewrite(const Def* old_def) {
     }
 
     auto new_type = rewrite(old_def->type());
-
     auto new_dbg = old_def->debug();
+
     if (auto old_dbg = old_def->debug(); old_dbg && &new_world != &old_world)
         new_dbg = rewrite(old_dbg);
 

@@ -31,10 +31,12 @@ public:
     const Scope* scope;
     Def2Def old2new;
     RewriteFn fn;
+
+    bool rewrite_nominals = true;
 };
 
 /// Rewrites @p def by mapping @p old_def to @p new_def.
-const Def* rewrite(const Def* def, const Def* old_def, const Def* new_def);
+const Def* rewrite(const Def* def, const Def* old_def, const Def* new_def, bool rewrite_nominals = true);
 
 /// Rewrites @p nom by substituting @p nom's @p Param with @p arg while obeying @p nom's @p scope.
 const Def* rewrite(Def* nom, const Def* arg);

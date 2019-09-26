@@ -20,6 +20,8 @@ const Def* Rewriter::rewrite(const Def* old_def) {
         new_dbg = rewrite(old_dbg);
 
     if (auto old_nom = old_def->isa_nominal()) {
+        if (!rewrite_nominals)
+            return old_nom;
         auto new_nom = old_nom->stub(new_world, new_type, new_dbg);
         map(old_nom, new_nom);
 
@@ -35,8 +37,9 @@ const Def* Rewriter::rewrite(const Def* old_def) {
     return map(old_def, old_def->rebuild(new_world, new_type, new_ops, new_dbg)); ;
 }
 
-const Def* rewrite(const Def* def, const Def* old_def, const Def* new_def) {
-    Rewriter rewriter(def->world(), nullptr);
+const Def* rewrite(const Def* def, const Def* old_def, const Def* new_def, bool rewrite_nominals) {
+    Rewriter rewriter(def->world());
+    rewriter.rewrite_nominals = rewrite_nominals;
     rewriter.map(old_def, new_def);
     return rewriter.rewrite(def);
 }

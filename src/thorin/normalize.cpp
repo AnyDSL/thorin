@@ -226,7 +226,7 @@ static const Def* fold(World& world, const Def* type, const App* callee, const D
 @endverbatim
  */
 template<tag_t tag>
-static const Def* reassociate(Tag2Enum<tag> op, World& world, const App* ab, const Def* a, const Def* b, const Def* dbg) {
+static const Def* reassociate(Tag2Enum<tag> op, World& world, [[maybe_unused]] const App* ab, const Def* a, const Def* b, const Def* dbg) {
     if (!is_associative(op)) return nullptr;
 
     auto la = a->isa<Lit>();
@@ -242,18 +242,16 @@ static const Def* reassociate(Tag2Enum<tag> op, World& world, const App* ab, con
     if constexpr (tag == Tag::ROp) {
         // build rmode for all new ops by using the least upper bound of all involved apps
         nat_t rmode = RMode::bot;
-#define check_mode(app) {                                         \
-            auto app_m = isa_lit<nat_t>(app->arg(0));             \
-            if (!app_m) return nullptr;                           \
-            if constexpr (tag == Tag::ROp) {                      \
-                if (!has(*app_m, RMode::reassoc)) return nullptr; \
-            }                                                     \
-            rmode &= *app_m; /* least upper bound */              \
-        }
+        auto check_mode = [&](const App* app) {
+            auto app_m = isa_lit<nat_t>(app->arg(0));
+            if (!app_m || !has(*app_m, RMode::reassoc)) return false;
+            rmode &= *app_m; // least upper bound
+            return true;
+        };
 
-        check_mode(ab);
-        if (lx) check_mode(xy->decurry());
-        if (lz) check_mode(zw->decurry());
+        if (!check_mode(ab)) return nullptr;
+        if (lx && !check_mode(xy->decurry())) return nullptr;
+        if (lz && !check_mode(zw->decurry())) return nullptr;
 
         make_op = [&](const Def* a, const Def* b) { return world.op(op, rmode, a, b, dbg); };
     } else if constexpr (tag == Tag::WOp) {

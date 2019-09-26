@@ -269,12 +269,12 @@ std::ostream& CCodeGen::emit_aggop_decl(const Type* type) {
         for (auto op : struct_type->ops())
             emit_aggop_decl(op);
         emit_type(type_decls_, struct_type) << endl;
-        if (lang_ != Lang::HLS || !use_channels_)
-            insert(type, "struct_" + struct_type->name().str() + "_" + std::to_string(type->gid()));
+        if (lang_ == Lang::OPENCL && use_channels_)
+            insert(type, struct_type->name().str() + "_" + std::to_string(type->gid()));
         else if (is_channel_type(struct_type) && lang_ == Lang::HLS)
             insert(type,"hls::stream<" + struct_type->name().str() + "_" + std::to_string(type->gid()) + ">");
-        else if (lang_ == Lang::OPENCL && use_channels_)
-            insert(type, struct_type->name().str() + "_" + std::to_string(type->gid()));
+        else if (lang_ != Lang::HLS || !use_channels_)
+            insert(type, "struct_" + struct_type->name().str() + "_" + std::to_string(type->gid()));
     }
 
     // look for nested variants
@@ -1300,7 +1300,10 @@ std::ostream& CCodeGen::emit(const Def* def) {
         bool bottom = global->init()->isa<Bottom>();
         if (!bottom)
             emit(global->init()) << endl;
-        emit_type(func_impl_, global->alloced_type()) << " " << def_name << "_slot";
+        if (lang_ == Lang::OPENCL && use_channels_)
+            emit_type(func_impl_, global->alloced_type()) << " " << def_name;
+        else
+            emit_type(func_impl_, global->alloced_type()) << " " << def_name << "_slot";
         if (bottom) {
             func_impl_ << "; // bottom";
         } else {

@@ -42,11 +42,11 @@ const Def* rewrite(Def* nom, const Def* arg);
 /// Same as above but uses @p scope as an optimization instead of computing a new @p Scope.
 const Def* rewrite(Def* nom, const Def* arg, const Scope* scope);
 
-/// Rewrites @p nom by applying @p fn to each @p Def within @p scope.
-const Def* rewrite(Def* nom, const Scope* scope, RewriteFn fn = {});
-
-/// Rewrites @p nom by applying @p fn to each @p Def within @p nom's @p scope.
+/// Rewrites @p nom by applying @p fn to each @p Def within @p nom's @p Scope.
 const Def* rewrite(Def* nom, RewriteFn fn = {});
+
+/// Same as above but uses @p scope as an optimization instead of computing a new @p Scope.
+const Def* rewrite(Def* nom, const Scope* scope, RewriteFn fn = {});
 
 /// Removes unreachable and dead code by rebuilding the whole @p world into a new @p World.
 void cleanup(World& world);

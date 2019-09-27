@@ -35,30 +35,30 @@ const Def* Rewriter::rewrite(const Def* old_def) {
     return map(old_def, old_def->rebuild(new_world, new_type, new_ops, new_dbg)); ;
 }
 
-const Def* rewrite(const Def* def, const Def* old_def, const Def* new_def) {
-    Rewriter rewriter(def->world(), nullptr);
+const Def* rewrite(const Def* def, const Def* old_def, const Def* new_def, const Scope& scope) {
+    Rewriter rewriter(def->world(), &scope);
     rewriter.map(old_def, new_def);
     return rewriter.rewrite(def);
 }
 
-const Def* rewrite(Def* nom, const Def* arg, const Scope* scope) {
-    Rewriter rewriter(nom->world(), scope);
+const Def* rewrite(Def* nom, const Def* arg, const Scope& scope) {
+    Rewriter rewriter(nom->world(), &scope);
     rewriter.map(nom->param(), arg);
     return rewriter.rewrite(nom->ops().back());
 }
 
 const Def* rewrite(Def* nom, const Def* arg) {
     Scope scope(nom);
-    return rewrite(nom, arg, &scope);
+    return rewrite(nom, arg, scope);
 }
 
-const Def* rewrite(Def* nom, const Scope* scope, RewriteFn fn) {
-    return Rewriter(nom->world(), scope, fn).rewrite(nom->ops().back());
+const Def* rewrite(Def* nom, const Scope& scope, RewriteFn fn) {
+    return Rewriter(nom->world(), &scope, fn).rewrite(nom->ops().back());
 }
 
 const Def* rewrite(Def* nom, RewriteFn fn) {
     Scope scope(nom);
-    return rewrite(nom, &scope, fn);
+    return rewrite(nom, scope, fn);
 }
 
 void cleanup(World& old_world) {

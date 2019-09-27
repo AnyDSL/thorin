@@ -684,7 +684,7 @@ void World::rewrite(const std::string& info, EnterFn enter_fn, RewriteFn rewrite
 
     visit([&](const Scope& scope) {
         if (enter_fn(scope)) {
-            auto new_body = thorin::rewrite(scope.entry(), &scope, rewrite_fn);
+            auto new_body = thorin::rewrite(scope.entry(), scope, rewrite_fn);
 
             if (scope.entry()->ops().back() != new_body) {
                 scope.entry()->set(scope.entry()->num_ops()-1, new_body);

@@ -452,6 +452,16 @@ const Def* normalize_ZOp(const Def* type, const Def* c, const Def* arg, const De
         }
     }
 
+    if (a == b) {
+        switch (op) {
+            case ZOp::sdiv: return make_res(world.lit_int_1(type)); // a / a -> 1
+            case ZOp::udiv: return make_res(world.lit_int_1(type)); // a / a -> 1
+            case ZOp::smod: return make_res(world.lit_int_0(type)); // a % a -> 0
+            case ZOp::umod: return make_res(world.lit_int_0(type)); // a % a -> 0
+            default: THORIN_UNREACHABLE;
+        }
+    }
+
     return world.raw_app(callee, {mem, a, b}, dbg);
 }
 

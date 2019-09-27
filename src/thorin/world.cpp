@@ -77,7 +77,7 @@ World::World(uint32_t cur_gid, const std::string& name, bool tuple2pack)
     } { // ZOp: Πw: nat. Π[mem, int w, int w]. [mem, int w]
         auto type = pi(star)->set_domain(nat);
         auto int_w = type_int(type->param({"w"}));
-        type->set_codomain(pi({mem, int_w, int_w}, sigma({mem, int_w})));
+        type->set_codomain(pi({mem, int_w, int_w}, {mem, int_w}));
         THORIN_Z_OP(CODE)
     } { // ROp: Π[m: nat, w: nat]. Π[real w, real w]. real w
         auto type = pi(star)->set_domain({nat, nat});
@@ -154,7 +154,7 @@ World::World(uint32_t cur_gid, const std::string& name, bool tuple2pack)
         auto T  = type->param(0, {"T"});
         auto as = type->param(1, {"as"});
         auto ptr = type_ptr(T, as);
-        type->set_codomain(pi({mem, ptr}, sigma({mem, T})));
+        type->set_codomain(pi({mem, ptr}, {mem, T}));
         cache_.op_load_ = axiom(normalize_load, type, 0, Tag::Load, 0, {"load"});
     } { // store: Π[T: *, as: nat]. Π[M, ptr(T, as), T]. M
         auto type = pi(star)->set_domain({star, nat});
@@ -168,14 +168,14 @@ World::World(uint32_t cur_gid, const std::string& name, bool tuple2pack)
         auto T  = type->param(0, {"T"});
         auto as = type->param(1, {"as"});
         auto ptr = type_ptr(T, as);
-        type->set_codomain(pi(mem, sigma({mem, ptr})));
+        type->set_codomain(pi(mem, {mem, ptr}));
         cache_.op_alloc_ = axiom(nullptr, type, 0, Tag::Alloc, 0, {"alloc"});
     } { // slot: Π[T: *, as: nat]. ΠM. [M, ptr(T, as)]
         auto type = pi(star)->set_domain({star, nat});
         auto T  = type->param(0, {"T"});
         auto as = type->param(1, {"as"});
         auto ptr = type_ptr(T, as);
-        type->set_codomain(pi(mem, sigma({mem, ptr})));
+        type->set_codomain(pi(mem, {mem, ptr}));
         cache_.op_slot_ = axiom(nullptr, type, 0, Tag::Slot, 0, {"slot"});
     }
 }

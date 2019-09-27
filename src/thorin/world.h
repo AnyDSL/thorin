@@ -113,6 +113,7 @@ public:
     //@{
     const Pi* pi(const Def* domain, const Def* codomain, Debug dbg = {});
     const Pi* pi(Defs domain, const Def* codomain, Debug dbg = {}) { return pi(sigma(domain), codomain, dbg); }
+    const Pi* pi(Defs domain, Defs codomain, Debug dbg = {}) { auto dom = sigma(domain); return pi(dom, sigma(codomain), dbg); }
     Pi* pi(const Def* type, Debug dbg = {}) { return insert<Pi>(2, type, debug(dbg)); } ///< @em nominal Pi.
     //@}
     /// @name Pi: continuation type, i.e., Pi type with codomain Bottom

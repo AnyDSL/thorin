@@ -295,6 +295,7 @@ const Def* normalize_IOp(const Def* type, const Def* c, const Def* arg, const De
     auto& world = type->world();
     auto callee = c->as<App>();
     auto [a, b] = arg->split<2>();
+    auto w = isa_lit<nat_t>(callee->arg());
 
     if (auto result = fold<1, IOp, op>(world, type, callee, a, b, dbg)) return result;
 
@@ -306,14 +307,14 @@ const Def* normalize_IOp(const Def* type, const Def* c, const Def* arg, const De
 
     if (auto la = a->isa<Lit>()) {
         if (op == IOp::ixor) {
-            if (la == world.lit_int_max(type)) { // bitwise not
+            if (la == world.lit_int_max(*w)) { // bitwise not
                 if (auto icmp = isa<Tag::ICmp>(b)) { auto [x, y] = icmp->args<2>(); return world.op(ICmp(~flags_t(icmp.flags()) & 0b11111), y, x); }
                 if (auto rcmp = isa<Tag::RCmp>(b)) { auto [x, y] = rcmp->args<2>(); return world.op(RCmp(~flags_t(rcmp.flags()) & 0b01111), y, x); }
             }
             if (auto res = merge_cmps<std::bit_xor<flags_t>>(world, a, b)) return res;
         }
 
-        if (la == world.lit_int_0(type)) { // is zero?
+        if (la == world.lit_int_0(*w)) { // is zero?
             switch (op) {
                 case IOp::ashr: return la;
                 case IOp::lshr: return la;
@@ -324,7 +325,7 @@ const Def* normalize_IOp(const Def* type, const Def* c, const Def* arg, const De
             }
         }
 
-        if (la == world.lit_int_max(type)) { // is max?
+        if (la == world.lit_int_max(*w)) { // is max?
             switch (op) {
                 case IOp::ashr: break;
                 case IOp::lshr: break;
@@ -337,7 +338,7 @@ const Def* normalize_IOp(const Def* type, const Def* c, const Def* arg, const De
     }
 
     if (auto lb = b->isa<Lit>()) {
-        if (lb == world.lit_int_0(type)) {   // is zero?
+        if (lb == world.lit_int_0(*w)) {   // is zero?
             switch (op) {
                 case IOp::ashr: return a;
                 case IOp::lshr: return a;
@@ -353,7 +354,7 @@ const Def* normalize_IOp(const Def* type, const Def* c, const Def* arg, const De
             case IOp::lshr: break;
             case IOp::iand: return a;
             case IOp::ior : return a;
-            case IOp::ixor: return world.lit_int_0(type);
+            case IOp::ixor: return world.lit_int_0(*w);
             default: THORIN_UNREACHABLE;
         }
     }
@@ -368,13 +369,12 @@ const Def* normalize_WOp(const Def* type, const Def* c, const Def* arg, const De
     auto& world = type->world();
     auto callee = c->as<App>();
     auto [a, b] = arg->split<2>();
-    auto [mode, width] = callee->args<2>();
-    auto m = isa_lit<nat_t>(mode), w = isa_lit<nat_t>(width);
+    auto [m, w] = callee->args<2>(isa_lit<nat_t>); // mode and width
 
     if (auto result = fold<8, WOp, op>(world, type, callee, a, b, dbg)) return result;
 
     if (auto la = a->isa<Lit>()) {
-        if (la == world.lit_int_0(type)) {  // is zero?
+        if (la == world.lit_int_0(*w)) {  // is zero?
             switch (op) {
                 case WOp::add: return b;    // 0  + b -> b
                 case WOp::sub: break;
@@ -384,7 +384,7 @@ const Def* normalize_WOp(const Def* type, const Def* c, const Def* arg, const De
             }
         }
 
-        if (la == world.lit_int_1(type)) { // is one?
+        if (la == world.lit_int_1(*w)) { // is one?
             switch (op) {
                 case WOp::add: break;
                 case WOp::sub: break;
@@ -396,7 +396,7 @@ const Def* normalize_WOp(const Def* type, const Def* c, const Def* arg, const De
     }
 
     if (auto lb = b->isa<Lit>()) {
-        if (lb == world.lit_int_0(type)) { // is zero?
+        if (lb == world.lit_int_0(*w)) { // is zero?
             switch (op) {
                 case WOp::sub: return a;    // a  - 0 -> a
                 case WOp::shl: return a;    // a >> 0 -> a
@@ -406,13 +406,13 @@ const Def* normalize_WOp(const Def* type, const Def* c, const Def* arg, const De
         }
 
         // a - lb -> a + (~lb + 1)
-        if (op == WOp::sub) return world.op(WOp::add, mode, a, world.lit(type, (~lb->get() + 1_u64) & (u64(-1) >> (64_u64 - *w))));
+        if (op == WOp::sub) return world.op(WOp::add, *m, a, world.lit(type, (~lb->get() + 1_u64) & (u64(-1) >> (64_u64 - *w))));
     }
 
     if (a == b) {
         switch (op) {
-            case WOp::add: return world.op(WOp::mul, *m, world.lit(type, 2), a); // a + a -> 2 * a
-            case WOp::sub: return world.lit_int_0(type);                         // a - a -> 0
+            case WOp::add: return world.op(WOp::mul, *m, world.lit(type, 2), a, dbg); // a + a -> 2 * a
+            case WOp::sub: return world.lit_int_0(*w);                                // a - a -> 0
             case WOp::mul: break;
             case WOp::shl: break;
             default: THORIN_UNREACHABLE;
@@ -429,24 +429,25 @@ const Def* normalize_ZOp(const Def* type, const Def* c, const Def* arg, const De
     auto& world = type->world();
     auto callee = c->as<App>();
     auto [mem, a, b] = arg->split<3>();
+    auto w = isa_lit<nat_t>(callee->arg());
     type = type->as<Sigma>()->op(1); // peel of actual type
     auto make_res = [&](const Def* res) { return world.tuple({mem, res}, dbg); };
 
     if (auto result = fold<8, ZOp, op>(world, type, callee, a, b, dbg)) return make_res(result);
 
     if (auto la = a->isa<Lit>()) {
-        if (la == world.lit_int_0(type)) return make_res(la); // 0 / b -> 0 and 0 % b -> 0
+        if (la == world.lit_int_0(*w)) return make_res(la); // 0 / b -> 0 and 0 % b -> 0
     }
 
     if (auto lb = b->isa<Lit>()) {
-        if (lb == world.lit_int_0(type)) return make_res(world.bot(type)); // a / 0 -> ⊥ and a % 0 -> ⊥
+        if (lb == world.lit_int_0(*w)) return make_res(world.bot(type)); // a / 0 -> ⊥ and a % 0 -> ⊥
 
-        if (lb == world.lit_int_1(type)) { // is one?
+        if (lb == world.lit_int_1(*w)) { // is one?
             switch (op) {
-                case ZOp::sdiv: return make_res(a);                     // a / 1 -> a
-                case ZOp::udiv: return make_res(a);                     // a / 1 -> a
-                case ZOp::smod: return make_res(world.lit_int_0(type)); // a % 0 -> a
-                case ZOp::umod: return make_res(world.lit_int_0(type)); // a % 0 -> a
+                case ZOp::sdiv: return make_res(a);                   // a / 1 -> a
+                case ZOp::udiv: return make_res(a);                   // a / 1 -> a
+                case ZOp::smod: return make_res(world.lit_int_0(*w)); // a % 0 -> a
+                case ZOp::umod: return make_res(world.lit_int_0(*w)); // a % 0 -> a
                 default: THORIN_UNREACHABLE;
             }
         }
@@ -454,10 +455,10 @@ const Def* normalize_ZOp(const Def* type, const Def* c, const Def* arg, const De
 
     if (a == b) {
         switch (op) {
-            case ZOp::sdiv: return make_res(world.lit_int_1(type)); // a / a -> 1
-            case ZOp::udiv: return make_res(world.lit_int_1(type)); // a / a -> 1
-            case ZOp::smod: return make_res(world.lit_int_0(type)); // a % a -> 0
-            case ZOp::umod: return make_res(world.lit_int_0(type)); // a % a -> 0
+            case ZOp::sdiv: return make_res(world.lit_int_1(*w)); // a / a -> 1
+            case ZOp::udiv: return make_res(world.lit_int_1(*w)); // a / a -> 1
+            case ZOp::smod: return make_res(world.lit_int_0(*w)); // a % a -> 0
+            case ZOp::umod: return make_res(world.lit_int_0(*w)); // a % a -> 0
             default: THORIN_UNREACHABLE;
         }
     }
@@ -469,9 +470,62 @@ template<ROp op>
 const Def* normalize_ROp(const Def* type, const Def* c, const Def* arg, const Def* dbg) {
     auto& world = type->world();
     auto callee = c->as<App>();
-
     auto [a, b] = arg->split<2>();
+    auto [m, w] = callee->args<2>(isa_lit<nat_t>); // mode and width
+
     if (auto result = fold<16, ROp, op>(world, type, callee, a, b, dbg)) return result;
+
+
+    // TODO check rmode properly
+    if (m && *m == RMode::fast) {
+        if (auto la = a->isa<Lit>()) {
+            if (la == world.lit_real_0(*w)) { // is zero?
+                switch (op) {
+                    case ROp::add: return b;    // 0 + b -> b
+                    case ROp::sub: break;
+                    case ROp::mul: return la;   // 0 * b -> 0
+                    case ROp::div: return la;   // 0 / b -> 0
+                    case ROp::mod: return la;   // 0 % b -> 0
+                    default: THORIN_UNREACHABLE;
+                }
+            }
+
+            if (la == world.lit_real_1(*w)) { // is one?
+                switch (op) {
+                    case ROp::add: break;
+                    case ROp::sub: break;
+                    case ROp::mul: return b;    // 1  * b -> b
+                    case ROp::div: break;
+                    case ROp::mod: break;
+                    default: THORIN_UNREACHABLE;
+                }
+            }
+        }
+
+        if (auto lb = b->isa<Lit>()) {
+            if (lb == world.lit_real_0(*w)) { // is zero?
+                switch (op) {
+                    case ROp::sub: return a;    // a - 0 -> a
+                    case ROp::div: break;
+                    case ROp::mod: break;
+                    default: THORIN_UNREACHABLE;
+                    // add, mul are commutative, the literal has been normalized to the left
+                }
+            }
+        }
+
+        if (a == b) {
+            switch (op) {
+                case ROp::add: return world.op(ROp::mul, world.lit_real_2(*w), a, dbg); // a + a -> 2 * a
+                case ROp::sub: return world.lit_real_0(*w);                             // a - a -> 0
+                case ROp::mul: break;
+                case ROp::div: return world.lit_real_1(*w);                             // a / a -> 1
+                case ROp::mod: break;
+                default: THORIN_UNREACHABLE;
+            }
+        }
+    }
+
 
     if (auto res = reassociate<Tag::ROp>(op, world, callee, a, b, dbg)) return res;
 

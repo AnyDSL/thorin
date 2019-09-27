@@ -286,9 +286,36 @@ public:
             default: THORIN_UNREACHABLE;
         }
     }
-    const Lit* lit_real_0      (const Def* type, Debug dbg = {}) { return lit_real_0      (as_lit<nat_t>(as<Tag::Real>(type)->arg()), dbg); }
-    const Lit* lit_real_minus_0(const Def* type, Debug dbg = {}) { return lit_real_minus_0(as_lit<nat_t>(as<Tag::Real>(type)->arg()), dbg); }
-    const Lit* lit_real_1      (const Def* type, Debug dbg = {}) { return lit_real_1      (as_lit<nat_t>(as<Tag::Real>(type)->arg()), dbg); }
+    const Lit* lit_real_2(nat_t w, Debug dbg = {}) {
+        switch (w) {
+            case 16: return lit_real(2._r16, dbg);
+            case 32: return lit_real(2._r32, dbg);
+            case 64: return lit_real(2._r64, dbg);
+            default: THORIN_UNREACHABLE;
+        }
+    }
+    const Lit* lit_real_inf(nat_t w, Debug dbg = {}) {
+        switch (w) {
+            case 16: return lit_real(std::numeric_limits<r16>::infinity(), dbg);
+            case 32: return lit_real(std::numeric_limits<r32>::infinity(), dbg);
+            case 64: return lit_real(std::numeric_limits<r64>::infinity(), dbg);
+            default: THORIN_UNREACHABLE;
+        }
+    }
+    const Lit* lit_real_minus_inf(nat_t w, Debug dbg = {}) {
+        switch (w) {
+            case 16: return lit_real(-std::numeric_limits<r16>::infinity(), dbg);
+            case 32: return lit_real(-std::numeric_limits<r32>::infinity(), dbg);
+            case 64: return lit_real(-std::numeric_limits<r64>::infinity(), dbg);
+            default: THORIN_UNREACHABLE;
+        }
+    }
+    const Lit* lit_real_0        (const Def* type, Debug dbg = {}) { return lit_real_0        (as_lit<nat_t>(as<Tag::Real>(type)->arg()), dbg); }
+    const Lit* lit_real_minus_0  (const Def* type, Debug dbg = {}) { return lit_real_minus_0  (as_lit<nat_t>(as<Tag::Real>(type)->arg()), dbg); }
+    const Lit* lit_real_1        (const Def* type, Debug dbg = {}) { return lit_real_1        (as_lit<nat_t>(as<Tag::Real>(type)->arg()), dbg); }
+    const Lit* lit_real_2        (const Def* type, Debug dbg = {}) { return lit_real_2        (as_lit<nat_t>(as<Tag::Real>(type)->arg()), dbg); }
+    const Lit* lit_real_inf      (const Def* type, Debug dbg = {}) { return lit_real_inf      (as_lit<nat_t>(as<Tag::Real>(type)->arg()), dbg); }
+    const Lit* lit_real_minus_inf(const Def* type, Debug dbg = {}) { return lit_real_minus_inf(as_lit<nat_t>(as<Tag::Real>(type)->arg()), dbg); }
     //@}
     /// @name Top/Bottom
     //@{

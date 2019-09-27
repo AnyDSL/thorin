@@ -146,7 +146,7 @@ Lam* CodeGen::emit_reserve_shared(Lam* lam, bool init_undef) {
     auto l = lam->app()->arg(2)->as_nominal<Lam>();
     auto type = convert(lam->param(1)->type());
     // construct array type
-    auto elem_type = as<Tag::Ptr>(l->param(1)->type())->arg(0)->as<Variadic>()->body();
+    auto elem_type = as<Tag::Ptr>(l->param(1)->type())->arg(0)->as<Variadic>()->codomain();
     auto smem_type = this->convert(lam->world().variadic(num_elems, elem_type));
     auto name = lam->unique_name();
     // NVVM doesn't allow '.' in global identifier
@@ -580,11 +580,11 @@ llvm::Value* CodeGen::emit_alloc(const Def* type) {
     llvm::CallInst* void_ptr;
     auto layout = module_->getDataLayout();
     if (auto variadic = type->isa<Variadic>()) {
-        auto num = lookup(variadic->arity());
+        auto num = lookup(variadic->domain());
         auto size = irbuilder_.CreateAdd(
                 irbuilder_.getInt64(layout.getTypeAllocSize(alloced_type)),
                 irbuilder_.CreateMul(irbuilder_.CreateIntCast(num, irbuilder_.getInt64Ty(), false),
-                                     irbuilder_.getInt64(layout.getTypeAllocSize(convert(variadic->body())))));
+                                     irbuilder_.getInt64(layout.getTypeAllocSize(convert(variadic->codomain())))));
         llvm::Value* malloc_args[] = { irbuilder_.getInt32(0), size };
         void_ptr = irbuilder_.CreateCall(llvm_malloc, malloc_args);
     } else {
@@ -778,7 +778,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         if (pack->body()->isa<Bot>()) return llvm_agg;
 
         auto elem = lookup(pack->body());
-        for (size_t i = 0, e = as_lit<u64>(pack->arity()); i != e; ++i)
+        for (size_t i = 0, e = as_lit<u64>(pack->domain()); i != e; ++i)
             llvm_agg = irbuilder_.CreateInsertValue(llvm_agg, elem, { unsigned(i) });
 
         return llvm_agg;
@@ -968,8 +968,8 @@ llvm::Type* CodeGen::convert(const Def* type) {
         auto llvm_type = llvm::PointerType::get(convert(pointee), convert_addr_space(as_lit<nat_t>(addr_space)));
         return types_[type] = llvm_type;
     } else if (auto variadic = type->isa<Variadic>()) {
-        auto elem_type = convert(variadic->body());
-        if (auto arity = isa_lit<u64>(variadic->arity()))
+        auto elem_type = convert(variadic->codomain());
+        if (auto arity = isa_lit<u64>(variadic->domain()))
             return types_[type] = llvm::ArrayType::get(elem_type, *arity);
         else
             return types_[type] = llvm::ArrayType::get(elem_type, 0);
@@ -1227,12 +1227,12 @@ Backends::Backends(World& world)
                 size_t multiplier = 1;
                 if (!elem_type->isa<PrimType>()) {
                     if (auto variadic = elem_type->isa<Variadic>())
-                        elem_type = variadic->body();
+                        elem_type = variadic->codomain();
                 }
                 if (!elem_type->isa<PrimType>()) {
-                    if (auto variadic = elem_type->isa<Variadic>(); variadic && variadic->arity()->isa<Lit>()) {
-                        elem_type = variadic->body();
-                        multiplier = as_lit<u64>(variadic->arity());
+                    if (auto variadic = elem_type->isa<Variadic>(); variadic && variadic->domain()->isa<Lit>()) {
+                        elem_type = variadic->codomain();
+                        multiplier = as_lit<u64>(variadic->domain());
                     }
                 }
                 auto prim_type = elem_type->isa<PrimType>();

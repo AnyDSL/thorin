@@ -741,8 +741,8 @@ public:
 class Variadic : public Def {
 private:
     /// Constructor for a @em structural Variadic.
-    Variadic(const Def* type, const Def* arity, const Def* body, const Def* dbg)
-        : Def(Node, rebuild, type, {arity, body}, 0, dbg)
+    Variadic(const Def* type, const Def* domain, const Def* codomain, const Def* dbg)
+        : Def(Node, rebuild, type, {domain, codomain}, 0, dbg)
     {}
     /// Constructor for a @em nominal Variaidc.
     Variadic(const Def* type, const Def* dbg)
@@ -750,14 +750,14 @@ private:
     {}
 
 public:
-    const Def* arity() const { return op(0); }
-    const Def* body() const { return op(1); }
+    const Def* domain() const { return op(0); }
+    const Def* codomain() const { return op(1); }
 
     /// @name setters for @em nominal @p Variadic.
     //@{
-    Variadic* set_arity(const Def* arity) { return Def::set(0, arity)->as<Variadic>(); }
-    Variadic* set_arity(Defs arities);
-    Variadic* set_body(const Def* body) { return Def::set(1, body)->as<Variadic>(); }
+    Variadic* set_domain(const Def* domain) { return Def::set(0, domain)->as<Variadic>(); }
+    Variadic* set_domain(Defs domains);
+    Variadic* set_codomain(const Def* codomain) { return Def::set(1, codomain)->as<Variadic>(); }
     //@}
 
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
@@ -780,8 +780,16 @@ private:
     {}
 
 public:
+    /// @name type
+    //@{
+    const Variadic* type() const { return Def::type()->as<Variadic>(); }
+    const Def* domain() const { return type()->domain(); }
+    const Def* codomain() const { return type()->codomain(); }
+    //@}
+    /// @name ops
+    //@{
     const Def* body() const { return op(0); }
-
+    //@}
     /// @name setters for @em nominal @p Pack.
     //@{
     Pack* set_body(const Def* body) { return Def::set(0, body)->as<Pack>(); }

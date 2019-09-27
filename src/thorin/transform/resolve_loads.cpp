@@ -208,7 +208,7 @@ public:
                 auto variadic_from = ptr_from->arg(0)->isa<Variadic>();
                 if (!variadic_to || !variadic_from)
                     return false;
-                if (variadic_to->body() != variadic_from->body())
+                if (variadic_to->codomain() != variadic_from->codomain())
                     return false;
                 if (!are_ptr_uses_safe(use.def(), allow_load)) return false;
             } else if (!allow_load || !isa<Tag::Load>(use)) {

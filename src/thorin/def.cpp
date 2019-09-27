@@ -24,14 +24,14 @@ namespace detail {
 const Def* Def::arity() const {
     if (auto sigma    = isa<Sigma   >()) return world().lit_arity(sigma->num_ops());
     if (auto union_   = isa<Union   >()) return world().lit_arity(union_->num_ops());
-    if (auto variadic = isa<Variadic>()) return variadic->arity();
+    if (auto variadic = isa<Variadic>()) return variadic->domain();
     return world().lit_arity_1();
 }
 
 nat_t Def::lit_arity() const {
     if (auto sigma    = isa<Sigma   >()) return sigma->num_ops();
     if (auto union_   = isa<Union   >()) return union_->num_ops();
-    if (auto variadic = isa<Variadic>()) return as_lit<nat_t>(variadic->arity());
+    if (auto variadic = isa<Variadic>()) return as_lit<nat_t>(variadic->domain());
     return 1;
 }
 
@@ -385,11 +385,11 @@ Mem::Mem(World& world)
 {}
 
 const Param* Def::param(Debug dbg) {
-    if (auto lam      = isa<Lam     >()) return world().param(lam->domain(),     lam,      dbg);
-    if (auto pi       = isa<Pi      >()) return world().param(pi ->domain(),     pi,       dbg);
-    if (auto pack     = isa<Pack    >()) return world().param(pack->arity(),     pack,     dbg);
-    if (auto sigma    = isa<Sigma   >()) return world().param(sigma,             sigma,    dbg);
-    if (auto variadic = isa<Variadic>()) return world().param(variadic->arity(), variadic, dbg);
+    if (auto lam      = isa<Lam     >()) return world().param(lam->domain(),      lam,      dbg);
+    if (auto pi       = isa<Pi      >()) return world().param(pi ->domain(),      pi,       dbg);
+    if (auto pack     = isa<Pack    >()) return world().param(pack->domain(),     pack,     dbg);
+    if (auto sigma    = isa<Sigma   >()) return world().param(sigma,              sigma,    dbg);
+    if (auto variadic = isa<Variadic>()) return world().param(variadic->domain(), variadic, dbg);
     if (auto axiom    = isa<Axiom   >()) {
         if (auto pi = axiom->type()->isa<Pi>())
             return world().param(pi->domain(), axiom, dbg);
@@ -456,7 +456,7 @@ std::ostream& Global     ::stream(std::ostream& os) const { return os << unique_
 std::ostream& Mem        ::stream(std::ostream& os) const { return streamf(os, "mem"); }
 std::ostream& Nat        ::stream(std::ostream& os) const { return streamf(os, "nat"); }
 std::ostream& Universe   ::stream(std::ostream& os) const { return streamf(os, "□"); }
-std::ostream& Variadic   ::stream(std::ostream& os) const { return streamf(os, "«{}; {}»", arity(), body()); }
+std::ostream& Variadic   ::stream(std::ostream& os) const { return streamf(os, "«{}; {}»", domain(), codomain()); }
 std::ostream& VariantType::stream(std::ostream& os) const { return stream_ops(os << "variant", this); }
 std::ostream& KindArity  ::stream(std::ostream& os) const { return os << "*A"; }
 std::ostream& KindMulti  ::stream(std::ostream& os) const { return os << "*M"; }

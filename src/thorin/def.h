@@ -475,6 +475,7 @@ public:
     Array<const Def*> domains() const;
     size_t num_domains() const;
     const Def* codomain() const { return op(1); }
+    const Def* codomain(size_t i) const;
     bool is_cn() const { return codomain()->isa<Bot>(); }
     bool is_basicblock() const { return order() == 1; }
     bool is_returning() const;

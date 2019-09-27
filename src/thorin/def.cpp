@@ -280,6 +280,12 @@ const Def* Pi::domain(size_t i) const {
     return domain();
 }
 
+const Def* Pi::codomain(size_t i) const {
+    if (auto sigma = codomain()->isa<Sigma>())
+        return sigma->op(i);
+    return codomain();
+}
+
 bool Pi::is_returning() const {
     bool ret = false;
     for (auto op : ops()) {

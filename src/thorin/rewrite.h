@@ -22,8 +22,7 @@ public:
     {}
 
     const Def* rewrite(const Def* old_def);
-    template<class D> // D may be "Def" or "const Def"
-    D* map(const Def* old_def, D* new_def) { old2new.emplace(old_def, new_def); return new_def; }
+    const Def* normalize(Def* old_nom, Def* new_nom);
     World& world() { assert(&old_world == &new_world); return old_world; }
 
     World& old_world;

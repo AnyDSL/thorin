@@ -10,7 +10,7 @@ const Def* Rewriter::rewrite(const Def* old_def) {
     if (scope != nullptr && !scope->contains(old_def)) return old_def;
 
     if (fn) {
-        if (auto new_def = fn(old_def)) return map(old_def, new_def);
+        if (auto new_def = fn(old_def)) return old2new[old_def] = new_def;
     }
 
     auto new_type = rewrite(old_def->type());
@@ -21,29 +21,43 @@ const Def* Rewriter::rewrite(const Def* old_def) {
 
     if (auto old_nom = old_def->isa_nominal()) {
         auto new_nom = old_nom->stub(new_world, new_type, new_dbg);
-        map(old_nom, new_nom);
+        old2new[old_nom] = new_nom;
 
         for (size_t i = 0, e = old_nom->num_ops(); i != e; ++i) {
             if (auto old_op = old_nom->op(i))
                 new_nom->set(i, rewrite(old_op));
         }
 
-        return new_nom;
+        return normalize(old_nom, new_nom);
     }
 
     Array<const Def*> new_ops(old_def->num_ops(), [&](auto i) { return rewrite(old_def->op(i)); });
-    return map(old_def, old_def->rebuild(new_world, new_type, new_ops, new_dbg)); ;
+    return old2new[old_def] = old_def->rebuild(new_world, new_type, new_ops, new_dbg);
+}
+
+const Def* Rewriter::normalize(Def* old_nom, Def* new_nom) {
+    // TODO multi arities and packs
+    if (auto variadic = new_nom->isa<Variadic>()) {
+        if (auto arity = isa_lit<nat_t>(variadic->domain())) {
+            Scope scope(variadic);
+            Array<const Def*> new_ops(*arity, [&](size_t i) { return thorin::rewrite(variadic, new_world.lit_index(*arity, i), scope); });
+            new_world.sigma(new_ops, variadic->debug())->dump();
+            return old2new[old_nom] = new_world.sigma(new_ops, variadic->debug());
+        }
+    }
+
+    return new_nom;
 }
 
 const Def* rewrite(const Def* def, const Def* old_def, const Def* new_def, const Scope& scope) {
     Rewriter rewriter(def->world(), &scope);
-    rewriter.map(old_def, new_def);
+    rewriter.old2new[old_def] = new_def;
     return rewriter.rewrite(def);
 }
 
 const Def* rewrite(Def* nom, const Def* arg, const Scope& scope) {
     Rewriter rewriter(nom->world(), &scope);
-    rewriter.map(nom->param(), arg);
+    rewriter.old2new[nom->param()] = arg;
     return rewriter.rewrite(nom->ops().back());
 }
 

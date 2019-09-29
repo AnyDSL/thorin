@@ -118,10 +118,10 @@ public:
     /// @name Pi: continuation type, i.e., Pi type with codomain Bottom
     //@{
     const Pi* cn() { return cn(sigma()); }
-    const Pi* cn(Defs domains) { return cn(sigma(domains)); }
-    const Pi* cn(const Def* domain) { return pi(domain, bot_star()); }
+    const Pi* cn(const Def* domain, Debug dbg = {}) { return pi(domain, bot_star(), dbg); }
+    const Pi* cn(Defs domains, Debug dbg = {}) { return cn(sigma(domains), dbg); }
     /// Returns a CPS-translated function type with side effect: cn[mem, [domains], cn[men, [codomains]]]
-    const Pi* fn(Defs domains, Defs codomains) { auto ret = cn({type_mem(), sigma(codomains)}); return cn({type_mem(), sigma(domains), ret}); }
+    const Pi* fn(Defs domains, Defs codomains, Debug dbg = {}) { auto ret = cn({type_mem(), sigma(codomains)}); return cn({type_mem(), sigma(domains), ret}, dbg); }
     //@}
     /// @name Lambda: nominal
     //@{

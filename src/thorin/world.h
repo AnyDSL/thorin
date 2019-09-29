@@ -419,10 +419,12 @@ public:
     /// @name misc operations
     //@{
     const Axiom* op_bitcast() const { return cache_.op_bitcast_; }
-    const Axiom* op_lea()     const { return cache_.op_lea_; }
-    const Axiom* op_select()  const { return cache_.op_select_; }
-    const Axiom* op_sizeof()  const { return cache_.op_sizeof_; }
+    const Axiom* op_cps2ds()  const { return cache_.op_cps2ds_;  }
+    const Axiom* op_lea()     const { return cache_.op_lea_;     }
+    const Axiom* op_select()  const { return cache_.op_select_;  }
+    const Axiom* op_sizeof()  const { return cache_.op_sizeof_;  }
     const Def* op_bitcast(const Def* dst_type, const Def* src, Debug dbg = {}) { return app(app(op_bitcast(), {dst_type, src->type()}), src, dbg); }
+    const Def* op_cps2ds(const Def* cps, Debug dbg = {});
     const Def* op_lea(const Def* ptr, const Def* index, Debug dbg = {});
     const Def* op_lea_unsafe(const Def* ptr, const Def* index, Debug dbg) { return op_lea(ptr, op_bitcast(as<Tag::Ptr>(ptr->type())->arg(0)->arity(), index, dbg), dbg); }
     const Def* op_select(const Def* cond, const Def* t, const Def* f, Debug dbg = {}) { return app(app(cache_.op_select_, t->type()), {cond, t, f}, dbg); }
@@ -661,6 +663,7 @@ private:
         Axiom* op_slot_;
         Axiom* op_load_;
         Axiom* op_store_;
+        Axiom* op_cps2ds_;
     } cache_;
 
     friend class Cleaner;

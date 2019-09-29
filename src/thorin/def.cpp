@@ -456,11 +456,16 @@ std::ostream& Global     ::stream(std::ostream& os) const { return os << unique_
 std::ostream& Mem        ::stream(std::ostream& os) const { return streamf(os, "mem"); }
 std::ostream& Nat        ::stream(std::ostream& os) const { return streamf(os, "nat"); }
 std::ostream& Universe   ::stream(std::ostream& os) const { return streamf(os, "□"); }
-std::ostream& Variadic   ::stream(std::ostream& os) const { return streamf(os, "«{}; {}»", domain(), codomain()); }
 std::ostream& VariantType::stream(std::ostream& os) const { return stream_ops(os << "variant", this); }
 std::ostream& KindArity  ::stream(std::ostream& os) const { return os << "*A"; }
 std::ostream& KindMulti  ::stream(std::ostream& os) const { return os << "*M"; }
 std::ostream& KindStar   ::stream(std::ostream& os) const { return os << "*"; }
+
+std::ostream& Variadic   ::stream(std::ostream& os) const {
+    if (auto variadic = isa_nominal())
+        return streamf(os, "«{}: {}; {}»", variadic->param(), domain(), codomain());
+    return streamf(os, "«{}; {}»", domain(), codomain());
+}
 
 std::ostream& Analyze::stream(std::ostream& os) const {
     stream_list(os << "analyze(", ops().skip_front(), [&](auto def) { os << def; });

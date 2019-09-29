@@ -428,7 +428,7 @@ public:
     const Def* op_select(const Def* cond, const Def* t, const Def* f, Debug dbg = {}) { return app(app(cache_.op_select_, t->type()), {cond, t, f}, dbg); }
     const Def* op_sizeof(const Def* type, Debug dbg = {}) { return app(op_sizeof(), type, dbg); }
     Lam* match(const Def* type, size_t num_patterns);
-    Axiom* axiom_end() const { return cache_.axiom_end_; }
+    Axiom* op_end() const { return cache_.op_end_; }
     //@}
     /// @name debug information
     //@{
@@ -648,7 +648,7 @@ private:
         std::array<Axiom*, Num<RCmp>> RCmp_;
         std::array<Axiom*, Num<Conv>> Conv_;
         std::array<Axiom*, Num<PE>>   PE_;
-        Axiom* axiom_end_;
+        Axiom* op_end_;
         Axiom* type_int_;
         Axiom* type_real_;
         Axiom* type_ptr_;

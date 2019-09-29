@@ -16,7 +16,7 @@ namespace thorin {
 Scope::Scope(Def* entry)
     : world_(entry->world())
     , entry_(entry)
-    , exit_(world().axiom_end())
+    , exit_(world().op_end())
 {
     run();
 }

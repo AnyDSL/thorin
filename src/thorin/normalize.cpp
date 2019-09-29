@@ -475,7 +475,6 @@ const Def* normalize_ROp(const Def* type, const Def* c, const Def* arg, const De
 
     if (auto result = fold<16, ROp, op>(world, type, callee, a, b, dbg)) return result;
 
-
     // TODO check rmode properly
     if (m && *m == RMode::fast) {
         if (auto la = a->isa<Lit>()) {

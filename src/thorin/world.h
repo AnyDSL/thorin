@@ -299,6 +299,10 @@ public:
     const VariantType* variant_type(Defs ops, Debug dbg = {}) { return unify<VariantType>(ops.size(), kind_star(), ops, debug(dbg)); }
     const Def* variant(const VariantType* variant_type, const Def* value, Debug dbg = {}) { return unify<Variant>(1, variant_type, value, debug(dbg)); }
     //@}
+    /// @name CPS2DS
+    //@{
+    const Def* cps2ds(const Def* cps, Debug dbg = {});
+    //@}
     /// @name misc types
     //@{
     const Nat* type_nat() { return cache_.type_nat_; }
@@ -389,12 +393,10 @@ public:
     /// @name misc operations
     //@{
     const Axiom* op_bitcast() const { return cache_.op_bitcast_; }
-    const Axiom* op_cps2ds()  const { return cache_.op_cps2ds_;  }
     const Axiom* op_lea()     const { return cache_.op_lea_;     }
     const Axiom* op_select()  const { return cache_.op_select_;  }
     const Axiom* op_sizeof()  const { return cache_.op_sizeof_;  }
     const Def* op_bitcast(const Def* dst_type, const Def* src, Debug dbg = {}) { return app(app(op_bitcast(), {dst_type, src->type()}), src, dbg); }
-    const Def* op_cps2ds(const Def* cps, Debug dbg = {});
     const Def* op_lea(const Def* ptr, const Def* index, Debug dbg = {});
     const Def* op_lea_unsafe(const Def* ptr, const Def* i, Debug dbg = {}) { return op_lea(ptr, op_bitcast(as<Tag::Ptr>(ptr->type())->arg(0)->arity(), i), dbg); }
     const Def* op_lea_unsafe(const Def* ptr, u64 i, Debug dbg = {}) { return op_lea_unsafe(ptr, lit_int(i), dbg); }
@@ -615,14 +617,14 @@ private:
         std::array<const Lit*, 2> lit_bool_;
         const Lit* lit_arity_1_;
         const Lit* lit_index_0_1_;
-        std::array<Axiom*, Num<IOp>>  IOp_;
-        std::array<Axiom*, Num<WOp>>  WOp_;
-        std::array<Axiom*, Num<ZOp>>  ZOp_;
-        std::array<Axiom*, Num<ROp>>  ROp_;
-        std::array<Axiom*, Num<ICmp>> ICmp_;
-        std::array<Axiom*, Num<RCmp>> RCmp_;
-        std::array<Axiom*, Num<Conv>> Conv_;
-        std::array<Axiom*, Num<PE>>   PE_;
+        std::array<Axiom*, Num<IOp>>    IOp_;
+        std::array<Axiom*, Num<WOp>>    WOp_;
+        std::array<Axiom*, Num<ZOp>>    ZOp_;
+        std::array<Axiom*, Num<ROp>>    ROp_;
+        std::array<Axiom*, Num<ICmp>>   ICmp_;
+        std::array<Axiom*, Num<RCmp>>   RCmp_;
+        std::array<Axiom*, Num<Conv>>   Conv_;
+        std::array<Axiom*, Num<PE>>     PE_;
         Axiom* op_end_;
         Axiom* type_int_;
         Axiom* type_real_;
@@ -636,7 +638,6 @@ private:
         Axiom* op_slot_;
         Axiom* op_load_;
         Axiom* op_store_;
-        Axiom* op_cps2ds_;
     } cache_;
 
     friend class Cleaner;

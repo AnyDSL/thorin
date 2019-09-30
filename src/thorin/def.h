@@ -616,6 +616,20 @@ using LamMap  = GIDMap<Lam*, To>;
 using LamSet  = GIDSet<Lam*>;
 using Lam2Lam = LamMap<Lam*>;
 
+class CPS2DS : public Def {
+private:
+    CPS2DS(const Def* type, const Def* cps, const Def* dbg)
+        : Def(Node, rebuild, type, { cps }, 0, dbg)
+    {}
+
+public:
+    const Def* cps() const { return op(0); }
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+
+    static constexpr auto Node = Node::CPS2DS;
+    friend class World;
+};
+
 class Tracker {
 public:
     Tracker()

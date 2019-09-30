@@ -69,7 +69,7 @@ public:
     World(World&&) = delete;
     World& operator=(const World&) = delete;
 
-    explicit World(uint32_t cur_gid, const std::string& name = {}, bool tuple2pack = true);
+    explicit World(u32 cur_gid, const std::string& name = {}, bool tuple2pack = true);
     ///  Inherits properties of the @p other @p World but does @em not perform a copy.
     explicit World(const World& other)
         : World(other.cur_gid(), other.name(), other.tuple2pack_)
@@ -90,8 +90,8 @@ public:
     //@}
     /// @name manage global identifier - a unique number for each Def
     //@{
-    uint32_t cur_gid() const { return cur_gid_; }
-    uint32_t next_gid() { return ++cur_gid_; }
+    u32 cur_gid() const { return cur_gid_; }
+    u32 next_gid() { return ++cur_gid_; }
     //@}
     /// @name Universe and Kind
     //@{
@@ -459,6 +459,7 @@ public:
     const Breakpoints& breakpoints() const { return breakpoints_; }
     bool track_history() const { return track_history_; }
     void enable_history(bool flag = true) { track_history_ = flag; }
+    const Def* lookup_by_gid(u32 gid);
     //@}
 #endif
     /// @name stream
@@ -592,7 +593,7 @@ private:
     std::string name_;
     Externals externals_;
     Sea defs_;
-    uint32_t cur_gid_;
+    u32 cur_gid_;
     bool pe_done_ = false;
     bool tuple2pack_;
 #if THORIN_ENABLE_CHECKS

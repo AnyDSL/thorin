@@ -519,7 +519,6 @@ static const Def* tuple_of_types(const Def* t) {
 const Def* World::op_lea(const Def* ptr, const Def* index, Debug dbg) {
     auto [pointee, addr_space] = as<Tag::Ptr>(ptr->type())->args<2>();
     auto Ts = tuple_of_types(pointee);
-    //Ts->dump();
     return app(app(op_lea(), {pointee->arity(), Ts, addr_space}), {ptr, index}, debug(dbg));
 }
 

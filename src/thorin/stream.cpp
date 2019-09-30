@@ -15,8 +15,8 @@ Stream& Stream::endl() {
 //------------------------------------------------------------------------------
 
 void Def::dump() const {
-    Stream stream(std::cout);
-    (stream << this).endl();
+    Stream s(std::cout);
+    thorin::stream(s, this, Recurse::OneLevel).endl();
 }
 
 Stream& operator<<(Stream& s, const Def* def) {
@@ -142,8 +142,8 @@ Stream& stream(Stream& s, const Def* def, Recurse recurse) {
         }
 #endif
         if (auto nom_pack = pack->isa_nominal<Pack>())
-            return s.streamf("‹{}: {}; {}›", nom_pack->param(), nom_pack->domain(), nom_pack->codomain());
-        return s.streamf("‹{}; {}›", pack->domain(), pack->codomain());
+            return s.streamf("‹{}: {}; {}›", nom_pack->param(), nom_pack->domain(), nom_pack->body());
+        return s.streamf("‹{}; {}›", pack->domain(), pack->body());
     } else if (auto union_ = def->isa<Union>()) {
         if (union_->isa_nominal()) s.streamf("{}: {}", union_->unique_name(), union_->type());
         return s.streamf("⋃").list(union_->ops(), [&](const Def* def) { return s << def; }, "(", ")");

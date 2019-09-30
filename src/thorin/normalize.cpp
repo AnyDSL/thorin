@@ -411,8 +411,8 @@ const Def* normalize_WOp(const Def* type, const Def* c, const Def* arg, const De
 
     if (a == b) {
         switch (op) {
-            case WOp::add: return world.op(WOp::mul, *m, world.lit(type, 2), a, dbg); // a + a -> 2 * a
-            case WOp::sub: return world.lit_int(*w, 0);                               // a - a -> 0
+            case WOp::add: return world.op(WOp::mul, *m, world.lit_int(*w, 2), a, dbg); // a + a -> 2 * a
+            case WOp::sub: return world.lit_int(*w, 0);                                 // a - a -> 0
             case WOp::mul: break;
             case WOp::shl: break;
             default: THORIN_UNREACHABLE;
@@ -478,7 +478,7 @@ const Def* normalize_ROp(const Def* type, const Def* c, const Def* arg, const De
     // TODO check rmode properly
     if (m && *m == RMode::fast) {
         if (auto la = a->isa<Lit>()) {
-            if (la == world.lit_real_0(*w)) {
+            if (la == world.lit_real(*w, 0.0)) {
                 switch (op) {
                     case ROp::add: return b;    // 0 + b -> b
                     case ROp::sub: break;
@@ -489,7 +489,7 @@ const Def* normalize_ROp(const Def* type, const Def* c, const Def* arg, const De
                 }
             }
 
-            if (la == world.lit_real_1(*w)) {
+            if (la == world.lit_real(*w, 1.0)) {
                 switch (op) {
                     case ROp::add: break;
                     case ROp::sub: break;
@@ -502,7 +502,7 @@ const Def* normalize_ROp(const Def* type, const Def* c, const Def* arg, const De
         }
 
         if (auto lb = b->isa<Lit>()) {
-            if (lb == world.lit_real_0(*w)) {
+            if (lb == world.lit_real(*w, 0.0)) {
                 switch (op) {
                     case ROp::sub: return a;    // a - 0 -> a
                     case ROp::div: break;
@@ -515,10 +515,10 @@ const Def* normalize_ROp(const Def* type, const Def* c, const Def* arg, const De
 
         if (a == b) {
             switch (op) {
-                case ROp::add: return world.op(ROp::mul, world.lit_real_2(*w), a, dbg); // a + a -> 2 * a
-                case ROp::sub: return world.lit_real_0(*w);                             // a - a -> 0
+                case ROp::add: return world.op(ROp::mul, world.lit_real(*w, 2.0), a, dbg); // a + a -> 2 * a
+                case ROp::sub: return world.lit_real(*w, 0.0);                             // a - a -> 0
                 case ROp::mul: break;
-                case ROp::div: return world.lit_real_1(*w);                             // a / a -> 1
+                case ROp::div: return world.lit_real(*w, 1.0);                             // a / a -> 1
                 case ROp::mod: break;
                 default: THORIN_UNREACHABLE;
             }

@@ -255,41 +255,17 @@ public:
     //@}
     /// @name Lit: Int, Real
     //@{
+    const Lit* lit_real(nat_t width, r64 val, Debug dbg = {}) {
+        switch (width) {
+            case 16: assert(r64(r16(val)) == val && "loosing precision"); return lit_real(r16(val), dbg);
+            case 32: assert(r64(r32(val)) == val && "loosing precision"); return lit_real(r32(val), dbg);
+            case 64: assert(r64(r64(val)) == val && "loosing precision"); return lit_real(r64(val), dbg);
+            default: THORIN_UNREACHABLE;
+        }
+    }
     template<class R> const Lit* lit_real(R val, Debug dbg = {}) {
         static_assert(std::is_floating_point<R>() || std::is_same<R, r16>());
         return lit(type_real(sizeof(R)*8), val, dbg);
-    }
-    const Lit* lit_real_0(nat_t w, Debug dbg = {}) {
-        switch (w) {
-            case 16: return lit_real(0._r16, dbg);
-            case 32: return lit_real(0._r32, dbg);
-            case 64: return lit_real(0._r64, dbg);
-            default: THORIN_UNREACHABLE;
-        }
-    }
-    const Lit* lit_real_minus_0(nat_t w, Debug dbg = {}) {
-        switch (w) {
-            case 16: return lit_real(-0._r16, dbg);
-            case 32: return lit_real(-0._r32, dbg);
-            case 64: return lit_real(-0._r64, dbg);
-            default: THORIN_UNREACHABLE;
-        }
-    }
-    const Lit* lit_real_1(nat_t w, Debug dbg = {}) {
-        switch (w) {
-            case 16: return lit_real(1._r16, dbg);
-            case 32: return lit_real(1._r32, dbg);
-            case 64: return lit_real(1._r64, dbg);
-            default: THORIN_UNREACHABLE;
-        }
-    }
-    const Lit* lit_real_2(nat_t w, Debug dbg = {}) {
-        switch (w) {
-            case 16: return lit_real(2._r16, dbg);
-            case 32: return lit_real(2._r32, dbg);
-            case 64: return lit_real(2._r64, dbg);
-            default: THORIN_UNREACHABLE;
-        }
     }
     const Lit* lit_real_inf(nat_t w, Debug dbg = {}) {
         switch (w) {
@@ -307,12 +283,6 @@ public:
             default: THORIN_UNREACHABLE;
         }
     }
-    const Lit* lit_real_0        (const Def* type, Debug dbg = {}) { return lit_real_0        (as_lit<nat_t>(as<Tag::Real>(type)->arg()), dbg); }
-    const Lit* lit_real_minus_0  (const Def* type, Debug dbg = {}) { return lit_real_minus_0  (as_lit<nat_t>(as<Tag::Real>(type)->arg()), dbg); }
-    const Lit* lit_real_1        (const Def* type, Debug dbg = {}) { return lit_real_1        (as_lit<nat_t>(as<Tag::Real>(type)->arg()), dbg); }
-    const Lit* lit_real_2        (const Def* type, Debug dbg = {}) { return lit_real_2        (as_lit<nat_t>(as<Tag::Real>(type)->arg()), dbg); }
-    const Lit* lit_real_inf      (const Def* type, Debug dbg = {}) { return lit_real_inf      (as_lit<nat_t>(as<Tag::Real>(type)->arg()), dbg); }
-    const Lit* lit_real_minus_inf(const Def* type, Debug dbg = {}) { return lit_real_minus_inf(as_lit<nat_t>(as<Tag::Real>(type)->arg()), dbg); }
     //@}
     /// @name Top/Bottom
     //@{
@@ -366,8 +336,9 @@ public:
     const Def* op(ROp o, const Def* a, const Def* b, Debug dbg = {}) { return op(o, RMode::none, a, b, dbg); }
     const Def* op(ROp o, nat_t rmode, const Def* a, const Def* b, Debug dbg = {}) { return op(o, lit_nat(rmode), a, b, dbg); }
     const Def* op(ROp o, const Def* rmode, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return app(app(op(o), {rmode, w}), {a, b}, dbg); }
-    const Def* op_ROp_minus(const Def* a, Debug dbg = {}) { return op(ROp::sub, lit_real_minus_0(a->type()), a, dbg); }
-    const Def* op_ROp_minus(nat_t rmode, const Def* a, Debug dbg = {}) { return op(ROp::sub, rmode, lit_real_minus_0(a->type()), a, dbg); }
+    const Def* op_ROp_minus(const Def* rmode, const Def* a, Debug dbg = {}) { auto w = get_width(a->type()); return op(ROp::sub, rmode, lit_real(*w, -0.0), a, dbg); }
+    const Def* op_ROp_minus(nat_t rmode, const Def* a, Debug dbg = {}) { return op_ROp_minus(lit_nat(rmode), a, dbg); }
+    const Def* op_ROp_minus(const Def* a, Debug dbg = {}) { return op_ROp_minus(RMode::none, a, dbg); }
     //@}
     /// @name ICmp
     //@{

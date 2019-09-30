@@ -2,6 +2,7 @@
 
 #include "thorin/config.h"
 #include "thorin/def.h"
+#include "thorin/stream.h"
 #include "thorin/world.h"
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/domtree.h"
@@ -281,23 +282,23 @@ void Schedule::verify() {
 }
 
 std::ostream& Schedule::stream(std::ostream& os) const {
+    Stream s(os);
     for (auto& block : *this) {
         auto nom = block.nominal();
         if (isa<Tag::End>(nom)) continue;
 
         bool indent = nom != scope().entry();
-        if (indent)
-            os << up;
-        os << endl;
-        streamf(os, "{}: {}", nom->unique_name(), nom->type()) << up_endl;
-        for (auto def : block)
-            def->stream_assignment(os);
+        if (indent) s.indent();
+        s.endl().streamf("{}: {}", nom->unique_name(), nom->type()).indent();
 
-        os << down_endl;
-        if (indent)
-            os << down;
+        for (auto def : block) stream_assignment(s.endl(), def);
+
+        s.dedent();
+        if (indent) s.dedent();
+        s.endl();
     }
-    return os << endl;
+
+    return os;
 }
 
 void Schedule::write_thorin(const char* filename) const { std::ofstream file(filename); stream(file); }

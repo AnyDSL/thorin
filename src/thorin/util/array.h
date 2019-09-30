@@ -12,7 +12,7 @@
 #include <vector>
 #include <type_traits>
 
-#include "thorin/util/stream.h"
+#include "thorin/util/streamf.h"
 
 namespace thorin {
 

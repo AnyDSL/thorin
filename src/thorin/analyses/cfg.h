@@ -7,7 +7,7 @@
 #include "thorin/util/array.h"
 #include "thorin/util/indexmap.h"
 #include "thorin/util/indexset.h"
-#include "thorin/util/stream.h"
+#include "thorin/util/streamf.h"
 #include "thorin/util/ycomp.h"
 
 namespace thorin {

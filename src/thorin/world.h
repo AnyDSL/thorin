@@ -10,7 +10,7 @@
 #include "thorin/def.h"
 #include "thorin/util.h"
 #include "thorin/util/hash.h"
-#include "thorin/util/stream.h"
+#include "thorin/util/streamf.h"
 #include "thorin/config.h"
 
 namespace thorin {
@@ -80,7 +80,6 @@ public:
         breakpoints_   = other.breakpoints_;
 #endif
     }
-    ~World();
 
     /// @ getters
     //@{

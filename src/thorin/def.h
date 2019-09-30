@@ -115,9 +115,6 @@ using NomMap  = GIDMap<Def*, To>;
 using NomSet  = GIDSet<Def*>;
 using Nom2Nom = NomMap<Def*>;
 
-std::ostream& operator<<(std::ostream&, const Def*);
-std::ostream& operator<<(std::ostream&, Use);
-
 //------------------------------------------------------------------------------
 
 /**
@@ -129,7 +126,7 @@ std::ostream& operator<<(std::ostream&, Use);
  * This means that any subclass of @p Def must not introduce additional members.
  * See App or Lit how this is done.
  */
-class Def : public RuntimeCast<Def>, public Streamable {
+class Def : public RuntimeCast<Def> {
 public:
     using RebuildFn   = const Def* (*)(const Def*, World&, const Def*, Defs, const Def*);
     using StubFn      = Def* (*)(const Def*, World&, const Def*, const Def*);
@@ -144,7 +141,6 @@ protected:
     Def(node_t, RebuildFn rebuild, const Def* type, Defs ops, fields_t fields, const Def* dbg);
     /// Constructor for a @em nominal Def.
     Def(node_t, StubFn stub, const Def* type, size_t num_ops, fields_t fields, const Def* dbg);
-    virtual ~Def() {}
 
 public:
     /// @name type
@@ -246,6 +242,7 @@ public:
     //@{
     fields_t fields() const { return fields_; }
     node_t node() const { return node_; }
+    const char* node_name() const;
     size_t gid() const { return gid_; }
     hash_t hash() const { return hash_; }
     World& world() const {
@@ -275,10 +272,8 @@ public:
     //@}
     /// @name stream
     //@{
-    void dump() const;
-    virtual const char* node_name() const;
-    virtual std::ostream& stream(std::ostream&) const;
-    virtual std::ostream& stream_assignment(std::ostream&) const;
+    std::ostream& stream(std::ostream&) const;
+    std::ostream& operator<<(std::ostream& os) const { return stream(os); }
     //@}
 
 protected:
@@ -326,7 +321,6 @@ public:
     Def* nominal() const { return op(0)->as_nominal(); }
     Lam* lam() const { return nominal()->as<Lam>(); }
     Pi* pi() const { return nominal()->as<Pi>(); }
-
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
     static constexpr auto Node = Node::Param;
@@ -346,7 +340,6 @@ private:
 
 public:
     static Def* stub(const Def*, World&, const Def*, const Def*);
-    std::ostream& stream(std::ostream&) const override;
 
     static constexpr auto Node = Node::Universe;
     friend class World;
@@ -358,7 +351,6 @@ private:
 
 public:
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-    std::ostream& stream(std::ostream&) const override;
 
     static constexpr auto Node = Node::KindArity;
     friend class World;
@@ -370,7 +362,6 @@ private:
 
 public:
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-    std::ostream& stream(std::ostream&) const override;
 
     static constexpr auto Node = Node::KindMulti;
     friend class World;
@@ -382,7 +373,6 @@ private:
 
 public:
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-    std::ostream& stream(std::ostream&) const override;
 
     static constexpr auto Node = Node::KindStar;
     friend class World;
@@ -398,7 +388,6 @@ public:
     NormalizeFn normalizer() const { return normalizer_depth_.ptr(); }
     u16 currying_depth() const { return normalizer_depth_.index(); }
     static Def* stub(const Def*, World&, const Def*, const Def*);
-    std::ostream& stream(std::ostream&) const override;
 
     static constexpr auto Node = Node::Axiom;
     friend class World;
@@ -412,7 +401,6 @@ private:
 
 public:
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-    std::ostream& stream(std::ostream&) const override;
 
     static constexpr auto Node = Node::Bot;
     friend class World;
@@ -426,7 +414,6 @@ private:
 
 public:
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-    std::ostream& stream(std::ostream&) const override;
 
     static constexpr auto Node = Node::Top;
     friend class World;
@@ -442,7 +429,6 @@ public:
     template<class T = fields_t>
     T get() const { static_assert(sizeof(T) <= 8); return bitcast<T>(fields_); }
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-    std::ostream& stream(std::ostream&) const override;
 
     static constexpr auto Node = Node::Lit;
     friend class World;
@@ -488,10 +474,11 @@ public:
     //@}
     /// Reduces the @p codomain by rewriting this @p Pi's @p Param with @p arg in order to retrieve the codomain of a dependent function @p App.
     const Def* apply(const Def* arg) const;
-
-    std::ostream& stream(std::ostream&) const override;
+    /// @name rebuild, stub
+    //@{
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     static Def* stub(const Def*, World&, const Def*, const Def*);
+    //@}
 
     static constexpr auto Node = Node::Pi;
     friend class World;
@@ -517,9 +504,7 @@ public:
     size_t num_args() const { return callee_type()->domain()->lit_arity(); }
     const Axiom* axiom() const { return axiom_depth_.ptr(); }
     u16 currying_depth() const { return axiom_depth_.index(); }
-
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-    std::ostream& stream(std::ostream&) const override;
 
     static constexpr auto Node = Node::App;
     friend class World;
@@ -622,14 +607,6 @@ public:
     bool is_intrinsic() const;
     bool is_accelerator() const;
 
-    /// @name stream
-    //@{
-    std::ostream& stream_head(std::ostream&) const;
-    std::ostream& stream_body(std::ostream&) const;
-    void dump_head() const;
-    void dump_body() const;
-    //@}
-
     static constexpr auto Node = Node::Lam;
     friend class World;
 };
@@ -648,9 +625,9 @@ public:
         : def_(def)
     {}
 
-    operator const Def*() { return def(); }
-    const Def* operator->() { return def(); }
-    const Def* def() {
+    operator const Def*() const { return def(); }
+    const Def* operator->() const { return def(); }
+    const Def* def() const {
         if (def_ != nullptr) {
             while (auto repr = def_->substitute_)
                 def_ = repr;
@@ -658,9 +635,12 @@ public:
         return def_;
     }
 
+    std::ostream& operator<<(std::ostream& os) const { return os << def(); }
+
 private:
-    const Def* def_;
+    mutable const Def* def_;
 };
+
 
 class Sigma : public Def {
 private:
@@ -679,9 +659,11 @@ public:
     Sigma* set(size_t i, const Def* def) { return Def::set(i, def)->as<Sigma>(); }
     Sigma* set(Defs ops) { return Def::set(ops)->as<Sigma>(); }
     //@}
+    /// @name rebuild, stub
+    //@{
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     static Def* stub(const Def*, World&, const Def*, const Def*);
-    std::ostream& stream(std::ostream&) const override;
+    //@}
 
     static constexpr auto Node = Node::Sigma;
     friend class World;
@@ -696,7 +678,6 @@ private:
 
 public:
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-    std::ostream& stream(std::ostream&) const override;
 
     static constexpr auto Node = Node::Tuple;
     friend class World;
@@ -714,9 +695,11 @@ private:
     {}
 
 public:
+    /// @name rebuild, stub
+    //@{
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     static Def* stub(const Def*, World&, const Def*, const Def*);
-    std::ostream& stream(std::ostream&) const override;
+    //@}
 
     static constexpr auto Node = Node::Union;
     friend class World;
@@ -759,10 +742,11 @@ public:
     Variadic* set_domain(Defs domains);
     Variadic* set_codomain(const Def* codomain) { return Def::set(1, codomain)->as<Variadic>(); }
     //@}
-
+    /// @name rebuild, stub
+    //@{
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     static Def* stub(const Def*, World&, const Def*, const Def*);
-    std::ostream& stream(std::ostream&) const override;
+    //@}
 
     static constexpr auto Node = Node::Variadic;
     friend class World;
@@ -794,11 +778,12 @@ public:
     //@{
     Pack* set_body(const Def* body) { return Def::set(0, body)->as<Pack>(); }
     //@}
-
-    std::ostream& stream(std::ostream&) const override;
-
+    /// @name rebuild, stub
+    //@{
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
     static Def* stub(const Def*, World&, const Def*, const Def*);
+    //@}
+
 
     static constexpr auto Node = Node::Pack;
     friend class World;
@@ -814,7 +799,6 @@ private:
 public:
     const Def* agg() const { return op(0); }
     const Def* index() const { return op(1); }
-
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
     static constexpr auto Node = Node::Extract;
@@ -833,12 +817,11 @@ private:
         : Def(Node, rebuild, agg->type(), {agg, index, val}, 0, dbg)
     {}
 
-    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-
 public:
     const Def* agg() const { return op(0); }
     const Def* index() const { return op(1); }
     const Def* val() const { return op(2); }
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
     static constexpr auto Node = Node::Insert;
     friend class World;
@@ -854,7 +837,6 @@ private:
 public:
     const Def* arg() const { return op(0); }
     Defs cases() const { return ops().skip_front(); }
-
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
     static constexpr auto Node = Node::Match_;
@@ -872,7 +854,6 @@ private:
 
 public:
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-    std::ostream& stream(std::ostream&) const override;
 
     static constexpr auto Node = Node::VariantType;
     friend class World;
@@ -902,7 +883,6 @@ private:
 
 public:
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-    std::ostream& stream(std::ostream&) const override;
 
     static constexpr auto Node = Node::Mem;
     friend class World;
@@ -914,7 +894,6 @@ private:
 
 public:
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
-    std::ostream& stream(std::ostream&) const override;
 
     static constexpr auto Node = Node::Nat;
     friend class World;
@@ -928,7 +907,6 @@ private:
 
 public:
     fields_t index() const { return fields(); }
-    std::ostream& stream(std::ostream&) const override;
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
     static constexpr auto Node = Node::Analyze;
@@ -953,22 +931,13 @@ public:
     bool is_mutable() const { return fields(); }
     const App* type() const;
     const Def* alloced_type() const;
-
     static const Def* rebuild(const Def*, World& to, const Def* type, Defs ops, const Def*);
-    std::ostream& stream(std::ostream&) const override;
 
     static constexpr auto Node = Node::Global;
     friend class World;
 };
 
 hash_t UseHash::hash(Use use) { return hash_combine(hash_begin(u16(use.index())), hash_t(use->gid())); }
-
-namespace detail {
-    inline std::ostream& stream(std::ostream& os, const Def* def) { return def->stream(os); }
-}
-
-inline std::ostream& operator<<(std::ostream& os, const Def* def) { return def == nullptr ? os << "nullptr" : def->stream(os); }
-inline std::ostream& operator<<(std::ostream& os, Use use) { return use->stream(os); }
 
 //------------------------------------------------------------------------------
 

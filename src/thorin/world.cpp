@@ -190,10 +190,6 @@ World::World(uint32_t cur_gid, const std::string& name, bool tuple2pack)
     }
 }
 
-World::~World() {
-    for (auto def : defs_) def->~Def();
-}
-
 /*
  * core calculus
  */
@@ -739,8 +735,8 @@ std::ostream& World::stream(std::ostream& os) const {
             globals.emplace_back(global);
     }
 
-    for (auto global : globals)
-        global->stream_assignment(os);
+    //for (auto global : globals)
+        //global->stream_assignment(os);
 
     visit<false>([&] (const Scope& scope) {
         if (scope.entry()->isa<Axiom>()) return;

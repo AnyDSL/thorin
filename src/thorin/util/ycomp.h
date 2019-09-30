@@ -7,7 +7,7 @@
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/util/iterator.h"
-#include "thorin/util/stream.h"
+#include "thorin/util/streamf.h"
 
 namespace thorin {
 

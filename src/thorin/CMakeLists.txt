@@ -7,6 +7,8 @@ set(THORIN_SOURCES
     normalize.h
     rewrite.cpp
     rewrite.h
+    stream.cpp
+    stream.h
     tables.h
     util.cpp
     util.h
@@ -66,8 +68,8 @@ set(THORIN_SOURCES
     util/iterator.h
     util/log.cpp
     util/log.h
-    util/stream.cpp
-    util/stream.h
+    util/streamf.cpp
+    util/streamf.h
     util/types.h
     util/utility.h
     util/ycomp.cpp

@@ -17,12 +17,10 @@ bool is_const(const Def* def) {
     while (!stack.empty()) {
         auto def = stack.pop();
         if (def->isa<Param>()) return false;
-        if (isa<Tag::PE>(PE::hlt, def)) return false;
-        if (!def->isa_nominal()) {
+        if (!def->isa_nominal()) { // nominals are always const
             for (auto op : def->ops())
                 stack.push(op);
         }
-        // nominals are always const
     }
 
     return true;

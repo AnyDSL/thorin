@@ -2,7 +2,7 @@
 #define THORIN_ANALYSES_SCHEDULE_H
 
 #include "thorin/analyses/cfg.h"
-#include "thorin/util/stream.h"
+#include "thorin/util/streamf.h"
 
 namespace thorin {
 

@@ -5,7 +5,7 @@
 
 #include "thorin/def.h"
 #include "thorin/util/array.h"
-#include "thorin/util/stream.h"
+#include "thorin/util/streamf.h"
 
 namespace thorin {
 

@@ -219,26 +219,11 @@ std::ostream& LoopTree<forward>::Head::stream(std::ostream& out) const {
     return out << "]";
 }
 
-template<bool forward>
-void LoopTree<forward>::stream_ycomp(std::ostream& out) const {
-    std::vector<const Base*> nodes;
-    get_nodes(nodes, root());
-
-    thorin::ycomp(out, YCompOrientation::LeftToRight, cfg().scope(), range(nodes),
-        [] (const Base* n) {
-            if (auto head = n->template isa<Head>())
-                return range(head->children());
-            return range(ArrayRef<std::unique_ptr<Base>>());
-        }
-    );
-}
-
 //------------------------------------------------------------------------------
 
 template<bool forward>
 LoopTree<forward>::LoopTree(const CFG<forward>& cfg)
-    : YComp(cfg.scope(), forward ? "looptree" : "backwards_looptree")
-    , cfg_(cfg)
+    : cfg_(cfg)
     , leaves_(cfg)
 {
     LoopTreeBuilder<forward>(*this);

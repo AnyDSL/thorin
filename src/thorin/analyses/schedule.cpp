@@ -1,5 +1,7 @@
 #include "thorin/analyses/schedule.h"
 
+#include <fstream>
+
 #include "thorin/config.h"
 #include "thorin/def.h"
 #include "thorin/stream.h"
@@ -135,7 +137,7 @@ const CFNode* Scheduler::schedule_late(const Def* def) {
     } else {
         for (auto use : uses(def)) {
             auto n = schedule_late(use);
-            result = result ? domtree_.lca(result, n) : n;
+            result = result ? domtree_.least_common_ancestor(result, n) : n;
         }
     }
 

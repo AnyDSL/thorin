@@ -7,8 +7,6 @@
 #include <iterator>
 #include <vector>
 
-#include "thorin/util/ycomp.h"
-
 namespace thorin {
 
 class ArgsIterator : public std::iterator<std::forward_iterator_tag, const char*> {
@@ -186,56 +184,6 @@ struct Option<OptionStringVector, T> : public OptionBase<OptionStringVector, T, 
         {
             OptionBase<OptionStringVector, T, self>::target()->push_back(*it++);
         } while (*it && (*it)[0] != '-');
-        return it;
-    }
-};
-
-template<typename T>
-struct Option<YCompCommandLine, T> : public OptionBase<YCompCommandLine, T, Option<YCompCommandLine, T>> {
-    typedef Option<YCompCommandLine, T> self;
-
-    Option(const T& previous, std::string param, std::string domain, std::string help, YCompCommandLine* target, const YCompCommandLine& init)
-            : OptionBase<YCompCommandLine, T, self>(previous, param, domain, help, target, init)
-    {}
-
-    bool has_next(typename OptionBase<YCompCommandLine, T, self>::iterator it) const {
-        return *it && (*it)[0] != '-';
-    }
-
-    typename OptionBase<YCompCommandLine, T, self>::iterator handle_option(typename OptionBase<YCompCommandLine, T, self>::iterator it) const {
-        // it points to the current argument
-        // -> skip it
-        ++it;
-        std::string graph = *it++;
-        bool temp = true;
-        std::string file;
-
-        std::string arg2;
-        if(has_next(it)) {
-            arg2 = *it++;
-
-            if(arg2.compare("true") == 0) {
-                temp = true;
-                if(has_next(it)) {
-                    file = *it++;
-                } else {
-                    std::cerr << "Not enough args, missing yComp output file." << std::endl;
-                }
-            } else if(arg2.compare("false") == 0) {
-                temp = false;
-                if(has_next(it)) {
-                    file = *it++;
-                }else {
-                    std::cerr << "Not enough args, missing yComp output file." << std::endl;
-                }
-            } else {
-                file = arg2;
-            }
-
-            OptionBase<YCompCommandLine, T, self>::target()->add(graph, temp, file);
-        } else {
-            std::cerr << "Not enough args, missing graph direction and/or file." << std::endl;
-        }
         return it;
     }
 };

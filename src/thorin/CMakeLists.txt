@@ -72,8 +72,6 @@ set(THORIN_SOURCES
     util/streamf.h
     util/types.h
     util/utility.h
-    util/ycomp.cpp
-    util/ycomp.h
 )
 
 if(LLVM_FOUND)

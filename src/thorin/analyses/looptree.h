@@ -7,7 +7,6 @@
 #include "thorin/analyses/cfg.h"
 #include "thorin/util/array.h"
 #include "thorin/util/cast.h"
-#include "thorin/util/ycomp.h"
 
 namespace thorin {
 
@@ -19,7 +18,7 @@ template<bool> class LoopTreeBuilder;
  * Check out G. Ramalingam, "On Loops, Dominators, and Dominance Frontiers", 1999, for more information.
  */
 template<bool forward>
-class LoopTree : public YComp {
+class LoopTree {
 public:
     class Head;
 
@@ -108,7 +107,6 @@ public:
     const CFG<forward>& cfg() const { return cfg_; }
     const Head* root() const { return root_.get(); }
     const Leaf* operator[](const CFNode* n) const { return find(leaves_, n); }
-    virtual void stream_ycomp(std::ostream& out) const override;
 
 private:
     static void get_nodes(std::vector<const Base *>& nodes, const Base* node) {

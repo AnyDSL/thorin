@@ -525,7 +525,6 @@ const Def* normalize_ROp(const Def* type, const Def* c, const Def* arg, const De
         }
     }
 
-
     if (auto res = reassociate<Tag::ROp>(op, world, callee, a, b, dbg)) return res;
 
     return world.raw_app(callee, {a, b}, dbg);

@@ -602,11 +602,14 @@ std::ostream& Pi::stream(std::ostream& os) const {
     }
 }
 
-std::ostream& Def::stream(std::ostream& out) const { return out << unique_name(); }
+std::ostream& CPS2DS::stream(std::ostream& os) const { return streamf(os, "cps2ds {}", cps()); }
+
+std::ostream& Def::stream(std::ostream& os) const { return os << unique_name(); }
 
 std::ostream& Def::stream_assignment(std::ostream& os) const {
     return streamf(os, "{}: {} = {} {}", unique_name(), type(), node_name(), stream_list(ops(), [&] (const Def* def) { os << def; })) << endl;
 }
+
 std::ostream& Lam::stream_head(std::ostream& os) const {
     auto lam = as_nominal<Lam>();
     if (type()->is_cn())

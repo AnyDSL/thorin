@@ -649,6 +649,7 @@ public:
     const Def* cps() const { return op(0); }
 
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+    std::ostream& stream(std::ostream&) const override;
 
     static constexpr auto Node = Node::CPS2DS;
     friend class World;

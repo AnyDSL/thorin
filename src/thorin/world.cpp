@@ -524,10 +524,9 @@ const Def* World::global_immutable_string(const std::string& str, Debug dbg) {
 
 static const Def* tuple_of_types(const Def* t) {
     auto& world = t->world();
-    if (auto sigma = t->isa<Sigma>())
-        return world.tuple(sigma->ops());
-    auto variadic = t->as<Variadic>();
-    return world.pack(variadic->domain(), variadic->codomain());
+    if (auto sigma    = t->isa<Sigma>()) return world.tuple(sigma->ops());
+    if (auto variadic = t->isa<Variadic>()) return world.pack(variadic->domain(), variadic->codomain());
+    return t; // Variadic might be nominal. Thus, we still might have this case.
 }
 
 const Def* World::op_lea(const Def* ptr, const Def* index, Debug dbg) {

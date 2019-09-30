@@ -121,7 +121,7 @@ World::World(uint32_t cur_gid, const std::string& name, bool tuple2pack)
         auto T = type->param({"T"});
         type->set_codomain(pi(T, type_bool()));
         cache_.PE_[size_t(PE::known)] = axiom(normalize_PE<PE::known>, type, 0, Tag::PE, flags_t(PE::known), {op2str(PE::known)});
-    } {   // bitcast: Π[D: *, S: *]. ΠS. D
+    } { // bitcast: Π[D: *, S: *]. ΠS. D
         auto type = pi(star)->set_domain({star, star});
         auto D = type->param(0, {"D"});
         auto S = type->param(1, {"S"});

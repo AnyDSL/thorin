@@ -20,6 +20,8 @@ const Def* Rewriter::rewrite(const Def* old_def) {
         new_dbg = rewrite(old_dbg);
 
     if (auto old_nom = old_def->isa_nominal()) {
+        if (auto new_nom = normalize(old_nom, new_type, new_dbg)) return old2new[old_nom] = new_nom;
+
         auto new_nom = old_nom->stub(new_world, new_type, new_dbg);
         old2new[old_nom] = new_nom;
 
@@ -35,8 +37,17 @@ const Def* Rewriter::rewrite(const Def* old_def) {
     return old2new[old_def] = old_def->rebuild(new_world, new_type, new_ops, new_dbg);
 }
 
+// TODO multi arities and packs
+const Def* Rewriter::normalize(Def* old_nom, const Def* new_type, const Def* new_dbg) {
+    if (auto variadic = old_nom->isa<Variadic>()) {
+        auto domain = rewrite(variadic->domain());
+        if (auto arity = isa_lit<nat_t>(domain); arity && *arity == 0) return new_world.sigma(new_type, Defs{}, new_dbg);
+    }
+
+    return nullptr;
+}
+
 const Def* Rewriter::normalize(Def* old_nom, Def* new_nom) {
-    // TODO multi arities and packs
     if (auto variadic = new_nom->isa<Variadic>()) {
         if (auto arity = isa_lit<nat_t>(variadic->domain())) {
             Scope scope(variadic);

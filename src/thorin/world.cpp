@@ -178,7 +178,7 @@ World::World(uint32_t cur_gid, const std::string& name, bool tuple2pack)
         auto ptr = type_ptr(T, as);
         type->set_codomain(pi(mem, sigma({mem, ptr})));
         cache_.op_slot_ = axiom(nullptr, type, 0, Tag::Slot, 0, {"slot"});
-    } { // cps2ds:, Π[T: *, R: *]. Πcn[M, T, cn[M, R]]. Π[M, T]. [M, R]
+    } { // cps2ds:, Π[T, R]. Πcn[M, T, cn[M, R]]. Π[M, T]. [M, R]
         auto type = pi(kind_star())->set_domain({star, star});
         auto T = type->param(0, {"T"});
         auto R = type->param(1, {"R"});

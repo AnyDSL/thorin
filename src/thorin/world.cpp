@@ -178,21 +178,13 @@ World::World(uint32_t cur_gid, const std::string& name, bool tuple2pack)
         auto ptr = type_ptr(T, as);
         type->set_codomain(pi(mem, sigma({mem, ptr})));
         cache_.op_slot_ = axiom(nullptr, type, 0, Tag::Slot, 0, {"slot"});
-    } { // cps2ds:, Π[t: *M, r: *M, Ts: «t; *», Rs: «r; *»]. Πcn[M, «i: t; Ts#i», cn[M, «i: r; Rs#i»]]. Π[M, «i: t; Ts#i»]. [M, «i: r; Rs#i»]
-        auto domain = sigma(universe(), 4);
-        domain->set(0, kind_multi());
-        domain->set(1, kind_multi());
-        domain->set(2, variadic(domain->param(0, {"t"}), star));
-        domain->set(3, variadic(domain->param(1, {"r"}), star));
+    } { // cps2ds:, Π[T, R]. Πcn[M, T, cn[M, R]]. Π[M, T]. [M, R]
+        auto domain = sigma(universe(), 2);
+        domain->set(0, star);
+        domain->set(1, star);
         auto type = pi(kind_star())->set_domain(domain);
-        auto t  = type->param(0, {"t"});
-        auto r  = type->param(1, {"t"});
-        auto Ts = type->param(2, {"Ts"});
-        auto Rs = type->param(3, {"Rs"});
-        auto T = variadic(kind_star())->set_domain(t);
-        auto R = variadic(kind_star())->set_domain(r);
-        T->set_codomain(extract(Ts, T->param({"i"})));
-        R->set_codomain(extract(Rs, R->param({"i"})));
+        auto T = type->param(0);
+        auto R = type->param(1);
         type->set_codomain(pi(cn({mem, T, cn({mem, R})}), pi({mem, T}, sigma({mem, R}))));
         cache_.op_cps2ds_ = axiom(nullptr, type, 0, Tag::CPS2DS, 0, {"cps2ds"});
     }
@@ -540,9 +532,7 @@ const Def* World::op_cps2ds(const Def* cps, Debug dbg) {
     auto cn = cps->type()->as<Pi>();
     auto T = cn->op(0)->as<Sigma>()->op(1);
     auto R = cn->op(0)->as<Sigma>()->op(2)->as<Pi>()->op(0)->as<Sigma>()->op(1);
-    auto Ts = tuple_of_types(T);
-    auto Rs = tuple_of_types(R);
-    return app(app(op_cps2ds(), {T->arity(), R->arity(), Ts, Rs}), cn, dbg);
+    return app(app(op_cps2ds(), {T, R}), cps, dbg);
 }
 
 /*

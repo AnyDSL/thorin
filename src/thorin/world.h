@@ -120,8 +120,9 @@ public:
     const Pi* cn() { return cn(sigma()); }
     const Pi* cn(const Def* domain, Debug dbg = {}) { return pi(domain, bot_star(), dbg); }
     const Pi* cn(Defs domains, Debug dbg = {}) { return cn(sigma(domains), dbg); }
-    /// Returns a CPS-translated function type with side effect: cn[mem, [domains], cn[men, [codomains]]]
-    const Pi* fn(Defs domains, Defs codomains, Debug dbg = {}) { auto ret = cn({type_mem(), sigma(codomains)}); return cn({type_mem(), sigma(domains), ret}, dbg); }
+    /// Returns a CPS-translated function type with side effect: cn[mem, domain, cn[men, codomain]]
+    const Pi* fn(const Def* domain, const Def* codomain, Debug dbg = {}) { ; return cn({type_mem(), domain, cn({type_mem(), codomain})}, dbg); }
+    const Pi* fn(Defs domain, Defs codomain, Debug dbg = {}) { auto d = sigma(domain); return fn(d, sigma(codomain), dbg); }
     //@}
     /// @name Lambda: nominal
     //@{

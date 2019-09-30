@@ -122,7 +122,7 @@ public:
     const Pi* cn(Defs domains, Debug dbg = {}) { return cn(sigma(domains), dbg); }
     /// Same as cn/pi but adds a mem parameter to each pi
     const Pi* cn_mem(const Def* domain, Debug dbg = {}) { return cn(sigma({ type_mem(), domain }), dbg); }
-    const Pi* pi_mem(const Def* domain, const Def* codomain, Debug dbg = {}) { return pi(sigma({type_mem(), domain}), sigma({type_mem(), codomain}), dbg); }
+    const Pi* pi_mem(const Def* domain, const Def* codomain, Debug dbg = {}) { auto d = sigma({type_mem(), domain}); return pi(d, sigma({type_mem(), codomain}), dbg); }
     //@}
     /// @name Lambda: nominal
     //@{

@@ -55,9 +55,7 @@ const Def* rewrite(const Def* def, const Def* old_def, const Def* new_def, const
 }
 
 const Def* rewrite(Def* nom, const Def* arg, const Scope& scope) {
-    Rewriter rewriter(nom->world(), &scope);
-    rewriter.old2new[nom->param()] = arg;
-    return rewriter.rewrite(nom->ops().back());
+    return rewrite(nom->ops().back(), nom->param(), arg, scope);
 }
 
 const Def* rewrite(Def* nom, const Def* arg) {

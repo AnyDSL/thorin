@@ -542,7 +542,7 @@ const Def* World::op_cps2ds(const Def* cps, Debug dbg) {
     auto R = cn->op(0)->as<Sigma>()->op(2)->as<Pi>()->op(0)->as<Sigma>()->op(1);
     auto Ts = tuple_of_types(T);
     auto Rs = tuple_of_types(R);
-    return app(app(op_cps2ds(), {T->arity(), R->arity(), Ts, Rs}), cn, dbg);
+    return app(app(op_cps2ds(), {T->arity(), R->arity(), Ts, Rs}), cps, dbg);
 }
 
 /*

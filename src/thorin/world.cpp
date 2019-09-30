@@ -98,19 +98,19 @@ World::World(uint32_t cur_gid, const std::string& name, bool tuple2pack)
         THORIN_R_CMP(CODE)
     }
 #undef CODE
-#define CODE(T, o) \
-    {   /* Conv: Π[dw: nat, sw: nat]. Πi/r sw. i/r dw */                                                             \
-        auto type = pi(star)->set_domain({nat, nat});                                                                \
-        auto dw = type->param(0, {"dw"});                                                                            \
-        auto sw = type->param(1, {"sw"});                                                                            \
-        auto type_sw = T::o == T::r2s || T::o == T::r2u || T::o == T::r2r ? type_real(sw) : type_int(sw);            \
-        auto type_dw = T::o == T::s2r || T::o == T::u2r || T::o == T::r2r ? type_real(dw) : type_int(dw);            \
-        type->set_codomain(pi(type_sw, type_dw));                                                                    \
-        cache_.Conv_[size_t(T::o)] = axiom(normalize_Conv<T::o>, type, 0, Tag::Conv, flags_t(T::o), {op2str(T::o)}); \
-    }
-    THORIN_CONV(CODE)
+    {   /* Conv: Π[dw: nat, sw: nat]. Πi/r sw. i/r dw */
+        auto make_type = [&](Conv o) {
+            auto type = pi(star)->set_domain({nat, nat});
+            auto dw = type->param(0, {"dw"});
+            auto sw = type->param(1, {"sw"});
+            auto type_sw = o == Conv::r2s || o == Conv::r2u || o == Conv::r2r ? type_real(sw) : type_int(sw);
+            auto type_dw = o == Conv::s2r || o == Conv::u2r || o == Conv::r2r ? type_real(dw) : type_int(dw);
+            return type->set_codomain(pi(type_sw, type_dw));
+        };
+#define CODE(T, o) cache_.Conv_[size_t(T::o)] = axiom(normalize_Conv<T::o>, make_type(T::o), 0, Tag::Conv, flags_t(T::o), {op2str(T::o)});
+        THORIN_CONV(CODE)
 #undef Code
-    {   // hlt/run: ΠT: *. ΠT. T
+    } { // hlt/run: ΠT: *. ΠT. T
         auto type = pi(star)->set_domain(star);
         auto T = type->param({"T"});
         type->set_codomain(pi(T, T));

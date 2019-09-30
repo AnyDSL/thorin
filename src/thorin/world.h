@@ -291,6 +291,7 @@ public:
     const Def* bot(const Def* type, Debug dbg = {}) { return bot_top(false, type, dbg); }
     const Def* top(const Def* type, Debug dbg = {}) { return bot_top(true,  type, dbg); }
     const Def* bot_star () { return cache_.bot_star_; }
+    const Def* top_star () { return cache_.top_star_; }
     const Def* top_arity() { return cache_.top_arity_; } ///< use this guy to encode an unknown arity, e.g., for unsafe arrays
     //@}
     /// @name Variant
@@ -604,6 +605,7 @@ private:
         const KindArity* kind_arity_;
         const KindStar*  kind_star_;
         const Bot* bot_star_;
+        const Top* top_star_;
         const Top* top_arity_;
         const Sigma* sigma_;
         const Tuple* tuple_;

@@ -102,12 +102,12 @@ public:
     //@}
     /// @name Param
     //@{
-    const Param* param(const Def* type, Def* nominal, Debug dbg) { return unify<Param>(1, type, nominal, debug(dbg)); }
+    const Param* param(const Def* type, Def* nominal, Debug dbg = {}) { return unify<Param>(1, type, nominal, debug(dbg)); }
     //@}
     /// @name Axiom
     //@{
-    Axiom* axiom(Def::NormalizeFn normalize, const Def* type, size_t num_ops, tag_t tag, flags_t flags, Debug dbg);
-    Axiom* axiom(const Def* type, tag_t tag, flags_t flags, Debug dbg) { return axiom(nullptr, type, 0, tag, flags, dbg); }
+    Axiom* axiom(Def::NormalizeFn normalize, const Def* type, size_t num_ops, tag_t tag, flags_t flags, Debug dbg = {});
+    Axiom* axiom(const Def* type, tag_t tag, flags_t flags, Debug dbg = {}) { return axiom(nullptr, type, 0, tag, flags, dbg); }
     //@}
     /// @name Pi
     //@{
@@ -170,7 +170,7 @@ public:
     //@{
     const Def* variadic(const Def* arity, const Def* body, Debug dbg = {});
     const Def* variadic(Defs arities, const Def* body, Debug dbg = {});
-    const Def* variadic(u64 a, const Def* body, Debug dbg = {}) { return variadic(lit_arity(a, dbg), body, dbg); }
+    const Def* variadic(u64 a, const Def* body, Debug dbg = {}) { return variadic(lit_arity(a), body, dbg); }
     const Def* variadic(ArrayRef<u64> a, const Def* body, Debug dbg = {}) {
         return variadic(Array<const Def*>(a.size(), [&](size_t i) { return lit_arity(a[i], dbg); }), body, dbg);
     }
@@ -196,7 +196,7 @@ public:
     //@{
     const Def* pack(const Def* arity, const Def* body, Debug dbg = {});
     const Def* pack(Defs arities, const Def* body, Debug dbg = {});
-    const Def* pack(u64 a, const Def* body, Debug dbg = {}) { return pack(lit_arity(a, dbg), body, dbg); }
+    const Def* pack(u64 a, const Def* body, Debug dbg = {}) { return pack(lit_arity(a), body, dbg); }
     const Def* pack(ArrayRef<u64> a, const Def* body, Debug dbg = {}) {
         return pack(Array<const Def*>(a.size(), [&](auto i) { return lit_arity(a[i], dbg); }), body, dbg);
     }
@@ -205,17 +205,17 @@ public:
     /// @name Extract
     //@{
     const Def* extract(const Def* agg, const Def* i, Debug dbg = {});
-    const Def* extract(const Def* agg, u64 i, Debug dbg = {}) { return extract(agg, lit_index(agg->type()->arity(), i, dbg), dbg); }
-    const Def* extract(const Def* agg, u64 a, u64 i, Debug dbg = {}) { return extract(agg, lit_index(a, i, dbg), dbg); }
+    const Def* extract(const Def* agg, u64 i, Debug dbg = {}) { return extract(agg, lit_index(agg->type()->arity(), i), dbg); }
+    const Def* extract(const Def* agg, u64 a, u64 i, Debug dbg = {}) { return extract(agg, lit_index(a, i), dbg); }
     const Def* extract_unsafe(const Def* agg, const Def* i, Debug dbg = {}) { return extract(agg, op_bitcast(agg->type()->arity(), i, dbg), dbg); }
-    const Def* extract_unsafe(const Def* agg, u64 i, Debug dbg = {}) { return extract_unsafe(agg, lit_nat(i, dbg), dbg); }
+    const Def* extract_unsafe(const Def* agg, u64 i, Debug dbg = {}) { return extract_unsafe(agg, lit_int(i), dbg); }
     //@}
     /// @name Insert
     //@{
     const Def* insert(const Def* agg, const Def* i, const Def* value, Debug dbg = {});
-    const Def* insert(const Def* agg, u64 i, const Def* value, Debug dbg = {}) { return insert(agg, lit_index(agg->type()->arity(), i, dbg), value, dbg); }
-    const Def* insert_unsafe(const Def* agg, const Def* i, const Def* value, Debug dbg = {}) { return insert(agg, op_bitcast(agg->type()->arity(), i, dbg), value, dbg); }
-    const Def* insert_unsafe(const Def* agg, u64 i, const Def* value, Debug dbg = {}) { return insert_unsafe(agg, lit_nat(i, dbg), value, dbg); }
+    const Def* insert(const Def* agg, u64 i, const Def* value, Debug dbg = {}) { return insert(agg, lit_index(agg->type()->arity(), i), value, dbg); }
+    const Def* insert_unsafe(const Def* agg, const Def* i, const Def* value, Debug dbg = {}) { return insert(agg, op_bitcast(agg->type()->arity(), i), value, dbg); }
+    const Def* insert_unsafe(const Def* agg, u64 i, const Def* value, Debug dbg = {}) { return insert_unsafe(agg, lit_int(i), value, dbg); }
     //@}
     /// @name Match_
     //@{
@@ -244,16 +244,11 @@ public:
     //@}
     /// @name Lit: Int
     //@{
+    const Lit* lit_int(nat_t width, u64 val, Debug dbg = {}) { return lit(type_int(width), (u64(-1) >> (64_u64 - width)) & val, dbg); }
     template<class I> const Lit* lit_int(I val, Debug dbg = {}) {
         static_assert(std::is_integral<I>());
         return lit(type_int(sizeof(I)*8), val, dbg);
     }
-    const Lit* lit_int_0  (nat_t w, Debug dbg = {}) { return lit(type_int(w), u64( 0)                , dbg); }
-    const Lit* lit_int_1  (nat_t w, Debug dbg = {}) { return lit(type_int(w), u64( 1)                , dbg); }
-    const Lit* lit_int_max(nat_t w, Debug dbg = {}) { return lit(type_int(w), u64(-1) >> (64_u64 - w), dbg); }
-    const Lit* lit_int_0  (const Def* type, Debug dbg = {}) { return lit_int_0  (as_lit<nat_t>(as<Tag::Int>(type)->arg()), dbg); }
-    const Lit* lit_int_1  (const Def* type, Debug dbg = {}) { return lit_int_1  (as_lit<nat_t>(as<Tag::Int>(type)->arg()), dbg); }
-    const Lit* lit_int_max(const Def* type, Debug dbg = {}) { return lit_int_max(as_lit<nat_t>(as<Tag::Int>(type)->arg()), dbg); }
     const Lit* lit_bool(bool val) { return cache_.lit_bool_[size_t(val)]; }
     const Lit* lit_false() { return cache_.lit_bool_[0]; }
     const Lit* lit_true()  { return cache_.lit_bool_[1]; }
@@ -351,14 +346,14 @@ public:
     //@{
     const Axiom* op(IOp o) { return cache_.IOp_[size_t(o)]; }
     const Def* op(IOp o, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return app(app(op(o), w), {a, b}, dbg); }
-    const Def* op_IOp_inot(const Def* a, Debug dbg = {}) { return op(IOp::ixor, lit_int_max(a->type(), dbg), a, dbg); }
+    const Def* op_IOp_inot(const Def* a, Debug dbg = {}) { auto w = get_width(a->type()); return op(IOp::ixor, lit_int(*w, u64(-1)), a, dbg); }
     //@}
     /// @name WOp
     //@{
     const Axiom* op(WOp o) { return cache_.WOp_[size_t(o)]; }
     const Def* op(WOp o, nat_t wmode, const Def* a, const Def* b, Debug dbg = {}) { return op(o, lit_nat(wmode), a, b, dbg); }
     const Def* op(WOp o, const Def* wmode, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return app(app(op(o), {wmode, w}), {a, b}, dbg); }
-    const Def* op_WOp_minus(nat_t wmode, const Def* a, Debug dbg = {}) { return op(WOp::sub, wmode, lit_int_0(a->type(), dbg), a, dbg); }
+    const Def* op_WOp_minus(nat_t wmode, const Def* a, Debug dbg = {}) { auto w = get_width(a->type()); return op(WOp::sub, wmode, lit_int(*w, 0), a, dbg); }
     //@}
     /// @name ZOp
     //@{
@@ -371,8 +366,8 @@ public:
     const Def* op(ROp o, const Def* a, const Def* b, Debug dbg = {}) { return op(o, RMode::none, a, b, dbg); }
     const Def* op(ROp o, nat_t rmode, const Def* a, const Def* b, Debug dbg = {}) { return op(o, lit_nat(rmode), a, b, dbg); }
     const Def* op(ROp o, const Def* rmode, const Def* a, const Def* b, Debug dbg = {}) { auto w = infer_width(a); return app(app(op(o), {rmode, w}), {a, b}, dbg); }
-    const Def* op_ROp_minus(const Def* a, Debug dbg = {}) { return op(ROp::sub, lit_real_minus_0(a->type(), dbg), a, dbg); }
-    const Def* op_ROp_minus(nat_t rmode, const Def* a, Debug dbg = {}) { return op(ROp::sub, rmode, lit_real_minus_0(a->type(), dbg), a, dbg); }
+    const Def* op_ROp_minus(const Def* a, Debug dbg = {}) { return op(ROp::sub, lit_real_minus_0(a->type()), a, dbg); }
+    const Def* op_ROp_minus(nat_t rmode, const Def* a, Debug dbg = {}) { return op(ROp::sub, rmode, lit_real_minus_0(a->type()), a, dbg); }
     //@}
     /// @name ICmp
     //@{
@@ -390,9 +385,9 @@ public:
     //@{
     const Axiom* op(Conv o) { return cache_.Conv_[size_t(o)]; }
     const Def* op(Conv o, const Def* dst_type, const Def* src, Debug dbg = {}) {
-        auto dw =  dst_type  ->as<App>()->arg();
-        auto sw = src->type()->as<App>()->arg();
-        return app(app(op(o), {dw, sw}), src, dbg);
+        auto d = dst_type   ->as<App>()->arg();
+        auto s = src->type()->as<App>()->arg();
+        return app(app(op(o), {d, s}), src, dbg);
     }
     //@}
     /// @name memory-related operations
@@ -403,8 +398,8 @@ public:
     const Def* op_alloc() { return cache_.op_alloc_; }
     const Def* op_load (const Def* mem, const Def* ptr, Debug dbg = {})                 { auto [T, a] = as<Tag::Ptr>(ptr->type())->args<2>(); return app(app(op_load (), {T, a}), {mem, ptr},      dbg); }
     const Def* op_store(const Def* mem, const Def* ptr, const Def* val, Debug dbg = {}) { auto [T, a] = as<Tag::Ptr>(ptr->type())->args<2>(); return app(app(op_store(), {T, a}), {mem, ptr, val}, dbg); }
-    const Def* op_alloc(const Def* type, const Def* mem, Debug dbg) { return app(app(op_alloc(), {type, lit_nat(0)}), mem, dbg); }
-    const Def* op_slot (const Def* type, const Def* mem, Debug dbg) { return app(app(op_slot (), {type, lit_nat(0)}), mem, dbg); }
+    const Def* op_alloc(const Def* type, const Def* mem, Debug dbg = {}) { return app(app(op_alloc(), {type, lit_nat(0)}), mem, dbg); }
+    const Def* op_slot (const Def* type, const Def* mem, Debug dbg = {}) { return app(app(op_slot (), {type, lit_nat(0)}), mem, dbg); }
     const Def* global(const Def* id, const Def* init, bool is_mutable = true, Debug dbg = {});
     const Def* global(const Def* init, bool is_mutable = true, Debug dbg = {}) { return global(lit_nat(cur_gid_), init, is_mutable, debug(dbg)); }
     const Def* global_immutable_string(const std::string& str, Debug dbg = {});
@@ -428,7 +423,8 @@ public:
     const Def* op_bitcast(const Def* dst_type, const Def* src, Debug dbg = {}) { return app(app(op_bitcast(), {dst_type, src->type()}), src, dbg); }
     const Def* op_cps2ds(const Def* cps, Debug dbg = {});
     const Def* op_lea(const Def* ptr, const Def* index, Debug dbg = {});
-    const Def* op_lea_unsafe(const Def* ptr, const Def* index, Debug dbg) { return op_lea(ptr, op_bitcast(as<Tag::Ptr>(ptr->type())->arg(0)->arity(), index, dbg), dbg); }
+    const Def* op_lea_unsafe(const Def* ptr, const Def* i, Debug dbg = {}) { return op_lea(ptr, op_bitcast(as<Tag::Ptr>(ptr->type())->arg(0)->arity(), i), dbg); }
+    const Def* op_lea_unsafe(const Def* ptr, u64 i, Debug dbg = {}) { return op_lea_unsafe(ptr, lit_int(i), dbg); }
     const Def* op_select(const Def* cond, const Def* t, const Def* f, Debug dbg = {}) { return app(app(cache_.op_select_, t->type()), {cond, t, f}, dbg); }
     const Def* op_sizeof(const Def* type, Debug dbg = {}) { return app(op_sizeof(), type, dbg); }
     Lam* match(const Def* type, size_t num_patterns);

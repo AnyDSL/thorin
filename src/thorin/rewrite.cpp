@@ -41,7 +41,6 @@ const Def* Rewriter::normalize(Def* old_nom, Def* new_nom) {
         if (auto arity = isa_lit<nat_t>(variadic->domain())) {
             Scope scope(variadic);
             Array<const Def*> new_ops(*arity, [&](size_t i) { return thorin::rewrite(variadic, new_world.lit_index(*arity, i), scope); });
-            new_world.sigma(new_ops, variadic->debug())->dump();
             return old2new[old_nom] = new_world.sigma(new_ops, variadic->debug());
         }
     }

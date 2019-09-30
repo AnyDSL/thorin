@@ -98,13 +98,13 @@ World::World(uint32_t cur_gid, const std::string& name, bool tuple2pack)
         THORIN_R_CMP(CODE)
     }
 #undef CODE
-    {   /* Conv: Π[dw: nat, sw: nat]. Πi/r sw. i/r dw */
+    {   // Conv: Π[dw: nat, sw: nat]. Πi/r sw. i/r dw
         auto make_type = [&](Conv o) {
             auto type = pi(star)->set_domain({nat, nat});
             auto dw = type->param(0, {"dw"});
             auto sw = type->param(1, {"sw"});
-            auto type_sw = o == Conv::r2s || o == Conv::r2u || o == Conv::r2r ? type_real(sw) : type_int(sw);
             auto type_dw = o == Conv::s2r || o == Conv::u2r || o == Conv::r2r ? type_real(dw) : type_int(dw);
+            auto type_sw = o == Conv::r2s || o == Conv::r2u || o == Conv::r2r ? type_real(sw) : type_int(sw);
             return type->set_codomain(pi(type_sw, type_dw));
         };
 #define CODE(T, o) cache_.Conv_[size_t(T::o)] = axiom(normalize_Conv<T::o>, make_type(T::o), 0, Tag::Conv, flags_t(T::o), {op2str(T::o)});

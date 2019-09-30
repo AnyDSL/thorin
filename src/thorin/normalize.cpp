@@ -12,7 +12,7 @@ namespace thorin {
 static bool is_allset(const Def* def) {
     if (auto lit = isa_lit<u64>(def)) {
         if (auto w = get_width(def->type()))
-            return def == def->world().lit_int_max(def->type());
+            return def == def->world().lit_int(*w, u64(-1));
     }
     return false;
 }
@@ -307,14 +307,14 @@ const Def* normalize_IOp(const Def* type, const Def* c, const Def* arg, const De
 
     if (auto la = a->isa<Lit>()) {
         if (op == IOp::ixor) {
-            if (la == world.lit_int_max(*w)) { // bitwise not
+            if (la == world.lit_int(*w, u64(-1))) { // bitwise not
                 if (auto icmp = isa<Tag::ICmp>(b)) { auto [x, y] = icmp->args<2>(); return world.op(ICmp(~flags_t(icmp.flags()) & 0b11111), y, x); }
                 if (auto rcmp = isa<Tag::RCmp>(b)) { auto [x, y] = rcmp->args<2>(); return world.op(RCmp(~flags_t(rcmp.flags()) & 0b01111), y, x); }
             }
             if (auto res = merge_cmps<std::bit_xor<flags_t>>(world, a, b)) return res;
         }
 
-        if (la == world.lit_int_0(*w)) { // is zero?
+        if (la == world.lit_int(*w, 0)) {
             switch (op) {
                 case IOp::ashr: return la;
                 case IOp::lshr: return la;
@@ -325,7 +325,7 @@ const Def* normalize_IOp(const Def* type, const Def* c, const Def* arg, const De
             }
         }
 
-        if (la == world.lit_int_max(*w)) { // is max?
+        if (la == world.lit_int(*w, u64(-1))) {
             switch (op) {
                 case IOp::ashr: break;
                 case IOp::lshr: break;
@@ -338,7 +338,7 @@ const Def* normalize_IOp(const Def* type, const Def* c, const Def* arg, const De
     }
 
     if (auto lb = b->isa<Lit>()) {
-        if (lb == world.lit_int_0(*w)) {   // is zero?
+        if (lb == world.lit_int(*w, 0)) {
             switch (op) {
                 case IOp::ashr: return a;
                 case IOp::lshr: return a;
@@ -354,7 +354,7 @@ const Def* normalize_IOp(const Def* type, const Def* c, const Def* arg, const De
             case IOp::lshr: break;
             case IOp::iand: return a;
             case IOp::ior : return a;
-            case IOp::ixor: return world.lit_int_0(*w);
+            case IOp::ixor: return world.lit_int(*w, 0);
             default: THORIN_UNREACHABLE;
         }
     }
@@ -374,7 +374,7 @@ const Def* normalize_WOp(const Def* type, const Def* c, const Def* arg, const De
     if (auto result = fold<8, WOp, op>(world, type, callee, a, b, dbg)) return result;
 
     if (auto la = a->isa<Lit>()) {
-        if (la == world.lit_int_0(*w)) {  // is zero?
+        if (la == world.lit_int(*w, 0)) {
             switch (op) {
                 case WOp::add: return b;    // 0  + b -> b
                 case WOp::sub: break;
@@ -384,7 +384,7 @@ const Def* normalize_WOp(const Def* type, const Def* c, const Def* arg, const De
             }
         }
 
-        if (la == world.lit_int_1(*w)) { // is one?
+        if (la == world.lit_int(*w, 1)) {
             switch (op) {
                 case WOp::add: break;
                 case WOp::sub: break;
@@ -396,7 +396,7 @@ const Def* normalize_WOp(const Def* type, const Def* c, const Def* arg, const De
     }
 
     if (auto lb = b->isa<Lit>()) {
-        if (lb == world.lit_int_0(*w)) { // is zero?
+        if (lb == world.lit_int(*w, 0)) {
             switch (op) {
                 case WOp::sub: return a;    // a  - 0 -> a
                 case WOp::shl: return a;    // a >> 0 -> a
@@ -406,13 +406,13 @@ const Def* normalize_WOp(const Def* type, const Def* c, const Def* arg, const De
         }
 
         // a - lb -> a + (~lb + 1)
-        if (op == WOp::sub) return world.op(WOp::add, *m, a, world.lit(type, (~lb->get() + 1_u64) & (u64(-1) >> (64_u64 - *w))));
+        if (op == WOp::sub) return world.op(WOp::add, *m, a, world.lit_int(*w, ~lb->get() + 1_u64));
     }
 
     if (a == b) {
         switch (op) {
             case WOp::add: return world.op(WOp::mul, *m, world.lit(type, 2), a, dbg); // a + a -> 2 * a
-            case WOp::sub: return world.lit_int_0(*w);                                // a - a -> 0
+            case WOp::sub: return world.lit_int(*w, 0);                               // a - a -> 0
             case WOp::mul: break;
             case WOp::shl: break;
             default: THORIN_UNREACHABLE;
@@ -436,18 +436,18 @@ const Def* normalize_ZOp(const Def* type, const Def* c, const Def* arg, const De
     if (auto result = fold<8, ZOp, op>(world, type, callee, a, b, dbg)) return make_res(result);
 
     if (auto la = a->isa<Lit>()) {
-        if (la == world.lit_int_0(*w)) return make_res(la); // 0 / b -> 0 and 0 % b -> 0
+        if (la == world.lit_int(*w, 0)) return make_res(la); // 0 / b -> 0 and 0 % b -> 0
     }
 
     if (auto lb = b->isa<Lit>()) {
-        if (lb == world.lit_int_0(*w)) return make_res(world.bot(type)); // a / 0 -> ⊥ and a % 0 -> ⊥
+        if (lb == world.lit_int(*w, 0)) return make_res(world.bot(type)); // a / 0 -> ⊥ and a % 0 -> ⊥
 
-        if (lb == world.lit_int_1(*w)) { // is one?
+        if (lb == world.lit_int(*w, 1)) {
             switch (op) {
-                case ZOp::sdiv: return make_res(a);                   // a / 1 -> a
-                case ZOp::udiv: return make_res(a);                   // a / 1 -> a
-                case ZOp::smod: return make_res(world.lit_int_0(*w)); // a % 0 -> a
-                case ZOp::umod: return make_res(world.lit_int_0(*w)); // a % 0 -> a
+                case ZOp::sdiv: return make_res(a);                    // a / 1 -> a
+                case ZOp::udiv: return make_res(a);                    // a / 1 -> a
+                case ZOp::smod: return make_res(world.lit_int(*w, 0)); // a % 1 -> 0
+                case ZOp::umod: return make_res(world.lit_int(*w, 0)); // a % 1 -> 0
                 default: THORIN_UNREACHABLE;
             }
         }
@@ -455,10 +455,10 @@ const Def* normalize_ZOp(const Def* type, const Def* c, const Def* arg, const De
 
     if (a == b) {
         switch (op) {
-            case ZOp::sdiv: return make_res(world.lit_int_1(*w)); // a / a -> 1
-            case ZOp::udiv: return make_res(world.lit_int_1(*w)); // a / a -> 1
-            case ZOp::smod: return make_res(world.lit_int_0(*w)); // a % a -> 0
-            case ZOp::umod: return make_res(world.lit_int_0(*w)); // a % a -> 0
+            case ZOp::sdiv: return make_res(world.lit_int(*w, 1)); // a / a -> 1
+            case ZOp::udiv: return make_res(world.lit_int(*w, 1)); // a / a -> 1
+            case ZOp::smod: return make_res(world.lit_int(*w, 0)); // a % a -> 0
+            case ZOp::umod: return make_res(world.lit_int(*w, 0)); // a % a -> 0
             default: THORIN_UNREACHABLE;
         }
     }
@@ -478,7 +478,7 @@ const Def* normalize_ROp(const Def* type, const Def* c, const Def* arg, const De
     // TODO check rmode properly
     if (m && *m == RMode::fast) {
         if (auto la = a->isa<Lit>()) {
-            if (la == world.lit_real_0(*w)) { // is zero?
+            if (la == world.lit_real_0(*w)) {
                 switch (op) {
                     case ROp::add: return b;    // 0 + b -> b
                     case ROp::sub: break;
@@ -489,7 +489,7 @@ const Def* normalize_ROp(const Def* type, const Def* c, const Def* arg, const De
                 }
             }
 
-            if (la == world.lit_real_1(*w)) { // is one?
+            if (la == world.lit_real_1(*w)) {
                 switch (op) {
                     case ROp::add: break;
                     case ROp::sub: break;
@@ -502,7 +502,7 @@ const Def* normalize_ROp(const Def* type, const Def* c, const Def* arg, const De
         }
 
         if (auto lb = b->isa<Lit>()) {
-            if (lb == world.lit_real_0(*w)) { // is zero?
+            if (lb == world.lit_real_0(*w)) {
                 switch (op) {
                     case ROp::sub: return a;    // a - 0 -> a
                     case ROp::div: break;
@@ -590,7 +590,6 @@ template<Conv op>
 const Def* normalize_Conv(const Def* dst_type, const Def* c, const Def* src, const Def* dbg) {
     auto& world = dst_type->world();
     auto callee = c->as<App>();
-    if (callee == nullptr) return nullptr;
 
     static constexpr auto min_sw = op == Conv::r2s || op == Conv::r2u || op == Conv::r2r ? 16 : 1;
     static constexpr auto min_dw = op == Conv::s2r || op == Conv::u2r || op == Conv::r2r ? 16 : 1;
@@ -630,7 +629,7 @@ const Def* normalize_bitcast(const Def* dst_type, const Def* callee, const Def* 
     if (auto lit = src->isa<Lit>()) {
         if (dst_type->type()->isa<KindArity>()) return world.lit_index(dst_type, lit->get());
         if (dst_type->isa<Nat>())               return world.lit(dst_type, lit->get());
-        if (auto w = get_width(dst_type))       return world.lit(dst_type, (u64(-1) >> (64_u64 - *w)) & lit->get());
+        if (auto w = get_width(dst_type))       return world.lit_int(*w, lit->get());
     }
 
     if (auto variant = src->isa<Variant>()) {

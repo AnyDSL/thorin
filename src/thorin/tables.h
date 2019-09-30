@@ -21,6 +21,7 @@ using nat_t    = u64;
                        m(Extract, extract)                \
                        m(Insert, insert)                  \
                        m(Lam, lam)                        \
+                       m(CPS2DS, cps2ds)                  \
                        m(Lit, lit)                        \
                        m(Pack, pack)                      \
                        m(Pi, pi)                          \
@@ -42,7 +43,7 @@ using nat_t    = u64;
 #define THORIN_TAG(m)                                                                                   \
     m(Int, int) m(Real, real) m(Ptr, ptr)                                                               \
     m(WOp, wop) m(ZOp, zop) m(IOp, iop) m(ROp, rop) m(ICmp, icmp) m(RCmp, rcmp) m(Conv, conv) m(PE, pe) \
-    m(Bitcast, bitcast) m(CPS2DS, cps2ds) m(LEA, lea) m(Select, select) m(Sizeof, sizeof)               \
+    m(Bitcast, bitcast) m(LEA, lea) m(Select, select) m(Sizeof, sizeof)               \
     m(End, end)                                                                                         \
     m(Alloc, alloc) m(Slot, slot) m(Load, load) m(Store, store)
 
@@ -84,8 +85,6 @@ enum RMode : nat_t {
 #define THORIN_CONV(m) m(Conv, s2s) m(Conv, u2u) m(Conv, s2r) m(Conv, u2r) m(Conv, r2s) m(Conv, r2u) m(Conv, r2r)
 /// Partial Evaluation related operations
 #define THORIN_PE(m) m(PE, hlt) m(PE, known) m(PE, run)
-/// CPS2DS
-#define THORIN_CPS2DS(m) m(CPS2DS, mem) m(CPS2DS, pure)
 
 /**
  * The 5 relations are disjoint and are organized as follows:
@@ -183,7 +182,6 @@ enum class ICmp   : tag_t { THORIN_I_CMP (CODE) };
 enum class RCmp   : tag_t { THORIN_R_CMP (CODE) };
 enum class Conv   : tag_t { THORIN_CONV  (CODE) };
 enum class PE     : tag_t { THORIN_PE    (CODE) };
-enum class CPS2DS : tag_t { THORIN_CPS2DS(CODE) };
 #undef CODE
 
 constexpr ICmp operator|(ICmp a, ICmp b) { return ICmp(flags_t(a) | flags_t(b)); }
@@ -203,7 +201,6 @@ constexpr const char* op2str(ICmp   o) { switch (o) { THORIN_I_CMP (CODE) defaul
 constexpr const char* op2str(RCmp   o) { switch (o) { THORIN_R_CMP (CODE) default: THORIN_UNREACHABLE; } }
 constexpr const char* op2str(Conv   o) { switch (o) { THORIN_CONV  (CODE) default: THORIN_UNREACHABLE; } }
 constexpr const char* op2str(PE     o) { switch (o) { THORIN_PE    (CODE) default: THORIN_UNREACHABLE; } }
-constexpr const char* op2str(CPS2DS o) { switch (o) { THORIN_CPS2DS(CODE) default: THORIN_UNREACHABLE; } }
 #undef CODE
 
 namespace AddrSpace {
@@ -230,7 +227,6 @@ template<> constexpr auto Num<ICmp>   = 0_s THORIN_I_CMP (CODE);
 template<> constexpr auto Num<RCmp>   = 0_s THORIN_R_CMP (CODE);
 template<> constexpr auto Num<Conv>   = 0_s THORIN_CONV  (CODE);
 template<> constexpr auto Num<PE  >   = 0_s THORIN_PE    (CODE);
-template<> constexpr auto Num<CPS2DS> = 0_s THORIN_CPS2DS(CODE);
 #undef CODE
 
 template<tag_t tag> struct Tag2Enum_     { using type = tag_t;  };
@@ -242,7 +238,6 @@ template<> struct Tag2Enum_<Tag::ICmp  > { using type = ICmp;   };
 template<> struct Tag2Enum_<Tag::RCmp  > { using type = RCmp;   };
 template<> struct Tag2Enum_<Tag::Conv  > { using type = Conv;   };
 template<> struct Tag2Enum_<Tag::PE    > { using type = PE;     };
-template<> struct Tag2Enum_<Tag::CPS2DS> { using type = CPS2DS; };
 template<tag_t tag> using Tag2Enum = typename Tag2Enum_<tag>::type;
 
 }

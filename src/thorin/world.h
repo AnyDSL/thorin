@@ -300,6 +300,10 @@ public:
     const VariantType* variant_type(Defs ops, Debug dbg = {}) { return unify<VariantType>(ops.size(), kind_star(), ops, debug(dbg)); }
     const Def* variant(const VariantType* variant_type, const Def* value, Debug dbg = {}) { return unify<Variant>(1, variant_type, value, debug(dbg)); }
     //@}
+    /// @name CPS2DS
+    //@{
+    const Def* cps2ds(const Def* cps, Debug dbg = {});
+    //@}
     /// @name misc types
     //@{
     const Nat* type_nat() { return cache_.type_nat_; }
@@ -382,11 +386,6 @@ public:
     //@{
     const Def* op(PE o) { return cache_.PE_[size_t(o)]; }
     const Def* op(PE o, const Def* def, Debug dbg = {}) { return app(app(op(o), def->type()), def, debug(dbg)); }
-    //@}
-    /// @name CPS2DS
-    //@{
-    const Def* op(CPS2DS o) { return cache_.CPS2DS_[size_t(o)]; }
-    const Def* op_cps2ds(const Def* cps, Debug dbg = {});
     //@}
     /// @name Analyze - used internally for Pass%es
     //@{
@@ -627,7 +626,6 @@ private:
         std::array<Axiom*, Num<RCmp>>   RCmp_;
         std::array<Axiom*, Num<Conv>>   Conv_;
         std::array<Axiom*, Num<PE>>     PE_;
-        std::array<Axiom*, Num<CPS2DS>> CPS2DS_;
         Axiom* op_end_;
         Axiom* type_int_;
         Axiom* type_real_;

@@ -178,11 +178,14 @@ World::World(uint32_t cur_gid, const std::string& name, bool tuple2pack)
         auto ptr = type_ptr(T, as);
         type->set_codomain(pi(mem, sigma({mem, ptr})));
         cache_.op_slot_ = axiom(nullptr, type, 0, Tag::Slot, 0, {"slot"});
-    } { // cps2ds:, Π[T, R]. Πcn[M, T, cn[M, R]]. Π[M, T]. [M, R]
-        auto type = pi(kind_star())->set_domain({star, star});
-        auto T = type->param(0, {"T"});
-        auto R = type->param(1, {"R"});
-        type->set_codomain(pi(fn_mem(T, R), pi_mem(T, R)));
+    } { // cps2ds:, Π[M: *, T: *, R: *]. Πcn[M, T, cn[M, R]]. Π[M, T]. [M, R]
+        auto type = pi(kind_star())->set_domain({star, star, star});
+        auto M = type->param(0, {"M"});
+        auto T = type->param(1, {"T"});
+        auto R = type->param(2, {"R"});
+        auto cps = cn({M, T, cn({M, R})});
+        auto ds  = pi({M, T}, sigma({M, R}));
+        type->set_codomain(pi(cps, ds));
         cache_.op_cps2ds_ = axiom(nullptr, type, 0, Tag::CPS2DS, 0, {"cps2ds"});
     }
 }
@@ -527,9 +530,10 @@ const Def* World::op_lea(const Def* ptr, const Def* index, Debug dbg) {
 
 const Def* World::op_cps2ds(const Def* cps, Debug dbg) {
     auto cn = cps->type()->as<Pi>();
+    auto M = cn->op(0)->as<Sigma>()->op(0);
     auto T = cn->op(0)->as<Sigma>()->op(1);
     auto R = cn->op(0)->as<Sigma>()->op(2)->as<Pi>()->op(0)->as<Sigma>()->op(1);
-    return app(app(op_cps2ds(), {T, R}), cps, dbg);
+    return app(app(op_cps2ds(), {M, T, R}), cps, dbg);
 }
 
 /*

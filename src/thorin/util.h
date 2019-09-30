@@ -19,18 +19,6 @@ const Def* merge_sigma(const Def* def, Defs defs);
 const Def* merge_tuple(const Def* def, Defs defs);
 
 std::string tuple2str(const Def*);
-
-bool visit_uses(Lam* lam, std::function<bool(Lam*)> func, bool include_globals = true);
-bool visit_capturing_intrinsics(Lam* lam, std::function<bool(Lam*)> func, bool include_globals);
-
-inline bool is_passed_to_accelerator(Lam* lam, bool include_globals = true) {
-    return visit_capturing_intrinsics(lam, [&] (Lam* lam) { return lam->is_accelerator(); }, include_globals);
-}
-
-inline bool is_passed_to_intrinsic(Lam* lam, Lam::Intrinsic intrinsic, bool include_globals = true) {
-    return visit_capturing_intrinsics(lam, [&] (Lam* lam) { return lam->intrinsic() == intrinsic; }, include_globals);
-}
-
 std::tuple<const Axiom*, u16> get_axiom(const Def*);
 
 // TODO put this somewhere else
@@ -88,8 +76,6 @@ inline std::optional<nat_t> get_width(const Def* type) {
 
 template<tag_t t> Query<Tag2Enum<t>, Tag2Def<t>> as(               const Def* d) { assert( isa<t>(   d) ); return {std::get<0>(get_axiom(d)), d->as<App>()}; }
 template<tag_t t> Query<Tag2Enum<t>, Tag2Def<t>> as(Tag2Enum<t> f, const Def* d) { assert((isa<t>(f, d))); return {std::get<0>(get_axiom(d)), d->as<App>()}; }
-
-void app_to_dropped_app(Lam* src, Lam* dst, const App* app);
 
 class Peek {
 public:

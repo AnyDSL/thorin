@@ -8,6 +8,17 @@
 
 namespace thorin {
 
+void app_to_dropped_app(Lam* src, Lam* dst, const App* app) {
+    std::vector<const Def*> nargs;
+    auto src_app = src->body()->as<App>();
+    for (size_t i = 0, e = src_app->num_args(); i != e; ++i) {
+        if (app->arg(i)->isa<Top>())
+            nargs.push_back(src_app->arg(i));
+    }
+
+    src->app(dst, nargs, src_app->debug());
+}
+
 std::vector<Lam*> succs(Lam* lam) {
     std::vector<Lam*> succs;
     std::queue<const Def*> queue;

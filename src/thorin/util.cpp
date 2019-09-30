@@ -34,17 +34,6 @@ std::tuple<const Axiom*, u16> get_axiom(const Def* def) {
     return {0, u16(-1)};
 }
 
-void app_to_dropped_app(Lam* src, Lam* dst, const App* app) {
-    std::vector<const Def*> nargs;
-    auto src_app = src->body()->as<App>();
-    for (size_t i = 0, e = src_app->num_args(); i != e; ++i) {
-        if (app->arg(i)->isa<Top>())
-            nargs.push_back(src_app->arg(i));
-    }
-
-    src->app(dst, nargs, src_app->debug());
-}
-
 // TODO remove
 Lam* get_param_lam(const Def* def) {
     if (auto extract = def->isa<Extract>())
@@ -75,26 +64,6 @@ std::vector<Peek> peek(const Def* param) {
     }
 
     return peeks;
-}
-
-bool visit_uses(Lam* lam, std::function<bool(Lam*)> func, bool include_globals) {
-    if (!lam->is_intrinsic()) {
-        for (auto use : lam->uses()) {
-            auto def = include_globals && use->isa<Global>() ? use->uses().begin()->def() : use.def();
-            if (auto lam = def->isa_nominal<Lam>())
-                if (func(lam))
-                    return true;
-        }
-    }
-    return false;
-}
-
-bool visit_capturing_intrinsics(Lam* lam, std::function<bool(Lam*)> func, bool include_globals) {
-    return visit_uses(lam, [&] (Lam* lam) {
-        if (auto callee = lam->app()->callee()->isa_nominal<Lam>())
-            return callee->is_intrinsic() && func(callee);
-        return false;
-    }, include_globals);
 }
 
 bool is_tuple_arg_of_app(const Def* def) {

@@ -178,8 +178,8 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
             // do not change the signature of intrinsic/external functions
             if (!lam->is_set() ||
                 lam->is_intrinsic() ||
-                lam->is_external() ||
-                is_passed_to_accelerator(lam))
+                lam->is_external())
+                //|| is_passed_to_accelerator(lam))
                 continue;
 
             auto new_type = wrapped_type(lam->type(), max_tuple_size)->as<Pi>();

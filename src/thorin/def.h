@@ -37,6 +37,7 @@ class Lam;
 class Param;
 class Pi;
 class Def;
+class Stream;
 class Tracker;
 class World;
 
@@ -272,8 +273,8 @@ public:
     //@}
     /// @name stream
     //@{
-    std::ostream& stream(std::ostream&) const;
-    std::ostream& operator<<(std::ostream& os) const { return stream(os); }
+    void dump() const;
+    Stream& stream(Stream& s);
     //@}
 
 protected:
@@ -310,6 +311,8 @@ protected:
     friend class World;
     friend void swap(World&, World&);
 };
+
+Stream& operator<<(Stream& s, const Def* def);
 
 class Param : public Def {
 private:

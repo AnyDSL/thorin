@@ -12,6 +12,13 @@ Stream& Stream::endl() {
     return *this;
 }
 
+//------------------------------------------------------------------------------
+
+void Def::dump() const {
+    Stream stream(std::cout);
+    (stream << this).endl();
+}
+
 Stream& operator<<(Stream& s, const Def* def) {
     if (def == nullptr) return s << "<nullptr>";
     if (is_const(def)) return stream(s, def, Recurse::No);
@@ -93,7 +100,7 @@ Stream& stream(Stream& s, const Def* def, Recurse recurse) {
         }
 
         if (app->arg()->isa<Tuple>() || app->arg()->isa<Pack>())
-            return s.streamf("{} {}", app->callee(), app->arg());
+            return s.streamf("{}{}", app->callee(), app->arg());
         return s.streamf("{}({})", app->callee(), app->arg());
     } else if (auto sigma = def->isa<Sigma>()) {
         if (sigma->isa_nominal()) s.streamf("{}: {}", sigma->unique_name(), sigma->type());

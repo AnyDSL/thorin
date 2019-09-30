@@ -50,6 +50,8 @@ public:
 
     template<typename T, typename... Args>
     Stream& streamf(const char* fmt, T val, Args... args) {
+        //using thorin::operator<<;
+
         while (*fmt) {
             auto next = fmt + 1;
             if (*fmt == '{') {

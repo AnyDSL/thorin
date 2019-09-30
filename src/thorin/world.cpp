@@ -178,7 +178,15 @@ World::World(uint32_t cur_gid, const std::string& name, bool tuple2pack)
         auto ptr = type_ptr(T, as);
         type->set_codomain(pi(mem, sigma({mem, ptr})));
         cache_.op_slot_ = axiom(nullptr, type, 0, Tag::Slot, 0, {"slot"});
-    } { // cps2ds:, Π[M: *, T: *, R: *]. Πcn[M, T, cn[M, R]]. Π[M, T]. [M, R]
+    } { // CPS2DS_pure:, Π[M: *, T: *, R: *]. Πcn[M, T, cn[M, R]]. Π[M, T]. [M, R]
+        auto type = pi(kind_star())->set_domain({star, star});
+        auto T = type->param(0, {"T"});
+        auto R = type->param(1, {"R"});
+        auto cps = cn({T, cn(R)});
+        auto ds  = pi(T, R);
+        type->set_codomain(pi(cps, ds));
+        cache_.CPS2DS_[size_t(CPS2DS::pure)] = axiom(nullptr, type, 0, Tag::CPS2DS, flags_t(CPS2DS::pure), {op2str(CPS2DS::pure)});
+    } { // CPS2DS_mem:, Π[M: *, T: *, R: *]. Πcn[M, T, cn[M, R]]. Π[M, T]. [M, R]
         auto type = pi(kind_star())->set_domain({star, star, star});
         auto M = type->param(0, {"M"});
         auto T = type->param(1, {"T"});
@@ -186,7 +194,7 @@ World::World(uint32_t cur_gid, const std::string& name, bool tuple2pack)
         auto cps = cn({M, T, cn({M, R})});
         auto ds  = pi({M, T}, sigma({M, R}));
         type->set_codomain(pi(cps, ds));
-        cache_.op_cps2ds_ = axiom(nullptr, type, 0, Tag::CPS2DS, 0, {"cps2ds"});
+        cache_.CPS2DS_[size_t(CPS2DS::mem)] = axiom(nullptr, type, 0, Tag::CPS2DS, flags_t(CPS2DS::mem), {op2str(CPS2DS::mem)});
     }
 }
 
@@ -530,10 +538,14 @@ const Def* World::op_lea(const Def* ptr, const Def* index, Debug dbg) {
 
 const Def* World::op_cps2ds(const Def* cps, Debug dbg) {
     auto cn = cps->type()->as<Pi>();
-    auto M = cn->op(0)->as<Sigma>()->op(0);
-    auto T = cn->op(0)->as<Sigma>()->op(1);
-    auto R = cn->op(0)->as<Sigma>()->op(2)->as<Pi>()->op(0)->as<Sigma>()->op(1);
-    return app(app(op_cps2ds(), {M, T, R}), cps, dbg);
+    if (auto M = cn->domain()->as<Sigma>()->op(0)->isa<Mem>()) {
+        auto T = cn->domain()->as<Sigma>()->op(1);
+        auto R = cn->domain()->as<Sigma>()->op(2)->as<Pi>()->domain()->as<Sigma>()->op(1);
+        return app(app(op(CPS2DS::mem), {M, T, R}), cps, dbg);
+    }
+    auto T = cn->domain()->as<Sigma>()->op(0);
+    auto R = cn->domain()->as<Sigma>()->op(1)->as<Pi>()->domain();
+    return app(app(op(CPS2DS::pure), {T, R}), cps, dbg);
 }
 
 /*

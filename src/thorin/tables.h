@@ -84,6 +84,8 @@ enum RMode : nat_t {
 #define THORIN_CONV(m) m(Conv, s2s) m(Conv, u2u) m(Conv, s2r) m(Conv, u2r) m(Conv, r2s) m(Conv, r2u) m(Conv, r2r)
 /// Partial Evaluation related operations
 #define THORIN_PE(m) m(PE, hlt) m(PE, known) m(PE, run)
+/// CPS2DS
+#define THORIN_CPS2DS(m) m(CPS2DS, mem) m(CPS2DS, pure)
 
 /**
  * The 5 relations are disjoint and are organized as follows:
@@ -173,14 +175,15 @@ enum : tag_t { THORIN_TAG(CODE) Max };
 }
 
 #define CODE(T, o) o,
-enum class WOp  : tag_t { THORIN_W_OP (CODE) };
-enum class ZOp  : tag_t { THORIN_Z_OP (CODE) };
-enum class IOp  : tag_t { THORIN_I_OP (CODE) };
-enum class ROp  : tag_t { THORIN_R_OP (CODE) };
-enum class ICmp : tag_t { THORIN_I_CMP(CODE) };
-enum class RCmp : tag_t { THORIN_R_CMP(CODE) };
-enum class Conv : tag_t { THORIN_CONV (CODE) };
-enum class PE   : tag_t { THORIN_PE   (CODE) };
+enum class WOp    : tag_t { THORIN_W_OP  (CODE) };
+enum class ZOp    : tag_t { THORIN_Z_OP  (CODE) };
+enum class IOp    : tag_t { THORIN_I_OP  (CODE) };
+enum class ROp    : tag_t { THORIN_R_OP  (CODE) };
+enum class ICmp   : tag_t { THORIN_I_CMP (CODE) };
+enum class RCmp   : tag_t { THORIN_R_CMP (CODE) };
+enum class Conv   : tag_t { THORIN_CONV  (CODE) };
+enum class PE     : tag_t { THORIN_PE    (CODE) };
+enum class CPS2DS : tag_t { THORIN_CPS2DS(CODE) };
 #undef CODE
 
 constexpr ICmp operator|(ICmp a, ICmp b) { return ICmp(flags_t(a) | flags_t(b)); }
@@ -192,14 +195,15 @@ constexpr RCmp operator&(RCmp a, RCmp b) { return RCmp(flags_t(a) & flags_t(b));
 constexpr RCmp operator^(RCmp a, RCmp b) { return RCmp(flags_t(a) ^ flags_t(b)); }
 
 #define CODE(T, o) case T::o: return #T "_" #o;
-constexpr const char* op2str(IOp  o) { switch (o) { THORIN_I_OP (CODE) default: THORIN_UNREACHABLE; } }
-constexpr const char* op2str(WOp  o) { switch (o) { THORIN_W_OP (CODE) default: THORIN_UNREACHABLE; } }
-constexpr const char* op2str(ZOp  o) { switch (o) { THORIN_Z_OP (CODE) default: THORIN_UNREACHABLE; } }
-constexpr const char* op2str(ROp  o) { switch (o) { THORIN_R_OP (CODE) default: THORIN_UNREACHABLE; } }
-constexpr const char* op2str(ICmp o) { switch (o) { THORIN_I_CMP(CODE) default: THORIN_UNREACHABLE; } }
-constexpr const char* op2str(RCmp o) { switch (o) { THORIN_R_CMP(CODE) default: THORIN_UNREACHABLE; } }
-constexpr const char* op2str(Conv o) { switch (o) { THORIN_CONV (CODE) default: THORIN_UNREACHABLE; } }
-constexpr const char* op2str(PE   o) { switch (o) { THORIN_PE   (CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(IOp    o) { switch (o) { THORIN_I_OP  (CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(WOp    o) { switch (o) { THORIN_W_OP  (CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(ZOp    o) { switch (o) { THORIN_Z_OP  (CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(ROp    o) { switch (o) { THORIN_R_OP  (CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(ICmp   o) { switch (o) { THORIN_I_CMP (CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(RCmp   o) { switch (o) { THORIN_R_CMP (CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(Conv   o) { switch (o) { THORIN_CONV  (CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(PE     o) { switch (o) { THORIN_PE    (CODE) default: THORIN_UNREACHABLE; } }
+constexpr const char* op2str(CPS2DS o) { switch (o) { THORIN_CPS2DS(CODE) default: THORIN_UNREACHABLE; } }
 #undef CODE
 
 namespace AddrSpace {
@@ -218,25 +222,27 @@ template<class T> constexpr auto Num = size_t(-1);
 #define CODE(T, o) + 1_s
 constexpr auto Num_Nodes = 0_s THORIN_NODE(CODE);
 constexpr auto Num_Tags  = 0_s THORIN_TAG (CODE);
-template<> constexpr auto Num<IOp > = 0_s THORIN_I_OP (CODE);
-template<> constexpr auto Num<WOp > = 0_s THORIN_W_OP (CODE);
-template<> constexpr auto Num<ZOp > = 0_s THORIN_Z_OP (CODE);
-template<> constexpr auto Num<ROp > = 0_s THORIN_R_OP (CODE);
-template<> constexpr auto Num<ICmp> = 0_s THORIN_I_CMP(CODE);
-template<> constexpr auto Num<RCmp> = 0_s THORIN_R_CMP(CODE);
-template<> constexpr auto Num<Conv> = 0_s THORIN_CONV (CODE);
-template<> constexpr auto Num<PE  > = 0_s THORIN_PE   (CODE);
+template<> constexpr auto Num<IOp >   = 0_s THORIN_I_OP  (CODE);
+template<> constexpr auto Num<WOp >   = 0_s THORIN_W_OP  (CODE);
+template<> constexpr auto Num<ZOp >   = 0_s THORIN_Z_OP  (CODE);
+template<> constexpr auto Num<ROp >   = 0_s THORIN_R_OP  (CODE);
+template<> constexpr auto Num<ICmp>   = 0_s THORIN_I_CMP (CODE);
+template<> constexpr auto Num<RCmp>   = 0_s THORIN_R_CMP (CODE);
+template<> constexpr auto Num<Conv>   = 0_s THORIN_CONV  (CODE);
+template<> constexpr auto Num<PE  >   = 0_s THORIN_PE    (CODE);
+template<> constexpr auto Num<CPS2DS> = 0_s THORIN_CPS2DS(CODE);
 #undef CODE
 
-template<tag_t tag> struct Tag2Enum_   { using type = tag_t; };
-template<> struct Tag2Enum_<Tag::IOp > { using type = IOp;   };
-template<> struct Tag2Enum_<Tag::WOp > { using type = WOp;   };
-template<> struct Tag2Enum_<Tag::ZOp > { using type = ZOp;   };
-template<> struct Tag2Enum_<Tag::ROp > { using type = ROp;   };
-template<> struct Tag2Enum_<Tag::ICmp> { using type = ICmp;  };
-template<> struct Tag2Enum_<Tag::RCmp> { using type = RCmp;  };
-template<> struct Tag2Enum_<Tag::Conv> { using type = Conv;  };
-template<> struct Tag2Enum_<Tag::PE  > { using type = PE;    };
+template<tag_t tag> struct Tag2Enum_     { using type = tag_t;  };
+template<> struct Tag2Enum_<Tag::IOp   > { using type = IOp;    };
+template<> struct Tag2Enum_<Tag::WOp   > { using type = WOp;    };
+template<> struct Tag2Enum_<Tag::ZOp   > { using type = ZOp;    };
+template<> struct Tag2Enum_<Tag::ROp   > { using type = ROp;    };
+template<> struct Tag2Enum_<Tag::ICmp  > { using type = ICmp;   };
+template<> struct Tag2Enum_<Tag::RCmp  > { using type = RCmp;   };
+template<> struct Tag2Enum_<Tag::Conv  > { using type = Conv;   };
+template<> struct Tag2Enum_<Tag::PE    > { using type = PE;     };
+template<> struct Tag2Enum_<Tag::CPS2DS> { using type = CPS2DS; };
 template<tag_t tag> using Tag2Enum = typename Tag2Enum_<tag>::type;
 
 }

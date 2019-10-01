@@ -573,8 +573,8 @@ public:
     //@}
     /// @name params
     //@{
-    const Def* mem_param();
-    const Def* ret_param();
+    const Def* mem_param(thorin::Debug dbg = {});
+    const Def* ret_param(thorin::Debug dbg = {});
     //@}
     /// @name setters
     //@{

@@ -169,25 +169,14 @@ void Def::replace(Tracker with) const {
  * Lam
  */
 
-const Def* Lam::mem_param() {
-    for (size_t i = 0, e = num_params(); i != e; ++i) {
-        auto p = param(i);
-        if (p->type()->isa<Mem>())
-            return p;
-    }
-    return nullptr;
+const Def* Lam::mem_param(thorin::Debug dbg) {
+    return param(0)->type()->isa<Mem>() ? param(0, dbg) : nullptr;
 }
 
-const Def* Lam::ret_param() {
-    const Def* result = nullptr;
-    for (size_t i = 0, e = num_params(); i != e; ++i) {
-        auto p = param(i);
-        if (p->type()->order() >= 1) {
-            assertf(result == nullptr, "only one ret_param allowed");
-            result = p;
-        }
-    }
-    return result;
+const Def* Lam::ret_param(thorin::Debug dbg) {
+    auto p = param(num_params() - 1, dbg);
+    assert(p->type()->as<thorin::Pi>()->is_cn());
+    return p;
 }
 
 bool Lam::is_intrinsic() const { return intrinsic() != Intrinsic::None; }

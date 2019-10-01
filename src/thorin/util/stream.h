@@ -43,6 +43,8 @@ public:
     //@}
 
 private:
+    bool match2nd(const char* next, const char*& s, const char c);
+
     std::ostream& os_;
     std::string tab_;
     size_t level_;
@@ -82,11 +84,7 @@ Stream& Stream::fmt(const char* s, T&& t, Args&&... args) {
         auto next = s + 1;
 
         if (*s == '{') {
-            if (*next == '{') {
-                (*this) << '{';
-                s += 2;
-                continue;
-            }
+            if (match2nd(next, s, '{')) continue;
             s++; // skip opening brace '{'
 
             std::string spec;
@@ -112,11 +110,8 @@ Stream& Stream::fmt(const char* s, T&& t, Args&&... args) {
             ++s; // skip closing brace '}'
             return fmt(s, std::forward<Args&&>(args)...); // call even when *s == '\0' to detect extra arguments
         } else if (*s == '}') {
-            if (*next == '}') {
-                (*this) << '}';
-                s += 2;
-                continue;
-            }
+            if (match2nd(next, s, '}')) continue;
+
             assert(false && "unmatched/unescaped closing brace '}' in format string");
         } else
             (*this) << *s++;
@@ -126,17 +121,35 @@ Stream& Stream::fmt(const char* s, T&& t, Args&&... args) {
 }
 
 inline Stream& Stream::fmt(const char* s) {
-#ifndef NDEBUG
-    auto ptr = s;
-    while (auto p = strchr(ptr, '{')) {
-        if (*(p + 1) != '{') {
-            assert(false && "some symbols have not been formatted");
-            break;
+    while (*s) {
+        auto next = s + 1;
+        if (*s == '{') {
+            if (match2nd(next, s, '{')) continue;
+
+            while (*s && *s != '}') s++;
+
+            if (*s == '}')
+                assert(false && "invalid format string for 'streamf': missing argument(s)");
+            else
+                assert(false && "invalid format string for 'streamf': missing closing brace and argument");
+
+        } else if (*s == '}') {
+            if (match2nd(next, s, '}')) continue;
+
+            assert(false && "unmatched/unescaped closing brace '}' in format string");
         }
-        ptr = p + 2;
+        (*this) << *s++;
     }
-#endif
-    return (*this) << s;
+    return *this;
+}
+
+inline bool Stream::match2nd(const char* next, const char*& s, const char c) {
+    if (*next == c) {
+        (*this) << c;
+        s += 2;
+        return true;
+    }
+    return false;
 }
 
 template<class Emit, class List>

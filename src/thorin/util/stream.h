@@ -73,38 +73,37 @@ template<class T>
 struct is_streamable<T, std::void_t<decltype(std::declval<T>()->stream(std::declval<thorin::Stream&>()))>> : std::true_type {};
 template<class T> static constexpr bool is_streamable_v = is_streamable<T>::value;
 
-template<class T> std::enable_if_t< is_streamable_v<T>, Stream&> operator<<(Stream& s, T t) { return t->stream(s); }
-template<class T> std::enable_if_t<!is_streamable_v<T>, Stream&> operator<<(Stream& s, T t) { s.ostream() << t; return s; } ///< Fallback.
+template<class T> std::enable_if_t< is_streamable_v<T>, Stream&> operator<<(Stream& s, const T& t) { return t->stream(s); }
+template<class T> std::enable_if_t<!is_streamable_v<T>, Stream&> operator<<(Stream& s, const T& t) { s.ostream() << t; return s; } ///< Fallback.
 
 template<class T, class... Args>
 Stream& Stream::fmt(const char* s, T&& t, Args&&... args) {
     while (*s != '\0') {
         auto next = s + 1;
+
         if (*s == '{') {
             if (*next == '{') {
                 (*this) << '{';
                 s += 2;
                 continue;
             }
-
             s++; // skip opening brace '{'
+
             std::string spec;
             while (*s != '\0' && *s != '}') spec.push_back(*s++);
             assert(*s == '}' && "unmatched closing brace '}' in format string");
 
             if constexpr (is_range_v<T>) {
-                std::string cur_sep;
+                const char* cur_sep = "";
                 for (const auto& elem : t) {
-                    (*this) << elem;
-                    if (!spec.empty()) {
-                        for (auto c : spec) {
-                            if (c == '\n')
-                                this->endl();
-                            else
-                                (*this) << c;
-                        }
-                        spec.clear();
+                    for (auto i = cur_sep; *i != '\0'; ++i) {
+                        if (*i == '\n')
+                            this->endl();
+                        else
+                            (*this) << *i;
                     }
+                    (*this) << elem;
+                    cur_sep = spec.c_str();
                 }
             } else {
                 (*this) << t;
@@ -122,6 +121,7 @@ Stream& Stream::fmt(const char* s, T&& t, Args&&... args) {
         } else
             (*this) << *s++;
     }
+
     assert(false && "invalid format string for 's'");
 }
 

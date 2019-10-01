@@ -9,6 +9,8 @@
 #include <sstream>
 #include <string>
 
+#include "thorin/util/iterator.h"
+
 namespace thorin {
 
 class Stream {
@@ -51,11 +53,10 @@ template<class... Args> void errf(const char* fmt, Args&&... args) { Stream().fm
 
 template<class P>
 class Streamable {
-public:
-    struct streamable_tag {};
-
-    constexpr       P& parent()       { return *static_cast<      P*>(this); };
+private:
     constexpr const P& parent() const { return *static_cast<const P*>(this); };
+
+public:
     /// Writes to a file with name @p filename.
     void write(const std::string& filename) const { std::ofstream ofs(filename); Stream s(ofs); parent().stream(s).endl(); }
     /// Writes to a file named @c parent().name().
@@ -70,7 +71,6 @@ template<class T, class = void>
 struct is_streamable : std::false_type {};
 template<class T>
 struct is_streamable<T, std::void_t<decltype(std::declval<T>()->stream(std::declval<thorin::Stream&>()))>> : std::true_type {};
-
 template<class T> static constexpr bool is_streamable_v = is_streamable<T>::value;
 
 template<class T> std::enable_if_t< is_streamable_v<T>, Stream&> operator<<(Stream& s, T t) { return t->stream(s); }
@@ -78,13 +78,51 @@ template<class T> std::enable_if_t<!is_streamable_v<T>, Stream&> operator<<(Stre
 
 template<class T, class... Args>
 Stream& Stream::fmt(const char* s, T&& t, Args&&... args) {
-    auto ptr = s;
-    auto p = strchr(ptr, '{');
-    while (p && *(p + 1) == '{') p = strchr(p + 2, '{');
-    assert(p != nullptr && "missing argument to format");
-    ostream().write(ptr, p - ptr);
-    (*this) << t;
-    return fmt(strchr(p, '}') + 1, std::forward<Args&&>(args)...);
+    while (*s != '\0') {
+        auto next = s + 1;
+        if (*s == '{') {
+            if (*next == '{') {
+                (*this) << '{';
+                s += 2;
+                continue;
+            }
+
+            s++; // skip opening brace '{'
+            std::string spec;
+            while (*s != '\0' && *s != '}') spec.push_back(*s++);
+            assert(*s == '}' && "unmatched closing brace '}' in format string");
+
+            if constexpr (is_range_v<T>) {
+                std::string cur_sep;
+                for (const auto& elem : t) {
+                    (*this) << elem;
+                    if (!spec.empty()) {
+                        for (auto c : spec) {
+                            if (c == '\n')
+                                this->endl();
+                            else
+                                (*this) << c;
+                        }
+                        spec.clear();
+                    }
+                }
+            } else {
+                (*this) << t;
+            }
+
+            ++s; // skip closing brace '}'
+            return fmt(s, std::forward<Args&&>(args)...); // call even when *s == '\0' to detect extra arguments
+        } else if (*s == '}') {
+            if (*next == '}') {
+                (*this) << '}';
+                s += 2;
+                continue;
+            }
+            assert(false && "unmatched/unescaped closing brace '}' in format string");
+        } else
+            (*this) << *s++;
+    }
+    assert(false && "invalid format string for 's'");
 }
 
 inline Stream& Stream::fmt(const char* s) {

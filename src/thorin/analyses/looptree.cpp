@@ -207,17 +207,10 @@ LoopTree<forward>::Base::Base(Node node, Head* parent, int depth, const std::vec
 }
 
 template<bool forward>
-Stream& LoopTree<forward>::Leaf::stream(Stream& s) const {
-    return s.fmt("<{} | dfs: {}", cf_node(), index());
-}
+Stream& LoopTree<forward>::Leaf::stream(Stream& s) const { return s.fmt("<{} | dfs: {}", cf_node(), index()); }
 
 template<bool forward>
-Stream& LoopTree<forward>::Head::stream(Stream& s) const {
-    s << "[";
-    for (const auto& head : this->cf_nodes()) // TODO use stream comma list - once it is there
-        s << head << ", ";
-    return s << "]";
-}
+Stream& LoopTree<forward>::Head::stream(Stream& s) const { return s.fmt("[{, }]", this->cf_nodes()); }
 
 //------------------------------------------------------------------------------
 

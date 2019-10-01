@@ -100,7 +100,7 @@ Stream& stream(Stream& s, const Def* def, Recurse recurse) {
         return s.fmt("{}({})", app->callee(), app->arg());
     } else if (auto sigma = def->isa<Sigma>()) {
         if (sigma->isa_nominal()) s.fmt("{}: {}", sigma->unique_name(), sigma->type());
-        return s.list(sigma->ops(), [&](const Def* def) { return s << def; }, "[", "]");
+        return s.fmt("[{, }]", sigma->ops());
     } else if (auto tuple = def->isa<Tuple>()) {
 #if 0
         // special case for string
@@ -115,7 +115,7 @@ Stream& stream(Stream& s, const Def* def, Recurse recurse) {
             }
         }
 #endif
-        s.list(tuple->ops(), [&](const Def* def) { return s << def; }, "(", ")");
+        s.fmt("({, })", tuple->ops());
         return tuple->type()->isa_nominal() ? s.fmt(": {}", tuple->type()) : s;
     } else if (auto variadic = def->isa<Variadic>()) {
         if (auto nom_variadic = variadic->isa_nominal<Variadic>())
@@ -142,15 +142,14 @@ Stream& stream(Stream& s, const Def* def, Recurse recurse) {
         return s.fmt("‹{}; {}›", pack->domain(), pack->body());
     } else if (auto union_ = def->isa<Union>()) {
         if (union_->isa_nominal()) s.fmt("{}: {}", union_->unique_name(), union_->type());
-        return s.fmt("⋃").list(union_->ops(), [&](const Def* def) { return s << def; }, "(", ")");
+        return s.fmt("⋃[{, }]", union_->ops());
     }
 
     // unknown node type
     if (def->fields() != 0)
-        s.fmt("({} {})", def->node_name(), def->fields());
+        return s.fmt("({} {})({, })", def->node_name(), def->fields(), def->ops());
     else
-        s.fmt("{}", def->node_name());
-    return s.list(def->ops(), [&](const Def* def) { return s << def; }, "(", ")");
+        return s.fmt("{}({, })", def->node_name(),def->ops());
 }
 
 Stream& stream_assignment(Stream& s, const Def* def) {

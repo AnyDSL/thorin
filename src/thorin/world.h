@@ -68,16 +68,12 @@ public:
     World(World&&) = delete;
     World& operator=(const World&) = delete;
 
-    explicit World(u32 cur_gid, const std::string& name = {}, bool tuple2pack = true);
-    ///  Inherits properties of the @p other @p World but does @em not perform a copy.
+    explicit World(const std::string& name = {});
+    ///  Inherits the @p state_ of the @p other @p World but does @em not perform a copy.
     explicit World(const World& other)
-        : World(other.cur_gid(), other.name(), other.tuple2pack_)
+        : World(other.name())
     {
-        pe_done_ = other.pe_done_;
-#if THORIN_ENABLE_CHECKS
-        track_history_ = other.track_history_;
-        breakpoints_   = other.breakpoints_;
-#endif
+        state_ = other.state_;
     }
 
     /// @ getters
@@ -88,8 +84,8 @@ public:
     //@}
     /// @name manage global identifier - a unique number for each Def
     //@{
-    u32 cur_gid() const { return cur_gid_; }
-    u32 next_gid() { return ++cur_gid_; }
+    u32 cur_gid() const { return state_.cur_gid; }
+    u32 next_gid() { return ++state_.cur_gid; }
     //@}
     /// @name Universe and Kind
     //@{
@@ -377,7 +373,7 @@ public:
     const Def* op_alloc(const Def* type, const Def* mem, Debug dbg = {}) { return app(app(op_alloc(), {type, lit_nat(0)}), mem, dbg); }
     const Def* op_slot (const Def* type, const Def* mem, Debug dbg = {}) { return app(app(op_slot (), {type, lit_nat(0)}), mem, dbg); }
     const Def* global(const Def* id, const Def* init, bool is_mutable = true, Debug dbg = {});
-    const Def* global(const Def* init, bool is_mutable = true, Debug dbg = {}) { return global(lit_nat(cur_gid_), init, is_mutable, debug(dbg)); }
+    const Def* global(const Def* init, bool is_mutable = true, Debug dbg = {}) { return global(lit_nat(state_.cur_gid), init, is_mutable, debug(dbg)); }
     const Def* global_immutable_string(const std::string& str, Debug dbg = {});
     //@}
     /// @name PE - partial evaluation related operations
@@ -404,8 +400,13 @@ public:
     Lam* match(const Def* type, size_t num_patterns);
     Axiom* op_end() const { return cache_.op_end_; }
     //@}
-    /// @name debug information
+    /// @name helpers for optional/variant arguments
     //@{
+    const Def* name2def(Name n) {
+        if (auto s = std::get_if<const char*>(&n)) return tuple_str(*s);
+        if (auto s = std::get_if<std::string>(&n)) return tuple_str(s->c_str());
+        return std::get<const Def*>(n);
+    }
     const Def* debug(Debug dbg) {
         if (auto d = std::get_if<0>(&*dbg)) {
             auto n = name2def(std::get<0>(*d));
@@ -422,10 +423,12 @@ public:
         return std::get<const Def*>(*dbg);
     }
     //@}
-    /// @name partial evaluation done?
+    /// @name modify state
     //@{
-    void mark_pe_done(bool flag = true) { pe_done_ = flag; }
-    bool is_pe_done() const { return pe_done_; }
+    void mark_pe_done(bool flag = true) { state_.pe_done = flag; }
+    bool is_pe_done() const { return state_.pe_done; }
+    void do_tuple2pack(bool flag = true) { state_.tuple2pack = flag; }
+    bool tuple2pack() const { return state_.tuple2pack; }
     //@}
     /// @name manage externals
     //@{
@@ -456,10 +459,10 @@ public:
 #if THORIN_ENABLE_CHECKS
     /// @name debugging features
     //@{
-    void breakpoint(size_t number) { breakpoints_.insert(number); }
-    const Breakpoints& breakpoints() const { return breakpoints_; }
-    bool track_history() const { return track_history_; }
-    void enable_history(bool flag = true) { track_history_ = flag; }
+    void breakpoint(size_t number) { state_.breakpoints.insert(number); }
+    const Breakpoints& breakpoints() const { return state_.breakpoints; }
+    bool track_history() const { return state_.track_history; }
+    void enable_history(bool flag = true) { state_.track_history = flag; }
     const Def* lookup_by_gid(u32 gid);
     //@}
 #endif
@@ -467,41 +470,25 @@ public:
 
     friend void swap(World& w1, World& w2) {
         using std::swap;
-        swap(w1.root_page_,     w2.root_page_);
-        swap(w1.cur_page_,      w2.cur_page_);
-        swap(w1.cur_gid_,       w2.cur_gid_);
-        swap(w1.buffer_index_,  w2.buffer_index_);
-        swap(w1.name_,          w2.name_);
-        swap(w1.externals_,     w2.externals_);
-        swap(w1.defs_,          w2.defs_);
-        swap(w1.pe_done_,       w2.pe_done_);
-        swap(w1.tuple2pack_,    w2.tuple2pack_);
-        swap(w1.cache_,         w2.cache_);
-#if THORIN_ENABLE_CHECKS
-        swap(w1.breakpoints_,   w2.breakpoints_);
-        swap(w1.track_history_, w2.track_history_);
-#endif
+        swap(w1.name_,      w2.name_);
+        swap(w1.externals_, w2.externals_);
+        swap(w1.defs_,      w2.defs_);
+        swap(w1.arena_, w2.arena_);
+        swap(w1.state_, w2.state_);
+        swap(w1.cache_, w2.cache_);
         swap(w1.cache_.universe_->world_, w2.cache_.universe_->world_);
         assert(&w1.universe()->world() == &w1);
         assert(&w2.universe()->world() == &w2);
     }
 
 private:
-    /// @name helpers for optional/variant arguments
-    //@{
-    const Def* name2def(Name n) {
-        if (auto s = std::get_if<const char*>(&n)) return tuple_str(*s);
-        if (auto s = std::get_if<std::string>(&n)) return tuple_str(s->c_str());
-        return std::get<const Def*>(n);
-    }
-    //@}
-    /// @name memory management and hashing
+    /// @name put into sea of nodes
     //@{
     template<class T, class... Args>
     const T* unify(size_t num_ops, Args&&... args) {
-        auto def = allocate<T>(num_ops, args...);
+        auto def = arena_.allocate<T>(num_ops, args...);
 #ifndef NDEBUG
-        if (breakpoints_.contains(def->gid())) THORIN_BREAK;
+        if (state_.breakpoints.contains(def->gid())) THORIN_BREAK;
 #endif
         assert(!def->isa_nominal());
         auto [i, success] = defs_.emplace(def);
@@ -510,36 +497,20 @@ private:
             return def;
         }
 
-        deallocate<T>(def);
+        arena_.deallocate<T>(def);
         return static_cast<const T*>(*i);
     }
 
     template<class T, class... Args>
     T* insert(size_t num_ops, Args&&... args) {
-        auto def = allocate<T>(num_ops, args...);
+        auto def = arena_.allocate<T>(num_ops, args...);
 #ifndef NDEBUG
-        if (breakpoints_.contains(def->gid())) THORIN_BREAK;
+        if (state_.breakpoints.contains(def->gid())) THORIN_BREAK;
 #endif
         auto p = defs_.emplace(def);
         assert_unused(p.second);
         return def;
     }
-
-    struct Zone {
-        static const size_t Size = 1024 * 1024 - sizeof(std::unique_ptr<int>); // 1MB - sizeof(next)
-        char buffer[Size];
-        std::unique_ptr<Zone> next;
-    };
-
-#ifndef NDEBUG
-    struct Lock {
-        Lock() { assert((allocate_guard_ = !allocate_guard_) && "you are not allowed to recursively invoke allocate"); }
-        ~Lock() { allocate_guard_ = !allocate_guard_; }
-        static bool allocate_guard_;
-    };
-#else
-    struct Lock { ~Lock() {} };
-#endif
 
     static inline size_t align(size_t n) { return (n + (sizeof(void*) - 1)) & ~(sizeof(void*)-1); }
 
@@ -547,54 +518,79 @@ private:
         size_t result = sizeof(Def) + sizeof(const Def*)*num_ops;
         return align(result);
     }
-
-    template<class T, class... Args>
-    T* allocate(size_t num_ops, Args&&... args) {
-        static_assert(sizeof(Def) == sizeof(T), "you are not allowed to introduce any additional data in subclasses of Def");
-        Lock lock;
-        size_t num_bytes = num_bytes_of<T>(num_ops);
-        num_bytes = align(num_bytes);
-        assert(num_bytes < Zone::Size);
-
-        if (buffer_index_ + num_bytes >= Zone::Size) {
-            auto page = new Zone;
-            cur_page_->next.reset(page);
-            cur_page_ = page;
-            buffer_index_ = 0;
-        }
-
-        auto result = new (cur_page_->buffer + buffer_index_) T(args...);
-        assert(result->num_ops() == num_ops);
-        buffer_index_ += num_bytes;
-        assert(buffer_index_ % alignof(T) == 0);
-
-        return result;
-    }
-
-    template<class T>
-    void deallocate(const T* def) {
-        size_t num_bytes = num_bytes_of<T>(def->num_ops());
-        num_bytes = align(num_bytes);
-        def->~T();
-        if (ptrdiff_t(buffer_index_ - num_bytes) > 0) // don't care otherwise
-            buffer_index_-= num_bytes;
-        assert(buffer_index_ % alignof(T) == 0);
-    }
     //@}
 
-    std::unique_ptr<Zone> root_page_;
-    Zone* cur_page_;
-    size_t buffer_index_ = 0;
-    std::string name_;
-    Externals externals_;
-    Sea defs_;
-    u32 cur_gid_;
-    bool pe_done_ = false;
-    bool tuple2pack_;
-#if THORIN_ENABLE_CHECKS
-    bool track_history_ = false;
-    Breakpoints breakpoints_;
+    class Arena {
+    public:
+        Arena()
+            : root_zone_(new Zone) // don't use 'new Zone()' - we keep the allocated Zone uninitialized
+            , cur_zone_(root_zone_.get())
+        {}
+
+        struct Zone {
+            static const size_t Size = 1024 * 1024 - sizeof(std::unique_ptr<int>); // 1MB - sizeof(next)
+            char buffer[Size];
+            std::unique_ptr<Zone> next;
+        };
+
+#ifndef NDEBUG
+        struct Lock {
+            Lock() { assert((guard_ = !guard_) && "you are not allowed to recursively invoke allocate"); }
+            ~Lock() { guard_ = !guard_; }
+            static bool guard_;
+        };
+#else
+        struct Lock { ~Lock() {} };
 #endif
+        template<class T, class... Args>
+        T* allocate(size_t num_ops, Args&&... args) {
+            static_assert(sizeof(Def) == sizeof(T), "you are not allowed to introduce any additional data in subclasses of Def");
+            Lock lock;
+            size_t num_bytes = num_bytes_of<T>(num_ops);
+            num_bytes = align(num_bytes);
+            assert(num_bytes < Zone::Size);
+
+            if (buffer_index_ + num_bytes >= Zone::Size) {
+                auto zone = new Zone;
+                cur_zone_->next.reset(zone);
+                cur_zone_ = zone;
+                buffer_index_ = 0;
+            }
+
+            auto result = new (cur_zone_->buffer + buffer_index_) T(args...);
+            assert(result->num_ops() == num_ops);
+            buffer_index_ += num_bytes;
+            assert(buffer_index_ % alignof(T) == 0);
+
+            return result;
+        }
+
+        template<class T>
+        void deallocate(const T* def) {
+            size_t num_bytes = num_bytes_of<T>(def->num_ops());
+            num_bytes = align(num_bytes);
+            def->~T();
+            if (ptrdiff_t(buffer_index_ - num_bytes) > 0) // don't care otherwise
+                buffer_index_-= num_bytes;
+            assert(buffer_index_ % alignof(T) == 0);
+        }
+
+    private:
+        std::unique_ptr<Zone> root_zone_;
+        Zone* cur_zone_;
+        size_t buffer_index_ = 0;
+    } arena_;
+
+    struct State {
+        u32 cur_gid = 0;
+        bool pe_done = false;
+        bool tuple2pack = true;
+#if THORIN_ENABLE_CHECKS
+        bool track_history = false;
+        Breakpoints breakpoints;
+#endif
+    } state_;
+
     struct Cache {
         Universe* universe_;
         const KindMulti* kind_multi_;
@@ -632,6 +628,10 @@ private:
         Axiom* op_load_;
         Axiom* op_store_;
     } cache_;
+
+    std::string name_;
+    Externals externals_;
+    Sea defs_;
 
     friend class Cleaner;
     friend void Def::replace(Tracker) const;

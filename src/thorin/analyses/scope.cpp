@@ -3,7 +3,6 @@
 #include <algorithm>
 
 #include "thorin/rewrite.h"
-#include "thorin/util/log.h"
 #include "thorin/world.h"
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/domtree.h"

@@ -1,7 +1,6 @@
 #include "thorin/pass/copy_prop.h"
 
 #include "thorin/util.h"
-#include "thorin/util/log.h"
 
 namespace thorin {
 

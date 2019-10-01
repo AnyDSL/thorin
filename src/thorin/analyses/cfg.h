@@ -65,6 +65,7 @@ public:
     ~CFA();
 
     const Scope& scope() const { return scope_; }
+    World& world() const { return scope().world(); }
     size_t size() const { return nodes().size(); }
     const NomMap<const CFNode*>& nodes() const { return nodes_; }
     const F_CFG& f_cfg() const;

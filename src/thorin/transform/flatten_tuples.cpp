@@ -3,7 +3,6 @@
 #include "thorin/transform/cleanup_world.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/analyses/verify.h"
-#include "thorin/util/log.h"
 
 #include <limits>
 
@@ -193,7 +192,7 @@ static void flatten_tuples(World& world, size_t max_tuple_size) {
 
             todo = true;
 
-            DLOG("flattened {}", lam);
+            world.DLOG("flattened {}", lam);
         }
 
         // remove original versions of wrapped functions

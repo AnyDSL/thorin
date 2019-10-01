@@ -9,7 +9,6 @@
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/looptree.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/util/log.h"
 
 namespace thorin {
 
@@ -48,6 +47,7 @@ public:
         }
     }
 
+    World& world() const { return scope_.world(); }
     const Uses& uses(const Def* def) const { return def2uses_.find(def)->second; }
     void compute_def2uses();
     void schedule_early() { for_all_defs([&](const Def* def) { schedule_early(def); }); }
@@ -150,7 +150,7 @@ const CFNode* Scheduler::schedule_smart(const Def* def) {
 
     auto early = schedule_early(def);
     auto late  = schedule_late (def);
-    DLOG("schedule {}: {} -- {}", def, early, late);
+    world().DLOG("schedule {}: {} -- {}", def, early, late);
 
     const CFNode* result;
     //if (def->isa<Enter>() || def->isa<Slot>() || Enter::is_out_mem(def) || Enter::is_out_frame(def)) {
@@ -167,7 +167,7 @@ const CFNode* Scheduler::schedule_smart(const Def* def) {
 
             // HACK this should actually never occur
             if (i == nullptr) {
-                WLOG("don't know where to put {}", def);
+                world().WLOG("don't know where to put {}", def);
                 result = late;
                 break;
             }

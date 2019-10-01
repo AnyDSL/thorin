@@ -43,7 +43,6 @@
 #include "thorin/transform/cleanup_world.h"
 #include "thorin/transform/codegen_prepare.h"
 #include "thorin/util/array.h"
-#include "thorin/util/log.h"
 
 namespace thorin {
 
@@ -106,7 +105,7 @@ void CodeGen::emit_result_phi(const Def* param, llvm::Value* value) {
 Lam* CodeGen::emit_atomic(Lam* lam) {
     assert(lam->app()->num_args() == 5 && "required arguments are missing");
     if (!isa<Tag::Int>(lam->app()->arg(3)->type()))
-        EDEF(lam->app()->arg(3), "atomic only supported for integer types");
+        world().edef(lam->app()->arg(3), "atomic only supported for integer types");
     // atomic tag: Xchg Add Sub And Nand Or Xor Max Min
     u32 tag = as_lit<u32>(lam->app()->arg(1));
     auto ptr = lookup(lam->app()->arg(2));
@@ -122,7 +121,7 @@ Lam* CodeGen::emit_atomic(Lam* lam) {
 Lam* CodeGen::emit_cmpxchg(Lam* lam) {
     assert(lam->app()->num_args() == 5 && "required arguments are missing");
     if (!isa<Tag::Int>(lam->app()->arg(3)->type()))
-        EDEF(lam->app()->arg(3), "cmpxchg only supported for integer types");
+        world().edef(lam->app()->arg(3), "cmpxchg only supported for integer types");
     auto ptr  = lookup(lam->app()->arg(1));
     auto cmp  = lookup(lam->app()->arg(2));
     auto val  = lookup(lam->app()->arg(3));
@@ -134,14 +133,14 @@ Lam* CodeGen::emit_cmpxchg(Lam* lam) {
 }
 
 Lam* CodeGen::emit_reserve(Lam* lam) {
-    EDEF(lam->app()->debug(), "reserve_shared: only allowed in device code");
+    world().edef(lam->app()->debug(), "reserve_shared: only allowed in device code");
     THORIN_UNREACHABLE;
 }
 
 Lam* CodeGen::emit_reserve_shared(Lam* lam, bool init_undef) {
     assert(lam->app()->num_args() == 3 && "required arguments are missing");
     if (!lam->app()->arg(1)->isa<Lit>())
-        EDEF(lam->app()->arg(1), "reserve_shared: couldn't extract memory size");
+        world().edef(lam->app()->arg(1), "reserve_shared: couldn't extract memory size");
     auto num_elems = as_lit<u32>(lam->app()->arg(1));
     auto l = lam->app()->arg(2)->as_nominal<Lam>();
     auto type = convert(lam->param(1)->type());
@@ -162,7 +161,7 @@ llvm::Value* CodeGen::emit_bitcast(const Def* val, const Def* dst_type) {
     auto src_type = val->type();
     auto to = convert(dst_type);
     if (from->getType()->isAggregateType() || to->isAggregateType())
-        EDEF(val, "bitcast from or to aggregate types not allowed: bitcast from '{}' to '{}'", src_type, dst_type);
+        world().edef(val, "bitcast from or to aggregate types not allowed: bitcast from '{}' to '{}'", src_type, dst_type);
     if (isa<Tag::Ptr>(src_type) && isa<Tag::Ptr>(dst_type))
         return irbuilder_.CreatePointerCast(from, to);
     return irbuilder_.CreateBitCast(from, to);
@@ -753,7 +752,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
                 auto trunc = irbuilder_.CreateTrunc(from, irbuilder_.getIntNTy(value_bits));
                 return irbuilder_.CreateBitOrPointerCast(trunc, to);
             } else {
-                WDEF(def, "slow: alloca and loads/stores needed for variant cast '{}'", def);
+                world().wdef(def, "slow: alloca and loads/stores needed for variant cast '{}'", def);
                 auto ptr_type = llvm::PointerType::get(to, 0);
                 return create_tmp_alloca(from->getType(), [&] (auto alloca) {
                     auto casted_ptr = irbuilder_.CreateBitCast(alloca, ptr_type);
@@ -786,7 +785,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         auto llvm_agg = lookup(def->op(0));
         auto llvm_idx = lookup(def->op(1));
         auto copy_to_alloca = [&] () {
-            WDEF(def, "slow: alloca and loads/stores needed for aggregate '{}'", def);
+            world().wdef(def, "slow: alloca and loads/stores needed for aggregate '{}'", def);
             auto alloca = emit_alloca(llvm_agg->getType(), def->name());
             irbuilder_.CreateStore(llvm_agg, alloca);
 
@@ -1222,7 +1221,7 @@ Backends::Backends(World& world)
                 if (!ptr_type) continue;
                 auto size = get_alloc_size(arg);
                 if (size == 0)
-                    EDEF(arg, "array size is not known at compile time");
+                    world().edef(arg, "array size is not known at compile time");
                 auto elem_type = ptr_type->pointee();
                 size_t multiplier = 1;
                 if (!elem_type->isa<PrimType>()) {
@@ -1237,7 +1236,7 @@ Backends::Backends(World& world)
                 }
                 auto prim_type = elem_type->isa<PrimType>();
                 if (!prim_type)
-                    EDEF(arg, "only pointers to arrays of primitive types are supported");
+                    world().edef(arg, "only pointers to arrays of primitive types are supported");
                 auto num_elems = size / (multiplier * num_bits(prim_type->primtype_tag()) / 8);
                 // imported has type: fn (mem, fn (mem), ...)
                 param_sizes.emplace(imported->param(i - 3 + 2), num_elems);

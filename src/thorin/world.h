@@ -14,6 +14,8 @@
 
 namespace thorin {
 
+enum class LogLevel { Debug, Verbose, Info, Warn, Error };
+
 class Scope;
 using VisitFn   = std::function<void(const Scope&)>;
 using EnterFn   = std::function<bool(const Scope&)>;
@@ -89,10 +91,10 @@ public:
     //@}
     /// @name Universe and Kind
     //@{
-    const Universe*  universe()   { return cache_.universe_; }
+    const Universe*  universe()   { return cache_.universe_;   }
     const KindMulti* kind_multi() { return cache_.kind_multi_; }
     const KindArity* kind_arity() { return cache_.kind_arity_; }
-    const KindStar*  kind_star()  { return cache_.kind_star_; }
+    const KindStar*  kind_star()  { return cache_.kind_star_;  }
     //@}
     /// @name Param
     //@{
@@ -466,6 +468,40 @@ public:
     const Def* lookup_by_gid(u32 gid);
     //@}
 #endif
+    /// @name logging
+    //@{
+    Stream& stream() { assert(state_.stream); return *state_.stream; }
+    LogLevel min_level() { return state_.min_level; }
+
+    void set(LogLevel min_level) { state_.min_level = min_level; }
+    void set(Stream& stream) { state_.stream = &stream; }
+    void set(LogLevel min_level, Stream& stream) { set(min_level); set(stream); }
+
+    template<class... Args>
+    void log(LogLevel level, const std::string& loc, const char* fmt, Args&&... args) {
+        if (state_.stream != nullptr && int(min_level()) <= int(level)) {
+            std::ostringstream oss;
+            oss << loc;
+            stream().fmt("{}:{}: ", colorize(level2string(level), level2color(level)), colorize(oss.str(), 7));
+            stream().fmt(fmt, std::forward<Args&&>(args)...).endl();
+        }
+    }
+
+    template<class... Args>
+    [[noreturn]] void error(const std::string& loc, const char* fmt, Args&&... args) {
+        log(LogLevel::Error, loc, fmt, std::forward<Args&&>(args)...);
+        std::abort();
+    }
+
+    template<class... Args> void idef(const Def* def, const char* fmt, Args&&... args) { log(LogLevel::Info, def->loc(), fmt, std::forward<Args&&>(args)...); }
+    template<class... Args> void wdef(const Def* def, const char* fmt, Args&&... args) { log(LogLevel::Warn, def->loc(), fmt, std::forward<Args&&>(args)...); }
+    template<class... Args> void edef(const Def* def, const char* fmt, Args&&... args) { error(def->loc(), fmt, std::forward<Args&&>(args)...); }
+
+    static const char* level2string(LogLevel level);
+    static int level2color(LogLevel level);
+    static std::string colorize(const std::string& str, int color);
+    //@}
+
     Stream& stream(Stream&) const;
 
     friend void swap(World& w1, World& w2) {
@@ -582,6 +618,8 @@ private:
     } arena_;
 
     struct State {
+        Stream* stream = nullptr;
+        LogLevel min_level = LogLevel::Error;
         u32 cur_gid = 0;
         bool pe_done = false;
         bool tuple2pack = true;
@@ -606,14 +644,14 @@ private:
         std::array<const Lit*, 2> lit_bool_;
         const Lit* lit_arity_1_;
         const Lit* lit_index_0_1_;
-        std::array<Axiom*, Num<IOp>>    IOp_;
-        std::array<Axiom*, Num<WOp>>    WOp_;
-        std::array<Axiom*, Num<ZOp>>    ZOp_;
-        std::array<Axiom*, Num<ROp>>    ROp_;
-        std::array<Axiom*, Num<ICmp>>   ICmp_;
-        std::array<Axiom*, Num<RCmp>>   RCmp_;
-        std::array<Axiom*, Num<Conv>>   Conv_;
-        std::array<Axiom*, Num<PE>>     PE_;
+        std::array<Axiom*, Num<IOp>>  IOp_;
+        std::array<Axiom*, Num<WOp>>  WOp_;
+        std::array<Axiom*, Num<ZOp>>  ZOp_;
+        std::array<Axiom*, Num<ROp>>  ROp_;
+        std::array<Axiom*, Num<ICmp>> ICmp_;
+        std::array<Axiom*, Num<RCmp>> RCmp_;
+        std::array<Axiom*, Num<Conv>> Conv_;
+        std::array<Axiom*, Num<PE>>   PE_;
         Axiom* op_end_;
         Axiom* type_int_;
         Axiom* type_real_;
@@ -636,6 +674,16 @@ private:
     friend class Cleaner;
     friend void Def::replace(Tracker) const;
 };
+
+#define ELOG(...) log(thorin::LogLevel::Error,   std::string(__FILE__":" THORIN_TOSTRING(__LINE__)), __VA_ARGS__)
+#define WLOG(...) log(thorin::LogLevel::Warn,    std::string(__FILE__":" THORIN_TOSTRING(__LINE__)), __VA_ARGS__)
+#define ILOG(...) log(thorin::LogLevel::Info,    std::string(__FILE__":" THORIN_TOSTRING(__LINE__)), __VA_ARGS__)
+#define VLOG(...) log(thorin::LogLevel::Verbose, std::string(__FILE__":" THORIN_TOSTRING(__LINE__)), __VA_ARGS__)
+#ifndef NDEBUG
+#define DLOG(...) log(thorin::LogLevel::Debug,   std::string(__FILE__":" THORIN_TOSTRING(__LINE__)), __VA_ARGS__)
+#else
+#define DLOG(...) do {} while (false)
+#endif
 
 }
 

@@ -9,7 +9,6 @@
 #include "thorin/transform/mangle.h"
 #include "thorin/transform/resolve_loads.h"
 #include "thorin/transform/partial_evaluation.h"
-#include "thorin/util/log.h"
 
 namespace thorin {
 
@@ -85,7 +84,7 @@ void Cleaner::eliminate_tail_rec() {
             }
 
             if (new_args.size() != n) {
-                DLOG("tail recursive: {}", entry);
+                world_.DLOG("tail recursive: {}", entry);
                 auto dropped = drop(scope, args);
 
                 entry->app(dropped, new_args);
@@ -288,7 +287,7 @@ void Cleaner::clean_pe_infos() {
                     if (callee->intrinsic() == Lam::Intrinsic::PeInfo) {
                         auto next = app->arg(3);
                         assert(!is_const(app->arg(2)));
-                        IDEF(app->callee(), "pe_info not constant: {}: {}", "TODO", app->arg(2));
+                        world().idef(app->callee(), "pe_info not constant: {}: {}", "TODO", app->arg(2));
                         return world().app(next, {app->arg(0)}, app->debug());
                     }
                 }
@@ -300,7 +299,7 @@ void Cleaner::clean_pe_infos() {
 void Cleaner::cleanup_fix_point() {
     int i = 0;
     for (; todo_; ++i) {
-        VLOG("iteration: {}", i);
+        world().VLOG("iteration: {}", i);
         todo_ = false;
         if (world_.is_pe_done())
             eliminate_tail_rec();
@@ -317,7 +316,7 @@ void Cleaner::cleanup_fix_point() {
 }
 
 void Cleaner::run() {
-    VLOG("start cleanup");
+    world().VLOG("start cleanup");
     cleanup_fix_point();
 
     if (!world().is_pe_done()) {
@@ -328,7 +327,7 @@ void Cleaner::run() {
         cleanup_fix_point();
     }
 
-    VLOG("end cleanup");
+    world().VLOG("end cleanup");
 #if THORIN_ENABLE_CHECKS
     verify_closedness();
     debug_verify(world());

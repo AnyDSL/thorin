@@ -22,6 +22,9 @@ namespace thorin {
 
 using half_float::half;
 
+#define THORIN_STRINGIFY(x) #x
+#define THORIN_TOSTRING(x) THORIN_STRINGIFY(x)
+
 #define THORIN_1_8_16_32_64(m) m(1) m(8) m(16) m(32) m(64)
 #define THORIN_8_16_32_64(m)        m(8) m(16) m(32) m(64)
 #define THORIN_16_32_64(m)               m(16) m(32) m(64)
@@ -39,11 +42,11 @@ template<int> struct w2u_ {};
 template<int> struct w2s_ {};
 template<int> struct w2r_ {};
 
-#define CODE(i) \
-    typedef  int ## i ##_t s ## i; \
-    typedef uint ## i ##_t u ## i; \
-    template<> struct w2u_<i> { typedef u ## i type; }; \
-    template<> struct w2s_<i> { typedef s ## i type; }; \
+#define CODE(i)                                                                         \
+    typedef  int ## i ##_t s ## i;                                                      \
+    typedef uint ## i ##_t u ## i;                                                      \
+    template<> struct w2u_<i> { typedef u ## i type; };                                 \
+    template<> struct w2s_<i> { typedef s ## i type; };                                 \
     constexpr s ## i operator"" _s ## i(unsigned long long int s) { return s ## i(s); } \
     constexpr u ## i operator"" _u ## i(unsigned long long int u) { return u ## i(u); }
 THORIN_8_16_32_64(CODE)

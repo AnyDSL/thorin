@@ -5,11 +5,11 @@
 #include <memory>
 #include <stack>
 
+#include "thorin/world.h"
 #include "thorin/analyses/domfrontier.h"
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/looptree.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/util/log.h"
 #include "thorin/util/utility.h"
 
 namespace thorin {
@@ -152,7 +152,7 @@ void CFA::verify() {
     for (const auto& p : nodes()) {
         auto in = p.second;
         if (in != entry() && in->preds_.size() == 0) {
-            VLOG("missing predecessors: {}", in->nominal());
+            world().VLOG("missing predecessors: {}", in->nominal());
             error = true;
         }
     }

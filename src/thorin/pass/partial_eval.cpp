@@ -1,7 +1,6 @@
 #include "thorin/pass/partial_eval.h"
 
 #include "thorin/rewrite.h"
-#include "thorin/util/log.h"
 
 namespace thorin {
 

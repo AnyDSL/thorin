@@ -1,6 +1,13 @@
 #include "thorin/world.h"
 
-#include <fstream>
+// for colored output
+#ifdef _WIN32
+#include <io.h>
+#define isatty _isatty
+#define fileno _fileno
+#else
+#include <unistd.h>
+#endif
 
 #include "thorin/alpha_equiv.h"
 #include "thorin/def.h"
@@ -9,7 +16,6 @@
 #include "thorin/util.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/util/array.h"
-#include "thorin/util/log.h"
 
 namespace thorin {
 
@@ -706,6 +712,44 @@ void World::rewrite(const std::string& info, EnterFn enter_fn, RewriteFn rewrite
 
 template void World::visit<true> (VisitFn) const;
 template void World::visit<false>(VisitFn) const;
+
+/*
+ * logging
+ */
+
+const char* World::level2string(LogLevel level) {
+    switch (level) {
+        case LogLevel::Error:   return "E";
+        case LogLevel::Warn:    return "W";
+        case LogLevel::Info:    return "I";
+        case LogLevel::Verbose: return "V";
+        case LogLevel::Debug:   return "D";
+    }
+    THORIN_UNREACHABLE;
+}
+
+int World::level2color(LogLevel level) {
+    switch (level) {
+        case LogLevel::Error:   return 1;
+        case LogLevel::Warn:    return 3;
+        case LogLevel::Info:    return 2;
+        case LogLevel::Verbose: return 4;
+        case LogLevel::Debug:   return 4;
+    }
+    THORIN_UNREACHABLE;
+}
+
+#ifdef COLORIZE_LOG
+std::string World::colorize(const std::string& str, int color) {
+    if (isatty(fileno(stdout))) {
+        const char c = '0' + color;
+        return "\033[1;3" + (c + ('m' + str)) + "\033[0m";
+    }
+#else
+std::string Log::colorize(const std::string& str, int) {
+#endif
+    return str;
+}
 
 /*
  * stream

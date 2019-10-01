@@ -52,8 +52,8 @@ public:
 
     Mode mode() const { return mode_; }
     const Scope& scope() const { return scope_; }
+    World& world() const { return scope().world(); }
     std::string name() const { return scope().name(); }
-    const World& world() const { return scope().world(); }
     const CFA& cfa() const { return scope().cfa(); }
     const F_CFG& cfg() const { return scope().f_cfg(); }
     ArrayRef<Block> blocks() const { return blocks_; }

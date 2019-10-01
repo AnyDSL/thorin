@@ -6,7 +6,6 @@
 #include "thorin/rewrite.h"
 #include "thorin/util.h"
 #include "thorin/world.h"
-#include "thorin/util/log.h"
 #include "thorin/util/utility.h"
 
 namespace thorin {
@@ -150,7 +149,7 @@ std::string Def::unique_name() const {
 }
 
 void Def::replace(Tracker with) const {
-    DLOG("replace: {} -> {}", this, with);
+    world().DLOG("replace: {} -> {}", this, with);
     assert(type() == with->type());
     assert(!is_replaced());
 
@@ -216,7 +215,7 @@ void Lam::set_intrinsic() {
     else if (n == "atomic")               intrin = Intrinsic::Atomic;
     else if (n == "cmpxchg")              intrin = Intrinsic::CmpXchg;
     else if (n == "undef")                intrin = Intrinsic::Undef;
-    else ELOG("unsupported thorin intrinsic");
+    else world().ELOG("unsupported thorin intrinsic");
 
     set_intrinsic(intrin);
 }

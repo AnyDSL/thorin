@@ -2,7 +2,6 @@
 #include "thorin/util.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/util/hash.h"
-#include "thorin/util/log.h"
 
 // WARNING This file will be nuked
 
@@ -113,7 +112,7 @@ public:
             if(order >= 2 || (order == 1
                         && (!callee_->param(i)->type()->isa<Pi>()
                         || (!callee_->is_returning() || (!is_top_level(callee_)))))) {
-            DLOG("bad param({}) {} of lam {}", i, callee_->param(i), callee_);
+            world().DLOG("bad param({}) {} of lam {}", i, callee_->param(i), callee_);
             return true;
         }
 
@@ -171,7 +170,7 @@ void PartialEvaluator::eat_pe_info(Lam* cur) {
 
     if (is_const(cur->app()->arg(2))) {
         //auto msg = cur->app()->arg(1)->as<Bitcast>()->from()->as<Global>()->init();
-        IDEF(cur->app()->callee(), "pe_info: {}: {}", "TODO", cur->app()->arg(2));
+        world().idef(cur->app()->callee(), "pe_info: {}: {}", "TODO", cur->app()->arg(2));
         cur->app(next, {cur->app()->arg(0)}, cur->app()->debug());
 
         // always re-insert into queue because we've changed cur's jump
@@ -261,9 +260,9 @@ bool PartialEvaluator::run() {
 
 bool partial_evaluation(World& world, bool lower2cff) {
     auto name = lower2cff ? "lower2cff" : "partial_evaluation";
-    VLOG("start {}", name);
+    world.VLOG("start {}", name);
     auto res = PartialEvaluator(world, lower2cff).run();
-    VLOG("end {}", name);
+    world.VLOG("end {}", name);
     return res;
 }
 

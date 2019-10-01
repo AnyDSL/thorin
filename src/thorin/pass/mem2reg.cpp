@@ -1,7 +1,6 @@
 #include "thorin/pass/mem2reg.h"
 
 #include "thorin/util.h"
-#include "thorin/util/log.h"
 
 namespace thorin {
 

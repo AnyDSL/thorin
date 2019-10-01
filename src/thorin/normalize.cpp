@@ -1,7 +1,6 @@
 #include "thorin/def.h"
 #include "thorin/util.h"
 #include "thorin/world.h"
-#include "thorin/util/log.h"
 
 namespace thorin {
 
@@ -632,7 +631,7 @@ const Def* normalize_bitcast(const Def* dst_type, const Def* callee, const Def* 
     }
 
     if (auto variant = src->isa<Variant>()) {
-        if (variant->op(0)->type() != dst_type) ELOG("variant downcast not possible");
+        if (variant->op(0)->type() != dst_type) world.ELOG("variant downcast not possible");
         return variant->op(0);
     }
 

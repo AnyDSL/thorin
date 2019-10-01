@@ -1,7 +1,6 @@
 #include "thorin/be/llvm/amdgpu.h"
 
 #include "thorin/world.h"
-#include "thorin/util/log.h"
 
 namespace thorin {
 
@@ -43,7 +42,7 @@ unsigned AMDGPUCodeGen::convert_addr_space(u64 addr_space) {
 }
 
 llvm::Value* AMDGPUCodeGen::emit_global(const Global* global) {
-    WDEF(global, "AMDGPU: Global variable '{}' will not be synced with host", global);
+    world().wdef(global, "AMDGPU: Global variable '{}' will not be synced with host", global);
     return CodeGen::emit_global(global);
 }
 

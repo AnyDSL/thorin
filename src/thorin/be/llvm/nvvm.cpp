@@ -15,7 +15,6 @@
 #include <llvm/Support/SourceMgr.h>
 
 #include "thorin/world.h"
-#include "thorin/util/log.h"
 
 namespace thorin {
 
@@ -138,7 +137,7 @@ void NVVMCodeGen::emit_function_start(llvm::BasicBlock*, Lam* lam) {
 }
 
 llvm::Value* NVVMCodeGen::emit_global(const Global* global) {
-    WDEF(global, "NVVM: Global variable '{}' will not be synced with host", global);
+    world().wdef(global, "NVVM: Global variable '{}' will not be synced with host", global);
     return CodeGen::emit_global(global);
 }
 

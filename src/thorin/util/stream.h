@@ -12,7 +12,7 @@ namespace thorin {
 
 class Stream {
 public:
-    Stream(std::ostream& os, const std::string& tab = {"    "}, size_t level = 0)
+    Stream(std::ostream& os = std::cout, const std::string& tab = {"    "}, size_t level = 0)
         : os_(os)
         , tab_(tab)
         , level_(level)
@@ -54,7 +54,7 @@ public:
         auto ptr = s;
         while (auto p = strchr(ptr, '{')) {
             if (*(p + 1) != '{') {
-                assert(false && "Some symbols have not been formatted");
+                assert(false && "some symbols have not been formatted");
                 break;
             }
             ptr = p + 2;
@@ -68,7 +68,7 @@ public:
         auto ptr = s;
         auto p = strchr(ptr, '{');
         while (p && *(p + 1) == '{') p = strchr(p + 2, '{');
-        assert(p != nullptr && "Missing argument to format");
+        assert(p != nullptr && "missing argument to format");
         ostream().write(ptr, p - ptr);
         (*this) << t;
         return fmt(strchr(p, '}') + 1, std::forward<Args&&>(args)...);
@@ -81,6 +81,9 @@ private:
     size_t level_;
 };
 
+template<class... Args> void outf(const char* fmt, Args&&... args) { Stream().fmt(fmt, std::forward<Args&&>(args)...).endl(); }
+template<class... Args> void errf(const char* fmt, Args&&... args) { Stream().fmt(fmt, std::forward<Args&&>(args)...).endl(); }
+
 template<class P>
 class Streamable {
 private:
@@ -91,7 +94,7 @@ public:
     void write(const std::string& filename) const { std::ofstream ofs(filename); Stream s(ofs); parent().stream(s).endl(); }
     /// Writes to a file named @p parent().name().
     void write() const { write(parent().name()); }
-    /// Writes to std out.
+    /// Writes to stdout.
     void dump() const { Stream s(std::cout); parent().stream(s).endl(); }
     /// Streams to string.
     std::string to_string() const { std::ostringstream oss; Stream s(oss); parent().stream(s); return oss.str(); }
@@ -100,12 +103,12 @@ public:
 #ifdef NDEBUG
 #define assertf(condition, ...) do { (void)sizeof(condition); } while (false)
 #else
-#define assertf(condition, ...)                                                                                                         \
-    do {                                                                                                                                \
-        if (!(condition)) {                                                                                                             \
+#define assertf(condition, ...)                                                                                                 \
+    do {                                                                                                                        \
+        if (!(condition)) {                                                                                                     \
             Stream(std::cerr).fmt("assertion '{}' failed in {}:{}: ", #condition, __FILE__,  __LINE__).fmt(__VA_ARGS__).endl(); \
-            std::abort();                                                                                                               \
-        }                                                                                                                               \
+            std::abort();                                                                                                       \
+        }                                                                                                                       \
     } while (false)
 #endif
 

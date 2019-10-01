@@ -1,6 +1,5 @@
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/util/log.h"
 
 namespace thorin {
 
@@ -8,8 +7,8 @@ static void verify_top_level(World& world) {
     world.visit([&](const Scope& scope) {
         if (scope.has_free_params()) {
             for (auto param : scope.free_params())
-                ELOG("top-level lam '{}' got free param '{}' belonging to lam {}", scope.entry(), param, param->lam());
-            ELOG("here: {}", scope.entry());
+                world.ELOG("top-level lam '{}' got free param '{}' belonging to lam {}", scope.entry(), param, param->lam());
+            world.ELOG("here: {}", scope.entry());
         }
     });
 }

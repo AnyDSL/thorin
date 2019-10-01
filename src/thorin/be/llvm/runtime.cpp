@@ -10,7 +10,6 @@
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Support/SourceMgr.h>
 
-#include "thorin/util/log.h"
 #include "thorin/be/llvm/llvm.h"
 #include "thorin/be/llvm/runtime.inc"
 
@@ -54,6 +53,8 @@ static bool contains_ptrtype(const Def* type) {
 }
 
 Lam* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std::string& ext, Lam* lam) {
+    auto& world = lam->world();
+
     // to-target is the desired kernel call
     // target(mem, device, (dim.x, dim.y, dim.z), (block.x, block.y, block.z), body, return, free_vars)
     auto target = lam->app()->callee()->as_nominal<Lam>();
@@ -91,7 +92,7 @@ Lam* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std::st
 
             // check if argument type contains pointers
             if (!contains_ptrtype(target_arg->type()))
-                WDEF(target_arg, "argument '{}' of aggregate type '{}' contains pointer (not supported in OpenCL 1.2)", target_arg, target_arg->type());
+                world.wdef(target_arg, "argument '{}' of aggregate type '{}' contains pointer (not supported in OpenCL 1.2)", target_arg, target_arg->type());
 
             void_ptr = builder_.CreatePointerCast(alloca, builder_.getInt8PtrTy());
             arg_type = KernelArgType::Struct;
@@ -99,7 +100,7 @@ Lam* Runtime::emit_host_code(CodeGen& code_gen, Platform platform, const std::st
             auto [rtype, addr_space] = ptr->args<2>();
 
             if (!rtype->isa<Variadic>())
-                EDEF(target_arg, "currently only pointers to arrays supported as kernel argument; argument has different type: {}", ptr);
+                world.edef(target_arg, "currently only pointers to arrays supported as kernel argument; argument has different type: {}", ptr);
 
             auto alloca = code_gen.emit_alloca(builder_.getInt8PtrTy(), target_arg->name());
             auto target_ptr = builder_.CreatePointerCast(target_val, builder_.getInt8PtrTy());

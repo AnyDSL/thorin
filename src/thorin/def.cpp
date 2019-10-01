@@ -71,23 +71,24 @@ THORIN_NODE(CODE)
 }
 
 std::string Def::loc() const {
-    std::ostringstream os;
-    os << filename() << ':';
+    std::ostringstream oss;
+    Stream s(oss);
+    s.fmt("{}:", filename());
 
     if (front_col() == nat_t(-1) || back_col() == nat_t(-1)) {
         if (front_line() != back_line())
-            streamf(os, "{} - {}", front_line(), back_line());
+            s.fmt("{} - {}", front_line(), back_line());
         else
-            streamf(os, "{}", front_line());
+            s.fmt("{}", front_line());
     } else if (front_line() != back_line()) {
-        streamf(os, "{} col {} - {} col {}", front_line(), front_col(), back_line(), back_col());
+        s.fmt("{} col {} - {} col {}", front_line(), front_col(), back_line(), back_col());
     } else if (front_col() != back_col()) {
-        streamf(os, "{} col {} - {}", front_line(), front_col(), back_col());
+        s.fmt("{} col {} - {}", front_line(), front_col(), back_col());
     } else {
-        streamf(os, "{} col {}", front_line(), front_col());
+        s.fmt("{} col {}", front_line(), front_col());
     }
 
-    return os.str();
+    return oss.str();
 }
 
 void Def::finalize() {

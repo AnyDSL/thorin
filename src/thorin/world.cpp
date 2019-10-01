@@ -715,8 +715,8 @@ template void World::visit<false>(VisitFn) const;
  * stream
  */
 
-std::ostream& World::stream(std::ostream& os) const {
-    os << "module '" << name() << "'\n\n";
+Stream& World::stream(Stream& s) const {
+    s << "module '" << name() << "'\n\n";
 
     std::vector<const Global*> globals;
 
@@ -726,20 +726,13 @@ std::ostream& World::stream(std::ostream& os) const {
     }
 
     //for (auto global : globals)
-        //global->stream_assignment(os);
+        //global->stream_assignment(s);
 
     visit<false>([&] (const Scope& scope) {
         if (scope.entry()->isa<Axiom>()) return;
-        scope.stream(os);
+        scope.stream(s);
     });
-    return os;
-}
-
-void World::write_thorin(const char* filename) const { std::ofstream file(filename); stream(file); }
-
-void World::thorin() const {
-    auto filename = std::string(name()) + ".thorin";
-    write_thorin(filename.c_str());
+    return s;
 }
 
 }

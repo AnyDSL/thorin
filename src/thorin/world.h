@@ -10,7 +10,6 @@
 #include "thorin/def.h"
 #include "thorin/util.h"
 #include "thorin/util/hash.h"
-#include "thorin/util/streamf.h"
 #include "thorin/config.h"
 
 namespace thorin {
@@ -42,7 +41,7 @@ const Def* infer_width(const Def*);
  *
  *  Note that types are also just @p Def%s and will be hashed as well.
  */
-class World : public Streamable {
+class World : public Streamable<World> {
 public:
     struct SeaHash {
         static hash_t hash(const Def* def) { return def->hash(); }
@@ -464,13 +463,7 @@ public:
     const Def* lookup_by_gid(u32 gid);
     //@}
 #endif
-    /// @name stream
-    //@{
-    // Note that we don't use overloading for the following methods in order to have them accessible from gdb.
-    virtual std::ostream& stream(std::ostream&) const override; ///< Streams thorin to file @p out.
-    void write_thorin(const char* filename) const;              ///< Dumps thorin to file with name @p filename.
-    void thorin() const;                                        ///< Dumps thorin to a file with an auto-generated file name.
-    //@}
+    Stream& stream(Stream&) const;
 
     friend void swap(World& w1, World& w2) {
         using std::swap;

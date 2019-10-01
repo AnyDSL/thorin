@@ -10,6 +10,7 @@
 #include "thorin/util/array.h"
 #include "thorin/util/cast.h"
 #include "thorin/util/hash.h"
+#include "thorin/util/stream.h"
 
 namespace thorin {
 
@@ -127,7 +128,7 @@ using Nom2Nom = NomMap<Def*>;
  * This means that any subclass of @p Def must not introduce additional members.
  * See App or Lit how this is done.
  */
-class Def : public RuntimeCast<Def> {
+class Def : public RuntimeCast<Def>, public Streamable<Def> {
 public:
     using RebuildFn   = const Def* (*)(const Def*, World&, const Def*, Defs, const Def*);
     using StubFn      = Def* (*)(const Def*, World&, const Def*, const Def*);
@@ -271,11 +272,7 @@ public:
     }
     bool equal(const Def* other) const;
     //@}
-    /// @name stream
-    //@{
-    void dump() const;
     Stream& stream(Stream& s);
-    //@}
 
 protected:
     const Def** ops_ptr() const { return reinterpret_cast<const Def**>(reinterpret_cast<char*>(const_cast<Def*>(this + 1))); }
@@ -312,7 +309,10 @@ protected:
     friend void swap(World&, World&);
 };
 
-Stream& operator<<(Stream& s, const Def* def);
+enum class Recurse { No, OneLevel };
+
+Stream& stream(Stream&, const Def*, Recurse recurse);
+Stream& stream_assignment(Stream&, const Def*);
 
 class Param : public Def {
 private:

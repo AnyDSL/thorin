@@ -2,11 +2,11 @@
 #define THORIN_ANALYSES_SCHEDULE_H
 
 #include "thorin/analyses/cfg.h"
-#include "thorin/util/streamf.h"
+#include "thorin/util/stream.h"
 
 namespace thorin {
 
-class Schedule : public Streamable {
+class Schedule : public Streamable<Schedule> {
 public:
     enum Mode { Early, Late, Smart };
 
@@ -60,15 +60,10 @@ public:
     const Block& operator[](const CFNode* n) const { return blocks_[indices_[n]]; }
     static size_t index(const Block& block) { return block.index(); }
     void verify();
-
-    // Note that we don't use overloading for the following methods in order to have them accessible from gdb.
-    virtual std::ostream& stream(std::ostream&) const override;  ///< Streams thorin to file @p out.
-    void write_thorin(const char* filename) const;               ///< Dumps thorin to file with name @p filename.
-    void thorin() const;                                         ///< Dumps thorin to a file with an auto-generated file name.
-
     typedef ArrayRef<const Block>::const_iterator const_iterator;
     const_iterator begin() const { return blocks().begin(); }
     const_iterator end() const { return blocks().end(); }
+    Stream& stream(Stream&) const;
 
 private:
     Block& operator[](const CFNode* n) { return blocks_[indices_[n]]; }

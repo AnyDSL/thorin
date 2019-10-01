@@ -6,13 +6,10 @@
 #include <cstddef>
 #include <cstring>
 #include <initializer_list>
-#include <iostream>
 #include <iterator>
 #include <functional>
 #include <vector>
 #include <type_traits>
-
-#include "thorin/util/stream.h"
 
 namespace thorin {
 
@@ -31,7 +28,7 @@ class Array;
  * Useful operations are @p skip_front and @p skip_back to create other @p ArrayRef%s.
  */
 template<class T>
-class ArrayRef : public Streamable<ArrayRef<T>> {
+class ArrayRef {
 public:
     typedef T value_type;
     typedef const T* const_iterator;
@@ -88,7 +85,6 @@ public:
     Array<T> cut(ArrayRef<size_t> indices, size_t reserve = 0) const;
     template<class Other>
     bool operator==(const Other& other) const { return this->size() == other.size() && std::equal(begin(), end(), other.begin()); }
-    Stream& stream(Stream& s) const { return s.list(*this, [&](const auto& elem) { s << elem; }, "{", "}").endl(); }
 
 private:
     size_t size_;
@@ -193,7 +189,7 @@ private:
  *    But once shrunk, there is no way back.
  */
 template<class T>
-class Array : public Streamable<Array<T>> {
+class Array {
 public:
     typedef T value_type;
     typedef T* iterator;
@@ -279,7 +275,6 @@ public:
     T const& operator[](size_t i) const { assert(i < size() && "index out of bounds"); return data()[i]; }
     bool operator==(const Array other) const { return ArrayRef<T>(*this) == ArrayRef<T>(other); }
     Array& operator=(Array other) { swap(*this, other); return *this; }
-    Stream& stream(Stream& s) const { return ref().stream(s); }
 
     friend void swap(Array& a, Array& b) {
         swap(a.storage_, b.storage_);

@@ -633,6 +633,20 @@ public:
     friend class World;
 };
 
+class DS2CPS : public Def {
+private:
+    DS2CPS(const Def* type, const Def* ds, const Def* dbg)
+        : Def(Node, rebuild, type, { ds }, 0, dbg)
+    {}
+
+public:
+    const Def* ds() const { return op(0); }
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+
+    static constexpr auto Node = Node::DS2CPS;
+    friend class World;
+};
+
 class Tracker {
 public:
     Tracker()

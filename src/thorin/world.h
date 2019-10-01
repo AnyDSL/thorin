@@ -299,9 +299,10 @@ public:
     const VariantType* variant_type(Defs ops, Debug dbg = {}) { return unify<VariantType>(ops.size(), kind_star(), ops, debug(dbg)); }
     const Def* variant(const VariantType* variant_type, const Def* value, Debug dbg = {}) { return unify<Variant>(1, variant_type, value, debug(dbg)); }
     //@}
-    /// @name CPS2DS
+    /// @name CPS2DS/DS2CPS
     //@{
     const Def* cps2ds(const Def* cps, Debug dbg = {});
+    const Def* ds2cps(const Def* ds, Debug dbg = {});
     //@}
     /// @name misc types
     //@{

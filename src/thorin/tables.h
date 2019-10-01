@@ -22,6 +22,7 @@ using nat_t    = u64;
                        m(Insert, insert)                  \
                        m(Lam, lam)                        \
                        m(CPS2DS, cps2ds)                  \
+                       m(DS2CPS, ds2cps)                  \
                        m(Lit, lit)                        \
                        m(Pack, pack)                      \
                        m(Pi, pi)                          \

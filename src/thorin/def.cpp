@@ -169,25 +169,14 @@ void Def::replace(Tracker with) const {
  * Lam
  */
 
-const Def* Lam::mem_param() {
-    for (size_t i = 0, e = num_params(); i != e; ++i) {
-        auto p = param(i);
-        if (p->type()->isa<Mem>())
-            return p;
-    }
-    return nullptr;
+const Def* Lam::mem_param(thorin::Debug dbg) {
+    return param(0)->type()->isa<Mem>() ? param(0, dbg) : nullptr;
 }
 
-const Def* Lam::ret_param() {
-    const Def* result = nullptr;
-    for (size_t i = 0, e = num_params(); i != e; ++i) {
-        auto p = param(i);
-        if (p->type()->order() >= 1) {
-            assertf(result == nullptr, "only one ret_param allowed");
-            result = p;
-        }
-    }
-    return result;
+const Def* Lam::ret_param(thorin::Debug dbg) {
+    auto p = param(num_params() - 1, dbg);
+    assert(p->type()->as<thorin::Pi>()->is_cn());
+    return p;
 }
 
 bool Lam::is_intrinsic() const { return intrinsic() != Intrinsic::None; }
@@ -395,6 +384,7 @@ size_t Def::num_params() { return param()->type()->lit_arity(); }
 
 const Def* Lam        ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* dbg) { assert(!d->isa_nominal()); return w.lam(t->as<Pi>(), o[0], o[1], dbg); }
 const Def* CPS2DS     ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.cps2ds(o[0], dbg); }
+const Def* DS2CPS     ::rebuild(const Def*  , World& w, const Def*  , Defs o, const Def* dbg) { return w.ds2cps(o[0], dbg); }
 const Def* Sigma      ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* dbg) { assert(!d->isa_nominal()); return w.sigma(t, o, dbg); }
 const Def* Union      ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* dbg) { assert(!d->isa_nominal()); return w.union_(t, o, dbg); }
 const Def* Analyze    ::rebuild(const Def* d, World& w, const Def* t, Defs o, const Def* dbg) { return w.analyze(t, o, d->fields(), dbg); }

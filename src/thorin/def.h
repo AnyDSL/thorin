@@ -573,8 +573,8 @@ public:
     //@}
     /// @name params
     //@{
-    const Def* mem_param();
-    const Def* ret_param();
+    const Def* mem_param(thorin::Debug dbg = {});
+    const Def* ret_param(thorin::Debug dbg = {});
     //@}
     /// @name setters
     //@{
@@ -630,6 +630,20 @@ public:
     static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
 
     static constexpr auto Node = Node::CPS2DS;
+    friend class World;
+};
+
+class DS2CPS : public Def {
+private:
+    DS2CPS(const Def* type, const Def* ds, const Def* dbg)
+        : Def(Node, rebuild, type, { ds }, 0, dbg)
+    {}
+
+public:
+    const Def* ds() const { return op(0); }
+    static const Def* rebuild(const Def*, World&, const Def*, Defs, const Def*);
+
+    static constexpr auto Node = Node::DS2CPS;
     friend class World;
 };
 

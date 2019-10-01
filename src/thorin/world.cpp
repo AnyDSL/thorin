@@ -486,10 +486,24 @@ const Def* World::bot_top(bool is_top, const Def* type, Debug dbg) {
 }
 
 const Def* World::cps2ds(const Def* cps, Debug dbg) {
+    if (auto ds = cps->isa<DS2CPS>())
+        return ds->ds();
     auto cn  = cps->type()->as<Pi>();
     auto ret = cn->domain()->as<Sigma>()->op(cn->num_domains() - 1)->as<Pi>();
     auto type = pi(sigma(cn->domains().skip_back()), ret->domain());
     return unify<CPS2DS>(1, type, cps, debug(dbg));
+}
+
+const Def* World::ds2cps(const Def* ds, Debug dbg) {
+    if (auto cps = ds->isa<CPS2DS>())
+        return cps->cps();
+    auto fn  = ds->type()->as<Pi>();
+    Array<const Def*> domains(fn->num_domains() + 1);
+    for (size_t i = 0, n = fn->num_domains(); i < n; ++i)
+        domains[i] = fn->domain(i);
+    domains.back() = cn(fn->codomain());
+    auto type = cn(domains);
+    return unify<DS2CPS>(1, type, ds, debug(dbg));
 }
 
 const Def* World::global(const Def* id, const Def* init, bool is_mutable, Debug dbg) {

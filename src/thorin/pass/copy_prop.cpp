@@ -78,7 +78,7 @@ void CopyProp::inspect(Def* def) {
                 man().new_state();
 
                 auto new_lam = world().lam(world().pi(new_domain, old_lam->codomain()), old_lam->debug());
-                outf("new_lam: {}:{} -> {}:{}\n", old_lam, old_lam->type(), new_lam, new_lam->type());
+                outf("new_lam: {}:{} -> {}:{}", old_lam, old_lam->type(), new_lam, new_lam->type());
                 new2old(new_lam) = old_lam;
                 info.new_lam = new_lam;
             }

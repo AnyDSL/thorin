@@ -20,19 +20,15 @@ const Def* infer_width(const Def* def) {
 }
 
 /*
- * constructor and destructor
+ * constructor
  */
 
 #ifndef NDEBUG
-bool World::Lock::allocate_guard_ = false;
+bool World::Arena::Lock::guard_ = false;
 #endif
 
-World::World(uint32_t cur_gid, const std::string& name, bool tuple2pack)
-    : root_page_(new Zone)
-    , cur_page_(root_page_.get())
-    , name_(name.empty() ? "module" : name)
-    , cur_gid_(cur_gid)
-    , tuple2pack_(tuple2pack)
+World::World(const std::string& name)
+    : name_(name.empty() ? "module" : name)
 {
     cache_.universe_      = insert<Universe >(0, *this);
     cache_.kind_star_     = insert<KindStar >(0, *this);
@@ -258,7 +254,7 @@ const Def* World::sigma(const Def* type, Defs ops, Debug dbg) {
     auto n = ops.size();
     if (n == 0) return sigma();
     if (n == 1) return ops[0];
-    if (tuple2pack_ && std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; }))
+    if (tuple2pack() && std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; }))
         return variadic(n, ops[0]);
     return unify<Sigma>(ops.size(), type, ops, debug(dbg));
 }
@@ -285,7 +281,7 @@ const Def* World::tuple(const Def* type, Defs ops, Debug dbg) {
     if (n == 1) return ops[0];
     if (type->isa_nominal()) return unify<Tuple>(ops.size(), type, ops, debug(dbg));
 
-    if (tuple2pack_ && std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; }))
+    if (tuple2pack() && std::all_of(ops.begin()+1, ops.end(), [&](auto op) { return ops[0] == op; }))
         return pack(n, ops[0]);
 
     // eta rule for tuples:
@@ -729,8 +725,8 @@ template void World::visit<false>(VisitFn) const;
  * stream
  */
 
-std::ostream& World::stream(std::ostream& os) const {
-    os << "module '" << name() << "'\n\n";
+Stream& World::stream(Stream& s) const {
+    s << "module '" << name() << "'\n\n";
 
     std::vector<const Global*> globals;
 
@@ -740,20 +736,13 @@ std::ostream& World::stream(std::ostream& os) const {
     }
 
     //for (auto global : globals)
-        //global->stream_assignment(os);
+        //global->stream_assignment(s);
 
     visit<false>([&] (const Scope& scope) {
         if (scope.entry()->isa<Axiom>()) return;
-        scope.stream(os);
+        scope.stream(s);
     });
-    return os;
-}
-
-void World::write_thorin(const char* filename) const { std::ofstream file(filename); stream(file); }
-
-void World::thorin() const {
-    auto filename = std::string(name()) + ".thorin";
-    write_thorin(filename.c_str());
+    return s;
 }
 
 }

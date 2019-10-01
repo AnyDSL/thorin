@@ -1,7 +1,6 @@
 #include "thorin/analyses/scope.h"
 
 #include <algorithm>
-#include <fstream>
 
 #include "thorin/rewrite.h"
 #include "thorin/util/log.h"
@@ -91,8 +90,9 @@ const CFA& Scope::cfa() const { return lazy_init(this, cfa_); }
 const F_CFG& Scope::f_cfg() const { return cfa().f_cfg(); }
 const B_CFG& Scope::b_cfg() const { return cfa().b_cfg(); }
 
-std::ostream& Scope::stream(std::ostream& os) const { return schedule(*this).stream(os); }
-void Scope::write_thorin(const char* filename) const { return schedule(*this).write_thorin(filename); }
-void Scope::thorin() const { schedule(*this).thorin(); }
+Stream& Scope::stream(Stream& s) const { return schedule(*this).stream(s); }
+
+template void Streamable<Scope>::dump() const;
+template void Streamable<Scope>::write() const;
 
 }

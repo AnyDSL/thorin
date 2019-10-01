@@ -7,7 +7,7 @@
 #include <ostream>
 #include <sstream>
 
-#include "thorin/util/streamf.h"
+#include "thorin/util/stream.h"
 
 namespace thorin {
 
@@ -30,19 +30,20 @@ public:
     static int level2color(Level);
     static std::string colorize(const std::string&, int);
 
-    template<typename... Args>
-    static void log(Level level, const std::string& loc, const char* fmt, Args... args) {
+    template<class... Args>
+    static void log(Level level, const std::string& loc, const char* fmt, Args&&... args) {
         if (Log::get_stream() && Log::get_min_level() <= level) {
             std::ostringstream oss;
             oss << loc;
-            streamf(Log::stream(), "{}:{}: ", colorize(level2string(level), level2color(level)), colorize(oss.str(), 7));
-            streamf(Log::stream(), fmt, std::forward<Args>(args)...) << std::endl;
+            Stream s(Log::stream());
+            s.fmt("{}:{}: ", colorize(level2string(level), level2color(level)), colorize(oss.str(), 7));
+            s.fmt(fmt, std::forward<Args&&>(args)...).endl();
         }
     }
 
-    template<typename... Args>
-    [[noreturn]] static void error(const std::string& loc, const char* fmt, Args... args) {
-        log(Error, loc, fmt, args...);
+    template<class... Args>
+    [[noreturn]] static void error(const std::string& loc, const char* fmt, Args&&... args) {
+        log(Error, loc, fmt, std::forward<Args&&>(args)...);
         std::abort();
     }
 
@@ -54,8 +55,8 @@ private:
     static Level min_level_;
 };
 
-template<typename... Args> std::ostream& outf(const char* fmt, Args... args) { return streamf(std::cout, fmt, std::forward<Args>(args)...); }
-template<typename... Args> std::ostream& errf(const char* fmt, Args... args) { return streamf(std::cerr, fmt, std::forward<Args>(args)...); }
+template<class... Args> void outf(const char* fmt, Args&&... args) { Stream s(std::cout); s.fmt(fmt, std::forward<Args&&>(args)...).endl(); }
+template<class... Args> void errf(const char* fmt, Args&&... args) { Stream s(std::cerr); s.fmt(fmt, std::forward<Args&&>(args)...).endl(); }
 
 #define THORIN_STRINGIFY(x) #x
 #define THORIN_TOSTRING(x) THORIN_STRINGIFY(x)

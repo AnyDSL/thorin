@@ -5,7 +5,7 @@
 
 #include "thorin/def.h"
 #include "thorin/util/array.h"
-#include "thorin/util/streamf.h"
+#include "thorin/util/stream.h"
 
 namespace thorin {
 
@@ -19,7 +19,7 @@ using B_CFG = CFG<false>;
  * Transitively, all user's of the @p entry's @p Param%s are pooled into this @p Scope.
  * Both @p entry() and @p exit() are @em NOT part of the @p Scope itself - but their @p Param%s.
  */
-class Scope : public Streamable {
+class Scope : public Streamable<Scope> {
 public:
     Scope(const Scope&) = delete;
     Scope& operator=(Scope) = delete;
@@ -34,6 +34,7 @@ public:
     World& world() const { return world_; }
     Def* entry() const { return entry_; }
     Def* exit() const { return exit_; }
+    std::string name() const { return entry_->name(); }
     //@}
     /// @name get Def%s contained in this Scope
     //@{
@@ -52,13 +53,7 @@ public:
     const F_CFG& f_cfg() const;
     const B_CFG& b_cfg() const;
     //@}
-    /// @name dump
-    //@{
-    // Note that we don't use overloading for the following methods in order to have them accessible from gdb.
-    virtual std::ostream& stream(std::ostream&) const override;  ///< Streams thorin to file @p out.
-    void write_thorin(const char* filename) const;               ///< Dumps thorin to file with name @p filename.
-    void thorin() const;                                         ///< Dumps thorin to a file with an auto-generated file name.
-    //@}
+    Stream& stream(Stream&) const;
 
 private:
     void run();

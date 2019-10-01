@@ -7,7 +7,7 @@
 #include "thorin/util/array.h"
 #include "thorin/util/indexmap.h"
 #include "thorin/util/indexset.h"
-#include "thorin/util/streamf.h"
+#include "thorin/util/stream.h"
 
 namespace thorin {
 
@@ -24,7 +24,7 @@ typedef GIDSet<const CFNode*> CFNodes;
  * A Control-Flow Node.
  * Managed by @p CFA.
  */
-class CFNode : public Streamable {
+class CFNode : public Streamable<CFNode> {
 public:
     CFNode(Def* nom)
         : nominal_(nom)
@@ -33,7 +33,7 @@ public:
 
     uint64_t gid() const { return gid_; }
     Def* nominal() const { return nominal_; }
-    std::ostream& stream(std::ostream& os) const override;
+    Stream& stream(Stream&) const;
 
 private:
     const CFNodes& preds() const { return preds_; }

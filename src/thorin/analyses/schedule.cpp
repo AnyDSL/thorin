@@ -4,7 +4,6 @@
 
 #include "thorin/config.h"
 #include "thorin/def.h"
-#include "thorin/stream.h"
 #include "thorin/world.h"
 #include "thorin/analyses/cfg.h"
 #include "thorin/analyses/domtree.h"
@@ -283,15 +282,14 @@ void Schedule::verify() {
 #endif
 }
 
-std::ostream& Schedule::stream(std::ostream& os) const {
-    Stream s(os);
+Stream& Schedule::stream(Stream& s) const {
     for (auto& block : *this) {
         auto nom = block.nominal();
         if (isa<Tag::End>(nom)) continue;
 
         bool indent = nom != scope().entry();
         if (indent) s.indent();
-        s.endl().streamf("{}: {}", nom->unique_name(), nom->type()).indent();
+        s.endl().fmt("{}: {}", nom->unique_name(), nom->type()).indent();
 
         for (auto def : block) stream_assignment(s.endl(), def);
 
@@ -300,15 +298,11 @@ std::ostream& Schedule::stream(std::ostream& os) const {
         s.endl();
     }
 
-    return os;
+    return s;
 }
 
-void Schedule::write_thorin(const char* filename) const { std::ofstream file(filename); stream(file); }
-
-void Schedule::thorin() const {
-    auto filename = world().name() + "_" + scope().entry()->unique_name() + ".thorin";
-    write_thorin(filename.c_str());
-}
+template void Streamable<Schedule>::dump() const;
+template void Streamable<Schedule>::write() const;
 
 //------------------------------------------------------------------------------
 

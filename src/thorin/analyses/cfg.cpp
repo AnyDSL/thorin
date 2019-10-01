@@ -23,7 +23,7 @@ void CFNode::link(const CFNode* other) const {
     other->preds_.emplace(this);
 }
 
-std::ostream& CFNode::stream(std::ostream& out) const { return streamf(out, "{}", nominal()); }
+Stream& CFNode::stream(Stream& s) const { return s << nominal(); }
 
 //------------------------------------------------------------------------------
 

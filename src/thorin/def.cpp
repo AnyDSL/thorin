@@ -434,4 +434,6 @@ Def* Sigma   ::stub(const Def* d, World& to, const Def* t, const Def* dbg) { ass
 Def* Union   ::stub(const Def* d, World& to, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return to.union_(t, d->num_ops(), dbg); }
 Def* Variadic::stub(const Def* d, World& to, const Def* t, const Def* dbg) { assert(d->isa_nominal()); return to.variadic(t, Debug{dbg}); }
 
+template void Streamable<Def>::dump() const;
+
 }

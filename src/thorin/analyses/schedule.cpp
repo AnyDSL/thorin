@@ -301,6 +301,9 @@ Stream& Schedule::stream(Stream& s) const {
     return s;
 }
 
+template void Streamable<Schedule>::dump() const;
+template void Streamable<Schedule>::write() const;
+
 //------------------------------------------------------------------------------
 
 void verify_mem(World& world) {

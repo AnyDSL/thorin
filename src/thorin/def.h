@@ -272,7 +272,7 @@ public:
     }
     bool equal(const Def* other) const;
     //@}
-    Stream& stream(Stream& s);
+    Stream& stream(Stream& s) const;
 
 protected:
     const Def** ops_ptr() const { return reinterpret_cast<const Def**>(reinterpret_cast<char*>(const_cast<Def*>(this + 1))); }

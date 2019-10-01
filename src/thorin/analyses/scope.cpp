@@ -92,4 +92,7 @@ const B_CFG& Scope::b_cfg() const { return cfa().b_cfg(); }
 
 Stream& Scope::stream(Stream& s) const { return schedule(*this).stream(s); }
 
+template void Streamable<Scope>::dump() const;
+template void Streamable<Scope>::write() const;
+
 }

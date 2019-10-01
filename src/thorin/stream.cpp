@@ -11,6 +11,10 @@ Stream& Stream::endl() {
 
 //------------------------------------------------------------------------------
 
+Stream& Def::stream(Stream& s) const {
+    return thorin::stream(s, this, Recurse::OneLevel);
+}
+
 Stream& operator<<(Stream& s, const Def* def) {
     if (def == nullptr) return s << "<nullptr>";
     if (is_const(def)) return stream(s, def, Recurse::No);

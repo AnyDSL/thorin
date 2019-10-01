@@ -5,6 +5,7 @@
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <sstream>
 #include <string>
 
 namespace thorin {
@@ -87,11 +88,13 @@ private:
 
 public:
     /// Writes to a file with name @p filename.
-    void write(const std::string& filename) const { parent().stream(Stream(std::ofstream(filename))); }
+    void write(const std::string& filename) const { std::ofstream ofs(filename); Stream s(ofs); parent().stream(s).endl(); }
     /// Writes to a file named @p parent().name().
     void write() const { write(parent().name()); }
     /// Writes to std out.
-    void dump() const { Stream s(std::cout); parent().stream(s); }
+    void dump() const { Stream s(std::cout); parent().stream(s).endl(); }
+    /// Streams to string.
+    std::string to_string() const { std::ostringstream oss; Stream s(oss); parent().stream(s); return oss.str(); }
 };
 
 #ifdef NDEBUG

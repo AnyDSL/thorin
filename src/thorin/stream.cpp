@@ -3,14 +3,6 @@
 
 namespace thorin {
 
-Stream& Stream::endl() {
-    os_ << '\n';
-    for (size_t i = 0; i != level_; ++i) os_ << tab_;
-    return *this;
-}
-
-//------------------------------------------------------------------------------
-
 Stream& Def::stream(Stream& s) const {
     return thorin::stream(s, this, Recurse::OneLevel);
 }

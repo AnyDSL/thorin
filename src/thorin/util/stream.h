@@ -15,15 +15,15 @@ namespace thorin {
 
 class Stream {
 public:
-    Stream(std::ostream& os = std::cout, const std::string& tab = {"    "}, size_t level = 0)
-        : os_(os)
+    Stream(std::ostream& ostream = std::cout, const std::string& tab = {"    "}, size_t level = 0)
+        : ostream_(ostream)
         , tab_(tab)
         , level_(level)
     {}
 
     /// @name getters
     //@{
-    std::ostream& ostream() { return os_; }
+    std::ostream& ostream() { return ostream_; }
     std::string tab() const { return tab_; }
     size_t level() const { return level_; }
     //@}
@@ -31,21 +31,37 @@ public:
     //@{
     Stream& indent() { ++level_; return *this; }
     Stream& dedent() { assert(level_ > 0); --level_; return *this; }
-    Stream& endl();
+    Stream& endl() {
+        ostream() << '\n';
+        for (size_t i = 0; i != level_; ++i) ostream() << tab_;
+        return *this;
+    }
     //@}
     /// @name stream
     //@{
+    /**
+     * fprintf-like function.
+     * Each @c "{}" in @p s corresponds to one of the variadic arguments in @p args.
+     * The type of the corresponding argument must support @c operator<< on @c std::ostream& or preferably @p Stream.
+     * Furthermore, an argument may also be a range-based container where its elements fulfill the condition above.
+     * You can specify the separator within the braces:
+     @code{.cpp}
+         s.fmt("({, })", list) // yields "(a, b, c)"
+     @endcode
+     * If you use @c {\n} as separator, it will invoke Stream::endl - keeping indentation:
+     @code{.cpp}
+         s.fmt("({\n})", list)
+     @endcode
+     */
     template<class T, class... Args>
-    Stream& fmt(const char* s, T&& t, Args&&... args);  ///< Printf-like function. Use @c "{}" as argument.
-    Stream& fmt(const char* s);                         ///< Base case.
-    template<class Emit, class List>
-    Stream& list(const List& list, Emit emit, const char* begin = "", const char* end = "", const char* sep = ", ", bool nl = false);
+    Stream& fmt(const char* s, T&& t, Args&&... args);
+    Stream& fmt(const char* s); ///< Base case.
     //@}
 
 private:
     bool match2nd(const char* next, const char*& s, const char c);
 
-    std::ostream& os_;
+    std::ostream& ostream_;
     std::string tab_;
     size_t level_;
 };
@@ -111,10 +127,10 @@ Stream& Stream::fmt(const char* s, T&& t, Args&&... args) {
             return fmt(s, std::forward<Args&&>(args)...); // call even when *s == '\0' to detect extra arguments
         } else if (*s == '}') {
             if (match2nd(next, s, '}')) continue;
-
             assert(false && "unmatched/unescaped closing brace '}' in format string");
-        } else
+        } else {
             (*this) << *s++;
+        }
     }
 
     assert(false && "invalid format string for 's'");
@@ -128,14 +144,11 @@ inline Stream& Stream::fmt(const char* s) {
 
             while (*s && *s != '}') s++;
 
-            if (*s == '}')
-                assert(false && "invalid format string for 'streamf': missing argument(s)");
-            else
-                assert(false && "invalid format string for 'streamf': missing closing brace and argument");
+            assert(*s != '}' && "invalid format string for 'streamf': missing argument(s)");
+            assert(false && "invalid format string for 'streamf': missing closing brace and argument");
 
         } else if (*s == '}') {
             if (match2nd(next, s, '}')) continue;
-
             assert(false && "unmatched/unescaped closing brace '}' in format string");
         }
         (*this) << *s++;
@@ -150,21 +163,6 @@ inline bool Stream::match2nd(const char* next, const char*& s, const char c) {
         return true;
     }
     return false;
-}
-
-template<class Emit, class List>
-Stream& Stream::list(const List& list, Emit emit, const char* begin, const char* end, const char* sep, bool nl) {
-    (*this) << begin;
-    const char* cur_sep = "";
-    bool cur_nl = false;
-    for (const auto& elem : list) {
-        (*this) << cur_sep;
-        if (cur_nl) endl();
-        emit(elem);
-        cur_sep = sep;
-        cur_nl = true & nl;
-    }
-    return (*this) << end;
 }
 
 #ifdef NDEBUG

@@ -19,7 +19,7 @@ const Def* Inliner::rewrite(const Def* def) {
                 info.lattice = Lattice::Inlined_Once;
                 info.undo = man().cur_state_id();
                 man().new_state();
-                outf("inline: {}\n", lam);
+                world().DLOG("inline: {}", lam);
                 return man().rewrite(thorin::rewrite(lam, app->arg()));
             }
         }
@@ -41,7 +41,7 @@ void Inliner::analyze(const Def* def) {
                 info.lattice = Lattice::Dont_Inline;
             } else if (info.lattice == Lattice::Inlined_Once) {
                 info.lattice = Lattice::Dont_Inline;
-                std::cout << "rollback: " << lam << std::endl;
+                world().DLOG("rollback: {}", lam);
                 keep_.emplace(lam);
                 man().undo(info.undo);
             }

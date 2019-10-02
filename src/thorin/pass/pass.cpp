@@ -25,7 +25,7 @@ void PassMan::run() {
                     pass->enter(cur_nominal_);
             }
 
-            outf("\ncur: {} {}\n", cur_state_id(), cur_nominal());
+            world().DLOG("cur: {} {}", cur_state_id(), cur_nominal());
 
             bool mismatch = false;
             if (cur_nominal_->is_set()) {
@@ -51,7 +51,7 @@ void PassMan::run() {
             }
 
             if (undo_ != No_Undo) {
-                outf("undo: {} -> {}\n", cur_state_id(), undo_);
+                world().DLOG("undo: {} -> {}", cur_state_id(), undo_);
 
                 for (size_t i = cur_state_id(); i-- != undo_;) {
                     if (states_[i].nominal->is_set())

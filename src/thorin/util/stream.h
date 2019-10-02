@@ -82,10 +82,8 @@ public:
     std::string to_string() const { std::ostringstream oss; Stream s(oss); parent().stream(s); return oss.str(); }
 };
 
-template<class T, class = void>
-struct is_streamable : std::false_type {};
-template<class T>
-struct is_streamable<T, std::void_t<decltype(std::declval<T>()->stream(std::declval<thorin::Stream&>()))>> : std::true_type {};
+template<class T, class = void>  struct is_streamable                                                                               : std::false_type {};
+template<class T>                struct is_streamable<T, std::void_t<decltype(std::declval<T>()->stream(std::declval<Stream&>()))>> : std::true_type  {};
 template<class T> static constexpr bool is_streamable_v = is_streamable<T>::value;
 
 template<class T> std::enable_if_t< is_streamable_v<T>, Stream&> operator<<(Stream& s, const T& t) { return t->stream(s); }

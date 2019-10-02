@@ -31,11 +31,7 @@ public:
     //@{
     Stream& indent() { ++level_; return *this; }
     Stream& dedent() { assert(level_ > 0); --level_; return *this; }
-    Stream& endl() {
-        ostream() << '\n';
-        for (size_t i = 0; i != level_; ++i) ostream() << tab_;
-        return *this;
-    }
+    Stream& endl();
     //@}
     /// @name stream
     //@{
@@ -52,6 +48,7 @@ public:
      @code{.cpp}
          s.fmt("({\n})", list)
      @endcode
+     * Finally, you can use @c '\n', '\t', and '\b' to @p endl, @p indent, or @p dedent, respectively.
      */
     template<class T, class... Args>
     Stream& fmt(const char* s, T&& t, Args&&... args);
@@ -99,7 +96,11 @@ Stream& Stream::fmt(const char* s, T&& t, Args&&... args) {
     while (*s != '\0') {
         auto next = s + 1;
 
-        if (*s == '{') {
+        if (false) {
+        } else if (*s == '\n') { s++; endl();
+        } else if (*s == '\t') { s++; indent();
+        } else if (*s == '\b') { s++; dedent();
+        } else if (*s == '{') {
             if (match2nd(next, s, '{')) continue;
             s++; // skip opening brace '{'
 
@@ -134,35 +135,6 @@ Stream& Stream::fmt(const char* s, T&& t, Args&&... args) {
     }
 
     assert(false && "invalid format string for 's'");
-}
-
-inline Stream& Stream::fmt(const char* s) {
-    while (*s) {
-        auto next = s + 1;
-        if (*s == '{') {
-            if (match2nd(next, s, '{')) continue;
-
-            while (*s && *s != '}') s++;
-
-            assert(*s != '}' && "invalid format string for 'streamf': missing argument(s)");
-            assert(false && "invalid format string for 'streamf': missing closing brace and argument");
-
-        } else if (*s == '}') {
-            if (match2nd(next, s, '}')) continue;
-            assert(false && "unmatched/unescaped closing brace '}' in format string");
-        }
-        (*this) << *s++;
-    }
-    return *this;
-}
-
-inline bool Stream::match2nd(const char* next, const char*& s, const char c) {
-    if (*next == c) {
-        (*this) << c;
-        s += 2;
-        return true;
-    }
-    return false;
 }
 
 #ifdef NDEBUG
